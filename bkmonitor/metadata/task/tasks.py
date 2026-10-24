@@ -2363,11 +2363,18 @@ def create_single_tenant_system_event_datalink(data_bk_biz_id: int | None = None
         kafka_cluster_filters = (
             {"cluster_name": kafka_cluster_name} if kafka_cluster_name else {"is_default_cluster": True}
         )
-        bkdata_mq_cluster = ClusterInfo.objects.get(
-            bk_tenant_id=datasource.bk_tenant_id,
-            cluster_type=ClusterInfo.TYPE_KAFKA,
-            **kafka_cluster_filters,
-        )
+        try:
+            bkdata_mq_cluster = ClusterInfo.objects.get(
+                bk_tenant_id=datasource.bk_tenant_id,
+                cluster_type=ClusterInfo.TYPE_KAFKA,
+                **kafka_cluster_filters,
+            )
+        except ClusterInfo.DoesNotExist:
+            logger.error(
+                "create_single_tenant_system_event_datalink: Kafka cluster '%s' does not exist, aborting.",
+                kafka_cluster_name or "default",
+            )
+            return
         datasource.mq_cluster_id = bkdata_mq_cluster.cluster_id
         datasource.register_to_bkbase(
             bk_biz_id=bk_biz_id, namespace=BKBASE_NAMESPACE_BK_LOG, bkbase_data_name=data_name

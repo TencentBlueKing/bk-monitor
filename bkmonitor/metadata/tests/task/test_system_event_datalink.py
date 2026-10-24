@@ -175,15 +175,15 @@ def test_reapply_system_event_reuses_registered_data_id_and_components(system_ev
 
 
 @pytest.mark.parametrize("kafka_cluster_name", ["missing_kafka", ""])
-def test_missing_kafka_keeps_legacy_system_event_source(system_event_records, kafka_cluster_name):
+def test_missing_kafka_keeps_legacy_system_event_source(system_event_records, kafka_cluster_name, caplog):
     datasource, kafka_cluster, _, apply_api, delete_consul, push_router = system_event_records
     if not kafka_cluster_name:
         kafka_cluster.is_default_cluster = False
         kafka_cluster.save(update_fields=["is_default_cluster"])
 
-    with pytest.raises(models.ClusterInfo.DoesNotExist):
-        create_single_tenant_system_event_datalink(kafka_cluster_name=kafka_cluster_name)
+    create_single_tenant_system_event_datalink(kafka_cluster_name=kafka_cluster_name)
 
+    assert "create_single_tenant_system_event_datalink: Kafka cluster" in caplog.text
     datasource.refresh_from_db()
     assert datasource.created_from == DataIdCreatedFromSystem.BKGSE.value
     assert datasource.mq_cluster_id == 0
