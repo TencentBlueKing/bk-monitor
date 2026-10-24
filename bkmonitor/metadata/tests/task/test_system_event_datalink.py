@@ -7,7 +7,11 @@ from metadata import models
 from metadata.models.constants import BASE_EVENT_RESULT_TABLE_FIELD_MAP, DataIdCreatedFromSystem
 from metadata.models.space.constants import EtlConfigs
 from metadata.task import tenant
-from metadata.task.tasks import create_single_tenant_system_event_datalink
+from metadata.task.tasks import (
+    create_single_tenant_system_datalink,
+    create_single_tenant_system_event_datalink,
+    create_single_tenant_system_proc_datalink,
+)
 
 pytestmark = pytest.mark.django_db(databases="__all__")
 
@@ -27,11 +31,11 @@ def system_event_records(settings, mocker):
     )
     kafka_cluster = models.ClusterInfo.objects.create(
         bk_tenant_id=DEFAULT_TENANT_ID,
-        cluster_name="kafka_outer_default",
+        cluster_name="default_kafka",
         cluster_type=models.ClusterInfo.TYPE_KAFKA,
         domain_name="kafka.test",
         port=9092,
-        is_default_cluster=False,
+        is_default_cluster=True,
     )
     datasource = models.DataSource.objects.create(
         bk_data_id=1000,
@@ -102,7 +106,7 @@ def test_create_system_event_reuses_base_event_configs(system_event_records, dat
     assert data_id["metadata"]["namespace"] == "bklog"
     assert data_id["spec"]["eventType"] == "log"
     assert data_id["spec"]["predefined"]["dataId"] == 1000
-    assert data_id["spec"]["predefined"]["channel"]["name"] == "kafka_outer_default"
+    assert data_id["spec"]["predefined"]["channel"]["name"] == "default_kafka"
     assert data_id["spec"]["predefined"]["topic"] == "system_event_1000"
     configs = {config["kind"]: config for config in apply_api.call_args.kwargs["config"]}
     assert set(configs) == {"ResultTable", "ElasticSearchBinding", "Databus"}
@@ -151,11 +155,15 @@ def test_reapply_system_event_reuses_registered_data_id_and_components(system_ev
         assert model.objects.count() == 1
 
 
-def test_missing_kafka_keeps_legacy_system_event_source(system_event_records):
-    datasource, _, _, apply_api, delete_consul, push_router = system_event_records
+@pytest.mark.parametrize("kafka_cluster_name", ["missing_kafka", ""])
+def test_missing_kafka_keeps_legacy_system_event_source(system_event_records, kafka_cluster_name):
+    datasource, kafka_cluster, _, apply_api, delete_consul, push_router = system_event_records
+    if not kafka_cluster_name:
+        kafka_cluster.is_default_cluster = False
+        kafka_cluster.save(update_fields=["is_default_cluster"])
 
     with pytest.raises(models.ClusterInfo.DoesNotExist):
-        create_single_tenant_system_event_datalink(kafka_cluster_name="missing_kafka")
+        create_single_tenant_system_event_datalink(kafka_cluster_name=kafka_cluster_name)
 
     datasource.refresh_from_db()
     assert datasource.created_from == DataIdCreatedFromSystem.BKGSE.value
@@ -205,3 +213,85 @@ def test_init_tenant_creates_system_events_only_in_single_tenant_mode(settings, 
     tenant.init_tenant(DEFAULT_TENANT_ID)
 
     assert create_event.call_count == (0 if multi_tenant else 1)
+
+
+@pytest.mark.parametrize(
+    "create_datalink, data_ids",
+    [
+        (create_single_tenant_system_datalink, [1001]),
+        (create_single_tenant_system_event_datalink, [1000]),
+        (create_single_tenant_system_proc_datalink, [1007, 1013]),
+    ],
+    ids=["basereport", "system_event", "system_proc"],
+)
+@pytest.mark.parametrize(
+    "kafka_kwargs",
+    [{}, {"kafka_cluster_name": ""}, {"kafka_cluster_name": "selected_kafka"}],
+    ids=["omitted", "empty", "named"],
+)
+def test_single_tenant_builtin_links_select_kafka(
+    system_event_records, settings, mocker, create_datalink, data_ids, kafka_kwargs
+):
+    _, default_kafka, _, apply_api, _, _ = system_event_records
+    settings.SNAPSHOT_DATAID = 1001
+    settings.PROCESS_PERF_DATAID = 1007
+    settings.PROCESS_PORT_DATAID = 1013
+    selected_kafka = models.ClusterInfo.objects.create(
+        bk_tenant_id=DEFAULT_TENANT_ID,
+        cluster_name="selected_kafka",
+        cluster_type=models.ClusterInfo.TYPE_KAFKA,
+        domain_name="selected.test",
+        port=9092,
+        is_default_cluster=False,
+    )
+    models.ClusterInfo.objects.create(
+        bk_tenant_id="other_tenant",
+        cluster_name="selected_kafka",
+        cluster_type=models.ClusterInfo.TYPE_KAFKA,
+        domain_name="other.test",
+        port=9092,
+        is_default_cluster=True,
+    )
+    models.ClusterInfo.objects.create(
+        bk_tenant_id=DEFAULT_TENANT_ID,
+        cluster_name="default_vm",
+        cluster_type=models.ClusterInfo.TYPE_VM,
+        domain_name="vm.test",
+        port=80,
+        is_default_cluster=True,
+    )
+    etl_configs = {
+        1001: EtlConfigs.BK_SYSTEM_BASEREPORT.value,
+        1007: EtlConfigs.BK_SYSTEM_PROC.value,
+        1013: EtlConfigs.BK_SYSTEM_PROC_PORT.value,
+    }
+    for data_id in data_ids:
+        if data_id == 1000:
+            continue
+        models.DataSource.objects.create(
+            bk_data_id=data_id,
+            bk_tenant_id=DEFAULT_TENANT_ID,
+            data_name=f"builtin_{data_id}",
+            etl_config=etl_configs[data_id],
+            mq_cluster_id=0,
+            mq_config_id=0,
+            is_custom_source=False,
+        )
+        models.KafkaTopicInfo.objects.create(bk_data_id=data_id, topic=f"builtin_{data_id}", partition=1)
+    mocker.patch("metadata.task.tasks.BASEREPORT_USAGES", ["cpu_summary"])
+    mocker.patch.object(models.DataLink, "apply_data_link")
+
+    create_datalink(**kafka_kwargs)
+
+    expected_kafka = selected_kafka if kafka_kwargs.get("kafka_cluster_name") else default_kafka
+    for data_id in data_ids:
+        datasource = models.DataSource.objects.get(bk_data_id=data_id)
+        assert datasource.created_from == DataIdCreatedFromSystem.BKDATA.value
+        assert datasource.mq_cluster_id == expected_kafka.cluster_id
+    data_id_configs = [
+        config for call in apply_api.call_args_list for config in call.kwargs["config"] if config["kind"] == "DataId"
+    ]
+    assert {config["spec"]["predefined"]["dataId"] for config in data_id_configs} == set(data_ids)
+    assert all(
+        config["spec"]["predefined"]["channel"]["name"] == expected_kafka.cluster_name for config in data_id_configs
+    )

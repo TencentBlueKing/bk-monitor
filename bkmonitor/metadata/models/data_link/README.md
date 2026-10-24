@@ -184,7 +184,7 @@ conditionalSink2 --> vmBinding3[VmStorageBinding]
 该入口将现有数据源注册到 `bklog`，复用 `BASE_EVENT_V1` 配置及 `gse_system_event` 预置清洗逻辑，
 继续写入原 `gse_system_event` 结果表的 ES 集群和写入别名。
 计算平台业务 ID 默认取 `DEFAULT_BKDATA_BIZ_ID`，可通过 `data_bk_biz_id` 指定；
-Kafka 集群名称默认取 `kafka_outer_default`，可通过 `kafka_cluster_name` 指定。
+单租户内置链路的 `kafka_cluster_name` 默认为空字符串，为空时使用默认 Kafka 集群，也可传入名称指定集群。
 重复执行会复用已注册的 Data ID 和链路组件。
 
 日志链路的 `log_v4_data_link.doris_storage_config` 和自定义格式链路的
