@@ -7,8 +7,8 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
+
 from collections import defaultdict
-from typing import Dict, List
 
 from django.utils.functional import cached_property
 
@@ -23,7 +23,7 @@ class APMCollector(BaseCollector):
     """APM 指标采集器"""
 
     @cached_property
-    def applications_biz_map(self) -> Dict[int, List[Application]]:
+    def applications_biz_map(self) -> dict[int, list[Application]]:
         biz_map = defaultdict(list)
         for app in Application.objects.filter(bk_biz_id__in=list(self.biz_info.keys()), is_enabled=True):
             biz_map[app.bk_biz_id].append(app)
@@ -72,15 +72,6 @@ class APMCollector(BaseCollector):
         for biz_id, objs in biz_map.items():
             bk_biz_name = self.get_biz_name(biz_id)
             metric.labels(bk_biz_id=biz_id, bk_biz_name=bk_biz_name).inc(len(objs))
-
-    # @register(labelnames=("bk_biz_id", "bk_biz_name", "app_name"))
-    # def span_count(self, metric: Metric):
-    #     """APM 存储文档数量"""
-    #     for biz_id, apps in self.applications_biz_map.items():
-    #         for app in apps:
-    #             metric.labels(bk_biz_id=biz_id, bk_biz_name=self.get_biz_name(biz_id), app_name=app.app_name).inc(
-    #                 app.doc_count
-    #             )
 
     @register(labelnames=("bk_biz_id", "bk_biz_name", "app_name"))
     def service_count(self, metric: Metric):

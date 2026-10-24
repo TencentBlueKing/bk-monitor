@@ -51,7 +51,7 @@ def related_logs(monkeypatch: pytest.MonkeyPatch) -> SimpleNamespace:
     monkeypatch.setattr(log_handler, "caches", {"redis": SimpleNamespace(get=read_cache)})
     monkeypatch.setattr(log_handler, "get_biz_index_sets_with_cache", get_metadata)
     monkeypatch.setattr(ServiceLogHandler, "get_log_datasource", reject_storage_query)
-    monkeypatch.setattr(ServiceLogHandler, "get_label_values_in_table", reject_storage_query)
+    monkeypatch.setattr(log_handler.api.log_search, "es_query_dsl", reject_storage_query)
     return state
 
 

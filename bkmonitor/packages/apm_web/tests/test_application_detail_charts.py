@@ -40,7 +40,7 @@ def application() -> Application:
 @pytest.fixture(autouse=True)
 def forbid_data_probe(mocker: MockerFixture) -> mock.Mock:
     return mocker.patch(
-        "apm_web.handlers.application_handler.ApplicationHandler.have_data",
+        "apm_web.metric_handler.RequestCountInstance.query_instance",
         side_effect=AssertionError("请求侧不应执行应用数据探测"),
     )
 

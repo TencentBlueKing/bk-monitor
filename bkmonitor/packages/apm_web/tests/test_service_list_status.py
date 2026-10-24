@@ -8,16 +8,14 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 
-import json
 from collections.abc import Iterator
 from typing import Any
 from unittest import mock
 
 import pytest
-from django.core.cache import cache
 from pytest_mock import MockerFixture
 
-from apm_web.constants import ApmCacheKey, CustomServiceMatchType, CustomServiceType, DataStatus
+from apm_web.constants import CustomServiceMatchType, CustomServiceType, DataStatus
 from apm_web.handlers.log_handler import ServiceLogHandler
 from apm_web.handlers.service_handler import ServiceHandler
 from apm_web.metric.resources import ServiceListAsyncResource, ServiceListResource
@@ -69,7 +67,6 @@ def service_status_context(mocker: MockerFixture) -> Iterator[tuple[Application,
         side_effect=lambda _app, service_names: {"logs"} & set(service_names),
     )
     topo_query = mocker.patch("apm_web.handlers.service_handler.api.apm_api.query_topo_node", return_value=nodes)
-    mocker.patch.object(ServiceHandler, "get_service_data_status_mapping", side_effect=AssertionError("旧状态重算"))
     mocker.patch.object(ServiceHandler, "get_service_metric_range_mapping", side_effect=AssertionError("指标状态查询"))
     mocker.patch("apm_web.handlers.service_handler.ServiceFlowCount", side_effect=AssertionError("Flow 状态查询"))
     mocker.patch(
@@ -77,15 +74,8 @@ def service_status_context(mocker: MockerFixture) -> Iterator[tuple[Application,
         side_effect=AssertionError("Profiling 查询"),
     )
     mocker.patch("apm_web.handlers.service_handler.api.log_search.es_query_dsl", side_effect=AssertionError("ES 聚合"))
-    cache_key = ApmCacheKey.APP_SERVICE_STATUS_KEY.format(application_id=app.application_id)
-    old_status = json.dumps({"orders": {data_type: DataStatus.DISABLED for data_type in TelemetryDataType.values()}})
-    cache_get = mocker.patch.object(
-        cache, "get", side_effect=lambda key, *args, **kwargs: old_status if key == cache_key else None
-    )
-    cache_set = mocker.patch.object(cache, "set")
     ServiceHandler.list_nodes.cache_clear()
     yield app, topo_query
-    assert all(call.args[0] != cache_key for call in [*cache_get.call_args_list, *cache_set.call_args_list])
     ServiceHandler.list_nodes.cache_clear()
 
 
