@@ -48,6 +48,7 @@ import { debounce } from 'throttle-debounce';
 
 import { useI18n } from 'vue-i18n';
 
+import { topologyFailure } from '../graph/topology-status';
 import { isDirectedEdge } from '../edge-relation';
 
 import ElkjsUtils from '../graph/elkjs-utils';
@@ -249,7 +250,7 @@ export function useTopoGraph(
       /** 布局渲染完将边置于顶层 */
       setTimeout(interaction.toFrontAnomalyEdge, 500);
     }).catch(() => {
-      state.errorData.value = { isError: true, isNoData: false, msg: t('图谱布局失败，请刷新重试') };
+      state.errorData.value = topologyFailure('layout_failed', t);
     });
   };
 

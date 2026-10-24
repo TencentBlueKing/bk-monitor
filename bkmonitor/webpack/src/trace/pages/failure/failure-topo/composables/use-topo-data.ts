@@ -50,6 +50,7 @@ import { deepClone } from 'monitor-common/utils/utils.js';
 
 import ElkjsUtils from '../graph/elkjs-utils';
 import { historyCombos, prepareHistoryFrames, validateTopology } from '../graph/topology-history';
+import { topologyFailure } from '../graph/topology-status';
 import { topologyEdgeId } from '../snapshot-analysis';
 import formatTopoData, { type NodeArgs } from '../graph/format-topo-data';
 
@@ -326,14 +327,21 @@ export function useTopoData(state: TopoDataState, graphAccess: GraphAccess) {
     const renderData = await incidentTopology(params, { needMessage: false, needCancel: true })
       .then(res => {
         const { latest, diff, complete } = res;
+        if (res.status === 'SYNC_FAILED' || res.status === 'INVALID_DATA') {
+          state.errorData.value = topologyFailure(res.status === 'SYNC_FAILED' ? 'sync_failed' : 'invalid_data', t);
+          return;
+        }
+        if (!complete || !Array.isArray(complete.nodes) || !Array.isArray(diff) || !latest) {
+          throw new Error('INVALID_TOPOLOGY_HISTORY');
+        }
         if (isAutoRefresh && diff.length === 0 && lastFrame) return;
         complete.combos = historyCombos(complete, latest);
         validateTopology(complete);
         formatResponseData(complete);
         const { combos = [], edges = [], nodes = [], sub_combos = [] } = complete || {};
-        state.errorData.value.isNoData = combos.length === 0;
-        state.errorData.value.isError = false;
-        state.errorData.value.msg = res.message || '';
+        state.errorData.value = nodes.length === 0
+          ? topologyFailure('no_result', t)
+          : { isNoData: false, isError: false, msg: '' };
         ElkjsUtils.setSubCombosMap(ElkjsUtils.getSubComboCountMap(nodes));
         const resolvedCombos = [...combos, ...ElkjsUtils.resolveSumbCombos(sub_combos)];
         prepareHistoryFrames(diff);
@@ -342,7 +350,7 @@ export function useTopoData(state: TopoDataState, graphAccess: GraphAccess) {
         topoRawDataCache.value.complete = { ...complete, combos: resolvedCombos };
         const diffLen = topoRawDataCache.value.diff.length;
         state.timelinePosition.value = Math.max(0, diffLen - 1);
-        return ElkjsUtils.getTopoRawData(resolvedCombos, edges, nodes);
+        return nodes.length ? ElkjsUtils.getTopoRawData(resolvedCombos, edges, nodes) : null;
       })
       .catch(err => {
         // 被 needCancel 取消的请求，标记后跳过，保持 loading 状态等待后续请求完成
@@ -350,11 +358,9 @@ export function useTopoData(state: TopoDataState, graphAccess: GraphAccess) {
           isCancelled = true;
           return;
         }
-        state.errorData.value.isError = true;
-        state.errorData.value.msg = err.message === 'INVALID_TOPOLOGY_HISTORY'
-          ? t('图谱数据不完整，请刷新重试')
-          : err.data?.error_details ? err.data.error_details.overview : err.message;
-        state.errorData.value.isNoData = false;
+        state.errorData.value = topologyFailure(
+          err.message === 'INVALID_TOPOLOGY_HISTORY' ? 'invalid_data' : 'query_failed', t
+        );
       })
       .finally(() => {
         // 被取消的请求不执行 finally 逻辑，保持 loading 不变

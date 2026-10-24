@@ -96,6 +96,8 @@ export interface EdgeIntervalItem {
 
 /** 错误数据状态 */
 export interface ErrorData {
+  reason?: string;
+  title?: string;
   isError: boolean;
   isNoData: boolean;
   msg: string;
