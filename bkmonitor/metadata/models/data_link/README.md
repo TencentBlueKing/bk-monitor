@@ -179,6 +179,15 @@ conditionalSink2 --> vmBinding3[VmStorageBinding]
 - 联邦子集群策略在组装阶段重点产出 `ConditionalSink` + `Databus` 路由配置；其策略映射中仍包含其他组件类型，用于统一生命周期管理和清理。
 - 日志链路支持 ES 与 Doris，至少需要一个存储绑定，否则抛出 `ValueError("至少需要一个存储绑定配置")`。
 
+单租户系统事件（Data ID `1000`）通过
+`metadata.task.tasks.create_single_tenant_system_event_datalink()` 创建，`init_tenant()` 会自动调用。
+该入口将现有数据源注册到 `bklog`，复用 `BASE_EVENT_V1` 配置及 `gse_system_event` 预置清洗逻辑，
+继续写入原 `gse_system_event` 结果表的 ES 集群和写入别名。
+计算平台业务 ID 默认取 `DEFAULT_BKDATA_BIZ_ID`，可通过 `data_bk_biz_id` 指定；
+单租户内置链路的 `kafka_cluster_name` 默认为空字符串，为空时使用默认 Kafka 集群，也可传入名称指定集群。
+完整 V4 链路下发成功后才清理旧 Transfer 的 Consul 配置；组装或下发失败时保留旧配置。
+重复执行会复用已注册的 Data ID 和链路组件，并重试未完成的旧配置清理。
+
 日志链路的 `log_v4_data_link.doris_storage_config` 和自定义格式链路的
 `custom_format_v4_data_link.doris_storage_config` 均支持自定义分词规则，例如：
 
