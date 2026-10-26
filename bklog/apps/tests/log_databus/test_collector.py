@@ -20,17 +20,26 @@ the project delivered to anyone in the future.
 """
 
 import copy
+import datetime
 from unittest.mock import patch
 
 from django.conf import settings
 from django.test import TestCase, override_settings
 
-from apps.log_databus.constants import LogPluginInfo, TargetNodeTypeEnum, WorkLoadType
-from apps.log_databus.exceptions import CollectorConfigNotExistException
+from apps.exceptions import ApiResultError
+from apps.log_databus.constants import (
+    CollectStatus,
+    Environment,
+    LogPluginInfo,
+    RunStatus,
+    TargetNodeTypeEnum,
+    WorkLoadType,
+)
+from apps.log_databus.exceptions import CollectorConfigNameDuplicateException, CollectorConfigNotExistException
 from apps.log_databus.handlers.collector import CollectorHandler
 from apps.log_databus.handlers.collector import HostCollectorHandler
 from apps.log_databus.handlers.collector import K8sCollectorHandler
-from apps.log_databus.models import CollectorConfig, DataLinkConfig
+from apps.log_databus.models import CollectorConfig, ContainerCollectorConfig, DataLinkConfig
 from apps.log_search.models import Space
 from bkm_space.define import SpaceTypeEnum
 
@@ -1577,3 +1586,125 @@ namespaceSelector:
         result = K8sCollectorHandler().list_namespace(bk_biz_id=BK_BIZ_ID, bcs_cluster_id=BCS_CLUSTER_ID)
         result_ns = {r["id"] for r in result}
         self.assertSetEqual(expect_namespace_list, result_ns)
+
+
+class TestCollectorDeleteAndStatus(TestCase):
+    def create_collector(self, name="collector", **kwargs):
+        return CollectorConfig.objects.create(
+            bk_biz_id=1,
+            collector_config_name=name,
+            collector_scenario_id="row",
+            category_id="application",
+            **kwargs,
+        )
+
+    @patch("apps.decorators.user_operation_record.delay")
+    @patch("apps.api.TransferApi.modify_data_id")
+    @patch("apps.api.NodeApi.delete_subscription")
+    @patch("apps.api.NodeApi.run_subscription_task", return_value={"task_id": 1})
+    @patch("apps.api.NodeApi.switch_subscription")
+    def test_destroy_bounds_name_before_upstream_deletion(self, switch, run, delete, modify, audit):
+        names = ["a" * 42, "codex-bklog-20261021-141406-mlir-segment-r1", "b" * 64, "中文" * 32]
+        deletion_time = datetime.datetime(2026, 10, 26, 12, 34, 56)
+        for name in names:
+            with self.subTest(name=name):
+                collector = self.create_collector(name, subscription_id=8, bk_data_id=123)
+                with patch("apps.log_databus.handlers.collector.base.datetime") as clock:
+                    clock.datetime.now.return_value = deletion_time
+                    self.assertTrue(HostCollectorHandler(collector.collector_config_id).destroy())
+
+                deleted = CollectorConfig.origin_objects.get(pk=collector.pk)
+                self.assertTrue(deleted.is_deleted)
+                self.assertEqual(deleted.collector_config_name, name[:42] + "_delete_20261026123456")
+                self.assertEqual(len(deleted.collector_config_name), 64)
+                modify.assert_called_with(
+                    {
+                        "data_id": 123,
+                        "data_name": deleted.collector_config_name,
+                        "option": {"is_log_data": True},
+                        "is_enable": False,
+                    }
+                )
+        self.assertEqual(delete.call_count, len(names))
+
+    @patch("apps.log_databus.handlers.collector.base.datetime")
+    @patch.object(HostCollectorHandler, "stop")
+    @patch("apps.api.NodeApi.delete_subscription")
+    def test_colliding_deleted_name_is_rejected_before_upstream_calls(self, delete, stop, clock):
+        clock.datetime.now.return_value = datetime.datetime(2026, 10, 26, 12, 34, 56)
+        self.create_collector("a" * 42 + "_delete_20261026123456", is_deleted=True)
+        collector = self.create_collector("a" * 43, subscription_id=8)
+        with self.assertRaises(CollectorConfigNameDuplicateException):
+            HostCollectorHandler(collector.pk).destroy()
+        stop.assert_not_called()
+        delete.assert_not_called()
+        collector.refresh_from_db()
+        self.assertFalse(collector.is_deleted)
+        self.assertEqual(collector.subscription_id, 8)
+
+    @patch("apps.api.NodeApi.subscription_statistic")
+    def test_batch_isolates_errors_and_preserves_running_stop(self, statistic):
+        healthy = self.create_collector("healthy", subscription_id=10)
+        inactive = self.create_collector("inactive", subscription_id=8, is_active=False)
+        active = self.create_collector("active", subscription_id=9)
+        stopping = self.create_collector("stopping", subscription_id=11, is_active=False)
+        container = self.create_collector("container", environment=Environment.CONTAINER)
+        ContainerCollectorConfig.objects.create(collector_config_id=container.pk, status="SUCCESS")
+
+        def get_statistic(params):
+            subscription_id = params["subscription_id_list"][0]
+            if subscription_id in (8, 9):
+                raise ApiResultError("subscription statistic failed", code=3800001)
+            status = CollectStatus.RUNNING if subscription_id == 11 else CollectStatus.SUCCESS
+            return [{"subscription_id": subscription_id, "instances": 2, "status": [{"status": status, "count": 2}]}]
+
+        statistic.side_effect = get_statistic
+        before = list(CollectorConfig.objects.order_by("pk").values())
+        with patch("apps.log_databus.handlers.collector.base.logger.error") as error:
+            with patch("apps.log_databus.handlers.collector.base.get_request_id", return_value="test-request"):
+                statuses = CollectorHandler().get_subscription_status_by_list(
+                    [healthy.pk, inactive.pk, active.pk, stopping.pk, container.pk]
+                )
+        result = {item["collector_id"]: item for item in statuses}
+        self.assertEqual(len(result), 5)
+        self.assertEqual(result[healthy.pk]["status"], CollectStatus.SUCCESS)
+        self.assertEqual(result[healthy.pk]["success"], 2)
+        self.assertEqual(result[inactive.pk]["status"], CollectStatus.TERMINATED)
+        self.assertEqual(result[inactive.pk]["status_name"], RunStatus.TERMINATED)
+        self.assertEqual(result[active.pk]["status"], CollectStatus.FAILED)
+        self.assertEqual(result[active.pk]["total"], 0)
+        self.assertEqual(result[stopping.pk]["status"], CollectStatus.RUNNING)
+        self.assertEqual(result[stopping.pk]["pending"], 2)
+        self.assertEqual(result[container.pk]["status"], CollectStatus.SUCCESS)
+        self.assertEqual(result[container.pk]["success"], 1)
+        self.assertEqual(statistic.call_count, 4)
+        self.assertEqual(error.call_count, 2)
+        for entry in error.call_args_list:
+            self.assertIn(entry.args[1], [inactive.pk, active.pk])
+            self.assertIn(entry.args[2], [8, 9])
+            self.assertEqual(entry.args[3], "test-request")
+            self.assertIsNotNone(entry.kwargs["exc_info"][2])
+        self.assertEqual(list(CollectorConfig.objects.order_by("pk").values()), before)
+
+    @patch("apps.log_databus.handlers.collector.base.logger.error")
+    @patch("apps.api.NodeApi.subscription_statistic")
+    def test_query_errors_and_missing_statistics_use_existing_fallback(self, statistic, error):
+        active = self.create_collector(subscription_id=8)
+        for failure in [
+            ApiResultError("invalid params", code=3800001),
+            PermissionError("denied"),
+            TimeoutError("timeout"),
+        ]:
+            with self.subTest(failure=failure):
+                statistic.side_effect = failure
+                result = CollectorHandler().get_subscription_status_by_list([active.pk])
+                self.assertEqual(result[0]["status"], CollectStatus.FAILED)
+                active.refresh_from_db()
+                self.assertTrue(active.is_active)
+                self.assertEqual(active.subscription_id, 8)
+        self.assertEqual(error.call_count, 3)
+        statistic.side_effect = None
+        statistic.return_value = []
+        result = CollectorHandler().get_subscription_status_by_list([active.pk])
+        self.assertEqual(result[0]["status"], CollectStatus.FAILED)
+        self.assertEqual(result[0]["total"], 0)

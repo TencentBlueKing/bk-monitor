@@ -80,7 +80,6 @@ from apps.log_databus.exceptions import (
     ResultTableNotExistException,
     SubscriptionInfoNotFoundException,
     CollectorIdNotExistException,
-    SubscriptionStatisticException,
 )
 from apps.log_databus.handlers.collector_scenario import CollectorScenario
 from apps.log_databus.handlers.collector_scenario.custom_define import get_custom
@@ -119,7 +118,7 @@ from apps.utils.cache import caches_ten_minute
 from apps.utils.custom_report import BK_CUSTOM_REPORT, CONFIG_OTLP_FIELD
 from apps.utils.db import array_chunk
 from apps.utils.function import map_if
-from apps.utils.local import get_local_param, get_request_username, get_request_tenant_id
+from apps.utils.local import get_local_param, get_request_id, get_request_username, get_request_tenant_id
 from apps.utils.log import logger
 from apps.utils.thread import MultiExecuteFunc
 from apps.utils.time_handler import format_user_time_zone
@@ -693,9 +692,18 @@ class CollectorHandler:
         :return: task_id
         """
         # 1. 重新命名采集项名称
-        collector_config_name = (
-            self.data.collector_config_name + "_delete_" + datetime.datetime.now().strftime("%Y%m%d%H%M%S")
-        )
+        delete_suffix = "_delete_" + datetime.datetime.now().strftime("%Y%m%d%H%M%S")
+        max_length = CollectorConfig._meta.get_field("collector_config_name").max_length
+        collector_config_name = self.data.collector_config_name[: max_length - len(delete_suffix)] + delete_suffix
+        # 截断后的名称可能重名，必须在删除上游订阅前检查。
+        if (
+            CollectorConfig.origin_objects.filter(
+                bk_biz_id=self.data.bk_biz_id, collector_config_name=collector_config_name
+            )
+            .exclude(pk=self.data.pk)
+            .exists()
+        ):
+            raise CollectorConfigNameDuplicateException()
 
         # 2. 停止采集（删除配置文件）
         self.stop()
@@ -1293,13 +1301,15 @@ class CollectorHandler:
         multi_result = multi_execute_func.run(return_exception=True)
         for key, ret in multi_result.items():
             if isinstance(ret, Exception):
-                # 子查询异常
-                logger.exception("subscription id(%s),subscription statistic failed：%s", key, ret)
-                raise SubscriptionStatisticException(
-                    SubscriptionStatisticException.MESSAGE.format(
-                        reason=f"subscription id({key}),subscription statistic failed：{ret}"
-                    )
+                logger.error(
+                    "collector id(%s), subscription id(%s), request_id(%s), subscription statistic failed: %s",
+                    subscription_collector_map[key],
+                    key,
+                    get_request_id(),
+                    ret,
+                    exc_info=(type(ret), ret, ret.__traceback__),
                 )
+                continue
             status_result.extend(ret)
 
         # 如果没有订阅ID，则直接返回
