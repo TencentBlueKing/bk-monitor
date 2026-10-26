@@ -1305,7 +1305,8 @@ class HostCollectorHandler(CollectorHandler):
             "extra_labels",
             "data_encoding",
         ]
-        model_fields = {field: params[field] for field in collector_config_fields if field in params}
+        # serializer.data 会将未传入且允许为空的字段表示为 None，忽略 None 以免覆盖数据库非空列
+        model_fields = {field: params[field] for field in collector_config_fields if params.get(field) is not None}
 
         with transaction.atomic():
             try:
