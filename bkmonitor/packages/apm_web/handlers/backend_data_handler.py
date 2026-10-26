@@ -680,6 +680,11 @@ class ProfilingBackendHandler(TelemetryBackendHandler):
         return self._profiling_config.get("bkdata_datalink_config") or {}
 
     def storage_info(self):
+        if self._is_v4_datalink():
+            return self._v4_storage_info()
+        return self._v3_storage_info()
+
+    def _v3_storage_info(self):
         result_table_id = self._profiling_config.get("result_table_id")
         if not result_table_id:
             return []
@@ -703,6 +708,50 @@ class ProfilingBackendHandler(TelemetryBackendHandler):
                 "expire_time_alias": _("{}天").format(expire_time.rstrip("d")) if expire_time else "",
                 "status": "running",
                 "status_display": _("运行中"),
+                "created_by": self.app.create_user,
+                "created_at": self._profiling_config.get("created"),
+            }
+        ]
+
+    def _v4_storage_info(self):
+        from metadata.models.data_link.constants import DataLinkKind, DataLinkResourceStatus
+
+        v4_resource_names = self.profiling_bkdata_datalink_config.get("v4_resource_names") or {}
+        doris_binding_name = v4_resource_names.get("doris_binding_name")
+        if not doris_binding_name:
+            return []
+
+        doris_binding = api.bkdata.get_data_link(
+            bk_tenant_id=self.app.bk_tenant_id,
+            kind=DataLinkKind.get_choice_value(DataLinkKind.DORISBINDING.value),
+            namespace=self.profiling_bkdata_datalink_config.get("namespace", "bklog"),
+            name=doris_binding_name,
+        )
+        phase = doris_binding.get("status", {}).get("phase", "")
+        if phase == DataLinkResourceStatus.OK.value:
+            status, status_display = "running", _("运行中")
+        elif phase == DataLinkResourceStatus.FAILED.value:
+            status, status_display = "failed", _("异常")
+        else:
+            status, status_display = "stopped", phase
+
+        spec = doris_binding.get("spec", {})
+        storage = spec.get("storage", {})
+        storage_kind = storage.get("kind", "")
+        expire_time = spec.get("storage_config", {}).get("expires", "")
+        return [
+            {
+                "raw_data_id": self._profiling_config.get("bk_data_id"),
+                "bk_biz_id": self.app.bk_biz_id,
+                "result_table_id": self._profiling_config.get("result_table_id"),
+                "storage_type": storage_kind.lower(),
+                "storage_type_alias": storage_kind,
+                "storage_cluster": storage.get("name"),
+                "storage_cluster_alias": storage.get("name"),
+                "expire_time": expire_time,
+                "expire_time_alias": _("{}天").format(expire_time.rstrip("d")) if expire_time else "",
+                "status": status,
+                "status_display": status_display,
                 "created_by": self.app.create_user,
                 "created_at": self._profiling_config.get("created"),
             }
