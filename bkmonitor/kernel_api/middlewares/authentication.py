@@ -388,7 +388,7 @@ class AuthenticationMiddleware(MiddlewareMixin):
     def _handle_native_mcp(self, request, tool, tool_args, unified=False):
         """复用目录工具的执行逻辑，并按 standalone／Unified 入口渲染响应。"""
         request.mcp_usage_tool = tool.name
-        from rest_framework.exceptions import APIException
+        from rest_framework.exceptions import APIException, ValidationError
         from rest_framework.response import Response
 
         from bkmonitor.views.renderers import MonitorJSONRenderer
@@ -425,11 +425,14 @@ class AuthenticationMiddleware(MiddlewareMixin):
         except APIException as exc:
             status_code, error_type = exc.status_code, type(exc).__name__
             status = "permission_denied" if exc.status_code == 403 else "error"
+            message = "MCP permission or execution rejected"
+            if isinstance(exc, ValidationError):
+                status, message = "invalid_params", "MCP request validation failed"
             return JsonResponse(
                 {
                     "result": False,
                     "code": exc.status_code,
-                    "message": "MCP permission or execution rejected",
+                    "message": message,
                     "data": exc.detail,
                 },
                 status=exc.status_code,
