@@ -443,6 +443,42 @@ class PeriodicReconcileTest(TestCase):
         # 动作再推一遍，白白触发一次全量插件 reload
         self.mock_installer.return_value.apply.assert_called_once()
         self.mock_installer.return_value.rerun.assert_not_called()
+        self.mock_installer.return_value.stop.assert_not_called()
+
+    def test_stuck_operation_superseded_by_newer_generation_is_closed_without_apply(self):
+        # 未知更新留下 gen=1，随后停用成功推进到 gen=2；恢复不得再 apply 旧操作
+        operation = NodeManV3Operation.objects.create(
+            binding=self.binding,
+            operation_type=NodeManV3OperationType.RECONCILE,
+            generation=1,
+            status=NodeManV3OperationStatus.UNKNOWN,
+        )
+        self.binding.generation = 2
+        self.binding.is_enabled = False
+        self.binding.desired_scopes = []
+        self.binding.save(update_fields=["generation", "is_enabled", "desired_scopes", "updated_at", "updated_by"])
+        CollectorConfig.objects.filter(collector_config_id=self.binding.collector_config_id).update(is_active=False)
+
+        self._run_recovery()
+
+        operation.refresh_from_db()
+        self.assertEqual(operation.status, NodeManV3OperationStatus.FAILED)
+        self.mock_installer.return_value.apply.assert_not_called()
+        self.mock_installer.return_value.stop.assert_not_called()
+
+    def test_stuck_operation_on_inactive_collector_calls_stop(self):
+        NodeManV3Operation.objects.create(
+            binding=self.binding,
+            operation_type=NodeManV3OperationType.RECONCILE,
+            generation=1,
+            status=NodeManV3OperationStatus.DISPATCHING,
+        )
+        CollectorConfig.objects.filter(collector_config_id=self.binding.collector_config_id).update(is_active=False)
+
+        self._run_recovery()
+
+        self.mock_installer.return_value.stop.assert_called_once()
+        self.mock_installer.return_value.apply.assert_not_called()
 
     def test_recent_operation_is_not_recovered(self):
         NodeManV3Operation.objects.create(

@@ -167,13 +167,40 @@ class SpecTranslationTest(TestCase):
         self.assertTrue(all(detail["is_main_config"] is False for detail in details))
 
     def test_custom_config_context_passes_through_unchanged(self):
-        # Jinja2 渲染时 custom_config_context 直接合并到模板顶层，与 V2 params.context 一致，
-        # 原样透传才能保证六种场景的出数口径不变
+        # 行日志 context 无嵌套 Jinja，预处理后应保持原样
         steps = build_steps(dataid=9527, paths=["/data/log/x.log"])
         specs = SubscriptionStepsTranslator().build_specs(steps)
         context = specs[0]["param"]["custom_config_context"]
         self.assertEqual(context["dataid"], 9527)
         self.assertEqual(context["local"], [{"paths": ["/data/log/x.log"]}])
+
+    def test_nested_render_expands_self_referential_context(self):
+        from apps.log_databus.nodeman_v3.policy import nested_render_data
+
+        rendered = nested_render_data({"greeting": "hi {{ name }}", "name": "bklog"})
+        self.assertEqual(rendered["greeting"], "hi bklog")
+
+    def test_syslog_default_host_uses_innerip_flag_for_v3_single_pass(self):
+        # V2 scenario 默认写入 '{{ cmdb_instance.host.bk_host_innerip }}:514'，依赖 nested_render。
+        # V3 单次渲染会把该字符串写进配置；翻译层改成 use_host_innerip + syslog_port。
+        from apps.log_databus.handlers.collector_scenario import CollectorScenario
+        from apps.log_search.constants import CollectorScenarioEnum
+
+        scenario = CollectorScenario.get_instance(collector_scenario_id=CollectorScenarioEnum.SYSLOG.value)
+        steps = scenario.get_subscription_steps(
+            2001,
+            {"conditions": {"type": "none"}, "syslog_protocol": "UDP", "syslog_port": 514},
+            9001,
+            None,
+        )
+        raw_host = (steps[0]["params"]["context"]["local"][0]["host"])
+        self.assertIn("cmdb_instance.host.bk_host_innerip", raw_host)
+
+        context = SubscriptionStepsTranslator().build_specs(steps)[0]["param"]["custom_config_context"]
+        item = context["local"][0]
+        self.assertEqual(item["host"], "")
+        self.assertTrue(item["use_host_innerip"])
+        self.assertEqual(item["syslog_port"], 514)
 
     def test_missing_dataid_fails_closed(self):
         steps = build_steps()
@@ -603,7 +630,7 @@ class ReconcileBehaviourTest(TestCase):
         return CollectorPolicyReconciler(self.collector_config)
 
     def test_first_reconcile_creates_policy_then_executes(self):
-        from apps.log_databus.nodeman_v3.models import NodeManV3Workflow
+        from apps.log_databus.nodeman_v3.models import NodeManV3SubConfigTarget, NodeManV3Workflow
 
         operation = self._reconciler().reconcile(build_steps())
         self.assertIsNotNone(operation)
@@ -611,6 +638,11 @@ class ReconcileBehaviourTest(TestCase):
         workflow = NodeManV3Workflow.objects.get(operation=operation)
         self.assertTrue(workflow.parent_workflow_id.startswith("parent-workflow-"))
         self.assertEqual(workflow.trigger_id, "")
+        # 派发后立即有目标快照，首次状态查询不会 contents=[]
+        self.assertEqual(
+            set(NodeManV3SubConfigTarget.objects.filter(binding=operation.binding).values_list("bk_host_id", flat=True)),
+            {11},
+        )
 
     def test_execute_without_parent_workflow_id_fails_closed(self):
         original = self.client.execute_deploy_policy
@@ -928,18 +960,21 @@ class MigrationStateTest(TestCase):
         self.assertEqual(toggle.biz_id_white_list, [2])
         self.assertEqual(toggle.feature_config, {"custom": True})
 
-    def test_toggle_migration_creates_missing_record_as_on(self):
+    def test_toggle_migration_creates_missing_record_as_off(self):
         from django.apps import apps as django_apps
 
         from apps.feature_toggle.models import FeatureToggle
         from apps.feature_toggle.plugins.constants import NODEMAN_V3_COLLECTOR
+        from apps.log_databus.nodeman_v3.mode import is_nodeman_v3_admitted
 
         FeatureToggle.origin_objects.filter(name=NODEMAN_V3_COLLECTOR).delete()
         self._toggle_migration().forwards_func(django_apps, None)
 
         toggle = FeatureToggle.objects.get(name=NODEMAN_V3_COLLECTOR)
-        self.assertEqual(toggle.status, "on")
+        self.assertEqual(toggle.status, "off")
         self.assertEqual(toggle.feature_config, {"collector_config_ids": []})
+        # 不改配置升级时 Agent 状态与新建采集仍走 V2
+        self.assertFalse(is_nodeman_v3_admitted(2))
 
     def test_toggle_reverse_migration_preserves_record(self):
         from django.apps import apps as django_apps

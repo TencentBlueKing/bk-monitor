@@ -11,12 +11,12 @@ def forwards_func(apps, schema_editor):
         name=NODEMAN_V3_COLLECTOR,
         defaults={
             "alias": "NodeMan V3 物理机采集",
-            "status": "on",
+            "status": "off",
             "is_viewed": False,
             "feature_config": {"collector_config_ids": []},
             "biz_id_white_list": [],
             "biz_id_black_list": [],
-            "description": "控制新建物理机采集项进入 NodeMan V3；首次创建默认全量开启",
+            "description": "控制新建物理机采集项进入 NodeMan V3；升级默认关闭，由部署配置或运维显式准入",
         },
     )
 

@@ -237,9 +237,8 @@ def recover_nodeman_v3_operations():
             _close_superseded_operation(operation)
             continue
 
-        collector_config = CollectorConfig.objects.filter(
-            collector_config_id=operation.binding.collector_config_id
-        ).first()
+        binding = operation.binding
+        collector_config = CollectorConfig.objects.filter(collector_config_id=binding.collector_config_id).first()
         if not collector_config:
             # 采集项已被硬删，这条 operation 永远恢复不了。必须落终态，否则它会一直停在
             # dispatching + 旧 updated_at 上被每轮重新选中，占着 RECONCILE_BATCH_LIMIT 的配额，
@@ -249,26 +248,43 @@ def recover_nodeman_v3_operations():
             operation.save(update_fields=["status", "error_message", "updated_at", "updated_by"])
             logger.warning(
                 f"[nodeman_v3] collector config gone, close stuck operation {operation.id}, "
-                f"collector_config_id={operation.binding.collector_config_id}"
+                f"collector_config_id={binding.collector_config_id}"
             )
             continue
+
+        # 已被更新一代的操作取代：只收口旧记录，不能再按旧期望态 apply。
+        # 否则「未知更新 → 成功停用」后，恢复任务会把已停用的采集项重新打开。
+        if operation.generation < binding.generation:
+            _close_superseded_operation(operation)
+            logger.info(
+                f"[nodeman_v3] close superseded stuck operation {operation.id}, "
+                f"collector_config_id={binding.collector_config_id}, "
+                f"operation_generation={operation.generation}, binding_generation={binding.generation}"
+            )
+            continue
+
         try:
             from apps.log_databus.nodeman_v3.installer import NodeManV3CollectorInstaller
 
-            # 这里刻意用 apply 而不是 rerun：rerun 带 force=True 会跳过指纹判断，
-            # 把已经派发成功、只是状态没回读到的动作再推一遍，白白触发一次全量插件 reload。
-            NodeManV3CollectorInstaller(collector_config).apply(collector_config.params or {})
+            installer = NodeManV3CollectorInstaller(collector_config)
+            # 按采集项当前启停期望态恢复，不能无条件 apply：
+            # apply 会复用未清空的 target_nodes，把已停用采集项的策略 scopes 重新灌回去。
+            # 这里仍不用 rerun：rerun 的 force=True 会跳过指纹判断，白白触发全量插件 reload。
+            if collector_config.is_active:
+                installer.apply(collector_config.params or {})
+            else:
+                installer.stop()
         except Exception:  # pylint: disable=broad-except
             logger.exception(
                 f"[nodeman_v3] failed to recover stuck operation {operation.id}, "
-                f"collector_config_id={operation.binding.collector_config_id}"
+                f"collector_config_id={binding.collector_config_id}"
             )
             continue
 
         _close_superseded_operation(operation)
         logger.info(
             f"[nodeman_v3] recovered stuck operation {operation.id}, "
-            f"collector_config_id={operation.binding.collector_config_id}"
+            f"collector_config_id={binding.collector_config_id}, is_active={collector_config.is_active}"
         )
 
 

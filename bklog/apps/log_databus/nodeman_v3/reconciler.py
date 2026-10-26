@@ -448,6 +448,10 @@ class CollectorPolicyReconciler(PolicyReconcilerBase):
                 f"collector_config_id={self.collector_config.collector_config_id}"
             )
 
+        # 派发成功后立刻初始化/刷新目标快照。定时 reconcile 只负责后续动态变化与兜底；
+        # 若等 10 分钟才有行，首次状态查询会 contents=[]，前端也会因没有 RUNNING 主机停轮询。
+        self._sync_target_snapshot_after_dispatch(binding, payload, template_names, target_nodes)
+
         if stopping:
             # 停用方向反过来：先摘子配置，再收窄安装范围。
             # 安装范围收窄纯粹是记账——specify_plugin 只装不升不卸，主机移出范围不会触发任何
@@ -464,3 +468,37 @@ class CollectorPolicyReconciler(PolicyReconcilerBase):
                 )
 
         return operation
+
+    def _sync_target_snapshot_after_dispatch(
+        self,
+        binding: NodeManV3Binding,
+        payload: dict,
+        template_names: list[str],
+        target_nodes: list[dict] | None,
+    ) -> None:
+        """
+        用本轮已落库的 deploy_policy_id / 模板名立刻写出 NodeManV3SubConfigTarget。
+
+        失败只记日志：快照是状态页的辅助索引，写失败不应回滚已经成功的策略派发；
+        下一轮定时 reconcile_nodeman_v3_targets 仍会兜底。
+        """
+        try:
+            binding.refresh_from_db()
+            if not binding.deploy_policy_id or not template_names:
+                return
+            from apps.log_databus.nodeman_v3.targets import expand_target_hosts, reconcile_binding_targets
+
+            if payload.get("scopes"):
+                desired_host_ids = expand_target_hosts(
+                    self.collector_config.bk_biz_id,
+                    self.collector_config.target_node_type,
+                    target_nodes if target_nodes is not None else self.collector_config.target_nodes,
+                )
+            else:
+                desired_host_ids = set()
+            reconcile_binding_targets(binding, desired_host_ids, template_names)
+        except Exception:  # pylint: disable=broad-except
+            logger.exception(
+                f"[nodeman_v3] sync target snapshot after dispatch failed, "
+                f"collector_config_id={self.collector_config.collector_config_id}"
+            )

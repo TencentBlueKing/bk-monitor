@@ -22,8 +22,11 @@ the project delivered to anyone in the future.
 import copy
 import hashlib
 import json
+import re
+from typing import Any
 
 from django.utils.translation import gettext as _
+from jinja2 import Environment, UndefinedError
 
 from apps.log_databus.constants import LogPluginInfo
 from apps.log_databus.nodeman_v3.constants import (
@@ -33,6 +36,71 @@ from apps.log_databus.nodeman_v3.constants import (
 from apps.log_databus.nodeman_v3.exceptions import NodeManV3CapabilityBlocked
 from apps.log_databus.nodeman_v3.identity import build_plugin_policy_name, build_policy_name
 from apps.log_databus.nodeman_v3.scopes import build_scopes
+
+# V2 PluginConfigTemplate.render 会先 nested_render_data(context, context)，再渲染模板。
+# NodeMan V3 当前只把 custom_config_context 合并进模板作用域后单次渲染，不会展开 context
+# 值里嵌套的 Jinja。日志侧在下发前做同等预处理，并覆盖 Syslog 默认监听地址这类已知模式。
+_JINJA_ENV = Environment(autoescape=False)
+_CMDB_INNERIP_HOST_RE = re.compile(
+    r"^\s*\{\{\s*cmdb_instance\.host\.bk_host_innerip\s*\}\}\s*(?::(?P<port>\d+))?\s*$"
+)
+
+
+def nested_render_data(data: Any, context: dict | None = None, *, _depth: int = 0) -> Any:
+    """
+    递归展开 data 中字符串值里的 Jinja，语义对齐 V2 nested_render_data。
+
+    - dict / list 递归处理；
+    - 含 `{{` 的字符串用 context（默认 data 自身，若为 dict）渲染；
+    - 渲染失败（缺变量等）保留原文，交给后续模板渲染或系统 context。
+    """
+    if _depth > 20:
+        return data
+    if context is None and isinstance(data, dict):
+        context = data
+    if isinstance(data, dict):
+        return {key: nested_render_data(value, context, _depth=_depth + 1) for key, value in data.items()}
+    if isinstance(data, list):
+        return [nested_render_data(item, context, _depth=_depth + 1) for item in data]
+    if isinstance(data, str) and "{{" in data:
+        try:
+            rendered = _JINJA_ENV.from_string(data).render(context or {})
+        except (UndefinedError, TypeError, ValueError):
+            return data
+        # 展开后仍可能嵌套引用，再跑一轮；与自身相同则停止
+        if rendered != data and "{{" in rendered:
+            return nested_render_data(rendered, context, _depth=_depth + 1)
+        return rendered
+    return data
+
+
+def _adapt_context_for_v3_single_pass(context: dict) -> dict:
+    """
+    把 V2 依赖 nested_render 才能落地的参数，改成 V3 单次渲染可表达的形式。
+
+    Syslog 未指定 syslog_monitor_host 时，scenario 会生成
+    `local[].host = '{{ cmdb_instance.host.bk_host_innerip }}:514'`。
+    在 V3 单次渲染下该值会原样写进配置文件。这里改为：
+    - host 置空
+    - 设置 use_host_innerip=True 与 syslog_port
+    并要求插件包模板（bkunifylogbeat_syslog.conf.tpl）按 use_host_innerip 回退到
+    `cmdb_instance.host.bk_host_innerip`（见 docs 节点管理V3适配）。
+    """
+    adapted = copy.deepcopy(context)
+    for item in adapted.get("local") or []:
+        if not isinstance(item, dict):
+            continue
+        host = item.get("host")
+        if not isinstance(host, str):
+            continue
+        matched = _CMDB_INNERIP_HOST_RE.match(host)
+        if not matched:
+            continue
+        port = matched.group("port") or "514"
+        item["host"] = ""
+        item["use_host_innerip"] = True
+        item["syslog_port"] = int(port)
+    return adapted
 
 
 class SubscriptionStepsTranslator:
@@ -81,12 +149,17 @@ class SubscriptionStepsTranslator:
                 NodeManV3CapabilityBlocked.MESSAGE.format(err=_("订阅步骤中未找到子配置模板"))
             )
 
-        context = (sub_step.get("params") or {}).get("context") or {}
+        context = copy.deepcopy((sub_step.get("params") or {}).get("context") or {})
         if not context.get("dataid"):
             # dataid 是采集项出数的唯一标识，缺失会导致数据落到错误的链路上
             raise NodeManV3CapabilityBlocked(
                 NodeManV3CapabilityBlocked.MESSAGE.format(err=_("子配置渲染上下文缺少 dataid"))
             )
+
+        # V2 会 nested_render_data(context, context)；V3 只有单次模板渲染。
+        # 先做同等预处理，再把仍依赖系统 context 的 Syslog 默认地址改成模板可表达的参数。
+        context = nested_render_data(context)
+        context = _adapt_context_for_v3_single_pass(context)
 
         return [
             {
@@ -96,9 +169,9 @@ class SubscriptionStepsTranslator:
                     "config_files_detail": [
                         {"template_name": name, "is_main_config": False} for name in template_names
                     ],
-                    # Jinja2 渲染时 custom_config_context 的键会直接合并到模板顶层作用域
-                    # （NodeMan action_render_plugin_config.go:172-175），与 V2 params.context 一致，
-                    # 因此这里原样透传 {dataid, local}，插件包模板无需改动。
+                    # Jinja2 下 custom_config_context 的键合并到模板顶层
+                    # （NodeMan action_render_plugin_config.go:172-175）。
+                    # 注意：这不等于 V2 的「先 nested_render 再渲染模板」；嵌套 Jinja 已在上方处理。
                     "custom_config_context": context,
                 },
             },
