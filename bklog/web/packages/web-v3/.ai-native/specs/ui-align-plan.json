@@ -1,8 +1,26 @@
 {
   "id": "plan.ui-migrate-v3",
-  "version": "0.3.0",
+  "version": "0.4.0",
   "status": "awaiting-decision",
-  "decision": "本轮只出计划，不改 Vue/CSS。上一轮 R1/R3 视觉落地不视为通过，待你选定策略与首波后再执行。",
+  "decision": "本轮只拆 TAPD 子需求，不改 Vue/CSS。上一轮视觉落地不视为通过。",
+  "alignTracks": {
+    "componentAndCompiled": "读 v2 SFC/scss 抽 token，在 v3 theme.css 重写；vite build 后对照编译 CSS 选择器与计算值，禁止拷贝 Vue2 文件",
+    "browserRender": "v2 e2e + v3 Playwright 对照区域几何与关键控件；禁止像素 diff 当门禁；缺代理则 M5 blocked"
+  },
+  "tapd": {
+    "parent": {
+      "id": "1010158081139386759",
+      "url": "https://tapd.woa.com/tapd_fe/10158081/story/detail/1010158081139386759"
+    },
+    "children": [
+      { "wave": "M0", "id": "1010158081139408859", "url": "https://tapd.woa.com/tapd_fe/10158081/story/detail/1010158081139408859" },
+      { "wave": "M1", "id": "1010158081139408869", "url": "https://tapd.woa.com/tapd_fe/10158081/story/detail/1010158081139408869" },
+      { "wave": "M2", "id": "1010158081139408879", "url": "https://tapd.woa.com/tapd_fe/10158081/story/detail/1010158081139408879" },
+      { "wave": "M3", "id": "1010158081139408886", "url": "https://tapd.woa.com/tapd_fe/10158081/story/detail/1010158081139408886" },
+      { "wave": "M4", "id": "1010158081139408891", "url": "https://tapd.woa.com/tapd_fe/10158081/story/detail/1010158081139408891" },
+      { "wave": "M5", "id": "1010158081139408901", "url": "https://tapd.woa.com/tapd_fe/10158081/story/detail/1010158081139408901" }
+    ]
+  },
   "principle": {
     "design": "以正在运行的 v2（retrieve-v3 + retrieve-v2 + manage-v2）为设计稿",
     "implement": "只在 packages/web-v3 用 TDesign + 自建 token/组件重写",
