@@ -33,8 +33,8 @@ class Command(BaseCommand):
             print("bkcc space type already exists, do nothing")
             return
 
-        # 通过cmdb接口查询所有业务（不走缓存，避免初始化到旧的业务列表）
-        biz_list = api.cmdb.get_business(bk_tenant_id=options["bk_tenant_id"], no_cache=True)
+        # 通过cmdb接口查询所有业务
+        biz_list = api.cmdb.get_business(bk_tenant_id=options["bk_tenant_id"])
         # 获取业务及对应的数据源信息
         biz_data_id_dict = get_biz_data_id()
         # 针对 0 业务按照规则转换为所属业务
