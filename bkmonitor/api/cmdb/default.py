@@ -616,13 +616,12 @@ class GetBusiness(Resource):
             bk_tenant_id = get_request_tenant_id()
 
         # 查询全部业务
-        # NOTE: 业务列表存在 1 小时的 cc 缓存（CC_CACHE_ALWAYS），这里强制刷新，保证拿到实时数据并回写缓存
         if validated_request_data["is_archived"]:
-            response_data = client.search_business.request.refresh(
-                bk_tenant_id=bk_tenant_id, condition={"bk_data_status": "disabled"}
-            )["info"]
+            response_data = client.search_business(bk_tenant_id=bk_tenant_id, condition={"bk_data_status": "disabled"})[
+                "info"
+            ]
         else:
-            response_data = client.search_business.request.refresh(bk_tenant_id=bk_tenant_id)["info"]
+            response_data = client.search_business(bk_tenant_id=bk_tenant_id)["info"]
 
         if validated_request_data["all"]:
             # 额外空间列表

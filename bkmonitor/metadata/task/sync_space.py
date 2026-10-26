@@ -18,6 +18,7 @@ from django.db.models import Q
 from django.db.transaction import atomic
 
 from alarm_backends.core.lock.service_lock import share_lock
+from api.cmdb import client
 from api.cmdb.define import Business
 from bkmonitor.utils.new_env import is_biz_id_need_managed
 from core.drf_resource import api
@@ -127,6 +128,8 @@ def sync_bkcc_space(bk_tenant_id: str | None = None, allow_deleted=False, create
     bkcc_type_id = SpaceTypes.BKCC.value
     biz_list: list[Business] = []
     for tenant_id in bk_tenant_ids:
+        # NOTE: 业务列表存在 1 小时的 cc 缓存，强制刷新，否则新增业务最长要等 1 小时才能建出空间
+        client.search_business.request.refresh(bk_tenant_id=tenant_id)
         temp: list[Business] = api.cmdb.get_business(bk_tenant_id=tenant_id)
         for b in temp:
             setattr(b, "bk_tenant_id", tenant_id)
@@ -228,6 +231,7 @@ def sync_archived_bkcc_space(bk_tenant_id: str | None = None):
         bk_tenant_ids = [tenant["id"] for tenant in api.bk_login.list_tenant()]
 
     for tenant_id in bk_tenant_ids:
+        client.search_business.request.refresh(bk_tenant_id=tenant_id, condition={"bk_data_status": "disabled"})
         archived_biz_list.extend(api.cmdb.get_business(bk_tenant_id=tenant_id, is_archived=True))
     archived_biz_id_list = [str(b.bk_biz_id) for b in archived_biz_list]
     # 归档的业务，变更空间名称为 {当前名称}(已归档_20240619)
@@ -258,6 +262,7 @@ def refresh_bkcc_space_name():
     logger.info("start sync bkcc space name task")
     biz_map: dict[str, Business] = {}
     for tenant in api.bk_login.list_tenant():
+        client.search_business.request.refresh(bk_tenant_id=tenant["id"])
         biz_map.update({str(b.bk_biz_id): b for b in api.cmdb.get_business(bk_tenant_id=tenant["id"])})
 
     updated_count = 0

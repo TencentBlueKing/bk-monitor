@@ -13,6 +13,7 @@ from metadata.models.space.constants import (
     SpaceTypes,
 )
 from metadata.task.sync_space import (
+    refresh_bkcc_space_name,
     refresh_bkci_space_name,
     refresh_cluster_resource,
     sync_bcs_space,
@@ -40,6 +41,12 @@ class LockCacheMock:
     def delete(self, key):
         self.data.pop(key, None)
         return True
+
+
+@pytest.fixture(autouse=True)
+def mock_cc_search_business(mocker):
+    """同步任务会先刷新 cc 业务列表缓存，统一 mock 掉避免触发真实请求"""
+    return mocker.patch("api.cmdb.client.search_business")
 
 
 def test_sync_bkcc_space(create_and_delete_record, table_id, mocker):
@@ -232,6 +239,39 @@ def test_sync_bkcc_space_invalid_start_biz_id_warn_once(create_and_delete_record
     warning.assert_called_once_with(
         "sync_bkcc_space: invalid NEW_ENV_START_BIZ_ID(%s), disable threshold filter", "abc"
     )
+
+
+def test_sync_bkcc_space_refresh_cmdb_cache(create_and_delete_record, mocker, mock_cc_search_business):
+    mocker.patch("alarm_backends.core.storage.redis.Cache.__new__", return_value=LockCacheMock())
+    mocker.patch(
+        "core.drf_resource.api.cmdb.get_business",
+        return_value=[Business(bk_biz_id=11, bk_biz_name="managed", time_zone="Asia/Shanghai")],
+    )
+    mocker.patch("metadata.task.sync_space.create_bkcc_spaces")
+    mocker.patch("metadata.task.sync_space.check_bkcc_space_builtin_datalink")
+    mocker.patch("metadata.utils.redis_tools.RedisTools.sadd", return_value=True)
+    mocker.patch("metadata.utils.redis_tools.RedisTools.publish", return_value=True)
+
+    sync_bkcc_space(bk_tenant_id="system")
+
+    # 正常业务与归档业务都必须先刷新 cc 缓存，否则新增业务最长要等 1 小时才能建出空间
+    refresh_kwargs = [single_call.kwargs for single_call in mock_cc_search_business.request.refresh.call_args_list]
+    assert {"bk_tenant_id": "system"} in refresh_kwargs
+    assert {"bk_tenant_id": "system", "condition": {"bk_data_status": "disabled"}} in refresh_kwargs
+
+
+def test_refresh_bkcc_space_name_refresh_cmdb_cache(mocker, mock_cc_search_business):
+    mocker.patch("alarm_backends.core.storage.redis.Cache.__new__", return_value=LockCacheMock())
+    mocker.patch("core.drf_resource.api.bk_login.list_tenant", return_value=[{"id": "system"}])
+    mocker.patch(
+        "core.drf_resource.api.cmdb.get_business",
+        return_value=[Business(bk_biz_id=11, bk_biz_name="managed", time_zone="Asia/Shanghai")],
+    )
+
+    refresh_bkcc_space_name()
+
+    # 空间名称刷新同样依赖实时业务信息，需要先刷新 cc 缓存
+    mock_cc_search_business.request.refresh.assert_called_once_with(bk_tenant_id="system")
 
 
 def test_sync_bcs_space(create_and_delete_record, table_id, mocker):
