@@ -1027,10 +1027,10 @@ def _catalog_root() -> Path:
     return Path(settings.BASE_DIR) / "support-files" / "apigw" / "resources" / "internal" / "user"
 
 
-def load_tool_registry(root: Path | None = None) -> ToolRegistry:
+def load_tool_registry(root: Path | None = None, *, native_tools: tuple[str, ...] | None = None) -> ToolRegistry:
     """读取全部公开 Source，合成并校验唯一的 ToolRegistry。"""
     root = root or _catalog_root()
-    enabled = native_tool_names()
+    enabled = native_tool_names() if native_tools is None else native_tools
     tools: dict[str, ToolDefinition] = {}
     discovered_operation_ids: set[str] = set()
     digest = hashlib.sha256()
@@ -1190,3 +1190,17 @@ def _cached_tool_registry(enabled: tuple[str, ...], monitor_system_id: str) -> T
 def get_tool_registry() -> ToolRegistry:
     """按当前动态配置返回进程内缓存的工具目录。"""
     return _cached_tool_registry(native_tool_names(), settings.BK_IAM_SYSTEM_ID)
+
+
+@lru_cache(maxsize=1)
+def _cached_route_registry(base_dir: str, monitor_system_id: str) -> ToolRegistry:
+    # Route recognition must not depend on whether SaaS permission fallback is enabled.
+    return load_tool_registry(native_tools=())
+
+
+def resolve_readonly_tool(method: str, path: str) -> ToolDefinition | None:
+    """从同一目录识别只读路由；仅命中工具时才加载动态权限配置。"""
+    tool = _cached_route_registry(str(settings.BASE_DIR), settings.BK_IAM_SYSTEM_ID).get_by_backend(method, path)
+    if tool is None or tool.risk != "query":
+        return None
+    return get_tool_registry().get(tool.name)
