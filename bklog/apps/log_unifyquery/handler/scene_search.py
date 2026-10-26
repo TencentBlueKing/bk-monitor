@@ -250,7 +250,15 @@ class SceneUnifyQueryHandler(UnifyQueryHandler):
             if add_index_set_id:
                 log["__index_set_id__"] = result_table_index_set_map.get(log.get("__result_table"))
             if (self.field_configs or self.text_fields_field_configs) and self.is_desensitize:
-                log = self._log_desensitize(log)
+                try:
+                    log = self._log_desensitize(log)
+                except Exception as e:
+                    # 单条日志脱敏异常不影响同批次其他日志，返回原始 log
+                    logger.error(
+                        "[desensitize] failed to desensitize log (doc_id=%s): %s",
+                        log.get("__doc_id", "unknown"),
+                        e,
+                    )
             log = self._add_cmdb_fields(log)
             log = self._add_bcs_cluster_fields(log)
 
@@ -959,7 +967,15 @@ class SceneUnifyQueryHandler(UnifyQueryHandler):
             for record in search_result["list"]:
                 if apply_desensitize:
                     # export_chart_data 不走 _deal_query_result，需显式逐行脱敏
-                    record = self._log_desensitize(record)
+                    try:
+                        record = self._log_desensitize(record)
+                    except Exception as e:
+                        # 单条记录脱敏异常不终止整次导出，保留原始 record
+                        logger.error(
+                            "[desensitize] failed to desensitize export record (doc_id=%s): %s",
+                            record.get("__doc_id", "unknown"),
+                            e,
+                        )
                 csv_writer.writerow([record.get(field, "") for field in fields])
             yield row_buffer.getvalue()
             row_buffer.seek(0)
