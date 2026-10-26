@@ -13,6 +13,7 @@ from metadata.models.space.constants import (
     SpaceTypes,
 )
 from metadata.task.sync_space import (
+    refresh_bkcc_space_name,
     refresh_bkci_space_name,
     refresh_cluster_resource,
     sync_bcs_space,
@@ -232,6 +233,39 @@ def test_sync_bkcc_space_invalid_start_biz_id_warn_once(create_and_delete_record
     warning.assert_called_once_with(
         "sync_bkcc_space: invalid NEW_ENV_START_BIZ_ID(%s), disable threshold filter", "abc"
     )
+
+
+def test_sync_bkcc_space_bypass_cmdb_cache(create_and_delete_record, mocker):
+    mocker.patch("alarm_backends.core.storage.redis.Cache.__new__", return_value=LockCacheMock())
+    get_business = mocker.patch(
+        "core.drf_resource.api.cmdb.get_business",
+        return_value=[Business(bk_biz_id=11, bk_biz_name="managed", time_zone="Asia/Shanghai")],
+    )
+    mocker.patch("metadata.task.sync_space.create_bkcc_spaces")
+    mocker.patch("metadata.task.sync_space.check_bkcc_space_builtin_datalink")
+    mocker.patch("metadata.utils.redis_tools.RedisTools.sadd", return_value=True)
+    mocker.patch("metadata.utils.redis_tools.RedisTools.publish", return_value=True)
+
+    sync_bkcc_space(bk_tenant_id="system")
+
+    # 正常业务和归档业务都必须绕过 cc 缓存，否则新增业务最长要等 1 小时才能建出空间
+    archived_flags = {single_call.kwargs.get("is_archived", False) for single_call in get_business.call_args_list}
+    assert archived_flags == {True, False}
+    assert all(single_call.kwargs["no_cache"] is True for single_call in get_business.call_args_list)
+
+
+def test_refresh_bkcc_space_name_bypass_cmdb_cache(mocker):
+    mocker.patch("alarm_backends.core.storage.redis.Cache.__new__", return_value=LockCacheMock())
+    mocker.patch("core.drf_resource.api.bk_login.list_tenant", return_value=[{"id": "system"}])
+    get_business = mocker.patch(
+        "core.drf_resource.api.cmdb.get_business",
+        return_value=[Business(bk_biz_id=11, bk_biz_name="managed", time_zone="Asia/Shanghai")],
+    )
+
+    refresh_bkcc_space_name()
+
+    # 空间名称刷新同样依赖实时业务信息，不能复用 cc 缓存
+    get_business.assert_called_once_with(bk_tenant_id="system", no_cache=True)
 
 
 def test_sync_bcs_space(create_and_delete_record, table_id, mocker):

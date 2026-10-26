@@ -601,6 +601,10 @@ class GetBusiness(Resource):
         )
         all = serializers.BooleanField(default=False, help_text="return all space list in Business")
         is_archived = serializers.BooleanField(default=False, help_text="if True return archived Business")
+        no_cache = serializers.BooleanField(
+            default=False,
+            help_text="if True request cmdb directly and backfill cc cache when result is not empty",
+        )
 
         def validate(self, attrs):
             for bk_biz_id in attrs["bk_biz_ids"]:
@@ -615,13 +619,21 @@ class GetBusiness(Resource):
         if not bk_tenant_id:
             bk_tenant_id = get_request_tenant_id()
 
-        # 查询全部业务
+        search_params: dict[str, Any] = {"bk_tenant_id": bk_tenant_id}
         if validated_request_data["is_archived"]:
-            response_data = client.search_business(bk_tenant_id=bk_tenant_id, condition={"bk_data_status": "disabled"})[
-                "info"
-            ]
+            search_params["condition"] = {"bk_data_status": "disabled"}
+
+        if validated_request_data["no_cache"]:
+            # 业务列表默认走 cc 缓存（CC_CACHE_ALWAYS，1 小时），同步类任务需要实时数据，所以直接请求 cc；
+            # 结果非空时回填共享缓存，让 web 侧不必等缓存过期就能拿到新的业务列表。
+            # cc 返回空或异常时不回填，避免把错误数据写进缓存。
+            search_result = client.search_business.request.cacheless(**search_params)
+            if isinstance(search_result, dict) and search_result.get("info"):
+                client.search_business.set_cached(search_result, **search_params)
         else:
-            response_data = client.search_business(bk_tenant_id=bk_tenant_id)["info"]
+            search_result = client.search_business(**search_params)
+
+        response_data = search_result["info"]
 
         if validated_request_data["all"]:
             # 额外空间列表

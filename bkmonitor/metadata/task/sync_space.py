@@ -127,7 +127,9 @@ def sync_bkcc_space(bk_tenant_id: str | None = None, allow_deleted=False, create
     bkcc_type_id = SpaceTypes.BKCC.value
     biz_list: list[Business] = []
     for tenant_id in bk_tenant_ids:
-        temp: list[Business] = api.cmdb.get_business(bk_tenant_id=tenant_id)
+        # NOTE: 业务列表存在 1 小时的 cc 缓存，同步任务必须跳过缓存，否则新增业务最长要等 1 小时才能建出空间；
+        # 实时结果非空时会回填共享缓存，web 侧无需等待缓存过期即可读取到新业务
+        temp: list[Business] = api.cmdb.get_business(bk_tenant_id=tenant_id, no_cache=True)
         for b in temp:
             setattr(b, "bk_tenant_id", tenant_id)
         biz_list.extend(temp)
@@ -228,7 +230,7 @@ def sync_archived_bkcc_space(bk_tenant_id: str | None = None):
         bk_tenant_ids = [tenant["id"] for tenant in api.bk_login.list_tenant()]
 
     for tenant_id in bk_tenant_ids:
-        archived_biz_list.extend(api.cmdb.get_business(bk_tenant_id=tenant_id, is_archived=True))
+        archived_biz_list.extend(api.cmdb.get_business(bk_tenant_id=tenant_id, is_archived=True, no_cache=True))
     archived_biz_id_list = [str(b.bk_biz_id) for b in archived_biz_list]
     # 归档的业务，变更空间名称为 {当前名称}(已归档_20240619)
     name_suffix = f"(已归档_{datetime.now().strftime('%Y%m%d')})"
@@ -258,7 +260,7 @@ def refresh_bkcc_space_name():
     logger.info("start sync bkcc space name task")
     biz_map: dict[str, Business] = {}
     for tenant in api.bk_login.list_tenant():
-        biz_map.update({str(b.bk_biz_id): b for b in api.cmdb.get_business(bk_tenant_id=tenant["id"])})
+        biz_map.update({str(b.bk_biz_id): b for b in api.cmdb.get_business(bk_tenant_id=tenant["id"], no_cache=True)})
 
     updated_count = 0
     for space in Space.objects.filter(space_type_id=SpaceTypes.BKCC.value):
