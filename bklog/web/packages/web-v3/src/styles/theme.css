@@ -105,6 +105,14 @@ body,
   background: var(--td-brand-color-light);
 }
 
+.retrieve-grep-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding-top: 8px;
+  border-top: 1px solid var(--td-component-border, #e7e9ed);
+}
+
 .retrieve-favorite-item__main {
   display: flex;
   flex: 1;

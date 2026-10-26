@@ -54,6 +54,12 @@
           :empty="search.uiState === 'idle' ? '提交关键字开始检索' : '暂无数据'"
         />
       </t-loading>
+      <retrieve-grep-panel
+        :state="grep"
+        @field="onGrepField"
+        @pattern="onGrepPattern"
+        @run="onRunGrep"
+      />
     </section>
     <t-dialog
       :visible="helpVisible"
@@ -89,7 +95,9 @@ import { computed, onBeforeUnmount, onMounted, reactive, ref } from 'vue';
 
 import { overlayManager } from '../../shared/overlay/overlay-manager';
 import { FavoriteController, type FavoriteSnapshot } from './favorite-controller';
+import { GrepController, type GrepSnapshot } from './grep-controller';
 import RetrieveFavoritePanel from './retrieve-favorite-panel.vue';
+import RetrieveGrepPanel from './retrieve-grep-panel.vue';
 import {
   createLocalSearchFetcher,
   RetrieveSearchController,
@@ -118,9 +126,11 @@ const toolbarController = new ToolbarController(intent => {
 
 const keyword = ref('');
 const saveName = ref('');
+const grepController = new GrepController();
 const search = reactive<RetrieveSnapshot>(searchController.getState());
 const favorite = reactive<FavoriteSnapshot>(favoriteController.getState());
 const toolbar = reactive<ToolbarSnapshot>(toolbarController.getState());
+const grep = reactive<GrepSnapshot>(grepController.getState());
 const visibleGroups = computed(() => favoriteController.getVisibleGroups());
 const helpVisible = ref(false);
 const saveVisible = ref(false);
@@ -144,6 +154,14 @@ const syncToolbar = (next: ToolbarSnapshot) => {
   Object.assign(toolbar, next);
 };
 
+const syncGrep = (next: GrepSnapshot) => {
+  Object.assign(grep, next);
+};
+
+const refreshGrep = () => {
+  syncGrep(grepController.search(search.records, search.uiState === 'loading'));
+};
+
 const submitSearch = async (intent?: SearchIntent) => {
   const timeRange = intent?.timeRange ?? toolbar.timeRange;
   const page = intent?.resetPage ? 1 : search.page;
@@ -153,6 +171,7 @@ const submitSearch = async (intent?: SearchIntent) => {
     startTime: timeRange.startTime,
     endTime: timeRange.endTime,
   }));
+  refreshGrep();
 };
 
 const onSearch = async () => {
@@ -194,6 +213,18 @@ const onApplyFavorite = async (id: string) => {
 
 const onRemoveFavorite = (id: string) => {
   syncFavorite(favoriteController.remove(id));
+};
+
+const onGrepField = (value: string) => {
+  syncGrep(grepController.setField(value));
+};
+
+const onGrepPattern = (value: string) => {
+  syncGrep(grepController.setPattern(value));
+};
+
+const onRunGrep = () => {
+  refreshGrep();
 };
 
 const openHelp = () => {

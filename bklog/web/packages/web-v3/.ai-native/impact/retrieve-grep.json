@@ -1,0 +1,18 @@
+{
+  "id": "impact.retrieve-grep",
+  "feature": "feature.retrieve-grep",
+  "nodes": [
+    { "type": "feature", "id": "feature.retrieve-grep" },
+    { "type": "state", "id": "state.retrieve-grep" },
+    { "type": "module", "id": "GrepController" },
+    { "type": "file", "id": "src/features/retrieve/grep-controller.ts" },
+    { "type": "file", "id": "src/features/retrieve/retrieve-grep-panel.vue" },
+    { "type": "test", "id": "test.retrieve-grep" }
+  ],
+  "edges": [
+    ["feature.retrieve-grep", "state.retrieve-grep"],
+    ["state.retrieve-grep", "GrepController"],
+    ["GrepController", "src/features/retrieve/grep-controller.ts"],
+    ["feature.retrieve-grep", "test.retrieve-grep"]
+  ]
+}

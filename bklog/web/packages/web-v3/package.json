@@ -8,7 +8,7 @@
     "dev": "vite --host 127.0.0.1 --port ${AAFE_E2E_PORT:-41001}",
     "build": "vite build",
     "preview": "vite preview --host 127.0.0.1 --port ${AAFE_E2E_PORT:-41001}",
-    "test": "node --test --experimental-strip-types src/features/retrieve/retrieve-search-controller.test.mjs src/features/retrieve/favorite-controller.test.mjs src/features/retrieve/toolbar-controller.test.mjs src/shared/overlay/overlay-manager.test.mjs src/shared/memory/memory-store.test.mjs scripts/anative.test.mjs",
+    "test": "node --test --experimental-strip-types src/features/retrieve/retrieve-search-controller.test.mjs src/features/retrieve/favorite-controller.test.mjs src/features/retrieve/toolbar-controller.test.mjs src/features/retrieve/grep-controller.test.mjs src/shared/overlay/overlay-manager.test.mjs src/shared/memory/memory-store.test.mjs scripts/anative.test.mjs",
     "anative": "node scripts/anative.mjs",
     "anative:spec": "node scripts/anative.mjs spec validate",
     "anative:contract": "node scripts/anative.mjs contract check",
