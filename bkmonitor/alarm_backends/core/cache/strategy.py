@@ -431,7 +431,7 @@ class StrategyCacheManager(CacheManager):
                     and config["time_field"] != "dtEventTimeStamp"
                 ):
                     logger.warning(
-                        f"strategy cache conflict: strategy: {strategy['id']}, source form bk_data"
+                        f"strategy cache conflict: strategy: {strategy['id']}, source from bk_data"
                         f" but time_field is not [dtEventTimeStamp]"
                     )
                     config["time_field"] = "dtEventTimeStamp"
