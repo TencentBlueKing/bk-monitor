@@ -3296,6 +3296,7 @@ def direct_gateway(monkeypatch, request_factory, native_http, io):
         app_verified=False,
         app_scope_allowed=True,
         spoof_headers=False,
+        missing_claim=None,
         api_token_expected=False,
     ):
         tool = registry.get_tool_registry().get(tool_name)
@@ -3322,6 +3323,10 @@ def direct_gateway(monkeypatch, request_factory, native_http, io):
             user=claims,
             validate=lambda: (valid_jwt, "invalid JWT"),
         )
+        if missing_claim == "app_code":
+            jwt.app.pop("app_code")
+        if missing_claim == "username":
+            jwt.user.pop("username")
         permission = Mock()
         permission.is_allowed_by_biz.side_effect = lambda biz, action, **kw: (
             True
@@ -3770,6 +3775,17 @@ def test_application_alert_resource_keeps_actual_business_ownership_check(actual
     with pytest.raises(ReachedAuthorizedQuery if actual_biz == 2 else PermissionDenied):
         perform(NS(), {"id": "synthetic-alert", "bk_biz_id": 2})
     assert query.call_count == (1 if actual_biz == 2 else 0)
+
+
+@pytest.mark.parametrize("missing_claim", ["app_code", "username"])
+@pytest.mark.parametrize("path", ["/api/v4/alert/alert/detail/", "/api/v4/unrelated/read/"])
+def test_original_route_rejects_missing_identity_claims(direct_gateway, missing_claim, path):
+    response, _, permission, ordinary = direct_gateway(
+        path=path, method="GET", app_verified=True, missing_claim=missing_claim
+    )
+    assert response.status_code == 403
+    permission.is_allowed_by_biz.assert_not_called()
+    ordinary.assert_not_called()
 
 
 def test_application_gateway_contract_is_explicit_and_mcp_mapping_unchanged():

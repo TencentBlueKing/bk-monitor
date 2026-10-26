@@ -924,6 +924,10 @@ class AuthenticationMiddleware(MiddlewareMixin):
                     log_mcp_event("gateway_auth_denied", request, level=logging.WARNING, reason="invalid_jwt")
                 return HttpResponseForbidden(error_message)
 
+            # Legacy routes require both claim keys; missing fields must not fall
+            # through to the ordinary app/admin defaults.
+            if not is_application and ("app_code" not in request.jwt.app or "username" not in request.jwt.user):
+                return HttpResponseForbidden("Gateway identity claims are incomplete")
             app_code = request.jwt.app.get("app_code")
             username = request.jwt.user.get("username")
             if is_application and (
