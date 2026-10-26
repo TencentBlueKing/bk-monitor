@@ -31,7 +31,7 @@
         :title="toolbar.favoriteShown ? '收起收藏' : '展开收藏'"
         @click="emit('toggle-favorite')"
       >
-        <folder-icon size="16px" />
+        <i class="bklog-icon bklog-shoucangjia" />
       </button>
       <t-select
         :model-value="indexSetId"
@@ -43,24 +43,21 @@
     </div>
     <div class="retrieve-topbar__right">
       <t-select :model-value="toolbar.timePreset" class="retrieve-topbar__time" borderless @change="onTimeChange">
-        <template #prefixIcon>
-          <time-icon />
-        </template>
         <t-option value="15m" label="近 15 分钟" />
         <t-option value="1h" label="近 1 小时" />
         <t-option value="24h" label="近 24 小时" />
       </t-select>
       <label class="retrieve-topbar__refresh">
-        <refresh-icon />
+        <i class="bklog-icon bklog-time-2" />
         <span>自动刷新</span>
         <t-switch size="small" :model-value="toolbar.autoRefresh" @change="onAutoRefresh" />
       </label>
       <t-button variant="text" @click="emit('save-favorite')">
-        <template #icon><star-icon /></template>
+        <i class="bklog-icon bklog-star-line" />
         保存收藏
       </t-button>
       <t-button variant="text" @click="emit('open-help')">
-        <template #icon><help-circle-icon /></template>
+        <i class="bklog-icon bklog-shezhi" />
         说明
       </t-button>
     </div>
@@ -68,8 +65,6 @@
 </template>
 
 <script setup lang="ts">
-import { FolderIcon, HelpCircleIcon, RefreshIcon, StarIcon, TimeIcon } from 'tdesign-icons-vue-next';
-
 import type { TimePreset, ToolbarSnapshot } from './toolbar-controller';
 
 defineProps<{

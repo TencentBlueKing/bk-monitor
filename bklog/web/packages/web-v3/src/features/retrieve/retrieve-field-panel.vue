@@ -26,9 +26,8 @@
     <t-alert v-if="state.uiState === 'error'" theme="error" :message="state.error" />
     <label v-for="field in state.fields" :key="field.name" class="retrieve-field-item">
       <t-checkbox :checked="field.visible" @change="value => emit('toggle', field.name, Boolean(value))" />
-      <t-tag size="small" :theme="typeTheme(field.name)" variant="light">{{ typeLabel(field.name, field.type) }}</t-tag>
-      <span class="retrieve-field-item__alias">{{ aliasOf(field.name) }}</span>
-      <small class="retrieve-field-item__name">{{ field.name }}</small>
+      <span class="retrieve-field-item__type" :data-type="typeLabel(field.name, field.type)">{{ typeChar(field.name, field.type) }}</span>
+      <span class="retrieve-field-item__name">{{ field.name }}</span>
     </label>
   </aside>
 </template>
@@ -50,14 +49,7 @@ const FIELD_META: Record<string, { alias: string; type: string }> = {
   log: { alias: '日志', type: 'text' },
 };
 
-const aliasOf = (name: string) => FIELD_META[name]?.alias ?? name;
-
 const typeLabel = (name: string, fallback: string) => FIELD_META[name]?.type ?? fallback;
 
-const typeTheme = (name: string) => {
-  const type = FIELD_META[name]?.type;
-  if (type === 'date') return 'warning';
-  if (type === 'text') return 'success';
-  return 'primary';
-};
+const typeChar = (name: string, fallback: string) => typeLabel(name, fallback).charAt(0);
 </script>

@@ -35,6 +35,9 @@ export default defineConfig({
     host: '127.0.0.1',
     port,
     strictPort: true,
+    fs: {
+      allow: ['../../..'],
+    },
   },
   preview: {
     host: '127.0.0.1',

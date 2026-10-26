@@ -24,7 +24,8 @@
   <section class="retrieve-searchbar" data-ui="searchbar">
     <div class="retrieve-searchbar__box">
       <button type="button" class="retrieve-searchbar__mode" data-ui="search-mode" @click="toggleMode">
-        {{ mode === 'ui' ? 'UI 查询' : 'SQL 查询' }}
+        {{ mode === 'ui' ? 'UI' : 'SQL' }}
+        <i class="bklog-icon bklog-qiehuan-2" />
       </button>
       <div class="retrieve-searchbar__body">
         <div v-if="keyword && mode === 'ui'" class="retrieve-searchbar__chips" data-ui="search-chips">
@@ -40,10 +41,12 @@
           @enter="emit('search')"
         />
       </div>
+      <t-dropdown :options="historyOptions" trigger="click" @click="onHistory">
+        <button type="button" class="retrieve-searchbar__icon-btn" data-ui="search-history" title="历史">
+          <i class="bklog-icon bklog-history-2" />
+        </button>
+      </t-dropdown>
     </div>
-    <t-dropdown :options="historyOptions" trigger="click" @click="onHistory">
-      <t-button variant="outline" data-ui="search-history">历史</t-button>
-    </t-dropdown>
     <t-button
       class="retrieve-searchbar__submit"
       theme="primary"

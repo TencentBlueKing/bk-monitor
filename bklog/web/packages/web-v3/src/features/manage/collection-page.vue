@@ -23,7 +23,10 @@
 <template>
   <section class="collection-shell" data-ui="collection-root">
     <aside class="collection-left" data-ui="collection-left">
-      <header class="collection-left__title">采集接入</header>
+      <header class="collection-left__title">全部采集项 {{ visible.length }}</header>
+      <t-input v-model="filterQuery" class="collection-left__search" placeholder="搜索" @enter="onFilter">
+        <template #prefix-icon><i class="bklog-icon bklog-sousuo-" /></template>
+      </t-input>
       <button
         type="button"
         :class="['collection-left__item', { 'is-active': scenario === 'all' }]"

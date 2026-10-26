@@ -218,7 +218,10 @@ const workspace = reactive<WorkspaceSnapshot>(workspaceController.getState());
 const context = reactive<ContextSnapshot>(contextController.getState());
 const realtime = reactive<RealtimeSnapshot>(realtimeController.getState());
 const visibleGroups = computed(() => favoriteController.getVisibleGroups());
-const indexSetOptions = computed(() => indexSetController.getVisibleItems().map(item => ({ label: item.name, value: item.id })));
+const indexSetOptions = computed(() => indexSetController.getVisibleItems().map(item => ({
+  label: item.tableId ? `${item.name} (${item.tableId})` : item.name,
+  value: item.id,
+})));
 const clusterGroups = computed(() => clusteringController.group(search.records, keyword.value));
 const graphBuckets = computed(() => graphController.bucket(search.records));
 const contextVisible = ref(false);

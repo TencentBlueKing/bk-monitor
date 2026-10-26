@@ -28,6 +28,7 @@ export interface IndexSetItem {
   id: string;
   name: string;
   scenario: string;
+  tableId?: string;
 }
 
 export interface IndexSetSnapshot {
@@ -39,8 +40,8 @@ export interface IndexSetSnapshot {
 }
 
 export const DEFAULT_INDEX_SETS: IndexSetItem[] = [
-  { id: 'index-a', name: 'nginx-access', scenario: 'linux' },
-  { id: 'index-b', name: 'app-error', scenario: 'linux' },
+  { id: 'index-a', name: 'nginx-access', scenario: 'linux', tableId: '2_bklog.nginx' },
+  { id: 'index-b', name: 'app-error', scenario: 'linux', tableId: '2_bklog.app' },
 ];
 
 export class IndexSetController {

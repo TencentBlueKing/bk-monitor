@@ -30,6 +30,7 @@ import 'tdesign-vue-next/es/style/index.css';
 
 import App from './app.vue';
 import { router } from './app-router';
+import '../../../src/static/style.css';
 import './styles/theme.css';
 
 createApp(App).use(TDesign).use(router).mount('#app');

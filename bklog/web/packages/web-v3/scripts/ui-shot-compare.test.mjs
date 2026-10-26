@@ -57,10 +57,22 @@ describe('UI screenshot compare (forbidden to pass without shots)', () => {
     }
   });
 
-  it('does not claim v2 e2e passed without a v2 shot', () => {
+  it('requires real v2 retrieve/collection screenshots from local mock', () => {
+    assertPng(join(captureDir, 'v2-retrieve.png'), 'v2-retrieve.png', 20_000);
+    assertPng(join(captureDir, 'v2-collection.png'), 'v2-collection.png', 8_000);
     const report = JSON.parse(readFileSync(reportPath, 'utf8'));
-    if (!existsSync(join(captureDir, 'v2-retrieve.png'))) {
-      assert.equal(report.v2?.ok, false);
+    assert.equal(report.v2?.ok, true, `v2 compare must pass with mock shots: ${report.v2?.reason}`);
+    const v2Page = report.pages.find(page => page.name === 'v2-retrieve');
+    assert.ok(v2Page, 'report must include v2-retrieve page');
+    assert.ok(v2Page.checks.every(check => check.ok), 'v2 retrieve chrome checks must pass');
+  });
+
+  it('records v2 vs v3 comparison instead of v3-only pass', () => {
+    const report = JSON.parse(readFileSync(reportPath, 'utf8'));
+    const compares = report.compare ?? report.pages.filter(page => String(page.name).startsWith('compare-'));
+    assert.ok(compares.length > 0, 'v2/v3 comparison result is required');
+    for (const item of compares) {
+      assert.ok(item.checks.every(check => check.ok), `${item.name} comparison failed`);
     }
   });
 });

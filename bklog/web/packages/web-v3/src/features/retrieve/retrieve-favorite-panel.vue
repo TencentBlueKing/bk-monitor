@@ -23,9 +23,18 @@
 <template>
   <aside class="retrieve-favorite-panel" data-ui="favorite-panel">
     <header class="retrieve-favorite-panel__header">
-      <strong>收藏</strong>
-      <t-checkbox :checked="state.currentOnly" @change="onCurrentOnly">仅当前索引集</t-checkbox>
+      <span class="retrieve-favorite-panel__title">
+        收藏夹
+        <em>{{ visibleGroups.reduce((sum, group) => sum + group.favorites.length, 0) }}</em>
+      </span>
+      <span class="retrieve-favorite-panel__tools">
+        <i class="bklog-icon bklog-shezhi" title="收藏管理" />
+        <i class="bklog-icon bklog-collapse" title="收起" />
+      </span>
     </header>
+    <t-checkbox class="retrieve-favorite-panel__current" :checked="state.currentOnly" @change="onCurrentOnly">
+      仅查看当前索引集
+    </t-checkbox>
     <t-input
       class="retrieve-favorite-panel__search"
       :model-value="filterDraft"
@@ -35,7 +44,7 @@
       @enter="onFilterEnter"
     >
       <template #prefix-icon>
-        <search-icon />
+        <i class="bklog-icon bklog-sousuo-" />
       </template>
     </t-input>
     <t-alert v-if="state.uiState === 'error'" theme="error" :message="state.error" />
@@ -56,7 +65,7 @@
           </button>
           <t-popconfirm content="确认删除该收藏？" @confirm="onRemove(item.id)">
             <t-button size="small" variant="text" shape="square" theme="danger">
-              <template #icon><delete-icon /></template>
+              <i class="bklog-icon bklog-shanchu" />
             </t-button>
           </t-popconfirm>
         </li>
@@ -67,7 +76,6 @@
 </template>
 
 <script setup lang="ts">
-import { DeleteIcon, SearchIcon } from 'tdesign-icons-vue-next';
 import { ref } from 'vue';
 
 import type { FavoriteGroup, FavoriteSnapshot } from './favorite-controller';

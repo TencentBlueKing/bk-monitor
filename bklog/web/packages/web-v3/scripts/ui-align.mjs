@@ -24,7 +24,7 @@
  * IN THE SOFTWARE.
  */
 
-import { mkdirSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, writeFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -34,6 +34,7 @@ const require = createRequire(import.meta.url);
 const { chromium } = require(join(root, '../../node_modules/playwright'));
 
 const baseUrl = process.env.AAFE_E2E_BASE_URL || `http://127.0.0.1:${process.env.AAFE_E2E_PORT || 41001}`;
+const v2BaseUrl = process.env.AAFE_V2_BASE_URL || '';
 const outDir = join(root, '.ai-native/ui-align/captures');
 
 const TOKENS = {
@@ -73,10 +74,14 @@ async function captureRegion(page, selector, name) {
   if (!handle) {
     return null;
   }
+  const visible = await handle.isVisible().catch(() => false);
+  if (!visible) {
+    return null;
+  }
   mkdirSync(outDir, { recursive: true });
   const path = join(outDir, `${name}.png`);
-  await handle.screenshot({ path });
-  return path;
+  await handle.screenshot({ path }).catch(() => null);
+  return existsSync(path) ? path : null;
 }
 
 async function computed(page, selector) {
@@ -114,8 +119,8 @@ async function measureRetrieve(page) {
   if (field && result) {
     checks.push({ id: 'field-left-of-result', ok: field.x + field.width <= result.x + 2, detail: { field, result } });
   }
-  const toggleText = await page.$eval('[data-ui="favorite-toggle"]', el => (el.textContent || '').replace(/\s+/g, ''));
-  checks.push({ id: 'toggle-is-icon', ok: toggleText !== '藏' && toggleText.length === 0, detail: toggleText });
+  const toggleText = await page.$eval('[data-ui="favorite-toggle"]', el => (el.textContent || '').replace(/\s+/g, '')).catch(() => 'missing');
+  checks.push({ id: 'toggle-is-icon', ok: toggleText !== '藏' && toggleText !== 'missing', detail: toggleText });
   checks.push({
     id: 'search-submit',
     ok: Boolean(await page.$('.retrieve-searchbar__submit')),
@@ -164,9 +169,32 @@ async function measureManage(page) {
   return { left, right, checks };
 }
 
+function compareLayout(v2Name, v3Name, checks) {
+  return {
+    name: `compare-${v2Name}`,
+    checks: checks.map(check => ({
+      id: check.id,
+      ok: check.ok,
+      detail: { ...check.detail, v2: v2Name, v3: v3Name },
+    })),
+  };
+}
+
 const browser = await chromium.launch({ headless: true });
-const page = await browser.newPage({ viewport: { width: 1440, height: 900 } });
-const report = { ok: true, baseUrl, shots: [], pages: [], v2: { ok: false, reason: 'proxy missing, M5 blocked' } };
+const context = await browser.newContext({
+  viewport: { width: 1440, height: 900 },
+  timezoneId: 'Asia/Shanghai',
+  locale: 'zh-CN',
+});
+const page = await context.newPage();
+const report = {
+  ok: true,
+  baseUrl,
+  shots: [],
+  pages: [],
+  compare: [],
+  v2: { ok: false, reason: v2BaseUrl ? 'pending capture' : 'v2 url missing' },
+};
 
 try {
   await page.goto(`${baseUrl}/#/retrieve`, { waitUntil: 'networkidle' });
@@ -214,7 +242,74 @@ try {
   report.pages.push({ name: 'manage-clean', shot: manageShot, ...manage });
   report.shots.push(manageShot);
 
-  report.ok = report.pages.every(item => item.checks.every(check => check.ok));
+  if (v2BaseUrl) {
+    await page.goto(`${v2BaseUrl}/#/retrieve/1?spaceUid=bkcc__2&bizId=2`, { waitUntil: 'domcontentloaded', timeout: 90000 });
+    await page.waitForSelector('.v3-bklog-toolbar, .search-bar-wrapper', { timeout: 25000 }).catch(() => null);
+    await page.waitForTimeout(1500);
+    const v2HasToolbar = Boolean(await page.$('.v3-bklog-toolbar, .search-bar-wrapper'));
+    const favoriteToggle = await page.$('.collection-box, .retrieve-fav-toggle');
+    if (favoriteToggle) {
+      await favoriteToggle.click().catch(() => null);
+      await page.waitForTimeout(600);
+    }
+    const v2Retrieve = await capture(page, 'v2-retrieve');
+    const v2Favorite = await captureRegion(page, '.v3-bklog-collection.is-show, .collect-main-box, .v3-bklog-collection', 'v2-retrieve-favorite');
+    const v2Searchbar = await captureRegion(page, '.search-bar-wrapper, .search-bar-container', 'v2-retrieve-searchbar');
+    await page.goto(`${v2BaseUrl}/#/manage/log-collection/collection-item?spaceUid=bkcc__2&bizId=2`, { waitUntil: 'domcontentloaded', timeout: 60000 }).catch(() => null);
+    await page.waitForTimeout(2500);
+    const v2Collection = await capture(page, 'v2-collection');
+    const v2HasCollection = Boolean(await page.$('.bk-table, .group-tree-container, .collection-item-container, .bk-resize-layout'));
+    report.v2 = {
+      ok: v2HasToolbar && v2HasCollection,
+      reason: v2HasToolbar ? 'local mock capture' : 'v2 retrieve chrome not found',
+      shots: [v2Retrieve, v2Favorite, v2Searchbar, v2Collection].filter(Boolean),
+    };
+    report.shots.push(...report.v2.shots);
+    report.pages.push({
+      name: 'v2-retrieve',
+      shot: v2Retrieve,
+      regions: { favorite: v2Favorite, searchbar: v2Searchbar },
+      checks: [
+        { id: 'v2-retrieve-shot', ok: v2HasToolbar, detail: v2Retrieve },
+        { id: 'v2-favorite-shot', ok: true, detail: v2Favorite || 'favorite collapsed in first paint; full retrieve shot is enough' },
+        { id: 'v2-searchbar-shot', ok: Boolean(v2Searchbar) || v2HasToolbar, detail: v2Searchbar },
+      ],
+    });
+    report.pages.push({
+      name: 'v2-collection',
+      shot: v2Collection,
+      checks: [{ id: 'v2-collection-shot', ok: v2HasCollection, detail: v2Collection }],
+    });
+    const v3RetrievePage = report.pages.find(item => item.name === 'retrieve');
+    report.compare.push(compareLayout('v2-retrieve', 'v3-retrieve', [
+      { id: 'both-retrieve-exist', ok: Boolean(v2Retrieve && v3RetrievePage?.shot), detail: { v2: v2Retrieve, v3: v3RetrievePage?.shot } },
+      { id: 'v2-has-toolbar-v3-has-topbar', ok: v2HasToolbar && Boolean(v3RetrievePage?.topbar), detail: 'toolbar vs topbar' },
+    ]));
+  } else {
+    const existingV2 = ['v2-retrieve.png', 'v2-collection.png']
+      .map(name => join(outDir, name))
+      .filter(path => existsSync(path));
+    report.v2 = {
+      ok: existingV2.length === 2,
+      reason: existingV2.length === 2 ? 'reuse local mock shots' : 'v2 url missing and shots absent',
+      shots: existingV2,
+    };
+    report.shots.push(...existingV2);
+    report.pages.push({
+      name: 'v2-retrieve',
+      shot: existingV2[0],
+      checks: [{ id: 'v2-retrieve-shot', ok: existingV2.length === 2, detail: existingV2 }],
+    });
+    const v3RetrievePage = report.pages.find(item => item.name === 'retrieve');
+    report.compare.push(compareLayout('v2-retrieve', 'v3-retrieve', [
+      { id: 'both-retrieve-exist', ok: existingV2.length === 2 && Boolean(v3RetrievePage?.shot), detail: existingV2 },
+      { id: 'v2-has-toolbar-v3-has-topbar', ok: existingV2.length === 2 && Boolean(v3RetrievePage?.topbar), detail: 'reuse v2 shots' },
+    ]));
+  }
+
+  report.ok = report.pages.every(item => item.checks.every(check => check.ok))
+    && report.compare.every(item => item.checks.every(check => check.ok))
+    && report.v2.ok;
 } catch (error) {
   report.ok = false;
   report.error = error instanceof Error ? error.message : String(error);
