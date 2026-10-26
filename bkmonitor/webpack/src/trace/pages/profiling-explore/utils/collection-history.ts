@@ -23,6 +23,8 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
+import { formatUnitValue } from '../../rum-explore/utils';
+
 import type { CollectionPayload } from '../types/collection';
 import type {
   CollectionCandidate,
@@ -34,6 +36,7 @@ import type {
   CollectionExecutionKey,
   CollectionHistoryFilters,
   CollectionResultSelection,
+  CollectionTaskColumn,
 } from '../types/collection-history';
 
 export const executionStatusLabels = {
@@ -206,12 +209,36 @@ export const hostColumnMinWidths: Record<CollectionExecutionColumn['type'], numb
   text: 160,
 };
 
+// 任务历史列同样只由后端声明类型，最小宽度按类型兜底；用 Map 避免后端字段命中原型属性
+const taskColumnMinWidths = new Map<string, number>([
+  ['datetime', 180],
+  ['duration', 100],
+  ['number', 100],
+  ['status', 140],
+  ['text', 160],
+]);
+
+// 已知业务字段沿用原表格列宽，避免动态列改变既有布局
+const taskFieldMinWidths = new Map<string, number>([
+  ['collection_type', 160],
+  ['duration_ms', 100],
+  ['execution_status', 140],
+  ['hosts', 130],
+  ['schedule_type', 140],
+  ['started_at', 200],
+  ['target_count', 100],
+  ['task_name', 220],
+]);
+
+export const taskColumnMinWidth = (column: CollectionTaskColumn) =>
+  taskFieldMinWidths.get(column.field) ?? taskColumnMinWidths.get(column.type) ?? 160;
+
 export const canViewExecution = (value: CollectionExecution) =>
   ['succeed', 'partial_succeed'].includes(value.execution_status);
 export const canRetryExecution = (value: CollectionExecutionDetail) =>
   value.execution_status !== 'running' && value.hosts.some(host => ['failed', 'timeout'].includes(host.status));
-export const formatExecutionDuration = (value: null | number) =>
-  value == null ? '--' : `${Number((value / 1000).toFixed(3))}s`;
+// 耗时按 ms 自适应换算单位，避免长数值撑破列宽
+export const formatExecutionDuration = (value: null | number) => (value == null ? '--' : formatUnitValue(value, 'ms'));
 
 export function buildExecutionPayload(
   detail: CollectionExecutionDetail,

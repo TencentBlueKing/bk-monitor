@@ -27,14 +27,18 @@ import { type Ref, onScopeDispose, shallowRef, watch } from 'vue';
 
 import { useI18n } from 'vue-i18n';
 
-import { getCollectionHistory } from '../services/collection-history';
+import { COLLECTION_HISTORY_PAGE_SIZE, getCollectionHistory } from '../services/collection-history';
 import { executionRowKey } from '../utils/collection-history';
 import { useCollectionCandidates } from './use-collection-candidates';
 
 import type { SelectionRange } from '../types';
-import type { CollectionExecution, CollectionHistoryFilters } from '../types/collection-history';
+import type { CollectionExecution, CollectionHistoryFilters, CollectionTaskColumn } from '../types/collection-history';
 
 export type UseCollectionHistoryReturn = ReturnType<typeof useCollectionHistory>;
+
+// 后端列定义只保证是数组，元素结构仍需运行时校验，避免异常数据中断表格渲染
+const isTaskColumn = (value: unknown): value is CollectionTaskColumn =>
+  !!value && typeof value === 'object' && typeof (value as CollectionTaskColumn).field === 'string';
 
 export function useCollectionHistory({
   bizId,
@@ -52,6 +56,8 @@ export function useCollectionHistory({
 }) {
   const { t } = useI18n();
   const rows = shallowRef<CollectionExecution[]>([]);
+  // 后端下发的表头列定义；缺省时组件回退默认列
+  const taskColumns = shallowRef<CollectionTaskColumn[]>([]);
   const loading = shallowRef(false);
   const error = shallowRef('');
   const hasMore = shallowRef(false);
@@ -82,6 +88,11 @@ export function useCollectionHistory({
     try {
       const result = await getCollectionHistory(bizId.value, queryRange, filters.value, offset, current.signal);
       if (current.signal.aborted) return;
+      // 翻页响应可能不带列定义，仅在结构有效的下发时覆盖
+      if (Array.isArray(result.task_columns)) {
+        const columns = result.task_columns.filter(isTaskColumn);
+        if (columns.length) taskColumns.value = columns;
+      }
       const known = new Set(rows.value.map(executionRowKey));
       const added = result.data.filter(row => {
         const key = executionRowKey(row);
@@ -92,7 +103,7 @@ export function useCollectionHistory({
       rows.value = [...rows.value, ...added];
       offset += result.data.length;
       // 是否还有更多仍按分页语义判断；「本页没有新增行」不等于「没有更多数据」，只用来暂停自动补页
-      hasMore.value = result.data.length === 20;
+      hasMore.value = result.data.length === COLLECTION_HISTORY_PAGE_SIZE;
       canAutoFill.value = added.length > 0;
     } catch (e) {
       if (!current.signal.aborted) error.value = (e as Error)?.message || t('采集历史加载失败，请重试');
@@ -105,6 +116,7 @@ export function useCollectionHistory({
     controller?.abort();
     loading.value = false;
     rows.value = [];
+    taskColumns.value = [];
     offset = 0;
     hasMore.value = false;
     canAutoFill.value = true;
@@ -124,6 +136,7 @@ export function useCollectionHistory({
   });
   return {
     rows,
+    taskColumns,
     loading,
     error,
     hasMore,

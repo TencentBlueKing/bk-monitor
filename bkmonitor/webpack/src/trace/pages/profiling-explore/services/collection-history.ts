@@ -40,9 +40,13 @@ import type {
   CollectionExecutionDetail,
   CollectionExecutionKey,
   CollectionHistoryFilters,
+  CollectionHistoryResult,
 } from '../types/collection-history';
 
 const options = (signal: AbortSignal) => ({ signal, needMessage: false });
+
+// 历史列表分页大小，翻页判断需与请求 limit 保持一致
+export const COLLECTION_HISTORY_PAGE_SIZE = 20;
 
 export function getCollectionCandidates(
   bizId: number,
@@ -70,9 +74,16 @@ export function getCollectionHistory(
   filters: CollectionHistoryFilters,
   offset: number,
   signal: AbortSignal
-): Promise<{ data: CollectionExecution[] }> {
+): Promise<CollectionHistoryResult> {
   return listExecutions(
-    { bk_biz_id: bizId, start_time: range[0], end_time: range[1], filters, offset, limit: 20 },
+    {
+      bk_biz_id: bizId,
+      start_time: range[0],
+      end_time: range[1],
+      filters,
+      offset,
+      limit: COLLECTION_HISTORY_PAGE_SIZE,
+    },
     options(signal)
   );
 }
