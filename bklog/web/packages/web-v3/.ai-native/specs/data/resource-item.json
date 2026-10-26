@@ -1,0 +1,33 @@
+{
+  "id": "data.resource-item",
+  "version": "0.1.0",
+  "title": "管理资源项",
+  "source": "Vue3 local catalog, not inferred from Vue2 v1",
+  "fields": [
+    {
+      "name": "id",
+      "type": "string",
+      "required": true,
+      "meaning": "资源 ID"
+    },
+    {
+      "name": "name",
+      "type": "string",
+      "required": true,
+      "meaning": "名称"
+    },
+    {
+      "name": "status",
+      "type": "string",
+      "required": true,
+      "meaning": "状态"
+    },
+    {
+      "name": "keyword",
+      "type": "string",
+      "required": false,
+      "nullable": true,
+      "meaning": "检索关键字"
+    }
+  ]
+}

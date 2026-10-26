@@ -1,0 +1,25 @@
+{
+  "id": "state.retrieve-clustering",
+  "owner": "ClusteringController",
+  "readers": [
+    "ClusteringPage"
+  ],
+  "writers": [
+    "ClusteringController"
+  ],
+  "initial": "idle",
+  "cleanup": "none",
+  "concurrency": "single writer",
+  "transitions": [
+    {
+      "from": "idle",
+      "event": "GROUP",
+      "to": "success"
+    },
+    {
+      "from": "success",
+      "event": "FILTER",
+      "to": "filtered"
+    }
+  ]
+}

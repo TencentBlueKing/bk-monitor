@@ -1,9 +1,21 @@
 {
   "id": "plan.vue3-migration",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "target": "bklog/web/packages/web-v3",
   "source": "bklog/web/src",
   "principle": "redesign on Vue3 + tdesign-vue-next, do not copy Vue2 files",
+  "sealed": {
+    "note": "v1 已封板，本计划与实现均不处理",
+    "paths": [
+      "bklog/web/packages/web-v1",
+      "bklog/web/src/views/retrieve",
+      "bklog/web/src/views/manage"
+    ]
+  },
+  "excluded": [
+    { "id": "retrieve-v2", "source": "src/views/retrieve-v2", "reason": "已被 retrieve-v3 取代，不单独迁入 Vue3" },
+    { "id": "playground", "source": "src/views/playground", "reason": "本地调试页，非产品域" }
+  ],
   "waves": [
     {
       "id": "W1",
@@ -14,32 +26,40 @@
     {
       "id": "W2",
       "title": "日志检索最小闭环",
-      "status": "in-progress",
+      "status": "landed",
       "source": "src/views/retrieve-v3",
       "modules": [
         { "id": "retrieve-search", "source": "search-bar + search-result/original-log", "priority": 1, "status": "landed" },
         { "id": "retrieve-favorite", "source": "favorite", "priority": 2, "status": "landed" },
         { "id": "retrieve-toolbar", "source": "toolbar", "priority": 2, "status": "landed" },
         { "id": "retrieve-grep", "source": "grep", "priority": 3, "status": "landed" },
-        { "id": "retrieve-clustering", "source": "search-result/log-clustering", "priority": 3, "status": "planned" },
-        { "id": "retrieve-template", "source": "search-result/template-manage", "priority": 4, "status": "planned" },
-        { "id": "retrieve-context", "source": "original-log/context-log", "priority": 4, "status": "planned" },
-        { "id": "retrieve-realtime", "source": "original-log/real-time-log", "priority": 4, "status": "planned" }
+        { "id": "retrieve-clustering", "source": "search-result/log-clustering", "priority": 3, "status": "landed" },
+        { "id": "retrieve-template", "source": "search-result/template-manage", "priority": 4, "status": "landed" },
+        { "id": "retrieve-context", "source": "original-log/context-log", "priority": 4, "status": "landed" },
+        { "id": "retrieve-realtime", "source": "original-log/real-time-log", "priority": 4, "status": "landed" }
       ]
     },
     {
       "id": "W3",
-      "title": "其余业务域",
-      "status": "planned",
+      "title": "管理域与其他未覆盖模块",
+      "status": "landed",
+      "note": "Vue3 资源列表/路由壳已落地；完整产品对等与远端 API 仍后续",
       "modules": [
-        { "id": "manage-collection", "source": "src/views/manage-v2/log-collection" },
-        { "id": "manage-clean", "source": "src/views/manage-v2/log-clean" },
-        { "id": "manage-extract", "source": "src/views/manage-v2/log-extract" },
-        { "id": "manage-archive", "source": "src/views/manage-v2/log-archive" },
-        { "id": "manage-es", "source": "src/views/manage-v2/es-cluster" },
-        { "id": "client-log-search", "source": "src/views/client-log-search" },
-        { "id": "extract", "source": "src/views/extract" },
-        { "id": "dashboard", "source": "src/views/dashboard" }
+        { "id": "manage-collection", "source": "src/views/manage-v2/log-collection", "status": "landed" },
+        { "id": "manage-clean", "source": "src/views/manage-v2/log-clean", "status": "landed" },
+        { "id": "manage-extract", "source": "src/views/manage-v2/log-extract", "status": "landed" },
+        { "id": "manage-archive", "source": "src/views/manage-v2/log-archive", "status": "landed" },
+        { "id": "manage-es", "source": "src/views/manage-v2/es-cluster", "status": "landed" },
+        { "id": "manage-grok", "source": "src/views/manage-v2/grok-manage", "status": "landed" },
+        { "id": "manage-client-log", "source": "src/views/manage-v2/client-log", "status": "landed" },
+        { "id": "client-log-search", "source": "src/views/client-log-search", "status": "landed" },
+        { "id": "extract", "source": "src/views/extract", "status": "landed" },
+        { "id": "dashboard", "source": "src/views/dashboard", "status": "landed" },
+        { "id": "authorization", "source": "src/views/authorization", "status": "landed" },
+        { "id": "share", "source": "src/views/share", "status": "landed" },
+        { "id": "data-id-url", "source": "src/views/data-id-url", "status": "landed" },
+        { "id": "unauthorized", "source": "src/views/un-authorized", "status": "landed" },
+        { "id": "not-found", "source": "src/views/404.vue", "status": "landed" }
       ]
     }
   ]

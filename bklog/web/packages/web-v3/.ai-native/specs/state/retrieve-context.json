@@ -1,0 +1,30 @@
+{
+  "id": "state.retrieve-context",
+  "owner": "ContextController",
+  "readers": [
+    "ContextPage"
+  ],
+  "writers": [
+    "ContextController"
+  ],
+  "initial": "idle",
+  "cleanup": "drop neighbors on newer open",
+  "concurrency": "latest open wins",
+  "transitions": [
+    {
+      "from": "idle",
+      "event": "SEARCHING",
+      "to": "waiting"
+    },
+    {
+      "from": "idle",
+      "event": "OPEN_OK",
+      "to": "success"
+    },
+    {
+      "from": "idle",
+      "event": "OPEN_MISS",
+      "to": "empty"
+    }
+  ]
+}

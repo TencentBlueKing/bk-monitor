@@ -1,0 +1,56 @@
+{
+  "id": "feature.data-id-url",
+  "version": "0.1.0",
+  "title": "数据 ID 链接",
+  "status": "approved",
+  "goal": "管理数据 ID 跳转",
+  "inputs": [
+    {
+      "name": "name",
+      "type": "string",
+      "required": true
+    },
+    {
+      "name": "filterQuery",
+      "type": "string",
+      "required": false
+    }
+  ],
+  "rules": [
+    "名称去空白",
+    "同列表名称不可重复",
+    "状态过滤与关键字过滤可叠加"
+  ],
+  "dependencies": [
+    "data.resource-item",
+    "state.resource-list",
+    "ui.resource-list",
+    "action.mutate-resource"
+  ],
+  "acceptance": [
+    {
+      "id": "AC-001",
+      "given": "列表中有多条资源",
+      "when": "提交过滤关键字",
+      "then": "只展示名称或关键字匹配项"
+    },
+    {
+      "id": "AC-002",
+      "given": "资源状态不同",
+      "when": "按状态过滤",
+      "then": "只保留该状态"
+    },
+    {
+      "id": "AC-003",
+      "given": "已存在同名资源",
+      "when": "再次保存该名称",
+      "then": "进入 error 且不新增"
+    },
+    {
+      "id": "AC-004",
+      "given": "目标资源存在",
+      "when": "删除",
+      "then": "列表不再包含该项"
+    }
+  ]
+}

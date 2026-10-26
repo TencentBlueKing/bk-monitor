@@ -1,0 +1,21 @@
+{
+  "id": "ui.retrieve-realtime",
+  "component": "RealtimePage",
+  "states": [
+    "idle",
+    "streaming",
+    "stopped"
+  ],
+  "transitions": [
+    {
+      "from": "idle",
+      "event": "START",
+      "to": "streaming"
+    },
+    {
+      "from": "streaming",
+      "event": "STOP",
+      "to": "stopped"
+    }
+  ]
+}

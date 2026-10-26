@@ -29,6 +29,7 @@ import TDesign from 'tdesign-vue-next';
 import 'tdesign-vue-next/es/style/index.css';
 
 import App from './app.vue';
+import { router } from './app-router';
 import './styles/theme.css';
 
-createApp(App).use(TDesign).mount('#app');
+createApp(App).use(TDesign).use(router).mount('#app');
