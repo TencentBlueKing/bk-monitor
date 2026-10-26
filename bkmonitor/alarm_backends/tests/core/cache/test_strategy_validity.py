@@ -8,6 +8,7 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 
+import copy
 import json
 from unittest.mock import Mock
 
@@ -51,7 +52,10 @@ def strategy_config():
 @pytest.mark.parametrize("invalid_type", [value for value, _ in StrategyModel.InvalidType.Choices])
 def test_cache_refresh_clears_invalid_status_without_validity_queries(monkeypatch, strategy_config, invalid_type):
     strategy_config["invalid_type"] = invalid_type
-    list_strategies = Mock(return_value={"data": [strategy_config]})
+    normal_strategy = copy.deepcopy(strategy_config)
+    normal_strategy.update(id=2, is_invalid=False, invalid_type="")
+    normal_strategy["items"][0]["id"] = 20
+    list_strategies = Mock(return_value={"data": [strategy_config, normal_strategy]})
     monkeypatch.setattr(module, "list_strategy", list_strategies)
     model_filter = Mock()
     monkeypatch.setattr(StrategyModel.objects, "filter", model_filter)
@@ -65,7 +69,7 @@ def test_cache_refresh_clears_invalid_status_without_validity_queries(monkeypatc
     strategies = Manager.get_strategies_map([999])
     Manager.refresh_strategy(list(strategies.values()))
 
-    assert set(strategies) == {1}
+    assert set(strategies) == {1, 2}
     cached_strategy = json.loads(cache.get(Manager.CACHE_KEY_TEMPLATE.format(strategy_id=1)))
     assert cached_strategy["is_invalid"] is False
     assert cached_strategy["invalid_type"] == ""
@@ -73,6 +77,18 @@ def test_cache_refresh_clears_invalid_status_without_validity_queries(monkeypatc
     list_strategies.assert_called_once_with(apply_converters=False, is_enabled=True, bk_biz_ids=[999])
     model_filter.assert_called_once_with(id__in=[1], is_invalid=True)
     model_filter.return_value.update.assert_called_once_with(is_invalid=False, invalid_type="")
+
+
+def test_cache_refresh_does_not_update_normal_strategies(monkeypatch, strategy_config):
+    strategy_config.update(is_invalid=False, invalid_type="")
+    monkeypatch.setattr(module, "list_strategy", Mock(return_value={"data": [strategy_config]}))
+    model_filter = Mock()
+    monkeypatch.setattr(StrategyModel.objects, "filter", model_filter)
+
+    strategies = Manager.get_strategies_map([999])
+
+    assert strategies[1]["is_invalid"] is False
+    model_filter.assert_not_called()
 
 
 def test_related_strategy_is_cached_as_normal(strategy_config):

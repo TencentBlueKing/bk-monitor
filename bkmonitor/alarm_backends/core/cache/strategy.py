@@ -232,6 +232,11 @@ class StrategyCacheManager(CacheManager):
         strategy_configs_map: dict[int, dict[str, Any]] = {
             strategy_config["id"]: strategy_config for strategy_config in list_strategy(**list_kwargs)["data"]
         }
+        invalid_strategy_ids = [
+            strategy_id
+            for strategy_id, strategy_config in strategy_configs_map.items()
+            if strategy_config.get("is_invalid")
+        ]
 
         result_map = {}
         cls.fake_event_agg_interval = getattr(settings, "FAKE_EVENT_AGG_INTERVAL", 60)
@@ -266,10 +271,11 @@ class StrategyCacheManager(CacheManager):
                     result_map[strategy_id] = strategy_config
             except Exception as e:
                 logger.exception("refresh strategy error when handle_strategy[%s]: %s", strategy_id, e)
-        # 缓存刷新不再判定策略失效，清除本次读取策略已有的失效标记。
-        StrategyModel.objects.filter(id__in=list(strategy_configs_map), is_invalid=True).update(
-            is_invalid=False, invalid_type=""
-        )
+        # 仅在本次读取到失效策略时，清除已有的失效标记。
+        if invalid_strategy_ids:
+            StrategyModel.objects.filter(id__in=invalid_strategy_ids, is_invalid=True).update(
+                is_invalid=False, invalid_type=""
+            )
         return result_map
 
     @classmethod
