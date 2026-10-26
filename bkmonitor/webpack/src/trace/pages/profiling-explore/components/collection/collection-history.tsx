@@ -260,13 +260,17 @@ export default defineComponent({
           {/* 表格内置的列筛选与外部 filters 保持同步，任一列变更都整体回传 */}
           <PrimaryTable
             v-slots={{
-              empty: () =>
-                h.error.value ? null : (
+              // 请求失败与筛选无结果统一在空态中展示
+              empty: () => {
+                const error = h.error.value;
+                return (
                   <EmptyStatus
-                    type={this.filtered ? 'search-empty' : 'empty'}
-                    onOperation={this.reset}
+                    textMap={{ 500: error || this.t('数据获取异常') }}
+                    type={error ? '500' : this.filtered ? 'search-empty' : 'empty'}
+                    onOperation={error ? h.refresh : this.reset}
                   />
-                ),
+                );
+              },
               name: ({ row }: { row: CollectionExecution }) => (
                 <Button
                   v-tippy={this.t('查看本次任务执行详情')}
@@ -351,15 +355,12 @@ export default defineComponent({
             }
             onSortChange={this.changeSort}
           />
-          {h.error.value && (
+          {/* 已有数据时追加加载失败，表格保留数据，仅保留重试入口 */}
+          {!!h.error.value && !!h.rows.value.length && (
             <div class='collection-history-error'>
-              <Alert
-                theme='danger'
-                title={h.error.value}
-              />
               <Button
                 v-tippy={this.t('重新加载采集任务历史')}
-                onClick={h.rows.value.length ? h.loadMore : h.refresh}
+                onClick={h.loadMore}
               >
                 {this.t('重试')}
               </Button>

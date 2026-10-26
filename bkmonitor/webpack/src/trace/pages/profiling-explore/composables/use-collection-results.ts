@@ -43,6 +43,8 @@ import type { SelectionRange } from '../types';
 import type { CollectionExecutionColumn } from '../types/collection-history';
 import type { CollectionHostResult, CollectionResultsState } from '../types/collection-results';
 
+const PAGE_LIMIT = 20;
+
 export function useCollectionResults({
   bizId,
   state,
@@ -114,7 +116,7 @@ export function useCollectionResults({
         }),
       ];
       offset += data.length;
-      hasMore.value = !execution && data.length === 20;
+      hasMore.value = !execution && data.length === PAGE_LIMIT;
     } catch (e) {
       if (!current.signal.aborted) error.value = (e as Error)?.message || t('采集结果加载失败，请重试');
     } finally {

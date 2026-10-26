@@ -37,7 +37,19 @@
 }
 
 .collection-results-empty {
-  padding-top: min(15vh, 140px);
+  .bk-exception-img {
+    width: 440px;
+    height: 180px;
+
+    .exception-image {
+      width: 100%;
+      height: 100%;
+    }
+
+    .empty-image {
+      height: 100%;
+    }
+  }
 
   h3 {
     margin: 24px 0 16px;

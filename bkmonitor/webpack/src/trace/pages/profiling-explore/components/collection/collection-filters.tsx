@@ -92,10 +92,10 @@ export default defineComponent({
   render() {
     const { draft } = this;
     const options = (field: 'target' | 'task_name') =>
-      (this.candidates[field] || []).map((item, index) => (
+      (this.candidates[field] || []).map(item => (
         <Select.Option
           id={String(item.value)}
-          key={`${field}:${index}`}
+          key={`${field}:${item.value}`}
           name={item.alias || String(item.value)}
         />
       ));
@@ -138,9 +138,9 @@ export default defineComponent({
           <Select
             loading={this.loading}
             modelValue={this.processes}
+            multipleMode='tag'
             placeholder={this.t('进程名或 PID')}
             allowCreate
-            collapseTags
             filterable
             inputSearch
             multiple
@@ -166,7 +166,7 @@ export default defineComponent({
               modelValue={draft.status || ALL_STATUS}
               type='capsule'
               onChange={status => {
-                this.draft = { ...draft, status: status === ALL_STATUS ? '' : String(status) };
+                this.apply({ status: status === ALL_STATUS ? '' : String(status) });
               }}
             >
               {(this.results
@@ -175,7 +175,6 @@ export default defineComponent({
               ).map(status => (
                 <Radio.Button
                   key={status || ALL_STATUS}
-                  v-tippy={this.t('选择状态后点击查询生效')}
                   label={status || ALL_STATUS}
                 >
                   {status ? (
