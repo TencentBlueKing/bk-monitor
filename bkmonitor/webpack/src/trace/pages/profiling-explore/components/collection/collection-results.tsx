@@ -33,7 +33,12 @@ import { useI18n } from 'vue-i18n';
 import { useCollectionExecution } from '../../composables/use-collection-execution';
 import { useCollectionResults } from '../../composables/use-collection-results';
 import { collectionTypeLabels, formatCollectionTime } from '../../utils/collection';
-import { createHistoryFilters, formatExecutionDuration, hostColumnMinWidths } from '../../utils/collection-history';
+import {
+  createHistoryFilters,
+  executionStatusLabels,
+  formatExecutionDuration,
+  hostColumnMinWidths,
+} from '../../utils/collection-history';
 import {
   canViewHostResult,
   resultExecutionKey,
@@ -124,7 +129,15 @@ export default defineComponent({
       );
     });
     function patch(value: Partial<CollectionResultsState>) {
-      emit('change', { results: { ...props.state, ...value } });
+      // 筛选实际变化即退出执行范围；否则刷新仍会请求本次执行详情，列表不会按新条件变化
+      const exitScope =
+        !!props.state.execution &&
+        !!value.filters &&
+        JSON.stringify(value.filters) !== JSON.stringify(props.state.filters);
+      emit('change', {
+        ...(exitScope ? { result: null } : {}),
+        results: { ...props.state, ...value, ...(exitScope ? { execution: null } : {}) },
+      });
     }
     function open(row: CollectionHostResult) {
       if (!canViewHostResult(row)) return;
@@ -175,6 +188,8 @@ export default defineComponent({
   render() {
     const { h, c } = this;
     const showSkeleton = h.loading.value && !h.rows.value.length;
+    // 结果为空时由 empty 插槽接管；否则 tdesign 会注入筛选结果行，导致空态不渲染
+    const emptyResult = !showSkeleton && !h.rows.value.length;
     const resultLink = (row: CollectionHostResult, text: string) => (
       <span v-tippy={this.t(canViewHostResult(row) ? '查看当前主机的采集结果' : resultUnavailableReason(row))}>
         <Button
@@ -197,6 +212,14 @@ export default defineComponent({
     );
     // 执行范围下优先使用后端下发的列定义，缺省时沿用固定列
     const hostColumns = this.state.execution ? h.hostColumns.value : null;
+    // 状态筛选与采集任务历史保持一致，覆盖后端可能返回的全部执行状态
+    const statusFilter = {
+      type: 'single' as const,
+      list: Object.keys(executionStatusLabels).map(value => ({
+        value,
+        label: this.t(executionStatusLabels[value]),
+      })),
+    };
     const renderHostCell = (column: CollectionExecutionColumn, row: CollectionHostResult) => {
       const value = (row as unknown as Record<string, unknown>)[column.field];
       // ip 列保留点击查看主机结果的交互，其余按后端下发的列类型渲染
@@ -220,7 +243,8 @@ export default defineComponent({
             title: column.name,
             minWidth: hostColumnMinWidths[column.type],
             cell: (_, { row }) => renderHostCell(column, row as CollectionHostResult),
-            ...(column.type === 'status' ? { sorter: true } : {}),
+            // 后端下发的状态列同样提供列筛选，与固定列保持一致
+            ...(column.type === 'status' ? { sorter: true, filter: statusFilter } : {}),
             ...(column.type === 'text' ? { ellipsis: true } : {}),
           })),
           { colKey: 'row-operation', title: this.t('操作'), width: 176, fixed: 'right', cell: 'operations' },
@@ -245,6 +269,7 @@ export default defineComponent({
             colKey: 'status',
             title: this.t('状态'),
             width: 130,
+            filter: statusFilter,
             cell: (_, { row }) => (
               <CollectionExecutionStatus
                 status={row.status}
@@ -261,7 +286,6 @@ export default defineComponent({
           filters={this.state.filters}
           loading={h.candidateLoading.value}
           autoQuery
-          results
           onChange={filters => this.patch({ filters })}
           onRefresh={h.refresh}
         />
@@ -330,9 +354,14 @@ export default defineComponent({
             )}
             bkUiSettings={{ disabled: columns.some(column => column.colKey === 'ip') ? ['ip'] : [], rowSize: 'mini' }}
             data={showSkeleton ? skeletonRows : this.tableRows}
+            filterRow={emptyResult ? () => null : undefined}
+            filterValue={{ status: this.state.filters.status }}
             hover={!showSkeleton}
             rowKey='resultKey'
             size='small'
+            onFilterChange={value =>
+              this.patch({ filters: { ...this.state.filters, status: String(value.status || '') } })
+            }
           >
             {{
               empty: () => {

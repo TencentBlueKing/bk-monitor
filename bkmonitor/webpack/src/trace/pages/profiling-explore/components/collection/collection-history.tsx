@@ -216,7 +216,6 @@ export default defineComponent({
           candidates={h.candidates.value}
           filters={this.filters}
           loading={h.candidateLoading.value}
-          statusFilter={false}
           autoQuery
           onChange={value => this.$emit('change', value)}
           onRefresh={h.refresh}
