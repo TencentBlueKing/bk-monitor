@@ -159,6 +159,8 @@ export interface LlmSpanRowView {
   /** 模型、工具或 Agent 名称；缺失时回退到 SpanName。 */
   name: string;
   outputTokens: number;
+  /** resource.service.name，打开 Span 详情日志等页签时需要 */
+  serviceName: string;
   spanId: string;
   startTime: number;
   /** 与主名称不同的 SpanName。 */

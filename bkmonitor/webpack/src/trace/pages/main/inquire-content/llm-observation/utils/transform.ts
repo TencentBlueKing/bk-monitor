@@ -388,6 +388,7 @@ function toSpanRowView(node: SpanTreeNode, depth: number, isLast: boolean, lineG
   return {
     spanId: span.span_id,
     traceId: span.trace_id,
+    serviceName: String(getByPath(span.resource, 'service.name') || '').trim(),
     kind,
     name: pickSpanName(span, kind),
     subtitle: pickSpanSubtitle(span, kind),

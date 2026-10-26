@@ -511,6 +511,9 @@ export default defineComponent({
     async function prepareDetails(): Promise<void> {
       loadedSpan.value = null;
       const sourceSpan = props.spanDetails;
+      // 日志等页签不等详情接口返回，先用入口 Span 上已有的服务名和 TraceId
+      serviceNameProvider.value = sourceSpan?.service_name || '';
+      traceId.value = sourceSpan?.traceID || '';
       if (!shouldLoadSpanDetail(sourceSpan)) {
         spanDetailRequestKey = '';
         spanDetailRequestSeq += 1;
@@ -1445,6 +1448,15 @@ export default defineComponent({
       () => spans.value.findIndex(span => span.span_id === props.spanDetails?.span_id) === spans.value.length - 1
     );
     const isTabPanelLoading = shallowRef(false);
+    /** 日志 / 主机 / 容器场景视图用已加载 Span，缺字段时回退入口 Span */
+    const resolveSceneSpanContext = () => {
+      const span = detailSpan.value || props.spanDetails;
+      return {
+        serviceName: span?.service_name || serviceNameProvider.value || '',
+        spanId: span?.span_id || props.spanDetails?.span_id,
+        requestTraceId: traceId.value || span?.traceID || '',
+      };
+    };
     const handleActiveTabChange = async () => {
       isTabPanelLoading.value = true;
       if (hostAndContainerCancelToken) {
@@ -1452,13 +1464,15 @@ export default defineComponent({
         hostAndContainerCancelToken = null;
       }
       if (activeTab.value === 'Log') {
+        const { serviceName, spanId, requestTraceId } = resolveSceneSpanContext();
         const result = await getSceneView({
           scene_id: 'apm_trace',
           id: activeTab.value.toLowerCase(),
           bk_biz_id: bizId.value,
           apm_app_name: appName.value,
-          apm_service_name: props.spanDetails.service_name,
-          apm_span_id: props.spanDetails.span_id,
+          ...(serviceName ? { apm_service_name: serviceName } : {}),
+          apm_span_id: spanId,
+          ...(requestTraceId ? { apm_trace_id: requestTraceId } : {}),
         }).catch(console.log);
         if (result?.overview_panels?.length) {
           result.overview_panels[0] = {
@@ -1475,14 +1489,15 @@ export default defineComponent({
         sceneData.value = new BookMarkModel(result);
       }
       if (activeTab.value === 'Host') {
+        const { serviceName, spanId } = resolveSceneSpanContext();
         const result = await getSceneView(
           {
             scene_id: 'apm_trace',
             id: 'host',
             bk_biz_id: bizId.value,
             apm_app_name: appName.value,
-            apm_service_name: props.spanDetails.service_name,
-            apm_span_id: props.spanDetails.span_id,
+            ...(serviceName ? { apm_service_name: serviceName } : {}),
+            apm_span_id: spanId,
           },
           {
             cancelToken: new CancelToken(cb => {
@@ -1497,14 +1512,15 @@ export default defineComponent({
         let endTime = dayjs(spanTime.value).unix() + 30 * 60;
         const curUnix = dayjs().unix();
         endTime = endTime > curUnix ? curUnix : endTime;
+        const { serviceName, spanId } = resolveSceneSpanContext();
         const result = await getSceneView(
           {
             scene_id: 'apm_trace',
             id: 'container',
             bk_biz_id: bizId.value,
             apm_app_name: appName.value,
-            apm_service_name: props.spanDetails.service_name,
-            apm_span_id: props.spanDetails.span_id,
+            ...(serviceName ? { apm_service_name: serviceName } : {}),
+            apm_span_id: spanId,
             start_time: startTime,
             end_time: endTime,
           },
@@ -1551,9 +1567,7 @@ export default defineComponent({
         case 'Host': {
           if (!spanDetailQueryStore.queryData?.bk_host_id) return;
           window.open(
-            hostMonitorHash(
-              buildHostMonitorTarget({ bkHostId: String(spanDetailQueryStore.queryData.bk_host_id) })
-            ),
+            hostMonitorHash(buildHostMonitorTarget({ bkHostId: String(spanDetailQueryStore.queryData.bk_host_id) })),
             '_blank'
           );
           return;

@@ -702,6 +702,7 @@ export default defineComponent({
         traceID: row.traceId,
         app_name: appName.value,
         bk_biz_id: resolvedBizId.value,
+        ...(row.serviceName ? { service_name: row.serviceName } : {}),
       };
       handleShowSpanDetails(span as Span);
     };
