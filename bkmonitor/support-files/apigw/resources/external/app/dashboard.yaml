@@ -15,9 +15,13 @@ paths:
         backend:
           name: default
           method: get
-          path: /api/v4/grafana/get_directory_tree/
+          path: /api/app/v4/grafana/get_directory_tree/
           matchSubpath: false
           timeout: 0
+        authConfig:
+          appVerifiedRequired: true
+          userVerifiedRequired: false
+          resourcePermissionRequired: true
         descriptionEn: get dashboard directory tree
   /app/dashboard/get_dashboard_detail/:
     get:
@@ -41,8 +45,11 @@ paths:
         backend:
           name: default
           method: get
-          path: /api/v4/grafana/get_dashboard_detail/
+          path: /api/app/v4/grafana/get_dashboard_detail/
           matchSubpath: false
           timeout: 0
+        authConfig:
+          appVerifiedRequired: true
+          userVerifiedRequired: false
+          resourcePermissionRequired: true
         descriptionEn: get dashboard detail
-  

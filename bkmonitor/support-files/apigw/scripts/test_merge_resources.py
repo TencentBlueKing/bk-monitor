@@ -479,8 +479,8 @@ def test_apm_platform_integration_apigw_contract() -> None:
     internal_paths = _load_paths(_INTERNAL_APM_FILE)
     external_paths = _load_paths(_EXTERNAL_APM_FILE)
     expected_resources: dict[str, tuple[str, str]] = {
-        "/app/apm/service/service_list/": ("apm_service_list", "/api/v4/service_web/service_list/"),
-        "/app/apm/calculate_by_range/": ("calculate_by_range", "/api/v4/apm_metric_web/calculate_by_range/"),
+        "/app/apm/service/service_list/": ("apm_service_list", "/api/app/v4/service_web/service_list/"),
+        "/app/apm/calculate_by_range/": ("calculate_by_range", "/api/app/v4/apm_metric_web/calculate_by_range/"),
     }
 
     for path, (operation_id, backend_path) in expected_resources.items():
