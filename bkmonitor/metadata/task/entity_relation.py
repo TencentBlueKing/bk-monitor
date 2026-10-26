@@ -11,14 +11,14 @@ specific language governing permissions and limitations under the License.
 import json
 import logging
 import time
+import uuid
 
 from alarm_backends.core.lock.service_lock import share_lock
-from bkmonitor.utils.graph_relation import get_relation_v1beta3_biz_ids
+from bkmonitor.utils.graph_relation import RELATION_SCHEMA_READY_KEY, get_relation_v1beta3_biz_ids
 from core.prometheus import metrics
 from metadata.models.entity_relation import NAMESPACE_ALL, RelationDefinition, ResourceDefinition
 from metadata.resources.entity_relation import ENTITY_REDIS_KEY_PREFIX, ENTITY_REDIS_CHANNEL_SUFFIX
-from metadata.tools.constants import TASK_FINISHED_SUCCESS, TASK_STARTED
-from metadata.utils.relation_rollout import should_publish_relation_definition
+from metadata.tools.constants import TASK_FINISHED_FAILURE, TASK_FINISHED_SUCCESS, TASK_STARTED
 from metadata.utils.redis_tools import RedisTools
 
 logger = logging.getLogger("metadata")
@@ -26,87 +26,58 @@ logger = logging.getLogger("metadata")
 
 @share_lock(ttl=3600, identify="metadata_refresh_entity_definition_to_redis")
 def refresh_entity_definition_to_redis():
+    """Publish both definition kinds atomically, then announce their rollout version.
+
+    All business definitions remain available to the legacy query service.
+    Only namespaces removed from DB are deleted. A failed snapshot preparation
+    leaves the last published data intact, and cannot enable a new rollout list.
     """
-    全量刷新 ResourceDefinition 和 RelationDefinition 到 Redis 的兜底任务。
+    started = time.time()
+    task_name = "refresh_entity_definition_to_redis"
+    metrics.METADATA_CRON_TASK_STATUS_TOTAL.labels(task_name=task_name, status=TASK_STARTED, process_target=None).inc()
+    succeeded = False
+    try:
+        enabled_biz_ids = get_relation_v1beta3_biz_ids()
+        snapshots = {}
+        for model in (ResourceDefinition, RelationDefinition):
+            namespaces = {}
+            for entity in model.objects.all():
+                namespace = entity.namespace or NAMESPACE_ALL
+                namespaces.setdefault(namespace, {})[entity.name] = entity.to_redis_json()
+            snapshots[model.get_kind()] = namespaces
 
-    当 Redis 数据丢失（Redis 重启、数据过期等）时，定时从 DB 全量重建缓存，
-    保证 bmw SchemaProvider 始终能读到最新的资源/关联定义。
-    共享 namespace 始终下发；业务 namespace 与 v1beta3 查询使用同一灰度名单。
+        client = RedisTools().client
+        with client.pipeline(transaction=True) as pipeline:
+            pipeline.delete(RELATION_SCHEMA_READY_KEY)
+            for kind, namespaces in snapshots.items():
+                key = f"{ENTITY_REDIS_KEY_PREFIX}:{kind}"
+                channel = f"{key}{ENTITY_REDIS_CHANNEL_SUFFIX}"
+                previous = {field.decode() if isinstance(field, bytes) else field for field in client.hkeys(key)}
+                stale = previous - namespaces.keys()
+                if stale:
+                    pipeline.hdel(key, *sorted(stale))
+                for namespace, entities in namespaces.items():
+                    pipeline.hset(key, namespace, json.dumps(entities))
+                for namespace in sorted(previous | namespaces.keys()):
+                    pipeline.publish(channel, json.dumps({"namespace": namespace, "kind": kind}))
 
-    Redis 数据契约（与 EntityHandler._rebuild_redis_cache 保持一致）:
-    - Key:     bkmonitorv3:entity:{Kind}
-    - Field:   namespace（空 namespace 映射为 __all__）
-    - Value:   JSON string of {name: redisJsonData, ...}
-    - Channel: {Key}:channel
-    - Message: JSON string of {namespace, kind}
-    """
-    logger.info("refresh_entity_definition_to_redis started")
-    start_time = time.time()
-    metrics.METADATA_CRON_TASK_STATUS_TOTAL.labels(
-        task_name="refresh_entity_definition_to_redis", status=TASK_STARTED, process_target=None
-    ).inc()
-    enabled_biz_ids = get_relation_v1beta3_biz_ids()
-
-    for model_class in (ResourceDefinition, RelationDefinition):
-        kind = model_class.get_kind()
-        redis_key = f"{ENTITY_REDIS_KEY_PREFIX}:{kind}"
-        channel = f"{redis_key}{ENTITY_REDIS_CHANNEL_SUFFIX}"
-
-        try:
-            # 获取当前 Redis 中的所有 field（用于后续清理 stale data）
-            redis_fields = {
-                field.decode("utf-8") if isinstance(field, bytes) else field for field in RedisTools.hkeys(redis_key)
-            }
-
-            # 按 namespace 分组，全量重建每个 namespace 的缓存
-            namespace_entities: dict[str, dict] = {}
-            for entity in model_class.objects.all():
-                ns = entity.namespace or NAMESPACE_ALL
-                if not should_publish_relation_definition(ns, enabled_biz_ids):
-                    continue
-                if ns not in namespace_entities:
-                    namespace_entities[ns] = {}
-                namespace_entities[ns][entity.name] = entity.to_redis_json()
-
-            # 计算需要保留的 namespace 集合
-            db_namespaces = set(namespace_entities.keys())
-
-            # 清理 stale fields：Redis 中存在但 DB 中已不存在的 namespace
-            stale_fields = redis_fields - db_namespaces
-            if stale_fields:
-                RedisTools.hdel(redis_key, list(stale_fields))
-                RedisTools.publish(channel, [json.dumps({"namespace": ns, "kind": kind}) for ns in stale_fields])
-                logger.info(
-                    "refresh_entity_definition_to_redis: cleaned stale fields for kind=%s, stale_fields=%s",
-                    kind,
-                    stale_fields,
-                )
-
-            if not namespace_entities:
-                logger.info("refresh_entity_definition_to_redis: no entities found for kind=%s, skip", kind)
-                continue
-
-            for ns, entities in namespace_entities.items():
-                RedisTools.hset_to_redis(redis_key, ns, json.dumps(entities))
-                msg = json.dumps({"namespace": ns, "kind": kind})
-                RedisTools.publish(channel, [msg])
-
-            logger.info(
-                "refresh_entity_definition_to_redis: kind=%s, namespace_count=%d, total_entities=%d",
-                kind,
-                len(namespace_entities),
-                sum(len(v) for v in namespace_entities.values()),
-            )
-
-        except Exception:  # pylint: disable=broad-except
-            logger.exception("refresh_entity_definition_to_redis: failed to refresh kind=%s", kind)
-
-    cost_time = time.time() - start_time
-    metrics.METADATA_CRON_TASK_STATUS_TOTAL.labels(
-        task_name="refresh_entity_definition_to_redis", status=TASK_FINISHED_SUCCESS, process_target=None
-    ).inc()
-    metrics.METADATA_CRON_TASK_COST_SECONDS.labels(
-        task_name="refresh_entity_definition_to_redis", process_target=None
-    ).observe(cost_time)
-    metrics.report_all()
-    logger.info("refresh_entity_definition_to_redis finished, cost=[%s] seconds", cost_time)
+            pipeline.execute()
+        # Announce readiness only after every write succeeds: Redis EXEC does
+        # not roll back other commands when one command fails (e.g. WRONGTYPE).
+        if all(namespaces.get(NAMESPACE_ALL) for namespaces in snapshots.values()):
+            ready = {"biz_ids": sorted(enabled_biz_ids), "version": uuid.uuid4().hex}
+            client.set(RELATION_SCHEMA_READY_KEY, json.dumps(ready))
+        succeeded = True
+    except Exception:  # pylint: disable=broad-except
+        logger.exception("refresh_entity_definition_to_redis: publication failed")
+    finally:
+        metrics.METADATA_CRON_TASK_STATUS_TOTAL.labels(
+            task_name=task_name,
+            status=TASK_FINISHED_SUCCESS if succeeded else TASK_FINISHED_FAILURE,
+            process_target=None,
+        ).inc()
+        metrics.METADATA_CRON_TASK_COST_SECONDS.labels(task_name=task_name, process_target=None).observe(
+            time.time() - started
+        )
+        metrics.report_all()
+    return succeeded

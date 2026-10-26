@@ -461,7 +461,7 @@ ADVANCED_OPTIONS = OrderedDict(
         ("ENABLE_SYNC_BKBASE_METADATA_TO_DB", slz.BooleanField(label="是否同步bkbase元数据至DB", default=False)),
         (
             "RELATION_V1BETA3_BIZ_ID_WHITE_LIST",
-            slz.ListField(label="关联查询及业务关系定义 v1beta3 灰度白名单", default=[]),
+            slz.ListField(label="定义就绪后启用 v1beta3 关联查询的业务白名单", default=[]),
         ),
         (
             "ACCESS_DATA_BATCH_PROCESS_THRESHOLD",

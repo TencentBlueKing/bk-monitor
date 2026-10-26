@@ -137,11 +137,14 @@ def refresh_custom_log_report_config(log_group_id=None):
     refresh_custom_log_config(log_group_id=log_group_id)
 
 
-@app.task(ignore_result=True, queue="celery_metadata_task_worker")
-def refresh_entity_definition_to_redis():
+@app.task(bind=True, ignore_result=True, queue="celery_metadata_task_worker", max_retries=5)
+def refresh_entity_definition_to_redis(self, config_change=False):
     from metadata.task.entity_relation import refresh_entity_definition_to_redis as _refresh
 
-    _refresh()
+    result = _refresh()
+    # A held share_lock returns None. Retry config changes without waiting for cron.
+    if config_change and result is not True:
+        raise self.retry(countdown=30)
 
 
 @app.task(ignore_result=True, queue="celery_metadata_task_worker")

@@ -355,7 +355,7 @@ def uq_pair(limits):
         requests=NS(request=transport),
         read_bounded_json=limits.read_bounded_json,
         BKAPIError=lambda **kwargs: RuntimeError(kwargs["result"]),
-        resolve_relation_query_path=lambda path, *args: path,
+        resolve_relation_query_path=lambda path, *args, **kwargs: path,
     )
     old = source("api/unify_query/default.py", "UnifyQueryAPIResource.perform_request", **namespace)
     bounded_uq = source(
@@ -548,7 +548,7 @@ def all_uq(limits):
         side_effect=source(
             "api/unify_query/relation_routing.py",
             "resolve_relation_query_path",
-            is_relation_v1beta3_enabled=lambda bid: rollout[0],
+            get_relation_schema_version=lambda bid: "ready" if rollout[0] else "",
         )
     )
     transport = Mock()
@@ -569,6 +569,8 @@ def all_uq(limits):
         get_unify_query_url=lambda uid: "http://uq.invalid/root/",
         urljoin=urljoin,
         resolve_relation_query_path=resolver,
+        get_relation_schema_version=lambda bid: "ready" if rollout[0] else "",
+        RELATION_SCHEMA_VERSION_HEADER="X-Bk-Relation-Schema-Version",
         requests=NS(request=transport),
         read_bounded_json=limits.read_bounded_json,
         get_max_response_bytes=limits.get_max_response_bytes,

@@ -26,6 +26,7 @@ from api.unify_query.relation_routing import (
 )
 from bkm_space.api import SpaceApi
 from bkm_space.utils import bk_biz_id_to_space_uid, parse_space_uid
+from bkmonitor.utils.graph_relation import RELATION_SCHEMA_VERSION_HEADER, get_relation_schema_version
 from bkmonitor.utils.local import local
 from bkmonitor.utils.request import get_request, get_request_tenant_id
 from bkmonitor.utils.serializers import TenantIdField
@@ -123,10 +124,12 @@ class UnifyQueryAPIResource(Resource):
         if not bk_tenant_id:
             bk_tenant_id = get_request_tenant_id(peaceful=True)
 
+        relation_schema_version = get_relation_schema_version(bk_biz_id) if self.v1beta3_path else ""
         request_path = resolve_relation_query_path(
             self.path,
             self.v1beta3_path,
             bk_biz_id,
+            schema_version=relation_schema_version,
         )
         url = urljoin(get_unify_query_url(space_uid), request_path.format(**params))
 
@@ -138,6 +141,8 @@ class UnifyQueryAPIResource(Resource):
             source = f"strategy:{local.strategy_id}"
 
         requests_params = {"method": self.method, "url": url, "headers": {"Bk-Query-Source": source}}
+        if relation_schema_version:
+            requests_params["headers"][RELATION_SCHEMA_VERSION_HEADER] = relation_schema_version
         if space_uid is None or is_global:
             # 跨业务查询
             requests_params["headers"]["X-Bk-Scope-Skip-Space"] = settings.APP_CODE

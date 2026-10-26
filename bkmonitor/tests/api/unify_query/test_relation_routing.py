@@ -5,6 +5,7 @@ import sys
 from pathlib import Path
 from types import ModuleType, SimpleNamespace
 
+import fakeredis
 import pytest
 from django.conf import settings
 
@@ -27,7 +28,17 @@ from api.unify_query.relation_routing import (  # noqa: E402
     RELATION_MULTI_RESOURCE_V1BETA3_PATH,
     resolve_relation_query_path,
 )
+from bkmonitor.utils import graph_relation
 from bkmonitor.utils.graph_relation import get_relation_v1beta3_biz_ids  # noqa: E402
+
+
+@pytest.fixture(autouse=True)
+def ready_schema(monkeypatch):
+    client = fakeredis.FakeRedis()
+    client.set(graph_relation.RELATION_SCHEMA_READY_KEY, '{"biz_ids":[2],"version":"published-v1"}')
+    monkeypatch.setattr(graph_relation, "_relation_schema_redis_client", lambda: client)
+    yield client
+    client.close()
 
 
 @pytest.mark.parametrize(
@@ -170,6 +181,7 @@ def test_relation_query_uses_v1beta3_for_whitelisted_biz_without_binding_lookup(
     assert path == RELATION_MULTI_RESOURCE_V1BETA3_PATH
 
 
+@override_settings(RELATION_V1BETA3_BIZ_ID_WHITE_LIST=[2])
 def test_perform_request_routes_after_resolving_space_biz_and_tenant(monkeypatch):
     resource_module = ModuleType("core.drf_resource")
     resource_module.Resource = type("Resource", (), {})
@@ -185,7 +197,8 @@ def test_perform_request_routes_after_resolving_space_biz_and_tenant(monkeypatch
 
     route_context = {}
 
-    def resolve_path(legacy_path, v1beta3_path, bk_biz_id):
+    def resolve_path(legacy_path, v1beta3_path, bk_biz_id, schema_version=None):
+        assert schema_version == "published-v1"
         route_context["bk_biz_id"] = bk_biz_id
         return v1beta3_path
 
@@ -217,6 +230,7 @@ def test_perform_request_routes_after_resolving_space_biz_and_tenant(monkeypatch
     assert route_context == {"bk_biz_id": 2}
     assert sent_request["url"] == "http://unify-query/api/v1/relation/v1beta3/multi_resource"
     assert sent_request["headers"]["X-Bk-Tenant-Id"] == "tenant-a"
+    assert sent_request["headers"][graph_relation.RELATION_SCHEMA_VERSION_HEADER] == "published-v1"
 
     monkeypatch.setattr(module, "resolve_relation_query_path", resolve_relation_query_path)
     with override_settings(RELATION_V1BETA3_BIZ_ID_WHITE_LIST=[]):
@@ -259,3 +273,36 @@ def test_all_relation_resources_declare_v1_and_v1beta3_paths():
         }
 
     assert actual_paths == expected_paths
+
+
+@override_settings(RELATION_V1BETA3_BIZ_ID_WHITE_LIST=[2])
+@pytest.mark.parametrize("payload", [None, "bad-json", "[]", '{"biz_ids":[3],"version":"v"}', '{"biz_ids":[2]}'])
+def test_unpublished_or_invalid_readiness_keeps_legacy(ready_schema, payload):
+    ready_schema.delete(graph_relation.RELATION_SCHEMA_READY_KEY)
+    if payload is not None:
+        ready_schema.set(graph_relation.RELATION_SCHEMA_READY_KEY, payload)
+    assert resolve_relation_query_path("legacy", "v1beta3", 2) == "legacy"
+
+
+@override_settings(RELATION_V1BETA3_BIZ_ID_WHITE_LIST=[2], USE_DYNAMIC_SETTINGS=True)
+def test_committed_rollback_overrides_stale_process_settings(monkeypatch):
+    model_module = ModuleType("bkmonitor.models")
+    database = {"value": [2]}
+    query = SimpleNamespace(first=lambda: database["value"])
+    model_module.GlobalConfig = SimpleNamespace(
+        objects=SimpleNamespace(filter=lambda **kw: SimpleNamespace(values_list=lambda *args, **kw: query))
+    )
+    monkeypatch.setitem(sys.modules, "bkmonitor.models", model_module)
+    assert resolve_relation_query_path("legacy", "v1beta3", 2) == "v1beta3"
+    database["value"] = []
+    assert settings.RELATION_V1BETA3_BIZ_ID_WHITE_LIST == [2]
+    assert resolve_relation_query_path("legacy", "v1beta3", 2) == "legacy"
+
+
+@override_settings(RELATION_V1BETA3_BIZ_ID_WHITE_LIST=[2])
+def test_redis_failure_keeps_legacy(monkeypatch):
+    def fail():
+        raise ConnectionError("Redis unavailable")
+
+    monkeypatch.setattr(graph_relation, "_relation_schema_redis_client", fail)
+    assert resolve_relation_query_path("legacy", "v1beta3", 2) == "legacy"

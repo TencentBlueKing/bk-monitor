@@ -8,11 +8,26 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 
-from django.db import models
+import logging
+
+from django.db import models, transaction
 from django.utils.translation import gettext_lazy as _
 from rest_framework import serializers
 
 from bkmonitor.utils.db.fields import JsonField
+
+
+logger = logging.getLogger(__name__)
+
+
+def _schedule_relation_schema_refresh():
+    try:
+        from metadata.task.tasks import refresh_entity_definition_to_redis
+
+        refresh_entity_definition_to_redis.delay(config_change=True)
+    except Exception:  # pylint: disable=broad-except
+        # Periodic publication remains the fallback; the routing gate stays shut.
+        logger.exception("failed to schedule relation definition publication")
 
 
 class GlobalConfig(models.Model):
@@ -42,6 +57,12 @@ class GlobalConfig(models.Model):
         verbose_name = "动态配置信息"
         verbose_name_plural = "动态配置信息"
         db_table = "global_setting"
+
+    def save(self, *args, **kwargs):
+        result = super().save(*args, **kwargs)
+        if self.key == "RELATION_V1BETA3_BIZ_ID_WHITE_LIST":
+            transaction.on_commit(_schedule_relation_schema_refresh, using=self._state.db)
+        return result
 
     @classmethod
     def get(cls, key, defaults=None, raise_exception=False):

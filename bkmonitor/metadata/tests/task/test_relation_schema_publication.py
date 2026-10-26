@@ -21,11 +21,10 @@ if not settings.configured:
     settings.configure(REST_FRAMEWORK={})
 
 from api.unify_query.relation_routing import (
-    RELATION_MULTI_RESOURCE_PATH,
-    RELATION_MULTI_RESOURCE_V1BETA3_PATH,
     resolve_relation_query_path,
 )
-from bkmonitor.utils.graph_relation import get_relation_v1beta3_biz_ids
+from bkmonitor.utils import graph_relation
+from bkmonitor.utils.graph_relation import RELATION_SCHEMA_READY_KEY, get_relation_v1beta3_biz_ids
 
 
 METADATA_ROOT = Path(__file__).parents[2]
@@ -40,7 +39,7 @@ def load_source(path, dependencies):
 
 
 @pytest.fixture
-def publication():
+def publication(monkeypatch):
     redis = fakeredis.FakeRedis(decode_responses=False)
     redis_module = load_source(
         METADATA_ROOT / "utils" / "redis_tools.py",
@@ -52,16 +51,8 @@ def publication():
     relations = Mock()
     relations.get_kind.return_value = "RelationDefinition"
     relations.objects.all.return_value = []
-    space = Mock()
-    rollout_module = load_source(
-        METADATA_ROOT / "utils" / "relation_rollout.py",
-        {"Space": space, "NAMESPACE_ALL": "__all__", "get_relation_v1beta3_biz_ids": get_relation_v1beta3_biz_ids},
-    )
-    dependencies = {
-        "RedisTools": redis_module.RedisTools,
-        "NAMESPACE_ALL": "__all__",
-        "should_publish_relation_definition": rollout_module.should_publish_relation_definition,
-    }
+    monkeypatch.setattr(graph_relation, "_relation_schema_redis_client", lambda: redis)
+    dependencies = {"RedisTools": redis_module.RedisTools, "NAMESPACE_ALL": "__all__"}
     handler_module = load_source(
         METADATA_ROOT / "resources" / "entity_relation.py",
         {
@@ -86,6 +77,8 @@ def publication():
             "RelationDefinition": relations,
             "ENTITY_REDIS_KEY_PREFIX": handler_module.ENTITY_REDIS_KEY_PREFIX,
             "ENTITY_REDIS_CHANNEL_SUFFIX": handler_module.ENTITY_REDIS_CHANNEL_SUFFIX,
+            "RELATION_SCHEMA_READY_KEY": RELATION_SCHEMA_READY_KEY,
+            "TASK_FINISHED_FAILURE": "failure",
             "TASK_STARTED": "started",
             "TASK_FINISHED_SUCCESS": "success",
             "get_relation_v1beta3_biz_ids": get_relation_v1beta3_biz_ids,
@@ -96,8 +89,6 @@ def publication():
         tools=redis_module.RedisTools,
         resources=resources,
         relations=relations,
-        space=space,
-        should_publish=rollout_module.should_publish_relation_definition,
         handler=handler_module.EntityHandler,
         refresh=task_module.refresh_entity_definition_to_redis,
     )
@@ -115,9 +106,8 @@ def definition(namespace, kind="ResourceDefinition", name="pod"):
 
 
 @pytest.mark.parametrize("kind", ["ResourceDefinition", "RelationDefinition"])
-@pytest.mark.parametrize("namespace", ["__all__", "bkcc__2", "bkcc__3"])
-@pytest.mark.parametrize("query_biz_ids", [[], [2]])
-def test_apply_and_delete_follow_query_rollout(publication, kind, namespace, query_biz_ids):
+@pytest.mark.parametrize("namespace", ["__all__", "bkcc__2", "bkcc__3", "bkci__pipeline"])
+def test_crud_keeps_definitions_outside_rollout(publication, kind, namespace):
     model = publication.resources if kind == "ResourceDefinition" else publication.relations
     entity = definition(namespace, kind)
     model.objects.get_or_create.return_value = (entity, True)
@@ -126,104 +116,93 @@ def test_apply_and_delete_follow_query_rollout(publication, kind, namespace, que
     model.get_serializer_class.return_value.return_value.validated_data = {}
     handler = publication.handler(model)
     key = f"bkmonitorv3:entity:{kind}"
-
-    with override_settings(RELATION_V1BETA3_BIZ_ID_WHITE_LIST=query_biz_ids):
-        result = handler.apply({"namespace": namespace, "name": "pod"}, {})
-        assert result["metadata"]["name"] == "pod"
-        enabled = namespace == "__all__" or (namespace == "bkcc__2" and 2 in query_biz_ids)
-        cached = publication.redis.hget(key, namespace)
-        assert (cached is not None) == enabled
-        if cached:
-            assert json.loads(cached)["pod"]["generation"] == 1
-        model.objects.get_or_create.assert_called_once()
-
-        entity.to_redis_json.return_value = {"name": "pod", "generation": 2}
-        with override_settings(RELATION_V1BETA3_BIZ_ID_WHITE_LIST=[]):
-            handler.apply({"namespace": namespace, "name": "pod"}, {})
-            cached = publication.redis.hget(key, namespace)
-            if namespace == "__all__":
-                assert json.loads(cached)["pod"]["generation"] == 2
-            else:
-                assert cached is None
-            model.objects.filter.return_value = []
-            handler.delete(namespace, "pod")
-        entity.delete.assert_called_once()
+    with override_settings(RELATION_V1BETA3_BIZ_ID_WHITE_LIST=[]):
+        handler.apply({"namespace": namespace, "name": "pod"}, {})
+        assert json.loads(publication.redis.hget(key, namespace))["pod"]["generation"] == 1
+        model.objects.filter.return_value = []
+        handler.delete(namespace, "pod")
         assert publication.redis.hget(key, namespace) is None
 
-        expected_path = RELATION_MULTI_RESOURCE_V1BETA3_PATH if 2 in query_biz_ids else RELATION_MULTI_RESOURCE_PATH
-        assert (
-            resolve_relation_query_path(RELATION_MULTI_RESOURCE_PATH, RELATION_MULTI_RESOURCE_V1BETA3_PATH, 2)
-            == expected_path
-        )
 
-
-@pytest.mark.parametrize("query_biz_ids", [[], [2]])
-@pytest.mark.parametrize("legacy_biz_ids", [[], [2]])
-def test_periodic_refresh_follows_query_rollout_and_notifies_deletions(
-    publication, monkeypatch, query_biz_ids, legacy_biz_ids
-):
+def populate(publication):
     for model in (publication.resources, publication.relations):
         kind = model.get_kind()
-        key = f"bkmonitorv3:entity:{kind}"
         model.objects.all.return_value = [definition(ns, kind) for ns in ("__all__", "bkcc__2", "bkcc__3")]
-        for namespace in ("__all__", "bkcc__2", "bkcc__3", "bkcc__4", "bkcc__5"):
-            publication.redis.hset(key, namespace, "previous-version")
-
-    delete_spy = Mock(wraps=publication.tools.hdel)
-    monkeypatch.setattr(publication.tools, "hdel", delete_spy)
-    with publication.redis.pubsub() as subscriber:
-        channels = [
-            f"bkmonitorv3:entity:{model.get_kind()}:channel" for model in (publication.resources, publication.relations)
-        ]
-        subscriber.subscribe(*channels)
-        for _ in channels:
-            subscriber.get_message()
-        with override_settings(
-            RELATION_V1BETA3_BIZ_ID_WHITE_LIST=query_biz_ids,
-            GRAPH_RELATION_V4_BIZ_ID_WHITE_LIST=legacy_biz_ids,
-        ):
-            publication.refresh()
-        messages = []
-        while message := subscriber.get_message(ignore_subscribe_messages=True):
-            messages.append(json.loads(message["data"]))
-
-    expected_namespaces = {"__all__"}
-    if 2 in query_biz_ids:
-        expected_namespaces.add("bkcc__2")
-    stale_namespaces = {"__all__", "bkcc__2", "bkcc__3", "bkcc__4", "bkcc__5"} - expected_namespaces
-
-    # Byte-valued Redis fields must not make enabled DB namespaces appear stale.
-    assert delete_spy.call_count == 2
-    for call in delete_spy.call_args_list:
-        assert set(call.args[1]) == stale_namespaces
-    for model in (publication.resources, publication.relations):
-        kind = model.get_kind()
-        key = f"bkmonitorv3:entity:{kind}"
-        assert set(publication.tools.hkeys(key)) == {namespace.encode() for namespace in expected_namespaces}
-        for namespace in expected_namespaces:
-            assert json.loads(publication.redis.hget(key, namespace))["pod"]["generation"] == 1
-        assert {message["namespace"] for message in messages if message["kind"] == kind} == {
-            "__all__",
-            "bkcc__2",
-            "bkcc__3",
-            "bkcc__4",
-            "bkcc__5",
-        }
 
 
-@pytest.mark.parametrize("biz_ids", [[], [2]])
-def test_empty_redis_restores_only_enabled_definitions(publication, biz_ids):
-    publication.resources.objects.all.return_value = [definition("__all__"), definition("bkcc__2")]
-    with override_settings(RELATION_V1BETA3_BIZ_ID_WHITE_LIST=biz_ids):
-        publication.refresh()
-    expected = {b"__all__", b"bkcc__2"} if biz_ids else {b"__all__"}
-    assert set(publication.tools.hkeys("bkmonitorv3:entity:ResourceDefinition")) == expected
-
-
-def test_non_bkcc_space_uses_its_business_id(publication):
-    publication.space.objects.get_biz_id_by_space.return_value = -7
-    with override_settings(RELATION_V1BETA3_BIZ_ID_WHITE_LIST=[-7]):
-        assert publication.should_publish("bkci__pipeline") is True
+def test_activation_waits_for_complete_publication_and_rollback_retains_legacy(publication):
+    populate(publication)
     with override_settings(RELATION_V1BETA3_BIZ_ID_WHITE_LIST=[]):
-        assert publication.should_publish("bkci__pipeline") is False
-    publication.space.objects.get_biz_id_by_space.assert_called_with("bkci", "pipeline")
+        assert publication.refresh() is True
+    with override_settings(RELATION_V1BETA3_BIZ_ID_WHITE_LIST=[2]):
+        assert resolve_relation_query_path("legacy", "v1beta3", 2) == "legacy"
+        assert publication.refresh() is True
+        assert resolve_relation_query_path("legacy", "v1beta3", 2) == "v1beta3"
+        assert resolve_relation_query_path("legacy", "v1beta3", 3) == "legacy"
+    with override_settings(RELATION_V1BETA3_BIZ_ID_WHITE_LIST=[]):
+        assert resolve_relation_query_path("legacy", "v1beta3", 2) == "legacy"
+        assert publication.refresh() is True
+    for kind in ("ResourceDefinition", "RelationDefinition"):
+        assert set(publication.redis.hkeys(f"bkmonitorv3:entity:{kind}")) == {b"__all__", b"bkcc__2", b"bkcc__3"}
+
+
+def test_missing_shared_definitions_do_not_enable_rollout(publication):
+    populate(publication)
+    publication.relations.objects.all.return_value = []
+    with override_settings(RELATION_V1BETA3_BIZ_ID_WHITE_LIST=[2]):
+        assert publication.refresh() is True
+        assert resolve_relation_query_path("legacy", "v1beta3", 2) == "legacy"
+
+
+def test_preparation_failure_leaves_last_snapshot_and_cannot_enable_new_list(publication):
+    populate(publication)
+    with override_settings(RELATION_V1BETA3_BIZ_ID_WHITE_LIST=[]):
+        assert publication.refresh() is True
+    previous = publication.redis.hgetall("bkmonitorv3:entity:ResourceDefinition")
+    publication.relations.objects.all.side_effect = RuntimeError("DB unavailable")
+    with override_settings(RELATION_V1BETA3_BIZ_ID_WHITE_LIST=[2]):
+        assert publication.refresh() is False
+        assert resolve_relation_query_path("legacy", "v1beta3", 2) == "legacy"
+    assert publication.redis.hgetall("bkmonitorv3:entity:ResourceDefinition") == previous
+
+
+def test_redis_write_failure_never_publishes_ready(publication, monkeypatch):
+    populate(publication)
+    original_pipeline = publication.redis.pipeline
+
+    # Force a WRONGTYPE after the preflight HKEYS reads but before EXEC. Redis
+    # continues executing later commands even when an earlier command fails.
+    def pipeline(**kwargs):
+        pipe = original_pipeline(**kwargs)
+        execute = pipe.execute
+
+        def execute_with_failure():
+            publication.redis.delete("bkmonitorv3:entity:RelationDefinition")
+            publication.redis.set("bkmonitorv3:entity:RelationDefinition", "wrong-type")
+            return execute()
+
+        pipe.execute = execute_with_failure
+        return pipe
+
+    monkeypatch.setattr(publication.redis, "pipeline", pipeline)
+    with override_settings(RELATION_V1BETA3_BIZ_ID_WHITE_LIST=[2]):
+        assert publication.refresh() is False
+        assert publication.redis.get(RELATION_SCHEMA_READY_KEY) is None
+        assert resolve_relation_query_path("legacy", "v1beta3", 2) == "legacy"
+
+
+def test_actual_db_deletions_are_removed_and_notified(publication):
+    populate(publication)
+    for kind in ("ResourceDefinition", "RelationDefinition"):
+        publication.redis.hset(f"bkmonitorv3:entity:{kind}", "bkcc__deleted", "{}")
+    with publication.redis.pubsub() as subscription:
+        channel = "bkmonitorv3:entity:ResourceDefinition:channel"
+        subscription.subscribe(channel)
+        subscription.get_message()
+        with override_settings(RELATION_V1BETA3_BIZ_ID_WHITE_LIST=[]):
+            assert publication.refresh() is True
+        messages = []
+        while message := subscription.get_message(ignore_subscribe_messages=True):
+            messages.append(json.loads(message["data"]))
+        assert {message["namespace"] for message in messages} == {"__all__", "bkcc__2", "bkcc__3", "bkcc__deleted"}
+    assert publication.redis.hget("bkmonitorv3:entity:ResourceDefinition", "bkcc__deleted") is None

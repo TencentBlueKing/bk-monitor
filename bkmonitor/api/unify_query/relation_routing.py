@@ -1,4 +1,4 @@
-from bkmonitor.utils.graph_relation import is_relation_v1beta3_enabled
+from bkmonitor.utils.graph_relation import get_relation_schema_version
 
 
 RELATION_MULTI_RESOURCE_PATH = "/api/v1/relation/multi_resource"
@@ -11,5 +11,10 @@ def resolve_relation_query_path(
     legacy_path: str,
     v1beta3_path: str,
     bk_biz_id: int | str | None,
+    schema_version: str | None = None,
 ) -> str:
-    return v1beta3_path if v1beta3_path and is_relation_v1beta3_enabled(bk_biz_id) else legacy_path
+    if not v1beta3_path:
+        return legacy_path
+    if schema_version is None:
+        schema_version = get_relation_schema_version(bk_biz_id)
+    return v1beta3_path if schema_version else legacy_path
