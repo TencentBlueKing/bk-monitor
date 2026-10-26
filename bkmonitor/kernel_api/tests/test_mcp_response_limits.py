@@ -548,7 +548,7 @@ def all_uq(limits):
         side_effect=source(
             "api/unify_query/relation_routing.py",
             "resolve_relation_query_path",
-            is_graph_relation_v4_enabled=lambda bid: rollout[0],
+            is_relation_query_v1beta3_enabled=lambda bid: rollout[0],
         )
     )
     transport = Mock()

@@ -1,5 +1,6 @@
 import ast
 import importlib.util
+import os
 import sys
 from pathlib import Path
 from types import ModuleType, SimpleNamespace
@@ -11,7 +12,7 @@ if not settings.configured:
     settings.configure(
         APP_CODE="bk_monitorv3",
         ENABLE_MULTI_TENANT_MODE=True,
-        GRAPH_RELATION_V4_BIZ_ID_WHITE_LIST=[],
+        RELATION_QUERY_V1BETA3_BIZ_ID_WHITE_LIST=[],
         REST_FRAMEWORK={},
         UNIFY_QUERY_ROUTING_RULES=[],
         UNIFY_QUERY_URL="http://unify-query/",
@@ -26,7 +27,7 @@ from api.unify_query.relation_routing import (  # noqa: E402
     RELATION_MULTI_RESOURCE_V1BETA3_PATH,
     resolve_relation_query_path,
 )
-from bkmonitor.utils.graph_relation import get_graph_relation_v4_biz_ids  # noqa: E402
+from bkmonitor.utils.graph_relation import get_relation_query_v1beta3_biz_ids  # noqa: E402
 
 
 @pytest.mark.parametrize(
@@ -37,8 +38,8 @@ from bkmonitor.utils.graph_relation import get_graph_relation_v4_biz_ids  # noqa
     ],
 )
 @pytest.mark.parametrize(("bk_biz_id", "use_v1beta3"), [(2, True), (3, False)])
-@override_settings(GRAPH_RELATION_V4_BIZ_ID_WHITE_LIST=[2])
-def test_relation_query_uses_v4_whitelist_for_v1beta3_routing(legacy_path, v1beta3_path, bk_biz_id, use_v1beta3):
+@override_settings(RELATION_QUERY_V1BETA3_BIZ_ID_WHITE_LIST=[2])
+def test_relation_query_uses_query_whitelist_for_v1beta3_routing(legacy_path, v1beta3_path, bk_biz_id, use_v1beta3):
     path = resolve_relation_query_path(
         legacy_path,
         v1beta3_path,
@@ -48,7 +49,7 @@ def test_relation_query_uses_v4_whitelist_for_v1beta3_routing(legacy_path, v1bet
     assert path == (v1beta3_path if use_v1beta3 else legacy_path)
 
 
-@override_settings(GRAPH_RELATION_V4_BIZ_ID_WHITE_LIST=[2])
+@override_settings(RELATION_QUERY_V1BETA3_BIZ_ID_WHITE_LIST=[2])
 def test_relation_query_returns_to_v1_after_biz_removed_from_whitelist():
     path = resolve_relation_query_path(
         RELATION_MULTI_RESOURCE_PATH,
@@ -57,7 +58,7 @@ def test_relation_query_returns_to_v1_after_biz_removed_from_whitelist():
     )
     assert path == RELATION_MULTI_RESOURCE_V1BETA3_PATH
 
-    with override_settings(GRAPH_RELATION_V4_BIZ_ID_WHITE_LIST=[]):
+    with override_settings(RELATION_QUERY_V1BETA3_BIZ_ID_WHITE_LIST=[]):
         path = resolve_relation_query_path(
             RELATION_MULTI_RESOURCE_PATH,
             RELATION_MULTI_RESOURCE_V1BETA3_PATH,
@@ -67,12 +68,58 @@ def test_relation_query_returns_to_v1_after_biz_removed_from_whitelist():
     assert path == RELATION_MULTI_RESOURCE_PATH
 
 
-@override_settings(GRAPH_RELATION_V4_BIZ_ID_WHITE_LIST="2, invalid, 3")
-def test_graph_relation_v4_whitelist_ignores_invalid_values():
-    assert get_graph_relation_v4_biz_ids() == {2, 3}
+@override_settings(RELATION_QUERY_V1BETA3_BIZ_ID_WHITE_LIST="2, invalid, 3")
+def test_relation_query_whitelist_ignores_invalid_values():
+    assert get_relation_query_v1beta3_biz_ids() == {2, 3}
 
 
-@override_settings(GRAPH_RELATION_V4_BIZ_ID_WHITE_LIST=[2])
+@pytest.mark.parametrize(
+    ("legacy_path", "new_path"),
+    [
+        (RELATION_MULTI_RESOURCE_PATH, RELATION_MULTI_RESOURCE_V1BETA3_PATH),
+        (RELATION_MULTI_RESOURCE_RANGE_PATH, RELATION_MULTI_RESOURCE_RANGE_V1BETA3_PATH),
+    ],
+)
+@override_settings(RELATION_QUERY_V1BETA3_BIZ_ID_WHITE_LIST=[2], GRAPH_RELATION_V4_BIZ_ID_WHITE_LIST=[])
+def test_query_only_allowlist_enables_new_relation_without_old_dual_write_flag(legacy_path, new_path):
+    assert resolve_relation_query_path(legacy_path, new_path, 2) == new_path
+    assert resolve_relation_query_path(legacy_path, new_path, 3) == legacy_path
+
+
+@override_settings(RELATION_QUERY_V1BETA3_BIZ_ID_WHITE_LIST=[], GRAPH_RELATION_V4_BIZ_ID_WHITE_LIST=[2])
+def test_query_rollback_does_not_fall_back_to_old_dual_write_flag():
+    assert (
+        resolve_relation_query_path(RELATION_MULTI_RESOURCE_PATH, RELATION_MULTI_RESOURCE_V1BETA3_PATH, 2)
+        == RELATION_MULTI_RESOURCE_PATH
+    )
+
+
+@pytest.mark.parametrize("new_value, expected", [(None, []), ("", []), ("3, 4", [3, 4])])
+def test_query_environment_setting_does_not_inherit_old_dual_write_flag(monkeypatch, new_value, expected):
+    monkeypatch.setenv("GRAPH_RELATION_V4_BIZ_ID_WHITE_LIST", "2")
+    if new_value is None:
+        monkeypatch.delenv("RELATION_QUERY_V1BETA3_BIZ_ID_WHITE_LIST", raising=False)
+    else:
+        monkeypatch.setenv("RELATION_QUERY_V1BETA3_BIZ_ID_WHITE_LIST", new_value)
+
+    source_path = Path(__file__).parents[3] / "config" / "default.py"
+    module = ast.parse(source_path.read_text())
+    # Evaluate the actual default without loading unrelated deployment settings.
+    assignment = next(
+        node
+        for node in module.body
+        if isinstance(node, ast.Assign)
+        and any(
+            isinstance(target, ast.Name) and target.id == "RELATION_QUERY_V1BETA3_BIZ_ID_WHITE_LIST"
+            for target in node.targets
+        )
+    )
+    namespace = {"os": os}
+    exec(compile(ast.Module(body=[assignment], type_ignores=[]), str(source_path), "exec"), namespace)
+    assert namespace["RELATION_QUERY_V1BETA3_BIZ_ID_WHITE_LIST"] == expected
+
+
+@override_settings(RELATION_QUERY_V1BETA3_BIZ_ID_WHITE_LIST=[2])
 def test_relation_query_uses_v1beta3_for_whitelisted_biz_without_binding_lookup():
     path = resolve_relation_query_path(
         RELATION_MULTI_RESOURCE_PATH,
@@ -132,7 +179,7 @@ def test_perform_request_routes_after_resolving_space_biz_and_tenant(monkeypatch
     assert sent_request["headers"]["X-Bk-Tenant-Id"] == "tenant-a"
 
     monkeypatch.setattr(module, "resolve_relation_query_path", resolve_relation_query_path)
-    with override_settings(GRAPH_RELATION_V4_BIZ_ID_WHITE_LIST=[]):
+    with override_settings(RELATION_QUERY_V1BETA3_BIZ_ID_WHITE_LIST=[]):
         module.QueryMultiResourceV1Beta3().perform_request(
             {"space_uid": "bkcc__2", "bk_tenant_id": "tenant-a", "query_list": []}
         )
