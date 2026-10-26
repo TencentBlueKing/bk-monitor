@@ -38,6 +38,19 @@ import StorageInfoSkeleton from '../skeleton/storage-info-skeleton';
 import type { ETelemetryDataType, IAppInfo, IClusterItem, ILogStorageInfo, IndicesItem } from '../type';
 
 import './storage-state-log.scss';
+
+/** listEsClusterGroups 返回的集群项中切换集群所需字段 */
+interface ILogClusterItem {
+  storage_cluster_id: number;
+  storage_cluster_name: string;
+  storage_display_name?: string;
+  setup_config: {
+    es_shards_max: number;
+    number_of_replicas_max: number;
+    retention_days_max: number;
+  };
+}
+
 interface IProps {
   appInfo: IAppInfo;
   clusterList: IClusterItem[];
@@ -76,7 +89,39 @@ export default class Log extends tsc<IProps> {
     return this.currentCluster?.setup_config.retention_days_max || 7;
   }
 
+  /** 集群下拉选项，当前集群按存储信息中的名称回显，不在可见列表时补充该项 */
+  get clusterOptions() {
+    const currentId = this.storageInfo?.es_storage_cluster;
+    const currentName = this.storageInfo?.display_storage_cluster_name;
+    const options = this.clusterList.map(item => ({
+      id: item.storage_cluster_id,
+      name:
+        item.storage_cluster_id === currentId && currentName
+          ? currentName
+          : item.storage_display_name || item.storage_cluster_name,
+    }));
+    if (currentId && !options.some(item => item.id === currentId)) {
+      options.unshift({ id: currentId, name: currentName || String(currentId) });
+    }
+    return options;
+  }
+
+  /** 是否存在除当前集群以外的可切换集群 */
+  get hasSwitchableCluster() {
+    const currentId = this.storageInfo?.es_storage_cluster;
+    return !!currentId && this.clusterOptions.some(item => item.id !== currentId);
+  }
+
   async handleUpdateValue(value, field: string) {
+    if (field === 'es_storage_cluster') {
+      const targetId = Number(value);
+      if (targetId === this.storageInfo?.es_storage_cluster) return true;
+      const targetCluster = this.clusterList.find(item => item.storage_cluster_id === targetId);
+      if (!targetCluster) return false;
+      if (!this.checkClusterValue(targetCluster)) return false;
+      const isConfirm = await this.confirmSwitchCluster(targetCluster);
+      if (!isConfirm) return false;
+    }
     try {
       // 更新基本信息
       const obj = {};
@@ -98,6 +143,83 @@ export default class Log extends tsc<IProps> {
     } catch {
       return false;
     }
+  }
+
+  /**
+   * @desc 校验当前保留天数、分片数、副本数是否超过目标集群上限，超限时阻止切换而不静默调整参数
+   * @param targetCluster 目标集群
+   * @returns 是否可以切换
+   */
+  checkClusterValue(targetCluster: ILogClusterItem) {
+    const { setup_config: setupConfig } = targetCluster;
+    const exceedItem = [
+      {
+        isExceed: this.storageInfo.es_retention > setupConfig.retention_days_max,
+        maxVal: setupConfig.retention_days_max,
+        name: this.$t('过期天数'),
+      },
+      {
+        isExceed: this.storageInfo.es_shards > setupConfig.es_shards_max,
+        maxVal: setupConfig.es_shards_max,
+        name: this.$t('分片数'),
+      },
+      {
+        isExceed: this.storageInfo.es_number_of_replicas > setupConfig.number_of_replicas_max,
+        maxVal: setupConfig.number_of_replicas_max,
+        name: this.$t('副本数'),
+      },
+    ].find(item => item.isExceed);
+    if (exceedItem) {
+      this.$bkMessage({
+        message: this.$t('当前设置的{name}超过最大值{max}, 请调整后再切换集群', {
+          name: exceedItem.name,
+          max: exceedItem.maxVal,
+        }),
+        theme: 'error',
+      });
+      return false;
+    }
+    return true;
+  }
+
+  /**
+   * @desc 切换集群二次确认，展示源集群、目标集群与生效保留天数
+   * @param targetCluster 目标集群
+   * @returns 是否确认切换
+   */
+  confirmSwitchCluster(targetCluster: ILogClusterItem): Promise<boolean> {
+    const sourceName = this.clusterOptions.find(item => item.id === this.storageInfo?.es_storage_cluster)?.name || '--';
+    const targetName = targetCluster.storage_display_name || targetCluster.storage_cluster_name;
+    return new Promise(resolve => {
+      this.$bkInfo({
+        title: `${this.$t('确认切换存储集群')}？`,
+        width: 560,
+        extCls: 'log-switch-cluster-info',
+        okText: this.$t('确认切换'),
+        cancelText: this.$t('取消'),
+        subHeader: (
+          <div class='log-switch-cluster-content'>
+            <div class='switch-desc'>
+              {this.$t('切换生效后，新增数据将写入目标集群。历史数据仍可查询，并按切换后生效的保留时长自动清理。')}
+            </div>
+            <div class='switch-item'>
+              <span class='switch-label'>{this.$t('当前集群')}：</span>
+              <span class='switch-value'>{sourceName}</span>
+            </div>
+            <div class='switch-item'>
+              <span class='switch-label'>{this.$t('目标集群')}：</span>
+              <span class='switch-value'>{targetName}</span>
+            </div>
+            <div class='switch-item'>
+              <span class='switch-label'>{this.$t('生效保留天数')}：</span>
+              <span class='switch-value'>{`${this.storageInfo?.es_retention}${this.$t('天')}`}</span>
+            </div>
+          </div>
+        ),
+        confirmFn: () => resolve(true),
+        cancelFn: () => resolve(false),
+      });
+    });
   }
 
   /**
@@ -136,10 +258,14 @@ export default class Log extends tsc<IProps> {
             <div class='form-content'>
               <div class='item-row'>
                 <EditableFormItem
-                  formType='input'
+                  authority={this.authority.MANAGE_AUTH}
+                  authorityName={authorityMap.MANAGE_AUTH}
+                  formType='select'
                   label={this.$t('集群名称')}
-                  showEditable={false}
-                  value={this.storageInfo?.display_storage_cluster_name}
+                  selectList={this.clusterOptions}
+                  showEditable={this.hasSwitchableCluster}
+                  updateValue={val => this.handleUpdateValue(val, 'es_storage_cluster')}
+                  value={this.storageInfo?.es_storage_cluster}
                 />
                 <EditableFormItem
                   formType='input'
