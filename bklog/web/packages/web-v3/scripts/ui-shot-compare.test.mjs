@@ -75,4 +75,9 @@ describe('UI screenshot compare (forbidden to pass without shots)', () => {
       assert.ok(item.checks.every(check => check.ok), `${item.name} comparison failed`);
     }
   });
+
+  it('requires side-by-side v2/v3 effect screenshots', () => {
+    assertPng(join(captureDir, 'compare-retrieve.png'), 'compare-retrieve.png', 20_000);
+    assertPng(join(captureDir, 'compare-collection.png'), 'compare-collection.png', 20_000);
+  });
 });

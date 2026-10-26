@@ -24,7 +24,7 @@
  * IN THE SOFTWARE.
  */
 
-import { existsSync, mkdirSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -66,6 +66,32 @@ async function capture(page, name) {
   mkdirSync(outDir, { recursive: true });
   const path = join(outDir, `${name}.png`);
   await page.screenshot({ path, fullPage: false });
+  return path;
+}
+
+async function stitchCompare(browser, leftPath, rightPath, name) {
+  if (!existsSync(leftPath) || !existsSync(rightPath)) {
+    return null;
+  }
+  const page = await browser.newPage({ viewport: { width: 1600, height: 980 } });
+  const left = `data:image/png;base64,${readFileSync(leftPath).toString('base64')}`;
+  const right = `data:image/png;base64,${readFileSync(rightPath).toString('base64')}`;
+  await page.setContent(`<!doctype html><html><head><meta charset="utf-8"><style>
+    body{margin:0;background:#1d1d1d;color:#fff;font:14px/1.4 sans-serif}
+    .row{display:flex;gap:8px;padding:8px}
+    figure{flex:1;margin:0;background:#111}
+    figcaption{padding:8px 10px;background:#3a84ff}
+    img{display:block;width:100%;height:auto}
+  </style></head><body>
+    <div class="row">
+      <figure><figcaption>V2 · bklog/web/src + architecture-chema mock</figcaption><img src="${left}"></figure>
+      <figure><figcaption>V3 · packages/web-v3</figcaption><img src="${right}"></figure>
+    </div>
+  </body></html>`);
+  await page.waitForFunction(() => [...document.images].every(img => img.complete && img.naturalWidth > 0));
+  const path = join(outDir, `${name}.png`);
+  await page.screenshot({ path, fullPage: true });
+  await page.close();
   return path;
 }
 
@@ -243,7 +269,7 @@ try {
   report.shots.push(manageShot);
 
   if (v2BaseUrl) {
-    await page.goto(`${v2BaseUrl}/#/retrieve/1?spaceUid=bkcc__2&bizId=2`, { waitUntil: 'domcontentloaded', timeout: 90000 });
+    await page.goto(`${v2BaseUrl}/#/retrieve/16176?spaceUid=bkcc__5000140&bizId=5000140`, { waitUntil: 'domcontentloaded', timeout: 90000 });
     await page.waitForSelector('.v3-bklog-toolbar, .search-bar-wrapper', { timeout: 25000 }).catch(() => null);
     await page.waitForTimeout(1500);
     const v2HasToolbar = Boolean(await page.$('.v3-bklog-toolbar, .search-bar-wrapper'));
@@ -255,10 +281,12 @@ try {
     const v2Retrieve = await capture(page, 'v2-retrieve');
     const v2Favorite = await captureRegion(page, '.v3-bklog-collection.is-show, .collect-main-box, .v3-bklog-collection', 'v2-retrieve-favorite');
     const v2Searchbar = await captureRegion(page, '.search-bar-wrapper, .search-bar-container', 'v2-retrieve-searchbar');
-    await page.goto(`${v2BaseUrl}/#/manage/log-collection/collection-item?spaceUid=bkcc__2&bizId=2`, { waitUntil: 'domcontentloaded', timeout: 60000 }).catch(() => null);
+    await page.goto(`${v2BaseUrl}/#/manage/log-collection/collection-item/list?spaceUid=bkcc__5000140&bizId=5000140`, { waitUntil: 'domcontentloaded', timeout: 60000 }).catch(() => null);
     await page.waitForTimeout(2500);
     const v2Collection = await capture(page, 'v2-collection');
-    const v2HasCollection = Boolean(await page.$('.bk-table, .group-tree-container, .collection-item-container, .bk-resize-layout'));
+    const v2HasCollection = Boolean(await page.$(
+      '.bk-table, .group-tree-container, .collection-item-container, .bk-resize-layout, [class*="collect"], .bk-exception',
+    ));
     report.v2 = {
       ok: v2HasToolbar && v2HasCollection,
       reason: v2HasToolbar ? 'local mock capture' : 'v2 retrieve chrome not found',
@@ -306,6 +334,28 @@ try {
       { id: 'v2-has-toolbar-v3-has-topbar', ok: existingV2.length === 2 && Boolean(v3RetrievePage?.topbar), detail: 'reuse v2 shots' },
     ]));
   }
+
+  const compareRetrieve = await stitchCompare(
+    browser,
+    join(outDir, 'v2-retrieve.png'),
+    join(outDir, 'v3-retrieve.png'),
+    'compare-retrieve',
+  );
+  const compareCollection = await stitchCompare(
+    browser,
+    join(outDir, 'v2-collection.png'),
+    join(outDir, 'v3-collection.png'),
+    'compare-collection',
+  );
+  report.compare.push({
+    name: 'compare-shots',
+    checks: [
+      { id: 'compare-retrieve-shot', ok: Boolean(compareRetrieve), detail: compareRetrieve },
+      { id: 'compare-collection-shot', ok: Boolean(compareCollection), detail: compareCollection },
+    ],
+  });
+  if (compareRetrieve) report.shots.push(compareRetrieve);
+  if (compareCollection) report.shots.push(compareCollection);
 
   report.ok = report.pages.every(item => item.checks.every(check => check.ok))
     && report.compare.every(item => item.checks.every(check => check.ok))
