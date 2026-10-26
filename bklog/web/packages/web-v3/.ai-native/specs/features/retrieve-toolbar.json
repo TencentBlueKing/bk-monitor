@@ -1,0 +1,44 @@
+{
+  "id": "feature.retrieve-toolbar",
+  "version": "0.1.0",
+  "title": "日志检索工具栏",
+  "status": "approved",
+  "goal": "工具栏控制收藏面板、时间范围和自动刷新，时间变化后重新检索并重置分页。",
+  "inputs": [
+    { "name": "favoriteShown", "type": "boolean", "required": false },
+    { "name": "timePreset", "type": "string", "required": false },
+    { "name": "autoRefresh", "type": "boolean", "required": false }
+  ],
+  "rules": [
+    "收藏按钮只切换面板显隐，不改检索条件",
+    "切换时间预设后分页重置为 1",
+    "自动刷新沿用当前关键字和页码，不重置分页",
+    "时间范围由预设相对当前时间解析，禁止猜测业务绝对时间"
+  ],
+  "dependencies": [
+    "state.retrieve-toolbar",
+    "ui.retrieve-toolbar",
+    "action.toggle-favorite-panel",
+    "action.submit-search"
+  ],
+  "acceptance": [
+    {
+      "id": "AC-001",
+      "given": "收藏面板当前关闭",
+      "when": "点击收藏按钮",
+      "then": "面板变为打开"
+    },
+    {
+      "id": "AC-002",
+      "given": "当前检索停在第 3 页",
+      "when": "切换时间预设",
+      "then": "分页重置为 1 并带上新的时间范围"
+    },
+    {
+      "id": "AC-003",
+      "given": "自动刷新已开启且当前在第 2 页",
+      "when": "触发刷新",
+      "then": "使用当前关键字重新检索且页码仍为 2"
+    }
+  ]
+}

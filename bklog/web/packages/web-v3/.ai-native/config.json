@@ -1,7 +1,7 @@
 {
   "name": "bklog-web-v3",
   "version": "0.1.0",
-  "phase": 1,
+  "phase": 2,
   "tapd": {
     "story": "1010158081139386759",
     "shortId": "139386759"

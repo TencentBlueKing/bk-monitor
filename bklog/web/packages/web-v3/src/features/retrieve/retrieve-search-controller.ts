@@ -36,6 +36,8 @@ export interface LogRecord {
 export interface SearchRequest {
   keyword: string;
   page?: number;
+  startTime?: number;
+  endTime?: number;
 }
 
 export interface SearchResponse {
@@ -44,13 +46,15 @@ export interface SearchResponse {
 }
 
 export type SearchFetcher = (
-  request: { keyword: string; page: number; signal: AbortSignal },
+  request: { keyword: string; page: number; startTime?: number; endTime?: number; signal: AbortSignal },
 ) => Promise<SearchResponse>;
 
 export interface RetrieveSnapshot {
   uiState: RetrieveUiState;
   keyword: string;
   page: number;
+  startTime?: number;
+  endTime?: number;
   records: LogRecord[];
   total: number;
   error: string;
@@ -92,7 +96,8 @@ export class RetrieveSearchController {
     }
 
     const keywordChanged = keyword !== this.snapshot.keyword;
-    const page = keywordChanged ? 1 : Math.max(1, Number(input.page) || 1);
+    const timeChanged = input.startTime !== this.snapshot.startTime || input.endTime !== this.snapshot.endTime;
+    const page = keywordChanged || timeChanged ? 1 : Math.max(1, Number(input.page) || this.snapshot.page || 1);
     const requestId = this.snapshot.requestId + 1;
 
     this.abortController?.abort();
@@ -104,6 +109,8 @@ export class RetrieveSearchController {
       uiState: 'loading',
       keyword,
       page,
+      startTime: input.startTime,
+      endTime: input.endTime,
       error: '',
       requestId,
     };
@@ -112,6 +119,8 @@ export class RetrieveSearchController {
       const result = await this.fetcher({
         keyword,
         page,
+        startTime: input.startTime,
+        endTime: input.endTime,
         signal: abortController.signal,
       });
       if (requestId !== this.snapshot.requestId) {
@@ -145,11 +154,22 @@ export class RetrieveSearchController {
 }
 
 export function createLocalSearchFetcher(dataset: LogRecord[]): SearchFetcher {
-  return async ({ keyword, page, signal }) => {
+  return async ({ keyword, page, startTime, endTime, signal }) => {
     if (signal.aborted) {
       throw new DOMException('Aborted', 'AbortError');
     }
-    const matched = dataset.filter(item => item.log.includes(keyword));
+    const matched = dataset.filter(item => {
+      if (!item.log.includes(keyword)) {
+        return false;
+      }
+      if (startTime != null && item.dtEventTimeStamp < startTime) {
+        return false;
+      }
+      if (endTime != null && item.dtEventTimeStamp > endTime) {
+        return false;
+      }
+      return true;
+    });
     const pageSize = 10;
     const start = (page - 1) * pageSize;
     return {

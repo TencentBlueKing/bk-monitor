@@ -17,14 +17,14 @@
       "status": "in-progress",
       "source": "src/views/retrieve-v3",
       "modules": [
-        { "id": "retrieve-search", "source": "search-bar + search-result/original-log", "priority": 1 },
-        { "id": "retrieve-favorite", "source": "favorite", "priority": 2 },
-        { "id": "retrieve-toolbar", "source": "toolbar", "priority": 2 },
-        { "id": "retrieve-grep", "source": "grep", "priority": 3 },
-        { "id": "retrieve-clustering", "source": "search-result/log-clustering", "priority": 3 },
-        { "id": "retrieve-template", "source": "search-result/template-manage", "priority": 4 },
-        { "id": "retrieve-context", "source": "original-log/context-log", "priority": 4 },
-        { "id": "retrieve-realtime", "source": "original-log/real-time-log", "priority": 4 }
+        { "id": "retrieve-search", "source": "search-bar + search-result/original-log", "priority": 1, "status": "landed" },
+        { "id": "retrieve-favorite", "source": "favorite", "priority": 2, "status": "landed" },
+        { "id": "retrieve-toolbar", "source": "toolbar", "priority": 2, "status": "landed" },
+        { "id": "retrieve-grep", "source": "grep", "priority": 3, "status": "planned" },
+        { "id": "retrieve-clustering", "source": "search-result/log-clustering", "priority": 3, "status": "planned" },
+        { "id": "retrieve-template", "source": "search-result/template-manage", "priority": 4, "status": "planned" },
+        { "id": "retrieve-context", "source": "original-log/context-log", "priority": 4, "status": "planned" },
+        { "id": "retrieve-realtime", "source": "original-log/real-time-log", "priority": 4, "status": "planned" }
       ]
     },
     {

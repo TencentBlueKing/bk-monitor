@@ -1,0 +1,24 @@
+{
+  "id": "impact.retrieve-toolbar",
+  "feature": "feature.retrieve-toolbar",
+  "nodes": [
+    { "type": "feature", "id": "feature.retrieve-toolbar" },
+    { "type": "state", "id": "state.retrieve-toolbar" },
+    { "type": "ui", "id": "ui.retrieve-toolbar" },
+    { "type": "action", "id": "action.toggle-favorite-panel" },
+    { "type": "action", "id": "action.submit-search" },
+    { "type": "module", "id": "ToolbarController" },
+    { "type": "file", "id": "src/features/retrieve/toolbar-controller.ts" },
+    { "type": "file", "id": "src/features/retrieve/retrieve-toolbar.vue" },
+    { "type": "file", "id": "src/features/retrieve/retrieve-page.vue" },
+    { "type": "test", "id": "test.retrieve-toolbar" }
+  ],
+  "edges": [
+    ["feature.retrieve-toolbar", "state.retrieve-toolbar"],
+    ["feature.retrieve-toolbar", "ui.retrieve-toolbar"],
+    ["state.retrieve-toolbar", "ToolbarController"],
+    ["ToolbarController", "src/features/retrieve/toolbar-controller.ts"],
+    ["ui.retrieve-toolbar", "src/features/retrieve/retrieve-toolbar.vue"],
+    ["feature.retrieve-toolbar", "test.retrieve-toolbar"]
+  ]
+}

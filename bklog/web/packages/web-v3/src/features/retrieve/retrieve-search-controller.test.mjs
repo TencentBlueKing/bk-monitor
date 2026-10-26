@@ -51,4 +51,13 @@ describe('RetrieveSearchController', () => {
     assert.equal(next.page, 1);
     assert.equal(next.keyword, 'info');
   });
+
+  it('resets page when time range changes and keeps page on refresh', async () => {
+    const controller = new RetrieveSearchController(createLocalSearchFetcher(dataset));
+    await controller.submit({ keyword: 'error', page: 3, startTime: 0, endTime: 10 });
+    const changed = await controller.submit({ keyword: 'error', page: 3, startTime: 1, endTime: 10 });
+    assert.equal(changed.page, 1);
+    const refreshed = await controller.submit({ keyword: 'error', page: 2, startTime: 1, endTime: 10 });
+    assert.equal(refreshed.page, 2);
+  });
 });

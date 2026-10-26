@@ -10,6 +10,7 @@
     { "type": "module", "id": "RetrieveSearchController" },
     { "type": "file", "id": "src/features/retrieve/retrieve-search-controller.ts" },
     { "type": "file", "id": "src/features/retrieve/retrieve-page.vue" },
+    { "type": "file", "id": "src/features/retrieve/retrieve-toolbar.vue" },
     { "type": "test", "id": "test.retrieve-search" }
   ],
   "edges": [
