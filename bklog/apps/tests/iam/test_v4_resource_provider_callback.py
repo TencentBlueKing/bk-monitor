@@ -236,7 +236,7 @@ class ProductProviderQueryTest(SimpleTestCase):
             result.results,
             [{"id": "1", "display_name": "match", "_bk_iam_approvers_": ["creator"], "_bk_iam_path_": "/space,-5423/"}],
         )
-        clusters.assert_called_once_with(bk_tenant_id="tenant-a", include_public=True)
+        clusters.assert_called_once_with(bk_tenant_id="tenant-a")
         clusters.reset_mock()
         result = provider.list_instance(
             list_filter(parent={"type": "space", "id": "-5423"}, search={"es_source": ["match"]}),
@@ -244,7 +244,7 @@ class ProductProviderQueryTest(SimpleTestCase):
             bk_tenant_id="tenant-a",
         )
         self.assertEqual([item["id"] for item in result.results], ["1"])
-        clusters.assert_called_once_with(bk_tenant_id="tenant-a", include_public=True)
+        clusters.assert_called_once_with(bk_tenant_id="tenant-a")
 
     @patch("apps.iam.views.resources.EsSourceResourceProvider.list_clusters", return_value=[])
     def test_v4_empty_ids_do_not_expand_to_all_es_sources(self, clusters):

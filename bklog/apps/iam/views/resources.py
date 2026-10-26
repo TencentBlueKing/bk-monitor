@@ -271,16 +271,8 @@ class CollectionResourceProvider(BaseResourceProvider):
 
 class EsSourceResourceProvider(BaseResourceProvider):
     @staticmethod
-    def query_clusters(*, bk_tenant_id=None, **filters):
-        if bk_tenant_id is not None:
-            return TransferApi.get_cluster_info(filters, bk_tenant_id=bk_tenant_id)
+    def query_clusters(**filters):
         return TransferApi.get_cluster_info(filters)
-
-    @staticmethod
-    def get_bk_biz_id(cluster_config):
-        if cluster_config.get("registered_system") == REGISTERED_SYSTEM_DEFAULT:
-            return settings.BLUEKING_BK_BIZ_ID
-        return cluster_config.get("custom_option", {}).get("bk_biz_id", 0)
 
     @classmethod
     def get_instance_attributes(cls, instance_id):
@@ -290,7 +282,10 @@ class EsSourceResourceProvider(BaseResourceProvider):
                 return {}
             config = result[0]["cluster_config"]
             name = config.get("display_name") or config["cluster_name"]
-            biz_id = cls.get_bk_biz_id(config)
+            if config.get("registered_system") == REGISTERED_SYSTEM_DEFAULT:
+                biz_id = settings.BLUEKING_BK_BIZ_ID
+            else:
+                biz_id = config["custom_option"].get("bk_biz_id", 0)
         except Exception:
             return {}
         return {
@@ -301,9 +296,9 @@ class EsSourceResourceProvider(BaseResourceProvider):
         }
 
     @classmethod
-    def list_clusters(cls, bk_tenant_id, *, include_public=False):
+    def list_clusters(cls, bk_tenant_id):
         """
-        V4 将公共集群归入蓝鲸业务，V3 保留原有实例过滤规则。
+        获取非系统内置集群列表
         """
         # return [
         #     {
@@ -336,22 +331,22 @@ class EsSourceResourceProvider(BaseResourceProvider):
         #     }
         # ]
 
-        query_options = {"bk_tenant_id": bk_tenant_id} if include_public else {}
-        clusters = cls.query_clusters(cluster_type=STORAGE_CLUSTER_TYPE, no_request=True, **query_options)
+        clusters = cls.query_clusters(cluster_type=STORAGE_CLUSTER_TYPE, no_request=True)
+        # 过滤非内置集群，且业务ID不为空的集群
         clusters = [
             {
                 "id": str(cluster["cluster_config"]["cluster_id"]),
                 "display_name": cluster["cluster_config"]["cluster_name"],
-                "bk_biz_id": str(cls.get_bk_biz_id(cluster["cluster_config"])),
+                "bk_biz_id": str(cluster["cluster_config"]["custom_option"]["bk_biz_id"]),
                 "owner": cluster["cluster_config"]["creator"],
                 "_bk_iam_path_": "/{},{}/".format(
                     ResourceEnum.BUSINESS.id,
-                    cls.get_bk_biz_id(cluster["cluster_config"]),
+                    cluster["cluster_config"]["custom_option"]["bk_biz_id"],
                 ),
             }
             for cluster in clusters
-            if (include_public or cluster["cluster_config"].get("registered_system") != REGISTERED_SYSTEM_DEFAULT)
-            and cls.get_bk_biz_id(cluster["cluster_config"])
+            if cluster["cluster_config"].get("registered_system") != REGISTERED_SYSTEM_DEFAULT
+            and cluster["cluster_config"]["custom_option"].get("bk_biz_id")
         ]
 
         # TODO: 根据租户过滤集群列表
@@ -361,9 +356,7 @@ class EsSourceResourceProvider(BaseResourceProvider):
     def list_instance(self, filter, page, **options):
         bk_tenant_id = options["bk_tenant_id"]
         # 获取集群信息
-        clusters = self.list_clusters(
-            bk_tenant_id=bk_tenant_id, include_public=bool(options.get("include_resource_metadata"))
-        )
+        clusters = self.list_clusters(bk_tenant_id=bk_tenant_id)
 
         with_path = False
         if filter.parent:
@@ -418,9 +411,7 @@ class EsSourceResourceProvider(BaseResourceProvider):
 
     def fetch_instance_info(self, filter, **options):
         bk_tenant_id = options["bk_tenant_id"]
-        clusters = self.list_clusters(
-            bk_tenant_id=bk_tenant_id, include_public=bool(options.get("include_resource_metadata"))
-        )
+        clusters = self.list_clusters(bk_tenant_id=bk_tenant_id)
 
         if filter.ids:
             ids = [str(i) for i in filter.ids]

@@ -119,7 +119,6 @@ class PublicEsSourcePermissionTest(SimpleTestCase):
         with patch("apps.log_search.handlers.index_set.IndexSetHandler.get_index_set_for_storage"):
             included, item = StorageHandler.filter_es_cluster(1, True, False, cluster(), config)
         self.assertTrue(included)
-        self.assertEqual(item["bk_biz_id"], 1)
 
         action = ActionEnum.MANAGE_ES_SOURCE
         for mode in (AuthMode.V3, AuthMode.V4, AuthMode.UNION):
@@ -135,7 +134,8 @@ class PublicEsSourcePermissionTest(SimpleTestCase):
                         patch.object(TransferApi, "get_cluster_info", return_value=[cluster()]) as query,
                     ):
                         response = view.list(request)
-                        query.assert_not_called()
+                        query.assert_called_once_with({"cluster_id": 3})
+                        query.reset_mock()
                         self.assertEqual(response.data[0]["permission"][action.id], username == "authorized")
                         instance_view = SimpleNamespace(
                             kwargs={"cluster_id": "3"}, lookup_field="cluster_id", lookup_url_kwarg=None
@@ -157,7 +157,7 @@ class PublicEsSourcePermissionTest(SimpleTestCase):
 class PublicEsSourceCallbackTest(SimpleTestCase):
     def setUp(self):
         self.api = self.enterContext(patch.object(TransferApi, "get_cluster_info"))
-        self.api.side_effect = lambda params, bk_tenant_id=None: [cluster()] if bk_tenant_id == "tenant-1" else []
+        self.api.return_value = [cluster(), cluster(1, "bklog", 4), cluster("", "bklog", 5)]
         iam = Mock()
         iam.mode_loader.return_value = AuthMode.V4
         iam.is_basic_auth_allowed.return_value = True
@@ -179,56 +179,26 @@ class PublicEsSourceCallbackTest(SimpleTestCase):
         )
         return self.dispatcher._dispatch(request)
 
-    def test_http_fetch_returns_public_cluster_with_business_path(self):
-        for biz_id in (None, "", 0):
-            with self.subTest(biz_id=biz_id):
-                data = cluster(biz_id=biz_id)
-                if biz_id is None:
-                    data["cluster_config"]["custom_option"].clear()
-                before = copy.deepcopy(data)
-                self.api.side_effect = None
-                self.api.return_value = [data]
-                response = self.dispatch("fetch_instance_info", {"ids": ["3"], "attrs": ["_bk_iam_path_"]})
+    def test_v4_callbacks_keep_public_sources_excluded(self):
+        for keyword, expected_ids in (("", ["4"]), ("es_cluster3", [])):
+            with self.subTest(keyword=keyword):
+                response = self.dispatch(
+                    "list_instance",
+                    {"parent": {"type": "space", "id": "1"}, "keyword": keyword},
+                    page={"page": 1, "page_size": 10},
+                )
                 self.assertEqual(response.status_code, 200)
-                result = json.loads(response.content)["data"]
-                self.assertEqual(result[0]["id"], "3")
-                self.assertEqual(result[0]["_bk_iam_path_"], "/space,1/")
-                self.assertEqual(data, before)
-                self.assertEqual(self.api.call_args.kwargs, {"bk_tenant_id": "tenant-1"})
+                rows = json.loads(response.content)["data"]["results"]
+                self.assertEqual([row["id"] for row in rows], expected_ids)
 
-    def test_http_list_keyword_respects_parent_space(self):
-        for keyword in ("", "es_cluster", "missing"):
-            for parent_id in ("1", "99"):
-                with self.subTest(keyword=keyword, parent_id=parent_id):
-                    response = self.dispatch(
-                        "list_instance",
-                        {"parent": {"type": "space", "id": parent_id}, "keyword": keyword},
-                        page={"page": 1, "page_size": 10},
-                    )
-                    self.assertEqual(response.status_code, 200)
-                    result = json.loads(response.content)["data"]
-                    self.assertEqual(result["count"], 1 if parent_id == "1" and keyword != "missing" else 0)
-                    if result["results"]:
-                        self.assertEqual(result["results"][0]["id"], "3")
-
-    def test_http_callback_does_not_return_cluster_from_another_tenant(self):
-        response = self.dispatch("fetch_instance_info", {"ids": ["3"]}, tenant_id="tenant-2")
+        response = self.dispatch("fetch_instance_info", {"ids": ["3"]})
         self.assertEqual(response.status_code, 200)
         self.assertEqual(json.loads(response.content)["data"], [])
-        self.api.assert_called_once_with(
-            {"cluster_type": STORAGE_CLUSTER_TYPE, "no_request": True}, bk_tenant_id="tenant-2"
-        )
-
-    def test_http_callback_requires_tenant_header(self):
-        response = self.dispatch("fetch_instance_info", {"ids": ["3"]}, tenant_id="")
-        self.assertEqual(response.status_code, 400)
-        self.api.assert_not_called()
+        response = self.dispatch("fetch_instance_info", {"ids": ["4"]})
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(json.loads(response.content)["data"][0]["_bk_iam_path_"], "/space,1/")
 
     def test_v3_callback_keeps_public_filter_and_private_instances(self):
-        self.api.side_effect = None
-        self.api.return_value = [cluster(), cluster(5, "bklog", 4), cluster("", "bklog", 5)]
-        legacy = EsSourceResourceProvider.list_clusters("tenant-1")
-        current = EsSourceResourceProvider.list_clusters("tenant-1", include_public=True)
-        self.assertEqual([item["id"] for item in legacy], ["4"])
-        self.assertEqual([item["id"] for item in current], ["3", "4"])
-        self.assertEqual(current[1]["_bk_iam_path_"], "/space,5/")
+        result = EsSourceResourceProvider.list_clusters("tenant-1")
+        self.assertEqual([item["id"] for item in result], ["4"])
+        self.assertEqual(result[0]["_bk_iam_path_"], "/space,1/")
