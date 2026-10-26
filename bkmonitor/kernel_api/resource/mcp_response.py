@@ -1,10 +1,11 @@
-"""Response limits explicitly opted into by our MCP Resource facades only."""
+"""Request validation and response limits for explicitly opted-in MCP facades."""
 
 import gzip
 import json
 from contextlib import ExitStack
 
 from django.conf import settings
+from django.db import models
 from django.http.response import HttpResponseBase
 from requests.exceptions import ContentDecodingError
 from rest_framework.exceptions import ValidationError
@@ -62,11 +63,24 @@ def check_json_size(data, max_bytes):
 
 
 class MCPResource(Resource):
-    """Shared output guard for explicitly opted-in MCP facades.
+    """Validation errors and output guard for explicitly opted-in MCP facades.
 
     validate_response_data runs inside the original Resource exception / metrics
     handling. Ordinary requests execute the original validation unchanged.
     """
+
+    def validate_request_data(self, request_data):
+        if (
+            not is_mcp_request()
+            or not self.RequestSerializer
+            or isinstance(request_data, models.Model | models.QuerySet)
+        ):
+            return super().validate_request_data(request_data)
+        # Resource wraps serializer errors in CustomException, which becomes an
+        # unexpected 503 at the MCP boundary. Preserve DRF's structured 400 here.
+        self._request_serializer = self.RequestSerializer(data=request_data, many=self.many_request_data)
+        self._request_serializer.is_valid(raise_exception=True)
+        return self._request_serializer.validated_data
 
     def validate_response_data(self, response_data):
         result = super().validate_response_data(response_data)

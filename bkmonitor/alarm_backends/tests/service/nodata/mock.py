@@ -74,25 +74,6 @@ def generate_mock_hosts(host_info):
     return hosts
 
 
-class MockServiceInstance:
-    def __init__(self, info):
-        for key, value in list(info.items()):
-            setattr(self, key, value)
-        topo_link = {}
-        for topo in info["topo"]:
-            one = []
-            for node in topo:
-                node_id = node.pop("id")
-                one.append(MockTopoNode(node_id, **node))
-            topo_link.update({one[0].id: one})
-        setattr(self, "topo_link", topo_link)
-
-
-def generate_mock_services(service_info) -> list[MockServiceInstance]:
-    service_info = copy.deepcopy(service_info)
-    return [MockServiceInstance(service) for service in service_info]
-
-
 class MockCheckResult:
     def __init__(self, dimensions):
         self.dimensions = copy.deepcopy(dimensions)

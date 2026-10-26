@@ -27,6 +27,7 @@ paths:
           userVerifiedRequired: true
           appVerifiedRequired: false
           resourcePermissionRequired: true
+          oauth2PersonalClientEnabled: true
   /mcp/get_apm_filter_fields/:
     get:
       operationId: get_apm_filter_fields
@@ -63,6 +64,7 @@ paths:
           userVerifiedRequired: true
           appVerifiedRequired: false
           resourcePermissionRequired: true
+          oauth2PersonalClientEnabled: true
   /mcp/search_spans/:
     post:
       operationId: search_spans
@@ -163,6 +165,7 @@ paths:
           userVerifiedRequired: true
           appVerifiedRequired: false
           resourcePermissionRequired: true
+          oauth2PersonalClientEnabled: true
   /mcp/get_trace_detail/:
     post:
       operationId: get_trace_detail
@@ -206,6 +209,7 @@ paths:
           userVerifiedRequired: true
           appVerifiedRequired: false
           resourcePermissionRequired: true
+          oauth2PersonalClientEnabled: true
   /mcp/get_span_detail/:
     post:
       operationId: get_span_detail
@@ -249,6 +253,7 @@ paths:
           userVerifiedRequired: true
           appVerifiedRequired: false
           resourcePermissionRequired: true
+          oauth2PersonalClientEnabled: true
   /mcp/get_profile_application_service/:
     post:
       operationId: get_profile_application_service
@@ -288,6 +293,7 @@ paths:
           userVerifiedRequired: true
           appVerifiedRequired: false
           resourcePermissionRequired: true
+          oauth2PersonalClientEnabled: true
   /mcp/get_profile_type/:
     post:
       operationId: get_profile_type
@@ -343,6 +349,7 @@ paths:
           userVerifiedRequired: true
           appVerifiedRequired: false
           resourcePermissionRequired: true
+          oauth2PersonalClientEnabled: true
   /mcp/get_profile_label/:
     post:
       operationId: get_profile_label
@@ -402,6 +409,7 @@ paths:
           userVerifiedRequired: true
           appVerifiedRequired: false
           resourcePermissionRequired: true
+          oauth2PersonalClientEnabled: true
   /mcp/query_graph_profile/:
     post:
       operationId: query_graph_profile
@@ -493,6 +501,7 @@ paths:
           userVerifiedRequired: true
           appVerifiedRequired: false
           resourcePermissionRequired: true
+          oauth2PersonalClientEnabled: true
   /mcp/calculate_by_range/:
     post:
       operationId: apm_mcp_calculate_by_range
@@ -598,6 +607,7 @@ paths:
           userVerifiedRequired: true
           appVerifiedRequired: false
           resourcePermissionRequired: true
+          oauth2PersonalClientEnabled: true
   /mcp/list_apm_services/:
     post:
       operationId: list_apm_services
@@ -643,3 +653,4 @@ paths:
           userVerifiedRequired: true
           appVerifiedRequired: false
           resourcePermissionRequired: true
+          oauth2PersonalClientEnabled: true

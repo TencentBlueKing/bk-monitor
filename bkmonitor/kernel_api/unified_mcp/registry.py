@@ -30,11 +30,20 @@ CATEGORY_ACTIONS = {
     "alert_handling": "using_alarm_handling_mcp",
     "log_collection": "using_log_collection_mcp",
     "log_extract": "using_log_extract_mcp",
+    "recording_rule": "view_recording_rule_v2",
     "metadata": "using_metadata_mcp",
 }
 
 # ops 没有登记 MCP Server 后缀权限；OpenClaw 自愈使用专用的用户身份隔离，
 # 两者都不能套普通业务级 IAM Action。
+
+# 同一领域内的写操作可使用独立的管理权限。
+TOOL_ACTIONS = {
+    "create_recording_rule": "manage_recording_rule_v2",
+    "update_recording_rule": "manage_recording_rule_v2",
+    "delete_recording_rule": "manage_recording_rule_v2",
+    "apply_recording_rule": "manage_recording_rule_v2",
+}
 
 # 显式维护公开 Source：新增 APIGW MCP YAML 必须经过评审，不能因文件名匹配就自动进入目录。
 SOURCE_FILES = {
@@ -59,12 +68,25 @@ SOURCE_FILES = {
         "log_collection_update_mcp.yaml",
     ),
     "log_extract": ("log_extract_mcp.yaml",),
+    "recording_rule": ("recording_rule_mcp.yaml",),
     "metadata": ("metadata_mcp.yaml",),
 }
 # 私有／专用 MCP 保留原入口，不进入 Tool Search 和 Unified 执行。
 # operation MCP 只服务内部运营场景，继续使用独立入口与 using_operation_mcp。
 IGNORED_SOURCE_FILES = frozenset({"openclaw_recovering_mcp.yaml", "operation_mcp.yaml", "ops_mcp.yaml"})
 CATEGORIES = tuple(SOURCE_FILES)
+
+# Unified 门面诊断操作共用同一认证入口；它们不执行业务工具，不属于业务 ToolRegistry。
+UNIFIED_DIAGNOSTIC_OPERATIONS = frozenset(
+    {"lookup_tool", "lookup_tool_schema", "lookup_metadata", "lookup_permissions"}
+)
+
+
+def is_unified_diagnostic_route(method: str, path: str) -> bool:
+    """仅识别已声明的诊断后端 POST 路由，不能用路径包含关系扩大认证范围。"""
+    prefix = "/api/v4/unified_mcp/"
+    path = path.rstrip("/").removesuffix(".json")
+    return method == "POST" and path.startswith(prefix) and path[len(prefix) :] in UNIFIED_DIAGNOSTIC_OPERATIONS
 
 
 # standalone、Unified 门面和权限探测共用同一份权限目录。
@@ -292,6 +314,13 @@ PUBLIC_TOOL_NAMES = {"apm_mcp_calculate_by_range": "calculate_by_range"}
 
 # 能力标签是人工评审的产品语义，不能根据 GET／POST 或函数名前缀猜测。
 CAPABILITIES = {
+    "preview_recording_rule": ("analysis",),
+    "create_recording_rule": ("mutation",),
+    "update_recording_rule": ("mutation",),
+    "delete_recording_rule": ("mutation",),
+    "get_recording_rule": ("detail",),
+    "apply_recording_rule": ("mutation",),
+    "list_recording_rules": ("discovery",),
     # 指标查询
     "list_time_series_groups": ("discovery",),
     "list_time_series_metrics": ("discovery",),
@@ -443,6 +472,13 @@ ADDITIONAL_IAM_ACTIONS = {
 
 # Tool Search 展示标题；工具描述本身仍来自 Source OpenAPI。
 TITLES = {
+    "preview_recording_rule": "预解析预计算规则",
+    "create_recording_rule": "新建预计算规则",
+    "update_recording_rule": "修改预计算规则",
+    "delete_recording_rule": "删除预计算规则",
+    "get_recording_rule": "查询预计算规则",
+    "apply_recording_rule": "下发预计算规则",
+    "list_recording_rules": "列出预计算规则",
     "list_time_series_groups": "列出时序分组",
     "list_time_series_metrics": "列出时序指标",
     "execute_range_query": "执行 PromQL 范围查询",
@@ -540,6 +576,11 @@ TITLES.update(
 
 # 参数应从哪些前置工具取得；这是调用建议，不是绕过最终校验的凭据。
 PREREQUISITES: dict[str, tuple[str, ...]] = {
+    "preview_recording_rule": ("list_recording_rules",),
+    "update_recording_rule": ("list_recording_rules",),
+    "delete_recording_rule": ("list_recording_rules",),
+    "get_recording_rule": ("list_recording_rules",),
+    "apply_recording_rule": ("list_recording_rules",),
     "list_time_series_metrics": ("list_time_series_groups",),
     "execute_range_query": ("list_time_series_groups", "list_time_series_metrics"),
     "execute_sql_query": ("list_time_series_groups",),
@@ -998,10 +1039,10 @@ def _catalog_root() -> Path:
     return Path(settings.BASE_DIR) / "support-files" / "apigw" / "resources" / "internal" / "user"
 
 
-def load_tool_registry(root: Path | None = None) -> ToolRegistry:
+def load_tool_registry(root: Path | None = None, *, native_tools: tuple[str, ...] | None = None) -> ToolRegistry:
     """读取全部公开 Source，合成并校验唯一的 ToolRegistry。"""
     root = root or _catalog_root()
-    enabled = native_tool_names()
+    enabled = native_tool_names() if native_tools is None else native_tools
     tools: dict[str, ToolDefinition] = {}
     discovered_operation_ids: set[str] = set()
     digest = hashlib.sha256()
@@ -1096,7 +1137,7 @@ def load_tool_registry(root: Path | None = None) -> ToolRegistry:
                         input_schema=schema,
                         backend_method=str(backend.get("method") or method).upper(),
                         backend_path=str(backend.get("path") or api_path),
-                        iam_action=CATEGORY_ACTIONS.get(category, ""),
+                        iam_action=TOOL_ACTIONS.get(tool_name, CATEGORY_ACTIONS.get(category, "")),
                         prerequisites=PREREQUISITES.get(tool_name, ()),
                         risk=risk,
                         permission_exempt=tool_name in PERMISSION_EXEMPT_TOOL_NAMES,
@@ -1130,6 +1171,7 @@ def load_tool_registry(root: Path | None = None) -> ToolRegistry:
             {
                 "category_actions": CATEGORY_ACTIONS,
                 "additional_iam_actions": ADDITIONAL_IAM_ACTIONS,
+                "tool_actions": TOOL_ACTIONS,
                 "ignored_source_files": sorted(IGNORED_SOURCE_FILES),
                 "permission_exempt_tools": sorted(PERMISSION_EXEMPT_TOOL_NAMES),
                 "native_permissions": NATIVE_PERMISSIONS,
@@ -1160,3 +1202,17 @@ def _cached_tool_registry(enabled: tuple[str, ...], monitor_system_id: str) -> T
 def get_tool_registry() -> ToolRegistry:
     """按当前动态配置返回进程内缓存的工具目录。"""
     return _cached_tool_registry(native_tool_names(), settings.BK_IAM_SYSTEM_ID)
+
+
+@lru_cache(maxsize=1)
+def _cached_route_registry(base_dir: str, monitor_system_id: str) -> ToolRegistry:
+    # Route recognition must not depend on whether SaaS permission fallback is enabled.
+    return load_tool_registry(native_tools=())
+
+
+def resolve_readonly_tool(method: str, path: str) -> ToolDefinition | None:
+    """从同一目录识别只读路由；仅命中工具时才加载动态权限配置。"""
+    tool = _cached_route_registry(str(settings.BASE_DIR), settings.BK_IAM_SYSTEM_ID).get_by_backend(method, path)
+    if tool is None or tool.risk != "query":
+        return None
+    return get_tool_registry().get(tool.name)

@@ -107,3 +107,19 @@ python manage.py sync_apigw
 
 1. 网关进行全量同步，会删除不存在于 `resources.yaml` 的接口。尽量不要在网关页面上手动添加接口，否则会被删除。
 2. grant_permissions进行授权是增量的，如果不是需要在蓝鲸部署时就进行授权，不需要加到这里，直接在网页上授权即可。
+
+## 用户态只读工具的认证与权限
+
+只读观测接口可在 `x-bk-apigateway-resource.authConfig` 中显式配置
+`oauth2PersonalClientEnabled: true`（API 网关 1.24 支持，未配置默认为 false），同时保留
+`userVerifiedRequired: true`。合并脚本保留该字段；修改后需要同步资源、生成版本并发布，
+本地 YAML 变化不代表线上已经生效。个人令牌只提供身份，不授予工具或资源权限。
+
+监控 middleware 使用现有 `ToolRegistry` 的后端方法与路径识别只读工具，不要求客户端添加
+MCP 来源 Header。命中工具必须具有已验证的网关用户与租户，再进入与 Unified 共用的执行逻辑。
+启用 `MCP_NATIVE_PERMISSION_TOOLS` 的工具先检查 MCP 权限，只有明确拒绝才检查 SaaS 权限；
+未启用时仍检查完整的 MCP 权限及附加动作。目录、身份、资源或 IAM 错误均拒绝请求。
+写入、导出、专用 MCP 和未登记路由不通过这一只读自动入口扩展访问能力。
+
+`lookup_permissions` 是预检，不是后续请求的授权凭据。实际执行的 `MCP_USAGE` 日志包含
+工具、入口、权限来源、权限动作和网关请求 ID；不得记录 Token、请求正文或业务结果。

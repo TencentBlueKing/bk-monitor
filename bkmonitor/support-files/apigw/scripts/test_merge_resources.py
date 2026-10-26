@@ -8,6 +8,7 @@ apigateway 要求 operationId 全局唯一，重复会在部署阶段被网关�
     python support-files/apigw/scripts/test_merge_resources.py
 """
 
+import ast
 import importlib.util
 from pathlib import Path
 
@@ -193,7 +194,7 @@ def test_log_collection_mcp_contract():
             assert method_data["tags"] == ["log_collection_mcp"]
             resource = method_data["x-bk-apigateway-resource"]
             assert resource["backend"]["method"] == "get"
-            assert resource["authConfig"] == {
+            assert {k: v for k, v in resource["authConfig"].items() if k != "oauth2PersonalClientEnabled"} == {
                 "userVerifiedRequired": True,
                 "appVerifiedRequired": False,
                 "resourcePermissionRequired": True,
@@ -323,7 +324,7 @@ def test_log_collection_status_mcp_contract():
         "matchSubpath": False,
         "timeout": 30,
     }
-    assert resource["authConfig"] == {
+    assert {k: v for k, v in resource["authConfig"].items() if k != "oauth2PersonalClientEnabled"} == {
         "userVerifiedRequired": True,
         "appVerifiedRequired": False,
         "resourcePermissionRequired": True,
@@ -367,7 +368,7 @@ def test_search_alert_events_apigw_contract():
         "path": "/api/v4/alert/search_alert_events/",
         "matchSubpath": False,
     }
-    assert gateway_resource["authConfig"] == {
+    assert {k: v for k, v in gateway_resource["authConfig"].items() if k != "oauth2PersonalClientEnabled"} == {
         "appVerifiedRequired": True,
         "userVerifiedRequired": False,
         "resourcePermissionRequired": True,
@@ -408,7 +409,7 @@ def test_log_collection_create_mcp_contract():
         "matchSubpath": False,
         "timeout": 30,
     }
-    assert resource["authConfig"] == {
+    assert {k: v for k, v in resource["authConfig"].items() if k != "oauth2PersonalClientEnabled"} == {
         "userVerifiedRequired": True,
         "appVerifiedRequired": False,
         "resourcePermissionRequired": True,
@@ -466,7 +467,7 @@ def test_log_collection_update_mcp_contract():
         "matchSubpath": False,
         "timeout": 30,
     }
-    assert resource["authConfig"] == {
+    assert {k: v for k, v in resource["authConfig"].items() if k != "oauth2PersonalClientEnabled"} == {
         "userVerifiedRequired": True,
         "appVerifiedRequired": False,
         "resourcePermissionRequired": True,
@@ -622,12 +623,80 @@ def test_log_collection_etl_preview_mcp_contract():
         "matchSubpath": False,
         "timeout": 30,
     }
-    assert gateway_resource["authConfig"] == {
+    assert {k: v for k, v in gateway_resource["authConfig"].items() if k != "oauth2PersonalClientEnabled"} == {
         "userVerifiedRequired": True,
         "appVerifiedRequired": False,
         "resourcePermissionRequired": True,
     }
 
 
+@pytest.mark.parametrize(
+    ("operation", "resource_class"),
+    [
+        ("find_relations", "QueryMultiResourceRelationResource"),
+        ("find_relations_range", "QueryMultiResourceRelationRangeResource"),
+    ],
+)
+def test_relation_gateway_backend_matches_registered_resource(operation, resource_class):
+    """Compare independent gateway and server route declarations without loading services."""
+    backend_root = _RESOURCES_DIR.parents[2]
+    view = ast.parse((backend_root / "kernel_api/views/v4/relation.py").read_text())
+    routes = {}
+    for node in ast.walk(view):
+        if not isinstance(node, ast.Call) or not isinstance(node.func, ast.Name) or node.func.id != "ResourceRoute":
+            continue
+        endpoint = next(keyword.value for keyword in node.keywords if keyword.arg == "endpoint")
+        routes[node.args[1].id] = (ast.literal_eval(node.args[0]), ast.literal_eval(endpoint))
+    method, endpoint = routes[resource_class]
+    operation_data = _load_paths(_RESOURCES_DIR / "internal/user/relation_mcp.yaml")[f"/mcp/{operation}/"]["post"]
+    backend = operation_data["x-bk-apigateway-resource"]["backend"]
+    assert backend["method"].upper() == method
+    assert backend["path"] == f"/api/v4/relation/{endpoint}/"
+
+
 if __name__ == "__main__":
     raise SystemExit(pytest.main([__file__, "-v"]))
+
+
+def test_personal_tokens_are_opted_in_and_survive_merge(tmp_path):
+    """Personal authentication must remain user-scoped and never opt in mutations implicitly."""
+    import shutil
+
+    registry_path = _SCRIPT.parents[3] / "kernel_api/unified_mcp/registry.py"
+    tree = ast.parse(registry_path.read_text())
+    capabilities = next(
+        ast.literal_eval(node.value)
+        for node in tree.body
+        if isinstance(node, ast.Assign)
+        and any(isinstance(t, ast.Name) and t.id == "CAPABILITIES" for t in node.targets)
+    )
+    aliases = next(
+        ast.literal_eval(node.value)
+        for node in tree.body
+        if isinstance(node, ast.Assign)
+        and any(isinstance(t, ast.Name) and t.id == "PUBLIC_TOOL_NAMES" for t in node.targets)
+    )
+    shutil.copytree(_RESOURCES_DIR, tmp_path / "resources")
+    merge_resources_func(tmp_path / "resources")
+    merged = yaml.safe_load((tmp_path / "resources.yaml").read_text())["paths"]
+    enabled = set()
+    for path, methods in merged.items():
+        for operation in methods.values():
+            config = operation["x-bk-apigateway-resource"]["authConfig"]
+            if not config.get("oauth2PersonalClientEnabled"):
+                continue
+            name = operation["operationId"]
+            assert config["userVerifiedRequired"] is True
+            assert config["appVerifiedRequired"] is False
+            assert not {"mutation", "task", "export"}.intersection(capabilities.get(aliases.get(name, name), ()))
+            enabled.add(name)
+    assert {
+        "search_logs",
+        "get_trace_detail",
+        "execute_range_query",
+        "lookup_tool",
+        "lookup_tool_schema",
+        "lookup_permissions",
+        "lookup_metadata",
+    } <= enabled
+    assert "execute_tool" not in enabled

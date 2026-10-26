@@ -56,7 +56,7 @@ paths:
         backend:
           name: default
           method: post
-          path: /api/v4/relation/find_relations/
+          path: /api/v4/relation/query_multi_resource_relation/
           matchSubpath: false
           timeout: 0
         pluginConfigs: []
@@ -64,6 +64,7 @@ paths:
           userVerifiedRequired: true
           appVerifiedRequired: false
           resourcePermissionRequired: true
+          oauth2PersonalClientEnabled: true
         descriptionEn: None
   /mcp/find_relations_range/:
     post:
@@ -130,7 +131,7 @@ paths:
         backend:
           name: default
           method: post
-          path: /api/v4/relation/find_relations_range/
+          path: /api/v4/relation/query_multi_resource_relation_range/
           matchSubpath: false
           timeout: 0
         pluginConfigs: []
@@ -138,4 +139,5 @@ paths:
           userVerifiedRequired: true
           appVerifiedRequired: false
           resourcePermissionRequired: true
+          oauth2PersonalClientEnabled: true
         descriptionEn: None

@@ -26,7 +26,7 @@
 
 import tippy, { type Instance, type Props } from 'tippy.js';
 
-import PopInstanceUtil from '../../pop-instance-util';
+import PopInstanceUtil, { markBklogTippy } from '../../pop-instance-util';
 import { createRawTippyLifecycle, overlayRegistry, resolvePopperPlacementRect } from '../overlay-registry';
 import type { OverlayRegisterOptions } from '../overlay-types';
 
@@ -120,6 +120,7 @@ export const createRawTippyOverlay = (
     },
   });
 
+  markBklogTippy(created);
   lifecycle.setInstance(created);
   return created;
 };

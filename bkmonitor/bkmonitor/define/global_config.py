@@ -74,6 +74,8 @@ ADVANCED_OPTIONS = OrderedDict(
         # === BKDATA & AIOPS 相关配置 开始 ===
         ("AIOPS_BIZ_WHITE_LIST", slz.ListField(label="开启智能异常算法的业务白名单", default=[])),
         ("AIOPS_INCIDENT_BIZ_WHITE_LIST", slz.ListField(label="开启根因故障定位的业务白名单", default=[])),
+        # Issue AI 分析：白名单为空 = 功能关闭，-1 表示全量
+        ("ISSUE_AI_ANALYSIS_BIZ_WHITE_LIST", slz.ListField(label=_("Issue AI 分析业务白名单"), default=[])),
         # Issue LLM 标题生成：白名单为空 = 功能关闭（注意与 AIOPS 白名单"空=全开"语义不同），-1 表示全量
         ("ISSUE_LLM_TITLE_BIZ_WHITE_LIST", slz.ListField(label="Issue LLM 标题生成业务白名单", default=[])),
         # 业务级 prompt 模板：{bk_biz_id: 模板文本}（一业务一模板字符串，自适应模板已覆盖日志行/事件两形态）。
@@ -497,6 +499,14 @@ ADVANCED_OPTIONS = OrderedDict(
         (
             "BK_DATA_RECORD_RULE_PROJECT_ID",
             slz.IntegerField(label="监控使用计算平台的预计算流程的公共项目ID", default=1),
+        ),
+        (
+            "RECORD_RULE_V4_CONFIG",
+            slz.JSONField(
+                label="RecordingRule V4 配置",
+                default={"max_sources": 20, "max_rules": 20},
+                help_text="max_sources 为单 Flow 去重后的 source 上限，max_rules 为 group 中 rule 条数上限，均为正整数，默认 20。",
+            ),
         ),
         ("METADATA_REQUEST_ES_TIMEOUT", slz.JSONField(label="metadata请求ES超时时间", default={"default": 10})),
         ("SKIP_INFLUXDB_TABLE_ID_LIST", slz.BooleanField(label="跳过写入influxdb的结果表列表", default=[])),

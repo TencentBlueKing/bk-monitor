@@ -372,7 +372,7 @@ export const getRouteConfig = () => {
         //     }
         //   ]
         // },
-        window.enable_aiops
+        window.enable_aiops || window.enable_issue_ai_analysis
           ? {
               name: '智能设置',
               shortName: '智能',
@@ -381,9 +381,9 @@ export const getRouteConfig = () => {
                 {
                   name: 'AI设置',
                   icon: 'icon-monitor icon-AI menu-icon',
-                  id: 'ai-settings',
-                  path: '/ai-settings',
-                  href: '#/ai-settings',
+                  id: 'ai-config',
+                  path: '/trace/ai-config',
+                  href: '#/trace/ai-config',
                   canStore: true,
                 },
               ],

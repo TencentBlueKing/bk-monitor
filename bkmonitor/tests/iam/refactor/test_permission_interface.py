@@ -53,8 +53,6 @@ from iam_engine.provider.requests import (
 from bkmonitor.iam.backends.v3.client import V3Client
 from core.errors.iam import PermissionDeniedError
 
-from .conftest import LegacyCompatibleIAM
-
 
 # ---------------------------------------------------------------------------
 # 旧路径参考实现（与旧 permission.py 的 make_request/is_allowed 行为一致）
@@ -62,26 +60,21 @@ from .conftest import LegacyCompatibleIAM
 
 
 class LegacyIAM(SdkIAM):
-    """旧版 CompatibleIAM 参考实现：真实 SDK + 旧版 _do_policy_query 覆盖。
-
-    仅用于查询路径对照；不访问网络（_client 由测试注入 mock）。
-    """
+    """Reference for the previous V1-disabled path: SDK plus dashboard aliases."""
 
     def __init__(self, app_code, app_secret, bk_apigateway_url, system_id, bk_tenant_id=""):
         super().__init__(app_code, app_secret, bk_apigateway_url, bk_tenant_id=bk_tenant_id)
-        self._system_id = system_id
-        self._compat = LegacyCompatibleIAM(system_id=system_id)
 
     def _do_policy_query(self, request, with_resources=True):
-        # 每次调用实时转发当前 _client：测试注入 mock（legacy_client._client = http）后同样生效，
-        # 否则 _compat 仍持有构造时的真实 SDK Client（此前导致对照用例发起真实网络请求而失败）
-        self._compat._client = self._client
-        # 兼容模式下：走 V1 双查 + 别名（参考实现恒定兼容模式 = 旧版默认）
-        return self._compat._do_policy_query(request.to_dict(), with_resources)
-
-    def _do_policy_query_by_actions(self, request, with_resources=True):
-        self._compat._client = self._client
-        return self._compat._do_policy_query_by_actions(request.to_dict(), with_resources)
+        policies = super()._do_policy_query(request, with_resources)
+        if request.action.id == "new_dashboard":
+            for action_id in ("manage_dashboard_v2", "manage_datasource_v2"):
+                alias = copy.copy(request)
+                alias.action = SdkAction(action_id)
+                result = super()._do_policy_query(alias, with_resources)
+                if result:
+                    policies = {"op": "OR", "content": [policies, result]} if policies else result
+        return policies
 
 
 def legacy_make_request(username, v3_action_id, resources):
@@ -345,6 +338,7 @@ class TestIsAllowed:
         ]
         assert p.is_allowed(ActionEnum.VIEW_BUSINESS, resources) is True
         from bkmonitor.iam.resource import to_resource_instance
+
         assert provider.is_allowed_calls[0].resources == tuple(to_resource_instance(r) for r in resources)
 
     def test_token_bypass_parity(self, fake_permission):
@@ -888,13 +882,16 @@ class TestKnownRegressions:
         _, provider = fake_permission
         p = Permission(username="tester", bk_tenant_id="system")
 
-        monkeypatch.setattr(ResourceEnum.APM_APPLICATION, "create_simple_instance", lambda id: FwResource("apm_application", id))
+        monkeypatch.setattr(
+            ResourceEnum.APM_APPLICATION, "create_simple_instance", lambda id: FwResource("apm_application", id)
+        )
         resources = [
             ResourceEnum.BUSINESS.create_simple_instance("2"),
             ResourceEnum.APM_APPLICATION.create_simple_instance("app-1"),
         ]
         assert p.is_allowed(ActionEnum.VIEW_BUSINESS, resources) is True
         from bkmonitor.iam.resource import to_resource_instance
+
         assert provider.is_allowed_calls[0].resources == tuple(to_resource_instance(r) for r in resources)
 
 
@@ -907,35 +904,28 @@ def _mock_http(policy_map, batch_map=None):
     """构造 IAM SDK 层 mock http 客户端。
 
     policy_map: dict action_id -> policy dict（None 表示无策略）
-    对 _v2 action 的 V1 双查：自动以去掉 _v2 后缀的 action 查 policy_map。
+    精确按当前 action_id 返回策略，不模拟旧 Action 回退。
     """
     http = MagicMock()
 
-    def _policy_query(data):
+    def _policy_query(system, data):
         action_id = data.get("action", {}).get("id", "")
         if action_id in policy_map:
             return True, "", copy.deepcopy(policy_map[action_id])
-        # V1 双查：去掉 _v2 后缀再查
-        if action_id.endswith("_v2"):
-            v1_id = action_id[:-3]
-            if v1_id in policy_map:
-                return True, "", copy.deepcopy(policy_map[v1_id])
         return True, "", {}
 
-    def _policy_query_by_actions(data):
+    def _policy_query_by_actions(system, data):
         items = []
         for act in data.get("actions", []):
             aid = act["id"]
             if aid in policy_map:
                 items.append({"action": {"id": aid}, "condition": copy.deepcopy(policy_map[aid])})
-            elif aid.endswith("_v2") and aid[:-3] in policy_map:
-                items.append({"action": {"id": aid}, "condition": copy.deepcopy(policy_map[aid[:-3]])})
             else:
                 items.append({"action": {"id": aid}, "condition": {}})
         return True, "", items
 
-    http.policy_query.side_effect = _policy_query
-    http.policy_query_by_actions.side_effect = _policy_query_by_actions
+    http.v2_policy_query.side_effect = _policy_query
+    http.v2_policy_query_by_actions.side_effect = _policy_query_by_actions
     return http
 
 
@@ -1012,14 +1002,12 @@ class TestAuthPathParity:
         # 载荷一致性：主查询（第一次 policy_query）action/资源/主体一致。
         # 注意1：SDK is_allowed_with_cache 是类级 TTL 缓存，载荷抓取必须用
         #       不同用户名避免命中同一缓存条目。
-        # 注意2：调用记录在 http.policy_query.call_args_list（子属性），且 V1 双查
-        #       会产生 v2/v1 两次调用，必须取 [0]（v2 主查询）；http.call_args_list
-        #       记录的是对 mock 本身的调用（恒空），call_args 是最后一次调用（v1）。
-        legacy_payload = _normalize_payload(http.policy_query.call_args_list[0].args[0])
+        # 调用记录在 SDK HTTP mock 的 v2_policy_query 子方法上。
+        legacy_payload = _normalize_payload(http.v2_policy_query.call_args_list[0].args[1])
         http2 = _mock_http({v3_action: policy})
         _provider2, client2 = _new_provider_with_http(real_schema, http2)
         _provider2.is_allowed(_new_auth_request("tester_payload", biz_action, rt, rid))
-        new_payload = _normalize_payload(http2.policy_query.call_args_list[0].args[0])
+        new_payload = _normalize_payload(http2.v2_policy_query.call_args_list[0].args[1])
 
         assert new_payload["action"]["id"] == legacy_payload["action"]["id"] == v3_action
         # subject 抓取用了独立用户名（避开 is_allowed_with_cache 的类级 TTL 缓存）
@@ -1032,32 +1020,6 @@ class TestAuthPathParity:
             assert nr["system"] == lr["system"] == "bk_monitorv3"
             assert nr["type"] == lr["type"]
             assert nr["id"] == lr["id"]
-
-    def test_v1_dual_query_payload_parity(self, real_schema):
-        """V1 双查：_v2 动作会追加一次 V1 查询，且 V1 载荷（biz 资源替换）新旧一致。"""
-        v2_policy = {"op": "eq", "field": "space.id", "value": "2"}
-        v1_policy = {"op": "eq", "field": "biz.id", "value": "2"}
-        http = _mock_http({"view_business_v2": v2_policy, "view_business": v1_policy})
-
-        legacy_client = LegacyIAM("a", "s", "https://iam.invalid/", "bk_monitorv3", bk_tenant_id="system")
-        legacy_client._client = http
-        legacy_client.is_allowed_with_cache(
-            legacy_make_request("legacy_v1_user", "view_business_v2", [legacy_make_resource("space", "2")])
-        )
-        legacy_calls = [c.args[0] for c in http.policy_query.call_args_list]
-
-        http2 = _mock_http({"view_business_v2": v2_policy, "view_business": v1_policy})
-        provider, client = _new_provider_with_http(real_schema, http2)
-        provider.is_allowed(_new_auth_request("new_v1_user", "view_business", "space", "2"))
-        new_calls = [c.args[0] for c in http2.policy_query.call_args_list]
-
-        assert len(new_calls) == len(legacy_calls) == 2
-        # V1 查询载荷：action 去掉 _v2、space→biz、system→bk_cmdb
-        legacy_v1 = _normalize_payload(legacy_calls[1])
-        new_v1 = _normalize_payload(new_calls[1])
-        assert new_v1["action"]["id"] == legacy_v1["action"]["id"] == "view_business"
-        assert new_v1["resources"][0]["type"] == legacy_v1["resources"][0]["type"] == "biz"
-        assert new_v1["resources"][0]["system"] == legacy_v1["resources"][0]["system"] == "bk_cmdb"
 
     def test_alias_parity_new_dashboard(self, real_schema):
         """new_dashboard 语义别名：新旧都 OR 合并 manage_dashboard_v2 / manage_datasource_v2 策略。"""
@@ -1086,12 +1048,12 @@ class TestAuthPathParity:
 
         assert legacy_allowed is True  # OR 合并后放行
         assert new_allowed == legacy_allowed
-        # 调用次数一致（主查询 + 别名各含 V2/V1 双查）
-        assert len(http2.policy_query.call_args_list) == len(http.policy_query.call_args_list)
-        assert len(http2.policy_query.call_args_list) >= 3
+        # 调用次数一致（主查询 + 两个管理动作别名）
+        assert len(http2.v2_policy_query.call_args_list) == len(http.v2_policy_query.call_args_list)
+        assert len(http2.v2_policy_query.call_args_list) == 3
 
     def test_batch_policy_query_parity(self, real_schema):
-        """批量策略查询（_do_policy_query_by_actions）：新旧合并 V1 条件的逻辑一致。"""
+        """批量策略查询（_do_policy_query_by_actions）：旧版关闭兼容时与新版的 SDK 查询一致。"""
         http = _mock_http({"view_business_v2": {"op": "eq", "field": "space.id", "value": "2"}})
         legacy_client = LegacyIAM("a", "s", "https://iam.invalid/", "bk_monitorv3", bk_tenant_id="system")
         legacy_client._client = http
@@ -1103,15 +1065,15 @@ class TestAuthPathParity:
             environment=None,
         )
         legacy_result = legacy_client._do_policy_query_by_actions(legacy_req, with_resources=False)
-        legacy_v1_merged = legacy_result[0]["condition"]
+        legacy_condition = legacy_result[0]["condition"]
 
         http2 = _mock_http({"view_business_v2": {"op": "eq", "field": "space.id", "value": "2"}})
         provider, client = _new_provider_with_http(real_schema, http2)
         new_req = client.make_multi_action_request("tester", ["view_business_v2"])
         new_result = client._do_policy_query_by_actions(new_req, with_resources=False)
-        new_v1_merged = new_result[0]["condition"]
+        new_condition = new_result[0]["condition"]
 
-        assert new_v1_merged == legacy_v1_merged
+        assert new_condition == legacy_condition
 
     def test_filter_visible_resources_parity(self, real_schema):
         """空间列表过滤：新旧对同一策略表达式的过滤结果一致。"""
@@ -1135,40 +1097,6 @@ class TestAuthPathParity:
             else:
                 assert result.all_granted is False
                 assert list(result.visible_ids) == expected["visible"]
-
-    def test_legacy_compat_dual_query_matches_v3_client(self, real_schema):
-        """LegacyCompatibleIAM（旧 compatible.py 参考实现）与新版 V3Client 的
-        _do_policy_query 调用序列一致（含 V1 双查 + 别名）。"""
-        http = _mock_http(
-            {
-                "view_business_v2": {"op": "eq", "field": "space.id", "value": "2"},
-                "view_business": {"op": "eq", "field": "biz.id", "value": "2"},
-            }
-        )
-        legacy_compat = LegacyCompatibleIAM("bk_monitorv3")
-        legacy_compat._client = http
-        legacy_req = {
-            "system": "bk_monitorv3",
-            "subject": {"type": "user", "id": "tester"},
-            "action": {"id": "view_business_v2"},
-            "resources": [{"system": "bk_monitorv3", "type": "space", "id": "2", "attribute": {}}],
-            "environment": {},
-        }
-        legacy_policies = legacy_compat._do_policy_query(legacy_req, with_resources=True)
-
-        http2 = _mock_http(
-            {
-                "view_business_v2": {"op": "eq", "field": "space.id", "value": "2"},
-                "view_business": {"op": "eq", "field": "biz.id", "value": "2"},
-            }
-        )
-        provider, client = _new_provider_with_http(real_schema, http2)
-        new_req = client.make_request("tester", "view_business_v2", [client.make_resource("space", "2")])
-        new_policies = client._do_policy_query(new_req, with_resources=True)
-
-        assert new_policies == legacy_policies
-        # 调用序列长度一致：V2 主查 + V1 双查
-        assert len(http2.policy_query.call_args_list) == len(http.policy_query.call_args_list) == 2
 
 
 # ---------------------------------------------------------------------------

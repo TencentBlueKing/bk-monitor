@@ -8,14 +8,13 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 
-import itertools
 import logging
 from collections import defaultdict
 from typing import TYPE_CHECKING, Any
 
 from django.core.cache import caches
 
-from apm_web.constants import ApmCacheKey, DataStatus, ServiceRelationLogTypeChoices
+from apm_web.constants import ApmCacheKey, ServiceRelationLogTypeChoices
 from apm_web.handlers.host_handler import HostHandler
 from apm_web.models import LogServiceRelation
 from bkmonitor.utils.cache import CacheType, using_cache
@@ -121,83 +120,6 @@ class ServiceLogHandler:
                     available_services.update(related_services)
 
         return available_services
-
-    @classmethod
-    def get_log_count_mapping(cls, bk_biz_id, app_name, start_time, end_time):
-        """获取所有服务的关联日志的数据量"""
-
-        # Step1: 找到此应用所有服务关联的日志
-        service_mapping = defaultdict(dict)
-        relations = LogServiceRelation.get_relation_qs(bk_biz_id, app_name)
-        for i in relations:
-            if i.log_type == ServiceRelationLogTypeChoices.BK_LOG:
-                service_mapping[i.service_name][i.related_bk_biz_id] = {
-                    int(val) for val in (i.value_list + [i.value]) if val
-                }
-
-        # Step2: 查询业务的所有索引集 (避免每个 relation 都单独查询)
-        pool = ThreadPool()
-        futures = []
-        for i in service_mapping.values():
-            for related_biz_id in i.keys():
-                futures.append(pool.apply_async(get_biz_index_sets_with_cache, kwds={"bk_biz_id": related_biz_id}))
-        index_set = list(itertools.chain(*[i.get() for i in futures]))
-
-        # Step3: 根据 index_set_id 进行匹配
-        res = {}
-        for service_name, info in service_mapping.items():
-            info_index_set_ids = {item for value_set in info.values() for item in value_set}
-            index_info = next((i for i in index_set if i.get("index_set_id") in info_index_set_ids), None)
-            if index_info:
-                # tag_id == 4 为无数据 (bk_log 固定值)
-                if all(i.get("tag_id") != 4 for i in index_info.get("tags", [])):
-                    res[service_name] = DataStatus.NORMAL
-
-        # Step4: 对没有数据的服务进行自定义上报查询
-        log_datasource = cls.get_log_datasource(bk_biz_id, app_name)
-        if log_datasource:
-            table_id = log_datasource["result_table_id"].replace("-", "_").replace(".", "_")
-            futures = []
-            service_name_field_list = ["resource.service.name", "resource.server"]
-            for label in service_name_field_list:
-                futures.append(
-                    pool.apply_async(cls.get_label_values_in_table, args=(table_id, label, start_time, end_time))
-                )
-            has_data_service_list = list(itertools.chain(*[f.get() for f in futures]))
-            res.update({s: DataStatus.NORMAL for s in has_data_service_list})
-
-        return res
-
-    @classmethod
-    def get_label_values_in_table(cls, table_id, label, start_time, end_time) -> list:
-        response = api.log_search.es_query_dsl(
-            indices=f"{table_id}*",
-            body={
-                "size": 0,
-                "query": {
-                    "range": {
-                        "time": {
-                            "format": "epoch_second",
-                            "gte": start_time,
-                            "lte": end_time,
-                        }
-                    }
-                },
-                "aggs": {
-                    "service_names": {
-                        "terms": {
-                            "field": label,
-                        }
-                    }
-                },
-            },
-        )
-
-        ret = []
-        if response:
-            for svr in response.get("aggregations", {}).get("service_names", {}).get("buckets", []):
-                ret.append(svr["key"])
-        return ret
 
     @classmethod
     def get_and_check_datasource_index_set_id(cls, bk_biz_id, app_name, full_indexes=None):
