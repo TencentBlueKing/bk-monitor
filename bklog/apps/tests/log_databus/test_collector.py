@@ -1665,11 +1665,10 @@ class TestCollectorDeleteAndStatus(TestCase):
 
         statistic.side_effect = get_statistic
         before = list(CollectorConfig.objects.order_by("pk").values())
-        with patch("apps.log_databus.handlers.collector.base.logger.error") as error:
-            with patch("apps.log_databus.handlers.collector.base.get_request_id", return_value="test-request"):
-                statuses = CollectorHandler().get_subscription_status_by_list(
-                    [healthy.pk, inactive.pk, active.pk, stopping.pk, container.pk]
-                )
+        with patch("apps.log_databus.handlers.collector.base.logger.exception") as error:
+            statuses = CollectorHandler().get_subscription_status_by_list(
+                [healthy.pk, inactive.pk, active.pk, stopping.pk, container.pk]
+            )
         result = {item["collector_id"]: item for item in statuses}
         self.assertEqual(len(result), 5)
         self.assertEqual(result[healthy.pk]["status"], CollectStatus.SUCCESS)
@@ -1685,13 +1684,11 @@ class TestCollectorDeleteAndStatus(TestCase):
         self.assertEqual(statistic.call_count, 4)
         self.assertEqual(error.call_count, 2)
         for entry in error.call_args_list:
-            self.assertIn(entry.args[1], [inactive.pk, active.pk])
-            self.assertIn(entry.args[2], [8, 9])
-            self.assertEqual(entry.args[3], "test-request")
-            self.assertIsNotNone(entry.kwargs["exc_info"][2])
+            self.assertIn(entry.args[1], [8, 9])
+            self.assertIsInstance(entry.args[2], ApiResultError)
         self.assertEqual(list(CollectorConfig.objects.order_by("pk").values()), before)
 
-    @patch("apps.log_databus.handlers.collector.base.logger.error")
+    @patch("apps.log_databus.handlers.collector.base.logger.exception")
     @patch("apps.api.NodeApi.subscription_statistic")
     def test_query_errors_and_missing_statistics_use_existing_fallback(self, statistic, error):
         active = self.create_collector(subscription_id=8)

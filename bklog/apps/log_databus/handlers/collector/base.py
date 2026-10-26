@@ -118,7 +118,7 @@ from apps.utils.cache import caches_ten_minute
 from apps.utils.custom_report import BK_CUSTOM_REPORT, CONFIG_OTLP_FIELD
 from apps.utils.db import array_chunk
 from apps.utils.function import map_if
-from apps.utils.local import get_local_param, get_request_id, get_request_username, get_request_tenant_id
+from apps.utils.local import get_local_param, get_request_username, get_request_tenant_id
 from apps.utils.log import logger
 from apps.utils.thread import MultiExecuteFunc
 from apps.utils.time_handler import format_user_time_zone
@@ -1292,14 +1292,8 @@ class CollectorHandler:
         multi_result = multi_execute_func.run(return_exception=True)
         for key, ret in multi_result.items():
             if isinstance(ret, Exception):
-                logger.error(
-                    "collector id(%s), subscription id(%s), request_id(%s), subscription statistic failed: %s",
-                    subscription_collector_map[key],
-                    key,
-                    get_request_id(),
-                    ret,
-                    exc_info=(type(ret), ret, ret.__traceback__),
-                )
+                # 子查询异常
+                logger.exception("subscription id(%s),subscription statistic failed：%s", key, ret)
                 continue
             status_result.extend(ret)
 
