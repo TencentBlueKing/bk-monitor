@@ -262,7 +262,6 @@ def refresh_bkcc_space_name():
     logger.info("start sync bkcc space name task")
     biz_map: dict[str, Business] = {}
     for tenant in api.bk_login.list_tenant():
-        client.search_business.request.refresh(bk_tenant_id=tenant["id"])
         biz_map.update({str(b.bk_biz_id): b for b in api.cmdb.get_business(bk_tenant_id=tenant["id"])})
 
     updated_count = 0

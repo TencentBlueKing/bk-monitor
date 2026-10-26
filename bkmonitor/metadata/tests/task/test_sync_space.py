@@ -13,7 +13,6 @@ from metadata.models.space.constants import (
     SpaceTypes,
 )
 from metadata.task.sync_space import (
-    refresh_bkcc_space_name,
     refresh_bkci_space_name,
     refresh_cluster_resource,
     sync_bcs_space,
@@ -258,20 +257,6 @@ def test_sync_bkcc_space_refresh_cmdb_cache(create_and_delete_record, mocker, mo
     refresh_kwargs = [single_call.kwargs for single_call in mock_cc_search_business.request.refresh.call_args_list]
     assert {"bk_tenant_id": "system"} in refresh_kwargs
     assert {"bk_tenant_id": "system", "condition": {"bk_data_status": "disabled"}} in refresh_kwargs
-
-
-def test_refresh_bkcc_space_name_refresh_cmdb_cache(mocker, mock_cc_search_business):
-    mocker.patch("alarm_backends.core.storage.redis.Cache.__new__", return_value=LockCacheMock())
-    mocker.patch("core.drf_resource.api.bk_login.list_tenant", return_value=[{"id": "system"}])
-    mocker.patch(
-        "core.drf_resource.api.cmdb.get_business",
-        return_value=[Business(bk_biz_id=11, bk_biz_name="managed", time_zone="Asia/Shanghai")],
-    )
-
-    refresh_bkcc_space_name()
-
-    # 空间名称刷新同样依赖实时业务信息，需要先刷新 cc 缓存
-    mock_cc_search_business.request.refresh.assert_called_once_with(bk_tenant_id="system")
 
 
 def test_sync_bcs_space(create_and_delete_record, table_id, mocker):
