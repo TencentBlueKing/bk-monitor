@@ -1,0 +1,46 @@
+{
+  "id": "plan.vue3-migration",
+  "version": "0.1.0",
+  "target": "bklog/web/packages/web-v3",
+  "source": "bklog/web/src",
+  "principle": "redesign on Vue3 + tdesign-vue-next, do not copy Vue2 files",
+  "waves": [
+    {
+      "id": "W1",
+      "title": "契约与工程闭环",
+      "status": "landed",
+      "items": [".ai-native schemas/specs/rules", "anative CLI", "theme tokens", "overlay manager"]
+    },
+    {
+      "id": "W2",
+      "title": "日志检索最小闭环",
+      "status": "in-progress",
+      "source": "src/views/retrieve-v3",
+      "modules": [
+        { "id": "retrieve-search", "source": "search-bar + search-result/original-log", "priority": 1 },
+        { "id": "retrieve-favorite", "source": "favorite", "priority": 2 },
+        { "id": "retrieve-toolbar", "source": "toolbar", "priority": 2 },
+        { "id": "retrieve-grep", "source": "grep", "priority": 3 },
+        { "id": "retrieve-clustering", "source": "search-result/log-clustering", "priority": 3 },
+        { "id": "retrieve-template", "source": "search-result/template-manage", "priority": 4 },
+        { "id": "retrieve-context", "source": "original-log/context-log", "priority": 4 },
+        { "id": "retrieve-realtime", "source": "original-log/real-time-log", "priority": 4 }
+      ]
+    },
+    {
+      "id": "W3",
+      "title": "其余业务域",
+      "status": "planned",
+      "modules": [
+        { "id": "manage-collection", "source": "src/views/manage-v2/log-collection" },
+        { "id": "manage-clean", "source": "src/views/manage-v2/log-clean" },
+        { "id": "manage-extract", "source": "src/views/manage-v2/log-extract" },
+        { "id": "manage-archive", "source": "src/views/manage-v2/log-archive" },
+        { "id": "manage-es", "source": "src/views/manage-v2/es-cluster" },
+        { "id": "client-log-search", "source": "src/views/client-log-search" },
+        { "id": "extract", "source": "src/views/extract" },
+        { "id": "dashboard", "source": "src/views/dashboard" }
+      ]
+    }
+  ]
+}

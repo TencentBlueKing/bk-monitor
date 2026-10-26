@@ -1,0 +1,7 @@
+{
+  "id": "agent.tester",
+  "role": "tester",
+  "inputs": ["test-contract", "source-files"],
+  "outputs": ["verification-result"],
+  "permissions": ["read", "run-test"]
+}

@@ -1,0 +1,26 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "test.schema.json",
+  "title": "Test Contract",
+  "type": "object",
+  "required": ["id", "feature", "scenarios"],
+  "additionalProperties": false,
+  "properties": {
+    "id": { "type": "string", "pattern": "^test\\.[a-z0-9-]+$" },
+    "feature": { "type": "string" },
+    "scenarios": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "required": ["id", "acceptance", "command"],
+        "properties": {
+          "id": { "type": "string" },
+          "acceptance": { "type": "string" },
+          "command": { "type": "string" },
+          "expect": { "type": "string" }
+        }
+      }
+    }
+  }
+}

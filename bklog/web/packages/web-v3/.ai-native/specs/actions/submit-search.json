@@ -1,0 +1,10 @@
+{
+  "id": "action.submit-search",
+  "title": "提交日志检索",
+  "inputs": ["keyword", "page"],
+  "preconditions": ["keyword after trim is not empty"],
+  "permission": "retrieve.search",
+  "idempotent": true,
+  "sideEffects": ["issue search request", "reset page when keyword changes"],
+  "failure": "keep previous visible records only when request is stale; latest failure shows error"
+}

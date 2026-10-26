@@ -1,0 +1,6 @@
+node_modules/
+dist/
+.vite/
+coverage/
+.ai-native/runs/*
+!.ai-native/runs/.gitkeep

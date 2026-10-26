@@ -1,0 +1,63 @@
+/*
+ * Tencent is pleased to support the open source community by making
+ * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
+ *
+ * Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
+ *
+ * 蓝鲸智云PaaS平台 (BlueKing PaaS) is licensed under the MIT License.
+ *
+ * License for 蓝鲸智云PaaS平台 (BlueKing PaaS):
+ *
+ * ---------------------------------------------------
+ * Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated
+ * documentation files (the "Software"), to deal in the Software without restriction, including without limitation
+ * the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and
+ * to permit persons to whom the Software is furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in all copies or substantial portions of
+ * the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO
+ * THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF
+ * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
+ * IN THE SOFTWARE.
+ */
+
+:root {
+  --td-brand-color: #3a84ff;
+  --td-brand-color-hover: #699df4;
+  --td-brand-color-focus: #3a84ff33;
+  --td-brand-color-active: #2170ef;
+  --td-brand-color-disabled: #a3c5fd;
+  --td-brand-color-light: #e1ecff;
+  --td-warning-color: #ff9c01;
+  --td-error-color: #ea3636;
+  --td-success-color: #2dcb56;
+  --td-radius-default: 2px;
+  --td-font-size-body-medium: 12px;
+  --bklog-page-bg: var(--td-bg-color-page, #f5f7fa);
+  --bklog-page-padding: 16px;
+}
+
+html,
+body,
+#app {
+  margin: 0;
+  min-height: 100%;
+  background: var(--bklog-page-bg);
+  font-family: var(--td-font-family, 'PingFang SC', 'Microsoft YaHei', sans-serif);
+}
+
+.retrieve-page {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: var(--bklog-page-padding);
+}
+
+.retrieve-toolbar {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}

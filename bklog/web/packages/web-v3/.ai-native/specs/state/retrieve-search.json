@@ -1,0 +1,18 @@
+{
+  "id": "state.retrieve-search",
+  "owner": "RetrieveSearchController",
+  "readers": ["RetrievePage", "SearchResults"],
+  "writers": ["RetrieveSearchController"],
+  "initial": "idle",
+  "cleanup": "abort in-flight request on dispose",
+  "concurrency": "latest requestId wins",
+  "transitions": [
+    { "from": "idle", "event": "SEARCH", "to": "loading" },
+    { "from": "success", "event": "SEARCH", "to": "loading" },
+    { "from": "empty", "event": "SEARCH", "to": "loading" },
+    { "from": "error", "event": "SEARCH", "to": "loading" },
+    { "from": "loading", "event": "RESOLVE_WITH_RESULTS", "to": "success" },
+    { "from": "loading", "event": "RESOLVE_EMPTY", "to": "empty" },
+    { "from": "loading", "event": "REJECT", "to": "error" }
+  ]
+}
