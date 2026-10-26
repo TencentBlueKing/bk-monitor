@@ -158,7 +158,11 @@ export function createLocalSearchFetcher(dataset: LogRecord[]): SearchFetcher {
       if (indexSetId && item.indexSetId && item.indexSetId !== indexSetId) {
         return false;
       }
-      if (!item.log.includes(keyword)) {
+      const needles = keyword.trim().split(/\s+/).filter(Boolean).map(token => {
+        const index = token.indexOf(':');
+        return (index > 0 ? token.slice(index + 1) : token).toLowerCase();
+      });
+      if (needles.length && !needles.every(needle => item.log.toLowerCase().includes(needle))) {
         return false;
       }
       if (startTime != null && item.dtEventTimeStamp < startTime) {

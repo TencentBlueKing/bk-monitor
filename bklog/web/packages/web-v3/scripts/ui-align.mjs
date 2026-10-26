@@ -247,26 +247,44 @@ try {
   report.pages.push({ name: 'retrieve', shot: retrieveShot, regions: retrieveRegions, ...retrieve });
   report.shots.push(retrieveShot, ...Object.values(retrieveRegions).filter(Boolean));
 
-  await page.fill('.retrieve-searchbar__input input, .retrieve-searchbar__input .t-input__inner', 'error');
+  const emptyRows = await page.$$eval('[data-ui="origin-table"] tbody tr', rows => rows.length).catch(() => 0);
+  await page.click('.retrieve-favorite-item__main').catch(() => null);
+  await page.waitForTimeout(400);
+  const favoriteApplied = await page.$eval('[data-ui="search-chips"]', el => /error/i.test(el.textContent || '')).catch(() => false);
+  await page.fill('.retrieve-searchbar__input input, .retrieve-searchbar__input .t-input__inner', 'error log:timeout');
   await page.click('.retrieve-searchbar__submit');
   await page.waitForTimeout(400);
+  const chipsShot = await captureRegion(page, '[data-ui="search-chips"]', 'v3-retrieve-chips');
   const highlightShot = await capture(page, 'v3-retrieve-highlight');
-  await page.click('[data-ui="log-expand"]');
+  const hasChips = Boolean(await page.$('.retrieve-chip'));
+  const hasMark = Boolean(await page.$('mark'));
+  await page.click('[data-ui="search-mode"]');
+  await page.waitForTimeout(200);
+  const sqlShot = await captureRegion(page, '[data-ui="search-sql"]', 'v3-retrieve-sql');
+  await page.click('[data-ui="search-history"]');
+  await page.waitForTimeout(200);
+  const historyShot = await captureRegion(page, '[data-ui="search-history-panel"]', 'v3-retrieve-history');
+  await page.click('[data-ui="log-expand"]').catch(() => null);
   await page.waitForTimeout(200);
   const expandShot = await capture(page, 'v3-retrieve-expand');
-  const hasMark = await page.$('mark');
   const hasDetail = await page.$('[data-ui="log-detail"]');
   report.pages.push({
     name: 'retrieve-deep',
     shot: highlightShot,
+    regions: { chips: chipsShot, sql: sqlShot, history: historyShot },
     checks: [
+      { id: 'empty-query-rows', ok: emptyRows > 0, detail: emptyRows },
+      { id: 'favorite-apply', ok: favoriteApplied, detail: 'favorite fills chips and searches' },
+      { id: 'chips-visible', ok: hasChips, detail: chipsShot },
+      { id: 'sql-editor', ok: Boolean(sqlShot) || Boolean(await page.$('[data-ui="search-sql"]')), detail: sqlShot },
+      { id: 'history-panel', ok: Boolean(historyShot), detail: historyShot },
       { id: 'highlight-mark', ok: Boolean(hasMark), detail: 'keyword highlight in screenshot flow' },
       { id: 'row-expand', ok: Boolean(hasDetail), detail: 'expanded log detail' },
       { id: 'highlight-shot', ok: Boolean(highlightShot), detail: highlightShot },
       { id: 'expand-shot', ok: Boolean(expandShot), detail: expandShot },
     ],
   });
-  report.shots.push(highlightShot, expandShot);
+  report.shots.push(highlightShot, expandShot, ...[chipsShot, sqlShot, historyShot].filter(Boolean));
 
   await page.goto(`${baseUrl}/#/manage/collection`, { waitUntil: 'networkidle' });
   const collectionShot = await capture(page, 'v3-collection');

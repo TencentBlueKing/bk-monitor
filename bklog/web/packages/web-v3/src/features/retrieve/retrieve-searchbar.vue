@@ -28,24 +28,40 @@
         <i class="bklog-icon bklog-qiehuan-2" />
       </button>
       <div class="retrieve-searchbar__body">
-        <div v-if="keyword && mode === 'ui'" class="retrieve-searchbar__chips" data-ui="search-chips">
-          <t-tag closable max-width="240px" @close="emit('update:keyword', '')">{{ keyword }}</t-tag>
+        <div v-if="mode === 'ui'" class="retrieve-searchbar__chips" data-ui="search-chips">
+          <span v-for="(chip, index) in chips" :key="`${chip.field}-${chip.value}-${index}`" class="retrieve-chip">
+            <em v-if="chip.field !== '*'">{{ chip.field }}</em>
+            <span>{{ chip.value }}</span>
+            <button type="button" aria-label="删除条件" @click="removeChip(index)">
+              <i class="bklog-icon bklog-shanchu" />
+            </button>
+          </span>
+          <button type="button" class="retrieve-chip retrieve-chip--add" @click="focusInput">+</button>
         </div>
         <t-input
+          v-if="mode === 'ui'"
+          ref="inputRef"
           class="retrieve-searchbar__input"
           borderless
           :model-value="keyword"
-          :placeholder="mode === 'ui' ? '请输入检索语句，回车检索' : 'SQL: log:error AND status:500'"
+          placeholder="请输入检索语句，回车检索"
           clearable
           @update:model-value="value => emit('update:keyword', value)"
           @enter="emit('search')"
         />
+        <textarea
+          v-else
+          class="retrieve-searchbar__sql"
+          data-ui="search-sql"
+          :value="keyword"
+          placeholder="log:error AND status:500"
+          @input="onSqlInput"
+          @keydown.enter.exact.prevent="emit('search')"
+        />
       </div>
-      <t-dropdown :options="historyOptions" trigger="click" @click="onHistory">
-        <button type="button" class="retrieve-searchbar__icon-btn" data-ui="search-history" title="历史">
-          <i class="bklog-icon bklog-history-2" />
-        </button>
-      </t-dropdown>
+      <button type="button" class="retrieve-searchbar__icon-btn" data-ui="search-history" title="历史" @click="toggleHistory">
+        <i class="bklog-icon bklog-history-2" />
+      </button>
       <button
         type="button"
         class="retrieve-searchbar__submit"
@@ -58,11 +74,19 @@
         <i class="bklog-icon bklog-sousuo-" />
       </button>
     </div>
+    <ul v-if="historyOpen" class="retrieve-searchbar__history" data-ui="search-history-panel">
+      <li v-if="!history.length" class="retrieve-searchbar__history-empty">暂无检索历史</li>
+      <li v-for="item in history" :key="item">
+        <button type="button" @click="onHistory(item)">{{ item }}</button>
+      </li>
+    </ul>
   </section>
 </template>
 
 <script setup lang="ts">
 import { computed, ref } from 'vue';
+
+import { chipsToKeyword, parseSearchChips } from './search-query';
 
 const props = defineProps<{
   keyword: string;
@@ -77,19 +101,33 @@ const emit = defineEmits<{
 }>();
 
 const mode = ref<'ui' | 'sql'>('ui');
-const historyOptions = computed(() => (
-  props.history.length
-    ? props.history.map(item => ({ content: item, value: item }))
-    : [{ content: '暂无检索历史', value: '', disabled: true }]
-));
+const historyOpen = ref(false);
+const inputRef = ref<{ focus?: () => void } | null>(null);
+const chips = computed(() => parseSearchChips(props.keyword));
 
 const toggleMode = () => {
   mode.value = mode.value === 'ui' ? 'sql' : 'ui';
+  historyOpen.value = false;
 };
 
-const onHistory = (item: { value?: string }) => {
-  if (item.value) {
-    emit('apply-history', item.value);
-  }
+const toggleHistory = () => {
+  historyOpen.value = !historyOpen.value;
+};
+
+const focusInput = () => {
+  inputRef.value?.focus?.();
+};
+
+const removeChip = (index: number) => {
+  emit('update:keyword', chipsToKeyword(chips.value.filter((_, itemIndex) => itemIndex !== index)));
+};
+
+const onSqlInput = (event: Event) => {
+  emit('update:keyword', (event.target as HTMLTextAreaElement).value);
+};
+
+const onHistory = (value: string) => {
+  historyOpen.value = false;
+  emit('apply-history', value);
 };
 </script>

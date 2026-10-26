@@ -27,6 +27,9 @@ const REGION_SHOTS = [
   'v3-retrieve-favorite.png',
   'v3-retrieve-searchbar.png',
   'v3-retrieve-result.png',
+  'v3-retrieve-chips.png',
+  'v3-retrieve-sql.png',
+  'v3-retrieve-history.png',
   'v3-collection-left.png',
 ];
 

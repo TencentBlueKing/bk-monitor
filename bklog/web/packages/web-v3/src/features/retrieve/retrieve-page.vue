@@ -63,6 +63,13 @@
           <div v-if="workspace.tab === 'origin'" class="retrieve-result__meta">
             <span>共 {{ search.total }} 条</span>
             <span class="retrieve-result__tools">
+              <t-input
+                v-model="extraHighlight"
+                class="retrieve-result__highlight"
+                size="small"
+                placeholder="高亮关键字"
+                data-ui="page-highlight"
+              />
               <button type="button" title="字段设置"><i class="bklog-icon bklog-set-icon" /></button>
               <button type="button" title="下载"><i class="bklog-icon bklog-download" /></button>
             </span>
@@ -84,9 +91,22 @@
                 </template>
                 <template #log="{ row }">
                   <button type="button" class="retrieve-log-expand" data-ui="log-expand" @click="toggleExpand(row.id)">
+                    <i :class="['bklog-icon', 'bklog-arrow-down-filled', 'retrieve-log-caret', { 'is-open': expandedId === row.id }]" />
                     <pre class="retrieve-log-cell"><template v-for="part in highlightLog(row.log)" :key="part.key"><mark v-if="part.mark">{{ part.text }}</mark><span v-else>{{ part.text }}</span></template></pre>
                   </button>
-                  <pre v-if="expandedId === row.id" class="retrieve-log-detail" data-ui="log-detail">{{ row.log }}</pre>
+                  <dl v-if="expandedId === row.id" class="retrieve-log-detail" data-ui="log-detail">
+                    <div><dt>id</dt><dd>{{ row.id }}</dd></div>
+                    <div><dt>dtEventTimeStamp</dt><dd>{{ formatTime(row.dtEventTimeStamp) }}</dd></div>
+                    <div>
+                      <dt>log</dt>
+                      <dd>
+                        <template v-for="part in highlightLog(row.log)" :key="part.key">
+                          <mark v-if="part.mark">{{ part.text }}</mark>
+                          <span v-else>{{ part.text }}</span>
+                        </template>
+                      </dd>
+                    </div>
+                  </dl>
                 </template>
                 <template #op="{ row }">
                   <t-button variant="text" @click="openContext(row.id)">上下文</t-button>
@@ -172,6 +192,7 @@ import RetrieveFavoritePanel from './retrieve-favorite-panel.vue';
 import RetrieveFieldPanel from './retrieve-field-panel.vue';
 import RetrieveGrepPanel from './retrieve-grep-panel.vue';
 import RetrieveSearchbar from './retrieve-searchbar.vue';
+import { highlightParts, parseSearchChips } from './search-query';
 import {
   createLocalSearchFetcher,
   RetrieveSearchController,
@@ -209,8 +230,9 @@ const toolbarController = new ToolbarController(intent => {
 });
 
 const keyword = ref('');
+const extraHighlight = ref('');
 const saveName = ref('');
-const searchHistory = ref<string[]>([]);
+const searchHistory = ref<string[]>(['error', 'login', 'timeout']);
 const expandedId = ref<string | null>(null);
 const grepController = new GrepController();
 const search = reactive<RetrieveSnapshot>(searchController.getState());
@@ -245,19 +267,10 @@ const originColumns = computed(() => [
   { colKey: 'op', title: '操作', cell: 'op', width: 140 },
 ]);
 
-const escapeRegExp = (value: string) => value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-
-const highlightLog = (log: string) => {
-  const needle = keyword.value.trim();
-  if (!needle) {
-    return [{ key: '0', text: log, mark: false }];
-  }
-  return log.split(new RegExp(`(${escapeRegExp(needle)})`, 'i')).filter(Boolean).map((text, index) => ({
-    key: `${index}-${text}`,
-    text,
-    mark: text.toLowerCase() === needle.toLowerCase(),
-  }));
-};
+const highlightLog = (log: string) => highlightParts(log, [
+  ...parseSearchChips(keyword.value).map(chip => chip.value),
+  extraHighlight.value,
+]);
 
 const toggleExpand = (id: string) => {
   expandedId.value = expandedId.value === id ? null : id;
