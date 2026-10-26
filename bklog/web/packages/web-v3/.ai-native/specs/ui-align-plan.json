@@ -1,33 +1,36 @@
 {
-  "id": "plan.ui-restore-v3",
-  "version": "0.2.0",
-  "principle": "把 v2 现网检索/采集页当作设计稿，在 Vue3 + tdesign-vue-next 内重写信息架构、组件组合与视觉 token。禁止拷贝 Vue2 SCSS/模板/文件，禁止像素强制对齐，禁止改 v1。",
-  "source": {
-    "design": "src/views/retrieve-v3 + src/views/retrieve-v2 + src/views/manage-v2",
-    "evidence": "用户附件企业微信截图（当前 v3 检索页骨架，不可用）"
+  "id": "plan.ui-migrate-v3",
+  "version": "0.3.0",
+  "status": "awaiting-decision",
+  "decision": "本轮只出计划，不改 Vue/CSS。上一轮 R1/R3 视觉落地不视为通过，待你选定策略与首波后再执行。",
+  "principle": {
+    "design": "以正在运行的 v2（retrieve-v3 + retrieve-v2 + manage-v2）为设计稿",
+    "implement": "只在 packages/web-v3 用 TDesign + 自建 token/组件重写",
+    "forbidCopy": "禁止拷贝 Vue2 scss/vue/文件",
+    "forbidPixel": "禁止像素强制对齐，不把截图像素 diff 当门禁",
+    "forbidV1": "packages/web-v1、src/views/retrieve、src/views/manage 封板"
   },
-  "target": "packages/web-v3",
-  "forbidden": [
-    "拷贝 src/views/retrieve-v2|v3|manage-v2 的 scss/vue",
-    "把像素 diff 当门禁",
-    "改 packages/web-v1、src/views/retrieve、src/views/manage"
+  "whyLastRoundRejected": [
+    "只对齐了区域几何（左收藏 / 顶栏 / 检索条 / 字段 / 结果），观感仍是 TDesign 骨架",
+    "检索条、收藏树、字段设置、原始日志行密度远低于现网 v2",
+    "没有对照真实 v2 运行页截图（dev:e2e 缺代理）就先改了界面",
+    "先落地后计划，无法让你按波次判定"
   ],
-  "method": {
-    "designRead": "读 v2 区域结构、关键尺寸、交互文案，抽 token 后在 theme.css 重写",
-    "implement": "TDesign 组件 + tdesign-icons-vue-next + v3 CSS 变量",
-    "v2Runtime": "AAFE_E2E_PORT=41001 npm run dev:e2e（需 local.settings.e2e.proxy.js）",
-    "capture": "playwright chromium headless npm run ui:align",
-    "compare": "区域几何 + 关键控件存在性（图标开关、检索按钮、结果行），不把像素 diff 当门禁"
+  "currentGap": {
+    "retrieve": [
+      { "region": "全局头", "v2": "蓝鲸顶栏 + 空间 + 检索/管理入口", "v3": "简化品牌条 + 文字导航，缺空间与全局能力" },
+      { "region": "收藏", "v2": "240 #ebeef5 收藏树：搜索、分组、分享、拖拽、仅当前索引集", "v3": "分组列表雏形，无树操作/分享/拖拽" },
+      { "region": "顶栏", "v2": "52px：32 图标开关 + 索引集灰底 + 右侧时间/刷新/更多", "v3": "图标开关和选择器已有，缺更多设置/字段设置/分享" },
+      { "region": "检索条", "v2": "UI/SQL 切换 + 条件芯片/SQL 编辑 + 历史 + 检索 74", "v3": "模式字 + 单行 Input + 按钮，无芯片/编辑器/历史" },
+      { "region": "字段", "v2": "显示字段：类型、别名、设置、分析入口", "v3": "勾选 + 类型标签，无设置/分析" },
+      { "region": "结果", "v2": "原始/聚类/图表/Grep；行展开、高亮、上下文/实时", "v3": "Tab + 简易表，无展开/高亮/行密度" }
+    ],
+    "collection": [
+      { "region": "左栏", "v2": "250 #f3f6fa 接入分组/业务树", "v3": "三组按钮，无树" },
+      { "region": "右表", "v2": "过滤、批量、新建、状态/节点列", "v3": "过滤 + 中文状态，缺批量与完整列" }
+    ]
   },
-  "gapFromScreenshot": [
-    "顶栏收藏开关显示「藏」，不是 32x32 图标",
-    "检索条只有单行 Input，缺少 UI/SQL 模式区和独立检索按钮",
-    "字段栏是原始字段名复选框，没有别名/类型",
-    "结果区空表「提交关键字开始检索」，v2 空关键字会直接出日志",
-    "收藏栏白底 + 删除文字按钮，v2 是 #ebeef5 分组列表",
-    "全局头「日志平台」纯文字，缺少品牌色与选中态"
-  ],
-  "tokens": {
+  "tokensFromV2": {
     "brand": "#3A84FF",
     "text": "#313238",
     "textSecondary": "#63656E",
@@ -50,76 +53,81 @@
     "searchBtnWidth": 74,
     "fontSize": 12
   },
-  "regionMap": {
-    "retrieve": [
-      { "id": "header", "v2": "全局顶栏：品牌 + 检索/管理入口", "v3": "app-header + TDesign 无，纯 CSS 导航" },
-      { "id": "favorite", "v2": "左栏 240 #ebeef5：搜索 + 个人/公共分组", "v3": "retrieve-favorite-panel + t-input/t-checkbox" },
-      { "id": "topbar", "v2": "52px：32 图标开关 + 索引集灰底选择 + 右侧时间/刷新", "v3": "retrieve-toolbar + t-select/t-switch + icons" },
-      { "id": "searchbar", "v2": "模式区 82 + 输入 min 48 + 检索 74", "v3": "retrieve-searchbar 自绘盒子 + t-input + t-button" },
-      { "id": "field", "v2": "结果左栏显示字段：勾选 + 类型 + 别名", "v3": "retrieve-field-panel + t-checkbox + t-tag" },
-      { "id": "result", "v2": "Tab 原始/聚类/图表/Grep + 时间/日志表，空查询出数", "v3": "t-tabs + t-table，空关键字检索全量" }
-    ],
-    "collection": [
-      { "id": "left", "v2": "左 250 #f3f6fa 分组", "v3": "collection-left 自绘列表" },
-      { "id": "right", "v2": "过滤 + 新建 + 状态表", "v3": "t-input/t-select/t-table + 中文状态" }
-    ]
+  "adaptMethod": {
+    "read": "读 v2 区域结构、关键尺寸、文案与交互，不读进样式文件当拷贝源",
+    "rewrite": "在 theme.css 建 --bklog-* token，用 tdesign-vue-next 组合，缺的控件在 v3 自绘",
+    "verify": "Playwright 量区域 + 控件存在；有代理后再用 v2 e2e 截图做人工对照",
+    "notVerify": "像素 diff、强制拷 SCSS"
   },
+  "strategies": [
+    {
+      "id": "A",
+      "name": "壳层优先",
+      "desc": "先把检索/采集外框、色板、密度做成接近现网，控件先占位；你过目后再加深内部控件",
+      "risk": "中期仍会看到占位，但不会再出现「先做功能壳、观感完全不像」"
+    },
+    {
+      "id": "B",
+      "name": "页面优先",
+      "desc": "一次把检索工作台做到可日常使用（含检索条/字段/结果行），再采集，再其它管理页",
+      "risk": "单波改动大，评审周期长"
+    },
+    {
+      "id": "C",
+      "name": "对照优先",
+      "desc": "先补 local.settings.e2e.proxy.js，启动 v2 e2e，按真实截图分区出任务再写 v3",
+      "risk": "无代理则卡住；有代理后偏差最小"
+    }
+  ],
   "waves": [
     {
-      "id": "R0",
-      "title": "详细还原计划与门禁",
-      "status": "landed",
-      "steps": [
-        "对照附件截图列出不可用点",
-        "从 v2 抽 token / 区域，写入本计划",
-        "Playwright 增加控件存在性，不只量几何"
+      "id": "M0",
+      "title": "计划与判定（本轮）",
+      "status": "awaiting-decision",
+      "do": ["给出策略 A/B/C 与波次", "回填 TAPD", "不改界面"]
+    },
+    {
+      "id": "M1",
+      "title": "检索壳层：头 / 收藏 / 顶栏 / 检索条 / 字段 / 结果框",
+      "status": "proposed",
+      "depends": "选定 A 或 B",
+      "accept": [
+        "收藏 240 #ebeef5，开关 32 图标",
+        "顶栏 52：索引集左、时间刷新右",
+        "检索条：模式区 + 输入 + 74 检索",
+        "字段在结果左，结果 Tab 顺序与 v2 一致"
       ]
     },
     {
-      "id": "R1",
-      "title": "检索工作台按设计稿还原（本轮）",
-      "status": "landed",
-      "steps": [
-        "顶栏：Folder 图标 32x32，索引集灰底，时间/刷新/收藏/说明靠右",
-        "检索条：UI/SQL 模式 + 独立检索按钮，空关键字出结果",
-        "收藏栏：#ebeef5、搜索底、分组、删除图标",
-        "字段栏：类型标签 + 中文别名",
-        "结果：进入即检索，时间格式化，日志折行，共 N 条"
-      ]
+      "id": "M2",
+      "title": "检索控件：UI 芯片 / SQL / 历史 / 行展开 / 高亮",
+      "status": "proposed",
+      "depends": "M1 过目",
+      "accept": ["空查询出数", "收藏回填并检索", "行上上下文/实时", "高亮关键字"]
     },
     {
-      "id": "R2",
-      "title": "结果表 / 聚类 / Grep / 图表细节",
-      "status": "planned",
-      "steps": [
-        "原始日志行展开与上下文/实时入口收敛",
-        "聚类表样例与数量列密度",
-        "Grep 输入条贴合检索条视觉",
-        "图表空态与时间桶"
-      ]
+      "id": "M3",
+      "title": "采集列表：左分组 + 右表 + 新建向导观感",
+      "status": "proposed",
+      "accept": ["左 250 #f3f6fa", "右白表 + 主按钮新建", "状态中文"]
     },
     {
-      "id": "R3",
-      "title": "采集列表按设计稿还原",
-      "status": "landed",
-      "steps": [
-        "左栏分组选中/悬停",
-        "右栏搜索 + 状态 + 新建采集主按钮",
-        "状态中文标签"
-      ]
+      "id": "M4",
+      "title": "其余管理页同一左树右表壳",
+      "status": "proposed"
     },
     {
-      "id": "R4",
-      "title": "其余管理页左树右表",
-      "status": "planned",
-      "steps": ["清洗/提取/归档/ES 等 ResourceList 套同一壳"]
-    },
-    {
-      "id": "R5",
-      "title": "对照真实 v2 e2e 截图回归",
+      "id": "M5",
+      "title": "对照运行中的 v2 截图回归",
       "status": "blocked",
       "blockReason": "缺少 gitignored local.settings.e2e.proxy.js",
-      "steps": ["有代理后启动 v2 e2e，对照区域，不记像素通过"]
+      "accept": "区域对照通过即可，不要求像素一致"
     }
+  ],
+  "needYourCall": [
+    "策略选 A / B / C，或组合（建议先 C 出对照，再 A 做壳）",
+    "TDesign 控件铬与 bk-magic-vue 不完全一样，是否接受「色板+结构像、组件皮肤不同」",
+    "能否提供 v2 e2e 代理文件以便 M5",
+    "首波执行 M1 还是等对照后再动代码"
   ]
 }
