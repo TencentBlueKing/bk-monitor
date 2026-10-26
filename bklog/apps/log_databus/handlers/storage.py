@@ -357,6 +357,7 @@ class StorageHandler:
 
     @classmethod
     def filter_es_cluster(cls, bk_biz_id, is_default, post_visible, cluster_obj, es_config):
+        from apps.iam.views.resources import EsSourceResourceProvider
         from apps.log_search.handlers.index_set import IndexSetHandler
 
         custom_option = cluster_obj["cluster_config"]["custom_option"]
@@ -432,7 +433,9 @@ class StorageHandler:
                     }
                     for bk_biz_id in cluster_obj["cluster_config"]["custom_option"]["visible_config"]["visible_bk_biz"]
                 ]
-            cluster_obj["cluster_config"]["custom_option"]["bk_biz_id"] = settings.BLUEKING_BK_BIZ_ID
+            cluster_biz_id = EsSourceResourceProvider.get_bk_biz_id(cluster_obj["cluster_config"])
+            cluster_obj["cluster_config"]["custom_option"]["bk_biz_id"] = cluster_biz_id
+            cluster_obj["bk_biz_id"] = cluster_biz_id
             cluster_obj["source_type"] = cluster_obj["cluster_config"]["custom_option"]["source_type"]
             cluster_obj["source_name"] = EsSourceType.get_choice_label(cluster_obj["source_type"])
             return True, cluster_obj
