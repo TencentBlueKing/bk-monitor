@@ -271,11 +271,14 @@ class StrategyCacheManager(CacheManager):
                     result_map[strategy_id] = strategy_config
             except Exception as e:
                 logger.exception("refresh strategy error when handle_strategy[%s]: %s", strategy_id, e)
-        # 仅在本次读取到失效策略时，清除已有的失效标记。
-        if invalid_strategy_ids:
-            StrategyModel.objects.filter(id__in=invalid_strategy_ids, is_invalid=True).update(
-                is_invalid=False, invalid_type=""
-            )
+        # 分批清除已有的失效标记，单批失败不影响后续批次和策略缓存刷新。
+        for strategy_ids in chunks(invalid_strategy_ids, 1000):
+            try:
+                StrategyModel.objects.filter(id__in=strategy_ids, is_invalid=True).update(
+                    is_invalid=False, invalid_type=""
+                )
+            except Exception:
+                logger.exception("reset invalid strategy status failed, batch_size=%s", len(strategy_ids))
         return result_map
 
     @classmethod

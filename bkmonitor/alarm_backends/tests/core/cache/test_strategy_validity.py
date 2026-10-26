@@ -10,7 +10,7 @@ specific language governing permissions and limitations under the License.
 
 import copy
 import json
-from unittest.mock import Mock
+from unittest.mock import Mock, call
 
 import fakeredis
 import pytest
@@ -89,6 +89,70 @@ def test_cache_refresh_does_not_update_normal_strategies(monkeypatch, strategy_c
 
     assert strategies[1]["is_invalid"] is False
     model_filter.assert_not_called()
+
+
+@pytest.mark.parametrize("failed_batch", [None, 0, 1])
+def test_invalid_status_updates_are_batched_and_continue_after_failure(monkeypatch, strategy_config, failed_batch):
+    configs = []
+    for strategy_id in range(1, 1002):
+        config = copy.deepcopy(strategy_config)
+        config["id"] = strategy_id
+        configs.append(config)
+    monkeypatch.setattr(module, "list_strategy", Mock(return_value={"data": configs}))
+    batches = [Mock(), Mock()]
+    if failed_batch is not None:
+        batches[failed_batch].update.side_effect = RuntimeError("status update failed")
+    model_filter = Mock(side_effect=batches)
+    monkeypatch.setattr(StrategyModel.objects, "filter", model_filter)
+
+    strategies = Manager.get_strategies_map([999])
+
+    assert len(strategies) == 1001
+    assert all(strategy["is_invalid"] is False for strategy in strategies.values())
+    assert model_filter.call_args_list == [
+        call(id__in=list(range(1, 1001)), is_invalid=True),
+        call(id__in=[1001], is_invalid=True),
+    ]
+    for batch in batches:
+        batch.update.assert_called_once_with(is_invalid=False, invalid_type="")
+
+
+@pytest.mark.parametrize("refresh_method", ["refresh", "smart_refresh"])
+def test_status_update_failure_does_not_block_cache_refresh(monkeypatch, strategy_config, caplog, refresh_method):
+    monkeypatch.setattr(module, "list_strategy", Mock(return_value={"data": [strategy_config]}))
+    model_filter = Mock()
+    model_filter.return_value.update.side_effect = RuntimeError("status update failed")
+    monkeypatch.setattr(StrategyModel.objects, "filter", model_filter)
+    histories = Mock()
+    histories.exists.return_value = refresh_method == "smart_refresh"
+    histories.values.return_value = []
+    monkeypatch.setattr(module.StrategyHistoryModel.objects, "filter", Mock(return_value=histories))
+    monkeypatch.setattr(Manager, "handle_history_strategies", Mock(return_value=({999}, set())))
+    monkeypatch.setattr(module.BusinessManager, "keys", lambda: [999])
+    monkeypatch.setattr(module.metrics, "report_all", Mock())
+    for name in ("add_source_identity", "add_target_shield_condition", "add_enabled_cluster_condition"):
+        monkeypatch.setattr(Manager, name, Mock(__name__=name))
+    cache = fakeredis.FakeRedis(decode_responses=True)
+    monkeypatch.setattr(Manager, "cache", cache)
+    cache.set(Manager.BK_BIZ_IDS_CACHE_KEY, "[999]")
+    cache.set(Manager.IDS_CACHE_KEY, "[1]")
+    cache.set(Manager.LAST_UPDATED_CACHE_KEY, 900)
+    cache.set(Manager.CACHE_KEY_TEMPLATE.format(strategy_id=1), json.dumps({"id": 1, "is_invalid": True}))
+
+    getattr(Manager, refresh_method)()
+
+    cached_strategy = Manager.get_strategy_by_id(1)
+    assert cached_strategy["is_invalid"] is False
+    assert cached_strategy["invalid_type"] == ""
+    query_md5 = cached_strategy["items"][0]["query_md5"]
+    group = json.loads(cache.hget(Manager.STRATEGY_GROUP_CACHE_KEY, query_md5))
+    assert group["1"] == [10]
+    assert Manager.get_strategy_ids() == [1]
+    model_filter.return_value.update.assert_called_once_with(is_invalid=False, invalid_type="")
+    assert "reset invalid strategy status failed" in caplog.text
+    assert "refresh strategy error when" not in caplog.text
+    if refresh_method == "smart_refresh":
+        assert int(cache.get(Manager.LAST_UPDATED_CACHE_KEY)) > 900
 
 
 def test_related_strategy_is_cached_as_normal(strategy_config):
