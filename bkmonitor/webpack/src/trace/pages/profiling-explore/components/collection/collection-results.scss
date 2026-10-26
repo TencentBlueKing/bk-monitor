@@ -39,10 +39,14 @@
 .collection-results-empty {
   .bk-exception-img {
     width: 440px;
-    height: 200px;
+    height: 180px;
 
     .exception-image {
       width: 100%;
+      height: 100%;
+    }
+
+    .empty-image {
       height: 100%;
     }
   }

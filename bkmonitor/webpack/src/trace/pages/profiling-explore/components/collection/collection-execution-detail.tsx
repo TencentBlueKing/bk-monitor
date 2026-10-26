@@ -36,6 +36,7 @@ import {
   executionConfiguration,
   executionSelection,
   formatExecutionDuration,
+  hostColumnMinWidths,
 } from '../../utils/collection-history';
 import CollectionConfiguration from './collection-configuration';
 import CollectionExecutionSkeleton from './collection-execution-skeleton';
@@ -49,6 +50,8 @@ import type {
   CollectionResultSelection,
 } from '../../types/collection-history';
 
+import './collection-execution-detail.scss';
+
 // 详情加载完成前先用接口文档的默认列表撑起骨架
 const fallbackHostColumns: CollectionExecutionColumn[] = [
   { field: 'ip', name: '目标 IP', type: 'text' },
@@ -59,15 +62,6 @@ const fallbackHostColumns: CollectionExecutionColumn[] = [
   { field: 'finished_at', name: '结束时间', type: 'datetime' },
   { field: 'duration_ms', name: '耗时', type: 'duration' },
 ];
-
-// 后端只下发列类型，最小宽度按类型兜底，避免动态列被内容挤压
-const hostColumnMinWidths: Record<CollectionExecutionColumn['type'], number> = {
-  datetime: 180,
-  duration: 100,
-  process_list: 200,
-  status: 120,
-  text: 160,
-};
 
 export default defineComponent({
   name: 'CollectionExecutionDetail',
@@ -148,14 +142,14 @@ export default defineComponent({
       >
         {{
           header: () => (
-            <div class='collection-detail-header'>
+            <div class='collection-execution-detail-header'>
               <span>{this.t('任务执行详情')}</span>
               <span
                 class='collection-execution-title-divider'
                 aria-hidden='true'
               />
               <span
-                class='collection-detail-name'
+                class='collection-execution-detail-name'
                 title={execution.task_name}
               >
                 {execution.task_name}
@@ -164,7 +158,7 @@ export default defineComponent({
                 status={execution.execution_status}
                 tag
               />
-              <div class='collection-detail-actions'>
+              <div class='collection-execution-detail-actions'>
                 <Button
                   class='collection-execution-result-action'
                   v-tippy={this.t('查看本次执行各主机的采集结果')}
@@ -197,27 +191,31 @@ export default defineComponent({
                 }}
               >
                 <Tab.TabPanel
-                  label={() => (
-                    <span class='collection-execution-tab-label'>
-                      <i
-                        class='collection-execution-icon is-results'
-                        aria-hidden='true'
-                      />
-                      {this.t('执行结果')}
-                    </span>
-                  )}
+                  v-slots={{
+                    label: () => (
+                      <span class='collection-execution-tab-label'>
+                        <i
+                          class='collection-execution-icon is-results'
+                          aria-hidden='true'
+                        />
+                        {this.t('执行结果')}
+                      </span>
+                    ),
+                  }}
                   name='results'
                 />
                 <Tab.TabPanel
-                  label={() => (
-                    <span class='collection-execution-tab-label'>
-                      <i
-                        class='collection-execution-icon is-snapshot'
-                        aria-hidden='true'
-                      />
-                      {this.t('配置快照')}
-                    </span>
-                  )}
+                  v-slots={{
+                    label: () => (
+                      <span class='collection-execution-tab-label'>
+                        <i
+                          class='collection-execution-icon is-snapshot'
+                          aria-hidden='true'
+                        />
+                        {this.t('配置快照')}
+                      </span>
+                    ),
+                  }}
                   name='snapshot'
                 />
               </Tab>
@@ -346,6 +344,7 @@ export default defineComponent({
                     <PrimaryTable
                       columns={columns}
                       data={c.hosts.value}
+                      needCustomScroll={false}
                       rowKey='bk_host_id'
                       size='small'
                       sort={c.hostSort.value ? { sortBy: 'status', descending: c.hostSort.value === 'desc' } : null}

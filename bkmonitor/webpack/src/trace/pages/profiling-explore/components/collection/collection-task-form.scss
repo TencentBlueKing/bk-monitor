@@ -1,0 +1,180 @@
+// 采集任务新建 / 编辑侧栏（collection-task-form.tsx）专属样式
+// 根类挂在 Sideslider 上（transfer=false，内容不传送到 body），按 DOM 结构逐层嵌套
+.collection-task-form {
+  .collection-form-body {
+    padding: 24px 40px 32px;
+
+    > .bk-form > .collection-muted {
+      margin: -12px 0 20px;
+    }
+
+    .bk-form-item {
+      margin-bottom: 24px;
+    }
+
+    .bk-form-label {
+      font-size: 12px;
+    }
+
+    .bk-date-picker {
+      width: 100%;
+    }
+
+    .collection-advanced-button {
+      margin: 0 0 24px;
+    }
+
+    .collection-form-columns {
+      display: flex;
+      gap: 16px;
+
+      > .bk-form-item {
+        flex: 1;
+        min-width: 0;
+      }
+    }
+
+    .collection-host-selection {
+      display: flex;
+      align-items: center;
+      font-size: 12px;
+
+      .collection-host-add {
+        min-width: 64px;
+        padding: 0 16px;
+        font-size: 12px;
+
+        .collection-host-add-inner {
+          display: inline-flex;
+          gap: 6px;
+          align-items: center;
+          color: #4d4f56;
+
+          .icon-a-1jiahao {
+            font-size: 16px;
+            line-height: 16px;
+            color: #979ba5;
+          }
+        }
+      }
+
+      .collection-host-summary {
+        box-sizing: border-box;
+        display: inline-flex;
+        gap: 24px;
+        align-items: center;
+        height: 32px;
+        padding: 5px 12px 7px;
+        line-height: 20px;
+        color: #4d4f56;
+        white-space: nowrap;
+        background: #f0f1f5;
+        border-radius: 4px;
+
+        .collection-host-selected,
+        .collection-host-health {
+          display: inline-flex;
+          gap: 6px;
+          align-items: center;
+        }
+
+        .collection-host-selected strong {
+          color: #3a84ff;
+        }
+
+        .collection-host-health strong {
+          color: #21a380;
+        }
+
+        .collection-host-edit {
+          width: 16px;
+          height: 16px;
+
+          &:focus-visible {
+            outline: 2px solid #3a84ff;
+            outline-offset: 2px;
+          }
+        }
+
+        .collection-host-divider {
+          width: 1px;
+          height: 12px;
+          background: #c4c6cc;
+        }
+
+        .collection-host-status-icon {
+          position: relative;
+          width: 16px;
+          height: 16px;
+
+          .status-background {
+            position: absolute;
+            top: 2px;
+            left: 2px;
+          }
+
+          .status-dot {
+            position: absolute;
+            top: 5px;
+            left: 5px;
+          }
+        }
+      }
+    }
+
+    .collection-process-empty {
+      display: grid;
+      place-items: center;
+      min-height: 210px;
+      border: 1px solid #dcdee5;
+      border-radius: 2px;
+    }
+  }
+
+  .collection-form-footer {
+    position: sticky;
+    bottom: 0;
+    z-index: 10;
+    min-height: 48px;
+    padding: 8px 40px;
+
+    &.is-sticky {
+      background: #fafbfd;
+      box-shadow: 0 -2px 4px 0 #0000000f;
+    }
+
+    > .bk-alert {
+      margin-bottom: 12px;
+    }
+
+    > div:last-child {
+      display: flex;
+      gap: 8px;
+    }
+
+    .bk-button {
+      min-width: 88px;
+    }
+  }
+
+  .collection-form-footer-boundary {
+    height: 1px;
+  }
+}
+
+@media (width <= 1000px) {
+  .collection-task-form {
+    .collection-form-body {
+      padding: 24px;
+
+      .collection-form-columns {
+        flex-wrap: wrap;
+      }
+    }
+
+    .collection-form-footer {
+      padding-right: 24px;
+      padding-left: 24px;
+    }
+  }
+}

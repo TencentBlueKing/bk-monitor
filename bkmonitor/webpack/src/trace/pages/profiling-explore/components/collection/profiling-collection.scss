@@ -1,8 +1,13 @@
+/* stylelint-disable selector-class-pattern */
 .profiling-collection {
+  display: flex;
   flex: 1;
+  flex-direction: column;
   min-width: 0;
   min-height: 0;
-  overflow: auto;
+
+  // 不接管滚动：滚动交给各页签面板自己处理，页签头始终可见
+  overflow: hidden;
   background: #f5f7fa;
 
   &.has-tabs {
@@ -12,6 +17,8 @@
 }
 
 .profiling-collection > .collection-tabs {
+  flex-shrink: 0;
+
   .bk-tab-header-item {
     height: 40px;
     padding: 0 24px;
@@ -26,7 +33,6 @@
       color: #3a84ff;
     }
 
-    /* stylelint-disable-next-line selector-class-pattern */
     &.bk-tab-header--active {
       color: #3a84ff;
       background: #fff;
@@ -50,7 +56,8 @@
 }
 
 .collection-tab-panel {
-  min-height: calc(100% - 40px);
+  flex: 1;
+  min-height: 0;
   background: #fff;
   border-radius: 0 4px 4px;
   box-shadow: 0 2px 2px #1919290d;
@@ -79,11 +86,44 @@
   }
 }
 
+// 面板由 .collection-tab-panel 的 flex: 1 撑到页签下方的剩余高度（空态撑满依赖这个高度），
+// 内容超出时面板内滚动 —— 与 IssuesTable / CommonTable 一致，
+// 表格自身不接管滚动，分页紧跟表格下方随内容滚动
 .collection-task-panel {
-  padding: 16px 24px;
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+
+  // 右侧 4px 已被常驻滚动条槽位占据（reset.scss 里 div 的滚动条宽 4px），
+  // 内边距收窄后视觉右边距仍为 12px
+  padding: 12px 8px 12px 12px;
+  overflow: auto;
+
+  // 常驻滚动条槽位：内容高度变化时避免滚动条出现消失引起横向抖动
+  scrollbar-gutter: stable;
 
   .t-table {
     font-size: 12px;
+  }
+
+  .collection-task-guide {
+    background: #f0f5ff;
+    border-color: #a3c5fd;
+
+    .bk-alert-wraper {
+      align-items: center;
+      padding: 6px 8px;
+    }
+
+    .bk-alert-title {
+      font-size: 12px;
+      line-height: 20px;
+      color: #4d4f56;
+
+      b {
+        font-weight: 600;
+      }
+    }
   }
 }
 
@@ -91,11 +131,25 @@
   display: flex;
   gap: 8px;
   align-items: center;
-  margin: 16px 0;
+  margin: 10px 0;
 
   .collection-task-search {
     width: min(480px, 45%);
     margin-left: auto;
+  }
+
+  .collection-task-toolbar-btn {
+    padding: 0 16px;
+
+    .collection-task-toolbar-btn-inner {
+      display: inline-flex;
+      gap: 6px;
+      align-items: center;
+
+      .icon-a-1jiahao {
+        font-size: 14px;
+      }
+    }
   }
 }
 
@@ -111,6 +165,47 @@
   gap: 8px;
   align-items: center;
   justify-content: flex-end;
+}
+
+// 表格区：有数据时按内容高度排布，滚动交给 .collection-task-panel；
+// 无数据时撑满面板剩余高度，避免空态下底部大片留白
+.collection-task-table {
+  &.is-empty {
+    display: flex;
+    flex: 1;
+    flex-direction: column;
+    min-height: 0;
+
+    .t-table {
+      display: flex;
+      flex: 1;
+      flex-direction: column;
+      min-height: 0;
+    }
+
+    .t-table__content {
+      flex: 1;
+      min-height: 0;
+      overflow-x: auto;
+    }
+
+    .t-table--layout-fixed {
+      height: 100%;
+    }
+
+    .t-table__body,
+    .t-table__empty {
+      height: 100%;
+    }
+  }
+}
+
+.collection-task-empty {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  min-height: 240px;
 }
 
 .collection-task-pagination {
@@ -138,126 +233,7 @@
   color: #979ba5;
 }
 
-.collection-task-detail {
-  .bk-sideslider-content {
-    height: 100%;
-    overflow: auto;
-  }
-
-  .bk-modal-content {
-    min-height: 0;
-  }
-
-  .bk-sideslider-title {
-    align-items: stretch;
-    min-width: 0;
-    padding-right: 0;
-  }
-}
-
-.collection-form-body {
-  padding: 24px 40px 32px;
-
-  .bk-form-item {
-    margin-bottom: 24px;
-  }
-
-  .bk-form-label {
-    font-size: 12px;
-  }
-
-  .bk-date-picker {
-    width: 100%;
-  }
-
-  .collection-advanced-button {
-    margin: 0 0 24px;
-  }
-
-  > .bk-form > .collection-muted {
-    margin: -12px 0 20px;
-  }
-}
-
-.collection-form-columns {
-  display: flex;
-  gap: 16px;
-
-  > .bk-form-item {
-    flex: 1;
-    min-width: 0;
-  }
-}
-
-.collection-host-selection {
-  display: flex;
-  align-items: center;
-  font-size: 12px;
-}
-
-.collection-host-summary {
-  box-sizing: border-box;
-  display: inline-flex;
-  gap: 24px;
-  align-items: center;
-  height: 32px;
-  padding: 5px 12px 7px;
-  line-height: 20px;
-  color: #4d4f56;
-  white-space: nowrap;
-  background: #f0f1f5;
-  border-radius: 4px;
-
-  .collection-host-selected,
-  .collection-host-health {
-    display: inline-flex;
-    gap: 6px;
-    align-items: center;
-  }
-
-  .collection-host-selected strong {
-    color: #3a84ff;
-  }
-
-  .collection-host-health strong {
-    color: #21a380;
-  }
-
-  .collection-host-edit {
-    width: 16px;
-    height: 16px;
-
-    &:focus-visible {
-      outline: 2px solid #3a84ff;
-      outline-offset: 2px;
-    }
-  }
-
-  .collection-host-divider {
-    width: 1px;
-    height: 12px;
-    background: #c4c6cc;
-  }
-
-  .collection-host-status-icon {
-    position: relative;
-    width: 16px;
-    height: 16px;
-
-    .status-background {
-      position: absolute;
-      top: 2px;
-      left: 2px;
-    }
-
-    .status-dot {
-      position: absolute;
-      top: 5px;
-      left: 5px;
-    }
-  }
-}
-
+// 输入框前后缀同时被任务表单与进程选择器使用，留在公共样式里
 .collection-input-prefix,
 .collection-input-suffix {
   padding: 0 8px;
@@ -271,14 +247,6 @@
 
 .collection-input-suffix {
   border-left: 1px solid #dcdee5;
-}
-
-.collection-process-empty {
-  display: grid;
-  place-items: center;
-  min-height: 210px;
-  border: 1px solid #dcdee5;
-  border-radius: 2px;
 }
 
 .collection-process-selector {
@@ -363,7 +331,6 @@
   min-height: 438px;
 
   > .empty-status-container,
-  /* stylelint-disable-next-line selector-class-pattern */
   .t-table__empty {
     height: 396px;
   }
@@ -445,241 +412,6 @@
   }
 }
 
-.collection-form-footer {
-  position: sticky;
-  bottom: 0;
-  z-index: 10;
-  min-height: 48px;
-  padding: 8px 40px;
-
-  &.is-sticky {
-    background: #fafbfd;
-    box-shadow: 0 -2px 4px 0 #0000000f;
-  }
-
-  > .bk-alert {
-    margin-bottom: 12px;
-  }
-
-  > div:last-child {
-    display: flex;
-    gap: 8px;
-  }
-
-  .bk-button {
-    min-width: 88px;
-  }
-}
-
-.collection-form-footer-boundary {
-  height: 1px;
-}
-
-.collection-detail-header {
-  display: flex;
-  gap: 8px;
-  align-items: center;
-  width: 100%;
-  min-width: 0;
-  font-size: 16px;
-
-  > span:first-child {
-    flex-shrink: 0;
-  }
-
-  .collection-detail-name {
-    overflow: hidden;
-    text-overflow: ellipsis;
-    font-size: 12px;
-    color: #979ba5;
-    white-space: nowrap;
-  }
-
-  .collection-detail-actions {
-    display: flex;
-    flex-shrink: 0;
-    gap: 16px;
-    padding-right: 24px;
-    margin-left: auto;
-  }
-}
-
-.collection-task-detail .collection-detail-header {
-  gap: 0;
-  justify-content: space-between;
-  height: 100%;
-  line-height: 24px;
-  color: #313238;
-
-  .collection-detail-name {
-    font-size: 14px;
-    line-height: 22px;
-  }
-
-  .collection-detail-actions {
-    gap: 0;
-    height: 100%;
-    padding-right: 0;
-    margin-left: 0;
-  }
-}
-
-.collection-detail-title {
-  display: flex;
-  gap: 8px;
-  align-items: center;
-  min-width: 0;
-  padding-right: 16px;
-
-  > span:first-child {
-    flex-shrink: 0;
-  }
-}
-
-.collection-detail-divider {
-  flex-shrink: 0;
-  width: 1px;
-  height: 12px;
-  background: #dcdee5;
-}
-
-/* stylelint-disable-next-line no-descending-specificity */
-.collection-detail-actions > span {
-  display: flex;
-  height: 100%;
-}
-
-.collection-detail-action {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  width: 72px;
-  height: 100%;
-  padding: 0;
-  font-size: 12px;
-  line-height: 20px;
-  color: #4d4f56;
-  cursor: pointer;
-  background: #fff;
-  border: 0;
-  border-left: 1px solid #eaebf0;
-
-  i {
-    font-size: 16px;
-    line-height: 16px;
-  }
-
-  &.is-danger {
-    color: #ea3636;
-  }
-
-  &:hover:not(:disabled) {
-    background: #f5f7fa;
-  }
-
-  /* stylelint-disable-next-line no-descending-specificity */
-  &:disabled {
-    color: #c4c6cc;
-    cursor: not-allowed;
-  }
-
-  /* stylelint-disable-next-line no-descending-specificity */
-  &:focus-visible {
-    outline: 2px solid #3a84ff;
-    outline-offset: -2px;
-  }
-}
-
-.collection-detail-body {
-  display: flex;
-  flex-direction: column;
-  gap: 32px;
-  padding: 24px 40px;
-
-  section {
-    display: flex;
-    flex-direction: column;
-    gap: 12px;
-    min-width: 0;
-  }
-
-  h3 {
-    display: flex;
-    align-items: center;
-    height: 28px;
-    padding: 0 12px;
-    margin: 0;
-    font-size: 14px;
-    font-weight: 500;
-    line-height: 22px;
-    color: #313238;
-    background: #f0f4fa;
-    border-radius: 4px;
-  }
-
-  dl {
-    display: flex;
-    flex-direction: column;
-    gap: 12px;
-    padding-left: 12px;
-    margin: 0;
-  }
-}
-
-.collection-detail-row {
-  display: flex;
-  gap: 6px;
-  align-items: flex-start;
-  margin: 0;
-  font-size: 12px;
-  line-height: 20px;
-
-  dt {
-    flex-shrink: 0;
-    color: #8f9fbd;
-  }
-
-  dd {
-    min-width: 0;
-    margin: 0;
-    color: #313238;
-    overflow-wrap: anywhere;
-  }
-}
-
-.collection-detail-count {
-  font-weight: 700;
-  color: #3a84ff;
-}
-
-.collection-detail-tag {
-  display: inline-block;
-  max-width: 100%;
-  height: 22px;
-  padding: 0 8px;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  font-size: 12px;
-  line-height: 22px;
-  vertical-align: top;
-  color: #4d4f56;
-  white-space: nowrap;
-  background: #f0f1f5;
-  border-radius: 2px;
-}
-
-.collection-detail-check {
-  display: inline-flex;
-  gap: 6px;
-  align-items: center;
-
-  i {
-    font-size: 16px;
-    line-height: 16px;
-  }
-}
-
 .collection-cron-editor .bk-crontab-datetime,
 .collection-cron-summary .bk-crontab-datetime,
 .collection-cron-summary .bk-crontab-editarea {
@@ -697,15 +429,6 @@
 }
 
 @media (width <= 1000px) {
-  .collection-form-body {
-    padding: 24px;
-  }
-
-  .collection-form-footer {
-    padding-right: 24px;
-    padding-left: 24px;
-  }
-
   .collection-process-query {
     padding: 12px;
   }
@@ -713,13 +436,5 @@
   .collection-process-targets {
     flex-basis: 240px;
     padding: 12px;
-  }
-
-  .collection-form-columns {
-    flex-wrap: wrap;
-  }
-
-  .collection-task-panel {
-    padding: 16px;
   }
 }

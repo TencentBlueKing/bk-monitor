@@ -32,6 +32,8 @@ import CollectionConfiguration from './collection-configuration';
 
 import type { CollectionHost, CollectionTask } from '../../types/collection';
 
+import './collection-task-detail.scss';
+
 export default defineComponent({
   name: 'CollectionTaskDetail',
   props: {
@@ -51,7 +53,7 @@ export default defineComponent({
     const schedule = task.schedule;
     const action = (icon: string, label: string, disabled: boolean, danger: boolean, onClick: () => void) => (
       <button
-        class={['collection-detail-action', { 'is-danger': danger }]}
+        class={['collection-task-detail-action', { 'is-danger': danger }]}
         disabled={disabled}
         type='button'
         onClick={onClick}
@@ -70,21 +72,21 @@ export default defineComponent({
       >
         {{
           header: () => (
-            <div class='collection-detail-header'>
-              <div class='collection-detail-title'>
+            <div class='collection-task-detail-header'>
+              <div class='collection-task-detail-title'>
                 <span>{this.t('定时任务详情')}</span>
-                <span class='collection-detail-divider' />
+                <span class='collection-task-detail-divider' />
                 <span
-                  class='collection-detail-name'
+                  class='collection-task-detail-name'
                   title={task.name}
                 >
                   {task.name}
                 </span>
               </div>
-              <div class='collection-detail-actions'>
-                {action('icon-mc-edit', '编辑', this.readonly || this.busy, false, () => this.$emit('edit'))}
+              <div class='collection-task-detail-actions'>
+                {action('icon-bianji', '编辑', this.readonly || this.busy, false, () => this.$emit('edit'))}
                 <span v-tippy={{ content: this.t('指定时间无执行记录'), onShow: () => schedule.type !== 'cron' }}>
-                  {action('icon-mc-history', '执行记录', schedule.type !== 'cron', false, () => this.$emit('history'))}
+                  {action('icon-History', '执行记录', schedule.type !== 'cron', false, () => this.$emit('history'))}
                 </span>
                 <span
                   v-tippy={{ content: this.t('请先停用任务后再删除'), onShow: () => task.task_status !== 'disabled' }}

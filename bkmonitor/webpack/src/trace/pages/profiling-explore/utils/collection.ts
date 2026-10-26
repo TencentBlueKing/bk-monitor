@@ -179,7 +179,7 @@ export function buildCollectionPayload(draft: CollectionDraft, bizId: number, no
     draft.scheduleType === 'cron' &&
     (!draft.startAt || !draft.endAt || draft.endAt <= draft.startAt || draft.endAt <= now)
   )
-    throw new Error('请选择有效的周期任务起止时间');
+    throw new Error('请选择有效的周期执行起止时间');
   if (draft.scheduleType === 'cron' && draft.cron.trim().split(/\s+/).length !== 5)
     throw new Error('请填写有效的五段式 Cron 表达式');
   return {

@@ -30,6 +30,9 @@ import { useI18n } from 'vue-i18n';
 
 import { TraceCellSkeleton } from '@/pages/trace-explore/components/trace-explore-skeleton';
 
+// 骨架屏复用采集配置详情的结构类名，因此显式引入其样式
+import './collection-configuration.scss';
+
 const skeletonRows = Array.from({ length: 8 }, (_, index) => ({ id: index }));
 
 export default defineComponent({
@@ -45,7 +48,7 @@ export default defineComponent({
     if (this.snapshot) {
       return (
         <div
-          class='collection-detail-body collection-execution-skeleton'
+          class='collection-config-body collection-execution-skeleton'
           aria-busy='true'
         >
           {[
@@ -59,7 +62,7 @@ export default defineComponent({
                 {Array.from({ length: section.rows }, (_, index) => (
                   <div
                     key={index}
-                    class='collection-detail-row'
+                    class='collection-config-row'
                   >
                     <dt>
                       <i class='collection-execution-placeholder' />

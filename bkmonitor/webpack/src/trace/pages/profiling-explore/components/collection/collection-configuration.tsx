@@ -39,6 +39,8 @@ import CollectionCrontab from './collection-crontab';
 
 import type { CollectionHost, CollectionPayload, ProcessSelector } from '../../types/collection';
 
+import './collection-configuration.scss';
+
 function emphasizeCount(text: string, count: number) {
   const token = String(count);
   const index = text.indexOf(token);
@@ -46,7 +48,7 @@ function emphasizeCount(text: string, count: number) {
   return (
     <>
       {text.slice(0, index)}
-      <strong class='collection-detail-count'>{token}</strong>
+      <strong class='collection-config-count'>{token}</strong>
       {text.slice(index + token.length)}
     </>
   );
@@ -70,7 +72,7 @@ export default defineComponent({
     const schedule = task.schedule;
     const selector = task.process_selector;
     const row = (label: string, value) => (
-      <div class='collection-detail-row'>
+      <div class='collection-config-row'>
         <dt>{this.t(label)}：</dt>
         <dd>{value ?? '--'}</dd>
       </div>
@@ -79,16 +81,14 @@ export default defineComponent({
     const processText = (item: ProcessSelector) => {
       if (item.type === 'command') {
         const matched = `${this.t(processLabels.command)} - ${this.t('包含')}：${item.config.match_pattern}`;
-        return item.config.exclude_pattern
-          ? `${matched}；${this.t('排除')}：${item.config.exclude_pattern}`
-          : matched;
+        return item.config.exclude_pattern ? `${matched}；${this.t('排除')}：${item.config.exclude_pattern}` : matched;
       }
       if (item.type === 'pid_file') return `${this.t(processLabels.pid_file)}：${item.config.pid_path}`;
       return `${this.t(processLabels.pid)}：${item.config.pids}`;
     };
     const processTag = selector ? processText(selector) : '';
     return (
-      <div class='collection-detail-body'>
+      <div class='collection-config-body'>
         <section>
           <h3>{this.t('任务信息')}</h3>
           <dl>
@@ -148,7 +148,7 @@ export default defineComponent({
               row(
                 '目标进程',
                 <span
-                  class='collection-detail-tag'
+                  class='collection-config-tag'
                   title={processTag}
                 >
                   {processTag}
@@ -157,7 +157,7 @@ export default defineComponent({
             {task.resource_guard_config.auto_stop_on_resource_pressure &&
               row(
                 '高级设置',
-                <span class='collection-detail-check'>
+                <span class='collection-config-check'>
                   <i class='icon-monitor icon-mc-check-small' />
                   {this.t('资源不足时提前终止')}
                 </span>

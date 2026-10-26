@@ -1,0 +1,91 @@
+// 采集配置详情（collection-configuration.tsx）专属样式：
+// 定时任务详情与任务执行详情都渲染该组件，由组件自身引入；
+// 类名统一带 collection-config- 前缀，各侧栏只在自身作用域内覆盖
+.collection-config-body {
+  display: flex;
+  flex-direction: column;
+  gap: 32px;
+  padding: 24px 40px;
+
+  section {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    min-width: 0;
+  }
+
+  h3 {
+    display: flex;
+    align-items: center;
+    height: 28px;
+    padding: 0 12px;
+    margin: 0;
+    font-size: 14px;
+    font-weight: 500;
+    line-height: 22px;
+    color: #313238;
+    background: #f0f4fa;
+    border-radius: 4px;
+  }
+
+  dl {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    padding-left: 12px;
+    margin: 0;
+  }
+}
+
+.collection-config-row {
+  display: flex;
+  gap: 6px;
+  align-items: flex-start;
+  margin: 0;
+  font-size: 12px;
+  line-height: 20px;
+
+  dt {
+    flex-shrink: 0;
+    color: #8f9fbd;
+  }
+
+  dd {
+    min-width: 0;
+    margin: 0;
+    color: #313238;
+    overflow-wrap: anywhere;
+  }
+}
+
+.collection-config-count {
+  font-weight: 700;
+  color: #3a84ff;
+}
+
+.collection-config-tag {
+  display: inline-block;
+  max-width: 100%;
+  height: 22px;
+  padding: 0 8px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font-size: 12px;
+  line-height: 22px;
+  vertical-align: top;
+  color: #4d4f56;
+  white-space: nowrap;
+  background: #f0f1f5;
+  border-radius: 2px;
+}
+
+.collection-config-check {
+  display: inline-flex;
+  gap: 6px;
+  align-items: center;
+
+  i {
+    font-size: 16px;
+    line-height: 16px;
+  }
+}
