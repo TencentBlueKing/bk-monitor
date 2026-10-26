@@ -341,28 +341,105 @@ class TestPathAwareExpand(SimpleTestCase):
         self.assertEqual(expanded["body.a"], "scalar")
         self.assertEqual(expanded["body.a.b"], "secret")
 
-    def test_dotted_key_conflict_restore_scalar_lost(self):
-        """点号 key 冲突后还原：子树优先，标量确定性丢失并记录 error
+    def test_json_literal_dot_key_preserved_in_restore(self):
+        """Review 原例：JSON 内字面点号 key 与普通 key 共存，两者都必须保留
 
-        这是已文档化的已知限制（点号同时作为路径分隔符和 key 名）。
-        展开阶段保留两个值，还原阶段子树优先，标量 "scalar" 被丢弃。
+        ``body='{"a":"scalar","a.b":"secret"}'``，配置 ``body.a.b``。
+        其中 ``"a"`` 是普通 key，``"a.b"`` 是字面点号 key（点号是键名的一部分）。
+        修复前：``_build_nested_dict`` 盲分 ``body.a.b``，把标量 ``"scalar"`` 覆盖丢失。
+        修复后：metadata 记录 ``segments``，``body.a.b`` 的 segments 为 ``("body", "a.b")``
+        （``a.b`` 是单段），还原时不再盲分，两个值都完整保留，无需 error 日志。
         """
         data = {"body": '{"a":"scalar","a.b":"secret"}'}
         paths = ["body.a.b"]
         expanded, metadata = path_aware_expand(data, paths)
 
-        with self.assertLogs("apps.log_desensitize.utils", level="ERROR") as cm:
+        # 展开阶段：两个平级标量，不冲突
+        self.assertEqual(expanded, {"body.a": "scalar", "body.a.b": "secret"})
+        # metadata 必须记录 segments：字面 key "body.a.b" segments 含 2 段
+        self.assertEqual(
+            metadata["body.a.b"].get("segments"),
+            ("body", "a.b"),
+            "body.a.b 的 segments 应为 ('body', 'a.b')，其中 'a.b' 是单段（字面键名）",
+        )
+        self.assertEqual(
+            metadata["body.a"].get("segments"),
+            ("body", "a"),
+            "body.a 的 segments 应为 ('body', 'a')——普通 key",
+        )
+
+        # 还原阶段：不再有冲突，两个值都保留，不产生 error 日志
+        with self.assertNoLogs("apps.log_desensitize.utils", level="ERROR"):
             restored = restore_by_metadata(expanded, metadata)
 
         self.assertIsInstance(restored["body"], str)
         parsed = json.loads(restored["body"])
-        # 子树优先：a.b 还原为嵌套 {"a": {"b": "secret"}}，标量 "scalar" 丢失
-        self.assertEqual(parsed, {"a": {"b": "secret"}})
-        # 必须记录 error 日志，避免静默丢失
-        self.assertTrue(
-            any("path conflict" in msg for msg in cm.output),
-            "expected a path conflict error log, got: {}".format(cm.output),
+        # 精确断言：普通 key "a" 与字面 key "a.b" 都完整保留
+        self.assertEqual(parsed, {"a": "scalar", "a.b": "secret"})
+
+    def test_json_literal_dot_key_nested_child_preserved(self):
+        """JSON 内字面点号 key 自身还嵌套子对象：结构完整还原"""
+        data = {"body": '{"a.b": {"c": "val"}}'}
+        paths = ["body.a.b.c"]
+        expanded, metadata = path_aware_expand(data, paths)
+
+        self.assertEqual(
+            metadata["body.a.b"].get("segments"),
+            ("body", "a.b"),
         )
+        self.assertEqual(expanded, {"body.a.b.c": "val"})
+
+        restored = restore_by_metadata(expanded, metadata)
+        parsed = json.loads(restored["body"])
+        # 字面 key "a.b" 保持为一层键名，其下嵌套 "c"
+        self.assertEqual(parsed, {"a.b": {"c": "val"}})
+
+    def test_json_literal_dot_key_multiple_levels(self):
+        """JSON 内多层字面点号 key（"x.y" 与 "x.y.z" 共存）：全部保留"""
+        data = {"body": '{"x.y": "v1", "x.y.z": "v2"}'}
+        # 配置一个不相关的祖先路径，触发 body 的 JSON 解析
+        paths = ["body.x.y"]
+        expanded, metadata = path_aware_expand(data, paths)
+
+        self.assertEqual(metadata["body.x.y"].get("segments"), ("body", "x.y"))
+        self.assertEqual(metadata["body.x.y.z"].get("segments"), ("body", "x.y.z"))
+
+        restored = restore_by_metadata(expanded, metadata)
+        parsed = json.loads(restored["body"])
+        # 两个字面 key 都作为独立键名保留
+        self.assertEqual(parsed, {"x.y": "v1", "x.y.z": "v2"})
+
+    def test_json_literal_key_does_not_break_es_flattened(self):
+        """字面 key 修复不影响 ES-flattened 顶层 dotted key 的 re-nest 行为"""
+        data = {"__ext_json.deployment.pod.name": "secret"}
+        paths = ["__ext_json.deployment.pod.name"]
+        expanded, metadata = path_aware_expand(data, paths)
+
+        # 顶层 key（非 JSON 解析来源）的 segments 按点号正常 split
+        self.assertEqual(
+            metadata["__ext_json.deployment.pod.name"].get("segments"),
+            ("__ext_json", "deployment", "pod", "name"),
+        )
+        restored = restore_by_metadata(expanded, metadata)
+        # ES-flattened dotted key 仍按路径分隔符正常 re-nest
+        self.assertEqual(restored, {"__ext_json": {"deployment": {"pod": {"name": "secret"}}}})
+
+    def test_json_literal_key_mixed_with_nested_object(self):
+        """JSON 内字面点号 key 与普通嵌套对象共存，还原后语义不混淆"""
+        # "a.b" 是字面 key(标量)，"a" 是普通 key(对象)
+        data = {"body": '{"a": {"c": "v1"}, "a.b": "v2"}'}
+        paths = ["body.a.c", "body.a.b"]
+        expanded, metadata = path_aware_expand(data, paths)
+
+        # 字面 key "body.a.b" 的 segments 含 "a.b" 单段
+        self.assertEqual(metadata["body.a.b"].get("segments"), ("body", "a.b"))
+        # 普通 key 按点号 split
+        self.assertEqual(metadata["body.a.c"].get("segments"), ("body", "a", "c"))
+
+        restored = restore_by_metadata(expanded, metadata)
+        parsed = json.loads(restored["body"])
+        # "a.b" 作为独立键名，"a" 作为嵌套对象，互不干扰
+        self.assertEqual(parsed, {"a": {"c": "v1"}, "a.b": "v2"})
 
     def test_expand_stage_conflict_dict_vs_dotted_key(self):
         """展开阶段冲突：JSON 同时含 a(dict) 与 a.b(scalar)，dict 先迭代

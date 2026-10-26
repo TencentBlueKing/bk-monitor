@@ -771,7 +771,7 @@ class TestSearchHandlerDesensitize(TestCase):
     # ==================================================================
 
     def test_json_string_with_text_fields_end_to_end(self):
-        """缺失场景 1：JSON 字符串 + text_fields 原文替换端到端验证。
+        """缺失场景 1：JSON 字符串 + text_fields 原文替换验证。
 
         当 body 为 JSON 字符串且配置了 text_fields 时，
         body 内部子路径脱敏后，脱敏结果应同步替换到 log 原文中，
@@ -803,7 +803,7 @@ class TestSearchHandlerDesensitize(TestCase):
         self.assertEqual(logs[0]["log"], "[FILTERED]")
 
     def test_multi_layer_json_string_nesting_end_to_end(self):
-        """缺失场景 2：多层 JSON 字符串嵌套端到端验证。
+        """缺失场景 2：多层 JSON 字符串嵌套验证。
 
         body 是 JSON 字符串，其内部某字段值又是 JSON 字符串（多层嵌套），
         脱敏应递归穿透所有层级，最终 body 仍为 JSON 字符串，
@@ -890,10 +890,6 @@ class TestSearchHandlerDesensitize(TestCase):
         # message 在 text_fields 中，自身脱敏规则生效
         self.assertEqual(logs[0]["message"], "He***********34")
 
-    # ==================================================================
-    # 补充 P0-1: fail-closed 端到端验证
-    # ==================================================================
-
     def test_oversized_json_fail_closed_end_to_end(self):
         """超大 JSON + 子路径规则：整条字段被遮罩而非明文"""
         self._put_config(field_configs=[NESTED_MASK_CONFIG])
@@ -923,10 +919,6 @@ class TestSearchHandlerDesensitize(TestCase):
         self.assertEqual(len(logs), 1)
         # 无子路径规则时保持原值
         self.assertEqual(logs[0]["body"], large_body)
-
-    # ==================================================================
-    # P0-2: 异常隔离端到端验证
-    # ==================================================================
 
     def test_deep_json_masked_by_prescan(self):
         """一条极深 JSON 被预扫描拦截后遮罩，不影响同查询中其他日志"""
@@ -1024,3 +1016,101 @@ class TestSearchHandlerDesensitize(TestCase):
         found_rogue = [l for l in logs if l.get("message") == "rogue"]
         self.assertEqual(len(found_rogue), 1)
         self.assertIn("body", found_rogue[0])
+
+    def test_json_literal_dot_key_preserved_end_to_end(self):
+        """JSON 内字面点号 key 与普通 key 共存都必须保留。
+
+        ``body='{"a":"scalar","a.b":"secret"}'``，配置 ``body.a.b``。
+        修复前：``_build_nested_dict`` 盲分 ``body.a.b``，标量 ``"scalar"`` 被覆盖丢失。
+        修复后：两个字面/普通 key 都完整保留在还原结果中。
+        """
+        config = {
+            "field_name": "body.a.b",
+            "rule_id": 0,
+            "operator": "mask_shield",
+            "params": {"preserve_head": 1, "preserve_tail": 1, "replace_mark": "*"},
+            "match_pattern": ".*",
+            "sort_index": 0,
+        }
+        self._put_config(field_configs=[config])
+
+        handler = self._build_handler()
+        result = handler._deal_query_result(
+            fake_hits_nested(body='{"a":"scalar","a.b":"secret"}')
+        )
+
+        logs = result["list"]
+        self.assertEqual(len(logs), 1)
+        self.assertIsInstance(logs[0]["body"], str)
+        parsed = json.loads(logs[0]["body"])
+        # 两个 key 都保留：普通 key "a" 保持原值，字面 key "a.b" 被脱敏
+        self.assertEqual(parsed["a"], "scalar")
+        self.assertEqual(parsed["a.b"], "s****t")
+
+    def test_json_literal_dot_key_does_not_break_es_flattened_top_level(self):
+        """ES-flattened 顶层 dotted key：仍按路径分隔符正常 re-nest 并脱敏"""
+        # 顶层 flat key "__ext_json.deployment.pod.name"
+        config = {
+            "field_name": "__ext_json.deployment.pod.name",
+            "rule_id": 0,
+            "operator": "mask_shield",
+            "params": {"preserve_head": 1, "preserve_tail": 1, "replace_mark": "*"},
+            "match_pattern": ".*",
+            "sort_index": 0,
+        }
+        self._put_config(field_configs=[config])
+
+        handler = self._build_handler()
+        source = {
+            "dtEventTimeStamp": 1727452800000,
+            "message": "plain",
+            "__ext_json.deployment.pod.name": "secretname",
+        }
+        result = handler._deal_query_result(
+            {
+                "took": 10,
+                "hits": {
+                    "total": 1,
+                    "hits": [
+                        {
+                            "_index": "v2_2_bklog_test_es_20260927_0",
+                            "_source": source,
+                        }
+                    ],
+                },
+            }
+        )
+
+        logs = result["list"]
+        self.assertEqual(len(logs), 1)
+        # ES-flattened dotted key 还原为嵌套结构
+        self.assertIsInstance(logs[0]["__ext_json"], dict)
+        self.assertEqual(logs[0]["__ext_json"]["deployment"]["pod"]["name"], "s********e")
+
+    def test_json_literal_dot_key_and_nested_object_coexist_end_to_end(self):
+        """字面点号 key 与普通嵌套对象共存：两者语义互不混淆"""
+        # "a.b" 是字面 key(标量)，"a" 是普通 key(对象)
+        config = {
+            "field_name": "body.a.c",
+            "rule_id": 0,
+            "operator": "mask_shield",
+            "params": {"preserve_head": 1, "preserve_tail": 1, "replace_mark": "*"},
+            "match_pattern": ".*",
+            "sort_index": 0,
+        }
+        self._put_config(field_configs=[config])
+
+        handler = self._build_handler()
+        result = handler._deal_query_result(
+            fake_hits_nested(body='{"a":{"c":"value1"},"a.b":"value2"}')
+        )
+
+        logs = result["list"]
+        self.assertEqual(len(logs), 1)
+        self.assertIsInstance(logs[0]["body"], str)
+        parsed = json.loads(logs[0]["body"])
+        # "a" 下嵌套的 "c" 被脱敏
+        self.assertEqual(parsed["a"]["c"], "v****1")
+        # 字面 key "a.b" 完整保留原值（未配置该路径）
+        self.assertEqual(parsed["a.b"], "value2")
+
