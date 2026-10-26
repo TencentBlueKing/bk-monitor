@@ -1,0 +1,9 @@
+{
+  "id": "ui.manage-collection-ops",
+  "component": "CollectionPage",
+  "states": ["idle", "filtered", "wizard", "error"],
+  "transitions": [
+    { "from": "idle", "event": "OPEN_WIZARD", "to": "wizard" },
+    { "from": "wizard", "event": "SUBMIT", "to": "idle" }
+  ]
+}

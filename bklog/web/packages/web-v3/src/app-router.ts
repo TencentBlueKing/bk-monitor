@@ -27,6 +27,7 @@
 import { createRouter, createWebHashHistory, type RouteRecordRaw } from 'vue-router';
 
 import { MANAGE_MODULES } from './features/catalog';
+import CollectionPage from './features/manage/collection-page.vue';
 import ClusteringPage from './features/retrieve/clustering-page.vue';
 import ContextPage from './features/retrieve/context-page.vue';
 import RealtimePage from './features/retrieve/realtime-page.vue';
@@ -35,7 +36,7 @@ import ResourceListPage from './features/resource/resource-list-page.vue';
 import NotFoundPage from './features/system/not-found-page.vue';
 import UnauthorizedPage from './features/system/unauthorized-page.vue';
 
-const resourceRoutes: RouteRecordRaw[] = MANAGE_MODULES.map(module => ({
+const resourceRoutes: RouteRecordRaw[] = MANAGE_MODULES.filter(module => module.id !== 'manage-collection').map(module => ({
   path: module.path,
   name: module.id,
   component: ResourceListPage,
@@ -49,6 +50,7 @@ export const routes: RouteRecordRaw[] = [
   { path: '/retrieve/clustering', name: 'retrieve-clustering', component: ClusteringPage, meta: { title: '日志聚类', group: 'retrieve' } },
   { path: '/retrieve/context', name: 'retrieve-context', component: ContextPage, meta: { title: '上下文日志', group: 'retrieve' } },
   { path: '/retrieve/realtime', name: 'retrieve-realtime', component: RealtimePage, meta: { title: '实时日志', group: 'retrieve' } },
+  { path: '/manage/collection', name: 'manage-collection', component: CollectionPage, meta: { title: '采集项', group: 'manage' } },
   ...resourceRoutes,
   { path: '/unauthorized', name: 'unauthorized', component: UnauthorizedPage, meta: { title: '未授权', group: 'system' } },
   { path: '/:pathMatch(.*)*', name: 'not-found', component: NotFoundPage, meta: { title: '未找到', group: 'system' } },

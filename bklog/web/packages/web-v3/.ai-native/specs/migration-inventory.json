@@ -1,9 +1,10 @@
 {
   "id": "plan.vue3-migration",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "target": "bklog/web/packages/web-v3",
   "source": "bklog/web/src",
-  "principle": "redesign on Vue3 + tdesign-vue-next, do not copy Vue2 files",
+  "principle": "redesign on Vue3 + tdesign-vue-next inside packages/web-v3; do not copy Vue2 files; v2 becomes deletable only after delete-gate passes",
+  "goal": "全部业务能力落在 packages/web-v3，最终可删除 retrieve-v3 / manage-v2 / 其他 Vue2 业务页",
   "sealed": {
     "note": "v1 已封板，本计划与实现均不处理",
     "paths": [
@@ -12,8 +13,30 @@
       "bklog/web/src/views/manage"
     ]
   },
+  "deleteTargets": [
+    "src/views/retrieve-v3",
+    "src/views/retrieve-v2",
+    "src/views/manage-v2",
+    "src/views/client-log-search",
+    "src/views/extract",
+    "src/views/dashboard",
+    "src/views/authorization",
+    "src/views/share",
+    "src/views/data-id-url",
+    "src/views/un-authorized",
+    "src/views/404.vue"
+  ],
+  "deleteGate": {
+    "id": "gate.v2-deletable",
+    "must": [
+      "web-v3 覆盖 deleteTargets 的主路径与关键分支",
+      "路由与入口不再引用 Vue2 业务页",
+      "单测 + 契约覆盖主路径",
+      "v1 路径未被改动"
+    ]
+  },
   "excluded": [
-    { "id": "retrieve-v2", "source": "src/views/retrieve-v2", "reason": "已被 retrieve-v3 取代，不单独迁入 Vue3" },
+    { "id": "retrieve-v2", "source": "src/views/retrieve-v2", "reason": "已被 retrieve-v3 取代，不单独迁入；随 v3 删除门禁一并移除" },
     { "id": "playground", "source": "src/views/playground", "reason": "本地调试页，非产品域" }
   ],
   "waves": [
@@ -29,38 +52,76 @@
       "status": "landed",
       "source": "src/views/retrieve-v3",
       "modules": [
-        { "id": "retrieve-search", "source": "search-bar + search-result/original-log", "priority": 1, "status": "landed" },
-        { "id": "retrieve-favorite", "source": "favorite", "priority": 2, "status": "landed" },
-        { "id": "retrieve-toolbar", "source": "toolbar", "priority": 2, "status": "landed" },
-        { "id": "retrieve-grep", "source": "grep", "priority": 3, "status": "landed" },
-        { "id": "retrieve-clustering", "source": "search-result/log-clustering", "priority": 3, "status": "landed" },
-        { "id": "retrieve-template", "source": "search-result/template-manage", "priority": 4, "status": "landed" },
-        { "id": "retrieve-context", "source": "original-log/context-log", "priority": 4, "status": "landed" },
-        { "id": "retrieve-realtime", "source": "original-log/real-time-log", "priority": 4, "status": "landed" }
+        { "id": "retrieve-search", "status": "landed" },
+        { "id": "retrieve-favorite", "status": "landed" },
+        { "id": "retrieve-toolbar", "status": "landed" },
+        { "id": "retrieve-grep", "status": "landed" },
+        { "id": "retrieve-clustering", "status": "landed" },
+        { "id": "retrieve-template", "status": "landed" },
+        { "id": "retrieve-context", "status": "landed" },
+        { "id": "retrieve-realtime", "status": "landed" }
       ]
     },
     {
       "id": "W3",
-      "title": "管理域与其他未覆盖模块",
+      "title": "管理域与其他模块路由壳",
       "status": "landed",
-      "note": "Vue3 资源列表/路由壳已落地；完整产品对等与远端 API 仍后续",
+      "note": "通用资源列表壳；P 波次补真实功能"
+    }
+  ],
+  "implementation": [
+    {
+      "id": "P1",
+      "title": "检索工作台 + 采集主路径",
+      "status": "landed",
+      "replaces": ["src/views/retrieve-v3 主路径", "src/views/manage-v2/log-collection 列表/启停/新建"],
       "modules": [
-        { "id": "manage-collection", "source": "src/views/manage-v2/log-collection", "status": "landed" },
-        { "id": "manage-clean", "source": "src/views/manage-v2/log-clean", "status": "landed" },
-        { "id": "manage-extract", "source": "src/views/manage-v2/log-extract", "status": "landed" },
-        { "id": "manage-archive", "source": "src/views/manage-v2/log-archive", "status": "landed" },
-        { "id": "manage-es", "source": "src/views/manage-v2/es-cluster", "status": "landed" },
-        { "id": "manage-grok", "source": "src/views/manage-v2/grok-manage", "status": "landed" },
-        { "id": "manage-client-log", "source": "src/views/manage-v2/client-log", "status": "landed" },
-        { "id": "client-log-search", "source": "src/views/client-log-search", "status": "landed" },
-        { "id": "extract", "source": "src/views/extract", "status": "landed" },
-        { "id": "dashboard", "source": "src/views/dashboard", "status": "landed" },
-        { "id": "authorization", "source": "src/views/authorization", "status": "landed" },
-        { "id": "share", "source": "src/views/share", "status": "landed" },
-        { "id": "data-id-url", "source": "src/views/data-id-url", "status": "landed" },
-        { "id": "unauthorized", "source": "src/views/un-authorized", "status": "landed" },
-        { "id": "not-found", "source": "src/views/404.vue", "status": "landed" }
+        { "id": "retrieve-workspace", "status": "landed", "capability": "origin/clustering/grep/graph 同页切换" },
+        { "id": "retrieve-index-set", "status": "landed", "capability": "索引集选择与过滤" },
+        { "id": "retrieve-fields", "status": "landed", "capability": "显示字段开关，至少保留一列" },
+        { "id": "retrieve-graph", "status": "landed", "capability": "按时间桶聚合数量" },
+        { "id": "manage-collection-ops", "status": "landed", "capability": "采集分组过滤、启停、四步新建向导" }
       ]
+    },
+    {
+      "id": "P2",
+      "title": "检索剩余能力",
+      "status": "planned",
+      "replaces": ["src/views/retrieve-v3/search-bar/scene-filter", "trend", "share", "template 深路径"],
+      "modules": ["scene-filter", "trend-graph", "share-link", "template-index-set", "highlight"]
+    },
+    {
+      "id": "P3",
+      "title": "其余管理域真实功能",
+      "status": "planned",
+      "replaces": [
+        "src/views/manage-v2/log-clean",
+        "src/views/manage-v2/log-extract",
+        "src/views/manage-v2/log-archive",
+        "src/views/manage-v2/es-cluster",
+        "src/views/manage-v2/grok-manage",
+        "src/views/manage-v2/client-log"
+      ]
+    },
+    {
+      "id": "P4",
+      "title": "其他业务页真实功能",
+      "status": "planned",
+      "replaces": [
+        "src/views/client-log-search",
+        "src/views/extract",
+        "src/views/dashboard",
+        "src/views/authorization",
+        "src/views/share",
+        "src/views/data-id-url",
+        "src/views/un-authorized"
+      ]
+    },
+    {
+      "id": "P5",
+      "title": "入口切换与 v2 删除门禁",
+      "status": "planned",
+      "note": "Vue2 路由改指 web-v3 后，通过 deleteGate 再删除 deleteTargets；不碰 v1"
     }
   ]
 }

@@ -170,6 +170,12 @@ body,
   font-size: 16px;
 }
 
+.field-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
 .retrieve-favorite-item__main {
   display: flex;
   flex: 1;

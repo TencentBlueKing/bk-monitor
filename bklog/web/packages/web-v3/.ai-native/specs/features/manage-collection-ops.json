@@ -1,0 +1,23 @@
+{
+  "id": "feature.manage-collection-ops",
+  "version": "0.1.0",
+  "title": "采集项启停与新建",
+  "status": "approved",
+  "goal": "按类型/状态过滤采集项，启停状态机合法，四步向导校验后创建。",
+  "inputs": [
+    { "name": "scenario", "type": "string", "required": false },
+    { "name": "name", "type": "string", "required": false }
+  ],
+  "rules": [
+    "running 只能停，stopped/failed/pending 才能启",
+    "分类必须选 scenario",
+    "主机类必须填路径",
+    "存储必须填集群"
+  ],
+  "dependencies": ["state.manage-collection-ops", "ui.manage-collection-ops", "action.submit-collection"],
+  "acceptance": [
+    { "id": "AC-001", "given": "采集类型和状态不同", "when": "叠加过滤", "then": "只保留同时匹配项" },
+    { "id": "AC-002", "given": "采集正在运行", "when": "再次启动", "then": "进入 error；停用后再启动成功" },
+    { "id": "AC-003", "given": "向导未填完整", "when": "下一步或提交", "then": "进入 error；补全后创建 pending 项" }
+  ]
+}

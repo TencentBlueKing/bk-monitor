@@ -29,6 +29,12 @@
     >
       收藏
     </t-button>
+    <t-select
+      :model-value="indexSetId"
+      :options="indexSetOptions"
+      style="width: 180px"
+      @change="onIndexSet"
+    />
     <t-input
       :model-value="keyword"
       placeholder="输入关键字检索"
@@ -43,6 +49,7 @@
     </t-select>
     <t-switch :model-value="toolbar.autoRefresh" label="自动刷新" @change="onAutoRefresh" />
     <t-button theme="primary" :loading="loading" @click="emit('search')">检索</t-button>
+    <t-button variant="outline" @click="emit('toggle-fields')">字段</t-button>
     <t-button variant="outline" @click="emit('save-favorite')">保存收藏</t-button>
     <t-button variant="outline" @click="emit('open-help')">说明</t-button>
   </header>
@@ -55,17 +62,25 @@ defineProps<{
   keyword: string;
   loading: boolean;
   toolbar: ToolbarSnapshot;
+  indexSetId: string;
+  indexSetOptions: Array<{ label: string; value: string }>;
 }>();
 
 const emit = defineEmits<{
   'update:keyword': [value: string];
   search: [];
   'toggle-favorite': [];
+  'toggle-fields': [];
+  'change-index-set': [id: string];
   'change-time': [preset: TimePreset];
   'auto-refresh': [enabled: boolean];
   'save-favorite': [];
   'open-help': [];
 }>();
+
+const onIndexSet = (value: string) => {
+  emit('change-index-set', value);
+};
 
 const onTimeChange = (value: TimePreset) => {
   emit('change-time', value);

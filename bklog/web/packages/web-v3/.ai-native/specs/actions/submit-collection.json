@@ -1,0 +1,10 @@
+{
+  "id": "action.submit-collection",
+  "title": "提交采集向导",
+  "inputs": ["name", "scenario", "path", "cluster"],
+  "preconditions": ["wizard fields valid", "name unique"],
+  "permission": "manage.write",
+  "idempotent": false,
+  "sideEffects": ["append pending collection"],
+  "failure": "missing fields or duplicate name sets error"
+}

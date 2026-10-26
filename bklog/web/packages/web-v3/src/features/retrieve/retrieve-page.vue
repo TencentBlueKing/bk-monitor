@@ -36,30 +36,82 @@
         v-model:keyword="keyword"
         :loading="search.uiState === 'loading'"
         :toolbar="toolbar"
+        :index-set-id="workspace.indexSetId"
+        :index-set-options="indexSetOptions"
         @search="onSearch"
         @toggle-favorite="onToggleFavorite"
+        @toggle-fields="fieldsVisible = !fieldsVisible"
+        @change-index-set="onChangeIndexSet"
         @change-time="onChangeTime"
         @auto-refresh="onAutoRefresh"
         @save-favorite="openSave"
         @open-help="openHelp"
       />
+      <t-tabs :value="workspace.tab" @change="onTab">
+        <t-tab-panel value="origin" label="原始日志" />
+        <t-tab-panel value="clustering" label="日志聚类" />
+        <t-tab-panel value="grep" label="Grep" />
+        <t-tab-panel value="graph" label="图表分析" />
+      </t-tabs>
       <t-alert v-if="search.uiState === 'error'" theme="error" :message="search.error" />
+      <t-alert v-if="fields.uiState === 'error'" theme="error" :message="fields.error" />
       <t-loading :loading="search.uiState === 'loading'">
-        <t-empty v-if="search.uiState === 'empty'" description="没有匹配的日志" />
+        <template v-if="workspace.tab === 'origin'">
+          <t-empty v-if="search.uiState === 'empty'" description="没有匹配的日志" />
+          <t-table
+            v-else
+            row-key="id"
+            :data="search.records"
+            :columns="originColumns"
+            :empty="search.uiState === 'idle' ? '提交关键字开始检索' : '暂无数据'"
+          >
+            <template #op="{ row }">
+              <t-button variant="text" @click="openContext(row.id)">上下文</t-button>
+              <t-button variant="text" @click="openRealtime(row)">实时</t-button>
+            </template>
+          </t-table>
+        </template>
+        <t-table
+          v-else-if="workspace.tab === 'clustering'"
+          row-key="pattern"
+          :data="clusterGroups"
+          :columns="clusterColumns"
+        />
+        <retrieve-grep-panel
+          v-else-if="workspace.tab === 'grep'"
+          :state="grep"
+          @field="onGrepField"
+          @pattern="onGrepPattern"
+          @run="onRunGrep"
+        />
         <t-table
           v-else
-          row-key="id"
-          :data="search.records"
-          :columns="columns"
-          :empty="search.uiState === 'idle' ? '提交关键字开始检索' : '暂无数据'"
+          row-key="startTime"
+          :data="graphBuckets"
+          :columns="graphColumns"
         />
       </t-loading>
-      <retrieve-grep-panel
-        :state="grep"
-        @field="onGrepField"
-        @pattern="onGrepPattern"
-        @run="onRunGrep"
-      />
+      <t-drawer v-model:visible="fieldsVisible" header="显示字段" size="360px">
+        <div class="field-list">
+          <t-checkbox
+            v-for="field in fields.fields"
+            :key="field.name"
+            :checked="field.visible"
+            @change="value => onToggleField(field.name, value)"
+          >
+            {{ field.name }}
+          </t-checkbox>
+        </div>
+      </t-drawer>
+      <t-drawer v-model:visible="contextVisible" header="上下文日志" size="560px" @close="closeContext">
+        <t-alert v-if="context.uiState === 'waiting'" theme="warning" message="主检索进行中，上下文等待完成后再展开" />
+        <t-empty v-else-if="context.uiState === 'empty'" description="找不到锚点日志" />
+        <t-table v-else row-key="id" :data="contextRows" :columns="contextColumns" />
+      </t-drawer>
+      <t-drawer v-model:visible="realtimeVisible" header="实时日志" size="560px" @close="stopRealtime">
+        <t-tag>{{ realtime.uiState }}</t-tag>
+        <t-table row-key="id" :data="realtime.records" :columns="contextColumns" />
+      </t-drawer>
     </section>
     <t-dialog
       :visible="helpVisible"
@@ -94,13 +146,20 @@
 import { computed, onBeforeUnmount, onMounted, reactive, ref } from 'vue';
 
 import { overlayManager } from '../../shared/overlay/overlay-manager';
+import { ClusteringController } from './clustering-controller';
+import { ContextController, type ContextSnapshot } from './context-controller';
 import { FavoriteController, type FavoriteSnapshot } from './favorite-controller';
+import { FieldController, type FieldSnapshot } from './field-controller';
+import { GraphController } from './graph-controller';
 import { GrepController, type GrepSnapshot } from './grep-controller';
+import { IndexSetController } from './index-set-controller';
+import { RealtimeController, type RealtimeSnapshot } from './realtime-controller';
 import RetrieveFavoritePanel from './retrieve-favorite-panel.vue';
 import RetrieveGrepPanel from './retrieve-grep-panel.vue';
 import {
   createLocalSearchFetcher,
   RetrieveSearchController,
+  type LogRecord,
   type RetrieveSnapshot,
 } from './retrieve-search-controller';
 import RetrieveToolbar from './retrieve-toolbar.vue';
@@ -110,16 +169,25 @@ import {
   type TimePreset,
   type ToolbarSnapshot,
 } from './toolbar-controller';
+import { WorkspaceController, type RetrieveTab, type WorkspaceSnapshot } from './workspace-controller';
 
 const now = Date.now();
-const dataset = [
+const dataset: LogRecord[] = [
   { id: '1', dtEventTimeStamp: now - 60_000, log: 'error timeout from api', indexSetId: 'index-a' },
   { id: '2', dtEventTimeStamp: now - 120_000, log: 'info user login', indexSetId: 'index-a' },
   { id: '3', dtEventTimeStamp: now - 180_000, log: 'error disk full', indexSetId: 'index-a' },
+  { id: '4', dtEventTimeStamp: now - 90_000, log: 'error timeout from api 88', indexSetId: 'index-b' },
 ];
 
 const searchController = new RetrieveSearchController(createLocalSearchFetcher(dataset));
 const favoriteController = new FavoriteController();
+const indexSetController = new IndexSetController();
+const fieldController = new FieldController();
+const workspaceController = new WorkspaceController();
+const clusteringController = new ClusteringController();
+const graphController = new GraphController();
+const contextController = new ContextController();
+const realtimeController = new RealtimeController(8);
 const toolbarController = new ToolbarController(intent => {
   void submitSearch(intent);
 });
@@ -131,16 +199,44 @@ const search = reactive<RetrieveSnapshot>(searchController.getState());
 const favorite = reactive<FavoriteSnapshot>(favoriteController.getState());
 const toolbar = reactive<ToolbarSnapshot>(toolbarController.getState());
 const grep = reactive<GrepSnapshot>(grepController.getState());
+const fields = reactive<FieldSnapshot>(fieldController.getState());
+const workspace = reactive<WorkspaceSnapshot>(workspaceController.getState());
+const context = reactive<ContextSnapshot>(contextController.getState());
+const realtime = reactive<RealtimeSnapshot>(realtimeController.getState());
 const visibleGroups = computed(() => favoriteController.getVisibleGroups());
+const indexSetOptions = computed(() => indexSetController.getVisibleItems().map(item => ({ label: item.name, value: item.id })));
+const clusterGroups = computed(() => clusteringController.group(search.records, keyword.value));
+const graphBuckets = computed(() => graphController.bucket(search.records));
+const fieldsVisible = ref(false);
+const contextVisible = ref(false);
+const realtimeVisible = ref(false);
 const helpVisible = ref(false);
 const saveVisible = ref(false);
 const helpZIndex = ref(2500);
 const saveZIndex = ref(2510);
-const columns = [
+const fieldTitle: Record<string, string> = { id: 'ID', dtEventTimeStamp: '时间', log: '日志' };
+const originColumns = computed(() => [
+  ...fieldController.getVisibleFields().map(field => ({ colKey: field.name, title: fieldTitle[field.name] ?? field.name })),
+  { colKey: 'op', title: '操作', cell: 'op', width: 160 },
+]);
+const clusterColumns = [
+  { colKey: 'pattern', title: '模式' },
+  { colKey: 'count', title: '数量', width: 100 },
+  { colKey: 'sample', title: '样例' },
+];
+const graphColumns = [
+  { colKey: 'startTime', title: '时间桶' },
+  { colKey: 'count', title: '数量', width: 100 },
+];
+const contextColumns = [
   { colKey: 'id', title: 'ID', width: 80 },
-  { colKey: 'dtEventTimeStamp', title: '时间', width: 180 },
   { colKey: 'log', title: '日志' },
 ];
+const contextRows = computed(() => [
+  ...context.before,
+  ...dataset.filter(item => item.id === context.anchorId),
+  ...context.after,
+]);
 
 const syncSearch = (next: RetrieveSnapshot) => {
   Object.assign(search, next);
@@ -170,8 +266,52 @@ const submitSearch = async (intent?: SearchIntent) => {
     page,
     startTime: timeRange.startTime,
     endTime: timeRange.endTime,
+    indexSetId: workspace.indexSetId,
   }));
   refreshGrep();
+};
+
+const onTab = (tab: RetrieveTab) => {
+  Object.assign(workspace, workspaceController.setTab(tab));
+};
+
+const onChangeIndexSet = async (id: string) => {
+  const nextIndex = indexSetController.select(id);
+  if (nextIndex.uiState === 'error') {
+    return;
+  }
+  Object.assign(workspace, workspaceController.setIndexSet(id));
+  if (keyword.value.trim()) {
+    await submitSearch({ resetPage: true, timeRange: toolbar.timeRange });
+  }
+};
+
+const onToggleField = (name: string, visible: boolean) => {
+  Object.assign(fields, fieldController.toggle(name, visible));
+};
+
+const openContext = (id: string) => {
+  overlayManager.open({ id: 'retrieve-context', kind: 'drawer', group: 'retrieve-related' });
+  Object.assign(context, contextController.open(search.records, id, search.uiState === 'loading'));
+  contextVisible.value = true;
+};
+
+const closeContext = () => {
+  overlayManager.close('retrieve-context');
+  contextVisible.value = false;
+};
+
+const openRealtime = (row: LogRecord) => {
+  overlayManager.open({ id: 'retrieve-realtime', kind: 'drawer', group: 'retrieve-related' });
+  realtimeController.start();
+  Object.assign(realtime, realtimeController.append(row));
+  realtimeVisible.value = true;
+};
+
+const stopRealtime = () => {
+  Object.assign(realtime, realtimeController.stop());
+  overlayManager.close('retrieve-realtime');
+  realtimeVisible.value = false;
 };
 
 const onSearch = async () => {
@@ -255,7 +395,7 @@ const onSaveFavorite = () => {
     name: saveName.value,
     keyword: keyword.value,
     groupId: 'private',
-    indexSetId: 'index-a',
+    indexSetId: workspace.indexSetId,
   });
   syncFavorite(next);
   if (next.uiState !== 'error') {
@@ -274,6 +414,13 @@ const onEscape = (event: KeyboardEvent) => {
   if (closed?.id === 'retrieve-save-favorite') {
     saveVisible.value = false;
   }
+  if (closed?.id === 'retrieve-context') {
+    contextVisible.value = false;
+  }
+  if (closed?.id === 'retrieve-realtime') {
+    realtimeVisible.value = false;
+    realtimeController.stop();
+  }
 };
 
 onMounted(() => {
@@ -286,5 +433,8 @@ onBeforeUnmount(() => {
   toolbarController.dispose();
   overlayManager.close('retrieve-help');
   overlayManager.close('retrieve-save-favorite');
+  overlayManager.close('retrieve-context');
+  overlayManager.close('retrieve-realtime');
+  realtimeController.stop();
 });
 </script>

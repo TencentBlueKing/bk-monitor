@@ -1,0 +1,13 @@
+{
+  "id": "state.retrieve-workspace",
+  "owner": "WorkspaceController",
+  "readers": ["RetrievePage"],
+  "writers": ["WorkspaceController"],
+  "initial": "idle",
+  "cleanup": "none",
+  "concurrency": "single writer",
+  "transitions": [
+    { "from": "idle", "event": "SWITCH_TAB", "to": "idle" },
+    { "from": "idle", "event": "EMPTY_INDEX", "to": "error" }
+  ]
+}

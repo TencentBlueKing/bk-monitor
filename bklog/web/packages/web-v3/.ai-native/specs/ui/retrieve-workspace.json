@@ -1,0 +1,9 @@
+{
+  "id": "ui.retrieve-workspace",
+  "component": "RetrievePage",
+  "states": ["idle", "error"],
+  "transitions": [
+    { "from": "idle", "event": "SWITCH_TAB", "to": "idle" },
+    { "from": "idle", "event": "EMPTY_INDEX", "to": "error" }
+  ]
+}

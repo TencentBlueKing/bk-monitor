@@ -1,0 +1,10 @@
+{
+  "id": "action.switch-retrieve-tab",
+  "title": "切换检索页签",
+  "inputs": ["tab"],
+  "preconditions": ["tab is one of origin clustering grep graph"],
+  "permission": "retrieve.search",
+  "idempotent": true,
+  "sideEffects": ["update workspace tab"],
+  "failure": "unknown tab sets error"
+}

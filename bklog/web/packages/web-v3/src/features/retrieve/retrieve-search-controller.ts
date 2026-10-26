@@ -38,6 +38,7 @@ export interface SearchRequest {
   page?: number;
   startTime?: number;
   endTime?: number;
+  indexSetId?: string;
 }
 
 export interface SearchResponse {
@@ -46,7 +47,7 @@ export interface SearchResponse {
 }
 
 export type SearchFetcher = (
-  request: { keyword: string; page: number; startTime?: number; endTime?: number; signal: AbortSignal },
+  request: { keyword: string; page: number; startTime?: number; endTime?: number; indexSetId?: string; signal: AbortSignal },
 ) => Promise<SearchResponse>;
 
 export interface RetrieveSnapshot {
@@ -55,6 +56,7 @@ export interface RetrieveSnapshot {
   page: number;
   startTime?: number;
   endTime?: number;
+  indexSetId?: string;
   records: LogRecord[];
   total: number;
   error: string;
@@ -97,7 +99,8 @@ export class RetrieveSearchController {
 
     const keywordChanged = keyword !== this.snapshot.keyword;
     const timeChanged = input.startTime !== this.snapshot.startTime || input.endTime !== this.snapshot.endTime;
-    const page = keywordChanged || timeChanged ? 1 : Math.max(1, Number(input.page) || this.snapshot.page || 1);
+    const indexChanged = input.indexSetId != null && input.indexSetId !== this.snapshot.indexSetId;
+    const page = keywordChanged || timeChanged || indexChanged ? 1 : Math.max(1, Number(input.page) || this.snapshot.page || 1);
     const requestId = this.snapshot.requestId + 1;
 
     this.abortController?.abort();
@@ -111,6 +114,7 @@ export class RetrieveSearchController {
       page,
       startTime: input.startTime,
       endTime: input.endTime,
+      indexSetId: input.indexSetId ?? this.snapshot.indexSetId,
       error: '',
       requestId,
     };
@@ -121,6 +125,7 @@ export class RetrieveSearchController {
         page,
         startTime: input.startTime,
         endTime: input.endTime,
+        indexSetId: input.indexSetId ?? this.snapshot.indexSetId,
         signal: abortController.signal,
       });
       if (requestId !== this.snapshot.requestId) {
@@ -154,11 +159,14 @@ export class RetrieveSearchController {
 }
 
 export function createLocalSearchFetcher(dataset: LogRecord[]): SearchFetcher {
-  return async ({ keyword, page, startTime, endTime, signal }) => {
+  return async ({ keyword, page, startTime, endTime, indexSetId, signal }) => {
     if (signal.aborted) {
       throw new DOMException('Aborted', 'AbortError');
     }
     const matched = dataset.filter(item => {
+      if (indexSetId && item.indexSetId && item.indexSetId !== indexSetId) {
+        return false;
+      }
       if (!item.log.includes(keyword)) {
         return false;
       }

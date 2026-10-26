@@ -1,0 +1,8 @@
+{
+  "id": "ui.retrieve-graph",
+  "component": "RetrievePage",
+  "states": ["idle"],
+  "transitions": [
+    { "from": "idle", "event": "BUCKET", "to": "idle" }
+  ]
+}
