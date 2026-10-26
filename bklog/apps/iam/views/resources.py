@@ -130,8 +130,10 @@ class CollectionResourceProvider(BaseResourceProvider):
         except CollectorConfig.DoesNotExist:
             return {}
         return {
-            "id": str(instance_id), "name": item.collector_config_name,
-            "bk_biz_id": str(item.bk_biz_id), "_bk_iam_path_": f"/space,{item.bk_biz_id}/",
+            "id": str(instance_id),
+            "name": item.collector_config_name,
+            "bk_biz_id": str(item.bk_biz_id),
+            "_bk_iam_path_": f"/space,{item.bk_biz_id}/",
         }
 
     def get_bk_tenant_objects(self, queryset: QuerySet, bk_tenant_id: str):
@@ -280,12 +282,17 @@ class EsSourceResourceProvider(BaseResourceProvider):
                 return {}
             config = result[0]["cluster_config"]
             name = config.get("display_name") or config["cluster_name"]
-            biz_id = config["custom_option"].get("bk_biz_id", 0)
+            if config.get("registered_system") == REGISTERED_SYSTEM_DEFAULT:
+                biz_id = settings.BLUEKING_BK_BIZ_ID
+            else:
+                biz_id = config["custom_option"].get("bk_biz_id", 0)
         except Exception:
             return {}
         return {
-            "id": str(instance_id), "name": name,
-            "bk_biz_id": str(biz_id), "_bk_iam_path_": f"/space,{biz_id}/",
+            "id": str(instance_id),
+            "name": name,
+            "bk_biz_id": str(biz_id),
+            "_bk_iam_path_": f"/space,{biz_id}/",
         }
 
     @classmethod
@@ -483,8 +490,10 @@ class IndicesResourceProvider(BaseResourceProvider):
             return {}
         biz_id = str(space_uid_to_bk_biz_id(item.space_uid))
         return {
-            "id": str(instance_id), "name": item.index_set_name,
-            "bk_biz_id": biz_id, "_bk_iam_path_": f"/space,{biz_id}/",
+            "id": str(instance_id),
+            "name": item.index_set_name,
+            "bk_biz_id": biz_id,
+            "_bk_iam_path_": f"/space,{biz_id}/",
         }
 
     class PathInDjangoQuerySetConverter(DjangoQuerySetConverter):
