@@ -1,4 +1,5 @@
 import asyncio
+import inspect
 import logging
 import os
 import time
@@ -128,6 +129,23 @@ def kill_browser():
         launcher._cleanup_tmp_user_data_dir()
     except Exception as e:
         logger.exception(f"kill browser failed, error: {e}")
+
+    connection = getattr(launcher, "connection", None)
+    if not connection:
+        return
+    # pyppeteer 1.0.2 不持有 Connection 起的后台任务，WebSocket 未建连时 _async_send 会一直 sleep(0) 空转，只能按绑定实例找出来取消
+    loop = connection._loop
+    recv = connection._recv_fut
+    if recv.done() and not recv.cancelled() and recv.exception():
+        logger.warning(f"browser connection failed, error: {recv.exception()!r}")
+    tasks = [t for t in asyncio.all_tasks(loop) if inspect.getcoroutinelocals(t.get_coro()).get("self") is connection]
+    try:
+        for task in tasks:
+            task.cancel()
+        if tasks and not loop.is_running():
+            loop.run_until_complete(asyncio.wait(tasks, timeout=5))
+    except Exception as e:
+        logger.exception(f"cancel browser connection tasks failed, error: {e}")
 
 
 def get_or_create_eventloop() -> asyncio.AbstractEventLoop:
