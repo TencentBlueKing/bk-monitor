@@ -35,7 +35,7 @@ from apps.log_databus.constants import (
     TargetNodeTypeEnum,
     WorkLoadType,
 )
-from apps.log_databus.exceptions import CollectorConfigNameDuplicateException, CollectorConfigNotExistException
+from apps.log_databus.exceptions import CollectorConfigNotExistException
 from apps.log_databus.handlers.collector import CollectorHandler
 from apps.log_databus.handlers.collector import HostCollectorHandler
 from apps.log_databus.handlers.collector import K8sCollectorHandler
@@ -43,7 +43,7 @@ from apps.log_databus.models import CollectorConfig, ContainerCollectorConfig, D
 from apps.log_search.models import Space
 from bkm_space.define import SpaceTypeEnum
 
-from ...log_databus.serializers import CollectorCreateSerializer
+from ...log_databus.serializers import CollectorCreateSerializer, CollectorUpdateSerializer
 from ...utils.drf import custom_params_valid
 from .test_collectorhandler import TestCollectorHandler, get_data_id
 
@@ -1603,8 +1603,8 @@ class TestCollectorDeleteAndStatus(TestCase):
     @patch("apps.api.NodeApi.delete_subscription")
     @patch("apps.api.NodeApi.run_subscription_task", return_value={"task_id": 1})
     @patch("apps.api.NodeApi.switch_subscription")
-    def test_destroy_bounds_name_before_upstream_deletion(self, switch, run, delete, modify, audit):
-        names = ["a" * 42, "codex-bklog-20261021-141406-mlir-segment-r1", "b" * 64, "中文" * 32]
+    def test_destroy_preserves_full_name_and_suffix(self, switch, run, delete, modify, audit):
+        names = ["a" * 42, "codex-bklog-20261021-141406-mlir-segment-r1", "a" * 50, "中文" * 25, "a" * 64]
         deletion_time = datetime.datetime(2026, 10, 26, 12, 34, 56)
         for name in names:
             with self.subTest(name=name):
@@ -1615,8 +1615,12 @@ class TestCollectorDeleteAndStatus(TestCase):
 
                 deleted = CollectorConfig.origin_objects.get(pk=collector.pk)
                 self.assertTrue(deleted.is_deleted)
-                self.assertEqual(deleted.collector_config_name, name[:42] + "_delete_20261026123456")
-                self.assertEqual(len(deleted.collector_config_name), 64)
+                self.assertEqual(deleted.collector_config_name, name + "_delete_20261026123456")
+                self.assertEqual(len(deleted.collector_config_name), len(name) + 22)
+                self.assertLessEqual(
+                    len(deleted.collector_config_name),
+                    CollectorConfig._meta.get_field("collector_config_name").max_length,
+                )
                 modify.assert_called_with(
                     {
                         "data_id": 123,
@@ -1627,20 +1631,21 @@ class TestCollectorDeleteAndStatus(TestCase):
                 )
         self.assertEqual(delete.call_count, len(names))
 
-    @patch("apps.log_databus.handlers.collector.base.datetime")
-    @patch.object(HostCollectorHandler, "stop")
-    @patch("apps.api.NodeApi.delete_subscription")
-    def test_colliding_deleted_name_is_rejected_before_upstream_calls(self, delete, stop, clock):
-        clock.datetime.now.return_value = datetime.datetime(2026, 10, 26, 12, 34, 56)
-        self.create_collector("a" * 42 + "_delete_20261026123456", is_deleted=True)
-        collector = self.create_collector("a" * 43, subscription_id=8)
-        with self.assertRaises(CollectorConfigNameDuplicateException):
-            HostCollectorHandler(collector.pk).destroy()
-        stop.assert_not_called()
-        delete.assert_not_called()
-        collector.refresh_from_db()
-        self.assertFalse(collector.is_deleted)
-        self.assertEqual(collector.subscription_id, 8)
+    def test_create_and_update_keep_api_name_limit(self):
+        for serializer_class in (CollectorCreateSerializer, CollectorUpdateSerializer):
+            for length in (50, 51):
+                with self.subTest(serializer=serializer_class.__name__, length=length):
+                    data = copy.deepcopy(PARAMS)
+                    data["collector_config_name"] = "采" * length
+                    serializer = serializer_class(data=data)
+                    if length == 50:
+                        self.assertTrue(serializer.is_valid(), serializer.errors)
+                        self.assertEqual(
+                            serializer.validated_data["collector_config_name"], data["collector_config_name"]
+                        )
+                    else:
+                        self.assertFalse(serializer.is_valid())
+                        self.assertEqual(serializer.errors["collector_config_name"][0].code, "max_length")
 
     @patch("apps.api.NodeApi.subscription_statistic")
     def test_batch_isolates_errors_and_preserves_running_stop(self, statistic):

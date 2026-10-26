@@ -692,18 +692,9 @@ class CollectorHandler:
         :return: task_id
         """
         # 1. 重新命名采集项名称
-        delete_suffix = "_delete_" + datetime.datetime.now().strftime("%Y%m%d%H%M%S")
-        max_length = CollectorConfig._meta.get_field("collector_config_name").max_length
-        collector_config_name = self.data.collector_config_name[: max_length - len(delete_suffix)] + delete_suffix
-        # 截断后的名称可能重名，必须在删除上游订阅前检查。
-        if (
-            CollectorConfig.origin_objects.filter(
-                bk_biz_id=self.data.bk_biz_id, collector_config_name=collector_config_name
-            )
-            .exclude(pk=self.data.pk)
-            .exists()
-        ):
-            raise CollectorConfigNameDuplicateException()
+        collector_config_name = (
+            self.data.collector_config_name + "_delete_" + datetime.datetime.now().strftime("%Y%m%d%H%M%S")
+        )
 
         # 2. 停止采集（删除配置文件）
         self.stop()

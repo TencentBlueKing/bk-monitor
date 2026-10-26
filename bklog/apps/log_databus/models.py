@@ -126,7 +126,7 @@ class CollectorConfig(CollectorBase):
     """
 
     collector_config_id = models.AutoField(_("采集配置ID"), primary_key=True)
-    collector_config_name = models.CharField(_("采集配置名称"), max_length=64)
+    collector_config_name = models.CharField(_("采集配置名称"), max_length=128)
     collector_plugin_id = models.BigIntegerField(_("采集插件ID"), db_index=True, null=True)
     bk_app_code = models.CharField(_("接入的来源APP"), max_length=64, default="bk_log_search")
     collector_scenario_id = models.CharField(_("采集场景"), max_length=64)
