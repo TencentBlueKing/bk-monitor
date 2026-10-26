@@ -88,15 +88,6 @@ export class RetrieveSearchController {
 
   async submit(input: SearchRequest): Promise<RetrieveSnapshot> {
     const keyword = String(input.keyword ?? '').trim();
-    if (!keyword) {
-      this.snapshot = {
-        ...this.snapshot,
-        uiState: 'error',
-        error: 'keyword is required',
-      };
-      return this.getState();
-    }
-
     const keywordChanged = keyword !== this.snapshot.keyword;
     const timeChanged = input.startTime !== this.snapshot.startTime || input.endTime !== this.snapshot.endTime;
     const indexChanged = input.indexSetId != null && input.indexSetId !== this.snapshot.indexSetId;

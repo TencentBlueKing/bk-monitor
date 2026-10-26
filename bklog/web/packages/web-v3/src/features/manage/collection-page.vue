@@ -23,7 +23,7 @@
 <template>
   <section class="collection-shell" data-ui="collection-root">
     <aside class="collection-left" data-ui="collection-left">
-      <header class="collection-left__title">采集分组</header>
+      <header class="collection-left__title">采集接入</header>
       <button
         type="button"
         :class="['collection-left__item', { 'is-active': scenario === 'all' }]"
@@ -42,16 +42,21 @@
       </button>
     </aside>
     <section class="collection-right" data-ui="collection-right">
-    <header class="retrieve-topbar">
-      <t-input v-model="filterQuery" placeholder="过滤名称或类型" style="width: 200px" @enter="onFilter" />
+    <header class="collection-toolbar">
+      <t-input v-model="filterQuery" placeholder="搜索采集名称" style="width: 220px" @enter="onFilter">
+        <template #prefix-icon><search-icon /></template>
+      </t-input>
       <t-select v-model="status" :options="statusOptions" style="width: 140px" @change="onStatus" />
-      <t-button theme="primary" @click="onFilter">过滤</t-button>
-      <t-button @click="openWizard">新建采集</t-button>
+      <t-button @click="onFilter">过滤</t-button>
+      <t-button class="collection-toolbar__grow" theme="primary" @click="openWizard">新建采集</t-button>
     </header>
     <t-alert v-if="state.uiState === 'error' && !state.wizardOpen" theme="error" :message="state.error" />
     <t-table row-key="id" :data="visible" :columns="columns">
       <template #status="{ row }">
-        <t-tag :theme="statusTheme(row.status)">{{ row.status }}</t-tag>
+        <t-tag :theme="statusTheme(row.status)">{{ statusLabel(row.status) }}</t-tag>
+      </template>
+      <template #scenario="{ row }">
+        {{ scenarioLabel(row.scenario) }}
       </template>
       <template #op="{ row }">
         <t-button v-if="row.status !== 'running'" variant="text" @click="onStart(row.id)">启动</t-button>
@@ -107,6 +112,7 @@
 </template>
 
 <script setup lang="ts">
+import { SearchIcon } from 'tdesign-icons-vue-next';
 import { computed, reactive, ref } from 'vue';
 
 import {
@@ -129,11 +135,24 @@ const scenarioOptions = [
 ];
 const statusOptions = [
   { label: '全部状态', value: 'all' },
-  { label: 'running', value: 'running' },
-  { label: 'stopped', value: 'stopped' },
-  { label: 'failed', value: 'failed' },
-  { label: 'pending', value: 'pending' },
+  { label: '运行中', value: 'running' },
+  { label: '已停用', value: 'stopped' },
+  { label: '失败', value: 'failed' },
+  { label: '等待', value: 'pending' },
 ];
+const statusText: Record<CollectStatus, string> = {
+  running: '运行中',
+  stopped: '已停用',
+  failed: '失败',
+  pending: '等待',
+};
+const scenarioText: Record<string, string> = {
+  linux: '主机日志',
+  winevent: 'Windows Event',
+  container_file: '容器文件',
+  container_stdout: '容器标准输出',
+  custom_report: '自定义上报',
+};
 const stepOptions = [
   { title: '分类', value: 'classify' },
   { title: '配置', value: 'config' },
@@ -142,7 +161,7 @@ const stepOptions = [
 ];
 const columns = [
   { colKey: 'name', title: '名称' },
-  { colKey: 'scenario', title: '类型', width: 140 },
+  { colKey: 'scenario', title: '类型', cell: 'scenario', width: 140 },
   { colKey: 'status', title: '状态', cell: 'status', width: 120 },
   { colKey: 'path', title: '路径' },
   { colKey: 'op', title: '操作', cell: 'op', width: 160 },
@@ -167,6 +186,8 @@ const prev = () => sync(controller.prevStep());
 const submit = () => sync(controller.submitWizard());
 const patch = (input: { name?: string; path?: string; cluster?: string }) => sync(controller.patchDraft(input));
 const onDraftScenario = (value: CollectorScenario) => sync(controller.patchDraft({ scenario: value }));
+const statusLabel = (value: CollectStatus) => statusText[value] ?? value;
+const scenarioLabel = (value: CollectorScenario) => scenarioText[value] ?? value;
 const statusTheme = (value: CollectStatus) => {
   if (value === 'failed') return 'danger';
   if (value === 'running') return 'warning';

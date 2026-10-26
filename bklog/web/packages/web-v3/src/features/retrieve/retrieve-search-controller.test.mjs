@@ -19,6 +19,14 @@ describe('RetrieveSearchController', () => {
     assert.ok(state.records.every(item => item.log.includes('error')));
   });
 
+  it('allows empty keyword and returns the full dataset', async () => {
+    const controller = new RetrieveSearchController(createLocalSearchFetcher(dataset));
+    const state = await controller.submit({ keyword: '' });
+    assert.equal(state.keyword, '');
+    assert.equal(state.uiState, 'success');
+    assert.equal(state.records.length, 3);
+  });
+
   it('AC-002 ignores stale responses', async () => {
     let releaseSlow;
     const slow = new Promise(resolve => {

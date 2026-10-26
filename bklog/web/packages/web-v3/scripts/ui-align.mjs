@@ -66,6 +66,16 @@ async function measureRetrieve(page) {
   if (field && result) {
     checks.push({ id: 'field-left-of-result', ok: field.x + field.width <= result.x + 2, detail: { field, result } });
   }
+  const toggleText = await page.$eval('[data-ui="favorite-toggle"]', el => (el.textContent || '').replace(/\s+/g, ''));
+  checks.push({ id: 'toggle-is-icon', ok: toggleText !== '藏' && toggleText.length === 0, detail: toggleText });
+  checks.push({
+    id: 'search-submit',
+    ok: Boolean(await page.$('.retrieve-searchbar__submit')),
+    detail: 'retrieve search button',
+  });
+  await page.waitForSelector('[data-ui="origin-table"] tbody tr', { timeout: 4000 }).catch(() => null);
+  const rowCount = await page.$$eval('[data-ui="origin-table"] tbody tr', rows => rows.length).catch(() => 0);
+  checks.push({ id: 'origin-has-rows', ok: rowCount > 0, detail: rowCount });
   return { favorite, topbar, searchbar, field, result, checks };
 }
 

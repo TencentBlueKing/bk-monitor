@@ -1,44 +1,125 @@
 {
-  "id": "plan.ui-align-v3",
-  "version": "0.1.0",
-  "principle": "按 v2 信息架构与关键尺寸优化落地 Vue3 + tdesign-vue-next，不做像素强制对齐，不拷 Vue2 文件，不碰 v1",
-  "source": "src/views/retrieve-v3 + src/views/manage-v2",
-  "target": "packages/web-v3",
-  "method": {
-    "v2": "AAFE_E2E_PORT=41001 npm run dev:e2e（需 local.settings.e2e.proxy.js）",
-    "capture": "playwright chromium headless",
-    "compare": "区域几何与层级，不把像素 diff 当门禁"
+  "id": "plan.ui-restore-v3",
+  "version": "0.2.0",
+  "principle": "把 v2 现网检索/采集页当作设计稿，在 Vue3 + tdesign-vue-next 内重写信息架构、组件组合与视觉 token。禁止拷贝 Vue2 SCSS/模板/文件，禁止像素强制对齐，禁止改 v1。",
+  "source": {
+    "design": "src/views/retrieve-v3 + src/views/retrieve-v2 + src/views/manage-v2",
+    "evidence": "用户附件企业微信截图（当前 v3 检索页骨架，不可用）"
   },
+  "target": "packages/web-v3",
+  "forbidden": [
+    "拷贝 src/views/retrieve-v2|v3|manage-v2 的 scss/vue",
+    "把像素 diff 当门禁",
+    "改 packages/web-v1、src/views/retrieve、src/views/manage"
+  ],
+  "method": {
+    "designRead": "读 v2 区域结构、关键尺寸、交互文案，抽 token 后在 theme.css 重写",
+    "implement": "TDesign 组件 + tdesign-icons-vue-next + v3 CSS 变量",
+    "v2Runtime": "AAFE_E2E_PORT=41001 npm run dev:e2e（需 local.settings.e2e.proxy.js）",
+    "capture": "playwright chromium headless npm run ui:align",
+    "compare": "区域几何 + 关键控件存在性（图标开关、检索按钮、结果行），不把像素 diff 当门禁"
+  },
+  "gapFromScreenshot": [
+    "顶栏收藏开关显示「藏」，不是 32x32 图标",
+    "检索条只有单行 Input，缺少 UI/SQL 模式区和独立检索按钮",
+    "字段栏是原始字段名复选框，没有别名/类型",
+    "结果区空表「提交关键字开始检索」，v2 空关键字会直接出日志",
+    "收藏栏白底 + 删除文字按钮，v2 是 #ebeef5 分组列表",
+    "全局头「日志平台」纯文字，缺少品牌色与选中态"
+  ],
   "tokens": {
     "brand": "#3A84FF",
+    "text": "#313238",
+    "textSecondary": "#63656E",
+    "textPlaceholder": "#979BA5",
     "pageBg": "#F5F7FA",
     "panelBg": "#FFFFFF",
+    "favoriteBg": "#EBEEF5",
+    "favoriteSearchBg": "#DDE1EB",
     "manageLeftBg": "#F3F6FA",
+    "indexSelectBg": "#F0F1F5",
+    "border": "#DCDEE5",
+    "searchBorder": "#C1CDE5",
     "favoriteWidth": 240,
-    "fieldWidth": 200,
+    "fieldWidth": 240,
     "collectionLeftWidth": 250,
+    "headerHeight": 52,
+    "subbarHeight": 52,
     "toggleSize": 32,
-    "gap": 8,
+    "searchMinHeight": 48,
+    "searchBtnWidth": 74,
     "fontSize": 12
   },
-  "layout": {
+  "regionMap": {
     "retrieve": [
-      "favorite 左栏可开关",
-      "顶栏：收藏开关 + 索引集 + 时间 + 刷新",
-      "检索条单独一行",
-      "字段栏在结果左侧",
-      "结果区：原始日志 / 聚类 / Grep / 图表"
+      { "id": "header", "v2": "全局顶栏：品牌 + 检索/管理入口", "v3": "app-header + TDesign 无，纯 CSS 导航" },
+      { "id": "favorite", "v2": "左栏 240 #ebeef5：搜索 + 个人/公共分组", "v3": "retrieve-favorite-panel + t-input/t-checkbox" },
+      { "id": "topbar", "v2": "52px：32 图标开关 + 索引集灰底选择 + 右侧时间/刷新", "v3": "retrieve-toolbar + t-select/t-switch + icons" },
+      { "id": "searchbar", "v2": "模式区 82 + 输入 min 48 + 检索 74", "v3": "retrieve-searchbar 自绘盒子 + t-input + t-button" },
+      { "id": "field", "v2": "结果左栏显示字段：勾选 + 类型 + 别名", "v3": "retrieve-field-panel + t-checkbox + t-tag" },
+      { "id": "result", "v2": "Tab 原始/聚类/图表/Grep + 时间/日志表，空查询出数", "v3": "t-tabs + t-table，空关键字检索全量" }
     ],
     "collection": [
-      "左侧类型/分组 250px",
-      "右侧表格 + 操作"
+      { "id": "left", "v2": "左 250 #f3f6fa 分组", "v3": "collection-left 自绘列表" },
+      { "id": "right", "v2": "过滤 + 新建 + 状态表", "v3": "t-input/t-select/t-table + 中文状态" }
     ]
   },
   "waves": [
-    { "id": "U0", "title": "对齐计划与 Playwright 捕获", "status": "landed" },
-    { "id": "U1", "title": "检索工作台 + 采集列表布局对齐", "status": "landed" },
-    { "id": "U2", "title": "检索结果表 / 聚类 / Grep 细节", "status": "planned" },
-    { "id": "U3", "title": "其余管理页左树右表", "status": "planned" },
-    { "id": "U4", "title": "对照 v2 e2e 截图回归", "status": "planned" }
+    {
+      "id": "R0",
+      "title": "详细还原计划与门禁",
+      "status": "landed",
+      "steps": [
+        "对照附件截图列出不可用点",
+        "从 v2 抽 token / 区域，写入本计划",
+        "Playwright 增加控件存在性，不只量几何"
+      ]
+    },
+    {
+      "id": "R1",
+      "title": "检索工作台按设计稿还原（本轮）",
+      "status": "landed",
+      "steps": [
+        "顶栏：Folder 图标 32x32，索引集灰底，时间/刷新/收藏/说明靠右",
+        "检索条：UI/SQL 模式 + 独立检索按钮，空关键字出结果",
+        "收藏栏：#ebeef5、搜索底、分组、删除图标",
+        "字段栏：类型标签 + 中文别名",
+        "结果：进入即检索，时间格式化，日志折行，共 N 条"
+      ]
+    },
+    {
+      "id": "R2",
+      "title": "结果表 / 聚类 / Grep / 图表细节",
+      "status": "planned",
+      "steps": [
+        "原始日志行展开与上下文/实时入口收敛",
+        "聚类表样例与数量列密度",
+        "Grep 输入条贴合检索条视觉",
+        "图表空态与时间桶"
+      ]
+    },
+    {
+      "id": "R3",
+      "title": "采集列表按设计稿还原",
+      "status": "landed",
+      "steps": [
+        "左栏分组选中/悬停",
+        "右栏搜索 + 状态 + 新建采集主按钮",
+        "状态中文标签"
+      ]
+    },
+    {
+      "id": "R4",
+      "title": "其余管理页左树右表",
+      "status": "planned",
+      "steps": ["清洗/提取/归档/ES 等 ResourceList 套同一壳"]
+    },
+    {
+      "id": "R5",
+      "title": "对照真实 v2 e2e 截图回归",
+      "status": "blocked",
+      "blockReason": "缺少 gitignored local.settings.e2e.proxy.js",
+      "steps": ["有代理后启动 v2 e2e，对照区域，不记像素通过"]
+    }
   ]
 }

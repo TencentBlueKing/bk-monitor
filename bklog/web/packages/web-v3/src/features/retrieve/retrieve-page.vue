@@ -55,24 +55,36 @@
           <t-tabs :value="workspace.tab" @change="onTab">
             <t-tab-panel value="origin" label="原始日志" />
             <t-tab-panel value="clustering" label="日志聚类" />
-            <t-tab-panel value="grep" label="Grep" />
             <t-tab-panel value="graph" label="图表分析" />
+            <t-tab-panel value="grep" label="Grep 模式" />
           </t-tabs>
+          <div v-if="workspace.tab === 'origin'" class="retrieve-result__meta">
+            共 {{ search.total }} 条
+          </div>
           <t-loading :loading="search.uiState === 'loading'">
             <template v-if="workspace.tab === 'origin'">
               <t-empty v-if="search.uiState === 'empty'" description="没有匹配的日志" />
+              <div v-else data-ui="origin-table">
               <t-table
-                v-else
+                class="retrieve-origin-table"
                 row-key="id"
+                size="small"
                 :data="search.records"
                 :columns="originColumns"
-                :empty="search.uiState === 'idle' ? '提交关键字开始检索' : '暂无数据'"
+                :empty="search.uiState === 'idle' ? '正在加载日志' : '暂无数据'"
               >
+                <template #dtEventTimeStamp="{ row }">
+                  {{ formatTime(row.dtEventTimeStamp) }}
+                </template>
+                <template #log="{ row }">
+                  <pre class="retrieve-log-cell">{{ row.log }}</pre>
+                </template>
                 <template #op="{ row }">
                   <t-button variant="text" @click="openContext(row.id)">上下文</t-button>
                   <t-button variant="text" @click="openRealtime(row)">实时</t-button>
                 </template>
               </t-table>
+              </div>
             </template>
             <t-table
               v-else-if="workspace.tab === 'clustering'"
@@ -210,9 +222,20 @@ const helpZIndex = ref(2500);
 const saveZIndex = ref(2510);
 const fieldTitle: Record<string, string> = { id: 'ID', dtEventTimeStamp: '时间', log: '日志' };
 const originColumns = computed(() => [
-  ...fieldController.getVisibleFields().map(field => ({ colKey: field.name, title: fieldTitle[field.name] ?? field.name })),
-  { colKey: 'op', title: '操作', cell: 'op', width: 160 },
+  ...fieldController.getVisibleFields().map(field => ({
+    colKey: field.name,
+    title: fieldTitle[field.name] ?? field.name,
+    ...(field.name === 'dtEventTimeStamp' || field.name === 'log' ? { cell: field.name } : {}),
+    width: field.name === 'id' ? 80 : field.name === 'dtEventTimeStamp' ? 168 : undefined,
+  })),
+  { colKey: 'op', title: '操作', cell: 'op', width: 140 },
 ]);
+
+const formatTime = (value: number) => {
+  const date = new Date(value);
+  const pad = (item: number) => String(item).padStart(2, '0');
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())} ${pad(date.getHours())}:${pad(date.getMinutes())}:${pad(date.getSeconds())}`;
+};
 const clusterColumns = [
   { colKey: 'pattern', title: '模式' },
   { colKey: 'count', title: '数量', width: 100 },
@@ -275,9 +298,7 @@ const onChangeIndexSet = async (id: string) => {
     return;
   }
   Object.assign(workspace, workspaceController.setIndexSet(id));
-  if (keyword.value.trim()) {
-    await submitSearch({ resetPage: true, timeRange: toolbar.timeRange });
-  }
+  await submitSearch({ resetPage: true, timeRange: toolbar.timeRange });
 };
 
 const onToggleField = (name: string, visible: boolean) => {
@@ -319,9 +340,7 @@ const onToggleFavorite = () => {
 const onChangeTime = async (preset: TimePreset) => {
   const { state, intent } = toolbarController.setTimePreset(preset);
   syncToolbar(state);
-  if (keyword.value.trim()) {
-    await submitSearch(intent);
-  }
+  await submitSearch(intent);
 };
 
 const onAutoRefresh = (enabled: boolean) => {
@@ -419,6 +438,7 @@ const onEscape = (event: KeyboardEvent) => {
 
 onMounted(() => {
   window.addEventListener('keydown', onEscape);
+  void submitSearch({ resetPage: true, timeRange: toolbar.timeRange });
 });
 
 onBeforeUnmount(() => {

@@ -7,7 +7,7 @@
   蓝鲸智云PaaS平台 (BlueKing PaaS) is licensed under the MIT License.
 
   License for 蓝鲸智云PaaS平台 (BlueKing PaaS):
-  ---------------------------------------------------
+    ---------------------------------------------------
   Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated
   documentation files (the "Software"), to deal in the Software without restriction, including without limitation
   the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and
@@ -26,7 +26,9 @@
     <t-alert v-if="state.uiState === 'error'" theme="error" :message="state.error" />
     <label v-for="field in state.fields" :key="field.name" class="retrieve-field-item">
       <t-checkbox :checked="field.visible" @change="value => emit('toggle', field.name, Boolean(value))" />
-      <span>{{ field.name }}</span>
+      <t-tag size="small" :theme="typeTheme(field.name)" variant="light">{{ typeLabel(field.name, field.type) }}</t-tag>
+      <span class="retrieve-field-item__alias">{{ aliasOf(field.name) }}</span>
+      <small class="retrieve-field-item__name">{{ field.name }}</small>
     </label>
   </aside>
 </template>
@@ -41,4 +43,21 @@ defineProps<{
 defineEmits<{
   toggle: [name: string, visible: boolean];
 }>();
+
+const FIELD_META: Record<string, { alias: string; type: string }> = {
+  id: { alias: 'ID', type: 'keyword' },
+  dtEventTimeStamp: { alias: '时间', type: 'date' },
+  log: { alias: '日志', type: 'text' },
+};
+
+const aliasOf = (name: string) => FIELD_META[name]?.alias ?? name;
+
+const typeLabel = (name: string, fallback: string) => FIELD_META[name]?.type ?? fallback;
+
+const typeTheme = (name: string) => {
+  const type = FIELD_META[name]?.type;
+  if (type === 'date') return 'warning';
+  if (type === 'text') return 'success';
+  return 'primary';
+};
 </script>

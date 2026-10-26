@@ -7,7 +7,7 @@
   蓝鲸智云PaaS平台 (BlueKing PaaS) is licensed under the MIT License.
 
   License for 蓝鲸智云PaaS平台 (BlueKing PaaS):
-  ---------------------------------------------------
+    ---------------------------------------------------
   Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated
   documentation files (the "Software"), to deal in the Software without restriction, including without limitation
   the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and
@@ -23,7 +23,10 @@
 <template>
   <section class="app-shell">
     <header class="app-header" data-ui="app-header">
-      <strong class="app-header__brand">日志平台</strong>
+      <router-link to="/retrieve" class="app-header__brand">
+        <span class="app-header__logo" aria-hidden="true" />
+        日志平台
+      </router-link>
       <nav class="app-header__nav">
         <router-link
           v-for="item in primaryNav"
