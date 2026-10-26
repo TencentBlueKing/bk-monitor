@@ -112,9 +112,10 @@ export default defineComponent({
       if (element && !h.error.value && element.scrollHeight - element.scrollTop - element.clientHeight < 80)
         h.loadMore();
     }
+    // 自动补页只在本页有进展时继续，避免重复页空转；用户滚动与「加载更多」不受此限制
     watch([h.loading, h.hasMore], async () => {
       await nextTick();
-      loadVisiblePage();
+      if (h.canAutoFill.value) loadVisiblePage();
     });
     watch([h.loading, c.loading, c.busy], () => emit('busy', h.loading.value || c.loading.value || c.busy.value), {
       immediate: true,

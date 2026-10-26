@@ -55,6 +55,8 @@ export function useCollectionHistory({
   const loading = shallowRef(false);
   const error = shallowRef('');
   const hasMore = shallowRef(false);
+  // 自动补页是否继续：某页没有带来新行时暂停，避免后端重复返回同一页时空转
+  const canAutoFill = shallowRef(true);
   const candidateState = useCollectionCandidates(bizId, range);
   let controller: AbortController;
   let offset = 0;
@@ -89,8 +91,9 @@ export function useCollectionHistory({
       });
       rows.value = [...rows.value, ...added];
       offset += result.data.length;
-      // 整页都是已加载过的执行时不再自动补页，否则行数不增长会让滚动加载空转
-      hasMore.value = result.data.length === 20 && added.length > 0;
+      // 是否还有更多仍按分页语义判断；「本页没有新增行」不等于「没有更多数据」，只用来暂停自动补页
+      hasMore.value = result.data.length === 20;
+      canAutoFill.value = added.length > 0;
     } catch (e) {
       if (!current.signal.aborted) error.value = (e as Error)?.message || t('采集历史加载失败，请重试');
     } finally {
@@ -104,6 +107,7 @@ export function useCollectionHistory({
     rows.value = [];
     offset = 0;
     hasMore.value = false;
+    canAutoFill.value = true;
     error.value = '';
     // 每次重新查询都刷新时间边界；翻页沿用这里定下的范围
     pageRange = currentRange();
@@ -123,6 +127,7 @@ export function useCollectionHistory({
     loading,
     error,
     hasMore,
+    canAutoFill,
     ...candidateState,
     refresh,
     loadMore,
