@@ -38,7 +38,7 @@ const SPEC_KIND_DIR = {
   state: 'state',
   ui: 'ui',
   action: 'actions',
-  test: 'tests',
+  test: 'test-cases',
 };
 
 function readJson(path) {
