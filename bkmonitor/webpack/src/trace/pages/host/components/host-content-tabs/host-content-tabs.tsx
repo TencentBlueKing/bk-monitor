@@ -42,6 +42,7 @@ import { isHostNode } from '../../utils/topo-tree';
 import HostList from '../host-list/host-list';
 import HostLoading from '../host-loading/host-loading';
 import HostMetric from '../host-metric/host-metric';
+import HostObservePanel from '../host-observe-panel/host-observe-panel';
 import HostProcess from '../host-process/host-process';
 
 import type { IHostListRow, IHostTopoHostNode, IHostTopoTreeNode } from '../../types';
@@ -121,6 +122,8 @@ export default defineComponent({
     watch(
       [() => props.selectedNode, perspective, hostActiveTab, () => route.query.activeTab],
       () => {
+        // 单台主机页签由 HostObservePanel 写 store，这里再按地址回写会把刚点的页签盖回去。
+        if (perspective.value === 'host') return;
         const nextActiveTab = resolveRequestedTab();
         activeTab.value = nextActiveTab;
         if (hostActiveTab.value !== nextActiveTab) {
@@ -223,63 +226,77 @@ export default defineComponent({
       }
     };
 
-    return () => (
-      <div class='host-content-tabs'>
-        <div
-          class='host-content-tabs__tabs'
-          aria-label={t('主机观测视图')}
-          role='tablist'
-        >
-          {tabList.value.map((tab, index) => {
-            const isActive = activeTab.value === tab.value;
-            return (
-              <button
-                id={`host-content-tab-${tab.value}`}
-                key={tab.value}
-                class={['host-content-tabs__tab', { 'is-active': isActive }]}
-                aria-controls='host-content-panel'
-                aria-selected={isActive}
-                role='tab'
-                tabindex={isActive ? 0 : -1}
-                type='button'
-                onClick={() => handleTabChange(tab.value)}
-                onKeydown={(event: KeyboardEvent) => handleTabKeydown(event, index)}
-              >
-                <i class={['icon-monitor', tab.icon, 'host-content-tabs__tab-icon']} />
-                <span>{t(tab.label)}</span>
-              </button>
-            );
-          })}
-        </div>
-        <div
-          id='host-content-panel'
-          class={{
-            'is-host-list': activeTab.value === 'list',
-            'host-content-tabs__content': true,
-          }}
-          aria-labelledby={`host-content-tab-${activeTab.value}`}
-          role='tabpanel'
-        >
-          {hostMetadataPending.value && props.hostMetadataError && (
-            <div
-              class='host-content-tabs__host-status'
-              role='status'
-            >
-              {props.hostMetadataError ? t('主机信息加载失败') : t('主机信息加载中...')}
-              {props.hostMetadataError && (
-                <Button
-                  theme='primary'
-                  text
-                  onClick={() => emit('retryHostMetadata')}
+    return () => {
+      if (perspective.value === 'host') {
+        return (
+          <HostObservePanel
+            compareHostList={props.compareHostList}
+            hostMetadataError={props.hostMetadataError}
+            mode='inline'
+            selectedNode={props.selectedNode && isHostNode(props.selectedNode) ? props.selectedNode : null}
+            syncUrl
+            onRetryHostMetadata={() => emit('retryHostMetadata')}
+          />
+        );
+      }
+      return (
+        <div class='host-content-tabs'>
+          <div
+            class='host-content-tabs__tabs'
+            aria-label={t('主机观测视图')}
+            role='tablist'
+          >
+            {tabList.value.map((tab, index) => {
+              const isActive = activeTab.value === tab.value;
+              return (
+                <button
+                  id={`host-content-tab-${tab.value}`}
+                  key={tab.value}
+                  class={['host-content-tabs__tab', { 'is-active': isActive }]}
+                  aria-controls='host-content-panel'
+                  aria-selected={isActive}
+                  role='tab'
+                  tabindex={isActive ? 0 : -1}
+                  type='button'
+                  onClick={() => handleTabChange(tab.value)}
+                  onKeydown={(event: KeyboardEvent) => handleTabKeydown(event, index)}
                 >
-                  {t('重试')}
-                </Button>
-              )}
-            </div>
-          )}
-          {props.selectedNode && renderContent()}
+                  <i class={['icon-monitor', tab.icon, 'host-content-tabs__tab-icon']} />
+                  <span>{t(tab.label)}</span>
+                </button>
+              );
+            })}
+          </div>
+          <div
+            id='host-content-panel'
+            class={{
+              'is-host-list': activeTab.value === 'list',
+              'host-content-tabs__content': true,
+            }}
+            aria-labelledby={`host-content-tab-${activeTab.value}`}
+            role='tabpanel'
+          >
+            {hostMetadataPending.value && props.hostMetadataError && (
+              <div
+                class='host-content-tabs__host-status'
+                role='status'
+              >
+                {props.hostMetadataError ? t('主机信息加载失败') : t('主机信息加载中...')}
+                {props.hostMetadataError && (
+                  <Button
+                    theme='primary'
+                    text
+                    onClick={() => emit('retryHostMetadata')}
+                  >
+                    {t('重试')}
+                  </Button>
+                )}
+              </div>
+            )}
+            {props.selectedNode && renderContent()}
+          </div>
         </div>
-      </div>
-    );
+      );
+    };
   },
 });

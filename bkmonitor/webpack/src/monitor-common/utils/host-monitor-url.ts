@@ -154,6 +154,91 @@ export const buildSyncLegacyHostHash = (input: { id?: string; processName?: stri
   );
 };
 
+export type SingleHostMonitorTarget = {
+  /** 链接明确指定的页签；空字符串表示调用方自行决定默认页签。 */
+  activeTab: '' | 'process' | 'system';
+  bkBizId: string;
+  bkCloudId: string;
+  bkHostId: string;
+  hostProcessName: string;
+  ip: string;
+};
+
+const readUrlBizId = (url: string) => {
+  const hashIndex = url.indexOf('#');
+  const beforeHash = hashIndex === -1 ? url : url.slice(0, hashIndex);
+  const queryIndex = beforeHash.indexOf('?');
+  if (queryIndex === -1) return '';
+  return new URLSearchParams(beforeHash.slice(queryIndex + 1)).get('bizId') || '';
+};
+
+const readUrlHash = (url: string) => {
+  const hashIndex = url.indexOf('#');
+  if (hashIndex !== -1) return url.slice(hashIndex);
+  return url.startsWith('/') ? url : '';
+};
+
+const hostTabFromQuery = (
+  query: Record<string, string>,
+  hostProcessName: string
+): SingleHostMonitorTarget['activeTab'] => {
+  if (hostProcessName || query.activeTab === 'process') return 'process';
+  if (query.activeTab === 'system') return 'system';
+  return '';
+};
+
+/** 只接受能落到单台主机的新版路径。列表页和其它监控链接返回 null。 */
+const identityFromHostPath = (path: string, query: Record<string, string>) => {
+  const match = /^\/trace\/host(?:\/([^/?#]+))?\/?$/.exec(path);
+  if (!match) return null;
+  const rawId = match[1] ? decodeURIComponent(match[1]) : '';
+  if (isBkHostId(rawId)) return { bkHostId: rawId, ip: '', bkCloudId: '' };
+  const fromPath = rawId ? splitLegacyIpv4HostId(rawId) : null;
+  if (fromPath) return { bkHostId: '', ip: fromPath.ip, bkCloudId: fromPath.cloudId };
+  const fromQuery = splitLegacyIpv4HostId(query[LEGACY_IPV4_QUERY] || '');
+  if (fromQuery) return { bkHostId: '', ip: fromQuery.ip, bkCloudId: fromQuery.cloudId };
+  const nodeId = query.nodeId || '';
+  if (isBkHostId(nodeId)) return { bkHostId: nodeId, ip: '', bkCloudId: '' };
+  return null;
+};
+
+/**
+ * 从主机监控链接解析单台主机。
+ * 支持新版 `/trace/host/:id`、`legacyIpv4`，以及旧版 `/performance/detail`。
+ * 解析不到单台主机时返回 null，调用方保持原来的新开页。
+ */
+export const parseSingleHostMonitorUrl = (url: string): null | SingleHostMonitorTarget => {
+  const hash = readUrlHash(url);
+  if (!hash) return null;
+  const parsed = parseAppHash(hash);
+  let path = parsed.path;
+  let query = parsed.query;
+  if (path.startsWith('/performance')) {
+    const detail = /^\/performance\/detail(?:-new)?\/([^/?#]+)(?:\/([^/?#]+))?/.exec(path);
+    const planned = planLegacyHostRedirect({
+      path,
+      params: {
+        id: detail?.[1] ? decodeURIComponent(detail[1]) : '',
+        process: detail?.[2] ? decodeURIComponent(detail[2]) : '',
+      },
+      query,
+    });
+    path = planned.path;
+    query = planned.query;
+  } else if (!path.startsWith('/trace/host')) {
+    return null;
+  }
+  const identity = identityFromHostPath(path, query);
+  if (!identity) return null;
+  const hostProcessName = query.hostProcessName || '';
+  return {
+    ...identity,
+    activeTab: hostTabFromQuery(query, hostProcessName),
+    bkBizId: readUrlBizId(url),
+    hostProcessName,
+  };
+};
+
 export const parseAppHash = (hash: string) => {
   const value = hash.startsWith('#') ? hash.slice(1) : hash;
   const queryIndex = value.indexOf('?');
