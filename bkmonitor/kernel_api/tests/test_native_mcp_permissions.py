@@ -179,6 +179,140 @@ def log_args(**extra):
     return {"bk_biz_id": "2", "index_set_id": 123, "start_time": "1", "end_time": "2", **extra}
 
 
+@pytest.fixture
+def validated_log_resource(monkeypatch, io):
+    """Run the original Resource validation and MCP adapter without services."""
+    from django.db import models
+
+    from core.errors import Error
+    from kernel_api.serializers.mixins import TimeSpanValidationPassThroughSerializer
+
+    monkeypatch.setattr(settings, "MCP_MAX_TIME_SPAN_SECONDS", 86400, raising=False)
+    custom_exception = source_method(
+        "core/drf_resource/exceptions.py", "CustomException", Error=Error, _lazy=lambda text: text
+    )
+
+    class Resource:
+        many_request_data = False
+        validate_request_data = source_method(
+            "core/drf_resource/base.py",
+            "Resource.validate_request_data",
+            models=models,
+            logger=logging.getLogger(__name__),
+            CustomException=custom_exception,
+            format_serializer_errors=lambda serializer: serializer.errors,
+            _=lambda text: text,
+        )
+
+        def get_resource_name(self):
+            return type(self).__name__
+
+        def request(self, **args):
+            return self.perform_request(self.validate_request_data(args))
+
+    is_mcp = Mock(return_value=True)
+    mcp_resource = source_method(
+        "kernel_api/resource/mcp_response.py",
+        "MCPResource",
+        Resource=Resource,
+        is_mcp_request=is_mcp,
+        ValidationError=ValidationError,
+        models=models,
+    )
+    log_resource = source_method(
+        "kernel_api/resource/log_search.py",
+        "SearchLogResource",
+        Resource=mcp_resource,
+        TimeSpanValidationPassThroughSerializer=TimeSpanValidationPassThroughSerializer,
+        serializers=serializers,
+        SceneRouteConditionSerializer=source_method(
+            "kernel_api/resource/log_search.py", "SceneRouteConditionSerializer", serializers=serializers
+        ),
+    )
+    query = Mock(return_value={"list": [], "total": 0})
+    monkeypatch.setattr(log_resource, "perform_request", query)
+    io.dispatch.side_effect = lambda _name, args: log_resource().request(**args)
+    return NS(
+        resource=log_resource,
+        base=Resource,
+        query=query,
+        is_mcp=is_mcp,
+        custom_exception=custom_exception,
+    )
+
+
+@pytest.mark.parametrize("unified", [False, True])
+@pytest.mark.parametrize(
+    "start_time,end_time",
+    [
+        ("1800000000", "1800086401"),
+        ("1800000000000", "1800086401000"),
+        ("1800000000000000000", "1800086401000000000"),
+        ("invalid-timestamp", "1800086401"),
+    ],
+)
+def test_log_serializer_errors_return_400_with_details(
+    native_http, validated_log_resource, unified, start_time, end_time, caplog
+):
+    response, _ = native_http(
+        registry.get_tool_registry().get("search_logs"), log_args(start_time=start_time, end_time=end_time), unified
+    )
+    body = json.loads(response.content)
+    assert response.status_code == body["code"] == 400
+    assert body["result"] is False
+    assert body["message"] == "MCP request validation failed"
+    detail = body["data"]["time_span"]
+    if start_time == "invalid-timestamp":
+        assert "must be valid integers" in str(detail)
+    else:
+        assert "split into batch queries" in str(detail) and "86400 seconds" in str(detail)
+    validated_log_resource.query.assert_not_called()
+    fields = next(r for r in audit_records(caplog) if r["phase"] == "execution")
+    assert fields["decision"] == "aborted" and fields["error_type"] == "ValidationError"
+
+
+@pytest.mark.parametrize("unified", [False, True])
+def test_log_query_at_time_limit_still_succeeds(native_http, validated_log_resource, unified):
+    response, _ = native_http(
+        registry.get_tool_registry().get("search_logs"),
+        log_args(start_time="1800000000", end_time="1800086400"),
+        unified,
+    )
+    assert response.status_code == 200
+    validated_log_resource.query.assert_called_once()
+
+
+def test_mcp_preserves_all_serializer_field_errors(validated_log_resource):
+    with pytest.raises(ValidationError) as error:
+        validated_log_resource.resource().validate_request_data({"bk_biz_id": "invalid-business"})
+    assert set(error.value.detail) == {"bk_biz_id", "start_time", "end_time"}
+
+
+def test_non_mcp_keeps_original_resource_validation_exception(validated_log_resource):
+    validated_log_resource.is_mcp.return_value = False
+    with pytest.raises(validated_log_resource.custom_exception):
+        validated_log_resource.resource().validate_request_data(log_args(end_time="86402"))
+
+
+def test_mcp_does_not_reclassify_unrelated_custom_errors(validated_log_resource, monkeypatch):
+    error = validated_log_resource.custom_exception("private-execution-detail")
+
+    class Serializer(validated_log_resource.resource.RequestSerializer):
+        def validate(self, attrs):
+            raise error
+
+    monkeypatch.setattr(validated_log_resource.resource, "RequestSerializer", Serializer)
+    with pytest.raises(validated_log_resource.custom_exception) as caught:
+        validated_log_resource.resource().validate_request_data(log_args())
+    assert caught.value is error
+
+
+def test_mcp_resource_without_serializer_still_passes_through(validated_log_resource, monkeypatch):
+    monkeypatch.setattr(validated_log_resource.resource, "RequestSerializer", None)
+    args = log_args()
+    assert validated_log_resource.resource().validate_request_data(args) is args
+
+
 def test_catalog_defaults_and_opt_in_change_version(monkeypatch):
     native = registry.get_tool_registry()
     tool = native.get("search_logs")
