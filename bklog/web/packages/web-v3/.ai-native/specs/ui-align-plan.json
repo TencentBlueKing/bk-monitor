@@ -1,7 +1,7 @@
 {
   "id": "plan.ui-migrate-v3",
   "version": "0.6.0",
-  "status": "official-mock-v2-compare",
+  "status": "m0-m1-landed",
   "decision": "V2 用 bklog/web/src + .e2e-skills/assets/architecture-chema/mock（retrieve-16176 / manage-log-collection）本地 dev 抓图；必须产出 V2|V3 对照图。自测读 PNG，禁止盲测。",
   "alignTracks": {
     "componentAndCompiled": "读 v2 SFC/scss 抽 token，在 v3 theme.css 重写；vite build 后对照编译 CSS 选择器与计算值，禁止拷贝 Vue2 文件",
@@ -102,7 +102,7 @@
       "id": "M0",
       "title": "计划与判定（本轮）",
       "status": "landed",
-      "do": ["给出策略 A/B/C 与波次", "回填 TAPD", "不改界面"]
+      "do": ["token + compiled CSS 门禁", "官方 mock 对照基线", "不改采集/管理业务页"]
     },
     {
       "id": "M1",

@@ -28,6 +28,7 @@
       <t-checkbox :checked="field.visible" @change="value => emit('toggle', field.name, Boolean(value))" />
       <span class="retrieve-field-item__type" :data-type="typeLabel(field.name, field.type)">{{ typeChar(field.name, field.type) }}</span>
       <span class="retrieve-field-item__name">{{ field.name }}</span>
+      <span class="retrieve-field-item__alias">{{ fieldAlias(field.name) }}</span>
     </label>
   </aside>
 </template>
@@ -52,4 +53,6 @@ const FIELD_META: Record<string, { alias: string; type: string }> = {
 const typeLabel = (name: string, fallback: string) => FIELD_META[name]?.type ?? fallback;
 
 const typeChar = (name: string, fallback: string) => typeLabel(name, fallback).charAt(0);
+
+const fieldAlias = (name: string) => FIELD_META[name]?.alias ?? name;
 </script>

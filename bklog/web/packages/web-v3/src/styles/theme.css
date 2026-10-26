@@ -59,6 +59,13 @@
   --bklog-search-btn-width: 74px;
   --bklog-page-padding: 8px;
   --bklog-shadow-subbar: 0 3px 4px 0 #4070cb0f;
+  --bklog-nav-bg: #182132;
+  --bklog-nav-active-bg: #0c1423;
+  --bklog-nav-text: #979ba5;
+  --bklog-nav-text-active: #fff;
+  --bklog-nav-logo: #96a2b9;
+  --bklog-nav-muted: #768197;
+  --bklog-search-submit-size: 32px;
 }
 
 html,
@@ -147,7 +154,7 @@ body,
 
 .retrieve-searchbar {
   display: flex;
-  gap: 12px;
+  gap: 8px;
   align-items: stretch;
   margin: 0 8px 8px;
   padding: 0 0 8px;
@@ -220,9 +227,25 @@ body,
 }
 
 .retrieve-searchbar__submit {
-  width: var(--bklog-search-btn-width);
-  min-width: var(--bklog-search-btn-width);
-  height: auto;
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  width: var(--bklog-search-submit-size);
+  min-width: var(--bklog-search-submit-size);
+  height: var(--bklog-search-submit-size);
+  margin: 8px 8px 8px 0;
+  padding: 0;
+  color: #fff;
+  font-size: 16px;
+  cursor: pointer;
+  background: var(--td-brand-color);
+  border: 0;
+  border-radius: 50%;
+}
+
+.retrieve-searchbar__submit:hover {
+  background: var(--td-brand-color-hover);
 }
 
 .retrieve-result {
@@ -243,8 +266,31 @@ body,
 }
 
 .retrieve-result__meta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
   padding: 0 4px 8px;
   color: var(--bklog-text-secondary);
+}
+
+.retrieve-result__tools {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  color: var(--bklog-text-secondary);
+}
+
+.retrieve-result__tools button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  color: inherit;
+  cursor: pointer;
+  background: transparent;
+  border: 0;
 }
 
 .retrieve-field-panel {
@@ -297,6 +343,10 @@ body,
   white-space: nowrap;
 }
 
+.retrieve-field-item__alias {
+  color: var(--bklog-text-placeholder);
+}
+
 .retrieve-log-cell {
   margin: 0;
   color: var(--bklog-text);
@@ -337,11 +387,14 @@ body,
 }
 
 .retrieve-favorite-panel {
+  box-sizing: border-box;
   display: flex;
+  flex-shrink: 0;
   flex-direction: column;
-  gap: 10px;
+  gap: 8px;
   width: var(--bklog-favorite-width);
-  padding: 10px 8px;
+  overflow: hidden;
+  padding: 8px;
   background: var(--bklog-favorite-bg);
 }
 
@@ -380,10 +433,23 @@ body,
 
 .retrieve-favorite-group__title {
   display: flex;
+  gap: 6px;
   align-items: center;
   justify-content: space-between;
   padding: 6px 4px;
   color: var(--bklog-text-secondary);
+}
+
+.retrieve-favorite-group__title i {
+  color: #979ba5;
+}
+
+.retrieve-favorite-group__name {
+  display: flex;
+  flex: 1;
+  gap: 4px;
+  align-items: center;
+  min-width: 0;
 }
 
 .retrieve-favorite-list {
@@ -427,54 +493,57 @@ body,
 .app-header {
   display: flex;
   flex-shrink: 0;
-  gap: 24px;
+  gap: 8px;
   align-items: center;
   height: var(--bklog-header-height);
   padding: 0 16px;
-  background: var(--bklog-panel-bg);
-  border-bottom: 1px solid var(--bklog-border-light);
+  color: var(--bklog-nav-text);
+  background: var(--bklog-nav-bg);
 }
 
 .app-header__brand {
   display: flex;
   gap: 8px;
   align-items: center;
-  color: var(--td-brand-color);
+  min-width: 148px;
+  color: var(--bklog-nav-logo);
   font-size: 16px;
+  font-weight: 700;
   text-decoration: none;
 }
 
 .app-header__logo {
-  width: 24px;
-  height: 24px;
+  width: 28px;
+  height: 28px;
   background: var(--td-brand-color);
   border-radius: 4px;
 }
 
 .app-header__nav {
   display: flex;
-  gap: 8px;
+  gap: 0;
   height: 100%;
 }
 
 .app-header__space {
   margin-left: auto;
-  color: var(--bklog-text-secondary);
+  color: var(--bklog-nav-muted);
 }
 
 .app-header__link {
   display: flex;
   align-items: center;
   height: 100%;
-  padding: 0 12px;
-  color: #4d4f56;
+  padding: 0 20px;
+  color: var(--bklog-nav-text);
+  font-size: 14px;
   text-decoration: none;
-  border-bottom: 2px solid transparent;
 }
 
+.app-header__link:hover,
 .app-header__link.router-link-active {
-  color: var(--td-brand-color);
-  border-bottom-color: var(--td-brand-color);
+  color: var(--bklog-nav-text-active);
+  background: var(--bklog-nav-active-bg);
 }
 
 .app-main {

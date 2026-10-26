@@ -32,13 +32,10 @@
         <i class="bklog-icon bklog-collapse" title="收起" />
       </span>
     </header>
-    <t-checkbox class="retrieve-favorite-panel__current" :checked="state.currentOnly" @change="onCurrentOnly">
-      仅查看当前索引集
-    </t-checkbox>
     <t-input
       class="retrieve-favorite-panel__search"
       :model-value="filterDraft"
-      placeholder="搜索收藏名称或关键字"
+      placeholder="搜索收藏"
       clearable
       @update:model-value="onFilterInput"
       @enter="onFilterEnter"
@@ -47,10 +44,16 @@
         <i class="bklog-icon bklog-sousuo-" />
       </template>
     </t-input>
+    <t-checkbox class="retrieve-favorite-panel__current" :checked="state.currentOnly" @change="onCurrentOnly">
+      仅当前索引集
+    </t-checkbox>
     <t-alert v-if="state.uiState === 'error'" theme="error" :message="state.error" />
     <section v-for="group in visibleGroups" :key="group.groupId" class="retrieve-favorite-group">
       <header class="retrieve-favorite-group__title">
-        {{ group.groupName }}
+        <span class="retrieve-favorite-group__name">
+          <i class="bklog-icon bklog-folder-fill" />
+          {{ group.groupName }}
+        </span>
         <span>{{ group.favorites.length }}</span>
       </header>
       <ul class="retrieve-favorite-list">

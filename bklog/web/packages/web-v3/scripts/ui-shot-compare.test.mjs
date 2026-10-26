@@ -49,9 +49,11 @@ describe('UI screenshot compare (forbidden to pass without shots)', () => {
   it('rendered colors from screenshots/report match v2 tokens', () => {
     const report = JSON.parse(readFileSync(reportPath, 'utf8'));
     const colorChecks = report.pages.flatMap(page => page.checks).filter(check => (
-      check.id === 'favorite-bg-from-render' || check.id === 'collection-left-bg-from-render'
+      check.id === 'favorite-bg-from-render'
+      || check.id === 'collection-left-bg-from-render'
+      || check.id === 'header-bg-from-render'
     ));
-    assert.ok(colorChecks.length >= 2, 'color checks must come from rendered pages');
+    assert.ok(colorChecks.length >= 3, 'color checks must come from rendered pages');
     for (const check of colorChecks) {
       assert.equal(check.ok, true, `${check.id} actual=${check.detail?.actual}`);
     }
@@ -79,5 +81,12 @@ describe('UI screenshot compare (forbidden to pass without shots)', () => {
   it('requires side-by-side v2/v3 effect screenshots', () => {
     assertPng(join(captureDir, 'compare-retrieve.png'), 'compare-retrieve.png', 20_000);
     assertPng(join(captureDir, 'compare-collection.png'), 'compare-collection.png', 20_000);
+  });
+
+  it('requires compiled CSS to keep v2 tokens and values', () => {
+    const compiledPath = join(captureDir, 'compiled-css.json');
+    assert.ok(existsSync(compiledPath), 'run npm run build && npm run ui:compiled first');
+    const compiled = JSON.parse(readFileSync(compiledPath, 'utf8'));
+    assert.equal(compiled.ok, true, JSON.stringify(compiled.checks));
   });
 });

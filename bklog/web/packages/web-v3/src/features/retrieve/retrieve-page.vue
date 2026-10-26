@@ -61,7 +61,11 @@
             <t-tab-panel value="grep" label="Grep 模式" />
           </t-tabs>
           <div v-if="workspace.tab === 'origin'" class="retrieve-result__meta">
-            共 {{ search.total }} 条
+            <span>共 {{ search.total }} 条</span>
+            <span class="retrieve-result__tools">
+              <button type="button" title="字段设置"><i class="bklog-icon bklog-set-icon" /></button>
+              <button type="button" title="下载"><i class="bklog-icon bklog-download" /></button>
+            </span>
           </div>
           <t-loading :loading="search.uiState === 'loading'">
             <template v-if="workspace.tab === 'origin'">

@@ -46,15 +46,18 @@
           <i class="bklog-icon bklog-history-2" />
         </button>
       </t-dropdown>
+      <button
+        type="button"
+        class="retrieve-searchbar__submit"
+        data-ui="search-submit"
+        :disabled="loading"
+        aria-label="检索"
+        title="检索"
+        @click="emit('search')"
+      >
+        <i class="bklog-icon bklog-sousuo-" />
+      </button>
     </div>
-    <t-button
-      class="retrieve-searchbar__submit"
-      theme="primary"
-      :loading="loading"
-      @click="emit('search')"
-    >
-      检索
-    </t-button>
   </section>
 </template>
 

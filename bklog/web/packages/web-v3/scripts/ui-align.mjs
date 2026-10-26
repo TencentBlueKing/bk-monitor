@@ -41,6 +41,7 @@ const TOKENS = {
   favoriteBg: [235, 238, 245],
   manageLeftBg: [243, 246, 250],
   brand: [58, 132, 255],
+  navBg: [24, 33, 50],
 };
 
 function box(handle) {
@@ -135,7 +136,7 @@ async function measureRetrieve(page) {
   const checks = [];
   if (favorite && topbar) {
     checks.push({ id: 'favorite-left-of-main', ok: favorite.x + favorite.width <= topbar.x + 2, detail: { favorite, topbar } });
-    checks.push({ id: 'favorite-width', ok: Math.abs(favorite.width - 240) <= 24, detail: favorite.width });
+    checks.push({ id: 'favorite-width', ok: Math.abs(favorite.width - 240) <= 8, detail: favorite.width });
   } else {
     checks.push({ id: 'favorite-visible', ok: false, detail: 'favorite panel missing' });
   }
@@ -160,6 +161,18 @@ async function measureRetrieve(page) {
     id: 'favorite-bg-from-render',
     ok: nearColor(favoriteRgb, TOKENS.favoriteBg),
     detail: { expected: '#ebeef5', actual: favoriteStyle?.backgroundColor, shotRequired: true },
+  });
+  const headerStyle = await computed(page, '[data-ui="app-header"]');
+  const headerRgb = parseRgb(headerStyle?.backgroundColor);
+  checks.push({
+    id: 'header-bg-from-render',
+    ok: nearColor(headerRgb, TOKENS.navBg),
+    detail: { expected: '#182132', actual: headerStyle?.backgroundColor, shotRequired: true },
+  });
+  checks.push({
+    id: 'search-submit-circle',
+    ok: Boolean(await page.$('[data-ui="search-submit"]')),
+    detail: 'circular search control',
   });
   return { favorite, topbar, searchbar, field, result, favoriteStyle, checks };
 }

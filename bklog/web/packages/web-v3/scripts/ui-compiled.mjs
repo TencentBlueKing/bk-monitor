@@ -30,17 +30,23 @@ import { fileURLToPath } from 'node:url';
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..');
 const distCss = join(root, 'dist/assets');
-const tokens = [
-  '--bklog-favorite-bg',
-  '--bklog-manage-left-bg',
-  '--bklog-favorite-width',
-  '--bklog-collection-left-width',
-  '--bklog-search-btn-width',
+const required = [
+  { token: '--bklog-favorite-bg', value: '#ebeef5' },
+  { token: '--bklog-manage-left-bg', value: '#f3f6fa' },
+  { token: '--bklog-favorite-width', value: '240px' },
+  { token: '--bklog-collection-left-width', value: '250px' },
+  { token: '--bklog-header-height', value: '52px' },
+  { token: '--bklog-toggle-size', value: '32px' },
+  { token: '--bklog-nav-bg', value: '#182132' },
+  { token: '--bklog-search-submit-size', value: '32px' },
 ];
 
 const files = readdirSync(distCss).filter(name => name.endsWith('.css'));
-const css = files.map(name => readFileSync(join(distCss, name), 'utf8')).join('\n');
-const checks = tokens.map(token => ({ token, ok: css.includes(token) }));
+const css = files.map(name => readFileSync(join(distCss, name), 'utf8')).join('\n').toLowerCase();
+const checks = required.map(item => ({
+  ...item,
+  ok: css.includes(item.token) && css.includes(item.value),
+}));
 const report = { ok: checks.every(item => item.ok), checks, files };
 const outDir = join(root, '.ai-native/ui-align/captures');
 mkdirSync(outDir, { recursive: true });

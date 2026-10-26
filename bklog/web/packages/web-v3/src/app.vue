@@ -37,7 +37,7 @@
           {{ item.meta?.title }}
         </router-link>
       </nav>
-      <span class="app-header__space">蓝鲸 / 演示业务</span>
+      <span class="app-header__space">demo (#5000140)</span>
     </header>
     <main class="app-main">
       <router-view />
