@@ -77,7 +77,7 @@ export function useCollectionResults({
       row =>
         (!filters.ips.length || filters.ips.includes(row.ip)) &&
         (!filters.task_name || row.task.name.includes(filters.task_name)) &&
-        (!filters.status || (row.status === 'outdate' ? 'outdated' : row.status) === filters.status) &&
+        (!filters.status || row.status === filters.status) &&
         (!filters.process_names.length ||
           row.processes.some(process => contains(process.process_name, filters.process_names))) &&
         (!filters.process_pids.length ||

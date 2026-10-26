@@ -170,7 +170,7 @@ export default defineComponent({
               }}
             >
               {(this.results
-                ? ['', 'running', 'succeed', 'outdated']
+                ? ['', 'running', 'succeed', 'outdate']
                 : ['', 'running', 'succeed', 'partial_succeed', 'failed']
               ).map(status => (
                 <Radio.Button

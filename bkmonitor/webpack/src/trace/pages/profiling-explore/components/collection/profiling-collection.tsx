@@ -48,9 +48,9 @@ import type { CollectionResultSelection } from '../../types/collection-history';
 import './profiling-collection.scss';
 
 const collectionTabs = [
-  { name: 'results', label: 'Profiling 结果' },
-  { name: 'history', label: '采集任务历史' },
-  { name: 'tasks', label: '任务管理' },
+  { name: 'results', label: 'Profiling 结果', icon: 'icon-Profiling' },
+  { name: 'history', label: '采集任务历史', icon: 'icon-History' },
+  { name: 'tasks', label: '任务管理', icon: 'icon-shezhi1' },
 ] as const;
 
 /** 表格固定配置项（表头吸顶、横向滚动条吸底），滚动容器为任务列表面板 .collection-task-panel */
@@ -270,10 +270,7 @@ export default defineComponent({
                   v-slots={{
                     label: () => (
                       <span class='collection-tab-label'>
-                        <span
-                          class={['collection-tab-icon', `is-${tab.name}`]}
-                          aria-hidden='true'
-                        />
+                        <i class={['icon-monitor', 'collection-tab-icon', tab.icon, `is-${tab.name}`]} />
                         {this.t(tab.label)}
                       </span>
                     ),

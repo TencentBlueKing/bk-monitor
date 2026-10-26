@@ -53,25 +53,6 @@
     margin-top: 2px;
     line-height: 40px;
   }
-
-  .collection-tab-icon {
-    flex-shrink: 0;
-    width: 16px;
-    height: 16px;
-    background: currentcolor;
-    mask-repeat: no-repeat;
-    mask-position: center;
-
-    @each $tab in results, history, tasks {
-      &.is-#{$tab} {
-        mask-image: url('./assets/collection-tab-#{$tab}.svg');
-      }
-    }
-
-    &.is-tasks {
-      mask-position: 1.5px 0.5px;
-    }
-  }
 }
 
 .collection-tab-panel {
@@ -284,6 +265,7 @@
     font-size: 12px;
   }
 
+  /* stylelint-disable-next-line no-descending-specificity */
   .t-table {
     font-size: 12px;
 
@@ -350,6 +332,7 @@
   min-height: 438px;
 
   > .empty-status-container,
+  /* stylelint-disable-next-line no-descending-specificity */
   .t-table__empty {
     height: 396px;
   }

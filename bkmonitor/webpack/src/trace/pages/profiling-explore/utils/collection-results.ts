@@ -46,7 +46,7 @@ export function restoreCollectionResultsState(value?: Partial<CollectionResultsS
   const view = restoreViewState(value?.view);
   const filters = restoreHistoryFilters(value?.filters);
   return {
-    filters: { ...filters, status: filters.status === 'outdate' ? 'outdated' : filters.status },
+    filters,
     execution: execution ? executionKey(execution) : null,
     dataType: typeof value?.dataType === 'string' ? value.dataType : '',
     view: { ...view, graphMode: view.graphMode === 'callgraph' ? 'combined' : view.graphMode },
@@ -115,6 +115,6 @@ export function resultParams(row: CollectionHostResult, bizId: number): Collecti
 
 export function resultUnavailableReason(row: CollectionHostResult): string {
   if (row.status === 'running') return '采集中，暂时无法查看结果';
-  if (['outdate', 'outdated'].includes(row.status)) return '已过期，无法查看结果';
+  if (row.status === 'outdate') return '已过期，无法查看结果';
   return '本次采集暂无可查看的结果';
 }
