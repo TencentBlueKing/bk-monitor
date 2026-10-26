@@ -154,6 +154,10 @@ export default defineComponent({
                     <label>{this.t('采集任务')}：</label>
                     <Button
                       class='collect-task-btn'
+                      v-tippy={{
+                        content: `${row?.task.name || ''} · ${this.t('查看本次任务执行详情')}`,
+                        allowHTML: false,
+                      }}
                       disabled={!row}
                       theme='primary'
                       text

@@ -365,6 +365,7 @@ export default defineComponent({
           >
             {{
               empty: () => {
+                if (this.rangeError) return null;
                 const error = h.error.value;
                 // 请求失败与筛选无结果统一在空态中展示
                 const type = error ? '500' : this.filtered ? 'search-empty' : 'empty';
