@@ -91,7 +91,13 @@ export function useCollectionForm(
     }
   });
 
-  function patch(value: Partial<CollectionDraft>) {
+  /**
+   * @description 合并草稿并刷新受影响字段的错误提示
+   * @param value 待合并的草稿片段
+   * @param silent 是否为联动写入；联动写入只清除旧提示，不主动新增，避免用户尚未操作过的字段提前报红
+   * @returns 无
+   */
+  function patch(value: Partial<CollectionDraft>, silent = false) {
     draft.value = { ...draft.value, ...value };
     const keys = Object.keys(value) as Array<keyof CollectionDraft>;
     const touched = keys.flatMap(key => ERROR_FIELDS_BY_DRAFT_KEY[key] ?? []);
@@ -102,14 +108,15 @@ export function useCollectionForm(
       ? {}
       : collectionFieldErrors(draft.value, Boolean(task));
     for (const key of touched) {
+      if (silent && !(key in next)) continue;
       const message = errors[key];
       if (message) next[key] = t(message);
       else delete next[key];
     }
     fieldErrors.value = next;
   }
-  function patchProcess(value: Partial<ProcessDraft>) {
-    patch({ process: { ...draft.value.process, ...value } });
+  function patchProcess(value: Partial<ProcessDraft>, silent = false) {
+    patch({ process: { ...draft.value.process, ...value } }, silent);
   }
   function changeType(collectionType: CollectionType) {
     patch({ collectionType, collector: { ...meta.collector_config[collectionType] } });
@@ -131,13 +138,17 @@ export function useCollectionForm(
   function changeHosts(hosts: CollectionHost[]) {
     const ids = new Set(hosts.map(host => host.host_id));
     const previous = draft.value.process.selected;
-    patch({
-      hosts,
-      process: {
-        ...draft.value.process,
-        selected: previous.filter(row => ids.has(row.bk_host_id)),
+    // 主机变化会联动过滤已选进程，属联动写入，不因此给未操作过的进程字段报红
+    patch(
+      {
+        hosts,
+        process: {
+          ...draft.value.process,
+          selected: previous.filter(row => ids.has(row.bk_host_id)),
+        },
       },
-    });
+      true
+    );
     hostSelectorOpen.value = false;
   }
   function selectPreview(keys: Array<number | string>) {
@@ -179,7 +190,8 @@ export function useCollectionForm(
       previewed.value = true;
       if (draft.value.processMode === 'command') {
         const rows = new Map(result.data.filter(row => !row.err_msg && row.pid).map(row => [processKey(row), row]));
-        patchProcess({ selected: selected.value.map(row => rows.get(processKey(row)) || row) });
+        // 预览结果回填选中项是联动写入，用户还没勾选前不提示「请选择目标进程」
+        patchProcess({ selected: selected.value.map(row => rows.get(processKey(row)) || row) }, true);
       }
     } catch (e) {
       if (!current.signal.aborted) previewError.value = t((e as Error)?.message || '进程查询失败，请重试');
@@ -194,7 +206,8 @@ export function useCollectionForm(
       const hosts = await hostServices.fetchHostsDetails({ host_list: draft.value.hosts });
       if (controller.signal.aborted) return;
       const byId = new Map(hosts.map(host => [host.host_id, host]));
-      patch({ hosts: draft.value.hosts.map(host => byId.get(host.host_id) || host) });
+      // 编辑态补全主机详情是联动写入，不应改变任何字段的提示
+      patch({ hosts: draft.value.hosts.map(host => byId.get(host.host_id) || host) }, true);
     } catch (e) {
       if (!controller.signal.aborted) hostError.value = (e as Error)?.message || t('主机信息加载失败，请重试');
     }

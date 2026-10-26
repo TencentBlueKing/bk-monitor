@@ -477,16 +477,6 @@ export default defineComponent({
                     </Radio.Group>
                     {fieldError('scheduleType')}
                   </Form.FormItem>
-                  {/* {d.scheduleType === 'immediate' && (
-                    <p class='collection-muted'>
-                      {this.t('立即执行仅支持 Linux 主机，提交后可在采集任务历史查看进度')}
-                    </p>
-                  )} */}
-                  {/* {d.scheduleType !== 'immediate' && (
-                    <p class='collection-muted'>
-                      {this.t('时区')}：{d.timezone}
-                    </p>
-                  )} */}
                   {d.scheduleType === 'once_at' && (
                     <Form.FormItem
                       label={this.t('执行时间')}

@@ -215,22 +215,21 @@ export const SWITCH_DRAFT_KEYS: Array<keyof CollectionDraft> = [
 export function buildCollectionPayload(draft: CollectionDraft, bizId: number, now = Date.now()): CollectionPayload {
   const collector = draft.collector;
   let selector: ProcessSelector;
-  if (draft.method !== 'golang') {
-    const preview = buildPreviewSelector(draft);
-    if (preview.type === 'command') {
-      const hostIds = new Set(draft.hosts.map(host => host.host_id));
-      const hostPids = collectHostPids(draft.process.selected.filter(row => hostIds.has(row.bk_host_id)));
-      selector = {
-        type: 'command',
-        config: {
-          ...preview.config,
-          enable_dynamic_collection: draft.process.dynamic,
-          ...(!draft.process.dynamic ? { host_pids: hostPids } : {}),
-        },
-      };
-    } else {
-      selector = preview;
-    }
+  if (draft.method !== 'golang' && draft.processMode === 'command') {
+    const hostIds = new Set(draft.hosts.map(host => host.host_id));
+    const hostPids = collectHostPids(draft.process.selected.filter(row => hostIds.has(row.bk_host_id)));
+    selector = {
+      type: 'command',
+      config: {
+        match_pattern: draft.process.matchPattern.trim(),
+        exclude_pattern: draft.process.excludePattern.trim(),
+        enable_dynamic_collection: draft.process.dynamic,
+        // 手动选择进程时匹配条件可为空，目标进程由 host_pids 直接指定
+        ...(!draft.process.dynamic ? { host_pids: hostPids } : {}),
+      },
+    };
+  } else if (draft.method !== 'golang') {
+    selector = buildPreviewSelector(draft);
   }
   return {
     bk_biz_id: bizId,
@@ -259,20 +258,23 @@ export function buildCollectionPayload(draft: CollectionDraft, bizId: number, no
 }
 
 /**
- * @description 构建进程预览用的匹配配置，命令行方式下同时作为提交时 process_selector 的基础
+ * @description 构建进程预览用的匹配配置；命令行方式的提交载荷单独组装，允许手动选择时匹配条件为空
  * @param draft 采集表单草稿
  * @returns 进程选择配置
  * @throws {CollectionFieldError} 进程匹配条件不合法时抛出，field 固定为 process
  */
 export function buildPreviewSelector(draft: CollectionDraft): PreviewSelector {
-  const message = processFieldError(draft);
-  if (message) throw collectionFieldError('process', message);
   const process = draft.process;
-  if (draft.processMode === 'command')
+  // 预览必须带匹配条件，与提交校验（动态下发才必填）不同
+  if (draft.processMode === 'command') {
+    if (!process.matchPattern.trim()) throw collectionFieldError('process', '请输入命令行匹配条件');
     return {
       type: 'command',
       config: { match_pattern: process.matchPattern.trim(), exclude_pattern: process.excludePattern.trim() },
     };
+  }
+  const message = processFieldError(draft);
+  if (message) throw collectionFieldError('process', message);
   if (draft.processMode === 'pid_file')
     return {
       type: 'pid_file',
@@ -442,7 +444,8 @@ export function immediateCollectionPayload(task: CollectionTask, bizId: number, 
 function processFieldError(draft: CollectionDraft): string | undefined {
   const process = draft.process;
   if (draft.processMode === 'command') {
-    if (!process.matchPattern.trim()) return '请输入命令行匹配条件';
+    // 手动选择进程时匹配条件只用于预览，只有动态下发才需要随任务保存，因此只有动态下发要求必填
+    if (draft.process.dynamic && !process.matchPattern.trim()) return '请输入命令行匹配条件';
     return undefined;
   }
   if (draft.processMode === 'pid_file') {
