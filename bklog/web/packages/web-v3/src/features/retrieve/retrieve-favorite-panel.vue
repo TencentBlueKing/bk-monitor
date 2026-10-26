@@ -21,7 +21,7 @@
   IN THE SOFTWARE.
 -->
 <template>
-  <aside class="retrieve-favorite-panel">
+  <aside class="retrieve-favorite-panel" data-ui="favorite-panel">
     <header class="retrieve-favorite-panel__header">
       <strong>收藏</strong>
       <t-checkbox :checked="state.currentOnly" @change="onCurrentOnly">仅当前索引集</t-checkbox>

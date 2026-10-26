@@ -21,37 +21,29 @@
   IN THE SOFTWARE.
 -->
 <template>
-  <header class="retrieve-toolbar">
-    <t-button
-      :theme="toolbar.favoriteShown ? 'primary' : 'default'"
-      variant="outline"
+  <header class="retrieve-topbar" data-ui="topbar">
+    <button
+      type="button"
+      :class="['retrieve-fav-toggle', { 'is-active': toolbar.favoriteShown }]"
+      data-ui="favorite-toggle"
       @click="emit('toggle-favorite')"
     >
-      收藏
-    </t-button>
+      藏
+    </button>
     <t-select
       :model-value="indexSetId"
       :options="indexSetOptions"
-      style="width: 180px"
+      class="retrieve-topbar__index"
       @change="onIndexSet"
     />
-    <t-input
-      :model-value="keyword"
-      placeholder="输入关键字检索"
-      clearable
-      @update:model-value="value => emit('update:keyword', value)"
-      @enter="emit('search')"
-    />
-    <t-select :model-value="toolbar.timePreset" style="width: 120px" @change="onTimeChange">
+    <t-select :model-value="toolbar.timePreset" class="retrieve-topbar__time" @change="onTimeChange">
       <t-option value="15m" label="近 15 分钟" />
       <t-option value="1h" label="近 1 小时" />
       <t-option value="24h" label="近 24 小时" />
     </t-select>
     <t-switch :model-value="toolbar.autoRefresh" label="自动刷新" @change="onAutoRefresh" />
-    <t-button theme="primary" :loading="loading" @click="emit('search')">检索</t-button>
-    <t-button variant="outline" @click="emit('toggle-fields')">字段</t-button>
-    <t-button variant="outline" @click="emit('save-favorite')">保存收藏</t-button>
-    <t-button variant="outline" @click="emit('open-help')">说明</t-button>
+    <t-button variant="text" @click="emit('save-favorite')">保存收藏</t-button>
+    <t-button variant="text" @click="emit('open-help')">说明</t-button>
   </header>
 </template>
 
@@ -59,18 +51,13 @@
 import type { TimePreset, ToolbarSnapshot } from './toolbar-controller';
 
 defineProps<{
-  keyword: string;
-  loading: boolean;
   toolbar: ToolbarSnapshot;
   indexSetId: string;
   indexSetOptions: Array<{ label: string; value: string }>;
 }>();
 
 const emit = defineEmits<{
-  'update:keyword': [value: string];
-  search: [];
   'toggle-favorite': [];
-  'toggle-fields': [];
   'change-index-set': [id: string];
   'change-time': [preset: TimePreset];
   'auto-refresh': [enabled: boolean];

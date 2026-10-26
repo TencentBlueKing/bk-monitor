@@ -4,3 +4,4 @@ dist/
 coverage/
 .ai-native/runs/*
 !.ai-native/runs/.gitkeep
+.ai-native/ui-align/captures/*

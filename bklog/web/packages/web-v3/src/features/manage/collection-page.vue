@@ -21,16 +21,34 @@
   IN THE SOFTWARE.
 -->
 <template>
-  <section class="resource-page">
-    <header class="retrieve-toolbar">
-      <h2 class="resource-page__title">采集项</h2>
+  <section class="collection-shell" data-ui="collection-root">
+    <aside class="collection-left" data-ui="collection-left">
+      <header class="collection-left__title">采集分组</header>
+      <button
+        type="button"
+        :class="['collection-left__item', { 'is-active': scenario === 'all' }]"
+        @click="onScenario('all')"
+      >
+        全部采集项
+      </button>
+      <button
+        v-for="item in scenarioOptions.slice(1)"
+        :key="item.value"
+        type="button"
+        :class="['collection-left__item', { 'is-active': scenario === item.value }]"
+        @click="onScenario(item.value)"
+      >
+        {{ item.label }}
+      </button>
+    </aside>
+    <section class="collection-right" data-ui="collection-right">
+    <header class="retrieve-topbar">
       <t-input v-model="filterQuery" placeholder="过滤名称或类型" style="width: 200px" @enter="onFilter" />
-      <t-select v-model="scenario" :options="scenarioOptions" style="width: 160px" @change="onScenario" />
       <t-select v-model="status" :options="statusOptions" style="width: 140px" @change="onStatus" />
       <t-button theme="primary" @click="onFilter">过滤</t-button>
       <t-button @click="openWizard">新建采集</t-button>
     </header>
-    <t-alert v-if="state.uiState === 'error'" theme="error" :message="state.error" />
+    <t-alert v-if="state.uiState === 'error' && !state.wizardOpen" theme="error" :message="state.error" />
     <t-table row-key="id" :data="visible" :columns="columns">
       <template #status="{ row }">
         <t-tag :theme="statusTheme(row.status)">{{ row.status }}</t-tag>
@@ -84,6 +102,7 @@
         <t-button v-else theme="primary" @click="submit">完成</t-button>
       </template>
     </t-drawer>
+    </section>
   </section>
 </template>
 

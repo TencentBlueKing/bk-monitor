@@ -21,7 +21,7 @@
   IN THE SOFTWARE.
 -->
 <template>
-  <section class="retrieve-shell">
+  <section class="retrieve-shell" data-ui="retrieve-root">
     <retrieve-favorite-panel
       v-if="toolbar.favoriteShown"
       :state="favorite"
@@ -33,76 +33,69 @@
     />
     <section class="retrieve-main">
       <retrieve-toolbar
-        v-model:keyword="keyword"
-        :loading="search.uiState === 'loading'"
         :toolbar="toolbar"
         :index-set-id="workspace.indexSetId"
         :index-set-options="indexSetOptions"
-        @search="onSearch"
         @toggle-favorite="onToggleFavorite"
-        @toggle-fields="fieldsVisible = !fieldsVisible"
         @change-index-set="onChangeIndexSet"
         @change-time="onChangeTime"
         @auto-refresh="onAutoRefresh"
         @save-favorite="openSave"
         @open-help="openHelp"
       />
-      <t-tabs :value="workspace.tab" @change="onTab">
-        <t-tab-panel value="origin" label="原始日志" />
-        <t-tab-panel value="clustering" label="日志聚类" />
-        <t-tab-panel value="grep" label="Grep" />
-        <t-tab-panel value="graph" label="图表分析" />
-      </t-tabs>
+      <retrieve-searchbar
+        v-model:keyword="keyword"
+        :loading="search.uiState === 'loading'"
+        @search="onSearch"
+      />
       <t-alert v-if="search.uiState === 'error'" theme="error" :message="search.error" />
-      <t-alert v-if="fields.uiState === 'error'" theme="error" :message="fields.error" />
-      <t-loading :loading="search.uiState === 'loading'">
-        <template v-if="workspace.tab === 'origin'">
-          <t-empty v-if="search.uiState === 'empty'" description="没有匹配的日志" />
-          <t-table
-            v-else
-            row-key="id"
-            :data="search.records"
-            :columns="originColumns"
-            :empty="search.uiState === 'idle' ? '提交关键字开始检索' : '暂无数据'"
-          >
-            <template #op="{ row }">
-              <t-button variant="text" @click="openContext(row.id)">上下文</t-button>
-              <t-button variant="text" @click="openRealtime(row)">实时</t-button>
+      <section class="retrieve-result">
+        <retrieve-field-panel :state="fields" @toggle="onToggleField" />
+        <section class="retrieve-result__main" data-ui="result-panel">
+          <t-tabs :value="workspace.tab" @change="onTab">
+            <t-tab-panel value="origin" label="原始日志" />
+            <t-tab-panel value="clustering" label="日志聚类" />
+            <t-tab-panel value="grep" label="Grep" />
+            <t-tab-panel value="graph" label="图表分析" />
+          </t-tabs>
+          <t-loading :loading="search.uiState === 'loading'">
+            <template v-if="workspace.tab === 'origin'">
+              <t-empty v-if="search.uiState === 'empty'" description="没有匹配的日志" />
+              <t-table
+                v-else
+                row-key="id"
+                :data="search.records"
+                :columns="originColumns"
+                :empty="search.uiState === 'idle' ? '提交关键字开始检索' : '暂无数据'"
+              >
+                <template #op="{ row }">
+                  <t-button variant="text" @click="openContext(row.id)">上下文</t-button>
+                  <t-button variant="text" @click="openRealtime(row)">实时</t-button>
+                </template>
+              </t-table>
             </template>
-          </t-table>
-        </template>
-        <t-table
-          v-else-if="workspace.tab === 'clustering'"
-          row-key="pattern"
-          :data="clusterGroups"
-          :columns="clusterColumns"
-        />
-        <retrieve-grep-panel
-          v-else-if="workspace.tab === 'grep'"
-          :state="grep"
-          @field="onGrepField"
-          @pattern="onGrepPattern"
-          @run="onRunGrep"
-        />
-        <t-table
-          v-else
-          row-key="startTime"
-          :data="graphBuckets"
-          :columns="graphColumns"
-        />
-      </t-loading>
-      <t-drawer v-model:visible="fieldsVisible" header="显示字段" size="360px">
-        <div class="field-list">
-          <t-checkbox
-            v-for="field in fields.fields"
-            :key="field.name"
-            :checked="field.visible"
-            @change="value => onToggleField(field.name, value)"
-          >
-            {{ field.name }}
-          </t-checkbox>
-        </div>
-      </t-drawer>
+            <t-table
+              v-else-if="workspace.tab === 'clustering'"
+              row-key="pattern"
+              :data="clusterGroups"
+              :columns="clusterColumns"
+            />
+            <retrieve-grep-panel
+              v-else-if="workspace.tab === 'grep'"
+              :state="grep"
+              @field="onGrepField"
+              @pattern="onGrepPattern"
+              @run="onRunGrep"
+            />
+            <t-table
+              v-else
+              row-key="startTime"
+              :data="graphBuckets"
+              :columns="graphColumns"
+            />
+          </t-loading>
+        </section>
+      </section>
       <t-drawer v-model:visible="contextVisible" header="上下文日志" size="560px" @close="closeContext">
         <t-alert v-if="context.uiState === 'waiting'" theme="warning" message="主检索进行中，上下文等待完成后再展开" />
         <t-empty v-else-if="context.uiState === 'empty'" description="找不到锚点日志" />
@@ -155,7 +148,9 @@ import { GrepController, type GrepSnapshot } from './grep-controller';
 import { IndexSetController } from './index-set-controller';
 import { RealtimeController, type RealtimeSnapshot } from './realtime-controller';
 import RetrieveFavoritePanel from './retrieve-favorite-panel.vue';
+import RetrieveFieldPanel from './retrieve-field-panel.vue';
 import RetrieveGrepPanel from './retrieve-grep-panel.vue';
+import RetrieveSearchbar from './retrieve-searchbar.vue';
 import {
   createLocalSearchFetcher,
   RetrieveSearchController,
@@ -207,7 +202,6 @@ const visibleGroups = computed(() => favoriteController.getVisibleGroups());
 const indexSetOptions = computed(() => indexSetController.getVisibleItems().map(item => ({ label: item.name, value: item.id })));
 const clusterGroups = computed(() => clusteringController.group(search.records, keyword.value));
 const graphBuckets = computed(() => graphController.bucket(search.records));
-const fieldsVisible = ref(false);
 const contextVisible = ref(false);
 const realtimeVisible = ref(false);
 const helpVisible = ref(false);

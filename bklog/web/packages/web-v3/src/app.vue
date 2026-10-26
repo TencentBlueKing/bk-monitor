@@ -22,21 +22,19 @@
 -->
 <template>
   <section class="app-shell">
-    <aside class="app-nav">
-      <h1 class="app-nav__title">BKLog Vue3</h1>
-      <p class="app-nav__hint">v1 已封板，仅落地 Vue3 重设计</p>
-      <nav v-for="group in navGroups" :key="group.id" class="app-nav__group">
-        <strong>{{ group.title }}</strong>
+    <header class="app-header" data-ui="app-header">
+      <strong class="app-header__brand">日志平台</strong>
+      <nav class="app-header__nav">
         <router-link
-          v-for="item in group.items"
+          v-for="item in primaryNav"
           :key="item.name"
           :to="{ name: item.name }"
-          class="app-nav__link"
+          class="app-header__link"
         >
           {{ item.meta?.title }}
         </router-link>
       </nav>
-    </aside>
+    </header>
     <main class="app-main">
       <router-view />
     </main>
@@ -48,12 +46,8 @@ import { computed } from 'vue';
 
 import { routes } from './app-router';
 
-const navGroups = computed(() => {
-  const items = routes.filter(route => route.name && route.meta?.title && route.path !== '/:pathMatch(.*)*');
-  return [
-    { id: 'retrieve', title: '检索', items: items.filter(item => item.meta?.group === 'retrieve') },
-    { id: 'manage', title: '管理', items: items.filter(item => item.meta?.group === 'manage') },
-    { id: 'other', title: '其他', items: items.filter(item => item.meta?.group === 'other' || item.meta?.group === 'system') },
-  ];
-});
+const primaryNav = computed(() => routes.filter(route => (
+  route.name
+  && ['retrieve-search', 'manage-collection', 'manage-clean', 'manage-extract', 'dashboard'].includes(String(route.name))
+)));
 </script>

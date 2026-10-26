@@ -1,0 +1,44 @@
+{
+  "id": "plan.ui-align-v3",
+  "version": "0.1.0",
+  "principle": "按 v2 信息架构与关键尺寸优化落地 Vue3 + tdesign-vue-next，不做像素强制对齐，不拷 Vue2 文件，不碰 v1",
+  "source": "src/views/retrieve-v3 + src/views/manage-v2",
+  "target": "packages/web-v3",
+  "method": {
+    "v2": "AAFE_E2E_PORT=41001 npm run dev:e2e（需 local.settings.e2e.proxy.js）",
+    "capture": "playwright chromium headless",
+    "compare": "区域几何与层级，不把像素 diff 当门禁"
+  },
+  "tokens": {
+    "brand": "#3A84FF",
+    "pageBg": "#F5F7FA",
+    "panelBg": "#FFFFFF",
+    "manageLeftBg": "#F3F6FA",
+    "favoriteWidth": 240,
+    "fieldWidth": 200,
+    "collectionLeftWidth": 250,
+    "toggleSize": 32,
+    "gap": 8,
+    "fontSize": 12
+  },
+  "layout": {
+    "retrieve": [
+      "favorite 左栏可开关",
+      "顶栏：收藏开关 + 索引集 + 时间 + 刷新",
+      "检索条单独一行",
+      "字段栏在结果左侧",
+      "结果区：原始日志 / 聚类 / Grep / 图表"
+    ],
+    "collection": [
+      "左侧类型/分组 250px",
+      "右侧表格 + 操作"
+    ]
+  },
+  "waves": [
+    { "id": "U0", "title": "对齐计划与 Playwright 捕获", "status": "landed" },
+    { "id": "U1", "title": "检索工作台 + 采集列表布局对齐", "status": "landed" },
+    { "id": "U2", "title": "检索结果表 / 聚类 / Grep 细节", "status": "planned" },
+    { "id": "U3", "title": "其余管理页左树右表", "status": "planned" },
+    { "id": "U4", "title": "对照 v2 e2e 截图回归", "status": "planned" }
+  ]
+}

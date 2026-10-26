@@ -12,7 +12,8 @@
     "anative": "node scripts/anative.mjs",
     "anative:spec": "node scripts/anative.mjs spec validate",
     "anative:contract": "node scripts/anative.mjs contract check",
-    "anative:impact": "node scripts/anative.mjs impact analyze"
+    "anative:impact": "node scripts/anative.mjs impact analyze",
+    "ui:align": "node scripts/ui-align.mjs"
   },
   "dependencies": {
     "tdesign-icons-vue-next": "^0.4.1",

@@ -84,6 +84,12 @@
       ]
     },
     {
+      "id": "U1",
+      "title": "按 v2 IA 优化 Vue3 检索/采集布局",
+      "status": "landed",
+      "note": "非像素强制；Playwright 无头校验区域几何"
+    },
+    {
       "id": "P2",
       "title": "检索剩余能力",
       "status": "planned",
