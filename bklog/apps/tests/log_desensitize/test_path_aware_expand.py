@@ -31,7 +31,7 @@ from apps.log_desensitize.utils import (
 
 
 class TestEstimateJsonDepth(SimpleTestCase):
-    """_estimate_json_depth 单元测试（纯内存）"""
+    """_estimate_json_depth 单元测试"""
 
     def test_flat_object(self):
         """平坦 object：深度为 1"""
@@ -70,7 +70,7 @@ class TestEstimateJsonDepth(SimpleTestCase):
 
 
 class TestPathAwareExpand(SimpleTestCase):
-    """path_aware_expand 单元测试（纯内存，无需数据库）"""
+    """path_aware_expand 单元测试"""
 
     def test_normal_object_nested(self):
         """普通 object 嵌套：正常展开为 dotted path"""
@@ -298,10 +298,6 @@ class TestPathAwareExpand(SimpleTestCase):
         # dict 类型的子字段无条件递归展开（即使 name 不在配置路径中）
         self.assertEqual(expanded["body.player.name"], "alice")
 
-    # ------------------------------------------------------------------
-    # P0-2: 极深 JSON 不触发 RecursionError（预扫描保护）
-    # ------------------------------------------------------------------
-
     def test_deep_json_no_recursion_error(self):
         """极深 JSON 字符串（1100 层嵌套）不触发 RecursionError，fail-closed 遮罩"""
 
@@ -322,10 +318,6 @@ class TestPathAwareExpand(SimpleTestCase):
 
         self.assertEqual(expanded["body"], malicious_json)
 
-    # ------------------------------------------------------------------
-    # P0-1: JSON 字符串带空白能正确解析
-    # ------------------------------------------------------------------
-
     def test_json_string_with_whitespace_and_configured_path(self):
         """带空白的 JSON 字符串 + 子路径规则：正确解析脱敏"""
         data = {"body": '  {"secret":"CLEAR"}  '}
@@ -335,10 +327,6 @@ class TestPathAwareExpand(SimpleTestCase):
         self.assertIn("body.secret", expanded)
         self.assertEqual(expanded["body.secret"], "CLEAR")
         self.assertEqual(metadata["body"]["type"], "json_string")
-
-    # ------------------------------------------------------------------
-    # P0-3: 带点号真实 key 不崩溃
-    # ------------------------------------------------------------------
 
     def test_dotted_key_conflict_no_crash(self):
         """包含点号的真实 key 与路径冲突时不崩溃（安全网）"""
@@ -376,9 +364,61 @@ class TestPathAwareExpand(SimpleTestCase):
             "expected a path conflict error log, got: {}".format(cm.output),
         )
 
+    def test_expand_stage_conflict_dict_vs_dotted_key(self):
+        """展开阶段冲突：JSON 同时含 a(dict) 与 a.b(scalar)，dict 先迭代
+
+        两者计算出相同的 current_path "body.a.b"，展开阶段必须检测冲突、
+        确定性保留先迭代的值，并记录 error（不能静默覆盖）。
+        """
+        data = {"body": '{"a": {"b": "dict_value"}, "a.b": "scalar_value"}'}
+        paths = ["body.a.b"]
+
+        with self.assertLogs("apps.log_desensitize.utils", level="ERROR") as cm:
+            expanded, metadata = path_aware_expand(data, paths)
+
+        # 确定性保留先迭代的 dict 值
+        self.assertEqual(expanded["body.a.b"], "dict_value")
+        # 必须记录冲突 error，避免静默覆盖
+        self.assertTrue(
+            any("dotted-key conflict" in msg for msg in cm.output),
+            "expected a dotted-key conflict error log, got: {}".format(cm.output),
+        )
+
+    def test_expand_stage_conflict_dotted_key_first(self):
+        """展开阶段冲突：JSON 同时含 a.b(scalar) 与 a(dict)，scalar 先迭代
+
+        与上一用例顺序相反，确定性保留先迭代的 scalar 值，并记录 error。
+        """
+        data = {"body": '{"a.b": "scalar_value", "a": {"b": "dict_value"}}'}
+        paths = ["body.a.b"]
+
+        with self.assertLogs("apps.log_desensitize.utils", level="ERROR") as cm:
+            expanded, metadata = path_aware_expand(data, paths)
+
+        self.assertEqual(expanded["body.a.b"], "scalar_value")
+        self.assertTrue(
+            any("dotted-key conflict" in msg for msg in cm.output),
+            "expected a dotted-key conflict error log, got: {}".format(cm.output),
+        )
+
+    def test_expand_stage_conflict_restore_no_crash(self):
+        """展开阶段冲突后还原不崩溃，且不静默丢数据"""
+        data = {"body": '{"a": {"b": "dict_value"}, "a.b": "scalar_value"}'}
+        paths = ["body.a.b"]
+
+        with self.assertLogs("apps.log_desensitize.utils", level="ERROR"):
+            expanded, metadata = path_aware_expand(data, paths)
+            restored = restore_by_metadata(expanded, metadata)
+
+        # 还原结果结构合法（不崩溃），body 仍为 JSON 字符串
+        self.assertIsInstance(restored["body"], str)
+        parsed = json.loads(restored["body"])
+        # 保留先迭代的 dict 值
+        self.assertEqual(parsed, {"a": {"b": "dict_value"}})
+
 
 class TestRestoreByMetadata(SimpleTestCase):
-    """restore_by_metadata 单元测试（纯内存，无需数据库）"""
+    """restore_by_metadata 单元测试"""
 
     def test_restore_dict_type(self):
         """dict 类型：还原为嵌套 dict"""

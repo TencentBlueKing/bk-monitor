@@ -192,6 +192,22 @@ def path_aware_expand(
             for _k, _v in node.items():
                 current_path = _k if not prefix else "{}.{}".format(prefix, _k)
 
+                # ------------------------------------------------------------------
+                # 展开阶段冲突检测：同一 dotted 路径同时有两个来源
+                #（如 dict 递归展开产生 "body.a.b"，而 JSON 中又一个字面 key "a.b"），
+                # 这是 dotted string 路径表示的根本限制。
+                # 策略：确定性保留先迭代的值，后来者跳过并记录 error。
+                # 后续 _build_nested_dict 的冲突检测作为第二层防线。
+                # ------------------------------------------------------------------
+                if current_path in expanded:
+                    logger.error(
+                        "_expand: dotted-key conflict at '%s', "
+                        "keeping existing, discarding new (key retains first-encountered "
+                        "value due to dotted-key ambiguity)",
+                        current_path,
+                    )
+                    continue
+
                 if isinstance(_v, dict):
                     if depth + 1 > max_depth:
                         # 深度超限：保留整棵剩余子树，避免无关字段丢失（P1-1）
@@ -272,7 +288,7 @@ def _build_nested_dict(items: dict, prefix: str):
 
     例如: {"player.id": "123", "player.name": "abc"} → {"player": {"id": "123", "name": "abc"}}
 
-    冲突处理（P0-3 安全网）：当同一位置既有标量值又需要构建子树时，
+    冲突处理：当同一位置既有标量值又需要构建子树时，
     采用「子树优先」策略——不向结果写入任何人工键，被降级的标量值直接丢失
     并记录 error 日志（已知限制）。不再使用 conflict_store 死代码。
 
