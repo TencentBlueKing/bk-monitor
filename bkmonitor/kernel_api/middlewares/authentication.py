@@ -472,7 +472,7 @@ class AuthenticationMiddleware(MiddlewareMixin):
         from bkmonitor.iam.action import get_action_by_id
         from bkmonitor.iam.drf import MCPPermission
         from constants.mcp import get_mcp_permission_action_by_server_name
-        from kernel_api.unified_mcp.registry import native_tool_names
+        from kernel_api.unified_mcp.registry import is_unified_diagnostic_route, native_tool_names
 
         # 提取MCP服务名称（用于指标上报）
         if not getattr(request, "mcp_usage_event_id", ""):
@@ -493,12 +493,7 @@ class AuthenticationMiddleware(MiddlewareMixin):
             request.unified_mcp_operation = tool_name
             request.unified_mcp_tool = ""
             request.unified_mcp_started_at = time.monotonic()
-        is_unified_facade_tool = is_unified_mcp_path and tool_name in {
-            "lookup_tool",
-            "lookup_tool_schema",
-            "lookup_metadata",
-            "lookup_permissions",
-        }
+        is_unified_facade_tool = is_unified_diagnostic_route(request.method, request.path)
         log_mcp_event("auth_begin", request, tool=tool_name, mcp_server=mcp_server_name, username=username)
 
         openclaw_mcp_server_name = getattr(settings, "OPENCLAW_RECOVERING_MCP_SERVER_NAME", "")
@@ -687,6 +682,19 @@ class AuthenticationMiddleware(MiddlewareMixin):
             permission_action=permission_action_id,
             source=permission_action_source or "none",
         )
+
+        if is_unified_facade_tool:
+            from rest_framework.exceptions import PermissionDenied
+
+            from kernel_api.unified_mcp.permissions import _principal
+
+            # 诊断免除的是单一业务 Action 的前置检查，不免除网关用户和租户认证。
+            # Resource 内仍强制检查权限，预检结果不能授权后续业务请求。
+            try:
+                _principal(request)
+            except PermissionDenied as exc:
+                log_mcp_event("gateway_auth_denied", request, level=logging.WARNING, reason="invalid_principal")
+                return JsonResponse({"result": False, "message": str(exc.detail)}, status=403)
 
         if is_unified_facade_tool or (tool_name and tool_name in settings.MCP_PERMISSION_EXEMPT_TOOLS):
             log_mcp_event("tool_exempt", request, tool=tool_name, permission_action=permission_action_id)
@@ -922,20 +930,21 @@ class AuthenticationMiddleware(MiddlewareMixin):
 
         # Resolve standalone read-only tools independently of transport markers/app identity.
         # Registry/configuration errors fail closed instead of silently using the ordinary API path.
-        from kernel_api.unified_mcp.registry import resolve_readonly_tool
+        from kernel_api.unified_mcp.registry import is_unified_diagnostic_route, resolve_readonly_tool
 
+        is_diagnostic = is_unified_diagnostic_route(request.method, request.path)
         try:
             resolved_tool = resolve_readonly_tool(request.method, request.path)
         except Exception as exc:
             log_mcp_event("routing_failed", request, level=logging.WARNING, error_type=type(exc).__name__)
             return JsonResponse({"result": False, "message": "MCP routing is unavailable"}, status=503)
-        if resolved_tool is not None:
+        if resolved_tool is not None or is_diagnostic:
             jwt_client = getattr(request, "jwt", None)
             if not (getattr(jwt_client, "is_valid", False) and jwt_client.user.get("verified") is True and username):
                 return HttpResponseForbidden("Read-only tools require a verified gateway user")
 
         # MCP权限校验（在用户认证完成后）
-        if resolved_tool is not None or self.use_mcp_auth(request, app_code):
+        if resolved_tool is not None or is_diagnostic or self.use_mcp_auth(request, app_code):
             request.user = auth.authenticate(username=username, bk_tenant_id=bk_tenant_id)
             request.mcp_usage_event_id = secrets.token_hex(16)
             request.mcp_usage_username = username or ""

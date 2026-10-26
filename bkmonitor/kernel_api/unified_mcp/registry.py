@@ -76,6 +76,18 @@ SOURCE_FILES = {
 IGNORED_SOURCE_FILES = frozenset({"openclaw_recovering_mcp.yaml", "operation_mcp.yaml", "ops_mcp.yaml"})
 CATEGORIES = tuple(SOURCE_FILES)
 
+# Unified 门面诊断操作共用同一认证入口；它们不执行业务工具，不属于业务 ToolRegistry。
+UNIFIED_DIAGNOSTIC_OPERATIONS = frozenset(
+    {"lookup_tool", "lookup_tool_schema", "lookup_metadata", "lookup_permissions"}
+)
+
+
+def is_unified_diagnostic_route(method: str, path: str) -> bool:
+    """仅识别已声明的诊断后端 POST 路由，不能用路径包含关系扩大认证范围。"""
+    prefix = "/api/v4/unified_mcp/"
+    path = path.rstrip("/").removesuffix(".json")
+    return method == "POST" and path.startswith(prefix) and path[len(prefix) :] in UNIFIED_DIAGNOSTIC_OPERATIONS
+
 
 # standalone、Unified 门面和权限探测共用同一份权限目录。
 # 未声明原生映射的工具继续使用原 MCP Action；原生模式必须显式启用。

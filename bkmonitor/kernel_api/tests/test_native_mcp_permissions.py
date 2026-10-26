@@ -1202,7 +1202,10 @@ def permission_lookup(request_factory, io):
         ResourceEnum=NS(BUSINESS=NS(create_simple_instance=auth._business_resource)),
     )
 
-    def lookup(**params):
+    def lookup(_request=None, **params):
+        nonlocal request
+        if _request is not None:
+            request = _request
         serializer = cls.RequestSerializer(data=params)
         serializer.is_valid(raise_exception=True)
         return cls().perform_request(serializer.validated_data)
@@ -3143,6 +3146,13 @@ def direct_gateway(monkeypatch, request_factory, native_http, io):
         bearer=False,
         path=None,
         method=None,
+        username="alice",
+        user_name="alice",
+        authenticated=True,
+        user_tenant="system",
+        tenant_header=None,
+        app_code="ordinary-cli-app",
+        api_token_expected=False,
     ):
         tool = registry.get_tool_registry().get(tool_name)
         request = request_factory(
@@ -3153,12 +3163,15 @@ def direct_gateway(monkeypatch, request_factory, native_http, io):
         if bearer:
             request.META["HTTP_AUTHORIZATION"] = "Bearer synthetic-personal-token"
         request.META["HTTP_X_BKAPI_REQUEST_ID"] = "gateway-request-test"
+        if tenant_header is not None:
+            request.META["HTTP_X_BK_TENANT_ID"] = tenant_header
         user = request.user
-        claims = {"username": "alice", "verified": verified}
+        user.username, user.tenant_id, user.is_authenticated = user_name, user_tenant, authenticated
+        claims = {"username": username, "verified": verified}
         jwt = NS(
             is_valid=valid_jwt,
-            app=NS(app_code="ordinary-cli-app"),
-            user=NS(username="alice", get=claims.get),
+            app=NS(app_code=app_code),
+            user=NS(username=username, get=claims.get),
             validate=lambda: (valid_jwt, "invalid JWT"),
         )
         permission = Mock()
@@ -3196,7 +3209,11 @@ def direct_gateway(monkeypatch, request_factory, native_http, io):
             get_apigw_public_keys=lambda: {},
             use_mcp_auth=recognize,
             use_api_token_auth=lambda req: "HTTP_AUTHORIZATION" in req.META,
-            _handle_api_token_auth=Mock(side_effect=AssertionError("gateway identity must not become an API token")),
+            _handle_api_token_auth=(
+                Mock(return_value=HttpResponse(status=204))
+                if api_token_expected
+                else Mock(side_effect=AssertionError("gateway identity must not become an API token"))
+            ),
             extract_tool_name_from_path=extract,
             _report_mcp_metric=Mock(),
         )
@@ -3321,3 +3338,161 @@ def test_direct_exempt_discovery_still_requires_authenticated_user(direct_gatewa
     response, _, _, _ = direct_gateway("search_spaces", {"space_name": "demo"})
     assert response.status_code == 200
     io.dispatch.assert_called_once_with("search_spaces", {"space_name": "demo"})
+
+
+def test_diagnostic_routes_match_gateway_contract():
+    document = yaml.safe_load((BASE / "support-files/apigw/resources/internal/user/unified_mcp.yaml").read_text())
+    matched = set()
+    for item in document["paths"].values():
+        for operation in item.values():
+            backend = operation["x-bk-apigateway-resource"]["backend"]
+            if registry.is_unified_diagnostic_route(backend["method"].upper(), backend["path"]):
+                matched.add(operation["operationId"])
+    assert matched == registry.UNIFIED_DIAGNOSTIC_OPERATIONS
+    assert "execute_tool" not in matched
+
+
+@pytest.mark.parametrize("operation", sorted(registry.UNIFIED_DIAGNOSTIC_OPERATIONS))
+@pytest.mark.parametrize(
+    "marker,bearer,app_code", [(False, True, "personal"), (False, False, "ordinary-cli-app"), (True, True, "mcp-app")]
+)
+def test_diagnostic_gateway_identity_reaches_facade(direct_gateway, io, operation, marker, bearer, app_code):
+    response, request, _, ordinary = direct_gateway(
+        path=f"/api/v4/unified_mcp/{operation}/", marker=marker, bearer=bearer, app_code=app_code
+    )
+    assert response is None  # The existing Resource runs; middleware must not dispatch a business tool.
+    assert request.mcp_usage_operation == request.mcp_usage_tool == operation
+    assert request.mcp_permission_source == "exempt"
+    io.dispatch.assert_not_called()
+    io.iam.is_allowed.assert_not_called()
+    ordinary.assert_not_called()
+
+
+@pytest.mark.parametrize("operation", sorted(registry.UNIFIED_DIAGNOSTIC_OPERATIONS))
+@pytest.mark.parametrize(
+    "identity",
+    [
+        {"valid_jwt": False},
+        {"verified": False},
+        {"gateway": False},
+        {"username": ""},
+        {"authenticated": False},
+        {"user_name": "another-user"},
+        {"user_tenant": ""},
+        {"tenant_header": "another-tenant"},
+        {"tenant_header": None},
+    ],
+)
+def test_diagnostic_gateway_rejects_invalid_identity(monkeypatch, direct_gateway, io, operation, identity):
+    monkeypatch.setattr(settings, "ENABLE_MULTI_TENANT_MODE", True)
+    params = {"tenant_header": "system", **identity}
+    response, _, _, ordinary = direct_gateway(
+        path=f"/api/v4/unified_mcp/{operation}/", bearer=True, marker=True, **params
+    )
+    assert response.status_code == 403
+    io.dispatch.assert_not_called()
+    ordinary.assert_not_called()
+
+
+@pytest.mark.parametrize("suffix", ["", "/", ".json", ".json/"])
+def test_diagnostic_route_aliases(direct_gateway, suffix):
+    response, request, _, ordinary = direct_gateway(path="/api/v4/unified_mcp/lookup_tool_schema" + suffix, bearer=True)
+    assert response is None
+    assert request.mcp_permission_source == "exempt"
+    ordinary.assert_not_called()
+
+
+@pytest.mark.parametrize(
+    "method,path",
+    [
+        ("GET", "/api/v4/unified_mcp/lookup_tool_schema/"),
+        ("POST", "/api/v4/unified_mcp/execute_tool/"),
+        ("POST", "/api/v4/unified_mcp/lookup_unknown/"),
+        ("POST", "/api/v4/unified_mcp/lookup_tool_schema/extra/"),
+        ("POST", "/prefix/api/v4/unified_mcp/lookup_permissions/"),
+        ("POST", "/api/v4/unrelated/lookup_permissions/"),
+    ],
+)
+def test_diagnostic_recognition_preserves_other_token_routes(direct_gateway, io, method, path):
+    assert not registry.is_unified_diagnostic_route(method, path)
+    response, _, _, ordinary = direct_gateway(path=path, method=method, bearer=True, api_token_expected=True)
+    assert response.status_code == 204
+    io.dispatch.assert_not_called()
+    ordinary.assert_not_called()
+
+
+@pytest.mark.parametrize("allowed", [True, False])
+def test_diagnostic_preflight_does_not_grant_execution(direct_gateway, permission_lookup, io, allowed):
+    io.monitor.iam_client.is_allowed.side_effect = None
+    io.monitor.iam_client.is_allowed.return_value = allowed
+    io.iam.is_allowed.return_value = False
+    response, request, _, _ = direct_gateway(path="/api/v4/unified_mcp/lookup_permissions/", bearer=True)
+    assert response is None
+    result = permission_lookup(
+        _request=request, tool_name="search_logs", bk_biz_id=2, resource_context={"index_set_id": 123}
+    )
+    assert result["authorized"] is allowed
+    assert bool(result["missing_permissions"]) is not allowed
+    io.dispatch.assert_not_called()
+    # Even a successful probe cannot authorize the next request after permissions are revoked.
+    io.monitor.iam_client.is_allowed.return_value = False
+    response, _, _, _ = direct_gateway(bearer=True)
+    assert response.status_code == 403
+    io.dispatch.assert_not_called()
+
+
+def test_diagnostic_schema_resource_returns_existing_contract(direct_gateway):
+    response, _, _, _ = direct_gateway(path="/api/v4/unified_mcp/lookup_tool_schema/", bearer=True)
+    assert response is None
+    perform = source_method(
+        "kernel_api/resource/unified_mcp.py",
+        "LookupToolSchemaResource.perform_request",
+        get_tool_registry=registry.get_tool_registry,
+        ValidationError=ValidationError,
+    )
+    result = perform(NS(), {"tool_name": "search_logs"})
+    tool_registry = registry.get_tool_registry()
+    assert result == tool_registry.get("search_logs").schema_payload(tool_registry.catalog_version)
+    with pytest.raises(ValidationError) as error:
+        perform(NS(), {"tool_name": "unknown-tool"})
+    assert "tool_name" in error.value.detail
+
+
+@pytest.mark.parametrize("allowed", [True, False])
+def test_diagnostic_metadata_forces_resource_permission(monkeypatch, direct_gateway, allowed):
+    monkeypatch.setattr(settings, "MCP_NATIVE_PERMISSION_TOOLS", [])
+    response, request, _, _ = direct_gateway(path="/api/v4/unified_mcp/lookup_metadata/", bearer=True)
+    assert response is None
+    assert request.skip_check is True
+    permission = NS(skip_check=True)
+
+    def check(*args, **kwargs):
+        assert permission.skip_check is False
+        if not allowed:
+            raise PermissionDenied("MCP permission denied")
+
+    permission.is_allowed_by_biz = Mock(side_effect=check)
+    get_permission = source_method(
+        "kernel_api/resource/unified_mcp.py",
+        "get_permission_client",
+        get_request=lambda: request,
+        Permission=lambda *args, **kwargs: permission,
+    )
+    backend = Mock(return_value=[{"cluster_id": "demo"}])
+    perform = source_method(
+        "kernel_api/resource/unified_mcp.py",
+        "LookupMetadataResource.perform_request",
+        get_tool_registry=registry.get_tool_registry,
+        get_permission_client=get_permission,
+        ListBCSClusterInfoByBizResource=lambda: NS(request=backend),
+    )
+    if allowed:
+        assert perform(NS(), {"metadata_type": "bcs_clusters", "bk_biz_id": 2})["bcs_clusters"] == [
+            {"cluster_id": "demo"}
+        ]
+        backend.assert_called_once_with(bk_biz_id=2)
+    else:
+        with pytest.raises(PermissionDenied):
+            perform(NS(), {"metadata_type": "bcs_clusters", "bk_biz_id": 2})
+        backend.assert_not_called()
+    permission.is_allowed_by_biz.assert_called_once_with(2, "using_metadata_mcp", raise_exception=True)
