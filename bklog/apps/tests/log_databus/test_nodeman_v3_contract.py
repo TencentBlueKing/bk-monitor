@@ -174,15 +174,9 @@ class SpecTranslationTest(TestCase):
         self.assertEqual(context["dataid"], 9527)
         self.assertEqual(context["local"], [{"paths": ["/data/log/x.log"]}])
 
-    def test_nested_render_expands_self_referential_context(self):
-        from apps.log_databus.nodeman_v3.policy import nested_render_data
-
-        rendered = nested_render_data({"greeting": "hi {{ name }}", "name": "bklog"})
-        self.assertEqual(rendered["greeting"], "hi bklog")
-
-    def test_syslog_default_host_uses_innerip_flag_for_v3_single_pass(self):
+    def test_syslog_default_host_with_nested_cmdb_template_fails_closed(self):
         # V2 scenario 默认写入 '{{ cmdb_instance.host.bk_host_innerip }}:514'，依赖 nested_render。
-        # V3 单次渲染会把该字符串写进配置；翻译层改成 use_host_innerip + syslog_port。
+        # V3 尚无两阶段渲染契约，不能把表达式或空地址静默下发。
         from apps.log_databus.handlers.collector_scenario import CollectorScenario
         from apps.log_search.constants import CollectorScenarioEnum
 
@@ -193,14 +187,25 @@ class SpecTranslationTest(TestCase):
             9001,
             None,
         )
-        raw_host = (steps[0]["params"]["context"]["local"][0]["host"])
+        raw_host = steps[0]["params"]["context"]["local"][0]["host"]
         self.assertIn("cmdb_instance.host.bk_host_innerip", raw_host)
 
-        context = SubscriptionStepsTranslator().build_specs(steps)[0]["param"]["custom_config_context"]
-        item = context["local"][0]
-        self.assertEqual(item["host"], "")
-        self.assertTrue(item["use_host_innerip"])
-        self.assertEqual(item["syslog_port"], 514)
+        with self.assertRaisesRegex(NodeManV3CapabilityBlocked, r"context\.local\[0\]\.host"):
+            SubscriptionStepsTranslator().build_specs(steps)
+
+    def test_dynamic_cmdb_label_fails_closed(self):
+        steps = build_steps(dataid=9527, paths=["/data/log/x.log"])
+        steps[1]["params"]["context"]["local"][0]["labels"] = [{"host_name": "{{cmdb_instance.host.bk_host_name}}"}]
+
+        with self.assertRaisesRegex(NodeManV3CapabilityBlocked, r"labels\[0\]\.host_name"):
+            SubscriptionStepsTranslator().build_specs(steps)
+
+    def test_user_jinja_payload_is_never_executed_in_saas(self):
+        steps = build_steps(dataid=9527, paths=["/data/log/x.log"])
+        steps[1]["params"]["context"]["local"][0]["paths"] = ["{{ cycler.__init__.__globals__.os.popen('id').read() }}"]
+
+        with self.assertRaisesRegex(NodeManV3CapabilityBlocked, r"context\.local\[0\]\.paths\[0\]"):
+            SubscriptionStepsTranslator().build_specs(steps)
 
     def test_missing_dataid_fails_closed(self):
         steps = build_steps()
@@ -640,7 +645,9 @@ class ReconcileBehaviourTest(TestCase):
         self.assertEqual(workflow.trigger_id, "")
         # 派发后立即有目标快照，首次状态查询不会 contents=[]
         self.assertEqual(
-            set(NodeManV3SubConfigTarget.objects.filter(binding=operation.binding).values_list("bk_host_id", flat=True)),
+            set(
+                NodeManV3SubConfigTarget.objects.filter(binding=operation.binding).values_list("bk_host_id", flat=True)
+            ),
             {11},
         )
 

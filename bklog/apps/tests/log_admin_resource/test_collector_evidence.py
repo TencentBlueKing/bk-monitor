@@ -144,11 +144,13 @@ class CollectorControlPlaneSnapshotTest(SimpleTestCase):
 @override_settings(ENVIRONMENT="bkte", BK_APP_TENANT_ID="tenant-a")
 class CollectorHostSnapshotTest(SimpleTestCase):
     @patch("apps.log_databus.handlers.collector.host.LogIndexSet.objects.filter", return_value=[])
-    @patch("apps.log_databus.handlers.collector.host.CollectorConfig.objects.filter", return_value=[])
+    @patch("apps.log_databus.handlers.collector.host.CollectorConfig.objects.filter")
     @patch("apps.log_databus.handlers.collector.host.NodeApi.query_host_subscriptions", return_value=[])
     def test_shared_collector_handler_preserves_user_request_default(
-        self, mock_query_subscriptions, _collectors, _index_sets
+        self, mock_query_subscriptions, mock_collectors, _index_sets
     ):
+        mock_collectors.return_value.exists.return_value = True
+        mock_collectors.return_value.__iter__.return_value = iter([])
         handler = HostCollectorHandler()
         with patch.object(handler, "get_subscription_status_by_list", return_value=[]) as mock_status:
             result = handler.list_collectors_by_host({"bk_biz_id": 2})
@@ -158,11 +160,13 @@ class CollectorHostSnapshotTest(SimpleTestCase):
         mock_status.assert_called_once_with([], no_request=False, bk_tenant_id=None)
 
     @patch("apps.log_databus.handlers.collector.host.LogIndexSet.objects.filter", return_value=[])
-    @patch("apps.log_databus.handlers.collector.host.CollectorConfig.objects.filter", return_value=[])
+    @patch("apps.log_databus.handlers.collector.host.CollectorConfig.objects.filter")
     @patch("apps.log_databus.handlers.collector.host.NodeApi.query_host_subscriptions", return_value=[])
     def test_shared_collector_handler_propagates_explicit_app_identity(
-        self, mock_query_subscriptions, _collectors, _index_sets
+        self, mock_query_subscriptions, mock_collectors, _index_sets
     ):
+        mock_collectors.return_value.exists.return_value = True
+        mock_collectors.return_value.__iter__.return_value = iter([])
         handler = HostCollectorHandler()
         params = {"bk_biz_id": 2, "no_request": True, "bk_tenant_id": "tenant-a"}
         with patch.object(handler, "get_subscription_status_by_list", return_value=[]) as mock_status:

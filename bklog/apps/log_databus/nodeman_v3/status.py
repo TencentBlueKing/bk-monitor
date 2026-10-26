@@ -718,7 +718,16 @@ class CollectorStatusReader:
         if self.task_ids and resolution.workflow is None:
             return {}
         host_operations = self.fetch_host_operations(resolution.plugin_workflow_ids)
-        if self.task_ids:
+        # 前端在创建后会携带刚返回的 task_id 轮询。该 ID 属于 binding 当前 generation 时，
+        # 仍是“当前状态”而非历史审计：父流程尚未产生 plugin child / host operation 的窗口内，
+        # 必须结合刚初始化的目标快照返回 DISPATCHING，不能返回空主机让前端停止轮询。
+        #
+        # 只有 generation 已落后于 binding 的任务才是历史视图；历史查询仍只展示该轮真实
+        # operation，不能拿当前目标快照伪造旧任务主机。
+        is_historical = bool(
+            self.task_ids and resolution.workflow and resolution.workflow.operation.generation < binding.generation
+        )
+        if is_historical:
             return self._historical_statuses(host_operations, resolution)
 
         # 本轮 workflow 对应的是哪一代期望态，取自本地 operation 记录而不是节点管理。

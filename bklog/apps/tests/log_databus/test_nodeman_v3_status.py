@@ -825,6 +825,28 @@ class StatusReaderTest(TestCase):
         row.refresh_from_db()
         self.assertEqual(row.generation, 0)
 
+    def test_current_task_id_uses_target_snapshot_while_children_are_not_visible(self):
+        self._add_target(11, generation=0)
+        self.client.parent_items = [
+            {
+                "workflow_id": PARENT_WORKFLOW_ID,
+                "trigger_id": TRIGGER_ID,
+                "deploy_policy_id": POLICY_ID,
+                "status": "running",
+                "children": [],
+            }
+        ]
+        self.client.workflow_items = []
+
+        statuses = CollectorStatusReader(
+            self.collector_config,
+            task_ids=[PARENT_WORKFLOW_ID],
+        ).refresh()
+
+        self.assertEqual(set(statuses), {11})
+        self.assertEqual(statuses[11].state, NodeManV3TargetState.DISPATCHING)
+        self.assertEqual(statuses[11].task_id, PARENT_WORKFLOW_ID)
+
 
 class InstanceDataCompatTest(TestCase):
     """V3 状态 -> V2 实例结构的形状适配"""
@@ -995,6 +1017,45 @@ class HostHandlerWiringTest(TestCase):
 
         instance_data.assert_called_once_with(task_ids=[])
         self.assertTrue(result["task_ready"])
+
+    def test_create_task_id_keeps_frontend_polling_before_child_workflow_is_visible(self):
+        NodeManV3SubConfigTarget.objects.create(
+            binding=self.binding,
+            bk_host_id=11,
+            config_file_name=build_sub_config_name(TEMPLATE_NAME, POLICY_ID),
+            generation=0,
+            is_desired=True,
+        )
+        self.client.parent_items = [
+            {
+                "workflow_id": PARENT_WORKFLOW_ID,
+                "trigger_id": TRIGGER_ID,
+                "deploy_policy_id": POLICY_ID,
+                "status": "running",
+                "children": [],
+            }
+        ]
+        self.client.workflow_items = []
+        cmdb_hosts = [
+            {
+                "bk_host_id": 11,
+                "bk_host_innerip": "127.0.0.1",
+                "bk_cloud_id": 0,
+                "bk_host_name": "host-11",
+                "bk_supplier_id": "0",
+            }
+        ]
+
+        with patch(
+            "apps.log_databus.handlers.collector.host.CCApi.list_biz_hosts.bulk_request",
+            return_value=cmdb_hosts,
+        ):
+            result = self.handler.get_task_status([PARENT_WORKFLOW_ID], read_only=True)
+
+        children = [child for group in result["contents"] for child in group["child"]]
+        self.assertTrue(result["task_ready"])
+        self.assertEqual([child["host_id"] for child in children], [11])
+        self.assertEqual(children[0]["status"], CollectStatus.RUNNING)
 
     def test_stop_persists_latest_parent_workflow_id(self):
         from apps.log_databus.handlers.collector import HostCollectorHandler
