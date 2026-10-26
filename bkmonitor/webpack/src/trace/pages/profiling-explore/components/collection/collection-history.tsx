@@ -163,7 +163,7 @@ export default defineComponent({
     // 结果为空时由 empty 插槽接管；否则 tdesign 会注入筛选结果行，导致空态不渲染
     const emptyResult = !showSkeleton && !h.rows.value.length;
     const columns: TableProps['columns'] = [
-      { colKey: 'task_name', title: this.t('任务名称'), minWidth: 220, ellipsis: true, cell: 'name' },
+      { colKey: 'task_name', title: this.t('trace-任务名称'), minWidth: 220, ellipsis: true, cell: 'name' },
       {
         colKey: 'collection_type',
         title: this.t('采集进程'),

@@ -303,7 +303,7 @@ export default defineComponent({
                   >
                     <span class='collection-task-toolbar-btn-inner'>
                       <i class='icon-monitor icon-a-1jiahao' />
-                      {this.t('新建应用')}
+                      {this.t('新建任务')}
                     </span>
                   </Button>
                   <Input

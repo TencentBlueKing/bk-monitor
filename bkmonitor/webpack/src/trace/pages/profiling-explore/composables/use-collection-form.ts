@@ -26,6 +26,7 @@
 import { computed, onScopeDispose, shallowRef, watch } from 'vue';
 
 import { Message } from 'bkui-vue';
+import { bkUiMessage } from 'trace/common/message';
 import { useI18n } from 'vue-i18n';
 
 import { getProcessPreview, saveCollectionTask } from '../services/collection';
@@ -33,13 +34,17 @@ import { createCollectionHostServices } from '../services/collection-hosts';
 import {
   buildCollectionPayload,
   buildPreviewSelector,
+  collectionFieldErrors,
   collectionTarget,
   createCollectionDraft,
+  ERROR_FIELDS_BY_DRAFT_KEY,
   processKey,
+  SWITCH_DRAFT_KEYS,
 } from '../utils/collection';
 
 import type {
   CollectionDraft,
+  CollectionFieldKey,
   CollectionHost,
   CollectionMeta,
   CollectionMethod,
@@ -62,7 +67,7 @@ export function useCollectionForm(
   const { t } = useI18n();
   const draft = shallowRef(createCollectionDraft(meta, timezone, task));
   const loading = shallowRef(false);
-  const error = shallowRef('');
+  const fieldErrors = shallowRef<Partial<Record<CollectionFieldKey, string>>>({});
   const hostError = shallowRef('');
   const previewLoading = shallowRef(false);
   const previewError = shallowRef('');
@@ -88,6 +93,20 @@ export function useCollectionForm(
 
   function patch(value: Partial<CollectionDraft>) {
     draft.value = { ...draft.value, ...value };
+    const keys = Object.keys(value) as Array<keyof CollectionDraft>;
+    const touched = keys.flatMap(key => ERROR_FIELDS_BY_DRAFT_KEY[key] ?? []);
+    if (!touched.length) return;
+    const next = { ...fieldErrors.value };
+    // 切选项（采集方式/类型、进程匹配方式、执行方式）只清除旧提示，填内容才即时校验
+    const errors = keys.some(key => SWITCH_DRAFT_KEYS.includes(key))
+      ? {}
+      : collectionFieldErrors(draft.value, Boolean(task));
+    for (const key of touched) {
+      const message = errors[key];
+      if (message) next[key] = t(message);
+      else delete next[key];
+    }
+    fieldErrors.value = next;
   }
   function patchProcess(value: Partial<ProcessDraft>) {
     patch({ process: { ...draft.value.process, ...value } });
@@ -180,21 +199,35 @@ export function useCollectionForm(
       if (!controller.signal.aborted) hostError.value = (e as Error)?.message || t('主机信息加载失败，请重试');
     }
   }
-  async function submit(validateCron?: () => Promise<boolean>) {
-    if (loading.value) return;
-    error.value = '';
+  /** 提交，返回是否保存成功；校验失败时 fieldErrors 已写入全部字段错误 */
+  async function submit(validateCron?: () => Promise<boolean>): Promise<boolean> {
+    if (loading.value) return false;
+    const now = Date.now();
+    const errors = collectionFieldErrors(draft.value, Boolean(task), now);
+    if (draft.value.scheduleType === 'cron' && !(await validateCron?.()) && !errors.cron)
+      errors.cron = '请填写有效的五段式 Cron 表达式';
+    // 一次性替换，避免先清空再回填导致已有提示闪烁
+    fieldErrors.value = Object.fromEntries(Object.entries(errors).map(([key, message]) => [key, t(message as string)]));
+    if (Object.keys(errors).length) return false;
     loading.value = true;
     try {
-      if (task && draft.value.scheduleType === 'immediate') throw new Error('计划任务不支持改为立即执行');
-      if (draft.value.scheduleType === 'cron' && !(await validateCron?.()))
-        throw new Error('请填写有效的五段式 Cron 表达式');
-      const payload = buildCollectionPayload(draft.value, bizId);
+      const payload = buildCollectionPayload(draft.value, bizId, now);
       await saveCollectionTask(payload, task?.task_id, controller.signal);
-      if (controller.signal.aborted) return;
+      if (controller.signal.aborted) return false;
       Message({ theme: 'success', message: t(task ? '保存成功' : '采集任务已提交') });
       saved(payload.schedule.type === 'immediate');
+      return true;
     } catch (e) {
-      if (!controller.signal.aborted) error.value = t((e as Error)?.message || '保存失败，请重试');
+      if (!controller.signal.aborted) {
+        const error = e as Error & {
+          data?: { error_details?: Record<string, unknown> };
+          error_details?: Record<string, unknown>;
+        };
+        const details = error.data?.error_details ?? error.error_details;
+        if (details) bkUiMessage(details);
+        else Message({ theme: 'error', message: error.message || t('保存失败，请重试') });
+      }
+      return false;
     } finally {
       if (!controller.signal.aborted) loading.value = false;
     }
@@ -223,7 +256,7 @@ export function useCollectionForm(
   return {
     draft,
     loading,
-    error,
+    fieldErrors,
     hostError,
     previewLoading,
     previewError,

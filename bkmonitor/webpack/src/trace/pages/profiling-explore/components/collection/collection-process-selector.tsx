@@ -36,6 +36,8 @@ import EmptyStatus from '@/components/empty-status/empty-status';
 import type { CollectionForm } from '../../composables/use-collection-form';
 import type { ProcessMode, ProcessRow } from '../../types/collection';
 
+import './collection-process-selector.scss';
+
 export default defineComponent({
   name: 'CollectionProcessSelector',
   props: {
@@ -102,11 +104,13 @@ export default defineComponent({
           ? condition.config.pid_path.split(';')
           : [];
     const count = manual ? selected.length : f.dynamic.value ? Number(!!condition) : values.length;
-    const countText = manual
-      ? this.t('已选择 {n} 个进程', { n: count })
+    const countKey = manual
+      ? '已选择 {n} 个进程'
       : f.dynamic.value
-        ? this.t('已配置 {n} 个动态下发', { n: count })
-        : this.t(d.processMode === 'pid' ? '已选择 {n} 个 PID' : '已选择 {n} 个 PID 文件', { n: count });
+        ? '已配置 {n} 个动态下发'
+        : d.processMode === 'pid'
+          ? '已选择 {n} 个 PID'
+          : '已选择 {n} 个 PID 文件';
     return (
       <div class={['collection-process-selector', { 'is-condition': d.processMode !== 'command' }]}>
         <div class='collection-process-query'>
@@ -178,13 +182,16 @@ export default defineComponent({
             <div class='collection-dynamic-toggle'>
               <Switcher
                 modelValue={p.dynamic}
-                size='small'
+                theme='primary'
                 onChange={dynamic => f.patchProcess({ dynamic })}
               />
               <span>{this.t('动态下发')}</span>
               <i
-                class='icon-monitor icon-inform-circle'
-                v-tippy={this.t('开启后保存匹配条件，在每次执行时重新匹配进程，无需选择具体进程')}
+                class='icon-monitor icon-hint'
+                v-tippy={{
+                  content: this.t('开启后保存匹配条件，在每次执行时重新匹配进程，无需选择具体进程'),
+                  theme: 'dart',
+                }}
               />
             </div>
           )}
@@ -260,9 +267,16 @@ export default defineComponent({
               }}
             >
               <i class={['icon-monitor icon-mc-triangle-down', { 'is-collapsed': this.collapsed }]} />
-              {countText}
+              <i18n-t
+                keypath={countKey}
+                tag='span'
+              >
+                {{ n: () => <span class='collection-process-count-value'>{count}</span> }}
+              </i18n-t>
             </Button>
             <Button
+              class='collection-process-clear'
+              aria-label={this.t('清空')}
               disabled={!count || f.previewLoading.value}
               theme='primary'
               text
@@ -277,15 +291,15 @@ export default defineComponent({
               <CollectionSkeleton variant='targets' />
             ) : f.dynamic.value && condition?.type === 'command' ? (
               <div class='collection-process-card'>
-                <div>
+                <div class='collection-process-card-title'>
                   {this.t('包含')}：{condition.config.match_pattern}
                 </div>
                 {condition.config.exclude_pattern && (
-                  <div>
+                  <div class='collection-process-card-title'>
                     {this.t('排除')}：{condition.config.exclude_pattern}
                   </div>
                 )}
-                <small>{this.t('命令行匹配')}</small>
+                <p class='collection-process-card-desc'>{this.t('命令行匹配')}</p>
                 <Button
                   class='collection-process-remove'
                   aria-label={this.t('删除')}
@@ -301,10 +315,13 @@ export default defineComponent({
                   key={processKey(row)}
                   class='collection-process-card'
                 >
-                  <div>PID：{row.pid}</div>
-                  <small title={`${hostLabel(row)} / ${row.process_name || '--'}`}>
+                  <div class='collection-process-card-title'>PID：{row.pid}</div>
+                  <p
+                    class='collection-process-card-desc'
+                    title={`${hostLabel(row)} / ${row.process_name || '--'}`}
+                  >
                     {hostLabel(row)} / {row.process_name || '--'}
-                  </small>
+                  </p>
                   <Button
                     class='collection-process-remove'
                     aria-label={this.t('删除')}
@@ -318,7 +335,9 @@ export default defineComponent({
             ) : (
               !!values.length && (
                 <div class='collection-process-card collection-process-summary'>
-                  <div>{d.processMode === 'pid_file' ? this.t('PID 文件') : 'PID'}：</div>
+                  <div class='collection-process-card-title'>
+                    {d.processMode === 'pid_file' ? this.t('PID 文件') : 'PID'}：
+                  </div>
                   <p>{values.join('; ')}</p>
                 </div>
               )
