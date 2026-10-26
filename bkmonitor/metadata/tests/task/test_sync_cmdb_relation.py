@@ -179,7 +179,7 @@ def test_query_rollout_does_not_provision_dual_write(create_and_delete_records, 
     created_group = Mock(token="", last_modify_time=datetime.fromtimestamp(1733198214, tz=timezone.utc))
     with (
         override_settings(
-            RELATION_QUERY_V1BETA3_BIZ_ID_WHITE_LIST=query_biz_ids,
+            RELATION_V1BETA3_BIZ_ID_WHITE_LIST=query_biz_ids,
             GRAPH_RELATION_V4_BIZ_ID_WHITE_LIST=old_biz_ids,
         ),
         patch("metadata.utils.redis_tools.RedisTools.hgetall", return_value=mock_redis_hgetall_return_value),
@@ -207,7 +207,7 @@ def test_query_rollout_does_not_provision_dual_write(create_and_delete_records, 
 
 
 @pytest.mark.django_db(databases="__all__")
-@override_settings(RELATION_QUERY_V1BETA3_BIZ_ID_WHITE_LIST=[2], GRAPH_RELATION_V4_BIZ_ID_WHITE_LIST=[2])
+@override_settings(RELATION_V1BETA3_BIZ_ID_WHITE_LIST=[2], GRAPH_RELATION_V4_BIZ_ID_WHITE_LIST=[2])
 def test_sync_relation_redis_data_preserves_existing_storage(create_and_delete_records):
     table_id = "2_bkcc_built_in_time_series.__default__"
     storage_config = {

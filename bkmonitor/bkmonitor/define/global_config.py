@@ -460,8 +460,8 @@ ADVANCED_OPTIONS = OrderedDict(
         ("BKBASE_REDIS_LOCK_NAME", slz.CharField(label="计算平台Redis锁名称", default="watch_bkbase_meta_redis_lock")),
         ("ENABLE_SYNC_BKBASE_METADATA_TO_DB", slz.BooleanField(label="是否同步bkbase元数据至DB", default=False)),
         (
-            "RELATION_QUERY_V1BETA3_BIZ_ID_WHITE_LIST",
-            slz.ListField(label="关联查询 v1beta3 灰度业务白名单（未命中使用旧 relation）", default=[]),
+            "RELATION_V1BETA3_BIZ_ID_WHITE_LIST",
+            slz.ListField(label="关联查询及业务关系定义 v1beta3 灰度白名单", default=[]),
         ),
         (
             "ACCESS_DATA_BATCH_PROCESS_THRESHOLD",
@@ -900,9 +900,13 @@ def init_or_update_global_config(GlobalConfig):
         try:
             config = GlobalConfig.objects.get(key=config_key)
         except GlobalConfig.DoesNotExist:
+            initial_value = serializer.default
+            if config_key == "RELATION_V1BETA3_BIZ_ID_WHITE_LIST":
+                # 首次部署时使用环境配置；此后由 GlobalConfig 持久值负责灰度变更。
+                initial_value = settings.RELATION_V1BETA3_BIZ_ID_WHITE_LIST
             config = GlobalConfig(
                 key=config_key,
-                value=serializer.default,
+                value=initial_value,
                 is_advanced=is_advanced,
                 is_internal=True,
             )

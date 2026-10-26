@@ -23,12 +23,17 @@ from bkmonitor.utils.tenant import bk_biz_id_to_bk_tenant_id
 from core.prometheus import metrics
 from metadata import config
 from metadata.models import (
+    ClusterInfo,
     DataSource,
+    GraphRelationV4DataLinkOption,
     Label,
     ResultTable,
+    ResultTableOption,
     Space,
+    SurrealDBStorage,
     TimeSeriesGroup,
 )
+from metadata.models.entity_relation import EntityMeta
 from metadata.models.space.constants import EtlConfigs
 from metadata.tools.constants import TASK_FINISHED_SUCCESS, TASK_STARTED
 from metadata.utils.redis_tools import RedisTools
@@ -73,6 +78,83 @@ def _get_builtin_relation_token(
         bk_biz_id=bk_biz_id,
         app_name=data_name,
     )
+
+
+def _canonical_graph_definitions(definitions: list) -> list[str]:
+    return sorted(json.dumps(item, sort_keys=True, ensure_ascii=False) for item in definitions)
+
+
+def _refresh_existing_graph_storage(result_table: ResultTable, bk_biz_id: int) -> bool:
+    """Keep an already configured SurrealDB graph link aligned with its definitions."""
+    graph_option_record = ResultTableOption.objects.filter(
+        bk_tenant_id=result_table.bk_tenant_id,
+        table_id=result_table.table_id,
+        name=ResultTableOption.OPTION_GRAPH_RELATION_V4_DATA_LINK,
+    ).first()
+    if graph_option_record is None:
+        return False
+
+    graph_option = GraphRelationV4DataLinkOption.from_option_value(graph_option_record.get_value())
+    if not graph_option.should_write_surrealdb:
+        return False
+
+    surrealdb_storage = SurrealDBStorage.objects.filter(
+        bk_tenant_id=result_table.bk_tenant_id,
+        table_id=result_table.table_id,
+    ).first()
+    if surrealdb_storage is not None:
+        storage_cluster_id = surrealdb_storage.storage_cluster_id
+        table_type = surrealdb_storage.table_type
+    else:
+        default_clusters = list(
+            ClusterInfo.objects.filter(
+                bk_tenant_id=result_table.bk_tenant_id,
+                cluster_type=ClusterInfo.TYPE_SURREALDB,
+                is_default_cluster=True,
+            )
+        )
+        if len(default_clusters) != 1:
+            raise ValueError(
+                f"relation graph storage for {result_table.table_id} requires one default SurrealDB cluster, "
+                f"found {len(default_clusters)}"
+            )
+        storage_cluster_id = default_clusters[0].cluster_id
+        table_type = SurrealDBStorage.TEMPORARY_TABLE_TYPE
+
+    vertices, relations = EntityMeta.auto_query_graph_definitions(bk_biz_id=bk_biz_id)
+    if not vertices or not relations:
+        raise ValueError(f"relation graph definitions are incomplete for bk_biz_id={bk_biz_id}")
+
+    if (
+        surrealdb_storage is not None
+        and _canonical_graph_definitions(surrealdb_storage.vertices) == _canonical_graph_definitions(vertices)
+        and _canonical_graph_definitions(surrealdb_storage.relations) == _canonical_graph_definitions(relations)
+    ):
+        return False
+
+    storage_config = {
+        "storage_cluster_id": storage_cluster_id,
+        "table_type": table_type,
+        "vertices": vertices,
+        "relations": relations,
+    }
+    with transaction.atomic(using=config.DATABASE_CONNECTION_NAME):
+        locked_result_table = (
+            ResultTable.objects.using(config.DATABASE_CONNECTION_NAME).select_for_update().get(pk=result_table.pk)
+        )
+        options = {
+            option.name: option.get_value()
+            for option in ResultTableOption.objects.using(config.DATABASE_CONNECTION_NAME).filter(
+                bk_tenant_id=result_table.bk_tenant_id,
+                table_id=result_table.table_id,
+            )
+        }
+        locked_result_table.modify(
+            operator="system",
+            external_storage={ClusterInfo.TYPE_SURREALDB: storage_config},
+            option=options,
+        )
+    return True
 
 
 def _parse_relation_redis_value(field: bytes | str, raw_value: bytes | str) -> dict[str, Any]:
@@ -232,6 +314,18 @@ def _sync_relation_redis_item(
         )
         return
 
+    if result_table is not None:
+        try:
+            _refresh_existing_graph_storage(result_table, context.bk_biz_id)
+        except Exception as e:  # pylint: disable=broad-except
+            logger.warning(
+                "sync_relation_redis_data: existing graph storage refresh failed, "
+                "bk_tenant_id->[%s], table_id->[%s], error->[%s]",
+                context.bk_tenant_id,
+                context.table_id,
+                e,
+            )
+
     logger.info(
         "sync_relation_redis_data: %s relation metadata completed, field->[%s], value->[%s]",
         action,
@@ -242,9 +336,9 @@ def _sync_relation_redis_item(
 
 @share_lock(ttl=3600, identify="metadata_sync_relation_redis_data")
 def sync_relation_redis_data():
-    """按 Redis field 同步 CMDB relation 内置 RT 和 token。
+    """按 Redis field 同步 CMDB relation 内置 RT、token 和已配置的 Graph 存储定义。
 
-    查询灰度不参与写入配置；单业务的数据解析、创建/更新异常不影响后续业务。
+    查询灰度不自动启用双写；单业务的数据解析、创建/更新异常不影响后续业务。
     """
     logger.info("sync_relation_redis_data started")
     start_time = time.time()

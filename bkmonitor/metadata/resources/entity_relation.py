@@ -22,6 +22,7 @@ from core.drf_resource import Resource
 from core.errors.metadata import EntityNotFoundError, UnsupportedKindError
 from metadata.models import EntityMeta
 from metadata.models.entity_relation import NAMESPACE_ALL
+from metadata.utils.relation_rollout import should_publish_relation_definition
 from metadata.utils.redis_tools import RedisTools
 
 logger = logging.getLogger("metadata")
@@ -194,17 +195,18 @@ class EntityHandler:
             channel = f"{redis_key}{ENTITY_REDIS_CHANNEL_SUFFIX}"
             namespace = entity.namespace or NAMESPACE_ALL
 
-            # 从 DB 查询该 kind + namespace 下的全部实体，全量重建
-            db_entities = self.model_class.objects.filter(namespace=entity.namespace)
             entities = {}
-            for e in db_entities:
-                entities[e.name] = e.to_redis_json()
+            if should_publish_relation_definition(namespace):
+                # 从 DB 查询该 kind + namespace 下的全部实体，全量重建。
+                db_entities = self.model_class.objects.filter(namespace=entity.namespace)
+                for e in db_entities:
+                    entities[e.name] = e.to_redis_json()
 
             if entities:
                 # 全量覆盖写入 Redis
                 RedisTools.hset_to_redis(redis_key, namespace, json.dumps(entities))
             else:
-                # 该 namespace 下已无实体，删除整个字段
+                # 定义已删除或业务退出灰度时，清理字段并通知订阅端清空本地缓存。
                 RedisTools.hdel(redis_key, [namespace])
 
             # 发布变更通知（只需 namespace + kind，消费端按 namespace 全量 reload）

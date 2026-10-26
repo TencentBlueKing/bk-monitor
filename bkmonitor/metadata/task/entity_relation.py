@@ -13,10 +13,12 @@ import logging
 import time
 
 from alarm_backends.core.lock.service_lock import share_lock
+from bkmonitor.utils.graph_relation import get_relation_v1beta3_biz_ids
 from core.prometheus import metrics
 from metadata.models.entity_relation import NAMESPACE_ALL, RelationDefinition, ResourceDefinition
 from metadata.resources.entity_relation import ENTITY_REDIS_KEY_PREFIX, ENTITY_REDIS_CHANNEL_SUFFIX
 from metadata.tools.constants import TASK_FINISHED_SUCCESS, TASK_STARTED
+from metadata.utils.relation_rollout import should_publish_relation_definition
 from metadata.utils.redis_tools import RedisTools
 
 logger = logging.getLogger("metadata")
@@ -29,7 +31,7 @@ def refresh_entity_definition_to_redis():
 
     当 Redis 数据丢失（Redis 重启、数据过期等）时，定时从 DB 全量重建缓存，
     保证 bmw SchemaProvider 始终能读到最新的资源/关联定义。
-    共享和业务 namespace 均正常下发，不受查询灰度控制。
+    共享 namespace 始终下发；业务 namespace 与 v1beta3 查询使用同一灰度名单。
 
     Redis 数据契约（与 EntityHandler._rebuild_redis_cache 保持一致）:
     - Key:     bkmonitorv3:entity:{Kind}
@@ -43,6 +45,7 @@ def refresh_entity_definition_to_redis():
     metrics.METADATA_CRON_TASK_STATUS_TOTAL.labels(
         task_name="refresh_entity_definition_to_redis", status=TASK_STARTED, process_target=None
     ).inc()
+    enabled_biz_ids = get_relation_v1beta3_biz_ids()
 
     for model_class in (ResourceDefinition, RelationDefinition):
         kind = model_class.get_kind()
@@ -59,6 +62,8 @@ def refresh_entity_definition_to_redis():
             namespace_entities: dict[str, dict] = {}
             for entity in model_class.objects.all():
                 ns = entity.namespace or NAMESPACE_ALL
+                if not should_publish_relation_definition(ns, enabled_biz_ids):
+                    continue
                 if ns not in namespace_entities:
                     namespace_entities[ns] = {}
                 namespace_entities[ns][entity.name] = entity.to_redis_json()
