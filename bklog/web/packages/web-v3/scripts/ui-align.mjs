@@ -36,8 +36,29 @@ const { chromium } = require(join(root, '../../node_modules/playwright'));
 const baseUrl = process.env.AAFE_E2E_BASE_URL || `http://127.0.0.1:${process.env.AAFE_E2E_PORT || 41001}`;
 const outDir = join(root, '.ai-native/ui-align/captures');
 
+const TOKENS = {
+  favoriteBg: [235, 238, 245],
+  manageLeftBg: [243, 246, 250],
+  brand: [58, 132, 255],
+};
+
 function box(handle) {
   return handle ? handle.boundingBox() : null;
+}
+
+function parseRgb(value) {
+  const match = String(value || '').match(/\d+/g);
+  if (!match || match.length < 3) {
+    return null;
+  }
+  return match.slice(0, 3).map(Number);
+}
+
+function nearColor(actual, expected, tolerance = 18) {
+  if (!actual) {
+    return false;
+  }
+  return actual.every((channel, index) => Math.abs(channel - expected[index]) <= tolerance);
 }
 
 async function capture(page, name) {
@@ -47,12 +68,39 @@ async function capture(page, name) {
   return path;
 }
 
+async function captureRegion(page, selector, name) {
+  const handle = await page.$(selector);
+  if (!handle) {
+    return null;
+  }
+  mkdirSync(outDir, { recursive: true });
+  const path = join(outDir, `${name}.png`);
+  await handle.screenshot({ path });
+  return path;
+}
+
+async function computed(page, selector) {
+  return page.$eval(selector, el => {
+    const style = getComputedStyle(el);
+    const rect = el.getBoundingClientRect();
+    return {
+      backgroundColor: style.backgroundColor,
+      color: style.color,
+      width: rect.width,
+      height: rect.height,
+      x: rect.x,
+      y: rect.y,
+    };
+  }).catch(() => null);
+}
+
 async function measureRetrieve(page) {
   const favorite = await box(await page.$('[data-ui="favorite-panel"]'));
   const topbar = await box(await page.$('[data-ui="topbar"]'));
   const searchbar = await box(await page.$('[data-ui="searchbar"]'));
   const field = await box(await page.$('[data-ui="field-panel"]'));
   const result = await box(await page.$('[data-ui="result-panel"]'));
+  const favoriteStyle = await computed(page, '[data-ui="favorite-panel"]');
   const checks = [];
   if (favorite && topbar) {
     checks.push({ id: 'favorite-left-of-main', ok: favorite.x + favorite.width <= topbar.x + 2, detail: { favorite, topbar } });
@@ -76,12 +124,19 @@ async function measureRetrieve(page) {
   await page.waitForSelector('[data-ui="origin-table"] tbody tr', { timeout: 4000 }).catch(() => null);
   const rowCount = await page.$$eval('[data-ui="origin-table"] tbody tr', rows => rows.length).catch(() => 0);
   checks.push({ id: 'origin-has-rows', ok: rowCount > 0, detail: rowCount });
-  return { favorite, topbar, searchbar, field, result, checks };
+  const favoriteRgb = parseRgb(favoriteStyle?.backgroundColor);
+  checks.push({
+    id: 'favorite-bg-from-render',
+    ok: nearColor(favoriteRgb, TOKENS.favoriteBg),
+    detail: { expected: '#ebeef5', actual: favoriteStyle?.backgroundColor, shotRequired: true },
+  });
+  return { favorite, topbar, searchbar, field, result, favoriteStyle, checks };
 }
 
 async function measureCollection(page) {
   const left = await box(await page.$('[data-ui="collection-left"]'));
   const right = await box(await page.$('[data-ui="collection-right"]'));
+  const leftStyle = await computed(page, '[data-ui="collection-left"]');
   const checks = [];
   if (left && right) {
     checks.push({ id: 'collection-left-of-right', ok: left.x + left.width <= right.x + 2, detail: { left, right } });
@@ -89,23 +144,75 @@ async function measureCollection(page) {
   } else {
     checks.push({ id: 'collection-layout', ok: false, detail: 'collection panes missing' });
   }
+  checks.push({
+    id: 'collection-left-bg-from-render',
+    ok: nearColor(parseRgb(leftStyle?.backgroundColor), TOKENS.manageLeftBg),
+    detail: { expected: '#f3f6fa', actual: leftStyle?.backgroundColor, shotRequired: true },
+  });
+  return { left, right, leftStyle, checks };
+}
+
+async function measureManage(page) {
+  const left = await box(await page.$('[data-ui="manage-left"]'));
+  const right = await box(await page.$('[data-ui="manage-right"]'));
+  const checks = [];
+  if (left && right) {
+    checks.push({ id: 'manage-left-of-right', ok: left.x + left.width <= right.x + 2, detail: { left, right } });
+  } else {
+    checks.push({ id: 'manage-layout', ok: false, detail: 'manage panes missing' });
+  }
   return { left, right, checks };
 }
 
 const browser = await chromium.launch({ headless: true });
 const page = await browser.newPage({ viewport: { width: 1440, height: 900 } });
-const report = { ok: true, baseUrl, pages: [] };
+const report = { ok: true, baseUrl, shots: [], pages: [], v2: { ok: false, reason: 'proxy missing, M5 blocked' } };
 
 try {
   await page.goto(`${baseUrl}/#/retrieve`, { waitUntil: 'networkidle' });
   const retrieveShot = await capture(page, 'v3-retrieve');
+  const retrieveRegions = {
+    favorite: await captureRegion(page, '[data-ui="favorite-panel"]', 'v3-retrieve-favorite'),
+    searchbar: await captureRegion(page, '[data-ui="searchbar"]', 'v3-retrieve-searchbar'),
+    result: await captureRegion(page, '[data-ui="result-panel"]', 'v3-retrieve-result'),
+  };
   const retrieve = await measureRetrieve(page);
-  report.pages.push({ name: 'retrieve', shot: retrieveShot, ...retrieve });
+  report.pages.push({ name: 'retrieve', shot: retrieveShot, regions: retrieveRegions, ...retrieve });
+  report.shots.push(retrieveShot, ...Object.values(retrieveRegions).filter(Boolean));
+
+  await page.fill('.retrieve-searchbar__input input, .retrieve-searchbar__input .t-input__inner', 'error');
+  await page.click('.retrieve-searchbar__submit');
+  await page.waitForTimeout(400);
+  const highlightShot = await capture(page, 'v3-retrieve-highlight');
+  await page.click('[data-ui="log-expand"]');
+  await page.waitForTimeout(200);
+  const expandShot = await capture(page, 'v3-retrieve-expand');
+  const hasMark = await page.$('mark');
+  const hasDetail = await page.$('[data-ui="log-detail"]');
+  report.pages.push({
+    name: 'retrieve-deep',
+    shot: highlightShot,
+    checks: [
+      { id: 'highlight-mark', ok: Boolean(hasMark), detail: 'keyword highlight in screenshot flow' },
+      { id: 'row-expand', ok: Boolean(hasDetail), detail: 'expanded log detail' },
+      { id: 'highlight-shot', ok: Boolean(highlightShot), detail: highlightShot },
+      { id: 'expand-shot', ok: Boolean(expandShot), detail: expandShot },
+    ],
+  });
+  report.shots.push(highlightShot, expandShot);
 
   await page.goto(`${baseUrl}/#/manage/collection`, { waitUntil: 'networkidle' });
   const collectionShot = await capture(page, 'v3-collection');
+  const collectionLeftShot = await captureRegion(page, '[data-ui="collection-left"]', 'v3-collection-left');
   const collection = await measureCollection(page);
-  report.pages.push({ name: 'collection', shot: collectionShot, ...collection });
+  report.pages.push({ name: 'collection', shot: collectionShot, regions: { left: collectionLeftShot }, ...collection });
+  report.shots.push(collectionShot, collectionLeftShot);
+
+  await page.goto(`${baseUrl}/#/manage/clean`, { waitUntil: 'networkidle' });
+  const manageShot = await capture(page, 'v3-manage-clean');
+  const manage = await measureManage(page);
+  report.pages.push({ name: 'manage-clean', shot: manageShot, ...manage });
+  report.shots.push(manageShot);
 
   report.ok = report.pages.every(item => item.checks.every(check => check.ok));
 } catch (error) {
@@ -117,5 +224,11 @@ try {
 
 mkdirSync(outDir, { recursive: true });
 writeFileSync(join(outDir, 'report.json'), `${JSON.stringify(report, null, 2)}\n`);
-process.stdout.write(`${JSON.stringify({ ok: report.ok, error: report.error, pages: report.pages.map(item => ({ name: item.name, checks: item.checks })) }, null, 2)}\n`);
+process.stdout.write(`${JSON.stringify({
+  ok: report.ok,
+  error: report.error,
+  shots: report.shots,
+  v2: report.v2,
+  pages: report.pages.map(item => ({ name: item.name, checks: item.checks })),
+}, null, 2)}\n`);
 process.exitCode = report.ok ? 0 : 1;

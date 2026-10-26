@@ -1,8 +1,8 @@
 {
   "id": "plan.ui-migrate-v3",
-  "version": "0.4.0",
-  "status": "awaiting-decision",
-  "decision": "本轮只拆 TAPD 子需求，不改 Vue/CSS。上一轮视觉落地不视为通过。",
+  "version": "0.5.0",
+  "status": "m0-m4-landed-m5-blocked",
+  "decision": "已按子单落地。自测必须读 Playwright PNG（npm run test:ui），禁止盲测。M5 无 v2 代理不通过。",
   "alignTracks": {
     "componentAndCompiled": "读 v2 SFC/scss 抽 token，在 v3 theme.css 重写；vite build 后对照编译 CSS 选择器与计算值，禁止拷贝 Vue2 文件",
     "browserRender": "v2 e2e + v3 Playwright 对照区域几何与关键控件；禁止像素 diff 当门禁；缺代理则 M5 blocked"
@@ -101,13 +101,13 @@
     {
       "id": "M0",
       "title": "计划与判定（本轮）",
-      "status": "awaiting-decision",
+      "status": "landed",
       "do": ["给出策略 A/B/C 与波次", "回填 TAPD", "不改界面"]
     },
     {
       "id": "M1",
       "title": "检索壳层：头 / 收藏 / 顶栏 / 检索条 / 字段 / 结果框",
-      "status": "proposed",
+      "status": "landed",
       "depends": "选定 A 或 B",
       "accept": [
         "收藏 240 #ebeef5，开关 32 图标",
@@ -119,20 +119,20 @@
     {
       "id": "M2",
       "title": "检索控件：UI 芯片 / SQL / 历史 / 行展开 / 高亮",
-      "status": "proposed",
+      "status": "landed",
       "depends": "M1 过目",
       "accept": ["空查询出数", "收藏回填并检索", "行上上下文/实时", "高亮关键字"]
     },
     {
       "id": "M3",
       "title": "采集列表：左分组 + 右表 + 新建向导观感",
-      "status": "proposed",
+      "status": "landed",
       "accept": ["左 250 #f3f6fa", "右白表 + 主按钮新建", "状态中文"]
     },
     {
       "id": "M4",
       "title": "其余管理页同一左树右表壳",
-      "status": "proposed"
+      "status": "landed"
     },
     {
       "id": "M5",

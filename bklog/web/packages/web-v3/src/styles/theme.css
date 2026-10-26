@@ -162,6 +162,20 @@ body,
   border-radius: 4px;
 }
 
+.retrieve-searchbar__body {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.retrieve-searchbar__chips {
+  display: flex;
+  gap: 4px;
+  align-items: center;
+  padding: 6px 8px 0;
+}
+
 .retrieve-searchbar__mode {
   flex-shrink: 0;
   width: 82px;
@@ -252,6 +266,30 @@ body,
   font-family: inherit;
   white-space: pre-wrap;
   word-break: break-all;
+}
+
+.retrieve-log-cell mark {
+  padding: 0 2px;
+  color: var(--bklog-text);
+  background: #fff3cd;
+}
+
+.retrieve-log-expand {
+  display: block;
+  width: 100%;
+  padding: 0;
+  text-align: left;
+  cursor: pointer;
+  background: transparent;
+  border: 0;
+}
+
+.retrieve-log-detail {
+  margin: 6px 0 0;
+  padding: 8px;
+  color: var(--bklog-text-secondary);
+  background: #f5f7fa;
+  border: 1px solid var(--bklog-border-light);
 }
 
 .retrieve-toolbar {
@@ -358,6 +396,11 @@ body,
   display: flex;
   gap: 8px;
   height: 100%;
+}
+
+.app-header__space {
+  margin-left: auto;
+  color: var(--bklog-text-secondary);
 }
 
 .app-header__link {

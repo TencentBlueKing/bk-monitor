@@ -23,19 +23,27 @@
 <template>
   <section class="retrieve-searchbar" data-ui="searchbar">
     <div class="retrieve-searchbar__box">
-      <button type="button" class="retrieve-searchbar__mode" @click="toggleMode">
+      <button type="button" class="retrieve-searchbar__mode" data-ui="search-mode" @click="toggleMode">
         {{ mode === 'ui' ? 'UI 查询' : 'SQL 查询' }}
       </button>
-      <t-input
-        class="retrieve-searchbar__input"
-        borderless
-        :model-value="keyword"
-        placeholder="请输入检索语句，回车或点击检索；空语句将返回当前时间范围内全部日志"
-        clearable
-        @update:model-value="value => emit('update:keyword', value)"
-        @enter="emit('search')"
-      />
+      <div class="retrieve-searchbar__body">
+        <div v-if="keyword && mode === 'ui'" class="retrieve-searchbar__chips" data-ui="search-chips">
+          <t-tag closable max-width="240px" @close="emit('update:keyword', '')">{{ keyword }}</t-tag>
+        </div>
+        <t-input
+          class="retrieve-searchbar__input"
+          borderless
+          :model-value="keyword"
+          :placeholder="mode === 'ui' ? '请输入检索语句，回车检索' : 'SQL: log:error AND status:500'"
+          clearable
+          @update:model-value="value => emit('update:keyword', value)"
+          @enter="emit('search')"
+        />
+      </div>
     </div>
+    <t-dropdown :options="historyOptions" trigger="click" @click="onHistory">
+      <t-button variant="outline" data-ui="search-history">历史</t-button>
+    </t-dropdown>
     <t-button
       class="retrieve-searchbar__submit"
       theme="primary"
@@ -48,21 +56,34 @@
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue';
+import { computed, ref } from 'vue';
 
-defineProps<{
+const props = defineProps<{
   keyword: string;
   loading: boolean;
+  history: string[];
 }>();
 
-defineEmits<{
+const emit = defineEmits<{
   'update:keyword': [value: string];
   search: [];
+  'apply-history': [value: string];
 }>();
 
 const mode = ref<'ui' | 'sql'>('ui');
+const historyOptions = computed(() => (
+  props.history.length
+    ? props.history.map(item => ({ content: item, value: item }))
+    : [{ content: '暂无检索历史', value: '', disabled: true }]
+));
 
 const toggleMode = () => {
   mode.value = mode.value === 'ui' ? 'sql' : 'ui';
+};
+
+const onHistory = (item: { value?: string }) => {
+  if (item.value) {
+    emit('apply-history', item.value);
+  }
 };
 </script>

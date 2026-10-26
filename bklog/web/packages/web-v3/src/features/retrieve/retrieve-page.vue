@@ -46,7 +46,9 @@
       <retrieve-searchbar
         v-model:keyword="keyword"
         :loading="search.uiState === 'loading'"
+        :history="searchHistory"
         @search="onSearch"
+        @apply-history="onApplyHistory"
       />
       <t-alert v-if="search.uiState === 'error'" theme="error" :message="search.error" />
       <section class="retrieve-result">
@@ -77,7 +79,10 @@
                   {{ formatTime(row.dtEventTimeStamp) }}
                 </template>
                 <template #log="{ row }">
-                  <pre class="retrieve-log-cell">{{ row.log }}</pre>
+                  <button type="button" class="retrieve-log-expand" data-ui="log-expand" @click="toggleExpand(row.id)">
+                    <pre class="retrieve-log-cell"><template v-for="part in highlightLog(row.log)" :key="part.key"><mark v-if="part.mark">{{ part.text }}</mark><span v-else>{{ part.text }}</span></template></pre>
+                  </button>
+                  <pre v-if="expandedId === row.id" class="retrieve-log-detail" data-ui="log-detail">{{ row.log }}</pre>
                 </template>
                 <template #op="{ row }">
                   <t-button variant="text" @click="openContext(row.id)">上下文</t-button>
@@ -201,6 +206,8 @@ const toolbarController = new ToolbarController(intent => {
 
 const keyword = ref('');
 const saveName = ref('');
+const searchHistory = ref<string[]>([]);
+const expandedId = ref<string | null>(null);
 const grepController = new GrepController();
 const search = reactive<RetrieveSnapshot>(searchController.getState());
 const favorite = reactive<FavoriteSnapshot>(favoriteController.getState());
@@ -230,6 +237,24 @@ const originColumns = computed(() => [
   })),
   { colKey: 'op', title: '操作', cell: 'op', width: 140 },
 ]);
+
+const escapeRegExp = (value: string) => value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+
+const highlightLog = (log: string) => {
+  const needle = keyword.value.trim();
+  if (!needle) {
+    return [{ key: '0', text: log, mark: false }];
+  }
+  return log.split(new RegExp(`(${escapeRegExp(needle)})`, 'i')).filter(Boolean).map((text, index) => ({
+    key: `${index}-${text}`,
+    text,
+    mark: text.toLowerCase() === needle.toLowerCase(),
+  }));
+};
+
+const toggleExpand = (id: string) => {
+  expandedId.value = expandedId.value === id ? null : id;
+};
 
 const formatTime = (value: number) => {
   const date = new Date(value);
@@ -329,8 +354,22 @@ const stopRealtime = () => {
   realtimeVisible.value = false;
 };
 
+const rememberHistory = () => {
+  const value = keyword.value.trim();
+  if (!value || searchHistory.value.includes(value)) {
+    return;
+  }
+  searchHistory.value = [value, ...searchHistory.value].slice(0, 8);
+};
+
 const onSearch = async () => {
+  rememberHistory();
   await submitSearch({ resetPage: false, timeRange: toolbar.timeRange });
+};
+
+const onApplyHistory = async (value: string) => {
+  keyword.value = value;
+  await onSearch();
 };
 
 const onToggleFavorite = () => {
@@ -360,6 +399,7 @@ const onApplyFavorite = async (id: string) => {
   syncFavorite(result.state);
   if (result.keyword) {
     keyword.value = result.keyword;
+    rememberHistory();
     await submitSearch({ resetPage: true, timeRange: toolbar.timeRange });
   }
 };

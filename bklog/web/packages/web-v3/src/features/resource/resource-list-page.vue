@@ -7,7 +7,7 @@
   蓝鲸智云PaaS平台 (BlueKing PaaS) is licensed under the MIT License.
 
   License for 蓝鲸智云PaaS平台 (BlueKing PaaS):
-  ---------------------------------------------------
+    ---------------------------------------------------
   Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated
   documentation files (the "Software"), to deal in the Software without restriction, including without limitation
   the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and
@@ -21,38 +21,43 @@
   IN THE SOFTWARE.
 -->
 <template>
-  <section class="resource-page">
-    <header class="retrieve-toolbar">
-      <h2 class="resource-page__title">{{ catalog.title }}</h2>
-      <t-input v-model="filterQuery" placeholder="过滤名称或关键字" style="width: 220px" @enter="onFilter" />
-      <t-select v-model="status" :options="statusOptions" style="width: 140px" @change="onStatus" />
-      <t-button theme="primary" @click="onFilter">过滤</t-button>
-      <t-button @click="openSave">新增</t-button>
-    </header>
-    <t-alert v-if="state.uiState === 'error'" theme="error" :message="state.error" />
-    <t-empty v-if="!visible.length" description="没有匹配的资源" />
-    <t-table v-else row-key="id" :data="visible" :columns="columns">
-      <template #status="{ row }">
-        <t-tag :theme="statusTheme(row.status)">{{ row.status }}</t-tag>
-      </template>
-      <template #op="{ row }">
-        <t-button theme="danger" variant="text" @click="onRemove(row.id)">删除</t-button>
-      </template>
-    </t-table>
-    <t-dialog
-      :visible="saveVisible"
-      header="保存资源"
-      confirm-btn="保存"
-      cancel-btn="取消"
-      @confirm="onSave"
-      @close="saveVisible = false"
-    >
-      <t-form>
-        <t-form-item label="名称">
-          <t-input v-model="saveName" placeholder="输入名称" />
-        </t-form-item>
-      </t-form>
-    </t-dialog>
+  <section class="collection-shell" data-ui="manage-root">
+    <aside class="collection-left" data-ui="manage-left">
+      <header class="collection-left__title">{{ catalog.title }}</header>
+      <button type="button" class="collection-left__item is-active">全部</button>
+    </aside>
+    <section class="collection-right" data-ui="manage-right">
+      <header class="collection-toolbar">
+        <t-input v-model="filterQuery" placeholder="搜索名称或关键字" style="width: 220px" @enter="onFilter" />
+        <t-select v-model="status" :options="statusOptions" style="width: 140px" @change="onStatus" />
+        <t-button @click="onFilter">过滤</t-button>
+        <t-button class="collection-toolbar__grow" theme="primary" @click="openSave">新增</t-button>
+      </header>
+      <t-alert v-if="state.uiState === 'error'" theme="error" :message="state.error" />
+      <t-empty v-if="!visible.length" description="没有匹配的资源" />
+      <t-table v-else row-key="id" size="small" :data="visible" :columns="columns">
+        <template #status="{ row }">
+          <t-tag :theme="statusTheme(row.status)">{{ statusLabel(row.status) }}</t-tag>
+        </template>
+        <template #op="{ row }">
+          <t-button theme="danger" variant="text" @click="onRemove(row.id)">删除</t-button>
+        </template>
+      </t-table>
+      <t-dialog
+        :visible="saveVisible"
+        header="保存资源"
+        confirm-btn="保存"
+        cancel-btn="取消"
+        @confirm="onSave"
+        @close="saveVisible = false"
+      >
+        <t-form>
+          <t-form-item label="名称">
+            <t-input v-model="saveName" placeholder="输入名称" />
+          </t-form-item>
+        </t-form>
+      </t-dialog>
+    </section>
   </section>
 </template>
 
@@ -78,11 +83,17 @@ const saveVisible = ref(false);
 const saveName = ref('');
 const statusOptions = [
   { label: '全部状态', value: 'all' },
-  { label: 'running', value: 'running' },
-  { label: 'ready', value: 'ready' },
-  { label: 'stopped', value: 'stopped' },
-  { label: 'failed', value: 'failed' },
+  { label: '运行中', value: 'running' },
+  { label: '就绪', value: 'ready' },
+  { label: '已停用', value: 'stopped' },
+  { label: '失败', value: 'failed' },
 ];
+const statusText: Record<string, string> = {
+  running: '运行中',
+  ready: '就绪',
+  stopped: '已停用',
+  failed: '失败',
+};
 const columns = [
   { colKey: 'name', title: '名称' },
   { colKey: 'status', title: '状态', cell: 'status', width: 120 },
@@ -125,6 +136,8 @@ const onSave = () => {
 const onRemove = (id: string) => {
   sync(controller.value.remove(id));
 };
+
+const statusLabel = (value: string) => statusText[value] ?? value;
 
 const statusTheme = (value: ResourceStatus) => {
   if (value === 'failed') return 'danger';
