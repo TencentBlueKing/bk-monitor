@@ -142,12 +142,15 @@ export function checkContracts() {
 }
 
 export function analyzeImpact() {
-  const graph = readJson(join(nativeRoot, 'impact', 'retrieve-search.json'));
+  const graphs = listJson(join(nativeRoot, 'impact')).map(readJson);
+  const files = [...new Set(graphs.flatMap(graph => graph.nodes.filter(node => node.type === 'file').map(node => node.id)))];
+  const tests = [...new Set(graphs.flatMap(graph => graph.nodes.filter(node => node.type === 'test').map(node => node.id)))];
   return {
     ok: true,
-    feature: graph.feature,
-    files: graph.nodes.filter(node => node.type === 'file').map(node => node.id),
-    tests: graph.nodes.filter(node => node.type === 'test').map(node => node.id),
+    feature: graphs[0]?.feature,
+    features: graphs.map(graph => graph.feature),
+    files,
+    tests,
   };
 }
 

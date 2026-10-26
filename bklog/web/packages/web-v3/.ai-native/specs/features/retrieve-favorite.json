@@ -1,0 +1,60 @@
+{
+  "id": "feature.retrieve-favorite",
+  "version": "0.1.0",
+  "title": "日志检索收藏",
+  "status": "approved",
+  "goal": "用户按分组管理检索收藏，应用收藏会回填关键字并触发新检索。",
+  "inputs": [
+    { "name": "name", "type": "string", "required": true },
+    { "name": "keyword", "type": "string", "required": true },
+    { "name": "groupId", "type": "string", "required": true },
+    { "name": "indexSetId", "type": "string", "required": true },
+    { "name": "filterQuery", "type": "string", "required": false }
+  ],
+  "rules": [
+    "过滤关键字先去除首尾空白，匹配收藏名称或检索关键字",
+    "仅看当前索引集时只保留 indexSetId 相同的收藏",
+    "保存时名称去空白，同一分组内名称不可重复",
+    "应用收藏会选中该项并返回其关键字，由检索控制器提交",
+    "删除当前选中项后清空选中状态"
+  ],
+  "dependencies": [
+    "data.favorite-item",
+    "state.retrieve-favorite",
+    "ui.retrieve-favorite",
+    "action.apply-favorite",
+    "action.save-favorite"
+  ],
+  "acceptance": [
+    {
+      "id": "AC-001",
+      "given": "收藏列表中存在名称和关键字不同的记录",
+      "when": "用户输入过滤词",
+      "then": "只展示名称或关键字包含该词的收藏"
+    },
+    {
+      "id": "AC-002",
+      "given": "收藏分属不同索引集",
+      "when": "开启仅看当前索引集",
+      "then": "只保留当前索引集的收藏"
+    },
+    {
+      "id": "AC-003",
+      "given": "同组已有同名收藏",
+      "when": "保存同名收藏",
+      "then": "拒绝保存并保持原列表不变"
+    },
+    {
+      "id": "AC-004",
+      "given": "存在可应用的收藏",
+      "when": "应用该收藏",
+      "then": "该项变为选中并返回其关键字"
+    },
+    {
+      "id": "AC-005",
+      "given": "当前选中了某个收藏",
+      "when": "删除该项",
+      "then": "列表不再包含该项且选中为空"
+    }
+  ]
+}

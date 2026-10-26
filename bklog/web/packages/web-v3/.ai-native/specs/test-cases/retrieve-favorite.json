@@ -1,0 +1,36 @@
+{
+  "id": "test.retrieve-favorite",
+  "feature": "feature.retrieve-favorite",
+  "scenarios": [
+    {
+      "id": "TC-101",
+      "acceptance": "AC-001",
+      "command": "node --test --experimental-strip-types src/features/retrieve/favorite-controller.test.mjs",
+      "expect": "filter matches name or keyword after trim"
+    },
+    {
+      "id": "TC-102",
+      "acceptance": "AC-002",
+      "command": "node --test --experimental-strip-types src/features/retrieve/favorite-controller.test.mjs",
+      "expect": "current-only hides other index sets"
+    },
+    {
+      "id": "TC-103",
+      "acceptance": "AC-003",
+      "command": "node --test --experimental-strip-types src/features/retrieve/favorite-controller.test.mjs",
+      "expect": "duplicate group name is rejected"
+    },
+    {
+      "id": "TC-104",
+      "acceptance": "AC-004",
+      "command": "node --test --experimental-strip-types src/features/retrieve/favorite-controller.test.mjs",
+      "expect": "apply returns keyword and selects item"
+    },
+    {
+      "id": "TC-105",
+      "acceptance": "AC-005",
+      "command": "node --test --experimental-strip-types src/features/retrieve/favorite-controller.test.mjs",
+      "expect": "delete clears active selection"
+    }
+  ]
+}
