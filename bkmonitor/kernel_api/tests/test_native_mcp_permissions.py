@@ -73,8 +73,10 @@ def isolated(monkeypatch):
     monkeypatch.setattr(socket.socket, "connect", Mock(side_effect=AssertionError("network forbidden")))
     monkeypatch.setattr(socket, "getaddrinfo", Mock(side_effect=AssertionError("DNS forbidden")))
     registry._cached_tool_registry.cache_clear()
+    registry._cached_route_registry.cache_clear()
     yield
     registry._cached_tool_registry.cache_clear()
+    registry._cached_route_registry.cache_clear()
 
 
 @pytest.fixture
@@ -1866,6 +1868,7 @@ def test_middleware_emits_one_complete_usage_record(request_factory, caplog):
         HTTP_X_BK_REQUEST_FROM="knot",
         HTTP_X_BK_REQUEST_SOURCE="bkm-mcp-client",
         HTTP_X_REQUEST_ID="request-id-1",
+        HTTP_X_BKAPI_REQUEST_ID="gateway-id-1",
     )
     request.mcp_usage_started_at = time.monotonic() - 0.01
     request.mcp_usage_event_id = "event-id-1"
@@ -1909,6 +1912,7 @@ def test_middleware_emits_one_complete_usage_record(request_factory, caplog):
         "usage_schema_version": 1,
         "username": "alice",
         "x_request_id": "request-id-1",
+        "gateway_request_id": "gateway-id-1",
     }
     assert fields["duration_ms"] >= 0
 
@@ -3086,3 +3090,234 @@ def test_unified_resource_cannot_reuse_legacy_checked_flag(request_factory, io):
         perform(NS(), {"tool_name": "search_logs", "tool_args": log_args()})
     legacy.assert_not_called()
     io.dispatch.assert_not_called()
+
+
+@pytest.fixture
+def direct_gateway(monkeypatch, request_factory, native_http, io):
+    """Exercise the real process_view -> MCP handler -> executor chain without a server marker."""
+    for name, value in [
+        ("AIDEV_AGENT_MCP_REQUEST_HEADER_VALUE", "mcp-client"),
+        ("AIDEV_AGENT_MCP_REQUEST_AGENT_CODE", "mcp-app"),
+    ]:
+        monkeypatch.setattr(settings, name, value, raising=False)
+    for name, attr in [("bkmonitor.iam.action", "get_action_by_id"), ("bkmonitor.iam.drf", "MCPPermission")]:
+        module = ModuleType(name)
+        setattr(module, attr, Mock(side_effect=AssertionError("old MCP action selection must not run")))
+        monkeypatch.setitem(sys.modules, name, module)
+    common = dict(
+        settings=settings,
+        json=json,
+        time=time,
+        secrets=secrets,
+        logging=logging,
+        HttpResponseForbidden=HttpResponseForbidden,
+        JsonResponse=JsonResponse,
+        log_mcp_event=auth.log_mcp_event,
+        log_mcp_tool_event=auth.log_mcp_tool_event,
+    )
+    handle = source_method(
+        "kernel_api/middlewares/authentication.py", "AuthenticationMiddleware._handle_mcp_auth", **common
+    )
+    execute = source_method(
+        "kernel_api/middlewares/authentication.py",
+        "AuthenticationMiddleware._handle_native_mcp",
+        HttpResponse=HttpResponse,
+        **common,
+    )
+    recognize = source_method(
+        "kernel_api/middlewares/authentication.py", "AuthenticationMiddleware.use_mcp_auth", settings=settings
+    )
+    extract = source_method(
+        "kernel_api/middlewares/authentication.py", "AuthenticationMiddleware.extract_tool_name_from_path"
+    )
+    ordinary = Mock(return_value=True)
+
+    def run(
+        tool_name="search_logs",
+        args=None,
+        *,
+        marker=False,
+        verified=True,
+        valid_jwt=True,
+        gateway=True,
+        bearer=False,
+        path=None,
+        method=None,
+    ):
+        tool = registry.get_tool_registry().get(tool_name)
+        request = request_factory(
+            path or tool.backend_path, args if args is not None else log_args(), method or tool.backend_method
+        )
+        if not marker:
+            request.META.pop("HTTP_X_BKAPI_MCP_SERVER_NAME", None)
+        if bearer:
+            request.META["HTTP_AUTHORIZATION"] = "Bearer synthetic-personal-token"
+        request.META["HTTP_X_BKAPI_REQUEST_ID"] = "gateway-request-test"
+        user = request.user
+        claims = {"username": "alice", "verified": verified}
+        jwt = NS(
+            is_valid=valid_jwt,
+            app=NS(app_code="ordinary-cli-app"),
+            user=NS(username="alice", get=claims.get),
+            validate=lambda: (valid_jwt, "invalid JWT"),
+        )
+        permission = Mock()
+        permission.is_allowed_by_biz.side_effect = lambda biz, action, **kw: (
+            True
+            if io.monitor.iam_client.is_allowed(NS(action=NS(id=action)))
+            else (_ for _ in ()).throw(PermissionDenied("MCP permission denied"))
+        )
+        perform = source_method(
+            "kernel_api/resource/unified_mcp.py",
+            "ExecuteToolResource.perform_request",
+            get_tool_registry=registry.get_tool_registry,
+            get_request=lambda **kw: request,
+            Draft7Validator=Draft7Validator,
+            ValidationError=ValidationError,
+            get_permission_client=lambda: permission,
+            execute_native_tool=auth.execute_native_tool,
+            dispatch_tool=io.dispatch,
+        )
+        module = ModuleType("kernel_api.resource.unified_mcp")
+        module.ExecuteToolResource = lambda: NS(perform_request=lambda data: perform(NS(), data))
+        monkeypatch.setitem(sys.modules, module.__name__, module)
+        process = source_method(
+            "kernel_api/middlewares/authentication.py",
+            "AuthenticationMiddleware.process_view",
+            BkJWTClient=lambda *a: jwt,
+            DEFAULT_TENANT_ID="system",
+            auth=NS(authenticate=lambda **kw: user),
+            is_match_api_token=ordinary,
+            get_admin_username=lambda *a: "admin",
+            **common,
+        )
+        middleware = NS(
+            use_apigw_auth=lambda req: gateway,
+            get_apigw_public_keys=lambda: {},
+            use_mcp_auth=recognize,
+            use_api_token_auth=lambda req: "HTTP_AUTHORIZATION" in req.META,
+            _handle_api_token_auth=Mock(side_effect=AssertionError("gateway identity must not become an API token")),
+            extract_tool_name_from_path=extract,
+            _report_mcp_metric=Mock(),
+        )
+        middleware._handle_native_mcp = lambda *a, **kw: execute(middleware, *a, **kw)
+        middleware._handle_mcp_auth = lambda *a, **kw: handle(middleware, *a, **kw)
+        response = process(middleware, request, NS())
+        return response, request, permission, ordinary
+
+    return run
+
+
+@pytest.mark.parametrize("marker", [False, True])
+@pytest.mark.parametrize("bearer", [False, True])
+@pytest.mark.parametrize(
+    "mcp_allowed,native_allowed,status", [(True, False, 200), (False, True, 200), (False, False, 403)]
+)
+def test_direct_gateway_permission_matrix(direct_gateway, io, marker, bearer, mcp_allowed, native_allowed, status):
+    io.monitor.iam_client.is_allowed.side_effect = None
+    io.monitor.iam_client.is_allowed.return_value = mcp_allowed
+    io.iam.is_allowed.return_value = native_allowed
+    response, request, _, ordinary = direct_gateway(marker=marker, bearer=bearer)
+    assert response.status_code == status
+    assert io.dispatch.call_count == (1 if status == 200 else 0)
+    assert io.iam.is_allowed.call_count == (0 if mcp_allowed else 1)
+    assert request.mcp_usage_entry_point == "standalone"
+    assert request.mcp_usage_tool == "search_logs"
+    ordinary.assert_not_called()
+
+
+@pytest.mark.parametrize(
+    "reason", ["invalid_jwt", "unverified_user", "no_gateway", "tenant", "foreign_index", "iam_error"]
+)
+def test_direct_gateway_fails_closed(monkeypatch, direct_gateway, io, reason):
+    if reason == "tenant":
+        monkeypatch.setattr(tenant, "is_biz_in_tenant", lambda *args: False)
+    if reason == "foreign_index":
+        io.catalog.return_value = []
+    if reason == "iam_error":
+        io.monitor.iam_client.is_allowed.side_effect = RuntimeError("private IAM error")
+    response, _, _, ordinary = direct_gateway(
+        valid_jwt=reason != "invalid_jwt", verified=reason != "unverified_user", gateway=reason != "no_gateway"
+    )
+    assert response.status_code in {400, 403, 503}
+    io.dispatch.assert_not_called()
+    io.iam.is_allowed.assert_not_called()
+    ordinary.assert_not_called()
+
+
+@pytest.mark.parametrize("allowed", [False, True])
+def test_direct_gateway_without_native_fallback_still_checks_mcp(monkeypatch, direct_gateway, io, allowed):
+    monkeypatch.setattr(settings, "MCP_NATIVE_PERMISSION_TOOLS", [])
+    io.monitor.iam_client.is_allowed.side_effect = None
+    io.monitor.iam_client.is_allowed.return_value = allowed
+    response, request, permission, ordinary = direct_gateway()
+    assert response.status_code == (200 if allowed else 403)
+    permission.is_allowed_by_biz.assert_called_once_with(2, "using_log_mcp", raise_exception=True)
+    io.iam.is_allowed.assert_not_called()
+    assert io.dispatch.call_count == int(allowed)
+    assert request.unified_mcp_permission_checked is False
+    ordinary.assert_not_called()
+
+
+def test_unregistered_route_keeps_ordinary_branch(direct_gateway, io):
+    response, _, _, ordinary = direct_gateway(path="/api/v4/unrelated/read/")
+    assert response is None
+    ordinary.assert_called_once()
+    io.dispatch.assert_not_called()
+
+
+def test_direct_gateway_catalog_error_never_falls_back(monkeypatch, direct_gateway, io):
+    original = registry.get_tool_registry
+    calls = []
+
+    def get_registry():
+        calls.append(1)
+        if len(calls) == 1:
+            return original()
+        raise ImproperlyConfigured("catalog invalid")
+
+    monkeypatch.setattr(registry, "get_tool_registry", get_registry)
+    response, _, _, ordinary = direct_gateway()
+    assert response.status_code == 503
+    io.dispatch.assert_not_called()
+    ordinary.assert_not_called()
+
+
+def test_unrelated_api_does_not_depend_on_native_permission_switch(monkeypatch):
+    monkeypatch.setattr(settings, "MCP_NATIVE_PERMISSION_TOOLS", ["invalid-tool"])
+    assert registry.resolve_readonly_tool("GET", "/api/v4/unrelated/read/") is None
+    with pytest.raises(ImproperlyConfigured):
+        registry.resolve_readonly_tool("POST", "/api/v4/log_search/search_log/")
+
+
+@pytest.mark.parametrize("name", ["create_alarm_strategy", "get_log_extract_download_url", "create_recording_rule"])
+def test_direct_route_auto_detection_excludes_non_queries(name):
+    tool = registry.get_tool_registry().get(name)
+    assert registry.resolve_readonly_tool(tool.backend_method, tool.backend_path) is None
+
+
+@pytest.mark.parametrize("suffix", ["/", ".json", ".json/"])
+def test_direct_readonly_route_uses_registered_aliases(suffix):
+    tool = registry.get_tool_registry().get("search_logs")
+    assert registry.resolve_readonly_tool("POST", tool.backend_path.rstrip("/") + suffix) is tool
+
+
+def test_direct_legacy_checks_additional_actions(monkeypatch, direct_gateway, io):
+    monkeypatch.setattr(settings, "MCP_NATIVE_PERMISSION_TOOLS", [])
+    io.monitor.iam_client.is_allowed.side_effect = lambda query: query.action.id == "using_log_collection_mcp"
+    response, _, permission, _ = direct_gateway("list_log_collectors", {"bk_biz_id": "2"})
+    assert response.status_code == 403
+    assert [c.args[1] for c in permission.is_allowed_by_biz.call_args_list] == [
+        "using_log_collection_mcp",
+        "view_business_v2",
+    ]
+    io.dispatch.assert_not_called()
+
+
+def test_direct_exempt_discovery_still_requires_authenticated_user(direct_gateway, io):
+    response, _, _, _ = direct_gateway("search_spaces", {"space_name": "demo"}, verified=False)
+    assert response.status_code == 403
+    io.dispatch.assert_not_called()
+    response, _, _, _ = direct_gateway("search_spaces", {"space_name": "demo"})
+    assert response.status_code == 200
+    io.dispatch.assert_called_once_with("search_spaces", {"space_name": "demo"})

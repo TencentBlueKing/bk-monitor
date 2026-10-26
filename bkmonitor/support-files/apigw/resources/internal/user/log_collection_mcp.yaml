@@ -122,6 +122,7 @@ paths:
           userVerifiedRequired: true
           appVerifiedRequired: false
           resourcePermissionRequired: true
+          oauth2PersonalClientEnabled: true
   /mcp/get_log_collector/:
     get:
       operationId: get_log_collector
@@ -165,6 +166,7 @@ paths:
           userVerifiedRequired: true
           appVerifiedRequired: false
           resourcePermissionRequired: true
+          oauth2PersonalClientEnabled: true
   /mcp/get_log_index_set/:
     get:
       operationId: get_log_index_set
@@ -207,3 +209,4 @@ paths:
           userVerifiedRequired: true
           appVerifiedRequired: false
           resourcePermissionRequired: true
+          oauth2PersonalClientEnabled: true
