@@ -1803,7 +1803,7 @@ BKBASE_REDIS_RECONNECT_INTERVAL_SECONDS = 2
 BKBASE_REDIS_LOCK_NAME = "watch_bkbase_meta_redis_lock"
 # 是否同步数据至DB
 ENABLE_SYNC_BKBASE_METADATA_TO_DB = False
-# 只控制旧 relation / v1beta3 查询选择，不改变存储写入链路。
+# 只控制旧 relation / v1beta3 查询选择，不影响共享/业务图定义的维护和 Redis 下发，也不改变存储写入链路。
 RELATION_QUERY_V1BETA3_BIZ_ID_WHITE_LIST = [
     int(biz_id.strip())
     for biz_id in os.getenv("RELATION_QUERY_V1BETA3_BIZ_ID_WHITE_LIST", "").split(",")

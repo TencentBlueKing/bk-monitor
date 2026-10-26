@@ -29,6 +29,7 @@ def refresh_entity_definition_to_redis():
 
     当 Redis 数据丢失（Redis 重启、数据过期等）时，定时从 DB 全量重建缓存，
     保证 bmw SchemaProvider 始终能读到最新的资源/关联定义。
+    共享和业务 namespace 均正常下发，不受查询灰度控制。
 
     Redis 数据契约（与 EntityHandler._rebuild_redis_cache 保持一致）:
     - Key:     bkmonitorv3:entity:{Kind}
@@ -50,7 +51,9 @@ def refresh_entity_definition_to_redis():
 
         try:
             # 获取当前 Redis 中的所有 field（用于后续清理 stale data）
-            redis_fields = set(RedisTools.hkeys(redis_key) or [])
+            redis_fields = {
+                field.decode("utf-8") if isinstance(field, bytes) else field for field in RedisTools.hkeys(redis_key)
+            }
 
             # 按 namespace 分组，全量重建每个 namespace 的缓存
             namespace_entities: dict[str, dict] = {}
@@ -67,6 +70,7 @@ def refresh_entity_definition_to_redis():
             stale_fields = redis_fields - db_namespaces
             if stale_fields:
                 RedisTools.hdel(redis_key, list(stale_fields))
+                RedisTools.publish(channel, [json.dumps({"namespace": ns, "kind": kind}) for ns in stale_fields])
                 logger.info(
                     "refresh_entity_definition_to_redis: cleaned stale fields for kind=%s, stale_fields=%s",
                     kind,
