@@ -1457,8 +1457,9 @@ export default defineComponent({
           id: activeTab.value.toLowerCase(),
           bk_biz_id: bizId.value,
           apm_app_name: appName.value,
-          apm_service_name: props.spanDetails.service_name,
+          apm_service_name: props.spanDetails.service_name || serviceNameProvider.value,
           apm_span_id: props.spanDetails.span_id,
+          apm_trace_id: traceId.value || props.spanDetails.traceID,
         }).catch(console.log);
         if (result?.overview_panels?.length) {
           result.overview_panels[0] = {
@@ -1551,9 +1552,7 @@ export default defineComponent({
         case 'Host': {
           if (!spanDetailQueryStore.queryData?.bk_host_id) return;
           window.open(
-            hostMonitorHash(
-              buildHostMonitorTarget({ bkHostId: String(spanDetailQueryStore.queryData.bk_host_id) })
-            ),
+            hostMonitorHash(buildHostMonitorTarget({ bkHostId: String(spanDetailQueryStore.queryData.bk_host_id) })),
             '_blank'
           );
           return;
