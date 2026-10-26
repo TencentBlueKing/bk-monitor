@@ -42,17 +42,10 @@ export interface PromqlSourceData {
   legacyQueryConfigs?: PromqlQuery[];
   promqlError?: boolean;
   queryConfigs?: PromqlQuery[];
-  /** 加载时的原始表达式，非多 PromQL 业务保存已有多查询时原样回写。 */
-  rawExpression?: string;
-  rawOriginSql?: string;
-  rawQueryConfigs?: PromqlQuery[];
   sourceCode: string;
   sourceCodeCache?: string;
   step: number | string;
 }
-
-/** 这些业务允许配置多 PromQL。 */
-export const MULTI_PROMQL_BIZ_IDS = [2, 641];
 
 export function createPromqlSourceData(
   queries: PromqlQuery[],
@@ -71,9 +64,6 @@ export function createPromqlSourceData(
   const sourceCode = queryConfigs[0].promql;
   return {
     queryConfigs,
-    rawQueryConfigs: queries.map(query => ({ ...query })),
-    rawExpression: expression,
-    rawOriginSql: originSql,
     sourceCode,
     sourceCodeCache: sourceCode,
     step: queries[0]?.agg_interval ?? step,
@@ -88,17 +78,4 @@ export function createPromqlSourceData(
 
 export function getSourceQueries(source: PromqlSourceData): PromqlQuery[] {
   return source.queryConfigs?.length ? source.queryConfigs : [{ alias: 'a', promql: source.sourceCode || '' }];
-}
-
-/** 多条查询，或单条查询上填写了非别名表达式。 */
-export function isExistingMultiPromql(source: PromqlSourceData, expression = '') {
-  if (source.legacyMultiQuery) return true;
-  const queries = getSourceQueries(source);
-  if (queries.length > 1) return true;
-  const value = expression.trim();
-  return !!value && queries.length === 1 && value !== queries[0].alias;
-}
-
-export function isMultiPromqlBiz(bizId: null | number | string | undefined) {
-  return MULTI_PROMQL_BIZ_IDS.includes(Number(bizId));
 }
