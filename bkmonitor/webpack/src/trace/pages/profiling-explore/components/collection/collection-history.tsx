@@ -70,6 +70,8 @@ export default defineComponent({
     },
     rangeError: { type: String, default: '' },
     revision: { type: Number, required: true },
+    // 每次查询重新解析时间表达式，使「近 N 分钟/小时」取最新边界
+    resolveRange: { type: Function as PropType<() => SelectionRange>, default: undefined },
     timezone: { type: String, required: true },
     readonly: { type: Boolean, default: false },
   },
@@ -87,6 +89,7 @@ export default defineComponent({
       filters: computed(() => props.filters),
       range: computed(() => props.range),
       revision: computed(() => props.revision),
+      resolveRange: () => props.resolveRange?.(),
     });
     const c = useCollectionExecution({
       bizId: computed(() => props.bizId),
@@ -109,9 +112,10 @@ export default defineComponent({
       if (element && !h.error.value && element.scrollHeight - element.scrollTop - element.clientHeight < 80)
         h.loadMore();
     }
+    // 自动补页只在本页有进展时继续，避免重复页空转；用户滚动与「加载更多」不受此限制
     watch([h.loading, h.hasMore], async () => {
       await nextTick();
-      loadVisiblePage();
+      if (h.canAutoFill.value) loadVisiblePage();
     });
     watch([h.loading, c.loading, c.busy], () => emit('busy', h.loading.value || c.loading.value || c.busy.value), {
       immediate: true,
@@ -213,6 +217,7 @@ export default defineComponent({
           filters={this.filters}
           loading={h.candidateLoading.value}
           statusFilter={false}
+          autoQuery
           onChange={value => this.$emit('change', value)}
           onRefresh={h.refresh}
         />
