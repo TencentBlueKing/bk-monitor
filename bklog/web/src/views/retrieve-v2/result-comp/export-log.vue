@@ -802,11 +802,10 @@
       /**
        * @desc: 轮询
        */
-      startStatusPolling(isPolling = true) {
+      startStatusPolling() {
         this.stopStatusPolling();
         this.exportPollingTimer = setInterval(() => {
-          // 失败恢复期间按完整查询处理，成功后再切回普通轮询。
-          this.fetchCurrentTasks(false, isPolling);
+          this.fetchCurrentTasks(false, true);
         }, DOWNLOAD_POLLING_INTERVAL);
       },
       stopStatusPolling() {
@@ -991,14 +990,11 @@
             if (!this.shouldContinuePolling()) {
               this.stopStatusPolling();
             }
-          } else {
-            this.startStatusPolling(false);
           }
         } catch (error) {
           if (axios.isCancel(error) || this.currentTaskCancelExecutor !== cancelExecutor || this.isComponentUnmounted) {
             return;
           }
-          this.startStatusPolling(false);
         } finally {
           if (this.currentTaskCancelExecutor === cancelExecutor) {
             this.currentTaskCancelExecutor = null;
