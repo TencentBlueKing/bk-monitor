@@ -23,7 +23,7 @@ from django.utils.translation import gettext_lazy as _
 from opentelemetry.semconv.resource import ResourceAttributes
 
 from apm import constants
-from apm.constants import DiscoverRuleType
+from apm.constants import ApmCacheConfig, ApmCacheType, DiscoverRuleType
 from apm.core.discover.instance_data import BaseInstanceData
 from apm.core.handlers.apm_cache_handler import ApmCacheHandler
 from apm.core.handlers.query.span_query import SpanQuery
@@ -470,12 +470,11 @@ class TopoHandler:
         except Exception:
             logger.exception(
                 "[trace_discovery] event=discoverer_failed bk_biz_id=%s app_name=%s "
-                "task_id=%s discoverer=%s handle_type=%s span_count=%s duration_s=%.3f",
+                "task_id=%s discoverer=%s span_count=%s duration_s=%.3f",
                 self.bk_biz_id,
                 self.app_name,
                 self.task_id,
                 discover_name,
-                handle_type,
                 len(spans),
                 time.monotonic() - start,
             )
@@ -543,11 +542,9 @@ class TopoHandler:
     def discover(self) -> bool | None:
         """常规发现后按服务折叠补齐稀疏服务，并记录所选 Span 的 Trace 心跳。"""
         start = datetime.datetime.now()
-        started: float = time.monotonic()
         success: bool = True
         trace_id_count = 0
         span_count = 0
-        filter_span_count = 0
         try:
             max_result_count, per_trace_size, index_name = self._get_trace_task_splits()
         except Exception:
@@ -581,26 +578,16 @@ class TopoHandler:
             if round_index == 0 and avg_group_span_count:
                 per_trace_size = self.calculate_round_count(avg_group_span_count)
 
-                logger.info(
-                    "[trace_discovery] event=trace_batch_sized bk_biz_id=%s app_name=%s task_id=%s "
-                    "per_trace_size=%s avg_group_span_count=%.3f span_count=%s",
-                    self.bk_biz_id,
-                    self.app_name,
-                    self.task_id,
-                    per_trace_size,
-                    avg_group_span_count,
-                    len(all_spans),
-                )
-
             span_count += len(all_spans)
 
-            filter_span_count += sum(span[OtlpKey.KIND] in self.FILTER_KIND for span in all_spans)
             success = self._discover_spans(all_spans, topo_params_template) and success
 
         # 只扩展按服务折叠的兜底窗口，不放大常规 Trace 上下文查询。
         end_time: int = int(start.timestamp())
         cache: ApmCacheHandler = ApmCacheHandler()
-        check_key: str = cache.get_discovery_check_key(self.bk_biz_id, self.app_name, TelemetryDataType.TRACE.value)
+        check_key: str = cache.get_cache_key(
+            ApmCacheType.DISCOVERY_CHECK, self.bk_biz_id, self.app_name, data_type=TelemetryDataType.TRACE.name
+        )
         last_check = cache.redis_client.get(check_key)
         start_time: int = (
             max(int(last_check), end_time - self.FALLBACK_MAX_LOOKBACK_SECONDS)
@@ -613,13 +600,12 @@ class TopoHandler:
         fallback_started: float = time.monotonic()
         logger.info(
             "[trace_discovery] event=fallback_started bk_biz_id=%s app_name=%s task_id=%s "
-            "data_type=trace window_start=%s window_end=%s last_check=%s",
+            "window_start=%s window_end=%s",
             self.bk_biz_id,
             self.app_name,
             self.task_id,
             start_time,
             end_time,
-            last_check,
         )
         span_query: SpanQuery = SpanQuery([self._trace_target])
         last_spans: list[dict[str, Any]] = span_query.query_group_list(
@@ -631,8 +617,6 @@ class TopoHandler:
             sort=[f"{OtlpKey.KIND} desc", f"{OtlpKey.END_TIME} desc"],
         )
         fallback_success: bool = self._discover_spans(last_spans, topo_params_template, is_fallback=True)
-        # 达到上限不能视为完整枚举；保留检查位置，并在下轮最多回看一小时。
-        truncated: bool = len(last_spans) >= SpanQuery.QUERY_MAX_LIMIT
         observed: dict[str, int] = {}
         for span in last_spans:
             name = extract_field_value((OtlpKey.RESOURCE, ResourceAttributes.SERVICE_NAME), span)
@@ -646,36 +630,30 @@ class TopoHandler:
             int(datetime.datetime.now().timestamp()),
         )
 
-        checkpoint_ready: bool = fallback_success and heartbeat_success and not truncated
+        checkpoint_ready: bool = fallback_success and heartbeat_success
         if checkpoint_ready:
             # 保存本轮查询右边界，而非任务结束时间，避免丢失执行期间新到达的数据。
-            cache.redis_client.set(check_key, end_time, ex=self.FALLBACK_MAX_LOOKBACK_SECONDS)
+            cache.redis_client.set(check_key, end_time, ex=ApmCacheConfig.get_expire_time(ApmCacheType.DISCOVERY_CHECK))
         else:
             logger.warning(
                 "[trace_discovery] event=checkpoint_retained bk_biz_id=%s app_name=%s task_id=%s "
-                "fallback_success=%s heartbeat_success=%s truncated=%s service_count=%s",
+                "fallback_success=%s heartbeat_success=%s",
                 self.bk_biz_id,
                 self.app_name,
                 self.task_id,
                 fallback_success,
                 heartbeat_success,
-                truncated,
-                len(last_spans),
             )
 
         logger.info(
-            "[trace_discovery] event=discovered bk_biz_id=%s app_name=%s task_id=%s "
-            "trace_count=%s span_count=%s filtered_span_count=%s fallback_service_count=%s "
-            "fallback_duration_s=%.3f duration_s=%.3f success=%s",
+            "[trace_discovery] event=summary bk_biz_id=%s app_name=%s task_id=%s "
+            "trace_count=%s span_count=%s service_count=%s fallback_duration_s=%.3f",
             self.bk_biz_id,
             self.app_name,
             self.task_id,
             trace_id_count,
             span_count,
-            filter_span_count,
             len(last_spans),
             time.monotonic() - fallback_started,
-            time.monotonic() - started,
-            success and checkpoint_ready,
         )
         return success and checkpoint_ready

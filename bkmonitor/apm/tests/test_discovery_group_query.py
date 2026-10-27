@@ -5,6 +5,7 @@ from unittest import mock
 import pytest
 from pytest_mock import MockerFixture
 
+from apm.constants import ApmCacheType
 from apm.core.discover.base import TopoHandler
 from apm.core.discover.cached_mixin import CachedDiscoverMixin
 from apm.core.discover.host import HostDiscover
@@ -47,7 +48,7 @@ pytestmark = pytest.mark.django_db(databases="__all__")
 @pytest.fixture(autouse=True)
 def isolate_discovery_checkpoint():
     cache = ApmCacheHandler()
-    key = cache.get_discovery_check_key(2, "app", "trace")
+    key = cache.get_cache_key(ApmCacheType.DISCOVERY_CHECK, 2, "app", data_type="TRACE")
     cache.redis_client.delete(key)
     yield
     cache.redis_client.delete(key)

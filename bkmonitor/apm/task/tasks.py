@@ -62,11 +62,10 @@ def handler(self, bk_biz_id, app_name):
     enqueued_at: float | None = (self.request.headers or {}).get("discovery_enqueued_at")
     task_id: str | None = self.request.id
     logger.info(
-        "[trace_discovery] event=started bk_biz_id=%s app_name=%s task_id=%s started_at=%.3f queue_delay_s=%s",
+        "[trace_discovery] event=started bk_biz_id=%s app_name=%s task_id=%s queue_delay_s=%s",
         bk_biz_id,
         app_name,
         task_id,
-        started_at,
         round(started_at - enqueued_at, 3) if enqueued_at is not None else None,
     )
     status: str = "failed"
@@ -86,13 +85,11 @@ def handler(self, bk_biz_id, app_name):
         raise
     finally:
         logger.info(
-            "[trace_discovery] event=finished bk_biz_id=%s app_name=%s task_id=%s "
-            "status=%s finished_at=%.3f duration_s=%.3f",
+            "[trace_discovery] event=finished bk_biz_id=%s app_name=%s task_id=%s status=%s duration_s=%.3f",
             bk_biz_id,
             app_name,
             task_id,
             status,
-            time.time(),
             time.monotonic() - start,
         )
 
@@ -125,30 +122,24 @@ def topo_discover_cron():
                 enqueued_at: float = time.time()
                 task = handler.apply_async(args=(bk_biz_id, app_name), headers={"discovery_enqueued_at": enqueued_at})
                 logger.info(
-                    "[trace_discovery] event=dispatched bk_biz_id=%s app_name=%s app_id=%s task_id=%s "
-                    "scheduled_at=%.3f enqueued_at=%.3f interval_min=%s",
+                    "[trace_discovery] event=dispatched bk_biz_id=%s app_name=%s task_id=%s dispatch_delay_s=%.3f",
                     bk_biz_id,
                     app_name,
-                    app_id,
                     task.id,
-                    current_time.timestamp(),
-                    enqueued_at,
-                    refresh_interval,
+                    enqueued_at - current_time.timestamp(),
                 )
         except LockError:
             logger.info(
-                "[trace_discovery] event=dispatch_skipped reason=locked bk_biz_id=%s app_name=%s app_id=%s",
+                "[trace_discovery] event=dispatch_skipped reason=locked bk_biz_id=%s app_name=%s",
                 bk_biz_id,
                 app_name,
-                app_id,
             )
             continue
         except Exception:
             logger.exception(
-                "[trace_discovery] event=dispatch_failed bk_biz_id=%s app_name=%s app_id=%s",
+                "[trace_discovery] event=dispatch_failed bk_biz_id=%s app_name=%s",
                 bk_biz_id,
                 app_name,
-                app_id,
             )
             raise
 

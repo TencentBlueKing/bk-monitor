@@ -49,16 +49,17 @@ class ApmCacheHandler:
         return {}
 
     @classmethod
-    def get_cache_key(cls, cache_type: str, bk_biz_id: int, app_name: str) -> str:
+    def get_cache_key(cls, cache_type: str, bk_biz_id: int, app_name: str, **kwargs: str) -> str:
         """
         通用的缓存 key 获取方法
         :param cache_type: 缓存类型（来自 ApmCacheType）
         :param bk_biz_id: 业务 ID
         :param app_name: 应用名称
+        :param kwargs: 缓存 key 模板的扩展参数
         :return: 完整的缓存 key
         """
         key_template = ApmCacheConfig.get_key_template(cache_type)
-        return key_template.format(settings.PLATFORM, settings.ENVIRONMENT, bk_biz_id, app_name)
+        return key_template.format(settings.PLATFORM, settings.ENVIRONMENT, bk_biz_id, app_name, **kwargs)
 
     def refresh_data(self, name: str, update_map: dict, ex: int = DEFAULT_APM_CACHE_EXPIRE):
         """
@@ -69,14 +70,6 @@ class ApmCacheHandler:
 
         self.redis_client.set(name, json.dumps(update_map), ex=ex)
         logger.info(f"[ApmCacheHandler] {name} update {len(update_map)}")
-
-    @staticmethod
-    def get_discovery_check_key(bk_biz_id: int, app_name: str, data_type: str) -> str:
-        """按环境、应用及数据源隔离服务发现的成功检查位置。"""
-        return (
-            f"BKMONITOR_{settings.PLATFORM}_{settings.ENVIRONMENT}_APM_DISCOVERY_CHECK_"
-            f"{bk_biz_id}_{app_name}_{data_type.upper()}"
-        )
 
     def get_lock_key(self, lock_type: str, **kwargs) -> str:
         """

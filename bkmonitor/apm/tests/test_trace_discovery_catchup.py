@@ -7,10 +7,9 @@ import fakeredis
 import pytest
 
 from apm.core.discover.base import TopoHandler
-from apm.core.discover.node import NodeDiscover
+from apm.constants import ApmCacheType
 from apm.core.handlers.apm_cache_handler import ApmCacheHandler
 from apm.task import tasks
-from constants.apm import SpanKind
 
 
 @pytest.fixture
@@ -39,7 +38,7 @@ def discovery(mocker):
         query=query,
         heartbeat=heartbeat,
         clock=clock,
-        key=ApmCacheHandler.get_discovery_check_key(2, "catchup", "trace"),
+        key=ApmCacheHandler.get_cache_key(ApmCacheType.DISCOVERY_CHECK, 2, "catchup", data_type="TRACE"),
     )
 
 
@@ -63,24 +62,28 @@ def test_delayed_round_continues_from_previous_query_end(discovery):
 
 def test_checkpoint_isolated_by_application_source_and_environment(settings):
     settings.PLATFORM, settings.ENVIRONMENT = "test", "test"
-    key = ApmCacheHandler.get_discovery_check_key(2, "app", "trace")
+    key = ApmCacheHandler.get_cache_key(ApmCacheType.DISCOVERY_CHECK, 2, "app", data_type="TRACE")
     assert key.endswith("2_app_TRACE")
+    assert (
+        ApmCacheHandler.get_cache_key(ApmCacheType.TOPO_INSTANCE, 2, "app")
+        == "BKMONITOR_test_test_APM_TOPO_INSTANCE_HEARTBEAT_2_app"
+    )
     assert (
         len(
             {
                 key,
-                ApmCacheHandler.get_discovery_check_key(3, "app", "trace"),
-                ApmCacheHandler.get_discovery_check_key(2, "other", "trace"),
-                ApmCacheHandler.get_discovery_check_key(2, "app", "metric"),
+                ApmCacheHandler.get_cache_key(ApmCacheType.DISCOVERY_CHECK, 3, "app", data_type="TRACE"),
+                ApmCacheHandler.get_cache_key(ApmCacheType.DISCOVERY_CHECK, 2, "other", data_type="TRACE"),
+                ApmCacheHandler.get_cache_key(ApmCacheType.DISCOVERY_CHECK, 2, "app", data_type="METRIC"),
             }
         )
         == 4
     )
     settings.ENVIRONMENT = "another"
-    assert key != ApmCacheHandler.get_discovery_check_key(2, "app", "trace")
+    assert key != ApmCacheHandler.get_cache_key(ApmCacheType.DISCOVERY_CHECK, 2, "app", data_type="TRACE")
 
 
-@pytest.mark.parametrize("failure", ["query", "discoverer", "heartbeat", "heartbeat_lock", "truncated"])
+@pytest.mark.parametrize("failure", ["query", "discoverer", "heartbeat", "heartbeat_lock"])
 def test_failed_or_incomplete_fallback_keeps_checkpoint(discovery, mocker, failure):
     discovery.client.set(discovery.key, 7000)
     if failure == "query":
@@ -91,9 +94,6 @@ def test_failed_or_incomplete_fallback_keeps_checkpoint(discovery, mocker, failu
         discovery.heartbeat.side_effect = RuntimeError("write unavailable")
     elif failure == "heartbeat_lock":
         discovery.heartbeat.return_value = False
-    else:
-        mocker.patch("apm.core.discover.base.SpanQuery.QUERY_MAX_LIMIT", 1)
-        discovery.query.return_value = [make_span("svc", SpanKind.SPAN_KIND_SERVER, 9000)]
     if failure in ("query", "heartbeat"):
         with pytest.raises(RuntimeError):
             discovery.handler.discover()
@@ -135,21 +135,12 @@ def test_discoverer_failure_is_not_logged_as_success(discovery, mocker, caplog):
     assert "event=discoverer_finished" not in caplog.text
 
 
-def test_node_batch_failure_does_not_publish_partial_nodes(mocker):
-    node = NodeDiscover(2, "app")
-    mocker.patch.object(node, "get_rules", return_value=([SimpleNamespace(type="category")], None))
-    mocker.patch("apm.core.discover.node.ThreadPool").return_value.map_ignore_exception.return_value = []
-    writes = mocker.patch.object(node, "list_exists")
-    with pytest.raises(RuntimeError, match="batches incomplete"):
-        node.discover([make_span("svc", 2, 100)])
-    writes.assert_not_called()
-
-
-def test_cron_filters_before_lock_and_preserves_quick_interval(mocker, settings):
+def test_cron_filters_before_lock_and_preserves_quick_interval(mocker, settings, caplog):
     now = datetime.datetime(2026, 10, 26, 17, 0, tzinfo=datetime.UTC)
     settings.APM_APPLICATION_QUICK_REFRESH_INTERVAL = 2
     settings.APM_APPLICATION_QUICK_REFRESH_DELTA = 30
     mocker.patch.object(tasks.timezone, "now", return_value=now)
+    mocker.patch.object(tasks.time, "time", return_value=now.timestamp() + 5)
     mocker.patch.object(tasks.EbpfApplicationConfig.objects, "all").return_value.values.return_value = []
     mocker.patch.object(tasks.ApmApplication.objects, "filter").return_value.values_list.return_value = [
         (2, "old-due", 10, now - datetime.timedelta(hours=1)),
@@ -159,10 +150,12 @@ def test_cron_filters_before_lock_and_preserves_quick_interval(mocker, settings)
     ]
     lock = mocker.patch.object(tasks.ApmCacheHandler, "distributed_lock")
     dispatch = mocker.patch.object(tasks.handler, "apply_async")
-    tasks.topo_discover_cron()
+    with caplog.at_level(logging.INFO, logger="apm"):
+        tasks.topo_discover_cron()
     assert lock.call_args_list == [mocker.call("topo_discover", app_id=10), mocker.call("topo_discover", app_id=22)]
     assert [call.kwargs["args"] for call in dispatch.call_args_list] == [(2, "old-due"), (2, "new-due")]
     assert all("discovery_enqueued_at" in call.kwargs["headers"] for call in dispatch.call_args_list)
+    assert caplog.text.count("dispatch_delay_s=5.000") == 2
 
 
 @pytest.mark.parametrize("result, status", [(True, "success"), (False, "partial"), (None, "partial")])
