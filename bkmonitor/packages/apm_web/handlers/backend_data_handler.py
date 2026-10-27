@@ -9,6 +9,7 @@ specific language governing permissions and limitations under the License.
 """
 
 import copy
+import json
 import logging
 from collections import defaultdict
 from datetime import UTC, datetime
@@ -468,12 +469,50 @@ class MetricBackendHandler(TelemetryBackendHandler):
         return databus_config.data_id_name if databus_config and databus_config.data_id_name else ""
 
     def storage_info(self):
+        if self.datalink_version == DATA_LINK_V4_VERSION_NAME:
+            return self._v4_storage_info()
+        return self._v3_storage_info()
+
+    def _v3_storage_info(self):
+        storage_info = []
+        result_table = api.bkdata.get_result_table(result_table_id=self.bk_vm_result_table_id)
+        storage = result_table.get("storages", {}).get("vm")
+        if storage:
+            try:
+                expire_info = json.loads(storage.get("storage_cluster", {}).get("expires", "{}"))
+                list_expire = expire_info.get("list_expire", [])
+            except Exception:  # pylint: disable=broad-except
+                list_expire = []
+            expire = list_expire[0] if list_expire else {}
+            ret_storage = {
+                "raw_data_id": self.bk_base_data_id,
+                "bk_biz_id": self.app.bk_biz_id,
+                "result_table_id": self.bk_vm_result_table_id,
+                "storage_type": "vm",
+                "storage_type_alias": "",
+                "storage_cluster": storage.get("storage_cluster", {}).get("storage_cluster_config_id"),
+                "storage_cluster_alias": storage.get("storage_cluster", {}).get("cluster_name"),
+                "expire_time": expire.get("value", "30d"),
+                "expire_time_alias": expire.get("name", _("30天")),
+                "status": "running",
+                "status_display": _("运行中"),
+                "created_at": storage["created_at"],
+                "created_by": storage["created_by"],
+            }
+            storage_info.append(ret_storage)
+        return storage_info
+
+    def _v4_storage_info(self):
         from metadata import models
         from metadata.models.data_link.constants import DataLinkKind, DataLinkResourceStatus
 
-        vm_binding = models.VMStorageBindingConfig.objects.filter(
-            bk_tenant_id=self.app.bk_tenant_id, table_id=self.result_table_id
-        ).first()
+        vm_binding = (
+            models.VMStorageBindingConfig.objects.filter(
+                bk_tenant_id=self.app.bk_tenant_id, table_id=self.result_table_id
+            )
+            .exclude(status=DataLinkResourceStatus.TERMINATED.value)
+            .first()
+        )
         if not vm_binding:
             return []
 
