@@ -609,11 +609,13 @@ class LogClusteringRuntime(OperateRecordModel):
         request_snapshot: dict,
         defaults: dict | None = None,
         allowed_phases: tuple | None = None,
+        updates: dict | None = None,
     ) -> tuple["LogClusteringRuntime", "LogClusteringOperation"]:
         """
         在运行绑定的行锁内创建控制操作，同一索引集同时只允许一个未结束的操作
         :param defaults: 首次开启时创建运行绑定所需的字段
         :param allowed_phases: 允许发起该操作的运行阶段
+        :param updates: 校验通过后与操作同时写入运行绑定的字段
         """
         runtime, _created = cls.objects.select_for_update().get_or_create(
             index_set_id=index_set_id, defaults=defaults or {}
@@ -633,6 +635,10 @@ class LogClusteringRuntime(OperateRecordModel):
                     index_set_id=index_set_id, operation_id=unfinished.operation_id
                 )
             )
+        if updates:
+            for field, value in updates.items():
+                setattr(runtime, field, value)
+            runtime.save(update_fields=[*updates, "updated_at", "updated_by"])
         operation = LogClusteringOperation.objects.create(
             operation_id=uuid.uuid4().hex,
             index_set_id=index_set_id,
@@ -660,6 +666,7 @@ class LogClusteringOperation(OperateRecordModel):
     steps = models.JSONField(_("步骤记录"), default=list, blank=True)
     request_snapshot = models.JSONField(_("请求快照"), default=dict, blank=True)
     idempotency_keys = models.JSONField(_("外部调用幂等键"), default=dict, blank=True)
+    request_payloads = models.JSONField(_("外部写调用请求体"), default=dict, blank=True)
     retry_count = models.IntegerField(_("重试次数"), default=0)
     next_retry_at = models.DateTimeField(_("下次重试时间"), null=True, blank=True)
     last_error = models.TextField(_("最近错误"), default="", blank=True)
@@ -675,6 +682,13 @@ class LogClusteringOperation(OperateRecordModel):
             self.idempotency_keys[action] = f"{self.operation_id}-{action}"
             self.save(update_fields=["idempotency_keys", "updated_at", "updated_by"])
         return self.idempotency_keys[action]
+
+    def get_request_payload(self, action: str, build_payload) -> dict:
+        """同一幂等键必须对应同一请求体：首次发送前落库，重试时原样重放，不随环境配置变化重新组装"""
+        if action not in self.request_payloads:
+            self.request_payloads[action] = build_payload()
+            self.save(update_fields=["request_payloads", "updated_at", "updated_by"])
+        return self.request_payloads[action]
 
     def record_step(self, step: str, status: str, message: str = ""):
         self.step = step

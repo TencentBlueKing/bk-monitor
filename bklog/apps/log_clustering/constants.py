@@ -308,6 +308,7 @@ class ClusteringOperationStatusEnum(ChoicesEnum):
 
     PENDING = "pending"
     RUNNING = "running"
+    AWAITING_RECEIPT = "awaiting_receipt"
     FAILED = "failed"
     SUCCESS = "success"
     CANCELED = "canceled"
@@ -315,6 +316,7 @@ class ClusteringOperationStatusEnum(ChoicesEnum):
     _choices_labels = (
         (PENDING, _("等待执行")),
         (RUNNING, _("执行中")),
+        (AWAITING_RECEIPT, _("配置已下发，待采用确认")),
         (FAILED, _("失败")),
         (SUCCESS, _("成功")),
         (CANCELED, _("已取消")),
@@ -323,7 +325,11 @@ class ClusteringOperationStatusEnum(ChoicesEnum):
     @classmethod
     def unfinished_statuses(cls) -> tuple:
         # 失败的操作需要原样续跑或显式取消，期间同索引不能开始新的控制操作
-        return cls.PENDING.value, cls.RUNNING.value, cls.FAILED.value
+        return cls.PENDING.value, cls.RUNNING.value, cls.AWAITING_RECEIPT.value, cls.FAILED.value
+
+    @classmethod
+    def runnable_statuses(cls) -> tuple:
+        return cls.PENDING.value, cls.RUNNING.value, cls.AWAITING_RECEIPT.value
 
 
 # 日志聚类失败重试次数

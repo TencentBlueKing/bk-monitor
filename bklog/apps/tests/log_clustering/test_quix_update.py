@@ -10,7 +10,11 @@ from apps.log_clustering.constants import (
 from apps.log_clustering.exceptions import QuixClusteringParamsInvalidException
 from apps.log_clustering.handlers.quix.adapter import build_clustering_config
 from apps.log_clustering.handlers.quix.handler import QuixClusteringHandler
-from apps.log_clustering.handlers.quix.operation import POLL_INTERVAL_SECONDS, QuixClusteringOperationRunner
+from apps.log_clustering.handlers.quix.operation import (
+    POLL_INTERVAL_SECONDS,
+    RECEIPT_POLL_INTERVAL_SECONDS,
+    QuixClusteringOperationRunner,
+)
 from apps.log_clustering.models import ClusteringConfig, LogClusteringOperation, LogClusteringRuntime
 from apps.log_search.models import LogIndexSet
 from apps.tests.log_clustering.test_quix_operation import INDEX_SET_ID, QUIX_CONFIG, create_enable_operation
@@ -68,13 +72,13 @@ class TestQuixUpdateRunner(TestCase):
             "databus": {"name": "databus"},
             "raw_sink": {"name": "raw"},
         }
-        self.transfer.get_log_clustering_status.side_effect = [
-            {"clustering_status": DRAINED},
-            {"revision": 4, "sink_referenced": True, "sink_resource": {"status": {"phase": "Ok"}}},
-        ]
+        adopted = {"revision": 4, "sink_referenced": True, "sink_resource": {"status": {"phase": "Ok"}}}
+        self.transfer.get_log_clustering_status.side_effect = [{"clustering_status": DRAINED}, adopted, adopted]
+        self.receipt = Mock(return_value=True)
         for target, value in (
             ("apps.log_clustering.handlers.quix.operation.TransferApi", self.transfer),
             ("apps.log_clustering.handlers.quix.operation.get_quix_config", Mock(return_value=QUIX_CONFIG)),
+            ("apps.log_clustering.handlers.quix.operation.runtime_adoption_confirmed", self.receipt),
         ):
             patcher = patch(target, value)
             patcher.start()
@@ -82,6 +86,20 @@ class TestQuixUpdateRunner(TestCase):
 
     def run_operation(self):
         return QuixClusteringOperationRunner(self.operation.operation_id).run()
+
+    def test_update_stops_at_awaiting_receipt_without_promoting_rules(self):
+        self.receipt.return_value = False
+
+        self.assertEqual(self.run_operation(), RECEIPT_POLL_INTERVAL_SECONDS)
+
+        self.assertEqual(
+            LogClusteringOperation.objects.get(pk=self.operation.pk).status,
+            ClusteringOperationStatusEnum.AWAITING_RECEIPT.value,
+        )
+        runtime = LogClusteringRuntime.objects.get(index_set_id=INDEX_SET_ID)
+        self.assertEqual(runtime.phase, ClusteringRuntimePhaseEnum.UPDATING.value)
+        self.assertEqual(runtime.active_config["log_filter"][0]["value"], ["ERROR"])
+        self.assertEqual(runtime.pending_config["log_filter"][0]["value"], ["WARN"])
 
     def test_update_drains_old_range_before_applying_new_rules(self):
         self.assertIsNone(self.run_operation())
@@ -179,3 +197,45 @@ class TestQuixClusteringHandlerUpdate(TestCase):
             LogClusteringOperation.objects.get(operation_id=first_id).status,
             ClusteringOperationStatusEnum.PENDING.value,
         )
+
+    def test_omitted_filter_rules_keep_existing_rules(self, mock_delay):
+        result = QuixClusteringHandler(self.index_set).update({"max_log_length": 2000})
+
+        self.assertIsNone(result)
+        clustering_config = ClusteringConfig.objects.get(index_set_id=INDEX_SET_ID)
+        self.assertEqual((clustering_config.filter_rules, clustering_config.max_log_length), (ERROR_RULES, 2000))
+        runtime = LogClusteringRuntime.objects.get(index_set_id=INDEX_SET_ID)
+        self.assertEqual(runtime.phase, ClusteringRuntimePhaseEnum.RUNNING.value)
+        mock_delay.assert_not_called()
+
+    def test_update_before_enable_finished_is_rejected(self, mock_delay):
+        LogClusteringRuntime.objects.filter(pk=self.runtime.pk).update(
+            phase=ClusteringRuntimePhaseEnum.ENABLING.value, active_config={}
+        )
+
+        with self.assertRaises(QuixClusteringParamsInvalidException):
+            QuixClusteringHandler(self.index_set).update({"filter_rules": WARN_RULES})
+        mock_delay.assert_not_called()
+
+    def test_resubmitting_same_rules_while_running_returns_current_operation(self, mock_delay):
+        first_id = QuixClusteringHandler(self.index_set).update({"filter_rules": WARN_RULES})
+        LogClusteringOperation.objects.filter(operation_id=first_id).update(
+            status=ClusteringOperationStatusEnum.RUNNING.value
+        )
+        mock_delay.reset_mock()
+
+        second_id = QuixClusteringHandler(self.index_set).update({"filter_rules": WARN_RULES})
+
+        self.assertEqual(second_id, first_id)
+        mock_delay.assert_not_called()
+
+    def test_access_status_reports_progress_of_update(self, mock_delay):
+        operation_id = QuixClusteringHandler(self.index_set).update({"filter_rules": WARN_RULES})
+        LogClusteringOperation.objects.filter(operation_id=operation_id).update(
+            status=ClusteringOperationStatusEnum.RUNNING.value, step="wait_drained"
+        )
+
+        status = QuixClusteringHandler(self.index_set).get_access_status()
+
+        self.assertEqual(status["flow_create"]["status"], "SUCCESS")
+        self.assertEqual(status["flow_run"], {"status": "RUNNING", "message": "wait_drained"})
