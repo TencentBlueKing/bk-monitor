@@ -12,7 +12,6 @@ from apps.log_search.handlers.search.search_handlers_esquery import SearchHandle
 from apps.log_search.index_set_name import display_index_set_name
 from apps.log_search.models import (
     Favorite,
-    IndexSetUserFavorite,
     LogIndexSet,
     LogIndexSetData,
     Scenario,
@@ -92,24 +91,6 @@ class IndexSetNameI18nIntegrationTest(TestCase):
             self.assertEqual(names[self.collector.index_set_id], "[采集项]改名")
         self.collector.refresh_from_db()
         self.assertEqual(self.collector.index_set_name, "[collection item]改名")
-
-    def test_history_and_favorites_return_localized_name_without_extra_fields(self):
-        history = UserIndexSetSearchHistory.objects.create(index_set_id=self.collector.index_set_id)
-        UserIndexSetSearchHistory.objects.filter(pk=history.pk).update(created_by=self.USER)
-        IndexSetUserFavorite.objects.create(index_set_id=self.collector.index_set_id, username=self.USER)
-        with override("en"):
-            history_result = IndexSetHandler.fetch_user_search_index_set(
-                {"username": self.USER, "space_uid": self.SPACE, "limit": 10}
-            )
-            favorite_result = IndexSetHandler.fetch_user_favorite_index_set(
-                {"username": self.USER, "space_uid": self.SPACE}
-            )
-        self.assertEqual(history_result[0]["index_set_name"], "[collection item]服务")
-        self.assertEqual(favorite_result[0]["index_set_name"], "[collection item]服务")
-        self.assertNotIn("collector_config_id", history_result[0])
-        self.assertNotIn("collector_config_id", favorite_result[0])
-        self.collector.refresh_from_db()
-        self.assertEqual(self.collector.index_set_name, "[采集项]服务")
 
     def test_clustering_template_related_index_set_display(self):
         template = RegexTemplate.objects.create(space_uid=self.SPACE, template_name="template", predefined_varibles="")

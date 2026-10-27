@@ -1447,7 +1447,7 @@ class IndexSetHandler(APIModel):
         detail_by_index_set_id = {
             detail["index_set_id"]: detail
             for detail in LogIndexSet.objects.filter(index_set_id__in=index_set_ids, is_active=True).values(
-                "index_set_id", "index_set_name", "space_uid", "collector_config_id"
+                "index_set_id", "index_set_name", "space_uid"
             )
         }
         return_data = []
@@ -1460,7 +1460,7 @@ class IndexSetHandler(APIModel):
                 "created_at": history["created_at"],
                 "params": history["params"],
                 "duration": history["duration"],
-                "index_set_name": display_index_set_name(detail["index_set_name"], detail["collector_config_id"]),
+                "index_set_name": detail["index_set_name"],
                 "space_uid": detail["space_uid"],
             }
             return_data.append(search_data)
@@ -1479,13 +1479,7 @@ class IndexSetHandler(APIModel):
         index_set_obj = LogIndexSet.objects.filter(index_set_id__in=index_set_ids, is_active=True)
         if space_uid:
             index_set_obj = index_set_obj.filter(space_uid=space_uid)
-        index_set_data = list(
-            index_set_obj.values("index_set_id", "index_set_name", "created_at", "space_uid", "collector_config_id")
-        )
-        for index_set in index_set_data:
-            index_set["index_set_name"] = display_index_set_name(
-                index_set["index_set_name"], index_set.pop("collector_config_id")
-            )
+        index_set_data = list(index_set_obj.values("index_set_id", "index_set_name", "created_at", "space_uid"))
         if limit:
             index_set_data = index_set_data[: int(limit)]
         return index_set_data
