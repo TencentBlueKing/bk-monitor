@@ -411,6 +411,7 @@ class UnionSearchAttrSerializer(SearchAttrSerializer):
 
 
 class UnionSearchExportSerializer(serializers.Serializer):
+    supports_sort_confirmation = serializers.BooleanField(required=False, default=False)
     union_configs = serializers.ListField(
         label=_("联合检索参数"), required=True, allow_empty=False, child=UnionConfigSerializer()
     )
@@ -573,6 +574,7 @@ class SearchUserIndexSetOptionHistoryDeleteSerializer(serializers.Serializer):
 
 
 class SearchExportSerializer(serializers.Serializer):
+    supports_sort_confirmation = serializers.BooleanField(required=False, default=False)
     bk_biz_id = serializers.IntegerField(label=_("业务id"), required=True)
     keyword = serializers.CharField(label=_("搜索关键字"), required=False, allow_null=True, allow_blank=True)
     time_range = serializers.CharField(label=_("时间范围"), required=False)
