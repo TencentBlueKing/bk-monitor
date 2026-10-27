@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making BK-LOG 蓝鲸日志平台 available.
 Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
@@ -19,9 +18,10 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 We undertake not to change the open source license (MIT license) applicable to the current version of
 the project delivered to anyone in the future.
 """
+
 import os
 from abc import ABC, abstractmethod
-from shutil import copyfile
+from shutil import copyfile, copyfileobj
 
 from django.utils.http import urlencode
 
@@ -39,6 +39,14 @@ class Storage(ABC):
     @abstractmethod
     def generate_download_url(self, *args, **kwargs):
         pass
+
+    @abstractmethod
+    def delete_file(self, *args, **kwargs):
+        pass
+
+    @abstractmethod
+    def download_fileobj(self, file_name, fh, *args, **kwargs):
+        """把对象流式写入文件句柄，供合并等场景按块读取而不整对象进内存。"""
 
 
 class CosStorage(Storage):
@@ -62,8 +70,14 @@ class CosStorage(Storage):
     def export_upload(self, file_path, file_name, **kwargs):
         return self.qcloud_cos.upload_file(file_path, file_name)
 
-    def generate_download_url(self, file_name, **kwargs):
-        return self.qcloud_cos.get_download_url(file_name)
+    def generate_download_url(self, file_name, expired=None, **kwargs):
+        return self.qcloud_cos.get_download_url(file_name, expired=expired)
+
+    def delete_file(self, file_name, **kwargs):
+        return self.qcloud_cos.delete_object(file_name)
+
+    def download_fileobj(self, file_name, fh, **kwargs):
+        return self.qcloud_cos.download_fileobj(file_name, fh)
 
 
 class NfsStorage(Storage):
@@ -79,6 +93,17 @@ class NfsStorage(Storage):
         url_params = urlencode(url_params)
         return f"{url_path}?{url_params}"
 
+    def delete_file(self, file_name, **kwargs):
+        """分片导出不使用 NFS，这里仅为满足存储接口。"""
+        target_file_dir = os.path.join(self.nfs_path, file_name)
+        if os.path.exists(target_file_dir):
+            os.remove(target_file_dir)
+
+    def download_fileobj(self, file_name, fh, **kwargs):
+        target_file_dir = os.path.join(self.nfs_path, file_name)
+        with open(target_file_dir, "rb") as source:
+            copyfileobj(source, fh)
+
 
 class BKREPOStorage(Storage):
     def __init__(self, expired: int = 0):
@@ -88,11 +113,17 @@ class BKREPOStorage(Storage):
     def export_upload(self, file_path, file_name, **kwargs):
         self.bk_repo_storage.client.upload_file(filepath=file_path, key=file_name)
 
-    def generate_download_url(self, file_name: str, **kwargs):
-        return self.bk_repo_storage.client.generate_presigned_url(key=file_name, expires_in=self.expired)
+    def generate_download_url(self, file_name: str, expired=None, **kwargs):
+        return self.bk_repo_storage.client.generate_presigned_url(key=file_name, expires_in=expired or self.expired)
+
+    def delete_file(self, file_name, **kwargs):
+        return self.bk_repo_storage.client.delete_file(key=file_name)
+
+    def download_fileobj(self, file_name, fh, **kwargs):
+        return self.bk_repo_storage.client.download_fileobj(key=file_name, fh=fh)
 
 
-class StorageType(object):
+class StorageType:
     @classmethod
     def get_instance(cls, storage_type=None):
         mapping = {

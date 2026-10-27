@@ -501,6 +501,8 @@ class ExecuteToolResource(Resource):
                     raise ValidationError(
                         {f"tool_args.{tool.resource_arg}": "A valid integer business ID is required."}
                     ) from exc
+                # Bind the validated scope before a shared standalone/Unified Resource executes.
+                request.biz_id = bk_biz_id
                 middleware_checked = getattr(request, "unified_mcp_permission_checked", False)
                 permission = None
                 for action_id in tool.legacy_action_ids:

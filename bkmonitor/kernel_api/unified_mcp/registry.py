@@ -76,6 +76,18 @@ SOURCE_FILES = {
 IGNORED_SOURCE_FILES = frozenset({"openclaw_recovering_mcp.yaml", "operation_mcp.yaml", "ops_mcp.yaml"})
 CATEGORIES = tuple(SOURCE_FILES)
 
+# Unified 门面诊断操作共用同一认证入口；它们不执行业务工具，不属于业务 ToolRegistry。
+UNIFIED_DIAGNOSTIC_OPERATIONS = frozenset(
+    {"lookup_tool", "lookup_tool_schema", "lookup_metadata", "lookup_permissions"}
+)
+
+
+def is_unified_diagnostic_route(method: str, path: str) -> bool:
+    """仅识别已声明的诊断后端 POST 路由，不能用路径包含关系扩大认证范围。"""
+    prefix = "/api/v4/unified_mcp/"
+    path = path.rstrip("/").removesuffix(".json")
+    return method == "POST" and path.startswith(prefix) and path[len(prefix) :] in UNIFIED_DIAGNOSTIC_OPERATIONS
+
 
 # standalone、Unified 门面和权限探测共用同一份权限目录。
 # 未声明原生映射的工具继续使用原 MCP Action；原生模式必须显式启用。
@@ -1027,10 +1039,10 @@ def _catalog_root() -> Path:
     return Path(settings.BASE_DIR) / "support-files" / "apigw" / "resources" / "internal" / "user"
 
 
-def load_tool_registry(root: Path | None = None) -> ToolRegistry:
+def load_tool_registry(root: Path | None = None, *, native_tools: tuple[str, ...] | None = None) -> ToolRegistry:
     """读取全部公开 Source，合成并校验唯一的 ToolRegistry。"""
     root = root or _catalog_root()
-    enabled = native_tool_names()
+    enabled = native_tool_names() if native_tools is None else native_tools
     tools: dict[str, ToolDefinition] = {}
     discovered_operation_ids: set[str] = set()
     digest = hashlib.sha256()
@@ -1190,3 +1202,17 @@ def _cached_tool_registry(enabled: tuple[str, ...], monitor_system_id: str) -> T
 def get_tool_registry() -> ToolRegistry:
     """按当前动态配置返回进程内缓存的工具目录。"""
     return _cached_tool_registry(native_tool_names(), settings.BK_IAM_SYSTEM_ID)
+
+
+@lru_cache(maxsize=1)
+def _cached_route_registry(base_dir: str, monitor_system_id: str) -> ToolRegistry:
+    # Route recognition must not depend on whether SaaS permission fallback is enabled.
+    return load_tool_registry(native_tools=())
+
+
+def resolve_readonly_tool(method: str, path: str) -> ToolDefinition | None:
+    """从同一目录识别只读路由；仅命中工具时才加载动态权限配置。"""
+    tool = _cached_route_registry(str(settings.BASE_DIR), settings.BK_IAM_SYSTEM_ID).get_by_backend(method, path)
+    if tool is None or tool.risk != "query":
+        return None
+    return get_tool_registry().get(tool.name)

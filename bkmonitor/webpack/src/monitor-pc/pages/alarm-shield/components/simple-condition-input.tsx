@@ -44,6 +44,20 @@ const nullOptions = {
   name: `- ${window.i18n.tc('空')} -`,
 };
 
+// 下拉面板内加载/失败提示项（disabled 不可选中，仅做状态展示）
+const CONDITION_VALUE_HINT = {
+  loading: {
+    id: '__condition_value_loading__',
+    name: window.i18n.t('正在加载中...'),
+    disabled: true,
+  },
+  failed: {
+    id: '__condition_value_failed__',
+    name: window.i18n.t('加载失败'),
+    disabled: true,
+  },
+};
+
 export interface IDimensionItem {
   id: number | string;
   is_dimension?: boolean;
@@ -61,7 +75,6 @@ interface IConditionItem {
 interface IEvents {
   // biome-ignore lint/suspicious/noConfusingVoidType: <explanation>
   onChange?: void;
-  onKeyLoading?: (v: boolean) => void;
 }
 
 interface IMetricMeta {
@@ -97,6 +110,7 @@ export default class SimpleConditionInput extends tsc<IProps, IEvents> {
 
   dimensionsValueMap: Record<string, { id: string; name: string }[]> = {};
   dimensionsValueMapLoading: Record<string, boolean> = {};
+  dimensionsValueMapError: Record<string, boolean> = {};
 
   curSelectTarget = null;
   showSelectMenu = false;
@@ -126,6 +140,7 @@ export default class SimpleConditionInput extends tsc<IProps, IEvents> {
       if (
         key &&
         !this.dimensionsValueMap[key] &&
+        !this.dimensionsValueMapLoading[key] &&
         this.dimensionsList?.some(dim => dim.id === key && dim.is_dimension !== false)
       ) {
         this.getVariableValueList(key);
@@ -233,8 +248,7 @@ export default class SimpleConditionInput extends tsc<IProps, IEvents> {
   }
 
   /* 选中维度 */
-  async handleKeyChange(item: IConditionItem, v: string) {
-    this.$emit('key-loading', true);
+  handleKeyChange(item: IConditionItem, v: string) {
     if (!v && this.conditions.length > 1) this.handleDeleteKey(this.conditionList.length - 1);
     item.dimensionName = v;
     let id = v;
@@ -247,16 +261,17 @@ export default class SimpleConditionInput extends tsc<IProps, IEvents> {
       item.value = [];
     }
     item.key = id;
+    // 候选项后台异步加载，不阻塞条件编辑；就绪后 bk-tag-input 会自动补全已选值的显示名
     if (
       id &&
       !this.dimensionsValueMap[id] &&
+      !this.dimensionsValueMapLoading[id] &&
       this.dimensionsList?.some(dim => dim.id === id && dim.is_dimension !== false)
     ) {
-      await this.getVariableValueList(id);
+      this.getVariableValueList(id);
     }
     this.conditions = this.conditions.slice();
     this.handleConditionChange();
-    this.$emit('key-loading', false);
   }
 
   // 获取维度值列表数据
@@ -296,8 +311,12 @@ export default class SimpleConditionInput extends tsc<IProps, IEvents> {
         }
         const result = Array.isArray(data) ? data.map(item => ({ name: item.label, id: item.value })) : [];
         this.$set(this.dimensionsValueMap, field, result || []);
+        this.$set(this.dimensionsValueMapError, field, false);
       })
-      .catch(() => []);
+      .catch(() => {
+        // 获取失败时结束加载态并在下拉面板内提示，已选值保持原值展示且可手动输入
+        this.$set(this.dimensionsValueMapError, field, true);
+      });
     this.$set(this.dimensionsValueMapLoading, field, false);
   }
 
@@ -333,19 +352,21 @@ export default class SimpleConditionInput extends tsc<IProps, IEvents> {
 
   /* 获取当前条件的可选值 */
   getValueOptions(item) {
-    const options = this.dimensionsValueMap[item.key]
+    let options = this.dimensionsValueMap[item.key]
       ? (this.isHasNullOption ? [nullOptions] : []).concat(this.dimensionsValueMap[item.key])
       : this.isHasNullOption
         ? [nullOptions]
         : [];
+    // 候选项加载中/获取失败时在下拉面板顶部插入 disabled 提示项（收起面板时不可见，不打断输入）
+    if (this.dimensionsValueMapLoading[item.key]) {
+      options = [CONDITION_VALUE_HINT.loading, ...options] as any[];
+    } else if (this.dimensionsValueMapError[item.key]) {
+      options = [CONDITION_VALUE_HINT.failed, ...options] as any[];
+    }
     return options?.map(item => ({
       ...item,
       name: item?.name?.toString() || '',
     }));
-  }
-
-  getValueOptionsLoading(item) {
-    return !!this.dimensionsValueMapLoading?.[item.key];
   }
 
   render() {
@@ -402,9 +423,9 @@ export default class SimpleConditionInput extends tsc<IProps, IEvents> {
                   {this.handleGetMethodNameById(item.method)}
                 </span>,
                 <div
-                  // 值输入容器，loading 以遮罩形式叠加在内部，避免原来 loading 与输入框二选一渲染导致的重建
-                  // key 依赖可选值数量：可选值数量变化时才重建 bk-tag-input，保证下拉列表与当前维度一致
-                  key={`value-${index}-${item.key}-${(this.dimensionsValueMap[item.key] || [])?.length}-${this.getValueOptionsLoading(item)}`}
+                  // key 仅依赖 index + 维度，避免候选项加载态/数量变化重建 bk-tag-input 打断输入与下拉；
+                  // 候选项就绪后由 bk-tag-input 对 list 的响应式自动补全已选值的显示名（别名延迟展示）
+                  key={`value-${index}-${item.key}`}
                   class='condition-item condition-item-value'
                 >
                   <bk-tag-input
@@ -417,15 +438,6 @@ export default class SimpleConditionInput extends tsc<IProps, IEvents> {
                     has-delete-icon
                     on-change={(v: string[]) => this.handleValueChange(item, v)}
                   />
-                  {this.getValueOptionsLoading(item) ? (
-                    <span
-                      // 可选值加载中的遮罩，绝对定位覆盖在输入框右侧（见 scss 的 condition-item-value-loading）
-                      key={`value-${index}-${item.key}`}
-                      class='condition-item condition-item-value-loading'
-                    >
-                      <div class='spinner' />
-                    </span>
-                  ) : undefined}
                 </div>,
               ]
             : undefined,

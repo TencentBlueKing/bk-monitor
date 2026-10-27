@@ -111,6 +111,7 @@ paths:
           userVerifiedRequired: true
           appVerifiedRequired: false
           resourcePermissionRequired: true
+          oauth2PersonalClientEnabled: true
   /mcp/get_alert_top_n/:
     post:
       operationId: get_alert_top_n
@@ -215,6 +216,7 @@ paths:
           userVerifiedRequired: true
           appVerifiedRequired: false
           resourcePermissionRequired: true
+          oauth2PersonalClientEnabled: true
   /mcp/get_strategy_snapshot/:
     post:
       operationId: get_strategy_snapshot
@@ -254,6 +256,7 @@ paths:
           userVerifiedRequired: true
           appVerifiedRequired: false
           resourcePermissionRequired: true
+          oauth2PersonalClientEnabled: true
   /mcp/get_strategy_detail/:
     get:
       operationId: get_strategy_detail
@@ -289,6 +292,7 @@ paths:
           userVerifiedRequired: true
           appVerifiedRequired: false
           resourcePermissionRequired: true
+          oauth2PersonalClientEnabled: true
   /mcp/get_alert_info/:
     get:
       operationId: get_alert_info
@@ -324,6 +328,7 @@ paths:
           userVerifiedRequired: true
           appVerifiedRequired: false
           resourcePermissionRequired: true
+          oauth2PersonalClientEnabled: true
   /mcp/get_alert_events/:
     post:
       operationId: get_alert_events
@@ -378,6 +383,7 @@ paths:
           userVerifiedRequired: true
           appVerifiedRequired: false
           resourcePermissionRequired: true
+          oauth2PersonalClientEnabled: true
   /mcp/get_alert_event_ts/:
     post:
       operationId: get_alert_event_ts
@@ -434,6 +440,7 @@ paths:
           userVerifiedRequired: true
           appVerifiedRequired: false
           resourcePermissionRequired: true
+          oauth2PersonalClientEnabled: true
   /mcp/get_alert_event_tag_detail/:
     post:
       operationId: get_alert_event_tag_detail
@@ -492,6 +499,7 @@ paths:
           userVerifiedRequired: true
           appVerifiedRequired: false
           resourcePermissionRequired: true
+          oauth2PersonalClientEnabled: true
   /mcp/get_alert_k8s_target/:
     get:
       operationId: get_alert_k8s_target
@@ -527,6 +535,7 @@ paths:
           userVerifiedRequired: true
           appVerifiedRequired: false
           resourcePermissionRequired: true
+          oauth2PersonalClientEnabled: true
   /mcp/get_alert_host_target/:
     get:
       operationId: get_alert_host_target
@@ -562,6 +571,7 @@ paths:
           userVerifiedRequired: true
           appVerifiedRequired: false
           resourcePermissionRequired: true
+          oauth2PersonalClientEnabled: true
   /mcp/get_alert_traces/:
     post:
       operationId: get_alert_traces
@@ -609,6 +619,7 @@ paths:
           userVerifiedRequired: true
           appVerifiedRequired: false
           resourcePermissionRequired: true
+          oauth2PersonalClientEnabled: true
   /mcp/get_alert_log_relations/:
     get:
       operationId: get_alert_log_relations
@@ -644,3 +655,4 @@ paths:
           userVerifiedRequired: true
           appVerifiedRequired: false
           resourcePermissionRequired: true
+          oauth2PersonalClientEnabled: true
