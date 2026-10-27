@@ -48,65 +48,6 @@
   }
 }
 
-.collection-history-status-filter {
-  > span {
-    display: block;
-    margin-bottom: 6px;
-  }
-}
-
-.collection-history-status-options {
-  display: flex;
-  align-items: center;
-  height: 32px;
-  padding: 4px;
-  background: #f0f1f5;
-  border-radius: 2px;
-
-  .bk-radio-button {
-    &::before {
-      display: none;
-    }
-
-    &.is-checked {
-      box-shadow: 0 2px 2px #0000001a;
-    }
-  }
-
-  .bk-radio-button-label {
-    display: flex;
-    align-items: center;
-    height: 24px;
-    padding: 0 12px;
-    font-size: 12px;
-    line-height: 20px;
-    color: #4d4f56;
-  }
-
-  .common-status-wrap {
-    display: inline-flex;
-    align-items: center;
-
-    .common-status-icon {
-      margin: 0 3px;
-    }
-
-    .common-status-name {
-      margin-left: 4px;
-      line-height: 20px;
-    }
-  }
-
-  .collection-execution-running {
-    gap: 4px;
-
-    i {
-      width: 14px;
-      height: 14px;
-    }
-  }
-}
-
 .collection-history-query {
   display: flex;
   gap: 8px;

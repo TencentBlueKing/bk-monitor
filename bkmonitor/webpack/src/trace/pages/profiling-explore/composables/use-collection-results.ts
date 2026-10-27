@@ -23,7 +23,7 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { type Ref, computed, onScopeDispose, shallowRef, watch } from 'vue';
+import { type Ref, onScopeDispose, shallowRef, watch } from 'vue';
 
 import { Message } from 'bkui-vue';
 import { useI18n } from 'vue-i18n';
@@ -42,6 +42,8 @@ import { useCollectionCandidates } from './use-collection-candidates';
 import type { SelectionRange } from '../types';
 import type { CollectionExecutionColumn } from '../types/collection-history';
 import type { CollectionHostResult, CollectionResultsState } from '../types/collection-results';
+
+const PAGE_LIMIT = 20;
 
 export function useCollectionResults({
   bizId,
@@ -69,21 +71,6 @@ export function useCollectionResults({
   const busy = shallowRef(false);
   const actionError = shallowRef('');
   const candidateState = useCollectionCandidates(bizId, range);
-  const rows = computed(() => {
-    if (!state.value.execution) return records.value;
-    const filters = state.value.filters;
-    const contains = (value: string, terms: string[]) => !terms.length || terms.some(term => value.includes(term));
-    return records.value.filter(
-      row =>
-        (!filters.ips.length || filters.ips.includes(row.ip)) &&
-        (!filters.task_name || row.task.name.includes(filters.task_name)) &&
-        (!filters.status || (row.status === 'outdate' ? 'outdated' : row.status) === filters.status) &&
-        (!filters.process_names.length ||
-          row.processes.some(process => contains(process.process_name, filters.process_names))) &&
-        (!filters.process_pids.length ||
-          row.processes.some(process => contains(String(process.pid), filters.process_pids)))
-    );
-  });
   let controller: AbortController;
   let actionController: AbortController;
   let offset = 0;
@@ -114,7 +101,7 @@ export function useCollectionResults({
         }),
       ];
       offset += data.length;
-      hasMore.value = !execution && data.length === 20;
+      hasMore.value = !execution && data.length === PAGE_LIMIT;
     } catch (e) {
       if (!current.signal.aborted) error.value = (e as Error)?.message || t('采集结果加载失败，请重试');
     } finally {
@@ -185,7 +172,6 @@ export function useCollectionResults({
     actionController?.abort();
   });
   return {
-    rows,
     records,
     hostColumns,
     loading,

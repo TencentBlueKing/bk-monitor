@@ -27,13 +27,18 @@
 import { type PropType, computed, defineComponent, nextTick, shallowRef, watch } from 'vue';
 
 import { type TableProps, PrimaryTable } from '@blueking/tdesign-ui';
-import { Alert, Button, Dialog, Exception, Message } from 'bkui-vue';
+import { Alert, Button, Dialog, Message } from 'bkui-vue';
 import { useI18n } from 'vue-i18n';
 
 import { useCollectionExecution } from '../../composables/use-collection-execution';
 import { useCollectionResults } from '../../composables/use-collection-results';
 import { collectionTypeLabels, formatCollectionTime } from '../../utils/collection';
-import { createHistoryFilters, formatExecutionDuration, hostColumnMinWidths } from '../../utils/collection-history';
+import {
+  createHistoryFilters,
+  executionStatusLabels,
+  formatExecutionDuration,
+  hostColumnMinWidths,
+} from '../../utils/collection-history';
 import {
   canViewHostResult,
   resultExecutionKey,
@@ -102,7 +107,7 @@ export default defineComponent({
         emit('created');
       },
     });
-    const tableRows = computed(() => h.rows.value.map(row => ({ ...row, resultKey: resultRowKey(row) })));
+    const tableRows = computed(() => h.records.value.map(row => ({ ...row, resultKey: resultRowKey(row) })));
     const selectedRow = computed(() =>
       h.records.value.find(
         row =>
@@ -124,7 +129,15 @@ export default defineComponent({
       );
     });
     function patch(value: Partial<CollectionResultsState>) {
-      emit('change', { results: { ...props.state, ...value } });
+      // 筛选实际变化即退出执行范围；否则刷新仍会请求本次执行详情，列表不会按新条件变化
+      const exitScope =
+        !!props.state.execution &&
+        !!value.filters &&
+        JSON.stringify(value.filters) !== JSON.stringify(props.state.filters);
+      emit('change', {
+        ...(exitScope ? { result: null } : {}),
+        results: { ...props.state, ...value, ...(exitScope ? { execution: null } : {}) },
+      });
     }
     function open(row: CollectionHostResult) {
       if (!canViewHostResult(row)) return;
@@ -143,6 +156,10 @@ export default defineComponent({
     }
     function reset() {
       patch({ filters: createHistoryFilters() });
+    }
+    function reload() {
+      if (h.records.value.length) h.loadMore();
+      else h.refresh();
     }
     watch([h.loading, h.hasMore], () => {
       nextTick(() => loadVisiblePage());
@@ -165,11 +182,14 @@ export default defineComponent({
       openExecution,
       loadVisiblePage,
       reset,
+      reload,
     };
   },
   render() {
     const { h, c } = this;
-    const showSkeleton = h.loading.value && !h.rows.value.length;
+    const showSkeleton = h.loading.value && !h.records.value.length;
+    // 结果为空时由 empty 插槽接管；否则 tdesign 会注入筛选结果行，导致空态不渲染
+    const emptyResult = !showSkeleton && !h.records.value.length;
     const resultLink = (row: CollectionHostResult, text: string) => (
       <span v-tippy={this.t(canViewHostResult(row) ? '查看当前主机的采集结果' : resultUnavailableReason(row))}>
         <Button
@@ -192,6 +212,14 @@ export default defineComponent({
     );
     // 执行范围下优先使用后端下发的列定义，缺省时沿用固定列
     const hostColumns = this.state.execution ? h.hostColumns.value : null;
+    // 状态筛选与采集任务历史保持一致，覆盖后端可能返回的全部执行状态
+    const statusFilter = {
+      type: 'single' as const,
+      list: Object.keys(executionStatusLabels).map(value => ({
+        value,
+        label: this.t(value === 'succeed' ? '结果可用' : executionStatusLabels[value]),
+      })),
+    };
     const renderHostCell = (column: CollectionExecutionColumn, row: CollectionHostResult) => {
       const value = (row as unknown as Record<string, unknown>)[column.field];
       // ip 列保留点击查看主机结果的交互，其余按后端下发的列类型渲染
@@ -215,7 +243,8 @@ export default defineComponent({
             title: column.name,
             minWidth: hostColumnMinWidths[column.type],
             cell: (_, { row }) => renderHostCell(column, row as CollectionHostResult),
-            ...(column.type === 'status' ? { sorter: true } : {}),
+            // 后端下发的状态列同样提供列筛选，与固定列保持一致
+            ...(column.type === 'status' ? { sorter: true, filter: statusFilter } : {}),
             ...(column.type === 'text' ? { ellipsis: true } : {}),
           })),
           { colKey: 'row-operation', title: this.t('操作'), width: 176, fixed: 'right', cell: 'operations' },
@@ -240,6 +269,7 @@ export default defineComponent({
             colKey: 'status',
             title: this.t('状态'),
             width: 130,
+            filter: statusFilter,
             cell: (_, { row }) => (
               <CollectionExecutionStatus
                 status={row.status}
@@ -255,7 +285,7 @@ export default defineComponent({
           candidates={h.candidates.value}
           filters={this.state.filters}
           loading={h.candidateLoading.value}
-          results
+          autoQuery
           onChange={filters => this.patch({ filters })}
           onRefresh={h.refresh}
         />
@@ -312,117 +342,123 @@ export default defineComponent({
           aria-busy={h.loading.value}
           onScroll={this.loadVisiblePage}
         >
-          {!showSkeleton && !h.rows.value.length && !h.error.value && !this.rangeError ? (
-            this.filtered ? (
-              <EmptyStatus
-                type='search-empty'
-                onOperation={this.reset}
-              />
-            ) : (
-              <Exception
-                class='collection-results-empty'
-                scene='page'
-                type='empty'
-              >
-                {{
-                  type: () => (
-                    <img
-                      alt=''
-                      src={emptyIllustration}
-                    />
-                  ),
-                  default: () => (
-                    <>
-                      <h3>{this.t('暂无采集结果')}</h3>
-                      <p>{this.t('请前往任务管理新建采集任务')}</p>
-                      <Button
-                        v-tippy={this.t(this.readonly ? '暂无采集操作权限' : '新建 Profiling 采集任务')}
-                        disabled={this.readonly}
-                        theme='primary'
-                        outline
-                        onClick={() => this.$emit('create')}
-                      >
-                        {this.t('去新建任务')}
-                      </Button>
-                    </>
-                  ),
-                }}
-              </Exception>
-            )
-          ) : (
-            <PrimaryTable
-              columns={columns.map(column =>
-                showSkeleton
-                  ? {
-                      ...column,
-                      cell: (render, { rowIndex }) =>
-                        render(TraceCellSkeleton, { field: column.colKey, index: rowIndex }),
-                    }
-                  : column
-              )}
-              bkUiSettings={{ disabled: columns.some(column => column.colKey === 'ip') ? ['ip'] : [], rowSize: 'mini' }}
-              data={showSkeleton ? skeletonRows : this.tableRows}
-              hover={!showSkeleton}
-              rowKey='resultKey'
-              size='small'
-            >
-              {{
-                empty: () => null,
-                ip: ({ row }: { row: CollectionHostResult }) => resultLink(row, row.ip),
-                processes: ({ row }: { row: CollectionHostResult }) => renderProcesses(row),
-                task: ({ row }: { row: CollectionHostResult }) => (
-                  <Button
-                    v-tippy={this.t('查看本次任务执行详情')}
-                    theme='primary'
-                    text
-                    onClick={() => this.openExecution(row)}
+          <PrimaryTable
+            columns={columns.map(column =>
+              showSkeleton
+                ? {
+                    ...column,
+                    cell: (render, { rowIndex }) =>
+                      render(TraceCellSkeleton, { field: column.colKey, index: rowIndex }),
+                  }
+                : column
+            )}
+            bkUiSettings={{ disabled: columns.some(column => column.colKey === 'ip') ? ['ip'] : [], rowSize: 'mini' }}
+            data={showSkeleton ? skeletonRows : this.tableRows}
+            filterRow={emptyResult ? () => null : undefined}
+            filterValue={{ status: this.state.filters.status }}
+            hover={!showSkeleton}
+            rowKey='resultKey'
+            size='small'
+            onFilterChange={value =>
+              this.patch({ filters: { ...this.state.filters, status: String(value.status || '') } })
+            }
+          >
+            {{
+              empty: () => {
+                if (this.rangeError) return null;
+                const error = h.error.value;
+                // 请求失败与筛选无结果统一在空态中展示
+                const type = error ? '500' : this.filtered ? 'search-empty' : 'empty';
+                const custom = type === 'empty';
+                return (
+                  <EmptyStatus
+                    class='collection-results-empty'
+                    textMap={{ empty: '', 500: error || this.t('数据获取异常') }}
+                    type={type}
+                    onOperation={error ? this.reload : this.reset}
                   >
-                    {row.task.name}
-                  </Button>
-                ),
-                operations: ({ row }: { row: CollectionHostResult }) => (
-                  <div class='collection-row-actions'>
-                    {resultLink(row, this.t('查看详情'))}
-                    <span
-                      v-tippy={this.t(
-                        this.readonly
-                          ? '暂无采集操作权限'
-                          : h.busy.value
-                            ? '正在提交采集任务'
-                            : row.status === 'running'
-                              ? '采集中，暂不能重新采集'
-                              : '使用历史配置重新采集当前主机'
-                      )}
+                    {{
+                      type: custom
+                        ? () => (
+                            <img
+                              class='empty-image'
+                              alt=''
+                              src={emptyIllustration}
+                            />
+                          )
+                        : undefined,
+                      default: custom
+                        ? () => (
+                            <>
+                              <h3>{this.t('暂无采集结果')}</h3>
+                              <p>{this.t('请前往任务管理新建采集任务')}</p>
+                              <Button
+                                v-tippy={this.t(this.readonly ? '暂无采集操作权限' : '新建 Profiling 采集任务')}
+                                disabled={this.readonly}
+                                theme='primary'
+                                outline
+                                onClick={() => this.$emit('create')}
+                              >
+                                {this.t('去新建任务')}
+                              </Button>
+                            </>
+                          )
+                        : undefined,
+                    }}
+                  </EmptyStatus>
+                );
+              },
+              ip: ({ row }: { row: CollectionHostResult }) => resultLink(row, row.ip),
+              processes: ({ row }: { row: CollectionHostResult }) => renderProcesses(row),
+              task: ({ row }: { row: CollectionHostResult }) => (
+                <Button
+                  v-tippy={this.t('查看本次任务执行详情')}
+                  theme='primary'
+                  text
+                  onClick={() => this.openExecution(row)}
+                >
+                  {row.task.name}
+                </Button>
+              ),
+              operations: ({ row }: { row: CollectionHostResult }) => (
+                <div class='collection-row-actions'>
+                  {resultLink(row, this.t('查看详情'))}
+                  <span
+                    v-tippy={this.t(
+                      this.readonly
+                        ? '暂无采集操作权限'
+                        : h.busy.value
+                          ? '正在提交采集任务'
+                          : row.status === 'running'
+                            ? '采集中，暂不能重新采集'
+                            : '使用历史配置重新采集当前主机'
+                    )}
+                  >
+                    <Button
+                      disabled={this.readonly || h.busy.value || row.status === 'running'}
+                      theme='primary'
+                      text
+                      onClick={() => h.requestRerun(row)}
                     >
-                      <Button
-                        disabled={this.readonly || h.busy.value || row.status === 'running'}
-                        theme='primary'
-                        text
-                        onClick={() => h.requestRerun(row)}
-                      >
-                        {this.t('重新采集')}
-                      </Button>
-                    </span>
-                  </div>
-                ),
-              }}
-            </PrimaryTable>
-          )}
-          {h.error.value && (
+                      {this.t('重新采集')}
+                    </Button>
+                  </span>
+                </div>
+              ),
+            }}
+          </PrimaryTable>
+          {/* 已有数据时追加加载失败，表格保留数据，仅保留重试入口 */}
+          {!!h.error.value && !!h.records.value.length && (
             <div class='collection-history-error'>
-              <Alert
-                theme='danger'
-                title={h.error.value}
-              />
               <Button
                 v-tippy={this.t('重新加载采集结果')}
-                onClick={h.rows.value.length ? h.loadMore : h.refresh}
+                onClick={this.reload}
               >
                 {this.t('重试')}
               </Button>
             </div>
           )}
-          {!!h.rows.value.length && (
+          {!!h.records.value.length && (
             <div class='collection-history-more'>
               {h.hasMore.value ? (
                 <Button
