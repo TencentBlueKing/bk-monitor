@@ -97,6 +97,7 @@ from apps.log_search.exceptions import (
     ScenarioNotSupportedException,
     SourceDuplicateException,
 )
+from apps.log_search.index_set_name import display_index_set_name
 from apps.log_search.utils import fetch_request_username
 from apps.log_search.export.models import ExportJob  # noqa: F401
 from apps.models import (
@@ -1393,9 +1394,12 @@ class Favorite(OperateRecordModel):
                 index_set_id_list.extend(index_set_ids)
         index_set_id_list = list(set(index_set_id_list))
         active_index_set_id_dict = {
-            i["index_set_id"]: {"index_set_name": i["index_set_name"], "is_active": i["is_active"]}
+            i["index_set_id"]: {
+                "index_set_name": display_index_set_name(i["index_set_name"], i["collector_config_id"]),
+                "is_active": i["is_active"],
+            }
             for i in LogIndexSet.objects.filter(index_set_id__in=index_set_id_list).values(
-                "index_set_id", "index_set_name", "is_active"
+                "index_set_id", "index_set_name", "is_active", "collector_config_id"
             )
         }
         for fi in qs.all():

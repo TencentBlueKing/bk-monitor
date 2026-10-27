@@ -97,6 +97,7 @@ from apps.log_search.exceptions import (
 )
 from apps.log_search.handlers.search.mapping_handlers import MappingHandlers
 from apps.log_search.handlers.search.search_handlers_esquery import SearchHandler
+from apps.log_search.index_set_name import display_index_set_name
 from apps.log_unifyquery.handler.mapping import UnifyQueryMappingHandler
 from apps.log_search.models import (
     TAG_TYPE_INNER,
@@ -224,6 +225,9 @@ class IndexSetHandler(APIModel):
         index_set_ids = [index_set["index_set_id"] for index_set in index_sets]
         is_id_to_is_native_doris_map = LogIndexSet.batch_get_is_native_doris(index_set_ids)
         for index_set in index_sets:
+            index_set["index_set_name"] = display_index_set_name(
+                index_set["index_set_name"], index_set["collector_config_id"]
+            )
             index_set["collector_scenario_id"] = collector_scenario_map.get(index_set["collector_config_id"])
             is_support_sql_and_grep = False
             if index_set["support_doris"] and index_set["doris_table_id"]:
@@ -1443,7 +1447,7 @@ class IndexSetHandler(APIModel):
         detail_by_index_set_id = {
             detail["index_set_id"]: detail
             for detail in LogIndexSet.objects.filter(index_set_id__in=index_set_ids, is_active=True).values(
-                "index_set_id", "index_set_name", "space_uid"
+                "index_set_id", "index_set_name", "space_uid", "collector_config_id"
             )
         }
         return_data = []
@@ -1456,7 +1460,7 @@ class IndexSetHandler(APIModel):
                 "created_at": history["created_at"],
                 "params": history["params"],
                 "duration": history["duration"],
-                "index_set_name": detail["index_set_name"],
+                "index_set_name": display_index_set_name(detail["index_set_name"], detail["collector_config_id"]),
                 "space_uid": detail["space_uid"],
             }
             return_data.append(search_data)
@@ -1475,7 +1479,13 @@ class IndexSetHandler(APIModel):
         index_set_obj = LogIndexSet.objects.filter(index_set_id__in=index_set_ids, is_active=True)
         if space_uid:
             index_set_obj = index_set_obj.filter(space_uid=space_uid)
-        index_set_data = list(index_set_obj.values("index_set_id", "index_set_name", "created_at", "space_uid"))
+        index_set_data = list(
+            index_set_obj.values("index_set_id", "index_set_name", "created_at", "space_uid", "collector_config_id")
+        )
+        for index_set in index_set_data:
+            index_set["index_set_name"] = display_index_set_name(
+                index_set["index_set_name"], index_set.pop("collector_config_id")
+            )
         if limit:
             index_set_data = index_set_data[: int(limit)]
         return index_set_data

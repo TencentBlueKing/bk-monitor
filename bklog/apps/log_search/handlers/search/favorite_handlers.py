@@ -46,6 +46,7 @@ from apps.log_search.exceptions import (
     FavoriteUnionSearchNotExistException,
     FavoriteVisibleTypeNotAllowedModifyException,
 )
+from apps.log_search.index_set_name import display_index_set_name
 from apps.log_search.models import (
     Favorite,
     FavoriteGroup,
@@ -115,9 +116,12 @@ class FavoriteHandler:
             return result
         if result["index_set_type"] == IndexSetType.UNION.value:
             active_index_set_id_dict = {
-                i["index_set_id"]: {"index_set_name": i["index_set_name"], "is_active": i["is_active"]}
+                i["index_set_id"]: {
+                    "index_set_name": display_index_set_name(i["index_set_name"], i["collector_config_id"]),
+                    "is_active": i["is_active"],
+                }
                 for i in LogIndexSet.objects.filter(index_set_id__in=result["index_set_ids"]).values(
-                    "index_set_id", "index_set_name", "is_active"
+                    "index_set_id", "index_set_name", "is_active", "collector_config_id"
                 )
             }
             is_actives = []
@@ -134,7 +138,10 @@ class FavoriteHandler:
         else:
             if LogIndexSet.objects.filter(index_set_id=result["index_set_id"]).exists():
                 result["is_active"] = True
-                result["index_set_name"] = LogIndexSet.objects.get(index_set_id=result["index_set_id"]).index_set_name
+                index_set = LogIndexSet.objects.get(index_set_id=result["index_set_id"])
+                result["index_set_name"] = display_index_set_name(
+                    index_set.index_set_name, index_set.collector_config_id
+                )
             else:
                 result["is_active"] = False
                 result["index_set_name"] = INDEX_SET_NOT_EXISTED

@@ -113,6 +113,7 @@ from apps.log_search.handlers.es.indices_optimizer_context_tail import (
 )
 from apps.log_search.handlers.search.mapping_handlers import MappingHandlers
 from apps.log_search.handlers.search.pre_search_handlers import PreSearchHandlers
+from apps.log_search.index_set_name import display_index_set_name
 from apps.log_search.models import (
     AsyncTask,
     IndexSetFieldsConfig,
@@ -1428,10 +1429,13 @@ class SearchHandler:
         # 获取当前空间关联空间的索引集
         space_uids = IndexSetHandler.get_all_related_space_uids(space_uid)
         index_set_objs = LogIndexSet.objects.filter(index_set_id__in=index_set_id_all, space_uid__in=space_uids).values(
-            "index_set_id", "index_set_name"
+            "index_set_id", "index_set_name", "collector_config_id"
         )
 
-        effect_index_set_mapping = {obj["index_set_id"]: obj["index_set_name"] for obj in index_set_objs}
+        effect_index_set_mapping = {
+            obj["index_set_id"]: display_index_set_name(obj["index_set_name"], obj["collector_config_id"])
+            for obj in index_set_objs
+        }
 
         if not effect_index_set_mapping:
             return []
