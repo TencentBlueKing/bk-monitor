@@ -23,9 +23,11 @@ import datetime
 import io
 import tempfile
 from concurrent.futures import ThreadPoolExecutor
+from pathlib import Path
 from threading import Barrier, Lock
 from unittest.mock import Mock, patch
 
+from blueapps.core.celery.celery import app
 from django.db import close_old_connections, connections
 from django.db.models.query import QuerySet
 from django.test import TestCase, TransactionTestCase, override_settings
@@ -34,7 +36,16 @@ from django.utils.translation import gettext
 from redis.exceptions import ConnectionError as RedisConnectionError
 from rest_framework.test import APIRequestFactory
 
-from apps.log_search.constants import ASYNC_EXPORT_SCENE_ID, ExportStatus, ExportType, IndexSetType
+from apps.constants import RemoteStorageType
+from apps.log_search.constants import (
+    ASYNC_EXPORT_EXPIRED,
+    ASYNC_EXPORT_FILE_EXPIRED_DAYS,
+    ASYNC_EXPORT_SCENE_ID,
+    FEATURE_ASYNC_EXPORT_STORAGE_TYPE,
+    ExportStatus,
+    ExportType,
+    IndexSetType,
+)
 from apps.log_search.exceptions import (
     AsyncExportRequestBusyException,
     AsyncExportTaskNotDownloadableException,
@@ -42,12 +53,10 @@ from apps.log_search.exceptions import (
 )
 from apps.log_search.handlers.search.search_handlers_esquery import SearchHandler
 from apps.log_search.models import AsyncTask, LogIndexSet, Scenario
-from apps.log_search.tasks.async_export import (
-    AsyncExportUtils,
-    UnionAsyncExportUtils,
+from apps.log_search.tasks.unify_query_async_export import (
+    BaseExportUtils as UnifyQueryBaseExportUtils,
     error_async_export_tasks_turn_to_failed,
 )
-from apps.log_search.tasks.unify_query_async_export import BaseExportUtils as UnifyQueryBaseExportUtils
 from apps.log_search.views.search_views import SearchViewSet
 from apps.log_unifyquery.handler.async_export_handlers import (
     UnifyQueryAsyncExportHandlers,
@@ -131,37 +140,11 @@ class TestAsyncExportProgress(TestCase):
         self.assertEqual(result["download_count"], 2)
         self.assertTrue(result["download_able"])
 
-    def test_write_file_increments_exported_count(self):
-        async_task = AsyncTask.objects.create(
-            request_param=SEARCH_DICT,
-            scenario_id=Scenario.LOG,
-            index_set_id=3,
-            bk_biz_id=2,
-            start_time=SEARCH_DICT["start_time"],
-            end_time=SEARCH_DICT["end_time"],
-            export_type=ExportType.ASYNC,
-            export_total_count=5,
-            created_by="admin",
-        )
-        export_util = AsyncExportUtils.__new__(AsyncExportUtils)
-        export_util.async_task_id = async_task.id
-
-        export_util.write_file(
-            io.StringIO(),
-            [
-                {"origin_log_list": [{"log": "one"}, {"log": "two"}]},
-                {"origin_log_list": [{"log": "three"}]},
-            ],
-        )
-
-        async_task.refresh_from_db()
-        self.assertEqual(async_task.exported_count, 3)
-
-    def test_write_file_does_not_update_progress_without_task_id(self):
-        export_util = AsyncExportUtils.__new__(AsyncExportUtils)
+    def test_unify_query_write_file_does_not_update_progress_without_task_id(self):
+        export_util = UnifyQueryBaseExportUtils.__new__(UnifyQueryBaseExportUtils)
         export_util.async_task_id = None
 
-        with patch("apps.log_search.tasks.async_export.AsyncTask.objects.filter") as mock_filter:
+        with patch("apps.log_search.tasks.unify_query_async_export.AsyncTask.objects.filter") as mock_filter:
             export_util.write_file(io.StringIO(), [{"origin_log_list": [{"log": "one"}]}])
 
         mock_filter.assert_not_called()
@@ -234,25 +217,6 @@ class TestAsyncExportProgress(TestCase):
 
         async_task.refresh_from_db()
         self.assertEqual(async_task.download_count, 2)
-
-    def test_union_write_file_increments_exported_count(self):
-        async_task = AsyncTask.objects.create(
-            request_param=SEARCH_DICT,
-            scenario_id=Scenario.LOG,
-            index_set_id=3,
-            bk_biz_id=2,
-            start_time=SEARCH_DICT["start_time"],
-            end_time=SEARCH_DICT["end_time"],
-            export_type=ExportType.ASYNC,
-            created_by="admin",
-        )
-        export_util = UnionAsyncExportUtils.__new__(UnionAsyncExportUtils)
-        export_util.async_task_id = async_task.id
-
-        export_util.write_file(io.StringIO(), [{"origin_log_list": [{"log": "one"}, {"log": "two"}]}])
-
-        async_task.refresh_from_db()
-        self.assertEqual(async_task.exported_count, 2)
 
     def test_unify_query_write_file_increments_exported_count(self):
         async_task = AsyncTask.objects.create(
@@ -791,7 +755,7 @@ class TestAsyncTaskConcurrentCreation(TransactionTestCase):
         )
 
 
-class TestFailStaleAsyncExportTasks(TestCase):
+class TestAsyncExportMaintenanceTasks(TestCase):
     def _create_task(self, export_status=None, export_type=ExportType.ASYNC):
         return AsyncTask.objects.create(
             request_param=SEARCH_DICT,
@@ -805,6 +769,66 @@ class TestFailStaleAsyncExportTasks(TestCase):
             created_by="admin",
         )
 
+    def test_existing_periodic_task_names_keep_their_schedules(self):
+        schedules = {
+            "clean_expired_status": 10,
+            "error_async_export_tasks_turn_to_failed": 20,
+            "clean_expired_task": 0,
+        }
+        for task_name, minute in schedules.items():
+            legacy_name = f"apps.log_search.tasks.async_export.{task_name}"
+            with self.subTest(task=legacy_name):
+                self.assertIn(legacy_name, app.tasks)
+                schedule = app.conf.beat_schedule[legacy_name]
+                self.assertEqual(schedule["task"], legacy_name)
+                self.assertEqual(schedule["schedule"].minute, {minute})
+                self.assertEqual(schedule["schedule"].hour, {3})
+                self.assertNotIn(f"apps.log_search.tasks.unify_query_async_export.{task_name}", app.conf.beat_schedule)
+
+    def test_existing_status_cleanup_task_expires_only_old_successful_exports(self):
+        expired_task = self._create_task(export_status=ExportStatus.SUCCESS)
+        recent_task = self._create_task(export_status=ExportStatus.SUCCESS)
+        failed_task = self._create_task(export_status=ExportStatus.FAILED)
+        expired_time = timezone.now() - datetime.timedelta(seconds=ASYNC_EXPORT_EXPIRED + 1)
+        AsyncTask.objects.filter(id__in=[expired_task.id, failed_task.id]).update(completed_at=expired_time)
+        AsyncTask.objects.filter(id=recent_task.id).update(completed_at=timezone.now())
+
+        app.tasks["apps.log_search.tasks.async_export.clean_expired_status"].run()
+
+        expired_task.refresh_from_db()
+        recent_task.refresh_from_db()
+        failed_task.refresh_from_db()
+        self.assertEqual(expired_task.export_status, ExportStatus.DOWNLOAD_EXPIRED)
+        self.assertEqual(recent_task.export_status, ExportStatus.SUCCESS)
+        self.assertEqual(failed_task.export_status, ExportStatus.FAILED)
+
+    def test_existing_file_cleanup_task_removes_only_expired_files(self):
+        expired_task = self._create_task(export_status=ExportStatus.SUCCESS)
+        recent_task = self._create_task(export_status=ExportStatus.SUCCESS)
+        expired_time = timezone.now() - datetime.timedelta(days=ASYNC_EXPORT_FILE_EXPIRED_DAYS + 1)
+        toggle = Mock(feature_config={FEATURE_ASYNC_EXPORT_STORAGE_TYPE: RemoteStorageType.NFS.value})
+
+        with tempfile.TemporaryDirectory() as directory, override_settings(EXTRACT_SAAS_STORE_DIR=directory):
+            expired_file = Path(directory) / "expired.tar.gz"
+            recent_file = Path(directory) / "recent.tar.gz"
+            expired_file.write_bytes(b"export")
+            recent_file.write_bytes(b"export")
+            AsyncTask.objects.filter(id=expired_task.id).update(created_at=expired_time, file_name=expired_file.name)
+            AsyncTask.objects.filter(id=recent_task.id).update(file_name=recent_file.name)
+
+            with patch(
+                "apps.log_search.tasks.unify_query_async_export.FeatureToggleObject.toggle", return_value=toggle
+            ):
+                app.tasks["apps.log_search.tasks.async_export.clean_expired_task"].run()
+
+            self.assertFalse(expired_file.exists())
+            self.assertTrue(recent_file.exists())
+
+        expired_task.refresh_from_db()
+        recent_task.refresh_from_db()
+        self.assertTrue(expired_task.is_clean)
+        self.assertFalse(recent_task.is_clean)
+
     def test_error_async_export_tasks_turn_to_failed(self):
         expired_time = timezone.now() - datetime.timedelta(hours=25)
         stale_tasks = [
@@ -815,7 +839,7 @@ class TestFailStaleAsyncExportTasks(TestCase):
         ]
         AsyncTask.objects.filter(id__in=[task.id for task in stale_tasks]).update(created_at=expired_time)
 
-        with patch("apps.log_search.tasks.async_export.logger.warning") as mock_warning:
+        with patch("apps.log_search.tasks.unify_query_async_export.logger.warning") as mock_warning:
             error_async_export_tasks_turn_to_failed.run()
 
         expected_logs = {(task.id, task.export_status) for task in stale_tasks}
@@ -868,7 +892,7 @@ class TestFailStaleAsyncExportTasks(TestCase):
 
         with (
             patch.object(QuerySet, "iterator", change_status_before_update),
-            patch("apps.log_search.tasks.async_export.logger.warning") as mock_warning,
+            patch("apps.log_search.tasks.unify_query_async_export.logger.warning") as mock_warning,
         ):
             error_async_export_tasks_turn_to_failed.run()
 

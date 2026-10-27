@@ -41,7 +41,6 @@ from apps.log_search.constants import (
     IndexSetType,
 )
 from apps.log_search.exceptions import (
-    MissAsyncExportException,
     PreCheckAsyncExportException,
     DuplicateUnifyQueryExportException,
 )
@@ -50,7 +49,7 @@ from apps.log_search.export.history import (
     sharded_export_history_queryset,
     sharded_job_history_item,
 )
-from apps.log_search.handlers.search.search_handlers_esquery import SearchHandler, UnionSearchHandler
+from apps.log_search.handlers.search.search_handlers_esquery import UnionSearchHandler
 from apps.log_search.models import AsyncTask, LogIndexSet
 from apps.log_unifyquery.handler.base import UnifyQueryHandler
 from apps.models import model_to_dict
@@ -477,15 +476,6 @@ class UnifyQueryUnionAsyncExportHandlers:
             is_quick_export=is_quick_export,
             max_async_count=self.unify_query_handler.index_info_list[0]["index_set_obj"].max_async_count,
         )
-
-    @staticmethod
-    def _pre_check_fields(search_handler: SearchHandler):
-        fields = search_handler.fields()
-        for config in fields["config"]:
-            if config["name"] == "async_export":
-                if not config["is_active"]:
-                    raise MissAsyncExportException(config["extra"]["usable_reason"])
-                return {"async_export_fields": config["extra"]["fields"]}
 
     def _get_url(self):
         url = reverse("tasks-download-file", request=get_request())

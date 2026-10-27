@@ -622,36 +622,6 @@ class PatternHandler:
 
         return new_classes
 
-    def _parse_pattern_aggs_result(self, pattern_field: str, aggs_result: dict) -> list[dict]:
-        aggs = aggs_result.get("aggs")
-        pattern_field_aggs = aggs.get(pattern_field)
-        if not pattern_field_aggs:
-            return []
-        return self._get_group_by_value(pattern_field_aggs.get("buckets", []))
-
-    def _get_group_by_value(self, bucket):
-        for group_key in self._group_by:
-            result_buckets = []
-            for iter_bucket in bucket:
-                doc_key = iter_bucket.get("key")
-                group_buckets = iter_bucket.get(group_key, {}).get("buckets", [])
-                for group_bucket in group_buckets:
-                    # 这里是为了兼容字符串空值，数值为0的情况
-                    result_buckets.append(
-                        {
-                            **group_bucket,
-                            "key": doc_key,
-                            "doc_count": group_bucket.get("doc_count", 0),
-                            "group": (
-                                f"{iter_bucket.get('group', '')}|{group_bucket['key']}"
-                                if iter_bucket.get("group") is not None  # noqa
-                                else group_bucket["key"]
-                            ),
-                        }
-                    )
-            bucket = result_buckets
-        return bucket
-
     def _get_pattern_data(self, patterns):
         if not patterns:
             return []

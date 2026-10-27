@@ -19,7 +19,6 @@ We undertake not to change the open source license (MIT license) applicable to t
 the project delivered to anyone in the future.
 """
 
-import copy
 import re
 import time
 import typing
@@ -37,7 +36,6 @@ from apps.grafana.constants import (
     TIME_SERIES_FIELD_TYPE,
 )
 from apps.iam import ActionEnum, Permission, ResourceEnum
-from apps.log_desensitize.handlers.desensitize import DesensitizeHandler
 from apps.log_desensitize.models import DesensitizeFieldConfig
 from apps.log_search.constants import GlobalCategoriesEnum
 from apps.log_search.exceptions import BaseSearchIndexSetDataDoseNotExists
@@ -84,97 +82,10 @@ class GrafanaQueryHandler:
     def space_uid(self):
         return bk_biz_id_to_space_uid(self.bk_biz_id)
 
-    def _get_aggregations(self, metric_field, agg_method, dimensions, time_field, interval):
-        """
-        组装聚合条件
-        """
-        # datetime aggregation
-        aggragations = {
-            time_field: {
-                "date_histogram": {"field": time_field, "interval": self._parse_interval(interval)},
-                "aggregations": {metric_field: {agg_method: {"field": metric_field}}},
-            },
-        }
-
-        # dimension aggregation
-        for dimension in dimensions:
-            _aggs = {dimension: {"terms": {"field": dimension, "size": 10000}}}
-            _aggs[dimension]["aggregations"] = aggragations
-            aggragations = _aggs
-
-        return aggragations
-
     def _parse_interval(self, interval):
         if interval % self.MINUTE_SECOND != 0:
             return f"{interval}s"
         return f"{interval // self.MINUTE_SECOND}m"
-
-    def _get_buckets(self, records, record, dimensions, aggregations, metric_field, depth=0):
-        """
-        解析桶
-        """
-        if dimensions:
-            count = len(dimensions)
-            buckets = aggregations.get(dimensions[depth]).get("buckets")
-            dimension = dimensions[depth]
-            for bucket in buckets:
-                record[dimension] = bucket.get("key")
-                if depth + 1 == count:
-                    record[metric_field] = bucket.get(metric_field).get("value")
-                    records.append(copy.deepcopy(record))
-                else:
-                    self._get_buckets(records, record, dimensions, bucket, metric_field, depth + 1)
-        else:
-            record[metric_field] = aggregations.get(metric_field).get("value")
-            records.append(copy.deepcopy(record))
-
-    def _format_time_series(self, params, data, time_field, desensitize_configs=None):
-        """
-        转换为Grafana TimeSeries的格式
-        :param params: 请求参数
-        :param data: [{
-            "xxx": 32960991004.444443,
-            "bk_target_ip": "127.0.0.1",
-            "minute60": 1581350400000,
-            "time": 1581350400000
-        }]
-        :type data: list
-        :return:
-        :rtype: list
-        """
-        formatted_data = defaultdict(list)
-        desensitize_configs = desensitize_configs or []
-        desensitize_handler = DesensitizeHandler(desensitize_configs)
-        for record in data:
-            # 字段脱敏处理
-            if desensitize_configs:
-                record = desensitize_handler.transform_dict(record)
-            dimensions = tuple(
-                sorted(
-                    (key, value)
-                    for key, value in record.items()
-                    if key not in [params["metric_field"], "time", time_field, "minute{}".format(params["interval"])]
-                )
-            )
-            formatted_data[dimensions].append([record[params["metric_field"]], record.get(time_field, 0)])
-
-        result = []
-        for dimensions, value in formatted_data.items():
-            target = "{}({})".format(params["method"], params["metric_field"])
-            dimension_string = ", ".join(f"{dimension[0]}={dimension[1]}" for dimension in dimensions)
-
-            if dimension_string:
-                target += f"{{{dimension_string}}}"
-
-            result.append(
-                {
-                    "dimensions": {dimension[0]: dimension[1] for dimension in dimensions},
-                    "target": target,
-                    "datapoints": value,
-                }
-            )
-
-        return result
 
     @staticmethod
     def _get_org_id(org_name):
@@ -288,81 +199,6 @@ class GrafanaQueryHandler:
         payload.setdefault("bk_biz_id", self.bk_biz_id)
         payload.setdefault("space_uid", self.space_uid)
         return _apply_index_set_search_bk_biz_id(index_set, payload)
-
-    def query(self, query_dict: dict):
-        """
-        数据查询
-        """
-        self.check_panel_permission(query_dict["dashboard_id"], query_dict["panel_id"], query_dict["result_table_id"])
-        isolation = {"bk_biz_id": self.bk_biz_id, "space_uid": self.space_uid}
-        self._apply_platform_index_isolation(query_dict["result_table_id"], isolation)
-
-        # 初始化DB脱敏配置
-        desensitize_field_config_objs = DesensitizeFieldConfig.objects.filter(
-            index_set_id=query_dict["result_table_id"]
-        )
-
-        desensitize_configs = [
-            {
-                "field_name": field_config_obj.field_name or "",
-                "rule_id": field_config_obj.rule_id or 0,
-                "operator": field_config_obj.operator,
-                "params": field_config_obj.params,
-                "match_pattern": field_config_obj.match_pattern,
-                "sort_index": field_config_obj.sort_index,
-            }
-            for field_config_obj in desensitize_field_config_objs
-        ]
-
-        time_field = SearchHandler(query_dict["result_table_id"], {}).time_field
-
-        # 如果是统计数量，则无需提供指标字段，用 _id 字段统计即可
-        if query_dict["method"] == "value_count":
-            query_dict["metric_field"] = "_index"
-
-        aggs = self._get_aggregations(
-            metric_field=query_dict["metric_field"],
-            agg_method=query_dict["method"],
-            dimensions=query_dict.get("group_by", []),
-            interval=query_dict["interval"],
-            time_field=time_field,
-        )
-        search_dict = {
-            "start_time": query_dict["start_time"],
-            "end_time": query_dict["end_time"],
-            "ip_chooser": self.build_ipchooser_params(query_dict),
-            "addition": [
-                {
-                    "field": cond["key"],
-                    "operator": cond["method"],
-                    "value": cond["value"],
-                    "condition": cond.get("condition", "and"),
-                }
-                for cond in query_dict.get("where", [])
-            ],
-            "begin": 0,
-            "size": 1,
-            # "time_range": f"1m",
-            "bk_biz_id": isolation["bk_biz_id"],
-            "keyword": query_dict.get("query_string", ""),
-            "aggs": aggs,
-            "is_desensitize": False,
-        }
-        search_handler = SearchHandler(query_dict["result_table_id"], search_dict)
-        result = search_handler.search(search_type=None)
-
-        all_dimensions = query_dict["group_by"][::-1] + [time_field]
-
-        if not result["aggregations"]:
-            # 无数据
-            return []
-
-        records = []
-        self._get_buckets(records, {}, all_dimensions, result["aggregations"], query_dict["metric_field"])
-
-        records = self._format_time_series(query_dict, records, search_handler.time_field, desensitize_configs)
-
-        return records
 
     def query_log(self, query_dict: dict):
         """

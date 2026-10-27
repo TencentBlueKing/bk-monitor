@@ -56,7 +56,6 @@ from apps.log_esquery.serializers import (
 )
 from apps.log_search.constants import (
     ASYNC_DIR,
-    ASYNC_SORTED,
     CHECK_FIELD_LIST,
     CHECK_FIELD_MAX_VALUE_MAPPING,
     CHECK_FIELD_MIN_VALUE_MAPPING,
@@ -2711,19 +2710,6 @@ class SearchHandler:
             return ERROR_MSG_CHECK_FIELDS_FROM_BKDATA
         else:
             return ERROR_MSG_CHECK_FIELDS_FROM_LOG
-
-    def _get_user_sorted_list(self, sorted_fields):
-        config = UserIndexSetFieldsConfig.get_config(index_set_id=self.index_set_id, username=self.request_username)
-        if not config:
-            return [[sorted_field, ASYNC_SORTED] for sorted_field in sorted_fields]
-        user_sort_list = config.sort_list
-        user_sort_fields = [i[0] for i in user_sort_list]
-        for sorted_field in sorted_fields:
-            if sorted_field in user_sort_fields:
-                continue
-            user_sort_list.append([sorted_field, ASYNC_SORTED])
-
-        return user_sort_list
 
 
 class UnionSearchHandler:
