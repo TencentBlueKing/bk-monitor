@@ -11,7 +11,7 @@ docker build -t helloworld-cpp:latest .
 ```
 
 - *[1] Git 用于获取样例，Docker（或兼容容器工具）用于构建和运行容器样例，仅供快速验证。*
-- *[2] 数据上报不依赖 Git 或 Docker，已有业务可直接参考后文的上报协议或 SDK 配置接入。*
+- *[2] 数据上报不依赖 Git 或 Docker，业务可参考后文代码或上报协议，自行组织上报方式。*
 
 
 ## 2. 运行示例 demo
