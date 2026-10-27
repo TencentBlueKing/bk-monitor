@@ -479,8 +479,8 @@ def test_apm_platform_integration_apigw_contract() -> None:
     internal_paths = _load_paths(_INTERNAL_APM_FILE)
     external_paths = _load_paths(_EXTERNAL_APM_FILE)
     expected_resources: dict[str, tuple[str, str]] = {
-        "/app/apm/service/service_list/": ("apm_service_list", "/api/v4/service_web/service_list/"),
-        "/app/apm/calculate_by_range/": ("calculate_by_range", "/api/v4/apm_metric_web/calculate_by_range/"),
+        "/app/apm/service/service_list/": ("apm_service_list", "/api/app/v4/service_web/service_list/"),
+        "/app/apm/calculate_by_range/": ("calculate_by_range", "/api/app/v4/apm_metric_web/calculate_by_range/"),
     }
 
     for path, (operation_id, backend_path) in expected_resources.items():
@@ -593,6 +593,47 @@ def test_repository_resources_have_unique_operation_ids():
                     # 带上来源文件，避免同一路径被 dict.update 覆盖后漏检 operationId 冲突。
                     merged[f"{file.relative_to(_RESOURCES_DIR)}::{path}"] = path_data
     check_unique_operation_ids(merged)
+
+
+def test_merged_application_routes_preserve_paths_and_authentication(tmp_path):
+    """Verify the generated deployment input, including the shared user route."""
+    import shutil
+
+    expected = {
+        ("get", "/api/app/v3/meta/get_time_series_metrics/"),
+        ("get", "/api/app/v3/meta/list_spaces/"),
+        ("get", "/api/app/v3/meta/query_data_link_metadata/"),
+        ("get", "/api/app/v3/meta/get_data_link_metadata/"),
+        ("get", "/api/app/v4/alert/alert/detail/"),
+        ("post", "/api/app/v4/service_web/service_list/"),
+        ("post", "/api/app/v4/apm_metric_web/calculate_by_range/"),
+        ("get", "/api/app/v4/grafana/get_directory_tree/"),
+        ("get", "/api/app/v4/grafana/get_dashboard_detail/"),
+    }
+    shutil.copytree(_RESOURCES_DIR, tmp_path / "resources")
+    merge_resources_func(tmp_path / "resources")
+    paths = yaml.safe_load((tmp_path / "resources.yaml").read_text())["paths"]
+    actual = []
+    for frontend, methods in paths.items():
+        for operation in methods.values():
+            resource = operation["x-bk-apigateway-resource"]
+            backend = resource["backend"]
+            if not backend["path"].startswith("/api/app/"):
+                continue
+            assert frontend.startswith("/app/")
+            assert resource["authConfig"]["appVerifiedRequired"] is True
+            assert resource["authConfig"]["userVerifiedRequired"] is False
+            assert resource["authConfig"]["resourcePermissionRequired"] is True
+            assert resource["matchSubpath"] is False
+            assert backend["matchSubpath"] is False
+            actual.append((backend["method"].lower(), backend["path"]))
+    assert set(actual) == expected
+    assert len(actual) == len(expected)
+    app_detail = paths["/app/alert/detail/"]["get"]["x-bk-apigateway-resource"]
+    assert app_detail["backend"]["path"] == "/api/app/v4/alert/alert/detail/"
+    user_detail = paths["/mcp/get_alert_info/"]["get"]["x-bk-apigateway-resource"]
+    assert user_detail["backend"]["path"] == "/api/v4/alert/alert/detail/"
+    assert user_detail["authConfig"]["userVerifiedRequired"] is True
 
 
 def test_log_collection_etl_preview_mcp_contract():

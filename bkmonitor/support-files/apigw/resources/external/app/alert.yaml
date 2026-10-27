@@ -28,7 +28,7 @@ paths:
         backend:
           name: default
           method: get
-          path: /api/v4/alert/alert/detail/
+          path: /api/app/v4/alert/alert/detail/
           matchSubpath: false
         authConfig:
           appVerifiedRequired: true

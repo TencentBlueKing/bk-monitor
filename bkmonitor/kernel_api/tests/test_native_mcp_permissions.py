@@ -41,6 +41,12 @@ if not settings.configured:
 
 from bkmonitor.utils import tenant
 from kernel_api.unified_mcp import permissions as auth, registry
+from kernel_api.application_routes import (
+    APPLICATION_READ_ROUTES,
+    application_path,
+    application_urlpatterns,
+    resolve_application_route,
+)
 
 
 def source_method(path, name, **namespace):
@@ -2575,7 +2581,7 @@ def test_ingress_logs_do_not_dump_headers_or_parameters(request_factory, caplog,
         request = RequestFactory().post(request.path, args)
     user = NS(username="alice", tenant_id="system")
     request.META["HTTP_X_BKAPI_JWT"] = "private-jwt"
-    jwt = NS(app=NS(app_code="monitor"), user=NS(username="alice"), validate=lambda: (True, ""))
+    jwt = NS(app={"app_code": "monitor"}, user={"username": "alice"}, validate=lambda: (True, ""))
     process = source_method(
         "kernel_api/middlewares/authentication.py",
         "AuthenticationMiddleware.process_view",
@@ -2608,8 +2614,8 @@ def test_gateway_rejection_is_logged_without_token_or_exception_text(monkeypatch
     monkeypatch.setattr(settings, "ENABLE_MULTI_TENANT_MODE", True)
     request = request_factory()
     jwt = NS(
-        app=NS(app_code="monitor"),
-        user=NS(username="alice"),
+        app={"app_code": "monitor"},
+        user={"username": "alice"},
         validate=lambda: (reason != "invalid_jwt", "private-jwt-error"),
     )
     process = source_method(
@@ -3243,6 +3249,7 @@ def direct_gateway(monkeypatch, request_factory, native_http, io):
         monkeypatch.setitem(sys.modules, name, module)
     common = dict(
         settings=settings,
+        logger=logging.getLogger(__name__),
         json=json,
         time=time,
         secrets=secrets,
@@ -3286,6 +3293,10 @@ def direct_gateway(monkeypatch, request_factory, native_http, io):
         user_tenant="system",
         tenant_header=None,
         app_code="ordinary-cli-app",
+        app_verified=False,
+        app_scope_allowed=True,
+        spoof_headers=False,
+        missing_claim=None,
         api_token_expected=False,
     ):
         tool = registry.get_tool_registry().get(tool_name)
@@ -3299,15 +3310,23 @@ def direct_gateway(monkeypatch, request_factory, native_http, io):
         request.META["HTTP_X_BKAPI_REQUEST_ID"] = "gateway-request-test"
         if tenant_header is not None:
             request.META["HTTP_X_BK_TENANT_ID"] = tenant_header
+        if spoof_headers:
+            request.META.update(HTTP_BK_APP_CODE="spoofed-app", HTTP_BK_USERNAME="admin")
+        ordinary.reset_mock()
+        ordinary.return_value = app_scope_allowed
         user = request.user
         user.username, user.tenant_id, user.is_authenticated = user_name, user_tenant, authenticated
         claims = {"username": username, "verified": verified}
         jwt = NS(
             is_valid=valid_jwt,
-            app=NS(app_code=app_code),
-            user=NS(username=username, get=claims.get),
+            app={"app_code": app_code, "verified": app_verified},
+            user=claims,
             validate=lambda: (valid_jwt, "invalid JWT"),
         )
+        if missing_claim == "app_code":
+            jwt.app.pop("app_code")
+        if missing_claim == "username":
+            jwt.user.pop("username")
         permission = Mock()
         permission.is_allowed_by_biz.side_effect = lambda biz, action, **kw: (
             True
@@ -3630,3 +3649,167 @@ def test_diagnostic_metadata_forces_resource_permission(monkeypatch, direct_gate
             perform(NS(), {"metadata_type": "bcs_clusters", "bk_biz_id": 2})
         backend.assert_not_called()
     permission.is_allowed_by_biz.assert_called_once_with(2, "using_metadata_mcp", raise_exception=True)
+
+
+@pytest.mark.parametrize("method,backend", sorted(APPLICATION_READ_ROUTES))
+@pytest.mark.parametrize("username", ["alice", None])
+def test_application_alias_uses_existing_app_scope_not_mcp(direct_gateway, method, backend, username):
+    response, request, permission, ordinary = direct_gateway(
+        path=application_path(backend), method=method, app_verified=True, verified=False, username=username
+    )
+    assert response is None
+    ordinary.assert_called_once_with(request, "system", "ordinary-cli-app")
+    permission.is_allowed_by_biz.assert_not_called()
+    assert not hasattr(request, "mcp_permission_source")
+
+
+@pytest.mark.parametrize(
+    "options",
+    [
+        {"gateway": False},
+        {"gateway": False, "spoof_headers": True},
+        {"valid_jwt": False},
+        {"app_verified": False},
+        {"app_verified": "true"},
+        {"app_code": ""},
+        {"app_code": None},
+        {"marker": True},
+        {"app_code": "mcp-app"},
+        {"bearer": True},
+        {"method": "POST"},
+        {"path": "/api/app/v4/alert/alert/detail.json"},
+        {"path": "/api/app/v4/alert/alert/close/"},
+        {"path": "/api/app/v4/unified_mcp/execute_tool/"},
+        {"path": "/api/app/v4/alert/alert/detail/extra/"},
+    ],
+)
+def test_application_alias_cannot_fall_back_to_other_identities(direct_gateway, options):
+    args = dict(path="/api/app/v4/alert/alert/detail/", method="GET", app_verified=True, verified=False)
+    args.update(options)
+    response, _, permission, ordinary = direct_gateway(**args)
+    assert response.status_code == 403
+    ordinary.assert_not_called()
+    permission.is_allowed_by_biz.assert_not_called()
+
+
+def test_application_alias_preserves_business_rejection(direct_gateway):
+    response, request, _, ordinary = direct_gateway(
+        path="/api/app/v4/alert/alert/detail/", method="GET", app_verified=True, app_scope_allowed=False
+    )
+    assert response.status_code == 403
+    ordinary.assert_called_once_with(request, "system", "ordinary-cli-app")
+
+
+@pytest.mark.parametrize("tenant_header,user_tenant", [(None, "system"), ("tenant-a", "tenant-b")])
+def test_application_alias_preserves_tenant_rejection(monkeypatch, direct_gateway, tenant_header, user_tenant):
+    monkeypatch.setattr(settings, "ENABLE_MULTI_TENANT_MODE", True)
+    response, _, _, _ = direct_gateway(
+        path="/api/app/v4/alert/alert/detail/",
+        method="GET",
+        app_verified=True,
+        tenant_header=tenant_header,
+        user_tenant=user_tenant,
+    )
+    assert response.status_code == 403
+
+
+@pytest.mark.parametrize("marker", [False, True])
+def test_verified_app_cannot_bypass_user_check_on_original_route(direct_gateway, marker):
+    response, _, _, ordinary = direct_gateway(
+        "get_alert_info",
+        {"bk_biz_id": 2, "id": "synthetic-alert"},
+        app_verified=True,
+        verified=False,
+        marker=marker,
+        spoof_headers=True,
+    )
+    assert response.status_code == 403
+    ordinary.assert_not_called()
+
+
+@pytest.mark.parametrize("installed_apis", [("meta",), ()])
+def test_application_aliases_bind_only_existing_exact_callbacks(installed_apis):
+    from django.urls import Resolver404, get_resolver, path
+
+    callbacks = {backend: Mock() for _, backend in APPLICATION_READ_ROUTES}
+    originals = [path(backend.lstrip("/"), callback, {"format": "json"}) for backend, callback in callbacks.items()]
+    aliases = application_urlpatterns(originals, installed_apis=installed_apis)
+    assert len(aliases) == (9 if installed_apis else 5)
+    resolver = get_resolver(tuple(aliases))
+    for backend, callback in callbacks.items():
+        if not installed_apis and backend.startswith("/api/v3/"):
+            with pytest.raises(Resolver404):
+                resolver.resolve(application_path(backend))
+        else:
+            match = resolver.resolve(application_path(backend))
+            assert match.func is callback
+            assert match.kwargs == {"format": "json"}
+    original = "/api/v4/alert/alert/detail/"
+    for invalid in [original, application_path(original) + "extra/", "/api/app/v4/alert/alert/close/"]:
+        with pytest.raises(Resolver404):
+            resolver.resolve(invalid)
+    assert resolve_application_route("GET", application_path(original)) == original
+    assert resolve_application_route("POST", application_path(original)) is None
+
+
+def test_application_alias_missing_enabled_source_fails_closed():
+    from django.urls import Resolver404
+
+    with pytest.raises(Resolver404):
+        application_urlpatterns([], installed_apis=())
+
+
+@pytest.mark.parametrize("actual_biz", [2, 3])
+def test_application_alert_resource_keeps_actual_business_ownership_check(actual_biz):
+    class ReachedAuthorizedQuery(Exception):
+        pass
+
+    query = Mock(side_effect=ReachedAuthorizedQuery)
+    perform = source_method(
+        "packages/fta_web/alert/resources.py",
+        "AlertDetailResource.perform_request",
+        AlertDocument=NS(get=lambda alert_id: NS(event=NS(bk_biz_id=actual_biz))),
+        AlertNotFoundError=PermissionDenied,
+        AIOPSManager=NS(get_graph_panel=query),
+    )
+    with pytest.raises(ReachedAuthorizedQuery if actual_biz == 2 else PermissionDenied):
+        perform(NS(), {"id": "synthetic-alert", "bk_biz_id": 2})
+    assert query.call_count == (1 if actual_biz == 2 else 0)
+
+
+@pytest.mark.parametrize("missing_claim", ["app_code", "username"])
+@pytest.mark.parametrize("path", ["/api/v4/alert/alert/detail/", "/api/v4/unrelated/read/"])
+def test_original_route_rejects_missing_identity_claims(direct_gateway, missing_claim, path):
+    response, _, permission, ordinary = direct_gateway(
+        path=path, method="GET", app_verified=True, missing_claim=missing_claim
+    )
+    assert response.status_code == 403
+    permission.is_allowed_by_biz.assert_not_called()
+    ordinary.assert_not_called()
+
+
+def test_application_gateway_contract_is_explicit_and_mcp_mapping_unchanged():
+    resources = BASE / "support-files/apigw/resources"
+    actual = set()
+    for filename in resources.glob("*/app/*.yaml"):
+        for methods in yaml.safe_load(filename.read_text())["paths"].values():
+            for operation in methods.values():
+                resource = operation["x-bk-apigateway-resource"]
+                backend = resource["backend"]
+                if not backend["path"].startswith("/api/app/"):
+                    continue
+                auth_config = resource["authConfig"]
+                assert auth_config["appVerifiedRequired"] is True
+                assert auth_config["userVerifiedRequired"] is False
+                assert auth_config["resourcePermissionRequired"] is True
+                assert resource["matchSubpath"] is False
+                assert backend["matchSubpath"] is False
+                original = resolve_application_route(backend["method"].upper(), backend["path"])
+                assert original is not None
+                actual.add((backend["method"].upper(), original))
+    assert actual == APPLICATION_READ_ROUTES
+    assert registry.get_tool_registry().get("get_alert_info").backend_path == "/api/v4/alert/alert/detail/"
+    for filename in resources.glob("*/user/*.yaml"):
+        for methods in yaml.safe_load(filename.read_text())["paths"].values():
+            for operation in methods.values():
+                assert not operation["x-bk-apigateway-resource"]["backend"]["path"].startswith("/api/app/")
