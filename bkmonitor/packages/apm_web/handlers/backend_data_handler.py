@@ -9,7 +9,6 @@ specific language governing permissions and limitations under the License.
 """
 
 import copy
-import json
 import logging
 from collections import defaultdict
 from datetime import UTC, datetime
@@ -469,33 +468,47 @@ class MetricBackendHandler(TelemetryBackendHandler):
         return databus_config.data_id_name if databus_config and databus_config.data_id_name else ""
 
     def storage_info(self):
-        storage_info = []
-        result_table = api.bkdata.get_result_table(result_table_id=self.bk_vm_result_table_id)
-        storage = result_table.get("storages", {}).get("vm")
-        if storage:
-            try:
-                expire_info = json.loads(storage.get("storage_cluster", {}).get("expires", "{}"))
-                list_expire = expire_info.get("list_expire", [])
-            except Exception:  # pylint: disable=broad-except
-                list_expire = []
-            expire = list_expire[0] if list_expire else {}
-            ret_storage = {
+        from metadata import models
+        from metadata.models.data_link.constants import DataLinkKind, DataLinkResourceStatus
+
+        vm_binding = models.VMStorageBindingConfig.objects.filter(
+            bk_tenant_id=self.app.bk_tenant_id, table_id=self.result_table_id
+        ).first()
+        if not vm_binding:
+            return []
+
+        vm_storage_binding = api.bkdata.get_data_link(
+            bk_tenant_id=self.app.bk_tenant_id,
+            kind=DataLinkKind.get_choice_value(DataLinkKind.VMSTORAGEBINDING.value),
+            namespace=vm_binding.namespace,
+            name=vm_binding.name,
+        )
+        phase = vm_storage_binding.get("status", {}).get("phase", "")
+        if phase == DataLinkResourceStatus.OK.value:
+            status, status_display = "running", _("运行中")
+        elif phase == DataLinkResourceStatus.FAILED.value:
+            status, status_display = "failed", _("异常")
+        else:
+            status, status_display = "stopped", phase
+
+        storage = vm_storage_binding.get("spec", {}).get("storage", {})
+        return [
+            {
                 "raw_data_id": self.bk_base_data_id,
                 "bk_biz_id": self.app.bk_biz_id,
                 "result_table_id": self.bk_vm_result_table_id,
                 "storage_type": "vm",
                 "storage_type_alias": "",
-                "storage_cluster": storage.get("storage_cluster", {}).get("storage_cluster_config_id"),
-                "storage_cluster_alias": storage.get("storage_cluster", {}).get("cluster_name"),
-                "expire_time": expire.get("value", "30d"),
-                "expire_time_alias": expire.get("name", _("30天")),
-                "status": "running",
-                "status_display": _("运行中"),
-                "created_at": storage["created_at"],
-                "created_by": storage["created_by"],
+                "storage_cluster": storage.get("name"),
+                "storage_cluster_alias": storage.get("name"),
+                "expire_time": "180d",
+                "expire_time_alias": _("180天"),
+                "status": status,
+                "status_display": status_display,
+                "created_at": vm_binding.create_time,
+                "created_by": self.app.create_user,
             }
-            storage_info.append(ret_storage)
-        return storage_info
+        ]
 
     @property
     def storage_status(self):
