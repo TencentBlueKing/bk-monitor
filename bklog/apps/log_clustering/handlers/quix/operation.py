@@ -95,6 +95,17 @@ class QuixClusteringOperationRunner:
             "metadata_set",
             "wait_adoption",
         ],
+        # 候选边界只固定一次；结果入库并实际恢复原存储绑定后，才向 BKFara 提交最终完成确认
+        ClusteringOperationTypeEnum.DISABLE.value: [
+            "drain",
+            "wait_boundary",
+            "stop_draining",
+            "wait_drained",
+            "finish",
+            "detach",
+            "wait_detached",
+            "stop_completed",
+        ],
     }
 
     def __init__(self, operation_id: str):
@@ -290,6 +301,52 @@ class QuixClusteringOperationRunner:
             outbox_boundary=clustering_status.get("outbox_boundary"),
         )
         return True
+
+    def _step_wait_boundary(self) -> bool:
+        if self.runtime.candidate_boundary is not None:
+            return True
+        status = TransferApi.get_log_clustering_status(self._metadata_params())
+        clustering_status = status.get("clustering_status") or {}
+        if not clustering_status.get("boundary_ready") or clustering_status.get("boundary") is None:
+            return False
+        # boundary 是候选 Topic 范围，outbox_boundary 是原日志 Topic 范围，两者不能混用
+        self._save_runtime(
+            candidate_boundary=clustering_status["boundary"],
+            outbox_boundary=clustering_status.get("outbox_boundary"),
+        )
+        return True
+
+    def _step_stop_draining(self) -> bool:
+        self.bkfara.stop_clustering(self.runtime.bkfara_task_id, self.runtime.candidate_boundary)
+        return True
+
+    def _step_detach(self) -> bool:
+        return self._operate_metadata("detach")
+
+    def _step_wait_detached(self) -> bool:
+        # binding_removed 必须来自 Databus 恢复原存储绑定的事实，不能沿用 BKBase status 中固定为 false 的字段；
+        # 这里只有配置层证据，Runtime 实际采用回执待 BKBase 提供
+        status = TransferApi.get_log_clustering_status(self._metadata_params())
+        databus_phase = ((status.get("databus_resource") or {}).get("status") or {}).get("phase")
+        return (
+            status.get("revision") == self.runtime.metadata_revision
+            and bool(status.get("raw_sink_referenced"))
+            and not status.get("sink_referenced")
+            and databus_phase == "Ok"
+        )
+
+    def _step_stop_completed(self) -> bool:
+        boundary = self.runtime.candidate_boundary
+        self.bkfara.stop_clustering(
+            self.runtime.bkfara_task_id,
+            boundary,
+            completion={"input_boundary": boundary, "storage_complete": True, "binding_removed": True},
+        )
+        return True
+
+    def _finish_disable(self):
+        self._close_coverage_gap()
+        self._save_runtime(phase=ClusteringRuntimePhaseEnum.STOPPED.value, coverage_gaps=self.runtime.coverage_gaps)
 
     def _step_finished_at(self, step: str) -> str | None:
         for item in reversed(self.operation.steps):

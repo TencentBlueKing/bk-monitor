@@ -32,12 +32,14 @@ from apps.log_clustering.constants import (
 from apps.log_clustering.exceptions import ClusteringConfigHasExistException, QuixClusteringParamsInvalidException
 from apps.log_clustering.handlers.dataflow.constants import OnlineTaskTrainingArgs
 from apps.log_clustering.handlers.quix.adapter import build_clustering_config, build_index_names
+from apps.log_clustering.handlers.quix.bkfara import BkFaraClient
 from apps.log_clustering.handlers.quix.config import get_quix_config
 from apps.log_clustering.handlers.regex_template import RegexTemplateHandler
 from apps.log_clustering.models import ClusteringConfig, LogClusteringOperation, LogClusteringRuntime
 from apps.log_databus.models import CollectorConfig
 from apps.log_search.models import LogIndexSet, Space
 from apps.models import model_to_dict
+from apps.utils.log import logger
 from bkm_space.utils import space_uid_to_bk_biz_id
 
 # 只影响页面展示的业务配置，更新时直接保存，不触发链路变更
@@ -148,6 +150,29 @@ class QuixClusteringHandler:
         run_quix_clustering_operation.delay(operation.operation_id)
         return operation.operation_id
 
+    def disable(self) -> str:
+        """关闭聚类，原日志链路继续入库；返回操作ID"""
+        from apps.log_clustering.tasks.quix import run_quix_clustering_operation
+
+        runtime = LogClusteringRuntime.objects.get(index_set_id=self.index_set_id)
+        operation = None
+        if runtime.phase == ClusteringRuntimePhaseEnum.DISABLING.value:
+            # 续跑沿用已固定的候选边界
+            operation = self._resume_failed_operation(ClusteringOperationTypeEnum.DISABLE.value)
+        if not operation:
+            runtime, operation = LogClusteringRuntime.start_operation(
+                self.index_set_id,
+                ClusteringOperationTypeEnum.DISABLE.value,
+                {},
+                allowed_phases=(ClusteringRuntimePhaseEnum.RUNNING.value,),
+            )
+            runtime.phase = ClusteringRuntimePhaseEnum.DISABLING.value
+            runtime.candidate_boundary = None
+            runtime.outbox_boundary = None
+            runtime.save(update_fields=["phase", "candidate_boundary", "outbox_boundary", "updated_at", "updated_by"])
+        run_quix_clustering_operation.delay(operation.operation_id)
+        return operation.operation_id
+
     def get_access_status(self) -> dict:
         from apps.log_clustering.handlers.clustering_config import ClusteringConfigHandler
 
@@ -166,8 +191,20 @@ class QuixClusteringHandler:
             "phase": runtime.phase,
             "coverage_gaps": runtime.coverage_gaps,
             "operation": self._format_operation(operation),
+            "bkfara": self._get_bkfara_clustering(runtime),
         }
         return result
+
+    @staticmethod
+    def _get_bkfara_clustering(runtime: LogClusteringRuntime) -> dict | None:
+        """BKFara 原始运行状态；逻辑停止、Pod 退出和预留释放由页面分别展示"""
+        if not runtime.bkfara_task_id:
+            return None
+        try:
+            return BkFaraClient().get_clustering(runtime.bkfara_task_id)
+        except Exception as e:  # pylint: disable=broad-except
+            logger.warning("[quix_clustering] index_set(%s) get bkfara status failed: %s", runtime.index_set_id, e)
+            return {"error": str(e)}
 
     def _resume_failed_operation(self, operation_type: str) -> LogClusteringOperation | None:
         operation = LogClusteringOperation.objects.filter(
