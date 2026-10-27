@@ -83,6 +83,13 @@ from apps.log_search.export.api import create_export_job, download_link
 from apps.log_search.export.history import sharded_export_history_queryset
 from apps.log_search.export.models import ExportJob, ExportPart, ExportPlan
 from apps.log_search.models import AsyncTask, LogIndexSet, Scenario, Space
+from apps.log_search.serializers import (
+    SearchExportSerializer,
+    UnionSearchAttrSerializer,
+    UnionSearchExportSerializer,
+    UnionSearchSearchExportSerializer,
+)
+from apps.log_trace.serializers import UnionSearchAggsTermsSerializer, UnionSearchDateHistogramSerializer
 from apps.log_unifyquery.handler.base import UnifyQueryHandler
 from apps.log_search.views.export_views import ExportJobIndexSearchPermission, ExportJobViewSet
 from apps.log_search.views.search_views import SearchViewSet
@@ -2989,20 +2996,19 @@ class ExportJobPermissionTests(TestCase):
 
 
 class LegacyExportRoutingTests(SimpleTestCase):
-    def test_custom_indices_and_quick_exports_keep_the_unify_query_chain(self):
+    def test_only_regular_exports_use_the_enabled_sharded_chain(self):
         request = SimpleNamespace(user=SimpleNamespace(is_superuser=False))
         module = "apps.log_search.views.search_views"
         with (
-            patch(f"{module}.is_sharded_export_enabled", return_value=True),
+            patch(f"{module}.is_sharded_export_enabled") as sharded_enabled,
             patch(f"{module}.FeatureToggleObject.toggle", return_value=SimpleNamespace(feature_config={})),
             patch(f"{module}._apply_index_set_search_bk_biz_id"),
             patch(f"{module}._reject_platform_index_sets"),
             patch(f"{module}.Permission.get_auth_info", return_value=None),
         ):
-            for is_union, custom_indices, is_quick in itertools.product(
-                (False, True), ("", "2_bklog.0001"), (False, True)
-            ):
-                with self.subTest(is_union=is_union, custom_indices=custom_indices, is_quick=is_quick):
+            for is_union, is_sharded, is_quick in itertools.product((False, True), repeat=3):
+                with self.subTest(is_union=is_union, is_sharded=is_sharded, is_quick=is_quick):
+                    sharded_enabled.return_value = is_sharded
                     data = {
                         "bk_biz_id": 2,
                         "export_fields": [],
@@ -3012,13 +3018,11 @@ class LegacyExportRoutingTests(SimpleTestCase):
                         data.update(
                             index_set_ids=[3, 4],
                             union_configs=[
-                                {"index_set_id": 3, "custom_indices": ""},
-                                {"index_set_id": 4, "custom_indices": custom_indices},
+                                {"index_set_id": 3},
+                                {"index_set_id": 4},
                             ],
                             is_quick_export=is_quick,
                         )
-                    else:
-                        data["custom_indices"] = custom_indices
                     view = SearchViewSet()
                     view.request = request
                     view.params_valid = Mock(return_value=data)
@@ -3031,19 +3035,52 @@ class LegacyExportRoutingTests(SimpleTestCase):
                             response = view.union_async_export(request)
                         else:
                             response = view._export(request, index_set_id=3, is_quick_export=is_quick)
-                    if custom_indices or is_quick:
+                    if is_quick or not is_sharded:
                         self.assertEqual(response.data["task_id"], 7)
                         view._sharded_export_from_data.assert_not_called()
                         legacy_handler.return_value.async_export.assert_called_once_with(is_quick_export=is_quick)
-                        forwarded = legacy_handler.call_args.kwargs["search_dict"]
-                        actual_indices = (
-                            forwarded["union_configs"][1]["custom_indices"] if is_union else forwarded["custom_indices"]
-                        )
-                        self.assertEqual(actual_indices, custom_indices)
                     else:
                         self.assertEqual(response.data["task_id"], 19)
                         view._sharded_export_from_data.assert_called_once()
                         legacy_handler.assert_not_called()
+
+    def test_serializers_discard_unused_custom_indices(self):
+        data = {
+            "bk_biz_id": 2,
+            "keyword": "*",
+            "start_time": "2026-10-26 00:00:00",
+            "end_time": "2026-10-27 00:00:00",
+            "begin": 0,
+            "size": 10,
+            "index_set_ids": [3],
+            "custom_indices": "2_bklog.0001",
+            "union_configs": [{"index_set_id": 3, "custom_indices": "2_bklog.0001"}],
+        }
+        for serializer_class in (
+            SearchExportSerializer,
+            UnionSearchSearchExportSerializer,
+            UnionSearchExportSerializer,
+            UnionSearchAttrSerializer,
+            UnionSearchDateHistogramSerializer,
+            UnionSearchAggsTermsSerializer,
+        ):
+            with self.subTest(serializer=serializer_class.__name__):
+                request_data = dict(data)
+                if serializer_class is UnionSearchAggsTermsSerializer:
+                    request_data["fields"] = ["level"]
+                serializer = serializer_class(data=request_data)
+                self.assertTrue(serializer.is_valid(), serializer.errors)
+                if serializer_class in (
+                    SearchExportSerializer,
+                    UnionSearchSearchExportSerializer,
+                    UnionSearchExportSerializer,
+                ):
+                    self.assertNotIn("custom_indices", serializer.data)
+                if "union_configs" in serializer.data:
+                    self.assertEqual(
+                        serializer.data["union_configs"],
+                        [{"index_set_id": 3, "begin": 0, "is_desensitize": True}],
+                    )
 
 
 @override_settings(ENABLE_MULTI_TENANT_MODE=True, BK_APP_TENANT_ID="tenant-a")

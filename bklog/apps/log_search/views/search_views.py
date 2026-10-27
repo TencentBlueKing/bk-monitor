@@ -834,8 +834,7 @@ class SearchViewSet(APIViewSet):
         else:
             data["is_desensitize"] = True
 
-        # 分片查询尚不支持自定义物理索引，指定 custom_indices 的请求沿用原链路。
-        if not is_quick_export and not data.get("custom_indices") and is_sharded_export_enabled(data.get("bk_biz_id")):
+        if not is_quick_export and is_sharded_export_enabled(data.get("bk_biz_id")):
             return self._sharded_export_from_data(data, index_set_id=index_set_id, request_bk_biz_id=request_bk_biz_id)
 
         notify_type_name = NotifyType.get_choice_label(
@@ -942,12 +941,7 @@ class SearchViewSet(APIViewSet):
             FeatureToggleObject.toggle(FEATURE_ASYNC_EXPORT_COMMON).feature_config.get(FEATURE_ASYNC_EXPORT_NOTIFY_TYPE)
         )
         is_quick_export = data.pop("is_quick_export")
-        # 联合检索任一索引集指定物理索引时，保留原链路的索引范围限制。
-        if (
-            not is_quick_export
-            and not any(config.get("custom_indices") for config in data.get("union_configs", []))
-            and is_sharded_export_enabled(data.get("bk_biz_id"))
-        ):
+        if not is_quick_export and is_sharded_export_enabled(data.get("bk_biz_id")):
             return self._sharded_export_from_data(data, index_set_ids=data["index_set_ids"])
         task_id, size = UnifyQueryUnionAsyncExportHandlers(
             index_set_ids=data["index_set_ids"],
