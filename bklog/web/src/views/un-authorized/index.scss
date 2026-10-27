@@ -1,7 +1,7 @@
 .un-authorized-page {
   width: 100%;
   height: 100%;
-  padding: 64px 48px 40px;
+  padding: 64px 48px;
   overflow-y: auto;
   color: #63656e;
   background: #f4f7fa;
@@ -102,7 +102,7 @@
   }
 
   .un-authorized-guide {
-    margin-top: 32px;
+    margin-top: 28px;
     background: #fff;
     border: 1px solid #e2e6ed;
     border-radius: 4px;
@@ -273,28 +273,6 @@
     border-radius: 50%;
   }
 
-  .un-authorized-operator-contact {
-    display: flex;
-    gap: 12px;
-    align-items: center;
-    justify-content: center;
-    margin-top: 32px;
-    font-size: 14px;
-    line-height: 22px;
-
-    .bklog-user-group {
-      font-size: 24px;
-      color: #7ea0d0;
-    }
-  }
-
-  .un-authorized-external-hint {
-    margin-top: 24px;
-    font-size: 12px;
-    line-height: 20px;
-    color: #979ba5;
-  }
-
   &.un-authorized-tenant-mismatch {
     .un-authorized-guide {
       margin-top: 32px;
@@ -307,14 +285,18 @@
 
     .un-authorized-page-content {
       flex-shrink: 0;
+      padding-bottom: 20px;
       margin: auto;
+    }
+
+    .un-authorized-actions {
+      margin-top: 20px;
     }
   }
 }
 
 .un-authorized-page .un-authorized-text-button,
-.un-authorized-page .un-authorized-assistant,
-.un-authorized-fallback .un-authorized-assistant {
+.un-authorized-page .un-authorized-assistant {
   padding: 0;
   font: inherit;
   color: #3a84ff;
