@@ -25,12 +25,19 @@ from metadata import models
 from metadata.config import DATABASE_CONNECTION_NAME
 from metadata.models.data_link import DataLinkResourceConfigBase
 from metadata.models.data_link import utils as data_link_utils
+from metadata.models.constants import EsSourceType
 from metadata.models.data_link.constants import DataLinkKind, DataLinkNameScene
+from metadata.resources.log_datalink import CreateOrUpdateLogRouter, ParamsSerializer
 from metadata.task.datalink import apply_log_datalink
 
 logger = logging.getLogger("metadata")
 
-__all__ = ["SetLogClusteringConfigResource", "OperateLogClusteringResource", "GetLogClusteringStatusResource"]
+__all__ = [
+    "SetLogClusteringConfigResource",
+    "OperateLogClusteringResource",
+    "GetLogClusteringStatusResource",
+    "CreateOrUpdateLogClusteringPatternRouterResource",
+]
 
 # 单租户部署下 BKBase 日志聚类动作/状态接口路径中的租户
 # TODO: 待 BKBase 确认正式 schema（B01）后核对
@@ -452,4 +459,66 @@ class GetLogClusteringStatusResource(Resource):
             ),
             "clustering_status": clustering_status,
             "errors": errors,
+        }
+
+
+class CreateOrUpdateLogClusteringPatternRouterResource(Resource):
+    """
+    创建或更新日志聚类 Pattern 查询路由
+
+    查询索引固定取当前有效绑定的 pattern_index，集群由 patternResource 对应的 metadata ES 集群确定，
+    state_index 仅供 BKBase 内部恢复使用，不登记查询路由。路由结果表、空间与选项由调用方给出，复用日志路由体系落库和推送。
+    """
+
+    class RequestSerializer(ParamsSerializer):
+        table_id = serializers.CharField(label="日志采集项对应的监控结果表ID")
+        space_type = serializers.CharField(label="空间类型")
+        space_id = serializers.CharField(label="空间ID")
+        route_table_id = serializers.CharField(label="Pattern 路由结果表ID")
+        data_label = serializers.CharField(label="数据标签", required=False, allow_blank=True, default="")
+
+    def perform_request(self, validated_request_data: dict[str, Any]) -> dict[str, Any]:
+        bk_tenant_id = validated_request_data["bk_tenant_id"]
+        table_id = validated_request_data["table_id"]
+
+        datalink = get_log_clustering_datalink(bk_tenant_id, table_id, check_storage=False)
+        sink = get_log_clustering_sink(datalink)
+        if sink is None or not sink.binding.get("pattern_index"):
+            raise ValidationError(f"table_id({table_id}) has no log clustering pattern index")
+
+        pattern_resource = sink.pattern_resource
+        pattern_cluster = models.ClusterInfo.objects.filter(
+            bk_tenant_id=pattern_resource.get("tenant") or bk_tenant_id,
+            cluster_type=models.ClusterInfo.TYPE_ES,
+            cluster_name=pattern_resource.get("name"),
+        ).first()
+        if pattern_cluster is None:
+            raise ValidationError(f"pattern_resource({pattern_resource}) is not a metadata elasticsearch cluster")
+
+        route_params = {
+            "bk_tenant_id": bk_tenant_id,
+            "space_type": validated_request_data["space_type"],
+            "space_id": validated_request_data["space_id"],
+            "table_id": validated_request_data["route_table_id"],
+            "data_label": validated_request_data["data_label"],
+            "cluster_id": pattern_cluster.cluster_id,
+            "index_set": sink.binding["pattern_index"],
+            "source_type": EsSourceType.LOG.value,
+            "storage_type": models.ClusterInfo.TYPE_ES,
+            "options": validated_request_data["options"],
+        }
+        CreateOrUpdateLogRouter().request(route_params)
+
+        logger.info(
+            "CreateOrUpdateLogClusteringPatternRouterResource: table_id->[%s] route_table_id->[%s] "
+            "cluster_id->[%s] index_set->[%s]",
+            table_id,
+            route_params["table_id"],
+            route_params["cluster_id"],
+            route_params["index_set"],
+        )
+        return {
+            "route_table_id": route_params["table_id"],
+            "cluster_id": route_params["cluster_id"],
+            "index_set": route_params["index_set"],
         }

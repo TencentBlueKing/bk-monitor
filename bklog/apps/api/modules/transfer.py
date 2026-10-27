@@ -534,6 +534,17 @@ class _TransferApi:
             before_request=add_esb_info_before_request,
             bk_tenant_id=result_table_to_tenant_getter("table_id"),
         )
+        self.create_or_update_log_clustering_pattern_router = DataAPI(
+            method="POST",
+            url=self._build_url(
+                "create_or_update_log_clustering_pattern_router/",
+                "metadata_create_or_update_log_clustering_pattern_router/",
+            ),
+            module=self.MODULE,
+            description=_("创建或更新日志聚类Pattern查询路由"),
+            before_request=add_esb_info_before_request,
+            bk_tenant_id=result_table_to_tenant_getter("table_id"),
+        )
         self.list_kafka_tail = DataAPI(
             method="GET",
             url=self._build_url("kafka_tail/", "metadata_kafka_tail/"),

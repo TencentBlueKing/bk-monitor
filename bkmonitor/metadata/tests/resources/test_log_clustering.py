@@ -17,6 +17,7 @@ from api.bkdata.default import GetLogClusteringStatus, LogClusteringAction
 from core.drf_resource.exceptions import CustomException
 from metadata import models
 from metadata.resources.log_clustering import (
+    CreateOrUpdateLogClusteringPatternRouterResource,
     GetLogClusteringStatusResource,
     OperateLogClusteringResource,
     SetLogClusteringConfigResource,
@@ -302,6 +303,84 @@ def test_status_keeps_other_fields_when_bkbase_status_fails(clustering_datalink,
     assert (result["sink_referenced"], result["raw_sink_referenced"]) == (False, True)
     assert result["clustering_status"] is None
     assert result["errors"] == [{"source": "clustering_status", "message": "status unavailable"}]
+
+
+@pytest.fixture
+def log_router(mocker):
+    return mocker.patch("metadata.resources.log_clustering.CreateOrUpdateLogRouter")
+
+
+def create_pattern_router(**overrides) -> dict:
+    params = {
+        "bk_tenant_id": "system",
+        "table_id": LOG_TABLE_ID,
+        "space_type": "bkcc",
+        "space_id": "2",
+        "route_table_id": "bklog_index_set_24466_pattern.__default__",
+        "data_label": "bklog_index_set_24466_pattern",
+        "options": [{"name": "time_field", "value": '{"name": "updated_at"}', "value_type": "dict"}],
+    }
+    params.update(overrides)
+    return CreateOrUpdateLogClusteringPatternRouterResource().request(params)
+
+
+def create_pattern_cluster() -> models.ClusterInfo:
+    return models.ClusterInfo.objects.create(
+        cluster_name=PATTERN_RESOURCE["name"],
+        cluster_type=models.ClusterInfo.TYPE_ES,
+        domain_name="es.pattern",
+        port=9200,
+        description="",
+        cluster_id=710103,
+        is_default_cluster=False,
+        version="7.10",
+        bk_tenant_id="system",
+    )
+
+
+def test_pattern_router_routes_pattern_index_on_pattern_cluster(clustering_datalink, bkbase, log_router):
+    set_config()
+    create_pattern_cluster()
+
+    result = create_pattern_router()
+
+    log_router.return_value.request.assert_called_once_with(
+        {
+            "bk_tenant_id": "system",
+            "space_type": "bkcc",
+            "space_id": "2",
+            "table_id": "bklog_index_set_24466_pattern.__default__",
+            "data_label": "bklog_index_set_24466_pattern",
+            "cluster_id": 710103,
+            "index_set": BINDING["pattern_index"],
+            "source_type": "log",
+            "storage_type": "elasticsearch",
+            "options": [
+                {"name": "time_field", "value": '{"name": "updated_at"}', "value_type": "dict", "creator": "system"}
+            ],
+        }
+    )
+    assert result == {
+        "route_table_id": "bklog_index_set_24466_pattern.__default__",
+        "cluster_id": 710103,
+        "index_set": BINDING["pattern_index"],
+    }
+
+
+def test_pattern_router_requires_clustering_config(clustering_datalink, bkbase, log_router):
+    create_pattern_cluster()
+
+    with pytest.raises(ValidationError, match="no log clustering pattern index"):
+        create_pattern_router()
+    log_router.assert_not_called()
+
+
+def test_pattern_router_requires_metadata_pattern_cluster(clustering_datalink, bkbase, log_router):
+    set_config()
+
+    with pytest.raises(ValidationError, match="not a metadata elasticsearch cluster"):
+        create_pattern_router()
+    log_router.assert_not_called()
 
 
 def test_bkbase_log_clustering_api_paths():
