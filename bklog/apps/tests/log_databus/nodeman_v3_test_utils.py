@@ -1,0 +1,54 @@
+from functools import wraps
+
+from django.test import override_settings
+
+from apps.feature_toggle.models import FeatureToggle
+from apps.feature_toggle.plugins.constants import NODEMAN_V3_COLLECTOR
+
+
+def set_nodeman_v3_toggle(
+    status: str = "on",
+    *,
+    biz_ids: list[int] | None = None,
+    biz_blacklist: list[int] | None = None,
+    collector_ids: list[int] | None = None,
+) -> FeatureToggle:
+    """为单个事务内的测试设置 NodeMan V3 准入开关。"""
+    toggle, _ = FeatureToggle.objects.update_or_create(
+        name=NODEMAN_V3_COLLECTOR,
+        defaults={
+            "alias": "NodeMan V3 物理机采集",
+            "status": status,
+            "is_viewed": False,
+            "feature_config": {"collector_config_ids": collector_ids or []},
+            "biz_id_white_list": biz_ids or [],
+            "biz_id_black_list": biz_blacklist or [],
+        },
+    )
+    return toggle
+
+
+def nodeman_v3_toggle(status: str = "on", *, enabled: bool = True, **config):
+    """同时配置环境总开关和数据库灰度开关，可装饰 TestCase 类或测试方法。"""
+
+    def decorator(target):
+        if isinstance(target, type):
+            original_set_up = target.setUp
+
+            @wraps(original_set_up)
+            def set_up(test_case, *args, **kwargs):
+                set_nodeman_v3_toggle(status, **config)
+                return original_set_up(test_case, *args, **kwargs)
+
+            target.setUp = set_up
+            return override_settings(ENABLE_NODEMAN_V3=enabled)(target)
+
+        @wraps(target)
+        def wrapped(*args, **kwargs):
+            with override_settings(ENABLE_NODEMAN_V3=enabled):
+                set_nodeman_v3_toggle(status, **config)
+                return target(*args, **kwargs)
+
+        return wrapped
+
+    return decorator

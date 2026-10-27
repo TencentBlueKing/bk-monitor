@@ -71,6 +71,7 @@
       class="table-container"
     >
       <bk-table
+        :row-key="getExportTaskKey"
         class="export-table"
         :data="exportList"
         :outer-border="false"
@@ -303,6 +304,13 @@
 
   import { axiosInstance } from '@/api';
   import {
+    buildExportRetryRequest,
+    EXPORT_SUBMITTED_MESSAGE,
+    getExportDownloadFileName,
+    submitExportWithSortConfirmation,
+    getExportTaskKey,
+  } from './download/exportTask';
+  import {
     adjustGrowthAfterPoll,
     calculateProgress,
     calculateProgressPercent,
@@ -454,20 +462,42 @@
     },
     methods: {
       formatNumber,
+      getExportTaskKey,
       downloadExport($row) {
+        if ($row.engine === 'sharded') {
+          if (!$row.download_able) return;
+          return this.downloadShardedExport($row);
+        }
         // 异步导出使用downloadURL下载
         if ($row.download_url) {
           window.open($row.download_url);
           return;
         }
-        this.openDownloadUrl($row);
+        return this.openDownloadUrl($row);
       },
       retryExport($row) {
         // 异常任务直接异步下载
-        if ($row.export_type === 'sync') {
-          this.openDownloadUrl($row);
-        } else {
-          this.downloadAsync($row.search_dict);
+        if ($row.engine !== 'sharded' && $row.export_type === 'sync') {
+          return this.openDownloadUrl($row);
+        }
+        return this.downloadAsync($row);
+      },
+      async downloadShardedExport(row) {
+        try {
+          const res = await this.$http.request('retrieve/getExportDownloadLink', {
+            params: { job_id: row.id },
+            query: {
+              space_uid: this.$store.getters.spaceUid,
+              artifact_id: 'full',
+            },
+          });
+          if (res.result && res.data?.url) {
+            window.open(res.data.url);
+          }
+        } catch (error) {
+          if (!axios.isCancel(error)) {
+            console.error(error);
+          }
         }
       },
       /**
@@ -475,35 +505,18 @@
        * @param { Object } params
        */
       openDownloadUrl(params) {
-        const data = params.search_dict;
-        const stringParamsIndexSetID = String(params.log_index_set_id);
-
-        let downRequestUrl;
-        if (this.isScene) {
-          downRequestUrl = '/search/scene/export/sample/';
-        } else if (this.isUnionSearch) {
-          // 判断是否是联合查询 如果是 则加参数
-          downRequestUrl = '/search/index_set/union_search/export/';
-          Object.assign(data, { index_set_ids: this.unionIndexList });
-        } else {
-          downRequestUrl = `/search/index_set/${stringParamsIndexSetID}/export/`;
-        }
-
-        axiosInstance
-          .post(downRequestUrl, data)
+        const request = buildExportRetryRequest({ ...params, export_type: 'sync' });
+        return axiosInstance
+          .post(request.url, request.config.data, {
+            responseType: 'blob',
+          })
           .then(res => {
-            if (typeof res !== 'string') {
-              this.$bkMessage({
-                theme: 'error',
-                message: this.$t('导出失败'),
-              });
-              return;
-            }
-            const lightName = this.indexSetList.find(item => item.index_set_id === stringParamsIndexSetID)?.lightenName;
-            const downloadName = lightName
-              ? `bk_log_search_${lightName.substring(2, lightName.length - 1)}.txt`
-              : 'bk_log_search.txt';
-            blobDownload(res, downloadName);
+            blobDownload(res.data, getExportDownloadFileName(params, this.indexSetList));
+            return true;
+          })
+          .catch(error => {
+            console.error(error);
+            return false;
           })
           .finally(() => {
             this.refreshAfterDownload();
@@ -511,48 +524,24 @@
       },
       /**
        * @desc: 异步下载
-       * @param { Object } data
+       * @param { Object } task 原始导出任务
        */
-      downloadAsync(data) {
-        let downRequestUrl;
-
-        if (this.isScene) {
-          downRequestUrl = 'retrieve/getSceneAsyncExport';
-        } else if (this.isUnionSearch) {
-          downRequestUrl = 'retrieve/unionExportAsync';
-        } else {
-          downRequestUrl = 'retrieve/exportAsync';
-        }
-
-        if (this.isUnionSearch) {
-          Object.assign(data, {
-            is_quick_export: false,
-            union_configs: this.unionIndexList.map(item => {
-              return {
-                begin: 0,
-                index_set_id: item,
-              };
-            }),
-          });
-        }
-
-        const requestConfig =
-          this.isScene || this.isUnionSearch
-            ? { data }
-            : {
-                params: { index_set_id: this.routerIndexSet },
-                data,
-              };
-
-        this.$http
-          .request(downRequestUrl, requestConfig)
+      downloadAsync(task) {
+        const request = buildExportRetryRequest(task);
+        return submitExportWithSortConfirmation(this, request.url, request.config)
           .then(res => {
-            if (res.result) {
+            if (res?.result) {
               this.$bkMessage({
                 theme: 'success',
-                message: res.data.prompt,
+                message: res.data?.prompt || this.$t(EXPORT_SUBMITTED_MESSAGE),
               });
+              return true;
             }
+            return false;
+          })
+          .catch(error => {
+            console.error(error);
+            return false;
           })
           .finally(() => {
             setTimeout(() => {
@@ -760,9 +749,9 @@
         };
       },
       setExportListData(data) {
-        const currentRowMap = new Map(this.exportList.map(row => [row.id, row]));
+        const currentRowMap = new Map(this.exportList.map(row => [getExportTaskKey(row), row]));
         this.exportList = data.map(item => {
-          const currentRow = currentRowMap.get(item.id);
+          const currentRow = currentRowMap.get(getExportTaskKey(item));
           if (!currentRow) {
             return this.createProgressRow(item);
           }

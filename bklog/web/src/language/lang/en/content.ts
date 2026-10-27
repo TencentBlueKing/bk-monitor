@@ -998,6 +998,8 @@ export default {
     'In this mode, only the original text of the unordered log reported by you is downloaded, and you can sort it locally by log time; the log cannot contain platform supplementary fields: such as cluster name, module name and other information. The maximum number of log exports in this mode is 5 million.',
   '该模式下，下载的日志有序，可包含平台补充字段，但下载时间较长。该模式的日志导出上限为200万条':
     'In this mode, the downloaded logs are in order and can contain platform supplementary fields, but the download time is longer. The maximum number of log exports in this mode is 2 million.',
+  '该模式下，下载的日志有序，可包含平台补充字段，但下载时间较长。':
+    'In this mode, the downloaded logs are in order and can contain platform supplementary fields, but the download time is longer.',
   全文下载: 'Full text download',
   暂未保留原始日志: 'The original log has not been kept yet',
   '超出集群最大可保存天数，当前最大可保存{n}天':
@@ -1605,4 +1607,9 @@ export default {
     'Wait for the data to be stored, select the corresponding index set, and confirm that you can find the expected logs',
   '具体可用采集类型和配置方式，以当前环境的采集管理功能为准':
     'Available collection types and configuration methods depend on the collection management features in this environment',
+  确认调整导出排序: 'Confirm export sort order',
+  按此排序导出: 'Export with this order',
+  '为支持分片并行导出，将优先按日志时间降序排列，同一时间内保留其他字段的排序规则。筛选条件、导出字段和数据范围不变。实际导出排序：{sort}':
+    'For parallel export, logs will be sorted by log time descending first, retaining the other sort rules for equal timestamps. Filters, exported fields, and the data range remain unchanged. Export order: {sort}',
+  '导出排序已变化，请重新提交并确认': 'The export sort order has changed. Please submit again and confirm.',
 };
