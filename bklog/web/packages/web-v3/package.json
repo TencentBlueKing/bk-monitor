@@ -8,7 +8,7 @@
   "scripts": {
     "dev": "vite --host 127.0.0.1 --port 4173",
     "build": "vite build",
-    "test": "node --test src/vue-runtime.test.mjs src/adapters/bk-magic/adapter-contract.test.mjs"
+    "test": "node --test src/vue-runtime.test.mjs src/adapters/bk-magic/adapter-contract.test.mjs src/pilot/pilot-behavior.test.mjs"
   },
   "dependencies": {
     "tdesign-vue-next": "^1.20.10",
