@@ -28,7 +28,7 @@ from django.conf import settings
 from django.db.transaction import atomic
 from django.utils.functional import cached_property
 
-from apps.api import MonitorApi, UnifyQueryApi
+from apps.api import MonitorApi
 from apps.feature_toggle.handlers.toggle import FeatureToggleObject
 from apps.feature_toggle.plugins.constants import (
     BKDATA_CLUSTERING_TOGGLE,
@@ -68,7 +68,6 @@ from apps.log_clustering.utils.pattern import (
     is_remark_group_inherit_allowed,
     parse_pattern_placeholders,
 )
-from apps.log_search.handlers.index_set import BaseIndexSetHandler
 from apps.log_search.handlers.search.aggs_handlers import AggsHandlers
 from apps.log_unifyquery.handler.pattern import UnifyQueryPatternHandler
 from apps.models import model_to_dict
@@ -503,8 +502,6 @@ class PatternHandler:
 
     @cached_property
     def pattern_aggs_field(self) -> str:
-        if self._clustering_config.use_mini_link:
-            return "signature"
         return f"{AGGS_FIELD_PREFIX}_{self._pattern_level}"
 
     @cached_property
@@ -521,9 +518,6 @@ class PatternHandler:
         start_time, end_time = generate_time_range(
             NEW_CLASS_QUERY_TIME_RANGE, self._query["start_time"], self._query["end_time"], get_local_param("time_zone")
         )
-        if self._clustering_config.use_mini_link:
-            # TODO: 使用监控新类告警结果判定
-            return set()
         if self._clustering_config.new_cls_strategy_output:
             return self._get_new_class_from_bkdata_strategy_output(start_time, end_time)
         if self._clustering_config.new_cls_pattern_rt:
@@ -682,10 +676,7 @@ class PatternHandler:
         if not patterns:
             return []
 
-        if self._clustering_config.use_mini_link:
-            records = self._get_pattern_data_for_mini_link(patterns)
-        else:
-            records = self._get_pattern_data_for_bkbase_link(patterns)
+        records = self._get_pattern_data_for_bkbase_link(patterns)
         for record in records:
             record["pattern"] = re.sub(r"\$([a-zA-Z0-9-_]+)", r"#\1#", record["pattern"])
         return records
@@ -720,47 +711,6 @@ class PatternHandler:
             )
             records = []
         return records
-
-    def _get_pattern_data_for_mini_link(self, patterns):
-        """
-        获取 小型化 链路的 pattern 数据
-        """
-        start_time, end_time = generate_time_range(
-            NEW_CLASS_QUERY_TIME_RANGE, self._query["start_time"], self._query["end_time"], get_local_param("time_zone")
-        )
-        result = UnifyQueryApi.query_ts_raw(
-            {
-                "bk_biz_id": self._clustering_config.bk_biz_id,
-                "query_list": [
-                    {
-                        "data_source": settings.UNIFY_QUERY_DATA_SOURCE,
-                        "table_id": BaseIndexSetHandler.get_data_label(
-                            self._index_set_id,
-                            pattern_rt=True,
-                        ),
-                    },
-                ],
-                "conditions": {
-                    "field_list": {
-                        "field_name": "signature",
-                        "op": "eq",
-                        "value": patterns,
-                    }
-                },
-                "limit": 10000,
-                "start_time": str(int(start_time.shift(days=-1).timestamp() * 1000)),
-                "end_time": str(int(arrow.now().timestamp() * 1000)),
-            }
-        )
-        return [
-            {
-                "signature": record["signature"],
-                "pattern": record["pattern"],
-                **({"origin_log": record.get("log", "")} if self._include_origin_log else {}),
-            }
-            for record in result["list"]
-            if record["signature"]
-        ]
 
     def _materialize_remark(self, params: dict):
         """写入前物化继承内容，避免新建的精确记录在展示端把继承来的备注挤掉。"""
