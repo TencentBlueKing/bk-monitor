@@ -76,7 +76,7 @@ def reconcile_nodeman_v3_targets():
         NodeManV3Binding.objects.filter(
             resource_type=RESOURCE_TYPE_COLLECTOR_CONFIG,
         )
-        .filter(Q(is_enabled=True, deploy_policy_id__isnull=False) | Q(targets__is_desired=False))
+        .filter(Q(is_enabled=True, deploy_policy_id__isnull=False) | Q(is_enabled=False, targets__isnull=False))
         .distinct()
         .order_by("target_snapshot_at", "id")[:RECONCILE_BATCH_LIMIT]
     )
@@ -202,6 +202,13 @@ def _reconcile_one_binding(binding: NodeManV3Binding) -> None:
         # 停用后仍有待删除目标时继续进入周期清理。force=True 绕过相同空范围指纹的幂等短路，
         # 使上一次 update/execute 失败不会把目标永久留在节点管理。
         if not collector_config.is_active or not current_binding.is_enabled:
+            # remove_all_targets 的远端派发可能成功，但首次同步目标快照失败。此时 binding 已 disabled，
+            # 旧目标行却仍是 desired；先在本地重新落删除意图，保证后续每轮都能继续清理。
+            reconcile_binding_targets(
+                current_binding,
+                set(),
+                current_binding.sub_config_template_names or [],
+            )
             pending_removal = current_binding.targets.filter(is_desired=False).exists()
             if pending_removal:
                 from apps.log_databus.nodeman_v3.installer import NodeManV3CollectorInstaller

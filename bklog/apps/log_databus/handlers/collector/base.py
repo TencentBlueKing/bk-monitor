@@ -700,33 +700,38 @@ class CollectorHandler:
         删除采集配置
         :return: task_id
         """
+        # V2/容器链路保持原有语义：停止与后续删除仍在同一个外层事务中。
+        self.stop()
+        return self._destroy_after_stop(**kwargs)
+
+    @transaction.atomic
+    def _destroy_after_stop(self, *, skip_pre_destroy: bool = False, **kwargs):
+        """完成已停止采集项的本地删除；供需要先提交停止期望态的 V3 链路复用。"""
         # 1. 重新命名采集项名称
         collector_config_name = (
             self.data.collector_config_name + "_delete_" + datetime.datetime.now().strftime("%Y%m%d%H%M%S")
         )
 
-        # 2. 停止采集（删除配置文件）
-        self.stop()
+        # 2. 区分物理机和容器。V3 已由 stop() 完成远端清理，跳过等价的 destroy() 重放。
+        if not skip_pre_destroy:
+            self._pre_destroy()
 
-        # 3. 区分物理机和容器
-        self._pre_destroy()
-
-        # 4. 删除索引集
+        # 3. 删除索引集
         if self.data.index_set_id:
             index_set_handler = IndexSetHandler(index_set_id=self.data.index_set_id)
             index_set_handler.delete(self.data.collector_config_name)
 
-        # 5. 删除CollectorConfig记录
+        # 4. 删除CollectorConfig记录
         self.data.collector_config_name = collector_config_name
         self.data.save()
         self.data.delete()
 
-        # 6. 删除META采集项：直接重命名采集项名称
+        # 5. 删除META采集项：直接重命名采集项名称
         collector_scenario = CollectorScenario.get_instance(collector_scenario_id=self.data.collector_scenario_id)
         if self.data.bk_data_id:
             collector_scenario.delete_data_id(self.data.bk_data_id, collector_config_name)
 
-        # 7. 如果存在归档使用了当前采集项, 则删除归档
+        # 6. 如果存在归档使用了当前采集项, 则删除归档
         qs = ArchiveConfig.objects.filter(
             instance_id=self.data.collector_config_id, instance_type=ArchiveInstanceType.COLLECTOR_CONFIG.value
         )

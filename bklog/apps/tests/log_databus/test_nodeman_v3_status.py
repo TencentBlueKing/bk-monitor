@@ -1184,6 +1184,58 @@ class HostHandlerWiringTest(TestCase):
             ).exists()
         )
 
+    def test_destroy_unknown_result_keeps_stop_state_and_recovery_evidence(self):
+        from apps.log_databus.handlers.collector import HostCollectorHandler
+        from apps.log_databus.handlers.collector.base import CollectorHandler
+
+        self.collector_config.is_active = True
+        self.collector_config.save(update_fields=["is_active"])
+        installer = MagicMock()
+
+        def commit_local_stop(handler, **_kwargs):
+            handler.data.is_active = False
+            handler.data.save(update_fields=["is_active", "updated_at"])
+            return True
+
+        def leave_unknown_operation():
+            NodeManV3SubConfigTarget.objects.create(
+                binding=self.binding,
+                bk_host_id=11,
+                config_file_name=build_sub_config_name(TEMPLATE_NAME, POLICY_ID),
+                generation=self.binding.generation,
+                is_desired=False,
+            )
+            NodeManV3Operation.objects.create(
+                binding=self.binding,
+                operation_type=NodeManV3OperationType.REMOVE,
+                generation=self.binding.generation,
+                status=NodeManV3OperationStatus.UNKNOWN,
+            )
+            raise NodeManV3UnknownResultError("execute response lost")
+
+        installer.stop.side_effect = leave_unknown_operation
+        with (
+            patch.object(CollectorHandler, "stop", autospec=True, side_effect=commit_local_stop),
+            patch.object(
+                HostCollectorHandler,
+                "nodeman_v3_installer",
+                new_callable=PropertyMock,
+                return_value=installer,
+            ),
+            self.assertRaises(NodeManV3UnknownResultError),
+        ):
+            self.handler.destroy()
+
+        self.collector_config.refresh_from_db()
+        self.assertFalse(self.collector_config.is_active)
+        self.assertTrue(NodeManV3SubConfigTarget.objects.filter(binding=self.binding, is_desired=False).exists())
+        self.assertTrue(
+            NodeManV3Operation.objects.filter(
+                binding=self.binding,
+                status=NodeManV3OperationStatus.UNKNOWN,
+            ).exists()
+        )
+
     def test_destroy_persists_latest_parent_workflow_id(self):
         from apps.log_databus.handlers.collector import HostCollectorHandler
 

@@ -174,6 +174,16 @@ class HostCollectorHandler(CollectorHandler):
             return self._run_subscription_task("STOP")
         return True
 
+    def destroy(self, **kwargs):
+        if not self.use_nodeman_v3:
+            return super().destroy(**kwargs)
+
+        # Base.destroy 的外层事务会包住 self.stop()。V3 远端结果未知时若异常穿出，
+        # is_active=False、binding 期望态和 UNKNOWN operation 会被一起回滚。
+        # 因此先在独立事务中提交停用期望态并派发；成功后再原子完成本地删除。
+        self.stop()
+        return self._destroy_after_stop(skip_pre_destroy=True, **kwargs)
+
     def _pre_destroy(self):
         """
         删除订阅事件

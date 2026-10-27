@@ -381,9 +381,8 @@ class PeriodicReconcileTest(TestCase):
         self.mock_installer.return_value.rerun.assert_not_called()
         self.assertFalse(NodeManV3SubConfigTarget.objects.filter(binding=self.binding).exists())
 
-    def test_disabled_binding_with_pending_removal_retries_cleanup(self):
+    def test_disabled_binding_with_stale_desired_snapshot_retries_cleanup(self):
         reconcile_binding_targets(self.binding, {11}, [TEMPLATE_NAME])
-        reconcile_binding_targets(self.binding, set(), [TEMPLATE_NAME])
         self.collector_config.is_active = False
         self.collector_config.save(update_fields=["is_active", "updated_at"])
         self.binding.is_enabled = False
@@ -393,6 +392,7 @@ class PeriodicReconcileTest(TestCase):
         self._run_targets_task()
 
         self.mock_installer.return_value.stop.assert_called_once_with(force=True)
+        self.assertFalse(NodeManV3SubConfigTarget.objects.get(binding=self.binding, bk_host_id=11).is_desired)
 
     def test_unchanged_target_within_heal_window_does_not_redispatch(self):
         reconcile_binding_targets(self.binding, {11}, [TEMPLATE_NAME])
