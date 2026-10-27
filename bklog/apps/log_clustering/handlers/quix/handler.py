@@ -116,7 +116,18 @@ class QuixClusteringHandler:
         from apps.log_clustering.tasks.quix import run_quix_clustering_operation
 
         runtime = LogClusteringRuntime.objects.get(index_set_id=self.index_set_id)
-        filter_rules = params.get("filter_rules", [])
+        if not runtime.active_config:
+            raise QuixClusteringParamsInvalidException(
+                QuixClusteringParamsInvalidException.MESSAGE.format(detail=_("聚类开启尚未完成，暂不能修改过滤规则"))
+            )
+        # 未传过滤规则表示不修改；按空规则处理会变成全部日志参与聚类
+        if "filter_rules" in params:
+            filter_rules = params["filter_rules"]
+        else:
+            business_config = ClusteringConfig.get_by_index_set_id(
+                index_set_id=self.index_set_id, raise_exception=False
+            )
+            filter_rules = (business_config.filter_rules if business_config else None) or []
         clustering_fields = params.get("clustering_fields") or runtime.active_config["input_mapping"]["log"]
         clustering_config = build_clustering_config(clustering_fields, filter_rules)
         if clustering_config["input_mapping"] != runtime.active_config["input_mapping"]:
@@ -128,8 +139,15 @@ class QuixClusteringHandler:
 
         operation = None
         if runtime.phase == ClusteringRuntimePhaseEnum.UPDATING.value and runtime.pending_config == clustering_config:
-            # 相同规则再次提交时续跑失败的更新，沿用已固定的排空范围
-            operation = self._resume_failed_operation(ClusteringOperationTypeEnum.UPDATE.value)
+            # 相同规则再次提交时续跑失败的更新，沿用已固定的排空范围；仍在执行的更新直接返回其操作
+            operation = (
+                self._resume_failed_operation(ClusteringOperationTypeEnum.UPDATE.value)
+                or LogClusteringOperation.objects.filter(
+                    index_set_id=self.index_set_id,
+                    operation_type=ClusteringOperationTypeEnum.UPDATE.value,
+                    status__in=ClusteringOperationStatusEnum.runnable_statuses(),
+                ).first()
+            )
         elif clustering_config != runtime.active_config:
             runtime, operation = LogClusteringRuntime.start_operation(
                 self.index_set_id,
@@ -146,7 +164,8 @@ class QuixClusteringHandler:
         )
         if not operation:
             return None
-        run_quix_clustering_operation.delay(operation.operation_id)
+        if operation.status == ClusteringOperationStatusEnum.PENDING.value:
+            run_quix_clustering_operation.delay(operation.operation_id)
         return operation.operation_id
 
     def get_access_status(self) -> dict:

@@ -106,6 +106,7 @@ class QuixClusteringOperationRunner:
             "finish",
             "metadata_set",
             "wait_adoption",
+            "confirm_adoption",
         ],
     }
     RECEIPT_STEPS = {"confirm_adoption"}
@@ -357,11 +358,8 @@ class QuixClusteringOperationRunner:
 
     def _finish_update(self):
         self._close_coverage_gap()
-        self._save_runtime(
-            active_config=self.runtime.pending_config,
-            pending_config=None,
-            phase=ClusteringRuntimePhaseEnum.RUNNING.value,
-            coverage_gaps=self.runtime.coverage_gaps,
+        self._promote_pending_config(
+            phase=ClusteringRuntimePhaseEnum.RUNNING.value, coverage_gaps=self.runtime.coverage_gaps
         )
 
     def _finish_enable(self):
