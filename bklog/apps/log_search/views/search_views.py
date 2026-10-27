@@ -1773,7 +1773,7 @@ class SearchViewSet(APIViewSet):
 
         output = BytesIO()
         search_handler = UnionSearchHandler(search_dict=data)
-        result = search_handler.union_search(is_export=True)
+        result = search_handler.unifyquery_union_search(is_export=True)
         result_list = result.get("origin_log_list")
         for item in result_list:
             json_data = json.dumps(item, ensure_ascii=False).encode("utf8")
