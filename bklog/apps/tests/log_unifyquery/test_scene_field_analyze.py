@@ -124,33 +124,76 @@ class TestSceneAnalyzeField(TestCase):
         payload = {"series": [{"group_keys": [], "group_values": [], "values": [[0, 398]]}]}
         handler.query_ts_reference = Mock(return_value=payload)
 
-        self.assertEqual(handler.analyze_field(group_by=False), payload)
+        for limit in (None, 5):
+            with self.subTest(limit=limit):
+                self.assertEqual(handler.analyze_field(group_by=False, limit=limit), payload)
 
-        query_body = handler.query_ts_reference.call_args.args[0]
-        query_item = query_body["query_list"][0]
-        self.assertEqual(query_item["function"], [{"method": "count"}])
-        self.assertNotIn("limit", query_item)
-        self.assertEqual(query_body["order_by"], ["-dtEventTimeStamp", "-gseIndex", "-iterationIndex"])
-        self.assertIs(handler.query_ts_reference.call_args.kwargs["raise_exception"], True)
+                query_body = handler.query_ts_reference.call_args.args[0]
+                query_item = query_body["query_list"][0]
+                self.assertEqual(query_item["function"], [{"method": "count"}])
+                if limit is None:
+                    self.assertNotIn("limit", query_item)
+                else:
+                    self.assertEqual(query_item["limit"], limit)
+                self.assertEqual(query_body["order_by"], ["-dtEventTimeStamp", "-gseIndex", "-iterationIndex"])
+                self.assertIs(handler.query_ts_reference.call_args.kwargs["raise_exception"], True)
 
     def test_distribution_does_not_add_a_candidate_limit(self):
         handler = self.make_handler()
         payload = {"series": [make_series("A", 100), make_series("X", 198)]}
         handler.query_ts_reference = Mock(return_value=payload)
 
-        self.assertEqual(handler.analyze_field(group_by=True, limit=None), payload)
+        for order_by in ("time", "value"):
+            with self.subTest(order_by=order_by):
+                self.assertEqual(handler.analyze_field(group_by=True, order_by=order_by, limit=None), payload)
 
-        query_item = handler.query_ts_reference.call_args.args[0]["query_list"][0]
-        self.assertEqual(query_item["function"], [{"method": "count", "dimensions": ["level"]}])
-        self.assertNotIn("limit", query_item)
+                query_item = handler.query_ts_reference.call_args.args[0]["query_list"][0]
+                self.assertEqual(query_item["function"], [{"method": "count", "dimensions": ["level"]}])
+                self.assertNotIn("limit", query_item)
 
-    def test_grouped_time_order_keeps_the_requested_limit(self):
-        handler = self.make_handler()
-        handler.query_ts_reference = Mock(return_value={"series": [make_series("A", 100), make_series("B", 50)]})
+    def test_endpoint_time_series_passes_window_and_keeps_all_time_points(self):
+        for step, step_ms in (("5m", 300_000), ("15m", 900_000), (None, 3_600_000)):
+            with self.subTest(step=step):
+                start_time = int(PARAMS["start_time"])
+                series = make_series("ERROR", 10)
+                series["values"] = [[start_time + index * step_ms, count] for index, count in enumerate((10, 20, 30))]
+                payload = {
+                    "series": [series, make_series("WARN", 5)],
+                    "result_table_id": ["bklog_index_set_1", "bklog_index_set_2"],
+                    "trace_id": "scene-time-series",
+                    "is_partial": True,
+                }
+                params = {
+                    **PARAMS,
+                    "field_name": "level",
+                    "order_by": "time",
+                    "limit": 1,
+                    "end_time": str(start_time + 3 * step_ms),
+                }
+                if step is not None:
+                    params["step"] = step
+                request = APIRequestFactory().post("/api/v1/search/scene/field/analyze/", params, format="json")
+                with (
+                    patch.object(SceneSearchViewSet, "get_permissions", return_value=[]),
+                    patch.object(
+                        UnifyQueryApi.query_ts_reference,
+                        "_send_request",
+                        return_value=Mock(data=copy.deepcopy(payload), is_success=Mock(return_value=True)),
+                    ) as query,
+                ):
+                    response = SceneSearchViewSet.as_view({"post": "analyze_field"})(request)
 
-        self.assertEqual(
-            handler.analyze_field(group_by=True, order_by="time", limit=1)["series"], [make_series("A", 100)]
-        )
+                self.assertEqual(response.status_code, 200)
+                self.assertIs(response.data["result"], True)
+                self.assertEqual(response.data["data"], {**payload, "series": [series]})
+                query_body = query.call_args.args[0]
+                query_item = query_body["query_list"][0]
+                self.assertEqual(query_body["step"], step or "1h")
+                self.assertEqual(
+                    query_item["function"], [{"method": "count", "dimensions": ["level"], "window": step or "1h"}]
+                )
+                self.assertEqual(query_item["limit"], 1)
+                self.assertEqual(query_item["table_id_conditions"], SCENE_CONDITIONS)
 
     def test_serializer_rejects_limits_out_of_range(self):
         for limit in (0, -1, 1001):

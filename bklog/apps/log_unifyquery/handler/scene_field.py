@@ -38,6 +38,7 @@ class SceneFieldHandler(SceneUnifyQueryHandler):
 
         Top K 复用基线页面口径：每表按 limit*2+10 取候选并过滤空值，
         多表合并后按值排序取 K，结果为近似 Top K。
+        分组查询中，按时间排序且指定 limit 时按 step 分桶；limit 为空时返回全时段分布。
         """
         if group_by and order_by == "value" and limit is not None:
             return self.get_topk_data(limit, raise_exception=True)
@@ -49,6 +50,8 @@ class SceneFieldHandler(SceneUnifyQueryHandler):
                 if group_by
                 else [{"method": "count"}]
             )
+            if group_by and order_by == "time" and limit is not None:
+                query["function"][0]["window"] = query_body["step"]
             if limit is not None:
                 query["limit"] = limit
         query_body["order_by"] = (

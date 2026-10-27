@@ -421,8 +421,8 @@ class FieldAnalyzeResource(Resource):
     支持多种字段分析场景：
     1. Top K 分析：按字段值分组统计，按值排序，限制条数
        示例：{"group_by": true, "order_by": "value", "limit": 20}
-    2. 时间序列分析：按字段值分组统计，按时间排序
-       示例：{"group_by": true, "order_by": "time"}
+    2. 场景时间序列分析：按 step 分桶，limit 限制字段值的分组数，保留各组的全部时间点
+       示例：{"target_type": "scene", "group_by": true, "order_by": "time", "limit": 20, "step": "5m"}
     3. 总体统计：整体计数，不分组
        示例：{"group_by": false, "order_by": "time"}
     4. 分布分析：按字段值分组统计，无限制
