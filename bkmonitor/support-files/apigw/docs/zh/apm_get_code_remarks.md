@@ -1,6 +1,6 @@
 ### 功能描述
 
-从应用视角拉取完整返回码备注，编辑后通过 `apm_set_code_remark` 保存。
+查询应用的完整返回码备注。
 
 内部应用态接口，调用应用需获得网关资源授权。
 
@@ -8,8 +8,8 @@
 
 | 字段 | 类型 | 必选 | 描述 |
 | --- | --- | --- | --- |
-| bk_biz_id | int | 是 | APM 应用所属业务 ID |
-| app_name | string | 是 | APM 应用名 |
+| `bk_biz_id` | int | 是 | APM 应用所属业务 ID |
+| `app_name` | string | 是 | APM 应用名 |
 
 ### 请求参数示例
 
@@ -24,20 +24,20 @@
 
 | 字段 | 类型 | 描述 |
 | --- | --- | --- |
-| result | bool | 请求是否成功 |
-| code | int | 返回的状态码，成功为 `200` |
-| message | string | 结果说明 |
-| data | List[dict] | 应用完整配置列表，无配置时为 `[]` |
+| `result` | bool | 请求是否成功 |
+| `code` | int | 接口状态码，成功为 `200` |
+| `message` | string | 结果说明 |
+| `data` | List[dict] | 用户保存的完整备注，不含内置备注，无配置时为 `[]` |
 
-#### data 字段说明（每个元素为一项配置）
+#### data 元素说明
 
 | 字段 | 类型 | 描述 |
 | --- | --- | --- |
-| kind | string | `caller`（主调）或 `callee`（被调） |
-| code | string | 原始返回码 |
-| remark | string | 返回码说明 |
-| is_global | bool | `true` 表示应用内所有服务生效，`false` 表示仅指定服务生效 |
-| service_names | List[string] | 生效服务列表，全局备注为 `[]` |
+| `kind` | string | `caller`（主调）或 `callee`（被调） |
+| `code` | string | 原始返回码 |
+| `remark` | string | 返回码说明 |
+| `is_global` | bool | `true` 表示应用内所有服务生效，`false` 表示仅指定服务生效 |
+| `service_names` | List[string] | 生效服务列表，全局备注为 `[]` |
 
 ### 响应参数示例
 
@@ -67,7 +67,3 @@
     ]
 }
 ```
-
-### 使用说明
-
-1. 返回列表仅包含用户保存的备注，不含内置备注。
