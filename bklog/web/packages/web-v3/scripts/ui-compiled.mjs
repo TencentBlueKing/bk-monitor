@@ -42,6 +42,8 @@ const required = [
   { token: '--bklog-chip-bg', value: '#eaebf0' },
   { token: '--bklog-highlight-bg', value: '#faeeb1' },
   { token: '--bklog-sql-bg', value: '#fafbfd' },
+  { token: '--bklog-collection-add-bg', value: '#cddffe' },
+  { token: '--bklog-collection-group-active', value: '#e1ecff' },
 ];
 
 const files = readdirSync(distCss).filter(name => name.endsWith('.css'));

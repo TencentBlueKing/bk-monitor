@@ -28,19 +28,28 @@ export type CollectorScenario = 'linux' | 'winevent' | 'container_file' | 'conta
 export type CollectStatus = 'running' | 'stopped' | 'failed' | 'pending';
 export type WizardStep = 'classify' | 'config' | 'clean' | 'storage';
 
+export interface CollectionGroup {
+  id: string;
+  name: string;
+  count: number;
+}
+
 export interface CollectionItem {
   id: string;
   name: string;
   scenario: CollectorScenario;
   status: CollectStatus;
+  group: string;
   path?: string;
   cluster?: string;
+  nameEn?: string;
 }
 
 export interface CollectionSnapshot {
   uiState: 'idle' | 'filtered' | 'wizard' | 'error';
   wizardOpen: boolean;
   filterQuery: string;
+  group: string | 'all';
   scenario: CollectorScenario | 'all';
   status: CollectStatus | 'all';
   step: WizardStep;
@@ -59,9 +68,9 @@ export interface CollectionDraft {
 const STEPS: WizardStep[] = ['classify', 'config', 'clean', 'storage'];
 
 export const DEFAULT_COLLECTIONS: CollectionItem[] = [
-  { id: 'col-1', name: 'nginx-access', scenario: 'linux', status: 'running', path: '/var/log/nginx/access.log', cluster: 'es-default' },
-  { id: 'col-2', name: 'nginx-error', scenario: 'linux', status: 'failed', path: '/var/log/nginx/error.log', cluster: 'es-default' },
-  { id: 'col-3', name: 'pod-stdout', scenario: 'container_stdout', status: 'stopped', cluster: 'es-default' },
+  { id: 'col-1', name: 'nginx-access', nameEn: 'nginx_access', scenario: 'linux', status: 'running', group: 'testfoo_clusterer', path: '/var/log/nginx/access.log', cluster: 'es-default' },
+  { id: 'col-2', name: 'nginx-error', nameEn: 'nginx_error', scenario: 'linux', status: 'failed', group: 'testfoo_clusterer', path: '/var/log/nginx/error.log', cluster: 'es-default' },
+  { id: 'col-3', name: 'pod-stdout', nameEn: 'pod_stdout', scenario: 'container_stdout', status: 'stopped', group: 'tt', cluster: 'es-default' },
 ];
 
 export class CollectionController {
@@ -72,6 +81,7 @@ export class CollectionController {
       uiState: 'idle',
       wizardOpen: false,
       filterQuery: '',
+      group: 'all',
       scenario: 'all',
       status: 'all',
       step: 'classify',
@@ -91,6 +101,9 @@ export class CollectionController {
 
   getVisibleItems(): CollectionItem[] {
     return this.snapshot.items.filter(item => {
+      if (this.snapshot.group !== 'all' && item.group !== this.snapshot.group) {
+        return false;
+      }
       if (this.snapshot.scenario !== 'all' && item.scenario !== this.snapshot.scenario) {
         return false;
       }
@@ -104,6 +117,24 @@ export class CollectionController {
 
   setFilterQuery(value: string): CollectionSnapshot {
     this.snapshot = { ...this.snapshot, filterQuery: String(value ?? '').trim(), uiState: 'filtered', error: '' };
+    return this.getState();
+  }
+
+  getGroups(): CollectionGroup[] {
+    const counts = new Map<string, number>();
+    for (const item of this.snapshot.items) {
+      counts.set(item.group, (counts.get(item.group) ?? 0) + 1);
+    }
+    return [
+      { id: 'all', name: '全部采集项', count: this.snapshot.items.length },
+      ...[...counts.entries()]
+        .filter(([id]) => id)
+        .map(([id, count]) => ({ id, name: id, count })),
+    ];
+  }
+
+  setGroup(group: string | 'all'): CollectionSnapshot {
+    this.snapshot = { ...this.snapshot, group, error: '' };
     return this.getState();
   }
 
@@ -183,6 +214,7 @@ export class CollectionController {
       uiState: 'idle',
       wizardOpen: false,
       filterQuery: this.snapshot.filterQuery,
+      group: this.snapshot.group,
       scenario: this.snapshot.scenario,
       status: this.snapshot.status,
       step: 'classify',
@@ -195,6 +227,7 @@ export class CollectionController {
           name,
           scenario: this.snapshot.draft.scenario as CollectorScenario,
           status: 'pending',
+          group: this.snapshot.group === 'all' ? 'ungrouped' : this.snapshot.group,
           path: this.snapshot.draft.path,
           cluster: this.snapshot.draft.cluster,
         },

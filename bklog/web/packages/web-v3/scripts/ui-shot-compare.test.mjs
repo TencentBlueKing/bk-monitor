@@ -13,6 +13,7 @@ const FULL_SHOTS = [
   'v3-retrieve-highlight.png',
   'v3-retrieve-expand.png',
   'v3-collection.png',
+  'v3-collection-wizard.png',
   'v3-manage-clean.png',
 ];
 function assertPng(path, name, minSize) {

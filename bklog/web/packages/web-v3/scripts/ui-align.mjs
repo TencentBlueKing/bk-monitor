@@ -193,6 +193,13 @@ async function measureCollection(page) {
     ok: nearColor(parseRgb(leftStyle?.backgroundColor), TOKENS.manageLeftBg),
     detail: { expected: '#f3f6fa', actual: leftStyle?.backgroundColor, shotRequired: true },
   });
+  const groupCount = await page.$$eval('[data-ui="collection-groups"] button', rows => rows.length).catch(() => 0);
+  checks.push({ id: 'collection-groups', ok: groupCount >= 2, detail: groupCount });
+  checks.push({
+    id: 'collection-create',
+    ok: Boolean(await page.$('[data-ui="collection-create"]')),
+    detail: 'create control',
+  });
   return { left, right, leftStyle, checks };
 }
 
@@ -290,8 +297,15 @@ try {
   const collectionShot = await capture(page, 'v3-collection');
   const collectionLeftShot = await captureRegion(page, '[data-ui="collection-left"]', 'v3-collection-left');
   const collection = await measureCollection(page);
-  report.pages.push({ name: 'collection', shot: collectionShot, regions: { left: collectionLeftShot }, ...collection });
-  report.shots.push(collectionShot, collectionLeftShot);
+  await page.click('[data-ui="collection-create"]');
+  await page.waitForSelector('[data-ui="collection-wizard"]');
+  const wizardShot = await capture(page, 'v3-collection-wizard');
+  const hasCards = Boolean(await page.$('[data-ui="classify-linux"]'));
+  collection.checks.push({ id: 'collection-wizard', ok: Boolean(wizardShot) && hasCards, detail: wizardShot });
+  await page.click('.collection-wizard__foot .t-button');
+  await page.waitForTimeout(200);
+  report.pages.push({ name: 'collection', shot: collectionShot, regions: { left: collectionLeftShot, wizard: wizardShot }, ...collection });
+  report.shots.push(collectionShot, collectionLeftShot, wizardShot);
 
   await page.goto(`${baseUrl}/#/manage/clean`, { waitUntil: 'networkidle' });
   const manageShot = await capture(page, 'v3-manage-clean');

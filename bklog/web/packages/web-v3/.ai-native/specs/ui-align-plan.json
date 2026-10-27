@@ -1,7 +1,7 @@
 {
   "id": "plan.ui-migrate-v3",
   "version": "0.6.0",
-  "status": "m0-m1-landed",
+  "status": "m0-m3-landed",
   "decision": "V2 用 bklog/web/src + .e2e-skills/assets/architecture-chema/mock（retrieve-16176 / manage-log-collection）本地 dev 抓图；必须产出 V2|V3 对照图。自测读 PNG，禁止盲测。",
   "alignTracks": {
     "componentAndCompiled": "读 v2 SFC/scss 抽 token，在 v3 theme.css 重写；vite build 后对照编译 CSS 选择器与计算值，禁止拷贝 Vue2 文件",
@@ -127,7 +127,7 @@
       "id": "M3",
       "title": "采集列表：左分组 + 右表 + 新建向导观感",
       "status": "landed",
-      "accept": ["左 250 #f3f6fa", "右白表 + 主按钮新建", "状态中文"]
+      "accept": ["左 250 #f3f6fa 分组树+计数", "右白表 + 新建", "卡片向导"]
     },
     {
       "id": "M4",

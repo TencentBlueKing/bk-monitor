@@ -44,6 +44,13 @@ describe('CollectionController', () => {
     assert.equal(controller.start('col-1').items.find(item => item.id === 'col-1')?.status, 'running');
   });
 
+  it('AC-004 filters by index-set group', () => {
+    const controller = new CollectionController();
+    controller.setGroup('tt');
+    assert.deepEqual(controller.getVisibleItems().map(item => item.id), ['col-3']);
+    assert.deepEqual(controller.getGroups().map(item => item.id), ['all', 'testfoo_clusterer', 'tt']);
+  });
+
   it('AC-003 wizard requires scenario, name/path and cluster', () => {
     const controller = new CollectionController();
     controller.openWizard();
