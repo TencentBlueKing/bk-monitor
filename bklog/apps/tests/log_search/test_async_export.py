@@ -23,7 +23,6 @@ import datetime
 import io
 import tempfile
 from concurrent.futures import ThreadPoolExecutor
-from contextlib import ExitStack
 from threading import Barrier, Lock
 from unittest.mock import Mock, patch
 
@@ -41,7 +40,6 @@ from apps.log_search.exceptions import (
     AsyncExportTaskNotDownloadableException,
     ConcurrentExportLimitException,
 )
-from apps.log_search.handlers.search.async_export_handlers import AsyncExportHandlers
 from apps.log_search.handlers.search.search_handlers_esquery import SearchHandler
 from apps.log_search.models import AsyncTask, LogIndexSet, Scenario
 from apps.log_search.tasks.async_export import (
@@ -66,39 +64,6 @@ SEARCH_DICT = {
 }
 
 TEST_MAX_CONCURRENT_EXPORT_TASKS = 3
-
-
-class FakeIndexSet:
-    max_async_count = 0
-
-
-class FakeSearchHandler:
-    scenario_id = Scenario.LOG
-    index_set = FakeIndexSet()
-    size = SEARCH_DICT["size"]
-
-    def __init__(self, index_set_id, search_dict, export_fields=None, export_log=False):
-        self.index_set_id = index_set_id
-        self.search_dict = search_dict
-        self.export_fields = export_fields
-        self.export_log = export_log
-
-    def fields(self):
-        return {
-            "config": [
-                {
-                    "name": "async_export",
-                    "is_active": True,
-                    "extra": {"fields": [{"field_name": "dtEventTimeStamp"}]},
-                }
-            ]
-        }
-
-    def _get_user_sorted_list(self, async_export_fields):
-        return async_export_fields
-
-    def pre_get_result(self, sorted_fields, size):
-        return {"_shards": {"total": 1, "successful": 1, "failures": []}}
 
 
 class BarrierRedisLock:
@@ -136,65 +101,6 @@ class BarrierRedisCache:
 
 
 class TestAsyncExportProgress(TestCase):
-    @override_settings(USE_REDIS=True)
-    def test_async_export_creates_task_with_export_total_count(self):
-        with ExitStack() as stack:
-            mock_lock = Mock()
-            mock_lock.acquire.return_value = True
-            stack.enter_context(patch("apps.log_search.models.cache.lock", return_value=mock_lock))
-            stack.enter_context(
-                patch(
-                    "apps.log_search.handlers.search.async_export_handlers.SearchHandler",
-                    FakeSearchHandler,
-                )
-            )
-            mock_delay = stack.enter_context(
-                patch("apps.log_search.handlers.search.async_export_handlers.async_export.delay")
-            )
-            stack.enter_context(patch.object(AsyncExportHandlers, "_get_url", return_value="/download/"))
-            stack.enter_context(patch.object(AsyncExportHandlers, "_get_search_url", return_value="/search/"))
-            stack.enter_context(
-                patch(
-                    "apps.log_search.handlers.search.async_export_handlers.get_request_username",
-                    return_value="admin",
-                )
-            )
-            stack.enter_context(
-                patch(
-                    "apps.log_search.handlers.search.async_export_handlers.get_request_external_username",
-                    return_value="",
-                )
-            )
-            stack.enter_context(
-                patch(
-                    "apps.log_search.handlers.search.async_export_handlers.get_request_language_code",
-                    return_value="zh-hans",
-                )
-            )
-            stack.enter_context(
-                patch(
-                    "apps.log_search.handlers.search.async_export_handlers.get_request_external_user_email",
-                    return_value="",
-                )
-            )
-            task_id, total_count = AsyncExportHandlers(
-                index_set_id=3,
-                bk_biz_id=2,
-                request_bk_biz_id=7,
-                search_dict=SEARCH_DICT,
-            ).async_export()
-
-        async_task = AsyncTask.objects.get(id=task_id)
-        self.assertEqual(total_count, SEARCH_DICT["size"])
-        self.assertEqual(async_task.bk_biz_id, 7)
-        self.assertEqual(async_task.request_param["bk_biz_id"], 7)
-        self.assertEqual(async_task.export_total_count, SEARCH_DICT["size"])
-        self.assertEqual(async_task.exported_count, 0)
-        self.assertEqual(async_task.download_count, 0)
-        self.assertEqual(mock_delay.call_args.kwargs["async_task_id"], task_id)
-        mock_lock.acquire.assert_called_once_with()
-        mock_lock.release.assert_called_once_with()
-
     def test_generate_export_history_returns_progress_fields(self):
         history = {
             "id": 1,
@@ -218,7 +124,7 @@ class TestAsyncExportProgress(TestCase):
             "index_set_ids": [],
         }
 
-        result = AsyncExportHandlers.generate_export_history(history, index_set_retention={})
+        result = UnifyQueryAsyncExportHandlers.generate_export_history(history, index_set_retention={})
 
         self.assertEqual(result["exported_count"], 88)
         self.assertEqual(result["export_total_count"], 100)
@@ -432,7 +338,7 @@ class TestAsyncExportProgress(TestCase):
         self.assertEqual(result["export_total_count"], 50)
         self.assertEqual(result["download_count"], 4)
 
-    def test_unify_query_union_export_total_count_uses_union_limit(self):
+    def test_unify_query_union_export_total_count_uses_first_index_set_limit(self):
         handler = UnifyQueryUnionAsyncExportHandlers.__new__(UnifyQueryUnionAsyncExportHandlers)
         handler.bk_biz_id = 2
         handler.unify_query_handler = Mock(
@@ -442,16 +348,10 @@ class TestAsyncExportProgress(TestCase):
             ]
         )
 
-        with (
-            patch(
-                "apps.log_unifyquery.handler.async_export_handlers.FeatureToggleObject.switch",
-                return_value=False,
-            ),
-            patch("apps.log_unifyquery.handler.async_export_handlers.MAX_ASYNC_COUNT", 10),
-        ):
+        with patch("apps.log_unifyquery.handler.async_export_handlers.MAX_ASYNC_COUNT", 10):
             total_count = handler.get_union_export_total_count(request_size=100)
 
-        self.assertEqual(total_count, 30)
+        self.assertEqual(total_count, 10)
 
 
 class TestSearchViewSetExport(TestCase):
@@ -474,42 +374,6 @@ class TestSearchViewSetExport(TestCase):
             "file_type": "txt",
         }
 
-    def test_async_export_passes_request_biz_id_before_scope_resolution(self):
-        self.view.params_valid = Mock(return_value=self._search_export_params())
-
-        with (
-            patch(
-                "apps.log_search.views.search_views.LogIndexSet.resolve_search_scope",
-                return_value=(2, "bkcc__2"),
-            ),
-            patch("apps.log_search.views.search_views.FeatureToggleObject.switch", return_value=False),
-            patch(
-                "apps.log_search.views.search_views.FeatureToggleObject.toggle",
-                return_value=Mock(feature_config={}),
-            ),
-            patch("apps.log_search.handlers.search.async_export_handlers.SearchHandler", FakeSearchHandler),
-            patch("apps.log_search.models.cache.lock", return_value=Mock(acquire=Mock(return_value=True))),
-            patch("apps.log_search.handlers.search.async_export_handlers.async_export.delay"),
-            patch.object(AsyncExportHandlers, "_get_url", return_value="/download/"),
-            patch.object(AsyncExportHandlers, "_get_search_url", return_value="/search/"),
-            patch("apps.log_search.handlers.search.async_export_handlers.get_request_username", return_value="admin"),
-            patch(
-                "apps.log_search.handlers.search.async_export_handlers.get_request_external_username", return_value=""
-            ),
-            patch(
-                "apps.log_search.handlers.search.async_export_handlers.get_request_language_code",
-                return_value="zh-hans",
-            ),
-            patch(
-                "apps.log_search.handlers.search.async_export_handlers.get_request_external_user_email", return_value=""
-            ),
-        ):
-            response = self.view.async_export(self.request, index_set_id=3)
-
-        async_task = AsyncTask.objects.get(id=response.data["task_id"])
-        self.assertEqual(async_task.bk_biz_id, 7)
-        self.assertEqual(async_task.request_param["bk_biz_id"], 7)
-
     def test_unify_query_async_export_passes_request_biz_id_before_scope_resolution(self):
         self.view.params_valid = Mock(return_value=self._search_export_params())
         unify_query_handler = Mock(
@@ -523,7 +387,6 @@ class TestSearchViewSetExport(TestCase):
                 "apps.log_search.views.search_views.LogIndexSet.resolve_search_scope",
                 return_value=(2, "bkcc__2"),
             ),
-            patch("apps.log_search.views.search_views.FeatureToggleObject.switch", return_value=True),
             patch("apps.log_search.views.search_views.is_sharded_export_enabled", return_value=False),
             patch(
                 "apps.log_search.views.search_views.FeatureToggleObject.toggle",
@@ -557,8 +420,8 @@ class TestSearchViewSetExport(TestCase):
         index_set.get_indexes.return_value = [{"result_table_id": "table"}]
         index_set_query = Mock()
         index_set_query.first.return_value = index_set
-        search_handler = Mock()
-        search_handler.search.return_value = {"origin_log_list": []}
+        query_handler = Mock()
+        query_handler.search.return_value = {"origin_log_list": []}
         response = Mock()
 
         with (
@@ -566,9 +429,8 @@ class TestSearchViewSetExport(TestCase):
                 "apps.log_search.views.search_views.LogIndexSet.resolve_search_scope",
                 return_value=(2, "bkcc__2"),
             ),
-            patch("apps.log_search.views.search_views.FeatureToggleObject.switch", return_value=False),
             patch.object(LogIndexSet.objects, "filter", return_value=index_set_query),
-            patch("apps.log_search.views.search_views.SearchHandlerEsquery", return_value=search_handler),
+            patch("apps.log_search.views.search_views.UnifyQueryHandler", return_value=query_handler),
             patch("apps.log_search.views.search_views.create_download_response", return_value=response),
             patch.object(AsyncTask.objects, "create") as create_task,
             patch("apps.log_search.views.search_views.get_request_external_username", return_value=""),
@@ -590,39 +452,29 @@ class TestAsyncExportConcurrentCheckOrder(TestCase):
                 handler = handler_class.__new__(handler_class)
                 handler.request_user = "test_user"
 
-                with (
-                    patch.object(
-                        AsyncTask,
-                        "check_running_count_by_user",
-                        side_effect=ConcurrentExportLimitException(),
-                    ) as mock_check_running_count,
-                    patch(
-                        "apps.log_unifyquery.handler.async_export_handlers.FeatureToggleObject.switch"
-                    ) as mock_duplicate_check,
-                ):
+                with patch.object(
+                    AsyncTask,
+                    "check_running_count_by_user",
+                    side_effect=ConcurrentExportLimitException(),
+                ) as mock_check_running_count:
                     with self.assertRaises(ConcurrentExportLimitException):
                         handler.async_export()
 
                 mock_check_running_count.assert_called_once_with("test_user")
-                mock_duplicate_check.assert_not_called()
 
     def test_scene_handler_checks_concurrent_limit_first(self):
         handler = SceneAsyncExportHandler.__new__(SceneAsyncExportHandler)
         handler.request_user = "test_user"
 
-        with (
-            patch.object(
-                AsyncTask,
-                "check_running_count_by_user",
-                side_effect=ConcurrentExportLimitException(),
-            ) as mock_check_running_count,
-            patch("apps.log_unifyquery.handler.scene_async_export.FeatureToggleObject.switch") as mock_duplicate_check,
-        ):
+        with patch.object(
+            AsyncTask,
+            "check_running_count_by_user",
+            side_effect=ConcurrentExportLimitException(),
+        ) as mock_check_running_count:
             with self.assertRaises(ConcurrentExportLimitException):
                 handler.async_export()
 
         mock_check_running_count.assert_called_once_with("test_user", is_scene=True)
-        mock_duplicate_check.assert_not_called()
 
 
 @override_settings(MAX_CONCURRENT_EXPORT_TASKS=TEST_MAX_CONCURRENT_EXPORT_TASKS)

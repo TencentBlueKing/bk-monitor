@@ -671,11 +671,8 @@ class TestIndexSet(TestCase):
         return response
 
     @patch(
-        "apps.log_search.handlers.search.search_handlers_esquery.SearchHandler.get_all_fields_by_index_id",
+        "apps.log_search.handlers.index_set.UnifyQueryMappingHandler.get_fields_by_result_tables",
         return_value=MULTI_RESULT,
-    )
-    @patch(
-        "apps.log_search.handlers.search.search_handlers_esquery.SearchHandler._set_time_filed_type", return_value=""
     )
     @patch("apps.api.BkLogApi.mapping", return_value=[])
     @patch("apps.api.TransferApi.create_or_update_log_router", return_value=None)
@@ -1824,7 +1821,7 @@ class TestSyncRouter(TestCase):
         self.assertEqual(result[0]["query_alias_settings"], [])
 
     @patch(
-        "apps.log_search.handlers.index_set.SearchHandler.get_all_fields_by_index_id",
+        "apps.log_search.handlers.index_set.UnifyQueryMappingHandler.get_fields_by_result_tables",
         return_value={
             "591_xx": ([{"field_name": "log"}], []),
             "empty_fields": ([], []),
@@ -1854,10 +1851,9 @@ class TestSyncRouter(TestCase):
 
         with patch("apps.utils.thread.MultiExecuteFunc.append", side_effect=_capture_append):
             with patch("apps.utils.thread.MultiExecuteFunc.run", return_value={}):
-                with patch("apps.log_search.handlers.index_set.SearchHandler.__init__", return_value=None):
-                    BaseIndexSetHandler.sync_router(index_set)
+                BaseIndexSetHandler.sync_router(index_set)
 
-        mock_get_all_fields.assert_called_once_with(need_merge=False)
+        mock_get_all_fields.assert_called_once()
         default_router = next(
             params for key, _, params in append_calls if key == f"bklog_index_set_{index_set.index_set_id}"
         )
@@ -1869,7 +1865,7 @@ class TestSyncRouter(TestCase):
         self.assertNotIn("query_alias_settings", empty_info)
 
     @patch(
-        "apps.log_search.handlers.index_set.SearchHandler.get_all_fields_by_index_id",
+        "apps.log_search.handlers.index_set.UnifyQueryMappingHandler.get_fields_by_result_tables",
         side_effect=RuntimeError("mapping unavailable"),
     )
     def test_sync_router_skips_aliases_when_all_rt_field_queries_fail(self, mock_get_all_fields):
@@ -1883,10 +1879,9 @@ class TestSyncRouter(TestCase):
 
         with patch("apps.utils.thread.MultiExecuteFunc.append", side_effect=_capture_append):
             with patch("apps.utils.thread.MultiExecuteFunc.run", return_value={}):
-                with patch("apps.log_search.handlers.index_set.SearchHandler.__init__", return_value=None):
-                    BaseIndexSetHandler.sync_router(index_set)
+                BaseIndexSetHandler.sync_router(index_set)
 
-        mock_get_all_fields.assert_called_once_with(need_merge=False)
+        mock_get_all_fields.assert_called_once()
         default_router = next(
             params for key, _, params in append_calls if key == f"bklog_index_set_{index_set.index_set_id}"
         )
@@ -2062,12 +2057,11 @@ class TestSyncRouter(TestCase):
         for params in routers:
             self.assertNotIn("cluster_id", params)
 
-    @patch("apps.log_search.handlers.index_set.FeatureToggleObject.switch", return_value=False)
     @patch(
         "apps.log_search.handlers.index_set.UnifyQueryMappingHandler.get_fields_by_table_id",
         return_value=[{"field_name": "message", "field_type": "keyword"}],
     )
-    def test_native_doris_alias_mapping_uses_unifyquery(self, mock_uq_fields, mock_switch):
+    def test_native_doris_alias_mapping_uses_unifyquery(self, mock_uq_fields):
         """原生 Doris 无 Doris 标签时也不能请求 ES mapping。"""
         index_set = self._build_native_doris_index_set(storage_cluster_id=162877)
         LogIndexSetData.objects.filter(index_set_id=index_set.index_set_id).update(
@@ -2084,15 +2078,13 @@ class TestSyncRouter(TestCase):
             bk_biz_id=2,
             table_id=BaseIndexSetHandler.get_rt_id(index_set.index_set_id, "591_native"),
         )
-        mock_switch.assert_not_called()
 
-    @patch("apps.log_search.handlers.index_set.FeatureToggleObject.switch", return_value=True)
     @patch(
         "apps.log_search.handlers.index_set.UnifyQueryMappingHandler.get_fields_by_table_id",
         return_value=[{"field_name": "message", "field_type": "keyword"}],
     )
-    def test_es_alias_mapping_uses_unifyquery_when_feature_enabled(self, mock_uq_fields, mock_switch):
-        """普通索引集在 UQ 开关开启时走 UQ。"""
+    def test_es_alias_mapping_uses_unifyquery(self, mock_uq_fields):
+        """普通索引集统一走 UQ。"""
         index_set = self._build_es_doris_index_set(storage_cluster_id=1, doris_table_id=None, support_doris=False)
         LogIndexSetData.objects.filter(index_set_id=index_set.index_set_id).update(
             apply_status=LogIndexSetData.Status.NORMAL,
@@ -2107,29 +2099,6 @@ class TestSyncRouter(TestCase):
             bk_biz_id=2,
             table_id=BaseIndexSetHandler.get_rt_id(index_set.index_set_id, "591_xx"),
         )
-        mock_switch.assert_called_once_with("unify_query_search", 2)
-
-    @patch("apps.log_search.handlers.index_set.SearchHandler")
-    @patch("apps.log_search.handlers.index_set.FeatureToggleObject.switch", return_value=False)
-    def test_es_alias_mapping_uses_esquery_when_feature_disabled(self, mock_switch, mock_search_handler):
-        """普通索引集在 UQ 开关关闭时保留 ESQuery 行为。"""
-        index_set = self._build_es_doris_index_set(storage_cluster_id=1, doris_table_id=None, support_doris=False)
-        LogIndexSetData.objects.filter(index_set_id=index_set.index_set_id).update(
-            apply_status=LogIndexSetData.Status.NORMAL,
-            storage_cluster_id=1,
-        )
-        mock_search_handler.return_value.get_all_fields_by_index_id.return_value = {
-            "591_xx": ([{"field_name": "message", "field_type": "keyword"}], [])
-        }
-
-        rt_alias_mappings, _ = IndexSetHandler.get_rt_alias_settings(
-            index_set.index_set_id, [{"field_name": "message", "query_alias": "msg"}]
-        )
-
-        self.assertEqual(rt_alias_mappings["591_xx"], [{"field_name": "message", "query_alias": "msg"}])
-        mock_switch.assert_called_once_with("unify_query_search", 2)
-        mock_search_handler.assert_called_once_with(index_set.index_set_id, {})
-        mock_search_handler.return_value.get_all_fields_by_index_id.assert_called_once_with(need_merge=False)
 
     # ==================================================================
     # 更新别名配置时的聚类结果表路由
@@ -3179,11 +3148,6 @@ class TestPlatformIndexListAndRouter(TestCase):
         )
         space_detail_patcher.start()
         self.addCleanup(space_detail_patcher.stop)
-        # 跨空间检索要求目标业务开启统一查询，这里按现网常态默认打开，
-        # 关闭态由 test_cross_space_requires_unify_query 单独覆盖
-        unify_query_patcher = patch("apps.log_search.views.search_views.FeatureToggleObject.switch", return_value=True)
-        unify_query_patcher.start()
-        self.addCleanup(unify_query_patcher.stop)
 
     def _create_index_set(self, space_uid, **extra):
         result_table_id = extra.pop("result_table_id", None)
@@ -3311,33 +3275,6 @@ class TestPlatformIndexListAndRouter(TestCase):
         self.assertTrue(LogIndexSet.is_platform_index_visible(visibility, context))
 
     @patch("bkm_space.api.SpaceApi.get_related_space", return_value=None)
-    def test_cross_space_requires_unify_query(self, _mock_related):
-        """ESQuery 链路不认识 platform_index_filter，未开统一查询的业务必须 fail closed。"""
-        from rest_framework import serializers as drf_serializers
-
-        from apps.log_search.views.search_views import _apply_index_set_search_bk_biz_id
-
-        platform = LogIndexSet(
-            is_platform_index=True,
-            space_uid=self.OWNER_SPACE,
-            platform_index_visibility=self.PLATFORM_VISIBILITY,
-        )
-        with patch("apps.log_search.views.search_views.FeatureToggleObject.switch", return_value=False):
-            with self.assertRaises(drf_serializers.ValidationError):
-                _apply_index_set_search_bk_biz_id(platform, {"bk_biz_id": 7})
-
-            # 归属空间在 metadata 侧本就是全量，走哪条链路都不算越权，不受此限
-            owner_data = {"bk_biz_id": 2}
-            _apply_index_set_search_bk_biz_id(platform, owner_data)
-            self.assertEqual(owner_data["bk_biz_id"], 2)
-
-            # 普通索引集不受影响
-            plain = LogIndexSet(is_platform_index=False, space_uid=self.OWNER_SPACE)
-            plain_data = {}
-            _apply_index_set_search_bk_biz_id(plain, plain_data)
-            self.assertEqual(plain_data["bk_biz_id"], 2)
-
-    @patch("bkm_space.api.SpaceApi.get_related_space", return_value=None)
     def test_cross_space_scroll_falls_back_to_unify_query(self, _mock_related):
         """scroll 是 ESQuery 独有能力，跨空间时退回普通 UnifyQuery 检索而不是报错。"""
         from apps.log_search.views.search_views import _apply_index_set_search_bk_biz_id
@@ -3347,7 +3284,6 @@ class TestPlatformIndexListAndRouter(TestCase):
             space_uid=self.OWNER_SPACE,
             platform_index_visibility=self.PLATFORM_VISIBILITY,
         )
-        # 关掉 scroll 才能让检索落到 UnifyQuery 分支，否则会走没有 platform_index_filter 的 ESQuery
         data = {"bk_biz_id": 7, "is_scroll_search": True}
         _apply_index_set_search_bk_biz_id(platform, data)
         self.assertEqual(data["bk_biz_id"], 7)

@@ -31,8 +31,6 @@ from django.db.models import Q
 from django.utils.translation import gettext_lazy as _
 
 from apps.api import CCApi
-from apps.feature_toggle.handlers.toggle import FeatureToggleObject
-from apps.feature_toggle.plugins.constants import UNIFY_QUERY_SEARCH
 from apps.grafana.constants import (
     CMDB_EXTEND_FIELDS,
     LOG_SEARCH_DIMENSION_LIST,
@@ -44,7 +42,6 @@ from apps.log_desensitize.models import DesensitizeFieldConfig
 from apps.log_search.constants import GlobalCategoriesEnum
 from apps.log_search.exceptions import BaseSearchIndexSetDataDoseNotExists
 from apps.log_search.handlers.index_set import IndexSetHandler
-from apps.log_search.handlers.search.aggs_handlers import AggsViewAdapter
 from apps.log_search.handlers.search.search_handlers_esquery import SearchHandler
 from apps.log_search.models import LogIndexSet, Scenario
 from apps.log_unifyquery.handler.agg import UnifyQueryAggHandler
@@ -279,9 +276,8 @@ class GrafanaQueryHandler:
     def _apply_platform_index_isolation(self, index_set_id: int, data: dict = None):
         """Grafana 执行入口复用检索侧隔离。
 
-        下拉只解决「看得见」，真正 query / query_log / dimension 仍可能回落到
-        不认识 platform_index_filter 的 ESQuery。跨空间平台索引必须走 UnifyQuery，
-        开关关闭时 fail closed，与 `_apply_index_set_search_bk_biz_id` 同口径。
+        下拉只解决「看得见」，跨空间平台索引集检索统一走 UnifyQuery，
+        数据隔离由 metadata query router 注入 platform_index_filter。
         """
         from apps.log_search.views.search_views import _apply_index_set_search_bk_biz_id
 
@@ -398,12 +394,8 @@ class GrafanaQueryHandler:
             "sort_list": query_dict.get("sort_list", []),
             "index_set_ids": [query_dict["result_table_id"]],
         }
-        if FeatureToggleObject.switch(UNIFY_QUERY_SEARCH, isolation["bk_biz_id"]):
-            query_handler = UnifyQueryHandler(search_dict)
-            result = query_handler.search(search_type=None)
-        else:
-            search_handler = SearchHandler(query_dict["result_table_id"], search_dict, can_highlight=False)
-            result = search_handler.search(search_type=None)
+        query_handler = UnifyQueryHandler(search_dict)
+        result = query_handler.search(search_type=None)
 
         # 前面的字段固定
         fields = [time_field, "log"] if "log" in result["fields"] else [time_field]
@@ -849,9 +841,6 @@ class GrafanaQueryHandler:
             ]
         data["bk_biz_id"] = self.bk_biz_id
         self._apply_platform_index_isolation(index_set_id, data)
-        if FeatureToggleObject.switch(UNIFY_QUERY_SEARCH, data.get("bk_biz_id")):
-            data["index_set_ids"] = [index_set_id]
-            result = UnifyQueryTermsAggsHandler(data.get("fields", []), data).terms()
-        else:
-            result = AggsViewAdapter().terms(index_set_id, data)
+        data["index_set_ids"] = [index_set_id]
+        result = UnifyQueryTermsAggsHandler(data.get("fields", []), data).terms()
         return result["aggs_items"].get(field, [])
