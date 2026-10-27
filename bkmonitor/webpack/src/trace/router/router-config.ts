@@ -61,11 +61,6 @@ export const allRouteConfig: IRouteConfig[] = [
     route: 'profiling-explore',
   },
   {
-    id: 'profiling',
-    name: 'Profiling',
-    route: 'profiling',
-  },
-  {
     id: 'rum',
     name: 'RUM',
     route: 'rum',

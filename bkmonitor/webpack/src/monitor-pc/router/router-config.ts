@@ -150,8 +150,7 @@ export const getRouteConfig = () => {
           path: '/trace/profiling',
           href: '#/trace/profiling',
           usePath: true,
-          // isBeta: window.platform?.te === false,
-          canStore: true,
+          hidden: true,
         },
         {
           name: 'Profiling 检索',
@@ -161,8 +160,7 @@ export const getRouteConfig = () => {
           path: '/trace/profiling-explore',
           href: '#/trace/profiling-explore',
           usePath: true,
-          isBeta: true,
-          // hidden: true,
+          canStore: true,
         },
         {
           name: 'RUM 检索',
@@ -601,19 +599,6 @@ COMMON_ROUTE_LIST.push({
   children: [...GLOBAL_FEATURE_LIST],
 });
 
-/** 旧版主机监控收藏 id 打开时落到新版列表。 */
-export function normalizeStoredRouteIds(ids: string[]) {
-  const seen = new Set<string>();
-  const result: string[] = [];
-  for (const id of ids) {
-    const next = id === 'performance' ? 'host' : id;
-    if (seen.has(next)) continue;
-    seen.add(next);
-    result.push(next);
-  }
-  return result;
-}
-
 // 获取本地存储的访问常用路由列表
 export function getLocalStoreRoute() {
   const str = localStorage.getItem(LOCAL_COMMON_ROUTE_STORE_KEY);
@@ -624,6 +609,7 @@ export function getLocalStoreRoute() {
     return undefined;
   }
 }
+
 /**
  * @param id 路由id
  * @returns 路由配置
@@ -645,6 +631,18 @@ export function getRouteConfigById(id: string) {
 // 路由id是否存在于常用路由列表
 export function isInCommonRoute(id: string) {
   return COMMON_ROUTE_LIST.some(item => item?.children?.some(set => set.id === id));
+}
+/** 旧版主机监控收藏 id 打开时落到新版列表。 */
+export function normalizeStoredRouteIds(ids: string[]) {
+  const seen = new Set<string>();
+  const result: string[] = [];
+  for (const id of ids) {
+    const next = id === 'performance' ? 'host' : id;
+    if (seen.has(next)) continue;
+    seen.add(next);
+    result.push(next);
+  }
+  return result;
 }
 // 设置本地存储的访问常用路由列表
 export function setLocalStoreRoute(id: string) {
