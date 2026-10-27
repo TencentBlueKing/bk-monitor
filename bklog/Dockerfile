@@ -12,8 +12,9 @@ RUN test -f /app/code/iam_engine/core/config.py
 
 WORKDIR /app
 
-RUN uv venv venv --seed --link-mode=copy && . venv/bin/activate \
-    && uv pip install --no-cache-dir -r code/requirements.txt -i https://mirrors.tencent.com/pypi/simple/ --extra-index-url https://pypi.org/simple/
+RUN --mount=type=cache,target=/root/.cache/uv \
+    uv venv venv --seed --link-mode=copy && . venv/bin/activate \
+    && uv pip install -r code/requirements.txt -i https://mirrors.tencent.com/pypi/simple/ --extra-index-url https://pypi.org/simple/
 
 WORKDIR /app/code
 
