@@ -662,7 +662,7 @@ paths:
         backend:
           name: default
           method: get
-          path: /api/v3/meta/get_time_series_metrics/
+          path: /api/app/v3/meta/get_time_series_metrics/
           matchSubpath: false
         authConfig:
           appVerifiedRequired: true
@@ -1422,7 +1422,7 @@ paths:
         backend:
           name: default
           method: get
-          path: /api/v3/meta/list_spaces/
+          path: /api/app/v3/meta/list_spaces/
           matchSubpath: false
         authConfig:
           appVerifiedRequired: true

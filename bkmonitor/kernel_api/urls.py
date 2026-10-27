@@ -23,6 +23,7 @@ from bkmonitor.iam.views.resources_v4 import build_resource_dispatcher
 from bkmonitor.utils.common_utils import package_contents
 from core.drf_resource.routers import ResourceRouter
 from kernel_api import views
+from kernel_api.application_routes import application_urlpatterns
 from monitor_web.grafana import views as grafana_views
 
 try:
@@ -117,3 +118,5 @@ urlpatterns = [
 register_v2()
 register_v3()
 register_v4()
+
+urlpatterns.extend(application_urlpatterns(urlpatterns, installed_apis=INSTALLED_APIS))
