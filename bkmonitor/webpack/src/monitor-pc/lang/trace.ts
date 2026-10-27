@@ -207,4 +207,6 @@ export default {
   复制函数名: 'Copy function name',
   高亮相似堆栈: 'Highlight similar stacks',
   重置视图: 'Reset view',
+  'AI 诊断': 'AI Diagnosis',
+  请输入你的问题: 'Enter your question',
 };
