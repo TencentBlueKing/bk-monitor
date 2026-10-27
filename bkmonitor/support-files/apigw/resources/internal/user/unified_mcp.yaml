@@ -58,7 +58,7 @@ paths:
         enableWebsocket: false
         backend: {name: default, method: post, path: /api/v4/unified_mcp/lookup_tool/, matchSubpath: false, timeout: 30}
         pluginConfigs: []
-        authConfig: {userVerifiedRequired: true, appVerifiedRequired: false, resourcePermissionRequired: true}
+        authConfig: {userVerifiedRequired: true, appVerifiedRequired: false, resourcePermissionRequired: true, oauth2PersonalClientEnabled: true}
 
   /mcp/lookup_tool_schema/:
     post:
@@ -91,7 +91,7 @@ paths:
         enableWebsocket: false
         backend: {name: default, method: post, path: /api/v4/unified_mcp/lookup_tool_schema/, matchSubpath: false, timeout: 30}
         pluginConfigs: []
-        authConfig: {userVerifiedRequired: true, appVerifiedRequired: false, resourcePermissionRequired: true}
+        authConfig: {userVerifiedRequired: true, appVerifiedRequired: false, resourcePermissionRequired: true, oauth2PersonalClientEnabled: true}
 
   /mcp/execute_tool/:
     post:
@@ -189,7 +189,7 @@ paths:
         enableWebsocket: false
         backend: {name: default, method: post, path: /api/v4/unified_mcp/lookup_metadata/, matchSubpath: false, timeout: 30}
         pluginConfigs: []
-        authConfig: {userVerifiedRequired: true, appVerifiedRequired: false, resourcePermissionRequired: true}
+        authConfig: {userVerifiedRequired: true, appVerifiedRequired: false, resourcePermissionRequired: true, oauth2PersonalClientEnabled: true}
 
   /mcp/lookup_permissions/:
     post:
@@ -267,4 +267,4 @@ paths:
         enableWebsocket: false
         backend: {name: default, method: post, path: /api/v4/unified_mcp/lookup_permissions/, matchSubpath: false, timeout: 30}
         pluginConfigs: []
-        authConfig: {userVerifiedRequired: true, appVerifiedRequired: false, resourcePermissionRequired: true}
+        authConfig: {userVerifiedRequired: true, appVerifiedRequired: false, resourcePermissionRequired: true, oauth2PersonalClientEnabled: true}

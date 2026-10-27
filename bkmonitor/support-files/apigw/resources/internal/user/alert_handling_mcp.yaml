@@ -75,6 +75,7 @@ paths:
           userVerifiedRequired: true
           appVerifiedRequired: false
           resourcePermissionRequired: true
+          oauth2PersonalClientEnabled: true
   /mcp/get_alarm_strategy/:
     post:
       operationId: get_alarm_strategy
@@ -143,6 +144,7 @@ paths:
           userVerifiedRequired: true
           appVerifiedRequired: false
           resourcePermissionRequired: true
+          oauth2PersonalClientEnabled: true
   /mcp/create_alarm_strategy/:
     post:
       operationId: create_alarm_strategy
@@ -674,6 +676,7 @@ paths:
           userVerifiedRequired: true
           appVerifiedRequired: false
           resourcePermissionRequired: true
+          oauth2PersonalClientEnabled: true
   /mcp/get_alarm_shield/:
     get:
       operationId: get_alarm_shield
@@ -709,6 +712,7 @@ paths:
           userVerifiedRequired: true
           appVerifiedRequired: false
           resourcePermissionRequired: true
+          oauth2PersonalClientEnabled: true
   /mcp/create_alarm_shield/:
     post:
       operationId: create_alarm_shield
@@ -1077,6 +1081,7 @@ paths:
           userVerifiedRequired: true
           appVerifiedRequired: false
           resourcePermissionRequired: true
+          oauth2PersonalClientEnabled: true
   /mcp/create_alarm_notice_group/:
     post:
       operationId: create_alarm_notice_group
@@ -1337,6 +1342,7 @@ paths:
           userVerifiedRequired: true
           appVerifiedRequired: false
           resourcePermissionRequired: true
+          oauth2PersonalClientEnabled: true
   /mcp/get_alarm_action_config/:
     get:
       operationId: get_alarm_action_config
@@ -1372,6 +1378,7 @@ paths:
           userVerifiedRequired: true
           appVerifiedRequired: false
           resourcePermissionRequired: true
+          oauth2PersonalClientEnabled: true
   /mcp/update_alarm_action_config/:
     post:
       operationId: update_alarm_action_config
@@ -1481,6 +1488,7 @@ paths:
           userVerifiedRequired: true
           appVerifiedRequired: false
           resourcePermissionRequired: true
+          oauth2PersonalClientEnabled: true
   /mcp/save_alarm_assign_group/:
     post:
       operationId: save_alarm_assign_group

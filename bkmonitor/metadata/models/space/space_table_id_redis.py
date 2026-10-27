@@ -15,7 +15,8 @@ import logging
 from typing import Any
 
 from django.conf import settings
-from django.db.models import Q
+from django.db import DatabaseError
+from django.db.models import Exists, OuterRef, Q
 from django.utils.timezone import now as tz_now
 
 from constants.apm import ApmGlobalTablePrefix
@@ -69,6 +70,7 @@ class SpaceTableIDRedis:
 
     SUPPORT_SPACE_TYPES = {SpaceTypes.BKCC.value, SpaceTypes.BKCI.value, SpaceTypes.BKSAAS.value}
     TABLE_ID_DETAIL_BATCH_SIZE = 500
+    APM_APPLICATION_NAME_LABEL = "apm_application_name"
 
     def push_space_table_ids(self, space_type: str, space_id: str, is_publish: bool | None = False):
         """
@@ -429,8 +431,8 @@ class SpaceTableIDRedis:
     ) -> dict[str, dict]:
         """按旧契约组装 InfluxDB、VM 及预计算结果表详情。
 
-        该函数刻意不复用 ES/Doris 的历史路由结构：指标 payload 的字段、默认值、
-        measurement type、字段顺序和 Redis field 都保持不变。指定列表中只要命中普通
+        该函数刻意不复用 ES/Doris 的历史路由结构：指标 payload 的既有结构、默认值、
+        measurement type 和 Redis field 保持不变，labels 补充可确定的应用归属。指定列表中只要命中普通
         指标表，就延续旧行为附带当前租户的全部 RecordRule；仅指定日志表时则不附带。
 
         :param bk_tenant_id: 用于约束所有具备租户字段的指标元数据查询。
@@ -467,6 +469,13 @@ class SpaceTableIDRedis:
             other_filter=tenant_filter,
         )
         table_id_data_id = {drt["table_id"]: drt["bk_data_id"] for drt in ds_rt_filter_data}
+        table_id_data_ids: dict[str, set[int]] = {}
+        for drt in ds_rt_filter_data:
+            table_id_data_ids.setdefault(drt["table_id"], set()).add(drt["bk_data_id"])
+        data_id_application_names = self._compose_apm_application_names(
+            bk_tenant_id=bk_tenant_id,
+            data_ids={drt["bk_data_id"] for drt in ds_rt_filter_data},
+        )
         measurement_type_dict = get_measurement_type_by_table_id(
             table_ids,
             table_list,
@@ -485,7 +494,15 @@ class SpaceTableIDRedis:
             detail["measurement_type"] = measurement_type_dict.get(table_id) or ""
             detail["bcs_cluster_id"] = table_id_cluster_id.get(table_id) or ""
             detail["data_label"] = table_id_dict.get(table_id, {}).get("data_label") or ""
-            detail["labels"] = table_id_dict.get(table_id, {}).get("labels") or {}
+            labels = dict(table_id_dict.get(table_id, {}).get("labels") or {})
+            # 应用归属由当前映射生成，避免旧标签在共享、迁移或映射删除后继续裁剪候选表。
+            labels.pop(self.APM_APPLICATION_NAME_LABEL, None)
+            application_names = {
+                data_id_application_names.get(data_id) for data_id in table_id_data_ids.get(table_id, ())
+            }
+            if table_id in table_id_dict and len(application_names) == 1 and None not in application_names:
+                labels[self.APM_APPLICATION_NAME_LABEL] = application_names.pop()
+            detail["labels"] = labels
             detail["bk_data_id"] = table_id_data_id.get(table_id, 0)
             result[table_id] = detail
 
@@ -493,6 +510,73 @@ class SpaceTableIDRedis:
         if table_id_detail or not table_id_list:
             result.update(self._compose_record_rule_table_id_detail(bk_tenant_id=bk_tenant_id))
         return result
+
+    @staticmethod
+    def _compose_apm_application_names(*, bk_tenant_id: str, data_ids: set[int]) -> dict[int, str]:
+        """通过 DataID 获取可确定的 APM 应用归属，覆盖默认表及同源的独立指标表。
+
+        MetricDataSource 本身没有租户字段，使用应用的业务、原始名称和租户共同验证。
+        保留未匹配的映射参与判定；共享、缺失或多应用映射不提供单值路由标签。
+        已停用或软删除的应用仍可描述历史数据的归属，因此不按应用状态过滤。
+        """
+        if not data_ids:
+            return {}
+
+        # 延迟导入，避免 metadata 和 APM 模型初始化期间相互引用。
+        from apm.models import ApmApplication, MetricDataSource
+
+        try:
+            application_query = ApmApplication.origin_objects.filter(
+                bk_tenant_id=bk_tenant_id,
+                bk_biz_id=OuterRef("bk_biz_id"),
+                app_name=OuterRef("app_name"),
+            )
+            data_source_query = models.DataSource.objects.filter(
+                bk_tenant_id=bk_tenant_id,
+                bk_data_id=OuterRef("bk_data_id"),
+            )
+            data_sources = filter_query_set_by_in_page(
+                query_set=MetricDataSource.objects.annotate(
+                    apm_tenant_matches=Exists(application_query),
+                    data_source_tenant_matches=Exists(data_source_query),
+                ),
+                field_op="bk_data_id__in",
+                filter_data=data_ids,
+                value_func="values",
+                value_field_list=[
+                    "bk_data_id",
+                    "app_name",
+                    "result_table_id",
+                    "shared_datasource_id",
+                    "apm_tenant_matches",
+                    "data_source_tenant_matches",
+                ],
+            )
+        except DatabaseError:
+            # 应用归属只用于候选表裁剪；查询失败时继续发布无归属的基础路由。
+            logger.exception("compose apm application names failed, tenant: %s", bk_tenant_id)
+            return {}
+
+        application_names: dict[int, set[str]] = {}
+        untrusted_data_ids: set[int] = set()
+        for data_source in data_sources:
+            data_id = data_source["bk_data_id"]
+            if (
+                not data_source["apm_tenant_matches"]
+                or not data_source["data_source_tenant_matches"]
+                or not data_source["app_name"].strip()
+                or not data_source["result_table_id"].strip()
+                or data_source["shared_datasource_id"] is not None
+            ):
+                untrusted_data_ids.add(data_id)
+                continue
+            application_names.setdefault(data_id, set()).add(data_source["app_name"])
+
+        return {
+            data_id: next(iter(names))
+            for data_id, names in application_names.items()
+            if len(names) == 1 and data_id not in untrusted_data_ids
+        }
 
     def _compose_log_table_id_detail(
         self,

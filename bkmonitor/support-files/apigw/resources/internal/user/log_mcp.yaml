@@ -28,6 +28,7 @@ paths:
           userVerifiedRequired: true
           appVerifiedRequired: false
           resourcePermissionRequired: true
+          oauth2PersonalClientEnabled: true
   /mcp/get_index_set_fields/:
     get:
       operationId: get_index_set_fields
@@ -63,6 +64,7 @@ paths:
           userVerifiedRequired: true
           appVerifiedRequired: false
           resourcePermissionRequired: true
+          oauth2PersonalClientEnabled: true
   /mcp/search_logs/:
     post:
       operationId: search_logs
@@ -204,6 +206,7 @@ paths:
           userVerifiedRequired: true
           appVerifiedRequired: false
           resourcePermissionRequired: true
+          oauth2PersonalClientEnabled: true
   /mcp/search_index_set_context/:
     post:
       operationId: search_index_set_context
@@ -275,6 +278,7 @@ paths:
           userVerifiedRequired: true
           appVerifiedRequired: false
           resourcePermissionRequired: true
+          oauth2PersonalClientEnabled: true
   /mcp/list_log_scenes/:
     get:
       operationId: list_log_scenes
@@ -304,6 +308,7 @@ paths:
           userVerifiedRequired: true
           appVerifiedRequired: false
           resourcePermissionRequired: true
+          oauth2PersonalClientEnabled: true
   /mcp/list_scene_dimension_values/:
     post:
       operationId: list_scene_dimension_values
@@ -375,6 +380,7 @@ paths:
           userVerifiedRequired: true
           appVerifiedRequired: false
           resourcePermissionRequired: true
+          oauth2PersonalClientEnabled: true
   /mcp/get_scene_log_fields/:
     post:
       operationId: get_scene_log_fields
@@ -441,6 +447,7 @@ paths:
           userVerifiedRequired: true
           appVerifiedRequired: false
           resourcePermissionRequired: true
+          oauth2PersonalClientEnabled: true
   /mcp/analyze_field/:
     post:
       operationId: analyze_field
@@ -541,6 +548,7 @@ paths:
           userVerifiedRequired: true
           appVerifiedRequired: false
           resourcePermissionRequired: true
+          oauth2PersonalClientEnabled: true
   /mcp/search_log_clustering_pattern/:
     post:
       operationId: search_log_clustering_pattern
@@ -620,3 +628,4 @@ paths:
           userVerifiedRequired: true
           appVerifiedRequired: false
           resourcePermissionRequired: true
+          oauth2PersonalClientEnabled: true

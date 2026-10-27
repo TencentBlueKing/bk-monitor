@@ -80,7 +80,6 @@ from apps.log_databus.exceptions import (
     ResultTableNotExistException,
     SubscriptionInfoNotFoundException,
     CollectorIdNotExistException,
-    SubscriptionStatisticException,
 )
 from apps.log_databus.handlers.collector_scenario import CollectorScenario
 from apps.log_databus.handlers.collector_scenario.custom_define import get_custom
@@ -1369,11 +1368,7 @@ class CollectorHandler:
             if isinstance(ret, Exception):
                 # 子查询异常
                 logger.exception("subscription id(%s),subscription statistic failed：%s", key, ret)
-                raise SubscriptionStatisticException(
-                    SubscriptionStatisticException.MESSAGE.format(
-                        reason=f"subscription id({key}),subscription statistic failed：{ret}"
-                    )
-                )
+                continue
             status_result.extend(ret)
 
         # 如果没有订阅ID，则直接返回

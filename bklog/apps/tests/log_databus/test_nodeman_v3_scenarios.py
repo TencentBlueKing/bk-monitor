@@ -30,6 +30,7 @@ from apps.log_databus.nodeman_v3.constants import (
     SPEC_TYPE_SPECIFY_PLUGIN,
     SPEC_TYPE_SPECIFY_PLUGIN_SUB_CONFIG_TEMPLATE,
 )
+from apps.log_databus.nodeman_v3.exceptions import NodeManV3CapabilityBlocked
 from apps.log_databus.nodeman_v3.identity import build_sub_config_name
 from apps.log_databus.nodeman_v3.policy import SubscriptionStepsTranslator, build_policy_payload
 from apps.tests.log_databus.nodeman_v3_test_utils import nodeman_v3_toggle
@@ -296,6 +297,41 @@ class V2OutboundZeroGateTest(TestCase):
         last = collector_updates[-1]["deploy_policies"][0]
         self.assertEqual(last["scopes"], [])
         self.assertTrue(last["enabled"])
+
+    def test_blocked_dynamic_template_update_does_not_block_stop_or_destroy(self):
+        from apps.log_databus.nodeman_v3.installer import NodeManV3CollectorInstaller
+        from apps.log_databus.nodeman_v3.models import NodeManV3Binding
+
+        for offset, cleanup_action in enumerate(("stop", "destroy"), start=1):
+            with self.subTest(cleanup_action=cleanup_action):
+                collector_config = SimpleNamespace(**vars(self.collector_config))
+                collector_config.collector_config_id += offset
+                collector_config.bk_data_id += offset
+                collector_config.params = dict(self.collector_config.params)
+                installer = NodeManV3CollectorInstaller(collector_config)
+
+                installer.apply(collector_config.params)
+                collector_config.params["extra_labels"] = [
+                    {"key": "host_name", "value": "{{cmdb_instance.host.bk_host_name}}"}
+                ]
+
+                # 新配置仍应失败关闭，不能把未支持的动态模板下发。
+                with self.assertRaises(NodeManV3CapabilityBlocked):
+                    installer.apply(collector_config.params)
+
+                operation = getattr(installer, cleanup_action)()
+                self.assertIsNotNone(operation)
+
+                cleanup_payload = self.v3_client.payloads_of("update", "collector")[-1]
+                policy = cleanup_payload["deploy_policies"][0]
+                self.assertEqual(policy["scopes"], [])
+                self.assertEqual(policy["specs"], [])
+                self.assertFalse(cleanup_payload["fields"]["specs"])
+                self.assertNotIn("cmdb_instance", str(cleanup_payload))
+
+                binding = NodeManV3Binding.objects.get(collector_config_id=collector_config.collector_config_id)
+                self.assertFalse(binding.is_enabled)
+                self.assertEqual(binding.desired_scopes, [])
 
 
 class AuditPrefixTest(TestCase):

@@ -28,6 +28,7 @@ paths:
           userVerifiedRequired: true
           appVerifiedRequired: false
           resourcePermissionRequired: true
+          oauth2PersonalClientEnabled: true
   /mcp/get_dashboard_detail_by_uid/:
     get:
       operationId: get_dashboard_detail_by_uid
@@ -63,6 +64,7 @@ paths:
           userVerifiedRequired: true
           appVerifiedRequired: false
           resourcePermissionRequired: true
+          oauth2PersonalClientEnabled: true
   /mcp/create_dashboard/:
     post:
       operationId: create_dashboard

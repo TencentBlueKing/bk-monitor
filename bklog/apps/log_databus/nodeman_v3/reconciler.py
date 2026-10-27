@@ -154,6 +154,7 @@ class PolicyReconcilerBase:
         *,
         operation_type: str,
         force: bool = False,
+        update_fields: dict[str, bool] | None = None,
     ) -> NodeManV3Operation | None:
         """
         把一条策略的期望态推到节点管理并触发一次收敛。
@@ -189,7 +190,7 @@ class PolicyReconcilerBase:
                 },
             )
 
-        self._dispatch(binding, operation, payload, fingerprint)
+        self._dispatch(binding, operation, payload, fingerprint, update_fields=update_fields)
         return operation
 
     def _dispatch(
@@ -198,6 +199,8 @@ class PolicyReconcilerBase:
         operation: NodeManV3Operation,
         payload: dict,
         fingerprint: str,
+        *,
+        update_fields: dict[str, bool] | None = None,
     ) -> None:
         client = get_client(self.bk_biz_id, operation_id=str(operation.id))
 
@@ -207,6 +210,12 @@ class PolicyReconcilerBase:
         try:
             deploy_policy_id = binding.deploy_policy_id or self.recover_deploy_policy_id(binding)
             if deploy_policy_id:
+                update_fields = update_fields or {
+                    "meta": True,
+                    "scopes": True,
+                    "specs": True,
+                    "enabled": True,
+                }
                 client.update_deploy_policy(
                     {
                         "deploy_policies": [
@@ -221,10 +230,16 @@ class PolicyReconcilerBase:
                                 "enabled": payload["enabled"],
                             }
                         ],
-                        "fields": {"meta": True, "scopes": True, "specs": True, "enabled": True},
+                        "fields": update_fields,
                     }
                 )
             else:
+                if update_fields and not update_fields.get("specs", True):
+                    raise NodeManV3CapabilityBlocked(
+                        NodeManV3CapabilityBlocked.MESSAGE.format(
+                            err=_("未找到已部署策略，无法在保留原配置规格的前提下清空目标范围")
+                        )
+                    )
                 created = client.create_deploy_policy(payload)
                 deploy_policy_id = int(created.get("deploy_policy_id") or 0)
                 if not deploy_policy_id:
@@ -466,6 +481,65 @@ class CollectorPolicyReconciler(PolicyReconcilerBase):
                     f"collector_config_id={self.collector_config.collector_config_id}, "
                     f"sub configs are already removed, will retry on next reconcile"
                 )
+
+        return operation
+
+    def remove_all_targets(self) -> NodeManV3Operation | None:
+        """
+        清空已部署策略的目标范围，但保留 NodeMan 侧当前 specs。
+
+        停用/删除是清理动作，不能依赖采集项当前待下发参数仍可通过准入校验。采集项可能已经
+        保存了 V3 暂不支持的动态模板，此时 apply 应失败关闭，但旧采集仍必须可以被移除。
+        """
+        binding = self.get_or_create_binding()
+        payload = {
+            "name": build_policy_name(self.collector_config.collector_config_id),
+            "description": self.collector_config.description
+            or f"bklog collector config {self.collector_config.collector_config_id}",
+            "enabled": True,
+            # specs=False 的字段掩码保证 NodeMan 保留已部署规格；空列表只用于本地指纹和审计摘要，
+            # 不能把当前可能含动态模板的待下发参数带进清理请求。
+            "specs": [],
+            "scopes": [],
+        }
+        fingerprint = calculate_fingerprint(payload)
+        collector_changed = binding.policy_fingerprint != fingerprint or not binding.deploy_policy_id
+
+        if binding.desired_scopes or binding.is_enabled:
+            binding.desired_scopes = []
+            binding.is_enabled = False
+            binding.save(update_fields=["desired_scopes", "is_enabled", "updated_at", "updated_by"])
+
+        operation = None
+        if collector_changed:
+            operation = self._apply_desired_state(
+                payload,
+                operation_type=NodeManV3OperationType.REMOVE,
+                force=True,
+                update_fields={"meta": True, "scopes": True, "specs": False, "enabled": True},
+            )
+        else:
+            logger.info(
+                f"[nodeman_v3] desired state unchanged, skip remove targets, "
+                f"collector_config_id={self.collector_config.collector_config_id}"
+            )
+
+        self._sync_target_snapshot_after_dispatch(
+            binding,
+            payload,
+            list(binding.sub_config_template_names or []),
+            [],
+        )
+
+        # 停用方向先摘子配置，再收窄安装范围；后者失败不能回滚已完成的清理。
+        try:
+            CollectorPluginReconciler(self.bk_biz_id).reconcile()
+        except Exception:  # pylint: disable=broad-except
+            logger.exception(
+                f"[nodeman_v3] failed to shrink install policy scope after stopping "
+                f"collector_config_id={self.collector_config.collector_config_id}, "
+                f"sub configs are already removed, will retry on next reconcile"
+            )
 
         return operation
 

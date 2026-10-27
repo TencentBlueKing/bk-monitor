@@ -21,10 +21,7 @@ the project delivered to anyone in the future.
 
 from apps.log_databus.handlers.collector_scenario import CollectorScenario
 from apps.log_databus.models import CollectorConfig
-from apps.log_databus.nodeman_v3.constants import (
-    NodeManV3OperationType,
-    RESOURCE_TYPE_COLLECTOR_CONFIG,
-)
+from apps.log_databus.nodeman_v3.constants import RESOURCE_TYPE_COLLECTOR_CONFIG
 from apps.log_databus.nodeman_v3.identity import build_resource_key
 from apps.log_databus.nodeman_v3.models import NodeManV3Binding
 from apps.log_databus.nodeman_v3.reconciler import CollectorPolicyReconciler
@@ -107,8 +104,9 @@ class NodeManV3CollectorInstaller:
             )
             return None
 
-        steps = self.build_steps(self._stored_params())
-        return self.reconciler.reconcile(steps, target_nodes=[], operation_type=NodeManV3OperationType.REMOVE)
+        # 清理必须与当前待下发参数解耦：一次被准入门禁拒绝的配置保存，不能反过来阻止
+        # 已部署采集的停用/删除。reconciler 只清空 scopes，并通过字段掩码保留远端 specs。
+        return self.reconciler.remove_all_targets()
 
     def _has_deployed_policy(self) -> bool:
         binding = NodeManV3Binding.objects.filter(

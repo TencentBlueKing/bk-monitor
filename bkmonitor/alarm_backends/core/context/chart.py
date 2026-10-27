@@ -25,13 +25,16 @@ from django.utils.translation import gettext as _
 from alarm_backends.constants import CONST_ONE_DAY
 from alarm_backends.core.control.item import Item
 from alarm_backends.core.i18n import i18n
-from bkmonitor.browser import get_browser, get_or_create_eventloop
+from bkmonitor.browser import get_browser, get_or_create_eventloop, kill_browser
 from bkmonitor.utils import time_tools
 from constants.data_source import DataTypeLabel
 from constants.strategy import AGG_METHOD_REAL_TIME
 from core.unit import load_unit
 
 logger = logging.getLogger("fta_action.run")
+
+# 单次出图渲染上限（秒），须远小于消息队列的 consumer 超时，否则卡住的渲染会拖死整个 worker
+RENDER_TIMEOUT = 30
 
 
 async def render_html(html_file_path: str) -> bytes | None:
@@ -78,7 +81,13 @@ def get_chart_image(chart_data) -> str:
             f.flush()
 
             loop = get_or_create_eventloop()
-            img_bytes = loop.run_until_complete(render_html(f.name))
+            try:
+                img_bytes = loop.run_until_complete(asyncio.wait_for(render_html(f.name), RENDER_TIMEOUT))
+            except Exception as e:
+                # 渲染超时或失败后浏览器状态不可信，直接杀掉，下次重新拉起
+                kill_browser()
+                logger.exception(f"[render_alarm_graph] render failed, browser killed: {e!r}")
+                return ""
             if not img_bytes:
                 return ""
 

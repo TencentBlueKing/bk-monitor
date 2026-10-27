@@ -718,6 +718,28 @@ class ReconcileBehaviourTest(TestCase):
         # 被 disable 的策略不再参与收敛，已下发的子配置会残留在主机上继续采集
         self.assertTrue(policy["enabled"])
 
+    def test_remove_all_targets_preserves_deployed_specs(self):
+        self._reconciler().reconcile(build_steps())
+
+        operation = self._reconciler().remove_all_targets()
+
+        self.assertIsNotNone(operation)
+        update_payload = self.client.payloads_of("update", "collector")[-1]
+        policy = update_payload["deploy_policies"][0]
+        self.assertEqual(policy["scopes"], [])
+        self.assertEqual(policy["specs"], [])
+        self.assertFalse(update_payload["fields"]["specs"])
+
+    def test_repeated_remove_all_targets_is_idempotent(self):
+        self._reconciler().reconcile(build_steps())
+        self._reconciler().remove_all_targets()
+        before = len(self.client.write_calls())
+
+        second = self._reconciler().remove_all_targets()
+
+        self.assertIsNone(second)
+        self.assertEqual(len(self.client.write_calls()), before)
+
     def test_repeated_stop_is_idempotent(self):
         from apps.log_databus.nodeman_v3.constants import NodeManV3OperationType
 
