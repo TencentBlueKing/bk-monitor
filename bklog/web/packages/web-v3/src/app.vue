@@ -19,11 +19,26 @@
 -->
 
 <script setup lang="ts">
-  import { version } from 'vue';
+  import { ref, version } from 'vue';
+
+  import { LabelTargetActions } from './adapters/bk-magic/label-target-actions.mjs';
+  import { WorkloadTypeSelect } from './adapters/bk-magic/workload-type-select.mjs';
+
+  const filterStr = ref('');
+  const workloadType = ref('');
+  const typeOptions = [{ id: 'Deployment', name: 'Deployment' }];
 </script>
 
 <template>
   <main data-testid="web-v3-shell">
     <p data-testid="web-v3-vue-version">{{ version }}</p>
+    <LabelTargetActions
+      v-model:filter-str="filterStr"
+      :has-selection="false"
+    />
+    <WorkloadTypeSelect
+      v-model="workloadType"
+      :options="typeOptions"
+    />
   </main>
 </template>

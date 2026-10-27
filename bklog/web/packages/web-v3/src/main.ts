@@ -25,7 +25,11 @@
  */
 
 import { createApp } from 'vue';
+import 'tdesign-vue-next/es/button/style/index.css';
+import 'tdesign-vue-next/es/input/style/index.css';
+import 'tdesign-vue-next/es/select/style/index.css';
 
 import App from './app.vue';
+import './styles/tokens.css';
 
 createApp(App).mount('#app');

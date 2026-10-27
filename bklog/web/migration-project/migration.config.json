@@ -2,7 +2,7 @@
   "task": {
     "tapdId": "1010158081139460519",
     "tapdShortId": "139460519",
-    "phase": "P1",
+    "phase": "P3",
     "branch": "feat/ai-migration-engine/#139460519"
   },
   "sourceProject": "..",
@@ -11,7 +11,7 @@
     "source": "bk-magic-vue",
     "sourceVersion": "2.5.10-beta.15",
     "target": "tdesign-vue-next",
-    "targetVersion": null
+    "targetVersion": "1.20.10"
   },
   "migration": {
     "strategy": "incremental",

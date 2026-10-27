@@ -1,0 +1,19 @@
+[
+  { "id": "beforeDestroy", "pattern": "beforeDestroy\\s*\\(", "flags": "g", "disposition": "Vue 3 改为 beforeUnmount，P4 前不批量替换" },
+  { "id": "destroyed", "pattern": "(?<!before)destroyed\\s*\\(", "flags": "g", "disposition": "Vue 3 改为 unmounted" },
+  { "id": "dollar-on", "pattern": "\\$on\\s*\\(", "flags": "g", "disposition": "实例事件 API 已移除，改为 mitt 或组件事件；先确认是业务事件还是第三方" },
+  { "id": "dollar-off", "pattern": "\\$off\\s*\\(", "flags": "g", "disposition": "与 $on 一起替换" },
+  { "id": "dollar-once", "pattern": "\\$once\\s*\\(", "flags": "g", "disposition": "与 $on 一起替换" },
+  { "id": "dollar-set", "pattern": "\\$set\\s*\\(", "flags": "g", "disposition": "Vue 3 响应式不需要 $set" },
+  { "id": "dollar-delete", "pattern": "\\$delete\\s*\\(", "flags": "g", "disposition": "改为 delete 响应式对象属性" },
+  { "id": "dollar-children", "pattern": "\\$children\\b", "flags": "g", "disposition": "改为模板 ref 或 provide/inject" },
+  { "id": "filters-option", "pattern": "\\bfilters\\s*:\\s*\\{", "flags": "g", "disposition": "过滤器已移除，改为函数或计算属性" },
+  { "id": "vue-filter", "pattern": "Vue\\.filter\\s*\\(", "flags": "g", "disposition": "全局过滤器已移除" },
+  { "id": "vue-prototype", "pattern": "Vue\\.prototype\\.", "flags": "g", "disposition": "改为 app.config.globalProperties" },
+  { "id": "vue-mixin", "pattern": "Vue\\.mixin\\s*\\(", "flags": "g", "disposition": "全局 mixin 改为组合函数，先逐个核对副作用" },
+  { "id": "slot-scope", "pattern": "\\bslot-scope\\b", "flags": "g", "disposition": "改为 v-slot" },
+  { "id": "sync-modifier", "pattern": "\\.sync\\s*=", "flags": "g", "disposition": "改为 v-model 参数" },
+  { "id": "functional-component", "pattern": "functional\\s*:\\s*true", "flags": "g", "disposition": "函数式组件写法改为普通函数组件" },
+  { "id": "new-vue", "pattern": "new Vue\\s*\\(", "flags": "g", "disposition": "改为 createApp" },
+  { "id": "vue-extend", "pattern": "Vue\\.extend\\s*\\(", "flags": "g", "disposition": "改为 defineComponent" }
+]

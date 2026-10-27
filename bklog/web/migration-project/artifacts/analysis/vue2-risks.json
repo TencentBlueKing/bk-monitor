@@ -2,7 +2,7 @@
   {
     "id": "beforeDestroy",
     "count": 20,
-    "disposition": "Vue 3 改为 beforeUnmount，P3 规则检测，P4 前不批量替换",
+    "disposition": "Vue 3 改为 beforeUnmount，P4 前不批量替换",
     "files": [
       {
         "file": "src/common/api-error-toast.vue",

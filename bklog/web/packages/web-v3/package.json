@@ -8,14 +8,17 @@
   "scripts": {
     "dev": "vite --host 127.0.0.1 --port 4173",
     "build": "vite build",
-    "test": "node --test src/vue-runtime.test.mjs"
+    "test": "node --test src/vue-runtime.test.mjs src/adapters/bk-magic/adapter-contract.test.mjs"
   },
   "dependencies": {
+    "tdesign-vue-next": "^1.20.10",
     "vue": "^3.5.13",
     "vue-router": "^4.5.0"
   },
   "devDependencies": {
     "@vitejs/plugin-vue": "^5.2.4",
+    "@vue/server-renderer": "3.5.44",
+    "pngjs": "^7.0.0",
     "typescript": "^5.7.3",
     "vite": "^6.0.11"
   }

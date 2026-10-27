@@ -28,6 +28,8 @@ import { mkdirSync, readdirSync, readFileSync, statSync, writeFileSync } from 'n
 import { dirname, extname, join, relative, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
+import { loadRules } from './migration-engine/load-rules.mjs';
+
 const here = dirname(fileURLToPath(import.meta.url));
 const config = JSON.parse(readFileSync(resolve(here, 'migration.config.json'), 'utf8'));
 const sourceRoot = resolve(here, config.sourceProject);
@@ -36,25 +38,7 @@ const outDir = resolve(here, 'artifacts/analysis');
 const planDir = resolve(here, 'migration-plan');
 
 const sourceExtensions = new Set(['.vue', '.js', '.ts', '.tsx', '.jsx']);
-const riskRules = [
-  { id: 'beforeDestroy', re: /beforeDestroy\s*\(/g, disposition: 'Vue 3 改为 beforeUnmount，P3 规则检测，P4 前不批量替换' },
-  { id: 'destroyed', re: /(?<!before)destroyed\s*\(/g, disposition: 'Vue 3 改为 unmounted' },
-  { id: 'dollar-on', re: /\$on\s*\(/g, disposition: '实例事件 API 已移除，改为 mitt 或组件事件；先确认是业务事件还是第三方' },
-  { id: 'dollar-off', re: /\$off\s*\(/g, disposition: '与 $on 一起替换' },
-  { id: 'dollar-once', re: /\$once\s*\(/g, disposition: '与 $on 一起替换' },
-  { id: 'dollar-set', re: /\$set\s*\(/g, disposition: 'Vue 3 响应式不需要 $set' },
-  { id: 'dollar-delete', re: /\$delete\s*\(/g, disposition: '改为 delete 响应式对象属性' },
-  { id: 'dollar-children', re: /\$children\b/g, disposition: '改为模板 ref 或 provide/inject' },
-  { id: 'filters-option', re: /\bfilters\s*:\s*\{/g, disposition: '过滤器已移除，改为函数或计算属性' },
-  { id: 'vue-filter', re: /Vue\.filter\s*\(/g, disposition: '全局过滤器已移除' },
-  { id: 'vue-prototype', re: /Vue\.prototype\./g, disposition: '改为 app.config.globalProperties' },
-  { id: 'vue-mixin', re: /Vue\.mixin\s*\(/g, disposition: '全局 mixin 改为组合函数，先逐个核对副作用' },
-  { id: 'slot-scope', re: /\bslot-scope\b/g, disposition: '改为 v-slot' },
-  { id: 'sync-modifier', re: /\.sync\s*=/g, disposition: '改为 v-model 参数' },
-  { id: 'functional-component', re: /functional\s*:\s*true/g, disposition: '函数式组件写法改为普通函数组件' },
-  { id: 'new-vue', re: /new Vue\s*\(/g, disposition: '改为 createApp' },
-  { id: 'vue-extend', re: /Vue\.extend\s*\(/g, disposition: '改为 defineComponent' },
-];
+const riskRules = loadRules(resolve(here, 'migration-engine/rules/vue2-to-vue3.json'));
 const styleRules = [
   { id: 'v-deep', re: /::v-deep|\/deep\/|>>>/g, disposition: '改为 :deep()' },
   { id: 'deep-fn', re: /:deep\s*\(/g, disposition: '已是 Vue 3 推荐写法，迁移时保留' },

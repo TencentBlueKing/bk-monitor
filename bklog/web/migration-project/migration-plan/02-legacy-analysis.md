@@ -140,7 +140,7 @@
 
 | ID | 命中 | 处置 |
 | --- | --- | --- |
-| beforeDestroy | 20 | Vue 3 改为 beforeUnmount，P3 规则检测，P4 前不批量替换 |
+| beforeDestroy | 20 | Vue 3 改为 beforeUnmount，P4 前不批量替换 |
 | destroyed | 1 | Vue 3 改为 unmounted |
 | dollar-on | 3 | 实例事件 API 已移除，改为 mitt 或组件事件；先确认是业务事件还是第三方 |
 | dollar-off | 2 | 与 $on 一起替换 |
