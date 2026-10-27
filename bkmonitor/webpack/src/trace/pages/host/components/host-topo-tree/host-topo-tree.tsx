@@ -307,7 +307,11 @@ export default defineComponent({
           </div>
         </div>
         {!ctx.fullTreeReady.value && ctx.fullTreeError.value && !ctx.scopeError.value && (
-          <div class='host-topo-tree__notice'>
+          <div
+            class='host-topo-tree__notice'
+            aria-live='polite'
+            role='status'
+          >
             <span>{t('完整拓扑加载失败')}</span>
             <Button
               text
