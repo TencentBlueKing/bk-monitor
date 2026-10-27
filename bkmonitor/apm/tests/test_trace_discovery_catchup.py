@@ -106,36 +106,18 @@ def make_span(name, kind, end):
     return {"resource": {"service.name": name}, "kind": kind, "end_time": end * 1000000}
 
 
-def test_prefer_non_internal_but_keep_internal_only_and_latest_heartbeat(discovery, mocker):
-    latest = [make_span("mixed", 1, 9900), make_span("internal-only", 1, 9800), make_span("server", 2, 9700)]
-    older_server = make_span("mixed", 2, 8000)
-    discovery.query.side_effect = [latest, [older_server]]
+def test_single_collapse_uses_kind_priority_and_selected_span_heartbeat(discovery, mocker):
+    selected = [make_span("mixed", 3, 8000), make_span("internal-only", 1, 9800), make_span("server", 2, 9700)]
+    discovery.query.return_value = selected
     discover = mocker.patch.object(discovery.handler, "_discover_spans", return_value=True)
     assert discovery.handler.discover() is True
-    assert discovery.query.call_count == 2
+    discovery.query.assert_called_once()
     call = discovery.query.call_args
     assert call.args == (6400, 10000)
     assert call.kwargs["limit"] == 10000
-    assert call.kwargs["filters"] == [
-        {"key": "kind", "operator": "not_equal", "value": [1]},
-    ]
-    assert discover.call_args.args[0] == [older_server, latest[1], latest[2]]
-    assert discovery.heartbeat.call_args.args[3] == {"mixed": 9900, "internal-only": 9800, "server": 9700}
-
-
-def test_non_internal_latest_does_not_need_second_query(discovery):
-    discovery.query.return_value = [make_span("server", 2, 9700)]
-    assert discovery.handler.discover() is True
-    assert discovery.query.call_count == 1
-
-
-def test_preferred_query_failure_keeps_checkpoint(discovery):
-    discovery.client.set(discovery.key, 7000)
-    discovery.query.side_effect = [[make_span("mixed", 1, 9900)], RuntimeError("query unavailable")]
-    with pytest.raises(RuntimeError):
-        discovery.handler.discover()
-    assert discovery.client.get(discovery.key) == "7000"
-    discovery.heartbeat.assert_not_called()
+    assert call.kwargs["sort"] == ["kind desc", "end_time desc"]
+    assert discover.call_args.args[0] == selected
+    assert discovery.heartbeat.call_args.args[3] == {"mixed": 8000, "internal-only": 9800, "server": 9700}
 
 
 def test_discoverer_failure_is_not_logged_as_success(discovery, mocker, caplog):
@@ -212,7 +194,7 @@ def test_legacy_task_without_headers_and_failure_logs(mocker, caplog):
     assert "status=failed" in caplog.text
 
 
-def test_filtered_collapse_keeps_latest_order_and_application_guard(mocker):
+def test_collapse_keeps_kind_then_time_order_and_application_guard(mocker):
     from apm.core.handlers.query.span_query import SpanQuery
     from bkmonitor.data_source.utils.apm import TraceDatasourceTarget
 
@@ -223,20 +205,16 @@ def test_filtered_collapse_keeps_latest_order_and_application_guard(mocker):
         100,
         200,
         "resource.service.name",
-        filters=[
-            {"key": "kind", "operator": "not_equal", "value": [1]},
-            {"key": "resource.service.name", "operator": "equal", "value": ["mixed"]},
-        ],
+        sort=["kind desc", "end_time desc"],
     )
     body = request.call_args.kwargs["query_body"]
-    assert body["order_by"] == ["-end_time"]
+    assert body["order_by"] == ["-kind", "-end_time"]
     config = body["query_configs"][0]
     assert config["distinct"] == "resource.service.name"
     assert config["select"] == []
-    assert "kind" in str(config["filter_dict"])
+    assert "kind" not in str(config["filter_dict"])
     assert "app_name" in str(config["filter_dict"])
     assert "bk_biz_id" in str(config["filter_dict"])
-    assert "mixed" in str(config["filter_dict"])
     assert body["start_time"] == 100000
     assert body["end_time"] == 200000
 

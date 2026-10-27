@@ -30,7 +30,7 @@ from apm.core.handlers.query.span_query import SpanQuery
 from apm.models import ApmApplication, ApmTopoDiscoverRule, TopoNode, TraceDataSource
 from apm.utils.base import divide_biscuit
 from apm.utils.es_search import limits
-from bkmonitor.data_source.utils.apm import FilterOperator, TraceDatasourceTarget, TraceQueryGuard
+from bkmonitor.data_source.utils.apm import TraceDatasourceTarget, TraceQueryGuard
 from bkmonitor.utils.tenant import bk_biz_id_to_bk_tenant_id
 from bkmonitor.utils.thread_backend import ThreadPool
 from constants.apm import OtlpKey, SpanKind, TelemetryDataType
@@ -335,7 +335,7 @@ class DiscoverBase(ABC):
 
 
 class TopoHandler:
-    """编排常规 Trace 发现与每服务最新 Span 的兜底发现，完成后维护服务 Trace 心跳。"""
+    """编排常规 Trace 发现与按服务折叠的兜底发现，完成后维护服务 Trace 心跳。"""
 
     TRACE_ID_CHUNK_MAX_DURATION = 10 * 60
     FALLBACK_MAX_LOOKBACK_SECONDS = 60 * 60
@@ -401,7 +401,6 @@ class TopoHandler:
         while True:
             query_body = self._get_after_key_body(after_key)
             query_body = TraceQueryGuard.build_dsl(query_body, self._trace_target)
-            logger.debug("[TopoHandler] %s list_trace_ids body: %s", self, query_body)
             response = self.datasource.es_client.search(index=index_name, body=query_body, request_timeout=60)
 
             per_round_trace_ids = []
@@ -482,16 +481,6 @@ class TopoHandler:
             )
             return False
 
-        logger.debug(
-            "[trace_discovery] event=discoverer_finished bk_biz_id=%s app_name=%s "
-            "task_id=%s discoverer=%s span_count=%s duration_s=%.3f",
-            self.bk_biz_id,
-            self.app_name,
-            self.task_id,
-            discover_name,
-            len(spans),
-            time.monotonic() - start,
-        )
         return True
 
     def _get_trace_task_splits(self):
@@ -551,35 +540,8 @@ class TopoHandler:
         results: list[bool] = pool.map_ignore_exception(self._discover_handle, topo_params)
         return len(results) == len(topo_params) and all(results)
 
-    def _prefer_non_internal_spans(
-        self, span_query: SpanQuery, last_spans: list[dict[str, Any]], start_time: int, end_time: int
-    ) -> list[dict[str, Any]]:
-        """有 INTERNAL 最新记录时补查非内部调用，保留仅上报 INTERNAL 的服务。"""
-        if not any(span.get(OtlpKey.KIND) == SpanKind.SPAN_KIND_INTERNAL for span in last_spans):
-            return last_spans
-        # 再做一次有界折叠，避免将最多一万个服务名拼入查询和底层查询日志。
-        preferred_spans = span_query.query_group_list(
-            start_time,
-            end_time,
-            group_field=OtlpKey.get_resource_key(ResourceAttributes.SERVICE_NAME),
-            limit=SpanQuery.QUERY_MAX_LIMIT,
-            filters=[
-                {"key": OtlpKey.KIND, "operator": FilterOperator.NOT_EQUAL, "value": [SpanKind.SPAN_KIND_INTERNAL]},
-            ],
-        )
-        preferred_by_service: dict[str, dict[str, Any]] = {
-            extract_field_value((OtlpKey.RESOURCE, ResourceAttributes.SERVICE_NAME), span): span
-            for span in preferred_spans
-        }
-        return [
-            preferred_by_service.get(
-                extract_field_value((OtlpKey.RESOURCE, ResourceAttributes.SERVICE_NAME), span), span
-            )
-            for span in last_spans
-        ]
-
     def discover(self) -> bool | None:
-        """常规发现后用每服务最新完整 Span 补齐稀疏服务，并记录 Trace 心跳。"""
+        """常规发现后按服务折叠补齐稀疏服务，并记录所选 Span 的 Trace 心跳。"""
         start = datetime.datetime.now()
         started: float = time.monotonic()
         success: bool = True
@@ -619,12 +581,15 @@ class TopoHandler:
             if round_index == 0 and avg_group_span_count:
                 per_trace_size = self.calculate_round_count(avg_group_span_count)
 
-                logger.debug(
-                    f"[TopoHandler] {self.bk_biz_id} {self.app_name} "
-                    f"index_name: {index_name} "
-                    f"per_trace_size: {per_trace_size} "
-                    f"avg_group_span_count: {avg_group_span_count} "
-                    f"span_count: {len(all_spans)}"
+                logger.info(
+                    "[trace_discovery] event=trace_batch_sized bk_biz_id=%s app_name=%s task_id=%s "
+                    "per_trace_size=%s avg_group_span_count=%.3f span_count=%s",
+                    self.bk_biz_id,
+                    self.app_name,
+                    self.task_id,
+                    per_trace_size,
+                    avg_group_span_count,
+                    len(all_spans),
                 )
 
             span_count += len(all_spans)
@@ -662,9 +627,10 @@ class TopoHandler:
             end_time,
             group_field=OtlpKey.get_resource_key(ResourceAttributes.SERVICE_NAME),
             limit=SpanQuery.QUERY_MAX_LIMIT,
+            # 接受不同非 INTERNAL 类型间的优先级差异，只做一次普通字段排序与折叠。
+            sort=[f"{OtlpKey.KIND} desc", f"{OtlpKey.END_TIME} desc"],
         )
-        preferred_spans = self._prefer_non_internal_spans(span_query, last_spans, start_time, end_time)
-        fallback_success: bool = self._discover_spans(preferred_spans, topo_params_template, is_fallback=True)
+        fallback_success: bool = self._discover_spans(last_spans, topo_params_template, is_fallback=True)
         # 达到上限不能视为完整枚举；保留检查位置，并在下轮最多回看一小时。
         truncated: bool = len(last_spans) >= SpanQuery.QUERY_MAX_LIMIT
         observed: dict[str, int] = {}
