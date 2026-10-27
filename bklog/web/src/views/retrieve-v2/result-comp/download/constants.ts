@@ -30,12 +30,6 @@ export const DOWNLOAD_DATA_DELAY = 3000;
 /** 下载任务轮询间隔 */
 export const DOWNLOAD_POLLING_INTERVAL = 10000;
 
-/** 模拟进度更新时间 */
-export const DOWNLOAD_PROGRESS_UPDATE_INTERVAL = 1000;
-
-/** 每个轮询周期默认增长量 */
-export const DOWNLOAD_PROGRESS_BASE_GROWTH = 20000;
-
 /** 默认查询最近天数 */
 export const DOWNLOAD_RECENT_DAYS = 90;
 
