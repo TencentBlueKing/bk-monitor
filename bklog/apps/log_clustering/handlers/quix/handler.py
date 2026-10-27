@@ -173,6 +173,26 @@ class QuixClusteringHandler:
         run_quix_clustering_operation.delay(operation.operation_id)
         return operation.operation_id
 
+    def reopen(self) -> str:
+        """重开已关闭的聚类，复用原任务和绑定；返回操作ID"""
+        from apps.log_clustering.tasks.quix import run_quix_clustering_operation
+
+        runtime = LogClusteringRuntime.objects.get(index_set_id=self.index_set_id)
+        operation = None
+        if runtime.phase == ClusteringRuntimePhaseEnum.REOPENING.value:
+            operation = self._resume_failed_operation(ClusteringOperationTypeEnum.REOPEN.value)
+        if not operation:
+            runtime, operation = LogClusteringRuntime.start_operation(
+                self.index_set_id,
+                ClusteringOperationTypeEnum.REOPEN.value,
+                {},
+                allowed_phases=(ClusteringRuntimePhaseEnum.STOPPED.value,),
+            )
+            runtime.phase = ClusteringRuntimePhaseEnum.REOPENING.value
+            runtime.save(update_fields=["phase", "updated_at", "updated_by"])
+        run_quix_clustering_operation.delay(operation.operation_id)
+        return operation.operation_id
+
     def get_access_status(self) -> dict:
         from apps.log_clustering.handlers.clustering_config import ClusteringConfigHandler
 

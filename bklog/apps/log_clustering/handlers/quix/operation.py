@@ -53,6 +53,10 @@ STEP_TIME_FORMAT = "%Y-%m-%d %H:%M:%S"
 # 旧范围内待办已投递、结果已入库、原源消费已确认，才能切换绑定
 DRAINED_STATUS_KEYS = ("can_unbind", "storage_complete", "outbox_drained", "source_committed")
 
+# BKBase 日志聚类状态中运行记录状态的字段，完整 schema 待 BKBase 确认
+CLUSTERING_STATE_KEY = "state"
+CLUSTERING_STATE_STOPPED = "STOPPED"
+
 # 配置、凭据或控制版本问题，重试同一请求不会成功，需要人工处理后续跑
 NON_RETRYABLE_EXCEPTIONS = (
     BkFaraNotConfiguredException,
@@ -105,6 +109,15 @@ class QuixClusteringOperationRunner:
             "detach",
             "wait_detached",
             "stop_completed",
+        ],
+        # 复用原任务、Topic、消费组和运行态模型，继续原消费位置
+        ClusteringOperationTypeEnum.REOPEN.value: [
+            "refresh_control_version",
+            "restart",
+            "wait_worker_ready",
+            "attach",
+            "wait_adoption",
+            "resume",
         ],
     }
 
@@ -343,6 +356,30 @@ class QuixClusteringOperationRunner:
             completion={"input_boundary": boundary, "storage_complete": True, "binding_removed": True},
         )
         return True
+
+    def _step_refresh_control_version(self) -> bool:
+        task = self.bkfara.get_task(self.runtime.bkfara_task_id)
+        self._save_runtime(control_version=task["control_version"])
+        return True
+
+    def _step_restart(self) -> bool:
+        self.bkfara.restart_clustering(
+            self.runtime.bkfara_task_id, self.runtime.control_version, self.operation.get_idempotency_key("restart")
+        )
+        return True
+
+    def _step_attach(self) -> bool:
+        return self._operate_metadata("attach")
+
+    def _step_resume(self) -> bool:
+        # 同一绑定的旧运行记录仍为 STOPPED 时才需要 resume，新配置会自动建立运行记录
+        status = TransferApi.get_log_clustering_status(self._metadata_params())
+        if (status.get("clustering_status") or {}).get(CLUSTERING_STATE_KEY) == CLUSTERING_STATE_STOPPED:
+            return self._operate_metadata("resume")
+        return True
+
+    def _finish_reopen(self):
+        self._save_runtime(phase=ClusteringRuntimePhaseEnum.RUNNING.value, candidate_boundary=None)
 
     def _finish_disable(self):
         self._close_coverage_gap()
