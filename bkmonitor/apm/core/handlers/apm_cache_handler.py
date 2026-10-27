@@ -70,6 +70,14 @@ class ApmCacheHandler:
         self.redis_client.set(name, json.dumps(update_map), ex=ex)
         logger.info(f"[ApmCacheHandler] {name} update {len(update_map)}")
 
+    @staticmethod
+    def get_discovery_check_key(bk_biz_id: int, app_name: str, data_type: str) -> str:
+        """按环境、应用及数据源隔离服务发现的成功检查位置。"""
+        return (
+            f"BKMONITOR_{settings.PLATFORM}_{settings.ENVIRONMENT}_APM_DISCOVERY_CHECK_"
+            f"{bk_biz_id}_{app_name}_{data_type.upper()}"
+        )
+
     def get_lock_key(self, lock_type: str, **kwargs) -> str:
         """
         生成锁的key，仿造原有的key格式

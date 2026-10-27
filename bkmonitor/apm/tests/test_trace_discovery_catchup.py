@@ -1,0 +1,281 @@
+import datetime
+import logging
+from datetime import datetime as real_datetime
+from types import SimpleNamespace
+
+import fakeredis
+import pytest
+
+from apm.core.discover.base import TopoHandler
+from apm.core.discover.node import NodeDiscover
+from apm.core.handlers.apm_cache_handler import ApmCacheHandler
+from apm.task import tasks
+from constants.apm import SpanKind
+
+
+@pytest.fixture
+def discovery(mocker):
+    handler = object.__new__(TopoHandler)
+    handler.bk_biz_id, handler.app_name, handler.task_id = 2, "catchup", "task-1"
+    clock = mocker.patch("apm.core.discover.base.datetime.datetime")
+    clock.now.return_value = real_datetime.fromtimestamp(10000)
+    client = fakeredis.FakeRedis(decode_responses=True)
+    mocker.patch.object(ApmCacheHandler, "get_redis_client", return_value=client)
+    mocker.patch.object(handler, "_get_trace_task_splits", return_value=(10000, 1, "index"))
+    mocker.patch.object(handler, "list_trace_ids", return_value=[])
+    mocker.patch("apm.core.discover.base.DiscoverContainer.list_discovers", return_value=[])
+    mocker.patch.object(TopoHandler, "_trace_target", new_callable=mocker.PropertyMock, return_value=SimpleNamespace())
+    query_class = mocker.patch("apm.core.discover.base.SpanQuery")
+    query_class.QUERY_MAX_LIMIT = 10000
+    query = query_class.return_value.query_group_list
+    query.return_value = []
+    heartbeat = mocker.patch("apm.core.discover.base.TopoNode.touch_heartbeat", return_value=True)
+    mocker.patch("apm.core.discover.base.ThreadPool").return_value.map_ignore_exception.side_effect = lambda fn, args: [
+        fn(*item) for item in args
+    ]
+    return SimpleNamespace(
+        handler=handler,
+        client=client,
+        query=query,
+        heartbeat=heartbeat,
+        clock=clock,
+        key=ApmCacheHandler.get_discovery_check_key(2, "catchup", "trace"),
+    )
+
+
+@pytest.mark.parametrize("last_check, expected_start", [(None, 6400), (7000, 7000), (1000, 6400), (11000, 6400)])
+def test_fallback_window_and_success_checkpoint(discovery, last_check, expected_start):
+    if last_check is not None:
+        discovery.client.set(discovery.key, last_check)
+    assert discovery.handler.discover() is True
+    assert discovery.query.call_args.args == (expected_start, 10000)
+    assert discovery.client.get(discovery.key) == "10000"
+    assert 0 < discovery.client.ttl(discovery.key) <= 3600
+
+
+def test_delayed_round_continues_from_previous_query_end(discovery):
+    assert discovery.handler.discover() is True
+    discovery.clock.now.return_value = real_datetime.fromtimestamp(11800)
+    assert discovery.handler.discover() is True
+    assert discovery.query.call_args.args == (10000, 11800)
+    assert discovery.client.get(discovery.key) == "11800"
+
+
+def test_checkpoint_isolated_by_application_source_and_environment(settings):
+    settings.PLATFORM, settings.ENVIRONMENT = "test", "test"
+    key = ApmCacheHandler.get_discovery_check_key(2, "app", "trace")
+    assert key.endswith("2_app_TRACE")
+    assert (
+        len(
+            {
+                key,
+                ApmCacheHandler.get_discovery_check_key(3, "app", "trace"),
+                ApmCacheHandler.get_discovery_check_key(2, "other", "trace"),
+                ApmCacheHandler.get_discovery_check_key(2, "app", "metric"),
+            }
+        )
+        == 4
+    )
+    settings.ENVIRONMENT = "another"
+    assert key != ApmCacheHandler.get_discovery_check_key(2, "app", "trace")
+
+
+@pytest.mark.parametrize("failure", ["query", "discoverer", "heartbeat", "heartbeat_lock", "truncated"])
+def test_failed_or_incomplete_fallback_keeps_checkpoint(discovery, mocker, failure):
+    discovery.client.set(discovery.key, 7000)
+    if failure == "query":
+        discovery.query.side_effect = RuntimeError("query unavailable")
+    elif failure == "discoverer":
+        mocker.patch.object(discovery.handler, "_discover_spans", return_value=False)
+    elif failure == "heartbeat":
+        discovery.heartbeat.side_effect = RuntimeError("write unavailable")
+    elif failure == "heartbeat_lock":
+        discovery.heartbeat.return_value = False
+    else:
+        mocker.patch("apm.core.discover.base.SpanQuery.QUERY_MAX_LIMIT", 1)
+        discovery.query.return_value = [make_span("svc", SpanKind.SPAN_KIND_SERVER, 9000)]
+    if failure in ("query", "heartbeat"):
+        with pytest.raises(RuntimeError):
+            discovery.handler.discover()
+    else:
+        assert discovery.handler.discover() is False
+    assert discovery.client.get(discovery.key) == "7000"
+
+
+def make_span(name, kind, end):
+    return {"resource": {"service.name": name}, "kind": kind, "end_time": end * 1000000}
+
+
+def test_prefer_non_internal_but_keep_internal_only_and_latest_heartbeat(discovery, mocker):
+    latest = [make_span("mixed", 1, 9900), make_span("internal-only", 1, 9800), make_span("server", 2, 9700)]
+    older_server = make_span("mixed", 2, 8000)
+    discovery.query.side_effect = [latest, [older_server]]
+    discover = mocker.patch.object(discovery.handler, "_discover_spans", return_value=True)
+    assert discovery.handler.discover() is True
+    assert discovery.query.call_count == 2
+    call = discovery.query.call_args
+    assert call.args == (6400, 10000)
+    assert call.kwargs["limit"] == 10000
+    assert call.kwargs["filters"] == [
+        {"key": "kind", "operator": "not_equal", "value": [1]},
+    ]
+    assert discover.call_args.args[0] == [older_server, latest[1], latest[2]]
+    assert discovery.heartbeat.call_args.args[3] == {"mixed": 9900, "internal-only": 9800, "server": 9700}
+
+
+def test_non_internal_latest_does_not_need_second_query(discovery):
+    discovery.query.return_value = [make_span("server", 2, 9700)]
+    assert discovery.handler.discover() is True
+    assert discovery.query.call_count == 1
+
+
+def test_preferred_query_failure_keeps_checkpoint(discovery):
+    discovery.client.set(discovery.key, 7000)
+    discovery.query.side_effect = [[make_span("mixed", 1, 9900)], RuntimeError("query unavailable")]
+    with pytest.raises(RuntimeError):
+        discovery.handler.discover()
+    assert discovery.client.get(discovery.key) == "7000"
+    discovery.heartbeat.assert_not_called()
+
+
+def test_discoverer_failure_is_not_logged_as_success(discovery, mocker, caplog):
+    class FailingDiscoverer:
+        def __init__(self, *args):
+            pass
+
+        def discover(self, *args):
+            raise RuntimeError("write failed")
+
+    with caplog.at_level(logging.INFO, logger="apm"):
+        assert discovery.handler._discover_handle(FailingDiscoverer, [], "topo", {}) is False
+    assert "event=discoverer_failed" in caplog.text
+    assert "task_id=task-1" in caplog.text
+    assert "event=discoverer_finished" not in caplog.text
+
+
+def test_node_batch_failure_does_not_publish_partial_nodes(mocker):
+    node = NodeDiscover(2, "app")
+    mocker.patch.object(node, "get_rules", return_value=([SimpleNamespace(type="category")], None))
+    mocker.patch("apm.core.discover.node.ThreadPool").return_value.map_ignore_exception.return_value = []
+    writes = mocker.patch.object(node, "list_exists")
+    with pytest.raises(RuntimeError, match="batches incomplete"):
+        node.discover([make_span("svc", 2, 100)])
+    writes.assert_not_called()
+
+
+def test_cron_filters_before_lock_and_preserves_quick_interval(mocker, settings):
+    now = datetime.datetime(2026, 10, 26, 17, 0, tzinfo=datetime.UTC)
+    settings.APM_APPLICATION_QUICK_REFRESH_INTERVAL = 2
+    settings.APM_APPLICATION_QUICK_REFRESH_DELTA = 30
+    mocker.patch.object(tasks.timezone, "now", return_value=now)
+    mocker.patch.object(tasks.EbpfApplicationConfig.objects, "all").return_value.values.return_value = []
+    mocker.patch.object(tasks.ApmApplication.objects, "filter").return_value.values_list.return_value = [
+        (2, "old-due", 10, now - datetime.timedelta(hours=1)),
+        (2, "old-skip", 12, now - datetime.timedelta(hours=1)),
+        (2, "new-due", 22, now),
+        (2, "new-skip", 23, now),
+    ]
+    lock = mocker.patch.object(tasks.ApmCacheHandler, "distributed_lock")
+    dispatch = mocker.patch.object(tasks.handler, "apply_async")
+    tasks.topo_discover_cron()
+    assert lock.call_args_list == [mocker.call("topo_discover", app_id=10), mocker.call("topo_discover", app_id=22)]
+    assert [call.kwargs["args"] for call in dispatch.call_args_list] == [(2, "old-due"), (2, "new-due")]
+    assert all("discovery_enqueued_at" in call.kwargs["headers"] for call in dispatch.call_args_list)
+
+
+@pytest.mark.parametrize("result, status", [(True, "success"), (False, "partial"), (None, "partial")])
+def test_task_lifecycle_logs_result_and_queue_time(mocker, caplog, result, status):
+    topo = mocker.patch.object(tasks, "TopoHandler").return_value
+    topo.discover.return_value = result
+    mocker.patch.object(tasks.time, "time", return_value=105.0)
+    with caplog.at_level(logging.INFO, logger="apm"):
+        tasks.handler.push_request(id="task-1", headers={"discovery_enqueued_at": 100.0})
+        try:
+            tasks.handler.run(2, "app")
+        finally:
+            tasks.handler.pop_request()
+    assert "event=started" in caplog.text
+    assert "queue_delay_s=5.0" in caplog.text
+    assert f"status={status}" in caplog.text
+    assert "event=finished" in caplog.text
+    assert "task_id=task-1" in caplog.text
+
+
+def test_legacy_task_without_headers_and_failure_logs(mocker, caplog):
+    topo = mocker.patch.object(tasks, "TopoHandler").return_value
+    topo.discover.side_effect = RuntimeError("failed")
+    with caplog.at_level(logging.INFO, logger="apm"), pytest.raises(RuntimeError):
+        tasks.handler(2, "app")
+    assert "queue_delay_s=None" in caplog.text
+    assert "event=failed" in caplog.text
+    assert "event=finished" in caplog.text
+    assert "status=failed" in caplog.text
+
+
+def test_filtered_collapse_keeps_latest_order_and_application_guard(mocker):
+    from apm.core.handlers.query.span_query import SpanQuery
+    from bkmonitor.data_source.utils.apm import TraceDatasourceTarget
+
+    target = TraceDatasourceTarget.build(2, "app", "apm_global.shared_trace")
+    query = SpanQuery([target])
+    request = mocker.patch("bkmonitor.data_source.unify_query.builder.QueryHelper.query", return_value=[])
+    query.query_group_list(
+        100,
+        200,
+        "resource.service.name",
+        filters=[
+            {"key": "kind", "operator": "not_equal", "value": [1]},
+            {"key": "resource.service.name", "operator": "equal", "value": ["mixed"]},
+        ],
+    )
+    body = request.call_args.kwargs["query_body"]
+    assert body["order_by"] == ["-end_time"]
+    config = body["query_configs"][0]
+    assert config["distinct"] == "resource.service.name"
+    assert config["select"] == []
+    assert "kind" in str(config["filter_dict"])
+    assert "app_name" in str(config["filter_dict"])
+    assert "bk_biz_id" in str(config["filter_dict"])
+    assert "mixed" in str(config["filter_dict"])
+    assert body["start_time"] == 100000
+    assert body["end_time"] == 200000
+
+
+def test_checkpoint_uses_query_boundary_instead_of_finish_time(discovery):
+    discovery.clock.now.side_effect = [real_datetime.fromtimestamp(10000), real_datetime.fromtimestamp(10500)]
+    assert discovery.handler.discover() is True
+    assert discovery.client.get(discovery.key) == "10000"
+    assert discovery.heartbeat.call_args.args[-1] == 10500
+
+
+def test_invalid_datasource_logs_skipped_without_discovering(mocker, caplog):
+    topo = mocker.patch.object(tasks, "TopoHandler").return_value
+    topo.is_valid.return_value = False
+    with caplog.at_level(logging.INFO, logger="apm"):
+        tasks.handler(2, "app")
+    topo.discover.assert_not_called()
+    assert "status=skipped" in caplog.text
+
+
+def test_dispatch_failure_releases_real_lock_and_identifies_application(mocker, settings, caplog):
+    now = real_datetime(2026, 10, 26, 17, 0, tzinfo=datetime.UTC)
+    settings.APM_APPLICATION_QUICK_REFRESH_INTERVAL = 2
+    settings.APM_APPLICATION_QUICK_REFRESH_DELTA = 30
+    mocker.patch.object(tasks.timezone, "now", return_value=now)
+    mocker.patch.object(tasks.EbpfApplicationConfig.objects, "all").return_value.values.return_value = []
+    mocker.patch.object(tasks.ApmApplication.objects, "filter").return_value.values_list.return_value = [
+        (2, "app", 10, now - datetime.timedelta(hours=1))
+    ]
+    client = fakeredis.FakeRedis(decode_responses=True)
+    mocker.patch.object(ApmCacheHandler, "get_redis_client", return_value=client)
+
+    def fail(**kwargs):
+        assert client.get("apm.tasks.topo.discover.10") is not None
+        raise RuntimeError("broker unavailable")
+
+    mocker.patch.object(tasks.handler, "apply_async", side_effect=fail)
+    with caplog.at_level(logging.INFO, logger="apm"), pytest.raises(RuntimeError):
+        tasks.topo_discover_cron()
+    assert client.get("apm.tasks.topo.discover.10") is None
+    assert "event=dispatch_failed bk_biz_id=2 app_name=app" in caplog.text
+    assert "event=dispatched" not in caplog.text

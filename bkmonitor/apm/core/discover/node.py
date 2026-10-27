@@ -114,10 +114,16 @@ class NodeDiscover(DiscoverBase):
         rules = [(k, v) for k, v in rules_map.items()]
 
         pool = ThreadPool()
+        batches = [
+            (spans, category_rules, rules) for spans in divide_biscuit(origin_data, self.HANDLE_SPANS_BATCH_SIZE)
+        ]
         results = pool.map_ignore_exception(
             self.batch_execute,
-            [(spans, category_rules, rules) for spans in divide_biscuit(origin_data, self.HANDLE_SPANS_BATCH_SIZE)],
+            batches,
         )
+        if len(results) != len(batches):
+            # 不能把部分批次解析失败当作成功，否则服务发现会跳过尚未处理的数据窗口。
+            raise RuntimeError("NodeDiscover span batches incomplete")
 
         llm_products: dict[str, str] = {}
         for _, batch_products in results:
