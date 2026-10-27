@@ -75,7 +75,6 @@ from apps.log_search.handlers.index_set import (
     IndexSetHandler,
     UserIndexSetConfigHandler,
 )
-from apps.log_search.handlers.search.async_export_handlers import AsyncExportHandlers
 from apps.log_search.handlers.search.chart_handlers import ChartHandler
 from apps.log_search.handlers.search.search_handlers_esquery import (
     SearchHandler as SearchHandlerEsquery,
@@ -1032,7 +1031,9 @@ class SearchViewSet(APIViewSet):
         }
         """
         data = self.params_valid(GetExportHistorySerializer)
-        return AsyncExportHandlers(index_set_id=int(index_set_id), bk_biz_id=data["bk_biz_id"]).get_export_history(
+        return UnifyQueryAsyncExportHandlers(
+            index_set_id=int(index_set_id), bk_biz_id=data["bk_biz_id"]
+        ).get_export_history(
             request=request,
             view=self,
             show_all=data["show_all"],
@@ -1887,7 +1888,9 @@ class SearchViewSet(APIViewSet):
         data = self.params_valid(UnionSearchGetExportHistorySerializer)
         index_set_ids = sorted([int(index_set_id) for index_set_id in data["index_set_ids"].split(",")])
         _reject_platform_index_sets(index_set_ids)
-        return AsyncExportHandlers(index_set_ids=index_set_ids, bk_biz_id=data["bk_biz_id"]).get_export_history(
+        return UnifyQueryAsyncExportHandlers(
+            index_set_ids=index_set_ids, bk_biz_id=data["bk_biz_id"]
+        ).get_export_history(
             request=request,
             view=self,
             show_all=data["show_all"],

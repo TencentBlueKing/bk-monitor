@@ -36,6 +36,7 @@ from apps.log_search.constants import (
     MAX_GET_ATTENTION_SIZE,
     MAX_ASYNC_COUNT,
     MAX_QUICK_EXPORT_ASYNC_COUNT,
+    ExportSearchType,
     ExportStatus,
     IndexSetType,
 )
@@ -44,12 +45,16 @@ from apps.log_search.exceptions import (
     PreCheckAsyncExportException,
     DuplicateUnifyQueryExportException,
 )
+from apps.log_search.export.history import (
+    paginate_export_history,
+    sharded_export_history_queryset,
+    sharded_job_history_item,
+)
 from apps.log_search.handlers.search.search_handlers_esquery import SearchHandler, UnionSearchHandler
 from apps.log_search.models import AsyncTask, LogIndexSet
 from apps.log_unifyquery.handler.base import UnifyQueryHandler
 from apps.models import model_to_dict
 from apps.utils.db import array_chunk
-from apps.utils.drf import DataPageNumberPagination
 from apps.utils.local import (
     get_request,
     get_request_app_code,
@@ -82,10 +87,13 @@ class UnifyQueryAsyncExportHandlers:
         self.request_param = copy.deepcopy(search_dict)
         if self.request_param is not None:
             self.request_param["bk_biz_id"] = self.request_bk_biz_id
-        search_dict = copy.deepcopy(self.search_dict)
-        search_dict["index_set_ids"] = [index_set_id]
-        search_dict["export_fields"] = export_fields
-        self.unify_query_handler = UnifyQueryHandler(search_dict)
+        # 导出历史查询不携带检索参数，按需构造检索 handler
+        self.unify_query_handler = None
+        if search_dict is not None:
+            query_params = copy.deepcopy(search_dict)
+            query_params["index_set_ids"] = [index_set_id]
+            query_params["export_fields"] = export_fields
+            self.unify_query_handler = UnifyQueryHandler(query_params)
         self.request_user = get_request_external_username() or get_request_username()
         self.is_external = bool(get_request_external_username())
         self.export_file_type = export_file_type
@@ -207,22 +215,30 @@ class UnifyQueryAsyncExportHandlers:
             query_set = query_set.filter(created_at__gte=arrow.get(start_time / 1000).datetime)
         if end_time is not None:
             query_set = query_set.filter(created_at__lte=arrow.get(end_time / 1000).datetime)
-        pg = DataPageNumberPagination()
-        page_export_task_history = pg.paginate_queryset(
-            queryset=query_set.order_by("-created_at", "created_by"), request=request, view=view
+
+        # 灰度期间兼容两种数据结构：同一历史列表同时展示旧 AsyncTask 与分片导出 ExportJob
+        job_query_set = sharded_export_history_queryset(
+            bk_biz_id=self.bk_biz_id,
+            search_type=ExportSearchType.INDEX_SET,
+            index_set_type=IndexSetType.UNION.value if is_union_search else IndexSetType.SINGLE.value,
+            index_set_ids=self.index_set_ids if (is_union_search and not show_all) else None,
+            index_set_id=self.index_set_id if (not is_union_search and not show_all) else None,
+            start_time=start_time,
+            end_time=end_time,
         )
+        pg, page_history = paginate_export_history(query_set, job_query_set, request, view)
         index_set_retention = self.get_index_set_retention(
-            index_set_ids=[history.index_set_id for history in page_export_task_history]
+            index_set_ids=list(
+                {task.index_set_id for task in page_history if isinstance(task, AsyncTask) and task.index_set_id}
+            )
         )
-        res = pg.get_paginated_response(
-            [
-                self.generate_export_history(
-                    model_to_dict(history), index_set_retention, is_union_search=is_union_search
-                )
-                for history in page_export_task_history
-            ]
-        )
-        return res
+        history_items = [
+            self.generate_export_history(model_to_dict(task), index_set_retention, is_union_search=is_union_search)
+            if isinstance(task, AsyncTask)
+            else sharded_job_history_item(task)
+            for task in page_history
+        ]
+        return pg.get_paginated_response(history_items)
 
     @classmethod
     def generate_export_history(cls, export_task_history, index_set_retention, is_union_search=False):
