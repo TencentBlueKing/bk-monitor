@@ -55,7 +55,7 @@ def resume_stale_quix_clustering_operations():
     stale_before = timezone.now() - datetime.timedelta(seconds=STALE_SCHEDULE_SECONDS)
     operation_ids = LogClusteringOperation.objects.filter(
         Q(next_retry_at__isnull=True, updated_at__lt=stale_before) | Q(next_retry_at__lt=stale_before),
-        status__in=[ClusteringOperationStatusEnum.PENDING.value, ClusteringOperationStatusEnum.RUNNING.value],
+        status__in=ClusteringOperationStatusEnum.runnable_statuses(),
     ).values_list("operation_id", flat=True)
     for operation_id in operation_ids:
         run_quix_clustering_operation.delay(operation_id)
