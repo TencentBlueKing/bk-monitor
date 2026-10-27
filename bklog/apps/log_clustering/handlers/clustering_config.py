@@ -50,8 +50,9 @@ from apps.log_clustering.handlers.aiops.config import get_online_clustering_conf
 from apps.log_clustering.handlers.dataflow.constants import OnlineTaskTrainingArgs
 from apps.log_clustering.handlers.dataflow.dataflow_handler import DataFlowHandler
 from apps.log_clustering.handlers.pipline_service.constants import OperatorServiceEnum
+from apps.log_clustering.handlers.quix.handler import QuixClusteringHandler
 from apps.log_clustering.handlers.regex_template import RegexTemplateHandler
-from apps.log_clustering.models import ClusteringConfig, RegexTemplate
+from apps.log_clustering.models import ClusteringConfig, LogClusteringRuntime, RegexTemplate
 from apps.log_clustering.tasks.msg import access_clustering
 from apps.log_clustering.utils import pattern
 from apps.log_databus.models import CollectorConfig
@@ -107,23 +108,19 @@ class ClusteringConfigHandler:
         return pipeline_id
 
     @staticmethod
-    def _check_mini_clustering_not_ready(log_index_set: LogIndexSet):
-        if log_index_set.scenario_id != Scenario.LOG:
-            return
-        if FeatureToggleObject.switch(MINI_CLUSTERING_CONFIG, biz_id=space_uid_to_bk_biz_id(log_index_set.space_uid)):
+    def _use_quix_clustering(log_index_set: LogIndexSet) -> bool:
+        return log_index_set.scenario_id == Scenario.LOG and FeatureToggleObject.switch(
+            MINI_CLUSTERING_CONFIG, biz_id=space_uid_to_bk_biz_id(log_index_set.space_uid)
+        )
+
+    @classmethod
+    def _check_mini_clustering_not_ready(cls, log_index_set: LogIndexSet):
+        if cls._use_quix_clustering(log_index_set):
             raise MiniClusteringNotReadyException(
                 MiniClusteringNotReadyException.MESSAGE.format(index_set_id=log_index_set.index_set_id)
             )
 
     def create(self, index_set_id, params):
-        clustering_config = ClusteringConfig.get_by_index_set_id(index_set_id=index_set_id, raise_exception=False)
-
-        if clustering_config:
-            # 已接入过聚类的，不允许再创建
-            raise ClusteringConfigHasExistException(
-                ClusteringConfigHasExistException.MESSAGE.format(index_set_id=index_set_id)
-            )
-
         log_index_set = LogIndexSet.objects.get(index_set_id=index_set_id)
 
         if not log_index_set.scenario_id == Scenario.BKDATA and not (
@@ -132,7 +129,16 @@ class ClusteringConfigHandler:
             # 以下类型允许接入聚类: 1. 计算平台索引，2. 采集项索引
             raise ClusteringAccessNotSupportedException()
 
-        self._check_mini_clustering_not_ready(log_index_set)
+        if self._use_quix_clustering(log_index_set):
+            return QuixClusteringHandler(log_index_set).enable(params)
+
+        clustering_config = ClusteringConfig.get_by_index_set_id(index_set_id=index_set_id, raise_exception=False)
+
+        if clustering_config:
+            # 已接入过聚类的，不允许再创建
+            raise ClusteringConfigHasExistException(
+                ClusteringConfigHasExistException.MESSAGE.format(index_set_id=index_set_id)
+            )
 
         collector_config_id = log_index_set.collector_config_id
         log_index_set_data, *_ = log_index_set.indexes
@@ -315,6 +321,10 @@ class ClusteringConfigHandler:
         """
         接入状态检测
         """
+        if LogClusteringRuntime.objects.filter(index_set_id=self.index_set_id).exists():
+            log_index_set = LogIndexSet.objects.get(index_set_id=self.index_set_id)
+            return QuixClusteringHandler(log_index_set).get_access_status()
+
         clustering_config = ClusteringConfig.get_by_index_set_id(index_set_id=self.index_set_id)
 
         result = {
