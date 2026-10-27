@@ -163,9 +163,12 @@ export default defineComponent({
       const info = sortInfo.value;
       const field = info?.sortBy;
       if (field !== 'started_at' && field !== 'finished_at') return rows;
+      // 执行中的结束时间为 null，空值不参与数值比较、固定排在末尾
       return rows.sort((a, b) => {
-        const diff = Number(a[field] ?? 0) - Number(b[field] ?? 0);
-        return info?.descending ? -diff : diff;
+        const av = typeof a[field] === 'number' ? a[field] : null;
+        const bv = typeof b[field] === 'number' ? b[field] : null;
+        if (av === null || bv === null) return av === bv ? 0 : av === null ? 1 : -1;
+        return info?.descending ? bv - av : av - bv;
       });
     });
     function changeSort(value: TableSort) {
