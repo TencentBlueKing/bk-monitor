@@ -9,6 +9,7 @@ specific language governing permissions and limitations under the License.
 """
 
 import copy
+import json
 
 import pytest
 from rest_framework.exceptions import ValidationError
@@ -16,18 +17,19 @@ from rest_framework.exceptions import ValidationError
 from core.drf_resource.exceptions import CustomException
 from metadata import models
 from metadata.resources.log_clustering import SetLogClusteringConfigResource
-from metadata.tests.data_link.test_log_clustering_sink import (  # noqa: F401
+from metadata.tests.data_link.test_log_clustering_sink import (
     BINDING,
     ES_BINDING_REF,
     KAFKA_RESOURCE,
     LOG_DATA_LINK_NAME,
     LOG_TABLE_ID,
     PATTERN_RESOURCE,
-    default_biz,
-    log_datalink,
+    create_log_datalink,
 )
 
 pytestmark = pytest.mark.django_db(databases="__all__")
+
+PATTERN_CLUSTER_ID = 710103
 
 
 @pytest.fixture(autouse=True)
@@ -36,8 +38,20 @@ def single_tenant(settings):
 
 
 @pytest.fixture
-def clustering_datalink(log_datalink):  # noqa: F811
-    datalink, data_source = log_datalink
+def clustering_datalink(mocker):
+    mocker.patch("bkmonitor.utils.tenant.get_tenant_default_biz_id", return_value=2)
+    datalink, data_source = create_log_datalink()
+    models.ClusterInfo.objects.create(
+        cluster_name=PATTERN_RESOURCE["name"],
+        cluster_type=models.ClusterInfo.TYPE_ES,
+        domain_name="es.pattern",
+        port=9200,
+        description="",
+        cluster_id=PATTERN_CLUSTER_ID,
+        is_default_cluster=False,
+        version="7.10",
+        bk_tenant_id="system",
+    )
     models.BkBaseResultTable.objects.create(
         bk_tenant_id="system",
         data_link_name=LOG_DATA_LINK_NAME,
@@ -159,10 +173,56 @@ def test_stale_expected_revision_is_rejected_without_changes(clustering_datalink
     assert get_sink().last_operation_id == "enable-0001"
 
 
+def enable_doris_storage_option():
+    option = models.ResultTableOption.objects.get(
+        table_id=LOG_TABLE_ID, name=models.ResultTableOption.OPTION_V4_LOG_DATA_LINK
+    )
+    option.value = json.dumps({**json.loads(option.value), "doris_storage_config": {"storage_keys": ["log"]}})
+    option.save()
+
+
 def test_doris_storage_is_rejected_before_creating_sink(clustering_datalink, bkbase):
     models.DorisStorage.objects.create(table_id=LOG_TABLE_ID, storage_cluster_id=710101, bk_tenant_id="system")
+    enable_doris_storage_option()
 
     with pytest.raises(ValidationError, match="doris"):
+        set_config()
+    assert not models.LogClusteringSinkConfig.objects.exists()
+
+
+def test_historical_doris_storage_without_doris_option_is_accepted(clustering_datalink, bkbase):
+    models.DorisStorage.objects.create(table_id=LOG_TABLE_ID, storage_cluster_id=710101, bk_tenant_id="system")
+
+    assert set_config()["revision"] == 1
+
+
+def test_es_storage_without_es_option_is_rejected(clustering_datalink, bkbase):
+    models.DorisStorage.objects.create(table_id=LOG_TABLE_ID, storage_cluster_id=710101, bk_tenant_id="system")
+    option = models.ResultTableOption.objects.get(
+        table_id=LOG_TABLE_ID, name=models.ResultTableOption.OPTION_V4_LOG_DATA_LINK
+    )
+    option.value = json.dumps(
+        {"clean_rules": json.loads(option.value)["clean_rules"], "doris_storage_config": {"storage_keys": ["log"]}}
+    )
+    option.save()
+
+    with pytest.raises(ValidationError, match="elasticsearch storage"):
+        set_config()
+
+
+def test_unregistered_pattern_cluster_is_rejected_before_creating_sink(clustering_datalink, bkbase):
+    models.ClusterInfo.objects.filter(cluster_id=PATTERN_CLUSTER_ID).delete()
+
+    with pytest.raises(ValidationError, match="not a metadata elasticsearch cluster"):
+        set_config()
+    assert not models.LogClusteringSinkConfig.objects.exists()
+    bkbase["apply_log_datalink"].assert_not_called()
+
+
+def test_missing_datasource_is_rejected_before_creating_sink(clustering_datalink, bkbase):
+    models.DataSourceResultTable.objects.filter(table_id=LOG_TABLE_ID).delete()
+
+    with pytest.raises(ValidationError, match="related datasource not found"):
         set_config()
     assert not models.LogClusteringSinkConfig.objects.exists()
 

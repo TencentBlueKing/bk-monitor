@@ -13,6 +13,7 @@ import json
 import logging
 from typing import Any
 
+import pydantic
 from django.conf import settings
 from django.db import transaction
 from rest_framework import serializers
@@ -26,6 +27,7 @@ from metadata.config import DATABASE_CONNECTION_NAME
 from metadata.models.data_link import DataLinkResourceConfigBase
 from metadata.models.data_link import utils as data_link_utils
 from metadata.models.data_link.constants import DataLinkKind, DataLinkNameScene
+from metadata.models.result_table import LogV4DataLinkOption
 from metadata.task.datalink import apply_log_datalink
 
 logger = logging.getLogger("metadata")
@@ -107,11 +109,40 @@ def get_log_clustering_datalink(bk_tenant_id: str, table_id: str) -> models.Data
     ).first()
     if datalink is None or datalink.data_link_strategy != models.DataLink.BK_LOG:
         raise ValidationError(f"table_id({table_id}) is not a bk_log datalink")
-    if not models.ESStorage.objects.filter(bk_tenant_id=bk_tenant_id, table_id=table_id).exists():
+
+    # 与 compose_log_configs 生成存储绑定的条件保持一致：存储记录存在且 V4 Option 声明了对应存储配置
+    option = models.ResultTableOption.objects.filter(
+        bk_tenant_id=bk_tenant_id, table_id=table_id, name=models.ResultTableOption.OPTION_V4_LOG_DATA_LINK
+    ).first()
+    if option is None:
+        raise ValidationError(f"table_id({table_id}) has no log v4 datalink option")
+    try:
+        datalink_option = LogV4DataLinkOption(**json.loads(option.value))
+    except (pydantic.ValidationError, TypeError, ValueError) as e:
+        raise ValidationError(f"table_id({table_id}) log v4 datalink option is invalid: {e}")
+    if not (
+        datalink_option.es_storage_config
+        and models.ESStorage.objects.filter(bk_tenant_id=bk_tenant_id, table_id=table_id).exists()
+    ):
         raise ValidationError(f"table_id({table_id}) has no elasticsearch storage")
-    if models.DorisStorage.objects.filter(bk_tenant_id=bk_tenant_id, table_id=table_id).exists():
+    if (
+        datalink_option.doris_storage_config
+        and models.DorisStorage.objects.filter(bk_tenant_id=bk_tenant_id, table_id=table_id).exists()
+    ):
         raise ValidationError(f"table_id({table_id}) with doris storage is not supported")
     return datalink
+
+
+def get_log_clustering_pattern_cluster(bk_tenant_id: str, pattern_resource: dict[str, Any]) -> models.ClusterInfo:
+    """patternResource 对应的 metadata ES 集群；metadata 注册到 BKBase 的 ES 资源名即集群名"""
+    pattern_cluster = models.ClusterInfo.objects.filter(
+        bk_tenant_id=pattern_resource.get("tenant") or bk_tenant_id,
+        cluster_type=models.ClusterInfo.TYPE_ES,
+        cluster_name=pattern_resource.get("name"),
+    ).first()
+    if pattern_cluster is None:
+        raise ValidationError(f"pattern_resource({pattern_resource}) is not a metadata elasticsearch cluster")
+    return pattern_cluster
 
 
 def get_log_clustering_databus(datalink: models.DataLink) -> models.DataBusConfig:
@@ -230,6 +261,10 @@ class SetLogClusteringConfigResource(Resource):
 
         datalink = get_log_clustering_datalink(bk_tenant_id, table_id)
         databus = get_log_clustering_databus(datalink)
+        get_log_clustering_pattern_cluster(bk_tenant_id, config_fields["pattern_resource"])
+        dsrt = models.DataSourceResultTable.objects.filter(bk_tenant_id=bk_tenant_id, table_id=table_id).last()
+        if dsrt is None:
+            raise ValidationError(f"table_id({table_id}) related datasource not found")
 
         with transaction.atomic(using=DATABASE_CONNECTION_NAME):
             lock_log_clustering_datalink(datalink)
@@ -242,9 +277,7 @@ class SetLogClusteringConfigResource(Resource):
                     sink = data_link_utils.create_resource_with_random_name(
                         models.LogClusteringSinkConfig,
                         DataLinkNameScene.LOG_CLUSTERING_SINK,
-                        models.DataSourceResultTable.objects.get(
-                            bk_tenant_id=bk_tenant_id, table_id=table_id
-                        ).bk_data_id,
+                        dsrt.bk_data_id,
                         bk_tenant_id=bk_tenant_id,
                         namespace=datalink.namespace,
                         data_link_name=datalink.data_link_name,
