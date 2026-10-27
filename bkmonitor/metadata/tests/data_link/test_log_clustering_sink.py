@@ -314,6 +314,21 @@ def test_merge_with_remote_databus_keeps_generated_sinks(remote_sinks, generated
 
 @override_settings(ENABLE_MULTI_TENANT_MODE=False)
 @pytest.mark.django_db(databases="__all__")
+def test_compose_log_configs_warns_only_when_existing_raw_sink_changes(log_datalink, mocker):
+    warning = mocker.patch("metadata.models.data_link.data_link.logger.warning")
+    sink = create_clustering_sink(raw_sink={})
+
+    compose(*log_datalink)
+    assert not any("raw_sink changed" in call.args[0] for call in warning.call_args_list)
+
+    sink.raw_sink = {**ES_BINDING_REF, "name": "previous_es_binding"}
+    sink.save()
+    compose(*log_datalink)
+    assert any("raw_sink changed" in call.args[0] for call in warning.call_args_list)
+
+
+@override_settings(ENABLE_MULTI_TENANT_MODE=False)
+@pytest.mark.django_db(databases="__all__")
 def test_compose_log_configs_with_detached_sink_restores_raw_sink(log_datalink):
     plain_configs, _ = compose(*log_datalink)
     sink = create_clustering_sink(attached=False)
