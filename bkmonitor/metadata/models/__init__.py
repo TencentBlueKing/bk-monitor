@@ -39,6 +39,7 @@ from .data_link import (  # noqa
     LogDataBusConfig,
     LogResultTableConfig,
     GraphRelationBindingConfig,
+    LogClusteringSinkConfig,
     ResultTableConfig,
     SurrealDBBindingConfig,
     VMStorageBindingConfig,
@@ -176,6 +177,7 @@ __all__ = [
     "BkBaseResultTable",
     "GraphRelationBindingConfig",
     "SurrealDBBindingConfig",
+    "LogClusteringSinkConfig",
     "VmQueryClusterConfig",
     # resource relation
     "EntityMeta",
