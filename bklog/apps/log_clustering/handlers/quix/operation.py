@@ -21,6 +21,7 @@ the project delivered to anyone in the future.
 
 import datetime
 
+from django.db import transaction
 from django.utils import timezone
 from django.utils.functional import cached_property
 
@@ -48,6 +49,8 @@ POLL_INTERVAL_SECONDS = 15
 MAX_RETRY_DELAY_SECONDS = 300
 MAX_STEP_RETRIES = 5
 WAIT_TIMEOUT_SECONDS = 30 * 60
+# 待采用确认的步骤依赖 BKBase 回执，回执到位前持续低频检查，不按等待超时判失败
+RECEIPT_POLL_INTERVAL_SECONDS = 5 * 60
 STEP_TIME_FORMAT = "%Y-%m-%d %H:%M:%S"
 
 # 旧范围内待办已投递、结果已入库、原源消费已确认，才能切换绑定
@@ -60,6 +63,14 @@ NON_RETRYABLE_EXCEPTIONS = (
     QuixClusteringConfigInvalidException,
     QuixClusteringParamsInvalidException,
 )
+
+
+def runtime_adoption_confirmed(status: dict, expected_revision: int) -> bool:
+    """
+    BKBase 是否回执所有相关 Runtime 实例已采用指定版本的聚类配置
+    配置层证据（Databus 引用、资源 phase=Ok）不能代替采用回执；BKBase 提供可核验的回执前一律视为未确认
+    """
+    return False
 
 
 def is_worker_ready(clustering: dict) -> bool:
@@ -86,6 +97,7 @@ class QuixClusteringOperationRunner:
             "wait_worker_ready",
             "metadata_set",
             "wait_adoption",
+            "confirm_adoption",
         ],
         # Quix 保持运行；旧范围收尾后才提交新过滤规则，过渡期新增日志不参与聚类，记为覆盖缺口
         ClusteringOperationTypeEnum.UPDATE.value: [
@@ -96,6 +108,7 @@ class QuixClusteringOperationRunner:
             "wait_adoption",
         ],
     }
+    RECEIPT_STEPS = {"confirm_adoption"}
 
     def __init__(self, operation_id: str):
         self.operation = LogClusteringOperation.objects.get(operation_id=operation_id)
@@ -111,13 +124,11 @@ class QuixClusteringOperationRunner:
 
     def run(self) -> int | None:
         """执行到需要等待或结束为止，返回下次调度的延迟秒数，None 表示无需再调度"""
-        if self.operation.status not in (
-            ClusteringOperationStatusEnum.PENDING.value,
-            ClusteringOperationStatusEnum.RUNNING.value,
-        ):
+        if self.operation.status not in ClusteringOperationStatusEnum.runnable_statuses():
             return None
-        self.operation.status = ClusteringOperationStatusEnum.RUNNING.value
-        self.operation.save(update_fields=["status", "updated_at", "updated_by"])
+        if self.operation.status != ClusteringOperationStatusEnum.AWAITING_RECEIPT.value:
+            self.operation.status = ClusteringOperationStatusEnum.RUNNING.value
+            self.operation.save(update_fields=["status", "updated_at", "updated_by"])
 
         for step in self._remaining_steps():
             self.operation.step = step
@@ -127,15 +138,26 @@ class QuixClusteringOperationRunner:
             except Exception as e:  # pylint: disable=broad-except
                 return self._handle_error(step, e)
             if not done:
-                return self._wait(step)
+                return self._await_receipt(step) if step in self.RECEIPT_STEPS else self._wait(step)
             self.operation.retry_count = 0
+            if self.operation.status == ClusteringOperationStatusEnum.AWAITING_RECEIPT.value:
+                self.operation.status = ClusteringOperationStatusEnum.RUNNING.value
+                self.operation.save(update_fields=["status", "updated_at", "updated_by"])
             self.operation.record_step(step, ClusteringOperationStatusEnum.SUCCESS.value)
 
-        getattr(self, f"_finish_{self.operation.operation_type}")()
-        self.operation.status = ClusteringOperationStatusEnum.SUCCESS.value
-        self.operation.next_retry_at = None
-        self.operation.finished_at = timezone.now()
-        self.operation.save(update_fields=["status", "next_retry_at", "finished_at", "updated_at", "updated_by"])
+        # 收尾与操作成功同一事务提交，中途退出后续跑不会重复提升已清空的待生效配置
+        try:
+            with transaction.atomic():
+                getattr(self, f"_finish_{self.operation.operation_type}")()
+                self.operation.status = ClusteringOperationStatusEnum.SUCCESS.value
+                self.operation.next_retry_at = None
+                self.operation.finished_at = timezone.now()
+                self.operation.save(
+                    update_fields=["status", "next_retry_at", "finished_at", "updated_at", "updated_by"]
+                )
+        except Exception as e:  # pylint: disable=broad-except
+            self.operation.status = ClusteringOperationStatusEnum.RUNNING.value
+            return self._handle_error("finish", e)
         return None
 
     def _remaining_steps(self) -> list[str]:
@@ -156,9 +178,21 @@ class QuixClusteringOperationRunner:
 
     def _wait_started_at(self, step: str) -> datetime.datetime | None:
         for item in reversed(self.operation.steps):
-            if item["step"] == step and item["status"] == ClusteringOperationStatusEnum.RUNNING.value:
+            if item["step"] != step:
+                continue
+            # 失败后续跑重新计时，不能沿用上一轮的等待起点
+            if item["status"] == ClusteringOperationStatusEnum.FAILED.value:
+                return None
+            if item["status"] == ClusteringOperationStatusEnum.RUNNING.value:
                 return datetime.datetime.strptime(item["time"], STEP_TIME_FORMAT).replace(tzinfo=datetime.timezone.utc)
         return None
+
+    def _await_receipt(self, step: str) -> int:
+        if self.operation.status != ClusteringOperationStatusEnum.AWAITING_RECEIPT.value:
+            self.operation.status = ClusteringOperationStatusEnum.AWAITING_RECEIPT.value
+            self.operation.save(update_fields=["status", "updated_at", "updated_by"])
+            self.operation.record_step(step, ClusteringOperationStatusEnum.AWAITING_RECEIPT.value)
+        return self._schedule(RECEIPT_POLL_INTERVAL_SECONDS)
 
     def _handle_error(self, step: str, error: Exception) -> int | None:
         logger.exception("[quix_clustering] operation(%s) step(%s) failed", self.operation.operation_id, step)
@@ -195,10 +229,10 @@ class QuixClusteringOperationRunner:
     def _step_create_task(self) -> bool:
         if self.runtime.bkfara_task_id:
             return True
-        result = self.bkfara.create_task(
-            build_create_task_payload(self.runtime.index_set_id, self.quix_config),
-            self.operation.get_idempotency_key("create_task"),
+        payload = self.operation.get_request_payload(
+            "create_task", lambda: build_create_task_payload(self.runtime.index_set_id, self.quix_config)
         )
+        result = self.bkfara.create_task(payload, self.operation.get_idempotency_key("create_task"))
         self._save_runtime(bkfara_task_id=result["task_id"])
         return True
 
@@ -210,7 +244,12 @@ class QuixClusteringOperationRunner:
         return True
 
     def _step_configure_clustering(self) -> bool:
-        payload = build_clustering_payload(self.runtime.bkfara_task_id, self.runtime.control_version, self.quix_config)
+        payload = self.operation.get_request_payload(
+            "configure_clustering",
+            lambda: build_clustering_payload(
+                self.runtime.bkfara_task_id, self.runtime.control_version, self.quix_config
+            ),
+        )
         self.bkfara.configure_clustering(
             self.runtime.bkfara_task_id, payload, self.operation.get_idempotency_key("configure_clustering")
         )
@@ -225,15 +264,17 @@ class QuixClusteringOperationRunner:
 
     def _step_metadata_set(self) -> bool:
         clustering_config = self.runtime.pending_config or self.runtime.active_config
-        result = TransferApi.set_log_clustering_config(
-            self._metadata_params(
+        params = self.operation.get_request_payload(
+            "metadata_set",
+            lambda: self._metadata_params(
                 operation_id=self.operation.get_idempotency_key("metadata_set"),
                 expected_revision=self.runtime.metadata_revision,
                 binding=build_binding(self.runtime, clustering_config, self.quix_config.get("max_message_bytes")),
                 kafka_resource=self.quix_config["kafka_resource"],
                 pattern_resource=self.quix_config["pattern_resource"],
-            )
+            ),
         )
+        result = TransferApi.set_log_clustering_config(params)
         self._save_runtime(
             sink=result["sink"],
             databus=result["databus"],
@@ -243,14 +284,25 @@ class QuixClusteringOperationRunner:
         return True
 
     def _step_wait_adoption(self) -> bool:
-        # 这里只有配置层证据（Databus 引用聚类 Sink 且资源就绪）；Runtime 实际采用回执待 BKBase 提供
+        # 配置层就绪：Databus 引用聚类 Sink 且资源就绪；任一远端状态查询失败都视为未就绪
         status = TransferApi.get_log_clustering_status(self._metadata_params())
         sink_phase = ((status.get("sink_resource") or {}).get("status") or {}).get("phase")
         return (
-            status.get("revision") == self.runtime.metadata_revision
+            not status.get("errors")
+            and status.get("revision") == self.runtime.metadata_revision
             and bool(status.get("sink_referenced"))
             and sink_phase == "Ok"
         )
+
+    def _step_confirm_adoption(self) -> bool:
+        status = TransferApi.get_log_clustering_status(self._metadata_params())
+        return not status.get("errors") and runtime_adoption_confirmed(status, self.runtime.metadata_revision)
+
+    def _promote_pending_config(self, **fields):
+        # 待生效配置已提升过时不能再次提升，否则会把空配置写入生效配置
+        if self.runtime.pending_config is not None:
+            fields.update(active_config=self.runtime.pending_config, pending_config=None)
+        self._save_runtime(**fields)
 
     def _operate_metadata(self, action: str) -> bool:
         result = TransferApi.operate_log_clustering(
@@ -313,10 +365,6 @@ class QuixClusteringOperationRunner:
         )
 
     def _finish_enable(self):
-        self._save_runtime(
-            active_config=self.runtime.pending_config,
-            pending_config=None,
-            phase=ClusteringRuntimePhaseEnum.RUNNING.value,
-        )
+        self._promote_pending_config(phase=ClusteringRuntimePhaseEnum.RUNNING.value)
         ClusteringConfig.objects.filter(index_set_id=self.runtime.index_set_id).update(access_finished=True)
         LogIndexSet.set_tag(self.runtime.index_set_id, InnerTag.CLUSTERING.value)
