@@ -208,6 +208,26 @@
       }
 
       .code-rules {
+        /**
+         * 侧栏未开启 transfer，节点内联渲染在图表容器子树内，
+         * 校验失败的 .bk-form-item.is-error 会被图表错误角标样式（.chart-wrapper / .time-series .is-error）
+         * 的后代选择器命中，导致脱流失位并叠出玫红色三角角标，此处复位被污染的属性
+         */
+        .bk-form-item.is-error {
+          position: relative;
+          top: auto;
+          left: auto;
+          z-index: auto;
+          color: inherit;
+          cursor: default;
+          border: 0;
+          border-radius: 0;
+
+          &::after {
+            content: none;
+          }
+        }
+
         .code-status-rule-item {
           display: flex;
           align-items: center;
