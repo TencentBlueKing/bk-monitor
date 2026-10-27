@@ -27,6 +27,7 @@ from .import_export import *  # noqa
 from .kernel_rpc import *  # noqa
 from .mail_report import *  # noqa
 from .metrics import *  # noqa
+from .mcp import *  # noqa
 from .new_report import *  # noqa
 from .notice_group import *  # noqa
 from .openclaw import *  # noqa

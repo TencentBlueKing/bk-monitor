@@ -63,7 +63,7 @@ paths:
         backend:
           name: default
           method: get
-          path: /api/v3/meta/list_spaces/
+          path: /api/v4/mcp/search_spaces/
           matchSubpath: false
           timeout: 0
         pluginConfigs: []

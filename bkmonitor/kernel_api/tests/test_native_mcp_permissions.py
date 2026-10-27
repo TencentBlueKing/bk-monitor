@@ -40,6 +40,7 @@ if not settings.configured:
     django.setup()
 
 from bkmonitor.utils import tenant
+from kernel_api.mcp_read_routes import APPLICATION_READ_BACKENDS, MCP_READ_PREFIX, is_application_read_route
 from kernel_api.unified_mcp import permissions as auth, registry
 
 
@@ -85,6 +86,8 @@ def request_factory():
         factory = RequestFactory()
         if method == "GET":
             request = factory.get(path, body or {})
+        elif method == "HEAD":
+            request = factory.head(path, body or {})
         else:
             request = factory.post(path, json.dumps(body or {}), content_type="application/json")
         request.META["HTTP_X_BKAPI_MCP_SERVER_NAME"] = "bk-monitor-prod-unified"
@@ -2575,7 +2578,7 @@ def test_ingress_logs_do_not_dump_headers_or_parameters(request_factory, caplog,
         request = RequestFactory().post(request.path, args)
     user = NS(username="alice", tenant_id="system")
     request.META["HTTP_X_BKAPI_JWT"] = "private-jwt"
-    jwt = NS(app=NS(app_code="monitor"), user=NS(username="alice"), validate=lambda: (True, ""))
+    jwt = NS(app={"app_code": "monitor"}, user={"username": "alice"}, validate=lambda: (True, ""))
     process = source_method(
         "kernel_api/middlewares/authentication.py",
         "AuthenticationMiddleware.process_view",
@@ -2608,8 +2611,8 @@ def test_gateway_rejection_is_logged_without_token_or_exception_text(monkeypatch
     monkeypatch.setattr(settings, "ENABLE_MULTI_TENANT_MODE", True)
     request = request_factory()
     jwt = NS(
-        app=NS(app_code="monitor"),
-        user=NS(username="alice"),
+        app={"app_code": "monitor"},
+        user={"username": "alice"},
         validate=lambda: (reason != "invalid_jwt", "private-jwt-error"),
     )
     process = source_method(
@@ -3243,6 +3246,7 @@ def direct_gateway(monkeypatch, request_factory, native_http, io):
         monkeypatch.setitem(sys.modules, name, module)
     common = dict(
         settings=settings,
+        logger=logging.getLogger(__name__),
         json=json,
         time=time,
         secrets=secrets,
@@ -3286,12 +3290,21 @@ def direct_gateway(monkeypatch, request_factory, native_http, io):
         user_tenant="system",
         tenant_header=None,
         app_code="ordinary-cli-app",
+        app_verified=False,
+        app_scope_allowed=True,
+        spoof_headers=False,
+        missing_claim=None,
+        jwt_factory=None,
+        raw_jwt=None,
+        script_name="",
         api_token_expected=False,
     ):
         tool = registry.get_tool_registry().get(tool_name)
         request = request_factory(
             path or tool.backend_path, args if args is not None else log_args(), method or tool.backend_method
         )
+        if script_name:
+            request.path = script_name.rstrip("/") + request.path
         if not marker:
             request.META.pop("HTTP_X_BKAPI_MCP_SERVER_NAME", None)
         if bearer:
@@ -3299,15 +3312,27 @@ def direct_gateway(monkeypatch, request_factory, native_http, io):
         request.META["HTTP_X_BKAPI_REQUEST_ID"] = "gateway-request-test"
         if tenant_header is not None:
             request.META["HTTP_X_BK_TENANT_ID"] = tenant_header
+        if raw_jwt is not None:
+            request.META["HTTP_X_BKAPI_JWT"] = raw_jwt
+        if spoof_headers:
+            request.META.update(
+                HTTP_BK_APP_CODE="spoofed-app", HTTP_BK_USERNAME="admin", HTTP_X_BKAPI_PERMISSION_ACTION="forged_action"
+            )
+        ordinary.reset_mock()
+        ordinary.return_value = app_scope_allowed
         user = request.user
         user.username, user.tenant_id, user.is_authenticated = user_name, user_tenant, authenticated
         claims = {"username": username, "verified": verified}
         jwt = NS(
             is_valid=valid_jwt,
-            app=NS(app_code=app_code),
-            user=NS(username=username, get=claims.get),
+            app={"app_code": app_code, "verified": app_verified},
+            user=claims,
             validate=lambda: (valid_jwt, "invalid JWT"),
         )
+        if missing_claim == "app_code":
+            jwt.app.pop("app_code")
+        if missing_claim == "username":
+            jwt.user.pop("username")
         permission = Mock()
         permission.is_allowed_by_biz.side_effect = lambda biz, action, **kw: (
             True
@@ -3331,7 +3356,7 @@ def direct_gateway(monkeypatch, request_factory, native_http, io):
         process = source_method(
             "kernel_api/middlewares/authentication.py",
             "AuthenticationMiddleware.process_view",
-            BkJWTClient=lambda *a: jwt,
+            BkJWTClient=jwt_factory or (lambda *a: jwt),
             DEFAULT_TENANT_ID="system",
             auth=NS(authenticate=lambda **kw: user),
             is_match_api_token=ordinary,
@@ -3630,3 +3655,427 @@ def test_diagnostic_metadata_forces_resource_permission(monkeypatch, direct_gate
             perform(NS(), {"metadata_type": "bcs_clusters", "bk_biz_id": 2})
         backend.assert_not_called()
     permission.is_allowed_by_biz.assert_called_once_with(2, "using_metadata_mcp", raise_exception=True)
+
+
+MIGRATED_READ_ARGS = {
+    "get_alert_info": {"bk_biz_id": "2", "id": "123"},
+    "list_time_series_metrics": {"bk_biz_id": "2", "table_id": "2_demo.__default__"},
+    "search_spaces": {"space_name": "demo"},
+    "get_dashboard_tree_list": {"bk_biz_id": "2"},
+    "get_dashboard_detail_by_uid": {"bk_biz_id": "2", "dashboard_uid": "dash-1"},
+    "list_apm_services": {"bk_biz_id": "2", "app_name": "demo"},
+    "calculate_by_range": {
+        "bk_biz_id": "2",
+        "app_name": "demo",
+        "metric_group_name": "trpc",
+        "metric_cal_type": "request_total",
+    },
+}
+
+
+@pytest.mark.parametrize("tool_name", sorted(APPLICATION_READ_BACKENDS))
+@pytest.mark.parametrize("missing_user", [False, True])
+def test_original_application_read_routes_keep_app_scope(direct_gateway, io, tool_name, missing_user):
+    method, path = APPLICATION_READ_BACKENDS[tool_name]
+    response, request, permission, ordinary = direct_gateway(
+        tool_name,
+        MIGRATED_READ_ARGS[tool_name],
+        path=path,
+        method=method,
+        app_verified=True,
+        verified=False,
+        username=None if missing_user else "alice",
+        missing_claim="username" if missing_user else None,
+    )
+    assert response is None
+    ordinary.assert_called_once_with(request, "system", "ordinary-cli-app")
+    permission.is_allowed_by_biz.assert_not_called()
+    io.dispatch.assert_not_called()
+    assert registry.resolve_readonly_tool(method, path) is None
+
+
+@pytest.mark.parametrize("tool_name", sorted(APPLICATION_READ_BACKENDS))
+@pytest.mark.parametrize("allowed", [False, True])
+def test_original_application_scope_rejections_remain(direct_gateway, tool_name, allowed):
+    method, path = APPLICATION_READ_BACKENDS[tool_name]
+    response, request, _, ordinary = direct_gateway(
+        tool_name,
+        MIGRATED_READ_ARGS[tool_name],
+        path=path,
+        method=method,
+        app_verified=True,
+        verified=False,
+        app_scope_allowed=allowed,
+    )
+    assert response is None if allowed else response.status_code == 403
+    ordinary.assert_called_once_with(request, "system", "ordinary-cli-app")
+
+
+@pytest.mark.parametrize("tool_name", sorted(APPLICATION_READ_BACKENDS))
+@pytest.mark.parametrize("marker", [False, True])
+def test_user_cannot_downgrade_through_original_application_read_route(direct_gateway, io, tool_name, marker):
+    method, path = APPLICATION_READ_BACKENDS[tool_name]
+    response, _, _, ordinary = direct_gateway(
+        tool_name,
+        MIGRATED_READ_ARGS[tool_name],
+        path=path,
+        method=method,
+        app_verified=False,
+        verified=True,
+        marker=marker,
+        spoof_headers=True,
+    )
+    assert response.status_code == 403
+    ordinary.assert_not_called()
+    io.dispatch.assert_not_called()
+
+
+@pytest.mark.parametrize(
+    "options",
+    [
+        {"gateway": False, "spoof_headers": True},
+        {"valid_jwt": False},
+        {"app_verified": "true"},
+        {"app_verified": False},
+        {"app_code": ""},
+        {"app_code": None},
+        {"missing_claim": "app_code"},
+        {"marker": True},
+        {"app_code": "mcp-app"},
+        {"bearer": True},
+    ],
+)
+def test_original_application_routes_require_real_gateway_app_identity(direct_gateway, io, options):
+    args = dict(path="/api/v4/alert/alert/detail/", method="GET", app_verified=True, verified=False)
+    args.update(options)
+    response, _, _, ordinary = direct_gateway(**args)
+    assert response.status_code == 403
+    ordinary.assert_not_called()
+    io.dispatch.assert_not_called()
+
+
+@pytest.mark.parametrize("tenant_header,user_tenant", [(None, "system"), ("tenant-a", "tenant-b")])
+def test_original_application_route_still_rejects_tenant_mismatch(
+    monkeypatch, direct_gateway, tenant_header, user_tenant
+):
+    monkeypatch.setattr(settings, "ENABLE_MULTI_TENANT_MODE", True)
+    response, _, _, _ = direct_gateway(
+        path="/api/v4/alert/alert/detail/",
+        method="GET",
+        app_verified=True,
+        tenant_header=tenant_header,
+        user_tenant=user_tenant,
+    )
+    assert response.status_code == 403
+
+
+@pytest.mark.parametrize("suffix", ["/", ".json", ".json/", ".api", ".xml", ".jsonl/"])
+@pytest.mark.parametrize("method", ["GET", "HEAD"])
+def test_original_application_aliases_cannot_bypass_identity(direct_gateway, suffix, method):
+    path = "/api/v4/alert/alert/detail" + suffix
+    assert is_application_read_route(method, path)
+    response, _, _, ordinary = direct_gateway(path=path, method=method, app_verified=False, spoof_headers=True)
+    assert response.status_code == 403
+    ordinary.assert_not_called()
+
+
+def test_application_request_does_not_depend_on_mcp_catalog(monkeypatch, direct_gateway):
+    monkeypatch.setattr(registry, "resolve_readonly_tool", Mock(side_effect=RuntimeError("catalog unavailable")))
+    response, _, _, ordinary = direct_gateway(
+        path="/api/v4/alert/alert/detail/", method="GET", app_verified=True, verified=False
+    )
+    assert response is None
+    ordinary.assert_called_once()
+
+
+@pytest.mark.parametrize("tool_name", sorted(APPLICATION_READ_BACKENDS))
+@pytest.mark.parametrize("marker,bearer", [(False, False), (False, True), (True, False)])
+@pytest.mark.parametrize("allowed", [False, True])
+def test_migrated_mcp_routes_keep_legacy_tool_permissions(
+    monkeypatch, direct_gateway, io, tool_name, marker, bearer, allowed
+):
+    monkeypatch.setattr(settings, "MCP_NATIVE_PERMISSION_TOOLS", [])
+    io.monitor.iam_client.is_allowed.side_effect = None
+    io.monitor.iam_client.is_allowed.return_value = allowed
+    response, request, permission, ordinary = direct_gateway(
+        tool_name, MIGRATED_READ_ARGS[tool_name], marker=marker, bearer=bearer, spoof_headers=True
+    )
+    tool = registry.get_tool_registry().get(tool_name)
+    assert request.path == MCP_READ_PREFIX + tool_name + "/"
+    if tool.permission_exempt:
+        assert response.status_code == 200
+        permission.is_allowed_by_biz.assert_not_called()
+    else:
+        assert response.status_code == (200 if allowed else 403)
+        assert tool.iam_action in [call.args[1] for call in permission.is_allowed_by_biz.call_args_list]
+    assert io.dispatch.call_count == int(allowed or tool.permission_exempt)
+    ordinary.assert_not_called()
+
+
+@pytest.mark.parametrize("tool_name", sorted(APPLICATION_READ_BACKENDS))
+@pytest.mark.parametrize("reason", ["invalid_jwt", "unverified_user", "no_gateway", "mismatched_user"])
+def test_migrated_mcp_routes_never_use_app_identity(direct_gateway, io, tool_name, reason):
+    response, _, _, ordinary = direct_gateway(
+        tool_name,
+        MIGRATED_READ_ARGS[tool_name],
+        app_verified=True,
+        valid_jwt=reason != "invalid_jwt",
+        verified=reason != "unverified_user",
+        gateway=reason != "no_gateway",
+        user_name="bob" if reason == "mismatched_user" else "alice",
+    )
+    assert response.status_code == 403
+    ordinary.assert_not_called()
+    io.dispatch.assert_not_called()
+
+
+@pytest.mark.parametrize(
+    "mcp_allowed,native_allowed,status", [(True, False, 200), (False, True, 200), (False, False, 403)]
+)
+def test_migrated_alert_route_retains_native_fallback(direct_gateway, io, mcp_allowed, native_allowed, status):
+    io.monitor.iam_client.is_allowed.side_effect = lambda query: (
+        mcp_allowed if query.action.id == "using_alarm_mcp" else native_allowed
+    )
+    response, _, _, ordinary = direct_gateway("get_alert_info", MIGRATED_READ_ARGS["get_alert_info"], bearer=True)
+    assert response.status_code == status
+    assert io.dispatch.call_count == int(status == 200)
+    ordinary.assert_not_called()
+
+
+@pytest.mark.parametrize(
+    "method,path",
+    [
+        ("GET", MCP_READ_PREFIX + "unknown/"),
+        ("POST", MCP_READ_PREFIX + "get_alert_info/"),
+        ("GET", MCP_READ_PREFIX + "get_alert_info/extra/"),
+        ("POST", MCP_READ_PREFIX + "create_dashboard/"),
+    ],
+)
+def test_mcp_read_namespace_never_falls_back_to_application(direct_gateway, method, path):
+    response, _, _, ordinary = direct_gateway(path=path, method=method, app_verified=True)
+    assert response.status_code == 403
+    ordinary.assert_not_called()
+
+
+def test_mcp_read_catalog_has_no_application_backend_overlap():
+    resources = BASE / "support-files/apigw/resources"
+    catalog = registry.load_tool_registry(native_tools=())
+    apps = set()
+    for filename in resources.glob("*/app/*.yaml"):
+        for methods in yaml.safe_load(filename.read_text())["paths"].values():
+            for operation in methods.values():
+                backend = operation["x-bk-apigateway-resource"]["backend"]
+                pair = (backend["method"].upper(), backend["path"])
+                apps.add(pair)
+                assert catalog.get_by_backend(*pair) is None
+    assert set(APPLICATION_READ_BACKENDS.values()) <= apps
+    for name, (method, original) in APPLICATION_READ_BACKENDS.items():
+        tool = catalog.get(name)
+        assert (tool.backend_method, tool.backend_path) == (method, MCP_READ_PREFIX + name + "/")
+        assert is_application_read_route(method, original)
+    # These dedicated ops resources are outside the Unified/readonly registry.
+    for path in ("query_data_link_metadata", "get_data_link_metadata"):
+        backend = "/api/v3/meta/" + path + "/"
+        assert ("GET", backend) in apps
+        assert registry.resolve_readonly_tool("GET", backend) is None
+        assert not is_application_read_route("GET", backend)
+
+
+def test_mcp_read_viewset_registers_only_the_seven_original_resources():
+    routes = source_method(
+        "kernel_api/views/v4/mcp.py",
+        "MCPViewSet",
+        ResourceViewSet=object,
+        ResourceRoute=lambda method, resource, endpoint: (method, resource, endpoint),
+        resource=NS(alert=NS(alert_detail="alert-detail")),
+        GetTimeSeriesMetricsResource="time-series-metrics",
+        ListSpacesResource="spaces",
+        GetDirectoryTree="dashboard-tree",
+        GetDashboardDetail="dashboard-detail",
+        ServiceListResource="apm-services",
+        CalculateByRangeResource="apm-calculation",
+    ).resource_routes
+    assert {name: method for method, _, name in routes} == {
+        name: method for name, (method, _) in APPLICATION_READ_BACKENDS.items()
+    }
+    assert {resource for _, resource, _ in routes} == {
+        "alert-detail",
+        "time-series-metrics",
+        "spaces",
+        "dashboard-tree",
+        "dashboard-detail",
+        "apm-services",
+        "apm-calculation",
+    }
+    assert "from .mcp import *" in (BASE / "kernel_api/views/v4/__init__.py").read_text()
+
+
+@pytest.mark.parametrize("tampered", [False, True])
+def test_application_gate_verifies_real_gateway_signature(direct_gateway, tampered):
+    import jwt
+    from cryptography.hazmat.primitives.asymmetric import rsa
+
+    client = source_method("kernel_api/middlewares/authentication.py", "BkJWTClient", jwt=jwt)
+    private = rsa.generate_private_key(public_exponent=65537, key_size=2048)
+    signing_key = rsa.generate_private_key(public_exponent=65537, key_size=2048) if tampered else private
+    encoded = jwt.encode(
+        {"app": {"app_code": "signed-application", "verified": True}, "user": {}},
+        signing_key,
+        algorithm="RS512",
+        headers={"kid": "offline-key"},
+    )
+    response, request, _, ordinary = direct_gateway(
+        path="/api/v4/alert/alert/detail/",
+        method="GET",
+        raw_jwt=encoded,
+        jwt_factory=lambda request, _: client(request, {"offline-key": private.public_key()}),
+    )
+    if tampered:
+        assert response.status_code == 403
+        ordinary.assert_not_called()
+    else:
+        assert response is None
+        ordinary.assert_called_once_with(request, "system", "signed-application")
+
+
+def test_migrated_alert_still_checks_actual_business_before_iam(monkeypatch, direct_gateway, io):
+    monkeypatch.setattr(auth, "_validate_alert_target", io.real_target_scope)
+    module = ModuleType("kernel_api.resource.alert")
+    module.ensure_alert_belongs_to_biz = source_method(
+        "kernel_api/resource/alert.py",
+        "ensure_alert_belongs_to_biz",
+        AlertDocument=NS(get=lambda value: NS(event=NS(bk_biz_id=9))),
+        ValidationError=ValidationError,
+    )
+    module.ensure_strategy_ids_belong_to_biz = Mock(side_effect=AssertionError("not a strategy request"))
+    monkeypatch.setitem(sys.modules, module.__name__, module)
+    response, _, _, ordinary = direct_gateway("get_alert_info", MIGRATED_READ_ARGS["get_alert_info"], bearer=True)
+    assert response.status_code == 400
+    ordinary.assert_not_called()
+    io.monitor.iam_client.is_allowed.assert_not_called()
+    io.dispatch.assert_not_called()
+
+
+def test_migrated_mcp_iam_error_never_falls_back_to_application(direct_gateway, io):
+    io.monitor.iam_client.is_allowed.side_effect = RuntimeError("IAM unavailable")
+    response, _, _, ordinary = direct_gateway("get_alert_info", MIGRATED_READ_ARGS["get_alert_info"], app_verified=True)
+    assert response.status_code == 503
+    ordinary.assert_not_called()
+    io.dispatch.assert_not_called()
+
+
+def test_mcp_read_routes_resolve_through_real_drf_router():
+    from django.http import StreamingHttpResponse
+    from django.urls import Resolver404, get_resolver, re_path, include
+    from django.utils.decorators import method_decorator
+    from django.views.decorators.cache import cache_control
+    from rest_framework import viewsets
+    from rest_framework.decorators import action
+    from rest_framework.response import Response
+    from rest_framework.routers import DefaultRouter
+
+    from bkmonitor.utils.text import camel_to_underscore
+
+    class Resource:
+        RequestSerializer = ResponseSerializer = serializers.Serializer
+        many_request_data = many_response_data = False
+
+    route = source_method("core/drf_resource/viewsets.py", "ResourceRoute", Resource=Resource, _=lambda text: text)
+    view = source_method(
+        "core/drf_resource/viewsets.py",
+        "ResourceViewSet",
+        ResourceRoute=route,
+        viewsets=viewsets,
+        Serializer=serializers.Serializer,
+        swagger_auto_schema=lambda **kw: lambda func: func,
+        method_decorator=method_decorator,
+        cache_control=cache_control,
+        action=action,
+        Response=Response,
+        HttpResponse=HttpResponse,
+        StreamingHttpResponse=StreamingHttpResponse,
+        _=lambda text: text,
+    )
+    endpoint = source_method(
+        "kernel_api/views/v4/mcp.py",
+        "MCPViewSet",
+        ResourceViewSet=view,
+        ResourceRoute=route,
+        resource=NS(alert=NS(alert_detail=Resource)),
+        GetTimeSeriesMetricsResource=Resource,
+        ListSpacesResource=Resource,
+        GetDirectoryTree=Resource,
+        GetDashboardDetail=Resource,
+        ServiceListResource=Resource,
+        CalculateByRangeResource=Resource,
+    )
+    endpoint.generate_endpoint()
+    basename = source_method(
+        "core/drf_resource/tools.py", "get_underscore_viewset_name", camel_to_underscore=camel_to_underscore
+    )(endpoint)
+    assert basename == "mcp"
+    router = DefaultRouter()
+    router.register(basename, endpoint, basename=basename)
+    resolver = get_resolver((re_path(r"^api/v4/", include(router.urls)),))
+    for name, (method, _) in APPLICATION_READ_BACKENDS.items():
+        match = resolver.resolve(MCP_READ_PREFIX + name + "/")
+        assert match.func.cls is endpoint
+        assert match.func.actions[method.lower()] == name
+    for path in (MCP_READ_PREFIX + "unknown/", MCP_READ_PREFIX + "get_alert_info/extra/"):
+        with pytest.raises(Resolver404):
+            resolver.resolve(path)
+
+
+@pytest.mark.parametrize("tool_name", sorted(APPLICATION_READ_BACKENDS))
+@pytest.mark.parametrize("app_verified", [False, True])
+def test_mounted_application_read_paths_keep_identity_boundary(direct_gateway, tool_name, app_verified):
+    method, path = APPLICATION_READ_BACKENDS[tool_name]
+    response, request, _, ordinary = direct_gateway(
+        tool_name,
+        MIGRATED_READ_ARGS[tool_name],
+        path=path,
+        method=method,
+        script_name="/monitor-api",
+        app_verified=app_verified,
+    )
+    assert request.path == "/monitor-api" + path
+    assert request.path_info == path
+    if app_verified:
+        assert response is None
+        ordinary.assert_called_once()
+    else:
+        assert response.status_code == 403
+        ordinary.assert_not_called()
+
+
+@pytest.mark.parametrize("tool_name", sorted(APPLICATION_READ_BACKENDS))
+@pytest.mark.parametrize("verified", [False, True])
+def test_mounted_mcp_read_paths_keep_user_and_iam_boundary(monkeypatch, direct_gateway, io, tool_name, verified):
+    monkeypatch.setattr(settings, "MCP_NATIVE_PERMISSION_TOOLS", [])
+    io.monitor.iam_client.is_allowed.side_effect = None
+    io.monitor.iam_client.is_allowed.return_value = True
+    response, request, permission, ordinary = direct_gateway(
+        tool_name,
+        MIGRATED_READ_ARGS[tool_name],
+        script_name="/monitor-api",
+        app_verified=True,
+        verified=verified,
+    )
+    assert request.path_info == MCP_READ_PREFIX + tool_name + "/"
+    assert response.status_code == (200 if verified else 403)
+    assert io.dispatch.call_count == int(verified)
+    ordinary.assert_not_called()
+    if verified and not registry.get_tool_registry().get(tool_name).permission_exempt:
+        permission.is_allowed_by_biz.assert_called()
+
+
+@pytest.mark.parametrize("format_suffix", [".api", ".xml", ".jsonl/"])
+def test_other_mcp_formats_cannot_select_application_authorization(direct_gateway, format_suffix):
+    response, _, _, ordinary = direct_gateway(
+        path=MCP_READ_PREFIX + "get_alert_info" + format_suffix,
+        method="GET",
+        script_name="/monitor-api",
+        app_verified=True,
+    )
+    assert response.status_code == 403
+    ordinary.assert_not_called()
