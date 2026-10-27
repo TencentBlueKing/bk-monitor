@@ -114,3 +114,20 @@ class TestQuixClusteringHandler(TestCase):
         self.assertEqual(status["flow_run"], {"status": "FAILED", "message": "metadata_set: boom"})
         self.assertEqual(status["data_check"]["status"], "PENDING")
         self.assertEqual(status["quix"]["operation"]["operation_id"], operation.operation_id)
+
+    def test_access_status_shows_awaiting_receipt_as_unfinished(self, mock_delay):
+        operation = create_enable_operation()
+        for step in ("create_task", "wait_task_ready", "configure_clustering", "wait_worker_ready", "metadata_set"):
+            operation.record_step(step, ClusteringOperationStatusEnum.SUCCESS.value)
+        operation.record_step("wait_adoption", ClusteringOperationStatusEnum.SUCCESS.value)
+        operation.step = "confirm_adoption"
+        operation.status = ClusteringOperationStatusEnum.AWAITING_RECEIPT.value
+        operation.save()
+
+        status = QuixClusteringHandler(self.index_set).get_access_status()
+
+        self.assertFalse(status["access_finished"])
+        self.assertEqual(status["flow_create"]["status"], "SUCCESS")
+        self.assertEqual(status["flow_run"]["status"], "RUNNING")
+        self.assertEqual(status["flow_run"]["message"], "配置已下发，待采用确认")
+        self.assertEqual(status["data_check"]["status"], "PENDING")

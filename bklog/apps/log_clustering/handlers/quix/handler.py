@@ -33,6 +33,7 @@ from apps.log_clustering.exceptions import ClusteringConfigHasExistException
 from apps.log_clustering.handlers.dataflow.constants import OnlineTaskTrainingArgs
 from apps.log_clustering.handlers.quix.adapter import build_clustering_config, build_index_names
 from apps.log_clustering.handlers.quix.config import get_quix_config
+from apps.log_clustering.handlers.quix.operation import QuixClusteringOperationRunner
 from apps.log_clustering.handlers.regex_template import RegexTemplateHandler
 from apps.log_clustering.models import ClusteringConfig, LogClusteringOperation, LogClusteringRuntime
 from apps.log_databus.models import CollectorConfig
@@ -43,7 +44,7 @@ from bkm_space.utils import space_uid_to_bk_biz_id
 # 开启流程中各步骤对应到现有接入状态的三段展示
 ACCESS_STATUS_STEPS = {
     "flow_create": ("create_task", "wait_task_ready", "configure_clustering", "wait_worker_ready"),
-    "flow_run": ("metadata_set", "wait_adoption"),
+    "flow_run": ("metadata_set", "wait_adoption", "confirm_adoption"),
 }
 
 
@@ -106,8 +107,8 @@ class QuixClusteringHandler:
         runtime = LogClusteringRuntime.objects.get(index_set_id=self.index_set_id)
         operation = LogClusteringOperation.objects.filter(index_set_id=self.index_set_id).order_by("-id").first()
         result = {"access_finished": runtime.phase == ClusteringRuntimePhaseEnum.RUNNING.value}
-        for section, steps in ACCESS_STATUS_STEPS.items():
-            result[section] = self._section_status(status_code, operation, steps)
+        for section in ACCESS_STATUS_STEPS:
+            result[section] = self._section_status(status_code, operation, self._section_steps(operation, section))
         result["data_check"] = (
             {"status": status_code.SUCCESS, "message": _("步骤完成")}
             if result["access_finished"]
@@ -168,8 +169,19 @@ class QuixClusteringHandler:
         }
 
     @staticmethod
+    def _section_steps(operation: LogClusteringOperation | None, section: str) -> tuple:
+        if operation is None:
+            return ()
+        if operation.operation_type == ClusteringOperationTypeEnum.ENABLE.value:
+            return ACCESS_STATUS_STEPS[section]
+        # 非开启操作不涉及任务创建，整个操作的进度展示在链路运行段
+        if section == "flow_create":
+            return ()
+        return tuple(QuixClusteringOperationRunner.STEPS.get(operation.operation_type, ()))
+
+    @staticmethod
     def _section_status(status_code, operation: LogClusteringOperation | None, steps: tuple) -> dict:
-        if operation is None or operation.operation_type != ClusteringOperationTypeEnum.ENABLE.value:
+        if not steps or operation.status == ClusteringOperationStatusEnum.SUCCESS.value:
             return {"status": status_code.SUCCESS, "message": _("步骤完成")}
         finished = {
             item["step"] for item in operation.steps if item["status"] == ClusteringOperationStatusEnum.SUCCESS.value
@@ -179,6 +191,8 @@ class QuixClusteringHandler:
         if operation.step in steps:
             if operation.status == ClusteringOperationStatusEnum.FAILED.value:
                 return {"status": status_code.FAILED, "message": operation.last_error}
+            if operation.status == ClusteringOperationStatusEnum.AWAITING_RECEIPT.value:
+                return {"status": status_code.RUNNING, "message": _("配置已下发，待采用确认")}
             return {"status": status_code.RUNNING, "message": operation.step}
         return {"status": status_code.PENDING, "message": _("等待执行")}
 
