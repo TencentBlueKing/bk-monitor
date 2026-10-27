@@ -191,6 +191,16 @@ const getNumericValue = (row, key) => {
 /** 将文本搜索值格式化为多个搜索项：支持中英文逗号、分号、顿号、竖线、空白分隔 */
 const splitSearchValues = value => `${value ?? ''}`.split(/[\s,;，；、|]+/).filter(Boolean);
 
+/** 缓存搜索项解析结果：每行过滤都会命中同一条件，避免重复拆分与正则匹配 */
+const searchValuesCache = new Map();
+const getSearchValues = value => {
+  const raw = `${value ?? ''}`;
+  if (!searchValuesCache.has(raw)) {
+    searchValuesCache.set(raw, splitSearchValues(raw));
+  }
+  return searchValuesCache.get(raw);
+};
+
 const matchWhereItem = (row, item) => {
   const values = item.value || [];
   if (!values.length) {
@@ -238,7 +248,7 @@ const matchWhereItem = (row, item) => {
   // 主机 ID / IP 类文本字段：单个搜索值模糊匹配，分隔符分隔的多个搜索值精确匹配（任一命中）
   if (HOST_TEXT_FILTER_FIELDS.has(item.key)) {
     const isExclude = method === 'exclude';
-    const searchValues = splitSearchValues(values[0]);
+    const searchValues = getSearchValues(values[0]);
     if (!searchValues.length) {
       return true;
     }
@@ -252,10 +262,11 @@ const matchWhereItem = (row, item) => {
       .split(',')
       .map(value => value.trim())
       .filter(Boolean);
-    const isMatch =
-      searchValues.length > 1
-        ? searchValues.some(value => curValues.includes(value))
-        : curValues.some(value => value.includes(searchValues[0]));
+    const isMultiSearchValue = searchValues.length > 1;
+    const curValueSet = isMultiSearchValue ? new Set(curValues) : null;
+    const isMatch = isMultiSearchValue
+      ? searchValues.some(value => curValueSet.has(value))
+      : curValues.some(value => value.includes(searchValues[0]));
     return isExclude ? !isMatch : isMatch;
   }
   // 通配符 key '*'：对整行做全文关键字搜索
