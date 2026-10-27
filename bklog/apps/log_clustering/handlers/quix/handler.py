@@ -19,6 +19,8 @@ We undertake not to change the open source license (MIT license) applicable to t
 the project delivered to anyone in the future.
 """
 
+from django.db import transaction
+from django.utils import timezone
 from django.utils.translation import gettext as _
 
 from apps.log_clustering.constants import (
@@ -54,6 +56,18 @@ BUSINESS_UPDATE_FIELDS = (
     "regex_template_id",
 )
 
+# 重新开启从未绑定日志链路的聚类时，丢弃上一轮的任务与版本，申请新任务
+UNBOUND_RESET_FIELDS = {
+    "bkfara_task_id": "",
+    "generation": None,
+    "input_revision": None,
+    "control_version": None,
+    "kafka_binding": {},
+    "active_config": {},
+    "candidate_boundary": None,
+    "outbox_boundary": None,
+}
+
 # 开启流程中各步骤对应到现有接入状态的三段展示
 ACCESS_STATUS_STEPS = {
     "flow_create": ("create_task", "wait_task_ready", "configure_clustering", "wait_worker_ready"),
@@ -74,14 +88,17 @@ class QuixClusteringHandler:
         has_exist = ClusteringConfigHasExistException(
             ClusteringConfigHasExistException.MESSAGE.format(index_set_id=self.index_set_id)
         )
-        if LogClusteringRuntime.objects.filter(index_set_id=self.index_set_id).exists():
+        runtime = LogClusteringRuntime.objects.filter(index_set_id=self.index_set_id).first()
+        if runtime:
             # 开启失败后再次提交时续跑原操作，沿用已申请的任务和幂等键
             operation = self._resume_failed_operation(ClusteringOperationTypeEnum.ENABLE.value)
-            if not operation:
+            if operation:
+                run_quix_clustering_operation.delay(operation.operation_id)
+                return self._access_response(operation)
+            # 从未绑定到日志链路就被关闭的聚类可以重新开启，并申请新的 BKFara 任务
+            if runtime.phase != ClusteringRuntimePhaseEnum.STOPPED.value or runtime.sink:
                 raise has_exist
-            run_quix_clustering_operation.delay(operation.operation_id)
-            return self._access_response(operation)
-        if ClusteringConfig.get_by_index_set_id(index_set_id=self.index_set_id, raise_exception=False):
+        elif ClusteringConfig.get_by_index_set_id(index_set_id=self.index_set_id, raise_exception=False):
             # 已通过其他链路接入聚类的索引集不能直接切换
             raise has_exist
 
@@ -93,6 +110,12 @@ class QuixClusteringHandler:
 
         collector_config = CollectorConfig.objects.get(collector_config_id=self.index_set.collector_config_id)
         pattern_index, state_index = build_index_names(self.index_set_id)
+        enable_fields = {
+            "phase": ClusteringRuntimePhaseEnum.ENABLING.value,
+            "pending_config": clustering_config,
+            "pattern_index": pattern_index,
+            "state_index": state_index,
+        }
         _runtime, operation = LogClusteringRuntime.start_operation(
             self.index_set_id,
             ClusteringOperationTypeEnum.ENABLE.value,
@@ -103,11 +126,10 @@ class QuixClusteringHandler:
                 "collector_config_id": collector_config.collector_config_id,
                 "table_id": collector_config.table_id,
                 "bk_data_id": collector_config.bk_data_id,
-                "phase": ClusteringRuntimePhaseEnum.ENABLING.value,
-                "pending_config": clustering_config,
-                "pattern_index": pattern_index,
-                "state_index": state_index,
+                **enable_fields,
             },
+            allowed_phases=(ClusteringRuntimePhaseEnum.STOPPED.value,) if runtime else None,
+            updates={**enable_fields, **UNBOUND_RESET_FIELDS} if runtime else None,
         )
         self._save_business_config(collector_config, params, clustering_fields, filter_rules)
         run_quix_clustering_operation.delay(operation.operation_id)
@@ -180,18 +202,60 @@ class QuixClusteringHandler:
             # 续跑沿用已固定的候选边界
             operation = self._resume_failed_operation(ClusteringOperationTypeEnum.DISABLE.value)
         if not operation:
-            runtime, operation = LogClusteringRuntime.start_operation(
-                self.index_set_id,
-                ClusteringOperationTypeEnum.DISABLE.value,
-                {},
-                allowed_phases=(ClusteringRuntimePhaseEnum.RUNNING.value,),
-            )
-            runtime.phase = ClusteringRuntimePhaseEnum.DISABLING.value
-            runtime.candidate_boundary = None
-            runtime.outbox_boundary = None
-            runtime.save(update_fields=["phase", "candidate_boundary", "outbox_boundary", "updated_at", "updated_by"])
+            with transaction.atomic():
+                updates = self._supersede_unfinished_operation()
+                runtime, operation = LogClusteringRuntime.start_operation(
+                    self.index_set_id,
+                    ClusteringOperationTypeEnum.DISABLE.value,
+                    {},
+                    allowed_phases=(
+                        ClusteringRuntimePhaseEnum.RUNNING.value,
+                        ClusteringRuntimePhaseEnum.ENABLING.value,
+                        ClusteringRuntimePhaseEnum.UPDATING.value,
+                        ClusteringRuntimePhaseEnum.REOPENING.value,
+                    ),
+                    updates={**updates, "phase": ClusteringRuntimePhaseEnum.DISABLING.value},
+                )
         run_quix_clustering_operation.delay(operation.operation_id)
         return operation.operation_id
+
+    def _supersede_unfinished_operation(self) -> dict:
+        """
+        关闭接替失败或待采用确认的开启/更新/重开操作，避免这些操作无法续跑时索引集无法关闭
+        已下发到 metadata 的待生效配置即当前绑定使用的配置；返回需要随关闭一起写入运行绑定的字段
+        """
+        operation = (
+            LogClusteringOperation.objects.select_for_update()
+            .filter(
+                index_set_id=self.index_set_id,
+                status__in=(
+                    ClusteringOperationStatusEnum.FAILED.value,
+                    ClusteringOperationStatusEnum.AWAITING_RECEIPT.value,
+                ),
+            )
+            .exclude(operation_type=ClusteringOperationTypeEnum.DISABLE.value)
+            .first()
+        )
+        if operation is None:
+            return {}
+
+        updates = {}
+        runtime = LogClusteringRuntime.objects.get(index_set_id=self.index_set_id)
+        if runtime.pending_config is not None:
+            applied = any(
+                item["step"] == "metadata_set" and item["status"] == ClusteringOperationStatusEnum.SUCCESS.value
+                for item in operation.steps
+            )
+            if applied:
+                updates["active_config"] = runtime.pending_config
+            if applied or operation.operation_type == ClusteringOperationTypeEnum.UPDATE.value:
+                updates["pending_config"] = None
+
+        operation.record_step(operation.step, ClusteringOperationStatusEnum.CANCELED.value, _("已由关闭操作接替"))
+        operation.status = ClusteringOperationStatusEnum.CANCELED.value
+        operation.finished_at = timezone.now()
+        operation.save(update_fields=["status", "finished_at", "updated_at", "updated_by"])
+        return updates
 
     def get_access_status(self) -> dict:
         from apps.log_clustering.handlers.clustering_config import ClusteringConfigHandler
@@ -223,8 +287,9 @@ class QuixClusteringHandler:
         try:
             return BkFaraClient().get_clustering(runtime.bkfara_task_id)
         except Exception as e:  # pylint: disable=broad-except
+            # 原始错误可能包含内部地址等运维细节，只记录到服务端日志
             logger.warning("[quix_clustering] index_set(%s) get bkfara status failed: %s", runtime.index_set_id, e)
-            return {"error": str(e)}
+            return {"error": _("BKFara 运行状态查询失败")}
 
     def _resume_failed_operation(self, operation_type: str) -> LogClusteringOperation | None:
         operation = LogClusteringOperation.objects.filter(

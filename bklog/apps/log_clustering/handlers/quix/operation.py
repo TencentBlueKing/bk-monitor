@@ -73,6 +73,14 @@ def runtime_adoption_confirmed(status: dict, expected_revision: int) -> bool:
     return False
 
 
+def runtime_detach_confirmed(status: dict, expected_revision: int) -> bool:
+    """
+    BKBase 是否回执所有相关 Runtime 实例已恢复原存储绑定
+    binding_removed=true 只能来自该回执；BKBase status 中的 binding_removed 固定为 false，提供可核验的回执前一律视为未确认
+    """
+    return False
+
+
 def is_worker_ready(clustering: dict) -> bool:
     """所有目标 Worker 已加载目标模型；成员列表包含历史实例，不能按条数判断"""
     target_model_ref = clustering.get("target_model_ref")
@@ -110,6 +118,7 @@ class QuixClusteringOperationRunner:
         ],
         # 候选边界只固定一次；结果入库并实际恢复原存储绑定后，才向 BKFara 提交最终完成确认
         ClusteringOperationTypeEnum.DISABLE.value: [
+            "check_binding",
             "drain",
             "wait_boundary",
             "stop_draining",
@@ -117,10 +126,11 @@ class QuixClusteringOperationRunner:
             "finish",
             "detach",
             "wait_detached",
+            "confirm_detached",
             "stop_completed",
         ],
     }
-    RECEIPT_STEPS = {"confirm_adoption"}
+    RECEIPT_STEPS = {"confirm_adoption", "confirm_detached"}
 
     def __init__(self, operation_id: str):
         self.operation = LogClusteringOperation.objects.get(operation_id=operation_id)
@@ -327,13 +337,32 @@ class QuixClusteringOperationRunner:
         self._save_runtime(metadata_revision=result["revision"])
         return True
 
+    @property
+    def _binding_attached(self) -> bool:
+        """日志链路是否引用聚类 Sink；只有关闭会在首步判定，其余操作必然已绑定"""
+        return self.operation.request_snapshot.get("binding_attached", True)
+
+    def _step_check_binding(self) -> bool:
+        # 关闭可能接替失败或待确认的操作：已绑定时重新取候选边界；未绑定时跳过 BKBase 收尾，沿用已有候选边界
+        attached = False
+        if self.runtime.sink:
+            status = TransferApi.get_log_clustering_status(self._metadata_params())
+            attached = bool(status.get("configured")) and bool(status.get("attached"))
+        if attached:
+            self._save_runtime(candidate_boundary=None, outbox_boundary=None)
+        self.operation.request_snapshot = {**self.operation.request_snapshot, "binding_attached": attached}
+        self.operation.save(update_fields=["request_snapshot", "updated_at", "updated_by"])
+        return True
+
     def _step_drain(self) -> bool:
-        return self._operate_metadata("drain")
+        return self._operate_metadata("drain") if self._binding_attached else True
 
     def _step_finish(self) -> bool:
-        return self._operate_metadata("finish")
+        return self._operate_metadata("finish") if self._binding_attached else True
 
     def _step_wait_drained(self) -> bool:
+        if not self._binding_attached:
+            return True
         status = TransferApi.get_log_clustering_status(self._metadata_params())
         clustering_status = status.get("clustering_status") or {}
         if not all(clustering_status.get(key) for key in DRAINED_STATUS_KEYS):
@@ -358,6 +387,11 @@ class QuixClusteringOperationRunner:
     def _step_wait_boundary(self) -> bool:
         if self.runtime.candidate_boundary is not None:
             return True
+        if not self._binding_attached:
+            # 从未绑定到日志链路时候选 Topic 没有写入过数据，结束位置即各分区起点
+            partitions = self.runtime.kafka_binding.get("partitions") or self.quix_config["kafka"]["partitions"]
+            self._save_runtime(candidate_boundary={str(partition): 0 for partition in range(partitions)})
+            return True
         status = TransferApi.get_log_clustering_status(self._metadata_params())
         clustering_status = status.get("clustering_status") or {}
         if not clustering_status.get("boundary_ready") or clustering_status.get("boundary") is None:
@@ -370,25 +404,38 @@ class QuixClusteringOperationRunner:
         return True
 
     def _step_stop_draining(self) -> bool:
+        if not self.runtime.bkfara_task_id:
+            return True
         self.bkfara.stop_clustering(self.runtime.bkfara_task_id, self.runtime.candidate_boundary)
         return True
 
     def _step_detach(self) -> bool:
-        return self._operate_metadata("detach")
+        return self._operate_metadata("detach") if self._binding_attached else True
 
     def _step_wait_detached(self) -> bool:
-        # binding_removed 必须来自 Databus 恢复原存储绑定的事实，不能沿用 BKBase status 中固定为 false 的字段；
-        # 这里只有配置层证据，Runtime 实际采用回执待 BKBase 提供
+        # 配置层就绪：Databus 已改回原存储绑定；任一远端状态查询失败都视为未就绪
+        if not self._binding_attached:
+            return True
         status = TransferApi.get_log_clustering_status(self._metadata_params())
         databus_phase = ((status.get("databus_resource") or {}).get("status") or {}).get("phase")
         return (
-            status.get("revision") == self.runtime.metadata_revision
+            not status.get("errors")
+            and status.get("revision") == self.runtime.metadata_revision
             and bool(status.get("raw_sink_referenced"))
             and not status.get("sink_referenced")
             and databus_phase == "Ok"
         )
 
+    def _step_confirm_detached(self) -> bool:
+        # 未绑定过日志链路时解绑是既成事实；已绑定时需要 BKBase 回执，回执前不能向 BKFara 提交 binding_removed
+        if not self._binding_attached:
+            return True
+        status = TransferApi.get_log_clustering_status(self._metadata_params())
+        return not status.get("errors") and runtime_detach_confirmed(status, self.runtime.metadata_revision)
+
     def _step_stop_completed(self) -> bool:
+        if not self.runtime.bkfara_task_id:
+            return True
         boundary = self.runtime.candidate_boundary
         self.bkfara.stop_clustering(
             self.runtime.bkfara_task_id,
@@ -400,6 +447,8 @@ class QuixClusteringOperationRunner:
     def _finish_disable(self):
         self._close_coverage_gap()
         self._save_runtime(phase=ClusteringRuntimePhaseEnum.STOPPED.value, coverage_gaps=self.runtime.coverage_gaps)
+        ClusteringConfig.objects.filter(index_set_id=self.runtime.index_set_id).update(access_finished=False)
+        LogIndexSet.delete_tag_by_name(self.runtime.index_set_id, InnerTag.CLUSTERING.value)
 
     def _step_finished_at(self, step: str) -> str | None:
         for item in reversed(self.operation.steps):
