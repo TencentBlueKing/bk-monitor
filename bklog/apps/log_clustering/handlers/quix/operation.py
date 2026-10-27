@@ -141,6 +141,7 @@ class QuixClusteringOperationRunner:
             "attach",
             "wait_adoption",
             "resume",
+            "confirm_adoption",
         ],
     }
     RECEIPT_STEPS = {"confirm_adoption", "confirm_detached"}
@@ -294,6 +295,18 @@ class QuixClusteringOperationRunner:
         clustering = self.bkfara.get_clustering(self.runtime.bkfara_task_id)
         if not is_worker_ready(clustering):
             return False
+        if self.operation.operation_type == ClusteringOperationTypeEnum.REOPEN.value:
+            # 重开沿用 metadata 中的原绑定；BKFara 侧绑定变化时不能静默覆盖本地记录，需人工确认后处理
+            if (clustering["kafka"], clustering["input_revision"]) != (
+                self.runtime.kafka_binding,
+                self.runtime.input_revision,
+            ):
+                raise QuixClusteringParamsInvalidException(
+                    QuixClusteringParamsInvalidException.MESSAGE.format(
+                        detail="bkfara clustering binding changed after restart"
+                    )
+                )
+            return True
         self._save_runtime(kafka_binding=clustering["kafka"], input_revision=clustering["input_revision"])
         return True
 
@@ -479,7 +492,11 @@ class QuixClusteringOperationRunner:
         return True
 
     def _finish_reopen(self):
-        self._save_runtime(phase=ClusteringRuntimePhaseEnum.RUNNING.value, candidate_boundary=None)
+        self._save_runtime(
+            phase=ClusteringRuntimePhaseEnum.RUNNING.value, candidate_boundary=None, outbox_boundary=None
+        )
+        ClusteringConfig.objects.filter(index_set_id=self.runtime.index_set_id).update(access_finished=True)
+        LogIndexSet.set_tag(self.runtime.index_set_id, InnerTag.CLUSTERING.value)
 
     def _finish_disable(self):
         self._close_coverage_gap()
