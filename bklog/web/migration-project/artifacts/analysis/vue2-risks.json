@@ -1,0 +1,764 @@
+[
+  {
+    "id": "beforeDestroy",
+    "count": 20,
+    "disposition": "Vue 3 改为 beforeUnmount，P3 规则检测，P4 前不批量替换",
+    "files": [
+      {
+        "file": "src/common/api-error-toast.vue",
+        "lines": [
+          112
+        ]
+      },
+      {
+        "file": "src/components/collection-access/components/step-add/container-target-item.vue",
+        "lines": [
+          158
+        ]
+      },
+      {
+        "file": "src/components/collection-access/components/step-add/label-target-dialog.vue",
+        "lines": [
+          276
+        ]
+      },
+      {
+        "file": "src/skeleton/retrieve-loader.vue",
+        "lines": [
+          123
+        ]
+      },
+      {
+        "file": "src/views/extract/create/preview-files.vue",
+        "lines": [
+          257
+        ]
+      },
+      {
+        "file": "src/views/manage/manage-access/components/index-set/manage/basic-info.vue",
+        "lines": [
+          302
+        ]
+      },
+      {
+        "file": "src/views/manage/manage-access/log-collection/collection-item/index.vue",
+        "lines": [
+          880
+        ]
+      },
+      {
+        "file": "src/views/manage/manage-access/log-collection/collection-item/manage-collection/collection-status.vue",
+        "lines": [
+          339
+        ]
+      },
+      {
+        "file": "src/views/retrieve-v2/condition-comp/select-index-set.tsx",
+        "lines": [
+          404
+        ]
+      },
+      {
+        "file": "src/views/retrieve-v2/field-filter-comp/field-analysis.tsx",
+        "lines": [
+          186
+        ]
+      },
+      {
+        "file": "src/views/retrieve-v2/field-filter-comp/field-item.tsx",
+        "lines": [
+          154
+        ]
+      },
+      {
+        "file": "src/views/retrieve-v2/result-comp/export-history.vue",
+        "lines": [
+          460
+        ]
+      },
+      {
+        "file": "src/views/retrieve-v2/result-comp/export-log.vue",
+        "lines": [
+          518
+        ]
+      },
+      {
+        "file": "src/views/retrieve-v2/result-comp/kv-list.vue",
+        "lines": [
+          397
+        ]
+      },
+      {
+        "file": "src/views/retrieve-v2/search-result-panel/log-clustering/data-fingerprint.vue",
+        "lines": [
+          634
+        ]
+      },
+      {
+        "file": "src/views/retrieve-v2/search-result-panel/log-clustering/index.vue",
+        "lines": [
+          401
+        ]
+      },
+      {
+        "file": "src/views/retrieve-v2/search-result-panel/log-result/full-row-viewer-content.vue",
+        "lines": [
+          511
+        ]
+      },
+      {
+        "file": "src/views/retrieve-v2/search-result-panel/log-result/full-row-viewer.vue",
+        "lines": [
+          111
+        ]
+      },
+      {
+        "file": "src/views/retrieve-v2/setting-modal/component/rule-top-tools.vue",
+        "lines": [
+          379
+        ]
+      },
+      {
+        "file": "src/views/retrieve-v2/setting-modal/rule-table.vue",
+        "lines": [
+          328
+        ]
+      }
+    ]
+  },
+  {
+    "id": "destroyed",
+    "count": 1,
+    "disposition": "Vue 3 改为 unmounted",
+    "files": [
+      {
+        "file": "src/views/retrieve-v2/result-comp/export-log.vue",
+        "lines": [
+          548
+        ]
+      }
+    ]
+  },
+  {
+    "id": "dollar-on",
+    "count": 3,
+    "disposition": "实例事件 API 已移除，改为 mitt 或组件事件；先确认是业务事件还是第三方",
+    "files": [
+      {
+        "file": "src/common/collector-api-error.js",
+        "lines": [
+          104
+        ]
+      },
+      {
+        "file": "src/global/head-navi/index.tsx",
+        "lines": [
+          120
+        ]
+      },
+      {
+        "file": "src/views/retrieve-v2/condition-comp/select-date.vue",
+        "lines": [
+          217
+        ]
+      }
+    ]
+  },
+  {
+    "id": "dollar-off",
+    "count": 2,
+    "disposition": "与 $on 一起替换",
+    "files": [
+      {
+        "file": "src/global/head-navi/index.tsx",
+        "lines": [
+          124
+        ]
+      },
+      {
+        "file": "src/views/retrieve-v2/condition-comp/select-date.vue",
+        "lines": [
+          220
+        ]
+      }
+    ]
+  },
+  {
+    "id": "dollar-once",
+    "count": 0,
+    "disposition": "与 $on 一起替换",
+    "files": []
+  },
+  {
+    "id": "dollar-set",
+    "count": 34,
+    "disposition": "Vue 3 响应式不需要 $set",
+    "files": [
+      {
+        "file": "src/components/collection-access/components/step-add/config-log-set-item.vue",
+        "lines": [
+          729
+        ]
+      },
+      {
+        "file": "src/components/collection-access/field-table.vue",
+        "lines": [
+          850,
+          851,
+          852,
+          853,
+          856,
+          1012,
+          1015,
+          1016,
+          1025,
+          1046
+        ]
+      },
+      {
+        "file": "src/components/collection-access/step-field.vue",
+        "lines": [
+          2468,
+          2972
+        ]
+      },
+      {
+        "file": "src/global/setting-table.vue",
+        "lines": [
+          727,
+          728,
+          729,
+          730,
+          1052
+        ]
+      },
+      {
+        "file": "src/views/authorization/authorization-dialog.tsx",
+        "lines": [
+          148
+        ]
+      },
+      {
+        "file": "src/views/authorization/authorization-list.tsx",
+        "lines": [
+          603,
+          696,
+          793
+        ]
+      },
+      {
+        "file": "src/views/manage/manage-access/components/index-set/list/index.vue",
+        "lines": [
+          366
+        ]
+      },
+      {
+        "file": "src/views/manage/manage-access/custom-report/list.vue",
+        "lines": [
+          405
+        ]
+      },
+      {
+        "file": "src/views/manage/manage-access/log-collection/collection-item/index.vue",
+        "lines": [
+          857
+        ]
+      },
+      {
+        "file": "src/views/retrieve-v2/field-filter-comp/index.tsx",
+        "lines": [
+          476
+        ]
+      },
+      {
+        "file": "src/views/retrieve-v2/search-result-panel/graph-analysis/index.tsx",
+        "lines": [
+          652
+        ]
+      },
+      {
+        "file": "src/views/retrieve-v2/search-result-panel/log-clustering/data-fingerprint.vue",
+        "lines": [
+          1299,
+          1305
+        ]
+      },
+      {
+        "file": "src/views/retrieve-v2/search-result-panel/log-result/full-row-viewer-content.vue",
+        "lines": [
+          617,
+          629,
+          640,
+          681,
+          836
+        ]
+      }
+    ]
+  },
+  {
+    "id": "dollar-delete",
+    "count": 2,
+    "disposition": "改为 delete 响应式对象属性",
+    "files": [
+      {
+        "file": "src/views/authorization/authorization-list.tsx",
+        "lines": [
+          698
+        ]
+      },
+      {
+        "file": "src/views/retrieve-v2/field-filter-comp/index.tsx",
+        "lines": [
+          481
+        ]
+      }
+    ]
+  },
+  {
+    "id": "dollar-children",
+    "count": 3,
+    "disposition": "改为模板 ref 或 provide/inject",
+    "files": [
+      {
+        "file": "src/views/retrieve-v2/search-result-panel/log-clustering/components/quick-create-subscription-drawer/create-subscription-form.tsx",
+        "lines": [
+          521,
+          526,
+          531
+        ]
+      }
+    ]
+  },
+  {
+    "id": "filters-option",
+    "count": 1,
+    "disposition": "过滤器已移除，改为函数或计算属性",
+    "files": [
+      {
+        "file": "src/views/manage-v2/grok-manage/index.tsx",
+        "lines": [
+          231
+        ]
+      }
+    ]
+  },
+  {
+    "id": "vue-filter",
+    "count": 0,
+    "disposition": "全局过滤器已移除",
+    "files": []
+  },
+  {
+    "id": "vue-prototype",
+    "count": 12,
+    "disposition": "改为 app.config.globalProperties",
+    "files": [
+      {
+        "file": "src/api/index.js",
+        "lines": [
+          445
+        ]
+      },
+      {
+        "file": "src/common/bkmagic.js",
+        "lines": [
+          75,
+          76,
+          77,
+          78
+        ]
+      },
+      {
+        "file": "src/common/demand-import.js",
+        "lines": [
+          93
+        ]
+      },
+      {
+        "file": "src/common/preload-import.ts",
+        "lines": [
+          30,
+          31,
+          32
+        ]
+      },
+      {
+        "file": "src/main.js",
+        "lines": [
+          99,
+          100
+        ]
+      },
+      {
+        "file": "src/plugins/methods.js",
+        "lines": [
+          29
+        ]
+      }
+    ]
+  },
+  {
+    "id": "vue-mixin",
+    "count": 1,
+    "disposition": "全局 mixin 改为组合函数，先逐个核对副作用",
+    "files": [
+      {
+        "file": "src/main.js",
+        "lines": [
+          116
+        ]
+      }
+    ]
+  },
+  {
+    "id": "slot-scope",
+    "count": 3,
+    "disposition": "改为 v-slot",
+    "files": [
+      {
+        "file": "src/components/collection-access/field-table.vue",
+        "lines": [
+          326
+        ]
+      },
+      {
+        "file": "src/views/manage/log-archive/archive-list/components/state-table.vue",
+        "lines": [
+          84
+        ]
+      },
+      {
+        "file": "src/views/retrieve-v2/search-result-panel/log-clustering/data-fingerprint.vue",
+        "lines": [
+          176
+        ]
+      }
+    ]
+  },
+  {
+    "id": "sync-modifier",
+    "count": 62,
+    "disposition": "改为 v-model 参数",
+    "files": [
+      {
+        "file": "src/components/collection-access/components/step-add/config-log-set-item.vue",
+        "lines": [
+          100,
+          101,
+          241
+        ]
+      },
+      {
+        "file": "src/components/collection-access/components/step-add/configs-select.vue",
+        "lines": [
+          162,
+          266,
+          271
+        ]
+      },
+      {
+        "file": "src/components/collection-access/index.vue",
+        "lines": [
+          49,
+          67,
+          69,
+          73,
+          75
+        ]
+      },
+      {
+        "file": "src/components/collection-access/issued-slider.vue",
+        "lines": [
+          17,
+          51,
+          142
+        ]
+      },
+      {
+        "file": "src/components/collection-access/step-add.vue",
+        "lines": [
+          338,
+          367,
+          380
+        ]
+      },
+      {
+        "file": "src/components/collection-access/step-field.vue",
+        "lines": [
+          886
+        ]
+      },
+      {
+        "file": "src/components/collection-access/step-storage.vue",
+        "lines": [
+          47,
+          48,
+          56,
+          57
+        ]
+      },
+      {
+        "file": "src/global/field-setting.vue",
+        "lines": [
+          14
+        ]
+      },
+      {
+        "file": "src/views/extract/create/index.vue",
+        "lines": [
+          66,
+          75
+        ]
+      },
+      {
+        "file": "src/views/extract/create/preview-files.vue",
+        "lines": [
+          47,
+          48
+        ]
+      },
+      {
+        "file": "src/views/extract/home/index.vue",
+        "lines": [
+          194
+        ]
+      },
+      {
+        "file": "src/views/manage/es-cluster-status/es-cluster-mess/index.vue",
+        "lines": [
+          296
+        ]
+      },
+      {
+        "file": "src/views/manage/log-archive/archive-list/list.vue",
+        "lines": [
+          186,
+          193
+        ]
+      },
+      {
+        "file": "src/views/manage/log-archive/archive-repository/list.vue",
+        "lines": [
+          180
+        ]
+      },
+      {
+        "file": "src/views/manage/log-archive/archive-restore/list.vue",
+        "lines": [
+          188
+        ]
+      },
+      {
+        "file": "src/views/manage/manage-access/components/collection-report-view/index.vue",
+        "lines": [
+          5
+        ]
+      },
+      {
+        "file": "src/views/manage/manage-access/components/index-set/create/index.vue",
+        "lines": [
+          358
+        ]
+      },
+      {
+        "file": "src/views/manage/manage-access/components/index-set/list/index.vue",
+        "lines": [
+          144
+        ]
+      },
+      {
+        "file": "src/views/manage/manage-access/components/index-set/manage/index.vue",
+        "lines": [
+          38
+        ]
+      },
+      {
+        "file": "src/views/manage/manage-access/custom-report/create.vue",
+        "lines": [
+          204,
+          212
+        ]
+      },
+      {
+        "file": "src/views/manage/manage-access/custom-report/detail.vue",
+        "lines": [
+          40
+        ]
+      },
+      {
+        "file": "src/views/manage/manage-access/custom-report/list.vue",
+        "lines": [
+          147
+        ]
+      },
+      {
+        "file": "src/views/manage/manage-access/log-collection/collection-item/index.vue",
+        "lines": [
+          211
+        ]
+      },
+      {
+        "file": "src/views/manage/manage-access/log-collection/collection-item/manage-collection/basic-info.vue",
+        "lines": [
+          289
+        ]
+      },
+      {
+        "file": "src/views/manage/manage-access/log-collection/collection-item/manage-collection/collection-status.vue",
+        "lines": [
+          36,
+          201
+        ]
+      },
+      {
+        "file": "src/views/manage/manage-access/log-collection/collection-item/manage-collection/data-status/daily-chart.vue",
+        "lines": [
+          37
+        ]
+      },
+      {
+        "file": "src/views/manage/manage-access/log-collection/collection-item/manage-collection/data-status/data-sampling.vue",
+        "lines": [
+          99
+        ]
+      },
+      {
+        "file": "src/views/manage/manage-access/log-collection/collection-item/manage-collection/index.vue",
+        "lines": [
+          38
+        ]
+      },
+      {
+        "file": "src/views/manage/manage-data-link/manage-data-link-conf/index.vue",
+        "lines": [
+          122
+        ]
+      },
+      {
+        "file": "src/views/manage/manage-extract/manage-extract-permission/directory-manage.vue",
+        "lines": [
+          191,
+          199
+        ]
+      },
+      {
+        "file": "src/views/manage/manage-extract/manage-extract-permission/index.vue",
+        "lines": [
+          157
+        ]
+      },
+      {
+        "file": "src/views/retrieve-v2/field-filter-comp/update/field-alias.vue",
+        "lines": [
+          240
+        ]
+      },
+      {
+        "file": "src/views/retrieve-v2/monitor/monitor.vue",
+        "lines": [
+          381
+        ]
+      },
+      {
+        "file": "src/views/retrieve-v2/result-comp/fields-setting.vue",
+        "lines": [
+          71,
+          89
+        ]
+      },
+      {
+        "file": "src/views/retrieve-v2/result-comp/update/fields-setting.vue",
+        "lines": [
+          83
+        ]
+      },
+      {
+        "file": "src/views/retrieve-v2/search-bar/components/ip-selector.vue",
+        "lines": [
+          101
+        ]
+      },
+      {
+        "file": "src/views/retrieve-v2/search-bar/ui-mode/ui-input.vue",
+        "lines": [
+          629
+        ]
+      },
+      {
+        "file": "src/views/retrieve-v2/search-result-panel/log-result/full-row-viewer.vue",
+        "lines": [
+          3
+        ]
+      },
+      {
+        "file": "src/views/retrieve-v2/sub-bar/index.vue",
+        "lines": [
+          489
+        ]
+      },
+      {
+        "file": "src/views/retrieve-v2/sub-bar/warning-setting.vue",
+        "lines": [
+          27
+        ]
+      }
+    ]
+  },
+  {
+    "id": "functional-component",
+    "count": 1,
+    "disposition": "函数式组件写法改为普通函数组件",
+    "files": [
+      {
+        "file": "src/components/log-view/highlight-html.js",
+        "lines": [
+          28
+        ]
+      }
+    ]
+  },
+  {
+    "id": "new-vue",
+    "count": 4,
+    "disposition": "改为 createApp",
+    "files": [
+      {
+        "file": "src/common/bus.js",
+        "lines": [
+          36
+        ]
+      },
+      {
+        "file": "src/global/shadow-wrapper.vue",
+        "lines": [
+          69
+        ]
+      },
+      {
+        "file": "src/hooks/use-segment-pop.ts",
+        "lines": [
+          306
+        ]
+      },
+      {
+        "file": "src/main.js",
+        "lines": [
+          199
+        ]
+      }
+    ]
+  },
+  {
+    "id": "vue-extend",
+    "count": 1,
+    "disposition": "改为 defineComponent",
+    "files": [
+      {
+        "file": "src/common/collector-api-error.js",
+        "lines": [
+          94
+        ]
+      }
+    ]
+  }
+]

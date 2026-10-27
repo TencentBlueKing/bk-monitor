@@ -1,0 +1,22 @@
+{
+  "name": "@bklog/web-v3",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "packageManager": "pnpm@10.32.1",
+  "description": "BKLog Vue 3 workspace package",
+  "scripts": {
+    "dev": "vite --host 127.0.0.1 --port 4173",
+    "build": "vite build",
+    "test": "node --test src/vue-runtime.test.mjs"
+  },
+  "dependencies": {
+    "vue": "^3.5.13",
+    "vue-router": "^4.5.0"
+  },
+  "devDependencies": {
+    "@vitejs/plugin-vue": "^5.2.4",
+    "typescript": "^5.7.3",
+    "vite": "^6.0.11"
+  }
+}

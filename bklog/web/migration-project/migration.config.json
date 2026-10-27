@@ -1,0 +1,49 @@
+{
+  "task": {
+    "tapdId": "1010158081139460519",
+    "tapdShortId": "139460519",
+    "phase": "P1",
+    "branch": "feat/ai-migration-engine/#139460519"
+  },
+  "sourceProject": "..",
+  "targetProject": "../packages/web-v3",
+  "componentLibrary": {
+    "source": "bk-magic-vue",
+    "sourceVersion": "2.5.10-beta.15",
+    "target": "tdesign-vue-next",
+    "targetVersion": null
+  },
+  "migration": {
+    "strategy": "incremental",
+    "preserveBusinessBehavior": true,
+    "requireVisualVerification": true,
+    "requireRegressionTests": true
+  },
+  "qualityGates": {
+    "buildMustPass": true,
+    "criticalFlowsMustPass": true,
+    "unresolvedDifferencesMustBeReported": true
+  },
+  "workspace": {
+    "manager": "pnpm",
+    "manifest": "pnpm-workspace.yaml",
+    "members": ["packages/web-v3"],
+    "excluded": ["packages/web-v1"],
+    "targetVue": "3",
+    "sourceVue": "2"
+  },
+  "runtime": {
+    "sourceNode": "26.12.1",
+    "workspaceManager": "pnpm",
+    "sourcePackageManager": "npm",
+    "sourceStart": "npm run dev",
+    "sourceE2EStart": "AAFE_E2E_PORT=8011 npm run dev:e2e",
+    "sourceBuild": "npm run build",
+    "proxyTarget": "https://bklog.bkop.woa.com"
+  },
+  "requiredPaths": [
+    "package.json",
+    "src",
+    "webpack.config.js"
+  ]
+}
