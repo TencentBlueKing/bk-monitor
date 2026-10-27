@@ -73,7 +73,7 @@
       <bk-table
         :row-key="getExportTaskKey"
         class="export-table"
-        :data="exportList"
+        :data="displayExportList"
         :outer-border="false"
         :pagination="pagination"
         @page-change="handlePageChange"
@@ -310,17 +310,10 @@
     submitExportWithSortConfirmation,
     getExportTaskKey,
   } from './download/exportTask';
-  import {
-    adjustGrowthAfterPoll,
-    calculateProgress,
-    calculateProgressPercent,
-    formatNumber,
-  } from '@/views/retrieve-v2/result-comp/download/downloadProgress';
+  import { calculateProgressPercent, formatNumber } from '@/views/retrieve-v2/result-comp/download/downloadProgress';
   import {
     DOWNLOAD_DATA_DELAY,
     DOWNLOAD_POLLING_INTERVAL,
-    DOWNLOAD_PROGRESS_BASE_GROWTH,
-    DOWNLOAD_PROGRESS_UPDATE_INTERVAL,
     DOWNLOAD_RECENT_DAYS,
     MILLISECONDS_PER_DAY,
   } from '@/views/retrieve-v2/result-comp/download/constants';
@@ -337,6 +330,10 @@
         type: Array,
         required: true,
       },
+      trackedTasks: {
+        type: Object,
+        default: () => ({}),
+      },
     },
     data() {
       return {
@@ -346,7 +343,6 @@
         isSearchAll: false, // 是否查看所有索引集下载历史
         dateRange: [], // 日期范围
         historyPollingTimer: null,
-        progressUpdateTimer: null,
         historyCancelExecutor: null,
         pagination: {
           current: 1,
@@ -423,6 +419,9 @@
       };
     },
     computed: {
+      displayExportList() {
+        return this.exportList.map(row => this.trackedTasks[getExportTaskKey(row)] || row);
+      },
       bkBizId() {
         return this.$store.state.bkBizId;
       },
@@ -681,7 +680,6 @@
       resetHistoryState(resetDateRange = true) {
         this.cancelHistoryRequest();
         this.stopHistoryPolling();
-        this.stopProgressUpdate();
         this.exportList = [];
         this.tableLoading = false;
         this.isSearchAll = false;
@@ -715,36 +713,9 @@
           this.historyPollingTimer = null;
         }
       },
-      startProgressUpdate() {
-        if (this.progressUpdateTimer) {
-          return;
-        }
-        this.progressUpdateTimer = setInterval(() => {
-          const hasDownloadingTask = this.exportList.some(row => row.export_status === 'download_log');
-          if (!hasDownloadingTask) {
-            this.stopProgressUpdate();
-            return;
-          }
-          this.exportList.forEach(row => {
-            if (row.export_status === 'download_log') {
-              calculateProgress(row);
-            }
-          });
-        }, DOWNLOAD_PROGRESS_UPDATE_INTERVAL);
-      },
-      stopProgressUpdate() {
-        if (this.progressUpdateTimer) {
-          clearInterval(this.progressUpdateTimer);
-          this.progressUpdateTimer = null;
-        }
-      },
       createProgressRow(row) {
-        if (row.export_status !== 'download_log') {
-          return { ...row };
-        }
         return {
           ...row,
-          currentGrowth: DOWNLOAD_PROGRESS_BASE_GROWTH,
           progressPercent: calculateProgressPercent(row.exported_count || 0, row.export_total_count || 0),
         };
       },
@@ -752,25 +723,13 @@
         const currentRowMap = new Map(this.exportList.map(row => [getExportTaskKey(row), row]));
         this.exportList = data.map(item => {
           const currentRow = currentRowMap.get(getExportTaskKey(item));
+          const progressRow = this.createProgressRow(item);
           if (!currentRow) {
-            return this.createProgressRow(item);
+            return progressRow;
           }
-          if (currentRow.export_status === 'download_log' && item.export_status === 'download_log') {
-            const displayedCount = currentRow.exported_count || 0;
-            Object.assign(currentRow, item);
-            currentRow.exported_count = displayedCount;
-            adjustGrowthAfterPoll(currentRow, item.exported_count || 0, DOWNLOAD_PROGRESS_BASE_GROWTH);
-            return currentRow;
-          }
-          Object.assign(currentRow, item);
+          Object.assign(currentRow, progressRow);
           return currentRow;
         });
-
-        if (this.exportList.some(row => row.export_status === 'download_log')) {
-          this.startProgressUpdate();
-        } else {
-          this.stopProgressUpdate();
-        }
       },
       async fetchHistoryList(isReset = false, isPolling = false) {
         if (!this.isShowDialog) {
@@ -782,7 +741,6 @@
         this.cancelHistoryRequest();
         if (!isPolling) {
           this.tableLoading = true;
-          this.stopProgressUpdate();
         }
 
         if (this.isUnionSearch && !this.unionIndexList.length) {
@@ -834,6 +792,10 @@
           if (res.result) {
             this.pagination.count = res.data.total || 0;
             this.setExportListData(res.data.list);
+            const trackedTasks = res.data.list.filter(item => this.trackedTasks[getExportTaskKey(item)]);
+            if (trackedTasks.length) {
+              this.$emit('sync-tracked-tasks', trackedTasks);
+            }
           }
         } catch (error) {
           if (axios.isCancel(error)) {
@@ -843,9 +805,6 @@
           if (this.historyCancelExecutor === cancelExecutor) {
             this.historyCancelExecutor = null;
             this.tableLoading = false;
-            if (this.exportList.some(row => row.export_status === 'download_log')) {
-              this.startProgressUpdate();
-            }
           }
         }
       },
