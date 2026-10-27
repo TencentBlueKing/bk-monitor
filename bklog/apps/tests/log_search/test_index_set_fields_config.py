@@ -180,9 +180,6 @@ class TestDorisFieldsConfig(TestCase):
                 {"field_name": "dtEventTime", "field_type": "datetime"},
             ]
         }
-        self.feature_switch = self.enterContext(
-            patch("apps.log_search.views.search_views.FeatureToggleObject.switch", return_value=True)
-        )
         self.esquery = self.enterContext(
             patch(
                 "apps.log_search.views.search_views.SearchHandlerEsquery",
@@ -265,24 +262,6 @@ class TestDorisFieldsConfig(TestCase):
         self._save("create_config", sort_list=[["dtEventTimeStamp", "desc"]])
         self.query_field_map.assert_called_once()
         self.esquery.assert_not_called()
-
-    def test_es_without_unify_query_keeps_es_validation(self):
-        self.collector.storage_cluster_type = STORAGE_CLUSTER_TYPE
-        self.collector.save(update_fields=["storage_cluster_type"])
-        self.feature_switch.return_value = False
-        self.esquery.side_effect = None
-        self._save("create_config")
-        self.esquery.assert_called_once_with(INDEX_SET_ID, {}, pre_check_enable=False)
-        self.esquery.return_value.verify_sort_list_item.assert_called_once_with(SORT_LIST)
-        self.query_field_map.assert_not_called()
-
-    def test_doris_without_unify_query_keeps_es_validation(self):
-        self.feature_switch.return_value = False
-        self.esquery.side_effect = None
-        self._save("create_config")
-        self.esquery.assert_called_once_with(INDEX_SET_ID, {}, pre_check_enable=False)
-        self.esquery.return_value.verify_sort_list_item.assert_called_once_with(SORT_LIST)
-        self.query_field_map.assert_not_called()
 
     def test_invalid_sort_fields_are_rejected_without_saving(self):
         for field in ["not_exists", "log", "payload", "dtEventTime"]:

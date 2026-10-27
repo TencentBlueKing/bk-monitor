@@ -29,8 +29,6 @@ from django.utils.http import urlencode
 from rest_framework.reverse import reverse
 
 from apps.api import TransferApi
-from apps.feature_toggle.handlers.toggle import FeatureToggleObject
-from apps.feature_toggle.plugins.constants import UNIFY_QUERY_SEARCH_EXPORT
 from apps.log_databus.constants import DORIS_CLUSTER_TYPE, DORIS_DEFAULT_EXPIRE_DAYS
 from apps.log_databus.models import CollectorConfig
 from apps.log_search.constants import (
@@ -97,13 +95,12 @@ class UnifyQueryAsyncExportHandlers:
         AsyncTask.check_running_count_by_user(self.request_user)
 
         # 判断是否存在 正在下载的相同检索参数的导出任务
-        if FeatureToggleObject.switch(UNIFY_QUERY_SEARCH_EXPORT, self.bk_biz_id):
-            if AsyncTask.objects.filter(
-                request_param=self.request_param,
-                created_by=self.request_user,
-                export_status=ExportStatus.DOWNLOAD_LOG,
-            ).exists():
-                raise DuplicateUnifyQueryExportException()
+        if AsyncTask.objects.filter(
+            request_param=self.request_param,
+            created_by=self.request_user,
+            export_status=ExportStatus.DOWNLOAD_LOG,
+        ).exists():
+            raise DuplicateUnifyQueryExportException()
 
         # 判断字段是否支持排序
         if self.search_dict.get("sort_list"):
@@ -396,13 +393,12 @@ class UnifyQueryUnionAsyncExportHandlers:
         AsyncTask.check_running_count_by_user(self.request_user)
 
         # 判断是否存在 正在下载的相同检索参数的导出任务
-        if FeatureToggleObject.switch(UNIFY_QUERY_SEARCH_EXPORT, self.bk_biz_id):
-            if AsyncTask.objects.filter(
-                request_param=self.search_dict,
-                created_by=self.request_user,
-                export_status=ExportStatus.DOWNLOAD_LOG,
-            ).exists():
-                raise DuplicateUnifyQueryExportException()
+        if AsyncTask.objects.filter(
+            request_param=self.search_dict,
+            created_by=self.request_user,
+            export_status=ExportStatus.DOWNLOAD_LOG,
+        ).exists():
+            raise DuplicateUnifyQueryExportException()
 
         # 判断字段是否支持排序
         if self.search_dict.get("sort_list"):
@@ -460,20 +456,11 @@ class UnifyQueryUnionAsyncExportHandlers:
         return async_task.id, self.search_dict.get("size", 30)
 
     def get_union_export_total_count(self, request_size, is_quick_export: bool = False):
-        if FeatureToggleObject.switch(UNIFY_QUERY_SEARCH_EXPORT, self.bk_biz_id):
-            return UnifyQueryAsyncExportHandlers.get_export_total_count(
-                request_size=request_size,
-                is_quick_export=is_quick_export,
-                max_async_count=self.unify_query_handler.index_info_list[0]["index_set_obj"].max_async_count,
-            )
-        # 联合导出旧路径会按索引集分别执行导出，进度总数需要使用各索引集有效上限之和。
-        default_export_limit = MAX_QUICK_EXPORT_ASYNC_COUNT if is_quick_export else MAX_ASYNC_COUNT
-        union_export_limit = sum(
-            max(index_info["index_set_obj"].max_async_count or 0, default_export_limit)
-            for index_info in self.unify_query_handler.index_info_list
+        return UnifyQueryAsyncExportHandlers.get_export_total_count(
+            request_size=request_size,
+            is_quick_export=is_quick_export,
+            max_async_count=self.unify_query_handler.index_info_list[0]["index_set_obj"].max_async_count,
         )
-        request_size = request_size or union_export_limit
-        return min(request_size, union_export_limit)
 
     @staticmethod
     def _pre_check_fields(search_handler: SearchHandler):
