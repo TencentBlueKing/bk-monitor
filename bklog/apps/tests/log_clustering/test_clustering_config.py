@@ -2,11 +2,12 @@ from unittest.mock import Mock, call, patch
 
 from django.test import SimpleTestCase, TestCase
 
+from apps.feature_toggle.plugins.constants import MINI_CLUSTERING_CONFIG
 from apps.log_clustering.constants import RegexRuleTypeEnum, StorageTypeEnum
-from apps.log_clustering.exceptions import RegexTemplateNotExistException
+from apps.log_clustering.exceptions import MiniClusteringNotReadyException, RegexTemplateNotExistException
 from apps.log_clustering.handlers.clustering_config import ClusteringConfigHandler
 from apps.log_clustering.models import ClusteringConfig, RegexTemplate
-from apps.log_search.models import LogIndexSet
+from apps.log_search.models import LogIndexSet, Scenario
 
 TEST_INDEX_SET_ID = 1
 TEST_BK_BIZ_ID = 2
@@ -34,6 +35,31 @@ class TestClusteringConfigHandler(SimpleTestCase):
         result = ClusteringConfigHandler.list_all_configs()
 
         self.assertTrue(result[0]["placeholder_analysis_supported"])
+
+    @patch("apps.log_clustering.handlers.clustering_config.FeatureToggleObject.switch", return_value=True)
+    def test_mini_clustering_toggle_blocks_log_index_set(self, mock_switch):
+        index_set = LogIndexSet(index_set_id=TEST_INDEX_SET_ID, scenario_id=Scenario.LOG, space_uid="bkcc__2")
+
+        with self.assertRaises(MiniClusteringNotReadyException):
+            ClusteringConfigHandler._check_mini_clustering_not_ready(index_set)
+
+        mock_switch.assert_called_once_with(MINI_CLUSTERING_CONFIG, biz_id=TEST_BK_BIZ_ID)
+
+    @patch("apps.log_clustering.handlers.clustering_config.FeatureToggleObject.switch", return_value=False)
+    def test_mini_clustering_toggle_off_keeps_online_flow(self, mock_switch):
+        index_set = LogIndexSet(index_set_id=TEST_INDEX_SET_ID, scenario_id=Scenario.LOG, space_uid="bkcc__2")
+
+        ClusteringConfigHandler._check_mini_clustering_not_ready(index_set)
+
+        mock_switch.assert_called_once()
+
+    @patch("apps.log_clustering.handlers.clustering_config.FeatureToggleObject.switch", return_value=True)
+    def test_mini_clustering_toggle_ignores_bkdata_index_set(self, mock_switch):
+        index_set = LogIndexSet(index_set_id=TEST_INDEX_SET_ID, scenario_id=Scenario.BKDATA, space_uid="bkcc__2")
+
+        ClusteringConfigHandler._check_mini_clustering_not_ready(index_set)
+
+        mock_switch.assert_not_called()
 
     def test_placeholder_analysis_supported_property(self):
         supported_config = ClusteringConfig(storage_type=StorageTypeEnum.DORIS.value, clustered_rt=TEST_CLUSTERED_RT)
