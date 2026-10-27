@@ -9,9 +9,11 @@ specific language governing permissions and limitations under the License.
 """
 
 import logging
+import time
 from collections import defaultdict
 from typing import TYPE_CHECKING, Any
 
+from django.conf import settings
 from django.core.cache import caches
 
 from apm_web.constants import ApmCacheKey, ServiceRelationLogTypeChoices
@@ -19,6 +21,7 @@ from apm_web.handlers.host_handler import HostHandler
 from apm_web.models import LogServiceRelation
 from bkmonitor.utils.cache import CacheType, using_cache
 from bkmonitor.utils.common_utils import deserialize_and_decompress
+from bkmonitor.utils.request import get_request_tenant_id
 from bkmonitor.utils.thread_backend import ThreadPool
 from constants.apm import FIVE_MIN_SECONDS
 from core.drf_resource import api
@@ -45,9 +48,12 @@ def deserialize_service_related_log_indexes(cached_data: bytes) -> dict[str, lis
     return service_indexes
 
 
-@using_cache(CacheType.APM(FIVE_MIN_SECONDS))
-def get_biz_index_sets_with_cache(bk_biz_id):
-    return api.log_search.search_index_set(bk_biz_id=bk_biz_id)
+@using_cache(
+    CacheType.APM(FIVE_MIN_SECONDS),
+    func_key_generator=lambda func: f"{func.__module__}.{func.__name__}:{get_request_tenant_id(peaceful=True)}",
+)
+def get_biz_index_sets_with_cache(bk_biz_id: int) -> list[dict[str, Any]]:
+    return api.log_search.search_index_set(bk_biz_id=bk_biz_id, bk_tenant_id=get_request_tenant_id(peaceful=True))
 
 
 class ServiceLogHandler:
@@ -64,11 +70,25 @@ class ServiceLogHandler:
     # log 默认查询语句最大 value 数量
     LOG_DEFAULT_QUERY_CONDITION_MAX_SIZE = 20
 
+    @staticmethod
+    def get_cached_k8s_related_indexes(bk_biz_id: int, app_name: str) -> dict[str, list[dict[str, Any]]]:
+        """读取后台发现的 K8S 日志关联关系。"""
+        if "redis" not in caches:
+            return {}
+
+        cache_key = ApmCacheKey.APP_SERVICE_K8S_RELATED_LOG_INDEXES_KEY.format(bk_biz_id=bk_biz_id, app_name=app_name)
+        try:
+            cached_data: bytes | None = caches["redis"].get(cache_key)
+            return deserialize_service_related_log_indexes(cached_data) if cached_data else {}
+        except Exception:  # noqa
+            logger.exception("[GET_CACHED_K8S_RELATED_INDEXES] cache read failed: %s-%s", bk_biz_id, app_name)
+            return {}
+
     @classmethod
     def list_available_related_services(cls, app: "Application", service_names: list[str]) -> set[str]:
-        """根据关联索引集标签，批量获取存在可用日志关联的服务。"""
+        """按当前关联关系与后台索引状态快照，获取存在可用日志关联的服务。"""
         all_service_names = set(service_names)
-        if not all_service_names:
+        if not all_service_names or "redis" not in caches:
             return set()
 
         index_services: defaultdict[tuple[int, str], set[str]] = defaultdict(set)
@@ -78,20 +98,7 @@ class ServiceLogHandler:
                 if index_set_id:
                     index_services[(relation.related_bk_biz_id, str(index_set_id))].update(related_services)
 
-        service_indexes: dict[str, list[dict[str, Any]]] = {}
-        if "redis" in caches:
-            cache_key = ApmCacheKey.APP_SERVICE_K8S_RELATED_LOG_INDEXES_KEY.format(
-                bk_biz_id=app.bk_biz_id, app_name=app.app_name
-            )
-            try:
-                cached_data: bytes | None = caches["redis"].get(cache_key)
-                if cached_data:
-                    service_indexes = deserialize_service_related_log_indexes(cached_data)
-            except Exception:  # noqa
-                logger.exception(
-                    "[LIST_AVAILABLE_RELATED_SERVICES] cache read failed: %s-%s", app.bk_biz_id, app.app_name
-                )
-
+        service_indexes = cls.get_cached_k8s_related_indexes(app.bk_biz_id, app.app_name)
         for service_name in all_service_names:
             for index in service_indexes.get(service_name, []):
                 if index.get("bk_biz_id") is not None:
@@ -100,24 +107,30 @@ class ServiceLogHandler:
         if not index_services:
             return set()
 
-        pool = ThreadPool()
-        futures = {
-            bk_biz_id: pool.apply_async(get_biz_index_sets_with_cache, kwds={"bk_biz_id": bk_biz_id})
-            for bk_biz_id in {key[0] for key in index_services}
-        }
+        earliest_checked_at = time.time() - settings.APM_RELATED_LOG_INDEX_STATUS_CACHE_TTL
         available_services: set[str] = set()
-        for bk_biz_id, future in futures.items():
-            for index in future.get():
-                related_services = index_services.get((bk_biz_id, str(index["index_set_id"])))
-                if not related_services:
+        for bk_biz_id in {key[0] for key in index_services}:
+            cache_key = ApmCacheKey.APM_RELATED_LOG_INDEX_STATUS_KEY.format(
+                bk_tenant_id=app.bk_tenant_id, bk_biz_id=bk_biz_id
+            )
+            try:
+                snapshot = caches["redis"].get(cache_key)
+                if not snapshot or snapshot["checked_at"] <= earliest_checked_at:
                     continue
 
-                # 日志平台返回内置标签的展示名，索引集元数据缓存可能来自中英文请求。
-                tags = index.get("tags") or []
-                if tags and not any(
-                    tag.get("tag_type", "inner") == "inner" and tag.get("name") in {"无数据", "No Data"} for tag in tags
-                ):
-                    available_services.update(related_services)
+                available_index_ids = {
+                    str(index["index_set_id"]) for index in snapshot["indexes"] if index["available"] is True
+                }
+            except Exception:  # noqa
+                logger.exception(
+                    "[LIST_AVAILABLE_RELATED_SERVICES] snapshot read failed: bk_tenant_id=%s bk_biz_id=%s",
+                    app.bk_tenant_id,
+                    bk_biz_id,
+                )
+                continue
+
+            for index_set_id in available_index_ids:
+                available_services.update(index_services.get((bk_biz_id, index_set_id), ()))
 
         return available_services
 

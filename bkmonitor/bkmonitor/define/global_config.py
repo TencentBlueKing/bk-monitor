@@ -228,6 +228,10 @@ ADVANCED_OPTIONS = OrderedDict(
         ("APM_APP_BKDATA_MAINTAINER", slz.ListField(label="APM应用操作数据平台时数据源的默认维护人", default=[])),
         ("APM_APPLICATION_QUICK_REFRESH_INTERVAL", slz.IntegerField(label=_("新建应用的刷新频率"), default=2)),
         (
+            "APM_RELATED_LOG_INDEX_STATUS_CACHE_TTL",
+            slz.IntegerField(label=_("APM 关联日志索引状态快照有效期（秒）"), default=15 * 60, min_value=1),
+        ),
+        (
             "APM_APPLICATION_QUICK_REFRESH_DELTA",
             slz.IntegerField(label=_("新建应用的创建时间到当前时间的时长范围"), default=30),
         ),

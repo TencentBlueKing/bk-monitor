@@ -1054,6 +1054,8 @@ class ApmCacheKey:
     APP_SCOPE_NAME_KEY = "apm:application_metric_scope_name_mapping:{bk_biz_id}:{application_id}"
     # 存放应用下服务关联的 K8S 日志索引集
     APP_SERVICE_K8S_RELATED_LOG_INDEXES_KEY = "apm:application:{bk_biz_id}:{app_name}:k8s_related_log_indexes"
+    # 按租户和关联日志所属业务保存索引状态快照
+    APM_RELATED_LOG_INDEX_STATUS_KEY = "apm:related_log_index_status:{bk_tenant_id}:{bk_biz_id}"
 
 
 class LogIndexSource:
