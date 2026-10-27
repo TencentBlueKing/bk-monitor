@@ -30,6 +30,8 @@
       @current-only="onCurrentOnly"
       @apply="onApplyFavorite"
       @remove="onRemoveFavorite"
+      @save="openSave"
+      @collapse="onToggleFavorite"
     />
     <section class="retrieve-main">
       <retrieve-toolbar
@@ -52,7 +54,7 @@
       />
       <t-alert v-if="search.uiState === 'error'" theme="error" :message="search.error" />
       <section class="retrieve-result">
-        <retrieve-field-panel :state="fields" @toggle="onToggleField" />
+        <retrieve-field-panel :state="fields" @toggle="onToggleField" @filter="onFieldFilter" />
         <section class="retrieve-result__main" data-ui="result-panel">
           <t-tabs :value="workspace.tab" @change="onTab">
             <t-tab-panel value="origin" label="原始日志" />
@@ -348,6 +350,10 @@ const onChangeIndexSet = async (id: string) => {
 
 const onToggleField = (name: string, visible: boolean) => {
   Object.assign(fields, fieldController.toggle(name, visible));
+};
+
+const onFieldFilter = (value: string) => {
+  Object.assign(fields, fieldController.setFilterQuery(value));
 };
 
 const openContext = (id: string) => {

@@ -22,37 +22,105 @@
 -->
 <template>
   <aside class="retrieve-field-panel" data-ui="field-panel">
-    <header class="retrieve-field-panel__header">显示字段</header>
+    <header class="retrieve-field-panel__header">
+      <span>显示字段</span>
+      <span class="retrieve-field-panel__tools">
+        <button type="button" title="字段设置" data-ui="field-setting" @click="settingOpen = !settingOpen">
+          <i class="bklog-icon bklog-shezhi" />
+        </button>
+      </span>
+    </header>
+    <t-input
+      class="retrieve-field-panel__search"
+      :model-value="state.filterQuery"
+      placeholder="搜索字段"
+      clearable
+      @update:model-value="value => emit('filter', value)"
+    >
+      <template #prefix-icon>
+        <i class="bklog-icon bklog-sousuo-" />
+      </template>
+    </t-input>
     <t-alert v-if="state.uiState === 'error'" theme="error" :message="state.error" />
-    <label v-for="field in state.fields" :key="field.name" class="retrieve-field-item">
-      <t-checkbox :checked="field.visible" @change="value => emit('toggle', field.name, Boolean(value))" />
-      <span class="retrieve-field-item__type" :data-type="typeLabel(field.name, field.type)">{{ typeChar(field.name, field.type) }}</span>
-      <span class="retrieve-field-item__name">{{ field.name }}</span>
-      <span class="retrieve-field-item__alias">{{ fieldAlias(field.name) }}</span>
-    </label>
+    <section class="retrieve-field-section">
+      <header>已选 {{ displayed.length }}</header>
+      <label v-for="field in displayed" :key="field.name" class="retrieve-field-item" :data-ui="`field-${field.name}`">
+        <t-checkbox :checked="field.visible" @change="value => emit('toggle', field.name, Boolean(value))" />
+        <span class="retrieve-field-item__type" :data-type="field.kind">{{ typeChar(field.kind) }}</span>
+        <span class="retrieve-field-item__name">{{ field.name }}</span>
+        <span class="retrieve-field-item__alias">{{ field.alias }}</span>
+        <button
+          v-if="field.analyzable"
+          type="button"
+          class="retrieve-field-item__analyze"
+          data-ui="field-analyze"
+          title="字段分析"
+          @click.prevent="analyzeName = field.name"
+        >
+          <i class="bklog-icon bklog-chart" />
+        </button>
+      </label>
+    </section>
+    <section class="retrieve-field-section">
+      <header>其他字段 {{ hidden.length }}</header>
+      <label v-for="field in hidden" :key="field.name" class="retrieve-field-item" :data-ui="`field-${field.name}`">
+        <t-checkbox :checked="field.visible" @change="value => emit('toggle', field.name, Boolean(value))" />
+        <span class="retrieve-field-item__type" :data-type="field.kind">{{ typeChar(field.kind) }}</span>
+        <span class="retrieve-field-item__name">{{ field.name }}</span>
+        <span class="retrieve-field-item__alias">{{ field.alias }}</span>
+        <button
+          v-if="field.analyzable"
+          type="button"
+          class="retrieve-field-item__analyze"
+          data-ui="field-analyze"
+          title="字段分析"
+          @click.prevent="analyzeName = field.name"
+        >
+          <i class="bklog-icon bklog-chart" />
+        </button>
+      </label>
+    </section>
+    <aside v-if="settingOpen" class="retrieve-field-setting" data-ui="field-setting-panel">
+      <header>字段设置</header>
+      <p>勾选要在原始日志表展示的字段，至少保留一列。</p>
+    </aside>
+    <aside v-if="analyzeName" class="retrieve-field-analyze" data-ui="field-analyze-panel">
+      <header>{{ analyzeName }} 分析</header>
+      <p>按当前检索结果统计该字段取值分布（本波占位）。</p>
+      <button type="button" @click="analyzeName = ''">关闭</button>
+    </aside>
   </aside>
 </template>
 
 <script setup lang="ts">
-import type { FieldSnapshot } from './field-controller';
+import { computed, ref } from 'vue';
 
-defineProps<{
+import type { FieldKind, FieldSnapshot } from './field-controller';
+
+const props = defineProps<{
   state: FieldSnapshot;
 }>();
 
 defineEmits<{
   toggle: [name: string, visible: boolean];
+  filter: [value: string];
 }>();
 
-const FIELD_META: Record<string, { alias: string; type: string }> = {
-  id: { alias: 'ID', type: 'keyword' },
-  dtEventTimeStamp: { alias: '时间', type: 'date' },
-  log: { alias: '日志', type: 'text' },
-};
+const settingOpen = ref(false);
+const analyzeName = ref('');
+const query = computed(() => props.state.filterQuery.toLowerCase());
+const matched = computed(() => props.state.fields.filter(item => (
+  !query.value
+  || item.name.toLowerCase().includes(query.value)
+  || item.alias.toLowerCase().includes(query.value)
+)));
+const displayed = computed(() => matched.value.filter(item => item.visible));
+const hidden = computed(() => matched.value.filter(item => !item.visible));
 
-const typeLabel = (name: string, fallback: string) => FIELD_META[name]?.type ?? fallback;
-
-const typeChar = (name: string, fallback: string) => typeLabel(name, fallback).charAt(0);
-
-const fieldAlias = (name: string) => FIELD_META[name]?.alias ?? name;
+const typeChar = (kind: FieldKind) => ({
+  text: 'T',
+  keyword: 'K',
+  date: 'D',
+  integer: 'N',
+}[kind]);
 </script>

@@ -24,29 +24,38 @@
  * IN THE SOFTWARE.
  */
 
+export type FieldKind = 'text' | 'keyword' | 'date' | 'integer';
+
 export interface LogField {
   name: string;
   type: 'string' | 'number';
+  kind: FieldKind;
+  alias: string;
   visible: boolean;
+  analyzable: boolean;
 }
 
 export interface FieldSnapshot {
   uiState: 'idle' | 'error';
   error: string;
+  filterQuery: string;
   fields: LogField[];
 }
 
 export const DEFAULT_FIELDS: LogField[] = [
-  { name: 'id', type: 'string', visible: true },
-  { name: 'dtEventTimeStamp', type: 'number', visible: true },
-  { name: 'log', type: 'string', visible: true },
+  { name: 'id', type: 'string', kind: 'keyword', alias: 'ID', visible: true, analyzable: false },
+  { name: 'dtEventTimeStamp', type: 'number', kind: 'date', alias: '时间', visible: true, analyzable: false },
+  { name: 'log', type: 'string', kind: 'text', alias: '日志', visible: true, analyzable: true },
+  { name: 'serverIp', type: 'string', kind: 'keyword', alias: 'IP', visible: false, analyzable: true },
+  { name: 'path', type: 'string', kind: 'text', alias: '路径', visible: false, analyzable: false },
+  { name: 'status', type: 'number', kind: 'integer', alias: '状态码', visible: false, analyzable: true },
 ];
 
 export class FieldController {
   private snapshot: FieldSnapshot;
 
   constructor(fields: LogField[] = DEFAULT_FIELDS) {
-    this.snapshot = { uiState: 'idle', error: '', fields: fields.map(item => ({ ...item })) };
+    this.snapshot = { uiState: 'idle', error: '', filterQuery: '', fields: fields.map(item => ({ ...item })) };
   }
 
   getState(): FieldSnapshot {
@@ -55,6 +64,20 @@ export class FieldController {
 
   getVisibleFields(): LogField[] {
     return this.snapshot.fields.filter(item => item.visible);
+  }
+
+  getFilteredFields(): LogField[] {
+    const query = this.snapshot.filterQuery.toLowerCase();
+    return this.snapshot.fields.filter(item => (
+      !query
+      || item.name.toLowerCase().includes(query)
+      || item.alias.toLowerCase().includes(query)
+    ));
+  }
+
+  setFilterQuery(value: string): FieldSnapshot {
+    this.snapshot = { ...this.snapshot, filterQuery: String(value ?? '').trim(), error: '' };
+    return this.getState();
   }
 
   toggle(name: string, visible?: boolean): FieldSnapshot {
@@ -71,6 +94,7 @@ export class FieldController {
     this.snapshot = {
       uiState: 'idle',
       error: '',
+      filterQuery: this.snapshot.filterQuery,
       fields: this.snapshot.fields.map(item => (item.name === name ? { ...item, visible: nextVisible } : item)),
     };
     return this.getState();

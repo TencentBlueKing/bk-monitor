@@ -25,13 +25,21 @@
     <header class="retrieve-favorite-panel__header">
       <span class="retrieve-favorite-panel__title">
         收藏夹
-        <em>{{ visibleGroups.reduce((sum, group) => sum + group.favorites.length, 0) }}</em>
+        <em>{{ totalCount }}</em>
       </span>
       <span class="retrieve-favorite-panel__tools">
-        <i class="bklog-icon bklog-plus" title="新建收藏" />
-        <i class="bklog-icon bklog-share" title="分享" />
-        <i class="bklog-icon bklog-shezhi" title="收藏管理" />
-        <i class="bklog-icon bklog-collapse" title="收起" />
+        <button type="button" title="新建收藏" data-ui="favorite-new" @click="emit('save')">
+          <i class="bklog-icon bklog-plus" />
+        </button>
+        <button type="button" title="分享" data-ui="favorite-share">
+          <i class="bklog-icon bklog-share" />
+        </button>
+        <button type="button" title="收藏管理">
+          <i class="bklog-icon bklog-shezhi" />
+        </button>
+        <button type="button" title="收起" @click="emit('collapse')">
+          <i class="bklog-icon bklog-collapse" />
+        </button>
       </span>
     </header>
     <t-input
@@ -40,48 +48,59 @@
       placeholder="搜索收藏"
       clearable
       @update:model-value="onFilterInput"
-      @enter="onFilterEnter"
     >
       <template #prefix-icon>
         <i class="bklog-icon bklog-sousuo-" />
       </template>
     </t-input>
-    <t-checkbox class="retrieve-favorite-panel__current" :checked="state.currentOnly" @change="onCurrentOnly">
+    <label class="retrieve-favorite-panel__current">
+      <input type="checkbox" :checked="state.currentOnly" @change="onCurrentOnlyNative">
       仅显示当前索引集
-    </t-checkbox>
+    </label>
     <t-alert v-if="state.uiState === 'error'" theme="error" :message="state.error" />
-    <section v-for="group in visibleGroups" :key="group.groupId" class="retrieve-favorite-group">
-      <header class="retrieve-favorite-group__title">
-        <span class="retrieve-favorite-group__name">
-          <i class="bklog-icon bklog-folder-fill" />
-          {{ group.groupName }}
-        </span>
-        <span>{{ group.favorites.length }}</span>
-      </header>
-      <ul class="retrieve-favorite-list">
-        <li
-          v-for="item in group.favorites"
-          :key="item.id"
-          :class="['retrieve-favorite-item', { 'is-active': item.id === state.activeId }]"
+    <nav class="retrieve-favorite-tree" data-ui="favorite-tree">
+      <section v-for="group in visibleGroups" :key="group.groupId" class="retrieve-favorite-group">
+        <button
+          type="button"
+          class="retrieve-favorite-group__title"
+          :data-ui="`favorite-group-${group.groupId}`"
+          @click="toggleGroup(group.groupId)"
         >
-          <button type="button" class="retrieve-favorite-item__main" @click="onApply(item.id)">
-            <span>{{ item.name }}</span>
-            <small>{{ item.keyword }}</small>
-          </button>
-          <t-popconfirm content="确认删除该收藏？" @confirm="onRemove(item.id)">
-            <t-button size="small" variant="text" shape="square" theme="danger">
-              <i class="bklog-icon bklog-shanchu" />
-            </t-button>
-          </t-popconfirm>
-        </li>
-      </ul>
-    </section>
-    <t-empty v-if="!visibleGroups.length" description="没有匹配的收藏" />
+          <i :class="['bklog-icon', collapsed[group.groupId] ? 'bklog-arrow-right' : 'bklog-arrow-down']" />
+          <i class="bklog-icon bklog-folder-fill" />
+          <span class="retrieve-favorite-group__name">{{ group.groupName }}</span>
+          <em>{{ group.favorites.length }}</em>
+        </button>
+        <ul v-show="!collapsed[group.groupId]" class="retrieve-favorite-list">
+          <li
+            v-for="item in group.favorites"
+            :key="item.id"
+            :class="['retrieve-favorite-item', { 'is-active': item.id === state.activeId }]"
+          >
+            <button type="button" class="retrieve-favorite-item__main" @click="onApply(item.id)">
+              <span>{{ item.name }}</span>
+              <small>{{ item.keyword }}</small>
+            </button>
+            <span class="retrieve-favorite-item__ops">
+              <button type="button" title="分享" @click.stop="onShare(item.keyword)">
+                <i class="bklog-icon bklog-share" />
+              </button>
+              <t-popconfirm content="确认删除该收藏？" @confirm="onRemove(item.id)">
+                <button type="button" title="删除">
+                  <i class="bklog-icon bklog-shanchu" />
+                </button>
+              </t-popconfirm>
+            </span>
+          </li>
+        </ul>
+      </section>
+    </nav>
+    <p v-if="!visibleGroups.length" class="retrieve-favorite-empty">没有匹配的收藏</p>
   </aside>
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue';
+import { computed, reactive, ref } from 'vue';
 
 import type { FavoriteGroup, FavoriteSnapshot } from './favorite-controller';
 
@@ -95,20 +114,25 @@ const emit = defineEmits<{
   'current-only': [value: boolean];
   apply: [id: string];
   remove: [id: string];
+  save: [];
+  collapse: [];
 }>();
 
 const filterDraft = ref(props.state.filterQuery);
+const collapsed = reactive<Record<string, boolean>>({});
+const totalCount = computed(() => props.visibleGroups.reduce((sum, group) => sum + group.favorites.length, 0));
 
 const onFilterInput = (value: string) => {
   filterDraft.value = value;
+  emit('filter', value);
 };
 
-const onFilterEnter = () => {
-  emit('filter', filterDraft.value);
+const onCurrentOnlyNative = (event: Event) => {
+  emit('current-only', (event.target as HTMLInputElement).checked);
 };
 
-const onCurrentOnly = (checked: boolean | { checked?: boolean }) => {
-  emit('current-only', typeof checked === 'boolean' ? checked : Boolean(checked?.checked));
+const toggleGroup = (groupId: string) => {
+  collapsed[groupId] = !collapsed[groupId];
 };
 
 const onApply = (id: string) => {
@@ -117,5 +141,9 @@ const onApply = (id: string) => {
 
 const onRemove = (id: string) => {
   emit('remove', id);
+};
+
+const onShare = (keyword: string) => {
+  void navigator.clipboard?.writeText(keyword);
 };
 </script>

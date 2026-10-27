@@ -36,6 +36,12 @@ describe('FieldController', () => {
     assert.deepEqual(controller.getVisibleFields().map(item => item.name), ['dtEventTimeStamp', 'log']);
   });
 
+  it('AC-003 filters fields by name or alias', () => {
+    const controller = new FieldController();
+    controller.setFilterQuery('状态');
+    assert.deepEqual(controller.getFilteredFields().map(item => item.name), ['status']);
+  });
+
   it('AC-002 keeps at least one visible field', () => {
     const controller = new FieldController();
     controller.toggle('id', false);

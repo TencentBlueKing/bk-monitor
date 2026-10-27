@@ -180,6 +180,17 @@ async function measureRetrieve(page) {
     ok: navTitles.join(',') === '检索,仪表盘,管理',
     detail: navTitles,
   });
+  checks.push({
+    id: 'favorite-tree',
+    ok: Boolean(await page.$('[data-ui="favorite-tree"]')),
+    detail: 'favorite groups as tree',
+  });
+  const analyzeCount = await page.$$eval('[data-ui="field-analyze"]', nodes => nodes.length).catch(() => 0);
+  checks.push({
+    id: 'field-analyze',
+    ok: analyzeCount > 0 && Boolean(await page.$('[data-ui="field-setting"]')),
+    detail: analyzeCount,
+  });
   return { favorite, topbar, searchbar, field, result, favoriteStyle, checks };
 }
 
