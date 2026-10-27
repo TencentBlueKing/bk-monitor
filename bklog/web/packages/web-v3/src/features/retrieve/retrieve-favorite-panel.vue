@@ -28,6 +28,8 @@
         <em>{{ visibleGroups.reduce((sum, group) => sum + group.favorites.length, 0) }}</em>
       </span>
       <span class="retrieve-favorite-panel__tools">
+        <i class="bklog-icon bklog-plus" title="新建收藏" />
+        <i class="bklog-icon bklog-share" title="分享" />
         <i class="bklog-icon bklog-shezhi" title="收藏管理" />
         <i class="bklog-icon bklog-collapse" title="收起" />
       </span>
@@ -45,7 +47,7 @@
       </template>
     </t-input>
     <t-checkbox class="retrieve-favorite-panel__current" :checked="state.currentOnly" @change="onCurrentOnly">
-      仅当前索引集
+      仅显示当前索引集
     </t-checkbox>
     <t-alert v-if="state.uiState === 'error'" theme="error" :message="state.error" />
     <section v-for="group in visibleGroups" :key="group.groupId" class="retrieve-favorite-group">

@@ -23,10 +23,18 @@
 <template>
   <section class="retrieve-searchbar" data-ui="searchbar">
     <div class="retrieve-searchbar__box">
-      <button type="button" class="retrieve-searchbar__mode" data-ui="search-mode" @click="toggleMode">
-        {{ mode === 'ui' ? 'UI' : 'SQL' }}
-        <i class="bklog-icon bklog-qiehuan-2" />
-      </button>
+      <div class="retrieve-searchbar__modes" data-ui="search-mode">
+        <button
+          v-for="item in modes"
+          :key="item.id"
+          type="button"
+          :class="['retrieve-searchbar__mode', { 'is-active': mode === item.id }]"
+          :data-ui="`search-mode-${item.id}`"
+          @click="setMode(item.id)"
+        >
+          {{ item.label }}
+        </button>
+      </div>
       <div class="retrieve-searchbar__body">
         <div v-if="mode === 'ui'" class="retrieve-searchbar__chips" data-ui="search-chips">
           <span v-for="(chip, index) in chips" :key="`${chip.field}-${chip.value}-${index}`" class="retrieve-chip">
@@ -50,11 +58,20 @@
           @enter="emit('search')"
         />
         <textarea
-          v-else
+          v-else-if="mode === 'sql'"
           class="retrieve-searchbar__sql"
           data-ui="search-sql"
           :value="keyword"
           placeholder="log:error AND status:500"
+          @input="onSqlInput"
+          @keydown.enter.exact.prevent="emit('search')"
+        />
+        <textarea
+          v-else
+          class="retrieve-searchbar__sql retrieve-searchbar__ai"
+          data-ui="search-ai"
+          :value="keyword"
+          placeholder="用自然语言描述检索需求，例如：最近一小时 nginx 5xx"
           @input="onSqlInput"
           @keydown.enter.exact.prevent="emit('search')"
         />
@@ -100,13 +117,18 @@ const emit = defineEmits<{
   'apply-history': [value: string];
 }>();
 
-const mode = ref<'ui' | 'sql'>('ui');
+const mode = ref<'ui' | 'sql' | 'ai'>('ui');
+const modes = [
+  { id: 'ui' as const, label: 'UI模式' },
+  { id: 'sql' as const, label: '语句模式' },
+  { id: 'ai' as const, label: 'AI模式' },
+];
 const historyOpen = ref(false);
 const inputRef = ref<{ focus?: () => void } | null>(null);
 const chips = computed(() => parseSearchChips(props.keyword));
 
-const toggleMode = () => {
-  mode.value = mode.value === 'ui' ? 'sql' : 'ui';
+const setMode = (value: 'ui' | 'sql' | 'ai') => {
+  mode.value = value;
   historyOpen.value = false;
 };
 

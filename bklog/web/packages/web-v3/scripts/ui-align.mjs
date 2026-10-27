@@ -174,6 +174,12 @@ async function measureRetrieve(page) {
     ok: Boolean(await page.$('[data-ui="search-submit"]')),
     detail: 'circular search control',
   });
+  const navTitles = await page.$$eval('[data-ui="nav-primary"] a', links => links.map(el => el.textContent?.trim())).catch(() => []);
+  checks.push({
+    id: 'primary-nav-v2',
+    ok: navTitles.join(',') === '检索,仪表盘,管理',
+    detail: navTitles,
+  });
   return { favorite, topbar, searchbar, field, result, favoriteStyle, checks };
 }
 
@@ -265,7 +271,7 @@ try {
   const highlightShot = await capture(page, 'v3-retrieve-highlight');
   const hasChips = Boolean(await page.$('.retrieve-chip'));
   const hasMark = Boolean(await page.$('mark'));
-  await page.click('[data-ui="search-mode"]');
+  await page.click('[data-ui="search-mode-sql"]');
   await page.waitForTimeout(200);
   const sqlShot = await captureRegion(page, '[data-ui="search-sql"]', 'v3-retrieve-sql');
   await page.click('[data-ui="search-history"]');

@@ -23,21 +23,32 @@
 <template>
   <section class="app-shell">
     <header class="app-header" data-ui="app-header">
-      <router-link to="/retrieve" class="app-header__brand">
+      <router-link to="/retrieve" class="app-header__brand" data-ui="nav-brand">
         <span class="app-header__logo" aria-hidden="true" />
-        日志平台
+        <span class="app-header__brand-text">日志平台</span>
       </router-link>
-      <nav class="app-header__nav">
+      <nav class="app-header__nav" data-ui="nav-primary">
         <router-link
           v-for="item in primaryNav"
-          :key="item.name"
-          :to="{ name: item.name }"
-          class="app-header__link"
+          :key="item.id"
+          :to="item.to"
+          :class="['app-header__link', { 'is-active': isActive(item.id) }]"
+          :data-ui="`nav-${item.id}`"
         >
-          {{ item.meta?.title }}
+          {{ item.title }}
         </router-link>
       </nav>
-      <span class="app-header__space">demo (#5000140)</span>
+      <button type="button" class="app-header__space" data-ui="space-select">
+        <i class="bklog-icon bklog-mc-business" />
+        <span>demo</span>
+        <small>#5000140</small>
+        <i class="bklog-icon bklog-arrow-down" />
+      </button>
+      <span class="app-header__actions">
+        <i class="bklog-icon bklog-help" title="帮助" />
+        <i class="bklog-icon bklog-shezhi" title="设置" />
+        <span class="app-header__user" data-ui="nav-user">demo</span>
+      </span>
     </header>
     <main class="app-main">
       <router-view />
@@ -46,12 +57,18 @@
 </template>
 
 <script setup lang="ts">
-import { computed } from 'vue';
+import { useRoute } from 'vue-router';
 
-import { routes } from './app-router';
-
-const primaryNav = computed(() => routes.filter(route => (
-  route.name
-  && ['retrieve-search', 'manage-collection', 'manage-clean', 'manage-extract', 'dashboard'].includes(String(route.name))
-)));
+const route = useRoute();
+const primaryNav = [
+  { id: 'retrieve', title: '检索', to: '/retrieve' },
+  { id: 'dashboard', title: '仪表盘', to: '/dashboard' },
+  { id: 'manage', title: '管理', to: '/manage/collection' },
+];
+const isActive = (id: string) => {
+  const path = route.path;
+  if (id === 'retrieve') return path.startsWith('/retrieve');
+  if (id === 'dashboard') return path.startsWith('/dashboard');
+  return path.startsWith('/manage');
+};
 </script>
