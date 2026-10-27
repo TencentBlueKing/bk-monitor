@@ -29,9 +29,8 @@ import { type PropType, defineComponent, onBeforeUnmount, onMounted, shallowRef,
 import { $bkPopover, Button, Checkbox, Input } from 'bkui-vue';
 import { useI18n } from 'vue-i18n';
 
-import HostLoading from '../host-loading/host-loading';
-
 import { isHostNode } from '../../utils/topo-tree';
+import HostLoading from '../host-loading/host-loading';
 import EmptyStatus from '@/components/empty-status/empty-status';
 
 import type { HostTopoTreeContext } from '../../composables/use-host-topo-tree';
@@ -70,6 +69,23 @@ export default defineComponent({
       }
     };
 
+    /** scroller 按条件渲染，元素挂载 / 替换时立即上报高度，避免视口高度停留在初始 0 */
+    const setScrollEl = (instance: unknown) => {
+      const element = (instance as HTMLElement | null) ?? null;
+      if (element === scrollRef.value) {
+        return;
+      }
+      resizeObserver?.disconnect();
+      resizeObserver = null;
+      scrollRef.value = element;
+      if (!element) {
+        return;
+      }
+      resizeObserver = new ResizeObserver(notifyViewport);
+      resizeObserver.observe(element);
+      notifyViewport();
+    };
+
     const handleScroll = () => {
       destroyHostPopover();
       if (scrollFrame) {
@@ -82,10 +98,6 @@ export default defineComponent({
     };
 
     onMounted(() => {
-      if (scrollRef.value) {
-        resizeObserver = new ResizeObserver(notifyViewport);
-        resizeObserver.observe(scrollRef.value);
-      }
       notifyViewport();
     });
 
@@ -295,7 +307,7 @@ export default defineComponent({
           </div>
         </div>
         {!ctx.fullTreeReady.value && ctx.fullTreeError.value && !ctx.scopeError.value && (
-          <div class='host-topo-tree__notice' role='status' aria-live='polite'>
+          <div class='host-topo-tree__notice'>
             <span>{t('完整拓扑加载失败')}</span>
             <Button
               text
@@ -315,9 +327,7 @@ export default defineComponent({
         ) : (
           <div class='host-topo-tree__body'>
             <div
-              ref={instance => {
-                scrollRef.value = instance as HTMLElement | null;
-              }}
+              ref={setScrollEl}
               class='host-topo-tree__scroller'
               onScroll={handleScroll}
             >
