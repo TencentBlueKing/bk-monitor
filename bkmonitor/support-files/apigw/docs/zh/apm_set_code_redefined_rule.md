@@ -1,0 +1,71 @@
+# 设置 APM 返回码重定义规则
+
+从应用视角覆盖完整规则，并向 APM 下发整个应用的生效配置。先通过 `apm_list_code_redefined_rule` 拉取完整列表，编辑后将列表放入 `rules` 保存。
+
+内部应用态接口，调用应用需获得网关资源授权。
+
+## 0x01 请求
+
+```text
+POST /app/apm/service/set_code_redefined_rule/
+```
+
+```json
+{
+  "bk_biz_id": 2,
+  "app_name": "checkout",
+  "rules": [
+    {
+      "kind": "caller",
+      "is_global": false,
+      "service_names": ["checkout-api", "order-api"],
+      "callee_server": "payment-api",
+      "callee_service": "",
+      "callee_method": "",
+      "code_type_rules": {"success": "0", "exception": "3001,err_1", "timeout": "408"},
+      "enabled": true
+    },
+    {
+      "kind": "callee",
+      "is_global": true,
+      "service_names": [],
+      "callee_server": "",
+      "callee_service": "",
+      "callee_method": "",
+      "code_type_rules": {"success": "0", "exception": "3001", "timeout": "408"},
+      "enabled": true
+    }
+  ]
+}
+```
+
+| 字段 | 类型 | 必填 | 说明 |
+| --- | --- | --- | --- |
+| `bk_biz_id` | `integer` | 是 | APM 应用所属业务 ID |
+| `app_name` | `string` | 是 | APM 应用名 |
+| `rules[]` | `array<object>` | 是 | 应用完整规则列表，`[]` 清空全部规则 |
+| `rules[].kind` | `string` | 是 | `caller`（主调）或 `callee`（被调） |
+| `rules[].is_global` | `boolean` | 否 | 默认 `false`，为 `true` 时应用内所有服务生效 |
+| `rules[].service_names` | `array<string>` | 条件必填 | 非全局规则必填且非空，全局规则传 `[]` |
+| `rules[].callee_server` | `string` | 是 | 被调服务名，空字符串表示不限，`callee` 规则会被置空 |
+| `rules[].callee_service` | `string` | 是 | 被调 RPC Service，空字符串表示不限 |
+| `rules[].callee_method` | `string` | 是 | 被调接口名，空字符串表示不限 |
+| `rules[].code_type_rules` | `object` | 是 | `success`、`exception`、`timeout` 对应返回码匹配字符串，多个返回码以英文逗号分隔 |
+| `rules[].enabled` | `boolean` | 否 | 默认 `true`，禁用规则仍保存，但不下发 |
+
+- *[1] 请求顶层只传示例中的字段，调用方向和生效范围均在每条规则内设置。*
+- *[2] 未出现在 `rules` 中的存量规则会被删除，包括全局规则；删除单条规则时，从完整列表中移除该项后保存。*
+- *[3] 同一作用域、服务、调用方向和三个 `callee_*` 维度的组合不得重复，服务规则优先于全局规则。*
+
+## 0x02 响应
+
+```json
+{
+  "result": true,
+  "code": 200,
+  "message": "OK",
+  "data": {}
+}
+```
+
+`result` 表示请求是否成功，`code` 为接口状态码，`message` 为结果说明，成功时 `data` 为 `{}`。规则保存后同步下发，接口不等待采集端配置生效。

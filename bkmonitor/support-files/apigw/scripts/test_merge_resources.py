@@ -499,6 +499,54 @@ def test_apm_platform_integration_apigw_contract() -> None:
         assert (_DOCS_DIR / f"{operation_id}.md").is_file()
 
 
+def test_apm_return_code_configuration_apigw_contract(tmp_path) -> None:
+    """返回码配置经合并后仍使用受授权的应用态路由，并指向已注册的 Resource。"""
+    import shutil
+
+    backend_root: Path = _RESOURCES_DIR.parents[2]
+    service_tree: ast.Module = ast.parse((backend_root / "packages/apm_web/service/views.py").read_text())
+    routes: dict[str, tuple[str, str]] = {
+        ast.literal_eval(node.args[2]): (ast.literal_eval(node.args[0]), node.args[1].id)
+        for node in ast.walk(service_tree)
+        if isinstance(node, ast.Call)
+        and isinstance(node.func, ast.Name)
+        and node.func.id == "ResourceRoute"
+        and len(node.args) >= 3
+    }
+    expected_resources: dict[str, str] = {
+        "list_code_redefined_rule": "ListCodeRedefinedRuleResource",
+        "set_code_redefined_rule": "SetCodeRedefinedRuleResource",
+        "get_code_remarks": "GetCodeRemarksResource",
+        "set_code_remark": "SetCodeRemarkResource",
+    }
+    shutil.copytree(_RESOURCES_DIR, tmp_path / "resources")
+    merge_resources_func(tmp_path / "resources")
+    merged_paths: dict = _load_paths(tmp_path / "resources.yaml")
+
+    for endpoint, resource_class in expected_resources.items():
+        path: str = f"/app/apm/service/{endpoint}/"
+        assert routes[endpoint] == ("POST", resource_class)
+        assert path not in _load_paths(_EXTERNAL_APM_FILE)
+        operation: dict = merged_paths[path]["post"]
+        assert operation["operationId"] == f"apm_{endpoint}"
+        assert operation["tags"] == ["apm"]
+        resource: dict = operation["x-bk-apigateway-resource"]
+        assert resource["isPublic"] is False
+        assert resource["matchSubpath"] is False
+        assert resource["backend"] == {
+            "name": "default",
+            "method": "post",
+            "path": f"/api/v4/service_web/{endpoint}/",
+            "matchSubpath": False,
+        }
+        assert resource["authConfig"] == {
+            "appVerifiedRequired": True,
+            "userVerifiedRequired": False,
+            "resourcePermissionRequired": True,
+        }
+        assert (_DOCS_DIR / f"apm_{endpoint}.md").is_file()
+
+
 def test_llm_observability_apigw_contract() -> None:
     """旧 APM Trace API 保持不变，新增 LLM API 转发到 V4 Resource。"""
     paths = _load_paths(_INTERNAL_APM_FILE)
