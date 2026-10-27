@@ -156,3 +156,8 @@ class ModelFileUnpickleForbiddenException(BaseClusteringException):
 class ModelFileStructureInvalidException(BaseClusteringException):
     ERROR_CODE = "029"
     MESSAGE = _("AIOPS 模型文件结构非法: {detail}")
+
+
+class ClusteringOperationConflictException(BaseClusteringException):
+    ERROR_CODE = "031"
+    MESSAGE = _("索引集({index_set_id})存在未结束的聚类操作({operation_id})，请等待完成或取消后再试")
