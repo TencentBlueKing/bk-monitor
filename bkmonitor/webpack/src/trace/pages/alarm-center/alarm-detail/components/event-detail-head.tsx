@@ -26,6 +26,7 @@
 
 import { computed, defineComponent, reactive, shallowRef, watch } from 'vue';
 
+import { Button } from 'bkui-vue';
 import { getBizRouteHref } from 'monitor-common/utils';
 // import {
 //   type ILegacyAlarmCenterQuery,
@@ -38,7 +39,7 @@ import { useI18n } from 'vue-i18n';
 // import { useRoute } from 'vue-router';
 
 import TemporaryShareNew from '../../../../components/temporary-share/temporary-share-new';
-// import AIFavicon from '../../../../static/img/failure/AI.png';
+import AIFavicon from '../../../../static/img/failure/AI.png';
 import { useAlarmCenterDetailStore } from '../../../../store/modules/alarm-center-detail';
 import DetailLoading from '../../common-detail/detail-loading';
 import { fetchListAlertFeedback } from '../../services/alarm-detail';
@@ -332,18 +333,21 @@ export default defineComponent({
                 <span class='btn-text'>{item.title}</span>
               </div>
             ))}
-          {/* <div
+          <Button
             class='btn-group-item ai'
+            text
             onClick={this.handleAiAnalysisShowChange}
           >
-            <div class='ai-favicon'>
-              <img
-                alt='ai-favicon'
-                src={AIFavicon}
-              />
+            <div class='ai-entry-content'>
+              <div class='ai-favicon'>
+                <img
+                  alt=''
+                  src={AIFavicon}
+                />
+              </div>
+              <span class='text'>{this.t('AI 诊断')}</span>
             </div>
-            <span class='text'>{this.$t('故障诊断')}</span>
-          </div> */}
+          </Button>
         </div>
         <ChatGroup
           alarmEventName={this.chatGroupDialog.alertName}
