@@ -215,6 +215,72 @@ test('raw tippy lifecycle opens, hides and disposes through the registry', () =>
   assert.equal(registry.get('raw-ok'), null);
 });
 
+test('hideTop closes only the last opened overlay', () => {
+  const registry = createRegistry();
+  const hidden = [];
+
+  registry.register('dialog', { hide: () => hidden.push('dialog') });
+  registry.register('suggest', { hide: () => hidden.push('suggest') });
+  registry.open('dialog');
+  registry.open('suggest');
+
+  assert.equal(registry.hideTop(), true);
+  assert.deepEqual(hidden, ['suggest']);
+  assert.equal(registry.isOpen('dialog'), true);
+  assert.equal(registry.isOpen('suggest'), false);
+  assert.deepEqual(registry.getStack(), ['dialog']);
+});
+
+test('escape hides only the stack top when nested overlays are open', () => {
+  const registry = createRegistry();
+  const hidden = [];
+
+  registry.register('dialog', { hide: () => hidden.push('dialog') });
+  registry.register('suggest', { hide: () => hidden.push('suggest') });
+  registry.open('dialog');
+  registry.open('suggest');
+
+  assert.equal(registry.handleEscape({ type: 'keydown', key: 'Escape' }), true);
+  assert.deepEqual(hidden, ['suggest']);
+  assert.equal(registry.isOpen('dialog'), true);
+  assert.equal(registry.isOpen('suggest'), false);
+
+  assert.equal(registry.handleEscape({ type: 'keyup', key: 'Escape' }), true);
+  assert.deepEqual(hidden, ['suggest']);
+  assert.equal(registry.isOpen('dialog'), true);
+});
+
+test('escape does not intercept a single overlay', () => {
+  const registry = createRegistry();
+  const hidden = [];
+
+  registry.register('dialog', { hide: () => hidden.push('dialog') });
+  registry.open('dialog');
+
+  assert.equal(registry.handleEscape({ type: 'keydown', key: 'Escape' }), false);
+  assert.deepEqual(hidden, []);
+  assert.equal(registry.isOpen('dialog'), true);
+});
+
+test('open relinks parentId so children close with the parent', () => {
+  const registry = createRegistry();
+  const hidden = [];
+  const child = {
+    closest(selector) {
+      return selector === '.dialog' ? child : null;
+    },
+  };
+
+  registry.register('dialog', { rootSelector: '.dialog', hide: () => hidden.push('dialog') });
+  registry.register('suggest', { hide: () => hidden.push('suggest') });
+  registry.open('dialog');
+  registry.open('suggest', { parentId: registry.findParentIdByElement(child) });
+
+  assert.equal(registry.get('suggest')?.parentId, 'dialog');
+  registry.hide('dialog');
+  assert.deepEqual(hidden, ['suggest', 'dialog']);
+});
+
 test('dialog visible writes back false so the next open is a real change', () => {
   const events = [];
   const state = createDialogVisibleState(true, {
