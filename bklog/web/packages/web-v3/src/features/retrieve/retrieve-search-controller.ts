@@ -31,6 +31,9 @@ export interface LogRecord {
   dtEventTimeStamp: number;
   log: string;
   indexSetId?: string | null;
+  serverIp?: string;
+  path?: string;
+  status?: number;
 }
 
 export interface SearchRequest {

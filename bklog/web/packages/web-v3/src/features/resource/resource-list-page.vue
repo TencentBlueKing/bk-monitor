@@ -21,13 +21,9 @@
   IN THE SOFTWARE.
 -->
 <template>
-  <section class="collection-shell" data-ui="manage-root">
-    <aside class="collection-left" data-ui="manage-left">
-      <header class="collection-left__title">{{ catalog.title }}</header>
-      <button type="button" class="collection-left__item is-active">全部</button>
-    </aside>
-    <section class="collection-right" data-ui="manage-right">
+  <section class="manage-right" data-ui="manage-right">
       <header class="collection-toolbar">
+        <h2 class="manage-right__title">{{ catalog.title }}</h2>
         <t-input v-model="filterQuery" placeholder="搜索名称或关键字" style="width: 220px" @enter="onFilter" />
         <t-select v-model="status" :options="statusOptions" style="width: 140px" @change="onStatus" />
         <t-button @click="onFilter">过滤</t-button>
@@ -57,7 +53,6 @@
           </t-form-item>
         </t-form>
       </t-dialog>
-    </section>
   </section>
 </template>
 

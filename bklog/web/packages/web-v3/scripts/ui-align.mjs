@@ -191,6 +191,12 @@ async function measureRetrieve(page) {
     ok: analyzeCount > 0 && Boolean(await page.$('[data-ui="field-setting"]')),
     detail: analyzeCount,
   });
+  const rowHeight = await page.$eval('[data-ui="origin-table"] tbody tr', el => el.getBoundingClientRect().height).catch(() => 0);
+  checks.push({
+    id: 'origin-row-density',
+    ok: rowHeight > 0 && Math.abs(rowHeight - 32) <= 12,
+    detail: rowHeight,
+  });
   return { favorite, topbar, searchbar, field, result, favoriteStyle, checks };
 }
 
@@ -226,9 +232,21 @@ async function measureManage(page) {
   const checks = [];
   if (left && right) {
     checks.push({ id: 'manage-left-of-right', ok: left.x + left.width <= right.x + 2, detail: { left, right } });
+    checks.push({ id: 'manage-nav-width', ok: Math.abs(left.width - 220) <= 16, detail: left.width });
   } else {
     checks.push({ id: 'manage-layout', ok: false, detail: 'manage panes missing' });
   }
+  const titles = await page.$$eval('.manage-nav__group-title', nodes => nodes.map(el => (el.textContent || '').trim())).catch(() => []);
+  checks.push({
+    id: 'manage-nav-groups',
+    ok: titles.join(',') === '数据接入,索引集,清洗,归档,提取,ES,客户端',
+    detail: titles,
+  });
+  checks.push({
+    id: 'manage-nav-tree',
+    ok: Boolean(await page.$('[data-ui="manage-nav-tree"]')),
+    detail: 'grouped manage tree',
+  });
   return { left, right, checks };
 }
 
@@ -304,6 +322,9 @@ try {
       { id: 'history-panel', ok: Boolean(historyShot), detail: historyShot },
       { id: 'highlight-mark', ok: Boolean(hasMark), detail: 'keyword highlight in screenshot flow' },
       { id: 'row-expand', ok: Boolean(hasDetail), detail: 'expanded log detail' },
+      { id: 'origin-kv', ok: Boolean(hasDetail) && Boolean(await page.$('.retrieve-log-kv')), detail: 'expanded kv rows' },
+      { id: 'origin-context', ok: Boolean(await page.$('[data-ui="log-context"]')), detail: 'context entry' },
+      { id: 'origin-realtime', ok: Boolean(await page.$('[data-ui="log-realtime"]')), detail: 'realtime entry' },
       { id: 'highlight-shot', ok: Boolean(highlightShot), detail: highlightShot },
       { id: 'expand-shot', ok: Boolean(expandShot), detail: expandShot },
     ],
@@ -326,9 +347,10 @@ try {
 
   await page.goto(`${baseUrl}/#/manage/clean`, { waitUntil: 'networkidle' });
   const manageShot = await capture(page, 'v3-manage-clean');
+  const manageNavShot = await captureRegion(page, '[data-ui="manage-left"]', 'v3-manage-nav');
   const manage = await measureManage(page);
-  report.pages.push({ name: 'manage-clean', shot: manageShot, ...manage });
-  report.shots.push(manageShot);
+  report.pages.push({ name: 'manage-clean', shot: manageShot, regions: { nav: manageNavShot }, ...manage });
+  report.shots.push(manageShot, ...[manageNavShot].filter(Boolean));
 
   if (v2BaseUrl) {
     await page.goto(`${v2BaseUrl}/#/retrieve/16176?spaceUid=bkcc__5000140&bizId=5000140`, { waitUntil: 'domcontentloaded', timeout: 90000 });

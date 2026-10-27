@@ -45,6 +45,10 @@ const required = [
   { token: '--bklog-collection-add-bg', value: '#cddffe' },
   { token: '--bklog-collection-group-active', value: '#e1ecff' },
   { token: '--bklog-favorite-item-height', value: '32px' },
+  { token: '--bklog-origin-row-height', value: '32px' },
+  { token: '--bklog-origin-header-bg', value: '#fafbfd' },
+  { token: '--bklog-manage-nav-bg', value: '#2c354d' },
+  { token: '--bklog-manage-nav-width', value: '220px' },
 ];
 
 const files = readdirSync(distCss).filter(name => name.endsWith('.css'));

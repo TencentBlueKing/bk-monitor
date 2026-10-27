@@ -46,6 +46,16 @@ export const MANAGE_MODULES: ModuleCatalog[] = [
     ],
   },
   {
+    id: 'manage-index-set',
+    title: '索引集',
+    path: '/manage/index-set',
+    source: 'src/views/manage/manage-access/components/index-set',
+    items: [
+      { id: 'idx-1', name: 'nginx-index', status: 'ready', keyword: 'nginx' },
+      { id: 'idx-2', name: 'app-index', status: 'running', keyword: 'app' },
+    ],
+  },
+  {
     id: 'manage-clean',
     title: '清洗模板',
     path: '/manage/clean',

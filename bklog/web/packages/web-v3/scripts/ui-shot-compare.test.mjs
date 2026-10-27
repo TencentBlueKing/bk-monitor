@@ -32,6 +32,7 @@ const REGION_SHOTS = [
   'v3-retrieve-sql.png',
   'v3-retrieve-history.png',
   'v3-collection-left.png',
+  'v3-manage-nav.png',
 ];
 
 describe('UI screenshot compare (forbidden to pass without shots)', () => {

@@ -92,27 +92,33 @@
                   {{ formatTime(row.dtEventTimeStamp) }}
                 </template>
                 <template #log="{ row }">
-                  <button type="button" class="retrieve-log-expand" data-ui="log-expand" @click="toggleExpand(row.id)">
+                  <button
+                    type="button"
+                    :class="['retrieve-log-expand', { 'is-open': expandedId === row.id }]"
+                    data-ui="log-expand"
+                    @click="toggleExpand(row.id)"
+                  >
                     <i :class="['bklog-icon', 'bklog-arrow-down-filled', 'retrieve-log-caret', { 'is-open': expandedId === row.id }]" />
                     <pre class="retrieve-log-cell"><template v-for="part in highlightLog(row.log)" :key="part.key"><mark v-if="part.mark">{{ part.text }}</mark><span v-else>{{ part.text }}</span></template></pre>
                   </button>
                   <dl v-if="expandedId === row.id" class="retrieve-log-detail" data-ui="log-detail">
-                    <div><dt>id</dt><dd>{{ row.id }}</dd></div>
-                    <div><dt>dtEventTimeStamp</dt><dd>{{ formatTime(row.dtEventTimeStamp) }}</dd></div>
-                    <div>
-                      <dt>log</dt>
+                    <div v-for="entry in kvEntries(row)" :key="entry.key" class="retrieve-log-kv">
+                      <dt>{{ entry.key }}</dt>
                       <dd>
-                        <template v-for="part in highlightLog(row.log)" :key="part.key">
-                          <mark v-if="part.mark">{{ part.text }}</mark>
-                          <span v-else>{{ part.text }}</span>
+                        <template v-if="entry.highlight">
+                          <template v-for="part in highlightLog(entry.value)" :key="part.key">
+                            <mark v-if="part.mark">{{ part.text }}</mark>
+                            <span v-else>{{ part.text }}</span>
+                          </template>
                         </template>
+                        <template v-else>{{ entry.value }}</template>
                       </dd>
                     </div>
                   </dl>
                 </template>
                 <template #op="{ row }">
-                  <t-button variant="text" @click="openContext(row.id)">上下文</t-button>
-                  <t-button variant="text" @click="openRealtime(row)">实时</t-button>
+                  <t-button variant="text" data-ui="log-context" @click="openContext(row.id)">上下文</t-button>
+                  <t-button variant="text" data-ui="log-realtime" @click="openRealtime(row)">实时</t-button>
                 </template>
               </t-table>
               </div>
@@ -212,10 +218,10 @@ import { WorkspaceController, type RetrieveTab, type WorkspaceSnapshot } from '.
 
 const now = Date.now();
 const dataset: LogRecord[] = [
-  { id: '1', dtEventTimeStamp: now - 60_000, log: 'error timeout from api', indexSetId: 'index-a' },
-  { id: '2', dtEventTimeStamp: now - 120_000, log: 'info user login', indexSetId: 'index-a' },
-  { id: '3', dtEventTimeStamp: now - 180_000, log: 'error disk full', indexSetId: 'index-a' },
-  { id: '4', dtEventTimeStamp: now - 90_000, log: 'error timeout from api 88', indexSetId: 'index-b' },
+  { id: '1', dtEventTimeStamp: now - 60_000, log: 'error timeout from api', indexSetId: 'index-a', serverIp: '127.0.0.1', path: '/var/log/nginx/error.log', status: 500 },
+  { id: '2', dtEventTimeStamp: now - 120_000, log: 'info user login', indexSetId: 'index-a', serverIp: '10.0.0.2', path: '/var/log/app/info.log', status: 200 },
+  { id: '3', dtEventTimeStamp: now - 180_000, log: 'error disk full', indexSetId: 'index-a', serverIp: '10.0.0.3', path: '/var/log/app/error.log', status: 503 },
+  { id: '4', dtEventTimeStamp: now - 90_000, log: 'error timeout from api 88', indexSetId: 'index-b', serverIp: '10.0.0.4', path: '/var/log/nginx/access.log', status: 504 },
 ];
 
 const searchController = new RetrieveSearchController(createLocalSearchFetcher(dataset));
@@ -283,6 +289,15 @@ const formatTime = (value: number) => {
   const pad = (item: number) => String(item).padStart(2, '0');
   return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())} ${pad(date.getHours())}:${pad(date.getMinutes())}:${pad(date.getSeconds())}`;
 };
+
+const kvEntries = (row: LogRecord) => [
+  { key: 'id', value: row.id },
+  { key: 'dtEventTimeStamp', value: formatTime(row.dtEventTimeStamp) },
+  { key: 'log', value: row.log, highlight: true },
+  { key: 'serverIp', value: row.serverIp ?? '' },
+  { key: 'path', value: row.path ?? '' },
+  { key: 'status', value: row.status == null ? '' : String(row.status) },
+].filter(item => item.value !== '');
 const clusterColumns = [
   { colKey: 'pattern', title: '模式' },
   { colKey: 'count', title: '数量', width: 100 },
