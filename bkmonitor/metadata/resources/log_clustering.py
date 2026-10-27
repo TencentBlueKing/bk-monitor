@@ -519,14 +519,7 @@ class CreateOrUpdateLogClusteringPatternRouterResource(Resource):
         if sink is None or not sink.binding.get("pattern_index"):
             raise ValidationError(f"table_id({table_id}) has no log clustering pattern index")
 
-        pattern_resource = sink.pattern_resource
-        pattern_cluster = models.ClusterInfo.objects.filter(
-            bk_tenant_id=pattern_resource.get("tenant") or bk_tenant_id,
-            cluster_type=models.ClusterInfo.TYPE_ES,
-            cluster_name=pattern_resource.get("name"),
-        ).first()
-        if pattern_cluster is None:
-            raise ValidationError(f"pattern_resource({pattern_resource}) is not a metadata elasticsearch cluster")
+        pattern_cluster = get_log_clustering_pattern_cluster(bk_tenant_id, sink.pattern_resource)
 
         route_params = {
             "bk_tenant_id": bk_tenant_id,

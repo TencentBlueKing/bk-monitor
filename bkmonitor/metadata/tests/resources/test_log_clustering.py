@@ -384,23 +384,8 @@ def create_pattern_router(**overrides) -> dict:
     return CreateOrUpdateLogClusteringPatternRouterResource().request(params)
 
 
-def create_pattern_cluster() -> models.ClusterInfo:
-    return models.ClusterInfo.objects.create(
-        cluster_name=PATTERN_RESOURCE["name"],
-        cluster_type=models.ClusterInfo.TYPE_ES,
-        domain_name="es.pattern",
-        port=9200,
-        description="",
-        cluster_id=710103,
-        is_default_cluster=False,
-        version="7.10",
-        bk_tenant_id="system",
-    )
-
-
 def test_pattern_router_routes_pattern_index_on_pattern_cluster(clustering_datalink, bkbase, log_router):
     set_config()
-    create_pattern_cluster()
 
     result = create_pattern_router()
 
@@ -411,7 +396,7 @@ def test_pattern_router_routes_pattern_index_on_pattern_cluster(clustering_datal
             "space_id": "2",
             "table_id": "bklog_index_set_24466_pattern.__default__",
             "data_label": "bklog_index_set_24466_pattern",
-            "cluster_id": 710103,
+            "cluster_id": PATTERN_CLUSTER_ID,
             "index_set": BINDING["pattern_index"],
             "source_type": "log",
             "storage_type": "elasticsearch",
@@ -422,14 +407,12 @@ def test_pattern_router_routes_pattern_index_on_pattern_cluster(clustering_datal
     )
     assert result == {
         "route_table_id": "bklog_index_set_24466_pattern.__default__",
-        "cluster_id": 710103,
+        "cluster_id": PATTERN_CLUSTER_ID,
         "index_set": BINDING["pattern_index"],
     }
 
 
 def test_pattern_router_requires_clustering_config(clustering_datalink, bkbase, log_router):
-    create_pattern_cluster()
-
     with pytest.raises(ValidationError, match="no log clustering pattern index"):
         create_pattern_router()
     log_router.assert_not_called()
@@ -437,6 +420,7 @@ def test_pattern_router_requires_clustering_config(clustering_datalink, bkbase, 
 
 def test_pattern_router_requires_metadata_pattern_cluster(clustering_datalink, bkbase, log_router):
     set_config()
+    models.ClusterInfo.objects.filter(cluster_id=PATTERN_CLUSTER_ID).delete()
 
     with pytest.raises(ValidationError, match="not a metadata elasticsearch cluster"):
         create_pattern_router()
