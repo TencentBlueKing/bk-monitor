@@ -433,6 +433,11 @@ class IntegrationModeTest(TestCase):
     def test_toggle_on_admits_v3(self):
         self.assertTrue(is_nodeman_v3_admitted(2))
 
+    @nodeman_v3_toggle("on", enabled=False)
+    def test_total_switch_off_rejects_feature_toggle_admission(self):
+        self.assertFalse(is_nodeman_v3_admitted(2))
+
+    @override_settings(ENABLE_NODEMAN_V3=True)
     def test_missing_toggle_fails_closed(self):
         from apps.feature_toggle.models import FeatureToggle
         from apps.feature_toggle.plugins.constants import NODEMAN_V3_COLLECTOR
@@ -440,6 +445,7 @@ class IntegrationModeTest(TestCase):
         FeatureToggle.origin_objects.filter(name=NODEMAN_V3_COLLECTOR).delete()
         self.assertFalse(is_nodeman_v3_admitted(2))
 
+    @override_settings(ENABLE_NODEMAN_V3=True)
     def test_toggle_database_error_fails_closed(self):
         from apps.feature_toggle.models import FeatureToggle
 
@@ -494,9 +500,10 @@ class GrayRolloutOwnershipTest(TestCase):
         self.assertTrue(should_use_nodeman_v3(self._config(collector_config_id=9001)))
         self.assertFalse(should_use_nodeman_v3(self._config(collector_config_id=9003)))
 
-    @nodeman_v3_toggle("off")
-    def test_existing_binding_outranks_whitelist_shrink(self):
-        # 开关关闭不能把已经通过 V3 下发过的采集项踢回 V2：主机上那份 V3 子配置会失去控制面，
+    @nodeman_v3_toggle("off", enabled=False)
+    def test_existing_binding_outranks_total_switch_and_whitelist_shrink(self):
+        # 两层开关关闭都不能把已经通过 V3 下发过的采集项踢回 V2：
+        # 主机上那份 V3 子配置会失去控制面，
         # 既不会被更新也不会被删除，变成永久残留。归属只能前进
         from apps.log_databus.nodeman_v3.constants import RESOURCE_TYPE_COLLECTOR_CONFIG
         from apps.log_databus.nodeman_v3.models import NodeManV3Binding
@@ -528,6 +535,26 @@ class GrayRolloutOwnershipTest(TestCase):
             self.assertEqual(resolve_nodeman_v3_collector_ids(configs), {9001})
         self.assertEqual(toggle.call_count, 1)
         self.assertEqual(bindings.call_count, 1)
+
+    @nodeman_v3_toggle("on", enabled=False)
+    def test_bulk_resolver_total_switch_off_keeps_only_existing_binding(self):
+        from apps.log_databus.nodeman_v3.models import NodeManV3Binding
+
+        configs = [
+            self._config(collector_config_id=9001),
+            self._config(collector_config_id=9002),
+            self._config(collector_config_id=9003, subscription_id=12345),
+        ]
+        NodeManV3Binding.objects.create(
+            resource_type=RESOURCE_TYPE_COLLECTOR_CONFIG,
+            resource_key=build_resource_key(9001),
+            bk_biz_id=2,
+            bk_tenant_id="system",
+            collector_config_id=9001,
+            policy_name=build_policy_name(9001),
+        )
+
+        self.assertEqual(resolve_nodeman_v3_collector_ids(configs), {9001})
 
     def test_v2_owned_collector_takes_v2_path_not_v3_installer(self):
         # 反向门禁：BKL-5 的 V2OutboundZeroGateTest 证明「V3 归属不出 V2」，

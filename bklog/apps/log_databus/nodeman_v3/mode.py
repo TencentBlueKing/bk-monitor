@@ -77,9 +77,14 @@ def get_nodeman_v3_toggle():
     return FeatureToggleObject.toggle(NODEMAN_V3_COLLECTOR)
 
 
+def is_nodeman_v3_enabled() -> bool:
+    """与监控统一的环境级总开关；只接受 settings 中显式的布尔 True。"""
+    return getattr(settings, "ENABLE_NODEMAN_V3", False) is True
+
+
 def is_nodeman_v3_admitted(bk_biz_id: int | None, collector_config_id: int | None = None) -> bool:
-    """业务或特殊采集项是否被 FeatureToggle 准入 V3。"""
-    return _toggle_allows(get_nodeman_v3_toggle(), bk_biz_id, collector_config_id)
+    """业务或特殊采集项是否同时通过环境总开关与 FeatureToggle 准入 V3。"""
+    return is_nodeman_v3_enabled() and _toggle_allows(get_nodeman_v3_toggle(), bk_biz_id, collector_config_id)
 
 
 def has_nodeman_v3_bindings() -> bool:
@@ -95,7 +100,7 @@ def is_nodeman_v3_available() -> bool:
 
     toggle 关闭只停止新准入；已有 binding 仍需查询历史 workflow、状态和详情。
     """
-    toggle = get_nodeman_v3_toggle()
+    toggle = get_nodeman_v3_toggle() if is_nodeman_v3_enabled() else None
     return bool(toggle and toggle.status in {"debug", "on"}) or has_nodeman_v3_bindings()
 
 
@@ -106,10 +111,11 @@ def resolve_nodeman_v3_collector_ids(collector_configs) -> set[int]:
     归属顺序：
     1. 已有 V3 binding                              -> V3（粘性归属）
     2. subscription_id 非空                         -> V2
-    3. FeatureToggle off / 缺失 / DB 异常           -> V2
-    4. FeatureToggle on                              -> V3
-    5. FeatureToggle debug 命中业务或特殊采集项       -> V3
-    6. 其余                                          -> V2
+    3. 环境总开关关闭                                -> V2
+    4. FeatureToggle off / 缺失 / DB 异常           -> V2
+    5. FeatureToggle on                              -> V3
+    6. FeatureToggle debug 命中业务或特殊采集项       -> V3
+    7. 其余                                          -> V2
     """
     configs = list(collector_configs)
     collector_ids = {
@@ -127,7 +133,8 @@ def resolve_nodeman_v3_collector_ids(collector_configs) -> set[int]:
             ).values_list("collector_config_id", flat=True)
         )
 
-    toggle = get_nodeman_v3_toggle()
+    # 总开关只限制新准入；已有 binding 在上方优先判定，关闭后仍继续由 V3 管理。
+    toggle = get_nodeman_v3_toggle() if is_nodeman_v3_enabled() else None
     result = set()
     for config in configs:
         collector_config_id = getattr(config, "collector_config_id", None)

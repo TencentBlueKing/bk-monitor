@@ -427,3 +427,24 @@ class AgentStatusV3Test(TestCase):
         result, client = self._status([], [])
         self.assertEqual(result, {})
         self.assertEqual(client.payloads, [])
+
+    @nodeman_v3_toggle("on", enabled=False)
+    def test_total_switch_off_routes_agent_status_to_v2(self):
+        from apps.log_search.handlers.biz import BizHandler
+
+        with (
+            patch("apps.log_search.handlers.biz.BaseHandler.get_meta_data", return_value={"bk_tenant_id": "system"}),
+            patch(
+                "apps.log_search.handlers.biz.NodeApi.ipchooser_host_details",
+                return_value=[{"host_id": 1, "alive": True}],
+            ) as v2_query,
+            patch.object(
+                BizHandler,
+                "_get_agent_status_v3",
+                side_effect=AssertionError("环境总开关关闭时不应查询 NodeMan V3"),
+            ),
+        ):
+            result = BizHandler(BK_BIZ_ID).get_agent_status([{"bk_host_id": 1}])
+
+        self.assertEqual(result[1], AgentStatusEnum.ON.value)
+        v2_query.assert_called_once()

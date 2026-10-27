@@ -1,5 +1,7 @@
 from functools import wraps
 
+from django.test import override_settings
+
 from apps.feature_toggle.models import FeatureToggle
 from apps.feature_toggle.plugins.constants import NODEMAN_V3_COLLECTOR
 
@@ -26,8 +28,8 @@ def set_nodeman_v3_toggle(
     return toggle
 
 
-def nodeman_v3_toggle(status: str = "on", **config):
-    """可装饰 TestCase 类或测试方法，替代基于 settings 的旧开关装饰器。"""
+def nodeman_v3_toggle(status: str = "on", *, enabled: bool = True, **config):
+    """同时配置环境总开关和数据库灰度开关，可装饰 TestCase 类或测试方法。"""
 
     def decorator(target):
         if isinstance(target, type):
@@ -39,12 +41,13 @@ def nodeman_v3_toggle(status: str = "on", **config):
                 return original_set_up(test_case, *args, **kwargs)
 
             target.setUp = set_up
-            return target
+            return override_settings(ENABLE_NODEMAN_V3=enabled)(target)
 
         @wraps(target)
         def wrapped(*args, **kwargs):
-            set_nodeman_v3_toggle(status, **config)
-            return target(*args, **kwargs)
+            with override_settings(ENABLE_NODEMAN_V3=enabled):
+                set_nodeman_v3_toggle(status, **config)
+                return target(*args, **kwargs)
 
         return wrapped
 

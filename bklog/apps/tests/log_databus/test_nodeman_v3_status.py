@@ -949,6 +949,10 @@ class HostHandlerWiringTest(TestCase):
 
         self.handler = HostCollectorHandler(data=self.collector_config)
 
+    @nodeman_v3_toggle("off", enabled=False)
+    def test_existing_binding_keeps_handler_on_v3_when_total_switch_off(self):
+        self.assertTrue(self.handler.use_nodeman_v3)
+
     def test_instance_id_keeps_v2_shape_so_frontend_needs_no_change(self):
         self.assertEqual(self.handler._parse_bk_host_id("host|instance|host|11"), 11)
 
