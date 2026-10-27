@@ -58,14 +58,14 @@ def report_all(job: str = settings.DEFAULT_METRIC_PUSH_JOB, registry: BkCollecto
     if not get_metric_agg_gateway_url():
         return
     METRIC_PUSH_COUNT.labels(deployment=DEPLOYMENT).inc()
+    snapshot = registry.take_snapshot()
     try:
         # 发送消息
-        push_to_gateway(gateway="", job=job, registry=registry, handler=udp_handler)
+        push_to_gateway(gateway="", job=job, registry=snapshot, handler=udp_handler)
     except Exception:
-        # 失败不处理，handler已经打了日志了，这里只是为了防止上报过程出现任何异常导致正常逻辑无法走下去
-        return
-
-    registry.clear_data()
+        # handler已经打了日志了，这里只是为了防止上报过程出现任何异常导致正常逻辑无法走下去
+        # 数据放回 registry，随下次上报重发
+        snapshot.restore()
 
 
 def safe_push_to_gateway(job: str = settings.DEFAULT_METRIC_PUSH_JOB, registry: BkCollectorRegistry = REGISTRY):
