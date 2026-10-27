@@ -158,7 +158,6 @@ export declare namespace IDataRetrievalItem {
   }
   interface IEvent {
     onChange?: onChange;
-    onLoadingChange?: boolean;
     onClearMetric?: () => void;
     onShowMetricSelector?: () => void;
   }
