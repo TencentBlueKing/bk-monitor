@@ -33,12 +33,9 @@
       >
         <i class="bklog-icon bklog-shoucangjia" />
       </button>
-      <t-select
+      <retrieve-index-set-select
         :model-value="indexSetId"
         :options="indexSetOptions"
-        class="retrieve-topbar__index"
-        data-ui="index-set"
-        borderless
         @change="onIndexSet"
       />
     </div>
@@ -48,14 +45,33 @@
         <t-option value="1h" label="近 1 小时" />
         <t-option value="24h" label="近 24 小时" />
       </t-select>
+      <t-button variant="text" data-ui="history-query" @click="emit('open-history')">
+        <i class="bklog-icon bklog-history-2" />
+        历史查询
+      </t-button>
       <label class="retrieve-topbar__refresh" data-ui="auto-refresh">
         <i class="bklog-icon bklog-time-2" />
         <span>自动刷新</span>
         <t-switch size="small" :model-value="toolbar.autoRefresh" @change="onAutoRefresh" />
       </label>
+      <t-button variant="text" data-ui="share-entry" @click="emit('open-share')">
+        <i class="bklog-icon bklog-share" />
+        分享
+      </t-button>
       <t-button variant="text" @click="emit('save-favorite')">
         <i class="bklog-icon bklog-star-line" />
         保存收藏
+      </t-button>
+      <t-button variant="text" data-ui="index-config-entry" @click="emit('open-field-config')">
+        <i class="bklog-icon bklog-setting" />
+        索引配置
+      </t-button>
+      <t-button variant="text" data-ui="global-setting-entry" @click="emit('open-global-settings')">
+        <i class="bklog-icon bklog-setting-line" />
+        全局设置
+      </t-button>
+      <t-button variant="text" data-ui="more-entry" @click="emit('open-more')">
+        更多
       </t-button>
       <t-button variant="text" @click="emit('open-help')">
         <i class="bklog-icon bklog-shezhi" />
@@ -66,6 +82,7 @@
 </template>
 
 <script setup lang="ts">
+import RetrieveIndexSetSelect from './retrieve-index-set-select.vue';
 import type { TimePreset, ToolbarSnapshot } from './toolbar-controller';
 
 defineProps<{
@@ -80,7 +97,12 @@ const emit = defineEmits<{
   'change-time': [preset: TimePreset];
   'auto-refresh': [enabled: boolean];
   'save-favorite': [];
+  'open-share': [];
+  'open-field-config': [];
+  'open-global-settings': [];
+  'open-more': [];
   'open-help': [];
+  'open-history': [];
 }>();
 
 const onIndexSet = (value: string) => {

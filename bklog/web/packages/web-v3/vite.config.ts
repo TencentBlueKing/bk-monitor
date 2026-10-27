@@ -28,6 +28,7 @@ import vue from '@vitejs/plugin-vue';
 import { defineConfig } from 'vite';
 
 const port = Number(process.env.AAFE_E2E_PORT || 41001);
+const devApiTarget = process.env.AAFE_DEV_API_TARGET || 'http://appdev.woa.com:8001';
 
 export default defineConfig({
   plugins: [vue()],
@@ -37,6 +38,12 @@ export default defineConfig({
     strictPort: true,
     fs: {
       allow: ['../../..'],
+    },
+    proxy: {
+      '/api': {
+        target: devApiTarget,
+        changeOrigin: true,
+      },
     },
   },
   preview: {

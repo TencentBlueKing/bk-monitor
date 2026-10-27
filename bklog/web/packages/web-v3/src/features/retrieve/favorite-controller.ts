@@ -152,6 +152,18 @@ export class FavoriteController {
       .filter(group => group.favorites.length > 0);
   }
 
+  replaceGroups(groups: FavoriteGroup[], currentIndexSetId = this.snapshot.currentIndexSetId): FavoriteSnapshot {
+    this.snapshot = {
+      ...this.snapshot,
+      currentIndexSetId,
+      groups: groups.length ? cloneGroups(groups) : this.snapshot.groups,
+      activeId: null,
+      uiState: 'idle',
+      error: '',
+    };
+    return this.getState();
+  }
+
   setFilterQuery(value: string): FavoriteSnapshot {
     this.snapshot = {
       ...this.snapshot,

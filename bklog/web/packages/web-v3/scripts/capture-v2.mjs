@@ -34,7 +34,16 @@ const webRoot = join(root, '../..');
 const require = createRequire(import.meta.url);
 const { chromium } = require(join(webRoot, 'node_modules/playwright'));
 
-const mockTool = join(webRoot, '.e2e-skills/assets/architecture-chema/工具/load-mock-scene.mjs');
+const mockToolCandidates = [
+  process.env.AAFE_MOCK_TOOL,
+  join(webRoot, '.aafe/docs/architecture-chema/工具/load-mock-scene.mjs'),
+  join(webRoot, '.e2e-skills/assets/architecture-chema/工具/load-mock-scene.mjs'),
+  join(webRoot, '.docs/architecture-chema/工具/load-mock-scene.mjs'),
+].filter(Boolean);
+const mockTool = mockToolCandidates.find(path => existsSync(path));
+if (!mockTool) {
+  throw new Error(`missing mock scene loader. tried: ${mockToolCandidates.join(', ')}`);
+}
 const { loadMockScene, installMockRoutes } = await import(pathToFileURL(mockTool).href);
 
 const baseUrl = process.env.AAFE_V2_BASE_URL || `http://127.0.0.1:${process.env.AAFE_E2E_PORT || 41001}`;

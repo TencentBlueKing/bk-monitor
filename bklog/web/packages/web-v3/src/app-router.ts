@@ -58,10 +58,10 @@ const resourceRoutes: RouteRecordRaw[] = MANAGE_MODULES.filter(module => !isMana
 
 export const routes: RouteRecordRaw[] = [
   { path: '/', redirect: '/retrieve' },
-  { path: '/retrieve', name: 'retrieve-search', component: RetrievePage, meta: { title: '日志检索', group: 'retrieve' } },
   { path: '/retrieve/clustering', name: 'retrieve-clustering', component: ClusteringPage, meta: { title: '日志聚类', group: 'retrieve' } },
   { path: '/retrieve/context', name: 'retrieve-context', component: ContextPage, meta: { title: '上下文日志', group: 'retrieve' } },
   { path: '/retrieve/realtime', name: 'retrieve-realtime', component: RealtimePage, meta: { title: '实时日志', group: 'retrieve' } },
+  { path: '/retrieve/:indexSetId?', name: 'retrieve-search', component: RetrievePage, meta: { title: '日志检索', group: 'retrieve' } },
   { path: '/manage', component: ManageLayout, redirect: '/manage/collection', children: manageChildren },
   ...resourceRoutes,
   { path: '/unauthorized', name: 'unauthorized', component: UnauthorizedPage, meta: { title: '未授权', group: 'system' } },

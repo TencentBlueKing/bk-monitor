@@ -67,7 +67,7 @@ export class ToolbarController {
     this.onTick = onTick;
     this.snapshot = {
       uiState: 'ready',
-      favoriteShown: true,
+      favoriteShown: false,
       timePreset: '15m',
       autoRefresh: false,
       timeRange: resolveTimeRange('15m', now),

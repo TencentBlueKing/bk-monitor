@@ -75,6 +75,21 @@ export class FieldController {
     ));
   }
 
+  replaceFields(fields: LogField[]): FieldSnapshot {
+    this.snapshot = {
+      ...this.snapshot,
+      uiState: 'idle',
+      error: '',
+      fields: fields.length ? fields.map(item => ({ ...item })) : this.snapshot.fields,
+    };
+    return this.getState();
+  }
+
+  setError(error: string): FieldSnapshot {
+    this.snapshot = { ...this.snapshot, uiState: 'error', error };
+    return this.getState();
+  }
+
   setFilterQuery(value: string): FieldSnapshot {
     this.snapshot = { ...this.snapshot, filterQuery: String(value ?? '').trim(), error: '' };
     return this.getState();

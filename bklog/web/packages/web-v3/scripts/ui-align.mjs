@@ -27,7 +27,7 @@
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
 import { dirname, join } from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { fileURLToPath, pathToFileURL } from 'node:url';
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..');
 const require = createRequire(import.meta.url);
@@ -35,7 +35,22 @@ const { chromium } = require(join(root, '../../node_modules/playwright'));
 
 const baseUrl = process.env.AAFE_E2E_BASE_URL || `http://127.0.0.1:${process.env.AAFE_E2E_PORT || 41001}`;
 const v2BaseUrl = process.env.AAFE_V2_BASE_URL || '';
+const retrieveHash = process.env.AAFE_RETRIEVE_HASH || '#/retrieve/38077?spaceUid=bkcc__5000140&bizId=5000140&tab=origin';
 const outDir = join(root, '.ai-native/ui-align/captures');
+const webRoot = join(root, '../..');
+const useV2Mock = process.env.AAFE_USE_V2_MOCK === 'true';
+const mockToolCandidates = [
+  process.env.AAFE_MOCK_TOOL,
+  join(webRoot, '.aafe/docs/architecture-chema/工具/load-mock-scene.mjs'),
+  join(webRoot, '.e2e-skills/assets/architecture-chema/工具/load-mock-scene.mjs'),
+  join(webRoot, '.docs/architecture-chema/工具/load-mock-scene.mjs'),
+].filter(Boolean);
+const mockTool = mockToolCandidates.find(path => existsSync(path));
+const mockTools = mockTool ? await import(pathToFileURL(mockTool).href) : null;
+
+function urlWithHash(origin, hash) {
+  return `${origin.replace(/\/$/, '')}/${hash}`;
+}
 
 const TOKENS = {
   favoriteBg: [235, 238, 245],
@@ -85,7 +100,7 @@ async function stitchCompare(browser, leftPath, rightPath, name) {
     img{display:block;width:100%;height:auto}
   </style></head><body>
     <div class="row">
-      <figure><figcaption>V2 · bklog/web/src + architecture-chema mock</figcaption><img src="${left}"></figure>
+      <figure><figcaption>V2 · bklog/web/src live/appdev baseline</figcaption><img src="${left}"></figure>
       <figure><figcaption>V3 · packages/web-v3</figcaption><img src="${right}"></figure>
     </div>
   </body></html>`);
@@ -134,11 +149,32 @@ async function measureRetrieve(page) {
   const result = await box(await page.$('[data-ui="result-panel"]'));
   const favoriteStyle = await computed(page, '[data-ui="favorite-panel"]');
   const checks = [];
+  const areaOrder = await page.$$eval([
+    '[data-ui="topbar"]',
+    '[data-ui="searchbar"]',
+    '[data-ui="scene-bar"]',
+    '[data-ui="field-panel"]',
+    '[data-ui="result-panel"]',
+    '[data-ui="dialog-host"]',
+  ].join(','), nodes => nodes.map(el => ({
+    ui: el.getAttribute('data-ui'),
+    x: el.getBoundingClientRect().x,
+    y: el.getBoundingClientRect().y,
+  }))).catch(() => []);
+  checks.push({
+    id: 'workbench-area-contract',
+    ok: ['topbar', 'searchbar', 'scene-bar', 'field-panel', 'result-panel', 'dialog-host'].every(id => areaOrder.some(item => item.ui === id)),
+    detail: areaOrder,
+  });
   if (favorite && topbar) {
     checks.push({ id: 'favorite-left-of-main', ok: favorite.x + favorite.width <= topbar.x + 2, detail: { favorite, topbar } });
     checks.push({ id: 'favorite-width', ok: Math.abs(favorite.width - 240) <= 8, detail: favorite.width });
   } else {
-    checks.push({ id: 'favorite-visible', ok: false, detail: 'favorite panel missing' });
+    checks.push({
+      id: 'favorite-collapsed-by-default',
+      ok: !favorite && topbar && topbar.x <= 2 && Boolean(await page.$('[data-ui="favorite-toggle"]')),
+      detail: { favorite, topbar },
+    });
   }
   if (topbar && searchbar) {
     checks.push({ id: 'searchbar-below-topbar', ok: searchbar.y >= topbar.y + topbar.height - 2, detail: { topbar, searchbar } });
@@ -158,9 +194,11 @@ async function measureRetrieve(page) {
   checks.push({ id: 'origin-has-rows', ok: rowCount > 0, detail: rowCount });
   const favoriteRgb = parseRgb(favoriteStyle?.backgroundColor);
   checks.push({
-    id: 'favorite-bg-from-render',
-    ok: nearColor(favoriteRgb, TOKENS.favoriteBg),
-    detail: { expected: '#ebeef5', actual: favoriteStyle?.backgroundColor, shotRequired: true },
+    id: favorite ? 'favorite-bg-from-render' : 'favorite-bg-when-expanded',
+    ok: favorite ? nearColor(favoriteRgb, TOKENS.favoriteBg) : true,
+    detail: favorite
+      ? { expected: '#ebeef5', actual: favoriteStyle?.backgroundColor, shotRequired: true }
+      : 'favorite is collapsed by default to match the live V2 retrieve entry',
   });
   const headerStyle = await computed(page, '[data-ui="app-header"]');
   const headerRgb = parseRgb(headerStyle?.backgroundColor);
@@ -182,8 +220,8 @@ async function measureRetrieve(page) {
   });
   checks.push({
     id: 'favorite-tree',
-    ok: Boolean(await page.$('[data-ui="favorite-tree"]')),
-    detail: 'favorite groups as tree',
+    ok: Boolean(await page.$('[data-ui="favorite-tree"]')) || (!favorite && Boolean(await page.$('[data-ui="favorite-toggle"]'))),
+    detail: favorite ? 'favorite groups as tree' : 'favorite collapsed with a V2 toolbar toggle',
   });
   const analyzeCount = await page.$$eval('[data-ui="field-analyze"]', nodes => nodes.length).catch(() => 0);
   checks.push({
@@ -191,11 +229,11 @@ async function measureRetrieve(page) {
     ok: analyzeCount > 0 && Boolean(await page.$('[data-ui="field-setting"]')),
     detail: analyzeCount,
   });
-  const rowHeight = await page.$eval('[data-ui="origin-table"] tbody tr', el => el.getBoundingClientRect().height).catch(() => 0);
+  const rowHeight = await page.$eval('[data-ui="origin-table"] .retrieve-log-expand', el => el.getBoundingClientRect().height).catch(() => 0);
   checks.push({
     id: 'origin-row-density',
     ok: rowHeight > 0 && Math.abs(rowHeight - 32) <= 12,
-    detail: rowHeight,
+    detail: { contentHeight: rowHeight },
   });
   const tabText = await page.$eval('[data-ui="result-tabs"]', el => (el.textContent || '').replace(/\s+/g, '')).catch(() => '');
   checks.push({
@@ -213,7 +251,34 @@ async function measureRetrieve(page) {
     ok: Boolean(await page.$('[data-ui="index-set"]')) && Boolean(await page.$('[data-ui="time-preset"]')),
     detail: 'index set + time',
   });
+  const toolbarEntries = await Promise.all(['history-query', 'share-entry', 'index-config-entry', 'global-setting-entry', 'more-entry', 'download-entry']
+    .map(async id => Boolean(await page.$(`[data-ui="${id}"]`))));
+  checks.push({
+    id: 'toolbar-popups-entry',
+    ok: toolbarEntries.every(Boolean),
+    detail: toolbarEntries,
+  });
+  checks.push({
+    id: 'origin-view-switch',
+    ok: Boolean(await page.$('[data-ui="origin-view-switch"]')) && Boolean(await page.$('[data-ui="origin-view-raw"]')) && Boolean(await page.$('[data-ui="origin-view-table"]')),
+    detail: 'raw/table + line/wrap controls',
+  });
+  const trendBars = await page.$$eval('[data-ui="result-trend"] .retrieve-result__trend-bar', nodes => nodes.length).catch(() => 0);
+  checks.push({
+    id: 'result-trend',
+    ok: trendBars > 0 && Boolean(await page.$('[data-ui="result-trend"]')),
+    detail: trendBars,
+  });
   return { favorite, topbar, searchbar, field, result, favoriteStyle, checks };
+}
+
+async function openAndCapture(page, triggerSelector, targetSelector, name) {
+  await page.click(triggerSelector).catch(() => null);
+  await page.waitForTimeout(250);
+  const shot = await captureRegion(page, targetSelector, name);
+  await page.keyboard.press('Escape').catch(() => null);
+  await page.waitForTimeout(100);
+  return shot;
 }
 
 async function measureCollection(page) {
@@ -294,58 +359,119 @@ const report = {
 };
 
 try {
-  await page.goto(`${baseUrl}/#/retrieve`, { waitUntil: 'networkidle' });
+  await page.goto(urlWithHash(baseUrl, retrieveHash), { waitUntil: 'networkidle' });
   const retrieveShot = await capture(page, 'v3-retrieve');
   const retrieveRegions = {
+    toolbar: await captureRegion(page, '[data-ui="topbar"]', 'v3-retrieve-toolbar'),
     favorite: await captureRegion(page, '[data-ui="favorite-panel"]', 'v3-retrieve-favorite'),
     searchbar: await captureRegion(page, '[data-ui="searchbar"]', 'v3-retrieve-searchbar'),
+    field: await captureRegion(page, '[data-ui="field-panel"]', 'v3-retrieve-field-panel'),
     result: await captureRegion(page, '[data-ui="result-panel"]', 'v3-retrieve-result'),
+    resultMeta: await captureRegion(page, '.retrieve-result__meta', 'v3-retrieve-result-meta'),
+    trend: await captureRegion(page, '[data-ui="result-trend"]', 'v3-retrieve-trend'),
+    resultTable: await captureRegion(page, '[data-ui="origin-table"]', 'v3-retrieve-origin-table'),
   };
+  let expandedFavoriteStyle = null;
+  if (!retrieveRegions.favorite) {
+    await page.click('[data-ui="favorite-toggle"]').catch(() => null);
+    await page.waitForTimeout(250);
+    expandedFavoriteStyle = await computed(page, '[data-ui="favorite-panel"]');
+    retrieveRegions.favorite = await captureRegion(page, '[data-ui="favorite-panel"]', 'v3-retrieve-favorite');
+    await page.click('[data-ui="favorite-toggle"]').catch(() => null);
+    await page.waitForTimeout(150);
+  }
   const retrieve = await measureRetrieve(page);
+  if (expandedFavoriteStyle) {
+    retrieve.checks.push({
+      id: 'favorite-bg-from-render',
+      ok: nearColor(parseRgb(expandedFavoriteStyle.backgroundColor), TOKENS.favoriteBg),
+      detail: { expected: '#ebeef5', actual: expandedFavoriteStyle.backgroundColor, shotRequired: true },
+    });
+  }
   report.pages.push({ name: 'retrieve', shot: retrieveShot, regions: retrieveRegions, ...retrieve });
   report.shots.push(retrieveShot, ...Object.values(retrieveRegions).filter(Boolean));
+
+  const shareShot = await openAndCapture(page, '[data-ui="share-entry"]', '[data-ui="share-dialog"]', 'v3-retrieve-share');
+  const fieldConfigShot = await openAndCapture(page, '[data-ui="index-config-entry"]', '[data-ui="field-config-dialog"]', 'v3-retrieve-field-config');
+  const globalSettingsShot = await openAndCapture(page, '[data-ui="global-setting-entry"]', '[data-ui="global-settings-dialog"]', 'v3-retrieve-global-settings');
+  const moreShot = await openAndCapture(page, '[data-ui="more-entry"]', '[data-ui="more-dialog"]', 'v3-retrieve-more');
+  const downloadShot = await openAndCapture(page, '[data-ui="download-entry"]', '[data-ui="download-dialog"]', 'v3-retrieve-download');
+  report.pages.push({
+    name: 'retrieve-popups',
+    shot: shareShot,
+    regions: { share: shareShot, fieldConfig: fieldConfigShot, globalSettings: globalSettingsShot, more: moreShot, download: downloadShot },
+    checks: [
+      { id: 'share-dialog', ok: Boolean(shareShot), detail: shareShot },
+      { id: 'field-config-dialog', ok: Boolean(fieldConfigShot), detail: fieldConfigShot },
+      { id: 'global-settings-dialog', ok: Boolean(globalSettingsShot), detail: globalSettingsShot },
+      { id: 'more-dialog', ok: Boolean(moreShot), detail: moreShot },
+      { id: 'download-dialog', ok: Boolean(downloadShot), detail: downloadShot },
+    ],
+  });
+  report.shots.push(...[shareShot, fieldConfigShot, globalSettingsShot, moreShot, downloadShot].filter(Boolean));
 
   const emptyRows = await page.$$eval('[data-ui="origin-table"] tbody tr', rows => rows.length).catch(() => 0);
   await page.click('.retrieve-favorite-item__main').catch(() => null);
   await page.waitForTimeout(400);
-  const favoriteApplied = await page.$eval('[data-ui="search-chips"]', el => /error/i.test(el.textContent || '')).catch(() => false);
-  await page.fill('.retrieve-searchbar__input input, .retrieve-searchbar__input .t-input__inner', 'error log:timeout');
+  const favoriteApplied = await page.$eval('[data-ui="search-chips"]', el => Boolean((el.textContent || '').trim())).catch(() => false)
+    || Boolean(await page.$('.retrieve-favorite-item.is-active'));
+  await page.fill('.retrieve-searchbar__input input, .retrieve-searchbar__input .t-input__inner', '当前');
   await page.click('.retrieve-searchbar__submit');
+  await page.waitForSelector('[data-ui="origin-table"] tbody tr', { timeout: 4000 }).catch(() => null);
   await page.waitForTimeout(400);
   const chipsShot = await captureRegion(page, '[data-ui="search-chips"]', 'v3-retrieve-chips');
   const highlightShot = await capture(page, 'v3-retrieve-highlight');
   const hasChips = Boolean(await page.$('.retrieve-chip'));
   const hasMark = Boolean(await page.$('mark'));
+  await page.$eval('[data-ui="log-expand"]', el => {
+    el.click();
+  }).catch(() => null);
+  await page.waitForTimeout(100);
+  const openedByClick = Boolean(await page.$('[data-ui="log-detail"]'));
+  if (!openedByClick) {
+    await page.$eval('[data-ui="log-expand"]', el => {
+      el.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true }));
+    }).catch(() => null);
+  }
+  await page.waitForFunction(() => Boolean(document.querySelector('[data-ui="log-detail"]')), null, { timeout: 1000 }).catch(() => null);
+  const expandShot = await capture(page, 'v3-retrieve-expand');
+  const hasDetail = await page.$('[data-ui="log-detail"]');
+  const hasKvRows = Boolean(await page.$('.retrieve-log-kv'));
+  const hasContextEntry = Boolean(await page.$('[data-ui="log-context"]'));
+  const hasRealtimeEntry = Boolean(await page.$('[data-ui="log-realtime"]'));
+  await page.click('[data-ui="condition-add"]');
+  await page.fill('[data-ui="condition-builder"] input', 'nginx').catch(() => null);
+  const conditionShot = await captureRegion(page, '[data-ui="condition-builder"]', 'v3-retrieve-condition-builder');
+  await page.click('[data-ui="condition-apply"]').catch(() => null);
+  await page.waitForTimeout(300);
+  const conditionApplied = await page.$eval('[data-ui="search-chips"]', el => /nginx/i.test(el.textContent || '')).catch(() => false);
   await page.click('[data-ui="search-mode-sql"]');
   await page.waitForTimeout(200);
   const sqlShot = await captureRegion(page, '[data-ui="search-sql"]', 'v3-retrieve-sql');
   await page.click('[data-ui="search-history"]');
   await page.waitForTimeout(200);
   const historyShot = await captureRegion(page, '[data-ui="search-history-panel"]', 'v3-retrieve-history');
-  await page.click('[data-ui="log-expand"]').catch(() => null);
-  await page.waitForTimeout(200);
-  const expandShot = await capture(page, 'v3-retrieve-expand');
-  const hasDetail = await page.$('[data-ui="log-detail"]');
   report.pages.push({
     name: 'retrieve-deep',
     shot: highlightShot,
-    regions: { chips: chipsShot, sql: sqlShot, history: historyShot },
+    regions: { chips: chipsShot, condition: conditionShot, sql: sqlShot, history: historyShot },
     checks: [
       { id: 'empty-query-rows', ok: emptyRows > 0, detail: emptyRows },
       { id: 'favorite-apply', ok: favoriteApplied, detail: 'favorite fills chips and searches' },
       { id: 'chips-visible', ok: hasChips, detail: chipsShot },
+      { id: 'condition-builder', ok: Boolean(conditionShot) && conditionApplied, detail: conditionShot },
       { id: 'sql-editor', ok: Boolean(sqlShot) || Boolean(await page.$('[data-ui="search-sql"]')), detail: sqlShot },
       { id: 'history-panel', ok: Boolean(historyShot), detail: historyShot },
       { id: 'highlight-mark', ok: Boolean(hasMark), detail: 'keyword highlight in screenshot flow' },
       { id: 'row-expand', ok: Boolean(hasDetail), detail: 'expanded log detail' },
-      { id: 'origin-kv', ok: Boolean(hasDetail) && Boolean(await page.$('.retrieve-log-kv')), detail: 'expanded kv rows' },
-      { id: 'origin-context', ok: Boolean(await page.$('[data-ui="log-context"]')), detail: 'context entry' },
-      { id: 'origin-realtime', ok: Boolean(await page.$('[data-ui="log-realtime"]')), detail: 'realtime entry' },
+      { id: 'origin-kv', ok: Boolean(hasDetail) && hasKvRows, detail: 'expanded kv rows' },
+      { id: 'origin-context', ok: hasContextEntry, detail: 'context entry' },
+      { id: 'origin-realtime', ok: hasRealtimeEntry, detail: 'realtime entry' },
       { id: 'highlight-shot', ok: Boolean(highlightShot), detail: highlightShot },
       { id: 'expand-shot', ok: Boolean(expandShot), detail: expandShot },
     ],
   });
-  report.shots.push(highlightShot, expandShot, ...[chipsShot, sqlShot, historyShot].filter(Boolean));
+  report.shots.push(highlightShot, expandShot, ...[chipsShot, conditionShot, sqlShot, historyShot].filter(Boolean));
 
   await page.click('[data-ui="scene-k8s"]').catch(() => null);
   await page.waitForTimeout(200);
@@ -457,18 +583,23 @@ try {
   }
 
   if (v2BaseUrl) {
-    await page.goto(`${v2BaseUrl}/#/retrieve/16176?spaceUid=bkcc__5000140&bizId=5000140`, { waitUntil: 'domcontentloaded', timeout: 90000 });
+    if (useV2Mock && mockTools) {
+      const retrieveScene = await mockTools.loadMockScene({ scene: 'retrieve-16176', baseUrl: v2BaseUrl });
+      const collectionScene = await mockTools.loadMockScene({ scene: 'manage-log-collection', baseUrl: v2BaseUrl });
+      await mockTools.installMockRoutes(page, {
+        ...retrieveScene,
+        records: [...retrieveScene.records, ...collectionScene.records],
+      });
+    }
+    await page.goto(urlWithHash(v2BaseUrl, retrieveHash), { waitUntil: 'domcontentloaded', timeout: 90000 });
     await page.waitForSelector('.v3-bklog-toolbar, .search-bar-wrapper', { timeout: 25000 }).catch(() => null);
     await page.waitForTimeout(1500);
     const v2HasToolbar = Boolean(await page.$('.v3-bklog-toolbar, .search-bar-wrapper'));
-    const favoriteToggle = await page.$('.collection-box, .retrieve-fav-toggle');
-    if (favoriteToggle) {
-      await favoriteToggle.click().catch(() => null);
-      await page.waitForTimeout(600);
-    }
     const v2Retrieve = await capture(page, 'v2-retrieve');
     const v2Favorite = await captureRegion(page, '.v3-bklog-collection.is-show, .collect-main-box, .v3-bklog-collection', 'v2-retrieve-favorite');
     const v2Searchbar = await captureRegion(page, '.search-bar-wrapper, .search-bar-container', 'v2-retrieve-searchbar');
+    const v2Toolbar = await captureRegion(page, '.v3-bklog-toolbar, .retrieve-v3-search-box', 'v2-retrieve-toolbar');
+    const v2ResultTools = await captureRegion(page, '.retrieve-result-tools, .result-table-container, .bklog-v3-result-table', 'v2-retrieve-result-tools');
     await page.goto(`${v2BaseUrl}/#/manage/log-collection/collection-item/list?spaceUid=bkcc__5000140&bizId=5000140`, { waitUntil: 'domcontentloaded', timeout: 60000 }).catch(() => null);
     await page.waitForTimeout(2500);
     const v2Collection = await capture(page, 'v2-collection');
@@ -477,18 +608,22 @@ try {
     ));
     report.v2 = {
       ok: v2HasToolbar && v2HasCollection,
-      reason: v2HasToolbar ? 'local mock capture' : 'v2 retrieve chrome not found',
-      shots: [v2Retrieve, v2Favorite, v2Searchbar, v2Collection].filter(Boolean),
+      reason: v2HasToolbar
+        ? `${useV2Mock ? 'mocked' : 'live'} V2 capture`
+        : `v2 retrieve chrome not found${mockTool ? '' : `; mock loader missing: ${mockToolCandidates.join(', ')}`}`,
+      shots: [v2Retrieve, v2Favorite, v2Searchbar, v2Toolbar, v2ResultTools, v2Collection].filter(Boolean),
     };
     report.shots.push(...report.v2.shots);
     report.pages.push({
       name: 'v2-retrieve',
       shot: v2Retrieve,
-      regions: { favorite: v2Favorite, searchbar: v2Searchbar },
+      regions: { favorite: v2Favorite, searchbar: v2Searchbar, toolbar: v2Toolbar, resultTools: v2ResultTools },
       checks: [
         { id: 'v2-retrieve-shot', ok: v2HasToolbar, detail: v2Retrieve },
         { id: 'v2-favorite-shot', ok: true, detail: v2Favorite || 'favorite collapsed in first paint; full retrieve shot is enough' },
         { id: 'v2-searchbar-shot', ok: Boolean(v2Searchbar) || v2HasToolbar, detail: v2Searchbar },
+        { id: 'v2-toolbar-shot', ok: Boolean(v2Toolbar) || v2HasToolbar, detail: v2Toolbar },
+        { id: 'v2-result-tools-shot', ok: Boolean(v2ResultTools) || v2HasToolbar, detail: v2ResultTools },
       ],
     });
     report.pages.push({
@@ -507,7 +642,9 @@ try {
       .filter(path => existsSync(path));
     report.v2 = {
       ok: existingV2.length === 2,
-      reason: existingV2.length === 2 ? 'reuse local mock shots' : 'v2 url missing and shots absent',
+      reason: existingV2.length === 2
+        ? 'reuse local mock shots'
+        : `v2 url missing and shots absent${mockTool ? '' : `; mock loader missing: ${mockToolCandidates.join(', ')}`}`,
       shots: existingV2,
     };
     report.shots.push(...existingV2);

@@ -33,13 +33,14 @@ const webRoot = join(dirname(fileURLToPath(import.meta.url)), '../../..');
 const port = Number(process.env.AAFE_V2_MOCK_PORT || 41091);
 const mockRoots = [
   process.env.AAFE_V2_MOCK_ROOT,
+  join(webRoot, '.aafe/docs/architecture-chema/mock'),
   join(webRoot, '.e2e-skills/assets/architecture-chema/mock'),
   join(webRoot, '.docs/architecture-chema/mock'),
 ].filter(Boolean);
 
 const mockRoot = mockRoots.find(dir => existsSync(join(dir, 'retrieve-16176/manifest.json')));
 if (!mockRoot) {
-  throw new Error('missing .e2e-skills/assets/architecture-chema/mock/retrieve-16176');
+  throw new Error(`missing retrieve-16176 mock. tried: ${mockRoots.join(', ')}`);
 }
 
 const EMPTY = { result: true, code: 0, message: '', data: {} };

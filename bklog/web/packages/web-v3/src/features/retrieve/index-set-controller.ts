@@ -69,6 +69,19 @@ export class IndexSetController {
     return this.snapshot.items.filter(item => item.name.includes(query) || item.id.includes(query));
   }
 
+  replaceItems(items: IndexSetItem[], activeId = this.snapshot.activeId): IndexSetSnapshot {
+    const nextItems = items.length ? items.map(item => ({ ...item })) : this.snapshot.items;
+    const nextActiveId = nextItems.some(item => item.id === activeId) ? activeId : nextItems[0]?.id || '';
+    this.snapshot = {
+      ...this.snapshot,
+      activeId: nextActiveId,
+      items: nextItems,
+      uiState: 'idle',
+      error: '',
+    };
+    return this.getState();
+  }
+
   setFilterQuery(value: string): IndexSetSnapshot {
     this.snapshot = { ...this.snapshot, filterQuery: String(value ?? '').trim(), uiState: 'filtered', error: '' };
     return this.getState();

@@ -43,9 +43,15 @@
         @change-time="onChangeTime"
         @auto-refresh="onAutoRefresh"
         @save-favorite="openSave"
+        @open-share="openShare"
+        @open-field-config="openFieldConfig"
+        @open-global-settings="openGlobalSettings"
+        @open-more="openMore"
         @open-help="openHelp"
+        @open-history="openHistory"
       />
       <retrieve-searchbar
+        ref="searchbarRef"
         v-model:keyword="keyword"
         :loading="search.uiState === 'loading'"
         :history="searchHistory"
@@ -55,7 +61,7 @@
       <retrieve-scene-bar :state="scene" @change="onScene" @filter="onSceneFilter" />
       <t-alert v-if="search.uiState === 'error'" theme="error" :message="search.error" />
       <section class="retrieve-result">
-        <retrieve-field-panel :state="fields" @toggle="onToggleField" @filter="onFieldFilter" />
+        <retrieve-field-panel :state="fields" @toggle="onToggleField" @filter="onFieldFilter" @refresh="refreshFields" />
         <section class="retrieve-result__main" data-ui="result-panel">
           <nav class="retrieve-result__tabs" data-ui="result-tabs">
             <button type="button" :class="{ 'is-active': workspace.tab === 'origin' }" data-ui="tab-origin" @click="onTab('origin')">原始日志</button>
@@ -64,8 +70,9 @@
             <button type="button" :class="{ 'is-active': workspace.tab === 'grep' }" data-ui="tab-grep" @click="onTab('grep')">Grep 模式</button>
           </nav>
           <div v-if="workspace.tab === 'origin'" class="retrieve-result__meta">
-            <span>共 {{ search.total }} 条</span>
+            <span>检索 {{ search.total }} 条结果，用时 {{ searchCostText }}</span>
             <span class="retrieve-result__tools">
+              <span>汇聚周期：auto</span>
               <t-input
                 v-model="extraHighlight"
                 class="retrieve-result__highlight"
@@ -73,51 +80,93 @@
                 placeholder="高亮关键字"
                 data-ui="page-highlight"
               />
-              <button type="button" title="字段设置"><i class="bklog-icon bklog-set-icon" /></button>
-              <button type="button" title="下载"><i class="bklog-icon bklog-download" /></button>
+              <button type="button" title="字段设置" data-ui="result-field-setting" @click="openFieldConfig"><i class="bklog-icon bklog-set-icon" /></button>
+              <button type="button" title="下载" data-ui="download-entry" @click="openDownload"><i class="bklog-icon bklog-download" /></button>
             </span>
           </div>
-          <t-loading :loading="search.uiState === 'loading'">
+          <section v-if="workspace.tab === 'origin'" class="retrieve-result__trend" data-ui="result-trend">
+            <header class="retrieve-result__trend-head">
+              <span>总趋势</span>
+              <strong>{{ search.total }}</strong>
+              <small>{{ formatTime(toolbar.timeRange.startTime) }} - {{ formatTime(toolbar.timeRange.endTime) }}</small>
+            </header>
+            <div class="retrieve-result__trend-body">
+              <button
+                v-for="bucket in originTrendBuckets"
+                :key="bucket.startTime"
+                type="button"
+                class="retrieve-result__trend-bar"
+                :title="`${formatTime(bucket.startTime)} · ${bucket.count}`"
+              >
+                <span :style="{ height: `${trendHeight(bucket.count)}%` }" />
+              </button>
+            </div>
+            <footer class="retrieve-result__trend-axis">
+              <span v-for="label in trendAxisLabels" :key="label">{{ label }}</span>
+            </footer>
+          </section>
+          <t-loading :loading="search.uiState === 'loading' || bootstrapping">
             <template v-if="workspace.tab === 'origin'">
               <t-empty v-if="search.uiState === 'empty'" description="没有匹配的日志" />
               <div v-else data-ui="origin-table">
+              <div class="retrieve-result__view-switch" data-ui="origin-view-switch">
+                <button type="button" :class="{ 'is-active': resultView === 'raw' }" data-ui="origin-view-raw" @click="resultView = 'raw'">原始</button>
+                <button type="button" :class="{ 'is-active': resultView === 'table' }" data-ui="origin-view-table" @click="resultView = 'table'">表格</button>
+                <button type="button" :class="{ 'is-active': logSortDesc }" data-ui="log-sort" @click="logSortDesc = !logSortDesc">日志排序</button>
+                <label><input v-model="showLineNo" type="checkbox" /> 显示行号</label>
+                <label><input v-model="wrapLog" type="checkbox" /> 换行</label>
+                <label><input v-model="grepExcludeEnabled" type="checkbox" /> 摘除</label>
+              </div>
+              <t-alert
+                v-if="displayRecords.length > renderLimit"
+                theme="warning"
+                :message="`当前结果 ${displayRecords.length} 条，首屏仅渲染前 ${renderLimit} 条以保持滚动性能`"
+              />
               <t-table
                 class="retrieve-origin-table"
+                :class="{ 'is-wrap': wrapLog }"
+                style="height: auto"
                 row-key="id"
                 size="small"
-                :data="search.records"
+                :data="renderedRecords"
                 :columns="originColumns"
                 :empty="search.uiState === 'idle' ? '正在加载日志' : '暂无数据'"
               >
                 <template #dtEventTimeStamp="{ row }">
                   {{ formatTime(row.dtEventTimeStamp) }}
                 </template>
+                <template #lineNo="{ rowIndex }">
+                  {{ Number(rowIndex) + 1 }}
+                </template>
                 <template #log="{ row }">
-                  <button
-                    type="button"
-                    :class="['retrieve-log-expand', { 'is-open': expandedId === row.id }]"
-                    data-ui="log-expand"
-                    @click="toggleExpand(row.id)"
-                  >
-                    <i :class="['bklog-icon', 'bklog-arrow-down-filled', 'retrieve-log-caret', { 'is-open': expandedId === row.id }]" />
-                    <pre class="retrieve-log-cell"><template v-for="part in highlightLog(row.log)" :key="part.key"><mark v-if="part.mark">{{ part.text }}</mark><span v-else>{{ part.text }}</span></template></pre>
-                  </button>
-                  <dl v-if="expandedId === row.id" class="retrieve-log-detail" data-ui="log-detail">
-                    <div v-for="entry in kvEntries(row)" :key="entry.key" class="retrieve-log-kv">
-                      <dt>{{ entry.key }}</dt>
-                      <dd>
-                        <template v-if="entry.highlight">
-                          <template v-for="part in highlightLog(entry.value)" :key="part.key">
-                            <mark v-if="part.mark">{{ part.text }}</mark>
-                            <span v-else>{{ part.text }}</span>
+                  <div class="retrieve-log-cell-wrap">
+                    <button
+                      type="button"
+                      :class="['retrieve-log-expand', { 'is-open': expandedId === String(row.id) }]"
+                      data-ui="log-expand"
+                      @click="toggleExpand(row.id)"
+                    >
+                      <i :class="['bklog-icon', 'bklog-arrow-down-filled', 'retrieve-log-caret', { 'is-open': expandedId === String(row.id) }]" />
+                      <pre class="retrieve-log-cell"><template v-for="part in highlightLog(row.log)" :key="part.key"><mark v-if="part.mark">{{ part.text }}</mark><span v-else>{{ part.text }}</span></template></pre>
+                    </button>
+                    <dl v-if="expandedId === String(row.id)" class="retrieve-log-detail" data-ui="log-detail">
+                      <div v-for="entry in kvEntries(row)" :key="entry.key" class="retrieve-log-kv">
+                        <dt>{{ entry.key }}</dt>
+                        <dd>
+                          <template v-if="entry.highlight">
+                            <template v-for="part in highlightLog(entry.value)" :key="part.key">
+                              <mark v-if="part.mark">{{ part.text }}</mark>
+                              <span v-else>{{ part.text }}</span>
+                            </template>
                           </template>
-                        </template>
-                        <template v-else>{{ entry.value }}</template>
-                      </dd>
-                    </div>
-                  </dl>
+                          <template v-else>{{ entry.value }}</template>
+                        </dd>
+                      </div>
+                    </dl>
+                  </div>
                 </template>
                 <template #op="{ row }">
+                  <t-button variant="text" data-ui="log-full-row" @click="openFullRow(row)">全量</t-button>
                   <t-button variant="text" data-ui="log-context" @click="openContext(row.id)">上下文</t-button>
                   <t-button variant="text" data-ui="log-realtime" @click="openRealtime(row)">实时</t-button>
                 </template>
@@ -154,7 +203,25 @@
         <t-tag>{{ realtime.uiState }}</t-tag>
         <t-table row-key="id" :data="realtime.records" :columns="contextColumns" />
       </t-drawer>
+      <t-dialog
+        :visible="fullRowVisible"
+        header="查看全量日志"
+        :confirm-btn="null"
+        cancel-btn="关闭"
+        width="860px"
+        data-ui="full-row-dialog"
+        @close="closeFullRow"
+      >
+        <section class="retrieve-full-row">
+          <div class="retrieve-full-row__tools">
+            <t-input v-model="fullRowKeyword" placeholder="搜索" clearable data-ui="full-row-search" />
+            <t-button variant="outline" @click="copyFullRow">复制</t-button>
+          </div>
+          <pre class="retrieve-full-row__content"><template v-for="part in highlightFullRow" :key="part.key"><mark v-if="part.mark">{{ part.text }}</mark><span v-else>{{ part.text }}</span></template></pre>
+        </section>
+      </t-dialog>
     </section>
+    <div class="retrieve-dialog-host" data-ui="dialog-host" />
     <t-dialog
       :visible="helpVisible"
       header="检索说明"
@@ -181,6 +248,86 @@
         </t-form-item>
       </t-form>
     </t-dialog>
+    <t-dialog
+      :visible="shareVisible"
+      header="分享检索"
+      confirm-btn="复制链接"
+      cancel-btn="关闭"
+      :z-index="shareZIndex"
+      data-ui="share-dialog"
+      @confirm="copyShare"
+      @close="closeShare"
+    >
+      <p>当前检索链接可分享给有权限的成员。</p>
+      <t-input :model-value="shareUrl" readonly />
+    </t-dialog>
+    <t-dialog
+      :visible="fieldConfigVisible"
+      header="索引配置"
+      confirm-btn="完成"
+      cancel-btn="关闭"
+      :z-index="fieldConfigZIndex"
+      data-ui="field-config-dialog"
+      @confirm="closeFieldConfig"
+      @close="closeFieldConfig"
+    >
+      <p>字段模板、批量编辑别名、显示字段和隐藏无数据能力已挂载在当前字段面板。</p>
+      <t-checkbox v-model="hideEmptyFields">隐藏无数据字段</t-checkbox>
+      <t-checkbox v-model="useDisplayFields">启用当前显示字段</t-checkbox>
+    </t-dialog>
+    <t-dialog
+      :visible="globalSettingsVisible"
+      header="全局设置"
+      confirm-btn="保存"
+      cancel-btn="关闭"
+      :z-index="globalSettingsZIndex"
+      data-ui="global-settings-dialog"
+      @confirm="closeGlobalSettings"
+      @close="closeGlobalSettings"
+    >
+      <t-checkbox v-model="showLineNo">显示行号</t-checkbox>
+      <t-checkbox v-model="wrapLog">日志换行</t-checkbox>
+      <t-checkbox v-model="extraHighlightEnabled">启用高亮</t-checkbox>
+    </t-dialog>
+    <t-dialog
+      :visible="downloadVisible"
+      header="下载日志"
+      confirm-btn="开始下载"
+      cancel-btn="关闭"
+      :z-index="downloadZIndex"
+      data-ui="download-dialog"
+      @confirm="closeDownload"
+      @close="closeDownload"
+    >
+      <ul class="retrieve-popup-list">
+        <li v-for="item in downloadOptions" :key="item.id">
+          <button type="button" :data-ui="`download-${item.id}`" @click="selectedDownload = item.id">{{ item.label }}</button>
+        </li>
+      </ul>
+      <div class="retrieve-popup-field-scope">
+        <label><input v-model="downloadFieldScope" type="radio" value="display" /> 当前显示字段</label>
+        <label><input v-model="downloadFieldScope" type="radio" value="all" /> 全部字段</label>
+        <label><input v-model="downloadFieldScope" type="radio" value="custom" /> 指定字段</label>
+      </div>
+      <p class="retrieve-popup-tip">当前选择：{{ currentDownloadLabel }}</p>
+      <pre class="retrieve-popup-code">{{ downloadPayload }}</pre>
+    </t-dialog>
+    <t-dialog
+      :visible="moreVisible"
+      header="更多"
+      :confirm-btn="null"
+      cancel-btn="关闭"
+      :z-index="moreZIndex"
+      data-ui="more-dialog"
+      @close="closeMore"
+    >
+      <ul class="retrieve-popup-list">
+        <li><button type="button" data-ui="more-legacy" @click="openLegacy">回到旧版</button></li>
+        <li><button type="button" data-ui="more-guide">新手指引</button></li>
+        <li><button type="button" data-ui="more-syntax" @click="openHelp">检索语法说明</button></li>
+        <li><button type="button" data-ui="more-feedback">问题反馈</button></li>
+      </ul>
+    </t-dialog>
   </section>
 </template>
 
@@ -204,8 +351,8 @@ import RetrieveSceneBar from './retrieve-scene-bar.vue';
 import RetrieveSearchbar from './retrieve-searchbar.vue';
 import { SceneController, type SceneId, type SceneSnapshot } from './scene-controller';
 import { highlightParts, parseSearchChips } from './search-query';
+import { buildDialogPayload, createDevSearchFetcher, fetchRetrieveHistogram, loadRetrieveBootstrap, parseRetrieveRoute, type TrendBucket } from './retrieve-data-adapter';
 import {
-  createLocalSearchFetcher,
   RetrieveSearchController,
   type LogRecord,
   type RetrieveSnapshot,
@@ -217,21 +364,16 @@ import {
   type TimePreset,
   type ToolbarSnapshot,
 } from './toolbar-controller';
+import { RetrieveWorkbenchController } from './retrieve-workbench-controller';
 import { WorkspaceController, type RetrieveTab, type WorkspaceSnapshot } from './workspace-controller';
 
-const now = Date.now();
-const dataset: LogRecord[] = [
-  { id: '1', dtEventTimeStamp: now - 60_000, log: 'error timeout from api', indexSetId: 'index-a', serverIp: '127.0.0.1', path: '/var/log/nginx/error.log', status: 500 },
-  { id: '2', dtEventTimeStamp: now - 120_000, log: 'info user login', indexSetId: 'index-a', serverIp: '10.0.0.2', path: '/var/log/app/info.log', status: 200 },
-  { id: '3', dtEventTimeStamp: now - 180_000, log: 'error disk full', indexSetId: 'index-a', serverIp: '10.0.0.3', path: '/var/log/app/error.log', status: 503 },
-  { id: '4', dtEventTimeStamp: now - 90_000, log: 'error timeout from api 88', indexSetId: 'index-b', serverIp: '10.0.0.4', path: '/var/log/nginx/access.log', status: 504 },
-];
-
-const searchController = new RetrieveSearchController(createLocalSearchFetcher(dataset));
+const routeState = parseRetrieveRoute();
+const workbenchController = new RetrieveWorkbenchController(routeState);
+const searchController = new RetrieveSearchController(createDevSearchFetcher(routeState));
 const favoriteController = new FavoriteController();
-const indexSetController = new IndexSetController();
+const indexSetController = new IndexSetController(undefined, routeState.indexSetId);
 const fieldController = new FieldController();
-const workspaceController = new WorkspaceController();
+const workspaceController = new WorkspaceController(routeState.indexSetId);
 const clusteringController = new ClusteringController();
 const graphController = new GraphController();
 const contextController = new ContextController();
@@ -241,10 +383,12 @@ const toolbarController = new ToolbarController(intent => {
 });
 
 const keyword = ref('');
+const searchbarRef = ref<{ openHistory?: () => void } | null>(null);
 const extraHighlight = ref('');
 const saveName = ref('');
 const searchHistory = ref<string[]>(['error', 'login', 'timeout']);
 const expandedId = ref<string | null>(null);
+const bootstrapping = ref(true);
 const grepController = new GrepController();
 const sceneController = new SceneController();
 const search = reactive<RetrieveSnapshot>(searchController.getState());
@@ -263,15 +407,93 @@ const indexSetOptions = computed(() => indexSetController.getVisibleItems().map(
 })));
 const clusterGroups = computed(() => clusteringController.group(search.records, keyword.value));
 const graphBuckets = computed(() => graphController.bucket(search.records));
+const remoteTrendBuckets = ref<TrendBucket[]>([]);
+const originTrendBuckets = computed(() => (remoteTrendBuckets.value.length ? remoteTrendBuckets.value : graphController.bucket(search.records, 30_000)));
+const trendMaxCount = computed(() => Math.max(1, ...originTrendBuckets.value.map(item => item.count)));
+const trendAxisLabels = computed(() => {
+  const buckets = originTrendBuckets.value;
+  if (!buckets.length) {
+    return ['暂无数据'];
+  }
+  const first = buckets[0];
+  const last = buckets[buckets.length - 1];
+  return [first, last].map(item => {
+    const date = new Date(item.startTime);
+    return `${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`;
+  });
+});
 const contextVisible = ref(false);
 const realtimeVisible = ref(false);
+const fullRowVisible = ref(false);
 const helpVisible = ref(false);
 const saveVisible = ref(false);
+const shareVisible = ref(false);
+const fieldConfigVisible = ref(false);
+const globalSettingsVisible = ref(false);
+const downloadVisible = ref(false);
+const moreVisible = ref(false);
 const helpZIndex = ref(2500);
 const saveZIndex = ref(2510);
+const shareZIndex = ref(2520);
+const fieldConfigZIndex = ref(2530);
+const globalSettingsZIndex = ref(2540);
+const downloadZIndex = ref(2550);
+const moreZIndex = ref(2560);
+const resultView = ref<'raw' | 'table'>('raw');
+const showLineNo = ref(false);
+const wrapLog = ref(false);
+const logSortDesc = ref(false);
+const grepExcludeEnabled = ref(false);
+const hideEmptyFields = ref(false);
+const useDisplayFields = ref(true);
+const extraHighlightEnabled = ref(true);
+const fullRowKeyword = ref('');
+const fullRowText = ref('');
+const selectedDownload = ref('full');
+const downloadFieldScope = ref<'display' | 'all' | 'custom'>('display');
+const downloadOptions = [
+  { id: 'full', label: '全文下载' },
+  { id: 'fast', label: '快速下载（提速100%+）' },
+  { id: 'sample', label: '取样下载（前1万条）' },
+];
+const currentDownloadLabel = computed(() => downloadOptions.find(item => item.id === selectedDownload.value)?.label ?? '全文下载');
+const downloadPayload = computed(() => JSON.stringify({
+  index_set_id: workspace.indexSetId,
+  keyword: keyword.value,
+  mode: selectedDownload.value,
+  fields: downloadFieldScope.value,
+  start_time: toolbar.timeRange.startTime,
+  end_time: toolbar.timeRange.endTime,
+  workbench: buildDialogPayload(workbenchController.getState(), fieldController.getVisibleFields(), Boolean(fields.error)),
+}, null, 2));
+const shareUrl = computed(() => {
+  const url = new URL(window.location.href);
+  const params = new URLSearchParams({
+    spaceUid: routeState.spaceUid,
+    bizId: routeState.bizId,
+    tab: workspace.tab,
+    keyword: keyword.value,
+    startTime: String(toolbar.timeRange.startTime),
+    endTime: String(toolbar.timeRange.endTime),
+  });
+  url.hash = `/retrieve/${workspace.indexSetId}?${params.toString()}`;
+  return url.toString();
+});
+const searchCostText = computed(() => (search.uiState === 'loading' ? '检索中' : '0 秒钟'));
+const displayRecords = computed(() => {
+  const records = grepExcludeEnabled.value && extraHighlight.value
+    ? search.records.filter(item => !item.log.includes(extraHighlight.value))
+    : search.records;
+  return logSortDesc.value
+    ? [...records].sort((left, right) => right.dtEventTimeStamp - left.dtEventTimeStamp)
+    : records;
+});
+const renderLimit = 500;
+const renderedRecords = computed(() => displayRecords.value.slice(0, renderLimit));
 const fieldTitle: Record<string, string> = { id: 'ID', dtEventTimeStamp: '时间', log: '日志' };
 const originColumns = computed(() => [
-  ...fieldController.getVisibleFields().map(field => ({
+  ...(showLineNo.value ? [{ colKey: 'lineNo', title: '#', cell: 'lineNo', width: 64 }] : []),
+  ...fieldController.getVisibleFields().filter(field => resultView.value === 'table' || ['id', 'dtEventTimeStamp', 'log'].includes(field.name)).map(field => ({
     colKey: field.name,
     title: fieldTitle[field.name] ?? field.name,
     ...(field.name === 'dtEventTimeStamp' || field.name === 'log' ? { cell: field.name } : {}),
@@ -282,11 +504,13 @@ const originColumns = computed(() => [
 
 const highlightLog = (log: string) => highlightParts(log, [
   ...parseSearchChips(keyword.value).map(chip => chip.value),
-  extraHighlight.value,
+  extraHighlightEnabled.value ? extraHighlight.value : '',
 ]);
+const highlightFullRow = computed(() => highlightParts(fullRowText.value, [fullRowKeyword.value]));
 
-const toggleExpand = (id: string) => {
-  expandedId.value = expandedId.value === id ? null : id;
+const toggleExpand = (id: string | number) => {
+  const nextId = String(id);
+  expandedId.value = expandedId.value === nextId ? null : nextId;
 };
 
 const formatTime = (value: number) => {
@@ -295,14 +519,50 @@ const formatTime = (value: number) => {
   return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())} ${pad(date.getHours())}:${pad(date.getMinutes())}:${pad(date.getSeconds())}`;
 };
 
+const parseLogJsonEntries = (log: string) => {
+  const jsonStart = log.indexOf('{');
+  if (jsonStart < 0) {
+    return [];
+  }
+  try {
+    const parsed = JSON.parse(log.slice(jsonStart));
+    return Object.entries(parsed).map(([key, value]) => ({
+      key: `json.${key}`,
+      value: typeof value === 'string' ? value : JSON.stringify(value),
+      highlight: true,
+    }));
+  } catch {
+    return [];
+  }
+};
 const kvEntries = (row: LogRecord) => [
   { key: 'id', value: row.id },
   { key: 'dtEventTimeStamp', value: formatTime(row.dtEventTimeStamp) },
   { key: 'log', value: row.log, highlight: true },
+  ...parseLogJsonEntries(row.log),
   { key: 'serverIp', value: row.serverIp ?? '' },
   { key: 'path', value: row.path ?? '' },
   { key: 'status', value: row.status == null ? '' : String(row.status) },
 ].filter(item => item.value !== '');
+const openFullRow = (row: LogRecord) => {
+  fullRowText.value = JSON.stringify({
+    id: row.id,
+    dtEventTimeStamp: formatTime(row.dtEventTimeStamp),
+    log: row.log,
+    serverIp: row.serverIp,
+    path: row.path,
+    status: row.status,
+  }, null, 2);
+  fullRowKeyword.value = '';
+  fullRowVisible.value = true;
+};
+const closeFullRow = () => {
+  fullRowVisible.value = false;
+};
+const copyFullRow = () => {
+  void navigator.clipboard?.writeText(fullRowText.value);
+};
+const trendHeight = (count: number) => Math.max(12, Math.round((count / trendMaxCount.value) * 100));
 const clusterColumns = [
   { colKey: 'pattern', title: '模式' },
   { colKey: 'count', title: '数量', width: 100 },
@@ -314,7 +574,7 @@ const contextColumns = [
 ];
 const contextRows = computed(() => [
   ...context.before,
-  ...dataset.filter(item => item.id === context.anchorId),
+  ...search.records.filter(item => item.id === context.anchorId),
   ...context.after,
 ]);
 
@@ -341,6 +601,7 @@ const refreshGrep = () => {
 const submitSearch = async (intent?: SearchIntent) => {
   const timeRange = intent?.timeRange ?? toolbar.timeRange;
   const page = intent?.resetPage ? 1 : search.page;
+  workbenchController.dispatch({ type: 'time/change', timeRange });
   syncSearch(await searchController.submit({
     keyword: keyword.value,
     page,
@@ -348,10 +609,12 @@ const submitSearch = async (intent?: SearchIntent) => {
     endTime: timeRange.endTime,
     indexSetId: workspace.indexSetId,
   }));
+  remoteTrendBuckets.value = await fetchRetrieveHistogram({ ...routeState, indexSetId: workspace.indexSetId }, timeRange).catch(() => []);
   refreshGrep();
 };
 
 const onTab = (tab: RetrieveTab) => {
+  workbenchController.dispatch({ type: 'tab/change', tab });
   Object.assign(workspace, workspaceController.setTab(tab));
 };
 
@@ -360,6 +623,7 @@ const onChangeIndexSet = async (id: string) => {
   if (nextIndex.uiState === 'error') {
     return;
   }
+  workbenchController.dispatch({ type: 'route/replace', route: { ...routeState, indexSetId: id, tab: workspace.tab } });
   Object.assign(workspace, workspaceController.setIndexSet(id));
   await submitSearch({ resetPage: true, timeRange: toolbar.timeRange });
 };
@@ -370,6 +634,14 @@ const onToggleField = (name: string, visible: boolean) => {
 
 const onFieldFilter = (value: string) => {
   Object.assign(fields, fieldController.setFilterQuery(value));
+};
+
+const refreshFields = async () => {
+  const bootstrap = await loadRetrieveBootstrap({ ...routeState, indexSetId: workspace.indexSetId });
+  Object.assign(fields, fieldController.replaceFields(bootstrap.fields));
+  if (bootstrap.errors.fields) {
+    Object.assign(fields, fieldController.setError(bootstrap.errors.fields));
+  }
 };
 
 const openContext = (id: string) => {
@@ -405,6 +677,8 @@ const rememberHistory = () => {
 };
 
 const onSearch = async () => {
+  workbenchController.dispatch({ type: 'query/change', keyword: keyword.value });
+  workbenchController.dispatch({ type: 'query/submit' });
   rememberHistory();
   await submitSearch({ resetPage: false, timeRange: toolbar.timeRange });
 };
@@ -412,6 +686,10 @@ const onSearch = async () => {
 const onApplyHistory = async (value: string) => {
   keyword.value = value;
   await onSearch();
+};
+
+const openHistory = () => {
+  searchbarRef.value?.openHistory?.();
 };
 
 const onToggleFavorite = () => {
@@ -493,6 +771,75 @@ const closeSave = () => {
   saveVisible.value = false;
 };
 
+const openShare = () => {
+  workbenchController.dispatch({ type: 'dialog/open', dialog: 'share' });
+  const record = overlayManager.open({ id: 'retrieve-share', kind: 'dialog', group: 'retrieve-toolbar' });
+  shareZIndex.value = record.zIndex;
+  shareVisible.value = true;
+};
+
+const closeShare = () => {
+  workbenchController.dispatch({ type: 'dialog/close' });
+  overlayManager.close('retrieve-share');
+  shareVisible.value = false;
+};
+
+const copyShare = () => {
+  void navigator.clipboard?.writeText(shareUrl.value);
+  closeShare();
+};
+
+const openFieldConfig = () => {
+  const record = overlayManager.open({ id: 'retrieve-field-config', kind: 'dialog', group: 'retrieve-toolbar' });
+  fieldConfigZIndex.value = record.zIndex;
+  fieldConfigVisible.value = true;
+};
+
+const closeFieldConfig = () => {
+  overlayManager.close('retrieve-field-config');
+  fieldConfigVisible.value = false;
+};
+
+const openGlobalSettings = () => {
+  const record = overlayManager.open({ id: 'retrieve-global-settings', kind: 'dialog', group: 'retrieve-toolbar' });
+  globalSettingsZIndex.value = record.zIndex;
+  globalSettingsVisible.value = true;
+};
+
+const closeGlobalSettings = () => {
+  overlayManager.close('retrieve-global-settings');
+  globalSettingsVisible.value = false;
+};
+
+const openDownload = () => {
+  workbenchController.dispatch({ type: 'dialog/open', dialog: 'download' });
+  const record = overlayManager.open({ id: 'retrieve-download', kind: 'dialog', group: 'retrieve-result' });
+  downloadZIndex.value = record.zIndex;
+  downloadVisible.value = true;
+};
+
+const closeDownload = () => {
+  workbenchController.dispatch({ type: 'dialog/close' });
+  overlayManager.close('retrieve-download');
+  downloadVisible.value = false;
+};
+
+const openMore = () => {
+  const record = overlayManager.open({ id: 'retrieve-more', kind: 'dialog', group: 'retrieve-toolbar' });
+  moreZIndex.value = record.zIndex;
+  moreVisible.value = true;
+};
+
+const closeMore = () => {
+  overlayManager.close('retrieve-more');
+  moreVisible.value = false;
+};
+
+const openLegacy = () => {
+  window.open(`/#/retrieve/${workspace.indexSetId}?spaceUid=${routeState.spaceUid}&bizId=${routeState.bizId}&tab=${workspace.tab}`, '_blank', 'noopener');
+  closeMore();
+};
+
 const onSaveFavorite = () => {
   const next = favoriteController.save({
     name: saveName.value,
@@ -517,6 +864,21 @@ const onEscape = (event: KeyboardEvent) => {
   if (closed?.id === 'retrieve-save-favorite') {
     saveVisible.value = false;
   }
+  if (closed?.id === 'retrieve-share') {
+    shareVisible.value = false;
+  }
+  if (closed?.id === 'retrieve-field-config') {
+    fieldConfigVisible.value = false;
+  }
+  if (closed?.id === 'retrieve-global-settings') {
+    globalSettingsVisible.value = false;
+  }
+  if (closed?.id === 'retrieve-download') {
+    downloadVisible.value = false;
+  }
+  if (closed?.id === 'retrieve-more') {
+    moreVisible.value = false;
+  }
   if (closed?.id === 'retrieve-context') {
     contextVisible.value = false;
   }
@@ -528,7 +890,20 @@ const onEscape = (event: KeyboardEvent) => {
 
 onMounted(() => {
   window.addEventListener('keydown', onEscape);
-  void submitSearch({ resetPage: true, timeRange: toolbar.timeRange });
+  void (async () => {
+    const bootstrap = await loadRetrieveBootstrap(routeState);
+    Object.assign(workspace, workspaceController.setIndexSet(bootstrap.route.indexSetId));
+    workbenchController.dispatch({ type: 'route/replace', route: bootstrap.route });
+    Object.assign(workspace, workspaceController.setTab(bootstrap.route.tab));
+    indexSetController.replaceItems(bootstrap.indexSets, bootstrap.route.indexSetId);
+    Object.assign(fields, fieldController.replaceFields(bootstrap.fields));
+    if (bootstrap.errors.fields) {
+      Object.assign(fields, fieldController.setError(bootstrap.errors.fields));
+    }
+    syncFavorite(favoriteController.replaceGroups(bootstrap.favorites, bootstrap.route.indexSetId));
+    bootstrapping.value = false;
+    await submitSearch({ resetPage: true, timeRange: toolbar.timeRange });
+  })();
 });
 
 onBeforeUnmount(() => {
@@ -537,6 +912,11 @@ onBeforeUnmount(() => {
   toolbarController.dispose();
   overlayManager.close('retrieve-help');
   overlayManager.close('retrieve-save-favorite');
+  overlayManager.close('retrieve-share');
+  overlayManager.close('retrieve-field-config');
+  overlayManager.close('retrieve-global-settings');
+  overlayManager.close('retrieve-download');
+  overlayManager.close('retrieve-more');
   overlayManager.close('retrieve-context');
   overlayManager.close('retrieve-realtime');
   realtimeController.stop();

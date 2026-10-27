@@ -24,7 +24,7 @@
   <section class="app-shell">
     <header class="app-header" data-ui="app-header">
       <router-link to="/retrieve" class="app-header__brand" data-ui="nav-brand">
-        <span class="app-header__logo" aria-hidden="true" />
+        <img class="app-header__logo" :src="logoUrl" alt="" aria-hidden="true" />
         <span class="app-header__brand-text">日志平台</span>
       </router-link>
       <nav class="app-header__nav" data-ui="nav-primary">
@@ -58,6 +58,8 @@
 
 <script setup lang="ts">
 import { useRoute } from 'vue-router';
+
+import logoUrl from './images/new-logo.svg';
 
 const route = useRoute();
 const primaryNav = [

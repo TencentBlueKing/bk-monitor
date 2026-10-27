@@ -41,7 +41,11 @@
         <i class="bklog-icon bklog-sousuo-" />
       </template>
     </t-input>
-    <t-alert v-if="state.uiState === 'error'" theme="error" :message="state.error" />
+    <t-alert v-if="state.uiState === 'error'" theme="error" :message="state.error">
+      <template #operation>
+        <button type="button" class="retrieve-field-panel__retry" data-ui="field-refresh" @click="emit('refresh')">刷新</button>
+      </template>
+    </t-alert>
     <section class="retrieve-field-section">
       <header>已选 {{ displayed.length }}</header>
       <label v-for="field in displayed" :key="field.name" class="retrieve-field-item" :data-ui="`field-${field.name}`">
@@ -83,6 +87,19 @@
     <aside v-if="settingOpen" class="retrieve-field-setting" data-ui="field-setting-panel">
       <header>字段设置</header>
       <p>勾选要在原始日志表展示的字段，至少保留一列。</p>
+      <div class="retrieve-field-setting__actions">
+        <button type="button" data-ui="field-template" @click="templateOpen = !templateOpen">字段模板</button>
+        <button type="button" data-ui="field-alias-edit" @click="aliasOpen = !aliasOpen">批量编辑别名</button>
+        <button type="button" data-ui="field-hide-empty" @click="hideEmpty = !hideEmpty">{{ hideEmpty ? '显示无数据字段' : '隐藏无数据字段' }}</button>
+      </div>
+      <section v-if="templateOpen" class="retrieve-field-setting__panel" data-ui="field-template-panel">
+        <strong>字段模板</strong>
+        <p>当前显示字段可保存为个人模板，并在同索引集下复用。</p>
+      </section>
+      <section v-if="aliasOpen" class="retrieve-field-setting__panel" data-ui="field-alias-panel">
+        <strong>批量编辑别名</strong>
+        <p>可按字段名维护展示别名，刷新后仍以原字段作为检索条件。</p>
+      </section>
     </aside>
     <aside v-if="analyzeName" class="retrieve-field-analyze" data-ui="field-analyze-panel">
       <header>{{ analyzeName }} 分析</header>
@@ -101,13 +118,17 @@ const props = defineProps<{
   state: FieldSnapshot;
 }>();
 
-defineEmits<{
+const emit = defineEmits<{
   toggle: [name: string, visible: boolean];
   filter: [value: string];
+  refresh: [];
 }>();
 
 const settingOpen = ref(false);
 const analyzeName = ref('');
+const templateOpen = ref(false);
+const aliasOpen = ref(false);
+const hideEmpty = ref(false);
 const query = computed(() => props.state.filterQuery.toLowerCase());
 const matched = computed(() => props.state.fields.filter(item => (
   !query.value

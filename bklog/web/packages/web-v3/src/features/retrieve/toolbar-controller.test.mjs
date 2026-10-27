@@ -32,9 +32,9 @@ import { ToolbarController } from './toolbar-controller.ts';
 describe('ToolbarController', () => {
   it('AC-001 toggles favorite panel visibility', () => {
     const controller = new ToolbarController();
-    assert.equal(controller.getState().favoriteShown, true);
-    assert.equal(controller.toggleFavoriteShown().favoriteShown, false);
+    assert.equal(controller.getState().favoriteShown, false);
     assert.equal(controller.toggleFavoriteShown().favoriteShown, true);
+    assert.equal(controller.toggleFavoriteShown().favoriteShown, false);
   });
 
   it('AC-002 time preset change asks search to reset page', () => {

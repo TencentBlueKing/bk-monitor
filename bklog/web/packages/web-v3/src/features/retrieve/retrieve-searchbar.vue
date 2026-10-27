@@ -36,7 +36,8 @@
         </button>
       </div>
       <div class="retrieve-searchbar__body">
-        <div v-if="mode === 'ui'" class="retrieve-searchbar__chips" data-ui="search-chips">
+        <div v-if="mode === 'ui'" class="retrieve-searchbar__line">
+          <div class="retrieve-searchbar__chips" data-ui="search-chips">
           <span v-for="(chip, index) in chips" :key="`${chip.field}-${chip.value}-${index}`" class="retrieve-chip">
             <em v-if="chip.field !== '*'">{{ chip.field }}</em>
             <span>{{ chip.value }}</span>
@@ -44,21 +45,51 @@
               <i class="bklog-icon bklog-shanchu" />
             </button>
           </span>
-          <button type="button" class="retrieve-chip retrieve-chip--add" @click="focusInput">+</button>
+          <button type="button" class="retrieve-chip retrieve-chip--add" data-ui="condition-add" @click="toggleConditionBuilder">+ 添加条件</button>
+          </div>
+          <t-input
+            ref="inputRef"
+            class="retrieve-searchbar__input"
+            borderless
+            :model-value="keyword"
+            placeholder="请输入检索语句，回车检索"
+            clearable
+            @update:model-value="value => emit('update:keyword', value)"
+            @focus="conditionBuilderOpen = false"
+            @enter="emit('search')"
+          />
         </div>
-        <t-input
-          v-if="mode === 'ui'"
-          ref="inputRef"
-          class="retrieve-searchbar__input"
-          borderless
-          :model-value="keyword"
-          placeholder="请输入检索语句，回车检索"
-          clearable
-          @update:model-value="value => emit('update:keyword', value)"
-          @enter="emit('search')"
-        />
+        <section v-if="mode === 'ui' && conditionBuilderOpen" class="retrieve-searchbar__builder" data-ui="condition-builder">
+          <div
+            v-for="(condition, index) in conditions"
+            :key="condition.id"
+            class="retrieve-searchbar__condition"
+            data-ui="condition-row"
+          >
+            <select v-model="condition.logic" :disabled="index === 0" aria-label="关系">
+              <option value="AND">AND</option>
+              <option value="OR">OR</option>
+            </select>
+            <select v-model="condition.field" aria-label="字段">
+              <option v-for="field in fieldOptions" :key="field" :value="field">{{ field === '*' ? '全文' : field }}</option>
+            </select>
+            <select v-model="condition.operator" aria-label="操作符">
+              <option value="contains">包含</option>
+              <option value="eq">等于</option>
+              <option value="not">不包含</option>
+            </select>
+            <input v-model="condition.value" type="text" placeholder="输入条件值" @keydown.enter.prevent="applyConditions" />
+            <button type="button" aria-label="删除条件" @click="removeCondition(index)">
+              <i class="bklog-icon bklog-shanchu" />
+            </button>
+          </div>
+          <footer class="retrieve-searchbar__builder-footer">
+            <button type="button" data-ui="condition-row-add" @click="addCondition">继续添加</button>
+            <button type="button" data-ui="condition-apply" @click="applyConditions">应用条件</button>
+          </footer>
+        </section>
         <textarea
-          v-else-if="mode === 'sql'"
+          v-if="mode === 'sql'"
           class="retrieve-searchbar__sql"
           data-ui="search-sql"
           :value="keyword"
@@ -67,7 +98,7 @@
           @keydown.enter.exact.prevent="emit('search')"
         />
         <textarea
-          v-else
+          v-if="mode === 'ai'"
           class="retrieve-searchbar__sql retrieve-searchbar__ai"
           data-ui="search-ai"
           :value="keyword"
@@ -78,6 +109,15 @@
       </div>
       <button type="button" class="retrieve-searchbar__icon-btn" data-ui="search-history" title="历史" @click="toggleHistory">
         <i class="bklog-icon bklog-history-2" />
+      </button>
+      <button type="button" class="retrieve-searchbar__icon-btn" data-ui="search-copy" title="复制检索条件" @click="copyQuery">
+        <i class="bklog-icon bklog-copy" />
+      </button>
+      <button type="button" class="retrieve-searchbar__icon-btn" data-ui="search-clear" title="清空检索条件" @click="clearQuery">
+        <i class="bklog-icon bklog-delete" />
+      </button>
+      <button type="button" class="retrieve-searchbar__icon-btn" data-ui="search-setting" title="查询设置" @click="toggleConditionBuilder">
+        <i class="bklog-icon bklog-log-setting" />
       </button>
       <button
         type="button"
@@ -103,7 +143,7 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue';
 
-import { chipsToKeyword, parseSearchChips } from './search-query';
+import { chipsToKeyword, parseSearchChips, type SearchChip } from './search-query';
 
 const props = defineProps<{
   keyword: string;
@@ -124,20 +164,78 @@ const modes = [
   { id: 'ai' as const, label: 'AI模式' },
 ];
 const historyOpen = ref(false);
+const conditionBuilderOpen = ref(false);
 const inputRef = ref<{ focus?: () => void } | null>(null);
 const chips = computed(() => parseSearchChips(props.keyword));
+const fieldOptions = ['*', 'log', 'status', 'serverIp', 'path'];
+let conditionId = 0;
+interface ConditionRow {
+  id: number;
+  logic: 'AND' | 'OR';
+  field: string;
+  operator: 'contains' | 'eq' | 'not';
+  value: string;
+}
+const createCondition = (): ConditionRow => ({
+  id: conditionId++,
+  logic: 'AND',
+  field: '*',
+  operator: 'contains',
+  value: '',
+});
+const conditions = ref<ConditionRow[]>([createCondition()]);
 
 const setMode = (value: 'ui' | 'sql' | 'ai') => {
   mode.value = value;
   historyOpen.value = false;
+  conditionBuilderOpen.value = false;
 };
 
 const toggleHistory = () => {
   historyOpen.value = !historyOpen.value;
 };
 
+const openHistory = () => {
+  historyOpen.value = true;
+  conditionBuilderOpen.value = false;
+};
+
 const focusInput = () => {
   inputRef.value?.focus?.();
+};
+
+const toggleConditionBuilder = () => {
+  conditionBuilderOpen.value = !conditionBuilderOpen.value;
+  historyOpen.value = false;
+};
+
+const addCondition = () => {
+  conditions.value.push(createCondition());
+};
+
+const removeCondition = (index: number) => {
+  conditions.value.splice(index, 1);
+  if (!conditions.value.length) {
+    conditions.value.push(createCondition());
+  }
+};
+
+const applyConditions = () => {
+  const nextConditions: SearchChip[] = conditions.value
+    .map(item => ({ ...item, value: item.value.trim() }))
+    .filter(item => item.value)
+    .flatMap(item => {
+      const value = item.operator === 'not' ? `-${item.value}` : item.value;
+      const chip = { field: item.field, value };
+      return item.logic === 'OR' ? [{ field: '*', value: 'OR' }, chip] : [chip];
+    });
+  if (!nextConditions.length) {
+    focusInput();
+    return;
+  }
+  emit('update:keyword', chipsToKeyword([...chips.value, ...nextConditions]));
+  conditionBuilderOpen.value = false;
+  emit('search');
 };
 
 const removeChip = (index: number) => {
@@ -152,4 +250,18 @@ const onHistory = (value: string) => {
   historyOpen.value = false;
   emit('apply-history', value);
 };
+
+const copyQuery = () => {
+  const text = props.keyword || chipsToKeyword(chips.value);
+  void navigator.clipboard?.writeText(text);
+};
+
+const clearQuery = () => {
+  emit('update:keyword', '');
+  conditionBuilderOpen.value = false;
+  historyOpen.value = false;
+  emit('search');
+};
+
+defineExpose({ openHistory });
 </script>
