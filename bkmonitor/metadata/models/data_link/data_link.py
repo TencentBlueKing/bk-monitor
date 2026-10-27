@@ -1531,13 +1531,15 @@ class DataLink(models.Model):
 
         raw_sink = dict(databus_sinks[0])
         if clustering_sink.raw_sink != raw_sink:
-            logger.warning(
-                "compose_log_configs: data_link_name->[%s] log clustering sink->[%s] raw_sink changed from [%s] to [%s]",
-                self.data_link_name,
-                clustering_sink.name,
-                clustering_sink.raw_sink,
-                raw_sink,
-            )
+            if clustering_sink.raw_sink:
+                logger.warning(
+                    "compose_log_configs: data_link_name->[%s] log clustering sink->[%s] raw_sink changed "
+                    "from [%s] to [%s]",
+                    self.data_link_name,
+                    clustering_sink.name,
+                    clustering_sink.raw_sink,
+                    raw_sink,
+                )
             clustering_sink.raw_sink = raw_sink
             clustering_sink.save(update_fields=["raw_sink", "last_modify_time"])
         return clustering_sink

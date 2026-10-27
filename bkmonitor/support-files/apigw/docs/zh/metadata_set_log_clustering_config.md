@@ -15,7 +15,7 @@ Databus 尚未引用聚类 Sink 时按日志链路完整下发（Databus.spec.si
 | expected_revision | int    | 是  | 期望的当前配置版本，首次接入为 0；与当前版本不一致时拒绝                                            |
 | binding           | dict   | 是  | 聚类绑定配置                                                                   |
 | kafka_resource    | dict   | 是  | 已登记的 Kafka 资源引用，kind 为 Kafka                                             |
-| pattern_resource  | dict   | 是  | 已登记的 Pattern ES 资源引用，kind 为 ElasticSearch                                 |
+| pattern_resource  | dict   | 是  | 已登记的 Pattern ES 资源引用，kind 为 ElasticSearch，name 须为 metadata 已接入的 ES 集群名  |
 
 #### binding
 
