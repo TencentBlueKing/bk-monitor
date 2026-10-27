@@ -5,6 +5,8 @@
 Databus 尚未引用聚类 Sink 时按日志链路完整下发（Databus.spec.sinks 改为引用聚类 Sink，原存储绑定作为 rawSink）；
 已引用时只下发聚类 Sink。接口不等待 BKBase 排空，也不代表 Runtime 已采用新配置。
 
+同一链路的聚类配置变更从落库到远端下发全程互斥；有其他变更进行中时直接返回错误，调用方稍后用同一 operation_id 重试。
+
 ### 请求参数
 
 | 字段                | 类型     | 必选 | 描述                                                                       |

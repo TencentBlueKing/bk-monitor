@@ -11,6 +11,7 @@ specific language governing permissions and limitations under the License.
 import hashlib
 import json
 import logging
+from contextlib import contextmanager
 from typing import Any
 
 import pydantic
@@ -29,6 +30,8 @@ from metadata.models.data_link import utils as data_link_utils
 from metadata.models.data_link.constants import DataLinkKind, DataLinkNameScene
 from metadata.models.result_table import LogV4DataLinkOption
 from metadata.task.datalink import apply_log_datalink
+from metadata.tools.redis_lock import DistributedLock
+from metadata.utils.redis_tools import RedisTools
 
 logger = logging.getLogger("metadata")
 
@@ -45,6 +48,8 @@ LOG_FILTER_METHODS = ["eq", "neq", "include", "exclude"]
 DISTANCE_THRESHOLDS = ["0.1", "0.3", "0.5", "0.7", "0.9"]
 DEFAULT_MAX_MESSAGE_BYTES = 1024 * 1024
 MAX_MESSAGE_BYTES_LIMIT = 16 * 1024 * 1024
+# 需覆盖一次完整日志链路下发（含 BKBase 接口重试）的耗时
+CHANGE_LOCK_TIMEOUT_SECONDS = 15 * 60
 
 
 class LogClusteringResourceRefSerializer(serializers.Serializer):
@@ -75,7 +80,10 @@ class LogClusteringKafkaSerializer(serializers.Serializer):
 class LogClusteringFilterRuleSerializer(serializers.Serializer):
     key = serializers.CharField(label="字段")
     method = serializers.ChoiceField(label="匹配方式", choices=LOG_FILTER_METHODS)
-    value = serializers.ListField(label="匹配值", child=serializers.CharField(allow_blank=True), allow_empty=False)
+    # 首尾空白属于匹配内容，不能被序列化去除
+    value = serializers.ListField(
+        label="匹配值", child=serializers.CharField(allow_blank=True, trim_whitespace=False), allow_empty=False
+    )
     condition = serializers.ChoiceField(label="逻辑关系", choices=["", "and", "or"], allow_blank=True)
 
 
@@ -183,8 +191,29 @@ def get_log_clustering_sink(
 
 
 def lock_log_clustering_datalink(datalink: models.DataLink) -> None:
-    """同一链路上的聚类配置变更串行执行，避免并发首次接入分配出多个聚类 Sink"""
+    """同一链路上的聚类配置落库串行执行，避免并发首次接入分配出多个聚类 Sink"""
     models.DataLink.objects.select_for_update().get(pk=datalink.pk)
+
+
+@contextmanager
+def serialize_log_clustering_change(datalink: models.DataLink):
+    """
+    同一链路上的聚类配置变更从落库到远端下发全程互斥，避免较慢的旧请求在新请求之后下发而覆盖远端配置
+    远端下发不能放进数据库事务：日志链路下发要求本地组件身份先提交，失败回滚会丢失已分配的资源名
+    """
+    lock = DistributedLock(
+        redis_client=RedisTools.metadata_redis_client,
+        lock_name=f"metadata:log_clustering:{datalink.bk_tenant_id}:{datalink.data_link_name}",
+        timeout=CHANGE_LOCK_TIMEOUT_SECONDS,
+    )
+    if not lock.acquire():
+        raise ValidationError(
+            f"data_link_name({datalink.data_link_name}) has another log clustering change in progress, retry later"
+        )
+    try:
+        yield
+    finally:
+        lock.release()
 
 
 def check_log_clustering_operation(
@@ -282,56 +311,59 @@ class SetLogClusteringConfigResource(Resource):
         if dsrt is None:
             raise ValidationError(f"table_id({table_id}) related datasource not found")
 
-        with transaction.atomic(using=DATABASE_CONNECTION_NAME):
-            lock_log_clustering_datalink(datalink)
-            sink = get_log_clustering_sink(datalink, for_update=True)
-            is_replay = check_log_clustering_operation(
-                sink, operation_id, request_digest, validated_request_data["expected_revision"]
+        with serialize_log_clustering_change(datalink):
+            with transaction.atomic(using=DATABASE_CONNECTION_NAME):
+                lock_log_clustering_datalink(datalink)
+                sink = get_log_clustering_sink(datalink, for_update=True)
+                is_replay = check_log_clustering_operation(
+                    sink, operation_id, request_digest, validated_request_data["expected_revision"]
+                )
+                if not is_replay:
+                    if sink is None:
+                        sink = data_link_utils.create_resource_with_random_name(
+                            models.LogClusteringSinkConfig,
+                            DataLinkNameScene.LOG_CLUSTERING_SINK,
+                            dsrt.bk_data_id,
+                            bk_tenant_id=bk_tenant_id,
+                            namespace=datalink.namespace,
+                            data_link_name=datalink.data_link_name,
+                            bk_biz_id=databus.bk_biz_id,
+                            table_id=table_id,
+                        )
+                    for field, value in config_fields.items():
+                        setattr(sink, field, value)
+                    sink.attached = True
+                    sink.revision += 1
+                    sink.last_operation_id = operation_id
+                    sink.last_request_digest = request_digest
+                    sink.save()
+            revision = sink.revision
+
+            # 本地绑定先提交；下发失败时调用方用同一 operation_id 重试，按远端 Databus 实际引用情况重新下发
+            remote_databus = datalink.get_existing_component_config(
+                DataLinkKind.DATABUS.value, databus.name, databus.namespace
             )
-            if not is_replay:
-                if sink is None:
-                    sink = data_link_utils.create_resource_with_random_name(
-                        models.LogClusteringSinkConfig,
-                        DataLinkNameScene.LOG_CLUSTERING_SINK,
-                        dsrt.bk_data_id,
-                        bk_tenant_id=bk_tenant_id,
-                        namespace=datalink.namespace,
-                        data_link_name=datalink.data_link_name,
-                        bk_biz_id=databus.bk_biz_id,
-                        table_id=table_id,
-                    )
-                for field, value in config_fields.items():
-                    setattr(sink, field, value)
-                sink.attached = True
-                sink.revision += 1
-                sink.last_operation_id = operation_id
-                sink.last_request_digest = request_digest
-                sink.save()
+            if is_databus_referencing_sink(remote_databus, sink):
+                apply_log_clustering_sink_only(datalink, sink)
+                applied_scope = "sink_only"
+            else:
+                apply_log_datalink(bk_tenant_id=bk_tenant_id, table_id=table_id)
+                applied_scope = "datalink"
+            # 完整下发时 compose 会回写 rawSink
+            sink.refresh_from_db(fields=["raw_sink"])
 
-        # 本地绑定先提交；下发失败时调用方用同一 operation_id 重试，按远端 Databus 实际引用情况重新下发
-        remote_databus = datalink.get_existing_component_config(
-            DataLinkKind.DATABUS.value, databus.name, databus.namespace
-        )
-        if is_databus_referencing_sink(remote_databus, sink):
-            apply_log_clustering_sink_only(datalink, sink)
-            applied_scope = "sink_only"
-        else:
-            apply_log_datalink(bk_tenant_id=bk_tenant_id, table_id=table_id)
-            applied_scope = "datalink"
-
-        sink.refresh_from_db()
         logger.info(
             "SetLogClusteringConfigResource: table_id->[%s] sink->[%s] revision->[%s] applied_scope->[%s] "
             "operation_id->[%s] replay->[%s]",
             table_id,
             sink.name,
-            sink.revision,
+            revision,
             applied_scope,
             operation_id,
             is_replay,
         )
         return {
-            "revision": sink.revision,
+            "revision": revision,
             "attached": sink.attached,
             "applied_scope": applied_scope,
             "sink": format_log_clustering_identity(bk_tenant_id, sink),
