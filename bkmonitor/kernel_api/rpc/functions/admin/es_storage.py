@@ -97,7 +97,6 @@ RESULT_TABLE_SUMMARY_FIELDS = [
     "bk_biz_id",
     "bk_biz_id_alias",
     "data_label",
-    "data_labels",
     "default_storage",
     "is_enable",
     "is_deleted",
@@ -222,7 +221,7 @@ def _build_es_storage_queryset(params: dict[str, Any], bk_tenant_id: str | None)
     data_labels = normalize_string_list_filter(params, "data_label", "data_labels")
     if data_labels:
         result_tables = filter_by_bk_tenant_id(
-            models.ResultTable.objects.filter(models.ResultTable.data_labels_query(data_labels)), bk_tenant_id
+            models.ResultTable.objects.filter(data_label__in=data_labels), bk_tenant_id
         ).only("bk_tenant_id", "table_id")
         if bk_tenant_id is None:
             queryset = filter_by_tenant_resource_pairs(
@@ -413,12 +412,12 @@ def _is_index_allowed(es_storage: Any, index: str, warnings: list[dict[str, Any]
 @KernelRPCRegistry.register(
     FUNC_ES_STORAGE_LIST,
     summary="Admin 查询 ESStorage 列表",
-    description="只读查询 ESStorage，支持实体/虚拟表、ResultTable.data_labels、集群和受控 table_id 匹配。",
+    description="只读查询 ESStorage，支持实体/虚拟表、ResultTable.data_label、集群和受控 table_id 匹配。",
     params_schema={
         "bk_tenant_id": PAGE_LIST_TENANT_SCHEMA,
         "table_id": "可选，同时匹配 ESStorage.table_id 和 origin_table_id，支持精确、前缀或受控包含匹配",
-        "data_label": "可选，精确匹配 ResultTable.data_labels 后按 table_id 查询 ESStorage",
-        "data_labels": "可选，ResultTable.data_labels 数组，最多 100 项；与 data_label 合并去重",
+        "data_label": "可选，精确匹配 ResultTable.data_label 后按 table_id 查询 ESStorage",
+        "data_labels": "可选，ResultTable.data_label 数组，最多 100 项；与 data_label 合并去重",
         "bk_data_id": "可选，通过 DataSourceResultTable 关联过滤",
         "bk_data_ids": "可选，DataSource ID 正整数数组，最多 100 项；与 bk_data_id 合并去重",
         "table_kind": "可选，physical / virtual",

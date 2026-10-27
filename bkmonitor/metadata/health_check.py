@@ -340,8 +340,8 @@ def get_query_router_status(
             query_router_status.messages.append(f"结果表 {result_table.table_id} 在空间结果表中不存在")
 
         # 检查结果表是否存在与data_label结果表中
-        if result_table.data_labels:
-            data_labels = result_table.data_labels
+        if result_table.data_label:
+            data_labels = result_table.data_label.split(",")
             data_label_exists = True
             for data_label in data_labels:
                 data_label_key = f"{data_label}|{bk_tenant_id}" if settings.ENABLE_MULTI_TENANT_MODE else data_label
@@ -700,7 +700,7 @@ def get_datalink_status_by_scene(
             ResultTable.objects.filter(
                 bk_tenant_id=bk_tenant_id,
                 table_id__startswith=f"{bk_biz_id}_",
-                data_labels__icontains="log",
+                data_label__icontains="log",
             ).values_list("table_id", flat=True)
         )
 

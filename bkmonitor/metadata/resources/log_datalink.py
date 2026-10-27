@@ -321,9 +321,9 @@ def _create_or_update_log_router(
         )
     else:
         update_fields: list[str] = []
-        if data_label and [data_label] != result_table.data_labels:
-            result_table.data_labels = [data_label]
-            update_fields.append("data_labels")
+        if data_label and data_label != result_table.data_label:
+            result_table.data_label = data_label
+            update_fields.append("data_label")
         if is_enable is not None and is_enable != result_table.is_enable:
             result_table.is_enable = is_enable
             update_fields.append("is_enable")
@@ -395,7 +395,7 @@ class CreateOrUpdateLogRouter(Resource):
         table_id: str = validated_request_data["table_id"]
         result_table = models.ResultTable.objects.filter(bk_tenant_id=bk_tenant_id, table_id=table_id).first()
         is_create = result_table is None
-        old_data_labels = result_table.data_labels if result_table else []
+        old_data_label = result_table.data_label if result_table else ""
         storage_type = validated_request_data["storage_type"]
         options = validated_request_data["options"]
         data_label = validated_request_data.get("data_label", "")
@@ -453,8 +453,10 @@ class CreateOrUpdateLogRouter(Resource):
                 is_publish=True,
             )
 
-        if data_label and [data_label] != old_data_labels:
-            data_labels = [data_label, *old_data_labels]
+        if data_label and data_label != old_data_label:
+            data_labels = [data_label]
+            if old_data_label:
+                data_labels.append(old_data_label)
             logger.info(
                 "CreateOrUpdateLogRouter: try to push data label routes for table_id->[%s], data_labels->[%s]",
                 table_id,
@@ -625,7 +627,7 @@ class BulkCreateOrUpdateLogRouter(Resource):
 
         # 查找该data_label下的所有结果表
         existing_tables = models.ResultTable.objects.filter(
-            bk_tenant_id=bk_tenant_id, data_labels__contains=[data_label]
+            bk_tenant_id=bk_tenant_id, data_label=data_label
         ).values_list("table_id", flat=True)
 
         # 找出需要清理的table_ids（存在于数据库中但不在当前处理列表中的）
@@ -640,8 +642,8 @@ class BulkCreateOrUpdateLogRouter(Resource):
 
             # 清理多余的结果表data_label
             models.ResultTable.objects.filter(
-                bk_tenant_id=bk_tenant_id, table_id__in=excess_table_ids, data_labels__contains=[data_label]
-            ).update(data_label="", data_labels=[])
+                bk_tenant_id=bk_tenant_id, table_id__in=excess_table_ids, data_label=data_label
+            ).update(data_label="")
 
             logger.info("CreateOrUpdateLogDataLink: cleaned up %d excess table configurations", len(excess_table_ids))
         else:
@@ -660,6 +662,4 @@ class CleanLogRouter(Resource):
         data_label = validated_request_data["data_label"]
 
         # 将data_label关联的所有结果表都设为不启用
-        models.ResultTable.objects.filter(bk_tenant_id=bk_tenant_id, data_labels__contains=[data_label]).update(
-            is_enable=False
-        )
+        models.ResultTable.objects.filter(bk_tenant_id=bk_tenant_id, data_label=data_label).update(is_enable=False)

@@ -342,7 +342,6 @@ def test_push_doris_current_with_es_history_exact_detail():
             },
         ],
         "data_label": "2_bklog_demo",
-        "options": {},
         "labels": {"scene": "log"},
         "field_alias": {"message": "log"},
     }
@@ -474,7 +473,6 @@ def test_virtual_result_table_missing_metadata_falls_back_to_origin():
     )
     models.ResultTable.objects.filter(bk_tenant_id=TENANT_ID, table_id=virtual_table_id).update(
         data_label="",
-        data_labels=[],
         labels={},
     )
     _create_es_storage(

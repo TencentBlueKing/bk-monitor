@@ -230,7 +230,6 @@ def test_push_doris_detail_through_unified_entry(create_or_delete_records):
                 "cluster_name": "doris-plat",
                 "storage_cluster_records": [],
                 "data_label": "bkdata_index_set_7839",
-                "options": {},
                 "labels": {"scene": "doris"},
                 "field_alias": {"pod_name": "__ext.pod_name", "pod_ip": "__ext.pod_ip"},
             }
@@ -266,7 +265,6 @@ def test_push_doris_detail_for_fake_rt_through_unified_entry(create_or_delete_re
                 "cluster_name": "doris-plat",
                 "storage_cluster_records": [],
                 "data_label": "bkdata_index_set_fake",
-                "options": {},
                 "labels": {"scene": "doris-fake"},
                 "field_alias": {"fake_pod_name": "__ext.fake_pod_name"},
             }

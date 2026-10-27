@@ -274,7 +274,6 @@ class EventGroup(CustomGroupBase):
         return [event_info.to_json() for event_info in query]
 
     def to_json(self, event_infos_limit: int | None = None):
-        data_label_info = self.get_data_label_info()
         return {
             "event_group_id": self.event_group_id,
             "bk_data_id": self.bk_data_id,
@@ -289,7 +288,7 @@ class EventGroup(CustomGroupBase):
             "last_modify_user": self.last_modify_user,
             "last_modify_time": self.last_modify_time.strftime("%Y-%m-%d %H:%M:%S"),
             "event_info_list": self.get_event_info_list(event_infos_limit),
-            **data_label_info,
+            "data_label": self.data_label,
             "status": self.status,
         }
 
@@ -306,7 +305,6 @@ class EventGroup(CustomGroupBase):
         event_info_list=None,
         table_id=None,
         data_label: str | None = None,
-        data_labels: list[str] | None = None,
     ):
         """
         创建一个新的自定义分组记录
@@ -341,7 +339,6 @@ class EventGroup(CustomGroupBase):
             metric_info_list=event_info_list,
             table_id=table_id,
             data_label=data_label,
-            data_labels=data_labels,
             bk_tenant_id=bk_tenant_id,
             additional_options=additional_options,
             bk_biz_id_alias="dimensions.bk_biz_id",
@@ -358,7 +355,6 @@ class EventGroup(CustomGroupBase):
         is_enable=None,
         event_info_list=None,
         data_label: str | None = None,
-        data_labels: list[str] | None = None,
     ):
         """
         修改一个事件组
@@ -378,7 +374,6 @@ class EventGroup(CustomGroupBase):
             is_enable=is_enable,
             metric_info_list=event_info_list,
             data_label=data_label,
-            data_labels=data_labels,
         )
 
     @atomic(config.DATABASE_CONNECTION_NAME)

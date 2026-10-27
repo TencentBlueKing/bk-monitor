@@ -29,6 +29,7 @@ logger = logging.getLogger("metadata")
 # 短链路没有监控侧 DataSource，统一使用 0 标识“无数据源”。
 SHORT_LINK_BK_DATA_ID = 0
 DEFAULT_OPERATOR = "system"
+DATA_LABEL_MAX_LENGTH = 128
 DATA_LABEL_PATTERN = re.compile(r"^[a-z0-9._]+$")
 
 
@@ -86,11 +87,15 @@ def _normalize_data_labels(data_labels: list[str] | tuple[str, ...] | None) -> l
                 f"and must start with a letter: {data_label}"
             )
 
+    # 校验 data_label 总长度是否超过最大长度
+    if len(",".join(normalized_labels)) > DATA_LABEL_MAX_LENGTH:
+        raise ValueError(f"data_label exceeds {DATA_LABEL_MAX_LENGTH} characters: {','.join(normalized_labels)}")
+
     return normalized_labels
 
 
 def _split_result_table_data_label(data_label: str) -> list[str]:
-    """拆分路由边界使用的 CSV 字符串。"""
+    """拆分 ResultTable.data_label 旧存储形态，仅用于刷新旧路由映射。"""
     return [label for label in data_label.split(",") if label]
 
 
@@ -134,7 +139,7 @@ def _upsert_result_table(
         "is_enable": True,
     }
     if data_labels is not None:
-        defaults["data_labels"] = data_labels
+        defaults["data_label"] = _compose_result_table_data_label(data_labels)
 
     return models.ResultTable.objects.update_or_create(
         table_id=table_id,
@@ -214,21 +219,21 @@ def _sync_vm_short_link_metadata(
 def _update_result_table_data_label(table_id: str, bk_tenant_id: str, data_labels: list[str], operator: str) -> str:
     """更新短链路虚拟 RT 的 data_label，并返回更新前的 data_label。"""
     result_table = models.ResultTable.objects.get(table_id=table_id, bk_tenant_id=bk_tenant_id)
-    old_data_label = ",".join(result_table.data_labels)
+    old_data_label = result_table.data_label or ""
     data_label = _compose_result_table_data_label(data_labels)
     if old_data_label != data_label:
-        result_table.data_labels = data_labels
+        result_table.data_label = data_label
         result_table.last_modify_user = operator
-        result_table.save(update_fields=["data_labels", "last_modify_user"])
+        result_table.save(update_fields=["data_label", "last_modify_user"])
     return old_data_label
 
 
 def _get_result_table_data_label(table_id: str, bk_tenant_id: str) -> str:
-    return ",".join(
+    return (
         models.ResultTable.objects.filter(table_id=table_id, bk_tenant_id=bk_tenant_id)
-        .values_list("data_labels", flat=True)
+        .values_list("data_label", flat=True)
         .first()
-        or []
+        or ""
     )
 
 

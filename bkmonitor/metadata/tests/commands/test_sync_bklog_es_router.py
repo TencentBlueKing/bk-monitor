@@ -63,8 +63,6 @@ def test_update_or_create_es_router():
             "cluster_id": 4,
             "index_set": "2_bklog.test20240611,2_bklog.test_nginx_stdout",
             "source_type": "log",
-            "need_create_index": True,
-            "origin_table_id": "",
             "data_label": "log_index_set_290",
             "table_id": "2_bklog.test20240611",
             "space_uid": f"{space_type}__{space_id}",
@@ -80,8 +78,6 @@ def test_update_or_create_es_router():
             "cluster_id": 22,
             "index_set": "2_bkapm_trace_test_*",
             "source_type": "es",
-            "need_create_index": True,
-            "origin_table_id": "",
             "data_label": "es_index_set_285",
             "table_id": "bklog_index_set_285.__default__",
             "space_uid": f"{space_type}__{space_id}",
@@ -105,30 +101,7 @@ def test_update_or_create_es_router():
     )
     assert (
         models.ResultTableOption.objects.filter(
-            table_id__in=["bklog_index_set_285.__default__", "2_bklog.test20240611"]
+            table_id__in=[["bklog_index_set_285.__default__", "2_bklog.test20240611"]]
         ).count()
         == 1
     )
-
-
-def test_bulk_router_sync_preserves_short_legacy_label_on_overflow():
-    table_id = "2_bklog.label_overflow"
-    models.ResultTable.objects.create(table_id=table_id, is_custom_table=False, data_label="old")
-    labels = [f"long_label_{i}" for i in range(30)]
-    Command()._update_or_create_es_data(
-        [
-            {
-                "cluster_id": 4,
-                "index_set": "index",
-                "source_type": "log",
-                "data_label": ",".join(labels),
-                "table_id": table_id,
-                "space_uid": "bkcc__2",
-                "need_create_index": True,
-                "origin_table_id": "",
-            }
-        ]
-    )
-    table = models.ResultTable.objects.get(table_id=table_id)
-    assert table.data_labels == labels
-    assert table.data_label == "old"

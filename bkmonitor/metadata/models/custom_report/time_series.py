@@ -773,7 +773,6 @@ class TimeSeriesGroup(CustomGroupBase):
         default_storage_config=None,
         additional_options: dict | None = None,
         data_label: str | None = None,
-        data_labels: list[str] | None = None,
         metric_group_dimensions: list[dict] | None = None,
         is_need_deploy_collector_config: bool = True,
         is_sync_db: bool = True,
@@ -832,7 +831,6 @@ class TimeSeriesGroup(CustomGroupBase):
             default_storage_config=default_storage_config,
             additional_options=additional_options,
             data_label=data_label,
-            data_labels=data_labels,
             bk_tenant_id=bk_tenant_id,
             is_sync_db=is_sync_db,
         )
@@ -871,7 +869,6 @@ class TimeSeriesGroup(CustomGroupBase):
         enable_field_black_list=None,
         metric_info_list=None,
         data_label: str | None = None,
-        data_labels: list[str] | None = None,
         options: dict[str, Any] | None = None,
         metric_group_dimensions: list[dict] | None = None,
     ):
@@ -904,7 +901,6 @@ class TimeSeriesGroup(CustomGroupBase):
             field_list=field_list,
             enable_field_black_list=enable_field_black_list,
             data_label=data_label,
-            data_labels=data_labels,
             options=options,
         )
 
@@ -925,7 +921,6 @@ class TimeSeriesGroup(CustomGroupBase):
         return self.delete_custom_group(operator=operator)
 
     def to_json(self):
-        data_label_info = self.get_data_label_info()
         return {
             "time_series_group_id": self.time_series_group_id,
             "bk_tenant_id": self.bk_tenant_id,
@@ -941,7 +936,7 @@ class TimeSeriesGroup(CustomGroupBase):
             "last_modify_user": self.last_modify_user,
             "last_modify_time": self.last_modify_time.strftime("%Y-%m-%d %H:%M:%S"),
             "metric_info_list": self.get_metric_info_list(),
-            **data_label_info,
+            "data_label": self.data_label,
             "metric_group_dimensions": self.metric_group_dimensions,
         }
 
@@ -964,7 +959,7 @@ class TimeSeriesGroup(CustomGroupBase):
             return [self.to_json()]
         results = []
         is_auto_discovery = self.is_auto_discovery()
-        data_label_info = self.get_data_label_info()
+        data_label = self.data_label
         for metric in metrics:
             results.append(
                 {
@@ -982,7 +977,7 @@ class TimeSeriesGroup(CustomGroupBase):
                     "last_modify_time": self.last_modify_time.strftime("%Y-%m-%d %H:%M:%S"),
                     "metric_info_list": [metric],
                     "is_auto_discovery": is_auto_discovery,
-                    **data_label_info,
+                    "data_label": data_label,
                 }
             )
 

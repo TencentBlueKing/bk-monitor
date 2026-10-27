@@ -16,7 +16,8 @@ from typing import Any
 
 from django.conf import settings
 from django.db import DatabaseError
-from django.db.models import Exists, OuterRef, Q
+from django.db.models import Exists, JSONField, OuterRef, Q
+from django.db.models.functions import Cast
 from django.utils.timezone import now as tz_now
 
 from constants.apm import ApmGlobalTablePrefix
@@ -138,31 +139,38 @@ class SpaceTableIDRedis:
             is_publish,
             bk_tenant_id,
         )
-        data_labels = self._refine_available_data_label(
-            table_id_list=table_id_list, data_label_list=data_label_list, bk_tenant_id=bk_tenant_id
-        )
+        if table_id_list:
+            data_labels = self._refine_available_data_label(
+                table_id_list=table_id_list, data_label_list=data_label_list, bk_tenant_id=bk_tenant_id
+            )
+        elif data_label_list:
+            data_labels = list(dict.fromkeys(dl for value in data_label_list if value for dl in value.split(",") if dl))
+        else:
+            data_labels = None  # 全量刷新不拼接所有标签的 OR 条件。
+        if data_labels == []:
+            return
 
-        # 如果data_labels为空，则直接返回
-        if not data_labels:
-            return logger.info("push redis data_label_to_result_table")
-
-        # 组装data_label查询条件
-        data_label_query = models.ResultTable.data_labels_query(data_labels)
+        aliases = self._get_data_label_aliases(bk_tenant_id, data_label_list=data_labels)
 
         # 通过data_label查询结果表
         rt_dl_qs = models.ResultTable.objects.filter(
-            data_label_query,
             is_deleted=False,
             is_enable=True,
             bk_tenant_id=bk_tenant_id,
-        ).values("table_id", "data_labels")
+        ).values("table_id", "data_label")
+        if data_labels is not None:
+            data_label_query = Q(table_id__in=aliases)
+            for data_label in data_labels:
+                data_label_query |= Q(data_label__contains=data_label)
+            rt_dl_qs = rt_dl_qs.filter(data_label_query)
 
         # 组装数据
-        rt_dl_map = {data_label: [] for data_label in data_labels}
+        rt_dl_map = {data_label: [] for data_label in data_labels or []}
+        requested_labels = set(data_labels) if data_labels is not None else None
         for data in rt_dl_qs:
-            # 部分data_label可能不在data_labels中，需要过滤
-            for data_label in data["data_labels"]:
-                if not data_label or data_label not in data_labels:
+            labels = (data["data_label"] or "").split(",") + aliases.get(data["table_id"], [])
+            for data_label in dict.fromkeys(labels):
+                if not data_label or (requested_labels is not None and data_label not in requested_labels):
                     continue
                 rt_dl_map.setdefault(data_label, []).append(data["table_id"])
 
@@ -212,7 +220,7 @@ class SpaceTableIDRedis:
                 "db": db,
                 "measurement": "",  # 现阶段不关注存储类型
                 "storage_type": "bk_sql",
-                "data_label": ",".join(record.data_labels),
+                "data_label": record.data_label,
                 "labels": record.labels or {},
                 "fields": fields,
             }
@@ -451,7 +459,7 @@ class SpaceTableIDRedis:
             field_op="table_id__in",
             filter_data=table_ids,
             value_func="values",
-            value_field_list=["table_id", "schema_type", "data_labels", "labels"],
+            value_field_list=["table_id", "schema_type", "data_label", "labels"],
             other_filter=tenant_filter,
         )
         table_id_dict = {rt["table_id"]: rt for rt in rt_filter_data}
@@ -490,7 +498,7 @@ class SpaceTableIDRedis:
             detail["fields"] = table_id_fields.get(table_id) or []
             detail["measurement_type"] = measurement_type_dict.get(table_id) or ""
             detail["bcs_cluster_id"] = table_id_cluster_id.get(table_id) or ""
-            detail["data_label"] = ",".join(table_id_dict.get(table_id, {}).get("data_labels") or [])
+            detail["data_label"] = table_id_dict.get(table_id, {}).get("data_label") or ""
             labels = dict(table_id_dict.get(table_id, {}).get("labels") or {})
             # 应用归属由当前映射生成，避免旧标签在共享、迁移或映射删除后继续裁剪候选表。
             labels.pop(self.APM_APPLICATION_NAME_LABEL, None)
@@ -607,7 +615,7 @@ class SpaceTableIDRedis:
             for row in models.ResultTable.objects.filter(
                 bk_tenant_id=bk_tenant_id,
                 table_id__in=table_id_list,
-            ).values("table_id", "default_storage", "data_labels", "labels")
+            ).values("table_id", "default_storage", "data_label", "labels")
         }
         # ResultTable 的最终默认存储拥有最高判定优先级；不能用某个仍存在的 Storage，
         # 或 StorageClusterRecord.is_current，反向推断当前查询/写入存储。
@@ -702,7 +710,7 @@ class SpaceTableIDRedis:
             for row in models.ResultTable.objects.filter(
                 bk_tenant_id=bk_tenant_id,
                 table_id__in=origin_table_ids,
-            ).values("table_id", "data_labels", "labels")
+            ).values("table_id", "data_label", "labels")
         }
         origin_es_map = {
             row["table_id"]: row
@@ -863,7 +871,7 @@ class SpaceTableIDRedis:
 
             rt = rt_map.get(table_id, {})
             origin_rt = rt_map.get(source_table_id) or origin_rt_map.get(source_table_id) or {}
-            data_label = ",".join(rt.get("data_labels") or origin_rt.get("data_labels") or [])
+            data_label = rt.get("data_label") or origin_rt.get("data_label") or ""
             labels = rt.get("labels") or origin_rt.get("labels") or {}
             field_alias = field_alias_map.get(table_id) or field_alias_map.get(source_table_id) or {}
             # 顶层配置代表当前存储。ES/Doris 任一严格校验失败时都不返回该 table_id，
@@ -1719,7 +1727,7 @@ class SpaceTableIDRedis:
                 "bk_biz_id",
                 "table_id",
                 "schema_type",
-                "data_labels",
+                "data_label",
                 "bk_biz_id_alias",
                 "default_storage",
                 "is_deleted",
@@ -1956,6 +1964,23 @@ class SpaceTableIDRedis:
         # 3. 此时，必然是自定义时序，且是公共的平台数据源，同时非该当前空间下，ß需要添加过滤条件
         return True
 
+    @staticmethod
+    def _get_data_label_aliases(bk_tenant_id, table_id_list=None, data_label_list=None):
+        """批量读取列表配置；定向刷新在 SQL 内筛选，避免加载整个租户的别名。"""
+        options = models.ResultTableOption.objects.filter(
+            bk_tenant_id=bk_tenant_id,
+            name=models.ResultTableOption.OPTION_DATA_LABEL_ALIASES,
+            value_type=models.ResultTableOption.TYPE_LIST,
+        )
+        if table_id_list:
+            options = options.filter(table_id__in=table_id_list)
+        if data_label_list:
+            alias_query = Q()
+            for data_label in data_label_list:
+                alias_query |= Q(alias_labels__contains=[data_label])
+            options = options.alias(alias_labels=Cast("value", JSONField())).filter(alias_query)
+        return {option.table_id: option.get_value() for option in options.only("table_id", "value", "value_type")}
+
     def _refine_available_data_label(
         self,
         table_id_list: list | None = None,
@@ -1971,7 +1996,7 @@ class SpaceTableIDRedis:
         )
 
         tids = models.ResultTable.objects.filter(is_deleted=False, is_enable=True, bk_tenant_id=bk_tenant_id).values(
-            "table_id", "data_labels"
+            "table_id", "data_label"
         )
 
         if table_id_list:
@@ -1990,24 +2015,30 @@ class SpaceTableIDRedis:
             if not data_label_set:
                 return []
 
-            # 组装查询条件
+        aliases = self._get_data_label_aliases(
+            bk_tenant_id, table_id_list=table_id_list, data_label_list=list(data_label_set)
+        )
+        if data_label_set:
+            # 组装查询条件，同时匹配只在 Option 中声明的标签。
             new_data_label_list: list[str] = list(data_label_set)
-            data_label_qs = models.ResultTable.data_labels_query(new_data_label_list)
+            data_label_qs: Q = Q(table_id__in=aliases)
+            for data_label in new_data_label_list:
+                data_label_qs |= Q(data_label__contains=data_label)
 
             tids = tids.filter(data_label_qs)
 
-        # 获取结果表对应的新标签列表
+        # 获取结果表对应的data_label，且data_label可能存在逗号分割
         # 如果参数传入data_label_list，data_label必须在data_label_set中
         data_labels = list(
             itertools.chain(
                 data_label
                 for tid in tids
-                for data_label in tid["data_labels"]
+                for data_label in (tid["data_label"] or "").split(",") + aliases.get(tid["table_id"], [])
                 if data_label and (not data_label_set or data_label in data_label_set)
             )
         )
 
-        return list(dict.fromkeys(data_labels + list(data_label_set)))
+        return list(dict.fromkeys(data_labels))
 
     def _refine_table_ids(self, table_id_list: list | None = None, bk_tenant_id: str | None = DEFAULT_TENANT_ID) -> set:
         """提取写入到influxdb或vm的结果表数据"""

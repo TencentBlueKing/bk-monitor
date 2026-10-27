@@ -77,16 +77,16 @@ def test_apply_vm_short_links_supports_data_labels(vm_short_link_context):
         vmrts=[ctx["vmrt"]],
         bk_tenant_id=ctx["bk_tenant_id"],
         bk_biz_id=ctx["bk_biz_id"],
-        data_labels=["short_link_label", "short.link.label"],
+        data_labels=["short_link_label", "short.link:label"],
         refresh_router=False,
     )
 
     result_table = models.ResultTable.objects.get(table_id=ctx["table_id"], bk_tenant_id=ctx["bk_tenant_id"])
     short_link = models.VMShortLinkRecord.objects.get(table_id=ctx["table_id"], bk_tenant_id=ctx["bk_tenant_id"])
-    assert result_table.data_label == "short_link_label,short.link.label"
-    assert short_link.data_labels == ["short_link_label", "short.link.label"]
-    assert result[0]["data_labels"] == ["short_link_label", "short.link.label"]
-    assert result[0]["data_label"] == "short_link_label,short.link.label"
+    assert result_table.data_label == "short_link_label,short.link:label"
+    assert short_link.data_labels == ["short_link_label", "short.link:label"]
+    assert result[0]["data_labels"] == ["short_link_label", "short.link:label"]
+    assert result[0]["data_label"] == "short_link_label,short.link:label"
 
 
 def test_update_vm_short_links_supports_data_labels(vm_short_link_context):
@@ -103,17 +103,17 @@ def test_update_vm_short_links_supports_data_labels(vm_short_link_context):
         bk_tenant_id=ctx["bk_tenant_id"],
         bk_biz_id=ctx["bk_biz_id"],
         vmrts=[ctx["vmrt"]],
-        data_labels=["updated_short_link_label", "updated.short.label"],
+        data_labels=["updated_short_link_label", "updated.short:label"],
         refresh_bkbase=False,
         refresh_router=False,
     )
 
     result_table = models.ResultTable.objects.get(table_id=ctx["table_id"], bk_tenant_id=ctx["bk_tenant_id"])
     short_link = models.VMShortLinkRecord.objects.get(table_id=ctx["table_id"], bk_tenant_id=ctx["bk_tenant_id"])
-    assert result_table.data_label == "updated_short_link_label,updated.short.label"
-    assert short_link.data_labels == ["updated_short_link_label", "updated.short.label"]
-    assert result[0]["data_labels"] == ["updated_short_link_label", "updated.short.label"]
-    assert result[0]["data_label"] == "updated_short_link_label,updated.short.label"
+    assert result_table.data_label == "updated_short_link_label,updated.short:label"
+    assert short_link.data_labels == ["updated_short_link_label", "updated.short:label"]
+    assert result[0]["data_labels"] == ["updated_short_link_label", "updated.short:label"]
+    assert result[0]["data_label"] == "updated_short_link_label,updated.short:label"
 
 
 def test_update_vm_short_links_refreshes_old_and_new_data_labels(vm_short_link_context, mocker):
@@ -165,9 +165,11 @@ def test_apply_vm_short_links_overwrite_refreshes_old_and_new_data_labels(vm_sho
 @pytest.mark.parametrize(
     "data_labels",
     [
+        ["1bad"],
         ["Bad"],
         ["bad-label"],
         ["bad,label"],
+        ["a" * 33],
         "bad_string",
     ],
 )

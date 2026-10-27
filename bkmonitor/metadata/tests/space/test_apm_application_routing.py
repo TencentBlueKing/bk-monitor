@@ -136,7 +136,6 @@ class TestApmApplicationRouting(unittest.TestCase):
                 "bk_tenant_id": tenant,
                 "schema_type": "free",
                 "data_label": "apm",
-                "data_labels": ["apm"],
                 "labels": labels or {},
             }
         )
@@ -163,18 +162,6 @@ class TestApmApplicationRouting(unittest.TestCase):
         self.assertEqual(
             self.router._compose_apm_application_names(bk_tenant_id=TENANT, data_ids={101}), {101: "Shop-API"}
         )
-
-    def test_application_label_keeps_complete_data_labels_and_ignores_legacy_field(self):
-        self.table("apm.default", [101])
-        data_labels = ["apm", *[f"apm.legacy_group_{index}" for index in range(10)]]
-        self.result_tables[0]["data_label"] = "legacy"
-        self.result_tables[0]["data_labels"] = data_labels
-        self.metric_sources.append(metric_source(101))
-
-        detail = self.compose()["apm.default"]
-
-        self.assertEqual(detail["data_label"], ",".join(data_labels))
-        self.assertEqual(detail["labels"][APPLICATION_LABEL], "Shop-API")
 
     def test_conflicting_application_mappings_do_not_publish_single_value(self):
         self.table("apm.default", [101], {APPLICATION_LABEL: "Shop-API", "scene": "metrics"})

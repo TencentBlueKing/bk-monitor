@@ -727,16 +727,14 @@ def get_result_table_data_id_dict(data_id_list: list | None = None, table_id: st
 def get_platform_result_table_list() -> list:
     """获取平台级的结果表信息"""
     result_table_id_list = get_platform_result_table_id_list()
-    return ResultTable.objects.filter(table_id__in=result_table_id_list).values(
-        "table_id", "schema_type", "data_labels"
-    )
+    return ResultTable.objects.filter(table_id__in=result_table_id_list).values("table_id", "schema_type", "data_label")
 
 
 def get_result_table_list(filter_platform: bool | None = False, table_id_list: list | None = None) -> list:
     """过滤结果表数据"""
     if filter_platform:
         return get_platform_result_table_list()
-    return ResultTable.objects.filter(table_id__in=table_id_list).values("table_id", "schema_type", "data_labels")
+    return ResultTable.objects.filter(table_id__in=table_id_list).values("table_id", "schema_type", "data_label")
 
 
 def get_platform_result_table_field_list(tag: str = "metric") -> list:

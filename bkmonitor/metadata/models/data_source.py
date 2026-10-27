@@ -346,16 +346,13 @@ class DataSource(models.Model):
         # data list 在consul中的作用被废弃，不再使用
         pass
 
-    def register_to_bkbase(
-        self, bk_biz_id: int, namespace: str = "bkmonitor", bkbase_data_name: str = "", update_created_from: bool = True
-    ):
+    def register_to_bkbase(self, bk_biz_id: int, namespace: str = "bkmonitor", bkbase_data_name: str = ""):
         """
         将当前data_id注册到计算平台
 
         Args:
             bk_biz_id: 业务ID
             namespace: 命名空间
-            update_created_from: 是否立即标记为 V4 来源；已有链路迁移可延后到切换完成。
             bkbase_data_name: 指定计算平台数据源名称；为空时先复用当前 Data ID 已登记的名称，
                 未找到再按场景和 bk_data_id 生成随机名称。
         """
@@ -402,10 +399,9 @@ class DataSource(models.Model):
         api.bkdata.apply_data_link(config=[data_id_config], bk_tenant_id=self.bk_tenant_id)
         apply_data_source_config(bk_tenant_id=self.bk_tenant_id, data_source_config=data_source_config)
 
-        # 迁移已有链路时，调用方在组件和查询路由就绪后再切换来源。
-        if update_created_from:
-            self.created_from = DataIdCreatedFromSystem.BKDATA.value
-            self.save()
+        # 更新数据源的创建来源
+        self.created_from = DataIdCreatedFromSystem.BKDATA.value
+        self.save()
 
     @classmethod
     def apply_for_data_id_from_bkdata(

@@ -10,6 +10,7 @@ specific language governing permissions and limitations under the License.
 
 import json
 import logging
+from collections import defaultdict
 
 import requests
 from django.conf import settings
@@ -66,19 +67,19 @@ def push_and_publish_es_aliases(bk_tenant_id: str, data_label: str):
         return
 
     # 组装查询条件
-    data_label_qs: Q = Q(data_labels__contains=[data_label_list[0]])
+    data_label_qs: Q = Q(data_label__contains=data_label_list[0])
     for data_label in data_label_list[1:]:
-        data_label_qs |= Q(data_labels__contains=[data_label])
+        data_label_qs |= Q(data_label__contains=data_label)
 
     # 查询结果表
     result_tables = models.ResultTable.objects.filter(
         data_label_qs, bk_tenant_id=bk_tenant_id, is_deleted=False, is_enable=True
     )
 
-    data_label_to_table_ids: dict[str, list[str]] = {label: [] for label in data_label_list}
+    data_label_to_table_ids: dict[str, list[str]] = defaultdict(list)
     for result_table in result_tables:
-        # 按数组成员匹配标签
-        for dl in result_table.data_labels:
+        # 拆分data_label
+        for dl in result_table.data_label.split(","):
             if not dl or dl not in data_label_list:
                 continue
             data_label_to_table_ids[dl].append(reformat_table_id(result_table.table_id))
@@ -201,7 +202,7 @@ def push_and_publish_doris_table_id_detail(
         "db": doris_storage.bkbase_table_id,
         "measurement": models.ClusterInfo.TYPE_DORIS,
         "storage_type": "bk_sql",
-        "data_label": ",".join(result_table.data_labels),
+        "data_label": result_table.data_label,
         "labels": result_table.labels or {},
     }
     if not values["db"] and doris_storage.origin_table_id:

@@ -143,8 +143,7 @@ DATABUS_MONITOR_CUSTOM_ETL_CONFIGS = {
     EtlConfigs.BK_STANDARD_V2_EVENT.value,
 }
 DATABUS_MONITOR_SYSTEM_DATA_LABELS = {
-    "pingserver.base",
-    "pingserver",
+    "pingserver.base,pingserver",
     "bkmonitorbeat_gather_up",
     "system_base",
 }
@@ -308,7 +307,7 @@ def _resolve_databus_monitor_data_scene(
     type_label = getattr(data_source, "type_label", "") or ""
     etl_config = getattr(data_source, "etl_config", "") or ""
     table_label = getattr(table, "label", "") if table is not None else ""
-    data_labels = getattr(table, "data_labels", []) if table is not None else []
+    data_label = getattr(table, "data_label", "") if table is not None else ""
 
     if strategy in DATABUS_MONITOR_GRAPH_STRATEGIES:
         return "relation"
@@ -332,7 +331,7 @@ def _resolve_databus_monitor_data_scene(
     if (
         strategy in DATABUS_MONITOR_SYSTEM_STRATEGIES
         or etl_config in SYSTEM_BASE_DATA_ETL_CONFIGS
-        or bool(set(data_labels) & DATABUS_MONITOR_SYSTEM_DATA_LABELS)
+        or data_label in DATABUS_MONITOR_SYSTEM_DATA_LABELS
         or (
             table is not None
             and getattr(table, "is_builtin", False)

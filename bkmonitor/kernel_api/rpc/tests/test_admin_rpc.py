@@ -283,7 +283,6 @@ def test_surrealdb_storage_list_and_detail_are_tenant_scoped():
                 "table_name_zh": "Admin SurrealDB test",
                 "bk_biz_id": 0,
                 "data_label": "",
-                "data_labels": [],
                 "default_storage": "surrealdb",
                 "is_enable": True,
                 "is_deleted": False,

@@ -239,7 +239,7 @@ class QueryDataLinkInfoResource(Resource):
                     "空间UID": f"{space.space_type_id}__{space.space_id}" if space else "全局",
                     "空间名称": space.space_name if space else "全局",
                     "是否启用": rt.is_enable,
-                    "数据标签(data_labels)": rt.data_labels,
+                    "数据标签(data_label)": rt.data_label,
                 }
 
                 backend_kafka_config = models.KafkaStorage.objects.filter(bk_tenant_id=bk_tenant_id, table_id=table_id)
@@ -1177,7 +1177,6 @@ class QueryDataLinkMetadataResource(Resource):
             "is_result_table_enabled": rt.is_enable,
             "is_platform_data_id": ds.is_platform_data_id,
             "data_label": rt.data_label,
-            "data_labels": rt.data_labels,
             "created_at": self._format_dt(rt.create_time),
             "updated_at": self._format_dt(rt.last_modify_time),
             "data_source_created_at": self._format_dt(ds.create_time),

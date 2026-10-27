@@ -59,7 +59,6 @@ RESULT_TABLE_SUMMARY_FIELDS = [
     "table_name_zh",
     "bk_biz_id",
     "data_label",
-    "data_labels",
     "default_storage",
     "is_enable",
     "is_deleted",
@@ -193,6 +192,8 @@ def _table_ids_by_data_filters(
 ) -> set[str] | set[tuple[str | None, str]] | None:
     filters: dict[str, Any] = {}
     data_labels = normalize_string_list_filter(params, "data_label", "data_labels")
+    if data_labels:
+        filters["data_label__in"] = data_labels
     relation_pairs: set[tuple[str | None, str]] | None = None
     bk_data_ids = normalize_int_list_filter(params, "bk_data_id", "bk_data_ids", positive=True)
     if bk_data_ids:
@@ -205,11 +206,9 @@ def _table_ids_by_data_filters(
             if relation.table_id
         }
         filters["table_id__in"] = [table_id for _, table_id in relation_pairs]
-    if not filters and not data_labels:
+    if not filters:
         return None
     result_table_queryset = filter_by_bk_tenant_id(models.ResultTable.objects.filter(**filters), bk_tenant_id)
-    if data_labels:
-        result_table_queryset = result_table_queryset.filter(models.ResultTable.data_labels_query(data_labels))
     table_pairs = {
         (result_table.bk_tenant_id, result_table.table_id)
         for result_table in result_table_queryset.only("bk_tenant_id", "table_id")
@@ -435,8 +434,8 @@ def _paginate_list_response(
         "table_id": "可选，匹配 DorisStorage.table_id / origin_table_id",
         "bk_data_id": "可选，通过 DataSourceResultTable 关联过滤",
         "bk_data_ids": "可选，DataSource ID 正整数数组，最多 100 项；与 bk_data_id 合并去重",
-        "data_label": "可选，通过 ResultTable.data_labels 关联过滤",
-        "data_labels": "可选，ResultTable.data_labels 数组，最多 100 项；与 data_label 合并去重",
+        "data_label": "可选，通过 ResultTable.data_label 关联过滤",
+        "data_labels": "可选，ResultTable.data_label 数组，最多 100 项；与 data_label 合并去重",
         "storage_cluster_id": "可选，Doris 集群 ID",
         "storage_cluster_ids": "可选，Doris 集群 ID 正整数数组，最多 100 项；与 storage_cluster_id 合并去重",
         "page": "可选，默认 1",
@@ -586,8 +585,8 @@ def get_doris_storage_latest_records(params: dict[str, Any]) -> dict[str, Any]:
         "table_id": "可选，匹配 result_table_id / vm_result_table_id",
         "bk_data_id": "可选，通过 DataSourceResultTable 关联过滤",
         "bk_data_ids": "可选，DataSource ID 正整数数组，最多 100 项；与 bk_data_id 合并去重",
-        "data_label": "可选，通过 ResultTable.data_labels 关联过滤",
-        "data_labels": "可选，ResultTable.data_labels 数组，最多 100 项；与 data_label 合并去重",
+        "data_label": "可选，通过 ResultTable.data_label 关联过滤",
+        "data_labels": "可选，ResultTable.data_label 数组，最多 100 项；与 data_label 合并去重",
         "storage_cluster_id": "可选，VM 接入存储集群 ID",
         "storage_cluster_ids": "可选，VM 存储集群 ID 正整数数组，最多 100 项；与 storage_cluster_id 合并去重",
         "vm_cluster_id": "可选，AccessVMRecord.vm_cluster_id，对应 VM ClusterInfo.cluster_id",
@@ -681,8 +680,8 @@ def get_vm_storage_detail(params: dict[str, Any]) -> dict[str, Any]:
         "table_id": "可选，KafkaStorage.table_id",
         "bk_data_id": "可选，通过 DataSourceResultTable 关联过滤",
         "bk_data_ids": "可选，DataSource ID 正整数数组，最多 100 项；与 bk_data_id 合并去重",
-        "data_label": "可选，通过 ResultTable.data_labels 关联过滤",
-        "data_labels": "可选，ResultTable.data_labels 数组，最多 100 项；与 data_label 合并去重",
+        "data_label": "可选，通过 ResultTable.data_label 关联过滤",
+        "data_labels": "可选，ResultTable.data_label 数组，最多 100 项；与 data_label 合并去重",
         "storage_cluster_id": "可选，Kafka 集群 ID",
         "storage_cluster_ids": "可选，Kafka 集群 ID 正整数数组，最多 100 项；与 storage_cluster_id 合并去重",
         "page": "可选，默认 1",
@@ -752,8 +751,8 @@ def get_kafka_storage_detail(params: dict[str, Any]) -> dict[str, Any]:
         "table_id": "可选，SurrealDBStorage.table_id",
         "bk_data_id": "可选，通过 DataSourceResultTable 关联过滤",
         "bk_data_ids": "可选，DataSource ID 正整数数组，最多 100 项；与 bk_data_id 合并去重",
-        "data_label": "可选，通过 ResultTable.data_labels 关联过滤",
-        "data_labels": "可选，ResultTable.data_labels 数组，最多 100 项；与 data_label 合并去重",
+        "data_label": "可选，通过 ResultTable.data_label 关联过滤",
+        "data_labels": "可选，ResultTable.data_label 数组，最多 100 项；与 data_label 合并去重",
         "storage_cluster_id": "可选，SurrealDB 集群 ID",
         "storage_cluster_ids": "可选，SurrealDB 集群 ID 正整数数组，最多 100 项；与 storage_cluster_id 合并去重",
         "page": "可选，默认 1",
@@ -823,8 +822,8 @@ def get_surrealdb_storage_detail(params: dict[str, Any]) -> dict[str, Any]:
         "table_id": "可选，匹配 monitor_table_id / bkbase_table_id / data_link_name",
         "bk_data_id": "可选，通过 DataSourceResultTable 关联过滤",
         "bk_data_ids": "可选，DataSource ID 正整数数组，最多 100 项；与 bk_data_id 合并去重",
-        "data_label": "可选，通过 ResultTable.data_labels 关联过滤",
-        "data_labels": "可选，ResultTable.data_labels 数组，最多 100 项；与 data_label 合并去重",
+        "data_label": "可选，通过 ResultTable.data_label 关联过滤",
+        "data_labels": "可选，ResultTable.data_label 数组，最多 100 项；与 data_label 合并去重",
         "storage_cluster_id": "可选，存储集群 ID",
         "storage_cluster_ids": "可选，存储集群 ID 正整数数组，最多 100 项；与 storage_cluster_id 合并去重",
         "status": "可选，BkBaseResultTable.status",
