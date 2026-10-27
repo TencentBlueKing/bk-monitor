@@ -72,7 +72,7 @@ paths:
         backend:
           name: default
           method: get
-          path: /api/v3/meta/get_time_series_metrics/
+          path: /api/v4/mcp/list_time_series_metrics/
           matchSubpath: false
           timeout: 63
         pluginConfigs: []

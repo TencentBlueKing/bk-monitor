@@ -700,3 +700,66 @@ def test_personal_tokens_are_opted_in_and_survive_merge(tmp_path):
         "lookup_metadata",
     } <= enabled
     assert "execute_tool" not in enabled
+
+
+def test_shared_read_backends_move_only_mcp_resources(tmp_path):
+    """Check the generated gateway deployment input; original app paths stay intact."""
+    import shutil
+
+    expected = {
+        "get_alert_info": ("get", "/app/alert/detail/", "/api/v4/alert/alert/detail/"),
+        "list_time_series_metrics": (
+            "get",
+            "/app/metadata/get_time_series_metrics/",
+            "/api/v3/meta/get_time_series_metrics/",
+        ),
+        "search_spaces": ("get", "/app/metadata/list_spaces/", "/api/v3/meta/list_spaces/"),
+        "get_dashboard_tree_list": (
+            "get",
+            "/app/dashboard/get_dashboard_directory_tree/",
+            "/api/v4/grafana/get_directory_tree/",
+        ),
+        "get_dashboard_detail_by_uid": (
+            "get",
+            "/app/dashboard/get_dashboard_detail/",
+            "/api/v4/grafana/get_dashboard_detail/",
+        ),
+        "list_apm_services": ("post", "/app/apm/service/service_list/", "/api/v4/service_web/service_list/"),
+        "calculate_by_range": ("post", "/app/apm/calculate_by_range/", "/api/v4/apm_metric_web/calculate_by_range/"),
+    }
+    shutil.copytree(_RESOURCES_DIR, tmp_path / "resources")
+    merge_resources_func(tmp_path / "resources")
+    paths = yaml.safe_load((tmp_path / "resources.yaml").read_text())["paths"]
+    app_backends, mcp_backends = set(), {}
+    for frontend, methods in paths.items():
+        for operation in methods.values():
+            resource = operation["x-bk-apigateway-resource"]
+            backend = resource["backend"]
+            pair = (backend["method"].lower(), backend["path"])
+            if frontend.startswith("/app/"):
+                app_backends.add(pair)
+            elif frontend.startswith("/mcp/"):
+                mcp_backends[frontend] = pair
+    for name, (method, app_frontend, original) in expected.items():
+        app = paths[app_frontend][method]["x-bk-apigateway-resource"]
+        user_operation = paths["/mcp/" + name + "/"][method]
+        user = user_operation["x-bk-apigateway-resource"]
+        assert app["backend"]["path"] == original
+        assert app["authConfig"]["appVerifiedRequired"] is True
+        assert app["authConfig"]["userVerifiedRequired"] is False
+        assert app["authConfig"]["resourcePermissionRequired"] is True
+        assert user["backend"]["path"] == "/api/v4/mcp/" + name + "/"
+        assert user["authConfig"]["userVerifiedRequired"] is True
+        assert user["authConfig"]["oauth2PersonalClientEnabled"] is True
+        assert user["authConfig"]["resourcePermissionRequired"] is True
+        assert user["matchSubpath"] is False and user["backend"]["matchSubpath"] is False
+        assert user_operation["operationId"] == ("apm_mcp_calculate_by_range" if name == "calculate_by_range" else name)
+    # The two ops MCP overlaps are intentionally unchanged and remain user-only.
+    assert app_backends & set(mcp_backends.values()) == {
+        ("get", "/api/v3/meta/query_data_link_metadata/"),
+        ("get", "/api/v3/meta/get_data_link_metadata/"),
+    }
+    for name in ("query_datalink_metadata", "get_data_link_metadata"):
+        auth = paths["/mcp/" + name + "/"]["get"]["x-bk-apigateway-resource"]["authConfig"]
+        assert auth["userVerifiedRequired"] is True
+        assert not auth.get("oauth2PersonalClientEnabled", False)
