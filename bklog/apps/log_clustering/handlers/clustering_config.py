@@ -43,7 +43,6 @@ from apps.log_clustering.exceptions import (
     CollectorEsStorageNotExistException,
     CollectorStorageNotExistException,
     DorisStorageNotExistException,
-    MiniClusteringNotReadyException,
     RegexTemplateNotExistException,
 )
 from apps.log_clustering.handlers.aiops.config import get_online_clustering_config
@@ -112,13 +111,6 @@ class ClusteringConfigHandler:
         return log_index_set.scenario_id == Scenario.LOG and FeatureToggleObject.switch(
             MINI_CLUSTERING_CONFIG, biz_id=space_uid_to_bk_biz_id(log_index_set.space_uid)
         )
-
-    @classmethod
-    def _check_mini_clustering_not_ready(cls, log_index_set: LogIndexSet):
-        if cls._use_quix_clustering(log_index_set):
-            raise MiniClusteringNotReadyException(
-                MiniClusteringNotReadyException.MESSAGE.format(index_set_id=log_index_set.index_set_id)
-            )
 
     def create(self, index_set_id, params):
         log_index_set = LogIndexSet.objects.get(index_set_id=index_set_id)
@@ -237,8 +229,9 @@ class ClusteringConfigHandler:
             UpdateOnlineService,
         )
 
-        log_index_set = LogIndexSet.objects.get(index_set_id=self.index_set_id)
-        self._check_mini_clustering_not_ready(log_index_set)
+        if LogClusteringRuntime.objects.filter(index_set_id=self.index_set_id).exists():
+            log_index_set = LogIndexSet.objects.get(index_set_id=self.index_set_id)
+            return QuixClusteringHandler(log_index_set).update(params)
 
         params = {
             "index_set_id": self.index_set_id,

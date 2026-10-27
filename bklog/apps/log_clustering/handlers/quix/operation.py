@@ -50,6 +50,9 @@ MAX_STEP_RETRIES = 5
 WAIT_TIMEOUT_SECONDS = 30 * 60
 STEP_TIME_FORMAT = "%Y-%m-%d %H:%M:%S"
 
+# 旧范围内待办已投递、结果已入库、原源消费已确认，才能切换绑定
+DRAINED_STATUS_KEYS = ("can_unbind", "storage_complete", "outbox_drained", "source_committed")
+
 # 配置、凭据或控制版本问题，重试同一请求不会成功，需要人工处理后续跑
 NON_RETRYABLE_EXCEPTIONS = (
     BkFaraNotConfiguredException,
@@ -81,6 +84,14 @@ class QuixClusteringOperationRunner:
             "wait_task_ready",
             "configure_clustering",
             "wait_worker_ready",
+            "metadata_set",
+            "wait_adoption",
+        ],
+        # Quix 保持运行；旧范围收尾后才提交新过滤规则，过渡期新增日志不参与聚类，记为覆盖缺口
+        ClusteringOperationTypeEnum.UPDATE.value: [
+            "drain",
+            "wait_drained",
+            "finish",
             "metadata_set",
             "wait_adoption",
         ],
@@ -239,6 +250,66 @@ class QuixClusteringOperationRunner:
             status.get("revision") == self.runtime.metadata_revision
             and bool(status.get("sink_referenced"))
             and sink_phase == "Ok"
+        )
+
+    def _operate_metadata(self, action: str) -> bool:
+        result = TransferApi.operate_log_clustering(
+            self._metadata_params(
+                operation_id=self.operation.get_idempotency_key(action),
+                expected_revision=self.runtime.metadata_revision,
+                action=action,
+            )
+        )
+        self._save_runtime(metadata_revision=result["revision"])
+        return True
+
+    def _step_drain(self) -> bool:
+        return self._operate_metadata("drain")
+
+    def _step_finish(self) -> bool:
+        return self._operate_metadata("finish")
+
+    def _step_wait_drained(self) -> bool:
+        status = TransferApi.get_log_clustering_status(self._metadata_params())
+        clustering_status = status.get("clustering_status") or {}
+        if not all(clustering_status.get(key) for key in DRAINED_STATUS_KEYS):
+            return False
+        # can_unbind 只表示可以技术切换，coverage_complete=false 时说明旧范围内有跳过的日志
+        if not any(gap["operation_id"] == self.operation.operation_id for gap in self.runtime.coverage_gaps):
+            self.runtime.coverage_gaps.append(
+                {
+                    "operation_id": self.operation.operation_id,
+                    "operation_type": self.operation.operation_type,
+                    "started_at": self._step_finished_at("drain"),
+                    "ended_at": None,
+                    "coverage_complete": clustering_status.get("coverage_complete"),
+                }
+            )
+        self._save_runtime(
+            coverage_gaps=self.runtime.coverage_gaps,
+            outbox_boundary=clustering_status.get("outbox_boundary"),
+        )
+        return True
+
+    def _step_finished_at(self, step: str) -> str | None:
+        for item in reversed(self.operation.steps):
+            if item["step"] == step and item["status"] == ClusteringOperationStatusEnum.SUCCESS.value:
+                return item["time"]
+        return None
+
+    def _close_coverage_gap(self):
+        ended_at = timezone.now().strftime(STEP_TIME_FORMAT)
+        for gap in self.runtime.coverage_gaps:
+            if gap["operation_id"] == self.operation.operation_id and gap["ended_at"] is None:
+                gap["ended_at"] = ended_at
+
+    def _finish_update(self):
+        self._close_coverage_gap()
+        self._save_runtime(
+            active_config=self.runtime.pending_config,
+            pending_config=None,
+            phase=ClusteringRuntimePhaseEnum.RUNNING.value,
+            coverage_gaps=self.runtime.coverage_gaps,
         )
 
     def _finish_enable(self):

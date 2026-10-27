@@ -29,7 +29,7 @@ from apps.log_clustering.constants import (
     ClusteringRuntimePhaseEnum,
     RegexRuleTypeEnum,
 )
-from apps.log_clustering.exceptions import ClusteringConfigHasExistException
+from apps.log_clustering.exceptions import ClusteringConfigHasExistException, QuixClusteringParamsInvalidException
 from apps.log_clustering.handlers.dataflow.constants import OnlineTaskTrainingArgs
 from apps.log_clustering.handlers.quix.adapter import build_clustering_config, build_index_names
 from apps.log_clustering.handlers.quix.config import get_quix_config
@@ -39,6 +39,17 @@ from apps.log_databus.models import CollectorConfig
 from apps.log_search.models import LogIndexSet, Space
 from apps.models import model_to_dict
 from bkm_space.utils import space_uid_to_bk_biz_id
+
+# 只影响页面展示的业务配置，更新时直接保存，不触发链路变更
+BUSINESS_UPDATE_FIELDS = (
+    "min_members",
+    "predefined_varibles",
+    "delimeter",
+    "max_log_length",
+    "is_case_sensitive",
+    "regex_rule_type",
+    "regex_template_id",
+)
 
 # 开启流程中各步骤对应到现有接入状态的三段展示
 ACCESS_STATUS_STEPS = {
@@ -98,6 +109,44 @@ class QuixClusteringHandler:
         self._save_business_config(collector_config, params, clustering_fields, filter_rules)
         run_quix_clustering_operation.delay(operation.operation_id)
         return self._access_response(operation)
+
+    def update(self, params: dict) -> str | None:
+        """更新过滤规则，返回操作ID；规则无变化时只保存业务配置并返回 None"""
+        from apps.log_clustering.tasks.quix import run_quix_clustering_operation
+
+        runtime = LogClusteringRuntime.objects.get(index_set_id=self.index_set_id)
+        filter_rules = params.get("filter_rules", [])
+        clustering_fields = params.get("clustering_fields") or runtime.active_config["input_mapping"]["log"]
+        clustering_config = build_clustering_config(clustering_fields, filter_rules)
+        if clustering_config["input_mapping"] != runtime.active_config["input_mapping"]:
+            raise QuixClusteringParamsInvalidException(
+                QuixClusteringParamsInvalidException.MESSAGE.format(
+                    detail=_("首版仅支持修改过滤规则，不支持修改聚类字段")
+                )
+            )
+
+        operation = None
+        if runtime.phase == ClusteringRuntimePhaseEnum.UPDATING.value and runtime.pending_config == clustering_config:
+            # 相同规则再次提交时续跑失败的更新，沿用已固定的排空范围
+            operation = self._resume_failed_operation(ClusteringOperationTypeEnum.UPDATE.value)
+        elif clustering_config != runtime.active_config:
+            runtime, operation = LogClusteringRuntime.start_operation(
+                self.index_set_id,
+                ClusteringOperationTypeEnum.UPDATE.value,
+                {"filter_rules": filter_rules},
+                allowed_phases=(ClusteringRuntimePhaseEnum.RUNNING.value,),
+            )
+            runtime.pending_config = clustering_config
+            runtime.phase = ClusteringRuntimePhaseEnum.UPDATING.value
+            runtime.save(update_fields=["pending_config", "phase", "updated_at", "updated_by"])
+
+        ClusteringConfig.objects.filter(index_set_id=self.index_set_id).update(
+            filter_rules=filter_rules, **{field: params[field] for field in BUSINESS_UPDATE_FIELDS if field in params}
+        )
+        if not operation:
+            return None
+        run_quix_clustering_operation.delay(operation.operation_id)
+        return operation.operation_id
 
     def get_access_status(self) -> dict:
         from apps.log_clustering.handlers.clustering_config import ClusteringConfigHandler
