@@ -49,17 +49,16 @@ class ApmCacheHandler:
         return {}
 
     @classmethod
-    def get_cache_key(cls, cache_type: str, bk_biz_id: int, app_name: str, **kwargs: str) -> str:
+    def get_cache_key(cls, cache_type: str, bk_biz_id: int, app_name: str) -> str:
         """
         通用的缓存 key 获取方法
         :param cache_type: 缓存类型（来自 ApmCacheType）
         :param bk_biz_id: 业务 ID
         :param app_name: 应用名称
-        :param kwargs: 缓存 key 模板的扩展参数
         :return: 完整的缓存 key
         """
         key_template = ApmCacheConfig.get_key_template(cache_type)
-        return key_template.format(settings.PLATFORM, settings.ENVIRONMENT, bk_biz_id, app_name, **kwargs)
+        return key_template.format(settings.PLATFORM, settings.ENVIRONMENT, bk_biz_id, app_name)
 
     def refresh_data(self, name: str, update_map: dict, ex: int = DEFAULT_APM_CACHE_EXPIRE):
         """

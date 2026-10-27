@@ -48,7 +48,7 @@ pytestmark = pytest.mark.django_db(databases="__all__")
 @pytest.fixture(autouse=True)
 def isolate_discovery_checkpoint():
     cache = ApmCacheHandler()
-    key = cache.get_cache_key(ApmCacheType.DISCOVERY_CHECK, 2, "app", data_type="TRACE")
+    key = cache.get_cache_key(ApmCacheType.TRACE_DISCOVERY_CHECK, 2, "app")
     cache.redis_client.delete(key)
     yield
     cache.redis_client.delete(key)

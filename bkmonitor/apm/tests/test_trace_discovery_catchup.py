@@ -38,7 +38,7 @@ def discovery(mocker):
         query=query,
         heartbeat=heartbeat,
         clock=clock,
-        key=ApmCacheHandler.get_cache_key(ApmCacheType.DISCOVERY_CHECK, 2, "catchup", data_type="TRACE"),
+        key=ApmCacheHandler.get_cache_key(ApmCacheType.TRACE_DISCOVERY_CHECK, 2, "catchup"),
     )
 
 
@@ -60,10 +60,10 @@ def test_delayed_round_continues_from_previous_query_end(discovery):
     assert discovery.client.get(discovery.key) == "11800"
 
 
-def test_checkpoint_isolated_by_application_source_and_environment(settings):
+def test_trace_checkpoint_isolated_by_application_and_environment(settings):
     settings.PLATFORM, settings.ENVIRONMENT = "test", "test"
-    key = ApmCacheHandler.get_cache_key(ApmCacheType.DISCOVERY_CHECK, 2, "app", data_type="TRACE")
-    assert key.endswith("2_app_TRACE")
+    key = ApmCacheHandler.get_cache_key(ApmCacheType.TRACE_DISCOVERY_CHECK, 2, "app")
+    assert key == "BKMONITOR_test_test_APM_DISCOVERY_CHECK_2_app_TRACE"
     assert (
         ApmCacheHandler.get_cache_key(ApmCacheType.TOPO_INSTANCE, 2, "app")
         == "BKMONITOR_test_test_APM_TOPO_INSTANCE_HEARTBEAT_2_app"
@@ -72,15 +72,14 @@ def test_checkpoint_isolated_by_application_source_and_environment(settings):
         len(
             {
                 key,
-                ApmCacheHandler.get_cache_key(ApmCacheType.DISCOVERY_CHECK, 3, "app", data_type="TRACE"),
-                ApmCacheHandler.get_cache_key(ApmCacheType.DISCOVERY_CHECK, 2, "other", data_type="TRACE"),
-                ApmCacheHandler.get_cache_key(ApmCacheType.DISCOVERY_CHECK, 2, "app", data_type="METRIC"),
+                ApmCacheHandler.get_cache_key(ApmCacheType.TRACE_DISCOVERY_CHECK, 3, "app"),
+                ApmCacheHandler.get_cache_key(ApmCacheType.TRACE_DISCOVERY_CHECK, 2, "other"),
             }
         )
-        == 4
+        == 3
     )
     settings.ENVIRONMENT = "another"
-    assert key != ApmCacheHandler.get_cache_key(ApmCacheType.DISCOVERY_CHECK, 2, "app", data_type="TRACE")
+    assert key != ApmCacheHandler.get_cache_key(ApmCacheType.TRACE_DISCOVERY_CHECK, 2, "app")
 
 
 @pytest.mark.parametrize("failure", ["query", "discoverer", "heartbeat", "heartbeat_lock"])

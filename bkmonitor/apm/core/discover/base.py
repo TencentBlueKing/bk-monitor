@@ -585,9 +585,7 @@ class TopoHandler:
         # 只扩展按服务折叠的兜底窗口，不放大常规 Trace 上下文查询。
         end_time: int = int(start.timestamp())
         cache: ApmCacheHandler = ApmCacheHandler()
-        check_key: str = cache.get_cache_key(
-            ApmCacheType.DISCOVERY_CHECK, self.bk_biz_id, self.app_name, data_type=TelemetryDataType.TRACE.name
-        )
+        check_key: str = cache.get_cache_key(ApmCacheType.TRACE_DISCOVERY_CHECK, self.bk_biz_id, self.app_name)
         last_check = cache.redis_client.get(check_key)
         start_time: int = (
             max(int(last_check), end_time - self.FALLBACK_MAX_LOOKBACK_SECONDS)
@@ -633,7 +631,9 @@ class TopoHandler:
         checkpoint_ready: bool = fallback_success and heartbeat_success
         if checkpoint_ready:
             # 保存本轮查询右边界，而非任务结束时间，避免丢失执行期间新到达的数据。
-            cache.redis_client.set(check_key, end_time, ex=ApmCacheConfig.get_expire_time(ApmCacheType.DISCOVERY_CHECK))
+            cache.redis_client.set(
+                check_key, end_time, ex=ApmCacheConfig.get_expire_time(ApmCacheType.TRACE_DISCOVERY_CHECK)
+            )
         else:
             logger.warning(
                 "[trace_discovery] event=checkpoint_retained bk_biz_id=%s app_name=%s task_id=%s "
