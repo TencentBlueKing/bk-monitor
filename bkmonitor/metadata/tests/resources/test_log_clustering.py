@@ -37,6 +37,30 @@ def single_tenant(settings):
     settings.ENABLE_MULTI_TENANT_MODE = False
 
 
+class FakeDistributedLock:
+    held: set[str] = set()
+
+    def __init__(self, redis_client, lock_name, timeout):
+        self.lock_name = lock_name
+
+    def acquire(self):
+        if self.lock_name in self.held:
+            return False
+        self.held.add(self.lock_name)
+        return True
+
+    def release(self):
+        self.held.discard(self.lock_name)
+
+
+@pytest.fixture(autouse=True)
+def change_lock(mocker):
+    FakeDistributedLock.held = set()
+    mocker.patch("metadata.resources.log_clustering.DistributedLock", FakeDistributedLock)
+    mocker.patch("metadata.resources.log_clustering.RedisTools")
+    return FakeDistributedLock
+
+
 @pytest.fixture
 def clustering_datalink(mocker):
     mocker.patch("bkmonitor.utils.tenant.get_tenant_default_biz_id", return_value=2)
@@ -139,6 +163,40 @@ def test_set_on_attached_sink_only_applies_sink(clustering_datalink, bkbase):
     assert [config["kind"] for config in configs] == ["LogClusteringSink"]
     assert configs[0]["spec"]["clustering"]["binding"]["log_filter"] == binding["log_filter"]
     assert configs[0]["spec"]["rawSink"] == ES_BINDING_REF
+
+
+def test_change_in_progress_on_same_datalink_is_rejected_without_changes(clustering_datalink, bkbase, change_lock):
+    change_lock.held.add(f"metadata:log_clustering:system:{LOG_DATA_LINK_NAME}")
+
+    with pytest.raises(ValidationError, match="in progress"):
+        set_config()
+    assert not models.LogClusteringSinkConfig.objects.exists()
+    bkbase["apply_log_datalink"].assert_not_called()
+
+
+def test_lock_covers_remote_apply_and_is_released_after_failure(clustering_datalink, bkbase, change_lock):
+    lock_name = f"metadata:log_clustering:system:{LOG_DATA_LINK_NAME}"
+    held_during_apply = []
+    bkbase["apply_log_datalink"].side_effect = lambda **kwargs: held_during_apply.append(lock_name in change_lock.held)
+    set_config()
+    bkbase["apply_log_datalink"].side_effect = RuntimeError("bkbase apply failed")
+
+    with pytest.raises(RuntimeError):
+        set_config(operation_id="update-0001", expected_revision=1)
+
+    assert held_during_apply == [True]
+    assert lock_name not in change_lock.held
+
+
+def test_filter_values_keep_surrounding_whitespace(clustering_datalink, bkbase):
+    binding = copy.deepcopy(BINDING)
+    binding["log_filter"] = [
+        {"key": "level", "method": "eq", "value": [" ERROR ", " ", "\t"], "condition": ""},
+    ]
+
+    set_config(binding=binding)
+
+    assert get_sink().binding["log_filter"][0]["value"] == [" ERROR ", " ", "\t"]
 
 
 def test_replay_after_failed_apply_keeps_revision_and_reapplies_whole_datalink(clustering_datalink, bkbase):
