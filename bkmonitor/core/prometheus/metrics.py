@@ -66,6 +66,9 @@ def report_all(job: str = settings.DEFAULT_METRIC_PUSH_JOB, registry: BkCollecto
         # handler已经打了日志了，这里只是为了防止上报过程出现任何异常导致正常逻辑无法走下去
         # 数据放回 registry，随下次上报重发
         snapshot.restore()
+        return
+
+    snapshot.commit()
 
 
 def safe_push_to_gateway(job: str = settings.DEFAULT_METRIC_PUSH_JOB, registry: BkCollectorRegistry = REGISTRY):

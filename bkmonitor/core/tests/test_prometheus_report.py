@@ -13,10 +13,11 @@ import threading
 import time
 from collections import defaultdict
 
+import prometheus_client
 import pytest
 from prometheus_client import generate_latest
 
-from core.prometheus import base, metrics
+from core.prometheus import metrics
 from core.prometheus.base import BkCollectorRegistry, Counter, Gauge, Histogram
 
 SAMPLE_PATTERN = re.compile(r"^(?P<name>[a-zA-Z_:][a-zA-Z0-9_:]*)(?P<labels>\{[^}]*\})? (?P<value>\S+)$")
@@ -165,6 +166,8 @@ class TestReportAll:
         gauge = Gauge("test_queue_length", "", labelnames=("queue",), registry=registry)
         gauge.labels(queue="demo").set(3)
         gauge.labels(queue="other").set(4)
+        pool_size = Gauge("test_pool_size", "", registry=registry)
+        pool_size.set(5)
 
         gateway.fail_calls = {1}
         gateway.on_push = lambda: gauge.labels(queue="demo").set(9)
@@ -174,6 +177,7 @@ class TestReportAll:
 
         assert gateway.values['test_queue_length{queue="demo"}'] == 9
         assert gateway.values['test_queue_length{queue="other"}'] == 4
+        assert gateway.values["test_pool_size"] == 5
 
     def test_write_through_held_child_after_report_is_kept(self, gateway):
         registry = BkCollectorRegistry()
@@ -191,18 +195,75 @@ class TestReportAll:
         assert gateway.values['test_task_count_total{task="held"}'] == 2
         assert gateway.values['test_task_count_total{task="other"}'] == 1
 
-    def test_idle_label_sets_are_released(self, gateway, monkeypatch):
-        monkeypatch.setattr(base, "IDLE_CHILD_RELEASE_SECONDS", 0, raising=False)
+    def test_label_sets_are_released_after_report(self, gateway):
         registry = BkCollectorRegistry()
         counter = Counter("test_task_count", "", labelnames=("task",), registry=registry)
         for index in range(100):
             counter.labels(task=str(index)).inc()
         metrics.report_all(registry=registry)
 
-        for _ in range(2):
-            counter.labels(task="active").inc()
+        assert counter._metrics == {}
+        assert gateway.values['test_task_count_total{task="0"}'] == 1
+
+    def test_report_during_observe_moves_sum_with_bucket(self, gateway, monkeypatch):
+        registry = BkCollectorRegistry()
+        histogram = Histogram("test_task_time", "", labelnames=("task",), registry=registry)
+        counter = Counter("test_task_count", "", labelnames=("task",), registry=registry)
+        child = histogram.labels(task="demo")
+        inc_sum = child._sum.inc
+        reporters = []
+
+        def inc_sum_then_report(amount):
+            # observe 已累加 sum、尚未累加 bucket 时，另一线程发起上报
+            inc_sum(amount)
+            counter.labels(task="demo").inc()
+            reporter = threading.Thread(target=metrics.report_all, kwargs={"registry": registry})
+            reporter.start()
+            # 上报要等这次 observe 完成才能取数，这里只等片刻
+            reporter.join(0.2)
+            reporters.append(reporter)
+
+        monkeypatch.setattr(child._sum, "inc", inc_sum_then_report)
+        child.observe(0.2)
+        for reporter in reporters:
+            reporter.join()
+        metrics.report_all(registry=registry)
+
+        assert gateway.values['test_task_time_count{task="demo"}'] == 1
+        assert gateway.values['test_task_time_sum{task="demo"}'] == pytest.approx(0.2)
+
+    def test_failed_push_does_not_overwrite_newer_pushed_gauge(self, gateway):
+        registry = BkCollectorRegistry()
+        gauge = Gauge("test_queue_length", "", labelnames=("queue",), registry=registry)
+        gauge.labels(queue="demo").set(3)
+
+        def report_newer_value():
+            # 本次推送失败前，另一次上报已成功推送新值
+            gateway.on_push = None
+            gauge.labels(queue="demo").set(9)
             metrics.report_all(registry=registry)
 
-        assert len(counter._metrics) <= 1
-        assert gateway.values['test_task_count_total{task="0"}'] == 1
-        assert gateway.values['test_task_count_total{task="active"}'] == 2
+        gateway.fail_calls = {1}
+        gateway.on_push = report_newer_value
+        metrics.report_all(registry=registry)
+        metrics.report_all(registry=registry)
+
+        assert gateway.values['test_queue_length{queue="demo"}'] == 9
+
+    def test_prometheus_client_metrics_are_reported_once(self, gateway):
+        registry = BkCollectorRegistry()
+        counter = prometheus_client.Counter("test_plain_count", "", labelnames=("task",), registry=registry)
+        histogram = prometheus_client.Histogram("test_plain_time", "", labelnames=("task",), registry=registry)
+        summary = prometheus_client.Summary("test_plain_size", "", registry=registry)
+        counter.labels(task="demo").inc(2)
+        histogram.labels(task="demo").observe(0.2)
+        summary.observe(5)
+
+        gateway.fail_calls = {1}
+        for _ in range(3):
+            metrics.report_all(registry=registry)
+
+        assert gateway.values['test_plain_count_total{task="demo"}'] == 2
+        assert gateway.values['test_plain_time_count{task="demo"}'] == 1
+        assert gateway.values['test_plain_time_sum{task="demo"}'] == pytest.approx(0.2)
+        assert gateway.values["test_plain_size_count"] == 1

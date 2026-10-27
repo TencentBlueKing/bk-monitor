@@ -1,7 +1,6 @@
 # -*- coding: utf-8 -*-
 
 import copy
-import time
 from threading import Lock
 
 from prometheus_client import CollectorRegistry
@@ -40,40 +39,138 @@ class BkCollectorRegistry(CollectorRegistry):
 
     def take_snapshot(self) -> "MetricSnapshot":
         """
-        由于聚合网关的特性，上报的是自上次上报以来的数据：取出后重置，多线程并发上报时同一份数据只会进入一个快照
+        由于聚合网关的特性，每次上报自上次上报以来的数据，多线程并发上报时同一份数据只会进入一个快照
         """
         with self._lock:
             collectors = copy.copy(self._collector_to_names)
-        return MetricSnapshot([(collector, _take_metric(collector)) for collector in collectors])
+        return MetricSnapshot([_take_metric(collector) for collector in collectors])
 
 
 class MetricSnapshot:
     """
-    一次上报取出的指标数据，可作为 registry 传给 push_to_gateway
+    一次上报取出的指标数据，可作为 registry 传给 push_to_gateway；推送成功后调用 commit，失败后调用 restore
     """
 
-    def __init__(self, pairs):
-        self._pairs = [(metric, snapshot) for metric, snapshot in pairs if snapshot is not None]
+    def __init__(self, parts):
+        self._parts = parts
 
     def collect(self):
-        for _, snapshot in self._pairs:
-            for metric in snapshot.collect():
+        for part in self._parts:
+            for metric in part.collect():
                 if metric.samples:
                     yield metric
 
+    def commit(self):
+        for part in self._parts:
+            part.commit()
+
     def restore(self):
         """
-        上报失败时把数据放回原指标，等价于本次未上报
+        把数据放回原指标，等价于本次未上报
         """
-        for metric, snapshot in self._pairs:
-            _restore_metric(metric, snapshot)
+        for part in self._parts:
+            part.restore()
 
 
-# 聚合网关对这两类指标按样本求和，上报的必须是增量
-INCREMENTAL_METRIC_TYPES = ("counter", "histogram")
-# 子指标连续无写入超过该时长才释放。持有子指标引用跨越释放时（如该 label 无其他写入，
-# time() 计时块长于该时长且期间有两次上报），之后经该引用的写入会丢失
-IDLE_CHILD_RELEASE_SECONDS = 10
+def _take_metric(metric):
+    if metric._type in ("counter", "histogram"):
+        return _IncrementalPart(metric)
+    if metric._type == "gauge":
+        return _LatestValuePart(metric)
+    return _CollectedPart(metric)
+
+
+class _IncrementalPart:
+    """
+    聚合网关对 counter、histogram 按样本求和，上报的必须是增量：取出后清零，推送失败时加回
+    """
+
+    def __init__(self, metric):
+        self.metric = metric
+        self.snapshot = copy.copy(metric)
+        if metric._is_parent():
+            # 与原逻辑一样整体换出子指标，registry 中只留之后新建的子指标
+            self.snapshot._lock = Lock()
+            with metric._lock:
+                self.snapshot._metrics, metric._metrics = metric._metrics, {}
+            if isinstance(metric, BkIncrementalMixin):
+                for labelvalues, child in self.snapshot._metrics.items():
+                    child._bk_seal(metric, labelvalues)
+        else:
+            self.snapshot._metric_init()
+            _apply(metric, lambda child: _move_values(child, self.snapshot))
+
+    def collect(self):
+        return self.snapshot.collect()
+
+    def commit(self):
+        pass
+
+    def restore(self):
+        if not self.metric._is_parent():
+            _apply(self.metric, lambda child: _add_values(child, self.snapshot))
+            return
+        for labelvalues, snapshot_child in self.snapshot._metrics.items():
+            _apply(self.metric.labels(*labelvalues), lambda child, source=snapshot_child: _add_values(child, source))
+
+
+class _LatestValuePart:
+    """
+    Gauge 按最新值上报：推送成功后移除期间未再变化的子指标，失败时不动，随下次上报重发
+    """
+
+    def __init__(self, metric):
+        self.metric = metric
+        if metric._is_parent():
+            with metric._lock:
+                self.children = metric._metrics.copy()
+            self.snapshot = copy.copy(metric)
+            self.snapshot._lock = Lock()
+            self.snapshot._metrics = {labelvalues: _freeze(child) for labelvalues, child in self.children.items()}
+        else:
+            self.snapshot = _freeze(metric)
+
+    def collect(self):
+        return self.snapshot.collect()
+
+    def commit(self):
+        if not self.metric._is_parent():
+            # 与原逻辑一致，无 label 的 Gauge 上报后归零
+            value, pushed = self.metric._value, self.snapshot._value.get()
+            with value._lock:
+                if value._value == pushed:
+                    value._value = 0.0
+            return
+        with self.metric._lock:
+            for labelvalues, child in self.children.items():
+                pushed = self.snapshot._metrics[labelvalues]._value.get()
+                if self.metric._metrics.get(labelvalues) is child and child._value.get() == pushed:
+                    del self.metric._metrics[labelvalues]
+
+    def restore(self):
+        pass
+
+
+class _CollectedPart:
+    """
+    其他类型与原逻辑一致：推送成功后清空
+    """
+
+    def __init__(self, metric):
+        self.metric = metric
+        self.metrics = list(metric.collect())
+
+    def collect(self):
+        return self.metrics
+
+    def commit(self):
+        if hasattr(self.metric, "_lock"):
+            with self.metric._lock:
+                self.metric._metrics = {}
+        self.metric._metric_init()
+
+    def restore(self):
+        pass
 
 
 def _metric_values(metric):
@@ -89,74 +186,28 @@ def _take_value(value) -> float:
     return current
 
 
-def _take_child(metric):
-    amounts = [_take_value(value) for value in _metric_values(metric)]
-    if not any(amounts):
-        return None
-    snapshot = copy.copy(metric)
-    snapshot._metric_init()
-    for value, amount in zip(_metric_values(snapshot), amounts):
-        value.set(amount)
-    return snapshot
+def _move_values(source, target):
+    for value, target_value in zip(_metric_values(source), _metric_values(target)):
+        target_value.set(_take_value(value))
 
 
-def _take_metric(metric):
-    if metric._type not in INCREMENTAL_METRIC_TYPES:
-        # Gauge 等按最新值上报：整体取出子指标，推送后不再重复上报
-        snapshot = copy.copy(metric)
-        if metric._is_parent():
-            snapshot._lock = Lock()
-            with metric._lock:
-                snapshot._metrics, metric._metrics = metric._metrics, {}
-        else:
-            metric._metric_init()
-        return snapshot
-
-    if not metric._is_parent():
-        return _take_child(metric)
-
-    with metric._lock:
-        children = metric._metrics.copy()
-    snapshot = copy.copy(metric)
-    snapshot._lock = Lock()
-    snapshot._metrics = {}
-    now = time.monotonic()
-    idle_labelvalues = []
-    for labelvalues, child in children.items():
-        child_snapshot = _take_child(child)
-        if child_snapshot is not None:
-            child._bk_idle_since = None
-            snapshot._metrics[labelvalues] = child_snapshot
-        elif getattr(child, "_bk_idle_since", None) is None:
-            child._bk_idle_since = now
-        elif now - child._bk_idle_since >= IDLE_CHILD_RELEASE_SECONDS:
-            idle_labelvalues.append(labelvalues)
-
-    # 释放长时间无写入的子指标，避免 label 组合只增不减
-    with metric._lock:
-        for labelvalues in idle_labelvalues:
-            child = children[labelvalues]
-            if metric._metrics.get(labelvalues) is child and not any(v.get() for v in _metric_values(child)):
-                del metric._metrics[labelvalues]
-    return snapshot
+def _add_values(target, source):
+    for value, source_value in zip(_metric_values(target), _metric_values(source)):
+        value.inc(source_value.get())
 
 
-def _restore_metric(metric, snapshot):
-    if metric._type not in INCREMENTAL_METRIC_TYPES:
-        # 期间已被重新写入的子指标保留新值
-        if metric._is_parent():
-            with metric._lock:
-                for labelvalues, child in snapshot._metrics.items():
-                    metric._metrics.setdefault(labelvalues, child)
-        return
+def _apply(metric, operation):
+    if isinstance(metric, BkIncrementalMixin):
+        metric._bk_write(operation)
+    else:
+        operation(metric)
 
-    if metric._is_parent():
-        for labelvalues, child in snapshot._metrics.items():
-            _restore_metric(metric.labels(*labelvalues), child)
-        return
 
-    for value, snapshot_value in zip(_metric_values(metric), _metric_values(snapshot)):
-        value.inc(snapshot_value.get())
+def _freeze(gauge):
+    frozen = copy.copy(gauge)
+    frozen._metric_init()
+    frozen._value.set(gauge._value.get())
+    return frozen
 
 
 # SLI Registry
@@ -177,8 +228,33 @@ class LabelHandleMixin:
         return super(LabelHandleMixin, self).labels(*labelvalues, **labelkwargs)
 
 
+class BkIncrementalMixin:
+    """
+    一次写入与上报取数在子指标锁内互斥，Histogram 的 sum 与 bucket 成组转移；
+    子指标被上报取走后封存，之后经已持有引用的写入转到 registry 中同 label 的子指标
+    """
+
+    def _metric_init(self):
+        super()._metric_init()
+        self._bk_lock = Lock()
+        self._bk_parent = None
+        self._bk_labelvalues = ()
+
+    def _bk_write(self, write):
+        self._raise_if_not_observable()
+        with self._bk_lock:
+            if self._bk_parent is None:
+                write(self)
+                return
+        _apply(self._bk_parent.labels(*self._bk_labelvalues), write)
+
+    def _bk_seal(self, parent, labelvalues):
+        with self._bk_lock:
+            self._bk_parent, self._bk_labelvalues = parent, labelvalues
+
+
 # 定制化指标类，目前仅支持 Histogram, Counter, Gauge
-class Histogram(LabelHandleMixin, BaseHistogram):
+class Histogram(LabelHandleMixin, BkIncrementalMixin, BaseHistogram):
     DEFAULT_BUCKETS = (0.005, 0.01, 0.05, 0.1, 0.5, 1.0, 2.5, 5.0, 7.5, 10.0, 30.0, INF)
 
     def __init__(self, *args, registry=REGISTRY, buckets=DEFAULT_BUCKETS, **kwargs):
@@ -186,6 +262,9 @@ class Histogram(LabelHandleMixin, BaseHistogram):
 
     def labels(self, *labelvalues, **labelkwargs) -> BaseHistogram:
         return super(Histogram, self).labels(*labelvalues, **labelkwargs)
+
+    def observe(self, amount, exemplar=None):
+        self._bk_write(lambda child: BaseHistogram.observe(child, amount, exemplar))
 
     def _child_samples(self):
         samples = []
@@ -202,12 +281,15 @@ class Histogram(LabelHandleMixin, BaseHistogram):
         return tuple(samples) if tobe_sampled else ()
 
 
-class Counter(LabelHandleMixin, BaseCounter):
+class Counter(LabelHandleMixin, BkIncrementalMixin, BaseCounter):
     def __init__(self, *args, registry=REGISTRY, **kwargs):
         super(Counter, self).__init__(*args, registry=registry, **kwargs)
 
     def labels(self, *labelvalues, **labelkwargs) -> BaseCounter:
         return super(Counter, self).labels(*labelvalues, **labelkwargs)
+
+    def inc(self, amount=1, exemplar=None):
+        self._bk_write(lambda child: BaseCounter.inc(child, amount, exemplar))
 
     def _child_samples(self):
         if not self._value.get():
