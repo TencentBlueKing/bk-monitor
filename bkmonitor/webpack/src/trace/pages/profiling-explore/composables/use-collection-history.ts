@@ -116,7 +116,6 @@ export function useCollectionHistory({
     controller?.abort();
     loading.value = false;
     rows.value = [];
-    taskColumns.value = [];
     offset = 0;
     hasMore.value = false;
     canAutoFill.value = true;
