@@ -31,7 +31,12 @@ import { useI18n } from 'vue-i18n';
 
 import { useCollectionExecution } from '../../composables/use-collection-execution';
 import { useCollectionHistory } from '../../composables/use-collection-history';
-import { collectionTypeLabels, formatCollectionTime, scheduleLabels } from '../../utils/collection';
+import {
+  collectionMethodLabels,
+  collectionTypeLabels,
+  formatCollectionTime,
+  scheduleLabels,
+} from '../../utils/collection';
 import {
   canViewExecution,
   createHistoryFilters,
@@ -39,6 +44,7 @@ import {
   executionSelection,
   executionStatusLabels,
   formatExecutionDuration,
+  taskColumnMinWidth,
 } from '../../utils/collection-history';
 import CollectionExecutionAction from './collection-execution-action';
 import CollectionExecutionDetail from './collection-execution-detail';
@@ -52,11 +58,31 @@ import type {
   CollectionExecution,
   CollectionHistoryFilters,
   CollectionResultSelection,
+  CollectionTaskColumn,
 } from '../../types/collection-history';
 
 import './collection-history.scss';
 
 const skeletonRows = Array.from({ length: 10 }, (_, index) => ({ executionKey: `loading-${index}` }));
+
+// 未下发 task_columns 时回退的默认列，列名在渲染时翻译
+const fallbackTaskColumns: CollectionTaskColumn[] = [
+  { field: 'task_name', name: '任务名称', type: 'text' },
+  { field: 'collection_type', name: '采集进程', type: 'text' },
+  { field: 'hosts', name: '目标', type: 'text' },
+  { field: 'schedule_type', name: '执行方式', type: 'text' },
+  { field: 'started_at', name: '开始时间', type: 'datetime' },
+  { field: 'duration_ms', name: '耗时', type: 'duration' },
+  { field: 'execution_status', name: '采集结果', type: 'status' },
+];
+
+// 有专属插槽的字段，其余字段按列类型渲染；用 Map 避免后端字段命中原型属性
+const taskColumnSlots = new Map<string, string>([
+  ['execution_status', 'status'],
+  ['hosts', 'targets'],
+  ['target_count', 'targets'],
+  ['task_name', 'name'],
+]);
 
 export default defineComponent({
   name: 'CollectionHistory',
@@ -135,10 +161,14 @@ export default defineComponent({
     const tableRows = computed(() => {
       const rows = h.rows.value.map(row => ({ ...row, executionKey: executionRowKey(row) }));
       const info = sortInfo.value;
-      if (info?.sortBy !== 'started_at') return rows;
+      const field = info?.sortBy;
+      if (field !== 'started_at' && field !== 'finished_at') return rows;
+      // 执行中的结束时间为 null，空值不参与数值比较、固定排在末尾
       return rows.sort((a, b) => {
-        const diff = Number(a.started_at ?? 0) - Number(b.started_at ?? 0);
-        return info.descending ? -diff : diff;
+        const av = typeof a[field] === 'number' ? a[field] : null;
+        const bv = typeof b[field] === 'number' ? b[field] : null;
+        if (av === null || bv === null) return av === bv ? 0 : av === null ? 1 : -1;
+        return info?.descending ? bv - av : av - bv;
       });
     });
     function changeSort(value: TableSort) {
@@ -162,53 +192,71 @@ export default defineComponent({
     const showSkeleton = h.loading.value && !h.rows.value.length;
     // 结果为空时由 empty 插槽接管；否则 tdesign 会注入筛选结果行，导致空态不渲染
     const emptyResult = !showSkeleton && !h.rows.value.length;
+    // 列定义优先取后端下发的 task_columns，缺失时回退默认列并翻译列名
+    const seenFields = new Set<string>();
+    const taskColumns = (
+      h.taskColumns.value.length
+        ? h.taskColumns.value
+        : fallbackTaskColumns.map(column => ({ ...column, name: this.t(column.name) }))
+    ).filter(column => {
+      if (!column.field || column.field === 'operations' || seenFields.has(column.field)) return false;
+      seenFields.add(column.field);
+      return true;
+    });
+    // 已知业务字段保留原有渲染形态，其余按列类型兜底
+    const renderTaskCell = (column: CollectionTaskColumn, row: CollectionExecution) => {
+      const value = (row as unknown as Record<string, unknown>)[column.field];
+      if (column.field === 'collection_type') return collectionTypeLabels[row.collection_type] || '--';
+      if (column.field === 'collection_method') return collectionMethodLabels[row.collection_method] || '--';
+      if (column.field === 'schedule_type') return this.t(scheduleLabels[row.schedule_type]);
+      if (column.type === 'datetime') return formatCollectionTime(typeof value === 'number' ? value : 0, this.timezone);
+      if (column.type === 'duration') return formatExecutionDuration(typeof value === 'number' ? value : null);
+      return value === null || value === undefined || value === '' ? '--' : String(value);
+    };
     const columns: TableProps['columns'] = [
-      { colKey: 'task_name', title: this.t('trace-任务名称'), minWidth: 220, ellipsis: true, cell: 'name' },
+      ...taskColumns.map<NonNullable<TableProps['columns']>[number]>(column => {
+        // 初始列宽决定拖拽起点，minWidth 作为拖拽下限
+        const width = taskColumnMinWidth(column);
+        return {
+          colKey: column.field,
+          title: column.name || column.field,
+          width,
+          minWidth: width,
+          resizable: true,
+          ellipsis: column.type === 'text',
+          cell:
+            taskColumnSlots.get(column.field) || ((_, { row }) => renderTaskCell(column, row as CollectionExecution)),
+          ...(column.field === 'schedule_type'
+            ? {
+                filter: {
+                  type: 'multiple',
+                  resetValue: [],
+                  showConfirmAndReset: true,
+                  list: Object.keys(scheduleLabels).map(value => ({ value, label: this.t(scheduleLabels[value]) })),
+                },
+              }
+            : {}),
+          ...(column.field === 'started_at' || column.field === 'finished_at' ? { sorter: true } : {}),
+          ...(column.field === 'execution_status'
+            ? {
+                filter: {
+                  type: 'single',
+                  list: this.statusFilters
+                    .filter(value => Object.hasOwn(executionStatusLabels, value))
+                    .map(value => ({ value, label: this.t(executionStatusLabels[value]) })),
+                },
+              }
+            : {}),
+        };
+      }),
       {
-        colKey: 'collection_type',
-        title: this.t('采集进程'),
-        width: 160,
-        cell: (_, { row }) => collectionTypeLabels[row.collection_type] || '--',
+        colKey: 'operations',
+        title: this.t('操作'),
+        width: 180,
+        fixed: 'right',
+        resizable: false,
+        cell: 'operations',
       },
-      { colKey: 'hosts', title: this.t('目标'), minWidth: 130, cell: 'targets' },
-      {
-        colKey: 'schedule_type',
-        title: this.t('执行方式'),
-        width: 140,
-        cell: (_, { row }) => this.t(scheduleLabels[row.schedule_type]),
-        filter: {
-          type: 'multiple',
-          resetValue: [],
-          showConfirmAndReset: true,
-          list: Object.keys(scheduleLabels).map(value => ({ value, label: this.t(scheduleLabels[value]) })),
-        },
-      },
-      {
-        colKey: 'started_at',
-        title: this.t('开始时间'),
-        width: 200,
-        sorter: true,
-        cell: (_, { row }) => formatCollectionTime(row.started_at, this.timezone),
-      },
-      {
-        colKey: 'duration_ms',
-        title: this.t('耗时'),
-        width: 100,
-        cell: (_, { row }) => formatExecutionDuration(row.duration_ms),
-      },
-      {
-        colKey: 'execution_status',
-        title: this.t('采集结果'),
-        width: 140,
-        cell: 'status',
-        filter: {
-          type: 'single',
-          list: this.statusFilters
-            .filter(value => Object.hasOwn(executionStatusLabels, value))
-            .map(value => ({ value, label: this.t(executionStatusLabels[value]) })),
-        },
-      },
-      { colKey: 'operations', title: this.t('操作'), width: 180, fixed: 'right', cell: 'operations' },
     ];
     return (
       <section class='collection-tab-panel collection-history-panel'>
@@ -271,18 +319,16 @@ export default defineComponent({
                 );
               },
               name: ({ row }: { row: CollectionExecution }) => (
-                <Button
-                  v-tippy={this.t('查看本次任务执行详情')}
-                  theme='primary'
-                  text
+                <span
+                  class='collection-history-task-name'
                   onClick={() => c.open(row)}
                 >
-                  {row.task_name}
-                </Button>
+                  <span v-tippy={this.t('查看本次任务执行详情')}>{row.task_name}</span>
+                </span>
               ),
               targets: ({ row }: { row: CollectionExecution }) => (
-                <span v-tippy={{ content: row.hosts.map(host => host.ip).join('，'), allowHTML: false }}>
-                  {this.t('共 {n} 台主机', { n: row.target_count })}
+                <span v-tippy={{ content: (row.hosts || []).map(host => host.ip).join('，'), allowHTML: false }}>
+                  {this.t('共 {n} 台主机', { n: row.target_count ?? row.hosts?.length ?? 0 })}
                 </span>
               ),
               status: ({ row }: { row: CollectionExecution }) => (
@@ -343,6 +389,7 @@ export default defineComponent({
             filterRow={emptyResult ? () => null : undefined}
             hover={!showSkeleton}
             needCustomScroll={false}
+            resizable={true}
             rowKey='executionKey'
             size='small'
             onFilterChange={value =>

@@ -22,6 +22,20 @@
     font-size: 12px;
   }
 
+  // 用普通文本承载省略号，按钮内部结构会把列宽撑开
+  .collection-history-task-name {
+    display: block;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    color: #3a84ff;
+    white-space: nowrap;
+    cursor: pointer;
+
+    &:hover {
+      color: #5594fa;
+    }
+  }
+
   > .bk-alert {
     flex-shrink: 0;
     margin-bottom: 12px;

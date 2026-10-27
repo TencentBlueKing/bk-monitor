@@ -90,9 +90,22 @@ export interface CollectionHistoryFilters {
   status: string;
   task_name: string;
 }
+
+export interface CollectionHistoryResult {
+  data: CollectionExecution[];
+  // 缺省时前端回退到默认列，兼容未下发列定义的后端版本
+  task_columns?: CollectionTaskColumn[];
+}
+
 export interface CollectionResultSelection extends CollectionExecutionKey {
   bk_host_id?: number;
   finished_at: null | number;
   scope: 'execution' | 'host';
   started_at: null | number;
+}
+// 后端下发的任务历史表头列定义，field 对应执行记录上的字段
+export interface CollectionTaskColumn {
+  field: string;
+  name: string;
+  type: 'datetime' | 'duration' | 'number' | 'status' | 'text';
 }
