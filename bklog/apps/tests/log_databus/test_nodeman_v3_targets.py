@@ -394,6 +394,30 @@ class PeriodicReconcileTest(TestCase):
         self.mock_installer.return_value.stop.assert_called_once_with(force=True)
         self.assertFalse(NodeManV3SubConfigTarget.objects.get(binding=self.binding, bk_host_id=11).is_desired)
 
+    def test_soft_deleted_collector_keeps_verifying_and_retrying_cleanup(self):
+        from apps.log_databus.tasks import nodeman_v3 as task_module
+
+        NodeManV3SubConfigTarget.objects.create(
+            binding=self.binding,
+            bk_host_id=11,
+            config_file_name="bklog.conf",
+            generation=self.binding.generation,
+            is_desired=False,
+        )
+        self.collector_config.is_active = False
+        self.collector_config.save(update_fields=["is_active", "updated_at"])
+        self.collector_config.delete()
+        self.binding.is_enabled = False
+        self.binding.save(update_fields=["is_enabled", "updated_at"])
+
+        with patch.object(task_module, "_sample_verify") as sample_verify:
+            self._run_targets_task()
+            self._run_targets_task()
+
+        self.assertEqual(sample_verify.call_count, 2)
+        self.assertEqual(self.mock_installer.return_value.stop.call_count, 2)
+        self.mock_installer.return_value.stop.assert_called_with(force=True)
+
     def test_unchanged_target_within_heal_window_does_not_redispatch(self):
         reconcile_binding_targets(self.binding, {11}, [TEMPLATE_NAME])
         self.binding.last_heal_at = timezone.now()
@@ -423,10 +447,10 @@ class PeriodicReconcileTest(TestCase):
         self.mock_installer.return_value.rerun.assert_not_called()
 
     def test_orphan_binding_does_not_squat_the_queue_head(self):
-        # 采集项被硬删而 binding 残留时，若不推进 target_snapshot_at，这条记录会永远排在队首
+        # 采集项被物理硬删而 binding 残留时，若不推进 target_snapshot_at，这条记录会永远排在队首
         # （升序、NULL 最前）占着 RECONCILE_BATCH_LIMIT 的配额，攒够一批之后其余采集项
         # 再也收敛不到 —— 表现是静默漏采，没有任何报错
-        CollectorConfig.objects.filter(collector_config_id=self.binding.collector_config_id).delete()
+        CollectorConfig.origin_objects.filter(collector_config_id=self.binding.collector_config_id).delete()
         self.assertIsNone(self.binding.target_snapshot_at)
 
         self._run_targets_task()

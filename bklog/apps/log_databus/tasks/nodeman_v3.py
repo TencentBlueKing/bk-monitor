@@ -151,10 +151,11 @@ def _touch_snapshot(binding: NodeManV3Binding) -> None:
 
 
 def _reconcile_one_binding(binding: NodeManV3Binding) -> None:
-    collector_snapshot = CollectorConfig.objects.filter(collector_config_id=binding.collector_config_id).first()
+    # 清理恢复必须能读取正常 destroy 后的软删除记录；页面默认 Manager 会过滤它们。
+    collector_snapshot = CollectorConfig.origin_objects.filter(collector_config_id=binding.collector_config_id).first()
     if not collector_snapshot:
         logger.warning(
-            f"[nodeman_v3] collector config gone, skip target reconcile, "
+            f"[nodeman_v3] collector config hard deleted, skip target reconcile, "
             f"collector_config_id={binding.collector_config_id}"
         )
         # 同样要推进快照时间。采集项被硬删而 binding 残留时，这条记录的 target_snapshot_at
@@ -168,7 +169,7 @@ def _reconcile_one_binding(binding: NodeManV3Binding) -> None:
     initial_generation = binding.generation
     initial_is_enabled = binding.is_enabled
     desired_host_ids = None
-    if collector_snapshot.is_active and initial_is_enabled:
+    if not collector_snapshot.is_deleted and collector_snapshot.is_active and initial_is_enabled:
         desired_host_ids = expand_target_hosts(
             collector_snapshot.bk_biz_id,
             collector_snapshot.target_node_type,
@@ -183,7 +184,7 @@ def _reconcile_one_binding(binding: NodeManV3Binding) -> None:
     # 真正写快照/派发前再核对采集项时间戳和 binding 代次，避免定时任务用旧期望态覆盖
     # 已提交的停用、删除或编辑。
     with transaction.atomic():
-        collector_config = CollectorConfig.objects.select_for_update().get(
+        collector_config = CollectorConfig.origin_objects.select_for_update().get(
             collector_config_id=binding.collector_config_id
         )
         current_binding = NodeManV3Binding.objects.select_for_update().get(pk=binding.pk)
@@ -201,7 +202,7 @@ def _reconcile_one_binding(binding: NodeManV3Binding) -> None:
 
         # 停用后仍有待删除目标时继续进入周期清理。force=True 绕过相同空范围指纹的幂等短路，
         # 使上一次 update/execute 失败不会把目标永久留在节点管理。
-        if not collector_config.is_active or not current_binding.is_enabled:
+        if collector_config.is_deleted or not collector_config.is_active or not current_binding.is_enabled:
             # remove_all_targets 的远端派发可能成功，但首次同步目标快照失败。此时 binding 已 disabled，
             # 旧目标行却仍是 desired；先在本地重新落删除意图，保证后续每轮都能继续清理。
             reconcile_binding_targets(
