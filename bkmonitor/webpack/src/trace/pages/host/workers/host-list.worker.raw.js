@@ -40,6 +40,14 @@ const HOST_NUMBER_FILTER_FIELDS = new Set([
   'cpu_load',
   'alarm_count',
 ]);
+/** 主机 ID / IP 类文本过滤字段：行值可能是逗号分隔的多个地址 */
+const HOST_TEXT_FILTER_FIELDS = new Set([
+  'bk_host_id',
+  'bk_host_innerip',
+  'bk_host_innerip_v6',
+  'bk_host_outerip',
+  'bk_host_outerip_v6',
+]);
 const HOST_STATUS_MAP = {
   '-1': { name: '未知' },
   0: { name: '正常' },
@@ -180,6 +188,9 @@ const getNumericValue = (row, key) => {
   return Number.isNaN(numericValue) ? null : numericValue;
 };
 
+/** 将文本搜索值格式化为多个搜索项：支持中英文逗号、分号、顿号、竖线、空白分隔 */
+const splitSearchValues = value => `${value ?? ''}`.split(/[\s,;，；、|]+/).filter(Boolean);
+
 const matchWhereItem = (row, item) => {
   const values = item.value || [];
   if (!values.length) {
@@ -224,22 +235,28 @@ const matchWhereItem = (row, item) => {
       });
     });
   }
-  // 主机 ID / IP 类文本字段：使用 includes 包含模糊匹配（而非枚举精确匹配）
-  if (
-    ['bk_host_id', 'bk_host_innerip_v6', 'bk_host_outerip_v6', 'bk_host_innerip', 'bk_host_outerip'].includes(item.key)
-  ) {
-    const curValue = row?.[item.key];
-    if (curValue && ['number', 'string'].includes(typeof curValue)) {
-      const isMatch = `${curValue}`.includes(item.value?.[0] || '');
-      if (method === 'include') {
-        return isMatch;
-      }
-      if (method === 'exclude') {
-        return !isMatch;
-      }
-      return isMatch;
+  // 主机 ID / IP 类文本字段：单个搜索值模糊匹配，分隔符分隔的多个搜索值精确匹配（任一命中）
+  if (HOST_TEXT_FILTER_FIELDS.has(item.key)) {
+    const isExclude = method === 'exclude';
+    const searchValues = splitSearchValues(values[0]);
+    if (!searchValues.length) {
+      return true;
     }
-    return false;
+    const curValue = row?.[item.key];
+    if (curValue === '' || !['number', 'string'].includes(typeof curValue)) {
+      // 行数据无该字段值时，仅「不包含」命中
+      return isExclude;
+    }
+    // 行值本身可能是逗号分隔的多个地址，需拆分后逐个比较
+    const curValues = `${curValue}`
+      .split(',')
+      .map(value => value.trim())
+      .filter(Boolean);
+    const isMatch =
+      searchValues.length > 1
+        ? searchValues.some(value => curValues.includes(value))
+        : curValues.some(value => value.includes(searchValues[0]));
+    return isExclude ? !isMatch : isMatch;
   }
   // 通配符 key '*'：对整行做全文关键字搜索
   if (item.key === '*') {
