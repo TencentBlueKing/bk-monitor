@@ -450,3 +450,123 @@ class TestRestoreByMetadataFalsyValues(SimpleTestCase):
         self.assertIsInstance(restored["body"], str)
         parsed = json.loads(restored["body"])
         self.assertEqual(parsed["player"]["name"], "")
+
+
+class TestMatchRuleWithJsonSubpath(TestCase):
+    """测试 match_rule 对 JSON 字符串子路径的匹配"""
+
+    @classmethod
+    def setUpTestData(cls):
+        from apps.log_desensitize.models import DesensitizeRule
+
+        DesensitizeRule.objects.create(
+            rule_name="test_mask",
+            operator=DesensitizeOperator.MASK_SHIELD.value,
+            params={"preserve_head": 1, "preserve_tail": 1, "replace_mark": "*"},
+            space_uid="bkcc__test",
+            is_public=False,
+            match_pattern="",
+            match_fields=["body.player.id"],
+            is_active=True,
+        )
+        DesensitizeRule.objects.create(
+            rule_name="test_text_replace",
+            operator=DesensitizeOperator.TEXT_REPLACE.value,
+            params={"template_string": "[FILTERED]"},
+            space_uid="bkcc__test",
+            is_public=False,
+            match_pattern="",
+            match_fields=["log"],
+            is_active=True,
+        )
+
+    def test_match_rule_json_string_subpath(self):
+        """match_rule 能正确匹配 JSON 字符串中的子路径"""
+        logs = [{"body": '{"player":{"id":"12345"}}'}]
+        fields = ["body.player.id"]
+        result = DesensitizeRuleHandler.match_rule("bkcc__test", logs, fields)
+
+        self.assertIn("body.player.id", result)
+        self.assertEqual(len(result["body.player.id"]), 1)
+        self.assertEqual(result["body.player.id"][0]["rule_name"], "test_mask")
+
+    def test_match_rule_json_string_subpath_multiple_logs(self):
+        """多条日志时，match_rule 对 JSON 字符串子路径正确去重"""
+        logs = [
+            {"body": '{"player":{"id":"11111"}}'},
+            {"body": '{"player":{"id":"22222"}}'},
+        ]
+        fields = ["body.player.id"]
+        result = DesensitizeRuleHandler.match_rule("bkcc__test", logs, fields)
+
+        self.assertIn("body.player.id", result)
+        # 规则去重后仍为 1 条
+        self.assertEqual(len(result["body.player.id"]), 1)
+        self.assertEqual(result["body.player.id"][0]["rule_name"], "test_mask")
+
+    def test_match_rule_regular_field_preserved(self):
+        """普通字段（非 JSON 字符串）走 match_rule 仍正常匹配"""
+        logs = [{"log": "some raw text"}]
+        fields = ["log"]
+        result = DesensitizeRuleHandler.match_rule("bkcc__test", logs, fields)
+
+        self.assertIn("log", result)
+        self.assertEqual(result["log"][0]["rule_name"], "test_text_replace")
+
+    def test_match_rule_json_and_scalar(self):
+        """混合 JSON 子路径与标量字段，两者均正确匹配"""
+        logs = [
+            {
+                "body": '{"player":{"id":"12345"}}',
+                "log": "some text",
+            }
+        ]
+        fields = ["body.player.id", "log"]
+        result = DesensitizeRuleHandler.match_rule("bkcc__test", logs, fields)
+
+        self.assertIn("body.player.id", result)
+        self.assertIn("log", result)
+
+    def test_match_rule_no_rules_returns_empty(self):
+        """空间无规则时返回空 dict"""
+        logs = [{"body": '{"player":{"id":"12345"}}'}]
+        fields = ["body.player.id"]
+        result = DesensitizeRuleHandler.match_rule("bkcc__other", logs, fields)
+        self.assertEqual(result["body.player.id"], [])
+
+    def test_match_rule_field_not_in_log(self):
+        """请求的字段在日志中不存在时返回空列表"""
+        logs = [{"body": '{"player":{"id":"12345"}}'}]
+        fields = ["nonexistent.field"]
+        result = DesensitizeRuleHandler.match_rule("bkcc__test", logs, fields)
+        self.assertEqual(result["nonexistent.field"], [])
+
+    def test_match_rule_empty_logs(self):
+        """空日志列表返回空匹配"""
+        result = DesensitizeRuleHandler.match_rule("bkcc__test", [], ["body.player.id"])
+        self.assertEqual(result["body.player.id"], [])
+
+    def test_match_rule_nested_json_string(self):
+        """多层 JSON 字符串嵌套的子路径也能被 match_rule 匹配"""
+        from apps.log_desensitize.models import DesensitizeRule
+
+        DesensitizeRule.objects.create(
+            rule_name="test_nested",
+            operator=DesensitizeOperator.MASK_SHIELD.value,
+            params={"preserve_head": 1, "preserve_tail": 1, "replace_mark": "*"},
+            space_uid="bkcc__test",
+            is_public=False,
+            match_pattern="",
+            match_fields=["body.auth_info.bk_token"],
+            is_active=True,
+        )
+        logs = [
+            {
+                "body": '{"auth_info":"{\\"bk_token\\":\\"test_token_value\\"}","uin":"anonymous"}',
+            }
+        ]
+        fields = ["body.auth_info.bk_token"]
+        result = DesensitizeRuleHandler.match_rule("bkcc__test", logs, fields)
+
+        self.assertIn("body.auth_info.bk_token", result)
+        self.assertEqual(result["body.auth_info.bk_token"][0]["rule_name"], "test_nested")

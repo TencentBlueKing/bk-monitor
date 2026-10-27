@@ -36,7 +36,7 @@ from apps.log_desensitize.exceptions import (
 )
 from apps.log_desensitize.handlers.desensitize_operator import OPERATOR_MAPPING
 from apps.log_desensitize.models import DesensitizeFieldConfig, DesensitizeRule
-from apps.log_desensitize.utils import expand_nested_data, path_aware_expand, restore_by_metadata
+from apps.log_desensitize.utils import path_aware_expand, restore_by_metadata
 from apps.log_search.constants import CollectorScenarioEnum
 from apps.log_search.models import LogIndexSet, Scenario
 from apps.models import model_to_dict
@@ -542,7 +542,8 @@ class DesensitizeRuleHandler:
             if not desensitize_rule_info:
                 continue
             for _original_log in logs:
-                _log = expand_nested_data(_original_log)
+                # 使用 path_aware_expand 展开，支持 JSON 字符串子路径 / flattened 子路径
+                _log, _ = path_aware_expand(_original_log, fields)
                 if _field not in _log and _field not in _original_log:
                     continue
                 _text = str(_original_log[_field]) if _field in _original_log else str(_log[_field])
