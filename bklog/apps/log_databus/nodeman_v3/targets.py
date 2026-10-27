@@ -223,6 +223,16 @@ def purge_removed_targets(binding: NodeManV3Binding, host_ids_without_config: se
     return deleted
 
 
+def has_desired_collector_targets(bk_biz_id: int) -> bool:
+    """业务没有任何 V3 目标快照时，主机反查不需要为 IP 转 host ID 额外依赖 CMDB。"""
+    return NodeManV3SubConfigTarget.objects.filter(
+        binding__bk_biz_id=bk_biz_id,
+        binding__is_enabled=True,
+        binding__collector_config_id__isnull=False,
+        is_desired=True,
+    ).exists()
+
+
 def collector_config_ids_by_host(bk_biz_id: int, bk_host_ids: list[int]) -> dict[int, list[int]]:
     """
     主机反查采集项，替代 V2 的 query_host_subscriptions。

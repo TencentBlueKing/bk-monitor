@@ -183,7 +183,9 @@ TARGET_STATE_TO_COLLECT_STATUS = {
     NodeManV3TargetState.DISPATCHING: CollectStatus.RUNNING,
     NodeManV3TargetState.FAILED: CollectStatus.FAILED,
     NodeManV3TargetState.ABSENT: CollectStatus.PENDING,
-    NodeManV3TargetState.PENDING_REMOVAL: CollectStatus.TERMINATED,
+    # 删除仍在异步收敛，只有文件核验确认无残留后目标行才会被清理。此时不能提前报 TERMINATED，
+    # 否则前端停止轮询并掩盖删除失败。
+    NodeManV3TargetState.PENDING_REMOVAL: CollectStatus.RUNNING,
 }
 
 
@@ -866,6 +868,23 @@ class CollectorStatusReader:
         )
 
         if not row.is_desired:
+            if normalized in (NodeManV3OperationStatus.PENDING, NodeManV3OperationStatus.RUNNING) or (
+                not operation
+                and not missing_operation_is_noop
+                and workflow_status in (NodeManV3OperationStatus.PENDING, NodeManV3OperationStatus.RUNNING)
+            ):
+                status.state = NodeManV3TargetState.DISPATCHING
+                return status
+
+            if normalized == NodeManV3OperationStatus.FAILED or (
+                not operation
+                and not missing_operation_is_noop
+                and workflow_status in (NodeManV3OperationStatus.FAILED, NodeManV3OperationStatus.PARTIAL_FAILED)
+            ):
+                status.state = NodeManV3TargetState.FAILED
+                status.message = _("最近一次删除子配置失败")
+                return status
+
             # 已移出采集范围。删除是异步的，在确认主机上没有残留之前不能说它「不存在」
             status.state = NodeManV3TargetState.PENDING_REMOVAL
             status.message = _("已移出采集目标，等待节点管理删除子配置")
@@ -939,9 +958,13 @@ class CollectorStatusReader:
             "collector_config_id": self.collector_config.collector_config_id,
             "total": len(states),
             "counts": counts,
-            # 兼容旧状态页的三态口径：STALE 归入成功（它确实在出数），PENDING_REMOVAL 不计入
+            # 兼容旧状态页的三态口径：STALE 归入成功（它确实在出数），删除确认前持续算 pending
             "success": counts[NodeManV3TargetState.LATEST] + counts[NodeManV3TargetState.STALE],
-            "pending": counts[NodeManV3TargetState.DISPATCHING] + counts[NodeManV3TargetState.ABSENT],
+            "pending": (
+                counts[NodeManV3TargetState.DISPATCHING]
+                + counts[NodeManV3TargetState.ABSENT]
+                + counts[NodeManV3TargetState.PENDING_REMOVAL]
+            ),
             "failed": counts[NodeManV3TargetState.FAILED],
         }
 

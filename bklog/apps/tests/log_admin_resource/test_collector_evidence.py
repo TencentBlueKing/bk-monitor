@@ -143,11 +143,12 @@ class CollectorControlPlaneSnapshotTest(SimpleTestCase):
 
 @override_settings(ENVIRONMENT="bkte", BK_APP_TENANT_ID="tenant-a")
 class CollectorHostSnapshotTest(SimpleTestCase):
+    @patch("apps.log_databus.handlers.collector.host.has_desired_collector_targets", return_value=False)
     @patch("apps.log_databus.handlers.collector.host.LogIndexSet.objects.filter", return_value=[])
     @patch("apps.log_databus.handlers.collector.host.CollectorConfig.objects.filter")
     @patch("apps.log_databus.handlers.collector.host.NodeApi.query_host_subscriptions", return_value=[])
     def test_shared_collector_handler_preserves_user_request_default(
-        self, mock_query_subscriptions, mock_collectors, _index_sets
+        self, mock_query_subscriptions, mock_collectors, _index_sets, _has_v3_targets
     ):
         mock_collectors.return_value.exists.return_value = True
         mock_collectors.return_value.__iter__.return_value = iter([])
@@ -159,11 +160,12 @@ class CollectorHostSnapshotTest(SimpleTestCase):
         mock_query_subscriptions.assert_called_once_with({"bk_biz_id": 2, "source_type": "subscription"})
         mock_status.assert_called_once_with([], no_request=False, bk_tenant_id=None)
 
+    @patch("apps.log_databus.handlers.collector.host.has_desired_collector_targets", return_value=False)
     @patch("apps.log_databus.handlers.collector.host.LogIndexSet.objects.filter", return_value=[])
     @patch("apps.log_databus.handlers.collector.host.CollectorConfig.objects.filter")
     @patch("apps.log_databus.handlers.collector.host.NodeApi.query_host_subscriptions", return_value=[])
     def test_shared_collector_handler_propagates_explicit_app_identity(
-        self, mock_query_subscriptions, mock_collectors, _index_sets
+        self, mock_query_subscriptions, mock_collectors, _index_sets, _has_v3_targets
     ):
         mock_collectors.return_value.exists.return_value = True
         mock_collectors.return_value.__iter__.return_value = iter([])

@@ -40,7 +40,7 @@ from apps.log_databus.serializers import (
 )
 from apps.log_databus.nodeman_v3.exceptions import NodeManV3CapabilityBlocked
 from apps.log_databus.nodeman_v3.mode import should_use_nodeman_v3
-from apps.log_databus.nodeman_v3.targets import collector_config_ids_by_host
+from apps.log_databus.nodeman_v3.targets import collector_config_ids_by_host, has_desired_collector_targets
 from apps.log_databus.tasks.bkdata import async_create_bkdata_data_id
 from apps.log_databus.constants import (
     CC_HOST_FIELDS,
@@ -128,14 +128,20 @@ class HostCollectorHandler(CollectorHandler):
                 {"subscription_id": self.data.subscription_id, "action": "enable", "bk_biz_id": self.data.bk_biz_id}
             )
 
-    @transaction.atomic
     def start(self, **kwargs):
-        super().start()
         if self.use_nodeman_v3:
+            # 先提交本地启用期望态，再派发远端。execute 响应丢失时 reconciler 会持久化
+            # UNKNOWN operation；这里若有外层事务，异常会把期望态与恢复证据一并回滚。
+            super().start()
             installer = self.nodeman_v3_installer
             installer.start()
             self._persist_nodeman_v3_task_ids(installer)
             return True
+        return self._start_v2(**kwargs)
+
+    @transaction.atomic
+    def _start_v2(self, **kwargs):
+        super().start()
         if self.data.subscription_id:
             return self._run_subscription_task()
         return True
@@ -151,14 +157,19 @@ class HostCollectorHandler(CollectorHandler):
                 {"subscription_id": self.data.subscription_id, "action": "disable", "bk_biz_id": self.data.bk_biz_id}
             )
 
-    @transaction.atomic
     def stop(self, is_stop_index_set=True, **kwargs):
-        super().stop(is_stop_index_set=is_stop_index_set)
         if self.use_nodeman_v3:
+            # 与启用同理，本地停用期望态必须先提交，UNKNOWN 才能由恢复任务按最新状态继续收敛。
+            super().stop(is_stop_index_set=is_stop_index_set)
             installer = self.nodeman_v3_installer
             installer.stop()
             self._persist_nodeman_v3_task_ids(installer)
             return True
+        return self._stop_v2(is_stop_index_set=is_stop_index_set, **kwargs)
+
+    @transaction.atomic
+    def _stop_v2(self, is_stop_index_set=True, **kwargs):
+        super().stop(is_stop_index_set=is_stop_index_set)
         if self.data.subscription_id:
             return self._run_subscription_task("STOP")
         return True
@@ -1781,10 +1792,15 @@ class HostCollectorHandler(CollectorHandler):
         # V3：没有「订阅」这个对象，query_host_subscriptions 无从对应；而 process/list 只到
         # 进程粒度，同机多采集项共用一个 bkunifylogbeat 进程，从节点管理侧根本查不出
         # 这台机器上跑着哪几个采集项。改用本地目标快照（BKL-3 维护）反查。开关关闭后已有
-        # binding 仍归 V3 管理，不能再用准入开关屏蔽这份事实源；表为空时只是一次空查询
+        # binding 仍归 V3 管理，不能再用准入开关屏蔽这份事实源。只有确有 V3 目标快照时
+        # 才为 IP 反查 host ID，避免纯 V2 业务新增 CMDB 强依赖；V3 查询失败也保留已取得的 V2 结果。
         v3_collector_config_ids = set()
-        for ids in collector_config_ids_by_host(bk_biz_id, self._resolve_bk_host_ids(params)).values():
-            v3_collector_config_ids.update(ids)
+        if has_desired_collector_targets(bk_biz_id):
+            try:
+                for ids in collector_config_ids_by_host(bk_biz_id, self._resolve_bk_host_ids(params)).values():
+                    v3_collector_config_ids.update(ids)
+            except Exception:  # pylint: disable=broad-except
+                logger.exception(f"[nodeman_v3] query collectors by host failed, keep V2 result, bk_biz_id={bk_biz_id}")
 
         if not subscription_ids and not v3_collector_config_ids:
             collectors = CollectorConfig.objects.none()

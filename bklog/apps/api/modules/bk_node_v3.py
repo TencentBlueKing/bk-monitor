@@ -29,6 +29,7 @@ the project delivered to anyone in the future.
 from urllib.parse import urljoin
 
 from django.conf import settings
+from django.utils.translation import gettext_lazy as _
 
 from apps.api.base import DataAPI  # noqa
 from apps.api.modules.utils import add_esb_info_before_request  # noqa
@@ -42,7 +43,7 @@ def get_bk_node_v3_request_before(params):
 
 
 class _BKNodeV3Api:
-    MODULE = "节点管理V3"
+    MODULE = _("节点管理V3")
 
     def _build_url(self, action: str) -> str:
         """

@@ -767,6 +767,16 @@ class ReconcileBehaviourTest(TestCase):
         self.assertIsNone(second)
         self.assertEqual(len(self.client.write_calls()), before)
 
+    def test_forced_remove_all_targets_retries_same_empty_scope(self):
+        self._reconciler().reconcile(build_steps())
+        self._reconciler().remove_all_targets()
+        before = len(self.client.write_calls())
+
+        operation = self._reconciler().remove_all_targets(force=True)
+
+        self.assertIsNotNone(operation)
+        self.assertEqual(self.client.write_calls()[before:], ["update", "execute"])
+
     def test_repeated_stop_is_idempotent(self):
         from apps.log_databus.nodeman_v3.constants import NodeManV3OperationType
 
@@ -1148,7 +1158,7 @@ class ListCollectorsByHostGrayTest(TestCase):
             is_desired=True,
         )
 
-    def _list(self):
+    def _list_with_resolver(self, resolver):
         from apps.log_databus.handlers.collector.host import HostCollectorHandler
 
         handler = HostCollectorHandler()
@@ -1156,8 +1166,8 @@ class ListCollectorsByHostGrayTest(TestCase):
             patch.object(
                 HostCollectorHandler,
                 "_resolve_bk_host_ids",
-                staticmethod(lambda params: [self.BK_HOST_ID]),
-            ),
+                side_effect=resolver,
+            ) as resolve_mock,
             patch(
                 "apps.log_databus.handlers.collector.host.NodeApi.query_host_subscriptions",
                 return_value=[{"source_id": 9001}],
@@ -1173,7 +1183,11 @@ class ListCollectorsByHostGrayTest(TestCase):
             patch.object(HostCollectorHandler, "get_subscription_status_by_list", lambda _self, ids, **_kw: []),
         ):
             rows = handler.list_collectors_by_host({"bk_biz_id": self.BK_BIZ_ID, "bk_host_id": self.BK_HOST_ID})
-        return {row["collector_config_id"] for row in rows}
+        return {row["collector_config_id"] for row in rows}, resolve_mock.call_count
+
+    def _list(self):
+        rows, _ = self._list_with_resolver(lambda _params: [self.BK_HOST_ID])
+        return rows
 
     def test_gray_env_returns_both_v2_and_v3_collectors(self):
         self.assertEqual(
@@ -1188,6 +1202,20 @@ class ListCollectorsByHostGrayTest(TestCase):
             self._list(),
             {self.v2_collector.collector_config_id, self.v3_collector.collector_config_id},
         )
+
+    def test_pure_v2_does_not_resolve_host_ids_from_cmdb(self):
+        NodeManV3SubConfigTarget.objects.all().delete()
+
+        rows, resolve_calls = self._list_with_resolver(RuntimeError("cmdb unavailable"))
+
+        self.assertEqual(rows, {self.v2_collector.collector_config_id})
+        self.assertEqual(resolve_calls, 0)
+
+    def test_v3_cmdb_failure_keeps_v2_result(self):
+        rows, resolve_calls = self._list_with_resolver(RuntimeError("cmdb unavailable"))
+
+        self.assertEqual(rows, {self.v2_collector.collector_config_id})
+        self.assertEqual(resolve_calls, 1)
 
     @nodeman_v3_toggle("on")
     def test_no_v2_subscription_means_no_v2_outbound_call(self):

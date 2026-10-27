@@ -349,6 +349,51 @@ class PeriodicReconcileTest(TestCase):
         self._run_targets_task()
         self.mock_installer.return_value.rerun.assert_called_once()
 
+    def test_disable_committed_during_expansion_is_not_overwritten(self):
+        from apps.log_databus.tasks import nodeman_v3 as task_module
+
+        def disable_while_expanding(*_args, **_kwargs):
+            self.collector_config.is_active = False
+            self.collector_config.save(update_fields=["is_active", "updated_at"])
+            self.binding.is_enabled = False
+            self.binding.generation += 1
+            self.binding.save(update_fields=["is_enabled", "generation", "updated_at"])
+            return {11}
+
+        with patch.object(task_module, "expand_target_hosts", side_effect=disable_while_expanding):
+            self._run_targets_task()
+
+        self.mock_installer.return_value.rerun.assert_not_called()
+        self.mock_installer.return_value.stop.assert_not_called()
+        self.assertFalse(NodeManV3SubConfigTarget.objects.filter(binding=self.binding).exists())
+
+    def test_edit_committed_during_expansion_is_not_overwritten(self):
+        from apps.log_databus.tasks import nodeman_v3 as task_module
+
+        def edit_while_expanding(*_args, **_kwargs):
+            self.collector_config.target_nodes = [{"bk_host_id": 22}]
+            self.collector_config.save(update_fields=["target_nodes", "updated_at"])
+            return {11}
+
+        with patch.object(task_module, "expand_target_hosts", side_effect=edit_while_expanding):
+            self._run_targets_task()
+
+        self.mock_installer.return_value.rerun.assert_not_called()
+        self.assertFalse(NodeManV3SubConfigTarget.objects.filter(binding=self.binding).exists())
+
+    def test_disabled_binding_with_pending_removal_retries_cleanup(self):
+        reconcile_binding_targets(self.binding, {11}, [TEMPLATE_NAME])
+        reconcile_binding_targets(self.binding, set(), [TEMPLATE_NAME])
+        self.collector_config.is_active = False
+        self.collector_config.save(update_fields=["is_active", "updated_at"])
+        self.binding.is_enabled = False
+        self.binding.last_heal_at = None
+        self.binding.save(update_fields=["is_enabled", "last_heal_at", "updated_at"])
+
+        self._run_targets_task()
+
+        self.mock_installer.return_value.stop.assert_called_once_with(force=True)
+
     def test_unchanged_target_within_heal_window_does_not_redispatch(self):
         reconcile_binding_targets(self.binding, {11}, [TEMPLATE_NAME])
         self.binding.last_heal_at = timezone.now()
@@ -391,6 +436,8 @@ class PeriodicReconcileTest(TestCase):
 
     def test_one_failing_collector_does_not_abort_the_round(self):
         # 一个业务的 CMDB 抖动不能让其它业务整轮收敛停摆
+        self.binding.last_heal_at = timezone.now()
+        self.binding.save(update_fields=["last_heal_at"])
         other_config = CollectorConfig.objects.create(
             collector_config_id=8002,
             collector_config_name="nmv3_targets_2",
@@ -413,6 +460,8 @@ class PeriodicReconcileTest(TestCase):
         self._run_targets_task()
 
         self.assertEqual(self.mock_installer.return_value.rerun.call_count, 2)
+        self.binding.refresh_from_db()
+        self.assertIsNone(self.binding.last_heal_at)
 
     @nodeman_v3_toggle("off")
     def test_toggle_off_keeps_existing_binding_reconciled(self):

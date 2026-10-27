@@ -28,12 +28,13 @@ from django.utils import timezone
 
 from apps.log_databus.constants import CollectStatus, LogPluginInfo, RunStatus, TargetNodeTypeEnum
 from apps.log_databus.nodeman_v3.constants import (
+    NodeManV3OperationStatus,
     NodeManV3OperationType,
     NodeManV3TargetState,
     RESOURCE_TYPE_COLLECTOR_CONFIG,
 )
 from apps.log_databus.models import CollectorConfig
-from apps.log_databus.nodeman_v3.exceptions import NodeManV3CapabilityBlocked
+from apps.log_databus.nodeman_v3.exceptions import NodeManV3CapabilityBlocked, NodeManV3UnknownResultError
 from apps.log_databus.nodeman_v3.identity import build_resource_key, build_sub_config_name
 from apps.log_databus.nodeman_v3.models import (
     NodeManV3Binding,
@@ -505,6 +506,26 @@ class StatusReaderTest(TestCase):
 
         self.assertEqual(self._reader().refresh()[12].state, NodeManV3TargetState.PENDING_REMOVAL)
 
+    def test_removed_host_with_failed_operation_is_failed(self):
+        self._add_target(12, generation=1, is_desired=False)
+        self.client.host_states = {12: "failed"}
+        self.client.process_states = {12: "stopped"}
+
+        status = self._reader().refresh()[12]
+
+        self.assertEqual(status.state, NodeManV3TargetState.FAILED)
+        self.assertIn("删除子配置失败", str(status.message))
+        self.assertEqual(self._reader().summary()["failed"], 1)
+
+    def test_removed_host_with_failed_parent_workflow_is_failed(self):
+        self._add_target(12, generation=1, is_desired=False)
+        self._expire_child_visibility_grace()
+        self.client.parent_items[0]["status"] = "failed"
+        self.client.parent_items[0]["children"] = []
+        self.client.process_states = {12: "stopped"}
+
+        self.assertEqual(self._reader().refresh()[12].state, NodeManV3TargetState.FAILED)
+
     def test_process_running_alone_does_not_mean_applied(self):
         # 同机多采集项共用一个 bkunifylogbeat 进程，进程活着只说明别的采集项在跑。
         # 这是 BKL-4 明确要消除的口径错误
@@ -662,6 +683,14 @@ class StatusReaderTest(TestCase):
         self._add_target(11, generation=0)
         NodeManV3Workflow.objects.all().delete()
         self.client.process_states = {11: "running"}
+
+        summary = self._reader().summary()
+
+        self.assertEqual(summary["pending"], 1)
+        self.assertEqual(summary_to_status(summary, self.collector_config)["status"], CollectStatus.RUNNING)
+
+    def test_pending_removal_is_counted_as_pending(self):
+        self._add_target(11, generation=1, is_desired=False)
 
         summary = self._reader().summary()
 
@@ -882,9 +911,9 @@ class InstanceDataCompatTest(TestCase):
         data = build_v2_compatible_instance_data({11: self._status(NodeManV3TargetState.FAILED)}, {})
         self.assertEqual(data[0]["status"], CollectStatus.FAILED)
 
-    def test_pending_removal_is_reported_as_terminated(self):
+    def test_pending_removal_is_reported_as_running(self):
         data = build_v2_compatible_instance_data({11: self._status(NodeManV3TargetState.PENDING_REMOVAL)}, {})
-        self.assertEqual(data[0]["status"], CollectStatus.TERMINATED)
+        self.assertEqual(data[0]["status"], CollectStatus.RUNNING)
 
     def test_missing_cmdb_host_does_not_break(self):
         # CMDB 里查不到主机（刚下架）时不能抛异常，否则整页 500
@@ -1102,6 +1131,58 @@ class HostHandlerWiringTest(TestCase):
         installer.start.assert_called_once_with()
         self.collector_config.refresh_from_db()
         self.assertEqual(self.collector_config.task_id_list, ["parent-workflow-start"])
+
+    def test_start_unknown_result_keeps_desired_state_and_recovery_evidence(self):
+        from apps.log_databus.handlers.collector import HostCollectorHandler
+        from apps.log_databus.handlers.collector.base import CollectorHandler
+
+        self.collector_config.is_active = False
+        self.collector_config.save(update_fields=["is_active"])
+        installer = MagicMock()
+
+        def commit_local_desired_state(handler, **_kwargs):
+            handler.data.is_active = True
+            handler.data.save(update_fields=["is_active", "updated_at"])
+            return True
+
+        def leave_unknown_operation():
+            NodeManV3SubConfigTarget.objects.create(
+                binding=self.binding,
+                bk_host_id=11,
+                config_file_name=build_sub_config_name(TEMPLATE_NAME, POLICY_ID),
+                generation=self.binding.generation,
+                is_desired=True,
+            )
+            NodeManV3Operation.objects.create(
+                binding=self.binding,
+                operation_type=NodeManV3OperationType.RECONCILE,
+                generation=self.binding.generation,
+                status=NodeManV3OperationStatus.UNKNOWN,
+            )
+            raise NodeManV3UnknownResultError("execute response lost")
+
+        installer.start.side_effect = leave_unknown_operation
+        with (
+            patch.object(CollectorHandler, "start", autospec=True, side_effect=commit_local_desired_state),
+            patch.object(
+                HostCollectorHandler,
+                "nodeman_v3_installer",
+                new_callable=PropertyMock,
+                return_value=installer,
+            ),
+            self.assertRaises(NodeManV3UnknownResultError),
+        ):
+            self.handler.start()
+
+        self.collector_config.refresh_from_db()
+        self.assertTrue(self.collector_config.is_active)
+        self.assertTrue(NodeManV3SubConfigTarget.objects.filter(binding=self.binding, is_desired=True).exists())
+        self.assertTrue(
+            NodeManV3Operation.objects.filter(
+                binding=self.binding,
+                status=NodeManV3OperationStatus.UNKNOWN,
+            ).exists()
+        )
 
     def test_destroy_persists_latest_parent_workflow_id(self):
         from apps.log_databus.handlers.collector import HostCollectorHandler

@@ -274,8 +274,8 @@ class PolicyReconcilerBase:
         except NodeManV3UnknownResultError as err:
             # 指纹此时仍是旧值，下一次保存或定时收敛会重新推一遍期望态；
             # create 会先按策略名反查、update 是整体覆盖，因此重放不会产生第二个策略或重复子配置。
-            # 注意调用方可能处于事务中（start/stop 带 @transaction.atomic），这条记录会随之回滚，
-            # 写结果未知的持久证据以出站审计日志为准。
+            # 调用方不得让异常回滚这条记录：handler 先提交本地期望态再派发，定时收敛则在锁事务内
+            # 吞住派发异常并提交本记录，恢复任务才能据此继续收敛。
             operation.status = NodeManV3OperationStatus.UNKNOWN
             operation.result_state = NodeManV3ResultState.WRITE_RESULT_UNKNOWN
             operation.error_message = str(err)
@@ -484,7 +484,7 @@ class CollectorPolicyReconciler(PolicyReconcilerBase):
 
         return operation
 
-    def remove_all_targets(self) -> NodeManV3Operation | None:
+    def remove_all_targets(self, force: bool = False) -> NodeManV3Operation | None:
         """
         清空已部署策略的目标范围，但保留 NodeMan 侧当前 specs。
 
@@ -503,7 +503,7 @@ class CollectorPolicyReconciler(PolicyReconcilerBase):
             "scopes": [],
         }
         fingerprint = calculate_fingerprint(payload)
-        collector_changed = binding.policy_fingerprint != fingerprint or not binding.deploy_policy_id
+        collector_changed = force or binding.policy_fingerprint != fingerprint or not binding.deploy_policy_id
 
         if binding.desired_scopes or binding.is_enabled:
             binding.desired_scopes = []

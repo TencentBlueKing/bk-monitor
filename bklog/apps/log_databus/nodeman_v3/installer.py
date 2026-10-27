@@ -87,7 +87,7 @@ class NodeManV3CollectorInstaller:
         steps = self.build_steps(self._stored_params())
         return self.reconciler.reconcile(steps, target_nodes=self.collector_config.target_nodes)
 
-    def stop(self):
+    def stop(self, force: bool = False):
         """
         停用采集项：清空目标范围，让收敛器按文件名精确删除本策略下发的子配置。
 
@@ -106,7 +106,7 @@ class NodeManV3CollectorInstaller:
 
         # 清理必须与当前待下发参数解耦：一次被准入门禁拒绝的配置保存，不能反过来阻止
         # 已部署采集的停用/删除。reconciler 只清空 scopes，并通过字段掩码保留远端 specs。
-        return self.reconciler.remove_all_targets()
+        return self.reconciler.remove_all_targets(force=force)
 
     def _has_deployed_policy(self) -> bool:
         binding = NodeManV3Binding.objects.filter(

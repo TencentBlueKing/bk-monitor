@@ -23,6 +23,8 @@ import datetime
 
 from blueapps.contrib.celery_tools.periodic import periodic_task
 from celery.schedules import crontab
+from django.db import transaction
+from django.db.models import Q
 from django.utils import timezone
 
 from apps.log_databus.models import CollectorConfig
@@ -70,11 +72,14 @@ def reconcile_nodeman_v3_targets():
     兜底重放一次。
     """
     # binding 是已确立的粘性归属。FeatureToggle 关闭只停止新准入，不能停止历史 V3 采集项收敛
-    bindings = NodeManV3Binding.objects.filter(
-        resource_type=RESOURCE_TYPE_COLLECTOR_CONFIG,
-        is_enabled=True,
-        deploy_policy_id__isnull=False,
-    ).order_by("target_snapshot_at", "id")[:RECONCILE_BATCH_LIMIT]
+    bindings = (
+        NodeManV3Binding.objects.filter(
+            resource_type=RESOURCE_TYPE_COLLECTOR_CONFIG,
+        )
+        .filter(Q(is_enabled=True, deploy_policy_id__isnull=False) | Q(targets__is_desired=False))
+        .distinct()
+        .order_by("target_snapshot_at", "id")[:RECONCILE_BATCH_LIMIT]
+    )
 
     for binding in bindings:
         try:
@@ -146,8 +151,8 @@ def _touch_snapshot(binding: NodeManV3Binding) -> None:
 
 
 def _reconcile_one_binding(binding: NodeManV3Binding) -> None:
-    collector_config = CollectorConfig.objects.filter(collector_config_id=binding.collector_config_id).first()
-    if not collector_config:
+    collector_snapshot = CollectorConfig.objects.filter(collector_config_id=binding.collector_config_id).first()
+    if not collector_snapshot:
         logger.warning(
             f"[nodeman_v3] collector config gone, skip target reconcile, "
             f"collector_config_id={binding.collector_config_id}"
@@ -158,42 +163,110 @@ def _reconcile_one_binding(binding: NodeManV3Binding) -> None:
         _touch_snapshot(binding)
         return
 
-    desired_host_ids = expand_target_hosts(
-        collector_config.bk_biz_id,
-        collector_config.target_node_type,
-        collector_config.target_nodes,
-    )
-    diff = reconcile_binding_targets(binding, desired_host_ids, binding.sub_config_template_names or [])
+    binding.refresh_from_db()
+    initial_collector_updated_at = collector_snapshot.updated_at
+    initial_generation = binding.generation
+    initial_is_enabled = binding.is_enabled
+    desired_host_ids = None
+    if collector_snapshot.is_active and initial_is_enabled:
+        desired_host_ids = expand_target_hosts(
+            collector_snapshot.bk_biz_id,
+            collector_snapshot.target_node_type,
+            collector_snapshot.target_nodes,
+        )
 
-    # 放在收敛判断之前：目标没变的那一轮同样需要抽查，文件名契约失配与残留子配置
-    # 都与目标有没有变化无关
+    # 文件抽查会产生外部请求，不放进下面的行锁事务。purge 在真正删除时仍按 is_desired=False
+    # 过滤，因此即使同时发生重新启用，也不会删掉已重新变成 desired 的目标行。
     _sample_verify(binding)
 
-    now = timezone.now()
-    needs_heal = binding.last_heal_at is None or binding.last_heal_at < now - datetime.timedelta(
-        minutes=FULL_HEAL_INTERVAL_MINUTES
-    )
-    if not diff.changed and not needs_heal:
-        binding.target_snapshot_at = now
-        binding.save(update_fields=["target_snapshot_at", "updated_at", "updated_by"])
-        return
+    # 同 collector handler 保持 collector -> binding 的锁顺序。目标展开在锁外完成，
+    # 真正写快照/派发前再核对采集项时间戳和 binding 代次，避免定时任务用旧期望态覆盖
+    # 已提交的停用、删除或编辑。
+    with transaction.atomic():
+        collector_config = CollectorConfig.objects.select_for_update().get(
+            collector_config_id=binding.collector_config_id
+        )
+        current_binding = NodeManV3Binding.objects.select_for_update().get(pk=binding.pk)
+        if (
+            collector_config.updated_at != initial_collector_updated_at
+            or current_binding.generation != initial_generation
+            or current_binding.is_enabled != initial_is_enabled
+        ):
+            return
 
-    # 重放走与手工保存完全相同的收敛入口，force=True 跳过指纹短路。
-    # 这里不能只 execute 已有策略：目标变化时策略的 scopes 本身也要改写，
-    # 而 execute 只会按策略**当前**的期望态收敛。
-    from apps.log_databus.nodeman_v3.installer import NodeManV3CollectorInstaller
+        now = timezone.now()
+        needs_heal = current_binding.last_heal_at is None or current_binding.last_heal_at < now - datetime.timedelta(
+            minutes=FULL_HEAL_INTERVAL_MINUTES
+        )
 
-    NodeManV3CollectorInstaller(collector_config).rerun()
+        # 停用后仍有待删除目标时继续进入周期清理。force=True 绕过相同空范围指纹的幂等短路，
+        # 使上一次 update/execute 失败不会把目标永久留在节点管理。
+        if not collector_config.is_active or not current_binding.is_enabled:
+            pending_removal = current_binding.targets.filter(is_desired=False).exists()
+            if pending_removal:
+                from apps.log_databus.nodeman_v3.installer import NodeManV3CollectorInstaller
 
-    binding.refresh_from_db()
-    binding.target_snapshot_at = now
-    binding.last_heal_at = now
-    binding.save(update_fields=["target_snapshot_at", "last_heal_at", "updated_at", "updated_by"])
-    logger.info(
-        f"[nodeman_v3] target reconcile dispatched, "
-        f"collector_config_id={binding.collector_config_id}, "
-        f"diff={diff.summary()}, heal={needs_heal}"
-    )
+                try:
+                    NodeManV3CollectorInstaller(collector_config).stop(force=True)
+                except Exception:  # pylint: disable=broad-except
+                    # 在锁事务内吞住后提交 FAILED/UNKNOWN operation，再由下一轮重试。
+                    # 若让异常穿出 atomic，恰好会把恢复任务所依赖的失败证据一起回滚。
+                    logger.exception(
+                        f"[nodeman_v3] retry target cleanup failed, "
+                        f"collector_config_id={collector_config.collector_config_id}"
+                    )
+                    current_binding.target_snapshot_at = now
+                    current_binding.save(update_fields=["target_snapshot_at", "updated_at", "updated_by"])
+                    return
+                current_binding.last_heal_at = now
+            current_binding.target_snapshot_at = now
+            update_fields = ["target_snapshot_at", "updated_at", "updated_by"]
+            if pending_removal:
+                update_fields.append("last_heal_at")
+            current_binding.save(update_fields=update_fields)
+            return
+
+        if desired_host_ids is None:
+            return
+        diff = reconcile_binding_targets(
+            current_binding, desired_host_ids, current_binding.sub_config_template_names or []
+        )
+
+        if not diff.changed and not needs_heal:
+            current_binding.target_snapshot_at = now
+            current_binding.save(update_fields=["target_snapshot_at", "updated_at", "updated_by"])
+            return
+
+        # 重放走与手工保存完全相同的收敛入口，force=True 跳过指纹短路。
+        # 这里不能只 execute 已有策略：目标变化时策略的 scopes 本身也要改写，
+        # 而 execute 只会按策略**当前**的期望态收敛。
+        from apps.log_databus.nodeman_v3.installer import NodeManV3CollectorInstaller
+
+        try:
+            NodeManV3CollectorInstaller(collector_config).rerun()
+        except Exception:  # pylint: disable=broad-except
+            # 同停用清理：提交本轮目标快照以及 FAILED/UNKNOWN operation，不能让外层锁事务回滚。
+            logger.exception(
+                f"[nodeman_v3] target reconcile dispatch failed, "
+                f"collector_config_id={collector_config.collector_config_id}"
+            )
+            current_binding.refresh_from_db()
+            current_binding.target_snapshot_at = now
+            # target diff 已写入本地；清空 heal 时间，确保下一轮仍会重放，而不是因 diff 变为
+            # unchanged 后等满 FULL_HEAL_INTERVAL_MINUTES。
+            current_binding.last_heal_at = None
+            current_binding.save(update_fields=["target_snapshot_at", "last_heal_at", "updated_at", "updated_by"])
+            return
+
+        current_binding.refresh_from_db()
+        current_binding.target_snapshot_at = now
+        current_binding.last_heal_at = now
+        current_binding.save(update_fields=["target_snapshot_at", "last_heal_at", "updated_at", "updated_by"])
+        logger.info(
+            f"[nodeman_v3] target reconcile dispatched, "
+            f"collector_config_id={current_binding.collector_config_id}, "
+            f"diff={diff.summary()}, heal={needs_heal}"
+        )
 
 
 @periodic_task(run_every=crontab(minute=f"*/{TARGET_RECONCILE_INTERVAL_MINUTES}"))
