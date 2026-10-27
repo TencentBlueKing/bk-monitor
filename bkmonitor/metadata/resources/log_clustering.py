@@ -13,6 +13,7 @@ import json
 import logging
 from typing import Any
 
+import pydantic
 from django.conf import settings
 from django.db import transaction
 from rest_framework import serializers
@@ -27,6 +28,7 @@ from metadata.models.data_link import DataLinkResourceConfigBase
 from metadata.models.data_link import utils as data_link_utils
 from metadata.models.constants import EsSourceType
 from metadata.models.data_link.constants import DataLinkKind, DataLinkNameScene
+from metadata.models.result_table import LogV4DataLinkOption
 from metadata.resources.log_datalink import CreateOrUpdateLogRouter, ParamsSerializer
 from metadata.task.datalink import apply_log_datalink
 
@@ -40,7 +42,7 @@ __all__ = [
 ]
 
 # 单租户部署下 BKBase 日志聚类动作/状态接口路径中的租户
-# TODO: 待 BKBase 确认正式 schema（B01）后核对
+# TODO: 当前取 BKBase 联调环境示例值，待 BKBase 正式接口约定单租户路径租户后核对
 BKBASE_SINGLE_TENANT = "default"
 BKBASE_ACTIONS = ["drain", "finish", "resume"]
 # metadata 内部动作：切换 Databus 是否引用聚类 Sink 后完整下发日志链路
@@ -123,11 +125,40 @@ def get_log_clustering_datalink(bk_tenant_id: str, table_id: str, check_storage:
         raise ValidationError(f"table_id({table_id}) is not a bk_log datalink")
     if not check_storage:
         return datalink
-    if not models.ESStorage.objects.filter(bk_tenant_id=bk_tenant_id, table_id=table_id).exists():
+
+    # 与 compose_log_configs 生成存储绑定的条件保持一致：存储记录存在且 V4 Option 声明了对应存储配置
+    option = models.ResultTableOption.objects.filter(
+        bk_tenant_id=bk_tenant_id, table_id=table_id, name=models.ResultTableOption.OPTION_V4_LOG_DATA_LINK
+    ).first()
+    if option is None:
+        raise ValidationError(f"table_id({table_id}) has no log v4 datalink option")
+    try:
+        datalink_option = LogV4DataLinkOption(**json.loads(option.value))
+    except (pydantic.ValidationError, TypeError, ValueError) as e:
+        raise ValidationError(f"table_id({table_id}) log v4 datalink option is invalid: {e}")
+    if not (
+        datalink_option.es_storage_config
+        and models.ESStorage.objects.filter(bk_tenant_id=bk_tenant_id, table_id=table_id).exists()
+    ):
         raise ValidationError(f"table_id({table_id}) has no elasticsearch storage")
-    if models.DorisStorage.objects.filter(bk_tenant_id=bk_tenant_id, table_id=table_id).exists():
+    if (
+        datalink_option.doris_storage_config
+        and models.DorisStorage.objects.filter(bk_tenant_id=bk_tenant_id, table_id=table_id).exists()
+    ):
         raise ValidationError(f"table_id({table_id}) with doris storage is not supported")
     return datalink
+
+
+def get_log_clustering_pattern_cluster(bk_tenant_id: str, pattern_resource: dict[str, Any]) -> models.ClusterInfo:
+    """patternResource 对应的 metadata ES 集群；metadata 注册到 BKBase 的 ES 资源名即集群名"""
+    pattern_cluster = models.ClusterInfo.objects.filter(
+        bk_tenant_id=pattern_resource.get("tenant") or bk_tenant_id,
+        cluster_type=models.ClusterInfo.TYPE_ES,
+        cluster_name=pattern_resource.get("name"),
+    ).first()
+    if pattern_cluster is None:
+        raise ValidationError(f"pattern_resource({pattern_resource}) is not a metadata elasticsearch cluster")
+    return pattern_cluster
 
 
 def get_log_clustering_databus(datalink: models.DataLink) -> models.DataBusConfig:
@@ -253,6 +284,10 @@ class SetLogClusteringConfigResource(Resource):
 
         datalink = get_log_clustering_datalink(bk_tenant_id, table_id)
         databus = get_log_clustering_databus(datalink)
+        get_log_clustering_pattern_cluster(bk_tenant_id, config_fields["pattern_resource"])
+        dsrt = models.DataSourceResultTable.objects.filter(bk_tenant_id=bk_tenant_id, table_id=table_id).last()
+        if dsrt is None:
+            raise ValidationError(f"table_id({table_id}) related datasource not found")
 
         with transaction.atomic(using=DATABASE_CONNECTION_NAME):
             lock_log_clustering_datalink(datalink)
@@ -265,9 +300,7 @@ class SetLogClusteringConfigResource(Resource):
                     sink = data_link_utils.create_resource_with_random_name(
                         models.LogClusteringSinkConfig,
                         DataLinkNameScene.LOG_CLUSTERING_SINK,
-                        models.DataSourceResultTable.objects.get(
-                            bk_tenant_id=bk_tenant_id, table_id=table_id
-                        ).bk_data_id,
+                        dsrt.bk_data_id,
                         bk_tenant_id=bk_tenant_id,
                         namespace=datalink.namespace,
                         data_link_name=datalink.data_link_name,

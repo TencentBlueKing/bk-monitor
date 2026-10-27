@@ -8,13 +8,16 @@
 
 动作只表示请求已提交，实际排空、解绑结果需通过 get_log_clustering_status 回读。
 
+每次动作都会推进配置版本，且版本在调用 BKBase 之前提交：动作失败后须使用同一 operation_id 重试（按重放处理并重新执行动作）；
+如需改用新的 operation_id，先通过 get_log_clustering_status 读取当前 revision 作为 expected_revision。
+
 ### 请求参数
 
 | 字段                | 类型     | 必选 | 描述                                     |
 |-------------------|--------|----|----------------------------------------|
 | bk_tenant_id      | string | 否  | 租户ID，缺省时取请求租户                          |
 | table_id          | string | 是  | 日志采集项对应的监控结果表ID                        |
-| operation_id      | string | 是  | 操作ID；同一操作重试时保持不变                       |
+| operation_id      | string | 是  | 操作ID；同一操作重试（含动作失败后的重试）时保持不变             |
 | expected_revision | int    | 是  | 期望的当前配置版本，与当前版本不一致时拒绝                  |
 | action            | string | 是  | drain、finish、resume、detach、attach 之一 |
 

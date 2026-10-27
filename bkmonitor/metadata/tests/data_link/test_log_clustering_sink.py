@@ -164,8 +164,8 @@ LOG_TABLE_ID = "2_bklog.clustering_demo"
 LOG_DATA_LINK_NAME = "bklog_clustering_link"
 
 
-@pytest.fixture
-def log_datalink(default_biz):
+def create_log_datalink() -> tuple[DataLink, models.DataSource]:
+    """创建单 ES 存储的日志 V4 链路及其已登记的 Databus"""
     data_source = models.DataSource.objects.create(
         bk_data_id=91101,
         data_name="bklog_clustering_demo",
@@ -230,6 +230,11 @@ def log_datalink(default_biz):
         consumer_group="raw_consumer_group",
     )
     return datalink, data_source
+
+
+@pytest.fixture
+def log_datalink(default_biz):
+    return create_log_datalink()
 
 
 def compose(datalink: DataLink, data_source) -> tuple[list[dict], ExistingComponentContext]:
@@ -310,6 +315,21 @@ def test_merge_with_remote_databus_keeps_generated_sinks(remote_sinks, generated
     merged = DataLink.merge_component_config(remote, generated)
 
     assert merged["spec"] == {"sinks": generated_sinks, "preferCluster": {"name": "c"}}
+
+
+@override_settings(ENABLE_MULTI_TENANT_MODE=False)
+@pytest.mark.django_db(databases="__all__")
+def test_compose_log_configs_warns_only_when_existing_raw_sink_changes(log_datalink, mocker):
+    warning = mocker.patch("metadata.models.data_link.data_link.logger.warning")
+    sink = create_clustering_sink(raw_sink={})
+
+    compose(*log_datalink)
+    assert not any("raw_sink changed" in call.args[0] for call in warning.call_args_list)
+
+    sink.raw_sink = {**ES_BINDING_REF, "name": "previous_es_binding"}
+    sink.save()
+    compose(*log_datalink)
+    assert any("raw_sink changed" in call.args[0] for call in warning.call_args_list)
 
 
 @override_settings(ENABLE_MULTI_TENANT_MODE=False)
