@@ -398,33 +398,34 @@ class OperateLogClusteringResource(Resource):
         datalink = get_log_clustering_datalink(bk_tenant_id, table_id)
         databus = get_log_clustering_databus(datalink)
 
-        with transaction.atomic(using=DATABASE_CONNECTION_NAME):
-            lock_log_clustering_datalink(datalink)
-            sink = get_log_clustering_sink(datalink, for_update=True)
-            if sink is None:
-                raise ValidationError(f"table_id({table_id}) has no log clustering config")
-            is_replay = check_log_clustering_operation(
-                sink, operation_id, request_digest, validated_request_data["expected_revision"]
-            )
-            if not is_replay:
-                if action in SINK_REFERENCE_ACTIONS:
-                    sink.attached = SINK_REFERENCE_ACTIONS[action]
-                sink.revision += 1
-                sink.last_operation_id = operation_id
-                sink.last_request_digest = request_digest
-                sink.save()
+        with serialize_log_clustering_change(datalink):
+            with transaction.atomic(using=DATABASE_CONNECTION_NAME):
+                lock_log_clustering_datalink(datalink)
+                sink = get_log_clustering_sink(datalink, for_update=True)
+                if sink is None:
+                    raise ValidationError(f"table_id({table_id}) has no log clustering config")
+                is_replay = check_log_clustering_operation(
+                    sink, operation_id, request_digest, validated_request_data["expected_revision"]
+                )
+                if not is_replay:
+                    if action in SINK_REFERENCE_ACTIONS:
+                        sink.attached = SINK_REFERENCE_ACTIONS[action]
+                    sink.revision += 1
+                    sink.last_operation_id = operation_id
+                    sink.last_request_digest = request_digest
+                    sink.save()
 
-        bkbase_result = None
-        if action in SINK_REFERENCE_ACTIONS:
-            apply_log_datalink(bk_tenant_id=bk_tenant_id, table_id=table_id)
-        else:
-            bkbase_result = api.bkdata.log_clustering_action(
-                bk_tenant_id=bk_tenant_id,
-                tenant=get_bkbase_tenant(bk_tenant_id),
-                namespace=databus.namespace,
-                databus_name=databus.name,
-                action=action,
-            )
+            bkbase_result = None
+            if action in SINK_REFERENCE_ACTIONS:
+                apply_log_datalink(bk_tenant_id=bk_tenant_id, table_id=table_id)
+            else:
+                bkbase_result = api.bkdata.log_clustering_action(
+                    bk_tenant_id=bk_tenant_id,
+                    tenant=get_bkbase_tenant(bk_tenant_id),
+                    namespace=databus.namespace,
+                    databus_name=databus.name,
+                    action=action,
+                )
 
         logger.info(
             "OperateLogClusteringResource: table_id->[%s] sink->[%s] action->[%s] revision->[%s] "

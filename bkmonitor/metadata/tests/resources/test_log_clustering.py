@@ -382,6 +382,29 @@ def test_operation_replay_keeps_revision_and_resends_action(clustering_datalink,
         operate("finish", expected_revision=1, operation_id="drain-op")
 
 
+def test_operation_is_rejected_while_another_change_is_in_progress(clustering_datalink, bkbase, change_lock):
+    set_config()
+    change_lock.held.add(f"metadata:log_clustering:system:{LOG_DATA_LINK_NAME}")
+
+    with pytest.raises(ValidationError, match="in progress"):
+        operate("detach", expected_revision=1)
+    assert get_sink().revision == 1
+    assert get_sink().attached is True
+
+
+def test_detach_reapplies_datalink_while_holding_change_lock(clustering_datalink, bkbase, change_lock):
+    set_config()
+    lock_name = f"metadata:log_clustering:system:{LOG_DATA_LINK_NAME}"
+    held_during_apply = []
+    bkbase["apply_log_datalink"].side_effect = lambda **kwargs: held_during_apply.append(lock_name in change_lock.held)
+
+    result = operate("detach", expected_revision=1)
+
+    assert result["revision"] == 2
+    assert held_during_apply == [True]
+    assert lock_name not in change_lock.held
+
+
 def test_operate_without_config_is_rejected(clustering_datalink, bkbase):
     with pytest.raises(ValidationError, match="no log clustering config"):
         operate("drain", expected_revision=0)
