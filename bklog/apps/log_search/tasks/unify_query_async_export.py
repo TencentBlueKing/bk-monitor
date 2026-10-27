@@ -298,7 +298,7 @@ def set_expired_status(async_task_id):
     async_task.save(update_fields=["export_status"])
 
 
-# 保留任务名称，兼容数据库中已有的定时任务配置。
+# name 沿用旧模块路径，兼容数据库中已有的任务名；改名需同步迁移调度记录。
 @periodic_task(name="apps.log_search.tasks.async_export.clean_expired_status", run_every=crontab(minute="10", hour="3"))
 def clean_expired_status():
     """
@@ -310,6 +310,7 @@ def clean_expired_status():
     ).update(export_status=ExportStatus.DOWNLOAD_EXPIRED)
 
 
+# name 沿用旧模块路径，兼容数据库中已有的任务名；改名需同步迁移调度记录。
 @periodic_task(
     name="apps.log_search.tasks.async_export.error_async_export_tasks_turn_to_failed",
     run_every=crontab(minute="20", hour="3"),
@@ -389,6 +390,7 @@ def error_async_export_tasks_turn_to_failed():
     )
 
 
+# name 沿用旧模块路径，兼容数据库中已有的任务名；改名需同步迁移调度记录。
 @periodic_task(name="apps.log_search.tasks.async_export.clean_expired_task", run_every=crontab(minute="0", hour="3"))
 def clean_expired_task():
     """
