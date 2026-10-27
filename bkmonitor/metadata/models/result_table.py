@@ -3251,6 +3251,7 @@ class ResultTableOption(OptionBase):
     OPTION_METRIC_GROUP_DIMENSIONS = "metric_group_dimensions"
     OPTION_QUERY_ROUTER_CONFIG = "query_router_config"
     OPTION_DATABUS_PREFER_CLUSTER = "databus_prefer_cluster"
+    OPTION_DATA_LABEL_ALIASES = "data_label_aliases"
 
     # 选项类型
     TYPE_BOOL = "bool"
@@ -3262,6 +3263,7 @@ class ResultTableOption(OptionBase):
         "need_add_time",  # 是否需要添加时间字段
         "time_field",  # 指定查询时间单位，如：day、hour、minute、second
         OPTION_BINDING_BCS_CLUSTER_ID,  # 绑定BCS集群ID
+        OPTION_DATA_LABEL_ALIASES,  # 额外的数据标签查询别名
     ]
 
     table_id = models.CharField("结果表ID", max_length=128, db_index=True)
