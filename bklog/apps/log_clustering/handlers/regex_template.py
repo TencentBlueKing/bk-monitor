@@ -33,8 +33,8 @@ from apps.log_clustering.exceptions import (
 )
 from apps.log_clustering.handlers.dataflow.constants import OnlineTaskTrainingArgs
 from apps.log_clustering.models import ClusteringConfig, RegexTemplate
-from apps.log_search.index_set_name import display_index_set_name
 from apps.log_search.models import LogIndexSet
+from apps.log_search.utils import display_index_set_name
 
 
 class RegexTemplateHandler:

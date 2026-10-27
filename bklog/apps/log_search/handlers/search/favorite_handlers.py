@@ -46,7 +46,6 @@ from apps.log_search.exceptions import (
     FavoriteUnionSearchNotExistException,
     FavoriteVisibleTypeNotAllowedModifyException,
 )
-from apps.log_search.index_set_name import display_index_set_name
 from apps.log_search.models import (
     Favorite,
     FavoriteGroup,
@@ -54,6 +53,7 @@ from apps.log_search.models import (
     LogIndexSet,
     build_favorite_scope_query,
 )
+from apps.log_search.utils import display_index_set_name
 from apps.models import model_to_dict
 from apps.utils.local import (
     get_request_app_code,

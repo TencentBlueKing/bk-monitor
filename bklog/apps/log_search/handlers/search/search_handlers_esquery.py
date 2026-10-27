@@ -113,7 +113,6 @@ from apps.log_search.handlers.es.indices_optimizer_context_tail import (
 )
 from apps.log_search.handlers.search.mapping_handlers import MappingHandlers
 from apps.log_search.handlers.search.pre_search_handlers import PreSearchHandlers
-from apps.log_search.index_set_name import display_index_set_name
 from apps.log_search.models import (
     AsyncTask,
     IndexSetFieldsConfig,
@@ -126,7 +125,7 @@ from apps.log_search.models import (
     UserIndexSetSearchHistory,
 )
 from apps.log_search.permission import Permission
-from apps.log_search.utils import sort_func, handle_es_query_error
+from apps.log_search.utils import display_index_set_name, sort_func, handle_es_query_error
 from apps.models import model_to_dict
 from apps.utils.cache import cache_five_minute
 from apps.utils.core.cache.cmdb_host import CmdbHostCache

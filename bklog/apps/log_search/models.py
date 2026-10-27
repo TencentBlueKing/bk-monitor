@@ -97,8 +97,7 @@ from apps.log_search.exceptions import (
     ScenarioNotSupportedException,
     SourceDuplicateException,
 )
-from apps.log_search.index_set_name import display_index_set_name
-from apps.log_search.utils import fetch_request_username
+from apps.log_search.utils import display_index_set_name, fetch_request_username
 from apps.log_search.export.models import ExportJob  # noqa: F401
 from apps.models import (
     JsonField,

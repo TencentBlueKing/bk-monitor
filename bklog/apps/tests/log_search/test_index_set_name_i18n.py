@@ -9,7 +9,6 @@ from apps.log_search.constants import FavoriteVisibleType, IndexSetDataType, Ind
 from apps.log_search.handlers.index_set import IndexSetHandler
 from apps.log_search.handlers.search.favorite_handlers import FavoriteHandler
 from apps.log_search.handlers.search.search_handlers_esquery import SearchHandler
-from apps.log_search.index_set_name import display_index_set_name
 from apps.log_search.models import (
     Favorite,
     LogIndexSet,
@@ -17,6 +16,7 @@ from apps.log_search.models import (
     Scenario,
     UserIndexSetSearchHistory,
 )
+from apps.log_search.utils import display_index_set_name
 
 
 class DisplayIndexSetNameTest(SimpleTestCase):
