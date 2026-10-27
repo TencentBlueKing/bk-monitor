@@ -36,7 +36,7 @@ from apps.log_desensitize.exceptions import (
 )
 from apps.log_desensitize.handlers.desensitize_operator import OPERATOR_MAPPING
 from apps.log_desensitize.models import DesensitizeFieldConfig, DesensitizeRule
-from apps.log_desensitize.utils import path_aware_expand, restore_by_metadata
+from apps.log_desensitize.utils import path_aware_expand, restore_by_metadata, _extract_value_by_path
 from apps.log_search.constants import CollectorScenarioEnum
 from apps.log_search.models import LogIndexSet, Scenario
 from apps.models import model_to_dict
@@ -662,35 +662,50 @@ class DesensitizeRuleHandler:
         configured_paths = list(field_names)
 
         # 日志原文脱敏处理
-        for _log in logs:
-            _log, restore_metadata = path_aware_expand(_log, configured_paths)
-
-            # 保存一份未处理之前的日志字段，用于日志原文处理
-            # 仅在需要时 deepcopy，并对超深嵌套做兜底保护
+        for _original_log in logs:
+            # 先 deepcopy 原始 log，用于后续日志原文替换
+            # 必须在 path_aware_expand 之前执行，避免 fail-closed 遮罩覆盖原始值
             if text_fields:
                 try:
-                    log_content_tmp = copy.deepcopy(_log)
+                    log_content_tmp = copy.deepcopy(_original_log)
                 except RecursionError:
                     logger.warning(
                         "[desensitize] deepcopy failed due to deeply nested structure, "
                         "falling back to shallow copy"
                     )
-                    log_content_tmp = copy.copy(_log)
+                    log_content_tmp = copy.copy(_original_log)
+
+            _log, restore_metadata = path_aware_expand(_original_log, configured_paths)
 
             result = desensitize_handler.transform_dict(_log)
 
             # 日志原文字段同步应用其他字段的脱敏结果
-            for text_field in text_fields:  # ["log"]
-                # 判断原文字段是否存在log中
-                if text_field not in result:
-                    continue
+            if text_fields:
+                # 对副本做空路径展开，获得 dotted-key 形式的原始值
+                # 使用空 configured_paths 确保不解析 JSON 字符串、不触发 fail-closed
+                log_content_tmp_expanded, _ = path_aware_expand(log_content_tmp, [])
 
-                for field_name in field_names:
-                    if field_name not in result or field_name == text_field:
+                for text_field in text_fields:  # ["log"]
+                    # 判断原文字段是否存在log中
+                    if text_field not in result:
                         continue
-                    result[text_field] = result[text_field].replace(
-                        str(log_content_tmp[field_name]), str(result[field_name])
-                    )
+
+                    for field_name in field_names:
+                        if field_name not in result or field_name == text_field:
+                            continue
+
+                        # 优先从展开后的副本获取原始值
+                        original_value = log_content_tmp_expanded.get(field_name)
+                        if original_value is None:
+                            # 空路径展开时 JSON 字符串子路径不会被展开
+                            # 从原始 log 按 dotted path 导航提取
+                            original_value = _extract_value_by_path(log_content_tmp, field_name)
+                            if original_value is None:
+                                continue
+
+                        result[text_field] = result[text_field].replace(
+                            str(original_value), str(result[field_name])
+                        )
 
             # 处理日志原文字段自身的脱敏逻辑
             result = text_fields_desensitize_handler.transform_dict(_log)

@@ -753,3 +753,38 @@ class TestUnifyQueryHandlerEsDesensitize(TestCase):
         self.assertIsInstance(parsed_body["inner"], str)
         parsed_inner = json.loads(parsed_body["inner"])
         self.assertEqual(parsed_inner["secret"], "9***9")
+
+    # ==================================================================
+    # 补充场景：text_fields + fail-closed 遮罩的兼容性验证
+    # ==================================================================
+
+    def test_es_text_fields_with_fail_closed_oversized_no_crash(self):
+        """text_fields + 超大 JSON + 子路径规则：不崩溃，body 被遮罩"""
+        self._put_config(
+            field_configs=[NESTED_MASK_CONFIG],
+            text_fields=["log", "message"],
+        )
+
+        handler = self._build_handler()
+        large_body = '{"player":{"id":"' + "x" * 70000 + '"}}'
+        log = {"body": large_body, "log": "user action", "message": "plain"}
+        desensitized = handler._log_desensitize(log)
+        # fail-closed 遮罩
+        self.assertEqual(desensitized["body"], "***MASKED***")
+        # text_fields 自身不因 fail-closed 异常
+        self.assertIn("log", desensitized)
+
+    def test_es_text_fields_with_fail_closed_parse_error_no_crash(self):
+        """text_fields + JSON 解析失败 + 子路径规则：不崩溃，body 被遮罩"""
+        self._put_config(
+            field_configs=[NESTED_MASK_CONFIG],
+            text_fields=["log"],
+        )
+
+        handler = self._build_handler()
+        log = {"body": '{"player": bad}', "log": "user body is bad"}
+        desensitized = handler._log_desensitize(log)
+        # fail-closed 遮罩（object 形态但解析失败 + 子路径规则）
+        self.assertEqual(desensitized["body"], "***MASKED***")
+        # log 字段未被破坏
+        self.assertEqual(desensitized["log"], "user body is bad")

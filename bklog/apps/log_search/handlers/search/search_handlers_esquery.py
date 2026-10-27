@@ -46,7 +46,7 @@ from apps.log_databus.constants import EtlConfig
 from apps.log_databus.models import CollectorConfig
 from apps.log_desensitize.handlers.desensitize import DesensitizeHandler
 from apps.log_desensitize.models import DesensitizeConfig, DesensitizeFieldConfig
-from apps.log_desensitize.utils import path_aware_expand, restore_by_metadata
+from apps.log_desensitize.utils import path_aware_expand, restore_by_metadata, _extract_value_by_path
 from apps.log_esquery import metrics
 from apps.log_esquery.esquery.esquery import EsQuery
 from apps.log_esquery.serializers import (
@@ -2462,11 +2462,8 @@ class SearchHandler:
         # 提取已配置字段的 dotted path 列表，用于路径感知展开
         configured_paths = [c["field_name"] for c in self.field_configs if c.get("field_name")]
 
-        # 路径感知展开（支持 flattened / JSON 字符串子路径）
-        log, restore_metadata = path_aware_expand(log, configured_paths)
-
-        # 保存一份未处理之前的 log 字段，用于脱敏之后的日志原文处理
-        # 延迟 deepcopy 到实际需要时，并对超深嵌套做兜底保护
+        # 先 deepcopy 原始 log，用于后续日志原文替换
+        # 必须在 path_aware_expand 之前执行，避免 fail-closed 遮罩覆盖原始值
         if self.text_fields:
             try:
                 log_content_tmp = copy.deepcopy(log)
@@ -2477,11 +2474,18 @@ class SearchHandler:
                 )
                 log_content_tmp = copy.copy(log)
 
+        # 路径感知展开（支持 flattened / JSON 字符串子路径）
+        log, restore_metadata = path_aware_expand(log, configured_paths)
+
         # 字段脱敏处理
         log = self.desensitize_handler.transform_dict(log)
 
         # 原文字段应用其他字段的脱敏结果
         if self.text_fields:
+            # 对副本做空路径展开，获得 dotted-key 形式的原始值
+            # 使用空 configured_paths 确保不解析 JSON 字符串、不触发 fail-closed
+            log_content_tmp_expanded, _ = path_aware_expand(log_content_tmp, [])
+
             for text_field in self.text_fields:  # ["log"]
                 # 判断原文字段是否存在log中
                 if text_field not in log.keys():
@@ -2491,8 +2495,18 @@ class SearchHandler:
                     field_name = _config["field_name"]
                     if field_name not in log.keys() or field_name == text_field:
                         continue
+
+                    # 优先从展开后的副本获取原始值
+                    original_value = log_content_tmp_expanded.get(field_name)
+                    if original_value is None:
+                        # 空路径展开时 JSON 字符串子路径不会被展开
+                        # 从原始 log 按 dotted path 导航提取
+                        original_value = _extract_value_by_path(log_content_tmp, field_name)
+                        if original_value is None:
+                            continue
+
                     log[text_field] = log[text_field].replace(
-                        str(log_content_tmp[field_name]), str(log[field_name])
+                        str(original_value), str(log[field_name])
                     )
 
             # 处理原文字段自身绑定的脱敏逻辑

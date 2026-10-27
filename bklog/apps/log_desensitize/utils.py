@@ -346,6 +346,31 @@ def path_aware_expand(
         raise DesensitizeDataErrorException(DesensitizeDataErrorException.MESSAGE.format(e=e))
 
 
+def _extract_value_by_path(data: dict, dotted_path: str):
+    """从嵌套 dict / JSON 字符串中按 dotted path 提取原始值。
+
+    用于 fail-closed 场景下从原始日志中恢复原始值，
+    以便 text_fields 原文替换能获得正确的原始文本。
+
+    当路径段的值为 JSON 字符串时自动解析（轻量模式），
+    但不触发 fail-closed 遮罩逻辑。
+
+    :param data: 原始日志 dict（未膨胀或膨胀前的副本）
+    :param dotted_path: 点号分隔的路径（如 "body.player.id"）
+    :return: 原始值，提取失败时返回 None
+    """
+    parts = dotted_path.split(".")
+    current = data
+    try:
+        for part in parts:
+            if isinstance(current, str):
+                current = json.loads(current)
+            current = current[part]
+        return current
+    except (KeyError, json.JSONDecodeError, TypeError, IndexError, RecursionError):
+        return None
+
+
 def _build_nested_dict(items: dict, prefix: str, restore_metadata: dict = None):
     """
     将带前缀的扁平 key-value 构建为嵌套 dict（相对 prefix）。

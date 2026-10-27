@@ -20,9 +20,10 @@ Test strategy
 import json
 from unittest.mock import Mock, patch
 
-from django.test import TestCase, override_settings
+from django.test import SimpleTestCase, TestCase, override_settings
 
 from apps.log_desensitize.models import DesensitizeConfig, DesensitizeFieldConfig
+from apps.log_desensitize.utils import _extract_value_by_path
 from apps.log_search.handlers.search.search_handlers_esquery import SearchHandler
 from apps.log_search.models import LogIndexSet, LogIndexSetData
 
@@ -1145,3 +1146,97 @@ class TestSearchHandlerDesensitize(TestCase):
             self.assertIn("leaf", deep_level,
                           "At restored depth {}, expected 'leaf' key".format(d))
             deep_level = deep_level.get("level", {})
+
+
+    # ==================================================================
+    # 补充场景：text_fields + fail-closed 遮罩的兼容性验证
+    # ==================================================================
+
+    def test_text_fields_with_fail_closed_oversized_no_crash(self):
+        """text_fields + 超大 JSON + 子路径规则：不崩溃，body 被遮罩"""
+        self._put_config(
+            field_configs=[NESTED_MASK_CONFIG],
+            text_fields=["log", "message"],
+        )
+
+        handler = self._build_handler()
+        large_body = '{"player":{"id":"' + "x" * 70000 + '"}}'
+        result = handler._deal_query_result(
+            fake_hits_nested(body=large_body, log="user action")
+        )
+
+        logs = result["list"]
+        self.assertEqual(len(logs), 1)
+        # fail-closed 遮罩
+        self.assertEqual(logs[0]["body"], "***MASKED***")
+        # text_fields 自身脱敏不因 fail-closed 异常
+        self.assertIn("log", logs[0])
+
+    def test_text_fields_with_fail_closed_parse_error_no_crash(self):
+        """text_fields + JSON 解析失败 + 子路径规则：不崩溃，body 被遮罩。
+
+        注意：仅当字符串呈 object 形态（以 { 开头且以 } 结尾）但 JSON 非法时
+        才会触发 fail-closed；若形态不符（如 "{bad json]"）则按普通标量处理。
+        """
+        self._put_config(
+            field_configs=[NESTED_MASK_CONFIG],
+            text_fields=["log"],
+        )
+
+        handler = self._build_handler()
+        result = handler._deal_query_result(
+            fake_hits_nested(body='{"player": bad}', log="user body is bad")
+        )
+
+        logs = result["list"]
+        self.assertEqual(len(logs), 1)
+        # fail-closed 遮罩（object 形态但解析失败 + 子路径规则）
+        self.assertEqual(logs[0]["body"], "***MASKED***")
+        # log 字段未被破坏
+        self.assertEqual(logs[0]["log"], "user body is bad")
+
+
+class TestExtractValueByPath(SimpleTestCase):
+    """测试 _extract_value_by_path 辅助函数"""
+
+    def test_extract_simple_path(self):
+        """从普通嵌套 dict 中提取值"""
+        data = {"body": {"player": {"id": "12345"}}}
+        result = _extract_value_by_path(data, "body.player.id")
+        self.assertEqual(result, "12345")
+
+    def test_extract_top_level(self):
+        """提取顶层标量字段"""
+        data = {"message": "hello"}
+        result = _extract_value_by_path(data, "message")
+        self.assertEqual(result, "hello")
+
+    def test_extract_json_string(self):
+        """从 JSON 字符串中提取子路径值"""
+        data = {"body": '{"player":{"id":"12345"}}'}
+        result = _extract_value_by_path(data, "body.player.id")
+        self.assertEqual(result, "12345")
+
+    def test_extract_nested_json_string(self):
+        """从多层 JSON 字符串嵌套中提取值"""
+        data = {"body": '{"auth_info":"{\\"bk_token\\":\\"secret\\"}"}'}
+        result = _extract_value_by_path(data, "body.auth_info.bk_token")
+        self.assertEqual(result, "secret")
+
+    def test_extract_non_existent_path(self):
+        """路径不存在时返回 None"""
+        data = {"body": {"player": {"id": "12345"}}}
+        result = _extract_value_by_path(data, "body.player.name")
+        self.assertIsNone(result)
+
+    def test_extract_from_list_value(self):
+        """路径指向数组时返回数组"""
+        data = {"body": {"players": [{"id": "1"}]}}
+        result = _extract_value_by_path(data, "body.players")
+        self.assertEqual(result, [{"id": "1"}])
+
+    def test_extract_bad_json_returns_none(self):
+        """无效 JSON 字符串返回 None"""
+        data = {"body": "{bad json}"}
+        result = _extract_value_by_path(data, "body.player.id")
+        self.assertIsNone(result)
