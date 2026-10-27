@@ -1,0 +1,248 @@
+/* stylelint-disable selector-class-pattern */
+// 进程选择器（collection-process-selector.tsx）专属样式
+// 根类即组件根节点，按 DOM 结构逐层嵌套；与 profiling-collection.scss 的类名互不重叠，加载先后不影响表现
+
+.collection-process-selector {
+  display: flex;
+  min-width: 0;
+  min-height: 630px;
+  overflow: hidden;
+  border: 1px solid #dcdee5;
+  border-radius: 4px;
+
+  &.is-condition {
+    min-height: 640px;
+  }
+
+  .bk-button {
+    font-size: 12px;
+  }
+
+  .t-table {
+    font-size: 12px;
+
+    th,
+    td {
+      height: 36px;
+      padding: 7px 12px;
+      line-height: 20px;
+    }
+  }
+
+  .collection-process-query {
+    flex: 1;
+    min-width: 0;
+    padding: 16px 24px;
+
+    .collection-process-conditions {
+      display: flex;
+      gap: 8px;
+      align-items: flex-end;
+      margin-bottom: 12px;
+
+      .collection-process-inputs {
+        display: flex;
+        flex: 1;
+        flex-direction: column;
+        gap: 8px;
+        min-width: 0;
+
+        .bk-radio-group {
+          display: flex;
+          width: 100%;
+        }
+
+        .bk-radio-button {
+          flex: 1;
+          text-align: center;
+        }
+
+        // 输入框前缀，仅进程选择器使用
+        .collection-input-prefix {
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          padding: 0 8px;
+          color: #4d4f56;
+          white-space: nowrap;
+          background: #fafbfd;
+          border-right: 1px solid #c4c6cc;
+          border-top-left-radius: 2px;
+          border-bottom-left-radius: 2px;
+        }
+      }
+
+      .collection-process-preview-button {
+        min-width: 64px;
+      }
+    }
+
+    .collection-dynamic-toggle {
+      display: flex;
+      gap: 4px;
+      align-items: center;
+      margin-bottom: 12px;
+      font-size: 12px;
+
+      .icon-hint {
+        font-size: 14px;
+      }
+    }
+
+    .collection-process-results {
+      min-height: 438px;
+
+      > .empty-status-container,
+      .t-table__empty {
+        height: 396px;
+      }
+
+      .collection-process-pagination {
+        min-height: 42px;
+        padding: 8px 16px;
+        border: 1px solid #dcdee5;
+        border-top: 0;
+
+        .bk-pagination-list,
+        .bk-pagination-small-list {
+          margin-left: auto;
+        }
+      }
+    }
+  }
+
+  .collection-process-targets {
+    flex: 0 0 272px;
+    min-width: 0;
+    padding: 16px;
+    overflow-wrap: anywhere;
+    background: #f5f7fa;
+
+    h4 {
+      margin: 0 0 8px;
+      font-size: 14px;
+      font-weight: 500;
+      line-height: 22px;
+      color: #313238;
+    }
+
+    p {
+      font-size: 12px;
+    }
+
+    .collection-process-target-heading {
+      display: flex;
+      gap: 4px;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 8px;
+
+      .collection-process-count {
+        min-width: 0;
+        font-weight: normal;
+        color: #313238;
+
+        .bk-button-text {
+          line-height: 20px;
+        }
+
+        // 设计稿：数量为品牌蓝加粗，其余文案为 text/1-强显示
+        .collection-process-count-value {
+          font-weight: bold;
+          color: #3a84ff;
+        }
+
+        .icon-mc-triangle-down {
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          width: 14px;
+          height: 14px;
+          margin-right: 4px;
+          font-size: 20px;
+          line-height: 14px;
+          transition: transform 0.2s ease-in-out;
+
+          &.is-collapsed {
+            transform: rotate(-90deg);
+          }
+        }
+      }
+
+      .collection-process-clear {
+        .bk-button-text {
+          display: flex;
+          column-gap: 2px;
+          line-height: 20px;
+        }
+      }
+    }
+
+    .collection-process-card {
+      position: relative;
+      padding: 8px 24px 8px 8px;
+      margin-bottom: 4px;
+      font-size: 12px;
+      line-height: 20px;
+      background: #fff;
+      border-radius: 4px;
+      box-shadow: 0 2px 4px #1919290d;
+
+      .collection-process-card-title {
+        color: #313238;
+      }
+
+      .collection-process-card-desc {
+        margin: 0;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        color: #979ba5;
+        white-space: nowrap;
+      }
+
+      .collection-process-remove {
+        position: absolute;
+        top: 50%;
+        right: 8px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: #979ba5;
+        transform: translateY(-50%);
+
+        .icon-mc-close {
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          width: 16px;
+          height: 16px;
+          font-size: 20px;
+          line-height: 16px;
+        }
+      }
+    }
+
+    // 必须在 .collection-process-card 之后：两者同时作用于汇总卡片，靠顺序覆盖内边距
+    .collection-process-summary {
+      padding: 8px;
+
+      p {
+        margin: 4px 0 0;
+      }
+    }
+  }
+}
+
+// 媒体查询不参与 DOM 嵌套，但内部仍保留祖先链以匹配上面的特异性，否则窄屏内边距会被基础规则盖掉
+@media (width <= 1000px) {
+  .collection-process-selector {
+    .collection-process-query {
+      padding: 12px;
+    }
+
+    .collection-process-targets {
+      flex-basis: 240px;
+      padding: 12px;
+    }
+  }
+}

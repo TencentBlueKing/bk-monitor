@@ -47,7 +47,6 @@ export const executionStatusLabels = {
   timeout: '超时',
   cancelled: '已取消',
   unknown: '未知',
-  outdated: '已过期',
   outdate: '已过期',
 };
 
@@ -58,7 +57,6 @@ const hostStatusRanks: Record<string, number> = {
   partial_succeed: 3,
   succeed: 4,
   cancelled: 5,
-  outdated: 6,
   outdate: 6,
   unknown: 7,
 };

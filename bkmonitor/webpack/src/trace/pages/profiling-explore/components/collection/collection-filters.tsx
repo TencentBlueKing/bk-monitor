@@ -25,7 +25,7 @@
  */
 import { type PropType, defineComponent, shallowRef, watch } from 'vue';
 
-import { Button, Radio, Select } from 'bkui-vue';
+import { Button, Select } from 'bkui-vue';
 import { useI18n } from 'vue-i18n';
 
 import {
@@ -34,16 +34,12 @@ import {
   processCandidateOptions,
   restoreProcessSelection,
 } from '../../utils/collection-history';
-import CollectionExecutionStatus from './collection-execution-status';
 
 import type {
   CollectionCandidate,
   CollectionCandidateField,
   CollectionHistoryFilters,
 } from '../../types/collection-history';
-
-// Radio 的 Boolean 优先类型会把空字符串转成 true，仅在界面使用非空值。
-const ALL_STATUS = 'all';
 
 export default defineComponent({
   name: 'CollectionFilters',
@@ -54,11 +50,8 @@ export default defineComponent({
       required: true,
     },
     loading: Boolean,
-    results: Boolean,
     // 选中筛选值后立即查询，无须再点查询按钮
     autoQuery: Boolean,
-    // 表格列已提供状态筛选时，面板内不再重复展示
-    statusFilter: { type: Boolean, default: true },
   },
   emits: { change: (_value: CollectionHistoryFilters) => true, refresh: () => true },
   setup(props, { emit }) {
@@ -92,10 +85,10 @@ export default defineComponent({
   render() {
     const { draft } = this;
     const options = (field: 'target' | 'task_name') =>
-      (this.candidates[field] || []).map((item, index) => (
+      (this.candidates[field] || []).map(item => (
         <Select.Option
           id={String(item.value)}
-          key={`${field}:${index}`}
+          key={`${field}:${item.value}`}
           name={item.alias || String(item.value)}
         />
       ));
@@ -138,9 +131,9 @@ export default defineComponent({
           <Select
             loading={this.loading}
             modelValue={this.processes}
+            multipleMode='tag'
             placeholder={this.t('进程名或 PID')}
             allowCreate
-            collapseTags
             filterable
             inputSearch
             multiple
@@ -158,39 +151,6 @@ export default defineComponent({
             ))}
           </Select>
         </label>
-        {this.statusFilter && (
-          <div class='collection-history-status-filter'>
-            <span>{this.t('状态')}</span>
-            <Radio.Group
-              class='collection-history-status-options'
-              modelValue={draft.status || ALL_STATUS}
-              type='capsule'
-              onChange={status => {
-                this.draft = { ...draft, status: status === ALL_STATUS ? '' : String(status) };
-              }}
-            >
-              {(this.results
-                ? ['', 'running', 'succeed', 'outdated']
-                : ['', 'running', 'succeed', 'partial_succeed', 'failed']
-              ).map(status => (
-                <Radio.Button
-                  key={status || ALL_STATUS}
-                  v-tippy={this.t('选择状态后点击查询生效')}
-                  label={status || ALL_STATUS}
-                >
-                  {status ? (
-                    <CollectionExecutionStatus
-                      result={this.results}
-                      status={status}
-                    />
-                  ) : (
-                    this.t('全部')
-                  )}
-                </Radio.Button>
-              ))}
-            </Radio.Group>
-          </div>
-        )}
         <div class='collection-history-query'>
           <Button
             v-tippy={this.t('按当前筛选条件查询')}
