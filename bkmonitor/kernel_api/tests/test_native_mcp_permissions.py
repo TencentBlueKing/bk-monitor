@@ -3734,7 +3734,7 @@ def test_application_aliases_bind_only_existing_exact_callbacks(installed_apis):
     callbacks = {backend: Mock() for _, backend in APPLICATION_READ_ROUTES}
     originals = [path(backend.lstrip("/"), callback, {"format": "json"}) for backend, callback in callbacks.items()]
     aliases = application_urlpatterns(originals, installed_apis=installed_apis)
-    assert len(aliases) == (9 if installed_apis else 5)
+    assert len(aliases) == (7 if installed_apis else 5)
     resolver = get_resolver(tuple(aliases))
     for backend, callback in callbacks.items():
         if not installed_apis and backend.startswith("/api/v3/"):
@@ -3813,3 +3813,31 @@ def test_application_gateway_contract_is_explicit_and_mcp_mapping_unchanged():
         for methods in yaml.safe_load(filename.read_text())["paths"].values():
             for operation in methods.values():
                 assert not operation["x-bk-apigateway-resource"]["backend"]["path"].startswith("/api/app/")
+
+
+def test_application_aliases_only_cover_shared_unified_read_routes():
+    """Dedicated operations MCP routes do not need a new application backend URL."""
+    catalog = registry.load_tool_registry(native_tools=())
+    shared = set()
+    resources = BASE / "support-files/apigw/resources"
+    for filename in resources.glob("*/app/*.yaml"):
+        for methods in yaml.safe_load(filename.read_text())["paths"].values():
+            for operation in methods.values():
+                backend = operation["x-bk-apigateway-resource"]["backend"]
+                original = backend["path"].replace("/api/app/", "/api/", 1)
+                tool = catalog.get_by_backend(backend["method"].upper(), original)
+                if tool is not None and tool.risk == "query":
+                    shared.add((backend["method"].upper(), original))
+    assert shared == APPLICATION_READ_ROUTES
+
+    metadata = yaml.safe_load((resources / "internal/app/metadata.yaml").read_text())["paths"]
+    for frontend, original in [
+        ("/app/metadata/query_datalink_metadata/", "/api/v3/meta/query_data_link_metadata/"),
+        ("/app/metadata/get_data_link_metadata/", "/api/v3/meta/get_data_link_metadata/"),
+    ]:
+        resource = metadata[frontend]["get"]["x-bk-apigateway-resource"]
+        assert resource["backend"]["path"] == original
+        assert resource["authConfig"]["appVerifiedRequired"] is True
+        assert resource["authConfig"]["userVerifiedRequired"] is False
+        assert registry.resolve_readonly_tool("GET", original) is None
+        assert resolve_application_route("GET", application_path(original)) is None

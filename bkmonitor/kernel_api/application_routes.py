@@ -11,14 +11,13 @@ from django.urls import get_resolver, re_path
 
 APPLICATION_PREFIX = "/api/app/"
 
-# Keep this allowlist paired with the application resource definitions. Never
-# mount an entire API namespace: it would also expose write/export operations.
+# Limit aliases to application resources sharing a Unified read-tool backend.
+# Dedicated operations MCP routes retain their existing application URLs.
+# Never mount an entire namespace: it would also expose write/export operations.
 APPLICATION_READ_ROUTES = frozenset(
     {
         ("GET", "/api/v3/meta/get_time_series_metrics/"),
         ("GET", "/api/v3/meta/list_spaces/"),
-        ("GET", "/api/v3/meta/query_data_link_metadata/"),
-        ("GET", "/api/v3/meta/get_data_link_metadata/"),
         ("GET", "/api/v4/alert/alert/detail/"),
         ("POST", "/api/v4/service_web/service_list/"),
         ("POST", "/api/v4/apm_metric_web/calculate_by_range/"),

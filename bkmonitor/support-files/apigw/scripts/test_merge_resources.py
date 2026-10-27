@@ -602,8 +602,6 @@ def test_merged_application_routes_preserve_paths_and_authentication(tmp_path):
     expected = {
         ("get", "/api/app/v3/meta/get_time_series_metrics/"),
         ("get", "/api/app/v3/meta/list_spaces/"),
-        ("get", "/api/app/v3/meta/query_data_link_metadata/"),
-        ("get", "/api/app/v3/meta/get_data_link_metadata/"),
         ("get", "/api/app/v4/alert/alert/detail/"),
         ("post", "/api/app/v4/service_web/service_list/"),
         ("post", "/api/app/v4/apm_metric_web/calculate_by_range/"),
