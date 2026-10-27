@@ -2047,6 +2047,46 @@ paths:
           userVerifiedRequired: false
           resourcePermissionRequired: true
         descriptionEn: save and apply log clustering config
+  /app/metadata/operate_log_clustering/:
+    post:
+      operationId: metadata_operate_log_clustering
+      description: 执行日志聚类控制动作
+      tags:
+      - metadata
+      x-bk-apigateway-resource:
+        isPublic: true
+        allowApplyPermission: true
+        matchSubpath: false
+        backend:
+          name: default
+          method: post
+          path: /api/v3/meta/operate_log_clustering/
+          matchSubpath: false
+        authConfig:
+          appVerifiedRequired: true
+          userVerifiedRequired: false
+          resourcePermissionRequired: true
+        descriptionEn: operate log clustering
+  /app/metadata/get_log_clustering_status/:
+    get:
+      operationId: metadata_get_log_clustering_status
+      description: 查询日志聚类配置与运行状态
+      tags:
+      - metadata
+      x-bk-apigateway-resource:
+        isPublic: true
+        allowApplyPermission: true
+        matchSubpath: false
+        backend:
+          name: default
+          method: get
+          path: /api/v3/meta/get_log_clustering_status/
+          matchSubpath: false
+        authConfig:
+          appVerifiedRequired: true
+          userVerifiedRequired: false
+          resourcePermissionRequired: true
+        descriptionEn: get log clustering status
   /app/metadata/get_or_create_agent_event_data_id/:
     get:
       operationId: metadata_get_or_create_agent_event_data_id

@@ -13,9 +13,14 @@ import copy
 import pytest
 from rest_framework.exceptions import ValidationError
 
+from api.bkdata.default import GetLogClusteringStatus, LogClusteringAction
 from core.drf_resource.exceptions import CustomException
 from metadata import models
-from metadata.resources.log_clustering import SetLogClusteringConfigResource
+from metadata.resources.log_clustering import (
+    GetLogClusteringStatusResource,
+    OperateLogClusteringResource,
+    SetLogClusteringConfigResource,
+)
 from metadata.tests.data_link.test_log_clustering_sink import (  # noqa: F401
     BINDING,
     ES_BINDING_REF,
@@ -60,6 +65,13 @@ def bkbase(mocker):
     )
     state["apply_log_datalink"] = mocker.patch("metadata.resources.log_clustering.apply_log_datalink")
     state["apply_data_link"] = mocker.patch("metadata.models.DataLink.apply_data_link_with_retry")
+    state["action"] = mocker.patch(
+        "metadata.resources.log_clustering.api.bkdata.log_clustering_action", return_value={"accepted": True}
+    )
+    state["status"] = mocker.patch(
+        "metadata.resources.log_clustering.api.bkdata.get_log_clustering_status",
+        return_value={"boundary_ready": True, "can_unbind": False},
+    )
     return state
 
 
@@ -189,3 +201,114 @@ def test_invalid_request_is_rejected(field, value, clustering_datalink, bkbase):
     with pytest.raises(CustomException):
         SetLogClusteringConfigResource().request(params)
     assert not models.LogClusteringSinkConfig.objects.exists()
+
+
+def operate(action: str, expected_revision: int, operation_id: str | None = None) -> dict:
+    return OperateLogClusteringResource().request(
+        {
+            "bk_tenant_id": "system",
+            "table_id": LOG_TABLE_ID,
+            "operation_id": operation_id or f"{action}-{expected_revision}",
+            "expected_revision": expected_revision,
+            "action": action,
+        }
+    )
+
+
+def get_status() -> dict:
+    return GetLogClusteringStatusResource().request({"bk_tenant_id": "system", "table_id": LOG_TABLE_ID})
+
+
+def test_bkbase_action_is_sent_to_databus_identity(clustering_datalink, bkbase):
+    set_config()
+
+    result = operate("drain", expected_revision=1)
+
+    bkbase["action"].assert_called_once_with(
+        bk_tenant_id="system", tenant="default", namespace="bklog", databus_name=LOG_DATA_LINK_NAME, action="drain"
+    )
+    assert result == {"revision": 2, "action": "drain", "attached": True, "bkbase_result": {"accepted": True}}
+
+
+def test_bkbase_action_uses_request_tenant_in_multi_tenant_mode(clustering_datalink, bkbase, settings):
+    set_config()
+    settings.ENABLE_MULTI_TENANT_MODE = True
+
+    operate("finish", expected_revision=1)
+
+    assert bkbase["action"].call_args.kwargs["tenant"] == "system"
+
+
+def test_detach_and_attach_switch_databus_reference_and_reapply_datalink(clustering_datalink, bkbase):
+    set_config()
+
+    detached = operate("detach", expected_revision=1)
+    attached = operate("attach", expected_revision=2)
+
+    assert (detached["attached"], detached["revision"], detached["bkbase_result"]) == (False, 2, None)
+    assert (attached["attached"], attached["revision"]) == (True, 3)
+    assert bkbase["apply_log_datalink"].call_count == 3
+    bkbase["action"].assert_not_called()
+    assert get_sink().attached is True
+
+
+def test_operation_replay_keeps_revision_and_resends_action(clustering_datalink, bkbase):
+    set_config()
+    operate("drain", expected_revision=1, operation_id="drain-op")
+
+    result = operate("drain", expected_revision=1, operation_id="drain-op")
+
+    assert result["revision"] == 2
+    assert bkbase["action"].call_count == 2
+    with pytest.raises(ValidationError, match="different request"):
+        operate("finish", expected_revision=1, operation_id="drain-op")
+
+
+def test_operate_without_config_is_rejected(clustering_datalink, bkbase):
+    with pytest.raises(ValidationError, match="no log clustering config"):
+        operate("drain", expected_revision=0)
+    bkbase["action"].assert_not_called()
+
+
+def test_status_without_config_reports_not_configured(clustering_datalink, bkbase):
+    assert get_status() == {"configured": False}
+
+
+def test_status_reports_local_binding_remote_reference_and_raw_bkbase_status(clustering_datalink, bkbase):
+    set_config()
+    attach_remotely(bkbase)
+
+    result = get_status()
+
+    sink = get_sink()
+    assert result["configured"] is True
+    assert result["revision"] == 1
+    assert result["binding"] == sink.binding
+    assert result["sink"] == {"tenant": "system", "namespace": "bklog", "name": sink.name}
+    assert result["databus_resource"] == bkbase["remote_databus"]
+    assert (result["sink_referenced"], result["raw_sink_referenced"]) == (True, False)
+    assert result["clustering_status"] == {"boundary_ready": True, "can_unbind": False}
+    assert result["errors"] == []
+
+
+def test_status_keeps_other_fields_when_bkbase_status_fails(clustering_datalink, bkbase):
+    set_config()
+    attach_remotely(bkbase)
+    bkbase["remote_databus"]["spec"]["sinks"] = [ES_BINDING_REF]
+    bkbase["status"].side_effect = RuntimeError("status unavailable")
+
+    result = get_status()
+
+    assert (result["sink_referenced"], result["raw_sink_referenced"]) == (False, True)
+    assert result["clustering_status"] is None
+    assert result["errors"] == [{"source": "clustering_status", "message": "status unavailable"}]
+
+
+def test_bkbase_log_clustering_api_paths():
+    params = {"bk_tenant_id": "system", "tenant": "default", "namespace": "bklog", "databus_name": "bklog_db"}
+
+    action_url = LogClusteringAction().get_request_url({**params, "action": "drain"})
+    status_url = GetLogClusteringStatus().get_request_url(params)
+
+    assert action_url.endswith("/v4/databus/log_clustering/default/bklog/bklog_db/action/")
+    assert status_url.endswith("/v4/databus/log_clustering/default/bklog/bklog_db/status/")
