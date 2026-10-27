@@ -107,7 +107,7 @@ export default defineComponent({
         emit('created');
       },
     });
-    const tableRows = computed(() => h.rows.value.map(row => ({ ...row, resultKey: resultRowKey(row) })));
+    const tableRows = computed(() => h.records.value.map(row => ({ ...row, resultKey: resultRowKey(row) })));
     const selectedRow = computed(() =>
       h.records.value.find(
         row =>
@@ -158,7 +158,7 @@ export default defineComponent({
       patch({ filters: createHistoryFilters() });
     }
     function reload() {
-      if (h.rows.value.length) h.loadMore();
+      if (h.records.value.length) h.loadMore();
       else h.refresh();
     }
     watch([h.loading, h.hasMore], () => {
@@ -187,9 +187,9 @@ export default defineComponent({
   },
   render() {
     const { h, c } = this;
-    const showSkeleton = h.loading.value && !h.rows.value.length;
+    const showSkeleton = h.loading.value && !h.records.value.length;
     // 结果为空时由 empty 插槽接管；否则 tdesign 会注入筛选结果行，导致空态不渲染
-    const emptyResult = !showSkeleton && !h.rows.value.length;
+    const emptyResult = !showSkeleton && !h.records.value.length;
     const resultLink = (row: CollectionHostResult, text: string) => (
       <span v-tippy={this.t(canViewHostResult(row) ? '查看当前主机的采集结果' : resultUnavailableReason(row))}>
         <Button
@@ -217,7 +217,7 @@ export default defineComponent({
       type: 'single' as const,
       list: Object.keys(executionStatusLabels).map(value => ({
         value,
-        label: this.t(executionStatusLabels[value]),
+        label: this.t(value === 'succeed' ? '结果可用' : executionStatusLabels[value]),
       })),
     };
     const renderHostCell = (column: CollectionExecutionColumn, row: CollectionHostResult) => {
@@ -448,7 +448,7 @@ export default defineComponent({
             }}
           </PrimaryTable>
           {/* 已有数据时追加加载失败，表格保留数据，仅保留重试入口 */}
-          {!!h.error.value && !!h.rows.value.length && (
+          {!!h.error.value && !!h.records.value.length && (
             <div class='collection-history-error'>
               <Button
                 v-tippy={this.t('重新加载采集结果')}
@@ -458,7 +458,7 @@ export default defineComponent({
               </Button>
             </div>
           )}
-          {!!h.rows.value.length && (
+          {!!h.records.value.length && (
             <div class='collection-history-more'>
               {h.hasMore.value ? (
                 <Button
