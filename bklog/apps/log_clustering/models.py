@@ -660,6 +660,7 @@ class LogClusteringOperation(OperateRecordModel):
     steps = models.JSONField(_("步骤记录"), default=list, blank=True)
     request_snapshot = models.JSONField(_("请求快照"), default=dict, blank=True)
     idempotency_keys = models.JSONField(_("外部调用幂等键"), default=dict, blank=True)
+    request_payloads = models.JSONField(_("外部写调用请求体"), default=dict, blank=True)
     retry_count = models.IntegerField(_("重试次数"), default=0)
     next_retry_at = models.DateTimeField(_("下次重试时间"), null=True, blank=True)
     last_error = models.TextField(_("最近错误"), default="", blank=True)
@@ -675,6 +676,13 @@ class LogClusteringOperation(OperateRecordModel):
             self.idempotency_keys[action] = f"{self.operation_id}-{action}"
             self.save(update_fields=["idempotency_keys", "updated_at", "updated_by"])
         return self.idempotency_keys[action]
+
+    def get_request_payload(self, action: str, build_payload) -> dict:
+        """同一幂等键必须对应同一请求体：首次发送前落库，重试时原样重放，不随环境配置变化重新组装"""
+        if action not in self.request_payloads:
+            self.request_payloads[action] = build_payload()
+            self.save(update_fields=["request_payloads", "updated_at", "updated_by"])
+        return self.request_payloads[action]
 
     def record_step(self, step: str, status: str, message: str = ""):
         self.step = step
