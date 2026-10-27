@@ -2,31 +2,69 @@
 // 根类挂在 Sideslider 上（transfer=false，内容不传送到 body），按 DOM 结构逐层嵌套
 .collection-task-form {
   .collection-form-body {
-    padding: 24px 40px 32px;
+    padding: 24px 40px 16px;
 
-    > .bk-form > .collection-muted {
-      margin: -12px 0 20px;
+    > .bk-form {
+      display: flex;
+      flex-direction: column;
+      gap: 24px;
+
+      .bk-form-item {
+        margin-bottom: 0;
+
+        .bk-form-content {
+          line-height: 20px;
+        }
+      }
+
+      .bk-form-label {
+        font-size: 12px;
+      }
+
+      .bk-date-picker {
+        width: 100%;
+      }
+
+      // 提交校验错误，跟随在对应 form item 的控件下方
+      .collection-form-item-error {
+        margin-top: 4px;
+        font-size: 12px;
+        line-height: 20px;
+        color: #ea3636;
+      }
     }
 
-    .bk-form-item {
-      margin-bottom: 24px;
-    }
-
-    .bk-form-label {
-      font-size: 12px;
-    }
-
-    .bk-date-picker {
-      width: 100%;
+    .collection-advanced {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
     }
 
     .collection-advanced-button {
-      margin: 0 0 24px;
+      align-self: flex-start;
+
+      .icon-double-down {
+        font-size: 16px;
+        transition: transform 0.2s ease-in-out;
+
+        &.is-open {
+          transform: rotate(180deg);
+        }
+      }
+    }
+
+    .collection-resource-guard {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+      font-size: 12px;
+      line-height: 20px;
+      color: #4d4f56;
     }
 
     .collection-form-columns {
       display: flex;
-      gap: 16px;
+      gap: 24px 16px;
 
       > .bk-form-item {
         flex: 1;
@@ -128,7 +166,27 @@
       min-height: 210px;
       border: 1px solid #dcdee5;
       border-radius: 2px;
+
+      .bk-exception {
+        .exception-image {
+          height: 160px;
+        }
+      }
     }
+  }
+
+  // 数字输入框（时长 / 频率 / 端口）的单位后缀
+  .collection-input-suffix {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0 8px;
+    color: #4d4f56;
+    white-space: nowrap;
+    background: #fafbfd;
+    border-left: 1px solid #c4c6cc;
+    border-top-right-radius: 2px;
+    border-bottom-right-radius: 2px;
   }
 
   .collection-form-footer {
@@ -141,10 +199,6 @@
     &.is-sticky {
       background: #fafbfd;
       box-shadow: 0 -2px 4px 0 #0000000f;
-    }
-
-    > .bk-alert {
-      margin-bottom: 12px;
     }
 
     > div:last-child {
@@ -165,7 +219,7 @@
 @media (width <= 1000px) {
   .collection-task-form {
     .collection-form-body {
-      padding: 24px;
+      padding: 24px 24px 16px;
 
       .collection-form-columns {
         flex-wrap: wrap;

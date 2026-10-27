@@ -30,6 +30,8 @@ import { createCollectionResultsState, restoreCollectionResultsState } from './c
 
 import type {
   CollectionDraft,
+  CollectionFieldError,
+  CollectionFieldKey,
   CollectionHost,
   CollectionMeta,
   CollectionPayload,
@@ -41,7 +43,9 @@ import type {
   ProcessSelector,
 } from '../types/collection';
 
+/** 采集方式对应的展示名 */
 export const collectionMethodLabels = { perf: 'Perf', golang: 'Go', java: 'Java' };
+/** 采集类型对应的展示名 */
 export const collectionTypeLabels = {
   native_cpu: 'Native CPU',
   go_cpu: 'Go CPU',
@@ -49,9 +53,27 @@ export const collectionTypeLabels = {
   java_cpu: 'Java CPU',
   java_allocation: 'Java Allocation',
 };
+/** 调度方式对应的展示名 */
 export const scheduleLabels = { immediate: '立即执行', once_at: '指定时间', cron: '周期执行' };
+/** 进程匹配方式对应的展示名 */
 export const processLabels = { command: '命令行匹配', pid_file: 'PID 文件匹配', pid: '搜索 PID' };
 
+/**
+ * @description 构造带字段归属的提交校验错误，交由表单在对应 form item 下展示
+ * @param field 出错的表单字段
+ * @param message 未翻译的错误文案，由调用方 t() 处理
+ * @returns 附带 field 的错误对象
+ */
+export const collectionFieldError = (field: CollectionFieldKey, message: string): CollectionFieldError =>
+  Object.assign(new Error(message), { field });
+
+/**
+ * @description 按采集元信息构建表单草稿，传入 task 时回填为编辑态
+ * @param meta 采集能力元信息，提供可选方式、类型及默认配置
+ * @param timezone 默认时区，任务未指定时区时兜底
+ * @param task 待编辑的采集任务，缺省表示新建
+ * @returns 采集表单草稿
+ */
 export function createCollectionDraft(meta: CollectionMeta, timezone: string, task?: CollectionTask): CollectionDraft {
   const method =
     task?.collection_method || (meta.collection_methods.includes('java') ? 'java' : meta.collection_methods[0]);
@@ -94,6 +116,10 @@ export function createCollectionDraft(meta: CollectionMeta, timezone: string, ta
   return draft;
 }
 
+/**
+ * @description 构建采集页查询状态的默认值
+ * @returns 默认查询状态
+ */
 export function createCollectionQueryState(): CollectionQueryState {
   return {
     tab: 'tasks',
@@ -109,6 +135,11 @@ export function createCollectionQueryState(): CollectionQueryState {
   };
 }
 
+/**
+ * @description 从序列化的查询状态恢复，逐字段做类型与取值兜底，非法值回落到默认值
+ * @param value 序列化的查询状态，缺省时返回默认值
+ * @returns 可直接使用的查询状态
+ */
 export function restoreCollectionQuery(value?: Partial<CollectionQueryState>): CollectionQueryState {
   const defaults = createCollectionQueryState();
   if (!value) return defaults;
@@ -133,55 +164,73 @@ export function restoreCollectionQuery(value?: Partial<CollectionQueryState>): C
   };
 }
 
+/**
+ * @description 生成进程行的唯一 key，pid 缺失（预览失败）时以 error 占位
+ * @param row 进程预览行
+ * @returns 进程行唯一 key
+ */
 export const processKey = (row: ProcessRow) => `${row.bk_host_id}:${row.pid ?? 'error'}`;
+
+/**
+ * @description 组装按主机实例采集的目标配置
+ * @param hosts 已选主机列表
+ * @returns 采集目标配置
+ */
 export const collectionTarget = (hosts: CollectionHost[]) => ({
   node_type: 'INSTANCE' as const,
   nodes: hosts.map(host => ({ bk_host_id: host.host_id })),
 });
 
+/** 表单项改动后，哪些字段的旧错误提示应随之清除 */
+export const ERROR_FIELDS_BY_DRAFT_KEY: Partial<Record<keyof CollectionDraft, CollectionFieldKey[]>> = {
+  collectionType: ['method', 'duration_sec'],
+  collector: ['duration_sec', 'frequency_hz', 'stack_unwind', 'ip_address', 'port'],
+  cron: ['cron'],
+  endAt: ['endAt'],
+  executeAt: ['executeAt'],
+  hosts: ['hosts'],
+  method: ['method'],
+  name: ['name'],
+  process: ['process'],
+  processMode: ['process'],
+  scheduleType: ['scheduleType', 'executeAt', 'startAt', 'endAt', 'cron'],
+  startAt: ['startAt'],
+};
+
+/** 切换类表单项（改选项而非填内容）：改动时只清除旧提示，等提交时再校验，避免切换瞬间报红 */
+export const SWITCH_DRAFT_KEYS: Array<keyof CollectionDraft> = [
+  'collectionType',
+  'method',
+  'processMode',
+  'scheduleType',
+];
+
+/**
+ * @description 将表单草稿转换为创建/编辑采集任务的提交载荷
+ * @param draft 采集表单草稿
+ * @param bizId 业务 ID
+ * @param now 立即执行时的执行时间戳，默认取当前时间
+ * @returns 采集任务提交载荷
+ */
 export function buildCollectionPayload(draft: CollectionDraft, bizId: number, now = Date.now()): CollectionPayload {
-  if (!draft.name.trim()) throw new Error('请输入任务名称');
-  if (!draft.hosts.length) throw new Error('请选择目标主机');
-  if (!draft.method || !draft.collectionType) throw new Error('请选择采集方式和类型');
   const collector = draft.collector;
-  const positive = (value: number) => Number.isFinite(value) && value > 0;
-  if (draft.collectionType !== 'go_heap' && (!positive(collector.duration_sec) || collector.duration_sec > 300))
-    throw new Error('采集时长须大于 0 且不超过 300 秒');
-  if (draft.method === 'perf' && (!positive(collector.frequency_hz) || !collector.stack_unwind))
-    throw new Error('请填写有效的采样频率和栈展开方式');
-  if (draft.method === 'golang' && (!collector.ip_address?.trim() || !positive(collector.port)))
-    throw new Error('请填写有效的采集地址和端口');
   let selector: ProcessSelector;
-  if (draft.method !== 'golang') {
-    const preview = buildPreviewSelector(draft);
-    if (preview.type === 'command') {
-      const hostIds = new Set(draft.hosts.map(host => host.host_id));
-      const hostPids = collectHostPids(draft.process.selected.filter(row => hostIds.has(row.bk_host_id)));
-      if (!draft.process.dynamic) {
-        if (!hostPids.length) throw new Error('请选择目标进程');
-        if (hostPids.length > 500) throw new Error('最多选择 500 个进程');
-      }
-      selector = {
-        type: 'command',
-        config: {
-          ...preview.config,
-          enable_dynamic_collection: draft.process.dynamic,
-          ...(!draft.process.dynamic ? { host_pids: hostPids } : {}),
-        },
-      };
-    } else {
-      selector = preview;
-    }
+  if (draft.method !== 'golang' && draft.processMode === 'command') {
+    const hostIds = new Set(draft.hosts.map(host => host.host_id));
+    const hostPids = collectHostPids(draft.process.selected.filter(row => hostIds.has(row.bk_host_id)));
+    selector = {
+      type: 'command',
+      config: {
+        match_pattern: draft.process.matchPattern.trim(),
+        exclude_pattern: draft.process.excludePattern.trim(),
+        enable_dynamic_collection: draft.process.dynamic,
+        // 手动选择进程时匹配条件可为空，目标进程由 host_pids 直接指定
+        ...(!draft.process.dynamic ? { host_pids: hostPids } : {}),
+      },
+    };
+  } else if (draft.method !== 'golang') {
+    selector = buildPreviewSelector(draft);
   }
-  if (draft.scheduleType === 'once_at' && (!draft.executeAt || draft.executeAt <= now))
-    throw new Error('指定执行时间须晚于当前时间');
-  if (
-    draft.scheduleType === 'cron' &&
-    (!draft.startAt || !draft.endAt || draft.endAt <= draft.startAt || draft.endAt <= now)
-  )
-    throw new Error('请选择有效的周期执行起止时间');
-  if (draft.scheduleType === 'cron' && draft.cron.trim().split(/\s+/).length !== 5)
-    throw new Error('请填写有效的五段式 Cron 表达式');
   return {
     bk_biz_id: bizId,
     name: draft.name.trim(),
@@ -208,33 +257,50 @@ export function buildCollectionPayload(draft: CollectionDraft, bizId: number, no
   };
 }
 
+/**
+ * @description 构建进程预览用的匹配配置；命令行方式的提交载荷单独组装，允许手动选择时匹配条件为空
+ * @param draft 采集表单草稿
+ * @returns 进程选择配置
+ * @throws {CollectionFieldError} 进程匹配条件不合法时抛出，field 固定为 process
+ */
 export function buildPreviewSelector(draft: CollectionDraft): PreviewSelector {
   const process = draft.process;
+  // 预览必须带匹配条件，与提交校验（动态下发才必填）不同
   if (draft.processMode === 'command') {
-    if (!process.matchPattern.trim()) throw new Error('请输入命令行匹配条件');
+    if (!process.matchPattern.trim()) throw collectionFieldError('process', '请输入命令行匹配条件');
     return {
       type: 'command',
       config: { match_pattern: process.matchPattern.trim(), exclude_pattern: process.excludePattern.trim() },
     };
   }
-  if (draft.processMode === 'pid_file') {
-    const paths = process.pidPath.split(';').map(value => value.trim());
-    if (paths.some(value => !value.startsWith('/'))) throw new Error('请输入 PID 文件的绝对路径，多个路径用分号分隔');
-    const pidPath = paths.join(';');
-    if (paths.length > 20) throw new Error('最多输入 20 个 PID 文件路径');
-    if (pidPath.length > 4096) throw new Error('PID 文件路径总长度不能超过 4096 个字符');
-    return { type: 'pid_file', config: { pid_path: pidPath } };
-  }
-  const values = process.pids.split(';').map(value => value.trim());
-  if (
-    !values.length ||
-    values.some(value => !/^\d+$/.test(value) || !Number.isSafeInteger(Number(value)) || Number(value) <= 0)
-  )
-    throw new Error('请输入有效的 PID，多个 PID 用分号分隔');
-  if (values.length > 1000) throw new Error('最多输入 1000 个 PID');
-  return { type: 'pid', config: { pids: values.join(';') } };
+  const message = processFieldError(draft);
+  if (message) throw collectionFieldError('process', message);
+  if (draft.processMode === 'pid_file')
+    return {
+      type: 'pid_file',
+      config: {
+        pid_path: process.pidPath
+          .split(';')
+          .map(value => value.trim())
+          .join(';'),
+      },
+    };
+  return {
+    type: 'pid',
+    config: {
+      pids: process.pids
+        .split(';')
+        .map(value => value.trim())
+        .join(';'),
+    },
+  };
 }
 
+/**
+ * @description 从进程预览行提取可提交的主机 + PID，按主机 + PID 去重并剔除无效或预览失败的行
+ * @param rows 进程预览行
+ * @returns 去重后的主机 PID 列表
+ */
 export function collectHostPids(rows: ProcessRow[]): HostPid[] {
   const processes = new Map<string, HostPid>();
   for (const row of rows) {
@@ -244,6 +310,67 @@ export function collectHostPids(rows: ProcessRow[]): HostPid[] {
   return [...processes.values()];
 }
 
+/**
+ * @description 一次跑完全部提交校验，返回各字段的首条错误（文案未翻译，由调用方 t()）
+ * @param draft 采集表单草稿
+ * @param editing 是否为编辑态，编辑态不允许把调度方式改为立即执行
+ * @param now 当前时间戳，用于校验指定执行时间
+ * @returns 字段到错误文案的映射，全部合法时为空对象
+ */
+export function collectionFieldErrors(
+  draft: CollectionDraft,
+  editing: boolean,
+  now = Date.now()
+): Partial<Record<CollectionFieldKey, string>> {
+  const errors: Partial<Record<CollectionFieldKey, string>> = {};
+  const add = (field: CollectionFieldKey, message: string) => {
+    errors[field] ??= message;
+  };
+  if (!draft.name.trim()) add('name', '请输入任务名称');
+  if (!draft.hosts.length) add('hosts', '请选择目标主机');
+  if (!draft.method || !draft.collectionType) add('method', '请选择采集方式和类型');
+  const collector = draft.collector;
+  const positive = (value: number) => Number.isFinite(value) && value > 0;
+  if (draft.collectionType !== 'go_heap' && (!positive(collector.duration_sec) || collector.duration_sec > 300))
+    add('duration_sec', '采集时长须大于 0 且不超过 300 秒');
+  if (draft.method === 'perf') {
+    if (!positive(collector.frequency_hz)) add('frequency_hz', '请输入有效的采样频率');
+    if (!collector.stack_unwind) add('stack_unwind', '请选择栈展开方式');
+  }
+  if (draft.method === 'golang') {
+    if (!collector.ip_address?.trim()) add('ip_address', '请输入采集地址');
+    if (!positive(collector.port)) add('port', '请输入有效的端口');
+  }
+  if (draft.method !== 'golang') {
+    const message = processFieldError(draft);
+    if (message) add('process', message);
+    else if (draft.processMode === 'command' && !draft.process.dynamic) {
+      const hostIds = new Set(draft.hosts.map(host => host.host_id));
+      const hostPids = collectHostPids(draft.process.selected.filter(row => hostIds.has(row.bk_host_id)));
+      if (!hostPids.length) add('process', '请选择目标进程');
+      else if (hostPids.length > 500) add('process', '最多选择 500 个进程');
+    }
+  }
+  if (editing && draft.scheduleType === 'immediate') add('scheduleType', '计划任务不支持改为立即执行');
+  if (draft.scheduleType === 'once_at' && (!draft.executeAt || draft.executeAt <= now))
+    add('executeAt', '指定执行时间须晚于当前时间');
+  if (draft.scheduleType === 'cron') {
+    if (!draft.startAt) add('startAt', '请选择开始时间');
+    if (!draft.endAt) add('endAt', '请选择结束时间');
+    else if (draft.endAt <= now) add('endAt', '结束时间须晚于当前时间');
+    else if (draft.endAt <= (draft.startAt ?? 0)) add('endAt', '结束时间须晚于开始时间');
+  }
+  if (draft.scheduleType === 'cron' && draft.cron.trim().split(/\s+/).length !== 5)
+    add('cron', '请填写有效的五段式 Cron 表达式');
+  return errors;
+}
+
+/**
+ * @description 按关键字、调度方式、状态过滤采集任务，并按当前排序规则排序
+ * @param tasks 采集任务列表
+ * @param query 查询状态
+ * @returns 过滤并排序后的任务列表
+ */
 export function filterCollectionTasks(tasks: CollectionTask[], query: CollectionQueryState) {
   const keyword = query.keyword.trim().toLocaleLowerCase();
   const filtered = tasks.filter(
@@ -269,10 +396,23 @@ export function filterCollectionTasks(tasks: CollectionTask[], query: Collection
   return filtered;
 }
 
+/**
+ * @description 按指定时区格式化时间戳
+ * @param value 毫秒时间戳
+ * @param timezone 时区
+ * @returns 格式化后的时间字符串，无值时返回 --
+ */
 export function formatCollectionTime(value: number, timezone: string) {
   return value ? dayjs(value).tz(timezone).format('YYYY-MM-DD HH:mm:ss') : '--';
 }
 
+/**
+ * @description 复用已有任务配置，生成一次立即执行的提交载荷
+ * @param task 采集任务
+ * @param bizId 业务 ID
+ * @param now 立即执行的执行时间戳，默认取当前时间
+ * @returns 采集任务提交载荷
+ */
 export function immediateCollectionPayload(task: CollectionTask, bizId: number, now = Date.now()): CollectionPayload {
   const {
     name,
@@ -294,4 +434,33 @@ export function immediateCollectionPayload(task: CollectionTask, bizId: number, 
     resource_guard_config,
     schedule: { type: 'immediate', execute_at: now, timezone: task.schedule.timezone },
   };
+}
+
+/**
+ * @description 按当前进程匹配方式校验匹配条件，返回首条错误文案
+ * @param draft 采集表单草稿
+ * @returns 未翻译的错误文案，合法时为 undefined
+ */
+function processFieldError(draft: CollectionDraft): string | undefined {
+  const process = draft.process;
+  if (draft.processMode === 'command') {
+    // 手动选择进程时匹配条件只用于预览，只有动态下发才需要随任务保存，因此只有动态下发要求必填
+    if (draft.process.dynamic && !process.matchPattern.trim()) return '请输入命令行匹配条件';
+    return undefined;
+  }
+  if (draft.processMode === 'pid_file') {
+    const paths = process.pidPath.split(';').map(value => value.trim());
+    if (paths.some(value => !value.startsWith('/'))) return '请输入 PID 文件的绝对路径，多个路径用分号分隔';
+    if (paths.length > 20) return '最多输入 20 个 PID 文件路径';
+    if (paths.join(';').length > 4096) return 'PID 文件路径总长度不能超过 4096 个字符';
+    return undefined;
+  }
+  const values = process.pids.split(';').map(value => value.trim());
+  if (
+    !values.length ||
+    values.some(value => !/^\d+$/.test(value) || !Number.isSafeInteger(Number(value)) || Number(value) <= 0)
+  )
+    return '请输入有效的 PID，多个 PID 用分号分隔';
+  if (values.length > 1000) return '最多输入 1000 个 PID';
+  return undefined;
 }

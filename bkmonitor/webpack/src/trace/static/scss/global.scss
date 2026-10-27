@@ -284,6 +284,11 @@ body {
   border-bottom-color: #fff;
 }
 
+.tippy-box[data-theme~='dart'] {
+  border: unset;
+  box-shadow: unset;
+}
+
 .bk-popper {
   &.tooltip-chart-tips-dark-theme {
     display: block;
