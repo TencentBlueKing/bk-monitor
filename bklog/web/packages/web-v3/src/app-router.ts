@@ -29,6 +29,7 @@ import { createRouter, createWebHashHistory, type RouteRecordRaw } from 'vue-rou
 import { MANAGE_MODULES } from './features/catalog';
 import CollectionPage from './features/manage/collection-page.vue';
 import ManageLayout from './features/manage/manage-layout.vue';
+import ManageModulePage from './features/manage/manage-module-page.vue';
 import ClusteringPage from './features/retrieve/clustering-page.vue';
 import ContextPage from './features/retrieve/context-page.vue';
 import RealtimePage from './features/retrieve/realtime-page.vue';
@@ -42,7 +43,7 @@ const isManageModule = (id: string) => id.startsWith('manage-');
 const manageChildren: RouteRecordRaw[] = MANAGE_MODULES.filter(module => isManageModule(module.id)).map(module => ({
   path: module.path.replace(/^\/manage\//, ''),
   name: module.id,
-  component: module.id === 'manage-collection' ? CollectionPage : ResourceListPage,
+  component: module.id === 'manage-collection' ? CollectionPage : ManageModulePage,
   props: module.id === 'manage-collection' ? undefined : { moduleId: module.id },
   meta: { title: module.title, group: 'manage' },
 }));

@@ -52,16 +52,17 @@
         @search="onSearch"
         @apply-history="onApplyHistory"
       />
+      <retrieve-scene-bar :state="scene" @change="onScene" @filter="onSceneFilter" />
       <t-alert v-if="search.uiState === 'error'" theme="error" :message="search.error" />
       <section class="retrieve-result">
         <retrieve-field-panel :state="fields" @toggle="onToggleField" @filter="onFieldFilter" />
         <section class="retrieve-result__main" data-ui="result-panel">
-          <t-tabs :value="workspace.tab" @change="onTab">
-            <t-tab-panel value="origin" label="原始日志" />
-            <t-tab-panel value="clustering" label="日志聚类" />
-            <t-tab-panel value="graph" label="图表分析" />
-            <t-tab-panel value="grep" label="Grep 模式" />
-          </t-tabs>
+          <nav class="retrieve-result__tabs" data-ui="result-tabs">
+            <button type="button" :class="{ 'is-active': workspace.tab === 'origin' }" data-ui="tab-origin" @click="onTab('origin')">原始日志</button>
+            <button type="button" :class="{ 'is-active': workspace.tab === 'clustering' }" data-ui="tab-clustering" @click="onTab('clustering')">日志聚类</button>
+            <button type="button" :class="{ 'is-active': workspace.tab === 'graph' }" data-ui="tab-graph" @click="onTab('graph')">图表分析</button>
+            <button type="button" :class="{ 'is-active': workspace.tab === 'grep' }" data-ui="tab-grep" @click="onTab('grep')">Grep 模式</button>
+          </nav>
           <div v-if="workspace.tab === 'origin'" class="retrieve-result__meta">
             <span>共 {{ search.total }} 条</span>
             <span class="retrieve-result__tools">
@@ -123,11 +124,16 @@
               </t-table>
               </div>
             </template>
-            <t-table
-              v-else-if="workspace.tab === 'clustering'"
-              row-key="pattern"
-              :data="clusterGroups"
-              :columns="clusterColumns"
+            <div v-else-if="workspace.tab === 'clustering'" data-ui="cluster-table">
+              <t-table
+                row-key="pattern"
+                :data="clusterGroups"
+                :columns="clusterColumns"
+              />
+            </div>
+            <retrieve-graph-panel
+              v-else-if="workspace.tab === 'graph'"
+              :buckets="graphBuckets"
             />
             <retrieve-grep-panel
               v-else-if="workspace.tab === 'grep'"
@@ -135,12 +141,6 @@
               @field="onGrepField"
               @pattern="onGrepPattern"
               @run="onRunGrep"
-            />
-            <t-table
-              v-else
-              row-key="startTime"
-              :data="graphBuckets"
-              :columns="graphColumns"
             />
           </t-loading>
         </section>
@@ -198,8 +198,11 @@ import { IndexSetController } from './index-set-controller';
 import { RealtimeController, type RealtimeSnapshot } from './realtime-controller';
 import RetrieveFavoritePanel from './retrieve-favorite-panel.vue';
 import RetrieveFieldPanel from './retrieve-field-panel.vue';
+import RetrieveGraphPanel from './retrieve-graph-panel.vue';
 import RetrieveGrepPanel from './retrieve-grep-panel.vue';
+import RetrieveSceneBar from './retrieve-scene-bar.vue';
 import RetrieveSearchbar from './retrieve-searchbar.vue';
+import { SceneController, type SceneId, type SceneSnapshot } from './scene-controller';
 import { highlightParts, parseSearchChips } from './search-query';
 import {
   createLocalSearchFetcher,
@@ -243,10 +246,12 @@ const saveName = ref('');
 const searchHistory = ref<string[]>(['error', 'login', 'timeout']);
 const expandedId = ref<string | null>(null);
 const grepController = new GrepController();
+const sceneController = new SceneController();
 const search = reactive<RetrieveSnapshot>(searchController.getState());
 const favorite = reactive<FavoriteSnapshot>(favoriteController.getState());
 const toolbar = reactive<ToolbarSnapshot>(toolbarController.getState());
 const grep = reactive<GrepSnapshot>(grepController.getState());
+const scene = reactive<SceneSnapshot>(sceneController.getState());
 const fields = reactive<FieldSnapshot>(fieldController.getState());
 const workspace = reactive<WorkspaceSnapshot>(workspaceController.getState());
 const context = reactive<ContextSnapshot>(contextController.getState());
@@ -302,10 +307,6 @@ const clusterColumns = [
   { colKey: 'pattern', title: '模式' },
   { colKey: 'count', title: '数量', width: 100 },
   { colKey: 'sample', title: '样例' },
-];
-const graphColumns = [
-  { colKey: 'startTime', title: '时间桶' },
-  { colKey: 'count', title: '数量', width: 100 },
 ];
 const contextColumns = [
   { colKey: 'id', title: 'ID', width: 80 },
@@ -447,6 +448,14 @@ const onApplyFavorite = async (id: string) => {
 
 const onRemoveFavorite = (id: string) => {
   syncFavorite(favoriteController.remove(id));
+};
+
+const onScene = (value: SceneId) => {
+  Object.assign(scene, sceneController.setScene(value));
+};
+
+const onSceneFilter = (key: string, value: string) => {
+  Object.assign(scene, sceneController.setFilter(key, value));
 };
 
 const onGrepField = (value: string) => {

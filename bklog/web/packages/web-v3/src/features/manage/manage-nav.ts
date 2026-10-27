@@ -50,6 +50,7 @@ export const MANAGE_NAV_GROUPS: ManageNavGroup[] = [
     keyword: '接入',
     children: [
       { id: 'manage-collection', title: '采集项', path: '/manage/collection', icon: 'bklog-rizhicaiji' },
+      { id: 'manage-custom-report', title: '自定义上报', path: '/manage/custom-report', icon: 'bklog-rizhitiqupeizhi' },
     ],
   },
   {

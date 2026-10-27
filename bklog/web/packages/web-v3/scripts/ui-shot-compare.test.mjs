@@ -15,6 +15,10 @@ const FULL_SHOTS = [
   'v3-collection.png',
   'v3-collection-wizard.png',
   'v3-manage-clean.png',
+  'v3-cluster-page.png',
+  'v3-context-page.png',
+  'v3-realtime-page.png',
+  'v3-manage-index-set.png',
 ];
 function assertPng(path, name, minSize) {
   assert.ok(existsSync(path), `missing screenshot ${name}`);
@@ -33,6 +37,9 @@ const REGION_SHOTS = [
   'v3-retrieve-history.png',
   'v3-collection-left.png',
   'v3-manage-nav.png',
+  'v3-retrieve-scene.png',
+  'v3-retrieve-grep.png',
+  'v3-retrieve-graph.png',
 ];
 
 describe('UI screenshot compare (forbidden to pass without shots)', () => {

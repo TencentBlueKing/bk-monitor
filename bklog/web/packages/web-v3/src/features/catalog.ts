@@ -56,6 +56,16 @@ export const MANAGE_MODULES: ModuleCatalog[] = [
     ],
   },
   {
+    id: 'manage-custom-report',
+    title: '自定义上报',
+    path: '/manage/custom-report',
+    source: 'src/views/manage/manage-access/custom-report',
+    items: [
+      { id: 'cr-1', name: 'otlp-trace', status: 'running', keyword: 'otlp' },
+      { id: 'cr-2', name: 'json-event', status: 'ready', keyword: 'json' },
+    ],
+  },
+  {
     id: 'manage-clean',
     title: '清洗模板',
     path: '/manage/clean',

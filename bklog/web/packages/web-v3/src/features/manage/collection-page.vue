@@ -236,6 +236,7 @@ const columns = [
   { colKey: 'name', title: '采集项名称', cell: 'name' },
   { colKey: 'nameEn', title: '数据名', width: 160 },
   { colKey: 'scenario', title: '类型', cell: 'scenario', width: 140 },
+  { colKey: 'path', title: '路径', width: 200 },
   { colKey: 'status', title: '状态', cell: 'status', width: 120 },
   { colKey: 'cluster', title: '存储集群', width: 140 },
   { colKey: 'op', title: '操作', cell: 'op', width: 160 },

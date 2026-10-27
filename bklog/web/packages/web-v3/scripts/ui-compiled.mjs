@@ -49,6 +49,8 @@ const required = [
   { token: '--bklog-origin-header-bg', value: '#fafbfd' },
   { token: '--bklog-manage-nav-bg', value: '#2c354d' },
   { token: '--bklog-manage-nav-width', value: '220px' },
+  { token: '--bklog-scene-bar-height', value: '36px' },
+  { token: '--bklog-graph-bar', value: '#3a84ff' },
 ];
 
 const files = readdirSync(distCss).filter(name => name.endsWith('.css'));

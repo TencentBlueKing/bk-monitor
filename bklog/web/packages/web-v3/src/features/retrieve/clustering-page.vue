@@ -21,14 +21,16 @@
   IN THE SOFTWARE.
 -->
 <template>
-  <section class="resource-page">
+  <section class="resource-page" data-ui="cluster-page">
     <header class="retrieve-toolbar">
       <h2 class="resource-page__title">日志聚类</h2>
       <t-input v-model="query" placeholder="过滤模式或原文" style="width: 240px" @enter="refresh" />
       <t-button theme="primary" @click="refresh">聚类</t-button>
     </header>
     <t-empty v-if="!groups.length" description="没有匹配的聚类" />
-    <t-table v-else row-key="pattern" :data="groups" :columns="columns" />
+    <div v-else data-ui="cluster-table">
+      <t-table row-key="pattern" :data="groups" :columns="columns" />
+    </div>
   </section>
 </template>
 

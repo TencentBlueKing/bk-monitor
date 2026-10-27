@@ -197,6 +197,22 @@ async function measureRetrieve(page) {
     ok: rowHeight > 0 && Math.abs(rowHeight - 32) <= 12,
     detail: rowHeight,
   });
+  const tabText = await page.$eval('[data-ui="result-tabs"]', el => (el.textContent || '').replace(/\s+/g, '')).catch(() => '');
+  checks.push({
+    id: 'result-tabs',
+    ok: ['原始日志', '日志聚类', '图表分析', 'Grep模式'].every(label => tabText.includes(label)),
+    detail: tabText,
+  });
+  checks.push({
+    id: 'scene-bar',
+    ok: Boolean(await page.$('[data-ui="scene-bar"]')) && Boolean(await page.$('[data-ui="scene-none"]')),
+    detail: 'scene switcher',
+  });
+  checks.push({
+    id: 'workbench-controls',
+    ok: Boolean(await page.$('[data-ui="index-set"]')) && Boolean(await page.$('[data-ui="time-preset"]')),
+    detail: 'index set + time',
+  });
   return { favorite, topbar, searchbar, field, result, favoriteStyle, checks };
 }
 
@@ -331,6 +347,37 @@ try {
   });
   report.shots.push(highlightShot, expandShot, ...[chipsShot, sqlShot, historyShot].filter(Boolean));
 
+  await page.click('[data-ui="scene-k8s"]').catch(() => null);
+  await page.waitForTimeout(200);
+  const sceneShot = await captureRegion(page, '[data-ui="scene-bar"]', 'v3-retrieve-scene');
+  const sceneFilters = Boolean(await page.$('[data-ui="scene-filters"]'));
+  await page.click('[data-ui="tab-grep"]');
+  await page.waitForTimeout(200);
+  const grepShot = await captureRegion(page, '[data-ui="grep-panel"]', 'v3-retrieve-grep');
+  const hasGrep = Boolean(await page.$('[data-ui="grep-panel"]'));
+  await page.fill('[data-ui="grep-pattern"] input, [data-ui="grep-pattern"] .t-input__inner', 'error').catch(() => null);
+  await page.click('[data-ui="grep-run"]').catch(() => null);
+  await page.click('[data-ui="tab-graph"]');
+  await page.waitForTimeout(200);
+  const graphShot = await captureRegion(page, '[data-ui="graph-panel"]', 'v3-retrieve-graph');
+  const hasGraph = Boolean(await page.$('[data-ui="graph-panel"]'));
+  await page.click('[data-ui="tab-clustering"]');
+  await page.waitForTimeout(200);
+  const clusterShot = await captureRegion(page, '[data-ui="cluster-table"]', 'v3-retrieve-cluster');
+  const hasCluster = Boolean(await page.$('[data-ui="cluster-table"]'));
+  report.pages.push({
+    name: 'retrieve-rest',
+    shot: graphShot,
+    regions: { scene: sceneShot, grep: grepShot, graph: graphShot, cluster: clusterShot },
+    checks: [
+      { id: 'scene-filters', ok: sceneFilters, detail: sceneShot },
+      { id: 'grep-panel', ok: hasGrep || Boolean(grepShot), detail: grepShot },
+      { id: 'graph-panel', ok: hasGraph || Boolean(graphShot), detail: graphShot },
+      { id: 'cluster-table', ok: hasCluster || Boolean(clusterShot), detail: clusterShot },
+    ],
+  });
+  report.shots.push(...[sceneShot, grepShot, graphShot, clusterShot].filter(Boolean));
+
   await page.goto(`${baseUrl}/#/manage/collection`, { waitUntil: 'networkidle' });
   const collectionShot = await capture(page, 'v3-collection');
   const collectionLeftShot = await captureRegion(page, '[data-ui="collection-left"]', 'v3-collection-left');
@@ -349,8 +396,65 @@ try {
   const manageShot = await capture(page, 'v3-manage-clean');
   const manageNavShot = await captureRegion(page, '[data-ui="manage-left"]', 'v3-manage-nav');
   const manage = await measureManage(page);
+  const cleanTabs = await page.$$eval('[data-ui="manage-module-tabs"] button', nodes => nodes.map(el => el.textContent?.trim())).catch(() => []);
+  manage.checks.push({
+    id: 'manage-clean-tabs',
+    ok: cleanTabs.join(',') === '清洗项,模板,脱敏',
+    detail: cleanTabs,
+  });
   report.pages.push({ name: 'manage-clean', shot: manageShot, regions: { nav: manageNavShot }, ...manage });
   report.shots.push(manageShot, ...[manageNavShot].filter(Boolean));
+
+  await page.goto(`${baseUrl}/#/retrieve/clustering`, { waitUntil: 'networkidle' });
+  const clusterPageShot = await capture(page, 'v3-cluster-page');
+  report.pages.push({
+    name: 'cluster-page',
+    shot: clusterPageShot,
+    checks: [{ id: 'cluster-page', ok: Boolean(await page.$('[data-ui="cluster-page"]')), detail: clusterPageShot }],
+  });
+  report.shots.push(clusterPageShot);
+
+  await page.goto(`${baseUrl}/#/retrieve/context`, { waitUntil: 'networkidle' });
+  const contextPageShot = await capture(page, 'v3-context-page');
+  report.pages.push({
+    name: 'context-page',
+    shot: contextPageShot,
+    checks: [{ id: 'context-page', ok: Boolean(await page.$('[data-ui="context-page"]')), detail: contextPageShot }],
+  });
+  report.shots.push(contextPageShot);
+
+  await page.goto(`${baseUrl}/#/retrieve/realtime`, { waitUntil: 'networkidle' });
+  const realtimePageShot = await capture(page, 'v3-realtime-page');
+  report.pages.push({
+    name: 'realtime-page',
+    shot: realtimePageShot,
+    checks: [{ id: 'realtime-page', ok: Boolean(await page.$('[data-ui="realtime-page"]')), detail: realtimePageShot }],
+  });
+  report.shots.push(realtimePageShot);
+
+  const managePages = [
+    ['index-set', 'v3-manage-index-set', '列表,脱敏'],
+    ['custom-report', 'v3-manage-custom-report', '列表,详情'],
+    ['archive', 'v3-manage-archive', '仓库,列表,回溯'],
+    ['extract', 'v3-manage-extract', '任务,链路,配置'],
+    ['es', 'v3-manage-es', '集群'],
+    ['client-log', 'v3-manage-client', '采集,检索任务'],
+    ['grok', 'v3-manage-grok', '模式'],
+  ];
+  for (const [path, shotName, expectTabs] of managePages) {
+    await page.goto(`${baseUrl}/#/manage/${path}`, { waitUntil: 'networkidle' });
+    const shot = await capture(page, shotName);
+    const tabs = await page.$$eval('[data-ui="manage-module-tabs"] button', nodes => nodes.map(el => el.textContent?.trim())).catch(() => []);
+    report.pages.push({
+      name: shotName,
+      shot,
+      checks: [
+        { id: `${path}-page`, ok: Boolean(await page.$('[data-ui="manage-right"]')), detail: shot },
+        { id: `${path}-tabs`, ok: tabs.join(',') === expectTabs, detail: tabs },
+      ],
+    });
+    report.shots.push(shot);
+  }
 
   if (v2BaseUrl) {
     await page.goto(`${v2BaseUrl}/#/retrieve/16176?spaceUid=bkcc__5000140&bizId=5000140`, { waitUntil: 'domcontentloaded', timeout: 90000 });

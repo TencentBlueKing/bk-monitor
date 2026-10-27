@@ -21,12 +21,12 @@
   IN THE SOFTWARE.
 -->
 <template>
-  <section class="retrieve-grep-panel">
+  <section class="retrieve-grep-panel" data-ui="grep-panel">
     <header class="retrieve-toolbar">
       <strong>Grep</strong>
-      <t-input :model-value="state.field" placeholder="字段，默认 log" style="width: 140px" @update:model-value="onField" />
-      <t-input :model-value="state.pattern" placeholder="正则，如 error|timeout" @update:model-value="onPattern" @enter="emit('run')" />
-      <t-button theme="primary" :disabled="state.uiState === 'waiting'" @click="emit('run')">过滤</t-button>
+      <t-input data-ui="grep-field" :model-value="state.field" placeholder="字段，默认 log" style="width: 140px" @update:model-value="onField" />
+      <t-input data-ui="grep-pattern" :model-value="state.pattern" placeholder="正则，如 error|timeout" @update:model-value="onPattern" @enter="emit('run')" />
+      <t-button data-ui="grep-run" theme="primary" :disabled="state.uiState === 'waiting'" @click="emit('run')">过滤</t-button>
     </header>
     <t-alert v-if="state.uiState === 'waiting'" theme="warning" message="主检索进行中，Grep 等待完成后再过滤" />
     <t-alert v-if="state.uiState === 'error'" theme="error" :message="state.error" />

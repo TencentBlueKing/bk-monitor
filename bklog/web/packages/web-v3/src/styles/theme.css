@@ -82,6 +82,8 @@
   --bklog-chip-bg: #eaebf0;
   --bklog-highlight-bg: #faeeb1;
   --bklog-sql-bg: #fafbfd;
+  --bklog-scene-bar-height: 36px;
+  --bklog-graph-bar: #3a84ff;
 }
 
 html,
@@ -363,6 +365,29 @@ body,
   min-width: 0;
   padding: 0 8px 8px;
   background: var(--bklog-panel-bg);
+}
+
+.retrieve-result__tabs {
+  display: flex;
+  gap: 4px;
+  height: 40px;
+  align-items: center;
+  border-bottom: 1px solid var(--bklog-border-light);
+}
+
+.retrieve-result__tabs button {
+  height: 32px;
+  padding: 0 12px;
+  color: var(--bklog-text-secondary);
+  background: transparent;
+  border: 0;
+  cursor: pointer;
+}
+
+.retrieve-result__tabs button.is-active {
+  color: var(--bklog-brand);
+  font-weight: 600;
+  box-shadow: inset 0 -2px 0 var(--bklog-brand);
 }
 
 .retrieve-result__meta {
@@ -758,6 +783,92 @@ body,
   border-top: 1px solid var(--td-component-border, #e7e9ed);
 }
 
+.retrieve-scene-bar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+  min-height: var(--bklog-scene-bar-height);
+  padding: 0 8px 8px;
+}
+
+.retrieve-scene-bar__scenes,
+.retrieve-scene-bar__filters {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.retrieve-scene-bar__scene {
+  height: 28px;
+  padding: 0 10px;
+  color: var(--bklog-text-secondary);
+  background: #fff;
+  border: 1px solid var(--bklog-border);
+  border-radius: 2px;
+  cursor: pointer;
+}
+
+.retrieve-scene-bar__scene.is-active {
+  color: var(--bklog-brand);
+  background: #e1ecff;
+  border-color: #cddffe;
+}
+
+.retrieve-scene-bar__filter {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  color: var(--bklog-text-secondary);
+}
+
+.retrieve-scene-bar__filter .t-input {
+  width: 140px;
+}
+
+.retrieve-graph-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  min-height: 180px;
+  padding: 8px 0;
+}
+
+.retrieve-graph-panel__meta {
+  display: flex;
+  justify-content: space-between;
+  color: var(--bklog-text-secondary);
+}
+
+.retrieve-graph-panel__bars {
+  display: flex;
+  gap: 8px;
+  align-items: flex-end;
+  height: 140px;
+  padding: 0 8px;
+}
+
+.retrieve-graph-panel__bar {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-end;
+  height: 100%;
+  padding: 0;
+  color: var(--bklog-text-secondary);
+  background: transparent;
+  border: 0;
+  cursor: pointer;
+}
+
+.retrieve-graph-panel__bar span {
+  display: block;
+  width: 16px;
+  background: var(--bklog-graph-bar);
+  border-radius: 2px 2px 0 0;
+}
+
 .app-shell {
   display: flex;
   flex-direction: column;
@@ -950,6 +1061,26 @@ body,
   color: var(--bklog-text);
   font-size: 14px;
   font-weight: 600;
+}
+
+.manage-module__tabs {
+  display: flex;
+  gap: 4px;
+}
+
+.manage-module__tab {
+  height: 32px;
+  padding: 0 12px;
+  color: var(--bklog-text-secondary);
+  background: var(--bklog-page-bg);
+  border: 0;
+  border-radius: 2px;
+  cursor: pointer;
+}
+
+.manage-module__tab.is-active {
+  color: var(--bklog-brand);
+  background: #e1ecff;
 }
 
 .collection-shell {

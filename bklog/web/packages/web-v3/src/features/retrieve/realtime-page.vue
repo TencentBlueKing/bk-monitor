@@ -21,7 +21,7 @@
   IN THE SOFTWARE.
 -->
 <template>
-  <section class="resource-page">
+  <section class="resource-page" data-ui="realtime-page">
     <header class="retrieve-toolbar">
       <h2 class="resource-page__title">实时日志</h2>
       <t-button theme="primary" :disabled="state.uiState === 'streaming'" @click="start">开始</t-button>

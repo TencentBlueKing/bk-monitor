@@ -37,17 +37,18 @@
         :model-value="indexSetId"
         :options="indexSetOptions"
         class="retrieve-topbar__index"
+        data-ui="index-set"
         borderless
         @change="onIndexSet"
       />
     </div>
     <div class="retrieve-topbar__right">
-      <t-select :model-value="toolbar.timePreset" class="retrieve-topbar__time" borderless @change="onTimeChange">
+      <t-select data-ui="time-preset" :model-value="toolbar.timePreset" class="retrieve-topbar__time" borderless @change="onTimeChange">
         <t-option value="15m" label="近 15 分钟" />
         <t-option value="1h" label="近 1 小时" />
         <t-option value="24h" label="近 24 小时" />
       </t-select>
-      <label class="retrieve-topbar__refresh">
+      <label class="retrieve-topbar__refresh" data-ui="auto-refresh">
         <i class="bklog-icon bklog-time-2" />
         <span>自动刷新</span>
         <t-switch size="small" :model-value="toolbar.autoRefresh" @change="onAutoRefresh" />
