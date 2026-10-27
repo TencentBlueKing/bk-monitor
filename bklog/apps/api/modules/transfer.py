@@ -510,6 +510,30 @@ class _TransferApi:
             before_request=add_esb_info_before_request,
             bk_tenant_id=space_type_id_to_tenant_getter(),
         )
+        self.set_log_clustering_config = DataAPI(
+            method="POST",
+            url=self._build_url("set_log_clustering_config/", "metadata_set_log_clustering_config/"),
+            module=self.MODULE,
+            description=_("保存并下发日志聚类配置"),
+            before_request=add_esb_info_before_request,
+            bk_tenant_id=result_table_to_tenant_getter("table_id"),
+        )
+        self.operate_log_clustering = DataAPI(
+            method="POST",
+            url=self._build_url("operate_log_clustering/", "metadata_operate_log_clustering/"),
+            module=self.MODULE,
+            description=_("执行日志聚类控制动作"),
+            before_request=add_esb_info_before_request,
+            bk_tenant_id=result_table_to_tenant_getter("table_id"),
+        )
+        self.get_log_clustering_status = DataAPI(
+            method="GET",
+            url=self._build_url("get_log_clustering_status/", "metadata_get_log_clustering_status/"),
+            module=self.MODULE,
+            description=_("查询日志聚类配置与运行状态"),
+            before_request=add_esb_info_before_request,
+            bk_tenant_id=result_table_to_tenant_getter("table_id"),
+        )
         self.list_kafka_tail = DataAPI(
             method="GET",
             url=self._build_url("kafka_tail/", "metadata_kafka_tail/"),
