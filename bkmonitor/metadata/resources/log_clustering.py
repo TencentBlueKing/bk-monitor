@@ -35,7 +35,7 @@ logger = logging.getLogger("metadata")
 __all__ = ["SetLogClusteringConfigResource", "OperateLogClusteringResource", "GetLogClusteringStatusResource"]
 
 # 单租户部署下 BKBase 日志聚类动作/状态接口路径中的租户
-# TODO: 待 BKBase 确认正式 schema（B01）后核对
+# TODO: 当前取 BKBase 联调环境示例值，待 BKBase 正式接口约定单租户路径租户后核对
 BKBASE_SINGLE_TENANT = "default"
 BKBASE_ACTIONS = ["drain", "finish", "resume"]
 # metadata 内部动作：切换 Databus 是否引用聚类 Sink 后完整下发日志链路
