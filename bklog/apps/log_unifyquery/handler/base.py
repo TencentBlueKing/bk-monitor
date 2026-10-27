@@ -658,6 +658,9 @@ class UnifyQueryHandler:
         log_list = []
         origin_log_list = []
         for log in result_dict["list"]:
+            # pre-desensitize merge: 将 ES 返回的 flatten 格式（{"a.b": 1}）合并为嵌套 dict（{"a": {"b": 1}}）。
+            # 后续 _log_desensitize 内部 path_aware_expand 会再展开，形成一次"合 → 展"往返。
+            # 这是兼容行为，确保旧版 expand_nested_data 路径的消费者不受影响。
             log = merge_nested_data(log)
             if (self.field_configs or self.text_fields_field_configs) and self.is_desensitize:
                 try:

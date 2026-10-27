@@ -246,6 +246,8 @@ class SceneUnifyQueryHandler(UnifyQueryHandler):
                 logger.exception("[scene_search] failed to map result_table_id to index_set_id")
 
         for log in result_dict.get("list", []):
+            # pre-desensitize merge: 与父类 _deal_query_result 保持一致，
+            # 将 flatten 格式合并为嵌套 dict（详见 base.py 同名方法注释）。
             log = merge_nested_data(log)
             if add_index_set_id:
                 log["__index_set_id__"] = result_table_index_set_map.get(log.get("__result_table"))

@@ -803,11 +803,11 @@ class TestSearchHandlerDesensitize(TestCase):
         self.assertEqual(logs[0]["log"], "[FILTERED]")
 
     def test_multi_layer_json_string_nesting_end_to_end(self):
-        """缺失场景 2：多层 JSON 字符串嵌套验证。
+        """多层 JSON 字符串嵌套验证。
 
         body 是 JSON 字符串，其内部某字段值又是 JSON 字符串（多层嵌套），
         脱敏应递归穿透所有层级，最终 body 仍为 JSON 字符串，
-        且内层 inner 仍保持为 JSON 字符串（P1-2：容器类型不被破坏）。
+        且内层 inner 仍保持为 JSON 字符串（容器类型不被破坏）。
         """
         inner_config = {
             "field_name": "body.inner.secret",
@@ -978,7 +978,7 @@ class TestSearchHandlerDesensitize(TestCase):
                 "body": '{"player":{"id":"12345"}}',
             },
         }
-        # 构造超深嵌套 dict，P1-1 深度截断 + deepcopy 兜底双重保护
+        # 构造超深嵌套 dict，深度截断 + deepcopy 兜底双重保护
         # 确保即使最深路径也不会抛异常，且不影响正常日志脱敏
         deep_dict = {}
         current = deep_dict
@@ -1114,3 +1114,34 @@ class TestSearchHandlerDesensitize(TestCase):
         # 字面 key "a.b" 完整保留原值（未配置该路径）
         self.assertEqual(parsed["a.b"], "value2")
 
+    def test_deep_dict_subtree_preserved(self):
+        """超深嵌套 dict（depth > max_depth=10）子树通过 _log_desensitize 完整
+        链路后仍保留为嵌套 dict，且浅层 leaf 正常脱敏。"""
+        self._put_config(field_configs=[MASK_CONFIG])
+
+        handler = self._build_handler()
+        # 构造 depth=15 的嵌套 dict
+        inner = {}
+        current = inner
+        for i in range(15):
+            current["level"] = {}
+            current["leaf"] = f"value_{i}"
+            current = current["level"]
+
+        log = {"body": inner, "message": "Hello World1234"}
+        desensitized = handler._log_desensitize(log)
+
+        # 浅层字段正常脱敏
+        self.assertEqual(desensitized["message"], "He***********34")
+        # body 仍是 dict，其内部 depth<=10 的 leaf 存在
+        self.assertIsInstance(desensitized["body"], dict)
+        # depth=11 的 level 子树作为 dict 保留（而非丢失或遮罩）
+        deep_level = desensitized["body"]
+        for d in range(12):
+            self.assertIsInstance(
+                deep_level, dict,
+                "At restored depth {}, expected dict but got {}".format(d, type(deep_level)),
+            )
+            self.assertIn("leaf", deep_level,
+                          "At restored depth {}, expected 'leaf' key".format(d))
+            deep_level = deep_level.get("level", {})

@@ -370,3 +370,79 @@ class SceneUnifyQueryHandlerDesensitizeEndToEnd(TestCase):
         self.assertIsInstance(desensitized["body"], str)
         parsed = json.loads(desensitized["body"])
         self.assertEqual(parsed["player"]["id"], "1***5")
+
+    @override_settings(ESQUERY_WHITE_LIST=["bk_log"])
+    def test_full_deep_dict_subtree_preserved(self):
+        """
+        场景化检索链路：result_table_id → index_set_id → config 懒加载 →
+        _deal_query_result → _log_desensitize。深度 > max_depth=10 的子树
+        必须完整保留（作为 dict 原子值），不得从响应中消失。
+        """
+        self._put_config(field_configs=[MASK_CONFIG])
+
+        handler = self._build_handler()
+        # 构造 depth=15 的嵌套 dict
+        inner = {}
+        current = inner
+        for i in range(15):
+            current["level"] = {}
+            current["leaf"] = f"value_{i}"
+            current = current["level"]
+
+        result = self._run_search(
+            handler,
+            _fake_ts_raw_result(body=inner, message="Hello World1234"),
+        )
+
+        logs = result["list"]
+        self.assertEqual(len(logs), 1)
+        # 浅层字段正常脱敏
+        self.assertEqual(logs[0]["message"], "He***********34")
+        # body 仍是 dict，深度<=10 的 leaf 存在
+        self.assertIsInstance(logs[0]["body"], dict)
+        deep_level = logs[0]["body"]
+        for d in range(12):
+            self.assertIsInstance(
+                deep_level, dict,
+                "At restored depth {}, expected dict but got {}".format(d, type(deep_level)),
+            )
+            self.assertIn("leaf", deep_level,
+                          "At restored depth {}, expected 'leaf' key".format(d))
+            deep_level = deep_level.get("level", {})
+
+    @override_settings(ESQUERY_WHITE_LIST=["bk_log"])
+    def test_full_multi_layer_json_string_nesting(self):
+        """多层 JSON 字符串嵌套通过完整 search() 链路后类型不被破坏。
+
+        body 是 JSON 字符串，其内部 inner 也是 JSON 字符串；配置
+        body.inner.secret。脱敏后 body 仍是 JSON 字符串，inner 仍是
+        JSON 字符串（不是 dict），secret 被脱敏。
+        """
+        inner_config = {
+            "field_name": "body.inner.secret",
+            "rule_id": 0,
+            "operator": "mask_shield",
+            "params": {"preserve_head": 1, "preserve_tail": 1, "replace_mark": "*"},
+            "match_pattern": ".*",
+            "sort_index": 0,
+        }
+        self._put_config(field_configs=[inner_config])
+
+        handler = self._build_handler()
+        result = self._run_search(
+            handler,
+            _fake_ts_raw_result(
+                body='{"outer":"hello","inner":"{\\"secret\\":\\"99999\\"}"}',
+            ),
+        )
+
+        logs = result["list"]
+        self.assertEqual(len(logs), 1)
+        # body 仍为 JSON 字符串
+        self.assertIsInstance(logs[0]["body"], str)
+        parsed_body = json.loads(logs[0]["body"])
+        self.assertEqual(parsed_body["outer"], "hello")
+        # inner 仍为 JSON 字符串（类型未被破坏）
+        self.assertIsInstance(parsed_body["inner"], str)
+        parsed_inner = json.loads(parsed_body["inner"])
+        self.assertEqual(parsed_inner["secret"], "9***9")

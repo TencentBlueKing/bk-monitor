@@ -535,7 +535,7 @@ class TestUnifyQueryHandlerEsDesensitize(TestCase):
         self._put_config(field_configs=[NESTED_MASK_CONFIG])
 
         handler = self._build_handler()
-        # 构造超深嵌套 dict，P1-1 深度截断 + deepcopy 兜底双重保护
+        # 构造超深嵌套 dict，深度截断 + deepcopy 兜底双重保护
         deep_dict = {}
         current = deep_dict
         for i in range(15000):
@@ -692,3 +692,64 @@ class TestUnifyQueryHandlerEsDesensitize(TestCase):
         self.assertEqual(parsed["a"]["c"], "v****1")
         # 字面 key "a.b" 完整保留原值
         self.assertEqual(parsed["a.b"], "value2")
+
+    def test_deep_dict_subtree_preserved(self):
+        """超深嵌套 dict（depth > max_depth=10）子树通过 _log_desensitize 完整
+        链路后仍保留为嵌套 dict，且浅层字段正常脱敏。"""
+        self._put_config(field_configs=[MASK_CONFIG])
+
+        handler = self._build_handler()
+        # 构造 depth=15 的嵌套 dict
+        inner = {}
+        current = inner
+        for i in range(15):
+            current["level"] = {}
+            current["leaf"] = f"value_{i}"
+            current = current["level"]
+
+        log = {"body": inner, "message": "Hello World1234"}
+        desensitized = handler._log_desensitize(log)
+
+        # 浅层字段正常脱敏
+        self.assertEqual(desensitized["message"], "He***********34")
+        # body 仍是 dict，其内部 depth<=10 的 leaf 存在
+        self.assertIsInstance(desensitized["body"], dict)
+        # depth=11 的 level 子树作为 dict 保留（而非丢失或遮罩）
+        deep_level = desensitized["body"]
+        for d in range(12):
+            self.assertIsInstance(
+                deep_level, dict,
+                "At restored depth {}, expected dict but got {}".format(d, type(deep_level)),
+            )
+            self.assertIn("leaf", deep_level,
+                          "At restored depth {}, expected 'leaf' key".format(d))
+            deep_level = deep_level.get("level", {})
+
+    def test_multi_layer_json_string_nesting(self):
+        """多层 JSON 字符串嵌套（body.inner 也是 JSON 字符串），
+        通过 _log_desensitize 后 body.inner 仍保持为字符串类型，
+        且内部 secret 被正确脱敏。"""
+        inner_config = {
+            "field_name": "body.inner.secret",
+            "rule_id": 0,
+            "operator": "mask_shield",
+            "params": {"preserve_head": 1, "preserve_tail": 1, "replace_mark": "*"},
+            "match_pattern": ".*",
+            "sort_index": 0,
+        }
+        self._put_config(field_configs=[inner_config])
+
+        handler = self._build_handler()
+        # body 是 JSON 字符串，inner 也是 JSON 字符串
+        log = {"body": '{"outer":"hello","inner":"{\\"secret\\":\\"99999\\"}"}'}
+        desensitized = handler._log_desensitize(log)
+
+        # body 仍为 JSON 字符串
+        self.assertIsInstance(desensitized["body"], str)
+        parsed_body = json.loads(desensitized["body"])
+        # outer 未配置脱敏，保持原值
+        self.assertEqual(parsed_body["outer"], "hello")
+        # inner 仍为 JSON 字符串（类型未被破坏）
+        self.assertIsInstance(parsed_body["inner"], str)
+        parsed_inner = json.loads(parsed_body["inner"])
+        self.assertEqual(parsed_inner["secret"], "9***9")
