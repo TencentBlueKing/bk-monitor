@@ -243,6 +243,7 @@ CELERY_IMPORTS = (
     "apps.log_databus.tasks.itsm",
     "apps.log_databus.tasks.bkdata",
     "apps.log_databus.tasks.archive",
+    "apps.log_databus.tasks.nodeman_v3",
     "apps.log_databus.tasks.scene",
     "apps.log_admin_resource.tasks",
     "apps.log_admin_resource.k8s_tasks",
@@ -1364,6 +1365,13 @@ INITIALIZED_TENANT_LIST = [BK_APP_TENANT_ID]
 # 兼容非多租户模式
 APIGW_ENABLED = not (ENABLE_MULTI_TENANT_MODE or "test" in sys.argv)
 USE_APIGW = os.getenv("BKAPP_USE_APIGW", "false").lower() == "true"
+
+# 与监控统一的 NodeMan V3 环境级总开关，默认关闭。
+ENABLE_NODEMAN_V3 = os.getenv("BKAPP_ENABLE_NODEMAN_V3", "false").lower() == "true"
+
+# 节点管理 V3 网关地址。留空时按 APIGW 约定拼接，联调环境可直连指定地址；
+# 该地址配置不承担启用开关职责。
+BKNODEMAN_V3_API_BASE_URL = os.getenv("BKAPP_BKNODEMAN_V3_API_BASE_URL", "")
 
 # 预查询时间, 默认6h小时, 0代表禁用
 try:
