@@ -829,7 +829,7 @@ class LogIndexSet(SoftDeleteModel):
         return self.fields_snapshot
 
     def _get_fields_by_unify_query(self) -> dict:
-        """原生 Doris 索引集没有 ES mapping，只能经 unify-query 取字段。"""
+        """字段快照统一经 unify-query 取字段。"""
         from apps.log_unifyquery.handler.base import UnifyQueryHandler
 
         end_time = arrow.now()
@@ -853,18 +853,10 @@ class LogIndexSet(SoftDeleteModel):
             )
         return result
 
-    def sync_fields_snapshot(self, pre_check_enable=True):
-        from apps.log_search.handlers.search.search_handlers_esquery import (
-            SearchHandler,
-        )
-
+    def sync_fields_snapshot(self):
         fields = {}
         try:
-            if self.is_native_doris():
-                fields = self._get_fields_by_unify_query()
-            else:
-                search_handler_esquery = SearchHandler(self.index_set_id, {}, pre_check_enable=pre_check_enable)
-                fields = search_handler_esquery.fields()
+            fields = self._get_fields_by_unify_query()
             fields = self.fields_to_string(fields=fields)
             self.fields_snapshot = fields
         except Exception as e:  # pylint: disable=broad-except
