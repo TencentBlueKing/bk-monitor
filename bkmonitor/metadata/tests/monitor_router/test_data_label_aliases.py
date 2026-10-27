@@ -36,6 +36,27 @@ def router(mocker, settings):
     return SpaceTableIDRedis(), write, publish
 
 
+@pytest.mark.parametrize("mode", ["table", "label", "full"])
+@pytest.mark.parametrize("aliases", [[{}], [["nested"]], ["shared", {}, ["nested"], 1, True, None]])
+def test_invalid_stored_alias_members_do_not_interrupt_other_routes(router, mode, aliases):
+    client, write, publish = router
+    make_table("plugin.invalid", "bad_primary")
+    make_table("plugin.valid", "good_primary")
+    set_aliases("plugin.invalid", aliases)
+    set_aliases("plugin.valid", ["shared"])
+    params = {"table_id_list": ["plugin.invalid", "plugin.valid"]} if mode == "table" else {}
+    if mode == "label":
+        params = {"data_label_list": ["shared"]}
+    client.push_data_label_table_ids(bk_tenant_id=TENANT, is_publish=True, **params)
+    routes = {label: json.loads(value) for label, value in write.call_args.args[1].items()}
+    shared_tables = {"plugin.valid"}
+    if "shared" in aliases:
+        shared_tables.add("plugin.invalid")
+    assert set(routes.pop("shared")) == shared_tables
+    assert routes == ({} if mode == "label" else {"bad_primary": ["plugin.invalid"], "good_primary": ["plugin.valid"]})
+    assert publish.called
+
+
 @pytest.mark.parametrize("multi_tenant", [False, True])
 @pytest.mark.parametrize("mode", ["table", "label", "full"])
 def test_list_aliases_extend_legacy_labels(router, settings, multi_tenant, mode):

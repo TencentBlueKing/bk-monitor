@@ -1979,7 +1979,10 @@ class SpaceTableIDRedis:
             for data_label in data_label_list:
                 alias_query |= Q(alias_labels__contains=[data_label])
             options = options.alias(alias_labels=Cast("value", JSONField())).filter(alias_query)
-        return {option.table_id: option.get_value() for option in options.only("table_id", "value", "value_type")}
+        return {
+            option.table_id: [alias for alias in option.get_value() if isinstance(alias, str)]
+            for option in options.only("table_id", "value", "value_type")
+        }
 
     def _refine_available_data_label(
         self,
