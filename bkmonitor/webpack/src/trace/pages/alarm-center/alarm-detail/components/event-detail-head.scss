@@ -156,6 +156,13 @@ $fatal-red: #ea3536;
 
     .ai {
       border-left: 1px solid #f2f6fc;
+      border-radius: 0;
+
+      .ai-entry-content {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+      }
 
       .ai-favicon {
         width: 20px;

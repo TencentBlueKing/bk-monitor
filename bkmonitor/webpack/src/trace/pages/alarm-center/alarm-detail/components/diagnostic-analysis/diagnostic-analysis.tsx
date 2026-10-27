@@ -23,121 +23,102 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { defineComponent, shallowRef, Teleport } from 'vue';
+import { defineComponent, shallowRef } from 'vue';
 
+import { ChatContainer, MessageToolsStatus } from '@blueking/chat-x';
+import { Button } from 'bkui-vue';
 import { useI18n } from 'vue-i18n';
 
-import AiDiagnosticInfoCard from './ai-diagnostic-info-card';
-import AnalysisPanel from './analysis-panel';
-import { DiagnosticTypeEnum } from './constant';
+import { useDiagnosticAnalysis } from './hooks/use-diagnostic-analysis';
 
 import './diagnostic-analysis.scss';
+import '@blueking/chat-x/dist/index.css';
 export default defineComponent({
   name: 'DiagnosticAnalysis',
   emits: ['close'],
   setup(_, { emit }) {
     const { t } = useI18n();
-    /** 是否全部展开 */
-    const isAllExpand = shallowRef(true);
-    /** 是否固定 */
-    const isFixed = shallowRef(false);
-
-    /** 分析面板 ref 映射 */
-    const analysisPanelRefs = shallowRef<Map<string, InstanceType<typeof AnalysisPanel>>>(new Map());
-
-    /**
-     * 设置 ref
-     * @param el 组件实例
-     * @param type 诊断类型
-     */
-    const setItemRef = (el: InstanceType<typeof AnalysisPanel> | null, type: string) => {
-      if (el) {
-        analysisPanelRefs.value.set(type, el);
-      } else {
-        analysisPanelRefs.value.delete(type);
-      }
-    };
-
-    const handleAllExpandChange = () => {
-      isAllExpand.value = !isAllExpand.value;
-      for (const item of analysisPanelRefs.value.values()) {
-        item?.toggleExpand(isAllExpand.value);
-      }
-    };
-
-    const handleFixedChange = () => {
-      isFixed.value = !isFixed.value;
-    };
-
-    const handleClosed = () => {
-      emit('close');
-    };
+    const panelRef = shallowRef<HTMLElement>();
+    const controller = useDiagnosticAnalysis();
 
     return {
       t,
-      DiagnosticTypeEnum,
-      isAllExpand,
-      isFixed,
-      setItemRef,
-      handleAllExpandChange,
-      handleFixedChange,
-      handleClosed,
+      panelRef,
+      ...controller,
+      commonTippyOptions: { appendTo: () => panelRef.value },
+      handleClosed: () => emit('close'),
     };
   },
   render() {
     return (
-      <Teleport
-        disabled={!this.isFixed}
-        to='body'
+      <section
+        ref='panelRef'
+        class='diagnostic-analysis-panel-comp'
+        aria-label={this.t('AI 诊断')}
       >
-        <div class={['diagnostic-analysis-panel-comp', { fixed: this.isFixed }]}>
-          <div class='diagnostic-analysis-wrapper'>
-            <div class='diagnostic-analysis-wrapper-header'>
-              <div class='title'>{this.t('诊断分析')}</div>
-              <div class='tool-btns'>
+        <div class='diagnostic-analysis-wrapper'>
+          <header class='diagnostic-analysis-wrapper-header'>
+            <div class='title'>{this.t('AI 诊断')}</div>
+            <div class='tool-btns'>
+              <Button
+                class='diagnostic-tool-btn'
+                aria-label={this.t('目录')}
+                title={this.t('目录')}
+                disabled
+                text
+              >
                 <i
-                  class={['icon-monitor', 'expand-icon', this.isAllExpand ? 'icon-zhankai-2' : 'icon-shouqi3']}
-                  v-bk-tooltips={{
-                    content: this.isAllExpand ? this.t('全部收起') : this.t('全部展开'),
-                  }}
-                  onClick={this.handleAllExpandChange}
+                  class='icon-monitor icon-a-Contentmulu'
+                  aria-hidden='true'
                 />
+              </Button>
+              <Button
+                class='diagnostic-tool-btn'
+                aria-label={this.t('全部展开')}
+                title={this.t('全部展开')}
+                disabled
+                text
+              >
                 <i
-                  class={['icon-monitor', 'fixed-icon', this.isFixed ? 'icon-a-pinnedtuding' : 'icon-a-pintuding']}
-                  v-bk-tooltips={{
-                    content: this.isFixed ? this.t('取消固定') : this.t('固定在界面上'),
-                  }}
-                  onClick={this.handleFixedChange}
+                  class='icon-monitor icon-shouqi3'
+                  aria-hidden='true'
                 />
+              </Button>
+              <Button
+                class='diagnostic-tool-btn'
+                aria-label={this.t('关闭')}
+                title={this.t('关闭')}
+                text
+                onClick={this.handleClosed}
+              >
                 <i
-                  class='icon-monitor icon-mc-close-copy close-icon'
-                  v-bk-tooltips={{
-                    content: this.t('关闭'),
-                  }}
-                  onClick={this.handleClosed}
+                  class='icon-monitor icon-mc-close-copy'
+                  aria-hidden='true'
                 />
-              </div>
+              </Button>
             </div>
-            <div class='diagnostic-analysis-wrapper-content'>
-              <AiDiagnosticInfoCard />
-
-              {[
-                this.DiagnosticTypeEnum.DIMENSION,
-                this.DiagnosticTypeEnum.LINK,
-                this.DiagnosticTypeEnum.LOG,
-                this.DiagnosticTypeEnum.EVENT,
-                this.DiagnosticTypeEnum.METRIC,
-              ].map(type => (
-                <AnalysisPanel
-                  key={type}
-                  ref={el => this.setItemRef(el as InstanceType<typeof AnalysisPanel>, type)}
-                  type={type}
-                />
-              ))}
-            </div>
+          </header>
+          <div class='diagnostic-analysis-wrapper-content'>
+            <ChatContainer
+              key={this.contextKey}
+              v-slots={{ welcome: () => <div class='diagnostic-analysis-message-placeholder' /> }}
+              asideCollapsed={true}
+              commonTippyOptions={this.commonTippyOptions}
+              menuSources={[]}
+              messages={this.panelState.messages}
+              messageStatus={this.messageStatus}
+              messageToolsStatus={MessageToolsStatus.Hidden}
+              models={[]}
+              modelValue={this.panelState.draft}
+              placeholder={this.t('请输入你的问题')}
+              resizeProps={{ disabled: true, initialDivide: 0, min: 0 }}
+              shortcuts={[]}
+              supportUpload={false}
+              onUpdate:modelValue={this.handleDraftChange}
+            />
           </div>
         </div>
-      </Teleport>
+      </section>
     );
   },
 });

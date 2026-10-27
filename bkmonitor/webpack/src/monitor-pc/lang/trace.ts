@@ -483,4 +483,6 @@ export default {
   重新加载图表数据: 'Reload chart data',
   重新执行: 'Re-run',
   'pprof 文件已生成，请查看浏览器下载列表': 'pprof file generated. Check your browser downloads.',
+  'AI 诊断': 'AI Diagnosis',
+  请输入你的问题: 'Enter your question',
 };
