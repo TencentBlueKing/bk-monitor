@@ -316,14 +316,12 @@ export default defineComponent({
                 );
               },
               name: ({ row }: { row: CollectionExecution }) => (
-                <Button
-                  v-tippy={this.t('查看本次任务执行详情')}
-                  theme='primary'
-                  text
+                <span
+                  class='collection-history-task-name'
                   onClick={() => c.open(row)}
                 >
-                  {row.task_name}
-                </Button>
+                  <span v-tippy={this.t('查看本次任务执行详情')}>{row.task_name}</span>
+                </span>
               ),
               targets: ({ row }: { row: CollectionExecution }) => (
                 <span v-tippy={{ content: (row.hosts || []).map(host => host.ip).join('，'), allowHTML: false }}>
