@@ -57,6 +57,7 @@ class DataLinkResourceConfigBase(models.Model):
         (DataLinkKind.SINK.value, "清洗配置"),
         (DataLinkKind.CONDITIONALSINK.value, "过滤条件"),
         (DataLinkKind.BASEREPORTSINK.value, "基础采集清洗配置"),
+        (DataLinkKind.LOGCLUSTERINGSINK.value, "日志聚类Sink"),
     )
 
     kind = models.CharField(verbose_name="配置类型", max_length=64, choices=CONFIG_KIND_CHOICES)
@@ -1345,6 +1346,100 @@ class SurrealDBBindingConfig(DataLinkResourceConfigBase):
                 raise ValueError(f"relations[{idx}] 缺少必填字段: {', '.join(missing)}")
 
 
+class LogClusteringSinkConfig(DataLinkResourceConfigBase):
+    """
+    日志聚类包装 Sink 配置
+
+    对应 bkbase 资源 kind=LogClusteringSink：Databus.spec.sinks 引用本资源，spec.rawSink 指向原日志存储绑定，
+    spec.clustering 携带 Kafka/Pattern 存储资源引用与 BKFara 任务绑定。
+    rawSink 不落库，组装时由调用方按本链路当前的存储绑定传入。
+
+    每个日志链路最多一个聚类 Sink，由唯一约束保证。
+    attached 表示日志链路生成 Databus 时是否引用本资源。关闭聚类恢复 rawSink 后置为 False，
+    资源身份与绑定保留，重开时沿用；确认 Databus 已实际解绑前不能删除。
+    """
+
+    kind = DataLinkKind.LOGCLUSTERINGSINK.value
+    name = models.CharField(verbose_name="聚类Sink名称", max_length=64, db_index=True)
+    table_id = models.CharField(verbose_name="结果表ID", max_length=255, default="", blank=True)
+    binding = models.JSONField(verbose_name="聚类绑定配置", default=dict)
+    kafka_resource = models.JSONField(verbose_name="聚类Kafka资源引用", default=dict)
+    pattern_resource = models.JSONField(verbose_name="Pattern存储资源引用", default=dict)
+    attached = models.BooleanField(verbose_name="是否被Databus引用", default=False)
+
+    class Meta:
+        verbose_name = "日志聚类Sink配置"
+        verbose_name_plural = verbose_name
+        unique_together = (("bk_tenant_id", "namespace", "name"), ("bk_tenant_id", "namespace", "data_link_name"))
+
+    def compose_config(self, raw_sink: dict[str, Any]) -> dict[str, Any]:
+        """
+        组装 LogClusteringSink 配置，资源引用与 binding 按已保存的内容输出
+
+        Args:
+            raw_sink: 本链路原日志存储绑定的引用，作为 spec.rawSink
+        """
+        required = {
+            "raw_sink": raw_sink,
+            "binding": self.binding,
+            "kafka_resource": self.kafka_resource,
+            "pattern_resource": self.pattern_resource,
+        }
+        missing = [field for field, value in required.items() if not value]
+        if missing:
+            raise ValueError(f"compose log clustering sink config: {', '.join(missing)} is empty, name->[{self.name}]")
+
+        tpl = """
+        {
+            "kind": "LogClusteringSink",
+            "metadata": {
+                "name": "{{name}}",
+                {% if tenant %}
+                "tenant": "{{ tenant }}",
+                {% endif %}
+                "namespace": "{{namespace}}",
+                "labels": {
+                    "bk_biz_id": "{{bk_biz_id}}"
+                }
+            },
+            "spec": {
+                "rawSink": {{raw_sink}},
+                "clustering": {
+                    "kafkaResource": {{kafka_resource}},
+                    "patternResource": {{pattern_resource}},
+                    "binding": {{binding}}
+                }
+            }
+        }
+        """
+        render_params = {
+            "name": self.name,
+            "namespace": self.namespace,
+            "bk_biz_id": self.datalink_biz_ids.label_biz_id,
+            "raw_sink": json.dumps(raw_sink),
+            "kafka_resource": json.dumps(self.kafka_resource),
+            "pattern_resource": json.dumps(self.pattern_resource),
+            "binding": json.dumps(self.binding),
+        }
+
+        if settings.ENABLE_MULTI_TENANT_MODE:
+            render_params["tenant"] = self.bk_tenant_id
+
+        return utils.compose_config(
+            tpl=tpl,
+            render_params=render_params,
+            err_msg_prefix="compose log clustering sink config",
+        )
+
+    @property
+    def reference(self) -> dict[str, str]:
+        """Databus.spec.sinks 中引用本资源的条目"""
+        reference = {"kind": self.kind, "name": self.name, "namespace": self.namespace}
+        if settings.ENABLE_MULTI_TENANT_MODE:
+            reference["tenant"] = self.bk_tenant_id
+        return reference
+
+
 class ClusterConfig(models.Model):
     """
     集群信息配置
@@ -1840,4 +1935,5 @@ COMPONENT_CLASS_MAP: dict[str, type[DataLinkResourceConfigBase]] = {
     DataLinkKind.DATABUS.value: DataBusConfig,
     DataLinkKind.CONDITIONALSINK.value: ConditionalSinkConfig,
     DataLinkKind.BASEREPORTSINK.value: BasereportSinkConfig,
+    DataLinkKind.LOGCLUSTERINGSINK.value: LogClusteringSinkConfig,
 }
