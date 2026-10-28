@@ -212,34 +212,18 @@ class ServiceLogHandler:
             )
         )
 
-    @staticmethod
+    @classmethod
     def list_indexes_by_relation(
+        cls,
         bk_biz_id: int,
         app_name: str,
         service_name: str | None,
     ) -> list[dict[str, Any]]:
         """从缓存获取服务关联的 K8S 日志索引集。"""
-        if not service_name or "redis" not in caches:
+        if not service_name:
             return []
 
-        cache_key: str = ApmCacheKey.APP_SERVICE_K8S_RELATED_LOG_INDEXES_KEY.format(
-            bk_biz_id=bk_biz_id, app_name=app_name
-        )
-        try:
-            cached_data: bytes | None = caches["redis"].get(cache_key)
-            if not cached_data:
-                return []
-
-            service_indexes = deserialize_service_related_log_indexes(cached_data)
-            return service_indexes.get(service_name, [])
-        except Exception:  # noqa
-            logger.exception(
-                "[LIST_INDEXES_BY_RELATION] cache read failed: %s-%s-%s",
-                bk_biz_id,
-                app_name,
-                service_name,
-            )
-            return []
+        return cls.get_cached_k8s_related_indexes(bk_biz_id, app_name).get(service_name, [])
 
     @staticmethod
     def get_data_id_rt_map(data_ids: list[int]) -> dict[int, set[str]]:

@@ -286,7 +286,7 @@ def refresh_related_log_index_status() -> None:
                 indexes = get_biz_index_sets_with_cache(bk_biz_id=bk_biz_id)
                 statuses = []
                 for index in indexes:
-                    # 日志平台返回标签展示名，元数据缓存可能来自中英文请求。
+                    # 日志平台返回本地化的标签展示名，兼容中文和英文的“无数据”标签。
                     tags = index.get("tags") or []
                     available = bool(tags) and not any(
                         tag.get("tag_type", "inner") == "inner" and tag.get("name") in {"无数据", "No Data"}

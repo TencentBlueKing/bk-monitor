@@ -73,7 +73,7 @@ class TopoNode(TopoBase):
     sdk = models.JSONField("上报sdk", null=True)
     # source: 服务被发现或观测到数据的类型，值为 TelemetryDataType，存储格式: ["trace", "metric"]
     source = models.JSONField("服务发现来源", default=list)
-    # 按数据类型保存秒级 last_data_at / checked_at，独立于节点生命周期 updated_at。
+    # 按数据类型保存最后数据时间和检查完成时间（秒）；更新心跳不刷新 updated_at。
     heartbeat = models.JSONField("服务数据心跳", default=dict)
     is_permanent = models.BooleanField("是否永久保存", default=False)
 
