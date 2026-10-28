@@ -401,6 +401,15 @@ export default {
   '你确认么？': 'Are you sure ?',
   '修改集群历史数据会全部丢失，确认要更换么':
     'All the historical data of modifying the cluster will be lost. replace it?',
+  '确认切换存储集群？': 'Confirm switching storage cluster?',
+  '确认切换': 'Confirm switch',
+  '当前集群': 'Current cluster',
+  '目标集群': 'Target cluster',
+  '切换后保留天数：{days} 天': 'Retention days after switch: {days}',
+  '切换生效后，新增数据将写入目标集群。历史数据仍可查询，并按切换后生效的保留时长自动清理。':
+    'After the switch takes effect, new data will be written to the target cluster. Historical data can still be queried and will be automatically cleaned up according to the effective retention period.',
+  '支持无损切换存储集群，历史数据按保留策略到期清理。':
+    'Lossless storage cluster switching is supported. Historical data will be cleaned up upon expiration according to the retention policy.',
   确定解散任务组: 'Disband the Task Group?',
   '已选择 {n} 个策略，确定批量删除？': 'Selected {n} rules, confirm batch deletion?',
 
