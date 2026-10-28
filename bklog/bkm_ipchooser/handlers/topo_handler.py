@@ -186,8 +186,8 @@ class TopoHandler:
         for index, cc_host in enumerate(cc_hosts):
             host_map[cc_host["bk_host_id"]] = index
 
-        # IP 选择器是业务级查询，无法按采集项判断，V3 准入与采集项保持同一业务口径
-        if cls._is_nodeman_v3_admitted(bk_biz_id):
+        # IP 选择器是业务级查询，无法按采集项判断，复用采集项的业务级准入
+        if cls._should_use_nodeman_v3(bk_biz_id):
             return cls._fill_agent_status_v3(cc_hosts, host_map, bk_biz_id)
 
         try:
@@ -207,8 +207,12 @@ class TopoHandler:
         return cc_hosts
 
     @staticmethod
-    def _is_nodeman_v3_admitted(bk_biz_id) -> bool:
-        """按业务判断是否走 NodeMan V3；导入或配置异常时保持 V2。"""
+    def _should_use_nodeman_v3(bk_biz_id) -> bool:
+        """
+        复用 NodeMan V3 业务级准入，与 log_search.handlers.biz 的 Agent 状态判断一致。
+
+        bkm_ipchooser 是公共模块，延迟导入避免启动期循环依赖；导入或配置异常时回退 V2。
+        """
         try:
             from apps.log_databus.nodeman_v3.mode import is_nodeman_v3_admitted
 

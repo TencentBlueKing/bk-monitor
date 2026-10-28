@@ -13,7 +13,7 @@ class FillAgentStatusTest(SimpleTestCase):
             {"bk_host_id": 3, "bk_host_innerip": "127.0.0.3"},
         ]
 
-    @patch("bkm_ipchooser.handlers.topo_handler.TopoHandler._is_nodeman_v3_admitted", return_value=False)
+    @patch("bkm_ipchooser.handlers.topo_handler.TopoHandler._should_use_nodeman_v3", return_value=False)
     @patch("bkm_ipchooser.handlers.topo_handler.BaseHandler.get_meta_data", return_value={})
     @patch("bkm_ipchooser.handlers.topo_handler.BKNodeApi.ipchooser_host_details")
     def test_v2_path(self, mock_details, mock_meta, mock_admitted):
@@ -27,7 +27,7 @@ class FillAgentStatusTest(SimpleTestCase):
         self.assertNotIn("status", result[2])
         mock_details.assert_called_once()
 
-    @patch("bkm_ipchooser.handlers.topo_handler.TopoHandler._is_nodeman_v3_admitted", return_value=True)
+    @patch("bkm_ipchooser.handlers.topo_handler.TopoHandler._should_use_nodeman_v3", return_value=True)
     @patch("apps.log_databus.nodeman_v3.client.get_client")
     def test_v3_path_maps_status_and_missing_hosts(self, mock_get_client, mock_admitted):
         mock_get_client.return_value.list_hosts.return_value = {
@@ -48,7 +48,7 @@ class FillAgentStatusTest(SimpleTestCase):
         self.assertEqual(call_args["exact_include_conditions"]["bk_biz_id"], [2])
         self.assertEqual(call_args["exact_include_conditions"]["bk_host_id"], [1, 2, 3])
 
-    @patch("bkm_ipchooser.handlers.topo_handler.TopoHandler._is_nodeman_v3_admitted", return_value=True)
+    @patch("bkm_ipchooser.handlers.topo_handler.TopoHandler._should_use_nodeman_v3", return_value=True)
     @patch("apps.log_databus.nodeman_v3.client.get_client")
     def test_v3_failure_keeps_host_list(self, mock_get_client, mock_admitted):
         mock_get_client.return_value.list_hosts.side_effect = RuntimeError("boom")
@@ -58,7 +58,7 @@ class FillAgentStatusTest(SimpleTestCase):
         self.assertEqual(len(result), 3)
         self.assertTrue(all(host["status"] is False for host in result))
 
-    @patch("bkm_ipchooser.handlers.topo_handler.TopoHandler._is_nodeman_v3_admitted", return_value=True)
+    @patch("bkm_ipchooser.handlers.topo_handler.TopoHandler._should_use_nodeman_v3", return_value=True)
     @patch("apps.log_databus.nodeman_v3.client.get_client")
     def test_v3_path_paginates_hosts(self, mock_get_client, mock_admitted):
         hosts = [{"bk_host_id": index} for index in range(1, 502)]
