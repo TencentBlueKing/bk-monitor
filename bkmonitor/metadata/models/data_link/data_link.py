@@ -54,6 +54,7 @@ from metadata.models.data_link.data_link_configs import (
     DataBusConfig,
     DorisStorageBindingConfig,
     ESStorageBindingConfig,
+    LogClusteringSinkConfig,
     ResultTableConfig,
     SurrealDBBindingConfig,
     VMStorageBindingConfig,
@@ -500,7 +501,14 @@ class DataLink(models.Model):
         BASE_EVENT_V1: [ResultTableConfig, ESStorageBindingConfig, DataBusConfig],
         SYSTEM_PROC_PERF: [ResultTableConfig, VMStorageBindingConfig, BasereportSinkConfig, DataBusConfig],
         SYSTEM_PROC_PORT: [ResultTableConfig, VMStorageBindingConfig, BasereportSinkConfig, DataBusConfig],
-        BK_LOG: [ResultTableConfig, ESStorageBindingConfig, DorisStorageBindingConfig, DataBusConfig],
+        # 删除链路时逆序处理：Databus 先于引用它的聚类 Sink，聚类 Sink 先于其 rawSink 指向的存储绑定
+        BK_LOG: [
+            ResultTableConfig,
+            ESStorageBindingConfig,
+            DorisStorageBindingConfig,
+            LogClusteringSinkConfig,
+            DataBusConfig,
+        ],
         BK_STANDARD_V2_EVENT: [ResultTableConfig, ESStorageBindingConfig, DataBusConfig],
         CUSTOM_FORMAT_VM: [ResultTableConfig, ChannelBindingConfig, VMStorageBindingConfig, DataBusConfig],
         CUSTOM_FORMAT_ES: [ResultTableConfig, ESStorageBindingConfig, DataBusConfig],
@@ -544,6 +552,8 @@ class DataLink(models.Model):
         (BCS_FEDERAL_SUBSET_TIME_SERIES, VMStorageBindingConfig): "keep",
         (BK_LOG, ESStorageBindingConfig): "keep",
         (BK_LOG, DorisStorageBindingConfig): "keep",
+        # 关闭聚类后包装 Sink 仍需保留到确认实际解绑，由聚类流程显式清理，不随 compose 结果自动删除。
+        (BK_LOG, LogClusteringSinkConfig): "keep",
         (GRAPH_RELATION_TIME_SERIES, ResultTableConfig): "delete",
         (GRAPH_RELATION_TIME_SERIES, VMStorageBindingConfig): "delete",
         (GRAPH_RELATION_TIME_SERIES, SurrealDBBindingConfig): "delete",

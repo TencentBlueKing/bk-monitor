@@ -1978,9 +1978,7 @@ class BaseIndexSetHandler:
         return f"bklog_index_set_{index_set_id}_{result_table_id.replace('.', '_')}.__default__"
 
     @staticmethod
-    def get_data_label(index_set_id, clustered_rt=False, pattern_rt=False):
-        if pattern_rt:
-            return f"bklog_index_set_{index_set_id}_cluster_pattern"
+    def get_data_label(index_set_id, clustered_rt=False):
         if clustered_rt:
             return f"bklog_index_set_{index_set_id}_clustered"
         return f"bklog_index_set_{index_set_id}"
