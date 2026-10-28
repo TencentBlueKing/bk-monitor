@@ -8,7 +8,6 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 
-import hashlib
 import json
 import logging
 from contextlib import contextmanager
@@ -223,25 +222,16 @@ def serialize_log_clustering_change(datalink: models.DataLink):
         lock.release()
 
 
-def check_log_clustering_operation(
-    sink: models.LogClusteringSinkConfig | None, operation_id: str, request_digest: str, expected_revision: int
-) -> bool:
-    """校验操作幂等与并发版本，返回本次请求是否为已处理操作的重放"""
-    if sink is not None and sink.last_operation_id == operation_id:
-        if sink.last_request_digest != request_digest:
-            raise ValidationError(f"operation_id({operation_id}) has been used by a different request")
-        return True
-
-    current_revision = sink.revision if sink is not None else 0
-    if expected_revision != current_revision:
-        raise ValidationError(
-            f"expected_revision({expected_revision}) is stale, current revision is {current_revision}"
-        )
-    return False
-
-
-def compute_request_digest(payload: dict[str, Any]) -> str:
-    return hashlib.sha256(json.dumps(payload, sort_keys=True).encode("utf-8")).hexdigest()
+def get_log_clustering_raw_sink(datalink: models.DataLink) -> dict[str, str] | None:
+    """聚类 Sink 的 rawSink：本链路唯一的 ES 存储绑定，与完整生成配置时认领的绑定一致；无法唯一确定时返回 None"""
+    bindings = list(
+        models.ESStorageBindingConfig.objects.filter(
+            bk_tenant_id=datalink.bk_tenant_id,
+            namespace=datalink.namespace,
+            data_link_name=datalink.data_link_name,
+        )[:2]
+    )
+    return bindings[0].reference if len(bindings) == 1 else None
 
 
 def is_databus_referencing_sink(databus_config: dict[str, Any] | None, sink: models.LogClusteringSinkConfig) -> bool:
@@ -250,8 +240,10 @@ def is_databus_referencing_sink(databus_config: dict[str, Any] | None, sink: mod
     )
 
 
-def apply_log_clustering_sink_only(datalink: models.DataLink, sink: models.LogClusteringSinkConfig) -> None:
-    configs = datalink.merge_existing_component_configs([sink.compose_config()])
+def apply_log_clustering_sink_only(
+    datalink: models.DataLink, sink: models.LogClusteringSinkConfig, raw_sink: dict[str, str]
+) -> None:
+    configs = datalink.merge_existing_component_configs([sink.compose_config(raw_sink=raw_sink)])
     try:
         datalink.apply_data_link_with_retry(configs)
     except RetryError as e:
@@ -277,15 +269,14 @@ class SetLogClusteringConfigResource(Resource):
     保存日志聚类绑定并下发 LogClusteringSink
 
     Databus 尚未引用聚类 Sink 时（首次接入、关闭后重新保存）按日志链路完整下发；
-    已引用时只下发聚类 Sink，过滤规则等绑定变更不重复下发 Databus。
+    已引用时只下发聚类 Sink，过滤规则等绑定变更不重复下发 Databus；rawSink 无法唯一确定时仍按日志链路完整下发。
+    下发失败时调用方重试同一请求即可。
     调用方需要先完成 BKBase 侧的 drain/finish，本接口不等待排空，也不代表 Runtime 已采用新配置。
     """
 
     class RequestSerializer(serializers.Serializer):
         bk_tenant_id = TenantIdField(label="租户ID")
         table_id = serializers.CharField(label="监控结果表ID")
-        operation_id = serializers.CharField(label="操作ID", max_length=64)
-        expected_revision = serializers.IntegerField(label="期望的当前配置版本", min_value=0)
         binding = LogClusteringBindingSerializer(label="聚类绑定配置")
         kafka_resource = LogClusteringResourceRefSerializer(label="聚类 Kafka 资源引用")
         pattern_resource = LogClusteringResourceRefSerializer(label="Pattern 存储资源引用")
@@ -303,13 +294,11 @@ class SetLogClusteringConfigResource(Resource):
     def perform_request(self, validated_request_data: dict[str, Any]) -> dict[str, Any]:
         bk_tenant_id = validated_request_data["bk_tenant_id"]
         table_id = validated_request_data["table_id"]
-        operation_id = validated_request_data["operation_id"]
         config_fields = {
             "binding": validated_request_data["binding"],
             "kafka_resource": validated_request_data["kafka_resource"],
             "pattern_resource": validated_request_data["pattern_resource"],
         }
-        request_digest = compute_request_digest({"table_id": table_id, **config_fields})
 
         datalink = get_log_clustering_datalink(bk_tenant_id, table_id)
         databus = get_log_clustering_databus(datalink)
@@ -322,60 +311,45 @@ class SetLogClusteringConfigResource(Resource):
             with transaction.atomic(using=DATABASE_CONNECTION_NAME):
                 lock_log_clustering_datalink(datalink)
                 sink = get_log_clustering_sink(datalink, for_update=True)
-                is_replay = check_log_clustering_operation(
-                    sink, operation_id, request_digest, validated_request_data["expected_revision"]
-                )
-                if not is_replay:
-                    if sink is None:
-                        sink = data_link_utils.create_resource_with_random_name(
-                            models.LogClusteringSinkConfig,
-                            DataLinkNameScene.LOG_CLUSTERING_SINK,
-                            dsrt.bk_data_id,
-                            bk_tenant_id=bk_tenant_id,
-                            namespace=datalink.namespace,
-                            data_link_name=datalink.data_link_name,
-                            bk_biz_id=databus.bk_biz_id,
-                            table_id=table_id,
-                        )
-                    for field, value in config_fields.items():
-                        setattr(sink, field, value)
-                    sink.attached = True
-                    sink.revision += 1
-                    sink.last_operation_id = operation_id
-                    sink.last_request_digest = request_digest
-                    sink.save()
-            revision = sink.revision
+                if sink is None:
+                    sink = data_link_utils.create_resource_with_random_name(
+                        models.LogClusteringSinkConfig,
+                        DataLinkNameScene.LOG_CLUSTERING_SINK,
+                        dsrt.bk_data_id,
+                        bk_tenant_id=bk_tenant_id,
+                        namespace=datalink.namespace,
+                        data_link_name=datalink.data_link_name,
+                        bk_biz_id=databus.bk_biz_id,
+                        table_id=table_id,
+                    )
+                for field, value in config_fields.items():
+                    setattr(sink, field, value)
+                sink.attached = True
+                sink.save()
 
-            # 本地绑定先提交；下发失败时调用方用同一 operation_id 重试，按远端 Databus 实际引用情况重新下发
+            # 本地绑定先提交；下发失败时调用方重试同一请求，按远端 Databus 实际引用情况重新下发
             remote_databus = datalink.get_existing_component_config(
                 DataLinkKind.DATABUS.value, databus.name, databus.namespace
             )
-            if is_databus_referencing_sink(remote_databus, sink):
-                apply_log_clustering_sink_only(datalink, sink)
+            raw_sink = get_log_clustering_raw_sink(datalink)
+            if raw_sink and is_databus_referencing_sink(remote_databus, sink):
+                apply_log_clustering_sink_only(datalink, sink, raw_sink)
                 applied_scope = "sink_only"
             else:
                 apply_log_datalink(bk_tenant_id=bk_tenant_id, table_id=table_id)
                 applied_scope = "datalink"
-            # 完整下发时 compose 会回写 rawSink
-            sink.refresh_from_db(fields=["raw_sink"])
 
         logger.info(
-            "SetLogClusteringConfigResource: table_id->[%s] sink->[%s] revision->[%s] applied_scope->[%s] "
-            "operation_id->[%s] replay->[%s]",
+            "SetLogClusteringConfigResource: table_id->[%s] sink->[%s] applied_scope->[%s]",
             table_id,
             sink.name,
-            revision,
             applied_scope,
-            operation_id,
-            is_replay,
         )
         return {
-            "revision": revision,
             "attached": sink.attached,
             "applied_scope": applied_scope,
             "sink": format_log_clustering_identity(bk_tenant_id, sink),
             "databus": format_log_clustering_identity(bk_tenant_id, databus),
-            "raw_sink": sink.raw_sink,
         }
 
 
@@ -386,21 +360,18 @@ class OperateLogClusteringResource(Resource):
     drain/finish/resume 透传 BKBase 日志聚类动作接口；
     detach/attach 是 metadata 内部动作：切换 Databus 是否引用聚类 Sink 后完整下发日志链路，
     detach 即恢复原存储绑定。动作只表示请求已提交，实际排空、解绑结果需通过状态接口回读。
+    动作失败时调用方重试同一动作即可。
     """
 
     class RequestSerializer(serializers.Serializer):
         bk_tenant_id = TenantIdField(label="租户ID")
         table_id = serializers.CharField(label="监控结果表ID")
-        operation_id = serializers.CharField(label="操作ID", max_length=64)
-        expected_revision = serializers.IntegerField(label="期望的当前配置版本", min_value=0)
         action = serializers.ChoiceField(label="动作", choices=BKBASE_ACTIONS + list(SINK_REFERENCE_ACTIONS))
 
     def perform_request(self, validated_request_data: dict[str, Any]) -> dict[str, Any]:
         bk_tenant_id = validated_request_data["bk_tenant_id"]
         table_id = validated_request_data["table_id"]
-        operation_id = validated_request_data["operation_id"]
         action = validated_request_data["action"]
-        request_digest = compute_request_digest({"table_id": table_id, "action": action})
 
         datalink = get_log_clustering_datalink(bk_tenant_id, table_id)
         databus = get_log_clustering_databus(datalink)
@@ -411,15 +382,8 @@ class OperateLogClusteringResource(Resource):
                 sink = get_log_clustering_sink(datalink, for_update=True)
                 if sink is None:
                     raise ValidationError(f"table_id({table_id}) has no log clustering config")
-                is_replay = check_log_clustering_operation(
-                    sink, operation_id, request_digest, validated_request_data["expected_revision"]
-                )
-                if not is_replay:
-                    if action in SINK_REFERENCE_ACTIONS:
-                        sink.attached = SINK_REFERENCE_ACTIONS[action]
-                    sink.revision += 1
-                    sink.last_operation_id = operation_id
-                    sink.last_request_digest = request_digest
+                if action in SINK_REFERENCE_ACTIONS:
+                    sink.attached = SINK_REFERENCE_ACTIONS[action]
                     sink.save()
 
             bkbase_result = None
@@ -434,18 +398,8 @@ class OperateLogClusteringResource(Resource):
                     action=action,
                 )
 
-        logger.info(
-            "OperateLogClusteringResource: table_id->[%s] sink->[%s] action->[%s] revision->[%s] "
-            "operation_id->[%s] replay->[%s]",
-            table_id,
-            sink.name,
-            action,
-            sink.revision,
-            operation_id,
-            is_replay,
-        )
+        logger.info("OperateLogClusteringResource: table_id->[%s] sink->[%s] action->[%s]", table_id, sink.name, action)
         return {
-            "revision": sink.revision,
             "action": action,
             "attached": sink.attached,
             "bkbase_result": bkbase_result,
@@ -456,7 +410,7 @@ class GetLogClusteringStatusResource(Resource):
     """
     查询日志聚类配置与运行状态
 
-    返回本地保存的绑定与版本，并原样透传 BKBase 回读的聚类 Sink、Databus 资源和日志聚类状态。
+    返回本地保存的绑定与按链路派生的 rawSink，并原样透传 BKBase 回读的聚类 Sink、Databus 资源和日志聚类状态。
     sink_referenced/raw_sink_referenced 只说明远端 Databus 配置的引用情况，不代表 Runtime 已实际采用。
     远端查询失败不影响其他字段返回，错误记录在 errors 中。
     """
@@ -505,22 +459,20 @@ class GetLogClusteringStatusResource(Resource):
             ),
         )
 
-        raw_sink_name = sink.raw_sink.get("name")
+        raw_sink = get_log_clustering_raw_sink(datalink)
         return {
             "configured": True,
-            "revision": sink.revision,
             "attached": sink.attached,
-            "last_operation_id": sink.last_operation_id,
             "binding": sink.binding,
-            "raw_sink": sink.raw_sink,
+            "raw_sink": raw_sink,
             "sink": format_log_clustering_identity(bk_tenant_id, sink),
             "databus": format_log_clustering_identity(bk_tenant_id, databus),
             "sink_resource": sink_resource,
             "databus_resource": databus_resource,
             "sink_referenced": is_databus_referencing_sink(databus_resource, sink),
-            "raw_sink_referenced": bool(raw_sink_name)
+            "raw_sink_referenced": bool(raw_sink)
             and any(
-                ref.get("kind") == sink.raw_sink.get("kind") and ref.get("name") == raw_sink_name
+                ref.get("kind") == raw_sink["kind"] and ref.get("name") == raw_sink["name"]
                 for ref in get_databus_sink_refs(databus_resource)
             ),
             "clustering_status": clustering_status,

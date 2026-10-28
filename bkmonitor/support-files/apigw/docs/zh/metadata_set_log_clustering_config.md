@@ -3,9 +3,11 @@
 保存日志 V4 链路的聚类绑定，并下发 LogClusteringSink。
 
 Databus 尚未引用聚类 Sink 时按日志链路完整下发（Databus.spec.sinks 改为引用聚类 Sink，原存储绑定作为 rawSink）；
-已引用时只下发聚类 Sink。接口不等待 BKBase 排空，也不代表 Runtime 已采用新配置。
+已引用时只下发聚类 Sink，rawSink 取本链路当前唯一的 ES 存储绑定，无法唯一确定时仍按日志链路完整下发。
+接口不等待 BKBase 排空，也不代表 Runtime 已采用新配置。
 
-同一链路的聚类配置变更从落库到远端下发全程互斥；有其他变更进行中时直接返回错误，调用方稍后用同一 operation_id 重试。
+同一链路的聚类配置变更从落库到远端下发全程互斥；有其他变更进行中时直接返回错误。
+变更进行中或下发失败时，调用方稍后重试同一请求即可；下发范围按远端 Databus 的实际引用重新判断。
 
 ### 请求参数
 
@@ -13,8 +15,6 @@ Databus 尚未引用聚类 Sink 时按日志链路完整下发（Databus.spec.si
 |-------------------|--------|----|--------------------------------------------------------------------------|
 | bk_tenant_id      | string | 否  | 租户ID，缺省时取请求租户                                                            |
 | table_id          | string | 是  | 日志采集项对应的监控结果表ID                                                          |
-| operation_id      | string | 是  | 操作ID；同一操作重试时保持不变，同一 operation_id 携带不同内容会被拒绝                               |
-| expected_revision | int    | 是  | 期望的当前配置版本，首次接入为 0；与当前版本不一致时拒绝                                            |
 | binding           | dict   | 是  | 聚类绑定配置                                                                   |
 | kafka_resource    | dict   | 是  | 已登记的 Kafka 资源引用，kind 为 Kafka                                             |
 | pattern_resource  | dict   | 是  | 已登记的 Pattern ES 资源引用，kind 为 ElasticSearch，name 须为 metadata 已接入的 ES 集群名  |
@@ -40,8 +40,6 @@ Databus 尚未引用聚类 Sink 时按日志链路完整下发（Databus.spec.si
 ```json
 {
     "table_id": "2_bklog.demo",
-    "operation_id": "enable-24466-0001",
-    "expected_revision": 0,
     "binding": {
         "task_id": "0f1d2c3b-4a59-4e6f-8a7b-9c0d1e2f3a4b",
         "index_id": "24466",
@@ -74,12 +72,10 @@ Databus 尚未引用聚类 Sink 时按日志链路完整下发（Databus.spec.si
 
 | 字段             | 类型     | 描述                                         |
 |----------------|--------|--------------------------------------------|
-| revision       | int    | 当前配置版本                                     |
 | attached       | bool   | Databus 是否引用聚类 Sink                         |
 | applied_scope  | string | 本次下发范围：datalink（完整链路）或 sink_only（仅聚类 Sink） |
 | sink           | dict   | 聚类 Sink 身份：tenant、namespace、name            |
 | databus        | dict   | Databus 身份：tenant、namespace、name            |
-| raw_sink       | dict   | 原日志存储绑定引用                                  |
 
 ### 响应参数示例
 
@@ -89,12 +85,10 @@ Databus 尚未引用聚类 Sink 时按日志链路完整下发（Databus.spec.si
     "code": 200,
     "message": "OK",
     "data": {
-        "revision": 1,
         "attached": true,
         "applied_scope": "datalink",
         "sink": {"tenant": "system", "namespace": "bklog", "name": "bkm_lcs_50010_a1b2c3d4e5f6"},
-        "databus": {"tenant": "system", "namespace": "bklog", "name": "bklog_2_abcdefghijklmnop"},
-        "raw_sink": {"kind": "ElasticSearchBinding", "namespace": "bklog", "name": "bklog_2_abcdefghijklmnop"}
+        "databus": {"tenant": "system", "namespace": "bklog", "name": "bklog_2_abcdefghijklmnop"}
     }
 }
 ```
