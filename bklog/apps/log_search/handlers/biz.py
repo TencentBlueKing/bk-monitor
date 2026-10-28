@@ -64,6 +64,7 @@ class BizHandler(APIModel):
 
     def __init__(self, bk_biz_id=None):
         super().__init__()
+        self.original_bk_biz_id = bk_biz_id
 
         if bk_biz_id and int(bk_biz_id) < 0:
             related_bk_biz_id = get_non_bkcc_space_related_bkcc_biz_id(bk_biz_id)
@@ -1082,7 +1083,7 @@ class BizHandler(APIModel):
 
         from apps.log_databus.nodeman_v3.mode import is_nodeman_v3_admitted
 
-        if is_nodeman_v3_admitted(self.bk_biz_id):
+        if is_nodeman_v3_admitted(self.original_bk_biz_id):
             return self._get_agent_status_v3([host["bk_host_id"] for host in host_list])
 
         # 添加no_request参数, 多线程调用时，保证用户信息不漏传

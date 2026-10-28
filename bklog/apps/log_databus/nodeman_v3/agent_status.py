@@ -47,7 +47,10 @@ def get_agent_status(bk_biz_id: int, bk_host_ids: list[int]) -> dict[int, bool]:
             }
         )
         for item in (data or {}).get("items") or []:
-            bk_host_id = item.get("bk_host_id")
+            try:
+                bk_host_id = int(item.get("bk_host_id"))
+            except (TypeError, ValueError):
+                continue
             if bk_host_id not in result:
                 continue
             node_status = (item.get("state") or {}).get("node_status") or ""
