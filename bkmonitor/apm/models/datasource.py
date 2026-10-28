@@ -279,7 +279,7 @@ class ApmDataSourceConfigBase(models.Model):
 
         # 模式变化时保留迁出链路。
         if obj.result_table_id and obj.is_shared != is_shared:
-            if not obj.is_shared and is_shared:
+            if is_shared:
                 obj.backup_exclusive_link_info()
             obj.release_for_migration()
             obj.reset_link_info()
