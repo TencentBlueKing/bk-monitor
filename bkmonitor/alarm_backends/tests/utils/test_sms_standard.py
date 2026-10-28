@@ -280,6 +280,12 @@ def test_names_are_plain_data_and_never_a_second_template():
     assert "49" not in content
 
 
+def test_ack_operators_count_people_instead_of_alerts():
+    content = render_standard_sms("ack/converge", {**VALUES, "count": 20, "operator": ["alice"] * 20}, "zh-hans")
+    assert "已由 alice 确认处理" in content
+    assert "等20人" not in content
+
+
 def test_fixed_fields_are_not_silently_truncated():
     with pytest.raises(ValueError, match="fixed fields exceed"):
         render_standard_sms("incident", {**VALUES, "count": "1" * 100}, language="zh-hans")
@@ -323,6 +329,10 @@ def test_default_time_and_template_language_follow_current_context_without_leaki
 @pytest.mark.parametrize("event_time", [None, "", "invalid", {}, [], True, float("inf")])
 def test_missing_or_invalid_event_time_is_unknown(event_time):
     assert format_sms_time(event_time, language="zh-hans") == "时间未知"
+
+
+def test_invalid_business_timezone_is_unknown():
+    assert format_sms_time(1764567300, tz="Invalid/Zone", language="zh-hans") == "时间未知"
 
 
 def test_missing_render_time_uses_unknown_time():

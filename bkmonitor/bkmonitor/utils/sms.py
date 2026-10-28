@@ -14,7 +14,7 @@ import unicodedata
 from contextlib import nullcontext
 from datetime import datetime, timezone as datetime_timezone
 from html import unescape
-from zoneinfo import ZoneInfo
+from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 from django.conf import settings
 from django.utils import timezone, translation
@@ -109,8 +109,8 @@ def format_sms_time(event_time, tz=None, language: str | None = None) -> str:
     Missing or invalid event times never fall back to the task execution time.
     """
     with translation.override(language) if language else nullcontext():
-        target_timezone = ZoneInfo(tz) if isinstance(tz, str) else tz or timezone.get_current_timezone()
         try:
+            target_timezone = ZoneInfo(tz) if isinstance(tz, str) else tz or timezone.get_current_timezone()
             if event_time is None or isinstance(event_time, bool) or event_time == "":
                 raise ValueError("missing event time")
             if isinstance(event_time, datetime):
@@ -125,7 +125,7 @@ def format_sms_time(event_time, tz=None, language: str | None = None) -> str:
             if timezone.is_naive(value):
                 value = value.replace(tzinfo=datetime_timezone.utc)
             value = timezone.localtime(value, timezone=target_timezone)
-        except (TypeError, ValueError, OverflowError, OSError):
+        except (TypeError, ValueError, OverflowError, OSError, ZoneInfoNotFoundError):
             return _("时间未知")
         if _is_english(language):
             return value.strftime("%Y-%m-%d %H:%M")
@@ -153,7 +153,7 @@ def render_standard_sms(kind: str, values: dict, language: str | None = None) ->
         operators = values.get("operator")
         if not isinstance(operators, (list, tuple)):
             operators = [operators]
-        operators = [name for value in operators if (name := _plain_text(value))]
+        operators = list(dict.fromkeys(name for value in operators if (name := _plain_text(value))))
         context["operator"] = (", " if english else "、").join(operators)
 
         def render():
