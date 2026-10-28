@@ -52,7 +52,7 @@ export default defineComponent({
     return { t: useI18n().t };
   },
   render() {
-    const text = (this.result ? resultStatusLabels : executionStatusLabels)[this.status] || '未知';
+    const text = this.t((this.result ? resultStatusLabels : executionStatusLabels)[this.status] || '未知');
     if (this.tag) {
       return (
         <Tag
@@ -60,7 +60,7 @@ export default defineComponent({
           radius='4px'
           type='filled'
         >
-          {this.t(text)}
+          {text}
         </Tag>
       );
     }
@@ -72,7 +72,7 @@ export default defineComponent({
         {['running', 'parsing'].includes(this.status) ? (
           <span class='collection-execution-running'>
             <i aria-hidden='true' />
-            {this.t(text)}
+            {text}
           </span>
         ) : (
           <CommonStatus
