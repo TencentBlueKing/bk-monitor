@@ -177,8 +177,8 @@ LOG_TABLE_ID = "2_bklog.clustering_demo"
 LOG_DATA_LINK_NAME = "bklog_clustering_link"
 
 
-@pytest.fixture
-def log_datalink(default_biz):
+def create_log_datalink() -> tuple[DataLink, models.DataSource]:
+    """创建单 ES 存储的日志 V4 链路及其已登记的 Databus"""
     data_source = models.DataSource.objects.create(
         bk_data_id=91101,
         data_name="bklog_clustering_demo",
@@ -243,6 +243,11 @@ def log_datalink(default_biz):
         consumer_group="raw_consumer_group",
     )
     return datalink, data_source
+
+
+@pytest.fixture
+def log_datalink(default_biz):
+    return create_log_datalink()
 
 
 def compose(datalink: DataLink, data_source) -> tuple[list[dict], ExistingComponentContext]:

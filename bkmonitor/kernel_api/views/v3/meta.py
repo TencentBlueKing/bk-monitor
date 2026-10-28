@@ -526,6 +526,10 @@ class CleanLogRouterViewSet(MetaViewSet):
     resource_routes = [ResourceRoute("POST", resource.CleanLogRouter)]
 
 
+class SetLogClusteringConfigViewSet(MetaViewSet):
+    resource_routes = [ResourceRoute("POST", resource.SetLogClusteringConfigResource)]
+
+
 class ModifyDataIdSourceViewSet(MetaViewSet):
     resource_routes = [ResourceRoute("POST", resource.ModifyDataIdSource)]
 
