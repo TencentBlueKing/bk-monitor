@@ -25,7 +25,7 @@
  */
 // import { OUTCOME_TYPE_TONE_MAP, RUM_OUTCOME_TYPE_MAP } from '../../constants';
 import { formatUnitValueParts } from '../../utils';
-import { RumCardToneEnum, RumDetailTabEnum, RumRatingEnum } from '../typings';
+import { RumCardToneEnum, RumRatingEnum, RumTimelineFilterCategoryEnum } from '../typings';
 
 import type {
   IRumCardDescriptor,
@@ -285,7 +285,7 @@ const CARD_DESCRIPTORS: Record<string, IRumCardDescriptor> = {
         value: actionName || EMPTY_TEXT,
         footer: [{ text: hasAction && actionName ? String(ctx.related.actionType ?? '') : t('未关联 Action') }],
         tone: clickable ? RumCardToneEnum.LINK : RumCardToneEnum.DEFAULT,
-        click: clickable ? () => ctx.handlers?.switchTab(RumDetailTabEnum.TRACE_CONTEXT) : undefined,
+        click: clickable ? () => ctx.handlers?.switchTraceContext(RumTimelineFilterCategoryEnum.ACTION) : undefined,
       },
     ];
   },

@@ -162,6 +162,7 @@
       <div class="favorite-table-container">
         <div class="table-header-operation">
           <BatchOperationMenu
+            ref="batchOperationMenuRef"
             :favorite-group-list="localFavoriteList"
             :favorite-type="favoriteType"
             :select-favorite-list="selectFavoriteList"
@@ -304,6 +305,7 @@
 <script setup>
   import { defineProps, defineEmits, computed, ref, nextTick, watch } from 'vue';
   import { bkInfoBox } from 'bk-magic-vue';
+  import { useDialogVisible } from '@/global/overlay';
   import $http from '@/api';
   import useStore from '@/hooks/use-store';
   import useLocale from '@/hooks/use-locale';
@@ -374,10 +376,16 @@
   const favoriteType = ref('event');
 
   const addGroupPopoverRef = ref(null);
+  const batchOperationMenuRef = ref(null);
   const checkInputFormRef = ref(null);
   const favoriteTableRef = ref(null);
   const editFavoriteNameInputRef = ref(null);
   const editFavoriteNameSelectRef = ref(null);
+  const { setVisible: setFavoriteManageVisible, onValueChange: onFavoriteManageValueChange } = useDialogVisible(false, {
+    id: 'retrieve-favorite-manage-dialog',
+    type: 'dialog',
+    group: 'retrieve-dialog',
+  });
 
   const isAPM = window.__IS_MONITOR_APM__;
   const rules = {
@@ -398,16 +406,23 @@
   };
 
   watch(
-    () => [props.modelValue],
-    () => {
-      if (props.modelValue) {
+    () => props.modelValue,
+    (visible, wasVisible) => {
+      setFavoriteManageVisible(visible);
+      if (visible) {
         window.addEventListener('keydown', handleKeydown);
       } else {
+        if (wasVisible) {
+          handleAddGroupPopoverHidden();
+          batchOperationMenuRef.value?.closePopovers();
+          favoriteTableRef.value?.clearFilter();
+        }
         nextTick(() => {
           window.removeEventListener('keydown', handleKeydown);
         });
       }
     },
+    { immediate: true },
   );
 
   watch(
@@ -443,6 +458,7 @@
     { deep: true },
   );
   const initData = async (val = true) => {
+    onFavoriteManageValueChange(val);
     if (val) {
       curSelectGroup.value = 'all';
       favoriteSearchValue.value = '';
@@ -787,13 +803,15 @@
 <style lang="scss" scoped>
   :deep(.bk-dialog) {
     height: calc(100% - 50px);
+
     .bk-dialog-content {
       height: 100%;
+
       .bk-dialog-body {
+        height: 100%;
         padding: 0;
         overflow: hidden;
         background-color: #f5f6fa;
-        height: 100%;
       }
     }
   }
@@ -812,6 +830,7 @@
     text-align: center;
     background: #ffffff;
     box-shadow: 0 1px 4px 0 #00000014;
+
     .close-icon {
       position: absolute;
       top: 8px;
@@ -833,8 +852,9 @@
     display: flex;
     width: 100%;
     height: calc(100% - 48px);
-    background-color: #ffffff;
     margin-top: 1px;
+    background-color: #ffffff;
+
     .favorite-group-filter {
       display: flex;
       flex-direction: column;
@@ -894,8 +914,6 @@
           color: #4d4f56;
         }
 
-        .add-group-btn {
-        }
         .favorite-count {
           font-size: 12px;
           font-weight: 700;
@@ -941,29 +959,6 @@
       .table-content {
         height: calc(100% - 68px);
 
-        .bk-table-row {
-          &.row-hover {
-            cursor: pointer;
-            background: #f5f7fa;
-
-            .bklog-edit {
-              display: block;
-            }
-          }
-
-          &.row-click {
-            background: #f0f5ff;
-          }
-
-          .cell {
-            font-size: 13px;
-          }
-
-          .edit-favorite-group {
-            background-color: #fff;
-          }
-        }
-
         .edit-cell {
           display: flex;
           align-items: center;
@@ -987,6 +982,29 @@
           }
         }
 
+        .bk-table-row {
+          &.row-hover {
+            cursor: pointer;
+            background: #f5f7fa;
+
+            .bklog-edit {
+              display: block;
+            }
+          }
+
+          &.row-click {
+            background: #f0f5ff;
+          }
+
+          .cell {
+            font-size: 13px;
+          }
+
+          .edit-favorite-group {
+            background-color: #fff;
+          }
+        }
+
         .del-btn {
           color: #3a84ff;
           cursor: pointer;
@@ -999,6 +1017,7 @@
       background: #f5f7fa;
     }
   }
+
   .new-add-group-popover {
     width: 272px;
 

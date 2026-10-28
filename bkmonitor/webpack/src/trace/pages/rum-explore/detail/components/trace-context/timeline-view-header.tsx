@@ -43,8 +43,22 @@ export default defineComponent({
       type: Object as PropType<IRumTimelineViewVM>,
       required: true,
     },
+    spanType: {
+      type: String,
+    },
+    /** 卡片是否展开：折叠时只保留头部摘要 */
+    expanded: {
+      type: Boolean,
+      default: true,
+    },
   },
-  setup(props) {
+  emits: {
+    /** 点击右上角按钮，切换卡片展开 / 折叠 */
+    toggle: () => true,
+    /** 点击「View 详情」，打开该 View 的详情抽屉 */
+    viewClick: (_view: IRumTimelineViewVM) => true,
+  },
+  setup(props, { emit }) {
     const { t } = useI18n();
 
     const hoverInfoRef = useTemplateRef<HTMLDivElement>('hoverInfo');
@@ -83,7 +97,10 @@ export default defineComponent({
       ].filter(Boolean);
 
       return (
-        <div class='timeline-view-header'>
+        <div
+          class={{ 'timeline-view-header': true, 'is-collapsed': !props.expanded }}
+          onClick={() => emit('toggle')}
+        >
           <div class='view-title-row'>
             <span
               class='view-title'
@@ -92,6 +109,15 @@ export default defineComponent({
               {data.title}
             </span>
             {data.isCurrent ? <span class='current-span-tag'>{t('当前 Span')}</span> : null}
+            {props.spanType !== 'view' && (
+              <span
+                class='view-detail-link'
+                onClick={() => emit('viewClick', data)}
+              >
+                <i class='icon-monitor icon-xiangqing1' />
+                {t('View 详情')}
+              </span>
+            )}
           </div>
           <div class='view-detail'>
             {data.loadingType ? <span class='view-loading-type'>{data.loadingType}</span> : null}
@@ -105,6 +131,9 @@ export default defineComponent({
               ) : null,
               metric,
             ])}
+          </div>
+          <div class='view-expand-btn'>
+            <i class={['icon-monitor icon-arrow-right-copy', { expand: props.expanded }]} />
           </div>
           <div style='display: none'>
             <div ref='hoverInfo'>

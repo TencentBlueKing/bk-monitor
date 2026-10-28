@@ -229,6 +229,8 @@ export default {
   '暂无 AI 功能': 'No AI function yet',
   '支持单指标异常检测、时序预测、离群检测等智能检测算法':
     'Supports single-index anomaly detection, time series prediction, outlier detection and other intelligent detection algorithms',
+  '为单指标异常检测，配置默认的方案': 'Configure the default plan for single-metric anomaly detection',
+  针对不同场景分别配置智能检测方案: 'Configure intelligent detection plans separately for different scenarios',
   '匹配规则支持通过在正则表达式中配置 `peer_service` 和 `span_name` 参数来提取自定义服务名称和 span_name。例如配置正则：':
     'Matching rules support extracting custom service names and span_names by configuring the `peer_service` and `span_name` parameters in regular expressions. For example, configure regular expressions:',
   '当出现了 HTTP 类型的 span 并且调用的 Url(attributes.http.url) 为 `https://example.com/path/to/docs`，将会匹配出 `example.com` 自定义服务，以及此 span 的 span_name 将会覆盖为`path/to/docs':
@@ -495,6 +497,10 @@ export default {
   '「被调」类型无需填写「被调服务」':
     'For the "Callee" type, the "Callee Service" field does not need to be filled in.',
   '当前已有配置正在编辑，请先保存或取消': 'A configuration is currently being edited; please save or cancel first.',
+  '项目和代码库配置尚未保存，是否保存并继续？':
+    'The project and repository configuration is not saved. Save and continue?',
+  '保存项目和代码库会同步更新已有规则。': 'Saving the project and repository will also update existing rules.',
+  保存并继续: 'Save and continue',
   保存并应用为全局: 'Save and Apply Globally',
   批量编辑: 'Batch Edit',
   '请联系{0}开启拓扑分析 或 查看 {1}': 'Please contact {0} to enable topology analysis or view {1}',
@@ -535,6 +541,14 @@ export default {
   'CPU 五分钟负载': 'CPU 5 minute load',
   '内网 IPv6': 'Inner IPv6',
   '磁盘 IO 使用率': 'Disk IO usage',
+  '由 {name} 分析 · {time}': 'Analyzed by {name} · {time}',
+  '由 {name} 于 {time} 发起, 完成后将通过企业微信通知本次发起人':
+    'Initiated by {name} on {time}, and will notify the initiator by WeChat Work after completion',
+  '将由 {name} 触发蓝盾 AI 分析流水线实例': 'The BK-DevOps AI analysis pipeline instance will be triggered by {name}',
+  高置信度: 'High confidence',
+  证据不足: 'Insufficient evidence',
+  '指派后，该成员将成为此 Issue 的负责人并收到通知。':
+    'After assignment, the member will become the owner of this Issue and receive a notification.',
   '搜索 名称、别名、单位、类型、启/停': 'Search name, alias, unit, type, start/stop',
   中止: 'Abort',
 
@@ -544,6 +558,8 @@ export default {
   协议层请求失败: 'Protocol layer request failed',
   加载成功: 'Load Succeeded',
   加载失败: 'Load Failed',
+  '变量列表加载中，请稍后重试': 'Variable list is loading, please try again later',
+  '变量列表加载失败，请重试': 'Failed to load the variable list, please try again',
   未采集: 'Not Collected',
   '业务码、状态与消息均未上报': 'Business code, status and message are not reported',
   解压后: 'Decompressed',

@@ -102,7 +102,7 @@ class QueryTopoNodeResource(ApmAPIGWResource):
 
     action = "/app/apm/query_apm_topo_node/"
     method = "GET"
-    backend_cache_type = CacheType.APM
+    backend_cache_type = CacheType.APM(5 * 60)
 
 
 class SearchServiceNamesResource(ApmAPIGWResource):

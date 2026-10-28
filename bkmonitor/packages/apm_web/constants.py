@@ -1050,8 +1050,6 @@ class ApmCacheKey:
 
     # 存放应用数据状态的 key
     APP_APPLICATION_STATUS_KEY = "apm:application:{date}:all_application_data_status"
-    # 存放应用下服务的数据状态
-    APP_SERVICE_STATUS_KEY = "apm:application:{application_id}:service_data_status"
     # 存放应用下监控项数据的映射
     APP_SCOPE_NAME_KEY = "apm:application_metric_scope_name_mapping:{bk_biz_id}:{application_id}"
     # 存放应用下服务关联的 K8S 日志索引集

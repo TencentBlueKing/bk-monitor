@@ -96,7 +96,7 @@ export default defineComponent({
       return (
         <div
           key={nodeKey}
-          style={{ '--level': level }}
+          style={{ '--tree-level': level }}
           v-bk-tooltips={{
             content: window.i18n.t('该字段类型，暂时不支持统计分析'),
             disabled: !disabled,
@@ -118,7 +118,7 @@ export default defineComponent({
               class='dimension-name'
               v-overflow-tips={overflowTipsOptions}
             >
-              {item.levelAlias}
+              <span class='dimension-alias'>{item.levelAlias}</span>
               {item?.levelName && !isTreeNode && item.name !== item.alias && (
                 <span class='subtitle'>({item.levelName})</span>
               )}

@@ -27,15 +27,15 @@
 import { computed, defineComponent, reactive, shallowRef, watch } from 'vue';
 
 import { getBizRouteHref } from 'monitor-common/utils';
-import {
-  type ILegacyAlarmCenterQuery,
-  getAlarmCenterListHash,
-  getAlarmCenterUrl,
-} from 'monitor-common/utils/alarm-center-router';
-import { deepClone } from 'monitor-common/utils/utils';
+// import {
+//   type ILegacyAlarmCenterQuery,
+//   getAlarmCenterListHash,
+//   getAlarmCenterUrl,
+// } from 'monitor-common/utils/alarm-center-router';
+// import { deepClone } from 'monitor-common/utils/utils';
 import { storeToRefs } from 'pinia';
 import { useI18n } from 'vue-i18n';
-import { useRoute } from 'vue-router';
+// import { useRoute } from 'vue-router';
 
 import TemporaryShareNew from '../../../../components/temporary-share/temporary-share-new';
 // import AIFavicon from '../../../../static/img/failure/AI.png';
@@ -86,7 +86,7 @@ export default defineComponent({
   },
   setup(props, { emit }) {
     const { t } = useI18n();
-    const route = useRoute();
+    // const route = useRoute();
     const alarmCenterDetailStore = useAlarmCenterDetailStore();
     /** 是否反馈 */
     const isFeedback = shallowRef(false);
@@ -144,6 +144,8 @@ export default defineComponent({
         },
       ];
     });
+    /** 告警来源是否为监控策略 */
+    const IsAlarmSourceStrategy = computed(() => alarmDetail.value.plugin_id === 'bkmonitor');
 
     const formatShareTokenParams = params => {
       params.data.name = 'alarm-center-detail';
@@ -159,7 +161,9 @@ export default defineComponent({
       () => alarmDetail.value,
       async (detail, _, onCleanup) => {
         let active = true;
-        onCleanup(() => { active = false; });
+        onCleanup(() => {
+          active = false;
+        });
         isFeedback.value = false;
         if (!detail) return;
         const data = await fetchListAlertFeedback(detail.id, detail.bk_biz_id).catch(() => []);
@@ -171,20 +175,21 @@ export default defineComponent({
     /** 策略详情跳转 */
     const toStrategyDetail = () => {
       // 如果 告警来源 是监控策略就要跳转到 策略详情 。
-      if (alarmDetail.value.plugin_id === 'bkmonitor') {
+      if (IsAlarmSourceStrategy.value) {
         window.open(
           getBizRouteHref(`/strategy-config/detail/${alarmId.value}?fromEvent=true`, alarmDetail.value.bk_biz_id)
         );
-      } else if (alarmDetail.value.plugin_id) {
-        // 否则都新开一个页面并添加 告警源 查询，其它查询项保留。
-        const query: ILegacyAlarmCenterQuery = deepClone(route.query);
-        query.queryString = `告警源 : "${alarmDetail.value.plugin_id}"`;
-        const url = getAlarmCenterUrl({
-          hash: getAlarmCenterListHash(query),
-          bizId: alarmDetail.value.bk_biz_id,
-        });
-        window.open(url);
       }
+      // else if (alarmDetail.value.plugin_id) {
+      //   // 否则都新开一个页面并添加 告警源 查询，其它查询项保留。
+      //   const query: ILegacyAlarmCenterQuery = deepClone(route.query);
+      //   query.queryString = `告警源 : "${alarmDetail.value.plugin_id}"`;
+      //   const url = getAlarmCenterUrl({
+      //     hash: getAlarmCenterListHash(query),
+      //     bizId: alarmDetail.value.bk_biz_id,
+      //   });
+      //   window.open(url);
+      // }
     };
     // 告警级别标签
     const getTagComponent = (severity: number) => {
@@ -264,6 +269,7 @@ export default defineComponent({
       alarmId,
       loading,
       alertError,
+      IsAlarmSourceStrategy,
       getTagComponent,
       toStrategyDetail,
       chatGroupShowChange,
@@ -275,7 +281,12 @@ export default defineComponent({
     };
   },
   render() {
-    if (!this.alarmDetail) return this.alertError ? <div class='event-detail-head-main'>{this.t('告警详情')}</div> : <DetailLoading variant='header' />;
+    if (!this.alarmDetail)
+      return this.alertError ? (
+        <div class='event-detail-head-main'>{this.t('告警详情')}</div>
+      ) : (
+        <DetailLoading variant='header' />
+      );
     return (
       <div class='event-detail-head-main'>
         {this.getTagComponent(this.alarmDetail?.severity)}
@@ -303,7 +314,7 @@ export default defineComponent({
                 onClick={this.toStrategyDetail}
               >
                 <span>{this.t('来源：{0}', [this.alarmDetail?.plugin_display_name])}</span>
-                <i class='icon-monitor icon-fenxiang icon-float' />
+                {this.IsAlarmSourceStrategy && <i class='icon-monitor icon-fenxiang icon-float' />}
               </span>
             ) : undefined}
           </div>

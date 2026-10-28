@@ -26,12 +26,48 @@ from iam_engine.model.sync import ModelSyncError, ModelSyncService
 from iam_engine.v4.exceptions import V4ResponseError
 
 
+@pytest.mark.parametrize("v4_system_id", ["", "custom-monitor"])
+def test_monitor_v4_display_name_preserves_system_identity(settings, v4_system_id):
+    settings.BK_IAM_SYSTEM_ID = "bk_monitorv3"
+    settings.BK_IAM_V4_SYSTEM_ID = v4_system_id
+    model = monitor.expected_v4_model()
+    assert model.system.name == "监控平台"
+    assert model.system.id == (v4_system_id or "bk_monitorv3")
+    plan = build_plan(model, ActualModel())
+    assert plan.create_system["name"] == "监控平台"
+
+
+def test_monitor_v4_rename_only_updates_name_and_converges(settings):
+    settings.BK_IAM_SYSTEM_ID = "bk_monitorv3"
+    settings.BK_IAM_V4_SYSTEM_ID = ""
+    model = replace(monitor.expected_v4_model(), role_delegations=())
+    initial = build_plan(model, ActualModel())
+    actual = ActualModel(
+        system={**initial.create_system, "id": model.system.id, "name": "蓝鲸监控平台"},
+        resource_types=initial.create_resource_types,
+        actions=initial.create_actions,
+        roles=initial.create_roles,
+    )
+    plan = build_plan(model, actual)
+    assert plan.create_system is None
+    assert plan.update_system == {"name": "监控平台"}
+    response = Mock(status_code=204, content=b"")
+    with patch("iam_engine.v4.client.requests.request", return_value=response) as send:
+        V4ModelMigrator(monitor.v4_migrator().client, model).apply(plan)
+    send.assert_called_once()
+    assert send.call_args.kwargs["method"] == "PUT"
+    assert send.call_args.kwargs["url"].endswith("/systems/bk_monitorv3/")
+    assert send.call_args.kwargs["json"] == {"name": "监控平台"}
+    converged = replace(actual, system={**actual.system, **plan.update_system})
+    assert not build_plan(model, converged).has_changes()
+
+
 @pytest.mark.parametrize("app_code", ["custom-saas", "bk_monitorv3", "bkci"])
-def test_monitor_v4_inherits_complete_v3_clients_without_changing_v3(settings, app_code):
+def test_monitor_v4_excludes_paas_clients_without_changing_v3(settings, app_code):
     settings.SAAS_APP_CODE = app_code
     legacy = provider_options("v3")["system"]["clients"]
     assert legacy == [app_code, "bk_monitorv3", "bkci", "bk_paas3", "paasv3cli"]
-    assert monitor.expected_v4_model().system.clients == tuple(dict.fromkeys(legacy))
+    assert monitor.expected_v4_model().system.clients == tuple(dict.fromkeys(legacy[:-2]))
 
 
 def test_monitor_clients_follow_current_saas_identity_and_return_fresh_lists(settings):
@@ -41,7 +77,7 @@ def test_monitor_clients_follow_current_saas_identity_and_return_fresh_lists(set
     first.append("caller-local-mutation")
     settings.SAAS_APP_CODE = "second-saas"
     expected = ("second-saas", "bk_monitorv3", "bkci", "bk_paas3", "paasv3cli")
-    assert monitor.expected_v4_model().system.clients == expected
+    assert monitor.expected_v4_model().system.clients == expected[:-2]
     assert provider_options("v3")["system"]["clients"] == list(expected)
 
 
@@ -55,8 +91,6 @@ def test_monitor_v4_model_does_not_construct_v3_options_or_providers(settings):
             "model-saas",
             "bk_monitorv3",
             "bkci",
-            "bk_paas3",
-            "paasv3cli",
         )
 
 
@@ -65,7 +99,7 @@ def test_monitor_system_sync_sends_full_clients_and_preserves_remote_additions(s
     settings.SAAS_APP_CODE = "model-saas"
     settings.BK_COMPONENT_API_URL = "https://components.example.test/"
     settings.BK_IAM_V4_APIGATEWAY_URL = ""
-    model = replace(monitor.expected_v4_model(), resource_types=(), actions=(), roles=())
+    model = replace(monitor.expected_v4_model(), resource_types=(), actions=(), roles=(), role_delegations=())
     actual = ActualModel()
     if existing:
         actual = ActualModel(
@@ -73,7 +107,7 @@ def test_monitor_system_sync_sends_full_clients_and_preserves_remote_additions(s
                 "name": model.system.name,
                 "description": model.system.description,
                 "callback_url": model.system.callback_url,
-                "clients": ["model-saas", "remote-extra"],
+                "clients": ["model-saas", "remote-extra", "bk_paas3", "paasv3cli"],
             }
         )
     plan = build_plan(model, actual)
@@ -89,8 +123,6 @@ def test_monitor_system_sync_sends_full_clients_and_preserves_remote_additions(s
         "model-saas",
         "bk_monitorv3",
         "bkci",
-        "bk_paas3",
-        "paasv3cli",
         *(["remote-extra"] if existing else []),
     ]
     if existing:

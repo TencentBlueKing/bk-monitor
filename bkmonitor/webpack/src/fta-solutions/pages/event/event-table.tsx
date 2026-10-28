@@ -30,6 +30,7 @@ import { Component as tsc } from 'vue-tsx-support';
 import { checkAllowedByActionIds } from 'monitor-api/modules/iam';
 import { formatWithTimezone } from 'monitor-common/utils/timezone';
 import { random } from 'monitor-common/utils/utils';
+import { resolveLegacyHostHash } from 'monitor-pc/common/legacy-host-url';
 import authorityStore from 'monitor-pc/store/modules/authority';
 import { transformLogUrlQuery } from 'monitor-pc/utils';
 
@@ -844,7 +845,9 @@ export default class EventTable extends tsc<IEventTableProps, IEventTableEvent> 
           extendInfo.bk_host_id ??
           `${extendInfo.ip}-${extendInfo.bk_cloud_id === undefined ? 0 : extendInfo.bk_cloud_id}`;
         window.open(
-          `${origin}${location.pathname.toString().replace('fta/', '')}?bizId=${bizId}#/performance/detail/${detailId}`,
+          `${origin}${location.pathname.toString().replace('fta/', '')}?bizId=${bizId}${resolveLegacyHostHash({
+            id: String(detailId),
+          })}`,
           '_blank'
         );
         return;

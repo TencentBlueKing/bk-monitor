@@ -24,18 +24,33 @@
  * IN THE SOFTWARE.
  */
 
-import { getHostProcessList as getHostProcessListApi } from 'monitor-api/modules/scene_view';
+import {
+  getHostProcessList as getHostProcessListApi,
+  getHostProcessUptime as getHostProcessUptimeApi,
+} from 'monitor-api/modules/scene_view';
+
+import { requestHost } from './host-request';
 
 import type { HostProcessListParams, ProcessItem } from '../types';
+import type { HostRequestTimeContext } from './host-request';
 
 /**
  * @description 获取选中主机的进程列表。
  * @param params 请求参数
- * @param requestConfig 请求配置
  */
-export const getHostProcessList = async (
+export const getHostProcessList = (
   params: HostProcessListParams,
-  requestConfig?: { signal?: AbortSignal }
-): Promise<ProcessItem[]> => {
-  return getHostProcessListApi<HostProcessListParams, ProcessItem[]>(params, requestConfig);
-};
+  timeContext?: HostRequestTimeContext
+): Promise<ProcessItem[]> =>
+  requestHost('scene_view/get_host_process_list', params, data => getHostProcessListApi(data), { timeContext });
+
+export const getHostProcessUptime = (
+  params: HostProcessListParams & { bk_biz_id: number; display_name: string },
+  timeContext?: HostRequestTimeContext
+): Promise<{ value: null | number | string }> =>
+  requestHost(
+    'scene_view/get_host_process_uptime',
+    params,
+    data => getHostProcessUptimeApi(data, { needMessage: false }),
+    { timeContext }
+  );

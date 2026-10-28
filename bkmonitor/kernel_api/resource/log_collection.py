@@ -8,7 +8,8 @@ from rest_framework import serializers
 from rest_framework.exceptions import PermissionDenied
 
 from bkm_space.utils import bk_biz_id_to_space_uid
-from core.drf_resource import Resource, api
+from core.drf_resource import api
+from kernel_api.resource.mcp_response import MCPResource as Resource
 from kernel_api.resource.log_collection_common import normalize_json_list, normalize_json_object
 
 ENVIRONMENT_LINUX = "linux"

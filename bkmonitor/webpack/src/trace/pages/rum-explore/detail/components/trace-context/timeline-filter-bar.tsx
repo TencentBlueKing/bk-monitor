@@ -29,18 +29,20 @@ import type { PropType } from 'vue';
 import { Input, Radio } from 'bkui-vue';
 import { useI18n } from 'vue-i18n';
 
+import { RumTimelineFilterCategoryEnum } from '../../typings';
+
 import type { RumTimelineFilterCategoryType } from '../../typings';
 
 import './timeline-filter-bar.scss';
 
-/** 快捷筛选类别与文案 */
-const CATEGORY_OPTIONS: { id: 'all' | Exclude<RumTimelineFilterCategoryType, 'all'>; label: string }[] = [
-  { id: 'all', label: window.i18n.t('全部') },
-  { id: 'action', label: window.i18n.t('动作') },
-  { id: 'slow_node', label: window.i18n.t('慢节点') },
-  { id: 'request', label: window.i18n.t('请求') },
-  { id: 'third_party', label: window.i18n.t('第三方资源') },
-  { id: 'error', label: window.i18n.t('异常') },
+/** 快捷筛选类别与文案，顺序即胶囊按钮的展示顺序 */
+const CATEGORY_OPTIONS: { id: RumTimelineFilterCategoryType; label: string }[] = [
+  { id: RumTimelineFilterCategoryEnum.ALL, label: window.i18n.t('全部') },
+  { id: RumTimelineFilterCategoryEnum.ACTION, label: window.i18n.t('动作') },
+  { id: RumTimelineFilterCategoryEnum.SLOW_NODE, label: window.i18n.t('慢节点') },
+  { id: RumTimelineFilterCategoryEnum.REQUEST, label: window.i18n.t('请求') },
+  { id: RumTimelineFilterCategoryEnum.ERROR, label: window.i18n.t('错误') },
+  { id: RumTimelineFilterCategoryEnum.THIRD_PARTY, label: window.i18n.t('第三方资源') },
 ];
 
 /**
@@ -56,7 +58,7 @@ export default defineComponent({
     },
     category: {
       type: String as PropType<RumTimelineFilterCategoryType>,
-      default: 'all',
+      default: RumTimelineFilterCategoryEnum.ALL,
     },
   },
   emits: {

@@ -195,6 +195,7 @@ class GetDataLinkMetadataResource(BkDataAPIGWResource):
     class RequestSerializer(serializers.Serializer):
         bk_data_id = serializers.IntegerField(required=False, label="计算平台数据ID")
         vm_result_table_id = serializers.CharField(required=False, label="VM结果表ID")
+        timeout = serializers.FloatField(required=False, min_value=0.001, label="请求超时秒数")
 
         def validate(self, attrs):
             if not (bool(attrs.get("bk_data_id")) ^ bool(attrs.get("vm_result_table_id"))):

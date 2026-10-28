@@ -119,6 +119,3 @@ export interface IRumTimelineVitalVM {
   key: string;
   text: string;
 }
-
-/** 链路上下文列表的快捷筛选类别，取值口径见 timeline 接口协议 2.12.3 */
-export type RumTimelineFilterCategoryType = 'action' | 'all' | 'error' | 'request' | 'slow_node' | 'third_party';

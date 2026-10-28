@@ -73,7 +73,6 @@ from apps.feature_toggle.handlers.toggle import FeatureToggleObject
 from apps.api import MonitorApi
 from apps.log_databus.models import CollectorConfig
 from apps.log_databus.constants import EtlConfig
-from apps.log_search.constants import ASYNC_SORTED
 from bkm_space.utils import space_uid_to_bk_biz_id
 
 
@@ -262,6 +261,23 @@ class UnifyQueryHandler:
             if raise_exception:
                 raise e
             return {"list": []}
+
+    @property
+    def export_result_window(self):
+        index_set = self.index_info_list[0]["index_set_obj"]
+        return index_set.result_window or MAX_RESULT_WINDOW
+
+    def project_export_rows(self, result):
+        """把查询结果投影成待写出的导出行。"""
+        return self._deal_query_result(result)["origin_log_list"]
+
+    def export_scroll_batch(self, search_dict):
+        """滚动取一批并投影成导出行，返回 (本批导出行, 是否已到末尾)。
+
+        取数不走子类重写的滚动原语：场景化在其上挂了后置鉴权，导出已在创建入口鉴权。
+        """
+        result = UnifyQueryHandler.query_ts_raw_with_scroll(search_dict)
+        return self.project_export_rows(result), bool(result.get("done"))
 
     def _enhance(self):
         """
@@ -1245,19 +1261,24 @@ class UnifyQueryHandler:
             if search_result.get("done", False):
                 break
 
-    def _get_user_sorted_list(self, sorted_fields):
-        index_set_id = self.index_info_list[0]["index_set_id"]
-        config = UserIndexSetFieldsConfig.get_config(index_set_id=index_set_id, username=self.request_username)
-        if not config:
-            return [[sorted_field, ASYNC_SORTED] for sorted_field in sorted_fields]
-        user_sort_list = config.sort_list
-        user_sort_fields = [i[0] for i in user_sort_list]
-        for sorted_field in sorted_fields:
-            if sorted_field in user_sort_fields:
-                continue
-            user_sort_list.append([sorted_field, ASYNC_SORTED])
-
-        return user_sort_list
+    @classmethod
+    def verify_sort_list_item(cls, index_set_id: int, sort_list: list):
+        """只获取字段并校验排序，避免初始化检索时生成默认字段配置。"""
+        index_set = LogIndexSet.objects.get(index_set_id=index_set_id)
+        end_time = arrow.now()
+        mapping_handler = UnifyQueryMappingHandler(
+            indices=",".join(index["result_table_id"] for index in index_set.get_indexes(has_applied=True)),
+            index_set_id=index_set_id,
+            scenario_id=index_set.scenario_id,
+            storage_cluster_id=index_set.storage_cluster_id,
+            time_field=UnifyQueryMappingHandler.get_time_field(index_set_id, index_set),
+            start_time=end_time.shift(days=-1).int_timestamp * 1000,
+            end_time=end_time.int_timestamp * 1000,
+            bk_biz_id=space_uid_to_bk_biz_id(index_set.space_uid),
+            only_search=True,
+            index_set=index_set,
+        )
+        cls.check_sort_list(mapping_handler.final_fields, sort_list)
 
     def fields(self, scope="default"):
         index_info = self.index_info_list[0]

@@ -3,7 +3,7 @@
 from __future__ import annotations
 import logging
 from collections.abc import Mapping, Sequence
-from dataclasses import dataclass
+from dataclasses import asdict, dataclass
 from typing import Any
 from iam_engine.model.client import V4ModelClient
 from iam_engine.model.definition import (
@@ -46,6 +46,8 @@ class ModelMigrationPlan:
     blocking: tuple[str, ...] = ()
     # IAM 侧存在但基线中没有的对象。只报告，不删除。
     drift: tuple[str, ...] = ()
+    # No documented delegation inventory API: apply ensures existence using idempotent create.
+    ensure_role_delegations: tuple[dict[str, Any], ...] = ()
 
     def has_changes(self) -> bool:
         return any(
@@ -60,6 +62,7 @@ class ModelMigrationPlan:
                 self.update_roles,
                 self.add_role_actions,
                 self.remove_role_actions,
+                self.ensure_role_delegations,
             )
         )
 
@@ -87,6 +90,8 @@ class ModelMigrationPlan:
             lines.append(f"add role actions: {role_id} -> {[action['id'] for action in actions]}")
         for reason in self.blocking:
             lines.append(f"BLOCKING: {reason}")
+        for item in self.ensure_role_delegations:
+            lines.append(f"ensure role delegation (remote existence unknown): {item}")
         for reason in self.drift:
             lines.append(f"DRIFT: {reason}")
         return "\n".join(lines) if lines else "no changes"
@@ -119,6 +124,7 @@ def build_plan(desired: ModelDefinition, actual: ActualModel) -> ModelMigrationP
         remove_role_actions=remove_role_actions,
         blocking=tuple(blocking),
         drift=tuple(drift),
+        ensure_role_delegations=tuple(asdict(item) for item in desired.role_delegations),
     )
 
 
@@ -138,7 +144,7 @@ def _diff_system(
     if actual is None:
         return payload, None
 
-    payload["clients"] = _merge_clients(system.clients, actual.get("clients"), drift)
+    payload["clients"] = _merge_clients(system.clients, actual.get("clients"), drift, system.removed_clients)
 
     changed = {
         key: value
@@ -149,15 +155,16 @@ def _diff_system(
     return None, changed or None
 
 
-def _merge_clients(desired: Sequence[str], actual: Any, drift: list[str]) -> list[str]:
+def _merge_clients(desired: Sequence[str], actual: Any, drift: list[str], removed: Sequence[str] = ()) -> list[str]:
     """基线与 IAM 侧调用方取并集。
 
     update_system 的 clients 是整体覆盖，如果只发基线里的值，IAM 侧手工加的调用方会在一次收敛后
     失去调用权限。这里把它们并进 payload 并登记为漂移，与资源类型、操作、角色的「只报不删」一致。
+    仅 removed 明确声明的客户端例外，允许产品基线定向退役。
     """
     actual_clients = [str(item) for item in actual] if isinstance(actual, list | tuple) else []
     # 排序保证同一份输入总是得到同一个计划。
-    extra = sorted(set(actual_clients) - set(desired))
+    extra = sorted(set(actual_clients) - set(desired) - set(removed))
     for client in extra:
         drift.append(f"system client {client} exists in IAM but not in the baseline")
     return [*desired, *extra]
@@ -375,7 +382,7 @@ class V4ModelMigrator:
 
         if plan.create_system:
             self.client.create_system(plan.create_system)
-        elif plan.update_system:
+        elif plan.update_system and not plan.ensure_role_delegations:
             self.client.update_system(plan.update_system)
 
         if plan.create_resource_types:
@@ -394,6 +401,12 @@ class V4ModelMigrator:
             self.client.update_role(role_id, payload)
         for role_id, actions in plan.add_role_actions:
             self.client.batch_create_role_actions(role_id, actions)
+
+        if plan.ensure_role_delegations:
+            self.client.batch_create_role_delegations(plan.ensure_role_delegations)
+            # Do not retire existing clients before replacement delegation succeeds.
+            if plan.update_system:
+                self.client.update_system(plan.update_system)
 
     def migrate(self, *, dry_run: bool = True) -> ModelMigrationPlan:
         plan = self.plan()

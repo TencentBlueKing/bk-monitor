@@ -779,7 +779,7 @@ class IncidentTopologyResource(IncidentBaseResource):
             return {
                 "latest": {"nodes": [], "edges": [], "combos": [], "sub_combos": []},
                 "diff" if validated_request_data["only_diff"] else "full": [],
-                "complete": {"nodes": [], "edges": [], "sub_combos": []},
+                "complete": {"nodes": [], "edges": [], "sub_combos": [], "combos": []},
                 "status": "NO_DATA",
                 "message": _("所选时间范围内暂无可用图谱快照"),
             }
@@ -806,18 +806,13 @@ class IncidentTopologyResource(IncidentBaseResource):
         )
         last_snapshot_content = None
         topologies_data = []
-        complete_topologies = {"nodes": {}, "edges": {}, "sub_combos": {}}
+        complete_topologies = {"nodes": {}, "edges": {}, "sub_combos": {}, "combos": {}}
         for incident_snapshot in incident_snapshots:
             snapshot = snapshots[incident_snapshot.id]
-            if validated_request_data["only_diff"]:
-                last_snapshot_content, topo_data = self.generate_topology_diff_from_snapshot(
-                    incident,
-                    snapshot,
-                    last_snapshot_content,
-                    complete_topologies,
-                )
-            else:
-                topo_data = self.generate_topology_data_from_snapshot(incident, snapshot)
+            last_snapshot_content, diff_data = self.generate_topology_diff_from_snapshot(
+                incident, snapshot, last_snapshot_content, complete_topologies
+            )
+            topo_data = diff_data if validated_request_data["only_diff"] else last_snapshot_content
             topologies_data.append(
                 {
                     "incident_id": incident_snapshot.incident_id,
@@ -834,6 +829,7 @@ class IncidentTopologyResource(IncidentBaseResource):
                 "nodes": list(complete_topologies["nodes"].values()),
                 "edges": list(complete_topologies["edges"].values()),
                 "sub_combos": list(complete_topologies["sub_combos"].values()),
+                "combos": list(complete_topologies["combos"].values()),
             },
         }
 
@@ -855,6 +851,10 @@ class IncidentTopologyResource(IncidentBaseResource):
         complete_topologies: dict,
     ) -> dict:
         current = self.generate_topology_data_from_snapshot(incident, snapshot)
+        # Layout includes historical nodes even when their category disappears in the latest frame.
+        complete_topologies.setdefault("combos", {}).update(
+            {combo["id"]: copy.deepcopy(combo) for combo in current.get("combos", [])}
+        )
 
         last_nodes = self.generate_sub_content(last_snapshot_content, "nodes", lambda obj: obj["id"])
         last_edges = self.generate_sub_content(last_snapshot_content, "edges", edge_identity)
@@ -886,7 +886,12 @@ class IncidentTopologyResource(IncidentBaseResource):
         self.generate_delete_tag("edges", current_edges, complete_topologies, new_edges)
         self.generate_delete_tag("sub_combos", current_sub_combos, complete_topologies, new_sub_combos)
 
-        return current, {"nodes": new_nodes, "edges": new_edges, "sub_combos": new_sub_combos}
+        return current, {
+            "nodes": new_nodes,
+            "edges": new_edges,
+            "sub_combos": new_sub_combos,
+            "combos": current.get("combos", []),
+        }
 
     def generate_sub_content(self, snapshot_content: dict, content_key: str, id_func: callable) -> dict:
         return (
@@ -907,12 +912,12 @@ class IncidentTopologyResource(IncidentBaseResource):
             obj_id = id_func(current_obj)
             if obj_id not in last_objs:
                 new_objs.append(current_obj)
-                complete_content[content_key][obj_id] = current_obj
+                complete_content[content_key][obj_id] = copy.deepcopy(current_obj)
             elif diff_func(current_obj, last_objs[obj_id]):
                 new_objs.append(current_obj)
-                complete_content[content_key][obj_id] = current_obj
+                complete_content[content_key][obj_id] = copy.deepcopy(current_obj)
             elif obj_id not in complete_content[content_key]:
-                complete_content[content_key][obj_id] = current_obj
+                complete_content[content_key][obj_id] = copy.deepcopy(current_obj)
 
         return new_objs
 
@@ -924,8 +929,10 @@ class IncidentTopologyResource(IncidentBaseResource):
                 continue
 
             if complete_obj_id not in current_objs:
-                complete_obj["is_deleted"] = True
-                new_objs.append(complete_obj)
+                # Deletion belongs to this frame; never retroactively mutate an earlier snapshot.
+                deleted_obj = {**copy.deepcopy(complete_obj), "is_deleted": True}
+                complete_content[content_key][complete_obj_id] = deleted_obj
+                new_objs.append(deleted_obj)
 
     def check_node_diff(self, current_node: dict, last_node: dict):
         """判断节点是否发生变化."""

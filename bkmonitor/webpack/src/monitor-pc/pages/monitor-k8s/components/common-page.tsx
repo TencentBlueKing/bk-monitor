@@ -1379,7 +1379,7 @@ export default class CommonPage extends tsc<ICommonPageProps, ICommonPageEvent> 
       const routerName = this.$route.name;
       /** 跳转主机列表 */
       if (routerName === 'performance-detail') {
-        this.$router.push({ name: 'performance' });
+        this.$router.push({ name: 'host' });
       } else if (routerName === 'custom-escalation-view') {
         /** 自定义指标 */
         this.$router.push({ name: 'custom-metric' });

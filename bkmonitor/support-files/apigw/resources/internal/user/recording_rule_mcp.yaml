@@ -1,0 +1,401 @@
+paths:
+  /mcp/preview_recording_rule/:
+    post:
+      operationId: preview_recording_rule
+      description: 'Preview a RecordingRule without saving or applying it. Returns deployment_check with counts, limits and can_apply; over-limit configurations remain parseable. Business errors use HTTP 200 with result=false, code=3300004 and data.errors entries with code/message/path. Deployment errors are SOURCE_LIMIT_EXCEEDED or RULE_LIMIT_EXCEEDED with actual/limit; inspect can_apply before applying. 预解析预计算规则，deployment_check 返回数量、上限和是否可下发，超限仍返回解析结果。解析业务错误使用 HTTP 200、result=false、code=3300004 和 data.errors（code/message/path），部署超限返回 SOURCE_LIMIT_EXCEEDED 或 RULE_LIMIT_EXCEEDED（含 actual/limit），调用方需检查 can_apply。 Requires a verified gateway
+        user and business-scoped RecordingRule permission. 必须通过网关用户鉴权并拥有当前业务的预计算规则权限。 Required IAM action: view_recording_rule_v2.
+        所需业务权限：view_recording_rule_v2。'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+              - bk_biz_id
+              - config
+              properties:
+                bk_biz_id:
+                  type: string
+                  description: Business ID used for user authorization. 业务 ID，用于用户权限校验。
+                space_uid:
+                  type: string
+                  description: Optional space UID; must match the business. 可选空间 UID，必须与业务一致。
+                config:
+                  oneOf:
+                  - type: object
+                    additionalProperties: true
+                  - type: string
+                  description: One AsCode group object or YAML string, without the outer groups field. 单个 AsCode
+                    group 对象或 YAML 字符串，不含外层 groups。
+                id:
+                  type: integer
+                  minimum: 1
+                  description: Active rule ID from list_recording_rules in this business. 当前业务内未软删除的规则 ID，通过 list_recording_rules
+                    获取。
+      responses:
+        '200':
+          description: 标准响应信封；保存与下发结果分别见 data.saved 和 data.execution
+      x-bk-apigateway-resource:
+        isPublic: false
+        allowApplyPermission: true
+        matchSubpath: false
+        enableWebsocket: false
+        backend:
+          name: default
+          method: post
+          path: /api/v4/recording_rule_mcp/preview_config/
+          matchSubpath: false
+          timeout: 0
+        authConfig:
+          appVerifiedRequired: false
+          userVerifiedRequired: true
+          resourcePermissionRequired: true
+      tags:
+      - recording_rule_mcp
+  /mcp/create_recording_rule/:
+    post:
+      operationId: create_recording_rule
+      description: 'Create a RecordingRule; apply defaults to false. 新建预计算规则。 Requires a verified gateway user and
+        business-scoped RecordingRule permission. 必须通过网关用户鉴权并拥有当前业务的预计算规则权限。 Required IAM action: manage_recording_rule_v2.
+        所需业务权限：manage_recording_rule_v2。'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+              - bk_biz_id
+              - config
+              - confirm
+              properties:
+                bk_biz_id:
+                  type: string
+                  description: Business ID used for user authorization. 业务 ID，用于用户权限校验。
+                space_uid:
+                  type: string
+                  description: Optional space UID; must match the business. 可选空间 UID，必须与业务一致。
+                config:
+                  oneOf:
+                  - type: object
+                    additionalProperties: true
+                  - type: string
+                  description: One AsCode group object or YAML string, without the outer groups field. 单个 AsCode
+                    group 对象或 YAML 字符串，不含外层 groups。
+                apply:
+                  type: boolean
+                  default: false
+                  description: Resolve and apply immediately; defaults to false and does not change auto_refresh.
+                    是否立即解析下发，默认 false，不改变 auto_refresh。
+                confirm:
+                  type: boolean
+                  enum:
+                  - true
+                  description: Must be true after explicit user confirmation. 用户明确确认后必须传 true。
+      responses:
+        '200':
+          description: 标准响应信封；保存与下发结果分别见 data.saved 和 data.execution
+      x-bk-apigateway-resource:
+        isPublic: false
+        allowApplyPermission: true
+        matchSubpath: false
+        enableWebsocket: false
+        backend:
+          name: default
+          method: post
+          path: /api/v4/recording_rule_mcp/create_config/
+          matchSubpath: false
+          timeout: 0
+        authConfig:
+          appVerifiedRequired: false
+          userVerifiedRequired: true
+          resourcePermissionRequired: true
+      tags:
+      - recording_rule_mcp
+  /mcp/update_recording_rule/:
+    post:
+      operationId: update_recording_rule
+      description: 'Replace a RecordingRule configuration; its name and space cannot change. 修改预计算规则。 Requires a
+        verified gateway user and business-scoped RecordingRule permission. 必须通过网关用户鉴权并拥有当前业务的预计算规则权限。 Required
+        IAM action: manage_recording_rule_v2. 所需业务权限：manage_recording_rule_v2。'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+              - bk_biz_id
+              - id
+              - config
+              - confirm
+              properties:
+                bk_biz_id:
+                  type: string
+                  description: Business ID used for user authorization. 业务 ID，用于用户权限校验。
+                space_uid:
+                  type: string
+                  description: Optional space UID; must match the business. 可选空间 UID，必须与业务一致。
+                id:
+                  type: integer
+                  minimum: 1
+                  description: Active rule ID from list_recording_rules in this business. 当前业务内未软删除的规则 ID，通过 list_recording_rules
+                    获取。
+                config:
+                  oneOf:
+                  - type: object
+                    additionalProperties: true
+                  - type: string
+                  description: One AsCode group object or YAML string, without the outer groups field. 单个 AsCode
+                    group 对象或 YAML 字符串，不含外层 groups。
+                apply:
+                  type: boolean
+                  default: false
+                  description: Resolve and apply immediately; defaults to false and does not change auto_refresh.
+                    是否立即解析下发，默认 false，不改变 auto_refresh。
+                confirm:
+                  type: boolean
+                  enum:
+                  - true
+                  description: Must be true after explicit user confirmation. 用户明确确认后必须传 true。
+      responses:
+        '200':
+          description: 标准响应信封；保存与下发结果分别见 data.saved 和 data.execution
+      x-bk-apigateway-resource:
+        isPublic: false
+        allowApplyPermission: true
+        matchSubpath: false
+        enableWebsocket: false
+        backend:
+          name: default
+          method: post
+          path: /api/v4/recording_rule_mcp/update_config/
+          matchSubpath: false
+          timeout: 0
+        authConfig:
+          appVerifiedRequired: false
+          userVerifiedRequired: true
+          resourcePermissionRequired: true
+      tags:
+      - recording_rule_mcp
+  /mcp/delete_recording_rule/:
+    post:
+      operationId: delete_recording_rule
+      description: 'Soft-delete a RecordingRule and delete its Flow. Failed Flow deletion is retried in the background.
+        删除预计算规则。 Requires a verified gateway user and business-scoped RecordingRule permission. 必须通过网关用户鉴权并拥有当前业务的预计算规则
+        MCP 权限。 Required IAM action: manage_recording_rule_v2. 所需业务权限：manage_recording_rule_v2。'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+              - bk_biz_id
+              - id
+              - confirm
+              properties:
+                bk_biz_id:
+                  type: string
+                  description: Business ID used for user authorization. 业务 ID，用于用户权限校验。
+                space_uid:
+                  type: string
+                  description: Optional space UID; must match the business. 可选空间 UID，必须与业务一致。
+                id:
+                  type: integer
+                  minimum: 1
+                  description: Active rule ID from list_recording_rules in this business. 当前业务内未软删除的规则 ID，通过 list_recording_rules
+                    获取。
+                confirm:
+                  type: boolean
+                  enum:
+                  - true
+                  description: Must be true after explicit user confirmation. 用户明确确认后必须传 true。
+      responses:
+        '200':
+          description: 标准响应信封；保存与下发结果分别见 data.saved 和 data.execution
+      x-bk-apigateway-resource:
+        isPublic: false
+        allowApplyPermission: true
+        matchSubpath: false
+        enableWebsocket: false
+        backend:
+          name: default
+          method: post
+          path: /api/v4/recording_rule_mcp/delete_config/
+          matchSubpath: false
+          timeout: 0
+        authConfig:
+          appVerifiedRequired: false
+          userVerifiedRequired: true
+          resourcePermissionRequired: true
+      tags:
+      - recording_rule_mcp
+  /mcp/get_recording_rule/:
+    post:
+      operationId: get_recording_rule
+      description: 'Read the current configuration; with_status optionally observes the running Flow. 查询预计算规则。 Requires
+        a verified gateway user and business-scoped RecordingRule permission. 必须通过网关用户鉴权并拥有当前业务的预计算规则权限。 Required
+        IAM action: view_recording_rule_v2. 所需业务权限：view_recording_rule_v2。'
+      responses:
+        '200':
+          description: 标准响应信封；保存与下发结果分别见 data.saved 和 data.execution
+      x-bk-apigateway-resource:
+        isPublic: false
+        allowApplyPermission: true
+        matchSubpath: false
+        enableWebsocket: false
+        backend:
+          name: default
+          method: post
+          path: /api/v4/recording_rule_mcp/get_config/
+          matchSubpath: false
+          timeout: 0
+        authConfig:
+          appVerifiedRequired: false
+          userVerifiedRequired: true
+          resourcePermissionRequired: true
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                bk_biz_id:
+                  type: string
+                  description: Business ID used for user authorization. 业务 ID，用于用户权限校验。
+                space_uid:
+                  type: string
+                  description: Optional space UID; must match the business. 可选空间 UID，必须与业务一致。
+                id:
+                  type: integer
+                  minimum: 1
+                  description: Active rule ID from list_recording_rules in this business. 当前业务内未软删除的规则 ID，通过 list_recording_rules
+                    获取。
+                with_status:
+                  type: boolean
+                  default: false
+                  description: Observe Flow status; defaults to false. Failures are returned separately from the
+                    configuration. 是否观测 Flow 状态，默认 false，观测失败单独返回，不影响配置读取。
+              required:
+              - bk_biz_id
+              - id
+      tags:
+      - recording_rule_mcp
+  /mcp/apply_recording_rule/:
+    post:
+      operationId: apply_recording_rule
+      description: 'Resolve and apply the saved RecordingRule declaration. 下发预计算规则。 Requires a verified gateway
+        user and business-scoped RecordingRule permission. 必须通过网关用户鉴权并拥有当前业务的预计算规则权限。 Required IAM action: manage_recording_rule_v2.
+        所需业务权限：manage_recording_rule_v2。'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+              - bk_biz_id
+              - id
+              - confirm
+              properties:
+                bk_biz_id:
+                  type: string
+                  description: Business ID used for user authorization. 业务 ID，用于用户权限校验。
+                space_uid:
+                  type: string
+                  description: Optional space UID; must match the business. 可选空间 UID，必须与业务一致。
+                id:
+                  type: integer
+                  minimum: 1
+                  description: Active rule ID from list_recording_rules in this business. 当前业务内未软删除的规则 ID，通过 list_recording_rules
+                    获取。
+                confirm:
+                  type: boolean
+                  enum:
+                  - true
+                  description: Must be true after explicit user confirmation. 用户明确确认后必须传 true。
+      responses:
+        '200':
+          description: 标准响应信封；保存与下发结果分别见 data.saved 和 data.execution
+      x-bk-apigateway-resource:
+        isPublic: false
+        allowApplyPermission: true
+        matchSubpath: false
+        enableWebsocket: false
+        backend:
+          name: default
+          method: post
+          path: /api/v4/recording_rule_mcp/apply_config/
+          matchSubpath: false
+          timeout: 0
+        authConfig:
+          appVerifiedRequired: false
+          userVerifiedRequired: true
+          resourcePermissionRequired: true
+      tags:
+      - recording_rule_mcp
+  /mcp/list_recording_rules/:
+    post:
+      operationId: list_recording_rules
+      description: 'List active RecordingRules with pagination and local status only. 列出预计算规则。 Requires a verified
+        gateway user and business-scoped RecordingRule permission. 必须通过网关用户鉴权并拥有当前业务的预计算规则权限。 Required IAM action:
+        view_recording_rule_v2. 所需业务权限：view_recording_rule_v2。'
+      responses:
+        '200':
+          description: 标准响应信封；保存与下发结果分别见 data.saved 和 data.execution
+      x-bk-apigateway-resource:
+        isPublic: false
+        allowApplyPermission: true
+        matchSubpath: false
+        enableWebsocket: false
+        backend:
+          name: default
+          method: post
+          path: /api/v4/recording_rule_mcp/list_configs/
+          matchSubpath: false
+          timeout: 0
+        authConfig:
+          appVerifiedRequired: false
+          userVerifiedRequired: true
+          resourcePermissionRequired: true
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                bk_biz_id:
+                  type: string
+                  description: Business ID used for user authorization. 业务 ID，用于用户权限校验。
+                space_uid:
+                  type: string
+                  description: Optional space UID; must match the business. 可选空间 UID，必须与业务一致。
+                name:
+                  type: string
+                  description: Filter by part of the group name. 按规则组名称模糊筛选。
+                app:
+                  type: string
+                  maxLength: 128
+                  description: Filter by the owning AsCode app. 按托管的 AsCode app 筛选。
+                status:
+                  type: string
+                  description: Filter by local rule status. 按规则本地状态筛选。
+                page:
+                  type: integer
+                  default: 1
+                  minimum: 1
+                  description: Page number, starting at 1. 页码，从 1 开始。
+                page_size:
+                  type: integer
+                  default: 20
+                  minimum: 1
+                  maximum: 100
+                  description: Page size, up to 100. 每页数量，最多 100。
+              required:
+              - bk_biz_id
+      tags:
+      - recording_rule_mcp

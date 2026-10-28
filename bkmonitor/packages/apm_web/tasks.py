@@ -155,7 +155,7 @@ def refresh_application():
         try:
             # 刷新数据状态
             application.set_data_status()
-            # 刷新服务数量和数据状态
+            # 刷新服务数量
             application.set_service_count_and_data_status()
         except Exception as e:  # noqa
             logger.warning(

@@ -25,6 +25,8 @@
  */
 // trace 应用 中英文对照
 export default {
+  '图谱数据不完整，请刷新重试': 'Graph data is incomplete. Please refresh and try again.',
+  '图谱布局失败，请刷新重试': 'Graph layout failed. Please refresh and try again.',
   '快捷键 / ，可直接输入': 'Press / to input',
   返回新版: 'Back to new version',
   最小耗时: 'Min Duration',
@@ -104,7 +106,28 @@ export default {
   关联已有单据: 'Relate Existing Ticket',
   状态不同步: 'Status is not synced',
   状态同步: 'Status Synced',
+  '/ 快速唤起，请输入': 'Press / to input',
   '/ 唤起，输入检索内容': 'Press / to input',
+  源码仓库关联: 'Source Code Repository Relation',
+  '关联后，告警中心的 AI 分析可基于蓝盾构建与 Git 变更进行':
+    'After linking, AI analysis in the Alert Center can be performed based on BlueKing CI builds and Git changes',
+  蓝盾项目: 'BlueKing CI Project',
+  源码仓库: 'Source Code Repository',
+  请先选择蓝盾项目: 'Please select a BlueKing CI project first',
+  策略关联分析流程: 'Policy-linked Analysis Flow',
+  '不同的策略，可以配置不同的流程实例参数（知识库、skill、告警组）':
+    'Different policies can be configured with different flow instance parameters (knowledge base, skill, alert group)',
+  新增绑定配置: 'Add Binding Configuration',
+  '数值越高，优先级越高，最大值为10000': 'The higher the value, the higher the priority, with a maximum value of 10000',
+  所有策略: 'All Policies',
+  默认策略不可删除: 'Default policies cannot be deleted',
+  告警策略匹配规则: 'Alert Policy Matching Rules',
+  /** AI 设置：离开页面确认弹窗 */
+  '确认离开当前页？': 'Are you sure you want to leave this page?',
+  '当前配置尚未保存，离开将会导致未保存信息丢失':
+    'Your changes have not been saved. Leaving will result in loss of unsaved information.',
+  直接离开: 'Leave directly',
+  保存并离开: 'Save and leave',
   原始字段: 'Original Field',
   类型选择: 'Type Select',
   'Profiling 检索仅支持标签等值过滤': 'Profiling only supports exact label filters',

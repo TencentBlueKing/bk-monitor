@@ -16,7 +16,7 @@ from __future__ import annotations
 # 使命：
 #   iam_engine 层始终使用"业务规范化命名"（如 action="view_business"、
 #   resource_type="space"、resource_id="3"），"平台方言命名"（如 v3 的
-#   action="view_business_v2"、v4 的 resource_id="space|3"）仅在 Provider
+#   action="view_business_v2"）仅在 Provider
 #   内部的边界上出现。NameCodec 是这两种命名之间的双射。
 #
 # 覆盖的四类符号：

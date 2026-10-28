@@ -151,7 +151,8 @@ class TestIAMv4AuthCapabilities:
         for item in result:
             if item["type"] == ResourceTypes.SPACE.id:
                 for rid in item["ids"]:
-                    assert not rid.startswith("space|"), f"space id 应已 decode: {rid}"
+                    # 历史前缀是独立 IAM ID，范围查询不再将它们解码为数字 ID。
+                    assert isinstance(rid, str)
 
     # ------- 角色授权参数校验 -------
 

@@ -121,7 +121,7 @@
   }
 
   .is-span {
-    width: 259px;
+    flex: 0 0 clamp(280px, 28%, 400px);
   }
 
   .is-io {
@@ -130,17 +130,24 @@
     padding-left: 16px;
   }
 
+  .is-duration,
+  .is-token,
+  .is-action {
+    box-sizing: border-box;
+    flex-shrink: 0;
+  }
+
   .is-duration {
-    width: 78px;
+    width: 104px;
   }
 
   .is-token {
-    width: 200px;
+    width: 152px;
   }
 
   .is-action {
-    width: 40px;
-    padding: 0;
+    width: 64px;
+    text-align: center;
   }
 }
 
@@ -171,8 +178,8 @@
   }
 
   &.is-span {
+    flex: 0 0 clamp(280px, 28%, 400px);
     gap: 8px;
-    width: 259px;
     padding: 0 12px;
   }
 
@@ -183,19 +190,25 @@
     padding: 0 16px;
   }
 
-  &.is-duration {
-    width: 78px;
+  &.is-duration,
+  &.is-token,
+  &.is-action {
+    box-sizing: border-box;
+    flex-shrink: 0;
     padding: 0 12px;
   }
 
+  &.is-duration {
+    width: 104px;
+  }
+
   &.is-token {
-    width: 200px;
-    padding: 0 12px;
+    width: 152px;
   }
 
   &.is-action {
     justify-content: center;
-    width: 40px;
+    width: 64px;
   }
 }
 
@@ -252,8 +265,6 @@
   }
 
   &.is-action {
-    width: 16px;
-    height: 16px;
-    border-radius: 2px;
+    width: 24px;
   }
 }

@@ -25,6 +25,8 @@ specific language governing permissions and limitations under the License.
 """
 from unittest.mock import MagicMock, patch
 
+import pytest
+
 
 def _build_doc(dimensions, event_tags):
     """构造 mock AlertDocument，提供 to_dict + 必需的属性。"""
@@ -77,6 +79,23 @@ class TestCleanDocumentTagsBoundToDimensions:
 
         assert cleaned["tags"] == dimensions, "tags 应与 dimensions 同源（修复列表/详情维度不一致 bug）"
         assert cleaned["dimensions"] == dimensions
+
+    @pytest.mark.parametrize("display_name", ["所属品牌", "品牌别名"])
+    def test_new_alert_details_use_saved_dimension_translation(self, display_name):
+        name = "base62Mm45BOZ5eM2yBMRzB"
+        dimensions = [{"key": f"tags.{name}", "value": "22", "display_key": display_name, "display_value": "22"}]
+        translation = {"value": "22", "display_name": display_name, "display_value": "22"}
+        doc = _build_doc(dimensions, [{"key": name, "value": "22"}])
+        doc.to_dict.return_value["extra_info"] = {
+            "origin_alarm": {"dimension_translation": {name: translation}},
+            "strategy": {"items": [{"query_configs": [{"agg_dimension": [name]}]}]},
+        }
+
+        cleaned = self._clean(doc)
+
+        assert cleaned["dimensions"] == dimensions
+        assert cleaned["tags"] == dimensions
+        assert cleaned["items"][0]["query_configs"][0]["agg_dimension"][name] == translation
 
     def test_tags_falls_back_to_event_tags_when_dimensions_empty(self):
         """dimensions 为空但 event.tags 非空 → 回退用 event.tags（兼容仅有 tags 的旧数据）。"""

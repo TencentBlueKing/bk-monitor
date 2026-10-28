@@ -15,13 +15,12 @@ import time
 from collections import defaultdict
 from collections.abc import Callable, Iterable
 from datetime import datetime
-from functools import reduce
 from itertools import chain, groupby
 from operator import itemgetter
 from typing import Any
 
 import arrow
-from bk_monitor_base.strategy import list_strategy, parse_metric_id
+from bk_monitor_base.strategy import list_strategy
 from bkm_space.api import SpaceApi
 from django.conf import settings
 
@@ -32,18 +31,15 @@ from alarm_backends.core.cache.cmdb import (
     BusinessManager,
     ServiceTemplateManager,
     SetTemplateManager,
-    TopoManager,
 )
 from bkmonitor.commons.tools import is_ipv6_biz
 from bkmonitor.models import (
     AlgorithmModel,
-    MetricListCache,
     StrategyHistoryModel,
     StrategyModel,
 )
 from bkmonitor.utils.common_utils import chunks, count_md5
 from bkmonitor.utils.kubernetes import is_k8s_target
-from bkmonitor.utils.metric_id import build_metric_check_key, build_metric_id_filter_queries
 from bkmonitor.utils.tenant import bk_biz_id_to_bk_tenant_id
 from constants.cmdb import TargetNodeType
 from constants.data_source import DataSourceLabel, DataTypeLabel, UnifyQueryDataSources
@@ -56,7 +52,6 @@ from constants.strategy import (
 )
 from core.drf_resource import api
 from core.prometheus import metrics
-from core.unit import load_unit
 
 logger = logging.getLogger("cache")
 
@@ -105,7 +100,7 @@ class StrategyCacheManager(CacheManager):
         :param target: 监控目标
         :param template_node_type: 模板类型，可选[SET_TEMPLATE, SERVICE_TEMPLATE]
         :param cache_manager: 模板缓存管理器
-        :return: 修改target后的监控项, 模板失效标识
+        :return: 修改target后的监控项
         """
         if template_node_type == TargetNodeType.SET_TEMPLATE:
             bk_obj_id = "set"
@@ -113,178 +108,31 @@ class StrategyCacheManager(CacheManager):
             bk_obj_id = "module"
 
         new_value = []
-        if target["value"]:
-            is_invalid_template = True
-            for node in target["value"]:
-                instances: list[int] = cache_manager.get(bk_tenant_id=bk_tenant_id, id=node["bk_inst_id"])
-                if instances:
-                    is_invalid_template = False
-                else:
-                    instances = []
-                for instance in instances:
-                    new_value.append(
-                        {
-                            "bk_obj_id": bk_obj_id,
-                            "bk_inst_id": instance
-                            if isinstance(instance, int)
-                            else instance["bk_inst_id"],  # 新老缓存兼容
-                        }
-                    )
-        else:
-            # 目标值为空，不做失效判定
-            is_invalid_template = False
+        for node in target["value"]:
+            instances = cache_manager.get(bk_tenant_id=bk_tenant_id, id=node["bk_inst_id"]) or []
+            for instance in instances:
+                new_value.append(
+                    {
+                        "bk_obj_id": bk_obj_id,
+                        "bk_inst_id": instance if isinstance(instance, int) else instance["bk_inst_id"],  # 新老缓存兼容
+                    }
+                )
         target["field"] = target["field"].replace(template_node_type.lower(), "topo_node")
         target["value"] = new_value
-        return target, is_invalid_template
+        return target
 
     @classmethod
-    def check_biz(cls, strategy, invalid_strategy_dict):
-        """
-        检测策略所属业务是否存在
-        """
-        if strategy["bk_biz_id"] not in invalid_strategy_dict["existed_biz_list"]:
-            invalid_strategy_dict[StrategyModel.InvalidType.INVALID_BIZ].add(strategy["id"])
-            strategy["is_invalid"] = True
-
-    @classmethod
-    def check_metrics(cls, strategy: dict[str, Any], item: dict[str, Any], invalid_strategy_dict: dict[str, Any]):
-        """
-        检测指标是否失效
-        """
-        try:
-            bk_tenant_id = bk_biz_id_to_bk_tenant_id(strategy["bk_biz_id"])
-        except ValueError:
-            logger.warning(f"strategy({strategy['id']}) bk_biz_id({strategy['bk_biz_id']}) not found")
-            return
-
-        data_type_map = {
-            DataTypeLabel.TIME_SERIES: StrategyModel.InvalidType.INVALID_METRIC,
-            DataTypeLabel.ALERT: StrategyModel.InvalidType.DELETED_RELATED_STRATEGY,
-        }
-
-        need_check_type = [DataTypeLabel.ALERT, DataTypeLabel.TIME_SERIES]
-        # 检测单位与数据单位是否同族，多指标无需检测
-        if item["algorithms"]:
-            if item["algorithms"][0]["type"] == AlgorithmModel.AlgorithmChoices.HostAnomalyDetection:
-                # 主机智能异常检测不检测指标项
-                return
-
-            unit_prefix = item["algorithms"][0].get("unit_prefix", "")
-            unit = item["query_configs"][0].get("unit", "")
-            if invalid_strategy_dict["loaded_unit"].get(unit):
-                metric_unit = invalid_strategy_dict["loaded_unit"][unit]
-            else:
-                metric_unit = load_unit(unit)
-                invalid_strategy_dict["loaded_unit"][unit] = metric_unit
-            suffix_list = [unit["suffix"] for unit in metric_unit.fn.unit_series()]
-            if unit_prefix not in suffix_list:
-                invalid_strategy_dict[StrategyModel.InvalidType.INVALID_UNIT].add(strategy["id"])
-                strategy["is_invalid"] = True
-
-        for query_config in item["query_configs"]:
-            metric_id = query_config["metric_id"]
-            data_type = query_config["data_type_label"]
-            data_source = query_config["data_source_label"]
-            # fix bk_data time_field字段问题
-            if data_type == DataTypeLabel.TIME_SERIES and data_source == DataSourceLabel.BK_DATA:
-                if "time_field" in query_config and query_config["time_field"] != "dtEventTimeStamp":
-                    logger.warning(
-                        f"strategy cache conflict: strategy: {strategy['id']}, source form bk_data"
-                        f" but time_field is not [dtEventTimeStamp]"
-                    )
-                    query_config["time_field"] = "dtEventTimeStamp"
-            # 时序型指标、关联告警指标判定是否失效
-            if data_type in need_check_type and data_source != DataSourceLabel.PROMETHEUS:
-                if data_type == DataTypeLabel.ALERT and data_source == DataSourceLabel.BK_MONITOR_COLLECTOR:
-                    # 关联的策略待验证是否失效
-                    invalid_strategy_dict["related_ids_map"][query_config["bkmonitor_strategy_id"]].add(strategy["id"])
-                metric_check_key = build_metric_check_key(bk_tenant_id, strategy["bk_biz_id"], metric_id)
-                if metric_check_key in invalid_strategy_dict["checked_metric_ids"]["exists"]:
-                    continue
-                elif metric_check_key in invalid_strategy_dict["checked_metric_ids"]["not_exists"]:
-                    invalid_strategy_dict[data_type_map[data_type]].add(strategy["id"])
-                    strategy["is_invalid"] = True
-                else:
-                    metric_params = parse_metric_id(metric_id)
-                    metric_queries = build_metric_id_filter_queries(metric_params)
-                    if (
-                        metric_queries
-                        and MetricListCache.objects.filter(
-                            reduce(lambda x, y: x | y, metric_queries),
-                            bk_tenant_id=bk_tenant_id,
-                            bk_biz_id__in=[strategy["bk_biz_id"], 0],
-                        ).exists()
-                    ):
-                        invalid_strategy_dict["checked_metric_ids"]["exists"].add(metric_check_key)
-                    else:
-                        invalid_strategy_dict["checked_metric_ids"]["not_exists"].add(metric_check_key)
-                        invalid_strategy_dict[data_type_map[data_type]].add(strategy["id"])
-                        strategy["is_invalid"] = True
-
-    @classmethod
-    def check_related_strategy(cls, result_map, invalid_strategy_dict):
-        """
-        检测关联策略是否失效
-        """
-        # 关联策略失效，该策略判定为失效策略
-        invalid_ids_set = invalid_strategy_dict[StrategyModel.InvalidType.INVALID_METRIC].union(
-            invalid_strategy_dict[StrategyModel.InvalidType.INVALID_TARGET],
-            invalid_strategy_dict[StrategyModel.InvalidType.DELETED_RELATED_STRATEGY],
-        )
-        invalid_related_ids = invalid_strategy_dict["related_ids_map"].keys() & invalid_ids_set
-        for invalid_related_id in invalid_related_ids:
-            for invalid_id in invalid_strategy_dict["related_ids_map"][invalid_related_id]:
-                strategy_config = result_map.get(invalid_id)
-                if strategy_config:
-                    strategy_config["is_invalid"] = True
-                invalid_strategy_dict[StrategyModel.InvalidType.INVALID_RELATED_STRATEGY].add(invalid_id)
-
-        invalid_ids_set = invalid_ids_set | invalid_strategy_dict[StrategyModel.InvalidType.INVALID_RELATED_STRATEGY]
-        # 策略失效检测完毕，更新至数据库
-        origin_invalid_ids_set = set(
-            StrategyModel.objects.filter(is_invalid=True).values_list("id", flat=True).distinct()
-        )
-        for invalid_type in StrategyModel.InvalidType.Choices:
-            if invalid_type[0]:
-                StrategyModel.objects.filter(id__in=list(invalid_strategy_dict[invalid_type[0]])).update(
-                    is_invalid=True, invalid_type=invalid_type[0]
-                )
-            else:
-                StrategyModel.objects.filter(id__in=list(origin_invalid_ids_set - invalid_ids_set)).update(
-                    is_invalid=False, invalid_type=""
-                )
-        return result_map
-
-    @classmethod
-    def check_target(cls, strategy, target, invalid_strategy_dict):
-        bk_tenant_id = bk_biz_id_to_bk_tenant_id(strategy["bk_biz_id"])
-        # 判定集群/服务模板是否失效
-        is_invalid_template = False
+    def transform_template_target(cls, bk_biz_id, target):
         # 转化集群/服务模板为拓扑节点
         target_field = target["field"].upper()
         if TargetNodeType.SET_TEMPLATE in target_field:
-            _, is_invalid_template = cls.transform_template_to_topo_nodes(
-                bk_tenant_id, target, TargetNodeType.SET_TEMPLATE, SetTemplateManager
+            cls.transform_template_to_topo_nodes(
+                bk_biz_id_to_bk_tenant_id(bk_biz_id), target, TargetNodeType.SET_TEMPLATE, SetTemplateManager
             )
         elif TargetNodeType.SERVICE_TEMPLATE in target_field:
-            _, is_invalid_template = cls.transform_template_to_topo_nodes(
-                bk_tenant_id, target, TargetNodeType.SERVICE_TEMPLATE, ServiceTemplateManager
+            cls.transform_template_to_topo_nodes(
+                bk_biz_id_to_bk_tenant_id(bk_biz_id), target, TargetNodeType.SERVICE_TEMPLATE, ServiceTemplateManager
             )
-        if is_invalid_template:
-            # 模板id全部不存在，目标失效
-            invalid_strategy_dict[StrategyModel.InvalidType.INVALID_TARGET].add(strategy["id"])
-            strategy["is_invalid"] = True
-        else:
-            # 判断模板下的拓扑节点id是否存在
-            if TargetNodeType.TOPO in target["field"].upper() and target["value"]:
-                nodes = TopoManager.mget(
-                    bk_tenant_id=bk_tenant_id,
-                    topo_nodes=[(node["bk_obj_id"], node["bk_inst_id"]) for node in target["value"]],
-                )
-                # 拓扑节点id全部不存在，目标失效
-                if not nodes:
-                    invalid_strategy_dict[StrategyModel.InvalidType.INVALID_TARGET].add(strategy["id"])
-                    strategy["is_invalid"] = True
 
     @classmethod
     def handle_special_query_config(cls, bk_biz_id: int, is_ip_target, item):
@@ -379,31 +227,16 @@ class StrategyCacheManager(CacheManager):
         }
         if bk_biz_ids:
             list_kwargs["bk_biz_ids"] = sorted(set(bk_biz_ids))
-        # 初始化策略失效检测信息
-        invalid_strategy_dict = {
-            # 已检测的指标id缓存
-            "checked_metric_ids": {"exists": set(), "not_exists": set()},
-            # 已检测的单位缓存
-            "loaded_unit": defaultdict(),
-            # 现存业务id列表缓存
-            "existed_biz_list": list(BusinessManager.keys()),
-            # 失效策略类型集合
-            StrategyModel.InvalidType.INVALID_METRIC: set(),
-            StrategyModel.InvalidType.INVALID_BIZ: set(),
-            StrategyModel.InvalidType.INVALID_UNIT: set(),
-            StrategyModel.InvalidType.INVALID_TARGET: set(),
-            StrategyModel.InvalidType.DELETED_RELATED_STRATEGY: set(),
-            StrategyModel.InvalidType.INVALID_RELATED_STRATEGY: set(),
-            StrategyModel.InvalidType.INVALID_DASHBOARD_PANEL: set(),
-            # 关联策略id映射
-            "related_ids_map": defaultdict(set),
-        }
-
         # 根据给定的过滤条件，从数据库中筛选出所有启用的策略模型，并将它们转换为字典形式
         # 这个映射的键是策略的唯一标识符，值是策略的内容，便于进一步处理和使用
         strategy_configs_map: dict[int, dict[str, Any]] = {
             strategy_config["id"]: strategy_config for strategy_config in list_strategy(**list_kwargs)["data"]
         }
+        invalid_strategy_ids = [
+            strategy_id
+            for strategy_id, strategy_config in strategy_configs_map.items()
+            if strategy_config.get("is_invalid")
+        ]
 
         result_map = {}
         cls.fake_event_agg_interval = getattr(settings, "FAKE_EVENT_AGG_INTERVAL", 60)
@@ -434,12 +267,18 @@ class StrategyCacheManager(CacheManager):
                         detect["trigger_config"]["count"] = 1
                         detect["trigger_config"]["check_window"] = 5
 
-                if cls.handle_strategy(strategy_config, invalid_strategy_dict):
+                if cls.handle_strategy(strategy_config):
                     result_map[strategy_id] = strategy_config
             except Exception as e:
                 logger.exception("refresh strategy error when handle_strategy[%s]: %s", strategy_id, e)
-        # 检测关联策略是否失效
-        cls.check_related_strategy(result_map, invalid_strategy_dict)
+        # 分批清除已有的失效标记，单批失败不影响后续批次和策略缓存刷新。
+        for strategy_ids in chunks(invalid_strategy_ids, 1000):
+            try:
+                StrategyModel.objects.filter(id__in=strategy_ids, is_invalid=True).update(
+                    is_invalid=False, invalid_type=""
+                )
+            except Exception:
+                logger.exception("reset invalid strategy status failed, batch_size=%s", len(strategy_ids))
         return result_map
 
     @classmethod
@@ -563,10 +402,12 @@ class StrategyCacheManager(CacheManager):
         return count_md5(query_identity)
 
     @classmethod
-    def handle_strategy(cls, strategy: dict, invalid_strategy_dict=None) -> bool:
+    def handle_strategy(cls, strategy: dict) -> bool:
         """
         策略预处理
         """
+        strategy["is_invalid"] = False
+        strategy["invalid_type"] = ""
         strategy["update_time"] = arrow.get(strategy["update_time"]).timestamp
         strategy["create_time"] = arrow.get(strategy["create_time"]).timestamp
 
@@ -584,11 +425,19 @@ class StrategyCacheManager(CacheManager):
             # 修改监控目标字段为ip的情况
             cls.transform_targets(item)
 
-            # 策略所属业务不存在检测
-            cls.check_biz(strategy, invalid_strategy_dict)
-
-            # 指标失效检测
-            cls.check_metrics(strategy, item, invalid_strategy_dict)
+            # 保留计算平台时序查询的时间字段修正。
+            for config in item["query_configs"]:
+                if (
+                    config["data_type_label"] == DataTypeLabel.TIME_SERIES
+                    and config["data_source_label"] == DataSourceLabel.BK_DATA
+                    and "time_field" in config
+                    and config["time_field"] != "dtEventTimeStamp"
+                ):
+                    logger.warning(
+                        f"strategy cache conflict: strategy: {strategy['id']}, source from bk_data"
+                        f" but time_field is not [dtEventTimeStamp]"
+                    )
+                    config["time_field"] = "dtEventTimeStamp"
 
             # 监控目标预处理
             if item["target"] and item["target"][0]:
@@ -598,8 +447,7 @@ class StrategyCacheManager(CacheManager):
                 # 根据目标类型补全特殊维度
                 cls.handle_special_query_config(strategy["bk_biz_id"], is_ip_target, item)
 
-                # 目标失效检测
-                cls.check_target(strategy, target, invalid_strategy_dict)
+                cls.transform_template_target(strategy["bk_biz_id"], target)
 
                 # 如果value为空，则说明模板下不存在节点，过滤掉
                 if not target["value"]:

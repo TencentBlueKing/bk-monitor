@@ -33,7 +33,7 @@ import type { IRumTimelineSpanVM } from '../../typings';
 import './timeline-span-row.scss';
 
 /** 子级每层相对父级的缩进 */
-const LEVEL_INDENT = 16;
+const LEVEL_INDENT = 24;
 
 /** 链路上下文里的一行 Span：时间、类型标签、名称，行尾为关联 Trace、状态码与耗时 */
 export default defineComponent({
@@ -61,17 +61,18 @@ export default defineComponent({
     return () => {
       const { data } = props;
       return (
-        <div class={{ 'timeline-span-row': true, 'is-current': data.isCurrent }}>
+        <div class={{ 'timeline-span-row': true, 'is-current': data.isCurrent, 'is-child': data.level > 0 }}>
           <div class='row-main'>
             <span class='row-time'>{data.timeText}</span>
             <span class='row-toggle'>
               {data.expandable ? (
                 <i
-                  class={{ 'icon-monitor icon-mc-triangle-down toggle-icon': true, 'is-expanded': data.expanded }}
+                  class={{ 'icon-monitor icon-mc-arrow-down toggle-icon': true, 'is-expanded': data.expanded }}
                   onClick={() => emit('toggle', data.spanId)}
                 />
               ) : null}
             </span>
+            {data.level > 0 && <span class='divider' />}
             <span
               style={{ backgroundColor: data.tag.bgColor, marginLeft: `${data.level * LEVEL_INDENT}px` }}
               class='row-type-tag'

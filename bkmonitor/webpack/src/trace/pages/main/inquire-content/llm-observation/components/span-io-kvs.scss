@@ -2,12 +2,32 @@
 @import '../../../../../theme/mixin';
 
 .llm-span-io-kvs {
+  position: relative;
   flex: 1 1 auto;
   gap: 4px;
   min-width: 0;
   overflow: hidden;
 
   @include flex-align(center);
+}
+
+.llm-span-io-more {
+  flex-shrink: 0;
+  margin: 0;
+  cursor: pointer;
+
+  &.is-hidden {
+    position: absolute;
+    visibility: hidden;
+    pointer-events: none;
+  }
+}
+
+.llm-span-io-tools-tooltip {
+  max-height: 240px;
+  overflow: auto;
+  overflow-wrap: anywhere;
+  white-space: pre-line;
 }
 
 .llm-span-io-kv {
@@ -20,27 +40,6 @@
   line-height: 20px;
 
   @include flex-align(center);
-
-  &.is-hidden {
-    display: none;
-  }
-
-  &.is-clip-value,
-  &.is-clip-key {
-    min-width: 0;
-  }
-
-  &.is-clip-key {
-    .llm-span-io-kv-key {
-      flex: 1 1 auto;
-      min-width: 0;
-      max-width: 100%;
-    }
-
-    .llm-span-io-kv-value {
-      display: none;
-    }
-  }
 
   &-key {
     box-sizing: border-box;
@@ -65,4 +64,36 @@
 
     @include ellipsis;
   }
+
+  &.is-hidden {
+    display: none;
+  }
+
+  &.is-clip-value,
+  &.is-clip-key {
+    min-width: 0;
+  }
+
+  &.is-clip-key {
+    .llm-span-io-kv-key {
+      flex: 1 1 auto;
+      min-width: 0;
+      max-width: 100%;
+    }
+
+    .llm-span-io-kv-value {
+      display: none;
+    }
+  }
+}
+
+.llm-span-io-kvs.is-tool-preview .llm-span-io-kv-key {
+  font-weight: 700;
+  color: #3ba365;
+  background: #f0faf1;
+  border: 1px solid #bfdfd2;
+}
+
+.llm-span-io-kvs.is-tool-preview .llm-span-io-kv {
+  column-gap: 6px;
 }

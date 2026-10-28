@@ -9,7 +9,6 @@ specific language governing permissions and limitations under the License.
 """
 
 import copy
-import json
 from collections.abc import Iterator
 from typing import Any
 from unittest import mock
@@ -18,11 +17,9 @@ import pytest
 from pytest_mock import MockerFixture
 
 from apm_web.constants import (
-    ApmCacheKey,
     CategoryEnum,
     CustomServiceMatchType,
     CustomServiceType,
-    DataStatus,
     TopoNodeKind,
 )
 from apm_web.handlers.service_handler import ServiceHandler
@@ -198,7 +195,7 @@ def test_manual_services_do_not_change_cached_topology(
 
 
 @pytest.mark.parametrize("profiling_enabled", [False, True])
-def test_service_count_refresh_keeps_existing_status_cache(
+def test_service_count_refresh_only_updates_count(
     topology: tuple[list[dict[str, Any]], mock.Mock, mock.Mock], mocker: MockerFixture, profiling_enabled: bool
 ) -> None:
     nodes, topo_query, profile_query = topology
@@ -214,28 +211,20 @@ def test_service_count_refresh_keeps_existing_status_cache(
         is_enabled_log=False,
         is_enabled_profiling=profiling_enabled,
     )
-    cache_set = mocker.patch("apm_web.models.application.cache.set")
+    cache_set = mocker.patch("django.core.cache.cache.set")
+    status_query = mocker.patch.object(ServiceHandler, "build_service_data_status")
+    related_services = mocker.patch(
+        "apm_web.handlers.service_handler.ServiceLogHandler.list_available_related_services"
+    )
+    original_status = application.profiling_data_status
 
     application.set_service_count_and_data_status()
 
     application.refresh_from_db()
     assert application.service_count == len(expected_names)
+    assert application.profiling_data_status == original_status
     topo_query.assert_called_once_with(bk_biz_id=BK_BIZ_ID, app_name=APP_NAME)
-    if profiling_enabled:
-        profile_query.assert_called_once()
-        assert "last_check_time__gt" in profile_query.call_args.kwargs
-    else:
-        profile_query.assert_not_called()
-    cache_set.assert_called_once()
-    cache_key, cached_status = cache_set.call_args.args
-    assert cache_key == ApmCacheKey.APP_SERVICE_STATUS_KEY.format(application_id=application.application_id)
-    status_mapping = json.loads(cached_status)
-    assert set(status_mapping) == expected_names
-    if profiling_enabled:
-        assert status_mapping["worker"][TelemetryDataType.PROFILING.value] == DataStatus.NORMAL
-        assert status_mapping["orders"][TelemetryDataType.PROFILING.value] == DataStatus.NO_DATA
-        assert status_mapping["worker"][TelemetryDataType.TRACE.value] == DataStatus.DISABLED
-    else:
-        assert all(
-            status[TelemetryDataType.PROFILING.value] == DataStatus.DISABLED for status in status_mapping.values()
-        )
+    profile_query.assert_not_called()
+    status_query.assert_not_called()
+    related_services.assert_not_called()
+    cache_set.assert_not_called()

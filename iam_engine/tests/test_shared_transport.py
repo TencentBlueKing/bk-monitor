@@ -79,7 +79,7 @@ def test_201_empty_grant_custom_path_and_operator(monkeypatch):
             "subject": {"type": "user", "id": "alice"},
             "role_id": "space_operator",
             "related_resource_type_id": "space",
-            "resources": [{"type": "space", "id": "space|2"}],
+            "resources": [{"type": "space", "id": "2"}],
             "expired_at": 1,
         }
     ]

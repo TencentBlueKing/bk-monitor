@@ -23,7 +23,7 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { defineComponent } from 'vue';
+import { defineComponent, shallowRef } from 'vue';
 import type { PropType } from 'vue';
 
 import { Exception } from 'bkui-vue';
@@ -65,15 +65,22 @@ export default defineComponent({
       type: Array as PropType<IRumTimelineItemVM[]>,
       default: () => [],
     },
+    spanType: {
+      type: String,
+    },
   },
   emits: {
     expandFold: (_key: string) => true,
     toggleNode: (_spanId: string) => true,
     spanClick: (_span: IRumTimelineSpanVM) => true,
     traceClick: (_traceId: string) => true,
+    viewClick: (_view: IRumTimelineViewVM) => true,
   },
   setup(props, { emit }) {
     const { t } = useI18n();
+
+    /** 卡片展开状态：默认折叠，只展示 View 头部摘要 */
+    const expanded = shallowRef(false);
 
     function renderSkeleton() {
       return (
@@ -151,9 +158,17 @@ export default defineComponent({
       }
       return (
         <div class='trace-context-card'>
-          <TimelineViewHeader data={props.view} />
-          {props.view.waterfall ? <WaterfallChart data={props.view.waterfall} /> : null}
-          <div class='trace-context-timeline'>{renderItems()}</div>
+          <TimelineViewHeader
+            data={props.view}
+            expanded={expanded.value}
+            spanType={props.spanType}
+            onToggle={() => {
+              expanded.value = !expanded.value;
+            }}
+            onViewClick={view => emit('viewClick', view)}
+          />
+          {expanded.value && props.view.waterfall ? <WaterfallChart data={props.view.waterfall} /> : null}
+          {expanded.value ? <div class='trace-context-timeline'>{renderItems()}</div> : null}
         </div>
       );
     }

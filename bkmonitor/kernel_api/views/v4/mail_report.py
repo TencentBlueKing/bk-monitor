@@ -8,6 +8,8 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 
+import copy
+
 from django.contrib.auth import get_user_model
 from django.core.exceptions import PermissionDenied
 from rest_framework.exceptions import ValidationError
@@ -30,6 +32,7 @@ from bkmonitor.utils.request import get_request, get_request_tenant_id
 from bkmonitor.views import serializers
 from core.drf_resource import Resource, resource
 from core.drf_resource.viewsets import ResourceRoute, ResourceViewSet
+from kernel_api.middlewares.authentication import AuthenticationMiddleware, is_match_api_token
 
 
 class GetStatisticsByJson(Resource):
@@ -200,6 +203,17 @@ class RenderImageResource(Resource):
             transparent = serializers.BooleanField(default=False)
 
             def validate(self, attrs):
+                # 仅网关请求按实际渲染业务补充应用授权校验，应用身份取已认证的 JWT。
+                request = get_request(peaceful=True)
+                if request and AuthenticationMiddleware.use_apigw_auth(request):
+                    jwt_app = getattr(getattr(request, "jwt", None), "app", None) or {}
+                    app_code = jwt_app.get("app_code")
+                    if app_code:
+                        scoped_request = copy.copy(request)
+                        scoped_request.biz_id = attrs["bk_biz_id"]
+                        if not is_match_api_token(scoped_request, get_request_tenant_id(), app_code):
+                            raise PermissionDenied("You have no permission to access this business")
+
                 # 检查用户是否有权限访问该仪表盘
                 p = Permission()
                 p.skip_check = False

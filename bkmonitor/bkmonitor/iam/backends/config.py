@@ -7,6 +7,7 @@ from cachetools import LRUCache
 from django.conf import settings
 from config.tools.iam_credentials import get_saas_setting, saas_setting
 from bkmonitor.iam import definitions
+from bkmonitor.utils.request import get_request
 from iam_engine.settings import resolve_iam_gateway_url
 from iam_engine.v4.config import V4Options
 
@@ -74,7 +75,6 @@ def build_provider(name, tenant_id="system", *, username="", schema=None, option
     lock = RLock()
     if name == "v3":
         from bkmonitor.iam.backends.v3.provider import V3PermissionProvider
-        from bkmonitor.iam.backends.v3.compat import is_v1_compat_enabled
         from bkmonitor.iam.backends.v3.config import V3Options
         from bkmonitor.iam.backends.v3.client import V3Client
         from bkmonitor.iam.backends.v3.codec import MonitorV3Codec
@@ -82,12 +82,11 @@ def build_provider(name, tenant_id="system", *, username="", schema=None, option
         cfg = V3Options.from_dict(options)
         codec = MonitorV3Codec(**options.get("codec_kwargs", {}))
         codec_key = json.dumps(options.get("codec_kwargs", {}), sort_keys=True)
-        compat = options.get("enable_v1_compat", is_v1_compat_enabled)
 
         def client_factory(request_tenant):
             tid = request_tenant or cfg.bk_tenant_id
             code, secret = str(cfg.credentials.app_code), str(cfg.credentials.app_secret)
-            key = (tid, code, secret, cfg.base_url, cfg.system.id, codec_key, compat)
+            key = (tid, code, secret, cfg.base_url, cfg.system.id, codec_key)
             with _v3_clients_lock:
                 if key not in _v3_clients:
                     _v3_clients[key] = V3Client(
@@ -97,7 +96,6 @@ def build_provider(name, tenant_id="system", *, username="", schema=None, option
                         cfg.system.id,
                         codec,
                         bk_tenant_id=tid,
-                        enable_v1_compat=compat,
                     )
                 return _v3_clients[key]
 
@@ -132,6 +130,13 @@ def build_provider(name, tenant_id="system", *, username="", schema=None, option
                         current,
                         username=username,
                         bk_tenant_id=tid,
+                        request_getter=lambda: get_request(peaceful=True),
+                        # The shared product schema retains ActionMeta.type here.
+                        read_action_ids={
+                            action.id
+                            for action in schema.actions.values()
+                            if action.extensions.get("v3", {}).get("type") == "view"
+                        },
                     )
                 return clients[key]
 

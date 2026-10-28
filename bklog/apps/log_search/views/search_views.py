@@ -38,7 +38,6 @@ from io import BytesIO
 from apps.constants import NotifyType, UserOperationActionEnum, UserOperationTypeEnum
 from apps.decorators import user_operation_record
 from apps.feature_toggle.handlers.toggle import FeatureToggleObject
-from apps.feature_toggle.plugins.constants import UNIFY_QUERY_SEARCH
 from apps.generic import APIViewSet
 from apps.iam import ActionEnum, ResourceEnum
 from apps.iam.handlers.drf import (
@@ -67,6 +66,8 @@ from apps.log_search.exceptions import (
     BaseSearchIndexSetException,
     IndexSetDorisQueryException,
 )
+from apps.log_search.export import api as sharded_export_api
+from apps.log_search.export.config import is_sharded_export_enabled
 from apps.log_search.handlers.es.querystring_builder import QueryStringBuilder
 from apps.log_search.handlers.index_set import (
     IndexSetCustomConfigHandler,
@@ -74,7 +75,6 @@ from apps.log_search.handlers.index_set import (
     IndexSetHandler,
     UserIndexSetConfigHandler,
 )
-from apps.log_search.handlers.search.async_export_handlers import AsyncExportHandlers, UnionAsyncExportHandlers
 from apps.log_search.handlers.search.chart_handlers import ChartHandler
 from apps.log_search.handlers.search.search_handlers_esquery import (
     SearchHandler as SearchHandlerEsquery,
@@ -126,7 +126,7 @@ from apps.log_unifyquery.handler.chart import UnifyQueryChartHandler
 from apps.log_unifyquery.handler.tail import UnifyQueryTailHandler
 from apps.utils.drf import detail_route, list_route
 from apps.utils.local import get_request_app_code, get_request_external_username, get_request_username
-from bkm_space.utils import space_uid_to_bk_biz_id
+from bkm_space.utils import bk_biz_id_to_space_uid, space_uid_to_bk_biz_id
 
 
 def _apply_index_set_search_bk_biz_id(index_set_obj, data, request=None):
@@ -145,22 +145,18 @@ def _apply_index_set_search_bk_biz_id(index_set_obj, data, request=None):
         if not LogIndexSet.is_platform_index_visible_to_space(index_set_obj, search_space_uid):
             raise PermissionDenied(_("当前空间不在平台级索引集的可见范围内"))
         if search_space_uid != index_set_obj.space_uid:
-            _pin_cross_space_search_to_unify_query(bk_biz_id, data)
+            _disable_scroll_for_cross_space_search(data)
     data["bk_biz_id"] = bk_biz_id
     return data
 
 
-def _pin_cross_space_search_to_unify_query(bk_biz_id, data):
+def _disable_scroll_for_cross_space_search(data):
     """跨空间的数据隔离只由 metadata query router 在 UnifyQuery 链路上注入。
 
-    ESQuery 链路不认识 platform_index_filter，回落过去就是直接查共享物理索引的全量数据，
-    所以未开启统一查询的业务必须拒绝，不能带着已通过的可见性和 IAM 校验放行。
     scroll 是 ESQuery 独有的「单次返回超过 result window」能力，UnifyQuery 没有对应实现，
     这里退回普通检索，与该索引集的其它检索一样由 UnifyQuery 把条数截断到 MAX_RESULT_WINDOW。
     归属空间不受此限：metadata 对归属空间本就不加过滤，走哪条链路拿到的都是全量。
     """
-    if not FeatureToggleObject.switch(UNIFY_QUERY_SEARCH, bk_biz_id):
-        raise serializers.ValidationError(_("跨空间检索平台级索引集要求当前业务开启统一查询"))
     data["is_scroll_search"] = False
 
 
@@ -210,20 +206,21 @@ class SearchViewSet(APIViewSet):
         ]:
             return [PlatformAwareIndexSearchPermission([ActionEnum.SEARCH_LOG], ResourceEnum.INDICES)]
 
-        if self.action in ["union_search", "config"]:
-            if self.action == "config":
-                if self.request.data.get("index_set_type", IndexSetType.SINGLE.value) == IndexSetType.SINGLE.value:
-                    return [
-                        PlatformAwareIndexSearchPermission(
-                            [ActionEnum.SEARCH_LOG], ResourceEnum.INDICES, iam_instance_id_key="index_set_id"
-                        )
-                    ]
-                else:
-                    return [BatchIAMPermission("index_set_ids", [ActionEnum.SEARCH_LOG], ResourceEnum.INDICES)]
+        if self.action in ["union_search", "union_async_export"]:
             self.request.data["index_set_ids"] = [
                 config["index_set_id"] for config in self.request.data.get("union_configs", [])
             ]
             return [BatchIAMPermission("index_set_ids", [ActionEnum.SEARCH_LOG], ResourceEnum.INDICES)]
+
+        if self.action == "config":
+            if self.request.data.get("index_set_type", IndexSetType.SINGLE.value) == IndexSetType.SINGLE.value:
+                return [
+                    PlatformAwareIndexSearchPermission(
+                        [ActionEnum.SEARCH_LOG], ResourceEnum.INDICES, iam_instance_id_key="index_set_id"
+                    )
+                ]
+            else:
+                return [BatchIAMPermission("index_set_ids", [ActionEnum.SEARCH_LOG], ResourceEnum.INDICES)]
 
         return [ViewBusinessPermission()]
 
@@ -426,13 +423,9 @@ class SearchViewSet(APIViewSet):
             search_handler = SearchHandlerEsquery(index_set_id, data)
             return Response(search_handler.scroll_search())
 
-        if FeatureToggleObject.switch(UNIFY_QUERY_SEARCH, data.get("bk_biz_id")):
-            data["index_set_ids"] = [index_set_id]
-            query_handler = UnifyQueryHandler(data)
-            return Response(query_handler.search())
-        else:
-            search_handler = SearchHandlerEsquery(index_set_id, data)
-            return Response(search_handler.search())
+        data["index_set_ids"] = [index_set_id]
+        query_handler = UnifyQueryHandler(data)
+        return Response(query_handler.search())
 
     @detail_route(methods=["POST"], url_path="search/original")
     def original_search(self, request, index_set_id=None):
@@ -494,20 +487,16 @@ class SearchViewSet(APIViewSet):
         index_set_obj = self.get_object()
         _apply_index_set_search_bk_biz_id(index_set_obj, data, request)
 
-        if FeatureToggleObject.switch(UNIFY_QUERY_SEARCH, data.get("bk_biz_id")):
-            now = arrow.now()
-            data.update(
-                {
-                    "index_set_ids": [index_set_id],
-                    "start_time": now.shift(days=-1).int_timestamp * 1000,
-                    "end_time": now.int_timestamp * 1000,
-                }
-            )
-            query_handler = UnifyQueryHandler(data)
-            return Response(query_handler.search())
-        else:
-            search_handler = SearchHandlerEsquery(index_set_id, data, only_for_agg=True)
-            return Response(search_handler.search())
+        now = arrow.now()
+        data.update(
+            {
+                "index_set_ids": [index_set_id],
+                "start_time": now.shift(days=-1).int_timestamp * 1000,
+                "end_time": now.int_timestamp * 1000,
+            }
+        )
+        query_handler = UnifyQueryHandler(data)
+        return Response(query_handler.search())
 
     @detail_route(methods=["POST"], url_path="context")
     def context(self, request, index_set_id=None):
@@ -568,15 +557,10 @@ class SearchViewSet(APIViewSet):
         index_set_obj = LogIndexSet.objects.filter(index_set_id=index_set_id).first()
         if index_set_obj:
             _apply_index_set_search_bk_biz_id(index_set_obj, data, request)
-        if FeatureToggleObject.switch(UNIFY_QUERY_SEARCH, data.get("bk_biz_id")):
-            data.update({"index_set_id": index_set_id})
-            params = build_context_params(data)
-            query_handler = UnifyQueryContextHandler(params)
-            return Response(query_handler.search())
-        else:
-            data.update({"search_type_tag": "context"})
-            query_handler = SearchHandlerEsquery(index_set_id, data)
-            return Response(query_handler.search_context())
+        data.update({"index_set_id": index_set_id})
+        params = build_context_params(data)
+        query_handler = UnifyQueryContextHandler(params)
+        return Response(query_handler.search())
 
     @detail_route(methods=["POST"], url_path="tail_f")
     def tailf(self, request, index_set_id=None):
@@ -632,15 +616,10 @@ class SearchViewSet(APIViewSet):
         index_set_obj = LogIndexSet.objects.filter(index_set_id=index_set_id).first()
         if index_set_obj:
             _apply_index_set_search_bk_biz_id(index_set_obj, data, request)
-        if FeatureToggleObject.switch(UNIFY_QUERY_SEARCH, data.get("bk_biz_id")):
-            data.update({"index_set_id": index_set_id})
-            params = build_tail_params(data)
-            query_handler = UnifyQueryTailHandler(params)
-            return Response(query_handler.search())
-        else:
-            data.update({"search_type_tag": "tail"})
-            query_handler = SearchHandlerEsquery(index_set_id, data)
-            return Response(query_handler.search_tail_f())
+        data.update({"index_set_id": index_set_id})
+        params = build_tail_params(data)
+        query_handler = UnifyQueryTailHandler(params)
+        return Response(query_handler.search())
 
     @detail_route(methods=["POST"], url_path="export")
     def export(self, request, index_set_id=None):
@@ -708,16 +687,9 @@ class SearchViewSet(APIViewSet):
             raise BaseSearchIndexSetException(BaseSearchIndexSetException.MESSAGE.format(index_set_id=index_set_id))
 
         output = BytesIO()
-        if FeatureToggleObject.switch(UNIFY_QUERY_SEARCH, data.get("bk_biz_id")):
-            data["index_set_ids"] = [index_set_id]
-            query_handler = UnifyQueryHandler(data)
-            result = query_handler.search(is_export=True)
-        else:
-            export_fields = data.get("export_fields", [])
-            search_handler = SearchHandlerEsquery(
-                index_set_id, search_dict=data, export_fields=export_fields, export_log=True
-            )
-            result = search_handler.search(is_export=True)
+        data["index_set_ids"] = [index_set_id]
+        query_handler = UnifyQueryHandler(data)
+        result = query_handler.search(is_export=True)
         result_list = result.get("origin_log_list")
         for item in result_list:
             json_data = json.dumps(item, ensure_ascii=False).encode("utf8")
@@ -861,28 +833,23 @@ class SearchViewSet(APIViewSet):
             data["is_desensitize"] = False
         else:
             data["is_desensitize"] = True
+
+        # 分片查询尚不支持自定义物理索引，指定 custom_indices 的请求沿用原链路。
+        if not is_quick_export and not data.get("custom_indices") and is_sharded_export_enabled(data.get("bk_biz_id")):
+            return self._sharded_export_from_data(data, index_set_id=index_set_id, request_bk_biz_id=request_bk_biz_id)
+
         notify_type_name = NotifyType.get_choice_label(
             FeatureToggleObject.toggle(FEATURE_ASYNC_EXPORT_COMMON).feature_config.get(FEATURE_ASYNC_EXPORT_NOTIFY_TYPE)
         )
 
-        if FeatureToggleObject.switch(UNIFY_QUERY_SEARCH, data.get("bk_biz_id")):
-            task_id, size = UnifyQueryAsyncExportHandlers(
-                index_set_id=int(index_set_id),
-                bk_biz_id=data["bk_biz_id"],
-                request_bk_biz_id=request_bk_biz_id,
-                search_dict=data,
-                export_fields=data["export_fields"],
-                export_file_type=data["file_type"],
-            ).async_export(is_quick_export=is_quick_export)
-        else:
-            task_id, size = AsyncExportHandlers(
-                index_set_id=int(index_set_id),
-                bk_biz_id=data["bk_biz_id"],
-                request_bk_biz_id=request_bk_biz_id,
-                search_dict=data,
-                export_fields=data["export_fields"],
-                export_file_type=data["file_type"],
-            ).async_export(is_quick_export=is_quick_export)
+        task_id, size = UnifyQueryAsyncExportHandlers(
+            index_set_id=int(index_set_id),
+            bk_biz_id=data["bk_biz_id"],
+            request_bk_biz_id=request_bk_biz_id,
+            search_dict=data,
+            export_fields=data["export_fields"],
+            export_file_type=data["file_type"],
+        ).async_export(is_quick_export=is_quick_export)
         return Response(
             {
                 "task_id": task_id,
@@ -894,6 +861,21 @@ class SearchViewSet(APIViewSet):
                 ),
             }
         )
+
+    def _sharded_export_from_data(self, data, index_set_id=None, index_set_ids=None, request_bk_biz_id=None):
+        """把旧导出参数归一为标准分片导出参数并创建任务，返回带引擎标记的分流响应。"""
+        params = sharded_export_api.normalize_legacy_export_params(data)
+        params["space_uid"] = bk_biz_id_to_space_uid(data["bk_biz_id"])
+        if index_set_ids:
+            params["index_set_ids"] = index_set_ids
+            params["index_set_type"] = IndexSetType.UNION.value
+        else:
+            params["index_set_id"] = int(index_set_id)
+            params["index_set_type"] = IndexSetType.SINGLE.value
+        job = sharded_export_api.create_export_job(params, raw_params=data, job_bk_biz_id=request_bk_biz_id)
+        if isinstance(job, sharded_export_api.ExportSortConfirmation):
+            return Response({"engine": "sharded", "requires_sort_confirmation": True, "sort_list": job.sort_list})
+        return Response({"task_id": job.pk, "engine": "sharded"})
 
     @list_route(methods=["POST"], url_path="union_async_export")
     def union_async_export(self, request, *args, **kwargs):
@@ -960,21 +942,20 @@ class SearchViewSet(APIViewSet):
             FeatureToggleObject.toggle(FEATURE_ASYNC_EXPORT_COMMON).feature_config.get(FEATURE_ASYNC_EXPORT_NOTIFY_TYPE)
         )
         is_quick_export = data.pop("is_quick_export")
-        if FeatureToggleObject.switch(UNIFY_QUERY_SEARCH, data.get("bk_biz_id")):
-            task_id, size = UnifyQueryUnionAsyncExportHandlers(
-                index_set_ids=data["index_set_ids"],
-                bk_biz_id=data["bk_biz_id"],
-                search_dict=data,
-                export_fields=data["export_fields"],
-                export_file_type=data["file_type"],
-            ).async_export(is_quick_export=is_quick_export)
-        else:
-            task_id, size = UnionAsyncExportHandlers(
-                bk_biz_id=data["bk_biz_id"],
-                search_dict=data,
-                index_set_ids=data["index_set_ids"],
-                export_file_type=data["file_type"],
-            ).async_export(is_quick_export=is_quick_export)
+        # 联合检索任一索引集指定物理索引时，保留原链路的索引范围限制。
+        if (
+            not is_quick_export
+            and not any(config.get("custom_indices") for config in data.get("union_configs", []))
+            and is_sharded_export_enabled(data.get("bk_biz_id"))
+        ):
+            return self._sharded_export_from_data(data, index_set_ids=data["index_set_ids"])
+        task_id, size = UnifyQueryUnionAsyncExportHandlers(
+            index_set_ids=data["index_set_ids"],
+            bk_biz_id=data["bk_biz_id"],
+            search_dict=data,
+            export_fields=data["export_fields"],
+            export_file_type=data["file_type"],
+        ).async_export(is_quick_export=is_quick_export)
         return Response(
             {
                 "task_id": task_id,
@@ -1050,7 +1031,9 @@ class SearchViewSet(APIViewSet):
         }
         """
         data = self.params_valid(GetExportHistorySerializer)
-        return AsyncExportHandlers(index_set_id=int(index_set_id), bk_biz_id=data["bk_biz_id"]).get_export_history(
+        return UnifyQueryAsyncExportHandlers(
+            index_set_id=int(index_set_id), bk_biz_id=data["bk_biz_id"]
+        ).get_export_history(
             request=request,
             view=self,
             show_all=data["show_all"],
@@ -1161,12 +1144,11 @@ class SearchViewSet(APIViewSet):
         is_realtime = params["is_realtime"]
         start_time = params.get("start_time")
         end_time = params.get("end_time")
-        custom_indices = params["custom_indices"]
 
         if scope == SearchScopeEnum.DEFAULT.value and not is_realtime and not start_time and not end_time:
             # 使用缓存
             fields = self.get_object().get_fields(use_snapshot=True)
-        elif FeatureToggleObject.switch(UNIFY_QUERY_SEARCH, bk_biz_id):
+        else:
             if not start_time and not end_time:
                 start_time = arrow.now().shift(days=-1).int_timestamp * 1000
                 end_time = arrow.now().int_timestamp * 1000
@@ -1177,12 +1159,6 @@ class SearchViewSet(APIViewSet):
                 "bk_biz_id": bk_biz_id,
             }
             fields = UnifyQueryHandler(search_dict).fields(scope)
-        else:
-            search_dict = {"start_time": start_time, "end_time": end_time}
-            if custom_indices:
-                search_dict.update({"custom_indices": custom_indices})
-            search_handler_esquery = SearchHandlerEsquery(int(index_set_id), search_dict)
-            fields = search_handler_esquery.fields(scope)
 
         # 添加用户索引集自定义配置
         index_set_config = UserIndexSetConfigHandler(index_set_id=int(index_set_id)).get_index_set_config()
@@ -1246,6 +1222,9 @@ class SearchViewSet(APIViewSet):
             )
         return Response(result)
 
+    def _verify_sort_list_item(self, index_set_id, sort_list):
+        UnifyQueryHandler.verify_sort_list_item(index_set_id, sort_list)
+
     @list_route(methods=["POST"], url_path="create_config")
     def create_config(self, request, *args, **kwargs):
         """
@@ -1272,7 +1251,7 @@ class SearchViewSet(APIViewSet):
         """
         data = self.params_valid(CreateIndexSetFieldsConfigSerializer)
         if data.get("index_set_type") == IndexSetType.SINGLE.value:
-            SearchHandlerEsquery(data["index_set_id"], {}).verify_sort_list_item(data["sort_list"])
+            self._verify_sort_list_item(data["index_set_id"], data["sort_list"])
             init_params = {
                 "index_set_id": data["index_set_id"],
                 "index_set_type": data["index_set_type"],
@@ -1313,7 +1292,7 @@ class SearchViewSet(APIViewSet):
         """
         data = self.params_valid(UpdateIndexSetFieldsConfigSerializer)
         if data.get("index_set_type") == IndexSetType.SINGLE.value:
-            SearchHandlerEsquery(data["index_set_id"], {}).verify_sort_list_item(data["sort_list"])
+            self._verify_sort_list_item(data["index_set_id"], data["sort_list"])
             init_params = {
                 "index_set_id": data["index_set_id"],
                 "index_set_type": data["index_set_type"],
@@ -1673,9 +1652,7 @@ class SearchViewSet(APIViewSet):
         for info in data.get("union_configs", []):
             if not info.get("is_desensitize") and not is_verify:
                 info["is_desensitize"] = True
-        if FeatureToggleObject.switch(UNIFY_QUERY_SEARCH, data.get("bk_biz_id")):
-            return Response(UnionSearchHandler(data).unifyquery_union_search())
-        return Response(UnionSearchHandler(data).union_search())
+        return Response(UnionSearchHandler(data).unifyquery_union_search())
 
     @list_route(methods=["POST"], url_path="union_search/fields")
     def union_search_fields(self, request, *args, **kwargs):
@@ -1736,10 +1713,7 @@ class SearchViewSet(APIViewSet):
         if index_set_obj:
             data["bk_biz_id"] = space_uid_to_bk_biz_id(index_set_obj.space_uid)
 
-        if FeatureToggleObject.switch(UNIFY_QUERY_SEARCH, data.get("bk_biz_id")):
-            fields = UnionSearchHandler().unifyquery_union_search_fields(data)
-        else:
-            fields = UnionSearchHandler().union_search_fields(data)
+        fields = UnionSearchHandler().unifyquery_union_search_fields(data)
 
         # 添加用户索引集自定义配置
         index_set_config = UserIndexSetConfigHandler(
@@ -1914,7 +1888,9 @@ class SearchViewSet(APIViewSet):
         data = self.params_valid(UnionSearchGetExportHistorySerializer)
         index_set_ids = sorted([int(index_set_id) for index_set_id in data["index_set_ids"].split(",")])
         _reject_platform_index_sets(index_set_ids)
-        return AsyncExportHandlers(index_set_ids=index_set_ids, bk_biz_id=data["bk_biz_id"]).get_export_history(
+        return UnifyQueryAsyncExportHandlers(
+            index_set_ids=index_set_ids, bk_biz_id=data["bk_biz_id"]
+        ).get_export_history(
             request=request,
             view=self,
             show_all=data["show_all"],

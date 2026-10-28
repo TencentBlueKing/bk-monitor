@@ -990,7 +990,7 @@ paths:
       tags:
       - 采集项
       x-bk-apigateway-resource:
-        isPublic: false
+        isPublic: true
         allowApplyPermission: true
         matchSubpath: false
         backend:
@@ -2264,7 +2264,7 @@ paths:
       tags:
       - 采集项
       x-bk-apigateway-resource:
-        isPublic: false
+        isPublic: true
         allowApplyPermission: true
         matchSubpath: false
         backend:

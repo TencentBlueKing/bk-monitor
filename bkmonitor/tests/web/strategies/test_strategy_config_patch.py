@@ -67,10 +67,8 @@ def test_access_lookback_reaches_worker_through_public_cache_loader(strategy_con
         )
     )
     mocker.patch.object(StrategyCacheManager, "cache", cache)
-    # 隔离业务目录、指标校验和租户服务，不替换配置读取、序列化、分组或 Item 构建。
-    mocker.patch("alarm_backends.core.cache.strategy.BusinessManager.keys", return_value=[BK_BIZ_ID])
-    for name in ("check_biz", "check_metrics", "check_related_strategy", "add_source_identity"):
-        mocker.patch.object(StrategyCacheManager, name)
+    # 隔离租户服务，不替换配置读取、序列化、分组或 Item 构建。
+    mocker.patch.object(StrategyCacheManager, "add_source_identity")
     mocker.patch("alarm_backends.core.control.strategy.bk_biz_id_to_bk_tenant_id", return_value="system")
     mocker.patch.object(Checkpoint, "get", return_value=3600)
 

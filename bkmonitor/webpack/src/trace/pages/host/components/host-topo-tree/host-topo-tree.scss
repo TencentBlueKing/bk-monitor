@@ -64,7 +64,6 @@
     overflow: hidden;
   }
 
-
   &__scroller {
     position: relative;
     height: 100%;
@@ -213,15 +212,17 @@
       border: 1px solid #eaebf0;
       border-radius: 4px;
       box-shadow: 0 2px 4px 0 rgb(0 0 0 / 10%);
-
-      #{$host-topo}__row:hover & {
-        display: flex;
-      }
     }
 
     .select-compare-host-icon {
       font-size: 20px;
       color: #979ba5;
+    }
+  }
+
+  &__row:hover .topo-node {
+    &__compare {
+      display: flex;
     }
   }
 

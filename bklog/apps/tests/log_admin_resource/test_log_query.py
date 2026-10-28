@@ -10,14 +10,9 @@ from apps.log_admin_resource.handlers.log_query import (
     CLUSTERING_PATTERN_PARAMS_SCHEMA,
     FUNCTIONS,
     SEARCH_PARAMS_SCHEMA,
-    ResourceAggsHandlers,
-    ResourceAggsViewAdapter,
-    ResourceClusteringSearchHandler,
     ResourceClusteringUnifyQueryHandler,
-    ResourceMappingHandlers,
     ResourcePatternHandler,
     ResourceSceneUnifyQueryHandler,
-    ResourceSearchHandler,
     ResourceUnifyQueryTermsAggsHandler,
     _bounded_items,
     _context_time_bounds,
@@ -43,9 +38,6 @@ from apps.log_admin_resource.schema import validate_params
 from apps.log_clustering.constants import PatternEnum, StorageTypeEnum
 from apps.log_clustering.models import ClusteringConfig
 from apps.log_search.constants import IndexSetDataType
-from apps.log_search.handlers.search.aggs_handlers import AggsHandlers, AggsViewAdapter
-from apps.log_search.handlers.search.mapping_handlers import MappingHandlers
-from apps.log_search.handlers.search.search_handlers_esquery import SearchHandler as SearchHandlerEsquery
 from apps.log_search.models import IndexSetTag, LogIndexSet, LogIndexSetData, Scenario, Space, TAG_TYPE_SCENE
 from apps.log_unifyquery.builder.context import CreateSearchContextBodyScenarioLog
 from apps.log_unifyquery.handler.scene_search import SceneUnifyQueryHandler
@@ -218,12 +210,11 @@ class ClusteringRouteTest(TestCase):
                 self.assertEqual(route["result_table_ids"], [self.config.clustered_rt])
                 self.assertEqual(route["data_labels"], [f"bklog_index_set_{entry_index_set_id}_clustered"])
 
-    @patch("apps.log_admin_resource.handlers.log_query.FeatureToggleObject.switch", return_value=False)
     @patch(
         "apps.log_unifyquery.handler.base.UnifyQueryHandler._transform_additions",
         return_value={"field_list": [], "condition_list": []},
     )
-    def test_unify_query_route_is_pinned_before_keyword_and_addition_parsing(self, _mock_transform, _mock_switch):
+    def test_unify_query_route_is_pinned_before_keyword_and_addition_parsing(self, _mock_transform):
         source = _resolve_source({"type": "clustering", "index_set_id": self.group.index_set_id})
         query = {
             "index_set_ids": [self.group.index_set_id],
@@ -256,9 +247,8 @@ class ClusteringRouteTest(TestCase):
             _resolve_source({"type": "clustering", "index_set_id": 201})
         self.assertEqual(str(missing_rt.exception.code), "3624113")
 
-    @patch("apps.log_admin_resource.handlers.log_query.FeatureToggleObject.switch", return_value=False)
     @patch("apps.log_admin_resource.handlers.log_query._clustering_search")
-    def test_search_uses_explicit_clustering_route_without_marker_detection(self, mock_search, _mock_switch):
+    def test_search_uses_explicit_clustering_route_without_marker_detection(self, mock_search):
         mock_search.return_value = {
             "list": [
                 {
@@ -316,20 +306,6 @@ class ClusteringRouteTest(TestCase):
 
         self.assertEqual(str(error.exception.code), "3624115")
 
-    def test_legacy_es_route_is_also_pinned_for_group_entry(self):
-        handler = ResourceClusteringSearchHandler.__new__(ResourceClusteringSearchHandler)
-        handler.index_set_id = self.group.index_set_id
-        handler.search_dict = {
-            "keyword": "ordinary text without clustering markers",
-            "addition": [],
-        }
-        handler._index_set = self.group
-        handler.resource_clustering_config = self.config
-
-        self.assertEqual(handler._init_indices_str(), self.config.clustered_rt)
-        self.assertEqual(handler.scenario_id, Scenario.BKDATA)
-        self.assertTrue(handler.using_clustering_proxy)
-
 
 @override_settings(ENABLE_MULTI_TENANT_MODE=False)
 class LogQueryHandlerTest(TestCase):
@@ -358,57 +334,6 @@ class LogQueryHandlerTest(TestCase):
             "log": "request failed",
             "level": "ERROR",
         }
-
-    def test_resource_query_uses_dedicated_mapping_extension_points(self):
-        self.assertIs(ResourceSearchHandler.mapping_handler_class, ResourceMappingHandlers)
-        self.assertIs(SearchHandlerEsquery.mapping_handler_class, MappingHandlers)
-        self.assertIs(ResourceAggsHandlers.search_handler_class, ResourceSearchHandler)
-        self.assertIs(AggsHandlers.search_handler_class, SearchHandlerEsquery)
-        self.assertIs(ResourceAggsViewAdapter()._aggs_handlers, ResourceAggsHandlers)
-        self.assertIs(AggsViewAdapter()._aggs_handlers, AggsHandlers)
-
-    @patch("apps.log_search.handlers.search.mapping_handlers.BkLogApi.mapping")
-    @patch("apps.log_admin_resource.handlers.log_query.EsQuery")
-    def test_resource_mapping_uses_local_read_only_client(self, mock_esquery, mock_api_mapping):
-        mock_esquery.return_value.mapping.return_value = [{"properties": {"log": {"type": "text"}}}]
-        handler = ResourceMappingHandlers.__new__(ResourceMappingHandlers)
-
-        result = handler._direct_latest_mapping(
-            {
-                "indices": "2_bklog_app",
-                "scenario_id": Scenario.LOG,
-                "storage_cluster_id": -1,
-                "start_time": "2026-01-01 00:00:00",
-                "end_time": "2026-01-01 01:00:00",
-            }
-        )
-
-        self.assertEqual(result, [{"properties": {"log": {"type": "text"}}}])
-        mock_esquery.return_value.mapping.assert_called_once_with()
-        mock_api_mapping.assert_not_called()
-
-    @patch("apps.log_admin_resource.handlers.log_query.ResourceSearchHandler")
-    @patch("apps.log_admin_resource.handlers.log_query.FeatureToggleObject.switch", return_value=False)
-    def test_fields_legacy_route_uses_resource_search_handler(self, _mock_switch, mock_handler):
-        mock_handler.return_value.fields.return_value = {"fields": []}
-
-        result = _index_set_fields(
-            {
-                "type": "index_set",
-                "bk_biz_id": 2,
-                "index_set_id": self.index_set.index_set_id,
-                "index_set": self.index_set,
-            },
-            {
-                "start_time": 1767225600000,
-                "end_time": 1767229200000,
-                "time_zone": "UTC",
-            },
-            "default",
-        )
-
-        self.assertEqual(result, {"fields": []})
-        mock_handler.assert_called_once()
 
     def test_default_fields_reads_empty_persisted_snapshot_without_refresh(self):
         self.index_set.fields_snapshot = {}
@@ -540,9 +465,8 @@ class LogQueryHandlerTest(TestCase):
         self.assertNotIn("serverIp", conditions)
         self.assertIn("path", conditions)
 
-    @patch("apps.log_admin_resource.handlers.log_query.FeatureToggleObject.switch", return_value=False)
     @patch("apps.log_admin_resource.handlers.log_query._index_set_search")
-    def test_search_generates_replayable_context_anchor_and_pagination(self, mock_search, _mock_switch):
+    def test_search_generates_replayable_context_anchor_and_pagination(self, mock_search):
         mock_search.return_value = {
             "list": [copy.deepcopy(self.record)],
             "total": 2,
@@ -845,9 +769,8 @@ class LogQueryHandlerTest(TestCase):
         self.assertEqual(result["status"], "partial")
         self.assertEqual(result["stats"], stats)
 
-    @patch("apps.log_admin_resource.handlers.log_query.FeatureToggleObject.switch", return_value=True)
     @patch("apps.log_admin_resource.handlers.log_query.ResourceUnifyQueryContextHandler")
-    def test_context_replays_service_generated_anchor_with_zero_mode(self, mock_handler, _mock_switch):
+    def test_context_replays_service_generated_anchor_with_zero_mode(self, mock_handler):
         mock_handler.return_value.search.return_value = {
             "list": [copy.deepcopy(self.record)],
             "total": 1,
@@ -909,9 +832,8 @@ class LogQueryHandlerTest(TestCase):
 
         self.assertEqual(str(error.exception.code), "3624107")
 
-    @patch("apps.log_admin_resource.handlers.log_query.FeatureToggleObject.switch", return_value=False)
     @patch("apps.log_admin_resource.handlers.log_query._index_set_terms")
-    def test_terms_aggregation_uses_single_controlled_field(self, mock_terms, _mock_switch):
+    def test_terms_aggregation_uses_single_controlled_field(self, mock_terms):
         mock_terms.return_value = {
             "aggs": {"level": {"buckets": [{"key": "ERROR", "doc_count": 3}]}},
             "aggs_items": {"level": ["ERROR"]},
@@ -933,9 +855,8 @@ class LogQueryHandlerTest(TestCase):
         self.assertEqual(mock_terms.call_args.args[1]["fields"], ["level"])
         validate_params(result, FUNCTIONS["bklog.log.aggregate"]["response_schema"], "response")
 
-    @patch("apps.log_admin_resource.handlers.log_query.FeatureToggleObject.switch", return_value=False)
     @patch("apps.log_admin_resource.handlers.log_query._index_set_fields", return_value={"fields": []})
-    def test_aggregation_rejects_unknown_field_before_query(self, _mock_fields, _mock_switch):
+    def test_aggregation_rejects_unknown_field_before_query(self, _mock_fields):
         with self.assertRaises(ValidationError) as error:
             aggregate_logs(
                 {
@@ -1152,9 +1073,8 @@ class PatternResourceHandlerTest(TestCase):
         create_result_table(400, "2_bklog_source_400", scenario_id=Scenario.BKDATA, index_id=1400)
         self.config = create_clustering_config(400)
 
-    @patch("apps.log_admin_resource.handlers.log_query.FeatureToggleObject.switch", return_value=False)
     @patch("apps.log_admin_resource.handlers.log_query.ResourcePatternHandler")
-    def test_pattern_reuses_pattern_handler_without_public_level_or_origin_log(self, mock_handler, _mock_switch):
+    def test_pattern_reuses_pattern_handler_without_public_level_or_origin_log(self, mock_handler):
         items = [
             {
                 "pattern": "request failed for <*>",

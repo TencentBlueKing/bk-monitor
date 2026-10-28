@@ -23,7 +23,7 @@ def expected_v4_model():
     schema = definitions
     info = {
         "id": settings.BK_IAM_V4_SYSTEM_ID or settings.BK_IAM_SYSTEM_ID,
-        "name": "蓝鲸监控平台",
+        "name": "监控平台",
         "description": "蓝鲸监控平台-IAMv4 权限系统",
         "callback_url": settings.BK_IAM_V4_CALLBACK_URL
         or f"{settings.BK_IAM_RESOURCE_API_HOST.rstrip('/')}/rest/v2/iam/v4/callback/",
@@ -33,7 +33,13 @@ def expected_v4_model():
 
     payload = {
         "version": 1,
-        "system": {key: info[key] for key in ("name", "description", "clients")},
+        "system": {
+            **{key: info[key] for key in ("name", "description", "clients")},
+            "removed_clients": ["bk_paas3", "paasv3cli"],
+        },
+        "role_delegations": [
+            {"role_id": "space_operator", "grantee_type": "system", "grantee_id": "bk_paas3", "tenant_mode": "global"}
+        ],
         "resource_types": [
             {"id": item.id, "name": item.name, "ancestors": [item.ancestor] if item.ancestor else []}
             for item in schema.resource_types.values()

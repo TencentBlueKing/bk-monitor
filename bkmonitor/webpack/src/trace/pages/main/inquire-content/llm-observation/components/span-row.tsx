@@ -25,12 +25,13 @@
  */
 
 import { type PropType, defineComponent } from 'vue';
+
+import { Button } from 'bkui-vue';
 import dayjs from 'dayjs';
 import { useI18n } from 'vue-i18n';
-import { Button } from 'bkui-vue';
+
 import { formatDuration } from '../../../../../components/trace-view/utils/date';
 import { formatCompactToken, LLM_KIND_CLASS } from '../utils/transform';
-import SpanExpandPanel from './span-expand-panel';
 import SpanIoKvs, { sliceTooltipContent } from './span-io-kvs';
 
 import type { LlmIoPiece, LlmSpanRowView } from '../utils/typings';
@@ -38,7 +39,7 @@ import type { LlmIoPiece, LlmSpanRowView } from '../utils/typings';
 import './span-row.scss';
 
 /** 关系列展开按钮的竖线层级：根节点与嵌套 Agent 分支规则不同 */
-const resolveTreeToggleLevel = (row: LlmSpanRowView): number | null => {
+const resolveTreeToggleLevel = (row: LlmSpanRowView): null | number => {
   if (!row.hasChildren) return null;
   if (row.depth === 0) return row.lineGuideLevel;
   if (row.kind === 'AGENT') return row.lineGuideLevel + 1;
@@ -52,14 +53,10 @@ const SPAN_KIND_LABEL: Record<string, string> = {
   TOOL: window.i18n.t('工具') as string,
 };
 
-/** Agent 执行线表格单行：树形关系线、I/O 预览列、点击展开 SpanExpandPanel */
+/** Agent 执行线表格单行：树形关系线、I/O 预览列、点击查看 Span 详情 */
 export default defineComponent({
   name: 'LlmSpanRow',
   props: {
-    detailExpanded: {
-      type: Boolean,
-      default: false,
-    },
     expanded: {
       type: Boolean,
       default: false,
@@ -70,18 +67,17 @@ export default defineComponent({
     },
   },
   emits: {
-    'toggle-detail': (_spanId: string) => true,
     'toggle-expand': (_spanId: string) => true,
-    'view-detail': (_spanId: string) => true,
+    'view-detail': (_span: LlmSpanRowView) => true,
   },
   setup(props, { emit }) {
     const { t } = useI18n();
 
-    /** 行内只展示 1 类预览：优先 KV（全部字段），其次工具名，最后文本 */
+    /** 模型工具交互独立展示，工具 Span 继续使用既有 KV 预览。 */
     const pickPreviewPiece = (pieces: LlmIoPiece[]): LlmIoPiece | null => {
       const kv = pieces.find(piece => piece.type === 'kv' && piece.pairs.length);
       if (kv?.type === 'kv') return kv;
-      return pieces.find(piece => piece.type === 'name') || pieces.find(piece => piece.type === 'text') || null;
+      return pieces.find(piece => piece.type === 'tools') || pieces.find(piece => piece.type === 'text') || null;
     };
 
     const formatPiecesTooltip = (pieces: LlmIoPiece[]): string => {
@@ -89,6 +85,7 @@ export default defineComponent({
         if (piece.type === 'kv') {
           return piece.pairs.map(item => `${item.key}: ${item.value}`);
         }
+        if (piece.type === 'tools') return [];
         return piece.text ? [piece.text] : [];
       });
       return sliceTooltipContent(parts.join(' · '));
@@ -96,14 +93,12 @@ export default defineComponent({
 
     const renderIoPiece = (piece: LlmIoPiece, tooltip: string) => {
       const tips = { content: tooltip, placement: 'top' as const };
-      if (piece.type === 'name') {
+      if (piece.type === 'tools') {
         return (
-          <span
-            class='llm-span-io-name'
-            v-overflow-tips={tips}
-          >
-            {piece.text}
-          </span>
+          <SpanIoKvs
+            pairs={piece.tools.map(tool => ({ key: tool.tool_name || String(t('工具')), value: tool.value }))}
+            toolPreview
+          />
         );
       }
       if (piece.type === 'kv') {
@@ -127,7 +122,7 @@ export default defineComponent({
       return (
         <div
           class='llm-span-io-pieces'
-          v-overflow-tips={{ content: tooltip, placement: 'top' }}
+          v-overflow-tips={{ content: tooltip, disabled: preview.type === 'tools', placement: 'top' }}
         >
           {renderIoPiece(preview, tooltip)}
         </div>
@@ -141,19 +136,17 @@ export default defineComponent({
       const hasTokens = row.inputTokens > 0 || row.outputTokens > 0;
       const toggleLevel = resolveTreeToggleLevel(row);
       const isNestedAgentBranch = row.depth > 0 && row.kind === 'AGENT' && row.hasChildren;
-      const treeStyle = {
+      const treeStyle: Record<string, string> = {
         '--tree-line-level': String(row.lineGuideLevel),
         ...(toggleLevel !== null ? { '--tree-toggle-level': String(toggleLevel) } : {}),
-      } as Record<string, string>;
+      };
 
       return (
-        <div class={['llm-span-item', { 'is-open': props.detailExpanded }]}>
+        <div class='llm-span-item'>
           <div
             class={['llm-span-row', { 'is-error': row.isError }]}
             onClick={() => {
-              emit('toggle-detail', row.spanId);
-              // 关系列 +/- 只跟 expanded 走；点行时一并切换，图标才与行展开同步
-              if (toggleLevel !== null) emit('toggle-expand', row.spanId);
+              emit('view-detail', row);
             }}
           >
             <div class='llm-span-col is-time'>
@@ -161,6 +154,7 @@ export default defineComponent({
               <span class='llm-span-date'>{time.format('MM/DD')}</span>
             </div>
             <div
+              style={treeStyle}
               class={[
                 'llm-span-col',
                 'is-tree',
@@ -169,7 +163,6 @@ export default defineComponent({
                   'is-nested-agent-branch': isNestedAgentBranch,
                 },
               ]}
-              style={treeStyle}
             >
               <span
                 class={[
@@ -181,9 +174,7 @@ export default defineComponent({
                 ]}
               />
               {row.depth > 0 ? (
-                <span
-                  class={['llm-span-tree-branch', { 'is-to-toggle': isNestedAgentBranch }]}
-                />
+                <span class={['llm-span-tree-branch', { 'is-to-toggle': isNestedAgentBranch }]} />
               ) : null}
               {toggleLevel !== null ? (
                 <span
@@ -216,13 +207,26 @@ export default defineComponent({
                   {row.name}
                 </span>
               </span>
-              {row.subtitle ? <span class='llm-span-subtitle'>{row.subtitle}</span> : null}
+              {row.subtitle ? (
+                <span
+                  class='llm-span-subtitle'
+                  v-overflow-tips={{ content: row.subtitle, placement: 'top' }}
+                >
+                  {row.subtitle}
+                </span>
+              ) : null}
               {row.kind === 'AGENT' && row.childCount > 0 ? <span class='llm-span-count'>{row.childCount}</span> : null}
             </div>
             <div class='llm-span-col is-io'>
-              {renderIoSide(row.io.input)}
-              <i class='icon-monitor icon-next-one llm-span-io-arrow' />
-              {renderIoSide(row.io.output)}
+              {row.ioLoading ? (
+                <span class='llm-span-io-empty'>{t('加载中...')}</span>
+              ) : (
+                <>
+                  {renderIoSide(row.io.input)}
+                  <i class='icon-monitor icon-next-one llm-span-io-arrow' />
+                  {renderIoSide(row.io.output)}
+                </>
+              )}
             </div>
             <div class='llm-span-col is-duration'>
               <span class='llm-span-duration'>
@@ -240,30 +244,21 @@ export default defineComponent({
                   <span class='is-output'>{formatCompactToken(row.outputTokens)}</span>
                 </span>
               ) : null}
+            </div>
+            <div class='llm-span-col is-action'>
               <Button
-                theme='primary'
                 size='small'
                 text={true}
+                theme='primary'
                 onClick={e => {
                   e.stopPropagation();
-                  emit('view-detail', row.spanId);
+                  emit('view-detail', row);
                 }}
               >
                 {t('详情')}
               </Button>
             </div>
-            <div class='llm-span-col is-action'>
-              <span class='llm-span-detail-btn'>
-                <i class='icon-monitor icon-arrow-right' />
-              </span>
-            </div>
           </div>
-          {props.detailExpanded ? (
-            <SpanExpandPanel
-              row={row}
-              onView-detail={spanId => emit('view-detail', spanId)}
-            />
-          ) : null}
         </div>
       );
     };

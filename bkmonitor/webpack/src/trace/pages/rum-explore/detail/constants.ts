@@ -37,6 +37,9 @@ export const OVERVIEW_LINK_FIELDS = new Set([
   'attributes.view.id',
 ]);
 
+/** 详情头部跳转时只按点击的 ID 检索、不携带当前页面其他过滤条件的公共信息项 */
+export const OVERVIEW_ISOLATED_LINK_FIELDS = new Set(['attributes.session.id', 'attributes.view.id']);
+
 /** 以微秒时间戳存储、需按日期时间展示的公共信息项 */
 export const OVERVIEW_DATETIME_FIELDS = new Set(['start_time', 'end_time', 'attributes.view.started_at']);
 

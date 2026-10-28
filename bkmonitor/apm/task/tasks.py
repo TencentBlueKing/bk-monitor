@@ -54,13 +54,44 @@ from core.errors.alarm_backends import LockError
 logger = logging.getLogger("apm")
 
 
-@app.task(ignore_result=True, queue="celery_cron")
-def handler(bk_biz_id, app_name):
-    start = time.time()
-    topo_handler = TopoHandler(bk_biz_id, app_name)
-    if topo_handler.is_valid():
-        topo_handler.discover()
-    logger.info(f"[topo_discover_cron] end. app_name: {app_name} cost: {time.time() - start}")
+@app.task(bind=True, ignore_result=True, queue="celery_cron")
+def handler(self, bk_biz_id, app_name):
+    start: float = time.monotonic()
+    started_at: float = time.time()
+    # 用消息头传递时间，兼容滚动发布期间仍接收旧参数的 worker。
+    enqueued_at: float | None = (self.request.headers or {}).get("discovery_enqueued_at")
+    task_id: str | None = self.request.id
+    logger.info(
+        "[trace_discovery] event=started bk_biz_id=%s app_name=%s task_id=%s queue_delay_s=%s",
+        bk_biz_id,
+        app_name,
+        task_id,
+        round(started_at - enqueued_at, 3) if enqueued_at is not None else None,
+    )
+    status: str = "failed"
+    try:
+        topo_handler = TopoHandler(bk_biz_id, app_name, task_id=task_id)
+        if not topo_handler.is_valid():
+            status = "skipped"
+            return
+        status = "success" if topo_handler.discover() else "partial"
+    except Exception:
+        logger.exception(
+            "[trace_discovery] event=failed bk_biz_id=%s app_name=%s task_id=%s",
+            bk_biz_id,
+            app_name,
+            task_id,
+        )
+        raise
+    finally:
+        logger.info(
+            "[trace_discovery] event=finished bk_biz_id=%s app_name=%s task_id=%s status=%s duration_s=%.3f",
+            bk_biz_id,
+            app_name,
+            task_id,
+            status,
+            time.monotonic() - start,
+        )
 
 
 def topo_discover_cron():
@@ -78,31 +109,39 @@ def topo_discover_cron():
     )
     for application in to_be_refreshed:
         bk_biz_id, app_name, app_id, create_time = application
+        # 新应用仍保留快速发现频率，未命中本轮的应用不访问 Redis 锁。
+        is_quick: bool = (current_time - create_time) < datetime.timedelta(
+            minutes=settings.APM_APPLICATION_QUICK_REFRESH_DELTA
+        )
+        refresh_interval: int = interval_quick if is_quick else interval
+        if app_id % refresh_interval != (slug_quick if is_quick else slug):
+            continue
         try:
             apm_cache_handler = ApmCacheHandler()
             with apm_cache_handler.distributed_lock("topo_discover", app_id=app_id):
-                # 在 settings.APM_APPLICATION_QUICK_REFRESH_DELTA 时间内新创建的应用，每 interval_quick 分钟执行一次拓扑发现
-                if (current_time - create_time) < datetime.timedelta(
-                    minutes=settings.APM_APPLICATION_QUICK_REFRESH_DELTA
-                ):
-                    if app_id % interval_quick == slug_quick:
-                        logger.info(
-                            f"[topo_discover_cron] the applications that were created within the last "
-                            f"{settings.APM_APPLICATION_QUICK_REFRESH_DELTA} minutes are starting. "
-                            f"app_name: {app_name}, app_id: {app_id}"
-                        )
-                        handler.delay(bk_biz_id, app_name)
-                else:
-                    if app_id % interval == slug:
-                        logger.info(
-                            f"[topo_discover_cron] the applications that were created more than"
-                            f" {settings.APM_APPLICATION_QUICK_REFRESH_DELTA} minutes ago are starting. "
-                            f"app_name: {app_name}, app_id: {app_id}"
-                        )
-                        handler.delay(bk_biz_id, app_name)
+                enqueued_at: float = time.time()
+                task = handler.apply_async(args=(bk_biz_id, app_name), headers={"discovery_enqueued_at": enqueued_at})
+                logger.info(
+                    "[trace_discovery] event=dispatched bk_biz_id=%s app_name=%s task_id=%s dispatch_delay_s=%.3f",
+                    bk_biz_id,
+                    app_name,
+                    task.id,
+                    enqueued_at - current_time.timestamp(),
+                )
         except LockError:
-            logger.info(f"skipped: [topo_discover_cron] already running. app_name: {app_name}, app_id: {app_id}")
+            logger.info(
+                "[trace_discovery] event=dispatch_skipped reason=locked bk_biz_id=%s app_name=%s",
+                bk_biz_id,
+                app_name,
+            )
             continue
+        except Exception:
+            logger.exception(
+                "[trace_discovery] event=dispatch_failed bk_biz_id=%s app_name=%s",
+                bk_biz_id,
+                app_name,
+            )
+            raise
 
 
 @app.task(ignore_result=True, queue="celery_cron")

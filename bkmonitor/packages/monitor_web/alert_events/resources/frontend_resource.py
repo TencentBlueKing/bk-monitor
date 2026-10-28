@@ -1640,7 +1640,7 @@ class EventRelatedInfoResource(EventPermissionResource):
                 service_instance_ids[event.id] = event.target_key.split("|")[1]
 
         # 查询主机和服务实例信息
-        hosts: list[Host] = api.cmdb.get_host_by_ip(bk_biz_id=bk_biz_id, ips=list(ips.values()))
+        hosts: list[Host] = api.cmdb.get_host_by_ip(bk_biz_id=bk_biz_id, ips=list(ips.values())) if ips else []
         service_instances: list[ServiceInstance] = api.cmdb.get_service_instance_by_id(
             bk_biz_id=bk_biz_id, service_instance_ids=list(service_instance_ids.values())
         )
@@ -1657,9 +1657,9 @@ class EventRelatedInfoResource(EventPermissionResource):
             all_bk_module_ids.add(service_instance.bk_module_id)
 
         # 查询模块和集群信息
-        modules = api.cmdb.get_module(bk_biz_id=bk_biz_id, bk_module_ids=all_bk_module_ids)
+        modules = api.cmdb.get_module(bk_biz_id=bk_biz_id, bk_module_ids=all_bk_module_ids) if all_bk_module_ids else []
         module_to_set = {module.bk_module_id: module.bk_set_id for module in modules}
-        sets = api.cmdb.get_set(bk_biz_id=bk_biz_id, bk_set_ids=list(module_to_set.values()))
+        sets = api.cmdb.get_set(bk_biz_id=bk_biz_id, bk_set_ids=list(module_to_set.values())) if module_to_set else []
         module_names = {module.bk_module_id: module.bk_module_name for module in modules}
         set_names = {s.bk_set_id: s.bk_set_name for s in sets}
 

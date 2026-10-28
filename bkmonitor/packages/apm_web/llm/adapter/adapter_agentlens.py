@@ -14,6 +14,9 @@ import json
 from typing import Any
 
 from apm_web.llm.constants import STANDARD_FIELDS
+from constants.apm import LLMProduct
+
+from .fields import resolve_operation_name
 
 from .utils import (
     first,
@@ -127,6 +130,12 @@ def convert(raw: list[dict[str, Any]]) -> list[dict[str, Any]]:
         }
         for target, source_keys in ALIASES.items():
             put(attributes, target, first(attrs, *source_keys))
+        if not attributes.get("gen_ai.operation.name") and attrs.get("gen_ai.span.kind"):
+            put(
+                attributes,
+                "gen_ai.operation.name",
+                resolve_operation_name(LLMProduct.AGENTLENS.value, attrs["gen_ai.span.kind"]),
+            )
         attributes.update(convert_content(span))
         if not attributes:
             continue

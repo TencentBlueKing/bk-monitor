@@ -591,6 +591,7 @@ class ApmCacheType:
     ROOT_ENDPOINT = "root_endpoint"
     RELATION = "relation"
     REMOTE_SERVICE_RELATION = "remote_service_relation"
+    TRACE_DISCOVERY_CHECK = "trace_discovery_check"
 
 
 class ApmCacheConfig:
@@ -607,6 +608,7 @@ class ApmCacheConfig:
         ApmCacheType.ROOT_ENDPOINT: "BKMONITOR_{}_{}_APM_ROOT_ENDPOINT_HEARTBEAT_{}_{}",
         ApmCacheType.RELATION: "BKMONITOR_{}_{}_APM_RELATION_HEARTBEAT_{}_{}",
         ApmCacheType.REMOTE_SERVICE_RELATION: "BKMONITOR_{}_{}_APM_REMOTE_SERVICE_RELATION_HEARTBEAT_{}_{}",
+        ApmCacheType.TRACE_DISCOVERY_CHECK: "BKMONITOR_{}_{}_APM_DISCOVERY_CHECK_{}_{}_TRACE",
     }
 
     # 缓存过期时间（秒）
@@ -617,6 +619,7 @@ class ApmCacheConfig:
         ApmCacheType.ROOT_ENDPOINT: 7 * 24 * 60 * 60,  # 7天
         ApmCacheType.RELATION: 7 * 24 * 60 * 60,  # 7天
         ApmCacheType.REMOTE_SERVICE_RELATION: 7 * 24 * 60 * 60,  # 7天
+        ApmCacheType.TRACE_DISCOVERY_CHECK: 60 * 60,
     }
 
     @classmethod

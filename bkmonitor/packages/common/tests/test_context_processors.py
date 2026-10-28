@@ -99,3 +99,40 @@ def test_get_basic_context_disables_ai_assistant_by_environment_variable():
         context = get_basic_context(make_request(), [{"bk_biz_id": 2}], 2)
 
     assert context["ENABLE_AI_ASSISTANT"] == "false"
+
+
+@override_settings(ISSUE_AI_ANALYSIS_BIZ_WHITE_LIST=[2])
+def test_get_basic_context_enables_issue_ai_analysis_for_whitelisted_biz():
+    with (
+        mock.patch("common.context_processors.get_core_context", return_value={}),
+        mock.patch("common.context_processors.is_ipv6_biz", return_value=False),
+    ):
+        context = get_basic_context(make_request(), [{"bk_biz_id": 2}], 2)
+
+    assert context["ENABLE_ISSUE_AI_ANALYSIS"] is True
+
+
+@override_settings(ISSUE_AI_ANALYSIS_BIZ_WHITE_LIST=[])
+def test_get_basic_context_disables_issue_ai_analysis_for_empty_white_list():
+    with (
+        mock.patch("common.context_processors.get_core_context", return_value={}),
+        mock.patch("common.context_processors.is_ipv6_biz", return_value=False),
+    ):
+        context = get_basic_context(make_request(), [{"bk_biz_id": 2}], 2)
+
+    assert context["ENABLE_ISSUE_AI_ANALYSIS"] is False
+
+
+@override_settings(BK_IAM_SAAS_HOST="https://iamv4.example.com")
+def test_get_core_context_exposes_iam_my_perm_url_by_mode():
+    """上下文按当前 IAM 版本下发 /my-perm 的替代地址，前端改版后直接打开该值。"""
+
+    class _Mode:
+        value = "v4"
+
+    provider = mock.MagicMock(return_value=mock.MagicMock(get_mode=mock.MagicMock(return_value=_Mode())))
+
+    with mock.patch("bkmonitor.iam.mode.get_mode_provider", provider):
+        context = get_core_context(make_request(bk_token=""))
+
+    assert context["BK_IAM_MY_PERM_URL"] == "https://iamv4.example.com/permission/my-own/overview"
