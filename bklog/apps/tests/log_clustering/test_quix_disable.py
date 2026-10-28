@@ -218,6 +218,46 @@ class TestQuixClusteringHandlerDisable(TestCase):
         self.assertEqual(runtime.active_config["log_filter"][0]["value"], ["WARN"])
         self.assertIsNone(runtime.pending_config)
 
+    def test_disable_keeps_update_with_unconfirmed_metadata_write(self, mock_delay):
+        update = self.start_update(ClusteringOperationStatusEnum.FAILED.value, applied=False)
+        update.request_payloads = {"metadata_set": {"binding": {"task_id": "task-uuid"}}}
+        update.step = "metadata_set"
+        update.save()
+        mock_delay.reset_mock()
+
+        with self.assertRaises(QuixClusteringParamsInvalidException):
+            QuixClusteringHandler(self.index_set).disable()
+
+        update.refresh_from_db()
+        self.runtime.refresh_from_db()
+        self.assertEqual(update.status, ClusteringOperationStatusEnum.FAILED.value)
+        self.assertEqual(self.runtime.phase, ClusteringRuntimePhaseEnum.UPDATING.value)
+        self.assertEqual(self.runtime.pending_config["log_filter"][0]["value"], ["WARN"])
+        mock_delay.assert_not_called()
+
+    def test_disable_does_not_treat_unknown_enable_write_as_unbound(self, mock_delay):
+        enable = LogClusteringOperation.objects.get(operation_type=ClusteringOperationTypeEnum.ENABLE.value)
+        LogClusteringRuntime.objects.filter(pk=self.runtime.pk).update(
+            phase=ClusteringRuntimePhaseEnum.ENABLING.value, sink={}
+        )
+        for step in ("create_task", "configure_clustering", "metadata_set"):
+            with self.subTest(step=step):
+                enable.status = ClusteringOperationStatusEnum.FAILED.value
+                enable.step = step
+                enable.steps = []
+                enable.request_payloads = {step: {"request": "persisted before sending"}}
+                enable.save()
+
+                with self.assertRaises(QuixClusteringParamsInvalidException):
+                    QuixClusteringHandler(self.index_set).disable()
+
+                enable.refresh_from_db()
+                self.assertEqual(enable.status, ClusteringOperationStatusEnum.FAILED.value)
+        self.assertFalse(
+            LogClusteringOperation.objects.filter(operation_type=ClusteringOperationTypeEnum.DISABLE.value).exists()
+        )
+        mock_delay.assert_not_called()
+
     def test_disable_does_not_supersede_running_operation(self, mock_delay):
         update = self.start_update(ClusteringOperationStatusEnum.RUNNING.value, applied=False)
         mock_delay.reset_mock()

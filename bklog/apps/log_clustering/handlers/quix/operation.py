@@ -160,9 +160,13 @@ class QuixClusteringOperationRunner:
 
     def run(self) -> int | None:
         """执行到需要等待或结束为止，返回下次调度的延迟秒数，None 表示无需再调度"""
-        if self.operation.status not in ClusteringOperationStatusEnum.runnable_statuses():
-            return None
-        if self.operation.status != ClusteringOperationStatusEnum.AWAITING_RECEIPT.value:
+        # 与关闭接替操作使用同一行锁：重新读取后领取执行，不能复活已取消的操作。
+        # 远端调用期间标为 RUNNING，关闭只能接替已经结束本轮执行的失败/待回执操作。
+        with transaction.atomic():
+            self.operation = LogClusteringOperation.objects.select_for_update().get(pk=self.operation.pk)
+            if self.operation.status not in ClusteringOperationStatusEnum.runnable_statuses():
+                return None
+            self.runtime.refresh_from_db()
             self.operation.status = ClusteringOperationStatusEnum.RUNNING.value
             self.operation.save(update_fields=["status", "updated_at", "updated_by"])
 
@@ -224,9 +228,13 @@ class QuixClusteringOperationRunner:
         return None
 
     def _await_receipt(self, step: str) -> int:
-        if self.operation.status != ClusteringOperationStatusEnum.AWAITING_RECEIPT.value:
-            self.operation.status = ClusteringOperationStatusEnum.AWAITING_RECEIPT.value
-            self.operation.save(update_fields=["status", "updated_at", "updated_by"])
+        self.operation.status = ClusteringOperationStatusEnum.AWAITING_RECEIPT.value
+        self.operation.save(update_fields=["status", "updated_at", "updated_by"])
+        last_step = self.operation.steps[-1] if self.operation.steps else {}
+        if (last_step.get("step"), last_step.get("status")) != (
+            step,
+            ClusteringOperationStatusEnum.AWAITING_RECEIPT.value,
+        ):
             self.operation.record_step(step, ClusteringOperationStatusEnum.AWAITING_RECEIPT.value)
         return self._schedule(RECEIPT_POLL_INTERVAL_SECONDS)
 
