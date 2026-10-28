@@ -13,7 +13,8 @@ from bkmonitor.utils import dynamic_settings, sms
 from bkmonitor.utils.dynamic_settings import DynamicSettings
 from bkmonitor.utils.send import NoneTemplateSender, Sender
 from bkmonitor.utils.sms_context import standard_sms_values
-from constants.action import ActionStatus
+from constants.action import ACTION_STATUS_DICT, ActionStatus
+from constants.alert import EVENT_SEVERITY_DICT
 
 
 class MemoryCache:
@@ -156,3 +157,39 @@ def test_standard_render_failure_is_recorded_instead_of_sending_error_text(setti
     payload = {"content": sender.content, "notice_results": result}
     stored = ActionInstance._meta.get_field("outputs").get_db_prep_value(payload, connection)
     assert json.loads(stored) == payload
+
+
+@pytest.mark.parametrize("severity", [1, 2])
+@pytest.mark.parametrize(
+    "kind,status,visible_name_length",
+    [
+        ("closed/action", ActionStatus.SUCCESS, 8),
+        ("recovered/action", ActionStatus.SUCCESS, 10),
+        ("fta_action", ActionStatus.PARTIAL_SUCCESS, 9),
+        ("fta_action", ActionStatus.PARTIAL_FAILURE, 9),
+    ],
+)
+def test_english_single_notice_preserves_recognizable_name(kind, status, visible_name_length, severity):
+    name = "CPU usage too high"
+    with translation.override("en"):
+        level = str(EVENT_SEVERITY_DICT[severity])
+        status_name = str(ACTION_STATUS_DICT[status])
+        body = sms.render_standard_sms(
+            kind,
+            {
+                "time": "2026-12-31 23:59",
+                "level": level,
+                "count": 1,
+                "name": name,
+                "status": status_name,
+            },
+        )
+
+    assert name[:visible_name_length] in body
+    assert sms.sms_utf16_length(body) <= 70
+    assert body.endswith("See WeCom/BK.")
+    if kind == "fta_action":
+        assert status_name in body
+    else:
+        assert level in body
+        assert "Skip " in body

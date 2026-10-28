@@ -2,7 +2,7 @@
 
 import os
 import time
-from datetime import datetime, timezone as datetime_timezone
+from datetime import datetime, timedelta, timezone as datetime_timezone
 from types import SimpleNamespace
 from unittest.mock import Mock
 
@@ -12,7 +12,10 @@ from django.utils import timezone, translation
 
 from alarm_backends.service.converge.shield import shield_obj, window
 from alarm_backends.service.converge.shield.shield_obj import ShieldObj
+from alarm_backends.service.converge.shield.display_manager import DisplayManager
+from bkmonitor.utils import send, shield as shield_utils
 from bkmonitor.utils.range.period import TimeMatchByDay, TimeMatchByMonth, TimeMatchBySingle, TimeMatchByWeek
+from bkmonitor.utils.sms import sms_utf16_length
 
 
 @pytest.fixture(autouse=True)
@@ -250,3 +253,63 @@ def test_standard_shield_time_is_frozen_before_sender_changes_timezone(monkeypat
 
     assert contexts[-1]["context"]["sms_event_time_formatted"] == "2026年9月9日 18:00分"
     assert all(context["sms_template_mode"] == "standard" for context in contexts)
+
+
+@pytest.mark.parametrize("notice_type", ["start", "end"])
+@pytest.mark.parametrize("cycle", ["single", "daily", "weekly", "monthly", "two_hours", "ten_years"])
+def test_english_shield_sends_real_translated_duration(monkeypatch, settings, cycle, notice_type):
+    settings.DEFAULT_LOCALE = "en"
+    settings.SMS_NOTICE_TEMPLATE_MODE = "standard"
+    settings.SMS_CONTENT_LENGTH = 50
+    assert send.i18n is not None
+    # These settings are captured when an English-default process initializes I18N.
+    monkeypatch.setattr(send.i18n, "default_locale", settings.DEFAULT_LOCALE)
+    monkeypatch.setattr(send.i18n, "default_timezone", "UTC")
+    with translation.override("en"):
+        # Shield duration labels are non-lazy module constants, translated at import.
+        for field, message in {
+            "CYCLE_ONCE": "次",
+            "CYCLE_DAILY": "天",
+            "CYCLE_WEEKLY": "周",
+            "CYCLE_MONTHLY": "月",
+            "LESS_THAN_AN_HOUR_TEMPLATE": "<1小时/{}",
+            "HOURS_TEMPLATE": "{}小时/{}",
+        }.items():
+            monkeypatch.setattr(shield_utils, field, translation.gettext(message))
+
+        cycle_type = {"daily": 2, "weekly": 3, "monthly": 4}.get(cycle, 1)
+        matcher_class = {2: TimeMatchByDay, 3: TimeMatchByWeek, 4: TimeMatchByMonth}.get(cycle_type, TimeMatchBySingle)
+        shield = make_shield(matcher_class, end="10:30:00", type=cycle_type, week_list=[3], day_list=[9])
+        start = datetime(2026, 9, 9, 10, tzinfo=datetime_timezone.utc)
+        finish = start + {"two_hours": timedelta(hours=2), "ten_years": timedelta(days=3650)}.get(
+            cycle, timedelta(minutes=30)
+        )
+        if cycle_type == 1:
+            shield.config.update(begin_time=start, end_time=finish)
+            shield.time_check = TimeMatchBySingle(shield.config["cycle_config"], arrow.get(start), arrow.get(finish))
+        shield.config["notice_config"]["notice_way"] = ["sms"]
+        shield.display_manager = DisplayManager()
+        monkeypatch.setattr(shield.display_manager, "get_category_name", lambda config: "Alert")
+        monkeypatch.setattr(shield.display_manager, "get_shield_content", lambda config: "legacy description")
+        shield.parse_notice_receivers = lambda: ["alice"]
+        duration = shield.display_manager.get_cycle_duration(shield.config)
+        if cycle not in ("two_hours", "ten_years"):
+            assert duration.startswith("<1 hour / ")
+        boundary = start if notice_type == "start" else finish
+        shield.get_now_datetime = lambda: arrow.get(boundary - timedelta(minutes=4 if notice_type == "start" else 5))
+        lock_storage(monkeypatch, value="lock" if notice_type == "end" else None)
+        assert getattr(shield, f"can_send_{notice_type}_notice")() is True
+        monkeypatch.setattr(shield_obj, "bk_biz_id_to_bk_tenant_id", lambda value: "tenant-fixture")
+        monkeypatch.setattr(send.GlobalConfig, "get", lambda *args: "BlueKing")
+        gateway = Mock(return_value={"username_check": {"invalid": []}, "message": "ok"})
+        monkeypatch.setattr(send.api.cmsi, "send_sms", gateway)
+
+        result = shield.send_notice(notice_type)
+
+    assert result["sms"]["alice"]["result"] is True
+    body = gateway.call_args.kwargs["content"]
+    assert sms_utf16_length(body) <= 70
+    assert duration in body
+    assert ("Start" if notice_type == "start" else "End") in body
+    assert body.endswith("See WeCom/BK.")
+    assert send.i18n.get_locale() == "en"

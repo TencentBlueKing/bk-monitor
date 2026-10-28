@@ -28,9 +28,9 @@ from bkmonitor.utils.sms import (
 TIME = "2025年1月1日 01:02分"
 GUIDANCE = "请到企业微信/蓝鲸监控平台查看。"
 ENGLISH_NO_ACTION = {
-    "recovered/action": "no action",
+    "recovered/action": "Skip ",
     "recovered/converge": "ignore",
-    "closed/action": "no action",
+    "closed/action": "Skip ",
     "closed/converge": "Skip ",
 }
 VALUES = {
