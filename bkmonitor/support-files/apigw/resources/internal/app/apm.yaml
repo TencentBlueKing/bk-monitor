@@ -305,6 +305,186 @@ paths:
           userVerifiedRequired: false
           resourcePermissionRequired: true
         descriptionEn: enable active profiling resources of business
+  /app/apm/profiling/active_profiling_hosts/:
+    post:
+      operationId: query_active_profiling_hosts
+      description: 查询主动 Profiling 已采数据
+      x-bk-apigateway-resource:
+        isPublic: false
+        allowApplyPermission: true
+        matchSubpath: false
+        backend:
+          name: default
+          method: post
+          path: /apm_api/v1/profiling/active_profiling_hosts/
+          matchSubpath: false
+        authConfig:
+          appVerifiedRequired: true
+          userVerifiedRequired: false
+          resourcePermissionRequired: true
+        descriptionEn: query collected hosts of active profiling
+  /app/apm/profiling/active_profiling_executions/:
+    post:
+      operationId: list_active_profiling_executions
+      description: 查询主动 Profiling 任务历史
+      x-bk-apigateway-resource:
+        isPublic: false
+        allowApplyPermission: true
+        matchSubpath: false
+        backend:
+          name: default
+          method: post
+          path: /apm_api/v1/profiling/active_profiling_executions/
+          matchSubpath: false
+        authConfig:
+          appVerifiedRequired: true
+          userVerifiedRequired: false
+          resourcePermissionRequired: true
+        descriptionEn: list executions of active profiling
+  /app/apm/profiling/active_profiling_topk/:
+    get:
+      operationId: query_active_profiling_topk
+      description: 查询主动 Profiling 搜索框候选值
+      x-bk-apigateway-resource:
+        isPublic: false
+        allowApplyPermission: true
+        matchSubpath: false
+        backend:
+          name: default
+          method: get
+          path: /apm_api/v1/profiling/active_profiling_topk/
+          matchSubpath: false
+        authConfig:
+          appVerifiedRequired: true
+          userVerifiedRequired: false
+          resourcePermissionRequired: true
+        descriptionEn: query search candidates of active profiling
+  /app/apm/profiling/active_profiling_execution_detail/:
+    post:
+      operationId: query_active_profiling_execution_detail
+      description: 查询主动 Profiling 单次执行详情
+      x-bk-apigateway-resource:
+        isPublic: false
+        allowApplyPermission: true
+        matchSubpath: false
+        backend:
+          name: default
+          method: post
+          path: /apm_api/v1/profiling/active_profiling_execution_detail/
+          matchSubpath: false
+        authConfig:
+          appVerifiedRequired: true
+          userVerifiedRequired: false
+          resourcePermissionRequired: true
+        descriptionEn: query execution detail of active profiling
+  /app/apm/profiling/active_profiling_execution_cancel/:
+    post:
+      operationId: cancel_active_profiling_execution
+      description: 取消主动 Profiling 执行
+      x-bk-apigateway-resource:
+        isPublic: false
+        allowApplyPermission: true
+        matchSubpath: false
+        backend:
+          name: default
+          method: post
+          path: /apm_api/v1/profiling/active_profiling_execution_cancel/
+          matchSubpath: false
+        authConfig:
+          appVerifiedRequired: true
+          userVerifiedRequired: false
+          resourcePermissionRequired: true
+        descriptionEn: cancel execution of active profiling
+  /app/apm/profiling/active_profiling_tasks/:
+    get:
+      operationId: list_active_profiling_tasks
+      description: 查询主动 Profiling 计划
+      x-bk-apigateway-resource:
+        isPublic: false
+        allowApplyPermission: true
+        matchSubpath: false
+        backend:
+          name: default
+          method: get
+          path: /apm_api/v1/profiling/active_profiling_tasks/
+          matchSubpath: false
+        authConfig:
+          appVerifiedRequired: true
+          userVerifiedRequired: false
+          resourcePermissionRequired: true
+        descriptionEn: list tasks of active profiling
+  /app/apm/profiling/active_profiling_task_submit/:
+    post:
+      operationId: submit_active_profiling_task
+      description: 提交主动 Profiling 采集
+      x-bk-apigateway-resource:
+        isPublic: false
+        allowApplyPermission: true
+        matchSubpath: false
+        backend:
+          name: default
+          method: post
+          path: /apm_api/v1/profiling/active_profiling_task_submit/
+          matchSubpath: false
+        authConfig:
+          appVerifiedRequired: true
+          userVerifiedRequired: false
+          resourcePermissionRequired: true
+        descriptionEn: submit task of active profiling
+  /app/apm/profiling/active_profiling_task_edit/:
+    post:
+      operationId: edit_active_profiling_task
+      description: 编辑主动 Profiling 计划
+      x-bk-apigateway-resource:
+        isPublic: false
+        allowApplyPermission: true
+        matchSubpath: false
+        backend:
+          name: default
+          method: post
+          path: /apm_api/v1/profiling/active_profiling_task_edit/
+          matchSubpath: false
+        authConfig:
+          appVerifiedRequired: true
+          userVerifiedRequired: false
+          resourcePermissionRequired: true
+        descriptionEn: edit task of active profiling
+  /app/apm/profiling/active_profiling_task_delete/:
+    post:
+      operationId: delete_active_profiling_task
+      description: 删除主动 Profiling 计划
+      x-bk-apigateway-resource:
+        isPublic: false
+        allowApplyPermission: true
+        matchSubpath: false
+        backend:
+          name: default
+          method: post
+          path: /apm_api/v1/profiling/active_profiling_task_delete/
+          matchSubpath: false
+        authConfig:
+          appVerifiedRequired: true
+          userVerifiedRequired: false
+          resourcePermissionRequired: true
+        descriptionEn: delete task of active profiling
+  /app/apm/profiling/active_profiling_task_switch/:
+    post:
+      operationId: switch_active_profiling_task
+      description: 启停主动 Profiling 计划
+      x-bk-apigateway-resource:
+        isPublic: false
+        allowApplyPermission: true
+        matchSubpath: false
+        backend:
+          name: default
+          method: post
+          path: /apm_api/v1/profiling/active_profiling_task_switch/
+          matchSubpath: false
+        authConfig:
+          appVerifiedRequired: true
+          userVerifiedRequired: false
+          resourcePermissionRequired: true
+        descriptionEn: switch task of active profiling
   /app/apm/query_apm_topo_relation/:
     post:
       operationId: query_apm_topo_relation

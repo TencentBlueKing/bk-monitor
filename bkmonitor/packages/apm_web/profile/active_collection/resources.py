@@ -10,45 +10,27 @@ specific language governing permissions and limitations under the License.
 
 import base64
 import json
-import logging
 import os
-import time
-from itertools import groupby, islice
 
 from django.conf import settings
 from django.utils.translation import gettext_lazy as _
 
 from apm.models import ProfileDataSource
-from apm_web.models import ActiveProfilingTask
+from apm_web.profile.active_collection import fixtures
 from apm_web.profile.active_collection.constants import (
     BKMONITORBEAT_RELATIVE_PATH,
-    CANCEL_EXECUTION_SCRIPT,
-    DEPLOYMENT_STATUS_DEPLOYING,
-    DEPLOYMENT_STATUS_EXPIRED,
-    DEPLOYMENT_STATUS_SUCCESS,
-    EVENT_QUERY_BATCH_SIZE,
-    EVENT_QUERY_MAX_SIZE,
+    ERROR_TYPE_CONFIG_INVALID,
+    ERROR_TYPE_DISPATCH_FAILED,
     EXECUTION_DETAIL_HOST_COLUMNS,
     EXECUTION_LIST_TASK_COLUMNS,
-    EXECUTION_QUERY_BATCH_SIZE,
     HOST_QUERY_COLUMNS,
-    IMMEDIATE_COLLECT_SCRIPT,
     META_CONFIG,
     PROCESS_MATCH_SCRIPT,
     PROCESS_PREVIEW_COLUMNS,
     PROCESS_PREVIEW_MAX_HOSTS,
-    SUCCEED_STATUSES,
     TASK_LIST_COLUMNS,
-    TASK_STATUS_BY_ENABLED,
 )
-from apm_web.profile.active_collection import fixtures
-from apm_web.profile.active_collection.handlers import (
-    ActiveProfilingDeployMixin,
-    ActiveProfilingEventHandler,
-    ActiveProfilingEventQueryHandler,
-    ActiveProfilingNodeManHandler,
-    ActiveProfilingResultMixin,
-)
+from apm_web.profile.active_collection.handlers import ActiveProfilingResultMixin
 from apm_web.profile.active_collection.serializers import (
     EnableRequestSerializer,
     EventListRequestSerializer,
@@ -71,12 +53,13 @@ from apm_web.profile.diagrams import get_diagrammer
 from apm_web.profile.diagrams.tree_converter import TreeConverter
 from apm_web.profile.doris.converter import DorisProfileConverter
 from apm_web.profile.resources import QueryServicesDetailResource
-from bkmonitor.utils.request import get_request_tenant_id
-from bkmonitor.utils.user import get_request_username
 from constants.apm import BUILTIN_PROFILING_APP_NAME
 from core.drf_resource import Resource, api, resource
 
-logger = logging.getLogger("apm")
+
+def _backend_params(validated_request_data):
+    """计划、执行与查询都由后台 apm 处理；is_mock 只在 SaaS 侧生效，不转发给后台"""
+    return {key: value for key, value in validated_request_data.items() if key != "is_mock"}
 
 
 class ActiveProfilingMetaConfigResource(Resource):
@@ -151,10 +134,21 @@ class PreviewProcessesResource(Resource):
         return rows
 
     def _failed_hosts(self, failed_hosts):
-        """退出码非 0 时 bkmonitorbeat 的错误文本就在 stdout，作业平台把它放进 errmsg"""
         return [
-            {"bk_host_id": host["bk_host_id"], "ip": host["ip"], "err_msg": host["errmsg"]} for host in failed_hosts
+            {"bk_host_id": host["bk_host_id"], "ip": host["ip"], **self._parse_failure(host)} for host in failed_hosts
         ]
+
+    @staticmethod
+    def _parse_failure(host):
+        """退出码非 0 时 bkmonitorbeat 的 stdout 是带 error_type 的 JSON，作业平台把它放进 errmsg；
+        旧版采集端输出的是错误文本，按配置不被支持归类。退出码为 0 说明作业平台没有执行成功"""
+        if not host["exit_code"]:
+            return {"error_type": ERROR_TYPE_DISPATCH_FAILED, "err_msg": host["errmsg"]}
+        try:
+            failure = json.loads(host["errmsg"])
+        except ValueError:
+            return {"error_type": ERROR_TYPE_CONFIG_INVALID, "err_msg": host["errmsg"]}
+        return {"error_type": failure["error_type"], "err_msg": failure["message"]}
 
 
 class ListTasksResource(Resource):
@@ -166,50 +160,13 @@ class ListTasksResource(Resource):
         if validated_request_data.get("is_mock"):
             return fixtures.TASK_LIST
 
-        page = validated_request_data["page"]
-        page_size = validated_request_data["page_size"]
-        # 同一时间写入的计划靠 id 兜底定序，避免翻页时行序抖动
-        queryset = ActiveProfilingTask.objects.filter(bk_biz_id=validated_request_data["bk_biz_id"]).order_by(
-            "-update_time", "-id"
-        )
-        offset = (page - 1) * page_size
         return {
             "columns": TASK_LIST_COLUMNS,
-            "data": [self._serialize_task(task) for task in queryset[offset : offset + page_size]],
-            "page": page,
-            "page_size": page_size,
-            "total": queryset.count(),
+            **api.apm_api.list_active_profiling_tasks(**_backend_params(validated_request_data)),
         }
 
-    def _serialize_task(self, task):
-        config = {field: getattr(task, field) for field in ActiveProfilingTask.CONFIG_FIELDS}
-        return {
-            "task_id": task.id,
-            "task_status": TASK_STATUS_BY_ENABLED[task.is_enabled],
-            "deployment_status": self._display_deployment_status(task),
-            "creator": task.create_user,
-            "updated_at": int(task.update_time.timestamp() * 1000),
-            **config,
-        }
 
-    @staticmethod
-    def _display_deployment_status(task):
-        """计划时间已过时列表显示已过期，不写库，定时清理仍按库里的成功状态拆除配置"""
-        if task.deployment_status != DEPLOYMENT_STATUS_SUCCESS:
-            return task.deployment_status
-        schedule = task.schedule
-        if schedule["type"] == "once_at":
-            last_run_at = schedule["execute_at"]
-        elif schedule["type"] == "cron":
-            last_run_at = schedule.get("effective_end_at")
-        else:
-            last_run_at = None
-        if last_run_at is not None and last_run_at < int(time.time() * 1000):
-            return DEPLOYMENT_STATUS_EXPIRED
-        return task.deployment_status
-
-
-class SubmitTaskResource(ActiveProfilingDeployMixin, Resource):
+class SubmitTaskResource(Resource):
     """统一提交立即、指定时间或周期采集"""
 
     RequestSerializer = TaskSubmitRequestSerializer
@@ -218,38 +175,7 @@ class SubmitTaskResource(ActiveProfilingDeployMixin, Resource):
         if validated_request_data.get("is_mock"):
             return
 
-        if validated_request_data["schedule"]["type"] == "immediate":
-            self._execute_immediately(validated_request_data)
-            return
-
-        handler = ActiveProfilingNodeManHandler(validated_request_data["bk_biz_id"])
-        task = ActiveProfilingTask.create_task(validated_request_data["bk_biz_id"], validated_request_data)
-        handler.deploy(task)
-
-    def _execute_immediately(self, validated_request_data):
-        """立即执行不落计划表：逐台主机下发作业，受理即返回，终态由 CLI 上报的 finished Event 表达"""
-        bk_biz_id = validated_request_data["bk_biz_id"]
-        bk_tenant_id = get_request_tenant_id()
-        creator = get_request_username()
-        profile_data_id = self._get_profile_data_id(bk_biz_id)
-        event_handler = ActiveProfilingEventHandler(bk_tenant_id, creator, validated_request_data)
-        script_content = self._build_cli_script(IMMEDIATE_COLLECT_SCRIPT)
-
-        for bk_host_id, cli_config, event_config in self._build_host_configs(
-            validated_request_data, bk_tenant_id, creator, event_handler.event_data_id, profile_data_id
-        ):
-            try:
-                job = self._execute_cli_job(bk_biz_id, bk_host_id, script_content, cli_config)
-            except Exception as error:  # pylint: disable=broad-except
-                logger.exception(
-                    "[ActiveProfiling] immediate job submit failed, bk_biz_id->[%s], bk_host_id->[%s]",
-                    bk_biz_id,
-                    bk_host_id,
-                )
-                event_handler.report_failed_finished(bk_host_id, event_config, error)
-                continue
-
-            event_handler.report_started(bk_host_id, event_config, job)
+        api.apm_api.submit_active_profiling_task(**_backend_params(validated_request_data))
 
 
 class EditTaskResource(Resource):
@@ -261,10 +187,7 @@ class EditTaskResource(Resource):
         if validated_request_data.get("is_mock"):
             return
 
-        task = ActiveProfilingTask.get_task(validated_request_data["bk_biz_id"], validated_request_data["task_id"])
-        handler = ActiveProfilingNodeManHandler(validated_request_data["bk_biz_id"])
-        task.update_config(validated_request_data)
-        handler.deploy(task)
+        api.apm_api.edit_active_profiling_task(**_backend_params(validated_request_data))
 
 
 class DeleteTaskResource(Resource):
@@ -276,13 +199,7 @@ class DeleteTaskResource(Resource):
         if validated_request_data.get("is_mock"):
             return
 
-        task = ActiveProfilingTask.get_task(validated_request_data["bk_biz_id"], validated_request_data["task_id"])
-        if task.is_enabled:
-            raise ValueError(_("删除前请先停用计划"))
-
-        if not ActiveProfilingNodeManHandler(validated_request_data["bk_biz_id"]).uninstall(task):
-            raise ValueError(_("节点管理卸载失败，请稍后重试"))
-        task.delete()
+        api.apm_api.delete_active_profiling_task(**_backend_params(validated_request_data))
 
 
 class SwitchTaskResource(Resource):
@@ -294,12 +211,7 @@ class SwitchTaskResource(Resource):
         if validated_request_data.get("is_mock"):
             return
 
-        task = ActiveProfilingTask.get_task(validated_request_data["bk_biz_id"], validated_request_data["task_id"])
-        handler = ActiveProfilingNodeManHandler(validated_request_data["bk_biz_id"])
-        task.is_enabled = validated_request_data["enabled"]
-        task.deployment_status = DEPLOYMENT_STATUS_DEPLOYING
-        task.save()
-        handler.switch(task)
+        api.apm_api.switch_active_profiling_task(**_backend_params(validated_request_data))
 
 
 class QueryHostsResource(Resource):
@@ -311,57 +223,10 @@ class QueryHostsResource(Resource):
         if validated_request_data.get("is_mock"):
             return fixtures.HOST_QUERY
 
-        filters = validated_request_data.get("filters", {})
-        status = filters.get("status")
-        # unknown 取决于有没有 finished，ES 筛不出来，只能全量配对
-        if status == "unknown":
-            raise ValueError(_("暂不支持按 unknown 状态筛选"))
-
-        # TODO: 二期查询 MySQL 主机执行表，筛选、排序与分页直接在 SQL 中完成，unknown 也可以筛选
-        handler = ActiveProfilingEventQueryHandler(validated_request_data["bk_biz_id"])
-        queryset = self._build_queryset(handler, validated_request_data, filters)
-        offset = validated_request_data["offset"]
-        end = offset + validated_request_data["limit"]
-        # 每行通常只有 started/finished 两条，多取一条确认最后一行已经完整；重复上报或内存筛选导致不够时再按批续读
-        events = handler.iter_events(queryset, end * 2 + 1, EVENT_QUERY_BATCH_SIZE)
-        rows = (
-            self._build_row(handler, key, host_events)
-            for key, host_events in groupby(events, key=handler.host_execution_key)
-        )
-        if status == "running":
-            rows = (row for row in rows if row["status"] == "running")
-        return {"columns": HOST_QUERY_COLUMNS, "data": list(islice(rows, offset, end))}
-
-    def _build_queryset(self, handler, validated_request_data, filters):
-        """筛选全部下推 ES：终态再按 status 维度筛选，outdate 是过期的成功类终态；
-        running 要看有没有 finished，不能按 status 筛，只收窄 scheduled_at"""
-        filter_dict = {
-            **handler.build_execution_filter(validated_request_data),
-            **handler.build_host_filter(validated_request_data),
+        return {
+            "columns": HOST_QUERY_COLUMNS,
+            "data": api.apm_api.query_active_profiling_hosts(**_backend_params(validated_request_data)),
         }
-        status = filters.get("status")
-        if status == "outdate":
-            filter_dict["status"] = list(SUCCEED_STATUSES)
-        elif status and status != "running":
-            filter_dict["status"] = status
-        return handler.build_list_queryset(validated_request_data, filter_dict)
-
-    def _build_row(self, handler, key, events):
-        schedule_type, scheduled_at, task_id, __ = key
-        row, dimensions, __ = handler.resolve_host(events)
-        task = {"name": dimensions["task_name"], "schedule_type": schedule_type}
-        if task_id:
-            task = {"task_id": int(task_id), **task}
-        # 列表不展示执行信息
-        del row["message"]
-        row.update(
-            task=task,
-            collection_method=dimensions["collection_method"],
-            collection_type=dimensions["collection_type"],
-            creator=dimensions["creator"],
-            scheduled_at=int(scheduled_at),
-        )
-        return row
 
 
 class ListExecutionsResource(Resource):
@@ -373,102 +238,10 @@ class ListExecutionsResource(Resource):
         if validated_request_data.get("is_mock"):
             return fixtures.EXECUTION_LIST
 
-        status = validated_request_data.get("filters", {}).get("status")
-        # 执行状态由全部主机聚合，unknown 主机取决于有没有 finished，ES 筛不出来
-        if status == "unknown":
-            raise ValueError(_("暂不支持按 unknown 状态筛选"))
-
-        # TODO: 二期查询 MySQL 执行表，主机/进程筛选改为关联主机执行表，状态筛选与分页直接在 SQL 中完成，不再分两段查询
-        handler = ActiveProfilingEventQueryHandler(validated_request_data["bk_biz_id"])
-        host_filter = handler.build_host_filter(validated_request_data)
-        if host_filter:
-            data = self._query_host_matched_rows(handler, validated_request_data, status, host_filter)
-        else:
-            data = self._scan_rows(handler, validated_request_data, status)
-        return {"task_columns": EXECUTION_LIST_TASK_COLUMNS, "data": data}
-
-    def _scan_rows(self, handler, validated_request_data, status):
-        """筛选都是执行级维度时一次扫描，同一执行的 Event 相邻，边读边按执行汇总，执行状态在内存中筛选"""
-        offset = validated_request_data["offset"]
-        end = offset + validated_request_data["limit"]
-        execution_filter = handler.build_execution_filter(validated_request_data)
-        queryset = handler.build_list_queryset(validated_request_data, execution_filter)
-        rows = (
-            self._build_row(handler, key, events)
-            for key, events in groupby(self._iter_events(handler, queryset, end), key=handler.execution_key)
-        )
-        if status:
-            rows = (row for row in rows if row["execution_status"] == status)
-        return list(islice(rows, offset, end))
-
-    def _query_host_matched_rows(self, handler, validated_request_data, status, host_filter):
-        """主机/进程只决定选中哪些执行，不改变执行的汇总结果：先按主机筛出命中的执行，再回查这些执行的全部主机"""
-        offset = validated_request_data["offset"]
-        end = offset + validated_request_data["limit"]
-        execution_filter = handler.build_execution_filter(validated_request_data)
-        queryset = handler.build_list_queryset(validated_request_data, {**execution_filter, **host_filter})
-        keys = (key for key, __ in groupby(self._iter_events(handler, queryset, end), key=handler.execution_key))
-        if not status:
-            # 每个命中的执行就是一行，offset 之前的执行不用回查
-            return self._query_execution_rows(
-                handler, validated_request_data, execution_filter, list(islice(keys, offset, end))
-            )
-
-        # 状态要回查全部主机汇总后才知道，每轮只回查还缺的行数个执行，不够时接着上一轮继续找命中的执行
-        rows = []
-        while len(rows) < end:
-            chunk = list(islice(keys, end - len(rows)))
-            if not chunk:
-                break
-            rows.extend(
-                row
-                for row in self._query_execution_rows(handler, validated_request_data, execution_filter, chunk)
-                if row["execution_status"] == status
-            )
-        return rows[offset:end]
-
-    def _query_execution_rows(self, handler, validated_request_data, execution_filter, keys):
-        """按 scheduled_at 回查执行的全部主机；同一毫秒可能有别的执行，按执行键精确保留"""
-        if not keys:
-            return []
-        filter_dict = {**execution_filter, "scheduled_at": list(dict.fromkeys(key[1] for key in keys))}
-        events = handler.query_events(
-            handler.build_list_queryset(validated_request_data, filter_dict), 0, EVENT_QUERY_MAX_SIZE
-        )
-        if len(events) >= EVENT_QUERY_MAX_SIZE:
-            raise ValueError(_("当前页执行的主机过多，超出查询上限"))
-        selected_keys = set(keys)
-        return [
-            self._build_row(handler, key, execution_events)
-            for key, execution_events in groupby(events, key=handler.execution_key)
-            if key in selected_keys
-        ]
-
-    def _iter_events(self, handler, queryset, needed_rows):
-        # 每行至少一台主机，通常有 started/finished 两条，翻页较深时首批按行数估算
-        return handler.iter_events(
-            queryset, max(EXECUTION_QUERY_BATCH_SIZE, needed_rows * 2 + 1), EXECUTION_QUERY_BATCH_SIZE
-        )
-
-    def _build_row(self, handler, key, events):
-        schedule_type, scheduled_at, task_id = key
-        hosts = []
-        for __, host_events in groupby(events, key=handler.host_execution_key):
-            host, dimensions, __ = handler.resolve_host(host_events)
-            hosts.append(host)
-        row = {"task_id": int(task_id)} if task_id else {}
-        row.update(
-            task_name=dimensions["task_name"],
-            schedule_type=schedule_type,
-            scheduled_at=int(scheduled_at),
-            collection_method=dimensions["collection_method"],
-            collection_type=dimensions["collection_type"],
-            creator=dimensions["creator"],
-            **handler.summarize_execution(hosts),
-            target_count=len(hosts),
-            hosts=[{"bk_host_id": host["bk_host_id"], "ip": host["ip"]} for host in hosts],
-        )
-        return row
+        return {
+            "task_columns": EXECUTION_LIST_TASK_COLUMNS,
+            "data": api.apm_api.list_active_profiling_executions(**_backend_params(validated_request_data)),
+        }
 
 
 class QueryTopKResource(Resource):
@@ -480,7 +253,7 @@ class QueryTopKResource(Resource):
         if validated_request_data.get("is_mock"):
             return fixtures.topk(validated_request_data["field"])
 
-        return ActiveProfilingEventQueryHandler(validated_request_data["bk_biz_id"]).query_topk(validated_request_data)
+        return api.apm_api.query_active_profiling_top_k(**_backend_params(validated_request_data))
 
 
 class ExecutionDetailResource(Resource):
@@ -492,47 +265,14 @@ class ExecutionDetailResource(Resource):
         if validated_request_data.get("is_mock"):
             return fixtures.execution_detail(validated_request_data)
 
-        schedule_type = validated_request_data["schedule_type"]
-        scheduled_at = validated_request_data["scheduled_at"]
-        handler = ActiveProfilingEventQueryHandler(validated_request_data["bk_biz_id"])
-
-        hosts, configs = [], []
-        for host, dimensions, config in handler.query_execution_hosts(validated_request_data):
-            hosts.append(host)
-            configs.append(config)
-        if not hosts:
-            raise ValueError(_("执行记录不存在"))
-
-        detail = {"host_columns": EXECUTION_DETAIL_HOST_COLUMNS}
-        if "task_id" in validated_request_data:
-            detail["task_id"] = validated_request_data["task_id"]
-        detail.update(
-            task_name=dimensions["task_name"],
-            schedule_type=schedule_type,
-            scheduled_at=scheduled_at,
-            collection_method=dimensions["collection_method"],
-            collection_type=dimensions["collection_type"],
-            creator=dimensions["creator"],
-            **handler.summarize_execution(hosts),
-            total_hosts=len(hosts),
-            config=self._merge_config(configs),
-            hosts=hosts,
-        )
-        return detail
-
-    @staticmethod
-    def _merge_config(configs):
-        """每条 Event 的 target_config.nodes 只含当机一项，按主机拼回完整配置；其余配置同一次执行内一致"""
-        config = dict(configs[0])
-        config["target_config"] = {
-            **config["target_config"],
-            "nodes": [host_config["target_config"]["nodes"][0] for host_config in configs],
+        return {
+            "host_columns": EXECUTION_DETAIL_HOST_COLUMNS,
+            **api.apm_api.query_active_profiling_execution_detail(**_backend_params(validated_request_data)),
         }
-        return config
 
 
-class CancelExecutionResource(ActiveProfilingDeployMixin, Resource):
-    """取消执行：逐台主机下发 CLI 取消命令，作业受理即返回，终态由原采集端上报的 cancelled finished 表达"""
+class CancelExecutionResource(Resource):
+    """取消执行：后台逐台主机下发 CLI 取消命令，受理后把主机写为 cancelled"""
 
     RequestSerializer = ExecutionCancelRequestSerializer
 
@@ -540,48 +280,7 @@ class CancelExecutionResource(ActiveProfilingDeployMixin, Resource):
         if validated_request_data.get("is_mock"):
             return
 
-        bk_biz_id = validated_request_data["bk_biz_id"]
-        hosts = {host["bk_host_id"]: host for host in validated_request_data["hosts"]}
-        execution_key = self._build_execution_key(validated_request_data)
-        script_content = self._build_cli_script(CANCEL_EXECUTION_SCRIPT)
-
-        failed_ips = []
-        for bk_host_id in self._get_running_host_ids(validated_request_data, hosts):
-            try:
-                self._execute_cli_job(
-                    bk_biz_id, bk_host_id, script_content, {**execution_key, "bk_host_id": bk_host_id}
-                )
-            except Exception:  # pylint: disable=broad-except
-                logger.exception(
-                    "[ActiveProfiling] cancel job submit failed, bk_biz_id->[%s], bk_host_id->[%s]",
-                    bk_biz_id,
-                    bk_host_id,
-                )
-                failed_ips.append(hosts[bk_host_id]["ip"])
-
-        if failed_ips:
-            raise ValueError(_("以下主机的取消命令下发失败，请重试：{}").format("、".join(failed_ips)))
-
-    def _build_execution_key(self, validated_request_data):
-        """CLI 按与采集端相同的执行键定位运行目录"""
-        return {
-            "bk_tenant_id": get_request_tenant_id(),
-            "bk_biz_id": validated_request_data["bk_biz_id"],
-            **ActiveProfilingEventQueryHandler.execution_filter(validated_request_data),
-        }
-
-    def _get_running_host_ids(self, validated_request_data, hosts):
-        """按 Event 聚合请求主机在该次执行中的状态：不属于该次执行的主机报错，已结束或 unknown 的主机无需取消"""
-        handler = ActiveProfilingEventQueryHandler(validated_request_data["bk_biz_id"])
-        statuses = {
-            host["bk_host_id"]: host["status"]
-            for host, __, __ in handler.query_execution_hosts(validated_request_data, list(hosts))
-        }
-
-        outside_ips = [host["ip"] for bk_host_id, host in hosts.items() if bk_host_id not in statuses]
-        if outside_ips:
-            raise ValueError(_("以下主机不属于该次执行：{}").format("、".join(outside_ips)))
-        return [bk_host_id for bk_host_id in hosts if statuses[bk_host_id] == "running"]
+        api.apm_api.cancel_active_profiling_execution(**_backend_params(validated_request_data))
 
 
 class QueryResultsResource(ActiveProfilingResultMixin, Resource):

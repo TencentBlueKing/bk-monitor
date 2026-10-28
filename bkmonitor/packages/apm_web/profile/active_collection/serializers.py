@@ -30,6 +30,7 @@ from apm_web.profile.active_collection.constants import (
     PROCESS_SELECTOR_MAX_TEXT_LENGTH,
     PROCESS_SELECTOR_SEPARATOR,
     PROCESS_SELECTOR_TYPE_CHOICES,
+    QUERY_SOURCE_CHOICES,
     SCHEDULE_TYPE_CHOICES,
     STACK_UNWIND_CHOICES,
 )
@@ -37,6 +38,10 @@ from apm_web.profile.active_collection.constants import (
 
 class IsMockSerializer(serializers.Serializer):
     is_mock = serializers.BooleanField(label="是否返回 mock", required=False, default=False)
+
+
+class QuerySourceSerializer(serializers.Serializer):
+    source = serializers.ChoiceField(label="查询数据源", choices=QUERY_SOURCE_CHOICES, default="mysql")
 
 
 class MetaConfigRequestSerializer(IsMockSerializer):
@@ -254,7 +259,7 @@ class JavaCollectorConfigSerializer(serializers.Serializer):
     duration_sec = serializers.IntegerField(label="采集时长(秒)", min_value=1, max_value=COLLECTOR_MAX_DURATION_SEC)
 
 
-class TopKRequestSerializer(IsMockSerializer):
+class TopKRequestSerializer(IsMockSerializer, QuerySourceSerializer):
     bk_biz_id = serializers.IntegerField(label="业务 ID")
     start_time = serializers.IntegerField(label="查询开始时间")
     end_time = serializers.IntegerField(label="查询结束时间")
@@ -380,7 +385,7 @@ class TaskSwitchRequestSerializer(IsMockSerializer):
     enabled = serializers.BooleanField(label="是否启用")
 
 
-class EventListRequestSerializer(IsMockSerializer):
+class EventListRequestSerializer(IsMockSerializer, QuerySourceSerializer):
     bk_biz_id = serializers.IntegerField(label="业务 ID")
     start_time = serializers.IntegerField(label="查询开始时间")
     end_time = serializers.IntegerField(label="查询结束时间")
@@ -394,7 +399,7 @@ class EventListRequestSerializer(IsMockSerializer):
         return attrs
 
 
-class ExecutionDetailRequestSerializer(IsMockSerializer):
+class ExecutionKeySerializer(IsMockSerializer):
     bk_biz_id = serializers.IntegerField(label="业务 ID")
     schedule_type = serializers.ChoiceField(label="执行方式", choices=SCHEDULE_TYPE_CHOICES)
     scheduled_at = serializers.IntegerField(label="执行计划时间")
@@ -409,7 +414,11 @@ class ExecutionDetailRequestSerializer(IsMockSerializer):
         return attrs
 
 
-class ExecutionCancelRequestSerializer(ExecutionDetailRequestSerializer):
+class ExecutionDetailRequestSerializer(ExecutionKeySerializer, QuerySourceSerializer):
+    pass
+
+
+class ExecutionCancelRequestSerializer(ExecutionKeySerializer):
     hosts = serializers.ListField(label="待取消主机", child=CancelHostSerializer(), allow_empty=False)
 
 

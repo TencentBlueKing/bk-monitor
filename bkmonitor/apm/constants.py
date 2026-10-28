@@ -665,6 +665,79 @@ class ProfileQueryType:
     CPU = "cpu"
 
 
+# 主动 Profiling 执行状态；outdate 不落库，查询时由成功类终态按 Profiling 保留期派生
+ACTIVE_PROFILING_STATUSES = (
+    "running",
+    "succeed",
+    "partial_succeed",
+    "failed",
+    "timeout",
+    "cancelled",
+    "unknown",
+    "outdate",
+)
+ACTIVE_PROFILING_SUCCEED_STATUSES = ("succeed", "partial_succeed")
+# 成功类主机执行结束后 Profiling 数据还要解析入库，这段时间内主机行显示为 parsing；
+# parsing 只是主机行的展示状态，不落库、不参与执行汇总，也不提供筛选
+ACTIVE_PROFILING_PARSING_MS = 30 * 1000
+# 搜索框候选字段与前端协议同名，target 对应主机执行时 IP；process_names 按进程名去重，
+# process_pids 显示与取值都是 进程名:PID，点选后按同一进程的进程名与 PID 精确筛选
+ACTIVE_PROFILING_TOPK_FIELDS = (
+    "target",
+    "task_name",
+    "collection_method",
+    "collection_type",
+    "schedule_type",
+    "process_names",
+    "process_pids",
+)
+# 进程候选按最近出现排序，只读最近的这么多行主机执行，全量分组计数的开销随主机执行数增长
+ACTIVE_PROFILING_PROCESS_TOPK_RECENT_ROWS = 1000
+
+# 计划的部署状态；outdate 不落库，计划时间已过时列表展示为 outdate，过期停用成功后才写入
+ACTIVE_PROFILING_DEPLOYMENT_DEPLOYING = "deploying"
+ACTIVE_PROFILING_DEPLOYMENT_SUCCESS = "success"
+ACTIVE_PROFILING_DEPLOYMENT_FAILED = "failed"
+ACTIVE_PROFILING_DEPLOYMENT_EXPIRED = "outdate"
+ACTIVE_PROFILING_TASK_STATUS_BY_ENABLED = {True: "enabled", False: "disabled"}
+# 计划最后一次执行过去 1 天后才停用并移除主机上的子配置，执行时离线的主机上线后仍能收到配置、上报配置晚到的失败
+ACTIVE_PROFILING_EXPIRED_TASK_STOP_DELAY_MS = 24 * 3600 * 1000
+
+# 子配置模板随 bkmonitorbeat 插件包发布，context 结构由模板约定
+ACTIVE_PROFILING_SUBSCRIPTION_STEP_ID = "bkmonitorbeat_active_profile"
+ACTIVE_PROFILING_CONFIG_TEMPLATE_NAME = "bkmonitorbeat_active_profile.conf"
+# TODO: 测试包写死 0.0.5，正式发布前改回 latest
+ACTIVE_PROFILING_PLUGIN_VERSION = "0.0.5"
+ACTIVE_PROFILING_PROFILE_SERVICE_NAME = "active_allocation"
+
+ACTIVE_PROFILING_BEAT_RELATIVE_PATH = "plugins/bin/bkmonitorbeat"
+ACTIVE_PROFILING_BEAT_MAIN_CONF_RELATIVE_PATH = "plugins/etc/bkmonitorbeat.conf"
+# 运行目录由主配置的 path.data 推导，取消命令靠它定位采集进程，因此必须显式传 -c
+ACTIVE_PROFILING_IMMEDIATE_SCRIPT = 'echo "$1" | base64 -d | {beat_path} -c {main_conf} -active-profile-run\n'
+ACTIVE_PROFILING_CANCEL_SCRIPT = 'echo "$1" | base64 -d | {beat_path} -c {main_conf} -active-profile-cancel\n'
+
+# 作业平台没有执行成功由 SaaS 归类，其余 error_type 由采集端上报
+ACTIVE_PROFILING_ERROR_TYPE_DISPATCH_FAILED = "dispatch_failed"
+# 只有 started 的主机执行超过“采集时长 + 300 秒”仍没有 finished，视为 unknown
+ACTIVE_PROFILING_UNKNOWN_GRACE_SEC = 300
+
+# 查询默认读 MySQL 执行表，es 保留一期按 Event 聚合的查询能力
+ACTIVE_PROFILING_QUERY_SOURCES = ("mysql", "es")
+ACTIVE_PROFILING_STARTED_EVENT = "active_profiling_started"
+ACTIVE_PROFILING_FINISHED_EVENT = "active_profiling_finished"
+# SaaS 先按 5 分钟封顶，采集器另有自身上限
+ACTIVE_PROFILING_COLLECTOR_MAX_DURATION_SEC = 300
+# 开始后超过采集时长上限 + 300 秒仍无 finished 即为 unknown，running 行和 finished 事件都落在这个窗口内
+ACTIVE_PROFILING_RUNNING_WINDOW_MS = (
+    ACTIVE_PROFILING_COLLECTOR_MAX_DURATION_SEC + ACTIVE_PROFILING_UNKNOWN_GRACE_SEC
+) * 1000
+# unify-query 单次最多返回 1 万条，ES 的 from + size 默认也不能超过 1 万
+ACTIVE_PROFILING_ES_QUERY_BATCH_SIZE = 200
+ACTIVE_PROFILING_ES_QUERY_MAX_SIZE = 10000
+# 一次执行可能覆盖很多主机，任务历史每批多读一些，减少续读请求
+ACTIVE_PROFILING_ES_EXECUTION_BATCH_SIZE = 500
+
+
 class ApmBmwTaskStatus:
     """APM 预计算任务状态"""
 

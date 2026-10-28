@@ -32,7 +32,7 @@ from apm.core.discover.profile.base import DiscoverHandler as ProfileDiscoverHan
 from apm.core.handlers.apm_cache_handler import ApmCacheHandler
 from apm.core.handlers.bk_data.tail_sampling import TailSamplingFlow
 from apm.core.handlers.bk_data.virtual_metric import VirtualMetricFlow
-from apm.core.handlers.profile.active_profiling import ActiveProfilingConsulHandler
+from apm.core.handlers.profile.active_profiling import ActiveProfilingConsulHandler, ActiveProfilingNodeManHandler
 from apm.core.handlers.trace_index_set import TraceScopeIndexSetHandler
 from apm.core.platform_config import PlatformConfig
 from apm.models import (
@@ -273,6 +273,14 @@ def check_active_profiling_consul_config():
     logger.info(f"[check_active_profiling_consul_config] start {datetime.datetime.now()}")
     ActiveProfilingConsulHandler.check_update()
     logger.info(f"[check_active_profiling_consul_config] end {datetime.datetime.now()}")
+
+
+@app.task(ignore_result=True, queue="celery_cron")
+def stop_expired_active_profiling_tasks():
+    """主动 Profiling 的指定时间/周期计划最后一次执行过去 1 天后停用，由节点管理移除各主机上残留的子配置"""
+    logger.info(f"[stop_expired_active_profiling_tasks] start {datetime.datetime.now()}")
+    ActiveProfilingNodeManHandler.stop_expired_tasks()
+    logger.info(f"[stop_expired_active_profiling_tasks] end {datetime.datetime.now()}")
 
 
 @app.task(ignore_result=True, queue="celery_cron")
