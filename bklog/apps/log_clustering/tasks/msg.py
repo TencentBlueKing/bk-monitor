@@ -26,14 +26,10 @@ from django.conf import settings
 from django.utils.translation import gettext_lazy as _
 
 from apps.feature_toggle.handlers.toggle import FeatureToggleObject
-from apps.feature_toggle.plugins.constants import (
-    BKDATA_CLUSTERING_TOGGLE,
-    UNIFY_QUERY_SEARCH,
-)
+from apps.feature_toggle.plugins.constants import BKDATA_CLUSTERING_TOGGLE
 from apps.log_clustering.exceptions import ClusteringClosedException
 from apps.log_clustering.models import ClusteringConfig
 from apps.log_measure.events import NOTIFY_EVENT
-from apps.log_search.handlers.search.aggs_handlers import AggsViewAdapter
 from apps.log_search.models import LogIndexSet, Space
 from apps.log_unifyquery.handler.base import UnifyQueryHandler
 from apps.utils.local import set_local_param
@@ -129,13 +125,9 @@ def get_doc_count(index_set_id, bk_biz_id):
         "interval": "1d",
     }
 
-    # UnifyQuery 分流在视图层，这里是任务内部直调，需要自行判断，否则会退化到 esquery 链路
-    if FeatureToggleObject.switch(UNIFY_QUERY_SEARCH, bk_biz_id):
-        query_data["index_set_ids"] = [index_set_id]
-        query_data["group_field"] = ""
-        aggs_result = UnifyQueryHandler(query_data).date_histogram()
-    else:
-        aggs_result = AggsViewAdapter().date_histogram(index_set_id=index_set_id, query_data=query_data)
+    query_data["index_set_ids"] = [index_set_id]
+    query_data["group_field"] = ""
+    aggs_result = UnifyQueryHandler(query_data).date_histogram()
 
     # UnifyQuery 无数据时只返回 {"aggs": {}}
     buckets = aggs_result.get("aggs", {}).get("group_by_histogram", {}).get("buckets", [])

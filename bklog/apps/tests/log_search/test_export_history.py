@@ -24,8 +24,8 @@ from apps.log_search.constants import (
 )
 from apps.log_search.export.history import load_export_progress, paginate_export_history, sharded_job_history_item
 from apps.log_search.export.models import ExportJob, ExportPart, ExportPlan
-from apps.log_search.handlers.search.async_export_handlers import AsyncExportHandlers
 from apps.log_search.models import AsyncTask, Scenario
+from apps.log_unifyquery.handler.async_export_handlers import UnifyQueryAsyncExportHandlers
 from apps.log_search.views.export_views import ExportJobViewSet
 from apps.log_unifyquery.handler.scene_async_export import SceneAsyncExportHandler
 
@@ -121,14 +121,14 @@ class ExportHistoryPaginationTests(TestCase):
 
     @patch("apps.log_search.export.history.get_request_external_username", return_value="")
     @patch("apps.log_search.export.history.get_request_app_code", return_value="bk_log")
-    @patch("apps.log_search.handlers.search.async_export_handlers.get_request_external_username", return_value="")
-    @patch("apps.log_search.handlers.search.async_export_handlers.get_request_app_code", return_value="bk_log")
+    @patch("apps.log_unifyquery.handler.async_export_handlers.get_request_external_username", return_value="")
+    @patch("apps.log_unifyquery.handler.async_export_handlers.get_request_app_code", return_value="bk_log")
     def test_index_history_formats_only_current_page(self, *_mocks):
         for is_union in (False, True):
             index_type = IndexSetType.UNION.value if is_union else IndexSetType.SINGLE.value
             AsyncTask.objects.all().update(index_set_type=index_type, index_set_ids=[3])
             ExportJob.objects.all().update(index_set_type=index_type)
-            handler = AsyncExportHandlers(index_set_id=3, index_set_ids=[3], bk_biz_id=2)
+            handler = UnifyQueryAsyncExportHandlers(index_set_id=3, index_set_ids=[3], bk_biz_id=2)
             with (
                 patch.object(handler, "get_index_set_retention", return_value={}) as retention,
                 patch.object(handler, "generate_export_history", wraps=handler.generate_export_history) as formatter,

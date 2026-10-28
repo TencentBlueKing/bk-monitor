@@ -35,8 +35,7 @@ from apps.api import BkLogApi, TransferApi
 from apps.constants import SpacePropertyEnum, UserOperationActionEnum, UserOperationTypeEnum
 from apps.decorators import user_operation_record
 from apps.exceptions import CreateOrUpdateLogRouterException
-from apps.feature_toggle.handlers.toggle import FeatureToggleObject, feature_switch
-from apps.feature_toggle.plugins.constants import UNIFY_QUERY_SEARCH
+from apps.feature_toggle.handlers.toggle import feature_switch
 from apps.iam import Permission, ResourceEnum
 from apps.log_databus.handlers.doris_cluster import DorisClusterHandler
 from apps.log_databus.handlers.storage import StorageHandler
@@ -96,7 +95,6 @@ from apps.log_search.exceptions import (
     PlatformIndexRouterSyncException,
 )
 from apps.log_search.handlers.search.mapping_handlers import MappingHandlers
-from apps.log_search.handlers.search.search_handlers_esquery import SearchHandler
 from apps.log_unifyquery.handler.mapping import UnifyQueryMappingHandler
 from apps.log_search.models import (
     TAG_TYPE_INNER,
@@ -1565,11 +1563,7 @@ class IndexSetHandler(APIModel):
         # 手工接入 Doris 的别名不按 RT 过滤，字段 mapping 无需在此解析。
         if index_set and str(IndexSetTag.get_tag_id("Doris", tag_type=TAG_TYPE_INNER)) in list(index_set.tag_ids):
             return defaultdict(list), defaultdict(list)
-        bk_biz_id = space_uid_to_bk_biz_id(index_set.space_uid)
-        if index_set.is_native_doris() or FeatureToggleObject.switch(UNIFY_QUERY_SEARCH, bk_biz_id):
-            multi_result = UnifyQueryMappingHandler.get_fields_by_result_tables(index_set)
-        else:
-            multi_result = SearchHandler(index_set_id, {}).get_all_fields_by_index_id(need_merge=False)
+        multi_result = UnifyQueryMappingHandler.get_fields_by_result_tables(index_set)
         return cls._build_rt_alias_settings(multi_result, alias_settings)
 
     @transaction.atomic()
