@@ -24,6 +24,7 @@ class SystemDefinition:
     callback_url: str
     # None 表示管理员不由 as-code 托管，同步时既不下发也不比对，避免清空人工配置。
     managers: tuple[str, ...] | None
+    removed_clients: tuple[str, ...] = ()
 
 
 @dataclass(frozen=True, slots=True)
@@ -55,12 +56,21 @@ class RoleDefinition:
 
 
 @dataclass(frozen=True, slots=True)
+class RoleDelegationDefinition:
+    role_id: str
+    grantee_type: str
+    grantee_id: str
+    tenant_mode: str
+
+
+@dataclass(frozen=True, slots=True)
 class ModelDefinition:
     version: int
     system: SystemDefinition
     resource_types: tuple[ResourceTypeDefinition, ...]
     actions: tuple[ActionDefinition, ...]
     roles: tuple[RoleDefinition, ...]
+    role_delegations: tuple[RoleDelegationDefinition, ...] = ()
 
     def resource_type_ids(self) -> tuple[str, ...]:
         return tuple(resource_type.id for resource_type in self.resource_types)
@@ -102,7 +112,30 @@ def build_model_definition(
         resource_types=resource_types,
         actions=actions,
         roles=roles,
+        role_delegations=_build_role_delegations(payload.get("role_delegations", []), roles),
     )
+
+
+def _build_role_delegations(raw: Any, roles: tuple[RoleDefinition, ...]) -> tuple[RoleDelegationDefinition, ...]:
+    result = []
+    role_ids = {role.id for role in roles}
+    for item in _require_list(raw, scope="role_delegations"):
+        if not isinstance(item, Mapping):
+            raise ModelDefinitionError("role_delegations entries must be objects")
+        values = {
+            key: _require_text(item, key, scope="role_delegations")
+            for key in ("role_id", "grantee_type", "grantee_id", "tenant_mode")
+        }
+        if values["role_id"] not in role_ids:
+            raise ModelDefinitionError("role delegation must reference a declared role")
+        if values["grantee_type"] not in {"system", "bk_app"}:
+            raise ModelDefinitionError("invalid role delegation grantee_type")
+        if values["tenant_mode"] not in {"single", "global"}:
+            raise ModelDefinitionError("invalid role delegation tenant_mode")
+        delegation = RoleDelegationDefinition(**values)
+        if delegation not in result:
+            result.append(delegation)
+    return tuple(result)
 
 
 def _build_system(
@@ -127,6 +160,8 @@ def _build_system(
     clients = _require_str_list(raw.get("clients"), scope="system.clients")
     # 调用方 app_code 必须在 clients 中，否则本应用调用 bkiam 会被拒绝。
     clients = _dedupe([*clients, *(str(client).strip() for client in extra_clients if str(client).strip())])
+    removed_clients = _require_str_list(raw.get("removed_clients", []), scope="system.removed_clients")
+    clients = tuple(client for client in clients if client not in removed_clients)
     if not clients:
         raise ModelDefinitionError("IAM V4 system requires at least one client")
 
@@ -137,6 +172,7 @@ def _build_system(
         clients=clients,
         callback_url=callback_url,
         managers=_dedupe([str(manager).strip() for manager in managers]) if managers else None,
+        removed_clients=tuple(removed_clients),
     )
 
 
