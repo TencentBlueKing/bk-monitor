@@ -247,6 +247,19 @@ class QuixClusteringHandler:
         if operation is None:
             return {}
 
+        # 请求发出后超时不能当作未执行。先沿用原操作的幂等键/请求体确认结果，
+        # 否则可能把已绑定的链路误判为未绑定，或遗失远端已经采用的新过滤规则。
+        completed = {
+            item["step"] for item in operation.steps if item["status"] == ClusteringOperationStatusEnum.SUCCESS.value
+        }
+        unconfirmed = (set(operation.request_payloads) | set(operation.idempotency_keys)) - completed
+        if unconfirmed & {"create_task", "configure_clustering", "metadata_set"}:
+            raise QuixClusteringParamsInvalidException(
+                QuixClusteringParamsInvalidException.MESSAGE.format(
+                    detail=_("外部写请求结果尚未确认，请先重试原操作确认结果，再关闭聚类")
+                )
+            )
+
         updates = {}
         runtime = LogClusteringRuntime.objects.get(index_set_id=self.index_set_id)
         if runtime.pending_config is not None:
