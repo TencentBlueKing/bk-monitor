@@ -865,10 +865,12 @@ def test_five_resource_points_keep_normal_call_and_only_opt_in_mcp(point, monkey
         path = "kernel_api/resource/log_search.py"
         aggregation = source(path, "FieldAnalyzeResource._build_aggregation_function", **namespace)
         build_item = source(path, "FieldAnalyzeResource._build_query_item", **namespace)
+        analyze_by_index_set = source(path, "FieldAnalyzeResource._analyze_by_index_set", **namespace)
         method = source(path, "FieldAnalyzeResource.perform_request", **namespace)
         instance = NS(ORDER_BY_MAPPING={"time": ["-dtEventTimeStamp", "-gseIndex", "-iterationIndex"]})
         instance._build_aggregation_function = lambda *args: aggregation(instance, *args)
         instance._build_query_item = lambda *args: build_item(instance, *args)
+        instance._analyze_by_index_set = lambda *args: analyze_by_index_set(instance, *args)
         params = {"bk_biz_id": 2, "index_set_id": 3, "field_name": "log", "start_time": "1", "end_time": "2"}
         invoke, operation = lambda: method(instance, params), "query_reference"
     else:

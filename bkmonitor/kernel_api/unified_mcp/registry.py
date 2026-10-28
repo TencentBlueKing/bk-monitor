@@ -145,6 +145,11 @@ NATIVE_PERMISSIONS["search_logs"]["conditional"] = {
     "equals": "scene",
     "permission": _log_scene_permission,
 }
+NATIVE_PERMISSIONS["analyze_field"]["conditional"] = {
+    "arg": "target_type",
+    "equals": "scene",
+    "permission": _log_scene_permission,
+}
 for _name in ("list_index_sets", "list_log_scenes", "list_scene_dimension_values", "get_scene_log_fields"):
     NATIVE_PERMISSIONS[_name] = deepcopy(_log_scene_permission)
 
@@ -574,6 +579,11 @@ TITLES.update(
     }
 )
 
+ANALYZE_FIELD_PREREQUISITES = {
+    "index_set": ("list_index_sets", "get_index_set_fields"),
+    "scene": ("list_log_scenes", "list_scene_dimension_values", "get_scene_log_fields"),
+}
+
 # 参数应从哪些前置工具取得；这是调用建议，不是绕过最终校验的凭据。
 PREREQUISITES: dict[str, tuple[str, ...]] = {
     "preview_recording_rule": ("list_recording_rules",),
@@ -589,7 +599,7 @@ PREREQUISITES: dict[str, tuple[str, ...]] = {
     "search_index_set_context": ("search_logs",),
     "list_scene_dimension_values": ("list_log_scenes",),
     "get_scene_log_fields": ("list_log_scenes", "list_scene_dimension_values"),
-    "analyze_field": ("list_index_sets", "get_index_set_fields"),
+    "analyze_field": tuple(name for names in ANALYZE_FIELD_PREREQUISITES.values() for name in names),
     "search_log_clustering_pattern": ("list_index_sets",),
     "get_alert_top_n": ("list_alerts",),
     "get_strategy_snapshot": ("list_alerts",),
@@ -795,7 +805,11 @@ class ToolDefinition:
         properties = self.input_schema.get("properties", {})
         context_fields = [self.resource_arg]
         if self.native_permission:
-            context_fields.append(self.native_permission.get("resource_arg", ""))
+            resource_arg = self.native_permission.get("resource_arg", "")
+            conditional = self.native_permission.get("conditional")
+            # 条件鉴权的可选资源不能提升为工具的全局必需上下文。
+            if not conditional or resource_arg in self.input_schema.get("required", []):
+                context_fields.append(resource_arg)
         required_context = list(dict.fromkeys(name for name in context_fields if name and name in properties))
         return {
             "name": self.name,
@@ -819,14 +833,7 @@ class ToolDefinition:
             "description": self.description,
             "input_schema": deepcopy(self.input_schema),
             "guidelines": _build_guidelines(self),
-            "prerequisites": [
-                {
-                    "tool": tool_name,
-                    "kind": "conditional",
-                    "condition": f"缺少 {tool_name} 提供的参数时",
-                }
-                for tool_name in self.prerequisites
-            ],
+            "prerequisites": _build_prerequisites(self),
             "permission": self.permission_payload(),
             "execution": {
                 "status": "executable",
@@ -1006,6 +1013,23 @@ def _extract_limits(schema: dict[str, Any]) -> dict[str, Any]:
     return limits
 
 
+def _build_prerequisites(tool: ToolDefinition) -> list[dict[str, Any]]:
+    if tool.name == "analyze_field":
+        return [
+            {
+                "tool": tool_name,
+                "kind": "conditional",
+                "condition": f"target_type={target_type} 且缺少 {tool_name} 提供的参数时",
+            }
+            for target_type, tool_names in ANALYZE_FIELD_PREREQUISITES.items()
+            for tool_name in tool_names
+        ]
+    return [
+        {"tool": tool_name, "kind": "conditional", "condition": f"缺少 {tool_name} 提供的参数时"}
+        for tool_name in tool.prerequisites
+    ]
+
+
 def _build_guidelines(tool: ToolDefinition) -> list[str]:
     """根据风险、时间参数和资源类型生成模型执行提示。"""
     guidelines: list[str] = []
@@ -1027,6 +1051,11 @@ def _build_guidelines(tool: ToolDefinition) -> list[str]:
     properties = tool.input_schema.get("properties") or {}
     if "start_time" in properties or "end_time" in properties:
         guidelines.append("start_time 和 end_time 必须按当前时间动态计算，不能使用固定历史时间戳。")
+    if tool.name == "analyze_field":
+        guidelines.append(
+            "target_type=index_set 时前置工具为 list_index_sets、get_index_set_fields；"
+            "target_type=scene 时前置工具为 list_log_scenes、list_scene_dimension_values、get_scene_log_fields。"
+        )
     if tool.prerequisites:
         guidelines.append("标识和字段必须来自前置工具返回，不能自行猜测。")
     if tool.backend_derived_fields:
@@ -1184,6 +1213,7 @@ def load_tool_registry(root: Path | None = None, *, native_tools: tuple[str, ...
                 "capabilities": CAPABILITIES,
                 "titles": TITLES,
                 "prerequisites": PREREQUISITES,
+                "analyze_field_prerequisites": ANALYZE_FIELD_PREREQUISITES,
                 "backend_derived_fields": BACKEND_DERIVED_FIELDS,
                 "unified_hidden_fields": UNIFIED_HIDDEN_FIELDS,
             },

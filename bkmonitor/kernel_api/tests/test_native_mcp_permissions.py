@@ -574,8 +574,9 @@ def test_conditional_native_permissions_follow_the_actual_query_branch():
     )
 
 
-def test_scene_search_uses_log_business_permission_and_keeps_dynamic_route(request_factory, io):
-    tool = registry.get_tool_registry().get("search_logs")
+@pytest.mark.parametrize("tool_name", ["search_logs", "analyze_field"])
+def test_scene_search_uses_log_business_permission_and_keeps_dynamic_route(request_factory, io, tool_name):
+    tool = registry.get_tool_registry().get(tool_name)
     args = {
         "target_type": "scene",
         "bk_biz_id": "2",
@@ -583,6 +584,8 @@ def test_scene_search_uses_log_business_permission_and_keeps_dynamic_route(reque
         "start_time": "1",
         "end_time": "2",
     }
+    if tool_name == "analyze_field":
+        args["field_name"] = "level"
 
     assert auth.execute_native_tool(tool, args, request_factory()) == {"ok": True}
 
@@ -594,7 +597,69 @@ def test_scene_search_uses_log_business_permission_and_keeps_dynamic_route(reque
         "2",
     )
     io.catalog.assert_not_called()
-    io.dispatch.assert_called_once_with("search_logs", args)
+    io.dispatch.assert_called_once_with(tool_name, args)
+
+
+@pytest.mark.parametrize("native_enabled", [True, False])
+def test_field_analyze_publishes_both_conditional_prerequisite_chains(monkeypatch, native_enabled):
+    if not native_enabled:
+        monkeypatch.setattr(settings, "MCP_NATIVE_PERMISSION_TOOLS", [])
+    catalog = registry.get_tool_registry()
+    tool = catalog.get("analyze_field")
+    summary = tool.summary()
+    schema = tool.schema_payload(catalog.catalog_version)
+    expected_chains = {
+        "index_set": ["list_index_sets", "get_index_set_fields"],
+        "scene": ["list_log_scenes", "list_scene_dimension_values", "get_scene_log_fields"],
+    }
+
+    assert summary["required_context"] == ["bk_biz_id"]
+    assert "index_set_id" not in schema["input_schema"]["required"]
+    for target_type, names in expected_chains.items():
+        prerequisites = [item for item in schema["prerequisites"] if f"target_type={target_type} " in item["condition"]]
+        assert [item["tool"] for item in prerequisites] == names
+        assert all(item["kind"] == "conditional" for item in prerequisites)
+    assert summary["prerequisites"] == [name for names in expected_chains.values() for name in names]
+
+
+@pytest.mark.parametrize("native_enabled", [True, False])
+@pytest.mark.parametrize(
+    "tool_name,native_context",
+    [
+        ("search_logs", ["bk_biz_id"]),
+        ("analyze_field", ["bk_biz_id"]),
+        ("get_index_set_fields", ["bk_biz_id", "index_set_id"]),
+        ("search_event_log", ["bk_biz_id"]),
+        ("query_graph_profile", ["bk_biz_id", "app_name"]),
+    ],
+)
+def test_tool_summaries_preserve_required_context(monkeypatch, native_enabled, tool_name, native_context):
+    if not native_enabled:
+        monkeypatch.setattr(settings, "MCP_NATIVE_PERMISSION_TOOLS", [])
+    tool = registry.get_tool_registry().get(tool_name)
+
+    assert tool.summary()["required_context"] == (native_context if native_enabled else ["bk_biz_id"])
+
+
+@pytest.mark.parametrize("tool_name", ["search_logs", "analyze_field"])
+@pytest.mark.parametrize("target_type", [None, "index_set", "scene"])
+@pytest.mark.parametrize("unified", [False, True])
+def test_log_query_modes_validate_required_context_before_permissions(native_http, io, tool_name, target_type, unified):
+    args = {"bk_biz_id": "2", "start_time": "1", "end_time": "2"}
+    if target_type is not None:
+        args["target_type"] = target_type
+    if tool_name == "analyze_field":
+        args["field_name"] = "level"
+
+    response, _ = native_http(registry.get_tool_registry().get(tool_name), args, unified)
+
+    required_arg = "table_id_conditions" if target_type == "scene" else "index_set_id"
+    assert response.status_code == 400
+    assert required_arg in json.loads(response.content)["data"]
+    io.catalog.assert_not_called()
+    io.iam.is_allowed.assert_not_called()
+    io.monitor.iam_client.is_allowed.assert_not_called()
+    io.dispatch.assert_not_called()
 
 
 def test_apm_event_branch_uses_application_instance(monkeypatch, request_factory, io):

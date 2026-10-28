@@ -4,6 +4,8 @@ Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
 BK-LOG 蓝鲸日志平台 is licensed under the MIT License.
 """
 
+import copy
+
 from apps.log_unifyquery.handler.field import UnifyQueryFieldHandler
 from apps.log_unifyquery.handler.scene_search import SceneUnifyQueryHandler
 
@@ -24,8 +26,38 @@ class SceneFieldHandler(SceneUnifyQueryHandler):
     get_distinct_count = UnifyQueryFieldHandler.get_distinct_count
     get_topk_ts_data = UnifyQueryFieldHandler.get_topk_ts_data
     get_agg_value = UnifyQueryFieldHandler.get_agg_value
+    get_topk_data = UnifyQueryFieldHandler.get_topk_data
     get_topk_list = UnifyQueryFieldHandler.get_topk_list
     get_value_list = UnifyQueryFieldHandler.get_value_list
     get_bucket_data = UnifyQueryFieldHandler.get_bucket_data
     get_agg_value_by_agg_method = staticmethod(UnifyQueryFieldHandler.get_agg_value_by_agg_method)
     get_field_value_list = staticmethod(UnifyQueryFieldHandler.get_field_value_list)
+
+    def analyze_field(self, group_by: bool = True, order_by: str = "time", limit: int | None = None) -> dict:
+        """适配 MCP 字段分析。
+
+        Top K 复用基线页面口径：每表按 limit*2+10 取候选并过滤空值，
+        多表合并后按值排序取 K，结果为近似 Top K。
+        分组查询中，按时间排序且指定 limit 时复用页面的 Top K 时序查询；limit 为空时返回全时段分布。
+        """
+        if group_by and limit is not None:
+            if order_by == "value":
+                return self.get_topk_data(limit, raise_exception=True)
+            return self.get_topk_ts_data(limit, raise_exception=True)
+
+        query_body = copy.deepcopy(self.result_merge_base_dict)
+        for query in query_body["query_list"]:
+            query["function"] = (
+                [{"method": "count", "dimensions": [self.search_params["agg_field"]]}]
+                if group_by
+                else [{"method": "count"}]
+            )
+            if limit is not None:
+                query["limit"] = limit
+        query_body["order_by"] = (
+            ["-_value"] if order_by == "value" else ["-dtEventTimeStamp", "-gseIndex", "-iterationIndex"]
+        )
+        result = self.query_ts_reference(query_body, raise_exception=True)
+        if not isinstance(result, dict):
+            result = {}
+        return result
