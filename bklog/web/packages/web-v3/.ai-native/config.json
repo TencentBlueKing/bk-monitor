@@ -1,0 +1,30 @@
+{
+  "name": "bklog-web-v3",
+  "version": "0.1.0",
+  "phase": 2,
+  "tapd": {
+    "story": "1010158081139386759",
+    "shortId": "139386759"
+  },
+  "runtime": {
+    "framework": "vue3",
+    "uiLibrary": "tdesign-vue-next",
+    "theme": "css-variables",
+    "packageRoot": "bklog/web/packages/web-v3"
+  },
+  "gates": ["spec", "contract", "static", "unit"],
+  "cli": {
+    "bin": "anative",
+    "commands": ["spec validate", "contract check", "impact analyze", "test affected", "memory audit", "run inspect"]
+  },
+  "memory": {
+    "backend": "local-json",
+    "next": "tencentdb-agent-memory",
+    "reference": "https://github.com/TencentCloud/TencentDB-Agent-Memory"
+  },
+  "sources": {
+    "spec": "https://iwiki.woa.com/p/4052238038",
+    "designTokens": "https://iwiki.woa.com/p/4052231047",
+    "tdesignTheme": "https://tdesign.tencent.com/vue-next/custom-theme"
+  }
+}

@@ -1,0 +1,21 @@
+{
+  "id": "ui.resource-list",
+  "component": "ResourceListPage",
+  "states": [
+    "idle",
+    "filtered",
+    "error"
+  ],
+  "transitions": [
+    {
+      "from": "idle",
+      "event": "FILTER",
+      "to": "filtered"
+    },
+    {
+      "from": "filtered",
+      "event": "SAVE_FAIL",
+      "to": "error"
+    }
+  ]
+}

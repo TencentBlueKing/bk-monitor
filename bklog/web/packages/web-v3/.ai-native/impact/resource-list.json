@@ -1,0 +1,20 @@
+{
+  "id": "impact.resource-list",
+  "feature": "feature.manage-collection",
+  "nodes": [
+    { "type": "feature", "id": "feature.manage-collection" },
+    { "type": "state", "id": "state.resource-list" },
+    { "type": "module", "id": "ResourceListController" },
+    { "type": "file", "id": "src/shared/resource/resource-list-controller.ts" },
+    { "type": "file", "id": "src/features/resource/resource-list-page.vue" },
+    { "type": "file", "id": "src/features/catalog.ts" },
+    { "type": "file", "id": "src/app-router.ts" },
+    { "type": "test", "id": "test.manage-collection" }
+  ],
+  "edges": [
+    ["feature.manage-collection", "state.resource-list"],
+    ["state.resource-list", "ResourceListController"],
+    ["ResourceListController", "src/shared/resource/resource-list-controller.ts"],
+    ["feature.manage-collection", "test.manage-collection"]
+  ]
+}

@@ -1,0 +1,29 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "ui.schema.json",
+  "title": "UI Contract",
+  "type": "object",
+  "required": ["id", "states", "transitions"],
+  "additionalProperties": false,
+  "properties": {
+    "id": { "type": "string", "pattern": "^ui\\.[a-z0-9-]+$" },
+    "component": { "type": "string" },
+    "states": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "type": "string" }
+    },
+    "transitions": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["from", "event", "to"],
+        "properties": {
+          "from": { "type": "string" },
+          "event": { "type": "string" },
+          "to": { "type": "string" }
+        }
+      }
+    }
+  }
+}

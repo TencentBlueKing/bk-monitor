@@ -1,0 +1,10 @@
+{
+  "id": "ui.retrieve-favorite",
+  "component": "RetrieveFavoritePanel",
+  "states": ["idle", "selected", "error"],
+  "transitions": [
+    { "from": "idle", "event": "APPLY", "to": "selected" },
+    { "from": "selected", "event": "DELETE_ACTIVE", "to": "idle" },
+    { "from": "idle", "event": "SAVE_REJECT", "to": "error" }
+  ]
+}

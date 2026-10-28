@@ -1,0 +1,44 @@
+{
+  "id": "feature.retrieve-search",
+  "version": "0.1.0",
+  "title": "日志检索搜索",
+  "status": "approved",
+  "goal": "用户提交关键字后检索日志，结果只反映当前条件，旧请求不得覆盖新结果。",
+  "inputs": [
+    { "name": "keyword", "type": "string", "required": true },
+    { "name": "page", "type": "number", "required": false }
+  ],
+  "rules": [
+    "提交前去除关键字首尾空白",
+    "搜索条件变化后重置分页为 1",
+    "旧请求不得覆盖新请求的结果",
+    "组件卸载后取消未完成请求"
+  ],
+  "dependencies": ["data.log-record", "state.retrieve-search", "ui.retrieve-search", "action.submit-search"],
+  "acceptance": [
+    {
+      "id": "AC-001",
+      "given": "索引中存在多条日志",
+      "when": "用户提交关键字",
+      "then": "只展示符合当前关键字的记录"
+    },
+    {
+      "id": "AC-002",
+      "given": "用户连续提交多个关键字",
+      "when": "请求以不同顺序返回",
+      "then": "只展示当前关键字对应的结果"
+    },
+    {
+      "id": "AC-003",
+      "given": "用户在第 3 页修改关键字",
+      "when": "提交新的搜索",
+      "then": "分页重置为 1"
+    },
+    {
+      "id": "AC-004",
+      "given": "关键字两侧存在空白",
+      "when": "提交搜索",
+      "then": "实际查询使用去除空白后的关键字"
+    }
+  ]
+}

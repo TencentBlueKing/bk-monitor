@@ -1,0 +1,8 @@
+{
+  "id": "test.retrieve-workspace",
+  "feature": "feature.retrieve-workspace",
+  "scenarios": [
+    { "id": "TC-001", "acceptance": "AC-001", "command": "node --test --experimental-strip-types src/features/retrieve/workspace-controller.test.mjs", "expect": "switch tab" },
+    { "id": "TC-002", "acceptance": "AC-002", "command": "node --test --experimental-strip-types src/features/retrieve/workspace-controller.test.mjs", "expect": "empty index error" }
+  ]
+}

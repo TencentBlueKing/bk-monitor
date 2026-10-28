@@ -1,0 +1,18 @@
+{
+  "id": "impact.retrieve-realtime",
+  "feature": "feature.retrieve-realtime",
+  "nodes": [
+    { "type": "feature", "id": "feature.retrieve-realtime" },
+    { "type": "state", "id": "state.retrieve-realtime" },
+    { "type": "module", "id": "RealtimeController" },
+    { "type": "file", "id": "src/features/retrieve/realtime-controller.ts" },
+    { "type": "file", "id": "src/features/retrieve/realtime-page.vue" },
+    { "type": "test", "id": "test.retrieve-realtime" }
+  ],
+  "edges": [
+    ["feature.retrieve-realtime", "state.retrieve-realtime"],
+    ["state.retrieve-realtime", "RealtimeController"],
+    ["RealtimeController", "src/features/retrieve/realtime-controller.ts"],
+    ["feature.retrieve-realtime", "test.retrieve-realtime"]
+  ]
+}

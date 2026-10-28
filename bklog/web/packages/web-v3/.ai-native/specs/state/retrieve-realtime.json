@@ -1,0 +1,25 @@
+{
+  "id": "state.retrieve-realtime",
+  "owner": "RealtimeController",
+  "readers": [
+    "RealtimePage"
+  ],
+  "writers": [
+    "RealtimeController"
+  ],
+  "initial": "idle",
+  "cleanup": "stop streaming on leave",
+  "concurrency": "single writer",
+  "transitions": [
+    {
+      "from": "idle",
+      "event": "START",
+      "to": "streaming"
+    },
+    {
+      "from": "streaming",
+      "event": "STOP",
+      "to": "stopped"
+    }
+  ]
+}

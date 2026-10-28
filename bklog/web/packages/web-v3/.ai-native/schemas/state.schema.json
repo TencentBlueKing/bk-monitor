@@ -1,0 +1,29 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "state.schema.json",
+  "title": "State Contract",
+  "type": "object",
+  "required": ["id", "owner", "readers", "writers", "initial", "transitions"],
+  "additionalProperties": false,
+  "properties": {
+    "id": { "type": "string", "pattern": "^state\\.[a-z0-9-]+$" },
+    "owner": { "type": "string" },
+    "readers": { "type": "array", "items": { "type": "string" } },
+    "writers": { "type": "array", "items": { "type": "string" } },
+    "initial": { "type": "string" },
+    "cleanup": { "type": "string" },
+    "concurrency": { "type": "string" },
+    "transitions": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["from", "event", "to"],
+        "properties": {
+          "from": { "type": "string" },
+          "event": { "type": "string" },
+          "to": { "type": "string" }
+        }
+      }
+    }
+  }
+}

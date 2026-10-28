@@ -1,0 +1,8 @@
+{
+  "id": "ui.retrieve-index-set",
+  "component": "RetrieveToolbar",
+  "states": ["idle", "filtered", "error"],
+  "transitions": [
+    { "from": "idle", "event": "FILTER", "to": "filtered" }
+  ]
+}

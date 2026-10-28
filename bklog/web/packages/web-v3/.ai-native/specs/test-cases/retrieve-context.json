@@ -1,0 +1,18 @@
+{
+  "id": "test.retrieve-context",
+  "feature": "feature.retrieve-context",
+  "scenarios": [
+    {
+      "id": "TC-001",
+      "acceptance": "AC-001",
+      "command": "node --test --experimental-strip-types src/features/retrieve/context-controller.test.mjs",
+      "expect": "wait"
+    },
+    {
+      "id": "TC-002",
+      "acceptance": "AC-002",
+      "command": "node --test --experimental-strip-types src/features/retrieve/context-controller.test.mjs",
+      "expect": "neighbors"
+    }
+  ]
+}

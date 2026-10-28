@@ -1,0 +1,12 @@
+{
+  "id": "state.retrieve-graph",
+  "owner": "GraphController",
+  "readers": ["RetrievePage"],
+  "writers": ["GraphController"],
+  "initial": "idle",
+  "cleanup": "none",
+  "concurrency": "single writer",
+  "transitions": [
+    { "from": "idle", "event": "BUCKET", "to": "idle" }
+  ]
+}

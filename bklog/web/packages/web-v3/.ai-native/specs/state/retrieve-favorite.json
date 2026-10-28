@@ -1,0 +1,18 @@
+{
+  "id": "state.retrieve-favorite",
+  "owner": "FavoriteController",
+  "readers": ["RetrieveFavoritePanel", "RetrievePage"],
+  "writers": ["FavoriteController"],
+  "initial": "idle",
+  "cleanup": "none",
+  "concurrency": "single writer",
+  "transitions": [
+    { "from": "idle", "event": "FILTER", "to": "idle" },
+    { "from": "idle", "event": "APPLY", "to": "selected" },
+    { "from": "selected", "event": "APPLY", "to": "selected" },
+    { "from": "idle", "event": "SAVE", "to": "idle" },
+    { "from": "idle", "event": "SAVE_REJECT", "to": "error" },
+    { "from": "error", "event": "SAVE", "to": "idle" },
+    { "from": "selected", "event": "DELETE_ACTIVE", "to": "idle" }
+  ]
+}

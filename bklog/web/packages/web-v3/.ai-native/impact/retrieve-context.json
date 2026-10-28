@@ -1,0 +1,18 @@
+{
+  "id": "impact.retrieve-context",
+  "feature": "feature.retrieve-context",
+  "nodes": [
+    { "type": "feature", "id": "feature.retrieve-context" },
+    { "type": "state", "id": "state.retrieve-context" },
+    { "type": "module", "id": "ContextController" },
+    { "type": "file", "id": "src/features/retrieve/context-controller.ts" },
+    { "type": "file", "id": "src/features/retrieve/context-page.vue" },
+    { "type": "test", "id": "test.retrieve-context" }
+  ],
+  "edges": [
+    ["feature.retrieve-context", "state.retrieve-context"],
+    ["state.retrieve-context", "ContextController"],
+    ["ContextController", "src/features/retrieve/context-controller.ts"],
+    ["feature.retrieve-context", "test.retrieve-context"]
+  ]
+}

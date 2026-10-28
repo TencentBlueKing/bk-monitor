@@ -1,0 +1,9 @@
+{
+  "id": "ui.retrieve-toolbar",
+  "component": "RetrieveToolbar",
+  "states": ["ready", "refreshing"],
+  "transitions": [
+    { "from": "ready", "event": "ENABLE_AUTO_REFRESH", "to": "refreshing" },
+    { "from": "refreshing", "event": "DISABLE_AUTO_REFRESH", "to": "ready" }
+  ]
+}

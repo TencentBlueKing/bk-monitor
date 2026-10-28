@@ -1,0 +1,7 @@
+{
+  "id": "agent.implementer",
+  "role": "implementer",
+  "inputs": ["task-plan", "feature-contract", "rules"],
+  "outputs": ["source-files"],
+  "permissions": ["read", "write-src"]
+}

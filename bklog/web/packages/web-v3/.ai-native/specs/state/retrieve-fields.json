@@ -1,0 +1,13 @@
+{
+  "id": "state.retrieve-fields",
+  "owner": "FieldController",
+  "readers": ["RetrievePage"],
+  "writers": ["FieldController"],
+  "initial": "idle",
+  "cleanup": "none",
+  "concurrency": "single writer",
+  "transitions": [
+    { "from": "idle", "event": "TOGGLE", "to": "idle" },
+    { "from": "idle", "event": "HIDE_LAST", "to": "error" }
+  ]
+}

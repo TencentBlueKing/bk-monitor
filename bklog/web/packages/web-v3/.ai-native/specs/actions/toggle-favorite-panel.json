@@ -1,0 +1,10 @@
+{
+  "id": "action.toggle-favorite-panel",
+  "title": "切换收藏面板",
+  "inputs": [],
+  "preconditions": [],
+  "permission": "retrieve.toolbar",
+  "idempotent": false,
+  "sideEffects": ["toggle favoriteShown"],
+  "failure": "keep previous visibility"
+}

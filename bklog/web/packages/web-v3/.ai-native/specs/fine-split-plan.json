@@ -1,0 +1,50 @@
+{
+  "id": "plan.ui-fine-split",
+  "version": "1.0.0",
+  "parent": "1010158081139386759",
+  "source": [
+    "bklog/web/.aafe/analyze/index.json",
+    "bklog/web/.aafe/analyze/modules/src-global-head-navi",
+    "bklog/web/.aafe/analyze/modules/src-global-bk-space-choice",
+    "bklog/web/.aafe/analyze/modules/route-retrieve",
+    "bklog/web/.aafe/analyze/modules/route-manage",
+    "src/global/head-navi",
+    "src/store/menu-config.ts",
+    "src/router/retrieve.js",
+    "src/router/manage.js",
+    "src/views/retrieve-v2/search-bar",
+    "src/views/retrieve-v3"
+  ],
+  "principle": {
+    "design": "running v2 is the design",
+    "implement": "rewrite in packages/web-v3 only",
+    "forbidCopy": "do not copy Vue2 files",
+    "forbidPixel": "no pixel-diff gate",
+    "tracks": ["component+compiled CSS tokens", "browser region/control compare"]
+  },
+  "currentWrong": {
+    "nav": "V3 top nav lists 日志检索/采集/清洗/提取 as first-level; V2 is logo+日志平台 + 检索/仪表盘/管理 + space + user",
+    "favorite": "flat group list, missing share/new/tree density",
+    "searchbar": "UI/SQL two-letter toggle; V2 is UI模式|语句模式 + AI parse"
+  },
+  "waves": [
+    { "id": "N1", "tapd": "1010158081139438576", "title": "顶栏导航", "status": "landed", "v2": "src/global/head-navi + bk-space-choice", "v3": "app.vue" },
+    { "id": "F1", "tapd": "1010158081139438579", "title": "收藏管理", "status": "landed-density", "v2": "retrieve-v2/collect", "v3": "retrieve-favorite-panel.vue" },
+    { "id": "S1", "tapd": "1010158081139438585", "title": "搜索条 UI|语句|AI", "status": "landed", "v2": "retrieve-v2/search-bar", "v3": "retrieve-searchbar.vue" },
+    { "id": "R1", "tapd": "1010158081139438595", "title": "原始日志结果", "status": "landed-density", "v2": "retrieve-v2/result-comp", "v3": "retrieve-page.vue" },
+    { "id": "R2", "tapd": "1010158081139438599", "title": "字段列表", "status": "landed-density", "v2": "retrieve-v2/result-comp/field-*", "v3": "retrieve-field-panel.vue" },
+    { "id": "R3", "tapd": "1010158081139438601", "title": "Grep", "status": "landed", "v2": "retrieve-v2 grep", "v3": "retrieve-grep-panel.vue" },
+    { "id": "R4", "tapd": "1010158081139438606", "title": "场景化检索", "status": "landed", "v2": "retrieve-v3/search-bar/scene-filter", "v3": "retrieve-scene-bar.vue" },
+    { "id": "R5", "tapd": "1010158081139438609", "title": "常规检索工作台", "status": "landed", "v2": "retrieve-v3 retrieve hub", "v3": "retrieve-page.vue" },
+    { "id": "R6", "tapd": "1010158081139438610", "title": "图表分析", "status": "landed", "v2": "retrieve-v2 graph", "v3": "retrieve-graph-panel.vue" },
+    { "id": "R7", "tapd": "1010158081139438611", "title": "日志聚类", "status": "landed", "v2": "retrieve-v2 clustering", "v3": "clustering-page.vue" },
+    { "id": "R8", "tapd": "1010158081139438613", "title": "上下文与实时", "status": "landed", "v2": "retrieve-v2 context/realtime", "v3": "context-page.vue / realtime-page.vue" },
+    { "id": "MG1", "tapd": "1010158081139438615", "title": "管理左导航", "status": "landed-nav", "v2": "src/views/manage + manage-v2 nav", "v3": "manage-layout.vue" },
+    { "id": "MG2", "tapd": "1010158081139438638", "title": "采集项与向导", "status": "landed", "v2": "manage-v2/log-collection", "v3": "collection-page.vue" },
+    { "id": "MG3", "tapd": "1010158081139438647", "title": "索引集", "status": "landed", "v2": "manage/log-index-set", "v3": "manage-module-page.vue" },
+    { "id": "MG4", "tapd": "1010158081139438651", "title": "自定义上报", "status": "landed", "v2": "manage/custom-report", "v3": "manage-module-page.vue" },
+    { "id": "MG5", "tapd": "1010158081139438654", "title": "清洗与脱敏", "status": "landed", "v2": "manage-v2/log-clean + log-desensitize", "v3": "manage-module-page.vue" },
+    { "id": "MG6", "tapd": "1010158081139438657", "title": "归档提取ES", "status": "landed", "v2": "log-archive / log-extract / es-cluster", "v3": "manage-module-page.vue" },
+    { "id": "MG7", "tapd": "1010158081139438658", "title": "客户端与Grok", "status": "landed", "v2": "client-log + grok-manage", "v3": "manage-module-page.vue" }
+  ]
+}

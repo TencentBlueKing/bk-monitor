@@ -1,0 +1,30 @@
+{
+  "id": "state.resource-list",
+  "owner": "ResourceListController",
+  "readers": [
+    "ResourceListPage"
+  ],
+  "writers": [
+    "ResourceListController"
+  ],
+  "initial": "idle",
+  "cleanup": "none",
+  "concurrency": "single writer",
+  "transitions": [
+    {
+      "from": "idle",
+      "event": "FILTER",
+      "to": "filtered"
+    },
+    {
+      "from": "filtered",
+      "event": "SAVE_FAIL",
+      "to": "error"
+    },
+    {
+      "from": "error",
+      "event": "SAVE_OK",
+      "to": "idle"
+    }
+  ]
+}

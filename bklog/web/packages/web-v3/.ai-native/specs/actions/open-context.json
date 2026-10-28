@@ -1,0 +1,19 @@
+{
+  "id": "action.open-context",
+  "title": "打开上下文",
+  "inputs": [
+    "records",
+    "anchorId",
+    "isSearching",
+    "windowSize"
+  ],
+  "preconditions": [
+    "anchorId is provided"
+  ],
+  "permission": "retrieve.search",
+  "idempotent": true,
+  "sideEffects": [
+    "slice neighbors around the anchor"
+  ],
+  "failure": "missing anchor yields empty"
+}

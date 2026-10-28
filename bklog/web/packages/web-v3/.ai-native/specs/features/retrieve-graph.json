@@ -1,0 +1,16 @@
+{
+  "id": "feature.retrieve-graph",
+  "version": "0.1.0",
+  "title": "检索图表分析",
+  "status": "approved",
+  "goal": "把当前检索结果按时间桶聚合成数量序列。",
+  "inputs": [
+    { "name": "records", "type": "array", "required": true },
+    { "name": "intervalMs", "type": "number", "required": false }
+  ],
+  "rules": ["按 interval 向下取整", "同桶累加 count", "按时间升序"],
+  "dependencies": ["data.log-record", "state.retrieve-graph", "ui.retrieve-graph", "action.bucket-graph"],
+  "acceptance": [
+    { "id": "AC-001", "given": "多条日志落在两个时间桶", "when": "聚合", "then": "返回两桶及正确数量" }
+  ]
+}

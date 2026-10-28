@@ -1,0 +1,12 @@
+{
+  "id": "data.log-record",
+  "version": "0.1.0",
+  "title": "日志记录",
+  "source": "search API, never infer missing fields as always-present",
+  "fields": [
+    { "name": "id", "type": "string", "required": true, "meaning": "日志唯一标识" },
+    { "name": "dtEventTimeStamp", "type": "number", "required": true, "meaning": "事件时间戳" },
+    { "name": "log", "type": "string", "required": true, "meaning": "原始日志文本" },
+    { "name": "indexSetId", "type": "string", "required": false, "nullable": true, "meaning": "索引集 ID" }
+  ]
+}

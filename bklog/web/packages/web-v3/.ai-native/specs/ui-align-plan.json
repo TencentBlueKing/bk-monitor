@@ -1,0 +1,151 @@
+{
+  "id": "plan.ui-migrate-v3",
+  "version": "0.6.0",
+  "status": "m0-m3-landed",
+  "decision": "V2 用 bklog/web/src + .e2e-skills/assets/architecture-chema/mock（retrieve-16176 / manage-log-collection）本地 dev 抓图；必须产出 V2|V3 对照图。自测读 PNG，禁止盲测。",
+  "alignTracks": {
+    "componentAndCompiled": "读 v2 SFC/scss 抽 token，在 v3 theme.css 重写；vite build 后对照编译 CSS 选择器与计算值，禁止拷贝 Vue2 文件",
+    "browserRender": "v2 e2e + v3 Playwright 对照区域几何与关键控件；禁止像素 diff 当门禁；缺代理则 M5 blocked"
+  },
+  "tapd": {
+    "parent": {
+      "id": "1010158081139386759",
+      "url": "https://tapd.woa.com/tapd_fe/10158081/story/detail/1010158081139386759"
+    },
+    "children": [
+      { "wave": "M0", "id": "1010158081139408859", "url": "https://tapd.woa.com/tapd_fe/10158081/story/detail/1010158081139408859" },
+      { "wave": "M1", "id": "1010158081139408869", "url": "https://tapd.woa.com/tapd_fe/10158081/story/detail/1010158081139408869" },
+      { "wave": "M2", "id": "1010158081139408879", "url": "https://tapd.woa.com/tapd_fe/10158081/story/detail/1010158081139408879" },
+      { "wave": "M3", "id": "1010158081139408886", "url": "https://tapd.woa.com/tapd_fe/10158081/story/detail/1010158081139408886" },
+      { "wave": "M4", "id": "1010158081139408891", "url": "https://tapd.woa.com/tapd_fe/10158081/story/detail/1010158081139408891" },
+      { "wave": "M5", "id": "1010158081139408901", "url": "https://tapd.woa.com/tapd_fe/10158081/story/detail/1010158081139408901" }
+    ]
+  },
+  "principle": {
+    "design": "以正在运行的 v2（retrieve-v3 + retrieve-v2 + manage-v2）为设计稿",
+    "implement": "只在 packages/web-v3 用 TDesign + 自建 token/组件重写",
+    "forbidCopy": "禁止拷贝 Vue2 scss/vue/文件",
+    "forbidPixel": "禁止像素强制对齐，不把截图像素 diff 当门禁",
+    "forbidV1": "packages/web-v1、src/views/retrieve、src/views/manage 封板"
+  },
+  "whyLastRoundRejected": [
+    "只对齐了区域几何（左收藏 / 顶栏 / 检索条 / 字段 / 结果），观感仍是 TDesign 骨架",
+    "检索条、收藏树、字段设置、原始日志行密度远低于现网 v2",
+    "没有对照真实 v2 运行页截图（dev:e2e 缺代理）就先改了界面",
+    "先落地后计划，无法让你按波次判定"
+  ],
+  "currentGap": {
+    "retrieve": [
+      { "region": "全局头", "v2": "蓝鲸顶栏 + 空间 + 检索/管理入口", "v3": "简化品牌条 + 文字导航，缺空间与全局能力" },
+      { "region": "收藏", "v2": "240 #ebeef5 收藏树：搜索、分组、分享、拖拽、仅当前索引集", "v3": "分组列表雏形，无树操作/分享/拖拽" },
+      { "region": "顶栏", "v2": "52px：32 图标开关 + 索引集灰底 + 右侧时间/刷新/更多", "v3": "图标开关和选择器已有，缺更多设置/字段设置/分享" },
+      { "region": "检索条", "v2": "UI/SQL 切换 + 条件芯片/SQL 编辑 + 历史 + 检索 74", "v3": "模式字 + 单行 Input + 按钮，无芯片/编辑器/历史" },
+      { "region": "字段", "v2": "显示字段：类型、别名、设置、分析入口", "v3": "勾选 + 类型标签，无设置/分析" },
+      { "region": "结果", "v2": "原始/聚类/图表/Grep；行展开、高亮、上下文/实时", "v3": "Tab + 简易表，无展开/高亮/行密度" }
+    ],
+    "collection": [
+      { "region": "左栏", "v2": "250 #f3f6fa 接入分组/业务树", "v3": "三组按钮，无树" },
+      { "region": "右表", "v2": "过滤、批量、新建、状态/节点列", "v3": "过滤 + 中文状态，缺批量与完整列" }
+    ]
+  },
+  "tokensFromV2": {
+    "brand": "#3A84FF",
+    "text": "#313238",
+    "textSecondary": "#63656E",
+    "textPlaceholder": "#979BA5",
+    "pageBg": "#F5F7FA",
+    "panelBg": "#FFFFFF",
+    "favoriteBg": "#EBEEF5",
+    "favoriteSearchBg": "#DDE1EB",
+    "manageLeftBg": "#F3F6FA",
+    "indexSelectBg": "#F0F1F5",
+    "border": "#DCDEE5",
+    "searchBorder": "#C1CDE5",
+    "favoriteWidth": 240,
+    "fieldWidth": 240,
+    "collectionLeftWidth": 250,
+    "headerHeight": 52,
+    "subbarHeight": 52,
+    "toggleSize": 32,
+    "searchMinHeight": 48,
+    "searchBtnWidth": 74,
+    "fontSize": 12
+  },
+  "adaptMethod": {
+    "read": "读 v2 区域结构、关键尺寸、文案与交互，不读进样式文件当拷贝源",
+    "rewrite": "在 theme.css 建 --bklog-* token，用 tdesign-vue-next 组合，缺的控件在 v3 自绘",
+    "verify": "Playwright 量区域 + 控件存在；有代理后再用 v2 e2e 截图做人工对照",
+    "notVerify": "像素 diff、强制拷 SCSS"
+  },
+  "strategies": [
+    {
+      "id": "A",
+      "name": "壳层优先",
+      "desc": "先把检索/采集外框、色板、密度做成接近现网，控件先占位；你过目后再加深内部控件",
+      "risk": "中期仍会看到占位，但不会再出现「先做功能壳、观感完全不像」"
+    },
+    {
+      "id": "B",
+      "name": "页面优先",
+      "desc": "一次把检索工作台做到可日常使用（含检索条/字段/结果行），再采集，再其它管理页",
+      "risk": "单波改动大，评审周期长"
+    },
+    {
+      "id": "C",
+      "name": "对照优先",
+      "desc": "先补 local.settings.e2e.proxy.js，启动 v2 e2e，按真实截图分区出任务再写 v3",
+      "risk": "无代理则卡住；有代理后偏差最小"
+    }
+  ],
+  "waves": [
+    {
+      "id": "M0",
+      "title": "计划与判定（本轮）",
+      "status": "landed",
+      "do": ["token + compiled CSS 门禁", "官方 mock 对照基线", "不改采集/管理业务页"]
+    },
+    {
+      "id": "M1",
+      "title": "检索壳层：头 / 收藏 / 顶栏 / 检索条 / 字段 / 结果框",
+      "status": "landed",
+      "depends": "选定 A 或 B",
+      "accept": [
+        "收藏 240 #ebeef5，开关 32 图标",
+        "顶栏 52：索引集左、时间刷新右",
+        "检索条：模式区 + 输入 + 74 检索",
+        "字段在结果左，结果 Tab 顺序与 v2 一致"
+      ]
+    },
+    {
+      "id": "M2",
+      "title": "检索控件：UI 芯片 / SQL / 历史 / 行展开 / 高亮",
+      "status": "landed",
+      "depends": "M1 过目",
+      "accept": ["空查询出数", "收藏回填并检索", "行上上下文/实时", "高亮关键字"]
+    },
+    {
+      "id": "M3",
+      "title": "采集列表：左分组 + 右表 + 新建向导观感",
+      "status": "landed",
+      "accept": ["左 250 #f3f6fa 分组树+计数", "右白表 + 新建", "卡片向导"]
+    },
+    {
+      "id": "M4",
+      "title": "其余管理页同一左树右表壳",
+      "status": "landed"
+    },
+    {
+      "id": "M5",
+      "title": "对照运行中的 v2 截图回归",
+      "status": "blocked",
+      "blockReason": "缺少 gitignored local.settings.e2e.proxy.js",
+      "accept": "区域对照通过即可，不要求像素一致"
+    }
+  ],
+  "needYourCall": [
+    "策略选 A / B / C，或组合（建议先 C 出对照，再 A 做壳）",
+    "TDesign 控件铬与 bk-magic-vue 不完全一样，是否接受「色板+结构像、组件皮肤不同」",
+    "能否提供 v2 e2e 代理文件以便 M5",
+    "首波执行 M1 还是等对照后再动代码"
+  ]
+}

@@ -1,0 +1,43 @@
+{
+  "id": "feature.retrieve-clustering",
+  "version": "0.1.0",
+  "title": "日志聚类",
+  "status": "approved",
+  "goal": "按模式聚合当前检索结果",
+  "inputs": [
+    {
+      "name": "name",
+      "type": "string",
+      "required": false
+    },
+    {
+      "name": "filterQuery",
+      "type": "string",
+      "required": false
+    }
+  ],
+  "rules": [
+    "不改 Vue2 / v1 代码",
+    "状态所有权在 Vue3 controller"
+  ],
+  "dependencies": [
+    "data.log-record",
+    "state.retrieve-clustering",
+    "ui.retrieve-clustering",
+    "action.group-clusters"
+  ],
+  "acceptance": [
+    {
+      "id": "AC-001",
+      "given": "存在业务数据",
+      "when": "执行该模块主操作",
+      "then": "按契约更新状态"
+    },
+    {
+      "id": "AC-002",
+      "given": "存在过滤或并发条件",
+      "when": "再次操作",
+      "then": "结果只反映当前条件"
+    }
+  ]
+}

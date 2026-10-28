@@ -1,0 +1,17 @@
+{
+  "id": "rule.architecture",
+  "must": [
+    "New Vue3 code lives only in packages/web-v3",
+    "Do not copy Vue2 retrieve files as the Vue3 architecture",
+    "Feature state has a single owner and a single write entry",
+    "UI library is tdesign-vue-next; do not restyle TDesign internals",
+    "Theme uses TDesign CSS variables only",
+    "Overlays go through OverlayManager",
+    "Do not place AGENTS.md or SKILL.md at module or repo root"
+  ],
+  "should": [
+    "Prefer small verifiable changes",
+    "Map each Feature acceptance to an automated test",
+    "Load Memory on demand"
+  ]
+}
