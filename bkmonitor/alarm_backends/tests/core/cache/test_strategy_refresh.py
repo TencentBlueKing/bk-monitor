@@ -276,7 +276,9 @@ def test_disabled_bkms_scope_reads_fresh_spaces_and_uses_negative_ids(state):
         {"id": 105, "space_type_id": "bkci", "space_id": "BKMS-uppercase", "status": "disabled"},
     ]
     assert Manager.get_disabled_bkms_biz_ids() == {-101}
-    module.Space.objects.filter.assert_called_once_with(status="disabled")
+    module.Space.objects.filter.assert_called_once_with(
+        space_type_id="bkci", space_id__istartswith="bkms-", status="disabled"
+    )
     state.spaces.assert_called_once_with("id", "space_type_id", "space_id", "status")
 
 

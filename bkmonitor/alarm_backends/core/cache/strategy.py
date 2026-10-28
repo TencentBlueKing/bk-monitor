@@ -22,7 +22,8 @@ from typing import Any
 import arrow
 from bk_monitor_base.strategy import list_strategy
 from bkm_space.api import SpaceApi
-from bkm_space.utils import is_disabled_bkms_space
+from bkm_space.define import SpaceTypeEnum
+from bkm_space.utils import BKMS_SPACE_ID_PREFIX, is_disabled_bkms_space
 from django.conf import settings
 
 from alarm_backends.constants import CONST_ONE_DAY
@@ -54,6 +55,7 @@ from constants.strategy import (
 from core.drf_resource import api
 from core.prometheus import metrics
 from metadata.models.space import Space
+from metadata.models.space.constants import SpaceStatus
 
 logger = logging.getLogger("cache")
 
@@ -221,7 +223,11 @@ class StrategyCacheManager(CacheManager):
     @classmethod
     def get_disabled_bkms_biz_ids(cls) -> set[int]:
         """每轮读取持久状态，策略执行资格不使用进程内空间缓存。"""
-        spaces = Space.objects.filter(status="disabled").values("id", "space_type_id", "space_id", "status")
+        spaces = Space.objects.filter(
+            space_type_id=SpaceTypeEnum.BKCI.value,
+            space_id__istartswith=BKMS_SPACE_ID_PREFIX,
+            status=SpaceStatus.DISABLED.value,
+        ).values("id", "space_type_id", "space_id", "status")
         return {-space["id"] for space in spaces if is_disabled_bkms_space(space)}
 
     @classmethod

@@ -1,6 +1,8 @@
 from importlib import import_module
 
 import pytest
+from django.db import connections
+from django.test.utils import CaptureQueriesContext
 from rest_framework.exceptions import ValidationError
 
 from core.errors.bkmonitor.space import SpaceNotFound
@@ -80,3 +82,31 @@ def test_database_case_insensitive_match_does_not_expand_bkms_scope(bkms_space):
         SetBkmsSpaceStatusResource().perform_request({"space_uid": "bkci__bkms-case-test", "status": "disabled"})
     other.refresh_from_db()
     assert other.status == "normal"
+
+
+def test_disabled_bkms_query_pushes_scope_into_database(bkms_space):
+    from alarm_backends.core.cache.strategy import StrategyCacheManager
+
+    Space.objects.filter(pk=bkms_space.pk).update(status="disabled")
+    controls = [
+        Space.objects.create(
+            bk_tenant_id="tenant-main", space_type_id=space_type, space_id=space_id, space_name=space_id, status=status
+        )
+        for space_type, space_id, status in [
+            ("bkci", "bkms-query-active", "normal"),
+            ("bkci", "other-query-disabled", "disabled"),
+            ("bkcc", "bkms-query-other-type", "disabled"),
+            ("bkci", "BKMS-query-uppercase", "disabled"),
+        ]
+    ]
+    with CaptureQueriesContext(connections[Space.objects.db]) as queries:
+        disabled_ids = StrategyCacheManager.get_disabled_bkms_biz_ids()
+
+    assert -bkms_space.pk in disabled_ids
+    assert not {-space.pk for space in controls} & disabled_ids
+    assert len(queries) == 1
+    sql = queries[0]["sql"]
+    assert "LIKE 'bkms-%'" in sql
+    assert "LIKE BINARY" not in sql
+    assert "`space_type_id` = 'bkci'" in sql
+    assert "`status` = 'disabled'" in sql
