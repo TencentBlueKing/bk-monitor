@@ -211,7 +211,7 @@ export function adaptLegacyProfilingTarget(input: unknown): null | ProfilingExpl
   const comparisonRange = toSelection(target.diff_filter_labels);
   let mode: CompareMode = 'none';
   if (baselineRange && comparisonRange) mode = 'time';
-  else if (isCompared(target.is_compared) || comparisonWhere.length) mode = 'condition';
+  else if (isCompared(target.is_compared) || (target.is_compared == null && comparisonWhere.length)) mode = 'condition';
   let graphMode = toGraphMode(target.diagram_types);
   // 新版对比模式不支持调用图，恢复时也会落回合并视图。
   if (graphMode === 'callgraph' && mode !== 'none') graphMode = 'combined';

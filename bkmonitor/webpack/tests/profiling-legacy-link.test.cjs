@@ -72,6 +72,55 @@ test('legacy file labels retain the same request values with the UI equality ope
   assert.deepEqual(query.filter_labels, { instance: 'worker-a' });
 });
 
+for (const isCompared of [false, 0, 'false']) {
+  test(`legacy links with is_compared=${JSON.stringify(isCompared)} keep comparison disabled despite saved labels`, () => {
+    const state = restoreLegacy({
+      app_name: 'test-app',
+      service_name: 'test-service',
+      is_compared: isCompared,
+      filter_labels: { instance: 'worker-a' },
+      diff_filter_labels: { instance: 'worker-b' },
+      diagram_types: ['callgraph'],
+    });
+    const query = buildProfileQuery(state, 1, range);
+    assert.equal(state.mode, 'none');
+    assert.equal(state.view.graphMode, 'callgraph');
+    assert.equal(query.is_compared, false);
+    assert.deepEqual(query.filter_labels, { instance: 'worker-a' });
+    assert.deepEqual(query.diff_filter_labels, {});
+  });
+}
+
+test('legacy links without a comparison flag still infer comparison from labels', () => {
+  const state = restoreLegacy({
+    app_name: 'test-app',
+    service_name: 'test-service',
+    diff_filter_labels: { instance: 'worker-b' },
+    diagram_types: ['callgraph'],
+  });
+  const query = buildProfileQuery(state, 1, range);
+  assert.equal(state.mode, 'condition');
+  assert.equal(state.view.graphMode, 'combined');
+  assert.equal(query.is_compared, true);
+  assert.deepEqual(query.diff_filter_labels, { instance: 'worker-b' });
+});
+
+test('legacy time comparison retains both selections and their request bounds', () => {
+  const midpoint = (range[0] + range[1]) / 2;
+  const state = restoreLegacy({
+    app_name: 'test-app',
+    service_name: 'test-service',
+    is_compared: true,
+    filter_labels: { start: range[0] * 1000, end: midpoint * 1000 },
+    diff_filter_labels: { start: midpoint * 1000, end: range[1] * 1000 },
+  });
+  const query = buildProfileQuery(state, 1, range);
+  assert.equal(state.mode, 'time');
+  assert.equal(query.is_compared, true);
+  assert.deepEqual(query.filter_labels, { start: range[0] * 1000, end: midpoint * 1000 });
+  assert.deepEqual(query.diff_filter_labels, { start: midpoint * 1000, end: range[1] * 1000 });
+});
+
 test('common navigation exposes only the new Profiling entry while retaining legacy route metadata', () => {
   const entries = COMMON_ROUTE_LIST.flatMap(item => item.children || [item]);
   assert.deepEqual(entries.filter(item => item.name === 'Profiling 检索').map(item => item.id), ['profiling-explore']);
