@@ -394,6 +394,10 @@ class UpdateSpaceViewSet(MetaViewSet):
     resource_routes = [ResourceRoute("POST", resource.UpdateSpaceResource)]
 
 
+class SetBkmsSpaceStatusViewSet(MetaViewSet):
+    resource_routes = [ResourceRoute("POST", resource.SetBkmsSpaceStatusResource)]
+
+
 class MergeSpaceViewSet(MetaViewSet):
     resource_routes = [ResourceRoute("POST", resource.MergeSpaceResource)]
 

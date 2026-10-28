@@ -100,6 +100,15 @@ def is_bk_ci_space(space_uid: str) -> bool:
     return space_type == SpaceTypeEnum.BKCI.value
 
 
+def is_bkms_space(space_type_id: str, space_id: str) -> bool:
+    """BKMS 空间仅限 bkci 类型且项目 ID 以 bkms- 开头。"""
+    return space_type_id == SpaceTypeEnum.BKCI.value and space_id.startswith("bkms-")
+
+
+def is_disabled_bkms_space(space: dict) -> bool:
+    return space.get("status") == "disabled" and is_bkms_space(space["space_type_id"], space["space_id"])
+
+
 def is_bk_saas_space(space_uid: str) -> bool:
     if not space_uid:
         return False

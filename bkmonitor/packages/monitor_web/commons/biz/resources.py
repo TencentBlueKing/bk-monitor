@@ -19,6 +19,7 @@ from django.utils.translation import gettext as _
 
 from bkm_space.api import SpaceApi
 from bkm_space.define import SpaceFunction, SpaceTypeEnum
+from bkm_space.utils import is_disabled_bkms_space
 from bkmonitor.iam import ActionEnum, Permission, ResourceEnum
 from bkmonitor.models.external_iam import ExternalPermission
 from bkmonitor.utils.cache import CacheType
@@ -128,10 +129,13 @@ class ListSpacesResource(Resource):
         show_detail = serializers.BooleanField(required=False, default=False, allow_null=True)
 
     @classmethod
-    def get_space_by_user(cls, bk_tenant_id: str, username: str, use_cache: bool = True) -> list[dict]:
+    def get_space_by_user(
+        cls, bk_tenant_id: str, username: str, use_cache: bool = True, include_disabled_bkms: bool = False
+    ) -> list[dict]:
         perm_client = Permission(username=username, bk_tenant_id=bk_tenant_id)
         perm_client.skip_check = False
-        return perm_client.filter_space_list_by_action(ActionEnum.VIEW_BUSINESS, use_cache)
+        spaces = perm_client.filter_space_list_by_action(ActionEnum.VIEW_BUSINESS, use_cache)
+        return spaces if include_disabled_bkms else [space for space in spaces if not is_disabled_bkms_space(space)]
 
     def perform_request(self, validated_request_data) -> list[dict]:
         request = get_request(peaceful=True)
@@ -146,10 +150,12 @@ class ListSpacesResource(Resource):
                 .distinct()
             )
             spaces = [space for space in spaces if space["bk_biz_id"] in external_biz_ids]
+            if not validated_request_data["show_all"]:
+                spaces = [space for space in spaces if not is_disabled_bkms_space(space)]
         elif validated_request_data["show_all"]:
             # 针对特定用户名屏蔽空间信息
             if settings.BLOCK_SPACE_RULE and re.search(settings.BLOCK_SPACE_RULE, username):
-                spaces: list[dict] = self.get_space_by_user(bk_tenant_id, username)
+                spaces: list[dict] = self.get_space_by_user(bk_tenant_id, username, include_disabled_bkms=True)
             else:
                 spaces: list[dict] = SpaceApi.list_spaces_dict(bk_tenant_id=bk_tenant_id)
         else:
@@ -179,8 +185,9 @@ class ListSpacesResource(Resource):
             (SpaceFunction.UPTIMECHECK.value, lambda s: s["space_type_id"] == SpaceTypeEnum.BKCC.value),
             (
                 SpaceFunction.K8S.value,
-                lambda s: s["bk_biz_id"] > 0
-                or bool(s["space_type_id"] == SpaceTypeEnum.BKCI.value and s["space_code"]),
+                lambda s: (
+                    s["bk_biz_id"] > 0 or bool(s["space_type_id"] == SpaceTypeEnum.BKCI.value and s["space_code"])
+                ),
             ),
             (SpaceFunction.CI_BUILDER.value, lambda s: s["space_type_id"] == SpaceTypeEnum.BKCI.value),
             (SpaceFunction.PAAS_APP.value, lambda s: s["space_type_id"] == SpaceTypeEnum.BKSAAS.value),
