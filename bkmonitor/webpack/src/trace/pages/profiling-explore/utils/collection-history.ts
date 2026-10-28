@@ -39,6 +39,7 @@ import type {
   CollectionTaskColumn,
 } from '../types/collection-history';
 
+// 采集任务列表状态文案
 export const executionStatusLabels = {
   running: '采集中',
   succeed: '成功',
@@ -50,6 +51,19 @@ export const executionStatusLabels = {
   outdate: '已过期',
 };
 
+// Profiling 结果列表状态文案，parsing 只在结果列表出现，采集任务列表不展示
+export const resultStatusLabels = {
+  running: '采集中',
+  succeed: '结果可用',
+  partial_succeed: '部分结果可用',
+  failed: '失败',
+  timeout: '超时',
+  cancelled: '已取消',
+  unknown: '未知',
+  outdate: '结果已过期',
+  parsing: '解析中',
+};
+
 const hostStatusRanks: Record<string, number> = {
   failed: 0,
   timeout: 1,
@@ -59,6 +73,7 @@ const hostStatusRanks: Record<string, number> = {
   cancelled: 5,
   outdate: 6,
   unknown: 7,
+  parsing: 8,
 };
 
 type ProcessFilters = Pick<CollectionHistoryFilters, 'process_names' | 'process_pids'>;
@@ -125,7 +140,8 @@ export function restoreHistoryFilters(value?: Partial<CollectionHistoryFilters>)
     process_pids: strings(value?.process_pids),
     // 仅保留后端支持的执行方式，过滤掉历史数据或异常取值
     schedule_types: strings(value?.schedule_types).filter(type => ['immediate', 'once_at', 'cron'].includes(type)),
-    status: Object.hasOwn(executionStatusLabels, value?.status || '') ? value.status : '',
+    // 任务历史与结果列表共用筛选结构，状态取值需同时兼容两套文案
+    status: Object.hasOwn({ ...executionStatusLabels, ...resultStatusLabels }, value?.status || '') ? value.status : '',
   };
 }
 

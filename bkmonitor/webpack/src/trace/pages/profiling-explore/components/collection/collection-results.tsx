@@ -35,9 +35,9 @@ import { useCollectionResults } from '../../composables/use-collection-results';
 import { collectionTypeLabels, formatCollectionTime } from '../../utils/collection';
 import {
   createHistoryFilters,
-  executionStatusLabels,
   formatExecutionDuration,
   hostColumnMinWidths,
+  resultStatusLabels,
 } from '../../utils/collection-history';
 import {
   canViewHostResult,
@@ -212,13 +212,12 @@ export default defineComponent({
     );
     // 执行范围下优先使用后端下发的列定义，缺省时沿用固定列
     const hostColumns = this.state.execution ? h.hostColumns.value : null;
-    // 状态筛选与采集任务历史保持一致，覆盖后端可能返回的全部执行状态
+    // 结果列表使用结果侧状态文案，含解析中，与采集任务历史的文案区分
     const statusFilter = {
       type: 'single' as const,
-      list: Object.keys(executionStatusLabels).map(value => ({
-        value,
-        label: this.t(value === 'succeed' ? '结果可用' : executionStatusLabels[value]),
-      })),
+      list: Object.keys(resultStatusLabels)
+        .filter(key => key !== 'parsing')
+        .map(value => ({ value, label: this.t(resultStatusLabels[value]) })),
     };
     const renderHostCell = (column: CollectionExecutionColumn, row: CollectionHostResult) => {
       const value = (row as unknown as Record<string, unknown>)[column.field];
