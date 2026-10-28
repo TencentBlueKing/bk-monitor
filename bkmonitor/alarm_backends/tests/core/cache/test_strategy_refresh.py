@@ -257,3 +257,101 @@ def test_full_ids_database_failure_does_not_publish_or_delete(state):
         Manager.refresh_strategy_ids([state.current])
     assert json.loads(state.cache.get(Manager.IDS_CACHE_KEY)) == [1, 2]
     assert state.cache.exists(key)
+
+
+@pytest.mark.parametrize("deleted", [None, [6]])
+def test_batch_detail_read_preserves_missing_null_and_key_identity(state, deleted):
+    state.cache.set(Manager.IDS_CACHE_KEY, json.dumps(list(range(1, 9))))
+    details = {
+        2: json.dumps({"id": 2, "bk_biz_id": 9}),
+        4: "null",
+        5: "{}",
+        6: json.dumps({"id": 6, "bk_biz_id": 2}),
+        7: json.dumps({"id": 99, "bk_biz_id": 9}),
+        8: "",
+    }
+    for sid, raw in details.items():
+        state.cache.set(Manager.CACHE_KEY_TEMPLATE.format(strategy_id=sid), raw)
+    state.model_filter.return_value.values_list.return_value = [3, 4, 5, 8]
+    Manager.refresh_strategy_ids([state.current], to_be_deleted_strategy_ids=deleted)
+    assert set(Manager.get_strategy_ids()) == {1, 3, 4, 5, 8}
+    for sid in [2, 6, 7]:
+        assert not state.cache.exists(Manager.CACHE_KEY_TEMPLATE.format(strategy_id=sid))
+    for sid in [4, 5, 8]:
+        assert state.cache.exists(Manager.CACHE_KEY_TEMPLATE.format(strategy_id=sid))
+
+
+def test_missing_details_use_bounded_mget_without_individual_get(state, monkeypatch):
+    old_ids = set(range(1, 1003))
+    state.cache.set(Manager.IDS_CACHE_KEY, json.dumps(list(old_ids)))
+    for sid in old_ids:
+        state.cache.set(Manager.CACHE_KEY_TEMPLATE.format(strategy_id=sid), json.dumps({"id": sid, "bk_biz_id": 2}))
+    mget = Mock(wraps=state.cache.mget)
+    get = Mock(wraps=state.cache.get)
+    monkeypatch.setattr(state.cache, "mget", mget)
+    monkeypatch.setattr(state.cache, "get", get)
+    Manager.refresh_strategy_ids([state.current], to_be_deleted_strategy_ids=[])
+    assert [len(call.args[0]) for call in mget.call_args_list] == [1000, 1]
+    expected_keys = {Manager.CACHE_KEY_TEMPLATE.format(strategy_id=sid) for sid in old_ids - {1}}
+    assert {key for call in mget.call_args_list for key in call.args[0]} == expected_keys
+    assert all(call.args[0] not in expected_keys for call in get.call_args_list)
+    assert set(Manager.get_strategy_ids()) == old_ids
+
+
+def test_empty_missing_set_does_not_read_details(state, monkeypatch):
+    state.cache.set(Manager.IDS_CACHE_KEY, "[1]")
+    mget = Mock(wraps=state.cache.mget)
+    monkeypatch.setattr(state.cache, "mget", mget)
+    Manager.refresh_strategy_ids([state.current], to_be_deleted_strategy_ids=[])
+    mget.assert_not_called()
+    assert Manager.get_strategy_ids() == [1]
+
+
+def test_non_string_detail_uses_mget_missing_value_semantics(state):
+    state.cache.set(Manager.IDS_CACHE_KEY, "[1, 2]")
+    detail_key = Manager.CACHE_KEY_TEMPLATE.format(strategy_id=2)
+    state.cache.hset(detail_key, mapping={"unexpected": "hash"})
+    Manager.refresh_strategy_ids([state.current], to_be_deleted_strategy_ids=[])
+    assert set(Manager.get_strategy_ids()) == {1, 2}
+    assert state.cache.type(detail_key) in ("hash", b"hash")
+
+
+@pytest.mark.parametrize("failure_batch", [1, 2])
+def test_mget_failure_keeps_ids_and_details_unchanged(state, monkeypatch, failure_batch):
+    state.cache.set(Manager.IDS_CACHE_KEY, json.dumps(list(range(1, 1003))))
+    real_mget = state.cache.mget
+    calls = []
+
+    def read(keys):
+        calls.append(keys)
+        if len(calls) == failure_batch:
+            raise RuntimeError("read failed")
+        return real_mget(keys)
+
+    monkeypatch.setattr(state.cache, "mget", read)
+    publish = Mock(wraps=state.cache.set)
+    delete = Mock(wraps=state.cache.delete)
+    monkeypatch.setattr(state.cache, "set", publish)
+    monkeypatch.setattr(state.cache, "delete", delete)
+    with pytest.raises(RuntimeError, match="read failed"):
+        Manager.refresh_strategy_ids([state.current], to_be_deleted_strategy_ids=[2])
+    publish.assert_not_called()
+    delete.assert_not_called()
+    assert len(calls) == failure_batch
+
+
+@pytest.mark.parametrize("raw, exception", [("invalid", json.JSONDecodeError), ('{"id": 2}', KeyError)])
+def test_invalid_cached_detail_keeps_ids_and_details_unchanged(state, monkeypatch, raw, exception):
+    state.cache.set(Manager.IDS_CACHE_KEY, "[1, 2]")
+    detail_key = Manager.CACHE_KEY_TEMPLATE.format(strategy_id=2)
+    state.cache.set(detail_key, raw)
+    publish = Mock(wraps=state.cache.set)
+    delete = Mock(wraps=state.cache.delete)
+    monkeypatch.setattr(state.cache, "set", publish)
+    monkeypatch.setattr(state.cache, "delete", delete)
+    with pytest.raises(exception):
+        Manager.refresh_strategy_ids([state.current], to_be_deleted_strategy_ids=[])
+    publish.assert_not_called()
+    delete.assert_not_called()
+    assert Manager.get_strategy_ids() == [1, 2]
+    assert state.cache.get(detail_key) in (raw, raw.encode())

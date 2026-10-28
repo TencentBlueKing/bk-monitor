@@ -635,9 +635,11 @@ class StrategyCacheManager(CacheManager):
                 invalid_strategy_ids.add(strategy["id"])
 
         # 找出已经存在于缓存中，但是业务id已经失效的策略
-        for strategy_id in old_strategy_ids:
-            if strategy_id not in updated_strategy_ids:
-                strategy_detail = cls.get_strategy_by_id(strategy_id)
+        missing_strategy_ids = old_strategy_ids - updated_strategy_ids
+        for strategy_ids in chunks(list(missing_strategy_ids), 1000):
+            cache_keys = [cls.CACHE_KEY_TEMPLATE.format(strategy_id=strategy_id) for strategy_id in strategy_ids]
+            for strategy_id, raw_detail in zip(strategy_ids, cls.cache.mget(cache_keys)):
+                strategy_detail = json.loads(raw_detail or "null")
                 if strategy_detail and strategy_detail["bk_biz_id"] not in existed_bk_biz_ids:
                     invalid_strategy_ids.add(strategy_id)
 
@@ -647,7 +649,6 @@ class StrategyCacheManager(CacheManager):
         else:
             # 全量构建可能跳过解析失败的策略，也可能落后于并发增量刷新。
             # 仅清理数据库中已停用或删除的旧策略，保留仍启用的缓存。
-            missing_strategy_ids = old_strategy_ids - updated_strategy_ids
             if missing_strategy_ids:
                 enabled_strategy_ids = set(
                     StrategyModel.objects.filter(id__in=missing_strategy_ids, is_enabled=True).values_list(
