@@ -9,6 +9,7 @@ specific language governing permissions and limitations under the License.
 """
 
 import pytest
+from django.db import IntegrityError
 from django.test import override_settings
 
 from metadata.models.data_link import DataLink, utils
@@ -58,7 +59,6 @@ def build_sink(**overrides) -> LogClusteringSinkConfig:
         "bk_biz_id": 2,
         "data_link_name": "bklog_datalink",
         "table_id": "2_bklog.demo",
-        "raw_sink": RAW_SINK,
         "binding": BINDING,
         "kafka_resource": KAFKA_RESOURCE,
         "pattern_resource": PATTERN_RESOURCE,
@@ -74,7 +74,7 @@ def default_biz(mocker):
 
 @override_settings(ENABLE_MULTI_TENANT_MODE=False)
 def test_compose_config_outputs_raw_sink_and_clustering(default_biz):
-    assert build_sink().compose_config() == {
+    assert build_sink().compose_config(RAW_SINK) == {
         "kind": "LogClusteringSink",
         "metadata": {"name": "bkm_lcs_50010_abcdefghijkl", "namespace": "bklog", "labels": {"bk_biz_id": "2"}},
         "spec": {
@@ -92,7 +92,7 @@ def test_compose_config_outputs_raw_sink_and_clustering(default_biz):
 def test_compose_config_and_reference_carry_tenant_in_multi_tenant_mode(default_biz):
     sink = build_sink(bk_tenant_id="tenant-a")
 
-    config = sink.compose_config()
+    config = sink.compose_config(RAW_SINK)
 
     assert config["metadata"]["tenant"] == "tenant-a"
     assert sink.reference == {
@@ -112,10 +112,15 @@ def test_reference_omits_tenant_in_single_tenant_mode():
     }
 
 
-@pytest.mark.parametrize("empty_field", ["raw_sink", "binding", "kafka_resource", "pattern_resource"])
+@pytest.mark.parametrize("empty_field", ["binding", "kafka_resource", "pattern_resource"])
 def test_compose_config_rejects_incomplete_sink(empty_field, default_biz):
     with pytest.raises(ValueError, match=empty_field):
-        build_sink(**{empty_field: {}}).compose_config()
+        build_sink(**{empty_field: {}}).compose_config(RAW_SINK)
+
+
+def test_compose_config_rejects_empty_raw_sink(default_biz):
+    with pytest.raises(ValueError, match="raw_sink"):
+        build_sink().compose_config({})
 
 
 def test_kind_is_registered_for_lifecycle():
@@ -155,3 +160,11 @@ def test_unclaimed_sink_is_kept_by_bk_log_leftover_policy():
     assert context.leftover() == {LogClusteringSinkConfig: [sink]}
     datalink._check_leftover_or_raise(context)
     assert datalink._get_absent_components_to_delete([], force_delete=True) == []
+
+
+@pytest.mark.django_db(databases="__all__")
+def test_datalink_allows_only_one_sink():
+    build_sink().save()
+
+    with pytest.raises(IntegrityError):
+        build_sink(name="bkm_lcs_50010_mnopqrstuvwx").save()
