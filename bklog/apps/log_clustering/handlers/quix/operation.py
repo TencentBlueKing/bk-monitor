@@ -294,14 +294,7 @@ class QuixClusteringOperationRunner:
         self._save_runtime(**fields)
 
     def _operate_metadata(self, action: str) -> bool:
-        result = TransferApi.operate_log_clustering(
-            self._metadata_params(
-                operation_id=self.operation.get_idempotency_key(action),
-                expected_revision=self.runtime.metadata_revision,
-                action=action,
-            )
-        )
-        self._save_runtime(metadata_revision=result["revision"])
+        TransferApi.operate_log_clustering(self._metadata_params(action=action))
         return True
 
     def _step_drain(self) -> bool:

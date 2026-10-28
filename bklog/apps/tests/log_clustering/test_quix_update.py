@@ -39,7 +39,6 @@ def create_running_runtime() -> LogClusteringRuntime:
     runtime.active_config = build_clustering_config("log", ERROR_RULES)
     runtime.pending_config = None
     runtime.bkfara_task_id = "task-uuid"
-    runtime.metadata_revision = 1
     runtime.save()
     ClusteringConfig.objects.create(
         index_set_id=INDEX_SET_ID,
@@ -65,14 +64,11 @@ class TestQuixUpdateRunner(TestCase):
             INDEX_SET_ID, ClusteringOperationTypeEnum.UPDATE.value, {"filter_rules": WARN_RULES}
         )
         self.transfer = MagicMock()
-        self.transfer.operate_log_clustering.side_effect = [{"revision": 2}, {"revision": 3}]
         self.transfer.set_log_clustering_config.return_value = {
-            "revision": 4,
             "sink": {"name": "sink"},
             "databus": {"name": "databus"},
-            "raw_sink": {"name": "raw"},
         }
-        adopted = {"revision": 4, "sink_referenced": True, "sink_resource": {"status": {"phase": "Ok"}}}
+        adopted = {"sink_referenced": True, "sink_resource": {"status": {"phase": "Ok"}}}
         self.transfer.get_log_clustering_status.side_effect = [{"clustering_status": DRAINED}, adopted, adopted]
         self.receipt = Mock(return_value=True)
         for target, value in (
@@ -105,10 +101,8 @@ class TestQuixUpdateRunner(TestCase):
         self.assertIsNone(self.run_operation())
 
         actions = [call.args[0]["action"] for call in self.transfer.operate_log_clustering.call_args_list]
-        revisions = [call.args[0]["expected_revision"] for call in self.transfer.operate_log_clustering.call_args_list]
-        self.assertEqual((actions, revisions), (["drain", "finish"], [1, 2]))
+        self.assertEqual(actions, ["drain", "finish"])
         set_params = self.transfer.set_log_clustering_config.call_args.args[0]
-        self.assertEqual(set_params["expected_revision"], 3)
         self.assertEqual(set_params["binding"]["log_filter"][0]["value"], ["WARN"])
 
         runtime = LogClusteringRuntime.objects.get(index_set_id=INDEX_SET_ID)
