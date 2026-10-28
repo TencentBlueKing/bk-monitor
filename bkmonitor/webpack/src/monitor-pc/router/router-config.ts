@@ -584,7 +584,7 @@ export const COMMON_ROUTE_LIST = getRouteConfig()
     if (item.children?.length) {
       return {
         ...item,
-        children: item.children.reduce(
+        children: item.children.filter(child => child.id !== 'profiling').reduce(
           // biome-ignore lint/performance/noAccumulatingSpread: <explanation>
           (pre, cur) => (cur.children?.length ? [...pre, ...cur.children.filter(set => set.canStore)] : [...pre, cur]),
           []
@@ -632,12 +632,12 @@ export function getRouteConfigById(id: string) {
 export function isInCommonRoute(id: string) {
   return COMMON_ROUTE_LIST.some(item => item?.children?.some(set => set.id === id));
 }
-/** 旧版主机监控收藏 id 打开时落到新版列表。 */
+/** 旧版主机监控和 Profiling 收藏 id 归一到新版入口。 */
 export function normalizeStoredRouteIds(ids: string[]) {
   const seen = new Set<string>();
   const result: string[] = [];
   for (const id of ids) {
-    const next = id === 'performance' ? 'host' : id;
+    const next = id === 'performance' ? 'host' : id === 'profiling' ? 'profiling-explore' : id;
     if (seen.has(next)) continue;
     seen.add(next);
     result.push(next);

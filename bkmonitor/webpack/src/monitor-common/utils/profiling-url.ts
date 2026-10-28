@@ -53,6 +53,9 @@ export interface ProfilingExploreState {
     dataType?: string;
     pendingTimeRange?: boolean;
     profileId: string;
+    view?: {
+      graphMode?: GraphMode;
+    };
     where?: ProfilingWhere[];
   };
   view?: {
@@ -66,7 +69,7 @@ type GraphMode = (typeof GRAPH_MODES)[keyof typeof GRAPH_MODES];
 
 interface ProfilingWhere {
   key: string;
-  method: 'eq';
+  method: 'equal';
   value: Array<number | string>;
 }
 
@@ -154,7 +157,7 @@ const toWhere = (labels: unknown): ProfilingWhere[] => {
     if (!key || RESERVED_LABELS.has(key)) continue;
     const values = toLabelValues(value);
     if (!values.length) continue;
-    where.push({ key, method: 'eq', value: values });
+    where.push({ key, method: 'equal', value: values });
   }
   return where;
 };
@@ -192,13 +195,14 @@ export function adaptLegacyProfilingTarget(input: unknown): null | ProfilingExpl
     const graphMode = toGraphMode(target.diagram_types);
     return {
       ...(timeRange ? { timeRange } : {}),
-      view: { tab: 'file', ...(graphMode ? { graphMode } : {}) },
+      view: { tab: 'file' },
       file: {
         profileId,
         ...(dataType ? { dataType } : {}),
         ...(aggregation ? { aggregation } : {}),
         ...(where.length ? { where } : {}),
         ...(!timeRange ? { pendingTimeRange: true } : {}),
+        ...(graphMode ? { view: { graphMode } } : {}),
       },
     };
   }
