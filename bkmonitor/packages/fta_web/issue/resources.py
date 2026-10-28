@@ -59,7 +59,7 @@ from bkmonitor.utils.event_related_info import get_alert_relation_info
 from bkmonitor.utils.request import get_request, get_request_username
 from bkmonitor.utils.tenant import space_uid_to_bk_tenant_id, bk_biz_id_to_bk_tenant_id
 from bkmonitor.utils.thread_backend import ThreadPool
-from bkmonitor.utils.user import get_global_user, set_local_username
+from bkmonitor.utils.user import set_local_username
 from constants.issue import (
     IssueActivityType,
     IssuePriority,
@@ -399,8 +399,8 @@ class SourceAnalysisBaseResource(IssueAIAnalysisWhitelistMixin, Resource):
             raise SourceAnalysisExecutionCredentialUnavailableError()
 
     @classmethod
-    def prepare_rule_run_as_user(cls) -> str:
-        """持久化当前配置人的 Token，并返回后续执行使用的身份快照。"""
+    def prepare_config_run_as_user(cls) -> str:
+        """保存仓库绑定前持久化配置人的 Token，供该业务全部规则执行。"""
 
         request = get_request(peaceful=True)
         username = get_request_username()
@@ -416,7 +416,7 @@ class SourceAnalysisBaseResource(IssueAIAnalysisWhitelistMixin, Resource):
             if not getattr(persisted_token, "access_token", ""):
                 raise TokenNotExist("persisted user access token is empty")
         except TokenException as error:
-            logger.warning("Source analysis rule run-as token unavailable: username=%s", username)
+            logger.warning("Source analysis config run-as token unavailable: username=%s", username)
             raise SourceAnalysisExecutionCredentialUnavailableError() from error
         return username
 
@@ -427,7 +427,7 @@ class SourceAnalysisBaseResource(IssueAIAnalysisWhitelistMixin, Resource):
         patch: dict,
         config: IssueSourceAnalysisConfig | None,
     ) -> IssueSourceAnalysisRule:
-        """把 PATCH 字段套用到规则上，并按业务配置刷新代码库快照。"""
+        """把 PATCH 字段套用到规则上，并继承仓库绑定及配置人身份。"""
 
         if rule.is_default:
             if "priority" in patch:
@@ -441,6 +441,7 @@ class SourceAnalysisBaseResource(IssueAIAnalysisWhitelistMixin, Resource):
             rule.conditions = []
         rule.bkci_project_id = config.bkci_project_id if config else None
         rule.repository_alias = config.repository_alias if config else None
+        rule.run_as_user = config.update_user if config and config.update_user not in {"", "unknown"} else ""
         return rule
 
 
@@ -949,9 +950,12 @@ class SourceAnalysisExecutionBaseResource(IssueAIAnalysisWhitelistMixin, Resourc
         if alert is None:
             return None, cls.NO_MATCHED_RULE
 
+        config = IssueSourceAnalysisConfig.objects.filter(bk_biz_id=bk_biz_id).first()
         rules = list(IssueSourceAnalysisRule.objects.filter(bk_biz_id=bk_biz_id).order_by("-priority", "id"))
         complete_rules = []
         for rule in rules:
+            # 兼容旧规则的不同执行人快照，新任务一律继承业务仓库配置；不改写历史执行。
+            SourceAnalysisBaseResource.apply_rule_patch(rule, {}, config)
             if not (
                 SourceAnalysisBaseResource.is_rule_complete(rule) and rule.bkci_project_id and rule.repository_alias
             ):
@@ -2013,7 +2017,7 @@ class GetSourceAnalysisConfigResource(SourceAnalysisBaseResource):
 
 
 class SaveSourceAnalysisConfigResource(GetSourceAnalysisConfigResource):
-    """保存业务代码库配置并同步全部规则的项目与代码库快照。"""
+    """保存业务仓库绑定并同步全部规则的仓库和执行身份。"""
 
     class RequestSerializer(serializers.Serializer):
         bk_biz_id = serializers.IntegerField(label="业务 ID")
@@ -2024,20 +2028,42 @@ class SaveSourceAnalysisConfigResource(GetSourceAnalysisConfigResource):
         bk_biz_id = validated_request_data["bk_biz_id"]
         bkci_project_id = validated_request_data["bkci_project_id"]
         repository_alias = validated_request_data["repository_alias"]
-        self.validate_repository(bk_biz_id, bkci_project_id, repository_alias)
+
+        def is_unchanged(config):
+            return (
+                config is not None
+                and config.bkci_project_id == bkci_project_id
+                and config.repository_alias == repository_alias
+                and config.update_user not in {"", "unknown"}
+            )
 
         with transaction.atomic(using=self.db_alias()):
-            operator = get_global_user() or "unknown"
+            config = IssueSourceAnalysisConfig.objects.select_for_update().filter(bk_biz_id=bk_biz_id).first()
+            if is_unchanged(config):
+                return self.serialize_config(config, bk_biz_id)
+
+        # 网络调用放在行锁之外；只有真正修改绑定或补齐旧配置执行人时才准备当前用户凭证。
+        self.validate_repository(bk_biz_id, bkci_project_id, repository_alias)
+        operator = self.prepare_config_run_as_user()
+
+        with transaction.atomic(using=self.db_alias()):
             config_defaults = {
                 "bkci_project_id": bkci_project_id,
                 "repository_alias": repository_alias,
                 "update_user": operator,
             }
-            # update_or_create 在首次并发保存时会处理唯一键竞争，避免其中一个请求直接返回 500。
-            config, _config_created = IssueSourceAnalysisConfig.objects.update_or_create(
+            # get_or_create 处理首次并发创建，所有写入仍按配置、规则的顺序加锁。
+            config, config_created = IssueSourceAnalysisConfig.objects.select_for_update().get_or_create(
                 bk_biz_id=bk_biz_id,
                 defaults=config_defaults,
             )
+            if not config_created:
+                # 准备凭证期间其他请求可能已完成相同绑定，不能因重复请求接管身份。
+                if is_unchanged(config):
+                    return self.serialize_config(config, bk_biz_id)
+                for field, value in config_defaults.items():
+                    setattr(config, field, value)
+                config.save()
 
             rules = list(IssueSourceAnalysisRule.objects.select_for_update().filter(bk_biz_id=bk_biz_id))
             default_rule = next((rule for rule in rules if rule.is_default), None)
@@ -2052,20 +2078,18 @@ class SaveSourceAnalysisConfigResource(GetSourceAnalysisConfigResource):
                         "conditions": [],
                         "bkci_project_id": bkci_project_id,
                         "repository_alias": repository_alias,
+                        "run_as_user": config.update_user,
                     },
                 )
-                rules.append(default_rule)
 
             now = timezone.now()
             IssueSourceAnalysisRule.objects.filter(bk_biz_id=bk_biz_id).update(
                 bkci_project_id=bkci_project_id,
                 repository_alias=repository_alias,
+                run_as_user=config.update_user,
                 update_user=operator,
                 update_time=now,
             )
-            for rule in rules:
-                rule.bkci_project_id = bkci_project_id
-                rule.repository_alias = repository_alias
 
         return self.serialize_config(config, bk_biz_id)
 
@@ -2077,8 +2101,10 @@ class ListSourceAnalysisRulesResource(SourceAnalysisBaseResource):
         bk_biz_id = serializers.IntegerField(label="业务 ID")
 
     def perform_request(self, validated_request_data: dict) -> list[dict]:
-        rules = IssueSourceAnalysisRule.objects.filter(bk_biz_id=validated_request_data["bk_biz_id"])
-        return [self.serialize_rule(rule) for rule in rules]
+        bk_biz_id = validated_request_data["bk_biz_id"]
+        config = IssueSourceAnalysisConfig.objects.filter(bk_biz_id=bk_biz_id).first()
+        rules = IssueSourceAnalysisRule.objects.filter(bk_biz_id=bk_biz_id)
+        return [self.serialize_rule(self.apply_rule_patch(rule, {}, config)) for rule in rules]
 
 
 class CreateSourceAnalysisRuleResource(SourceAnalysisBaseResource):
@@ -2090,18 +2116,10 @@ class CreateSourceAnalysisRuleResource(SourceAnalysisBaseResource):
         bk_biz_id = validated_request_data.pop("bk_biz_id")
         rule = IssueSourceAnalysisRule(bk_biz_id=bk_biz_id, is_default=False, **validated_request_data)
 
-        # 凭证准备可能调用 OAuth，在事务外完成，避免持有配置行锁等待上游响应。
-        # 保存规则不查询 AIDEV 资源可见性，事务内只复核本地配置与执行身份。
-        if rule.is_enabled:
-            config = IssueSourceAnalysisConfig.objects.filter(bk_biz_id=bk_biz_id).first()
-            self.validate_rule_definition(rule, config)
-            rule.run_as_user = self.prepare_rule_run_as_user()
-
         try:
             with transaction.atomic(using=self.db_alias()):
                 config = IssueSourceAnalysisConfig.objects.select_for_update().filter(bk_biz_id=bk_biz_id).first()
-                rule.bkci_project_id = config.bkci_project_id if config else None
-                rule.repository_alias = config.repository_alias if config else None
+                rule = self.apply_rule_patch(rule, {}, config)
                 if rule.is_enabled:
                     self.validate_rule_local(rule, config)
                 rule.save()
@@ -2129,7 +2147,8 @@ class GetSourceAnalysisRuleResource(SourceAnalysisBaseResource):
 
     def perform_request(self, validated_request_data: dict) -> dict:
         rule = self.get_rule(validated_request_data["bk_biz_id"], validated_request_data["rule_id"])
-        return self.serialize_rule(rule)
+        config = IssueSourceAnalysisConfig.objects.filter(bk_biz_id=rule.bk_biz_id).first()
+        return self.serialize_rule(self.apply_rule_patch(rule, {}, config))
 
 
 class UpdateSourceAnalysisRuleResource(GetSourceAnalysisRuleResource):
@@ -2142,21 +2161,12 @@ class UpdateSourceAnalysisRuleResource(GetSourceAnalysisRuleResource):
         bk_biz_id = validated_request_data.pop("bk_biz_id")
         rule_id = validated_request_data.pop("rule_id")
 
-        # 同 Create：先在事务外校验规则结构并准备凭证，事务内只做本地复核。
-        unlocked_config = IssueSourceAnalysisConfig.objects.filter(bk_biz_id=bk_biz_id).first()
-        preview = self.apply_rule_patch(self.get_rule(bk_biz_id, rule_id), validated_request_data, unlocked_config)
-        run_as_user = None
-        if preview.is_enabled:
-            self.validate_rule_definition(preview, unlocked_config)
-            run_as_user = self.prepare_rule_run_as_user()
-
         try:
             with transaction.atomic(using=self.db_alias()):
                 config = IssueSourceAnalysisConfig.objects.select_for_update().filter(bk_biz_id=bk_biz_id).first()
                 rule = self.get_rule(bk_biz_id, rule_id, for_update=True)
                 rule = self.apply_rule_patch(rule, validated_request_data, config)
                 if rule.is_enabled:
-                    rule.run_as_user = run_as_user
                     self.validate_rule_local(rule, config)
                 rule.save()
         except IntegrityError as error:

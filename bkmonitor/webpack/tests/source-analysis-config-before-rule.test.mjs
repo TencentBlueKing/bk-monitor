@@ -21,7 +21,7 @@ const compiled = ts.transpileModule(fs.readFileSync(path.join(root, file), 'utf8
 });
 assert.equal(compiled.diagnostics.length, 0);
 const flush = () => new Promise(resolve => setImmediate(resolve));
-const savedConfig = { bkci_project_id: 'project-a', repository_alias: 'team/repository-a' };
+const savedConfig = { bkci_project_id: 'project-a', repository_alias: 'team/repository-a', updated_by: 'alice' };
 
 function deferred() {
   let resolve;
@@ -72,9 +72,10 @@ function harness({ config = {}, getConfig = async () => config, save = async () 
     '../../constants': { SidesliderTypeEnum: { ADD: 'add', EDIT: 'edit' } },
     '../../services/ai-config': {
       getSourceAnalysisConfigData: getConfig,
-      setSaveSourceAnalysisConfig: params => {
+      setSaveSourceAnalysisConfig: async params => {
         saves.push({ ...params });
-        return save(params);
+        await save(params);
+        return { ...params, updated_by: 'alice' };
       },
     },
     '../../services/source-analysis-rule': {
@@ -115,6 +116,8 @@ function harness({ config = {}, getConfig = async () => config, save = async () 
     },
     button: () =>
       nodes(component.render.call(vue.proxyRefs(state))).find(node => node.props?.onClick === state.handleAddRule),
+    saveButton: () =>
+      nodes(component.render.call(vue.proxyRefs(state))).find(node => node.props?.onClick === state.handleSaveConfig),
     async confirm() {
       const dialog = dialogs.at(-1);
       const success = await dialog.beforeClose('confirm');
@@ -140,7 +143,9 @@ test('first configuration requires explicit save confirmation before opening the
   assert.equal(h.state.showBindModal.value, false);
   assert.equal(h.button().props.disabled, true);
   assert.equal(await h.confirm(), true);
-  assert.deepEqual(h.saves, [savedConfig]);
+  assert.deepEqual(h.saves, [
+    { bkci_project_id: savedConfig.bkci_project_id, repository_alias: savedConfig.repository_alias },
+  ]);
   assert.equal(h.state.showBindModal.value, true);
   assert.equal(h.state.isEdited.value, false);
   assert.equal(h.state.saveConfirmVisible.value, false);
@@ -155,6 +160,35 @@ test('saved unchanged configuration opens directly without saving or prompting',
   assert.equal(h.state.showBindModal.value, true);
   assert.equal(h.dialogs.length, 0);
   assert.equal(h.saves.length, 0);
+  assert.equal(h.saveButton().props.disabled, true);
+  assert.equal(await h.state.handleSaveConfig(), true);
+  assert.equal(h.saves.length, 0);
+});
+
+test('saving repository configuration is disabled during initialization and enabled only for changes', async () => {
+  const initial = deferred();
+  const h = harness({ getConfig: () => initial.promise });
+  assert.equal(h.saveButton().props.disabled, true);
+  initial.resolve(savedConfig);
+  await flush();
+  assert.equal(h.saveButton().props.disabled, true);
+  assert.ok(h.saveButton().children.includes('保存仓库配置'));
+  h.state.repositoryAlias.value = 'team/changed';
+  assert.equal(h.saveButton().props.disabled, false);
+  await h.state.handleSaveConfig();
+  assert.equal(h.saveButton().props.disabled, true);
+});
+
+test('legacy configuration without a repository owner must be initialized before adding rules', async () => {
+  const h = harness({ config: { ...savedConfig, updated_by: 'unknown' } });
+  await flush();
+  assert.equal(h.state.isEdited.value, true);
+  assert.equal(h.saveButton().props.disabled, false);
+  h.state.handleAddRule();
+  assert.equal(h.dialogs.length, 1);
+  assert.equal(await h.confirm(), true);
+  assert.equal(h.state.isEdited.value, false);
+  assert.equal(h.saveButton().props.disabled, true);
 });
 
 test('editing either the saved project or repository requires confirmation', async () => {

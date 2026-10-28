@@ -72,6 +72,7 @@ export default defineComponent({
      */
     const initialBkciProjectId = shallowRef<null | string>(null);
     const initialRepositoryAlias = shallowRef<null | string>(null);
+    const configOwner = shallowRef('');
     /** 蓝盾项目下拉选择 */
     const projectsSelect = useBkciProjectsSelect();
     /** 源码仓库下拉选择（依赖蓝盾项目） */
@@ -174,21 +175,22 @@ export default defineComponent({
      * @description 保存配置，校验必填项
      */
     const handleSaveConfig = async () => {
-      if (!validateConfig() || saveLoading.value) return false;
+      if (!validateConfig() || configLoading.value || saveLoading.value) return false;
+      if (!isEdited.value) return true;
       const params = {
         bkci_project_id: bkciProjectId.value,
         repository_alias: repositoryAlias.value,
       };
       saveLoading.value = true;
-      const success = await setSaveSourceAnalysisConfig(params)
-        .then(() => true)
-        .catch(() => false);
+      const result = await setSaveSourceAnalysisConfig(params).catch(() => null);
+      const success = !!result;
       saveLoading.value = false;
       if (success) {
         Message({ theme: 'success', message: t('保存成功') });
         // 保存成功后更新初始快照，使 isEdited 归位为未编辑状态
         initialBkciProjectId.value = `${params.bkci_project_id}`;
         initialRepositoryAlias.value = `${params.repository_alias}`;
+        configOwner.value = result.updated_by || '';
       }
       return success;
     };
@@ -205,6 +207,7 @@ export default defineComponent({
         // 初始化加载完成后记录初始快照，作为是否编辑过的基线
         initialBkciProjectId.value = `${bkciProjectId.value}`;
         initialRepositoryAlias.value = `${repositoryAlias.value}`;
+        configOwner.value = data?.updated_by === 'unknown' ? '' : data?.updated_by || '';
         // 详情回显：拉取项目/仓库全量列表并填充映射表
         projectsSelect.fetchDataInit();
         repositoriesSelect.fetchDataInit();
@@ -252,12 +255,13 @@ export default defineComponent({
     };
 
     /**
-     * 当前表单是否相对初始快照被修改：仅判断 bkciProjectId / repositoryAlias
+     * 比较项目与仓库快照；旧配置缺少执行人时，也需要重新保存以初始化身份
      * 初始快照在 handleInitConfig 完成后写入，初始化前视作未编辑
      */
     const isEdited = computed(() => {
       if (initialBkciProjectId.value === null || initialRepositoryAlias.value === null) return false;
       return (
+        (!!initialBkciProjectId.value && !!initialRepositoryAlias.value && !configOwner.value) ||
         `${bkciProjectId.value}` !== `${initialBkciProjectId.value}` ||
         `${repositoryAlias.value}` !== `${initialRepositoryAlias.value}`
       );
@@ -273,7 +277,7 @@ export default defineComponent({
       saveConfirmVisible.value = true;
       InfoBox({
         title: t('项目和代码库配置尚未保存，是否保存并继续？'),
-        subTitle: t('保存项目和代码库会同步更新已有规则。'),
+        subTitle: t('保存仓库配置会同步更新所有规则，并使用保存人的身份执行。'),
         confirmText: t('保存并继续'),
         cancelText: t('取消'),
         beforeClose: async action => {
@@ -440,7 +444,7 @@ export default defineComponent({
           {
             icon: () => <span class='icon-monitor icon-storehouse' />,
             title: this.t('源码仓库关联'),
-            description: this.t('关联后，告警中心的 AI 分析可基于蓝盾构建与 Git 变更进行'),
+            description: this.t('保存仓库配置会同步更新所有规则，并使用保存人的身份执行。'),
             content: () => (
               <div class='form-items'>
                 {formItem({
@@ -637,11 +641,12 @@ export default defineComponent({
           '2'
         )}
         <Button
+          disabled={this.configLoading || this.saveConfirmVisible || !this.isEdited}
           loading={this.saveLoading}
           theme='primary'
           onClick={this.handleSaveConfig}
         >
-          {this.t('保存配置')}
+          {this.t('保存仓库配置')}
         </Button>
       </div>
     );
