@@ -72,6 +72,10 @@ const HIDE_METRICS_KEY = 'monitor_k8s_hide_metrics';
 
 const CACHE_APM_SEARCH_QUERY = 'APM_K8S';
 
+/** 容器页 workload 选择框：默认 340px，右缘拖拽最大 560px */
+const TARGET_SELECT_MIN_WIDTH = 340;
+const TARGET_SELECT_MAX_WIDTH = 560;
+
 /** 网络场景默认隐藏的指标 */
 const networkDefaultHideMetrics = [
   'nw_container_network_receive_errors_total',
@@ -167,6 +171,9 @@ export default class MonitorK8sNew extends Mixins(NewUserConfigMixin) {
   targetList: IK8sTargetList[] = [];
   targetListToggle = false;
   selectTarget = '';
+  targetSelectWidth = TARGET_SELECT_MIN_WIDTH;
+  /** 拖拽过程中的 document 监听，销毁时卸掉 */
+  removeTargetSelectResize: (() => void) | null = null;
 
   isUserManualSwitch = false;
   cacheData: Record<string, { target: string }> = {};
@@ -243,14 +250,13 @@ export default class MonitorK8sNew extends Mixins(NewUserConfigMixin) {
   }
 
   get selectTargetText() {
-    if (!this.selectTarget) return this.$t('请选择');
-    const { namespace = '', workload = '', pod = '' } = this.selectTargetItem || {};
-    return `[${namespace}] ${workload || pod}`;
+    if (!this.selectTarget || !this.selectTargetItem) return '';
+    return this.getTargetNameText(this.selectTargetItem);
   }
 
-  get selectTargetTextTooltip() {
-    const { bcs_cluster_id: clusterId = '' } = this.selectTargetItem || {};
-    return `${this.selectTargetText}（${this.$t('集群')}: ${clusterId}）`;
+  get selectTargetClusterText() {
+    if (!this.selectTarget || !this.selectTargetItem) return '';
+    return this.getTargetClusterText(this.selectTargetItem);
   }
 
   // 选中的目标项
@@ -422,6 +428,7 @@ export default class MonitorK8sNew extends Mixins(NewUserConfigMixin) {
 
   /** keep-alive / 微前端挂起时 beforeDestroy 不会触发 */
   deactivated() {
+    this.removeTargetSelectResize?.();
     this.saveNewTargetValueToUserConfig();
   }
 
@@ -429,6 +436,7 @@ export default class MonitorK8sNew extends Mixins(NewUserConfigMixin) {
     this.disposed = true;
     this.initializationId++;
     this.initializationController?.abort();
+    this.removeTargetSelectResize?.();
     bus.$off(APM_K8S_CACHE_FLUSH_EVENT, this.saveNewTargetValueToUserConfig);
     this.saveNewTargetValueToUserConfig();
   }
@@ -597,6 +605,67 @@ export default class MonitorK8sNew extends Mixins(NewUserConfigMixin) {
     this.targetListToggle = toggle;
   }
 
+  getTargetNameText(target: IK8sTargetList) {
+    return `[${target.namespace}] ${target.workload || target.pod}`;
+  }
+
+  getTargetClusterText(target: IK8sTargetList) {
+    return `${this.$t('集群')}: ${target.bcs_cluster_id}`;
+  }
+
+  /** 保持原 option name，关键字过滤仍匹配完整名称和集群 */
+  getTargetOptionName(target: IK8sTargetList) {
+    return `[${target.namespace}] ${target.workload || target.pod}（集群: ${target.bcs_cluster_id}）`;
+  }
+
+  handleTargetSelectResizeStart(event: MouseEvent) {
+    event.preventDefault();
+    event.stopPropagation();
+    this.removeTargetSelectResize?.();
+    const startX = event.clientX;
+    const startWidth = this.targetSelectWidth;
+    const { cursor, userSelect } = document.body.style;
+    document.body.style.cursor = 'col-resize';
+    document.body.style.userSelect = 'none';
+    const stopClick = (clickEvent: MouseEvent) => {
+      clickEvent.preventDefault();
+      clickEvent.stopPropagation();
+    };
+    const onMove = (moveEvent: MouseEvent) => {
+      const nextWidth = startWidth + moveEvent.clientX - startX;
+      this.targetSelectWidth = Math.min(TARGET_SELECT_MAX_WIDTH, Math.max(TARGET_SELECT_MIN_WIDTH, nextWidth));
+    };
+    const onUp = () => {
+      document.removeEventListener('mousemove', onMove);
+      document.removeEventListener('mouseup', onUp);
+      document.body.style.cursor = cursor;
+      document.body.style.userSelect = userSelect;
+      this.removeTargetSelectResize = null;
+      // click 在 mouseup 之后才派发，下一拍再卸掉，避免吞掉后续点击
+      setTimeout(() => window.removeEventListener('click', stopClick, true), 0);
+    };
+    document.addEventListener('mousemove', onMove);
+    document.addEventListener('mouseup', onUp);
+    window.addEventListener('click', stopClick, true);
+    this.removeTargetSelectResize = () => {
+      document.removeEventListener('mousemove', onMove);
+      document.removeEventListener('mouseup', onUp);
+      window.removeEventListener('click', stopClick, true);
+      document.body.style.cursor = cursor;
+      document.body.style.userSelect = userSelect;
+      this.removeTargetSelectResize = null;
+    };
+  }
+
+  renderTargetText(name: string, cluster: string) {
+    return (
+      <span class='target-list-text'>
+        <span class='target-list-name'>{name}</span>
+        {cluster ? <span class='target-list-cluster'>{cluster}</span> : null}
+      </span>
+    );
+  }
+
   // apm容器首版：只需要缓存targetList选中的那一项，暂时不需要过滤条件和聚合维度等其他参数
   getRouteParams(query: Record<string, string | string[]> = {}) {
     const { target = '' } = query;
@@ -663,6 +732,7 @@ export default class MonitorK8sNew extends Mixins(NewUserConfigMixin) {
           class='target-list-select'
           aria-busy='true'
           aria-label={this.$t('加载中')}
+          role='status'
         >
           <div
             class='target-list-trigger target-list-skeleton'
@@ -676,8 +746,15 @@ export default class MonitorK8sNew extends Mixins(NewUserConfigMixin) {
     }
     return (
       <bk-select
+        style={{
+          width: `${this.targetSelectWidth}px`,
+          maxWidth: `${this.targetSelectWidth}px`,
+        }}
         class='target-list-select'
         clearable={false}
+        ext-popover-cls='apm-target-list-popover'
+        popover-min-width={this.targetSelectWidth}
+        popover-width={this.targetSelectWidth}
         search-placeholder={this.$t('请输入 关键字')}
         value={this.selectTarget}
         filterable
@@ -689,20 +766,30 @@ export default class MonitorK8sNew extends Mixins(NewUserConfigMixin) {
           class='target-list-trigger'
           slot='trigger'
         >
-          <span
-            class='target-list-name'
-            v-bk-overflow-tips={{ content: this.selectTargetTextTooltip }}
-          >
-            {this.selectTargetText}
-          </span>
+          {this.selectTargetText ? (
+            this.renderTargetText(this.selectTargetText, this.selectTargetClusterText)
+          ) : (
+            <span class='target-list-name is-placeholder'>{this.$t('请选择')}</span>
+          )}
           <span class={`icon-monitor icon-mc-arrow-down ${this.targetListToggle ? 'expand' : ''}`} />
+          <span
+            class='target-list-resize-handle'
+            title={String(this.$t('拖拽调整宽度'))}
+            onClick={(clickEvent: MouseEvent) => {
+              clickEvent.preventDefault();
+              clickEvent.stopPropagation();
+            }}
+            onMousedown={this.handleTargetSelectResizeStart}
+          />
         </div>
         {this.targetList.map(target => (
           <bk-option
             id={target.cacheId}
             key={target.cacheId}
-            name={`[${target.namespace}] ${target.workload || target.pod}（集群: ${target.bcs_cluster_id}）`}
-          />
+            name={this.getTargetOptionName(target)}
+          >
+            {this.renderTargetText(this.getTargetNameText(target), this.getTargetClusterText(target))}
+          </bk-option>
         ))}
       </bk-select>
     );
@@ -717,7 +804,7 @@ export default class MonitorK8sNew extends Mixins(NewUserConfigMixin) {
         />
       );
     return (
-      <div class={['monitor-k8s-new', this.scene]}>
+      <div class={['monitor-k8s-new', 'monitor-k8s-apm', this.scene]}>
         {[
           <div
             key='monitor-k8s-new-header'
