@@ -17,9 +17,10 @@ from html import unescape
 from zoneinfo import ZoneInfo
 
 from django.conf import settings
-from django.template.loader import get_template
 from django.utils import timezone, translation
 from django.utils.translation import gettext as _
+
+from bkmonitor.utils.template import AlarmNoticeTemplate, Jinja2Renderer
 
 logger = logging.getLogger("fta_action.run")
 
@@ -143,7 +144,7 @@ def render_standard_sms(kind: str, values: dict, language: str | None = None) ->
     with translation.override(language) if language else nullcontext():
         english = _is_english(language)
         suffix = "_en" if english else ""
-        template = get_template(f"notice/standard/{kind}/sms_content{suffix}.jinja")
+        template_source = AlarmNoticeTemplate.get_template_source(f"notice/standard/{kind}/sms_content{suffix}.jinja")
         context = {
             field: _plain_text(values.get(field))
             for field in ("time", "level", "count", "name", "status", "duration", "shield_action")
@@ -156,7 +157,7 @@ def render_standard_sms(kind: str, values: dict, language: str | None = None) ->
         context["operator"] = (", " if english else "、").join(operators)
 
         def render():
-            return template.render(context).strip()
+            return Jinja2Renderer.render(template_source, context).strip()
 
         content = render()
         overflow = sms_utf16_length(content) - SMS_STANDARD_MAX_LENGTH

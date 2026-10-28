@@ -9,9 +9,11 @@ specific language governing permissions and limitations under the License.
 """
 
 from datetime import datetime, timezone as datetime_timezone
+from pathlib import Path
 from zoneinfo import ZoneInfo
 
 import pytest
+from django.template import TemplateDoesNotExist, engines
 from django.utils import timezone, translation
 
 from bkmonitor.utils.sms import (
@@ -51,6 +53,57 @@ CHINESE_MESSAGES = {
     "incident": f"{TIME}，您有1个致命级的故障待处理（关联5条告警），{GUIDANCE}",
     "shield": f"{TIME}，您有一条告警屏蔽已开始，屏蔽时长2小时，{GUIDANCE}",
 }
+
+
+@pytest.fixture(params=["web", "worker"])
+def sms_template_backend(request, settings):
+    template_dir = str(Path(__file__).resolve().parents[3] / "templates")
+    if request.param == "web":
+        settings.MAKO_DIR_NAME = "templates"
+        backend = "blueapps.template.backends.mako.MakoTemplates"
+        options = {"default_filters": ["h"]}
+    else:
+        backend = "django_jinja.backend.Jinja2"
+        options = {"match_extension": ".jinja"}
+    settings.TEMPLATES = [
+        {"NAME": "sms_role", "BACKEND": backend, "DIRS": [template_dir], "APP_DIRS": False, "OPTIONS": options}
+    ]
+    assert engines["sms_role"].__class__.__module__ == backend.rsplit(".", 1)[0]
+    return request.param
+
+
+@pytest.mark.parametrize(("kind", "expected"), CHINESE_MESSAGES.items())
+def test_role_template_backend_keeps_standard_jinja_rendering(sms_template_backend, kind, expected):
+    assert render_standard_sms(kind, VALUES, language="zh-hans") == expected
+
+    english = render_standard_sms(
+        kind,
+        {
+            **VALUES,
+            "time": "2025-12-31 23:59",
+            "level": "Emergency",
+            "name": "A",
+            "operator": "a",
+            "status": "Failed",
+            "duration": "2h",
+            "shield_action": "started",
+        },
+        language="en",
+    )
+    assert "{{" not in english
+    assert english.startswith("2025-12-31 23:59 ")
+    assert english.endswith("WeCom/BK.")
+    assert sms_utf16_length(english) <= 70
+
+
+def test_missing_standard_template_does_not_use_default(sms_template_backend, settings, tmp_path):
+    fallback = tmp_path / "notice" / "standard" / "fta_action" / "default_content.jinja"
+    fallback.parent.mkdir(parents=True)
+    fallback.write_text("fallback", encoding="utf-8")
+    settings.TEMPLATES = [{**settings.TEMPLATES[0], "DIRS": [str(tmp_path)]}]
+
+    with pytest.raises(TemplateDoesNotExist):
+        render_standard_sms("fta_action", VALUES, language="zh-hans")
 
 
 @pytest.mark.parametrize(("kind", "expected"), CHINESE_MESSAGES.items())
