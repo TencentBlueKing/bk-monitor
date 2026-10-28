@@ -60,7 +60,7 @@ class FieldViewSet(APIViewSet):
         """
         count_list = []
         params = self.params_valid(QueryFieldBaseSerializer)
-        fields_result = UnionSearchHandler().union_search_fields(params)
+        fields_result = UnionSearchHandler().unifyquery_union_search_fields(params)
         # 去除非聚合字段和text类型字段
         fields_list = [
             field
