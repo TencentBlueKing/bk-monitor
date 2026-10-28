@@ -43,7 +43,16 @@ BKBASE_ACTIONS = ["drain", "finish", "resume"]
 # metadata 内部动作：切换 Databus 是否引用聚类 Sink 后完整下发日志链路
 SINK_REFERENCE_ACTIONS = {"detach": False, "attach": True}
 
-LOG_FILTER_METHODS = ["eq", "neq", "include", "exclude"]
+LOG_FILTER_METHODS = [
+    "eq",
+    "neq",
+    "include",
+    "exclude",
+    "starts_with",
+    "not_starts_with",
+    "ends_with",
+    "not_ends_with",
+]
 DISTANCE_THRESHOLDS = ["0.1", "0.3", "0.5", "0.7", "0.9"]
 DEFAULT_MAX_MESSAGE_BYTES = 1024 * 1024
 MAX_MESSAGE_BYTES_LIMIT = 16 * 1024 * 1024
@@ -94,14 +103,18 @@ class LogClusteringInputMappingSerializer(serializers.Serializer):
 class LogClusteringBindingSerializer(serializers.Serializer):
     task_id = serializers.CharField(label="BKFara 任务ID")
     index_id = serializers.CharField(label="日志平台索引ID")
+    # 由 BKFara 管理：分别取任务 current_generation 和聚类配置 input_revision，调用方原样传入。
+    # metadata 不生成或递增这两个版本，也不把它们作为本地配置修订号。
     generation = serializers.IntegerField(label="任务代际", min_value=0)
     config_revision = serializers.IntegerField(label="BKFara 输入配置版本", min_value=0)
     kafka = LogClusteringKafkaSerializer(label="Kafka 绑定")
     log_filter = LogClusteringFilterRuleSerializer(label="聚类过滤规则", many=True, default=list)
     input_mapping = LogClusteringInputMappingSerializer(label="输入字段映射")
-    distance_threshold = serializers.ChoiceField(label="距离档位", choices=DISTANCE_THRESHOLDS)
+    distance_threshold = serializers.ChoiceField(label="距离档位", choices=DISTANCE_THRESHOLDS, default="0.5")
     pattern_index = serializers.CharField(label="Pattern 索引")
     state_index = serializers.CharField(label="恢复状态索引")
+    # Kafka 候选消息的序列化大小预算，不是原文日志长度限制；这里只校验和透传。
+    # 实际超限处理由 BKBase Runtime 执行。
     max_message_bytes = serializers.IntegerField(
         label="候选消息上限(字节)", min_value=1, max_value=MAX_MESSAGE_BYTES_LIMIT, default=DEFAULT_MAX_MESSAGE_BYTES
     )

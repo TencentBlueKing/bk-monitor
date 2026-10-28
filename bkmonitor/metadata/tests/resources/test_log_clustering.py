@@ -232,6 +232,51 @@ def test_filter_values_keep_surrounding_whitespace(clustering_datalink, bkbase):
     assert get_sink().binding["log_filter"][0]["value"] == [" ERROR ", " ", "\t"]
 
 
+def test_omitted_binding_defaults_are_saved_and_applied(clustering_datalink, bkbase):
+    set_config()
+    attach_remotely(bkbase)
+    binding = copy.deepcopy(BINDING)
+    binding.pop("distance_threshold")
+    binding.pop("max_message_bytes")
+
+    set_config(binding=binding)
+
+    expected = {**binding, "distance_threshold": "0.5", "max_message_bytes": 1048576}
+    assert get_sink().binding == expected
+    (configs,), _ = bkbase["apply_data_link"].call_args
+    assert configs[0]["spec"]["clustering"]["binding"] == expected
+
+
+@pytest.mark.parametrize(
+    "method",
+    ["eq", "neq", "include", "exclude", "starts_with", "not_starts_with", "ends_with", "not_ends_with"],
+)
+def test_all_filter_methods_are_saved_and_forwarded(method, clustering_datalink, bkbase):
+    set_config()
+    attach_remotely(bkbase)
+    binding = copy.deepcopy(BINDING)
+    rule = {"key": "log", "method": method, "value": [" ERROR_%* ", "", "\t"], "condition": ""}
+    binding["log_filter"] = [rule]
+
+    set_config(binding=binding)
+
+    assert get_sink().binding["log_filter"] == [rule]
+    (configs,), _ = bkbase["apply_data_link"].call_args
+    assert configs[0]["spec"]["clustering"]["binding"]["log_filter"] == [rule]
+
+
+def test_candidate_message_size_upper_bound_is_forwarded(clustering_datalink, bkbase):
+    set_config()
+    attach_remotely(bkbase)
+    binding = copy.deepcopy(BINDING)
+    binding["max_message_bytes"] = 16 * 1024 * 1024
+
+    set_config(binding=binding)
+
+    (configs,), _ = bkbase["apply_data_link"].call_args
+    assert configs[0]["spec"]["clustering"]["binding"]["max_message_bytes"] == 16 * 1024 * 1024
+
+
 def test_retry_after_failed_apply_reapplies_whole_datalink(clustering_datalink, bkbase):
     bkbase["apply_log_datalink"].side_effect = RuntimeError("bkbase apply failed")
     with pytest.raises(RuntimeError):
@@ -307,6 +352,8 @@ def test_missing_datasource_is_rejected_before_creating_sink(clustering_datalink
         ("binding.log_filter", [{"key": "level", "method": "eq", "value": ["ERROR"], "condition": "and"}]),
         ("binding.log_filter", [{"key": "level", "method": "contains", "value": ["ERROR"], "condition": ""}]),
         ("binding.distance_threshold", "0.4"),
+        ("binding.max_message_bytes", 0),
+        ("binding.max_message_bytes", 16 * 1024 * 1024 + 1),
         ("binding.kafka.recovery_window_ms", 604800001),
     ],
 )
