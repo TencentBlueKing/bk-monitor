@@ -19,6 +19,7 @@ We undertake not to change the open source license (MIT license) applicable to t
 the project delivered to anyone in the future.
 """
 
+from django.db import transaction
 from django.utils.translation import gettext as _
 
 from apps.log_clustering.constants import (
@@ -80,23 +81,25 @@ class QuixClusteringHandler:
 
         collector_config = CollectorConfig.objects.get(collector_config_id=self.index_set.collector_config_id)
         pattern_index, state_index = build_index_names(self.index_set_id)
-        _runtime, operation = LogClusteringRuntime.start_operation(
-            self.index_set_id,
-            ClusteringOperationTypeEnum.ENABLE.value,
-            {"clustering_fields": clustering_fields, "filter_rules": filter_rules},
-            defaults={
-                "bk_biz_id": collector_config.bk_biz_id,
-                "bk_tenant_id": Space.get_tenant_id(space_uid=self.index_set.space_uid),
-                "collector_config_id": collector_config.collector_config_id,
-                "table_id": collector_config.table_id,
-                "bk_data_id": collector_config.bk_data_id,
-                "phase": ClusteringRuntimePhaseEnum.ENABLING.value,
-                "pending_config": clustering_config,
-                "pattern_index": pattern_index,
-                "state_index": state_index,
-            },
-        )
-        self._save_business_config(collector_config, params, clustering_fields, filter_rules)
+        # 业务配置与可调度操作一起提交，保存失败时不能由定时恢复任务继续开启。
+        with transaction.atomic():
+            _runtime, operation = LogClusteringRuntime.start_operation(
+                self.index_set_id,
+                ClusteringOperationTypeEnum.ENABLE.value,
+                {"clustering_fields": clustering_fields, "filter_rules": filter_rules},
+                defaults={
+                    "bk_biz_id": collector_config.bk_biz_id,
+                    "bk_tenant_id": Space.get_tenant_id(space_uid=self.index_set.space_uid),
+                    "collector_config_id": collector_config.collector_config_id,
+                    "table_id": collector_config.table_id,
+                    "bk_data_id": collector_config.bk_data_id,
+                    "phase": ClusteringRuntimePhaseEnum.ENABLING.value,
+                    "pending_config": clustering_config,
+                    "pattern_index": pattern_index,
+                    "state_index": state_index,
+                },
+            )
+            self._save_business_config(collector_config, params, clustering_fields, filter_rules)
         run_quix_clustering_operation.delay(operation.operation_id)
         return self._access_response(operation)
 
@@ -121,12 +124,17 @@ class QuixClusteringHandler:
         }
         return result
 
+    @transaction.atomic
     def _resume_failed_operation(self, operation_type: str) -> LogClusteringOperation | None:
-        operation = LogClusteringOperation.objects.filter(
-            index_set_id=self.index_set_id,
-            operation_type=operation_type,
-            status=ClusteringOperationStatusEnum.FAILED.value,
-        ).first()
+        operation = (
+            LogClusteringOperation.objects.select_for_update()
+            .filter(
+                index_set_id=self.index_set_id,
+                operation_type=operation_type,
+                status=ClusteringOperationStatusEnum.FAILED.value,
+            )
+            .first()
+        )
         if operation:
             operation.status = ClusteringOperationStatusEnum.PENDING.value
             operation.retry_count = 0
