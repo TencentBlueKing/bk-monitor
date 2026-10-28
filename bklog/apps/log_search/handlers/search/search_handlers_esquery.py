@@ -125,7 +125,7 @@ from apps.log_search.models import (
     UserIndexSetSearchHistory,
 )
 from apps.log_search.permission import Permission
-from apps.log_search.utils import sort_func, handle_es_query_error
+from apps.log_search.utils import display_index_set_name, sort_func, handle_es_query_error
 from apps.models import model_to_dict
 from apps.utils.cache import cache_five_minute
 from apps.utils.core.cache.cmdb_host import CmdbHostCache
@@ -1428,10 +1428,13 @@ class SearchHandler:
         # 获取当前空间关联空间的索引集
         space_uids = IndexSetHandler.get_all_related_space_uids(space_uid)
         index_set_objs = LogIndexSet.objects.filter(index_set_id__in=index_set_id_all, space_uid__in=space_uids).values(
-            "index_set_id", "index_set_name"
+            "index_set_id", "index_set_name", "collector_config_id"
         )
 
-        effect_index_set_mapping = {obj["index_set_id"]: obj["index_set_name"] for obj in index_set_objs}
+        effect_index_set_mapping = {
+            obj["index_set_id"]: display_index_set_name(obj["index_set_name"], obj["collector_config_id"])
+            for obj in index_set_objs
+        }
 
         if not effect_index_set_mapping:
             return []

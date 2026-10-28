@@ -117,7 +117,7 @@ from apps.log_search.models import (
 )
 from apps.log_search.tasks.mapping import sync_single_index_set_mapping_snapshot
 from apps.log_search.tasks.sync_index_set_archive import sync_index_set_archive
-from apps.log_search.utils import fetch_request_username
+from apps.log_search.utils import display_index_set_name, fetch_request_username
 from apps.log_trace.handlers.proto.proto import Proto
 from apps.models import model_to_dict
 from apps.utils import APIModel
@@ -224,6 +224,9 @@ class IndexSetHandler(APIModel):
         index_set_ids = [index_set["index_set_id"] for index_set in index_sets]
         is_id_to_is_native_doris_map = LogIndexSet.batch_get_is_native_doris(index_set_ids)
         for index_set in index_sets:
+            index_set["index_set_name"] = display_index_set_name(
+                index_set["index_set_name"], index_set["collector_config_id"]
+            )
             index_set["collector_scenario_id"] = collector_scenario_map.get(index_set["collector_config_id"])
             is_support_sql_and_grep = False
             if index_set["support_doris"] and index_set["doris_table_id"]:
