@@ -748,8 +748,21 @@ class TraceDataSource(ApmDataSourceConfigBase):
         """构建结果表 option，通过日志 V4 通用配置声明 APM Trace 数据链路。"""
         option = dict(TRACE_RESULT_TABLE_OPTION)
         if use_bkbase_v4_link:
-            option[metadata_models.ResultTableOption.OPTION_ENABLE_V4_LOG_DATA_LINK] = True
-            option[metadata_models.ResultTableOption.OPTION_V4_LOG_DATA_LINK] = self._build_v4_datalink_option()
+            tail_sampling_enabled = (
+                BkdataFlowConfig.objects.filter(
+                    bk_biz_id=self.bk_biz_id,
+                    app_name=self.app_name,
+                    flow_type=FlowType.TAIL_SAMPLING.value,
+                    flow_id__isnull=False,
+                    databus_clean_result_table_id__isnull=False,
+                )
+                .exclude(flow_id="")
+                .exclude(databus_clean_result_table_id="")
+                .exists()
+            )
+            option[metadata_models.ResultTableOption.OPTION_ENABLE_V4_LOG_DATA_LINK] = not tail_sampling_enabled
+            if not tail_sampling_enabled:
+                option[metadata_models.ResultTableOption.OPTION_V4_LOG_DATA_LINK] = self._build_v4_datalink_option()
         return option
 
     @classmethod
