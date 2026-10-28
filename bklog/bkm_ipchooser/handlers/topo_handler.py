@@ -1,6 +1,8 @@
 import logging
 
 from apps.api.modules.bk_node import BKNodeApi
+from apps.log_databus.nodeman_v3.agent_status import get_agent_status
+from apps.log_databus.nodeman_v3.mode import is_nodeman_v3_admitted
 from bkm_ipchooser import constants, types, exceptions
 from bkm_ipchooser.api import BkApi
 from bkm_ipchooser.handlers.base import BaseHandler
@@ -187,7 +189,7 @@ class TopoHandler:
             host_map[cc_host["bk_host_id"]] = index
 
         # IP 选择器是业务级查询，无法按采集项判断，复用采集项的业务级准入
-        if cls._should_use_nodeman_v3(bk_biz_id):
+        if is_nodeman_v3_admitted(bk_biz_id):
             return cls._fill_agent_status_v3(cc_hosts, host_map, bk_biz_id)
 
         try:
@@ -206,21 +208,6 @@ class TopoHandler:
 
         return cc_hosts
 
-    @staticmethod
-    def _should_use_nodeman_v3(bk_biz_id) -> bool:
-        """
-        复用 NodeMan V3 业务级准入，与 log_search.handlers.biz 的 Agent 状态判断一致。
-
-        bkm_ipchooser 是公共模块，延迟导入避免启动期循环依赖；导入或配置异常时回退 V2。
-        """
-        try:
-            from apps.log_databus.nodeman_v3.mode import is_nodeman_v3_admitted
-
-            return is_nodeman_v3_admitted(bk_biz_id)
-        except Exception:  # pylint: disable=broad-except
-            logger.exception("check nodeman v3 admission failed, fallback to v2")
-            return False
-
     @classmethod
     def _fill_agent_status_v3(cls, cc_hosts, host_map, bk_biz_id) -> list[dict]:
         """
@@ -229,32 +216,15 @@ class TopoHandler:
         V3 只返回节点管理注册过的主机，未返回的主机要预置为不在线；只把 running 视为在线，
         starting/upgrade 等中间态不能当成在线，否则前端会误判 Agent 已就绪。
         """
-        from apps.log_databus.nodeman_v3.client import get_client
-        from apps.log_databus.nodeman_v3.constants import HOST_NODE_STATUS_RUNNING
-
-        # 先统一置为不在线，再用 V3 返回值覆盖
+        # 先统一置为不在线，V3 查询失败时也能保持安全默认值
         for cc_host in cc_hosts:
             cc_host["status"] = False
 
         try:
-            client = get_client(bk_biz_id)
-            page_limit = 500
-            host_ids = list(host_map.keys())
-            for chunk_start in range(0, len(host_ids), page_limit):
-                chunk = host_ids[chunk_start : chunk_start + page_limit]
-                data = client.list_hosts(
-                    {
-                        # topo/host/list 的分页字段是 offset，不是 {count, start}
-                        "page": {"offset": 0, "limit": page_limit},
-                        "exact_include_conditions": {"bk_host_id": chunk, "bk_biz_id": [bk_biz_id]},
-                    }
-                )
-                for item in (data or {}).get("items") or []:
-                    bk_host_id = item.get("bk_host_id")
-                    if bk_host_id not in host_map:
-                        continue
-                    node_status = (item.get("state") or {}).get("node_status") or ""
-                    cc_hosts[host_map[bk_host_id]]["status"] = node_status == HOST_NODE_STATUS_RUNNING
+            status_map = get_agent_status(bk_biz_id, list(host_map.keys()))
+            for bk_host_id, alive in status_map.items():
+                if bk_host_id in host_map:
+                    cc_hosts[host_map[bk_host_id]]["status"] = alive
         except Exception:  # pylint: disable=broad-except
             # Agent 状态是附加信息，V3 查询失败不能影响主机列表本身
             logger.exception("fill_agent_status v3 exception")

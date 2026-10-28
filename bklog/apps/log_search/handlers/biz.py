@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making BK-LOG 蓝鲸日志平台 available.
 Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
@@ -21,10 +20,8 @@ the project delivered to anyone in the future.
 """
 
 import copy
-import typing
 from collections import defaultdict, namedtuple
 from inspect import signature
-from typing import List
 
 from django.core.cache import cache
 from django.utils.translation import gettext as _
@@ -33,6 +30,7 @@ from pypinyin import lazy_pinyin
 from apps.api import CCApi, NodeApi
 from apps.api.modules.utils import get_non_bkcc_space_related_bkcc_biz_id
 from apps.constants import DEFAULT_MAX_WORKERS
+from apps.log_databus.nodeman_v3.agent_status import get_agent_status
 from apps.log_search.constants import (
     BIZ_PROPERTY_TYPE_ENUM,
     BK_PROPERTY_GROUP_ROLE,
@@ -56,6 +54,7 @@ from apps.utils.ipchooser import IPChooser
 from apps.utils.thread import MultiExecuteFunc
 from bkm_ipchooser import constants
 from bkm_ipchooser.handlers.base import BaseHandler
+import builtins
 
 
 class BizHandler(APIModel):
@@ -97,7 +96,7 @@ class BizHandler(APIModel):
             business.append(item)
         return business
 
-    def get_display_name(self, host_list: typing.List[str]):
+    def get_display_name(self, host_list: builtins.list[str]):
         return IPChooser(bk_biz_id=self.bk_biz_id).get_host_display_name(host_list)
 
     @classmethod
@@ -378,7 +377,7 @@ class BizHandler(APIModel):
         hosts.extend(self._search_host(bk_obj_id=obj_id, bk_inst_id=sorted(inst_ids)))
         return hosts
 
-    def _get_template_dict(self, inst_ids: List, obj_id: str):
+    def _get_template_dict(self, inst_ids: builtins.list, obj_id: str):
         """
         获取template_dict
         @param inst_ids {List} 实例id列表
@@ -410,7 +409,7 @@ class BizHandler(APIModel):
             hosts.extend(self._search_host(bk_obj_id=child_obj_id, bk_inst_id=inst_id))
         return hosts
 
-    def _generate_template_hosts(self, hosts: List, obj_id: str, template_dict: dict):
+    def _generate_template_hosts(self, hosts: builtins.list, obj_id: str, template_dict: dict):
         """
         处理模板返回hosts返回obj_id及对应parent_obj_id字段，及将对应bk_obj_id，parent_inst_id替换为对应模板类型以及模板实例id
         @param hosts {List} _search_host 返回host列表
@@ -491,7 +490,7 @@ class BizHandler(APIModel):
             )
 
         if inst_topo:
-            inst_topo, *_ = inst_topo
+            inst_topo, *__ = inst_topo
             if free_set:
                 inst_topo["child"] = [free_set] + inst_topo["child"]
             return inst_topo
@@ -610,7 +609,7 @@ class BizHandler(APIModel):
 
     def batch_get_agent_status(self, params):
         host_list, node, node_mapping = params
-        map_key = "{}|{}".format(str(node[1]), str(node[2]))
+        map_key = f"{str(node[1])}|{str(node[2])}"
         node_path = "/".join(
             [
                 node_mapping.get(node, {}).get("bk_inst_name")
@@ -706,7 +705,7 @@ class BizHandler(APIModel):
 
         result = {}
         for node in result_dict:
-            map_key = "{}|{}".format(str(node.bk_obj_id), str(node.bk_inst_id))
+            map_key = f"{str(node.bk_obj_id)}|{str(node.bk_inst_id)}"
             node_path = "/".join(
                 [
                     node_mapping.get(node).get("bk_inst_name")
@@ -731,7 +730,7 @@ class BizHandler(APIModel):
         :return:
         """
         hosts = self._get_hosts_by_inst_id(bk_obj_id, bk_inst_id, with_parent_obj_id=False)
-        if isinstance(hosts, (str, str)):
+        if isinstance(hosts, str | str):
             hosts = [hosts]
         return hosts
 
@@ -939,7 +938,7 @@ class BizHandler(APIModel):
         hosts = self._get_host_parent_obj_id(bk_obj_id=bk_obj_id, hosts_info=hosts, bk_inst_id=bk_inst_id)
         return hosts
 
-    def _get_host_parent_obj_id(self, bk_obj_id: str, hosts_info: List, bk_inst_id: List = None):
+    def _get_host_parent_obj_id(self, bk_obj_id: str, hosts_info: builtins.list, bk_inst_id: builtins.list = None):
         """
         获取主机对应父节点id信息
         @param bk_obj_id {str} 父节点实例类型
@@ -1011,7 +1010,7 @@ class BizHandler(APIModel):
         query_params["bk_set_ids"] = list(set_ids)
         return query_params
 
-    def _get_template_instance_id(self, bk_inst_ids: List, bk_obj_id: str):
+    def _get_template_instance_id(self, bk_inst_ids: builtins.list, bk_obj_id: str):
         """
         获取服务模板，集群模板对应实例id
         @params bk_inst_ids [List] 服务模板或集群模板id列表
@@ -1056,7 +1055,7 @@ class BizHandler(APIModel):
         inst_obj_dict, topo_link_dict = self._get_topo_link()
 
         for host in host_list:
-            module_list = ["module|%s" % x["bk_module_id"] for topo in host["topo"] for x in topo["module"]]
+            module_list = ["module|{}".format(x["bk_module_id"]) for topo in host["topo"] for x in topo["module"]]
             topo_dict = {"module": [], "set": []}
             for module_key in module_list:
                 for inst_key in topo_link_dict.get(module_key, []):
@@ -1097,46 +1096,14 @@ class BizHandler(APIModel):
         """
         V3 下的 Agent 状态。
 
-        V2 的 ipchooser_host_details 给的是布尔 alive，V3 的 topo/host/list 给的是
-        HostState.node_status（init/running/damaged/busy/starting/upgrade/stopping/uninit/unknown）。
-        这里只把 running 映射成在线，其余一律按不在线：把 starting / upgrade 当成在线会让
-        Agent 还没起来的机器显示正常，用户据此认为「配置下发失败」而反复重试。
+        查询与映射口径统一由 nodeman_v3.agent_status.get_agent_status 维护：只有 running
+        在线，未在节点管理注册的主机不在线。这里只负责转换成调用方使用的状态枚举。
         """
-        from apps.log_databus.nodeman_v3.client import get_client
-        from apps.log_databus.nodeman_v3.constants import HOST_NODE_STATUS_RUNNING
-
-        if not bk_host_ids:
-            return {}
-
-        # 先把所有入参主机预置成「不存在」，再用返回值覆盖。不能依赖 defaultdict(int) 兜底：
-        # AgentStatusEnum.ON == 0，而 topo/host/list 按 bk_host_id 过滤，**没在节点管理注册过
-        # 的主机压根不会出现在返回里** —— 落到默认值就等于把没装 Agent 的机器报成在线，
-        # 调用方的 agent_error_count 会少算。V2 的 ipchooser_host_details 每台都回，碰不到这个坑
-        result = {bk_host_id: AgentStatusEnum.NOT_EXIST.value for bk_host_id in bk_host_ids}
-
-        client = get_client(self.bk_biz_id)
-        page_limit = 500
-        for chunk_start in range(0, len(bk_host_ids), page_limit):
-            chunk = bk_host_ids[chunk_start : chunk_start + page_limit]
-            data = client.list_hosts(
-                {
-                    # topo/host/list 的分页字段是 offset（Topo_HostList.md），
-                    # 不是 deploy_policy/list 那套 {count, start}
-                    "page": {"offset": 0, "limit": page_limit},
-                    "exact_include_conditions": {"bk_host_id": chunk, "bk_biz_id": [self.bk_biz_id]},
-                }
-            )
-            for item in (data or {}).get("items") or []:
-                bk_host_id = item.get("bk_host_id")
-                if not bk_host_id:
-                    continue
-                node_status = (item.get("state") or {}).get("node_status") or ""
-                result[bk_host_id] = (
-                    AgentStatusEnum.ON.value
-                    if node_status == HOST_NODE_STATUS_RUNNING
-                    else AgentStatusEnum.NOT_EXIST.value
-                )
-        return result
+        status_map = get_agent_status(self.bk_biz_id, bk_host_ids)
+        return {
+            bk_host_id: AgentStatusEnum.ON.value if alive else AgentStatusEnum.NOT_EXIST.value
+            for bk_host_id, alive in status_map.items()
+        }
 
     @staticmethod
     def _get_backup_biz_list():
@@ -1227,7 +1194,7 @@ class BizHandler(APIModel):
         host_result = self.get_service_category(host_dict, is_dynamic=True)
         return host_result
 
-    def list_agent_status(self, bk_inst_objs: List):
+    def list_agent_status(self, bk_inst_objs: builtins.list):
         """
         批量获取agent状态
         @param bk_inst_objs 节点列表
@@ -1238,7 +1205,7 @@ class BizHandler(APIModel):
         host_result = self.get_service_category(host_dict, is_dynamic=True)
         return host_result
 
-    def _get_set_items(self, set_template_ids: List[int]):
+    def _get_set_items(self, set_template_ids: builtins.list[int]):
         params = dict(bk_biz_id=self.bk_biz_id, fields=["bk_set_id", "set_template_id", "bk_set_name"])
         result = CCApi.search_set.bulk_request(params)
         return [
@@ -1251,7 +1218,7 @@ class BizHandler(APIModel):
             if set_item.get("set_template_id") in set_template_ids
         ]
 
-    def get_modules_info(self, module_ids: List[int]):
+    def get_modules_info(self, module_ids: builtins.list[int]):
         params = {"bk_biz_id": self.bk_biz_id, "fields": ["bk_module_name", "bk_module_id"]}
         result = CCApi.search_module.bulk_request(params)
         modules_info = [
@@ -1268,7 +1235,7 @@ class BizHandler(APIModel):
         host_result = self.get_service_category(host_dict, is_dynamic=True)
         return host_result
 
-    def get_sets_info(self, set_ids: List[int]):
+    def get_sets_info(self, set_ids: builtins.list[int]):
         params = {"bk_biz_id": self.bk_biz_id, "fields": ["bk_set_name", "bk_set_id"]}
         result = CCApi.search_set.bulk_request(params)
         sets_info = [
@@ -1328,7 +1295,7 @@ class BizHandler(APIModel):
         return BizProperty.list_biz_property()
 
 
-class ServiceCategorySearcher(object):
+class ServiceCategorySearcher:
     """
     搜索服务分类
     """

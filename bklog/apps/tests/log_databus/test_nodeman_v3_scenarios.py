@@ -382,7 +382,7 @@ class AgentStatusV3Test(TestCase):
         from apps.log_search.handlers.biz import BizHandler
 
         client = FakeHostListClient(items)
-        with patch("apps.log_databus.nodeman_v3.client.get_client", return_value=client):
+        with patch("apps.log_databus.nodeman_v3.agent_status.get_client", return_value=client):
             return BizHandler(BK_BIZ_ID)._get_agent_status_v3(bk_host_ids), client
 
     def test_running_is_online_and_others_are_not(self):
