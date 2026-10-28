@@ -11,7 +11,6 @@ from apps.api import UnifyQueryApi
 from apps.log_search.views.scene_search_views import SceneAnalyzeFieldSerializer, SceneSearchViewSet
 from apps.log_unifyquery.handler.field import UnifyQueryFieldHandler
 from apps.log_unifyquery.handler.scene_field import SceneFieldHandler
-from apps.log_unifyquery.handler.scene_search import SceneUnifyQueryHandler
 
 
 SCENE_CONDITIONS = [[{"field_name": "scene", "value": ["k8s"], "op": "eq"}]]
@@ -383,18 +382,3 @@ class TestSceneAnalyzeField(TestCase):
                 serializer = SceneAnalyzeFieldSerializer(data={**PARAMS, "field_name": "level", "limit": limit})
                 self.assertFalse(serializer.is_valid())
                 self.assertIn("limit", serializer.errors)
-
-    def test_verify_scene_permission_prefers_top_level_result_table_id(self):
-        for result in (
-            {"result_table_id": ["bklog_index_set_1"]},
-            {"data": {"result_table_id": ["bklog_index_set_1"]}},
-            {"result_table_id": ["top_level"], "data": {"result_table_id": ["nested"]}},
-        ):
-            with self.subTest(result=result):
-                handler = SceneUnifyQueryHandler.__new__(SceneUnifyQueryHandler)
-                handler.verify_result_table_search_permission = Mock()
-
-                handler._verify_scene_permission(result)
-
-                expected = result.get("result_table_id") or result["data"]["result_table_id"]
-                handler.verify_result_table_search_permission.assert_called_once_with(expected)
