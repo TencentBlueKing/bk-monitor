@@ -20,7 +20,7 @@ from apps.log_search.models import LogIndexSet
 from apps.tests.log_clustering.test_quix_operation import INDEX_SET_ID, KAFKA, QUIX_CONFIG
 from apps.tests.log_clustering.test_quix_update import create_running_runtime
 
-ADOPTED = {"revision": 2, "sink_referenced": True, "sink_resource": {"status": {"phase": "Ok"}}}
+ADOPTED = {"sink_referenced": True, "sink_resource": {"status": {"phase": "Ok"}}}
 
 
 class TestQuixReopenRunner(TestCase):
@@ -47,7 +47,6 @@ class TestQuixReopenRunner(TestCase):
             "input_revision": 1,
         }
         self.transfer = MagicMock()
-        self.transfer.operate_log_clustering.side_effect = [{"revision": 2}, {"revision": 3}]
         self.transfer.get_log_clustering_status.side_effect = [
             ADOPTED,
             {"clustering_status": {"state": "STOPPED"}},
@@ -104,7 +103,6 @@ class TestQuixReopenRunner(TestCase):
         runtime = LogClusteringRuntime.objects.get(index_set_id=INDEX_SET_ID)
         self.assertEqual(runtime.phase, ClusteringRuntimePhaseEnum.RUNNING.value)
         self.assertEqual((runtime.candidate_boundary, runtime.outbox_boundary), (None, None))
-        self.assertEqual(runtime.metadata_revision, 3)
         self.assertTrue(ClusteringConfig.objects.get(index_set_id=INDEX_SET_ID).access_finished)
 
     def test_running_binding_does_not_resume(self):
