@@ -475,7 +475,10 @@ class QuixClusteringOperationRunner:
     def _step_resume(self) -> bool:
         # 同一绑定的旧运行记录仍为 STOPPED 时才需要 resume，新配置会自动建立运行记录
         status = TransferApi.get_log_clustering_status(self._metadata_params())
-        if (status.get("clustering_status") or {}).get(CLUSTERING_STATE_KEY) == CLUSTERING_STATE_STOPPED:
+        state = (status.get("clustering_status") or {}).get(CLUSTERING_STATE_KEY)
+        if status.get("errors") or not state:
+            return False
+        if state == CLUSTERING_STATE_STOPPED:
             return self._operate_metadata("resume")
         return True
 

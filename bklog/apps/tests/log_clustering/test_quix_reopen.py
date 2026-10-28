@@ -105,6 +105,19 @@ class TestQuixReopenRunner(TestCase):
         self.assertEqual((runtime.candidate_boundary, runtime.outbox_boundary), (None, None))
         self.assertTrue(ClusteringConfig.objects.get(index_set_id=INDEX_SET_ID).access_finished)
 
+    def test_resume_retries_unknown_status_instead_of_completing_step(self):
+        self.transfer.get_log_clustering_status.side_effect = None
+        runner = QuixClusteringOperationRunner(self.operation.operation_id)
+        for status in ({"errors": [{"source": "clustering_status"}], "clustering_status": None}, {}):
+            with self.subTest(status=status):
+                self.transfer.get_log_clustering_status.return_value = status
+                self.assertFalse(runner._step_resume())
+                self.transfer.operate_log_clustering.assert_not_called()
+
+        self.transfer.get_log_clustering_status.return_value = {"clustering_status": {"state": "STOPPED"}}
+        self.assertTrue(runner._step_resume())
+        self.assertEqual(self.transfer.operate_log_clustering.call_args.args[0]["action"], "resume")
+
     def test_running_binding_does_not_resume(self):
         self.transfer.get_log_clustering_status.side_effect = [
             ADOPTED,
@@ -142,6 +155,43 @@ class TestQuixClusteringHandlerReopen(TestCase):
             LogClusteringRuntime.objects.get(pk=self.runtime.pk).phase, ClusteringRuntimePhaseEnum.REOPENING.value
         )
         mock_delay.assert_called_once_with(operation_id)
+
+    def test_reopen_rolls_back_operation_when_phase_save_fails(self, mock_delay):
+        LogClusteringRuntime.objects.filter(pk=self.runtime.pk).update(phase=ClusteringRuntimePhaseEnum.STOPPED.value)
+        original_save = LogClusteringRuntime.save
+
+        def fail_after_save(runtime, *args, **kwargs):
+            original_save(runtime, *args, **kwargs)
+            if "phase" in kwargs.get("update_fields", []):
+                raise RuntimeError("phase save interrupted")
+
+        with patch.object(LogClusteringRuntime, "save", fail_after_save):
+            with self.assertRaisesRegex(RuntimeError, "phase save interrupted"):
+                QuixClusteringHandler(self.index_set).reopen()
+
+        self.runtime.refresh_from_db()
+        self.assertEqual(self.runtime.phase, ClusteringRuntimePhaseEnum.STOPPED.value)
+        self.assertFalse(
+            LogClusteringOperation.objects.filter(operation_type=ClusteringOperationTypeEnum.REOPEN.value).exists()
+        )
+        mock_delay.assert_not_called()
+
+    def test_disable_keeps_reopen_with_unconfirmed_external_write(self, mock_delay):
+        LogClusteringRuntime.objects.filter(pk=self.runtime.pk).update(phase=ClusteringRuntimePhaseEnum.STOPPED.value)
+        operation_id = QuixClusteringHandler(self.index_set).reopen()
+        operation = LogClusteringOperation.objects.get(operation_id=operation_id)
+        mock_delay.reset_mock()
+        for step in ("restart", "attach"):
+            with self.subTest(step=step):
+                operation.status = ClusteringOperationStatusEnum.FAILED.value
+                operation.step = step
+                operation.idempotency_keys = {"restart": "fixed-key"} if step == "restart" else {}
+                operation.save()
+                with self.assertRaises(QuixClusteringParamsInvalidException):
+                    QuixClusteringHandler(self.index_set).disable()
+                operation.refresh_from_db()
+                self.assertEqual(operation.status, ClusteringOperationStatusEnum.FAILED.value)
+        mock_delay.assert_not_called()
 
     def test_running_runtime_cannot_reopen(self, mock_delay):
         with self.assertRaises(QuixClusteringParamsInvalidException):

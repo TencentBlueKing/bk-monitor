@@ -241,9 +241,8 @@ class QuixClusteringHandler:
                 ClusteringOperationTypeEnum.REOPEN.value,
                 {},
                 allowed_phases=(ClusteringRuntimePhaseEnum.STOPPED.value,),
+                updates={"phase": ClusteringRuntimePhaseEnum.REOPENING.value},
             )
-            runtime.phase = ClusteringRuntimePhaseEnum.REOPENING.value
-            runtime.save(update_fields=["phase", "updated_at", "updated_by"])
         run_quix_clustering_operation.delay(operation.operation_id)
         return operation.operation_id
 
@@ -273,7 +272,9 @@ class QuixClusteringHandler:
             item["step"] for item in operation.steps if item["status"] == ClusteringOperationStatusEnum.SUCCESS.value
         }
         unconfirmed = (set(operation.request_payloads) | set(operation.idempotency_keys)) - completed
-        if unconfirmed & {"create_task", "configure_clustering", "metadata_set"}:
+        if operation.step == "attach" and "attach" not in completed:
+            unconfirmed.add("attach")
+        if unconfirmed & {"create_task", "configure_clustering", "metadata_set", "restart", "attach"}:
             raise QuixClusteringParamsInvalidException(
                 QuixClusteringParamsInvalidException.MESSAGE.format(
                     detail=_("外部写请求结果尚未确认，请先重试原操作确认结果，再关闭聚类")
