@@ -1352,7 +1352,9 @@ class LogClusteringSinkConfig(DataLinkResourceConfigBase):
 
     对应 bkbase 资源 kind=LogClusteringSink：Databus.spec.sinks 引用本资源，spec.rawSink 指向原日志存储绑定，
     spec.clustering 携带 Kafka/Pattern 存储资源引用与 BKFara 任务绑定。
+    rawSink 不落库，组装时由调用方按本链路当前的存储绑定传入。
 
+    每个日志链路最多一个聚类 Sink，由唯一约束保证。
     attached 表示日志链路生成 Databus 时是否引用本资源。关闭聚类恢复 rawSink 后置为 False，
     资源身份与绑定保留，重开时沿用；确认 Databus 已实际解绑前不能删除。
     """
@@ -1360,30 +1362,30 @@ class LogClusteringSinkConfig(DataLinkResourceConfigBase):
     kind = DataLinkKind.LOGCLUSTERINGSINK.value
     name = models.CharField(verbose_name="聚类Sink名称", max_length=64, db_index=True)
     table_id = models.CharField(verbose_name="结果表ID", max_length=255, default="", blank=True)
-    raw_sink = models.JSONField(verbose_name="原始存储引用", default=dict)
     binding = models.JSONField(verbose_name="聚类绑定配置", default=dict)
     kafka_resource = models.JSONField(verbose_name="聚类Kafka资源引用", default=dict)
     pattern_resource = models.JSONField(verbose_name="Pattern存储资源引用", default=dict)
     attached = models.BooleanField(verbose_name="是否被Databus引用", default=False)
-    revision = models.IntegerField(verbose_name="配置版本", default=0)
-    last_operation_id = models.CharField(verbose_name="最近操作ID", max_length=64, default="", blank=True)
-    last_request_digest = models.CharField(verbose_name="最近请求摘要", max_length=64, default="", blank=True)
 
     class Meta:
         verbose_name = "日志聚类Sink配置"
         verbose_name_plural = verbose_name
-        unique_together = (("bk_tenant_id", "namespace", "name"),)
-        indexes = [
-            models.Index(fields=["bk_tenant_id", "namespace", "data_link_name"], name="lcsc_tenant_ns_dl_idx"),
-        ]
+        unique_together = (("bk_tenant_id", "namespace", "name"), ("bk_tenant_id", "namespace", "data_link_name"))
 
-    def compose_config(self) -> dict[str, Any]:
+    def compose_config(self, raw_sink: dict[str, Any]) -> dict[str, Any]:
         """
         组装 LogClusteringSink 配置，资源引用与 binding 按已保存的内容输出
+
+        Args:
+            raw_sink: 本链路原日志存储绑定的引用，作为 spec.rawSink
         """
-        missing = [
-            field for field in ("raw_sink", "binding", "kafka_resource", "pattern_resource") if not getattr(self, field)
-        ]
+        required = {
+            "raw_sink": raw_sink,
+            "binding": self.binding,
+            "kafka_resource": self.kafka_resource,
+            "pattern_resource": self.pattern_resource,
+        }
+        missing = [field for field, value in required.items() if not value]
         if missing:
             raise ValueError(f"compose log clustering sink config: {', '.join(missing)} is empty, name->[{self.name}]")
 
@@ -1414,7 +1416,7 @@ class LogClusteringSinkConfig(DataLinkResourceConfigBase):
             "name": self.name,
             "namespace": self.namespace,
             "bk_biz_id": self.datalink_biz_ids.label_biz_id,
-            "raw_sink": json.dumps(self.raw_sink),
+            "raw_sink": json.dumps(raw_sink),
             "kafka_resource": json.dumps(self.kafka_resource),
             "pattern_resource": json.dumps(self.pattern_resource),
             "binding": json.dumps(self.binding),
