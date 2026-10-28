@@ -29,7 +29,6 @@ BOUNDARY = {"0": 10, "1": 10}
 ATTACHED = {"configured": True, "attached": True}
 BOUNDARY_READY = {"clustering_status": {"boundary_ready": True, "boundary": BOUNDARY, "outbox_boundary": {"0": 100}}}
 DETACHED = {
-    "revision": 4,
     "raw_sink_referenced": True,
     "sink_referenced": False,
     "databus_resource": {"status": {"phase": "Ok"}},
@@ -48,7 +47,6 @@ class TestQuixDisableRunner(TestCase):
         )
         self.bkfara = MagicMock()
         self.transfer = MagicMock()
-        self.transfer.operate_log_clustering.side_effect = [{"revision": 2}, {"revision": 3}, {"revision": 4}]
         self.transfer.get_log_clustering_status.side_effect = [
             ATTACHED,
             BOUNDARY_READY,
