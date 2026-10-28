@@ -122,6 +122,36 @@ class TestQuixEnableRunner(TestCase):
         patcher.start()
         self.addCleanup(patcher.stop)
 
+    def test_canceled_operation_is_not_restarted_by_stale_runner(self):
+        runner = QuixClusteringOperationRunner(self.operation.operation_id)
+        LogClusteringOperation.objects.filter(pk=self.operation.pk).update(
+            status=ClusteringOperationStatusEnum.CANCELED.value
+        )
+
+        self.assertIsNone(runner.run())
+
+        self.bkfara.create_task.assert_not_called()
+        self.assertEqual(
+            LogClusteringOperation.objects.get(pk=self.operation.pk).status,
+            ClusteringOperationStatusEnum.CANCELED.value,
+        )
+
+    def test_receipt_poll_is_running_until_external_request_finishes(self):
+        self.run_operation()
+        observed_statuses = []
+
+        def get_status(params):
+            observed_statuses.append(LogClusteringOperation.objects.get(pk=self.operation.pk).status)
+            return ADOPTED_STATUS
+
+        self.transfer.get_log_clustering_status.side_effect = get_status
+        self.assertEqual(self.run_operation(), RECEIPT_POLL_INTERVAL_SECONDS)
+        self.assertEqual(observed_statuses, [ClusteringOperationStatusEnum.RUNNING.value])
+        self.assertEqual(
+            LogClusteringOperation.objects.get(pk=self.operation.pk).status,
+            ClusteringOperationStatusEnum.AWAITING_RECEIPT.value,
+        )
+
     def test_enable_stops_at_awaiting_receipt_without_claiming_running(self):
         self.create_clustering_config()
 

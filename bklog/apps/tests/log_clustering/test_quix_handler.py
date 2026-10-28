@@ -50,6 +50,19 @@ class TestQuixClusteringHandler(TestCase):
         self.assertFalse(ClusteringConfig.objects.get(index_set_id=INDEX_SET_ID).access_finished)
         mock_delay.assert_called_once_with(result["operation_id"])
 
+    def test_enable_rolls_back_operation_if_business_config_fails(self, mock_delay):
+        with patch(
+            "apps.log_clustering.handlers.quix.handler.RegexTemplateHandler.list_templates",
+            side_effect=RuntimeError("template unavailable"),
+        ):
+            with self.assertRaisesRegex(RuntimeError, "template unavailable"):
+                QuixClusteringHandler(self.index_set).enable({"clustering_fields": "log"})
+
+        self.assertFalse(LogClusteringRuntime.objects.exists())
+        self.assertFalse(LogClusteringOperation.objects.exists())
+        self.assertFalse(ClusteringConfig.objects.filter(index_set_id=INDEX_SET_ID).exists())
+        mock_delay.assert_not_called()
+
     def test_invalid_filter_rule_rejected_before_any_write(self, mock_delay):
         with self.assertRaises(QuixClusteringParamsInvalidException):
             QuixClusteringHandler(self.index_set).enable(

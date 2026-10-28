@@ -116,22 +116,24 @@ class QuixClusteringHandler:
             "pattern_index": pattern_index,
             "state_index": state_index,
         }
-        _runtime, operation = LogClusteringRuntime.start_operation(
-            self.index_set_id,
-            ClusteringOperationTypeEnum.ENABLE.value,
-            {"clustering_fields": clustering_fields, "filter_rules": filter_rules},
-            defaults={
-                "bk_biz_id": collector_config.bk_biz_id,
-                "bk_tenant_id": Space.get_tenant_id(space_uid=self.index_set.space_uid),
-                "collector_config_id": collector_config.collector_config_id,
-                "table_id": collector_config.table_id,
-                "bk_data_id": collector_config.bk_data_id,
-                **enable_fields,
-            },
-            allowed_phases=(ClusteringRuntimePhaseEnum.STOPPED.value,) if runtime else None,
-            updates={**enable_fields, **UNBOUND_RESET_FIELDS} if runtime else None,
-        )
-        self._save_business_config(collector_config, params, clustering_fields, filter_rules)
+        # 业务配置与可调度操作一起提交，保存失败时不能由定时恢复任务继续开启。
+        with transaction.atomic():
+            _runtime, operation = LogClusteringRuntime.start_operation(
+                self.index_set_id,
+                ClusteringOperationTypeEnum.ENABLE.value,
+                {"clustering_fields": clustering_fields, "filter_rules": filter_rules},
+                defaults={
+                    "bk_biz_id": collector_config.bk_biz_id,
+                    "bk_tenant_id": Space.get_tenant_id(space_uid=self.index_set.space_uid),
+                    "collector_config_id": collector_config.collector_config_id,
+                    "table_id": collector_config.table_id,
+                    "bk_data_id": collector_config.bk_data_id,
+                    **enable_fields,
+                },
+                allowed_phases=(ClusteringRuntimePhaseEnum.STOPPED.value,) if runtime else None,
+                updates={**enable_fields, **UNBOUND_RESET_FIELDS} if runtime else None,
+            )
+            self._save_business_config(collector_config, params, clustering_fields, filter_rules)
         run_quix_clustering_operation.delay(operation.operation_id)
         return self._access_response(operation)
 
@@ -161,31 +163,37 @@ class QuixClusteringHandler:
                 )
             )
 
-        operation = None
-        if runtime.phase == ClusteringRuntimePhaseEnum.UPDATING.value and runtime.pending_config == clustering_config:
-            # 相同规则再次提交时续跑失败的更新，沿用已固定的排空范围；仍在执行的更新直接返回其操作
-            operation = (
-                self._resume_failed_operation(ClusteringOperationTypeEnum.UPDATE.value)
-                or LogClusteringOperation.objects.filter(
-                    index_set_id=self.index_set_id,
-                    operation_type=ClusteringOperationTypeEnum.UPDATE.value,
-                    status__in=ClusteringOperationStatusEnum.runnable_statuses(),
-                ).first()
-            )
-        elif clustering_config != runtime.active_config:
-            runtime, operation = LogClusteringRuntime.start_operation(
-                self.index_set_id,
-                ClusteringOperationTypeEnum.UPDATE.value,
-                {"filter_rules": filter_rules},
-                allowed_phases=(ClusteringRuntimePhaseEnum.RUNNING.value,),
-            )
-            runtime.pending_config = clustering_config
-            runtime.phase = ClusteringRuntimePhaseEnum.UPDATING.value
-            runtime.save(update_fields=["pending_config", "phase", "updated_at", "updated_by"])
+        # 待生效规则、操作和页面配置必须一起提交，避免恢复任务重放旧规则。
+        with transaction.atomic():
+            operation = None
+            if (
+                runtime.phase == ClusteringRuntimePhaseEnum.UPDATING.value
+                and runtime.pending_config == clustering_config
+            ):
+                # 相同规则再次提交时续跑失败的更新，沿用已固定的排空范围；仍在执行的更新直接返回其操作
+                operation = (
+                    self._resume_failed_operation(ClusteringOperationTypeEnum.UPDATE.value)
+                    or LogClusteringOperation.objects.filter(
+                        index_set_id=self.index_set_id,
+                        operation_type=ClusteringOperationTypeEnum.UPDATE.value,
+                        status__in=ClusteringOperationStatusEnum.runnable_statuses(),
+                    ).first()
+                )
+            elif clustering_config != runtime.active_config:
+                runtime, operation = LogClusteringRuntime.start_operation(
+                    self.index_set_id,
+                    ClusteringOperationTypeEnum.UPDATE.value,
+                    {"filter_rules": filter_rules},
+                    allowed_phases=(ClusteringRuntimePhaseEnum.RUNNING.value,),
+                )
+                runtime.pending_config = clustering_config
+                runtime.phase = ClusteringRuntimePhaseEnum.UPDATING.value
+                runtime.save(update_fields=["pending_config", "phase", "updated_at", "updated_by"])
 
-        ClusteringConfig.objects.filter(index_set_id=self.index_set_id).update(
-            filter_rules=filter_rules, **{field: params[field] for field in BUSINESS_UPDATE_FIELDS if field in params}
-        )
+            ClusteringConfig.objects.filter(index_set_id=self.index_set_id).update(
+                filter_rules=filter_rules,
+                **{field: params[field] for field in BUSINESS_UPDATE_FIELDS if field in params},
+            )
         if not operation:
             return None
         if operation.status == ClusteringOperationStatusEnum.PENDING.value:
@@ -291,12 +299,17 @@ class QuixClusteringHandler:
             logger.warning("[quix_clustering] index_set(%s) get bkfara status failed: %s", runtime.index_set_id, e)
             return {"error": _("BKFara 运行状态查询失败")}
 
+    @transaction.atomic
     def _resume_failed_operation(self, operation_type: str) -> LogClusteringOperation | None:
-        operation = LogClusteringOperation.objects.filter(
-            index_set_id=self.index_set_id,
-            operation_type=operation_type,
-            status=ClusteringOperationStatusEnum.FAILED.value,
-        ).first()
+        operation = (
+            LogClusteringOperation.objects.select_for_update()
+            .filter(
+                index_set_id=self.index_set_id,
+                operation_type=operation_type,
+                status=ClusteringOperationStatusEnum.FAILED.value,
+            )
+            .first()
+        )
         if operation:
             operation.status = ClusteringOperationStatusEnum.PENDING.value
             operation.retry_count = 0
