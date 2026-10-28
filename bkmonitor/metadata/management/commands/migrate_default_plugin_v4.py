@@ -7,6 +7,7 @@ from django.conf import settings
 from django.core.management.base import BaseCommand, CommandError
 from django.db.models import Q
 
+from bkmonitor.utils.tenant import get_tenant_default_biz_id
 from core.drf_resource import api, resource
 from metadata import models
 from metadata.models.constants import DataIdCreatedFromSystem
@@ -125,6 +126,11 @@ class Command(BaseCommand):
             errors = self.precheck()
             if not errors and self.biz_id is None:
                 self.biz_id = self.table.get_target_bk_biz_id()
+            # 与 access_v2_bkdata_vm 一致，公共插件的链路使用租户默认业务。
+            # 保留原业务值，供多表迁移创建 TimeSeriesGroup 使用。
+            self.datalink_biz_id = self.biz_id
+            if not errors and self.datalink_biz_id == 0:
+                self.datalink_biz_id = get_tenant_default_biz_id(self.tenant)
             plan = self.plan()
             plan.update(
                 wait_for_components=not options["no_wait"],
@@ -279,6 +285,7 @@ class Command(BaseCommand):
         return {
             "bk_tenant_id": self.tenant,
             "bk_biz_id": self.biz_id,
+            "datalink_biz_id": self.datalink_biz_id,
             "bk_data_id": self.source.bk_data_id,
             "data_name": self.source.data_name,
             "created_from": self.source.created_from,
@@ -310,9 +317,9 @@ class Command(BaseCommand):
             self.stdout.write("已有 V4 组件记录，复用已有资源，不重新注册或 apply……")
         else:
             self.stdout.write("首次注册 Data ID 并申请 V4 链路……")
-            self.source.register_to_bkbase(bk_biz_id=self.biz_id, namespace=self.namespace)
+            self.source.register_to_bkbase(bk_biz_id=self.datalink_biz_id, namespace=self.namespace)
             create_bkbase_data_link(
-                bk_biz_id=self.biz_id,
+                bk_biz_id=self.datalink_biz_id,
                 data_source=self.source,
                 monitor_table_id=self.table_id,
                 storage_cluster_name=self.cluster.cluster_name,

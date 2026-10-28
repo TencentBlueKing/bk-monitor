@@ -343,9 +343,9 @@ class Command(DefaultPluginCommand):
         components = self.component_records()
         newly_applied = not any(component.name for component in components)
         if newly_applied:
-            self.source.register_to_bkbase(bk_biz_id=self.biz_id, namespace=self.namespace)
+            self.source.register_to_bkbase(bk_biz_id=self.datalink_biz_id, namespace=self.namespace)
             create_bkbase_data_link(
-                bk_biz_id=self.biz_id,
+                bk_biz_id=self.datalink_biz_id,
                 data_source=self.source,
                 monitor_table_id=self.table_id,
                 storage_cluster_name=self.cluster.cluster_name,
