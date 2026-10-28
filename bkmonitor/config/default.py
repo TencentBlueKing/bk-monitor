@@ -649,6 +649,8 @@ APM_BMW_DEPLOY_BIZ_ID = 0
 # 在列表中业务，才会创建虚拟指标， [2]
 APM_CREATE_VIRTUAL_METRIC_ENABLED_BK_BIZ_ID = []
 APM_BMW_TASK_QUEUES = ["apm-01"]
+# 预计算任务定时分派空跑：bmw_task_cron 直接跳过，不下发或删除任务
+APM_BMW_TASK_CRON_DRY_RUN = False
 # APM V4 链路 metric data status 配置
 APM_V4_METRIC_DATA_STATUS_CONFIG = {}
 # APM 自定义指标 SDK 映射配置
