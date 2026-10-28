@@ -67,6 +67,8 @@ export interface CollectionExecutionDetail extends CollectionExecution {
 export interface CollectionExecutionHost {
   bk_host_id: number;
   duration_ms: null | number;
+  // 失败原因类型，成功、采集中、超时、取消、unknown 及旧版采集端不下发
+  error_type?: string;
   finished_at: null | number;
   ip: string;
   message: string;

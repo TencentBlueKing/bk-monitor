@@ -52,14 +52,16 @@ export default defineComponent({
     return { t: useI18n().t };
   },
   render() {
+    // parsing 是采集成功后的解析暂态，状态文案按成功展示
+    const status = this.status === 'parsing' ? 'succeed' : this.status;
     if (this.tag) {
       return (
         <Tag
-          class={['collection-execution-status-tag', `is-${this.status}`]}
+          class={['collection-execution-status-tag', `is-${status}`]}
           radius='4px'
           type='filled'
         >
-          {this.t(executionStatusLabels[this.status] || '未知')}
+          {this.t(executionStatusLabels[status] || '未知')}
         </Tag>
       );
     }
@@ -76,9 +78,9 @@ export default defineComponent({
         ) : (
           <CommonStatus
             text={this.t(
-              this.result && this.status === 'succeed' ? '结果可用' : executionStatusLabels[this.status] || '未知'
+              this.result && this.status === 'succeed' ? '结果可用' : executionStatusLabels[status] || '未知'
             )}
-            type={statusTypes[this.status] || 'disabled'}
+            type={statusTypes[status] || 'disabled'}
           />
         )}
       </span>

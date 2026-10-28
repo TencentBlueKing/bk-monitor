@@ -34,6 +34,7 @@ import {
   canRetryExecution,
   canViewExecution,
   executionConfiguration,
+  executionHostMessage,
   executionSelection,
   formatExecutionDuration,
   hostColumnMinWidths,
@@ -108,6 +109,11 @@ export default defineComponent({
     const renderHostCell = (column: CollectionExecutionColumn, row: CollectionExecutionHost) => {
       const value = (row as unknown as Record<string, unknown>)[column.field];
       if (column.type === 'process_list') return renderHostProcesses(row);
+      // 执行信息优先展示失败原因类型对应的文案，无 error_type 时沿用后端下发的 message
+      if (column.field === 'message') {
+        const message = executionHostMessage(row);
+        return message ? this.t(message) : '--';
+      }
       if (column.type === 'status')
         return (
           <CollectionExecutionStatus
