@@ -42,6 +42,7 @@ import type {
 export const executionStatusLabels = {
   running: '采集中',
   succeed: '成功',
+  parsing: '解析中',
   partial_succeed: '部分成功',
   failed: '失败',
   timeout: '超时',

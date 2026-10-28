@@ -305,10 +305,18 @@ export default {
   按当前筛选条件查询: 'Query with current filters',
   本次采集暂无可查看的结果: 'No results available for this collection',
   部分成功: 'Partially succeeded',
+  '部分目标进程在采集开始前已退出，其余进程已采集':
+    'Some target processes exited before the collection started; the remaining processes were collected.',
   采集结果: 'Collection results',
   '采集结果加载失败，请重试': 'Failed to load collection results. Please retry.',
+  '采集结果上报失败，请检查 agent 状态': 'Failed to report collection results. Check the agent status.',
   采集进程: 'Collected processes',
+  '采集临时文件超过设定的磁盘上限，已停止采集':
+    'Temporary collection files exceeded the configured disk limit, so the collection was stopped.',
   '采集历史加载失败，请重试': 'Failed to load collection history. Please retry.',
+  '采集配置不被当前采集器支持，请检查 agent 版本':
+    'The collection configuration is not supported by the current collector. Check the agent version.',
+  '采集期间没有采到样本，目标进程可能处于空闲状态': 'No samples were collected. The target process may be idle.',
   采集任务: 'Collection task',
   采集任务名: 'Collection task name',
   采集任务已创建: 'Collection task created',
@@ -318,6 +326,7 @@ export default {
   '采集中，暂不能重新执行': 'Collecting. Cannot re-run yet.',
   '采集中，暂时无法查看结果': 'Collecting. Results are not available yet.',
   '采集中或主机不存在，暂不能重新采集': 'The collection is running or the host does not exist. Cannot re-collect now.',
+  '采集执行失败，详情见原始信息': 'The collection failed. See the raw details for more information.',
   查看本次任务执行详情: 'View execution details',
   查看本次执行各主机的采集结果: 'View collection results by host',
   查看当前主机的采集结果: 'View collection results for this host',
@@ -342,6 +351,9 @@ export default {
   '将使用本次执行的历史配置创建一次立即采集，原有执行计划保持不变。':
     'Start an immediate collection using the historical configuration of this execution. The existing schedule will remain unchanged.',
   结果可用: 'Results available',
+  解析中: 'Parsing',
+  '计划执行时间已过，未执行采集，可能存在下发延迟，如持续出现请联系管理员':
+    'The scheduled time has passed but the collection was not executed. Dispatch may be delayed; contact the administrator if this persists.',
   '仅使用本次执行的历史配置重新采集当前主机，原有执行计划保持不变。':
     'Re-collect the current host using the historical configuration of this execution. The existing schedule will remain unchanged.',
   '仅终止本次采集，保留原有执行计划': 'Only stop this collection. The existing schedule is preserved.',
@@ -383,7 +395,13 @@ export default {
   使用历史配置重新执行本次采集: 'Re-run this collection using the historical configuration',
   '搜索 IP、进程名或 PID': 'Search IP, process name, or PID',
   搜索并高亮相同名称的函数: 'Search and highlight functions with the same name',
+  '同一计划的上一轮采集仍在进行，本轮已跳过':
+    'The previous round of this task is still running, so this round was skipped.',
   未找到本次采集的主机: 'No hosts found for this collection',
+  '未找到可采集的目标进程，请检查进程选择条件及进程是否存活':
+    'No target process is available for collection. Check the process selection criteria and whether the process is alive.',
+  '无法从 Go pprof 端点获取数据，请检查地址、端口及 pprof 是否开启':
+    'Failed to fetch data from the Go pprof endpoint. Check the address, port, and whether pprof is enabled.',
   下次执行: 'Next execution',
   '下载 pprof 文件': 'Download pprof file',
   下载采集数据或当前火焰图: 'Download collection data or the current flame graph',
@@ -404,6 +422,11 @@ export default {
   执行信息: 'Execution info',
   '只重新采集失败和超时主机。': 'Re-collect failed and timed-out hosts only.',
   终止请求已提交: 'Stop request submitted',
+  '主机 perf 不可用或权限不足，请检查 perf 安装与内核权限配置':
+    'perf is unavailable or lacks permissions on this host. Check the perf installation and kernel permission settings.',
+  '主机可用内存低于设定阈值，已停止采集':
+    'Available memory on this host fell below the configured threshold, so the collection was stopped.',
+  作业下发失败: 'Failed to dispatch the job',
   重新采集: 'Re-collect',
   '重新采集失败，请重试': 'Failed to re-collect. Please retry.',
   重新加载采集结果: 'Reload collection results',
