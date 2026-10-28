@@ -33,7 +33,6 @@ from apps.log_databus.exceptions import CleanTemplateNotExistException
 from apps.log_databus.handlers.collector import CollectorHandler
 from apps.log_databus.handlers.collector_scenario import CollectorScenario
 from apps.log_databus.handlers.collector_scenario.custom_define import get_custom
-from apps.log_databus.handlers.collector_scenario.utils import build_es_option_type
 from apps.log_databus.handlers.etl.base import EtlHandler
 from apps.log_databus.handlers.etl_storage import EtlStorage
 from apps.log_databus.handlers.storage import StorageHandler
@@ -200,40 +199,6 @@ class TransferEtlHandler(EtlHandler):
                         field["option"]["real_path"] = field["option"]["real_path"].replace(
                             f"{EtlStorage.separator_node_name}.", ""
                         )
-
-            if clustering_config.use_mini_link:
-                fields = CollectorScenario.fields_insert_field_index(
-                    source_fields=fields,
-                    dst_fields=[
-                        {
-                            "field_name": "signature",
-                            "field_type": "string",
-                            "tag": "dimension",
-                            "alias_name": "signature",
-                            "description": "signature",
-                            "option": build_es_option_type("keyword", es_version),
-                            "is_built_in": True,
-                            "is_time": False,
-                            "is_analyzed": False,
-                            "is_dimension": True,
-                            "is_delete": False,
-                        }
-                    ],
-                )
-
-                # 接入聚类小型化必须要创建 pattern 结果表
-                EtlStorage.update_or_create_pattern_result_table(
-                    instance=self.data,
-                    table_id=clustering_config.signature_pattern_rt,
-                    storage_cluster_id=storage_cluster_id,
-                    allocation_min_days=allocation_min_days,
-                    storage_replies=storage_replies,
-                    es_version=es_version,
-                    hot_warm_config=cluster_info["cluster_config"].get("custom_option", {}).get("hot_warm_config"),
-                    es_shards=es_shards,
-                    total_shards_per_node=total_shards_per_node,
-                    storage_cluster_type=storage_cluster_type,
-                )
 
         index_set_obj = LogIndexSet.objects.filter(index_set_id=self.data.index_set_id).first()
         if sort_fields is None and index_set_obj:

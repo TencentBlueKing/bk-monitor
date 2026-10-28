@@ -156,3 +156,8 @@ class ModelFileUnpickleForbiddenException(BaseClusteringException):
 class ModelFileStructureInvalidException(BaseClusteringException):
     ERROR_CODE = "029"
     MESSAGE = _("AIOPS 模型文件结构非法: {detail}")
+
+
+class MiniClusteringNotReadyException(BaseClusteringException):
+    ERROR_CODE = "030"
+    MESSAGE = _("日志聚类轻量化链路尚未接通，暂不支持接入: {index_set_id}")
