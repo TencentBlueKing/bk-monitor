@@ -156,6 +156,27 @@ class TestQuixClusteringHandlerUpdate(TestCase):
         self.assertEqual((clustering_config.filter_rules, clustering_config.regex_template_id), (WARN_RULES, 3))
         mock_delay.assert_called_once_with(operation_id)
 
+    def test_update_rolls_back_operation_when_pending_config_save_fails(self, mock_delay):
+        original_save = LogClusteringRuntime.save
+
+        def fail_after_save(runtime, *args, **kwargs):
+            original_save(runtime, *args, **kwargs)
+            if "pending_config" in kwargs.get("update_fields", []):
+                raise RuntimeError("pending config save interrupted")
+
+        with patch.object(LogClusteringRuntime, "save", fail_after_save):
+            with self.assertRaisesRegex(RuntimeError, "pending config save interrupted"):
+                QuixClusteringHandler(self.index_set).update({"filter_rules": WARN_RULES})
+
+        self.runtime.refresh_from_db()
+        self.assertEqual(self.runtime.phase, ClusteringRuntimePhaseEnum.RUNNING.value)
+        self.assertIsNone(self.runtime.pending_config)
+        self.assertFalse(
+            LogClusteringOperation.objects.filter(operation_type=ClusteringOperationTypeEnum.UPDATE.value).exists()
+        )
+        self.assertEqual(ClusteringConfig.objects.get(index_set_id=INDEX_SET_ID).filter_rules, ERROR_RULES)
+        mock_delay.assert_not_called()
+
     def test_unchanged_rules_only_save_business_config(self, mock_delay):
         result = QuixClusteringHandler(self.index_set).update({"filter_rules": ERROR_RULES, "max_log_length": 2000})
 
