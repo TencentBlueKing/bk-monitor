@@ -452,3 +452,19 @@ def test_explicit_precalculation_table_keeps_relation_query_scope(history, mocke
     assert [q.query.table_name for q in query.build_queries(start_time=T1 + 1801, end_time=T2 - 1801)] == [
         "precalculate.relation"
     ]
+
+
+@pytest.mark.parametrize(
+    "sort,expected", [("attributes.score", ["old", "new"]), ("attributes.score desc", ["new", "old"])]
+)
+def test_excluded_sort_field_is_fetched_then_removed(span_query, mocker, sort, expected):
+    def query_records(*, query_body, **kwargs):
+        query = query_body["query_configs"][0]
+        assert "attributes" in query["select"]
+        is_old = query["table"] == EXCLUSIVE_RT
+        return [{"span_id": "old" if is_old else "new", "attributes": {"score": 1 if is_old else 2}}]
+
+    mocker.patch("bkmonitor.data_source.unify_query.builder.QueryHelper.query", side_effect=query_records)
+    records = span_query.query_list(T1 - 60, T2 + 60, 0, 2, sort=[sort])
+    assert [row["span_id"] for row in records] == expected
+    assert all("attributes" not in row for row in records)

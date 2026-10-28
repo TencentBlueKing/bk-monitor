@@ -138,6 +138,15 @@ class BaseQuery(APMQueryFilterMixin, DataSourceBaseQuery):
             return super()._query_list(queries, start_time, end_time, offset, limit)
 
         # ES 直查只支持逐表分页。每表取前 offset + limit 条，再统一排序、折叠和分页。
+        # 列表选择的是顶层字段；临时补齐被排除的排序字段，合并后恢复原返回字段。
+        selected_fields = queries[0].query.select
+        extra_fields = {
+            ordering.split()[0].partition(".")[0]
+            for ordering in queries[0].query.order_by
+            if selected_fields and ordering.split()[0].partition(".")[0] not in selected_fields
+        }
+        if extra_fields:
+            queries = [query.values(*query.query.select, *sorted(extra_fields)) for query in queries]
         query_list = super()._query_list
         with ThreadPool(processes=min(len(queries), 10)) as pool:
             batches = list(pool.imap(lambda q: query_list([q], start_time, end_time, 0, offset + limit), queries))
@@ -164,7 +173,11 @@ class BaseQuery(APMQueryFilterMixin, DataSourceBaseQuery):
                     seen.add(key)
                     distinct_records.append(record)
             records = distinct_records
-        return records[offset : offset + limit]
+        page = records[offset : offset + limit]
+        for record in page:
+            for field in extra_fields:
+                record.pop(field, None)
+        return page
 
     @staticmethod
     def _record_value(record: dict[str, Any], field: str) -> Any:
