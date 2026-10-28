@@ -78,17 +78,15 @@ class QueryProxy:
             target_bk_biz_id, target_app_name = bk_biz_id, app_name
         meta: dict[str, Any] = _get_app_meta(target_bk_biz_id, target_app_name)
         history: list[dict[str, Any]] = meta["history_link_info"]
-        retention: int = max(
-            value or BaseQuery.DEFAULT_RETENTION
-            for value in [meta["retention"], *[link["retention"] for link in history]]
-        )
-        start_ms, end_ms = BaseQuery.get_retention_time_range(retention, start_time, end_time)
-        # 关联查询显式指定预计算表时，不展开应用的原始表历史。
-        table_ids: list[str] = (
-            [meta["table_id"]]
-            if trace_level_table_ids is not None
-            else TraceDataSource.get_query_table_ids(meta["table_id"], history, start_ms // 1000, end_ms // 1000)
-        )
+        table_ids: list[str] = [meta["table_id"]]
+        retention: int = meta["retention"]
+        # 无切换历史及显式指定预计算表时，沿用单表查询。
+        if history and trace_level_table_ids is None:
+            retention = max(
+                value or BaseQuery.DEFAULT_RETENTION for value in [retention, *[link["retention"] for link in history]]
+            )
+            start_ms, end_ms = BaseQuery.get_retention_time_range(retention, start_time, end_time)
+            table_ids = TraceDataSource.get_query_table_ids(meta["table_id"], history, start_ms // 1000, end_ms // 1000)
         levels = [LevelTarget(TraceQuery.LEVEL_NAME, trace_level_table_ids)] if trace_level_table_ids else []
         return [
             TraceDatasourceTarget.build(target_bk_biz_id, target_app_name, table_id, retention, levels)
@@ -101,11 +99,15 @@ class QueryProxy:
     def _get_query(
         self, query_mode: str, start_time: int | None = None, end_time: int | None = None
     ) -> BaseQuery | FakeQuery:
-        targets = self._build_data_sources(start_time=start_time, end_time=end_time)
         if query_mode == QueryMode.TRACE:
-            precalculate = PrecalculateStorage(self.bk_biz_id, self.app_name, need_client=False)
+            precalculate = self._precalculate_storage
             if not precalculate.is_valid:
                 return FakeQuery()
+            if not _get_app_meta(self.bk_biz_id, self.app_name)["history_link_info"]:
+                return self._get_trace_query(precalculate.result_table_id)
+
+        targets = self._build_data_sources(start_time=start_time, end_time=end_time)
+        if query_mode == QueryMode.TRACE:
             # 多个原始表可能映射到同一预计算表，仅在应用内去重。
             trace_targets: dict[str, TraceDatasourceTarget] = {}
             for target in targets:
@@ -114,6 +116,10 @@ class QueryProxy:
             return TraceQuery(list(trace_targets.values()))
         query_class = {QueryMode.ORIGIN_TRACE: OriginTraceQuery, QueryMode.SPAN: SpanQuery}[query_mode]
         return query_class(targets)
+
+    @cached_property
+    def _precalculate_storage(self) -> PrecalculateStorage:
+        return PrecalculateStorage(self.bk_biz_id, self.app_name, need_client=False)
 
     @cached_property
     def span_query(self) -> SpanQuery:

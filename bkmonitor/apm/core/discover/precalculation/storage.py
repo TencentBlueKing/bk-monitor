@@ -146,17 +146,21 @@ class PrecalculateStorage:
         logger.info(f"[PrecalculateStorage] save {len(data)} success")
 
     @classmethod
-    def get_route_key(cls, bk_biz_id: int, app_name: str, result_table_id: str | None = None) -> str:
-        if result_table_id is None:
-            trace_datasource = TraceDataSource.objects.filter(bk_biz_id=bk_biz_id, app_name=app_name).first()
-            result_table_id = trace_datasource.result_table_id if trace_datasource else ""
-        if result_table_id.startswith(ApmGlobalTablePrefix.SHARED):
-            return f"0:{result_table_id}"
+    def get_route_key(cls, bk_biz_id: int, app_name: str) -> str:
+        trace_datasource = TraceDataSource.objects.filter(bk_biz_id=bk_biz_id, app_name=app_name).first()
+        if trace_datasource and trace_datasource.is_shared:
+            # 共享 trace data_id 是跨业务的，同一个 result_table_id 必须落到同一预计算存储。
+            # 固定业务维度为 0，避免 primary app 所属业务影响哈希结果。
+            return f"0:{trace_datasource.result_table_id}"
         return f"{bk_biz_id}:{app_name}"
 
     def get_result_table_id(self, trace_table_id: str) -> str:
-        """按原始 Trace 表解析预计算表，复用写入侧的路由规则和存储环。"""
-        route_key: str = self.get_route_key(self.bk_biz_id, self.app_name, trace_table_id)
+        """按历史 Trace 表解析预计算表，不重新加载存储环。"""
+        route_key: str = (
+            f"0:{trace_table_id}"
+            if trace_table_id.startswith(ApmGlobalTablePrefix.SHARED)
+            else f"{self.bk_biz_id}:{self.app_name}"
+        )
         return self.hash_ring.select_node(route_key).split("-", 1)[-1]
 
     @classmethod

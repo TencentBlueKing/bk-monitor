@@ -405,8 +405,9 @@ def test_trace_list_routes_precalculation_history(history, mocker, start, end, s
     )
     storage = PrecalculateStorage.__new__(PrecalculateStorage)
     storage.bk_biz_id, storage.app_name, storage.hash_ring, storage.is_valid = 2, "demo", ring, True
-    mocker.patch("apm.core.handlers.query.proxy.PrecalculateStorage", return_value=storage)
-    trace_query = QueryProxy(2, "demo")._get_query(QueryMode.TRACE, start, end)
+    storage_factory = mocker.patch("apm.core.handlers.query.proxy.PrecalculateStorage", return_value=storage)
+    proxy = QueryProxy(2, "demo")
+    trace_query = proxy._get_query(QueryMode.TRACE, start, end)
     queries = trace_query.build_queries()
     assert {q.query.table_name for q in queries} == (
         ({old_table} if exclusive else set()) | ({shared_table} if shared else set())
@@ -415,6 +416,10 @@ def test_trace_list_routes_precalculation_history(history, mocker, start, end, s
         assert "biz_id__eq" in str(query.query.where)
         assert "app_name__eq" in str(query.query.where)
         assert "demo" in str(query.query.where)
+    # 复用存储环，但不能缓存上一次时间范围的选表结果。
+    middle = proxy._get_query(QueryMode.TRACE, T1 + 1801, T2 - 1801)
+    assert [q.query.table_name for q in middle.build_queries()] == [shared_table]
+    storage_factory.assert_called_once()
     # 查询上下文的预计算路由不回写到持久化切换记录。
     assert all("levels" not in link for link in history)
 
@@ -682,3 +687,109 @@ def test_command_parser_keeps_target_pools_and_deduplicates_apps(migration_comma
     assert args.shared_datasource_ids == [1, 2]
     assert migration_command.parse_apps(args.apps) == [(2, "a"), (2, "b")]
     assert args.dry_run
+
+
+@pytest.fixture
+def exclusive_query_storage(exclusive, mocker):
+    from metadata.models import ESStorage
+
+    ESStorage.objects.create(table_id=EXCLUSIVE_RT, storage_cluster_id=1, retention=7)
+    ESStorage.objects.create(table_id="precalculate.trace", storage_cluster_id=1, retention=7)
+    mocker.patch.object(
+        PrecalculateStorage,
+        "fetch_cluster_simple_infos",
+        return_value=[{"table_name": "precalculate.trace", "cluster_id": 1}],
+    )
+    _get_app_meta.cache_clear()
+    yield
+    _get_app_meta.cache_clear()
+
+
+@pytest.mark.parametrize(
+    ("mode", "cold_queries", "new_proxy_queries", "table_id"),
+    [
+        (QueryMode.SPAN, 2, 0, EXCLUSIVE_RT),
+        (QueryMode.ORIGIN_TRACE, 2, 0, EXCLUSIVE_RT),
+        (QueryMode.TRACE, 4, 2, "precalculate.trace"),
+    ],
+)
+def test_exclusive_query_db_cost_matches_single_table_path(
+    exclusive_query_storage, django_assert_num_queries, mode, cold_queries, new_proxy_queries, table_id
+):
+    # 仅替换集群发现；应用元数据、保留期和预计算表均执行真实 ORM 查询。
+    proxy = QueryProxy(2, "demo")
+    with django_assert_num_queries(cold_queries):
+        first = proxy._get_query(mode, T1, T2)
+        assert [q.query.table_name for q in first.build_queries()] == [table_id]
+    with django_assert_num_queries(0):
+        for start, end in ((T1 + 1, T2), (T1, T2 + 1)):
+            query = proxy._get_query(mode, start, end)
+            assert query.data_sources == first.data_sources
+        cached_query = getattr(proxy, f"{mode}_query")
+        assert cached_query.data_sources == first.data_sources
+    with django_assert_num_queries(new_proxy_queries):
+        assert QueryProxy(2, "demo")._get_query(mode).data_sources == first.data_sources
+
+
+@pytest.mark.parametrize("retention", [None, 0, 7])
+def test_exclusive_target_preserves_retention_without_history_selection(mocker, retention):
+    mocker.patch(
+        "apm.core.handlers.query.proxy._get_app_meta",
+        return_value={"table_id": EXCLUSIVE_RT, "retention": retention, "history_link_info": []},
+    )
+    select = mocker.patch.object(TraceDataSource, "get_query_table_ids", side_effect=AssertionError("不要选历史表"))
+    targets = QueryProxy(2, "demo")._build_data_sources(start_time=T1, end_time=T2)
+    assert targets == [TraceDatasourceTarget.build(2, "demo", EXCLUSIVE_RT, retention=retention)]
+    select.assert_not_called()
+
+
+def test_invalid_precalculation_keeps_fake_query_without_loading_metadata(mocker):
+    from apm.core.handlers.query.base import FakeQuery
+
+    storage = mocker.patch("apm.core.handlers.query.proxy.PrecalculateStorage")
+    storage.return_value.is_valid = False
+    meta = mocker.patch("apm.core.handlers.query.proxy._get_app_meta", side_effect=ValueError("未配置数据源"))
+    proxy = QueryProxy(2, "demo")
+    assert isinstance(proxy._get_query(QueryMode.TRACE, T1, T2), FakeQuery)
+    assert proxy.is_trace_query_valid is False
+    storage.assert_called_once()
+    meta.assert_not_called()
+
+
+@pytest.mark.parametrize("shared", [False, True])
+def test_existing_precalculation_route_uses_shared_flag(exclusive, shared_pool, shared):
+    # 现有写入路由继续以共享标记为准，不因历史查询新增的表名前缀判断而改变。
+    exclusive.result_table_id = EXCLUSIVE_RT if shared else SHARED_RT
+    exclusive.shared_datasource_id = shared_pool.pk if shared else None
+    exclusive.save()
+    expected_key = f"0:{EXCLUSIVE_RT}" if shared else "2:demo"
+    assert PrecalculateStorage.get_route_key(2, "demo") == expected_key
+
+
+def test_exclusive_update_does_not_read_shared_pool_or_append_history(
+    exclusive, datasource_apis, django_assert_num_queries, mocker
+):
+    release = mocker.patch.object(TraceDataSource, "release_for_migration", side_effect=AssertionError("不应迁出"))
+    with django_assert_num_queries(4):
+        # savepoint、应用读取、索引集字段更新、release savepoint；外部 RT API 已替换。
+        TraceDataSource.apply_datasource(2, "demo", option=True, es_storage_cluster=1)
+    exclusive.refresh_from_db()
+    assert exclusive.history_link_info == []
+    assert exclusive.backup_link_info == {}
+    assert exclusive.result_table_id == EXCLUSIVE_RT
+    release.assert_not_called()
+    datasource_apis["modify"].assert_called_once()
+    datasource_apis["delete_index"].assert_not_called()
+
+
+def test_new_exclusive_datasource_does_not_allocate_shared_pool(datasource_apis, new_data_id, mocker):
+    allocate = mocker.patch.object(SharedTraceDataSource, "allocate", side_effect=AssertionError("不应分配共享池"))
+    TraceDataSource.apply_datasource(2, "demo", option=True, es_storage_cluster=1)
+    source = TraceDataSource.objects.get(bk_biz_id=2, app_name="demo")
+    assert source.result_table_id == EXCLUSIVE_RT
+    assert source.bk_data_id == 301
+    assert source.history_link_info == []
+    assert source.backup_link_info == {}
+    assert not source.is_shared
+    allocate.assert_not_called()
+    datasource_apis["create_rt"].assert_called_once()
