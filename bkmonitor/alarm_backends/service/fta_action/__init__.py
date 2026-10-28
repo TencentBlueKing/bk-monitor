@@ -577,11 +577,12 @@ class BaseActionProcessor:
         """
         标记开始执行任务
         """
+        event_time = datetime.now(tz=timezone.utc)
         # step 1 发送自愈开始通知，创建流水
         execute_notify_result = None
         if getattr(self, "retry_times", 0) == 0:
             # 当前为第一次执行的时候，可以发送开始通知
-            execute_notify_result = self.notify(NotifyStep.BEGIN)
+            execute_notify_result = self.notify(NotifyStep.BEGIN, event_time=event_time)
 
         if STATUS_NOTIFY_DICT.get(self.action.status) == NotifyStep.BEGIN:
             # 开始执行任务的通知，仅在开始执行的时候发送
@@ -804,7 +805,7 @@ class BaseActionProcessor:
             locked_action.save(using=backend_alert_router)
             self.action = locked_action
 
-    def notify(self, notify_step, need_update_context=False):
+    def notify(self, notify_step, need_update_context=False, event_time=None):
         """
         根据当前的状态发送不同的通知
         """
@@ -835,8 +836,13 @@ class BaseActionProcessor:
                 notice_way="markdown" if notice_way in settings.MD_SUPPORTED_NOTICE_WAYS else notice_way
             )
             sender_class = self.NOTICE_SENDER.get(channel, Sender)
+            context = dict(self.get_context() if need_update_context else self.context)
+            context.update(
+                sms_event_time=event_time if notify_step == NotifyStep.BEGIN else self.action.end_time,
+                sms_action_status=ActionStatus.RUNNING if notify_step == NotifyStep.BEGIN else self.action.status,
+            )
             notify_sender = sender_class(
-                context=self.get_context() if need_update_context else self.context,
+                context=context,
                 title_template_path=title_template_path,
                 content_template_path=content_template_path,
                 notice_type=NoticeType.ACTION_NOTICE,

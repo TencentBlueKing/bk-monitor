@@ -1173,6 +1173,7 @@ class CreateActionProcessor:
         action_relation = action_relation or {}
         inputs = {
             "alert_latest_time": alert.latest_time,
+            "alert_end_time": alert.end_time,
             "is_alert_shielded": self.is_alert_shielded,
             "shield_ids": shield_ids,
             "shield_detail": self.shield_detail,
