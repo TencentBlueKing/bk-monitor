@@ -411,16 +411,44 @@ class ClientEnvelopeTest(TestCase):
 
     @override_settings(
         BKNODEMAN_V3_API_BASE_URL="",
-        PAAS_API_HOST="https://bkapi.example.com",
-        ENVIRONMENT="prod",
+        BK_COMPONENT_API_URL="https://bkapi.example.com/",
+        ENVIRONMENT="dev",
     )
-    def test_default_v3_gateway_uses_bk_nodemgr(self):
+    def test_default_v3_gateway_uses_component_api_prod_stage(self):
         from apps.api.modules.bk_node_v3 import _BKNodeV3Api
 
         api = _BKNodeV3Api()
         self.assertEqual(
             api.list_deploy_policy_workflows.url,
             "https://bkapi.example.com/api/bk-nodemgr/prod/api/v3/deploy_policy/workflow/list",
+        )
+
+    @override_settings(
+        BKNODEMAN_V3_API_BASE_URL="",
+        BK_COMPONENT_API_URL=None,
+        PAAS_API_HOST="https://legacy-bkapi.example.com",
+        ENVIRONMENT="stag",
+    )
+    def test_default_v3_gateway_falls_back_to_legacy_gateway_root(self):
+        from apps.api.modules.bk_node_v3 import _BKNodeV3Api
+
+        api = _BKNodeV3Api()
+        self.assertEqual(
+            api.list_deploy_policy_workflows.url,
+            "https://legacy-bkapi.example.com/api/bk-nodemgr/prod/api/v3/deploy_policy/workflow/list",
+        )
+
+    @override_settings(
+        BKNODEMAN_V3_API_BASE_URL="https://nodeman-v3.example.com/custom-stage",
+        BK_COMPONENT_API_URL="https://unused.example.com",
+    )
+    def test_explicit_v3_gateway_override_is_preserved(self):
+        from apps.api.modules.bk_node_v3 import _BKNodeV3Api
+
+        api = _BKNodeV3Api()
+        self.assertEqual(
+            api.list_deploy_policy_workflows.url,
+            "https://nodeman-v3.example.com/custom-stage/api/v3/deploy_policy/workflow/list",
         )
 
 

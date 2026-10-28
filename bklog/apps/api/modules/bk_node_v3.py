@@ -47,10 +47,12 @@ class _BKNodeV3Api:
 
     def _build_url(self, action: str) -> str:
         """
-        V3 只有 APIGW 一条入口（ESB compapi 未提供 v3），base_url 支持独立配置以便联调环境直连。
+        V3 只有 APIGW 一条入口（ESB compapi 未提供 v3）。默认复用环境级网关根地址，
+        独立 base_url 只作为联调或特殊路由的显式覆盖。
         """
+        gateway_root = settings.BK_COMPONENT_API_URL or settings.PAAS_API_HOST
         base_url = settings.BKNODEMAN_V3_API_BASE_URL or (
-            f"{settings.PAAS_API_HOST}/api/bk-nodemgr/{settings.ENVIRONMENT}/"
+            f"{gateway_root.rstrip('/')}/api/bk-nodemgr/prod/"
         )
         if not base_url.endswith("/"):
             base_url += "/"
