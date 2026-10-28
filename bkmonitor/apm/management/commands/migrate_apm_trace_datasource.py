@@ -17,6 +17,7 @@ from django.core.management import BaseCommand, CommandError
 from apm.core.application_config import ApplicationConfig
 from apm.core.handlers.application_hepler import ApplicationHelper
 from apm.models import ApmApplication, TraceDataSource
+from apm.models.shared_datasource import SharedTraceDataSource
 from apm.resources import ApplyDatasourceResource
 from constants.apm import TelemetryDataType
 
@@ -81,6 +82,12 @@ class Command(BaseCommand):
             help="应用列表，格式为 <bk_biz_id>:<app_name>，例如 2:app_a 2:app_b",
         )
         parser.add_argument(
+            "--shared-datasource-ids",
+            nargs="+",
+            type=int,
+            help="仅在 shared 模式使用：限定目标共享池 ID，按预计用量分配，已在目标池内的应用保持不动",
+        )
+        parser.add_argument(
             "--dry-run",
             action="store_true",
             help="输出当前状态、目标状态、是否有备份和预计动作等信息，不执行迁移",
@@ -94,15 +101,43 @@ class Command(BaseCommand):
             self.get_migration_context(bk_biz_id, app_name) for bk_biz_id, app_name in apps
         ]
 
-        if dry_run:
-            for index, context in enumerate(contexts):
-                if index > 0:
-                    self.stdout.write("")
-                self.write_dry_run_status(context, target)
-            return
+        pool_ids: list[int] = options.get("shared_datasource_ids") or []
+        if pool_ids and target != TARGET_SHARED:
+            raise CommandError("--shared-datasource-ids 仅适用于 --target shared")
+        plan: list[int | None] = self.plan_shared_targets(contexts, pool_ids) if pool_ids else [None] * len(contexts)
+        for context, pool_id in zip(contexts, plan):
+            if dry_run:
+                self.write_dry_run_status(context, target, pool_id)
+            else:
+                self.migrate_app(context, target, pool_id)
 
+    @staticmethod
+    def plan_shared_targets(contexts: list[TraceDataSourceMigrationContext], pool_ids: list[int]) -> list[int]:
+        """先校验整批容量并预分配，执行时仍由池的 acquire 原子校验。"""
+        pools = {pool.pk: pool for pool in SharedTraceDataSource.objects.filter(pk__in=pool_ids)}
+        for pool_id in pool_ids:
+            pool = pools.get(pool_id)
+            if (
+                not pool
+                or not pool.is_enabled
+                or pool.bk_data_id <= 0
+                or not pool.result_table_id
+                or not pool.index_set_id
+            ):
+                raise CommandError(f"目标共享数据源 {pool_id} 不存在、未启用或链路信息不完整")
+        plan: list[int] = []
         for context in contexts:
-            self.migrate_app(context, target)
+            current_id = context.trace_datasource.shared_datasource_id if context.trace_datasource else None
+            if current_id in pools:
+                plan.append(current_id)
+                continue
+            available = [pool for pool in pools.values() if pool.usage_count < pool.quota]
+            if not available:
+                raise CommandError("指定共享池剩余容量不足，未执行迁移")
+            pool = min(available, key=lambda item: (item.usage_count, item.pk))
+            pool.usage_count += 1
+            plan.append(pool.pk)
+        return plan
 
     @staticmethod
     def parse_apps(app_values: list[str]) -> list[tuple[int, str]]:
@@ -129,14 +164,22 @@ class Command(BaseCommand):
             seen.add(app_key)
         return apps
 
-    def write_dry_run_status(self, context: TraceDataSourceMigrationContext, target: str) -> None:
+    def write_dry_run_status(
+        self, context: TraceDataSourceMigrationContext, target: str, shared_datasource_id: int | None = None
+    ) -> None:
         """输出单个应用的 dry-run 状态。"""
         result_table_id: str = context.result_table_id
         action: str
-        if not context.trace_datasource:
+        if shared_datasource_id is not None and (
+            not context.trace_datasource or context.trace_datasource.shared_datasource_id != shared_datasource_id
+        ):
+            action = f"migrate to shared datasource {shared_datasource_id}"
+        elif not context.trace_datasource:
             action = f"create {target} datasource"
         elif context.current_mode == target and not context.needs_index_set_repair:
-            action = "keep the current mode unchanged"
+            action = (
+                "keep current pool and refresh config" if shared_datasource_id else "keep the current mode unchanged"
+            )
         elif context.current_mode == target:
             action = "repair current exclusive datasource"
         elif target == self.TARGET_SHARED:
@@ -155,6 +198,7 @@ class Command(BaseCommand):
                     f"app_name：{context.app_name}",
                     f"current_mode：{context.current_mode}",
                     f"target_mode：{target}",
+                    f"target_shared_datasource_id：{shared_datasource_id or 'auto'}",
                     f"result_table_id：{result_table_id or '-'}",
                     f"has_backup：{context.has_backup}",
                     f"action：{action}",
@@ -162,9 +206,12 @@ class Command(BaseCommand):
             )
         )
 
-    def migrate_app(self, context: TraceDataSourceMigrationContext, target: str) -> None:
+    def migrate_app(
+        self, context: TraceDataSourceMigrationContext, target: str, shared_datasource_id: int | None = None
+    ) -> None:
         """迁移单个应用 Trace 数据源。"""
-        if context.current_mode == target and not context.needs_index_set_repair:
+        # 显式指定池时重走幂等 apply 和配置刷新，支持上次配置下发失败后重试。
+        if shared_datasource_id is None and context.current_mode == target and not context.needs_index_set_repair:
             self.stdout.write(
                 self.style.SUCCESS(
                     f"已跳过 Trace 数据源迁移：bk_biz_id={context.bk_biz_id}, "
@@ -180,6 +227,9 @@ class Command(BaseCommand):
             raise CommandError(
                 f"无法获取默认 Trace 存储配置：bk_biz_id={context.bk_biz_id}, app_name={context.app_name}"
             )
+
+        if shared_datasource_id is not None:
+            trace_datasource_option["shared_datasource_id"] = shared_datasource_id
 
         shared_datasource_types: list[str] = [TelemetryDataType.TRACE.value] if target == self.TARGET_SHARED else []
         ApplyDatasourceResource().request(

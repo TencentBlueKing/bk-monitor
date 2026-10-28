@@ -271,15 +271,19 @@ class ApmDataSourceConfigBase(models.Model):
     @atomic(using=DATABASE_CONNECTION_NAME)
     def apply_datasource(cls, bk_biz_id: int, app_name: str, **options) -> None:
         """创建/更新应用的数据源（支持独占和共享两种模式）"""
-        obj = cls.objects.filter(bk_biz_id=bk_biz_id, app_name=app_name).first()
+        obj = cls.objects.select_for_update().filter(bk_biz_id=bk_biz_id, app_name=app_name).first()
         if not obj:
             obj = cls.objects.create(bk_biz_id=bk_biz_id, app_name=app_name)
 
         is_shared: bool = options.get("is_shared", False)
 
-        # 模式变化时释放当前链路；迁入共享前备份独占链路，回切时恢复备份。
-        if obj.result_table_id != "" and obj.is_shared != is_shared:
-            if is_shared:
+        target_shared_id: int | None = options.get("shared_datasource_id")
+        if target_shared_id is not None and not is_shared:
+            raise ValueError("指定共享数据源时目标模式必须为 shared")
+        changing_pool: bool = target_shared_id is not None and obj.shared_datasource_id != target_shared_id
+        # 模式或目标池变化时保留迁出链路，独占备份不被共享迁共享覆盖。
+        if obj.result_table_id and (obj.is_shared != is_shared or changing_pool):
+            if not obj.is_shared and is_shared:
                 obj.backup_exclusive_link_info()
             obj.release_for_migration()
             obj.reset_link_info()
@@ -329,7 +333,7 @@ class ApmDataSourceConfigBase(models.Model):
             return
 
         # 尝试从池中分配
-        shared_info = shared_cls.allocate()
+        shared_info = shared_cls.allocate(options.get("shared_datasource_id"))
         if not shared_info:
             # 无可用共享源，创建新的
             shared_info = self._create_shared_datasource(shared_cls, **options)
@@ -576,6 +580,20 @@ class LogDataSource(ApmDataSourceConfigBase):
 
 class TraceDataSource(ApmDataSourceConfigBase):
     history_link_info = models.JSONField("历史链路信息", default=list)
+
+    @staticmethod
+    def get_query_table_ids(
+        table_id: str, history_link_info: list[dict[str, Any]], start_time: int, end_time: int
+    ) -> list[str]:
+        """按切换区间前后各半小时选表，保留 A → B → A 的两次切换后再去重。"""
+        table_ids: dict[str, None] = {}
+        since: int = 0
+        for link in [*history_link_info, {"table_id": table_id, "switched_at": None}]:
+            until: int | None = link["switched_at"]
+            if since - 1800 <= end_time and (until is None or until + 1800 >= start_time):
+                table_ids[link["table_id"]] = None
+            since = until or since
+        return list(table_ids)
 
     DATASOURCE_TYPE = ApmDataSourceConfigBase.TRACE_DATASOURCE
     CONCURRENT_NUMBER = 5

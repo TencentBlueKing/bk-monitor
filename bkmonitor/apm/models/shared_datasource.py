@@ -53,16 +53,18 @@ class BaseSharedDataSource(models.Model):
         }
 
     @classmethod
-    def allocate(cls) -> dict[str, Any] | None:
+    def allocate(cls, shared_datasource_id: int | None = None) -> dict[str, Any] | None:
         """从池中选取可用共享源并占用一个槽位。
 
-        :return: 共享链路信息字典，无可用或占位失败时返回 None
+        :return: 共享链路信息字典；自动分配无可用池时返回 None，显式指定池不可用时抛出异常
         """
-        candidate = cls.objects.filter(is_enabled=True, usage_count__lt=F("quota")).order_by("usage_count").first()
-        if not candidate:
-            return None
-
-        if not candidate.acquire():
+        candidates = cls.objects.filter(is_enabled=True, usage_count__lt=F("quota"))
+        if shared_datasource_id is not None:
+            candidates = candidates.filter(pk=shared_datasource_id, bk_data_id__gt=0).exclude(result_table_id="")
+        candidate = candidates.order_by("usage_count", "pk").first()
+        if not candidate or not candidate.acquire():
+            if shared_datasource_id is not None:
+                raise ValueError(f"共享数据源 {shared_datasource_id} 不可用或容量不足")
             return None
 
         return {**candidate.to_shared_info(), "shared_datasource_id": candidate.pk}
@@ -120,6 +122,7 @@ class BaseSharedDataSource(models.Model):
         """
         filter_kwargs: dict[str, Any] = {"pk": self.pk}
         if delta > 0:
+            filter_kwargs["is_enabled"] = True
             filter_kwargs["usage_count"] = self.usage_count
             filter_kwargs["usage_count__lt"] = F("quota")
             new_value = F("usage_count") + delta

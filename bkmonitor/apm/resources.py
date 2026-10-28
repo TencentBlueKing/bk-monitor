@@ -101,6 +101,8 @@ logger = logging.getLogger("apm")
 class DatasourceConfigRequestSerializer(serializers.Serializer):
     """应用数据库配置"""
 
+    shared_datasource_id = serializers.IntegerField(required=False, min_value=1, label="指定迁入的共享数据源 ID")
+
     es_storage_cluster = serializers.IntegerField(label="es存储集群")
     es_retention = serializers.IntegerField(required=False, label="es存储周期", min_value=1)
     es_number_of_replicas = serializers.IntegerField(required=False, label="es副本数量", min_value=0)

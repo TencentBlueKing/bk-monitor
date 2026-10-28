@@ -3,7 +3,8 @@ from unittest.mock import PropertyMock
 
 import pytest
 
-from apm.core.discover.precalculation.storage import RendezvousHash
+from apm.core.discover.precalculation.storage import PrecalculateStorage, RendezvousHash
+from apm.core.handlers.query.define import QueryMode
 from apm.core.handlers.query.proxy import QueryProxy, _get_app_meta
 from apm.core.handlers.query.span_query import SpanQuery
 from apm.core.handlers.query.trace_query import TraceQuery
@@ -34,8 +35,23 @@ def history():
 
 
 @pytest.fixture
-def span_query(history):
-    return SpanQuery([TraceDatasourceTarget.build(2, "demo", EXCLUSIVE_RT, retention=7, history_link_info=history)])
+def proxy(history, mocker):
+    mocker.patch(
+        "apm.core.handlers.query.proxy._get_app_meta",
+        return_value={
+            "bk_biz_id": 2,
+            "app_name": "demo",
+            "table_id": EXCLUSIVE_RT,
+            "retention": 7,
+            "history_link_info": history,
+        },
+    )
+    return QueryProxy(2, "demo")
+
+
+@pytest.fixture
+def span_query(proxy):
+    return proxy.span_query
 
 
 @pytest.mark.parametrize(
@@ -51,20 +67,22 @@ def span_query(history):
         (T1 - 3600, T2 + 3600, [EXCLUSIVE_RT, SHARED_RT]),
     ],
 )
-def test_query_routes_by_switch_window_then_deduplicates(span_query, start, end, tables):
-    queries = span_query.build_queries(start_time=start, end_time=end)
-    assert [q.query.table_name for q in queries] == tables
+def test_query_routes_by_switch_window_then_deduplicates(history, proxy, start, end, tables):
+    assert TraceDataSource.get_query_table_ids(EXCLUSIVE_RT, history, start, end) == tables
+    query = proxy._get_query(QueryMode.SPAN, start, end)
+    assert [q.query.table_name for q in query.build_queries()] == tables
 
 
 def test_historical_shared_table_keeps_application_filter(span_query):
-    queries = span_query.build_queries(start_time=T1 - 3600, end_time=T2 + 3600)
+    queries = span_query.build_queries()
     assert "bk_biz_id" not in str(queries[0].query.where)
     assert "bk_biz_id__eq" in str(queries[1].query.where)
     assert "app_name__eq" in str(queries[1].query.where)
     assert "demo" in str(queries[1].query.where)
 
 
-def test_span_list_preserves_user_time_range_and_pagination(span_query, mocker):
+def test_span_list_preserves_user_time_range_and_pagination(proxy, mocker):
+    span_query = proxy._get_query(QueryMode.SPAN, T1 + 1801, T2 - 1801)
     query = mocker.patch("bkmonitor.data_source.unify_query.builder.QueryHelper.query", return_value=[])
     assert span_query.query_list(T1 + 1801, T2 - 1801, 10, 20) == []
     body = query.call_args.kwargs["query_body"]
@@ -108,12 +126,11 @@ def test_precalculated_trace_query_does_not_expand_raw_history(history):
                 "demo",
                 EXCLUSIVE_RT,
                 retention=7,
-                history_link_info=history,
                 levels=[LevelTarget("trace", ["precalculated.trace"])],
             )
         ]
     )
-    assert [q.query.table_name for q in query.build_queries(start_time=T1, end_time=T2)] == ["precalculated.trace"]
+    assert [q.query.table_name for q in query.build_queries()] == ["precalculated.trace"]
 
 
 @pytest.fixture
@@ -251,8 +268,9 @@ def test_query_proxy_loads_history_from_metadata(exclusive, history, datasource_
     exclusive.save()
     _get_app_meta.cache_clear()
     try:
-        target = QueryProxy(2, "demo").span_query.data_sources[0]
-        assert target.history_link_info == history
+        targets = QueryProxy(2, "demo").span_query.data_sources
+        assert {target.table_id for target in targets} == {EXCLUSIVE_RT, SHARED_RT}
+        assert all(not hasattr(target, "history_link_info") for target in targets)
     finally:
         _get_app_meta.cache_clear()
 
@@ -385,8 +403,11 @@ def test_trace_list_routes_precalculation_history(history, mocker, start, end, s
             "history_link_info": history,
         },
     )
-    trace_query = QueryProxy(2, "demo")._get_trace_query(old_table, ring)
-    queries = trace_query.build_queries(start_time=start, end_time=end)
+    storage = PrecalculateStorage.__new__(PrecalculateStorage)
+    storage.bk_biz_id, storage.app_name, storage.hash_ring, storage.is_valid = 2, "demo", ring, True
+    mocker.patch("apm.core.handlers.query.proxy.PrecalculateStorage", return_value=storage)
+    trace_query = QueryProxy(2, "demo")._get_query(QueryMode.TRACE, start, end)
+    queries = trace_query.build_queries()
     assert {q.query.table_name for q in queries} == (
         ({old_table} if exclusive else set()) | ({shared_table} if shared else set())
     )
@@ -410,6 +431,254 @@ def test_explicit_precalculation_table_keeps_relation_query_scope(history, mocke
         },
     )
     query = QueryProxy(2, "demo")._get_trace_query("precalculate.relation")
-    assert [q.query.table_name for q in query.build_queries(start_time=T1 + 1801, end_time=T2 - 1801)] == [
-        "precalculate.relation"
+    assert [q.query.table_name for q in query.build_queries()] == ["precalculate.relation"]
+
+
+def test_proxy_selects_sources_for_each_request(proxy):
+    old = proxy._get_query(QueryMode.SPAN, T1 - 3600, T1 - 1801)
+    middle = proxy._get_query(QueryMode.SPAN, T1 + 1801, T2 - 1801)
+    assert [target.table_id for target in old.data_sources] == [EXCLUSIVE_RT]
+    assert [target.table_id for target in middle.data_sources] == [SHARED_RT]
+    assert [target.table_id for target in old.data_sources] == [EXCLUSIVE_RT]
+
+
+def test_trace_id_search_expands_history_after_resetting_time(proxy, mocker):
+    request = mocker.patch("bkmonitor.data_source.unify_query.builder.QueryHelper.query", return_value=[])
+    proxy.query_list(
+        QueryMode.SPAN,
+        T1 + 1801,
+        T2 - 1801,
+        20,
+        0,
+        filters=[{"key": "trace_id", "operator": "equal", "value": ["trace-1"]}],
+    )
+    assert {q["table"] for q in request.call_args.kwargs["query_body"]["query_configs"]} == {EXCLUSIVE_RT, SHARED_RT}
+
+
+@pytest.fixture
+def second_pool():
+    return SharedTraceDataSource.objects.create(
+        bk_data_id=202,
+        result_table_id="apm_global.shared_trace_0002",
+        is_enabled=True,
+        usage_count=0,
+        quota=2,
+        index_set_id=22,
+        index_set_name="second-index",
+    )
+
+
+def test_shared_pool_switch_preserves_exclusive_backup_and_history(
+    exclusive, shared_pool, second_pool, datasource_apis
+):
+    for pool in (shared_pool, second_pool, shared_pool):
+        TraceDataSource.apply_datasource(
+            2,
+            "demo",
+            option=True,
+            is_shared=True,
+            shared_datasource_id=pool.pk,
+            es_storage_cluster=1,
+        )
+    exclusive.refresh_from_db()
+    shared_pool.refresh_from_db()
+    second_pool.refresh_from_db()
+    assert exclusive.shared_datasource_id == shared_pool.pk
+    assert exclusive.backup_link_info["result_table_id"] == EXCLUSIVE_RT
+    assert [link["table_id"] for link in exclusive.history_link_info] == [
+        EXCLUSIVE_RT,
+        SHARED_RT,
+        second_pool.result_table_id,
     ]
+    assert (shared_pool.usage_count, second_pool.usage_count) == (1, 0)
+    TraceDataSource.apply_datasource(
+        2,
+        "demo",
+        option=True,
+        is_shared=True,
+        shared_datasource_id=shared_pool.pk,
+        es_storage_cluster=1,
+    )
+    exclusive.refresh_from_db()
+    shared_pool.refresh_from_db()
+    assert len(exclusive.history_link_info) == 3
+    assert shared_pool.usage_count == 1
+    datasource_apis["modify"].assert_not_called()
+    datasource_apis["delete_index"].assert_not_called()
+    TraceDataSource.apply_datasource(2, "demo", option=True, is_shared=False, es_storage_cluster=1)
+    exclusive.refresh_from_db()
+    assert exclusive.result_table_id == EXCLUSIVE_RT
+    assert exclusive.index_set_id == 11
+
+
+@pytest.mark.parametrize("unavailable", ["disabled", "full", "missing", "race"])
+def test_explicit_pool_failure_does_not_fallback_or_release_source(
+    exclusive,
+    shared_pool,
+    second_pool,
+    datasource_apis,
+    mocker,
+    unavailable,
+):
+    TraceDataSource.apply_datasource(2, "demo", option=True, is_shared=True, es_storage_cluster=1)
+    exclusive.refresh_from_db()
+    history = exclusive.history_link_info
+    target_id = second_pool.pk
+    if unavailable == "disabled":
+        second_pool.is_enabled = False
+        second_pool.save()
+    elif unavailable == "full":
+        second_pool.usage_count = second_pool.quota
+        second_pool.save()
+    elif unavailable == "missing":
+        target_id = second_pool.pk + 100
+    else:
+        mocker.patch.object(SharedTraceDataSource, "acquire", return_value=False)
+    with pytest.raises(ValueError, match="不可用或容量不足"):
+        TraceDataSource.apply_datasource(
+            2,
+            "demo",
+            option=True,
+            is_shared=True,
+            shared_datasource_id=target_id,
+            es_storage_cluster=1,
+        )
+    exclusive.refresh_from_db()
+    shared_pool.refresh_from_db()
+    assert exclusive.shared_datasource_id == shared_pool.pk
+    assert exclusive.history_link_info == history
+    assert shared_pool.usage_count == 1
+    assert SharedTraceDataSource.objects.count() == 2
+    datasource_apis["create_rt"].assert_not_called()
+
+
+def test_disabled_pool_cannot_be_acquired(shared_pool):
+    SharedTraceDataSource.objects.filter(pk=shared_pool.pk).update(is_enabled=False)
+    assert not shared_pool.acquire()
+    shared_pool.refresh_from_db()
+    assert shared_pool.usage_count == 0
+
+
+@pytest.fixture
+def migration_command():
+    from io import StringIO
+    from apm.management.commands.migrate_apm_trace_datasource import Command
+
+    return Command(stdout=StringIO())
+
+
+@pytest.fixture
+def migration_context(exclusive):
+    from types import SimpleNamespace
+    from apm.management.commands.migrate_apm_trace_datasource import TraceDataSourceMigrationContext
+
+    return TraceDataSourceMigrationContext(2, "demo", SimpleNamespace(id=1), exclusive)
+
+
+def test_batch_plan_balances_only_requested_pools(migration_command, migration_context, shared_pool, second_pool):
+    from dataclasses import replace
+
+    shared_pool.quota = 1
+    shared_pool.save()
+    contexts = [replace(migration_context, app_name=f"app-{i}") for i in range(3)]
+    assert migration_command.plan_shared_targets(contexts, [second_pool.pk, shared_pool.pk]) == [
+        shared_pool.pk,
+        second_pool.pk,
+        second_pool.pk,
+    ]
+    # 预览不占用池配额。
+    shared_pool.refresh_from_db()
+    second_pool.refresh_from_db()
+    assert (shared_pool.usage_count, second_pool.usage_count) == (0, 0)
+
+
+def test_batch_keeps_apps_already_in_target_pool(migration_command, migration_context, shared_pool):
+    migration_context.trace_datasource.shared_datasource_id = shared_pool.pk
+    shared_pool.usage_count = shared_pool.quota
+    shared_pool.save()
+    assert migration_command.plan_shared_targets([migration_context], [shared_pool.pk]) == [shared_pool.pk]
+
+
+@pytest.mark.parametrize("invalid", ["full", "disabled", "missing_index", "missing"])
+def test_batch_preflight_rejects_unavailable_capacity(
+    migration_command,
+    migration_context,
+    shared_pool,
+    mocker,
+    invalid,
+):
+    from django.core.management import CommandError
+
+    pool_id = shared_pool.pk
+    if invalid == "full":
+        shared_pool.usage_count = shared_pool.quota
+    elif invalid == "disabled":
+        shared_pool.is_enabled = False
+    elif invalid == "missing_index":
+        shared_pool.index_set_id = None
+    else:
+        pool_id += 100
+    shared_pool.save()
+    mocker.patch.object(migration_command, "get_migration_context", return_value=migration_context)
+    migrate = mocker.patch.object(migration_command, "migrate_app")
+    with pytest.raises(CommandError):
+        migration_command.handle(target="shared", apps=["2:demo"], dry_run=False, shared_datasource_ids=[pool_id])
+    migrate.assert_not_called()
+
+
+def test_batch_dry_run_shows_target_without_mutation(migration_command, migration_context, shared_pool, mocker):
+    mocker.patch.object(migration_command, "get_migration_context", return_value=migration_context)
+    migrate = mocker.patch.object(migration_command, "migrate_app")
+    migration_command.handle(target="shared", apps=["2:demo"], dry_run=True, shared_datasource_ids=[shared_pool.pk])
+    assert f"target_shared_datasource_id：{shared_pool.pk}" in migration_command.stdout.getvalue()
+    migrate.assert_not_called()
+
+
+@pytest.mark.parametrize("already_in_pool", [False, True])
+def test_command_passes_selected_pool_through_resource(
+    migration_command,
+    migration_context,
+    shared_pool,
+    mocker,
+    already_in_pool,
+):
+    if already_in_pool:
+        migration_context.trace_datasource.shared_datasource_id = shared_pool.pk
+    module = "apm.management.commands.migrate_apm_trace_datasource"
+    mocker.patch(f"{module}.ApplicationHelper.get_default_storage_config", return_value={"es_storage_cluster": 1})
+    request = mocker.patch(f"{module}.ApplyDatasourceResource.request")
+    refresh = mocker.patch(f"{module}.ApplicationConfig")
+    migration_command.migrate_app(migration_context, "shared", shared_pool.pk)
+    payload = request.call_args.args[0]
+    assert payload["trace_datasource_option"]["shared_datasource_id"] == shared_pool.pk
+    from apm.resources import ApplyDatasourceResource
+
+    serializer = ApplyDatasourceResource.RequestSerializer(data=payload)
+    assert serializer.is_valid(), serializer.errors
+    assert serializer.validated_data["trace_datasource_option"]["shared_datasource_id"] == shared_pool.pk
+    refresh.return_value.refresh.assert_called_once()
+    refresh.refresh_k8s.assert_called_once()
+
+
+def test_shared_target_is_invalid_for_exclusive_mode(exclusive, shared_pool, datasource_apis):
+    with pytest.raises(ValueError, match="目标模式必须"):
+        TraceDataSource.apply_datasource(
+            2,
+            "demo",
+            option=True,
+            is_shared=False,
+            shared_datasource_id=shared_pool.pk,
+            es_storage_cluster=1,
+        )
+    exclusive.refresh_from_db()
+    assert exclusive.history_link_info == []
+
+
+def test_command_parser_keeps_target_pools_and_deduplicates_apps(migration_command):
+    parser = migration_command.create_parser("manage.py", "migrate_apm_trace_datasource")
+    args = parser.parse_args(
+        ["--target", "shared", "--apps", "2:a", "2:b", "2:a", "--shared-datasource-ids", "1", "2", "--dry-run"]
+    )
+    assert args.shared_datasource_ids == [1, 2]
+    assert migration_command.parse_apps(args.apps) == [(2, "a"), (2, "b")]
+    assert args.dry_run
