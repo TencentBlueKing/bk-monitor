@@ -73,7 +73,7 @@ def runtime_adoption_confirmed(status: dict) -> bool:
     return False
 
 
-def runtime_detach_confirmed(status: dict, expected_revision: int) -> bool:
+def runtime_detach_confirmed(status: dict) -> bool:
     """
     BKBase 是否回执所有相关 Runtime 实例已恢复原存储绑定
     binding_removed=true 只能来自该回执；BKBase status 中的 binding_removed 固定为 false，提供可核验的回执前一律视为未确认
@@ -401,7 +401,6 @@ class QuixClusteringOperationRunner:
         databus_phase = ((status.get("databus_resource") or {}).get("status") or {}).get("phase")
         return (
             not status.get("errors")
-            and status.get("revision") == self.runtime.metadata_revision
             and bool(status.get("raw_sink_referenced"))
             and not status.get("sink_referenced")
             and databus_phase == "Ok"
@@ -412,7 +411,7 @@ class QuixClusteringOperationRunner:
         if not self._binding_attached:
             return True
         status = TransferApi.get_log_clustering_status(self._metadata_params())
-        return not status.get("errors") and runtime_detach_confirmed(status, self.runtime.metadata_revision)
+        return not status.get("errors") and runtime_detach_confirmed(status)
 
     def _step_stop_completed(self) -> bool:
         if not self.runtime.bkfara_task_id:
