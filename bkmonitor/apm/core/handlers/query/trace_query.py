@@ -59,15 +59,12 @@ class TraceQuery(BaseQuery):
         filters: list[types.Filter] | None = None,
         query_string: str | None = "",
         time_field: str | None = None,
+        start_time: int | None = None,
+        end_time: int | None = None,
     ) -> list[QueryConfigBuilder]:
-        table_ids: list[str] = [
-            table_id
-            for data_source in self.data_sources
-            for table_id in data_source.get_level_table_ids(self.LEVEL_NAME)
-        ]
         queries: list[QueryConfigBuilder] = [
-            QueryConfigBuilder(self.USING).table(table_id).time_field(time_field or self.DEFAULT_TIME_FIELD)
-            for table_id in table_ids
+            QueryConfigBuilder(self.USING).table(target.table_id).time_field(time_field or self.DEFAULT_TIME_FIELD)
+            for target in self._get_query_targets(start_time, end_time, self.LEVEL_NAME)
         ]
         return [
             q.filter(self._build_filters(filters)).query_string(query_string or "").filter(self.build_app_filter())
@@ -88,7 +85,7 @@ class TraceQuery(BaseQuery):
         select_fields: list[str] = self._get_select_fields(exclude_fields)
         queries: list[QueryConfigBuilder] = [
             q.order_by(*(sort or [f"{self.DEFAULT_TIME_FIELD} desc"])).values(*select_fields)
-            for q in self.build_queries(filters, query_string)
+            for q in self.build_queries(filters, query_string, start_time=start_time, end_time=end_time)
         ]
         return self._query_list(queries, start_time, end_time, offset, limit)
 

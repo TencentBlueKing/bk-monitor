@@ -13,6 +13,7 @@ import json
 import math
 import operator
 import re
+import time
 from functools import reduce
 from typing import Any, ClassVar, Optional
 
@@ -250,6 +251,10 @@ class ApmDataSourceConfigBase(models.Model):
         self.bk_data_id = link_info["bk_data_id"]
         self.result_table_id = link_info["result_table_id"]
 
+    def release_for_migration(self) -> None:
+        """释放迁出链路，子类可保留历史查询所需资源。"""
+        self.stop(self.bk_biz_id, self.app_name)
+
     def reset_link_info(self) -> None:
         """重置当前数据源链路信息为未创建状态。
 
@@ -272,11 +277,11 @@ class ApmDataSourceConfigBase(models.Model):
 
         is_shared: bool = options.get("is_shared", False)
 
-        # 模式变化时先停用当前链路；迁入共享前备份独占 RT，迁出独占时仅恢复已有独占备份。
+        # 模式变化时释放当前链路；迁入共享前备份独占链路，回切时恢复备份。
         if obj.result_table_id != "" and obj.is_shared != is_shared:
             if is_shared:
                 obj.backup_exclusive_link_info()
-            cls.stop(bk_biz_id, app_name)
+            obj.release_for_migration()
             obj.reset_link_info()
             if not is_shared and obj.backup_link_info:
                 obj.recover_link_info()
@@ -570,6 +575,8 @@ class LogDataSource(ApmDataSourceConfigBase):
 
 
 class TraceDataSource(ApmDataSourceConfigBase):
+    history_link_info = models.JSONField("历史链路信息", default=list)
+
     DATASOURCE_TYPE = ApmDataSourceConfigBase.TRACE_DATASOURCE
     CONCURRENT_NUMBER = 5
     GROUP_AGGREGATE_METHODS: ClassVar[tuple[str, ...]] = ("avg", "max", "min", "sum", "count")
@@ -869,12 +876,11 @@ class TraceDataSource(ApmDataSourceConfigBase):
         return info
 
     def _get_backup_link_info(self) -> dict[str, Any]:
-        """获取需要备份的 Trace 独占链路字段。
-
-        index_set 在迁入共享时会删除，迁出独占时按结果表重新创建，因此不写入备份。
-        """
+        """保留独占链路及索引集，回切时复用。"""
         info: dict[str, Any] = super()._get_backup_link_info()
         info["bkdata_datalink_config"] = self.bkdata_datalink_config
+        info["index_set_id"] = self.index_set_id
+        info["index_set_name"] = self.index_set_name
         return info
 
     def set_from_shared(self, shared_info: dict[str, Any]) -> None:
@@ -891,6 +897,22 @@ class TraceDataSource(ApmDataSourceConfigBase):
         if not link_info:
             return
         self.bkdata_datalink_config = link_info["bkdata_datalink_config"]
+        # 兼容旧备份：未保存索引集时仍按原流程创建。
+        self.index_set_id = link_info.get("index_set_id")
+        self.index_set_name = link_info.get("index_set_name")
+
+    def release_for_migration(self) -> None:
+        """迁出仅释放共享池占用，保留 RT 和索引集供历史查询。"""
+        self.history_link_info = [
+            *self.history_link_info,
+            {
+                "table_id": self.result_table_id,
+                "switched_at": int(time.time()),
+                "retention": self.retention,
+            },
+        ]
+        if self.is_shared and (shared_ds := self._get_shared_datasource()):
+            shared_ds.release()
 
     def reset_link_info(self) -> None:
         """重置当前数据源链路信息为未创建状态（含 Trace 特有字段）。"""

@@ -15,6 +15,7 @@ We undertake not to change the open source license (MIT license) applicable
 to the current version of the project delivered to anyone in the future.
 """
 
+from dataclasses import replace
 from typing import Any
 
 from apm import types
@@ -23,6 +24,7 @@ from apm.models import MetricDataSource
 from bkmonitor.data_source.utils.apm import (
     APMQueryFilterMixin,
     FilterOperator,
+    TraceDatasourceTarget,
     TraceQueryGuard,
 )
 from bkmonitor.data_source.utils.query import BaseQuery as DataSourceBaseQuery
@@ -35,6 +37,9 @@ __all__ = ["BaseQuery", "FakeQuery", "FilterOperator"]
 
 class BaseQuery(APMQueryFilterMixin, DataSourceBaseQuery):
     USING: tuple[str, str] = (DataTypeLabel.LOG, DataSourceLabel.BK_APM)
+
+    # 切换前后各延窗半小时，仅用于选择结果表，不扩大实际数据查询范围。
+    SWITCH_TIME_PADDING = 30 * 60
 
     # 默认时间字段
     DEFAULT_TIME_FIELD = "end_time"
@@ -65,19 +70,113 @@ class BaseQuery(APMQueryFilterMixin, DataSourceBaseQuery):
             return queryset.scope(self.bk_biz_id)
         return queryset
 
+    @property
+    def retention(self) -> int:
+        return max(
+            retention or self.DEFAULT_RETENTION
+            for target in self.data_sources
+            for retention in [target.retention, *[link["retention"] for link in target.history_link_info]]
+        )
+
+    def _get_query_targets(
+        self, start_time: int | None, end_time: int | None, level_name: str | None = None
+    ) -> list[TraceDatasourceTarget]:
+        """按延窗筛选原始表或预计算层级表，再按应用和 RT 去重。"""
+        start_ms, end_ms = self._get_time_range(start_time, end_time)
+        targets: dict[tuple[int, str, str], TraceDatasourceTarget] = {}
+        for target in self.data_sources:
+            since: int = 0
+            current_link = {"table_id": target.table_id, "switched_at": None, "levels": target.levels}
+            history = [link for link in target.history_link_info if level_name is None or "levels" in link]
+            for link in [*history, current_link]:
+                until: int | None = link["switched_at"]
+                if (since - self.SWITCH_TIME_PADDING) * 1000 <= end_ms and (
+                    until is None or (until + self.SWITCH_TIME_PADDING) * 1000 >= start_ms
+                ):
+                    # 先按区间筛选再去重，A → B → A 查询早期数据时仍能命中 A。
+                    table_ids = (
+                        [link["table_id"]]
+                        if level_name is None
+                        else [
+                            table_id
+                            for level in link.get("levels", [])
+                            if level.name == level_name
+                            for table_id in level.table_ids
+                        ]
+                    )
+                    for table_id in table_ids:
+                        key: tuple[int, str, str] = (target.app.bk_biz_id, target.app.app_name, table_id)
+                        targets[key] = replace(target, table_id=table_id)
+                since = until or since
+        return list(targets.values())
+
     def build_queries(
         self,
         filters: list[types.Filter] | None = None,
         query_string: str | None = "",
         time_field: str | None = None,
+        start_time: int | None = None,
+        end_time: int | None = None,
     ) -> list[QueryConfigBuilder]:
         return [
             TraceQueryGuard.get_q([data_source])
             .time_field(time_field or self.DEFAULT_TIME_FIELD)
             .filter(self._build_filters(filters))
             .query_string(query_string or "")
-            for data_source in self.data_sources
+            for data_source in self._get_query_targets(start_time, end_time)
         ]
+
+    def _query_list(
+        self,
+        queries: list[QueryConfigBuilder],
+        start_time: int | None,
+        end_time: int | None,
+        offset: int = 0,
+        limit: int = 20,
+    ) -> list[dict[str, Any]]:
+        if len(queries) <= 1:
+            return super()._query_list(queries, start_time, end_time, offset, limit)
+
+        # ES 直查只支持逐表分页。每表取前 offset + limit 条，再统一排序、折叠和分页。
+        query_list = super()._query_list
+        with ThreadPool(processes=min(len(queries), 10)) as pool:
+            batches = list(pool.imap(lambda q: query_list([q], start_time, end_time, 0, offset + limit), queries))
+        records: list[dict[str, Any]] = [record for batch in batches for record in batch]
+        for ordering in reversed(queries[0].query.order_by):
+            field, *direction = ordering.split()
+            descending: bool = direction == ["desc"]
+            records.sort(
+                key=lambda record: (
+                    (self._record_value(record, field) is not None)
+                    if descending
+                    else (self._record_value(record, field) is None),
+                    self._record_value(record, field),
+                ),
+                reverse=descending,
+            )
+        if queries[0].query.distinct:
+            seen: set[Any] = set()
+            distinct_records: list[dict[str, Any]] = []
+            for record in records:
+                value = self._record_value(record, queries[0].query.distinct)
+                key = tuple(value) if isinstance(value, list) else value
+                if key not in seen:
+                    seen.add(key)
+                    distinct_records.append(record)
+            records = distinct_records
+        return records[offset : offset + limit]
+
+    @staticmethod
+    def _record_value(record: dict[str, Any], field: str) -> Any:
+        value: Any = record
+        while isinstance(value, dict):
+            if field in value:
+                return value[field]
+            part, separator, field = field.partition(".")
+            if not separator:
+                break
+            value = value.get(part)
+        return None
 
     def build_metric_option_queries(
         self,
@@ -138,7 +237,13 @@ class BaseQuery(APMQueryFilterMixin, DataSourceBaseQuery):
         filters: list[types.Filter] | None = None,
         query_string: str | None = None,
     ) -> list[dict[str, Any]]:
-        return self._query_field_topk(self.build_queries(filters, query_string), start_time, end_time, field, limit)
+        return self._query_field_topk(
+            self.build_queries(filters, query_string, start_time=start_time, end_time=end_time),
+            start_time,
+            end_time,
+            field,
+            limit,
+        )
 
     def query_field_aggregated_value(
         self,
@@ -150,7 +255,11 @@ class BaseQuery(APMQueryFilterMixin, DataSourceBaseQuery):
         query_string: str | None = None,
     ) -> int | float:
         return self._query_field_aggregated_value(
-            self.build_queries(filters, query_string), start_time, end_time, field, method
+            self.build_queries(filters, query_string, start_time=start_time, end_time=end_time),
+            start_time,
+            end_time,
+            field,
+            method,
         )
 
     def query_option_values(
@@ -167,13 +276,24 @@ class BaseQuery(APMQueryFilterMixin, DataSourceBaseQuery):
             queries: list[QueryConfigBuilder] = self.build_metric_option_queries(filters, query_string)
             return self._query_metric_option_values(queries, start_time, end_time, fields, limit)
 
-        return self._query_option_values(self.build_queries(filters, query_string), start_time, end_time, fields, limit)
+        return self._query_option_values(
+            self.build_queries(filters, query_string, start_time=start_time, end_time=end_time),
+            start_time,
+            end_time,
+            fields,
+            limit,
+        )
 
     def query_graph_config(self, start_time, end_time, field, filters: list[types.Filter], query_string: str):
         """
         获取查询配置
         """
-        return self._query_graph_config(self.build_queries(filters, query_string), start_time, end_time, field)
+        return self._query_graph_config(
+            self.build_queries(filters, query_string, start_time=start_time, end_time=end_time),
+            start_time,
+            end_time,
+            field,
+        )
 
 
 class FakeQuery:

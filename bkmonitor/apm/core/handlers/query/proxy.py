@@ -18,7 +18,7 @@ to the current version of the project delivered to anyone in the future.
 import logging
 import time
 from collections.abc import Callable
-from dataclasses import asdict
+from dataclasses import asdict, replace
 from typing import Any
 
 from django.conf import settings
@@ -26,7 +26,7 @@ from django.utils.functional import cached_property
 from django.utils.translation import gettext_lazy as _
 
 from apm import types
-from apm.core.discover.precalculation.storage import PrecalculateStorage
+from apm.core.discover.precalculation.storage import PrecalculateStorage, RendezvousHash
 from apm.core.handlers.query.base import FakeQuery, FilterOperator, BaseQuery
 from apm.core.handlers.query.define import QueryMode, TraceInfoList
 from apm.core.handlers.query.ebpf_query import DeepFlowQuery
@@ -35,7 +35,7 @@ from apm.core.handlers.query.span_query import SpanQuery
 from apm.core.handlers.query.trace_query import TraceQuery
 from apm.models import ApmApplication, TraceDataSource, TraceScopeIndexSet
 from apm_ebpf.models import DeepflowWorkload
-from bkmonitor.data_source.utils.apm import LevelTarget, TraceDatasourceTarget
+from bkmonitor.data_source.utils.apm import LevelTarget, TraceDatasourceTarget, TraceQueryGuard
 from bkmonitor.iam import ActionEnum, Permission, ResourceEnum
 from bkmonitor.utils.cache import lru_cache_with_ttl
 from bkmonitor.utils.tenant import bk_biz_id_to_bk_tenant_id
@@ -56,6 +56,7 @@ def _get_app_meta(bk_biz_id: int, app_name: str) -> dict[str, Any]:
         "app_name": app_name,
         "table_id": trace_datasource.result_table_id,
         "retention": trace_datasource.retention,
+        "history_link_info": trace_datasource.history_link_info,
     }
 
 
@@ -78,8 +79,24 @@ class QueryProxy:
             target_bk_biz_id, target_app_name = bk_biz_id, app_name
         return [TraceDatasourceTarget.build(**_get_app_meta(target_bk_biz_id, target_app_name), levels=levels)]
 
-    def _get_trace_query(self, result_table_id: str) -> TraceQuery:
-        return TraceQuery(self._build_data_sources(trace_level_table_ids=[result_table_id]))
+    def _get_trace_query(self, result_table_id: str, hash_ring: RendezvousHash | None = None) -> TraceQuery:
+        targets: list[TraceDatasourceTarget] = self._build_data_sources(trace_level_table_ids=[result_table_id])
+        if hash_ring:
+            history: list[dict[str, Any]] = []
+            for link in targets[0].history_link_info:
+                # 与 PrecalculateStorage.get_route_key 保持一致，复用当前存储环解析迁移前的路由。
+                route_key = (
+                    f"0:{link['table_id']}"
+                    if TraceQueryGuard.is_shared_table(link["table_id"])
+                    else f"{self.bk_biz_id}:{self.app_name}"
+                )
+                table_id = hash_ring.select_node(route_key).split("-", 1)[-1]
+                history.append({**link, "levels": [LevelTarget(TraceQuery.LEVEL_NAME, [table_id])]})
+            targets = [replace(targets[0], history_link_info=history)]
+        else:
+            # 显式指定预计算表的关联查询不受原始 RT 切换窗口限制。
+            targets = [replace(targets[0], history_link_info=[])]
+        return TraceQuery(targets)
 
     def _get_query(self, query_mode: str) -> BaseQuery:
         if query_mode in self._query_cache:
@@ -109,7 +126,9 @@ class QueryProxy:
             logger.info(f"[QueryProxy] {self.bk_biz_id} - {self.app_name} use fake trace query")
             trace_query = FakeQuery()
         else:
-            trace_query = self._get_trace_query(result_table_id=precalculate.result_table_id)
+            trace_query = self._get_trace_query(
+                result_table_id=precalculate.result_table_id, hash_ring=precalculate.hash_ring
+            )
 
         return trace_query
 

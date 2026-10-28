@@ -46,7 +46,8 @@ class OriginTraceQuery(BaseQuery):
         sort: list[str] | None = None,
     ) -> list[dict[str, Any]]:
         queries: list[QueryConfigBuilder] = [
-            q.distinct(OtlpKey.TRACE_ID).values(OtlpKey.TRACE_ID) for q in self.build_queries(filters, query_string)
+            q.distinct(OtlpKey.TRACE_ID).values(OtlpKey.TRACE_ID)
+            for q in self.build_queries(filters, query_string, start_time=start_time, end_time=end_time)
         ]
 
         trace_ids: list[str] = []

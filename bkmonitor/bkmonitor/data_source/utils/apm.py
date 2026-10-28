@@ -46,6 +46,7 @@ class TraceDatasourceTarget(DataSourceTarget):
 
     app: APMAppTarget
     levels: list[LevelTarget] = dataclass_field(default_factory=list)
+    history_link_info: list[dict[str, Any]] = dataclass_field(default_factory=list)
 
     @classmethod
     def build(
@@ -55,12 +56,14 @@ class TraceDatasourceTarget(DataSourceTarget):
         table_id: str,
         retention: int | None = None,
         levels: list[LevelTarget] | None = None,
+        history_link_info: list[dict[str, Any]] | None = None,
     ) -> "TraceDatasourceTarget":
         return cls(
             table_id=table_id,
             app=APMAppTarget(bk_biz_id=bk_biz_id, app_name=app_name),
             retention=retention,
             levels=levels or [],
+            history_link_info=history_link_info or [],
         )
 
     def get_level_table_ids(self, level_name: str) -> list[str]:

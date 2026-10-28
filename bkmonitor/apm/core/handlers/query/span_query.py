@@ -51,7 +51,7 @@ class SpanQuery(BaseQuery):
         select_fields: list[str] = self._get_select_fields(exclude_fields)
         queries: list[QueryConfigBuilder] = [
             q.order_by(*(sort or [f"{self.DEFAULT_TIME_FIELD} desc"])).values(*select_fields)
-            for q in self.build_queries(filters, query_string)
+            for q in self.build_queries(filters, query_string, start_time=start_time, end_time=end_time)
         ]
         return self._query_list(queries, start_time, end_time, offset, limit)
 
@@ -69,7 +69,10 @@ class SpanQuery(BaseQuery):
         时间窗口以秒传入，保留共享结果表的应用隔离条件；offset / limit 限制折叠后的记录数，
         返回达到 limit 不代表已枚举全部分组。
         """
-        queries = [query.order_by(*(sort or [f"{OtlpKey.END_TIME} desc"])) for query in self.build_queries()]
+        queries = [
+            query.order_by(*(sort or [f"{OtlpKey.END_TIME} desc"]))
+            for query in self.build_queries(start_time=start_time, end_time=end_time)
+        ]
         return self._query_group_list(queries, start_time, end_time, group_field, offset, limit)
 
     def query_by_trace_id(
@@ -81,7 +84,7 @@ class SpanQuery(BaseQuery):
     ) -> list[dict[str, Any]]:
         queries: list[QueryConfigBuilder] = [
             q.order_by(OtlpKey.START_TIME).filter(**{f"{OtlpKey.TRACE_ID}__eq": trace_id})
-            for q in self.build_queries(time_field=OtlpKey.START_TIME)
+            for q in self.build_queries(time_field=OtlpKey.START_TIME, start_time=start_time, end_time=end_time)
         ]
         # 跨业务目标无法收敛到同一空间，需要全局查询
         bk_biz_ids: set[int] = {data_source.app.bk_biz_id for data_source in self.data_sources}
