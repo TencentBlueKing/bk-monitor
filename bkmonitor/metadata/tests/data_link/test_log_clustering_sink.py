@@ -11,6 +11,7 @@ specific language governing permissions and limitations under the License.
 import json
 
 import pytest
+from django.db import IntegrityError
 from django.test import override_settings
 
 from metadata import models
@@ -61,7 +62,6 @@ def build_sink(**overrides) -> LogClusteringSinkConfig:
         "bk_biz_id": 2,
         "data_link_name": "bklog_datalink",
         "table_id": "2_bklog.demo",
-        "raw_sink": RAW_SINK,
         "binding": BINDING,
         "kafka_resource": KAFKA_RESOURCE,
         "pattern_resource": PATTERN_RESOURCE,
@@ -77,7 +77,7 @@ def default_biz(mocker):
 
 @override_settings(ENABLE_MULTI_TENANT_MODE=False)
 def test_compose_config_outputs_raw_sink_and_clustering(default_biz):
-    assert build_sink().compose_config() == {
+    assert build_sink().compose_config(RAW_SINK) == {
         "kind": "LogClusteringSink",
         "metadata": {"name": "bkm_lcs_50010_abcdefghijkl", "namespace": "bklog", "labels": {"bk_biz_id": "2"}},
         "spec": {
@@ -95,7 +95,7 @@ def test_compose_config_outputs_raw_sink_and_clustering(default_biz):
 def test_compose_config_and_reference_carry_tenant_in_multi_tenant_mode(default_biz):
     sink = build_sink(bk_tenant_id="tenant-a")
 
-    config = sink.compose_config()
+    config = sink.compose_config(RAW_SINK)
 
     assert config["metadata"]["tenant"] == "tenant-a"
     assert sink.reference == {
@@ -115,10 +115,15 @@ def test_reference_omits_tenant_in_single_tenant_mode():
     }
 
 
-@pytest.mark.parametrize("empty_field", ["raw_sink", "binding", "kafka_resource", "pattern_resource"])
+@pytest.mark.parametrize("empty_field", ["binding", "kafka_resource", "pattern_resource"])
 def test_compose_config_rejects_incomplete_sink(empty_field, default_biz):
     with pytest.raises(ValueError, match=empty_field):
-        build_sink(**{empty_field: {}}).compose_config()
+        build_sink(**{empty_field: {}}).compose_config(RAW_SINK)
+
+
+def test_compose_config_rejects_empty_raw_sink(default_biz):
+    with pytest.raises(ValueError, match="raw_sink"):
+        build_sink().compose_config({})
 
 
 def test_kind_is_registered_for_lifecycle():
@@ -160,12 +165,20 @@ def test_unclaimed_sink_is_kept_by_bk_log_leftover_policy():
     assert datalink._get_absent_components_to_delete([], force_delete=True) == []
 
 
+@pytest.mark.django_db(databases="__all__")
+def test_datalink_allows_only_one_sink():
+    build_sink().save()
+
+    with pytest.raises(IntegrityError):
+        build_sink(name="bkm_lcs_50010_mnopqrstuvwx").save()
+
+
 LOG_TABLE_ID = "2_bklog.clustering_demo"
 LOG_DATA_LINK_NAME = "bklog_clustering_link"
 
 
-@pytest.fixture
-def log_datalink(default_biz):
+def create_log_datalink() -> tuple[DataLink, models.DataSource]:
+    """创建单 ES 存储的日志 V4 链路及其已登记的 Databus"""
     data_source = models.DataSource.objects.create(
         bk_data_id=91101,
         data_name="bklog_clustering_demo",
@@ -232,6 +245,11 @@ def log_datalink(default_biz):
     return datalink, data_source
 
 
+@pytest.fixture
+def log_datalink(default_biz):
+    return create_log_datalink()
+
+
 def compose(datalink: DataLink, data_source) -> tuple[list[dict], ExistingComponentContext]:
     context = ExistingComponentContext.from_datalink(datalink)
     configs = datalink.compose_log_configs(
@@ -267,7 +285,7 @@ def test_compose_log_configs_without_clustering_sink_keeps_es_binding(log_datali
 @pytest.mark.django_db(databases="__all__")
 def test_compose_log_configs_with_attached_sink_only_replaces_databus_sinks(log_datalink):
     plain_configs, _ = compose(*log_datalink)
-    sink = create_clustering_sink(raw_sink={})
+    sink = create_clustering_sink()
 
     configs, context = compose(*log_datalink)
 
@@ -288,8 +306,6 @@ def test_compose_log_configs_with_attached_sink_only_replaces_databus_sinks(log_
 
     assert find_config(configs, "ElasticSearchBinding") == find_config(plain_configs, "ElasticSearchBinding")
     assert LogClusteringSinkConfig not in context.leftover()
-    sink.refresh_from_db()
-    assert sink.raw_sink == es_binding_ref
     assert DataBusConfig.objects.get(name=LOG_DATA_LINK_NAME).sink_names == [f"LogClusteringSink:{sink.name}"]
 
 

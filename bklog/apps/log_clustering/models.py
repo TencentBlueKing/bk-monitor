@@ -586,9 +586,6 @@ class LogClusteringRuntime(OperateRecordModel):
     pending_config = models.JSONField(_("待生效的聚类配置"), null=True, blank=True)
 
     sink = models.JSONField(_("LogClusteringSink 资源身份"), default=dict, blank=True)
-    databus = models.JSONField(_("Databus 资源身份"), default=dict, blank=True)
-    raw_sink = models.JSONField(_("原存储绑定引用"), default=dict, blank=True)
-    metadata_revision = models.IntegerField(_("metadata 绑定修订"), default=0)
     pattern_index = models.CharField(_("Pattern 索引"), max_length=255, default="", blank=True)
     state_index = models.CharField(_("恢复状态索引"), max_length=255, default="", blank=True)
 

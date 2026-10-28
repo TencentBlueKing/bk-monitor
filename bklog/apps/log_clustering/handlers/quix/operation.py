@@ -65,9 +65,9 @@ NON_RETRYABLE_EXCEPTIONS = (
 )
 
 
-def runtime_adoption_confirmed(status: dict, expected_revision: int) -> bool:
+def runtime_adoption_confirmed(status: dict) -> bool:
     """
-    BKBase 是否回执所有相关 Runtime 实例已采用指定版本的聚类配置
+    BKBase 是否回执所有相关 Runtime 实例已采用当前下发的聚类配置
     配置层证据（Databus 引用、资源 phase=Ok）不能代替采用回执；BKBase 提供可核验的回执前一律视为未确认
     """
     return False
@@ -268,36 +268,24 @@ class QuixClusteringOperationRunner:
         params = self.operation.get_request_payload(
             "metadata_set",
             lambda: self._metadata_params(
-                operation_id=self.operation.get_idempotency_key("metadata_set"),
-                expected_revision=self.runtime.metadata_revision,
                 binding=build_binding(self.runtime, clustering_config, self.quix_config.get("max_message_bytes")),
                 kafka_resource=self.quix_config["kafka_resource"],
                 pattern_resource=self.quix_config["pattern_resource"],
             ),
         )
         result = TransferApi.set_log_clustering_config(params)
-        self._save_runtime(
-            sink=result["sink"],
-            databus=result["databus"],
-            raw_sink=result["raw_sink"],
-            metadata_revision=result["revision"],
-        )
+        self._save_runtime(sink=result["sink"])
         return True
 
     def _step_wait_adoption(self) -> bool:
         # 配置层就绪：Databus 引用聚类 Sink 且资源就绪；任一远端状态查询失败都视为未就绪
         status = TransferApi.get_log_clustering_status(self._metadata_params())
         sink_phase = ((status.get("sink_resource") or {}).get("status") or {}).get("phase")
-        return (
-            not status.get("errors")
-            and status.get("revision") == self.runtime.metadata_revision
-            and bool(status.get("sink_referenced"))
-            and sink_phase == "Ok"
-        )
+        return not status.get("errors") and bool(status.get("sink_referenced")) and sink_phase == "Ok"
 
     def _step_confirm_adoption(self) -> bool:
         status = TransferApi.get_log_clustering_status(self._metadata_params())
-        return not status.get("errors") and runtime_adoption_confirmed(status, self.runtime.metadata_revision)
+        return not status.get("errors") and runtime_adoption_confirmed(status)
 
     def _promote_pending_config(self, **fields):
         # 待生效配置已提升过时不能再次提升，否则会把空配置写入生效配置
