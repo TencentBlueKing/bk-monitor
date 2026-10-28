@@ -353,21 +353,18 @@ class OperateLogClusteringResource(Resource):
     drain/finish/resume 透传 BKBase 日志聚类动作接口；
     detach/attach 是 metadata 内部动作：切换 Databus 是否引用聚类 Sink 后完整下发日志链路，
     detach 即恢复原存储绑定。动作只表示请求已提交，实际排空、解绑结果需通过状态接口回读。
+    动作失败时调用方重试同一动作即可。
     """
 
     class RequestSerializer(serializers.Serializer):
         bk_tenant_id = TenantIdField(label="租户ID")
         table_id = serializers.CharField(label="监控结果表ID")
-        operation_id = serializers.CharField(label="操作ID", max_length=64)
-        expected_revision = serializers.IntegerField(label="期望的当前配置版本", min_value=0)
         action = serializers.ChoiceField(label="动作", choices=BKBASE_ACTIONS + list(SINK_REFERENCE_ACTIONS))
 
     def perform_request(self, validated_request_data: dict[str, Any]) -> dict[str, Any]:
         bk_tenant_id = validated_request_data["bk_tenant_id"]
         table_id = validated_request_data["table_id"]
-        operation_id = validated_request_data["operation_id"]
         action = validated_request_data["action"]
-        request_digest = compute_request_digest({"table_id": table_id, "action": action})
 
         datalink = get_log_clustering_datalink(bk_tenant_id, table_id)
         databus = get_log_clustering_databus(datalink)
@@ -378,15 +375,8 @@ class OperateLogClusteringResource(Resource):
                 sink = get_log_clustering_sink(datalink, for_update=True)
                 if sink is None:
                     raise ValidationError(f"table_id({table_id}) has no log clustering config")
-                is_replay = check_log_clustering_operation(
-                    sink, operation_id, request_digest, validated_request_data["expected_revision"]
-                )
-                if not is_replay:
-                    if action in SINK_REFERENCE_ACTIONS:
-                        sink.attached = SINK_REFERENCE_ACTIONS[action]
-                    sink.revision += 1
-                    sink.last_operation_id = operation_id
-                    sink.last_request_digest = request_digest
+                if action in SINK_REFERENCE_ACTIONS:
+                    sink.attached = SINK_REFERENCE_ACTIONS[action]
                     sink.save()
 
             bkbase_result = None
@@ -401,18 +391,8 @@ class OperateLogClusteringResource(Resource):
                     action=action,
                 )
 
-        logger.info(
-            "OperateLogClusteringResource: table_id->[%s] sink->[%s] action->[%s] revision->[%s] "
-            "operation_id->[%s] replay->[%s]",
-            table_id,
-            sink.name,
-            action,
-            sink.revision,
-            operation_id,
-            is_replay,
-        )
+        logger.info("OperateLogClusteringResource: table_id->[%s] sink->[%s] action->[%s]", table_id, sink.name, action)
         return {
-            "revision": sink.revision,
             "action": action,
             "attached": sink.attached,
             "bkbase_result": bkbase_result,
@@ -423,7 +403,7 @@ class GetLogClusteringStatusResource(Resource):
     """
     查询日志聚类配置与运行状态
 
-    返回本地保存的绑定与版本，并原样透传 BKBase 回读的聚类 Sink、Databus 资源和日志聚类状态。
+    返回本地保存的绑定与按链路派生的 rawSink，并原样透传 BKBase 回读的聚类 Sink、Databus 资源和日志聚类状态。
     sink_referenced/raw_sink_referenced 只说明远端 Databus 配置的引用情况，不代表 Runtime 已实际采用。
     远端查询失败不影响其他字段返回，错误记录在 errors 中。
     """
@@ -472,22 +452,20 @@ class GetLogClusteringStatusResource(Resource):
             ),
         )
 
-        raw_sink_name = sink.raw_sink.get("name")
+        raw_sink = get_log_clustering_raw_sink(datalink)
         return {
             "configured": True,
-            "revision": sink.revision,
             "attached": sink.attached,
-            "last_operation_id": sink.last_operation_id,
             "binding": sink.binding,
-            "raw_sink": sink.raw_sink,
+            "raw_sink": raw_sink,
             "sink": format_log_clustering_identity(bk_tenant_id, sink),
             "databus": format_log_clustering_identity(bk_tenant_id, databus),
             "sink_resource": sink_resource,
             "databus_resource": databus_resource,
             "sink_referenced": is_databus_referencing_sink(databus_resource, sink),
-            "raw_sink_referenced": bool(raw_sink_name)
+            "raw_sink_referenced": bool(raw_sink)
             and any(
-                ref.get("kind") == sink.raw_sink.get("kind") and ref.get("name") == raw_sink_name
+                ref.get("kind") == raw_sink["kind"] and ref.get("name") == raw_sink["name"]
                 for ref in get_databus_sink_refs(databus_resource)
             ),
             "clustering_status": clustering_status,
