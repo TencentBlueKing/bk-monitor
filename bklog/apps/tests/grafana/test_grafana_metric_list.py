@@ -22,13 +22,14 @@ the project delivered to anyone in the future.
 from unittest.mock import MagicMock, patch
 
 from django.test import TestCase
+from rest_framework.exceptions import PermissionDenied
 
 from apps.grafana.handlers.query import GrafanaQueryHandler
 from apps.log_search.models import LogIndexSet, LogIndexSetData, Scenario
 
 
 class TestGrafanaMetricListPlatformIndex(TestCase):
-    """Grafana 平台级索引集：下拉可见范围 + query/query_log/dimension 跨空间隔离。"""
+    """Grafana 平台级索引集：指标下拉可见范围及执行入口的跨空间隔离。"""
 
     OWNER_SPACE = "bkcc__2"
     TARGET_BK_BIZ_ID = 7
@@ -97,6 +98,22 @@ class TestGrafanaMetricListPlatformIndex(TestCase):
             **extra,
         )
 
+    @staticmethod
+    def _query_dict(index_set_id):
+        return {
+            "dashboard_id": "dash",
+            "panel_id": 1,
+            "result_table_id": index_set_id,
+            "start_time": 1,
+            "end_time": 2,
+            "method": "value_count",
+            "interval": 60,
+            "metric_field": "_index",
+            "group_by": [],
+            "where": [],
+            "query_string": "",
+        }
+
     def test_visible_platform_index_set_listed_for_target_space(self):
         """可见范围命中的跨空间平台级索引集要出现在下拉里。"""
         platform = self._create_platform_index_set()
@@ -145,3 +162,27 @@ class TestGrafanaMetricListPlatformIndex(TestCase):
 
         matched = self._metric_ids(handler.get_metric_list(category_id="hosts"))
         self.assertIn(platform.index_set_id, matched)
+
+    def test_execution_entries_reject_space_outside_visibility(self):
+        platform = self._create_platform_index_set()
+        handler = GrafanaQueryHandler(self.OTHER_BK_BIZ_ID)
+        entries = (
+            ("unify_query", lambda: handler.unify_query(self._query_dict(platform.index_set_id))),
+            ("query_log", lambda: handler.query_log(self._query_dict(platform.index_set_id))),
+            ("get_dimension_values", lambda: handler.get_dimension_values(platform.index_set_id, "level", 1, 2)),
+        )
+        for name, call in entries:
+            with (
+                self.subTest(entry=name),
+                patch.object(GrafanaQueryHandler, "check_panel_permission", return_value=True),
+                patch("apps.grafana.handlers.query.SearchHandler") as mock_es,
+                patch("apps.grafana.handlers.query.UnifyQueryHandler") as mock_uq,
+                patch("apps.grafana.handlers.query.UnifyQueryAggHandler") as mock_uq_agg,
+                patch("apps.grafana.handlers.query.UnifyQueryTermsAggsHandler") as mock_terms,
+            ):
+                with self.assertRaises(PermissionDenied):
+                    call()
+                mock_es.assert_not_called()
+                mock_uq.assert_not_called()
+                mock_uq_agg.assert_not_called()
+                mock_terms.assert_not_called()
