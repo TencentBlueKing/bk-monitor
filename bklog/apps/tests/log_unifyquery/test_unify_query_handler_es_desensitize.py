@@ -775,7 +775,10 @@ class TestUnifyQueryHandlerEsDesensitize(TestCase):
         self.assertIn("log", desensitized)
 
     def test_es_text_fields_with_fail_closed_parse_error_no_crash(self):
-        """text_fields + JSON 解析失败 + 子路径规则：不崩溃，body 被遮罩"""
+        """text_fields + JSON 解析失败 + 子路径规则：不崩溃，body 和 log 均被遮罩。
+
+        fail-closed 触发时 text_fields 也被整体遮罩，防止原文字段泄漏敏感内容。
+        """
         self._put_config(
             field_configs=[NESTED_MASK_CONFIG],
             text_fields=["log"],
@@ -786,5 +789,307 @@ class TestUnifyQueryHandlerEsDesensitize(TestCase):
         desensitized = handler._log_desensitize(log)
         # fail-closed 遮罩（object 形态但解析失败 + 子路径规则）
         self.assertEqual(desensitized["body"], "***MASKED***")
-        # log 字段未被破坏
-        self.assertEqual(desensitized["log"], "user body is bad")
+        # fail-closed 触发时 text_fields 也被整体遮罩（防止原文泄漏）
+        self.assertEqual(desensitized["log"], "***MASKED***")
+
+
+class TestUnifyQueryExceptionFailClosed(TestCase):
+    """UnifyQueryHandler 脱敏异常时敏感字段被遮罩"""
+
+    def setUp(self):
+        self.index_set = LogIndexSet.objects.create(
+            index_set_id=INDEX_SET_ID,
+            index_set_name="test-uq-exception-fail-closed",
+            space_uid=SPACE_UID,
+            scenario_id="es",
+            storage_cluster_id=1,
+            time_field="dtEventTimeStamp",
+            time_field_type="date",
+            time_field_unit="millisecond",
+        )
+        LogIndexSetData.objects.create(
+            index_set_id=INDEX_SET_ID,
+            bk_biz_id=2,
+            result_table_id="2_bklog.test_uq_exception_fail_closed",
+            apply_status="normal",
+            scenario_id="es",
+            storage_cluster_id=1,
+            time_field="dtEventTimeStamp",
+        )
+        DesensitizeConfig.objects.filter(index_set_id=INDEX_SET_ID).delete()
+        DesensitizeFieldConfig.objects.filter(index_set_id=INDEX_SET_ID).delete()
+
+    def tearDown(self):
+        DesensitizeConfig.objects.filter(index_set_id=INDEX_SET_ID).delete()
+        DesensitizeFieldConfig.objects.filter(index_set_id=INDEX_SET_ID).delete()
+
+    def _put_config(self, field_configs, text_fields=None):
+        DesensitizeConfig.objects.create(
+            index_set_id=INDEX_SET_ID,
+            text_fields=text_fields or [],
+        )
+        for fc in field_configs:
+            DesensitizeFieldConfig.objects.create(
+                index_set_id=INDEX_SET_ID,
+                field_name=fc["field_name"],
+                rule_id=fc.get("rule_id", 0),
+                operator=fc["operator"],
+                params=fc.get("params", {}),
+                match_pattern=fc.get("match_pattern", ""),
+                sort_index=fc.get("sort_index", 0),
+            )
+
+    def _build_handler(self):
+        p = copy.deepcopy(SEARCH_PARAMS)
+        with (
+            patch.object(UnifyQueryHandler, "init_base_dict", return_value={}),
+            patch(
+                "apps.log_unifyquery.handler.base.get_request",
+                return_value=Mock(),
+            ),
+            patch(
+                "apps.log_unifyquery.handler.base.get_request_username",
+                return_value="test_user",
+            ),
+            patch(
+                "apps.log_unifyquery.handler.base.get_request_external_username",
+                return_value=None,
+            ),
+            patch(
+                "apps.log_search.permission.Permission.get_auth_info",
+                return_value={"bk_app_code": "bk_log", "bk_username": "test_user"},
+            ),
+            patch(
+                "apps.log_unifyquery.handler.base.FeatureToggleObject.toggle",
+                return_value=None,
+            ),
+            patch(
+                "apps.utils.core.cache.cmdb_host.CmdbHostCache.get",
+                return_value={},
+            ),
+        ):
+            return UnifyQueryHandler(p)
+
+    @patch(
+        "apps.log_unifyquery.handler.base.UnifyQueryHandler._log_desensitize",
+        side_effect=RuntimeError("unexpected internal error"),
+    )
+    @override_settings(ESQUERY_WHITE_LIST=["bk_log"])
+    def test_exception_masks_sensitive_fields_preserves_metadata(self, mock_desensitize):
+        """_log_desensitize 抛异常时，配置字段被遮罩，元数据保留"""
+        self._put_config(field_configs=[NESTED_MASK_CONFIG])
+        handler = self._build_handler()
+
+        result = handler._deal_query_result(
+            fake_unify_result_nested(body='{"player":{"id":"12345"}}')
+        )
+
+        logs = result["list"]
+        self.assertEqual(len(logs), 1)
+        self.assertEqual(logs[0]["body"], "***MASKED***")
+        self.assertEqual(logs[0]["dtEventTimeStamp"], 1727452800000)
+
+    @override_settings(ESQUERY_WHITE_LIST=["bk_log"])
+    def test_merge_nested_data_exception_isolated(self):
+        """merge_nested_data 异常被逐条隔离，第 1 条被遮罩，第 2 条正常脱敏"""
+        self._put_config(field_configs=[MASK_CONFIG])
+        handler = self._build_handler()
+
+        # 构造 2 条日志，第 1 条触发 merge_nested_data 异常
+        es_result = {
+            "total": 2,
+            "took": 10,
+            "list": [
+                {
+                    "__index": "v2_2_bklog_test_es_20260927_0",
+                    "__doc_id": "doc1",
+                    "dtEventTimeStamp": 1727452800000,
+                    "message": "Hello World1234",
+                    "log": "log1",
+                },
+                {
+                    "__index": "v2_2_bklog_test_es_20260927_0",
+                    "__doc_id": "doc2",
+                    "dtEventTimeStamp": 1727452800001,
+                    "message": "Another Log5678",
+                    "log": "log2",
+                },
+            ],
+        }
+
+        # 第 1 次 merge_nested_data 抛异常，第 2 次正常返回
+        with patch(
+            "apps.log_unifyquery.handler.base.merge_nested_data",
+            side_effect=[
+                TypeError("'str' object does not support item assignment"),
+                {"message": "Another Log5678", "log": "log2", "dtEventTimeStamp": 1727452800001},
+            ],
+        ):
+            result = handler._deal_query_result(es_result)
+
+        logs = result["list"]
+        self.assertEqual(len(logs), 2)
+        # 第 1 条：merge_nested_data 异常 → 敏感字段被遮罩
+        self.assertEqual(logs[0]["message"], "***MASKED***")
+        self.assertEqual(logs[0]["dtEventTimeStamp"], 1727452800000)
+        # 第 2 条：正常脱敏（"Another Log5678" → "An" + 11个* + "78"）
+        self.assertEqual(logs[1]["message"], "An***********78")
+        self.assertEqual(logs[1]["dtEventTimeStamp"], 1727452800001)
+
+    def test_merge_nested_data_conflict_no_crash(self):
+        """merge_nested_data 冲突 dotted key 不崩溃（修复后不再抛异常）"""
+        self._put_config(field_configs=[MASK_CONFIG])
+        handler = self._build_handler()
+
+        # 构造 ES 返回冲突 flattened 数据
+        es_result = {
+            "total": 1,
+            "took": 10,
+            "list": [
+                {
+                    "__index": "v2_2_bklog_test_es_20260927_0",
+                    "__doc_id": "abc123",
+                    "dtEventTimeStamp": 1727452800000,
+                    "message": "Hello World1234",
+                    "log": "plain log",
+                    "body.a": "scalar",
+                    "body.a.b": "secret_value",
+                },
+            ],
+        }
+
+        # 不应崩溃
+        result = handler._deal_query_result(es_result)
+        logs = result["list"]
+        self.assertEqual(len(logs), 1)
+        # message 正常脱敏
+        self.assertEqual(logs[0]["message"], "He***********34")
+
+
+class TestUnifyQueryFailClosedTextFieldsMasking(TestCase):
+    """UnifyQueryHandler fail-closed 遮罩时原文字段整体遮罩"""
+
+    def setUp(self):
+        self.index_set = LogIndexSet.objects.create(
+            index_set_id=INDEX_SET_ID,
+            index_set_name="test-uq-fail-closed-text",
+            space_uid=SPACE_UID,
+            scenario_id="es",
+            storage_cluster_id=1,
+            time_field="dtEventTimeStamp",
+            time_field_type="date",
+            time_field_unit="millisecond",
+        )
+        LogIndexSetData.objects.create(
+            index_set_id=INDEX_SET_ID,
+            bk_biz_id=2,
+            result_table_id="2_bklog.test_uq_fail_closed_text",
+            apply_status="normal",
+            scenario_id="es",
+            storage_cluster_id=1,
+            time_field="dtEventTimeStamp",
+        )
+        DesensitizeConfig.objects.filter(index_set_id=INDEX_SET_ID).delete()
+        DesensitizeFieldConfig.objects.filter(index_set_id=INDEX_SET_ID).delete()
+
+    def tearDown(self):
+        DesensitizeConfig.objects.filter(index_set_id=INDEX_SET_ID).delete()
+        DesensitizeFieldConfig.objects.filter(index_set_id=INDEX_SET_ID).delete()
+
+    def _put_config(self, field_configs, text_fields=None):
+        DesensitizeConfig.objects.create(
+            index_set_id=INDEX_SET_ID,
+            text_fields=text_fields or [],
+        )
+        for fc in field_configs:
+            DesensitizeFieldConfig.objects.create(
+                index_set_id=INDEX_SET_ID,
+                field_name=fc["field_name"],
+                rule_id=fc.get("rule_id", 0),
+                operator=fc["operator"],
+                params=fc.get("params", {}),
+                match_pattern=fc.get("match_pattern", ""),
+                sort_index=fc.get("sort_index", 0),
+            )
+
+    def _build_handler(self):
+        p = copy.deepcopy(SEARCH_PARAMS)
+        with (
+            patch.object(UnifyQueryHandler, "init_base_dict", return_value={}),
+            patch(
+                "apps.log_unifyquery.handler.base.get_request",
+                return_value=Mock(),
+            ),
+            patch(
+                "apps.log_unifyquery.handler.base.get_request_username",
+                return_value="test_user",
+            ),
+            patch(
+                "apps.log_unifyquery.handler.base.get_request_external_username",
+                return_value=None,
+            ),
+            patch(
+                "apps.log_search.permission.Permission.get_auth_info",
+                return_value={"bk_app_code": "bk_log", "bk_username": "test_user"},
+            ),
+            patch(
+                "apps.log_unifyquery.handler.base.FeatureToggleObject.toggle",
+                return_value=None,
+            ),
+            patch(
+                "apps.utils.core.cache.cmdb_host.CmdbHostCache.get",
+                return_value={},
+            ),
+        ):
+            return UnifyQueryHandler(p)
+
+    @override_settings(ESQUERY_WHITE_LIST=["bk_log"])
+    def test_oversized_json_text_field_masked(self):
+        """超大 JSON + text_fields：原文字段整体被遮罩"""
+        self._put_config(field_configs=[NESTED_MASK_CONFIG], text_fields=["log"])
+        handler = self._build_handler()
+
+        large_body = '{"player":{"id":"' + "x" * 70000 + '"}}'
+        result = handler._deal_query_result(
+            fake_unify_result_nested(body=large_body, log="user did SENSITIVE_THING")
+        )
+
+        logs = result["list"]
+        self.assertEqual(len(logs), 1)
+        self.assertEqual(logs[0]["body"], "***MASKED***")
+        self.assertEqual(logs[0]["log"], "***MASKED***")
+
+    @override_settings(ESQUERY_WHITE_LIST=["bk_log"])
+    def test_parse_failure_text_field_masked(self):
+        """JSON 解析失败 + text_fields：原文字段整体被遮罩"""
+        self._put_config(field_configs=[NESTED_MASK_CONFIG], text_fields=["log"])
+        handler = self._build_handler()
+
+        result = handler._deal_query_result(
+            fake_unify_result_nested(body='{"player": bad}', log="some content")
+        )
+
+        logs = result["list"]
+        self.assertEqual(len(logs), 1)
+        self.assertEqual(logs[0]["body"], "***MASKED***")
+        self.assertEqual(logs[0]["log"], "***MASKED***")
+
+    @override_settings(ESQUERY_WHITE_LIST=["bk_log"])
+    def test_normal_path_text_fields_not_affected(self):
+        """正常脱敏路径：text_fields 不受影响"""
+        self._put_config(field_configs=[NESTED_MASK_CONFIG], text_fields=["log"])
+        handler = self._build_handler()
+
+        result = handler._deal_query_result(
+            fake_unify_result_nested(body='{"player":{"id":"12345"}}', log="user id is 12345")
+        )
+
+        logs = result["list"]
+        self.assertEqual(len(logs), 1)
+        # body 正常脱敏
+        self.assertIsInstance(logs[0]["body"], str)
+        parsed = json.loads(logs[0]["body"])
+        self.assertEqual(parsed["player"]["id"], "1***5")
+        # log 中 "12345" 被替换（非整体遮罩）
+        self.assertIn("1***5", logs[0]["log"])
+        self.assertNotEqual(logs[0]["log"], "***MASKED***")

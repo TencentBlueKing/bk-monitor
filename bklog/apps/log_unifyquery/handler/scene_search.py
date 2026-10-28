@@ -15,7 +15,11 @@ from django.utils.translation import gettext_lazy as _
 
 from apps.api import UnifyQueryApi
 from apps.log_desensitize.handlers.desensitize import DesensitizeHandler
-from apps.log_desensitize.utils import merge_nested_data
+from apps.log_desensitize.utils import (
+    _get_sensitive_top_fields,
+    _mask_sensitive_fields,
+    merge_nested_data,
+)
 from apps.log_esquery.esquery.builder.query_string_builder import QueryStringBuilder
 from apps.log_search.constants import (
     ASYNC_EXPORT_SCROLL,
@@ -248,19 +252,36 @@ class SceneUnifyQueryHandler(UnifyQueryHandler):
         for log in result_dict.get("list", []):
             # pre-desensitize merge: 与父类 _deal_query_result 保持一致，
             # 将 flatten 格式合并为嵌套 dict（详见 base.py 同名方法注释）。
-            log = merge_nested_data(log)
+            merge_failed = False
+            try:
+                log = merge_nested_data(log)
+            except Exception as e:
+                logger.error(
+                    "[desensitize] merge_nested_data failed (doc_id=%s): %s, masking sensitive fields",
+                    log.get("__doc_id", "unknown") if isinstance(log, dict) else "unknown",
+                    e,
+                )
+                sensitive_fields = _get_sensitive_top_fields(
+                    self.field_configs, self.text_fields_field_configs, self.text_fields
+                )
+                log = _mask_sensitive_fields(log, sensitive_fields) if isinstance(log, dict) else log
+                merge_failed = True
             if add_index_set_id:
                 log["__index_set_id__"] = result_table_index_set_map.get(log.get("__result_table"))
-            if (self.field_configs or self.text_fields_field_configs) and self.is_desensitize:
+            if not merge_failed and (self.field_configs or self.text_fields_field_configs) and self.is_desensitize:
                 try:
                     log = self._log_desensitize(log)
                 except Exception as e:
-                    # 单条日志脱敏异常不影响同批次其他日志，返回原始 log
+                    # fail-closed：脱敏异常时遮罩配置涉及的敏感字段，保留元数据字段
                     logger.error(
-                        "[desensitize] failed to desensitize log (doc_id=%s): %s",
+                        "[desensitize] failed to desensitize log (doc_id=%s): %s, masking sensitive fields",
                         log.get("__doc_id", "unknown"),
                         e,
                     )
+                    sensitive_fields = _get_sensitive_top_fields(
+                        self.field_configs, self.text_fields_field_configs, self.text_fields
+                    )
+                    log = _mask_sensitive_fields(log, sensitive_fields)
             log = self._add_cmdb_fields(log)
             log = self._add_bcs_cluster_fields(log)
 
@@ -969,16 +990,55 @@ class SceneUnifyQueryHandler(UnifyQueryHandler):
             for record in search_result["list"]:
                 if apply_desensitize:
                     # export_chart_data 不走 _deal_query_result，需显式逐行脱敏
+                    # 先 merge_nested_data 将 flattened 格式合并为嵌套 dict，与 _deal_query_result 保持一致
+                    merge_failed = False
                     try:
-                        record = self._log_desensitize(record)
+                        record = merge_nested_data(record)
                     except Exception as e:
-                        # 单条记录脱敏异常不终止整次导出，保留原始 record
                         logger.error(
-                            "[desensitize] failed to desensitize export record (doc_id=%s): %s",
-                            record.get("__doc_id", "unknown"),
+                            "[desensitize] merge_nested_data failed in export_chart_data (doc_id=%s): %s, "
+                            "masking sensitive fields",
+                            record.get("__doc_id", "unknown") if isinstance(record, dict) else "unknown",
                             e,
                         )
-                csv_writer.writerow([record.get(field, "") for field in fields])
+                        sensitive_fields = _get_sensitive_top_fields(
+                            self.field_configs, self.text_fields_field_configs, self.text_fields
+                        )
+                        record = _mask_sensitive_fields(record, sensitive_fields) if isinstance(record, dict) else record
+                        merge_failed = True
+                    if not merge_failed:
+                        try:
+                            record = self._log_desensitize(record)
+                        except Exception as e:
+                            # fail-closed：脱敏异常时遮罩配置涉及的敏感字段，保留元数据字段
+                            logger.error(
+                                "[desensitize] failed to desensitize export record (doc_id=%s): %s, "
+                                "masking sensitive fields",
+                                record.get("__doc_id", "unknown"),
+                                e,
+                            )
+                            sensitive_fields = _get_sensitive_top_fields(
+                                self.field_configs, self.text_fields_field_configs, self.text_fields
+                            )
+                            record = _mask_sensitive_fields(record, sensitive_fields)
+                # merge_nested_data 后 record 是嵌套 dict，带点号的 field 需要嵌套导航取值
+                row_values = []
+                for field in fields:
+                    if field in record:
+                        row_values.append(record[field])
+                    elif "." in field:
+                        key, *field_list = field.split(".")
+                        _result = record.get(key, {})
+                        for _field in field_list:
+                            if isinstance(_result, dict) and _field in _result:
+                                _result = _result[_field]
+                            else:
+                                _result = ""
+                                break
+                        row_values.append(_result)
+                    else:
+                        row_values.append(record.get(field, ""))
+                csv_writer.writerow(row_values)
             yield row_buffer.getvalue()
             row_buffer.seek(0)
             row_buffer.truncate()

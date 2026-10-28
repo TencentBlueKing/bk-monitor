@@ -58,21 +58,96 @@ def expand_nested_data(data: dict):
 def merge_nested_data(data: dict):
     """
     将data中的object类型字段合并{"aaa.aa": 1, "aaa.bb": 2} -> {"aaa": {"aa": 1, "bb": 2}}
+
+    冲突处理：当同一位置既有标量值又需要构建子树时，子树优先，标量丢失并记录 error。
+    被丢弃的标量值在 error 日志中包含 key 名，便于运维排查数据完整性问题。
     """
     try:
         merged_data = {}
         for key, value in data.items():
-            keys = key.split('.')
+            keys = key.split(".")
             current = merged_data
             for k in keys[:-1]:
                 if k not in current:
                     current[k] = {}
+                elif not isinstance(current[k], dict):
+                    # 冲突：该位置已有标量，子树优先
+                    logger.error(
+                        "merge_nested_data: path conflict at key '%s' "
+                        "(scalar '%s' discarded, subtree takes priority)",
+                        key,
+                        current[k],
+                    )
+                    current[k] = {}
                 current = current[k]
-            current[keys[-1]] = value
+            # 写入最终值时也检测冲突
+            last = keys[-1]
+            if isinstance(current.get(last), dict):
+                logger.error(
+                    "merge_nested_data: path conflict at key '%s' "
+                    "(scalar value discarded, subtree takes priority)",
+                    key,
+                )
+            else:
+                current[last] = value
 
         return merged_data
     except Exception as e:
         raise DesensitizeDataErrorException(DesensitizeDataErrorException.MESSAGE.format(e=e))
+
+
+def _get_sensitive_top_fields(field_configs: list, text_fields_field_configs: list, text_fields: list) -> set:
+    """从脱敏配置中提取需要遮罩的顶层字段名集合。
+
+    将嵌套路径（如 body.player.id）的顶层前缀（body）纳入遮罩范围，
+    保留时间戳、索引 ID 等元数据字段不受影响。
+
+    :param field_configs: 结构化字段配置列表，每项含 field_name 键
+    :param text_fields_field_configs: 原文字段配置列表
+    :param text_fields: 原文字段名列表
+    :return: 需要遮罩的顶层字段名集合
+    """
+    sensitive = {fc["field_name"].split(".")[0] for fc in (field_configs or [])}
+    sensitive.update(fc["field_name"].split(".")[0] for fc in (text_fields_field_configs or []))
+    sensitive.update(text_fields or [])
+    return sensitive
+
+
+def _mask_sensitive_fields(log: dict, sensitive_fields: set) -> dict:
+    """对日志中属于敏感字段的键替换为遮罩值，保留其他字段。
+
+    兼容两种数据格式：
+    - 嵌套 dict 格式：顶层 key 为 "__ext_json"，直接匹配
+    - ES-flattened 格式：顶层 key 为 "__ext_json.user.id" 等 dotted key，
+      需要检查 key 的第一段是否属于 sensitive_fields
+
+    :param log: 原始日志 dict
+    :param sensitive_fields: 需要遮罩的顶层字段名集合
+    :return: 遮罩后的日志 dict
+    """
+    def _should_mask(key: str) -> bool:
+        if key in sensitive_fields:
+            return True
+        # ES-flattened 格式：key 的第一段属于敏感字段
+        return "." in key and key.split(".")[0] in sensitive_fields
+
+    return {k: (_MASKED_VALUE if _should_mask(k) else v) for k, v in log.items()}
+
+
+def _is_fail_closed(log: dict, restore_metadata: dict) -> bool:
+    """检测 path_aware_expand 结果中是否存在 fail-closed 遮罩字段。
+
+    必须在 transform_dict 之前调用：transform_dict 可能修改 _MASKED_VALUE
+    值（如 mask_shield 算子将其变为 "*******ED***"），导致后续检测失效。
+
+    :param log: path_aware_expand 返回的展开 dict
+    :param restore_metadata: path_aware_expand 返回的元数据
+    :return: 是否存在 fail-closed 遮罩
+    """
+    return any(
+        log.get(path) == _MASKED_VALUE
+        for path in restore_metadata
+    )
 
 
 def _estimate_json_depth(s: str) -> int:

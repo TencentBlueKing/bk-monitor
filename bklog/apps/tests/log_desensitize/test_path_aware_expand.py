@@ -25,6 +25,11 @@ from django.test import SimpleTestCase
 
 from apps.log_desensitize.utils import (
     _estimate_json_depth,
+    _get_sensitive_top_fields,
+    _is_fail_closed,
+    _MASKED_VALUE,
+    _mask_sensitive_fields,
+    merge_nested_data,
     path_aware_expand,
     restore_by_metadata,
 )
@@ -615,6 +620,115 @@ class TestRestoreByMetadata(SimpleTestCase):
         parsed = json.loads(restored["body"])
         # key 顺序应保持与 expanded_data 插入顺序一致
         self.assertEqual(list(parsed.keys()), ["zebra", "apple", "mango"])
+
+
+class TestMergeNestedDataConflict(SimpleTestCase):
+    """merge_nested_data 冲突防御测试"""
+
+    def test_scalar_then_subtree_no_crash(self):
+        """先标量后子树：不崩溃，子树优先，标量丢失"""
+        result = merge_nested_data({"body.a": "scalar", "body.a.b": "secret"})
+        self.assertEqual(result, {"body": {"a": {"b": "secret"}}})
+
+    def test_subtree_then_scalar_no_crash(self):
+        """先子树后标量：不崩溃，子树优先，标量不写入"""
+        result = merge_nested_data({"body.a.b": "secret", "body.a": "scalar"})
+        self.assertEqual(result, {"body": {"a": {"b": "secret"}}})
+
+    def test_conflict_logs_error_with_details(self):
+        """冲突时记录 error 日志，包含 key 名"""
+        with self.assertLogs("apps.log_desensitize.utils", level="ERROR") as cm:
+            merge_nested_data({"body.a": "scalar", "body.a.b": "secret"})
+        self.assertTrue(
+            any("path conflict" in msg and "body.a" in msg for msg in cm.output),
+            "expected conflict error log with key name, got: {}".format(cm.output),
+        )
+
+    def test_normal_flattened_no_conflict(self):
+        """正常 flattened 数据无冲突：行为不变"""
+        result = merge_nested_data({"body.player.id": "123", "body.player.name": "test"})
+        self.assertEqual(result, {"body": {"player": {"id": "123", "name": "test"}}})
+
+    def test_empty_dict(self):
+        """空 dict 输入：返回空 dict"""
+        self.assertEqual(merge_nested_data({}), {})
+
+
+class TestGetSensitiveTopFields(SimpleTestCase):
+    """_get_sensitive_top_fields 公共函数测试"""
+
+    def test_nested_path_extracts_top_prefix(self):
+        """嵌套路径提取顶层前缀"""
+        result = _get_sensitive_top_fields([{"field_name": "body.player.id"}], [], [])
+        self.assertEqual(result, {"body"})
+
+    def test_text_fields_included(self):
+        """text_fields 字段纳入遮罩范围"""
+        result = _get_sensitive_top_fields([], [], ["log"])
+        self.assertEqual(result, {"log"})
+
+    def test_mixed_sources(self):
+        """多来源合并"""
+        result = _get_sensitive_top_fields(
+            [{"field_name": "body.player.id"}, {"field_name": "message"}],
+            [{"field_name": "log"}],
+            ["log", "raw_data"],
+        )
+        self.assertEqual(result, {"body", "message", "log", "raw_data"})
+
+    def test_empty_inputs(self):
+        """空输入返回空集合"""
+        result = _get_sensitive_top_fields([], [], [])
+        self.assertEqual(result, set())
+
+    def test_none_inputs(self):
+        """None 输入返回空集合"""
+        result = _get_sensitive_top_fields(None, None, None)
+        self.assertEqual(result, set())
+
+
+class TestMaskSensitiveFields(SimpleTestCase):
+    """_mask_sensitive_fields 公共函数测试"""
+
+    def test_masks_only_sensitive_fields(self):
+        """仅遮罩敏感字段，保留其他字段"""
+        log = {"body": "secret_data", "message": "hello", "ts": 123}
+        result = _mask_sensitive_fields(log, {"body"})
+        self.assertEqual(result["body"], _MASKED_VALUE)
+        self.assertEqual(result["message"], "hello")
+        self.assertEqual(result["ts"], 123)
+
+    def test_preserves_field_names(self):
+        """保留原始字段名结构"""
+        log = {"a": 1, "b": 2, "c": 3}
+        result = _mask_sensitive_fields(log, {"b"})
+        self.assertEqual(set(result.keys()), {"a", "b", "c"})
+
+    def test_empty_sensitive_fields(self):
+        """空敏感字段集合：不做任何遮罩"""
+        log = {"a": "value"}
+        result = _mask_sensitive_fields(log, set())
+        self.assertEqual(result, {"a": "value"})
+
+
+class TestIsFailClosed(SimpleTestCase):
+    """_is_fail_closed 公共函数测试"""
+
+    def test_detects_masked_value(self):
+        """检测到 _MASKED_VALUE 返回 True"""
+        log = {"body": _MASKED_VALUE, "other": "value"}
+        metadata = {"body": {"type": "scalar"}, "other": {"type": "scalar"}}
+        self.assertTrue(_is_fail_closed(log, metadata))
+
+    def test_no_masked_value(self):
+        """无 _MASKED_VALUE 返回 False"""
+        log = {"body": "normal", "other": "value"}
+        metadata = {"body": {"type": "scalar"}, "other": {"type": "scalar"}}
+        self.assertFalse(_is_fail_closed(log, metadata))
+
+    def test_empty_metadata(self):
+        """空元数据返回 False"""
+        self.assertFalse(_is_fail_closed({"a": 1}, {}))
 
     def test_restore_dict_preserves_key_order(self):
         """缺失场景 4 补充：dict 类型还原时 key 顺序保持"""

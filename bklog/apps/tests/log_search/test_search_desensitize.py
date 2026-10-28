@@ -1173,10 +1173,11 @@ class TestSearchHandlerDesensitize(TestCase):
         self.assertIn("log", logs[0])
 
     def test_text_fields_with_fail_closed_parse_error_no_crash(self):
-        """text_fields + JSON 解析失败 + 子路径规则：不崩溃，body 被遮罩。
+        """text_fields + JSON 解析失败 + 子路径规则：不崩溃，body 和 log 均被遮罩。
 
         注意：仅当字符串呈 object 形态（以 { 开头且以 } 结尾）但 JSON 非法时
         才会触发 fail-closed；若形态不符（如 "{bad json]"）则按普通标量处理。
+        fail-closed 触发时 text_fields 也被整体遮罩，防止原文字段泄漏敏感内容。
         """
         self._put_config(
             field_configs=[NESTED_MASK_CONFIG],
@@ -1192,8 +1193,8 @@ class TestSearchHandlerDesensitize(TestCase):
         self.assertEqual(len(logs), 1)
         # fail-closed 遮罩（object 形态但解析失败 + 子路径规则）
         self.assertEqual(logs[0]["body"], "***MASKED***")
-        # log 字段未被破坏
-        self.assertEqual(logs[0]["log"], "user body is bad")
+        # fail-closed 触发时 text_fields 也被整体遮罩（防止原文泄漏）
+        self.assertEqual(logs[0]["log"], "***MASKED***")
 
 
 class TestExtractValueByPath(SimpleTestCase):
@@ -1240,3 +1241,665 @@ class TestExtractValueByPath(SimpleTestCase):
         data = {"body": "{bad json}"}
         result = _extract_value_by_path(data, "body.player.id")
         self.assertIsNone(result)
+
+
+class TestDesensitizeExceptionFailClosed(TestCase):
+    """脱敏异常时敏感字段被遮罩，元数据字段保留"""
+
+    def _put_config(self, field_configs, text_fields=None):
+        """Create a desensitize config + field configs in DB."""
+        DesensitizeConfig.objects.create(
+            index_set_id=self.index_set_id,
+            text_fields=text_fields or [],
+        )
+        for fc in field_configs:
+            DesensitizeFieldConfig.objects.create(
+                index_set_id=self.index_set_id,
+                field_name=fc["field_name"],
+                rule_id=fc.get("rule_id", 0),
+                operator=fc["operator"],
+                params=fc.get("params", {}),
+                match_pattern=fc.get("match_pattern", ""),
+                sort_index=fc.get("sort_index", 0),
+            )
+
+    def setUp(self):
+        self.index_set = LogIndexSet.objects.create(
+            index_set_name="test-exception-fail-closed",
+            space_uid=SPACE_UID,
+            scenario_id="es",
+            storage_cluster_id=1,
+            time_field="dtEventTimeStamp",
+            time_field_type="date",
+            time_field_unit="millisecond",
+        )
+        self.index_set_id = self.index_set.index_set_id
+        LogIndexSetData.objects.create(
+            index_set_id=self.index_set_id,
+            bk_biz_id=2,
+            result_table_id="2_bklog.test_exception_fail_closed",
+            apply_status="normal",
+            scenario_id="es",
+            storage_cluster_id=1,
+            time_field="dtEventTimeStamp",
+        )
+        DesensitizeConfig.objects.filter(index_set_id=self.index_set_id).delete()
+        DesensitizeFieldConfig.objects.filter(index_set_id=self.index_set_id).delete()
+
+    def tearDown(self):
+        DesensitizeConfig.objects.filter(index_set_id=self.index_set_id).delete()
+        DesensitizeFieldConfig.objects.filter(index_set_id=self.index_set_id).delete()
+
+    def _build_handler(self):
+        sd = dict(BASE_SEARCH_DICT)
+        with (
+            patch(
+                "apps.log_search.handlers.search.search_handlers_esquery.get_request",
+                return_value=Mock(),
+            ),
+            patch(
+                "apps.log_search.handlers.search.search_handlers_esquery.get_request_username",
+                return_value="test_user",
+            ),
+            patch(
+                "apps.log_search.handlers.search.search_handlers_esquery.get_request_external_username",
+                return_value=None,
+            ),
+            patch(
+                "apps.log_search.handlers.search.search_handlers_esquery.Permission.get_auth_info",
+                return_value={"bk_app_code": "bk_log", "bk_username": "test_user"},
+            ),
+            patch(
+                "apps.log_search.handlers.search.search_handlers_esquery.FeatureToggleObject.toggle",
+                return_value=None,
+            ),
+            patch(
+                "apps.log_search.handlers.search.search_handlers_esquery.MappingHandlers.is_nested_field",
+                return_value=False,
+            ),
+            patch(
+                "apps.utils.core.cache.cmdb_host.CmdbHostCache.get",
+                return_value={},
+            ),
+        ):
+            return SearchHandler(
+                index_set_id=self.index_set_id,
+                search_dict=sd,
+                pre_check_enable=False,
+            )
+
+    @patch(
+        "apps.log_search.handlers.search.search_handlers_esquery.SearchHandler._log_desensitize",
+        side_effect=RuntimeError("unexpected internal error"),
+    )
+    def test_exception_masks_sensitive_fields_preserves_metadata(self, mock_desensitize):
+        """_log_desensitize 抛异常时，配置字段被遮罩，时间戳等元数据保留"""
+        self._put_config(field_configs=[NESTED_MASK_CONFIG])
+        handler = self._build_handler()
+
+        result = handler._deal_query_result(
+            fake_hits_nested(body='{"player":{"id":"12345"}}')
+        )
+
+        logs = result["list"]
+        self.assertEqual(len(logs), 1)
+        # 配置字段被遮罩
+        self.assertEqual(logs[0]["body"], "***MASKED***")
+        # 元数据字段保留
+        self.assertEqual(logs[0]["dtEventTimeStamp"], 1727452800000)
+
+    @patch(
+        "apps.log_search.handlers.search.search_handlers_esquery.path_aware_expand",
+        side_effect=[RuntimeError("unexpected internal error"), ({"message": "Another Log5678", "log": "log2", "dtEventTimeStamp": 1727452800001}, {})],
+    )
+    def test_exception_does_not_affect_other_logs(self, mock_expand):
+        """第 1 条日志脱敏异常被遮罩，第 2 条正常脱敏不受影响"""
+        self._put_config(field_configs=[MASK_CONFIG])
+        handler = self._build_handler()
+
+        # 构造 2 条日志的 ES 响应
+        es_result = {
+            "took": 10,
+            "hits": {
+                "total": 2,
+                "hits": [
+                    {
+                        "_index": "v2_2_bklog_test_es_20260927_0",
+                        "_source": {
+                            "dtEventTimeStamp": 1727452800000,
+                            "message": "Hello World1234",
+                            "log": "log1",
+                        },
+                    },
+                    {
+                        "_index": "v2_2_bklog_test_es_20260927_0",
+                        "_source": {
+                            "dtEventTimeStamp": 1727452800001,
+                            "message": "Another Log5678",
+                            "log": "log2",
+                        },
+                    },
+                ],
+            },
+        }
+        result = handler._deal_query_result(es_result)
+
+        logs = result["list"]
+        self.assertEqual(len(logs), 2)
+        # 第 1 条：path_aware_expand 异常 → 敏感字段被遮罩
+        self.assertEqual(logs[0]["message"], "***MASKED***")
+        self.assertEqual(logs[0]["dtEventTimeStamp"], 1727452800000)
+        # 第 2 条：正常脱敏（"Another Log5678" 15字符 → "An" + 11* + "78"）
+        self.assertEqual(logs[1]["message"], "An***********78")
+        self.assertEqual(logs[1]["dtEventTimeStamp"], 1727452800001)
+
+    @patch(
+        "apps.log_search.handlers.search.search_handlers_esquery.SearchHandler._log_desensitize",
+        side_effect=RuntimeError("unexpected internal error"),
+    )
+    def test_exception_preserves_field_names(self, mock_desensitize):
+        """异常遮罩保留原始字段名结构（不丢字段）"""
+        self._put_config(field_configs=[MASK_CONFIG])
+        handler = self._build_handler()
+
+        result = handler._deal_query_result(
+            fake_hits(message="Hello World1234")
+        )
+
+        logs = result["list"]
+        self.assertEqual(len(logs), 1)
+        # 字段名完整保留
+        self.assertIn("message", logs[0])
+        self.assertIn("log", logs[0])
+        self.assertIn("dtEventTimeStamp", logs[0])
+
+    @patch(
+        "apps.log_search.handlers.search.search_handlers_esquery.SearchHandler._log_desensitize",
+        side_effect=RuntimeError("unexpected internal error"),
+    )
+    def test_exception_masks_text_fields(self, mock_desensitize):
+        """异常时 text_fields 也被遮罩"""
+        self._put_config(field_configs=[MASK_CONFIG], text_fields=["log"])
+        handler = self._build_handler()
+
+        result = handler._deal_query_result(
+            fake_hits(message="Hello World1234", log="sensitive log content")
+        )
+
+        logs = result["list"]
+        self.assertEqual(len(logs), 1)
+        # message 被遮罩（配置字段）
+        self.assertEqual(logs[0]["message"], "***MASKED***")
+        # log 也被遮罩（text_fields）
+        self.assertEqual(logs[0]["log"], "***MASKED***")
+
+
+class TestFailClosedTextFieldsMasking(TestCase):
+    """fail-closed 遮罩父字段时，原文字段整体被遮罩"""
+
+    def _put_config(self, field_configs, text_fields=None):
+        """Create a desensitize config + field configs in DB."""
+        DesensitizeConfig.objects.create(
+            index_set_id=self.index_set_id,
+            text_fields=text_fields or [],
+        )
+        for fc in field_configs:
+            DesensitizeFieldConfig.objects.create(
+                index_set_id=self.index_set_id,
+                field_name=fc["field_name"],
+                rule_id=fc.get("rule_id", 0),
+                operator=fc["operator"],
+                params=fc.get("params", {}),
+                match_pattern=fc.get("match_pattern", ""),
+                sort_index=fc.get("sort_index", 0),
+            )
+
+    def setUp(self):
+        self.index_set = LogIndexSet.objects.create(
+            index_set_name="test-fail-closed-text",
+            space_uid=SPACE_UID,
+            scenario_id="es",
+            storage_cluster_id=1,
+            time_field="dtEventTimeStamp",
+            time_field_type="date",
+            time_field_unit="millisecond",
+        )
+        self.index_set_id = self.index_set.index_set_id
+        LogIndexSetData.objects.create(
+            index_set_id=self.index_set_id,
+            bk_biz_id=2,
+            result_table_id="2_bklog.test_fail_closed_text",
+            apply_status="normal",
+            scenario_id="es",
+            storage_cluster_id=1,
+            time_field="dtEventTimeStamp",
+        )
+        DesensitizeConfig.objects.filter(index_set_id=self.index_set_id).delete()
+        DesensitizeFieldConfig.objects.filter(index_set_id=self.index_set_id).delete()
+
+    def tearDown(self):
+        DesensitizeConfig.objects.filter(index_set_id=self.index_set_id).delete()
+        DesensitizeFieldConfig.objects.filter(index_set_id=self.index_set_id).delete()
+
+    def _build_handler(self):
+        sd = dict(BASE_SEARCH_DICT)
+        with (
+            patch(
+                "apps.log_search.handlers.search.search_handlers_esquery.get_request",
+                return_value=Mock(),
+            ),
+            patch(
+                "apps.log_search.handlers.search.search_handlers_esquery.get_request_username",
+                return_value="test_user",
+            ),
+            patch(
+                "apps.log_search.handlers.search.search_handlers_esquery.get_request_external_username",
+                return_value=None,
+            ),
+            patch(
+                "apps.log_search.handlers.search.search_handlers_esquery.Permission.get_auth_info",
+                return_value={"bk_app_code": "bk_log", "bk_username": "test_user"},
+            ),
+            patch(
+                "apps.log_search.handlers.search.search_handlers_esquery.FeatureToggleObject.toggle",
+                return_value=None,
+            ),
+            patch(
+                "apps.log_search.handlers.search.search_handlers_esquery.MappingHandlers.is_nested_field",
+                return_value=False,
+            ),
+            patch(
+                "apps.utils.core.cache.cmdb_host.CmdbHostCache.get",
+                return_value={},
+            ),
+        ):
+            return SearchHandler(
+                index_set_id=self.index_set_id,
+                search_dict=sd,
+                pre_check_enable=False,
+            )
+
+    def test_oversized_json_text_field_masked(self):
+        """超大 JSON + text_fields：原文字段整体被替换为 ***MASKED***"""
+        self._put_config(field_configs=[NESTED_MASK_CONFIG], text_fields=["log"])
+        handler = self._build_handler()
+
+        large_body = '{"player":{"id":"' + "x" * 70000 + '"}}'
+        result = handler._deal_query_result(
+            fake_hits_nested(body=large_body, log="user did SENSITIVE_THING")
+        )
+
+        logs = result["list"]
+        self.assertEqual(len(logs), 1)
+        # body 被 fail-closed 遮罩
+        self.assertEqual(logs[0]["body"], "***MASKED***")
+        # log 原文字段也被整体遮罩
+        self.assertEqual(logs[0]["log"], "***MASKED***")
+
+    def test_parse_failure_text_field_masked(self):
+        """JSON 解析失败 + text_fields：原文字段整体被遮罩"""
+        self._put_config(field_configs=[NESTED_MASK_CONFIG], text_fields=["log"])
+        handler = self._build_handler()
+
+        result = handler._deal_query_result(
+            fake_hits_nested(body='{"player": bad}', log="some content")
+        )
+
+        logs = result["list"]
+        self.assertEqual(len(logs), 1)
+        self.assertEqual(logs[0]["body"], "***MASKED***")
+        self.assertEqual(logs[0]["log"], "***MASKED***")
+
+    def test_deep_json_text_field_masked(self):
+        """极深 JSON + text_fields：原文字段整体被遮罩"""
+        self._put_config(field_configs=[NESTED_MASK_CONFIG], text_fields=["log"])
+        handler = self._build_handler()
+
+        deep_json = '{"a":' * 1100 + '"secret"' + '}' * 1100
+        result = handler._deal_query_result(
+            fake_hits_nested(body=deep_json, log="deep content")
+        )
+
+        logs = result["list"]
+        self.assertEqual(len(logs), 1)
+        self.assertEqual(logs[0]["body"], "***MASKED***")
+        self.assertEqual(logs[0]["log"], "***MASKED***")
+
+    def test_normal_path_text_fields_not_affected(self):
+        """正常脱敏路径（无 fail-closed）：text_fields 替换行为完全不变"""
+        self._put_config(field_configs=[NESTED_MASK_CONFIG], text_fields=["log"])
+        handler = self._build_handler()
+
+        result = handler._deal_query_result(
+            fake_hits_nested(body='{"player":{"id":"12345"}}', log="user id is 12345")
+        )
+
+        logs = result["list"]
+        self.assertEqual(len(logs), 1)
+        # body 正常脱敏（非遮罩）
+        self.assertIsInstance(logs[0]["body"], str)
+        parsed = json.loads(logs[0]["body"])
+        self.assertEqual(parsed["player"]["id"], "1***5")
+        # log 中 "12345" 被替换为脱敏后的 "1***5"（非整体遮罩）
+        self.assertIn("1***5", logs[0]["log"])
+        self.assertNotEqual(logs[0]["log"], "***MASKED***")
+
+    def test_no_fail_closed_no_text_masking(self):
+        """无 fail-closed 时：text_fields 不被整体遮罩"""
+        self._put_config(field_configs=[MASK_CONFIG], text_fields=["log"])
+        handler = self._build_handler()
+
+        result = handler._deal_query_result(
+            fake_hits(message="Hello World1234", log="some log content")
+        )
+
+        logs = result["list"]
+        self.assertEqual(len(logs), 1)
+        # message 正常脱敏
+        self.assertEqual(logs[0]["message"], "He***********34")
+        # log 字段保持原值（不被遮罩）
+        self.assertEqual(logs[0]["log"], "some log content")
+
+    def test_cust_real_data_nested_dict_desensitize(self):
+        """用 cust 真实数据验证嵌套 dict 路径脱敏
+
+        cust 数据 __ext_json.user.id = "user-57252"（9字符）
+        mask_shield(preserve_head=1, preserve_tail=1) → "u*******2"
+        """
+        import json as _json
+        with open("ai_plan/cust", "r") as f:
+            cust_data = _json.load(f)
+
+        # 构造针对 __ext_json.user.id 的脱敏配置
+        cust_mask_config = {
+            "field_name": "__ext_json.user.id",
+            "rule_id": 0,
+            "operator": "mask_shield",
+            "params": {"preserve_head": 1, "preserve_tail": 1, "replace_mark": "*"},
+            "match_pattern": ".*",
+            "sort_index": 0,
+        }
+        self._put_config(field_configs=[cust_mask_config])
+        handler = self._build_handler()
+
+        # cust 数据作为 ES hit
+        es_result = {
+            "took": 10,
+            "hits": {
+                "total": 1,
+                "hits": [
+                    {
+                        "_index": "v2_2_bklog_test_es_20260927_0",
+                        "_source": cust_data,
+                    }
+                ],
+            },
+        }
+        result = handler._deal_query_result(es_result)
+
+        logs = result["list"]
+        self.assertEqual(len(logs), 1)
+        # __ext_json.user.id 被脱敏："user-57252" (10字符) → "u********2"
+        self.assertEqual(logs[0]["__ext_json"]["user"]["id"], "u********2")
+        # 同层 username 不受影响
+        self.assertEqual(logs[0]["__ext_json"]["user"]["username"], "test_user_18")
+        # __ext_json 结构完整（5层嵌套 dict 保留）
+        self.assertIsInstance(logs[0]["__ext_json"]["deployment"]["pod"]["node"]["runtime"], dict)
+        self.assertEqual(
+            logs[0]["__ext_json"]["deployment"]["pod"]["node"]["runtime"]["version"],
+            "1.7.12",
+        )
+        # log 字段不受影响（未配置 log 的脱敏规则）
+        self.assertEqual(logs[0]["log"], cust_data["log"])
+        # 元数据保留
+        self.assertEqual(logs[0]["dtEventTimeStamp"], "1793188714000")
+
+    def test_cust_real_data_json_string_subpath_desensitize(self):
+        """用 cust 真实数据验证 JSON 字符串子路径脱敏
+
+        cust 数据 log 是 3147 字节的合法 JSON 字符串
+        配置 log.user.id，验证 JSON 字符串内子路径脱敏
+        """
+        import json as _json
+        with open("ai_plan/cust", "r") as f:
+            cust_data = _json.load(f)
+
+        # 构造针对 log.user.id 的脱敏配置
+        log_mask_config = {
+            "field_name": "log.user.id",
+            "rule_id": 0,
+            "operator": "mask_shield",
+            "params": {"preserve_head": 1, "preserve_tail": 1, "replace_mark": "*"},
+            "match_pattern": ".*",
+            "sort_index": 0,
+        }
+        self._put_config(field_configs=[log_mask_config])
+        handler = self._build_handler()
+
+        es_result = {
+            "took": 10,
+            "hits": {
+                "total": 1,
+                "hits": [
+                    {
+                        "_index": "v2_2_bklog_test_es_20260927_0",
+                        "_source": cust_data,
+                    }
+                ],
+            },
+        }
+        result = handler._deal_query_result(es_result)
+
+        logs = result["list"]
+        self.assertEqual(len(logs), 1)
+        # log 仍为 JSON 字符串（json_string 类型还原）
+        self.assertIsInstance(logs[0]["log"], str)
+        parsed = _json.loads(logs[0]["log"])
+        # log.user.id 被脱敏："user-57252" (10字符) → "u********2"
+        self.assertEqual(parsed["user"]["id"], "u********2")
+        # 同层 username 不受影响
+        self.assertEqual(parsed["user"]["username"], "test_user_18")
+        # log 中其他字段不受影响
+        self.assertEqual(parsed["service"], "order-service")
+        self.assertEqual(parsed["http"]["status_code"], 500)
+
+    def test_cust_real_data_exception_masks_sensitive_preserves_metadata(self):
+        """用 cust 真实数据验证异常时选择性遮罩
+
+        配置 __ext_json.user.id + text_fields=["log"]
+        模拟 _log_desensitize 抛异常 → __ext_json 和 log 被遮罩，元数据保留
+        """
+        import json as _json
+        with open("ai_plan/cust", "r") as f:
+            cust_data = _json.load(f)
+
+        cust_mask_config = {
+            "field_name": "__ext_json.user.id",
+            "rule_id": 0,
+            "operator": "mask_shield",
+            "params": {"preserve_head": 1, "preserve_tail": 1, "replace_mark": "*"},
+            "match_pattern": ".*",
+            "sort_index": 0,
+        }
+        self._put_config(field_configs=[cust_mask_config], text_fields=["log"])
+        handler = self._build_handler()
+
+        with patch(
+            "apps.log_search.handlers.search.search_handlers_esquery.SearchHandler._log_desensitize",
+            side_effect=RuntimeError("unexpected internal error"),
+        ):
+            es_result = {
+                "took": 10,
+                "hits": {
+                    "total": 1,
+                    "hits": [
+                        {
+                            "_index": "v2_2_bklog_test_es_20260927_0",
+                            "_source": cust_data,
+                        }
+                    ],
+                },
+            }
+            result = handler._deal_query_result(es_result)
+
+        logs = result["list"]
+        self.assertEqual(len(logs), 1)
+        # __ext_json 被遮罩（配置字段的顶层前缀）
+        self.assertEqual(logs[0]["__ext_json"], "***MASKED***")
+        # log 被遮罩（text_fields）
+        self.assertEqual(logs[0]["log"], "***MASKED***")
+        # message 保留原值（未配置脱敏）
+        self.assertEqual(logs[0]["message"], "order request failed because an upstream service was unavailable")
+        # 元数据保留
+        self.assertEqual(logs[0]["dtEventTimeStamp"], "1793188714000")
+        self.assertEqual(logs[0]["host"], "VM-38-149-tencentos")
+
+    def test_custom3_flattened_ext_json_desensitize(self):
+        """用 custom-3 真实数据验证 ES-flattened __ext_json 子路径脱敏
+
+        custom-3 数据是 ES-flattened 格式：__ext_json.user.id = "user-38206" (10字符)
+        mask_shield(preserve_head=1, preserve_tail=1) → "u********6"
+        """
+        import json as _json
+        with open("ai_plan/custom-3", "r") as f:
+            custom3_data = _json.load(f)
+
+        # 构造针对 __ext_json.user.id 的脱敏配置
+        mask_config = {
+            "field_name": "__ext_json.user.id",
+            "rule_id": 0,
+            "operator": "mask_shield",
+            "params": {"preserve_head": 1, "preserve_tail": 1, "replace_mark": "*"},
+            "match_pattern": ".*",
+            "sort_index": 0,
+        }
+        self._put_config(field_configs=[mask_config])
+        handler = self._build_handler()
+
+        es_result = {
+            "took": 10,
+            "hits": {
+                "total": 1,
+                "hits": [
+                    {
+                        "_index": "v2_2_bklog_test_es_20260927_0",
+                        "_source": custom3_data,
+                    }
+                ],
+            },
+        }
+        result = handler._deal_query_result(es_result)
+
+        logs = result["list"]
+        self.assertEqual(len(logs), 1)
+        # __ext_json.user.id 被脱敏："user-38206" (10字符) → "u********6"
+        self.assertEqual(logs[0]["__ext_json"]["user"]["id"], "u********6")
+        # 同层 username 不受影响
+        self.assertEqual(logs[0]["__ext_json"]["user"]["username"], "test_user_23")
+        # __ext_json.deployment.pod 是 JSON 字符串，未被配置脱敏，保持原值
+        self.assertIsInstance(logs[0]["__ext_json"]["deployment"]["pod"], str)
+        parsed_pod = _json.loads(logs[0]["__ext_json"]["deployment"]["pod"])
+        self.assertEqual(parsed_pod["name"], "order-service-4")
+        # log 字段不受影响
+        self.assertEqual(logs[0]["log"], custom3_data["log"])
+
+    def test_custom3_json_string_log_subpath_desensitize(self):
+        """用 custom-3 真实数据验证 log JSON 字符串子路径脱敏
+
+        log 是合法 JSON 字符串，配置 log.user.id
+        log.user.id = "user-38206" (10字符) → "u********6"
+        """
+        import json as _json
+        with open("ai_plan/custom-3", "r") as f:
+            custom3_data = _json.load(f)
+
+        mask_config = {
+            "field_name": "log.user.id",
+            "rule_id": 0,
+            "operator": "mask_shield",
+            "params": {"preserve_head": 1, "preserve_tail": 1, "replace_mark": "*"},
+            "match_pattern": ".*",
+            "sort_index": 0,
+        }
+        self._put_config(field_configs=[mask_config])
+        handler = self._build_handler()
+
+        es_result = {
+            "took": 10,
+            "hits": {
+                "total": 1,
+                "hits": [
+                    {
+                        "_index": "v2_2_bklog_test_es_20260927_0",
+                        "_source": custom3_data,
+                    }
+                ],
+            },
+        }
+        result = handler._deal_query_result(es_result)
+
+        logs = result["list"]
+        self.assertEqual(len(logs), 1)
+        # log 仍为 JSON 字符串
+        self.assertIsInstance(logs[0]["log"], str)
+        parsed = _json.loads(logs[0]["log"])
+        # log.user.id 被脱敏
+        self.assertEqual(parsed["user"]["id"], "u********6")
+        # 同层 username 不受影响
+        self.assertEqual(parsed["user"]["username"], "test_user_23")
+        # log 中其他字段不受影响
+        self.assertEqual(parsed["service"], "order-service")
+        self.assertEqual(parsed["http"]["status_code"], 429)
+
+    def test_custom3_exception_masks_sensitive_preserves_metadata(self):
+        """用 custom-3 真实数据验证异常时选择性遮罩
+
+        配置 __ext_json.user.id + text_fields=["log"]
+        模拟 _log_desensitize 抛异常 → __ext_json 和 log 被遮罩，元数据保留
+        """
+        import json as _json
+        with open("ai_plan/custom-3", "r") as f:
+            custom3_data = _json.load(f)
+
+        mask_config = {
+            "field_name": "__ext_json.user.id",
+            "rule_id": 0,
+            "operator": "mask_shield",
+            "params": {"preserve_head": 1, "preserve_tail": 1, "replace_mark": "*"},
+            "match_pattern": ".*",
+            "sort_index": 0,
+        }
+        self._put_config(field_configs=[mask_config], text_fields=["log"])
+        handler = self._build_handler()
+
+        with patch(
+            "apps.log_search.handlers.search.search_handlers_esquery.SearchHandler._log_desensitize",
+            side_effect=RuntimeError("unexpected internal error"),
+        ):
+            es_result = {
+                "took": 10,
+                "hits": {
+                    "total": 1,
+                    "hits": [
+                        {
+                            "_index": "v2_2_bklog_test_es_20260927_0",
+                            "_source": custom3_data,
+                        }
+                    ],
+                },
+            }
+            result = handler._deal_query_result(es_result)
+
+        logs = result["list"]
+        self.assertEqual(len(logs), 1)
+        # __ext_json.* dotted key 被遮罩（flattened 格式，无顶层 __ext_json key）
+        self.assertEqual(logs[0]["__ext_json.user.id"], "***MASKED***")
+        self.assertEqual(logs[0]["__ext_json.user.username"], "***MASKED***")
+        self.assertEqual(logs[0]["__ext_json.deployment.application"], "***MASKED***")
+        # log 被遮罩（text_fields）
+        self.assertEqual(logs[0]["log"], "***MASKED***")
+        # message 保留原值
+        self.assertEqual(logs[0]["message"], "order request rejected by business validation")
+        # 元数据保留
+        self.assertEqual(logs[0]["dtEventTimeStamp"], "2026-10-22 14:25:26")
+        self.assertEqual(logs[0]["host"], "VM-38-149-tencentos")
