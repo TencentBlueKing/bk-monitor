@@ -477,10 +477,23 @@ def test_field_analyze_publishes_both_conditional_prerequisite_chains(monkeypatc
     assert summary["prerequisites"] == [name for names in expected_chains.values() for name in names]
 
 
-def test_fixed_index_tools_still_require_the_index_context():
-    tool = registry.get_tool_registry().get("get_index_set_fields")
+@pytest.mark.parametrize("native_enabled", [True, False])
+@pytest.mark.parametrize(
+    "tool_name,native_context",
+    [
+        ("search_logs", ["bk_biz_id"]),
+        ("analyze_field", ["bk_biz_id"]),
+        ("get_index_set_fields", ["bk_biz_id", "index_set_id"]),
+        ("search_event_log", ["bk_biz_id"]),
+        ("query_graph_profile", ["bk_biz_id", "app_name"]),
+    ],
+)
+def test_tool_summaries_preserve_required_context(monkeypatch, native_enabled, tool_name, native_context):
+    if not native_enabled:
+        monkeypatch.setattr(settings, "MCP_NATIVE_PERMISSION_TOOLS", [])
+    tool = registry.get_tool_registry().get(tool_name)
 
-    assert tool.summary()["required_context"] == ["bk_biz_id", "index_set_id"]
+    assert tool.summary()["required_context"] == (native_context if native_enabled else ["bk_biz_id"])
 
 
 @pytest.mark.parametrize("tool_name", ["search_logs", "analyze_field"])

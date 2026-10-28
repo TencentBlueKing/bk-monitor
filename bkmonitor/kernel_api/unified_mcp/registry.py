@@ -765,8 +765,9 @@ class ToolDefinition:
         context_fields = [self.resource_arg]
         if self.native_permission:
             resource_arg = self.native_permission.get("resource_arg", "")
+            conditional = self.native_permission.get("conditional")
             # 条件鉴权的可选资源不能提升为工具的全局必需上下文。
-            if resource_arg in self.input_schema.get("required", []):
+            if not conditional or resource_arg in self.input_schema.get("required", []):
                 context_fields.append(resource_arg)
         required_context = list(dict.fromkeys(name for name in context_fields if name and name in properties))
         return {
