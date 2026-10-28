@@ -185,9 +185,8 @@ class ListSpacesResource(Resource):
             (SpaceFunction.UPTIMECHECK.value, lambda s: s["space_type_id"] == SpaceTypeEnum.BKCC.value),
             (
                 SpaceFunction.K8S.value,
-                lambda s: (
-                    s["bk_biz_id"] > 0 or bool(s["space_type_id"] == SpaceTypeEnum.BKCI.value and s["space_code"])
-                ),
+                lambda s: s["bk_biz_id"] > 0
+                or bool(s["space_type_id"] == SpaceTypeEnum.BKCI.value and s["space_code"]),
             ),
             (SpaceFunction.CI_BUILDER.value, lambda s: s["space_type_id"] == SpaceTypeEnum.BKCI.value),
             (SpaceFunction.PAAS_APP.value, lambda s: s["space_type_id"] == SpaceTypeEnum.BKSAAS.value),
