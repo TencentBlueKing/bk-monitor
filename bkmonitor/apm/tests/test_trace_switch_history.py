@@ -257,66 +257,6 @@ def test_query_proxy_loads_history_from_metadata(exclusive, history, datasource_
         _get_app_meta.cache_clear()
 
 
-@pytest.mark.parametrize(
-    ("sort", "expected"),
-    [("end_time desc", [4, 3, 2]), ("end_time", [3, 4, 5])],
-)
-def test_multi_rt_list_sorts_before_global_pagination(span_query, mocker, sort, expected):
-    rows = {EXCLUSIVE_RT: [1, 3, 5], SHARED_RT: [2, 4, 6]}
-
-    def query_records(*, query_body, **kwargs):
-        assert query_body["offset"] == 0
-        assert query_body["limit"] == 5
-        assert (query_body["start_time"], query_body["end_time"]) == ((T1 - 60) * 1000, (T2 + 60) * 1000)
-        table = query_body["query_configs"][0]["table"]
-        return [{"end_time": value} for value in sorted(rows[table], reverse=sort.endswith("desc"))]
-
-    query = mocker.patch("bkmonitor.data_source.unify_query.builder.QueryHelper.query", side_effect=query_records)
-    records = span_query.query_list(T1 - 60, T2 + 60, 2, 3, sort=[sort])
-    assert [row["end_time"] for row in records] == expected
-    assert query.call_count == 2
-
-
-def test_multi_rt_group_list_deduplicates_before_pagination(span_query, mocker):
-    rows = {
-        EXCLUSIVE_RT: [{"trace_id": "same", "end_time": 6}, {"trace_id": "old", "end_time": 4}],
-        SHARED_RT: [{"trace_id": "same", "end_time": 5}, {"trace_id": "new", "end_time": 3}],
-    }
-    mocker.patch(
-        "bkmonitor.data_source.unify_query.builder.QueryHelper.query",
-        side_effect=lambda *, query_body, **kwargs: rows[query_body["query_configs"][0]["table"]],
-    )
-    records = span_query.query_group_list(T1 - 60, T2 + 60, "trace_id", offset=1, limit=2)
-    assert [row["trace_id"] for row in records] == ["old", "new"]
-
-
-def test_multi_rt_list_supports_object_fields_and_secondary_sort(span_query, mocker):
-    rows = {
-        EXCLUSIVE_RT: [{"resource": {"service.name": "b"}, "end_time": 1}, {"end_time": 100}],
-        SHARED_RT: [
-            {"resource": {"service.name": "a"}, "end_time": 3},
-            {"resource": {"service.name": "b"}, "end_time": 2},
-        ],
-    }
-    mocker.patch(
-        "bkmonitor.data_source.unify_query.builder.QueryHelper.query",
-        side_effect=lambda *, query_body, **kwargs: rows[query_body["query_configs"][0]["table"]],
-    )
-    records = span_query.query_list(T1 - 60, T2 + 60, 0, 4, sort=["resource.service.name", "end_time desc"])
-    assert [row["end_time"] for row in records] == [3, 2, 1, 100]
-
-
-def test_history_query_failure_is_not_silently_returned_as_partial_page(span_query, mocker):
-    def query_records(*, query_body, **kwargs):
-        if query_body["query_configs"][0]["table"] == EXCLUSIVE_RT:
-            raise RuntimeError("historical RT unavailable")
-        return [{"end_time": 1}]
-
-    mocker.patch("bkmonitor.data_source.unify_query.builder.QueryHelper.query", side_effect=query_records)
-    with pytest.raises(RuntimeError, match="historical RT unavailable"):
-        span_query.query_list(T1 - 60, T2 + 60, 0, 20)
-
-
 @pytest.fixture
 def new_data_id(mocker):
     return mocker.patch(
@@ -378,26 +318,47 @@ def test_new_pool_creation_failure_preserves_exclusive_source(exclusive, datasou
     datasource_apis["delete_index"].assert_not_called()
 
 
-def test_uq_query_reaches_old_and_new_rt_with_application_isolation(span_query, mocker):
+@pytest.fixture
+def uq_request(mocker):
     mocker.patch("bkmonitor.data_source.unify_query.query.bk_biz_id_to_space_uid", return_value="bkcc__2")
     mocker.patch("bkmonitor.data_source.unify_query.query.UnifyQuery.use_unify_query", return_value=True)
+    return mocker.patch("bkmonitor.data_source.unify_query.query.api.unify_query.query_raw")
 
-    def query_raw(**params):
-        query = params["query_list"][0]
-        assert params["order_by"] == ["-end_time"]
-        assert params["_from"] == 0
-        assert params["limit"] == 2
-        if query["table_id"] == EXCLUSIVE_RT:
-            return {"list": [{"span_id": "old", "end_time": 1}]}
-        assert query["table_id"] == SHARED_RT
-        assert "demo" in str(query)
-        assert "bk_biz_id" in str(query)
-        return {"list": [{"span_id": "new", "end_time": 2}]}
 
-    request = mocker.patch("bkmonitor.data_source.unify_query.query.api.unify_query.query_raw", side_effect=query_raw)
-    records = span_query.query_list(T1 - 60, T2 + 60, 0, 2)
+@pytest.mark.parametrize("sort,order_by", [("end_time desc", "-end_time"), ("attributes.score", "attributes.score")])
+def test_uq_list_sends_both_rts_with_global_pagination(span_query, uq_request, sort, order_by):
+    uq_request.return_value = {"list": [{"span_id": "new"}, {"span_id": "old"}]}
+    records = span_query.query_list(T1 - 60, T2 + 60, 10, 2, sort=[sort])
+    uq_request.assert_called_once()
+    params = uq_request.call_args.kwargs
+    assert [q["table_id"] for q in params["query_list"]] == [EXCLUSIVE_RT, SHARED_RT]
+    assert params["order_by"] == [order_by]
+    assert all("attributes" not in q["keep_columns"] for q in params["query_list"])
+    assert (params["_from"], params["limit"]) == (10, 2)
+    assert (params["start_time"], params["end_time"]) == (str(T1 - 60), str(T2 + 60))
+    assert "demo" in str(params["query_list"][1])
+    assert "bk_biz_id" in str(params["query_list"][1])
     assert [row["span_id"] for row in records] == ["new", "old"]
-    assert request.call_count == 2
+    assert all("attributes" not in row for row in records)
+
+
+def test_uq_group_list_passes_collapse_for_both_rts(span_query, uq_request):
+    uq_request.return_value = {"list": [{"trace_id": "new"}, {"trace_id": "old"}]}
+    records = span_query.query_group_list(T1 - 60, T2 + 60, "trace_id", offset=1, limit=2)
+    uq_request.assert_called_once()
+    params = uq_request.call_args.kwargs
+    assert [q["table_id"] for q in params["query_list"]] == [EXCLUSIVE_RT, SHARED_RT]
+    assert all(q["collapse"] == {"field": "trace_id"} for q in params["query_list"])
+    assert (params["_from"], params["limit"]) == (1, 2)
+    assert params["order_by"] == ["-end_time"]
+    assert [row["trace_id"] for row in records] == ["new", "old"]
+
+
+def test_uq_history_failure_is_propagated(span_query, uq_request):
+    uq_request.side_effect = RuntimeError("historical RT unavailable")
+    with pytest.raises(RuntimeError, match="historical RT unavailable"):
+        span_query.query_list(T1 - 60, T2 + 60, 0, 20)
+    uq_request.assert_called_once()
 
 
 @pytest.mark.parametrize(
@@ -452,19 +413,3 @@ def test_explicit_precalculation_table_keeps_relation_query_scope(history, mocke
     assert [q.query.table_name for q in query.build_queries(start_time=T1 + 1801, end_time=T2 - 1801)] == [
         "precalculate.relation"
     ]
-
-
-@pytest.mark.parametrize(
-    "sort,expected", [("attributes.score", ["old", "new"]), ("attributes.score desc", ["new", "old"])]
-)
-def test_excluded_sort_field_is_fetched_then_removed(span_query, mocker, sort, expected):
-    def query_records(*, query_body, **kwargs):
-        query = query_body["query_configs"][0]
-        assert "attributes" in query["select"]
-        is_old = query["table"] == EXCLUSIVE_RT
-        return [{"span_id": "old" if is_old else "new", "attributes": {"score": 1 if is_old else 2}}]
-
-    mocker.patch("bkmonitor.data_source.unify_query.builder.QueryHelper.query", side_effect=query_records)
-    records = span_query.query_list(T1 - 60, T2 + 60, 0, 2, sort=[sort])
-    assert [row["span_id"] for row in records] == expected
-    assert all("attributes" not in row for row in records)
