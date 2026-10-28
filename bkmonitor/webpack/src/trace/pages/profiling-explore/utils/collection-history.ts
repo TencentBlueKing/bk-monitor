@@ -43,6 +43,7 @@ import type {
 export const executionStatusLabels = {
   running: '采集中',
   succeed: '成功',
+  parsing: '解析中',
   partial_succeed: '部分成功',
   failed: '失败',
   timeout: '超时',
@@ -70,10 +71,28 @@ const hostStatusRanks: Record<string, number> = {
   running: 2,
   partial_succeed: 3,
   succeed: 4,
+  parsing: 4,
   cancelled: 5,
   outdate: 6,
   unknown: 7,
   parsing: 8,
+};
+
+// 失败原因类型到前端文案的映射；error_type 为空时（成功、解析中、采集中、超时、取消、unknown 及旧版采集端）直接用 message
+export const hostErrorTypeLabels: Record<string, string> = {
+  schedule_expired: '计划执行时间已过，未执行采集，可能存在下发延迟，如持续出现请联系管理员',
+  task_busy: '同一计划的上一轮采集仍在进行，本轮已跳过',
+  process_not_found: '未找到可采集的目标进程，请检查进程选择条件及进程是否存活',
+  empty_profile: '采集期间没有采到样本，目标进程可能处于空闲状态',
+  perf_unavailable: '主机 perf 不可用或权限不足，请检查 perf 安装与内核权限配置',
+  go_endpoint_failed: '无法从 Go pprof 端点获取数据，请检查地址、端口及 pprof 是否开启',
+  memory_limit: '主机可用内存低于设定阈值，已停止采集',
+  disk_limit: '采集临时文件超过设定的磁盘上限，已停止采集',
+  report_failed: '采集结果上报失败，请检查 agent 状态',
+  config_invalid: '采集配置不被当前采集器支持，请检查 agent 版本',
+  processes_exited: '部分目标进程在采集开始前已退出，其余进程已采集',
+  dispatch_failed: '作业下发失败',
+  collect_failed: '采集执行失败，详情见原始信息',
 };
 
 type ProcessFilters = Pick<CollectionHistoryFilters, 'process_names' | 'process_pids'>;
@@ -87,6 +106,10 @@ export function compareExecutionHostStatus(left: CollectionExecutionHost, right:
 
 export function createHistoryFilters(): CollectionHistoryFilters {
   return { ips: [], task_name: '', process_names: [], process_pids: [], schedule_types: [], status: '' };
+}
+
+export function executionHostMessage(host: CollectionExecutionHost): string {
+  return (host.error_type ? hostErrorTypeLabels[host.error_type] : '') || host.message || '';
 }
 
 export function executionKey(value: CollectionExecutionKey): CollectionExecutionKey {

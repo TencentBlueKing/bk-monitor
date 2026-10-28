@@ -65,6 +65,9 @@ import './collection-history.scss';
 
 const skeletonRows = Array.from({ length: 10 }, (_, index) => ({ executionKey: `loading-${index}` }));
 
+/** 表格固定配置项（表头吸顶、横向滚动条吸底），滚动容器为任务历史列表 .collection-history-scroll */
+const historyTableAffixed = { container: '.collection-history-scroll' };
+
 // 未下发 task_columns 时回退的默认列，列名在渲染时翻译
 const fallbackTaskColumns: CollectionTaskColumn[] = [
   { field: 'task_name', name: '任务名称', type: 'text' },
@@ -387,6 +390,8 @@ export default defineComponent({
             }}
             data={showSkeleton ? skeletonRows : this.tableRows}
             filterRow={emptyResult ? () => null : undefined}
+            headerAffixedTop={historyTableAffixed}
+            horizontalScrollAffixedBottom={historyTableAffixed}
             hover={!showSkeleton}
             needCustomScroll={false}
             resizable={true}
