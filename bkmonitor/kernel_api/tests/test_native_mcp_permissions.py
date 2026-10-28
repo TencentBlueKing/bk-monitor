@@ -483,6 +483,27 @@ def test_fixed_index_tools_still_require_the_index_context():
     assert tool.summary()["required_context"] == ["bk_biz_id", "index_set_id"]
 
 
+@pytest.mark.parametrize("tool_name", ["search_logs", "analyze_field"])
+@pytest.mark.parametrize("target_type", [None, "index_set", "scene"])
+@pytest.mark.parametrize("unified", [False, True])
+def test_log_query_modes_validate_required_context_before_permissions(native_http, io, tool_name, target_type, unified):
+    args = {"bk_biz_id": "2", "start_time": "1", "end_time": "2"}
+    if target_type is not None:
+        args["target_type"] = target_type
+    if tool_name == "analyze_field":
+        args["field_name"] = "level"
+
+    response, _ = native_http(registry.get_tool_registry().get(tool_name), args, unified)
+
+    required_arg = "table_id_conditions" if target_type == "scene" else "index_set_id"
+    assert response.status_code == 400
+    assert required_arg in json.loads(response.content)["data"]
+    io.catalog.assert_not_called()
+    io.iam.is_allowed.assert_not_called()
+    io.monitor.iam_client.is_allowed.assert_not_called()
+    io.dispatch.assert_not_called()
+
+
 def test_apm_event_branch_uses_application_instance(monkeypatch, request_factory, io):
     resource = Resource(
         "bk_monitorv3",

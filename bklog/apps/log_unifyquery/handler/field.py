@@ -101,25 +101,32 @@ class UnifyQueryFieldHandler(UnifyQueryHandler):
         else:
             return len(data.get("series"))
 
-    def get_topk_ts_data(self, vargs: int = 5):
+    def get_topk_ts_data(self, vargs: int = 5, raise_exception: bool = False):
         """
         获取topk时序数据，默认为前5
         """
-        topk_group_values = [group[0] for group in self.get_topk_list()]
+        topk_data = self.get_topk_data(vargs, raise_exception=raise_exception)
+        topk_group_values = [series["group_values"][0] for series in topk_data["series"]]
+        if not topk_group_values:
+            return topk_data
         search_dict = copy.deepcopy(self.result_merge_base_dict)
         for query in search_dict["query_list"]:
+            query.pop("limit", None)
             query["function"] = [
                 {"method": "count", "dimensions": [self.search_params["agg_field"]], "window": search_dict["step"]},
             ]
-            if not topk_group_values:
-                continue
             if len(query["conditions"]["field_list"]) > 0:
                 query["conditions"]["condition_list"].extend(["and"])
             query["conditions"]["field_list"].append(
                 {"field_name": self.search_params["agg_field"], "value": topk_group_values, "op": "eq"}
             )
         search_dict.update({"metric_merge": f"topk({vargs}, a)"})
-        data = self.query_ts_reference(search_dict)
+        data = self.query_ts_reference(search_dict, raise_exception=raise_exception)
+        # 选组阶段的部分失败会影响最终分组，不能被时序查询的成功状态掩盖。
+        if topk_data.get("is_partial"):
+            data["is_partial"] = True
+        if topk_data.get("status") and not data.get("status"):
+            data["status"] = topk_data["status"]
         return data
 
     def get_agg_value(self, agg_method: str):

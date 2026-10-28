@@ -471,7 +471,7 @@ paths:
                 limit:
                   type: string
                   nullable: true
-                  description: 'Maximum number of field-value groups to return, 1-1000. Set it for Top K or scene time series; scene time series preserves all time points in each returned group. Pass null or omit it for distribution analysis, which is subject to storage bucket limits. 返回的字段值分组数上限（1-1000）。Top K 或场景时间序列分析需传该值，场景时间序列保留各组的全部时间点；传 null 或不传时进行分布分析，仍受存储桶上限约束。'
+                  description: 'Maximum number of field-value groups to return, 1-1000. Set it for Top K or scene time series; scene time series first selects values by whole-range counts using the existing approximate Top K logic, then preserves all time points for those values. Pass null or omit it for distribution analysis, which is subject to storage bucket limits. 返回的字段值分组数上限（1-1000）。Top K 或场景时间序列分析需传该值，场景时序复用现有近似 Top K 逻辑按全时段计数选组，再保留选中值的全部时间点；传 null 或不传时进行分布分析，仍受存储桶上限约束。'
                 end_time:
                   type: string
                   description: 'End timestamp in seconds (Unix timestamp). CRITICAL: MUST use current timestamp - NEVER use historical values! If user doesn''t specify, calculate current time dynamically. Example in Python: import time; end_time = int(time.time()). Example in JavaScript: Math.floor(Date.now() / 1000). Example in Bash: date +%s. Always execute code to get current timestamp instead of using fixed numbers from training data. 结束时间戳(秒,Unix时间戳)。关键:必须使用当前时间戳 - 绝不使用历史值！ 如用户未指定,动态计算当前时间。Python示例: import time; end_time = int(time.time())。JavaScript示例: Math.floor(Date.now() / 1000)。Bash示例: date +%s。始终执行代码获取当前时间戳,而非使用训练数据中的固定数字。'

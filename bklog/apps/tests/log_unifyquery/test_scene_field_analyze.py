@@ -9,6 +9,7 @@ from rest_framework.test import APIRequestFactory
 
 from apps.api import UnifyQueryApi
 from apps.log_search.views.scene_search_views import SceneAnalyzeFieldSerializer, SceneSearchViewSet
+from apps.log_unifyquery.handler.field import UnifyQueryFieldHandler
 from apps.log_unifyquery.handler.scene_field import SceneFieldHandler
 from apps.log_unifyquery.handler.scene_search import SceneUnifyQueryHandler
 
@@ -158,7 +159,7 @@ class TestSceneAnalyzeField(TestCase):
                 series = make_series("ERROR", 10)
                 series["values"] = [[start_time + index * step_ms, count] for index, count in enumerate((10, 20, 30))]
                 payload = {
-                    "series": [series, make_series("WARN", 5)],
+                    "series": [series],
                     "result_table_id": ["bklog_index_set_1", "bklog_index_set_2"],
                     "trace_id": "scene-time-series",
                     "is_partial": True,
@@ -178,22 +179,203 @@ class TestSceneAnalyzeField(TestCase):
                     patch.object(
                         UnifyQueryApi.query_ts_reference,
                         "_send_request",
-                        return_value=Mock(data=copy.deepcopy(payload), is_success=Mock(return_value=True)),
+                        side_effect=[
+                            Mock(
+                                data={"series": [make_series("ERROR", 60), make_series("WARN", 5)]},
+                                is_success=Mock(return_value=True),
+                            ),
+                            Mock(data=copy.deepcopy(payload), is_success=Mock(return_value=True)),
+                        ],
                     ) as query,
                 ):
                     response = SceneSearchViewSet.as_view({"post": "analyze_field"})(request)
 
                 self.assertEqual(response.status_code, 200)
                 self.assertIs(response.data["result"], True)
-                self.assertEqual(response.data["data"], {**payload, "series": [series]})
+                self.assertEqual(response.data["data"], payload)
+                self.assertEqual(query.call_count, 2)
                 query_body = query.call_args.args[0]
                 query_item = query_body["query_list"][0]
                 self.assertEqual(query_body["step"], step or "1h")
                 self.assertEqual(
                     query_item["function"], [{"method": "count", "dimensions": ["level"], "window": step or "1h"}]
                 )
-                self.assertEqual(query_item["limit"], 1)
+                self.assertNotIn("limit", query_item)
+                self.assertIn(
+                    {"field_name": "level", "value": ["ERROR"], "op": "eq"}, query_item["conditions"]["field_list"]
+                )
                 self.assertEqual(query_item["table_id_conditions"], SCENE_CONDITIONS)
+
+    def test_time_series_merges_all_tables_for_selected_values(self):
+        table_values = [
+            {"ERROR": [50, 50], "WARN": [40, 50]},
+            {"WARN": [60, 40], "ERROR": [4, 6]},
+        ]
+        start_time = int(PARAMS["start_time"])
+
+        def query_reference(query_body, *_args):
+            query_item = query_body["query_list"][0]
+            window = query_item["function"][0].get("window")
+            selected_values = next(
+                (
+                    condition["value"]
+                    for condition in query_item["conditions"]["field_list"]
+                    if condition["field_name"] == "level" and condition["op"] == "eq"
+                ),
+                None,
+            )
+            merged_values = {}
+            for values in table_values:
+                counts = Counter(
+                    {
+                        value: sum(points)
+                        for value, points in values.items()
+                        if selected_values is None or value in selected_values
+                    }
+                )
+                for value, count in counts.most_common(query_item.get("limit")):
+                    points = values[value] if window else [count]
+                    merged_values.setdefault(value, [0] * len(points))
+                    merged_values[value] = [total + point for total, point in zip(merged_values[value], points)]
+            bucket_topk = None
+            if window and query_body["metric_merge"].startswith("topk("):
+                limit = int(query_body["metric_merge"].split("(", 1)[1].split(",", 1)[0])
+                bucket_topk = [
+                    dict(Counter({value: points[index] for value, points in merged_values.items()}).most_common(limit))
+                    for index in range(2)
+                ]
+            series = []
+            for value, points in merged_values.items():
+                item = make_series(value, sum(points))
+                item["values"] = [
+                    [start_time + index * 300_000, count]
+                    for index, count in enumerate(points)
+                    if bucket_topk is None or value in bucket_topk[index]
+                ]
+                if item["values"]:
+                    series.append(item)
+            payload = {
+                "series": series,
+                "result_table_id": ["bklog_index_set_1", "bklog_index_set_2"],
+                "trace_id": "time-series" if window else "topk-candidates",
+                "is_partial": False,
+            }
+            return Mock(data=payload, is_success=Mock(return_value=True))
+
+        for action in ("analyze_field", "fetch_statistics_graph"):
+            with self.subTest(action=action):
+                params = {**PARAMS, "limit": 1}
+                if action == "analyze_field":
+                    params.update(field_name="level", order_by="time", step="5m")
+                else:
+                    params.update(agg_field="level", field_type="keyword", interval="5m")
+                request = APIRequestFactory().post("/api/v1/search/scene/field/", params, format="json")
+                with (
+                    patch.object(SceneSearchViewSet, "get_permissions", return_value=[]),
+                    patch.object(
+                        UnifyQueryApi.query_ts_reference, "_send_request", side_effect=query_reference
+                    ) as query,
+                ):
+                    response = SceneSearchViewSet.as_view({"post": action})(request)
+
+                self.assertEqual(response.status_code, 200)
+                series = response.data["data"]["series"]
+                self.assertEqual(len(series), 1)
+                self.assertEqual(series[0]["group_values"], ["WARN"])
+                self.assertEqual(series[0]["values"], [[start_time, 100], [start_time + 300_000, 90]])
+                self.assertEqual(query.call_count, 2)
+                self.assertEqual(query.call_args_list[0].args[0]["query_list"][0]["limit"], 12)
+                self.assertNotIn("limit", query.call_args_list[1].args[0]["query_list"][0])
+                self.assertEqual(response.data["data"]["trace_id"], "time-series")
+
+    def test_topk_time_series_uses_requested_limit_for_both_handlers(self):
+        for handler_class in (SceneFieldHandler, UnifyQueryFieldHandler):
+            for limit in (None, 1, 7):
+                with self.subTest(handler=handler_class.__name__, limit=limit):
+                    scene_handler = self.make_handler()
+                    handler = handler_class.__new__(handler_class)
+                    handler.search_params = scene_handler.search_params
+                    handler.result_merge_base_dict = scene_handler.result_merge_base_dict
+                    original_body = copy.deepcopy(handler.result_merge_base_dict)
+                    candidates = [make_series(f"value_{index}", 10 - index) for index in range(9)]
+                    expected_limit = limit if limit is not None else 5
+                    payload = {"series": candidates[:expected_limit], "trace_id": "time-series"}
+                    handler.query_ts_reference = Mock(
+                        side_effect=[{"series": copy.deepcopy(candidates)}, copy.deepcopy(payload)]
+                    )
+
+                    result = handler.get_topk_ts_data() if limit is None else handler.get_topk_ts_data(limit)
+
+                    self.assertEqual(result, payload)
+                    queries = handler.query_ts_reference.call_args_list
+                    self.assertEqual(len(queries), 2)
+                    self.assertEqual(queries[0].args[0]["query_list"][0]["limit"], expected_limit * 2 + 10)
+                    time_query = queries[1].args[0]
+                    self.assertNotIn("limit", time_query["query_list"][0])
+                    self.assertIn(
+                        {
+                            "field_name": "level",
+                            "value": [f"value_{index}" for index in range(expected_limit)],
+                            "op": "eq",
+                        },
+                        time_query["query_list"][0]["conditions"]["field_list"],
+                    )
+                    self.assertEqual(time_query["query_list"][0]["function"][0]["window"], "5m")
+                    self.assertEqual(handler.result_merge_base_dict, original_body)
+
+    def test_time_series_with_no_candidates_does_not_query_without_a_filter(self):
+        handler = self.make_handler()
+        payload = {
+            "series": [],
+            "result_table_id": ["bklog_index_set_1"],
+            "trace_id": "topk-candidates",
+            "is_partial": True,
+            "status": {"code": "partial"},
+        }
+        handler.query_ts_reference = Mock(return_value=copy.deepcopy(payload))
+
+        self.assertEqual(handler.analyze_field(group_by=True, order_by="time", limit=3), payload)
+
+        handler.query_ts_reference.assert_called_once()
+        query_item = handler.query_ts_reference.call_args.args[0]["query_list"][0]
+        self.assertEqual(query_item["limit"], 16)
+        self.assertNotIn("window", query_item["function"][0])
+
+    def test_time_series_preserves_partial_candidate_status(self):
+        for time_status in (None, {"code": "time-series-partial"}):
+            with self.subTest(time_status=time_status):
+                handler = self.make_handler()
+                candidate_status = {"code": "candidate-partial"}
+                candidates = {"series": [make_series("WARN", 190)], "is_partial": True, "status": candidate_status}
+                payload = {
+                    "series": [make_series("WARN", 100)],
+                    "result_table_id": ["bklog_index_set_1", "bklog_index_set_2"],
+                    "trace_id": "time-series",
+                    "is_partial": False,
+                    "status": time_status,
+                }
+                handler.query_ts_reference = Mock(side_effect=[copy.deepcopy(candidates), copy.deepcopy(payload)])
+
+                result = handler.analyze_field(group_by=True, order_by="time", limit=1)
+
+                self.assertEqual(result, {**payload, "is_partial": True, "status": time_status or candidate_status})
+
+    def test_time_series_propagates_query_errors_in_both_phases(self):
+        for failing_phase in (1, 2):
+            with self.subTest(failing_phase=failing_phase):
+                handler = self.make_handler()
+                results = [{"series": [make_series("WARN", 190)]}] * (failing_phase - 1)
+                results.append(RuntimeError("query failed"))
+                with patch.object(UnifyQueryApi, "query_ts_reference", side_effect=results) as query:
+                    with self.assertRaisesRegex(RuntimeError, "query failed"):
+                        handler.analyze_field(group_by=True, order_by="time", limit=1)
+                self.assertEqual(query.call_count, failing_phase)
+
+    def test_page_time_series_keeps_default_exception_handling(self):
+        handler = self.make_handler()
+        with patch.object(UnifyQueryApi, "query_ts_reference", side_effect=RuntimeError("query failed")) as query:
+            self.assertEqual(handler.get_topk_ts_data(), {"series": []})
+        query.assert_called_once()
 
     def test_serializer_rejects_limits_out_of_range(self):
         for limit in (0, -1, 1001):
