@@ -474,17 +474,10 @@ def second_pool():
 
 
 def test_shared_pool_switch_preserves_exclusive_backup_and_history(
-    exclusive, shared_pool, second_pool, datasource_apis
+    exclusive, shared_pool, second_pool, datasource_apis, migration_command, migration_context
 ):
     for pool in (shared_pool, second_pool, shared_pool):
-        TraceDataSource.apply_datasource(
-            2,
-            "demo",
-            option=True,
-            is_shared=True,
-            shared_datasource_id=pool.pk,
-            es_storage_cluster=1,
-        )
+        migration_command.migrate_to_shared(migration_context, pool.pk)
     exclusive.refresh_from_db()
     shared_pool.refresh_from_db()
     second_pool.refresh_from_db()
@@ -496,14 +489,7 @@ def test_shared_pool_switch_preserves_exclusive_backup_and_history(
         second_pool.result_table_id,
     ]
     assert (shared_pool.usage_count, second_pool.usage_count) == (1, 0)
-    TraceDataSource.apply_datasource(
-        2,
-        "demo",
-        option=True,
-        is_shared=True,
-        shared_datasource_id=shared_pool.pk,
-        es_storage_cluster=1,
-    )
+    migration_command.migrate_to_shared(migration_context, shared_pool.pk)
     exclusive.refresh_from_db()
     shared_pool.refresh_from_db()
     assert len(exclusive.history_link_info) == 3
@@ -516,16 +502,13 @@ def test_shared_pool_switch_preserves_exclusive_backup_and_history(
     assert exclusive.index_set_id == 11
 
 
-@pytest.mark.parametrize("unavailable", ["disabled", "full", "missing", "race"])
+@pytest.mark.parametrize("unavailable", ["disabled", "full", "missing", "race", "save_failure"])
 def test_explicit_pool_failure_does_not_fallback_or_release_source(
-    exclusive,
-    shared_pool,
-    second_pool,
-    datasource_apis,
-    mocker,
-    unavailable,
+    exclusive, shared_pool, second_pool, datasource_apis, mocker, unavailable, migration_command, migration_context
 ):
-    TraceDataSource.apply_datasource(2, "demo", option=True, is_shared=True, es_storage_cluster=1)
+    from django.core.management import CommandError
+
+    migration_command.migrate_to_shared(migration_context, shared_pool.pk)
     exclusive.refresh_from_db()
     history = exclusive.history_link_info
     target_id = second_pool.pk
@@ -536,32 +519,22 @@ def test_explicit_pool_failure_does_not_fallback_or_release_source(
         second_pool.usage_count = second_pool.quota
         second_pool.save()
     elif unavailable == "missing":
-        target_id = second_pool.pk + 100
-    else:
+        target_id += 100
+    elif unavailable == "race":
         mocker.patch.object(SharedTraceDataSource, "acquire", return_value=False)
-    with pytest.raises(ValueError, match="不可用或容量不足"):
-        TraceDataSource.apply_datasource(
-            2,
-            "demo",
-            option=True,
-            is_shared=True,
-            shared_datasource_id=target_id,
-            es_storage_cluster=1,
-        )
+    else:
+        mocker.patch.object(TraceDataSource, "save", side_effect=RuntimeError("save failed"))
+    with pytest.raises((CommandError, RuntimeError)):
+        migration_command.migrate_to_shared(migration_context, target_id)
     exclusive.refresh_from_db()
     shared_pool.refresh_from_db()
+    second_pool.refresh_from_db()
     assert exclusive.shared_datasource_id == shared_pool.pk
     assert exclusive.history_link_info == history
     assert shared_pool.usage_count == 1
+    assert second_pool.usage_count == (second_pool.quota if unavailable == "full" else 0)
     assert SharedTraceDataSource.objects.count() == 2
     datasource_apis["create_rt"].assert_not_called()
-
-
-def test_disabled_pool_cannot_be_acquired(shared_pool):
-    SharedTraceDataSource.objects.filter(pk=shared_pool.pk).update(is_enabled=False)
-    assert not shared_pool.acquire()
-    shared_pool.refresh_from_db()
-    assert shared_pool.usage_count == 0
 
 
 @pytest.fixture
@@ -577,7 +550,7 @@ def migration_context(exclusive):
     from types import SimpleNamespace
     from apm.management.commands.migrate_apm_trace_datasource import TraceDataSourceMigrationContext
 
-    return TraceDataSourceMigrationContext(2, "demo", SimpleNamespace(id=1), exclusive)
+    return TraceDataSourceMigrationContext(2, "demo", SimpleNamespace(id=1, is_enabled_trace=True), exclusive)
 
 
 def test_batch_plan_balances_only_requested_pools(migration_command, migration_context, shared_pool, second_pool):
@@ -625,7 +598,7 @@ def test_batch_preflight_rejects_unavailable_capacity(
         pool_id += 100
     shared_pool.save()
     mocker.patch.object(migration_command, "get_migration_context", return_value=migration_context)
-    migrate = mocker.patch.object(migration_command, "migrate_app")
+    migrate = mocker.patch.object(migration_command, "migrate_batch")
     with pytest.raises(CommandError):
         migration_command.handle(target="shared", apps=["2:demo"], dry_run=False, shared_datasource_ids=[pool_id])
     migrate.assert_not_called()
@@ -633,50 +606,166 @@ def test_batch_preflight_rejects_unavailable_capacity(
 
 def test_batch_dry_run_shows_target_without_mutation(migration_command, migration_context, shared_pool, mocker):
     mocker.patch.object(migration_command, "get_migration_context", return_value=migration_context)
-    migrate = mocker.patch.object(migration_command, "migrate_app")
+    migrate = mocker.patch.object(migration_command, "migrate_batch")
     migration_command.handle(target="shared", apps=["2:demo"], dry_run=True, shared_datasource_ids=[shared_pool.pk])
     assert f"target_shared_datasource_id：{shared_pool.pk}" in migration_command.stdout.getvalue()
     migrate.assert_not_called()
 
 
-@pytest.mark.parametrize("already_in_pool", [False, True])
-def test_command_passes_selected_pool_through_resource(
-    migration_command,
-    migration_context,
-    shared_pool,
-    mocker,
-    already_in_pool,
+@pytest.mark.parametrize("fail_first", [False, True])
+def test_batch_migrates_mixed_apps_and_refreshes_once(
+    migration_command, migration_context, shared_pool, second_pool, datasource_apis, mocker, fail_first
 ):
-    if already_in_pool:
-        migration_context.trace_datasource.shared_datasource_id = shared_pool.pk
+    from dataclasses import replace
+    from types import SimpleNamespace
+    from django.core.management import CommandError
+
+    shared = TraceDataSource.objects.create(bk_biz_id=2, app_name="shared")
+    shared.set_from_shared({**shared_pool.to_shared_info(), "shared_datasource_id": shared_pool.pk})
+    shared.save()
+    shared_pool.usage_count = 1
+    shared_pool.save()
+    contexts = [
+        migration_context,
+        replace(
+            migration_context,
+            app_name="shared",
+            application=SimpleNamespace(id=2, is_enabled_trace=True),
+            trace_datasource=shared,
+        ),
+    ]
     module = "apm.management.commands.migrate_apm_trace_datasource"
+    mocker.patch.object(migration_command, "get_migration_context", side_effect=contexts)
+    request = mocker.patch(f"{module}.ApplyDatasourceResource.request")
+    apply = mocker.patch.object(TraceDataSource, "apply_datasource")
+    refresh = mocker.patch(f"{module}.ApplicationConfig")
+    if fail_first:
+        original_save = TraceDataSource.save
+
+        def save(instance, *args, **kwargs):
+            if instance.app_name == "demo":
+                raise RuntimeError("save failed")
+            return original_save(instance, *args, **kwargs)
+
+        mocker.patch.object(TraceDataSource, "save", autospec=True, side_effect=save)
+    options = dict(target="shared", apps=["2:demo", "2:shared"], dry_run=False, shared_datasource_ids=[second_pool.pk])
+    if fail_first:
+        with pytest.raises(CommandError, match="部分应用迁移失败"):
+            migration_command.handle(**options)
+    else:
+        migration_command.handle(**options)
+    request.assert_not_called()
+    apply.assert_not_called()
+    refresh.assert_not_called()
+    refresh.refresh_k8s.assert_called_once_with([c.application for c in contexts[1 if fail_first else 0 :]])
+    shared.refresh_from_db()
+    shared_pool.refresh_from_db()
+    second_pool.refresh_from_db()
+    migration_context.trace_datasource.refresh_from_db()
+    assert shared.shared_datasource_id == second_pool.pk
+    assert [link["table_id"] for link in shared.history_link_info] == [shared_pool.result_table_id]
+    assert shared.backup_link_info == {}
+    assert shared_pool.usage_count == 0
+    assert second_pool.usage_count == (1 if fail_first else 2)
+    exclusive = migration_context.trace_datasource
+    assert exclusive.result_table_id == (EXCLUSIVE_RT if fail_first else second_pool.result_table_id)
+    assert len(exclusive.history_link_info) == (0 if fail_first else 1)
+    assert bool(exclusive.backup_link_info) == (not fail_first)
+    datasource_apis["modify"].assert_not_called()
+    datasource_apis["delete_index"].assert_not_called()
+    datasource_apis["create_rt"].assert_not_called()
+
+
+def test_batch_retry_refreshes_without_repeating_migration(
+    migration_command, migration_context, shared_pool, datasource_apis, mocker
+):
+    refresh = mocker.patch("apm.management.commands.migrate_apm_trace_datasource.ApplicationConfig.refresh_k8s")
+    refresh.side_effect = RuntimeError("delivery failed")
+    with pytest.raises(RuntimeError, match="delivery failed"):
+        migration_command.migrate_batch([migration_context], [shared_pool.pk])
+    refresh.side_effect = None
+    migration_command.migrate_batch([migration_context], [shared_pool.pk])
+    migration_context.trace_datasource.refresh_from_db()
+    shared_pool.refresh_from_db()
+    assert len(migration_context.trace_datasource.history_link_info) == 1
+    assert shared_pool.usage_count == 1
+    assert refresh.call_count == 2
+
+
+@pytest.mark.parametrize("missing", ["datasource", "rt", "data_id"])
+def test_batch_rejects_uncreated_source_before_migration(
+    migration_command, migration_context, shared_pool, mocker, missing
+):
+    from dataclasses import replace
+    from django.core.management import CommandError
+
+    datasource = migration_context.trace_datasource
+    if missing == "datasource":
+        migration_context = replace(migration_context, trace_datasource=None)
+    elif missing == "rt":
+        datasource.result_table_id = ""
+    else:
+        datasource.bk_data_id = -1
+    mocker.patch.object(migration_command, "get_migration_context", return_value=migration_context)
+    migrate = mocker.patch.object(migration_command, "migrate_batch")
+    with pytest.raises(CommandError, match="仅支持已有"):
+        migration_command.handle(
+            target="shared", apps=["2:demo"], dry_run=False, shared_datasource_ids=[shared_pool.pk]
+        )
+    migrate.assert_not_called()
+
+
+def test_shared_target_is_invalid_for_exclusive_mode(migration_command, migration_context, shared_pool, mocker):
+    from django.core.management import CommandError
+
+    mocker.patch.object(migration_command, "get_migration_context", return_value=migration_context)
+    with pytest.raises(CommandError, match="仅适用于"):
+        migration_command.handle(
+            target="exclusive", apps=["2:demo"], dry_run=False, shared_datasource_ids=[shared_pool.pk]
+        )
+
+
+def test_batch_rejects_disabled_trace_before_changing_counts(migration_command, migration_context, shared_pool, mocker):
+    from django.core.management import CommandError
+
+    migration_context.application.is_enabled_trace = False
+    mocker.patch.object(migration_command, "get_migration_context", return_value=migration_context)
+    migrate = mocker.patch.object(migration_command, "migrate_batch")
+    with pytest.raises(CommandError, match="请先启用"):
+        migration_command.handle(
+            target="shared", apps=["2:demo"], dry_run=False, shared_datasource_ids=[shared_pool.pk]
+        )
+    migrate.assert_not_called()
+    shared_pool.refresh_from_db()
+    assert shared_pool.usage_count == 0
+
+
+def test_batch_all_failed_does_not_refresh_config(migration_command, migration_context, shared_pool, mocker):
+    from django.core.management import CommandError
+
+    mocker.patch.object(migration_command, "migrate_to_shared", side_effect=RuntimeError("failed"))
+    refresh = mocker.patch("apm.management.commands.migrate_apm_trace_datasource.ApplicationConfig.refresh_k8s")
+    with pytest.raises(CommandError, match="部分应用迁移失败"):
+        migration_command.migrate_batch([migration_context], [shared_pool.pk])
+    refresh.assert_not_called()
+
+
+def test_automatic_migration_keeps_existing_resource_flow(migration_command, migration_context, mocker):
+    module = "apm.management.commands.migrate_apm_trace_datasource"
+    mocker.patch.object(migration_command, "get_migration_context", return_value=migration_context)
     mocker.patch(f"{module}.ApplicationHelper.get_default_storage_config", return_value={"es_storage_cluster": 1})
     request = mocker.patch(f"{module}.ApplyDatasourceResource.request")
     refresh = mocker.patch(f"{module}.ApplicationConfig")
-    migration_command.migrate_app(migration_context, "shared", shared_pool.pk)
-    payload = request.call_args.args[0]
-    assert payload["trace_datasource_option"]["shared_datasource_id"] == shared_pool.pk
-    from apm.resources import ApplyDatasourceResource
-
-    serializer = ApplyDatasourceResource.RequestSerializer(data=payload)
-    assert serializer.is_valid(), serializer.errors
-    assert serializer.validated_data["trace_datasource_option"]["shared_datasource_id"] == shared_pool.pk
+    migration_command.handle(target="shared", apps=["2:demo"], dry_run=False)
+    request.assert_called_once_with(
+        {
+            "application_id": 1,
+            "trace_datasource_option": {"es_storage_cluster": 1},
+            "shared_datasource_types": ["trace"],
+        }
+    )
     refresh.return_value.refresh.assert_called_once()
-    refresh.refresh_k8s.assert_called_once()
-
-
-def test_shared_target_is_invalid_for_exclusive_mode(exclusive, shared_pool, datasource_apis):
-    with pytest.raises(ValueError, match="目标模式必须"):
-        TraceDataSource.apply_datasource(
-            2,
-            "demo",
-            option=True,
-            is_shared=False,
-            shared_datasource_id=shared_pool.pk,
-            es_storage_cluster=1,
-        )
-    exclusive.refresh_from_db()
-    assert exclusive.history_link_info == []
+    refresh.refresh_k8s.assert_called_once_with([migration_context.application])
 
 
 def test_command_parser_keeps_target_pools_and_deduplicates_apps(migration_command):

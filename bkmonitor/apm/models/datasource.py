@@ -277,12 +277,8 @@ class ApmDataSourceConfigBase(models.Model):
 
         is_shared: bool = options.get("is_shared", False)
 
-        target_shared_id: int | None = options.get("shared_datasource_id")
-        if target_shared_id is not None and not is_shared:
-            raise ValueError("指定共享数据源时目标模式必须为 shared")
-        changing_pool: bool = target_shared_id is not None and obj.shared_datasource_id != target_shared_id
-        # 模式或目标池变化时保留迁出链路，独占备份不被共享迁共享覆盖。
-        if obj.result_table_id and (obj.is_shared != is_shared or changing_pool):
+        # 模式变化时保留迁出链路。
+        if obj.result_table_id and obj.is_shared != is_shared:
             if not obj.is_shared and is_shared:
                 obj.backup_exclusive_link_info()
             obj.release_for_migration()
@@ -333,7 +329,7 @@ class ApmDataSourceConfigBase(models.Model):
             return
 
         # 尝试从池中分配
-        shared_info = shared_cls.allocate(options.get("shared_datasource_id"))
+        shared_info = shared_cls.allocate()
         if not shared_info:
             # 无可用共享源，创建新的
             shared_info = self._create_shared_datasource(shared_cls, **options)

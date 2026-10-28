@@ -13,7 +13,9 @@ from dataclasses import dataclass
 from typing import Any, ClassVar
 
 from django.core.management import BaseCommand, CommandError
+from django.db.transaction import atomic
 
+from apm.constants import DATABASE_CONNECTION_NAME
 from apm.core.application_config import ApplicationConfig
 from apm.core.handlers.application_hepler import ApplicationHelper
 from apm.models import ApmApplication, TraceDataSource
@@ -104,17 +106,72 @@ class Command(BaseCommand):
         pool_ids: list[int] = options.get("shared_datasource_ids") or []
         if pool_ids and target != TARGET_SHARED:
             raise CommandError("--shared-datasource-ids 仅适用于 --target shared")
-        plan: list[int | None] = self.plan_shared_targets(contexts, pool_ids) if pool_ids else [None] * len(contexts)
-        for context, pool_id in zip(contexts, plan):
+        if pool_ids:
+            plan: list[int] = self.plan_shared_targets(contexts, pool_ids)
             if dry_run:
-                self.write_dry_run_status(context, target, pool_id)
+                for context, pool_id in zip(contexts, plan):
+                    self.write_dry_run_status(context, target, pool_id)
             else:
-                self.migrate_app(context, target, pool_id)
+                self.migrate_batch(contexts, plan)
+            return
+
+        for context in contexts:
+            if dry_run:
+                self.write_dry_run_status(context, target)
+            else:
+                self.migrate_app(context, target)
+
+    def migrate_batch(self, contexts: list[TraceDataSourceMigrationContext], pool_ids: list[int]) -> None:
+        """批量切换已有链路，结束后统一刷新 K8s 配置。"""
+        applications: list[ApmApplication] = []
+        failed: int = 0
+        for context, pool_id in zip(contexts, pool_ids):
+            try:
+                self.migrate_to_shared(context, pool_id)
+            except Exception as exc:
+                failed += 1
+                self.stderr.write(f"迁移失败：{context.bk_biz_id}:{context.app_name}, {exc}")
+            else:
+                applications.append(context.application)
+                self.stdout.write(f"迁移完成：{context.bk_biz_id}:{context.app_name} -> shared_datasource_id={pool_id}")
+
+        # 已在目标池内的应用也刷新配置，支持上次下发失败后重试。
+        if applications:
+            ApplicationConfig.refresh_k8s(applications)
+        self.stdout.write(f"批量迁移结束：success={len(applications)}, failed={failed}")
+        if failed:
+            raise CommandError("部分应用迁移失败，请根据失败记录重试")
+
+    @staticmethod
+    @atomic(using=DATABASE_CONNECTION_NAME)
+    def migrate_to_shared(context: TraceDataSourceMigrationContext, pool_id: int) -> None:
+        """复用共享池基础方法，绑定、历史和计数在同一事务内更新。"""
+        datasource: TraceDataSource = TraceDataSource.objects.select_for_update().get(
+            bk_biz_id=context.bk_biz_id, app_name=context.app_name
+        )
+        if not datasource.result_table_id or datasource.bk_data_id <= 0:
+            raise CommandError("批量迁移仅支持已有 Trace 数据源")
+        pool: SharedTraceDataSource | None = (
+            SharedTraceDataSource.objects.select_for_update().filter(pk=pool_id, is_enabled=True).first()
+        )
+        if not pool or pool.bk_data_id <= 0 or not pool.result_table_id or not pool.index_set_id:
+            raise CommandError(f"目标共享数据源 {pool_id} 不可用或链路信息不完整")
+        if datasource.shared_datasource_id == pool_id:
+            return
+        if not pool.acquire():
+            raise CommandError(f"目标共享数据源 {pool_id} 容量不足")
+        if not datasource.is_shared:
+            datasource.backup_exclusive_link_info()
+        datasource.release_for_migration()
+        datasource.set_from_shared({**pool.to_shared_info(), "shared_datasource_id": pool.pk})
+        datasource.save()
 
     @staticmethod
     def plan_shared_targets(contexts: list[TraceDataSourceMigrationContext], pool_ids: list[int]) -> list[int]:
         """先校验整批容量并预分配，执行时仍由池的 acquire 原子校验。"""
-        pools = {pool.pk: pool for pool in SharedTraceDataSource.objects.filter(pk__in=pool_ids)}
+        pools: dict[int, SharedTraceDataSource] = {
+            pool.pk: pool for pool in SharedTraceDataSource.objects.filter(pk__in=pool_ids)
+        }
         for pool_id in pool_ids:
             pool = pools.get(pool_id)
             if (
@@ -127,7 +184,12 @@ class Command(BaseCommand):
                 raise CommandError(f"目标共享数据源 {pool_id} 不存在、未启用或链路信息不完整")
         plan: list[int] = []
         for context in contexts:
-            current_id = context.trace_datasource.shared_datasource_id if context.trace_datasource else None
+            if not context.application.is_enabled_trace:
+                raise CommandError(f"请先启用应用 Trace 再迁移：{context.bk_biz_id}:{context.app_name}")
+            datasource: TraceDataSource | None = context.trace_datasource
+            if not datasource or not datasource.result_table_id or datasource.bk_data_id <= 0:
+                raise CommandError(f"批量迁移仅支持已有 Trace 数据源：{context.bk_biz_id}:{context.app_name}")
+            current_id = datasource.shared_datasource_id
             if current_id in pools:
                 plan.append(current_id)
                 continue
@@ -206,12 +268,9 @@ class Command(BaseCommand):
             )
         )
 
-    def migrate_app(
-        self, context: TraceDataSourceMigrationContext, target: str, shared_datasource_id: int | None = None
-    ) -> None:
+    def migrate_app(self, context: TraceDataSourceMigrationContext, target: str) -> None:
         """迁移单个应用 Trace 数据源。"""
-        # 显式指定池时重走幂等 apply 和配置刷新，支持上次配置下发失败后重试。
-        if shared_datasource_id is None and context.current_mode == target and not context.needs_index_set_repair:
+        if context.current_mode == target and not context.needs_index_set_repair:
             self.stdout.write(
                 self.style.SUCCESS(
                     f"已跳过 Trace 数据源迁移：bk_biz_id={context.bk_biz_id}, "
@@ -227,9 +286,6 @@ class Command(BaseCommand):
             raise CommandError(
                 f"无法获取默认 Trace 存储配置：bk_biz_id={context.bk_biz_id}, app_name={context.app_name}"
             )
-
-        if shared_datasource_id is not None:
-            trace_datasource_option["shared_datasource_id"] = shared_datasource_id
 
         shared_datasource_types: list[str] = [TelemetryDataType.TRACE.value] if target == self.TARGET_SHARED else []
         ApplyDatasourceResource().request(
