@@ -158,6 +158,11 @@ class ModelFileStructureInvalidException(BaseClusteringException):
     MESSAGE = _("AIOPS 模型文件结构非法: {detail}")
 
 
+class MiniClusteringNotReadyException(BaseClusteringException):
+    ERROR_CODE = "030"
+    MESSAGE = _("日志聚类轻量化链路尚未接通，暂不支持接入: {index_set_id}")
+
+
 class BkFaraNotConfiguredException(BaseClusteringException):
     ERROR_CODE = "032"
     MESSAGE = _("BKFara 管理接口未配置，请检查 BKAPP_BKFARA_API_URL 与 BKAPP_BKFARA_API_TOKEN")
