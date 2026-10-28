@@ -3,6 +3,8 @@ from unittest.mock import patch
 from django.test import SimpleTestCase, override_settings
 
 from apps.feature_toggle.handlers.toggle import Toggle
+from apps.log_databus.models import CollectorConfig
+from apps.log_databus.nodeman_v3.mode import should_use_nodeman_v3
 from bkm_ipchooser.handlers.topo_handler import TopoHandler
 
 
@@ -52,19 +54,23 @@ class FillAgentStatusTest(SimpleTestCase):
         self.assertTrue(all(host["status"] is False for host in result))
 
     @override_settings(ENABLE_NODEMAN_V3=True)
-    def test_non_bkcc_space_uses_related_biz_for_v3_admission_and_query(self):
-        toggle = Toggle(status="debug", biz_id_white_list=[2])
+    def test_non_bkcc_space_admission_matches_collector_and_query_uses_related_biz(self):
+        toggle = Toggle(status="debug", biz_id_white_list=[-99])
+        config = CollectorConfig(collector_config_id=9001, bk_biz_id=-99, subscription_id=None)
         with (
             patch("apps.log_databus.nodeman_v3.mode.get_nodeman_v3_toggle", return_value=toggle),
+            patch("apps.log_databus.nodeman_v3.models.NodeManV3Binding.objects.filter") as bindings,
             patch("bkm_ipchooser.handlers.topo_handler.get_non_bkcc_space_related_bkcc_biz_id", return_value=2),
             patch("apps.log_databus.nodeman_v3.agent_status.get_client") as mock_get_client,
             patch("bkm_ipchooser.handlers.topo_handler.BaseHandler.get_meta_data", return_value={}),
             patch("bkm_ipchooser.handlers.topo_handler.BKNodeApi.ipchooser_host_details", return_value=[]) as v2_query,
         ):
+            bindings.return_value.values_list.return_value = []
             mock_get_client.return_value.list_hosts.return_value = {
                 "items": [{"bk_host_id": 1, "state": {"node_status": "running"}}]
             }
 
+            self.assertTrue(should_use_nodeman_v3(config))
             result = TopoHandler.fill_agent_status(self.hosts, -99)
 
         self.assertTrue(result[0].get("status"))
@@ -77,18 +83,22 @@ class FillAgentStatusTest(SimpleTestCase):
         v2_query.assert_not_called()
 
     @override_settings(ENABLE_NODEMAN_V3=True)
-    def test_non_bkcc_space_keeps_original_scope_for_v2(self):
-        toggle = Toggle(status="debug", biz_id_white_list=[3])
+    def test_non_bkcc_space_keeps_v2_when_only_related_biz_is_whitelisted(self):
+        toggle = Toggle(status="debug", biz_id_white_list=[2])
+        config = CollectorConfig(collector_config_id=9001, bk_biz_id=-99, subscription_id=None)
         meta = {"scope_type": "biz", "scope_id": "-99", "bk_biz_id": -99}
         with (
             patch("apps.log_databus.nodeman_v3.mode.get_nodeman_v3_toggle", return_value=toggle),
+            patch("apps.log_databus.nodeman_v3.models.NodeManV3Binding.objects.filter") as bindings,
             patch("bkm_ipchooser.handlers.topo_handler.get_non_bkcc_space_related_bkcc_biz_id", return_value=2),
             patch("bkm_ipchooser.handlers.topo_handler.get_agent_status") as v3_query,
             patch("bkm_ipchooser.handlers.topo_handler.BaseHandler.get_meta_data", return_value=meta) as mock_meta,
             patch("bkm_ipchooser.handlers.topo_handler.BKNodeApi.ipchooser_host_details") as v2_query,
         ):
+            bindings.return_value.values_list.return_value = []
             v2_query.return_value = [{"host_id": 1, "alive": True}]
 
+            self.assertFalse(should_use_nodeman_v3(config))
             result = TopoHandler.fill_agent_status(self.hosts, -99)
 
         self.assertTrue(result[0]["status"])

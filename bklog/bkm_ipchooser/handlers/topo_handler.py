@@ -189,12 +189,11 @@ class TopoHandler:
         for index, cc_host in enumerate(cc_hosts):
             host_map[cc_host["bk_host_id"]] = index
 
-        related_bk_biz_id = bk_biz_id
-        if bk_biz_id and int(bk_biz_id) < 0:
-            related_bk_biz_id = get_non_bkcc_space_related_bkcc_biz_id(bk_biz_id)
-
-        # IP 选择器是业务级查询，无法按采集项判断，复用采集项的业务级准入
-        if is_nodeman_v3_admitted(related_bk_biz_id):
+        # 准入沿用采集项的原始空间 ID，关联 CC 业务 ID 仅用于 NodeMan 查询。
+        if is_nodeman_v3_admitted(bk_biz_id):
+            related_bk_biz_id = bk_biz_id
+            if bk_biz_id and int(bk_biz_id) < 0:
+                related_bk_biz_id = get_non_bkcc_space_related_bkcc_biz_id(bk_biz_id)
             return cls._fill_agent_status_v3(cc_hosts, host_map, related_bk_biz_id)
 
         try:
