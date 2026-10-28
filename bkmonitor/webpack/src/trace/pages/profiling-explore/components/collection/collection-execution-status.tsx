@@ -28,7 +28,7 @@ import { defineComponent } from 'vue';
 import { Tag } from 'bkui-vue';
 import { useI18n } from 'vue-i18n';
 
-import { executionStatusLabels } from '../../utils/collection-history';
+import { executionStatusLabels, resultStatusLabels } from '../../utils/collection-history';
 import CommonStatus, { type CommonStatusType } from '@/components/common-detail/common-status/common-status';
 
 import './collection-execution-status.scss';
@@ -52,6 +52,7 @@ export default defineComponent({
     return { t: useI18n().t };
   },
   render() {
+    const text = (this.result ? resultStatusLabels : executionStatusLabels)[this.status] || '未知';
     if (this.tag) {
       return (
         <Tag
@@ -59,7 +60,7 @@ export default defineComponent({
           radius='4px'
           type='filled'
         >
-          {this.t(executionStatusLabels[this.status] || '未知')}
+          {this.t(text)}
         </Tag>
       );
     }
@@ -68,16 +69,14 @@ export default defineComponent({
         class='collection-execution-status'
         v-tippy={{ content: this.message, allowHTML: false, onShow: () => !!this.message }}
       >
-        {this.status === 'running' ? (
+        {['running', 'parsing'].includes(this.status) ? (
           <span class='collection-execution-running'>
             <i aria-hidden='true' />
-            {this.t('采集中')}
+            {this.t(text)}
           </span>
         ) : (
           <CommonStatus
-            text={this.t(
-              this.result && this.status === 'succeed' ? '结果可用' : executionStatusLabels[this.status] || '未知'
-            )}
+            text={text}
             type={statusTypes[this.status] || 'disabled'}
           />
         )}
