@@ -18,6 +18,7 @@ from django.utils import timezone, translation
 
 from alarm_backends.core.cache.cmdb import BusinessManager, HostManager
 from alarm_backends.core.cache.strategy import StrategyCacheManager
+from alarm_backends.core.control.mixins.double_check import DoubleCheckStrategy
 from api.cmdb.define import Business
 from bkmonitor.documents import AlertDocument, EventDocument
 from bkmonitor.models import ActionInstance, GlobalConfig
@@ -50,6 +51,7 @@ def make_alert(alert_id="alert-1", name="测试告警", bk_biz_id=2):
             category="application",
             severity=2,
             alert_name=name,
+            tags=[{"key": DoubleCheckStrategy.DOUBLE_CHECK_CONTEXT_KEY, "value": "SUSPECTED_MISSING_POINTS"}],
         ),
     )
 
@@ -144,6 +146,7 @@ def test_standard_assignment_uses_event_snapshot_and_real_send(assignment, setti
     assert assignment.sms.call_args.kwargs["content"] == expected
     assert data["sms_assign_time"] in expected
     assert "预警" in expected
+    assert "疑似异常" not in expected
     assert sms_utf16_length(expected) <= 70
     assert assignment.sms.call_args.kwargs["bk_tenant_id"] == "tenant-a"
     assert assignment.mail.call_args.kwargs["bk_tenant_id"] == "tenant-a"
@@ -153,6 +156,7 @@ def test_standard_assignment_uses_event_snapshot_and_real_send(assignment, setti
     assert assignment.created[-1].status == ActionStatus.SUCCESS
     assert list(assignment.created[-1].outputs["notice_results"]) == NOTICE_WAYS
     assert len(assignment.rendered[-1]["action_configs"]) == len(NOTICE_WAYS)
+    assert set(assignment.params_api.call_args.args[0]) == {"action_configs", "alert_ids", "action_id", "bk_biz_id"}
     for config in assignment.rendered[-1]["action_configs"]:
         way = config["execute_config"]["context_inputs"]["notice_way"]
         message = config["execute_config"]["template_detail"]["message"]
@@ -194,8 +198,19 @@ def test_assignment_preserves_legacy_and_other_channel_content(assignment, count
     assert assignment.post.call_args.kwargs["json"] == standard_bot
     legacy_message = assignment.rendered[-1]["action_configs"][0]["execute_config"]["template_detail"]["message"]
     assert assignment.sms.call_args.kwargs["content"] == legacy_message
-    assert "分派原因" in legacy_message
-    assert "请协助处理" in legacy_message
+    expected_content = "内容: 已持续1m, 原始告警内容\n所属空间: [2]测试业务 (业务)\n目标: \n告警ID: alert-1"
+    if count == 1:
+        expected_legacy = (
+            "蓝鲸监控通知，operator给您分派了告警【{alarm.name}({alarm.id})】\n"
+            "分派原因: 请协助处理\n负责人: responder\n"
+            "operator给您分派了告警【{alarm.name}({alarm.id})】\n" + expected_content
+        )
+    else:
+        expected_legacy = (
+            "分派原因: 请协助处理\n负责人: responder\n代表：--\n"
+            "operator给您分派了【测试告警】等2个告警\n" + expected_content
+        )
+    assert legacy_message == expected_legacy
     assert data["sms_assign_time"] not in legacy_message
     assert assignment.sms.call_args.kwargs["bk_tenant_id"] == "tenant-a"
     assert assignment.mail.call_args.kwargs["bk_tenant_id"] == "tenant-a"
