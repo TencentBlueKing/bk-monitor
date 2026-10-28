@@ -27,6 +27,12 @@ from bkmonitor.utils.sms import (
 
 TIME = "2025年1月1日 01:02分"
 GUIDANCE = "请到企业微信/蓝鲸监控平台查看。"
+ENGLISH_NO_ACTION = {
+    "recovered/action": "no action",
+    "recovered/converge": "ignore",
+    "closed/action": "no action",
+    "closed/converge": "Skip ",
+}
 VALUES = {
     "time": TIME,
     "level": "致命",
@@ -133,11 +139,42 @@ def test_english_standard_template_matrix(kind):
     assert content.endswith("WeCom/BK.")
     assert not any("\u4e00" <= character <= "\u9fff" for character in content)
     assert len(content.encode("utf-16-le")) // 2 <= 70
-    if kind.startswith(("recovered/", "closed/")):
-        assert "no action" in content
+    if kind in ENGLISH_NO_ACTION:
+        assert ENGLISH_NO_ACTION[kind] in content
     if kind == "incident":
         assert "5 alerts" in content
-        assert "Act in" in content
+        assert "Act:Emergency fault" in content
+
+
+@pytest.mark.parametrize("count", [1000, 100000, 2147483647])
+@pytest.mark.parametrize(
+    "kind",
+    ["abnormal/converge", "recovered/converge", "closed/converge", "ack/converge", "assign/converge", "incident"],
+)
+def test_english_count_templates_support_32_bit_counts(kind, count):
+    values = {
+        **VALUES,
+        "time": "2026-12-31 23:59",
+        "count": count,
+        "level": "Emergency",
+        "name": "名称😀" * 100,
+        "operator": ["operator😀" * 100, "other"],
+    }
+
+    content = render_standard_sms(kind, values, language="en")
+
+    assert content.startswith("2026-12-31 23:59 ")
+    assert str(count) in content
+    assert content.endswith("See WeCom/BK.")
+    assert len(content.encode("utf-16-le")) // 2 <= 70
+    if kind != "ack/converge":
+        assert "Emergency" in content
+    if kind in ENGLISH_NO_ACTION:
+        assert ENGLISH_NO_ACTION[kind] in content
+    if kind == "assign/converge":
+        assert "Assigned:" in content
+    if kind == "incident":
+        assert "Act:Emergency fault" in content
 
 
 @pytest.mark.parametrize("kind", SMS_TEMPLATE_KINDS)
@@ -161,7 +198,7 @@ def test_matrix_handles_longest_date_and_long_names(kind, language):
     assert len(content.encode("utf-16-le")) // 2 <= 70
     assert content.endswith(GUIDANCE if language == "zh-hans" else "WeCom/BK.")
     if kind in ("recovered/action", "recovered/converge", "closed/action", "closed/converge"):
-        assert "无需处理" in content if language == "zh-hans" else "no action" in content
+        assert "无需处理" in content if language == "zh-hans" else ENGLISH_NO_ACTION[kind] in content
 
 
 @pytest.mark.parametrize("kind", SMS_TEMPLATE_KINDS)
