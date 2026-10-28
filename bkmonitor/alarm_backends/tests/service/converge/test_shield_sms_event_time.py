@@ -71,7 +71,7 @@ def test_start_notice_uses_original_future_probe_and_business_timezone(monkeypat
     lock = lock_storage(monkeypatch)
     shield.get_now_datetime = lambda: arrow.get("2026-09-09T09:56:00+00:00")
     assert shield.can_send_start_notice() is True
-    context = shield.get_notice_context("start")
+    context = shield.get_notice_context("start", include_standard_sms=True)
     assert shield._sms_start_notice_probe == arrow.get("2026-09-09T10:01:00+00:00")
     assert context["sms_event_time_formatted"] == "2026年9月9日 18:00分"
     assert context["cycle_duration"] == "1小时/天"
@@ -86,7 +86,10 @@ def test_end_notice_uses_last_matching_minute(monkeypatch):
     shield.get_now_datetime = lambda: arrow.get("2026-09-09T10:55:00+00:00")
     assert shield.can_send_end_notice() is True
     assert shield._sms_end_notice_probe == arrow.get("2026-09-09T11:00:00+00:00")
-    assert shield.get_notice_context("end")["sms_event_time_formatted"] == "2026年9月9日 19:00分"
+    assert (
+        shield.get_notice_context("end", include_standard_sms=True)["sms_event_time_formatted"]
+        == "2026年9月9日 19:00分"
+    )
 
 
 def test_missing_matching_end_probe_displays_unknown_and_keeps_send_decision(monkeypatch):
@@ -94,7 +97,7 @@ def test_missing_matching_end_probe_displays_unknown_and_keeps_send_decision(mon
     lock_storage(monkeypatch, value="lock")
     shield.get_now_datetime = lambda: arrow.get("2026-09-09T12:00:00+00:00")
     assert shield.can_send_end_notice() is True
-    assert shield.get_notice_context("end")["sms_event_time_formatted"] == "时间未知"
+    assert shield.get_notice_context("end", include_standard_sms=True)["sms_event_time_formatted"] == "时间未知"
 
 
 def test_overnight_notice_uses_the_current_occurrence_full_date(monkeypatch):
@@ -102,7 +105,10 @@ def test_overnight_notice_uses_the_current_occurrence_full_date(monkeypatch):
     lock_storage(monkeypatch, value="lock")
     shield.get_now_datetime = lambda: arrow.get("2026-09-10T00:55:00+00:00")
     assert shield.can_send_end_notice() is True
-    assert shield.get_notice_context("end")["sms_event_time_formatted"] == "2026年9月10日 09:00分"
+    assert (
+        shield.get_notice_context("end", include_standard_sms=True)["sms_event_time_formatted"]
+        == "2026年9月10日 09:00分"
+    )
 
 
 @pytest.mark.parametrize("notice_type", ["start", "end"])
@@ -113,7 +119,7 @@ def test_single_notice_uses_configured_boundary(monkeypatch, notice_type):
     shield.get_now_datetime = lambda: arrow.get(at)
     assert getattr(shield, f"can_send_{notice_type}_notice")() is True
     expected = "2026年10月1日 08:00分" if notice_type == "end" else "2026年9月1日 08:00分"
-    assert shield.get_notice_context(notice_type)["sms_event_time_formatted"] == expected
+    assert shield.get_notice_context(notice_type, include_standard_sms=True)["sms_event_time_formatted"] == expected
 
 
 @pytest.mark.parametrize(
@@ -125,7 +131,7 @@ def test_mixed_system_and_django_offsets_make_week_month_unknown(monkeypatch, ma
     shield.get_now_datetime = lambda: arrow.get("2026-09-09T09:56:00+00:00")
     with timezone.override("Asia/Shanghai"):
         assert shield.can_send_start_notice() is True
-        assert shield.get_notice_context("start")["sms_event_time_formatted"] == "时间未知"
+        assert shield.get_notice_context("start", include_standard_sms=True)["sms_event_time_formatted"] == "时间未知"
 
 
 @pytest.mark.parametrize(
@@ -136,7 +142,10 @@ def test_same_offsets_allow_week_month_window(monkeypatch, matcher_class, cycle)
     lock_storage(monkeypatch)
     shield.get_now_datetime = lambda: arrow.get("2026-09-09T09:56:00+00:00")
     assert shield.can_send_start_notice() is True
-    assert shield.get_notice_context("start")["sms_event_time_formatted"] == "2026年9月9日 18:00分"
+    assert (
+        shield.get_notice_context("start", include_standard_sms=True)["sms_event_time_formatted"]
+        == "2026年9月9日 18:00分"
+    )
 
 
 def test_close_matcher_keeps_its_existing_calendar_when_system_offset_differs(monkeypatch):
@@ -149,7 +158,10 @@ def test_close_matcher_keeps_its_existing_calendar_when_system_offset_differs(mo
             {"type": 3, **shield.config["cycle_config"]}, shield.config["begin_time"], shield.config["end_time"]
         )
         assert shield.can_send_start_notice() is True
-        assert shield.get_notice_context("start")["sms_event_time_formatted"] == "2026年9月9日 18:00分"
+        assert (
+            shield.get_notice_context("start", include_standard_sms=True)["sms_event_time_formatted"]
+            == "2026年9月9日 18:00分"
+        )
 
 
 def test_context_formatting_does_not_activate_business_locale_or_timezone(monkeypatch):
@@ -161,7 +173,7 @@ def test_context_formatting_does_not_activate_business_locale_or_timezone(monkey
     monkeypatch.setattr(i18n, "set_biz", set_biz)
     language = translation.get_language()
     timezone_name = timezone.get_current_timezone_name()
-    context = shield.get_notice_context("start")
+    context = shield.get_notice_context("start", include_standard_sms=True)
     assert context["sms_event_time_formatted"] == "2026年9月9日 18:00分"
     assert translation.get_language() == language
     assert timezone.get_current_timezone_name() == timezone_name
@@ -175,7 +187,9 @@ def test_existing_lock_and_send_order_stays_unchanged(monkeypatch):
     sent = []
 
     def send(notice_type):
-        sent.append((notice_type, shield.get_notice_context(notice_type)["sms_event_time_formatted"]))
+        sent.append(
+            (notice_type, shield.get_notice_context(notice_type, include_standard_sms=True)["sms_event_time_formatted"])
+        )
         return {"sms": True}
 
     shield.send_notice = send
@@ -190,3 +204,49 @@ def test_existing_lock_and_send_order_stays_unchanged(monkeypatch):
     assert sent[-1] == ("end", "2026年9月9日 19:00分")
     lock.expire.assert_called_once_with(shield_id=1)
     lock.client.delete.assert_called_once_with("lock")
+
+
+@pytest.mark.parametrize("mode", ["legacy", "standard"])
+def test_invalid_business_timezone_only_affects_standard_sms_time(monkeypatch, mode):
+    shield = make_shield()
+    shield.config["notice_config"]["notice_way"] = ["mail", "sms"]
+    shield.parse_notice_receivers = lambda: ["alice"]
+    mode_read = Mock(return_value=mode)
+    monkeypatch.setattr(shield_obj, "get_sms_template_mode", mode_read)
+    get_business_timezone = Mock(return_value="Invalid/Zone")
+    monkeypatch.setattr(shield_obj, "business_timezone", get_business_timezone)
+    sender = Mock()
+    sender.return_value.send.return_value = {"alice": {"result": True}}
+    monkeypatch.setattr(shield_obj, "Sender", sender)
+
+    result = shield.send_notice("start")
+
+    assert list(result) == ["mail", "sms"]
+    mode_read.assert_called_once_with()
+    context = sender.call_args.kwargs["context"]
+    if mode == "standard":
+        assert context["sms_event_time_formatted"] == "时间未知"
+        get_business_timezone.assert_called_once()
+    else:
+        assert "sms_event_time_formatted" not in context
+        get_business_timezone.assert_not_called()
+
+
+def test_standard_shield_time_is_frozen_before_sender_changes_timezone(monkeypatch):
+    shield = make_shield()
+    shield.config["notice_config"]["notice_way"] = ["mail", "sms"]
+    shield.parse_notice_receivers = lambda: ["alice"]
+    shield._sms_start_notice_probe = arrow.get("2026-09-09T10:01:00+00:00")
+    monkeypatch.setattr(shield_obj, "get_sms_template_mode", lambda: "standard")
+    contexts = []
+
+    def sender(**kwargs):
+        contexts.append(kwargs)
+        timezone.activate("America/Los_Angeles")
+        return SimpleNamespace(content="rendered", send=lambda *args: {})
+
+    monkeypatch.setattr(shield_obj, "Sender", sender)
+    shield.send_notice("start")
+
+    assert contexts[-1]["context"]["sms_event_time_formatted"] == "2026年9月9日 18:00分"
+    assert all(context["sms_template_mode"] == "standard" for context in contexts)

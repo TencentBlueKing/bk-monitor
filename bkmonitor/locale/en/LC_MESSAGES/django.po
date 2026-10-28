@@ -1944,6 +1944,18 @@ msgstr "Host anomaly detection algorithm"
 msgid "致命"
 msgstr "Emergency"
 
+msgid "短信文案模式"
+msgstr "SMS message mode"
+
+msgid "原文案"
+msgstr "Legacy message"
+
+msgid "标准文案"
+msgstr "Standard message"
+
+msgid "时间未知"
+msgstr "Time unknown"
+
 msgid "预警"
 msgstr "Critical"
 

@@ -804,6 +804,14 @@ STANDARD_CONFIGS = OrderedDict(
         ("FTA_ES_RETENTION", slz.IntegerField(label=_("自愈ES数据保留时间"), default=365)),
         ("DOUBLE_CHECK_SUM_STRATEGY_IDS", slz.ListField(label=_("适用 SUM 聚合方法二次确认的策略ID列表"), default=[])),
         ("SMS_CONTENT_LENGTH", slz.IntegerField(label=_("发送短信内容最大长度（0表示不限制）"), default=0)),
+        (
+            "SMS_NOTICE_TEMPLATE_MODE",
+            slz.ChoiceField(
+                label=_("短信文案模式"),
+                choices=[("legacy", _("原文案")), ("standard", _("标准文案"))],
+                default=settings.SMS_NOTICE_TEMPLATE_MODE,
+            ),
+        ),
         ("IS_ACCESS_BK_DATA", slz.BooleanField(label=_("是否开启与计算平台的功能对接"), default=False)),
         (
             "IS_MIGRATE_AIOPS_STRATEGY",

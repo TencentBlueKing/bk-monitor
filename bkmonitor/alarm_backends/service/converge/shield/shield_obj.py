@@ -37,7 +37,7 @@ from bkmonitor.utils.range import (
 from bkmonitor.utils.range.conditions import AndCondition, Condition, EqualCondition, OrCondition
 from bkmonitor.utils.range.period import TimeMatch, TimeMatchByMonth, TimeMatchBySingle, TimeMatchByWeek
 from bkmonitor.utils.send import Sender
-from bkmonitor.utils.sms import format_sms_time
+from bkmonitor.utils.sms import format_sms_time, get_sms_template_mode
 from bkmonitor.utils.tenant import bk_biz_id_to_bk_tenant_id
 from constants.shield import ScopeType, ShieldCategory
 from core.errors.alarm_backends import StrategyNotFound
@@ -371,7 +371,9 @@ class ShieldObj:
             return {}
 
         # 获取通知模板上下文
-        context = self.get_notice_context(notice_type)
+        notice_ways = self.config["notice_config"]["notice_way"]
+        sms_template_mode = get_sms_template_mode() if "sms" in notice_ways else "legacy"
+        context = self.get_notice_context(notice_type, include_standard_sms=sms_template_mode == "standard")
 
         all_notice_result = {}
 
@@ -381,6 +383,7 @@ class ShieldObj:
                 title_template_path=f"notice/shield/{notice_way}_title.jinja",
                 content_template_path=f"notice/shield/{notice_way}_content.jinja",
                 context=context,
+                sms_template_mode=sms_template_mode,
             )
             logger.debug(
                 "[屏蔽通知] shield({}) 通知方式：{}, 内容：{}".format(self.config["id"], notice_way, sender.content)
@@ -412,7 +415,7 @@ class ShieldObj:
 
         return actual_receivers
 
-    def get_notice_context(self, notice_type):
+    def get_notice_context(self, notice_type, include_standard_sms=False):
         """
         获取屏蔽通知上下文
         :param notice_type:
@@ -434,12 +437,17 @@ class ShieldObj:
             "cycle_duration": self.display_manager.get_cycle_duration(self.config),
             "shield_content": self.display_manager.get_shield_content(self.config),
             "description": self.config["description"],
-            "sms_event_time_formatted": format_sms_time(
-                self._get_sms_notice_boundary(notice_type),
-                tz=business_timezone(self.config["bk_biz_id"]),
-                language=settings.DEFAULT_LOCALE,
-            ),
         }
+        if include_standard_sms:
+            try:
+                context["sms_event_time_formatted"] = format_sms_time(
+                    self._get_sms_notice_boundary(notice_type),
+                    tz=business_timezone(self.config["bk_biz_id"]),
+                    language=settings.DEFAULT_LOCALE,
+                )
+            except Exception:
+                logger.warning("failed to resolve shield SMS event time", exc_info=True)
+                context["sms_event_time_formatted"] = format_sms_time(None, language=settings.DEFAULT_LOCALE)
 
         return context
 
