@@ -101,9 +101,6 @@ class Migration(migrations.Migration):
                 ("active_config", models.JSONField(blank=True, default=dict, verbose_name="生效的聚类配置")),
                 ("pending_config", models.JSONField(blank=True, null=True, verbose_name="待生效的聚类配置")),
                 ("sink", models.JSONField(blank=True, default=dict, verbose_name="LogClusteringSink 资源身份")),
-                ("databus", models.JSONField(blank=True, default=dict, verbose_name="Databus 资源身份")),
-                ("raw_sink", models.JSONField(blank=True, default=dict, verbose_name="原存储绑定引用")),
-                ("metadata_revision", models.IntegerField(default=0, verbose_name="metadata 绑定修订")),
                 (
                     "pattern_index",
                     models.CharField(blank=True, default="", max_length=255, verbose_name="Pattern 索引"),

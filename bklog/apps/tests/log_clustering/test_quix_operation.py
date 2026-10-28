@@ -41,14 +41,12 @@ QUIX_CONFIG = {
     "pattern_resource": {"kind": "ElasticSearch", "namespace": "bklog", "name": "pattern_es"},
 }
 SET_RESULT = {
-    "revision": 1,
     "attached": True,
     "applied_scope": "datalink",
     "sink": {"tenant": "system", "namespace": "bklog", "name": "bkm_lcs_1001_abc"},
     "databus": {"tenant": "system", "namespace": "bklog", "name": "bklog_databus"},
-    "raw_sink": {"kind": "ElasticSearchBinding", "namespace": "bklog", "name": "bklog_binding"},
 }
-ADOPTED_STATUS = {"revision": 1, "sink_referenced": True, "sink_resource": {"status": {"phase": "Ok"}}, "errors": []}
+ADOPTED_STATUS = {"sink_referenced": True, "sink_resource": {"status": {"phase": "Ok"}}, "errors": []}
 
 
 def create_enable_operation():
@@ -157,7 +155,7 @@ class TestQuixEnableRunner(TestCase):
         self.assertEqual(runtime.phase, ClusteringRuntimePhaseEnum.RUNNING.value)
         self.assertEqual((runtime.bkfara_task_id, runtime.control_version, runtime.input_revision), (TASK_ID, 1, 1))
         self.assertEqual(runtime.kafka_binding, KAFKA)
-        self.assertEqual((runtime.sink, runtime.metadata_revision), (SET_RESULT["sink"], 1))
+        self.assertEqual(runtime.sink, SET_RESULT["sink"])
         self.assertIsNone(runtime.pending_config)
         self.assertEqual(runtime.active_config["distance_threshold"], "0.5")
         self.assertTrue(ClusteringConfig.objects.get(index_set_id=INDEX_SET_ID).access_finished)
@@ -167,8 +165,7 @@ class TestQuixEnableRunner(TestCase):
         )
 
         set_params = self.transfer.set_log_clustering_config.call_args.args[0]
-        self.assertEqual(set_params["operation_id"], f"{self.operation.operation_id}-metadata_set")
-        self.assertEqual(set_params["expected_revision"], 0)
+        self.assertNotIn("operation_id", set_params)
         self.assertEqual(set_params["binding"]["task_id"], TASK_ID)
         self.assertEqual(set_params["binding"]["config_revision"], 1)
         configure_payload = self.bkfara.configure_clustering.call_args.args[1]

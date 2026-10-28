@@ -1392,13 +1392,7 @@ class DataLink(models.Model):
                         rt_name=result_table.name,
                     )
                 )
-                databus_sinks.append(
-                    {
-                        "kind": DataLinkKind.ESSTORAGEBINDING.value,
-                        "name": binding.name,
-                        "namespace": self.namespace,
-                    }
-                )
+                databus_sinks.append(binding.reference)
 
             # 创建 Doris 存储绑定配置
             if doris_storage and datalink_option.doris_storage_config:
@@ -1454,7 +1448,7 @@ class DataLink(models.Model):
             # 已接入日志聚类时，Databus 改为引用聚类 Sink，原存储绑定作为其 rawSink
             clustering_sink = self._claim_attached_log_clustering_sink(databus_sinks, existing_context)
             if clustering_sink is not None:
-                bingding_configs.append(clustering_sink.compose_config())
+                bingding_configs.append(clustering_sink.compose_config(raw_sink=databus_sinks[0]))
                 databus_sinks = [clustering_sink.reference]
 
             # 创建数据总线配置
@@ -1497,29 +1491,20 @@ class DataLink(models.Model):
         databus_sinks: list[dict[str, Any]],
         existing_context: ExistingComponentContext | None,
     ) -> LogClusteringSinkConfig | None:
-        """获取当前日志链路已接入 Databus 的聚类 Sink，并以本次生成的存储绑定刷新其 rawSink。
+        """获取当前日志链路已接入 Databus 的聚类 Sink，其 rawSink 即本次生成的唯一 ES 存储绑定。
 
         Args:
             databus_sinks: 本次 compose 生成的原始存储绑定引用。
             existing_context: 既有组件复用上下文，传入时认领聚类 Sink，避免其被视为 leftover。
         """
-        attached_sinks = list(
-            LogClusteringSinkConfig.objects.filter(
-                bk_tenant_id=self.bk_tenant_id,
-                namespace=self.namespace,
-                data_link_name=self.data_link_name,
-                attached=True,
-            )
-        )
-        if not attached_sinks:
+        clustering_sink = LogClusteringSinkConfig.objects.filter(
+            bk_tenant_id=self.bk_tenant_id,
+            namespace=self.namespace,
+            data_link_name=self.data_link_name,
+            attached=True,
+        ).first()
+        if clustering_sink is None:
             return None
-        if len(attached_sinks) > 1:
-            raise ValueError(
-                f"data_link_name({self.data_link_name}) has multiple attached log clustering sinks: "
-                f"{[sink.name for sink in attached_sinks]}"
-            )
-
-        clustering_sink = attached_sinks[0]
         if len(databus_sinks) != 1 or databus_sinks[0]["kind"] != DataLinkKind.ESSTORAGEBINDING.value:
             raise ValueError(
                 f"log clustering sink({clustering_sink.name}) requires exactly one "
@@ -1528,18 +1513,6 @@ class DataLink(models.Model):
 
         if existing_context is not None:
             existing_context.claim(LogClusteringSinkConfig, lambda c: c.pk == clustering_sink.pk)
-
-        raw_sink = dict(databus_sinks[0])
-        if clustering_sink.raw_sink != raw_sink:
-            logger.warning(
-                "compose_log_configs: data_link_name->[%s] log clustering sink->[%s] raw_sink changed from [%s] to [%s]",
-                self.data_link_name,
-                clustering_sink.name,
-                clustering_sink.raw_sink,
-                raw_sink,
-            )
-            clustering_sink.raw_sink = raw_sink
-            clustering_sink.save(update_fields=["raw_sink", "last_modify_time"])
         return clustering_sink
 
     def compose_system_proc_configs(
