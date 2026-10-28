@@ -187,6 +187,37 @@ def test_profile_cron_continues_after_one_app_query_failure(mocker: MockerFixtur
     delay.assert_not_called()
 
 
+def mock_bmw_task_cron_plan(mocker: MockerFixture) -> tuple:
+    get_mapping = mocker.patch(
+        "apm.task.tasks.PreCalculateCheck.get_application_info_mapping", return_value=({}, {}, ["removed-task"])
+    )
+    mocker.patch("apm.task.tasks.PreCalculateCheck.calculate_distribution", return_value={"1001": "apm-01"})
+    distribute = mocker.patch("apm.task.tasks.PreCalculateCheck.distribute")
+    batch_remove = mocker.patch("apm.task.tasks.PreCalculateCheck.batch_remove")
+    return get_mapping, distribute, batch_remove
+
+
+def test_bmw_task_cron_dry_run_skips_all(settings, mocker: MockerFixture) -> None:
+    settings.APM_BMW_TASK_CRON_DRY_RUN = True
+    get_mapping, distribute, batch_remove = mock_bmw_task_cron_plan(mocker)
+
+    tasks.bmw_task_cron()
+
+    get_mapping.assert_not_called()
+    distribute.assert_not_called()
+    batch_remove.assert_not_called()
+
+
+def test_bmw_task_cron_distributes_and_removes_without_dry_run(settings, mocker: MockerFixture) -> None:
+    settings.APM_BMW_TASK_CRON_DRY_RUN = False
+    _, distribute, batch_remove = mock_bmw_task_cron_plan(mocker)
+
+    tasks.bmw_task_cron()
+
+    distribute.assert_called_once_with({"1001": "apm-01"})
+    batch_remove.assert_called_once_with(["removed-task"])
+
+
 def test_profile_handler_logs_query_failure(mocker) -> None:
     mocker.patch("apm.task.tasks.ProfileDiscoverHandler").return_value.discover.side_effect = RuntimeError(
         "query failed"
