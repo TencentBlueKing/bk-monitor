@@ -187,6 +187,26 @@ class TestQuixClusteringHandlerUpdate(TestCase):
         )
         mock_delay.assert_not_called()
 
+    def test_inflight_update_cannot_silently_revert_business_filter(self, mock_delay):
+        first_id = QuixClusteringHandler(self.index_set).update({"filter_rules": WARN_RULES})
+        mock_delay.reset_mock()
+
+        with self.assertRaises(QuixClusteringParamsInvalidException):
+            QuixClusteringHandler(self.index_set).update({"filter_rules": ERROR_RULES})
+
+        self.runtime.refresh_from_db()
+        self.assertEqual(self.runtime.pending_config["log_filter"][0]["value"], ["WARN"])
+        self.assertEqual(ClusteringConfig.objects.get(index_set_id=INDEX_SET_ID).filter_rules, WARN_RULES)
+        self.assertEqual(
+            list(
+                LogClusteringOperation.objects.filter(
+                    operation_type=ClusteringOperationTypeEnum.UPDATE.value
+                ).values_list("operation_id", flat=True)
+            ),
+            [first_id],
+        )
+        mock_delay.assert_not_called()
+
     def test_clustering_field_change_is_rejected(self, mock_delay):
         with self.assertRaises(QuixClusteringParamsInvalidException):
             QuixClusteringHandler(self.index_set).update({"clustering_fields": "message", "filter_rules": WARN_RULES})

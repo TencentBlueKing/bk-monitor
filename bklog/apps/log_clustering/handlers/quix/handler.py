@@ -179,7 +179,9 @@ class QuixClusteringHandler:
                         status__in=ClusteringOperationStatusEnum.runnable_statuses(),
                     ).first()
                 )
-            elif clustering_config != runtime.active_config:
+            elif clustering_config != runtime.active_config or runtime.pending_config is not None:
+                # 即使提交的是旧生效规则，在途的新规则也不能被当成“无变化”跳过；
+                # 仍由 start_operation 校验运行阶段，避免只改页面配置而新绑定继续生效。
                 runtime, operation = LogClusteringRuntime.start_operation(
                     self.index_set_id,
                     ClusteringOperationTypeEnum.UPDATE.value,
