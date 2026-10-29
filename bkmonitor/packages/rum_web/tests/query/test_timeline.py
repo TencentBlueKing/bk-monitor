@@ -12,6 +12,7 @@ from copy import deepcopy
 from unittest.mock import MagicMock
 
 import pytest
+from rest_framework.exceptions import ValidationError
 
 from bkmonitor.data_source.format import flatten_dict_data
 from bkmonitor.data_source.unify_query.builder import QueryHelper
@@ -303,6 +304,16 @@ class TestTimelineBuilder:
 
 
 class TestTimelineHandler:
+    @pytest.mark.parametrize("scope", [{}, {"session_id": ""}, {"view_id": ""}])
+    def test_missing_id_does_not_query_storage(self, mocker, scope):
+        handler = _handler()
+        query = mocker.patch.object(handler.query, "query_list")
+
+        with pytest.raises(ValidationError, match="至少提供一个"):
+            handler.timeline(**scope)
+
+        query.assert_not_called()
+
     @pytest.mark.parametrize("scope", [{"session_id": "session-1"}, {"view_id": "view-1"}])
     def test_queries_once_even_when_result_reaches_limit(self, mocker, scope):
         handler = _handler()

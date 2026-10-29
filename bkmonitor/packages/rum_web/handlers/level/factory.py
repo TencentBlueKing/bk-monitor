@@ -16,6 +16,8 @@ from bkmonitor.data_source.utils.apm import TraceDatasourceTarget
 from rum_web.constants import RumQueryMode
 from rum_web.handlers.level.base import BaseRumLevelHandler
 from rum_web.handlers.level.span import SpanLevelHandler
+from rum_web.handlers.level.session import SessionLevelHandler
+from rum_web.handlers.level.view import ViewLevelHandler
 
 
 class UnsupportedRumQueryMode(ValidationError):
@@ -29,11 +31,12 @@ class RumLevelHandlerFactory:
     """RUM 层级处理器工厂
 
     根据 mode 校验并构造对应的 LevelHandler。
-    首期只注册 span，View、Session 就绪后再注册。
     """
 
     HANDLERS: dict[str, type[BaseRumLevelHandler]] = {
         RumQueryMode.SPAN.value: SpanLevelHandler,
+        RumQueryMode.VIEW.value: ViewLevelHandler,
+        RumQueryMode.SESSION.value: SessionLevelHandler,
     }
 
     @classmethod

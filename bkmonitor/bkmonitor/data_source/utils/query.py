@@ -560,7 +560,11 @@ class BaseQuery:
 
         time_agg = False
         instant = True
-        expression: str = self._sum_expression(fields)
+        expression: str = (
+            f"{method.lower()}({self.METRIC_ALIASES[0]})"
+            if len(fields) == 1 and method.lower() in {"min", "max"}
+            else self._sum_expression(fields)
+        )
         if self.TIME_BUCKET_FIELD in group_by:
             group_by = [field_name for field_name in group_by if field_name != self.TIME_BUCKET_FIELD]
             if interval is None:

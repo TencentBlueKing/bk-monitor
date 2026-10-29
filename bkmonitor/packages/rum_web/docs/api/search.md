@@ -60,6 +60,46 @@
 
 消费端仅在字段存在时为对应展示项增加虚线标识，并在 Hover 时展示内容；字段缺失时不展示虚线。
 
+### 1.3 Session 与 View 降级查询
+
+`mode=session` 和 `mode=view` 支持字段配置、查询串生成、字段候选值、TopK、字段统计和列表查询。字段目录只包含约定保留的原始字段与计算字段，分别由 `semconv/rum/session` 和 `semconv/rum/view` 维护，共用字段定义位于 `semconv/rum/common.py`。
+
+| 能力 | 无预计算表时的行为 |
+| --- | --- |
+| 字段配置 | 直接返回语义目录，不依赖 UQ 字段发现 |
+| 原始字段分析 | Session 使用 `span_type=session AND session.phase=start`，View 使用 `span_type=view AND view.phase=update` |
+| 计算字段 | 列表可以展示，通过字段能力元数据关闭分析、筛选与排序入口 *[1]* |
+| 列表 | 在检索窗口内按有效的 Session ID 或 View ID 折叠匹配 Span，再分页 |
+| 补查 | 按当前页 ID 查询数据保留期内的关联记录，不继承列表筛选条件 |
+| 关闭状态 | `phase=end` 返回 `is_active=false`、`close_reason=normal` 和结束时间，其余状态不推测超时 |
+
+- *[1] `start_time` 允许用于列表排序，排序依据匹配 Span 的时间；补查后的实体开始时间为 `min(start_time)`，不重新排列当前页。其余计算字段须有预计算表才能用于排序。*
+- *[2] 字段分析统计的是所选阶段的事件，View 的多条 `update` 会分别计数。*
+- *[3] 分页由序列化器校验 `offset >= 0`、`limit >= 1`，查询层不另设条数上限。缺失指标按现有统计逻辑处理，聚合查询沿用基类的异常处理。*
+- *[4] `record_detail` 和层级 `timeline` 暂不支持，现有 Span 时间线接口继续可用。*
+
+Span、Session、View 共用 `BaseRumQuery.query_fields` 的语义目录兜底。Span 或已具备层级表的数据源会合并 UQ 元数据；查询失败仍返回 semconv 中的字段。降级模式下，Session / View 不请求 UQ 字段发现。服务端不再额外解析检索语句或校验字段白名单，消费端按能力元数据选择可用操作。
+
+计算字段能力示例：
+
+```json
+{
+  "field_name": "error_count",
+  "field_alias": "错误数量",
+  "field_type": "long",
+  "origin_field": "error_count",
+  "is_real": false,
+  "is_list": true,
+  "is_searchable": false,
+  "is_agg": false,
+  "supported_operations": []
+}
+```
+
+服务端所有数据源都声明对应 `levels[name=view/session].table_ids` 时，查询切换到层级表，计算字段开放分析、筛选和排序，列表不再执行原始 Span 补查。层级表未全部就绪时，所有数据源统一使用降级查询。
+
+`frustration_count` 表示挫败行为数，统计 `attributes.span_type=action` 且 `attributes.action.frustration.type` 包含 `rage_click`、`dead_click`、`error_click` 中任一类型的 Action 记录。同一条 Action 即使命中多个类型也只计一次，无匹配记录时返回 `0`。该字段位于 Session / View 的「数量统计」分组，降级模式下通过当前页补查获得，不支持分析、筛选或排序。
+
 ---
 
 ## 2 RUM 接口

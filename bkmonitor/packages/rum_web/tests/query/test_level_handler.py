@@ -137,10 +137,10 @@ class TestBaseRumLevelHandler:
             "generate_query_string",
         ],
     )
-    def test_base_declares_abstract_method(self, method_name: str):
+    def test_base_declares_shared_and_abstract_methods(self, method_name: str):
         assert hasattr(BaseRumLevelHandler, method_name)
         method = getattr(BaseRumLevelHandler, method_name)
-        assert getattr(method, "__isabstractmethod__", False), f"{method_name} 应为抽象方法"
+        assert bool(getattr(method, "__isabstractmethod__", False)) == (method_name in {"record_detail", "timeline"})
 
     def test_view_config_signature(self):
         sig = inspect.signature(BaseRumLevelHandler.view_config)
@@ -407,6 +407,15 @@ class TestSpanRecordDetail:
         )
         query_list = mocker.patch.object(handler.query, "query_list")
         handler.record_detail("v")
+        query_list.assert_not_called()
+
+    @pytest.mark.parametrize("view_id", [None, "", 123, [], {}])
+    def test_invalid_view_id_skips_related_query(self, handler, mocker, view_id):
+        query_list = mocker.patch.object(handler.query, "query_list")
+
+        result = handler._query_related_spans({"attributes.span_type": "view", "attributes.view.id": view_id})
+
+        assert result == []
         query_list.assert_not_called()
 
     def test_view_related_filters_and_builder_output(self, handler, mocker):
