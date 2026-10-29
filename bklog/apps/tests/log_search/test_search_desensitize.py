@@ -1350,7 +1350,10 @@ class TestDesensitizeExceptionFailClosed(TestCase):
 
     @patch(
         "apps.log_search.handlers.search.search_handlers_esquery.path_aware_expand",
-        side_effect=[RuntimeError("unexpected internal error"), ({"message": "Another Log5678", "log": "log2", "dtEventTimeStamp": 1727452800001}, {})],
+        side_effect=[
+            RuntimeError("unexpected internal error"),
+            ({"message": "Another Log5678", "log": "log2", "dtEventTimeStamp": 1727452800001}, {})
+        ],
     )
     def test_exception_does_not_affect_other_logs(self, mock_expand):
         """第 1 条日志脱敏异常被遮罩，第 2 条正常脱敏不受影响"""
@@ -1600,18 +1603,31 @@ class TestFailClosedTextFieldsMasking(TestCase):
         # log 字段保持原值（不被遮罩）
         self.assertEqual(logs[0]["log"], "some log content")
 
-    def test_cust_real_data_nested_dict_desensitize(self):
-        """用 cust 真实数据验证嵌套 dict 路径脱敏
+    def test_nested_dict_multi_level_desensitize(self):
+        """验证嵌套 dict 多层路径脱敏
 
-        cust 数据 __ext_json.user.id = "user-57252"（9字符）
-        mask_shield(preserve_head=1, preserve_tail=1) → "u*******2"
+        合成数据 __ext_json.user.id = "user-57252"（10字符）
+        mask_shield(preserve_head=1, preserve_tail=1) → "u********2"
         """
         import json as _json
-        with open("ai_plan/cust", "r") as f:
-            cust_data = _json.load(f)
+        test_data = {
+            "__ext_json": {
+                "user": {"id": "user-57252", "username": "test_user_18"},
+                "deployment": {
+                    "pod": {
+                        "node": {
+                            "runtime": {"name": "containerd", "version": "1.7.12"},
+                        },
+                    },
+                },
+            },
+            "log": '{"service":"order-service","http":{"status_code":500}}',
+            "dtEventTimeStamp": "1793188714000",
+            "host": "VM-38-149-tencentos",
+            "message": "order request failed",
+        }
 
-        # 构造针对 __ext_json.user.id 的脱敏配置
-        cust_mask_config = {
+        test_mask_config = {
             "field_name": "__ext_json.user.id",
             "rule_id": 0,
             "operator": "mask_shield",
@@ -1619,10 +1635,9 @@ class TestFailClosedTextFieldsMasking(TestCase):
             "match_pattern": ".*",
             "sort_index": 0,
         }
-        self._put_config(field_configs=[cust_mask_config])
+        self._put_config(field_configs=[test_mask_config])
         handler = self._build_handler()
 
-        # cust 数据作为 ES hit
         es_result = {
             "took": 10,
             "hits": {
@@ -1630,7 +1645,7 @@ class TestFailClosedTextFieldsMasking(TestCase):
                 "hits": [
                     {
                         "_index": "v2_2_bklog_test_es_20260927_0",
-                        "_source": cust_data,
+                        "_source": test_data,
                     }
                 ],
             },
@@ -1639,32 +1654,32 @@ class TestFailClosedTextFieldsMasking(TestCase):
 
         logs = result["list"]
         self.assertEqual(len(logs), 1)
-        # __ext_json.user.id 被脱敏："user-57252" (10字符) → "u********2"
         self.assertEqual(logs[0]["__ext_json"]["user"]["id"], "u********2")
-        # 同层 username 不受影响
         self.assertEqual(logs[0]["__ext_json"]["user"]["username"], "test_user_18")
-        # __ext_json 结构完整（5层嵌套 dict 保留）
         self.assertIsInstance(logs[0]["__ext_json"]["deployment"]["pod"]["node"]["runtime"], dict)
         self.assertEqual(
             logs[0]["__ext_json"]["deployment"]["pod"]["node"]["runtime"]["version"],
             "1.7.12",
         )
-        # log 字段不受影响（未配置 log 的脱敏规则）
-        self.assertEqual(logs[0]["log"], cust_data["log"])
-        # 元数据保留
+        self.assertEqual(logs[0]["log"], test_data["log"])
         self.assertEqual(logs[0]["dtEventTimeStamp"], "1793188714000")
 
-    def test_cust_real_data_json_string_subpath_desensitize(self):
-        """用 cust 真实数据验证 JSON 字符串子路径脱敏
+    def test_json_string_subpath_multi_level_desensitize(self):
+        """验证 JSON 字符串内多层子路径脱敏
 
-        cust 数据 log 是 3147 字节的合法 JSON 字符串
-        配置 log.user.id，验证 JSON 字符串内子路径脱敏
+        log 是合法 JSON 字符串，配置 log.user.id
+        log.user.id = "user-57252" (10字符) → "u********2"
         """
         import json as _json
-        with open("ai_plan/cust", "r") as f:
-            cust_data = _json.load(f)
+        test_data = {
+            "__ext_json": {
+                "user": {"id": "user-57252", "username": "test_user_18"},
+            },
+            "log": '{"service":"order-service","http":{"status_code":500},'
+                   '"user":{"id":"user-57252","username":"test_user_18"}}',
+            "dtEventTimeStamp": "1793188714000",
+        }
 
-        # 构造针对 log.user.id 的脱敏配置
         log_mask_config = {
             "field_name": "log.user.id",
             "rule_id": 0,
@@ -1683,7 +1698,7 @@ class TestFailClosedTextFieldsMasking(TestCase):
                 "hits": [
                     {
                         "_index": "v2_2_bklog_test_es_20260927_0",
-                        "_source": cust_data,
+                        "_source": test_data,
                     }
                 ],
             },
@@ -1692,28 +1707,31 @@ class TestFailClosedTextFieldsMasking(TestCase):
 
         logs = result["list"]
         self.assertEqual(len(logs), 1)
-        # log 仍为 JSON 字符串（json_string 类型还原）
         self.assertIsInstance(logs[0]["log"], str)
         parsed = _json.loads(logs[0]["log"])
-        # log.user.id 被脱敏："user-57252" (10字符) → "u********2"
         self.assertEqual(parsed["user"]["id"], "u********2")
-        # 同层 username 不受影响
         self.assertEqual(parsed["user"]["username"], "test_user_18")
-        # log 中其他字段不受影响
         self.assertEqual(parsed["service"], "order-service")
         self.assertEqual(parsed["http"]["status_code"], 500)
 
-    def test_cust_real_data_exception_masks_sensitive_preserves_metadata(self):
-        """用 cust 真实数据验证异常时选择性遮罩
+    def test_exception_masks_sensitive_preserves_metadata_nested_dict(self):
+        """验证异常时选择性遮罩 + 元数据保留（嵌套 dict 数据）
 
         配置 __ext_json.user.id + text_fields=["log"]
         模拟 _log_desensitize 抛异常 → __ext_json 和 log 被遮罩，元数据保留
         """
-        import json as _json
-        with open("ai_plan/cust", "r") as f:
-            cust_data = _json.load(f)
+        test_data = {
+            "__ext_json": {
+                "user": {"id": "user-57252", "username": "test_user_18"},
+                "deployment": {"pod": {"name": "order-service-4"}},
+            },
+            "log": '{"service":"order-service"}',
+            "dtEventTimeStamp": "1793188714000",
+            "host": "VM-38-149-tencentos",
+            "message": "order request failed because an upstream service was unavailable",
+        }
 
-        cust_mask_config = {
+        test_mask_config = {
             "field_name": "__ext_json.user.id",
             "rule_id": 0,
             "operator": "mask_shield",
@@ -1721,7 +1739,7 @@ class TestFailClosedTextFieldsMasking(TestCase):
             "match_pattern": ".*",
             "sort_index": 0,
         }
-        self._put_config(field_configs=[cust_mask_config], text_fields=["log"])
+        self._put_config(field_configs=[test_mask_config], text_fields=["log"])
         handler = self._build_handler()
 
         with patch(
@@ -1735,7 +1753,7 @@ class TestFailClosedTextFieldsMasking(TestCase):
                     "hits": [
                         {
                             "_index": "v2_2_bklog_test_es_20260927_0",
-                            "_source": cust_data,
+                            "_source": test_data,
                         }
                     ],
                 },
@@ -1744,27 +1762,32 @@ class TestFailClosedTextFieldsMasking(TestCase):
 
         logs = result["list"]
         self.assertEqual(len(logs), 1)
-        # __ext_json 被遮罩（配置字段的顶层前缀）
         self.assertEqual(logs[0]["__ext_json"], "***MASKED***")
-        # log 被遮罩（text_fields）
         self.assertEqual(logs[0]["log"], "***MASKED***")
-        # message 保留原值（未配置脱敏）
         self.assertEqual(logs[0]["message"], "order request failed because an upstream service was unavailable")
-        # 元数据保留
         self.assertEqual(logs[0]["dtEventTimeStamp"], "1793188714000")
         self.assertEqual(logs[0]["host"], "VM-38-149-tencentos")
 
-    def test_custom3_flattened_ext_json_desensitize(self):
-        """用 custom-3 真实数据验证 ES-flattened __ext_json 子路径脱敏
+    def test_flattened_ext_json_subpath_desensitize(self):
+        """验证 ES-flattened __ext_json 子路径脱敏
 
-        custom-3 数据是 ES-flattened 格式：__ext_json.user.id = "user-38206" (10字符)
+        合成数据是 ES-flattened 格式：__ext_json.user.id = "user-38206" (10字符)
         mask_shield(preserve_head=1, preserve_tail=1) → "u********6"
         """
         import json as _json
-        with open("ai_plan/custom-3", "r") as f:
-            custom3_data = _json.load(f)
+        test_data = {
+            "__ext_json.user.id": "user-38206",
+            "__ext_json.user.username": "test_user_23",
+            "__ext_json.deployment.application": "order-service",
+            "__ext_json.deployment.pod": '{"container":"order-service","name":"order-service-4"}',
+            "__ext_json.deployment.cluster": "bklog-test",
+            "log": '{"service":"order-service","http":{"status_code":429},'
+                   '"user":{"id":"user-38206","username":"test_user_23"}}',
+            "dtEventTimeStamp": "2026-10-22 14:25:26",
+            "host": "VM-38-149-tencentos",
+            "message": "order request rejected by business validation",
+        }
 
-        # 构造针对 __ext_json.user.id 的脱敏配置
         mask_config = {
             "field_name": "__ext_json.user.id",
             "rule_id": 0,
@@ -1783,7 +1806,7 @@ class TestFailClosedTextFieldsMasking(TestCase):
                 "hits": [
                     {
                         "_index": "v2_2_bklog_test_es_20260927_0",
-                        "_source": custom3_data,
+                        "_source": test_data,
                     }
                 ],
             },
@@ -1792,26 +1815,27 @@ class TestFailClosedTextFieldsMasking(TestCase):
 
         logs = result["list"]
         self.assertEqual(len(logs), 1)
-        # __ext_json.user.id 被脱敏："user-38206" (10字符) → "u********6"
         self.assertEqual(logs[0]["__ext_json"]["user"]["id"], "u********6")
-        # 同层 username 不受影响
         self.assertEqual(logs[0]["__ext_json"]["user"]["username"], "test_user_23")
-        # __ext_json.deployment.pod 是 JSON 字符串，未被配置脱敏，保持原值
         self.assertIsInstance(logs[0]["__ext_json"]["deployment"]["pod"], str)
         parsed_pod = _json.loads(logs[0]["__ext_json"]["deployment"]["pod"])
         self.assertEqual(parsed_pod["name"], "order-service-4")
-        # log 字段不受影响
-        self.assertEqual(logs[0]["log"], custom3_data["log"])
+        self.assertEqual(logs[0]["log"], test_data["log"])
 
-    def test_custom3_json_string_log_subpath_desensitize(self):
-        """用 custom-3 真实数据验证 log JSON 字符串子路径脱敏
+    def test_json_string_log_subpath_desensitize_flattened(self):
+        """验证 log JSON 字符串子路径脱敏（flattened 格式数据）
 
         log 是合法 JSON 字符串，配置 log.user.id
         log.user.id = "user-38206" (10字符) → "u********6"
         """
         import json as _json
-        with open("ai_plan/custom-3", "r") as f:
-            custom3_data = _json.load(f)
+        test_data = {
+            "__ext_json.user.id": "user-38206",
+            "__ext_json.user.username": "test_user_23",
+            "log": '{"service":"order-service","http":{"status_code":429},'
+                   '"user":{"id":"user-38206","username":"test_user_23"}}',
+            "dtEventTimeStamp": "2026-10-22 14:25:26",
+        }
 
         mask_config = {
             "field_name": "log.user.id",
@@ -1831,7 +1855,7 @@ class TestFailClosedTextFieldsMasking(TestCase):
                 "hits": [
                     {
                         "_index": "v2_2_bklog_test_es_20260927_0",
-                        "_source": custom3_data,
+                        "_source": test_data,
                     }
                 ],
             },
@@ -1840,26 +1864,28 @@ class TestFailClosedTextFieldsMasking(TestCase):
 
         logs = result["list"]
         self.assertEqual(len(logs), 1)
-        # log 仍为 JSON 字符串
         self.assertIsInstance(logs[0]["log"], str)
         parsed = _json.loads(logs[0]["log"])
-        # log.user.id 被脱敏
         self.assertEqual(parsed["user"]["id"], "u********6")
-        # 同层 username 不受影响
         self.assertEqual(parsed["user"]["username"], "test_user_23")
-        # log 中其他字段不受影响
         self.assertEqual(parsed["service"], "order-service")
         self.assertEqual(parsed["http"]["status_code"], 429)
 
-    def test_custom3_exception_masks_sensitive_preserves_metadata(self):
-        """用 custom-3 真实数据验证异常时选择性遮罩
+    def test_exception_masks_sensitive_preserves_metadata_flattened(self):
+        """验证异常时选择性遮罩 + 元数据保留（flattened 格式数据）
 
         配置 __ext_json.user.id + text_fields=["log"]
-        模拟 _log_desensitize 抛异常 → __ext_json 和 log 被遮罩，元数据保留
+        模拟 _log_desensitize 抛异常 → __ext_json.* 和 log 被遮罩，元数据保留
         """
-        import json as _json
-        with open("ai_plan/custom-3", "r") as f:
-            custom3_data = _json.load(f)
+        test_data = {
+            "__ext_json.user.id": "user-38206",
+            "__ext_json.user.username": "test_user_23",
+            "__ext_json.deployment.application": "order-service",
+            "log": '{"service":"order-service"}',
+            "dtEventTimeStamp": "2026-10-22 14:25:26",
+            "host": "VM-38-149-tencentos",
+            "message": "order request rejected by business validation",
+        }
 
         mask_config = {
             "field_name": "__ext_json.user.id",
@@ -1883,7 +1909,7 @@ class TestFailClosedTextFieldsMasking(TestCase):
                     "hits": [
                         {
                             "_index": "v2_2_bklog_test_es_20260927_0",
-                            "_source": custom3_data,
+                            "_source": test_data,
                         }
                     ],
                 },
@@ -1892,14 +1918,10 @@ class TestFailClosedTextFieldsMasking(TestCase):
 
         logs = result["list"]
         self.assertEqual(len(logs), 1)
-        # __ext_json.* dotted key 被遮罩（flattened 格式，无顶层 __ext_json key）
         self.assertEqual(logs[0]["__ext_json.user.id"], "***MASKED***")
         self.assertEqual(logs[0]["__ext_json.user.username"], "***MASKED***")
         self.assertEqual(logs[0]["__ext_json.deployment.application"], "***MASKED***")
-        # log 被遮罩（text_fields）
         self.assertEqual(logs[0]["log"], "***MASKED***")
-        # message 保留原值
         self.assertEqual(logs[0]["message"], "order request rejected by business validation")
-        # 元数据保留
         self.assertEqual(logs[0]["dtEventTimeStamp"], "2026-10-22 14:25:26")
         self.assertEqual(logs[0]["host"], "VM-38-149-tencentos")
