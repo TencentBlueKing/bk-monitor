@@ -33,6 +33,7 @@ from pypinyin import lazy_pinyin
 from apps.api import CCApi, NodeApi
 from apps.api.modules.utils import get_non_bkcc_space_related_bkcc_biz_id
 from apps.constants import DEFAULT_MAX_WORKERS
+from apps.log_databus.nodeman_v3.agent_status import get_agent_status
 from apps.log_search.constants import (
     BIZ_PROPERTY_TYPE_ENUM,
     BK_PROPERTY_GROUP_ROLE,
@@ -63,6 +64,7 @@ class BizHandler(APIModel):
 
     def __init__(self, bk_biz_id=None):
         super().__init__()
+        self.original_bk_biz_id = bk_biz_id
 
         if bk_biz_id and int(bk_biz_id) < 0:
             related_bk_biz_id = get_non_bkcc_space_related_bkcc_biz_id(bk_biz_id)
@@ -1081,7 +1083,7 @@ class BizHandler(APIModel):
 
         from apps.log_databus.nodeman_v3.mode import is_nodeman_v3_admitted
 
-        if is_nodeman_v3_admitted(self.bk_biz_id):
+        if is_nodeman_v3_admitted(self.original_bk_biz_id):
             return self._get_agent_status_v3([host["bk_host_id"] for host in host_list])
 
         # 添加no_request参数, 多线程调用时，保证用户信息不漏传
@@ -1097,46 +1099,14 @@ class BizHandler(APIModel):
         """
         V3 下的 Agent 状态。
 
-        V2 的 ipchooser_host_details 给的是布尔 alive，V3 的 topo/host/list 给的是
-        HostState.node_status（init/running/damaged/busy/starting/upgrade/stopping/uninit/unknown）。
-        这里只把 running 映射成在线，其余一律按不在线：把 starting / upgrade 当成在线会让
-        Agent 还没起来的机器显示正常，用户据此认为「配置下发失败」而反复重试。
+        查询与映射口径统一由 nodeman_v3.agent_status.get_agent_status 维护：只有 running
+        在线，未在节点管理注册的主机不在线。这里只负责转换成调用方使用的状态枚举。
         """
-        from apps.log_databus.nodeman_v3.client import get_client
-        from apps.log_databus.nodeman_v3.constants import HOST_NODE_STATUS_RUNNING
-
-        if not bk_host_ids:
-            return {}
-
-        # 先把所有入参主机预置成「不存在」，再用返回值覆盖。不能依赖 defaultdict(int) 兜底：
-        # AgentStatusEnum.ON == 0，而 topo/host/list 按 bk_host_id 过滤，**没在节点管理注册过
-        # 的主机压根不会出现在返回里** —— 落到默认值就等于把没装 Agent 的机器报成在线，
-        # 调用方的 agent_error_count 会少算。V2 的 ipchooser_host_details 每台都回，碰不到这个坑
-        result = {bk_host_id: AgentStatusEnum.NOT_EXIST.value for bk_host_id in bk_host_ids}
-
-        client = get_client(self.bk_biz_id)
-        page_limit = 500
-        for chunk_start in range(0, len(bk_host_ids), page_limit):
-            chunk = bk_host_ids[chunk_start : chunk_start + page_limit]
-            data = client.list_hosts(
-                {
-                    # topo/host/list 的分页字段是 offset（Topo_HostList.md），
-                    # 不是 deploy_policy/list 那套 {count, start}
-                    "page": {"offset": 0, "limit": page_limit},
-                    "exact_include_conditions": {"bk_host_id": chunk, "bk_biz_id": [self.bk_biz_id]},
-                }
-            )
-            for item in (data or {}).get("items") or []:
-                bk_host_id = item.get("bk_host_id")
-                if not bk_host_id:
-                    continue
-                node_status = (item.get("state") or {}).get("node_status") or ""
-                result[bk_host_id] = (
-                    AgentStatusEnum.ON.value
-                    if node_status == HOST_NODE_STATUS_RUNNING
-                    else AgentStatusEnum.NOT_EXIST.value
-                )
-        return result
+        status_map = get_agent_status(self.bk_biz_id, bk_host_ids)
+        return {
+            bk_host_id: AgentStatusEnum.ON.value if alive else AgentStatusEnum.NOT_EXIST.value
+            for bk_host_id, alive in status_map.items()
+        }
 
     @staticmethod
     def _get_backup_biz_list():
