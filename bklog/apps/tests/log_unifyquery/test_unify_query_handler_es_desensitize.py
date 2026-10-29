@@ -581,7 +581,10 @@ class TestUnifyQueryHandlerEsDesensitize(TestCase):
         self.assertIn("body", found_rogue[0])
 
     def test_uq_json_literal_dot_key_preserved_end_to_end(self):
-        """UQ 链路：JSON 内字面点号 key 与普通 key 共存都必须保留"""
+        """UQ 链路：JSON 内字面点号 key 与普通 key 共存都必须保留
+
+        字面 key "a.b" 值为普通标量，split 解释命中配置 → fail-closed 脱敏。
+        """
         config = {
             "field_name": "body.a.b",
             "rule_id": 0,

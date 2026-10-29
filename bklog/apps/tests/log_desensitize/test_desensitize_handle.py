@@ -55,16 +55,16 @@ class TestDesensitizeOperator(TestCase):
             "sort_index": 1
         }
 
-        text = {"test_field_1": "13234345678", "test_field_2": "13234345678"}
+        text = {("test_field_1",): "13234345678", ("test_field_2",): "13234345678"}
         desensitize_config_info = [param_1, param_2]
 
         result = DesensitizeHandler(desensitize_config_info=desensitize_config_info).transform_dict(text)
 
-        self.assertEqual(result.get("test_field_1"), "132*****678")
-        self.assertEqual(result.get("test_field_2"), "abc3434defg")
+        self.assertEqual(result.get(("test_field_1",)), "132*****678")
+        self.assertEqual(result.get(("test_field_2",)), "abc3434defg")
 
     def test_transform_dict_dotted_key(self):
-        """dotted key 嵌套字段脱敏：transform_dict 能匹配展开后的 dotted path"""
+        """dotted key 嵌套字段脱敏：transform_dict 能匹配展开后的 tuple key"""
         config = {
             "field_name": "body.player.id",
             "rule_id": 0,
@@ -73,10 +73,10 @@ class TestDesensitizeOperator(TestCase):
             "match_pattern": "",
             "sort_index": 0,
         }
-        text = {"body.player.id": "12345"}
+        text = {("body", "player", "id"): "12345"}
         result = DesensitizeHandler(desensitize_config_info=[config]).transform_dict(text)
 
-        self.assertEqual(result.get("body.player.id"), "1***5")
+        self.assertEqual(result.get(("body", "player", "id")), "1***5")
 
 
 class TestPreviewConsistency(TestCase):
@@ -258,7 +258,7 @@ class TestPathAwareExpandRoundtrip(SimpleTestCase):
         expanded, metadata = path_aware_expand(original, paths)
 
         # 脱敏只修改配置路径的值
-        expanded["body.player.id"] = "***"
+        expanded[("body", "player", "id")] = "***"
         restored = restore_by_metadata(expanded, metadata)
 
         self.assertIsInstance(restored["body"], dict)
@@ -272,7 +272,7 @@ class TestPathAwareExpandRoundtrip(SimpleTestCase):
         expanded, metadata = path_aware_expand(original, paths)
 
         # 脱敏只修改配置路径的值
-        expanded["body.player.id"] = "***"
+        expanded[("body", "player", "id")] = "***"
         restored = restore_by_metadata(expanded, metadata)
 
         self.assertIsInstance(restored["body"], str)
@@ -416,8 +416,8 @@ class TestRestoreByMetadataFalsyValues(SimpleTestCase):
 
     def test_restore_json_string_with_zero(self):
         """JSON 字符串还原：内部数值 0 正确保留"""
-        expanded = {"body.player.level": 0}
-        metadata = {"body": {"type": "json_string"}}
+        expanded = {("body", "player", "level"): 0}
+        metadata = {("body",): {"type": "json_string"}}
         restored = restore_by_metadata(expanded, metadata)
 
         self.assertIsInstance(restored["body"], str)
@@ -426,8 +426,8 @@ class TestRestoreByMetadataFalsyValues(SimpleTestCase):
 
     def test_restore_dict_with_false(self):
         """dict 类型还原：布尔值 False 正确保留"""
-        expanded = {"body.player.online": False}
-        metadata = {"body": {"type": "dict"}}
+        expanded = {("body", "player", "online"): False}
+        metadata = {("body",): {"type": "dict"}}
         restored = restore_by_metadata(expanded, metadata)
 
         self.assertIsInstance(restored["body"], dict)
@@ -435,16 +435,16 @@ class TestRestoreByMetadataFalsyValues(SimpleTestCase):
 
     def test_restore_dict_with_none(self):
         """dict 类型还原：None 值正确保留"""
-        expanded = {"body.player.note": None}
-        metadata = {"body": {"type": "dict"}}
+        expanded = {("body", "player", "note"): None}
+        metadata = {("body",): {"type": "dict"}}
         restored = restore_by_metadata(expanded, metadata)
 
         self.assertIsNone(restored["body"]["player"]["note"])
 
     def test_restore_json_string_with_empty_string(self):
         """JSON 字符串还原：内部空字符串正确保留"""
-        expanded = {"body.player.name": ""}
-        metadata = {"body": {"type": "json_string"}}
+        expanded = {("body", "player", "name"): ""}
+        metadata = {("body",): {"type": "json_string"}}
         restored = restore_by_metadata(expanded, metadata)
 
         self.assertIsInstance(restored["body"], str)

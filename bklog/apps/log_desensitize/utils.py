@@ -116,19 +116,20 @@ def _get_sensitive_top_fields(field_configs: list, text_fields_field_configs: li
 def _mask_sensitive_fields(log: dict, sensitive_fields: set) -> dict:
     """对日志中属于敏感字段的键替换为遮罩值，保留其他字段。
 
-    兼容两种数据格式：
-    - 嵌套 dict 格式：顶层 key 为 "__ext_json"，直接匹配
-    - ES-flattened 格式：顶层 key 为 "__ext_json.user.id" 等 dotted key，
-      需要检查 key 的第一段是否属于 sensitive_fields
+    兼容两种 key 格式：
+    - tuple（path token）：取 tuple[0]（顶层字段名）与 sensitive_fields 比较
+    - string（原始格式）：直接匹配或取第一段（dotted key）
 
-    :param log: 原始日志 dict
-    :param sensitive_fields: 需要遮罩的顶层字段名集合
+    :param log: 日志 dict（key 为 Tuple[str, ...] 或 str）
+    :param sensitive_fields: 需要遮罩的顶层字段名集合（string）
     :return: 遮罩后的日志 dict
     """
-    def _should_mask(key: str) -> bool:
+    def _should_mask(key) -> bool:
+        if isinstance(key, tuple):
+            return key[0] in sensitive_fields
+        # string key（兼容 merge_nested_data 失败时的原始格式）
         if key in sensitive_fields:
             return True
-        # ES-flattened 格式：key 的第一段属于敏感字段
         return "." in key and key.split(".")[0] in sensitive_fields
 
     return {k: (_MASKED_VALUE if _should_mask(k) else v) for k, v in log.items()}
@@ -188,46 +189,24 @@ def _estimate_json_depth(s: str) -> int:
     return max_depth
 
 
-def _get_ancestor_paths(configured_paths: set) -> set:
+def _get_ancestor_tuples(configured_paths: set) -> set:
     """
-    从配置路径集合中提取所有祖先路径。
+    从配置路径集合中提取所有祖先路径的 tuple 表示。
 
-    使用字符串表示的 dotted 路径。注意：路径字符串中的点同时承担「路径分隔符」
-    和「key 名字面量点号」的双重语义，在 ES-flattened 格式的 dotted 键名
-    存在歧义（例如 {"a.b": "scalar", "a": {"b": "secret"}}）。
-    当前实现采用「最左匹配」策略：优先将点号视为分隔符。
-    这是已知限制，详见文档。
+    使用 path token（tuple）表示，彻底消除 dotted string 的点号歧义。
 
-    例如: {"body.player.id"} → {"body", "body.player"}
+    例如: {"body.player.id"} → {("body",), ("body", "player")}
 
-    :param configured_paths: 配置路径集合
-    :return: 祖先路径集合
+    :param configured_paths: 配置路径集合（dotted string）
+    :return: 祖先路径的 tuple 集合
     """
 
     ancestors = set()
     for path in configured_paths:
         parts = path.split(".")
         for i in range(1, len(parts)):
-            ancestors.add(".".join(parts[:i]))
+            ancestors.add(tuple(parts[:i]))
     return ancestors
-
-
-def _get_segments(key: str, restore_metadata: dict) -> tuple:
-    """
-    获取某个 dotted key 的路径分段（path token）。
-
-    优先从 metadata 中读取 ``segments`` 字段（由 path_aware_expand 写入，
-    能正确区分字面点号 key 与路径分隔符）；若 metadata 缺失该信息
-    （例如外部直接调用 restore_by_metadata），则退化为按点号 split。
-
-    :param key: dotted 字符串 key
-    :param restore_metadata: path_aware_expand 返回的元数据
-    :return: 路径分段 tuple
-    """
-    meta = (restore_metadata or {}).get(key)
-    if meta and "segments" in meta:
-        return tuple(meta["segments"])
-    return tuple(key.split("."))
 
 
 def path_aware_expand(
@@ -238,182 +217,173 @@ def path_aware_expand(
 ):
     """
     路径感知展开：根据已配置字段的祖先路径，解析必要的 JSON object 字符串，
-    生成 dotted-key 视图供 transform_dict 匹配。
+    生成 path-token（tuple）视图供 transform_dict 匹配。
 
     与 expand_nested_data 的区别：
     - 仅对配置路径的祖先字段尝试 JSON object 字符串解析（非全量扫描）
-    - 返回还原元数据，记录每个被展开节点的原始容器类型（完整路径粒度）
+    - 返回还原元数据，记录每个被展开节点的原始容器类型
     - 对「无法解析 / 超限 / 超深」且存在子路径规则的字段执行 fail-closed（整体遮罩）
     - 深度超限时保留剩余子树，避免无关字段从结果中消失
 
-    路径表示使用 dotted 字符串。点号同时承担路径分隔符和 key 名中点号字符
-    的双重语义——这是已知限制（详见文档「点号歧义」章节）。
-    ES-flattened 格式的 dotted 键名因与路径表示格式相同，恰好被兼容支持。
+    路径表示使用 tuple（path token），每个元素是一个完整的路径段，
+    彻底消除 dotted string 的点号歧义。
+
+    ES-flattened 兼容：顶层 key（depth=0）中的点号视为路径分隔符（ES 打平结果），
+    嵌套层（depth>0）和 JSON 解析结果中的 key 不 split（点号是字面量）。
 
     :param data: 原始日志 dict
     :param configured_paths: 已配置脱敏规则的字段路径列表（dotted path）
     :param max_depth: 最大递归深度，超过则停止展开
     :param max_json_bytes: 单个 JSON 字符串最大解析字节数，超过则跳过
     :return: (expanded_dict, restore_metadata)
-             expanded_dict: 扁平化后的 dotted-key dict
-             restore_metadata: {full_path: {"type": "dict"|"json_string"|"scalar"}}
+             expanded_dict: Dict[Tuple[str, ...], Any]
+             restore_metadata: Dict[Tuple[str, ...], dict]
     """
     try:
         configured_paths = set(configured_paths or [])
-        ancestor_paths = _get_ancestor_paths(configured_paths)
-        # 预计算配置路径的 segments 表示（path token），用于 segments-based 比较
-        # 避免字面点号 key 与路径分隔符混合时的假阳性匹配
-        configured_segments = {tuple(cp.split(".")) for cp in configured_paths}
-        ancestor_segments = {tuple(ap.split(".")) for ap in ancestor_paths}
-        expanded = {}
-        restore_metadata = {}
+        configured_tuples = {tuple(cp.split(".")) for cp in configured_paths}
+        ancestor_tuples = _get_ancestor_tuples(configured_paths)
+        expanded: dict = {}
+        restore_metadata: dict = {}
 
-        def _has_rules_at_or_below(path_segments: tuple) -> bool:
-            """
-            判断某路径自身或其子孙路径是否配置了脱敏规则。
-
-            使用 path segments（path token）比较，避免字面点号 key 导致的
-            假阳性匹配（配置路径 ``body.a.b.c`` 的 segments 为 ``("body","a","b","c")``，
-            字面 key ``"a.b"`` 的 segments 为 ``("body","a.b")``，两者前缀不匹配）。
-            """
-            if path_segments in configured_segments:
+        def _has_rules_at_or_below(path_tuple: tuple) -> bool:
+            """判断某路径自身或其子孙路径是否配置了脱敏规则。"""
+            if path_tuple in configured_tuples:
                 return True
             return any(
-                len(cs) > len(path_segments)
-                and cs[:len(path_segments)] == path_segments
-                for cs in configured_segments
+                len(ct) > len(path_tuple)
+                and ct[:len(path_tuple)] == path_tuple
+                for ct in configured_tuples
             )
 
-        def _mask(path: str, reason: str, segments: tuple = ()):
+        def _mask(path_tuple: tuple, reason: str):
             """fail-closed：整体遮罩该字段。"""
             logger.warning(
                 "path_aware_expand: mask field '%s' due to %s (has subpath rules)",
-                path,
+                ".".join(path_tuple),
                 reason,
             )
-            expanded[path] = _MASKED_VALUE
-            restore_metadata[path] = {"type": "scalar", "segments": tuple(segments) or tuple(path.split("."))}
+            expanded[path_tuple] = _MASKED_VALUE
+            restore_metadata[path_tuple] = {"type": "scalar"}
 
-        def _expand(node: dict, prefix: str = "", prefix_segments: tuple = (), depth: int = 0, from_json: bool = False):
+        def _expand(node: dict, prefix_tuple: tuple = (), depth: int = 0, from_json: bool = False):
             """
-            递归展开 dict 为扁平 dotted-key 视图，同时记录路径分段信息。
+            递归展开 dict 为扁平 path-token 视图。
 
             :param node: 当前层 dict
-            :param prefix: 当前层的 dotted 路径前缀
-            :param prefix_segments: 当前层的路径分段 tuple
+            :param prefix_tuple: 当前层的 path token 前缀
             :param depth: 当前递归深度
-            :param from_json: 当前 node 是否来源于 JSON 字符串解析结果。
-                为 True 时，node 的 key 中的点号是键名的一部分（字面量），
-                不应在 _build_nested_dict 中被 split；
-                为 False 时，key 中的点号是路径分隔符（来自 ES-flattened
-                或普通嵌套路径），应在 _build_nested_dict 中正常 split。
+            :param from_json: 当前 node 是否来源于 JSON 字符串解析结果
             """
             for _k, _v in node.items():
-                current_path = _k if not prefix else "{}.{}".format(prefix, _k)
-
                 # ------------------------------------------------------------------
-                # 路径分段（path token）：根据 key 来源决定 split 策略
-                # - JSON 解析来源（from_json=True）：key 中的点号是字面量，
-                #   整个 key 作为一段（如 "a.b" → ("a.b",)）。
-                # - 非 JSON 来源（from_json=False）：key 中的点号是路径分隔符，
-                #   按点号 split（如 "deployment.pod" → ("deployment", "pod")）。
-                # 分段信息存储在 metadata 的 "segments" 字段中，供 _build_nested_dict
-                # 和 restore_by_metadata 使用，避免盲 divide by "."
+                # 路径分段：顶层 key（depth=0）且非 JSON 来源时，点号视为分隔符
+                # ES-flattened 格式（如 "__ext_json.deployment.pod.name"）需要 split
+                # 嵌套层（depth>0）和 JSON 解析结果中，key 中的点号是字面量
                 # ------------------------------------------------------------------
-                if from_json and "." in _k:
-                    # JSON 字面点号 key：整个 key 作为一段
-                    segment = (_k,)
-                else:
-                    # 非字面 key：按点号 split 为多段
+                if depth == 0 and not from_json and "." in _k:
                     segment = tuple(_k.split("."))
-                current_segments = prefix_segments + segment
+                else:
+                    segment = (_k,)
+                current_tuple = prefix_tuple + segment
 
                 # ------------------------------------------------------------------
-                # 展开阶段冲突检测：同一 dotted 路径同时有两个来源
-                #（如 dict 递归展开产生 "body.a.b"，而 JSON 中又一个字面 key "a.b"），
-                # 这是 dotted string 路径表示的根本限制。
-                # 策略：确定性保留先迭代的值，后来者跳过并记录 error。
-                # 后续 _build_nested_dict 的冲突检测作为第二层防线。
+                # 字面点号 key 内嵌 JSON 绕过检查
+                # 当 key 含点号且 split 解释命中配置路径时：
+                # - 值是非空 JSON dict → 内部字段无法被配置路径命中 → fail-closed
+                # - 值是普通标量 → 保留（配置匹配的是嵌套 dict 路径，字面 key 是不同字段）
                 # ------------------------------------------------------------------
-                if current_path in expanded:
-                    logger.error(
-                        "_expand: dotted-key conflict at '%s', "
-                        "keeping existing, discarding new (key retains first-encountered "
-                        "value due to dotted-key ambiguity)",
-                        current_path,
+                if "." in _k and not (depth == 0 and not from_json):
+                    split_tuple = prefix_tuple + tuple(_k.split("."))
+                    if _has_rules_at_or_below(split_tuple):
+                        if isinstance(_v, str):
+                            stripped = _v.strip()
+                            if stripped.startswith("{") and stripped.endswith("}"):
+                                try:
+                                    parsed_check = json.loads(stripped)
+                                    if isinstance(parsed_check, dict) and parsed_check:
+                                        logger.warning(
+                                            "path_aware_expand: literal dotted-key '%s' has "
+                                            "config rules under split interpretation, "
+                                            "fail-closed masking",
+                                            ".".join(current_tuple),
+                                        )
+                                        expanded[current_tuple] = _MASKED_VALUE
+                                        restore_metadata[current_tuple] = {"type": "scalar"}
+                                        continue
+                                except (json.JSONDecodeError, TypeError, ValueError, RecursionError):
+                                    pass
+
+                # ------------------------------------------------------------------
+                # 冲突检测（tuple 比较，无歧义；理论上不会触发，保留作为安全网）
+                # ------------------------------------------------------------------
+                if current_tuple in expanded:
+                    logger.warning(
+                        "path_aware_expand: path-token conflict at %s, fail-closed masking",
+                        current_tuple,
                     )
+                    expanded[current_tuple] = _MASKED_VALUE
+                    restore_metadata[current_tuple] = {"type": "scalar"}
                     continue
 
                 if isinstance(_v, dict):
                     if depth + 1 > max_depth:
-                        # 深度超限：保留整棵剩余子树，避免无关字段丢失
-                        if _has_rules_at_or_below(current_segments):
-                            _mask(current_path, "exceeds max_depth", current_segments)
+                        if _has_rules_at_or_below(current_tuple):
+                            _mask(current_tuple, "exceeds max_depth")
                         else:
-                            expanded[current_path] = _v
-                            restore_metadata[current_path] = {"type": "dict", "segments": current_segments}
+                            expanded[current_tuple] = _v
+                            restore_metadata[current_tuple] = {"type": "dict"}
                         continue
-                    restore_metadata[current_path] = {"type": "dict", "segments": current_segments}
-                    _expand(_v, current_path, current_segments, depth + 1, from_json)
+                    restore_metadata[current_tuple] = {"type": "dict"}
+                    _expand(_v, current_tuple, depth + 1, from_json)
 
                 elif isinstance(_v, list):
-                    # 数组作为整体值，不展开元素
-                    expanded[current_path] = _v
-                    restore_metadata[current_path] = {"type": "scalar", "segments": current_segments}
+                    expanded[current_tuple] = _v
+                    restore_metadata[current_tuple] = {"type": "scalar"}
 
-                elif isinstance(_v, str) and current_segments in ancestor_segments:
-                    # 候选 JSON object 字符串（仅对配置路径的祖先字段尝试解析）
-                    # 使用 segments 判断，避免字面点号 key 命中字符串祖先导致的
-                    # 不必要解析
+                elif isinstance(_v, str) and current_tuple in ancestor_tuples:
                     stripped = _v.strip()
                     if len(_v.encode("utf-8")) > max_json_bytes:
-                        # 超限：有子规则则 fail-closed
-                        if _has_rules_at_or_below(current_segments):
-                            _mask(current_path, "exceeds max_json_bytes", current_segments)
+                        if _has_rules_at_or_below(current_tuple):
+                            _mask(current_tuple, "exceeds max_json_bytes")
                         else:
-                            expanded[current_path] = _v
-                            restore_metadata[current_path] = {"type": "scalar", "segments": current_segments}
+                            expanded[current_tuple] = _v
+                            restore_metadata[current_tuple] = {"type": "scalar"}
                         continue
 
                     if not (stripped.startswith("{") and stripped.endswith("}")):
-                        # 去掉空白后仍非 object 形态，按普通标量处理
-                        expanded[current_path] = _v
-                        restore_metadata[current_path] = {"type": "scalar", "segments": current_segments}
+                        expanded[current_tuple] = _v
+                        restore_metadata[current_tuple] = {"type": "scalar"}
                         continue
 
                     if _estimate_json_depth(stripped) > max_depth:
-                        # 嵌套过深：预扫描拦截，避免 json.loads 触发 RecursionError
-                        if _has_rules_at_or_below(current_segments):
-                            _mask(current_path, "JSON nesting exceeds max_depth", current_segments)
+                        if _has_rules_at_or_below(current_tuple):
+                            _mask(current_tuple, "JSON nesting exceeds max_depth")
                         else:
-                            expanded[current_path] = _v
-                            restore_metadata[current_path] = {"type": "scalar", "segments": current_segments}
+                            expanded[current_tuple] = _v
+                            restore_metadata[current_tuple] = {"type": "scalar"}
                         continue
 
                     try:
                         parsed = json.loads(stripped)
                     except (json.JSONDecodeError, TypeError, ValueError, RecursionError):
-                        # 解析失败：有子规则则 fail-closed，否则保持原值
-                        if _has_rules_at_or_below(current_segments):
-                            _mask(current_path, "JSON parse failure", current_segments)
+                        if _has_rules_at_or_below(current_tuple):
+                            _mask(current_tuple, "JSON parse failure")
                         else:
-                            expanded[current_path] = _v
-                            restore_metadata[current_path] = {"type": "scalar", "segments": current_segments}
+                            expanded[current_tuple] = _v
+                            restore_metadata[current_tuple] = {"type": "scalar"}
                         continue
 
                     if isinstance(parsed, dict):
-                        restore_metadata[current_path] = {"type": "json_string", "segments": current_segments}
-                        # JSON 解析得到的内层 dict：key 中的点号是字面量
-                        _expand(parsed, current_path, current_segments, depth + 1, from_json=True)
+                        restore_metadata[current_tuple] = {"type": "json_string"}
+                        _expand(parsed, current_tuple, depth + 1, from_json=True)
                     else:
-                        # 解析结果不是 object（如数组、标量），保持原值
-                        expanded[current_path] = _v
-                        restore_metadata[current_path] = {"type": "scalar", "segments": current_segments}
+                        expanded[current_tuple] = _v
+                        restore_metadata[current_tuple] = {"type": "scalar"}
 
                 else:
-                    # 标量值（str, int, float, bool, None）
-                    expanded[current_path] = _v
-                    restore_metadata[current_path] = {"type": "scalar", "segments": current_segments}
+                    expanded[current_tuple] = _v
+                    restore_metadata[current_tuple] = {"type": "scalar"}
 
         _expand(data)
         return expanded, restore_metadata
@@ -446,57 +416,58 @@ def _extract_value_by_path(data: dict, dotted_path: str):
         return None
 
 
-def _build_nested_dict(items: dict, prefix: str, restore_metadata: dict = None):
+def _build_nested_dict(items: dict, prefix_tuple: tuple):
     """
-    将带前缀的扁平 key-value 构建为嵌套 dict（相对 prefix）。
+    将 path-token key 的扁平 dict 构建为嵌套 dict（相对 prefix_tuple）。
 
-    例如: {"player.id": "123", "player.name": "abc"} → {"player": {"id": "123", "name": "abc"}}
+    例如: {("player", "id"): "123", ("player", "name"): "abc"} → {"player": {"id": "123", "name": "abc"}}
 
-    使用路径分段（path token）导航：优先从 restore_metadata 读取
-    ``segments`` 字段，能正确区分字面点号 key 与路径分隔符。
-    来自 JSON 解析结果的 key 中点号是键名的一部分（字面量），
-    其 segments 中整个 key 为一段，不会在导航时被错误 split
+    使用 path token 直接导航，无需从 metadata 读取 segments。
+    tuple key 本身就是无歧义的路径表示，不会产生点号 split 问题。
 
-    冲突处理：非字面 key 之间，当同一位置既有标量值又需要构建子树时，
-    采用「子树优先」策略——被降级的标量值直接丢失并记录 error 日志。
-    字面 key 本身不会参与 split，因此不存在字面 key 之间的冲突。
+    冲突处理：fail-closed——当同一位置既有标量值又需要构建子树时，
+    将冲突位置整体遮罩为 ``***MASKED***``，不按输入顺序丢弃任何一方。
 
-    :param items: 以 prefix 为前缀的扁平 key-value
-    :param prefix: 当前节点路径
-    :param restore_metadata: path_aware_expand 返回的元数据
+    :param items: 以 prefix_tuple 为前缀的扁平 key-value（key 为 tuple）
+    :param prefix_tuple: 当前节点路径（tuple）
     :return: 嵌套 dict
     """
-    prefix_len = len(_get_segments(prefix, restore_metadata))
+    prefix_len = len(prefix_tuple)
     nested = {}
-    for key, value in items.items():
-        if key == prefix:
+    for key_tuple, value in items.items():
+        if key_tuple == prefix_tuple:
             continue
-        segments = _get_segments(key, restore_metadata)
-        if len(segments) <= prefix_len:
+        if len(key_tuple) <= prefix_len:
             continue
-        if segments[:prefix_len] != _get_segments(prefix, restore_metadata):
+        if key_tuple[:prefix_len] != prefix_tuple:
             continue
         # 相对于 prefix 的剩余分段
-        relative_segments = segments[prefix_len:]
+        relative_segments = key_tuple[prefix_len:]
         current = nested
+        conflicted = False
         for part in relative_segments[:-1]:
             if part not in current:
                 current[part] = {}
             elif not isinstance(current[part], dict):
-                # 冲突：该位置已有标量，无法继续下钻；子树优先，标量丢失
-                logger.error(
-                    "_build_nested_dict: path conflict at '%s', subtree takes priority, scalar lost",
-                    key,
+                # fail-closed：标量-子树冲突，整体遮罩
+                logger.warning(
+                    "_build_nested_dict: path conflict at '%s', fail-closed masking",
+                    ".".join(key_tuple),
                 )
-                current[part] = {}
+                current[part] = _MASKED_VALUE
+                conflicted = True
+                break
             current = current[part]
+        if conflicted:
+            continue
         last = relative_segments[-1]
         if isinstance(current.get(last), dict):
-            # 冲突：目标位置已构建子树，写标量会覆盖子树；子树优先，标量丢失
-            logger.error(
-                "_build_nested_dict: path conflict at '%s', subtree takes priority, scalar lost",
-                key,
+            # fail-closed：子树-标量冲突，整体遮罩
+            logger.warning(
+                "_build_nested_dict: path conflict at '%s', fail-closed masking",
+                ".".join(key_tuple),
             )
+            current[last] = _MASKED_VALUE
         else:
             current[last] = value
 
@@ -505,37 +476,29 @@ def _build_nested_dict(items: dict, prefix: str, restore_metadata: dict = None):
 
 def restore_by_metadata(expanded_data: dict, restore_metadata: dict) -> dict:
     """
-    根据还原元数据将脱敏后的扁平 dict 还原为原始结构。
+    根据还原元数据将脱敏后的扁平 path-token dict 还原为原始结构。
 
     与 merge_nested_data 的区别：
+    - key 为 tuple（path token），无需从 metadata 读取 segments
     - 以「完整路径」粒度的元数据决定每个节点的容器类型，支持内层 JSON 字符串类型保持
-    - 使用路径分段（path token）导航后代关系，正确处理字面点号 key
     - 自底向上折叠：先还原最深容器，逐层向上包裹
     - dict 类型 → 构建嵌套 dict
     - json_string 类型 → 构建嵌套 dict 后重新序列化为 JSON 字符串
     - scalar 类型 → 直接赋值
-    - 无元数据的带点 key 默认按 dict 折叠（兼容旧行为）
+    - 无元数据的多段 tuple key 默认按 dict 折叠（兼容旧行为）
 
-    :param expanded_data: 脱敏后的扁平 dotted-key dict
-    :param restore_metadata: path_aware_expand 返回的元数据
+    :param expanded_data: 脱敏后的扁平 path-token dict（key 为 Tuple[str, ...]）
+    :param restore_metadata: path_aware_expand 返回的元数据（key 为 Tuple[str, ...]）
     :return: 还原后的 dict，结构与原始输入一致
     """
     try:
         result = dict(expanded_data or {})
         restore_metadata = restore_metadata or {}
 
-        # 根据 segments 判断 key 是否为 path 的祖先-后代关系（基于路径分段比较，不依赖字符串 split）
-        def _is_descendant(key: str, ancestor_key: str) -> bool:
-            """判断 key 是否为 ancestor_key 的后代（任意深度）。"""
-            key_seg = _get_segments(key, restore_metadata)
-            anc_seg = _get_segments(ancestor_key, restore_metadata)
-            return len(key_seg) > len(anc_seg) and key_seg[:len(anc_seg)] == anc_seg
-
-        def _is_self_or_descendant(key: str, ancestor_key: str) -> bool:
-            """判断 key 是否为 ancestor_key 自身或后代（用于收集子树）。"""
-            key_seg = _get_segments(key, restore_metadata)
-            anc_seg = _get_segments(ancestor_key, restore_metadata)
-            return len(key_seg) >= len(anc_seg) and key_seg[:len(anc_seg)] == anc_seg
+        # 根据 tuple 前缀判断 key 是否为 ancestor 的后代
+        def _is_descendant(key_tuple: tuple, ancestor_tuple: tuple) -> bool:
+            """判断 key_tuple 是否为 ancestor_tuple 的后代（任意深度）。"""
+            return len(key_tuple) > len(ancestor_tuple) and key_tuple[:len(ancestor_tuple)] == ancestor_tuple
 
         # 1. 收集所有容器节点（dict / json_string），按路径深度从深到浅处理
         container_paths = [
@@ -543,16 +506,15 @@ def restore_by_metadata(expanded_data: dict, restore_metadata: dict) -> dict:
             for path, meta in restore_metadata.items()
             if meta.get("type") in ("dict", "json_string")
         ]
-        # 使用 path segments 长度作为深度（segments 越长越深）。深的优先，
-        # 同深度按字典序保证确定性。
+        # 使用 tuple 长度作为深度。深的优先，同深度按字典序保证确定性。
         container_paths.sort(
-            key=lambda p: (len(_get_segments(p, restore_metadata)), p),
+            key=lambda p: (len(p), p),
             reverse=True,
         )
 
         for path in container_paths:
             container_type = restore_metadata[path].get("type")
-            # 收集直接后代（基于 segments 判断，避免字面点号 key 被错误归属）
+            # 收集后代（基于 tuple 前缀判断）
             descendant_keys = [
                 k for k in list(result.keys())
                 if _is_descendant(k, path)
@@ -560,24 +522,25 @@ def restore_by_metadata(expanded_data: dict, restore_metadata: dict) -> dict:
             if not descendant_keys:
                 continue
             sub_map = {k: result.pop(k) for k in descendant_keys}
-            nested = _build_nested_dict(sub_map, path, restore_metadata)
+            nested = _build_nested_dict(sub_map, path)
             if container_type == "json_string":
                 result[path] = json.dumps(nested, ensure_ascii=False)
             else:
                 result[path] = nested
 
-        # 2. 兜底：无容器元数据但仍带点的 key，默认按 dict 折叠
-        dotted_keys = [k for k in list(result.keys()) if "." in k]
-        if dotted_keys:
+        # 2. 兜底：所有多段 tuple key（未被容器折叠的），按 top-level 分组折叠为嵌套 dict
+        multi_seg_keys = [k for k in list(result.keys()) if isinstance(k, tuple) and len(k) > 1]
+        if multi_seg_keys:
             groups = {}
-            for k in dotted_keys:
-                top_seg = _get_segments(k, restore_metadata)[0]
-                groups.setdefault(top_seg, {})[k] = result.pop(k)
+            for k in multi_seg_keys:
+                top = k[0]
+                groups.setdefault(top, {})[k] = result.pop(k)
             for top, sub_map in groups.items():
-                if top in result:
-                    if isinstance(result[top], dict):
-                        # top 已是 dict，将子路径折叠进去，不丢失数据
-                        result[top].update(_build_nested_dict(sub_map, top, restore_metadata))
+                top_tuple = (top,)
+                if top_tuple in result:
+                    if isinstance(result[top_tuple], dict):
+                        # top 已是 dict，将子路径折叠进去
+                        result[top_tuple].update(_build_nested_dict(sub_map, top_tuple))
                     else:
                         # top 是标量，无法合并子路径；记录 warning，将子路径放回 result
                         logger.warning(
@@ -589,8 +552,10 @@ def restore_by_metadata(expanded_data: dict, restore_metadata: dict) -> dict:
                         for k, v in sub_map.items():
                             result[k] = v
                 else:
-                    result[top] = _build_nested_dict(sub_map, top, restore_metadata)
+                    result[top_tuple] = _build_nested_dict(sub_map, top_tuple)
 
-        return result
+        # 3. 还原为原始结构：将 tuple key 转为 string key
+        # 内部处理用 tuple 消除歧义，最终还原为用户原始数据的 key 格式
+        return {k if isinstance(k, str) else ".".join(k): v for k, v in result.items()}
     except Exception as e:
         raise DesensitizeDataErrorException(DesensitizeDataErrorException.MESSAGE.format(e=e))

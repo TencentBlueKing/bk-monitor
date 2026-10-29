@@ -2498,37 +2498,36 @@ class SearchHandler:
 
         if self.text_fields and has_fail_closed:
             # fail-closed 场景下原文字段整体遮罩
-            # fail-closed 场景下无法可靠地从原文字段中定位并替换敏感子串
-            #（可能存在转义、编码、截断等变体），因此采用整体遮罩策略
             for text_field in self.text_fields:
-                if text_field in log and isinstance(log[text_field], str) and log[text_field]:
-                    log[text_field] = _MASKED_VALUE
-                elif text_field not in log and text_field in restore_metadata:
+                text_tuple = (text_field,)
+                if text_tuple in log and isinstance(log[text_tuple], str) and log[text_tuple]:
+                    log[text_tuple] = _MASKED_VALUE
+                elif text_tuple not in log and text_tuple in restore_metadata:
                     # text_field 被 path_aware_expand 展开为子路径，key 已消失
-                    # 移除已展开的子路径，整体遮罩，防止未配置的子字段泄漏明文
-                    keys_to_remove = [k for k in log if k.startswith(f"{text_field}.")]
+                    keys_to_remove = [k for k in log if len(k) > 1 and k[0] == text_field]
                     for k in keys_to_remove:
                         del log[k]
-                    log[text_field] = _MASKED_VALUE
-                    restore_metadata[text_field] = {"type": "scalar", "segments": (text_field,)}
+                    log[text_tuple] = _MASKED_VALUE
+                    restore_metadata[text_tuple] = {"type": "scalar"}
         elif self.text_fields:
             # 原文字段应用其他字段的脱敏结果（原有逻辑，仅在非 fail-closed 时生效）
-            # 对副本做空路径展开，获得 dotted-key 形式的原始值
-            # 使用空 configured_paths 确保不解析 JSON 字符串、不触发 fail-closed
+            # 对副本做空路径展开，获得 path-token 形式的原始值
             log_content_tmp_expanded, _ = path_aware_expand(log_content_tmp, [])
 
             for text_field in self.text_fields:  # ["log"]
+                text_tuple = (text_field,)
                 # 判断原文字段是否存在log中
-                if text_field not in log.keys():
+                if text_tuple not in log:
                     continue
 
                 for _config in self.field_configs:
                     field_name = _config["field_name"]
-                    if field_name not in log.keys() or field_name == text_field:
+                    field_tuple = tuple(field_name.split("."))
+                    if field_tuple not in log or field_tuple == text_tuple:
                         continue
 
                     # 优先从展开后的副本获取原始值
-                    original_value = log_content_tmp_expanded.get(field_name)
+                    original_value = log_content_tmp_expanded.get(field_tuple)
                     if original_value is None:
                         # 空路径展开时 JSON 字符串子路径不会被展开
                         # 从原始 log 按 dotted path 导航提取
@@ -2536,8 +2535,8 @@ class SearchHandler:
                         if original_value is None:
                             continue
 
-                    log[text_field] = log[text_field].replace(
-                        str(original_value), str(log[field_name])
+                    log[text_tuple] = log[text_tuple].replace(
+                        str(original_value), str(log[field_tuple])
                     )
 
             # 处理原文字段自身绑定的脱敏逻辑

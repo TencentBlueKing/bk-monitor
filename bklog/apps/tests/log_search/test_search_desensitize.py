@@ -1022,8 +1022,7 @@ class TestSearchHandlerDesensitize(TestCase):
         """JSON 内字面点号 key 与普通 key 共存都必须保留。
 
         ``body='{"a":"scalar","a.b":"secret"}'``，配置 ``body.a.b``。
-        修复前：``_build_nested_dict`` 盲分 ``body.a.b``，标量 ``"scalar"`` 被覆盖丢失。
-        修复后：两个字面/普通 key 都完整保留在还原结果中。
+        字面 key "a.b" 值为普通标量，split 解释命中配置 → fail-closed 脱敏。
         """
         config = {
             "field_name": "body.a.b",
@@ -1352,7 +1351,8 @@ class TestDesensitizeExceptionFailClosed(TestCase):
         "apps.log_search.handlers.search.search_handlers_esquery.path_aware_expand",
         side_effect=[
             RuntimeError("unexpected internal error"),
-            ({"message": "Another Log5678", "log": "log2", "dtEventTimeStamp": 1727452800001}, {})
+            ({("message",): "Another Log5678", ("log",): "log2", ("dtEventTimeStamp",): 1727452800001},
+             {("message",): {"type": "scalar"}, ("log",): {"type": "scalar"}, ("dtEventTimeStamp",): {"type": "scalar"}})
         ],
     )
     def test_exception_does_not_affect_other_logs(self, mock_expand):
