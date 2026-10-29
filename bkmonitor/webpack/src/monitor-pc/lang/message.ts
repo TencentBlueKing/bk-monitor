@@ -170,6 +170,7 @@ export default {
   模型输出异常: 'Abnormal model output',
   '成功导入 {num} 个拨测任务': 'Imported {num} checks successful',
   '复制成功 {num} 个IP': 'Copied {num} IPs successful',
+  '复制成功 {num} 个ID': 'Copied {num} IDs successful',
   全部成功: 'All successful',
   全部失败: 'All failed',
   共享成功: 'Shared successful',
