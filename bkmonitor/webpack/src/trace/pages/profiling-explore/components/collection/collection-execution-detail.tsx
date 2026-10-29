@@ -113,9 +113,13 @@ export default defineComponent({
         rerunError.value = '';
       }
     );
-    // 重新采集提交状态上报，父级据此暂停自动刷新
-    watch(rerunBusy, value => emit('busy', value), { immediate: true });
-    onScopeDispose(() => rerunController?.abort());
+    // 重新采集提交状态上报，父级据此暂停自动刷新；同步上报避免关闭详情卸载组件后丢失复位
+    watch(rerunBusy, value => emit('busy', value), { immediate: true, flush: 'sync' });
+    onScopeDispose(() => {
+      rerunController?.abort();
+      // 提交中途被卸载时请求随之中止，finally 不再复位，这里兜底
+      emit('busy', false);
+    });
     function openResult(host: CollectionExecutionHost) {
       const detail = props.controller.detail.value;
       if (!detail) return;
@@ -155,10 +159,11 @@ export default defineComponent({
           current.signal
         );
         if (current.signal.aborted) return;
-        // 重新采集已提交，先关采集结果侧弹再关任务执行详情
+        // 重新采集已提交：先复位 busy（同步上报），再关采集结果侧弹与任务执行详情
         rerunHost.value = null;
         resultSelection.value = null;
         rerunError.value = '';
+        rerunBusy.value = false;
         Message({ theme: 'success', message: t('采集任务已创建') });
         props.controller.close();
         emit('created');

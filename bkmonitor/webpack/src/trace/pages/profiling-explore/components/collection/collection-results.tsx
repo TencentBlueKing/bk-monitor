@@ -164,11 +164,20 @@ export default defineComponent({
     watch([h.loading, h.hasMore], () => {
       nextTick(() => loadVisiblePage());
     });
-    // 执行详情内重新采集的提交状态也纳入 busy，避免提交期间触发自动刷新
+    // 执行详情内重新采集的提交状态也纳入 busy，避免提交期间触发自动刷新；
+    // 详情关闭后不再计入，防止卸载时漏发复位导致 busy 卡住
     const executionBusy = shallowRef(false);
     watch(
-      [h.loading, h.busy, c.loading, c.busy, executionBusy],
-      () => emit('busy', h.loading.value || h.busy.value || c.loading.value || c.busy.value || executionBusy.value),
+      [h.loading, h.busy, c.loading, c.busy, c.selected, executionBusy],
+      () =>
+        emit(
+          'busy',
+          h.loading.value ||
+            h.busy.value ||
+            c.loading.value ||
+            c.busy.value ||
+            (!!c.selected.value && executionBusy.value)
+        ),
       { immediate: true }
     );
     return {

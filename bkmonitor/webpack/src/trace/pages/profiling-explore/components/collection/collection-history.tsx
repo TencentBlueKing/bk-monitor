@@ -147,11 +147,13 @@ export default defineComponent({
       await nextTick();
       if (h.canAutoFill.value) loadVisiblePage();
     });
-    // 执行详情内重新采集的提交状态也纳入 busy，避免提交期间触发自动刷新
+    // 执行详情内重新采集的提交状态也纳入 busy，避免提交期间触发自动刷新；
+    // 详情关闭后不再计入，防止卸载时漏发复位导致 busy 卡住
     const executionBusy = shallowRef(false);
     watch(
-      [h.loading, c.loading, c.busy, executionBusy],
-      () => emit('busy', h.loading.value || c.loading.value || c.busy.value || executionBusy.value),
+      [h.loading, c.loading, c.busy, c.selected, executionBusy],
+      () =>
+        emit('busy', h.loading.value || c.loading.value || c.busy.value || (!!c.selected.value && executionBusy.value)),
       { immediate: true }
     );
     // 面板与表格列任一筛选生效时，空态区分无匹配结果与暂无数据
