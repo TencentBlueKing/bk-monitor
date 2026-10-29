@@ -544,11 +544,11 @@ def all_uq(limits):
         if isinstance(node, ast.Assign) and isinstance(node.targets[0], ast.Name)
     }
     rollout = [False]
+    version_lookup = Mock(side_effect=lambda bid: "ready" if rollout[0] else "")
     resolver = Mock(
         side_effect=source(
             "api/unify_query/relation_routing.py",
             "resolve_relation_query_path",
-            get_relation_schema_version=lambda bid: "ready" if rollout[0] else "",
         )
     )
     transport = Mock()
@@ -569,7 +569,7 @@ def all_uq(limits):
         get_unify_query_url=lambda uid: "http://uq.invalid/root/",
         urljoin=urljoin,
         resolve_relation_query_path=resolver,
-        get_relation_schema_version=lambda bid: "ready" if rollout[0] else "",
+        get_relation_schema_version=version_lookup,
         RELATION_SCHEMA_VERSION_HEADER="X-Bk-Relation-Schema-Version",
         requests=NS(request=transport),
         read_bounded_json=limits.read_bounded_json,
@@ -601,6 +601,7 @@ def all_uq(limits):
         transport=transport,
         rollout=rollout,
         resolver=resolver,
+        version_lookup=version_lookup,
         space=space,
         request=request,
     )
@@ -710,7 +711,7 @@ def test_explicit_null_space_and_space_derived_routing_match_original(all_uq, op
         if space_uid is None:
             assert headers["X-Bk-Scope-Skip-Space"] == "monitor"
         else:
-            assert all_uq.resolver.call_args.args[2] == -9
+            all_uq.version_lookup.assert_not_called()
             assert headers["X-Bk-Scope-Space-Uid"] == "bkcc__-9"
 
 

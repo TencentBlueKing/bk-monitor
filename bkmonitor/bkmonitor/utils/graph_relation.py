@@ -3,6 +3,8 @@ import logging
 from typing import Any
 
 from django.conf import settings
+from django.db import DatabaseError
+from redis.exceptions import RedisError
 
 
 logger = logging.getLogger(__name__)
@@ -49,23 +51,19 @@ def get_relation_v1beta3_biz_ids() -> set[int]:
     return parse_relation_v1beta3_biz_ids(getattr(settings, RELATION_V1BETA3_BIZ_ID_WHITE_LIST, []))
 
 
-def _relation_schema_redis_client():
-    from metadata.utils.redis_tools import RedisTools
-
-    return RedisTools().client
-
-
 def get_relation_schema_version(bk_biz_id: int | str | None) -> str:
     """Admit a business only after a full definition publication for this list."""
     try:
         biz_id = int(bk_biz_id)
     except (TypeError, ValueError):
         return ""
+    from metadata.utils.redis_tools import RedisTools
+
     try:
         enabled_biz_ids = get_relation_v1beta3_biz_ids()
         if biz_id not in enabled_biz_ids:
             return ""
-        raw = _relation_schema_redis_client().get(RELATION_SCHEMA_READY_KEY)
+        raw = RedisTools().client.get(RELATION_SCHEMA_READY_KEY)
         if not raw:
             return ""
         ready = json.loads(raw)
@@ -73,6 +71,6 @@ def get_relation_schema_version(bk_biz_id: int | str | None) -> str:
             return ""
         version = ready.get("version")
         return version if isinstance(version, str) else ""
-    except Exception:  # pylint: disable=broad-except
+    except (DatabaseError, RedisError, json.JSONDecodeError, UnicodeDecodeError):
         logger.exception("failed to check relation rollout readiness for biz_id=%s", biz_id)
         return ""

@@ -103,10 +103,6 @@ class RedisTools:
         return cls().client.hgetall(key)
 
     @classmethod
-    def hkeys(cls, key: str) -> list:
-        return cls().client.hkeys(key)
-
-    @classmethod
     def srem(cls, key: str, value: list) -> int:
         if not value:
             return 0

@@ -128,7 +128,6 @@ class UnifyQueryAPIResource(Resource):
         request_path = resolve_relation_query_path(
             self.path,
             self.v1beta3_path,
-            bk_biz_id,
             schema_version=relation_schema_version,
         )
         url = urljoin(get_unify_query_url(space_uid), request_path.format(**params))

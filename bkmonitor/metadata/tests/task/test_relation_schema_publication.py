@@ -6,6 +6,7 @@ worker or deployment Redis is used. Run with pytest --noconftest -c /dev/null.
 
 import ast
 import json
+import sys
 from contextlib import nullcontext
 from pathlib import Path
 from types import SimpleNamespace
@@ -51,7 +52,7 @@ def publication(monkeypatch):
     relations = Mock()
     relations.get_kind.return_value = "RelationDefinition"
     relations.objects.all.return_value = []
-    monkeypatch.setattr(graph_relation, "_relation_schema_redis_client", lambda: redis)
+    monkeypatch.setitem(sys.modules, "metadata.utils.redis_tools", redis_module)
     dependencies = {"RedisTools": redis_module.RedisTools, "NAMESPACE_ALL": "__all__"}
     handler_module = load_source(
         METADATA_ROOT / "resources" / "entity_relation.py",
@@ -135,12 +136,20 @@ def test_activation_waits_for_complete_publication_and_rollback_retains_legacy(p
     with override_settings(RELATION_V1BETA3_BIZ_ID_WHITE_LIST=[]):
         assert publication.refresh() is True
     with override_settings(RELATION_V1BETA3_BIZ_ID_WHITE_LIST=[2]):
-        assert resolve_relation_query_path("legacy", "v1beta3", 2) == "legacy"
+        assert (
+            resolve_relation_query_path("legacy", "v1beta3", graph_relation.get_relation_schema_version(2)) == "legacy"
+        )
         assert publication.refresh() is True
-        assert resolve_relation_query_path("legacy", "v1beta3", 2) == "v1beta3"
-        assert resolve_relation_query_path("legacy", "v1beta3", 3) == "legacy"
+        assert (
+            resolve_relation_query_path("legacy", "v1beta3", graph_relation.get_relation_schema_version(2)) == "v1beta3"
+        )
+        assert (
+            resolve_relation_query_path("legacy", "v1beta3", graph_relation.get_relation_schema_version(3)) == "legacy"
+        )
     with override_settings(RELATION_V1BETA3_BIZ_ID_WHITE_LIST=[]):
-        assert resolve_relation_query_path("legacy", "v1beta3", 2) == "legacy"
+        assert (
+            resolve_relation_query_path("legacy", "v1beta3", graph_relation.get_relation_schema_version(2)) == "legacy"
+        )
         assert publication.refresh() is True
     for kind in ("ResourceDefinition", "RelationDefinition"):
         assert set(publication.redis.hkeys(f"bkmonitorv3:entity:{kind}")) == {b"__all__", b"bkcc__2", b"bkcc__3"}
@@ -151,7 +160,9 @@ def test_missing_shared_definitions_do_not_enable_rollout(publication):
     publication.relations.objects.all.return_value = []
     with override_settings(RELATION_V1BETA3_BIZ_ID_WHITE_LIST=[2]):
         assert publication.refresh() is True
-        assert resolve_relation_query_path("legacy", "v1beta3", 2) == "legacy"
+        assert (
+            resolve_relation_query_path("legacy", "v1beta3", graph_relation.get_relation_schema_version(2)) == "legacy"
+        )
 
 
 def test_preparation_failure_leaves_last_snapshot_and_cannot_enable_new_list(publication):
@@ -162,7 +173,9 @@ def test_preparation_failure_leaves_last_snapshot_and_cannot_enable_new_list(pub
     publication.relations.objects.all.side_effect = RuntimeError("DB unavailable")
     with override_settings(RELATION_V1BETA3_BIZ_ID_WHITE_LIST=[2]):
         assert publication.refresh() is False
-        assert resolve_relation_query_path("legacy", "v1beta3", 2) == "legacy"
+        assert (
+            resolve_relation_query_path("legacy", "v1beta3", graph_relation.get_relation_schema_version(2)) == "legacy"
+        )
     assert publication.redis.hgetall("bkmonitorv3:entity:ResourceDefinition") == previous
 
 
@@ -188,7 +201,9 @@ def test_redis_write_failure_never_publishes_ready(publication, monkeypatch):
     with override_settings(RELATION_V1BETA3_BIZ_ID_WHITE_LIST=[2]):
         assert publication.refresh() is False
         assert publication.redis.get(RELATION_SCHEMA_READY_KEY) is None
-        assert resolve_relation_query_path("legacy", "v1beta3", 2) == "legacy"
+        assert (
+            resolve_relation_query_path("legacy", "v1beta3", graph_relation.get_relation_schema_version(2)) == "legacy"
+        )
 
 
 def test_actual_db_deletions_are_removed_and_notified(publication):

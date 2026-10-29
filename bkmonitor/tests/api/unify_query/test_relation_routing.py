@@ -36,7 +36,9 @@ from bkmonitor.utils.graph_relation import get_relation_v1beta3_biz_ids  # noqa:
 def ready_schema(monkeypatch):
     client = fakeredis.FakeRedis()
     client.set(graph_relation.RELATION_SCHEMA_READY_KEY, '{"biz_ids":[2],"version":"published-v1"}')
-    monkeypatch.setattr(graph_relation, "_relation_schema_redis_client", lambda: client)
+    redis_module = ModuleType("metadata.utils.redis_tools")
+    redis_module.RedisTools = lambda: SimpleNamespace(client=client)
+    monkeypatch.setitem(sys.modules, "metadata.utils.redis_tools", redis_module)
     yield client
     client.close()
 
@@ -54,7 +56,7 @@ def test_relation_query_uses_query_whitelist_for_v1beta3_routing(legacy_path, v1
     path = resolve_relation_query_path(
         legacy_path,
         v1beta3_path,
-        bk_biz_id,
+        graph_relation.get_relation_schema_version(bk_biz_id),
     )
 
     assert path == (v1beta3_path if use_v1beta3 else legacy_path)
@@ -65,7 +67,7 @@ def test_relation_query_returns_to_v1_after_biz_removed_from_whitelist():
     path = resolve_relation_query_path(
         RELATION_MULTI_RESOURCE_PATH,
         RELATION_MULTI_RESOURCE_V1BETA3_PATH,
-        2,
+        graph_relation.get_relation_schema_version(2),
     )
     assert path == RELATION_MULTI_RESOURCE_V1BETA3_PATH
 
@@ -73,7 +75,7 @@ def test_relation_query_returns_to_v1_after_biz_removed_from_whitelist():
         path = resolve_relation_query_path(
             RELATION_MULTI_RESOURCE_PATH,
             RELATION_MULTI_RESOURCE_V1BETA3_PATH,
-            2,
+            graph_relation.get_relation_schema_version(2),
         )
 
     assert path == RELATION_MULTI_RESOURCE_PATH
@@ -93,14 +95,20 @@ def test_relation_query_whitelist_ignores_invalid_values():
 )
 @override_settings(RELATION_V1BETA3_BIZ_ID_WHITE_LIST=[2], GRAPH_RELATION_V4_BIZ_ID_WHITE_LIST=[])
 def test_relation_rollout_enables_new_query_without_old_dual_write_flag(legacy_path, new_path):
-    assert resolve_relation_query_path(legacy_path, new_path, 2) == new_path
-    assert resolve_relation_query_path(legacy_path, new_path, 3) == legacy_path
+    assert resolve_relation_query_path(legacy_path, new_path, graph_relation.get_relation_schema_version(2)) == new_path
+    assert (
+        resolve_relation_query_path(legacy_path, new_path, graph_relation.get_relation_schema_version(3)) == legacy_path
+    )
 
 
 @override_settings(RELATION_V1BETA3_BIZ_ID_WHITE_LIST=[], GRAPH_RELATION_V4_BIZ_ID_WHITE_LIST=[2])
 def test_query_rollback_does_not_fall_back_to_old_dual_write_flag():
     assert (
-        resolve_relation_query_path(RELATION_MULTI_RESOURCE_PATH, RELATION_MULTI_RESOURCE_V1BETA3_PATH, 2)
+        resolve_relation_query_path(
+            RELATION_MULTI_RESOURCE_PATH,
+            RELATION_MULTI_RESOURCE_V1BETA3_PATH,
+            graph_relation.get_relation_schema_version(2),
+        )
         == RELATION_MULTI_RESOURCE_PATH
     )
 
@@ -175,7 +183,7 @@ def test_relation_query_uses_v1beta3_for_whitelisted_biz_without_binding_lookup(
     path = resolve_relation_query_path(
         RELATION_MULTI_RESOURCE_PATH,
         RELATION_MULTI_RESOURCE_V1BETA3_PATH,
-        2,
+        graph_relation.get_relation_schema_version(2),
     )
 
     assert path == RELATION_MULTI_RESOURCE_V1BETA3_PATH
@@ -197,10 +205,9 @@ def test_perform_request_routes_after_resolving_space_biz_and_tenant(monkeypatch
 
     route_context = {}
 
-    def resolve_path(legacy_path, v1beta3_path, bk_biz_id, schema_version=None):
-        assert schema_version == "published-v1"
+    def check_version(bk_biz_id):
         route_context["bk_biz_id"] = bk_biz_id
-        return v1beta3_path
+        return graph_relation.get_relation_schema_version(bk_biz_id)
 
     sent_request = {}
 
@@ -208,7 +215,7 @@ def test_perform_request_routes_after_resolving_space_biz_and_tenant(monkeypatch
         sent_request.update(kwargs)
         return SimpleNamespace(status_code=200, json=lambda: {"result": True})
 
-    monkeypatch.setattr(module, "resolve_relation_query_path", resolve_path)
+    monkeypatch.setattr(module, "get_relation_schema_version", check_version)
     monkeypatch.setattr(module, "get_unify_query_url", lambda space_uid: "http://unify-query/")
     monkeypatch.setattr(
         module,
@@ -281,7 +288,7 @@ def test_unpublished_or_invalid_readiness_keeps_legacy(ready_schema, payload):
     ready_schema.delete(graph_relation.RELATION_SCHEMA_READY_KEY)
     if payload is not None:
         ready_schema.set(graph_relation.RELATION_SCHEMA_READY_KEY, payload)
-    assert resolve_relation_query_path("legacy", "v1beta3", 2) == "legacy"
+    assert resolve_relation_query_path("legacy", "v1beta3", graph_relation.get_relation_schema_version(2)) == "legacy"
 
 
 @override_settings(RELATION_V1BETA3_BIZ_ID_WHITE_LIST=[2], USE_DYNAMIC_SETTINGS=True)
@@ -293,16 +300,41 @@ def test_committed_rollback_overrides_stale_process_settings(monkeypatch):
         objects=SimpleNamespace(filter=lambda **kw: SimpleNamespace(values_list=lambda *args, **kw: query))
     )
     monkeypatch.setitem(sys.modules, "bkmonitor.models", model_module)
-    assert resolve_relation_query_path("legacy", "v1beta3", 2) == "v1beta3"
+    assert resolve_relation_query_path("legacy", "v1beta3", graph_relation.get_relation_schema_version(2)) == "v1beta3"
     database["value"] = []
     assert settings.RELATION_V1BETA3_BIZ_ID_WHITE_LIST == [2]
-    assert resolve_relation_query_path("legacy", "v1beta3", 2) == "legacy"
+    assert resolve_relation_query_path("legacy", "v1beta3", graph_relation.get_relation_schema_version(2)) == "legacy"
 
 
 @override_settings(RELATION_V1BETA3_BIZ_ID_WHITE_LIST=[2])
-def test_redis_failure_keeps_legacy(monkeypatch):
-    def fail():
+def test_redis_failure_keeps_legacy(monkeypatch, ready_schema):
+    from redis.exceptions import ConnectionError
+
+    def fail(key):
         raise ConnectionError("Redis unavailable")
 
-    monkeypatch.setattr(graph_relation, "_relation_schema_redis_client", fail)
-    assert resolve_relation_query_path("legacy", "v1beta3", 2) == "legacy"
+    monkeypatch.setattr(ready_schema, "get", fail)
+    assert resolve_relation_query_path("legacy", "v1beta3", graph_relation.get_relation_schema_version(2)) == "legacy"
+
+
+@override_settings(RELATION_V1BETA3_BIZ_ID_WHITE_LIST=[2])
+def test_unexpected_programming_error_is_not_treated_as_unready(monkeypatch, ready_schema):
+    def fail(key):
+        raise AttributeError("invalid client implementation")
+
+    monkeypatch.setattr(ready_schema, "get", fail)
+    with pytest.raises(AttributeError, match="invalid client implementation"):
+        graph_relation.get_relation_schema_version(2)
+
+
+@override_settings(USE_DYNAMIC_SETTINGS=True)
+def test_database_failure_keeps_legacy(monkeypatch):
+    from django.db import OperationalError
+
+    def fail(**kwargs):
+        raise OperationalError("database unavailable")
+
+    models = ModuleType("bkmonitor.models")
+    models.GlobalConfig = SimpleNamespace(objects=SimpleNamespace(filter=fail))
+    monkeypatch.setitem(sys.modules, "bkmonitor.models", models)
+    assert graph_relation.get_relation_schema_version(2) == ""
