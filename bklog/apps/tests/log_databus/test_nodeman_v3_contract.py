@@ -466,11 +466,12 @@ class GrayRolloutOwnershipTest(TestCase):
     归 V3 的采集项遇到 V3 失败仍然失败关闭，不回退 V2。
     """
 
-    def _config(self, collector_config_id=9001, bk_biz_id=2, subscription_id=None):
+    def _config(self, collector_config_id=9001, bk_biz_id=2, subscription_id=None, collector_scenario_id="row"):
         return SimpleNamespace(
             collector_config_id=collector_config_id,
             bk_biz_id=bk_biz_id,
             subscription_id=subscription_id,
+            collector_scenario_id=collector_scenario_id,
         )
 
     @nodeman_v3_toggle("off")
@@ -483,6 +484,34 @@ class GrayRolloutOwnershipTest(TestCase):
     def test_existing_v2_collector_stays_on_v2(self):
         # 判据是 subscription_id：V3 下发的采集项这个字段恒为空（IntegerField 存不下 workflow_id）
         self.assertFalse(should_use_nodeman_v3(self._config(subscription_id=12345)))
+
+    def test_scenarios_without_subscription_steps_stay_on_v2(self):
+        # custom / client 没有实现 get_subscription_steps，进 V3 会在构造期望态时抛 NotImplementedError。
+        # 它们由 custom_create 创建，environment 为空且无 subscription_id，此前会被准入条件误判成 V3
+        for scenario in ("custom", "client"):
+            with self.subTest(scenario=scenario):
+                self.assertFalse(should_use_nodeman_v3(self._config(collector_scenario_id=scenario)))
+
+    def test_scenarios_with_subscription_steps_are_admitted(self):
+        for scenario in ("row", "section", "wineventlog", "redis_slowlog", "syslog", "kafka"):
+            with self.subTest(scenario=scenario):
+                self.assertTrue(should_use_nodeman_v3(self._config(collector_scenario_id=scenario)))
+
+    def test_unsupported_scenario_with_binding_keeps_v3(self):
+        # 场景过滤只限制新准入：已有 binding 的采集项必须继续由 V3 管理，
+        # 否则主机上的子配置会失去控制面
+        from apps.log_databus.nodeman_v3.constants import RESOURCE_TYPE_COLLECTOR_CONFIG
+        from apps.log_databus.nodeman_v3.models import NodeManV3Binding
+
+        NodeManV3Binding.objects.create(
+            resource_type=RESOURCE_TYPE_COLLECTOR_CONFIG,
+            resource_key=build_resource_key(9001),
+            bk_biz_id=2,
+            bk_tenant_id="system",
+            collector_config_id=9001,
+            policy_name=build_policy_name(9001),
+        )
+        self.assertTrue(should_use_nodeman_v3(self._config(collector_scenario_id="custom")))
 
     @nodeman_v3_toggle("debug", collector_ids=[9001, 9002])
     def test_collector_whitelist_selects_targets(self):
@@ -555,6 +584,24 @@ class GrayRolloutOwnershipTest(TestCase):
         )
 
         self.assertEqual(resolve_nodeman_v3_collector_ids(configs), {9001})
+
+    def test_custom_scenario_start_uses_v2_path(self):
+        # 现场故障：custom 采集项被误判为 V3 后，start 在 build_steps 里抛 NotImplementedError
+        from apps.log_databus.handlers.collector.host import HostCollectorHandler
+
+        handler = HostCollectorHandler.__new__(HostCollectorHandler)
+        handler.data = self._config(collector_scenario_id="custom")
+
+        def explode(_self):
+            raise AssertionError("custom 场景不应触碰 NodeMan V3 installer")
+
+        with (
+            patch.object(HostCollectorHandler, "nodeman_v3_installer", property(explode)),
+            patch.object(HostCollectorHandler, "_start_v2", return_value=True) as start_v2,
+        ):
+            self.assertTrue(handler.start())
+
+        start_v2.assert_called_once()
 
     def test_v2_owned_collector_takes_v2_path_not_v3_installer(self):
         # 反向门禁：BKL-5 的 V2OutboundZeroGateTest 证明「V3 归属不出 V2」，
