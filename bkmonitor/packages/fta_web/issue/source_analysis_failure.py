@@ -18,8 +18,6 @@ CREDENTIAL_PATTERN = re.compile(
     r"(?is)\b[\w-]*(?:authorization|token|secret|password|api[_-]?key|access[_-]?key|bk_ticket)[\w-]*"
     r"[\\\"']*\s*[:=].*"
 )
-PLUGIN_HELP_TITLE_PATTERN = re.compile(r"(?im)^[ \t]*(?:Python脚本执行插件常见问题|plugin help)[ \t]*\r?$")
-PLUGIN_HELP_MARKER = "======脚本执行失败,问题排查指引======"
 
 
 def _summary_text(value, max_length: int) -> str:
@@ -29,13 +27,12 @@ def _summary_text(value, max_length: int) -> str:
     text = unescape(str(value)[:8000])
     try:
         text = strip_tags(text)
-    except SuspiciousOperation:
-        # 深度异常的上游 HTML 不应阻止失败终态落库，也不能原样展示。
+    except (SuspiciousOperation, AssertionError):
+        # Django 深度保护和 HTMLParser 的非法标记段都可能拒绝上游文本。
+        # 仅舍弃异常字段，不阻断失败终态落库，也不能回退展示原始 HTML。
         return ""
     # HTML 清理可能把被标签拆开的敏感键重新连接，脱敏必须在其后进行。
     text = CREDENTIAL_PATTERN.sub("credential=******", text)
-    # 链接地址已随 HTML 标签去除；只移除已知帮助标题和排障指引，不按空行截断真实原因。
-    text = PLUGIN_HELP_TITLE_PATTERN.sub("", text).partition(PLUGIN_HELP_MARKER)[0]
     return " ".join(text.split())[:max_length]
 
 

@@ -1047,6 +1047,37 @@ class TestSourceAnalysisOrchestration(TestCase):
         self.assertEqual(execution.failure_code, "DEVOPS_BUILD_FAILED")
 
     @patch("fta_web.issue.resources.api.bk_incident.get_source_analysis_task")
+    def test_invalid_html_marked_section_does_not_block_failed_terminal_state(self, get_task):
+        execution = self.create_execution(bkfara_task_id="task-1", status=SourceAnalysisStatus.RUNNING)
+        get_task.return_value = {
+            "status": "failed",
+            "terminal": True,
+            "error": {
+                "code": "DEVOPS_BUILD_FAILED",
+                "message": "pipeline failed",
+                "retryable": False,
+                "details": {
+                    "failed_tasks": [
+                        {
+                            "task_id": "task-1",
+                            "task_name": "Validation",
+                            "error_message": "unexpected response: <![foo]>",
+                        }
+                    ]
+                },
+            },
+        }
+
+        self.assertIsNone(SourceAnalysisExecutionBaseResource.advance_bkfara_task(execution.analysis_id))
+
+        execution.refresh_from_db()
+        self.assertEqual(execution.status, SourceAnalysisStatus.FAILED)
+        self.assertIsNone(execution.active_key)
+        self.assertIsNotNone(execution.finished_at)
+        self.assertEqual(execution.failure_message, "pipeline failed | Validation")
+        self.assertEqual(execution.failure_code, "DEVOPS_BUILD_FAILED")
+
+    @patch("fta_web.issue.resources.api.bk_incident.get_source_analysis_task")
     def test_escaped_credentials_are_not_persisted_in_failed_summary(self, get_task):
         execution = self.create_execution(bkfara_task_id="task-1", status=SourceAnalysisStatus.RUNNING)
         get_task.return_value = {

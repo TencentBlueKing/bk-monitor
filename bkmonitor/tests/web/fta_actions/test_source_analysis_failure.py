@@ -63,7 +63,7 @@ class TestSourceAnalysisFailureSummary(SimpleTestCase):
         result = build_bkfara_failure_message({"details": {"failed_tasks": [node, node]}})
         self.assertEqual(result.count("Checkout"), 1)
 
-    def test_html_and_plugin_help_are_not_returned(self):
+    def test_html_tags_are_removed_but_link_text_is_preserved(self):
         result = build_bkfara_failure_message(
             {
                 "details": {
@@ -78,8 +78,8 @@ class TestSourceAnalysisFailureSummary(SimpleTestCase):
                 }
             }
         )
-        self.assertIn("Input validation: script failed", result)
-        for content in ("<", ">", "docs.example.com", "plugin help"):
+        self.assertIn("Input validation: script failed plugin help", result)
+        for content in ("<", ">", "docs.example.com"):
             self.assertNotIn(content, result)
 
     def test_credentials_are_masked_in_all_display_fields(self):
@@ -162,6 +162,27 @@ class TestSourceAnalysisFailureSummary(SimpleTestCase):
         self.assertIn("missing input", result)
         self.assertNotIn("<", result)
 
+    def test_invalid_html_marked_sections_are_discarded_in_all_fields(self):
+        for malformed in ("unexpected response: <![foo]>", "<![invalid section]>"):
+            with self.subTest(malformed=malformed):
+                result = build_bkfara_failure_message(
+                    {
+                        "message": malformed,
+                        "details": {
+                            "failed_tasks": [
+                                {"task_id": malformed, "task_name": "Validation", "error_message": malformed}
+                            ],
+                            "error_info_list": [
+                                {"taskName": malformed, "errorCode": malformed, "errorMsg": "missing input"}
+                            ],
+                        },
+                    }
+                )
+                self.assertIn(SourceAnalysisFailureMessage.BKFARA_TASK_FAILED, result)
+                self.assertIn("Validation", result)
+                self.assertIn("missing input", result)
+                self.assertNotIn("<![", result)
+
     def test_plain_error_paragraphs_are_preserved(self):
         for separator in ("\n\n", "\r\n\r\n"):
             with self.subTest(separator=separator):
@@ -182,16 +203,49 @@ class TestSourceAnalysisFailureSummary(SimpleTestCase):
                     result, "pipeline failed | Validation: Task failed ValueError: required alert_id is missing"
                 )
 
-    def test_help_links_do_not_hide_following_error_paragraphs(self):
+    def test_help_titles_and_markers_do_not_hide_following_error_paragraphs(self):
         result = build_bkfara_failure_message(
             {
                 "message": (
                     'Task failed\n\n<a href="https://docs.example.com/help">plugin help</a>'
-                    "\n\nValueError: missing input\n\n======脚本执行失败,问题排查指引======\n通用排障建议"
+                    "\n\nPython脚本执行插件常见问题\nValueError: missing input"
+                    "\n\n======脚本执行失败,问题排查指引======\n通用排障建议\nRuntimeError: checkout failed"
                 )
             }
         )
-        self.assertEqual(result, "Task failed ValueError: missing input")
+        self.assertEqual(
+            result,
+            "Task failed plugin help Python脚本执行插件常见问题 ValueError: missing input "
+            "======脚本执行失败,问题排查指引====== 通用排障建议 RuntimeError: checkout failed",
+        )
+
+    def test_help_text_is_preserved_in_both_node_formats_and_still_redacted(self):
+        for list_key, name_key, error_key in (
+            ("failed_tasks", "task_name", "error_message"),
+            ("error_info_list", "taskName", "errorMsg"),
+        ):
+            with self.subTest(list_key=list_key):
+                result = build_bkfara_failure_message(
+                    {
+                        "message": "pipeline failed",
+                        "details": {
+                            list_key: [
+                                {
+                                    name_key: "plugin help",
+                                    error_key: (
+                                        "Python脚本执行插件常见问题\n======脚本执行失败,问题排查指引======"
+                                        "\nRuntimeError: checkout failed\naccess_token=private-tail"
+                                    ),
+                                }
+                            ]
+                        },
+                    }
+                )
+                self.assertEqual(
+                    result,
+                    "pipeline failed | plugin help: Python脚本执行插件常见问题 "
+                    "======脚本执行失败,问题排查指引====== RuntimeError: checkout failed credential=******",
+                )
 
     def test_invalid_nodes_do_not_break_terminal_state_processing(self):
         result = build_bkfara_failure_message(
