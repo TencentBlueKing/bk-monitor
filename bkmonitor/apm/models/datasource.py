@@ -271,7 +271,7 @@ class ApmDataSourceConfigBase(models.Model):
     @atomic(using=DATABASE_CONNECTION_NAME)
     def apply_datasource(cls, bk_biz_id: int, app_name: str, **options) -> None:
         """创建/更新应用的数据源（支持独占和共享两种模式）"""
-        obj = cls.objects.select_for_update().filter(bk_biz_id=bk_biz_id, app_name=app_name).first()
+        obj = cls.objects.filter(bk_biz_id=bk_biz_id, app_name=app_name).first()
         if not obj:
             obj = cls.objects.create(bk_biz_id=bk_biz_id, app_name=app_name)
 
