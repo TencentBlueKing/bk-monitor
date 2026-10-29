@@ -267,6 +267,67 @@ class StorageTypeEnum(ChoicesEnum):
     )
 
 
+class ClusteringRuntimePhaseEnum(ChoicesEnum):
+    """轻量化聚类运行阶段"""
+
+    ENABLING = "enabling"
+    RUNNING = "running"
+    UPDATING = "updating"
+    DISABLING = "disabling"
+    STOPPED = "stopped"
+    REOPENING = "reopening"
+
+    _choices_labels = (
+        (ENABLING, _("开启中")),
+        (RUNNING, _("运行中")),
+        (UPDATING, _("更新中")),
+        (DISABLING, _("关闭中")),
+        (STOPPED, _("已关闭")),
+        (REOPENING, _("重开中")),
+    )
+
+
+class ClusteringOperationTypeEnum(ChoicesEnum):
+    """轻量化聚类控制操作类型"""
+
+    ENABLE = "enable"
+    UPDATE = "update"
+    UPDATE_MODEL = "update_model"
+    DISABLE = "disable"
+    REOPEN = "reopen"
+
+    _choices_labels = (
+        (ENABLE, _("开启")),
+        (UPDATE, _("更新过滤规则")),
+        (UPDATE_MODEL, _("更新模型参数")),
+        (DISABLE, _("关闭")),
+        (REOPEN, _("重开")),
+    )
+
+
+class ClusteringOperationStatusEnum(ChoicesEnum):
+    """轻量化聚类控制操作状态"""
+
+    PENDING = "pending"
+    RUNNING = "running"
+    FAILED = "failed"
+    SUCCESS = "success"
+    CANCELED = "canceled"
+
+    _choices_labels = (
+        (PENDING, _("等待执行")),
+        (RUNNING, _("执行中")),
+        (FAILED, _("失败")),
+        (SUCCESS, _("成功")),
+        (CANCELED, _("已取消")),
+    )
+
+    @classmethod
+    def unfinished_statuses(cls) -> tuple:
+        # 失败的操作需要原样续跑或显式取消，期间同索引不能开始新的控制操作
+        return cls.PENDING.value, cls.RUNNING.value, cls.FAILED.value
+
+
 # 日志聚类失败重试次数
 MAX_FAILED_REQUEST_RETRY = 3
 

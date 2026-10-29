@@ -163,6 +163,11 @@ class MiniClusteringNotReadyException(BaseClusteringException):
     MESSAGE = _("日志聚类轻量化链路尚未接通，暂不支持接入: {index_set_id}")
 
 
+class ClusteringOperationConflictException(BaseClusteringException):
+    ERROR_CODE = "031"
+    MESSAGE = _("索引集({index_set_id})存在未结束的聚类操作({operation_id})，请等待完成或取消后再试")
+
+
 class BkFaraNotConfiguredException(BaseClusteringException):
     ERROR_CODE = "032"
     MESSAGE = _("BKFara 管理接口未配置，请检查 BKAPP_BKFARA_API_URL 与 BKAPP_BKFARA_API_TOKEN")
