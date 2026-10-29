@@ -61,6 +61,8 @@ export const collectionMethodLabels: Record<CollectionMethod, string> = {
   [CollectionMethodEnum.GOLANG]: 'Go',
   [CollectionMethodEnum.JAVA]: 'Java',
 };
+/** 周期任务结束时间的默认年份，未由任务回填时取该时区的这一年最后时刻 */
+const DEFAULT_END_YEAR = 2099;
 /** 采集类型对应的展示名 */
 export const collectionTypeLabels = {
   native_cpu: 'Native CPU',
@@ -214,6 +216,7 @@ export function createCollectionDraft(meta: CollectionMeta, timezone: string, ta
   const collectionType = task?.collection_type || meta.collection_types_by_method[method]?.[0];
   const selector = task?.process_selector;
   const schedule = task?.schedule;
+  const taskTimezone = schedule?.timezone || timezone;
   const draft: CollectionDraft = {
     // 新建时默认任务名：任务 + 任务时区下的当前时间，如 任务20261029105230
     name: task?.name || `${window.i18n.t('任务')}${dayjs().tz(timezone).format('YYYYMMDDHHmmss')}`,
@@ -233,10 +236,14 @@ export function createCollectionDraft(meta: CollectionMeta, timezone: string, ta
     },
     scheduleType: schedule?.type || meta.schedule_types[0],
     executeAt: schedule && schedule.type !== 'cron' ? schedule.execute_at : null,
-    startAt: schedule?.type === 'cron' ? schedule.effective_start_at : null,
-    endAt: schedule?.type === 'cron' ? schedule.effective_end_at : null,
+    // 周期任务未回填时，开始时间默认取当前时间，结束时间默认取该时区 2099 年末
+    startAt: schedule?.type === 'cron' ? schedule.effective_start_at : Date.now(),
+    endAt:
+      schedule?.type === 'cron'
+        ? schedule.effective_end_at
+        : dayjs().tz(taskTimezone).year(DEFAULT_END_YEAR).endOf('year').millisecond(0).valueOf(),
     cron: schedule?.type === 'cron' ? schedule.cron_expression : (meta.schedule?.cron?.cron_expression ?? ''),
-    timezone: schedule?.timezone || timezone,
+    timezone: taskTimezone,
   };
   if (selector) {
     if (selector.type === 'command') {

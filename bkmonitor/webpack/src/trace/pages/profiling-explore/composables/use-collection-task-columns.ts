@@ -80,8 +80,6 @@ export function useCollectionTaskColumns(columns: MaybeRef<CollectionTaskColumn[
           title: column.name || config.title || column.field,
           width: fieldsWidthConfig.value[column.field] || config.width || DEFAULT_COLUMN_WIDTH,
           resizable: true,
-          ellipsis: column.type === 'text',
-          fieldType: column.type,
           is_default: config.is_default ?? false,
           is_locked: config.is_locked ?? false,
         };
@@ -92,7 +90,6 @@ export function useCollectionTaskColumns(columns: MaybeRef<CollectionTaskColumn[
         colKey: TASK_OPERATION_FIELD,
         title: String(operation.title),
         width: fieldsWidthConfig.value[TASK_OPERATION_FIELD] || operation.width || DEFAULT_COLUMN_WIDTH,
-        fieldType: '',
         is_default: operation.is_default ?? false,
         is_locked: operation.is_locked ?? false,
       },

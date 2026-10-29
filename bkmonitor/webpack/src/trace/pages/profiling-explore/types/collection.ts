@@ -137,10 +137,8 @@ export interface CollectionTaskColumn {
   type: string;
 }
 
-/** 任务列表表格列：默认/锁定态 + 后端列类型 + tdesign 列属性（对齐告警中心 TableColumnItem） */
+/** 任务列表表格列：默认/锁定态 + tdesign 列属性（对齐告警中心 TableColumnItem） */
 export type CollectionTaskTableColumn = {
-  /** 后端下发的列类型，决定单元格兜底渲染方式；列配置的 type 属于选中列，不可占用 */
-  fieldType: string;
   /** 是否默认展示 */
   is_default: boolean;
   /** 是否必须显示，且不可在列设置中取消 */
