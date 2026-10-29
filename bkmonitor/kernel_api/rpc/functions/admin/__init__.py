@@ -38,6 +38,7 @@ from . import (
     tenant,
     token,
     uptime_check,
+    unify_query,
     vm_short_link,
     vm_query,
 )
@@ -72,6 +73,7 @@ __all__ = [
     "tenant",
     "token",
     "uptime_check",
+    "unify_query",
     "vm_short_link",
     "vm_query",
 ]

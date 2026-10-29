@@ -901,7 +901,7 @@ def test_describe_promql_matches_standard_resource_fields_and_named_contract():
     out = query_unify_query({"mode": "describe", "operation": "query_ts_promql"})
     schema = out["params_schema"]
     serializer = QueryDataByPromqlResource.RequestSerializer()
-    assert set(schema["properties"]) == serializer.fields.keys() - {"bk_biz_ids"}
+    assert set(schema["properties"]) == serializer.fields.keys() - {"bk_biz_ids", "bk_tenant_id"}
     assert set(schema["required"]) == {name for name, field in serializer.fields.items() if field.required}
     assert out["derived_params"] == ["bk_biz_ids", "bk_tenant_id"]
     assert out["limits"]["max_time_range_seconds"] == 86400

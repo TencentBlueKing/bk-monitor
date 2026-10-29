@@ -289,6 +289,7 @@ class QueryDataByPromqlResource(UnifyQueryAPIResource):
     path = "/query/ts/promql"
 
     class RequestSerializer(serializers.Serializer):
+        bk_tenant_id = serializers.CharField(required=False)
         promql = serializers.CharField()
         match = serializers.CharField(default="", allow_blank=True, required=False)
         is_verify_dimensions = serializers.BooleanField(default=False)
