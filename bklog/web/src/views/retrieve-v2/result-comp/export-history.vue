@@ -71,8 +71,9 @@
       class="table-container"
     >
       <bk-table
+        :row-key="getExportTaskKey"
         class="export-table"
-        :data="exportList"
+        :data="displayExportList"
         :outer-border="false"
         :pagination="pagination"
         @page-change="handlePageChange"
@@ -303,16 +304,16 @@
 
   import { axiosInstance } from '@/api';
   import {
-    adjustGrowthAfterPoll,
-    calculateProgress,
-    calculateProgressPercent,
-    formatNumber,
-  } from '@/views/retrieve-v2/result-comp/download/downloadProgress';
+    buildExportRetryRequest,
+    EXPORT_SUBMITTED_MESSAGE,
+    getExportDownloadFileName,
+    submitExportWithSortConfirmation,
+    getExportTaskKey,
+  } from './download/exportTask';
+  import { calculateProgressPercent, formatNumber } from '@/views/retrieve-v2/result-comp/download/downloadProgress';
   import {
     DOWNLOAD_DATA_DELAY,
     DOWNLOAD_POLLING_INTERVAL,
-    DOWNLOAD_PROGRESS_BASE_GROWTH,
-    DOWNLOAD_PROGRESS_UPDATE_INTERVAL,
     DOWNLOAD_RECENT_DAYS,
     MILLISECONDS_PER_DAY,
   } from '@/views/retrieve-v2/result-comp/download/constants';
@@ -329,6 +330,10 @@
         type: Array,
         required: true,
       },
+      trackedTasks: {
+        type: Object,
+        default: () => ({}),
+      },
     },
     data() {
       return {
@@ -338,7 +343,6 @@
         isSearchAll: false, // 是否查看所有索引集下载历史
         dateRange: [], // 日期范围
         historyPollingTimer: null,
-        progressUpdateTimer: null,
         historyCancelExecutor: null,
         pagination: {
           current: 1,
@@ -415,6 +419,9 @@
       };
     },
     computed: {
+      displayExportList() {
+        return this.exportList.map(row => this.trackedTasks[getExportTaskKey(row)] || row);
+      },
       bkBizId() {
         return this.$store.state.bkBizId;
       },
@@ -454,20 +461,42 @@
     },
     methods: {
       formatNumber,
+      getExportTaskKey,
       downloadExport($row) {
+        if ($row.engine === 'sharded') {
+          if (!$row.download_able) return;
+          return this.downloadShardedExport($row);
+        }
         // 异步导出使用downloadURL下载
         if ($row.download_url) {
           window.open($row.download_url);
           return;
         }
-        this.openDownloadUrl($row);
+        return this.openDownloadUrl($row);
       },
       retryExport($row) {
         // 异常任务直接异步下载
-        if ($row.export_type === 'sync') {
-          this.openDownloadUrl($row);
-        } else {
-          this.downloadAsync($row.search_dict);
+        if ($row.engine !== 'sharded' && $row.export_type === 'sync') {
+          return this.openDownloadUrl($row);
+        }
+        return this.downloadAsync($row);
+      },
+      async downloadShardedExport(row) {
+        try {
+          const res = await this.$http.request('retrieve/getExportDownloadLink', {
+            params: { job_id: row.id },
+            query: {
+              space_uid: this.$store.getters.spaceUid,
+              artifact_id: 'full',
+            },
+          });
+          if (res.result && res.data?.url) {
+            window.open(res.data.url);
+          }
+        } catch (error) {
+          if (!axios.isCancel(error)) {
+            console.error(error);
+          }
         }
       },
       /**
@@ -475,35 +504,18 @@
        * @param { Object } params
        */
       openDownloadUrl(params) {
-        const data = params.search_dict;
-        const stringParamsIndexSetID = String(params.log_index_set_id);
-
-        let downRequestUrl;
-        if (this.isScene) {
-          downRequestUrl = '/search/scene/export/sample/';
-        } else if (this.isUnionSearch) {
-          // 判断是否是联合查询 如果是 则加参数
-          downRequestUrl = '/search/index_set/union_search/export/';
-          Object.assign(data, { index_set_ids: this.unionIndexList });
-        } else {
-          downRequestUrl = `/search/index_set/${stringParamsIndexSetID}/export/`;
-        }
-
-        axiosInstance
-          .post(downRequestUrl, data)
+        const request = buildExportRetryRequest({ ...params, export_type: 'sync' });
+        return axiosInstance
+          .post(request.url, request.config.data, {
+            responseType: 'blob',
+          })
           .then(res => {
-            if (typeof res !== 'string') {
-              this.$bkMessage({
-                theme: 'error',
-                message: this.$t('导出失败'),
-              });
-              return;
-            }
-            const lightName = this.indexSetList.find(item => item.index_set_id === stringParamsIndexSetID)?.lightenName;
-            const downloadName = lightName
-              ? `bk_log_search_${lightName.substring(2, lightName.length - 1)}.txt`
-              : 'bk_log_search.txt';
-            blobDownload(res, downloadName);
+            blobDownload(res.data, getExportDownloadFileName(params, this.indexSetList));
+            return true;
+          })
+          .catch(error => {
+            console.error(error);
+            return false;
           })
           .finally(() => {
             this.refreshAfterDownload();
@@ -511,48 +523,24 @@
       },
       /**
        * @desc: 异步下载
-       * @param { Object } data
+       * @param { Object } task 原始导出任务
        */
-      downloadAsync(data) {
-        let downRequestUrl;
-
-        if (this.isScene) {
-          downRequestUrl = 'retrieve/getSceneAsyncExport';
-        } else if (this.isUnionSearch) {
-          downRequestUrl = 'retrieve/unionExportAsync';
-        } else {
-          downRequestUrl = 'retrieve/exportAsync';
-        }
-
-        if (this.isUnionSearch) {
-          Object.assign(data, {
-            is_quick_export: false,
-            union_configs: this.unionIndexList.map(item => {
-              return {
-                begin: 0,
-                index_set_id: item,
-              };
-            }),
-          });
-        }
-
-        const requestConfig =
-          this.isScene || this.isUnionSearch
-            ? { data }
-            : {
-                params: { index_set_id: this.routerIndexSet },
-                data,
-              };
-
-        this.$http
-          .request(downRequestUrl, requestConfig)
+      downloadAsync(task) {
+        const request = buildExportRetryRequest(task);
+        return submitExportWithSortConfirmation(this, request.url, request.config)
           .then(res => {
-            if (res.result) {
+            if (res?.result) {
               this.$bkMessage({
                 theme: 'success',
-                message: res.data.prompt,
+                message: res.data?.prompt || this.$t(EXPORT_SUBMITTED_MESSAGE),
               });
+              return true;
             }
+            return false;
+          })
+          .catch(error => {
+            console.error(error);
+            return false;
           })
           .finally(() => {
             setTimeout(() => {
@@ -692,7 +680,6 @@
       resetHistoryState(resetDateRange = true) {
         this.cancelHistoryRequest();
         this.stopHistoryPolling();
-        this.stopProgressUpdate();
         this.exportList = [];
         this.tableLoading = false;
         this.isSearchAll = false;
@@ -726,62 +713,23 @@
           this.historyPollingTimer = null;
         }
       },
-      startProgressUpdate() {
-        if (this.progressUpdateTimer) {
-          return;
-        }
-        this.progressUpdateTimer = setInterval(() => {
-          const hasDownloadingTask = this.exportList.some(row => row.export_status === 'download_log');
-          if (!hasDownloadingTask) {
-            this.stopProgressUpdate();
-            return;
-          }
-          this.exportList.forEach(row => {
-            if (row.export_status === 'download_log') {
-              calculateProgress(row);
-            }
-          });
-        }, DOWNLOAD_PROGRESS_UPDATE_INTERVAL);
-      },
-      stopProgressUpdate() {
-        if (this.progressUpdateTimer) {
-          clearInterval(this.progressUpdateTimer);
-          this.progressUpdateTimer = null;
-        }
-      },
       createProgressRow(row) {
-        if (row.export_status !== 'download_log') {
-          return { ...row };
-        }
         return {
           ...row,
-          currentGrowth: DOWNLOAD_PROGRESS_BASE_GROWTH,
           progressPercent: calculateProgressPercent(row.exported_count || 0, row.export_total_count || 0),
         };
       },
       setExportListData(data) {
-        const currentRowMap = new Map(this.exportList.map(row => [row.id, row]));
+        const currentRowMap = new Map(this.exportList.map(row => [getExportTaskKey(row), row]));
         this.exportList = data.map(item => {
-          const currentRow = currentRowMap.get(item.id);
+          const currentRow = currentRowMap.get(getExportTaskKey(item));
+          const progressRow = this.createProgressRow(item);
           if (!currentRow) {
-            return this.createProgressRow(item);
+            return progressRow;
           }
-          if (currentRow.export_status === 'download_log' && item.export_status === 'download_log') {
-            const displayedCount = currentRow.exported_count || 0;
-            Object.assign(currentRow, item);
-            currentRow.exported_count = displayedCount;
-            adjustGrowthAfterPoll(currentRow, item.exported_count || 0, DOWNLOAD_PROGRESS_BASE_GROWTH);
-            return currentRow;
-          }
-          Object.assign(currentRow, item);
+          Object.assign(currentRow, progressRow);
           return currentRow;
         });
-
-        if (this.exportList.some(row => row.export_status === 'download_log')) {
-          this.startProgressUpdate();
-        } else {
-          this.stopProgressUpdate();
-        }
       },
       async fetchHistoryList(isReset = false, isPolling = false) {
         if (!this.isShowDialog) {
@@ -793,7 +741,6 @@
         this.cancelHistoryRequest();
         if (!isPolling) {
           this.tableLoading = true;
-          this.stopProgressUpdate();
         }
 
         if (this.isUnionSearch && !this.unionIndexList.length) {
@@ -845,6 +792,10 @@
           if (res.result) {
             this.pagination.count = res.data.total || 0;
             this.setExportListData(res.data.list);
+            const trackedTasks = res.data.list.filter(item => this.trackedTasks[getExportTaskKey(item)]);
+            if (trackedTasks.length) {
+              this.$emit('sync-tracked-tasks', trackedTasks);
+            }
           }
         } catch (error) {
           if (axios.isCancel(error)) {
@@ -854,9 +805,6 @@
           if (this.historyCancelExecutor === cancelExecutor) {
             this.historyCancelExecutor = null;
             this.tableLoading = false;
-            if (this.exportList.some(row => row.export_status === 'download_log')) {
-              this.startProgressUpdate();
-            }
           }
         }
       },

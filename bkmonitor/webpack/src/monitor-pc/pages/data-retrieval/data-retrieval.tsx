@@ -3193,7 +3193,6 @@ export default class DataRetrieval extends tsc<object> {
                 value={metricItem}
                 onChange={data => this.handleQueryItemValueChange(data, index)}
                 onClearMetric={() => this.handleClearMetric(index)}
-                onLoadingChange={loading => (metricItem.loading = loading)}
                 onShowMetricSelector={() => this.handleShowMetricSelector(true, index)}
               />
             )

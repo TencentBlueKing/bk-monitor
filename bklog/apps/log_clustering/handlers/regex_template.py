@@ -34,6 +34,7 @@ from apps.log_clustering.exceptions import (
 from apps.log_clustering.handlers.dataflow.constants import OnlineTaskTrainingArgs
 from apps.log_clustering.models import ClusteringConfig, RegexTemplate
 from apps.log_search.models import LogIndexSet
+from apps.log_search.utils import display_index_set_name
 
 
 class RegexTemplateHandler:
@@ -72,8 +73,14 @@ class RegexTemplateHandler:
         )
         index_set_ids = [config["index_set_id"] for config in config_data]
         related_index_sets = list(
-            LogIndexSet.objects.filter(index_set_id__in=index_set_ids).values("index_set_id", "index_set_name")
+            LogIndexSet.objects.filter(index_set_id__in=index_set_ids).values(
+                "index_set_id", "index_set_name", "collector_config_id"
+            )
         )
+        for index_set in related_index_sets:
+            index_set["index_set_name"] = display_index_set_name(
+                index_set["index_set_name"], index_set.pop("collector_config_id")
+            )
         related_index_set_dict = {index_set["index_set_id"]: index_set for index_set in related_index_sets}
 
         # 引用该模板的 索引集id列表

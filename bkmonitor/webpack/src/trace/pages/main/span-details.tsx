@@ -49,6 +49,7 @@ import { query as apmProfileQuery } from 'monitor-api/modules/apm_profile';
 import { listLinks, spanDetail } from 'monitor-api/modules/apm_trace';
 import { getSceneView } from 'monitor-api/modules/scene_view';
 import { buildHostMonitorTarget, hostMonitorHash } from 'monitor-common/utils/host-monitor-url';
+import { profilingExploreHash } from 'monitor-common/utils/profiling-url';
 import { copyText, deepClone, random } from 'monitor-common/utils/utils';
 import { useI18n } from 'vue-i18n';
 import VueJsonPretty from 'vue-json-pretty';
@@ -1457,8 +1458,9 @@ export default defineComponent({
           id: activeTab.value.toLowerCase(),
           bk_biz_id: bizId.value,
           apm_app_name: appName.value,
-          apm_service_name: props.spanDetails.service_name,
+          apm_service_name: props.spanDetails.service_name || serviceNameProvider.value,
           apm_span_id: props.spanDetails.span_id,
+          apm_trace_id: traceId.value || props.spanDetails.traceID,
         }).catch(console.log);
         if (result?.overview_panels?.length) {
           result.overview_panels[0] = {
@@ -1551,9 +1553,7 @@ export default defineComponent({
         case 'Host': {
           if (!spanDetailQueryStore.queryData?.bk_host_id) return;
           window.open(
-            hostMonitorHash(
-              buildHostMonitorTarget({ bkHostId: String(spanDetailQueryStore.queryData.bk_host_id) })
-            ),
+            hostMonitorHash(buildHostMonitorTarget({ bkHostId: String(spanDetailQueryStore.queryData.bk_host_id) })),
             '_blank'
           );
           return;
@@ -1571,17 +1571,15 @@ export default defineComponent({
           if (!span_id) return;
           const { start_time, end_time } = getProfilingTimeRange();
           window.open(
-            `#/trace/profiling/?target=${encodeURIComponent(
-              JSON.stringify({
-                app_name,
-                service_name,
-                start: (start_time / 1000).toFixed(0),
-                end: (end_time / 1000).toFixed(0),
-                filter_labels: {
-                  span_id,
-                },
-              })
-            )}`
+            profilingExploreHash({
+              app_name,
+              service_name,
+              start: (start_time / 1000).toFixed(0),
+              end: (end_time / 1000).toFixed(0),
+              filter_labels: {
+                span_id,
+              },
+            })
           );
           return;
         }

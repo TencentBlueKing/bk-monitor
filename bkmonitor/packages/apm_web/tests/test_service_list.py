@@ -212,7 +212,7 @@ def test_service_count_refresh_only_updates_count(
         is_enabled_profiling=profiling_enabled,
     )
     cache_set = mocker.patch("django.core.cache.cache.set")
-    status_query = mocker.patch.object(ServiceHandler, "get_service_data_status_mapping")
+    status_query = mocker.patch.object(ServiceHandler, "build_service_data_status")
     related_services = mocker.patch(
         "apm_web.handlers.service_handler.ServiceLogHandler.list_available_related_services"
     )

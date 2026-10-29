@@ -243,6 +243,17 @@
     operationMenuRef.value?.hideHandler();
   }
 
+  // 管理页关闭时清理菜单浮层
+  function closePopovers() {
+    operationMenuRef.value?.hideHandler();
+    batchOperatePopoverRef.value?.hideHandler();
+    checkInputAddFormRef.value?.clearError();
+    moveToGroupAddGroup.value = false;
+    addGroupData.value.name = '';
+  }
+
+  defineExpose({ closePopovers });
+
   function handleShowBatchDeleteDialog() {
     setBatchDeleteDialogVisible(true);
     batchOperatePopoverRef.value?.hideHandler();
@@ -320,7 +331,7 @@
     }
   }
   function handleShowOperationMenuRef(val) {
-    batchOperatePopoverRef?.value.instance.set({ hideOnClick: val });
+    batchOperatePopoverRef.value?.instance?.set({ hideOnClick: val });
     moveToGroupAddGroup.value = false;
   }
 

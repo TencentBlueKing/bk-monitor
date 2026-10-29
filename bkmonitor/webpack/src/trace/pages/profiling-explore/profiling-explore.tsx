@@ -241,18 +241,6 @@ export default defineComponent({
                 class='profiling-results'
                 aria-busy={q.loading.value}
               >
-                {q.error.value && (
-                  <div class='profiling-inline-error'>
-                    {q.error.value}
-                    <Button
-                      theme='primary'
-                      text
-                      onClick={q.initialize}
-                    >
-                      {this.t('重试')}
-                    </Button>
-                  </div>
-                )}
                 {q.loading.value ? (
                   <div
                     class='profiling-data-options profiling-options-skeleton'
@@ -376,57 +364,76 @@ export default defineComponent({
                       onViewChange={q.patchView}
                     />
                   </>
+                ) : q.error.value ? (
+                  <ProfilingEmptyState
+                    description={q.error.value}
+                    icon='mc-alert'
+                    title={this.t('暂时无法查询')}
+                    tone='warning'
+                  >
+                    {{
+                      default: () => (
+                        <>
+                          <Button
+                            theme='primary'
+                            onClick={() => this.header?.openService()}
+                          >
+                            {this.t('重新选择')}
+                          </Button>
+                          <Button onClick={q.initialize}>{this.t('重试')}</Button>
+                        </>
+                      ),
+                    }}
+                  </ProfilingEmptyState>
                 ) : (
-                  !q.error.value && (
-                    <ProfilingEmptyState
-                      title={this.t(
-                        q.serviceOptions.value.some(item => item.services.length)
-                          ? '当前服务暂无 Profiling 数据'
-                          : '暂无可分析的应用服务'
-                      )}
-                      description={this.t('接入 Profiling 并上报数据后，即可分析服务的性能热点')}
-                      hint={this.t('也可以上传本地文件，无需接入应用即可开始分析')}
-                      icon='mc-flame'
-                    >
-                      {{
-                        default: () => (
-                          <>
-                            <Button
-                              theme='primary'
-                              onClick={() => this.header?.createApplication()}
-                            >
-                              {this.t('新增接入')}
-                            </Button>
-                            <Button
-                              onClick={() => {
-                                this.tab = 'file';
-                              }}
-                            >
-                              {this.t('分析本地文件')}
-                            </Button>
-                          </>
-                        ),
-                        footer: () => (
-                          <>
-                            <Button
-                              theme='primary'
-                              text
-                              onClick={() => this.handleGotoLink('profiling_docs')}
-                            >
-                              {this.t('查看接入指引')}
-                            </Button>
-                            <Button
-                              theme='primary'
-                              text
-                              onClick={q.initialize}
-                            >
-                              {this.t('已上报数据？刷新列表')}
-                            </Button>
-                          </>
-                        ),
-                      }}
-                    </ProfilingEmptyState>
-                  )
+                  <ProfilingEmptyState
+                    title={this.t(
+                      q.serviceOptions.value.some(item => item.services.length)
+                        ? '当前服务暂无 Profiling 数据'
+                        : '暂无可分析的应用服务'
+                    )}
+                    description={this.t('接入 Profiling 并上报数据后，即可分析服务的性能热点')}
+                    hint={this.t('也可以上传本地文件，无需接入应用即可开始分析')}
+                    icon='mc-flame'
+                  >
+                    {{
+                      default: () => (
+                        <>
+                          <Button
+                            theme='primary'
+                            onClick={() => this.header?.createApplication()}
+                          >
+                            {this.t('新增接入')}
+                          </Button>
+                          <Button
+                            onClick={() => {
+                              this.tab = 'file';
+                            }}
+                          >
+                            {this.t('分析本地文件')}
+                          </Button>
+                        </>
+                      ),
+                      footer: () => (
+                        <>
+                          <Button
+                            theme='primary'
+                            text
+                            onClick={() => this.handleGotoLink('profiling_docs')}
+                          >
+                            {this.t('查看接入指引')}
+                          </Button>
+                          <Button
+                            theme='primary'
+                            text
+                            onClick={q.initialize}
+                          >
+                            {this.t('已上报数据？刷新列表')}
+                          </Button>
+                        </>
+                      ),
+                    }}
+                  </ProfilingEmptyState>
                 )}
               </div>
             </div>

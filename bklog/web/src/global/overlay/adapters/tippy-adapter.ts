@@ -26,7 +26,7 @@
 
 import tippy, { type Instance, type Props } from 'tippy.js';
 
-import PopInstanceUtil from '../../pop-instance-util';
+import PopInstanceUtil, { markBklogTippy } from '../../pop-instance-util';
 import { createRawTippyLifecycle, overlayRegistry, resolvePopperPlacementRect } from '../overlay-registry';
 import type { OverlayRegisterOptions } from '../overlay-types';
 
@@ -39,9 +39,27 @@ export interface OverlayTippyOptions extends OverlayRegisterOptions {
  * 把现有 PopInstanceUtil 接到 Registry，不替换 tippy。
  * P1 热点调用点应走这里，而不是业务里直接 new PopInstanceUtil。
  */
+const resolveTippyParentId = (options: OverlayTippyOptions, anchor?: Element | null) => {
+  return options.parentId || overlayRegistry.findParentIdByElement(anchor) || undefined;
+};
+
+const openOverlayTippy = (options: OverlayTippyOptions, anchor?: Element | null) => {
+  overlayRegistry.open(options.id, {
+    anchor: anchor ?? null,
+    parentId: resolveTippyParentId(options, anchor),
+  });
+};
+
 export const createOverlayTippy = (options: OverlayTippyOptions) => {
   const tippyOptions = {
     ...(options.tippy?.tippyOptions ?? {}),
+    onShow: (...args: any[]) => {
+      const userResult = options.tippy?.tippyOptions?.onShow?.(...args);
+      const instance = args[0];
+      const anchor = instance?.reference ?? instance ?? null;
+      openOverlayTippy(options, anchor);
+      return userResult;
+    },
     onHidden: (...args: any[]) => {
       options.tippy?.tippyOptions?.onHidden?.(...args);
       overlayRegistry.hide(options.id);
@@ -61,7 +79,7 @@ export const createOverlayTippy = (options: OverlayTippyOptions) => {
   return {
     instance,
     show(target?: HTMLElement, cancelHidding = false, immediate = false) {
-      overlayRegistry.open(options.id, { anchor: target ?? null });
+      openOverlayTippy(options, target);
       instance.show(target, cancelHidding, immediate);
     },
     hide(delay?: number) {
@@ -120,6 +138,7 @@ export const createRawTippyOverlay = (
     },
   });
 
+  markBklogTippy(created);
   lifecycle.setInstance(created);
   return created;
 };

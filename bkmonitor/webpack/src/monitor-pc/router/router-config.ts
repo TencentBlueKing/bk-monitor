@@ -150,8 +150,7 @@ export const getRouteConfig = () => {
           path: '/trace/profiling',
           href: '#/trace/profiling',
           usePath: true,
-          // isBeta: window.platform?.te === false,
-          canStore: true,
+          hidden: true,
         },
         {
           name: 'Profiling 检索',
@@ -161,8 +160,7 @@ export const getRouteConfig = () => {
           path: '/trace/profiling-explore',
           href: '#/trace/profiling-explore',
           usePath: true,
-          isBeta: true,
-          // hidden: true,
+          canStore: true,
         },
         {
           name: 'RUM 检索',
@@ -372,7 +370,7 @@ export const getRouteConfig = () => {
         //     }
         //   ]
         // },
-        window.enable_aiops
+        window.enable_aiops || window.enable_issue_ai_analysis
           ? {
               name: '智能设置',
               shortName: '智能',
@@ -381,9 +379,9 @@ export const getRouteConfig = () => {
                 {
                   name: 'AI设置',
                   icon: 'icon-monitor icon-AI menu-icon',
-                  id: 'ai-settings',
-                  path: '/ai-settings',
-                  href: '#/ai-settings',
+                  id: 'ai-config',
+                  path: '/trace/ai-config',
+                  href: '#/trace/ai-config',
                   canStore: true,
                 },
               ],
@@ -586,7 +584,7 @@ export const COMMON_ROUTE_LIST = getRouteConfig()
     if (item.children?.length) {
       return {
         ...item,
-        children: item.children.reduce(
+        children: item.children.filter(child => child.id !== 'profiling').reduce(
           // biome-ignore lint/performance/noAccumulatingSpread: <explanation>
           (pre, cur) => (cur.children?.length ? [...pre, ...cur.children.filter(set => set.canStore)] : [...pre, cur]),
           []
@@ -601,19 +599,6 @@ COMMON_ROUTE_LIST.push({
   children: [...GLOBAL_FEATURE_LIST],
 });
 
-/** 旧版主机监控收藏 id 打开时落到新版列表。 */
-export function normalizeStoredRouteIds(ids: string[]) {
-  const seen = new Set<string>();
-  const result: string[] = [];
-  for (const id of ids) {
-    const next = id === 'performance' ? 'host' : id;
-    if (seen.has(next)) continue;
-    seen.add(next);
-    result.push(next);
-  }
-  return result;
-}
-
 // 获取本地存储的访问常用路由列表
 export function getLocalStoreRoute() {
   const str = localStorage.getItem(LOCAL_COMMON_ROUTE_STORE_KEY);
@@ -624,6 +609,7 @@ export function getLocalStoreRoute() {
     return undefined;
   }
 }
+
 /**
  * @param id 路由id
  * @returns 路由配置
@@ -645,6 +631,18 @@ export function getRouteConfigById(id: string) {
 // 路由id是否存在于常用路由列表
 export function isInCommonRoute(id: string) {
   return COMMON_ROUTE_LIST.some(item => item?.children?.some(set => set.id === id));
+}
+/** 旧版主机监控和 Profiling 收藏 id 归一到新版入口。 */
+export function normalizeStoredRouteIds(ids: string[]) {
+  const seen = new Set<string>();
+  const result: string[] = [];
+  for (const id of ids) {
+    const next = id === 'performance' ? 'host' : id === 'profiling' ? 'profiling-explore' : id;
+    if (seen.has(next)) continue;
+    seen.add(next);
+    result.push(next);
+  }
+  return result;
 }
 // 设置本地存储的访问常用路由列表
 export function setLocalStoreRoute(id: string) {

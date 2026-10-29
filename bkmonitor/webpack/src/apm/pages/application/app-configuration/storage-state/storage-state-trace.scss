@@ -15,6 +15,14 @@
     }
   }
 
+  .cluster-wrap {
+    min-width: 400px;
+
+    .editable-form-item {
+      margin-bottom: 4px;
+    }
+  }
+
   .item-content {
     margin-bottom: 24px !important;
   }
@@ -29,5 +37,64 @@
         }
       }
     }
+  }
+
+  .cluster-switch-tip {
+    padding-left: 116px;
+    margin-top: 0;
+    font-size: 12px;
+    line-height: 18px;
+    color: #979ba5;
+  }
+}
+
+.cluster-switch-dialog-body {
+  padding: 0 0 8px;
+
+  .cluster-switch-row {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+    padding: 0 0 16px;
+    margin-bottom: 16px;
+    border-bottom: 1px solid #f0f1f5;
+  }
+
+  .cluster-switch-label {
+    font-size: 14px;
+    color: #63656e;
+    white-space: nowrap;
+  }
+
+  .cluster-switch-value {
+    font-size: 14px;
+    font-weight: 600;
+    color: #313238;
+    word-break: break-all;
+  }
+
+  .cluster-switch-value-target {
+    color: #3a84ff;
+  }
+
+  .cluster-switch-arrow {
+    margin: 0 4px;
+    font-size: 18px;
+    color: #c4c6cc;
+  }
+
+  .cluster-switch-retention {
+    padding: 12px 16px;
+    margin-bottom: 12px;
+    font-size: 14px;
+    color: #63656e;
+    background: #f5f7fa;
+    border-radius: 2px;
+  }
+
+  .cluster-switch-desc {
+    font-size: 14px;
+    line-height: 22px;
+    color: #63656e;
   }
 }

@@ -74,6 +74,8 @@ ADVANCED_OPTIONS = OrderedDict(
         # === BKDATA & AIOPS 相关配置 开始 ===
         ("AIOPS_BIZ_WHITE_LIST", slz.ListField(label="开启智能异常算法的业务白名单", default=[])),
         ("AIOPS_INCIDENT_BIZ_WHITE_LIST", slz.ListField(label="开启根因故障定位的业务白名单", default=[])),
+        # Issue AI 分析：白名单为空 = 功能关闭，-1 表示全量
+        ("ISSUE_AI_ANALYSIS_BIZ_WHITE_LIST", slz.ListField(label=_("Issue AI 分析业务白名单"), default=[])),
         # Issue LLM 标题生成：白名单为空 = 功能关闭（注意与 AIOPS 白名单"空=全开"语义不同），-1 表示全量
         ("ISSUE_LLM_TITLE_BIZ_WHITE_LIST", slz.ListField(label="Issue LLM 标题生成业务白名单", default=[])),
         # 业务级 prompt 模板：{bk_biz_id: 模板文本}（一业务一模板字符串，自适应模板已覆盖日志行/事件两形态）。
@@ -225,6 +227,10 @@ ADVANCED_OPTIONS = OrderedDict(
         ("APM_APP_BKDATA_OPERATOR", slz.CharField(label="APM应用操作数据平台所用到的用户名", default="admin")),
         ("APM_APP_BKDATA_MAINTAINER", slz.ListField(label="APM应用操作数据平台时数据源的默认维护人", default=[])),
         ("APM_APPLICATION_QUICK_REFRESH_INTERVAL", slz.IntegerField(label=_("新建应用的刷新频率"), default=2)),
+        (
+            "APM_RELATED_LOG_INDEX_STATUS_CACHE_TTL",
+            slz.IntegerField(label=_("APM 关联日志索引状态快照有效期（秒）"), default=15 * 60, min_value=1),
+        ),
         (
             "APM_APPLICATION_QUICK_REFRESH_DELTA",
             slz.IntegerField(label=_("新建应用的创建时间到当前时间的时长范围"), default=30),
@@ -498,6 +504,14 @@ ADVANCED_OPTIONS = OrderedDict(
             "BK_DATA_RECORD_RULE_PROJECT_ID",
             slz.IntegerField(label="监控使用计算平台的预计算流程的公共项目ID", default=1),
         ),
+        (
+            "RECORD_RULE_V4_CONFIG",
+            slz.JSONField(
+                label="RecordingRule V4 配置",
+                default={"max_sources": 20, "max_rules": 20},
+                help_text="max_sources 为单 Flow 去重后的 source 上限，max_rules 为 group 中 rule 条数上限，均为正整数，默认 20。",
+            ),
+        ),
         ("METADATA_REQUEST_ES_TIMEOUT", slz.JSONField(label="metadata请求ES超时时间", default={"default": 10})),
         ("SKIP_INFLUXDB_TABLE_ID_LIST", slz.BooleanField(label="跳过写入influxdb的结果表列表", default=[])),
         ("ENABLE_UPTIMECHECK_TEST", slz.BooleanField(label="是否开启拨测联通性测试", default=True)),
@@ -732,6 +746,10 @@ STANDARD_CONFIGS = OrderedDict(
         ),
         ("APM_CREATE_VIRTUAL_METRIC_ENABLED_BK_BIZ_ID", slz.ListField(label=_("APM 创建虚拟指标业务列表"), default=[])),
         ("APM_BMW_TASK_QUEUES", slz.ListField(label=_("APM BMW 任务能够使用的队列名称"), default=["apm-01"])),
+        (
+            "APM_BMW_TASK_CRON_DRY_RUN",
+            slz.BooleanField(label=_("APM BMW 预计算任务定时分派空跑(跳过分派，不下发/删除任务)"), default=False),
+        ),
         ("PER_ROUND_SPAN_MAX_SIZE", slz.IntegerField(label=_("拓扑发现允许的最大 Span 数量"), default=1000)),
         ("WXWORK_BOT_NAME", slz.CharField(label=_("蓝鲸监控机器人名称"), default="BK-Monitor", allow_blank=True)),
         ("WXWORK_BOT_SEND_IMAGE", slz.BooleanField(label=_("蓝鲸监控机器人发送图片"), default=True)),

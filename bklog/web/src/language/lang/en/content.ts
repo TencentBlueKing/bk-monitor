@@ -998,6 +998,8 @@ export default {
     'In this mode, only the original text of the unordered log reported by you is downloaded, and you can sort it locally by log time; the log cannot contain platform supplementary fields: such as cluster name, module name and other information. The maximum number of log exports in this mode is 5 million.',
   '该模式下，下载的日志有序，可包含平台补充字段，但下载时间较长。该模式的日志导出上限为200万条':
     'In this mode, the downloaded logs are in order and can contain platform supplementary fields, but the download time is longer. The maximum number of log exports in this mode is 2 million.',
+  '该模式下，下载的日志有序，可包含平台补充字段，但下载时间较长。':
+    'In this mode, the downloaded logs are in order and can contain platform supplementary fields, but the download time is longer.',
   全文下载: 'Full text download',
   暂未保留原始日志: 'The original log has not been kept yet',
   '超出集群最大可保存天数，当前最大可保存{n}天':
@@ -1511,101 +1513,103 @@ export default {
   '关键字过滤：{0}（关键字匹配模式：{1}）': 'Keyword filtering: {0} (Keyword matching mode: {1})',
   访问权限未开通: 'Access not granted',
   '暂无业务 / 空间访问权限': 'No business / space access',
-  '你尚未获得任何业务或空间的访问权限，暂时无法使用日志平台。':
-    'You do not have access to any business or space and cannot use the log platform yet.',
-  '请到蓝鲸权限中心申请加入业务用户组，或申请日志平台所需权限。':
-    'Apply to join a business user group in BlueKing IAM, or request the permissions required by the log platform.',
-  '申请入口：蓝鲸门户 → 权限中心；审批通过后重新检测权限。':
-    'Apply via BlueKing Portal → IAM. Recheck permissions after approval.',
+  '你尚未获得任何业务或空间的访问权限，暂时无法使用日志平台':
+    'You do not have access to any business or space and cannot use the log platform yet',
+  '请到蓝鲸权限中心申请加入业务用户组，或申请日志平台所需权限':
+    'Apply to join a business user group in BlueKing IAM, or request the permissions required by the log platform',
+  '申请入口：蓝鲸门户 → 权限中心；审批通过后重新检测权限':
+    'Apply via BlueKing Portal → IAM. Recheck permissions after approval',
   按业务角色申请权限: 'Apply for permissions by business role',
   打开权限中心: 'Open IAM',
-  '进入蓝鲸门户，打开「权限中心」，进入「权限申请」。':
-    'Go to BlueKing Portal, open IAM, and select Permission Application.',
+  '进入蓝鲸门户，打开「权限中心」，进入「权限申请」':
+    'Go to BlueKing Portal, open IAM, and select Permission Application',
   申请加入用户组: 'Apply to join a user group',
-  '选择「加入用户组」，按业务名搜索，勾选对应角色的用户组并提交。':
-    'Select Join User Group, search by business name, select the group for your role, and submit.',
+  '选择「加入用户组」，按业务名搜索，勾选对应角色的用户组并提交':
+    'Select Join User Group, search by business name, select the group for your role, and submit',
   审批后重新检测: 'Recheck after approval',
-  '审批通过后，返回日志平台，点击「重新检测权限」。':
-    'After approval, return to the log platform and click Recheck Permissions.',
-  '用户组权限不足？在权限中心选择日志平台，补充申请所需权限。':
-    'Need more user group permissions? Select the log platform in IAM and request the additional permissions.',
+  '审批通过后，返回日志平台，点击「重新检测权限」':
+    'After approval, return to the log platform and click Recheck Permissions',
+  '用户组权限不足？在权限中心选择日志平台，补充申请所需权限':
+    'Need more user group permissions? Select the log platform in IAM and request the additional permissions',
   '找不到用户组，或不确定需要哪些权限？': 'Cannot find a user group, or unsure which permissions you need?',
   '无权限，请': 'No permission.',
   暂时无法访问当前业务: 'Unable to access this business',
-  '请确认当前登录的企业与该业务所属企业一致。':
-    'Make sure you are signed in to the enterprise that owns this business.',
-  '如不一致，请按以下步骤切换企业后重新登录。':
-    'If they do not match, follow the steps below to switch enterprises and sign in again.',
+  请确认当前登录的企业与该业务所属企业一致: 'Make sure you are signed in to the enterprise that owns this business',
+  '如不一致，请按以下步骤切换企业后重新登录':
+    'If they do not match, follow the steps below to switch enterprises and sign in again',
   如何切换到所属企业: 'How to switch to the correct enterprise',
   退出当前登录: 'Sign out',
-  '点击页面右上角的个人名称，在菜单中选择「退出登录」。':
-    'Click your name in the top-right corner of the page and select Sign Out from the menu.',
+  '点击页面右上角的个人名称，在菜单中选择「退出登录」':
+    'Click your name in the top-right corner of the page and select Sign Out from the menu',
   切换企业: 'Switch enterprise',
-  '进入登录页后，点击右上角的「切换企业」。': 'On the sign-in page, click Switch Enterprise in the top-right corner.',
+  '进入登录页后，点击右上角的「切换企业」': 'On the sign-in page, click Switch Enterprise in the top-right corner',
   选择所属企业: 'Select your enterprise',
-  '输入或选择你的所属企业，确认后重新登录日志平台。':
-    'Enter or select your enterprise, confirm your choice, and sign in to the log platform again.',
-  '请确认选择的是该业务所属企业，切换后重新登录日志平台。':
-    'Make sure you select the enterprise that owns this business, then sign in to the log platform again.',
+  '输入或选择你的所属企业，确认后重新登录日志平台':
+    'Enter or select your enterprise, confirm your choice, and sign in to the log platform again',
+  '请确认选择的是该业务所属企业，切换后重新登录日志平台':
+    'Make sure you select the enterprise that owns this business, then sign in to the log platform again',
   '企业选择正确，仍无法访问？请联系{0}确认授权':
     'Selected the correct enterprise but still cannot access logs? Contact {0} to confirm access.',
-  '请说明业务或空间、日志范围和登录账号；BK助手完成授权后，刷新页面重试。':
-    'Provide the business or space, log scope, and sign-in account. Refresh the page after BK Assistant grants access.',
+  '请说明业务或空间、日志范围和登录账号；BK助手完成授权后，刷新页面重试':
+    'Provide the business or space, log scope, and sign-in account. Refresh the page after BK Assistant grants access',
   暂无日志访问权限: 'No permission to access logs',
-  '当前账号尚未获得业务或空间的日志访问权限。':
-    'Your account does not have permission to access logs in this business or space.',
-  请联系运维人员开通权限: 'Contact your operations team to request access',
-  '运维人员完成授权后，刷新页面重试。': 'Refresh the page after your operations team grants access.',
+  '当前账号尚未获得业务或空间的日志访问权限。请联系运维人员开通':
+    'Your account does not have permission to access logs in this business or space. Contact your operations team to request access',
   开始接入日志: 'Start collecting logs',
   当前空间还没有采集项: 'No collection items in this space yet',
-  '空间「{spaceName}」尚未配置日志采集。': 'Log collection has not been configured for space "{spaceName}".',
-  '创建第一个采集项，将主机或容器日志接入日志平台。':
-    'Create your first collection item to send host or container logs to the log platform.',
-  '首次接入建议先选择少量目标，确认采集正常后再扩大范围。':
-    'Start with a small set of targets. Expand the scope once log collection is working correctly.',
+  '空间「{spaceName}」尚未配置日志采集': 'Log collection has not been configured for space "{spaceName}"',
+  '创建第一个采集项，将主机或容器日志接入日志平台':
+    'Create your first collection item to send host or container logs to the log platform',
+  '首次接入建议先选择少量目标，确认采集正常后再扩大范围':
+    'Start with a small set of targets. Expand the scope once log collection is working correctly',
   '从日志接入到检索，只需三步': 'From collection to search in three steps',
-  '选择日志来源，为采集项命名，关联当前业务或空间。':
-    'Select a log source, name the collection item, and associate it with the current business or space.',
+  '选择日志来源，为采集项命名，关联当前业务或空间':
+    'Select a log source, name the collection item, and associate it with the current business or space',
   配置并下发: 'Configure and deploy',
-  '设置目标资源、日志路径和采集规则，完成采集配置下发。':
-    'Set the target resources, log paths, and collection rules, then deploy the collection configuration.',
+  '设置目标资源、日志路径和采集规则，完成采集配置下发':
+    'Set the target resources, log paths, and collection rules, then deploy the collection configuration',
   开始检索日志: 'Start searching logs',
-  '采集正常且数据入库后，选择对应索引集，即可检索日志。':
-    'Once collection is working and logs are stored, select the corresponding index set to search logs.',
-  '创建前，请准备好目标资源与日志路径，并确认资源访问权限。':
-    'Before creating an item, prepare the target resources and log paths, and confirm resource access permissions.',
+  '采集正常且数据入库后，选择对应索引集，即可检索日志':
+    'Once collection is working and logs are stored, select the corresponding index set to search logs',
+  '创建前，请准备好目标资源与日志路径，并确认资源访问权限':
+    'Before creating an item, prepare the target resources and log paths, and confirm resource access permissions',
   '没有采集项创建权限？': 'No permission to create collection items?',
   '其他空间已接入日志？': 'Already collecting logs in another space?',
   切换空间: 'Switch space',
   选择合适的权限申请方式: 'Choose how to apply for permissions',
-  '进入蓝鲸门户，打开「权限中心」，在「权限申请」中按使用场景选择申请方式。':
-    'Go to BlueKing Portal, open IAM, and choose an application method under Permission Application for your use case.',
+  '进入蓝鲸门户，打开「权限中心」，在「权限申请」中按使用场景选择申请方式':
+    'Go to BlueKing Portal, open IAM, and choose an application method under Permission Application for your use case',
   按业务角色申请: 'Apply by business role',
   推荐: 'Recommended',
   '权限申请 → 加入用户组 → 搜索业务名 → 勾选用户组':
     'Permission Application → Join User Group → Search by business name → Select a user group',
-  '选择与你的业务角色对应的用户组，确认组内包含所需权限后提交审批。加入用户组后，将继承该组的权限。':
-    'Select the user group for your business role, confirm that it includes the permissions you need, and submit for approval. You will inherit the group permissions after joining.',
+  '选择与你的业务角色对应的用户组，确认组内包含所需权限后提交审批。加入用户组后，将继承该组的权限':
+    'Select the user group for your business role, confirm that it includes the permissions you need, and submit for approval. You will inherit the group permissions after joining',
   只申请所需的单项权限: 'Apply only for the individual permissions you need',
   '在权限中心选择日志平台，申请所需权限': 'Select the log platform in IAM and apply for the permissions you need',
   '权限模板：': 'Permission template:',
-  '选择符合使用场景的模板，并按页面提示配置资源范围。':
-    'Select a template for your use case and follow the page instructions to configure the resource scope.',
+  '选择符合使用场景的模板，并按页面提示配置资源范围':
+    'Select a template for your use case and follow the page instructions to configure the resource scope',
   '自定义：': 'Custom:',
-  '勾选所需操作，点击「关联实例」，选择具体业务等资源实例后提交。':
-    'Select the required actions, click Associate Instances, select resource instances such as a specific business, and submit.',
-  '已有用户组权限不足时，可以继续申请单项权限；仅在 CMDB 中配置了运维人员，不代表已获得权限中心授权。审批通过后，返回本页重新检测权限。':
-    'If your user group permissions are insufficient, you can apply for individual permissions. Being listed as an operator in CMDB does not grant IAM permissions. After approval, return to this page and recheck permissions.',
+  '勾选所需操作，点击「关联实例」，选择具体业务等资源实例后提交':
+    'Select the required actions, click Associate Instances, select resource instances such as a specific business, and submit',
+  '已有用户组权限不足时，可以继续申请单项权限；仅在 CMDB 中配置了运维人员，不代表已获得权限中心授权。审批通过后，返回本页重新检测权限':
+    'If your user group permissions are insufficient, you can apply for individual permissions. Being listed as an operator in CMDB does not grant IAM permissions. After approval, return to this page and recheck permissions',
   日志接入指引: 'Log collection guide',
   准备采集资源: 'Prepare collection resources',
-  '主机日志需准备目标主机及日志路径；容器日志需准备集群、命名空间及日志来源。':
-    'For host logs, prepare the target hosts and log paths. For container logs, prepare the cluster, namespace, and log sources.',
+  '主机日志需准备目标主机及日志路径；容器日志需准备集群、命名空间及日志来源':
+    'For host logs, prepare the target hosts and log paths. For container logs, prepare the cluster, namespace, and log sources',
   配置并下发采集项: 'Configure and deploy collection items',
-  '确认采集范围、文件编码和日志规则，完成配置下发并检查采集状态。':
-    'Confirm the collection scope, file encoding, and log rules, deploy the configuration, and check the collection status.',
+  '确认采集范围、文件编码和日志规则，完成配置下发并检查采集状态':
+    'Confirm the collection scope, file encoding, and log rules, deploy the configuration, and check the collection status',
   验证后开始检索: 'Verify collection and start searching',
-  '等待数据入库，选择对应索引集，确认可以检索到预期日志。':
-    'Wait for the data to be stored, select the corresponding index set, and confirm that you can find the expected logs.',
-  '具体可用采集类型和配置方式，以当前环境的采集管理功能为准。':
-    'Available collection types and configuration methods depend on the collection management features in this environment.',
+  '等待数据入库，选择对应索引集，确认可以检索到预期日志':
+    'Wait for the data to be stored, select the corresponding index set, and confirm that you can find the expected logs',
+  '具体可用采集类型和配置方式，以当前环境的采集管理功能为准':
+    'Available collection types and configuration methods depend on the collection management features in this environment',
+  确认调整导出排序: 'Confirm export sort order',
+  按此排序导出: 'Export with this order',
+  '为支持分片并行导出，将优先按日志时间降序排列，同一时间内保留其他字段的排序规则。筛选条件、导出字段和数据范围不变。实际导出排序：{sort}':
+    'For parallel export, logs will be sorted by log time descending first, retaining the other sort rules for equal timestamps. Filters, exported fields, and the data range remain unchanged. Export order: {sort}',
+  '导出排序已变化，请重新提交并确认': 'The export sort order has changed. Please submit again and confirm.',
 };

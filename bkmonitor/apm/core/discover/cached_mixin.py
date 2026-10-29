@@ -12,6 +12,7 @@ import datetime
 import time
 from abc import ABC, abstractmethod
 import logging
+from itertools import islice
 
 import pytz
 from apm.constants import ApmCacheConfig
@@ -68,6 +69,7 @@ class CachedDiscoverMixin(ABC):
         :param created_db_instances: 新创建的数据库对象列表 (bulk_create 返回的对象)
         :param updated_instances: 需要更新的实例数据列表
         """
+        started: float = time.monotonic()
         cache_data = self._query_cache_data()
 
         # 将新创建的数据库对象转换为数据类对象
@@ -79,8 +81,6 @@ class CachedDiscoverMixin(ABC):
 
         # 合并已存在的和新创建的实例数据
         all_instance_data: list[BaseInstanceData] = existing_instances + created_instance_data
-
-        logger.info(f"[{self._get_cache_type()}] all_instance_data count: {len(all_instance_data)}")
 
         # 计算需要删除的实例（过期或超量）
         delete_instance_keys = self._clear_data(cache_data, all_instance_data)
@@ -95,12 +95,19 @@ class CachedDiscoverMixin(ABC):
             update_instance_keys=update_instance_keys,
             delete_instance_keys=delete_instance_keys,
         )
-        logger.info(
-            f"[{self._get_cache_type()}] "
-            f"update_instance_keys count: {len(update_instance_keys)}, "
-            f"create_instance_keys count: {len(create_instance_keys)}, "
-            f"delete_instance_keys count: {len(delete_instance_keys)}"
-        )
+        if create_instance_keys or update_instance_keys or delete_instance_keys:
+            logger.info(
+                "[apm_discovery] event=cache_refreshed bk_biz_id=%s app_name=%s cache_type=%s "
+                "existing_count=%s created_count=%s updated_count=%s deleted_count=%s duration_s=%.3f",
+                self.bk_biz_id,
+                self.app_name,
+                self._get_cache_type(),
+                len(existing_instances),
+                len(create_instance_keys),
+                len(update_instance_keys),
+                len(delete_instance_keys),
+                time.monotonic() - started,
+            )
 
     @classmethod
     def _to_id_and_key(cls, instances: list[BaseInstanceData]) -> tuple[set, set]:
@@ -200,6 +207,21 @@ class CachedDiscoverMixin(ABC):
 
         delete_ids, delete_keys = self._to_id_and_key(delete_data)
         if delete_ids:
+            # 清理会实际删除数据库记录，保留原因与少量定位样本，不输出完整 ID 列表。
+            logger.log(
+                logging.WARNING if overflow_delete_data else logging.INFO,
+                "[apm_discovery] event=cleanup_started bk_biz_id=%s app_name=%s cache_type=%s "
+                "expired_count=%s overflow_count=%s retention_days=%s max_count=%s delete_count=%s id_sample=%s",
+                self.bk_biz_id,
+                self.app_name,
+                self._get_cache_type(),
+                len(expired_delete_data),
+                len(overflow_delete_data),
+                self.application.trace_datasource.retention,
+                self.MAX_COUNT,
+                len(delete_ids),
+                list(islice(delete_ids, 10)),
+            )
             self.model.objects.filter(pk__in=delete_ids).delete()
 
         return delete_keys

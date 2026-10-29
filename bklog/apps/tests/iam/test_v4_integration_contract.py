@@ -27,7 +27,9 @@ class V4IntegrationContractTest(SimpleTestCase):
         ],
         "request_id": "4e40b6b6-ba84-4256-adfb-8593981e6405",
     }
-    APPLY_URL = {"data": {"url": "https://bkiam.woa.com/permission/apply?cache_id=<cache_id>&system_id=bk_log_search"}}
+    APPLY_URL = {
+        "data": {"url": "https://bkiam.example.com/permission/apply?cache_id=<cache_id>&system_id=bk_log_search"}
+    }
 
     def setUp(self):
         self.client = V4Client(

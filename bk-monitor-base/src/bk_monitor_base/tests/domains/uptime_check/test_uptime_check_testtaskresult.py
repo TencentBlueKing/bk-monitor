@@ -14,16 +14,20 @@ from unittest.mock import patch
 
 import pytest
 import yaml
+from packaging.version import Version
 
 from bk_monitor_base.domains.uptime_check.constants import (
     DEFAULT_UPTIMECHECK_OUTPUT_FIELDS,
     RESULT_MSG,
     UDP_RESULT_MSG,
+    UPTIME_CHECK_BEAT_MIN_VERSION,
+    BeatVersionCheckState,
 )
 from bk_monitor_base.domains.uptime_check.models import UptimeCheckNodeModel, UptimeCheckTaskModel
 from bk_monitor_base.domains.uptime_check.services.task_manager import (
     TaskManager,
     UptimeCheckCollector,
+    _check_beat_version,
 )
 from bk_monitor_base.domains.uptime_check.services.task_manager import (
     TestTaskError as UptimeCheckTestTaskError,
@@ -320,13 +324,13 @@ class TestTaskManagerTesttaskresult:
             bk_biz_id=2,
             name="testtaskresult-task",
             protocol=UptimeCheckTaskModel.Protocol.TCP,
-            config={"period": 60, "ip_list": ["192.0.2.1"], "port": 80},
+            config={"period": 60, "ip_list": ["127.0.0.1"], "port": 80},
         )
         node = UptimeCheckNodeModel.objects.create(
             bk_tenant_id="default",
             bk_biz_id=2,
             name="node-a",
-            ip="192.0.2.1",
+            ip="127.0.0.1",
             bk_host_id=1,
             plat_id=0,
             is_common=False,
@@ -341,7 +345,7 @@ class TestTaskManagerTesttaskresult:
             "list": [
                 {
                     "plugin_status": [{"name": "bkmonitorbeat", "version": "3.5.0.1\n"}],
-                    "inner_ip": "192.0.2.1",
+                    "inner_ip": "127.0.0.1",
                     "inner_ipv6": "",
                     "bk_cloud_id": 0,
                 }
@@ -535,10 +539,10 @@ class TestTaskManagerTesttaskresult:
         """一个未知码节点不阻断其余节点解析，健康节点不混入失败提示。"""
         task, healthy_node = task_with_node
         known_error_node = UptimeCheckNodeModel.objects.create(
-            bk_tenant_id="default", bk_biz_id=2, name="node-b", ip="192.0.2.2", bk_host_id=2, plat_id=0
+            bk_tenant_id="default", bk_biz_id=2, name="node-b", ip="127.0.0.2", bk_host_id=2, plat_id=0
         )
         unknown_error_node = UptimeCheckNodeModel.objects.create(
-            bk_tenant_id="default", bk_biz_id=2, name="node-c", ip="192.0.2.3", bk_host_id=3, plat_id=0
+            bk_tenant_id="default", bk_biz_id=2, name="node-c", ip="127.0.0.3", bk_host_id=3, plat_id=0
         )
         task.nodes.add(known_error_node, unknown_error_node)  # pyright: ignore[reportAttributeAccessIssue]
         collector_result: dict[str, Any] = {"success": [], "failed": []}
@@ -569,3 +573,168 @@ class TestTaskManagerTesttaskresult:
             self._run_task_test(task, collector_result)
 
         assert "采集器无返回" in str(exc_info.value)
+
+
+class TestBeatVersionCheck:
+    """bkmonitorbeat 版本三态判定：仅 TOO_OLD 拦截，无记录/解析失败一律放行。"""
+
+    @pytest.fixture
+    def task_with_node(self) -> tuple[UptimeCheckTaskModel, UptimeCheckNodeModel]:
+        """创建合成任务与节点，由 pytest 数据库事务清理。"""
+        task = UptimeCheckTaskModel.objects.create(
+            bk_biz_id=2,
+            name="beat-version-task",
+            protocol=UptimeCheckTaskModel.Protocol.HTTP,
+            config={"period": 60, "url_list": ["https://example.com"], "method": "GET"},
+        )
+        node = UptimeCheckNodeModel.objects.create(
+            bk_tenant_id="default",
+            bk_biz_id=2,
+            name="node-a",
+            ip="127.0.0.1",
+            bk_host_id=1,
+            plat_id=0,
+            is_common=False,
+        )
+        task.nodes.add(node)  # pyright: ignore[reportAttributeAccessIssue]
+        return task, node
+
+    @staticmethod
+    def _plugin(version: Any, name: str = "bkmonitorbeat") -> dict[str, Any]:
+        """构造单条插件登记记录。"""
+        return {"name": name, "version": version}
+
+    @pytest.mark.parametrize(
+        "plugin_status",
+        [
+            pytest.param([], id="empty-list"),
+            pytest.param(None, id="none-plugin-status"),
+            pytest.param([{"name": "gseagent", "version": "1.0.0"}], id="no-beat-entry"),
+            pytest.param([{"name": "bkmonitorbeat", "version": ""}], id="blank-version"),
+            pytest.param([{"name": "bkmonitorbeat", "version": "  "}], id="whitespace-version"),
+            pytest.param([{"name": "bkmonitorbeat", "version": None}], id="none-version"),
+            pytest.param([{"name": "bkmonitorbeat", "version": "not-a-version"}], id="unparsable-version"),
+        ],
+    )
+    def test_check_beat_version_returns_unknown_when_undeterminable(self, plugin_status: Any) -> None:
+        """无记录或版本无法解析时判为 UNKNOWN，交由调用方放行。"""
+        state, version = _check_beat_version(plugin_status)
+
+        assert state is BeatVersionCheckState.UNKNOWN
+        assert version == ""
+
+    @pytest.mark.parametrize(
+        "version",
+        [
+            pytest.param("3.5.0", id="exact-min"),
+            pytest.param("3.5.0.1\n", id="trailing-newline"),
+            pytest.param(" 3.73.4282 ", id="surrounding-blank"),
+            pytest.param("4.0.0", id="newer-major"),
+        ],
+    )
+    def test_check_beat_version_passes_for_sufficient_version(self, version: str) -> None:
+        """不低于最低版本要求时判为 PASS，返回解析后的规范版本号。"""
+        state, normalized = _check_beat_version([self._plugin(version)])
+
+        assert state is BeatVersionCheckState.PASS
+        assert normalized
+        assert Version(normalized) >= Version(UPTIME_CHECK_BEAT_MIN_VERSION)
+
+    def test_check_beat_version_flags_too_old(self) -> None:
+        """低于最低版本要求时判为 TOO_OLD，返回解析后的规范版本号。"""
+        state, normalized = _check_beat_version([self._plugin("3.4.0")])
+
+        assert state is BeatVersionCheckState.TOO_OLD
+        assert normalized == "3.4.0"
+
+    def test_check_beat_version_picks_highest_among_duplicated_records(self) -> None:
+        """同一主机存在多条记录时取最高版本，避免被旧记录误判。"""
+        plugin_status = [self._plugin("3.4.0"), self._plugin("3.9.0")]
+
+        state, normalized = _check_beat_version(plugin_status)
+
+        assert state is BeatVersionCheckState.PASS
+        assert normalized == "3.9.0"
+
+    def test_check_beat_version_ignores_unparsable_record(self) -> None:
+        """多条记录中部分无法解析时，仍以可解析记录的结果为准。"""
+        plugin_status = [self._plugin("garbage"), self._plugin("3.4.0")]
+
+        state, normalized = _check_beat_version(plugin_status)
+
+        assert state is BeatVersionCheckState.TOO_OLD
+        assert normalized == "3.4.0"
+
+    def test_check_beat_version_does_not_echo_raw_version(self) -> None:
+        """提示文案使用的版本号必须是规范值，不透传原始串以免带入标记内容。"""
+        raw_version = "3.4.0.<img src=x onerror=alert(1)>"
+
+        state, normalized = _check_beat_version([self._plugin(raw_version)])
+
+        assert state is BeatVersionCheckState.TOO_OLD
+        assert normalized == "3.4.0"
+        assert "<" not in normalized
+
+    def test_task_manager_test_raises_when_beat_version_too_old(
+        self, task_with_node: tuple[UptimeCheckTaskModel, UptimeCheckNodeModel]
+    ) -> None:
+        """版本过低时抛出明确错误，文案含节点标识与要求版本。"""
+        task, _ = task_with_node
+        plugin_result: dict[str, Any] = {
+            "list": [
+                {
+                    "plugin_status": [self._plugin("3.4.0")],
+                    "inner_ip": "127.0.0.1",
+                    "inner_ipv6": "",
+                    "bk_cloud_id": 0,
+                }
+            ]
+        }
+
+        manager = TaskManager(task=task)
+        with (
+            patch.object(UptimeCheckNodeModel, "set_host_id", return_value=None),
+            patch(
+                "bk_monitor_base.domains.uptime_check.services.task_manager.plugin_search",
+                return_value=plugin_result,
+            ),
+            patch(
+                "bk_monitor_base.domains.uptime_check.services.task_manager.UptimeCheckCollector.test",
+                return_value={"success": [], "failed": []},
+            ),
+            pytest.raises(UptimeCheckTestTaskError) as exc_info,
+        ):
+            manager.test()
+
+        error_message = str(exc_info.value)
+        assert UPTIME_CHECK_BEAT_MIN_VERSION in error_message
+        assert "127.0.0.1-0" in error_message
+        assert "3.4.0" in error_message
+
+    def test_task_manager_test_skips_version_check_when_no_record(
+        self, task_with_node: tuple[UptimeCheckTaskModel, UptimeCheckNodeModel]
+    ) -> None:
+        """节点管理无插件登记时不拦截，直接进入测试下发并返回采集结果。"""
+        task, node = task_with_node
+        plugin_result: dict[str, Any] = {"list": []}
+        collector_result: dict[str, Any] = {
+            "success": [{"bk_host_id": node.bk_host_id, "ip": node.ip, "log_content": '{"error_code":0}'}],
+            "failed": [],
+        }
+
+        manager = TaskManager(task=task)
+        with (
+            patch.object(UptimeCheckNodeModel, "set_host_id", return_value=None),
+            patch(
+                "bk_monitor_base.domains.uptime_check.services.task_manager.plugin_search",
+                return_value=plugin_result,
+            ),
+            patch(
+                "bk_monitor_base.domains.uptime_check.services.task_manager.UptimeCheckCollector.test",
+                return_value=collector_result,
+            ) as collector_test,
+        ):
+            message = manager.test()
+
+        collector_test.assert_called_once()
+        assert message == RESULT_MSG["0"]

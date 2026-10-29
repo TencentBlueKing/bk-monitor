@@ -26,12 +26,11 @@
 <template>
   <bk-dialog
     width="768"
-    ext-cls="permission-dialog"
     :header-position="'left'"
     :mask-close="false"
     :title="''"
     :value="isModalShow"
-    :z-index="2990"
+    :z-index="dialogZIndex"
     @cancel="onCloseDialog"
     @value-change="handleValueChange"
   >
@@ -119,6 +118,7 @@
 <script lang="ts">
 import { Component, Vue, Watch } from 'vue-property-decorator';
 
+import { getTopLayerZIndex } from 'monitor-common/utils/overlay';
 import lockImg from 'monitor-pc/static/images/svg/lock-radius.svg';
 
 // 20231205 代码还原，先保留原有部分
@@ -126,9 +126,13 @@ import lockImg from 'monitor-pc/static/images/svg/lock-radius.svg';
 // @ts-ignore
 import authorityStore from '@store/modules/authority';
 
+// 原 .permission-dialog 的 z-index: 3000，作为下限保证层级不回退
+const MIN_Z_INDEX = 3000;
+
 @Component
 export default class AuthorityModal extends Vue {
   isModalShow = false;
+  dialogZIndex = 3000;
   permissionData: any = {};
   lock = lockImg;
 
@@ -146,6 +150,9 @@ export default class AuthorityModal extends Vue {
   }
   @Watch('show')
   onIsModalShowChange(val) {
+    if (val) {
+      this.dialogZIndex = getTopLayerZIndex(MIN_Z_INDEX);
+    }
     this.isModalShow = val;
   }
   handleValueChange() {
@@ -188,12 +195,6 @@ export default class AuthorityModal extends Vue {
   }
 }
 </script>
-<style lang="scss">
-.permission-dialog {
-  /* stylelint-disable-next-line declaration-no-important */
-  z-index: 3000 !important;
-}
-</style>
 <style lang="scss" scoped>
 @import 'monitor-pc/theme/mixin.scss';
 

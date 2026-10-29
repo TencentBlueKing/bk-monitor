@@ -5,12 +5,14 @@ from unittest import mock
 import pytest
 from pytest_mock import MockerFixture
 
+from apm.constants import ApmCacheType
 from apm.core.discover.base import TopoHandler
 from apm.core.discover.cached_mixin import CachedDiscoverMixin
 from apm.core.discover.host import HostDiscover
 from apm.core.discover.log.service import ServiceDiscover as LogDiscover
 from apm.core.discover.node import NodeDiscover
 from apm.core.discover.relation import RelationDiscover
+from apm.core.handlers.apm_cache_handler import ApmCacheHandler
 from apm.core.handlers.query.span_query import SpanQuery
 from apm.models import (
     ApmApplication,
@@ -41,6 +43,15 @@ from metadata.models import ESStorage
 
 
 pytestmark = pytest.mark.django_db(databases="__all__")
+
+
+@pytest.fixture(autouse=True)
+def isolate_discovery_checkpoint():
+    cache = ApmCacheHandler()
+    key = cache.get_cache_key(ApmCacheType.TRACE_DISCOVERY_CHECK, 2, "app")
+    cache.redis_client.delete(key)
+    yield
+    cache.redis_client.delete(key)
 
 
 def test_log_query_uses_index_set_collapse_and_descending_time() -> None:
@@ -82,14 +93,16 @@ def test_span_group_query_preserves_complete_records_and_existing_guards() -> No
 @pytest.mark.parametrize("failure", [None, "query"])
 def test_trace_fallback_discovers_sparse_service_before_heartbeat(failure: str | None) -> None:
     handler = object.__new__(TopoHandler)
+    handler.task_id = None
     handler.bk_biz_id = 2
     handler.app_name = "app"
     last_span = {"resource": {"service.name": "sparse"}, "end_time": 190000000, "kind": 2, "attributes": {"a": "b"}}
     old = make_node("old", heartbeat={"trace": {"last_data_at": 80, "checked_at": 90}})
 
-    def discover(spans: list[dict[str, Any]], template: list[Any], is_fallback: bool = False) -> None:
+    def discover(spans: list[dict[str, Any]], template: list[Any], is_fallback: bool = False) -> bool:
         assert spans == [last_span]
         make_node("sparse", source=["trace"])
+        return True
 
     with (
         mock.patch.object(handler, "_get_trace_task_splits", return_value=(100, 1, "table")),
@@ -99,6 +112,7 @@ def test_trace_fallback_discovers_sparse_service_before_heartbeat(failure: str |
         mock.patch("apm.core.discover.base.SpanQuery") as query,
         mock.patch.object(handler, "_discover_spans", side_effect=discover),
     ):
+        query.QUERY_MAX_LIMIT = 10000
         query.return_value.query_group_list.side_effect = RuntimeError("query failed") if failure == "query" else None
         query.return_value.query_group_list.return_value = [last_span]
         if failure:
@@ -109,7 +123,7 @@ def test_trace_fallback_discovers_sparse_service_before_heartbeat(failure: str |
             handler.discover()
             assert TopoNode.objects.get(topo_key="sparse").heartbeat["trace"]["last_data_at"] == 190
         call = query.return_value.query_group_list.call_args
-        assert call.args[1] - call.args[0] == 600
+        assert call.args[1] - call.args[0] == 3600
     old.refresh_from_db()
     assert old.heartbeat == {"trace": {"last_data_at": 80, "checked_at": 90}}
 
@@ -187,6 +201,7 @@ def test_log_numeric_milliseconds_convert_to_seconds(raw_time: Any) -> None:
 def test_fallback_real_node_creation_survives_relation_failure(existing_source: str | None, settings) -> None:
     settings.USE_TZ = False
     handler = object.__new__(TopoHandler)
+    handler.task_id = None
     handler.bk_biz_id = 2
     handler.app_name = "app"
     raw = build_other_span_without_platform()
@@ -214,10 +229,12 @@ def test_fallback_real_node_creation_survives_relation_failure(existing_source: 
         mock.patch.object(RelationDiscover, "get_remain_data", return_value={}),
         mock.patch.object(RelationDiscover, "discover", side_effect=RuntimeError("relation unavailable")),
     ):
+        query.QUERY_MAX_LIMIT = 10000
         query.return_value.query_group_list.return_value = [span]
         pool.return_value.map_ignore_exception.side_effect = execute
         node_pool.return_value.map_ignore_exception.side_effect = execute
-        assert handler.discover() is True
+        # 节点仍可写入，但关系发现失败不能报告整轮成功。
+        assert handler.discover() is False
     node = TopoNode.objects.get(bk_biz_id=2, app_name="app", topo_key=name)
     assert node.source == ([existing_source, "trace"] if existing_source else ["trace"])
     assert node.heartbeat["trace"]["last_data_at"] == span["end_time"] // 1000000
@@ -253,7 +270,9 @@ def trace_discovery(mocker: MockerFixture, settings: Any) -> tuple[TopoHandler, 
 
     mocker.patch("apm.core.discover.base.ThreadPool").return_value.map_ignore_exception.side_effect = execute
     mocker.patch("apm.core.discover.node.ThreadPool").return_value.map_ignore_exception.side_effect = execute
-    query = mocker.patch("apm.core.discover.base.SpanQuery").return_value
+    query_class = mocker.patch("apm.core.discover.base.SpanQuery")
+    query_class.QUERY_MAX_LIMIT = 10000
+    query = query_class.return_value
     return handler, query
 
 

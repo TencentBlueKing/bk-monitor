@@ -333,6 +333,9 @@ class RecordRuleV4(BaseModelWithTime):
     bk_tenant_id = models.CharField("租户ID", max_length=256, null=True, default="system")
 
     name = models.CharField("预计算组名称", max_length=128)
+    app = models.CharField("AsCode 所属应用", max_length=128, blank=True, default="")
+    path = models.TextField("AsCode 来源路径", blank=True, default="")
+    is_deleted = models.BooleanField("是否软删除", default=False)
     description = models.TextField("描述", blank=True, default="")
     data_label = models.CharField("数据标签", max_length=128, blank=True, default="")
     flow_name = models.CharField("V4 Flow 名称", max_length=128)

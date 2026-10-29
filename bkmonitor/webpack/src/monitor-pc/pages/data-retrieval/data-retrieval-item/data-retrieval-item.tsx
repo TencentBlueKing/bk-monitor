@@ -158,15 +158,6 @@ export default class DataRetrievalItem extends tsc<IDataRetrievalItem.IProps, ID
   }
 
   /**
-   * @description: 组件loading
-   * @return {boolean}
-   */
-  @Emit('loadingChange')
-  handleLoadingChange(loading: boolean) {
-    return loading;
-  }
-
-  /**
    * @description: 条件参数值更新
    * @param {*} condition 条件
    */
@@ -332,8 +323,7 @@ export default class DataRetrievalItem extends tsc<IDataRetrievalItem.IProps, ID
                       dimensionsList={this.metricWhereGroupBy}
                       isHasNullOption={true}
                       onChange={this.handleConditionChaneg}
-                      onKeyLoading={this.handleLoadingChange}
-                    />
+                      />
                     {/* <ConditionInput
                     class={['query-where-selector', { 'is-empt': this.whereIsEmpt }]}
                     conditionList={this.localValue.agg_condition}

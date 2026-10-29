@@ -27,6 +27,7 @@ from apps.iam.handlers.drf import BusinessActionPermission
 from apps.log_search.constants import (
     ASYNC_EXPORT_SCENE_ID,
     ExportFileType,
+    ExportSearchType,
     ExportStatus,
     ExportType,
     FieldDataTypeEnum,
@@ -37,6 +38,8 @@ from apps.log_search.constants import (
 )
 from apps.log_search.decorators import search_history_record
 from apps.log_search.exceptions import GetMultiResultFailException
+from apps.log_search.export import api as sharded_export_api
+from apps.log_search.export.config import is_sharded_export_enabled
 from apps.log_search.handlers.index_set import IndexSetHandler
 from apps.log_search.handlers.scene_search import AllConditionsBuilder, get_field_candidates
 from apps.log_search.handlers.search.scene_fields_config import (
@@ -343,6 +346,20 @@ class SceneFetchStatisticsGraphSerializer(SceneFieldBaseSerializer):
     distinct_count = serializers.IntegerField(required=False)
 
 
+class SceneAnalyzeFieldSerializer(_SceneRouteMixin):
+    """场景化字段分析，对齐 MCP analyze_field 的场景模式入参。"""
+
+    keyword = serializers.CharField(allow_null=True, allow_blank=True, required=False, default="*")
+    addition = serializers.ListField(allow_empty=True, required=False, default=list)
+    field_name = serializers.CharField(required=True)
+    group_by = serializers.BooleanField(required=False, default=True)
+    order_by = serializers.ChoiceField(choices=["value", "time"], required=False, default="time")
+    limit = serializers.IntegerField(required=False, allow_null=True, min_value=1, max_value=1000)
+    step = serializers.CharField(required=False, default="1h", max_length=16)
+    start_time = serializers.CharField(required=True)
+    end_time = serializers.CharField(required=True)
+
+
 # ---------------------------------------------------------------------------
 # Aggs serializers
 # ---------------------------------------------------------------------------
@@ -384,6 +401,7 @@ class SceneAggsDateHistogramSerializer(_SceneRouteMixin):
 class SceneExportSerializer(_SceneRouteMixin):
     """场景化异步导出 — 对标 SearchExportSerializer"""
 
+    supports_sort_confirmation = serializers.BooleanField(required=False, default=False)
     keyword = serializers.CharField(required=False, allow_null=True, allow_blank=True, default="*")
     addition = serializers.ListField(allow_empty=True, required=False, default=list)
     start_time = serializers.CharField(required=True)
@@ -1101,6 +1119,27 @@ class SceneSearchViewSet(APIViewSet):
         else:
             return Response(handler.get_topk_ts_data(params["limit"]))
 
+    @list_route(methods=["POST"], url_path="field/analyze")
+    def analyze_field(self, request):
+        """
+        @api {post} /search/scene/field/analyze/ 场景化检索-字段分析
+        @apiName scene_analyze_field
+        @apiGroup 14_SceneSearch
+        @apiDescription 按场景路由执行字段聚合，供 MCP analyze_field 场景模式使用。
+        """
+        params = self.params_valid(SceneAnalyzeFieldSerializer)
+        params["table_id_conditions"] = AllConditionsBuilder.from_raw(params["table_id_conditions"])
+        params = _merge_scene_filters_to_addition(params)
+        params["agg_field"] = params["field_name"]
+        params["interval"] = params["step"]
+        handler = SceneFieldHandler(params)
+        result = handler.analyze_field(
+            group_by=params["group_by"],
+            order_by=params["order_by"],
+            limit=params.get("limit"),
+        )
+        return Response(result)
+
     # ------------------------------------------------------------------
     # Export endpoints
     # ------------------------------------------------------------------
@@ -1172,6 +1211,10 @@ class SceneSearchViewSet(APIViewSet):
         data["table_id_conditions"] = AllConditionsBuilder.from_raw(data["table_id_conditions"])
         data = _merge_scene_filters_to_addition(data)
 
+        # 灰度分流：命中分片导出开关且非快速导出时，复用本接口已完成的鉴权，转分片导出链路
+        if not is_quick_export and is_sharded_export_enabled(data.get("bk_biz_id")):
+            return self._sharded_scene_export(data)
+
         handler = SceneAsyncExportHandler(
             bk_biz_id=data["bk_biz_id"],
             search_dict=data,
@@ -1185,6 +1228,15 @@ class SceneSearchViewSet(APIViewSet):
                 "prompt": f"任务提交成功，预估等待时间{math.ceil(size / MAX_RESULT_WINDOW * RESULT_WINDOW_COST_TIME)}分钟",
             }
         )
+
+    def _sharded_scene_export(self, data):
+        """把场景化导出参数归一为标准分片导出参数并创建场景化分片任务。"""
+        params = sharded_export_api.normalize_legacy_export_params(data, search_type=ExportSearchType.SCENE)
+        params.update(space_uid=data["space_uid"], table_id_conditions=data["table_id_conditions"])
+        job = sharded_export_api.create_export_job(params, raw_params=data)
+        if isinstance(job, sharded_export_api.ExportSortConfirmation):
+            return Response({"engine": "sharded", "requires_sort_confirmation": True, "sort_list": job.sort_list})
+        return Response({"task_id": job.pk, "engine": "sharded"})
 
     @list_route(methods=["POST"], url_path="export/history")
     def scene_export_history(self, request):
