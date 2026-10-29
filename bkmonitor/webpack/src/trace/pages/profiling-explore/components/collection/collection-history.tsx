@@ -109,6 +109,7 @@ export default defineComponent({
     created: () => true,
     result: (_value: CollectionResultSelection, _newPage: boolean) => true,
     busy: (_value: boolean) => true,
+    share: (_value?: CollectionResultSelection | null) => true,
   },
   setup(props, { emit }) {
     const { t } = useI18n();
@@ -375,6 +376,10 @@ export default defineComponent({
                 </div>
               ),
             }}
+            bkUiSettings={{
+              disabled: columns.some(column => column.colKey === 'task_name') ? ['task_name'] : [],
+              rowSize: 'mini',
+            }}
             columns={columns.map(column =>
               showSkeleton
                 ? {
@@ -437,10 +442,13 @@ export default defineComponent({
         </div>
         {c.selected.value && (
           <CollectionExecutionDetail
+            bizId={this.bizId}
             controller={c}
             readonly={this.readonly}
             timezone={this.timezone}
+            onCreated={() => this.$emit('created')}
             onResult={value => this.$emit('result', value, true)}
+            onShare={value => this.$emit('share', value)}
           />
         )}
         <CollectionExecutionAction

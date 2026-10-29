@@ -82,7 +82,7 @@ export default defineComponent({
     change: (_value: Partial<CollectionQueryState>) => true,
     created: () => true,
     create: () => true,
-    share: () => true,
+    share: (_value?: CollectionResultSelection | null) => true,
     result: (_value: CollectionResultSelection, _newPage: boolean) => true,
     busy: (_value: boolean) => true,
   },
@@ -494,13 +494,17 @@ export default defineComponent({
         )}
         {c.selected.value && (
           <CollectionExecutionDetail
+            bizId={this.bizId}
             controller={c}
             readonly={this.readonly}
             timezone={this.timezone}
+            onCreated={() => this.$emit('created')}
             onResult={value => {
+              // 仅表头「查看全部结果」走此分支，行为保持为切到执行范围的结果列表
               c.close();
               this.$emit('result', value, false);
             }}
+            onShare={value => this.$emit('share', value)}
           />
         )}
         <CollectionExecutionAction
