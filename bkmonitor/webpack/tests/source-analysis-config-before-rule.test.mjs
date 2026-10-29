@@ -46,16 +46,24 @@ function harness({
   const projectQueries = [];
   const repositoryQueries = [];
   let ruleQueries = 0;
+  const services = loadComposable('src/trace/pages/ai-config/services/ai-config.ts', {
+    'monitor-api/modules/aiops': {},
+    'monitor-api/modules/issue': {
+      listSourceAnalysisBkciProjects: getProjects,
+      listSourceAnalysisBkciRepositories: getRepositories,
+    },
+    'monitor-api/modules/strategies': {},
+  });
   const bkciDependencies = {
     vue,
     '../services/ai-config': {
       getBkciProjects: params => {
         projectQueries.push({ ...params });
-        return getProjects(params);
+        return services.getBkciProjects(params);
       },
       getBkciRepositories: params => {
         repositoryQueries.push({ ...params });
-        return getRepositories(params);
+        return services.getBkciRepositories(params);
       },
     },
   };
@@ -346,6 +354,177 @@ test('empty current-user candidate responses preserve the saved binding', async 
   assert.equal(h.state.bkciProjectId.value, savedConfig.bkci_project_id);
   assert.equal(h.state.repositoryAlias.value, savedConfig.repository_alias);
   assert.equal(h.state.isEdited.value, false);
+});
+
+test('reopening dropdowns reuses successfully loaded projects and repositories', async () => {
+  const h = harness({
+    config: savedConfig,
+    getProjects: async () => ({ list: [{ id: 'project-a', name: 'A' }], total: 1 }),
+    getRepositories: async () => ({ list: [{ id: 'team/a', name: 'A repository' }], total: 1 }),
+  });
+  await flush();
+  await h.state.handleProjectsToggle(true);
+  await h.state.handleProjectsToggle(false);
+  await h.state.handleProjectsToggle(true);
+  await h.state.handleRepositoriesToggle(true);
+  await h.state.handleRepositoriesToggle(false);
+  await h.state.handleRepositoriesToggle(true);
+  assert.equal(h.projectQueries.length, 1);
+  assert.equal(h.repositoryQueries.length, 1);
+  assert.equal(h.state.repositoriesLoading.value, false);
+});
+
+test('successfully loaded empty project and repository lists are cached', async () => {
+  const emptyProjects = harness({ config: savedConfig });
+  await flush();
+  await emptyProjects.state.handleProjectsToggle(true);
+  await emptyProjects.state.handleProjectsToggle(true);
+  await emptyProjects.state.handleRepositoriesToggle(true);
+  assert.equal(emptyProjects.projectQueries.length, 1);
+  assert.equal(emptyProjects.repositoryQueries.length, 0);
+
+  const emptyRepositories = harness({
+    config: savedConfig,
+    getProjects: async () => ({ list: [{ id: 'project-a', name: 'A' }], total: 1 }),
+  });
+  await flush();
+  await emptyRepositories.state.handleRepositoriesToggle(true);
+  await emptyRepositories.state.handleRepositoriesToggle(true);
+  assert.equal(emptyRepositories.projectQueries.length, 1);
+  assert.equal(emptyRepositories.repositoryQueries.length, 1);
+  assert.equal(emptyRepositories.state.repositoryAlias.value, savedConfig.repository_alias);
+});
+
+test('repository loading covers project lookup and repository lookup without displaying no data', async () => {
+  const projects = deferred();
+  const repositories = deferred();
+  const h = harness({
+    config: savedConfig,
+    getProjects: () => projects.promise,
+    getRepositories: () => repositories.promise,
+  });
+  await flush();
+  const loading = h.state.handleRepositoriesToggle(true);
+  const assertLoading = () => {
+    const dropdown = h.selects()[1];
+    assert.equal(dropdown.props.loading, true);
+    assert.equal(dropdown.props.customContent, true);
+    assert.equal(dropdown.props.noDataText, '加载中...');
+  };
+  assertLoading();
+  assert.equal(h.repositoryQueries.length, 0);
+  projects.resolve({ list: [{ id: 'project-a', name: 'A' }], total: 1 });
+  await flush();
+  assertLoading();
+  assert.equal(h.repositoryQueries.length, 1);
+  repositories.resolve({ list: [], total: 0 });
+  await loading;
+  assert.equal(h.selects()[1].props.loading, false);
+  assert.equal(h.selects()[1].props.noDataText, '无数据');
+});
+
+test('failed project lookup is handled and retried instead of caching a successful empty result', async () => {
+  let attempt = 0;
+  const h = harness({
+    config: savedConfig,
+    getProjects: async () => {
+      if (++attempt === 1) throw new Error('Project lookup failed');
+      return { list: [{ id: 'project-a', name: 'A' }], total: 1 };
+    },
+  });
+  await flush();
+  await assert.doesNotReject(h.state.handleRepositoriesToggle(true));
+  assert.equal(h.projectQueries.length, 1);
+  assert.equal(h.repositoryQueries.length, 0);
+  assert.equal(h.state.repositoriesLoading.value, false);
+  assert.equal(h.state.isEdited.value, false);
+  await h.state.handleRepositoriesToggle(true);
+  assert.equal(h.projectQueries.length, 2);
+  assert.equal(h.repositoryQueries.length, 1);
+  assert.equal(h.state.repositoryAlias.value, savedConfig.repository_alias);
+});
+
+test('failed repository lookup is handled and retried without reloading projects', async () => {
+  let attempt = 0;
+  const h = harness({
+    config: savedConfig,
+    getProjects: async () => ({ list: [{ id: 'project-a', name: 'A' }], total: 1 }),
+    getRepositories: async () => {
+      if (++attempt === 1) throw new Error('Repository lookup failed');
+      return { list: [{ id: 'team/a', name: 'A repository' }], total: 1 };
+    },
+  });
+  await flush();
+  await assert.doesNotReject(h.state.handleRepositoriesToggle(true));
+  assert.equal(h.state.repositoriesLoading.value, false);
+  await h.state.handleRepositoriesToggle(true);
+  await h.state.handleRepositoriesToggle(true);
+  assert.equal(h.projectQueries.length, 1);
+  assert.equal(h.repositoryQueries.length, 2);
+  assert.deepEqual(h.state.bkciRepositories.value, [{ id: 'team/a', name: 'A repository' }]);
+});
+
+test('synchronous request errors release pending requests so both selectors remain retryable', async () => {
+  let projectAttempt = 0;
+  let repositoryAttempt = 0;
+  const h = harness({
+    config: savedConfig,
+    getProjects: () => {
+      if (++projectAttempt === 1) throw new Error('Synchronous project error');
+      return Promise.resolve({ list: [{ id: 'project-a', name: 'A' }], total: 1 });
+    },
+    getRepositories: () => {
+      if (++repositoryAttempt === 1) throw new Error('Synchronous repository error');
+      return Promise.resolve({ list: [], total: 0 });
+    },
+  });
+  await flush();
+  await h.state.handleRepositoriesToggle(true);
+  await h.state.handleRepositoriesToggle(true);
+  await h.state.handleRepositoriesToggle(true);
+  assert.equal(projectAttempt, 2);
+  assert.equal(repositoryAttempt, 2);
+  assert.equal(h.state.repositoriesLoading.value, false);
+});
+
+test('concurrent repository opens share both in-flight requests', async () => {
+  const repositories = deferred();
+  const h = harness({
+    config: savedConfig,
+    getProjects: async () => ({ list: [{ id: 'project-a', name: 'A' }], total: 1 }),
+    getRepositories: () => repositories.promise,
+  });
+  await flush();
+  const first = h.state.handleRepositoriesToggle(true);
+  await flush();
+  const second = h.state.handleRepositoriesToggle(true);
+  await flush();
+  assert.equal(h.projectQueries.length, 1);
+  assert.equal(h.repositoryQueries.length, 1);
+  assert.equal(h.state.repositoriesLoading.value, true);
+  repositories.resolve({ list: [], total: 0 });
+  await Promise.all([first, second]);
+  assert.equal(h.state.repositoriesLoading.value, false);
+});
+
+test('changing project invalidates repository cache but retains the current users project cache', async () => {
+  const h = harness({
+    config: savedConfig,
+    getProjects: async () => ({
+      list: [
+        { id: 'project-a', name: 'A' },
+        { id: 'project-b', name: 'B' },
+      ],
+      total: 2,
+    }),
+  });
+  await flush();
+  await h.state.handleRepositoriesToggle(true);
+  h.state.handleChangeBkciProjectId('project-b');
+  await h.state.handleRepositoriesToggle(true);
+  await h.state.handleRepositoriesToggle(true);
+  assert.equal(h.projectQueries.length, 1);
+  assert.deepEqual(h.repositoryQueries, [{ bkci_project_id: 'project-a' }, { bkci_project_id: 'project-b' }]);
 });
 
 test('saving repository configuration is disabled during initialization and enabled only for changes', async () => {

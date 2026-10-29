@@ -252,7 +252,7 @@ export default defineComponent({
     const handleRepositoriesToggle = async (val: boolean) => {
       if (val) {
         repositoryErrMsg.value = '';
-        await projectsSelect.fetchList();
+        if (!(await projectsSelect.fetchList())) return;
         if (projectsSelect.list.value.some(item => item.id === bkciProjectId.value)) {
           await repositoriesSelect.fetchList();
         }
@@ -379,7 +379,7 @@ export default defineComponent({
       handleProjectsToggle,
       /** 源码仓库下拉 */
       bkciRepositories: repositoriesSelect.list,
-      repositoriesLoading: repositoriesSelect.loading,
+      repositoriesLoading: computed(() => projectsSelect.loading.value || repositoriesSelect.loading.value),
       /** id -> 名称 映射，供标签/回显反查展示 */
       bkciRepositoriesNameMap: repositoriesSelect.nameMap,
       handleRepositoriesToggle,

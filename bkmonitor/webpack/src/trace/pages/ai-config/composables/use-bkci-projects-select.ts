@@ -39,12 +39,15 @@ export function useBkciProjectsSelect() {
   const loading = shallowRef(false);
   /** id -> 名称 的映射表，供外部按 id 反查展示名称（如详情回显） */
   const nameMap = shallowRef<Map<string, string>>(new Map());
-  let pending: null | Promise<void> = null;
+  let loaded = false;
+  let pending: null | Promise<boolean> = null;
 
   /**
    * @description 调用接口查询蓝盾项目全量列表
    */
   const fetchList = () => {
+    // 空列表也是有效结果；仅成功后缓存，失败时允许下次展开重试。
+    if (loaded) return Promise.resolve(true);
     if (pending) return pending;
     loading.value = true;
 
@@ -58,11 +61,16 @@ export function useBkciProjectsSelect() {
         }
         nameMap.value = tempMap;
         list.value = items;
-      } finally {
-        loading.value = false;
-        pending = null;
+        loaded = true;
+        return true;
+      } catch {
+        // 接口错误由全局拦截器提示，这里只恢复可重试状态。
+        return false;
       }
-    })();
+    })().finally(() => {
+      loading.value = false;
+      pending = null;
+    });
     return pending;
   };
 

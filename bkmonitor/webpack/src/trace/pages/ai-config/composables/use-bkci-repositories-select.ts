@@ -47,33 +47,45 @@ export function useBkciRepositoriesSelect(options: UseBkciRepositoriesSelectOpti
   /** id -> 名称 的映射表，供外部按 id 反查展示名称（如详情回显） */
   const nameMap = shallowRef<Map<string, string>>(new Map());
   let requestId = 0;
+  let loaded = false;
+  let pending: null | Promise<boolean> = null;
 
   /**
    * @description 调用接口查询指定蓝盾项目下的源码仓库全量列表
    */
-  const fetchList = async () => {
-    // 前置校验：未选择蓝盾项目或已有请求在执行中则跳过
-    if (!bkciProjectId.value || loading.value) return;
+  const fetchList = () => {
+    if (!bkciProjectId.value) return Promise.resolve(false);
+    if (loaded) return Promise.resolve(true);
+    if (pending) return pending;
     const projectId = bkciProjectId.value;
     const currentRequestId = ++requestId;
     loading.value = true;
 
-    try {
-      const data = await getBkciRepositories({
-        bkci_project_id: projectId,
-      });
-      if (currentRequestId !== requestId || projectId !== bkciProjectId.value) return;
-      const items = data.list ?? [];
-      // 填充 id -> 名称映射，供外部回显使用
-      const tempMap = new Map();
-      for (const item of items) {
-        tempMap.set(item.id, item.name);
+    pending = (async () => {
+      try {
+        const data = await getBkciRepositories({
+          bkci_project_id: projectId,
+        });
+        if (currentRequestId !== requestId || projectId !== bkciProjectId.value) return false;
+        const items = data.list ?? [];
+        const tempMap = new Map();
+        for (const item of items) {
+          tempMap.set(item.id, item.name);
+        }
+        nameMap.value = tempMap;
+        list.value = items;
+        loaded = true;
+        return true;
+      } catch {
+        return false;
       }
-      nameMap.value = tempMap;
-      list.value = items;
-    } finally {
-      if (currentRequestId === requestId) loading.value = false;
-    }
+    })().finally(() => {
+      if (currentRequestId === requestId) {
+        loading.value = false;
+        pending = null;
+      }
+    });
+    return pending;
   };
 
   /** 项目变化只清空候选项，不用当前人的凭据自动查询已保存项目。 */
@@ -81,6 +93,8 @@ export function useBkciRepositoriesSelect(options: UseBkciRepositoriesSelectOpti
     bkciProjectId,
     () => {
       requestId++;
+      loaded = false;
+      pending = null;
       loading.value = false;
       list.value = [];
       nameMap.value = new Map();
