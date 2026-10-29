@@ -394,8 +394,12 @@ class ActiveProfilingEventQueryHandler:
         }
         if finished:
             status = dimensions["status"]
-            # 成功的 finished 不带执行信息
-            message = _("采集成功") if status == "succeed" else content["message"]
+            # 成功的 finished 不带执行信息，取消的原始信息是英文
+            message = content["message"]
+            if status == "succeed":
+                message = _("采集成功")
+            elif status == "cancelled":
+                message = _("采集已被用户取消")
             if (
                 status in ACTIVE_PROFILING_SUCCEED_STATUSES
                 and int(dimensions["scheduled_at"]) + self.retention_ms < self.now

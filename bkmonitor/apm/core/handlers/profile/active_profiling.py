@@ -378,11 +378,14 @@ class ActiveProfilingExecutionQueryHandler:
 
     @staticmethod
     def _display_host_message(host):
-        """执行详情主机行的执行信息：成功的不带原因，unknown 是没收到终态"""
+        """执行详情主机行的执行信息：成功的不带原因，unknown 是没收到终态；
+        取消的原始信息是英文，SaaS 取消时的临时写入还没有信息"""
         if host.status == "succeed":
             return _("采集成功")
         if host.status == "unknown":
             return _("请检查agent状态及版本信息，若持续异常请联系管理员")
+        if host.status == "cancelled":
+            return _("采集已被用户取消")
         return host.message
 
     def _build_execution_fields(self, execution):

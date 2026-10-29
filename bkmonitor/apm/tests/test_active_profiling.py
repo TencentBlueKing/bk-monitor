@@ -675,6 +675,42 @@ def test_execution_detail_locates_legacy_immediate_without_task_id(query_rows):
 
 
 @pytest.mark.django_db(databases="__all__")
+def test_execution_detail_displays_cancelled_hosts(query_rows):
+    create_execution(
+        [
+            # 采集端取消不归类，原始信息是英文
+            {
+                "bk_host_id": 460,
+                "ip": "127.0.0.12",
+                "status": "cancelled",
+                "started_at": MID_AT + 100,
+                "finished_at": MID_AT + 200,
+                "message": "execution cancelled by user",
+            },
+            # SaaS 取消时的临时写入，还没有真实 finished
+            {"bk_host_id": 461, "ip": "127.0.0.13", "status": "cancelled", "finished_at": MID_AT + 300},
+        ],
+        schedule_type="cron",
+        task_id=13,
+        scheduled_at=MID_AT,
+        task_name="java-cpu",
+        collection_method="java",
+        collection_type="java_cpu",
+        execution_status="cancelled",
+        status_summary={"cancelled": 2},
+    )
+
+    detail = QueryActiveProfilingExecutionDetailResource().request(
+        {"bk_biz_id": 2, "task_id": 13, "scheduled_at": MID_AT}
+    )
+
+    # error_type 保持为空，前端直接显示执行信息
+    assert [(host["status"], host["error_type"], host["message"]) for host in detail["hosts"]] == [
+        ("cancelled", "", "采集已被用户取消")
+    ] * 2
+
+
+@pytest.mark.django_db(databases="__all__")
 def test_queries_require_enabled_biz():
     with pytest.raises(ValueError):
         QueryActiveProfilingHostsResource().request(TIME_RANGE)
@@ -2216,6 +2252,17 @@ def test_es_execution_detail_keeps_error_type_empty_for_legacy_events(host_query
     (host,) = query_es_detail(IMMEDIATE_DETAIL_REQUEST)["hosts"]
 
     assert (host["error_type"], host["message"]) == ("", "perf unsuccessful")
+
+
+def test_es_execution_detail_displays_cancelled_host(host_query_apis):
+    # 采集端取消不归类，原始信息是英文
+    host_query_apis["events"].append(
+        finished_event("cancelled", 1788411801000, 1788411802000, message="execution cancelled by user")
+    )
+
+    (host,) = query_es_detail(IMMEDIATE_DETAIL_REQUEST)["hosts"]
+
+    assert (host["status"], host["error_type"], host["message"]) == ("cancelled", "", "采集已被用户取消")
 
 
 def test_es_execution_detail_explains_unknown_host(host_query_apis):
