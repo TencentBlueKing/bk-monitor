@@ -1,6 +1,6 @@
 import abc
 import copy
-import logging
+from contextvars import ContextVar
 from urllib.parse import urljoin
 
 import six
@@ -9,8 +9,9 @@ from rest_framework import serializers
 
 from bkmonitor.utils.cache import CacheType
 from core.drf_resource.contrib.api import APIResource
+from core.errors.api import BKAPIError
 
-logger = logging.getLogger("bcs_storage")
+_response_validated: ContextVar[bool | None] = ContextVar("bcs_storage_response_validated", default=None)
 
 
 class BcsStorageBaseResource(six.with_metaclass(abc.ABCMeta, APIResource)):
@@ -42,13 +43,42 @@ class BcsStorageBaseResource(six.with_metaclass(abc.ABCMeta, APIResource)):
         headers["Authorization"] = f"Bearer {settings.BCS_API_GATEWAY_TOKEN}"
         return headers
 
+    def perform_request(self, validated_request_data):
+        # APIResource 会直接返回非对象 JSON；必须确认本次响应经过了适配层校验。
+        validation_token = _response_validated.set(False)
+        try:
+            data = super().perform_request(validated_request_data)
+            if _response_validated.get() is not True:
+                raise BKAPIError(
+                    system_name=self.module_name, url=self.action, result="BCS Storage response must be an object"
+                )
+            return data
+        finally:
+            _response_validated.reset(validation_token)
+
     def render_response_data(self, validated_request_data, response_data):
+        if not isinstance(response_data, dict):
+            raise BKAPIError(
+                system_name=self.module_name, url=self.action, result="BCS Storage response must be an object"
+            )
+        if response_data.get("code") != 0:
+            raise BKAPIError(system_name=self.module_name, url=self.action, result=response_data)
+        if not isinstance(response_data.get("data"), list):
+            raise BKAPIError(
+                system_name=self.module_name, url=self.action, result="BCS Storage response data must be a list"
+            )
+
         data = []
-        for item in response_data.get("data", []):
-            try:
-                data.append(item.get("data", {}))
-            except Exception as e:
-                logger.error(e)
+        for index, item in enumerate(response_data["data"]):
+            if not isinstance(item, dict) or not isinstance(item.get("data"), dict):
+                raise BKAPIError(
+                    system_name=self.module_name,
+                    url=self.action,
+                    result=f"BCS Storage response item {index} must contain a data object",
+                )
+            data.append(item["data"])
+        if _response_validated.get() is not None:
+            _response_validated.set(True)
         return data
 
 

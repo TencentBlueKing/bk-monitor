@@ -459,6 +459,7 @@ class FetchK8sPodListByClusterResource(CacheResource):
     def get_replica_set_field():
         field = [
             "data.metadata.name",
+            "data.metadata.namespace",
             "data.metadata.ownerReferences",
         ]
         return ",".join(field)
@@ -489,6 +490,7 @@ class FetchK8sPodListByClusterResource(CacheResource):
     def get_job_field():
         field = [
             "data.metadata.name",
+            "data.metadata.namespace",
             "data.metadata.ownerReferences",
         ]
         return ",".join(field)
@@ -498,28 +500,6 @@ class FetchK8sPodListByClusterResource(CacheResource):
         bcs_cluster_id = params["bcs_cluster_id"]
         namespace_list = params["namespace_list"]
 
-        node_list, replica_set_list, job_list = api.bcs_storage.fetch.bulk_request(
-            [
-                {
-                    "bk_tenant_id": bk_tenant_id,
-                    "cluster_id": bcs_cluster_id,
-                    "type": "Node",
-                    "field": self.get_node_field(),
-                },
-                {
-                    "bk_tenant_id": bk_tenant_id,
-                    "cluster_id": bcs_cluster_id,
-                    "type": "ReplicaSet",
-                    "field": self.get_replica_set_field(),
-                },
-                {
-                    "bk_tenant_id": bk_tenant_id,
-                    "cluster_id": bcs_cluster_id,
-                    "type": "Job",
-                    "field": self.get_job_field(),
-                },
-            ]
-        )
         pod_data = api.bcs_storage.fetch_iterator(
             bk_tenant_id=bk_tenant_id,
             cluster_id=bcs_cluster_id,
@@ -529,23 +509,25 @@ class FetchK8sPodListByClusterResource(CacheResource):
 
         # node的ip与name的映射
         node_ip_name_map = {}
-        for node in node_list:
+        for node in api.bcs_storage.fetch_iterator(
+            bk_tenant_id=bk_tenant_id, cluster_id=bcs_cluster_id, resource_type="Node", field=self.get_node_field()
+        ):
             node_parser = KubernetesNodeJsonParser(node)
-            node_ip_name_map[node_parser.node_ip] = node_parser.name
+            if node_parser.node_ip:
+                node_ip_name_map[node_parser.node_ip] = node_parser.name
 
         # workload的ownerReferences映射
-        workload_map = {"ReplicaSet": replica_set_list, "Job": job_list}
         workload_parent_map = collections.defaultdict(lambda: collections.defaultdict(list))
-        for workload_type, workload_list in workload_map.items():
-            for workload in workload_list:
+        for workload_type, field in [("ReplicaSet", self.get_replica_set_field()), ("Job", self.get_job_field())]:
+            for workload in api.bcs_storage.fetch_iterator(
+                bk_tenant_id=bk_tenant_id, cluster_id=bcs_cluster_id, resource_type=workload_type, field=field
+            ):
                 workload_metadata = workload.get("metadata", {})
                 workload_owner_references = workload_metadata.get("ownerReferences", [])
                 if not workload_owner_references:
                     continue
-                workload_parent_map[workload_type][workload_metadata["name"]] = workload_owner_references
-
-        # 内存释放
-        del replica_set_list, job_list, node_list
+                key = (workload_metadata.get("namespace", ""), workload_metadata["name"])
+                workload_parent_map[workload_type][key] = workload_owner_references
 
         namespace_set = set(namespace_list)
         for pod in pod_data:
@@ -575,7 +557,7 @@ class FetchK8sPodListByClusterResource(CacheResource):
             for index, owner_reference in enumerate(owner_references):
                 kind, name = owner_reference["kind"], owner_reference["name"]
                 pod_workloads.append({"key": kind, "value": name})
-                p_owner_references = workload_parent_map.get(kind, {}).get(name, [])
+                p_owner_references = workload_parent_map.get(kind, {}).get((namespace, name), [])
 
                 # 记录关联的workload
                 if not workload_type:
@@ -747,6 +729,7 @@ class FetchK8sIngressListByClusterResource(CacheResource):
             "data.metadata.creationTimestamp",
             "data.metadata.labels",
             "data.spec.rules",
+            "data.spec.defaultBackend",
             "data.spec.tls",
             "data.spec.ingressClassName",
             "data.status",
@@ -815,28 +798,34 @@ class FetchK8sServiceListByClusterResource(CacheResource):
     def get_endpoint_field():
         field = [
             "data.metadata.name",
+            "data.metadata.namespace",
             "data.subsets",
         ]
         return ",".join(field)
 
     def perform_request(self, params):
+        return list(self.iter_cluster_data(params))
+
+    def iter_cluster_data(self, params):
         bk_tenant_id = params["bk_tenant_id"]
         bcs_cluster_id = params["bcs_cluster_id"]
-        data = []
         endpoint_field = self.get_endpoint_field()
         service_field = self.get_service_field()
-        [endpoints, services] = api.bcs_storage.fetch.bulk_request(
-            [
-                {
-                    "bk_tenant_id": bk_tenant_id,
-                    "cluster_id": bcs_cluster_id,
-                    "type": "Endpoints",
-                    "field": endpoint_field,
-                },
-                {"bk_tenant_id": bk_tenant_id, "cluster_id": bcs_cluster_id, "type": "Service", "field": service_field},
-            ]
-        )
-        for service in services:
+        endpoint_summaries = {}
+        for endpoint in api.bcs_storage.fetch_iterator(
+            bk_tenant_id=bk_tenant_id, cluster_id=bcs_cluster_id, resource_type="Endpoints", field=endpoint_field
+        ):
+            metadata = endpoint.get("metadata", {})
+            key = (metadata.get("namespace"), metadata.get("name"))
+            parser = KubernetesServiceJsonParser({"metadata": metadata})
+            endpoint_index = {key: endpoint}
+            endpoint_summaries[key] = (
+                parser.get_endpoints_count(endpoint_index),
+                parser.get_pod_name_list(endpoint_index),
+            )
+        for service in api.bcs_storage.fetch_iterator(
+            bk_tenant_id=bk_tenant_id, cluster_id=bcs_cluster_id, resource_type="Service", field=service_field
+        ):
             service_parser = KubernetesServiceJsonParser(service)
             service_name = service_parser.name
             service_labels = service_parser.labels
@@ -848,29 +837,31 @@ class FetchK8sServiceListByClusterResource(CacheResource):
             cluster_ip = service_parser.cluster_ip
             service_type = service_parser.service_type
 
-            endpoint_count = service_parser.get_endpoints_count(endpoints)
-            pod_count = service_parser.get_pod_count(endpoints)
-            pod_name_list = service_parser.get_pod_name_list(endpoints)
+            endpoint_count, pod_name_list = endpoint_summaries.pop((namespace, service_name), (0, []))
+            pod_count = len(pod_name_list)
 
-            data.append(
-                {
-                    "bcs_cluster_id": bcs_cluster_id,
-                    "name": service_name,
-                    "labels": service_labels,
-                    "cluster": bcs_cluster_id,
-                    "namespace": namespace,
-                    "type": service_type,
-                    "cluster_ip": cluster_ip,
-                    "external_ip": external_ip,
-                    "ports": ports,
-                    "endpoint_count": endpoint_count,
-                    "pod_count": pod_count,
-                    "pod_name": pod_name_list,  # 从ep反推
-                    "created_at": creation_timestamp,
-                    "age": age,
-                }
-            )
-        return data
+            yield {
+                "bcs_cluster_id": bcs_cluster_id,
+                "name": service_name,
+                "labels": service_labels,
+                "cluster": bcs_cluster_id,
+                "namespace": namespace,
+                "type": service_type,
+                "cluster_ip": cluster_ip,
+                "external_ip": external_ip,
+                "ports": ports,
+                "endpoint_count": endpoint_count,
+                "pod_count": pod_count,
+                "pod_name": pod_name_list,  # 从ep反推
+                "created_at": creation_timestamp,
+                "age": age,
+            }
+
+
+def iter_k8s_services_for_sync(bk_tenant_id, bcs_cluster_id):
+    yield from FetchK8sServiceListByClusterResource().iter_cluster_data(
+        {"bk_tenant_id": bk_tenant_id, "bcs_cluster_id": bcs_cluster_id}
+    )
 
 
 class FetchK8sServiceMonitorListByClusterResource(CacheResource):
@@ -1209,6 +1200,45 @@ class FetchK8sNodeIpListByClusterResource(Resource):
         return result
 
 
+class FetchK8sNodeCountByClusterResource(Resource):
+    """Count roles without loading node details or Endpoints."""
+
+    class RequestSerializer(serializers.Serializer):
+        bk_tenant_id = serializers.CharField(label="租户ID")
+        bcs_cluster_id = serializers.CharField(label="集群ID")
+
+    def perform_request(self, params):
+        counts = {"master_count": 0, "node_count": 0}
+        for node in api.bcs_storage.fetch_iterator(
+            bk_tenant_id=params["bk_tenant_id"],
+            cluster_id=params["bcs_cluster_id"],
+            resource_type="Node",
+            field="data.metadata.name,data.metadata.labels",
+        ):
+            if not node.get("metadata", {}).get("name"):
+                raise ValueError("node identity is missing")
+            # Keep the existing roster semantics: control-plane alone is not master.
+            key = "master_count" if "master" in KubernetesNodeJsonParser(node).role_list else "node_count"
+            counts[key] += 1
+        return counts
+
+
+class FetchK8sNodeAccessIpResource(FetchK8sNodeCountByClusterResource):
+    """Find the first schedulable Ready node without building a detail list."""
+
+    def perform_request(self, params):
+        for node in api.bcs_storage.fetch_iterator(
+            bk_tenant_id=params["bk_tenant_id"],
+            cluster_id=params["bcs_cluster_id"],
+            resource_type="Node",
+            field="data.status.addresses,data.status.conditions,data.spec.unschedulable",
+        ):
+            parser = KubernetesNodeJsonParser(node)
+            if parser.node_ip and parser.service_status == "Ready":
+                return parser.node_ip
+        return None
+
+
 class FetchK8sNodeListByClusterResource(CacheResource):
     cache_type = CacheType.BCS
 
@@ -1303,6 +1333,46 @@ class FetchK8sNodeListByClusterResource(CacheResource):
         return data
 
 
+def iter_k8s_nodes_for_sync(bk_tenant_id, bcs_cluster_id):
+    """Keep only the endpoint index and current node page during synchronization."""
+    endpoint_counts = collections.Counter()
+    for endpoint in api.bcs_storage.fetch_iterator(
+        bk_tenant_id=bk_tenant_id,
+        cluster_id=bcs_cluster_id,
+        resource_type="Endpoints",
+        field="data.subsets",
+    ):
+        for subset in endpoint.get("subsets") or []:
+            port_count = len(subset.get("ports") or [])
+            for address in subset.get("addresses") or []:
+                if address.get("nodeName"):
+                    endpoint_counts[address["nodeName"]] += port_count
+
+    pod_counts = FetchK8sNodeListByClusterResource.get_pod_count_statistics(bcs_cluster_id)
+    for node in api.bcs_storage.fetch_iterator(
+        bk_tenant_id=bk_tenant_id,
+        cluster_id=bcs_cluster_id,
+        resource_type="Node",
+        field=FetchK8sNodeListByClusterResource.get_node_field(),
+    ):
+        parser = KubernetesNodeJsonParser(node)
+        if not parser.name:
+            raise ValueError("node identity is missing")
+        yield {
+            "bcs_cluster_id": bcs_cluster_id,
+            "name": parser.name,
+            "taints": parser.taint_labels,
+            "node_roles": parser.role_list,
+            "node_ip": parser.node_ip,
+            "status": parser.service_status,
+            "node_name": parser.name,
+            "labels": parser.labels or {},
+            "endpoint_count": endpoint_counts.get(parser.name, 0),
+            "pod_count": pod_counts.get(parser.node_ip, 0),
+            "created_at": parser.creation_timestamp,
+        }
+
+
 class FetchK8sNamespaceListResource(CacheResource):
     cache_type = CacheType.BCS
 
@@ -1382,7 +1452,9 @@ class FetchK8sWorkloadListByClusterResource(CacheResource):
         return ",".join(field)
 
     def perform_request(self, params):
-        data = []
+        return list(self.iter_cluster_data(params))
+
+    def iter_cluster_data(self, params):
         bk_tenant_id = params["bk_tenant_id"]
         bcs_cluster_id = params["bcs_cluster_id"]
         workload_type_list = params.get("workload_type_list")
@@ -1410,13 +1482,11 @@ class FetchK8sWorkloadListByClusterResource(CacheResource):
 
         workload_field = self.get_workload_field()
         for workload_type in workload_type_list:
-            items = api.bcs_storage.fetch(
-                {
-                    "bk_tenant_id": bk_tenant_id,
-                    "cluster_id": bcs_cluster_id,
-                    "type": workload_type,
-                    "field": workload_field,
-                }
+            items = api.bcs_storage.fetch_iterator(
+                bk_tenant_id=bk_tenant_id,
+                cluster_id=bcs_cluster_id,
+                resource_type=workload_type,
+                field=workload_field,
             )
             for workload in items:
                 workload_specification = KubernetesWorkloadJsonParser(workload)
@@ -1481,9 +1551,36 @@ class FetchK8sWorkloadListByClusterResource(CacheResource):
                     "age": age,
                 }
                 item.update(workload_status)
-                data.append(item)
+                yield item
 
-        return data
+
+def iter_k8s_workloads_for_sync(bk_tenant_id, bcs_cluster_id):
+    yield from FetchK8sWorkloadListByClusterResource().iter_cluster_data(
+        {"bk_tenant_id": bk_tenant_id, "bcs_cluster_id": bcs_cluster_id}
+    )
+
+
+class FetchK8sWorkloadCountByNamespaceResource(Resource):
+    """Count every configured workload type without Pod/resource enrichment."""
+
+    class RequestSerializer(serializers.Serializer):
+        bk_tenant_id = serializers.CharField(label="租户ID")
+        bcs_cluster_id = serializers.CharField(label="集群ID")
+
+    def perform_request(self, params):
+        counts = collections.Counter()
+        for resource_type in api.kubernetes.fetch_k8s_workload_type_list({"bcs_cluster_id": params["bcs_cluster_id"]}):
+            for workload in api.bcs_storage.fetch_iterator(
+                bk_tenant_id=params["bk_tenant_id"],
+                cluster_id=params["bcs_cluster_id"],
+                resource_type=resource_type,
+                field="data.metadata.name,data.metadata.namespace",
+            ):
+                metadata = workload.get("metadata", {})
+                if not metadata.get("name"):
+                    raise ValueError("workload identity is missing")
+                counts[metadata.get("namespace")] += 1
+        return dict(counts)
 
 
 class FetchContainerUsage(Resource):

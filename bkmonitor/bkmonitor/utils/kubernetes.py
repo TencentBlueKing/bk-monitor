@@ -9,11 +9,13 @@ specific language governing permissions and limitations under the License.
 """
 
 import re
+from collections.abc import Mapping
 from datetime import datetime
 
 from django.utils import timezone
 from django.utils.functional import cached_property
 from humanize import naturaldelta
+from kubernetes.utils.quantity import parse_quantity
 
 from bkmonitor.utils.common_utils import camel_obj_key_to_underscore
 
@@ -148,33 +150,20 @@ class ReadyStatus:
     COMPLETE = "complete"
 
 
-def get_cpu_without_unit(cpu_with_unit: str):
+def get_cpu_without_unit(cpu_with_unit: str | int | float | None) -> float:
     """CPU资源量单位转换 ."""
-    if cpu_with_unit.endswith("m"):
-        return int(cpu_with_unit[:-1]) / 1000
-    return int(cpu_with_unit)
+    quantity = parse_quantity(0 if cpu_with_unit is None else cpu_with_unit)
+    if not quantity.is_finite():
+        raise ValueError(f"invalid CPU quantity: {cpu_with_unit!r}")
+    return float(quantity)
 
 
-def get_memory_without_unit(memory_with_unit: str):
+def get_memory_without_unit(memory_with_unit: str | int | float | None) -> int:
     """内存资源量单位转换 ."""
-    # https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/
-    units = ["K", "M", "G", "T", "P", "E"]
-    is_power_of_two = False
-    if memory_with_unit.endswith("i"):
-        is_power_of_two = True
-        memory_with_unit = memory_with_unit[:-1]
-    memory_unit = memory_with_unit[-1]
-    if memory_unit not in units:
-        try:
-            return int(memory_with_unit)
-        except Exception:
-            return 0
-    memory_number = int(memory_with_unit[:-1])
-    unit_index = units.index(memory_unit)
-    power = 1000
-    if is_power_of_two:
-        power = 1024
-    return memory_number * pow(power, (unit_index + 1))
+    quantity = parse_quantity(0 if memory_with_unit is None else memory_with_unit)
+    if not quantity.is_finite():
+        raise ValueError(f"invalid memory quantity: {memory_with_unit!r}")
+    return int(quantity)
 
 
 def translate_timestamp_since(start_time):
@@ -590,19 +579,16 @@ class KubernetesPodJsonParser(KubernetesV1ObjectJsonParser):
     @cached_property
     def resources(self):
         """获得资源限额配置 ."""
-        requests_cpu = 0
-        limits_cpu = 0
+        requests_cpu = 0.0
+        limits_cpu = 0.0
         requests_memory = 0
         limits_memory = 0
-        containers = self.spec.get("containers", [])
+        containers = self.spec.get("containers") or []
         # 获得所有容器的资源总和
         for container in containers:
-            limits = container.get("resources", {}).get("limits", {})
-            requests = container.get("resources", {}).get("requests", {})
-            if not limits:
-                limits = {}
-            if not requests:
-                requests = {}
+            resources = container.get("resources") or {}
+            limits = resources.get("limits") or {}
+            requests = resources.get("requests") or {}
             requests_cpu += get_cpu_without_unit(requests.get("cpu", "0"))
             limits_cpu += get_cpu_without_unit(limits.get("cpu", "0"))
             requests_memory += get_memory_without_unit(requests.get("memory", "0"))
@@ -763,13 +749,14 @@ class KubernetesContainerJsonParser:
     def resources(self):
         """获得容器资源配置 ."""
         # 集群限制的配置
-        limits = self.container.get("resources", {}).get("limits", {})
+        resources = self.container.get("resources") or {}
+        limits = resources.get("limits") or {}
         # 集群调度使用的资源
-        requests = self.container.get("resources", {}).get("requests", {})
+        requests = resources.get("requests") or {}
 
-        requests_cpu = float(get_cpu_without_unit(requests.get("cpu", "0")))
+        requests_cpu = get_cpu_without_unit(requests.get("cpu", "0"))
         # CPU上限值
-        limits_cpu = float(get_cpu_without_unit(limits.get("cpu", "0")))
+        limits_cpu = get_cpu_without_unit(limits.get("cpu", "0"))
         requests_memory = get_memory_without_unit(requests.get("memory", "0"))
         # 内存上限值
         limits_memory = get_memory_without_unit(limits.get("memory", "0"))
@@ -924,11 +911,14 @@ class KubernetesServiceJsonParser(KubernetesV1ObjectJsonParser):
             count += len(addresses) * len(ports)
         return count
 
-    def get_endpoint(self, endpoints) -> dict:
+    def get_endpoint(self, endpoints) -> dict | None:
         """获得匹配的endpoint ."""
         # 创建service对象的同时，kubernetes会创建同名的endpoints的对象
+        if isinstance(endpoints, Mapping):
+            return endpoints.get((self.namespace, self.name))
         for e in endpoints:
-            if e.get("metadata", {}).get("name") == self.name:
+            metadata = e.get("metadata", {})
+            if (metadata.get("namespace"), metadata.get("name")) == (self.namespace, self.name):
                 return e
 
     def get_pod_count(self, endpoints) -> int:
@@ -941,9 +931,9 @@ class KubernetesServiceJsonParser(KubernetesV1ObjectJsonParser):
         endpoint = self.get_endpoint(endpoints)
         if not endpoint:
             return pod_name_list
-        subsets = endpoint.get("subsets", [])
+        subsets = endpoint.get("subsets") or []
         for subset in subsets:
-            addresses = subset.get("addresses", [])
+            addresses = subset.get("addresses") or []
             for address in addresses:
                 target_ref = address.get("targetRef", {})
                 if target_ref and target_ref.get("kind", "") == "Pod":

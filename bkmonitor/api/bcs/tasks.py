@@ -12,13 +12,12 @@ import logging
 import time
 from collections import defaultdict
 from collections.abc import Callable, Iterable
-from datetime import datetime
-from typing import Any
+from itertools import islice
 
 from celery import shared_task
-from django.conf import settings
+from django.db import router, transaction
+from django.db.models import Q
 from django.utils import timezone
-from django.utils.dateparse import parse_datetime
 
 from alarm_backends.core.lock.service_lock import share_lock
 from bkmonitor.models import (
@@ -33,39 +32,12 @@ from bkmonitor.models import (
     BCSServiceMonitor,
     BCSWorkload,
 )
-from bkmonitor.utils.common_utils import chunks
 from bkmonitor.utils.ip import exploded_ip
 from core.drf_resource import api
 from core.prometheus import metrics
 
 logger = logging.getLogger("kubernetes")
 logger.setLevel(logging.INFO)
-
-
-def from_iso_format(start_time: str) -> datetime | None:
-    """将iso8601格式的字符串转换为当前时区的时间对象 ."""
-    start_time_obj = parse_datetime(start_time)
-    if not start_time_obj:
-        return None
-
-    # 转换为当前时区的时间
-    current_timezone = timezone.get_current_timezone()
-    start_at_current_timezone = start_time_obj.astimezone(current_timezone)
-    start_at_current_timezone_naive = timezone.make_naive(start_at_current_timezone)
-    return start_at_current_timezone_naive
-
-
-def get_model_value(model: BCSBase, field: str, datetime_fields: set | None) -> Any:
-    """获得模型的值 ."""
-    value = getattr(model, field)
-    if datetime_fields and value and field in datetime_fields:
-        if isinstance(value, str):
-            value = from_iso_format(value)
-        elif isinstance(value, datetime):
-            current_timezone = timezone.get_current_timezone()
-            value_at_current_timezone = value.astimezone(current_timezone)
-            value = timezone.make_naive(value_at_current_timezone).strftime("%Y-%m-%dT%H:%M:%S")
-    return value
 
 
 def bulk_save_resources(
@@ -75,91 +47,97 @@ def bulk_save_resources(
     sync_fields: list,
     sync_filter: dict | None = None,
     datetime_fields: list | set | None = None,
+    delete_missing: bool = True,
+    prepare_batch: Callable | None = None,
 ):
-    """同步指定资源 ."""
-    datetime_field_set = set(datetime_fields) if datetime_fields else None
+    """逐批提交资源和标签；只有完整耗尽远程输入后才清理缺失行。
 
-    # 本地资源
-    if not sync_filter:
-        history_models = resource.objects.all()
-    else:
-        history_models = resource.objects.filter(**sync_filter)
-    old_unique_hash_set = {getattr(model, sync_unique_field) for model in history_models}
-    old_data_dict = {getattr(model, sync_unique_field): model for model in history_models}
+    last_synced_at 是本行成功确认的时间，分页失败时前批可保留，不能用它判断整轮成功。
+    """
+    seen_ids = set()
+    source = iter(resource_models)
+    while batch := list(islice(source, 100)):
+        if prepare_batch:
+            prepare_batch(batch)
+        seen_ids.update(save_resource_batch(resource, batch, sync_fields))
+    if delete_missing:
+        delete_missing_resources(resource, sync_filter, seen_ids)
+    return seen_ids
 
-    # 远程资源
-    new_unique_hash_set = set()
-    insert_resource_models = []
-    labels = []
-    for resource_model in resource_models:
-        # 生成唯一标识并加入新的集合
-        unique_hash = getattr(resource_model, sync_unique_field)
 
-        # 新增记录
-        if unique_hash not in old_unique_hash_set:
-            insert_resource_models.append(resource_model)
-            if len(insert_resource_models) >= 100:
-                try:
-                    resource.objects.bulk_create(insert_resource_models)
-                except Exception as exc_info:
-                    logger.error(exc_info)
-                insert_resource_models = []
-        else:
-            new_unique_hash_set.add(unique_hash)
-            old_resource_model = old_data_dict[unique_hash]
-            try:
-                old_compare_data = [
-                    get_model_value(old_resource_model, field, datetime_field_set) for field in sync_fields
-                ]
-                new_compare_data = [get_model_value(resource_model, field, datetime_field_set) for field in sync_fields]
-            except (ValueError, OSError) as exc_info:
-                # 日期格式不正确，忽略更新
-                logger.exception(exc_info)
-                continue
+def save_resource_batch(resource, batch, sync_fields):
+    database = router.db_for_write(resource)
+    manager = resource._base_manager.using(database)
+    identity_fields = resource.SYNC_IDENTITY_FIELDS
 
-            # 补齐ID
-            resource_model.id = old_data_dict[unique_hash].id
-            if old_compare_data != new_compare_data:
-                # 更新指定字段，防止其他的同步进程覆盖同一个字段
-                resource_model.save(update_fields=sync_fields)
+    def identity(model):
+        return tuple(getattr(model, field) for field in identity_fields)
 
-        labels.append(
-            {
-                "id": resource_model.id,
-                "bcs_cluster_id": resource_model.bcs_cluster_id,
-                "api_labels": getattr(resource_model, "api_labels", {}),
-            }
-        )
+    incoming = {identity(model): model for model in batch}
+    if len(incoming) != len(batch):
+        raise ValueError(f"duplicate {resource.__name__} identity in input")
+    query = Q()
+    for key in incoming:
+        query |= Q(**dict(zip(identity_fields, key)))
 
-    # 新增收尾
-    if insert_resource_models:
-        try:
-            resource.objects.bulk_create(insert_resource_models)
-        except Exception as exc_info:
-            logger.error(exc_info)
+    with transaction.atomic(using=database):
+        existing = {}
+        for model in manager.select_for_update().filter(query):
+            key = identity(model)
+            if key in existing:
+                # Cluster 没有独立自然唯一约束，歧义必须失败，不能任取一行覆盖配置。
+                raise ValueError(f"ambiguous {resource.__name__} identity: {key}")
+            existing[key] = model
 
-    # 删除记录
-    delete_unique_hash_set = old_unique_hash_set - new_unique_hash_set
-    if delete_unique_hash_set:
-        delete_ids = [value.id for key, value in old_data_dict.items() if key in delete_unique_hash_set]
-        for ids in chunks(delete_ids, 5000):
-            resource.objects.filter(id__in=ids).delete()
+        now = timezone.now()
+        inserted, updated = [], []
+        for key, model in incoming.items():
+            model.last_synced_at = now
+            if key in existing:
+                model.id = existing[key].id
+                updated.append(model)
+            else:
+                inserted.append(model)
+        if inserted:
+            manager.bulk_create(inserted, batch_size=100)
+        if updated:
+            # 自然键稳定，归属及 hash 更新复用原行；只更新同步字段，保留告警/灰度等配置。
+            manager.bulk_update(updated, list(dict.fromkeys([*sync_fields, "last_synced_at"])), batch_size=100)
 
-    return labels
+        # MySQL bulk_create 不保证回填主键；按自然身份回读并验证后才能写标签。
+        saved = {}
+        for model in manager.select_for_update().filter(query):
+            key = identity(model)
+            if key in saved:
+                raise ValueError(f"ambiguous {resource.__name__} identity: {key}")
+            saved[key] = model
+        for key, model in incoming.items():
+            if key not in saved or not saved[key].id or saved[key].unique_hash != model.unique_hash:
+                raise ValueError(f"failed to read back {resource.__name__} identity: {key}")
+            model.id = saved[key].id
+        if resource is not BCSCluster:
+            resource.bulk_save_labels(batch, using=database)
+    return {model.id for model in batch}
+
+
+def delete_missing_resources(resource, sync_filter, seen_ids):
+    manager = resource._base_manager.using(router.db_for_write(resource))
+    candidates = manager.filter(**(sync_filter or {})).values_list("id", flat=True).iterator(chunk_size=5000)
+    deleted_ids = []
+    for resource_id in candidates:
+        if resource_id not in seen_ids:
+            deleted_ids.append(resource_id)
+        if len(deleted_ids) >= 5000:
+            manager.filter(id__in=deleted_ids).delete()
+            deleted_ids = []
+    if deleted_ids:
+        manager.filter(id__in=deleted_ids).delete()
 
 
 @share_lock(identify="sync_bcs_cluster_to_db")
 def sync_bcs_cluster_to_db() -> list[BCSCluster]:
-    """同步cluster数据到数据库 ."""
-    # 获得全部集群信息，不包含资源使用量
-    cluster_models = []
-
-    # 查询所有租户下的集群信息
-    for tenant in api.bk_login.list_tenant():
-        cluster_models.extend(BCSCluster.load_list_from_api({"bk_tenant_id": tenant["id"]}))
-
-    # 同步cluster信息
-    sync_unique_field = "unique_hash"
+    """先提交各租户基础名录，再独立统计节点；失败租户不参与清理。"""
+    cluster_models, failures, deleted_cluster_ids = [], [], set()
     sync_fields = [
         "bk_tenant_id",
         "bk_biz_id",
@@ -170,26 +148,61 @@ def sync_bcs_cluster_to_db() -> list[BCSCluster]:
         "status",
         "created_at",
         "updated_at",
-        "node_count",
         "unique_hash",
         "space_uid",
     ]
-    sync_filter = None
-    datetime_fields = ["created_at", "updated_at"]
-    bulk_save_resources(BCSCluster, cluster_models, sync_unique_field, sync_fields, sync_filter, datetime_fields)
+    database = router.db_for_write(BCSCluster)
+    manager = BCSCluster._base_manager.using(database)
+    for tenant in api.bk_login.list_tenant():
+        tenant_id = tenant["id"]
+        try:
+            models = BCSCluster.load_list_from_api({"bk_tenant_id": tenant_id})
+            # 在写入前验证整份名录，跨批重复和既有歧义均不能触发尾删。
+            cluster_ids = [model.bcs_cluster_id for model in models]
+            if len(cluster_ids) != len(set(cluster_ids)):
+                raise ValueError("duplicate cluster identity in tenant inventory")
+            tenant_filter = {"bk_tenant_id": tenant_id}
+            previous_ids = set(manager.filter(**tenant_filter).values_list("bcs_cluster_id", flat=True))
+            bulk_save_resources(BCSCluster, models, "unique_hash", sync_fields, tenant_filter)
+            deleted_cluster_ids.update(previous_ids - set(cluster_ids))
+            cluster_models.extend(models)
+        except Exception as exc_info:
+            failures.append(exc_info)
+            logger.exception("sync_bcs_cluster_to_db tenant(%s) failed", tenant_id)
 
-    # 集群被删除后，需要删除相关的数据
-    bcs_cluster_id_list = list(BCSCluster.objects.values_list("bcs_cluster_id", flat=True))
-    if bcs_cluster_id_list:
-        bcs_cluster_id_set = set(bcs_cluster_id_list)
-        for model_cls in [BCSNode, BCSPod, BCSContainer, BCSWorkload, BCSService, BCSServiceMonitor, BCSPodMonitor]:
-            history_bcs_cluster_id_set = {
-                model["bcs_cluster_id"] for model in model_cls.objects.all().values("bcs_cluster_id").distinct()
-            }
-            invalid_bcs_cluster_id_list = list(history_bcs_cluster_id_set - bcs_cluster_id_set)
-            if invalid_bcs_cluster_id_list:
-                model_cls.objects.filter(bcs_cluster_id__in=invalid_bcs_cluster_id_list).delete()
+    # 只清理成功名录明确删除的集群，含最后一个集群和 Ingress。
+    still_existing = set(
+        manager.filter(bcs_cluster_id__in=deleted_cluster_ids).values_list("bcs_cluster_id", flat=True)
+    )
+    deleted_cluster_ids -= still_existing
+    if deleted_cluster_ids:
+        for resource in [
+            BCSNode,
+            BCSPod,
+            BCSContainer,
+            BCSWorkload,
+            BCSService,
+            BCSIngress,
+            BCSServiceMonitor,
+            BCSPodMonitor,
+        ]:
+            resource._base_manager.using(router.db_for_write(resource)).filter(
+                bcs_cluster_id__in=deleted_cluster_ids
+            ).delete()
 
+    # 基础名录已经全部推进后才请求计数；失败保留原值，继续后序集群。
+    for cluster in cluster_models:
+        try:
+            counts = api.kubernetes.fetch_k8s_node_count_by_cluster(
+                {"bk_tenant_id": cluster.bk_tenant_id, "bcs_cluster_id": cluster.bcs_cluster_id}
+            )
+            manager.filter(id=cluster.id).update(node_count=counts["node_count"])
+            cluster.node_count = counts["node_count"]
+        except Exception as exc_info:
+            failures.append(exc_info)
+            logger.exception("sync_bcs_cluster_to_db cluster(%s) node count failed", cluster.bcs_cluster_id)
+    if failures:
+        raise RuntimeError(f"BCS inventory/count failed for {len(failures)} objects") from failures[0]
     return cluster_models
 
 
@@ -198,12 +211,22 @@ def run_sub_task(task_name: str, wrapper: Callable, bcs_cluster_id: str):
     start = time.time()
     identify = f"{task_name}_{bcs_cluster_id}"
     exception = None
+    executed = False
+
+    def execute(cluster_id):
+        nonlocal executed
+        executed = True
+        return wrapper(cluster_id)
+
     try:
         logger.info("^[Cron Task](%s %s) start", task_name, bcs_cluster_id)
-        share_lock(identify=identify)(wrapper)(bcs_cluster_id)
+        share_lock(identify=identify)(execute)(bcs_cluster_id)
+        if not executed:
+            logger.info("[Cron Task](%s %s) skipped: lock held", task_name, bcs_cluster_id)
     except Exception as exc_info:  # noqa
         exception = exc_info
         logger.exception("![Cron Task](%s %s) error: %s", task_name, bcs_cluster_id, exc_info)
+        raise
     finally:
         time_cost = time.time() - start
         logger.info("$[Cron Task](%s %s) cost: %s", task_name, bcs_cluster_id, time_cost)
@@ -217,10 +240,54 @@ def run_sub_task(task_name: str, wrapper: Callable, bcs_cluster_id: str):
             task_name=task_name,
             sync_bcs_cluster_id=bcs_cluster_id,
             exception=exception,
-            status=metrics.StatusEnum.from_exc(exception),
+            status=metrics.StatusEnum.from_exc(exception) if exception or executed else metrics.StatusEnum.DEFERRED,
             queue=queue_name,
         ).inc()
         metrics.report_all()
+
+
+def sync_cluster_resources(resource, bcs_cluster_id, sync_fields, datetime_fields, prepare_batch=None):
+    clusters = BCSCluster.objects.all()
+    if bcs_cluster_id:
+        clusters = clusters.filter(bcs_cluster_id=bcs_cluster_id)
+    failures = []
+    synced_cluster_ids = []
+    for cluster in clusters.values("bk_tenant_id", "bk_biz_id", "bcs_cluster_id"):
+        cluster_id = cluster["bcs_cluster_id"]
+        try:
+            models = resource.load_list_from_api({cluster_id: (cluster["bk_tenant_id"], cluster["bk_biz_id"])})
+            bulk_save_resources(
+                resource,
+                models,
+                "unique_hash",
+                sync_fields,
+                {"bcs_cluster_id": cluster_id},
+                datetime_fields,
+                prepare_batch=prepare_batch,
+            )
+            synced_cluster_ids.append(cluster_id)
+        except Exception as exc_info:
+            failures.append(exc_info)
+            logger.exception("sync %s cluster(%s) failed", resource.__name__, cluster_id)
+    if failures:
+        raise RuntimeError(f"{resource.__name__} sync failed for {len(failures)} clusters") from failures[0]
+    # 调用方需要结果时再读库；定时任务忽略返回值，不重新聚合整个资源模型列表。
+    return resource._base_manager.using(router.db_for_write(resource)).filter(bcs_cluster_id__in=synced_cluster_ids)
+
+
+def populate_node_host_ids(nodes):
+    biz_hosts = defaultdict(list)
+    for node in nodes:
+        if node.ip:
+            biz_hosts[node.bk_biz_id].append({"ip": node.ip, "bk_cloud_id": node.cloud_id})
+    host_ids = {}
+    for bk_biz_id, host_ips in biz_hosts.items():
+        for host in api.cmdb.get_host_by_ip(bk_biz_id=bk_biz_id, ips=host_ips):
+            for ip in (host.bk_host_innerip, host.bk_host_innerip_v6):
+                if ip:
+                    host_ids[(exploded_ip(ip), str(host.bk_cloud_id))] = host.bk_host_id
+    for node in nodes:
+        node.bk_host_id = host_ids.get((exploded_ip(node.ip), str(node.cloud_id))) if node.ip else None
 
 
 @share_lock(identify="sync_bcs_ingress_to_db")
@@ -239,7 +306,6 @@ def sync_bcs_ingress_to_db_sub_task(bcs_cluster_id):
 
 def sync_bcs_ingress(bcs_cluster_id):
     """同步bcs ingress元数据到数据库 ."""
-    sync_unique_field = "unique_hash"
     # 同步更新的字段
     sync_fields = [
         "bk_biz_id",
@@ -253,35 +319,7 @@ def sync_bcs_ingress(bcs_cluster_id):
     ]
     datetime_fields = ["created_at"]
 
-    if bcs_cluster_id:
-        clusters = BCSCluster.objects.filter(bcs_cluster_id=bcs_cluster_id).values(
-            "bk_tenant_id", "bk_biz_id", "bcs_cluster_id"
-        )
-    else:
-        clusters = BCSCluster.objects.all().values("bk_tenant_id", "bk_biz_id", "bcs_cluster_id")
-    if not clusters:
-        return None
-    ingress_models = None
-
-    for cluster_chunk in chunks(clusters, settings.BCS_SYNC_SYNC_CONCURRENCY):
-        params = {
-            cluster["bcs_cluster_id"]: (cluster["bk_tenant_id"], cluster["bk_biz_id"]) for cluster in cluster_chunk
-        }
-        try:
-            ingress_models = BCSIngress.load_list_from_api(params)
-        except Exception as exc_info:
-            logger.exception(f"sync_bcs_ingress error[{bcs_cluster_id}]: {exc_info}")
-            continue
-        bcs_cluster_id_list = list({model.bcs_cluster_id for model in ingress_models})
-        if not bcs_cluster_id_list:
-            continue
-
-        sync_filter = {"bcs_cluster_id__in": bcs_cluster_id_list}
-        bulk_save_resources(BCSIngress, ingress_models, sync_unique_field, sync_fields, sync_filter, datetime_fields)
-        # 同步标签
-        patch_exists_resource_id(ingress_models)
-        BCSIngress.bulk_save_labels(ingress_models)
-    return ingress_models
+    return sync_cluster_resources(BCSIngress, bcs_cluster_id, sync_fields, datetime_fields)
 
 
 @share_lock(identify="sync_bcs_workload_to_db")
@@ -300,7 +338,6 @@ def sync_bcs_workload_to_db_sub_task(bcs_cluster_id):
 
 def sync_bcs_workload(bcs_cluster_id):
     """同步bcs workload元数据到数据库 ."""
-    sync_unique_field = "unique_hash"
     # 同步更新的字段
     sync_fields = [
         "bk_biz_id",
@@ -322,37 +359,7 @@ def sync_bcs_workload(bcs_cluster_id):
     ]
     datetime_fields = ["created_at"]
 
-    if bcs_cluster_id:
-        clusters = BCSCluster.objects.filter(bcs_cluster_id=bcs_cluster_id).values(
-            "bk_tenant_id", "bk_biz_id", "bcs_cluster_id"
-        )
-    else:
-        clusters = BCSCluster.objects.all().values("bk_tenant_id", "bk_biz_id", "bcs_cluster_id")
-    if not clusters:
-        return None
-    workload_models = None
-
-    for cluster_chunk in chunks(clusters, settings.BCS_SYNC_SYNC_CONCURRENCY):
-        params = {
-            cluster["bcs_cluster_id"]: (cluster["bk_tenant_id"], cluster["bk_biz_id"]) for cluster in cluster_chunk
-        }
-        try:
-            workload_models = BCSWorkload.load_list_from_api(params)
-        except Exception as exc_info:
-            logger.exception(f"sync_bcs_workload error[{bcs_cluster_id}]: {exc_info}")
-            continue
-        bcs_cluster_id_list = list({model.bcs_cluster_id for model in workload_models})
-        if not bcs_cluster_id_list:
-            continue
-
-        sync_filter = {
-            "bcs_cluster_id__in": bcs_cluster_id_list,
-        }
-        bulk_save_resources(BCSWorkload, workload_models, sync_unique_field, sync_fields, sync_filter, datetime_fields)
-        # 同步标签
-        patch_exists_resource_id(workload_models)
-        BCSWorkload.bulk_save_labels(workload_models)
-    return workload_models
+    return sync_cluster_resources(BCSWorkload, bcs_cluster_id, sync_fields, datetime_fields)
 
 
 @share_lock(identify="sync_bcs_service_to_db")
@@ -370,7 +377,6 @@ def sync_bcs_service_to_db_sub_task(bcs_cluster_id):
 
 
 def sync_bcs_service(bcs_cluster_id):
-    sync_unique_field = "unique_hash"
     # 同步更新的字段
     sync_fields = [
         "bk_biz_id",
@@ -389,37 +395,7 @@ def sync_bcs_service(bcs_cluster_id):
     ]
     datetime_fields = ["created_at"]
 
-    if bcs_cluster_id:
-        clusters = BCSCluster.objects.filter(bcs_cluster_id=bcs_cluster_id).values(
-            "bk_tenant_id", "bk_biz_id", "bcs_cluster_id"
-        )
-    else:
-        clusters = BCSCluster.objects.all().values("bk_tenant_id", "bk_biz_id", "bcs_cluster_id")
-    if not clusters:
-        return None
-    service_models = None
-
-    for cluster_chunk in chunks(clusters, settings.BCS_SYNC_SYNC_CONCURRENCY):
-        params = {
-            cluster["bcs_cluster_id"]: (cluster["bk_tenant_id"], cluster["bk_biz_id"]) for cluster in cluster_chunk
-        }
-        try:
-            service_models = BCSService.load_list_from_api(params)
-        except Exception as exc_info:
-            logger.exception(f"sync_bcs_service error[{bcs_cluster_id}]: {exc_info}")
-            continue
-        bcs_cluster_id_list = list({model.bcs_cluster_id for model in service_models})
-        if not bcs_cluster_id_list:
-            continue
-
-        sync_filter = {
-            "bcs_cluster_id__in": bcs_cluster_id_list,
-        }
-        bulk_save_resources(BCSService, service_models, sync_unique_field, sync_fields, sync_filter, datetime_fields)
-        # 同步标签
-        patch_exists_resource_id(service_models)
-        BCSService.bulk_save_labels(service_models)
-    return service_models
+    return sync_cluster_resources(BCSService, bcs_cluster_id, sync_fields, datetime_fields)
 
 
 @share_lock(identify="sync_bcs_pod_to_db")
@@ -490,32 +466,35 @@ def sync_bcs_pod(bcs_cluster_id):
 
     bk_biz_id = cluster.bk_biz_id
     bk_tenant_id = cluster.bk_tenant_id
-    try:
-        pod_models = BCSPod.load_list_from_api(
-            {"bk_tenant_id": bk_tenant_id, "bk_biz_id": bk_biz_id, "bcs_cluster_id": bcs_cluster_id}
-        )
-    except Exception as exc_info:
-        logger.exception(f"sync_bcs_pod error[{bcs_cluster_id}]: {exc_info}")
-        return
-
-    # 同步pod
+    pods = iter(api.kubernetes.fetch_k8s_pod_list_by_cluster(bk_tenant_id=bk_tenant_id, bcs_cluster_id=bcs_cluster_id))
     sync_filter = {"bcs_cluster_id": bcs_cluster_id}
-    labels = bulk_save_resources(BCSPod, pod_models, sync_unique_field, pod_sync_fields, sync_filter, datetime_fields)
-    BCSPod.bulk_save_labels(labels)
-
-    try:
-        container_models = BCSContainer.load_list_from_api(
-            {"bk_tenant_id": bk_tenant_id, "bk_biz_id": bk_biz_id, "bcs_cluster_id": bcs_cluster_id}
+    pod_ids, container_ids = set(), set()
+    while batch := list(islice(pods, 100)):
+        pod_ids.update(
+            bulk_save_resources(
+                BCSPod,
+                (BCSPod.from_api_item(pod, bk_biz_id) for pod in batch),
+                sync_unique_field,
+                pod_sync_fields,
+                sync_filter,
+                datetime_fields,
+                delete_missing=False,
+            )
         )
-    except Exception as exc_info:
-        logger.exception(f"sync_bcs_pod error[{bcs_cluster_id}]: {exc_info}")
-        return
-
-    # 同步container
-    labels = bulk_save_resources(
-        BCSContainer, container_models, sync_unique_field, container_sync_fields, sync_filter, datetime_fields
-    )
-    BCSContainer.bulk_save_labels(labels)
+        container_ids.update(
+            bulk_save_resources(
+                BCSContainer,
+                (container for pod in batch for container in BCSContainer.from_pod(pod, bk_biz_id)),
+                sync_unique_field,
+                container_sync_fields,
+                sync_filter,
+                datetime_fields,
+                delete_missing=False,
+            )
+        )
+    # 同一 Pod 流完整结束后才清理两类资源，中途错误保留所有未见旧行。
+    delete_missing_resources(BCSPod, sync_filter, pod_ids)
+    delete_missing_resources(BCSContainer, sync_filter, container_ids)
 
 
 @share_lock(identify="sync_bcs_node_to_db")
@@ -533,7 +512,6 @@ def sync_bcs_node_to_db_sub_task(bcs_cluster_id):
 
 
 def sync_bcs_node(bcs_cluster_id):
-    sync_unique_field = "unique_hash"
     # 同步更新的字段
     sync_fields = [
         "bk_biz_id",
@@ -545,59 +523,16 @@ def sync_bcs_node(bcs_cluster_id):
         "endpoint_count",
         "pod_count",
         "cloud_id",
+        "bk_host_id",
         "status",
         "created_at",
         "unique_hash",
     ]
     datetime_fields = ["created_at"]
 
-    if bcs_cluster_id:
-        clusters = BCSCluster.objects.filter(bcs_cluster_id=bcs_cluster_id).values(
-            "bk_tenant_id", "bk_biz_id", "bcs_cluster_id"
-        )
-    else:
-        clusters = BCSCluster.objects.all().values("bk_tenant_id", "bk_biz_id", "bcs_cluster_id")
-    node_models = None
-
-    for cluster_chunk in chunks(clusters, settings.BCS_SYNC_SYNC_CONCURRENCY):
-        params = {
-            cluster["bcs_cluster_id"]: (cluster["bk_tenant_id"], cluster["bk_biz_id"]) for cluster in cluster_chunk
-        }
-        try:
-            node_models = BCSNode.load_list_from_api(params)
-        except Exception as exc_info:
-            logger.exception(f"sync_bcs_node error[{bcs_cluster_id}]: {exc_info}")
-            continue
-
-        # 查询主机对应的主机ID
-        biz_hosts = defaultdict(list)
-        for node in node_models:
-            biz_hosts[node.bk_biz_id].append({"ip": node.ip, "bk_cloud_id": node.cloud_id})
-
-        ip_cloud_id_to_host_id = {}
-        for bk_biz_id, host_ips in biz_hosts.items():
-            for host in api.cmdb.get_host_by_ip(bk_biz_id=bk_biz_id, ips=host_ips):
-                if host.bk_host_innerip:
-                    ip_cloud_id_to_host_id[(host.bk_host_innerip, str(host.bk_cloud_id))] = host.bk_host_id
-                if host.bk_host_innerip_v6:
-                    ip_cloud_id_to_host_id[(host.bk_host_innerip_v6, str(host.bk_cloud_id))] = host.bk_host_id
-
-        # 更新主机ID
-        for node in node_models:
-            node.bk_host_id = ip_cloud_id_to_host_id.get((exploded_ip(node.ip), node.cloud_id))
-
-        bcs_cluster_id_list = list({model.bcs_cluster_id for model in node_models})
-        if not bcs_cluster_id_list:
-            continue
-
-        sync_filter = {
-            "bcs_cluster_id__in": bcs_cluster_id_list,
-        }
-        bulk_save_resources(BCSNode, node_models, sync_unique_field, sync_fields, sync_filter, datetime_fields)
-        # 同步标签
-        patch_exists_resource_id(node_models)
-        BCSNode.bulk_save_labels(node_models)
-    return node_models
+    return sync_cluster_resources(
+        BCSNode, bcs_cluster_id, sync_fields, datetime_fields, prepare_batch=populate_node_host_ids
+    )
 
 
 @share_lock(identify="sync_bcs_service_monitor_to_db")
@@ -615,7 +550,6 @@ def sync_bcs_service_monitor_to_db_sub_task(bcs_cluster_id):
 
 
 def sync_bcs_service_monitor(bcs_cluster_id):
-    sync_unique_field = "unique_hash"
     # 同步更新的字段
     sync_fields = [
         "bk_biz_id",
@@ -632,40 +566,7 @@ def sync_bcs_service_monitor(bcs_cluster_id):
     ]
     datetime_fields = ["created_at"]
 
-    if bcs_cluster_id:
-        clusters = BCSCluster.objects.filter(bcs_cluster_id=bcs_cluster_id).values(
-            "bk_tenant_id", "bk_biz_id", "bcs_cluster_id"
-        )
-    else:
-        clusters = BCSCluster.objects.all().values("bk_tenant_id", "bk_biz_id", "bcs_cluster_id")
-    if not clusters:
-        return None
-    service_monitor_models = None
-
-    for cluster_chunk in chunks(clusters, settings.BCS_SYNC_SYNC_CONCURRENCY):
-        params = {
-            cluster["bcs_cluster_id"]: (cluster["bk_tenant_id"], cluster["bk_biz_id"]) for cluster in cluster_chunk
-        }
-        try:
-            service_monitor_models = BCSServiceMonitor.load_list_from_api(params)
-        except Exception as exc_info:
-            logger.exception(f"sync_bcs_service_monitor error[{bcs_cluster_id}]: {exc_info}")
-            continue
-        bcs_cluster_id_list = list({model.bcs_cluster_id for model in service_monitor_models})
-        if not bcs_cluster_id_list:
-            continue
-
-        sync_filter = {
-            "bcs_cluster_id__in": bcs_cluster_id_list,
-        }
-        bulk_save_resources(
-            BCSServiceMonitor, service_monitor_models, sync_unique_field, sync_fields, sync_filter, datetime_fields
-        )
-        # 同步标签
-        patch_exists_resource_id(service_monitor_models)
-        BCSServiceMonitor.bulk_save_labels(service_monitor_models)
-
-    return service_monitor_models
+    return sync_cluster_resources(BCSServiceMonitor, bcs_cluster_id, sync_fields, datetime_fields)
 
 
 @share_lock(identify="sync_bcs_pod_monitor_to_db")
@@ -683,7 +584,6 @@ def sync_bcs_pod_monitor_to_db_sub_task(bcs_cluster_id):
 
 
 def sync_bcs_pod_monitor(bcs_cluster_id):
-    sync_unique_field = "unique_hash"
     # 同步更新的字段
     sync_fields = [
         "bk_biz_id",
@@ -700,40 +600,7 @@ def sync_bcs_pod_monitor(bcs_cluster_id):
     ]
     datetime_fields = ["created_at"]
 
-    if bcs_cluster_id:
-        clusters = BCSCluster.objects.filter(bcs_cluster_id=bcs_cluster_id).values(
-            "bk_tenant_id", "bk_biz_id", "bcs_cluster_id"
-        )
-    else:
-        clusters = BCSCluster.objects.all().values("bk_tenant_id", "bk_biz_id", "bcs_cluster_id")
-    if not clusters:
-        return None
-    pod_monitor_models = None
-
-    for cluster_chunk in chunks(clusters, settings.BCS_SYNC_SYNC_CONCURRENCY):
-        params = {
-            cluster["bcs_cluster_id"]: (cluster["bk_tenant_id"], cluster["bk_biz_id"]) for cluster in cluster_chunk
-        }
-        try:
-            pod_monitor_models = BCSPodMonitor.load_list_from_api(params)
-        except Exception as exc_info:
-            logger.exception(f"sync_bcs_pod_monitor error[{bcs_cluster_id}]: {exc_info}")
-            continue
-        bcs_cluster_id_list = list({model.bcs_cluster_id for model in pod_monitor_models})
-        if not bcs_cluster_id_list:
-            continue
-
-        sync_filter = {
-            "bcs_cluster_id__in": bcs_cluster_id_list,
-        }
-        bulk_save_resources(
-            BCSPodMonitor, pod_monitor_models, sync_unique_field, sync_fields, sync_filter, datetime_fields
-        )
-        # 同步标签
-        patch_exists_resource_id(pod_monitor_models)
-        BCSPodMonitor.bulk_save_labels(pod_monitor_models)
-
-    return pod_monitor_models
+    return sync_cluster_resources(BCSPodMonitor, bcs_cluster_id, sync_fields, datetime_fields)
 
 
 @share_lock(ttl=3600, identify="bcs_sync_bcs_cluster_resource")
@@ -841,17 +708,3 @@ def sync_bkmonitor_operator_info():
             c.sync_operator_info()
         except Exception as exc_info:
             logger.exception(exc_info)
-
-
-def patch_exists_resource_id(resource_models):
-    if not resource_models:
-        return
-    bcs_cluster_id_list = [resource_model.bcs_cluster_id for resource_model in resource_models]
-    models = (
-        resource_models[0].__class__.objects.filter(bcs_cluster_id__in=bcs_cluster_id_list).values("id", "unique_hash")
-    )
-    exists_hash_data = {model["unique_hash"]: model["id"] for model in models}
-    for resource_model in resource_models:
-        unique_hash = resource_model.get_unique_hash()
-        if not resource_model.id and unique_hash in exists_hash_data:
-            resource_model.id = exists_hash_data.get(unique_hash)

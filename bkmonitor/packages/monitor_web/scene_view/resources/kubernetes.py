@@ -2461,21 +2461,18 @@ class GetKubernetesWorkloadCountByNamespace(ApiAuthResource):
         bk_tenant_id = get_request_tenant_id()
         bk_biz_id = params["bk_biz_id"]
         bcs_cluster_id = params["bcs_cluster_id"]
-        workloads = api.kubernetes.fetch_k8s_workload_list_by_cluster(
-            bk_tenant_id=bk_tenant_id, bk_biz_id=bk_biz_id, bcs_cluster_id=bcs_cluster_id
+        namespace_counts = api.kubernetes.fetch_k8s_workload_count_by_namespace(
+            bk_tenant_id=bk_tenant_id, bcs_cluster_id=bcs_cluster_id
         )
         shard_cluster = api.kubernetes.get_cluster_info_from_bcs_space({"bk_biz_id": bk_biz_id, "shard_only": True})
         filter_ns = shard_cluster.get(bcs_cluster_id, {}).get("namespace_list")
         namespace_counter = {}
-        for w in workloads:
-            ns = w["namespace"]
+        for ns, count in namespace_counts.items():
             if filter_ns is not None:
                 if ns not in filter_ns:
                     continue
 
-            if not namespace_counter.get(ns):
-                namespace_counter[ns] = 0
-            namespace_counter[ns] += 1
+            namespace_counter[ns] = count
 
         self.data = []
         keyword = params.get("keyword", "")

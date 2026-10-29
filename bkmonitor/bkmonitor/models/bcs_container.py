@@ -20,6 +20,7 @@ from django.utils.translation import gettext as _
 from bkmonitor.models import BCSBaseManager
 from bkmonitor.models.bcs_base import BCSBase, BCSBaseResources, BCSLabel
 from bkmonitor.utils.common_utils import chunks
+from bkmonitor.utils.kubernetes import KubernetesContainerJsonParser, KubernetesPodJsonParser
 from core.drf_resource import api
 
 logger = logging.getLogger("kubernetes")
@@ -30,6 +31,7 @@ class BCSContainerManager(BCSBaseManager):
 
 
 class BCSContainer(BCSBase, BCSBaseResources):
+    SYNC_IDENTITY_FIELDS = ("bcs_cluster_id", "namespace", "pod_name", "name")
     name = models.CharField(verbose_name="名称", max_length=128)
     namespace = models.CharField(max_length=128)
     pod_name = models.CharField(max_length=128)
@@ -218,32 +220,62 @@ class BCSContainer(BCSBase, BCSBaseResources):
         for c in api.kubernetes.fetch_k8s_container_list_by_cluster(
             bk_tenant_id=bk_tenant_id, bcs_cluster_id=bcs_cluster_id
         ):
-            bcs_cluster_id = c.get("bcs_cluster_id")
-            bcs_container = BCSContainer()
-            bcs_container.bk_biz_id = bk_biz_id
-            bcs_container.bcs_cluster_id = bcs_cluster_id
-            bcs_container.namespace = c.get("namespace")
-            bcs_container.name = c.get("name")
-            bcs_container.pod_name = c.get("pod_name")
-            bcs_container.workload_type = c.get("workload_type")
-            bcs_container.workload_name = c.get("workload_name")
-            bcs_container.node_ip = c.get("node_ip")
-            bcs_container.node_name = c.get("node_name")
-            bcs_container.resource_requests_cpu = c.get("requests_cpu")
-            bcs_container.resource_requests_memory = c.get("requests_memory")
-            bcs_container.resource_limits_cpu = c.get("limits_cpu")
-            bcs_container.resource_limits_memory = c.get("limits_memory")
-            bcs_container.image = c.get("image")
-            bcs_container.created_at = parse_datetime(c.get("created_at"))
-            bcs_container.status = c.get("status")
-            bcs_container.last_synced_at = timezone.now()
-            bcs_container.deleted_at = None
+            yield BCSContainer.from_api_item(c, bk_biz_id)
 
-            # 唯一键
-            bcs_container.unique_hash = bcs_container.get_unique_hash()
+    @staticmethod
+    def from_api_item(c, bk_biz_id):
+        bcs_cluster_id = c.get("bcs_cluster_id")
+        bcs_container = BCSContainer()
+        bcs_container.bk_biz_id = bk_biz_id
+        bcs_container.bcs_cluster_id = bcs_cluster_id
+        bcs_container.namespace = c.get("namespace")
+        bcs_container.name = c.get("name")
+        bcs_container.pod_name = c.get("pod_name")
+        bcs_container.workload_type = c.get("workload_type")
+        bcs_container.workload_name = c.get("workload_name")
+        bcs_container.node_ip = c.get("node_ip")
+        bcs_container.node_name = c.get("node_name")
+        bcs_container.resource_requests_cpu = c.get("requests_cpu")
+        bcs_container.resource_requests_memory = c.get("requests_memory")
+        bcs_container.resource_limits_cpu = c.get("limits_cpu")
+        bcs_container.resource_limits_memory = c.get("limits_memory")
+        bcs_container.image = c.get("image")
+        bcs_container.created_at = parse_datetime(c.get("created_at"))
+        bcs_container.status = c.get("status")
+        bcs_container.last_synced_at = timezone.now()
+        bcs_container.deleted_at = None
 
-            bcs_container.api_labels = c.get("labels", {})
-            yield bcs_container
+        # 唯一键
+        bcs_container.unique_hash = bcs_container.get_unique_hash()
+
+        bcs_container.api_labels = c.get("labels", {})
+        return bcs_container
+
+    @staticmethod
+    def from_pod(pod, bk_biz_id):
+        """复用同步已读取的 Pod，保持详情接口的 Container 解析口径。"""
+        raw_pod = pod["pod"]
+        pod_parser = KubernetesPodJsonParser(raw_pod)
+        for container in pod_parser.containers:
+            parser = KubernetesContainerJsonParser(raw_pod, container)
+            yield BCSContainer.from_api_item(
+                {
+                    "bcs_cluster_id": pod["bcs_cluster_id"],
+                    "namespace": pod_parser.namespace,
+                    "pod_name": pod_parser.name,
+                    "name": parser.name,
+                    "node_name": pod["node_name"],
+                    "node_ip": pod["node_ip"],
+                    "workload_type": pod["workload_type"],
+                    "workload_name": pod["workload_name"],
+                    "image": parser.image,
+                    "status": parser.service_status,
+                    "created_at": parser.created_at,
+                    "labels": pod_parser.labels,
+                    **parser.resources,
+                },
+                bk_biz_id,
+            )
 
     def render_name(self, bk_biz_id, render_type="list"):
         if render_type == "list":

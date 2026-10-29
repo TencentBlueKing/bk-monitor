@@ -23,6 +23,8 @@ from core.drf_resource import api
 
 
 class BCSMonitor(BCSBase):
+    SYNC_IDENTITY_FIELDS = ("bcs_cluster_id", "namespace", "name", "metric_path", "metric_port", "metric_interval")
+
     class Meta:
         abstract = True
 
@@ -170,18 +172,21 @@ class BCSMonitor(BCSBase):
         for r in itertools.chain.from_iterable(item for item in api_resources if item):
             bcs_cluster_id = r.get("bcs_cluster_id")
             bk_biz_id = params[bcs_cluster_id][1]
-            metric_path_list = list(set(r.get("metric_path")))
+            metric_path_list = r.get("metric_path")
             metric_port_list = r.get("metric_port")
             metric_interval_list = r.get("metric_interval")
-            for i, metric_path in enumerate(metric_path_list):
+            if len(metric_path_list) != len(metric_port_list) or len(metric_path_list) != len(metric_interval_list):
+                raise ValueError("monitor endpoint fields have different lengths")
+            endpoints = dict.fromkeys(zip(metric_path_list, metric_port_list, metric_interval_list))
+            for metric_path, metric_port, metric_interval in endpoints:
                 bcs_monitor = cls()
                 bcs_monitor.bk_biz_id = bk_biz_id
                 bcs_monitor.bcs_cluster_id = bcs_cluster_id
                 bcs_monitor.namespace = r.get("namespace")
                 bcs_monitor.name = r.get("name")
                 bcs_monitor.metric_path = metric_path
-                bcs_monitor.metric_port = metric_port_list[i]
-                bcs_monitor.metric_interval = metric_interval_list[i]
+                bcs_monitor.metric_port = metric_port
+                bcs_monitor.metric_interval = metric_interval
                 bcs_monitor.created_at = parse_datetime(r.get("created_at"))
                 bcs_monitor.last_synced_at = timezone.now()
                 bcs_monitor.deleted_at = None
