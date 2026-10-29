@@ -29,7 +29,7 @@ import { defineComponent } from 'vue';
 import { Button, Dropdown, Input } from 'bkui-vue';
 import { useI18n } from 'vue-i18n';
 
-import type { TCopyIpField } from '../../types/host-list';
+import type { TCopyHostField } from '../../types/host-list';
 
 import './host-list-toolbar.scss';
 
@@ -59,17 +59,17 @@ export default defineComponent({
   emits: {
     keywordChange: (_v: string) => true,
     search: () => true,
-    /** 复制 IP，参数为用户选择的 IP 字段 */
-    copyIp: (_field: TCopyIpField) => true,
+    /** 复制 IP，参数为用户选择的 IP 字段或主机 ID */
+    copyIp: (_field: TCopyHostField) => true,
     compare: () => true,
     toggleFilter: () => true,
   },
   setup(props, { emit }) {
     const { t } = useI18n();
 
-    /** 复制 IP 下拉菜单：内网/外网 × IPv4/IPv6 四种可选字段 */
+    /** 复制 IP 下拉菜单：内网/外网 × IPv4/IPv6 四种 IP 字段 + 主机 ID */
     const copyMenuList: {
-      field: TCopyIpField;
+      field: TCopyHostField;
       label: string;
     }[] = [
       {
@@ -87,6 +87,10 @@ export default defineComponent({
       {
         field: 'bk_host_outerip_v6',
         label: t('外网IPv6'),
+      },
+      {
+        field: 'bk_host_id',
+        label: t('主机ID'),
       },
     ];
 

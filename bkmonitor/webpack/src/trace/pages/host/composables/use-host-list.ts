@@ -52,7 +52,7 @@ import type {
   IWhereItem,
   IWhereValueOptionsItem,
 } from '../../../components/retrieval-filter/typing';
-import type { EHostQuickCategory, HostSelectAllModeType, IHostListRow, TCopyIpField } from '../types';
+import type { EHostQuickCategory, HostSelectAllModeType, IHostListRow, TCopyHostField } from '../types';
 import type { IHostTopoTreeNode } from '../types/topo';
 
 interface IUseHostListOptions {
@@ -473,8 +473,8 @@ export const useHostList = (options: IUseHostListOptions) => {
     resetPage();
   };
 
-  /** 复制选中主机的指定 IP 字段（每行一个，换行分隔） */
-  const handleCopyIp = async (field?: TCopyIpField) => {
+  /** 复制选中主机的指定 IP 字段或主机 ID（每行一个，换行分隔） */
+  const handleCopyIp = async (field?: TCopyHostField) => {
     if (!selectedRowKeys.value.size || !field) {
       return;
     }
@@ -487,7 +487,8 @@ export const useHostList = (options: IUseHostListOptions) => {
     copyText(ipText, (msg: string) => {
       Message({ message: msg, theme: 'error' });
     });
-    Message({ message: window.i18n.t('复制成功 {num} 个IP', { num: ipList.length }), theme: 'success' });
+    const successText = field === 'bk_host_id' ? '复制成功 {num} 个主机ID' : '复制成功 {num} 个IP';
+    Message({ message: window.i18n.t(successText, { num: ipList.length }), theme: 'success' });
   };
 
   onMounted(() => {
