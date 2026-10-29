@@ -1138,6 +1138,8 @@ Session 详情的概览包含类型、应用、入口页面、退出页面、开
 | data | Object | 分组指标、时序或评级数据，与 `items` 按区块结构选用 |
 | items | Array[Item] | 平铺字段列表，与 `data` 按区块结构选用 |
 
+以下响应示例仅列举部分字段，公共字段结构见首个 Resource 示例。
+
 ##### 1）Resource（XHR 和 Fetch）
 
 ```json
@@ -1227,9 +1229,8 @@ Session 详情的概览包含类型、应用、入口页面、退出页面、开
 
 ##### 2）Resource（其他资源）
 
-```jsonc
+```json
 {
-  // origin_data 结构同示例 1，字段值取当前 Span。
   "span_id": "8e301ac709bd42bb",
   "overview": {
     "title": "db.svg",
@@ -1238,7 +1239,6 @@ Session 详情的概览包含类型、应用、入口页面、退出页面、开
       {"field_name": "attributes.resource.type", "value": "img"},
       {"field_name": "attributes.http.response.status_code", "value": 200}
     ]
-    // items 结构同示例 1，字段值取当前 Span。
   },
   "sections": [
     {
@@ -1271,7 +1271,6 @@ Session 详情的概览包含类型、应用、入口页面、退出页面、开
     {
       "key": "loading_timing",
       "type": "waterfall"
-      // data 结构同示例 1，具体阶段随资源加载情况（跨域不可见、Service Worker、缓存、连接复用、网络请求）而变化，取当前资源的时序值。
     }
   ]
 }
@@ -1279,9 +1278,8 @@ Session 详情的概览包含类型、应用、入口页面、退出页面、开
 
 ##### 3）Action
 
-```jsonc
+```json
 {
-  // origin_data 结构同示例 1，字段值取当前 Span。
   "span_id": "e121536e5ae785a0",
   "overview": {
     "title": "click .submit-btn",
@@ -1290,7 +1288,6 @@ Session 详情的概览包含类型、应用、入口页面、退出页面、开
       {"field_name": "attributes.action.type", "value": "click"},
       {"field_name": "attributes.outcome.type", "value": "warning"}
     ]
-    // items 结构同示例 1，字段值取当前 Span。
   },
   "sections": [
     {
@@ -1307,9 +1304,8 @@ Session 详情的概览包含类型、应用、入口页面、退出页面、开
 
 ##### 4）Long Task
 
-```jsonc
+```json
 {
-  // origin_data 结构同示例 1，字段值取当前 Span。
   "span_id": "c49ddfc2ac5214d7",
   "overview": {
     "title": "longTask",
@@ -1317,7 +1313,6 @@ Session 详情的概览包含类型、应用、入口页面、退出页面、开
       {"field_name": "elapsed_time", "value": 123500},
       {"field_name": "attributes.outcome.type", "value": "warning"}
     ]
-    // items 结构同示例 1，字段值取当前 Span。
   },
   "sections": [
     {
@@ -1335,16 +1330,14 @@ Session 详情的概览包含类型、应用、入口页面、退出页面、开
 
 ##### 5）Error
 
-```jsonc
+```json
 {
-  // origin_data 结构同示例 1，字段值取当前 Span。
   "span_id": "9d199175096474e4",
   "overview": {
     "title": "TypeError: Cannot read properties of undefined (reading 'name')",
     "badges": [
       {"field_name": "attributes.outcome.type", "value": "error"}
     ]
-    // items 结构同示例 1，字段值取当前 Span。
   },
   "sections": [
     {
@@ -1361,9 +1354,8 @@ Session 详情的概览包含类型、应用、入口页面、退出页面、开
 
 ##### 6）Vital
 
-```jsonc
+```json
 {
-  // origin_data 结构同示例 1，字段值取当前 Span。
   "span_id": "ea1ae6490e17fd9d",
   "overview": {
     "title": "LCP",
@@ -1371,7 +1363,6 @@ Session 详情的概览包含类型、应用、入口页面、退出页面、开
       {"field_name": "attributes.vital.value", "value": 2840},
       {"field_name": "display.rating_level", "alias": "需改进", "value": "needs_improvement"}
     ]
-    // items 结构同示例 1，字段值取当前 Span。
   },
   "sections": [
     {
@@ -1427,9 +1418,8 @@ Session 详情的概览包含类型、应用、入口页面、退出页面、开
 
 ##### 7）View
 
-```jsonc
+```json
 {
-  // origin_data 结构同示例 1，字段值取当前 Span。
   "span_id": "34e3b6ff1943346c",
   "overview": {
     "title": "view-001",
@@ -1437,7 +1427,6 @@ Session 详情的概览包含类型、应用、入口页面、退出页面、开
       {"field_name": "display.view.duration", "field_unit": "ms", "value": 60300}
     ],
     "items": [
-      // 公共 items 同示例 1，此处仅列 View 额外字段。
       {"field_name": "attributes.view.previous_url_template", "value": "/product/:id/"},
       {"field_name": "attributes.view.started_at", "value": 1788451565200}
     ]
@@ -2068,7 +2057,7 @@ POST /rum/search/statistics/
 
 响应示例（仅展示前 `2` 个时间桶）：
 
-```jsonc
+```json
 {
   "total": 24,
   "data": [
@@ -2084,7 +2073,6 @@ POST /rum/search/statistics/
       "growth_rates": {"0s": 0},
       "proportions": {"0s": 4}
     }
-    // 其余 22 个时间桶省略。
   ]
 }
 ```
