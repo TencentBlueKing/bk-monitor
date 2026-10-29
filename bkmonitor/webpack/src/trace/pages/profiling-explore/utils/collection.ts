@@ -34,17 +34,33 @@ import type {
   CollectionFieldKey,
   CollectionHost,
   CollectionMeta,
+  CollectionMethod,
   CollectionPayload,
   CollectionQueryState,
   CollectionTask,
+  CollectionTaskColumn,
+  CollectionTaskTableColumn,
   HostPid,
   PreviewSelector,
   ProcessRow,
   ProcessSelector,
 } from '../types/collection';
 
+/** 采集方式，值与后端下发的 collection_method 一致 */
+export const CollectionMethodEnum = {
+  /** Go */
+  GOLANG: 'golang',
+  /** Java */
+  JAVA: 'java',
+  /** Perf */
+  PERF: 'perf',
+} as const;
 /** 采集方式对应的展示名 */
-export const collectionMethodLabels = { perf: 'Perf', golang: 'Go', java: 'Java' };
+export const collectionMethodLabels: Record<CollectionMethod, string> = {
+  [CollectionMethodEnum.PERF]: 'Perf',
+  [CollectionMethodEnum.GOLANG]: 'Go',
+  [CollectionMethodEnum.JAVA]: 'Java',
+};
 /** 采集类型对应的展示名 */
 export const collectionTypeLabels = {
   native_cpu: 'Native CPU',
@@ -57,6 +73,124 @@ export const collectionTypeLabels = {
 export const scheduleLabels = { immediate: '立即执行', once_at: '指定时间', cron: '周期执行' };
 /** 进程匹配方式对应的展示名 */
 export const processLabels = { command: '命令行匹配', pid_file: 'PID 文件匹配', pid: '搜索 PID' };
+/** 部署状态对应的展示名（未知状态直接展示原始值） */
+export const deploymentStatusLabels: Record<string, string> = {
+  deploying: window.i18n.t('部署中'),
+  failed: window.i18n.t('部署失败'),
+  outdate: window.i18n.t('已过期'),
+  success: window.i18n.t('部署成功'),
+};
+/** 未过期且处于启用状态的任务不允许删除，需先停用；已过期任务无法切换启停，允许直接删除 */
+export function isTaskDeleteBlocked(task: Pick<CollectionTask, 'deployment_status' | 'task_status'>) {
+  return task.deployment_status !== 'outdate' && task.task_status === 'enabled';
+}
+/** 接口未下发 columns 时的回退列，顺序沿用原固定列 */
+export const FALLBACK_TASK_COLUMNS: CollectionTaskColumn[] = [
+  { field: 'name', name: window.i18n.t('定时任务名称'), type: 'text' },
+  { field: 'schedule', name: window.i18n.t('执行方式'), type: 'schedule' },
+  { field: 'schedule_time', name: window.i18n.t('执行时间'), type: 'schedule_time' },
+  { field: 'task_status', name: window.i18n.t('启 / 停'), type: 'status' },
+  { field: 'deployment_status', name: window.i18n.t('部署状态'), type: 'status' },
+];
+/** 表格追加的操作列 colKey（在列设置面板中置灰不可取消） */
+export const TASK_OPERATION_FIELD = 'operation';
+/**
+ * 已知字段的展示配置（列名以后端下发为准，title 仅在后端未下发时兜底）
+ * 直接复用表格列类型，未声明的属性由组装时补齐
+ */
+export const taskFieldConfigs: Record<string, Partial<CollectionTaskTableColumn>> = {
+  collection_method: {
+    colKey: 'collection_method',
+    title: window.i18n.t('采集方式'),
+    width: 120,
+    is_default: false,
+    is_locked: false,
+  },
+  collection_type: {
+    colKey: 'collection_type',
+    title: window.i18n.t('采集类型'),
+    width: 140,
+    is_default: false,
+    is_locked: false,
+  },
+  creator: {
+    colKey: 'creator',
+    title: window.i18n.t('创建人'),
+    width: 120,
+    is_default: false,
+    is_locked: false,
+  },
+  deployment_status: {
+    colKey: 'deployment_status',
+    title: window.i18n.t('部署状态'),
+    width: 120,
+    is_default: true,
+    is_locked: false,
+  },
+  // 任务名称是行入口，横向滚动时固定在左侧且不可隐藏
+  name: {
+    colKey: 'name',
+    title: window.i18n.t('定时任务名称'),
+    fixed: 'left',
+    width: 240,
+    is_default: true,
+    is_locked: true,
+  },
+  // 执行方式列（周期执行 / 指定时间）提供列筛选，与过滤逻辑里的 scheduleTypes 对应
+  schedule: {
+    colKey: 'schedule',
+    title: window.i18n.t('执行方式'),
+    filter: {
+      type: 'multiple',
+      list: [
+        { value: 'once_at', label: window.i18n.t(scheduleLabels.once_at) },
+        { value: 'cron', label: window.i18n.t(scheduleLabels.cron) },
+      ],
+    },
+    width: 140,
+    is_default: true,
+    is_locked: false,
+  },
+  schedule_time: {
+    colKey: 'schedule_time',
+    title: window.i18n.t('执行时间'),
+    width: 200,
+    sorter: true,
+    is_default: true,
+    is_locked: false,
+  },
+  task_status: {
+    colKey: 'task_status',
+    title: window.i18n.t('启 / 停'),
+    filter: {
+      type: 'multiple',
+      list: [
+        { value: 'enabled', label: window.i18n.t('启用') },
+        { value: 'disabled', label: window.i18n.t('停用') },
+      ],
+    },
+    width: 100,
+    is_default: true,
+    is_locked: false,
+  },
+  updated_at: {
+    colKey: 'updated_at',
+    title: window.i18n.t('更新时间'),
+    width: 180,
+    sorter: true,
+    is_default: false,
+    is_locked: false,
+  },
+  // 操作列由表格追加，始终显示且不可隐藏
+  [TASK_OPERATION_FIELD]: {
+    colKey: TASK_OPERATION_FIELD,
+    title: window.i18n.t('操作'),
+    fixed: 'right',
+    width: 240,
+    is_default: true,
+    is_locked: true,
+  },
+};
 
 /**
  * @description 构造带字段归属的提交校验错误，交由表单在对应 form item 下展示
@@ -75,13 +209,14 @@ export const collectionFieldError = (field: CollectionFieldKey, message: string)
  * @returns 采集表单草稿
  */
 export function createCollectionDraft(meta: CollectionMeta, timezone: string, task?: CollectionTask): CollectionDraft {
-  const method =
-    task?.collection_method || (meta.collection_methods.includes('java') ? 'java' : meta.collection_methods[0]);
+  // 新建默认取后端下发的第一个方式，后端未下发时兜底 perf
+  const method = task?.collection_method || meta.collection_methods[0] || CollectionMethodEnum.PERF;
   const collectionType = task?.collection_type || meta.collection_types_by_method[method]?.[0];
   const selector = task?.process_selector;
   const schedule = task?.schedule;
   const draft: CollectionDraft = {
-    name: task?.name || '',
+    // 新建时默认任务名：任务 + 任务时区下的当前时间，如 任务20261029105230
+    name: task?.name || `${window.i18n.t('任务')}${dayjs().tz(timezone).format('YYYYMMDDHHmmss')}`,
     hosts: task?.target_config.nodes.map(node => ({ host_id: node.bk_host_id })) || [],
     method,
     collectionType,
@@ -156,7 +291,7 @@ export function restoreCollectionQuery(value?: Partial<CollectionQueryState>): C
     statuses: Array.isArray(value.statuses)
       ? value.statuses.filter(status => ['enabled', 'disabled'].includes(status))
       : [],
-    sort: ['name', 'updated_at', 'schedule'].includes(value.sort?.sortBy)
+    sort: ['name', 'updated_at', 'schedule_time'].includes(value.sort?.sortBy)
       ? { sortBy: value.sort.sortBy, descending: value.sort.descending === true }
       : null,
     historyTaskId: Number.isInteger(value.historyTaskId) && value.historyTaskId > 0 ? value.historyTaskId : null,
@@ -381,8 +516,9 @@ export function filterCollectionTasks(tasks: CollectionTask[], query: Collection
   );
   if (query.sort) {
     const { sortBy, descending } = query.sort;
+    // 执行时间列按计划时间排序（周期任务取生效开始时间，一次性任务取执行时间）
     const value = (task: CollectionTask) =>
-      sortBy === 'schedule'
+      sortBy === 'schedule_time'
         ? task.schedule.type === 'cron'
           ? task.schedule.effective_start_at
           : task.schedule.execute_at

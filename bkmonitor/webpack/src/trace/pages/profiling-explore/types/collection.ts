@@ -24,8 +24,11 @@
  * IN THE SOFTWARE.
  */
 
+import type { CollectionMethodEnum } from '../utils/collection';
 import type { CollectionHistoryFilters, CollectionResultSelection } from './collection-history';
 import type { CollectionResultsState } from './collection-results';
+import type { TableProps } from '@blueking/tdesign-ui';
+import type { GetEnumTypeTool } from 'monitor-pc/pages/query-template/typings/constants';
 
 export interface CollectionDraft {
   collectionType: CollectionType;
@@ -83,7 +86,7 @@ export interface CollectionMeta {
   schedule_types: ScheduleType[];
   stack_unwinds: string[];
 }
-export type CollectionMethod = 'golang' | 'java' | 'perf';
+export type CollectionMethod = GetEnumTypeTool<typeof CollectionMethodEnum>;
 
 export interface CollectionPayload {
   bk_biz_id: number;
@@ -126,6 +129,23 @@ export interface CollectionTask extends Omit<CollectionPayload, 'bk_biz_id'> {
   task_status: 'disabled' | 'enabled';
   updated_at: number;
 }
+
+/** 任务列表接口下发的列定义，type 决定单元格渲染方式，未识别的 type 按文本处理 */
+export interface CollectionTaskColumn {
+  field: string;
+  name: string;
+  type: string;
+}
+
+/** 任务列表表格列：默认/锁定态 + 后端列类型 + tdesign 列属性（对齐告警中心 TableColumnItem） */
+export type CollectionTaskTableColumn = {
+  /** 后端下发的列类型，决定单元格兜底渲染方式；列配置的 type 属于选中列，不可占用 */
+  fieldType: string;
+  /** 是否默认展示 */
+  is_default: boolean;
+  /** 是否必须显示，且不可在列设置中取消 */
+  is_locked: boolean;
+} & NonNullable<TableProps['columns']>[number];
 
 export type CollectionType = 'go_cpu' | 'go_heap' | 'java_allocation' | 'java_cpu' | 'native_cpu';
 

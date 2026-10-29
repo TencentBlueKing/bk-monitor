@@ -53,6 +53,16 @@
       }
     }
 
+    .collection-advanced-content {
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+
+      .bk-form-item {
+        margin-bottom: 0;
+      }
+    }
+
     .collection-resource-guard {
       display: flex;
       gap: 8px;

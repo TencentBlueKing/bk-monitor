@@ -284,7 +284,16 @@ body {
   border-bottom-color: #fff;
 }
 
-.tippy-box[data-theme~='dart'] {
+/*
+ * 宿主（Vue2 主站 css）存在同特异性 (0,2,0) 的 `[data-tippy-root] .tippy-box`，
+ * 单独跑 trace 时其样式表排在 global.scss 之后会盖回 border / box-shadow，
+ * 故这里一起带上 [data-tippy-root] 抬高特异性，避免被宿主污染。
+ * 第三方组件（@blueking/user-selector 随 @blueking/ip-selector 注入）也会注入
+ * `.tippy-box[data-theme~='dark'] { padding: 7px 12px }`，让同一气泡在不同页面内边距不一致，
+ * 这里改回 tippy 默认的 0，内边距仍由 tippy.css 的 `.tippy-content` 提供。
+ */
+[data-tippy-root] .tippy-box[data-theme~='dark'] {
+  padding: 0;
   border: unset;
   box-shadow: unset;
 }

@@ -59,6 +59,9 @@ const getNextZIndex = () =>
   (window as unknown as { __bk_zIndex_manager?: { nextZIndex?: () => number } }).__bk_zIndex_manager?.nextZIndex?.() ||
   2000;
 
+/** 时间快捷项相对当前时间的偏移，单位为分钟 */
+const TIME_SHORTCUT_OFFSET_MINUTES = [5, 10, 60];
+
 /** 采集任务新建 / 编辑侧栏表单 */
 export default defineComponent({
   name: 'CollectionTaskForm',
@@ -133,6 +136,18 @@ export default defineComponent({
       const selectedDate = key === 'endAt' && type === 'date' ? date?.endOf('day').millisecond(0) : date;
       form.patch({ [key]: selectedDate?.valueOf() ?? null });
     };
+    /**
+     * @description 构建时间快捷项，点击后按当前时间偏移直接写入草稿
+     * 只给 onClick 不给 value：单选面板（type=datetime）下 value 返回数组会被组件再包一层导致回填异常，
+     * 直接写草稿也避开了 change 事件里 type=date 时结束时间被改成当日 23:59:59 的处理
+     * @param key 目标字段，结束时间 / 执行时间 / 开始时间
+     * @returns 日期选择器的 shortcuts 配置
+     */
+    const timeShortcuts = (key: 'endAt' | 'executeAt' | 'startAt') =>
+      TIME_SHORTCUT_OFFSET_MINUTES.map(minutes => ({
+        text: minutes < 60 ? t('{n} 分钟后', { n: minutes }) : t('{n} 小时后', { n: minutes / 60 }),
+        onClick: () => form.patch({ [key]: Date.now() + minutes * 60 * 1000 }),
+      }));
     return {
       t,
       locale,
@@ -143,6 +158,7 @@ export default defineComponent({
       footerSticky,
       close,
       changeDate,
+      timeShortcuts,
       scrollToFirstError,
       sidesliderZIndex,
     };
@@ -177,23 +193,28 @@ export default defineComponent({
           {f.fieldErrors.value[key]}
         </div>
       ) : null;
+    /** 按任务时区判断是否早于今天，早于今天的日期不可选 */
+    const todayStart = dayjs().tz(d.timezone).startOf('day');
     const dateField = (key: 'endAt' | 'executeAt' | 'startAt') => (
       <DatePicker
+        disabledDate={date => dayjs(date).tz(d.timezone).startOf('day').isBefore(todayStart)}
         modelValue={d[key] ? formatCollectionTime(d[key], d.timezone) : ''}
         placeholder={this.t('请选择日期时间')}
+        shortcutClose={true}
+        shortcuts={this.timeShortcuts(key)}
         type='datetime'
         onChange={(value, type) => this.changeDate(key, value as string, type)}
       />
     );
     return (
       <Sideslider
-        width='min(1200px, 100vw)'
+        width='min(1400px, 100vw)'
         class='collection-task-form'
         beforeClose={() => !f.loading.value}
         escClose={!f.loading.value}
         isShow={true}
         quickClose={false}
-        title={this.t(this.task ? '编辑任务' : '新建任务')}
+        title={this.t(this.task ? '编辑采集' : '新建采集')}
         transfer={false}
         zIndex={this.sidesliderZIndex}
         onClosed={this.close}
@@ -386,25 +407,6 @@ export default defineComponent({
                         {numericField('frequency_hz', 'Hz')}
                         {fieldError('frequency_hz')}
                       </Form.FormItem>
-                      <Form.FormItem
-                        label={this.t('栈展开方式')}
-                        required
-                      >
-                        <Select
-                          clearable={false}
-                          modelValue={d.collector.stack_unwind}
-                          onChange={stack_unwind => f.patch({ collector: { ...d.collector, stack_unwind } })}
-                        >
-                          {this.meta.stack_unwinds.map(value => (
-                            <Select.Option
-                              id={value}
-                              key={value}
-                              name={value}
-                            />
-                          ))}
-                        </Select>
-                        {fieldError('stack_unwind')}
-                      </Form.FormItem>
                     </div>
                   )}
                   {d.method !== 'golang' && (
@@ -443,16 +445,39 @@ export default defineComponent({
                       {this.t('高级设置')}
                     </Button>
                     {f.advancedOpen.value && (
-                      <div class='collection-resource-guard'>
-                        <Switcher
-                          modelValue={d.resourceGuard.auto_stop_on_resource_pressure}
-                          size='small'
-                          theme='primary'
-                          onChange={auto_stop_on_resource_pressure =>
-                            f.patch({ resourceGuard: { ...d.resourceGuard, auto_stop_on_resource_pressure } })
-                          }
-                        />
-                        <span>{this.t('资源不足时，提前终止')}</span>
+                      <div class='collection-advanced-content'>
+                        {d.method === 'perf' && (
+                          <Form.FormItem
+                            label={this.t('栈展开方式')}
+                            required
+                          >
+                            <Select
+                              clearable={false}
+                              modelValue={d.collector.stack_unwind}
+                              onChange={stack_unwind => f.patch({ collector: { ...d.collector, stack_unwind } })}
+                            >
+                              {this.meta.stack_unwinds.map(value => (
+                                <Select.Option
+                                  id={value}
+                                  key={value}
+                                  name={value}
+                                />
+                              ))}
+                            </Select>
+                            {fieldError('stack_unwind')}
+                          </Form.FormItem>
+                        )}
+                        <div class='collection-resource-guard'>
+                          <Switcher
+                            modelValue={d.resourceGuard.auto_stop_on_resource_pressure}
+                            size='small'
+                            theme='primary'
+                            onChange={auto_stop_on_resource_pressure =>
+                              f.patch({ resourceGuard: { ...d.resourceGuard, auto_stop_on_resource_pressure } })
+                            }
+                          />
+                          <span>{this.t('资源不足时，提前终止')}</span>
+                        </div>
                       </div>
                     )}
                   </div>

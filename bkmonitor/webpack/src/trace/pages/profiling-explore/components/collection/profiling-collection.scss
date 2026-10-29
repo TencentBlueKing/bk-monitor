@@ -16,7 +16,36 @@
   }
 }
 
-.profiling-collection > .collection-tabs {
+// 页签行：左侧页签 + 右侧常驻「新建采集」按钮，按钮不随页签切换消失
+.collection-tabs-header {
+  display: flex;
+  flex-shrink: 0;
+  gap: 8px;
+  align-items: center;
+  justify-content: space-between;
+
+  .collection-tabs {
+    flex: 1;
+    min-width: 0;
+  }
+
+  .collection-create-btn {
+    flex-shrink: 0;
+    padding: 0 16px;
+
+    .collection-create-btn-inner {
+      display: inline-flex;
+      gap: 6px;
+      align-items: center;
+
+      .icon-a-1jiahao {
+        font-size: 14px;
+      }
+    }
+  }
+}
+
+.profiling-collection .collection-tabs {
   flex-shrink: 0;
 
   .bk-tab-header-item {
@@ -87,77 +116,21 @@
 }
 
 // 面板由 .collection-tab-panel 的 flex: 1 撑到页签下方的剩余高度（空态撑满依赖这个高度），
-// 内容超出时面板内滚动 —— 与 IssuesTable / CommonTable 一致，
-// 表格自身不接管滚动，分页紧跟表格下方随内容滚动
+// 面板自身不滚动：引导说明与工具条常驻顶部，滚动交给工具条内的表格区，
+// 表格表头吸顶只需贴合表格区顶部，分页紧跟表格下方随内容滚动
 .collection-task-panel {
   box-sizing: border-box;
   display: flex;
   flex-direction: column;
 
-  // 右侧 4px 已被常驻滚动条槽位占据（reset.scss 里 div 的滚动条宽 4px），
+  // 右侧 4px 已被表格区常驻滚动条槽位占据（reset.scss 里 div 的滚动条宽 4px），
   // 内边距收窄后视觉右边距仍为 12px
   padding: 12px 8px 12px 12px;
-  overflow: auto;
-
-  // 常驻滚动条槽位：内容高度变化时避免滚动条出现消失引起横向抖动
-  scrollbar-gutter: stable;
+  overflow: hidden;
 
   .t-table {
     font-size: 12px;
   }
-
-  .collection-task-guide {
-    background: #f0f5ff;
-    border-color: #a3c5fd;
-
-    .bk-alert-wraper {
-      align-items: center;
-      padding: 6px 8px;
-    }
-
-    .bk-alert-title {
-      font-size: 12px;
-      line-height: 20px;
-      color: #4d4f56;
-
-      b {
-        font-weight: 600;
-      }
-    }
-  }
-}
-
-.collection-task-toolbar {
-  display: flex;
-  gap: 8px;
-  align-items: center;
-  margin: 10px 0;
-
-  .collection-task-search {
-    width: min(480px, 45%);
-    margin-left: auto;
-  }
-
-  .collection-task-toolbar-btn {
-    padding: 0 16px;
-
-    .collection-task-toolbar-btn-inner {
-      display: inline-flex;
-      gap: 6px;
-      align-items: center;
-
-      .icon-a-1jiahao {
-        font-size: 14px;
-      }
-    }
-  }
-}
-
-.collection-row-actions {
-  display: flex;
-  gap: 16px;
-  align-items: center;
-  white-space: nowrap;
 }
 
 .collection-dialog-footer {
@@ -165,60 +138,6 @@
   gap: 8px;
   align-items: center;
   justify-content: flex-end;
-}
-
-// 表格区：有数据时按内容高度排布，滚动交给 .collection-task-panel；
-// 无数据时撑满面板剩余高度，避免空态下底部大片留白
-.collection-task-table {
-  &.is-empty {
-    display: flex;
-    flex: 1;
-    flex-direction: column;
-    min-height: 0;
-
-    .t-table {
-      display: flex;
-      flex: 1;
-      flex-direction: column;
-      min-height: 0;
-    }
-
-    .t-table__content {
-      flex: 1;
-      min-height: 0;
-      overflow-x: auto;
-    }
-
-    .t-table--layout-fixed {
-      height: 100%;
-    }
-
-    .t-table__body,
-    .t-table__empty {
-      height: 100%;
-    }
-  }
-}
-
-.collection-task-empty {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  height: 100%;
-  min-height: 240px;
-}
-
-.collection-task-pagination {
-  padding-top: 16px;
-
-  .bk-pagination-list,
-  .bk-pagination-small-list {
-    margin-left: auto;
-  }
-}
-
-.collection-inline-alert {
-  margin: 12px 0;
 }
 
 .collection-error-text {

@@ -38,6 +38,7 @@ import type {
   CollectionPayload,
   CollectionTarget,
   CollectionTask,
+  CollectionTaskColumn,
   PreviewSelector,
   ProcessPreview,
 } from '../types/collection';
@@ -51,7 +52,7 @@ export function getCollectionMeta(bizId: number, signal: AbortSignal): Promise<C
 export function getCollectionTasks(
   bizId: number,
   signal: AbortSignal
-): Promise<{ data: CollectionTask[]; total: number }> {
+): Promise<{ columns: CollectionTaskColumn[]; data: CollectionTask[]; total: number }> {
   return listTasks({ bk_biz_id: bizId, page: 1, page_size: 10000 }, options(signal));
 }
 
