@@ -122,6 +122,30 @@ class TestBcsSyncReaders(unittest.TestCase):
         resource = self.resource("FetchK8sNodeAccessIpResource", {"perform_request"})
         self.assertEqual(resource.perform_request(self.params), "selected")
 
+    def test_optional_monitor_absence_requires_confirmed_definition_not_found(self):
+        from kubernetes.client.exceptions import ApiException
+
+        missing = Mock(return_value=True)
+        self.env.update({"ApiException": ApiException, "is_missing_custom_resource_definition": missing})
+        reader = load("api/kubernetes/default.py", "list_optional_monitor_objects", self.env)
+        request = Mock(side_effect=ApiException(status=404))
+        cluster = SimpleNamespace(
+            api_client=object(), custom_objects_api=SimpleNamespace(list_cluster_custom_object=request)
+        )
+        for kind in ("servicemonitors", "podmonitors"):
+            self.assertEqual(reader(cluster, "monitoring.coreos.com", "v1", kind), {"items": []})
+            missing.assert_called_with(cluster.api_client, "monitoring.coreos.com", kind)
+        missing.return_value = False
+        with self.assertRaises(ApiException):
+            reader(cluster, "monitoring.coreos.com", "v1", "podmonitors")
+        missing.side_effect = ApiException(status=403)
+        with self.assertRaises(ApiException) as denied:
+            reader(cluster, "monitoring.coreos.com", "v1", "podmonitors")
+        self.assertEqual(denied.exception.status, 403)
+        request.side_effect = RuntimeError("network unavailable")
+        with self.assertRaisesRegex(RuntimeError, "network unavailable"):
+            reader(cluster, "monitoring.coreos.com", "v1", "podmonitors")
+
     def test_node_sync_indexes_endpoints_once_and_streams_nodes(self):
         consumed = []
 

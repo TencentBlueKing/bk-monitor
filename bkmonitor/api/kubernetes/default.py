@@ -48,6 +48,7 @@ from constants.data_source import DataSourceLabel, DataTypeLabel
 from core.drf_resource import CacheResource, Resource, api
 from core.errors.bkmonitor.operator import OperatorVersionNotSupport
 from metadata import models
+from metadata.models.bcs.utils import is_missing_custom_resource_definition
 
 logger = logging.getLogger("kubernetes")
 logger.setLevel(logging.INFO)
@@ -864,6 +865,15 @@ def iter_k8s_services_for_sync(bk_tenant_id, bcs_cluster_id):
     )
 
 
+def list_optional_monitor_objects(cluster, group, version, plural):
+    try:
+        return cluster.custom_objects_api.list_cluster_custom_object(group=group, version=version, plural=plural)
+    except ApiException as error:
+        if error.status == 404 and is_missing_custom_resource_definition(cluster.api_client, group, plural):
+            return {"items": []}
+        raise
+
+
 class FetchK8sServiceMonitorListByClusterResource(CacheResource):
     cache_type = CacheType.BCS
 
@@ -888,9 +898,7 @@ class FetchK8sServiceMonitorListByClusterResource(CacheResource):
         except BCSCluster.DoesNotExist:
             return data
 
-        resource_list = cluster.custom_objects_api.list_cluster_custom_object(
-            group=self.GROUP, version=self.VERSION, plural=self.PLURALS
-        )
+        resource_list = list_optional_monitor_objects(cluster, self.GROUP, self.VERSION, self.PLURALS)
         for conf in resource_list["items"]:
             service_monitor = KubernetesServiceMonitorJsonParser(conf)
             metric_path = []
@@ -1039,9 +1047,7 @@ class FetchK8sPodMonitorListByClusterResource(CacheResource):
         except BCSCluster.DoesNotExist:
             return data
 
-        resource_list = cluster.custom_objects_api.list_cluster_custom_object(
-            group=self.GROUP, version=self.VERSION, plural=self.PLURALS
-        )
+        resource_list = list_optional_monitor_objects(cluster, self.GROUP, self.VERSION, self.PLURALS)
         for conf in resource_list["items"]:
             pod_monitor = KubernetesPodMonitorJsonParser(conf)
             metric_path = []
