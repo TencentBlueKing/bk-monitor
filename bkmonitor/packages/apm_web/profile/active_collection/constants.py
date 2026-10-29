@@ -185,10 +185,11 @@ EXECUTION_DETAIL_HOST_COLUMNS = [
     {"field": "duration_ms", "name": "采集时长", "type": "duration"},
 ]
 
-# 取值是现有 Profiling diagrammer 的注册名，结果接口只开放火焰图与表格
+# 取值是现有 Profiling diagrammer 的注册名，结果接口开放火焰图、表格与调用图
 DIAGRAM_TYPE_CHOICES = (
     ("flamegraph", "flamegraph"),
     ("table", "table"),
+    ("callgraph", "callgraph"),
 )
 
 

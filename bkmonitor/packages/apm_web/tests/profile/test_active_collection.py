@@ -483,7 +483,7 @@ def test_query_immediate_results_locates_samples_without_task(result_apis):
     assert api_params["general_filters"] == {"sample_type": "op_eq|inuse_space/bytes"}
 
 
-@pytest.mark.parametrize("diagram_types", [["flamegraph"], ["table"]])
+@pytest.mark.parametrize("diagram_types", [["flamegraph"], ["table"], ["callgraph"]])
 def test_query_results_only_return_requested_diagrams(result_apis, diagram_types):
     result = QueryResultsResource().request({**IMMEDIATE_RESULT_REQUEST, "diagram_types": diagram_types})
 
@@ -843,7 +843,7 @@ def test_request_serializers_accept_doc_payload(serializer_cls, params):
         (ExecutionCancelRequestSerializer, {**CANCEL_REQUEST, "hosts": []}),
         (ExecutionCancelRequestSerializer, {**CANCEL_REQUEST, "schedule_type": "immediate"}),
         (ResultQueryRequestSerializer, {**RESULT_QUERY_REQUEST, "diagram_types": []}),
-        (ResultQueryRequestSerializer, {**RESULT_QUERY_REQUEST, "diagram_types": ["callgraph"]}),
+        (ResultQueryRequestSerializer, {**RESULT_QUERY_REQUEST, "diagram_types": ["tendency"]}),
         (ResultQueryRequestSerializer, {**RESULT_QUERY_REQUEST, "finished_at": None}),
         (ResultQueryRequestSerializer, {**RESULT_QUERY_REQUEST, "finished_at": RESULT_QUERY_REQUEST["started_at"] - 1}),
         # 查看仍要求 diagram_types，导出不需要
@@ -1071,6 +1071,7 @@ def test_is_mock_returns_fixtures_and_skips_write_side_effects():
     assert set(meta["execution_statuses"]) - set(meta["execution_status_filters"]) == {"parsing"}
     assert "unknown" in meta["execution_status_filters"]
     assert "outdate" in meta["deployment_statuses"]
+    assert meta["diagram_types"] == ["flamegraph", "table", "callgraph"]
 
     assert EnableActiveCollectionResource().perform_request({"is_mock": True, "bk_biz_id": 2}) is None
     assert "task_id" not in ExecutionDetailResource().perform_request({"is_mock": True, "schedule_type": "immediate"})
@@ -1078,6 +1079,8 @@ def test_is_mock_returns_fixtures_and_skips_write_side_effects():
     assert QueryTopKResource().perform_request({"is_mock": True, "field": "process_pids"})[0]["alias"] == "java:1234"
     result = QueryResultsResource().perform_request({"is_mock": True, "diagram_types": ["table"]})
     assert set(result) == {"table_data", "type", "unit"}
+    result = QueryResultsResource().perform_request({"is_mock": True, "diagram_types": ["callgraph"]})
+    assert set(result) == {"call_graph_data", "call_graph_all", "type", "unit"}
     data_types = QueryResultDataTypesResource().perform_request({"is_mock": True})["data_types"]
     assert data_types[1] == {"key": "alloc_space/bytes", "name": "ALLOC_SPACE"}
     response = ExportResultsResource().perform_request({"is_mock": True})

@@ -21,7 +21,11 @@ from apm_web.profile.active_collection.constants import (
 )
 from apm_web.profile.constants import DEFAULT_EXPORT_FORMAT
 
-RESULT_DATA_KEY = {"flamegraph": "flame_data", "table": "table_data"}
+RESULT_DATA_KEY = {
+    "flamegraph": ("flame_data",),
+    "table": ("table_data",),
+    "callgraph": ("call_graph_data", "call_graph_all"),
+}
 
 PROCESS_PREVIEW = {
     "columns": PROCESS_PREVIEW_COLUMNS,
@@ -267,6 +271,14 @@ RESULT_QUERY = {
             {"id": "main", "name": "main", "self": 100, "total": 800},
         ],
     },
+    "call_graph_data": {
+        "call_graph_nodes": [
+            {"id": "main", "name": "main", "value": 800, "self": 100},
+            {"id": "work", "name": "work", "value": 700, "self": 700},
+        ],
+        "call_graph_relation": [{"source_id": "main", "target_id": "work", "value": 700}],
+    },
+    "call_graph_all": 1000,
     "type": "cpu",
     "unit": "nanoseconds",
 }
@@ -295,9 +307,7 @@ def execution_detail(validated_request_data):
 
 
 def result_query(diagram_types):
-    result = {
-        RESULT_DATA_KEY[diagram_type]: RESULT_QUERY[RESULT_DATA_KEY[diagram_type]] for diagram_type in diagram_types
-    }
+    result = {key: RESULT_QUERY[key] for diagram_type in diagram_types for key in RESULT_DATA_KEY[diagram_type]}
     result.update(type=RESULT_QUERY["type"], unit=RESULT_QUERY["unit"])
     return result
 
