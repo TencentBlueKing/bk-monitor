@@ -430,6 +430,9 @@ class K8sCollectorHandler(CollectorHandler):
             "delimiter": container_config.params.get("conditions", {}).get("separator", ""),
             "filters": filters,
         }
+        ignore_older = container_config.params.get("ignore_older")
+        if ignore_older is not None:
+            raw_config["ignoreOlder"] = f"{ignore_older}s"
 
         slz = ContainerCollectorYamlSerializer(data=raw_config)
         slz.is_valid(raise_exception=True)
