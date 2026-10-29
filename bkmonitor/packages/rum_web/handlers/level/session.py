@@ -8,22 +8,19 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 
-from typing import Any
-
 from bkmonitor.data_source.utils.apm import TraceDatasourceTarget
+from rum_web.constants import RumQueryMode
 from rum_web.handlers.level.base import BaseRumLevelHandler
-from semconv.rum.session import SessionSpec
-from rest_framework.exceptions import ValidationError
-from django.utils.translation import gettext_lazy as _
 from rum_web.handlers.query.session import SessionQuery
+from semconv.rum.session import SessionSpec
 
 
 class SessionLevelHandler(BaseRumLevelHandler):
     query: SessionQuery
 
     DISPLAY_FIELDS = [
-        "start_time",
         "attributes.session.id",
+        "start_time",
         "attributes.user.id",
         "resource.user_agent.name",
         "resource.user_agent.os.name",
@@ -33,17 +30,16 @@ class SessionLevelHandler(BaseRumLevelHandler):
         "error_count",
         "duration",
     ]
-    RESIDENT_FIELDS = ["attributes.user.id", "attributes.session.has_replay"]
+    RESIDENT_FIELDS = [
+        "attributes.session.id",
+        "attributes.user.id",
+        "resource.user_agent.name",
+        "resource.user_agent.os.name",
+    ]
 
-    MODE = "session"
+    MODE = RumQueryMode.SESSION.value
     SPEC = SessionSpec
 
     def __init__(self, data_sources: list[TraceDatasourceTarget]):
         super().__init__(data_sources)
         self.query = SessionQuery(data_sources)
-
-    def record_detail(self, record_id: str, extra_config: dict[str, Any] | None = None) -> dict[str, Any]:
-        raise ValidationError(_("当前层级暂不支持记录详情"))
-
-    def timeline(self, session_id: str | None = None, view_id: str | None = None) -> dict[str, Any]:
-        raise ValidationError(_("当前层级暂不支持时间线"))

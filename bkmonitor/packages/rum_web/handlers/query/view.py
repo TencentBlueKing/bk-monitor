@@ -9,26 +9,34 @@ specific language governing permissions and limitations under the License.
 """
 
 from bkmonitor.data_source.unify_query.builder import QueryConfigBuilder
+from rum_web.constants import RumQueryMode
 from rum_web.handlers.query.fallback import BaseFallbackRumQuery, SummaryTasks
-from semconv.rum.constants import RumSpanType
+from semconv.rum.constants import RumSpanType, ViewPhase, VitalMetric
 from semconv.rum.view import ViewSpec
 
 
 class ViewQuery(BaseFallbackRumQuery):
-    MODE = "view"
+    MODE = RumQueryMode.VIEW.value
+    RECORD_ID_FIELD = "attributes.view.id"
     SPEC = ViewSpec
-    ANALYSIS_PHASE = "update"
+    ANALYSIS_PHASE = ViewPhase.UPDATE.value
     SNAPSHOT_SORT = ("-attributes.view.version", "-end_time")
 
     def _add_summary_tasks(self, ids: list[str], q: QueryConfigBuilder, tasks: SummaryTasks) -> None:
-        for metric in ("cls", "lcp", "fcp", "inp", "ttfb"):
+        for metric in (
+            VitalMetric.CLS.value,
+            VitalMetric.LCP.value,
+            VitalMetric.FCP.value,
+            VitalMetric.INP.value,
+            VitalMetric.TTFB.value,
+        ):
             tasks.append(
                 self._build_record_task(
                     ids,
                     q.filter(
                         **{
-                            "attributes.span_type__eq": [RumSpanType.VITAL.value],
-                            "attributes.vital.metric__eq": [metric, metric.upper()],
+                            "attributes.span_type": [RumSpanType.VITAL.value],
+                            "attributes.vital.metric": [metric, metric.upper()],
                         }
                     ).order_by("end_time desc"),
                     {f"web_vitals.{metric}": "attributes.vital.value"},

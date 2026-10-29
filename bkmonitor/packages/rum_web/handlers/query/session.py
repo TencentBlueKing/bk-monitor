@@ -9,21 +9,26 @@ specific language governing permissions and limitations under the License.
 """
 
 from bkmonitor.data_source.unify_query.builder import QueryConfigBuilder
+from constants.otel_query import AggregatedMethod
+from rum_web.constants import RumQueryMode
 from rum_web.handlers.query.fallback import BaseFallbackRumQuery, SummaryTasks
-from semconv.rum.constants import RumSpanType
+from semconv.rum.constants import RumSpanType, SessionPhase
 from semconv.rum.session import SessionSpec
 
 
 class SessionQuery(BaseFallbackRumQuery):
-    MODE = "session"
+    MODE = RumQueryMode.SESSION.value
+    RECORD_ID_FIELD = "attributes.session.id"
     SPEC = SessionSpec
-    ANALYSIS_PHASE = "start"
+    ANALYSIS_PHASE = SessionPhase.START.value
 
     COUNT_FIELD_NAMES = (*BaseFallbackRumQuery.COUNT_FIELD_NAMES, "view_count")
 
     def _add_summary_tasks(self, ids: list[str], q: QueryConfigBuilder, tasks: SummaryTasks) -> None:
-        view_q = q.filter(**{"attributes.span_type__eq": [RumSpanType.VIEW.value]})
-        tasks.append(self._build_metric_task(ids, view_q, "view_count", "attributes.view.id", "distinct"))
+        view_q = q.filter(**{"attributes.span_type": [RumSpanType.VIEW.value]})
+        tasks.append(
+            self._build_metric_task(ids, view_q, "view_count", "attributes.view.id", AggregatedMethod.DISTINCT.value)
+        )
         for field_name, sort in (("enter_url_template", "start_time"), ("exit_url_template", "start_time desc")):
             tasks.append(
                 self._build_record_task(ids, view_q.order_by(sort), {field_name: "attributes.view.url_template"})

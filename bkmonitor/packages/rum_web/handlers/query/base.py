@@ -9,21 +9,21 @@ specific language governing permissions and limitations under the License.
 """
 
 import logging
-from bkm_space.utils import bk_biz_id_to_space_uid
 from typing import Any
-from bkmonitor.data_source.utils.apm import TraceDatasourceTarget
 
+from bkm_space.utils import bk_biz_id_to_space_uid
+
+from bkmonitor.data_source.unify_query.builder import QueryConfigBuilder, UnifyQuerySet
 from bkmonitor.data_source.utils import types
+from bkmonitor.data_source.utils.apm import APMQueryFilterMixin, FilterOperator, TraceDatasourceTarget, TraceQueryGuard
 from bkmonitor.data_source.utils.base import sort_fields
 from bkmonitor.data_source.utils.query import BaseQuery
-from bkmonitor.data_source.unify_query.builder import QueryConfigBuilder, UnifyQuerySet
-from bkmonitor.data_source.utils.apm import APMQueryFilterMixin, FilterOperator, TraceQueryGuard
 from constants.data_source import DataSourceLabel, DataTypeLabel
-from constants.otel_query import FIELD_OPERATIONS, EnabledStatisticsDimension
-
+from constants.otel_query import FIELD_OPERATIONS, EnabledStatisticsDimension, FieldTypeEnum
+from rum_web.constants import RumQueryMode
+from semconv.constants import FieldDisplayType
 from semconv.rum.field import FieldSpec
 from semconv.rum.trace import SpanSpec
-from semconv.constants import FieldDisplayType
 
 
 logger = logging.getLogger(__name__)
@@ -37,9 +37,10 @@ class BaseRumQuery(APMQueryFilterMixin, BaseQuery):
     USING: tuple[str, str] = (DataTypeLabel.LOG, DataSourceLabel.BK_RUM)
     DEFAULT_TIME_FIELD: str = "end_time"
     DEFAULT_SORT = ["-end_time"]
+    RECORD_ID_FIELD = "span_id"
     FIELD_OPERATIONS = FIELD_OPERATIONS
 
-    MODE = "span"
+    MODE = RumQueryMode.SPAN.value
     use_precomputed = False
     level_query: "BaseRumQuery | None" = None
 
@@ -56,6 +57,24 @@ class BaseRumQuery(APMQueryFilterMixin, BaseQuery):
         "span_id",
         "parent_span_id",
     }
+
+    @property
+    def raw_query(self) -> "BaseRumQuery":
+        return self
+
+    def query_detail(self, record_id: str) -> dict[str, Any]:
+        """按层级记录 ID 查询原始 Span，未找到时返回空字典。"""
+        filters: list[types.Filter] = [equal_filter(self.RECORD_ID_FIELD, [record_id])]
+        if self.MODE != RumQueryMode.SPAN.value:
+            filters.append(equal_filter("attributes.span_type", [self.MODE]))
+        records = self.raw_query.query_list(
+            start_time=None,
+            end_time=None,
+            offset=0,
+            limit=1,
+            filters=filters,
+        )
+        return records[0] if records else {}
 
     @classmethod
     def build_query_q(cls, q: QueryConfigBuilder, filters: list[types.Filter] | None, query_string: str = ""):
@@ -234,7 +253,7 @@ class BaseRumQuery(APMQueryFilterMixin, BaseQuery):
     def query_fields(self, start_time: int | None, end_time: int | None) -> dict[str, dict[str, Any]]:
         """始终提供语义目录，存储元数据就绪时再合并实际字段能力。"""
         field_map: dict[str, dict[str, Any]] = {}
-        if self.MODE == "span" or self.use_precomputed:
+        if self.MODE == RumQueryMode.SPAN.value or self.use_precomputed:
             targets = self.level_query.data_sources if self.level_query is not None else self.data_sources
             try:
                 field_map = self._query_fields(
@@ -245,11 +264,11 @@ class BaseRumQuery(APMQueryFilterMixin, BaseQuery):
             except Exception:
                 logger.exception("RUM 字段元数据查询失败，使用 %s 语义目录", self.MODE)
         specs = {spec.get_full_field_name(): spec for spec in self.SPEC.fields()}
-        if self.MODE != "span":
+        if self.MODE != RumQueryMode.SPAN.value:
             field_map = {name: field for name, field in field_map.items() if name in specs}
         for name, spec in specs.items():
-            available = self.MODE == "span" or self.use_precomputed or spec.is_real
-            field_type = spec.field_type or "keyword"
+            available = self.MODE == RumQueryMode.SPAN.value or self.use_precomputed or spec.is_real
+            field_type = spec.field_type or FieldTypeEnum.KEYWORD.value
             field_map.setdefault(
                 name,
                 {
@@ -258,7 +277,7 @@ class BaseRumQuery(APMQueryFilterMixin, BaseQuery):
                     "origin_field": name.split(".", 1)[0],
                     "is_searchable": available,
                     "is_agg": available,
-                    "is_list": spec.is_real or self.MODE != "span",
+                    "is_list": spec.is_real or self.MODE != RumQueryMode.SPAN.value,
                     "supported_operations": self.FIELD_OPERATIONS.get(field_type, []) if available else [],
                 },
             )

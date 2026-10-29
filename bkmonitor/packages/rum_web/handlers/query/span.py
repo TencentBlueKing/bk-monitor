@@ -10,24 +10,25 @@ specific language governing permissions and limitations under the License.
 
 from typing import Any
 
-from bkmonitor.data_source.utils.apm import FilterOperator
-
-
+from bkmonitor.data_source.format import flatten_dict_data
 from rum_web.handlers.query.base import BaseRumQuery
+from rum_web.handlers.query.session import SessionQuery
+from rum_web.handlers.query.view import ViewQuery
+from semconv.rum.constants import RumSpanType
 
 
 class SpanQuery(BaseRumQuery):
-    def query_detail(self, record_id: str) -> dict[str, Any]:
-        """通过 span_id 查询单条 Span 记录。
+    """原始 Span 查询。"""
 
-        :param record_id: Span ID
-        :return: 单条记录字典，未找到时返回空字典 ``{}``（保持返回类型稳定，避免调用方额外 ``or {}``）。
-        """
-        records = self.query_list(
-            start_time=None,
-            end_time=None,
-            offset=0,
-            limit=1,
-            filters=[{"key": "span_id", "value": [record_id], "operator": FilterOperator.EQUAL}],
-        )
-        return records[0] if records else {}
+    def query_detail(self, record_id: str) -> dict[str, Any]:
+        span = super().query_detail(record_id)
+        flat: dict[str, Any] = flatten_dict_data(span)
+        query_class = {
+            RumSpanType.VIEW.value: ViewQuery,
+            RumSpanType.SESSION.value: SessionQuery,
+        }.get(flat.get("attributes.span_type") or "")
+        if query_class is not None:
+            business_id = flat.get(query_class.RECORD_ID_FIELD)
+            if isinstance(business_id, str) and business_id:
+                return query_class(self.data_sources).query_detail(business_id)
+        return span

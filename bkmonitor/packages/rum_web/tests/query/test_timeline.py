@@ -91,13 +91,13 @@ class TestTimelineResource:
         get_application = mocker.patch("rum_web.query.resources._get_application", return_value=application)
         handler = MagicMock()
         handler.timeline.return_value = {"start_time": None, "end_time": None, "tree": [], "records": []}
-        create = mocker.patch("rum_web.query.resources.RumLevelHandlerFactory.create", return_value=handler)
+        create = mocker.patch("rum_web.query.resources.SpanLevelHandler", return_value=handler)
 
         result = RumTimelineResource().perform_request({"bk_biz_id": 2, "app_name": "rum-demo", **scope})
 
         get_application.assert_called_once_with(2, "rum-demo")
-        mode, targets = create.call_args.args
-        assert mode == "span"
+        create.assert_called_once()
+        (targets,) = create.call_args.args
         assert len(targets) == 1
         assert targets[0].table_id == "bk_rum.authorized.span"
         assert targets[0].retention == 14
@@ -349,7 +349,7 @@ class TestTimelineHandler:
 
     def test_record_detail_and_timeline_reuse_vital_data(self, mocker):
         handler = _handler()
-        mocker.patch.object(handler, "VIEW_RELATED_SPAN_LIMIT", 5)
+        mocker.patch.object(handler, "RELATED_SPAN_LIMIT", 5)
         first = _view()
         latest = _view("latest", version=3, start_time=1_200_000, end_time=1_200_000)
         latest["attributes"]["view.phase"] = "end"

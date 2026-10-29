@@ -76,7 +76,7 @@
 - *[1] `start_time` 允许用于列表排序，排序依据匹配 Span 的时间；补查后的实体开始时间为 `min(start_time)`，不重新排列当前页。其余计算字段须有预计算表才能用于排序。*
 - *[2] 字段分析统计的是所选阶段的事件，View 的多条 `update` 会分别计数。*
 - *[3] 分页由序列化器校验 `offset >= 0`、`limit >= 1`，查询层不另设条数上限。缺失指标按现有统计逻辑处理，聚合查询沿用基类的异常处理。*
-- *[4] `record_detail` 和层级 `timeline` 暂不支持，现有 Span 时间线接口继续可用。*
+- *[4] `record_detail` 支持按 Session ID / View ID 查询，`timeline` 支持按 `session_id` 或 `view_id` 查询时间线。*
 
 Span、Session、View 共用 `BaseRumQuery.query_fields` 的语义目录兜底。Span 或已具备层级表的数据源会合并 UQ 元数据；查询失败仍返回 semconv 中的字段。降级模式下，Session / View 不请求 UQ 字段发现。服务端不再额外解析检索语句或校验字段白名单，消费端按能力元数据选择可用操作。
 
@@ -1093,7 +1093,7 @@ POST /rum/search/record_detail/
 | bk_biz_id | Integer | 是 | 业务 ID |
 | app_name | String | 是 | 应用名称 |
 | mode | String | 否 | 查询层级，默认 `span`，以下示例均为 Span 详情 |
-| record_id | String | 是 | 记录 ID，Span 层级取 `span_id` |
+| record_id | String | 是 | `mode=span` 取 `span_id`，`mode=view` 取 `attributes.view.id`，`mode=session` 取 `attributes.session.id` |
 
 ```json
 {"bk_biz_id": 2, "app_name": "rum-demo", "mode": "span", "record_id": "7d2f09b6f8bc31aa"}
@@ -1101,10 +1101,12 @@ POST /rum/search/record_detail/
 
 #### 2.11.2 Response
 
+Session 详情的概览包含类型、应用、入口页面、退出页面、开始时间、结束时间、用户和环境。缺失信息返回 `null`，`badges` 和 `sections` 均为空数组。
+
 | 参数名称 | 类型 | 描述 |
 |----------|------|------|
-| origin_data | Object | 原始 Span，保留嵌套结构，示例仅展示基础骨架 |
-| span_id | String | 当前记录的 Span ID |
+| origin_data | Object | 详情对应的原始 Span，保留嵌套结构，示例仅展示基础骨架 |
+| span_id | String | 详情对应的 Span ID |
 | overview | Object | 标题、徽标和公共信息，见 Overview |
 | sections | Array[Section] | 按展示顺序排列的详情区块 |
 

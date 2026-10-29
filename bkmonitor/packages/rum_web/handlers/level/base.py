@@ -8,36 +8,31 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 
-import copy
 import bisect
+import copy
 from decimal import ROUND_CEILING, ROUND_FLOOR, Decimal
 from typing import Any
-from rum_web.handlers.query.base import BaseRumQuery
 
 from django.utils.translation import gettext_lazy as _
+from rest_framework.exceptions import ValidationError
 
 from apm.utils.ui_optimizations import HistogramNiceNumberGenerator
+from bkmonitor.data_source.format import flatten_dict_data
 from bkmonitor.data_source.utils import types
-from bkmonitor.utils.elasticsearch.handler import QueryStringGenerator
-from constants.apm import OperatorGroupRelation
-from constants.otel_query import (
-    EnabledStatisticsDimension,
-    OperatorEnum,
-    StatisticsProperty,
-)
 from bkmonitor.data_source.utils.apm import FilterOperator, TraceDatasourceTarget
 from bkmonitor.utils.common_utils import format_percent
+from bkmonitor.utils.elasticsearch.handler import QueryStringGenerator
 from bkmonitor.utils.thread_backend import ThreadPool
+from constants.apm import OperatorGroupRelation
+from constants.otel_query import EnabledStatisticsDimension, FieldTypeEnum, OperatorEnum, StatisticsProperty
 from core.drf_resource import resource
+from rum_web.constants import RUM_SEARCH_PAGE_GROUPS, RumQueryMode
+from rum_web.handlers.builder.span import BUILDERS, build as build_span_detail
+from rum_web.handlers.query.base import BaseRumQuery
 from semconv.rum.trace import SpanSpec
-from constants.otel_query import FieldTypeEnum
-from rum_web.constants import RUM_SEARCH_PAGE_GROUPS
 
 
-from abc import ABC, abstractmethod
-
-
-class BaseRumLevelHandler(ABC):
+class BaseRumLevelHandler:
     """RUM 各层级共用的字段分析、统计和列表响应协议。"""
 
     query: BaseRumQuery
@@ -45,7 +40,7 @@ class BaseRumLevelHandler(ABC):
     RESIDENT_FIELDS: list[str] = []
 
     SPEC = SpanSpec
-    MODE = "span"
+    MODE = RumQueryMode.SPAN.value
 
     VIEW_CONFIG_IGNORE_KEYS = ["is_case_sensitive", "is_analyzed", "wildcard_case_insensitive", "tokenize_on_chars"]
     BASE_STATISTICS_PROPERTIES: set[str] = {
@@ -485,16 +480,40 @@ class BaseRumLevelHandler(ABC):
             "resident_fields": list(self.RESIDENT_FIELDS),
         }
 
-    @abstractmethod
     def record_detail(
         self,
         record_id: str,
         extra_config: dict[str, Any] | None = None,
     ) -> dict[str, Any]:
-        """查询单条记录详情"""
-        ...
+        """共用原始记录定位、关联查询与详情构建。"""
+        span: dict[str, Any] = self.query.query_detail(record_id)
+        if not span:
+            raise ValidationError(_("{} = {} 记录不存在").format(self.query.RECORD_ID_FIELD, record_id))
+        related_spans: list[dict[str, Any]] = self._query_related_spans(span)
+        return build_span_detail(span, related_spans)
 
-    @abstractmethod
-    def timeline(self, session_id: str | None = None, view_id: str | None = None) -> dict[str, Any]:
-        """查询会话或单个视图的时间线。"""
-        ...
+    RELATED_SPAN_LIMIT = 1000
+
+    def _query_related_spans(self, span: dict[str, Any]) -> list[dict[str, Any]]:
+        """按业务 ID 补查保留期内的生命周期记录与详情所需的关联记录。"""
+        flat = flatten_dict_data(span)
+        builder = BUILDERS.get(flat.get("attributes.span_type") or "")
+        if builder is None or not builder.RELATED_SPAN_TYPES:
+            return []
+        record_id = flat.get(builder.RECORD_ID_FIELD)
+        if not isinstance(record_id, str) or not record_id:
+            return []
+        return self.query.raw_query.query_list(
+            start_time=None,
+            end_time=None,
+            offset=0,
+            limit=self.RELATED_SPAN_LIMIT,
+            filters=[
+                {"key": builder.RECORD_ID_FIELD, "value": [record_id], "operator": FilterOperator.EQUAL},
+                {
+                    "key": "attributes.span_type",
+                    "value": list(builder.RELATED_SPAN_TYPES),
+                    "operator": FilterOperator.EQUAL,
+                },
+            ],
+        )

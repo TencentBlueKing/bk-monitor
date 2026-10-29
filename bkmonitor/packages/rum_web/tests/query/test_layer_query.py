@@ -103,7 +103,23 @@ def test_field_catalog_matches_retained_table_without_uq(mode, expected_raw, exp
     assert len(grouped) == len(set(grouped))
     assert set(grouped) == fields.keys()
     assert set(config["display_fields"]) <= fields.keys()
+    assert config["display_fields"][0] == f"attributes.{mode}.id"
     assert set(config["resident_fields"]) <= expected_raw
+    resident_fields_by_mode: dict[str, list[str]] = {
+        "session": [
+            "attributes.session.id",
+            "attributes.user.id",
+            "resource.user_agent.name",
+            "resource.user_agent.os.name",
+        ],
+        "view": [
+            "attributes.view.id",
+            "attributes.view.url_template",
+            "attributes.view.loading_type",
+            "attributes.user.id",
+        ],
+    }
+    assert config["resident_fields"] == resident_fields_by_mode[mode]
     assert all("supported_span_types" not in group for group in config["groups"])
     assert fields["duration"]["field_unit"] == "us"
     assert fields["close_time"]["field_display_type"] == "datetime"
@@ -169,6 +185,33 @@ def test_precomputed_tables_enable_fields_and_skip_fold_and_supplement(query_cla
     assert all(config.query.table_name.endswith(".span") for config in mixed.get_queries())
 
 
+@pytest.mark.parametrize("query_class, mode", [(SessionQuery, "session"), (ViewQuery, "view")])
+@pytest.mark.parametrize("precomputed", [False, True])
+def test_option_values_use_list_scope(query_class, mode, precomputed):
+    query = query_class([target(mode if precomputed else None)])
+    filters = [equal_filter("resource.user_agent.name", ["Chrome"])]
+    original = copy.deepcopy(filters)
+    values = {"attributes.user.id": ["alice"]}
+    with patch.object(BaseQuery, "_query_option_values", return_value=values) as execute:
+        assert query.query_option_values(10, 20, ["attributes.user.id"], 5, filters, "alice") == values
+    queries, start, end, fields, limit = execute.call_args.args
+    assert (start, end, fields, limit) == (10, 20, ["attributes.user.id"], 5)
+    config = queries[0].query
+    where = q_to_dict(config.where)
+    assert filters == original
+    assert config.raw_query_string == "alice"
+    assert "Chrome" in json.dumps(where)
+    assert "attributes.span_type" not in json.dumps(where)
+    assert f"attributes.{mode}.phase" not in json.dumps(where)
+    if precomputed:
+        assert config.table_name == f"bk_rum.test.{mode}"
+        assert config.time_field == "start_time"
+        assert f"attributes.{mode}.id__exists" not in where
+    else:
+        assert config.table_name == "bk_rum.test.span"
+        assert f"attributes.{mode}.id__exists" in where
+
+
 def test_original_field_statistics_and_option_protocol():
     handler = RumLevelHandlerFactory.create("session", [target()])
     with patch.object(
@@ -198,7 +241,7 @@ def test_supplement_batches_by_page_ids_not_rows():
     def execute(table_id, query_body):
         config = query_body["query_configs"][0]
         filters = config["filter_dict"]
-        assert filters["attributes.session.id__eq"] == ids
+        assert filters["attributes.session.id"] == ids
         assert query_body["limit"] == (query.QUERY_MAX_LIMIT if config["metrics"] else len(ids))
         if config["metrics"]:
             captured_metrics.append(config)
@@ -213,7 +256,7 @@ def test_supplement_batches_by_page_ids_not_rows():
             }
             return [{"attributes.session.id": "s1", "_result_": values.get((metric["field"], metric["method"]), 1)}]
         captured_records.append(config)
-        if filters.get("attributes.span_type__eq") == ["session"]:
+        if filters.get("attributes.span_type") == ["session"]:
             return [{"attributes": {"session.id": "s1", "session.phase": "end"}, "end_time": 850}]
         return [
             {
@@ -231,9 +274,9 @@ def test_supplement_batches_by_page_ids_not_rows():
     assert summaries["s1"]["enter_url_template"] == "/first"
     assert summaries["s1"]["exit_url_template"] == "/last"
     assert summaries["s1"]["snapshot"]["attributes.session.phase"] == "end"
-    error_query = next(config for config in captured_metrics if "status.code__eq" in config["filter_dict"])
-    assert error_query["filter_dict"]["status.code__eq"] == [2]
-    assert error_query["filter_dict"]["attributes.resource.type__eq"] == ["xhr", "fetch"]
+    error_query = next(config for config in captured_metrics if "status.code" in config["filter_dict"])
+    assert error_query["filter_dict"]["status.code"] == [2]
+    assert error_query["filter_dict"]["attributes.resource.type"] == ["xhr", "fetch"]
 
 
 def test_vitals_use_latest_snapshot_per_metric_and_preserve_zero():
@@ -243,7 +286,7 @@ def test_vitals_use_latest_snapshot_per_metric_and_preserve_zero():
         config = query_body["query_configs"][0]
         if config["metrics"]:
             return []
-        metric = config["filter_dict"].get("attributes.vital.metric__eq", [None])[0]
+        metric = config["filter_dict"].get("attributes.vital.metric", [None])[0]
         if metric:
             assert config["order_by"] == ["end_time desc"]
             return [{"attributes.view.id": "v1", "attributes.vital.value": 0}] if metric == "cls" else []
@@ -269,13 +312,13 @@ def test_frustration_count_uses_one_document_count_for_all_types(mocker, mode):
     def execute(table_id, query_body):
         config = query_body["query_configs"][0]
         filters = config["filter_dict"]
-        types = filters.get("attributes.action.frustration.type__eq")
+        types = filters.get("attributes.action.frustration.type")
         if types is None:
             return []
         assert filters == {
-            f"{group_field}__eq": ["id1", "id2"],
-            "attributes.span_type__eq": ["action"],
-            "attributes.action.frustration.type__eq": types,
+            f"{group_field}": ["id1", "id2"],
+            "attributes.span_type": ["action"],
+            "attributes.action.frustration.type": types,
         }
         assert set(types) == {"rage_click", "dead_click", "error_click"}
         # 数组只用于筛选；按文档计数且只按实体分组，不累加各类型的桶。
@@ -497,23 +540,26 @@ def test_span_counts_skip_invalid_types_and_keep_multiple_counts(mocker):
 
 
 @pytest.mark.parametrize("method, field", [("MIN", "start_time"), ("MAX", "end_time")])
-def test_grouped_time_extrema_reference_the_compiled_metric(mocker, method, field):
-    query = SessionQuery([target()])
+@pytest.mark.parametrize("query_class", [SessionQuery, ViewQuery])
+def test_grouped_time_extrema_preserve_record_ids(mocker, method, field, query_class):
+    query = query_class([target()])
     group_field = query.group_field
+    records = [{group_field: "id1", "_result_": 100}, {group_field: "id2", "_result_": 200}]
 
     def execute(table_id, query_body):
         config = query_body["query_configs"][0]
         reference = config["reference_name"]
-        assert query_body["expression"] == f"{method.lower()}({reference})"
+        assert query_body["expression"] == reference
         assert config["metrics"][0]["alias"] == reference
         assert config["metrics"][0]["field"] == field
+        assert config["metrics"][0]["method"] == method.lower()
         assert config["group_by"] == [group_field]
-        return [{group_field: "s1", "_result_": 100}]
+        return records
 
     mocker.patch("bkmonitor.data_source.unify_query.builder.QueryHelper.query", side_effect=execute)
 
     q = query._get_q("end_time")
-    assert query._query_metric_records(q, field, method.lower(), 1) == [{group_field: "s1", "_result_": 100}]
+    assert query._query_metric_records(q, field, method.lower(), 2) == records
 
 
 @pytest.mark.parametrize("query_class", [SessionQuery, ViewQuery])
@@ -544,7 +590,7 @@ def test_summary_builders_preserve_sources_windows_and_metric_values(mocker, que
         for config, target in zip(query_body["query_configs"], sources):
             assert config["table"] == target.table_id
             assert config["time_field"] == "end_time"
-            assert config["filter_dict"][f"{query.group_field}__eq"] == ["id1", "id2"]
+            assert config["filter_dict"][f"{query.group_field}"] == ["id1", "id2"]
             if shared:
                 assert config["filter_dict"]["bk_biz_id__eq"] == 2
                 assert config["filter_dict"]["app_name__eq"] == target.app.app_name
@@ -578,6 +624,87 @@ def test_summary_builders_preserve_sources_windows_and_metric_values(mocker, que
         and request["query_configs"][0]["metrics"][0]["field"] == "links.trace_id"
     )
     assert count_query["filter_dict"] == {
-        f"{query.group_field}__eq": ["id1", "id2"],
+        f"{query.group_field}": ["id1", "id2"],
         **({"bk_biz_id__eq": 2, "app_name__eq": "app0"} if shared else {}),
     }
+
+
+@pytest.mark.parametrize("mode", ["session", "view"])
+@pytest.mark.parametrize("precomputed", [False, True])
+@pytest.mark.parametrize("span_id", ["first", "last"])
+def test_business_detail_matches_each_lifecycle_span(mode, precomputed, span_id):
+    from rum_web.handlers.level.span import SpanLevelHandler
+
+    canonical = {
+        "span_id": "first",
+        "app_name": "test",
+        "start_time": 1000,
+        "end_time": 1000,
+        "attributes": {
+            "span_type": mode,
+            f"{mode}.id": "business-id",
+            f"{mode}.phase": "start",
+            "view.version": 1,
+            "view.started_at": 1,
+        },
+    }
+    latest = {
+        "span_id": "last",
+        "app_name": "test",
+        "start_time": 5000,
+        "end_time": 5000,
+        "attributes": {
+            "span_type": mode,
+            f"{mode}.id": "business-id",
+            f"{mode}.phase": "end",
+            "view.version": 2,
+            "view.started_at": 1,
+            "user.id": "alice",
+        },
+    }
+    related = [canonical, latest]
+    if mode == "session":
+        related += [
+            {"span_id": "v1", "start_time": 1200, "attributes": {"span_type": "view", "view.url_template": "/enter"}},
+            {"span_id": "v2", "start_time": 4000, "attributes": {"span_type": "view", "view.url_template": "/exit"}},
+        ]
+    data_source = target(mode if precomputed else None)
+    business_handler = RumLevelHandlerFactory.create(mode, [data_source])
+    span_handler = SpanLevelHandler([data_source])
+
+    def execute(queries, start, end, offset, limit):
+        config = queries[0].query
+        where = q_to_dict(config.where)
+        assert config.table_name == "bk_rum.test.span"
+        assert f"attributes.{mode}.phase" not in json.dumps(where)
+        assert (start, end, offset) == (None, None, 0)
+        if limit != 1:
+            return related
+        if "span_id__eq" in where:
+            return [canonical if span_id == "first" else latest]
+        assert where[f"attributes.{mode}.id__eq"] == ["business-id"]
+        assert where["attributes.span_type__eq"] == [mode]
+        return [canonical]
+
+    with patch.object(BaseQuery, "_query_list", side_effect=execute):
+        business_detail = business_handler.record_detail("business-id")
+        span_detail = span_handler.record_detail(span_id)
+    assert business_detail == span_detail
+    assert business_detail["origin_data"] == canonical
+    if mode == "session":
+        assert business_detail["sections"] == []
+        items = {item["field_name"]: item["value"] for item in business_detail["overview"]["items"]}
+        assert list(items) == [
+            "display.span_type",
+            "app_name",
+            "enter_url_template",
+            "exit_url_template",
+            "start_time",
+            "end_time",
+            "attributes.user.id",
+            "resource.deployment.environment.name",
+        ]
+        assert items["display.span_type"] == "Session"
+        assert items["enter_url_template"] == "/enter"
+        assert items["exit_url_template"] == "/exit"
+        assert (items["start_time"], items["end_time"], items["attributes.user.id"]) == (1000, 5000, "alice")

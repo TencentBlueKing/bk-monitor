@@ -19,11 +19,13 @@ from bkmonitor.data_source.unify_query.builder import QueryConfigBuilder
 from bkmonitor.data_source.utils import types
 from bkmonitor.data_source.utils.apm import FilterOperator, TraceDatasourceTarget, TraceQueryGuard
 from bkmonitor.utils.thread_backend import ThreadPool
+from constants.otel_query import AggregatedMethod
+from rum_web.constants import RumQueryMode
 from rum_web.handlers.builder.utils import get_safe_number
 from rum_web.handlers.query.base import BaseRumQuery, equal_filter
 from semconv.constants import SpanStatusCode
 from semconv.rum.common import COUNT_FIELDS
-from semconv.rum.constants import FrustrationType, RumSpanType
+from semconv.rum.constants import FrustrationType, ResourceType, RumSpanType, SessionPhase, ViewPhase
 
 Record = dict[str, Any]
 Summaries = dict[str, Record]
@@ -38,9 +40,9 @@ class BaseFallbackRumQuery(BaseRumQuery, ABC):
     ANALYSIS_PHASE: str
     SNAPSHOT_SORT: tuple[str, ...] = ("-end_time",)
     SPAN_COUNT_FIELDS: dict[str, str] = {
-        "error": "error_count",
-        "action": "action_count",
-        "long_task": "long_task_count",
+        RumSpanType.ERROR.value: "error_count",
+        RumSpanType.ACTION.value: "action_count",
+        RumSpanType.LONG_TASK.value: "long_task_count",
     }
     COUNT_FIELD_NAMES: tuple[str, ...] = tuple(field.field_name for field in COUNT_FIELDS)
 
@@ -79,6 +81,26 @@ class BaseFallbackRumQuery(BaseRumQuery, ABC):
             query_string,
         )
 
+    @property
+    def raw_query(self) -> BaseRumQuery:
+        return self.span_query
+
+    def query_option_values(
+        self,
+        start_time: int,
+        end_time: int,
+        fields: list[str],
+        limit: int,
+        filters: list[types.Filter],
+        query_string: str,
+    ) -> dict[str, list[str]]:
+        if self.level_query is not None:
+            return self.level_query.query_option_values(start_time, end_time, fields, limit, filters, query_string)
+        # 候选值与列表使用相同范围，避免仅在开始阶段缺失的字段无法筛选。
+        return self.span_query.query_option_values(
+            start_time, end_time, fields, limit, [*filters, *self._identity_filters()], query_string
+        )
+
     def query_list(
         self,
         start_time: int | None,
@@ -110,7 +132,7 @@ class BaseFallbackRumQuery(BaseRumQuery, ABC):
 
     @property
     def group_field(self) -> str:
-        return f"attributes.{self.MODE}.id"
+        return self.RECORD_ID_FIELD
 
     def _identity_filters(self) -> list[types.Filter]:
         return [
@@ -121,7 +143,7 @@ class BaseFallbackRumQuery(BaseRumQuery, ABC):
         """按当前页 ID 补查保留期数据，不继承列表筛选。"""
         if not ids:
             return {}
-        q = self._get_q(self.span_query.DEFAULT_TIME_FIELD).filter(**{f"{self.group_field}__eq": ids})
+        q = self._get_q(self.span_query.DEFAULT_TIME_FIELD).filter(**{self.group_field: ids})
         tasks = self._build_summary_tasks(ids, q)
         self._add_summary_tasks(ids, q, tasks)
         return self._collect_summaries(ids, tasks)
@@ -134,35 +156,35 @@ class BaseFallbackRumQuery(BaseRumQuery, ABC):
     def _build_summary_tasks(self, ids: list[str], q: QueryConfigBuilder) -> SummaryTasks:
         request_q = q.filter(
             **{
-                "attributes.span_type__eq": [RumSpanType.RESOURCE.value],
-                "attributes.resource.type__eq": ["xhr", "fetch"],
+                "attributes.span_type": [RumSpanType.RESOURCE.value],
+                "attributes.resource.type": [ResourceType.XHR.value, ResourceType.FETCH.value],
             }
         )
         return [
-            self._build_metric_task(ids, q, "start_time", "start_time", "min"),
-            self._build_metric_task(ids, q, "end_time", "end_time", "max"),
-            self._build_metric_task(ids, q, "trace_count", "links.trace_id", "count"),
+            self._build_metric_task(ids, q, "start_time", "start_time", AggregatedMethod.MIN.value),
+            self._build_metric_task(ids, q, "end_time", "end_time", AggregatedMethod.MAX.value),
+            self._build_metric_task(ids, q, "trace_count", "links.trace_id", AggregatedMethod.COUNT.value),
             partial(self._query_span_counts, ids, q),
             # 数组只用于筛选，对匹配的 Action 记录计数。
             self._build_metric_task(
                 ids,
                 q.filter(
                     **{
-                        "attributes.span_type__eq": [RumSpanType.ACTION.value],
-                        "attributes.action.frustration.type__eq": [kind.value for kind in FrustrationType],
+                        "attributes.span_type": [RumSpanType.ACTION.value],
+                        "attributes.action.frustration.type": [kind.value for kind in FrustrationType],
                     }
                 ),
                 "frustration_count",
                 "_index",
-                "count",
+                AggregatedMethod.COUNT.value,
             ),
-            self._build_metric_task(ids, request_q, "request_count", "_index", "count"),
+            self._build_metric_task(ids, request_q, "request_count", "_index", AggregatedMethod.COUNT.value),
             self._build_metric_task(
                 ids,
-                request_q.filter(**{"status.code__eq": [SpanStatusCode.ERROR.value]}),
+                request_q.filter(**{"status.code": [SpanStatusCode.ERROR.value]}),
                 "request_error_count",
                 "_index",
-                "count",
+                AggregatedMethod.COUNT.value,
             ),
             partial(self._query_snapshot, ids, q),
         ]
@@ -208,7 +230,7 @@ class BaseFallbackRumQuery(BaseRumQuery, ABC):
         return [{**row["dimensions"], "_result_": row["0"]} for row in result["data"]][:limit]
 
     def _query_snapshot(self, ids: list[str], q: QueryConfigBuilder) -> Summaries:
-        q = q.filter(**{"attributes.span_type__eq": [self.MODE]}).order_by(
+        q = q.filter(**{"attributes.span_type": [self.MODE]}).order_by(
             *self.process_sort_fields(list(self.SNAPSHOT_SORT))
         )
         records = self._query_group_list(self._get_summary_queries(q), None, None, self.group_field, limit=len(ids))
@@ -216,9 +238,9 @@ class BaseFallbackRumQuery(BaseRumQuery, ABC):
 
     def _query_span_counts(self, ids: list[str], q: QueryConfigBuilder) -> Summaries:
         records = self._query_metric_records(
-            q.filter(**{"attributes.span_type__eq": list(self.SPAN_COUNT_FIELDS)}),
+            q.filter(**{"attributes.span_type": list(self.SPAN_COUNT_FIELDS)}),
             "_index",
-            "count",
+            AggregatedMethod.COUNT.value,
             len(ids) * len(self.SPAN_COUNT_FIELDS),
             group_by=[self.group_field, "attributes.span_type"],
         )
@@ -285,10 +307,11 @@ class BaseFallbackRumQuery(BaseRumQuery, ABC):
         end_time = get_safe_number(summary.get("end_time"), None)
         phase_value = snapshot.get(f"attributes.{self.MODE}.phase")
         phase = phase_value if isinstance(phase_value, str) else None
+        end_phase = SessionPhase.END.value if self.MODE == RumQueryMode.SESSION.value else ViewPhase.END.value
         # 没有预计算窗口时，不推测超时关闭。
         return {
             "duration": max(0, end_time - start_time) if start_time is not None and end_time is not None else None,
-            "is_active": phase != "end" if phase else None,
-            "close_reason": "normal" if phase == "end" else None,
-            "close_time": snapshot.get("end_time") if phase == "end" else None,
+            "is_active": phase != end_phase if phase else None,
+            "close_reason": "normal" if phase == end_phase else None,
+            "close_time": snapshot.get("end_time") if phase == end_phase else None,
         }

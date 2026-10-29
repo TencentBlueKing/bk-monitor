@@ -19,7 +19,6 @@ from bkmonitor.data_source.format import flatten_dict_data
 from semconv.rum.constants import RumSpanType, SPAN_TYPE_COMMON_DISPLAY_FIELDS, ViewPhase
 from rum_web.handlers.level.base import BaseRumLevelHandler
 from rum_web.handlers.query.span import SpanQuery
-from rum_web.handlers.builder.span import build as build_span_detail
 from rum_web.handlers.builder.timeline import build as build_timeline
 from rum_web.handlers.builder.utils import get_safe_number
 
@@ -53,11 +52,6 @@ class SpanLevelHandler(BaseRumLevelHandler):
         "elapsed_time",
     ]
 
-    #: View 详情需要补查的关联 Span 类型，用于生命周期快照与 Web Vitals 最新值。
-    VIEW_RELATED_SPAN_LIMIT = 1000
-
-    VIEW_RELATED_SPAN_TYPES: tuple[str, ...] = (RumSpanType.VIEW.value, RumSpanType.VITAL.value)
-
     def __init__(self, data_sources: list[TraceDatasourceTarget]):
         super().__init__(data_sources)
         self.query = SpanQuery(data_sources)
@@ -72,23 +66,6 @@ class SpanLevelHandler(BaseRumLevelHandler):
         config["span_type_resident_fields"] = {kind.value: list(kind.resident_fields) for kind in RumSpanType}
         config["span_type_display_fields"] = {kind.value: kind.display_fields for kind in RumSpanType}
         return config
-
-    def record_detail(
-        self,
-        record_id: str,
-        extra_config: dict[str, Any] | None = None,
-    ) -> dict[str, Any]:
-        """查询单条 Span 记录详情。
-
-        通过 span_id 查询原始记录，并根据 span_type 分派到对应 SpanBuilder。
-        View 类型额外补查关联 Span（生命周期 + Web Vitals）供 Builder 装配最新快照。
-        """
-        span = self.query.query_detail(record_id)
-        if not span:
-            raise ValidationError(str(_("span_id = {} 记录不存在")).format(record_id))
-
-        related_spans = self._query_related_spans(span)
-        return build_span_detail(span, related_spans)
 
     def timeline(self, session_id: str | None = None, view_id: str | None = None) -> dict[str, Any]:
         """查询会话或单个 View 的时间线，单次最多读取 10000 条原始 Span，不分页。"""
@@ -123,36 +100,6 @@ class SpanLevelHandler(BaseRumLevelHandler):
         if view_id:
             timeline["start_time"], timeline["end_time"] = self._view_time_range(spans)
         return timeline
-
-    # ---- 内部工具方法 ----
-
-    def _query_related_spans(self, span: dict[str, Any]) -> list[dict[str, Any]]:
-        """仅对 View 类型补查关联 Span：同 View ID 下 span_type=view / vital 的记录。
-
-        - 按 ``attributes.view.id`` + ``span_type`` 过滤；``view.id`` 为 UUID 全局唯一，不追加 Session 条件。
-        - 不指定时间边界，由查询层基于 retention 补齐保留期窗口（``query_list(None, None, ...)``）。
-        - 单次最多返回 1000 条 View / Vital 记录，不分页；Builder 仅在这些记录中挑选最新快照。
-        - 其他类型返回空列表，避免不必要的存储查询。
-        """
-        flat = flatten_dict_data(span)
-        if flat.get("attributes.span_type") != RumSpanType.VIEW.value:
-            return []
-
-        view_id = flat.get("attributes.view.id")
-        if not isinstance(view_id, str) or not view_id:
-            return []
-
-        filters: list[types.Filter] = [
-            {"key": "attributes.view.id", "value": [view_id], "operator": FilterOperator.EQUAL},
-            {
-                "key": "attributes.span_type",
-                "value": list(self.VIEW_RELATED_SPAN_TYPES),
-                "operator": FilterOperator.EQUAL,
-            },
-        ]
-        return self.query.query_list(
-            start_time=None, end_time=None, offset=0, limit=self.VIEW_RELATED_SPAN_LIMIT, filters=filters
-        )
 
     @staticmethod
     def _view_time_range(spans: list[dict[str, Any]]) -> tuple[int | None, int | None]:
