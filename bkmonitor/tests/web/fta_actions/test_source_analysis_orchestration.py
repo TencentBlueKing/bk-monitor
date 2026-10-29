@@ -1124,6 +1124,82 @@ class TestSourceAnalysisOrchestration(TestCase):
         advance.assert_called_once_with(execution.analysis_id)
         apply_async.assert_called_once_with(args=(execution.analysis_id,), countdown=3)
 
+    def test_owner_trigger_prepares_and_reads_back_credentials_before_dispatch(self):
+        execution = self.create_execution(run_as_user="repository-owner")
+        request = object()
+        persisted = {}
+
+        def prepare(_request):
+            self.assertIs(_request, request)
+            persisted["repository-owner"] = SimpleNamespace(access_token="persisted-owner-token")
+            return persisted["repository-owner"]
+
+        with (
+            patch("fta_web.issue.resources.get_request", return_value=request),
+            patch("fta_web.issue.resources.get_request_username", return_value="repository-owner"),
+            patch.object(oauth_client, "get_access_token", side_effect=prepare) as prepare_token,
+            patch.object(
+                oauth_client, "get_access_token_by_user", side_effect=lambda username: persisted[username]
+            ) as recover,
+            patch.object(SourceAnalysisExecutionBaseResource, "advance_bkfara_task", return_value=None) as advance,
+        ):
+            SourceAnalysisExecutionBaseResource.dispatch_execution(execution)
+        prepare_token.assert_called_once_with(request)
+        recover.assert_called_once_with("repository-owner")
+        advance.assert_called_once_with(execution.analysis_id)
+        execution.refresh_from_db()
+        self.assertEqual(execution.run_as_user, "repository-owner")
+        self.assertEqual(execution.status, SourceAnalysisStatus.PENDING)
+
+    def test_editor_trigger_and_celery_never_prepare_their_own_credentials(self):
+        execution = self.create_execution(run_as_user="repository-owner")
+        for request in (object(), None):
+            with self.subTest(has_request=request is not None):
+                with (
+                    patch("fta_web.issue.resources.get_request", return_value=request),
+                    patch("fta_web.issue.resources.get_request_username", return_value="rule-editor"),
+                    patch.object(oauth_client, "get_access_token") as prepare,
+                    patch.object(
+                        oauth_client,
+                        "get_access_token_by_user",
+                        return_value=SimpleNamespace(access_token="owner-token"),
+                    ) as recover,
+                    patch.object(SourceAnalysisExecutionBaseResource, "advance_bkfara_task", return_value=None),
+                ):
+                    SourceAnalysisExecutionBaseResource.dispatch_execution(execution)
+                    prepare.assert_not_called()
+                    recover.assert_called_once_with("repository-owner")
+
+    def test_owner_credential_preparation_failure_does_not_dispatch(self):
+        execution = self.create_execution(run_as_user="repository-owner")
+        with (
+            patch("fta_web.issue.resources.get_request", return_value=object()),
+            patch("fta_web.issue.resources.get_request_username", return_value="repository-owner"),
+            patch.object(oauth_client, "get_access_token", side_effect=TokenException("login expired")),
+            patch.object(oauth_client, "get_access_token_by_user") as recover,
+            patch.object(SourceAnalysisExecutionBaseResource, "advance_bkfara_task") as advance,
+        ):
+            SourceAnalysisExecutionBaseResource.dispatch_execution(execution)
+        advance.assert_not_called()
+        recover.assert_not_called()
+        execution.refresh_from_db()
+        self.assertEqual(execution.failure_code, "USER_ACCESS_TOKEN_UNAVAILABLE")
+        self.assertEqual(execution.run_as_user, "repository-owner")
+
+    def test_owner_token_must_be_readable_from_persistence_before_dispatch(self):
+        execution = self.create_execution(run_as_user="repository-owner")
+        with (
+            patch("fta_web.issue.resources.get_request", return_value=object()),
+            patch("fta_web.issue.resources.get_request_username", return_value="repository-owner"),
+            patch.object(oauth_client, "get_access_token", return_value=SimpleNamespace(access_token="web-only-token")),
+            patch.object(oauth_client, "get_access_token_by_user", side_effect=TokenNotExist("not persisted")),
+            patch.object(SourceAnalysisExecutionBaseResource, "advance_bkfara_task") as advance,
+        ):
+            SourceAnalysisExecutionBaseResource.dispatch_execution(execution)
+        advance.assert_not_called()
+        execution.refresh_from_db()
+        self.assertEqual(execution.failure_code, "USER_ACCESS_TOKEN_UNAVAILABLE")
+
     def test_persisted_rule_configurer_token_is_recovered_by_celery_trigger(self):
         execution = self.create_execution(bkfara_provision_id=None)
         persisted_tokens = {

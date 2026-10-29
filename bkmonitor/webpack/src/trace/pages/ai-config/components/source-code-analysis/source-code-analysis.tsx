@@ -176,7 +176,7 @@ export default defineComponent({
      */
     const handleSaveConfig = async () => {
       if (!validateConfig() || configLoading.value || saveLoading.value) return false;
-      if (!isEdited.value) return true;
+      if (!isEdited.value && !needsOwnerInit.value) return true;
       const params = {
         bkci_project_id: bkciProjectId.value,
         repository_alias: repositoryAlias.value,
@@ -191,6 +191,7 @@ export default defineComponent({
         initialBkciProjectId.value = `${params.bkci_project_id}`;
         initialRepositoryAlias.value = `${params.repository_alias}`;
         configOwner.value = result.updated_by || '';
+        fetchAiResource();
       }
       return success;
     };
@@ -208,6 +209,7 @@ export default defineComponent({
         initialBkciProjectId.value = `${bkciProjectId.value}`;
         initialRepositoryAlias.value = `${repositoryAlias.value}`;
         configOwner.value = data?.updated_by === 'unknown' ? '' : data?.updated_by || '';
+        if (configOwner.value) fetchAiResource();
         // 详情回显：拉取项目/仓库全量列表并填充映射表
         projectsSelect.fetchDataInit();
         repositoriesSelect.fetchDataInit();
@@ -255,28 +257,34 @@ export default defineComponent({
     };
 
     /**
-     * 比较项目与仓库快照；旧配置缺少执行人时，也需要重新保存以初始化身份
+     * 只比较项目与仓库快照，供父页面的离开确认使用
      * 初始快照在 handleInitConfig 完成后写入，初始化前视作未编辑
      */
     const isEdited = computed(() => {
       if (initialBkciProjectId.value === null || initialRepositoryAlias.value === null) return false;
       return (
-        (!!initialBkciProjectId.value && !!initialRepositoryAlias.value && !configOwner.value) ||
         `${bkciProjectId.value}` !== `${initialBkciProjectId.value}` ||
         `${repositoryAlias.value}` !== `${initialRepositoryAlias.value}`
       );
     });
+    const needsOwnerInit = computed(
+      () => !!initialBkciProjectId.value && !!initialRepositoryAlias.value && !configOwner.value
+    );
 
     const handleAddRule = () => {
       if (configLoading.value || saveLoading.value || saveConfirmVisible.value || !validateConfig()) return;
-      if (initialBkciProjectId.value && initialRepositoryAlias.value && !isEdited.value) {
+      if (initialBkciProjectId.value && initialRepositoryAlias.value && !isEdited.value && !needsOwnerInit.value) {
         handleRuleSliderChange(true);
         return;
       }
 
       saveConfirmVisible.value = true;
       InfoBox({
-        title: t('项目和代码库配置尚未保存，是否保存并继续？'),
+        title: t(
+          needsOwnerInit.value && !isEdited.value
+            ? '仓库配置缺少执行人，是否使用当前用户初始化？'
+            : '项目和代码库配置尚未保存，是否保存并继续？'
+        ),
         subTitle: t('保存仓库配置会同步更新所有规则，并使用保存人的身份执行。'),
         confirmText: t('保存并继续'),
         cancelText: t('取消'),
@@ -284,7 +292,7 @@ export default defineComponent({
           if (saveLoading.value) return false;
           if (action !== 'confirm') return true;
           const success = await handleSaveConfig();
-          return success && !isEdited.value;
+          return success && !isEdited.value && !needsOwnerInit.value;
         },
         onConfirm: () => {
           saveConfirmVisible.value = false;
@@ -330,6 +338,11 @@ export default defineComponent({
     };
 
     const fetchAiResource = () => {
+      // 切换仓库配置人后丢弃旧身份的在途响应和本地名称映射。
+      for (const select of [agentSelect, knowledgeBaseSelect, skillSelect]) {
+        select.reset();
+        select.nameMap.value = new Map();
+      }
       agentSelect.fetchList();
       knowledgeBaseSelect.fetchList();
       skillSelect.fetchList();
@@ -339,7 +352,6 @@ export default defineComponent({
       handleInitConfig();
       handleFetchRules();
       fetchMatchRuleFields();
-      fetchAiResource();
     });
 
     return {
@@ -384,6 +396,7 @@ export default defineComponent({
       handleChangeBkciProjectId,
       save: handleSaveConfig,
       isEdited,
+      needsOwnerInit,
       agentNameMap: agentSelect.nameMap,
       knowledgeNameMap: knowledgeBaseSelect.nameMap,
       skillNameMap: skillSelect.nameMap,
@@ -444,7 +457,7 @@ export default defineComponent({
           {
             icon: () => <span class='icon-monitor icon-storehouse' />,
             title: this.t('源码仓库关联'),
-            description: this.t('保存仓库配置会同步更新所有规则，并使用保存人的身份执行。'),
+            description: this.t('关联后，告警中心的 AI 分析可基于蓝盾构建与 Git 变更进行'),
             content: () => (
               <div class='form-items'>
                 {formItem({
@@ -641,13 +654,14 @@ export default defineComponent({
           '2'
         )}
         <Button
-          disabled={this.configLoading || this.saveConfirmVisible || !this.isEdited}
+          disabled={this.configLoading || this.saveConfirmVisible || (!this.isEdited && !this.needsOwnerInit)}
           loading={this.saveLoading}
           theme='primary'
           onClick={this.handleSaveConfig}
         >
           {this.t('保存仓库配置')}
         </Button>
+        <span class='repository-save-tip'>{this.t('保存仓库配置会同步更新所有规则，并使用保存人的身份执行。')}</span>
       </div>
     );
   },

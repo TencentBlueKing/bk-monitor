@@ -36,6 +36,7 @@ function harness({ config = {}, getConfig = async () => config, save = async () 
   const dialogs = [];
   const saves = [];
   const creates = [];
+  const aiSelectors = [];
   let ruleQueries = 0;
   const selector = () => ({
     list: vue.shallowRef([]),
@@ -43,6 +44,7 @@ function harness({ config = {}, getConfig = async () => config, save = async () 
     nameMap: vue.shallowRef(new Map()),
     fetchDataInit() {},
     fetchList() {},
+    reset() {},
   });
   const dependencies = {
     vue: { ...vue, onMounted: callback => mounted.push(callback) },
@@ -56,7 +58,17 @@ function harness({ config = {}, getConfig = async () => config, save = async () 
     'bkui-vue/lib/icon': { Plus: 'Plus' },
     'trace/directive/overflow-tips': {},
     'vue-i18n': { useI18n: () => ({ t: value => value }) },
-    '../../composables/use-ai-resource-select': { useAiResourceSelect: selector },
+    '../../composables/use-ai-resource-select': {
+      useAiResourceSelect: () => {
+        const select = selector();
+        select.fetchCount = 0;
+        select.resetCount = 0;
+        select.fetchList = () => select.fetchCount++;
+        select.reset = () => select.resetCount++;
+        aiSelectors.push(select);
+        return select;
+      },
+    },
     '../../composables/use-bkci-projects-select': { useBkciProjectsSelect: selector },
     '../../composables/use-bkci-repositories-select': { useBkciRepositoriesSelect: selector },
     '../../composables/use-match-rule-fields': {
@@ -111,6 +123,7 @@ function harness({ config = {}, getConfig = async () => config, save = async () 
     dialogs,
     saves,
     creates,
+    aiSelectors,
     get ruleQueries() {
       return ruleQueries;
     },
@@ -182,13 +195,42 @@ test('saving repository configuration is disabled during initialization and enab
 test('legacy configuration without a repository owner must be initialized before adding rules', async () => {
   const h = harness({ config: { ...savedConfig, updated_by: 'unknown' } });
   await flush();
-  assert.equal(h.state.isEdited.value, true);
+  assert.equal(h.state.isEdited.value, false);
+  assert.equal(h.state.needsOwnerInit.value, true);
   assert.equal(h.saveButton().props.disabled, false);
   h.state.handleAddRule();
   assert.equal(h.dialogs.length, 1);
+  assert.equal(h.dialogs[0].title, '仓库配置缺少执行人，是否使用当前用户初始化？');
   assert.equal(await h.confirm(), true);
   assert.equal(h.state.isEdited.value, false);
+  assert.equal(h.state.needsOwnerInit.value, false);
   assert.equal(h.saveButton().props.disabled, true);
+});
+
+test('missing execution owner is not a dirty form and does not require saving to leave', async () => {
+  for (const updated_by of ['', null, 'unknown']) {
+    const h = harness({ config: { ...savedConfig, updated_by } });
+    await flush();
+    assert.equal(h.state.isEdited.value, false);
+    assert.equal(h.state.needsOwnerInit.value, true);
+    assert.equal(h.saves.length, 0);
+    h.state.repositoryAlias.value = 'changed';
+    assert.equal(h.state.isEdited.value, true);
+  }
+});
+
+test('resource options load after repository identity and reset after saving a changed binding', async () => {
+  const initial = deferred();
+  const h = harness({ getConfig: () => initial.promise });
+  assert.ok(h.aiSelectors.every(select => select.fetchCount === 0));
+  initial.resolve(savedConfig);
+  await flush();
+  assert.ok(h.aiSelectors.every(select => select.fetchCount === 1));
+  h.state.agentNameMap.value.set('old-agent', 'Old Identity Agent');
+  h.state.repositoryAlias.value = 'team/changed';
+  await h.state.handleSaveConfig();
+  assert.ok(h.aiSelectors.every(select => select.fetchCount === 2 && select.resetCount === 2));
+  assert.equal(h.state.agentNameMap.value.size, 0);
 });
 
 test('editing either the saved project or repository requires confirmation', async () => {

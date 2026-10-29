@@ -314,24 +314,25 @@ class SourceAnalysisBaseResource(IssueAIAnalysisWhitelistMixin, Resource):
 
     @staticmethod
     @using_cache(CacheType.AIDEV)
-    def query_visible_aidev_items(resource_type: str, id_field: str) -> list[dict]:
+    def query_visible_aidev_items(resource_type: str, id_field: str, bk_username: str = "") -> list[dict]:
         """选项接口专用的带缓存全量查询。
 
         一次下拉展开就要遍历上游全部分页，千级资源约 5 次请求，Agent 与 Skill 两个选择器
         叠加后单次打开规则编辑侧弹的开销可观，因此按登录用户短期缓存整份列表。
-        CacheType.AIDEV 是 user_related，缓存键带用户名，与 AIDEV 按当前用户登录态
-        过滤资源的口径一致，不会跨用户串数据。
+        缓存键同时带请求用户和实际执行人；仓库配置人变化后不会命中旧身份的资源列表。
         """
 
         base = SourceAnalysisBaseResource
         list_resources = getattr(api.aidev, base.AIDEV_LIST_APIS[resource_type])
-        return base.list_visible_aidev_items(list_resources, id_field)
+        request_params = {"bk_username": bk_username} if bk_username else {}
+        return base.list_visible_aidev_items(list_resources, id_field, **request_params)
 
     @staticmethod
-    def list_visible_aidev_space_name_map() -> dict[str, str]:
+    def list_visible_aidev_space_name_map(bk_username: str = "") -> dict[str, str]:
         """实时查询当前用户可见空间，并转换成 ID 到名称的映射。"""
 
-        spaces = api.aidev.list_spaces()
+        request_params = {"bk_username": bk_username} if bk_username else {}
+        spaces = api.aidev.list_spaces(**request_params)
         if not isinstance(spaces, list) or any(not isinstance(space, dict) for space in spaces):
             raise ValueError("invalid AIDEV space list")
 
@@ -380,6 +381,17 @@ class SourceAnalysisBaseResource(IssueAIAnalysisWhitelistMixin, Resource):
     def is_rule_complete(rule: IssueSourceAnalysisRule) -> bool:
         # 智能体、知识库、Skill 都不是启用前提；禁用规则也不要求提前持久化执行身份。
         return bool(rule.is_default or rule.conditions)
+
+    @staticmethod
+    def get_aidev_run_as_user(bk_biz_id: int) -> str:
+        """选择器使用实际执行身份；固定跨环境 Token 不从本地用户恢复凭证。"""
+
+        if settings.AIDEV_ACCESS_TOKEN:
+            return ""
+        config = IssueSourceAnalysisConfig.objects.filter(bk_biz_id=bk_biz_id).first()
+        if config is None or config.update_user in {"", "unknown"}:
+            raise SourceAnalysisExecutionCredentialUnavailableError()
+        return config.update_user
 
     @classmethod
     def validate_rule_definition(cls, rule: IssueSourceAnalysisRule, config: IssueSourceAnalysisConfig | None) -> None:
@@ -576,6 +588,12 @@ class SourceAnalysisExecutionBaseResource(IssueAIAnalysisWhitelistMixin, Resourc
         """确认规则执行用户凭证并推进一次，后续轮询交给 Celery。"""
 
         try:
+            request = get_request(peaceful=True)
+            if request is not None and get_request_username() == execution.run_as_user:
+                # 配置人自己发起时可用当前登录态补票；他人触发和 Celery 只恢复快照用户。
+                token = oauth_client.get_access_token(request)
+                if not getattr(token, "access_token", ""):
+                    raise TokenNotExist("current execution user access token is empty")
             persisted_token = oauth_client.get_access_token_by_user(execution.run_as_user)
             if not getattr(persisted_token, "access_token", ""):
                 raise TokenNotExist("persisted user access token is empty")
@@ -1919,17 +1937,17 @@ class BaseListSourceAnalysisAidevOptionsResource(SourceAnalysisBaseResource):
 
     @staticmethod
     @using_cache(CacheType.AIDEV)
-    def query_aidev_space_name_map() -> dict[str, str]:
+    def query_aidev_space_name_map(bk_username: str = "") -> dict[str, str]:
         """拉取当前用户可见空间的 ID 到名称映射。
 
         空间是低频变化的用户态元数据，而 Agent、Skill 选择器每次查询都需要它，
         因此按用户维度短期缓存，避免每个选项请求都额外打一次 AIDEV。
         """
 
-        return SourceAnalysisBaseResource.list_visible_aidev_space_name_map()
+        return SourceAnalysisBaseResource.list_visible_aidev_space_name_map(bk_username)
 
     @classmethod
-    def get_aidev_space_name_map(cls) -> dict[str, str]:
+    def get_aidev_space_name_map(cls, bk_username: str = "") -> dict[str, str]:
         """空间名称只用于选择器展示，查询失败时返回空映射，由调用方回退到 space_id。
 
         异常在这里消化而不是交给 query_aidev_space_name_map 缓存，
@@ -1937,7 +1955,7 @@ class BaseListSourceAnalysisAidevOptionsResource(SourceAnalysisBaseResource):
         """
 
         try:
-            return cls.query_aidev_space_name_map()
+            return cls.query_aidev_space_name_map(bk_username)
         except (BKAPIError, TypeError, ValueError) as error:
             logger.warning("Source analysis AIDEV space name map degraded: %s", type(error).__name__)
             return {}
@@ -1969,11 +1987,14 @@ class BaseListSourceAnalysisAidevOptionsResource(SourceAnalysisBaseResource):
         return {"total": len(options), "list": options}
 
     def perform_request(self, validated_request_data: dict) -> dict:
-        # bk_biz_id 由 ViewSet 用于 BKM 业务权限校验；AIDEV 使用当前用户登录态独立过滤资源权限。
+        # 不接受前端指定执行人，始终从业务仓库配置中解析。
+        bk_username = self.get_aidev_run_as_user(validated_request_data["bk_biz_id"])
         try:
-            items = self.query_visible_aidev_items(self.aidev_resource_type, self.id_field)
-            space_name_map = self.get_aidev_space_name_map() if items else {}
+            items = self.query_visible_aidev_items(self.aidev_resource_type, self.id_field, bk_username)
+            space_name_map = self.get_aidev_space_name_map(bk_username) if items else {}
             return self.build_aidev_options(items, space_name_map)
+        except TokenException as error:
+            raise SourceAnalysisExecutionCredentialUnavailableError() from error
         except (BKAPIError, TypeError, ValueError) as error:
             self.raise_upstream_unavailable(error)
 

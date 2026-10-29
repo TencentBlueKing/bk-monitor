@@ -502,6 +502,8 @@ export default {
   '保存仓库配置会同步更新所有规则，并使用保存人的身份执行。':
     'Saving the repository configuration updates all rules to run as the user saving it.',
   保存仓库配置: 'Save Repository Configuration',
+  '仓库配置缺少执行人，是否使用当前用户初始化？':
+    'The repository configuration has no execution user. Initialize it with the current user?',
   保存并继续: 'Save and continue',
   保存并应用为全局: 'Save and Apply Globally',
   批量编辑: 'Batch Edit',
