@@ -35,6 +35,7 @@ from apm_web.profile.active_collection.serializers import (
     EnableRequestSerializer,
     EventListRequestSerializer,
     ExecutionCancelRequestSerializer,
+    ExecutionRenameRequestSerializer,
     ExecutionDetailRequestSerializer,
     MetaConfigRequestSerializer,
     ProcessPreviewRequestSerializer,
@@ -281,6 +282,18 @@ class CancelExecutionResource(Resource):
             return
 
         api.apm_api.cancel_active_profiling_execution(**_backend_params(validated_request_data))
+
+
+class RenameExecutionResource(Resource):
+    """修改单次执行的任务名：只改执行行上的任务名快照，计划本身的名字不变，允许重复"""
+
+    RequestSerializer = ExecutionRenameRequestSerializer
+
+    def perform_request(self, validated_request_data):
+        if validated_request_data.get("is_mock"):
+            return
+
+        api.apm_api.rename_active_profiling_execution(**_backend_params(validated_request_data))
 
 
 class QueryResultsResource(ActiveProfilingResultMixin, Resource):

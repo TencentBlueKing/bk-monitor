@@ -81,6 +81,8 @@ class ActiveProfilingEventQueryHandler:
 
     def query_topk(self, params):
         """搜索框候选值，与两个列表一样按 scheduled_at 选取，按事件数倒序取前 limit 个"""
+        if params.get("keyword"):
+            raise ValueError(_("暂不支持按关键字搜索候选"))
         field = params["field"]
         limit = params["limit"]
         if field in ("process_names", "process_pids"):
@@ -272,7 +274,7 @@ class ActiveProfilingEventQueryHandler:
         )
 
     def _build_execution_filter(self, params):
-        """两个列表共用的执行级筛选，任务名、执行方式、采集方式与类型在同一次执行内一致。
+        """两个列表共用的执行级筛选，任务 ID、任务名、执行方式、采集方式与类型在同一次执行内一致。
         dimension 都是 keyword，scheduled_at 按字典序比较，13 位毫秒时间戳的字典序与数值序一致"""
         filters = params.get("filters", {})
         optional_filters = {
@@ -282,6 +284,8 @@ class ActiveProfilingEventQueryHandler:
             "collection_type": filters.get("collection_types"),
         }
         filter_dict = {key: value for key, value in optional_filters.items() if value}
+        if filters.get("task_id"):
+            filter_dict["task_id"] = str(filters["task_id"])
 
         # running 只会出现在最近一个运行窗口内；过期按 scheduled_at 判定，与行状态同一口径
         lower, upper = params["start_time"], params["end_time"]

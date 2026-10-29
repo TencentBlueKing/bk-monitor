@@ -64,6 +64,7 @@ from apm.resources import (
     QueryTraceListResource,
     QueryTraceOptionValues,
     ReleaseAppConfigResource,
+    RenameActiveProfilingExecutionResource,
     StartApplicationResource,
     StartApplicationSimpleResource,
     StopApplicationResource,
@@ -152,6 +153,7 @@ class ProfilingViewSet(ResourceViewSet):
             "POST", QueryActiveProfilingExecutionDetailResource, endpoint="active_profiling_execution_detail"
         ),
         ResourceRoute("POST", CancelActiveProfilingExecutionResource, endpoint="active_profiling_execution_cancel"),
+        ResourceRoute("POST", RenameActiveProfilingExecutionResource, endpoint="active_profiling_execution_rename"),
         ResourceRoute("GET", ListActiveProfilingTasksResource, endpoint="active_profiling_tasks"),
         ResourceRoute("POST", SubmitActiveProfilingTaskResource, endpoint="active_profiling_task_submit"),
         ResourceRoute("POST", EditActiveProfilingTaskResource, endpoint="active_profiling_task_edit"),

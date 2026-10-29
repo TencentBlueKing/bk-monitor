@@ -96,6 +96,7 @@ class ActiveProfilingTimeRangeSerializer(serializers.Serializer):
 
 class ActiveProfilingListFiltersSerializer(serializers.Serializer):
     ips = serializers.ListField(label="IP 筛选", child=serializers.CharField(), required=False)
+    task_id = serializers.IntegerField(label="任务 ID", min_value=1, required=False)
     task_name = serializers.CharField(label="任务名称关键词", required=False, allow_blank=True)
     process_names = serializers.ListField(label="进程名筛选", child=serializers.CharField(), required=False)
     process_pids = serializers.ListField(label="PID 筛选", child=serializers.CharField(), required=False)
@@ -120,6 +121,7 @@ class ActiveProfilingListRequestSerializer(ActiveProfilingTimeRangeSerializer, A
 class ActiveProfilingTopKRequestSerializer(ActiveProfilingTimeRangeSerializer, ActiveProfilingQuerySourceSerializer):
     field = serializers.ChoiceField(label="候选字段", choices=ACTIVE_PROFILING_TOPK_FIELDS)
     limit = serializers.IntegerField(label="返回数量", min_value=1, default=20)
+    keyword = serializers.CharField(label="候选关键字", required=False, allow_blank=True)
 
 
 class ActiveProfilingExecutionKeySerializer(serializers.Serializer):
@@ -141,6 +143,10 @@ class ActiveProfilingExecutionCancelRequestSerializer(ActiveProfilingExecutionKe
         ip = serializers.CharField(label="主机 IP")
 
     hosts = serializers.ListField(label="待取消主机", child=HostSerializer(), allow_empty=False)
+
+
+class ActiveProfilingExecutionRenameRequestSerializer(ActiveProfilingExecutionKeySerializer):
+    task_name = serializers.CharField(label="任务名称", max_length=128)
 
 
 class ActiveProfilingTaskListRequestSerializer(serializers.Serializer):

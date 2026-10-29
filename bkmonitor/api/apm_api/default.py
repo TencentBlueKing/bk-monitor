@@ -393,6 +393,15 @@ class CancelActiveProfilingExecutionResource(ApmAPIGWResource):
     method = "POST"
 
 
+class RenameActiveProfilingExecutionResource(ApmAPIGWResource):
+    """
+    修改主动 Profiling 执行的任务名
+    """
+
+    action = "/app/apm/profiling/active_profiling_execution_rename/"
+    method = "POST"
+
+
 class ListActiveProfilingTasksResource(ApmAPIGWResource):
     """
     查询主动 Profiling 计划

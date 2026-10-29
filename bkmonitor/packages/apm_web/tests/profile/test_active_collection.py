@@ -50,6 +50,7 @@ from apm_web.profile.active_collection.resources import (
     QueryResultDataTypesResource,
     QueryResultsResource,
     QueryTopKResource,
+    RenameExecutionResource,
     SubmitTaskResource,
     SwitchTaskResource,
 )
@@ -58,6 +59,7 @@ from apm_web.profile.active_collection.serializers import (
     EventListRequestSerializer,
     ExecutionCancelRequestSerializer,
     ExecutionDetailRequestSerializer,
+    ExecutionRenameRequestSerializer,
     PlannedTaskSubmitRequestSerializer,
     ProcessPreviewRequestSerializer,
     ResultDataTypesRequestSerializer,
@@ -173,6 +175,8 @@ CANCEL_REQUEST = {
     **EXECUTION_DETAIL_REQUEST,
     "hosts": [{"bk_host_id": 456, "ip": "127.0.0.1"}, {"bk_host_id": 457, "ip": "127.0.0.2"}],
 }
+
+RENAME_REQUEST = {**EXECUTION_DETAIL_REQUEST, "task_name": "java-cpu-renamed"}
 
 TOPK_REQUEST = {
     "bk_biz_id": 2,
@@ -679,6 +683,7 @@ def test_active_collection_routes_are_registered():
     assert reverse("apm_web:topk-list") == "/apm/profile_api/active_collection/topk/"
     assert reverse("apm_web:executions-detail") == "/apm/profile_api/active_collection/executions/detail/"
     assert reverse("apm_web:executions-cancel") == "/apm/profile_api/active_collection/executions/cancel/"
+    assert reverse("apm_web:executions-rename") == "/apm/profile_api/active_collection/executions/rename/"
     assert reverse("apm_web:results-query") == "/apm/profile_api/active_collection/results/query/"
     assert reverse("apm_web:results-data-types") == "/apm/profile_api/active_collection/results/data_types/"
     assert reverse("apm_web:results-export") == "/apm/profile_api/active_collection/results/export/"
@@ -727,6 +732,14 @@ def test_active_collection_routes_are_registered():
         (TopKRequestSerializer, TOPK_REQUEST),
         (TopKRequestSerializer, {**TOPK_REQUEST, "field": "process_names", "limit": 5}),
         (TopKRequestSerializer, {**TOPK_REQUEST, "field": "process_pids"}),
+        (TopKRequestSerializer, {**TOPK_REQUEST, "keyword": "java"}),
+        (TopKRequestSerializer, {**TOPK_REQUEST, "keyword": ""}),
+        (ExecutionRenameRequestSerializer, RENAME_REQUEST),
+        (
+            ExecutionRenameRequestSerializer,
+            {"bk_biz_id": 2, "schedule_type": "immediate", "scheduled_at": 1788310800000, "task_name": "adhoc"},
+        ),
+        (EventListRequestSerializer, with_filters(task_id=123)),
         (ExecutionDetailRequestSerializer, EXECUTION_DETAIL_REQUEST),
         (
             ExecutionDetailRequestSerializer,
@@ -948,6 +961,11 @@ def test_request_serializers_reject_invalid_nested_config(serializer_cls, params
             {**TASK_SUBMIT_REQUEST, "schedule": {**TASK_SUBMIT_REQUEST["schedule"], "timezone": "Mars/Olympus"}},
         ),
         (EventListRequestSerializer, {**EVENT_LIST_REQUEST, "source": "kafka"}),
+        (ExecutionRenameRequestSerializer, {**RENAME_REQUEST, "task_name": ""}),
+        (ExecutionRenameRequestSerializer, {**RENAME_REQUEST, "task_name": "a" * 129}),
+        # 计划执行必须带 task_id 定位
+        (ExecutionRenameRequestSerializer, {key: value for key, value in RENAME_REQUEST.items() if key != "task_id"}),
+        (EventListRequestSerializer, with_filters(task_id=0)),
     ],
 )
 def test_request_serializers_reject_invalid_boundaries(serializer_cls, params):
@@ -1114,7 +1132,7 @@ def test_task_submit_rejects_invalid_cron_expression(cron_expression):
         (
             QueryTopKResource,
             "query_active_profiling_top_k",
-            {"bk_biz_id": 2, "start_time": 1, "end_time": 2, "field": "target"},
+            {"bk_biz_id": 2, "start_time": 1, "end_time": 2, "field": "target", "keyword": "127"},
             [{"value": "127.0.0.1", "alias": "127.0.0.1", "count": 1}],
             [{"value": "127.0.0.1", "alias": "127.0.0.1", "count": 1}],
         ),
@@ -1172,6 +1190,7 @@ def test_backend_queries_forward_query_source(mocker, resource_cls, api_name, re
             "cancel_active_profiling_execution",
             {**EXECUTION_DETAIL_REQUEST, "hosts": [{"bk_host_id": 456, "ip": "127.0.0.1"}]},
         ),
+        (RenameExecutionResource, "rename_active_profiling_execution", RENAME_REQUEST),
     ],
 )
 def test_backend_operations_forward_request_and_return_nothing(mocker, resource_cls, api_name, request_data):
@@ -1192,6 +1211,7 @@ def test_backend_resources_return_fixtures_without_calling_backend(mocker):
             "list_active_profiling_tasks",
             "submit_active_profiling_task",
             "cancel_active_profiling_execution",
+            "rename_active_profiling_execution",
         )
     ]
 
@@ -1199,6 +1219,7 @@ def test_backend_resources_return_fixtures_without_calling_backend(mocker):
     assert ListTasksResource().perform_request({"is_mock": True}) == fixtures.TASK_LIST
     assert SubmitTaskResource().perform_request({"is_mock": True}) is None
     assert CancelExecutionResource().perform_request({"is_mock": True}) is None
+    assert RenameExecutionResource().perform_request({"is_mock": True}) is None
 
     for backend_api in backend_apis:
         backend_api.assert_not_called()

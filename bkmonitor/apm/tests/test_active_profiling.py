@@ -38,11 +38,13 @@ from apm.resources import (
     QueryActiveProfilingExecutionDetailResource,
     QueryActiveProfilingHostsResource,
     QueryActiveProfilingTopKResource,
+    RenameActiveProfilingExecutionResource,
     SubmitActiveProfilingTaskResource,
     SwitchActiveProfilingTaskResource,
 )
 from apm.task.tasks import stop_expired_active_profiling_tasks
 from constants.apm import BUILTIN_EVENT_GROUP_LABEL, BUILTIN_EVENT_GROUP_NAME, BUILTIN_PROFILING_APP_NAME
+from core.drf_resource.exceptions import CustomException
 from core.errors.api import BKAPIError
 from metadata.models import DataSource
 
@@ -359,6 +361,8 @@ def test_query_hosts_orders_by_scheduled_at_and_derives_outdate(query_rows):
         ({"process_pids": ["java:2341"]}, []),
         ({"process_pids": ["java:300"]}, []),
         ({"schedule_types": ["immediate"]}, [(MID_AT, 459), (OLD_AT, 458), (OLD_AT, 456)]),
+        # 任务名可以改，按计划查历史用任务 ID 精确匹配
+        ({"task_id": 12}, [(RECENT_AT, 457), (RECENT_AT, 456)]),
         ({"task_name": "adhoc", "ips": ["127.0.0.1"]}, [(OLD_AT, 456)]),
         ({"status": "unknown"}, [(MID_AT, 459)]),
         ({"status": "succeed"}, [(RECENT_AT, 456)]),
@@ -547,6 +551,90 @@ def test_topk_reads_limited_recent_rows_for_processes(query_rows, mocker, field,
     candidates = QueryActiveProfilingTopKResource().request({**TIME_RANGE, "field": field})
 
     assert [item["value"] for item in candidates] == expected
+
+
+@pytest.mark.parametrize(
+    ("field", "keyword", "expected"),
+    [
+        ("target", "0.0.3", [("127.0.0.3", 1)]),
+        ("task_name", "adhoc", [("order-api-cpu-adhoc", 2)]),
+        # 进程名里的逗号已由采集端归一化为 _，关键字同样归一化
+        ("process_names", "order,api", [("order_api", 1)]),
+        # PID 候选按进程名或 PID 片段命中
+        ("process_pids", "300", [("java:3000", 1)]),
+        ("process_pids", "order", [("order,api:2341", 1)]),
+        # 空关键字等同不传
+        ("process_names", "", [("order_api", 1), ("java", 1)]),
+    ],
+)
+@pytest.mark.django_db(databases="__all__")
+def test_topk_filters_candidates_by_keyword(query_rows, field, keyword, expected):
+    candidates = QueryActiveProfilingTopKResource().request({**TIME_RANGE, "field": field, "keyword": keyword})
+
+    assert [(item["value"], item["count"]) for item in candidates] == expected
+
+
+@pytest.mark.django_db(databases="__all__")
+def test_topk_keyword_reads_matching_rows_beyond_recent_rows(query_rows, mocker):
+    mocker.patch(f"{HANDLER_MODULE}.ACTIVE_PROFILING_PROCESS_TOPK_RECENT_ROWS", 1)
+    create_execution(
+        [
+            {
+                "bk_host_id": 460,
+                "ip": "127.0.0.12",
+                "status": "succeed",
+                "started_at": MID_AT + 100,
+                "process_names": "java,nginx",
+                "process_pids": "4000,812",
+                "processes": [{"pid": 4000, "process_name": "java"}, {"pid": 812, "process_name": "nginx"}],
+            }
+        ],
+        schedule_type="cron",
+        task_id=13,
+        scheduled_at=MID_AT,
+        task_name="java-cpu",
+        collection_method="java",
+        collection_type="java_cpu",
+        execution_status="succeed",
+        status_summary={"succeed": 1},
+    )
+
+    candidates = QueryActiveProfilingTopKResource().request({**TIME_RANGE, "field": "process_pids", "keyword": "java"})
+
+    # 只读包含关键字的行，最近一行之外的进程也能搜到；同一行里不包含关键字的 nginx 不作为候选
+    assert [item["value"] for item in candidates] == ["java:4000"]
+
+
+@pytest.mark.django_db(databases="__all__")
+def test_rename_immediate_execution_allows_duplicated_name(query_rows, mocker):
+    mocker.patch("apm.resources.get_request_tenant_id", return_value="system")
+
+    for scheduled_at in (MID_AT, OLD_AT):
+        request = {"bk_biz_id": 2, "scheduled_at": scheduled_at, "task_name": "renamed"}
+        assert RenameActiveProfilingExecutionResource().request(request) is None
+
+    # 任务名只存在执行行，任务历史、已采数据与详情都读它
+    rows = ListActiveProfilingExecutionsResource().request({**TIME_RANGE, "filters": {"task_name": "renamed"}})
+    assert [row["scheduled_at"] for row in rows] == [MID_AT, OLD_AT]
+    assert {row["task"]["name"] for row in query_hosts(task_name="renamed")} == {"renamed"}
+
+
+@pytest.mark.django_db(databases="__all__")
+def test_rename_planned_execution_by_task_id(query_rows, mocker):
+    mocker.patch("apm.resources.get_request_tenant_id", return_value="system")
+    request = {"bk_biz_id": 2, "scheduled_at": RECENT_AT, "task_name": "renamed"}
+
+    # 不带 task_id 只按立即执行定位
+    with pytest.raises(ValueError):
+        RenameActiveProfilingExecutionResource().request(request)
+    with pytest.raises(CustomException):
+        RenameActiveProfilingExecutionResource().request({**request, "task_id": 12, "task_name": ""})
+
+    assert RenameActiveProfilingExecutionResource().request({**request, "task_id": 12}) is None
+
+    # 只改这一次执行的任务名，计划的历史按任务 ID 筛选，不受改名影响
+    rows = ListActiveProfilingExecutionsResource().request({**TIME_RANGE, "filters": {"task_id": 12}})
+    assert [(row["scheduled_at"], row["task_name"]) for row in rows] == [(RECENT_AT, "renamed")]
 
 
 @pytest.mark.django_db(databases="__all__")
@@ -1362,6 +1450,7 @@ def test_es_query_hosts_pushes_filters_down_to_es(host_query_apis):
     query_es_hosts(
         with_filters(
             ips=["127.0.0.1"],
+            task_id=123,
             task_name="cpu",
             process_names=["my,app", "java"],
             process_pids=["1234", "postgres: writer:812"],
@@ -1384,6 +1473,7 @@ def test_es_query_hosts_pushes_filters_down_to_es(host_query_apis):
         "process_names__include": ["my_app", "java"],
         # 维度无法按同一进程配对，PID 候选的 进程名:PID 只取最后一个冒号后的 PID
         "process_pids__include": ["1234", "812"],
+        "task_id": "123",
         "task_name__include": "cpu",
         "schedule_type": ["cron"],
         "collection_method": ["perf"],
@@ -1948,6 +2038,13 @@ def test_es_topk_reads_limited_recent_events_for_processes(host_query_apis, mock
     result = query_es_topk({**TOPK_REQUEST, "field": "process_names"})
 
     assert result == [{"value": "java", "alias": "java", "count": 1}]
+
+
+def test_es_topk_rejects_keyword(host_query_apis):
+    with pytest.raises(ValueError):
+        query_es_topk({**TOPK_REQUEST, "field": "process_names", "keyword": "java"})
+
+    host_query_apis["query"].assert_not_called()
 
 
 IMMEDIATE_DETAIL_REQUEST = {"bk_biz_id": 2, "schedule_type": "immediate", "scheduled_at": 1788411800000}

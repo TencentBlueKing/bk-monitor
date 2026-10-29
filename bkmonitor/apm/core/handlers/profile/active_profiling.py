@@ -214,21 +214,25 @@ class ActiveProfilingExecutionQueryHandler:
         ]
 
     def query_topk(self, params):
-        """搜索框候选值，按计划时间范围选取；计数只用于排序，统一按主机执行数计，进程候选按最近出现排序"""
+        """搜索框候选值，按计划时间范围选取；计数只用于排序，统一按主机执行数计，进程候选按最近出现排序。
+        带关键字时只返回包含关键字的候选"""
         field = params["field"]
         limit = params["limit"]
+        keyword = params.get("keyword")
         hosts = ActiveProfilingHostExecution.objects.filter(
             bk_biz_id=self.bk_biz_id, scheduled_at__gte=params["start_time"], scheduled_at__lte=params["end_time"]
         )
         if field == "target":
+            if keyword:
+                hosts = hosts.filter(ip__contains=keyword)
             rows = hosts.exclude(ip="").values_list("ip").annotate(count=Count("id")).order_by("-count")[:limit]
             return [{"value": ip, "alias": ip, "count": count} for ip, count in rows]
         if field in ("process_names", "process_pids"):
-            return self._query_recent_processes(hosts, field, limit)
+            return self._query_recent_processes(hosts, field, limit, keyword)
 
         # 执行级字段在同一次执行内一致，按执行的主机数累加
         rows = (
-            self._execution_queryset(params, {})
+            self._execution_queryset(params, {f"{field}__contains": keyword} if keyword else {})
             .exclude(**{field: ""})
             .values_list(field)
             .annotate(count=Sum("target_count"))
@@ -264,9 +268,17 @@ class ActiveProfilingExecutionQueryHandler:
             "hosts": hosts,
         }
 
-    def _query_recent_processes(self, hosts, field, limit):
+    def _query_recent_processes(self, hosts, field, limit, keyword):
         """进程候选按最近出现排序，只读最近的有限行，不对整个时间范围分组计数；
-        PID 几乎每次采集都变，全量分组的组数接近主机执行数"""
+        PID 几乎每次采集都变，全量分组的组数接近主机执行数。
+        带关键字时只读包含关键字的行，关键字少见时要沿索引扫过更多行才能读满上限"""
+        if keyword:
+            # 采集端把进程名里的逗号归一化为 _，关键字同样归一化
+            keyword = keyword.replace(",", "_")
+            keyword_q = Q(process_names__contains=keyword)
+            if field == "process_pids":
+                keyword_q |= Q(process_pids__contains=keyword)
+            hosts = hosts.filter(keyword_q)
         # 只按 scheduled_at 排序，MySQL 可沿 (bk_biz_id, scheduled_at, ...) 索引倒序读到上限即停，不用对整个时间范围排序
         rows = (
             hosts.exclude(**{field: ""})
@@ -277,7 +289,12 @@ class ActiveProfilingExecutionQueryHandler:
         )
         candidates = Counter()
         for row in rows:
-            candidates.update(self._split_process_candidates(field, row))
+            # 一行可能有多个进程，按行命中后还要只保留包含关键字的候选
+            candidates.update(
+                candidate
+                for candidate in self._split_process_candidates(field, row)
+                if not keyword or keyword in candidate.replace(",", "_")
+            )
         return [{"value": value, "alias": value, "count": count} for value, count in islice(candidates.items(), limit)]
 
     @staticmethod
@@ -299,8 +316,9 @@ class ActiveProfilingExecutionQueryHandler:
 
     @staticmethod
     def _build_execution_filter(filters):
-        """执行级筛选：任务名包含匹配，执行方式、采集方式与类型多选"""
+        """执行级筛选：任务 ID 精确匹配，任务名包含匹配，执行方式、采集方式与类型多选"""
         optional_filters = {
+            "task_id": filters.get("task_id"),
             "task_name__contains": filters.get("task_name"),
             "schedule_type__in": filters.get("schedule_types"),
             "collection_method__in": filters.get("collection_methods"),

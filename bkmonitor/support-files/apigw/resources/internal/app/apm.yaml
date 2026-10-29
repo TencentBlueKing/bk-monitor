@@ -395,6 +395,24 @@ paths:
           userVerifiedRequired: false
           resourcePermissionRequired: true
         descriptionEn: cancel execution of active profiling
+  /app/apm/profiling/active_profiling_execution_rename/:
+    post:
+      operationId: rename_active_profiling_execution
+      description: 修改主动 Profiling 执行的任务名
+      x-bk-apigateway-resource:
+        isPublic: false
+        allowApplyPermission: true
+        matchSubpath: false
+        backend:
+          name: default
+          method: post
+          path: /apm_api/v1/profiling/active_profiling_execution_rename/
+          matchSubpath: false
+        authConfig:
+          appVerifiedRequired: true
+          userVerifiedRequired: false
+          resourcePermissionRequired: true
+        descriptionEn: rename execution of active profiling
   /app/apm/profiling/active_profiling_tasks/:
     get:
       operationId: list_active_profiling_tasks

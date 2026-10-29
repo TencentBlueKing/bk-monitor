@@ -49,6 +49,7 @@ from apm.core.handlers.query.define import QueryMode
 from apm.core.handlers.query.ebpf_query import DeepFlowQuery
 from apm.core.handlers.query.proxy import QueryProxy
 from apm.models import (
+    ActiveProfilingExecution,
     ActiveProfilingTask,
     ApdexConfig,
     ApmApplication,
@@ -82,6 +83,7 @@ from apm.serializers import FilterSerializer as TraceFilterSerializer
 from apm.serializers import (
     ActiveProfilingExecutionCancelRequestSerializer,
     ActiveProfilingExecutionDetailRequestSerializer,
+    ActiveProfilingExecutionRenameRequestSerializer,
     ActiveProfilingListRequestSerializer,
     ActiveProfilingTaskEditRequestSerializer,
     ActiveProfilingTaskListRequestSerializer,
@@ -2082,6 +2084,23 @@ class CancelActiveProfilingExecutionResource(Resource):
 
     def perform_request(self, validated_request_data):
         ActiveProfilingCancelHandler(validated_request_data["bk_biz_id"]).cancel(validated_request_data)
+
+
+class RenameActiveProfilingExecutionResource(Resource):
+    """修改单次执行的任务名：只改执行行上的任务名快照，计划本身的名字不变，允许重复；
+    BMW 与执行汇总重算都不改任务名，不会被覆盖"""
+
+    RequestSerializer = ActiveProfilingExecutionRenameRequestSerializer
+
+    def perform_request(self, validated_request_data):
+        execution = ActiveProfilingExecution.get_execution(
+            get_request_tenant_id(),
+            validated_request_data["bk_biz_id"],
+            validated_request_data["scheduled_at"],
+            validated_request_data.get("task_id"),
+        )
+        execution.task_name = validated_request_data["task_name"]
+        execution.save(update_fields=["task_name", "updated_at"])
 
 
 class ListActiveProfilingTasksResource(Resource):
