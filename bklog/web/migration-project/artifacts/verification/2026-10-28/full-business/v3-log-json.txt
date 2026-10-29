@@ -1,0 +1,560 @@
+- navigation:
+  - img "logo"
+  - generic: 日志平台
+  - generic: "|"
+  - generic: D
+  - text: demo
+  - generic: 
+  - list:
+    - listitem: 检索
+    - listitem: 监控策略
+    - listitem: 仪表盘
+    - listitem: 管理
+  - generic: 
+  - generic: 
+  - generic: 
+  - generic: israelli
+  - text:   
+  - text: 
+- generic:      *         *    *       *       *       *    *       *  
+- generic: 
+- generic: 常规检索
+- generic: 场景化检索
+- generic: "[采集项]2026_peihongyao_rumpetroll_log_std (space_4248884_bklog.bcs_k8s_26888_2026_peihongyao_rumpetroll_log_8vr8c_std)"
+- generic: 
+- text:                                                                   Cmd+O
+- generic: 
+- generic: 历史查询
+- text: 
+- generic: 近 15 分钟
+- generic: 
+- generic: "off"
+- generic: 
+- text:   
+- generic: 
+- generic: 
+- text: 
+- generic: 
+- text: 
+- text: 更多
+- generic: 
+- generic: 
+- text: 回到旧版
+- generic: 
+- generic: 
+- textbox:
+  - generic: log:"clean golds success"
+- text:       
+- text: 
+- generic: 
+- generic: 
+- generic: 
+- generic: 
+- img "AI 模式"
+- text: AI 模式
+- generic: 
+- button " 查询":
+  - generic: 
+  - generic: 查询
+- generic: 原始日志
+- generic: 日志聚类
+- generic: 
+- text: 添加到仪表盘
+- generic: 
+- text: 添加告警策略
+- text: "* * *"
+- generic: 
+- textbox "搜索 字段名"
+- generic: 
+- generic: 显示字段
+- generic: 
+- text:   
+- list:
+  - generic: 
+  - generic: 
+  - generic: dtEventTimeStamp
+  - text: 
+  - generic: 
+  - generic: 
+  - generic: serverIp
+  - text:  
+  - generic: 
+  - generic: 
+  - generic: log
+  - text: 
+- generic: 可选字段
+- list:
+  - text: 
+  - generic: 
+  - text: __ext
+  - generic: "10"
+  - generic: 
+  - text: 
+  - generic: 
+  - generic: bk_host_id
+  - text:  
+  - generic: 
+  - generic: cloudId
+  - text:  
+  - generic: 
+  - generic: path
+  - text:  
+  - generic: 展开全部
+- generic: 
+- text: 内置字段
+- list
+- generic: 
+- generic: 总趋势
+- generic: （找到 15 条结果，用时 279 毫秒)
+- generic: "汇聚周期 :"
+- textbox "请选择": auto
+- generic: 
+- text:  *
+- generic: 原始
+- generic: 表格
+- generic: 日志排序
+- generic: 
+- text:   
+- checkbox "显示行号"
+- generic: 显示行号
+- checkbox "换行"
+- generic: 换行
+- generic: 
+- generic: 高亮
+- list:
+  - textbox
+  - text: 输入后按 Enter...
+- text: 
+- generic: 
+- generic: 
+- generic: 
+- generic: 
+- generic: 
+- text:                                              
+- generic: 
+- generic: "dtEventTimeStamp:"
+- generic: 2026-10-28 15:07:11
+- generic: "serverIp:"
+- generic: 30.48.121.75
+- generic: "log:"
+- generic: "["
+- generic: "2026"
+- generic: "-"
+- generic: "10"
+- generic: "-"
+- generic: "28"
+- generic: "15"
+- generic: ":"
+- generic: "07"
+- generic: ":"
+- generic: 01,192
+- generic: "]"
+- generic: 11.157.89.30
+- generic: ":"
+- generic: "20000"
+- generic: INFO
+- generic: handlers.ws
+- generic: ":"
+- mark: clean
+- mark
+- mark: golds
+- mark
+- mark: success
+- generic: KV
+- generic: JSON
+- text: 
+- generic: 
+- generic: "{"
+- generic: "\"bk_host_id\":"
+- generic: "9247775"
+- text: ","
+- generic: "\"cloudId\":"
+- generic: "0"
+- text: ","
+- generic: "\"dtEventTimeStamp\":"
+- generic: "\"2026-10-28 15:07:11\""
+- text: ","
+- generic: "\"gseIndex\":"
+- generic: "170894"
+- text: ","
+- generic: "\"iterationIndex\":"
+- generic: "0"
+- text: ","
+- generic: "\"log\":"
+- generic: "\"[2026-10-28 15:07:01,192] 11.157.89.30:20000 INFO handlers.ws: <mark>clean golds success</mark>\""
+- text: ","
+- generic: "\"path\":"
+- generic: "\"/var/host/data/bcs/service/docker/containerd/log/pods/2026-bcs-peihongyao_rumpetrollv2-1_3f1d7930-9d27-400d-858f-3586470cd708/web/0.log\""
+- text: ","
+- generic: "\"serverIp\":"
+- generic: "\"30.48.121.75\""
+- text: ","
+- generic: "\"time\":"
+- generic: "\"2026-10-28 15:07:11\""
+- text: ","
+- generic: "\"__bcs_cluster_name__\":"
+- generic: "\"容器实战集群\""
+- text: ","
+- generic: "\"__ext.bk_bcs_cluster_id\":"
+- generic: "\"BCS-K8S-26888\""
+- text: ","
+- generic: "\"__ext.container_id\":"
+- generic: "\"bdd74a8c9bc2030ab1d9b2e35894cfd7cee8c85ffcb4499cb66e2c20c8914045\""
+- text: ","
+- generic: "\"__ext.container_image\":"
+- generic: "\"mirrors.tencent.com/blueking/pyrumpetroll:0.3\""
+- text: ","
+- generic: "\"__ext.container_name\":"
+- generic: "\"web\""
+- text: ","
+- generic: "\"__ext.io_kubernetes_pod\":"
+- generic: "\"rumpetrollv2-1\""
+- text: ","
+- generic: "\"__ext.io_kubernetes_pod_ip\":"
+- generic: "\"11.157.89.30\""
+- text: ","
+- generic: "\"__ext.io_kubernetes_pod_namespace\":"
+- generic: "\"2026-bcs-peihongyao\""
+- text: ","
+- generic: "\"__ext.io_kubernetes_pod_uid\":"
+- generic: "\"3f1d7930-9d27-400d-858f-3586470cd708\""
+- text: ","
+- generic: "\"__ext.io_kubernetes_workload_name\":"
+- generic: "\"rumpetrollv2\""
+- text: ","
+- generic: "\"__ext.io_kubernetes_workload_type\":"
+- generic: "\"GameStatefulSet\""
+- text: ","
+- generic: "\"__ipv6__\":"
+- generic: "\"--\""
+- text: ","
+- generic: "\"__module__\":"
+- generic: "\"--\""
+- text: ","
+- generic: "\"__parse_failure\":"
+- generic: "false"
+- text: ","
+- generic: "\"__set__\":"
+- generic: "\"--\""
+- generic: "}"
+- generic: 
+- generic: "dtEventTimeStamp:"
+- generic: 2026-10-28 15:07:09
+- generic: "serverIp:"
+- generic: 30.48.121.66
+- generic: "log:"
+- generic: "["
+- generic: "2026"
+- generic: "-"
+- generic: "10"
+- generic: "-"
+- generic: "28"
+- generic: "15"
+- generic: ":"
+- generic: "07"
+- generic: ":"
+- generic: 01,203
+- generic: "]"
+- generic: 11.157.113.27
+- generic: ":"
+- generic: "20000"
+- generic: INFO
+- generic: handlers.ws
+- generic: ":"
+- mark: clean
+- mark
+- mark: golds
+- mark
+- mark: success
+- generic: 
+- generic: "dtEventTimeStamp:"
+- generic: 2026-10-28 15:07:07
+- generic: "serverIp:"
+- generic: 30.48.121.58
+- generic: "log:"
+- generic: "["
+- generic: "2026"
+- generic: "-"
+- generic: "10"
+- generic: "-"
+- generic: "28"
+- generic: "15"
+- generic: ":"
+- generic: "07"
+- generic: ":"
+- generic: 01,189
+- generic: "]"
+- generic: 11.157.114.144
+- generic: ":"
+- generic: "20000"
+- generic: INFO
+- generic: handlers.ws
+- generic: ":"
+- mark: clean
+- mark
+- mark: golds
+- mark
+- mark: success
+- generic: 
+- generic: "dtEventTimeStamp:"
+- generic: 2026-10-28 15:07:05
+- generic: "serverIp:"
+- generic: 30.48.121.119
+- generic: "log:"
+- generic: "["
+- generic: "2026"
+- generic: "-"
+- generic: "10"
+- generic: "-"
+- generic: "28"
+- generic: "15"
+- generic: ":"
+- generic: "07"
+- generic: ":"
+- generic: 01,194
+- generic: "]"
+- generic: 11.157.114.77
+- generic: ":"
+- generic: "20000"
+- generic: INFO
+- generic: handlers.ws
+- generic: ":"
+- mark: clean
+- mark
+- mark: golds
+- mark
+- mark: success
+- generic: 
+- generic: "dtEventTimeStamp:"
+- generic: 2026-10-28 15:07:02
+- generic: "serverIp:"
+- generic: 30.48.121.97
+- generic: "log:"
+- generic: "["
+- generic: "2026"
+- generic: "-"
+- generic: "10"
+- generic: "-"
+- generic: "28"
+- generic: "15"
+- generic: ":"
+- generic: "07"
+- generic: ":"
+- generic: 01,197
+- generic: "]"
+- generic: 11.157.90.159
+- generic: ":"
+- generic: "20000"
+- generic: INFO
+- generic: handlers.ws
+- generic: ":"
+- mark: clean
+- mark
+- mark: golds
+- mark
+- mark: success
+- generic: 
+- generic: "dtEventTimeStamp:"
+- generic: 2026-10-28 15:02:10
+- generic: "serverIp:"
+- generic: 30.48.121.97
+- generic: "log:"
+- generic: "["
+- generic: "2026"
+- generic: "-"
+- generic: "10"
+- generic: "-"
+- generic: "28"
+- generic: "15"
+- generic: ":"
+- generic: "02"
+- generic: ":"
+- generic: 01,707
+- generic: "]"
+- generic: 11.157.90.159
+- generic: ":"
+- generic: "20000"
+- generic: INFO
+- generic: handlers.ws
+- generic: ":"
+- mark: clean
+- mark
+- mark: golds
+- mark
+- mark: success
+- generic: 
+- generic: "dtEventTimeStamp:"
+- generic: 2026-10-28 15:02:10
+- generic: "serverIp:"
+- generic: 30.48.121.119
+- generic: "log:"
+- generic: "["
+- generic: "2026"
+- generic: "-"
+- generic: "10"
+- generic: "-"
+- generic: "28"
+- generic: "15"
+- generic: ":"
+- generic: "02"
+- generic: ":"
+- generic: 01,704
+- generic: "]"
+- generic: 11.157.114.77
+- generic: ":"
+- generic: "20000"
+- generic: INFO
+- generic: handlers.ws
+- generic: ":"
+- mark: clean
+- mark
+- mark: golds
+- mark
+- mark: success
+- generic: 
+- generic: "dtEventTimeStamp:"
+- generic: 2026-10-28 15:02:06
+- generic: "serverIp:"
+- generic: 30.48.121.66
+- generic: "log:"
+- generic: "["
+- generic: "2026"
+- generic: "-"
+- generic: "10"
+- generic: "-"
+- generic: "28"
+- generic: "15"
+- generic: ":"
+- generic: "02"
+- generic: ":"
+- generic: 01,714
+- generic: "]"
+- generic: 11.157.113.27
+- generic: ":"
+- generic: "20000"
+- generic: INFO
+- generic: handlers.ws
+- generic: ":"
+- mark: clean
+- mark
+- mark: golds
+- mark
+- mark: success
+- generic: 
+- generic: "dtEventTimeStamp:"
+- generic: 2026-10-28 15:02:05
+- generic: "serverIp:"
+- generic: 30.48.121.58
+- generic: "log:"
+- generic: "["
+- generic: "2026"
+- generic: "-"
+- generic: "10"
+- generic: "-"
+- generic: "28"
+- generic: "15"
+- generic: ":"
+- generic: "02"
+- generic: ":"
+- generic: 01,699
+- generic: "]"
+- generic: 11.157.114.144
+- generic: ":"
+- generic: "20000"
+- generic: INFO
+- generic: handlers.ws
+- generic: ":"
+- mark: clean
+- mark
+- mark: golds
+- mark
+- mark: success
+- generic: 
+- generic: "dtEventTimeStamp:"
+- generic: 2026-10-28 15:02:03
+- generic: "serverIp:"
+- generic: 30.48.121.75
+- generic: "log:"
+- generic: "["
+- generic: "2026"
+- generic: "-"
+- generic: "10"
+- generic: "-"
+- generic: "28"
+- generic: "15"
+- generic: ":"
+- generic: "02"
+- generic: ":"
+- generic: 01,701
+- generic: "]"
+- generic: 11.157.89.30
+- generic: ":"
+- generic: "20000"
+- generic: INFO
+- generic: handlers.ws
+- generic: ":"
+- mark: clean
+- mark
+- mark: golds
+- mark
+- mark: success
+- generic: 
+- generic: "dtEventTimeStamp:"
+- text: 2026-10-28 14:57:11
+- generic: "serverIp:"
+- text: 30.48.121.75
+- generic: "log:"
+- text: "[2026-10-28 14:57:02,103] 11.157.89.30:20000 INFO handlers.ws: clean golds success"
+- generic: 
+- generic: "dtEventTimeStamp:"
+- text: 2026-10-28 14:57:10
+- generic: "serverIp:"
+- text: 30.48.121.58
+- generic: "log:"
+- text: "[2026-10-28 14:57:02,100] 11.157.114.144:20000 INFO handlers.ws: clean golds success"
+- generic: 
+- generic: "dtEventTimeStamp:"
+- text: 2026-10-28 14:57:07
+- generic: "serverIp:"
+- text: 30.48.121.97
+- generic: "log:"
+- text: "[2026-10-28 14:57:02,109] 11.157.90.159:20000 INFO handlers.ws: clean golds success"
+- generic: 
+- generic: "dtEventTimeStamp:"
+- text: 2026-10-28 14:57:04
+- generic: "serverIp:"
+- text: 30.48.121.66
+- generic: "log:"
+- text: "[2026-10-28 14:57:02,114] 11.157.113.27:20000 INFO handlers.ws: clean golds success"
+- generic: 
+- generic: "dtEventTimeStamp:"
+- text: 2026-10-28 14:57:02
+- generic: "serverIp:"
+- text: 30.48.121.119
+- generic: "log:"
+- text: "[2026-10-28 14:57:02,105] 11.157.114.77:20000 INFO handlers.ws: clean golds success"
+- button " 实时":
+  - generic: 
+  - generic: 实时
+- button " 上下文":
+  - generic: 
+  - generic: 上下文
+- button " WebConsole":
+  - generic: 
+  - generic: WebConsole
+- button " AI":
+  - generic: 
+  - generic: AI
+- generic: "- 已加载所有数据: 共计 15 条 -"
+- text:    
+- text:         
+- generic: 
+- generic: 
+- generic: 
+- generic: 
+- generic:           
+- generic:          
+- generic: 
+- generic: "* * "
+- generic: 
+- generic: 

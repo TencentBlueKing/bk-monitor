@@ -1,0 +1,120 @@
+.search-field-filter-new {
+  position: relative;
+  width: var(--root-width);
+  min-width: 0;
+  height: 100%;
+  padding: 0;
+  background: #ffffff;
+  border-right: solid 1px #dcdee5;
+
+  &:not(.is-close) {
+    overflow: visible;
+  }
+
+  &.is-close {
+    /* stylelint-disable-next-line declaration-no-important */
+    position: absolute !important;
+    z-index: 3;
+    display: flex;
+    align-items: center;
+    width: auto;
+
+    /* stylelint-disable-next-line declaration-no-important */
+    height: 30px !important;
+    padding-top: 4px;
+
+    /* stylelint-disable-next-line declaration-no-important */
+    padding-left: 14px;
+    background: transparent;
+    border-right: none;
+    box-shadow: none;
+
+    .bk-log-drag {
+      display: none;
+    }
+
+    .field-filter-title {
+      top: 16px;
+      left: 12px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 0;
+      font-size: 12px;
+      line-height: 20px;
+      color: #313238;
+      cursor: pointer;
+
+      .close-total {
+        position: relative;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width: 24px;
+        height: 24px;
+        cursor: pointer;
+      }
+
+      .bklog-collapse-small {
+        /* stylelint-disable-next-line declaration-no-important */
+        transform: rotateZ(90deg) !important;
+      }
+
+      // &::after {
+      //   position: absolute;
+      //   right: 18px;
+      //   color: #dcdee5;
+      //   content: '|';
+      // }
+    }
+  }
+
+  .field-filter-title {
+    position: absolute;
+    top: 64px;
+    left: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 24px;
+    height: 24px;
+    font-size: 12px;
+    color: #4d4f56;
+    background: #ffffff;
+    border: 1px solid #f0f1f5;
+    border-radius: 10px;
+    box-shadow: 0 1px 2px 0 #0000001a;
+    transform: translate(-50%, -50%);
+
+    .left-title {
+      font-weight: 700;
+      color: #63656e;
+
+      .left-title-setting {
+        cursor: pointer;
+
+        .bklog-log-setting {
+          font-size: 15px;
+        }
+      }
+    }
+
+    .is-text-click {
+      cursor: pointer;
+    }
+
+    .close-total {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+
+      .bklog-collapse-small {
+        display: inline-block;
+        font-size: 24px;
+        color: #979ba5;
+        transform: rotateZ(-90deg);
+      }
+    }
+  }
+}

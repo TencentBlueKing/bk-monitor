@@ -1,0 +1,33 @@
+import { fileURLToPath } from 'node:url';
+import ts from 'typescript';import{readdirSync,readFileSync,writeFileSync,existsSync}from'node:fs';import{resolve}from'node:path';
+const root=fileURLToPath(new URL('../',import.meta.url)),lib=resolve(root,'../../node_modules/bk-magic-vue/lib');const names=new Set();function walk(p){return readdirSync(p,{withFileTypes:true}).flatMap(x=>x.isDirectory()?walk(resolve(p,x.name)):[resolve(p,x.name)]);}
+for(const file of walk(root+'/src').filter(x=>/\.(?:tsx?|js|vue)$/.test(x))){let s=readFileSync(file,'utf8');for(const m of s.matchAll(/import\s*\{([^}]+)\}\s*from\s*['"]bk-magic-vue['"]/g))for(const p of m[1].split(',')){let name=p.trim().split(/\s+as\s+/)[0];if(name)names.add(name);}}
+const propType=n=>{if(!n)return'unknown';if(ts.isIdentifier(n))return({String:'string',Number:'number',Boolean:'boolean',Array:'readonly unknown[]',Object:'object',Function:'((...args: any[]) => unknown)'})[n.text]||'unknown';if(ts.isArrayLiteralExpression(n))return n.elements.map(propType).join(' | ');if(ts.isObjectLiteralExpression(n)){let type=n.properties.find(p=>p.name?.getText()==='type');return type&&ts.isPropertyAssignment(type)?propType(type.initializer):'unknown';}return'unknown'};
+let body=`/* Copyright (C) 2021 THL A29 Limited, a Tencent company.\n * 蓝鲸智云PaaS平台 (BlueKing PaaS), MIT License. */\n// Primitive prop contracts extracted from installed bk-magic-vue/lib component options.\n// Unspecified vendor callback payloads retain their existing dynamic boundary;\n// business row/form types belong to the consuming module, not this declaration.\ndeclare module 'bk-magic-vue' {\n  export type Form = import('@/shared/types/legacy-form').LegacyFormInstance;\n  export type From = Form;\n  export type Popover = PopoverInstance;\n  import type { DefineComponent, VNode, Directive, HTMLAttributes } from 'vue';\n  import type { PluginObject } from '@legacy-vue';\n  interface PopoverInstance { show(delay?: number): void; hide(delay?: number): void; destroy(): void; setContent(content: string | Element): void; }\n  type LegacyEvents = { [event in \`on\${string}\`]?: (...args: any[]) => unknown };\n  type NativeAttrs = HTMLAttributes & { type?: string; name?: string; disabled?: boolean; required?: boolean; multiple?: boolean; value?: unknown; checked?: boolean; min?: number | string; max?: number | string; rows?: number; cols?: number; autocomplete?: string; readonly?: boolean; placeholder?: string; maxlength?: number; zIndex?: number; renderDirective?: string };\n  type Control<P extends object> = DefineComponent<P & LegacyEvents & Omit<NativeAttrs, keyof P>> & PluginObject<unknown>;\n`;
+const records=[];
+for(const name of [...names].sort()){
+ if(['lang','locale'].includes(name))continue;
+ if(['bkMessage','bkInfoBox','bkLoading','bkNotify','bkOverflowTips','bkTooltips','bkClickoutside'].includes(name))continue;
+ const kebab=name.replace(/^bk/,'').replace(/[A-Z]/g,c=>'-'+c.toLowerCase()).replace(/^-/,'');const filename=resolve(lib,kebab+'.js');let found, extracted=[];
+ if(existsSync(filename)){
+  const text=readFileSync(filename,'utf8'),ast=ts.createSourceFile(filename,text,ts.ScriptTarget.Latest,true);const expected='bk-'+kebab;
+  function visit(n){if(ts.isObjectLiteralExpression(n)){const props=Object.fromEntries(n.properties.filter(ts.isPropertyAssignment).map(p=>[p.name.getText(ast),p.initializer]));if(props.name&&ts.isStringLiteral(props.name)&&props.name.text===expected&&props.props&&ts.isObjectLiteralExpression(props.props))found=n;}ts.forEachChild(n,visit);}visit(ast);
+  const declarations=new Map();function collect(n){if(ts.isVariableDeclaration(n)&&ts.isIdentifier(n.name)&&n.initializer)declarations.set(n.name.text,n.initializer);ts.forEachChild(n,collect);}collect(ast);
+  const seen=new Set();function collectProps(node){
+   if(!node||seen.has(node))return;seen.add(node);
+   if(ts.isIdentifier(node)){collectProps(declarations.get(node.text));return;}
+   if(ts.isCallExpression(node)){if(/normalizeComponent/.test(node.expression.getText(ast)))collectProps(node.arguments[2]);return;}
+   if(!ts.isObjectLiteralExpression(node))return;
+   const options=Object.fromEntries(node.properties.filter(ts.isPropertyAssignment).map(p=>[p.name.getText(ast),p.initializer]));
+   if(options.extends)collectProps(options.extends);
+   if(options.mixins&&ts.isArrayLiteralExpression(options.mixins))for(const mixin of options.mixins.elements)collectProps(mixin);
+   if(options.props&&ts.isObjectLiteralExpression(options.props))extracted.push(...options.props.properties.filter(ts.isPropertyAssignment));
+  }collectProps(found);
+ }
+ if(name==='bkClickoutside'){body+='  export const bkClickoutside: Directive;\n';continue;}
+ const props=[...new Map(extracted.map(p=>[p.name.getText(),p])).values()].map(p=>`${JSON.stringify(p.name.getText().replace(/^['"]|['"]$/g,''))}?: ${propType(p.initializer)} | null;`)||[];
+ if(name==='bkTableColumn')props.push("nativeCellSlot?: boolean; 'v-slots'?: { default?: (scope: { row: any; column: Record<string, unknown>; $index: number; index: number; rowIndex: number; }) => unknown };");
+ body+=`  export const ${name}: Control<{ ${props.join(' ')} }>;\n`;records.push({name,file:'bk-magic-vue/lib/'+kebab+'.js',props:props.length});
+}
+body+=`  export interface NotificationInstance { id: string; close(): void; }\n  export const bkNotify: { (options: Record<string, unknown>): NotificationInstance; close(id: string, onClose?: (instance: NotificationInstance) => void): void; batchClose(limit?: number): void };\n  export function bkMessage(options: string | { message: string | VNode; theme?: string; delay?: number; [option: string]: unknown }): { close(): void };\n  export function bkInfoBox(options: object): { close(): void };\n  export const bkLoading: Directive & PluginObject<unknown>;\n  export const bkOverflowTips: Directive & PluginObject<unknown>;\n  export const bkTooltips: Directive & PluginObject<unknown>;\n  export const bkClickoutside: Directive & PluginObject<unknown>;\n  export const locale: { use(messages: object): void; i18n(translate: (key: string, values?: Record<string, unknown>) => string): void };\n  export const lang: { zhCN: Record<string, string>; enUS: Record<string, string> };\n}\n`;
+writeFileSync(root+'/src/shared/types/bk-magic-vue.d.ts',body);writeFileSync(resolve(root, 'ai-native/control-prop-origins.json'),JSON.stringify(records,null,2));console.log({components:records.length,withProps:records.filter(x=>x.props>0).length});

@@ -1,0 +1,8 @@
+.log-cluster-table-container-main {
+  min-height: calc(100vh - var(--header-height) - var(--top-searchbar-height) - 100px);
+  background-color: #fff;
+
+  .log-cluster-table-container {
+    height: 100%;
+  }
+}

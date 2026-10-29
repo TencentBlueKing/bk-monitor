@@ -1,0 +1,6 @@
+{
+  "name": "@blueking/monitor-apm-log",
+  "private": true,
+  "type": "commonjs",
+  "main": "main.js"
+}

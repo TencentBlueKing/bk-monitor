@@ -1,0 +1,46 @@
+
+> @bklog/web-v3@0.1.0 test:native /Users/lixintao/github/bk-monitor/bklog/web/packages/web-v3
+> node --test tests-native/*.test.mjs
+
+✔ bookmark migration retains actual V2 request: ordinary conditions and IP chooser (48.161167ms)
+✔ bookmark migration retains actual V2 request: union index (8.204375ms)
+✔ bookmark migration retains actual V2 request: scene and APM scope (5.564958ms)
+✔ bookmark migration retains actual V2 request: SQL with common conditions (6.712ms)
+✔ bookmark migration retains actual V2 request: chart extension parameters (5.284083ms)
+✔ TDesign validation error lists do not submit either favorite or group (2.912417ms)
+✔ valid native form retains default unfiled group and source save route (2.326416ms)
+✔ explicit cancel resets the same source draft and notifies the parent (2.106667ms)
+✔ native event bus matches actual Vue2 callback context, once, arrays and removal semantics (1.527625ms)
+✔ listeners removed during emit still follow the source snapshot semantics (0.130833ms)
+✔ dashboard save retains V2 compiled/UI or SQL request sequence (0) (38.493875ms)
+✔ dashboard save retains V2 compiled/UI or SQL request sequence (1) (7.369667ms)
+✔ native dashboard validation error object prevents directory/query/save requests (2.711708ms)
+✔ dashboard inline directory creation preserves V2 payload and cleanup (4.132041ms)
+✔ dashboard inline dashboard creation preserves V2 payload and cleanup (3.893583ms)
+✔ native select filtering preserves case-insensitive, full pinyin, initials and empty-query searches (0.209458ms)
+✔ native grade settings retain the complete V2 union configuration request (46.671583ms)
+✔ native grade settings do not save when TDesign resolves an error list (7.622917ms)
+✔ native grade cancel resets the same defaults and emits the source cancellation payload (16.42025ms)
+✔ JSX migration only changes event and slot syntax, retaining expressions and business strings (8.403334ms)
+✔ nested slot spreads retain inner callbacks and normalize native event names (2.569333ms)
+✔ mixed legacy prop spreads are left for explicit contract analysis (0.341917ms)
+✔ loading delay hides after completion and a retry cancels stale hiding (0.473458ms)
+✔ immediate follows source initial branch and delayed hide is cleaned on unmount (0.383334ms)
+✔ native mutations retain source state and persistence effects while Vue3 tracks new keys (17.52275ms)
+✔ collection upgrade preserves replace/patch semantics, including newly introduced keys (1.360208ms)
+[1m[33m[@vue/compiler-sfc][0m[33m `defineExpose` is a compiler macro and no longer needs to be imported.[0m
+
+✔ native sorting keeps V2 field exclusions, duplicate disabling and sort ordering (135.550666ms)
+✔ native sorting clones reactive initial props without mutating the caller (7.055209ms)
+✔ native interpolation retains source text, default span, VNodes and missing trailing placeholder (5.626084ms)
+✔ native interpolation retains explicit tag and locale override (0.679875ms)
+✔ nested reactive search parameters remain structured-cloneable without losing data (0.816625ms)
+✔ worker conversion preserves supported types, cycles and explicit clone failures (0.239791ms)
+ℹ tests 32
+ℹ suites 0
+ℹ pass 32
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 271.154708

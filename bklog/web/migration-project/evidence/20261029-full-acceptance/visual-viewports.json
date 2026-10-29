@@ -1,0 +1,26 @@
+[
+  {
+    "requested": {
+      "width": 1440,
+      "height": 900
+    },
+    "observed": {
+      "height": 900,
+      "horizontalOverflow": false,
+      "width": 1440
+    },
+    "scope": "grok-list-empty-filter"
+  },
+  {
+    "requested": {
+      "width": 1280,
+      "height": 800
+    },
+    "observed": {
+      "height": 800,
+      "horizontalOverflow": false,
+      "width": 1280
+    },
+    "scope": "grok-list-empty-filter"
+  }
+]

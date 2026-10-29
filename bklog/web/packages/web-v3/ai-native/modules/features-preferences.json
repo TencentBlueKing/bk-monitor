@@ -1,0 +1,20 @@
+{
+  "schemaVersion": 1,
+  "id": "features/preferences",
+  "purpose": "按源码职责归属的业务域；功能边界以实际组件和服务为准",
+  "root": "src/features/preferences",
+  "files": 4,
+  "entryPoints": [
+    "features/preferences/dialog/index.tsx",
+    "features/preferences/index.tsx"
+  ],
+  "services": [],
+  "dependsOn": [
+    "features/masking"
+  ],
+  "tests": [],
+  "contractRoot": "../../migration-project/migration-contracts",
+  "sourceMap": "ai-native/source-map.json",
+  "acceptance": "NEEDS_REVIEW",
+  "note": "Directory migration preserves source behavior; domain-wide acceptance remains in the existing ledger."
+}

@@ -4,7 +4,7 @@
 
 - TAPD：`1010158081139460519`（短 ID `139460519`）
 - 分支：`feat/ai-migration-engine/#139460519`
-- 本轮阶段：P4 只迁移采集步骤里已从源码核对的状态。P0、P1、P3 已完成。P2 没有登录后截图。
+- 本轮阶段：P5 在 `packages/web-v3` 按 Vue 2 路由实现 Vue 3 功能。P0、P1、P3 已完成。P4 采集状态试点仍是 `NEEDS_REVIEW`。P2 没有登录后截图。
 
 ## 优先级
 
@@ -43,7 +43,7 @@
 - 计划替换的基础组件库：源为 `bk-magic-vue@2.5.10-beta.15`，目标为单据指定的 [TDesign Vue Next](https://tdesign.tencent.com/vue-next/getting-started)。TDesign 适配留到 P3。
 - 包管理：`bklog/web` 使用 pnpm workspace，成员只有 `packages/web-v3`。该包依赖 Vue 3。根包继续使用 Vue 2。`packages/web-v1` 不加入 workspace，避免同名包 `@blueking/log-web` 覆盖根依赖。
 - 可以保留、但尚未验收的成果：分支 `feat/ai-native-web-v3/#139386759`（TAPD `1010158081139386759`）相对主干的 `bklog/web/packages/web-v3` 有 211 个文件、约 17692 行新增，声明依赖 Vue `^3.5.13`、Vue Router `^4.5.0`、`tdesign-vue-next@^1.18.0`、Vite `^6`。
-- 已知缺失：本分支没有可运行的 Vue3 应用；登录后的旧版页面访问本轮没有执行。
+- `packages/web-v3` 已能按旧版路由打开检索和采集列表。新建、编辑向导的多步表单还没有逐字段迁完。
 
 ## 关键未知项
 

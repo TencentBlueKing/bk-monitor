@@ -1,0 +1,4 @@
+command: NODE_OPTIONS=--max-old-space-size=6144 pnpm --dir bklog/web/packages/web-v3 --ignore-workspace build:ui
+✓ built in 31.71s
+Scope: default log application including lazy business routes; independent APM/Trace build acceptance not claimed.
+Includes final CSS side effects, layout wrapper, icon cascade, and shared overlay z-index.

@@ -1,0 +1,82 @@
+/*!
+  * vue-router v3.6.5
+  * (c) 2022 Evan You
+  * @license MIT
+  */
+
+/*!
+ * Vue.js v2.7.16
+ * (c) 2014-2023 Evan You
+ * Released under the MIT License.
+ */
+
+/*!
+ * clipboard.js v2.0.11
+ * https://clipboardjs.com/
+ *
+ * Licensed MIT © Zeno Rocha
+ */
+
+/*!
+ * is-plain-object <https://github.com/jonschlinkert/is-plain-object>
+ *
+ * Copyright (c) 2014-2017, Jon Schlinkert.
+ * Released under the MIT License.
+ */
+
+/*!
+ * vue-i18n v8.28.2 
+ * (c) 2022 kazuya kawaguchi
+ * Released under the MIT License.
+ */
+
+/*!
+ * vuex v3.6.2
+ * (c) 2021 Evan You
+ * @license MIT
+ */
+
+/*! @license DOMPurify 3.4.5 | (c) Cure53 and other contributors | Released under the Apache license 2.0 and Mozilla Public License 2.0 | github.com/cure53/DOMPurify/blob/3.4.5/LICENSE */
+
+/*! js-cookie v3.0.5 | MIT */
+
+/*! regenerator-runtime -- Copyright (c) 2014-present, Facebook, Inc. -- license (MIT): https://github.com/facebook/regenerator/blob/main/LICENSE */
+
+/**
+       * Checks if an event is supported in the current execution environment.
+       *
+       * NOTE: This will not work correctly for non-generic events such as `change`,
+       * `reset`, `load`, `error`, and `select`.
+       *
+       * Borrows from Modernizr.
+       *
+       * @param {string} eventNameSuffix Event name, e.g. "click".
+       * @param {?boolean} capture Check if the capture phase is supported.
+       * @return {boolean} True if the event is supported.
+       * @internal
+       * @license Modernizr 3.0.0pre (Custom Build) | MIT
+       */
+
+/**
+  * vue-class-component v7.2.6
+  * (c) 2015-present Evan You
+  * @license MIT
+  */
+
+/**
+* @vue/reactivity v3.5.34
+* (c) 2018-present Yuxi (Evan) You and Vue contributors
+* @license MIT
+**/
+
+/**
+* @vue/runtime-dom v3.5.34
+* (c) 2018-present Yuxi (Evan) You and Vue contributors
+* @license MIT
+**/
+
+/**
+* @vue/shared v3.5.34
+* (c) 2018-present Yuxi (Evan) You and Vue contributors
+* @license MIT
+**/

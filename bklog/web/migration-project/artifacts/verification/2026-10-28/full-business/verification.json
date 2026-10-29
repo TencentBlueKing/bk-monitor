@@ -1,0 +1,160 @@
+{
+  "date": "2026-10-28",
+  "runtime": "Vue3 compatibility UI host on 4175",
+  "source": "bklog/web/src, source-first upgrade; existing prototype excluded",
+  "routeInventory": {
+    "records": 90,
+    "named": 88,
+    "evidence": "routes.json",
+    "fullRouteAcceptance": false
+  },
+  "automatedTests": {
+    "passed": 65,
+    "failed": 0,
+    "portedExistingOverlayCases": 16
+  },
+  "build": {
+    "passed": true,
+    "command": "build:ui",
+    "scope": "default log app; not independent APM/Trace build acceptance"
+  },
+  "sfcTemplateScan": {
+    "errors": 0
+  },
+  "browserScenarios": [
+    {
+      "module": "retrieve",
+      "scenario": "38131 nonempty trend/logs, table/original, row expand KV/JSON/collapse",
+      "status": "PASSED",
+      "evidence": [
+        "retrieve-38131-1440.jpg",
+        "retrieve-log-json-1440.jpg",
+        "v3-log-expand.txt"
+      ]
+    },
+    {
+      "module": "retrieve",
+      "scenario": "40678 user-selected test entry renders query and trend",
+      "status": "PASSED",
+      "evidence": [
+        "retrieve-40678-1440.jpg",
+        "retrieve-40678.txt"
+      ]
+    },
+    {
+      "module": "collection",
+      "scenario": "127 total / 10 rows / 12 source business columns",
+      "status": "PASSED",
+      "evidence": [
+        "collection-1440.jpg",
+        "v3-collection-after.txt",
+        "v2-collection.txt"
+      ]
+    },
+    {
+      "module": "collection",
+      "scenario": "7 categories, host wizard step 1 to 2, target dialog loads, cancel and previous step",
+      "status": "PASSED",
+      "evidence": [
+        "collection-categories-1440.jpg",
+        "collection-target-1440.jpg",
+        "v3-collection-step2.txt"
+      ]
+    },
+    {
+      "module": "clean",
+      "scenario": "55 total and source column order, trpc filter yields 4 rows",
+      "status": "PASSED",
+      "evidence": [
+        "clean-list-final.txt",
+        "clean-list-final-1440.jpg",
+        "v2-clean-list.txt"
+      ]
+    },
+    {
+      "module": "clean-template",
+      "scenario": "list and existing template detail opened read-only",
+      "status": "PASSED",
+      "evidence": [
+        "clean-templates-final.txt",
+        "clean-template-detail-final.txt"
+      ]
+    },
+    {
+      "module": "grok",
+      "scenario": "create/edit/delete-cancel/delete owned resource 300; verify absence",
+      "status": "PASSED",
+      "evidence": [
+        "test-resources.json",
+        "grok-edited-1440.jpg",
+        "grok-delete-confirm-1440.jpg",
+        "grok-cleaned.txt"
+      ]
+    },
+    {
+      "module": "archive",
+      "scenario": "HDFS/COS/filesystem forms, native leave confirmation closes sidebar",
+      "status": "PASSED",
+      "evidence": [
+        "archive-repository-fs.jpg",
+        "archive-leave-confirm-1440.jpg"
+      ]
+    },
+    {
+      "module": "management",
+      "scenario": "remaining primary menu initial render checks",
+      "status": "PENDING_VERIFICATION",
+      "evidence": [
+        "menu-smoke-first-pass.json",
+        "v3-es-cluster-after.txt"
+      ]
+    },
+    {
+      "module": "shared-ui",
+      "scenario": "V2 legacy CSS side effects restored, source bklog font retained, actual ConfigProvider layout wrapper, 90px operation region and dialog above sidebar",
+      "status": "PASSED",
+      "evidence": [
+        "collection-1440.jpg",
+        "collection-v2-1440.jpg",
+        "archive-form-styled-1440.jpg",
+        "archive-leave-confirm-1440.jpg"
+      ]
+    },
+    {
+      "module": "retrieve",
+      "scenario": "source keyword/search_mode=sql deep link restores log phrase query and safe nonempty samples; KV/JSON retested",
+      "status": "PASSED",
+      "evidence": [
+        "v3-retrieve-38131.txt",
+        "v3-log-expand.txt",
+        "v3-log-json.txt",
+        "retrieve-38131-1440.jpg",
+        "retrieve-log-json-1440.jpg"
+      ]
+    }
+  ],
+  "writes": {
+    "scope": "user-approved bkcc__5000140 / bizId 5000140, new resources only",
+    "existingResourceMutations": false,
+    "resources": "test-resources.json",
+    "remainingOwnedResources": 0
+  },
+  "fullBusinessAccepted": false,
+  "fullVisualAccepted": false,
+  "remaining": [
+    "Route and feature-flag branches beyond first pass",
+    "Joint/scenario/embed/share/auth/real-time/download flows",
+    "Collection submission and dispatch using a dedicated new test collector",
+    "Storage/cleaning/extraction/archive lifecycle CRUD beyond the owned Grok pilot",
+    "Full V2-vs-V3 same-data visual baselines and 1280 regression after shared fixes",
+    "External monitor/iframe dependencies and independent APM/Trace builds"
+  ],
+  "knownLimits": [
+    "Menu smoke snapshots can precede API completion and do not establish data parity",
+    "Real-time results were not frozen; screenshots are qualitative UI evidence",
+    "Compatibility deprecation warnings remain; transient HMR errors required full refresh",
+    "Remaining legacy control usage is not counted as complete native replacement",
+    "Old standalone CJS overlay runner requires missing Babel preset-env; its unchanged 16 cases were run through native ESM instead."
+  ],
+  "evidencePrivacy": "Log screenshots recaptured from a standard phrase query without credential-like values; history text redacted."
+}

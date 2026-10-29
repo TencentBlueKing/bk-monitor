@@ -1,0 +1,18 @@
+{
+  "schemaVersion": 1,
+  "id": "features/tracing",
+  "purpose": "按源码职责归属的业务域；功能边界以实际组件和服务为准",
+  "root": "src/features/tracing",
+  "files": 2,
+  "entryPoints": [
+    "features/tracing/collection-track/index.vue",
+    "features/tracing/sdk-track/index.vue"
+  ],
+  "services": [],
+  "dependsOn": [],
+  "tests": [],
+  "contractRoot": "../../migration-project/migration-contracts",
+  "sourceMap": "ai-native/source-map.json",
+  "acceptance": "NEEDS_REVIEW",
+  "note": "Directory migration preserves source behavior; domain-wide acceptance remains in the existing ledger."
+}

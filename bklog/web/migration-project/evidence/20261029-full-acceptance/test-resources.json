@@ -1,0 +1,81 @@
+{
+  "scope": {
+    "spaceUid": "bkcc__5000140",
+    "businessId": "5000140"
+  },
+  "resources": [
+    {
+      "type": "grok",
+      "name": "CODEX_ACCEPTANCE_1793251440191",
+      "createdIn": "V3",
+      "editedIn": "V3",
+      "verifiedReadIn": "V2",
+      "deleteCancelVerified": true,
+      "cleaned": true,
+      "remaining": 0
+    },
+    {
+      "type": "index-set",
+      "name": "CODEX_ACCEPTANCE_INDEX_1793252055644",
+      "state": "deleted",
+      "source": "existing collector read-only reference; no collector edits",
+      "cleaned": true,
+      "id": "41067",
+      "editedName": "CODEX_ACCEPTANCE_INDEX_1793252055644_EDIT",
+      "deleteCancelVerified": true
+    },
+    {
+      "type": "field-template",
+      "name": "QA3291986",
+      "indexSetId": "41067",
+      "state": "deleted",
+      "cleaned": true,
+      "editedName": "QE3291986",
+      "deleteCancelVerified": true
+    },
+    {
+      "type": "collector",
+      "name": "CODEX_ACCEPTANCE_COLLECT_1793254560929",
+      "englishName": "codexqa799958_qa",
+      "sourceCollectorReadOnly": "10663",
+      "existingParentIndexSetsRemovedFromDraft": true,
+      "state": "deleted",
+      "cleaned": true,
+      "id": "32760",
+      "indexSetId": "41071",
+      "dataId": "1606785",
+      "deleteCancelVerified": true,
+      "lifecycle": [
+        "created",
+        "edited",
+        "clean-configured",
+        "storage-configured",
+        "running",
+        "stopped",
+        "started",
+        "running",
+        "stopped",
+        "deleted"
+      ]
+    },
+    {
+      "type": "collector-reference",
+      "name": "CODEX_ACCEPTANCE_V2_1793255039148",
+      "englishName": "codexqa799958_qa_ref",
+      "sourceCollectorReadOnly": "10663",
+      "existingParentIndexSetsRemovedFromDraft": true,
+      "state": "NOT_CREATED",
+      "cleaned": true,
+      "remaining": 0
+    },
+    {
+      "type": "collector-index-set",
+      "id": "41071",
+      "parentCollectorId": "32760",
+      "name": "CODEX_ACCEPTANCE_COLLECT_1793254560929",
+      "state": "deleted-with-collector",
+      "cleaned": true
+    }
+  ],
+  "existingResourcesModified": false
+}

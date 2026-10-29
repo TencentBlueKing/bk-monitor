@@ -1,0 +1,7 @@
+{
+  "status": "PASSED_NO_ADDITIONAL_DIAGNOSTICS",
+  "baselineErrors": 4934,
+  "targetErrors": 4934,
+  "added": [],
+  "limitation": "Comparison by source-origin file and diagnostic code; existing strict typecheck debt remains failing."
+}

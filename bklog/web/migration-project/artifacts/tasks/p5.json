@@ -1,0 +1,29 @@
+{
+  "id": "P5-APP-001",
+  "tapdId": "1010158081139460519",
+  "phase": "P5",
+  "title": "在 web-v3 按旧版路由实现 Vue 3 功能",
+  "status": "NEEDS_REVIEW",
+  "source": [
+    "src/router/retrieve.js",
+    "src/router/monitor.js",
+    "src/router/dashboard.js",
+    "src/router/manage.js",
+    "src/services/retrieve.ts",
+    "src/services/collect.js"
+  ],
+  "command": "pnpm --dir packages/web-v3 --ignore-workspace test",
+  "exitCode": 0,
+  "pageCheck": {
+    "url": "http://appdev.woa.com:4173/#/retrieve/38131",
+    "retrieveTotal": 156,
+    "retrieveRows": 50,
+    "collectionRows": 12
+  },
+  "routes": 87,
+  "note": "87 条旧版具名路由都进入 Vue 3。检索走 /search/index_set/:id/search/。采集、仪表盘、监控策略、清洗、提取等走各自已有列表接口。新建和编辑向导的多步表单还没有逐字段迁完。旧版顶部「监控策略」「仪表盘」会打开 MONITOR_URL，V3 改为站内页面。",
+  "blocked": [
+    "采集向导多步表单",
+    "视觉回归"
+  ]
+}

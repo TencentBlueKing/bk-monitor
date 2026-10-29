@@ -1,0 +1,84 @@
+{
+  "scope": "src-native to src architectural migration; not full product acceptance",
+  "date": "2026-10-28",
+  "status": "PASSED_WITH_RECORDED_EXISTING_DEBT",
+  "sourceInventory": 1315,
+  "migratedFiles": 1310,
+  "excludedFinderMetadata": 5,
+  "targetFiles": 1316,
+  "modules": 29,
+  "featureDomains": 26,
+  "staticEdges": 3504,
+  "serviceCallEdges": 263,
+  "manualDynamicPatterns": 86,
+  "unchangedUnresolvedReferences": 8,
+  "namedRouteLedger": 88,
+  "totalRouteLedger": 90,
+  "pathObjectSignatures": 92,
+  "tests": {
+    "passed": 72,
+    "failed": 0,
+    "evidence": "tests.txt"
+  },
+  "architectureGate": "PASSED",
+  "build": {
+    "status": "PASSED",
+    "seconds": 36.45,
+    "output": "packages/web-v3/dist",
+    "noBaselineModulesEnforcedBy": "application-source-boundary Vite generateBundle guard"
+  },
+  "typecheck": {
+    "strict": "FAILED_EXISTING_DEBT",
+    "baseline": 4934,
+    "target": 4934,
+    "additionalDiagnosticsByOriginAndCode": 0,
+    "regressionCommand": "PASSED",
+    "evidence": [
+      "typecheck-comparison.json",
+      "typecheck-regression.json"
+    ]
+  },
+  "browser": {
+    "primaryPort": 4175,
+    "baselinePort": 4177,
+    "temporaryPort4176": "stopped",
+    "sampleQuery": "log:\"clean golds success\"",
+    "absoluteTime": [
+      "2026-10-28 15:15:00",
+      "2026-10-28 15:30:00"
+    ],
+    "resultCount": 15,
+    "tested": [
+      "source initialization and deep link",
+      "SQL restore and actual results",
+      "history popup opens",
+      "table mode",
+      "collection list",
+      "archive new form opens with three resource icons",
+      "cancel prompts for leaving",
+      "leave confirmation",
+      "1280 layout inspection"
+    ],
+    "screenshots": [
+      "archive-form-src-1440.jpg",
+      "archive-leave-src-1440.jpg",
+      "collection-baseline-1440.jpg",
+      "collection-src-1440.jpg",
+      "primary-src-4175.jpg",
+      "retrieve-baseline-1440.jpg",
+      "retrieve-src-1280.jpg",
+      "retrieve-src-1440.jpg"
+    ],
+    "visualFinding": "Fixed retrieval screenshots differ only within x399..432 y208..231, the request-duration text and JPEG compression neighborhood. Collection sidebar expansion state differs and is not a pixel-equality assertion.",
+    "fullVisualAcceptance": false
+  },
+  "writes": "No business create/update/delete requests in this architecture phase",
+  "v2Source": "No git diff under bklog/web/src",
+  "remaining": [
+    "Existing strict typing debt",
+    "Vue compat/Class and remaining old UI controls",
+    "8 pre-existing unresolved static references, verified against source baseline",
+    "86 dynamic service/glob patterns require manual analysis",
+    "All-business branch acceptance and independent APM/Trace publishing remain separate tasks"
+  ]
+}

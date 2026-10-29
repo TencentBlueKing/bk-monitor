@@ -1,0 +1,74 @@
+[
+  {
+    "file": "common/preload-import.ts",
+    "count": 1
+  },
+  {
+    "file": "views/manage-v2/client-log/collection-slider/index.tsx",
+    "count": 1
+  },
+  {
+    "file": "views/manage-v2/es-cluster/cluster-manage/index.tsx",
+    "count": 1
+  },
+  {
+    "file": "views/manage-v2/hooks/use-sidebar-diff.ts",
+    "count": 1
+  },
+  {
+    "file": "views/manage-v2/log-archive/archive-list/index.tsx",
+    "count": 1
+  },
+  {
+    "file": "views/manage-v2/log-archive/archive-list/list-slider.tsx",
+    "count": 1
+  },
+  {
+    "file": "views/manage-v2/log-archive/archive-repository/index.tsx",
+    "count": 1
+  },
+  {
+    "file": "views/manage-v2/log-archive/archive-repository/repository-slider.tsx",
+    "count": 1
+  },
+  {
+    "file": "views/manage-v2/log-archive/archive-restore/index.tsx",
+    "count": 1
+  },
+  {
+    "file": "views/manage-v2/log-archive/archive-restore/restore-slider.tsx",
+    "count": 1
+  },
+  {
+    "file": "views/manage-v2/log-collection/components/create-operation/index.tsx",
+    "count": 1
+  },
+  {
+    "file": "views/manage-v2/log-collection/components/create-operation/step3-clean.tsx",
+    "count": 1
+  },
+  {
+    "file": "views/manage-v2/log-extract/extract-config/index.tsx",
+    "count": 1
+  },
+  {
+    "file": "views/manage-v2/log-extract/extract-link/link-list.tsx",
+    "count": 1
+  },
+  {
+    "file": "views/retrieve-v2/collect/favorite-manage-dialog.vue",
+    "count": 1
+  },
+  {
+    "file": "views/retrieve-v3/search-result/log-clustering/log-table/content-table/index.tsx",
+    "count": 1
+  },
+  {
+    "file": "views/retrieve-v3/search-result/log-clustering/top-operation/quick-filter/dimension-split/index.tsx",
+    "count": 1
+  },
+  {
+    "file": "views/retrieve-v3/search-result/log-clustering/top-operation/strategy/config-item/index.tsx",
+    "count": 1
+  }
+]

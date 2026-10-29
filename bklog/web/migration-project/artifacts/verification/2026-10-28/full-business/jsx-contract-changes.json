@@ -1,0 +1,821 @@
+{
+  "changed": [
+    {
+      "file": "app.tsx",
+      "changes": 3
+    },
+    {
+      "file": "components/collection-access/components/index-import-modal/index.tsx",
+      "changes": 10
+    },
+    {
+      "file": "components/collection-access/components/log-filter/index.tsx",
+      "changes": 4
+    },
+    {
+      "file": "components/collection-access/components/log-filter/validator-input.tsx",
+      "changes": 1
+    },
+    {
+      "file": "components/filter-rule/config-rule/control-operate/index.tsx",
+      "changes": 2
+    },
+    {
+      "file": "components/filter-rule/config-rule/index.tsx",
+      "changes": 18
+    },
+    {
+      "file": "components/filter-rule/config-rule/rule-trigger/index.tsx",
+      "changes": 2
+    },
+    {
+      "file": "components/filter-rule/index.tsx",
+      "changes": 6
+    },
+    {
+      "file": "components/import-from-other-index-set/index.tsx",
+      "changes": 4
+    },
+    {
+      "file": "components/index-set-label-select/index.tsx",
+      "changes": 1
+    },
+    {
+      "file": "components/log-icon/index.tsx",
+      "changes": 1
+    },
+    {
+      "file": "components/log-ip-selector/log-ip-selector.tsx",
+      "changes": 2
+    },
+    {
+      "file": "components/log-masking/masking-add-rule.tsx",
+      "changes": 1
+    },
+    {
+      "file": "components/log-masking/masking-field-input.tsx",
+      "changes": 4
+    },
+    {
+      "file": "components/log-masking/masking-field.tsx",
+      "changes": 8
+    },
+    {
+      "file": "components/log-masking/masking-select-rule-table.tsx",
+      "changes": 8
+    },
+    {
+      "file": "components/log-masking/masking-setting.tsx",
+      "changes": 14
+    },
+    {
+      "file": "components/rule-config-operate/debug-tool/index.tsx",
+      "changes": 2
+    },
+    {
+      "file": "components/rule-config-operate/index.tsx",
+      "changes": 3
+    },
+    {
+      "file": "components/rule-table/add-rule/index.tsx",
+      "changes": 5
+    },
+    {
+      "file": "components/rule-table/index.tsx",
+      "changes": 9
+    },
+    {
+      "file": "components/rule-table/regex-popover/index.tsx",
+      "changes": 3
+    },
+    {
+      "file": "global/bk-space-choice/index.tsx",
+      "changes": 3
+    },
+    {
+      "file": "global/bk-space-choice/list.tsx",
+      "changes": 1
+    },
+    {
+      "file": "views/authorization/authorization-dialog.tsx",
+      "changes": 1
+    },
+    {
+      "file": "views/authorization/authorization-list.tsx",
+      "changes": 11
+    },
+    {
+      "file": "views/client-log-search/index.tsx",
+      "changes": 16
+    },
+    {
+      "file": "views/client-log-search/log-detail-panel/index.tsx",
+      "changes": 6
+    },
+    {
+      "file": "views/client-log-search/log-detail-panel/toolbar/index.tsx",
+      "changes": 3
+    },
+    {
+      "file": "views/client-log-search/search-bar/index.tsx",
+      "changes": 1
+    },
+    {
+      "file": "views/client-log-search/task-list-panel/batch-download-dialog.tsx",
+      "changes": 1
+    },
+    {
+      "file": "views/client-log-search/task-list-panel/index.tsx",
+      "changes": 4
+    },
+    {
+      "file": "views/client-log-search/task-list-panel/selected-task-table.tsx",
+      "changes": 3
+    },
+    {
+      "file": "views/client-log-search/task-list-panel/selection-info.tsx",
+      "changes": 1
+    },
+    {
+      "file": "views/dashboard/home.tsx",
+      "changes": 2
+    },
+    {
+      "file": "views/manage/manage-access/log-collection/collection-item/manage-collection/field-info.tsx",
+      "changes": 6
+    },
+    {
+      "file": "views/manage-v2/client-log/collection-deploy/collection-table.tsx",
+      "changes": 14
+    },
+    {
+      "file": "views/manage-v2/client-log/collection-deploy/index.tsx",
+      "changes": 10
+    },
+    {
+      "file": "views/manage-v2/client-log/collection-slider/index.tsx",
+      "changes": 10
+    },
+    {
+      "file": "views/manage-v2/client-log/user-report/index.tsx",
+      "changes": 11
+    },
+    {
+      "file": "views/manage-v2/client-log/user-report/report-table.tsx",
+      "changes": 19
+    },
+    {
+      "file": "views/manage-v2/client-log/user-report/upload-result.tsx",
+      "changes": 6
+    },
+    {
+      "file": "views/manage-v2/es-cluster/cluster-manage/es-dialog.tsx",
+      "changes": 1
+    },
+    {
+      "file": "views/manage-v2/es-cluster/cluster-manage/es-slider.tsx",
+      "changes": 1
+    },
+    {
+      "file": "views/manage-v2/es-cluster/cluster-manage/index.tsx",
+      "changes": 20
+    },
+    {
+      "file": "views/manage-v2/grok-manage/components/grok-input.tsx",
+      "changes": 3
+    },
+    {
+      "file": "views/manage-v2/grok-manage/components/grok-popover-list.tsx",
+      "changes": 2
+    },
+    {
+      "file": "views/manage-v2/grok-manage/grok-slider.tsx",
+      "changes": 4
+    },
+    {
+      "file": "views/manage-v2/grok-manage/grok-table.tsx",
+      "changes": 10
+    },
+    {
+      "file": "views/manage-v2/grok-manage/index.tsx",
+      "changes": 9
+    },
+    {
+      "file": "views/manage-v2/log-archive/archive-list/index.tsx",
+      "changes": 11
+    },
+    {
+      "file": "views/manage-v2/log-archive/archive-list/list-slider.tsx",
+      "changes": 1
+    },
+    {
+      "file": "views/manage-v2/log-archive/archive-list/state-table.tsx",
+      "changes": 6
+    },
+    {
+      "file": "views/manage-v2/log-archive/archive-repository/index.tsx",
+      "changes": 11
+    },
+    {
+      "file": "views/manage-v2/log-archive/archive-restore/index.tsx",
+      "changes": 11
+    },
+    {
+      "file": "views/manage-v2/log-clean/clean-template/collector-table.tsx",
+      "changes": 7
+    },
+    {
+      "file": "views/manage-v2/log-clean/clean-template/delete-confirm-popover.tsx",
+      "changes": 2
+    },
+    {
+      "file": "views/manage-v2/log-clean/clean-template/detail-slider.tsx",
+      "changes": 4
+    },
+    {
+      "file": "views/manage-v2/log-clean/clean-template/export-dialog.tsx",
+      "changes": 5
+    },
+    {
+      "file": "views/manage-v2/log-clean/clean-template/list.tsx",
+      "changes": 13
+    },
+    {
+      "file": "views/manage-v2/log-clean/create-clean.tsx",
+      "changes": 2
+    },
+    {
+      "file": "views/manage-v2/log-clean/create-temp-clean.tsx",
+      "changes": 2
+    },
+    {
+      "file": "views/manage-v2/log-collection/components/business-comp/step2/add-index-set.tsx",
+      "changes": 4
+    },
+    {
+      "file": "views/manage-v2/log-collection/components/business-comp/step2/base-info.tsx",
+      "changes": 3
+    },
+    {
+      "file": "views/manage-v2/log-collection/components/business-comp/step2/container-collection/append-log-tags.tsx",
+      "changes": 4
+    },
+    {
+      "file": "views/manage-v2/log-collection/components/business-comp/step2/container-collection/config-cluster-box.tsx",
+      "changes": 16
+    },
+    {
+      "file": "views/manage-v2/log-collection/components/business-comp/step2/container-collection/config-log-set-edit-item.tsx",
+      "changes": 7
+    },
+    {
+      "file": "views/manage-v2/log-collection/components/business-comp/step2/container-collection/config-view-dialog.tsx",
+      "changes": 1
+    },
+    {
+      "file": "views/manage-v2/log-collection/components/business-comp/step2/container-collection/configuration-item-list.tsx",
+      "changes": 8
+    },
+    {
+      "file": "views/manage-v2/log-collection/components/business-comp/step2/container-collection/label-choose-dialog.tsx",
+      "changes": 7
+    },
+    {
+      "file": "views/manage-v2/log-collection/components/business-comp/step2/container-collection/label-item-choose.tsx",
+      "changes": 5
+    },
+    {
+      "file": "views/manage-v2/log-collection/components/business-comp/step2/container-collection/workload-selection.tsx",
+      "changes": 4
+    },
+    {
+      "file": "views/manage-v2/log-collection/components/business-comp/step2/device-metadata.tsx",
+      "changes": 6
+    },
+    {
+      "file": "views/manage-v2/log-collection/components/business-comp/step2/event-filter.tsx",
+      "changes": 4
+    },
+    {
+      "file": "views/manage-v2/log-collection/components/business-comp/step2/index-config-import-dialog.tsx",
+      "changes": 9
+    },
+    {
+      "file": "views/manage-v2/log-collection/components/business-comp/step2/index-set-select.tsx",
+      "changes": 2
+    },
+    {
+      "file": "views/manage-v2/log-collection/components/business-comp/step2/line-rule-config.tsx",
+      "changes": 6
+    },
+    {
+      "file": "views/manage-v2/log-collection/components/business-comp/step2/log-filter.tsx",
+      "changes": 12
+    },
+    {
+      "file": "views/manage-v2/log-collection/components/business-comp/step2/log-path-config.tsx",
+      "changes": 3
+    },
+    {
+      "file": "views/manage-v2/log-collection/components/business-comp/step2/multiline-reg-dialog.tsx",
+      "changes": 4
+    },
+    {
+      "file": "views/manage-v2/log-collection/components/business-comp/step2/third-party-logs/bkdata-select-dialog.tsx",
+      "changes": 4
+    },
+    {
+      "file": "views/manage-v2/log-collection/components/business-comp/step2/third-party-logs/es-select-dialog.tsx",
+      "changes": 7
+    },
+    {
+      "file": "views/manage-v2/log-collection/components/business-comp/step2/validator-input.tsx",
+      "changes": 5
+    },
+    {
+      "file": "views/manage-v2/log-collection/components/business-comp/step3/clean-result-preview-dialog.tsx",
+      "changes": 18
+    },
+    {
+      "file": "views/manage-v2/log-collection/components/business-comp/step3/clean-template-dialog.tsx",
+      "changes": 7
+    },
+    {
+      "file": "views/manage-v2/log-collection/components/business-comp/step3/clean-template-picker.tsx",
+      "changes": 4
+    },
+    {
+      "file": "views/manage-v2/log-collection/components/business-comp/step3/collect-issued-slider.tsx",
+      "changes": 11
+    },
+    {
+      "file": "views/manage-v2/log-collection/components/business-comp/step3/field-list.tsx",
+      "changes": 24
+    },
+    {
+      "file": "views/manage-v2/log-collection/components/business-comp/step3/report-log-slider.tsx",
+      "changes": 2
+    },
+    {
+      "file": "views/manage-v2/log-collection/components/business-comp/step4/cluster-table.tsx",
+      "changes": 2
+    },
+    {
+      "file": "views/manage-v2/log-collection/components/common-comp/classify-card.tsx",
+      "changes": 1
+    },
+    {
+      "file": "views/manage-v2/log-collection/components/common-comp/drag-tag.tsx",
+      "changes": 3
+    },
+    {
+      "file": "views/manage-v2/log-collection/components/common-comp/host-detail.tsx",
+      "changes": 4
+    },
+    {
+      "file": "views/manage-v2/log-collection/components/common-comp/input-add-group.tsx",
+      "changes": 2
+    },
+    {
+      "file": "views/manage-v2/log-collection/components/common-comp/table-component.tsx",
+      "changes": 10
+    },
+    {
+      "file": "views/manage-v2/log-collection/components/common-comp/tag-more.tsx",
+      "changes": 3
+    },
+    {
+      "file": "views/manage-v2/log-collection/components/common-comp/tree-component.tsx",
+      "changes": 1
+    },
+    {
+      "file": "views/manage-v2/log-collection/components/create-operation/index.tsx",
+      "changes": 8
+    },
+    {
+      "file": "views/manage-v2/log-collection/components/create-operation/step1-classify.tsx",
+      "changes": 3
+    },
+    {
+      "file": "views/manage-v2/log-collection/components/create-operation/step2-bk-data-collection.tsx",
+      "changes": 14
+    },
+    {
+      "file": "views/manage-v2/log-collection/components/create-operation/step2-configuration.tsx",
+      "changes": 25
+    },
+    {
+      "file": "views/manage-v2/log-collection/components/create-operation/step2-custom-report.tsx",
+      "changes": 8
+    },
+    {
+      "file": "views/manage-v2/log-collection/components/create-operation/step3-clean.tsx",
+      "changes": 66
+    },
+    {
+      "file": "views/manage-v2/log-collection/components/create-operation/step4-storage.tsx",
+      "changes": 13
+    },
+    {
+      "file": "views/manage-v2/log-collection/components/list-main/add-existing-collect-dialog.tsx",
+      "changes": 4
+    },
+    {
+      "file": "views/manage-v2/log-collection/components/list-main/left-list.tsx",
+      "changes": 6
+    },
+    {
+      "file": "views/manage-v2/log-collection/components/list-main/list-item.tsx",
+      "changes": 4
+    },
+    {
+      "file": "views/manage-v2/log-collection/components/list-main/stop-type-dialog.tsx",
+      "changes": 3
+    },
+    {
+      "file": "views/manage-v2/log-collection/components/list-main/table-list/index.tsx",
+      "changes": 1
+    },
+    {
+      "file": "views/manage-v2/log-collection/components/list-main/table-list/table-list-v1.tsx",
+      "changes": 26
+    },
+    {
+      "file": "views/manage-v2/log-collection/components/list-main/table-list/table-list-v2.tsx",
+      "changes": 38
+    },
+    {
+      "file": "views/manage-v2/log-collection/index.tsx",
+      "changes": 3
+    },
+    {
+      "file": "views/manage-v2/log-extract/extract-config/config-slider.tsx",
+      "changes": 2
+    },
+    {
+      "file": "views/manage-v2/log-extract/extract-config/index.tsx",
+      "changes": 9
+    },
+    {
+      "file": "views/manage-v2/log-extract/extract-config/module-select.tsx",
+      "changes": 3
+    },
+    {
+      "file": "views/manage-v2/log-extract/extract-link/link-list.tsx",
+      "changes": 5
+    },
+    {
+      "file": "views/manage-v2/log-extract/extract-task/task-create/file-date-picker.tsx",
+      "changes": 3
+    },
+    {
+      "file": "views/manage-v2/log-extract/extract-task/task-create/files-input.tsx",
+      "changes": 1
+    },
+    {
+      "file": "views/manage-v2/log-extract/extract-task/task-create/index.tsx",
+      "changes": 1
+    },
+    {
+      "file": "views/manage-v2/log-extract/extract-task/task-create/preview-files.tsx",
+      "changes": 6
+    },
+    {
+      "file": "views/manage-v2/log-extract/extract-task/task-list/index.tsx",
+      "changes": 9
+    },
+    {
+      "file": "views/manage-v2/log-extract/extract-task/task-list/task-status-detail.tsx",
+      "changes": 2
+    },
+    {
+      "file": "views/retrieve-v2/components/batch-input/index.tsx",
+      "changes": 7
+    },
+    {
+      "file": "views/retrieve-v2/components/index-set-choice/index-set-list.tsx",
+      "changes": 1
+    },
+    {
+      "file": "views/retrieve-v2/condition-comp/select-index-set.tsx",
+      "changes": 3
+    },
+    {
+      "file": "views/retrieve-v2/field-filter-comp/field-analysis.tsx",
+      "changes": 5
+    },
+    {
+      "file": "views/retrieve-v2/field-filter-comp/field-item.tsx",
+      "changes": 3
+    },
+    {
+      "file": "views/retrieve-v2/field-filter-comp/index.tsx",
+      "changes": 4
+    },
+    {
+      "file": "views/retrieve-v2/search-result-panel/graph-analysis/chart/index.tsx",
+      "changes": 1
+    },
+    {
+      "file": "views/retrieve-v2/search-result-panel/graph-analysis/index.tsx",
+      "changes": 3
+    },
+    {
+      "file": "views/retrieve-v2/search-result-panel/log-clustering/components/finger-tools/cluster-filter.tsx",
+      "changes": 1
+    },
+    {
+      "file": "views/retrieve-v2/search-result-panel/log-clustering/components/quick-create-subscription-drawer/create-subscription-form.tsx",
+      "changes": 4
+    },
+    {
+      "file": "views/retrieve-v2/search-result-panel/log-clustering/components/quick-open-cluster-step/filter-rule.tsx",
+      "changes": 2
+    },
+    {
+      "file": "views/retrieve-v2/search-result-panel/log-clustering/components/quick-open-cluster-step/quick-open-cluster.tsx",
+      "changes": 1
+    },
+    {
+      "file": "views/retrieve-v2/search-result-panel/log-clustering/components/strategy/index.tsx",
+      "changes": 1
+    },
+    {
+      "file": "views/retrieve-v2/search-result-panel/log-result/log-rows.tsx",
+      "changes": 5
+    },
+    {
+      "file": "views/retrieve-v2/search-result-panel/log-result/row-render.tsx",
+      "changes": 5
+    },
+    {
+      "file": "views/retrieve-v2/search-result-panel/log-result/text-segmentation.tsx",
+      "changes": 1
+    },
+    {
+      "file": "views/retrieve-v2/sub-bar/share-link.tsx",
+      "changes": 6
+    },
+    {
+      "file": "views/retrieve-v3/favorite/collect-main.tsx",
+      "changes": 6
+    },
+    {
+      "file": "views/retrieve-v3/favorite/components/collect-head/collect-head.tsx",
+      "changes": 1
+    },
+    {
+      "file": "views/retrieve-v3/favorite/components/collect-list/collect-list.tsx",
+      "changes": 11
+    },
+    {
+      "file": "views/retrieve-v3/favorite/components/collect-list/edit-dialog.tsx",
+      "changes": 4
+    },
+    {
+      "file": "views/retrieve-v3/favorite/components/collect-tool/collect-tool.tsx",
+      "changes": 4
+    },
+    {
+      "file": "views/retrieve-v3/favorite/index.tsx",
+      "changes": 1
+    },
+    {
+      "file": "views/retrieve-v3/grep/grep-cli.tsx",
+      "changes": 5
+    },
+    {
+      "file": "views/retrieve-v3/grep/index.tsx",
+      "changes": 6
+    },
+    {
+      "file": "views/retrieve-v3/index.tsx",
+      "changes": 1
+    },
+    {
+      "file": "views/retrieve-v3/search-bar/ai-mode/index.tsx",
+      "changes": 2
+    },
+    {
+      "file": "views/retrieve-v3/search-bar/scene-filter/filter-panel.tsx",
+      "changes": 7
+    },
+    {
+      "file": "views/retrieve-v3/search-bar/scene-filter/index.tsx",
+      "changes": 4
+    },
+    {
+      "file": "views/retrieve-v3/search-result/index.tsx",
+      "changes": 1
+    },
+    {
+      "file": "views/retrieve-v3/search-result/log-clustering/empty-cluster/index.tsx",
+      "changes": 2
+    },
+    {
+      "file": "views/retrieve-v3/search-result/log-clustering/index.tsx",
+      "changes": 5
+    },
+    {
+      "file": "views/retrieve-v3/search-result/log-clustering/log-table/content-table/cluster-popover/index.tsx",
+      "changes": 3
+    },
+    {
+      "file": "views/retrieve-v3/search-result/log-clustering/log-table/content-table/cluster-popover/regex-match/index.tsx",
+      "changes": 12
+    },
+    {
+      "file": "views/retrieve-v3/search-result/log-clustering/log-table/content-table/cluster-popover/regex-match/occupy-input/index.tsx",
+      "changes": 1
+    },
+    {
+      "file": "views/retrieve-v3/search-result/log-clustering/log-table/content-table/cluster-popover/regex-match/regex-preview/index.tsx",
+      "changes": 1
+    },
+    {
+      "file": "views/retrieve-v3/search-result/log-clustering/log-table/content-table/cluster-popover/regex-match/regex-table/index.tsx",
+      "changes": 8
+    },
+    {
+      "file": "views/retrieve-v3/search-result/log-clustering/log-table/content-table/cluster-popover/regex-match/regex-table/validate-input/index.tsx",
+      "changes": 6
+    },
+    {
+      "file": "views/retrieve-v3/search-result/log-clustering/log-table/content-table/cluster-popover/regex-match/second-confirm/index.tsx",
+      "changes": 3
+    },
+    {
+      "file": "views/retrieve-v3/search-result/log-clustering/log-table/content-table/index.tsx",
+      "changes": 18
+    },
+    {
+      "file": "views/retrieve-v3/search-result/log-clustering/log-table/content-table/pattern-analysis-slider/index.tsx",
+      "changes": 2
+    },
+    {
+      "file": "views/retrieve-v3/search-result/log-clustering/log-table/content-table/remark-edit-tip/index.tsx",
+      "changes": 5
+    },
+    {
+      "file": "views/retrieve-v3/search-result/log-clustering/log-table/index.tsx",
+      "changes": 9
+    },
+    {
+      "file": "views/retrieve-v3/search-result/log-clustering/log-table/main-header/filter-operate/index.tsx",
+      "changes": 3
+    },
+    {
+      "file": "views/retrieve-v3/search-result/log-clustering/log-table/main-header/head-column.tsx",
+      "changes": 1
+    },
+    {
+      "file": "views/retrieve-v3/search-result/log-clustering/log-table/main-header/index.tsx",
+      "changes": 20
+    },
+    {
+      "file": "views/retrieve-v3/search-result/log-clustering/log-table/main-header/sort-operate/index.tsx",
+      "changes": 1
+    },
+    {
+      "file": "views/retrieve-v3/search-result/log-clustering/quick-open-cluster/cluster-access/index.tsx",
+      "changes": 7
+    },
+    {
+      "file": "views/retrieve-v3/search-result/log-clustering/quick-open-cluster/cluster-access/preview-result/index.tsx",
+      "changes": 1
+    },
+    {
+      "file": "views/retrieve-v3/search-result/log-clustering/quick-open-cluster/index.tsx",
+      "changes": 2
+    },
+    {
+      "file": "views/retrieve-v3/search-result/log-clustering/top-operation/cluster-config/edit-config/index.tsx",
+      "changes": 8
+    },
+    {
+      "file": "views/retrieve-v3/search-result/log-clustering/top-operation/cluster-config/edit-config/rule-operate/index.tsx",
+      "changes": 18
+    },
+    {
+      "file": "views/retrieve-v3/search-result/log-clustering/top-operation/cluster-config/index.tsx",
+      "changes": 2
+    },
+    {
+      "file": "views/retrieve-v3/search-result/log-clustering/top-operation/cluster-download/index.tsx",
+      "changes": 1
+    },
+    {
+      "file": "views/retrieve-v3/search-result/log-clustering/top-operation/email-subscription/create-subscription/subscription-form/email-config/index.tsx",
+      "changes": 2
+    },
+    {
+      "file": "views/retrieve-v3/search-result/log-clustering/top-operation/email-subscription/create-subscription/subscription-form/send-config/index.tsx",
+      "changes": 18
+    },
+    {
+      "file": "views/retrieve-v3/search-result/log-clustering/top-operation/email-subscription/create-subscription/subscription-form/subscription-content/index.tsx",
+      "changes": 6
+    },
+    {
+      "file": "views/retrieve-v3/search-result/log-clustering/top-operation/email-subscription/index.tsx",
+      "changes": 4
+    },
+    {
+      "file": "views/retrieve-v3/search-result/log-clustering/top-operation/index.tsx",
+      "changes": 3
+    },
+    {
+      "file": "views/retrieve-v3/search-result/log-clustering/top-operation/quick-filter/dimension-split/index.tsx",
+      "changes": 6
+    },
+    {
+      "file": "views/retrieve-v3/search-result/log-clustering/top-operation/quick-filter/index.tsx",
+      "changes": 9
+    },
+    {
+      "file": "views/retrieve-v3/search-result/log-clustering/top-operation/quick-filter/temporary-group/index.tsx",
+      "changes": 6
+    },
+    {
+      "file": "views/retrieve-v3/search-result/log-clustering/top-operation/quick-filter/time-compare/index.tsx",
+      "changes": 8
+    },
+    {
+      "file": "views/retrieve-v3/search-result/log-clustering/top-operation/strategy/config-item/index.tsx",
+      "changes": 3
+    },
+    {
+      "file": "views/retrieve-v3/search-result/log-clustering/top-operation/strategy/edit-strategy/index.tsx",
+      "changes": 8
+    },
+    {
+      "file": "views/retrieve-v3/search-result/log-clustering/top-operation/strategy/index.tsx",
+      "changes": 2
+    },
+    {
+      "file": "views/retrieve-v3/search-result/original-log/components/data-filter/fields-config/index.tsx",
+      "changes": 4
+    },
+    {
+      "file": "views/retrieve-v3/search-result/original-log/components/data-filter/highlight-control/index.tsx",
+      "changes": 6
+    },
+    {
+      "file": "views/retrieve-v3/search-result/original-log/components/data-filter/index.tsx",
+      "changes": 15
+    },
+    {
+      "file": "views/retrieve-v3/search-result/original-log/components/origin-log-result/index.tsx",
+      "changes": 5
+    },
+    {
+      "file": "views/retrieve-v3/search-result/original-log/context-log/index.tsx",
+      "changes": 2
+    },
+    {
+      "file": "views/retrieve-v3/search-result/original-log/real-time-log/index.tsx",
+      "changes": 2
+    },
+    {
+      "file": "views/retrieve-v3/search-result/original-log/standalone-tab/related-log-layout.tsx",
+      "changes": 7
+    },
+    {
+      "file": "views/retrieve-v3/search-result/template-manage/create-template/index.tsx",
+      "changes": 6
+    },
+    {
+      "file": "views/retrieve-v3/search-result/template-manage/index-set-list/index.tsx",
+      "changes": 2
+    },
+    {
+      "file": "views/retrieve-v3/search-result/template-manage/index.tsx",
+      "changes": 15
+    },
+    {
+      "file": "views/retrieve-v3/search-result/template-manage/template-list/create-template/index.tsx",
+      "changes": 6
+    },
+    {
+      "file": "views/retrieve-v3/search-result/template-manage/template-list/index.tsx",
+      "changes": 7
+    },
+    {
+      "file": "views/retrieve-v3/search-result/template-manage/template-list/template-item/delete-template/index.tsx",
+      "changes": 2
+    },
+    {
+      "file": "views/retrieve-v3/search-result/template-manage/template-list/template-item/edit-template/index.tsx",
+      "changes": 3
+    },
+    {
+      "file": "views/retrieve-v3/search-result/template-manage/template-list/template-item/index.tsx",
+      "changes": 7
+    },
+    {
+      "file": "views/un-authorized/index.tsx",
+      "changes": 1
+    }
+  ],
+  "errors": []
+}

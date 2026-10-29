@@ -1,0 +1,21 @@
+.bklgo-v3-ellipsis-tag-list {
+  overflow: hidden;
+  div {
+    display: inline-flex;
+    align-items: center;
+
+    .bklog-v3-ellipsis-hidden {
+      display: none !important;
+    }
+  }
+
+  .bklog-v3-ellipsis-num {
+    background: #f0f1f5;
+    border-radius: 2px;
+    padding: 2px 4px;
+  }
+}
+
+.bklog-v3-ellipsis-more-tip {
+  padding: 8px;
+}

@@ -1,0 +1,14 @@
+{
+  "schemaVersion": 1,
+  "records": [
+    {
+      "id": "relocation-css-path-001",
+      "status": "RESOLVED",
+      "symptom": "Sass asset ENOENT: shared/assets/shared/assets",
+      "cause": "Global glob-prefix replacement also changed already relocated Sass paths",
+      "fix": "Restrict glob rewrite to classify-card; remove duplicate prefix in two styles",
+      "verification": "Production build passed in 33.55s before composition extraction",
+      "prevention": "Static path graph and production build; never broad replace asset paths without resolution"
+    }
+  ]
+}

@@ -1,0 +1,101 @@
+.directory-manage-container {
+  position: relative;
+  height: calc(100vh - 60px);
+  padding: 0 0 50px;
+
+  .directory-manage {
+    height: 100%;
+    padding: 0 0 20px;
+    overflow: auto;
+
+    .row-container {
+      margin: 20px 24px 0;
+
+      .title {
+        margin-bottom: 8px;
+        font-size: 12px;
+        line-height: 20px;
+        color: #313238;
+
+        .required {
+          font-size: 16px;
+          font-weight: bold;
+          color: #ff5656;
+        }
+
+        .bklog-info-fill {
+          font-size: 16px;
+          color: #979ba5;
+          cursor: pointer;
+        }
+      }
+
+      .flex-box {
+        display: flex;
+        align-items: center;
+
+        .select-text {
+          margin-left: 12px;
+          font-size: 12px;
+          line-height: 16px;
+
+          .primary {
+            color: #3a84ff;
+          }
+
+          .error {
+            color: #ea3636;
+          }
+        }
+
+        .execute-people {
+          height: 30px;
+          width: 256px;
+          background-color: #fafbfd;
+          border: 1px solid #dcdee5;
+          margin-right: 10px;
+          color: #63656e;
+          font-size: 12px;
+          padding: 0 10px 0 8px;
+          display: flex;
+          align-items: center;
+        }
+
+        .is-input-error.bk-form-control {
+          .bk-form-input {
+            /* stylelint-disable-next-line declaration-no-important */
+            border-color: #ff5656 !important;
+          }
+        }
+      }
+
+      .add-minus-component {
+        margin-bottom: 8px;
+
+        .bk-icon {
+          padding: 4px;
+          font-size: 20px;
+          color: #979ba5;
+          cursor: pointer;
+        }
+      }
+    }
+
+    .is-error .user-selector-container {
+      border-color: #ff5656;
+    }
+  }
+
+  .button-container {
+    position: absolute;
+    bottom: 0;
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    width: 100%;
+    height: 50px;
+    padding-right: 24px;
+    background: #fff;
+    border-top: 1px solid #dcdee5;
+  }
+}

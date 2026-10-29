@@ -1,0 +1,260 @@
+import { ServicesInstance } from '@/platform/services';
+/*
+ * Tencent is pleased to support the open source community by making
+ * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
+ *
+ * Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
+ *
+ * 蓝鲸智云PaaS平台 (BlueKing PaaS) is licensed under the MIT License.
+ *
+ * License for 蓝鲸智云PaaS平台 (BlueKing PaaS):
+ *
+ * ---------------------------------------------------
+ * Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated
+ * documentation files (the "Software"), to deal in the Software without restriction, including without limitation
+ * the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and
+ * to permit persons to whom the Software is furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in all copies or substantial portions of
+ * the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO
+ * THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF
+ * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
+ * IN THE SOFTWARE.
+ */
+
+
+import { transformSceneConfigs } from '@/app/state/scene-filter-config';
+
+const random = (length = 10) => {
+  const chars = 'abcdefghijklmnopqrstuvwxyz0123456789';
+  let result = '';
+  for (let i = 0; i < length; i++) {
+    result += chars[Math.floor(Math.random() * chars.length)];
+  }
+  return result;
+};
+
+const LIGHTEN_NAME_LIMIT = 3;
+
+const buildLightenName = (indices = []) => {
+  const tableIds = (indices ?? []).map(entry => entry.result_table_id).filter(Boolean);
+  if (!tableIds.length) return ' ()';
+  if (tableIds.length <= LIGHTEN_NAME_LIMIT) {
+    return ` (${tableIds.join(';')})`;
+  }
+  return ` (${tableIds.slice(0, LIGHTEN_NAME_LIMIT).join(';')}+${tableIds.length - LIGHTEN_NAME_LIMIT})`;
+};
+
+/**
+ * 索引集列表初始化
+ * @param {*} indexSetList 索引集列表
+ * @param {*} parentId 父节点 index_set_id，根节点为 '#'
+ */
+const resolveIndexItemAttr = (indexSetList = [], parentId = '#') => {
+  const s1 = [];
+  const s2 = [];
+  indexSetList?.forEach(item => {
+    const indexSetId = `${item.index_set_id}`;
+    const copyItem = Object.assign({}, item, {
+      index_set_id: indexSetId,
+      indexName: item.index_set_name,
+      lightenName: buildLightenName(item.indices),
+      unique_id: `${parentId}_${indexSetId}`,
+      is_child_node: parentId !== '#',
+      parent_id: parentId === '#' ? '' : parentId,
+    });
+    delete copyItem.parent_node;
+
+    // 这里只有两层，数据结构固定为 parent_id#child_id
+    // 如果是根节点 数据结构为 #_child_id
+    copyItem.children = resolveIndexItemAttr(item.children ?? [], indexSetId);
+
+    if (copyItem.auth_wieght === 1) {
+      s1.push(copyItem);
+    } else {
+      s2.push(copyItem);
+    }
+  });
+
+  return s1.concat(s2);
+};
+
+export default {
+  namespaced: true,
+  state: {
+    chartKey: random(10), // 复用监控的图表，改变key重新请求图表
+    cacheDatePickerValue: [],
+    cacheTimeRange: '',
+    filedSettingConfigID: 1,
+    indexSetList: /** @type {import('./retrieval-state.type').IndexSetOption[]} */ ([]),
+    flatIndexSetList: /** @type {import('./retrieval-state.type').IndexSetOption[]} */ ([]),
+    isIndexSetLoading: false,
+    isTrendDataLoading: false,
+    isTotalCountLoaded: false,
+    trendDataCount: 0,
+    catchFieldCustomConfig: /** @type {import('./retrieval-state.type').RetrieveCustomConfig} */ ({
+      fieldsWidth: {},
+      displayFields: [],
+      filterSetting: [],
+      filterAddition: [],
+      fixedFilterAddition: false,
+      sortList: [],
+    }),
+    activeVersion: 'v2',
+    /** 场景化检索配置列表 */
+    sceneConfigs: {
+      is_loading: false,
+      data: [],
+    },
+  },
+  getters: {
+    /** 转换后的场景配置列表 */
+    sceneConfigList: state => transformSceneConfigs(state.sceneConfigs?.data ?? []),
+  },
+  mutations: {
+    updateActiveVersion(state, version) {
+      state.activeVersion = version ?? 'v2';
+    },
+    updateTrendDataLoading(state, payload) {
+      state.isTrendDataLoading = payload;
+    },
+    updateTotalCountLoaded(state, payload) {
+      state.isTotalCountLoaded = payload;
+    },
+    updateTrendDataCount(state, payload) {
+      state.trendDataCount = payload;
+    },
+    updateChartKey(state, payload) {
+      state.chartKey = (payload?.prefix ?? '') + random(10);
+    },
+    updateCachePickerValue(state, payload) {
+      state.cacheDatePickerValue = payload;
+    },
+    updateCacheTimeRange(state, payload) {
+      state.cacheTimeRange = payload;
+    },
+    updateFiledSettingConfigID(state, payload) {
+      state.filedSettingConfigID = payload;
+    },
+    updateIndexSetList(state, payload) {
+      state.indexSetList.length = 0;
+      state.indexSetList = [];
+      state.indexSetList.push(...payload);
+
+      state.flatIndexSetList.length = 0;
+      state.flatIndexSetList = (payload ?? []).map(item => [item, item.children ?? []]).flat(2);
+    },
+
+    updateIndexSetLoading(state, payload) {
+      state.isIndexSetLoading = payload;
+    },
+    updateCatchFieldCustomConfig(state, payload) {
+      Object.assign(
+        state.catchFieldCustomConfig,
+        {
+          fieldsWidth: {},
+          displayFields: [],
+          filterSetting: [],
+          filterAddition: [],
+          sortList: [],
+          contextDisplayFields: [],
+        },
+        payload ?? {},
+      );
+    },
+
+    updateCatchFilterAddition(state, { addition }) {
+      if (addition?.length) {
+        state.catchFieldCustomConfig.filterAddition.length = 0;
+        state.catchFieldCustomConfig.filterAddition = [];
+        state.catchFieldCustomConfig.filterAddition.push(...addition);
+      }
+    },
+    /** 更新场景化检索配置列表 */
+    updateSceneConfigs(state, payload) {
+      if (payload.is_loading !== undefined) {
+        state.sceneConfigs.is_loading = payload.is_loading;
+      }
+      if (payload.data !== undefined) {
+        state.sceneConfigs.data = payload.data ?? [];
+      }
+    },
+    /**
+     * 清理检索页运行态大对象。
+     * 检索页切到管理页后不再需要索引集树、场景配置和字段配置缓存，
+     * 若继续常驻 Vuex，会保留大量响应式对象，导致多次路由切换后 heap 无法及时回落。
+     */
+    resetRuntimeState(state) {
+      state.indexSetList = [];
+      state.flatIndexSetList = [];
+      state.isIndexSetLoading = false;
+      state.isTrendDataLoading = false;
+      state.isTotalCountLoaded = false;
+      state.trendDataCount = 0;
+      state.catchFieldCustomConfig = {
+        fieldsWidth: {},
+        displayFields: [],
+        filterSetting: [],
+        filterAddition: [],
+        fixedFilterAddition: false,
+        sortList: [],
+        contextDisplayFields: [],
+      };
+      state.sceneConfigs = {
+        is_loading: false,
+        data: [],
+      };
+    },
+  },
+  actions: {
+    /** 请求场景化检索配置列表 */
+    requestSceneConfigs({ commit, rootState }) {
+      commit('updateSceneConfigs', { is_loading: true });
+      return ServicesInstance.retrieve.getSceneConfigs({
+          query: {
+            bk_biz_id: rootState?.bkBizId,
+          },
+        })
+        .then(resp => {
+          const data = resp.data ?? resp ?? [];
+          commit('updateSceneConfigs', { data });
+          return data;
+        })
+        .catch(err => {
+          console.error('requestSceneConfigs error:', err);
+          commit('updateSceneConfigs', { data: [] });
+          return [];
+        })
+        .finally(() => {
+          commit('updateSceneConfigs', { is_loading: false });
+        });
+    },
+    getIndexSetList(ctx, payload) {
+      const { spaceUid, isLoading = true, is_group } = payload;
+      if (isLoading) ctx.commit('updateIndexSetLoading', true);
+
+      ctx.commit('updateIndexSetList', []);
+      return ServicesInstance.retrieve.getIndexSetList({
+          query: {
+            space_uid: spaceUid,
+            is_group,
+          },
+        })
+        .then(res => {
+          let processedIndexSetList = [];
+          if (res.data.length) {
+            // 索引集数据加工
+            processedIndexSetList = resolveIndexItemAttr(res.data);
+            ctx.commit('updateIndexSetList', processedIndexSetList);
+          }
+          return [res, processedIndexSetList];
+        })
+        .finally(() => {
+          ctx.commit('updateIndexSetLoading', false);
+        });
+    },
+  },
+};

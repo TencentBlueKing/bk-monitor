@@ -1,0 +1,261 @@
+/*
+ * Tencent is pleased to support the open source community by making
+ * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
+ *
+ * Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
+ *
+ * 蓝鲸智云PaaS平台 (BlueKing PaaS) is licensed under the MIT License.
+ *
+ * License for 蓝鲸智云PaaS平台 (BlueKing PaaS):
+ *
+ * ---------------------------------------------------
+ * Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated
+ * documentation files (the "Software"), to deal in the Software without restriction, including without limitation
+ * the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and
+ * to permit persons to whom the Software is furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in all copies or substantial portions of
+ * the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO
+ * THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF
+ * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
+ * IN THE SOFTWARE.
+ */
+
+import { defineComponent, onBeforeUnmount, ref, PropType } from 'vue';
+import useLocale from '@/shared/composables/use-locale';
+import { bkMessage } from 'bk-magic-vue';
+import { createRawTippyOverlay } from '@/shared/global/overlay/index';
+import RegexMatchDialog from './regex-match/index';
+import { copyMessage } from '@/shared/lib/util';
+import { type LogPattern } from '@/features/retrieval/services/log-clustering';
+import { type ClusteringConfigData } from '../index';
+import './index.scss';
+
+export default defineComponent({
+  emits: ["mark-click","markClick","event-click","eventClick","open-cluster-config","openClusterConfig"],
+
+  name: 'ClusterPopover',
+  components: {
+    RegexMatchDialog,
+  },
+  props: {
+    rowData: {
+      type: Object as PropType<LogPattern>,
+      default: () => ({}),
+    },
+    indexId: {
+      type: String,
+      require: true,
+    },
+    clusteringConfigData: {
+      type: Object as PropType<ClusteringConfigData | null>,
+      default: null,
+    },
+    getPatternOriginLog: {
+      type: Function as PropType<(_row: LogPattern) => Promise<string>>,
+      default: null,
+    },
+  },
+  setup(props, { slots, emit }) {
+    const { t } = useLocale();
+    const eventTippyRef = ref<HTMLElement>();
+
+    const isShowRuleDialog = ref(false);
+    const regexSampleStr = ref('');
+    const patternMenuId = `cluster-pattern-menu-${Math.random().toString(36).slice(2, 10)}`;
+    let popoverInstance: any = null;
+    let intersectionObserver: any = null;
+
+    const handleClickPattern = (e: Event) => {
+      const target = e.target as HTMLElement;
+      if (
+        target.classList.contains('text__highlight') &&
+        props.clusteringConfigData?.placeholder_analysis_supported !== false
+      ) {
+        e.stopPropagation();
+        e.preventDefault();
+        destroyPopover();
+        // 获取 mark 的 index 值（getAttribute 返回字符串，需要转为数字）
+        const markIndex = Number(target.getAttribute('index'));
+        // 当 placeholder_analysis_supported 为 false 时，不展开右侧弹框分析，但继续处理行弹窗
+        emit('mark-click', markIndex, target.textContent ?? '');
+
+        return;
+      }
+      destroyPopover();
+      popoverInstance = createRawTippyOverlay(
+        e.target as Element,
+        {
+          content: eventTippyRef.value,
+          arrow: true,
+          trigger: 'click',
+          theme: 'light',
+          placement: 'bottom',
+          interactive: true,
+          allowHTML: true,
+          onShow: handlePopoverShow,
+          onHidden: handlePopoverHide,
+        },
+        {
+          id: patternMenuId,
+          type: 'menu',
+          group: 'cluster-pattern-menu',
+          rootSelector: '.pattern-event-tippy',
+        },
+      );
+      popoverInstance.show(500);
+    };
+
+    const handleShowRegexDialog = async () => {
+      destroyPopover();
+      regexSampleStr.value = props.rowData.origin_log || '';
+      try {
+        if (props.getPatternOriginLog) {
+          regexSampleStr.value = await props.getPatternOriginLog(props.rowData);
+        }
+        if (!regexSampleStr.value) {
+          bkMessage({
+            theme: 'warning',
+            message: t('未获取到日志样例'),
+          });
+        }
+      } catch (err) {
+        console.warn(err);
+        bkMessage({
+          theme: 'warning',
+          message: t('日志样例获取失败'),
+        });
+      }
+      isShowRuleDialog.value = true;
+    };
+
+    const destroyPopover = () => {
+      popoverInstance?.hide();
+      popoverInstance?.destroy();
+      popoverInstance = null;
+    };
+
+    const handleCopy = () => {
+      copyMessage(props.rowData.pattern);
+    };
+
+    const handleClick = (isLink = false) => {
+      destroyPopover();
+      emit('event-click', isLink);
+    };
+
+    const unregisterOberver = () => {
+      if (intersectionObserver) {
+        intersectionObserver.unobserve(eventTippyRef.value);
+        intersectionObserver.disconnect();
+        intersectionObserver = null;
+      }
+    };
+    // 注册Intersection监听
+    const registerObserver = () => {
+      if (intersectionObserver) {
+        unregisterOberver();
+      }
+      intersectionObserver = new IntersectionObserver(entries => {
+        entries.forEach(entry => {
+          if (intersectionObserver) {
+            if (entry.intersectionRatio <= 0) {
+              destroyPopover();
+            }
+          }
+        });
+      });
+      intersectionObserver.observe(eventTippyRef.value);
+    };
+
+    const handlePopoverShow = () => {
+      setTimeout(registerObserver, 20);
+    };
+
+    const handlePopoverHide = () => {
+      unregisterOberver();
+    };
+
+    onBeforeUnmount(() => {
+      destroyPopover();
+    });
+
+    const popoverSlot = () => (
+      <div style={{ display: 'none' }}>
+        <div
+          ref={eventTippyRef}
+          class='pattern-event-tippy'
+        >
+          <div class='event-icons'>
+            <div class='event-box'>
+              <span
+                class='event-btn'
+                onClick={handleCopy}
+              >
+                <log-icon
+                  type='copy'
+                  class='icon copy-icon'
+                />
+                <span>{t('复制')}</span>
+              </span>
+            </div>
+            <div
+              class='event-box'
+              onClick={handleShowRegexDialog}
+            >
+              <span class='event-btn'>
+                <log-icon
+                  type='zhengze'
+                  class='icon'
+                />
+                <span>{t('正则匹配')}</span>
+              </span>
+            </div>
+            <div class='event-box'>
+              <span
+                class='event-btn'
+                onClick={() => handleClick(true)}
+              >
+                <log-icon
+                  type='audit'
+                  class='icon'
+                />
+                <span>{t('查询命中pattern的日志')}</span>
+              </span>
+              <div
+                class='new-link'
+                v-bk-tooltips={t('新开标签页')}
+                onClick={e => {
+                  e.stopPropagation();
+                  handleClick(true);
+                }}
+              >
+                <i class='bklog-icon bklog-jump'></i>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+
+    return () => (
+      <div
+        class='pattern-line'
+        onClick={handleClickPattern}
+      >
+        {slots.default?.()}
+        {popoverSlot()}
+        <RegexMatchDialog
+          sampleStr={regexSampleStr.value}
+          indexId={props.indexId}
+          value={isShowRuleDialog.value}
+          onChange={(value: boolean) => (isShowRuleDialog.value = value)}
+          onOpenClusterConfig={() => emit('open-cluster-config')}
+        />
+      </div>
+    );
+  },
+});

@@ -1,0 +1,54 @@
+{
+  "schemaVersion": 1,
+  "id": "platform",
+  "purpose": "请求、持久化、语言、监控与兼容边界",
+  "root": "src/platform",
+  "files": 83,
+  "entryPoints": [
+    "platform/http/index.js",
+    "platform/http/types/index.ts",
+    "platform/persistence/index.ts",
+    "platform/request/index.ts",
+    "platform/services/index.ts"
+  ],
+  "services": [
+    "platform/persistence/services/cluster-table-worker.service.ts",
+    "platform/persistence/services/manage-draft-cache.service.ts",
+    "platform/persistence/services/module-large-data-cache.service.ts",
+    "platform/persistence/services/performance-monitor.service.ts",
+    "platform/persistence/services/retrieve-field-alias-cache.service.ts",
+    "platform/persistence/services/retrieve-field-cache.service.ts",
+    "platform/persistence/services/retrieve-row-cache.service.ts",
+    "platform/persistence/services/retrieve-row-projection.service.ts",
+    "platform/persistence/services/retrieve-search-worker.service.ts",
+    "platform/persistence/services/storage-health.service.ts",
+    "platform/persistence/services/store-cache.service.ts",
+    "platform/persistence/services/worker-manager.service.ts",
+    "platform/services/biz.ts",
+    "platform/services/docs.ts",
+    "platform/services/example.ts",
+    "platform/services/index.ts",
+    "platform/services/meta.ts",
+    "platform/services/project.ts",
+    "platform/services/runtime/service-client.ts",
+    "platform/services/type.ts",
+    "platform/services/userInfo.ts"
+  ],
+  "dependsOn": [
+    "app",
+    "features/authorization",
+    "features/retrieval",
+    "shared"
+  ],
+  "tests": [
+    "tests/translation.test.mjs",
+    "tests/loading-contract.test.mjs",
+    "tests/info-box.test.mjs",
+    "tests/legacy-functional.test.mjs",
+    "tests/slot-fallback.test.mjs"
+  ],
+  "contractRoot": "../../migration-project/migration-contracts",
+  "sourceMap": "ai-native/source-map.json",
+  "acceptance": "NEEDS_REVIEW",
+  "note": "Directory migration preserves source behavior; domain-wide acceptance remains in the existing ledger."
+}

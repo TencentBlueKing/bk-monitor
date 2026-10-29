@@ -1,0 +1,302 @@
+import { ServicesInstance } from '@/platform/services';
+/*
+ * Tencent is pleased to support the open source community by making
+ * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
+ *
+ * Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
+ *
+ * 蓝鲸智云PaaS平台 (BlueKing PaaS) is licensed under the MIT License.
+ *
+ * License for 蓝鲸智云PaaS平台 (BlueKing PaaS):
+ *
+ * ---------------------------------------------------
+ * Permission is hereby granted, free of charge, to any person obtaining a copy of the Software and associated
+ * documentation files (the "Software"), to deal in the Software without restriction, including without limitation
+ * the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and
+ * to permit persons to whom the Software is furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in all copies or substantial portions of
+ * the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO
+ * THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF
+ * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
+ * IN THE SOFTWARE.
+ */
+
+import { computed, defineComponent, nextTick, onBeforeUnmount, onMounted, ref, watch, type PropType } from 'vue';
+import { useRoute, useRouter } from 'vue-router';
+
+import useLocale from '@/shared/composables/use-locale';
+import ItemSkeleton from '@/app/skeleton/item-skeleton';
+import tippy, { type Instance, type SingleTarget } from 'tippy.js';
+
+import { showMessage } from '../../utils';
+import AddIndexSet from '../business-comp/step2/add-index-set';
+import ListItem from './list-item';
+
+
+import type { IListItemData } from '../../type';
+
+import './left-list.scss';
+import 'tippy.js/themes/light.css';
+
+export default defineComponent({
+  name: 'LeftList',
+  props: {
+    listData: {
+      type: Array as PropType<IListItemData[]>,
+      default: () => [],
+    },
+    total: {
+      type: Number,
+      default: 0,
+    },
+    loading: {
+      type: Boolean,
+      default: false,
+    },
+  },
+  emits: ['choose', 'refresh'],
+
+  setup(props, { emit }) {
+    const { t } = useLocale();
+    const route = useRoute();
+    const router = useRouter();
+    const activeKey = ref<number | string>('all');
+    const addPanelRef = ref();
+    const addIndexSetRef = ref();
+    const rootRef = ref();
+    const formData = ref<IListItemData>({ index_set_name: '' });
+    const isHover = ref(false);
+    let tippyInstance: Instance | null = null;
+    let isInitialized = false;
+    const searchValue = ref<string>('');
+
+    const baseItem = computed(() => [
+      {
+        index_set_name: t('全部采集项'),
+        index_count: props.total,
+        index_set_id: 'all',
+        icon: 'all2',
+        unEditable: true,
+      },
+    ]);
+
+    /** 过滤后的数据 */
+    const filterDataList = computed(() =>
+      (props.listData || []).filter((item: IListItemData) => (item.index_set_name ?? '').includes(searchValue.value)),
+    );
+
+    /** 选中索引集 */
+    const handleItem = (item: IListItemData) => {
+      activeKey.value = item.index_set_id ?? '';
+      emit('choose', item);
+
+      // 更新路由参数
+      const newIndexSetId = item.index_set_id === 'all' ? undefined : String(item.index_set_id);
+      const currentIndexSetId = route.query.indexSetId;
+
+      if (newIndexSetId !== currentIndexSetId) {
+        const query = { ...route.query };
+        if (newIndexSetId) {
+          query.indexSetId = newIndexSetId;
+        } else {
+          delete query.indexSetId;
+        }
+        router.replace({ query });
+      }
+    };
+
+    const refreshListData = () => {
+      emit('refresh');
+    };
+
+    const handelDelItem = (item: IListItemData) => {
+      ServicesInstance.collect.delIndexGroup({
+          params: {
+            index_set_id: item.index_set_id,
+          },
+        })
+        .then(res => {
+          if (res.result) {
+            showMessage(t('删除成功'));
+            handleItem(baseItem.value[0]);
+            refreshListData();
+          }
+        })
+        .catch(err => {
+          console.log(err);
+        });
+    };
+
+    const handleRenameItem = () => {
+      refreshListData();
+    };
+
+    const renderBaseItem = (item: IListItemData) => (
+      <ListItem
+        activeKey={activeKey.value}
+        data={item}
+        onChoose={handleItem}
+        onDelete={handelDelItem}
+        onRename={handleRenameItem}
+      />
+    );
+
+    const initActionPop = () => {
+      if (!rootRef.value || !addPanelRef.value) {
+        return;
+      }
+      tippyInstance?.destroy();
+      tippyInstance = tippy(rootRef.value as SingleTarget, {
+        content: addPanelRef.value,
+        trigger: 'click',
+        placement: 'bottom-end',
+        theme: 'light add-index-set-popover',
+        interactive: true,
+        hideOnClick: true,
+        appendTo: () => document.body,
+        onShow: () => {
+          isHover.value = true;
+          addIndexSetRef.value?.autoFocus?.();
+        },
+        onHide: () => {
+          isHover.value = false;
+        },
+      });
+    };
+
+    const handleEditGroupCancel = () => {
+      tippyInstance?.hide();
+    };
+
+    /** 新增/修改索引集 */
+    const handleEditGroupSubmit = () => {
+      refreshListData();
+    };
+
+    watch(
+      () => [props.loading, props.listData],
+      () => {
+        if (props.loading) {
+          return;
+        }
+
+        nextTick(initActionPop);
+
+        const routeIndexSetId = route.query.indexSetId;
+        if (!isInitialized) {
+          isInitialized = true;
+          if (routeIndexSetId) {
+            const targetItem = props.listData.find(item => String(item.index_set_id) === String(routeIndexSetId));
+            if (targetItem) {
+              activeKey.value = targetItem.index_set_id ?? '';
+              emit('choose', targetItem);
+              return;
+            }
+          }
+          handleItem(baseItem.value[0]);
+          return;
+        }
+
+        const updatedItem = props.listData.find(item => item.index_set_id === activeKey.value);
+        if (updatedItem) {
+          emit('choose', updatedItem);
+        }
+      },
+    );
+
+    onMounted(() => {
+      nextTick(initActionPop);
+    });
+
+    onBeforeUnmount(() => {
+      tippyInstance?.hide();
+      tippyInstance?.destroy();
+    });
+
+    /** 列表内容render */
+    const renderListMain = () => {
+      if (props.loading) {
+        return (
+          <ItemSkeleton
+            style={{ padding: '0 16px' }}
+            rowHeight={'30px'}
+            rows={6}
+            widths={['100%']}
+          />
+        );
+      }
+      if (filterDataList.value.length > 0) {
+        return (filterDataList.value || []).map(item => renderBaseItem(item));
+      }
+      return (
+        <bk-exception
+          class='list-main-empty'
+          type={searchValue.value ? 'search-empty' : 'empty'}
+        >
+          <span>{searchValue.value ? t('搜索结果为空') : t('暂无索引集')}</span>
+          {searchValue.value ? (
+            <span
+              class='list-main-empty-text'
+              onClick={() => {
+                searchValue.value = '';
+              }}
+            >
+              {t('清空筛选条件')}
+            </span>
+          ) : (
+            <p class='list-main-text'>{t('创建索引集可合并多采集项一同使用')}</p>
+          )}
+        </bk-exception>
+      );
+    };
+
+    return () => (
+      <div class='log-collection-left-list'>
+        <div class='list-top'>{baseItem.value.map(item => renderBaseItem(item))}</div>
+        <div class='list-main'>
+          <div class='list-main-title'>{t('索引集列表')}</div>
+          <div class='list-main-search'>
+            <span
+              ref={rootRef}
+              class={{
+                'add-btn': true,
+                'is-hover': isHover.value,
+              }}
+            >
+              +
+            </span>
+            <bk-input
+              class='search-input'
+              placeholder={t('搜索 索引集名称')}
+              right-icon='bk-icon icon-search'
+              value={searchValue.value}
+              clearable
+              onClear={() => {
+                searchValue.value = '';
+              }}
+              onInput={(val: string) => {
+                searchValue.value = val;
+              }}
+            />
+          </div>
+          <div style='display: none'>
+            <div ref={addPanelRef}>
+              <AddIndexSet
+                ref={addIndexSetRef}
+                data={formData.value}
+                isAdd={true}
+                onCancel={handleEditGroupCancel}
+                onSubmit={handleEditGroupSubmit}
+              />
+            </div>
+          </div>
+          <div class='list-main-content'>{renderListMain()}</div>
+        </div>
+      </div>
+    );
+  },
+});

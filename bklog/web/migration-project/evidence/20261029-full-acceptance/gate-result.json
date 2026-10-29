@@ -1,0 +1,431 @@
+{
+  "status": "REJECTED",
+  "failedGates": [
+    {
+      "gate": "strict-types",
+      "diagnostics": 1271
+    },
+    {
+      "gate": "typescript-migration",
+      "remaining": 19
+    },
+    {
+      "gate": "route-business-and-visual",
+      "count": 90,
+      "routes": [
+        {
+          "name": "retrieve",
+          "path": "/retrieve/:indexId?"
+        },
+        {
+          "name": "client-log-search",
+          "path": "/client-log-search"
+        },
+        {
+          "name": "templateManage",
+          "path": "/template-manage"
+        },
+        {
+          "name": "externalAuth",
+          "path": "/external-auth/:activeNav?"
+        },
+        {
+          "name": "share",
+          "path": "/share/:linkId?"
+        },
+        {
+          "name": "data_id",
+          "path": "/data_id/:id?"
+        },
+        {
+          "name": "manage",
+          "path": "/manage"
+        },
+        {
+          "name": "log-collection",
+          "path": "/manage/log-collection"
+        },
+        {
+          "name": "collection-item",
+          "path": "/manage/log-collection/collection-item"
+        },
+        {
+          "name": "collection-item-list",
+          "path": "/manage/log-collection/collection-item/list"
+        },
+        {
+          "name": "manage-collection",
+          "path": "/manage/log-collection/collection-item/manage/:collectorId"
+        },
+        {
+          "name": "collectAdd",
+          "path": "/manage/log-collection/collection-item/add"
+        },
+        {
+          "name": "collectEdit",
+          "path": "/manage/log-collection/collection-item/edit/:collectorId"
+        },
+        {
+          "name": "collectField",
+          "path": "/manage/log-collection/collection-item/field/:collectorId"
+        },
+        {
+          "name": "collectStorage",
+          "path": "/manage/log-collection/collection-item/storage/:collectorId"
+        },
+        {
+          "name": "collectMasking",
+          "path": "/manage/log-collection/collection-item/masking/:collectorId"
+        },
+        {
+          "name": "collectStart",
+          "path": "/manage/log-collection/collection-item/start/:collectorId"
+        },
+        {
+          "name": "collectStop",
+          "path": "/manage/log-collection/collection-item/stop/:collectorId"
+        },
+        {
+          "name": "log-index-set",
+          "path": "/manage/log-collection/log-index-set"
+        },
+        {
+          "name": "log-index-set-list",
+          "path": "/manage/log-collection/log-index-set/list"
+        },
+        {
+          "name": "log-index-set-manage",
+          "path": "/manage/log-collection/log-index-set/manage/:indexSetId"
+        },
+        {
+          "name": "log-index-set-create",
+          "path": "/manage/log-collection/log-index-set/create"
+        },
+        {
+          "name": "log-index-set-edit",
+          "path": "/manage/log-collection/log-index-set/edit/:indexSetId"
+        },
+        {
+          "name": "log-index-set-masking",
+          "path": "/manage/log-collection/log-index-set/masking/:indexSetId"
+        },
+        {
+          "name": "tgpa-task",
+          "path": "/manage/tgpa-task"
+        },
+        {
+          "name": "tgpa-task-list",
+          "path": "/manage/tgpa-task/list"
+        },
+        {
+          "name": "clean-config",
+          "path": "/manage/tgpa-task/clean-config"
+        },
+        {
+          "name": "bk-data-collection",
+          "path": "/manage/bk-data-collection"
+        },
+        {
+          "name": "bkdata-index-set-list",
+          "path": "/manage/bk-data-collection/list"
+        },
+        {
+          "name": "bkdata-index-set-manage",
+          "path": "/manage/bk-data-collection/manage/:indexSetId"
+        },
+        {
+          "name": "bkdata-index-set-create",
+          "path": "/manage/bk-data-collection/create"
+        },
+        {
+          "name": "bkdata-index-set-edit",
+          "path": "/manage/bk-data-collection/edit/:indexSetId"
+        },
+        {
+          "name": "bkdata-index-set-masking",
+          "path": "/manage/bk-data-collection/masking/:indexSetId"
+        },
+        {
+          "name": "es-collection",
+          "path": "/manage/es-collection"
+        },
+        {
+          "name": "es-index-set-list",
+          "path": "/manage/es-collection/list"
+        },
+        {
+          "name": "es-index-set-manage",
+          "path": "/manage/es-collection/manage/:indexSetId"
+        },
+        {
+          "name": "es-index-set-create",
+          "path": "/manage/es-collection/create"
+        },
+        {
+          "name": "es-index-set-edit",
+          "path": "/manage/es-collection/edit/:indexSetId"
+        },
+        {
+          "name": "es-index-set-masking",
+          "path": "/manage/es-collection/masking/:indexSetId"
+        },
+        {
+          "name": "custom-report",
+          "path": "/manage/custom-report"
+        },
+        {
+          "name": "custom-report-list",
+          "path": "/manage/custom-report/list"
+        },
+        {
+          "name": "custom-report-create",
+          "path": "/manage/custom-report/create"
+        },
+        {
+          "name": "custom-report-edit",
+          "path": "/manage/custom-report/edit/:collectorId"
+        },
+        {
+          "name": "custom-report-detail",
+          "path": "/manage/custom-report/detail/:collectorId"
+        },
+        {
+          "name": "custom-report-masking",
+          "path": "/manage/custom-report/masking/:indexSetId"
+        },
+        {
+          "name": "clean-list",
+          "path": "/manage/clean-list"
+        },
+        {
+          "name": "log-clean-list",
+          "path": "/manage/clean-list/list"
+        },
+        {
+          "name": "clean-create",
+          "path": "/manage/clean-list/create"
+        },
+        {
+          "name": "clean-edit",
+          "path": "/manage/clean-list/edit/:collectorId"
+        },
+        {
+          "name": "clean-templates",
+          "path": "/manage/clean-templates"
+        },
+        {
+          "name": "log-clean-templates",
+          "path": "/manage/clean-templates/list"
+        },
+        {
+          "name": "clean-template-create",
+          "path": "/manage/clean-templates/create"
+        },
+        {
+          "name": "clean-template-edit",
+          "path": "/manage/clean-templates/edit/:templateId"
+        },
+        {
+          "name": "log-desensitize",
+          "path": "/manage/log-desensitize"
+        },
+        {
+          "name": "log-desensitize-list",
+          "path": "/manage/log-desensitize/list"
+        },
+        {
+          "name": "grok-manage",
+          "path": "/manage/grok-manage"
+        },
+        {
+          "name": "archive-repository",
+          "path": "/manage/archive-repository"
+        },
+        {
+          "name": "archive-list",
+          "path": "/manage/archive-list"
+        },
+        {
+          "name": "archive-restore",
+          "path": "/manage/archive-restore"
+        },
+        {
+          "name": "manage-log-extract",
+          "path": "/manage/manage-log-extract"
+        },
+        {
+          "name": "log-extract-task",
+          "path": "/manage/log-extract-task"
+        },
+        {
+          "name": "extract-home",
+          "path": "/manage/log-extract-task/"
+        },
+        {
+          "name": "extract-create",
+          "path": "/manage/log-extract-task/extract-create"
+        },
+        {
+          "name": "extract-clone",
+          "path": "/manage/log-extract-task/extract-clone"
+        },
+        {
+          "name": "extract-link-manage",
+          "path": "/manage/extract-link-manage"
+        },
+        {
+          "name": "extract-link-list",
+          "path": "/manage/extract-link-manage/list"
+        },
+        {
+          "name": "extract-link-edit",
+          "path": "/manage/extract-link-manage/edit/:linkId"
+        },
+        {
+          "name": "extract-link-create",
+          "path": "/manage/extract-link-manage/create"
+        },
+        {
+          "name": "es-cluster-manage",
+          "path": "/manage/es-cluster-manage"
+        },
+        {
+          "name": "report-manage",
+          "path": "/manage/report-manage"
+        },
+        {
+          "name": "collection-track",
+          "path": "/manage/collection-track"
+        },
+        {
+          "name": "bk-data-track",
+          "path": "/manage/bk-data-track"
+        },
+        {
+          "name": "bkdata-track-list",
+          "path": "/manage/bk-data-track/list"
+        },
+        {
+          "name": "bkdata-track-manage",
+          "path": "/manage/bk-data-track/manage/:indexSetId"
+        },
+        {
+          "name": "bkdata-track-create",
+          "path": "/manage/bk-data-track/create"
+        },
+        {
+          "name": "bkdata-track-edit",
+          "path": "/manage/bk-data-track/edit/:indexSetId"
+        },
+        {
+          "name": "sdk-track",
+          "path": "/manage/sdk-track"
+        },
+        {
+          "name": "manage-data-link-conf",
+          "path": "/manage/manage-data-link-conf"
+        },
+        {
+          "name": null,
+          "path": "/manage/collect"
+        },
+        {
+          "name": "dashboard",
+          "path": "/dashboard"
+        },
+        {
+          "name": "home",
+          "path": "/dashboard/home"
+        },
+        {
+          "name": "default-dashboard",
+          "path": "/dashboard/default-dashboard"
+        },
+        {
+          "name": "create-dashboard",
+          "path": "/dashboard/create-dashboard"
+        },
+        {
+          "name": "create-folder",
+          "path": "/dashboard/create-folder"
+        },
+        {
+          "name": "import-dashboard",
+          "path": "/dashboard/import-dashboard"
+        },
+        {
+          "name": "monitor-apm-log",
+          "path": "/monitor-apm-log/:indexId?"
+        },
+        {
+          "name": "monitor-trace-log",
+          "path": "/monitor-trace-log/:indexId?"
+        },
+        {
+          "name": null,
+          "path": "/"
+        },
+        {
+          "name": "un-authorized",
+          "path": "/un-authorized"
+        },
+        {
+          "name": "exception",
+          "path": "*"
+        }
+      ]
+    },
+    {
+      "gate": "critical-scenarios",
+      "count": 34,
+      "scenarios": [
+        "application-auth-space-navigation",
+        "sealed-v1-query-refresh-return",
+        "retrieve-single",
+        "retrieve-union",
+        "retrieve-scene",
+        "history-restoration",
+        "date-time-and-refresh",
+        "ui-sql-conditions",
+        "ai-generation-cancel-error",
+        "fields-trends-and-results",
+        "details-context-realtime",
+        "downloads-and-export-history",
+        "favorites-groups-and-sharing",
+        "clustering-full-workflow",
+        "client-logs",
+        "share-expiration-and-authorization",
+        "monitor-apm-trace-hosts",
+        "collection-host",
+        "collection-container-file",
+        "collection-container-stdout",
+        "collection-windows-event",
+        "custom-report-and-sdk",
+        "index-sets-log",
+        "index-sets-bkdata",
+        "index-sets-es",
+        "cleaning-and-templates",
+        "grok",
+        "masking",
+        "extraction-and-links",
+        "archives-and-restore",
+        "clusters-subscriptions-tracking",
+        "dashboards",
+        "permission-errors-cancel-retry",
+        "clean-checkout-subpath-and-rollback"
+      ]
+    },
+    {
+      "gate": "high-impact-differences",
+      "issues": [
+        "notice-component-insert-before"
+      ]
+    }
+  ],
+  "coverage": {
+    "routeTotal": 90,
+    "businessAndVisualAccepted": 0,
+    "criticalScenarioTotal": 34,
+    "criticalScenariosAccepted": 0
+  }
+}

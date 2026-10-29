@@ -128,9 +128,8 @@ export default defineComponent({
     });
     const isTraceDetail = computed(() => traceId.value && !spanId.value);
 
-    const logInstance = null;
     const unPropsWatch = watch([timeRange, refreshImmediate, refreshInterval], () => {
-      logInstance?.$forceUpdate?.();
+      logAppInstance?.$forceUpdate?.();
     });
 
     async function init() {

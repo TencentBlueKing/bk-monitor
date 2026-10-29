@@ -1,0 +1,74 @@
+{
+  "date": "2026-10-28",
+  "target": "packages/web-v3/src-native",
+  "entry": "http://appdev.woa.com:4175/#/retrieve/40676?spaceUid=bkcc__5000140&bizId=5000140",
+  "runtime": "Vue3 compatibility diagnostics; not native acceptance",
+  "unitTests": {
+    "command": "pnpm --dir bklog/web/packages/web-v3 --ignore-workspace test:native",
+    "passed": 32,
+    "failed": 0,
+    "evidence": "native-tests.txt"
+  },
+  "compatBuild": {
+    "passed": true,
+    "durationSeconds": 35.23,
+    "command": "NODE_OPTIONS=--max-old-space-size=6144 pnpm --dir bklog/web/packages/web-v3 --ignore-workspace build:migration"
+  },
+  "nativeBuild": {
+    "passed": false,
+    "blocker": "components/log-masking/masking-setting.tsx:88 still uses Vue2 @Component"
+  },
+  "staticCompatibility": {
+    "candidates": 303,
+    "files": 170,
+    "parseErrors": 0,
+    "accepted": false
+  },
+  "moduleGraph": {
+    "staticModules": 366,
+    "failures": [],
+    "scope": "Static imports reachable from main entry only; does not prove dynamic-route coverage"
+  },
+  "browser": {
+    "sampleIndex": "40676",
+    "queryLoadingToEmpty": "passed",
+    "indexNameAndTimeDisplay": "passed",
+    "fieldSearchAndClear": "passed",
+    "bookmarkOpenInputBlurValidationGroupPanelCancel": "passed",
+    "dashboardOpenRequiredValidationCancel": "passed",
+    "rowNumberToggleAndRestore": "passed",
+    "writeTestsOnRealResources": false,
+    "fullBusinessAccepted": false,
+    "visualAccepted": false
+  },
+  "layout": {
+    "1440x900": [
+      "retrieve-v2-40676-1440.jpg",
+      "retrieve-native-40676-1440.jpg",
+      "bookmark-validation-1440.jpg",
+      "dashboard-validation-1440.jpg"
+    ],
+    "1280x800": [
+      "retrieve-native-40676-1280.jpg"
+    ],
+    "compactDocumentWidth": 1280,
+    "compactScrollWidth": 1280,
+    "fixedResponses": false,
+    "absoluteTimeFixed": false,
+    "scope": "Qualitative layout evidence; no pixel gate accepted"
+  },
+  "noticeProxy": {
+    "path": "/notice/announcements/",
+    "status": 200,
+    "contentType": "application/json",
+    "spaHtmlFallback": false
+  },
+  "pending": [
+    "Native class components and legacy dependencies",
+    "Nonempty result/context/details/export scenarios",
+    "Real writes on isolated resources",
+    "Full scene/union/APM/Trace browser coverage",
+    "Grade validation tooltip presentation and complete visual alignment",
+    "Persistence and all unported draggable components"
+  ]
+}

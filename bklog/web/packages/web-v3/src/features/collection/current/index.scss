@@ -1,0 +1,44 @@
+.v2-log-collection-main {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  .ml-8 {
+    margin-left: 8px;
+  }
+  .v2-log-collection-left {
+    width: 250px;
+    height: 100%;
+    background: #f3f6fa;
+  }
+  .v2-log-collection-right {
+    flex: 1;
+    width: calc(100% - 250px);
+    height: 100%;
+    background: #fff;
+    box-shadow: 0 2px 4px 0 #1919290d;
+    position: relative;
+    .right-btn-box {
+      display: inline-block;
+      width: 16px;
+      height: 48px;
+      line-height: 48px;
+      background: #dcdee5;
+      border-radius: 0 4px 4px 0;
+      color: #fff;
+      position: absolute;
+      left: 0;
+      top: 50%;
+      transform: translateY(-50%);
+      cursor: pointer;
+      z-index: 100;
+      border: none;
+      padding: 0;
+      outline: none;
+      .right-btn {
+        font-size: 20px;
+        font-weight: 700;
+        margin-left: -2px;
+      }
+    }
+  }
+}

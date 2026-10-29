@@ -1,0 +1,21 @@
+.sort-main {
+  width: 9px;
+  display: flex;
+  flex-direction: column;
+  margin-left: 6px;
+  font-size: 9px;
+  cursor: pointer;
+  color: #c4c6cc;
+
+  .sort-icon-up {
+    margin-bottom: -1px;
+  }
+
+  .is-sort-active {
+    color: rgb(58, 132, 255);
+  }
+
+  .sort-icon-down {
+    margin-top: -1px;
+  }
+}

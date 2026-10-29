@@ -1,0 +1,28 @@
+.restore-slider-content {
+  height: calc(100vh - 60px);
+  min-height: 394px;
+
+  .bk-form.bk-form-vertical {
+    padding: 10px 0 36px 36px;
+
+    .bk-form-item {
+      width: 500px;
+      margin-top: 18px;
+    }
+
+    .bk-alert {
+      width: 500px;
+      margin-top: 12px;
+    }
+
+    .bk-select,
+    .bk-date-picker {
+      width: 300px;
+    }
+
+    .user-selector {
+      /* stylelint-disable-next-line declaration-no-important */
+      width: 500px !important;
+    }
+  }
+} 

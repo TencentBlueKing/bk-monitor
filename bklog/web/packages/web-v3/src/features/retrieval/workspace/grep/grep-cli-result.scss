@@ -1,0 +1,28 @@
+.cli-result-container {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  background: #ffffff;
+  border-radius: 4px;
+  overflow: hidden;
+  font-size: 12px;
+  padding-right: 10px;
+  min-height: 500px;
+
+  .cli-result-line-number {
+    flex: 0 0 40px;
+    padding: 0 10px;
+    color: #c78500;
+    font-size: 12px;
+    text-align: right;
+    user-select: none;
+    line-height: 20px;
+  }
+
+  [data-filter-item] {
+    &.current {
+      background: orange;
+    }
+  }
+}

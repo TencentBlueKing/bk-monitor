@@ -1,0 +1,131 @@
+.grok-slider {
+  .grok-slider-content {
+    padding: 24px 40px;
+  }
+
+  .bk-form {
+    .bk-form-item {
+      margin-bottom: 24px;
+
+      &:last-child {
+        margin-bottom: 0;
+      }
+    }
+  }
+
+  .grok-pattern-label {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+
+  // 调试区域
+  .debug-section {
+    margin-top: 32px;
+
+    .debug-section-title {
+      font-size: 14px;
+      font-weight: bold;
+      color: #313238;
+      margin-bottom: 16px;
+    }
+
+    .debug-action {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 16px;
+    }
+
+    // 调试状态
+    .debug-status {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 12px;
+
+      &.debug-status-success {
+        color: #2CAF5E;
+      }
+
+      &.debug-status-warning {
+        color: #F59500;
+      }
+
+      &.debug-status-error {
+        color: #ea3636;
+      }
+
+      .bk-icon {
+        font-size: 14px;
+      }
+    }
+
+    // 调试结果
+    .debug-result {
+      background-color: #f5f7fa;
+      border-radius: 2px;
+      padding: 9px;
+
+      .debug-result-label {
+        font-size: 12px;
+        color: #979ba5;
+        margin-bottom: 8px;
+      }
+
+      // 调试结果表格
+      .debug-result-table {
+        width: 100%;
+        border-collapse: collapse;
+        border: none;
+
+        th, td {
+          padding: 8px 12px;
+          font-size: 12px;
+          text-align: left;
+          border: none;
+        }
+
+        th {
+          font-weight: 400;
+          color: #8E9BB3;
+          background: transparent;
+          border-bottom: 1px solid #DCDEE5;
+        }
+
+        td {
+          color: #4D4F56;
+          border-bottom: 1px solid #F0F1F5;
+        }
+
+        tr:last-child td {
+          border-bottom: none;
+        }
+      }
+
+      .debug-result-field {
+        flex-shrink: 0;
+        width: 120px;
+        color: #4D4F56;
+      }
+
+      .debug-result-value {
+        word-break: break-all;
+      }
+    }
+  }
+
+  // 底部按钮
+  .slider-footer {
+    margin-top: 24px;
+
+    .bk-form-content {
+      display: flex;
+      gap: 8px;
+    }
+
+    .bk-button {
+      min-width: 88px;
+    }
+  }
+}

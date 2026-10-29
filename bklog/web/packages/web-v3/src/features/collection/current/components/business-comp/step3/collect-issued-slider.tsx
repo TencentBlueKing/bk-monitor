@@ -1,0 +1,816 @@
+import { ServicesInstance } from '@/platform/services';
+import { asDictionary } from '@/shared/utils/typed-record';
+/*
+ * Tencent is pleased to support the open source community by making
+ * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
+ *
+ * Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
+ *
+ * 蓝鲸智云PaaS平台 (BlueKing PaaS) is licensed under the MIT License.
+ *
+ * License for 蓝鲸智云PaaS平台 (BlueKing PaaS):
+ *
+ * ---------------------------------------------------
+ * Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated
+ * documentation files (the "Software"), to deal in the Software without restriction, including without limitation
+ * the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and
+ * to permit persons to whom the Software is furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in all copies or substantial portions of
+ * the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO
+ * THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF
+ * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
+ * IN THE SOFTWARE.
+ */
+
+import { defineComponent, ref, computed, watch } from 'vue';
+
+import useLocale from '@/shared/composables/use-locale';
+
+import { showMessage } from '../../../utils';
+import HostDetail from '../../common-comp/host-detail';
+
+
+import './collect-issued-slider.scss';
+
+/**
+ * 主机状态类型
+ */
+type HostStatus = 'success' | 'failed' | 'running' | 'pending' | string;
+
+/**
+ * 主机项数据接口
+ */
+interface IHostItem {
+  /** 主机IP地址 */
+  ip: string;
+  /** 云区域ID */
+  bk_cloud_id: number | string;
+  /** 实例ID */
+  instance_id: string | number;
+  /** 主机状态 */
+  status: HostStatus;
+  [key: string]: unknown;
+}
+
+/**
+ * 集群项数据接口
+ * 兼容 HostDetail 组件所需的 ILogItem 结构
+ */
+interface IClusterItem {
+  /** 实例ID */
+  bk_inst_id?: string | number;
+  /** 对象ID（兼容 ILogItem） */
+  bk_obj_id?: string;
+  /** 对象名称 */
+  bk_obj_name: string;
+  /** 节点路径（兼容 ILogItem） */
+  node_path?: string;
+  /** 子项列表（主机列表） */
+  child: IHostItem[];
+  /** 是否折叠 */
+  collapse?: boolean;
+  [key: string]: unknown;
+}
+
+/**
+ * 重试接口响应数据类型
+ */
+interface IRetryResponse {
+  /** 响应数据（任务ID列表） */
+  data?: (string | number)[];
+  [key: string]: unknown;
+}
+
+/**
+ * 容器配置项数据接口
+ */
+interface IContainerConfigItem {
+  /** 容器采集配置ID */
+  container_collector_config_id: string | number;
+  /** 名称 */
+  name: string;
+  /** 状态 */
+  status: HostStatus;
+  /** 详情信息 */
+  message?: string;
+  [key: string]: unknown;
+}
+
+/**
+ * 容器渲染项数据接口
+ */
+interface IContainerRenderItem {
+  /** 采集配置名称 */
+  collector_config_name: string;
+  /** 是否展开表格 */
+  isShowTable: boolean;
+  /** 全部列表 */
+  all: IContainerConfigItem[];
+  /** 成功列表 */
+  success: IContainerConfigItem[];
+  /** 失败列表 */
+  failed: IContainerConfigItem[];
+  /** 执行中列表 */
+  running: IContainerConfigItem[];
+  [key: string]: unknown;
+}
+
+/**
+ * @description: 采集下发侧边栏组件
+ * 用于展示采集下发状态，支持单条和批量重试功能
+ */
+export default defineComponent({
+  name: 'CollectIssuedSlider',
+  props: {
+    isShow: {
+      type: Boolean,
+      default: false,
+    },
+    isStopCollection: {
+      type: Boolean,
+      default: false,
+    },
+    status: {
+      type: String,
+      default: '',
+    },
+    config: {
+      type: Object,
+      default: () => {},
+    },
+    collectorConfigId: {
+      type: Number,
+      default: undefined,
+    },
+    stopTypeKey: {
+      type: Boolean,
+      default: true,
+    },
+    isContainer: {
+      type: Boolean,
+      default: false,
+    },
+  },
+
+  emits: ['change', 'refresh'],
+
+  setup(props, { emit }) {
+    const { t } = useLocale();
+    // const store = useStore();
+
+    const loading = ref<boolean>(false);
+    // const curCollect = computed(() => store.getters['collect/curCollect']);
+    /** 当前任务ID列表 */
+    const curTaskIdList = ref<(string | number)[]>([]);
+    /** 错误数量 */
+    const errorNum = ref<number>(0);
+    /** 节点管理是否准备就绪 */
+    const notReady = ref<boolean>(false);
+    /** 轮询计时器编号（用于防止并发轮询） */
+    const timerNum = ref<number>(0);
+    /** 所有集群列表数据 */
+    const tableListAll = ref<IClusterItem[]>([]);
+    /** 轮询定时器 */
+    const timer = ref<ReturnType<typeof setTimeout> | null>(null);
+    /** 是否离开页面 */
+    const isLeavePage = ref<boolean>(false);
+    /** 是否存在运行中的任务 */
+    const hasRunning = ref<boolean>(false);
+    const tabList = ref([
+      {
+        key: 'all',
+        label: t('全部'),
+        count: 0,
+      },
+      {
+        key: 'success',
+        label: t('成功'),
+        count: 0,
+      },
+      {
+        key: 'failed',
+        label: t('失败'),
+        count: 0,
+      },
+      {
+        key: 'running',
+        label: t('执行中'),
+        count: 0,
+      },
+    ]);
+    const isHandle = ref(false);
+
+    /** ========== 容器采集状态相关 ========== */
+    /** 容器状态导航当前激活项 */
+    const containerNavActive = ref<string>('all');
+    /** 容器渲染列表 */
+    const containerRenderList = ref<IContainerRenderItem[]>([]);
+    /** 容器状态轮询定时器 */
+    const containerTimer = ref<ReturnType<typeof setInterval> | null>(null);
+    /** 容器状态下所有失败的config_id列表 */
+    const containerAllFailedIDList = ref<(string | number)[]>([]);
+    /** 容器状态导航按钮列表 */
+    const containerNavBtnList = ref([
+      { id: 'all', listNum: 0 },
+      { id: 'success', listNum: 0 },
+      { id: 'failed', listNum: 0 },
+      { id: 'running', listNum: 0 },
+    ]);
+    /** 容器状态名称映射 */
+    const containerStatusNameMap = computed(() => ({
+      all: t('全部'),
+      success: t('正常'),
+      failed: t('失败'),
+      running: t('执行中'),
+    }));
+    /** 容器是否还有执行中的状态 */
+    const containerHasRunning = computed(() => containerNavBtnList.value[3].listNum > 0);
+
+    const collectionName = computed(() => props.config.name);
+    const isRunning = computed(() => tabList.value.find(item => item.key === 'running').count > 0);
+
+    const calcTabNum = () => {
+      const num = asDictionary({
+        all: 0,
+        success: 0,
+        failed: 0,
+        running: 0,
+      });
+
+      // 遍历所有集群，计算各状态数量
+      for (const cluster of tableListAll.value) {
+        // 累加总数量（所有主机）
+        num.all += cluster.child.length;
+
+        // 遍历当前集群下的主机，按状态累加
+        for (const row of cluster.child) {
+          num[row.status] += 1;
+        }
+      }
+
+      // 更新标签页数量
+      for (const tab of tabList.value) {
+        tab.count = num[tab.key];
+      }
+      errorNum.value = num.failed;
+      // 根据running状态更新hasRunning，用于控制轮询
+      hasRunning.value = num.running > 0;
+    };
+
+    const stopStatusPolling = () => {
+      clearTimeout(timer.value);
+    };
+
+    const startStatusPolling = () => {
+      timerNum.value = timerNum.value + 1;
+      stopStatusPolling();
+      timer.value = setTimeout(() => {
+        if (isLeavePage.value) {
+          stopStatusPolling();
+          return;
+        }
+        requestIssuedClusterList('polling');
+      }, 3000);
+    };
+
+    /** ========== 容器采集状态方法 ========== */
+
+    /**
+     * 容器日志list，与轮询共用
+     */
+    const getContainerList = (isPolling = false) => {
+      if (!isPolling) {
+        loading.value = true;
+      }
+      const params = { collector_config_id: props.collectorConfigId };
+      ServicesInstance.collect.getIssuedClusterList({
+          params,
+          query: { task_id_list: curTaskIdList.value.join(',') },
+        })
+        .then(res => {
+          const data = structuredClone(res.data.contents) || [];
+          containerAllFailedIDList.value = [];
+          containerNavBtnList.value.forEach(item => (item.listNum = 0));
+          containerRenderList.value = data.reduce((pre: IContainerRenderItem[], cur: any) => {
+            cur.isShowTable = true;
+            containerNavBtnList.value.forEach(item => (cur[item.id] = []));
+            if (cur.child.length) {
+              cur.all = cur.child;
+              for (const childItem of cur.child) {
+                childItem.status = childItem.status === 'PENDING' ? 'running' : childItem.status.toLowerCase();
+                if (childItem.status === 'failed') {
+                  containerAllFailedIDList.value.push(childItem.container_collector_config_id);
+                }
+                cur[childItem.status].push(childItem);
+              }
+              delete cur.child;
+            }
+            containerNavBtnList.value.forEach(item => (item.listNum += cur[item.id].length));
+            pre.push(cur);
+            return pre;
+          }, []);
+        })
+        .catch(err => {
+          console.warn(err);
+        })
+        .finally(() => {
+          loading.value = false;
+          if (isPolling && !containerHasRunning.value) {
+            stopContainerPolling();
+          }
+        });
+    };
+
+    /**
+     * 容器状态轮询
+     */
+    const startContainerPolling = () => {
+      stopContainerPolling();
+      containerTimer.value = setInterval(() => {
+        getContainerList(true);
+      }, 5000);
+    };
+
+    const stopContainerPolling = () => {
+      if (containerTimer.value) {
+        clearInterval(containerTimer.value);
+        containerTimer.value = null;
+      }
+    };
+
+    /**
+     * 容器重试
+     */
+    const containerRetry = (alone = '', renderItem?: IContainerRenderItem, row?: IContainerConfigItem) => {
+      const retrySubmitList = alone ? [row!.container_collector_config_id] : containerAllFailedIDList.value;
+      // ID列表为空或者全局失败数为0时不请求
+      if (!retrySubmitList.length || !containerNavBtnList.value[2].listNum) return;
+      if (row && renderItem) {
+        row.status = 'running';
+        renderItem.running.push(row);
+        const renderIndex = renderItem.failed.findIndex(item => item.name === row.name);
+        renderItem.failed.splice(renderIndex, 1);
+        containerNavBtnList.value[3].listNum += 1;
+        containerNavBtnList.value[2].listNum -= 1;
+      } else {
+        // 批量重试：清空失败，将所有的失败添加到执行中
+        containerRenderList.value.forEach(tableItem => {
+          tableItem.all.forEach(item => {
+            if (item.status === 'failed') item.status = 'running';
+          });
+          tableItem.failed.forEach(item => (item.status = 'running'));
+          tableItem.running.push(...tableItem.failed);
+          tableItem.failed = [];
+        });
+        containerNavBtnList.value[3].listNum += containerNavBtnList.value[2].listNum;
+        containerNavBtnList.value[2].listNum = 0;
+      }
+      ServicesInstance.source.retryList({
+          params: {
+            collector_config_id: props.collectorConfigId,
+          },
+          data: {
+            instance_id_list: retrySubmitList,
+          },
+        })
+        .then(() => {
+          startContainerPolling();
+        })
+        .catch(e => {
+          console.warn(e);
+        });
+    };
+
+    /**
+     *  集群list，与轮询共用
+     */
+    const requestIssuedClusterList = async (isPolling = '') => {
+      if (!isPolling) {
+        loading.value = true;
+      }
+
+      const params = {
+        collector_config_id: props.collectorConfigId,
+      };
+      const cacheTimeNum = timerNum.value;
+
+      try {
+        const res = await ServicesInstance.collect.getIssuedClusterList({
+          params,
+          query: { task_id_list: curTaskIdList.value.join(',') },
+        });
+
+        const data = res.data.contents || [];
+        notReady.value = res.data.task_ready === false;
+
+        const processData = (data: IClusterItem[]) => {
+          let collapseCount = 0;
+          // 遍历集群列表
+          for (const cluster of data) {
+            cluster.collapse = cluster.child.length && collapseCount < 5;
+            if (cluster.child.length) {
+              collapseCount = collapseCount + 1;
+            }
+            // 遍历集群下的主机列表
+            for (const host of cluster.child) {
+              host.status = host.status === 'PENDING' ? 'running' : host.status.toLowerCase();
+            }
+          }
+          tableListAll.value = [...data];
+        };
+
+        if (isPolling === 'polling') {
+          // 轮询模式下始终更新数据，以便正确判断状态
+          if (cacheTimeNum === timerNum.value) {
+            processData(data);
+          }
+          calcTabNum();
+          // 只有当存在running状态时才继续轮询，否则停止轮询
+          hasRunning.value ? startStatusPolling() : stopStatusPolling();
+        } else {
+          processData(data);
+          calcTabNum();
+          // 首次加载时，如果存在running状态，启动轮询
+          if (hasRunning.value) {
+            startStatusPolling();
+          }
+        }
+      } catch (err) {
+        showMessage(err.message, 'error');
+      } finally {
+        setTimeout(() => {
+          loading.value = false;
+        }, 500);
+      }
+    };
+    /**
+     * 停用
+     */
+    const handleStop = () => {
+      isHandle.value = true;
+      ServicesInstance.collect.stopCollect({
+          params: {
+            collector_config_id: props.collectorConfigId,
+          },
+          data: {
+            is_stop_index_set: props.stopTypeKey,
+          },
+        })
+        .then(res => {
+          if (res.result) {
+            emit('refresh');
+          }
+        })
+        .catch(() => {
+          showMessage(t('停用失败'), 'error');
+        })
+        .finally(() => {
+          isHandle.value = false;
+        });
+    };
+
+    watch(
+      () => props.isShow,
+      (val: boolean) => {
+        if (val) {
+          // 加载新采集项前清空遗留的任务数据，
+          // 避免 HostDetail 使用旧的 task_id 请求任务详情。
+          tableListAll.value = [];
+          calcTabNum();
+          curTaskIdList.value = [...new Set([...(props.config?.task_id_list ?? [])])];
+          if (props.isContainer) {
+            // 容器环境：使用容器状态逻辑
+            getContainerList();
+            startContainerPolling();
+          } else {
+            requestIssuedClusterList();
+          }
+        } else {
+          // 侧边栏关闭时停止轮询
+          stopStatusPolling();
+          stopContainerPolling();
+        }
+      },
+      {
+        immediate: true,
+        deep: true,
+      },
+    );
+    /**
+     * 更新主机状态为运行中
+     * @param host - 主机项数据
+     */
+    const updateHostStatusToRunning = (host: IHostItem): void => {
+      host.status = 'running';
+    };
+
+    /**
+     * 单条重试：更新指定主机的状态并收集实例ID
+     * @param row - 要重试的主机项
+     * @param cluster - 主机所属的集群项
+     * @returns 实例ID列表
+     */
+    const handleSingleRetry = (row: IHostItem, cluster: IClusterItem): (string | number)[] => {
+      // 更新传入的行状态
+      updateHostStatusToRunning(row);
+
+      // 在表格数据中查找并更新对应主机的状态
+      const targetCluster = tableListAll.value.find(
+        item => item.bk_inst_id === cluster.bk_inst_id && item.bk_obj_name === cluster.bk_obj_name,
+      );
+
+      if (targetCluster?.child) {
+        const targetHost = targetCluster.child.find(host => host.ip === row.ip && host.bk_cloud_id === row.bk_cloud_id);
+        if (targetHost) {
+          updateHostStatusToRunning(targetHost);
+        }
+      }
+
+      return [row.instance_id];
+    };
+
+    /**
+     * 批量重试：更新所有失败主机的状态并收集实例ID列表
+     * @returns 实例ID列表
+     */
+    const handleBatchRetry = (): (string | number)[] => {
+      const instanceIDList: (string | number)[] = [];
+
+      // 遍历所有集群，查找失败的主机并更新状态
+      for (const cluster of tableListAll.value) {
+        if (!cluster.child) continue;
+
+        for (const host of cluster.child) {
+          if (host.status === 'failed') {
+            updateHostStatusToRunning(host);
+            instanceIDList.push(host.instance_id);
+          }
+        }
+      }
+
+      return instanceIDList;
+    };
+
+    /**
+     * 处理重试操作
+     * 支持单条重试和批量重试两种模式
+     * @param row - 要重试的主机项（批量重试时可为 null 或 undefined）
+     * @param cluster - 主机所属的集群项（批量重试时可为 null 或 undefined）
+     */
+    const handleRestart = (row?: IHostItem | null, cluster?: IClusterItem | null): void => {
+      // 根据是否传入 cluster 参数判断是单条重试还是批量重试
+      const instanceIDList: (string | number)[] = cluster && row ? handleSingleRetry(row, cluster) : handleBatchRetry();
+
+      // 如果没有需要重试的实例，直接返回
+      if (instanceIDList.length === 0) {
+        showMessage(t('没有需要重试的实例'), 'warning');
+        return;
+      }
+
+      // 更新标签页数量统计
+      calcTabNum();
+
+      // 调用重试接口
+      ServicesInstance.collect.retry({
+          params: { collector_config_id: props.collectorConfigId },
+          data: {
+            instance_id_list: instanceIDList,
+          },
+        })
+        .then((res: IRetryResponse) => {
+          if (res.data?.length) {
+            // 将返回的任务ID添加到任务列表（去重）
+            curTaskIdList.value = [...new Set([...curTaskIdList.value, ...res.data])];
+            // 启动状态轮询，监控重试结果
+            startStatusPolling();
+          }
+        })
+        .catch((err: Error) => {
+          const errorMessage = err?.message || t('重试失败');
+          showMessage(errorMessage, 'error');
+          // 重试失败时，恢复主机状态为失败
+          if (cluster && row) {
+            // 单条重试失败，恢复单条状态
+            row.status = 'failed';
+            const targetCluster = tableListAll.value.find(
+              item => item.bk_inst_id === cluster.bk_inst_id && item.bk_obj_name === cluster.bk_obj_name,
+            );
+            const targetHost = targetCluster?.child?.find(
+              host => host.ip === row.ip && host.bk_cloud_id === row.bk_cloud_id,
+            );
+            if (targetHost) {
+              targetHost.status = 'failed';
+            }
+          } else {
+            // 批量重试失败，恢复所有失败状态
+            for (const clusterItem of tableListAll.value) {
+              if (!clusterItem.child) continue;
+              for (const host of clusterItem.child) {
+                if (host.status === 'running' && instanceIDList.includes(host.instance_id)) {
+                  host.status = 'failed';
+                }
+              }
+            }
+          }
+          // 重新计算标签页数量
+          calcTabNum();
+        });
+    };
+
+    const renderHeader = () => (
+      <div>
+        {props.isStopCollection ? (
+          <div class='collect-link'>
+            {t('编辑采集项')}
+            <span class='link-name'>
+              <span class='bk-icon bklog-icon bklog-position' />
+              {collectionName.value}
+            </span>
+          </div>
+        ) : (
+          <span>{t('采集下发')}</span>
+        )}
+      </div>
+    );
+
+    /**
+     * 渲染容器采集状态内容
+     */
+    const renderContainerStatus = () => (
+      <div class='container-status-content'>
+        <div class='container-nav-section'>
+          <span class='container-tab'>
+            {containerNavBtnList.value.map(item => (
+              <span
+                class={{
+                  'container-tab-item': true,
+                  active: item.id === containerNavActive.value,
+                  disabled: item.listNum === 0 && item.id !== 'all',
+                }}
+                key={item.id}
+                onClick={() => {
+                  if (item.listNum !== 0 || item.id === 'all') {
+                    containerNavActive.value = item.id;
+                  }
+                }}
+              >
+                {['success', 'failed'].includes(item.id) && <span class={`item-circle ${item.id}`} />}
+                {item.id === 'running' && <i class='running' />}
+                {containerStatusNameMap.value[item.id]}（{item.listNum}）
+              </span>
+            ))}
+          </span>
+          <bk-button onClick={() => containerRetry()}>{t('失败批量重试')}</bk-button>
+        </div>
+        <div class='container-table-section'>
+          {containerRenderList.value.map((renderItem, renderIndex) => (
+            <div
+              class='container-table-item'
+              key={renderIndex}
+            >
+              <div
+                class={`container-table-title ${renderItem.isShowTable ? '' : 'close-table'}`}
+                onClick={() => {
+                  renderItem.isShowTable = !renderItem.isShowTable;
+                }}
+              >
+                <span class='bk-icon icon-down-shape' />
+                <span>{renderItem.collector_config_name}</span>
+              </div>
+              <div class={['container-table-main', renderItem.isShowTable ? 'show' : 'hidden']}>
+                <bk-table
+                  data={renderItem[containerNavActive.value] as IContainerConfigItem[]}
+                  size='small'
+                >
+                  <bk-table-column
+                    width={80}
+                    label='id'
+                    prop='container_collector_config_id'
+                  />
+                  <bk-table-column
+                    label={t('名称')}
+                    prop='name'
+                  />
+                  <bk-table-column
+                    nativeCellSlot={true}
+                    label={t('状态')}
+                    v-slots={{
+                      default: ({ row }: { row: IContainerConfigItem }) => (
+                        <div class='container-status-cell'>
+                          {row.status === 'running' ? (
+                            <i class='running' />
+                          ) : (
+                            <span class={`item-circle ${row.status}`} />
+                          )}
+                          <span>{containerStatusNameMap.value[row.status]}</span>
+                        </div>
+                      ),
+                    }}
+                  />
+                  <bk-table-column
+                    label={t('详情')}
+                    prop='message'
+                  />
+                  <bk-table-column
+                    nativeCellSlot={true}
+                    width={80}
+                    v-slots={{
+                      default: ({ row }: { row: IContainerConfigItem }) =>
+                        row.status === 'failed' ? (
+                          <a
+                            class='container-retry-link'
+                            href='javascript: ;'
+                            onClick={(e: Event) => {
+                              e.stopPropagation();
+                              containerRetry('alone', renderItem, row);
+                            }}
+                          >
+                            {t('重试')}
+                          </a>
+                        ) : null,
+                    }}
+                  />
+                </bk-table>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    );
+
+    const renderContent = () => (
+      <div class='collect-issued-slider-content'>
+        {!props.isContainer && errorNum.value > 0 && (
+          <div class='collect-issued-slider-alert'>
+            <i class='bklog-icon bklog-alert alert-icon' />
+            {t('采集下发存在失败，请点击')}
+            <span
+              class='restart'
+              onClick={handleRestart}
+            >
+              {t('重试')}
+            </span>
+            {t('如再次失败请 联系助手。')}
+          </div>
+        )}
+        <div
+          class='content-host'
+          style={{ height: props.isStopCollection ? 'calc(100% - 90px)' : 'calc(100% - 44px)' }}
+        >
+          {props.isContainer ? (
+            renderContainerStatus()
+          ) : (
+            <HostDetail
+              list={tableListAll.value as IClusterItem[]}
+              loading={loading.value}
+              tabList={tabList.value}
+              collectorConfigId={props.collectorConfigId}
+              onRetry={(row: IHostItem, item: IClusterItem) => handleRestart(row, item)}
+            />
+          )}
+        </div>
+        {props.isStopCollection && !loading.value && (
+          <div class='content-footer'>
+            <bk-button
+              theme='primary'
+              class='mr-12'
+              disabled={props.isContainer ? containerHasRunning.value : isRunning.value}
+              onClick={handleStop}
+              loading={isHandle.value}
+            >
+              {t('停用')}
+            </bk-button>
+            <bk-button
+              onClick={() => {
+                emit('change', false);
+              }}
+            >
+              {t('取消')}
+            </bk-button>
+          </div>
+        )}
+      </div>
+    );
+
+    return () => (
+      <bk-sideslider
+        width={960}
+        ext-cls='collect-issued-slider-main'
+        before-close={() => {
+          emit('change', false);
+        }}
+        v-slots={{
+          header: renderHeader,
+          content: renderContent,
+        }}
+        is-show={props.isShow}
+        quick-close
+        transfer
+      />
+    );
+  },
+});

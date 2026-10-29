@@ -1,0 +1,24 @@
+- navigation:
+  - img "logo"
+  - generic: 日志平台
+  - generic: "|"
+  - generic: D
+  - text: demo
+  - generic: 
+  - list:
+    - listitem: 检索
+    - listitem: 仪表盘
+    - listitem: 日志提取
+    - listitem: 调用链
+    - listitem: 监控策略
+    - listitem: 管理
+  - generic: 
+  - generic: 
+  - generic: 
+  - generic: israelli
+  - text:   
+  - text: 
+- generic:         
+- generic: 
+- generic: 
+- generic: 

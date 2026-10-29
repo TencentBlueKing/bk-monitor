@@ -1,0 +1,66 @@
+.time-compare-popover {
+  padding-top: 8px;
+
+  .title-main {
+    font-size: 16px;
+    color: #313238;
+    margin-bottom: 10px;
+  }
+
+  .piece-item {
+    margin-bottom: 13px;
+    margin-top: 16px;
+
+    .title {
+      display: inline-block;
+      margin-bottom: 6px;
+      color: #4d4f56;
+    }
+
+    .year-on-year {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+    }
+  }
+
+  .popover-button {
+    padding: 12px 0;
+    display: flex;
+    justify-content: flex-end;
+  }
+}
+
+.compared-select-option {
+  .compared-customize {
+    position: relative;
+    padding: 4px 0;
+  }
+
+  .compared-select-icon {
+    position: absolute;
+    top: 3px;
+    right: 22px;
+    font-size: 14px;
+  }
+
+  .customize-option {
+    padding: 0 16px;
+    cursor: pointer;
+  }
+
+  .bk-form-control {
+    width: 90%;
+    margin: 0 auto;
+  }
+
+  .bk-form-input {
+    /* stylelint-disable-next-line declaration-no-important */
+    padding: 0 18px 0 10px !important;
+  }
+}
+
+.compared-select {
+  flex: 1;
+  margin-left: 20px;
+}

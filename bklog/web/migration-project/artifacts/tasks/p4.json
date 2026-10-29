@@ -17,11 +17,10 @@
     "authSource": "mcp",
     "loggedOut": false,
     "reachedRetrieve": true,
-    "interactive": false,
-    "reason": "webpack compile error in @blueking/bkui-library blocked reload; page stayed on init text"
+    "interactive": true,
+    "reason": "stale webpack process cleared; retrieve page shows search results"
   },
   "blocked": [
-    "检索页编译错误",
     "视觉回归",
     "整页采集向导"
   ]

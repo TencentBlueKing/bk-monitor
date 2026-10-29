@@ -1,0 +1,207 @@
+.drag-tag-box {
+  width: 100%;
+  margin-bottom: 8px;
+  
+  .tag-container {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    align-items: center;
+    min-height: 32px;
+    border-radius: 4px;
+    background-color: #fff;
+    transition: all 0.3s ease;
+    
+    &:hover {
+      border-color: #c4c6cc;
+    }
+  }
+  
+  .tag-item {
+    display: inline-flex;
+    align-items: center;
+    padding: 8px;
+    background-color: #f0f1f5;
+    border-radius: 2px;
+    font-size: 12px;
+    color: #4D4F56;
+    cursor: move;
+    user-select: none;
+    &:last-child {
+        margin-right: 8px;
+    }
+    
+    &.tag-primary {
+      background-color: #e1ecff;
+      border-color: #3a84ff;
+      color: #3a84ff;
+      
+      &:hover {
+        background-color: #c4d9ff;
+      }
+    }
+    
+    &.tag-success {
+      background-color: #e4f7e4;
+      border-color: #14ae5c;
+      color: #14ae5c;
+      
+      &:hover {
+        background-color: #d1f2d1;
+      }
+    }
+    
+    &.tag-warning {
+      background-color: #fff7e6;
+      border-color: #ff9c01;
+      color: #ff9c01;
+      
+      &:hover {
+        background-color: #ffe7b3;
+      }
+    }
+    
+    &.tag-danger {
+      background-color: #ffe6e6;
+      border-color: #ea3636;
+      color: #ea3636;
+      
+      &:hover {
+        background-color: #ffcccc;
+      }
+    }
+    
+    .tag-label {
+      margin-right: 4px;
+      white-space: nowrap;
+    }
+    
+    .tag-close {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 16px;
+      height: 16px;
+      margin-left: 4px;
+      border-radius: 50%;
+      font-size: 16px;
+      font-weight: 500;
+      transition: all 0.2s ease;
+      color: #979BA5;
+      cursor: pointer;
+      
+      &:hover {
+        background-color: rgba(0, 0, 0, 0.1);
+        transform: scale(1.1);
+      }
+    }
+    .drag-icon {
+        color: #4D4F56;
+        margin-right: 5px;
+        font-weight: 700;
+        font-size: 12px;
+    }
+  }
+  
+  .tag-add-btn {
+    display: inline-block;
+    width: 32px;
+    height: 32px;
+    line-height: 34px;
+    text-align: center;
+    color: #3A84FF;
+    cursor: pointer;
+    background: #E1ECFF;
+    border-radius: 2px;
+    .left-icon {
+        font-size: 24px;
+    }
+    &.is-error {
+      border: 1px solid #ea3636;
+      background: #FFF0F0;
+      color: #ea3636;
+    }
+  }
+  
+  .tag-input-wrapper {
+    display: inline-block;
+    
+    .tag-input {
+      width: 120px;
+      height: 32px;
+      padding: 0 8px;
+      border: 1px solid #3a84ff;
+      border-radius: 3px;
+      background-color: #fff;
+      font-size: 12px;
+      color: #63656e;
+      outline: none;
+      
+      &::placeholder {
+        color: #c4c6cc;
+      }
+      
+      &:focus {
+        box-shadow: 0 0 0 2px rgba(58, 132, 255, 0.2);
+      }
+    }
+  }
+  
+  // 拖拽相关样式
+  .tag-ghost {
+    opacity: 0.5;
+    background-color: #f0f7ff !important;
+    border-color: #3a84ff !important;
+  }
+  
+  .tag-chosen {
+    transform: rotate(5deg);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  }
+  
+  .tag-drag {
+    opacity: 0.8;
+    transform: rotate(5deg);
+  }
+  
+  // 响应式设计
+  @media (max-width: 768px) {
+    .tag-container {
+      gap: 6px;
+    }
+    
+    .tag-item {
+      padding: 3px 6px;
+      font-size: 11px;
+    }
+    
+    .tag-input-wrapper .tag-input {
+      width: 100px;
+      height: 22px;
+      font-size: 11px;
+    }
+  }
+  .bk-select.is-focus {
+    box-shadow: none;
+  }
+  .tag-select-add {
+    width: 240px;
+    border: none;
+    height: 32px;
+    line-height: 32px;
+    .left-icon {
+      line-height: 32px;
+    }
+  }
+}
+.tippy-box[data-theme~='add-drag-tag-popover'] {
+    .tippy-content {
+      padding: 0;
+    }
+    .drag-tag-add-panel {
+        background: #fff;
+        border: 1px solid #DCDEE5;
+        box-shadow: 0 2px 6px 0 #0000001a;
+        border-radius: 2px;
+    }
+}

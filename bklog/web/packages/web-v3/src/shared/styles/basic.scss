@@ -1,0 +1,104 @@
+.condition-stylex {
+  display: flex;
+  flex-direction: column;
+  margin-top: 16px;
+
+  > :not(:nth-child(1)) {
+    margin-top: 16px;
+  }
+
+  .the-column {
+    height: 20px;
+    padding: 0 5px;
+    margin-right: 2px;
+    font-size: 14px;
+    line-height: 20px;
+    color: #63656e;
+    text-align: center;
+    background-color: #f0f1f5;
+    border-radius: 2px;
+  }
+
+  > div {
+    display: flex;
+    flex-direction: column;
+
+    .title {
+      text-align: center;
+    }
+
+    .item-box {
+      display: flex;
+      justify-content: start;
+      margin-top: 4px;
+
+      .item {
+        width: 100px;
+        color: #63656e;
+        text-align: center;
+      }
+
+      .value {
+        min-width: 100px;
+        max-width: 200px;
+        padding: 0 5px;
+        overflow: hidden;
+        font-size: 14px;
+        text-align: center;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+    }
+
+    .the-value {
+      > div {
+        position: relative;
+        display: flex;
+        justify-content: space-between;
+        width: 225px;
+        height: 20px;
+        margin-top: 16px;
+
+        p {
+          left: 5px;
+          z-index: 100;
+          min-width: 50px;
+          max-width: 200px;
+          padding: 0 5px;
+
+          /* stylelint-disable-next-line declaration-no-important */
+          margin-right: 0 !important;
+          overflow: hidden;
+          font-size: 14px;
+          text-align: center;
+          text-overflow: ellipsis;
+          white-space: nowrap;
+        }
+
+        .line-sty {
+          position: absolute;
+          right: 0;
+          bottom: 10px;
+          width: 180px;
+          height: 36px;
+          border-right: 1px dashed #c4c6cc;
+          border-bottom: 1px dashed #c4c6cc;
+        }
+      }
+
+      :nth-child(1) {
+        /* stylelint-disable-next-line declaration-no-important */
+        margin-top: 0 !important;
+      }
+    }
+  }
+
+  .line-styy {
+    position: absolute;
+    right: 0;
+    bottom: 10px;
+    width: 180px;
+    height: 36px;
+    border-bottom: 1px dashed #c4c6cc;
+  }
+}

@@ -1,0 +1,37 @@
+{
+  "schemaVersion": 1,
+  "id": "features/client-logs",
+  "purpose": "按源码职责归属的业务域；功能边界以实际组件和服务为准",
+  "root": "src/features/client-logs",
+  "files": 43,
+  "entryPoints": [
+    "features/client-logs/management/collection-deploy/index.tsx",
+    "features/client-logs/management/collection-slider/index.tsx",
+    "features/client-logs/management/index.tsx",
+    "features/client-logs/management/user-report/index.tsx",
+    "features/client-logs/search/index.tsx",
+    "features/client-logs/search/log-detail-panel/index.tsx",
+    "features/client-logs/search/log-detail-panel/log-viewer/index.tsx",
+    "features/client-logs/search/log-detail-panel/toolbar/index.tsx",
+    "features/client-logs/search/search-bar/index.tsx",
+    "features/client-logs/search/task-list-panel/index.tsx",
+    "features/client-logs/search/user-info-card/index.tsx"
+  ],
+  "services": [
+    "features/client-logs/services/client-log.ts"
+  ],
+  "dependsOn": [
+    "app",
+    "features/authorization",
+    "features/collection",
+    "features/management",
+    "features/retrieval",
+    "platform",
+    "shared"
+  ],
+  "tests": [],
+  "contractRoot": "../../migration-project/migration-contracts",
+  "sourceMap": "ai-native/source-map.json",
+  "acceptance": "NEEDS_REVIEW",
+  "note": "Directory migration preserves source behavior; domain-wide acceptance remains in the existing ledger."
+}

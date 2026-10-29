@@ -1,0 +1,414 @@
+import { defineEndpoint } from '@/platform/services/runtime/service-client';
+/*
+ * Tencent is pleased to support the open source community by making
+ * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
+ *
+ * Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
+ *
+ * 蓝鲸智云PaaS平台 (BlueKing PaaS) is licensed under the MIT License.
+ *
+ * License for 蓝鲸智云PaaS平台 (BlueKing PaaS):
+ *
+ * ---------------------------------------------------
+ * Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated
+ * documentation files (the "Software"), to deal in the Software without restriction, including without limitation
+ * the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and
+ * to permit persons to whom the Software is furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in all copies or substantial portions of
+ * the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO
+ * THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF
+ * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
+ * IN THE SOFTWARE.
+ */
+
+// 获取存储集群
+const getStorage = defineEndpoint({
+  url: '/databus/storage/cluster_groups/',
+  method: 'get',
+});
+// 获取全局配置
+const globals = defineEndpoint({
+  url: '/meta/globals/',
+  method: 'get',
+});
+// 采集项-创建
+const addCollection = defineEndpoint({
+  url: '/databus/collectors/',
+  method: 'post',
+});
+// 采集项-更新
+const updateCollection = defineEndpoint({
+  url: '/databus/collectors/:collector_config_id/',
+  method: 'put',
+});
+
+// 采集项-更新
+const onlyUpdateCollection = defineEndpoint({
+  url: '/databus/collectors/:collector_config_id/only_update/',
+  method: 'post',
+});
+
+// 索引集信息-快速更新
+const fastUpdateCollection = defineEndpoint({
+  url: '/databus/collectors/:collector_config_id/fast_update/',
+  method: 'post',
+});
+
+// 采集项-只创建配置
+const onlyCreateCollection = defineEndpoint({
+  url: '/databus/collectors/only_create/',
+  method: 'post',
+});
+// 创建采集ITSM单据
+const applyItsmTicket = defineEndpoint({
+  url: '/databus/collect_itsm/:collector_config_id/apply_itsm_ticket/',
+  method: 'post',
+});
+// 查询采集ITSM状态
+const queryItsmTicket = defineEndpoint({
+  url: '/databus/collect_itsm/:collector_config_id/',
+  method: 'get',
+});
+
+// 字段提取&清洗
+const fieldCollection = defineEndpoint({
+  url: '/databus/collectors/:collector_config_id/update_or_create_clean_config/',
+  method: 'post',
+});
+// 字段提取-预览
+const getEtlPreview = defineEndpoint({
+  url: '/databus/collectors/:collector_config_id/etl_preview/',
+  method: 'post',
+});
+// 字段提取-时间校验
+const getCheckTime = defineEndpoint({
+  url: '/databus/collectors/:collector_config_id/etl_time/',
+  method: 'post',
+});
+// 采集项-详情
+const details = defineEndpoint({
+  url: '/databus/collectors/:collector_config_id/',
+  method: 'get',
+});
+
+// 采集列表-列表
+const getCollectList = defineEndpoint({
+  url: '/databus/collectors/',
+  method: 'get',
+});
+// 采集列表-列表（全量）
+const getAllCollectors = defineEndpoint({
+  url: '/databus/collectors/list_collectors/',
+  method: 'get',
+});
+// 采集插件列表
+const getCollectorPlugins = defineEndpoint({
+  url: '/databus/collector_plugins/',
+  method: 'get',
+});
+// 采集列表-状态
+const getCollectStatus = defineEndpoint({
+  // 轮询-批量获取采集项订阅状态
+  url: '/databus/collectors/batch_subscription_status/',
+  method: 'get',
+});
+// 采集列表-启用
+const startCollect = defineEndpoint({
+  url: '/databus/collectors/:collector_config_id/start/',
+  method: 'post',
+});
+// 采集列表-停用
+const stopCollect = defineEndpoint({
+  url: '/databus/collectors/:collector_config_id/stop/',
+  method: 'post',
+});
+// 采集列表-删除
+const deleteCollect = defineEndpoint({
+  url: '/databus/collectors/:collector_config_id/',
+  method: 'delete',
+});
+
+// 采集下发-topo树
+const getBizTopo = defineEndpoint({
+  url: '/bizs/:bk_biz_id/topo/',
+  method: 'get',
+});
+// 日志提取无鉴权topo树
+const getExtractBizTopo = defineEndpoint({
+  url: '/log_extract/strategies/topo/',
+  method: 'get',
+});
+// 采集下发-by 静态topo or input
+const getHostByIp = defineEndpoint({
+  url: '/bizs/:bk_biz_id/host_instance_by_ip/',
+  method: 'post',
+});
+// 采集下发-by 动态topo
+const getHostByNode = defineEndpoint({
+  url: '/bizs/:bk_biz_id/host_instance_by_node/',
+  method: 'post',
+});
+// 采集下发-服务模板topo
+const getTemplateTopo = defineEndpoint({
+  url: '/bizs/:bk_biz_id/template_topo/',
+  method: 'get',
+});
+// 采集下发-by 根据服务模板或集群模板获取实例
+const getHostByTemplate = defineEndpoint({
+  url: '/bizs/:bk_biz_id/get_nodes_by_template/',
+  method: 'get',
+});
+// 采集下发-列表&轮询共用同一接口
+const getIssuedClusterList = defineEndpoint({
+  url: '/databus/collectors/:collector_config_id/task_status/',
+  method: 'get',
+});
+// 采集下发-重试(批量)
+const retry = defineEndpoint({
+  url: '/databus/collectors/:collector_config_id/retry/',
+  method: 'post',
+});
+// 段日志调试
+const regexDebug = defineEndpoint({
+  url: '/databus/collectors/:collector_id/regex_debug/',
+  method: 'post',
+});
+// 采集下发-任务执行详情(更多)
+const executDetails = defineEndpoint({
+  url: '/databus/collectors/:collector_id/task_detail/',
+});
+// 获取节点agent数量
+const getNodeAgentStatus = defineEndpoint({
+  url: '/bizs/:bk_biz_id/list_agent_status/',
+  method: 'post',
+});
+// 获取动态分组列表
+const getDynamicGroupList = defineEndpoint({
+  url: '/bizs/:bk_biz_id/list_dynamic_group/',
+  method: 'get',
+});
+// 获取动态分组表格数据
+const getDynamicGroup = defineEndpoint({
+  url: '/bizs/:bk_biz_id/get_dynamic_group/',
+  method: 'post',
+});
+// 获取预检查创建采集项的参数
+const getPreCheck = defineEndpoint({
+  url: '/databus/collectors/pre_check/?bk_biz_id=:bk_biz_id&collector_config_name_en=:collector_config_name_en',
+  method: 'get',
+});
+
+const createWeWork = defineEndpoint({
+  url: '/esb_api/wework/create_chat/',
+  method: 'post',
+});
+
+// 采集项一键检测 - 开启检测
+const runCheck = defineEndpoint({
+  url: '/databus/check_collector/run_check_collector/',
+  method: 'post',
+});
+
+// 采集项一键检测 - 获取检测信息
+const getCheckInfos = defineEndpoint({
+  url: '/databus/check_collector/get_check_collector_infos/',
+  method: 'post',
+});
+
+// oplt_log 查看token请求
+const reviewToken = defineEndpoint({
+  url: '/databus/collectors/:collector_config_id/report_token/',
+  method: 'get',
+});
+// 获取日志采集-增加用量数据
+const getStorageUsage = defineEndpoint({
+  url: '/index_set/storage_usage/',
+  method: 'post',
+});
+/**
+ * 新版采集列表接口
+ */
+const newCollectList = defineEndpoint({
+  url: '/databus/log_access/collector/',
+  method: 'post',
+});
+/**
+ * 获取左侧索引集列表
+ */
+const getIndexGroupList = defineEndpoint({
+  url: '/index_group/',
+  method: 'get',
+});
+
+/**
+ * 新增左侧索引集
+ */
+const addIndexGroup = defineEndpoint({
+  url: '/index_group/',
+  method: 'post',
+});
+/**
+ * 更新左侧索引集
+ */
+const updateIndexGroup = defineEndpoint({
+  url: '/index_group/:index_set_id/',
+  method: 'put',
+});
+
+/**
+ * 删除左侧索引集
+ */
+const delIndexGroup = defineEndpoint({
+  url: '/index_group/:index_set_id/',
+  method: 'delete',
+});
+
+/**
+ * 索引组 - 添加索引集
+ */
+const addIndexSetsToGroup = defineEndpoint({
+  url: '/index_group/:index_set_id/add_index_sets/',
+  method: 'post',
+});
+
+/**
+ * 索引组 - 删除索引集
+ */
+const removeIndexSetsFromGroup = defineEndpoint({
+  url: '/index_group/:index_set_id/remove_index_sets/',
+  method: 'post',
+});
+
+/**
+ * 获取采集列表过滤相关枚举值
+ */
+const collectorFieldEnums = defineEndpoint({
+  url: '/databus/log_access/collector_field_enums/',
+  method: 'get',
+});
+/**
+ * 获取采集列表状态接口
+ */
+const getCollectorStatus = defineEndpoint({
+  url: '/databus/log_access/collector_status/',
+  method: 'post',
+});
+
+// 获取客户端日志-采集下发-日志列表数据
+const getTaskLogList = defineEndpoint({
+  url: '/tgpa/task/',
+  method: 'get',
+});
+
+// 客户端日志-新建采集
+const createCollectionTask = defineEndpoint({
+  url: '/tgpa/task/',
+  method: 'post',
+});
+
+// 客户端日志-获取索引集ID
+const getTaskIndexSetId = defineEndpoint({
+  url: '/tgpa/task/index_set_id/',
+  method: 'get',
+});
+
+// 客户端日志-用户上报列表
+const getUserReportList = defineEndpoint({
+  url: '/tgpa/report/',
+  method: 'get',
+});
+
+// 客户端日志-本地上报
+const syncUserReport = defineEndpoint({
+  url: '/tgpa/report/sync/',
+  method: 'post',
+});
+
+// 客户端日志-获取上报状态
+const getFileStatus = defineEndpoint({
+  url: '/tgpa/report/file_status/',
+  method: 'post',
+});
+
+// 客户端日志-获取同步用户上报文件的状态
+const getSyncRecord = defineEndpoint({
+  url: '/tgpa/report/sync_record/',
+  method: 'get',
+});
+
+// 客户端日志-获取tab数量
+const getTgpaCount = defineEndpoint({
+  url: '/tgpa/count/',
+  method: 'get',
+});
+
+// 客户端日志-获取用户名列表
+const getUsernameList = defineEndpoint({
+  url: '/tgpa/task/username_list/',
+  method: 'get',
+});
+
+export {
+  getStorage,
+  globals,
+  addCollection,
+  updateCollection,
+  onlyUpdateCollection,
+  onlyCreateCollection,
+  fastUpdateCollection,
+  applyItsmTicket,
+  queryItsmTicket,
+  fieldCollection,
+  getEtlPreview,
+  getCheckTime,
+  details,
+  getCollectList,
+  getAllCollectors,
+  getCollectorPlugins,
+  getCollectStatus,
+  startCollect,
+  stopCollect,
+  deleteCollect,
+  getExtractBizTopo,
+  getBizTopo,
+  getHostByIp,
+  getNodeAgentStatus,
+  getHostByNode,
+  getTemplateTopo,
+  getHostByTemplate,
+  getIssuedClusterList,
+  retry,
+  regexDebug,
+  executDetails,
+  getDynamicGroupList,
+  getDynamicGroup,
+  getPreCheck,
+  createWeWork,
+  runCheck,
+  getCheckInfos,
+  reviewToken,
+  getStorageUsage,
+  /** 新版采集管理 */
+  newCollectList,
+  getIndexGroupList,
+  addIndexGroup,
+  updateIndexGroup,
+  delIndexGroup,
+  addIndexSetsToGroup,
+  removeIndexSetsFromGroup,
+  collectorFieldEnums,
+  getCollectorStatus,
+  getTaskLogList,
+  createCollectionTask,
+  getTaskIndexSetId,
+  getUserReportList,
+  syncUserReport,
+  getFileStatus,
+  getSyncRecord,
+  getTgpaCount,
+  getUsernameList,
+};

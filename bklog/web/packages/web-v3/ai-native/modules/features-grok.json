@@ -1,0 +1,25 @@
+{
+  "schemaVersion": 1,
+  "id": "features/grok",
+  "purpose": "Grok 管理与调试",
+  "root": "src/features/grok",
+  "files": 15,
+  "entryPoints": [
+    "features/grok/current/index.tsx"
+  ],
+  "services": [
+    "features/grok/services/grok.ts"
+  ],
+  "dependsOn": [
+    "app",
+    "features/management",
+    "features/retrieval",
+    "platform",
+    "shared"
+  ],
+  "tests": [],
+  "contractRoot": "../../migration-project/migration-contracts",
+  "sourceMap": "ai-native/source-map.json",
+  "acceptance": "NEEDS_REVIEW",
+  "note": "Directory migration preserves source behavior; domain-wide acceptance remains in the existing ledger."
+}

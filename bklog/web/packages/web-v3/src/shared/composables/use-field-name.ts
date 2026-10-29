@@ -1,0 +1,237 @@
+import type { ApplicationStore } from '@/app/state/application-store.type';
+/*
+ * Tencent is pleased to support the open source community by making
+ * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
+ *
+ * Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
+ *
+ * 蓝鲸智云PaaS平台 (BlueKing PaaS) is licensed under the MIT License.
+ *
+ * License for 蓝鲸智云PaaS平台 (BlueKing PaaS):
+ *
+ * ---------------------------------------------------
+ * Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated
+ * documentation files (the "Software"), to deal in the Software without restriction, including without limitation
+ * the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and
+ * to permit persons to whom the Software is furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in all copies or substantial portions of
+ * the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO
+ * THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF
+ * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
+ * IN THE SOFTWARE.
+ */
+
+import { retrieveFieldAliasCacheService, retrieveFieldCacheService } from '@/platform/persistence/index';
+import { storeRuntimeCacheService } from '../../app/state/services/runtime-cache.service.js';
+import { BK_LOG_STORAGE, FieldInfoItem } from '../../app/state/store.type.ts';
+
+/**
+ * 根据字段信息返回别名
+ * @param field 字段信息
+ * @param store
+ * @returns 返回别名，如果没有别名则返回字段名
+ */
+export const getFieldNameByField = (field: { field_name: string; query_alias?: string }, store: ApplicationStore) => {
+  if (store.state.storage[BK_LOG_STORAGE.SHOW_FIELD_ALIAS]) {
+    return field?.query_alias || field?.field_name;
+  }
+
+  return field?.field_name;
+};
+
+export default ({ store }: { store: ApplicationStore }) => {
+  const getFieldScope = () => store.state.indexFieldInfo.field_scope || store.state.indexId || 'default';
+  const getIndexWithFallback = (
+    runtimeIndex: Record<string, FieldInfoItem>,
+    fallbackIndex: Record<string, FieldInfoItem>,
+  ) => (Object.keys(runtimeIndex ?? {}).length ? runtimeIndex : fallbackIndex);
+
+  /**
+   * 展示 / 反查用 index 优先级：
+   * runtime memory → retrieveFieldCache memory → alias config cache → vuex fallback
+   */
+  const getStoreFieldNameIndex = (): Record<string, FieldInfoItem> => {
+    const scope = getFieldScope();
+    return getIndexWithFallback(
+      storeRuntimeCacheService.getFieldNameIndex(scope),
+      getIndexWithFallback(
+        retrieveFieldCacheService.getFieldNameIndex(scope),
+        getIndexWithFallback(
+          retrieveFieldAliasCacheService.getFieldNameIndex(scope),
+          store.state.indexFieldInfo.fieldNameIndex ?? {},
+        ),
+      ),
+    );
+  };
+
+  const getStoreQueryAliasIndex = (): Record<string, FieldInfoItem> => {
+    const scope = getFieldScope();
+    return getIndexWithFallback(
+      storeRuntimeCacheService.getQueryAliasIndex(scope),
+      getIndexWithFallback(
+        retrieveFieldCacheService.getQueryAliasIndex(scope),
+        getIndexWithFallback(
+          retrieveFieldAliasCacheService.getQueryAliasIndex(scope),
+          store.state.indexFieldInfo.queryAliasIndex ?? {},
+        ),
+      ),
+    );
+  };
+
+  const buildFieldNameIndex = (list: FieldInfoItem[]): Record<string, FieldInfoItem> => {
+    const map: Record<string, FieldInfoItem> = {};
+    for (const f of list) {
+      map[f.field_name] = f;
+    }
+    return map;
+  };
+
+  const buildQueryAliasIndex = (list: FieldInfoItem[]): Record<string, FieldInfoItem> => {
+    const map: Record<string, FieldInfoItem> = {};
+    for (const f of list) {
+      if (f.query_alias) {
+        map[f.query_alias] = f;
+      }
+    }
+    return map;
+  };
+
+  const lookupByFieldName = (
+    fieldName: string,
+    list?: FieldInfoItem[],
+    withAliasFieldMap = false,
+  ): FieldInfoItem | undefined => {
+    if (list) {
+      return list.find(item => item.field_name === fieldName);
+    }
+    const field = getStoreFieldNameIndex()[fieldName];
+    if (!withAliasFieldMap && field?.is_virtual_alias_field) {
+      return undefined;
+    }
+    return field;
+  };
+
+  /**
+   * 根据字段名返回别名
+   * @param name  字段名field_name
+   * @returns 返回别名，如果没有别名则返回字段名
+   */
+  const getFieldName = (name: string) => {
+    if (store.state.storage[BK_LOG_STORAGE.SHOW_FIELD_ALIAS]) {
+      const field = getStoreFieldNameIndex()[name];
+      return field?.query_alias || name;
+    }
+    return name;
+  };
+
+  const mGetFieldNameByField = (field: { field_name: string; query_alias: string }) => {
+    return getFieldNameByField(field, store);
+  };
+
+  /**
+   * 根据字段列表返回别名数组
+   * @param fields  字段列表
+   * @returns 返回别名数组，如果没有别名则返回字段名
+   */
+  const getFieldNames = (fields: any) => {
+    if (store.state.storage[BK_LOG_STORAGE.SHOW_FIELD_ALIAS]) {
+      return fields.map((fieldInfo: { query_alias: any; field_name: any; }) => fieldInfo.query_alias || fieldInfo.field_name);
+    }
+    return fields.map((fieldInfo: { field_name: any; }) => fieldInfo.field_name);
+  };
+
+  /**
+   * 根据字段信息返回拼接字段名
+   * @param fields  字段信息
+   * @returns 返回拼接字段名
+   */
+  const getConcatenatedFieldName = (fields: any) => {
+    const { field_name: id, field_alias: alias, query_alias: query } = fields;
+    if (store.state.storage[BK_LOG_STORAGE.SHOW_FIELD_ALIAS] && query) {
+      return { id, name: `${query}(${alias || id})` };
+    }
+    return { id, name: alias ? `${id}(${alias})` : id };
+  };
+  /**
+   * 根据字段信息返回别名
+   * @param fields  字段信息
+   * @returns 返回别名
+   */
+  const getQueryAlias = (field: any) => {
+    return store.state.storage[BK_LOG_STORAGE.SHOW_FIELD_ALIAS]
+      ? field.query_alias || field.field_name
+      : field.field_name;
+  };
+
+  /**
+   * 根据别名返回字段名
+   * @param name  别名query_alias
+   * @returns 返回字段名，如果没有字段名则返回别名
+   */
+  const changeFieldName = (name: string, list?: FieldInfoItem[], withAliasFieldMap = false) => {
+    if (list) {
+      const index = buildQueryAliasIndex(list);
+      return index[name]?.field_name || name;
+    }
+    const field = getStoreQueryAliasIndex()[name];
+    if (!withAliasFieldMap && field?.is_virtual_alias_field) {
+      return name;
+    }
+    return field?.field_name || name;
+  };
+  /**
+   * 根据字段名返回拼接字段名
+   * @param name  字段名field_name
+   * @returns 返回拼接字段名
+   */
+  const getQualifiedFieldName = (fieldName: string, list?: FieldInfoItem[], withAliasFieldMap = false) => {
+    const field = lookupByFieldName(fieldName, list, withAliasFieldMap);
+    if (field?.query_alias) {
+      return `${field.query_alias}(${fieldName})`;
+    }
+    return fieldName;
+  };
+
+  /**
+   * 根据字段名返回拼接字段名及附加属性
+   * @param fieldName
+   * @param list
+   * @param withAliasFieldMap
+   * @param attrs
+   * @returns
+   */
+  const getQualifiedFieldAttrs = (
+    fieldName: string,
+    list?: FieldInfoItem[],
+    withAliasFieldMap = false,
+    attrs: string[] = [],
+  ) => {
+    const field = lookupByFieldName(fieldName, list, withAliasFieldMap);
+    const reduceFn = (acc: { [x: string]: any; }, attr: string) => {
+      if (attr !== 'field_name') {
+        acc[attr] = field?.[attr];
+      }
+      return acc;
+    };
+    if (field?.query_alias) {
+      return attrs.reduce(reduceFn, { field_name: `${field.query_alias}(${fieldName})` });
+    }
+    return attrs.reduce(reduceFn, { field_name: fieldName });
+  };
+
+  return {
+    getFieldName,
+    getFieldNames,
+    getConcatenatedFieldName,
+    getQueryAlias,
+    changeFieldName,
+    getFieldNameByField: mGetFieldNameByField,
+    getQualifiedFieldName,
+    getQualifiedFieldAttrs,
+    buildFieldNameIndex,
+  };
+};

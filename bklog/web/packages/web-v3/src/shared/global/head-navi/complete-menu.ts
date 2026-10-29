@@ -1,0 +1,10 @@
+/*
+ * Tencent is pleased to support the open source community by making
+ * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
+ *
+ * Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
+ */
+
+import { DEFAULT_MENU_LISTS } from '@/app/state/menu-config';
+
+export const MENU_LISTS = DEFAULT_MENU_LISTS;

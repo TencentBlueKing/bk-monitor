@@ -1,0 +1,144 @@
+.retrieve-v2.field-data {
+  padding: 2px 0;
+  background-color: #fafbfd00;
+
+  .title {
+    padding: 0 12px 4px;
+
+    /* stylelint-disable-next-line declaration-no-important */
+    font-weight: normal !important;
+    color: #979ba5;
+  }
+
+  .disable {
+    /* stylelint-disable-next-line declaration-no-important */
+    color: #dcdee5 !important;
+  }
+
+  .error-container {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    height: 34px;
+    font-size: 12px;
+    color: #63656e;
+  }
+
+  .chart-list {
+    padding: 0 0px;
+
+    .chart-item {
+      display: flex;
+      align-items: flex-start;
+
+      .chart-content {
+        flex: 1;
+        min-width: 0;
+
+        .text-container {
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          line-height: 20px;
+
+          .text-value {
+            margin-bottom: 2px;
+            overflow: hidden;
+            color: #313238;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+          }
+
+          .percent-value {
+            flex-shrink: 0;
+            margin-left: 6px;
+            font-weight: 700;
+            color: var(--percent-text-color);
+
+            & > span {
+              font-weight: 400;
+            }
+          }
+        }
+
+        .percent-bar-container {
+          position: relative;
+          height: 6px;
+          margin-bottom: 9px;
+          background: #f0f1f5;
+          border-radius: 4px;
+
+          .percent-bar {
+            position: absolute;
+            height: 6px;
+            width: 100%;
+            background-color: var(--bar-bg-color);
+            border-radius: 4px;
+          }
+        }
+      }
+
+      .operation-container {
+        display: flex;
+        flex-shrink: 0;
+        column-gap: 8px;
+        justify-content: space-between;
+        width: unset;
+        padding-right: 8px;
+        margin-left: 0px;
+        transform: translateY(4px);
+
+        .bk-icon {
+          font-size: 18px;
+          color: #3a84ff;
+          // transform: rotate(45deg);
+          cursor: pointer;
+
+          &:active {
+            color: #2761dd;
+          }
+
+          &:hover {
+            color: #699df4;
+          }
+        }
+      }
+    }
+
+    .more-item {
+      display: flex;
+      justify-content: space-between;
+      margin-bottom: 4px;
+
+      .bk-icon {
+        margin-right: 4px;
+      }
+
+      span {
+        color: #3a84ff;
+        cursor: pointer;
+      }
+    }
+  }
+}
+
+.agg-sides-header {
+  display: flex;
+  justify-content: space-between;
+
+  .distinct-num {
+    display: flex;
+    align-items: center;
+  }
+
+  .distinct-count-num {
+    min-width: 24px;
+    height: 16px;
+    padding: 0 4px;
+    font-size: 12px;
+    line-height: 16px;
+    text-align: center;
+    background: #f0f1f5;
+    border-radius: 2px;
+  }
+}

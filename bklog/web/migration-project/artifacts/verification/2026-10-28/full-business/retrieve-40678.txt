@@ -1,0 +1,996 @@
+- navigation:
+  - img "logo"
+  - generic: 日志平台
+  - generic: "|"
+  - generic: D
+  - text: demo
+  - generic: 
+  - list:
+    - listitem: 检索
+    - listitem: 监控策略
+    - listitem: 仪表盘
+    - listitem: 管理
+  - generic: 
+  - generic: 
+  - generic: 
+  - generic: israelli
+  - text:   
+  - text: 
+- generic:                                             
+- generic: 
+- generic: 常规检索
+- generic: 场景化检索
+- generic: "[采集项]容器日志采集测试1019 (5000140_bklog.container_log_collect_test1019)"
+- generic: 
+- text:                                                                   Cmd+O
+- generic: 
+- generic: 历史查询
+- text: 
+- generic: 近 15 分钟
+- generic: 
+- generic: "off"
+- generic: 
+- text:  
+- generic: 
+- generic: 
+- text: 
+- generic: 
+- text: 
+- text: 更多
+- generic: 
+- generic: 
+- text: 回到旧版
+- generic: 
+- generic: 
+- list:
+  - generic: +
+  - generic: 添加条件
+  - textbox
+  - text: / 唤起，输入检索内容（Tab 可切换为 AI 模式）
+  - text:  *                      
+- text: 
+- generic: 
+- generic: 
+- generic: 
+- generic: 
+- img "AI 模式"
+- text: AI 模式
+- generic: 
+- button " 查询":
+  - generic: 
+  - generic: 查询
+- generic: 原始日志
+- generic: 日志聚类
+- generic: 
+- text: 添加到仪表盘
+- generic: 
+- text: 添加告警策略
+- text: "* * *"
+- generic: 
+- textbox "搜索 字段名"
+- generic: 
+- generic: 显示字段
+- generic: 
+- text:   
+- list:
+  - generic: 
+  - generic: 
+  - generic: dtEventTimeStamp
+  - text: 
+  - generic: 
+  - generic: 
+  - generic: serverIp
+  - text:  
+  - generic: 
+  - generic: 
+  - generic: log
+  - text: 
+- generic: 可选字段
+- list:
+  - text: 
+  - generic: 
+  - text: __ext
+  - generic: "10"
+  - generic: 
+  - text: 
+  - generic: 
+  - generic: bk_host_id
+  - text:  
+  - generic: 
+  - generic: cloudId
+  - text:  
+  - generic: 
+  - generic: path
+  - text:  
+  - generic: 展开全部
+- generic: 
+- text: 内置字段
+- list
+- generic: 
+- generic: 总趋势
+- generic: （找到 7,125 条结果，用时 554 毫秒)
+- generic: "汇聚周期 :"
+- textbox "请选择": auto
+- generic: 
+- text:  *
+- generic: 原始
+- generic: 表格
+- generic: 日志排序
+- generic: 
+- text:   
+- checkbox "显示行号"
+- generic: 显示行号
+- checkbox "换行"
+- generic: 换行
+- generic: 
+- generic: 高亮
+- list:
+  - textbox
+  - text: 输入后按 Enter...
+- text: 
+- generic: 
+- generic: 
+- generic: 
+- generic: 
+- generic: 
+- text:                                              
+- generic: 
+- generic: "dtEventTimeStamp:"
+- generic: 2026-10-28 14:56:59
+- generic: "serverIp:"
+- generic: 30.184.131.27
+- generic: "log:"
+- generic: "2026"
+- generic: "-"
+- generic: "10"
+- generic: "-"
+- generic: "28"
+- generic: "06"
+- generic: ":"
+- generic: "56"
+- generic: ":"
+- generic: "58.547"
+- generic: INFO
+- generic: "["
+- generic: metricbeat
+- generic: "]"
+- generic: bkm_gather_up
+- generic: "{"
+- generic: "}"
+- generic: "2.000000"
+- generic: ;
+- generic: kvs
+- generic: =
+- generic: "["
+- generic: bk_biz_id
+- generic: =
+- generic: (
+- generic: "5000140"
+- generic: )
+- generic: bkm_up_code_name
+- generic: =
+- generic: (
+- generic: Ok
+- generic: )
+- generic: job
+- generic: =
+- generic: (
+- generic: bcs
+- generic: "-"
+- generic: docker
+- generic: "-"
+- generic: proxy
+- generic: "-"
+- generic: v2
+- generic: )
+- generic: bcs_cluster_id
+- generic: =
+- generic: (
+- generic: BCS
+- generic: "-"
+- generic: K8S
+- generic: "-"
+- generic: "25973"
+- generic: )
+- generic: instance
+- generic: =
+- generic: (
+- generic: 30.184.131.27
+- generic: ":"
+- generic: "21052"
+- generic: )
+- generic: bk_collect_type
+- generic: =
+- generic: (
+- generic: metricbeat
+- generic: )
+- generic: bk_endpoint_url
+- generic: =
+- generic: (
+- generic: http
+- generic: ":"
+- generic: /
+- generic: /
+- generic: 30.184.131.27
+- generic: ":"
+- generic: "21052"
+- generic: /
+- generic: debug
+- generic: /
+- generic: metrics
+- generic: )
+- generic: bk_monitor_namespace
+- generic: =
+- generic: (
+- generic: bcs
+- generic: "-"
+- generic: system
+- generic: )
+- generic: container
+- generic: =
+- generic: (
+- generic: bcs
+- generic: "-"
+- generic: docker
+- generic: "-"
+- generic: proxy
+- generic: "-"
+- generic: v2
+- generic: )
+- generic: bk_endpoint_index
+- generic: =
+- generic: (
+- generic: "0"
+- generic: )
+- generic: monitor_type
+- generic: =
+- generic: (
+- generic: ServiceMonitor
+- generic: )
+- generic: bk_monitor_name
+- generic: =
+- generic: (
+- generic: bcs
+- generic: "-"
+- generic: docker
+- generic: "-"
+- generic: proxy
+- generic: "-"
+- generic: v2
+- generic: )
+- generic: namespace
+- generic: =
+- generic: (
+- generic: bcs
+- generic: "-"
+- generic: system
+- generic: )
+- generic: service
+- generic: =
+- generic: (
+- generic: bcs
+- generic: "-"
+- generic: docker
+- generic: "-"
+- generic: proxy
+- generic: "-"
+- generic: v2
+- generic: )
+- generic: task_id
+- generic: =
+- generic: (
+- generic: "1072912262"
+- generic: )
+- generic: pod
+- generic: =
+- generic: (
+- generic: bcs
+- generic: "-"
+- generic: docker
+- generic: "-"
+- generic: proxy
+- generic: "-"
+- generic: v2
+- generic: "-"
+- generic: rnfvc
+- generic: )
+- generic: endpoint
+- generic: =
+- generic: (
+- generic: metric
+- generic: )
+- generic: bkm_up_code
+- generic: =
+- generic: (
+- generic: "0"
+- generic: )
+- generic: "]"
+- generic: 
+- generic: "dtEventTimeStamp:"
+- generic: 2026-10-28 14:56:59
+- generic: "serverIp:"
+- generic: 30.184.131.27
+- generic: "log:"
+- generic: "2026"
+- generic: "-"
+- generic: "10"
+- generic: "-"
+- generic: "28"
+- generic: "06"
+- generic: ":"
+- generic: "56"
+- generic: ":"
+- generic: "58.547"
+- generic: INFO
+- generic: "["
+- generic: metricbeat
+- generic: "]"
+- generic: bkm_metricbeat_handle_duration_seconds
+- generic: "{"
+- generic: "}"
+- generic: "0.000254"
+- generic: ;
+- generic: kvs
+- generic: =
+- generic: "["
+- generic: uri
+- generic: =
+- generic: (
+- generic: http
+- generic: ":"
+- generic: /
+- generic: /
+- generic: 30.184.131.27
+- generic: ":"
+- generic: "21052"
+- generic: /
+- generic: debug
+- generic: /
+- generic: metrics
+- generic: )
+- generic: "]"
+- generic: 
+- generic: "dtEventTimeStamp:"
+- generic: 2026-10-28 14:56:59
+- generic: "serverIp:"
+- generic: 30.184.131.27
+- generic: "log:"
+- generic: "2026"
+- generic: "-"
+- generic: "10"
+- generic: "-"
+- generic: "28"
+- generic: "06"
+- generic: ":"
+- generic: "56"
+- generic: ":"
+- generic: "58.547"
+- generic: INFO
+- generic: "["
+- generic: metricbeat
+- generic: "]"
+- generic: bkm_metricbeat_endpoint_up
+- generic: "{"
+- generic: code
+- generic: =
+- generic: "\""
+- generic: "0"
+- generic: "\""
+- generic: ","
+- generic: code_name
+- generic: =
+- generic: "\""
+- generic: Ok
+- generic: "\""
+- generic: "}"
+- generic: "1"
+- generic: ;
+- generic: kvs
+- generic: =
+- generic: "["
+- generic: uri
+- generic: =
+- generic: (
+- generic: http
+- generic: ":"
+- generic: /
+- generic: /
+- generic: 30.184.131.27
+- generic: ":"
+- generic: "21052"
+- generic: /
+- generic: debug
+- generic: /
+- generic: metrics
+- generic: )
+- generic: "]"
+- generic: 
+- generic: "dtEventTimeStamp:"
+- generic: 2026-10-28 14:56:59
+- generic: "serverIp:"
+- generic: 30.184.131.27
+- generic: "log:"
+- generic: "2026"
+- generic: "-"
+- generic: "10"
+- generic: "-"
+- generic: "28"
+- generic: "06"
+- generic: ":"
+- generic: "56"
+- generic: ":"
+- generic: "58.547"
+- generic: INFO
+- generic: "["
+- generic: metricbeat
+- generic: "]"
+- generic: bkm_metricbeat_scrape_line
+- generic: "{"
+- generic: "}"
+- generic: "80"
+- generic: ;
+- generic: kvs
+- generic: =
+- generic: "["
+- generic: uri
+- generic: =
+- generic: (
+- generic: http
+- generic: ":"
+- generic: /
+- generic: /
+- generic: 30.184.131.27
+- generic: ":"
+- generic: "21052"
+- generic: /
+- generic: debug
+- generic: /
+- generic: metrics
+- generic: )
+- generic: "]"
+- generic: 
+- generic: "dtEventTimeStamp:"
+- generic: 2026-10-28 14:56:59
+- generic: "serverIp:"
+- generic: 30.184.131.27
+- generic: "log:"
+- generic: "2026"
+- generic: "-"
+- generic: "10"
+- generic: "-"
+- generic: "28"
+- generic: "06"
+- generic: ":"
+- generic: "56"
+- generic: ":"
+- generic: "58.547"
+- generic: INFO
+- generic: "["
+- generic: metricbeat
+- generic: "]"
+- generic: bkm_metricbeat_scrape_duration_seconds
+- generic: "{"
+- generic: "}"
+- generic: "0.001508"
+- generic: ;
+- generic: kvs
+- generic: =
+- generic: "["
+- generic: uri
+- generic: =
+- generic: (
+- generic: http
+- generic: ":"
+- generic: /
+- generic: /
+- generic: 30.184.131.27
+- generic: ":"
+- generic: "21052"
+- generic: /
+- generic: debug
+- generic: /
+- generic: metrics
+- generic: )
+- generic: "]"
+- generic: 
+- generic: "dtEventTimeStamp:"
+- generic: 2026-10-28 14:56:59
+- generic: "serverIp:"
+- generic: 30.184.131.27
+- generic: "log:"
+- generic: "2026"
+- generic: "-"
+- generic: "10"
+- generic: "-"
+- generic: "28"
+- generic: "06"
+- generic: ":"
+- generic: "56"
+- generic: ":"
+- generic: "58.547"
+- generic: INFO
+- generic: "["
+- generic: metricbeat
+- generic: "]"
+- generic: bkm_metricbeat_scrape_size_bytes
+- generic: "{"
+- generic: "}"
+- generic: "10024"
+- generic: ;
+- generic: kvs
+- generic: =
+- generic: "["
+- generic: uri
+- generic: =
+- generic: (
+- generic: http
+- generic: ":"
+- generic: /
+- generic: /
+- generic: 30.184.131.27
+- generic: ":"
+- generic: "21052"
+- generic: /
+- generic: debug
+- generic: /
+- generic: metrics
+- generic: )
+- generic: "]"
+- generic: 
+- generic: "dtEventTimeStamp:"
+- generic: 2026-10-28 14:56:58
+- generic: "serverIp:"
+- generic: 30.184.131.45
+- generic: "log:"
+- generic: "2026"
+- generic: "-"
+- generic: "10"
+- generic: "-"
+- generic: "28"
+- generic: "06"
+- generic: ":"
+- generic: "56"
+- generic: ":"
+- generic: "56.224"
+- generic: INFO
+- generic: "["
+- generic: kubeevent
+- generic: "]"
+- generic: bkm_kubeevent_report_events
+- generic: "{"
+- generic: "}"
+- generic: "353994.000000"
+- generic: ;
+- generic: kvs
+- generic: =
+- generic: "["
+- generic: task_id
+- generic: =
+- generic: (
+- generic: "1"
+- generic: )
+- generic: bk_collect_type
+- generic: =
+- generic: (
+- generic: kubeevent
+- generic: )
+- generic: bk_biz_id
+- generic: =
+- generic: (
+- generic: "5000140"
+- generic: )
+- generic: bcs_cluster_id
+- generic: =
+- generic: (
+- generic: BCS
+- generic: "-"
+- generic: K8S
+- generic: "-"
+- generic: "25973"
+- generic: )
+- generic: "]"
+- generic: 
+- generic: "dtEventTimeStamp:"
+- generic: 2026-10-28 14:56:58
+- generic: "serverIp:"
+- generic: 30.184.131.45
+- generic: "log:"
+- generic: "2026"
+- generic: "-"
+- generic: "10"
+- generic: "-"
+- generic: "28"
+- generic: "06"
+- generic: ":"
+- generic: "56"
+- generic: ":"
+- generic: "56.224"
+- generic: INFO
+- generic: "["
+- generic: kubeevent
+- generic: "]"
+- generic: bkm_kubeevent_receive_events
+- generic: "{"
+- generic: "}"
+- generic: "443486.000000"
+- generic: ;
+- generic: kvs
+- generic: =
+- generic: "["
+- generic: task_id
+- generic: =
+- generic: (
+- generic: "1"
+- generic: )
+- generic: bk_collect_type
+- generic: =
+- generic: (
+- generic: kubeevent
+- generic: )
+- generic: bk_biz_id
+- generic: =
+- generic: (
+- generic: "5000140"
+- generic: )
+- generic: bcs_cluster_id
+- generic: =
+- generic: (
+- generic: BCS
+- generic: "-"
+- generic: K8S
+- generic: "-"
+- generic: "25973"
+- generic: )
+- generic: "]"
+- generic: 
+- generic: "dtEventTimeStamp:"
+- generic: 2026-10-28 14:56:58
+- generic: "serverIp:"
+- generic: 30.184.131.45
+- generic: "log:"
+- generic: "2026"
+- generic: "-"
+- generic: "10"
+- generic: "-"
+- generic: "28"
+- generic: "06"
+- generic: ":"
+- generic: "56"
+- generic: ":"
+- generic: "56.224"
+- generic: INFO
+- generic: "["
+- generic: kubeevent
+- generic: "]"
+- generic: bkm_kubeevent_cleaned_events
+- generic: "{"
+- generic: "}"
+- generic: "382860.000000"
+- generic: ;
+- generic: kvs
+- generic: =
+- generic: "["
+- generic: task_id
+- generic: =
+- generic: (
+- generic: "1"
+- generic: )
+- generic: bk_collect_type
+- generic: =
+- generic: (
+- generic: kubeevent
+- generic: )
+- generic: bk_biz_id
+- generic: =
+- generic: (
+- generic: "5000140"
+- generic: )
+- generic: bcs_cluster_id
+- generic: =
+- generic: (
+- generic: BCS
+- generic: "-"
+- generic: K8S
+- generic: "-"
+- generic: "25973"
+- generic: )
+- generic: "]"
+- generic: 
+- generic: "dtEventTimeStamp:"
+- text: 2026-10-28 14:56:58
+- generic: "serverIp:"
+- text: 30.184.131.45
+- generic: "log:"
+- text: "2026-10-28 06:56:56.780 INFO [metricbeat] bkm_gather_up{} 4.000000; kvs=[bk_endpoint_index=(0) job=(bkm-collector) task_id=(883309044) bkm_up_code=(0) namespace=(bkmonitor-operator) bcs_cluster_id=(BCS-K8S-25973) bk_monitor_namespace=(bkmonitor-operator) bk_collect_type=(metricbeat) bk_biz_id=(5000140) bk_monitor_name=(bkm-collector) pod=(bkm-collector-7fcdd88794-8hf64) service=(bkm-collector) bkm_up_code_name=(Ok) instance=(11.157.218.119:4310) monitor_type=(ServiceMonitor) endpoint=(admin) bk_endpoint_url=(http://11.157.218.119:4310/metrics)]"
+- generic: 
+- generic: "dtEventTimeStamp:"
+- text: 2026-10-28 14:56:58
+- generic: "serverIp:"
+- text: 30.184.131.45
+- generic: "log:"
+- text: "2026-10-28 06:56:56.780 INFO [metricbeat] bkm_metricbeat_handle_duration_seconds{} 0.004507; kvs=[uri=(http://11.157.218.119:4310/metrics)]"
+- generic: 
+- generic: "dtEventTimeStamp:"
+- text: 2026-10-28 14:56:58
+- generic: "serverIp:"
+- text: 30.184.131.45
+- generic: "log:"
+- text: "2026-10-28 06:56:56.780 INFO [metricbeat] bkm_metricbeat_endpoint_up{code=\"0\",code_name=\"Ok\"} 1; kvs=[uri=(http://11.157.218.119:4310/metrics)]"
+- generic: 
+- generic: "dtEventTimeStamp:"
+- text: 2026-10-28 14:56:58
+- generic: "serverIp:"
+- text: 30.184.131.45
+- generic: "log:"
+- text: "2026-10-28 06:56:56.780 INFO [metricbeat] bkm_metricbeat_scrape_line{} 2138; kvs=[uri=(http://11.157.218.119:4310/metrics)]"
+- generic: 
+- generic: "dtEventTimeStamp:"
+- text: 2026-10-28 14:56:58
+- generic: "serverIp:"
+- text: 30.184.131.45
+- generic: "log:"
+- text: "2026-10-28 06:56:56.775 INFO [metricbeat] bkm_metricbeat_scrape_duration_seconds{} 0.005458; kvs=[uri=(http://11.157.218.119:4310/metrics)]"
+- generic: 
+- generic: "dtEventTimeStamp:"
+- text: 2026-10-28 14:56:58
+- generic: "serverIp:"
+- text: 30.184.131.45
+- generic: "log:"
+- text: "2026-10-28 06:56:56.775 INFO [metricbeat] bkm_metricbeat_scrape_size_bytes{} 288805; kvs=[uri=(http://11.157.218.119:4310/metrics)]"
+- generic: 
+- generic: "dtEventTimeStamp:"
+- text: 2026-10-28 14:56:58
+- generic: "serverIp:"
+- text: 30.184.131.27
+- generic: "log:"
+- text: "2026-10-28 06:56:57.636 INFO [metricbeat] bkm_gather_up{} 2.000000; kvs=[bkm_up_code=(0) job=(bkm-collector) bk_endpoint_index=(1) task_id=(622697436) bk_monitor_namespace=(bkmonitor-operator) endpoint=(adapteradmin) bk_monitor_name=(bkm-collector) bcs_cluster_id=(BCS-K8S-25973) bkm_up_code_name=(Ok) namespace=(bkmonitor-operator) pod=(bkm-collector-7fcdd88794-wtvbh) service=(bkm-collector) bk_collect_type=(metricbeat) monitor_type=(ServiceMonitor) instance=(11.157.217.180:4315) bk_endpoint_url=(http://11.157.217.180:4315/metrics) bk_biz_id=(5000140)]"
+- generic: 
+- generic: "dtEventTimeStamp:"
+- text: 2026-10-28 14:56:58
+- generic: "serverIp:"
+- text: 30.184.131.27
+- generic: "log:"
+- text: "2026-10-28 06:56:57.636 INFO [metricbeat] bkm_metricbeat_handle_duration_seconds{} 0.000250; kvs=[uri=(http://11.157.217.180:4315/metrics)]"
+- generic: 
+- generic: "dtEventTimeStamp:"
+- text: 2026-10-28 14:56:58
+- generic: "serverIp:"
+- text: 30.184.131.27
+- generic: "log:"
+- text: "2026-10-28 06:56:57.636 INFO [metricbeat] bkm_metricbeat_endpoint_up{code=\"0\",code_name=\"Ok\"} 1; kvs=[uri=(http://11.157.217.180:4315/metrics)]"
+- generic: 
+- generic: "dtEventTimeStamp:"
+- text: 2026-10-28 14:56:58
+- generic: "serverIp:"
+- text: 30.184.131.27
+- generic: "log:"
+- text: "2026-10-28 06:56:57.636 INFO [metricbeat] bkm_metricbeat_scrape_line{} 73; kvs=[uri=(http://11.157.217.180:4315/metrics)]"
+- generic: 
+- generic: "dtEventTimeStamp:"
+- text: 2026-10-28 14:56:58
+- generic: "serverIp:"
+- text: 30.184.131.27
+- generic: "log:"
+- text: "2026-10-28 06:56:57.636 INFO [metricbeat] bkm_metricbeat_scrape_duration_seconds{} 0.001625; kvs=[uri=(http://11.157.217.180:4315/metrics)]"
+- generic: 
+- generic: "dtEventTimeStamp:"
+- text: 2026-10-28 14:56:58
+- generic: "serverIp:"
+- text: 30.184.131.27
+- generic: "log:"
+- text: "2026-10-28 06:56:57.636 INFO [metricbeat] bkm_metricbeat_scrape_size_bytes{} 11321; kvs=[uri=(http://11.157.217.180:4315/metrics)]"
+- generic: 
+- generic: "dtEventTimeStamp:"
+- text: 2026-10-28 14:56:56
+- generic: "serverIp:"
+- text: 30.184.131.45
+- generic: "log:"
+- text: "2026-10-28 14:56:55.783 WARN otlp/http.go:154 run pre-check failed, rtype=traces, code=401, ip=11.157.218.124, error: drop spans cause invalid token (7b0399a2c28ce5e3e0251f4fecc6e46b): not empty token: bk-collector: skip empty record"
+- generic: 
+- generic: "dtEventTimeStamp:"
+- text: 2026-10-28 14:56:56
+- generic: "serverIp:"
+- text: 30.184.131.45
+- generic: "log:"
+- text: "2026-10-28 14:56:55.783 ERROR tokenchecker/factory.go:202 failed to parse pdTraces.rsToken (7b0399a2c28ce5e3e0251f4fecc6e46b), err: invalid token (7b0399a2c28ce5e3e0251f4fecc6e46b): not empty token"
+- generic: 
+- generic: "dtEventTimeStamp:"
+- text: 2026-10-28 14:56:56
+- generic: "serverIp:"
+- text: 30.184.131.27
+- generic: "log:"
+- text: "2026-10-28 14:56:54.354 WARN otlp/http.go:154 run pre-check failed, rtype=traces, code=401, ip=11.157.218.124, error: drop spans cause invalid token (7b0399a2c28ce5e3e0251f4fecc6e46b): not empty token: bk-collector: skip empty record"
+- generic: 
+- generic: "dtEventTimeStamp:"
+- text: 2026-10-28 14:56:56
+- generic: "serverIp:"
+- text: 30.184.131.27
+- generic: "log:"
+- text: "2026-10-28 14:56:54.354 ERROR tokenchecker/factory.go:202 failed to parse pdTraces.rsToken (7b0399a2c28ce5e3e0251f4fecc6e46b), err: invalid token (7b0399a2c28ce5e3e0251f4fecc6e46b): not empty token"
+- generic: 
+- generic: "dtEventTimeStamp:"
+- text: 2026-10-28 14:56:56
+- generic: "serverIp:"
+- text: 30.184.131.27
+- generic: "log:"
+- text: "2026-10-28 14:56:53.921 WARN otlp/http.go:154 run pre-check failed, rtype=traces, code=401, ip=11.157.218.124, error: drop spans cause invalid token (7b0399a2c28ce5e3e0251f4fecc6e46b): not empty token: bk-collector: skip empty record"
+- generic: 
+- generic: "dtEventTimeStamp:"
+- text: 2026-10-28 14:56:56
+- generic: "serverIp:"
+- text: 30.184.131.27
+- generic: "log:"
+- text: "2026-10-28 14:56:53.921 ERROR tokenchecker/factory.go:202 failed to parse pdTraces.rsToken (7b0399a2c28ce5e3e0251f4fecc6e46b), err: invalid token (7b0399a2c28ce5e3e0251f4fecc6e46b): not empty token"
+- generic: 
+- generic: "dtEventTimeStamp:"
+- text: 2026-10-28 14:56:55
+- generic: "serverIp:"
+- text: 30.184.131.45
+- generic: "log:"
+- text: "2026-10-28 06:56:54.768 INFO [metricbeat] bkm_gather_up{} 2.000000; kvs=[bk_biz_id=(5000140) monitor_type=(ServiceMonitor) endpoint=(metrics) bcs_cluster_id=(BCS-K8S-25973) bk_collect_type=(metricbeat) namespace=(bcs-system) service=(bcs-general-pod-autoscaler) bk_monitor_name=(bcs-general-pod-autoscaler) bkm_up_code=(0) instance=(11.157.218.35:10251) job=(bcs-general-pod-autoscaler) pod=(bcs-general-pod-autoscaler-54687f4bbc-d74tq) bkm_up_code_name=(Ok) bk_endpoint_index=(0) bk_monitor_namespace=(bcs-system) bk_endpoint_url=(http://11.157.218.35:10251/metrics) task_id=(251712180)]"
+- generic: 
+- generic: "dtEventTimeStamp:"
+- text: 2026-10-28 14:56:55
+- generic: "serverIp:"
+- text: 30.184.131.45
+- generic: "log:"
+- text: "2026-10-28 06:56:54.767 INFO [metricbeat] bkm_metricbeat_handle_duration_seconds{} 0.000103; kvs=[uri=(http://11.157.218.35:10251/metrics)]"
+- generic: 
+- generic: "dtEventTimeStamp:"
+- text: 2026-10-28 14:56:55
+- generic: "serverIp:"
+- text: 30.184.131.45
+- generic: "log:"
+- text: "2026-10-28 06:56:54.767 INFO [metricbeat] bkm_metricbeat_endpoint_up{code=\"0\",code_name=\"Ok\"} 1; kvs=[uri=(http://11.157.218.35:10251/metrics)]"
+- generic: 
+- generic: "dtEventTimeStamp:"
+- text: 2026-10-28 14:56:55
+- generic: "serverIp:"
+- text: 30.184.131.45
+- generic: "log:"
+- text: "2026-10-28 06:56:54.767 INFO [metricbeat] bkm_metricbeat_scrape_line{} 5; kvs=[uri=(http://11.157.218.35:10251/metrics)]"
+- generic: 
+- generic: "dtEventTimeStamp:"
+- text: 2026-10-28 14:56:55
+- generic: "serverIp:"
+- text: 30.184.131.45
+- generic: "log:"
+- text: "2026-10-28 06:56:54.767 INFO [metricbeat] bkm_metricbeat_scrape_duration_seconds{} 0.000711; kvs=[uri=(http://11.157.218.35:10251/metrics)]"
+- generic: 
+- generic: "dtEventTimeStamp:"
+- text: 2026-10-28 14:56:55
+- generic: "serverIp:"
+- text: 30.184.131.45
+- generic: "log:"
+- text: "2026-10-28 06:56:54.767 INFO [metricbeat] bkm_metricbeat_scrape_size_bytes{} 1339; kvs=[uri=(http://11.157.218.35:10251/metrics)]"
+- generic: 
+- generic: "dtEventTimeStamp:"
+- text: 2026-10-28 14:56:55
+- generic: "serverIp:"
+- text: 30.184.131.45
+- generic: "log:"
+- text: "2026-10-28 14:56:55.063 WARN otlp/http.go:154 run pre-check failed, rtype=traces, code=401, ip=11.157.218.124, error: drop spans cause invalid token (7b0399a2c28ce5e3e0251f4fecc6e46b): not empty token: bk-collector: skip empty record"
+- generic: 
+- generic: "dtEventTimeStamp:"
+- text: 2026-10-28 14:56:55
+- generic: "serverIp:"
+- text: 30.184.131.45
+- generic: "log:"
+- text: "2026-10-28 14:56:55.063 ERROR tokenchecker/factory.go:202 failed to parse pdTraces.rsToken (7b0399a2c28ce5e3e0251f4fecc6e46b), err: invalid token (7b0399a2c28ce5e3e0251f4fecc6e46b): not empty token"
+- generic: 
+- generic: "dtEventTimeStamp:"
+- text: 2026-10-28 14:56:55
+- generic: "serverIp:"
+- text: 30.184.131.45
+- generic: "log:"
+- text: "2026-10-28 14:56:55.058 WARN otlp/http.go:154 run pre-check failed, rtype=traces, code=401, ip=11.157.218.124, error: drop spans cause invalid token (7b0399a2c28ce5e3e0251f4fecc6e46b): not empty token: bk-collector: skip empty record"
+- generic: 
+- generic: "dtEventTimeStamp:"
+- text: 2026-10-28 14:56:55
+- generic: "serverIp:"
+- text: 30.184.131.45
+- generic: "log:"
+- text: "2026-10-28 14:56:55.058 ERROR tokenchecker/factory.go:202 failed to parse pdTraces.rsToken (7b0399a2c28ce5e3e0251f4fecc6e46b), err: invalid token (7b0399a2c28ce5e3e0251f4fecc6e46b): not empty token"
+- generic: 
+- generic: "dtEventTimeStamp:"
+- text: 2026-10-28 14:56:55
+- generic: "serverIp:"
+- text: 30.184.131.45
+- generic: "log:"
+- text: "2026-10-28 14:56:55.053 WARN otlp/http.go:154 run pre-check failed, rtype=traces, code=401, ip=11.157.218.124, error: drop spans cause invalid token (7b0399a2c28ce5e3e0251f4fecc6e46b): not empty token: bk-collector: skip empty record"
+- generic: 
+- generic: "dtEventTimeStamp:"
+- text: 2026-10-28 14:56:55
+- generic: "serverIp:"
+- text: 30.184.131.45
+- generic: "log:"
+- text: "2026-10-28 14:56:55.053 ERROR tokenchecker/factory.go:202 failed to parse pdTraces.rsToken (7b0399a2c28ce5e3e0251f4fecc6e46b), err: invalid token (7b0399a2c28ce5e3e0251f4fecc6e46b): not empty token"
+- generic: 
+- generic: "dtEventTimeStamp:"
+- text: 2026-10-28 14:56:55
+- generic: "serverIp:"
+- text: 30.184.131.27
+- generic: "log:"
+- text: "2026-10-28 06:56:51.548 INFO [metricbeat] bkm_gather_up{} 2.000000; kvs=[bk_monitor_name=(bcs-kube-agent) endpoint=(metric) bcs_cluster_id=(BCS-K8S-25973) bkm_up_code_name=(Ok) service=(bcs-kube-agent) bk_monitor_namespace=(bk-system) bk_endpoint_url=(http://11.157.217.207:10254/metrics) bkm_up_code=(0) pod=(bcs-kube-agent-7b58dbcf5-mgzwq) monitor_type=(ServiceMonitor) task_id=(899939452) bk_collect_type=(metricbeat) bk_biz_id=(5000140) job=(bcs-kube-agent) instance=(11.157.217.207:10254) bk_endpoint_index=(0) namespace=(bk-system)]"
+- generic: 
+- generic: "dtEventTimeStamp:"
+- text: 2026-10-28 14:56:55
+- generic: "serverIp:"
+- text: 30.184.131.27
+- generic: "log:"
+- text: "2026-10-28 06:56:51.548 INFO [metricbeat] bkm_metricbeat_handle_duration_seconds{} 0.000241; kvs=[uri=(http://11.157.217.207:10254/metrics)]"
+- generic: 
+- generic: "dtEventTimeStamp:"
+- text: 2026-10-28 14:56:55
+- generic: "serverIp:"
+- text: 30.184.131.27
+- generic: "log:"
+- text: "2026-10-28 06:56:51.548 INFO [metricbeat] bkm_metricbeat_endpoint_up{code=\"0\",code_name=\"Ok\"} 1; kvs=[uri=(http://11.157.217.207:10254/metrics)]"
+- generic: 
+- generic: "dtEventTimeStamp:"
+- text: 2026-10-28 14:56:55
+- generic: "serverIp:"
+- text: 30.184.131.27
+- generic: "log:"
+- text: "2026-10-28 06:56:51.548 INFO [metricbeat] bkm_metricbeat_scrape_line{} 97; kvs=[uri=(http://11.157.217.207:10254/metrics)]"
+- generic: 
+- generic: "dtEventTimeStamp:"
+- text: 2026-10-28 14:56:55
+- generic: "serverIp:"
+- text: 30.184.131.27
+- generic: "log:"
+- text: "2026-10-28 06:56:51.548 INFO [metricbeat] bkm_metricbeat_scrape_duration_seconds{} 0.001550; kvs=[uri=(http://11.157.217.207:10254/metrics)]"
+- generic: 
+- generic: "dtEventTimeStamp:"
+- text: 2026-10-28 14:56:55
+- generic: "serverIp:"
+- text: 30.184.131.27
+- generic: "log:"
+- text: "2026-10-28 06:56:51.548 INFO [metricbeat] bkm_metricbeat_scrape_size_bytes{} 13874; kvs=[uri=(http://11.157.217.207:10254/metrics)]"
+- generic: 
+- generic: "dtEventTimeStamp:"
+- text: 2026-10-28 14:56:54
+- generic: "serverIp:"
+- text: 30.184.131.45
+- generic: "log:"
+- text: "2026-10-28 06:56:53.770 INFO [metricbeat] bkm_gather_up{} 2.000000; kvs=[service=(bcs-docker-proxy-cache-v2) pod=(bcs-docker-proxy-cache-v2-85b5d5ccdc-rhtq7) bk_monitor_name=(bcs-docker-proxy-cache-v2) container=(bcs-docker-proxy-cache-v2) bk_endpoint_index=(0) namespace=(bcs-system) endpoint=(metric) bk_monitor_namespace=(bcs-system) bk_collect_type=(metricbeat) bk_biz_id=(5000140) bkm_up_code=(0) bkm_up_code_name=(Ok) bk_endpoint_url=(http://11.157.218.3:8081/debug/metrics) instance=(11.157.218.3:8081) task_id=(1141929481) job=(bcs-docker-proxy-cache-v2) monitor_type=(ServiceMonitor) bcs_cluster_id=(BCS-K8S-25973)]"
+- generic: 
+- generic: "dtEventTimeStamp:"
+- text: 2026-10-28 14:56:54
+- generic: "serverIp:"
+- text: 30.184.131.45
+- generic: "log:"
+- text: "2026-10-28 06:56:53.770 INFO [metricbeat] bkm_metricbeat_handle_duration_seconds{} 0.000292; kvs=[uri=(http://11.157.218.3:8081/debug/metrics)]"
+- generic: 
+- generic: "dtEventTimeStamp:"
+- text: 2026-10-28 14:56:54
+- generic: "serverIp:"
+- text: 30.184.131.45
+- generic: "log:"
+- text: "2026-10-28 06:56:53.770 INFO [metricbeat] bkm_metricbeat_endpoint_up{code=\"0\",code_name=\"Ok\"} 1; kvs=[uri=(http://11.157.218.3:8081/debug/metrics)]"
+- generic: 
+- generic: "dtEventTimeStamp:"
+- text: 2026-10-28 14:56:54
+- generic: "serverIp:"
+- text: 30.184.131.45
+- generic: "log:"
+- text: "2026-10-28 06:56:53.770 INFO [metricbeat] bkm_metricbeat_scrape_line{} 76; kvs=[uri=(http://11.157.218.3:8081/debug/metrics)]"
+- generic: 
+- generic: "dtEventTimeStamp:"
+- text: 2026-10-28 14:56:54
+- generic: "serverIp:"
+- text: 30.184.131.45
+- generic: "log:"
+- text: "2026-10-28 06:56:53.770 INFO [metricbeat] bkm_metricbeat_scrape_duration_seconds{} 0.001378; kvs=[uri=(http://11.157.218.3:8081/debug/metrics)]"
+- text:    
+- text:         
+- generic: 
+- generic: 
+- generic: 
+- generic: 
+- generic:           
+- generic:          
+- generic: 
+- generic: "* * "
+- generic: 
+- generic: 

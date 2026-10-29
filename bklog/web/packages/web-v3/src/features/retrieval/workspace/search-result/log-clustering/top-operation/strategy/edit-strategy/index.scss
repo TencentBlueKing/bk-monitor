@@ -1,0 +1,94 @@
+.strategy-container {
+  display: flex;
+  gap: 8px;
+}
+
+.strategy-dialog {
+  .header-main {
+    width: 100%;
+    display: flex;
+    align-items: center;
+
+    .title-main {
+      font-size: 20px;
+      color: #313238;
+    }
+
+    .split-line {
+      display: inline-block;
+      width: 1px;
+      height: 14px;
+      background: #dcdee5;
+      margin: 0 8px;
+    }
+
+    .title-sub {
+      font-size: 14px;
+      color: #979ba5;
+    }
+  }
+
+  .level-trigger-main {
+    display: flex;
+    justify-content: space-between;
+
+    .dispaly-main {
+      margin-left: 6px;
+    }
+
+    .trigger-icon {
+      font-size: 22px;
+      color: #979ba5;
+      margin-right: 2px;
+
+      &.is-rotate {
+        transform: rotate(180deg);
+      }
+    }
+  }
+  .select-group {
+    width: 100%;
+    margin: 16px 0 12px 0;
+
+    .bk-button {
+      width: 50%;
+    }
+  }
+
+  .increase-group {
+    margin-bottom: 4px;
+  }
+
+  .info-btn {
+    margin-left: 4px;
+    color: #3a84ff;
+    cursor: pointer;
+  }
+}
+
+.strategy-popover {
+  .operator {
+    margin-left: 6px;
+    color: #3a84ff;
+    cursor: pointer;
+  }
+}
+
+.strategy-create-groups {
+  cursor: pointer;
+
+  .groups-btn {
+    display: flex;
+    align-items: center;
+
+    .icon-plus-circle {
+      margin-right: 6px;
+      font-size: 16px;
+    }
+  }
+}
+
+.form-item-tip {
+  font-size: 12px;
+  color: #979ba5;
+}

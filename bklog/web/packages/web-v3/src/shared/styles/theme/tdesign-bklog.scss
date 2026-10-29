@@ -1,0 +1,140 @@
+// V2 business theme: theme.scss and bk-magic-vue/lib/ui/{button,input,loading}.css.
+// Higher specificity than TDesign's :root defaults keeps lazy-loaded CSS from
+// resetting the palette. Existing dark-mode variables remain independent.
+:root:not([theme-mode='dark']) {
+  --td-brand-color-1: #eaf3ff;
+  --td-brand-color-2: #e1ecff;
+  --td-brand-color-6: #699df4;
+  --td-brand-color-7: #3a84ff;
+  --td-brand-color-8: #2761dd;
+  --td-brand-color: #3a84ff;
+  --td-brand-color-hover: #699df4;
+  --td-brand-color-active: #2761dd;
+  --td-brand-color-focus: #e1ecff;
+  --td-brand-color-disabled: #dcdee5;
+  --td-brand-color-light: #e1ecff;
+  --td-brand-color-light-hover: #eaf3ff;
+  --td-text-color-brand: #3a84ff;
+  --td-text-color-link: #3a84ff;
+  --td-success-color: #2dcb56;
+  --td-warning-color: #ff9c01;
+  --td-error-color: #ea3636;
+  --td-text-color-primary: #313238;
+  --td-text-color-secondary: #63656e;
+  --td-text-color-placeholder: #979ba5;
+  --td-text-color-disabled: #c4c6cc;
+  --td-border-level-1-color: #dcdee5;
+  --td-border-level-2-color: #c4c6cc;
+  --td-bg-color-container: #fff;
+  --td-bg-color-container-hover: #f5f7fa;
+  --td-bg-color-component: #f0f1f5;
+  --td-bg-color-component-hover: #eaebf0;
+  --td-bg-color-component-disabled: #fafbfd;
+  --td-font-size-body-small: 12px;
+  --td-font-size-body-medium: 12px;
+  --td-line-height-body-small: 16px;
+  --td-line-height-body-medium: 20px;
+  --td-comp-size-s: 26px;
+  --td-comp-size-m: 32px;
+  --td-comp-size-l: 38px;
+  --td-radius-default: 2px;
+  --td-radius-medium: 2px;
+  --td-radius-large: 2px;
+  --td-radius-extraLarge: 2px;
+  --td-shadow-1: 0 2px 6px 0 #0000001a;
+  --td-shadow-2: 0 3px 9px 0 #0000001a;
+
+  // V2 normal buttons use 14px; inputs, table cells and small buttons use 12px.
+  .t-button--size-medium {
+    font-size: 14px;
+  }
+
+  .t-button--theme-default.t-button--variant-base {
+    color: #63656e;
+    background-color: #fff;
+    border-color: #c4c6cc;
+
+    &:hover {
+      color: #63656e;
+      background-color: #fff;
+      border-color: #979ba5;
+    }
+
+    &:active {
+      color: #3a84ff;
+      border-color: #3a84ff;
+    }
+
+    &.t-is-disabled {
+      color: #c4c6cc;
+      background-color: #faf9fd;
+      border-color: #dcdee5;
+    }
+  }
+}
+
+// Original four-dot indicator, supplied through TDesign Loading's indicator
+// slot. Request, delay, retry and unmount behavior stays in loading-contract.js.
+.bklog-loading-dots {
+  position: relative;
+  display: inline-block;
+  width: 75px;
+  height: 14px;
+
+  > span {
+    position: absolute;
+    top: 0;
+    width: 14px;
+    height: 14px;
+    border-radius: 19px;
+    transform: scale(0.6);
+    animation: bklog-loading-scale 0.8s infinite alternate;
+  }
+
+  @each $index, $color, $delay in (1, #fd6154, 0.1s), (2, #ffb726, 0.25s), (3, #4cd084, 0.4s), (4, #57a3f1, 0.55s) {
+    > span:nth-child(#{$index}) {
+      left: ($index - 1) * 20px;
+      background-color: $color;
+      animation-delay: $delay;
+    }
+  }
+
+  &--small {
+    width: 45px;
+
+    > span {
+      width: 10px;
+      height: 10px;
+    }
+
+    @for $index from 1 through 4 {
+      > span:nth-child(#{$index}) {
+        left: ($index - 1) * 15px;
+      }
+    }
+  }
+
+  &--mini {
+    width: 30px;
+
+    > span {
+      width: 6px;
+      height: 6px;
+    }
+
+    @for $index from 1 through 4 {
+      > span:nth-child(#{$index}) {
+        left: ($index - 1) * 10px;
+      }
+    }
+  }
+}
+
+@keyframes bklog-loading-scale {
+  from {
+    transform: scale(1);
+  }
+  to {
+    transform: scale(0.6);
+  }
+}

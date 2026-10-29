@@ -1,0 +1,22 @@
+{
+  "schemaVersion": 1,
+  "id": "features/management",
+  "purpose": "按源码职责归属的业务域；功能边界以实际组件和服务为准",
+  "root": "src/features/management",
+  "files": 6,
+  "entryPoints": [
+    "features/management/manage/index.vue"
+  ],
+  "services": [],
+  "dependsOn": [
+    "app",
+    "features/navigation",
+    "platform",
+    "shared"
+  ],
+  "tests": [],
+  "contractRoot": "../../migration-project/migration-contracts",
+  "sourceMap": "ai-native/source-map.json",
+  "acceptance": "NEEDS_REVIEW",
+  "note": "Directory migration preserves source behavior; domain-wide acceptance remains in the existing ledger."
+}

@@ -24,13 +24,6 @@
  * IN THE SOFTWARE.
  */
 
-import vue from '@vitejs/plugin-vue';
-import { defineConfig } from 'vite';
-
-export default defineConfig({
-  plugins: [vue()],
-  server: {
-    host: '127.0.0.1',
-    port: 4173,
-  },
-});
+// Primary Vue3 application. The baseline remains an explicit comparison build.
+import application from './vite.application.config.mjs';
+export default { ...application, server: { ...application.server, port: 4175 } };

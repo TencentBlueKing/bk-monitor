@@ -1,0 +1,68 @@
+.filter-setting-popover {
+  .popover-title-content {
+    margin-bottom: 10px;
+
+    .dialog-title {
+      height: 24px;
+      font-size: 16px;
+      line-height: 24px;
+      color: #313238;
+      letter-spacing: 0;
+    }
+  }
+
+  .tippy-tooltip[data-size='small'] {
+    height: 170px;
+    padding: 16px 16px;
+    box-shadow: 0 2px 6px 0 #999999;
+  }
+
+  .bk-tooltip-content {
+    height: 150px;
+
+    .bk-form-content {
+      .bk-form-control {
+        .bk-input-text {
+          .bk-form-input[readonly] {
+            border: 0px;
+          }
+        }
+
+        .bk-textarea-wrapper {
+          border: 0px;
+
+          .bk-form-textarea[readonly] {
+            border: 0px;
+          }
+        }
+      }
+    }
+  }
+
+  .popover-footer {
+    position: absolute;
+    right: -16px;
+    bottom: 0;
+    width: 400px;
+    height: 42px;
+    padding: 8px 16px;
+    background: #fafbfd;
+    box-shadow: 0 -1px 0 0 #dcdee5;
+
+    .footer-button {
+      text-align: right;
+    }
+  }
+
+  .add-popover-new-page-container {
+    .tippy-tooltip[data-size='small'] {
+      height: auto;
+      padding: 0;
+      box-shadow: 0 3px 9px 0 rgba(0, 0, 0, 0.1);
+    }
+
+    .bk-tooltip-content {
+      height: auto;
+    }
+  }
+}

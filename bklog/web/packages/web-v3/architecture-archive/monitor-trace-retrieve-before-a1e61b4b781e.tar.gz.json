@@ -1,0 +1,224 @@
+{
+  "schemaVersion": 1,
+  "directory": "monitor-trace-retrieve",
+  "archive": "architecture-archive/monitor-trace-retrieve-before-a1e61b4b781e.tar.gz",
+  "archiveSha256": "f5381e41d797c739138384507198d5d6216e30eed958b6c83ca73caf830b23bc",
+  "files": [
+    {
+      "path": "assets/ai-bluking-2-PFnUCasM.svg",
+      "sha256": "40b5c527c0334b39c787c721c11afdc0e12e0f73dfae827e9615e7f44bb97d05"
+    },
+    {
+      "path": "assets/chart-bar-active-DtH7zGie.png",
+      "sha256": "f0cfb3829c67144d762de8464a83fd3d023f6bd36c32497566269096b93757a1"
+    },
+    {
+      "path": "assets/chart-bar-def-Bk22i4Jj.png",
+      "sha256": "51b7f65b5fb21e04d3df528dc35ca717033515931f0cb4a833077a4b7e1c2523"
+    },
+    {
+      "path": "assets/chart-line-active-BA6b7KBc.png",
+      "sha256": "9c3127ae534212dd034bb48b7dcc0a10bf3219d495a1680ea5c3447737d1e9e6"
+    },
+    {
+      "path": "assets/chart-line-bar-active-C7SpeKso.png",
+      "sha256": "f3666c9d814f60becc7e4ff4b0ff7dd1ff244ad28d5cb0d1185e06017576037f"
+    },
+    {
+      "path": "assets/chart-line-bar-def-MYUVMFul.png",
+      "sha256": "e0c54707ae54ff4a488a00eb2864e7ddfac53d15077ca8fff460add5ccd992c7"
+    },
+    {
+      "path": "assets/chart-line-def-B4HK2HKV.png",
+      "sha256": "dbc2f35a8bb0d4210203e7bdf7febad27cef608090f52711b4b951d84e5ebb16"
+    },
+    {
+      "path": "assets/chart-pie-active-P19l3Om9.png",
+      "sha256": "2be486cbac02c45d0d7a565fb432de62bd38b4d36e80349566db607ad08db89d"
+    },
+    {
+      "path": "assets/chart-pie-def-DPzg3Gcp.png",
+      "sha256": "08aa80728f2b914754b3127a16c307af20c45c7cad22884a2a46bb1471c068d7"
+    },
+    {
+      "path": "assets/chart-table-active-BVRATuKK.png",
+      "sha256": "6ac3680b2a43a2b681d56ced914501fa6aa9842a84efed38f65ce4be7c19e2f3"
+    },
+    {
+      "path": "assets/chart-table-def-CxCIAFRA.png",
+      "sha256": "6d5b5a59c6e5dd3921badf1cde356ec11d35b2612e05d139e8aef153c93f835f"
+    },
+    {
+      "path": "assets/clean-image-grayed1-CfubxKKr.png",
+      "sha256": "febdf9a6cc9b3bea701f660c168b181ee0d2634ef6d1afeac29f7424e4d40306"
+    },
+    {
+      "path": "assets/clean-image-grayed2-DlTOTYSF.png",
+      "sha256": "35bfe4ef2ee1d3bf9aec4d96b3237dd2b0e0b7b9fcff5c1cc397eabc04b28deb"
+    },
+    {
+      "path": "assets/clean-image1-CWJPpj77.png",
+      "sha256": "a0dca74facedec9c4903affd7d2b6c75dc59c21ae959a445ecab61e2a92f4ade"
+    },
+    {
+      "path": "assets/clean-image2-COCsb50G.png",
+      "sha256": "7b6a50858aa6d0bb1977a15cd1cd0e8ab6a22070ff4e8ca551b52f3940b9886b"
+    },
+    {
+      "path": "assets/clean-image3-DaaqaJku.png",
+      "sha256": "76067b834d6cb6bb404a3ee67fe253dc6d861c05d43bf9e2d7bd96124a34670f"
+    },
+    {
+      "path": "assets/cluster-JPhrMfC6.png",
+      "sha256": "d3add2650f16e00b0011b46ac8fdd673cf0f1d0be8a4dc03096651dd0d3be2ef"
+    },
+    {
+      "path": "assets/cluster-table.worker-BOmImoiO.js",
+      "sha256": "919d5942385ee40b108d9e7f2bcfdd8f53853f71d0b8a77c65f35307d2942b64"
+    },
+    {
+      "path": "assets/cluster-table.worker-CbTDCAOU.ts",
+      "sha256": "293ed17064a4b41a63c970736f2faf77a6c8ec3b4890542817c84b63972b33e4"
+    },
+    {
+      "path": "assets/codicon-DcSIACem.ttf",
+      "sha256": "c99115f8718bd1784dc894b712362bd1cef78b9c9d2f90397f26d1ea46f35235"
+    },
+    {
+      "path": "assets/cursor-lock-in9z-Mzi.svg",
+      "sha256": "2ee68e1be02f442306fb570841480341d8857c2e59be46c6179480b5fb422778"
+    },
+    {
+      "path": "assets/enter-key-BkfYTCPX.svg",
+      "sha256": "b3739e8ee80150321a36019690a77894a2c47b8b361127b9150c98726a7250b1"
+    },
+    {
+      "path": "assets/iconcool-B_Yd5tUU.ttf",
+      "sha256": "83a58d49ab65c3c0e0f83fb738a241daa10afe321743e1e9d7c73ff11927f599"
+    },
+    {
+      "path": "assets/iconcool-BAjY5-Bo.eot",
+      "sha256": "f301b3cedad839535a3cac135ddad5e3784178071aab064fa13e1691c3f4fd08"
+    },
+    {
+      "path": "assets/iconcool-BPISw6gC.woff",
+      "sha256": "14f4c444d693f9617ce6fc2e0774683f5ef3134e859808454acd2b27cdcc4b51"
+    },
+    {
+      "path": "assets/iconcool-CNX1yzZ6.ttf",
+      "sha256": "25638be6d0f60b0bfe83b0c5509855979c2231a7ed4f36d7bb53cfdecfc118de"
+    },
+    {
+      "path": "assets/iconcool-CVjEL81M.svg",
+      "sha256": "edb96134a6c8aa3b7e4c13294c0532d941d6fcefe3a7b6efd111911d020d7cf1"
+    },
+    {
+      "path": "assets/iconcool-DpDdG6Rg.woff",
+      "sha256": "aa547d57f085a0d9d2e7cb4a3f9602efbe49bfe2ca7e654dd2af54c53bfcc89c"
+    },
+    {
+      "path": "assets/iconcool-DQcO3HNA.eot",
+      "sha256": "11e81c92a14dd76ac86d3ac4af23c0856332aca1f4b5bd60c2c8be334e2e4611"
+    },
+    {
+      "path": "assets/iconcool-DTzw7KSL.eot",
+      "sha256": "cba47ffdf47ca2871797d995cf1490462333eca913ddd78078829c9199b4e8d8"
+    },
+    {
+      "path": "assets/iconcool-jUH_vN9u.woff",
+      "sha256": "72e2ccc42256d12c7895470eca192d6d5f4eb221ce065301e7d16c72fb82511a"
+    },
+    {
+      "path": "assets/iconcool-rg_PTNty.svg",
+      "sha256": "dd0bfa288c1d0cdc7dd71d471fa90a7280763871c0a5e3a97dac0c23f4ddd9f2"
+    },
+    {
+      "path": "assets/iconcool-t5rwgMaP.ttf",
+      "sha256": "aea3e24aaac1a62034fd7ae71d0305856161595d2da9d6787b72bc6d7c646515"
+    },
+    {
+      "path": "assets/iconcool-z3WbMDXB.svg",
+      "sha256": "e050b92bc2b85fe8fea76e2723acbd361d5e73d726291d38ee0651726272d744"
+    },
+    {
+      "path": "assets/iconcool.6932c3a.-BDZyMPXa.ttf",
+      "sha256": "bf78c5ecdc6f5f9b2ce751cc8f15c309f3abe51f7106a1b20cdd80818622efe6"
+    },
+    {
+      "path": "assets/iconcool.a3107b1.-DKYNWC_Q.eot",
+      "sha256": "97e298c57e6d03b4a9709d9b2509bb7ad7e0632868da2330b31716355924d983"
+    },
+    {
+      "path": "assets/iconcool.bc02714.-DpcsVgig.svg",
+      "sha256": "fab6fd5d99a7fe8d717865935b59111c076cc2baef102b9d69121a8d87bfaacb"
+    },
+    {
+      "path": "assets/iconcool.ce0b93a.-CR79YmmX.woff",
+      "sha256": "85b4f02ff8a06c99d26b8271c05c7c21f745f0b9a5367a532b16997e49b98a8e"
+    },
+    {
+      "path": "assets/retrieve-search.worker-DS55qK74.ts",
+      "sha256": "b996d542f2c8a7f4d2461c8a8b835516b1d2db6035c6ff5b30ede26604086535"
+    },
+    {
+      "path": "assets/retrieve-search.worker-DTNloUbA.js",
+      "sha256": "80be0f7b7468f47d80f309fdd18def65630318b1a2ef68892457f20bc00c8aa0"
+    },
+    {
+      "path": "assets/Roboto-Regular-DcRvLEAw.woff2",
+      "sha256": "bcab6949c6eda21b0e21c07ab420d2fb78302afb49da639b82fa65b2fdb7f7c2"
+    },
+    {
+      "path": "assets/RobotoMono-Medium-C4yN-p9I.woff2",
+      "sha256": "a77ebdb1124872890f9b6dbb38563db50f9d1d668194fff1938481aff3c11589"
+    },
+    {
+      "path": "assets/RobotoMono-Regular-sM1DPUNq.woff2",
+      "sha256": "5d65cc2bf041102b0fbaeb4200fa590c431b826ed2f36a6ba01e024f3f59d210"
+    },
+    {
+      "path": "assets/rowAiNew-3qRmpZ6Q.svg",
+      "sha256": "0058b753c05a8f6192059f03c68b682f112003d34725633637441c3253fb69db"
+    },
+    {
+      "path": "assets/spinner-CKnwqN4l.svg",
+      "sha256": "c1fb177228b80e2e66a7ba8f3b71ae1525720f2995c79ab1c940b679105cb287"
+    },
+    {
+      "path": "assets/transfer-DDgbiOHy.png",
+      "sha256": "f82f590415ac1b27b4a8256e14b9893a13543aa84375d65fe65ece397eebcf50"
+    },
+    {
+      "path": "assets/trend-chart-worker-Cp-QJdum.js",
+      "sha256": "d12c650eae7dad61427debf5f3525219c11b7fc14c9dc945d03b6c230d2ba9f0"
+    },
+    {
+      "path": "assets/up-down-key-CyW9GUh2.svg",
+      "sha256": "30d3de949d88d6c78e3be0efb67ac4ea9528d54c9f5f8ee1b46f17a9025312b9"
+    },
+    {
+      "path": "assets/xiaojingAI-C0q0v8Qx.svg",
+      "sha256": "15cf3908185258c32609c25efdd59cc49e23010db8d859f1c898925270eb8b4e"
+    },
+    {
+      "path": "build-identity.json",
+      "sha256": "099cd9952283997a903092252f1465877d13b5b415b025ac3128f6519466b7ee"
+    },
+    {
+      "path": "css/main.css",
+      "sha256": "4b88dc661f393b2fc6658ffc5ff0baf4d73a601089a06fa4932e29769e987a3f"
+    },
+    {
+      "path": "main.js",
+      "sha256": "b0ac3d330ace224e4c403116f79af4d4d79c8fc687125edc77cd357bc418ef2e"
+    },
+    {
+      "path": "migration-build.json",
+      "sha256": "4b4d829868df12427ea5f5685e4de3c2df942ede0ce273e0a6dc105134c70f20"
+    },
+    {
+      "path": "package.json",
+      "sha256": "fcc393a7a8eb8a8718f861abce72e305ce71093c6e7c324eb17e5eca79fb707b"
+    }
+  ]
+}

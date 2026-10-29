@@ -1,0 +1,442 @@
+{
+  "checkedAt": "2026-10-29T06:54:51.537Z",
+  "scope": "management header styling only; no resource mutations",
+  "before": {
+    "v3TitleTop": 91,
+    "v2TitleTop": 52,
+    "v3TitleRight": 1340,
+    "viewportWidth": 1280
+  },
+  "after": {
+    "ancestors": [
+      {
+        "cls": "sub-nav-container",
+        "contain": "none",
+        "filter": "none",
+        "position": "absolute",
+        "top": "0px",
+        "transform": "none",
+        "y": 52
+      },
+      {
+        "cls": "manage-main",
+        "contain": "none",
+        "filter": "none",
+        "position": "relative",
+        "top": "0px",
+        "transform": "none",
+        "y": 52
+      },
+      {
+        "cls": "manage-container",
+        "contain": "none",
+        "filter": "none",
+        "position": "static",
+        "top": "auto",
+        "transform": "none",
+        "y": 52
+      },
+      {
+        "cls": "navigation-content",
+        "contain": "none",
+        "filter": "none",
+        "position": "static",
+        "top": "auto",
+        "transform": "none",
+        "y": 52
+      },
+      {
+        "cls": "container-content",
+        "contain": "none",
+        "filter": "none",
+        "position": "static",
+        "top": "auto",
+        "transform": "none",
+        "y": 52
+      },
+      {
+        "cls": "navigation-container",
+        "contain": "none",
+        "filter": "none",
+        "position": "relative",
+        "top": "0px",
+        "transform": "none",
+        "y": 52
+      },
+      {
+        "cls": "bk-navigation-wrapper",
+        "contain": "none",
+        "filter": "none",
+        "position": "relative",
+        "top": "0px",
+        "transform": "none",
+        "y": 52
+      },
+      {
+        "cls": "bk-navigation bk-log-navigation manage-content",
+        "contain": "none",
+        "filter": "none",
+        "position": "static",
+        "top": "auto",
+        "transform": "none",
+        "y": 52
+      },
+      {
+        "cls": "log-search-container is-show-notice",
+        "contain": "none",
+        "filter": "none",
+        "position": "relative",
+        "top": "0px",
+        "transform": "none",
+        "y": 52
+      },
+      {
+        "cls": "",
+        "contain": "none",
+        "filter": "none",
+        "position": "static",
+        "top": "auto",
+        "transform": "none",
+        "y": 0
+      },
+      {
+        "cls": "bklog-bootstrap-app-enter",
+        "contain": "none",
+        "filter": "none",
+        "position": "static",
+        "top": "auto",
+        "transform": "none",
+        "y": 0
+      },
+      {
+        "cls": "language-zh",
+        "contain": "none",
+        "filter": "none",
+        "position": "static",
+        "top": "auto",
+        "transform": "none",
+        "y": 0
+      },
+      {
+        "cls": "",
+        "contain": "none",
+        "filter": "none",
+        "position": "static",
+        "top": "auto",
+        "transform": "none",
+        "y": 0
+      }
+    ],
+    "title": {
+      "css": {
+        "position": "absolute",
+        "top": "0px"
+      },
+      "rect": {
+        "bottom": 100,
+        "height": 48,
+        "left": 60,
+        "right": 1280,
+        "top": 52,
+        "width": 1220,
+        "x": 60,
+        "y": 52
+      }
+    },
+    "viewport": {
+      "h": 720,
+      "w": 1280
+    }
+  },
+  "detail": {
+    "ancestors": [
+      {
+        "cls": "sub-nav-container",
+        "contain": "none",
+        "filter": "none",
+        "position": "absolute",
+        "top": "0px",
+        "transform": "none",
+        "y": 52
+      },
+      {
+        "cls": "manage-main",
+        "contain": "none",
+        "filter": "none",
+        "position": "relative",
+        "top": "0px",
+        "transform": "none",
+        "y": 52
+      },
+      {
+        "cls": "manage-container",
+        "contain": "none",
+        "filter": "none",
+        "position": "static",
+        "top": "auto",
+        "transform": "none",
+        "y": 52
+      },
+      {
+        "cls": "navigation-content",
+        "contain": "none",
+        "filter": "none",
+        "position": "static",
+        "top": "auto",
+        "transform": "none",
+        "y": 52
+      },
+      {
+        "cls": "container-content",
+        "contain": "none",
+        "filter": "none",
+        "position": "static",
+        "top": "auto",
+        "transform": "none",
+        "y": 52
+      },
+      {
+        "cls": "navigation-container",
+        "contain": "none",
+        "filter": "none",
+        "position": "relative",
+        "top": "0px",
+        "transform": "none",
+        "y": 52
+      },
+      {
+        "cls": "bk-navigation-wrapper",
+        "contain": "none",
+        "filter": "none",
+        "position": "relative",
+        "top": "0px",
+        "transform": "none",
+        "y": 52
+      },
+      {
+        "cls": "bk-navigation bk-log-navigation manage-content",
+        "contain": "none",
+        "filter": "none",
+        "position": "static",
+        "top": "auto",
+        "transform": "none",
+        "y": 52
+      },
+      {
+        "cls": "log-search-container is-show-notice",
+        "contain": "none",
+        "filter": "none",
+        "position": "relative",
+        "top": "0px",
+        "transform": "none",
+        "y": 52
+      },
+      {
+        "cls": "",
+        "contain": "none",
+        "filter": "none",
+        "position": "static",
+        "top": "auto",
+        "transform": "none",
+        "y": 0
+      },
+      {
+        "cls": "bklog-bootstrap-app-enter",
+        "contain": "none",
+        "filter": "none",
+        "position": "static",
+        "top": "auto",
+        "transform": "none",
+        "y": 0
+      },
+      {
+        "cls": "language-zh",
+        "contain": "none",
+        "filter": "none",
+        "position": "static",
+        "top": "auto",
+        "transform": "none",
+        "y": 0
+      },
+      {
+        "cls": "",
+        "contain": "none",
+        "filter": "none",
+        "position": "static",
+        "top": "auto",
+        "transform": "none",
+        "y": 0
+      }
+    ],
+    "title": {
+      "css": {
+        "position": "absolute",
+        "top": "0px"
+      },
+      "rect": {
+        "bottom": 100,
+        "height": 48,
+        "left": 60,
+        "right": 1280,
+        "top": 52,
+        "width": 1220,
+        "x": 60,
+        "y": 52
+      }
+    },
+    "viewport": {
+      "h": 903,
+      "w": 720
+    }
+  },
+  "grok": {
+    "ancestors": [
+      {
+        "cls": "sub-nav-container",
+        "contain": "none",
+        "filter": "none",
+        "position": "absolute",
+        "top": "0px",
+        "transform": "none",
+        "y": 52
+      },
+      {
+        "cls": "manage-main",
+        "contain": "none",
+        "filter": "none",
+        "position": "relative",
+        "top": "0px",
+        "transform": "none",
+        "y": 52
+      },
+      {
+        "cls": "manage-container",
+        "contain": "none",
+        "filter": "none",
+        "position": "static",
+        "top": "auto",
+        "transform": "none",
+        "y": 52
+      },
+      {
+        "cls": "navigation-content",
+        "contain": "none",
+        "filter": "none",
+        "position": "static",
+        "top": "auto",
+        "transform": "none",
+        "y": 52
+      },
+      {
+        "cls": "container-content",
+        "contain": "none",
+        "filter": "none",
+        "position": "static",
+        "top": "auto",
+        "transform": "none",
+        "y": 52
+      },
+      {
+        "cls": "navigation-container",
+        "contain": "none",
+        "filter": "none",
+        "position": "relative",
+        "top": "0px",
+        "transform": "none",
+        "y": 52
+      },
+      {
+        "cls": "bk-navigation-wrapper",
+        "contain": "none",
+        "filter": "none",
+        "position": "relative",
+        "top": "0px",
+        "transform": "none",
+        "y": 52
+      },
+      {
+        "cls": "bk-navigation bk-log-navigation manage-content",
+        "contain": "none",
+        "filter": "none",
+        "position": "static",
+        "top": "auto",
+        "transform": "none",
+        "y": 52
+      },
+      {
+        "cls": "log-search-container is-show-notice",
+        "contain": "none",
+        "filter": "none",
+        "position": "relative",
+        "top": "0px",
+        "transform": "none",
+        "y": 52
+      },
+      {
+        "cls": "",
+        "contain": "none",
+        "filter": "none",
+        "position": "static",
+        "top": "auto",
+        "transform": "none",
+        "y": 0
+      },
+      {
+        "cls": "bklog-bootstrap-app-enter",
+        "contain": "none",
+        "filter": "none",
+        "position": "static",
+        "top": "auto",
+        "transform": "none",
+        "y": 0
+      },
+      {
+        "cls": "language-zh",
+        "contain": "none",
+        "filter": "none",
+        "position": "static",
+        "top": "auto",
+        "transform": "none",
+        "y": 0
+      },
+      {
+        "cls": "",
+        "contain": "none",
+        "filter": "none",
+        "position": "static",
+        "top": "auto",
+        "transform": "none",
+        "y": 0
+      }
+    ],
+    "title": {
+      "css": {
+        "position": "absolute",
+        "top": "0px"
+      },
+      "rect": {
+        "bottom": 100,
+        "height": 48,
+        "left": 60,
+        "right": 1280,
+        "top": 52,
+        "width": 1220,
+        "x": 60,
+        "y": 52
+      }
+    },
+    "viewport": {
+      "h": 720,
+      "w": 1280
+    }
+  },
+  "expandedSidebar": {
+    "titleLeft": 260,
+    "titleRight": 1280,
+    "contentWidth": 1020
+  },
+  "notes": [
+    "Header aligns with management container independently of boolean notice state.",
+    "Existing announcement component runtime issue is outside this styling change."
+  ]
+}

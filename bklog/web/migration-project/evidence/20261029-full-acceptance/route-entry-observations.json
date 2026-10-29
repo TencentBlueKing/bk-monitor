@@ -1,0 +1,3701 @@
+[
+  {
+    "name": "client-log-search",
+    "path": "/client-log-search",
+    "kind": "deep-link-entry-only",
+    "businessAccepted": false,
+    "visualAccepted": false,
+    "v3": {
+      "url": "http://appdev.woa.com:4175/#/client-log-search?spaceUid=bkcc__5000140&bizId=5000140",
+      "buttons": [
+        "查询"
+      ],
+      "exceptions": [
+        "检索无数据未找到匹配的用户或任务1. 请检查任务ID和用户ID是否输入错误2. 平台默认保存 90 天的任务记录，请检查 ID 是否过期3. 若检查均无问题，请联系蓝鲸助手"
+      ],
+      "forms": 0,
+      "headers": [],
+      "headings": [],
+      "iframes": 0,
+      "inputs": [],
+      "rows": 0
+    },
+    "v2": {
+      "url": "http://appdev.woa.com:8001/#/client-log-search?spaceUid=bkcc__5000140&bizId=5000140",
+      "buttons": [],
+      "exceptions": [],
+      "forms": 0,
+      "headers": [],
+      "headings": [],
+      "iframes": 0,
+      "inputs": [],
+      "rows": 0
+    }
+  },
+  {
+    "name": "templateManage",
+    "path": "/template-manage",
+    "kind": "deep-link-entry-only",
+    "businessAccepted": false,
+    "visualAccepted": false,
+    "v3": {
+      "url": "http://appdev.woa.com:4175/#/template-manage?spaceUid=bkcc__5000140&bizId=5000140",
+      "buttons": [
+        "导入",
+        "导出",
+        "立即新建",
+        "保存",
+        "调试工具",
+        "重置"
+      ],
+      "exceptions": [
+        "暂无数据，",
+        "暂无聚类规则，立即新建",
+        "暂无使用该模板的索引集"
+      ],
+      "forms": 0,
+      "headers": [],
+      "headings": [],
+      "iframes": 0,
+      "inputs": [
+        {
+          "placeholder": "搜索 模板名称",
+          "type": "text"
+        },
+        {
+          "placeholder": "搜索 占位符",
+          "type": "text"
+        }
+      ],
+      "rows": 0
+    },
+    "v2": {
+      "url": "http://appdev.woa.com:8001/#/template-manage?spaceUid=bkcc__5000140&bizId=5000140",
+      "buttons": [
+        "导入",
+        "导出",
+        "立即新建",
+        "保存",
+        "调试工具",
+        "重置"
+      ],
+      "exceptions": [
+        "暂无数据，",
+        "暂无聚类规则，立即新建",
+        "暂无使用该模板的索引集"
+      ],
+      "forms": 0,
+      "headers": [],
+      "headings": [],
+      "iframes": 0,
+      "inputs": [
+        {
+          "placeholder": "搜索 模板名称",
+          "type": "text"
+        },
+        {
+          "placeholder": "搜索 占位符",
+          "type": "text"
+        }
+      ],
+      "rows": 0
+    }
+  },
+  {
+    "name": "manage",
+    "path": "/manage",
+    "kind": "deep-link-entry-only",
+    "businessAccepted": false,
+    "visualAccepted": false,
+    "v3": {
+      "url": "http://appdev.woa.com:4175/#/manage/log-collection/collection-item/list?bizId=5000140&spaceUid=bkcc__5000140",
+      "buttons": [
+        "",
+        "采集项"
+      ],
+      "exceptions": [
+        "暂无数据"
+      ],
+      "forms": 0,
+      "headers": [
+        "采集名 / 数据名",
+        "日用量 / 总用量",
+        "存储集群 / 过期时间",
+        "接入类型",
+        "标签",
+        "存储名",
+        "采集状态",
+        "最近更新",
+        "所属索引集",
+        "日志类型",
+        "创建",
+        "操作"
+      ],
+      "headings": [],
+      "iframes": 0,
+      "inputs": [
+        {
+          "placeholder": "搜索 索引集名称",
+          "type": "text"
+        },
+        {
+          "placeholder": "请选择",
+          "type": "text"
+        }
+      ],
+      "rows": 1
+    },
+    "v2": {
+      "url": "http://appdev.woa.com:8001/#/manage/log-collection/collection-item/list?spaceUid=bkcc__5000140&bizId=5000140",
+      "buttons": [
+        "",
+        "采集项"
+      ],
+      "exceptions": [
+        "暂无数据"
+      ],
+      "forms": 0,
+      "headers": [
+        "采集名 / 数据名",
+        "日用量 / 总用量",
+        "存储集群 / 过期时间",
+        "接入类型",
+        "标签",
+        "存储名",
+        "采集状态",
+        "最近更新",
+        "所属索引集",
+        "日志类型",
+        "创建",
+        "操作"
+      ],
+      "headings": [],
+      "iframes": 0,
+      "inputs": [
+        {
+          "placeholder": "搜索 索引集名称",
+          "type": "text"
+        },
+        {
+          "placeholder": "请选择",
+          "type": "text"
+        }
+      ],
+      "rows": 1
+    }
+  },
+  {
+    "name": "log-collection",
+    "path": "/manage/log-collection",
+    "kind": "deep-link-entry-only",
+    "businessAccepted": false,
+    "visualAccepted": false,
+    "v3": {
+      "url": "http://appdev.woa.com:4175/#/manage/log-collection/collection-item/list?bizId=5000140&spaceUid=bkcc__5000140",
+      "buttons": [
+        "",
+        "采集项"
+      ],
+      "exceptions": [
+        "暂无数据"
+      ],
+      "forms": 0,
+      "headers": [
+        "采集名 / 数据名",
+        "日用量 / 总用量",
+        "存储集群 / 过期时间",
+        "接入类型",
+        "标签",
+        "存储名",
+        "采集状态",
+        "最近更新",
+        "所属索引集",
+        "日志类型",
+        "创建",
+        "操作"
+      ],
+      "headings": [],
+      "iframes": 0,
+      "inputs": [
+        {
+          "placeholder": "搜索 索引集名称",
+          "type": "text"
+        },
+        {
+          "placeholder": "请选择",
+          "type": "text"
+        }
+      ],
+      "rows": 1
+    },
+    "v2": {
+      "url": "http://appdev.woa.com:8001/#/manage/log-collection/collection-item/list?spaceUid=bkcc__5000140&bizId=5000140",
+      "buttons": [
+        "",
+        "采集项"
+      ],
+      "exceptions": [
+        "暂无数据"
+      ],
+      "forms": 0,
+      "headers": [
+        "采集名 / 数据名",
+        "日用量 / 总用量",
+        "存储集群 / 过期时间",
+        "接入类型",
+        "标签",
+        "存储名",
+        "采集状态",
+        "最近更新",
+        "所属索引集",
+        "日志类型",
+        "创建",
+        "操作"
+      ],
+      "headings": [],
+      "iframes": 0,
+      "inputs": [
+        {
+          "placeholder": "搜索 索引集名称",
+          "type": "text"
+        },
+        {
+          "placeholder": "请选择",
+          "type": "text"
+        }
+      ],
+      "rows": 1
+    }
+  },
+  {
+    "name": "collection-item",
+    "path": "/manage/log-collection/collection-item",
+    "kind": "deep-link-entry-only",
+    "businessAccepted": false,
+    "visualAccepted": false,
+    "v3": {
+      "url": "http://appdev.woa.com:4175/#/manage/log-collection/collection-item/list?bizId=5000140&spaceUid=bkcc__5000140",
+      "buttons": [
+        "",
+        "采集项"
+      ],
+      "exceptions": [
+        "暂无数据"
+      ],
+      "forms": 0,
+      "headers": [
+        "采集名 / 数据名",
+        "日用量 / 总用量",
+        "存储集群 / 过期时间",
+        "接入类型",
+        "标签",
+        "存储名",
+        "采集状态",
+        "最近更新",
+        "所属索引集",
+        "日志类型",
+        "创建",
+        "操作"
+      ],
+      "headings": [],
+      "iframes": 0,
+      "inputs": [
+        {
+          "placeholder": "搜索 索引集名称",
+          "type": "text"
+        },
+        {
+          "placeholder": "请选择",
+          "type": "text"
+        }
+      ],
+      "rows": 1
+    },
+    "v2": {
+      "url": "http://appdev.woa.com:8001/#/manage/log-collection/collection-item/list?spaceUid=bkcc__5000140&bizId=5000140",
+      "buttons": [
+        "",
+        "采集项"
+      ],
+      "exceptions": [
+        "暂无数据"
+      ],
+      "forms": 0,
+      "headers": [
+        "采集名 / 数据名",
+        "日用量 / 总用量",
+        "存储集群 / 过期时间",
+        "接入类型",
+        "标签",
+        "存储名",
+        "采集状态",
+        "最近更新",
+        "所属索引集",
+        "日志类型",
+        "创建",
+        "操作"
+      ],
+      "headings": [],
+      "iframes": 0,
+      "inputs": [
+        {
+          "placeholder": "搜索 索引集名称",
+          "type": "text"
+        },
+        {
+          "placeholder": "请选择",
+          "type": "text"
+        }
+      ],
+      "rows": 1
+    }
+  },
+  {
+    "name": "collection-item-list",
+    "path": "/manage/log-collection/collection-item/list",
+    "kind": "deep-link-entry-only",
+    "businessAccepted": false,
+    "visualAccepted": false,
+    "v3": {
+      "url": "http://appdev.woa.com:4175/#/manage/log-collection/collection-item/list?bizId=5000140&spaceUid=bkcc__5000140",
+      "buttons": [
+        "",
+        "采集项"
+      ],
+      "exceptions": [
+        "暂无数据"
+      ],
+      "forms": 0,
+      "headers": [
+        "采集名 / 数据名",
+        "日用量 / 总用量",
+        "存储集群 / 过期时间",
+        "接入类型",
+        "标签",
+        "存储名",
+        "采集状态",
+        "最近更新",
+        "所属索引集",
+        "日志类型",
+        "创建",
+        "操作"
+      ],
+      "headings": [],
+      "iframes": 0,
+      "inputs": [
+        {
+          "placeholder": "搜索 索引集名称",
+          "type": "text"
+        },
+        {
+          "placeholder": "请选择",
+          "type": "text"
+        }
+      ],
+      "rows": 1
+    },
+    "v2": {
+      "url": "http://appdev.woa.com:8001/#/manage/log-collection/collection-item/list?spaceUid=bkcc__5000140&bizId=5000140",
+      "buttons": [
+        "",
+        "采集项"
+      ],
+      "exceptions": [
+        "暂无数据"
+      ],
+      "forms": 0,
+      "headers": [
+        "采集名 / 数据名",
+        "日用量 / 总用量",
+        "存储集群 / 过期时间",
+        "接入类型",
+        "标签",
+        "存储名",
+        "采集状态",
+        "最近更新",
+        "所属索引集",
+        "日志类型",
+        "创建",
+        "操作"
+      ],
+      "headings": [],
+      "iframes": 0,
+      "inputs": [
+        {
+          "placeholder": "搜索 索引集名称",
+          "type": "text"
+        },
+        {
+          "placeholder": "请选择",
+          "type": "text"
+        }
+      ],
+      "rows": 1
+    }
+  },
+  {
+    "name": "collectAdd",
+    "path": "/manage/log-collection/collection-item/add",
+    "kind": "deep-link-entry-only",
+    "businessAccepted": false,
+    "visualAccepted": false,
+    "v3Readiness": "no-known-ready-marker",
+    "v3": {
+      "url": "http://appdev.woa.com:4175/#/manage/log-collection/collection-item/add?bizId=5000140&spaceUid=bkcc__5000140",
+      "buttons": [
+        "下一步",
+        "取消"
+      ],
+      "exceptions": [],
+      "forms": 0,
+      "headers": [],
+      "headings": [],
+      "iframes": 0,
+      "inputs": [],
+      "rows": 0
+    },
+    "v2Readiness": "no-known-ready-marker",
+    "v2": {
+      "url": "http://appdev.woa.com:8001/#/manage/log-collection/collection-item/add?spaceUid=bkcc__5000140&bizId=5000140",
+      "buttons": [
+        "下一步",
+        "取消"
+      ],
+      "exceptions": [],
+      "forms": 0,
+      "headers": [],
+      "headings": [],
+      "iframes": 0,
+      "inputs": [],
+      "rows": 0
+    }
+  },
+  {
+    "name": "log-index-set",
+    "path": "/manage/log-collection/log-index-set",
+    "kind": "deep-link-entry-only",
+    "businessAccepted": false,
+    "visualAccepted": false,
+    "v3": {
+      "url": "http://appdev.woa.com:4175/#/manage/log-collection/log-index-set/list?bizId=5000140&spaceUid=bkcc__5000140",
+      "buttons": [
+        "新建索引集"
+      ],
+      "exceptions": [
+        "暂无数据"
+      ],
+      "forms": 0,
+      "headers": [
+        "索引集",
+        "采集项",
+        "日用量/总用量",
+        "集群名",
+        "状态",
+        "标签",
+        "创建时间",
+        "创建人",
+        "操作"
+      ],
+      "headings": [],
+      "iframes": 0,
+      "inputs": [
+        {
+          "placeholder": "请输入索引集名称",
+          "type": "text"
+        }
+      ],
+      "rows": 0
+    },
+    "v2": {
+      "url": "http://appdev.woa.com:8001/#/manage/log-collection/log-index-set/list?spaceUid=bkcc__5000140&bizId=5000140",
+      "buttons": [
+        "新建索引集"
+      ],
+      "exceptions": [
+        "暂无数据"
+      ],
+      "forms": 0,
+      "headers": [
+        "索引集",
+        "采集项",
+        "日用量/总用量",
+        "集群名",
+        "状态",
+        "标签",
+        "创建时间",
+        "创建人",
+        "操作"
+      ],
+      "headings": [],
+      "iframes": 0,
+      "inputs": [
+        {
+          "placeholder": "请输入索引集名称",
+          "type": "text"
+        }
+      ],
+      "rows": 0
+    }
+  },
+  {
+    "name": "log-index-set-list",
+    "path": "/manage/log-collection/log-index-set/list",
+    "kind": "deep-link-entry-only",
+    "businessAccepted": false,
+    "visualAccepted": false,
+    "v3": {
+      "url": "http://appdev.woa.com:4175/#/manage/log-collection/log-index-set/list?bizId=5000140&spaceUid=bkcc__5000140",
+      "buttons": [
+        "新建索引集"
+      ],
+      "exceptions": [
+        "暂无数据"
+      ],
+      "forms": 0,
+      "headers": [
+        "索引集",
+        "采集项",
+        "日用量/总用量",
+        "集群名",
+        "状态",
+        "标签",
+        "创建时间",
+        "创建人",
+        "操作"
+      ],
+      "headings": [],
+      "iframes": 0,
+      "inputs": [
+        {
+          "placeholder": "请输入索引集名称",
+          "type": "text"
+        }
+      ],
+      "rows": 0
+    },
+    "v2": {
+      "url": "http://appdev.woa.com:8001/#/manage/log-collection/log-index-set/list?spaceUid=bkcc__5000140&bizId=5000140",
+      "buttons": [
+        "新建索引集"
+      ],
+      "exceptions": [
+        "暂无数据"
+      ],
+      "forms": 0,
+      "headers": [
+        "索引集",
+        "采集项",
+        "日用量/总用量",
+        "集群名",
+        "状态",
+        "标签",
+        "创建时间",
+        "创建人",
+        "操作"
+      ],
+      "headings": [],
+      "iframes": 0,
+      "inputs": [
+        {
+          "placeholder": "请输入索引集名称",
+          "type": "text"
+        }
+      ],
+      "rows": 0
+    }
+  },
+  {
+    "name": "log-index-set-create",
+    "path": "/manage/log-collection/log-index-set/create",
+    "kind": "deep-link-entry-only",
+    "businessAccepted": false,
+    "visualAccepted": false,
+    "v3": {
+      "url": "http://appdev.woa.com:4175/#/manage/log-collection/log-index-set/create?bizId=5000140&spaceUid=bkcc__5000140",
+      "buttons": [
+        "",
+        "提交"
+      ],
+      "exceptions": [],
+      "forms": 1,
+      "headers": [
+        "字段",
+        "类型"
+      ],
+      "headings": [
+        "基础信息",
+        "采集项"
+      ],
+      "iframes": 0,
+      "inputs": [
+        {
+          "placeholder": "请输入",
+          "type": "text"
+        }
+      ],
+      "rows": 0
+    },
+    "v2": {
+      "url": "http://appdev.woa.com:8001/#/manage/log-collection/log-index-set/create?spaceUid=bkcc__5000140&bizId=5000140",
+      "buttons": [
+        "",
+        "提交"
+      ],
+      "exceptions": [],
+      "forms": 1,
+      "headers": [
+        "字段",
+        "类型"
+      ],
+      "headings": [
+        "基础信息",
+        "采集项"
+      ],
+      "iframes": 0,
+      "inputs": [
+        {
+          "placeholder": "请输入",
+          "type": "text"
+        }
+      ],
+      "rows": 0
+    }
+  },
+  {
+    "name": "tgpa-task",
+    "path": "/manage/tgpa-task",
+    "kind": "deep-link-entry-only",
+    "businessAccepted": false,
+    "visualAccepted": false,
+    "v3": {
+      "url": "http://appdev.woa.com:4175/#/manage/tgpa-task/list?bizId=5000140&spaceUid=bkcc__5000140",
+      "buttons": [],
+      "exceptions": [
+        "灰度业务本功能为灰度业务，请联系管理员开通"
+      ],
+      "forms": 0,
+      "headers": [],
+      "headings": [],
+      "iframes": 0,
+      "inputs": [],
+      "rows": 0
+    },
+    "v2": {
+      "url": "http://appdev.woa.com:8001/#/manage/tgpa-task/list?spaceUid=bkcc__5000140&bizId=5000140",
+      "buttons": [],
+      "exceptions": [
+        "灰度业务本功能为灰度业务，请联系管理员开通"
+      ],
+      "forms": 0,
+      "headers": [],
+      "headings": [],
+      "iframes": 0,
+      "inputs": [],
+      "rows": 0
+    }
+  },
+  {
+    "name": "tgpa-task-list",
+    "path": "/manage/tgpa-task/list",
+    "kind": "deep-link-entry-only",
+    "businessAccepted": false,
+    "visualAccepted": false,
+    "v3": {
+      "url": "http://appdev.woa.com:4175/#/manage/tgpa-task/list?bizId=5000140&spaceUid=bkcc__5000140",
+      "buttons": [],
+      "exceptions": [
+        "灰度业务本功能为灰度业务，请联系管理员开通"
+      ],
+      "forms": 0,
+      "headers": [],
+      "headings": [],
+      "iframes": 0,
+      "inputs": [],
+      "rows": 0
+    },
+    "v2": {
+      "url": "http://appdev.woa.com:8001/#/manage/tgpa-task/list?spaceUid=bkcc__5000140&bizId=5000140",
+      "buttons": [],
+      "exceptions": [
+        "灰度业务本功能为灰度业务，请联系管理员开通"
+      ],
+      "forms": 0,
+      "headers": [],
+      "headings": [],
+      "iframes": 0,
+      "inputs": [],
+      "rows": 0
+    }
+  },
+  {
+    "name": "clean-config",
+    "path": "/manage/tgpa-task/clean-config",
+    "kind": "deep-link-entry-only",
+    "businessAccepted": false,
+    "visualAccepted": false,
+    "v3": {
+      "url": "http://appdev.woa.com:4175/#/manage/tgpa-task/clean-config?bizId=5000140&spaceUid=bkcc__5000140",
+      "buttons": [
+        "JSON",
+        "分隔符",
+        "正则表达式",
+        "调试",
+        "保存",
+        "取消",
+        "保存模板"
+      ],
+      "exceptions": [
+        "暂无内容"
+      ],
+      "forms": 2,
+      "headers": [
+        "来源",
+        "字段名",
+        "类型",
+        "分词符",
+        "操作"
+      ],
+      "headings": [],
+      "iframes": 0,
+      "inputs": [
+        {
+          "placeholder": "",
+          "type": "radio"
+        },
+        {
+          "placeholder": "",
+          "type": "radio"
+        },
+        {
+          "placeholder": "请输入",
+          "type": "textarea"
+        },
+        {
+          "placeholder": "",
+          "type": "radio"
+        },
+        {
+          "placeholder": "",
+          "type": "radio"
+        },
+        {
+          "placeholder": "",
+          "type": "radio"
+        },
+        {
+          "placeholder": "",
+          "type": "radio"
+        },
+        {
+          "placeholder": "",
+          "type": "checkbox"
+        }
+      ],
+      "rows": 0
+    },
+    "v2": {
+      "url": "http://appdev.woa.com:8001/#/manage/tgpa-task/clean-config?spaceUid=bkcc__5000140&bizId=5000140",
+      "buttons": [
+        "JSON",
+        "分隔符",
+        "正则表达式",
+        "调试",
+        "保存",
+        "取消",
+        "保存模板"
+      ],
+      "exceptions": [],
+      "forms": 2,
+      "headers": [
+        "来源",
+        "字段名",
+        "类型",
+        "分词符",
+        "操作"
+      ],
+      "headings": [],
+      "iframes": 0,
+      "inputs": [
+        {
+          "placeholder": "",
+          "type": "radio"
+        },
+        {
+          "placeholder": "",
+          "type": "radio"
+        },
+        {
+          "placeholder": "请输入",
+          "type": "textarea"
+        },
+        {
+          "placeholder": "",
+          "type": "radio"
+        },
+        {
+          "placeholder": "",
+          "type": "radio"
+        },
+        {
+          "placeholder": "",
+          "type": "radio"
+        },
+        {
+          "placeholder": "",
+          "type": "radio"
+        },
+        {
+          "placeholder": "",
+          "type": "checkbox"
+        }
+      ],
+      "rows": 0
+    }
+  },
+  {
+    "name": "bk-data-collection",
+    "path": "/manage/bk-data-collection",
+    "kind": "deep-link-entry-only",
+    "businessAccepted": false,
+    "visualAccepted": false,
+    "v3": {
+      "url": "http://appdev.woa.com:4175/#/manage/bk-data-collection/list?bizId=5000140&spaceUid=bkcc__5000140",
+      "buttons": [
+        "新建索引集"
+      ],
+      "exceptions": [
+        "暂无数据"
+      ],
+      "forms": 0,
+      "headers": [
+        "索引集",
+        "采集项",
+        "日用量/总用量",
+        "集群名",
+        "状态",
+        "标签",
+        "创建时间",
+        "创建人",
+        "操作"
+      ],
+      "headings": [],
+      "iframes": 0,
+      "inputs": [
+        {
+          "placeholder": "请输入索引集名称",
+          "type": "text"
+        }
+      ],
+      "rows": 0
+    },
+    "v2": {
+      "url": "http://appdev.woa.com:8001/#/manage/bk-data-collection/list?spaceUid=bkcc__5000140&bizId=5000140",
+      "buttons": [
+        "新建索引集"
+      ],
+      "exceptions": [
+        "暂无数据"
+      ],
+      "forms": 0,
+      "headers": [
+        "索引集",
+        "采集项",
+        "日用量/总用量",
+        "集群名",
+        "状态",
+        "标签",
+        "创建时间",
+        "创建人",
+        "操作"
+      ],
+      "headings": [],
+      "iframes": 0,
+      "inputs": [
+        {
+          "placeholder": "请输入索引集名称",
+          "type": "text"
+        }
+      ],
+      "rows": 0
+    }
+  },
+  {
+    "name": "bkdata-index-set-list",
+    "path": "/manage/bk-data-collection/list",
+    "kind": "deep-link-entry-only",
+    "businessAccepted": false,
+    "visualAccepted": false,
+    "v3": {
+      "url": "http://appdev.woa.com:4175/#/manage/bk-data-collection/list?bizId=5000140&spaceUid=bkcc__5000140",
+      "buttons": [
+        "新建索引集"
+      ],
+      "exceptions": [
+        "暂无数据"
+      ],
+      "forms": 0,
+      "headers": [
+        "索引集",
+        "采集项",
+        "日用量/总用量",
+        "集群名",
+        "状态",
+        "标签",
+        "创建时间",
+        "创建人",
+        "操作"
+      ],
+      "headings": [],
+      "iframes": 0,
+      "inputs": [
+        {
+          "placeholder": "请输入索引集名称",
+          "type": "text"
+        }
+      ],
+      "rows": 0
+    },
+    "v2": {
+      "url": "http://appdev.woa.com:8001/#/manage/bk-data-collection/list?spaceUid=bkcc__5000140&bizId=5000140",
+      "buttons": [
+        "新建索引集"
+      ],
+      "exceptions": [
+        "暂无数据"
+      ],
+      "forms": 0,
+      "headers": [
+        "索引集",
+        "采集项",
+        "日用量/总用量",
+        "集群名",
+        "状态",
+        "标签",
+        "创建时间",
+        "创建人",
+        "操作"
+      ],
+      "headings": [],
+      "iframes": 0,
+      "inputs": [
+        {
+          "placeholder": "请输入索引集名称",
+          "type": "text"
+        }
+      ],
+      "rows": 0
+    }
+  },
+  {
+    "name": "bkdata-index-set-create",
+    "path": "/manage/bk-data-collection/create",
+    "kind": "deep-link-entry-only",
+    "businessAccepted": false,
+    "visualAccepted": false,
+    "v3": {
+      "url": "http://appdev.woa.com:4175/#/manage/bk-data-collection/create?bizId=5000140&spaceUid=bkcc__5000140",
+      "buttons": [
+        "",
+        "",
+        "提交"
+      ],
+      "exceptions": [],
+      "forms": 1,
+      "headers": [
+        "字段",
+        "类型"
+      ],
+      "headings": [
+        "基础信息",
+        "数据源"
+      ],
+      "iframes": 0,
+      "inputs": [
+        {
+          "placeholder": "请输入",
+          "type": "text"
+        }
+      ],
+      "rows": 0
+    },
+    "v2": {
+      "url": "http://appdev.woa.com:8001/#/manage/bk-data-collection/create?spaceUid=bkcc__5000140&bizId=5000140",
+      "buttons": [
+        "",
+        "",
+        "提交"
+      ],
+      "exceptions": [],
+      "forms": 1,
+      "headers": [
+        "字段",
+        "类型"
+      ],
+      "headings": [
+        "基础信息",
+        "数据源"
+      ],
+      "iframes": 0,
+      "inputs": [
+        {
+          "placeholder": "请输入",
+          "type": "text"
+        }
+      ],
+      "rows": 0
+    }
+  },
+  {
+    "name": "es-collection",
+    "path": "/manage/es-collection",
+    "kind": "deep-link-entry-only",
+    "businessAccepted": false,
+    "visualAccepted": false,
+    "v3": {
+      "url": "http://appdev.woa.com:4175/#/manage/es-collection/list?bizId=5000140&spaceUid=bkcc__5000140",
+      "buttons": [
+        "新建索引集"
+      ],
+      "exceptions": [
+        "暂无数据"
+      ],
+      "forms": 0,
+      "headers": [
+        "索引集",
+        "采集项",
+        "日用量/总用量",
+        "集群名",
+        "状态",
+        "标签",
+        "创建时间",
+        "创建人",
+        "操作"
+      ],
+      "headings": [],
+      "iframes": 0,
+      "inputs": [
+        {
+          "placeholder": "请输入索引集名称",
+          "type": "text"
+        }
+      ],
+      "rows": 0
+    },
+    "v2": {
+      "url": "http://appdev.woa.com:8001/#/manage/es-collection/list?spaceUid=bkcc__5000140&bizId=5000140",
+      "buttons": [
+        "新建索引集"
+      ],
+      "exceptions": [
+        "暂无数据"
+      ],
+      "forms": 0,
+      "headers": [
+        "索引集",
+        "采集项",
+        "日用量/总用量",
+        "集群名",
+        "状态",
+        "标签",
+        "创建时间",
+        "创建人",
+        "操作"
+      ],
+      "headings": [],
+      "iframes": 0,
+      "inputs": [
+        {
+          "placeholder": "请输入索引集名称",
+          "type": "text"
+        }
+      ],
+      "rows": 0
+    }
+  },
+  {
+    "name": "es-index-set-list",
+    "path": "/manage/es-collection/list",
+    "kind": "deep-link-entry-only",
+    "businessAccepted": false,
+    "visualAccepted": false,
+    "v3": {
+      "url": "http://appdev.woa.com:4175/#/manage/es-collection/list?bizId=5000140&spaceUid=bkcc__5000140",
+      "buttons": [
+        "新建索引集"
+      ],
+      "exceptions": [
+        "暂无数据"
+      ],
+      "forms": 0,
+      "headers": [
+        "索引集",
+        "采集项",
+        "日用量/总用量",
+        "集群名",
+        "状态",
+        "标签",
+        "创建时间",
+        "创建人",
+        "操作"
+      ],
+      "headings": [],
+      "iframes": 0,
+      "inputs": [
+        {
+          "placeholder": "请输入索引集名称",
+          "type": "text"
+        }
+      ],
+      "rows": 0
+    },
+    "v2": {
+      "url": "http://appdev.woa.com:8001/#/manage/es-collection/list?spaceUid=bkcc__5000140&bizId=5000140",
+      "buttons": [
+        "新建索引集"
+      ],
+      "exceptions": [
+        "暂无数据"
+      ],
+      "forms": 0,
+      "headers": [
+        "索引集",
+        "采集项",
+        "日用量/总用量",
+        "集群名",
+        "状态",
+        "标签",
+        "创建时间",
+        "创建人",
+        "操作"
+      ],
+      "headings": [],
+      "iframes": 0,
+      "inputs": [
+        {
+          "placeholder": "请输入索引集名称",
+          "type": "text"
+        }
+      ],
+      "rows": 0
+    }
+  },
+  {
+    "name": "es-index-set-create",
+    "path": "/manage/es-collection/create",
+    "kind": "deep-link-entry-only",
+    "businessAccepted": false,
+    "visualAccepted": false,
+    "v3": {
+      "url": "http://appdev.woa.com:4175/#/manage/es-collection/create?bizId=5000140&spaceUid=bkcc__5000140",
+      "buttons": [
+        "",
+        "",
+        "提交"
+      ],
+      "exceptions": [],
+      "forms": 1,
+      "headers": [
+        "匹配到的索引"
+      ],
+      "headings": [
+        "基础信息",
+        "索引"
+      ],
+      "iframes": 0,
+      "inputs": [
+        {
+          "placeholder": "请输入",
+          "type": "text"
+        }
+      ],
+      "rows": 0
+    },
+    "v2": {
+      "url": "http://appdev.woa.com:8001/#/manage/es-collection/create?spaceUid=bkcc__5000140&bizId=5000140",
+      "buttons": [
+        "",
+        "",
+        "提交"
+      ],
+      "exceptions": [],
+      "forms": 1,
+      "headers": [
+        "匹配到的索引"
+      ],
+      "headings": [
+        "基础信息",
+        "索引"
+      ],
+      "iframes": 0,
+      "inputs": [
+        {
+          "placeholder": "请输入",
+          "type": "text"
+        }
+      ],
+      "rows": 0
+    }
+  },
+  {
+    "name": "custom-report",
+    "path": "/manage/custom-report",
+    "kind": "deep-link-entry-only",
+    "businessAccepted": false,
+    "visualAccepted": false,
+    "v3": {
+      "url": "http://appdev.woa.com:4175/#/manage/custom-report/list?bizId=5000140&spaceUid=bkcc__5000140",
+      "buttons": [
+        "新建自定义上报"
+      ],
+      "exceptions": [
+        "暂无数据"
+      ],
+      "forms": 0,
+      "headers": [
+        "数据ID",
+        "名称",
+        "日用量/总用量",
+        "监控对象",
+        "数据类型",
+        "标签",
+        "过期时间",
+        "创建记录",
+        "更新记录",
+        "操作"
+      ],
+      "headings": [],
+      "iframes": 0,
+      "inputs": [
+        {
+          "placeholder": "搜索名称、存储索引名",
+          "type": "text"
+        }
+      ],
+      "rows": 0
+    },
+    "v2": {
+      "url": "http://appdev.woa.com:8001/#/manage/custom-report/list?spaceUid=bkcc__5000140&bizId=5000140",
+      "buttons": [
+        "新建自定义上报"
+      ],
+      "exceptions": [
+        "暂无数据"
+      ],
+      "forms": 0,
+      "headers": [
+        "数据ID",
+        "名称",
+        "日用量/总用量",
+        "监控对象",
+        "数据类型",
+        "标签",
+        "过期时间",
+        "创建记录",
+        "更新记录",
+        "操作"
+      ],
+      "headings": [],
+      "iframes": 0,
+      "inputs": [
+        {
+          "placeholder": "搜索名称、存储索引名",
+          "type": "text"
+        }
+      ],
+      "rows": 0
+    }
+  },
+  {
+    "name": "custom-report-list",
+    "path": "/manage/custom-report/list",
+    "kind": "deep-link-entry-only",
+    "businessAccepted": false,
+    "visualAccepted": false,
+    "v3": {
+      "url": "http://appdev.woa.com:4175/#/manage/custom-report/list?bizId=5000140&spaceUid=bkcc__5000140",
+      "buttons": [
+        "新建自定义上报"
+      ],
+      "exceptions": [
+        "暂无数据"
+      ],
+      "forms": 0,
+      "headers": [
+        "数据ID",
+        "名称",
+        "日用量/总用量",
+        "监控对象",
+        "数据类型",
+        "标签",
+        "过期时间",
+        "创建记录",
+        "更新记录",
+        "操作"
+      ],
+      "headings": [],
+      "iframes": 0,
+      "inputs": [
+        {
+          "placeholder": "搜索名称、存储索引名",
+          "type": "text"
+        }
+      ],
+      "rows": 0
+    },
+    "v2": {
+      "url": "http://appdev.woa.com:8001/#/manage/custom-report/list?spaceUid=bkcc__5000140&bizId=5000140",
+      "buttons": [
+        "新建自定义上报"
+      ],
+      "exceptions": [
+        "暂无数据"
+      ],
+      "forms": 0,
+      "headers": [
+        "数据ID",
+        "名称",
+        "日用量/总用量",
+        "监控对象",
+        "数据类型",
+        "标签",
+        "过期时间",
+        "创建记录",
+        "更新记录",
+        "操作"
+      ],
+      "headings": [],
+      "iframes": 0,
+      "inputs": [
+        {
+          "placeholder": "搜索名称、存储索引名",
+          "type": "text"
+        }
+      ],
+      "rows": 0
+    }
+  },
+  {
+    "name": "custom-report-create",
+    "path": "/manage/custom-report/create",
+    "kind": "deep-link-entry-only",
+    "businessAccepted": false,
+    "visualAccepted": false,
+    "v3": {
+      "url": "http://appdev.woa.com:4175/#/manage/custom-report/create?bizId=5000140&spaceUid=bkcc__5000140",
+      "buttons": [
+        "容器日志上报",
+        "otlp日志上报",
+        "提交",
+        "取消"
+      ],
+      "exceptions": [
+        "当前还没有共享集群，请联系平台管理员提供",
+        "当前还没有业务独享集群，快去创建吧创建集群"
+      ],
+      "forms": 1,
+      "headers": [],
+      "headings": [
+        "日志自定义上报"
+      ],
+      "iframes": 0,
+      "inputs": [
+        {
+          "placeholder": "请输入",
+          "type": "text"
+        },
+        {
+          "placeholder": "支持数字、字母、下划线，长短5～50字符",
+          "type": "text"
+        },
+        {
+          "placeholder": "未输入",
+          "type": "textarea"
+        },
+        {
+          "placeholder": "英文或者数字，5～50长度",
+          "type": "text"
+        },
+        {
+          "placeholder": "请输入",
+          "type": "text"
+        },
+        {
+          "placeholder": "请输入",
+          "type": "text"
+        }
+      ],
+      "rows": 0
+    },
+    "v2": {
+      "url": "http://appdev.woa.com:8001/#/manage/custom-report/create?spaceUid=bkcc__5000140&bizId=5000140",
+      "buttons": [
+        "容器日志上报",
+        "otlp日志上报",
+        "提交",
+        "取消"
+      ],
+      "exceptions": [
+        "当前还没有共享集群，请联系平台管理员提供",
+        "当前还没有业务独享集群，快去创建吧\n               \n                创建集群"
+      ],
+      "forms": 1,
+      "headers": [],
+      "headings": [
+        "日志自定义上报"
+      ],
+      "iframes": 0,
+      "inputs": [
+        {
+          "placeholder": "请输入",
+          "type": "text"
+        },
+        {
+          "placeholder": "支持数字、字母、下划线，长短5～50字符",
+          "type": "text"
+        },
+        {
+          "placeholder": "未输入",
+          "type": "textarea"
+        },
+        {
+          "placeholder": "英文或者数字，5～50长度",
+          "type": "text"
+        },
+        {
+          "placeholder": "请输入",
+          "type": "text"
+        },
+        {
+          "placeholder": "请输入",
+          "type": "text"
+        }
+      ],
+      "rows": 0
+    }
+  },
+  {
+    "name": "clean-list",
+    "path": "/manage/clean-list",
+    "kind": "deep-link-entry-only",
+    "businessAccepted": false,
+    "visualAccepted": false,
+    "v3": {
+      "url": "http://appdev.woa.com:4175/#/manage/clean-list/list?bizId=5000140&spaceUid=bkcc__5000140",
+      "buttons": [
+        "新增"
+      ],
+      "exceptions": [
+        "暂无数据"
+      ],
+      "forms": 0,
+      "headers": [
+        "名称",
+        "存储索引",
+        "格式化方法",
+        "更新人",
+        "更新时间",
+        "操作"
+      ],
+      "headings": [],
+      "iframes": 0,
+      "inputs": [
+        {
+          "placeholder": "搜索 任务名称、存储索引名称",
+          "type": "text"
+        }
+      ],
+      "rows": 0
+    },
+    "v2": {
+      "url": "http://appdev.woa.com:8001/#/manage/clean-list/list?spaceUid=bkcc__5000140&bizId=5000140",
+      "buttons": [
+        "新增"
+      ],
+      "exceptions": [
+        "暂无数据"
+      ],
+      "forms": 0,
+      "headers": [
+        "名称",
+        "存储索引",
+        "格式化方法",
+        "更新人",
+        "更新时间",
+        "操作"
+      ],
+      "headings": [],
+      "iframes": 0,
+      "inputs": [
+        {
+          "placeholder": "搜索 任务名称、存储索引名称",
+          "type": "text"
+        }
+      ],
+      "rows": 0
+    }
+  },
+  {
+    "name": "log-clean-list",
+    "path": "/manage/clean-list/list",
+    "kind": "deep-link-entry-only",
+    "businessAccepted": false,
+    "visualAccepted": false,
+    "v3": {
+      "url": "http://appdev.woa.com:4175/#/manage/clean-list/list?bizId=5000140&spaceUid=bkcc__5000140",
+      "buttons": [
+        "新增"
+      ],
+      "exceptions": [
+        "暂无数据"
+      ],
+      "forms": 0,
+      "headers": [
+        "名称",
+        "存储索引",
+        "格式化方法",
+        "更新人",
+        "更新时间",
+        "操作"
+      ],
+      "headings": [],
+      "iframes": 0,
+      "inputs": [
+        {
+          "placeholder": "搜索 任务名称、存储索引名称",
+          "type": "text"
+        }
+      ],
+      "rows": 0
+    },
+    "v2": {
+      "url": "http://appdev.woa.com:8001/#/manage/clean-list/list?spaceUid=bkcc__5000140&bizId=5000140",
+      "buttons": [
+        "新增"
+      ],
+      "exceptions": [
+        "暂无数据"
+      ],
+      "forms": 0,
+      "headers": [
+        "名称",
+        "存储索引",
+        "格式化方法",
+        "更新人",
+        "更新时间",
+        "操作"
+      ],
+      "headings": [],
+      "iframes": 0,
+      "inputs": [
+        {
+          "placeholder": "搜索 任务名称、存储索引名称",
+          "type": "text"
+        }
+      ],
+      "rows": 0
+    }
+  },
+  {
+    "name": "clean-create",
+    "path": "/manage/clean-list/create",
+    "kind": "deep-link-entry-only",
+    "businessAccepted": false,
+    "visualAccepted": false,
+    "v3Readiness": "no-known-ready-marker",
+    "v3": {
+      "url": "http://appdev.woa.com:4175/#/manage/clean-list/create?bizId=5000140&spaceUid=bkcc__5000140",
+      "buttons": [
+        "保存",
+        "另存为模板",
+        "取消"
+      ],
+      "exceptions": [],
+      "forms": 0,
+      "headers": [],
+      "headings": [],
+      "iframes": 0,
+      "inputs": [
+        {
+          "placeholder": "请输入",
+          "type": "textarea"
+        },
+        {
+          "placeholder": "",
+          "type": "checkbox"
+        },
+        {
+          "placeholder": "",
+          "type": "radio"
+        },
+        {
+          "placeholder": "",
+          "type": "radio"
+        },
+        {
+          "placeholder": "",
+          "type": "radio"
+        },
+        {
+          "placeholder": "",
+          "type": "radio"
+        },
+        {
+          "placeholder": "",
+          "type": "radio"
+        },
+        {
+          "placeholder": "",
+          "type": "radio"
+        },
+        {
+          "placeholder": "",
+          "type": "checkbox"
+        }
+      ],
+      "rows": 0
+    },
+    "v2Readiness": "no-known-ready-marker",
+    "v2": {
+      "url": "http://appdev.woa.com:8001/#/manage/clean-list/create?spaceUid=bkcc__5000140&bizId=5000140",
+      "buttons": [
+        "保存",
+        "另存为模板",
+        "取消"
+      ],
+      "exceptions": [],
+      "forms": 0,
+      "headers": [],
+      "headings": [],
+      "iframes": 0,
+      "inputs": [
+        {
+          "placeholder": "请输入",
+          "type": "textarea"
+        },
+        {
+          "placeholder": "",
+          "type": "checkbox"
+        },
+        {
+          "placeholder": "",
+          "type": "radio"
+        },
+        {
+          "placeholder": "",
+          "type": "radio"
+        },
+        {
+          "placeholder": "",
+          "type": "radio"
+        },
+        {
+          "placeholder": "",
+          "type": "radio"
+        },
+        {
+          "placeholder": "",
+          "type": "radio"
+        },
+        {
+          "placeholder": "",
+          "type": "radio"
+        },
+        {
+          "placeholder": "",
+          "type": "checkbox"
+        }
+      ],
+      "rows": 0
+    }
+  },
+  {
+    "name": "clean-templates",
+    "path": "/manage/clean-templates",
+    "kind": "deep-link-entry-only",
+    "businessAccepted": false,
+    "visualAccepted": false,
+    "v3": {
+      "url": "http://appdev.woa.com:4175/#/manage/clean-templates/list?bizId=5000140&spaceUid=bkcc__5000140",
+      "buttons": [
+        "新建",
+        "导入",
+        "导出"
+      ],
+      "exceptions": [],
+      "forms": 0,
+      "headers": [
+        "模板名称 / 描述",
+        "清洗方式",
+        "字段数量",
+        "关联采集项",
+        "创建",
+        "最近更新",
+        "操作"
+      ],
+      "headings": [],
+      "iframes": 0,
+      "inputs": [
+        {
+          "placeholder": "搜索 模板名称",
+          "type": "text"
+        }
+      ],
+      "rows": 0
+    },
+    "v2": {
+      "url": "http://appdev.woa.com:8001/#/manage/clean-templates/list?spaceUid=bkcc__5000140&bizId=5000140",
+      "buttons": [
+        "新建",
+        "导入",
+        "导出"
+      ],
+      "exceptions": [],
+      "forms": 0,
+      "headers": [
+        "模板名称 / 描述",
+        "清洗方式",
+        "字段数量",
+        "关联采集项",
+        "创建",
+        "最近更新",
+        "操作"
+      ],
+      "headings": [],
+      "iframes": 0,
+      "inputs": [
+        {
+          "placeholder": "搜索 模板名称",
+          "type": "text"
+        }
+      ],
+      "rows": 0
+    }
+  },
+  {
+    "name": "log-clean-templates",
+    "path": "/manage/clean-templates/list",
+    "kind": "deep-link-entry-only",
+    "businessAccepted": false,
+    "visualAccepted": false,
+    "v3": {
+      "url": "http://appdev.woa.com:4175/#/manage/clean-templates/list?bizId=5000140&spaceUid=bkcc__5000140",
+      "buttons": [
+        "新建",
+        "导入",
+        "导出"
+      ],
+      "exceptions": [],
+      "forms": 0,
+      "headers": [
+        "模板名称 / 描述",
+        "清洗方式",
+        "字段数量",
+        "关联采集项",
+        "创建",
+        "最近更新",
+        "操作"
+      ],
+      "headings": [],
+      "iframes": 0,
+      "inputs": [
+        {
+          "placeholder": "搜索 模板名称",
+          "type": "text"
+        }
+      ],
+      "rows": 0
+    },
+    "v2": {
+      "url": "http://appdev.woa.com:8001/#/manage/clean-templates/list?spaceUid=bkcc__5000140&bizId=5000140",
+      "buttons": [
+        "新建",
+        "导入",
+        "导出"
+      ],
+      "exceptions": [],
+      "forms": 0,
+      "headers": [
+        "模板名称 / 描述",
+        "清洗方式",
+        "字段数量",
+        "关联采集项",
+        "创建",
+        "最近更新",
+        "操作"
+      ],
+      "headings": [],
+      "iframes": 0,
+      "inputs": [
+        {
+          "placeholder": "搜索 模板名称",
+          "type": "text"
+        }
+      ],
+      "rows": 0
+    }
+  },
+  {
+    "name": "clean-template-create",
+    "path": "/manage/clean-templates/create",
+    "kind": "deep-link-entry-only",
+    "businessAccepted": false,
+    "visualAccepted": false,
+    "v3": {
+      "url": "http://appdev.woa.com:4175/#/manage/clean-templates/create?bizId=5000140&spaceUid=bkcc__5000140",
+      "buttons": [
+        "JSON",
+        "分隔符",
+        "正则表达式",
+        "清洗",
+        "提交",
+        "取消"
+      ],
+      "exceptions": [
+        "暂无数据"
+      ],
+      "forms": 0,
+      "headers": [
+        "来源",
+        "字段名",
+        "类型",
+        "分词符",
+        "值刷新",
+        "操作"
+      ],
+      "headings": [],
+      "iframes": 0,
+      "inputs": [
+        {
+          "placeholder": "请输入",
+          "type": "text"
+        },
+        {
+          "placeholder": "请输入",
+          "type": "textarea"
+        },
+        {
+          "placeholder": "请输入",
+          "type": "textarea"
+        },
+        {
+          "placeholder": "",
+          "type": "radio"
+        },
+        {
+          "placeholder": "",
+          "type": "radio"
+        },
+        {
+          "placeholder": "",
+          "type": "radio"
+        },
+        {
+          "placeholder": "",
+          "type": "radio"
+        },
+        {
+          "placeholder": "",
+          "type": "radio"
+        },
+        {
+          "placeholder": "",
+          "type": "radio"
+        },
+        {
+          "placeholder": "",
+          "type": "checkbox"
+        },
+        {
+          "placeholder": "",
+          "type": "checkbox"
+        }
+      ],
+      "rows": 1
+    },
+    "v2": {
+      "url": "http://appdev.woa.com:8001/#/manage/clean-templates/create?spaceUid=bkcc__5000140&bizId=5000140",
+      "buttons": [
+        "JSON",
+        "分隔符",
+        "正则表达式",
+        "清洗",
+        "提交",
+        "取消"
+      ],
+      "exceptions": [
+        "暂无数据"
+      ],
+      "forms": 0,
+      "headers": [
+        "来源",
+        "字段名",
+        "类型",
+        "分词符",
+        "值刷新",
+        "操作"
+      ],
+      "headings": [],
+      "iframes": 0,
+      "inputs": [
+        {
+          "placeholder": "请输入",
+          "type": "text"
+        },
+        {
+          "placeholder": "请输入",
+          "type": "textarea"
+        },
+        {
+          "placeholder": "请输入",
+          "type": "textarea"
+        },
+        {
+          "placeholder": "",
+          "type": "radio"
+        },
+        {
+          "placeholder": "",
+          "type": "radio"
+        },
+        {
+          "placeholder": "",
+          "type": "radio"
+        },
+        {
+          "placeholder": "",
+          "type": "radio"
+        },
+        {
+          "placeholder": "",
+          "type": "radio"
+        },
+        {
+          "placeholder": "",
+          "type": "radio"
+        },
+        {
+          "placeholder": "",
+          "type": "checkbox"
+        },
+        {
+          "placeholder": "",
+          "type": "checkbox"
+        }
+      ],
+      "rows": 1
+    }
+  },
+  {
+    "name": "log-desensitize",
+    "path": "/manage/log-desensitize",
+    "kind": "deep-link-entry-only",
+    "businessAccepted": false,
+    "visualAccepted": false,
+    "v3": {
+      "url": "http://appdev.woa.com:4175/#/manage/log-desensitize/list?spaceUid=bkcc__5000140&bizId=5000140",
+      "buttons": [
+        "新建规则"
+      ],
+      "exceptions": [
+        "暂无数据"
+      ],
+      "forms": 0,
+      "headers": [
+        "规则名称",
+        "匹配字段名",
+        "匹配正则表达式",
+        "脱敏算子",
+        "接入项",
+        "启/停",
+        "操作"
+      ],
+      "headings": [],
+      "iframes": 0,
+      "inputs": [
+        {
+          "placeholder": "搜索 规则名称",
+          "type": "text"
+        }
+      ],
+      "rows": 0
+    },
+    "v2Readiness": "no-known-ready-marker",
+    "v2": {
+      "url": "http://appdev.woa.com:8001/#/manage/log-desensitize?spaceUid=bkcc__5000140&bizId=5000140",
+      "buttons": [],
+      "exceptions": [],
+      "forms": 0,
+      "headers": [],
+      "headings": [],
+      "iframes": 0,
+      "inputs": [],
+      "rows": 0
+    }
+  },
+  {
+    "name": "log-desensitize-list",
+    "path": "/manage/log-desensitize/list",
+    "kind": "deep-link-entry-only",
+    "businessAccepted": false,
+    "visualAccepted": false,
+    "v3": {
+      "url": "http://appdev.woa.com:4175/#/manage/log-desensitize/list?spaceUid=bkcc__5000140&bizId=5000140",
+      "buttons": [
+        "新建规则"
+      ],
+      "exceptions": [
+        "暂无数据"
+      ],
+      "forms": 0,
+      "headers": [
+        "规则名称",
+        "匹配字段名",
+        "匹配正则表达式",
+        "脱敏算子",
+        "接入项",
+        "启/停",
+        "操作"
+      ],
+      "headings": [],
+      "iframes": 0,
+      "inputs": [
+        {
+          "placeholder": "搜索 规则名称",
+          "type": "text"
+        }
+      ],
+      "rows": 0
+    },
+    "v2": {
+      "url": "http://appdev.woa.com:8001/#/manage/log-desensitize/list?spaceUid=bkcc__5000140&bizId=5000140",
+      "buttons": [
+        "新建规则"
+      ],
+      "exceptions": [
+        "暂无数据"
+      ],
+      "forms": 0,
+      "headers": [
+        "规则名称",
+        "匹配字段名",
+        "匹配正则表达式",
+        "脱敏算子",
+        "接入项",
+        "启/停",
+        "操作"
+      ],
+      "headings": [],
+      "iframes": 0,
+      "inputs": [
+        {
+          "placeholder": "搜索 规则名称",
+          "type": "text"
+        }
+      ],
+      "rows": 0
+    }
+  },
+  {
+    "name": "grok-manage",
+    "path": "/manage/grok-manage",
+    "kind": "deep-link-entry-only",
+    "businessAccepted": false,
+    "visualAccepted": false,
+    "v3": {
+      "url": "http://appdev.woa.com:4175/#/manage/grok-manage?bizId=5000140&spaceUid=bkcc__5000140",
+      "buttons": [
+        "新建"
+      ],
+      "exceptions": [
+        "暂无数据"
+      ],
+      "forms": 0,
+      "headers": [
+        "名称",
+        "来源",
+        "定义",
+        "样例",
+        "描述",
+        "更新人",
+        "更新时间",
+        "操作"
+      ],
+      "headings": [],
+      "iframes": 0,
+      "inputs": [
+        {
+          "placeholder": "搜索 名称、描述、更新人、定义",
+          "type": "text"
+        }
+      ],
+      "rows": 0
+    },
+    "v2": {
+      "url": "http://appdev.woa.com:8001/#/manage/grok-manage?spaceUid=bkcc__5000140&bizId=5000140",
+      "buttons": [
+        "新建"
+      ],
+      "exceptions": [
+        "暂无数据"
+      ],
+      "forms": 0,
+      "headers": [
+        "名称",
+        "来源",
+        "定义",
+        "样例",
+        "描述",
+        "更新人",
+        "更新时间",
+        "操作"
+      ],
+      "headings": [],
+      "iframes": 0,
+      "inputs": [
+        {
+          "placeholder": "搜索 名称、描述、更新人、定义",
+          "type": "text"
+        }
+      ],
+      "rows": 0
+    }
+  },
+  {
+    "name": "archive-repository",
+    "path": "/manage/archive-repository",
+    "kind": "deep-link-entry-only",
+    "businessAccepted": false,
+    "visualAccepted": false,
+    "v3": {
+      "url": "http://appdev.woa.com:4175/#/manage/archive-repository?bizId=5000140&spaceUid=bkcc__5000140",
+      "buttons": [
+        "新建"
+      ],
+      "exceptions": [
+        "暂无数据"
+      ],
+      "forms": 0,
+      "headers": [
+        "集群ID",
+        "仓库名称",
+        "ES集群",
+        "类型",
+        "来源",
+        "创建人",
+        "创建时间",
+        "操作"
+      ],
+      "headings": [],
+      "iframes": 0,
+      "inputs": [
+        {
+          "placeholder": "搜索 仓库名称",
+          "type": "text"
+        }
+      ],
+      "rows": 0
+    },
+    "v2": {
+      "url": "http://appdev.woa.com:8001/#/manage/archive-repository?spaceUid=bkcc__5000140&bizId=5000140",
+      "buttons": [
+        "新建"
+      ],
+      "exceptions": [
+        "暂无数据"
+      ],
+      "forms": 0,
+      "headers": [
+        "集群ID",
+        "仓库名称",
+        "ES集群",
+        "类型",
+        "来源",
+        "创建人",
+        "创建时间",
+        "操作"
+      ],
+      "headings": [],
+      "iframes": 0,
+      "inputs": [
+        {
+          "placeholder": "搜索 仓库名称",
+          "type": "text"
+        }
+      ],
+      "rows": 0
+    }
+  },
+  {
+    "name": "archive-list",
+    "path": "/manage/archive-list",
+    "kind": "deep-link-entry-only",
+    "businessAccepted": false,
+    "visualAccepted": false,
+    "v3": {
+      "url": "http://appdev.woa.com:4175/#/manage/archive-list?bizId=5000140&spaceUid=bkcc__5000140",
+      "buttons": [
+        "新建"
+      ],
+      "exceptions": [
+        "暂无数据"
+      ],
+      "forms": 0,
+      "headers": [
+        "ID",
+        "名称",
+        "过期设置",
+        "总大小",
+        "索引数量",
+        "归档仓库",
+        "操作"
+      ],
+      "headings": [],
+      "iframes": 0,
+      "inputs": [
+        {
+          "placeholder": "搜索 名称",
+          "type": "text"
+        }
+      ],
+      "rows": 0
+    },
+    "v2": {
+      "url": "http://appdev.woa.com:8001/#/manage/archive-list?spaceUid=bkcc__5000140&bizId=5000140",
+      "buttons": [
+        "新建"
+      ],
+      "exceptions": [
+        "暂无数据"
+      ],
+      "forms": 0,
+      "headers": [
+        "ID",
+        "名称",
+        "过期设置",
+        "总大小",
+        "索引数量",
+        "归档仓库",
+        "操作"
+      ],
+      "headings": [],
+      "iframes": 0,
+      "inputs": [
+        {
+          "placeholder": "搜索 名称",
+          "type": "text"
+        }
+      ],
+      "rows": 0
+    }
+  },
+  {
+    "name": "archive-restore",
+    "path": "/manage/archive-restore",
+    "kind": "deep-link-entry-only",
+    "businessAccepted": false,
+    "visualAccepted": false,
+    "v3": {
+      "url": "http://appdev.woa.com:4175/#/manage/archive-restore?bizId=5000140&spaceUid=bkcc__5000140",
+      "buttons": [
+        "新建"
+      ],
+      "exceptions": [
+        "暂无数据"
+      ],
+      "forms": 0,
+      "headers": [
+        "索引集名称",
+        "归档项",
+        "时间范围",
+        "资源占用",
+        "过期时间",
+        "回溯状态",
+        "是否过期",
+        "操作"
+      ],
+      "headings": [],
+      "iframes": 0,
+      "inputs": [
+        {
+          "placeholder": "搜索 归档项",
+          "type": "text"
+        }
+      ],
+      "rows": 0
+    },
+    "v2": {
+      "url": "http://appdev.woa.com:8001/#/manage/archive-restore?spaceUid=bkcc__5000140&bizId=5000140",
+      "buttons": [
+        "新建"
+      ],
+      "exceptions": [
+        "暂无数据"
+      ],
+      "forms": 0,
+      "headers": [
+        "索引集名称",
+        "归档项",
+        "时间范围",
+        "资源占用",
+        "过期时间",
+        "回溯状态",
+        "是否过期",
+        "操作"
+      ],
+      "headings": [],
+      "iframes": 0,
+      "inputs": [
+        {
+          "placeholder": "搜索 归档项",
+          "type": "text"
+        }
+      ],
+      "rows": 0
+    }
+  },
+  {
+    "name": "manage-log-extract",
+    "path": "/manage/manage-log-extract",
+    "kind": "deep-link-entry-only",
+    "businessAccepted": false,
+    "visualAccepted": false,
+    "v3": {
+      "url": "http://appdev.woa.com:4175/#/manage/manage-log-extract?bizId=5000140&spaceUid=bkcc__5000140",
+      "buttons": [
+        "新增"
+      ],
+      "exceptions": [
+        "暂无数据"
+      ],
+      "forms": 0,
+      "headers": [
+        "名称",
+        "授权目标",
+        "文件目录",
+        "文件后缀",
+        "执行人",
+        "创建时间",
+        "创建人",
+        "操作"
+      ],
+      "headings": [],
+      "iframes": 0,
+      "inputs": [],
+      "rows": 0
+    },
+    "v2": {
+      "url": "http://appdev.woa.com:8001/#/manage/manage-log-extract?spaceUid=bkcc__5000140&bizId=5000140",
+      "buttons": [
+        "新增"
+      ],
+      "exceptions": [
+        "暂无数据"
+      ],
+      "forms": 0,
+      "headers": [
+        "名称",
+        "授权目标",
+        "文件目录",
+        "文件后缀",
+        "执行人",
+        "创建时间",
+        "创建人",
+        "操作"
+      ],
+      "headings": [],
+      "iframes": 0,
+      "inputs": [],
+      "rows": 0
+    }
+  },
+  {
+    "name": "log-extract-task",
+    "path": "/manage/log-extract-task",
+    "kind": "deep-link-entry-only",
+    "businessAccepted": false,
+    "visualAccepted": false,
+    "v3": {
+      "url": "http://appdev.woa.com:4175/#/manage/log-extract-task?bizId=5000140&spaceUid=bkcc__5000140",
+      "buttons": [
+        "新建"
+      ],
+      "exceptions": [
+        "暂无数据"
+      ],
+      "forms": 0,
+      "headers": [
+        "授权目标",
+        "文件",
+        "目标类型",
+        "创建时间",
+        "创建人",
+        "任务状态",
+        "操作"
+      ],
+      "headings": [],
+      "iframes": 0,
+      "inputs": [
+        {
+          "placeholder": "搜索 文件名、创建人",
+          "type": "text"
+        }
+      ],
+      "rows": 0
+    },
+    "v2": {
+      "url": "http://appdev.woa.com:8001/#/manage/log-extract-task?spaceUid=bkcc__5000140&bizId=5000140",
+      "buttons": [
+        "新建"
+      ],
+      "exceptions": [
+        "暂无数据"
+      ],
+      "forms": 0,
+      "headers": [
+        "授权目标",
+        "文件",
+        "目标类型",
+        "创建时间",
+        "创建人",
+        "任务状态",
+        "操作"
+      ],
+      "headings": [],
+      "iframes": 0,
+      "inputs": [
+        {
+          "placeholder": "搜索 文件名、创建人",
+          "type": "text"
+        }
+      ],
+      "rows": 0
+    }
+  },
+  {
+    "name": "extract-home",
+    "path": "/manage/log-extract-task/",
+    "kind": "deep-link-entry-only",
+    "businessAccepted": false,
+    "visualAccepted": false,
+    "v3": {
+      "url": "http://appdev.woa.com:4175/#/manage/log-extract-task?bizId=5000140&spaceUid=bkcc__5000140",
+      "buttons": [
+        "新建"
+      ],
+      "exceptions": [
+        "暂无数据"
+      ],
+      "forms": 0,
+      "headers": [
+        "授权目标",
+        "文件",
+        "目标类型",
+        "创建时间",
+        "创建人",
+        "任务状态",
+        "操作"
+      ],
+      "headings": [],
+      "iframes": 0,
+      "inputs": [
+        {
+          "placeholder": "搜索 文件名、创建人",
+          "type": "text"
+        }
+      ],
+      "rows": 0
+    },
+    "v2": {
+      "url": "http://appdev.woa.com:8001/#/manage/log-extract-task?spaceUid=bkcc__5000140&bizId=5000140",
+      "buttons": [
+        "新建"
+      ],
+      "exceptions": [
+        "暂无数据"
+      ],
+      "forms": 0,
+      "headers": [
+        "授权目标",
+        "文件",
+        "目标类型",
+        "创建时间",
+        "创建人",
+        "任务状态",
+        "操作"
+      ],
+      "headings": [],
+      "iframes": 0,
+      "inputs": [
+        {
+          "placeholder": "搜索 文件名、创建人",
+          "type": "text"
+        }
+      ],
+      "rows": 0
+    }
+  },
+  {
+    "name": "extract-create",
+    "path": "/manage/log-extract-task/extract-create",
+    "kind": "deep-link-entry-only",
+    "businessAccepted": false,
+    "visualAccepted": false,
+    "v3": {
+      "url": "http://appdev.woa.com:4175/#/manage/log-extract-task/extract-create?bizId=5000140&spaceUid=bkcc__5000140",
+      "buttons": [
+        "主机",
+        "容器",
+        "选择目标",
+        "检索",
+        "清空",
+        "预览",
+        "预览并下发",
+        "取消"
+      ],
+      "exceptions": [
+        "暂无数据"
+      ],
+      "forms": 0,
+      "headers": [
+        "文件名",
+        "最后修改时间",
+        "文件大小",
+        "命中目标"
+      ],
+      "headings": [
+        "提取范围",
+        "日志文件",
+        "提取参数"
+      ],
+      "iframes": 0,
+      "inputs": [
+        {
+          "placeholder": "搜索文件名/最后修改时间",
+          "type": "text"
+        },
+        {
+          "placeholder": "请输入",
+          "type": "text"
+        },
+        {
+          "placeholder": "",
+          "type": "radio"
+        },
+        {
+          "placeholder": "",
+          "type": "radio"
+        },
+        {
+          "placeholder": "请输入",
+          "type": "textarea"
+        }
+      ],
+      "rows": 0
+    },
+    "v2": {
+      "url": "http://appdev.woa.com:8001/#/manage/log-extract-task/extract-create?spaceUid=bkcc__5000140&bizId=5000140",
+      "buttons": [
+        "主机",
+        "容器",
+        "选择目标",
+        "检索",
+        "清空",
+        "预览",
+        "预览并下发",
+        "取消"
+      ],
+      "exceptions": [
+        "暂无数据"
+      ],
+      "forms": 0,
+      "headers": [
+        "文件名",
+        "最后修改时间",
+        "文件大小",
+        "命中目标"
+      ],
+      "headings": [
+        "提取范围",
+        "日志文件",
+        "提取参数"
+      ],
+      "iframes": 0,
+      "inputs": [
+        {
+          "placeholder": "搜索文件名/最后修改时间",
+          "type": "text"
+        },
+        {
+          "placeholder": "请输入",
+          "type": "text"
+        },
+        {
+          "placeholder": "",
+          "type": "radio"
+        },
+        {
+          "placeholder": "",
+          "type": "radio"
+        },
+        {
+          "placeholder": "请输入",
+          "type": "textarea"
+        }
+      ],
+      "rows": 0
+    }
+  },
+  {
+    "name": "extract-clone",
+    "path": "/manage/log-extract-task/extract-clone",
+    "kind": "deep-link-entry-only",
+    "businessAccepted": false,
+    "visualAccepted": false,
+    "v3": {
+      "url": "http://appdev.woa.com:4175/#/manage/log-extract-task/extract-clone?bizId=5000140&spaceUid=bkcc__5000140",
+      "buttons": [
+        "主机",
+        "容器",
+        "选择目标",
+        "检索",
+        "清空",
+        "预览",
+        "预览并下发",
+        "取消"
+      ],
+      "exceptions": [
+        "暂无数据"
+      ],
+      "forms": 0,
+      "headers": [
+        "文件名",
+        "最后修改时间",
+        "文件大小",
+        "命中目标"
+      ],
+      "headings": [
+        "提取范围",
+        "日志文件",
+        "提取参数"
+      ],
+      "iframes": 0,
+      "inputs": [
+        {
+          "placeholder": "搜索文件名/最后修改时间",
+          "type": "text"
+        },
+        {
+          "placeholder": "请输入",
+          "type": "text"
+        },
+        {
+          "placeholder": "",
+          "type": "radio"
+        },
+        {
+          "placeholder": "",
+          "type": "radio"
+        },
+        {
+          "placeholder": "请输入",
+          "type": "textarea"
+        }
+      ],
+      "rows": 0
+    },
+    "v2": {
+      "url": "http://appdev.woa.com:8001/#/manage/log-extract-task/extract-clone?spaceUid=bkcc__5000140&bizId=5000140",
+      "buttons": [
+        "主机",
+        "容器",
+        "选择目标",
+        "检索",
+        "清空",
+        "预览",
+        "预览并下发",
+        "取消"
+      ],
+      "exceptions": [
+        "暂无数据"
+      ],
+      "forms": 0,
+      "headers": [
+        "文件名",
+        "最后修改时间",
+        "文件大小",
+        "命中目标"
+      ],
+      "headings": [
+        "提取范围",
+        "日志文件",
+        "提取参数"
+      ],
+      "iframes": 0,
+      "inputs": [
+        {
+          "placeholder": "搜索文件名/最后修改时间",
+          "type": "text"
+        },
+        {
+          "placeholder": "请输入",
+          "type": "text"
+        },
+        {
+          "placeholder": "",
+          "type": "radio"
+        },
+        {
+          "placeholder": "",
+          "type": "radio"
+        },
+        {
+          "placeholder": "请输入",
+          "type": "textarea"
+        }
+      ],
+      "rows": 0
+    }
+  },
+  {
+    "name": "extract-link-manage",
+    "path": "/manage/extract-link-manage",
+    "kind": "deep-link-entry-only",
+    "businessAccepted": false,
+    "visualAccepted": false,
+    "v3": {
+      "url": "http://appdev.woa.com:4175/#/manage/extract-link-manage/list?bizId=5000140&spaceUid=bkcc__5000140",
+      "buttons": [
+        "新增"
+      ],
+      "exceptions": [
+        "暂无数据"
+      ],
+      "forms": 0,
+      "headers": [
+        "链路名称",
+        "链路类型",
+        "操作"
+      ],
+      "headings": [],
+      "iframes": 0,
+      "inputs": [],
+      "rows": 0
+    },
+    "v2": {
+      "url": "http://appdev.woa.com:8001/#/manage/extract-link-manage/list?spaceUid=bkcc__5000140&bizId=5000140",
+      "buttons": [
+        "新增"
+      ],
+      "exceptions": [
+        "暂无数据"
+      ],
+      "forms": 0,
+      "headers": [
+        "链路名称",
+        "链路类型",
+        "操作"
+      ],
+      "headings": [],
+      "iframes": 0,
+      "inputs": [],
+      "rows": 0
+    }
+  },
+  {
+    "name": "extract-link-list",
+    "path": "/manage/extract-link-manage/list",
+    "kind": "deep-link-entry-only",
+    "businessAccepted": false,
+    "visualAccepted": false,
+    "v3": {
+      "url": "http://appdev.woa.com:4175/#/manage/extract-link-manage/list?bizId=5000140&spaceUid=bkcc__5000140",
+      "buttons": [
+        "新增"
+      ],
+      "exceptions": [
+        "暂无数据"
+      ],
+      "forms": 0,
+      "headers": [
+        "链路名称",
+        "链路类型",
+        "操作"
+      ],
+      "headings": [],
+      "iframes": 0,
+      "inputs": [],
+      "rows": 0
+    },
+    "v2": {
+      "url": "http://appdev.woa.com:8001/#/manage/extract-link-manage/list?spaceUid=bkcc__5000140&bizId=5000140",
+      "buttons": [
+        "新增"
+      ],
+      "exceptions": [
+        "暂无数据"
+      ],
+      "forms": 0,
+      "headers": [
+        "链路名称",
+        "链路类型",
+        "操作"
+      ],
+      "headings": [],
+      "iframes": 0,
+      "inputs": [],
+      "rows": 0
+    }
+  },
+  {
+    "name": "extract-link-create",
+    "path": "/manage/extract-link-manage/create",
+    "kind": "deep-link-entry-only",
+    "businessAccepted": false,
+    "visualAccepted": false,
+    "v3": {
+      "url": "http://appdev.woa.com:4175/#/manage/extract-link-manage/create?bizId=5000140&spaceUid=bkcc__5000140",
+      "buttons": [
+        "删除",
+        "添加链路中转机",
+        "提交"
+      ],
+      "exceptions": [],
+      "forms": 1,
+      "headers": [],
+      "headings": [
+        "基础信息",
+        "链路中转机"
+      ],
+      "iframes": 0,
+      "inputs": [
+        {
+          "placeholder": "请输入",
+          "type": "text"
+        },
+        {
+          "placeholder": "请选择用户",
+          "type": "text"
+        },
+        {
+          "placeholder": "请输入",
+          "type": "text"
+        },
+        {
+          "placeholder": "",
+          "type": "radio"
+        },
+        {
+          "placeholder": "",
+          "type": "radio"
+        },
+        {
+          "placeholder": "请输入",
+          "type": "text"
+        },
+        {
+          "placeholder": "请输入",
+          "type": "text"
+        },
+        {
+          "placeholder": "请输入",
+          "type": "text"
+        }
+      ],
+      "rows": 0
+    },
+    "v2": {
+      "url": "http://appdev.woa.com:8001/#/manage/extract-link-manage/create?spaceUid=bkcc__5000140&bizId=5000140",
+      "buttons": [
+        "删除",
+        "添加链路中转机",
+        "提交"
+      ],
+      "exceptions": [],
+      "forms": 1,
+      "headers": [],
+      "headings": [
+        "基础信息",
+        "链路中转机"
+      ],
+      "iframes": 0,
+      "inputs": [
+        {
+          "placeholder": "请输入",
+          "type": "text"
+        },
+        {
+          "placeholder": "请选择用户",
+          "type": "text"
+        },
+        {
+          "placeholder": "请输入",
+          "type": "text"
+        },
+        {
+          "placeholder": "",
+          "type": "radio"
+        },
+        {
+          "placeholder": "",
+          "type": "radio"
+        },
+        {
+          "placeholder": "请输入",
+          "type": "text"
+        },
+        {
+          "placeholder": "请输入",
+          "type": "text"
+        },
+        {
+          "placeholder": "请输入",
+          "type": "text"
+        }
+      ],
+      "rows": 0
+    }
+  },
+  {
+    "name": "es-cluster-manage",
+    "path": "/manage/es-cluster-manage",
+    "kind": "deep-link-entry-only",
+    "businessAccepted": false,
+    "visualAccepted": false,
+    "v3": {
+      "url": "http://appdev.woa.com:4175/#/manage/es-cluster-manage?bizId=5000140&spaceUid=bkcc__5000140",
+      "buttons": [
+        "新建"
+      ],
+      "exceptions": [
+        "暂无数据"
+      ],
+      "forms": 0,
+      "headers": [
+        "ID",
+        "名称",
+        "英文名称",
+        "地址",
+        "来源",
+        "端口",
+        "协议",
+        "连接状态",
+        "冷热数据",
+        "总量",
+        "操作"
+      ],
+      "headings": [],
+      "iframes": 0,
+      "inputs": [
+        {
+          "placeholder": "搜索名称、英文名称、地址、创建人",
+          "type": "text"
+        }
+      ],
+      "rows": 0
+    },
+    "v2": {
+      "url": "http://appdev.woa.com:8001/#/manage/es-cluster-manage?spaceUid=bkcc__5000140&bizId=5000140",
+      "buttons": [
+        "新建"
+      ],
+      "exceptions": [
+        "暂无数据"
+      ],
+      "forms": 0,
+      "headers": [
+        "ID",
+        "名称",
+        "英文名称",
+        "地址",
+        "来源",
+        "端口",
+        "协议",
+        "连接状态",
+        "冷热数据",
+        "总量",
+        "操作"
+      ],
+      "headings": [],
+      "iframes": 0,
+      "inputs": [
+        {
+          "placeholder": "搜索名称、英文名称、地址、创建人",
+          "type": "text"
+        }
+      ],
+      "rows": 0
+    }
+  },
+  {
+    "name": "report-manage",
+    "path": "/manage/report-manage",
+    "kind": "deep-link-entry-only",
+    "businessAccepted": false,
+    "visualAccepted": false,
+    "v3Readiness": "no-known-ready-marker",
+    "v3": {
+      "url": "http://appdev.woa.com:4175/#/manage/report-manage?bizId=5000140&spaceUid=bkcc__5000140",
+      "buttons": [],
+      "exceptions": [],
+      "forms": 0,
+      "headers": [],
+      "headings": [],
+      "iframes": 0,
+      "inputs": [],
+      "rows": 0
+    },
+    "v2": {
+      "url": "http://appdev.woa.com:8001/#/manage/report-manage?spaceUid=bkcc__5000140&bizId=5000140",
+      "buttons": [],
+      "exceptions": [],
+      "forms": 0,
+      "headers": [],
+      "headings": [],
+      "iframes": 1,
+      "inputs": [],
+      "rows": 0
+    }
+  },
+  {
+    "name": "collection-track",
+    "path": "/manage/collection-track",
+    "kind": "deep-link-entry-only",
+    "businessAccepted": false,
+    "visualAccepted": false,
+    "v3Readiness": "no-known-ready-marker",
+    "v3": {
+      "url": "http://appdev.woa.com:4175/#/manage/collection-track?bizId=5000140&spaceUid=bkcc__5000140",
+      "buttons": [],
+      "exceptions": [],
+      "forms": 0,
+      "headers": [],
+      "headings": [],
+      "iframes": 0,
+      "inputs": [],
+      "rows": 0
+    },
+    "v2Readiness": "no-known-ready-marker",
+    "v2": {
+      "url": "http://appdev.woa.com:8001/#/manage/collection-track?spaceUid=bkcc__5000140&bizId=5000140",
+      "buttons": [],
+      "exceptions": [],
+      "forms": 0,
+      "headers": [],
+      "headings": [],
+      "iframes": 0,
+      "inputs": [],
+      "rows": 0
+    }
+  },
+  {
+    "name": "bk-data-track",
+    "path": "/manage/bk-data-track",
+    "kind": "deep-link-entry-only",
+    "businessAccepted": false,
+    "visualAccepted": false,
+    "v3": {
+      "url": "http://appdev.woa.com:4175/#/manage/bk-data-track/list?bizId=5000140&spaceUid=bkcc__5000140",
+      "buttons": [
+        "新建索引集"
+      ],
+      "exceptions": [
+        "暂无数据"
+      ],
+      "forms": 0,
+      "headers": [
+        "索引集",
+        "采集项",
+        "日用量/总用量",
+        "集群名",
+        "状态",
+        "标签",
+        "创建时间",
+        "创建人",
+        "操作"
+      ],
+      "headings": [],
+      "iframes": 0,
+      "inputs": [
+        {
+          "placeholder": "请输入索引集名称",
+          "type": "text"
+        }
+      ],
+      "rows": 0
+    },
+    "v2": {
+      "url": "http://appdev.woa.com:8001/#/manage/bk-data-track/list?spaceUid=bkcc__5000140&bizId=5000140",
+      "buttons": [
+        "新建索引集"
+      ],
+      "exceptions": [
+        "暂无数据"
+      ],
+      "forms": 0,
+      "headers": [
+        "索引集",
+        "采集项",
+        "日用量/总用量",
+        "集群名",
+        "状态",
+        "标签",
+        "创建时间",
+        "创建人",
+        "操作"
+      ],
+      "headings": [],
+      "iframes": 0,
+      "inputs": [
+        {
+          "placeholder": "请输入索引集名称",
+          "type": "text"
+        }
+      ],
+      "rows": 0
+    }
+  },
+  {
+    "name": "bkdata-track-list",
+    "path": "/manage/bk-data-track/list",
+    "kind": "deep-link-entry-only",
+    "businessAccepted": false,
+    "visualAccepted": false,
+    "v3": {
+      "url": "http://appdev.woa.com:4175/#/manage/bk-data-track/list?bizId=5000140&spaceUid=bkcc__5000140",
+      "buttons": [
+        "新建索引集"
+      ],
+      "exceptions": [
+        "暂无数据"
+      ],
+      "forms": 0,
+      "headers": [
+        "索引集",
+        "采集项",
+        "日用量/总用量",
+        "集群名",
+        "状态",
+        "标签",
+        "创建时间",
+        "创建人",
+        "操作"
+      ],
+      "headings": [],
+      "iframes": 0,
+      "inputs": [
+        {
+          "placeholder": "请输入索引集名称",
+          "type": "text"
+        }
+      ],
+      "rows": 0
+    },
+    "v2": {
+      "url": "http://appdev.woa.com:8001/#/manage/bk-data-track/list?spaceUid=bkcc__5000140&bizId=5000140",
+      "buttons": [
+        "新建索引集"
+      ],
+      "exceptions": [
+        "暂无数据"
+      ],
+      "forms": 0,
+      "headers": [
+        "索引集",
+        "采集项",
+        "日用量/总用量",
+        "集群名",
+        "状态",
+        "标签",
+        "创建时间",
+        "创建人",
+        "操作"
+      ],
+      "headings": [],
+      "iframes": 0,
+      "inputs": [
+        {
+          "placeholder": "请输入索引集名称",
+          "type": "text"
+        }
+      ],
+      "rows": 0
+    }
+  },
+  {
+    "name": "bkdata-track-create",
+    "path": "/manage/bk-data-track/create",
+    "kind": "deep-link-entry-only",
+    "businessAccepted": false,
+    "visualAccepted": false,
+    "v3": {
+      "url": "http://appdev.woa.com:4175/#/manage/bk-data-track/create?bizId=5000140&spaceUid=bkcc__5000140",
+      "buttons": [
+        "",
+        "",
+        "提交"
+      ],
+      "exceptions": [],
+      "forms": 1,
+      "headers": [
+        "字段",
+        "类型"
+      ],
+      "headings": [
+        "基础信息",
+        "数据源"
+      ],
+      "iframes": 0,
+      "inputs": [
+        {
+          "placeholder": "请输入",
+          "type": "text"
+        }
+      ],
+      "rows": 0
+    },
+    "v2": {
+      "url": "http://appdev.woa.com:8001/#/manage/bk-data-track/create?spaceUid=bkcc__5000140&bizId=5000140",
+      "buttons": [
+        "",
+        "",
+        "提交"
+      ],
+      "exceptions": [],
+      "forms": 1,
+      "headers": [
+        "字段",
+        "类型"
+      ],
+      "headings": [
+        "基础信息",
+        "数据源"
+      ],
+      "iframes": 0,
+      "inputs": [
+        {
+          "placeholder": "请输入",
+          "type": "text"
+        }
+      ],
+      "rows": 0
+    }
+  },
+  {
+    "name": "sdk-track",
+    "path": "/manage/sdk-track",
+    "kind": "deep-link-entry-only",
+    "businessAccepted": false,
+    "visualAccepted": false,
+    "v3Readiness": "no-known-ready-marker",
+    "v3": {
+      "url": "http://appdev.woa.com:4175/#/manage/sdk-track?bizId=5000140&spaceUid=bkcc__5000140",
+      "buttons": [],
+      "exceptions": [],
+      "forms": 0,
+      "headers": [],
+      "headings": [],
+      "iframes": 0,
+      "inputs": [],
+      "rows": 0
+    },
+    "v2Readiness": "no-known-ready-marker",
+    "v2": {
+      "url": "http://appdev.woa.com:8001/#/manage/sdk-track?spaceUid=bkcc__5000140&bizId=5000140",
+      "buttons": [],
+      "exceptions": [],
+      "forms": 0,
+      "headers": [],
+      "headings": [],
+      "iframes": 0,
+      "inputs": [],
+      "rows": 0
+    }
+  },
+  {
+    "name": "manage-data-link-conf",
+    "path": "/manage/manage-data-link-conf",
+    "kind": "deep-link-entry-only",
+    "businessAccepted": false,
+    "visualAccepted": false,
+    "v3": {
+      "url": "http://appdev.woa.com:4175/#/manage/manage-data-link-conf?bizId=5000140&spaceUid=bkcc__5000140",
+      "buttons": [
+        "新建"
+      ],
+      "exceptions": [
+        "暂无数据"
+      ],
+      "forms": 0,
+      "headers": [
+        "链路名称",
+        "允许的空间",
+        "链路信息",
+        "备注",
+        "是否启用",
+        "操作"
+      ],
+      "headings": [],
+      "iframes": 0,
+      "inputs": [],
+      "rows": 0
+    },
+    "v2": {
+      "url": "http://appdev.woa.com:8001/#/manage/manage-data-link-conf?spaceUid=bkcc__5000140&bizId=5000140",
+      "buttons": [
+        "新建"
+      ],
+      "exceptions": [
+        "暂无数据"
+      ],
+      "forms": 0,
+      "headers": [
+        "链路名称",
+        "允许的空间",
+        "链路信息",
+        "备注",
+        "是否启用",
+        "操作"
+      ],
+      "headings": [],
+      "iframes": 0,
+      "inputs": [],
+      "rows": 0
+    }
+  },
+  {
+    "name": null,
+    "path": "/manage/collect",
+    "kind": "deep-link-entry-only",
+    "businessAccepted": false,
+    "visualAccepted": false,
+    "v3": {
+      "url": "http://appdev.woa.com:4175/#/manage/log-collection/collection-item/list?bizId=5000140&spaceUid=bkcc__5000140",
+      "buttons": [
+        "",
+        "采集项"
+      ],
+      "exceptions": [
+        "暂无数据"
+      ],
+      "forms": 0,
+      "headers": [
+        "采集名 / 数据名",
+        "日用量 / 总用量",
+        "存储集群 / 过期时间",
+        "接入类型",
+        "标签",
+        "存储名",
+        "采集状态",
+        "最近更新",
+        "所属索引集",
+        "日志类型",
+        "创建",
+        "操作"
+      ],
+      "headings": [],
+      "iframes": 0,
+      "inputs": [
+        {
+          "placeholder": "搜索 索引集名称",
+          "type": "text"
+        },
+        {
+          "placeholder": "请选择",
+          "type": "text"
+        }
+      ],
+      "rows": 1
+    },
+    "v2": {
+      "url": "http://appdev.woa.com:8001/#/manage/log-collection/collection-item/list?spaceUid=bkcc__5000140&bizId=5000140",
+      "buttons": [
+        "",
+        "采集项"
+      ],
+      "exceptions": [
+        "暂无数据"
+      ],
+      "forms": 0,
+      "headers": [
+        "采集名 / 数据名",
+        "日用量 / 总用量",
+        "存储集群 / 过期时间",
+        "接入类型",
+        "标签",
+        "存储名",
+        "采集状态",
+        "最近更新",
+        "所属索引集",
+        "日志类型",
+        "创建",
+        "操作"
+      ],
+      "headings": [],
+      "iframes": 0,
+      "inputs": [
+        {
+          "placeholder": "搜索 索引集名称",
+          "type": "text"
+        },
+        {
+          "placeholder": "请选择",
+          "type": "text"
+        }
+      ],
+      "rows": 1
+    }
+  },
+  {
+    "name": "dashboard",
+    "path": "/dashboard",
+    "kind": "deep-link-entry-only",
+    "businessAccepted": false,
+    "visualAccepted": false,
+    "v3Readiness": "no-known-ready-marker",
+    "v3": {
+      "url": "http://appdev.woa.com:4175/#/dashboard/home?spaceUid=bkcc__5000140&bizId=5000140",
+      "buttons": [
+        "点击跳转新版",
+        "查看旧版"
+      ],
+      "exceptions": [],
+      "forms": 0,
+      "headers": [],
+      "headings": [],
+      "iframes": 0,
+      "inputs": [],
+      "rows": 0
+    },
+    "v2Readiness": "no-known-ready-marker",
+    "v2": {
+      "url": "http://appdev.woa.com:8001/#/dashboard/home?spaceUid=bkcc__5000140&bizId=5000140",
+      "buttons": [
+        "点击跳转新版",
+        "查看旧版"
+      ],
+      "exceptions": [],
+      "forms": 0,
+      "headers": [],
+      "headings": [],
+      "iframes": 0,
+      "inputs": [],
+      "rows": 0
+    }
+  },
+  {
+    "name": "home",
+    "path": "/dashboard/home",
+    "kind": "deep-link-entry-only",
+    "businessAccepted": false,
+    "visualAccepted": false,
+    "v3Readiness": "no-known-ready-marker",
+    "v3": {
+      "url": "http://appdev.woa.com:4175/#/dashboard/home?spaceUid=bkcc__5000140&bizId=5000140",
+      "buttons": [
+        "点击跳转新版",
+        "查看旧版"
+      ],
+      "exceptions": [],
+      "forms": 0,
+      "headers": [],
+      "headings": [],
+      "iframes": 0,
+      "inputs": [],
+      "rows": 0
+    },
+    "v2Readiness": "no-known-ready-marker",
+    "v2": {
+      "url": "http://appdev.woa.com:8001/#/dashboard/home?spaceUid=bkcc__5000140&bizId=5000140",
+      "buttons": [
+        "点击跳转新版",
+        "查看旧版"
+      ],
+      "exceptions": [],
+      "forms": 0,
+      "headers": [],
+      "headings": [],
+      "iframes": 0,
+      "inputs": [],
+      "rows": 0
+    }
+  },
+  {
+    "name": "default-dashboard",
+    "path": "/dashboard/default-dashboard",
+    "kind": "deep-link-entry-only",
+    "businessAccepted": false,
+    "visualAccepted": false,
+    "v3": {
+      "url": "http://appdev.woa.com:4175/#/dashboard/default-dashboard?spaceUid=bkcc__5000140&bizId=5000140",
+      "buttons": [],
+      "exceptions": [],
+      "forms": 0,
+      "headers": [],
+      "headings": [],
+      "iframes": 1,
+      "inputs": [],
+      "rows": 0
+    },
+    "v2": {
+      "url": "http://appdev.woa.com:8001/#/dashboard/default-dashboard?spaceUid=bkcc__5000140&bizId=5000140",
+      "buttons": [],
+      "exceptions": [],
+      "forms": 0,
+      "headers": [],
+      "headings": [],
+      "iframes": 1,
+      "inputs": [],
+      "rows": 0
+    }
+  },
+  {
+    "name": "create-dashboard",
+    "path": "/dashboard/create-dashboard",
+    "kind": "deep-link-entry-only",
+    "businessAccepted": false,
+    "visualAccepted": false,
+    "v3": {
+      "url": "http://appdev.woa.com:4175/#/dashboard/create-dashboard?spaceUid=bkcc__5000140&bizId=5000140",
+      "buttons": [],
+      "exceptions": [],
+      "forms": 0,
+      "headers": [],
+      "headings": [],
+      "iframes": 1,
+      "inputs": [],
+      "rows": 0
+    },
+    "v2": {
+      "url": "http://appdev.woa.com:8001/#/dashboard/create-dashboard?spaceUid=bkcc__5000140&bizId=5000140",
+      "buttons": [],
+      "exceptions": [],
+      "forms": 0,
+      "headers": [],
+      "headings": [],
+      "iframes": 1,
+      "inputs": [],
+      "rows": 0
+    }
+  },
+  {
+    "name": "create-folder",
+    "path": "/dashboard/create-folder",
+    "kind": "deep-link-entry-only",
+    "businessAccepted": false,
+    "visualAccepted": false,
+    "v3": {
+      "url": "http://appdev.woa.com:4175/#/dashboard/create-folder?spaceUid=bkcc__5000140&bizId=5000140",
+      "buttons": [],
+      "exceptions": [],
+      "forms": 0,
+      "headers": [],
+      "headings": [],
+      "iframes": 1,
+      "inputs": [],
+      "rows": 0
+    },
+    "v2": {
+      "url": "http://appdev.woa.com:8001/#/dashboard/create-folder?spaceUid=bkcc__5000140&bizId=5000140",
+      "buttons": [],
+      "exceptions": [],
+      "forms": 0,
+      "headers": [],
+      "headings": [],
+      "iframes": 1,
+      "inputs": [],
+      "rows": 0
+    }
+  },
+  {
+    "name": "import-dashboard",
+    "path": "/dashboard/import-dashboard",
+    "kind": "deep-link-entry-only",
+    "businessAccepted": false,
+    "visualAccepted": false,
+    "v3": {
+      "url": "http://appdev.woa.com:4175/#/dashboard/import-dashboard?spaceUid=bkcc__5000140&bizId=5000140",
+      "buttons": [],
+      "exceptions": [],
+      "forms": 0,
+      "headers": [],
+      "headings": [],
+      "iframes": 1,
+      "inputs": [],
+      "rows": 0
+    },
+    "v2": {
+      "url": "http://appdev.woa.com:8001/#/dashboard/import-dashboard?spaceUid=bkcc__5000140&bizId=5000140",
+      "buttons": [],
+      "exceptions": [],
+      "forms": 0,
+      "headers": [],
+      "headings": [],
+      "iframes": 1,
+      "inputs": [],
+      "rows": 0
+    }
+  },
+  {
+    "name": "un-authorized",
+    "path": "/un-authorized",
+    "kind": "deep-link-entry-only",
+    "businessAccepted": false,
+    "visualAccepted": false,
+    "v3": {
+      "url": "http://appdev.woa.com:4175/#/un-authorized?spaceUid=bkcc__5000140&bizId=5000140",
+      "buttons": [],
+      "exceptions": [
+        "无权限，请 联系BK助手"
+      ],
+      "forms": 0,
+      "headers": [],
+      "headings": [],
+      "iframes": 0,
+      "inputs": [],
+      "rows": 0
+    },
+    "v2": {
+      "url": "http://appdev.woa.com:8001/#/un-authorized?spaceUid=bkcc__5000140&bizId=5000140",
+      "buttons": [],
+      "exceptions": [
+        "无权限，请 联系BK助手"
+      ],
+      "forms": 0,
+      "headers": [],
+      "headings": [],
+      "iframes": 0,
+      "inputs": [],
+      "rows": 0
+    }
+  },
+  {
+    "name": "report-manage",
+    "path": "/manage/report-manage",
+    "kind": "deep-link-entry-only",
+    "businessAccepted": false,
+    "visualAccepted": false,
+    "v3Readiness": "no-known-ready-marker",
+    "v3": {
+      "url": "http://appdev.woa.com:4175/#/manage/report-manage?bizId=5000140&spaceUid=bkcc__5000140",
+      "buttons": [],
+      "exceptions": [],
+      "forms": 0,
+      "headers": [],
+      "headings": [],
+      "iframes": 0,
+      "inputs": [],
+      "rows": 0
+    },
+    "v2": {
+      "url": "http://appdev.woa.com:8001/#/manage/report-manage?spaceUid=bkcc__5000140&bizId=5000140",
+      "buttons": [],
+      "exceptions": [],
+      "forms": 0,
+      "headers": [],
+      "headings": [],
+      "iframes": 1,
+      "inputs": [],
+      "rows": 0
+    }
+  }
+]

@@ -1,0 +1,162 @@
+.log-filter-main {
+    width: 100%;
+    margin-top: 5px;
+
+    .switch-box {
+        width: 100%;
+    }
+
+    .log-filter-box {
+        width: 100%;
+    }
+
+    .bk-button-group {
+        margin-top: 14px;
+
+        .bk-button {
+            width: 70px !important;
+        }
+    }
+    .table-box {
+        width: 100%;
+        font-size: 12px;
+        margin-bottom: 18px;
+        margin-top: 16px;
+        .table-box-header {
+            align-items: center;
+            background: #fafbfd;
+            border: 1px solid #dcdee5;
+            border-bottom: none;
+            border-radius: 2px 2px 0 0;
+            box-shadow: 0 1px 0 0 #dcdee5;
+            color: #63656e;
+            display: flex;
+            height: 32px;
+            justify-content: space-between;
+            padding: 0 16px;
+            .del-icons {
+                color: #ea3636;
+                cursor: pointer;
+                font-size: 14px; 
+                &.is-disabled {
+                    color: #c4c6cc;
+                    cursor: not-allowed;
+                }
+            }
+        }
+        .table-box-main {
+            width: 100%;
+            border: 1px solid #dfe0e5;
+            .table-box-head, .table-box-item {
+                width: 100%;
+                display: flex;
+                height: 42px;
+                .item-default {
+                    flex: 1;
+                    height: 100%;
+                    border-right: 1px solid #dfe0e5;
+                    display: flex;
+                    align-items: center;
+                    border-top: 1px solid #dfe0e5;
+                    .item-select {
+                        width: 100%;
+                        border: none;
+                        height: 100%;
+                        line-height: 42px;
+                        background: #fff;
+                        .bk-select-dropdown, .bk-tooltip-ref, .bk-select-name {
+                            height: 100%;
+                            line-height: 42px;
+                        }
+                        .icon-angle-down {
+                            top: 10px;
+                        }
+                    }
+                    .bk-form-input {
+                        width: 100%;
+                        height: 100%;
+                    }
+                }
+                .item-tool {
+                    width: 10%;
+                    display: flex;
+                    align-items: center;
+                    border-top: 1px solid #dfe0e5;
+                    .icons {
+                        font-size: 16px;
+                        cursor: pointer;
+                        color: #c4c6cb;
+                        margin-right: 14px;
+                        &.disabled {
+                            color: #dcdee5;
+                            cursor: not-allowed;
+                        }
+                    }
+                }
+                .btns-group {
+                    padding-left: 14px;
+                    justify-content: center;
+                }
+            }
+            .table-box-head {
+                background: #f0f1f5;
+                .item-default, .item-tool {
+                    padding-left: 10px;
+                    color: #313238;
+                    border-top: none;
+                }
+            }
+        }
+    }
+    .add-new-group-btn {
+        width: 100%;
+        align-items: center;
+        background: #fafbfd;
+        border: 1px solid #dcdee5;
+        border-radius: 2px;
+        color: #3a84ff;
+        cursor: pointer;
+        display: flex;
+        height: 42px;
+        font-size: 12px;
+        justify-content: center;
+        margin-top: 12px;
+        .icons {
+            margin-right: 6px;
+        }
+    }
+
+    .separator-box {
+        width: 100%;
+        margin-top: 20px;
+
+        .separator-box-top {
+            display: flex;
+            align-items: center;
+            margin-bottom: 20px;
+
+            .separator-box-top-select {
+                width: 52%;
+                margin-right: 8px;
+            }
+        }
+
+        .separator-box-bottom {
+            .bk-textarea-wrapper {
+                border: none;
+            }
+
+            .bk-form-textarea {
+                border: none;
+                background: rgb(49, 50, 56);
+                color: rgb(196, 198, 204);
+
+                &:focus {
+                    border: none !important;
+                    background: rgb(49, 50, 56) !important;
+                    color: rgb(196, 198, 204) !important;
+                }
+            }
+        }
+    }
+}

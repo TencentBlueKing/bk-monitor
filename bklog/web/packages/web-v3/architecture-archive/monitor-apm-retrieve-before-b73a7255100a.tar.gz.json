@@ -1,0 +1,76 @@
+{
+  "schemaVersion": 1,
+  "directory": "monitor-apm-retrieve",
+  "archive": "architecture-archive/monitor-apm-retrieve-before-b73a7255100a.tar.gz",
+  "archiveSha256": "46b4a993113e809a5a383f9eaa0b10c1b7aa519d481791f49de952a29c6ef2ef",
+  "files": [
+    {
+      "path": "css/main.css",
+      "sha256": "1c4c146b2e55c00bf803198d111037694001b60afd599a8f9bd0c85c2d84523f"
+    },
+    {
+      "path": "fonts/iconcool0d23257.woff",
+      "sha256": "30476dc23e54a0109ed063a2a05515acdc2b39e0764ea6ca236b5ea57adfc67e"
+    },
+    {
+      "path": "fonts/iconcool9033dee.ttf",
+      "sha256": "2717bf409b80fc6c0a91ae705dacc18a5fb2774794134197134dc09c0ca493d0"
+    },
+    {
+      "path": "fonts/iconcoole1159ba.eot",
+      "sha256": "a37cb14a95bdf2daf1dc8098afb2d1b34e3439b59e3626716e356cc37693a7df"
+    },
+    {
+      "path": "fonts/Roboto-Regular2f9dbc9.woff2",
+      "sha256": "bcab6949c6eda21b0e21c07ab420d2fb78302afb49da639b82fa65b2fdb7f7c2"
+    },
+    {
+      "path": "fonts/RobotoMono-Medium907fc45.woff2",
+      "sha256": "a77ebdb1124872890f9b6dbb38563db50f9d1d668194fff1938481aff3c11589"
+    },
+    {
+      "path": "fonts/RobotoMono-Regularf664813.woff2",
+      "sha256": "5d65cc2bf041102b0fbaeb4200fa590c431b826ed2f36a6ba01e024f3f59d210"
+    },
+    {
+      "path": "img/ai-bluking-26e7668a.svg",
+      "sha256": "40b5c527c0334b39c787c721c11afdc0e12e0f73dfae827e9615e7f44bb97d05"
+    },
+    {
+      "path": "img/clean-image-grayed19f0a464.png",
+      "sha256": "febdf9a6cc9b3bea701f660c168b181ee0d2634ef6d1afeac29f7424e4d40306"
+    },
+    {
+      "path": "img/clean-image-grayed2c168b11.png",
+      "sha256": "35bfe4ef2ee1d3bf9aec4d96b3237dd2b0e0b7b9fcff5c1cc397eabc04b28deb"
+    },
+    {
+      "path": "img/clean-image1547e89d.png",
+      "sha256": "a0dca74facedec9c4903affd7d2b6c75dc59c21ae959a445ecab61e2a92f4ade"
+    },
+    {
+      "path": "img/clean-image2651cdb4.png",
+      "sha256": "7b6a50858aa6d0bb1977a15cd1cd0e8ab6a22070ff4e8ca551b52f3940b9886b"
+    },
+    {
+      "path": "img/clean-image387f98af.png",
+      "sha256": "76067b834d6cb6bb404a3ee67fe253dc6d861c05d43bf9e2d7bd96124a34670f"
+    },
+    {
+      "path": "img/clusterf999154.png",
+      "sha256": "d3add2650f16e00b0011b46ac8fdd673cf0f1d0be8a4dc03096651dd0d3be2ef"
+    },
+    {
+      "path": "img/iconcool8a54431.svg",
+      "sha256": "d5b354a535db2f1207cb1a76b1206f111e5c969fd7222f69803bdda809a92b64"
+    },
+    {
+      "path": "main.js",
+      "sha256": "a498095fc3afa30ad4e5eae7a2ae67078a993f3e7e0beb9bc40f9cb542829e0a"
+    },
+    {
+      "path": "package.json",
+      "sha256": "bd148ea08f826676c9e624fc1fbc512c81a9cb9de066fe608371dfdfafe168e0"
+    }
+  ]
+}

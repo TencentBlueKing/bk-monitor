@@ -1,0 +1,29 @@
+.operation-step1-classify {
+  margin: 16px;
+  height: calc(100% - 32px);
+  background: #ffffff;
+  box-shadow: 0 2px 4px 0 #1919290d;
+  border-radius: 2px;
+  padding: 16px 24px;
+  .classify-btns {
+    margin-top: 8px;
+    padding-top: 10px;
+  }
+  .classify-main {
+    width: 100%;
+    .classify-item {
+      margin-bottom: 32px;
+      .classify-title {
+        font-weight: 700;
+        font-size: 14px;
+        color: #313238;
+        margin-bottom: 12px;
+      }
+      .classify-list {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 12px;
+      }
+    }
+  }
+}

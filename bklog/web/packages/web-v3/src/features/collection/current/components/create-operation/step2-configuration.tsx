@@ -1,0 +1,1674 @@
+import { ServicesInstance } from '@/platform/services';
+/*
+ * Tencent is pleased to support the open source community by making
+ * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
+ *
+ * Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
+ *
+ * 蓝鲸智云PaaS平台 (BlueKing PaaS) is licensed under the MIT License.
+ *
+ * License for 蓝鲸智云PaaS平台 (BlueKing PaaS):
+ *
+ * ---------------------------------------------------
+ * Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated
+ * documentation files (the "Software"), to deal in the Software without restriction, including without limitation
+ * the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and
+ * to permit persons to whom the Software is furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in all copies or substantial portions of
+ * the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO
+ * THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF
+ * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
+ * IN THE SOFTWARE.
+ */
+
+import { computed, defineComponent, onMounted, ref, onBeforeMount, nextTick } from 'vue';
+
+import LogIpSelector, { toTransformNode, toSelectorNode, ITarget, type INodeType } from '@/features/collection/ip-selector/log-ip-selector'; // 日志IP选择器组件
+import useLocale from '@/shared/composables/use-locale';
+import useStore from '@/shared/composables/use-store';
+import { useRoute } from 'vue-router';
+
+import { useCollectList } from '../../hook/useCollectList'; // 收集列表相关功能
+import { useOperation } from '../../hook/useOperation'; // 操作相关功能
+import {
+  showMessage,
+  TARGET_TYPES,
+  collectTargetTarget,
+  LOG_SPECIES_LIST,
+  LOG_TYPE_LIST,
+  COLLECT_METHOD_LIST,
+  getLabelSelectorArray,
+  getContainerNameList,
+  formatExcludeFiles,
+} from '../../utils'; // 工具函数
+
+import BaseInfo from '../business-comp/step2/base-info';
+
+import type { IFormData, IValueItem, IContainerConfigItem, ISubmitOptions, ITargetNode, ICollectionParams, IPathItem, IExtraLabel } from '../../type'; // 基础信息组件
+import DeviceMetadata from '../business-comp/step2/device-metadata'; // 设备元数据组件
+import EventFilter from '../business-comp/step2/event-filter'; // 事件过滤器组件
+import type { EventType, IEventFilterItem } from '../business-comp/step2/event-filter';
+import LineRuleConfig from '../business-comp/step2/line-rule-config'; // 段日志配置组件
+import LogFilter from '../business-comp/step2/log-filter'; // 日志过滤器组件
+import InfoTips from '../common-comp/info-tips'; // 信息提示组件
+import InputAddGroup from '../common-comp/input-add-group'; // 输入框组组件
+import AppendLogTags from '../business-comp/step2/container-collection/append-log-tags'; // 附加日志标签组件
+import ConfigurationItemList from '../business-comp/step2/container-collection/configuration-item-list'; // 配置项组件
+import { HOST_COLLECTION_CONFIG, initContainerConfig } from './defaultConfig'; // 默认配置
+import IndexConfigImportDialog from '../business-comp/step2/index-config-import-dialog';
+ // API请求封装
+import { isCollectionEditRoute } from './route-utils';
+
+import './step2-configuration.scss'; // 样式文件
+
+/**
+ * 目标类型定义
+ */
+type CollectionFormState = IFormData & { params: ICollectionParams; target_nodes: ITargetNode[]; collector_scenario_id: string; target_node_type: string };
+type ApiCollectionParams = Omit<ICollectionParams, 'paths'> & { paths?: string[] };
+type CollectionDetail = Omit<IFormData, 'params'> & { params: ApiCollectionParams };
+type CollectionRequest = Omit<IFormData, 'params' | 'configs'> & { params?: ApiCollectionParams; configs?: object[] };
+
+type TargetType = (typeof TARGET_TYPES)[keyof typeof TARGET_TYPES];
+
+/**
+ * 目标值类型定义
+ */
+type TargetValue = {
+  host_list?: any[]; // 主机列表
+  node_list?: any[]; // 节点列表
+  service_template_list?: any[]; // 服务模板列表
+  set_template_list?: any[]; // 集群模板列表
+  dynamic_group_list?: any[]; // 动态分组列表
+};
+
+/**
+ * 目标选择结果类型定义
+ */
+type TargetSelectionResult = {
+  // 目标类型
+  type: TargetType;
+  nodes: any[];
+};
+
+const WINLOG_FILTER_TYPES: EventType[] = ['winlog_event_id', 'winlog_level', 'winlog_source', 'winlog_content'];
+
+const createEmptyEventFilter = (): IEventFilterItem => ({
+  type: 'winlog_event_id',
+  list: [],
+  isCorrect: true,
+});
+
+const normalizeEventFilterList = (value: unknown): string[] => {
+  if (!Array.isArray(value)) return [];
+  return value
+    .filter(item => item !== undefined && item !== null)
+    .map(item => String(item))
+    .filter(item => item.trim() !== '');
+};
+
+export default defineComponent({
+  name: 'StepConfiguration',
+  props: {
+    scenarioId: {
+      type: String,
+      default: '',
+    },
+    isEdit: {
+      type: Boolean,
+      default: false,
+    },
+    /**
+     * 是否为clone模式
+     */
+    isClone: {
+      type: Boolean,
+      default: false,
+    },
+    configData: {
+      type: Object,
+      default: () => ({}),
+    },
+  },
+
+  emits: ['next', 'prev', 'cancel', 'detail'],
+
+  setup(props, { emit, expose }) {
+    const { t } = useLocale();
+    const store = useStore();
+    const route = useRoute();
+    const { bkBizId, goListPage } = useCollectList();
+    const { cardRender } = useOperation();
+    const baseInfoRef = ref();
+    const isBlacklist = ref(false);
+    const logType = ref('row');
+    const showSelectDialog = ref(false);
+    const selectorNodes = ref<Record<string, ReturnType<typeof toSelectorNode>>>({ host_list: [] });
+    const ipSelectorOriginalValue = ref(null);
+    const collectorType = ref('container_log_config');
+    const configurationItemListRef = ref();
+    const loading = ref(false);
+    const isIndexConfigImport = ref(false);
+    /**
+     * 是否修改了内容
+     */
+    const isConfigChange = ref(false);
+
+    /**
+     * 判断配置是否有变更
+     */
+    const hasConfigChanged = () => {
+      return isConfigChange.value;
+    };
+
+    const baseConditions = {
+      type: 'none',
+      // match_type: 'include',
+      // match_content: '',
+      // separator: '|',
+      // separator_filters: [{ fieldindex: '', word: '', op: '=', logic_op: 'and' }],
+    };
+    /**
+     * 日志种类
+     */
+    const selectLogSpeciesList = ref(['Application', 'Security', 'System', 'Other']);
+    const ipSelectorPanelList = [
+      'staticTopo',
+      'dynamicTopo',
+      'dynamicGroup',
+      'serviceTemplate',
+      'setTemplate',
+      'manualInput',
+    ];
+
+    const typeMap: { [key: string]: string } = {
+      INSTANCE: 'host_list',
+      TOPO: 'node_list',
+      SERVICE_TEMPLATE: 'service_template_list',
+      SET_TEMPLATE: 'set_template_list',
+      DYNAMIC_GROUP: 'dynamic_group_list',
+    };
+
+    /**
+     * 上报链路列表
+     */
+    const linkConfigurationList = ref<{ data_link_id: string; data_link_name: string; }[]>([]);
+    const linkListLoading = ref(false);
+    const otherSpeciesList = ref<((string))[]>([]);
+    const loadingSave = ref(false);
+
+    /**
+     * 相关校验
+     */
+    /**
+     * 选择目标是否为空
+     */
+    const isTargetNodesEmpty = ref(false);
+    const lineRuleRef = ref(); // 段日志配置ref
+    const pathRef = ref(); // 日志路径ref
+    const excludeFilesRef = ref(); // 黑名单路径ref
+    const logFilterRef = ref(); // 日志过滤器ref
+    const deviceMetadataRef = ref(); // 设备元数据ref
+    /**
+     * 集群列表
+     */
+    const clusterList = ref<{ id: string; name: string; cluster_id: string }[]>([]);
+    // 集群列表是否正在请求
+    const isRequestCluster = ref(false);
+    /**
+     * 不展示日志路径的类型
+     */
+    const hideLogFilterKeys = ['winevent', 'container_stdout', 'container_file'];
+    /**
+     * 需要展示集群列表的类型
+     */
+    const showClusterListKeys = ['container_stdout', 'container_file'];
+
+    const eventSettingList = ref<IEventFilterItem[]>([createEmptyEventFilter()]);
+    const getEventFilterParams = (data: IEventFilterItem[]): Record<string, string[]> =>
+      data.reduce<Record<string, string[]>>((result, item) => {
+        if (!WINLOG_FILTER_TYPES.includes(item.type)) return result;
+        const list = normalizeEventFilterList(item.list);
+        if (list.length > 0) result[item.type] = list;
+        return result;
+      }, {});
+    const isClone = computed(() => route.query.type === 'clone');
+    // 获取全局数据
+    const globalsData = computed(() => store.getters['globals/globalsData']);
+    const environment = computed(() => {
+      if (showClusterListKeys.includes(props.scenarioId)) {
+        return 'container';
+      }
+      return props.scenarioId === 'winevent' ? 'windows' : 'linux';
+    });
+    // 是否是编辑或者克隆
+    const isCloneOrUpdate = computed(() => props.isEdit || isClone.value);
+    /**
+     * 是否为编辑
+     */
+    const isUpdate = computed(
+      () =>
+        !isClone.value &&
+        ((isCollectionEditRoute(route.name) && props.isEdit) ||
+          (route.name === 'collectAdd' && !!formData.value?.collector_config_id)),
+    );
+    /**
+     * 是否为采集主机日志
+     */
+    const isHostLog = computed(() => props.scenarioId === 'linux');
+    /**
+     * 是否为段日志
+     */
+    const isSectionLog = computed(() => logType.value === 'section' && isHostLog.value);
+
+    const currentIndexSetId = computed(() => route.query.indexSetId);
+
+    /**
+     * 通用配置
+     */
+    const baseFormData = computed(() => {
+      return {
+        target_node_type: 'INSTANCE',
+        data_link_id: '',
+        collector_config_name: '',
+        collector_config_name_en: '',
+        bk_biz_id: bkBizId.value,
+        description: '',
+        target_nodes: [],
+        category_id: props.scenarioId,
+        collector_scenario_id: 'row',
+        environment: environment.value,
+        target_object_type: 'HOST',
+        data_encoding: 'UTF-8',
+        parent_index_set_ids: [],
+        params: {
+          conditions: {
+            type: 'none',
+          },
+        },
+      };
+    });
+    const formData = ref<CollectionFormState>({
+      ...baseFormData.value,
+    });
+
+    /**
+     * 根据类型初始化数据
+     */
+    const initFromData = () => {
+      /**
+       * windows events log 日志
+       */
+      if (props.scenarioId === 'winevent') {
+        formData.value = {
+          ...formData.value,
+          collector_scenario_id: 'wineventlog',
+          params: {
+            ...formData.value.params,
+            winlog_name: selectLogSpeciesList.value,
+          },
+        };
+      }
+      /**
+       * 主机日志
+       */
+      if (isHostLog.value) {
+        formData.value = {
+          ...formData.value,
+          ...HOST_COLLECTION_CONFIG,
+        };
+      }
+      /**
+       * 文件采集
+       */
+      if (props.scenarioId === 'container_file') {
+        formData.value = {
+          ...formData.value,
+          ...initContainerConfig(),
+        };
+      }
+      /**
+       * 标准输出
+       */
+      if (props.scenarioId === 'container_stdout') {
+        formData.value = {
+          ...formData.value,
+          ...initContainerConfig('std_log_config'),
+        };
+      }
+      /**
+       * 在新增的时候，如果列表选中了某个索引集，则进入页面默认选中该索引集
+       */
+      if (!isCloneOrUpdate.value && Number(currentIndexSetId.value)) {
+        formData.value = {
+          ...formData.value,
+          parent_index_set_ids: [Number(currentIndexSetId.value)],
+        };
+      }
+    };
+
+    /**
+     * @desc: 获取bcs集群列表
+     */
+    const getBcsClusterList = () => {
+      if (isRequestCluster.value) {
+        return;
+      }
+      isRequestCluster.value = true;
+      const query = { bk_biz_id: bkBizId.value };
+      ServicesInstance.container.getBcsList({ query })
+        .then(res => {
+          if (res.code === 0) {
+            clusterList.value = res.data;
+            // 编辑/克隆场景下，bcs_cluster_id 由详情数据决定，不使用集群列表的默认值
+            if (!(props.isEdit || props.isClone)) {
+              formData.value.bcs_cluster_id = clusterList.value[0]?.cluster_id || '';
+            }
+          }
+        })
+        .catch(err => {
+          console.log(err);
+        })
+        .finally(() => {
+          isRequestCluster.value = false;
+        });
+    };
+    /**
+     * 获取链路列表
+     */
+    const getLinkData = async () => {
+      try {
+        linkListLoading.value = true;
+        const res = await ServicesInstance.linkConfiguration.getLinkList({
+          query: {
+            bk_biz_id: bkBizId.value,
+          },
+        });
+        linkConfigurationList.value = res.data.filter((item: { is_active: any; }) => item.is_active);
+        if (linkConfigurationList.value.length && !isCloneOrUpdate.value) {
+          formData.value.data_link_id = linkConfigurationList.value[0].data_link_id;
+        }
+      } catch (e) {
+        console.log(e);
+      } finally {
+        linkListLoading.value = false;
+      }
+    };
+
+    const handleBlacklist = () => {
+      isBlacklist.value = !isBlacklist.value;
+      formData.value.params.exclude_files = isBlacklist.value ? [''] : [];
+    };
+
+    /**
+     * 修改日志类型
+     * @param item
+     */
+    const handleLogType = (item: { value: string }) => {
+      isConfigChange.value = true;
+      logType.value = item.value;
+      formData.value.collector_scenario_id = item.value;
+    };
+    /**
+     * 修改日志路径
+     */
+    const handleUpdateUrl = (data: { value: string }[]) => {
+      isConfigChange.value = true;
+      formData.value.params.paths = data;
+    };
+    /**
+     * 修改路径黑名单
+     */
+    const handleUpdateBlacklist = (data: { value: string }[] | string[]) => {
+      isConfigChange.value = true;
+      // 将对象数组转换为字符串数组，以匹配 exclude_files 的格式
+      formData.value.params.exclude_files = data.map(item => (typeof item === 'string' ? item : item.value));
+    };
+    /**
+     * 修改设备元数据
+     * @param data
+     */
+    const handleMetadataList = (data: IValueItem[]) => {
+      isConfigChange.value = true;
+      formData.value.extra_labels = data;
+    };
+    /**
+     * 修改过滤内容
+     * @param data
+     */
+    const handleFilterChange = (data: IEventFilterItem[] = []) => {
+      isConfigChange.value = true;
+      eventSettingList.value = data;
+      const params = { ...formData.value.params };
+      WINLOG_FILTER_TYPES.forEach(type => delete params[type]);
+      const eventFilterParams = getEventFilterParams(data);
+      formData.value.params = {
+        ...params,
+        ...eventFilterParams,
+      };
+      if (!eventFilterParams.winlog_content?.length) {
+        delete formData.value.params.winlog_match_op;
+      }
+    };
+    /**
+     * 修改日志种类 - 其他 输入框内容
+     * @param val
+     */
+    const handleLogTypeOther = (val: string[]) => {
+      isConfigChange.value = true;
+      otherSpeciesList.value = val;
+      formData.value.params.winlog_name = [...selectLogSpeciesList.value, ...val];
+    };
+
+    onBeforeMount(() => {
+      initFromData();
+    });
+
+    onMounted(() => {
+      getLinkData();
+
+      /**
+     采集和标准输出的情况下，获取集群列表
+       */
+      if (showClusterListKeys.includes(props.scenarioId)) {
+        getBcsClusterList();
+      }
+      /**
+       * 编辑/克隆状态下去拉取详情接口
+       */
+      if (props.isEdit || props.isClone) {
+        setDetail();
+      } else {
+        formData.value = {
+          ...formData.value,
+          ...props.configData,
+        };
+      }
+    });
+    /**
+     * 将字符串数组转换为输入框组件的值格式
+     * @param items - 字符串数组
+     * @param ensureEditableRow - 空数组时是否保留一条可编辑输入
+     * @returns 转换后的输入框值数组
+     */
+    const transformStringArrayToInputValue = (
+      items?: string[],
+      ensureEditableRow = false,
+    ): Array<{ value: string }> => {
+      const valueList = items?.map(item => ({ value: item })) || [];
+      return ensureEditableRow && valueList.length === 0 ? [{ value: '' }] : valueList;
+    };
+
+    /**
+     * 处理 Windows 事件日志的配置数据
+     * @param params - 参数对象
+     */
+    const handleWindowsEventLogConfig = (params: IFormData['params'] = {}) => {
+      const normalizedParams = params || {};
+      const { paths, exclude_files, winlog_match_op, winlog_name: winlogName, ...restParams } = normalizedParams;
+
+      // 仅回填有效的事件过滤条件，空值时保留一个可编辑的占位行
+      const eventSettings = WINLOG_FILTER_TYPES.reduce<IEventFilterItem[]>((list, type) => {
+        const values = normalizeEventFilterList(restParams[type]);
+        if (values.length > 0) {
+          list.push({ type, list: values, isCorrect: true });
+        }
+        return list;
+      }, []);
+      eventSettingList.value = eventSettings.length > 0 ? eventSettings : [createEmptyEventFilter()];
+
+      // 同步清理详情中已存在的空过滤字段，避免后续提交透传旧值
+      const cleanedParams = { ...formData.value.params };
+      WINLOG_FILTER_TYPES.forEach(type => delete cleanedParams[type]);
+      formData.value.params = {
+        ...cleanedParams,
+        ...getEventFilterParams(eventSettingList.value),
+      };
+
+      const logSpecies = Array.isArray(winlogName) ? winlogName : [];
+      // 过滤出自定义的日志种类（不在预定义列表中的）
+      otherSpeciesList.value = logSpecies.filter(item => LOG_SPECIES_LIST.findIndex(i => i.id === item) === -1);
+
+      // 从 winlog_name 中筛选出属于预定义列表的项，正确回填 selectLogSpeciesList
+      selectLogSpeciesList.value = logSpecies.filter(item => LOG_SPECIES_LIST.some(species => species.id === item));
+    };
+
+    /**
+     * 处理容器采集的单个配置项
+     * @param configItem - 配置项数据
+     * @returns 处理后的配置项
+     */
+    const transformContainerConfigItem = (configItem: any) => {
+      const {
+        namespaces,
+        container_name: containerName,
+        match_expressions,
+        match_labels,
+        workload_name,
+        workload_type,
+        container_name_exclude: containerNameExclude,
+        match_annotations: matchAnnotations,
+        namespaces_exclude: namespacesExcludeList,
+        params: itemParams,
+      } = configItem;
+
+      // 转换路径和排除文件格式
+      const paths = transformStringArrayToInputValue(itemParams.paths, true);
+      const excludeFiles = transformStringArrayToInputValue(itemParams.exclude_files);
+
+      // 构建标签选择器和注解选择器
+      const labelSelector = getLabelSelectorArray({
+        match_expressions,
+        match_labels,
+      });
+      const annotationSelector = getLabelSelectorArray({
+        match_annotations: matchAnnotations || [],
+      });
+
+      // 确定容器的排除操作符
+      const containerExclude = containerNameExclude ? '!=' : '=';
+      const containerNameList = getContainerNameList(containerName || containerNameExclude);
+
+      // 处理命名空间：优先使用 namespaces，如果为空则使用 namespaces_exclude
+      let effectiveNamespaces = namespaces || [];
+      if (!effectiveNamespaces.length) {
+        effectiveNamespaces = namespacesExcludeList || [];
+      }
+      if (!effectiveNamespaces.length && configItem.collector_type !== 'node_log_config') {
+        effectiveNamespaces = ['*'];
+      }
+      const namespacesExclude = namespacesExcludeList?.length ? '!=' : '=';
+      // 处理命名空间字符串（如果是 '*' 则返回空字符串）
+      const namespaceStr =
+        effectiveNamespaces?.length === 1 && effectiveNamespaces[0] === '*' ? '' : effectiveNamespaces?.join(',') || '';
+
+      // 构建范围选择显示配置
+      const noQuestParams = {
+        scopeSelectShow: {
+          namespace: !effectiveNamespaces?.length,
+          label: !labelSelector.length,
+          load: !(Boolean(workload_type) || Boolean(workload_name)),
+          containerName: !containerNameList.length,
+          annotation: !annotationSelector.length,
+        },
+        namespaceStr,
+        containerExclude,
+        namespacesExclude,
+      };
+
+      return {
+        ...configItem,
+        // 使用 effectiveNamespaces 覆盖 namespaces
+        namespaces: effectiveNamespaces || [],
+        noQuestParams,
+        containerNameList,
+        label_selector: {
+          match_labels,
+          match_expressions,
+        },
+        annotation_selector: {
+          match_annotations: matchAnnotations || [],
+        },
+        container: {
+          workload_type,
+          workload_name,
+          container_name: containerName,
+        },
+        params: {
+          ...itemParams,
+          paths,
+          exclude_files: excludeFiles,
+        },
+      };
+    };
+
+    /**
+     * 处理容器采集的配置列表
+     * @param configs - 配置列表
+     * @param collectorScenarioId - 采集场景ID
+     */
+    const handleContainerCollectionConfig = (configs: any[], collectorScenarioId: string) => {
+      logType.value = collectorScenarioId!;
+      collectorType.value = configs[0]?.collector_type;
+
+      // 转换所有配置项
+      const transformedConfigs = (configs || []).map(transformContainerConfigItem);
+      formData.value.configs = transformedConfigs;
+    };
+
+    /**
+     * 初始化基础表单数据
+     * @param detailData - 详情数据
+     */
+    const initializeBaseFormData = (detailData: CollectionDetail) => {
+      const { collector_config_name: collectorConfigName, params } = detailData;
+
+      // 转换路径和排除文件格式
+      const paths = transformStringArrayToInputValue(params.paths, true);
+      const excludeFiles = transformStringArrayToInputValue(params.exclude_files);
+      isBlacklist.value = excludeFiles.length > 0;
+      formData.value = {
+        ...formData.value,
+        ...detailData,
+        params: {
+          ...params,
+          paths,
+          exclude_files: excludeFiles,
+        },
+        index_set_name: collectorConfigName,
+        extra_labels: detailData.extra_labels?.length
+          ? detailData.extra_labels
+          : [{ key: '', value: '', operator: '=' }],
+      };
+      /**
+       * 克隆的时候数据处理
+       */
+      if (props.isClone) {
+        const { collector_config_name: collectorConfigName } = formData.value;
+        const cloneName = `${collectorConfigName}_clone`;
+        formData.value = {
+          ...formData.value,
+          collector_config_name: cloneName,
+          index_set_name: cloneName,
+          collector_config_name_en: '',
+        };
+      }
+    };
+    /**
+     * 初始化回填采集目标
+     * @param nodes
+     * @param type
+     */
+    const initSelectorNodes = (nodes: ITargetNode[]|ITarget[]|undefined, type: string|undefined) => {
+      const targetList = toSelectorNode(nodes ?? [], type as INodeType);
+      const result: Record<string, ReturnType<typeof toSelectorNode>> = {};
+      Object.keys(typeMap).forEach((key: string) => {
+        result[typeMap[key]] = type === key ? targetList : [];
+      });
+      selectorNodes.value = result;
+    };
+
+    const initConfig = (data: IFormData) => {
+      const {
+        configs,
+        collector_scenario_id: collectorScenarioId,
+        params,
+        target_node_type: type,
+        target_nodes: nodes,
+      } = data;
+      logType.value = collectorScenarioId!;
+      /**
+       * 初始化采集目标
+       */
+      if (props.scenarioId === 'winevent' || props.scenarioId === 'linux') {
+        initSelectorNodes(nodes, type);
+      }
+
+      // 根据场景类型处理特定配置
+      if (props.scenarioId === 'winevent') {
+        // Windows 事件日志特殊处理
+        handleWindowsEventLogConfig(params);
+      } else if (showClusterListKeys.includes(props.scenarioId)) {
+        // 容器采集（文件采集和标准输出）特殊处理
+        handleContainerCollectionConfig(configs ?? [], collectorScenarioId);
+      }
+    };
+
+    /**
+     * 编辑时初始化详情数据
+     * 根据不同的场景类型处理相应的配置数据
+     */
+    const setDetail = async () => {
+      loading.value = true;
+      const collectorConfigId = props.isEdit ? route.params.collectorId : route.query.collectorId;
+      try {
+        const res = await ServicesInstance.collect.details({
+          params: { collector_config_id: collectorConfigId },
+        });
+
+        if (!res.data) {
+          return;
+        }
+
+        // 初始化基础表单数据
+        initializeBaseFormData(res.data);
+        initConfig(res.data);
+        emit('detail', res.data);
+        // 更新 store 中的当前采集配置
+        store.commit('collect/setCurCollect', res.data);
+        await nextTick();
+        isConfigChange.value = false;
+      } catch (err) {
+        console.log('获取采集配置详情失败:', err);
+      } finally {
+        loading.value = false;
+      }
+    };
+
+    /**
+     * 基本信息
+     */
+    const renderBaseInfo = () => (
+      <BaseInfo
+        ref={baseInfoRef}
+        data={formData.value}
+        isEdit={isUpdate.value}
+        onChange={data => {
+          const { index_set_name: indexSetName } = data;
+          isConfigChange.value = true;
+          formData.value = { ...formData.value, ...data, collector_config_name: indexSetName };
+        }}
+      />
+    );
+    /**
+     * 行首正则
+     */
+    const renderSegment = (data: ICollectionParams|undefined) => (
+      <LineRuleConfig
+        ref={lineRuleRef}
+        data={data}
+        onUpdate={val => {
+          isConfigChange.value = true;
+          formData.value.params = val;
+        }}
+      />
+    );
+    /**
+     * 日志过滤
+     */
+    const renderLogFilter = () => {
+      // 确保 params 和 conditions 存在
+      if (!formData.value.params) {
+        formData.value.params = {
+          conditions: baseConditions,
+        };
+      }
+      if (!formData.value.params.conditions) {
+        formData.value.params.conditions = baseConditions;
+      }
+      return (
+        <LogFilter
+          ref={logFilterRef}
+          conditions={formData.value.params.conditions}
+          isCloneOrUpdate={isCloneOrUpdate.value}
+          onConditionsChange={(val: { type?: string|undefined; match_type?: string|undefined; match_content?: string|undefined; separator?: string|undefined; separator_filters?: { fieldindex?: string|undefined; word?: string|undefined; op?: string|undefined; logic_op?: string|undefined; }[]|undefined; }|undefined) => {
+            isConfigChange.value = true;
+            formData.value.params.conditions = val;
+          }}
+        />
+      );
+    };
+    /**
+     * 设备元数据
+     */
+    const renderDeviceMetadata = () => (
+      <DeviceMetadata
+        ref={deviceMetadataRef}
+        metadata={formData.value.extra_labels}
+        // metadata={formData.value.params.extra_labels}
+        onExtraLabelsChange={handleMetadataList}
+      />
+    );
+    /**
+     * 源日志信息
+     */
+    const renderSourceLogInfo = () => (
+      <div class='source-log-info'>
+        {props.scenarioId === 'container_file' && (
+          <div class='label-form-box'>
+            <span class='label-title'>{t('采集方式')}</span>
+            {COLLECT_METHOD_LIST.map(item => (
+              <span
+                key={item.id}
+                class={{
+                  'collect-method-item': true,
+                  active: collectorType.value === item.id,
+                }}
+                onClick={() => {
+                  isConfigChange.value = true;
+                  collectorType.value = item.id;
+                  formData.value.configs?.map(config => {
+                    config.collector_type = item.id;
+                    config.noQuestParams.scopeSelectShow!.namespace = false;
+                    return config;
+                  });
+                }}
+              >
+                <i class={`bklog-icon bklog-${item.icon} method-item-icon`} />
+                {item.name}
+              </span>
+            ))}
+          </div>
+        )}
+        {showClusterListKeys.includes(props.scenarioId) && (
+          <div class='label-form-box'>
+            <span class='label-title'>{t('集群选择')}</span>
+            <bk-select
+              class='form-box'
+              clearable={false}
+              loading={linkListLoading.value}
+              disabled={isUpdate.value}
+              searchable={true}
+              value={formData.value.bcs_cluster_id}
+              onSelected={(val: string|undefined) => {
+                isConfigChange.value = true;
+                formData.value.bcs_cluster_id = val;
+                // 容器采集场景切换集群时清空 namespaces
+                if (props.scenarioId === 'container_file' || props.scenarioId === 'container_stdout') {
+                  if (formData.value.configs) {
+                    formData.value.configs = formData.value.configs.map(conf => ({
+                      ...conf,
+                      namespaces: [],
+                    }));
+                  }
+                }
+              }}
+            >
+              {clusterList.value.map(item => (
+                <bk-option
+                  id={item.id}
+                  key={item.id}
+                  name={`${item.name} (${item.id})`}
+                />
+              ))}
+            </bk-select>
+          </div>
+        )}
+        {props.scenarioId !== 'winevent' && (
+          <div class='label-form-box'>
+            <span class='label-title'>{t('日志类型')}</span>
+            <div class='form-box'>
+              <div class='bk-button-group'>
+                {LOG_TYPE_LIST.map(item => (
+                  <bk-button
+                    key={item.value}
+                    class={{ 'is-selected': logType.value === item.value }}
+                    onClick={() => handleLogType(item)}
+                  >
+                    {item.text}
+                  </bk-button>
+                ))}
+              </div>
+              {isSectionLog.value && renderSegment(formData.value.params)}
+            </div>
+          </div>
+        )}
+        {!showClusterListKeys.includes(props.scenarioId) && (
+          <div class='label-form-box'>
+            <span class='label-title'>{t('采集目标')}</span>
+            <div class='form-box'>
+              <bk-button
+                class={{
+                  'target-btn': true,
+                  error: isTargetNodesEmpty.value,
+                }}
+                icon='plus'
+                onClick={() => {
+                  showSelectDialog.value = true;
+                }}
+              >
+                {t('选择目标')}
+              </bk-button>
+              {formData.value.target_nodes.length > 0 && (
+                <span class='count-box'>
+                  <i18n path={collectTargetTarget[formData.value.target_node_type]}>
+                    <span class='font-blue'>{formData.value.target_nodes.length}</span>
+                  </i18n>
+                </span>
+              )}
+            </div>
+          </div>
+        )}
+        {props.scenarioId === 'winevent' && (
+          <div class='label-form-box'>
+            <span class='label-title'>{t('日志种类')}</span>
+            <div class='form-box'>
+              <bk-checkbox-group
+                class='log-type-box'
+                value={selectLogSpeciesList.value}
+                onChange={(val: string[]) => {
+                  isConfigChange.value = true;
+                  selectLogSpeciesList.value = val;
+                  formData.value.params.winlog_name = val;
+                }}
+              >
+                <div class='species-item'>
+                  {LOG_SPECIES_LIST.map(item => (
+                    <bk-checkbox
+                      key={item.id}
+                      class={{
+                        other: item.id === 'Other',
+                      }}
+                      disabled={selectLogSpeciesList.value.length === 1 && selectLogSpeciesList.value[0] === item.id}
+                      value={item.id}
+                    >
+                      {item.name}
+                    </bk-checkbox>
+                  ))}
+                  <bk-tag-input
+                    allow-auto-match={true}
+                    allow-create={true}
+                    has-delete-icon={true}
+                    value={otherSpeciesList.value}
+                    free-paste
+                    onChange={handleLogTypeOther}
+                  />
+                </div>
+              </bk-checkbox-group>
+            </div>
+          </div>
+        )}
+        {props.scenarioId === 'winevent' && (
+          <div class='label-form-box'>
+            <span
+              class='label-title no-require'
+              v-bk-tooltips={t('为减少传输和存储成本，可以过滤掉部分内容,更复杂的可在“清洗”功能中完成')}
+            >
+              {t('过滤内容')}
+            </span>
+            <div class='form-box'>
+              <EventFilter
+                data={eventSettingList.value}
+                onChange={handleFilterChange}
+              />
+            </div>
+          </div>
+        )}
+        {!hideLogFilterKeys.includes(props.scenarioId) && (
+          <div>
+            <div class='label-form-box'>
+              <span class='label-title'>{t('日志路径')}</span>
+              <div class='form-box'>
+                <InfoTips tips={t('日志文件的绝对路径，可使用 通配符')} />
+                <div class='form-box-url'>
+                  <InputAddGroup
+                    ref={pathRef}
+                    valueList={formData.value?.params?.paths}
+                    onUpdate={handleUpdateUrl}
+                  />
+                </div>
+                <div>
+                  <span
+                    class='form-link'
+                    onClick={handleBlacklist}
+                  >
+                    <i class={`bklog-icon link-icon bklog-${isBlacklist.value ? 'collapse' : 'expand'}-small`} />
+                    {t('路径黑名单')}
+                  </span>
+                  <InfoTips tips={t('可通过正则语法排除符合条件的匹配项 。如：匹配任意字符：.*')} />
+                  {isBlacklist.value && (
+                    <InputAddGroup
+                      ref={excludeFilesRef}
+                      valueList={formData.value.params.exclude_files}
+                      onUpdate={handleUpdateBlacklist}
+                    />
+                  )}
+                </div>
+              </div>
+            </div>
+            <div class='label-form-box'>
+              <span class='label-title'>{t('字符集')}</span>
+              <bk-select
+                class='form-box'
+                clearable={false}
+                value={formData.value.data_encoding}
+                searchable
+                onSelected={(val: string) => {
+                  isConfigChange.value = true;
+                  formData.value.data_encoding = val;
+                }}
+              >
+                {globalsData.value.data_encoding.map((option: { id: any; name: any; }) => (
+                  <bk-option
+                    id={option.id}
+                    key={option.id}
+                    name={option.name}
+                  />
+                ))}
+              </bk-select>
+            </div>
+            <div class='label-form-box'>
+              <span class='label-title'>{t('采集范围')}</span>
+              <span
+                class='form-box tail-files-radio-wrap'
+                v-bk-tooltips={{
+                  content: t('仅新创建采集项支持选择采集范围'),
+                  placement: 'top',
+                  disabled: !isUpdate.value,
+                }}
+              >
+                <bk-radio-group
+                  value={formData.value.params.tail_files}
+                  onChange={(val: boolean|undefined) => {
+                    isConfigChange.value = true;
+                    formData.value.params.tail_files = val;
+                  }}
+                >
+                  <bk-radio
+                    class='mr-24'
+                    value={true}
+                    disabled={isUpdate.value}
+                  >
+                    {t('仅采集下发后的日志')}
+                  </bk-radio>
+                  <bk-radio
+                    value={false}
+                    disabled={isUpdate.value}
+                  >
+                    {t('采集全量日志')}
+                  </bk-radio>
+                </bk-radio-group>
+              </span>
+            </div>
+            <div class='label-form-box large-width'>
+              <span class='label-title no-require'>{t('日志过滤')}</span>
+              <div class='form-box'>{renderLogFilter()}</div>
+            </div>
+            <div class='label-form-box'>
+              <span class='label-title no-require'>{t('设备元数据')}</span>
+              <div class='form-box mt-5'>{renderDeviceMetadata()}</div>
+            </div>
+          </div>
+        )}
+        {showClusterListKeys.includes(props.scenarioId) && (
+          <div>
+            <div class='label-form-box large-width'>
+              <span class='label-title'>{t('配置项')}</span>
+              <div class='form-box mt-5'>
+                <ConfigurationItemList
+                  ref={configurationItemListRef}
+                  bcsClusterId={formData.value.bcs_cluster_id}
+                  clusterList={clusterList.value}
+                  collectorType={collectorType.value}
+                  data={formData.value.configs}
+                  scenarioId={props.scenarioId}
+                  logType={logType.value}
+                  isEdit={isUpdate.value}
+                  onChange={(data: IContainerConfigItem[]) => {
+                    isConfigChange.value = true;
+                    formData.value.configs = data;
+                  }}
+                />
+              </div>
+            </div>
+            <div class='label-form-box'>
+              <span class='label-title no-require'>{t('附加日志标签')}</span>
+              <div class='form-box mt-5'>
+                <AppendLogTags
+                  config={formData.value}
+                  onChange={(data: Pick<IFormData, 'add_pod_label' | 'add_pod_annotation' | 'extra_labels'>) => {
+                    isConfigChange.value = true;
+                    formData.value = { ...formData.value, ...data };
+                  }}
+                />
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
+    );
+    /** 链路配置 */
+    const renderLinkConfig = () => (
+      <div class='link-config label-form-box'>
+        <span class='label-title'>{t('上报链路')}</span>
+        <bk-select
+          class='form-box'
+          clearable={false}
+          disabled={isUpdate.value}
+          loading={linkListLoading.value}
+          value={formData.value.data_link_id}
+          onSelected={(val: string|undefined) => {
+            isConfigChange.value = true;
+            formData.value.data_link_id = val;
+          }}
+        >
+          {linkConfigurationList.value.map(item => (
+            <bk-option
+              id={item.data_link_id}
+              key={item.data_link_id}
+              name={item.link_group_name}
+            />
+          ))}
+        </bk-select>
+      </div>
+    );
+    const cardConfig = [
+      {
+        title: t('基础信息'),
+        key: 'baseInfo',
+        renderFn: renderBaseInfo,
+      },
+      {
+        title: t('源日志信息'),
+        key: 'sourceLogInfo',
+        renderFn: renderSourceLogInfo,
+        subTitle: () => {
+          // if (!props.isEdit) {
+          //   return (
+          //     <span
+          //       class='config-import'
+          //       on-click={() => {
+          //         isIndexConfigImport.value = true;
+          //       }}
+          //     >
+          //       {t('索引配置导入')}
+          //       <i class='bklog-icon bklog-import-daoru config-import-icon' />
+          //     </span>
+          //   );
+          // }
+        },
+      },
+      {
+        title: t('链路配置'),
+        key: 'linkConfiguration',
+        renderFn: renderLinkConfig,
+      },
+    ];
+
+    /**
+     * 选择采集目标
+     * @param value - 目标选择值，包含多种类型的节点列表
+     * @returns void
+     */
+    const handleConfirm = (value: TargetValue): void => {
+      const selection = extractTargetSelection(value);
+
+      if (!selection) {
+        formData.value.target_nodes = [];
+        isTargetNodesEmpty.value = true;
+        return;
+      }
+      isConfigChange.value = true;
+      updateFormDataWithSelection(selection);
+      isTargetNodesEmpty.value = formData.value.target_nodes.length === 0;
+    };
+
+    /**
+     * 从目标值中提取类型和节点数据
+     * @param value - 目标选择值
+     * @returns 目标选择结果或null（如果没有有效数据）
+     */
+    const extractTargetSelection = (value: TargetValue): TargetSelectionResult | null => {
+      const {
+        host_list: hostList = [],
+        node_list: nodeList = [],
+        service_template_list: serviceTemplateList = [],
+        set_template_list: setTemplateList = [],
+        dynamic_group_list: dynamicGroupList = [],
+      } = value;
+
+      /**
+       * 按优先级顺序检查目标类型
+       */
+      const targetChecks: Array<[TargetType, any[]]> = [
+        [TARGET_TYPES.TOPO, nodeList],
+        [TARGET_TYPES.INSTANCE, hostList],
+        [TARGET_TYPES.SERVICE_TEMPLATE, serviceTemplateList],
+        [TARGET_TYPES.SET_TEMPLATE, setTemplateList],
+        [TARGET_TYPES.DYNAMIC_GROUP, dynamicGroupList],
+      ];
+
+      for (const [type, nodes] of targetChecks) {
+        if (nodes?.length > 0) {
+          return { type, nodes };
+        }
+      }
+
+      return null;
+    };
+
+    /**
+     * 使用选择结果更新表单数据
+     * @param selection - 目标选择结果
+     */
+    const updateFormDataWithSelection = (selection: TargetSelectionResult): void => {
+      const { type, nodes } = selection;
+      formData.value.target_node_type = type;
+      formData.value.target_nodes = toTransformNode(nodes, type);
+    };
+
+    /**
+     * 提取路径值的函数
+     * @param params
+     * @returns
+     */
+    const extractPaths = (params: Record<string,any>|{ multiline_pattern?: string|undefined; multiline_max_lines?: string|undefined; multiline_timeout?: string|undefined; paths?: { value?: string|undefined; }[]|undefined; exclude_files?: string[]|undefined; extra_labels?: { id: string; key: string; operator: string; value: string; type?: string|undefined; }[]|undefined; conditions?: { type?: string|undefined; match_type?: string|undefined; match_content?: string|undefined; separator?: string|undefined; separator_filters?: { fieldindex?: string|undefined; word?: string|undefined; op?: string|undefined; logic_op?: string|undefined; }[]|undefined; }|undefined; winlog_name?: string[]|undefined; winlog_level?: string[]|undefined; winlog_event_id?: string[]|undefined; winlog_source?: string[]|undefined; winlog_content?: string[]|undefined; winlog_match_op?: string|string[]|undefined; tail_files?: boolean|undefined; }|undefined) => {
+      return params?.paths ? params.paths.map((item: { value: any; }) => item.value) : [];
+    };
+
+    // 处理winevent场景的请求数据
+    const handleWineventlogRequestData = (baseParam: Omit<IFormData, 'params'>, newParams: ApiCollectionParams, dataEncoding: string | undefined) => {
+      const { paths, exclude_files, winlog_match_op: winlogMatchOp, ...rect } = newParams;
+      WINLOG_FILTER_TYPES.forEach(type => delete rect[type]);
+      const eventFilterParams = getEventFilterParams(eventSettingList.value);
+      const params = {
+        ...rect,
+        ...eventFilterParams,
+      };
+      const matchOp = Array.isArray(winlogMatchOp) ? winlogMatchOp[0] : winlogMatchOp;
+      if (eventFilterParams.winlog_content?.length && matchOp) {
+        params.winlog_match_op = matchOp;
+      }
+      return {
+        ...baseParam,
+        params,
+        data_encoding: dataEncoding,
+      };
+    };
+
+    /**
+     * 检查 extra_labels 是否所有值都为空
+     * @param extraLabels - 标签数组
+     * @returns 如果所有值都为空则返回 true
+     */
+    const isEmptyExtraLabels = (extraLabels: IExtraLabel[] | undefined): boolean => {
+      if (!extraLabels || !Array.isArray(extraLabels) || extraLabels.length === 0) {
+        return true;
+      }
+      // 检查所有项的 key 和 value 是否都为空
+      return extraLabels.every(item => {
+        const key = item?.key || '';
+        const value = item?.value || '';
+        return !key.trim() && !value.trim();
+      });
+    };
+
+    /**
+     * 清除段日志相关的字段
+     * 当日志类型不是段日志时，需要清除这些字段以避免数据污染
+     * @param params - 参数对象
+     * @param isSectionLog - 是否为段日志类型
+     * @returns 清理后的参数对象
+     */
+    const clearSectionLogFields = (params: Record<string, any>, isSectionLog: boolean): Record<string, any> => {
+      if (isSectionLog) {
+        return params;
+      }
+      const { multiline_pattern, multiline_max_lines, multiline_timeout, ...cleanedParams } = params;
+      return cleanedParams;
+    };
+
+    /**
+     * 处理主机采集的请求数据
+     * @param requestData
+     * @param extraLabels
+     * @returns
+     */
+    const handleHostLogRequestData = (requestData: CollectionRequest, extraLabels: IExtraLabel[] | undefined, dataEncoding: string | undefined) => {
+      const { params } = requestData;
+      requestData.params = clearSectionLogFields(params, logType.value === 'section');
+      requestData.params!.extra_labels = isEmptyExtraLabels(extraLabels) ? [] : extraLabels;
+      requestData.params!.exclude_files = formatExcludeFiles(params?.exclude_files);
+      requestData.data_encoding = dataEncoding;
+      return requestData;
+    };
+
+    /**
+     * 处理容器采集的请求数据
+     * @param requestData
+     * @param configs
+     * @param addPodAnnotation
+     * @param addPodLabel
+     * @param extra_labels
+     * @param bcsClusterId
+     * @returns
+     */
+    const handleContainerRequestData = (
+      requestData: { [x: string]: any; params: any; collector_config_name?: string|undefined; collector_config_name_en?: string|undefined; collector_scenario_id?: string|undefined; description?: string|undefined; data_link_id?: string|undefined; target_node_type?: string|undefined; target_nodes?: { bk_inst_id: number; bk_obj_id: string; }[]|undefined; environment?: string|undefined; target_object_type?: string|undefined; parent_index_set_ids?: number[]|undefined; bk_biz_id?: any; },
+      configs: { container?: { workload_type?: string|undefined; workload_name?: string|undefined; container_name?: string|undefined; }|undefined; typeList?: { id: string; name: string; }[]|undefined; label_selector?: { match_labels?: { id: string; key: string; operator: string; value: string; type?: string|undefined; }[]|undefined; match_expressions?: { id: string; key: string; operator: string; value: string; type?: string|undefined; }[]|undefined; }|undefined; labelSelector?: { match_labels?: { id: string; key: string; operator: string; value: string; type?: string|undefined; }[]|undefined; match_expressions?: { id: string; key: string; operator: string; value: string; type?: string|undefined; }[]|undefined; }[]|undefined; annotationSelector?: { match_annotations?: { id: string; key: string; operator: string; value: string; type?: string|undefined; }[]|undefined; }[]|undefined; containerNameList: string[]; match_labels?: { id: string; key: string; operator: string; value: string; type?: string|undefined; }[]|undefined; extra_labels: { id: string; key: string; operator: string; value: string; type?: string|undefined; }[]; match_expressions?: { id: string; key: string; operator: string; value: string; type?: string|undefined; }[]|undefined; data_encoding?: string|undefined; params?: { multiline_pattern?: string|undefined; multiline_max_lines?: string|undefined; multiline_timeout?: string|undefined; paths?: { value?: string|undefined; }[]|undefined; exclude_files?: string[]|undefined; extra_labels?: { id: string; key: string; operator: string; value: string; type?: string|undefined; }[]|undefined; conditions?: { type?: string|undefined; match_type?: string|undefined; match_content?: string|undefined; separator?: string|undefined; separator_filters?: { fieldindex?: string|undefined; word?: string|undefined; op?: string|undefined; logic_op?: string|undefined; }[]|undefined; }|undefined; winlog_name?: string[]|undefined; winlog_level?: string[]|undefined; winlog_event_id?: string[]|undefined; winlog_source?: string[]|undefined; winlog_content?: string[]|undefined; winlog_match_op?: string|string[]|undefined; tail_files?: boolean|undefined; }|undefined; collector_type?: string|undefined; namespaces?: string[]|undefined; annotation_selector?: { match_annotations?: { id: string; key: string; operator: string; value: string; type?: string|undefined; }[]|undefined; }|undefined; noQuestParams: { letterIndex?: number|undefined; scopeSelectShow?: { namespace?: boolean|undefined; label?: boolean|undefined; load?: boolean|undefined; containerName?: boolean|undefined; annotation?: boolean|undefined; }|undefined; namespaceStr?: string|undefined; namespacesExclude?: string|undefined; containerExclude?: string|undefined; }; }[]|undefined,
+      addPodAnnotation: boolean|undefined,
+      addPodLabel: boolean|undefined,
+      extraLabels: { key: string; value: string; }[]|undefined,
+      bcsClusterId: string|undefined,
+    ) => {
+      const { params, ...rect } = requestData;
+      // const { data_encoding, params, target_object_type, target_node_type, target_nodes, ...rect } = requestData;
+      // Node 采集模式下，需要清空 namespaces、workload、containerName 等容器筛选字段，与旧版保持一致
+      const isNode = collectorType.value === 'node_log_config';
+      const newConfig = (configs || []).map((item) => {
+        const {
+          data_encoding,
+          container,
+          params: itemParams,
+          collector_type,
+          namespaces,
+          label_selector,
+          annotation_selector: annotationSelector,
+          noQuestParams,
+          containerNameList,
+        } = item;
+
+        const cleanedParams = clearSectionLogFields(itemParams, logType.value === 'section');
+
+        // 根据排除操作符决定使用 container_name 还是 container_name_exclude
+        const containerKey = noQuestParams?.containerExclude === '!=' ? 'container_name_exclude' : 'container_name';
+        // Node 采集模式下，容器名清空
+        const containerNameValue = isNode ? '' : (containerNameList || []).join(',');
+
+        // 根据排除操作符决定使用 namespaces 还是 namespaces_exclude
+        const namespacesKey = noQuestParams?.namespacesExclude === '!=' ? 'namespaces_exclude' : 'namespaces';
+        // Node 采集模式下，namespaces 清空为 []
+        const namespacesValue = isNode ? [] : JSON.stringify(namespaces) === '["*"]' ? [] : namespaces || [];
+
+        // Node 采集模式下，workload_type 和 workload_name 清空
+        const workloadType = isNode ? '' : container?.workload_type || '';
+        const workloadName = isNode ? '' : container?.workload_name || '';
+
+        return {
+          data_encoding,
+          container: {
+            workload_type: workloadType,
+            workload_name: workloadName,
+            [containerKey]: containerNameValue,
+          },
+          params: {
+            ...cleanedParams,
+            exclude_files: formatExcludeFiles(cleanedParams.exclude_files),
+            paths: extractPaths(cleanedParams),
+          },
+          collector_type,
+          [namespacesKey]: namespacesValue,
+          label_selector,
+          annotation_selector: {
+            ...annotationSelector,
+            match_annotations: annotationSelector?.match_annotations || [],
+          },
+        };
+      });
+      // 如果 extra_labels 所有值都为空，则设置为空数组
+      const finalExtraLabels = isEmptyExtraLabels(extraLabels) ? [] : extraLabels;
+      return {
+        ...rect,
+        configs: newConfig,
+        add_pod_annotation: addPodAnnotation,
+        add_pod_label: addPodLabel,
+        extra_labels: finalExtraLabels,
+        bcs_cluster_id: bcsClusterId,
+      };
+    };
+    /**
+     * 新增/修改配置
+     * @param options 保存选项配置
+     * @param options.action 操作类型: 'next'(默认) | 'back' | 'saveOnly'
+     * @param options.callback 保存完成后的回调函数
+     */
+    const setCollection = ({ action = 'next', callback }: ISubmitOptions = {}) => {
+      loadingSave.value = true;
+      const {
+        params,
+        extra_labels,
+        collector_config_name,
+        collector_config_name_en,
+        collector_scenario_id,
+        description,
+        data_link_id,
+        target_node_type,
+        target_nodes,
+        environment,
+        target_object_type,
+        data_encoding,
+        configs,
+        parent_index_set_ids,
+        add_pod_annotation,
+        add_pod_label,
+        bcs_cluster_id,
+      } = formData.value;
+
+      const baseParam = {
+        collector_config_name,
+        collector_config_name_en,
+        collector_scenario_id,
+        description,
+        data_link_id,
+        target_node_type,
+        target_nodes,
+        environment,
+        target_object_type,
+        parent_index_set_ids,
+        bk_biz_id: bkBizId.value,
+      };
+      const newParams = {
+        ...params,
+        paths: extractPaths(params),
+      };
+      const urlParams: { collector_config_id?: string | string[] | number } = {};
+      let requestUrl = ServicesInstance.collect.addCollection;
+      if (isUpdate.value) {
+        urlParams.collector_config_id = route.params.collectorId || formData.value?.collector_config_id;
+        requestUrl = ServicesInstance.collect.updateCollection;
+      }
+      let requestData: CollectionRequest = { ...baseParam, params: newParams };
+
+      // 当为 winevent 时，过滤空值和空对象
+      if (props.scenarioId === 'winevent') {
+        requestData = handleWineventlogRequestData(baseParam, newParams, data_encoding);
+      }
+      /**
+       * 主机采集的时候
+       */
+      if (isHostLog.value) {
+        requestData = handleHostLogRequestData(requestData, extra_labels, data_encoding);
+      }
+      /**
+       * 容器采集的时候
+       */
+      if (showClusterListKeys.includes(props.scenarioId)) {
+        requestData = handleContainerRequestData(
+          requestData,
+          configs,
+          add_pod_annotation,
+          add_pod_label,
+          extra_labels,
+          bcs_cluster_id,
+        );
+      }
+      requestUrl({
+          params: urlParams,
+          data: requestData,
+        })
+        .then(res => {
+          if (!res?.result) {
+            callback?.(false);
+            return;
+          }
+          const newConfig = {
+            ...formData.value,
+            ...res.data,
+          };
+          store.commit(`collect/${isUpdate.value ? 'updateCurCollect' : 'setCurCollect'}`, newConfig);
+          res.result && showMessage(t('保存成功'));
+          // 根据 action 参数决定执行不同操作
+          if (action === 'saveOnly') {
+            // 只保存，不跳转
+            callback?.(true);
+          } else if (action === 'back') {
+            goListPage();
+          } else {
+            emit('next', newConfig);
+          }
+        })
+        .catch(err => {
+          console.log('保存采集配置出错:', err);
+          callback?.(false);
+        })
+        .finally(() => {
+          loadingSave.value = false;
+        });
+    };
+    /**
+     * 保存配置
+     * @param options 保存选项配置
+     * @param options.action 操作类型: 'next'(默认) | 'back' | 'saveOnly'
+     * @param options.callback 保存完成后的回调函数
+     */
+    const handleSubmitSave = ({ action = 'next', callback }: ISubmitOptions = {}) => {
+      if (!showClusterListKeys.includes(props.scenarioId)) {
+        isTargetNodesEmpty.value = formData.value.target_nodes.length === 0;
+      }
+      /**
+       * 日志路径校验
+       */
+      let isErr = true;
+      /**
+       * 日志过滤器校验
+       */
+      let isLogFilterErr = true;
+      if (isHostLog.value) {
+        isErr = pathRef.value.validate();
+
+        isLogFilterErr = logFilterRef.value.validateInputs();
+      }
+
+      /**
+       * 段日志配置校验
+       */
+      const isLineRuleValid = !isSectionLog.value || lineRuleRef.value?.validate?.() === true;
+      /**
+       * 当为文件采集和标准输出时，配置项校验
+       */
+      let isConfigError = true;
+      if (showClusterListKeys.includes(props.scenarioId)) {
+        isConfigError = configurationItemListRef.value.validate();
+      }
+      /**
+       * 设备元数据校验
+       */
+      let isMetadataValid = true;
+      if (deviceMetadataRef.value) {
+        isMetadataValid = deviceMetadataRef.value.extraLabelsValidate();
+      }
+      /**
+       * 是否为容器采集并且配置项校验通过
+       */
+      // console.log('formData.value', formData.value);
+      baseInfoRef.value
+        .validate()
+        .then(() => {
+          if (props.scenarioId !== 'winevent' && !isLineRuleValid) {
+            callback?.(false);
+            return;
+          }
+          if (props.scenarioId === 'winevent' && isTargetNodesEmpty.value) {
+            callback?.(false);
+            return;
+          }
+          /**
+           * 判断用户是否有修改行为，如果没有则直接跳转到下一步
+           */
+          if (!isConfigChange.value) {
+            if (action === 'saveOnly') {
+              // 只保存，不跳转
+              callback?.(true);
+              return;
+            }
+            if (action === 'back') {
+              goListPage();
+            } else {
+              emit('next', formData.value);
+            }
+            return;
+          }
+          if (props.scenarioId === 'winevent') {
+            setCollection({ action, callback });
+            return;
+          }
+          if (!isTargetNodesEmpty.value && isErr && isLogFilterErr && isConfigError && isMetadataValid) {
+            setCollection({ action, callback });
+          } else {
+            callback?.(false);
+          }
+        })
+        .catch(() => {
+          loadingSave.value = false;
+          callback?.(false);
+        });
+    };
+
+    expose({
+      hasConfigChanged,
+      handleSubmitSave,
+    });
+
+    return () => (
+      <div
+        class='operation-step2-configuration'
+        v-bkloading={{ isLoading: loading.value }}
+      >
+        {cardRender(cardConfig)}
+        <LogIpSelector
+          key={bkBizId.value}
+          height={670}
+          mode='dialog'
+          originalValue={ipSelectorOriginalValue.value}
+          panelList={ipSelectorPanelList}
+          showDialog={showSelectDialog.value}
+          showViewDiff={isUpdate.value}
+          value={selectorNodes.value}
+          allowHostListMissHostId
+          {...{
+            'onUpdate:showDialog': (val: boolean) => {
+              showSelectDialog.value = val;
+            },
+            onChange: handleConfirm,
+          }}
+        />
+        <div class='classify-btns-fixed'>
+          {!isCloneOrUpdate.value && (
+            <bk-button
+              class='mr-8'
+              onClick={() => {
+                emit('prev');
+              }}
+            >
+              {t('上一步')}
+            </bk-button>
+          )}
+          <bk-button
+            class='width-88 mr-8'
+            loading={loadingSave.value}
+            theme='primary'
+            onClick={() => handleSubmitSave()}
+          >
+            {t('下一步')}
+          </bk-button>
+          {isUpdate.value && (
+            <bk-button
+              class='width-88 mr-8'
+              loading={loadingSave.value}
+              theme='primary'
+              onClick={() => handleSubmitSave({ action: 'back' })}
+            >
+              {t('提交')}
+            </bk-button>
+          )}
+          <bk-button
+            onClick={() => {
+              emit('cancel');
+            }}
+          >
+            {t('取消')}
+          </bk-button>
+        </div>
+        {/* 索引配置导入对话框组件 */}
+        <IndexConfigImportDialog
+          showDialog={isIndexConfigImport.value}
+          scenarioId={props.scenarioId}
+          onCancel={(val: boolean) => {
+            isIndexConfigImport.value = val;
+          }}
+          onUpdate={(data: IFormData) => {
+            formData.value = {
+              ...formData.value,
+              ...data,
+            };
+            initConfig(formData.value);
+          }}
+        />
+      </div>
+    );
+  },
+});

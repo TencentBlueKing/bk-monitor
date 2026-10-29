@@ -1,0 +1,170 @@
+{
+  "indexId": "16176",
+  "businessId": "5000140",
+  "spaceUid": "bkcc__5000140",
+  "checkedAt": "2026-10-29",
+  "v2": "http://appdev.woa.com:8001/#/retrieve/16176?spaceUid=bkcc__5000140&bizId=5000140&tab=origin&grep_field=log&keyword=&search_mode=ui",
+  "v3": "http://appdev.woa.com:4175/#/retrieve/16176?spaceUid=bkcc__5000140&bizId=5000140&tab=origin&grep_field=log&keyword=&search_mode=ui",
+  "status": "PARTIAL_VERIFIED",
+  "screenshotViewport": {
+    "width": 1440,
+    "height": 900
+  },
+  "tests": {
+    "passed": 179,
+    "failed": 0
+  },
+  "builds": [
+    "application",
+    "apm",
+    "trace"
+  ],
+  "monitorSourceDigest": "39d6c43f100fb5443e161e229a84074eaa5388af3a5598a235fc4fe831c2791d",
+  "fixed": [
+    "more-menu-hydration-and-union-getter",
+    "native-date-picker-private-component-slots",
+    "native-table-header-events-and-tooltips",
+    "monaco-instance-deep-proxy",
+    "native-field-value-menu-ownership-and-events",
+    "late-created-table-column-registration",
+    "graph-editor-chart-timer-and-request-cleanup",
+    "related-dialog-parent-state-and-stale-leave",
+    "field-config-and-legacy-cluster-native-render-contract",
+    "ui-condition-template-local-translator-and-event-types",
+    "public-vue-component-injection-types"
+  ],
+  "browserCases": [
+    {
+      "case": "ordinary-history-restore",
+      "status": "passed",
+      "evidence": "30 records, ERROR filter yields 14, selection restores SQL mode and log:\"Error\" query"
+    },
+    {
+      "case": "more-menu",
+      "status": "passed",
+      "evidence": "collection details entry restored after prehydrated store initialization"
+    },
+    {
+      "case": "date-picker-panel",
+      "status": "passed",
+      "evidence": "presets, calendar and timezone entry open in production application; no global MODE 3 workaround"
+    },
+    {
+      "case": "raw-table-switch",
+      "status": "passed",
+      "evidence": "both layouts are reachable; visual acceptance remains separate"
+    },
+    {
+      "case": "table-level-sort",
+      "status": "passed",
+      "evidence": "both versions activate ascending caret after click"
+    },
+    {
+      "case": "field-value-menu",
+      "status": "passed",
+      "evidence": "owner and item identifiers restored; live highlight click produces 12 marks; other actions covered by local contract tests"
+    },
+    {
+      "case": "condition-field-picker",
+      "status": "entry-only",
+      "evidence": "field selector contains matching field and alias entries; complete submit not verified"
+    },
+    {
+      "case": "grep",
+      "status": "entry-and-url-only",
+      "evidence": "ERROR input and Enter produce grep_query=ERROR and tab=grep in both URLs; result parity not asserted"
+    },
+    {
+      "case": "graph-query",
+      "status": "passed",
+      "evidence": "V3 is responsive after Monaco fix and displays minute1 / log_count results"
+    },
+    {
+      "case": "clustering-pattern-list",
+      "status": "passed",
+      "evidence": "both versions display 2 Pattern rows and the same 7 column labels"
+    },
+    {
+      "case": "cluster-dimension-dialog",
+      "status": "open-cancel-passed",
+      "evidence": "matching fields and guidance; cancelled without saving"
+    },
+    {
+      "case": "graph-column-order",
+      "status": "passed",
+      "evidence": "3 hidden registration elements; header order: row number / minute1 / log_count; 1440x900 screenshot saved"
+    },
+    {
+      "case": "graph-repeated-enter-leave",
+      "status": "passed-basic",
+      "evidence": "3 browser cycles; Monaco DOM removed on exit and recreated on entry; disposal and cancellation additionally verified by unit tests, no long-duration heap profiling"
+    },
+    {
+      "case": "related-log-switch-and-close",
+      "status": "passed-basic",
+      "evidence": "Context 100 lines, realtime 50 lines; context -> realtime -> context; pause icon changes to play; close button then hidden after transition"
+    },
+    {
+      "case": "cluster-shared-table-regression",
+      "status": "passed-basic",
+      "evidence": "7 dedicated column labels remain rendered after shared column adapter fix; no write actions performed"
+    },
+    {
+      "case": "ui-condition-string-submit",
+      "status": "passed-basic",
+      "evidence": "V2 and V3 select level, enter ERROR and submit; decoded addition is identical including hidden_values and disabled"
+    },
+    {
+      "case": "ui-condition-numeric-validation-and-cancel",
+      "status": "passed-basic",
+      "evidence": "gseIndex abc displays numeric validation error and disables submit in both versions; cancel leaves the original query parameters unchanged; condition-panel-only screenshots saved"
+    }
+  ],
+  "remainingVisualDifferences": [],
+  "notVerified": [
+    "union/scene history browser closure (source contract parity tests passed)",
+    "all UI and SQL condition branches, logical combinations, fuzzy matching and all field types (basic string and invalid numeric browser cases passed)",
+    "AI generation/cancel/failure business flow",
+    "all detail/context/realtime boundary branches and Escape with stacked menus",
+    "download/export flows",
+    "all chart types, chart downloads and long-duration heap profiling",
+    "cluster labeling/blocking/compare/strategy/export writes",
+    "share expiration/authorization",
+    "union/scene/embedded business closure",
+    "complete module-wide visual acceptance; empty known difference list does not constitute full coverage",
+    "field-configuration tab operations and legacy data-fingerprint headers in their real browser branches"
+  ],
+  "existingResourcesModified": false,
+  "strictTypeDiagnostics": 1271,
+  "environmentIssues": [
+    "monitor-report upstream timeout observed; not used as proof of business parity"
+  ],
+  "monitorDelivery": {
+    "apm": "2.3.28",
+    "trace": "2.0.26",
+    "packagedLocally": true,
+    "published": false
+  },
+  "sourceContractCases": [
+    {
+      "case": "ui-condition-validation-restoration-cancel",
+      "status": "passed",
+      "evidence": "Real current and frozen component handlers compared under Vue renderer: string, number, invalid/empty values, empty operator, exists/is false, IP chooser, restore and cancel"
+    },
+    {
+      "case": "field-config-tab-native-events",
+      "status": "passed-browser-pending",
+      "evidence": "Both render variants retain config identity/index, callbacks and initial-tab icon behavior; no existing configurations saved/edited/deleted"
+    },
+    {
+      "case": "legacy-cluster-header-native-events",
+      "status": "passed-browser-pending",
+      "evidence": "Selection tri-state and disabled state, owner/remark selected-submit-toggle contracts verified; index16176 active workspace branch does not exercise data-fingerprint"
+    },
+    {
+      "case": "component-injection-types",
+      "status": "passed",
+      "evidence": "Real TypeScript program verifies public Vue defineComponent translator and Services types; invalid keys/modules rejected; whole-project typecheck still fails with 1271 diagnostics"
+    }
+  ]
+}

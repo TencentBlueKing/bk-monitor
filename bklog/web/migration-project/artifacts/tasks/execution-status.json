@@ -1,0 +1,116 @@
+{
+  "schemaVersion": 1,
+  "milestones": [
+    {
+      "id": "M0",
+      "status": "IMPLEMENTING",
+      "businessAccepted": false,
+      "visualAccepted": false,
+      "evidence": []
+    },
+    {
+      "id": "M1",
+      "status": "IMPLEMENTING",
+      "businessAccepted": false,
+      "visualAccepted": false,
+      "evidence": [
+        "migration-project/artifacts/verification/2026-10-28/verification.json",
+        "migration-project/migration-contracts/tdesign-retrieve-pilot-20261028.md"
+      ]
+    },
+    {
+      "id": "M2",
+      "status": "IMPLEMENTING",
+      "businessAccepted": false,
+      "visualAccepted": false,
+      "evidence": [
+        "migration-project/迁移执行记录.md",
+        "migration-project/artifacts/verification/2026-10-28/verification.json",
+        "migration-project/migration-contracts/tdesign-retrieve-pilot-20261028.md"
+      ]
+    },
+    {
+      "id": "M3",
+      "status": "IMPLEMENTING",
+      "businessAccepted": false,
+      "visualAccepted": false,
+      "evidence": [
+        "migration-project/迁移执行记录.md",
+        "migration-project/artifacts/verification/2026-10-28/verification.json",
+        "migration-project/migration-contracts/tdesign-retrieve-pilot-20261028.md"
+      ]
+    },
+    {
+      "id": "M4",
+      "status": "PENDING",
+      "businessAccepted": false,
+      "visualAccepted": false,
+      "evidence": []
+    },
+    {
+      "id": "M5",
+      "status": "IMPLEMENTING",
+      "businessAccepted": false,
+      "visualAccepted": false,
+      "evidence": [
+        "migration-project/artifacts/verification/2026-10-28/full-business/verification.json"
+      ]
+    },
+    {
+      "id": "M6",
+      "status": "IMPLEMENTING",
+      "businessAccepted": false,
+      "visualAccepted": false,
+      "evidence": [
+        "migration-project/artifacts/verification/2026-10-28/full-business/verification.json"
+      ]
+    },
+    {
+      "id": "M7",
+      "status": "PENDING",
+      "businessAccepted": false,
+      "visualAccepted": false,
+      "evidence": []
+    }
+  ],
+  "v2RetirementAllowed": false,
+  "knownBlockers": [
+    "M0 runtime scenario inventory and stable visual baselines incomplete",
+    "M1 frozen bundle MutationObserver error; full navigation/download/auth contract not verified",
+    "M2-M6 full business migration and acceptance incomplete"
+  ],
+  "implementationStrategy": "source-first-vue3-upgrade-with-compat-ui-validation",
+  "authoritativeTarget": "packages/web-v3/src",
+  "previousPrototypeIsBaseline": false,
+  "runtimeSwitchedToNative": false,
+  "uiAlignmentPhaseStarted": true,
+  "lastBatch": {
+    "date": "2026-10-28",
+    "nativeTestsPassed": 65,
+    "compatBuildPassed": true,
+    "nativeBuildStatus": "not-run-not-stage-gate",
+    "evidence": "migration-project/artifacts/verification/2026-10-28/full-business/verification.json",
+    "contract": "migration-project/migration-contracts/full-business-regression-20261028.md"
+  },
+  "activeStage": {
+    "scope": "Full business alignment testing and fixes against V2 source",
+    "runtime": "@vue/compat",
+    "command": "dev",
+    "port": 4175,
+    "fullClassRewriteRequired": false,
+    "pureNativeBuildRequired": false,
+    "fullBusinessAccepted": false,
+    "testWriteScope": "bkcc__5000140 / bizId 5000140; create new test resources, mutate/delete only owned resources",
+    "sourceRoot": "packages/web-v3/src"
+  },
+  "defaultApplication": "web-v3",
+  "fullBusinessAcceptance": {
+    "status": "NOT_ACCEPTED",
+    "report": "migration-project/evidence/20261029-full-acceptance/acceptance.json",
+    "checkedAt": "2026-10-29T06:47:17.749Z",
+    "gateResult": "migration-project/evidence/20261029-full-acceptance/gate-result.json",
+    "testsPassed": 190,
+    "strictTypeDiagnostics": 1271,
+    "allOwnedResourcesCleaned": true
+  }
+}

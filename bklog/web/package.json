@@ -6,13 +6,13 @@
   "keywords": [],
   "license": "ISC",
   "scripts": {
-    "dev": "nodemon --exec \"cross-env MONITOR_APP=log bkmonitor-cli dev --log\"",
+    "dev": "pnpm --dir packages/web-v3 --ignore-workspace dev",
     "dev:e2e": "nodemon --exec \"cross-env MONITOR_APP=log BKLOG_E2E_DEV=1 bkmonitor-cli dev --log\"",
     "dev:apm": "nodemon --exec \"cross-env MONITOR_APP=apm bkmonitor-cli dev --log\"",
     "dev:trace": "nodemon --exec \"cross-env MONITOR_APP=trace  bkmonitor-cli dev --log\"",
     "build": "cross-env MONITOR_APP=log bkmonitor-cli build --log",
-    "build:apm": "cross-env MONITOR_APP=apm bkmonitor-cli build --log && node ./scripts/update-version.js monitor-apm-retrieve",
-    "build:trace": "cross-env MONITOR_APP=trace bkmonitor-cli build --log && node ./scripts/prefix-css.js && node ./scripts/update-version.js monitor-trace-retrieve",
+    "build:apm": "pnpm --dir packages/web-v3 --ignore-workspace build:apm && pnpm --dir packages/web-v3 --ignore-workspace package:apm",
+    "build:trace": "pnpm --dir packages/web-v3 --ignore-workspace build:trace && pnpm --dir packages/web-v3 --ignore-workspace package:trace",
     "analyze:apm": "cross-env MONITOR_APP=apm bkmonitor-cli build --log -a",
     "analyze:trace": "cross-env MONITOR_APP=trace bkmonitor-cli build --log -a",
     "clean": "rimraf ../static/dist/*",
@@ -36,7 +36,11 @@
     "e2e:capture:manage": "node .docs/architecture-chema/工具/capture-manage-mock.mjs",
     "dev:v3": "pnpm --dir packages/web-v3 --ignore-workspace dev",
     "test:v3": "pnpm --dir packages/web-v3 --ignore-workspace test",
-    "analyze:legacy": "node migration-project/analyze-legacy.mjs"
+    "analyze:legacy": "node migration-project/analyze-legacy.mjs",
+    "dev:v2": "nodemon --exec \"cross-env MONITOR_APP=log bkmonitor-cli dev --log\"",
+    "build:apm:v2": "cross-env MONITOR_APP=apm bkmonitor-cli build --log && node ./scripts/update-version.js monitor-apm-retrieve",
+    "build:trace:v2": "cross-env MONITOR_APP=trace bkmonitor-cli build --log && node ./scripts/prefix-css.js && node ./scripts/update-version.js monitor-trace-retrieve",
+    "build:v3": "pnpm --dir packages/web-v3 --ignore-workspace build"
   },
   "dependencies": {
     "@babel/helper-module-imports": "7.24.7",

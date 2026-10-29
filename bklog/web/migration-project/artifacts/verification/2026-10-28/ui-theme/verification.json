@@ -1,0 +1,52 @@
+{
+  "date": "2026-10-28",
+  "scope": "Dev UI theme alignment; full Class rewrite waived for this stage by user",
+  "runtime": "Vue3 @vue/compat",
+  "devPort": 4175,
+  "nativeTests": {
+    "passed": 32,
+    "failed": 0
+  },
+  "buildCommand": "NODE_OPTIONS=--max-old-space-size=6144 pnpm --dir bklog/web/packages/web-v3 --ignore-workspace build:ui",
+  "buildPassed": true,
+  "browser": {
+    "route": "/retrieve/40676",
+    "readonly": true,
+    "bookmarkRequiredValidation": "passed",
+    "bookmarkCancel": "passed",
+    "queryEmptyState": "passed",
+    "horizontalOverflow1280": false,
+    "v2Button": {
+      "primary": "#3a84ff",
+      "defaultBackground": "#ffffff",
+      "defaultBorder": "#c4c6cc",
+      "fontSize": 12,
+      "height": 32,
+      "radius": 2,
+      "width": 64
+    },
+    "targetButton": "same normal properties; primary hover #699df4",
+    "loadingIndicator": "four DOM dots; V2 colors and 14px/6px sizes verified; animation timing not visually accepted",
+    "console": "Existing compat deprecation error remains; no full runtime error audit claimed"
+  },
+  "screenshots": {
+    "retrieve-1280.jpg": [
+      1280,
+      800
+    ],
+    "retrieve-1440.jpg": [
+      1440,
+      900
+    ],
+    "bookmark-validation-1440.jpg": [
+      1440,
+      900
+    ]
+  },
+  "limits": [
+    "Relative time and responses not frozen; qualitative visual evidence only",
+    "Other routes, nonempty logs and business write flows pending",
+    "Full business and visual acceptance remain false; V2 retirement not allowed"
+  ],
+  "pureNativeBuildRequiredForStage": false
+}

@@ -1,0 +1,40 @@
+{
+  "schemaVersion": 1,
+  "migration": "vue-i18n-to-paraglide",
+  "locales": [
+    "zh-cn",
+    "en"
+  ],
+  "policy": "Stable canonical IDs avoid compiler identifier collisions. Original keys remain in legacy-message-keys.json. Preserve translations and interpolation names; no generated translations.",
+  "ownMessages": 2603,
+  "messages": {
+    "zh-cn": 2712,
+    "en": 2712
+  },
+  "sources": [
+    {
+      "file": "language/lang/en/route.ts",
+      "sha256": "a78d74304c6d291ba371786c6757fcd359fc733b9f8f1f9b8a12d2c25b04633b"
+    },
+    {
+      "file": "language/lang/en/button.ts",
+      "sha256": "8d7a40ddeccace44ec0665bde3591f900faee4787bd4c2c3b367f52aeea1f313"
+    },
+    {
+      "file": "language/lang/en/label.ts",
+      "sha256": "9a0341deaf3d37013d95996d2c791c2c5ce287f00dc6157a6b211663e97c4e6b"
+    },
+    {
+      "file": "language/lang/en/content.ts",
+      "sha256": "a353e929fe4a56842bd6244d2aba050b9b8955963e0ed06d220e34340d4e863c"
+    }
+  ],
+  "vendor": {
+    "package": "bk-magic-vue",
+    "version": "2.5.10-beta.15",
+    "dictionaries": [
+      "lib/locale/lang/zh-CN.js",
+      "lib/locale/lang/en-US.js"
+    ]
+  }
+}

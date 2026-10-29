@@ -1,0 +1,6 @@
+{
+  "name": "@blueking/monitor-trace-log",
+  "private": true,
+  "type": "commonjs",
+  "main": "main.js"
+}
