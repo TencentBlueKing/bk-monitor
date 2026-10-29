@@ -21,7 +21,19 @@ MAX_RESPONSE_BYTES = 5 * 1024 * 1024
 MAX_SERIES = 1000
 MAX_POINTS = 100000
 TIMEOUT_SECONDS = 30
-ALLOWED_PARAMS = {"bk_tenant_id", "namespace", "name", "query", "mode", "time", "start", "end", "step"}
+ALLOWED_PARAMS = {
+    "bk_tenant_id",
+    "namespace",
+    "name",
+    "query",
+    "mode",
+    "time",
+    "start",
+    "end",
+    "step",
+    "max_lookback",
+    "nocache",
+}
 
 
 def _fail(code, message, **details):
@@ -54,6 +66,12 @@ def _validate_params(params):
     query = _text(params, "query", MAX_QUERY_LENGTH)
     mode = params.get("mode")
     api_params = {"query": query, "timeout": f"{TIMEOUT_SECONDS}s"}
+    if "max_lookback" in params:
+        api_params["max_lookback"] = _number(params, "max_lookback", minimum=0.001)
+    if "nocache" in params:
+        if not isinstance(params["nocache"], bool):
+            _fail("INVALID_ARGUMENT", "nocache 必须是布尔值")
+        api_params["nocache"] = "1" if params["nocache"] else "0"
     if mode == "instant":
         if {"start", "end", "step"} & params.keys():
             _fail("INVALID_ARGUMENT", "即时查询不接受 start、end 或 step")
