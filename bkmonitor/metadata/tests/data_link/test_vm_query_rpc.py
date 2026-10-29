@@ -246,3 +246,16 @@ def test_total_series_and_point_limits(cluster, http, monkeypatch):
     with pytest.raises(CustomException) as error:
         vm_query.query(PARAMS)
     assert error.value.data["code"] == "RESULT_TOO_LARGE"
+
+
+@pytest.mark.parametrize("mode", ["range", "instant"])
+def test_forwards_optional_lookback_and_cache_controls(cluster, http, mode):
+    params = {**PARAMS, "max_lookback": 30, "nocache": True}
+    if mode == "instant":
+        for key in ("start", "end", "step"):
+            params.pop(key)
+        params.update(mode="instant", time=1000)
+    vm_query.query(params)
+    data = http[1].post.call_args.kwargs["data"]
+    assert data["max_lookback"] == 30
+    assert data["nocache"] == "1"
