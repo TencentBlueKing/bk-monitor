@@ -631,6 +631,7 @@ class AlertQueryHandler(BaseBizQueryHandler):
     SHIELD_ABNORMAL_STATUS_NAME = "SHIELDED_ABNORMAL"
     NOT_SHIELD_ABNORMAL_STATUS_NAME = "NOT_SHIELDED_ABNORMAL"
     NOTICE_WAY_CANDIDATE_LIMIT = 10000
+    NOTICE_WAY_ACTION_PAGE_SIZE = 500
 
     def __init__(
         self,
@@ -1388,7 +1389,7 @@ class AlertQueryHandler(BaseBizQueryHandler):
         partial_scopes: list[str] | None = None,
     ) -> dict[str, set]:
         """
-        查询通知父任务，返回每个 alert_id 对应的有效通知方式集合
+        汇总历史通知父任务，返回每个 alert_id 对应的有效通知方式并集
 
         参数:
             alert_ids: 限定查询范围的告警 ID 集合，为 None 时不限定
@@ -1396,7 +1397,9 @@ class AlertQueryHandler(BaseBizQueryHandler):
         返回:
             {alert_id: {notice_way1, notice_way2, ...}, ...}
         """
-        result = {}
+        result: dict[str, set] = defaultdict(set)
+        if alert_ids is not None and not alert_ids:
+            return {}
 
         action_search = ActionInstanceDocument.search(start_time=self.start_time, end_time=self.end_time)
         action_search = action_search.filter("term", action_plugin_type=ActionPluginType.NOTICE)
@@ -1410,48 +1413,46 @@ class AlertQueryHandler(BaseBizQueryHandler):
             if authorized_query is not None:
                 action_search = action_search.filter(authorized_query)
 
-        action_search = action_search.extra(size=0)
-
-        # 按 alert_id 分桶，每桶取 update_time 最新的父任务
-        agg_size = len(alert_ids) if alert_ids else 10000
-        action_search.aggs.bucket("per_alert", "terms", field="alert_id", size=agg_size).metric(
-            "latest_action",
-            "top_hits",
-            size=1,
-            sort=[{"update_time": {"order": "desc"}}],
-            _source=["inputs"],
+        # 按唯一 ID 游标分页，避免恢复通知覆盖历史渠道，也避免一次加载全部通知任务。
+        action_search = (
+            action_search.source(
+                ["alert_id", "inputs.notify_info", "inputs.follow_notify_info", "inputs.exclude_notice_ways"]
+            )
+            .sort("-id")
+            .extra(size=self.NOTICE_WAY_ACTION_PAGE_SIZE)
         )
 
-        search_result = action_search.execute()
-        if getattr(search_result, "timed_out", False):
-            self._mark_partial(
-                code="notice_way_action_timeout",
-                scopes=partial_scopes or ["alerts", "total", "overview", "aggs"],
-            )
+        while True:
+            search_result = action_search.execute()
+            timed_out: bool = getattr(search_result, "timed_out", False)
+            if timed_out:
+                self._mark_partial(
+                    code="notice_way_action_timeout",
+                    scopes=partial_scopes or ["alerts", "total", "overview", "aggs"],
+                )
 
-        failed_shards = getattr(getattr(search_result, "_shards", None), "failed", 0)
-        if failed_shards:
-            self._mark_partial(
-                code="notice_way_action_shard_failure",
-                scopes=partial_scopes or ["alerts", "total", "overview", "aggs"],
-                failed_shards=failed_shards,
-            )
+            failed_shards: int = getattr(getattr(search_result, "_shards", None), "failed", 0)
+            if failed_shards:
+                self._mark_partial(
+                    code="notice_way_action_shard_failure",
+                    scopes=partial_scopes or ["alerts", "total", "overview", "aggs"],
+                    failed_shards=failed_shards,
+                )
 
-        for bucket in search_result.aggregations.per_alert.buckets:
-            if alert_ids is not None and bucket.key not in alert_ids:
-                continue
+            for hit in search_result.hits:
+                source: dict = hit.to_dict()
+                notice_ways: set = self._parse_notice_ways_from_inputs(source.get("inputs", {}))
+                if not notice_ways:
+                    continue
+                for alert_id in source.get("alert_id", []):
+                    if alert_ids is None or alert_id in alert_ids:
+                        result[alert_id].update(notice_ways)
 
-            hits = bucket.latest_action.hits.hits
-            if not hits:
-                continue
+            if timed_out or failed_shards or len(search_result.hits) < self.NOTICE_WAY_ACTION_PAGE_SIZE:
+                break
+            action_search = action_search.extra(search_after=search_result.hits[-1].meta.sort)
 
-            source = hits[0].to_dict().get("_source", {})
-            inputs = source.get("inputs", {})
-            notice_ways = self._parse_notice_ways_from_inputs(inputs)
-            if notice_ways:
-                result[bucket.key] = notice_ways
-
-        return result
+        return dict(result)
 
     def _get_alert_ids_by_notice_way(self, notice_ways: list) -> list:
         """根据通知类型过滤，返回匹配的 alert_id 列表"""

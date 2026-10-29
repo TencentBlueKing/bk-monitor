@@ -34,6 +34,12 @@ class FakeSearch:
     def extra(self, *args, **kwargs):
         return self
 
+    def source(self, *args, **kwargs):
+        return self
+
+    def sort(self, *args, **kwargs):
+        return self
+
 
 def make_handler(*, allow_partial=True):
     handler = AlertQueryHandler.__new__(AlertQueryHandler)
@@ -404,7 +410,7 @@ def test_timed_out_candidate_search_marks_filter_result_partial(monkeypatch):
 def test_failed_action_shards_use_caller_partial_scope(monkeypatch):
     handler = make_handler()
     result = SimpleNamespace(
-        aggregations=SimpleNamespace(per_alert=SimpleNamespace(buckets=[])),
+        hits=[],
         _shards=SimpleNamespace(failed=1),
     )
     search = FakeSearch(result)
@@ -425,7 +431,7 @@ def test_failed_action_shards_use_caller_partial_scope(monkeypatch):
 def test_timed_out_action_search_uses_caller_partial_scope(monkeypatch):
     handler = make_handler()
     result = SimpleNamespace(
-        aggregations=SimpleNamespace(per_alert=SimpleNamespace(buckets=[])),
+        hits=[],
         timed_out=True,
         _shards=SimpleNamespace(failed=0),
     )
