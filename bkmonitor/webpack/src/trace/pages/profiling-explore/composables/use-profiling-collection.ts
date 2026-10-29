@@ -26,6 +26,7 @@
 import { type Ref, computed, onScopeDispose, shallowRef, watch } from 'vue';
 
 import { Message } from 'bkui-vue';
+import { commonPageSizeGet } from 'monitor-common/utils';
 import { useI18n } from 'vue-i18n';
 
 import {
@@ -36,11 +37,19 @@ import {
   toggleCollectionTask,
 } from '../services/collection';
 import { createCollectionHostServices } from '../services/collection-hosts';
-import { filterCollectionTasks, immediateCollectionPayload } from '../utils/collection';
+import { filterCollectionTasks, immediateCollectionPayload, isTaskDeleteBlocked } from '../utils/collection';
 import { createHistoryFilters } from '../utils/collection-history';
 import { useAppReadonlyInject } from '@/pages/provider';
 
-import type { CollectionHost, CollectionMeta, CollectionQueryState, CollectionTask } from '../types/collection';
+import type {
+  CollectionHost,
+  CollectionMeta,
+  CollectionQueryState,
+  CollectionTask,
+  CollectionTaskColumn,
+} from '../types/collection';
+
+export type UseProfilingCollectionReturn = ReturnType<typeof useProfilingCollection>;
 
 export function useProfilingCollection(
   bizId: Ref<number>,
@@ -50,12 +59,15 @@ export function useProfilingCollection(
   const { t } = useI18n();
   const readonly = useAppReadonlyInject();
   const records = shallowRef<CollectionTask[]>([]);
+  /** 任务列表列定义，由接口下发，缺失时由消费方回退到固定列 */
+  const taskColumns = shallowRef<CollectionTaskColumn[]>([]);
   const meta = shallowRef<CollectionMeta>();
   const loading = shallowRef(false);
   const error = shallowRef('');
   const busy = shallowRef<number>();
   const page = shallowRef(1);
-  const pageSize = shallowRef(20);
+  /** 每页条数，取全局统一分页配置（未配置时由 commonPageSizeGet 写入并返回 10） */
+  const pageSize = shallowRef(commonPageSizeGet());
   const editing = shallowRef<CollectionTask>();
   const editorOpen = shallowRef(false);
   const detailId = shallowRef<number>();
@@ -84,6 +96,7 @@ export function useProfilingCollection(
       meta.value = config;
       if (!config.enabled) {
         records.value = [];
+        taskColumns.value = [];
         detailId.value = undefined;
         deleting.value = undefined;
         executing.value = undefined;
@@ -92,6 +105,7 @@ export function useProfilingCollection(
       const tasks = await getCollectionTasks(bizId.value, current.signal);
       if (current.signal.aborted) return;
       records.value = tasks.data;
+      taskColumns.value = tasks.columns ?? [];
       page.value = Math.min(page.value, Math.max(1, Math.ceil(filtered.value.length / pageSize.value)));
     } catch (e) {
       if (!current.signal.aborted) {
@@ -104,7 +118,7 @@ export function useProfilingCollection(
   }
 
   async function runAction(task: CollectionTask, action: 'delete' | 'execute' | 'switch') {
-    if (readonly || busy.value || (action === 'delete' && task.task_status !== 'disabled')) return;
+    if (readonly || busy.value || (action === 'delete' && isTaskDeleteBlocked(task))) return;
     const current = actionController;
     busy.value = task.task_id;
     try {
@@ -145,7 +159,9 @@ export function useProfilingCollection(
 
   function saved(immediate: boolean) {
     editorOpen.value = false;
+    // 立即执行的任务到采集任务历史看进度；指定时间 / 周期任务回到任务管理列表
     if (immediate) openHistory();
+    else patch({ tab: 'tasks' });
     refresh();
   }
 
@@ -190,6 +206,7 @@ export function useProfilingCollection(
       actionController.abort();
       actionController = new AbortController();
       records.value = [];
+      taskColumns.value = [];
       meta.value = undefined;
       busy.value = undefined;
       editorOpen.value = false;
@@ -209,6 +226,7 @@ export function useProfilingCollection(
   return {
     readonly,
     records,
+    taskColumns,
     meta,
     loading,
     error,

@@ -190,7 +190,7 @@ export default defineComponent({
                 class='icon-monitor icon-hint'
                 v-tippy={{
                   content: this.t('开启后保存匹配条件，在每次执行时重新匹配进程，无需选择具体进程'),
-                  theme: 'dart',
+                  theme: 'dark',
                 }}
               />
             </div>

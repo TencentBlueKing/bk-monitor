@@ -28,6 +28,7 @@ import { type PropType, defineComponent } from 'vue';
 import { Sideslider } from 'bkui-vue';
 import { useI18n } from 'vue-i18n';
 
+import { isTaskDeleteBlocked } from '../../utils/collection';
 import CollectionConfiguration from './collection-configuration';
 
 import type { CollectionHost, CollectionTask } from '../../types/collection';
@@ -50,7 +51,6 @@ export default defineComponent({
   },
   render() {
     const task = this.task;
-    const schedule = task.schedule;
     const action = (icon: string, label: string, disabled: boolean, danger: boolean, onClick: () => void) => (
       <button
         class={['collection-task-detail-action', { 'is-danger': danger }]}
@@ -85,16 +85,12 @@ export default defineComponent({
               </div>
               <div class='collection-task-detail-actions'>
                 {action('icon-bianji', '编辑', this.readonly || this.busy, false, () => this.$emit('edit'))}
-                <span v-tippy={{ content: this.t('指定时间无执行记录'), onShow: () => schedule.type !== 'cron' }}>
-                  {action('icon-History', '执行记录', schedule.type !== 'cron', false, () => this.$emit('history'))}
-                </span>
-                <span
-                  v-tippy={{ content: this.t('请先停用任务后再删除'), onShow: () => task.task_status !== 'disabled' }}
-                >
+                {action('icon-History', '执行记录', false, false, () => this.$emit('history'))}
+                <span v-tippy={{ content: this.t('请先停用任务后再删除'), onShow: () => isTaskDeleteBlocked(task) }}>
                   {action(
                     'icon-mc-delete-line',
                     '删除',
-                    this.readonly || this.busy || task.task_status !== 'disabled',
+                    this.readonly || this.busy || isTaskDeleteBlocked(task),
                     true,
                     () => this.$emit('delete')
                   )}

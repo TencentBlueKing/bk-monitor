@@ -1,0 +1,57 @@
+/* stylelint-disable selector-class-pattern */
+.collection-row-actions {
+  display: flex;
+  gap: 16px;
+  align-items: center;
+  white-space: nowrap;
+}
+
+// 表格区：有数据时按内容高度排布，滚动交给 .collection-task-panel；
+// 无数据时撑满面板剩余高度，避免空态下底部大片留白
+.collection-task-table {
+  &.is-empty {
+    display: flex;
+    flex: 1;
+    flex-direction: column;
+    min-height: 0;
+
+    .t-table {
+      display: flex;
+      flex: 1;
+      flex-direction: column;
+      min-height: 0;
+    }
+
+    .t-table__content {
+      flex: 1;
+      min-height: 0;
+      overflow-x: auto;
+    }
+
+    .t-table--layout-fixed {
+      height: 100%;
+    }
+
+    .t-table__body,
+    .t-table__empty {
+      height: 100%;
+    }
+  }
+}
+
+.collection-task-empty {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  min-height: 240px;
+}
+
+.collection-task-pagination {
+  padding-top: 16px;
+
+  .bk-pagination-list,
+  .bk-pagination-small-list {
+    margin-left: auto;
+  }
+}
