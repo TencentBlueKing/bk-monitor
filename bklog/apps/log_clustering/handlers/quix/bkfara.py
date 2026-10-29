@@ -32,28 +32,16 @@ from apps.log_clustering.exceptions import (
 )
 from apps.utils.log import logger
 
-RUNTIME_DOMAIN = "log-clustering"
-
 # 网关类错误无法确认后端是否已执行写操作
 RESULT_UNKNOWN_STATUS_CODES = (502, 503, 504)
 
 
-def build_create_task_payload(index_set_id: int, quix_config: dict) -> dict:
-    return {
-        "runtime_key": {"domain": RUNTIME_DOMAIN, "business_key": str(index_set_id)},
-        **copy.deepcopy(quix_config["task_template"]),
-    }
-
-
-def build_clustering_payload(task_id: str, expected_control_version: int, quix_config: dict) -> dict:
-    kafka = copy.deepcopy(quix_config["kafka"])
-    for key in ("input_topic", "output_topic", "consumer_group", "result_group"):
-        kafka[key] = kafka[key].format(task_id=task_id)
-    return {
-        "expected_control_version": expected_control_version,
-        "kafka": kafka,
-        "resource_profile_ref": copy.deepcopy(quix_config["resource_profile_ref"]),
-    }
+def build_create_task_payload(index_set_id: int, quix_config: dict, model_parameters: dict | None = None) -> dict:
+    """模型参数使用算法字段与编码，由调用方完成业务配置适配。Kafka 绑定从服务端回读。"""
+    payload = {"profile": quix_config["profile"], "index_id": str(index_set_id)}
+    if model_parameters is not None:
+        payload["training"] = {"parameters": copy.deepcopy(model_parameters)}
+    return payload
 
 
 class BkFaraClient:
@@ -76,10 +64,26 @@ class BkFaraClient:
         self.session.headers.update({"Authorization": f"Bearer {token}"})
 
     def create_task(self, payload: dict, idempotency_key: str) -> dict:
-        return self._request("POST", "/ct/v1/tasks", payload, idempotency_key)
+        return self._request("POST", "/ct/v1/clustering/tasks", payload, idempotency_key)
 
     def get_task(self, task_id: str) -> dict:
         return self._request("GET", f"/ct/v1/tasks/{task_id}")
+
+    def get_task_parameters(self, task_id: str) -> dict:
+        return self._request("GET", f"/ct/v1/tasks/{task_id}/parameters")
+
+    def update_task_parameters(
+        self, task_id: str, expected_control_version: int, model_parameters: dict, idempotency_key: str
+    ) -> dict:
+        return self._request(
+            "PATCH",
+            f"/ct/v1/tasks/{task_id}/parameters",
+            {
+                "expected_control_version": expected_control_version,
+                "training": {"parameters": copy.deepcopy(model_parameters)},
+            },
+            idempotency_key,
+        )
 
     def configure_clustering(self, task_id: str, payload: dict, idempotency_key: str) -> dict:
         return self._request("PUT", f"/ct/v1/tasks/{task_id}/clustering", payload, idempotency_key)
@@ -89,7 +93,8 @@ class BkFaraClient:
 
     def stop_clustering(self, task_id: str, boundary: dict, completion: dict = None) -> dict:
         """
-        两阶段停止：第一次只传候选 Topic 边界；结果入库且实际解绑后，第二次传同一边界和完成确认
+        业务关闭接口：支持边界与可选完成确认；结果入库且实际解绑后可提交完成确认。
+        模型更新和 Worker 维护不调用此接口，业务关闭顺序由调用方编排。
         """
         payload = {"boundary": boundary}
         if completion is not None:

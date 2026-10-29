@@ -1,3 +1,4 @@
+import copy
 from unittest.mock import Mock, patch
 
 import requests
@@ -12,27 +13,17 @@ from apps.log_clustering.exceptions import (
 )
 from apps.log_clustering.handlers.quix.bkfara import (
     BkFaraClient,
-    build_clustering_payload,
     build_create_task_payload,
 )
-from apps.log_clustering.handlers.quix.config import DEFAULT_KAFKA_NAME_TEMPLATES, get_quix_config
+from apps.log_clustering.handlers.quix.config import get_quix_config
 
 TASK_ID = "6f1c2c1e-0000-4000-8000-000000000001"
-RESOURCE_PROFILE_REF = {"uri": "urn:quix-profile", "digest": "sha256:abc", "digest_scheme": "sha256-jcs-rfc8785-v1"}
 QUIX_CONFIG = {
-    "task_template": {"base_model_ref": {"uri": "https://artifacts/base.json", "digest": "sha256:def"}},
-    "resource_profile_ref": RESOURCE_PROFILE_REF,
-    "kafka": {
-        "cluster_ref": "quix-e2e",
-        "partitions": 2,
-        "retention_ms": 604800000,
-        "recovery_window_ms": 86400000,
-        "source_namespace": "bklog-prod",
-        "mapping_revision": "log-v1",
-    },
+    "profile": "log-clustering-es",
     "kafka_resource": {"kind": "Kafka", "namespace": "bklog", "name": "clustering_kafka"},
     "pattern_resource": {"kind": "ElasticSearch", "namespace": "bklog", "name": "pattern_es"},
 }
+MODEL_PARAMETERS = {"delimeter": "WyIgIl0=", "min_members": 3, "max_log_length": 1000}
 
 
 def _response(status_code=200, body=None):
@@ -55,16 +46,59 @@ class TestBkFaraClient(SimpleTestCase):
     def test_create_task_sends_auth_idempotency_key_and_ca(self):
         self.mock_request.return_value = _response(body={"task_id": TASK_ID})
 
-        result = self.client.create_task({"runtime_key": {}}, idempotency_key="op-create_task")
+        result = self.client.create_task(
+            build_create_task_payload(24466, QUIX_CONFIG), idempotency_key="op-create_task"
+        )
 
         self.assertEqual(result, {"task_id": TASK_ID})
         args, kwargs = self.mock_request.call_args
-        self.assertEqual(args, ("POST", "https://bkfara.example/ct/v1/tasks"))
+        self.assertEqual(args, ("POST", "https://bkfara.example/ct/v1/clustering/tasks"))
         self.assertEqual(kwargs["headers"], {"Idempotency-Key": "op-create_task"})
         self.assertEqual(kwargs["verify"], "/etc/ca.pem")
         self.assertEqual(self.client.session.headers["Authorization"], "Bearer token")
 
-    def test_two_phase_stop_payloads(self):
+    def test_get_parameters_preserves_configuration_and_adoption_snapshot(self):
+        snapshot = {
+            "task_id": TASK_ID,
+            "control_version": 4,
+            "config_revision": 3,
+            "training": {"parameters": MODEL_PARAMETERS},
+            "adoptions": [{"binding__config_revision": 2}],
+        }
+        self.mock_request.return_value = _response(body=snapshot)
+        self.assertEqual(self.client.get_task_parameters(TASK_ID), snapshot)
+        args, kwargs = self.mock_request.call_args
+        self.assertEqual(args, ("GET", f"https://bkfara.example/ct/v1/tasks/{TASK_ID}/parameters"))
+        self.assertEqual(kwargs["headers"], {})
+        self.assertIsNone(kwargs["json"])
+
+    def test_update_parameters_uses_patch_control_version_and_idempotency_key(self):
+        self.mock_request.return_value = _response(202, {"control_version": 5})
+        parameters = copy.deepcopy(MODEL_PARAMETERS)
+        result = self.client.update_task_parameters(TASK_ID, 4, parameters, "op-update-model")
+        self.assertEqual(result, {"control_version": 5})
+        args, kwargs = self.mock_request.call_args
+        self.assertEqual(args, ("PATCH", f"https://bkfara.example/ct/v1/tasks/{TASK_ID}/parameters"))
+        self.assertEqual(kwargs["headers"], {"Idempotency-Key": "op-update-model"})
+        self.assertEqual(kwargs["json"], {"expected_control_version": 4, "training": {"parameters": MODEL_PARAMETERS}})
+        kwargs["json"]["training"]["parameters"]["min_members"] = 10
+        self.assertEqual(parameters, MODEL_PARAMETERS)
+
+    def test_model_update_unknown_result_reuses_request_and_key(self):
+        self.mock_request.side_effect = [requests.exceptions.ReadTimeout("timeout"), _response(202, {"accepted": True})]
+        with self.assertRaises(BkFaraResultUnknownException):
+            self.client.update_task_parameters(TASK_ID, 4, MODEL_PARAMETERS, "op-update-model")
+        self.client.update_task_parameters(TASK_ID, 4, MODEL_PARAMETERS, "op-update-model")
+        first, second = self.mock_request.call_args_list
+        self.assertEqual(first, second)
+
+    def test_model_update_conflict_keeps_business_code(self):
+        self.mock_request.return_value = _response(409, {"code": "CONTROL_VERSION_CONFLICT"})
+        with self.assertRaises(BkFaraConflictException) as ctx:
+            self.client.update_task_parameters(TASK_ID, 4, MODEL_PARAMETERS, "op-update-model")
+        self.assertEqual(ctx.exception.data["code"], "CONTROL_VERSION_CONFLICT")
+
+    def test_business_stop_accepts_optional_completion(self):
         self.mock_request.return_value = _response(body={"state": "DRAINING"})
         boundary = {"0": 10, "1": 10}
         completion = {"input_boundary": boundary, "storage_complete": True, "binding_removed": True}
@@ -127,54 +161,42 @@ class TestBkFaraClient(SimpleTestCase):
 
 
 class TestBkFaraPayload(SimpleTestCase):
-    def test_create_task_payload_keeps_template_refs(self):
-        payload = build_create_task_payload(24466, QUIX_CONFIG)
+    def test_create_uses_profile_and_string_index_id(self):
+        self.assertEqual(
+            build_create_task_payload(24466, QUIX_CONFIG),
+            {"profile": "log-clustering-es", "index_id": "24466"},
+        )
 
-        self.assertEqual(payload["runtime_key"], {"domain": "log-clustering", "business_key": "24466"})
-        self.assertEqual(payload["base_model_ref"], QUIX_CONFIG["task_template"]["base_model_ref"])
+    def test_create_model_parameters_use_training_parameters_without_mutating_inputs(self):
+        config, parameters = copy.deepcopy(QUIX_CONFIG), copy.deepcopy(MODEL_PARAMETERS)
+        payload = build_create_task_payload(24466, config, parameters)
+        self.assertEqual(
+            payload, {"profile": "log-clustering-es", "index_id": "24466", "training": {"parameters": MODEL_PARAMETERS}}
+        )
+        payload["training"]["parameters"]["min_members"] = 10
+        self.assertEqual(parameters, MODEL_PARAMETERS)
+        self.assertEqual(config, QUIX_CONFIG)
 
-    def test_clustering_payload_binds_names_to_task(self):
-        config = {**QUIX_CONFIG, "kafka": {**QUIX_CONFIG["kafka"], **DEFAULT_KAFKA_NAME_TEMPLATES}}
-
-        payload = build_clustering_payload(TASK_ID, 1, config)
-
-        self.assertEqual(payload["expected_control_version"], 1)
-        self.assertEqual(payload["kafka"]["input_topic"], f"lc-{TASK_ID}-in")
-        self.assertEqual(payload["kafka"]["result_group"], f"lc-{TASK_ID}-result")
-        self.assertEqual(payload["resource_profile_ref"], RESOURCE_PROFILE_REF)
-        self.assertEqual(config["kafka"]["input_topic"], "lc-{task_id}-in")
+    def test_explicit_empty_parameters_are_preserved(self):
+        self.assertEqual(build_create_task_payload(24466, QUIX_CONFIG, {})["training"], {"parameters": {}})
 
 
 class TestQuixConfig(SimpleTestCase):
     @patch("apps.log_clustering.handlers.quix.config.FeatureToggleObject.toggle")
-    def test_fills_default_name_templates(self, mock_toggle):
+    def test_profile_does_not_require_local_task_or_kafka_templates(self, mock_toggle):
         mock_toggle.return_value = Mock(feature_config={"bkbase_quix": QUIX_CONFIG})
-
-        config = get_quix_config()
-
-        self.assertEqual(config["kafka"]["output_topic"], "lc-{task_id}-out")
-        self.assertEqual(config["kafka"]["cluster_ref"], "quix-e2e")
+        self.assertEqual(get_quix_config(), QUIX_CONFIG)
 
     @patch("apps.log_clustering.handlers.quix.config.FeatureToggleObject.toggle")
     def test_missing_keys_are_reported(self, mock_toggle):
-        broken = {**QUIX_CONFIG, "resource_profile_ref": None, "pattern_resource": {"kind": "ElasticSearch"}}
+        broken = {**QUIX_CONFIG, "profile": None, "pattern_resource": {"kind": "ElasticSearch"}}
         mock_toggle.return_value = Mock(feature_config={"bkbase_quix": broken})
-
         with self.assertRaises(QuixClusteringConfigInvalidException) as ctx:
             get_quix_config()
-
-        self.assertIn("resource_profile_ref", ctx.exception.message)
+        self.assertIn("profile", ctx.exception.message)
         self.assertIn("pattern_resource.name", ctx.exception.message)
 
     @patch("apps.log_clustering.handlers.quix.config.FeatureToggleObject.toggle", return_value=None)
     def test_missing_toggle_is_invalid(self, mock_toggle):
-        with self.assertRaises(QuixClusteringConfigInvalidException):
-            get_quix_config()
-
-    @patch("apps.log_clustering.handlers.quix.config.FeatureToggleObject.toggle")
-    def test_recovery_window_cannot_exceed_retention(self, mock_toggle):
-        kafka = {**QUIX_CONFIG["kafka"], "recovery_window_ms": QUIX_CONFIG["kafka"]["retention_ms"] + 1}
-        mock_toggle.return_value = Mock(feature_config={"bkbase_quix": {**QUIX_CONFIG, "kafka": kafka}})
-
         with self.assertRaises(QuixClusteringConfigInvalidException):
             get_quix_config()
