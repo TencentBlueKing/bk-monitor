@@ -22,14 +22,20 @@ the project delivered to anyone in the future.
 import copy
 import hashlib
 import json
+import uuid
 from typing import NamedTuple
 
 import arrow
-from django.db import models
+from django.conf import settings
+from django.db import models, transaction
 from django.db.models import Q
+from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
 
 from apps.log_clustering.constants import (
+    ClusteringOperationStatusEnum,
+    ClusteringOperationTypeEnum,
+    ClusteringRuntimePhaseEnum,
     LogColShowTypeEnum,
     PatternEnum,
     RegexRuleTypeEnum,
@@ -39,9 +45,9 @@ from apps.log_clustering.constants import (
     YearOnYearChangeEnum,
     YearOnYearEnum,
 )
-from apps.log_clustering.exceptions import ClusteringConfigNotExistException
+from apps.log_clustering.exceptions import ClusteringConfigNotExistException, ClusteringOperationConflictException
 from apps.log_clustering.handlers.dataflow.constants import OnlineTaskTrainingArgs
-from apps.models import SoftDeleteModel
+from apps.models import OperateRecordModel, SoftDeleteModel
 from apps.utils.local import get_external_app_code
 
 
@@ -550,3 +556,107 @@ class RegexTemplate(models.Model):
     class Meta:
         verbose_name = _("聚类正则模板")
         verbose_name_plural = _("聚类正则模板")
+
+
+class LogClusteringRuntime(OperateRecordModel):
+    """
+    轻量化聚类（BKBase LogClusteringSink + BKFara Quix）的运行绑定，每个索引集一条
+    业务配置仍由 ClusteringConfig 维护；这里只保存跨系统身份、版本和业务收尾所需的事实。
+    Worker 消费恢复、原日志投递边界与覆盖进度由 BKFara/BKBase 管理，不在日志平台另存一份。
+    """
+
+    index_set_id = models.IntegerField(_("索引集id"), unique=True)
+    bk_biz_id = models.IntegerField(_("业务id"))
+    bk_tenant_id = models.CharField(_("租户ID"), max_length=64, default=settings.BK_APP_TENANT_ID)
+    collector_config_id = models.IntegerField(_("采集项id"))
+    table_id = models.CharField(_("监控结果表ID"), max_length=255)
+    bk_data_id = models.IntegerField(_("数据源ID"))
+    phase = models.CharField(_("运行阶段"), max_length=32, choices=ClusteringRuntimePhaseEnum.get_choices())
+
+    bkfara_task_id = models.CharField(_("BKFara 任务ID"), max_length=64, default="", blank=True)
+    generation = models.IntegerField(_("BKFara 任务代际"), null=True, blank=True)
+    input_revision = models.IntegerField(_("BKFara 输入配置修订"), null=True, blank=True)
+    control_version = models.IntegerField(_("BKFara 控制版本"), null=True, blank=True)
+    kafka_binding = models.JSONField(_("Kafka 绑定"), default=dict, blank=True)
+
+    active_config = models.JSONField(_("生效的聚类配置"), default=dict, blank=True)
+    pending_config = models.JSONField(_("待生效的聚类配置"), null=True, blank=True)
+
+    sink = models.JSONField(_("LogClusteringSink 资源身份"), default=dict, blank=True)
+    pattern_index = models.CharField(_("Pattern 索引"), max_length=255, default="", blank=True)
+    state_index = models.CharField(_("恢复状态索引"), max_length=255, default="", blank=True)
+
+    # 仅用于业务关闭时向 BKFara 交接，由 BKBase 回执提供；不用于模型更新或 Worker 维护重启。
+    candidate_boundary = models.JSONField(_("候选 Topic 停止边界"), null=True, blank=True)
+
+    class Meta:
+        verbose_name = _("日志聚类轻量化运行绑定")
+        verbose_name_plural = _("日志聚类轻量化运行绑定")
+
+    @classmethod
+    @transaction.atomic
+    def start_operation(
+        cls, index_set_id: int, operation_type: str, request_snapshot: dict, defaults: dict | None = None
+    ) -> tuple["LogClusteringRuntime", "LogClusteringOperation"]:
+        """
+        在运行绑定的行锁内创建控制操作，同一索引集同时只允许一个未结束的操作
+        :param defaults: 首次开启时创建运行绑定所需的字段
+        """
+        runtime, _created = cls.objects.select_for_update().get_or_create(
+            index_set_id=index_set_id, defaults=defaults or {}
+        )
+        unfinished = LogClusteringOperation.objects.filter(
+            index_set_id=index_set_id, status__in=ClusteringOperationStatusEnum.unfinished_statuses()
+        ).first()
+        if unfinished:
+            raise ClusteringOperationConflictException(
+                ClusteringOperationConflictException.MESSAGE.format(
+                    index_set_id=index_set_id, operation_id=unfinished.operation_id
+                )
+            )
+        operation = LogClusteringOperation.objects.create(
+            operation_id=uuid.uuid4().hex,
+            index_set_id=index_set_id,
+            operation_type=operation_type,
+            request_snapshot=request_snapshot,
+        )
+        return runtime, operation
+
+
+class LogClusteringOperation(OperateRecordModel):
+    """
+    轻量化聚类的控制操作记录，每一步完成后落库，供异步任务续跑和状态展示
+    """
+
+    operation_id = models.CharField(_("操作ID"), max_length=64, unique=True)
+    index_set_id = models.IntegerField(_("索引集id"), db_index=True)
+    operation_type = models.CharField(_("操作类型"), max_length=32, choices=ClusteringOperationTypeEnum.get_choices())
+    status = models.CharField(
+        _("操作状态"),
+        max_length=32,
+        choices=ClusteringOperationStatusEnum.get_choices(),
+        default=ClusteringOperationStatusEnum.PENDING.value,
+    )
+    step = models.CharField(_("当前步骤"), max_length=64, default="", blank=True)
+    steps = models.JSONField(_("步骤记录"), default=list, blank=True)
+    # 模型参数更新复用请求快照承载逐索引参数，调用协议由 BKFara 适配层映射。
+    request_snapshot = models.JSONField(_("请求快照"), default=dict, blank=True)
+    retry_count = models.IntegerField(_("重试次数"), default=0)
+    next_retry_at = models.DateTimeField(_("下次重试时间"), null=True, blank=True)
+    last_error = models.TextField(_("最近错误"), default="", blank=True)
+    finished_at = models.DateTimeField(_("结束时间"), null=True, blank=True)
+
+    class Meta:
+        verbose_name = _("日志聚类轻量化操作记录")
+        verbose_name_plural = _("日志聚类轻量化操作记录")
+
+    def get_idempotency_key(self, action: str) -> str:
+        """由已持久化的操作 ID 和动作确定，重试保持一致，无需额外存储或写库。"""
+        return f"{self.operation_id}-{action}"
+
+    def record_step(self, step: str, status: str, message: str = ""):
+        self.step = step
+        self.steps.append(
+            {"step": step, "status": status, "message": message, "time": timezone.now().strftime("%Y-%m-%d %H:%M:%S")}
+        )
+        self.save(update_fields=["step", "steps", "updated_at", "updated_by"])
