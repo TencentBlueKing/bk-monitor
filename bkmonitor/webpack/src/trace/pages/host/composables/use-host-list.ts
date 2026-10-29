@@ -52,7 +52,7 @@ import type {
   IWhereItem,
   IWhereValueOptionsItem,
 } from '../../../components/retrieval-filter/typing';
-import type { EHostQuickCategory, HostSelectAllModeType, IHostListRow, TCopyIpField } from '../types';
+import type { EHostQuickCategory, HostSelectAllModeType, IHostListRow, TCopyField } from '../types';
 import type { IHostTopoTreeNode } from '../types/topo';
 
 interface IUseHostListOptions {
@@ -473,8 +473,8 @@ export const useHostList = (options: IUseHostListOptions) => {
     resetPage();
   };
 
-  /** 复制选中主机的指定 IP 字段（每行一个，换行分隔） */
-  const handleCopyIp = async (field?: TCopyIpField) => {
+  /** 复制选中主机的指定 IP 字段或主机 ID（每行一个，换行分隔） */
+  const handleCopyIp = async (field?: TCopyField) => {
     if (!selectedRowKeys.value.size || !field) {
       return;
     }
@@ -482,12 +482,18 @@ export const useHostList = (options: IUseHostListOptions) => {
     const rows = fullDataReady.value
       ? (await hostListWorker.getSelectedRows(selected)).rows
       : pagedRows.value.filter(row => selectedRowKeys.value.has(String(row.id)));
-    const ipList = rows.map(item => item[field]).filter(Boolean);
-    const ipText = ipList.join('\n');
-    copyText(ipText, (msg: string) => {
+    const valueList = rows
+      .map(item => item[field])
+      .filter(Boolean)
+      .map(String);
+    copyText(valueList.join('\n'), (msg: string) => {
       Message({ message: msg, theme: 'error' });
     });
-    Message({ message: window.i18n.t('复制成功 {num} 个IP', { num: ipList.length }), theme: 'success' });
+    const successMsg =
+      field === 'bk_host_id'
+        ? window.i18n.t('复制成功 {num} 个主机ID', { num: valueList.length })
+        : window.i18n.t('复制成功 {num} 个IP', { num: valueList.length });
+    Message({ message: successMsg, theme: 'success' });
   };
 
   onMounted(() => {
