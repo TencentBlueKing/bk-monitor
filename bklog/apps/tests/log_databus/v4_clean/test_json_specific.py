@@ -290,6 +290,69 @@ class TestJsonTimeField(TestCase):
     def setUp(self):
         self.storage = BkLogJsonEtlStorage()
 
+    @staticmethod
+    def make_user_time_config():
+        """构造从清洗字段 event_time 取时间的 built_in_config"""
+        config = get_fresh_config()
+        config["time_field"]["alias_name"] = "event_time"
+        config["time_field"]["option"].update(
+            {
+                "real_path": "bk_separator_object.event_time",
+                "field_index": 1,
+                "time_format": "ISO8601",
+                "time_zone": 8,
+            }
+        )
+        return config
+
+    def test_user_time_field_generates_utctime_fallback(self):
+        """JSON 失败时用户时间规则应回退到外层 utctime"""
+        etl_params = {"retain_original_text": True, "enable_retain_content": True}
+        fields = [
+            make_field("event_time", is_time=True, option={"time_zone": 8, "time_format": "ISO8601"}),
+        ]
+        config = self.make_user_time_config()
+        result = self.storage.build_log_v4_data_link(fields, etl_params, config, build_test_field_list(fields, config))
+        rules = result["clean_rules"]
+
+        utctime_rule = find_rules_by_output(rules, "utctime")[0]
+        self.assertEqual(utctime_rule["input_id"], "json_data")
+        self.assertEqual(utctime_rule["operator"]["type"], "get")
+
+        separator_rule = find_rules_by_output(rules, "bk_separator_object")[0]
+        self.assertEqual(separator_rule["operator"]["error_strategy"], "null")
+
+        expected_fallback = {
+            "fallback_fields": [
+                {
+                    "field": "utctime",
+                    "time_format": {"format": "%Y-%m-%d %H:%M:%S", "zone": 0},
+                }
+            ],
+            "now_if_parse_failed": True,
+        }
+        for output_id in ("dtEventTimeStamp", "time"):
+            with self.subTest(output_id=output_id):
+                time_rule = find_rules_by_output(rules, output_id)[0]
+                self.assertEqual(time_rule["input_id"], "bk_separator_object")
+                self.assertEqual(time_rule["operator"]["key_index"], "event_time")
+                self.assertEqual(time_rule["operator"]["time_fallback"], expected_fallback)
+
+    def test_default_time_field_has_no_utctime_fallback(self):
+        """默认采集时间路径应保持原样，不额外生成 fallback"""
+        etl_params = {"retain_original_text": True, "enable_retain_content": True}
+        fields = [make_field("level")]
+        config = get_fresh_config()
+        result = self.storage.build_log_v4_data_link(fields, etl_params, config, build_test_field_list(fields, config))
+        rules = result["clean_rules"]
+
+        self.assertEqual(find_rules_by_output(rules, "utctime"), [])
+        for output_id in ("dtEventTimeStamp", "time"):
+            with self.subTest(output_id=output_id):
+                time_rule = find_rules_by_output(rules, output_id)[0]
+                self.assertEqual(time_rule["input_id"], "json_data")
+                self.assertNotIn("time_fallback", time_rule["operator"])
+
     def test_nanos_built_in_time_generates_nanos_rule(self):
         """built_in_config 中 nanos 格式的时间字段应生成 dtEventTimeStampNanos 规则"""
         from apps.tests.log_databus.v4_clean.testdata.built_in_configs import make_nanos_config
