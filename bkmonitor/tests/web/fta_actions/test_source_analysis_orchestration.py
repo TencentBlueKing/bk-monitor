@@ -982,6 +982,133 @@ class TestSourceAnalysisOrchestration(TestCase):
         )
 
     @patch("fta_web.issue.resources.api.bk_incident.get_source_analysis_task")
+    def test_failed_node_summary_is_persisted_and_returned_in_both_views(self, get_task):
+        execution = self.create_execution(bkfara_task_id="task-1", status=SourceAnalysisStatus.RUNNING)
+        get_task.return_value = {
+            "status": "failed",
+            "terminal": True,
+            "error": {
+                "code": "DEVOPS_BUILD_FAILED",
+                "message": "DevOps pipeline execution failed",
+                "retryable": False,
+                "details": {
+                    "failed_tasks": [
+                        {
+                            "task_id": "task-1",
+                            "task_name": "Input validation",
+                            "error_message": "Task failed\n\nValueError: missing parameter",
+                        }
+                    ],
+                    "error_info_list": [{"taskId": "task-1", "errorCode": 2199002}],
+                },
+            },
+        }
+
+        SourceAnalysisExecutionBaseResource.advance_bkfara_task(execution.analysis_id)
+
+        execution.refresh_from_db()
+        self.assertEqual(execution.status, SourceAnalysisStatus.FAILED)
+        self.assertEqual(execution.failure_code, "DEVOPS_BUILD_FAILED")
+        self.assertFalse(execution.failure_retryable)
+        expected = (
+            "DevOps pipeline execution failed | Input validation [2199002]: Task failed ValueError: missing parameter"
+        )
+        self.assertEqual(execution.failure_message, expected)
+        latest = SourceAnalysisExecutionBaseResource.serialize_execution(execution)
+        overview = SourceAnalysisExecutionBaseResource.build_source_analysis_overview({"latest": latest})
+        self.assertEqual(latest["failure"]["message"], expected)
+        self.assertEqual(overview["latest"]["failure"]["message"], expected)
+
+    @patch("fta_web.issue.resources.api.bk_incident.get_source_analysis_task")
+    def test_malformed_node_html_does_not_block_failed_terminal_state(self, get_task):
+        execution = self.create_execution(bkfara_task_id="task-1", status=SourceAnalysisStatus.RUNNING)
+        get_task.return_value = {
+            "status": "failed",
+            "terminal": True,
+            "error": {
+                "code": "DEVOPS_BUILD_FAILED",
+                "message": "pipeline failed",
+                "retryable": False,
+                "details": {
+                    "failed_tasks": [
+                        {"task_id": "task-1", "task_name": "Validation", "error_message": "<" * 60 + "a>" * 60}
+                    ]
+                },
+            },
+        }
+
+        self.assertIsNone(SourceAnalysisExecutionBaseResource.advance_bkfara_task(execution.analysis_id))
+
+        execution.refresh_from_db()
+        self.assertEqual(execution.status, SourceAnalysisStatus.FAILED)
+        self.assertIsNone(execution.active_key)
+        self.assertIsNotNone(execution.finished_at)
+        self.assertEqual(execution.failure_message, "pipeline failed | Validation")
+        self.assertEqual(execution.failure_code, "DEVOPS_BUILD_FAILED")
+
+    @patch("fta_web.issue.resources.api.bk_incident.get_source_analysis_task")
+    def test_invalid_html_marked_section_does_not_block_failed_terminal_state(self, get_task):
+        execution = self.create_execution(bkfara_task_id="task-1", status=SourceAnalysisStatus.RUNNING)
+        get_task.return_value = {
+            "status": "failed",
+            "terminal": True,
+            "error": {
+                "code": "DEVOPS_BUILD_FAILED",
+                "message": "pipeline failed",
+                "retryable": False,
+                "details": {
+                    "failed_tasks": [
+                        {
+                            "task_id": "task-1",
+                            "task_name": "Validation",
+                            "error_message": "unexpected response: <![foo]>",
+                        }
+                    ]
+                },
+            },
+        }
+
+        self.assertIsNone(SourceAnalysisExecutionBaseResource.advance_bkfara_task(execution.analysis_id))
+
+        execution.refresh_from_db()
+        self.assertEqual(execution.status, SourceAnalysisStatus.FAILED)
+        self.assertIsNone(execution.active_key)
+        self.assertIsNotNone(execution.finished_at)
+        self.assertEqual(execution.failure_message, "pipeline failed | Validation")
+        self.assertEqual(execution.failure_code, "DEVOPS_BUILD_FAILED")
+
+    @patch("fta_web.issue.resources.api.bk_incident.get_source_analysis_task")
+    def test_escaped_credentials_are_not_persisted_in_failed_summary(self, get_task):
+        execution = self.create_execution(bkfara_task_id="task-1", status=SourceAnalysisStatus.RUNNING)
+        get_task.return_value = {
+            "status": "failed",
+            "terminal": True,
+            "error": {
+                "code": "DEVOPS_BUILD_FAILED",
+                "message": "pipeline failed",
+                "details": {
+                    "failed_tasks": [
+                        {"task_name": "Validation", "error_message": json.dumps({"password": 'prefix"private-tail'})}
+                    ],
+                    "error_info_list": [
+                        {"taskName": "Checkout", "errorMsg": json.dumps(json.dumps({"access_token": "private-tail"}))}
+                    ],
+                },
+            },
+        }
+
+        self.assertIsNone(SourceAnalysisExecutionBaseResource.advance_bkfara_task(execution.analysis_id))
+
+        execution.refresh_from_db()
+        self.assertEqual(execution.status, SourceAnalysisStatus.FAILED)
+        self.assertNotIn("private-tail", execution.failure_message)
+        self.assertIn("******", execution.failure_message)
+        latest = SourceAnalysisExecutionBaseResource.serialize_execution(execution)
+        overview = SourceAnalysisExecutionBaseResource.build_source_analysis_overview({"latest": latest})
+        self.assertNotIn("private-tail", latest["failure"]["message"])
+        self.assertNotIn("private-tail", overview["latest"]["failure"]["message"])
+
+    @patch("fta_web.issue.resources.api.bk_incident.get_source_analysis_task")
     def test_remote_failure_does_not_persist_incomplete_execution_reference(self, get_task):
         execution = self.create_execution(bkfara_task_id="task-1", status=SourceAnalysisStatus.RUNNING)
         get_task.return_value = {
