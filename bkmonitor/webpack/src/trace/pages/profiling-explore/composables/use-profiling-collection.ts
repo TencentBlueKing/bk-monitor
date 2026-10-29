@@ -66,8 +66,8 @@ export function useProfilingCollection(
   const error = shallowRef('');
   const busy = shallowRef<number>();
   const page = shallowRef(1);
-  /** 每页条数（初始值取全局统一分页配置，未配置时回退到默认 20） */
-  const pageSize = shallowRef(commonPageSizeGet() ?? 20);
+  /** 每页条数，取全局统一分页配置（未配置时由 commonPageSizeGet 写入并返回 10） */
+  const pageSize = shallowRef(commonPageSizeGet());
   const editing = shallowRef<CollectionTask>();
   const editorOpen = shallowRef(false);
   const detailId = shallowRef<number>();

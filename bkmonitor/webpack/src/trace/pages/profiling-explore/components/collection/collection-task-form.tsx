@@ -197,7 +197,7 @@ export default defineComponent({
     const todayStart = dayjs().tz(d.timezone).startOf('day');
     const dateField = (key: 'endAt' | 'executeAt' | 'startAt') => (
       <DatePicker
-        disabledDate={date => dayjs(date).tz(d.timezone).startOf('day').isBefore(todayStart)}
+        disabledDate={date => dayjs(date).isBefore(todayStart.format('YYYY-MM-DD'), 'day')}
         modelValue={d[key] ? formatCollectionTime(d[key], d.timezone) : ''}
         placeholder={this.t('请选择日期时间')}
         shortcutClose={true}
