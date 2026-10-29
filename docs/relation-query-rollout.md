@@ -36,9 +36,14 @@
 
 ## 发布与验证
 
-先部署配套 [UQ PR #1499](https://github.com/TencentBlueKing/bkmonitor-datalink/pull/1499)
-的版本校验和回退能力，再部署本 PR 并开启名单。老 UQ 不识别版本头，不能提供上述就绪保证。
-确认 UQ 使用 Redis SchemaProvider；static 模式下带版本头的请求始终回退旧接口。
+1. 先部署配套 [UQ PR #1499](https://github.com/TencentBlueKing/bkmonitor-datalink/pull/1499)
+   的版本校验和回退能力，确认两端 Redis 一致且 UQ 使用 Redis SchemaProvider。
+2. 部署同时包含本 PR 和[消费端 PR #12866](https://github.com/TencentBlueKing/bk-monitor/pull/12866)
+   的 SaaS 版本，再验证页面、日志跳转、缓存和告警对 partial / truncated 的处理。
+   日志跳转可使用已确认的应用关联；没有匹配且结果不完整时提示错误。列表不把不完整结果当作完整列表。
+3. 两端及消费端验证完成后，再开启灰度名单。仅有定义 ready 不能证明消费端已正确处理不完整结果。
+
+老 UQ 不识别版本头，不能提供上述就绪保证；static 模式下带版本头的请求始终回退旧接口。
 
 本地回归使用 fakeredis、miniredis 和 SQLite，覆盖新增/移除名单、发布失败、真实事务
 提交/回滚、MCP 参数一致性、漏通知补载、后台缓存失效及即时/范围回退。
