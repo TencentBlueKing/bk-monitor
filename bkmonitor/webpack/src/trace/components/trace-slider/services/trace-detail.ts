@@ -35,7 +35,7 @@ export interface FetchTraceSliderDetailParams {
 }
 
 export interface FetchTraceSliderDetailResult {
-  data: Record<string, unknown> | null;
+  data: null | Record<string, unknown>;
   isAborted: boolean;
 }
 
@@ -51,9 +51,12 @@ export const fetchTraceSliderDetail = (
   params: FetchTraceSliderDetailParams,
   onCancel: (cancel: () => void) => void
 ): Promise<FetchTraceSliderDetailResult> => {
-  return traceDetail(params, {
-    cancelToken: new CancelToken(onCancel),
-  })
+  return traceDetail(
+    { ...params, reduce_span_details: true },
+    {
+      cancelToken: new CancelToken(onCancel),
+    }
+  )
     .then((data: Record<string, unknown>) => ({ data, isAborted: false }))
     .catch((err: unknown) => ({ data: null, isAborted: isRequestAborted(err) }));
 };

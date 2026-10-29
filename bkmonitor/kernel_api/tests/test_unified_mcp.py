@@ -60,7 +60,7 @@ def test_registry_loads_all_repository_mcp_tools():
     root = Path(__file__).resolve().parents[2] / "support-files" / "apigw" / "resources" / "internal" / "user"
     registry = load_tool_registry(root)
 
-    assert len(registry) == 89
+    assert len(registry) == 96
     expected_category_counts = {
         "metrics": 4,
         "log": 9,
@@ -73,6 +73,7 @@ def test_registry_loads_all_repository_mcp_tools():
         "log_collection": 17,
         "log_extract": 7,
         "metadata": 2,
+        "recording_rule": 7,
     }
     assert {category: len(registry.list(category=category)) for category in unified_registry.CATEGORIES} == (
         expected_category_counts
@@ -388,6 +389,9 @@ def test_apm_web_dispatchers_preserve_application_permission(monkeypatch, tool_n
     captured = {}
     app_query = SimpleNamespace(
         values_list=lambda *_args, **_kwargs: SimpleNamespace(first=lambda: 9),
+        values=lambda *_args: SimpleNamespace(
+            first=lambda: {"application_id": 9, "app_name": "demo", "bk_biz_id": 789}
+        ),
     )
     monkeypatch.setattr(dispatcher.Application.objects, "filter", lambda **kwargs: app_query)
 
@@ -546,20 +550,16 @@ def test_lookup_permissions_returns_apply_guide_for_missing_scope(monkeypatch):
     assert permission.checked == [(789, "using_log_mcp", False)]
 
 
-def test_lookup_permissions_reports_missing_additional_execution_action(monkeypatch):
+def test_legacy_fallback_requires_additional_execution_action():
+    """The tool now uses native dual permissions; retain its legacy all-actions rule."""
     permission = FakePermission(allowed_biz={(789, "using_log_collection_mcp")})
-    monkeypatch.setattr(unified_mcp, "get_permission_client", lambda: permission)
-
-    result = unified_mcp.LookupPermissionsResource().request(
-        bk_biz_id=789,
-        tool_name="list_log_collectors",
-        include_apply_guide=True,
-    )
-
-    assert result["authorized"] is False
-    assert result["scopes"][0]["action_id"] == "using_log_collection_mcp"
-    assert result["scopes"][0]["additional_action_ids"] == ["view_business_v2"]
-    assert result["missing_permissions"][0]["action_id"] == "view_business_v2"
+    tool = unified_registry.get_tool_registry().get("list_log_collectors")
+    states = unified_mcp._permission_state_by_action(permission, set(tool.legacy_action_ids), 789)
+    assert states == {"using_log_collection_mcp": "granted", "view_business_v2": "missing"}
+    assert unified_mcp._legacy_tool_state(tool, states) == "missing"
+    permission.allowed_biz.add((789, "view_business_v2"))
+    states = unified_mcp._permission_state_by_action(permission, set(tool.legacy_action_ids), 789)
+    assert unified_mcp._legacy_tool_state(tool, states) == "granted"
 
 
 def test_lookup_permissions_preserves_exempt_space_discovery(monkeypatch):
@@ -618,12 +618,14 @@ def test_log_dispatcher_rejects_cross_space_index_set(monkeypatch):
 
 
 def test_time_series_table_rejects_cross_space_reference(monkeypatch):
+    from kernel_api.resource import metrics
+
     group = SimpleNamespace(bk_biz_id=999, bk_data_id=1)
     group_query = SimpleNamespace(first=lambda: group)
     data_source_query = SimpleNamespace(exists=lambda: False)
-    monkeypatch.setattr(dispatcher.TimeSeriesGroup.objects, "filter", lambda **_kwargs: group_query)
-    monkeypatch.setattr(dispatcher.DataSource.objects, "filter", lambda **_kwargs: data_source_query)
-    monkeypatch.setattr(dispatcher, "get_request_tenant_id", lambda: "default")
+    monkeypatch.setattr(metrics.TimeSeriesGroup.objects, "filter", lambda **_kwargs: group_query)
+    monkeypatch.setattr(metrics.DataSource.objects, "filter", lambda **_kwargs: data_source_query)
+    monkeypatch.setattr(metrics, "get_request_tenant_id", lambda: "default")
 
     with pytest.raises(ValidationError):
         dispatcher._ensure_time_series_table_belongs_to_biz({"bk_biz_id": "789", "table_id": "other.table"})
@@ -790,6 +792,7 @@ def test_middleware_routes_unified_execute_permission_from_inner_tool(monkeypatc
     class FakeMCPPermission:
         def __init__(self, action):
             captured["action"] = action.id
+            self.actions = [action]
 
         def has_permission(self, request, _view):
             captured["bk_biz_id"] = request.biz_id

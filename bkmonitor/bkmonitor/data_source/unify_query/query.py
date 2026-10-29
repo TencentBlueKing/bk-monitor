@@ -511,8 +511,9 @@ class UnifyQuery:
         indexed = {}
         for record in records:
             record.pop(output.get("reference_name"), None)
+            # PromQL arithmetic drops the metric name; match snapshots by business labels instead.
             dimensions = tuple(
-                sorted((key, value) for key, value in record.items() if key not in {"_time_", "_result_"})
+                sorted((key, value) for key, value in record.items() if key not in {"_time_", "_result_", "__name__"})
             )
             key = (record["_time_"], dimensions)
             if key in indexed:

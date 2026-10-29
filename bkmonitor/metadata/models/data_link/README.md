@@ -179,6 +179,15 @@ conditionalSink2 --> vmBinding3[VmStorageBinding]
 - 联邦子集群策略在组装阶段重点产出 `ConditionalSink` + `Databus` 路由配置；其策略映射中仍包含其他组件类型，用于统一生命周期管理和清理。
 - 日志链路支持 ES 与 Doris，至少需要一个存储绑定，否则抛出 `ValueError("至少需要一个存储绑定配置")`。
 
+单租户系统事件（Data ID `1000`）通过
+`metadata.task.tasks.create_single_tenant_system_event_datalink()` 创建，`init_tenant()` 会自动调用。
+该入口将现有数据源注册到 `bklog`，复用 `BASE_EVENT_V1` 配置及 `gse_system_event` 预置清洗逻辑，
+继续写入原 `gse_system_event` 结果表的 ES 集群和写入别名。
+计算平台业务 ID 默认取 `DEFAULT_BKDATA_BIZ_ID`，可通过 `data_bk_biz_id` 指定；
+单租户内置链路的 `kafka_cluster_name` 默认为空字符串，为空时使用默认 Kafka 集群，也可传入名称指定集群。
+完整 V4 链路下发成功后才清理旧 Transfer 的 Consul 配置；组装或下发失败时保留旧配置。
+重复执行会复用已注册的 Data ID 和链路组件，并重试未完成的旧配置清理。
+
 日志链路的 `log_v4_data_link.doris_storage_config` 和自定义格式链路的
 `custom_format_v4_data_link.doris_storage_config` 均支持自定义分词规则，例如：
 
@@ -290,6 +299,37 @@ conditionalSink2 --> vmBinding3[VmStorageBinding]
 - 负数前缀场景改写为 `bkm_neg_...`；
 - 结果名整体受 BKBase 40 长度限制，超长时截断并追加哈希；
 - 联邦子集群策略会加 `_fed` 后缀。
+
+### 8.4 随机名称与持久化身份
+
+`compose_bkdata_data_id_name` / `compose_bkdata_table_id` 保留旧规则，DataId 申请与轮询仍使用它们。
+已有 DataId 注册、普通时序/插件/图谱/联邦链路和预计算输出的新身份使用
+`generate_bkdata_resource_name(scene, source_id)`：`bkm_<场景>_<来源ID>_<12位随机串>`，最长 40 字符。
+调用时使用 `DataLinkNameScene` 枚举，例如 `DataLinkNameScene.FEDERAL_PROXY`，不直接传短码。
+来源是 DataId 或规则主键；为容纳最长 19 位来源 ID 和 12 位随机串，资源名中的场景值保留为 2–3 位短码。
+
+| 枚举成员 | 资源名短码 | 场景 |
+| --- | --- | --- |
+| `DATA_ID` | `did` | 已有 DataId 注册 |
+| `STANDARD_V2_TIME_SERIES` | `ts` | 标准 V2 时序 |
+| `STANDARD_PLUGIN` | `std` | 标准插件 |
+| `EXPORTER_PLUGIN` | `exp` | Exporter 插件 |
+| `GRAPH` | `gr` | 图谱链路 |
+| `GRAPH_VM` | `gvm` | 图谱 VM 输出 |
+| `GRAPH_SURREALDB` | `gdb` | 图谱 SurrealDB 输出 |
+| `RECORD_RULE` | `rr` | 预计算输出 |
+| `FEDERAL_PROXY` | `fp` | 联邦父集群 |
+| `FEDERAL_SUBSET` | `fs` | 联邦子集群 |
+
+- 沿用 compose 中的组件查询及创建/更新流程，首次创建时分配随机名称并一次写入完整配置，再下发 BKBase；重试复用已保存名称。
+- DataLink 主名称与 DataId 名独立，通过 BkBaseResultTable、DataBusConfig 保存关联。
+- 普通时序/插件/图谱/联邦始终复用已有组件身份，不受组件复用灰度开关关闭影响；歧义直接报错。
+- RT、Binding 和 DataBus 可以不同名，所有引用必须读取实际实例及保存的引用。
+- 预计算在规则声明时将输出身份保存于 dst_vm_table_id，后续本地映射与 Flow 均复用；BKBase 输出 RT/Binding 由 Flow 自动创建。
+- 健康检查、采样和路由回填只读取已登记身份，不用生成函数推测资源。
+- 联邦优先使用正常组件关联，缺少关联时通过完整 VMRT 和实际 RT 引用兜底；Proxy 修复历史归属，Subset 只引用共享 Binding。
+- 联邦 V3 source 从实际登记或远端查询恢复，不再推测名称；正常链路不扫描无关的历史 VMRT 映射。
+- 不重命名存量资源，不修改 DataId 申请/轮询及 relation.py 的历史关联回填、重建逻辑。
 
 ---
 

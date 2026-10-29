@@ -26,6 +26,7 @@
 
 import { bkMessage } from 'monitor-api/utils';
 import { copyText } from 'monitor-common/utils';
+import { resolveLegacyHostHash } from 'monitor-pc/common/legacy-host-url';
 import { transformLogUrlQuery } from 'monitor-pc/utils';
 
 import {
@@ -148,7 +149,10 @@ export class AlertScenario extends BaseScenario {
       /** 策略名称(strategy_name) 列 */
       strategy_name: {
         renderType: ExploreTableColumnTypeEnum.LINK,
-        getRenderValue: row => ({ url: this.getStrategyUrl(row.strategy_id, row.bk_biz_id), alias: row.strategy_name }),
+        getRenderValue: row => ({
+          url: this.canJumpToStrategy(row) ? this.getStrategyUrl(row.strategy_id, row.bk_biz_id) : undefined,
+          alias: row.strategy_name,
+        }),
       },
       /** 策略标签(labels) 列 */
       labels: {
@@ -322,15 +326,19 @@ export class AlertScenario extends BaseScenario {
         <div class='alarm-name-popover-item'>
           <span class='alarm-name-popover-item-label'>{window.i18n.t('告警策略')} : </span>
           <div class='alarm-name-popover-item-value'>
-            <a
-              style='color: inherit'
-              href={this.getStrategyUrl(row?.strategy_id, row?.bk_biz_id)}
-              rel='noopener noreferrer'
-              target='_blank'
-            >
+            {this.canJumpToStrategy(row) ? (
+              <a
+                style='color: inherit'
+                href={this.getStrategyUrl(row?.strategy_id, row?.bk_biz_id)}
+                rel='noopener noreferrer'
+                target='_blank'
+              >
+                <span class='alarm-name-popover-item-value'>{row.strategy_name}</span>
+                <i class='icon-monitor icon-mc-goto' />
+              </a>
+            ) : (
               <span class='alarm-name-popover-item-value'>{row?.strategy_name || '--'}</span>
-              <i class='icon-monitor icon-mc-goto' />
-            </a>
+            )}
           </div>
         </div>
       </div>
@@ -452,7 +460,9 @@ export class AlertScenario extends BaseScenario {
           extendInfo.bk_host_id ??
           `${extendInfo.ip}-${extendInfo.bk_cloud_id === undefined ? 0 : extendInfo.bk_cloud_id}`;
         window.open(
-          `${origin}${location.pathname.toString().replace('fta/', '')}?bizId=${bizId}#/performance/detail/${detailId}`,
+          `${origin}${location.pathname.toString().replace('fta/', '')}?bizId=${bizId}${resolveLegacyHostHash({
+            id: String(detailId),
+          })}`,
           '_blank'
         );
         return;
@@ -514,6 +524,14 @@ export class AlertScenario extends BaseScenario {
       message: window.i18n.t('复制成功'),
       theme: 'success',
     });
+  }
+
+  /**
+   * @description 是否可跳转策略详情：告警来源为监控策略且存在策略名称
+   * @param {AlertTableItem} row 告警项
+   */
+  private canJumpToStrategy(row: AlertTableItem) {
+    return row?.plugin_id === 'bkmonitor' && !!row?.strategy_name;
   }
 
   /**

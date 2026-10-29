@@ -116,6 +116,7 @@ interface Params {
   app_name: string;
   bk_biz_id: number | string;
   query_trace_relation_app?: boolean;
+  reduce_span_details?: boolean;
   span_id?: number | string;
   trace_id?: number | string;
 }
@@ -125,7 +126,7 @@ const HEADER_HEIGHT = 48;
 export default defineComponent({
   name: 'Inquire',
   directives: { monitorDrag },
-  setup(props, { expose }) {
+  setup(_props, { expose }) {
     const route = useRoute();
     const router = useRouter();
     const store = useTraceStore();
@@ -323,6 +324,10 @@ export default defineComponent({
       state.autoQuery = val;
     };
     async function handleAppSelectChange(val: string, isClickQueryBtn = false) {
+      if (state.searchType === 'accurate' && state.app !== val) {
+        accurateRequestId += 1;
+        store.setPageLoading(false);
+      }
       state.app = val;
       traceListPagination.offset = 0;
       traceColumnFilters.value = {};
@@ -350,6 +355,7 @@ export default defineComponent({
     const handleChangeSearchIdType = () => {
       traceIDSearchValue.value = '';
     };
+    let accurateRequestId = 0;
     /** ID 查询 */
     const handleQueryTraceId = async () => {
       if (!state.app || isLoading.value || !traceIDSearchValue.value.trim?.().length) {
@@ -366,35 +372,41 @@ export default defineComponent({
         },
       });
       store.setPageLoading(true);
-      /** 记录当前搜索的应用 */
-      localStorage.setItem('trace_query_app', state.app);
+      const requestId = ++accurateRequestId;
+      const queryApp = state.app;
+      const queryId = traceIDSearchValue.value;
+      localStorage.setItem('trace_query_app', queryApp);
 
       const isTraceIDSearch = searchIdType.value === 'traceID';
       const requestFn = isTraceIDSearch ? traceDetail : spanDetail;
       const params: Params = {
         bk_biz_id: window.bk_biz_id,
-        app_name: state.app,
-        [isTraceIDSearch ? 'trace_id' : 'span_id']: traceIDSearchValue.value,
+        app_name: queryApp,
+        [isTraceIDSearch ? 'trace_id' : 'span_id']: queryId,
       };
       if (isTraceIDSearch && (!store.selectedTraceViewFilterTab || store.selectedTraceViewFilterTab === 'timeline')) {
         params[QUERY_TRACE_RELATION_APP] = traceViewFilters.value.includes(QUERY_TRACE_RELATION_APP);
       }
-      const resultData = await requestFn(params).catch(() => null);
       searchResultIdType.value = searchIdType.value;
       if (isTraceIDSearch) {
-        store.setTraceData({ ...resultData, appName: state.app, trace_id: traceIDSearchValue.value });
-      } else {
-        if (resultData && Object.keys(resultData).length) {
+        params.reduce_span_details = true;
+        store.setTraceData({ ...DEFAULT_TRACE_DATA, appName: queryApp, trace_id: queryId });
+      }
+      state.isAlreadyAccurateQuery = true;
+      try {
+        const resultData = await requestFn(params).catch(() => null);
+        if (requestId !== accurateRequestId || state.app !== queryApp || state.searchType !== 'accurate') return;
+        if (isTraceIDSearch) {
+          store.setTraceData({ ...DEFAULT_TRACE_DATA, ...resultData, appName: queryApp, trace_id: queryId });
+        } else if (resultData && Object.keys(resultData).length) {
           store.setSpanDetailData(resultData);
           resultData.trace_tree.traceID = resultData?.trace_tree?.spans?.[0]?.traceID;
           spanDetails.value = transformTraceTree(resultData.trace_tree)?.spans?.[0];
         } else {
           spanDetails.value = null;
         }
-      }
-      store.setPageLoading(false);
-      if (!state.isAlreadyAccurateQuery) {
-        state.isAlreadyAccurateQuery = true;
+      } finally {
+        if (requestId === accurateRequestId) store.setPageLoading(false);
       }
     };
     /** 精确查询输入框失焦 */
@@ -498,7 +510,9 @@ export default defineComponent({
             value: [],
           },
         };
-        store.traceType.forEach(item => filters.push(filterTypeMapping[item]));
+        store.traceType.forEach(item => {
+          filters.push(filterTypeMapping[item]);
+        });
       }
       // TODO：后面回来还需要收集侧边栏的信息
       // 收集 Span 视角 里的 SpanType 对应的固定过滤。
@@ -554,8 +568,12 @@ export default defineComponent({
             value: ['0'],
           },
         };
-        store.serviceStatisticsType.contain.forEach(item => filters.push(filterTypeMapping[item]));
-        store.serviceStatisticsType.interfaceType.forEach(item => filters.push(filterTypeMapping[item]));
+        store.serviceStatisticsType.contain.forEach(item => {
+          filters.push(filterTypeMapping[item]);
+        });
+        store.serviceStatisticsType.interfaceType.forEach(item => {
+          filters.push(filterTypeMapping[item]);
+        });
       }
       const params = {
         app_name: state.app,
@@ -640,6 +658,7 @@ export default defineComponent({
             store.setTraceList(data);
           }
         } catch {
+          // 保留当前列表，统一在 finally 结束加载状态。
         } finally {
           store.setTraceLoading(false);
         }
@@ -659,6 +678,7 @@ export default defineComponent({
             store.setSpanList(data);
           }
         } catch {
+          // 保留当前列表，统一在 finally 结束加载状态。
         } finally {
           store.setTraceLoading(false);
         }
@@ -682,6 +702,7 @@ export default defineComponent({
           }
           // store.setTraceTotalCount(store.interfaceStatisticsList.length);
         } catch {
+          // 保留当前列表，统一在 finally 结束加载状态。
         } finally {
           store.setTraceLoading(false);
         }
@@ -702,6 +723,7 @@ export default defineComponent({
             store.setServiceStatisticsList(serviceStatisticList);
           }
         } catch {
+          // 保留当前列表，统一在 finally 结束加载状态。
         } finally {
           store.setTraceLoading(false);
         }
@@ -729,7 +751,9 @@ export default defineComponent({
       if (route.query?.incident_query) {
         try {
           query.incident_query = route.query?.incident_query;
-        } catch {}
+        } catch {
+          // 路由参数不可用时保留当前查询条件。
+        }
       }
       Object.keys(scopeSelects.value).forEach(key => {
         if (key === 'service') {
@@ -737,7 +761,9 @@ export default defineComponent({
             filters[scopeSelects.value[key].id] = scopeSelects.value[key].value;
           }
         } else if (searchSelectValue.value.length) {
-          searchSelectValue.value.forEach(opt => (filters[opt.id] = opt.values.map(val => val.id)));
+          searchSelectValue.value.forEach(opt => {
+            filters[opt.id] = opt.values.map(val => val.id);
+          });
         }
       });
 
@@ -813,6 +839,7 @@ export default defineComponent({
     }
     /* 切换查询方式 */
     async function handleSearchTypeChange(id: string) {
+      accurateRequestId += 1;
       store.setTraceDetail(false);
       cancelTokenSource?.cancel?.();
       cancelTokenSource = axios.CancelToken.source();
@@ -1532,7 +1559,7 @@ export default defineComponent({
     const checkHasRepeatConditionValue = (): boolean => {
       let isRepeatConditionValue = true;
       // 前后选择的条件不同，不需要再对比。
-      if (lastCollectConditionFilter.length !== conditionFilter.length) return (isRepeatConditionValue = false);
+      if (lastCollectConditionFilter.length !== conditionFilter.length) return false;
       conditionFilter.forEach((item: any) => {
         const target = lastCollectConditionFilter.find(lastFilterItem => lastFilterItem.key === item.key);
         // 如果没找到原先的条件，说明有新增。

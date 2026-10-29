@@ -24,6 +24,11 @@ from django.test import SimpleTestCase, TestCase, override_settings
 
 from apps.log_desensitize.models import DesensitizeConfig, DesensitizeFieldConfig
 from apps.log_desensitize.utils import _extract_value_by_path
+from unittest.mock import Mock, patch
+
+from django.test import TestCase, override_settings
+
+from apps.log_desensitize.models import DesensitizeConfig, DesensitizeFieldConfig
 from apps.log_search.handlers.search.search_handlers_esquery import SearchHandler
 from apps.log_search.models import LogIndexSet, LogIndexSetData
 

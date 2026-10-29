@@ -990,7 +990,7 @@ paths:
       tags:
       - 采集项
       x-bk-apigateway-resource:
-        isPublic: false
+        isPublic: true
         allowApplyPermission: true
         matchSubpath: false
         backend:
@@ -2264,7 +2264,7 @@ paths:
       tags:
       - 采集项
       x-bk-apigateway-resource:
-        isPublic: false
+        isPublic: true
         allowApplyPermission: true
         matchSubpath: false
         backend:
@@ -3788,6 +3788,28 @@ paths:
           name: default
           method: post
           path: /api/v1/search/scene/dimension_values/
+          matchSubpath: false
+          timeout: 0
+        pluginConfigs: []
+        authConfig:
+          userVerifiedRequired: false
+          appVerifiedRequired: true
+          resourcePermissionRequired: true
+        descriptionEn:
+  /scene/field/analyze/:
+    post:
+      operationId: scene_analyze_field
+      description: 场景化日志检索-字段分析
+      tags:
+      - 场景化
+      x-bk-apigateway-resource:
+        isPublic: false
+        allowApplyPermission: false
+        matchSubpath: false
+        backend:
+          name: default
+          method: post
+          path: /api/v1/search/scene/field/analyze/
           matchSubpath: false
           timeout: 0
         pluginConfigs: []

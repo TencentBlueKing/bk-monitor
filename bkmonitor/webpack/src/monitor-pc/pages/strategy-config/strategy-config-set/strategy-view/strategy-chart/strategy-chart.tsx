@@ -38,7 +38,6 @@ import { handleThreshold } from 'monitor-ui/chart-plugins/utils';
 import { LETTERS } from '../../../../../common/constant';
 import { SET_DIMENSIONS_OF_SERIES } from '../../../../../store/modules/strategy-config';
 import { PromqlQueryController } from '../../../strategy-config-common/promql-query/controller';
-import { isMultiPromqlBiz } from '../../../strategy-config-common/promql-query/model';
 import { buildPromqlPreview } from '../../../strategy-config-common/promql-query/service';
 import { transformSensitivityValue } from '../../../util';
 import { EShortcutsType } from '../typing';
@@ -226,12 +225,7 @@ export default class StrategyChart extends tsc<IProps, IEvent> {
   /** 初始化图表panel */
   @Debounce(1000)
   async initPanel() {
-    if (
-      this.editMode === 'Source' &&
-      this.sourceController.validate(this.sourceData, this.expression, {
-        allowMulti: isMultiPromqlBiz(this.$store.getters.bizId),
-      })
-    ) {
+    if (this.editMode === 'Source' && this.sourceController.validate(this.sourceData, this.expression)) {
       this.panel = null;
       return;
     }
@@ -269,13 +263,9 @@ export default class StrategyChart extends tsc<IProps, IEvent> {
   @Emit('logQuery')
   handleLogQuery() {}
 
-  /** 图表 title：存在表达式时直接展示表达式，单指标展示指标名 */
+  /** 图表 title：统一展示表达式（别名表达式），不做指标中文名解析 */
   getMetricName() {
-    // 单指标时表达式就是该指标的别名，展示指标名
-    if (this.metricData?.length === 1) {
-      return this.metricData[0].metric_field_name || this.getExpression();
-    }
-    return this.getExpression();
+    return this.getExpression()?.trim() || '';
   }
 
   /**

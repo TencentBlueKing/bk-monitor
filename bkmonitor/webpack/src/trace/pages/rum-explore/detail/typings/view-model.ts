@@ -25,7 +25,8 @@
  */
 
 import type { IRumField } from '../../typings';
-import type { RumCardToneType, RumRatingType, RumSectionType } from './enum';
+import type { IRumHoverInfo } from './detail';
+import type { RumCardToneType, RumRatingType, RumSectionType, RumTimelineFilterCategoryType } from './enum';
 
 /** 徽标：标题右侧的关键指标与状态 */
 export interface IRumBadgeVM {
@@ -55,8 +56,16 @@ export interface IRumCardFooterPart {
   tone?: RumCardToneType;
 }
 
+/** 卡片可使用的抽屉交互能力，由 useDetailSections 注入，注册表通过 ctx.handlers 消费 */
+export interface IRumCardHandlers {
+  /** 切到「链路上下文」tab 并套用指定的快捷筛选类别 */
+  switchTraceContext: (category: RumTimelineFilterCategoryType) => void;
+}
+
 /** 卡片描述符的推导上下文 */
 export interface IRumCardResolveCtx {
+  /** 抽屉交互能力，仅在详情区块构造时注入 */
+  handlers?: IRumCardHandlers;
   /** 当前 span 的原始数据，用于取分组外的字段 */
   originData: Record<string, any>;
   /** 关联接口拉回的补充数据，未就绪时为空对象 */
@@ -145,6 +154,8 @@ export interface IRumOverviewItemVM {
 
 /** 评级条视图模型 */
 export interface IRumRatingBarVM {
+  /** Vital 指标整体的 hover 展示信息 */
+  hover?: IRumHoverInfo;
   /** 指标全称，如「累积布局偏移（Cumulative Layout Shift，CLS）」 */
   metricLabel: string;
   /** 当前命中的评级 */
@@ -163,6 +174,8 @@ export interface IRumRatingBarVM {
 export interface IRumRatingSegmentVM {
   /** 分段颜色 */
   color: string;
+  /** 该评级的 hover 展示信息 */
+  hover?: IRumHoverInfo;
   /** 分段文案，如「良好 ≦ 2500ms」 */
   label: string;
   rating: RumRatingType | string;
@@ -195,6 +208,8 @@ export interface IRumSummaryCardVM {
   footer?: IRumCardFooterPart[];
   /** 主值右侧的环比增长率（如 +300%），涨跌语义配色，与 unit（单位）互斥使用 */
   growthRate?: { text: string; tone?: RumCardToneType };
+  /** 该标记的 hover 展示信息 */
+  hover?: IRumHoverInfo;
   key: string;
   /** 卡片标题 */
   label: string;
@@ -208,12 +223,11 @@ export interface IRumSummaryCardVM {
   tag?: { bgColor: string; color: string; text: string };
   /** 主值语义配色 */
   tone?: RumCardToneType;
-  type?: 'link' | 'text';
   /** 主值右侧的次要文本（单位） */
   unit?: { text: string; tone?: RumCardToneType };
   /** 主值 */
   value: string;
-  /** link 类型卡片的点击回调 */
+  /** 点击回调：有值时卡片按可点击样式呈现（主值下划线 + 手型光标），由注册表构造器通过 ctx.handlers 产出 */
   click?: () => void;
 }
 
@@ -227,6 +241,8 @@ export interface IRumTtfbBreakdownVM {
 
 export interface IRumWaterfallMarkerVM {
   color?: string;
+  /** 该标记的 hover 展示信息 */
+  hover?: IRumHoverInfo;
   key: string;
   label: string;
   percent: number;
@@ -241,6 +257,8 @@ export interface IRumWaterfallRowVM {
   /** 色块宽度百分比 */
   durationPercent: number;
   durationText: string;
+  /** 该阶段的 hover 展示信息 */
+  hover?: IRumHoverInfo;
   key: string;
   label: string;
   /** 色块左偏移百分比 */
@@ -258,7 +276,7 @@ export interface IRumWaterfallVM {
   /** 被合并掉的阶段名（如 DNS、TCP、TLS），由瀑布图组件拼装成说明文案 */
   mergedNames?: string[];
   /** 累计里程碑 */
-  milestones?: { key: string; name: string; value: string }[];
+  milestones?: Array<{ hover?: IRumHoverInfo; key: string; name: string; value: string }>;
   rows: IRumWaterfallRowVM[];
   /** TTFB 分解说明，后端缺少 TTFB 时间点或子项时为空 */
   ttfbBreakdown?: IRumTtfbBreakdownVM;

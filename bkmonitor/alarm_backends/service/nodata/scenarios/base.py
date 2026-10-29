@@ -13,14 +13,14 @@ from itertools import chain
 
 from alarm_backends.constants import NO_DATA_TAG_DIMENSION
 from alarm_backends.core.cache.assign import AssignCacheManager
-from alarm_backends.core.cache.cmdb import HostManager, ServiceInstanceManager
+from alarm_backends.core.cache.cmdb import HostManager
 from alarm_backends.core.control.item import Item
 from alarm_backends.core.detect_result import CheckResult
 from alarm_backends.service.nodata.scenarios.filters import DimensionRangeFilter
 from api.cmdb.define import ServiceInstance
 from bkmonitor.utils.cache import mem_cache
-from bkmonitor.utils.tenant import bk_biz_id_to_bk_tenant_id
 from constants.strategy import HOST_SCENARIO, SERVICE_SCENARIO
+from core.drf_resource import api
 
 SCENARIO_CLS = {}
 
@@ -231,18 +231,15 @@ class ServiceScenario(BaseScenario):
         target_data = self.item.target[0][0]
 
         if "bk_target_service_instance_id" in self.get_no_data_dimensions():
-            bk_tenant_id = bk_biz_id_to_bk_tenant_id(self.strategy.bk_biz_id)
             target_topo = {"{}|{}".format(inst["bk_obj_id"], inst["bk_inst_id"]) for inst in target_data["value"]}
-            all_services: list[ServiceInstance] = ServiceInstanceManager.refresh_by_biz(
-                bk_tenant_id=bk_tenant_id, bk_biz_id=self.strategy.bk_biz_id
+            services: list[ServiceInstance] = api.cmdb.get_service_instance_by_topo_node(
+                bk_biz_id=self.strategy.bk_biz_id
             )
-            target_services = []
-            for service in all_services:
-                service_topo = set({node.id for node in chain(*list(service.topo_link.values()))})
-                if service_topo & target_topo:
-                    target_services.append(service)
+            topo_link = api.cmdb.get_topo_tree(bk_biz_id=self.strategy.bk_biz_id).convert_to_topo_link()
             target_instances = [
-                {"bk_target_service_instance_id": service.service_instance_id} for service in target_services
+                {"bk_target_service_instance_id": service.service_instance_id}
+                for service in services
+                if {node.id for node in topo_link.get(f"module|{service.bk_module_id}", [])} & target_topo
             ]
         elif "bk_inst_id" in self.get_no_data_dimensions():
             target_instances = target_data["value"]

@@ -120,7 +120,7 @@ export default defineComponent({
           }
           if (hideNoData.value) {
             params.exclude_not_data = true;
-            params.conditions = [{ key: 'status', value: ['running', 'success', 'failed'] }];
+            params.conditions = [{ key: 'status', value: ['running', 'success', 'failed', 'unknown'] }];
           }
           const res = await $http.request(
             'collect/newCollectList',

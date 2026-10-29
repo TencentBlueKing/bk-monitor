@@ -229,9 +229,9 @@ CELERY_ACCEPT_CONTENT = ["pickle"]
 
 CELERY_IMPORTS = (
     "apps.log_search.tasks.bkdata",
-    "apps.log_search.tasks.async_export",
     "apps.log_search.tasks.scene_async_export",
     "apps.log_search.tasks.unify_query_async_export",
+    "apps.log_search.tasks.sharded_export",
     "apps.log_search.tasks.project",
     "apps.log_search.tasks.space",
     "apps.log_search.tasks.cmdb",
@@ -242,6 +242,7 @@ CELERY_IMPORTS = (
     "apps.log_databus.tasks.itsm",
     "apps.log_databus.tasks.bkdata",
     "apps.log_databus.tasks.archive",
+    "apps.log_databus.tasks.nodeman_v3",
     "apps.log_databus.tasks.scene",
     "apps.log_admin_resource.tasks",
     "apps.log_admin_resource.k8s_tasks",
@@ -251,7 +252,6 @@ CELERY_IMPORTS = (
     "apps.log_clustering.tasks.sync_pattern",
     "apps.log_clustering.tasks.subscription",
     "apps.log_extract.tasks.extract",
-    "apps.iam.tasks.grant",
 )
 
 if os.environ.get("BKAPP_FEATURE_TGPA_TASK", "off") == "on":
@@ -415,6 +415,8 @@ else:
 BKDATA_URL = BK_PAAS_HOST
 MONITOR_URL = ""
 BK_DOC_URL = "https://bk.tencent.com/docs/"
+BK_LOG_ACCESS_GUIDE_URL = os.getenv("BKAPP_LOG_ACCESS_GUIDE_URL", "")
+BK_LOG_PERMISSION_GUIDE_URL = os.getenv("BKAPP_LOG_PERMISSION_GUIDE_URL", "")
 BK_DOC_STATIC_URL = ""
 BK_DOC_QUERY_URL = "https://bk.tencent.com/docs/document/5.1/90/3822/"
 BK_FAQ_URL = "https://bk.tencent.com/s-mart/community"
@@ -452,43 +454,12 @@ BK_HOT_WARM_CONFIG_URL = (
 BK_COMPONENT_API_URL = os.environ.get("BK_COMPONENT_API_URL")
 DEPLOY_MODE = os.environ.get("DEPLOY_MODE", "")
 
-BK_IAM_APIGATEWAY_URL = os.getenv("BKAPP_IAM_API_BASE_URL") or f"{BK_COMPONENT_API_URL}/api/bk-iam/prod/"
-# IAM 鉴权模式（v3 / v4 / union）。运维主入口：显式设置后忽略 Feature Toggle iam_permission_mode。
-# 这是有意取舍：env 一旦设置，改 DB Toggle 无法热修，回滚必须改 BKAPP_IAM_PERMISSION_MODE 后重新发布。
-# 留空则回退 DB Toggle；Toggle 缺失或读库失败再回退 DualStackSpec.legacy（当前 v3）。
-# 非法值 fail-closed，不会跨层回退到 Toggle 或 legacy。不要把该值写进 FEATURE_TOGGLE（那是 on/off）。
-# 非空非法值在 apps.iam AppConfig.ready() 以 ImproperlyConfigured 阻断启动，避免拖到第一次鉴权才全量 403。
-BK_IAM_PERMISSION_MODE = os.getenv("BKAPP_IAM_PERMISSION_MODE", "").strip().lower()
-# IAM V4 权限系统 ID；未配置时回退到 V3 系统 ID，便于按环境切换。
-BK_IAM_V4_SYSTEM_ID = os.getenv("BKAPP_IAM_V4_SYSTEM_ID", "").strip()
-# IAM V4（bkiam 网关）；必须显式配置 BKAPP_IAM_V4_API_BASE_URL，未配置时 V4 client 会记录错误并安全失败
-BK_IAM_V4_APIGATEWAY_URL = os.getenv("BKAPP_IAM_V4_API_BASE_URL", "").strip()
-# IAM V4 资源回调验签专用 APP；本地联调内网 dev 网关时可与全局 APP_CODE 分离，未配置时回退 APP_CODE/SECRET_KEY
-BK_IAM_V4_CALLBACK_APP_CODE = os.getenv("BKAPP_IAM_V4_CALLBACK_APP_CODE", "").strip()
-BK_IAM_V4_CALLBACK_APP_SECRET = os.getenv("BKAPP_IAM_V4_CALLBACK_APP_SECRET", "").strip()
-BK_IAM_V4_TIMEOUT = os.getenv("BK_IAM_V4_TIMEOUT", "10")
-BK_IAM_V4_BATCH_CHUNK_SIZE = os.getenv("BK_IAM_V4_BATCH_CHUNK_SIZE", "100")
-BK_IAM_V4_BATCH_MAX_WORKERS = os.getenv("BK_IAM_V4_BATCH_MAX_WORKERS", "4")
-BK_IAM_V4_AUTH_TOKEN_PATH = os.getenv(
-    "BK_IAM_V4_AUTH_TOKEN_PATH",
-    "api/v1/open/rbac/model/systems/{system_id}/auth-token/",
-)
-BK_IAM_V4_AUTH_TOKEN_CACHE_SECONDS = os.getenv("BK_IAM_V4_AUTH_TOKEN_CACHE_SECONDS", "300")
-BK_IAM_V4_ADD_AUTHORIZATION_PATH = os.getenv(
-    "BKAPP_IAM_V4_ADD_AUTHORIZATION_PATH",
-    "api/v1/open/rbac/mgmt/systems/{system_id}/authorizations/",
-)
-BK_IAM_V4_GRANT_EXPIRE_DAYS = os.getenv("BK_IAM_V4_GRANT_EXPIRE_DAYS", "365")
-BK_IAM_GRANT_MAX_ATTEMPTS = os.getenv("BK_IAM_GRANT_MAX_ATTEMPTS", "12")
+from iam_engine.settings import load_iam_settings, resolve_iam_gateway_url
 
-# IAM V4 权限模型 as-code：基线文件在 support-files/iam/v4/，由 manage.py iam_v4_migrate_model 收敛。
-# post_migrate 会像 V3 IAMMigrator 一样无条件收敛一次，唯一前置条件是配了 BKAPP_IAM_V4_API_BASE_URL；
-# 不受 BKAPP_IAM_PERMISSION_MODE 影响，因为创建者授权双写只看网关是否配置，不看鉴权模式。
-BK_IAM_V4_MODEL_BASE_PATH = os.getenv("BKAPP_IAM_V4_MODEL_BASE_PATH", "api/v1/open/rbac/model/systems/")
-# 系统管理员；留空表示不由 as-code 托管，同步时既不下发也不比对，避免清空人工配置。
-BK_IAM_V4_MODEL_MANAGERS = os.getenv("BKAPP_IAM_V4_MODEL_MANAGERS", "").strip()
-# V4 资源回调地址；留空时由 BK_IAM_RESOURCE_API_HOST 拼出 api/v1/iam/v4/resource/。
-BK_IAM_V4_CALLBACK_URL = os.getenv("BKAPP_IAM_V4_CALLBACK_URL", "").strip()
+BK_IAM_APIGATEWAY_URL = resolve_iam_gateway_url(BK_COMPONENT_API_URL, os.getenv("BKAPP_IAM_API_BASE_URL"), version="v3")
+
+# Both products share the BKLog environment contract (including string defaults).
+globals().update(load_iam_settings(component_api_url=BK_COMPONENT_API_URL))
 
 BK_USER_HOST = os.getenv("BKAPP_BKUSER_HOST", BK_BKLOG_HOST.replace("bklog", "bkuser"))
 SHOW_PERSONAL_SETTINGS = os.getenv("BKAPP_SHOW_PERSONAL_SETTINGS", "on") == "on"
@@ -1394,6 +1365,13 @@ INITIALIZED_TENANT_LIST = [BK_APP_TENANT_ID]
 APIGW_ENABLED = not (ENABLE_MULTI_TENANT_MODE or "test" in sys.argv)
 USE_APIGW = os.getenv("BKAPP_USE_APIGW", "false").lower() == "true"
 
+# 与监控统一的 NodeMan V3 环境级总开关，默认关闭。
+ENABLE_NODEMAN_V3 = os.getenv("BKAPP_ENABLE_NODEMAN_V3", "false").lower() == "true"
+
+# 节点管理 V3 网关地址。留空时按 APIGW 约定拼接，联调环境可直连指定地址；
+# 该地址配置不承担启用开关职责。
+BKNODEMAN_V3_API_BASE_URL = os.getenv("BKAPP_BKNODEMAN_V3_API_BASE_URL", "")
+
 # 预查询时间, 默认6h小时, 0代表禁用
 try:
     PRE_SEARCH_SECONDS = int(os.getenv("BKAPP_PRE_SEARCH_SECONDS", 6 * 60 * 60))
@@ -1407,6 +1385,29 @@ TGPA_SDK_DOC_URL = os.getenv("BKAPP_TGPA_SDK_DOC_URL", "")
 
 # 异步下载最大并发任务数
 MAX_CONCURRENT_EXPORT_TASKS = int(os.getenv("BKAPP_MAX_CONCURRENT_EXPORT_TASKS", 3))
+
+# ===============================================================================
+# 分片异步导出（ExportJob / ExportPart）
+# ===============================================================================
+ASYNC_EXPORT_COORDINATE_INTERVAL_SECONDS = int(os.getenv("BKAPP_ASYNC_EXPORT_COORDINATE_INTERVAL_SECONDS", 10))
+ASYNC_EXPORT_COORDINATE_LOCK_TIMEOUT = int(os.getenv("BKAPP_ASYNC_EXPORT_COORDINATE_LOCK_TIMEOUT", 120))
+ASYNC_EXPORT_COORDINATE_SOFT_TIME_LIMIT = int(
+    os.getenv("BKAPP_ASYNC_EXPORT_COORDINATE_SOFT_TIME_LIMIT", max(1, ASYNC_EXPORT_COORDINATE_LOCK_TIMEOUT - 30))
+)
+ASYNC_EXPORT_COORDINATE_DEADLINE_SECONDS = int(
+    os.getenv("BKAPP_ASYNC_EXPORT_COORDINATE_DEADLINE_SECONDS", max(1, ASYNC_EXPORT_COORDINATE_SOFT_TIME_LIMIT - 15))
+)
+ASYNC_EXPORT_COORDINATE_BATCH = int(os.getenv("BKAPP_ASYNC_EXPORT_COORDINATE_BATCH", 100))
+ASYNC_EXPORT_ENQUEUE_LEASE_SECONDS = int(os.getenv("BKAPP_ASYNC_EXPORT_ENQUEUE_LEASE_SECONDS", 60))
+ASYNC_EXPORT_PLANNING_TIMEOUT = int(os.getenv("BKAPP_ASYNC_EXPORT_PLANNING_TIMEOUT", 600))
+ASYNC_EXPORT_FINALIZATION_TIMEOUT = int(os.getenv("BKAPP_ASYNC_EXPORT_FINALIZATION_TIMEOUT", 300))
+# 合并超时须覆盖「按序下载全部已成功分片 + 上传整包」的总时长，是收尾阶段的长尾步骤
+ASYNC_EXPORT_MERGE_TIMEOUT = int(os.getenv("BKAPP_ASYNC_EXPORT_MERGE_TIMEOUT", 3600))
+ASYNC_EXPORT_PART_TIMEOUT = int(os.getenv("BKAPP_ASYNC_EXPORT_PART_TIMEOUT", 1800))
+# 取数预算须明显小于回收超时，给打包与上传留出余量，否则大分片总会在上传途中被回收
+ASYNC_EXPORT_PART_FETCH_TIMEOUT = int(
+    os.getenv("BKAPP_ASYNC_EXPORT_PART_FETCH_TIMEOUT", max(1, ASYNC_EXPORT_PART_TIMEOUT * 2 // 3))
+)
 
 """
 以下为框架代码 请勿修改

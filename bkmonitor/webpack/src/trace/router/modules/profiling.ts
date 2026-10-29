@@ -23,17 +23,23 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
+import { buildProfilingExploreLocation } from 'monitor-common/utils/profiling-url';
+
 import type { RouteRecordRaw } from 'vue-router';
 
 export default [
   {
     path: '/profiling-explore',
     name: 'profiling-explore',
-    component: () => import(/* webpackChunkName: "profiling-explore" */ '../../pages/profiling-explore/profiling-explore'),
+    component: () =>
+      import(/* webpackChunkName: "profiling-explore" */ '../../pages/profiling-explore/profiling-explore'),
   },
   {
     path: '/profiling',
     name: 'profiling',
-    component: () => import(/* webpackChunkName: "alarm-shield" */ '../../pages/profiling/profiling'),
+    redirect: to => ({
+      name: 'profiling-explore',
+      query: buildProfilingExploreLocation(to.query.target).query,
+    }),
   },
 ] as RouteRecordRaw[];

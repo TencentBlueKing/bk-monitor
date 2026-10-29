@@ -203,12 +203,12 @@ class ValueableList:
                 {"id": "alarm.detail_url", "name": _lazy("详情链接"), "description": ""},
                 {"id": "alarm.current_value", "name": _lazy("当前值"), "description": "1.1"},
                 {
-                    "id": 'alarm.ref_values.get("reference_name", {}).get("value")',
+                    "id": "alarm.ref_values.a.value",
                     "name": _lazy("命名输出值"),
                     "description": "1.1",
                 },
                 {
-                    "id": 'alarm.ref_values.get("reference_name", {}).get("state")',
+                    "id": "alarm.ref_values.a.state",
                     "name": _lazy("命名输出状态"),
                     "description": "SUCCESS",
                 },

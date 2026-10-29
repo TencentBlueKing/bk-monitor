@@ -20,6 +20,7 @@ from uuid import uuid4
 from django.db import transaction
 
 from bkmonitor.utils.tenant import space_uid_to_bk_tenant_id
+from metadata import config
 from metadata.models.record_rule.constants import (
     RecordRuleV4DesiredStatus,
     RecordRuleV4FlowStatus,
@@ -203,7 +204,7 @@ class RecordRuleV4Operator:
         data_label = str(data_label or "")
         bk_tenant_id = bk_tenant_id or space_uid_to_bk_tenant_id(f"{space_type}__{space_id}")
 
-        with transaction.atomic():
+        with transaction.atomic(using=config.DATABASE_CONNECTION_NAME):
             temp_suffix = uuid4().hex
             rule = RecordRuleV4.objects.create(
                 bk_tenant_id=bk_tenant_id,
@@ -222,10 +223,12 @@ class RecordRuleV4Operator:
             )
             table_id = RecordRuleV4.compose_table_id(pk=rule.pk, name=name)
             flow_name = RecordRuleV4.compose_group_flow_name(pk=rule.pk, name=name, table_id=table_id)
+            # 首次声明时保存随机输出名；Flow 创建资源，后续执行复用完整 VMRT。
+            result_table_config_name = RecordRuleV4OutputResources.generate_result_table_config_name(rule.pk)
             dst_vm_table_id = RecordRuleV4OutputResources.compose_vm_result_table_id(
                 bk_tenant_id=bk_tenant_id,
                 bk_biz_id=RecordRuleV4.resolve_bk_biz_id(space_type, space_id),
-                table_id=table_id,
+                result_table_config_name=result_table_config_name,
             )
             rule.table_id = table_id
             rule.flow_name = flow_name
@@ -268,7 +271,7 @@ class RecordRuleV4Operator:
         desired_status、auto_refresh 只更新 group 主表。
         """
 
-        with transaction.atomic():
+        with transaction.atomic(using=config.DATABASE_CONNECTION_NAME):
             self.reload_rule(for_update=True)
             current_spec = self.require_current_spec()
             next_records: list[RecordRuleV4RecordInput] = (

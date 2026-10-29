@@ -4,6 +4,10 @@
   flex-direction: column;
   gap: 40px;
 
+  .cursor-pointer {
+    cursor: pointer;
+  }
+
   .detail-section {
     display: flex;
     flex-direction: column;

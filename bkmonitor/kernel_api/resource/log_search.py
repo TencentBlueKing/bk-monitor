@@ -14,7 +14,9 @@ from typing import Any
 from rest_framework import serializers
 
 from bkm_space.utils import bk_biz_id_to_space_uid
-from core.drf_resource import Resource, api
+from core.drf_resource import api
+from kernel_api.resource.mcp_response import MCPResource as Resource
+from kernel_api.resource.mcp_response import is_mcp_request
 from kernel_api.serializers.mixins import TimeSpanValidationPassThroughSerializer
 from kernel_api.unified_mcp.permissions import call_log_api
 
@@ -369,6 +371,10 @@ class SearchLogResource(Resource):
         if order_by:
             query_params["order_by"] = order_by
 
+        if is_mcp_request():
+            from kernel_api.resource.mcp_uq import query_uq
+
+            return query_uq("query_raw", query_params)
         result = api.unify_query.query_raw(**query_params)
         return result
 
@@ -415,11 +421,14 @@ class FieldAnalyzeResource(Resource):
     """
     日志查询服务 -- 字段分析
 
+    target_type=index_set 时直查 unify-query；target_type=scene 时转调日志平台，
+    由日志平台按 table_id_conditions 路由多结果表并合并聚合结果后返回。
+
     支持多种字段分析场景：
     1. Top K 分析：按字段值分组统计，按值排序，限制条数
        示例：{"group_by": true, "order_by": "value", "limit": 20}
-    2. 时间序列分析：按字段值分组统计，按时间排序
-       示例：{"group_by": true, "order_by": "time"}
+    2. 场景时间序列分析：按全时段计数选出 limit 个字段值，再按 step 分桶，保留各组的全部时间点
+       示例：{"target_type": "scene", "group_by": true, "order_by": "time", "limit": 20, "step": "5m"}
     3. 总体统计：整体计数，不分组
        示例：{"group_by": false, "order_by": "time"}
     4. 分布分析：按字段值分组统计，无限制
@@ -432,9 +441,19 @@ class FieldAnalyzeResource(Resource):
         "time": ["-dtEventTimeStamp", "-gseIndex", "-iterationIndex"],
     }
 
-    class RequestSerializer(serializers.Serializer):
+    class RequestSerializer(TimeSpanValidationPassThroughSerializer):
         bk_biz_id = serializers.IntegerField(required=True, label="业务ID")
-        index_set_id = serializers.IntegerField(required=True, label="索引集ID")
+        target_type = serializers.ChoiceField(
+            choices=["index_set", "scene"], required=False, default="index_set", label="分析目标类型"
+        )
+        index_set_id = serializers.IntegerField(required=False, allow_null=True, label="索引集ID")
+        # 场景分析的结果表路由条件，外层 OR、内层 AND，禁止空分组。
+        table_id_conditions = serializers.ListField(
+            child=serializers.ListField(child=SceneRouteConditionSerializer(), allow_empty=False),
+            required=False,
+            allow_empty=False,
+            label="结果表路由条件，外层为 OR，内层为 AND",
+        )
         field_name = serializers.CharField(required=True, label="字段名称")
         query_string = serializers.CharField(required=False, default="*", label="查询字符串")
         group_by = serializers.BooleanField(required=False, default=True, label="是否按字段分组")
@@ -444,12 +463,34 @@ class FieldAnalyzeResource(Resource):
             default="time",
             label="排序方式：value-按值排序，time-按时间排序",
         )
-        limit = serializers.IntegerField(required=False, default=None, allow_null=True, label="限制返回条数")
+        limit = serializers.IntegerField(
+            required=False, default=None, allow_null=True, min_value=1, max_value=1000, label="限制返回条数"
+        )
         step = serializers.CharField(required=False, default="1h", label="时间步长")
         # 过滤条件，格式：{"field_list": [{"field_name": "xxx", "value": ["xxx"], "op": "eq"}], "condition_list": []}
         conditions = serializers.DictField(required=False, allow_null=True, label="过滤条件")
         start_time = serializers.CharField(required=True, label="开始时间")
         end_time = serializers.CharField(required=True, label="结束时间")
+
+        def validate(self, attrs):
+            attrs = super().validate(attrs)
+            target_type = attrs.get("target_type", "index_set")
+            if target_type == "index_set":
+                if attrs.get("index_set_id") is None:
+                    raise serializers.ValidationError(
+                        {"index_set_id": "index_set_id is required when target_type is index_set."}
+                    )
+                return attrs
+
+            if not attrs.get("table_id_conditions"):
+                raise serializers.ValidationError(
+                    {"table_id_conditions": "table_id_conditions is required when target_type is scene."}
+                )
+            if attrs.get("conditions") is not None:
+                raise serializers.ValidationError(
+                    {"conditions": "conditions is not supported when target_type is scene; use query_string instead."}
+                )
+            return attrs
 
     def _build_aggregation_function(self, field_name: str, group_by: bool) -> list[dict[str, Any]]:
         """构建聚合函数配置"""
@@ -483,6 +524,11 @@ class FieldAnalyzeResource(Resource):
         return query_item
 
     def perform_request(self, validated_request_data):
+        if validated_request_data.get("target_type", "index_set") == "scene":
+            return self._analyze_by_scene(validated_request_data)
+        return self._analyze_by_index_set(validated_request_data)
+
+    def _analyze_by_index_set(self, validated_request_data):
         # 提取参数
         bk_biz_id = validated_request_data["bk_biz_id"]
         index_set_id = validated_request_data["index_set_id"]
@@ -523,7 +569,35 @@ class FieldAnalyzeResource(Resource):
             "space_uid": space_uid,
         }
 
+        if is_mcp_request():
+            from kernel_api.resource.mcp_uq import query_uq
+
+            return query_uq("query_reference", query_params)
         return api.unify_query.query_reference(**query_params)
+
+    @staticmethod
+    def _analyze_by_scene(validated_request_data):
+        bk_biz_id = validated_request_data["bk_biz_id"]
+        logger.info(
+            "FieldAnalyzeResource: analyze scene field, bk_biz_id->[%s], field_name->[%s], condition_groups->[%s]",
+            bk_biz_id,
+            validated_request_data["field_name"],
+            len(validated_request_data["table_id_conditions"]),
+        )
+        return call_log_api(
+            "scene_field_analyze",
+            space_uid=bk_biz_id_to_space_uid(bk_biz_id),
+            bk_biz_id=bk_biz_id,
+            table_id_conditions=validated_request_data["table_id_conditions"],
+            field_name=validated_request_data["field_name"],
+            keyword=validated_request_data.get("query_string") or "*",
+            group_by=validated_request_data.get("group_by", True),
+            order_by=validated_request_data.get("order_by", "time"),
+            limit=validated_request_data.get("limit"),
+            step=validated_request_data.get("step", "1h"),
+            start_time=normalize_timestamp_to_milliseconds(validated_request_data["start_time"]),
+            end_time=normalize_timestamp_to_milliseconds(validated_request_data["end_time"]),
+        )
 
 
 class SearchLogClusteringPatternResource(Resource):

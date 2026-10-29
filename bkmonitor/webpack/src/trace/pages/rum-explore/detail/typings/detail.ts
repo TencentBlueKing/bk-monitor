@@ -66,15 +66,38 @@ export interface IRumDetailSection {
   type: RumSectionType;
 }
 
+/** 统一的 hover 展示结构，被加载阶段、里程碑、Web Vitals 和评级共用 */
+export interface IRumHoverInfo {
+  /** 专业解释，不包含计算方式、公式或原始字段表达式 */
+  description: string;
+  /** 参考来源 */
+  source?: IRumHoverSource;
+  /** hover 标题 */
+  title: string;
+  /** 用户可感知的页面表现 */
+  user_experience?: string;
+}
+
+/** hover 展示增强的参考来源 */
+export interface IRumHoverSource {
+  /** 来源名称 */
+  label: string;
+  /** 官方定义或规范链接 */
+  url: string;
+}
+
 export interface IRumRatingBarData {
   'attributes.vital.metric': string;
   'attributes.vital.value': number;
   'display.rating_config': IRumRatingConfig[];
+  /** Vital 评级整体的 hover 展示信息 */
+  hover?: IRumHoverInfo;
 }
 
 /** 评级阈值配置，按 value 从小到大排列，最差评级不带 value */
 export interface IRumRatingConfig {
   alias?: string;
+  hover?: IRumHoverInfo;
   rating: RumRatingType | string;
   value?: number;
 }
@@ -107,6 +130,7 @@ export interface IRumWaterfallData {
 export interface IRumWaterfallMarker {
   'display.rating_config': IRumRatingConfig[];
   field_name: string;
+  hover?: IRumHoverInfo;
   key: string;
   value: number;
 }
@@ -114,6 +138,7 @@ export interface IRumWaterfallMarker {
 /** 瀑布图的累计里程碑 */
 export interface IRumWaterfallMilestone {
   field_name: string;
+  hover?: IRumHoverInfo;
   key: string;
   value: number;
 }
@@ -123,6 +148,7 @@ export interface IRumWaterfallPhase {
   alias: string;
   /** 阶段耗时，单位见 IRumWaterfallData.unit */
   duration: number;
+  hover?: IRumHoverInfo;
   key: string;
   /** 相对起点的偏移量，单位见 IRumWaterfallData.unit */
   start: number;

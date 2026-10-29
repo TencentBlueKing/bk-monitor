@@ -21,6 +21,7 @@ from rest_framework.fields import empty
 
 from bkmonitor.models import ActionConfig, ActionPlugin, UserGroup
 from bkmonitor.utils.template import Jinja2Renderer
+from bkmonitor.utils.template_ref_values import RefValueTemplateError, validate_ref_value_template
 from constants.action import (
     ALL_CONVERGE_DIMENSION,
     CONVERGE_FUNCTION,
@@ -178,12 +179,49 @@ class TemplateSerializer(serializers.Serializer):
     message_tmpl = serializers.CharField(required=False, allow_blank=True, default="")
     title_tmpl = serializers.CharField(required=False, allow_blank=True, default="")
 
+    def to_internal_value(self, data):
+        try:
+            return super().to_internal_value(data)
+        except CreateStrategyError as error:
+            if not isinstance(error.__cause__, TemplateSyntaxError):
+                raise
+            # CharField strips leading blank lines; report the line in the original input.
+            field = getattr(error, "_template_field", None)
+            value = data.get(field)
+            if isinstance(value, str):
+                prefix = value[: len(value) - len(value.lstrip())]
+                line_offset = prefix.count("\n") + prefix.count("\r") - prefix.count("\r\n")
+                if line_offset:
+                    raise self._syntax_error(error.__cause__, field, line_offset) from error.__cause__
+            raise
+
+    @staticmethod
+    def _syntax_error(error, field, line_offset=0):
+        result = CreateStrategyError(
+            msg=_(
+                "告警通知{field}模板语法错误（第{line}行）：{reason}。"
+                "请检查变量表达式的双花括号、引号和括号是否成对，模板语句是否完整闭合。"
+            ).format(
+                field=_("标题") if field == "title_tmpl" else _("内容"),
+                line=error.lineno + line_offset,
+                reason=error.message,
+            )
+        )
+        result._template_field = field
+        return result
+
     @staticmethod
     def validate_title_tmpl(value):
         try:
+            validate_ref_value_template(value)
+        except TemplateSyntaxError as error:
+            raise TemplateSerializer._syntax_error(error, "title_tmpl") from error
+        except RefValueTemplateError as error:
+            raise CreateStrategyError(msg=str(error)) from error
+        try:
             Jinja2Renderer.render(value, {})
-        except TemplateSyntaxError:
-            raise CreateStrategyError(msg=_("通知自定义标题格式不正确，请重新确认"))
+        except TemplateSyntaxError as error:
+            raise TemplateSerializer._syntax_error(error, "title_tmpl") from error
         except Exception as e:
             logger.warning(f"render template error: {e}")
         return value
@@ -191,9 +229,15 @@ class TemplateSerializer(serializers.Serializer):
     @staticmethod
     def validate_message_tmpl(value):
         try:
+            validate_ref_value_template(value)
+        except TemplateSyntaxError as error:
+            raise TemplateSerializer._syntax_error(error, "message_tmpl") from error
+        except RefValueTemplateError as error:
+            raise CreateStrategyError(msg=str(error)) from error
+        try:
             Jinja2Renderer.render(value, {})
-        except TemplateSyntaxError:
-            raise CreateStrategyError(msg=_("通知自定义内容格式不正确，请重新确认"))
+        except TemplateSyntaxError as error:
+            raise TemplateSerializer._syntax_error(error, "message_tmpl") from error
         except Exception as e:
             logger.warning(f"render template error: {e}")
         return value

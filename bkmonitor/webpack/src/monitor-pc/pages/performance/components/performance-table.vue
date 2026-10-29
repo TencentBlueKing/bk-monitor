@@ -106,11 +106,9 @@
                 v-bk-overflow-tips
                 class="ip-col-main"
                 :to="{
-                  name: 'performance-detail',
+                  name: 'host',
                   params: {
-                    title: row.host_display_name,
                     id: row.bk_host_id,
-                    osType: Number(row.bk_os_type),
                   },
                 }"
                 tag="span"
@@ -979,15 +977,13 @@ export default class PerformanceTable extends Vue<MonitorVue> {
   // 主机详情--进程视图
   openProcessView(row: ITableRow, process) {
     this.$router.push({
-      name: 'performance-detail',
+      name: 'host',
       params: {
-        title: row.bk_host_innerip,
         id: row.bk_host_id,
-        osType: Number(row.bk_os_type),
       },
       query: {
-        dashboardId: 'process',
-        'var-display_name': process,
+        activeTab: 'process',
+        hostProcessName: process,
       },
     });
   }

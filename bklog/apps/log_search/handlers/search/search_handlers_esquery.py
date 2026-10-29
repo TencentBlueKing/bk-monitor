@@ -64,7 +64,6 @@ from apps.log_esquery.serializers import (
 )
 from apps.log_search.constants import (
     ASYNC_DIR,
-    ASYNC_SORTED,
     CHECK_FIELD_LIST,
     CHECK_FIELD_MAX_VALUE_MAPPING,
     CHECK_FIELD_MIN_VALUE_MAPPING,
@@ -133,7 +132,7 @@ from apps.log_search.models import (
     UserIndexSetSearchHistory,
 )
 from apps.log_search.permission import Permission
-from apps.log_search.utils import sort_func, handle_es_query_error
+from apps.log_search.utils import display_index_set_name, sort_func, handle_es_query_error
 from apps.models import model_to_dict
 from apps.utils.cache import cache_five_minute
 from apps.utils.core.cache.cmdb_host import CmdbHostCache
@@ -1436,10 +1435,13 @@ class SearchHandler:
         # 获取当前空间关联空间的索引集
         space_uids = IndexSetHandler.get_all_related_space_uids(space_uid)
         index_set_objs = LogIndexSet.objects.filter(index_set_id__in=index_set_id_all, space_uid__in=space_uids).values(
-            "index_set_id", "index_set_name"
+            "index_set_id", "index_set_name", "collector_config_id"
         )
 
-        effect_index_set_mapping = {obj["index_set_id"]: obj["index_set_name"] for obj in index_set_objs}
+        effect_index_set_mapping = {
+            obj["index_set_id"]: display_index_set_name(obj["index_set_name"], obj["collector_config_id"])
+            for obj in index_set_objs
+        }
 
         if not effect_index_set_mapping:
             return []
@@ -2777,19 +2779,6 @@ class SearchHandler:
             return ERROR_MSG_CHECK_FIELDS_FROM_BKDATA
         else:
             return ERROR_MSG_CHECK_FIELDS_FROM_LOG
-
-    def _get_user_sorted_list(self, sorted_fields):
-        config = UserIndexSetFieldsConfig.get_config(index_set_id=self.index_set_id, username=self.request_username)
-        if not config:
-            return [[sorted_field, ASYNC_SORTED] for sorted_field in sorted_fields]
-        user_sort_list = config.sort_list
-        user_sort_fields = [i[0] for i in user_sort_list]
-        for sorted_field in sorted_fields:
-            if sorted_field in user_sort_fields:
-                continue
-            user_sort_list.append([sorted_field, ASYNC_SORTED])
-
-        return user_sort_list
 
 
 class UnionSearchHandler:

@@ -518,6 +518,8 @@ class CustomMetricCacheManager(BaseMetricCacheManager):
         # 通过 time_series_group_name 的生成规则过滤掉插件类型的数据
         custom_ts_result = [i for i in custom_ts_result if i["time_series_group_name"] not in db_name_list]
 
+        self.merge_metric_dimensions(custom_ts_result)
+
         # 补充 APM 虚拟指标
         custom_ts_result = self.get_apm_extra_tables(custom_ts_result) + custom_ts_result
 
@@ -526,6 +528,27 @@ class CustomMetricCacheManager(BaseMetricCacheManager):
             self.process_logbeat_table(result)
             self.process_apm_table(result)
             yield result
+
+    @staticmethod
+    def merge_metric_dimensions(tables: list[dict[str, Any]]) -> None:
+        """同一数据源的同名指标跨 scope 合并维度，供缓存去重时保留的首条记录使用。"""
+        metrics: dict[tuple[int, int, str, str], tuple[dict, dict[str, dict]]] = {}
+        for table in tables:
+            for metric in table["metric_info_list"]:
+                if not metric:
+                    continue
+                key = (table["bk_biz_id"], table["time_series_group_id"], table["table_id"], metric["field_name"])
+                _, tags = metrics.setdefault(key, (metric, {}))
+                for tag in metric.get("tag_list", []):
+                    field_name: str = tag["field_name"]
+                    current: dict | None = tags.get(field_name)
+                    if current is None:
+                        tags[field_name] = dict(tag)
+                    elif not current.get("description") and tag.get("description"):
+                        current["description"] = tag["description"]
+
+        for metric, tags in metrics.values():
+            metric["tag_list"] = list(tags.values())
 
     @classmethod
     def process_apm_table(cls, table: dict):
@@ -2020,6 +2043,14 @@ class BkmonitorMetricCacheManager(BaseMetricCacheManager):
                 for group in group_list:
                     yield from self.get_plugin_ts_metric(group)
 
+        # 预计算输出不属于采集插件，也没有 TimeSeriesGroup，复用 Metadata 的结果表入口。
+        params = {"bk_tenant_id": self.bk_tenant_id, "with_option": False}
+        if self.bk_biz_id is not None:
+            params["bk_biz_id"] = self.bk_biz_id
+        for table in api.metadata.list_monitor_result_table(**params):
+            if table.get("table_type") == "recording_rule":
+                yield from self.get_pre_calculate_metric(table)
+
     def get_metrics_by_table(self, table):
         """
         处理不同类型的表数据， 根据influx_db_name的不同， 进行不同的处理
@@ -2051,7 +2082,7 @@ class BkmonitorMetricCacheManager(BaseMetricCacheManager):
                 yield from self.get_bkci_metric(table)
             elif table.get("table_type") == "plugin":
                 yield from self.get_plugin_metric(table)
-            elif influx_db_name.startswith("bkprecal_"):
+            elif table.get("table_type") == "recording_rule" or influx_db_name.startswith("bkprecal_"):
                 # 预聚合表
                 yield from self.get_pre_calculate_metric(table)
         except BaseException:  # noqa
@@ -2060,7 +2091,12 @@ class BkmonitorMetricCacheManager(BaseMetricCacheManager):
     def get_pre_calculate_metric(self, table):
         base_metric = self.get_base_dict(table)
         base_metric.update(
-            {"related_name": "bk_pre_cal", "related_id": "bk_pre_cal", "category_display": _("预计算指标")}
+            {
+                "bk_biz_id": table["bk_biz_id"],
+                "related_name": "bk_pre_cal",
+                "related_id": "bk_pre_cal",
+                "category_display": _("预计算指标"),
+            }
         )
         return self.get_field_metric_msg(table, base_metric)
 

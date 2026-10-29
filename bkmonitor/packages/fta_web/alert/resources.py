@@ -904,8 +904,12 @@ class AlertEventCountResource(Resource):
 
         event_count = {}
         # Step 2: 根据时间范围和MD5去查询告警信息
+        # 事件可能按 create_time 落索引，需保留 all_indices；顶层时间范围取各桶并集，供 ES 跳过无关分片
+        start_time = min(alert.begin_time or 0 for alert in simple_alerts)
+        end_time = max(alert.latest_time or now_time for alert in simple_alerts)
         search = EventDocument.search(all_indices=True)
         search = search.filter("terms", dedupe_md5=[alert["dedupe_md5"] for alert in alert_mapping.values()])
+        search = search.filter("range", time={"gte": start_time, "lte": end_time})
 
         for alert_id, alert in alert_mapping.items():
             # 为每个告警条件设置一个桶

@@ -448,6 +448,11 @@ def _apply_guide(client, spec, resource, request):
     result = {"permission": application.to_dict()}
     error_type = "InvalidResponse"
     try:
+        get_apply_data = getattr(client, "get_apply_data", None)
+        if callable(get_apply_data):
+            data = get_apply_data(application)
+            if isinstance(data, dict) and data:
+                result["permission"] = data
         ok, _, url = client.get_apply_url(application)
         if ok and isinstance(url, str) and url:
             result["apply_url"] = url
@@ -690,7 +695,7 @@ def _execute_native_tool(tool, tool_args, request):
     errors = list(Draft7Validator(tool.input_schema).iter_errors(args))
     if errors:
         raise ValidationError({"tool_args": errors[0].message})
-    if tool.name == "search_logs":
+    if tool.name in {"search_logs", "analyze_field"}:
         target_type = args.get("target_type", "index_set")
         required_arg = "table_id_conditions" if target_type == "scene" else "index_set_id"
         if not args.get(required_arg):

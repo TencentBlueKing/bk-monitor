@@ -64,6 +64,7 @@ INSTALLED_APPS = (
     # account app
     "blueapps.account",
     "apigw_manager.apigw",
+    "bkmonitor.iam.apps.IAMConfig",
 )
 
 # 这里是默认的中间件，大部分情况下，不需要改动
@@ -199,10 +200,15 @@ if locals()["RUN_VER"] == "open":
     # 从 apigw jwt 中获取 username 的 键
     APIGW_USER_USERNAME_KEY = "bk_username"
 
-    # PAASV2对外版不需要bkoauth,DISABLED_APPS加入bkoauth
-    INSTALLED_APPS = (
-        INSTALLED_APPS[0 : INSTALLED_APPS.index("bkoauth")] + INSTALLED_APPS[INSTALLED_APPS.index("bkoauth") + 1 :]
-    )
+    # Open 按需接入 SSM，复用 bkoauth 的用户 Token 持久化和后台续期。
+    # 配置基址（不含 /api/v1/auth/access-tokens）；未配置时保持原有禁用行为。
+    OAUTH_API_URL = os.getenv("OAUTH_API_URL") or locals().get("OAUTH_API_URL", "")
+    if OAUTH_API_URL:
+        BKAUTH_BACKEND_TYPE = "bk_token"
+        # bkoauth 优先读取同名环境变量，可覆盖默认 Cookie 映射。
+        OAUTH_COOKIES_PARAMS = {"bk_token": "bk_token"}
+    else:
+        INSTALLED_APPS = tuple(app for app in INSTALLED_APPS if app != "bkoauth")
 
     # 请求官方 API 默认版本号，可选值为："v2" 或 ""；其中，"v2"表示规范化API，
     # ""表示未规范化API.如果外面设置了该值则使用设置值,否则默认使用v2
@@ -355,6 +361,7 @@ ACTIVE_VIEWS = {
         "alert_v2": "fta_web.alert_v2.views",
         "assign": "fta_web.assign.views",
         "home": "fta_web.home.views",
+        "issue": "fta_web.issue.views",
     },
     "calendar": {"calendar": "calendars.views"},
     "apm_web": {
@@ -435,6 +442,9 @@ AIOPS_BIZ_WHITE_LIST = []
 
 # 是否开启AIOPS根因故障定位功能，业务白名单
 AIOPS_INCIDENT_BIZ_WHITE_LIST = []
+
+# Issue AI 分析业务白名单：空名单关闭，-1 表示全量开启
+ISSUE_AI_ANALYSIS_BIZ_WHITE_LIST = []
 
 # 是否由GSE分配dataid，默认是False，由监控自身来负责分配
 IS_ASSIGN_DATAID_BY_GSE = True
@@ -570,6 +580,12 @@ APM_APPLICATION_QUICK_REFRESH_DELTA = 30
 # 指标数据源数据发现时需要将周期切分为每批查询几分钟的数据 默认 200s
 APM_APPLICATION_METRIC_DISCOVER_SPLIT_DELTA = 200
 
+# 服务数据状态的观测窗口（独立于应用级无数据周期），单位：秒。
+APM_SERVICE_DATA_STATUS_LOOKBACK_SECONDS = 60 * 60
+
+# 关联日志索引状态快照的有效期，单位：秒。
+APM_RELATED_LOG_INDEX_STATUS_CACHE_TTL = 15 * 60
+
 # 是否下发平台级别api_name构成配置
 APM_IS_DISTRIBUTE_PLATFORM_API_NAME_CONFIG = (
     os.getenv("BKAPP_APM_IS_DISTRIBUTE_PLATFORM_API_NAME_CONFIG", "false").lower() == "true"
@@ -633,6 +649,8 @@ APM_BMW_DEPLOY_BIZ_ID = 0
 # 在列表中业务，才会创建虚拟指标， [2]
 APM_CREATE_VIRTUAL_METRIC_ENABLED_BK_BIZ_ID = []
 APM_BMW_TASK_QUEUES = ["apm-01"]
+# 预计算任务定时分派空跑：bmw_task_cron 直接跳过，不下发或删除任务
+APM_BMW_TASK_CRON_DRY_RUN = False
 # APM V4 链路 metric data status 配置
 APM_V4_METRIC_DATA_STATUS_CONFIG = {}
 # APM 自定义指标 SDK 映射配置
@@ -1191,6 +1209,7 @@ DEFAULT_ROLE_PERMISSIONS = {
 
 # 预设dataid
 # 注意：所有的DATAID配置都必须是以【_DATAID】结尾，否则会导致元数据模块无法识别
+GSE_BASE_ALARM_DATAID = 1000
 SNAPSHOT_DATAID = 1001
 MYSQL_METRIC_DATAID = 1002
 REDIS_METRIC_DATAID = 1003
@@ -1274,6 +1293,10 @@ MONITOR_API_BASE_URL = os.getenv("BKAPP_MONITOR_API_BASE_URL", "")
 NEW_MONITOR_API_BASE_URL = os.getenv("BKAPP_NEW_MONITOR_API_BASE_URL", "")
 # bkdata api base url
 BKDATA_API_BASE_URL = os.getenv("BKAPP_BKDATA_API_BASE_URL", "")
+# RecordRule V4 Flow 专用网关，未配置时沿用公共 BKBase 网关
+BKDATA_RECORD_RULE_API_BASE_URL = os.getenv("BKAPP_BKDATA_RECORD_RULE_API_BASE_URL", "")
+# RecordingRule V4 动态配置的静态默认值，source 按实际 Flow 去重，rules 按 group 条数计数。
+RECORD_RULE_V4_CONFIG = {"max_sources": 20, "max_rules": 20}
 # bkdata api only for query data (not required)
 BKDATA_QUERY_API_BASE_URL = os.getenv("BKAPP_BKDATA_QUERY_API_BASE_URL", "")
 BKDATA_PROFILE_QUERY_API_BASE_URL = os.getenv("BKAPP_BKDATA_PROFILE_QUERY_API_BASE_URL", "")
@@ -1291,7 +1314,11 @@ BK_USERINFO_API_BASE_URL = os.getenv("BKAPP_USERINFO_API_BASE_URL", "")
 BK_USER_API_BASE_URL = os.getenv("BKAPP_USER_API_BASE_URL", "")
 MONITOR_WORKER_API_BASE_URL = os.getenv("BKAPP_MONITOR_WORKER_API_BASE_URL", "")
 APIGATEWAY_API_BASE_URL = os.getenv("BKAPP_APIGATEWAY_API_BASE_URL", "")
-BK_IAM_APIGATEWAY_URL = os.getenv("BKAPP_IAM_API_BASE_URL") or f"{BK_COMPONENT_API_URL}/api/bk-iam/prod/"
+from iam_engine.settings import load_iam_settings, resolve_iam_gateway_url
+
+BK_IAM_APIGATEWAY_URL = resolve_iam_gateway_url(BK_COMPONENT_API_URL, os.getenv("BKAPP_IAM_API_BASE_URL"), version="v3")
+
+globals().update(load_iam_settings(component_api_url=BK_COMPONENT_API_URL))
 
 # 以下是bkchat的apigw
 BKCHAT_API_BASE_URL = os.getenv("BKAPP_BKCHAT_API_BASE_URL", "")
@@ -1299,6 +1326,8 @@ BKCHAT_MANAGE_URL = os.getenv("BKAPP_BKCHAT_MANAGE_URL", "")
 
 # aidev的apigw地址
 AIDEV_API_BASE_URL = os.getenv("BKAPP_AIDEV_API_BASE_URL", "")
+# 跨环境资源查询可指定目标环境用户的 Token；未配置时沿用当前请求登录态。
+AIDEV_ACCESS_TOKEN = os.getenv("BKAPP_AIDEV_ACCESS_TOKEN", "").strip()
 
 # TAPD API 基础URL（部署环境通过 BKAPP_TAPD_API_BASE_URL / TAPD_API_BASE_URL 注入，公开仓不放默认主机）
 TAPD_API_BASE_URL = os.getenv("BKAPP_TAPD_API_BASE_URL", os.getenv("TAPD_API_BASE_URL", ""))
@@ -1353,17 +1382,21 @@ MAIL_REPORT_URL = urljoin(BK_MONITOR_HOST, "#/email-subscriptions")
 
 # 故障分析
 BK_INCIDENT_APIGW_URL = os.getenv("BKAPP_INCIDENT_APIGW_URL", "")
+# BKFara 源码分析使用独立 APIGW；联调环境由 BKFara 提供具体地址。
+BKFARA_APIGW_BASE_URL = os.getenv("BKAPP_BKFARA_APIGW_BASE_URL") or os.getenv("BKFARA_APIGW_BASE_URL", "")
+# 源码分析流水线访问监控的环境；部署阶段（prod/stag）不能区分目标集群。
+# 默认沿用模板的 bkte，BKOP 部署需显式配置为 bkop。
+BKAI_MCP_ENV = os.getenv("BKAPP_BKAI_MCP_ENV") or os.getenv("BKAI_MCP_ENV") or "bkte"
 # 是否开启故障分析功能，默认不开启
 ENABLE_BK_INCIDENT_PLUGIN = os.getenv("ENABLE_BK_INCIDENT_PLUGIN", "false").lower() == "true"
 # 是否打开故障通知
 ENABLE_BK_INCIDENT_NOTICE = os.getenv("ENABLE_BK_INCIDENT_NOTICE", "false").lower() == "true"
 
 # IAM
-BK_IAM_SYSTEM_ID = "bk_monitorv3"
+
 BK_IAM_SYSTEM_NAME = _("监控平台")
 
 BK_IAM_MIGRATION_APP_NAME = "bkmonitor"
-BK_IAM_RESOURCE_API_HOST = os.getenv("BKAPP_IAM_RESOURCE_API_HOST", f"{BK_PAAS_INNER_HOST}{SITE_URL}")
 
 # 是否跳过 iam migrate
 BK_IAM_SKIP = os.getenv("BK_IAM_SKIP", "false").lower() == "true"
@@ -1378,6 +1411,22 @@ OFFICIAL_PLUGINS_MANAGERS = []
 
 # 跳过权限中心
 SKIP_IAM_PERMISSION_CHECK = False
+
+# IAM V4 settings are loaded by the shared BKLog-compatible mapping above.
+
+# ---- IAM v3 鉴权 ----
+BK_IAM_SYSTEM_ID = "bk_monitorv3"
+BK_IAM_RESOURCE_API_HOST = os.getenv("BKAPP_IAM_RESOURCE_API_HOST", f"{BK_PAAS_INNER_HOST}{SITE_URL}")
+BK_IAM_V3_API_BASE_URL = resolve_iam_gateway_url(
+    BK_COMPONENT_API_URL, os.getenv("BK_IAM_V3_API_BASE_URL"), BK_IAM_APIGATEWAY_URL, version="v3"
+)
+
+# ---- IAM 申请 URL 兜底 ----
+BK_IAM_V3_FALLBACK_APPLY_URL = os.getenv("BK_IAM_V3_FALLBACK_APPLY_URL", "") or BK_IAM_SAAS_HOST
+
+# IAM's historical files are model registrations, not Django DB migrations.
+MIGRATION_MODULES = {"bkmonitor_iam": None}
+
 
 # 聚合网关默认业务ID
 AGGREGATION_BIZ_ID = int(os.getenv("BKAPP_AGGREGATION_BIZ_ID", 2))
@@ -1601,6 +1650,8 @@ MCP_NATIVE_PERMISSION_TOOLS: list[str] = []
 # {"mode": "v3-current", "gateway_url": "https://.../api/bk-iam/prod/"}
 MCP_LOG_IAM_PROFILE: dict = {}
 MCP_MAX_TIME_SPAN_SECONDS = 86400  # MCP 查询跨度限制
+# MCP Resource 专用 JSON 响应大小上限，单位为字节。
+MCP_MAX_RESPONSE_BYTES = 5 * 1024 * 1024
 # APM Profiling 数据密度高(秒级采样, 单服务每分钟可达数 MB), 单独收紧 MCP 查询跨度上限
 # 避免: 数据量爆炸 / LLM 上下文超限 / 下游 doris 查询超时
 APM_PROFILING_MCP_MAX_TIME_SPAN_SECONDS = 30 * 60
@@ -1627,6 +1678,14 @@ AIDEV_AGENT_MCP_REQUEST_AGENT_CODE = "bkmonitor-mcp"
 
 # 采集订阅巡检配置，默认开启
 IS_SUBSCRIPTION_ENABLED = True
+
+# 采集状态页主机告警 ES 聚合分批参数（消费方 monitor_web/datalink/resources.py，调用时读取）：
+# 批大小为安全参数（单批稠密响应桶数约 N×(2T+3)+4，运行时按时间桶数自动钳制到桶数预算内）；
+# 并发数为性能参数（瞬时下发 ES 的查询数 = 并发数 × 同时访问页面的用户数），按集群实测负载调整；
+# 桶数预算对齐 ES search.max_buckets（默认 65536，集群调整过该值时同步修改）
+ALERT_HOST_BATCH_SIZE = int(os.environ.get("BKAPP_ALERT_HOST_BATCH_SIZE", 200))
+ALERT_HOST_BATCH_CONCURRENCY = int(os.environ.get("BKAPP_ALERT_HOST_BATCH_CONCURRENCY", 5))
+ALERT_HOST_MAX_AGG_BUCKETS = int(os.environ.get("BKAPP_ALERT_HOST_MAX_AGG_BUCKETS", 65536))
 
 # 允许限制空间功能开关， 默认限制
 IS_RESTRICT_DS_BELONG_SPACE = True

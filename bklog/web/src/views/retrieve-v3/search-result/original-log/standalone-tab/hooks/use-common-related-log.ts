@@ -10,6 +10,10 @@ import { createRetrieveRowRenderMeta } from '@/storage/utils/retrieve-render-met
 
 import { getDefaultDisplayFields } from '../../components/data-filter/fields-config/default-display-fields';
 
+import { flattenLogParams, stripMark } from './realtime-cursor';
+
+export { flattenLogParams, stripMark };
+
 export type DisplayMode = 'log' | 'code';
 
 export interface RelatedLogCommonOptions {
@@ -17,8 +21,6 @@ export interface RelatedLogCommonOptions {
   targetRow: Ref<Record<string, any>>;
   targetFields?: Ref<string[]>;
 }
-
-export const stripMark = (value: string) => value.replace(/<mark>/g, '').replace(/<\/mark>/g, '');
 
 export const normalizeDisplayValue = (value: any) => {
   if (value === null || value === undefined) return ' ';
@@ -30,30 +32,6 @@ export const normalizeDisplayValue = (value: any) => {
     }
   }
   return value;
-};
-
-export const flattenLogParams = (row: Record<string, any>) => {
-  const params: Record<string, string> = {};
-
-  const walk = (obj: any, prefix = '') => {
-    if (obj === null || obj === undefined) {
-      if (prefix) params[prefix] = '';
-      return;
-    }
-
-    Object.keys(obj).forEach(key => {
-      const prefixKey = prefix ? `${prefix}.${key}` : key;
-      const value = obj[key];
-      if (value && typeof value === 'object' && !value._isBigNumber) {
-        walk(value, prefixKey);
-        return;
-      }
-      params[prefixKey] = stripMark(value?._isBigNumber ? value.toString() : String(value ?? ''));
-    });
-  };
-
-  walk(row);
-  return params;
 };
 
 export const useCommonRelatedLog = (options: RelatedLogCommonOptions) => {

@@ -71,9 +71,9 @@ class TopoNode(TopoBase):
     system = models.JSONField("系统类型", null=True)
     platform = models.JSONField("部署平台", null=True)
     sdk = models.JSONField("上报sdk", null=True)
-    # source: 说明这个服务是由哪个数据源发现的，值为 TelemetryData，存储格式: ["trace", "metric"]
+    # source: 服务被发现或观测到数据的类型，值为 TelemetryDataType，存储格式: ["trace", "metric"]
     source = models.JSONField("服务发现来源", default=list)
-    # 按数据类型保存秒级 last_data_at / checked_at，独立于节点生命周期 updated_at。
+    # 按数据类型保存最后数据时间和检查完成时间（秒）；更新心跳不刷新 updated_at。
     heartbeat = models.JSONField("服务数据心跳", default=dict)
     is_permanent = models.BooleanField("是否永久保存", default=False)
 
@@ -88,7 +88,7 @@ class TopoNode(TopoBase):
     ) -> bool:
         """合并单类心跳，不改变节点存活时间。
 
-        在模型路由对应的事务内锁行、重读并合并，只更新 heartbeat 列。
+        在模型路由对应的事务内锁行、重读并合并 heartbeat，观测到有效数据时间时补齐 source。
         last_data_at 和 checked_at 均单调前进，其他数据类型的子键保持不变。
 
         :param last_data_at_mapping: 服务键到秒级数据时间的映射；显式 None 仅推进该服务的 checked_at，保留数据时间。
@@ -106,7 +106,7 @@ class TopoNode(TopoBase):
                     cls.objects.using(database)
                     .select_for_update()
                     .filter(bk_biz_id=bk_biz_id, app_name=app_name, topo_key__in=last_data_at_mapping)
-                    .only("id", "topo_key", "heartbeat")
+                    .only("id", "topo_key", "heartbeat", "source")
                     .order_by("id")
                 )
                 for node in nodes:
@@ -114,9 +114,13 @@ class TopoNode(TopoBase):
                     new_last_data_at: int | None = last_data_at_mapping[node.topo_key]
                     if new_last_data_at is not None:
                         prev["last_data_at"] = max(prev.get("last_data_at") or 0, new_last_data_at)
+                        source: list[str] = list(node.source or [])
+                        if data_type not in source:
+                            source.append(data_type)
+                            node.source = source
                     prev["checked_at"] = max(prev.get("checked_at") or 0, checked_at)
                     node.heartbeat[data_type] = prev
-                cls.objects.using(database).bulk_update(nodes, fields=["heartbeat"], batch_size=200)
+                cls.objects.using(database).bulk_update(nodes, fields=["heartbeat", "source"], batch_size=200)
         except OperationalError as error:
             # 在事务退出并回滚后处理可恢复的行锁失败，其他数据库异常继续上抛。
             if not error.args or error.args[0] not in (1205, 1213):

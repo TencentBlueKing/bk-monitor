@@ -89,6 +89,11 @@ class SetMealAdd extends VuexModule implements ISetMealAddState {
   // 变量数据
   variables = []; // 套餐类型md文档
 
+  // 变量列表加载状态，调用方据此区分「加载中 / 成功 / 失败」，避免把失败当成空列表
+  variableStatus: 'idle' | 'loading' | 'success' | 'error' = 'idle';
+  // 变量列表加载失败原因（用于提示兜底）
+  variableError = '';
+
   public get getCallbackId() {
     return this.callbackId;
   }
@@ -127,6 +132,10 @@ class SetMealAdd extends VuexModule implements ISetMealAddState {
   }
   public get getVariableTable() {
     return this.variableData.variableTable;
+  }
+  /** 变量列表是否已就绪（调试快照依赖它，未就绪时不能生成） */
+  public get isVariableReady() {
+    return this.variableStatus === 'success';
   }
   public get mealTypeListData() {
     return this.mealTypeList;
@@ -186,28 +195,44 @@ class SetMealAdd extends VuexModule implements ISetMealAddState {
     return getTemplateDetail({ plugin_id: params.pluginId, template_id: params.templateId }).catch(() => ({}));
   }
 
-  // 获取变量列表
+  /**
+   * 获取变量列表
+   * 失败（含返回结构异常）时保留上一次结果并记录状态，不再把失败包装成「成功的空列表」；
+   * 返回是否成功，供调用方区分（现有调用方忽略返回值，行为不变）。
+   */
   @Action
-  public async getVariableDataList() {
-    const data = await getVariables().catch(() => []);
-    const variableTable: any = {};
-    const variablePanels = [];
-    data.forEach(item => {
-      variableTable[item.group] = item.items.map(opt => ({
-        name: opt.name,
-        desc: opt.desc,
-        example: opt.example,
-        tip: '变量示例：未恢复 &#91点击复制变量]',
-      }));
-      variablePanels.push({
-        name: item.group,
-        label: item.name,
+  public async getVariableDataList(): Promise<boolean> {
+    this.setVariableStatus('loading');
+    this.setVariableError('');
+    try {
+      const data = await getVariables();
+      // 结构异常不能当成「后端没有变量」，否则调试快照会拿空变量去替换
+      if (!Array.isArray(data)) throw new Error(i18n.t('变量列表加载失败，请重试'));
+      const variableTable: any = {};
+      const variablePanels = [];
+      data.forEach(item => {
+        variableTable[item.group] = item.items.map(opt => ({
+          name: opt.name,
+          desc: opt.desc,
+          example: opt.example,
+          tip: '变量示例：未恢复 &#91点击复制变量]',
+        }));
+        variablePanels.push({
+          name: item.group,
+          label: item.name,
+        });
       });
-    });
-    this.setVariableTable(variableTable);
-    this.setVariablePanels(variablePanels);
-    this.setMessageTemplateList(data);
-    this.setVariables(data);
+      this.setVariableTable(variableTable);
+      this.setVariablePanels(variablePanels);
+      this.setMessageTemplateList(data);
+      this.setVariables(data);
+      this.setVariableStatus('success');
+      return true;
+    } catch (error) {
+      this.setVariableError((error as Error)?.message || '');
+      this.setVariableStatus('error');
+      return false;
+    }
   }
 
   // 获取套餐
@@ -264,6 +289,16 @@ class SetMealAdd extends VuexModule implements ISetMealAddState {
       groupName: item.groupName,
     }));
     this.messageTemplateList = res;
+  }
+
+  @Mutation
+  public setVariableStatus(status: 'idle' | 'loading' | 'success' | 'error') {
+    this.variableStatus = status;
+  }
+
+  @Mutation
+  public setVariableError(message: string) {
+    this.variableError = message;
   }
 
   @Mutation

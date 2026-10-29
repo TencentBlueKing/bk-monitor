@@ -39,6 +39,8 @@ export default {
   判断最终是否要产生告警: 'Determine whether to generate an alarm in the end',
   剩下的告警基于当前规则发送通知: 'The remaining alarms send notifications based on the current rules',
   场景智能异常检测: 'Intelligent Anomaly Detection in Scenarios',
+  异常检测: 'Anomaly Detection',
+  '源码 AI 分析': 'Source Code AI Analysis',
   如标准输出: 'Such as Standard Output', // 查看语境
   实例名配置: 'Instance Name Configuration',
   待升级目标: 'Targets to be Upgraded',
@@ -301,6 +303,23 @@ export default {
   主机拓扑: 'Host Topology',
   进程详情: 'Process Details',
 
+  // AI 设置
+  编辑绑定: 'Edit Binding',
+  新增绑定: 'Add Binding',
+  关联智能体: 'Associate Agent',
+  '关联 Skill': 'Associate Skill',
+  关联知识库: 'Associate Knowledge Base',
+  流程实例参数: 'Process Instance Parameters',
+  当前绑定流程: 'Current Bound Process',
+  知识库: 'Knowledge Base',
+  Skill: 'Skill',
+  智能体: 'Agent',
+
+  'AI 分析': 'AI Analysis',
+  源码关联分析: 'Source Code Association Analysis',
+  'AI 分析快览': 'AI Analysis Overview',
+  '确认指派 Issue 给 {name}': 'Confirm to assign Issue to {name}',
+
   // LLM 概览
   LLM概览: 'LLM Overview',
   '输入 Tokens 总数': 'Total Input Tokens',
@@ -363,7 +382,7 @@ export default {
   加载结果: 'Load Result',
   'HTTP 状态': 'HTTP Status',
   业务结果: 'Business Result',
-  传输大小: 'Transfer Size',
+  响应大小: 'Response Size',
   交付类型: 'Delivery Type',
   渲染影响: 'Render Impact',
   交互类型: 'Interaction Type',
@@ -387,4 +406,7 @@ export default {
   链路上下文: 'Trace Context',
   页面加载时序: 'Page Load Timeline',
   核心结果: 'Core Results',
+  累计里程碑: 'Cumulative Milestone',
+  专业解释: 'Professional explanation',
+  用户感受: 'User experience',
 };

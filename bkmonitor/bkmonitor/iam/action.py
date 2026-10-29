@@ -383,6 +383,26 @@ class ActionEnum:
         version=1,
     )
 
+    VIEW_RECORDING_RULE = ActionMeta(
+        id="view_recording_rule_v2",
+        name=_("查看预计算规则"),
+        name_en="View RecordingRule",
+        type="view",
+        related_resource_types=[SPACE_RESOURCE],
+        related_actions=[VIEW_BUSINESS.id],
+        version=1,
+    )
+
+    MANAGE_RECORDING_RULE = ActionMeta(
+        id="manage_recording_rule_v2",
+        name=_("管理预计算规则"),
+        name_en="Manage RecordingRule",
+        type="manage",
+        related_resource_types=[SPACE_RESOURCE],
+        related_actions=[VIEW_BUSINESS.id, VIEW_RECORDING_RULE.id],
+        version=1,
+    )
+
     VIEW_DOWNTIME = ActionMeta(
         id="view_downtime_v2",
         name=_("屏蔽查看"),
@@ -650,6 +670,7 @@ def get_action_by_id(action_id: str | ActionMeta) -> ActionMeta:
         # 如果已经是实例，则直接返回
         return action_id
 
+    action_id = _BUSINESS_TO_LEGACY.get(action_id, action_id)
     if action_id not in _all_actions:
         raise ActionNotExistError({"action_id": action_id})
 
@@ -747,3 +768,45 @@ ADMIN_ACTION_IDS = [
     ActionEnum.MANAGE_PUBLIC_SYNTHETIC_LOCATION.id,
     ActionEnum.VIEW_SELF_STATE.id,
 ]
+
+# Explicit protocol mapping; do not infer action versions from suffixes.
+_ACTION_ALIAS_TO_BUSINESS = {
+    "view_business_v2": "view_business",
+    "explore_metric_v2": "explore_metric",
+    "view_synthetic_v2": "view_synthetic",
+    "view_host_v2": "view_host",
+    "view_event_v2": "view_event",
+    "view_plugin_v2": "view_plugin",
+    "view_collection_v2": "view_collection",
+    "view_notify_team_v2": "view_notify_team",
+    "view_rule_v2": "view_rule",
+    "view_recording_rule_v2": "view_recording_rule",
+    "manage_recording_rule_v2": "manage_recording_rule",
+    "view_downtime_v2": "view_downtime",
+    "view_custom_metric_v2": "view_custom_metric",
+    "view_custom_event_v2": "view_custom_event",
+    "view_dashboard_v2": "view_dashboard",
+    "export_config_v2": "export_config",
+    "manage_synthetic_v2": "manage_synthetic",
+    "manage_host_v2": "manage_host",
+    "manage_event_v2": "manage_event",
+    "manage_plugin_v2": "manage_plugin",
+    "manage_collection_v2": "manage_collection",
+    "manage_notify_team_v2": "manage_notify_team",
+    "manage_rule_v2": "manage_rule",
+    "manage_downtime_v2": "manage_downtime",
+    "manage_custom_metric_v2": "manage_custom_metric",
+    "manage_custom_event_v2": "manage_custom_event",
+    "manage_dashboard_v2": "manage_dashboard",
+    "manage_datasource_v2": "manage_datasource",
+    "import_config_v2": "import_config",
+    "view_apm_application_v2": "view_apm_application",
+    "view_rum_application_v2": "view_rum_application",
+    "manage_apm_application_v2": "manage_apm_application",
+    "manage_rum_application_v2": "manage_rum_application",
+}
+_BUSINESS_TO_LEGACY = {value: key for key, value in _ACTION_ALIAS_TO_BUSINESS.items()}
+
+
+def canonicalize_action_id(action_id):
+    return _ACTION_ALIAS_TO_BUSINESS.get(action_id, action_id)

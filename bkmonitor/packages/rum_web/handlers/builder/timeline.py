@@ -66,7 +66,7 @@ def _node(span_id: str, children: Sequence[dict[str, Any]] = ()) -> dict[str, An
 
 
 def _attach(members: Sequence[_Span]) -> list[dict[str, Any]]:
-    """按开始时间排序，仅将 Resource 挂到同一 View 中匹配的 Action，其余节点直属 View。"""
+    """按开始时间排序。非 Action 成员命中同一 View 的 Action 时挂到该 Action，其余节点直属 View。"""
     nodes: dict[str, dict[str, Any]] = {}
     actions: dict[str, dict[str, Any]] = {}
     for item in members:
@@ -80,7 +80,7 @@ def _attach(members: Sequence[_Span]) -> list[dict[str, Any]]:
     for item in sorted(members, key=lambda item: get_safe_number(item.flatten_data.get("start_time"))):
         node = nodes[item.origin_data["span_id"]]
         action = actions.get(item.flatten_data.get("attributes.action.id"))
-        if item.flatten_data.get("attributes.span_type") == RumSpanType.RESOURCE.value and action is not None:
+        if item.flatten_data.get("attributes.span_type") != RumSpanType.ACTION.value and action is not None:
             action.setdefault("children", []).append(node)
         else:
             children.append(node)

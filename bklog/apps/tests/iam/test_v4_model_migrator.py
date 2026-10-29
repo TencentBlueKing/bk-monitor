@@ -9,9 +9,9 @@ from apps.iam.backends.v4.model_migrator import (
     ModelMigrationBlocked,
     ModelMigrationPlan,
     V4ModelMigrator,
-    _order_by_ancestors,
     build_plan,
 )
+from iam_engine.model.convergence import _order_by_ancestors
 
 PAYLOAD = {
     "version": 1,
@@ -160,7 +160,7 @@ class BuildPlanUpdateTest(SimpleTestCase):
         self.assertEqual(plan.update_system, {"callback_url": CALLBACK_URL})
         self.assertIsNone(plan.create_system)
 
-    def test_resource_type_rename_and_ancestor_change_are_updated(self):
+    def test_resource_type_rename_is_reported_but_ancestor_change_blocks_apply(self):
         model = desired_model()
         actual = converged_actual(model)
         actual.resource_types[1]["name"] = "旧名称"
@@ -168,7 +168,8 @@ class BuildPlanUpdateTest(SimpleTestCase):
 
         plan = build_plan(model, actual)
 
-        self.assertEqual(plan.update_resource_types, (("indices", {"name": "索引集", "ancestors": ["space"]}),))
+        self.assertEqual(plan.update_resource_types, (("indices", {"name": "索引集"}),))
+        self.assertTrue(plan.blocking)
 
     def test_action_rename_is_updated(self):
         model = desired_model()
@@ -216,7 +217,7 @@ class BuildPlanUpdateTest(SimpleTestCase):
         self.assertFalse(plan.has_changes())
         self.assertIn("role space_viewer grants action manage_indices in IAM but not in the baseline", plan.drift)
 
-    def test_role_action_dimension_change_is_removed_then_added(self):
+    def test_role_action_dimension_change_is_reported_as_blocking(self):
         model = desired_model()
         actual = converged_actual(model)
         actual.roles[0]["actions"][1]["resource_type_id"] = "space"
@@ -224,6 +225,7 @@ class BuildPlanUpdateTest(SimpleTestCase):
         plan = build_plan(model, actual)
 
         self.assertEqual(plan.remove_role_actions, (("space_viewer", ("search_log",)),))
+        self.assertTrue(plan.blocking)
         self.assertEqual(
             plan.add_role_actions,
             (("space_viewer", ({"id": "search_log", "resource_type_id": "indices"},)),),
@@ -317,19 +319,16 @@ class V4ModelMigratorTest(SimpleTestCase):
             ],
         )
 
-    def test_apply_removes_role_actions_before_adding_them(self):
+    def test_apply_rejects_role_action_removal_before_any_write(self):
         migrator = V4ModelMigrator(self.client, self.model)
         plan = ModelMigrationPlan(
             add_role_actions=(("space_viewer", ({"id": "search_log", "resource_type_id": "indices"},)),),
             remove_role_actions=(("space_viewer", ("search_log",)),),
         )
 
-        migrator.apply(plan)
-
-        self.assertEqual(
-            [call[0] for call in self.client.method_calls],
-            ["batch_delete_role_actions", "batch_create_role_actions"],
-        )
+        with self.assertRaises(ModelMigrationBlocked):
+            migrator.apply(plan)
+        self.assertEqual(self.client.method_calls, [])
 
     def test_apply_refuses_blocking_plan(self):
         migrator = V4ModelMigrator(self.client, self.model)

@@ -34,6 +34,7 @@ import { start } from 'monitor-api/modules/apm_meta';
 import { query, queryServicesDetail } from 'monitor-api/modules/apm_profile';
 import { serviceInfo } from 'monitor-api/modules/apm_service';
 import { skipToDocsLink } from 'monitor-common/utils/docs';
+import { profilingExploreHash } from 'monitor-common/utils/profiling-url';
 import { Debounce, typeTools } from 'monitor-common/utils/utils';
 import { handleTransformToTimestamp } from 'monitor-pc/components/time-range/utils';
 import CommonDetail from 'monitor-pc/pages/monitor-k8s/components/common-detail';
@@ -404,8 +405,10 @@ class ProfilingChart extends CommonSimpleChart {
   }
   goLink() {
     const params = this.getParams({ diagram_types: this.activeMode });
-    const target = JSON.stringify({ ...params, start: this.timeRange[0], end: this.timeRange[1] });
-    const url = location.href.replace(location.hash, `#/trace/profiling?target=${encodeURIComponent(target)}`);
+    const url = location.href.replace(
+      location.hash,
+      profilingExploreHash({ ...params, start: this.timeRange[0], end: this.timeRange[1] })
+    );
     window.open(url, '_blank');
   }
   handleFiltersChange(values, key) {

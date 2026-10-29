@@ -27,7 +27,6 @@
 import { type PropType, computed, defineComponent, onBeforeUnmount, provide, shallowRef, watch } from 'vue';
 
 import { Exception, Sideslider } from 'bkui-vue';
-import { getHostProcessUptime } from 'monitor-api/modules/scene_view';
 import { random } from 'monitor-common/utils';
 import { storeToRefs } from 'pinia';
 import { useI18n } from 'vue-i18n';
@@ -41,6 +40,7 @@ import { PROCESS_DETAIL_TABS, PROCESS_PORT_STATUS_MAP } from '../../../../../pag
 import { formatProcessSeriesAlias, formatProcessUptimeDetail } from '../../../../../pages/host/utils/process';
 import { useMetricAggregation } from '../../../composables/use-metric-aggregation';
 import { useProcessMetric } from '../../../composables/use-process-metric';
+import { getHostProcessUptime } from '../../../services/process-service';
 import { type ScopedVarMap, buildScopedVars, DashboardPanel } from '../../dashbords';
 import HostLoading from '../../host-loading/host-loading';
 import GroupManageDialog from '../../host-metric/group-manage-dialog';
@@ -288,10 +288,17 @@ export default defineComponent({
               <div class='process-detail-kv'>
                 <span class='process-detail-kv-label'>{t('运行时长')}：</span>
                 {processUptimeLoading.value ? (
-                  <span class='process-detail-kv-skeleton' aria-label={t('加载中...')} role='status' />
+                  <span
+                    class='process-detail-kv-skeleton'
+                    aria-label={t('加载中...')}
+                    role='status'
+                  />
                 ) : (
                   <span class='process-detail-kv-value'>
-                    {formatProcessUptimeDetail(processUptimeSnapshot.value.value, processUptimeSnapshot.value.observedAt)}
+                    {formatProcessUptimeDetail(
+                      processUptimeSnapshot.value.value,
+                      processUptimeSnapshot.value.observedAt
+                    )}
                   </span>
                 )}
               </div>
@@ -376,15 +383,15 @@ export default defineComponent({
               }}
             />
             <DashboardPanel
-                class='process-detail-charts'
-                loading={loading.value}
-                loadError={loadError.value}
-                onRetry={() => load(true)}
-                columns={processMetricAggregationState.value.columns}
-                customOptions={chartCustomOptions}
-                rows={rows.value}
-                scopedVars={scopedVars.value}
-              />
+              class='process-detail-charts'
+              columns={processMetricAggregationState.value.columns}
+              customOptions={chartCustomOptions}
+              loadError={loadError.value}
+              loading={loading.value}
+              rows={rows.value}
+              scopedVars={scopedVars.value}
+              onRetry={() => load(true)}
+            />
             <GroupManageDialog
               isShow={settingShow.value}
               orderData={orderData.value}
@@ -452,7 +459,7 @@ export default defineComponent({
               start_time: startTime,
               end_time: endTime,
             },
-            { needMessage: false }
+            { timeRange: [...timeRange.value], timezone: timezone.value }
           );
           if (requestId !== processUptimeRequestId) return;
 
@@ -494,12 +501,14 @@ export default defineComponent({
     };
   },
   render() {
+    // transfer 挂到 body，进程详情才能盖在主机抽屉上面，不会被外层位移裁切。
     return (
       <Sideslider
         width={1200}
         extCls='process-detail-sideslider'
         isShow={this.show}
         quickClose
+        transfer
         onUpdate:isShow={v => this.$emit('update:show', v)}
       >
         {{

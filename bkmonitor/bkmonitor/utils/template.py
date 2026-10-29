@@ -34,6 +34,14 @@ except ImportError:
     from jinja2.utils import contextfunction as pass_context  # jinja2 2.x
 
 from bkmonitor.utils.text import cut_str_by_max_bytes, get_content_length
+from bkmonitor.utils.template_ref_values import (
+    RefValueTemplateError,
+    hide_reference_containers,
+    match_reference,
+    output_references,
+    prepare_ref_value_template,
+    snapshot_leaf,
+)
 from constants.action import NoticeWay
 
 logger = logging.getLogger(__name__)
@@ -97,7 +105,24 @@ class SafeSandboxedEnvironment(SandboxedEnvironment):
     - 仅允许调用模板显式提供的 helper、Jinja 内置函数，以及内置数据类型的原生方法。
     """
 
+    def getattr(self, obj, attribute):
+        # Approved references have already been reduced to scalar constants.
+        if attribute == "ref_values":
+            raise RefValueTemplateError("dynamic named output access is not allowed")
+        if attribute in getattr(type(obj), "_template_blocked_attributes", ()):
+            raise RefValueTemplateError("internal notification context access is not allowed")
+        return hide_reference_containers(super().getattr(obj, attribute))
+
+    def getitem(self, obj, argument):
+        if argument == "ref_values":
+            raise RefValueTemplateError("dynamic named output access is not allowed")
+        return hide_reference_containers(super().getitem(obj, argument))
+
     def is_safe_attribute(self, obj, attr, value):
+        if attr == "ref_values":
+            raise RefValueTemplateError("dynamic named output access is not allowed")
+        if attr in getattr(type(obj), "_template_blocked_attributes", ()):
+            raise RefValueTemplateError("internal notification context access is not allowed")
         if isinstance(obj, types.ModuleType) or isinstance(value, types.ModuleType):
             return False
         return super().is_safe_attribute(obj, attr, value)
@@ -112,6 +137,13 @@ class SafeSandboxedEnvironment(SandboxedEnvironment):
         # 调用实参只接受数据值，不接受可调用对象。
         # Undefined 哨兵实现了 __call__（callable 为真），但它只是缺失变量的占位符而非真实可调用对象，
         # 模板中将未定义变量传入 gettext 等函数属于正常用法，需放行避免误伤。
+        if (
+            isinstance(__obj, types.BuiltinMethodType)
+            and isinstance(getattr(__obj, "__self__", None), dict)
+            and getattr(__obj, "__name__", "") == "get"
+            and (args[0] if args else kwargs.get("key")) == "ref_values"
+        ):
+            raise RefValueTemplateError("dynamic named output access is not allowed")
         for __arg in list(args) + list(kwargs.values()):
             if callable(__arg) and not isinstance(__arg, Undefined):
                 raise SecurityError("callable arguments are not allowed in templates")
@@ -344,9 +376,23 @@ class Jinja2Renderer:
             autoescape = False
             escape_func = None
 
+        environment = jinja2_environment(autoescape=autoescape, escape_func=escape_func)
+
+        def resolve(reference, field):
+            alarm = context.get("alarm")
+            if isinstance(alarm, dict):
+                config = context.get("_query_output_config")
+                snapshot = alarm.get("ref_values") or {}
+            else:
+                config = getattr(alarm, "_ref_values_config", None)
+                snapshot = getattr(alarm, "ref_values", {})
+            canonical = match_reference(reference, output_references(config))
+            return snapshot_leaf(snapshot, canonical, field)
+
+        template = prepare_ref_value_template(environment, content, resolve)
+        context = {key: hide_reference_containers(value) for key, value in context.items()}
         return (
-            jinja2_environment(autoescape=autoescape, escape_func=escape_func)
-            .from_string(content)
+            environment.from_string(template)
             # helper 放在 **context 之后，避免被同名上下文键覆盖
             .render({**context, "json": SAFE_TEMPLATE_JSON, "re": SAFE_TEMPLATE_RE, "arrow": SAFE_TEMPLATE_ARROW})
         )

@@ -70,6 +70,7 @@ import {
   SPAN_TYPE_FIELD,
 } from './constants';
 import RumSpanDetailSlider from './detail';
+import { OVERVIEW_ISOLATED_LINK_FIELDS } from './detail/constants';
 import { getApplicationList } from './services/rum-application';
 import EmptyStatus from '@/components/empty-status/empty-status';
 
@@ -352,22 +353,25 @@ export default defineComponent({
       const query = queryCtx.buildUrlQuery();
       // 不沿用收藏：新页应用收藏条件会覆盖掉本次追加的条件
       delete query.favorite_id;
+      /** 会话 / 页面 ID 跳转：新页只按点击的 ID 检索，不携带当前页面的其他过滤条件(其他过滤条件具体指滴是 检索栏(ui | queryString) 的参数 及 常驻筛选 中的参数) */
+      const isIsolatedJump = OVERVIEW_ISOLATED_LINK_FIELDS.has(key);
       if (queryCtx.filterMode.value === EMode.ui) {
+        const items = [
+          {
+            key,
+            operator,
+            value: isRangeValue && matched ? [matched[1], matched[2]] : safeParseJsonValueForWhere(value),
+          },
+        ];
         query.where = encodeURIComponent(
           JSON.stringify(
-            mergeWhereList(
-              queryCtx.where.value,
-              [
-                {
-                  key,
-                  operator,
-                  value: isRangeValue && matched ? [matched[1], matched[2]] : safeParseJsonValueForWhere(value),
-                },
-              ],
-              isFromDimensionFilterPanel
-            )
+            isIsolatedJump ? items : mergeWhereList(queryCtx.where.value, items, isFromDimensionFilterPanel)
           )
         );
+        if (isIsolatedJump) {
+          query.commonWhere = encodeURIComponent(JSON.stringify([]));
+          query.queryString = '';
+        }
       } else {
         // 语句模式：默认拼等值/取反子句，区间值改用 ES 的 range 语法
         let endStr = `${operator === EMethod.eq ? '' : 'NOT '}${key} : "${value || ''}"`;
@@ -375,8 +379,13 @@ export default defineComponent({
           endStr = `${key} : [${matched[1]} TO ${matched[2] || matched[1]}]`;
         }
         query.queryString = encodeURIComponent(
-          queryCtx.queryString.value ? `${queryCtx.queryString.value} AND ${endStr}` : endStr
+          isIsolatedJump || !queryCtx.queryString.value ? endStr : `${queryCtx.queryString.value} AND ${endStr}`
         );
+        if (isIsolatedJump) {
+          // 语句模式下清空 UI 条件与常驻筛选，避免与查询语句叠加生效
+          query.where = encodeURIComponent(JSON.stringify([]));
+          query.commonWhere = encodeURIComponent(JSON.stringify([]));
+        }
       }
       // 复用当前查询态另开一页：新页走 initFromUrl 还原，故不改动本页 store
       window.open(router.resolve({ path: route.path, query }).href, '_blank');

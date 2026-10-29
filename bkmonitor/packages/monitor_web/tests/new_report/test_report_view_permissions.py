@@ -115,16 +115,21 @@ class TestNewReportViewSetPermissions(TestCase):
     @mock.patch("bkmonitor.iam.drf.Permission")
     def test_draft_send_still_requires_business_permission(self, perm_cls, create_instance):
         resource = create_instance.return_value
-        request = SimpleNamespace(data={"bk_biz_id": 2})
-        perm_cls.return_value.is_allowed.side_effect = PermissionDeniedError(context={"action_name": "view_business"})
+        request = SimpleNamespace(data={"bk_biz_id": 2}, user=SimpleNamespace(username="operator", tenant_id="system"))
+        permission = perm_cls.return_value
+        permission.prepare_apply_for_saas.return_value = ([], [])
+        permission._is_allowed_request.return_value = False
+        permission._apply_data_request.return_value = {}
+        permission._apply_url_request.return_value = ""
         with self.assertRaises(PermissionDeniedError):
             ReportSendPermission().has_permission(request, None)
         create_instance.assert_called_once_with(2)
-        perm_cls.return_value.is_allowed.assert_called_once_with(
-            action=ActionEnum.VIEW_BUSINESS,
-            resources=[resource],
-            raise_exception=True,
-        )
+        permission._is_allowed_request.assert_called_once()
+        query = permission._is_allowed_request.call_args.args[0]
+        self.assertEqual(query.action_id, "view_business")
+        self.assertEqual(query.resource.id, str(resource.id))
+        self.assertEqual(query.subject.id, "operator")
+        self.assertEqual(query.subject.tenant_id, "system")
 
     @mock.patch("monitor_web.new_report.views.GetReportListResource.check_permission", return_value=True)
     @mock.patch("bkmonitor.iam.drf.Permission")

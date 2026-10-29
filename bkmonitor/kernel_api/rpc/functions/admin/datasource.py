@@ -11,7 +11,7 @@ specific language governing permissions and limitations under the License.
 from typing import Any
 
 from django.conf import settings
-from django.db.models import Q
+from django.db.models import Count, Exists, OuterRef, Q
 
 from core.drf_resource import api
 from core.drf_resource.exceptions import CustomException
@@ -308,6 +308,13 @@ def _get_kafka_topic(datasource: models.DataSource) -> models.KafkaTopicInfo | N
     return models.KafkaTopicInfo.objects.filter(bk_data_id=datasource.bk_data_id).first()
 
 
+def _active_result_table_relations():
+    enabled_tables = models.ResultTable.objects.filter(
+        bk_tenant_id=OuterRef("bk_tenant_id"), table_id=OuterRef("table_id"), is_enable=True
+    )
+    return models.DataSourceResultTable.objects.filter(Exists(enabled_tables))
+
+
 def _build_datasource_queryset(params: dict[str, Any], bk_tenant_id: str | None):
     queryset = filter_by_bk_tenant_id(models.DataSource.objects.all(), bk_tenant_id)
 
@@ -408,6 +415,14 @@ def list_datasources(params: dict[str, Any]) -> dict[str, Any]:
         values=bk_data_ids,
         **({"bk_tenant_id": bk_tenant_id} if bk_tenant_id else {}),
     )
+    active_relations = _active_result_table_relations().filter(bk_data_id__in=bk_data_ids)
+    active_relations = filter_by_bk_tenant_id(active_relations, bk_tenant_id)
+    active_result_table_count_map = {
+        (row["bk_tenant_id"], row["bk_data_id"]): row["total"]
+        for row in active_relations.values("bk_tenant_id", "bk_data_id").annotate(
+            total=Count("table_id", distinct=True)
+        )
+    }
     space_count_map = count_func(
         models.SpaceDataSource,
         group_field="bk_data_id",
@@ -448,6 +463,9 @@ def list_datasources(params: dict[str, Any]) -> dict[str, Any]:
                     result_table_count_map, datasource.bk_tenant_id, datasource.bk_data_id
                 )
                 or 0,
+                "active_result_table_count": active_result_table_count_map.get(
+                    (datasource.bk_tenant_id, datasource.bk_data_id), 0
+                ),
                 "space_count": get_scoped_map_value(space_count_map, datasource.bk_tenant_id, datasource.bk_data_id)
                 or 0,
                 "option_count": get_scoped_map_value(option_count_map, datasource.bk_tenant_id, datasource.bk_data_id)

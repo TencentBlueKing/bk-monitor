@@ -8,8 +8,8 @@ from django.test import SimpleTestCase, TestCase, override_settings
 from apps.iam.backends.v3.writer import V3AuthorizationWriter
 from apps.iam.backends.v4.writer import SPACE_ACCESS_ROLE_ID, V4AuthorizationWriter
 from apps.iam.handlers.permission import Permission
-from apps.iam.iam_engine.core.config import AuthMode
-from apps.iam.iam_engine.provider.bundle import ProviderBundle
+from iam_engine.core.config import AuthMode
+from iam_engine.provider.bundle import ProviderBundle
 from apps.log_search.models import Space, SpaceType
 
 
@@ -38,7 +38,7 @@ class SpaceAccessWriterTest(SimpleTestCase):
         )
 
     def test_v4_keeps_negative_space_id_for_client_codec(self):
-        """负数空间 ID 的 neg_ 编码由 client 的 codec 负责，writer 不得提前编码成两套口径。"""
+        """Writer 与公共 codec 均保留负数空间原始 ID，不添加协议前缀。"""
         client = Mock()
         writer = V4AuthorizationWriter(client, operator="operator")
 
@@ -47,13 +47,13 @@ class SpaceAccessWriterTest(SimpleTestCase):
         items = client.add_authorization.call_args.kwargs["items"]
         self.assertEqual(items[0]["resources"], [{"type": "space", "id": "-3"}])
 
-    def test_v3_grants_view_business_through_instance_authorization_api(self):
-        grant_instance_api = Mock()
-        writer = V3AuthorizationWriter(Mock(), bk_tenant_id="tenant-1", grant_instance_api=grant_instance_api)
+    def test_v3_grants_view_business_through_path_authorization_api(self):
+        grant_path_api = Mock()
+        writer = V3AuthorizationWriter(Mock(), bk_tenant_id="tenant-1", grant_path_api=grant_path_api)
 
         writer.grant_space_access(space_id="2", subject_id="owner1", space_name="[业务] 蓝鲸")
 
-        grant_instance_api.assert_called_once_with(
+        grant_path_api.assert_called_once_with(
             {
                 "asynchronous": False,
                 "operate": "grant",
@@ -65,7 +65,7 @@ class SpaceAccessWriterTest(SimpleTestCase):
                     {
                         "system": "bk_monitorv3",
                         "type": "space",
-                        "instances": [{"id": "2", "name": "[业务] 蓝鲸"}],
+                        "paths": [[{"type": "space", "id": "2", "name": "[业务] 蓝鲸"}]],
                     }
                 ],
             },
@@ -74,22 +74,22 @@ class SpaceAccessWriterTest(SimpleTestCase):
         )
 
     def test_v3_falls_back_to_space_id_when_name_is_unknown(self):
-        grant_instance_api = Mock()
-        writer = V3AuthorizationWriter(Mock(), grant_instance_api=grant_instance_api)
+        grant_path_api = Mock()
+        writer = V3AuthorizationWriter(Mock(), grant_path_api=grant_path_api)
 
         writer.grant_space_access(space_id="2", subject_id="owner1")
 
-        instances = grant_instance_api.call_args[0][0]["resources"][0]["instances"]
-        self.assertEqual(instances, [{"id": "2", "name": "2"}])
+        paths = grant_path_api.call_args[0][0]["resources"][0]["paths"]
+        self.assertEqual(paths, [[{"type": "space", "id": "2", "name": "2"}]])
 
-    def test_v3_default_api_is_the_batch_instance_endpoint(self):
-        """默认实现必须落在权限中心实例授权接口上，否则线上是空转。"""
+    def test_v3_default_api_is_the_batch_path_endpoint(self):
+        """默认实现必须落在已开放 view_business_v2 的路径授权接口上。"""
         writer = V3AuthorizationWriter(Mock())
 
-        with patch("apps.api.IAMApi.batch_instance") as batch_instance:
+        with patch("apps.api.IAMApi.batch_path") as batch_path:
             writer.grant_space_access(space_id="2", subject_id="owner1")
 
-        batch_instance.assert_called_once()
+        batch_path.assert_called_once()
 
 
 @override_settings(BK_IAM_SYSTEM_ID="bk_log_search", BK_APP_TENANT_ID="default")
@@ -122,6 +122,7 @@ class SpaceAccessBatchGrantTest(TestCase):
         self.assertEqual(permission.provider_bundles[AuthMode.V3].writer.bk_tenant_id, "tenant-1")
 
     def test_grants_on_both_stacks_and_dedupes_subjects(self):
+        self.mode_provider.get_mode.return_value = AuthMode.UNION
         permission = self._make_permission()
 
         failed = permission.grant_space_access_batch(2, ["owner1", "owner1", "owner2", "", None])
@@ -155,6 +156,7 @@ class SpaceAccessBatchGrantTest(TestCase):
         )
 
     def test_reports_subject_when_any_stack_fails(self):
+        self.mode_provider.get_mode.return_value = AuthMode.UNION
         self.v4_writer.grant_space_access.side_effect = [RuntimeError("iam v4 timeout"), None]
         permission = self._make_permission()
 

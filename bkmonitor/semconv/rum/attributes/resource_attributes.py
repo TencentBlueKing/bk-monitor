@@ -128,3 +128,108 @@ RESOURCE_DOWNLOAD_DURATION = FieldSpec(
     field_unit=FieldUnit.MS.value,
     field_display_type=FieldDisplayType.DURATION.value,
 )
+
+# resource.timing.*：浏览器 PerformanceResourceTiming 的原样时间点（相对 timeOrigin），阶段耗时由消费方计算。
+RESOURCE_TIMING_START_TIME = FieldSpec(
+    field_name="resource.timing.start_time",
+    field_alias=_("资源开始时间"),
+    field_unit=FieldUnit.MS.value,
+    field_display_type=FieldDisplayType.DURATION.value,
+)
+RESOURCE_TIMING_REDIRECT_START = FieldSpec(
+    field_name="resource.timing.redirect_start",
+    field_alias=_("重定向开始时间"),
+    field_unit=FieldUnit.MS.value,
+    field_display_type=FieldDisplayType.DURATION.value,
+)
+RESOURCE_TIMING_REDIRECT_END = FieldSpec(
+    field_name="resource.timing.redirect_end",
+    field_alias=_("重定向结束时间"),
+    field_unit=FieldUnit.MS.value,
+    field_display_type=FieldDisplayType.DURATION.value,
+)
+RESOURCE_TIMING_FETCH_START = FieldSpec(
+    field_name="resource.timing.fetch_start",
+    field_alias=_("最后一跳获取开始时间"),
+    field_unit=FieldUnit.MS.value,
+    field_display_type=FieldDisplayType.DURATION.value,
+)
+RESOURCE_TIMING_WORKER_START = FieldSpec(
+    field_name="resource.timing.worker_start",
+    field_alias=_("Service Worker 介入时间"),
+    field_unit=FieldUnit.MS.value,
+    field_display_type=FieldDisplayType.DURATION.value,
+)
+RESOURCE_TIMING_WORKER_ROUTER_EVALUATION_START = FieldSpec(
+    field_name="resource.timing.worker_router_evaluation_start",
+    field_alias=_("Service Worker 路由评估时间"),
+    field_unit=FieldUnit.MS.value,
+    field_display_type=FieldDisplayType.DURATION.value,
+)
+RESOURCE_TIMING_WORKER_CACHE_LOOKUP_START = FieldSpec(
+    field_name="resource.timing.worker_cache_lookup_start",
+    field_alias=_("Service Worker 缓存查询时间"),
+    field_unit=FieldUnit.MS.value,
+    field_display_type=FieldDisplayType.DURATION.value,
+)
+RESOURCE_TIMING_DOMAIN_LOOKUP_START = FieldSpec(
+    field_name="resource.timing.domain_lookup_start",
+    field_alias=_("DNS 查询开始时间"),
+    field_unit=FieldUnit.MS.value,
+    field_display_type=FieldDisplayType.DURATION.value,
+)
+RESOURCE_TIMING_DOMAIN_LOOKUP_END = FieldSpec(
+    field_name="resource.timing.domain_lookup_end",
+    field_alias=_("DNS 查询结束时间"),
+    field_unit=FieldUnit.MS.value,
+    field_display_type=FieldDisplayType.DURATION.value,
+)
+RESOURCE_TIMING_CONNECT_START = FieldSpec(
+    field_name="resource.timing.connect_start",
+    field_alias=_("连接开始时间"),
+    field_unit=FieldUnit.MS.value,
+    field_display_type=FieldDisplayType.DURATION.value,
+)
+RESOURCE_TIMING_SECURE_CONNECTION_START = FieldSpec(
+    field_name="resource.timing.secure_connection_start",
+    field_alias=_("TLS 开始时间"),
+    field_unit=FieldUnit.MS.value,
+    field_display_type=FieldDisplayType.DURATION.value,
+)
+RESOURCE_TIMING_CONNECT_END = FieldSpec(
+    field_name="resource.timing.connect_end",
+    field_alias=_("连接完成时间"),
+    field_unit=FieldUnit.MS.value,
+    field_display_type=FieldDisplayType.DURATION.value,
+)
+RESOURCE_TIMING_REQUEST_START = FieldSpec(
+    field_name="resource.timing.request_start",
+    field_alias=_("请求开始时间"),
+    field_unit=FieldUnit.MS.value,
+    field_display_type=FieldDisplayType.DURATION.value,
+)
+RESOURCE_TIMING_RESPONSE_START = FieldSpec(
+    field_name="resource.timing.response_start",
+    field_alias=_("首个响应时间"),
+    field_unit=FieldUnit.MS.value,
+    field_display_type=FieldDisplayType.DURATION.value,
+)
+RESOURCE_TIMING_FINAL_RESPONSE_HEADERS_START = FieldSpec(
+    field_name="resource.timing.final_response_headers_start",
+    field_alias=_("最终响应头时间"),
+    field_unit=FieldUnit.MS.value,
+    field_display_type=FieldDisplayType.DURATION.value,
+)
+RESOURCE_TIMING_RESPONSE_END = FieldSpec(
+    field_name="resource.timing.response_end",
+    field_alias=_("响应结束时间"),
+    field_unit=FieldUnit.MS.value,
+    field_display_type=FieldDisplayType.DURATION.value,
+)
+
+RESOURCE_TIMING_WORKER_MATCHED_ROUTER_SOURCE = FieldSpec(
+    field_name="resource.timing.worker_matched_router_source", field_alias=_("Service Worker 命中来源")
+)
+RESOURCE_TIMING_WORKER_FINAL_ROUTER_SOURCE = FieldSpec(
+    field_name="resource.timing.worker_final_router_source", field_alias=_("Service Worker 最终来源")
+)

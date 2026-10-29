@@ -32,6 +32,7 @@
         :class="['handle-item', { 'is-disable': !isActiveLog }]"
         type="button"
         @click.stop="handleCheckClick('realTimeLog', isActiveLog)"
+        @mousedown.prevent
         @mouseup.stop
       >
         <span class="icon bklog-icon bklog-shishirizhi" />
@@ -43,6 +44,7 @@
         :class="['handle-item', { 'is-disable': !isActiveLog }]"
         type="button"
         @click.stop="handleCheckClick('contextLog', isActiveLog)"
+        @mousedown.prevent
         @mouseup.stop
       >
         <span class="icon bklog-icon bklog-shangxiawen" />
@@ -105,6 +107,7 @@
         :class="['handle-item', { 'is-disable': !isActiveLog }]"
         type="button"
         @click.stop="handleCheckClick('contextLog', isActiveLog)"
+        @mousedown.prevent
         @mouseup.stop
       >
         <span class="icon bklog-icon bklog-shangxiawen" />
@@ -290,7 +293,8 @@
           }
         };
 
-        const keyValueTraceIdPattern = /(?:^|[^a-z0-9_-])["']?([a-z0-9][\w.-]*?)["']?\s*[=:]\s*["']?([a-f0-9]{32})(?![a-z0-9])/gi;
+        const keyValueTraceIdPattern =
+          /(?:^|[^a-z0-9_-])["']?([a-z0-9][\w.-]*?)["']?\s*[=:]\s*["']?([a-f0-9]{32})(?![a-z0-9])/gi;
         for (const match of text.matchAll(keyValueTraceIdPattern)) {
           const traceId = match[2];
           addCandidate(traceId, match[1] || sourceKey, match.index + match[0].lastIndexOf(traceId));
@@ -446,7 +450,6 @@
           font-weight: 600;
           color: transparent;
           background: linear-gradient(118deg, #235dfa 0%, #e28bed 100%);
-          background-clip: text;
           background-clip: text;
           -webkit-text-fill-color: transparent;
         }

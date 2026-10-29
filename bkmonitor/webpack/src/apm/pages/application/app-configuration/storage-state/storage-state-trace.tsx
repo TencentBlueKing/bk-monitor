@@ -195,7 +195,7 @@ export default class Trace extends tsc<IProps, IEvent> {
    */
   async handleUpdateValue(value, field: string) {
     if (field === 'es_storage_cluster') {
-      const isCanSubmit = await this.handleCheckCluster();
+      const isCanSubmit = await this.handleCheckCluster(value);
       if (!isCanSubmit) return false;
       /** 切换集群时 进行对切换的集群与当前参数对比 如果大于最大值则提示修改参数 */
       const checkSubmitValue = this.checkClusterValue(value);
@@ -267,14 +267,43 @@ export default class Trace extends tsc<IProps, IEvent> {
   }
 
   /**
-   * @desc: 修改集群历史二次确认弹窗
+   * @desc: 存储集群切换二次确认弹窗
+   * @param { Number } targetClusterId 目标集群 ID
    * @returns { Boolean } 是否确认
    */
-  handleCheckCluster() {
+  handleCheckCluster(targetClusterId: number) {
+    const h = this.$createElement;
+    const current = this.currentCluster;
+    const target = this.clusterList.find(item => item.storage_cluster_id === targetClusterId);
+    const currentName = current?.storage_display_name || current?.storage_cluster_name || '--';
+    const targetName = target?.storage_display_name || target?.storage_cluster_name || '--';
+    const retention = target?.setup_config?.retention_days_max ?? '--';
+
     return new Promise(resolve => {
       this.$bkInfo({
-        title: `${this.$t('修改集群历史数据会全部丢失，确认要更换么')}？`,
+        title: this.$t('确认切换存储集群？'),
         width: 600,
+        okText: this.$t('确认切换'),
+        cancelText: this.$t('取消'),
+        subHeader: h(
+          'div',
+          { class: 'cluster-switch-dialog-body' },
+          [
+            h('div', { class: 'cluster-switch-row' }, [
+              h('span', { class: 'cluster-switch-label' }, `${this.$t('当前集群')}：`),
+              h('span', { class: 'cluster-switch-value' }, currentName),
+              h('span', { class: 'cluster-switch-arrow' }, '\u2192'),
+              h('span', { class: 'cluster-switch-label' }, `${this.$t('目标集群')}：`),
+              h('span', { class: 'cluster-switch-value cluster-switch-value-target' }, targetName),
+            ]),
+            h('div', { class: 'cluster-switch-retention' },
+              `${this.$t('切换后保留天数：{days} 天', { days: retention })}`,
+            ),
+            h('div', { class: 'cluster-switch-desc' },
+              `${this.$t('切换生效后，新增数据将写入目标集群。历史数据仍可查询，并按切换后生效的保留时长自动清理。')}`,
+            ),
+          ]
+        ),
         confirmFn: () => resolve(true),
         cancelFn: () => resolve(false),
       });
@@ -320,15 +349,20 @@ export default class Trace extends tsc<IProps, IEvent> {
                   showEditable={false}
                   value={this.appInfo.es_storage_index_name}
                 />
-                <EditableFormItem
-                  authority={this.authority.MANAGE_AUTH}
-                  authorityName={authorityMap.MANAGE_AUTH}
-                  formType='select'
-                  label={this.$t('存储集群')}
-                  selectList={this.clusterOptions}
-                  updateValue={val => this.handleUpdateValue(val, 'es_storage_cluster')}
-                  value={this.storageInfo?.es_storage_cluster}
-                />
+                <div class='cluster-wrap'>
+                  <EditableFormItem
+                    authority={this.authority.MANAGE_AUTH}
+                    authorityName={authorityMap.MANAGE_AUTH}
+                    formType='select'
+                    label={this.$t('存储集群')}
+                    selectList={this.clusterOptions}
+                    updateValue={val => this.handleUpdateValue(val, 'es_storage_cluster')}
+                    value={this.storageInfo?.es_storage_cluster}
+                  />
+                  <div class='cluster-switch-tip'>
+                    {this.$t('支持无损切换存储集群，历史数据按保留策略到期清理。')}
+                  </div>
+                </div>
               </div>
               <div class='item-row'>
                 <EditableFormItem

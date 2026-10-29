@@ -12,6 +12,11 @@ const contentFile = 'strategy-template-preview/preview-template.vue';
 const variablesFile = 'strategy-variate-list/strategy-variate-list.vue';
 const flush = () => new Promise(resolve => setImmediate(resolve));
 const sample = message => [{ type: 'weixin', label: 'WeChat', messages: [{ name: 'single', message, error: '' }] }];
+const namedOutputConfig = {
+  response_contract: 'named_outputs/v1',
+  legacy_output_ref: 'RESULT',
+  output_list: [{ reference_name: 'A', expression: 'a' }, { reference_name: 'RESULT', expression: 'a+b' }],
+};
 
 function deferred() {
   let resolve;
@@ -203,6 +208,112 @@ test('scenario changes retain the existing action and do not reuse another scena
   await flush();
   assert.deepEqual(calls, [{ scenario: 'os', template: 'A' }, { scenario: 'service', template: 'A' }]);
   assert.equal(vm.renderData[0].messages[0].message, 'service');
+  vm.$destroy();
+});
+
+test('notice preview forwards the current draft item and strategy identity without generating defaults', async () => {
+  const calls = [];
+  const item = {
+    expression: 'a+b', functions: [],
+    query_configs: ['a', 'b'].map(alias => ({
+      alias, data_source_label: 'prometheus', data_type_label: 'time_series', expression_mode: 'promql',
+      promql: 'vector(1)', agg_interval: 60,
+    })),
+  };
+  const vm = preview(async params => { calls.push(params); return sample('draft'); }, {
+    previewItem: item, strategyId: '11910', bkBizId: 2,
+  });
+  vm.dialogShow = true;
+  await flush();
+  assert.deepEqual(JSON.parse(JSON.stringify(calls)), [{
+    template: 'A', preview_item: item, strategy_id: 11910, bk_biz_id: 2,
+  }]);
+  assert.equal('query_output_config' in calls[0].preview_item, false);
+  vm.$destroy();
+});
+
+test('preview forwards explicit null and custom output configuration unchanged', async () => {
+  const calls = [];
+  const vm = preview(async params => { calls.push(JSON.parse(JSON.stringify(params))); return sample('draft'); }, {
+    previewItem: Vue.observable({ expression: 'a+b', query_output_config: null }), bkBizId: 2,
+  });
+  vm.dialogShow = true;
+  await flush();
+  assert.equal(calls[0].strategy_id, 0);
+  assert.equal(calls[0].preview_item.query_output_config, null);
+  vm.previewItem.query_output_config = namedOutputConfig;
+  await flush();
+  assert.deepEqual(calls[1].preview_item.query_output_config, namedOutputConfig);
+  vm.$destroy();
+});
+
+test('query and expression changes invalidate the same-template cache, including while the dialog is closed', async () => {
+  const calls = [];
+  const vm = preview(async params => { calls.push(JSON.parse(JSON.stringify(params))); return sample('draft'); }, {
+    previewItem: Vue.observable({ expression: 'a+b', query_output_config: namedOutputConfig }), bkBizId: 2,
+  });
+  vm.dialogShow = true;
+  await flush();
+  vm.previewItem.expression = 'a-b';
+  await flush();
+  assert.equal(calls.length, 2);
+  assert.equal(calls[1].preview_item.expression, 'a-b');
+  vm.dialogShow = false;
+  await Vue.nextTick();
+  vm.previewItem = { expression: 'a', query_output_config: null };
+  await flush();
+  assert.equal(calls.length, 2);
+  vm.dialogShow = true;
+  await flush();
+  assert.equal(calls.length, 3);
+  assert.equal(calls[2].preview_item.query_output_config, null);
+  vm.$destroy();
+});
+
+test('an older draft response cannot replace the current configuration preview', async () => {
+  const responses = [deferred(), deferred()];
+  let calls = 0;
+  const vm = preview(() => responses[calls++].promise, {
+    previewItem: { expression: 'a+b', query_output_config: namedOutputConfig }, bkBizId: 2,
+  });
+  vm.dialogShow = true;
+  await Vue.nextTick();
+  vm.previewItem = { expression: 'a-b', query_output_config: null };
+  await Vue.nextTick();
+  responses[1].resolve(sample('new config'));
+  await flush();
+  responses[0].resolve(sample('old config'));
+  await flush();
+  assert.equal(vm.renderData[0].messages[0].message, 'new config');
+  assert.equal(JSON.parse(vm.oldPreviewContext).preview_item.query_output_config, null);
+  vm.$destroy();
+});
+
+test('strategy and business changes invalidate the preview context', async () => {
+  const calls = [];
+  const vm = preview(async params => { calls.push(params); return sample('draft'); }, {
+    previewItem: { query_output_config: namedOutputConfig }, strategyId: 11910, bkBizId: 2,
+  });
+  vm.dialogShow = true;
+  await flush();
+  vm.strategyId = 11993;
+  await flush();
+  vm.bkBizId = 3;
+  await flush();
+  assert.equal(calls.length, 3);
+  assert.equal(calls[1].strategy_id, 11993);
+  assert.equal(calls[2].bk_biz_id, 3);
+  vm.$destroy();
+});
+
+test('legacy scenario preview ignores the new draft context and preserves its API parameters', async () => {
+  const calls = [];
+  const vm = preview(async params => { calls.push(params); return sample('legacy'); }, {
+    scenario: 'os', previewItem: { query_output_config: namedOutputConfig }, strategyId: 11910, bkBizId: 2,
+  });
+  vm.dialogShow = true;
+  await flush();
+  assert.deepEqual(calls, [{ scenario: 'os', template: 'A' }]);
   vm.$destroy();
 });
 

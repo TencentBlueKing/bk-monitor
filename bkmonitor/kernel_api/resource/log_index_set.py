@@ -3,7 +3,8 @@
 from rest_framework import serializers
 
 from bkm_space.utils import bk_biz_id_to_space_uid
-from core.drf_resource import Resource, api
+from core.drf_resource import api
+from kernel_api.resource.mcp_response import MCPResource as Resource
 
 
 class ListLogIndexSetGroupsResource(Resource):

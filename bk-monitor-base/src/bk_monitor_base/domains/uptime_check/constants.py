@@ -49,6 +49,24 @@ DEFAULT_UPTIMECHECK_OUTPUT_FIELDS = ["bk_host_innerip", "bk_host_innerip_v6"]
 # 采集器名称
 COLLECTOR_NAME = "uptimecheckbeat"
 
+# 拨测依赖的采集器插件名称
+UPTIME_CHECK_BEAT_PLUGIN_NAME = "bkmonitorbeat"
+
+# 拨测依赖的采集器插件最低版本
+UPTIME_CHECK_BEAT_MIN_VERSION = "3.5.0"
+
+
+class BeatVersionCheckState(Enum):
+    """bkmonitorbeat 版本校验结果"""
+
+    # 有版本记录且不低于最低版本要求
+    PASS = "PASS"
+    # 有版本记录但低于最低版本要求，需拦截并提示升级
+    TOO_OLD = "TOO_OLD"
+    # 无版本记录 / 版本字段为空 / 版本无法解析：无法判定，放行并交由测试下发兜底
+    UNKNOWN = "UNKNOWN"
+
+
 # 数据库名称
 UPTIME_CHECK_DB = "uptimecheck"
 

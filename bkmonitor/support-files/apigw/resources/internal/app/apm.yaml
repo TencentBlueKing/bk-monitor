@@ -1097,6 +1097,78 @@ paths:
           userVerifiedRequired: false
           resourcePermissionRequired: true
         descriptionEn: "update service config"
+  /app/apm/service/list_code_redefined_rule/:
+    post:
+      operationId: apm_list_code_redefined_rule
+      description: 【APM】查询返回码重定义规则
+      x-bk-apigateway-resource:
+        isPublic: false
+        allowApplyPermission: false
+        matchSubpath: false
+        backend:
+          name: default
+          method: post
+          path: /api/v4/service_web/list_code_redefined_rule/
+          matchSubpath: false
+        authConfig:
+          appVerifiedRequired: true
+          userVerifiedRequired: false
+          resourcePermissionRequired: true
+        descriptionEn: "list return code redefinition rules"
+  /app/apm/service/set_code_redefined_rule/:
+    post:
+      operationId: apm_set_code_redefined_rule
+      description: 【APM】设置返回码重定义规则
+      x-bk-apigateway-resource:
+        isPublic: false
+        allowApplyPermission: false
+        matchSubpath: false
+        backend:
+          name: default
+          method: post
+          path: /api/v4/service_web/set_code_redefined_rule/
+          matchSubpath: false
+        authConfig:
+          appVerifiedRequired: true
+          userVerifiedRequired: false
+          resourcePermissionRequired: true
+        descriptionEn: "set return code redefinition rules"
+  /app/apm/service/get_code_remarks/:
+    post:
+      operationId: apm_get_code_remarks
+      description: 【APM】查询返回码备注
+      x-bk-apigateway-resource:
+        isPublic: false
+        allowApplyPermission: false
+        matchSubpath: false
+        backend:
+          name: default
+          method: post
+          path: /api/v4/service_web/get_code_remarks/
+          matchSubpath: false
+        authConfig:
+          appVerifiedRequired: true
+          userVerifiedRequired: false
+          resourcePermissionRequired: true
+        descriptionEn: "get return code remarks"
+  /app/apm/service/set_code_remark/:
+    post:
+      operationId: apm_set_code_remark
+      description: 【APM】设置返回码备注
+      x-bk-apigateway-resource:
+        isPublic: false
+        allowApplyPermission: false
+        matchSubpath: false
+        backend:
+          name: default
+          method: post
+          path: /api/v4/service_web/set_code_remark/
+          matchSubpath: false
+        authConfig:
+          appVerifiedRequired: true
+          userVerifiedRequired: false
+          resourcePermissionRequired: true
+        descriptionEn: "set return code remarks"
   /app/apm/list_spans/:
     post:
       operationId: list_spans

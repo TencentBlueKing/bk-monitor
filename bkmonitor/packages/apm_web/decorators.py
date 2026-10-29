@@ -8,22 +8,29 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 
-from functools import wraps
+from functools import partial, wraps
 
 from apm_web.models import UserVisitRecord
 
 
-def user_visit_record(func):
+def user_visit_record(func=None, *, response_condition=None):
     """
     APM 用户访问记录装饰器
 
     Notice:
     - 仅限用于 APM 模块，如果其他模块也需要类似的能力，需要重新提取
     - 仅限放置在 基类为 core.drf_resource.viewsets.ResourceRouteResource 的 decorators 属性中
+    - response_condition：可选响应判定，仅在响应符合条件时记录访问
     """
+    if func is None:
+        return partial(user_visit_record, response_condition=response_condition)
 
     @wraps(func)
     def wrapper(obj, request, *args, **kwargs):
+        if response_condition is not None:
+            response = func(obj, request, *args, **kwargs)
+            if not response_condition(response):
+                return response
         bk_biz_id = request.biz_id
         username = request.user.username
         request_path = request.path_info
@@ -43,6 +50,6 @@ def user_visit_record(func):
                 # 记录失败不能影响业务正常逻辑
                 pass
 
-        return func(obj, request, *args, **kwargs)
+        return response if response_condition is not None else func(obj, request, *args, **kwargs)
 
     return wrapper

@@ -12,7 +12,7 @@ import abc
 import datetime
 import itertools
 import logging
-import traceback
+import time
 from abc import ABC
 from collections import defaultdict
 from typing import Any, NamedTuple
@@ -23,8 +23,9 @@ from django.utils.translation import gettext_lazy as _
 from opentelemetry.semconv.resource import ResourceAttributes
 
 from apm import constants
-from apm.constants import DiscoverRuleType
+from apm.constants import ApmCacheConfig, ApmCacheType, DiscoverRuleType
 from apm.core.discover.instance_data import BaseInstanceData
+from apm.core.handlers.apm_cache_handler import ApmCacheHandler
 from apm.core.handlers.query.span_query import SpanQuery
 from apm.models import ApmApplication, ApmTopoDiscoverRule, TopoNode, TraceDataSource
 from apm.utils.base import divide_biscuit
@@ -32,7 +33,6 @@ from apm.utils.es_search import limits
 from bkmonitor.data_source.utils.apm import TraceDatasourceTarget, TraceQueryGuard
 from bkmonitor.utils.tenant import bk_biz_id_to_bk_tenant_id
 from bkmonitor.utils.thread_backend import ThreadPool
-from bkmonitor.utils.time_tools import parse_time_compare_abbreviation
 from constants.apm import OtlpKey, SpanKind, TelemetryDataType
 from core.drf_resource.exceptions import CustomException
 
@@ -335,9 +335,10 @@ class DiscoverBase(ABC):
 
 
 class TopoHandler:
-    """编排常规 Trace 发现与每服务最新 Span 的兜底发现，完成后维护服务 Trace 心跳。"""
+    """编排常规 Trace 发现与按服务折叠的兜底发现，完成后维护服务 Trace 心跳。"""
 
     TRACE_ID_CHUNK_MAX_DURATION = 10 * 60
+    FALLBACK_MAX_LOOKBACK_SECONDS = 60 * 60
     # 最大发现的TraceId数量
     TRACE_ID_MAX_SIZE = 50000
     # 每一轮最多分析多少个TraceId
@@ -351,9 +352,10 @@ class TopoHandler:
 
     _ES_MAX_RESULT_WINDOWS = 10000
 
-    def __init__(self, bk_biz_id, app_name):
+    def __init__(self, bk_biz_id, app_name, task_id: str | None = None):
         self.bk_biz_id = bk_biz_id
         self.app_name = app_name
+        self.task_id = task_id
         self.datasource = TraceDataSource.objects.filter(app_name=app_name, bk_biz_id=bk_biz_id).first()
         self.application = ApmApplication.get_application(self.bk_biz_id, self.app_name)
 
@@ -399,7 +401,6 @@ class TopoHandler:
         while True:
             query_body = self._get_after_key_body(after_key)
             query_body = TraceQueryGuard.build_dsl(query_body, self._trace_target)
-            logger.info(f"[TopoHandler] {self.bk_biz_id} {self.app_name} list_trace_ids body: {query_body}")
             response = self.datasource.es_client.search(index=index_name, body=query_body, request_timeout=60)
 
             per_round_trace_ids = []
@@ -454,7 +455,7 @@ class TopoHandler:
             self.datasource.es_client.clear_scroll(scroll_id=scroll_id)
             return res
 
-    def _discover_handle(self, discover, spans, handle_type, remain_data):
+    def _discover_handle(self, discover, spans, handle_type, remain_data) -> bool:
         def _topo_handle():
             instance = discover(self.bk_biz_id, self.app_name)
             instance.discover(spans, remain_data)
@@ -462,24 +463,24 @@ class TopoHandler:
         def _pre_calculate_handle():
             discover.handle(spans)
 
-        start = datetime.datetime.now()
+        start: float = time.monotonic()
+        discover_name: str = getattr(discover, "__name__", type(discover).__name__)
         try:
             {"topo": _topo_handle, "pre_calculate": _pre_calculate_handle}[handle_type]()
-        except Exception as e:  # noqa
-            logger.error(
-                f"[TopoHandler] discover failed"
-                f"bk_biz_id: {self.bk_biz_id} app_name: {self.app_name} "
-                f"discover: {str(discover)} handle_type: {handle_type}"
-                f"error: {e} exception: {traceback.format_exc()}"
+        except Exception:
+            logger.exception(
+                "[trace_discovery] event=discoverer_failed bk_biz_id=%s app_name=%s "
+                "task_id=%s discoverer=%s span_count=%s duration_s=%.3f",
+                self.bk_biz_id,
+                self.app_name,
+                self.task_id,
+                discover_name,
+                len(spans),
+                time.monotonic() - start,
             )
+            return False
 
-        duration = (datetime.datetime.now() - start).seconds
-        logger.info(
-            f"[TopoHandler] round discover success. "
-            f"bk_biz_id: {self.bk_biz_id} app_name: {self.app_name} "
-            f"discover: {str(discover)} handle_type: {handle_type} "
-            f"span count: {len(spans)} duration: {duration}ms"
-        )
+        return True
 
     def _get_trace_task_splits(self):
         """根据此索引最大的结果返回数量判断每个子任务需要传递多少个traceId"""
@@ -522,7 +523,7 @@ class TopoHandler:
         spans: list[dict[str, Any]],
         template: list[tuple[type[DiscoverBase], Any]],
         is_fallback: bool = False,
-    ) -> None:
+    ) -> bool:
         """按 Span kind 分发；兜底轮重读已有对象，并跳过依赖 Trace 上下文的发现器。"""
         filter_spans: list[dict[str, Any]] = [span for span in spans if span[OtlpKey.KIND] in self.FILTER_KIND]
         topo_params: list[tuple[type[DiscoverBase], list[dict[str, Any]], str, Any]] = []
@@ -535,20 +536,23 @@ class TopoHandler:
             selected_spans = spans if cls.DISCOVERY_ALL_SPANS else filter_spans
             topo_params.append((cls, selected_spans, "topo", remain_data))
         pool = ThreadPool()
-        pool.map_ignore_exception(self._discover_handle, topo_params)
+        results: list[bool] = pool.map_ignore_exception(self._discover_handle, topo_params)
+        return len(results) == len(topo_params) and all(results)
 
     def discover(self) -> bool | None:
-        """常规发现后用每服务最新完整 Span 补齐稀疏服务，并记录 Trace 心跳。"""
+        """常规发现后按服务折叠补齐稀疏服务，并记录所选 Span 的 Trace 心跳。"""
         start = datetime.datetime.now()
+        success: bool = True
         trace_id_count = 0
         span_count = 0
-        filter_span_count = 0
         try:
             max_result_count, per_trace_size, index_name = self._get_trace_task_splits()
-        except Exception as e:
-            logger.error(
-                f"[TopoHandler] 业务id: {self.bk_biz_id}和应用名: {self.app_name}"
-                f"构建的TopoHandler对象在discover方法内发生异常, error({e})"
+        except Exception:
+            logger.exception(
+                "[trace_discovery] event=prepare_failed bk_biz_id=%s app_name=%s task_id=%s",
+                self.bk_biz_id,
+                self.app_name,
+                self.task_id,
             )
             return
 
@@ -567,41 +571,56 @@ class TopoHandler:
             pool = ThreadPool()
             get_spans_params = [(i, max_result_count, index_name) for i in divide_biscuit(trace_ids, per_trace_size)]
             results = pool.map_ignore_exception(self.list_span_by_trace_ids, get_spans_params)
+            success = len(results) == len(get_spans_params) and success
             all_spans_group = [i for i in results if i]
             all_spans = list(itertools.chain(*all_spans_group))
             avg_group_span_count = len(all_spans) / len(get_spans_params)
             if round_index == 0 and avg_group_span_count:
                 per_trace_size = self.calculate_round_count(avg_group_span_count)
 
-                logger.info(
-                    f"[TopoHandler] {self.bk_biz_id} {self.app_name} "
-                    f"index_name: {index_name} "
-                    f"per_trace_size: {per_trace_size} "
-                    f"avg_group_span_count: {avg_group_span_count} "
-                    f"span_count: {len(all_spans)}"
-                )
-
             span_count += len(all_spans)
 
-            filter_span_count += sum(span[OtlpKey.KIND] in self.FILTER_KIND for span in all_spans)
-            self._discover_spans(all_spans, topo_params_template)
+            success = self._discover_spans(all_spans, topo_params_template) and success
 
-        # 按服务取完整的最后一条 Span，补齐 Trace 抽样和轮次截断遗漏的稀疏服务。
+        # 只扩展按服务折叠的兜底窗口，不放大常规 Trace 上下文查询。
         end_time: int = int(start.timestamp())
+        cache: ApmCacheHandler = ApmCacheHandler()
+        check_key: str = cache.get_cache_key(ApmCacheType.TRACE_DISCOVERY_CHECK, self.bk_biz_id, self.app_name)
+        last_check = cache.redis_client.get(check_key)
+        start_time: int = (
+            max(int(last_check), end_time - self.FALLBACK_MAX_LOOKBACK_SECONDS)
+            if last_check
+            else (end_time - self.FALLBACK_MAX_LOOKBACK_SECONDS)
+        )
+        # 时钟回拨时重新检查有界窗口，不能发布一个空窗口的成功位置。
+        if start_time >= end_time:
+            start_time = end_time - self.FALLBACK_MAX_LOOKBACK_SECONDS
+        fallback_started: float = time.monotonic()
+        logger.info(
+            "[trace_discovery] event=fallback_started bk_biz_id=%s app_name=%s task_id=%s "
+            "window_start=%s window_end=%s",
+            self.bk_biz_id,
+            self.app_name,
+            self.task_id,
+            start_time,
+            end_time,
+        )
         span_query: SpanQuery = SpanQuery([self._trace_target])
         last_spans: list[dict[str, Any]] = span_query.query_group_list(
-            end_time + parse_time_compare_abbreviation(constants.DISCOVER_TIME_RANGE),
+            start_time,
             end_time,
             group_field=OtlpKey.get_resource_key(ResourceAttributes.SERVICE_NAME),
             limit=SpanQuery.QUERY_MAX_LIMIT,
+            # 接受不同非 INTERNAL 类型间的优先级差异，只做一次普通字段排序与折叠。
+            sort=[f"{OtlpKey.KIND} desc", f"{OtlpKey.END_TIME} desc"],
         )
-        self._discover_spans(last_spans, topo_params_template, is_fallback=True)
+        fallback_success: bool = self._discover_spans(last_spans, topo_params_template, is_fallback=True)
         observed: dict[str, int] = {}
         for span in last_spans:
             name = extract_field_value((OtlpKey.RESOURCE, ResourceAttributes.SERVICE_NAME), span)
             if name:
                 observed[name] = int(span[OtlpKey.END_TIME]) // 1_000_000
-        TopoNode.touch_heartbeat(
+        heartbeat_success: bool = TopoNode.touch_heartbeat(
             self.bk_biz_id,
             self.app_name,
             TelemetryDataType.TRACE.value,
@@ -609,9 +628,32 @@ class TopoHandler:
             int(datetime.datetime.now().timestamp()),
         )
 
+        checkpoint_ready: bool = fallback_success and heartbeat_success
+        if checkpoint_ready:
+            # 保存本轮查询右边界，而非任务结束时间，避免丢失执行期间新到达的数据。
+            cache.redis_client.set(
+                check_key, end_time, ex=ApmCacheConfig.get_expire_time(ApmCacheType.TRACE_DISCOVERY_CHECK)
+            )
+        else:
+            logger.warning(
+                "[trace_discovery] event=checkpoint_retained bk_biz_id=%s app_name=%s task_id=%s "
+                "fallback_success=%s heartbeat_success=%s",
+                self.bk_biz_id,
+                self.app_name,
+                self.task_id,
+                fallback_success,
+                heartbeat_success,
+            )
+
         logger.info(
-            f"[TopoHandler] discover finished {self.bk_biz_id} {self.app_name} "
-            f"trace count: {trace_id_count} all span count: {span_count} filter span count: {filter_span_count}"
-            f"elapsed: {(datetime.datetime.now() - start).seconds}s"
+            "[trace_discovery] event=summary bk_biz_id=%s app_name=%s task_id=%s "
+            "trace_count=%s span_count=%s service_count=%s fallback_duration_s=%.3f",
+            self.bk_biz_id,
+            self.app_name,
+            self.task_id,
+            trace_id_count,
+            span_count,
+            len(last_spans),
+            time.monotonic() - fallback_started,
         )
-        return True
+        return success and checkpoint_ready

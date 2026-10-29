@@ -10,6 +10,7 @@ specific language governing permissions and limitations under the License.
 
 import json
 import time
+from collections import defaultdict
 from datetime import datetime, timedelta
 from enum import Enum
 from typing import Any
@@ -22,11 +23,21 @@ from django.utils.functional import cached_property
 from django.utils.translation import gettext as _
 
 from apm_web.constants import ApmCacheKey
-from apm_web.handlers.log_handler import deserialize_service_related_log_indexes
+from apm_web.handlers.log_handler import (
+    ServiceLogHandler,
+    deserialize_service_related_log_indexes,
+    get_biz_index_sets_with_cache,
+)
 from apm_web.handlers.task_handler import ServiceLogTaskHandler
 from apm_web.handlers.metric_group import MetricHelper
 from apm_web.handlers.service_handler import ServiceHandler
-from apm_web.models import Application
+from apm_web.models import ActiveProfilingTask, Application
+from apm_web.profile.active_collection.constants import (
+    DEPLOYMENT_STATUS_EXPIRED,
+    DEPLOYMENT_STATUS_FAILED,
+    EXPIRED_TASK_STOP_DELAY_MS,
+)
+from apm_web.profile.active_collection.handlers import ActiveProfilingNodeManHandler
 from apm_web.profile.file_handler import ProfilingFileHandler
 from apm_web.serializers import ApplicationCacheSerializer
 from apm_web.strategy.builtin.registry import BuiltinStrategyTemplateRegistry
@@ -34,7 +45,7 @@ from apm_web.strategy.handler import StrategyTemplateHandler
 from monitor.models import GlobalConfig
 from bkmonitor.utils.common_utils import compress_and_serialize, deserialize_and_decompress, get_local_ip
 from bkmonitor.utils.custom_report_tools import custom_report_tool
-from bkmonitor.utils.tenant import set_local_tenant_id
+from bkmonitor.utils.tenant import bk_biz_id_to_bk_tenant_id, get_local_tenant_id, set_local_tenant_id
 from bkmonitor.utils.time_tools import strftime_local
 from common.log import logger
 from constants.apm import TelemetryDataType
@@ -148,7 +159,7 @@ def refresh_application():
         try:
             # 刷新数据状态
             application.set_data_status()
-            # 刷新服务数量和数据状态
+            # 刷新服务数量
             application.set_service_count_and_data_status()
         except Exception as e:  # noqa
             logger.warning(
@@ -229,6 +240,79 @@ def application_create_check():
     logger.info(f"[CreateCheck] found {len(apps)} app were created and not datasource")
     for app in apps:
         app.sync_datasource()
+
+
+@shared_task(ignore_result=True)
+def refresh_related_log_index_status() -> None:
+    """按租户和业务刷新关联日志索引状态，供页面只读消费。"""
+    if "redis" not in caches:
+        logger.info("[REFRESH_RELATED_LOG_INDEX_STATUS] no redis cache, task stopped")
+        return
+
+    targets: set[tuple[str, int]] = set()
+    original_tenant_id = get_local_tenant_id()
+    try:
+        applications = Application.objects.filter(is_enabled=True).exclude(app_name__startswith="bkapp_ai0us0")
+        for application in applications:
+            try:
+                set_local_tenant_id(application.bk_tenant_id)
+                related_biz_ids = {
+                    relation.related_bk_biz_id
+                    for relation in ServiceLogHandler.get_log_relations(
+                        application.bk_biz_id, application.app_name, None, include_global=True
+                    )
+                    if relation.related_bk_biz_id is not None and (relation.value_list or relation.value)
+                }
+                service_indexes = ServiceLogHandler.get_cached_k8s_related_indexes(
+                    application.bk_biz_id, application.app_name
+                )
+                related_biz_ids.update(
+                    index["bk_biz_id"]
+                    for indexes in service_indexes.values()
+                    for index in indexes
+                    if index.get("bk_biz_id") is not None
+                )
+                targets.update((application.bk_tenant_id, bk_biz_id) for bk_biz_id in related_biz_ids)
+            except Exception:  # noqa
+                logger.exception(
+                    f"[REFRESH_RELATED_LOG_INDEX_STATUS] relation read failed: "
+                    f"bk_tenant_id={application.bk_tenant_id} bk_biz_id={application.bk_biz_id} "
+                    f"app_name={application.app_name}"
+                )
+
+        for bk_tenant_id, bk_biz_id in sorted(targets):
+            try:
+                set_local_tenant_id(bk_tenant_id)
+                indexes = get_biz_index_sets_with_cache(bk_biz_id=bk_biz_id)
+                statuses = []
+                for index in indexes:
+                    # 日志平台返回本地化的标签展示名，兼容中文和英文的“无数据”标签。
+                    tags = index.get("tags") or []
+                    available = bool(tags) and not any(
+                        tag.get("tag_type", "inner") == "inner" and tag.get("name") in {"无数据", "No Data"}
+                        for tag in tags
+                    )
+                    statuses.append({"index_set_id": index["index_set_id"], "available": available})
+
+                cache_key = ApmCacheKey.APM_RELATED_LOG_INDEX_STATUS_KEY.format(
+                    bk_tenant_id=bk_tenant_id, bk_biz_id=bk_biz_id
+                )
+                caches["redis"].set(
+                    cache_key,
+                    {"checked_at": int(time.time()), "indexes": statuses},
+                    timeout=settings.APM_RELATED_LOG_INDEX_STATUS_CACHE_TTL,
+                )
+                logger.info(
+                    f"[REFRESH_RELATED_LOG_INDEX_STATUS] refreshed: bk_tenant_id={bk_tenant_id} "
+                    f"bk_biz_id={bk_biz_id} index_count={len(statuses)}"
+                )
+            except Exception:  # noqa
+                logger.exception(
+                    "[REFRESH_RELATED_LOG_INDEX_STATUS] refresh failed, old snapshot retained without renewal: "
+                    f"bk_tenant_id={bk_tenant_id} bk_biz_id={bk_biz_id}"
+                )
+    finally:
+        set_local_tenant_id(original_tenant_id)
 
 
 @shared_task(ignore_result=True)
@@ -455,3 +539,36 @@ def auto_apply_strategy_template():
             )
 
     logger.info("[AUTO_APPLY_STRATEGY_TEMPLATE] task finished")
+
+
+@shared_task(ignore_result=True)
+def stop_expired_active_profiling_tasks():
+    """主动 Profiling 的指定时间/周期计划最后一次执行过去 1 天后停用，由节点管理移除各主机上残留的子配置"""
+    logger.info("[STOP_EXPIRED_ACTIVE_PROFILING_TASKS] task start")
+
+    expire_before = int(time.time() * 1000) - EXPIRED_TASK_STOP_DELAY_MS
+    tasks_by_biz = defaultdict(list)
+    # 停用失败的计划保持部署失败状态，第二天再试；订阅没建成的计划主机上没有配置
+    for task in ActiveProfilingTask.objects.filter(
+        Q(is_enabled=True) | Q(deployment_status=DEPLOYMENT_STATUS_FAILED)
+    ).exclude(subscription_id=0):
+        schedule = task.schedule
+        # cron 没设生效结束时间时一直有效
+        last_run_at = schedule["execute_at"] if schedule["type"] == "once_at" else schedule.get("effective_end_at")
+        if last_run_at is not None and last_run_at < expire_before:
+            tasks_by_biz[task.bk_biz_id].append(task)
+
+    for bk_biz_id, tasks in tasks_by_biz.items():
+        try:
+            set_local_tenant_id(bk_biz_id_to_bk_tenant_id(bk_biz_id))
+            handler = ActiveProfilingNodeManHandler(bk_biz_id)
+        except Exception as e:
+            logger.exception(f"[STOP_EXPIRED_ACTIVE_PROFILING_TASKS] init failed: bk_biz_id={bk_biz_id}, error => {e}")
+            continue
+        # 与手动停用同一流程，节点管理调用失败由 handler 记日志并回写部署状态
+        for task in tasks:
+            # 停用状态随节点管理结果一次写回；成功记为已过期，失败仍是 failed，下一次任务再试
+            task.is_enabled = False
+            handler.switch(task, DEPLOYMENT_STATUS_EXPIRED)
+
+    logger.info("[STOP_EXPIRED_ACTIVE_PROFILING_TASKS] task finished")

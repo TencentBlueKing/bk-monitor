@@ -30,7 +30,7 @@ import useLocale from '@/hooks/use-locale';
 import useStore from '@/hooks/use-store';
 import { isFeatureToggleOn } from '@/hooks/use-feature-toggle';
 import { useRoute } from 'vue-router/composables';
-import { InfoBox } from 'bk-magic-vue';
+import { InfoBox, Message } from 'bk-magic-vue';
 import { useOperation } from '../../hook/useOperation';
 import { useCollectList } from '../../hook/useCollectList';
 import { showMessage, visibleScopeSelectList } from '../../utils';
@@ -1268,7 +1268,29 @@ __ext_json.service.labels   ${t('动态对象字段')}`;
             const syncRes = await $http.request('clean/syncCleanTemplateCollectors', {
               params: { clean_template_id: route.params.templateId },
             });
-            syncFailed = !Array.isArray(syncRes.data) || syncRes.data.some(item => item.status !== 'SUCCESS');
+            syncFailed = syncRes?.result === false || !Array.isArray(syncRes?.data) || !syncRes.data.length;
+            if (syncFailed) {
+              Message({
+                theme: 'error',
+                message: syncRes?.message || t('同步失败，未返回采集项结果'),
+              });
+            } else {
+              const failures = syncRes.data.filter(item => item.status !== 'SUCCESS');
+              syncFailed = failures.length > 0;
+              if (syncFailed) {
+                Message({
+                  theme: 'error',
+                  zIndex: 9999,
+                  extCls: 'clean-template-sync-message',
+                  actions: [{ id: 'assistant', disabled: true }],
+                  message: {
+                    title: t('{n} 个采集项同步失败', { n: failures.length }),
+                    type: 'json',
+                    details: failures,
+                  },
+                });
+              }
+            }
           } catch {
             syncFailed = true;
           }
@@ -1276,7 +1298,9 @@ __ext_json.service.labels   ${t('动态对象字段')}`;
 
         templateDialogVisible.value = false;
         templateSaveConfirmVisible.value = false;
-        showMessage(syncFailed ? t('同步失败') : t('保存成功'), syncFailed ? 'error' : 'success');
+        if (!syncFailed) {
+          showMessage(t('保存成功'));
+        }
         if (props.isTempField) {
           emit('change-submit', true);
         }

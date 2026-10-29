@@ -124,7 +124,7 @@ class TestTimelineResource:
 
 
 class TestTimelineBuilder:
-    def test_sorts_views_and_children_with_resource_action_affinity(self):
+    def test_sorts_views_and_children_with_action_affinity(self):
         spans = [
             _view("view-span-2", "view-2", started_at=2000, start_time=10),
             _span("cross-view", "resource", 2_010_000, "view-2", {"action.id": "action-1"}),
@@ -144,19 +144,50 @@ class TestTimelineBuilder:
             {
                 "span_id": "view-span-1",
                 "children": [
-                    {"span_id": "long-task"},
                     {
                         "span_id": "action",
-                        "children": [{"span_id": "resource-1"}, {"span_id": "resource-2"}],
-                    },
-                    {"span_id": "error"},
-                    {"span_id": "custom"},
-                    {"span_id": "websocket"},
+                        "children": [
+                            {"span_id": "long-task"},
+                            {"span_id": "resource-1"},
+                            {"span_id": "resource-2"},
+                            {"span_id": "error"},
+                            {"span_id": "custom"},
+                            {"span_id": "websocket"},
+                        ],
+                    }
                 ],
             },
             {"span_id": "view-span-2", "children": [{"span_id": "cross-view"}]},
         ]
         assert {record["span_id"] for record in result["records"]} == {span["span_id"] for span in spans}
+
+    def test_keeps_unmatched_members_and_actions_on_the_view(self):
+        spans = [
+            _view(),
+            _span("other-action", "action", 1_015_000, attrs={"action.id": "action-2"}),
+            _span("action", "action", 1_020_000, attrs={"action.id": "action-1"}),
+            _span("future", "navigation", 1_025_000, attrs={"action.id": "action-1"}),
+            _span("owned-error", "error", 1_030_000, attrs={"action.id": "action-1"}),
+            _span("loose-error", "error", 1_040_000, attrs={"action.id": "missing"}),
+            _span("plain", "long_task", 1_050_000),
+        ]
+
+        result = build_timeline(spans)
+
+        assert result["tree"] == [
+            {
+                "span_id": "view-span-1",
+                "children": [
+                    {"span_id": "other-action"},
+                    {
+                        "span_id": "action",
+                        "children": [{"span_id": "future"}, {"span_id": "owned-error"}],
+                    },
+                    {"span_id": "loose-error"},
+                    {"span_id": "plain"},
+                ],
+            }
+        ]
 
     def test_sorts_by_earliest_snapshot_start_and_keeps_lowest_version_node(self):
         spans = [

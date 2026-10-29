@@ -29,6 +29,7 @@ import { Component as tsc } from 'vue-tsx-support';
 
 import dayjs from 'dayjs';
 import { isHttpUrl } from 'monitor-common/regex/url';
+import { finalizeHostMonitorUrl } from 'monitor-pc/common/legacy-host-url';
 
 import { APIType } from '../api-utils';
 import {
@@ -91,6 +92,8 @@ export default class ExploreKvList extends tsc<IExploreKvListProps, IExploreKvLi
   /** 容器监控就地侧滑打开，由表格层提供；返回 false 表示需保持原有新开页行为 */
   @Inject({ from: 'openK8sSlider', default: null })
   readonly openK8sSlider: (url: string, subTitle?: string) => boolean;
+  @Inject({ from: 'openHostSlider', default: null })
+  readonly openHostSlider: ((url: string) => boolean) | null;
 
   showStatisticsPopover = false;
   /** 一级 popover 实例(条件菜单/维度统计面板) */
@@ -266,8 +269,10 @@ export default class ExploreKvList extends tsc<IExploreKvListProps, IExploreKvLi
       if (!isHttpUrl(url)) {
         url = `${location.origin}${location.pathname}${location.search}${url}`;
       }
+      url = finalizeHostMonitorUrl(url);
       // 容器监控就地侧滑打开，其余入口保持新开页
       if (this.openK8sSlider?.(url, entitiesItem.alias)) return;
+      if (this.openHostSlider?.(url)) return;
       window.open(url, '_blank');
     }
   }

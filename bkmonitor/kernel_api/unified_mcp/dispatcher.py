@@ -15,6 +15,7 @@ from rest_framework.exceptions import ValidationError
 from bkmonitor.iam import ActionEnum, Permission, ResourceEnum
 from bkmonitor.utils.request import get_request, get_request_tenant_id
 from core.drf_resource import resource
+from kernel_api.resource import recording_rule_mcp
 from kernel_api.resource.apm import (
     GetApmSearchFiltersResource,
     GetProfileApplicationServiceResource,
@@ -258,6 +259,14 @@ def _alert_top_n(tool_args: dict[str, Any]):
 
 
 TOOL_EXECUTORS: dict[str, ToolExecutor] = {
+    # 预计算规则：独立入口与 Unified 共用用户及业务权限检查。
+    "preview_recording_rule": _resource_executor(recording_rule_mcp.PreviewConfigResource),
+    "create_recording_rule": _resource_executor(recording_rule_mcp.CreateConfigResource),
+    "update_recording_rule": _resource_executor(recording_rule_mcp.UpdateConfigResource),
+    "delete_recording_rule": _resource_executor(recording_rule_mcp.DeleteConfigResource),
+    "get_recording_rule": _resource_executor(recording_rule_mcp.GetConfigResource),
+    "apply_recording_rule": _resource_executor(recording_rule_mcp.ApplyConfigResource),
+    "list_recording_rules": _resource_executor(recording_rule_mcp.ListConfigsResource),
     # 指标查询
     "list_time_series_groups": _resource_executor(TimeSeriesGroupListResource),
     "list_time_series_metrics": _time_series_metrics,

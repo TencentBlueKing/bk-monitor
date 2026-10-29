@@ -1,0 +1,111 @@
+/*
+ * Tencent is pleased to support the open source community by making
+ * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
+ *
+ * Copyright (C) 2017-2025 Tencent.  All rights reserved.
+ *
+ * 蓝鲸智云PaaS平台 (BlueKing PaaS) is licensed under the MIT License.
+ *
+ * License for 蓝鲸智云PaaS平台 (BlueKing PaaS):
+ *
+ * ---------------------------------------------------
+ * Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated
+ * documentation files (the "Software"), to deal in the Software without restriction, including without limitation
+ * the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and
+ * to permit persons to whom the Software is furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in all copies or substantial portions of
+ * the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO
+ * THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF
+ * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
+ * IN THE SOFTWARE.
+ */
+import { type Ref, shallowRef, watch } from 'vue';
+
+import { getBkciRepositories } from '../services/ai-config';
+
+import type { TBkciRepositoriesResult } from '../typings';
+
+interface UseBkciRepositoriesSelectOptions {
+  /** 蓝盾项目 id，为空时不加载仓库列表 */
+  bkciProjectId: Ref<string>;
+}
+
+/**
+ * @description 当前操作人的仓库候选项，与已保存配置的回填独立
+ */
+export function useBkciRepositoriesSelect(options: UseBkciRepositoriesSelectOptions) {
+  const { bkciProjectId } = options;
+
+  /** 仓库选项列表 */
+  const list = shallowRef<TBkciRepositoriesResult['list']>([]);
+  /** 加载态 */
+  const loading = shallowRef(false);
+  /** id -> 名称 的映射表，供外部按 id 反查展示名称（如详情回显） */
+  const nameMap = shallowRef<Map<string, string>>(new Map());
+  let requestId = 0;
+  let loaded = false;
+  let pending: null | Promise<boolean> = null;
+
+  /**
+   * @description 调用接口查询指定蓝盾项目下的源码仓库全量列表
+   */
+  const fetchList = () => {
+    if (!bkciProjectId.value) return Promise.resolve(false);
+    if (loaded) return Promise.resolve(true);
+    if (pending) return pending;
+    const projectId = bkciProjectId.value;
+    const currentRequestId = ++requestId;
+    loading.value = true;
+
+    pending = (async () => {
+      try {
+        const data = await getBkciRepositories({
+          bkci_project_id: projectId,
+        });
+        if (currentRequestId !== requestId || projectId !== bkciProjectId.value) return false;
+        const items = data.list ?? [];
+        const tempMap = new Map();
+        for (const item of items) {
+          tempMap.set(item.id, item.name);
+        }
+        nameMap.value = tempMap;
+        list.value = items;
+        loaded = true;
+        return true;
+      } catch {
+        return false;
+      }
+    })().finally(() => {
+      if (currentRequestId === requestId) {
+        loading.value = false;
+        pending = null;
+      }
+    });
+    return pending;
+  };
+
+  /** 项目变化只清空候选项，不用当前人的凭据自动查询已保存项目。 */
+  watch(
+    bkciProjectId,
+    () => {
+      requestId++;
+      loaded = false;
+      pending = null;
+      loading.value = false;
+      list.value = [];
+      nameMap.value = new Map();
+    },
+    { flush: 'sync' }
+  );
+
+  return {
+    list,
+    loading,
+    nameMap,
+    fetchList,
+  };
+}

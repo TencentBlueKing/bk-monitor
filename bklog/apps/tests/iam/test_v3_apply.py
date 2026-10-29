@@ -7,7 +7,7 @@ from iam import Resource
 from apps.iam.backends.v3.apply import V3ApplicationBuilder
 from apps.iam.backends.v3.provider import V3PermissionProvider
 from apps.iam.handlers.actions import ActionEnum, get_action_by_id
-from apps.iam.iam_engine.core.requests import ResourceInstance as EngineResourceInstance
+from iam_engine.core.requests import ResourceInstance as EngineResourceInstance
 
 
 @override_settings(

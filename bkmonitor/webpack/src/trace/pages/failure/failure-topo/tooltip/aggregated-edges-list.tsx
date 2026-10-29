@@ -26,6 +26,10 @@
  */
 import { type PropType, defineComponent } from 'vue';
 
+import { useI18n } from 'vue-i18n';
+
+import { edgeRelationLabel, isDirectedEdge } from '../edge-relation';
+
 import type { IEdge } from '../types/topo';
 
 import './aggregated-edges-list.scss';
@@ -36,16 +40,13 @@ export default defineComponent({
       type: Object as PropType<IEdge>,
       required: true,
     },
-    edgeType: {
-      type: String,
-      required: true,
-    },
     onClick: {
       type: Function as PropType<(edge: IEdge) => void>,
       required: true,
     },
   },
   setup(props) {
+    const { t } = useI18n();
     return () => (
       <li
         class='edge-list-item'
@@ -54,9 +55,10 @@ export default defineComponent({
         <span
           key={`${props.edge.id}-edge`}
           class='edge-line-icon'
+          title={edgeRelationLabel(props.edge, t)}
         >
           <span
-            class={['line', props.edgeType === 'ebpf_call' && 'call-edge', props.edge.is_anomaly && 'anomaly-edge']}
+            class={['line', isDirectedEdge(props.edge) && 'call-edge', props.edge.is_anomaly && 'anomaly-edge']}
           ></span>
         </span>
         <span class='list-item-name-wrap'>

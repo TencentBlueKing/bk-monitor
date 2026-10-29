@@ -315,6 +315,28 @@ class SceneSearchResource(LogSearchAPIGWResource):
         record_history = serializers.BooleanField(required=False, default=True, label="是否记录搜索历史")
 
 
+class SceneFieldAnalyzeResource(LogSearchAPIGWResource):
+    """场景化字段分析。"""
+
+    action = "/scene/field/analyze/"
+    method = "POST"
+
+    class RequestSerializer(serializers.Serializer):
+        space_uid = serializers.CharField(label="空间UID")
+        bk_biz_id = serializers.IntegerField(label="业务ID")
+        table_id_conditions = serializers.ListField(label="结果表路由条件")
+        field_name = serializers.CharField(label="字段名称")
+        keyword = serializers.CharField(required=False, default="*", allow_blank=True, label="查询字符串")
+        group_by = serializers.BooleanField(required=False, default=True, label="是否按字段分组")
+        order_by = serializers.ChoiceField(choices=["value", "time"], required=False, default="time", label="排序方式")
+        limit = serializers.IntegerField(
+            required=False, allow_null=True, min_value=1, max_value=1000, label="限制返回条数"
+        )
+        step = serializers.CharField(required=False, default="1h", label="时间步长")
+        start_time = serializers.CharField(label="开始时间")
+        end_time = serializers.CharField(label="结束时间")
+
+
 class SearchIndexSetLogResource(IndexSetResource):
     """
     搜索索引集日志内容
@@ -468,6 +490,7 @@ class BkLogSearchClusterGroupsResource(LogSearchAPIGWResource):
     class RequestSerializer(serializers.Serializer):
         bk_biz_id = serializers.IntegerField(label="业务ID")
         bk_username = serializers.CharField(required=False, allow_blank=True, label="用户名")
+        cluster_type = serializers.CharField(required=False, label="集群类型")
 
 
 class ListResultTablesResource(LogSearchAPIGWResource):
@@ -748,6 +771,10 @@ class FastCreateLogCollectorResource(LogSearchAPIGWResource):
         )
         collector_scenario_id = serializers.CharField(required=True, label="日志类型")
         category_id = serializers.CharField(required=False, label="分类ID")
+        storage_cluster_id = serializers.IntegerField(required=False, min_value=1, label="存储集群ID")
+        retention = serializers.IntegerField(required=False, min_value=1, label="保留天数")
+        es_shards = serializers.IntegerField(required=False, min_value=1, label="ES分片数量")
+        storage_replies = serializers.IntegerField(required=False, min_value=0, label="ES副本数量")
         description = serializers.CharField(
             required=False,
             allow_blank=True,

@@ -7,10 +7,10 @@ from apps.iam.concurrency import run_pair_concurrently
 from apps.iam.exceptions import IAMDependencyError
 from apps.iam.handlers.actions import ActionEnum
 from apps.iam.handlers.permission import Permission
-from apps.iam.iam_engine.core.config import AuthMode
-from apps.iam.iam_engine.core.types import AuthorizedResourceScope
-from apps.iam.iam_engine.provider.bundle import ProviderBundle
-from apps.iam.iam_engine.provider.router import ModeRouter
+from iam_engine.core.config import AuthMode
+from iam_engine.core.types import AuthorizedResourceScope
+from iam_engine.provider.bundle import ProviderBundle
+from iam_engine.provider.router import ModeRouter
 
 
 def make_scope_provider(scope=None, *, side_effect=None, requires_candidate_ids=False) -> MagicMock:
@@ -238,7 +238,7 @@ class FilterSpaceListByActionV4Test(SimpleTestCase):
 
     @override_settings(IGNORE_IAM_PERMISSION=False, DEMO_BIZ_ID=-1)
     def test_invalid_mode_raises_dependency_error(self):
-        from apps.iam.iam_engine.core.exceptions import InvalidAuthModeError
+        from iam_engine.core.exceptions import InvalidAuthModeError
 
         mode_provider = MagicMock()
         mode_provider.get_mode.side_effect = InvalidAuthModeError("bad", "invalid mode")

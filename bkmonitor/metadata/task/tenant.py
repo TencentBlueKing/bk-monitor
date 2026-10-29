@@ -11,7 +11,11 @@ from metadata.models.data_link.data_link_configs import ClusterConfig
 from metadata.task.bkbase import sync_bkbase_cluster_info, sync_bkbase_vm_query_clusters
 from metadata.task.constants import BKBASE_V4_KIND_STORAGE_CONFIGS
 from metadata.task.sync_space import sync_bkcc_space
-from metadata.task.tasks import create_single_tenant_system_datalink, create_single_tenant_system_proc_datalink
+from metadata.task.tasks import (
+    create_single_tenant_system_datalink,
+    create_single_tenant_system_event_datalink,
+    create_single_tenant_system_proc_datalink,
+)
 from metadata.utils.gse import KafkaGseSyncer
 
 logger = logging.getLogger(__name__)
@@ -209,3 +213,4 @@ def init_tenant(bk_tenant_id: str):
     if not settings.ENABLE_MULTI_TENANT_MODE:
         create_single_tenant_system_datalink()
         create_single_tenant_system_proc_datalink()
+        create_single_tenant_system_event_datalink()
