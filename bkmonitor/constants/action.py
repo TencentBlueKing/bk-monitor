@@ -683,6 +683,13 @@ class NoticeWay:
     WX_BOT = "wxwork-bot"
     BK_CHAT = "bkchat"
 
+    # 非父通知记录原始渠道的索引字段名（写入、回填、查询三处共用）
+    NOTICE_WAY_FIELD = "notice_way"
+    # 非父通知记录原始渠道缺失时的哨兵值：让「字段不存在」只表示尚未回填
+    NOTICE_WAY_NONE = "__none__"
+    # 同一渠道的不同内部值，统一到面板使用的 id
+    ALIASES = {"rtx": QY_WEIXIN}
+
     NOTICE_WAY_MAPPING = {
         SMS: _lazy("短信"),
         MAIL: _lazy("邮件"),
