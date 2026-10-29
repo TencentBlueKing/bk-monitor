@@ -35,7 +35,7 @@ interface UseBkciRepositoriesSelectOptions {
 }
 
 /**
- * @description 源码仓库下拉选择数据加载逻辑（依赖蓝盾项目，全量加载，切换项目时拉取一次）
+ * @description 当前操作人的仓库候选项，与已保存配置的回填独立
  */
 export function useBkciRepositoriesSelect(options: UseBkciRepositoriesSelectOptions) {
   const { bkciProjectId } = options;
@@ -46,6 +46,7 @@ export function useBkciRepositoriesSelect(options: UseBkciRepositoriesSelectOpti
   const loading = shallowRef(false);
   /** id -> 名称 的映射表，供外部按 id 反查展示名称（如详情回显） */
   const nameMap = shallowRef<Map<string, string>>(new Map());
+  let requestId = 0;
 
   /**
    * @description 调用接口查询指定蓝盾项目下的源码仓库全量列表
@@ -53,12 +54,15 @@ export function useBkciRepositoriesSelect(options: UseBkciRepositoriesSelectOpti
   const fetchList = async () => {
     // 前置校验：未选择蓝盾项目或已有请求在执行中则跳过
     if (!bkciProjectId.value || loading.value) return;
+    const projectId = bkciProjectId.value;
+    const currentRequestId = ++requestId;
     loading.value = true;
 
     try {
       const data = await getBkciRepositories({
-        bkci_project_id: bkciProjectId.value,
+        bkci_project_id: projectId,
       });
+      if (currentRequestId !== requestId || projectId !== bkciProjectId.value) return;
       const items = data.list ?? [];
       // 填充 id -> 名称映射，供外部回显使用
       const tempMap = new Map();
@@ -68,28 +72,26 @@ export function useBkciRepositoriesSelect(options: UseBkciRepositoriesSelectOpti
       nameMap.value = tempMap;
       list.value = items;
     } finally {
-      loading.value = false;
+      if (currentRequestId === requestId) loading.value = false;
     }
   };
 
-  /** 当蓝盾项目变化时，清空仓库列表并拉取新项目的全量仓库 */
+  /** 项目变化只清空候选项，不用当前人的凭据自动查询已保存项目。 */
   watch(
     bkciProjectId,
     () => {
+      requestId++;
+      loading.value = false;
       list.value = [];
       nameMap.value = new Map();
-      fetchList();
     },
-    { immediate: true }
+    { flush: 'sync' }
   );
-
-  /** 详情回显：拉取当前蓝盾项目下的全量仓库并填充映射表 */
-  const fetchDataInit = () => fetchList();
 
   return {
     list,
     loading,
     nameMap,
-    fetchDataInit,
+    fetchList,
   };
 }

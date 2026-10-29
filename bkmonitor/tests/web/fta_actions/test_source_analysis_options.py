@@ -48,6 +48,38 @@ from fta_web.issue.views import SourceAnalysisOptionsViewSet
 
 
 class TestDevopsUserResources(SimpleTestCase):
+    def test_candidate_requests_use_current_login_credentials_for_both_backends(self):
+        for resource_class, params, body in (
+            (ListUserProjectResource, {}, {"result": True, "code": 0, "data": []}),
+            (ListUserRepositoryResource, {"project_id": "project-a"}, {"status": 0, "data": {"records": []}}),
+        ):
+            for cookie_name in ("bk_ticket", "bk_token"):
+                with self.subTest(resource=resource_class.__name__, backend=cookie_name):
+                    request = SimpleNamespace(COOKIES={cookie_name: "editor-credential"}, external_user=False)
+                    resource = resource_class()
+                    resource.bk_tenant_id = "system"
+                    response = Mock()
+                    response.json.return_value = body
+                    with (
+                        override_settings(BK_CI_URL="https://ci.example.com", BKCI_APP_CODE="", BKCI_APP_SECRET=""),
+                        patch("api.devops.default.get_request", return_value=request),
+                        patch("core.drf_resource.contrib.api.get_request", return_value=request),
+                        patch("core.drf_resource.contrib.api.make_userinfo", return_value={"bk_username": "editor-b"}),
+                        patch(
+                            "core.drf_resource.contrib.api.get_bk_login_ticket",
+                            return_value={cookie_name: "editor-credential"},
+                        ) as login_credential,
+                        patch.object(resource.session, "get", return_value=response) as send,
+                        patch.object(resource, "report_api_request_count_metric"),
+                    ):
+                        resource.request(params)
+                    login_credential.assert_called_once_with(request)
+                    authorization = json.loads(send.call_args.kwargs["headers"]["x-bkapi-authorization"])
+                    self.assertEqual(authorization[cookie_name], "editor-credential")
+                    self.assertEqual(authorization["bk_username"], "editor-b")
+                    self.assertNotIn("editor-credential", str(send.call_args.kwargs["params"]))
+                    self.assertNotIn("bk_username", send.call_args.kwargs["params"])
+
     def test_actions_follow_devops_gateway_contract(self):
         self.assertEqual(ListUserProjectResource.action, "/v4/apigw-user/projects/project_list")
         self.assertEqual(
@@ -343,6 +375,25 @@ class TestSourceAnalysisOptionsResources(SimpleTestCase):
         self.enterContext(override_settings(AIDEV_ACCESS_TOKEN=""))
         self.config_query = self.enterContext(patch.object(IssueSourceAnalysisConfig.objects, "filter"))
         self.config_query.return_value.first.return_value = SimpleNamespace(update_user="owner-a")
+
+    def test_devops_candidates_do_not_inherit_repository_owner(self):
+        for resource_class, params, api_name, response, expected_params in (
+            (ListSourceAnalysisBkciProjectsResource, {}, "list_user_project", [], {}),
+            (
+                ListSourceAnalysisBkciRepositoriesResource,
+                {"bkci_project_id": "project-b"},
+                "list_user_repository",
+                {"records": []},
+                {"project_id": "project-b"},
+            ),
+        ):
+            with (
+                self.subTest(resource=resource_class.__name__),
+                patch.object(api.devops, api_name, return_value=response) as query,
+            ):
+                resource_class().perform_request({"bk_biz_id": 2, **params})
+                query.assert_called_once_with(**expected_params)
+        self.config_query.assert_not_called()
 
     def test_selector_uses_config_owner_in_cache_and_request(self):
         with patch.object(SourceAnalysisBaseResource, "query_visible_aidev_items", return_value=[]) as query:

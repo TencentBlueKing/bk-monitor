@@ -203,6 +203,7 @@ export default defineComponent({
       configLoading.value = true;
       try {
         const data = await getSourceAnalysisConfigData().catch(() => null);
+        // 已保存值独立回填，不依赖当前操作人能否查询配置人的项目与仓库。
         bkciProjectId.value = data?.bkci_project_id || '';
         repositoryAlias.value = data?.repository_alias || '';
         // 初始化加载完成后记录初始快照，作为是否编辑过的基线
@@ -210,9 +211,6 @@ export default defineComponent({
         initialRepositoryAlias.value = `${repositoryAlias.value}`;
         configOwner.value = data?.updated_by === 'unknown' ? '' : data?.updated_by || '';
         if (configOwner.value) fetchAiResource();
-        // 详情回显：拉取项目/仓库全量列表并填充映射表
-        projectsSelect.fetchDataInit();
-        repositoriesSelect.fetchDataInit();
       } finally {
         configLoading.value = false;
       }
@@ -244,15 +242,20 @@ export default defineComponent({
     const handleProjectsToggle = (val: boolean) => {
       if (val) {
         projectErrMsg.value = '';
+        return projectsSelect.fetchList();
       }
     };
 
     /**
      * @description 源码仓库下拉展开/收起：展开时清空该校验错误
      */
-    const handleRepositoriesToggle = (val: boolean) => {
+    const handleRepositoriesToggle = async (val: boolean) => {
       if (val) {
         repositoryErrMsg.value = '';
+        await projectsSelect.fetchList();
+        if (projectsSelect.list.value.some(item => item.id === bkciProjectId.value)) {
+          await repositoriesSelect.fetchList();
+        }
       }
     };
 
@@ -333,6 +336,7 @@ export default defineComponent({
     };
 
     const handleChangeBkciProjectId = val => {
+      if (val === bkciProjectId.value) return;
       bkciProjectId.value = val;
       repositoryAlias.value = '';
     };

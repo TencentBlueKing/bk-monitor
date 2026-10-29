@@ -31,13 +31,34 @@ function deferred() {
   return { promise, resolve };
 }
 
-function harness({ config = {}, getConfig = async () => config, save = async () => {} } = {}) {
+function harness({
+  config = {},
+  getConfig = async () => config,
+  getProjects = async () => ({ list: [], total: 0 }),
+  getRepositories = async () => ({ list: [], total: 0 }),
+  save = async () => {},
+} = {}) {
   const mounted = [];
   const dialogs = [];
   const saves = [];
   const creates = [];
   const aiSelectors = [];
+  const projectQueries = [];
+  const repositoryQueries = [];
   let ruleQueries = 0;
+  const bkciDependencies = {
+    vue,
+    '../services/ai-config': {
+      getBkciProjects: params => {
+        projectQueries.push({ ...params });
+        return getProjects(params);
+      },
+      getBkciRepositories: params => {
+        repositoryQueries.push({ ...params });
+        return getRepositories(params);
+      },
+    },
+  };
   const selector = () => ({
     list: vue.shallowRef([]),
     loading: vue.shallowRef(false),
@@ -69,8 +90,14 @@ function harness({ config = {}, getConfig = async () => config, save = async () 
         return select;
       },
     },
-    '../../composables/use-bkci-projects-select': { useBkciProjectsSelect: selector },
-    '../../composables/use-bkci-repositories-select': { useBkciRepositoriesSelect: selector },
+    '../../composables/use-bkci-projects-select': loadComposable(
+      'src/trace/pages/ai-config/composables/use-bkci-projects-select.ts',
+      bkciDependencies
+    ),
+    '../../composables/use-bkci-repositories-select': loadComposable(
+      'src/trace/pages/ai-config/composables/use-bkci-repositories-select.ts',
+      bkciDependencies
+    ),
     '../../composables/use-match-rule-fields': {
       useMatchRuleFields: () => ({
         fields: vue.shallowRef([]),
@@ -124,6 +151,10 @@ function harness({ config = {}, getConfig = async () => config, save = async () 
     saves,
     creates,
     aiSelectors,
+    projectQueries,
+    repositoryQueries,
+    selects: () =>
+      nodes(component.render.call(vue.proxyRefs(state))).filter(node => node.type === dependencies['bkui-vue'].Select),
     get ruleQueries() {
       return ruleQueries;
     },
@@ -142,6 +173,25 @@ function harness({ config = {}, getConfig = async () => config, save = async () 
       if (await dialog.beforeClose('cancel')) dialog.onCancel();
     },
   };
+}
+
+function loadComposable(file, dependencies) {
+  const compiled = ts.transpileModule(fs.readFileSync(path.join(root, file), 'utf8'), {
+    fileName: file,
+    reportDiagnostics: true,
+    compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 },
+  });
+  assert.equal(compiled.diagnostics.length, 0);
+  const module = { exports: {} };
+  new Function('require', 'module', 'exports', compiled.outputText)(
+    id => {
+      assert.ok(Object.hasOwn(dependencies, id), `Unexpected composable dependency: ${id}`);
+      return dependencies[id];
+    },
+    module,
+    module.exports
+  );
+  return module.exports;
 }
 
 test('first configuration requires explicit save confirmation before opening the rule drawer', async () => {
@@ -176,6 +226,126 @@ test('saved unchanged configuration opens directly without saving or prompting',
   assert.equal(h.saveButton().props.disabled, true);
   assert.equal(await h.state.handleSaveConfig(), true);
   assert.equal(h.saves.length, 0);
+});
+
+test('saved binding renders independently without querying the current editors candidates', async () => {
+  const h = harness({ config: savedConfig });
+  await flush();
+  assert.equal(h.state.bkciProjectId.value, savedConfig.bkci_project_id);
+  assert.equal(h.state.repositoryAlias.value, savedConfig.repository_alias);
+  assert.equal(h.selects()[0].children[0].tag(), savedConfig.bkci_project_id);
+  assert.equal(h.selects()[1].children[0].tag(), savedConfig.repository_alias);
+  assert.deepEqual(h.projectQueries, []);
+  assert.deepEqual(h.repositoryQueries, []);
+  assert.equal(h.state.isEdited.value, false);
+  assert.ok(h.aiSelectors.every(select => select.fetchCount === 1));
+});
+
+test('editor candidates exclude an inaccessible saved binding without changing its owner or value', async () => {
+  const projects = [{ id: 'project-b', name: 'Editor B project' }];
+  const h = harness({ config: savedConfig, getProjects: async () => ({ list: projects, total: 1 }) });
+  await flush();
+  await h.state.handleProjectsToggle(true);
+  assert.deepEqual(h.state.bkciProjects.value, projects);
+  assert.deepEqual(h.projectQueries, [{}]);
+  await h.state.handleRepositoriesToggle(true);
+  assert.deepEqual(h.repositoryQueries, []);
+  assert.deepEqual(h.state.bkciRepositories.value, []);
+  assert.equal(h.state.bkciProjectId.value, savedConfig.bkci_project_id);
+  assert.equal(h.state.repositoryAlias.value, savedConfig.repository_alias);
+  assert.equal(h.state.isEdited.value, false);
+  assert.equal(await h.state.handleSaveConfig(), true);
+  assert.deepEqual(h.saves, []);
+  assert.ok(h.aiSelectors.every(select => select.fetchCount === 1));
+});
+
+test('repository candidates use the editors visible project without dropping an inaccessible saved repository', async () => {
+  const repositories = [{ id: 'team/editor-repository', name: 'Editor repository' }];
+  const h = harness({
+    config: savedConfig,
+    getProjects: async () => ({ list: [{ id: savedConfig.bkci_project_id, name: 'Shared project' }], total: 1 }),
+    getRepositories: async () => ({ list: repositories, total: 1 }),
+  });
+  await flush();
+  await h.state.handleRepositoriesToggle(true);
+  assert.deepEqual(h.repositoryQueries, [{ bkci_project_id: savedConfig.bkci_project_id }]);
+  assert.deepEqual(h.state.bkciRepositories.value, repositories);
+  assert.equal(h.selects()[0].children[0].tag(), 'Shared project');
+  assert.equal(h.selects()[1].children[0].tag(), savedConfig.repository_alias);
+  assert.equal(h.state.isEdited.value, false);
+  h.state.handleChangeBkciProjectId(savedConfig.bkci_project_id);
+  assert.equal(h.state.repositoryAlias.value, savedConfig.repository_alias);
+});
+
+test('selecting the editors project loads only its candidates and does not change AIDEV identity before saving', async () => {
+  const h = harness({
+    config: savedConfig,
+    getProjects: async () => ({ list: [{ id: 'project-b', name: 'Editor B project' }], total: 1 }),
+    getRepositories: async () => ({ list: [{ id: 'team/b', name: 'B repository' }], total: 1 }),
+  });
+  await flush();
+  h.state.handleChangeBkciProjectId('project-b');
+  assert.equal(h.state.repositoryAlias.value, '');
+  assert.deepEqual(h.repositoryQueries, []);
+  await h.state.handleRepositoriesToggle(true);
+  assert.deepEqual(h.repositoryQueries, [{ bkci_project_id: 'project-b' }]);
+  assert.equal(h.state.isEdited.value, true);
+  assert.ok(h.aiSelectors.every(select => select.fetchCount === 1));
+});
+
+test('concurrent project and repository dropdowns await the same current-user project request', async () => {
+  const projects = deferred();
+  const h = harness({ config: savedConfig, getProjects: () => projects.promise });
+  await flush();
+  const first = h.state.handleProjectsToggle(true);
+  const second = h.state.handleRepositoriesToggle(true);
+  assert.equal(h.projectQueries.length, 1);
+  projects.resolve({ list: [{ id: savedConfig.bkci_project_id, name: 'Shared project' }], total: 1 });
+  await Promise.all([first, second]);
+  assert.deepEqual(h.repositoryQueries, [{ bkci_project_id: savedConfig.bkci_project_id }]);
+  assert.equal(h.state.repositoryAlias.value, savedConfig.repository_alias);
+});
+
+test('late responses from a previous project cannot overwrite current repository candidates', async () => {
+  const previous = deferred();
+  const current = deferred();
+  const h = harness({
+    config: savedConfig,
+    getProjects: async () => ({
+      list: [
+        { id: 'project-a', name: 'A' },
+        { id: 'project-b', name: 'B' },
+      ],
+      total: 2,
+    }),
+    getRepositories: params => (params.bkci_project_id === 'project-a' ? previous.promise : current.promise),
+  });
+  await flush();
+  const first = h.state.handleRepositoriesToggle(true);
+  await flush();
+  h.state.handleChangeBkciProjectId('project-b');
+  const second = h.state.handleRepositoriesToggle(true);
+  await flush();
+  previous.resolve({ list: [{ id: 'team/a', name: 'A' }], total: 1 });
+  await first;
+  assert.deepEqual(h.state.bkciRepositories.value, []);
+  assert.equal(h.state.repositoriesLoading.value, true);
+  current.resolve({ list: [{ id: 'team/b', name: 'B' }], total: 1 });
+  await second;
+  assert.deepEqual(h.state.bkciRepositories.value, [{ id: 'team/b', name: 'B' }]);
+  assert.equal(h.state.repositoriesLoading.value, false);
+});
+
+test('empty current-user candidate responses preserve the saved binding', async () => {
+  const h = harness({ config: savedConfig });
+  await flush();
+  await h.state.handleProjectsToggle(true);
+  await h.state.handleRepositoriesToggle(true);
+  assert.deepEqual(h.state.bkciProjects.value, []);
+  assert.deepEqual(h.state.bkciRepositories.value, []);
+  assert.equal(h.state.bkciProjectId.value, savedConfig.bkci_project_id);
+  assert.equal(h.state.repositoryAlias.value, savedConfig.repository_alias);
+  assert.equal(h.state.isEdited.value, false);
 });
 
 test('saving repository configuration is disabled during initialization and enabled only for changes', async () => {
