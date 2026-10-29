@@ -30,6 +30,7 @@ import { Alert, Button, Dialog, Input, Message, Sideslider, Tab } from 'bkui-vue
 import { useI18n } from 'vue-i18n';
 
 import { saveCollectionTask } from '../../services/collection';
+import { getCollectionExecution } from '../../services/collection-history';
 import { collectionTypeLabels, formatCollectionTime } from '../../utils/collection';
 import {
   canRetryExecution,
@@ -44,6 +45,7 @@ import {
   buildHostCollectionPayload,
   createCollectionResultsState,
   executionResultRows,
+  resultExecutionKey,
 } from '../../utils/collection-results';
 import CollectionConfiguration from './collection-configuration';
 import CollectionExecutionSkeleton from './collection-execution-skeleton';
@@ -84,6 +86,7 @@ export default defineComponent({
     result: (_value: CollectionResultSelection) => true,
     share: (_value?: CollectionResultSelection | null) => true,
     created: () => true,
+    busy: (_value: boolean) => true,
   },
   setup(props, { emit }) {
     const { t } = useI18n();
@@ -110,6 +113,8 @@ export default defineComponent({
         rerunError.value = '';
       }
     );
+    // 重新采集提交状态上报，父级据此暂停自动刷新
+    watch(rerunBusy, value => emit('busy', value), { immediate: true });
     onScopeDispose(() => rerunController?.abort());
     function openResult(host: CollectionExecutionHost) {
       const detail = props.controller.detail.value;
@@ -128,19 +133,22 @@ export default defineComponent({
       resultState.value = { ...resultState.value, ...value };
     }
     function requestRerun(row: CollectionHostResult) {
+      if (props.readonly || rerunBusy.value || row.status === 'running') return;
       rerunHost.value = row;
       rerunError.value = '';
     }
     async function confirmRerun() {
-      const detail = props.controller.detail.value;
       const row = rerunHost.value;
-      if (props.readonly || rerunBusy.value || !detail || !row) return;
+      if (props.readonly || rerunBusy.value || !row) return;
       rerunController?.abort();
       const current = new AbortController();
       rerunController = current;
       rerunBusy.value = true;
       rerunError.value = '';
       try {
+        // 提交前重新拉取执行详情，避免使用页面上可能已过期的快照
+        const detail = await getCollectionExecution(props.bizId, resultExecutionKey(row), current.signal);
+        if (current.signal.aborted || props.readonly) return;
         await saveCollectionTask(
           buildHostCollectionPayload(detail, row.bk_host_id, props.bizId),
           undefined,

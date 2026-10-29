@@ -147,9 +147,13 @@ export default defineComponent({
       await nextTick();
       if (h.canAutoFill.value) loadVisiblePage();
     });
-    watch([h.loading, c.loading, c.busy], () => emit('busy', h.loading.value || c.loading.value || c.busy.value), {
-      immediate: true,
-    });
+    // 执行详情内重新采集的提交状态也纳入 busy，避免提交期间触发自动刷新
+    const executionBusy = shallowRef(false);
+    watch(
+      [h.loading, c.loading, c.busy, executionBusy],
+      () => emit('busy', h.loading.value || c.loading.value || c.busy.value || executionBusy.value),
+      { immediate: true }
+    );
     // 面板与表格列任一筛选生效时，空态区分无匹配结果与暂无数据
     const filtered = computed(
       () =>
@@ -186,6 +190,7 @@ export default defineComponent({
       filtered,
       scrollContainer,
       tableRows,
+      executionBusy,
       reset,
       loadVisiblePage,
       changeSort,
@@ -446,6 +451,9 @@ export default defineComponent({
             controller={c}
             readonly={this.readonly}
             timezone={this.timezone}
+            onBusy={value => {
+              this.executionBusy = value;
+            }}
             onCreated={() => this.$emit('created')}
             onResult={value => this.$emit('result', value, true)}
             onShare={value => this.$emit('share', value)}

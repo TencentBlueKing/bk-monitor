@@ -164,9 +164,11 @@ export default defineComponent({
     watch([h.loading, h.hasMore], () => {
       nextTick(() => loadVisiblePage());
     });
+    // 执行详情内重新采集的提交状态也纳入 busy，避免提交期间触发自动刷新
+    const executionBusy = shallowRef(false);
     watch(
-      [h.loading, h.busy, c.loading, c.busy],
-      () => emit('busy', h.loading.value || h.busy.value || c.loading.value || c.busy.value),
+      [h.loading, h.busy, c.loading, c.busy, executionBusy],
+      () => emit('busy', h.loading.value || h.busy.value || c.loading.value || c.busy.value || executionBusy.value),
       { immediate: true }
     );
     return {
@@ -177,6 +179,7 @@ export default defineComponent({
       selectedRow,
       filtered,
       scrollContainer,
+      executionBusy,
       patch,
       open,
       openExecution,
@@ -498,6 +501,9 @@ export default defineComponent({
             controller={c}
             readonly={this.readonly}
             timezone={this.timezone}
+            onBusy={value => {
+              this.executionBusy = value;
+            }}
             onCreated={() => this.$emit('created')}
             onResult={value => {
               // 仅表头「查看全部结果」走此分支，行为保持为切到执行范围的结果列表

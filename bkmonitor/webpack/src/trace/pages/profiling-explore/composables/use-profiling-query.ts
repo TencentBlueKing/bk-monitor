@@ -523,8 +523,9 @@ export function useProfilingQuery() {
     });
   }
 
-  function openCollectionResult(result: CollectionResultSelection, newPage: boolean) {
-    const collection = {
+  // 打开结果与分享结果共用同一份「结果 tab 落地状态」，避免调整落地字段时两处漂移
+  function resultCollection(result: CollectionResultSelection) {
+    return {
       ...state.value.collection,
       tab: 'results' as const,
       result,
@@ -536,6 +537,10 @@ export function useProfilingQuery() {
         view: createViewState(),
       },
     };
+  }
+
+  function openCollectionResult(result: CollectionResultSelection, newPage: boolean) {
+    const collection = resultCollection(result);
     if (!newPage) {
       patch({ collection });
       return;
@@ -552,20 +557,7 @@ export function useProfilingQuery() {
   // 从执行详情叠加层分享时带上结果选择，打开链接直接定位到结果页对应主机的采集结果侧弹
   function shareCollectionResult(result?: CollectionResultSelection | null) {
     const range = bounds.value || resolveRange();
-    const collection = result
-      ? {
-          ...state.value.collection,
-          tab: 'results' as const,
-          result,
-          results: {
-            ...state.value.collection.results,
-            execution: executionKey(result),
-            filters: createHistoryFilters(),
-            dataType: '',
-            view: createViewState(),
-          },
-        }
-      : state.value.collection;
+    const collection = result ? resultCollection(result) : state.value.collection;
     const snapshot = { ...state.value, collection, timeRange: range, resolvedTimeRange: range };
     const { href } = router.resolve({
       path: route.path,
