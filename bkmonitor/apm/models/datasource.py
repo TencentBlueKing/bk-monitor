@@ -1128,6 +1128,11 @@ class TraceDataSource(ApmDataSourceConfigBase):
             try:
                 res = api.log_search.update_index_set(index_set_id=index_set_id, **params)
             except Exception as e:  # noqa
+                # 日志平台 IndexSetDoseNotExistException：旧索引集已被清理时重建。
+                if isinstance(e, BKAPIError) and str(e.data.get("code")) == "3623301":
+                    # 重建失败需抛出，避免迁回独占后仍保存已失效的索引集 ID。
+                    res = api.log_search.create_index_set(**params)
+                    return res.get("index_set_id"), res.get("index_set_name")
                 logger.error(
                     f"[TraceDatasource] update index set failed {e} \n index set id: {index_set_id} params: {params}"
                 )

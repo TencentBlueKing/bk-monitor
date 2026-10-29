@@ -2,6 +2,7 @@ import pytest
 
 from apm.models import TraceDataSource, SharedTraceDataSource
 from apm.tests.trace_switch_history import EXCLUSIVE_RT, SHARED_RT, T1, T2
+from core.errors.api import BKAPIError
 
 pytestmark = pytest.mark.django_db(databases="__all__")
 
@@ -73,6 +74,59 @@ def test_legacy_backup_without_index_is_supported(exclusive, shared_pool, dataso
     assert exclusive.index_set_id == 22
     datasource_apis["create_index"].assert_called_once()
     datasource_apis["delete_index"].assert_not_called()
+
+
+@pytest.mark.parametrize("code", ["3623301", 3623301])
+def test_return_to_exclusive_recreates_deleted_index_set(exclusive, shared_pool, datasource_apis, code):
+    TraceDataSource.apply_datasource(2, "demo", option=True, is_shared=True, es_storage_cluster=1)
+    datasource_apis["update_index"].side_effect = BKAPIError(result={"code": code, "message": "索引集不存在"})
+
+    TraceDataSource.apply_datasource(2, "demo", option=True, is_shared=False, es_storage_cluster=1)
+
+    exclusive.refresh_from_db()
+    shared_pool.refresh_from_db()
+    assert exclusive.result_table_id == EXCLUSIVE_RT
+    assert (exclusive.index_set_id, exclusive.index_set_name) == (22, "new-index")
+    assert shared_pool.usage_count == 0
+    params = dict(datasource_apis["update_index"].call_args.kwargs)
+    assert params.pop("index_set_id") == 11
+    datasource_apis["create_index"].assert_called_once_with(**params)
+    assert datasource_apis["modify"].call_args.args[0]["is_enable"] is True
+
+
+def test_index_set_recreation_failure_rolls_back_migration(exclusive, shared_pool, datasource_apis):
+    TraceDataSource.apply_datasource(2, "demo", option=True, is_shared=True, es_storage_cluster=1)
+    exclusive.refresh_from_db()
+    old_history = exclusive.history_link_info
+    datasource_apis["update_index"].side_effect = BKAPIError(result={"code": "3623301"})
+    datasource_apis["create_index"].side_effect = RuntimeError("create index failed")
+
+    with pytest.raises(RuntimeError, match="create index failed"):
+        TraceDataSource.apply_datasource(2, "demo", option=True, is_shared=False, es_storage_cluster=1)
+
+    exclusive.refresh_from_db()
+    shared_pool.refresh_from_db()
+    assert exclusive.result_table_id == SHARED_RT
+    assert exclusive.index_set_id == 21
+    assert exclusive.history_link_info == old_history
+    assert exclusive.backup_link_info["index_set_id"] == 11
+    assert shared_pool.usage_count == 1
+    datasource_apis["modify"].assert_not_called()
+
+
+@pytest.mark.parametrize(
+    "error",
+    [
+        BKAPIError(result={"code": 403, "message": "permission denied"}),
+        BKAPIError(result={"message": "timeout"}),
+        RuntimeError("索引集不存在"),
+    ],
+)
+def test_other_index_set_errors_preserve_existing_fallback(exclusive, datasource_apis, error):
+    datasource_apis["update_index"].side_effect = error
+
+    assert exclusive.update_or_create_index_set(1, 2, EXCLUSIVE_RT, 11) == (11, "old-index")
+    datasource_apis["create_index"].assert_not_called()
 
 
 def test_explicit_stop_still_disables_exclusive_rt(exclusive, datasource_apis):
