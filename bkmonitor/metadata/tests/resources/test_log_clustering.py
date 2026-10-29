@@ -16,7 +16,11 @@ from rest_framework.exceptions import ValidationError
 
 from core.drf_resource.exceptions import CustomException
 from metadata import models
-from metadata.resources.log_clustering import SetLogClusteringConfigResource
+from metadata.resources.log_clustering import (
+    GetLogClusteringStatusResource,
+    OperateLogClusteringResource,
+    SetLogClusteringConfigResource,
+)
 from metadata.tests.data_link.test_log_clustering_sink import (
     BINDING,
     ES_BINDING_REF,
@@ -91,10 +95,12 @@ def clustering_datalink(mocker):
 @pytest.fixture
 def bkbase(mocker):
     """remote_databus 为远端 Databus 当前配置；None 表示远端不存在"""
-    state = {"remote_databus": None}
+    state = {"remote_databus": None, "remote_sink": None}
     mocker.patch(
         "metadata.models.DataLink.get_existing_component_config",
-        side_effect=lambda kind, name, namespace: copy.deepcopy(state["remote_databus"]) if kind == "Databus" else None,
+        side_effect=lambda kind, name, namespace: copy.deepcopy(
+            state["remote_databus"] if kind == "Databus" else state["remote_sink"]
+        ),
     )
     state["apply_log_datalink"] = mocker.patch("metadata.resources.log_clustering.apply_log_datalink")
     state["apply_data_link"] = mocker.patch("metadata.models.DataLink.apply_data_link_with_retry")
@@ -136,6 +142,11 @@ def create_es_binding(name: str = ES_BINDING_REF["name"]) -> models.ESStorageBin
 def attach_remotely(state: dict) -> None:
     """模拟首次完整下发后的状态：已生成 ES 存储绑定，远端 Databus 已引用聚类 Sink"""
     create_es_binding()
+    state["remote_sink"] = get_sink().compose_config(raw_sink=ES_BINDING_REF)
+    state["remote_sink"]["status"] = {
+        "phase": "Ok",
+        "message": json.dumps({"configuration_applied": True, "clustering_closed": False}),
+    }
     state["remote_databus"] = {"kind": "Databus", "metadata": {}, "spec": {"sinks": [get_sink().reference]}}
 
 
@@ -356,3 +367,213 @@ def test_invalid_request_is_rejected(field, value, clustering_datalink, bkbase):
     with pytest.raises(CustomException):
         SetLogClusteringConfigResource().request(params)
     assert not models.LogClusteringSinkConfig.objects.exists()
+
+
+def operate(action: str) -> dict:
+    return OperateLogClusteringResource().request(
+        {"bk_tenant_id": "system", "table_id": LOG_TABLE_ID, "action": action}
+    )
+
+
+def get_status() -> dict:
+    return GetLogClusteringStatusResource().request({"bk_tenant_id": "system", "table_id": LOG_TABLE_ID})
+
+
+@pytest.mark.parametrize("action,enabled", [("disable", False), ("enable", True)])
+@pytest.mark.parametrize("multi_tenant", [False, True])
+def test_enable_switch_applies_only_remote_sink(action, enabled, multi_tenant, clustering_datalink, bkbase, settings):
+    set_config()
+    attach_remotely(bkbase)
+    settings.ENABLE_MULTI_TENANT_MODE = multi_tenant
+    remote = bkbase["remote_sink"]
+    if multi_tenant:
+        remote["metadata"]["tenant"] = "system"
+    remote["metadata"]["annotations"] = {"keep": "annotation"}
+    remote["spec"]["clustering"]["enabled"] = not enabled
+    remote["spec"]["clustering"]["retryFailures"] = ["event-1"]
+    before = copy.deepcopy(remote)
+    binding = copy.deepcopy(get_sink().binding)
+
+    result = operate(action)
+
+    expected = {key: copy.deepcopy(before[key]) for key in ("kind", "metadata", "spec")}
+    expected["spec"]["clustering"]["enabled"] = enabled
+    bkbase["apply_data_link"].assert_called_once_with([expected])
+    assert bkbase["remote_sink"] == before
+    assert result == {"action": action, "attached": True}
+    assert get_sink().binding == binding
+    assert get_sink().attached is True
+    assert bkbase["apply_log_datalink"].call_count == 1
+
+
+def test_enable_switch_requires_existing_remote_resource(clustering_datalink, bkbase):
+    set_config()
+    with pytest.raises(ValidationError, match="does not exist in BKBase"):
+        operate("disable")
+    bkbase["apply_data_link"].assert_not_called()
+    assert get_sink().attached is True
+
+
+@pytest.mark.parametrize("action", ["drain", "finish", "resume"])
+def test_removed_actions_are_rejected(action, clustering_datalink, bkbase):
+    with pytest.raises(CustomException):
+        operate(action)
+    bkbase["apply_data_link"].assert_not_called()
+    bkbase["apply_log_datalink"].assert_not_called()
+
+
+def test_detach_and_attach_only_switch_databus_reference(clustering_datalink, bkbase):
+    set_config()
+    attach_remotely(bkbase)
+    bkbase["remote_sink"]["spec"]["clustering"]["enabled"] = False
+
+    detached = operate("detach")
+    attached = operate("attach")
+
+    assert detached == {"action": "detach", "attached": False}
+    assert attached == {"action": "attach", "attached": True}
+    assert bkbase["apply_log_datalink"].call_count == 3
+    bkbase["apply_data_link"].assert_not_called()
+    assert bkbase["remote_sink"]["spec"]["clustering"]["enabled"] is False
+    assert get_sink().attached is True
+
+
+def test_retry_resends_enable_switch_without_changing_binding(clustering_datalink, bkbase, change_lock):
+    set_config()
+    attach_remotely(bkbase)
+    bkbase["apply_data_link"].side_effect = RuntimeError("bkbase apply failed")
+    with pytest.raises(RuntimeError):
+        operate("disable")
+    assert not change_lock.held
+
+    first_request = copy.deepcopy(bkbase["apply_data_link"].call_args.args)
+    bkbase["apply_data_link"].side_effect = None
+    result = operate("disable")
+
+    assert result == {"action": "disable", "attached": True}
+    assert bkbase["apply_data_link"].call_args.args == first_request
+    assert bkbase["apply_data_link"].call_count == 2
+
+
+@pytest.mark.parametrize("action", ["detach", "disable"])
+def test_operation_is_rejected_while_another_change_is_in_progress(action, clustering_datalink, bkbase, change_lock):
+    set_config()
+    change_lock.held.add(f"metadata:log_clustering:system:{LOG_DATA_LINK_NAME}")
+
+    with pytest.raises(ValidationError, match="in progress"):
+        operate(action)
+    assert get_sink().attached is True
+    bkbase["apply_data_link"].assert_not_called()
+
+
+@pytest.mark.parametrize("action", ["detach", "disable"])
+def test_operation_holds_change_lock_during_apply(action, clustering_datalink, bkbase, change_lock):
+    set_config()
+    attach_remotely(bkbase)
+    lock_name = f"metadata:log_clustering:system:{LOG_DATA_LINK_NAME}"
+    held_during_apply = []
+    apply = bkbase["apply_log_datalink"] if action == "detach" else bkbase["apply_data_link"]
+    apply.side_effect = lambda *args, **kwargs: held_during_apply.append(lock_name in change_lock.held)
+
+    operate(action)
+
+    assert held_during_apply == [True]
+    assert lock_name not in change_lock.held
+
+
+def test_operate_without_config_is_rejected(clustering_datalink, bkbase):
+    with pytest.raises(ValidationError, match="no log clustering config"):
+        operate("disable")
+    bkbase["apply_data_link"].assert_not_called()
+
+
+def test_status_without_config_reports_not_configured(clustering_datalink, bkbase):
+    assert get_status() == {"configured": False}
+
+
+def test_status_reads_progress_from_sink_resource(clustering_datalink, bkbase):
+    set_config()
+    attach_remotely(bkbase)
+
+    result = get_status()
+
+    sink = get_sink()
+    assert result["configured"] is True
+    assert result["binding"] == sink.binding
+    assert result["raw_sink"] == ES_BINDING_REF
+    assert result["sink"] == {"tenant": "system", "namespace": "bklog", "name": sink.name}
+    assert result["databus_resource"] == bkbase["remote_databus"]
+    assert result["sink_resource"] == bkbase["remote_sink"]
+    assert (result["sink_referenced"], result["raw_sink_referenced"]) == (True, False)
+    assert result["clustering_status"] == {"configuration_applied": True, "clustering_closed": False}
+    assert result["errors"] == []
+
+
+@pytest.mark.parametrize("status", [None, {}, {"phase": "Pending", "message": ""}])
+def test_status_without_progress_does_not_claim_completion(status, clustering_datalink, bkbase):
+    set_config()
+    attach_remotely(bkbase)
+    bkbase["remote_sink"]["status"] = status
+
+    result = get_status()
+
+    assert result["clustering_status"] is None
+    assert result["errors"] == []
+    assert result["sink_referenced"] is True
+
+
+@pytest.mark.parametrize("message", ["not json", "[]", "null", "true"])
+def test_invalid_progress_reports_error_and_preserves_other_status(message, clustering_datalink, bkbase):
+    set_config()
+    attach_remotely(bkbase)
+    bkbase["remote_sink"]["status"]["message"] = message
+
+    result = get_status()
+
+    assert result["clustering_status"] is None
+    assert result["sink_resource"] == bkbase["remote_sink"]
+    assert result["sink_referenced"] is True
+    assert len(result["errors"]) == 1
+    assert result["errors"][0]["source"] == "clustering_status"
+
+
+def test_status_keeps_databus_when_sink_query_fails(clustering_datalink, bkbase, mocker):
+    set_config()
+    attach_remotely(bkbase)
+    bkbase["remote_databus"]["spec"]["sinks"] = [ES_BINDING_REF]
+
+    def fetch(kind, name, namespace):
+        if kind == "LogClusteringSink":
+            raise RuntimeError("resource unavailable")
+        return bkbase["remote_databus"]
+
+    mocker.patch("metadata.models.DataLink.get_existing_component_config", side_effect=fetch)
+    result = get_status()
+
+    assert (result["sink_referenced"], result["raw_sink_referenced"]) == (False, True)
+    assert result["clustering_status"] is None
+    assert result["errors"] == [{"source": "sink_resource", "message": "resource unavailable"}]
+
+
+def test_status_without_single_es_binding_reports_raw_sink_unreferenced(clustering_datalink, bkbase):
+    set_config()
+    bkbase["remote_databus"] = {"kind": "Databus", "metadata": {}, "spec": {"sinks": [ES_BINDING_REF]}}
+
+    result = get_status()
+
+    assert (result["raw_sink"], result["raw_sink_referenced"]) == (None, False)
+
+
+def test_filter_update_preserves_remote_disabled_state(clustering_datalink, bkbase):
+    set_config()
+    attach_remotely(bkbase)
+    bkbase["remote_sink"]["spec"]["clustering"]["enabled"] = False
+    binding = copy.deepcopy(BINDING)
+    binding["log_filter"] = [{"key": "level", "method": "eq", "value": ["INFO"], "condition": ""}]
+
+    set_config(binding=binding)
+
+    (configs,), _ = bkbase["apply_data_link"].call_args
+    assert configs[0]["spec"]["clustering"]["enabled"] is False
+    assert configs[0]["spec"]["clustering"]["binding"]["log_filter"] == binding["log_filter"]
+    assert bkbase["apply_log_datalink"].call_count == 1
