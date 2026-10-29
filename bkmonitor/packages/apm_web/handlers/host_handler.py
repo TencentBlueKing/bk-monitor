@@ -273,7 +273,8 @@ class HostHandler:
                     start_time=int(span["start_time"] / 1e6),
                     end_time=int(span["end_time"] / 1e6),
                     step="1s",
-                )
+                ),
+                skip_incomplete=bool(ip_mapping),
             )
             for r in system_relations:
                 found = False

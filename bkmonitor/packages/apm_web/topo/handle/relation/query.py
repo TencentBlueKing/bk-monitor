@@ -33,7 +33,7 @@ class Q:
 class RelationQ:
     @classmethod
     def query(cls, qs, expect_paths=None, fill_with_empty=False, skip_incomplete=False):
-        """查询完整关联；后台采集可显式跳过不完整分项，fill_with_empty 保持请求顺序。"""
+        """查询关联，默认拒绝不完整分项；可显式跳过，fill_with_empty 保持请求顺序。"""
 
         # 从查询参数提取业务 ID，用于数据查询鉴权
         bk_biz_ids: set[int] = set()

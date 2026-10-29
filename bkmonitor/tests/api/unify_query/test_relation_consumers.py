@@ -206,6 +206,40 @@ def test_host_list_does_not_swallow_incomplete_or_write_cache(consumer):
     cache.set_value.assert_not_called()
 
 
+@pytest.mark.parametrize("ip_field", ["net.host.ip", "host.ip", None])
+@pytest.mark.parametrize("quality", [{}, {"partial": True}, {"code": 400, "truncated": True}])
+def test_span_keeps_known_host_when_optional_relation_is_incomplete(consumer, ip_field, quality):
+    ns = vars(consumer)
+    ns.update(
+        SpanAttributes=SimpleNamespace(NET_HOST_IP="net.host.ip"),
+        OtlpKey=SimpleNamespace(RESOURCE="resource"),
+        SourceK8sPod=Mock(),
+        SourceSystem=object(),
+    )
+    consumer.RelationQ.generate_q = Mock(return_value=[{}])
+    consumer.api.unify_query.query_multi_resource_range.return_value = {"data": [result(**quality)]}
+    load_definitions("packages/apm_web/handlers/host_handler.py", ["HostHandler"], ns, ["find_host_in_span"])
+    cls = ns["HostHandler"]
+    cls.SourceType = SimpleNamespace(FIELD="field", RELATION="relation")
+    known_host = {"bk_host_innerip": "192.0.2.10", "bk_host_id": "42"}
+    cls.list_host_by_ips = Mock(return_value=[known_host])
+    resource = {"k8s.bcs.cluster.id": "cluster", "k8s.namespace.name": "ns", "k8s.pod.name": "pod"}
+    if ip_field:
+        resource[ip_field] = known_host["bk_host_innerip"]
+    span = {"resource": resource, "start_time": 1700000000000000, "end_time": 1700000001000000}
+
+    if not ip_field and quality:
+        with pytest.raises(IncompleteRelationError):
+            cls.find_host_in_span(2, "demo", "span", span)
+        cls.list_host_by_ips.assert_not_called()
+    else:
+        assert cls.find_host_in_span(2, "demo", "span", span) == ([known_host] if ip_field else [])
+        if ip_field:
+            cls.list_host_by_ips.assert_called_once_with(2, ["192.0.2.10"], {"192.0.2.10": {"source_type": "field"}})
+        else:
+            cls.list_host_by_ips.assert_not_called()
+
+
 @pytest.mark.parametrize("quality", [{"partial": True}, {"truncated": True}])
 def test_alarm_keeps_known_positive_and_skips_incomplete_empty(consumer, quality, caplog):
     ns = vars(consumer)
