@@ -16,3 +16,13 @@ class Migration(migrations.Migration):
             field=models.CharField(blank=True, default='', max_length=255, verbose_name='字段名称'),
         ),
     ]
+
+    def apply(self, project_state, schema_editor, collect_sql=False):
+        """使用 ALGORITHM=INSTANT, LOCK=NONE 执行 DDL（MySQL 8.0+）"""
+        if schema_editor.connection.vendor == 'mysql':
+            version = schema_editor.connection.mysql_version
+            if version >= (8, 0):
+                schema_editor.execute(
+                    "SET SESSION alter_algorithm='INSTANT';"
+                )
+        return super().apply(project_state, schema_editor, collect_sql=collect_sql)
