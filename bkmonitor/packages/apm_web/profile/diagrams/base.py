@@ -22,7 +22,7 @@ logger = logging.getLogger("apm")
 ROOT_DISPLAY_NAME = "total"
 
 # 节点名称中不能包含以下特殊字符
-DOT_INVALID_CHARS = ["[", "]", ":", ";", "{", "}", '"', "<", ">"]
+DOT_INVALID_CHARS = ["[", "]", ":", ";", "{", "}", '"', "<", ">", "\x00"]
 GO_STRUCT_TYPE_REGEX = re.compile(r"\[go\.shape\..*\]")
 
 
