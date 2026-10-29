@@ -50,6 +50,8 @@ export default defineComponent({
     timezone: { type: String, required: true },
     readonly: Boolean,
     busy: Boolean,
+    // 叠加在其他侧弹之上时挂到 body，避免受父级定位上下文影响
+    transfer: { type: [Boolean, String, Object] as PropType<boolean | HTMLElement | string>, default: false },
   },
   emits: {
     change: (_value: Partial<CollectionResultsState>) => true,
@@ -80,7 +82,7 @@ export default defineComponent({
         class='collection-result-detail'
         beforeClose={() => !this.busy}
         isShow={true}
-        transfer={false}
+        transfer={this.transfer}
         onClosed={() => this.$emit('close')}
       >
         {{

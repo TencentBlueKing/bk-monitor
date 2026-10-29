@@ -82,7 +82,7 @@ export default defineComponent({
     change: (_value: Partial<CollectionQueryState>) => true,
     created: () => true,
     create: () => true,
-    share: () => true,
+    share: (_value?: CollectionResultSelection | null) => true,
     result: (_value: CollectionResultSelection, _newPage: boolean) => true,
     busy: (_value: boolean) => true,
   },
@@ -164,9 +164,20 @@ export default defineComponent({
     watch([h.loading, h.hasMore], () => {
       nextTick(() => loadVisiblePage());
     });
+    // 执行详情内重新采集的提交状态也纳入 busy，避免提交期间触发自动刷新；
+    // 详情关闭后不再计入，防止卸载时漏发复位导致 busy 卡住
+    const executionBusy = shallowRef(false);
     watch(
-      [h.loading, h.busy, c.loading, c.busy],
-      () => emit('busy', h.loading.value || h.busy.value || c.loading.value || c.busy.value),
+      [h.loading, h.busy, c.loading, c.busy, c.selected, executionBusy],
+      () =>
+        emit(
+          'busy',
+          h.loading.value ||
+            h.busy.value ||
+            c.loading.value ||
+            c.busy.value ||
+            (!!c.selected.value && executionBusy.value)
+        ),
       { immediate: true }
     );
     return {
@@ -177,6 +188,7 @@ export default defineComponent({
       selectedRow,
       filtered,
       scrollContainer,
+      executionBusy,
       patch,
       open,
       openExecution,
@@ -494,13 +506,20 @@ export default defineComponent({
         )}
         {c.selected.value && (
           <CollectionExecutionDetail
+            bizId={this.bizId}
             controller={c}
             readonly={this.readonly}
             timezone={this.timezone}
+            onBusy={value => {
+              this.executionBusy = value;
+            }}
+            onCreated={() => this.$emit('created')}
             onResult={value => {
+              // 仅表头「查看全部结果」走此分支，行为保持为切到执行范围的结果列表
               c.close();
               this.$emit('result', value, false);
             }}
+            onShare={value => this.$emit('share', value)}
           />
         )}
         <CollectionExecutionAction

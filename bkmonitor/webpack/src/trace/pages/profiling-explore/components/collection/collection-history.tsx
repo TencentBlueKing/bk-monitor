@@ -109,6 +109,7 @@ export default defineComponent({
     created: () => true,
     result: (_value: CollectionResultSelection, _newPage: boolean) => true,
     busy: (_value: boolean) => true,
+    share: (_value?: CollectionResultSelection | null) => true,
   },
   setup(props, { emit }) {
     const { t } = useI18n();
@@ -146,9 +147,15 @@ export default defineComponent({
       await nextTick();
       if (h.canAutoFill.value) loadVisiblePage();
     });
-    watch([h.loading, c.loading, c.busy], () => emit('busy', h.loading.value || c.loading.value || c.busy.value), {
-      immediate: true,
-    });
+    // 执行详情内重新采集的提交状态也纳入 busy，避免提交期间触发自动刷新；
+    // 详情关闭后不再计入，防止卸载时漏发复位导致 busy 卡住
+    const executionBusy = shallowRef(false);
+    watch(
+      [h.loading, c.loading, c.busy, c.selected, executionBusy],
+      () =>
+        emit('busy', h.loading.value || c.loading.value || c.busy.value || (!!c.selected.value && executionBusy.value)),
+      { immediate: true }
+    );
     // 面板与表格列任一筛选生效时，空态区分无匹配结果与暂无数据
     const filtered = computed(
       () =>
@@ -185,6 +192,7 @@ export default defineComponent({
       filtered,
       scrollContainer,
       tableRows,
+      executionBusy,
       reset,
       loadVisiblePage,
       changeSort,
@@ -375,6 +383,10 @@ export default defineComponent({
                 </div>
               ),
             }}
+            bkUiSettings={{
+              disabled: columns.some(column => column.colKey === 'task_name') ? ['task_name'] : [],
+              rowSize: 'mini',
+            }}
             columns={columns.map(column =>
               showSkeleton
                 ? {
@@ -437,10 +449,16 @@ export default defineComponent({
         </div>
         {c.selected.value && (
           <CollectionExecutionDetail
+            bizId={this.bizId}
             controller={c}
             readonly={this.readonly}
             timezone={this.timezone}
+            onBusy={value => {
+              this.executionBusy = value;
+            }}
+            onCreated={() => this.$emit('created')}
             onResult={value => this.$emit('result', value, true)}
+            onShare={value => this.$emit('share', value)}
           />
         )}
         <CollectionExecutionAction

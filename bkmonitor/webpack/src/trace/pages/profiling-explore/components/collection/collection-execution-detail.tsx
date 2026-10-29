@@ -23,12 +23,14 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { type PropType, defineComponent, shallowRef, watch } from 'vue';
+import { type PropType, computed, defineComponent, onScopeDispose, shallowRef, watch } from 'vue';
 
 import { type TableProps, PrimaryTable } from '@blueking/tdesign-ui';
-import { Alert, Button, Dialog, Input, Sideslider, Tab } from 'bkui-vue';
+import { Alert, Button, Dialog, Input, Message, Sideslider, Tab } from 'bkui-vue';
 import { useI18n } from 'vue-i18n';
 
+import { saveCollectionTask } from '../../services/collection';
+import { getCollectionExecution } from '../../services/collection-history';
 import { collectionTypeLabels, formatCollectionTime } from '../../utils/collection';
 import {
   canRetryExecution,
@@ -39,9 +41,16 @@ import {
   formatExecutionDuration,
   hostColumnMinWidths,
 } from '../../utils/collection-history';
+import {
+  buildHostCollectionPayload,
+  createCollectionResultsState,
+  executionResultRows,
+  resultExecutionKey,
+} from '../../utils/collection-results';
 import CollectionConfiguration from './collection-configuration';
 import CollectionExecutionSkeleton from './collection-execution-skeleton';
 import CollectionExecutionStatus from './collection-execution-status';
+import CollectionResultDetail from './collection-result-detail';
 import EmptyStatus from '@/components/empty-status/empty-status';
 
 import type { UseCollectionExecutionReturn } from '../../composables/use-collection-execution';
@@ -50,6 +59,7 @@ import type {
   CollectionExecutionHost,
   CollectionResultSelection,
 } from '../../types/collection-history';
+import type { CollectionHostResult, CollectionResultsState } from '../../types/collection-results';
 
 import './collection-execution-detail.scss';
 
@@ -67,25 +77,123 @@ const fallbackHostColumns: CollectionExecutionColumn[] = [
 export default defineComponent({
   name: 'CollectionExecutionDetail',
   props: {
+    bizId: { type: Number, required: true },
     controller: { type: Object as PropType<UseCollectionExecutionReturn>, required: true },
     readonly: { type: Boolean, default: false },
     timezone: { type: String, required: true },
   },
-  emits: { result: (_value: CollectionResultSelection) => true },
-  setup(props) {
+  emits: {
+    result: (_value: CollectionResultSelection) => true,
+    share: (_value?: CollectionResultSelection | null) => true,
+    created: () => true,
+    busy: (_value: boolean) => true,
+  },
+  setup(props, { emit }) {
+    const { t } = useI18n();
     const diagnosis = shallowRef<CollectionExecutionHost | null>(null);
+    // 采集结果详情直接叠加在执行详情之上，不再跳转结果页
+    const resultSelection = shallowRef<CollectionResultSelection | null>(null);
+    const resultState = shallowRef<CollectionResultsState>(createCollectionResultsState());
+    const rerunHost = shallowRef<CollectionHostResult | null>(null);
+    const rerunBusy = shallowRef(false);
+    const rerunError = shallowRef('');
+    let rerunController: AbortController;
+    const resultSource = computed(() => {
+      const selection = resultSelection.value;
+      const detail = props.controller.detail.value;
+      if (!selection?.bk_host_id || !detail) return undefined;
+      return executionResultRows(detail).find(host => host.bk_host_id === selection.bk_host_id);
+    });
     watch(
       () => props.controller.selected.value,
       () => {
         diagnosis.value = null;
+        resultSelection.value = null;
+        rerunHost.value = null;
+        rerunError.value = '';
       }
     );
-    return { t: useI18n().t, diagnosis };
+    // 重新采集提交状态上报，父级据此暂停自动刷新；同步上报避免关闭详情卸载组件后丢失复位
+    watch(rerunBusy, value => emit('busy', value), { immediate: true, flush: 'sync' });
+    onScopeDispose(() => {
+      rerunController?.abort();
+      // 提交中途被卸载时请求随之中止，finally 不再复位，这里兜底
+      emit('busy', false);
+    });
+    function openResult(host: CollectionExecutionHost) {
+      const detail = props.controller.detail.value;
+      if (!detail) return;
+      resultState.value = createCollectionResultsState();
+      rerunError.value = '';
+      resultSelection.value = executionSelection(detail, host);
+    }
+    function closeResult() {
+      if (rerunBusy.value) return;
+      resultSelection.value = null;
+      rerunHost.value = null;
+      rerunError.value = '';
+    }
+    function patchResult(value: Partial<CollectionResultsState>) {
+      resultState.value = { ...resultState.value, ...value };
+    }
+    function requestRerun(row: CollectionHostResult) {
+      if (props.readonly || rerunBusy.value || row.status === 'running') return;
+      rerunHost.value = row;
+      rerunError.value = '';
+    }
+    async function confirmRerun() {
+      const row = rerunHost.value;
+      if (props.readonly || rerunBusy.value || !row) return;
+      rerunController?.abort();
+      const current = new AbortController();
+      rerunController = current;
+      rerunBusy.value = true;
+      rerunError.value = '';
+      try {
+        // 提交前重新拉取执行详情，避免使用页面上可能已过期的快照
+        const detail = await getCollectionExecution(props.bizId, resultExecutionKey(row), current.signal);
+        if (current.signal.aborted || props.readonly) return;
+        await saveCollectionTask(
+          buildHostCollectionPayload(detail, row.bk_host_id, props.bizId),
+          undefined,
+          current.signal
+        );
+        if (current.signal.aborted) return;
+        // 重新采集已提交：先复位 busy（同步上报），再关采集结果侧弹与任务执行详情
+        rerunHost.value = null;
+        resultSelection.value = null;
+        rerunError.value = '';
+        rerunBusy.value = false;
+        Message({ theme: 'success', message: t('采集任务已创建') });
+        props.controller.close();
+        emit('created');
+      } catch (e) {
+        if (!current.signal.aborted) rerunError.value = t((e as Error)?.message || '重新采集失败，请重试');
+      } finally {
+        if (!current.signal.aborted) rerunBusy.value = false;
+      }
+    }
+    return {
+      t,
+      diagnosis,
+      resultSelection,
+      resultState,
+      resultSource,
+      rerunHost,
+      rerunBusy,
+      rerunError,
+      openResult,
+      closeResult,
+      patchResult,
+      requestRerun,
+      confirmRerun,
+    };
   },
   render() {
     const c = this.controller;
     const detail = c.detail.value;
     const execution = detail || c.selected.value;
+    const resultSelection = this.resultSelection;
     // 优先使用后端下发的列定义，旧接口无该字段时回退默认列并翻译列名
     const hostColumns = detail?.host_columns?.length
       ? detail.host_columns
@@ -141,7 +249,14 @@ export default defineComponent({
       <Sideslider
         width='min(960px, 100vw)'
         class='collection-execution-detail'
-        beforeClose={() => !c.busy.value}
+        beforeClose={() => {
+          // 逐层关闭：叠加采集结果详情时先关结果面板
+          if (this.resultSelection) {
+            this.closeResult();
+            return false;
+          }
+          return !c.busy.value;
+        }}
         isShow={true}
         transfer={false}
         onClosed={c.close}
@@ -391,7 +506,7 @@ export default defineComponent({
                               disabled={row.status !== 'succeed' || row.started_at == null || row.finished_at == null}
                               theme='primary'
                               text
-                              onClick={() => this.$emit('result', executionSelection(detail, row))}
+                              onClick={() => this.openResult(row)}
                             >
                               {this.t('查看结果')}
                             </Button>
@@ -426,6 +541,70 @@ export default defineComponent({
                     >
                       {this.t('关闭')}
                     </Button>
+                  ),
+                }}
+              </Dialog>
+              {resultSelection && (
+                <CollectionResultDetail
+                  key={JSON.stringify(resultSelection)}
+                  bizId={this.bizId}
+                  busy={c.busy.value || this.rerunBusy}
+                  readonly={this.readonly}
+                  selection={resultSelection}
+                  source={this.resultSource}
+                  state={this.resultState}
+                  timezone={this.timezone}
+                  transfer
+                  onChange={this.patchResult}
+                  onClose={this.closeResult}
+                  onExecution={this.closeResult}
+                  onRerun={this.requestRerun}
+                  onShare={() => this.$emit('share', resultSelection)}
+                />
+              )}
+              <Dialog
+                beforeClose={() => !this.rerunBusy}
+                isShow={!!this.rerunHost}
+                quickClose={false}
+                title={this.t('确认重新采集？')}
+                onClosed={() => {
+                  if (!this.rerunBusy) this.rerunHost = null;
+                }}
+              >
+                {{
+                  default: () => (
+                    <>
+                      <p>{this.rerunHost?.ip}</p>
+                      <p>{this.t('仅使用本次执行的历史配置重新采集当前主机，原有执行计划保持不变。')}</p>
+                      {this.rerunError && (
+                        <Alert
+                          theme='danger'
+                          title={this.rerunError}
+                        />
+                      )}
+                    </>
+                  ),
+                  footer: () => (
+                    <div class='collection-dialog-footer'>
+                      <Button
+                        v-tippy={this.t('确认重新采集当前主机')}
+                        disabled={this.readonly}
+                        loading={this.rerunBusy}
+                        theme='primary'
+                        onClick={this.confirmRerun}
+                      >
+                        {this.t('确定')}
+                      </Button>
+                      <Button
+                        v-tippy={this.t('取消本次操作')}
+                        disabled={this.rerunBusy}
+                        onClick={() => {
+                          this.rerunHost = null;
+                        }}
+                      >
+                        {this.t('取消')}
+                      </Button>
+                    </div>
                   ),
                 }}
               </Dialog>

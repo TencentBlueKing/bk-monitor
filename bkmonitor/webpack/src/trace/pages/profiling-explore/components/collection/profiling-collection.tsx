@@ -72,7 +72,7 @@ export default defineComponent({
     created: () => true,
     result: (_value: CollectionResultSelection, _newPage: boolean) => true,
     busy: (_value: boolean) => true,
-    share: () => true,
+    share: (_value?: CollectionResultSelection | null) => true,
   },
   setup(props, { emit }) {
     const { t } = useI18n();
@@ -389,6 +389,7 @@ export default defineComponent({
                 onChange={history => this.patch({ history, historyTaskName: history.task_name, historyTaskId: null })}
                 onCreated={() => this.$emit('created')}
                 onResult={(value, newPage) => this.$emit('result', value, newPage)}
+                onShare={value => this.$emit('share', value)}
               />
             ) : (
               <CollectionResults
@@ -409,7 +410,7 @@ export default defineComponent({
                 }}
                 onCreated={() => this.$emit('created')}
                 onResult={(value, newPage) => this.$emit('result', value, newPage)}
-                onShare={() => this.$emit('share')}
+                onShare={value => this.$emit('share', value)}
               />
             )}
           </>
