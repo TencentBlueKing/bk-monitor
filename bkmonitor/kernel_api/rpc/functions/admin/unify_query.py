@@ -14,8 +14,8 @@ class QuerySerializer(serializers.Serializer):
     bk_tenant_id = serializers.CharField(max_length=128)
     bk_biz_id = serializers.IntegerField(min_value=1, default=lambda: settings.DEFAULT_BK_BIZ_ID)
     promql = serializers.CharField(max_length=65536)
-    start = serializers.FloatField(min_value=0)
-    end = serializers.FloatField(min_value=0)
+    start = serializers.IntegerField(min_value=0)
+    end = serializers.IntegerField(min_value=0)
     step = serializers.IntegerField(min_value=1)
 
     def validate(self, attrs):
@@ -37,8 +37,8 @@ class QuerySerializer(serializers.Serializer):
             "bk_tenant_id": {"type": "string", "minLength": 1},
             "bk_biz_id": {"type": "integer", "minimum": 1, "description": "缺省使用 DEFAULT_BK_BIZ_ID"},
             "promql": {"type": "string", "minLength": 1, "maxLength": 65536},
-            "start": {"type": "number", "minimum": 0, "description": "Unix 秒"},
-            "end": {"type": "number", "minimum": 0, "description": "Unix 秒"},
+            "start": {"type": "integer", "minimum": 0, "description": "Unix 秒"},
+            "end": {"type": "integer", "minimum": 0, "description": "Unix 秒"},
             "step": {"type": "integer", "minimum": 1, "description": "采样步长，秒"},
         },
         "additionalProperties": False,

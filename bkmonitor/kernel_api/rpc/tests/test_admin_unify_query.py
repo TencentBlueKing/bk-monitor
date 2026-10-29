@@ -11,7 +11,7 @@ from kernel_api.rpc.registry import KernelRPCRegistry
 
 
 def params(**overrides):
-    return {"bk_tenant_id": "system", "promql": "up", "start": 100, "end": 200, "step": 60, **overrides}
+    return {"bk_tenant_id": "system", "promql": "up", "start": 1790100000, "end": 1790103600, "step": 60, **overrides}
 
 
 def test_registered_with_machine_readable_schema():
@@ -27,7 +27,7 @@ def test_defaults_business_and_preserves_partial_results(monkeypatch):
     monkeypatch.setattr(unify_query.api.unify_query, "query_data_by_promql", provider)
     response = unify_query.query(params())
     provider.assert_called_once_with(
-        bk_tenant_id="system", bk_biz_ids=["7"], promql="up", start="100.0", end="200.0", step="60s"
+        bk_tenant_id="system", bk_biz_ids=["7"], promql="up", start="1790100000", end="1790103600", step="60s"
     )
     assert response["data"] == {"source": {"bk_tenant_id": "system", "bk_biz_id": 7}, "result": raw}
     assert response["meta"]["safety_level"] == "read"
