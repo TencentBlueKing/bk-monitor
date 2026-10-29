@@ -1845,7 +1845,6 @@ class QueryLogRelationByIndexSetIdResource(Resource):
                 ],
             )
             if response:
-                ensure_complete_relation(response)
                 for each_data in response.get("data", []):
                     for target in each_data.get("target_list", []):
                         for item in target.get("items", []):
@@ -1855,6 +1854,8 @@ class QueryLogRelationByIndexSetIdResource(Resource):
                             ).first()
                             if app:
                                 return {"bk_biz_id": app.bk_biz_id, "app_name": app_name}
+                # 已知关联足以完成跳转；只有没有匹配时才要求结果完整。
+                ensure_complete_relation(response)
 
         return {}
 

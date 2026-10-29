@@ -140,7 +140,21 @@ def test_direct_instance_consumer_accepts_complete_nonempty(consumer):
     ]
 
 
-def test_log_to_apm_checks_whole_batch_before_returning_first_match(consumer):
+@pytest.mark.parametrize(
+    ("quality", "targets", "app_exists", "raises_incomplete"),
+    [
+        pytest.param({}, [{"apm_application_name": "demo"}], True, False, id="complete-match"),
+        pytest.param({"partial": True}, [{"apm_application_name": "demo"}], True, False, id="partial-match"),
+        pytest.param({}, [{"apm_application_name": "demo"}], False, False, id="complete-unmatched"),
+        pytest.param({"partial": True}, [{"apm_application_name": "demo"}], False, True, id="partial-unmatched"),
+        pytest.param({}, [], False, False, id="complete-empty"),
+        pytest.param({"partial": True}, [], False, True, id="partial-empty"),
+        pytest.param({"code": 400, "truncated": True}, [], False, True, id="truncated-empty"),
+    ],
+)
+def test_log_to_apm_returns_known_match_and_checks_completeness_on_miss(
+    consumer, quality, targets, app_exists, raises_incomplete
+):
     ns = vars(consumer)
     empty_qs = Mock()
     empty_qs.exists.return_value = False
@@ -158,14 +172,19 @@ def test_log_to_apm_checks_whole_batch_before_returning_first_match(consumer):
         TraceDataSource=SimpleNamespace(objects=SimpleNamespace(filter=lambda **_: empty_qs)),
         ApmApplication=Mock(),
     )
+    ns["ApmApplication"].objects.filter.return_value.first.return_value = (
+        SimpleNamespace(bk_biz_id=2) if app_exists else None
+    )
     load_definitions("apm/resources.py", ["QueryLogRelationByIndexSetIdResource"], ns, ["perform_request"])
-    consumer.api.unify_query.query_multi_resource_range.return_value = {
-        "data": [result(targets=[{"apm_application_name": "demo"}]), result(partial=True)]
-    }
+    consumer.api.unify_query.query_multi_resource_range.return_value = {"data": [result(targets=targets, **quality)]}
+    resource = ns["QueryLogRelationByIndexSetIdResource"]()
+    params = {"index_set_id": 1, "bk_data_id": 1001, "bk_biz_id": 2}
     with patch.dict(sys.modules, {"apm_web.models": models}):
-        with pytest.raises(IncompleteRelationError):
-            ns["QueryLogRelationByIndexSetIdResource"]().perform_request({"index_set_id": 1, "bk_data_id": 1001})
-    ns["ApmApplication"].objects.filter.assert_not_called()
+        if raises_incomplete:
+            with pytest.raises(IncompleteRelationError):
+                resource.perform_request(params)
+        else:
+            assert resource.perform_request(params) == ({"bk_biz_id": 2, "app_name": "demo"} if app_exists else {})
 
 
 def test_host_list_does_not_swallow_incomplete_or_write_cache(consumer):
