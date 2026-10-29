@@ -1,6 +1,6 @@
 # RUM 检索接口协议
 
-## 1 公共数据结构
+## 1 公共约定与数据结构
 
 ### 1.1 Filter
 
@@ -10,7 +10,7 @@
 |----------|--------|----|------------------------|
 | key      | String | 是  | 查询键                    |
 | operator | String | 是  | 操作符                    |
-| value    | Array  | 是  | 查询值列表（元素类型为任意 JSON 值）  |
+| value    | Array  | 是  | 查询值列表，支持字符串、数值和布尔值  |
 | options  | Object | 否  | 操作符选项，见 Filter.options |
 
 - Filter.options
@@ -60,45 +60,13 @@
 
 消费端仅在字段存在时为对应展示项增加虚线标识，并在 Hover 时展示内容；字段缺失时不展示虚线。
 
-### 1.3 Session 与 View 降级查询
+### 1.3 调用约定
 
-`mode=session` 和 `mode=view` 支持字段配置、查询串生成、字段候选值、TopK、字段统计和列表查询。字段目录只包含约定保留的原始字段与计算字段，分别由 `semconv/rum/session` 和 `semconv/rum/view` 维护，共用字段定义位于 `semconv/rum/common.py`。
+先按 `mode` 获取 `view_config`，再查询列表或字段分析。详情使用对应记录 ID，时间线使用 Session ID 或 View ID。
 
-| 能力 | 无预计算表时的行为 |
-| --- | --- |
-| 字段配置 | 直接返回语义目录，不依赖 UQ 字段发现 |
-| 原始字段分析 | Session 使用 `span_type=session AND session.phase=start`，View 使用 `span_type=view AND view.phase=update` |
-| 计算字段 | 列表可以展示，通过字段能力元数据关闭分析、筛选与排序入口 *[1]* |
-| 列表 | 在检索窗口内按有效的 Session ID 或 View ID 折叠匹配 Span，再分页 |
-| 补查 | 按当前页 ID 查询数据保留期内的关联记录，不继承列表筛选条件 |
-| 关闭状态 | `phase=end` 返回 `is_active=false`、`close_reason=normal` 和结束时间，其余状态不推测超时 |
-
-- *[1] `start_time` 允许用于列表排序，排序依据匹配 Span 的时间；补查后的实体开始时间为 `min(start_time)`，不重新排列当前页。其余计算字段须有预计算表才能用于排序。*
-- *[2] 字段分析统计的是所选阶段的事件，View 的多条 `update` 会分别计数。*
-- *[3] 分页由序列化器校验 `offset >= 0`、`limit >= 1`，查询层不另设条数上限。缺失指标按现有统计逻辑处理，聚合查询沿用基类的异常处理。*
-- *[4] `record_detail` 支持按 Session ID / View ID 查询，`timeline` 支持按 `session_id` 或 `view_id` 查询时间线。*
-
-Span、Session、View 共用 `BaseRumQuery.query_fields` 的语义目录兜底。Span 或已具备层级表的数据源会合并 UQ 元数据；查询失败仍返回 semconv 中的字段。降级模式下，Session / View 不请求 UQ 字段发现。服务端不再额外解析检索语句或校验字段白名单，消费端按能力元数据选择可用操作。
-
-计算字段能力示例：
-
-```json
-{
-  "field_name": "error_count",
-  "field_alias": "错误数量",
-  "field_type": "long",
-  "origin_field": "error_count",
-  "is_real": false,
-  "is_list": true,
-  "is_searchable": false,
-  "is_agg": false,
-  "supported_operations": []
-}
-```
-
-服务端所有数据源都声明对应 `levels[name=view/session].table_ids` 时，查询切换到层级表，计算字段开放分析、筛选和排序，列表不再执行原始 Span 补查。层级表未全部就绪时，所有数据源统一使用降级查询。
-
-`frustration_count` 表示挫败行为数，统计 `attributes.span_type=action` 且 `attributes.action.frustration.type` 包含 `rage_click`、`dead_click`、`error_click` 中任一类型的 Action 记录。同一条 Action 即使命中多个类型也只计一次，无匹配记录时返回 `0`。该字段位于 Session / View 的「数量统计」分组，降级模式下通过当前页补查获得，不支持分析、筛选或排序。
+- 请求中的 `start_time`、`end_time` 为 Unix 秒级时间戳，响应中的时间与时长按 `field_unit` 解释（`us` 为微秒，`ms` 为毫秒）。
+- `list_records` 返回扁平字段名（如 `attributes.session.id`），详情的 `origin_data` 保留原始嵌套结构。
+- Session/View 的字段分析按记录计数，统计去重实体数时使用 `statistics`，对相应的 Session ID / View ID 执行 `distinct`。
 
 ---
 
@@ -120,7 +88,7 @@ POST /rum/search/list_records/
 | offset       | Integer       | 否  | 分页偏移量，默认 0，最小 0                                                     |
 | limit        | Integer       | 否  | 每页数量，默认 10，最小 1                                                     |
 | sort         | Array[String] | 否  | 排序条件，字段名前加 `-` 表示降序，默认 `[]`                                         |
-| filters      | Array[Filter] | 否  | 过滤条件，见 [1.1 Filter](#filter)，默认 `[]`                                |
+| filters      | Array[Filter] | 否  | 过滤条件，见 [1.1 Filter](#11-filter)，默认 `[]`                                |
 | query_string | String        | 否  | 查询字符串，默认 `""`                                                       |
 
 ```json
@@ -150,7 +118,7 @@ POST /rum/search/list_records/
 
 #### 2.1.2 Response
 
-返回包含 `list` 字段的分页结构。
+返回包含 `list` 的分页结果，不返回总条数。Session/View 每项对应一个 Session/View，计数和持续时长描述该实体，而非当前筛选条件下的事件数量。
 
 ```json
 {
@@ -159,8 +127,8 @@ POST /rum/search/list_records/
       "span_id": "29926da51cae17cf",
       "trace_id": "206fa04fb665bf8ef1fba9255b59c3e1",
       "span_name": "browser.resource",
-      "start_time": 1783338028554800,
-      "end_time": 1783338029588300,
+      "start_time": 1785999805554800,
+      "end_time": 1785999806588300,
       "elapsed_time": 1033500,
       "attributes.span_type": "resource",
       "status.code": 0
@@ -168,6 +136,28 @@ POST /rum/search/list_records/
   ]
 }
 ```
+
+Session 请求与响应节选：
+
+```json
+{"bk_biz_id": 2, "app_name": "rum-demo", "mode": "session", "start_time": 1785999805, "end_time": 1786003405, "limit": 10}
+```
+
+```json
+{"list": [{"attributes.session.id": "sess-001", "start_time": 1785999805000000, "duration": 300000000, "view_count": 2}]}
+```
+
+View 请求与响应节选：
+
+```json
+{"bk_biz_id": 2, "app_name": "rum-demo", "mode": "view", "start_time": 1785999805, "end_time": 1786003405, "limit": 10}
+```
+
+```json
+{"list": [{"attributes.view.id": "view-001", "attributes.view.url_template": "/order", "start_time": 1785999805000000, "error_count": 0}]}
+```
+
+`frustration_count` 为挫败行为数：包含 `rage_click`、`dead_click`、`error_click` 任一类型的 Action 计一次，同一 Action 命中多个类型也只计一次，无匹配记录时为 `0`。
 
 ### 2.2 view_config - 页面视图配置
 
@@ -195,6 +185,8 @@ GET /rum/search/view_config/?app_name=rum-demo&bk_biz_id=2
 
 #### 2.2.2 Response
 
+按 `is_list`、`is_searchable`、`is_agg` 和 `supported_operations` 决定展示、过滤与分析能力，使用 `default_sort` 作为默认排序。字段渲染使用 `field_display_type`、`field_unit` 和 `option_values`。
+
 顶层结构：
 
 | 参数名称                     | 类型            | 描述                                                                      |
@@ -204,6 +196,7 @@ GET /rum/search/view_config/?app_name=rum-demo&bk_biz_id=2
 | groups                   | Array[Group]  | 分组列表，每个分组通过 `field_names` 引用 `fields` 中的字段                              |
 | display_fields           | Array[String] | 列表页默认展示的字段名列表                                                           |
 | resident_fields          | Array[String] | 常驻筛选字段名列表，前端置顶展示并默认带出这些筛选维度                                        |
+| span_type_resident_fields | Object | 各 Span 类型的常驻筛选字段，仅 `mode=span` 返回 |
 | span_type_display_fields | Object        | 各 Span 类型的默认展示字段，key 为 Span 类型，value 为字段名列表；前端切换类型时使用此配置（只在 span 视图下返回） |
 
 - Field
@@ -237,7 +230,7 @@ GET /rum/search/view_config/?app_name=rum-demo&bk_biz_id=2
 | 参数名称  | 类型     | 描述                                |
 |-------|--------|-----------------------------------|
 | value | String | 枚举值                               |
-| alias | String | 枚举别名，有别名时 UI 展示格式为 `alias(value)` |
+| alias | String | 枚举别名，列表只展示别名，候选项与分析展示 `alias(value)` |
 
 - RatingConfig
 
@@ -511,7 +504,7 @@ POST /rum/search/get_fields_option_values/
 | end_time     | Integer       | 是  | 结束时间（Unix 秒级时间戳）                                                    |
 | fields       | Array[String] | 是  | 查询字段列表                                                              |
 | limit        | Integer       | 否  | 每个字段返回的枚举值数量，默认 10，最小 1                                             |
-| filters      | Array[Filter] | 否  | 过滤条件，见 [1.1 Filter](#filter)，默认 `[]`                                |
+| filters      | Array[Filter] | 否  | 过滤条件，见 [1.1 Filter](#11-filter)，默认 `[]`                                |
 | query_string | String        | 否  | 查询字符串，默认 `""`                                                       |
 
 ```json
@@ -538,8 +531,8 @@ POST /rum/search/get_fields_option_values/
 {
   "attributes.span_type": [
     "resource",
-    "document",
-    "route",
+    "view",
+    "error",
     "action"
   ]
 }
@@ -566,7 +559,7 @@ POST /rum/search/generate_query_string/
 
 - Filter
 
-见 [1.1 Filter](#filter)。
+见 [1.1 Filter](#11-filter)。
 
 ```json
 {
@@ -594,7 +587,7 @@ POST /rum/search/generate_query_string/
 返回转换后的查询字符串（String）。
 
 ```json
-"attributes.span_type: (\"http\" OR \"resource\")"
+"attributes.span_type: \"resource\""
 ```
 
 ### 2.5 fields_topk - 字段 Top-K
@@ -789,14 +782,13 @@ POST /rum/search/field_statistics_graph/
 | filters      | Array[Filter] | 否  | 过滤条件，默认 `[]`                                                        |
 | query_string | String        | 否  | 查询字符串，默认 `""`                                                       |
 
-- Field（`field_type=keyword` 时 `values` 传 topk5 的值；`field_type` 为数字类型时 `values` 至少需要 4 个值，传 topk 接口返回的
-  `list[*].value`）
+- Field：非数值类型的 `values` 传 TopK 返回的 `list[*].value`，数值类型按 `[min_value, max_value, distinct_count, interval_num]` 传值。前三项取 `field_statistics_info` 的 `value_analysis.min`、`value_analysis.max`、`distinct_count`，最后一项为期望区间数。
 
 | 参数名称       | 类型                    | 必填 | 描述                                                                       |
 |------------|-----------------------|----|--------------------------------------------------------------------------|
 | field_name | String                | 是  | 字段名称                                                                     |
-| field_type | String                | 是  | 字段类型，枚举值：`keyword` / `numeric`                                           |
-| values     | Array[Integer/String] | 否  | 数值类：min_value, max_value, distinct_count, interval_num<br/>字符类：传 topk 的值 |
+| field_type | String                | 是  | 字段类型：`keyword`、`boolean`、`integer`、`long`、`float`、`double`                                           |
+| values     | Array | 数值类型必填 | 数值类至少四项，顺序见上文<br/>非数值类传 TopK 的值 |
 
 ```json
 {
@@ -873,7 +865,7 @@ POST /rum/search/download_topk/
 
 #### 2.8.1 Request
 
-与 [field_topk](#25-field_topk---字段-top-k) 接口参数完全一致。
+沿用 [fields_topk](#25-fields_topk---字段-top-k) 的参数，但 `fields` 必须且只能包含一个字段。
 
 | 参数名称         | 类型            | 必填 | 描述                                                                  |
 |--------------|---------------|----|---------------------------------------------------------------------|
@@ -999,7 +991,6 @@ POST /rum/meta/application/list_application/
 }
 ```
 
-
 ### 2.10 statistics - 数据统计
 
 POST /rum/search/statistics/
@@ -1012,17 +1003,16 @@ POST /rum/search/statistics/
 | app_name     | string        | 是   | 应用名称                                                                                                                         |
 | mode | String | 否 | 查询层级模式，可选 `span`、`view`、`session`，默认 `span` |
 | group_name   | string        | 是   | 计算组，可选 `origin`（原始字段）。                                                                                              |
-| cal_type     | string        | 是   | 指标计算类型，可选 `count`（计数）、`sum`（求和）、`distinct`（去重计数）、`max`（最大值）、`min`（最小值）、`avg`（平均值）     |
+| cal_type     | string        | 是   | 指标计算类型，可选 `count`（计数）、`sum`（求和）、`distinct`（去重计数）、`max`（最大值）、`min`（最小值）、`avg`（平均值）、`cp50`（中位数）     |
 | field        | string         | 是   | 计算字段，例如 `attributes.user.id`。                                                                                            |
 | start_time   | int           | 否   | 开始时间（Unix 时间戳，秒）                                                                                                      |
 | end_time     | int           | 否   | 结束时间（Unix 时间戳，秒）                                                                                                      |
 | baseline     | string        | 否   | 对比基准时间偏移，默认 `0s`，表示当前查询窗口                                                                                        |
 | time_shifts  | List[string]  | 否   | 时间偏移列表，支持 `1h`（1 小时前）、`1d`（1 天前）、`1w`（1 周前）、`1M`（一月前）等格式，最多支持 2 个对比时间点 |
-| filters      | Array[Filter] | 否   | 过滤条件，见 [1.1 Filter](#filter)，默认 `[]`                                                                                    |
+| filters      | Array[Filter] | 否   | 过滤条件，见 [1.1 Filter](#11-filter)，默认 `[]`                                                                                    |
 | query_string | String        | 否   | 查询字符串，默认 `""`                                                                                                            |
 | group_by     | List[string]  | 否   | 分组字段；包含 `time` 时按 `interval` 分桶（`time` 为虚拟字段）                                                                                                       |
 | interval | Integer | 否 | 分桶间隔（秒），正整数，仅在 `group_by` 含 `time` 时生效，缺省时按查询窗口自动计算 |
-
 
 例如，查询某个错误影响用户数，并返回相对前一个窗口的环比：
 
@@ -1092,11 +1082,19 @@ POST /rum/search/record_detail/
 |----------|------|------|------|
 | bk_biz_id | Integer | 是 | 业务 ID |
 | app_name | String | 是 | 应用名称 |
-| mode | String | 否 | 查询层级，默认 `span`，以下示例均为 Span 详情 |
+| mode | String | 否 | 查询层级，可选 `span`、`view`、`session`，默认 `span` |
 | record_id | String | 是 | `mode=span` 取 `span_id`，`mode=view` 取 `attributes.view.id`，`mode=session` 取 `attributes.session.id` |
 
 ```json
 {"bk_biz_id": 2, "app_name": "rum-demo", "mode": "span", "record_id": "7d2f09b6f8bc31aa"}
+```
+
+```json
+{"bk_biz_id": 2, "app_name": "rum-demo", "mode": "view", "record_id": "view-001"}
+```
+
+```json
+{"bk_biz_id": 2, "app_name": "rum-demo", "mode": "session", "record_id": "sess-001"}
 ```
 
 #### 2.11.2 Response
@@ -1229,7 +1227,7 @@ Session 详情的概览包含类型、应用、入口页面、退出页面、开
 
 ##### 2）Resource（其他资源）
 
-```json
+```jsonc
 {
   // origin_data 结构同示例 1，字段值取当前 Span。
   "span_id": "8e301ac709bd42bb",
@@ -1281,7 +1279,7 @@ Session 详情的概览包含类型、应用、入口页面、退出页面、开
 
 ##### 3）Action
 
-```json
+```jsonc
 {
   // origin_data 结构同示例 1，字段值取当前 Span。
   "span_id": "e121536e5ae785a0",
@@ -1309,7 +1307,7 @@ Session 详情的概览包含类型、应用、入口页面、退出页面、开
 
 ##### 4）Long Task
 
-```json
+```jsonc
 {
   // origin_data 结构同示例 1，字段值取当前 Span。
   "span_id": "c49ddfc2ac5214d7",
@@ -1337,7 +1335,7 @@ Session 详情的概览包含类型、应用、入口页面、退出页面、开
 
 ##### 5）Error
 
-```json
+```jsonc
 {
   // origin_data 结构同示例 1，字段值取当前 Span。
   "span_id": "9d199175096474e4",
@@ -1363,7 +1361,7 @@ Session 详情的概览包含类型、应用、入口页面、退出页面、开
 
 ##### 6）Vital
 
-```json
+```jsonc
 {
   // origin_data 结构同示例 1，字段值取当前 Span。
   "span_id": "ea1ae6490e17fd9d",
@@ -1429,7 +1427,7 @@ Session 详情的概览包含类型、应用、入口页面、退出页面、开
 
 ##### 7）View
 
-```json
+```jsonc
 {
   // origin_data 结构同示例 1，字段值取当前 Span。
   "span_id": "34e3b6ff1943346c",
@@ -1598,9 +1596,36 @@ Session 详情的概览包含类型、应用、入口页面、退出页面、开
 - *[1] `total_duration` 取 `attributes.view.loading_time`，缺失时省略。*
 - *[2] `loading_timing` 仅用于首次加载，`page_stable` 仅用于自动 Loading Time。*
 
+##### 8）Session
+
+响应节选：
+
+```json
+{
+  "span_id": "35cbe1aaf204b985",
+  "overview": {
+    "title": "session",
+    "badges": [],
+    "items": [
+      {"field_name": "display.span_type", "field_alias": "类型", "value": "Session", "alias": "Session"},
+      {"field_name": "app_name", "value": "rum-demo"},
+      {"field_name": "enter_url_template", "field_alias": "入口页面", "value": "/"},
+      {"field_name": "exit_url_template", "field_alias": "退出页面", "value": "/order"},
+      {"field_name": "start_time", "value": 1785999805000000},
+      {"field_name": "end_time", "value": null},
+      {"field_name": "attributes.user.id", "value": "user-001"},
+      {"field_name": "resource.deployment.environment.name", "value": "prod"}
+    ]
+  },
+  "sections": []
+}
+```
+
 ### 2.12 timeline - 会话时间线
 
 POST /rum/search/timeline/
+
+按 `session_id` 或 `view_id` 二选一查询，无需传 `mode`。不分页，单次最多读取 `10000` 条记录。
 
 #### 2.12.1 Request
 
