@@ -30,7 +30,7 @@ import { getBkciProjects } from '../services/ai-config';
 import type { TBkciProjectsResult } from '../typings';
 
 /**
- * @description 蓝盾项目下拉选择数据加载逻辑（全量加载，初始化时拉取一次）
+ * @description 当前操作人的蓝盾项目候选项，展开选择器时加载
  */
 export function useBkciProjectsSelect() {
   /** 项目选项列表 */
@@ -39,37 +39,45 @@ export function useBkciProjectsSelect() {
   const loading = shallowRef(false);
   /** id -> 名称 的映射表，供外部按 id 反查展示名称（如详情回显） */
   const nameMap = shallowRef<Map<string, string>>(new Map());
+  let loaded = false;
+  let pending: null | Promise<boolean> = null;
 
   /**
    * @description 调用接口查询蓝盾项目全量列表
    */
-  const fetchList = async () => {
-    // 已有请求在执行中则跳过，防止重复并发请求
-    if (loading.value) return;
+  const fetchList = () => {
+    // 空列表也是有效结果；仅成功后缓存，失败时允许下次展开重试。
+    if (loaded) return Promise.resolve(true);
+    if (pending) return pending;
     loading.value = true;
 
-    try {
-      const data = await getBkciProjects({});
-      const items = data.list ?? [];
-      // 填充 id -> 名称映射，供外部回显使用
-      const tempMap = new Map();
-      for (const item of items) {
-        tempMap.set(item.id, item.name);
+    pending = (async () => {
+      try {
+        const data = await getBkciProjects({});
+        const items = data.list ?? [];
+        const tempMap = new Map();
+        for (const item of items) {
+          tempMap.set(item.id, item.name);
+        }
+        nameMap.value = tempMap;
+        list.value = items;
+        loaded = true;
+        return true;
+      } catch {
+        // 接口错误由全局拦截器提示，这里只恢复可重试状态。
+        return false;
       }
-      nameMap.value = tempMap;
-      list.value = items;
-    } finally {
+    })().finally(() => {
       loading.value = false;
-    }
+      pending = null;
+    });
+    return pending;
   };
-
-  /** 初始加载 / 详情回显：拉取全量列表并填充映射表 */
-  const fetchDataInit = () => fetchList();
 
   return {
     list,
     loading,
     nameMap,
-    fetchDataInit,
+    fetchList,
   };
 }

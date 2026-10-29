@@ -11,6 +11,8 @@ specific language governing permissions and limitations under the License.
 import json
 from json import JSONDecodeError
 
+from bkoauth.client import oauth_client
+from bkoauth.exceptions import TokenNotExist
 from django.conf import settings
 from django.http import StreamingHttpResponse
 from django.utils import translation
@@ -18,6 +20,7 @@ from django.utils.translation import gettext as _
 from requests.exceptions import RequestException
 from rest_framework import serializers
 
+from bkmonitor.utils.request import get_request, get_request_username
 from core.drf_resource import APIResource
 from core.errors.api import BKAPIError
 
@@ -43,19 +46,30 @@ class AidevAPIGWResource(APIResource):
 
 
 class AidevPrivateAPIGWResource(APIResource):
-    """优先使用配置的跨环境 Token，否则沿用 BKM 应用凭据和当前用户登录态。"""
+    """固定跨环境 Token 优先；显式指定用户时使用该用户的持久化凭证。"""
 
     base_url = settings.AIDEV_API_BASE_URL
     module_name = "aidev"
     INSERT_BK_USERNAME_TO_REQUEST_DATA = False
 
     def get_headers(self):
-        if not settings.AIDEV_ACCESS_TOKEN:
+        access_token = settings.AIDEV_ACCESS_TOKEN
+        username = getattr(self, "bk_username", "")
+        if not access_token and username:
+            request = get_request(peaceful=True)
+            if request is not None and get_request_username() == username:
+                # 只有配置人自己的登录态可以补齐其凭证，不能用编辑人的登录态代替。
+                oauth_client.get_access_token(request)
+            token = oauth_client.get_access_token_by_user(username)
+            access_token = getattr(token, "access_token", "")
+            if not access_token:
+                raise TokenNotExist("AIDEV execution user access token is empty")
+        if not access_token:
             return super().get_headers()
 
         # Access Token 自带目标环境应用与用户身份，不能混入本环境应用凭据或 Cookie。
         headers = {
-            "x-bkapi-authorization": json.dumps({"access_token": settings.AIDEV_ACCESS_TOKEN}),
+            "x-bkapi-authorization": json.dumps({"access_token": access_token}),
             "X-Bk-Tenant-Id": self._get_tenant_id(),
         }
         language = translation.get_language()

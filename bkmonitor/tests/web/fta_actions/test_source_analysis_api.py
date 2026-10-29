@@ -71,6 +71,12 @@ class TestSourceAnalysisFrontendResources(TestCase):
 
     @classmethod
     def create_rule(cls, **kwargs) -> IssueSourceAnalysisRule:
+        config, created = IssueSourceAnalysisConfig.objects.get_or_create(
+            bk_biz_id=cls.BK_BIZ_ID,
+            defaults={"bkci_project_id": "project-a", "repository_alias": "repo-a"},
+        )
+        if created:
+            IssueSourceAnalysisConfig.objects.filter(pk=config.pk).update(update_user="configurator")
         defaults = {
             "bk_biz_id": cls.BK_BIZ_ID,
             "priority": 1,
@@ -826,8 +832,9 @@ class TestSourceAnalysisFrontendResources(TestCase):
         self.assertEqual(reason, "rule_disabled")
 
     @patch.object(SourceAnalysisExecutionBaseResource, "get_alert_match_dimensions", return_value={})
-    def test_availability_skips_enabled_rule_without_run_as_user(self, _get_dimensions):
+    def test_availability_skips_enabled_rule_without_config_owner(self, _get_dimensions):
         self.create_rule(run_as_user="")
+        IssueSourceAnalysisConfig.objects.filter(bk_biz_id=self.BK_BIZ_ID).update(update_user="unknown")
 
         rule, reason = SourceAnalysisExecutionBaseResource.get_rule_availability(
             self.BK_BIZ_ID,

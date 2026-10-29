@@ -57,19 +57,13 @@ export const updateAiSetting = (params: IAiSetting): Promise<boolean> =>
 export const getSchemeList = (algorithm: EIntelligentAlgorithm): Promise<ISchemeItem[]> =>
   listIntelligentModels({ algorithm }).catch(() => []);
 
-/** 查询蓝盾项目 */
+/** 查询蓝盾项目，失败由选择器处理，不能当作成功的空列表缓存。 */
 export const getBkciProjects = (params: TBkciProjectsParams): Promise<TBkciProjectsResult> =>
-  listSourceAnalysisBkciProjects(params).catch(() => ({
-    list: [],
-    total: 0,
-  }));
+  listSourceAnalysisBkciProjects(params);
 
 /** 查询指定蓝盾项目下的源码仓库 */
 export const getBkciRepositories = (params: TBkciRepositoriesParams): Promise<TBkciRepositoriesResult> =>
-  listSourceAnalysisBkciRepositories(params).catch(() => ({
-    list: [],
-    total: 0,
-  }));
+  listSourceAnalysisBkciRepositories(params);
 
 /** 保存业务代码库配置 */
 export const setSaveSourceAnalysisConfig = (params: TSaveSourceAnalysisConfigParams) =>

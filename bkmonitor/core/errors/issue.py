@@ -117,4 +117,4 @@ class SourceAnalysisOperationConflictError(IssueError):
 class SourceAnalysisExecutionCredentialUnavailableError(IssueError):
     code = 3327014
     name = _lazy("源码分析执行身份不可用")
-    message_tpl = _lazy("无法保存规则执行用户的访问凭证，请重新登录后重试")
+    message_tpl = _lazy("源码分析仓库执行身份或凭证不可用，请由仓库配置人登录后操作；尚未配置执行人时请先保存仓库配置")

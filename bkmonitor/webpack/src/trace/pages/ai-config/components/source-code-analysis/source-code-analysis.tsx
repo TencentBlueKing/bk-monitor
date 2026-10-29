@@ -72,6 +72,7 @@ export default defineComponent({
      */
     const initialBkciProjectId = shallowRef<null | string>(null);
     const initialRepositoryAlias = shallowRef<null | string>(null);
+    const configOwner = shallowRef('');
     /** 蓝盾项目下拉选择 */
     const projectsSelect = useBkciProjectsSelect();
     /** 源码仓库下拉选择（依赖蓝盾项目） */
@@ -174,21 +175,23 @@ export default defineComponent({
      * @description 保存配置，校验必填项
      */
     const handleSaveConfig = async () => {
-      if (!validateConfig() || saveLoading.value) return false;
+      if (!validateConfig() || configLoading.value || saveLoading.value) return false;
+      if (!isEdited.value && !needsOwnerInit.value) return true;
       const params = {
         bkci_project_id: bkciProjectId.value,
         repository_alias: repositoryAlias.value,
       };
       saveLoading.value = true;
-      const success = await setSaveSourceAnalysisConfig(params)
-        .then(() => true)
-        .catch(() => false);
+      const result = await setSaveSourceAnalysisConfig(params).catch(() => null);
+      const success = !!result;
       saveLoading.value = false;
       if (success) {
         Message({ theme: 'success', message: t('保存成功') });
         // 保存成功后更新初始快照，使 isEdited 归位为未编辑状态
         initialBkciProjectId.value = `${params.bkci_project_id}`;
         initialRepositoryAlias.value = `${params.repository_alias}`;
+        configOwner.value = result.updated_by || '';
+        fetchAiResource();
       }
       return success;
     };
@@ -200,14 +203,14 @@ export default defineComponent({
       configLoading.value = true;
       try {
         const data = await getSourceAnalysisConfigData().catch(() => null);
+        // 已保存值独立回填，不依赖当前操作人能否查询配置人的项目与仓库。
         bkciProjectId.value = data?.bkci_project_id || '';
         repositoryAlias.value = data?.repository_alias || '';
         // 初始化加载完成后记录初始快照，作为是否编辑过的基线
         initialBkciProjectId.value = `${bkciProjectId.value}`;
         initialRepositoryAlias.value = `${repositoryAlias.value}`;
-        // 详情回显：拉取项目/仓库全量列表并填充映射表
-        projectsSelect.fetchDataInit();
-        repositoriesSelect.fetchDataInit();
+        configOwner.value = data?.updated_by === 'unknown' ? '' : data?.updated_by || '';
+        if (configOwner.value) fetchAiResource();
       } finally {
         configLoading.value = false;
       }
@@ -239,20 +242,25 @@ export default defineComponent({
     const handleProjectsToggle = (val: boolean) => {
       if (val) {
         projectErrMsg.value = '';
+        return projectsSelect.fetchList();
       }
     };
 
     /**
      * @description 源码仓库下拉展开/收起：展开时清空该校验错误
      */
-    const handleRepositoriesToggle = (val: boolean) => {
+    const handleRepositoriesToggle = async (val: boolean) => {
       if (val) {
         repositoryErrMsg.value = '';
+        if (!(await projectsSelect.fetchList())) return;
+        if (projectsSelect.list.value.some(item => item.id === bkciProjectId.value)) {
+          await repositoriesSelect.fetchList();
+        }
       }
     };
 
     /**
-     * 当前表单是否相对初始快照被修改：仅判断 bkciProjectId / repositoryAlias
+     * 只比较项目与仓库快照，供父页面的离开确认使用
      * 初始快照在 handleInitConfig 完成后写入，初始化前视作未编辑
      */
     const isEdited = computed(() => {
@@ -262,25 +270,32 @@ export default defineComponent({
         `${repositoryAlias.value}` !== `${initialRepositoryAlias.value}`
       );
     });
+    const needsOwnerInit = computed(
+      () => !!initialBkciProjectId.value && !!initialRepositoryAlias.value && !configOwner.value
+    );
 
     const handleAddRule = () => {
       if (configLoading.value || saveLoading.value || saveConfirmVisible.value || !validateConfig()) return;
-      if (initialBkciProjectId.value && initialRepositoryAlias.value && !isEdited.value) {
+      if (initialBkciProjectId.value && initialRepositoryAlias.value && !isEdited.value && !needsOwnerInit.value) {
         handleRuleSliderChange(true);
         return;
       }
 
       saveConfirmVisible.value = true;
       InfoBox({
-        title: t('项目和代码库配置尚未保存，是否保存并继续？'),
-        subTitle: t('保存项目和代码库会同步更新已有规则。'),
+        title: t(
+          needsOwnerInit.value && !isEdited.value
+            ? '仓库配置缺少执行人，是否使用当前用户初始化？'
+            : '项目和代码库配置尚未保存，是否保存并继续？'
+        ),
+        subTitle: t('保存仓库配置会同步更新所有规则，并使用保存人的身份执行。'),
         confirmText: t('保存并继续'),
         cancelText: t('取消'),
         beforeClose: async action => {
           if (saveLoading.value) return false;
           if (action !== 'confirm') return true;
           const success = await handleSaveConfig();
-          return success && !isEdited.value;
+          return success && !isEdited.value && !needsOwnerInit.value;
         },
         onConfirm: () => {
           saveConfirmVisible.value = false;
@@ -321,11 +336,17 @@ export default defineComponent({
     };
 
     const handleChangeBkciProjectId = val => {
+      if (val === bkciProjectId.value) return;
       bkciProjectId.value = val;
       repositoryAlias.value = '';
     };
 
     const fetchAiResource = () => {
+      // 切换仓库配置人后丢弃旧身份的在途响应和本地名称映射。
+      for (const select of [agentSelect, knowledgeBaseSelect, skillSelect]) {
+        select.reset();
+        select.nameMap.value = new Map();
+      }
       agentSelect.fetchList();
       knowledgeBaseSelect.fetchList();
       skillSelect.fetchList();
@@ -335,7 +356,6 @@ export default defineComponent({
       handleInitConfig();
       handleFetchRules();
       fetchMatchRuleFields();
-      fetchAiResource();
     });
 
     return {
@@ -359,7 +379,7 @@ export default defineComponent({
       handleProjectsToggle,
       /** 源码仓库下拉 */
       bkciRepositories: repositoriesSelect.list,
-      repositoriesLoading: repositoriesSelect.loading,
+      repositoriesLoading: computed(() => projectsSelect.loading.value || repositoriesSelect.loading.value),
       /** id -> 名称 映射，供标签/回显反查展示 */
       bkciRepositoriesNameMap: repositoriesSelect.nameMap,
       handleRepositoriesToggle,
@@ -380,6 +400,7 @@ export default defineComponent({
       handleChangeBkciProjectId,
       save: handleSaveConfig,
       isEdited,
+      needsOwnerInit,
       agentNameMap: agentSelect.nameMap,
       knowledgeNameMap: knowledgeBaseSelect.nameMap,
       skillNameMap: skillSelect.nameMap,
@@ -637,12 +658,14 @@ export default defineComponent({
           '2'
         )}
         <Button
+          disabled={this.configLoading || this.saveConfirmVisible || (!this.isEdited && !this.needsOwnerInit)}
           loading={this.saveLoading}
           theme='primary'
           onClick={this.handleSaveConfig}
         >
-          {this.t('保存配置')}
+          {this.t('保存仓库配置')}
         </Button>
+        <span class='repository-save-tip'>{this.t('保存仓库配置会同步更新所有规则，并使用保存人的身份执行。')}</span>
       </div>
     );
   },

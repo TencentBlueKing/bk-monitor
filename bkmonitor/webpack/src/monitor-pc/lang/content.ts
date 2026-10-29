@@ -499,7 +499,11 @@ export default {
   '当前已有配置正在编辑，请先保存或取消': 'A configuration is currently being edited; please save or cancel first.',
   '项目和代码库配置尚未保存，是否保存并继续？':
     'The project and repository configuration is not saved. Save and continue?',
-  '保存项目和代码库会同步更新已有规则。': 'Saving the project and repository will also update existing rules.',
+  '保存仓库配置会同步更新所有规则，并使用保存人的身份执行。':
+    'Saving the repository configuration updates all rules to run as the user saving it.',
+  保存仓库配置: 'Save Repository Configuration',
+  '仓库配置缺少执行人，是否使用当前用户初始化？':
+    'The repository configuration has no execution user. Initialize it with the current user?',
   保存并继续: 'Save and continue',
   保存并应用为全局: 'Save and Apply Globally',
   批量编辑: 'Batch Edit',
