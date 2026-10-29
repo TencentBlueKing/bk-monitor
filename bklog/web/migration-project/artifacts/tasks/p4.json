@@ -1,0 +1,28 @@
+{
+  "id": "P4-MODULE-001",
+  "tapdId": "1010158081139460519",
+  "phase": "P4",
+  "title": "迁移采集步骤中已核对的标签选择和应用类型状态",
+  "status": "NEEDS_REVIEW",
+  "source": [
+    "src/components/collection-access/components/step-add/label-target-dialog.vue",
+    "src/components/collection-access/components/step-add/container-target-item.vue"
+  ],
+  "behaviorMatrix": "migration-project/migration-plan/03-business-behavior-matrix.md",
+  "uiBaseline": "migration-project/migration-plan/05-ui-baseline.md",
+  "command": "node --test src/pilot/pilot-behavior.test.mjs",
+  "exitCode": 0,
+  "pageCheck": {
+    "urlRole": "target",
+    "authSource": "mcp",
+    "loggedOut": false,
+    "reachedRetrieve": true,
+    "interactive": false,
+    "reason": "webpack compile error in @blueking/bkui-library blocked reload; page stayed on init text"
+  },
+  "blocked": [
+    "检索页编译错误",
+    "视觉回归",
+    "整页采集向导"
+  ]
+}

@@ -1,0 +1,59 @@
+{
+  "id": "container-target-item",
+  "source": "src/components/collection-access/components/step-add/container-target-item.vue",
+  "controls": [
+    {
+      "tag": "bk-select",
+      "line": 31,
+      "attrs": {
+        "v-model": "formData.workload_type",
+        "allow-create": true,
+        "clearable": true,
+        "searchable": true
+      },
+      "events": {
+        "toggle": "closeTitle"
+      },
+      "unmapped": []
+    },
+    {
+      "tag": "bk-select",
+      "line": 51,
+      "attrs": {
+        "v-model": "formData.workload_name",
+        ":placeholder": "placeHolderStr",
+        "allow-create": true,
+        "searchable": true
+      },
+      "events": {
+        "toggle": "status => (isOptionOpen = status)"
+      },
+      "unmapped": []
+    },
+    {
+      "tag": "bk-option",
+      "line": 39,
+      "attrs": {
+        ":id": "option.id",
+        ":name": "option.name"
+      },
+      "events": {},
+      "unmapped": []
+    },
+    {
+      "tag": "bk-option",
+      "line": 60,
+      "attrs": {
+        ":id": "option.id",
+        ":name": "option.name"
+      },
+      "events": {},
+      "unmapped": []
+    }
+  ],
+  "invariants": [
+    "searchable 映射为 filterable，allow-create 映射为 creatable",
+    "bk-option 的 :id/:name 映射为 value/label",
+    "@toggle 只转发 boolean，不转发 TDesign context"
+  ]
+}

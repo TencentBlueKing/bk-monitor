@@ -1,0 +1,28 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "bklog.migration.component-contract",
+  "type": "object",
+  "required": ["id", "source", "controls", "invariants"],
+  "properties": {
+    "id": { "type": "string" },
+    "source": { "type": "string" },
+    "controls": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["tag", "line", "attrs", "events"],
+        "properties": {
+          "tag": { "type": "string" },
+          "line": { "type": "integer" },
+          "attrs": { "type": "object" },
+          "events": { "type": "object" },
+          "unmapped": { "type": "array", "items": { "type": "string" } }
+        }
+      }
+    },
+    "invariants": {
+      "type": "array",
+      "items": { "type": "string" }
+    }
+  }
+}

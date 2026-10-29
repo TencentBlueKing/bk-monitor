@@ -1,0 +1,26 @@
+{
+  "tapdId": "1010158081139460519",
+  "phase": "P3",
+  "source": [
+    "src/components/collection-access/components/step-add/label-target-dialog.vue",
+    "src/components/collection-access/components/step-add/container-target-item.vue"
+  ],
+  "contracts": [
+    "migration-project/artifacts/contracts/label-target-dialog.json",
+    "migration-project/artifacts/contracts/container-target-item.json"
+  ],
+  "visualReport": "migration-project/artifacts/visual/p3/report.json",
+  "tdesignVersion": "1.20.10",
+  "commands": {
+    "adapter": 0,
+    "visual": 0,
+    "legacy": 0
+  },
+  "gaps": [
+    "right-icon",
+    "bk-select @toggle context",
+    "bk-dialog",
+    "bk-big-tree",
+    "bk-checkbox"
+  ]
+}

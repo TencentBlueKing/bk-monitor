@@ -1,0 +1,715 @@
+{
+  "routes": [
+    {
+      "file": "src/router/dashboard.js",
+      "path": "/dashboard",
+      "pathLine": 39,
+      "name": "dashboard",
+      "nameLine": 40,
+      "title": ""
+    },
+    {
+      "file": "src/router/dashboard.js",
+      "path": "home",
+      "pathLine": 46,
+      "name": "home",
+      "nameLine": 47,
+      "title": "仪表盘"
+    },
+    {
+      "file": "src/router/dashboard.js",
+      "path": "default-dashboard",
+      "pathLine": 56,
+      "name": "default-dashboard",
+      "nameLine": 57,
+      "title": "仪表盘"
+    },
+    {
+      "file": "src/router/dashboard.js",
+      "path": "create-dashboard",
+      "pathLine": 66,
+      "name": "create-dashboard",
+      "nameLine": 67,
+      "title": "仪表盘"
+    },
+    {
+      "file": "src/router/dashboard.js",
+      "path": "create-folder",
+      "pathLine": 78,
+      "name": "create-folder",
+      "nameLine": 79,
+      "title": "仪表盘"
+    },
+    {
+      "file": "src/router/dashboard.js",
+      "path": "import-dashboard",
+      "pathLine": 90,
+      "name": "import-dashboard",
+      "nameLine": 91,
+      "title": "仪表盘"
+    },
+    {
+      "file": "src/router/index.js",
+      "path": "/un-authorized",
+      "pathLine": 108,
+      "name": "un-authorized",
+      "nameLine": 109,
+      "title": "无权限页面"
+    },
+    {
+      "file": "src/router/index.js",
+      "path": "*",
+      "pathLine": 118,
+      "name": "exception",
+      "nameLine": 119,
+      "title": "无权限页面"
+    },
+    {
+      "file": "src/router/manage.js",
+      "path": "/manage",
+      "pathLine": 159,
+      "name": "manage",
+      "nameLine": 160,
+      "title": ""
+    },
+    {
+      "file": "src/router/manage.js",
+      "path": "log-collection",
+      "pathLine": 186,
+      "name": "log-collection",
+      "nameLine": 187,
+      "title": ""
+    },
+    {
+      "file": "src/router/manage.js",
+      "path": "collection-item",
+      "pathLine": 193,
+      "name": "collection-item",
+      "nameLine": 194,
+      "title": ""
+    },
+    {
+      "file": "src/router/manage.js",
+      "path": "list",
+      "pathLine": 200,
+      "name": "collection-item-list",
+      "nameLine": 201,
+      "title": "日志采集"
+    },
+    {
+      "file": "src/router/manage.js",
+      "path": "manage/:collectorId",
+      "pathLine": 210,
+      "name": "manage-collection",
+      "nameLine": 211,
+      "title": "日志采集"
+    },
+    {
+      "file": "src/router/manage.js",
+      "path": "add",
+      "pathLine": 222,
+      "name": "collectAdd",
+      "nameLine": 223,
+      "title": "日志采集"
+    },
+    {
+      "file": "src/router/manage.js",
+      "path": "edit/:collectorId",
+      "pathLine": 234,
+      "name": "collectEdit",
+      "nameLine": 235,
+      "title": "日志采集"
+    },
+    {
+      "file": "src/router/manage.js",
+      "path": "field/:collectorId",
+      "pathLine": 246,
+      "name": "collectField",
+      "nameLine": 247,
+      "title": "日志采集"
+    },
+    {
+      "file": "src/router/manage.js",
+      "path": "storage/:collectorId",
+      "pathLine": 258,
+      "name": "collectStorage",
+      "nameLine": 259,
+      "title": "日志采集"
+    },
+    {
+      "file": "src/router/manage.js",
+      "path": "masking/:collectorId",
+      "pathLine": 270,
+      "name": "collectMasking",
+      "nameLine": 271,
+      "title": "日志采集"
+    },
+    {
+      "file": "src/router/manage.js",
+      "path": "start/:collectorId",
+      "pathLine": 282,
+      "name": "collectStart",
+      "nameLine": 283,
+      "title": "日志采集"
+    },
+    {
+      "file": "src/router/manage.js",
+      "path": "stop/:collectorId",
+      "pathLine": 294,
+      "name": "collectStop",
+      "nameLine": 295,
+      "title": "日志采集"
+    },
+    {
+      "file": "src/router/manage.js",
+      "path": "log-index-set",
+      "pathLine": 308,
+      "name": "log-index-set",
+      "nameLine": 309,
+      "title": ""
+    },
+    {
+      "file": "src/router/manage.js",
+      "path": "list",
+      "pathLine": 315,
+      "name": "log-index-set-list",
+      "nameLine": 316,
+      "title": "日志采集"
+    },
+    {
+      "file": "src/router/manage.js",
+      "path": "manage/:indexSetId",
+      "pathLine": 325,
+      "name": "log-index-set-manage",
+      "nameLine": 326,
+      "title": "日志采集"
+    },
+    {
+      "file": "src/router/manage.js",
+      "path": "create",
+      "pathLine": 337,
+      "name": "log-index-set-create",
+      "nameLine": 338,
+      "title": "日志采集"
+    },
+    {
+      "file": "src/router/manage.js",
+      "path": "edit/:indexSetId",
+      "pathLine": 349,
+      "name": "log-index-set-edit",
+      "nameLine": 350,
+      "title": "日志采集"
+    },
+    {
+      "file": "src/router/manage.js",
+      "path": "masking/:indexSetId",
+      "pathLine": 361,
+      "name": "log-index-set-masking",
+      "nameLine": 362,
+      "title": "日志采集"
+    },
+    {
+      "file": "src/router/manage.js",
+      "path": "tgpa-task",
+      "pathLine": 376,
+      "name": "tgpa-task",
+      "nameLine": 377,
+      "title": ""
+    },
+    {
+      "file": "src/router/manage.js",
+      "path": "list",
+      "pathLine": 383,
+      "name": "tgpa-task-list",
+      "nameLine": 384,
+      "title": "客户端日志"
+    },
+    {
+      "file": "src/router/manage.js",
+      "path": "clean-config",
+      "pathLine": 393,
+      "name": "clean-config",
+      "nameLine": 394,
+      "title": "清洗配置"
+    },
+    {
+      "file": "src/router/manage.js",
+      "path": "bk-data-collection",
+      "pathLine": 407,
+      "name": "bk-data-collection",
+      "nameLine": 408,
+      "title": ""
+    },
+    {
+      "file": "src/router/manage.js",
+      "path": "list",
+      "pathLine": 414,
+      "name": "bkdata-index-set-list",
+      "nameLine": 415,
+      "title": "计算平台"
+    },
+    {
+      "file": "src/router/manage.js",
+      "path": "manage/:indexSetId",
+      "pathLine": 424,
+      "name": "bkdata-index-set-manage",
+      "nameLine": 425,
+      "title": "计算平台"
+    },
+    {
+      "file": "src/router/manage.js",
+      "path": "create",
+      "pathLine": 436,
+      "name": "bkdata-index-set-create",
+      "nameLine": 437,
+      "title": "计算平台"
+    },
+    {
+      "file": "src/router/manage.js",
+      "path": "edit/:indexSetId",
+      "pathLine": 448,
+      "name": "bkdata-index-set-edit",
+      "nameLine": 449,
+      "title": "计算平台"
+    },
+    {
+      "file": "src/router/manage.js",
+      "path": "masking/:indexSetId",
+      "pathLine": 460,
+      "name": "bkdata-index-set-masking",
+      "nameLine": 461,
+      "title": "计算平台"
+    },
+    {
+      "file": "src/router/manage.js",
+      "path": "es-collection",
+      "pathLine": 474,
+      "name": "es-collection",
+      "nameLine": 475,
+      "title": ""
+    },
+    {
+      "file": "src/router/manage.js",
+      "path": "list",
+      "pathLine": 481,
+      "name": "es-index-set-list",
+      "nameLine": 482,
+      "title": "第三方ES"
+    },
+    {
+      "file": "src/router/manage.js",
+      "path": "manage/:indexSetId",
+      "pathLine": 491,
+      "name": "es-index-set-manage",
+      "nameLine": 492,
+      "title": "第三方ES"
+    },
+    {
+      "file": "src/router/manage.js",
+      "path": "create",
+      "pathLine": 503,
+      "name": "es-index-set-create",
+      "nameLine": 504,
+      "title": "第三方ES"
+    },
+    {
+      "file": "src/router/manage.js",
+      "path": "edit/:indexSetId",
+      "pathLine": 515,
+      "name": "es-index-set-edit",
+      "nameLine": 516,
+      "title": "第三方ES"
+    },
+    {
+      "file": "src/router/manage.js",
+      "path": "masking/:indexSetId",
+      "pathLine": 527,
+      "name": "es-index-set-masking",
+      "nameLine": 528,
+      "title": "第三方ES"
+    },
+    {
+      "file": "src/router/manage.js",
+      "path": "custom-report",
+      "pathLine": 541,
+      "name": "custom-report",
+      "nameLine": 542,
+      "title": ""
+    },
+    {
+      "file": "src/router/manage.js",
+      "path": "list",
+      "pathLine": 548,
+      "name": "custom-report-list",
+      "nameLine": 549,
+      "title": "自定义上报"
+    },
+    {
+      "file": "src/router/manage.js",
+      "path": "create",
+      "pathLine": 558,
+      "name": "custom-report-create",
+      "nameLine": 559,
+      "title": "自定义上报"
+    },
+    {
+      "file": "src/router/manage.js",
+      "path": "edit/:collectorId",
+      "pathLine": 570,
+      "name": "custom-report-edit",
+      "nameLine": 571,
+      "title": "自定义上报"
+    },
+    {
+      "file": "src/router/manage.js",
+      "path": "detail/:collectorId",
+      "pathLine": 582,
+      "name": "custom-report-detail",
+      "nameLine": 583,
+      "title": "自定义上报"
+    },
+    {
+      "file": "src/router/manage.js",
+      "path": "masking/:indexSetId",
+      "pathLine": 594,
+      "name": "custom-report-masking",
+      "nameLine": 595,
+      "title": "自定义上报"
+    },
+    {
+      "file": "src/router/manage.js",
+      "path": "clean-list",
+      "pathLine": 608,
+      "name": "clean-list",
+      "nameLine": 609,
+      "title": ""
+    },
+    {
+      "file": "src/router/manage.js",
+      "path": "list",
+      "pathLine": 615,
+      "name": "log-clean-list",
+      "nameLine": 616,
+      "title": "日志清洗"
+    },
+    {
+      "file": "src/router/manage.js",
+      "path": "create",
+      "pathLine": 625,
+      "name": "clean-create",
+      "nameLine": 626,
+      "title": "日志清洗"
+    },
+    {
+      "file": "src/router/manage.js",
+      "path": "edit/:collectorId",
+      "pathLine": 637,
+      "name": "clean-edit",
+      "nameLine": 638,
+      "title": "日志清洗"
+    },
+    {
+      "file": "src/router/manage.js",
+      "path": "clean-templates",
+      "pathLine": 651,
+      "name": "clean-templates",
+      "nameLine": 652,
+      "title": ""
+    },
+    {
+      "file": "src/router/manage.js",
+      "path": "list",
+      "pathLine": 658,
+      "name": "log-clean-templates",
+      "nameLine": 659,
+      "title": "日志清洗"
+    },
+    {
+      "file": "src/router/manage.js",
+      "path": "create",
+      "pathLine": 668,
+      "name": "clean-template-create",
+      "nameLine": 669,
+      "title": "日志清洗"
+    },
+    {
+      "file": "src/router/manage.js",
+      "path": "edit/:templateId",
+      "pathLine": 680,
+      "name": "clean-template-edit",
+      "nameLine": 681,
+      "title": "日志清洗"
+    },
+    {
+      "file": "src/router/manage.js",
+      "path": "log-desensitize",
+      "pathLine": 694,
+      "name": "log-desensitize",
+      "nameLine": 695,
+      "title": ""
+    },
+    {
+      "file": "src/router/manage.js",
+      "path": "list",
+      "pathLine": 701,
+      "name": "log-desensitize-list",
+      "nameLine": 702,
+      "title": "日志清洗"
+    },
+    {
+      "file": "src/router/manage.js",
+      "path": "grok-manage",
+      "pathLine": 713,
+      "name": "grok-manage",
+      "nameLine": 714,
+      "title": "Grok管理"
+    },
+    {
+      "file": "src/router/manage.js",
+      "path": "archive-repository",
+      "pathLine": 723,
+      "name": "archive-repository",
+      "nameLine": 724,
+      "title": "日志归档"
+    },
+    {
+      "file": "src/router/manage.js",
+      "path": "archive-list",
+      "pathLine": 733,
+      "name": "archive-list",
+      "nameLine": 734,
+      "title": "日志归档"
+    },
+    {
+      "file": "src/router/manage.js",
+      "path": "archive-restore",
+      "pathLine": 743,
+      "name": "archive-restore",
+      "nameLine": 744,
+      "title": "日志归档"
+    },
+    {
+      "file": "src/router/manage.js",
+      "path": "manage-log-extract",
+      "pathLine": 753,
+      "name": "manage-log-extract",
+      "nameLine": 754,
+      "title": "日志提取"
+    },
+    {
+      "file": "src/router/manage.js",
+      "path": "log-extract-task",
+      "pathLine": 763,
+      "name": "log-extract-task",
+      "nameLine": 764,
+      "title": "日志提取"
+    },
+    {
+      "file": "src/router/manage.js",
+      "path": "extract-create",
+      "pathLine": 784,
+      "name": "extract-create",
+      "nameLine": 785,
+      "title": "日志提取"
+    },
+    {
+      "file": "src/router/manage.js",
+      "path": "extract-clone",
+      "pathLine": 796,
+      "name": "extract-clone",
+      "nameLine": 797,
+      "title": "日志提取"
+    },
+    {
+      "file": "src/router/manage.js",
+      "path": "extract-link-manage",
+      "pathLine": 810,
+      "name": "extract-link-manage",
+      "nameLine": 811,
+      "title": ""
+    },
+    {
+      "file": "src/router/manage.js",
+      "path": "list",
+      "pathLine": 817,
+      "name": "extract-link-list",
+      "nameLine": 818,
+      "title": "日志提取"
+    },
+    {
+      "file": "src/router/manage.js",
+      "path": "edit/:linkId",
+      "pathLine": 827,
+      "name": "extract-link-edit",
+      "nameLine": 828,
+      "title": "日志提取"
+    },
+    {
+      "file": "src/router/manage.js",
+      "path": "create",
+      "pathLine": 839,
+      "name": "extract-link-create",
+      "nameLine": 840,
+      "title": "日志提取"
+    },
+    {
+      "file": "src/router/manage.js",
+      "path": "es-cluster-manage",
+      "pathLine": 853,
+      "name": "es-cluster-manage",
+      "nameLine": 854,
+      "title": "ES集群"
+    },
+    {
+      "file": "src/router/manage.js",
+      "path": "report-manage",
+      "pathLine": 863,
+      "name": "report-manage",
+      "nameLine": 864,
+      "title": "订阅管理"
+    },
+    {
+      "file": "src/router/manage.js",
+      "path": "collection-track",
+      "pathLine": 873,
+      "name": "collection-track",
+      "nameLine": 874,
+      "title": "采集接入"
+    },
+    {
+      "file": "src/router/manage.js",
+      "path": "bk-data-track",
+      "pathLine": 883,
+      "name": "bk-data-track",
+      "nameLine": 884,
+      "title": ""
+    },
+    {
+      "file": "src/router/manage.js",
+      "path": "list",
+      "pathLine": 890,
+      "name": "bkdata-track-list",
+      "nameLine": 891,
+      "title": "数据平台接入"
+    },
+    {
+      "file": "src/router/manage.js",
+      "path": "manage/:indexSetId",
+      "pathLine": 900,
+      "name": "bkdata-track-manage",
+      "nameLine": 901,
+      "title": "数据平台接入"
+    },
+    {
+      "file": "src/router/manage.js",
+      "path": "create",
+      "pathLine": 912,
+      "name": "bkdata-track-create",
+      "nameLine": 913,
+      "title": "数据平台接入"
+    },
+    {
+      "file": "src/router/manage.js",
+      "path": "edit/:indexSetId",
+      "pathLine": 924,
+      "name": "bkdata-track-edit",
+      "nameLine": 925,
+      "title": "数据平台接入"
+    },
+    {
+      "file": "src/router/manage.js",
+      "path": "sdk-track",
+      "pathLine": 938,
+      "name": "sdk-track",
+      "nameLine": 939,
+      "title": "SDK接入"
+    },
+    {
+      "file": "src/router/manage.js",
+      "path": "manage-data-link-conf",
+      "pathLine": 948,
+      "name": "manage-data-link-conf",
+      "nameLine": 949,
+      "title": "设置"
+    },
+    {
+      "file": "src/router/manage.js",
+      "path": "collect",
+      "pathLine": 958,
+      "name": "",
+      "nameLine": 0,
+      "title": ""
+    },
+    {
+      "file": "src/router/monitor.js",
+      "path": "/monitor-apm-log/:indexId?",
+      "pathLine": 39,
+      "name": "monitor-apm-log",
+      "nameLine": 40,
+      "title": "APM检索-日志"
+    },
+    {
+      "file": "src/router/monitor.js",
+      "path": "/monitor-trace-log/:indexId?",
+      "pathLine": 50,
+      "name": "monitor-trace-log",
+      "nameLine": 51,
+      "title": "Trace检索-日志"
+    },
+    {
+      "file": "src/router/retrieve.js",
+      "path": "/retrieve/:indexId?",
+      "pathLine": 39,
+      "name": "retrieve",
+      "nameLine": 40,
+      "title": "检索"
+    },
+    {
+      "file": "src/router/retrieve.js",
+      "path": "/client-log-search",
+      "pathLine": 49,
+      "name": "client-log-search",
+      "nameLine": 50,
+      "title": "客户端日志"
+    },
+    {
+      "file": "src/router/retrieve.js",
+      "path": "/template-manage",
+      "pathLine": 59,
+      "name": "templateManage",
+      "nameLine": 60,
+      "title": ""
+    },
+    {
+      "file": "src/router/retrieve.js",
+      "path": "/external-auth/:activeNav?",
+      "pathLine": 65,
+      "name": "externalAuth",
+      "nameLine": 66,
+      "title": "授权列表"
+    },
+    {
+      "file": "src/router/retrieve.js",
+      "path": "/share/:linkId?",
+      "pathLine": 75,
+      "name": "share",
+      "nameLine": 76,
+      "title": "分享链接"
+    },
+    {
+      "file": "src/router/retrieve.js",
+      "path": "/data_id/:id?",
+      "pathLine": 86,
+      "name": "data_id",
+      "nameLine": 87,
+      "title": "根据 bk_data_id 获取采集项和索引集信息"
+    }
+  ],
+  "aliases": [
+    {
+      "file": "src/router/manage.js",
+      "line": 775,
+      "name": "extract-home"
+    }
+  ]
+}
