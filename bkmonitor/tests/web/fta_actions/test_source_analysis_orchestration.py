@@ -982,6 +982,38 @@ class TestSourceAnalysisOrchestration(TestCase):
         )
 
     @patch("fta_web.issue.resources.api.bk_incident.get_source_analysis_task")
+    def test_failed_node_summary_is_persisted_and_returned_in_both_views(self, get_task):
+        execution = self.create_execution(bkfara_task_id="task-1", status=SourceAnalysisStatus.RUNNING)
+        get_task.return_value = {
+            "status": "failed",
+            "terminal": True,
+            "error": {
+                "code": "DEVOPS_BUILD_FAILED",
+                "message": "DevOps pipeline execution failed",
+                "retryable": False,
+                "details": {
+                    "failed_tasks": [
+                        {"task_id": "task-1", "task_name": "Input validation", "error_message": "missing parameter"}
+                    ],
+                    "error_info_list": [{"taskId": "task-1", "errorCode": 2199002}],
+                },
+            },
+        }
+
+        SourceAnalysisExecutionBaseResource.advance_bkfara_task(execution.analysis_id)
+
+        execution.refresh_from_db()
+        self.assertEqual(execution.status, SourceAnalysisStatus.FAILED)
+        self.assertEqual(execution.failure_code, "DEVOPS_BUILD_FAILED")
+        self.assertFalse(execution.failure_retryable)
+        expected = "DevOps pipeline execution failed | Input validation [2199002]: missing parameter"
+        self.assertEqual(execution.failure_message, expected)
+        latest = SourceAnalysisExecutionBaseResource.serialize_execution(execution)
+        overview = SourceAnalysisExecutionBaseResource.build_source_analysis_overview({"latest": latest})
+        self.assertEqual(latest["failure"]["message"], expected)
+        self.assertEqual(overview["latest"]["failure"]["message"], expected)
+
+    @patch("fta_web.issue.resources.api.bk_incident.get_source_analysis_task")
     def test_remote_failure_does_not_persist_incomplete_execution_reference(self, get_task):
         execution = self.create_execution(bkfara_task_id="task-1", status=SourceAnalysisStatus.RUNNING)
         get_task.return_value = {

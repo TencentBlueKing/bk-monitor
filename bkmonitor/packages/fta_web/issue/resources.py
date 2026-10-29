@@ -100,6 +100,7 @@ from fta_web.issue.handlers.issue import (
 )
 from fta_web.issue.serializers import IssueSearchSerializer
 from fta_web.issue.source_analysis import is_issue_ai_analysis_enabled_for_biz
+from fta_web.issue.source_analysis_failure import build_bkfara_failure_message
 from fta_web.issue.source_analysis_notice import send_source_analysis_notice
 from fta_web.issue.source_analysis_result import (
     SOURCE_ANALYSIS_RESULT_SCHEMA_VERSION,
@@ -1550,7 +1551,7 @@ class SourceAnalysisExecutionBaseResource(IssueAIAnalysisWhitelistMixin, Resourc
             execution,
             failure_stage=failure_stage,
             failure_code=str(failure.get("code") or "BKFARA_TASK_FAILED"),
-            failure_message=str(failure.get("message") or SourceAnalysisFailureMessage.BKFARA_TASK_FAILED),
+            failure_message=build_bkfara_failure_message(failure),
             failure_retryable=bool(failure.get("retryable", False)),
             failure_request_id=failure.get("request_id"),
             execution_reference=cls.normalize_execution_reference(task_state),
