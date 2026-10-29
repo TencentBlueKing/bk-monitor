@@ -1,5 +1,7 @@
 """源码分析失败节点摘要：旧协议兼容、去重、脱敏和展示长度边界。"""
 
+import json
+
 from django.test import SimpleTestCase
 
 from constants.issue import SourceAnalysisFailureMessage
@@ -112,6 +114,84 @@ class TestSourceAnalysisFailureSummary(SimpleTestCase):
     def test_truncated_quoted_credential_does_not_leak_trailing_words(self):
         result = build_bkfara_failure_message({"message": 'access_token="first-word secret-tail ' + "x" * 10000})
         self.assertNotIn("secret-tail", result)
+
+    def test_escaped_and_serialized_credentials_are_masked(self):
+        for key in ("password", "access_token", "bk_app_secret", "Authorization"):
+            for secret in ('prefix"private-tail', "prefix\\private-tail", "prefix\nprivate-tail"):
+                text = json.dumps({key: secret})
+                for depth in range(4):
+                    with self.subTest(key=key, secret=secret, depth=depth):
+                        result = build_bkfara_failure_message(
+                            {
+                                "message": text,
+                                "details": {
+                                    "failed_tasks": [{"task_name": text, "error_message": text, "errorCode": text}]
+                                },
+                            }
+                        )
+                        self.assertNotIn("private-tail", result)
+                        self.assertIn("******", result)
+                    text = json.dumps(text)
+
+    def test_multiline_and_html_wrapped_credentials_are_masked(self):
+        for text in (
+            "Authorization: Bearer\nprivate-tail",
+            "access_token=Bearer private-tail",
+            "<b>access_token</b>=private-tail",
+            '<a href="https://docs.example.com/help">access_token</a>=private-tail',
+            'access_token="prefix\\"private-tail',
+        ):
+            with self.subTest(text=text):
+                result = build_bkfara_failure_message({"details": {"failed_tasks": [{"error_message": text}]}})
+                self.assertNotIn("private-tail", result)
+                self.assertIn("******", result)
+
+    def test_deep_html_is_discarded_without_losing_valid_node_fields(self):
+        malformed = "<" * 60 + "a>" * 60
+        result = build_bkfara_failure_message(
+            {
+                "message": malformed,
+                "details": {
+                    "failed_tasks": [{"task_id": malformed, "task_name": "Validation", "error_message": malformed}],
+                    "error_info_list": [{"taskName": malformed, "errorCode": malformed, "errorMsg": "missing input"}],
+                },
+            }
+        )
+        self.assertIn(SourceAnalysisFailureMessage.BKFARA_TASK_FAILED, result)
+        self.assertIn("Validation", result)
+        self.assertIn("missing input", result)
+        self.assertNotIn("<", result)
+
+    def test_plain_error_paragraphs_are_preserved(self):
+        for separator in ("\n\n", "\r\n\r\n"):
+            with self.subTest(separator=separator):
+                result = build_bkfara_failure_message(
+                    {
+                        "message": "pipeline failed",
+                        "details": {
+                            "failed_tasks": [
+                                {
+                                    "task_name": "Validation",
+                                    "error_message": f"Task failed{separator}ValueError: required alert_id is missing",
+                                }
+                            ]
+                        },
+                    }
+                )
+                self.assertEqual(
+                    result, "pipeline failed | Validation: Task failed ValueError: required alert_id is missing"
+                )
+
+    def test_help_links_do_not_hide_following_error_paragraphs(self):
+        result = build_bkfara_failure_message(
+            {
+                "message": (
+                    'Task failed\n\n<a href="https://docs.example.com/help">plugin help</a>'
+                    "\n\nValueError: missing input\n\n======脚本执行失败,问题排查指引======\n通用排障建议"
+                )
+            }
+        )
+        self.assertEqual(result, "Task failed ValueError: missing input")
 
     def test_invalid_nodes_do_not_break_terminal_state_processing(self):
         result = build_bkfara_failure_message(

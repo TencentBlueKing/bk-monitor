@@ -3,6 +3,7 @@
 import re
 from html import unescape
 
+from django.core.exceptions import SuspiciousOperation
 from django.utils.html import strip_tags
 from django.utils.translation import gettext as _
 
@@ -11,12 +12,14 @@ from constants.issue import SourceAnalysisFailureMessage
 
 MAX_FAILURE_MESSAGE_LENGTH = 2000
 MAX_FAILED_TASKS = 5
-# 不把节点错误中可能出现的鉴权头、JSON/命令行凭据直接暴露到页面和通知。
-AUTHORIZATION_PATTERN = re.compile(r"(?im)(?:x-bkapi-authorization|authorization)[\"']?\s*[:=][^\r\n]*")
+# 错误文本可能混合命令行、转义 JSON 和多行 Header，不能靠下一个引号判断凭据的结束。
+# 命中敏感键后保守隐藏整个字段余下的内容；允许序列化产生的多层反斜杠。
 CREDENTIAL_PATTERN = re.compile(
-    r"(?i)\b[\w-]*(?:token|secret|password|api[_-]?key|access[_-]?key|bk_ticket)[\w-]*"
-    r"[\"']?\s*[:=]\s*(?:\"[^\"]*(?:\"|$)|'[^']*(?:'|$)|[^,;\s}\]]+)"
+    r"(?is)\b[\w-]*(?:authorization|token|secret|password|api[_-]?key|access[_-]?key|bk_ticket)[\w-]*"
+    r"[\\\"']*\s*[:=].*"
 )
+PLUGIN_HELP_TITLE_PATTERN = re.compile(r"(?im)^[ \t]*(?:Python脚本执行插件常见问题|plugin help)[ \t]*\r?$")
+PLUGIN_HELP_MARKER = "======脚本执行失败,问题排查指引======"
 
 
 def _summary_text(value, max_length: int) -> str:
@@ -24,11 +27,16 @@ def _summary_text(value, max_length: int) -> str:
         return ""
     # 只处理摘要所需的有限前缀，避免异常大字段拖慢终态落库。
     text = unescape(str(value)[:8000])
-    text = AUTHORIZATION_PATTERN.sub("authorization=******", text)
+    try:
+        text = strip_tags(text)
+    except SuspiciousOperation:
+        # 深度异常的上游 HTML 不应阻止失败终态落库，也不能原样展示。
+        return ""
+    # HTML 清理可能把被标签拆开的敏感键重新连接，脱敏必须在其后进行。
     text = CREDENTIAL_PATTERN.sub("credential=******", text)
-    # 蓝盾插件常把 HTML 帮助链接附在第二段；不展示链接和整段排障指引。
-    text = re.split(r"\r?\n\s*\r?\n", text, maxsplit=1)[0]
-    return " ".join(strip_tags(text).split())[:max_length]
+    # 链接地址已随 HTML 标签去除；只移除已知帮助标题和排障指引，不按空行截断真实原因。
+    text = PLUGIN_HELP_TITLE_PATTERN.sub("", text).partition(PLUGIN_HELP_MARKER)[0]
+    return " ".join(text.split())[:max_length]
 
 
 def build_bkfara_failure_message(failure: dict) -> str:
