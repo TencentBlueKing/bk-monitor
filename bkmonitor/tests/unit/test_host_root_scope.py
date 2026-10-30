@@ -405,6 +405,19 @@ def test_mixed_host_identity_and_business_root_keep_original_scope(production, n
     production.checker(make_token(-100)).query_target_check(actual, "targets.0")
 
 
+@pytest.mark.parametrize("node", [-200, 999, [-200], [999]])
+@pytest.mark.parametrize("reverse", [False, True])
+def test_unrelated_space_mixed_host_and_root_still_validates_business(production, node, reverse):
+    host = {"bk_host_id": "101", "bk_target_ip": "192.0.2.1", "bk_target_cloud_id": "0"}
+    root = {"bk_obj_id": "biz", "bk_inst_id": node}
+    targets = [root, host] if reverse else [host, root]
+    kwargs = (
+        {"is_host_query": True} if "is_host_query" in inspect.signature(production.process_filter).parameters else {}
+    )
+    with pytest.raises(NotFound):
+        production.process_filter(None, -200, {"targets": copy.deepcopy(targets)}, **kwargs)
+
+
 def set_list_route(production, name):
     view_class = type(name, (), {})
     view_class.__module__ = "monitor_web.performance.views"
