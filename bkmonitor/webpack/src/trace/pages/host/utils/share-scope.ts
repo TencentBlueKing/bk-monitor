@@ -80,13 +80,16 @@ export const resolveHostRequestScope = (
   return {};
 };
 
+/** pending：空间入口下的真实业务根，需由本次授权拓扑确认后才能作为请求目标 */
+export type HostInitialScope = HostScopeParams & { pending?: true };
+
 /** Resolve a request target before the topology is available. Unknown share scopes never widen to the business. */
 export const resolveInitialHostScope = (
   readonly: boolean,
   query: Record<string, unknown>,
   nodeId: string,
   bizId: number
-): HostScopeParams | null => {
+): HostInitialScope | null => {
   if (readonly && query.shareTargetType !== undefined) {
     const scope = parseHostShareScope(query);
     if (scope.bk_obj_id === 'biz' && scope.bk_inst_id !== bizId) return null;
@@ -95,9 +98,20 @@ export const resolveInitialHostScope = (
   if (!nodeId) return readonly ? null : { bk_obj_id: 'biz', bk_inst_id: bizId };
   const hostId = /^\d+$/.test(nodeId) ? parseInteger(nodeId) : null;
   if (hostId !== null) return { bk_host_id: hostId };
-  const match = /^([a-zA-Z][\w-]*)\|(\d+)$/.exec(nodeId);
-  const instId = match ? parseInteger(match[2]) : null;
-  if (!match || instId === null || (match[1] === 'biz' && instId !== bizId)) return null;
+  const match = /^([a-zA-Z][\w-]*)\|(-?\d+)$/.exec(nodeId);
+  if (!match) return null;
+  if (match[1] === 'biz' && !readonly) {
+    const rootId = Number(match[2]);
+    // 未关联业务的空间以负 spaceId 作根别名，仅允许等于当前空间
+    if (rootId === bizId && Number.isSafeInteger(rootId) && rootId !== 0) {
+      return { bk_obj_id: 'biz', bk_inst_id: rootId };
+    }
+    // 空间号与真实业务根号不同，不能本地判定是否授权
+    const realRootId = bizId < 0 ? parseInteger(match[2]) : null;
+    return realRootId === null ? null : { bk_obj_id: 'biz', bk_inst_id: realRootId, pending: true };
+  }
+  const instId = parseInteger(match[2]);
+  if (instId === null || (match[1] === 'biz' && instId !== bizId)) return null;
   return { bk_obj_id: match[1], bk_inst_id: instId };
 };
 
@@ -106,10 +120,10 @@ export const hostTargetKey = (node: HostScopeNode) =>
 
 /** Minimal target metadata; request identity is available before the tree labels arrive. */
 export const createHostTarget = (
-  scope: null | { bk_host_id?: number; bk_inst_id?: number; bk_obj_id?: string },
+  scope: null | { bk_host_id?: number; bk_inst_id?: number; bk_obj_id?: string; pending?: true },
   bizId: number
 ): IHostTopoTreeNode | null => {
-  if (!scope) return null;
+  if (!scope || scope.pending) return null;
   if (scope.bk_host_id !== undefined)
     return {
       bk_biz_id: bizId,

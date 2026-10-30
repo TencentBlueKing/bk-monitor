@@ -31,14 +31,14 @@ const inst = (id, children = []) => ({
 const skeleton = () => [inst('biz|1', [inst('set|2', [inst('module|3'), inst('module|4')])])];
 const fullTree = () => [inst('biz|1', [inst('set|2', [inst('module|3', [leaf(11), leaf(12)]), inst('module|4')])])];
 
-function harness(query = {}, readonly = false, workerResponse, requestOwner) {
-  global.window = { cc_biz_id: 1, timezone: 'UTC', i18n: { t: value => value }, rawWindow: requestOwner };
+function harness(query = {}, readonly = false, workerResponse, requestOwner, bizId = 1) {
+  global.window = { cc_biz_id: bizId, timezone: 'UTC', i18n: { t: value => value }, rawWindow: requestOwner };
   global.ResizeObserver = class {
     observe() {}
     disconnect() {}
   };
   const route = vue.reactive({ query, params: {}, fullPath: '/' });
-  const appStore = vue.reactive({ bizId: 1 });
+  const appStore = vue.reactive({ bizId });
   const store = vue.reactive({
     scene: 'host',
     nodeId: '',
@@ -221,6 +221,8 @@ function harness(query = {}, readonly = false, workerResponse, requestOwner) {
           },
         };
       if (id === 'monitor-common/utils/utils') return {};
+      if (id === 'monitor-common/utils/host-monitor-url')
+        return load(path.join(__dirname, '../src/monitor-common/utils/host-monitor-url.ts'));
       if (id.endsWith('/retrieval-filter/typing')) return { EMode: { ui: 'ui' }, EFieldType: {} };
       if (id.endsWith('/across-page-selection')) return { SelectType: {} };
       if (id.endsWith('/constants/host-list'))
@@ -358,7 +360,16 @@ function renderer() {
 function treeClient(workerResponse = value => Promise.resolve(value)) {
   const send = rawWorker('host-topo-tree');
   return {
-    init: (treeData, hideEmptyNode, searchValue, selectedId, complete = true, preserve = false, anchorId = '') =>
+    init: (
+      treeData,
+      hideEmptyNode,
+      searchValue,
+      selectedId,
+      complete = true,
+      preserve = false,
+      anchorId = '',
+      fallbackToRoot = false
+    ) =>
       Promise.resolve(
         send({
           type: preserve ? 'REPLACE' : 'INIT',
@@ -368,6 +379,7 @@ function treeClient(workerResponse = value => Promise.resolve(value)) {
           selectedId,
           complete,
           anchorId,
+          fallbackToRoot,
         })
       ),
     select: id => workerResponse(send({ type: 'SELECT', id })),
@@ -496,6 +508,17 @@ test('raw Worker upsert deduplicates within a module and replacement preserves e
   const send = rawWorker('host-topo-tree');
   const tree = skeleton();
   tree[0].isOpen = true;
+  const explicit = send({ type: 'INIT', treeData: tree, complete: false, hideEmptyNode: true, selectedId: '999' });
+  assert.equal(explicit.selectedNode, null);
+  const fallback = send({
+    type: 'INIT',
+    treeData: skeleton(),
+    complete: false,
+    hideEmptyNode: true,
+    selectedId: 'biz|-5066',
+    fallbackToRoot: true,
+  });
+  assert.equal(fallback.selectedNode.id, 'biz|1');
   send({ type: 'INIT', treeData: tree, complete: false, hideEmptyNode: true, selectedId: '999' });
   const missing = send({ type: 'SELECT', id: '999' });
   assert.equal(missing.selectedNode, null);
@@ -587,7 +610,197 @@ test('complete tree overtakes skeleton and scope parser rejects malformed and cr
     resolveInitialHostScope(true, { shareTargetType: 'topo', shareBkObjId: 'biz', shareBkInstId: 2 }, '', 1),
     null
   );
+  // 空间入口：负 spaceId 根别名可用；真实业务根待拓扑确认；其他负根与负数对象 ID 仍拒绝
+  assert.deepEqual(resolveInitialHostScope(false, {}, 'biz|-5066', -5066), { bk_obj_id: 'biz', bk_inst_id: -5066 });
+  assert.deepEqual(resolveInitialHostScope(false, {}, 'biz|18818', -5066), {
+    bk_obj_id: 'biz',
+    bk_inst_id: 18818,
+    pending: true,
+  });
+  for (const id of ['biz|-1', 'biz|0', 'set|-2', 'module|-3', '-11', 'biz|-1|2'])
+    assert.equal(resolveInitialHostScope(false, {}, id, -5066), null);
+  assert.equal(resolveInitialHostScope(false, {}, 'biz|-1', 1), null);
+  assert.equal(resolveInitialHostScope(true, {}, 'biz|18818', -5066), null);
+  assert.equal(resolveInitialHostScope(true, {}, 'biz|-5066', -5066), null);
+  assert.equal(
+    resolveInitialHostScope(true, { shareTargetType: 'topo', shareBkObjId: 'biz', shareBkInstId: 18818 }, '', -5066),
+    null
+  );
   h.app.unmount();
+});
+
+const SPACE_BIZ = -5066;
+const REAL_BIZ = 18818;
+const withBiz = node => ({ ...node, bk_biz_id: REAL_BIZ, ...(node.children ? { children: node.children.map(withBiz) } : {}) });
+const spaceSkeleton = () => [withBiz(inst(`biz|${REAL_BIZ}`, [inst('set|2', [inst('module|3'), inst('module|4')])]))];
+const spaceFullTree = () => [
+  withBiz(inst(`biz|${REAL_BIZ}`, [inst('set|2', [inst('module|3', [leaf(11), leaf(12)]), inst('module|4')])])),
+];
+const spaceHarness = (query = {}) => harness(query, false, undefined, undefined, SPACE_BIZ);
+const topoCalls = h => h.calls.filter(call => call.name === 'getHostTopoTreeByBizId').length;
+const clickRow = async (h, id) => {
+  const row = h.topo.visibleRows.value.find(item => item.id === id);
+  assert.ok(row, id);
+  h.topo.handleSelectNode(row);
+  h.store.nodeId = row.id;
+  await flush();
+};
+
+test('space entry backfills the default root placeholder with the authorized real root', async () => {
+  const h = spaceHarness();
+  await flush();
+  assert.equal(h.topo.selectedNode.value.id, `biz|${SPACE_BIZ}`);
+  h.respond('getHostTopoTreeByBizId', spaceSkeleton(), args => args[2] === false);
+  await flush();
+  assert.equal(h.topo.scopeError.value, false);
+  assert.equal(h.topo.selectedNode.value.id, `biz|${REAL_BIZ}`);
+  assert.equal(h.topo.selectedNode.value.bk_biz_id, REAL_BIZ);
+  assert.deepEqual(h.topo.selectedIds.value, [`biz|${REAL_BIZ}`]);
+  assert.ok(
+    h.pending('getHostInfoPage', ([p]) => p.bk_biz_id === REAL_BIZ && p.bk_obj_id === 'biz' && p.bk_inst_id === REAL_BIZ)
+  );
+  h.respond('getHostTopoTreeByBizId', spaceFullTree(), args => args[2] !== false);
+  await flush();
+  assert.equal(h.topo.selectedNode.value.id, `biz|${REAL_BIZ}`);
+  assert.equal(h.topo.fullTreeReady.value, true);
+  assert.equal(h.store.nodeId, '');
+  h.app.unmount();
+});
+
+test('late space topology does not overwrite a set/host selection made while loading', async () => {
+  const h = spaceHarness();
+  await flush();
+  h.store.nodeId = '11';
+  await flush();
+  assert.equal(h.topo.selectedNode.value.id, '11');
+  h.respond('getHostTopoTreeByBizId', spaceSkeleton(), args => args[2] === false);
+  await flush();
+  assert.equal(h.topo.selectedNode.value.id, '11');
+  h.respond('getHostTopoTreeByBizId', spaceFullTree(), args => args[2] !== false);
+  await flush();
+  assert.equal(h.topo.selectedNode.value.bk_host_id, 11);
+  h.app.unmount();
+
+  const set = spaceHarness();
+  await flush();
+  set.respond('getHostTopoTreeByBizId', spaceSkeleton(), args => args[2] === false);
+  await flush();
+  await clickRow(set, 'set|2');
+  set.respond('getHostTopoTreeByBizId', spaceFullTree(), args => args[2] !== false);
+  await flush();
+  assert.equal(set.topo.selectedNode.value.id, 'set|2');
+  set.app.unmount();
+});
+
+test('clicked real space root keeps URL identity across tree refresh and URL reopen', async () => {
+  const h = spaceHarness();
+  await flush();
+  h.respond('getHostTopoTreeByBizId', spaceSkeleton(), args => args[2] === false);
+  await flush();
+  await clickRow(h, 'set|2');
+  await clickRow(h, `biz|${REAL_BIZ}`);
+  assert.equal(h.store.nodeId, `biz|${REAL_BIZ}`);
+  assert.equal(h.topo.scopeError.value, false);
+  assert.equal(h.topo.selectedNode.value.id, `biz|${REAL_BIZ}`);
+  const before = topoCalls(h);
+  h.topo.handleRefresh();
+  await flush();
+  assert.equal(topoCalls(h), before + 2, 'refresh requests skeleton and complete topology');
+  assert.deepEqual(h.pending('getHostTopoTreeByBizId', args => args[2] === false).args[0], SPACE_BIZ);
+  h.respond('getHostTopoTreeByBizId', spaceSkeleton(), args => args[2] === false);
+  await flush();
+  assert.equal(h.topo.selectedNode.value.id, `biz|${REAL_BIZ}`);
+  assert.equal(h.topo.loadError.value, false);
+  h.app.unmount();
+
+  const reopened = spaceHarness({ nodeId: `biz|${REAL_BIZ}` });
+  await flush();
+  assert.equal(reopened.topo.scopeError.value, false);
+  assert.equal(reopened.topo.selectedNode.value, null);
+  assert.equal(topoCalls(reopened), 2);
+  assert.equal(reopened.calls.filter(call => call.name !== 'getHostTopoTreeByBizId').length, 0);
+  reopened.respond('getHostTopoTreeByBizId', spaceSkeleton(), args => args[2] === false);
+  await flush();
+  assert.equal(reopened.topo.selectedNode.value.id, `biz|${REAL_BIZ}`);
+  assert.equal(reopened.topo.selectedNode.value.bk_biz_id, REAL_BIZ);
+  assert.ok(reopened.pending('getHostInfoPage', ([p]) => p.bk_biz_id === REAL_BIZ && p.bk_inst_id === REAL_BIZ));
+  reopened.app.unmount();
+});
+
+test('space entry rejects unauthorized roots without widening and recovers on a valid target', async () => {
+  const h = spaceHarness({ nodeId: 'biz|999' });
+  await flush();
+  h.respond('getHostTopoTreeByBizId', spaceSkeleton(), args => args[2] === false);
+  await flush();
+  assert.equal(h.topo.scopeError.value, true);
+  assert.equal(h.topo.loadError.value, true);
+  assert.equal(h.topo.selectedNode.value, null);
+  h.respond('getHostTopoTreeByBizId', spaceFullTree(), args => args[2] !== false);
+  await flush();
+  assert.equal(h.topo.loadError.value, true, 'late complete topology must not revive a rejected target');
+  assert.equal(h.calls.filter(call => call.name !== 'getHostTopoTreeByBizId').length, 0);
+  const before = topoCalls(h);
+  h.topo.handleRefresh();
+  await flush();
+  assert.equal(topoCalls(h), before);
+  h.route.query.nodeId = 'set|2';
+  await flush();
+  assert.equal(h.topo.scopeError.value, false);
+  assert.equal(topoCalls(h), before + 2);
+  h.respond('getHostTopoTreeByBizId', spaceSkeleton(), args => args[2] === false);
+  await flush();
+  assert.equal(h.topo.selectedNode.value.id, 'set|2');
+  assert.equal(h.topo.loadError.value, false);
+  h.app.unmount();
+
+  for (const nodeId of ['biz|-1', 'set|-2', '-11']) {
+    const invalid = spaceHarness({ nodeId });
+    await flush();
+    assert.equal(invalid.topo.scopeError.value, true, nodeId);
+    assert.equal(invalid.calls.length, 0, nodeId);
+    invalid.app.unmount();
+  }
+  const positive = harness({ nodeId: 'biz|2' });
+  await flush();
+  assert.equal(positive.topo.scopeError.value, true);
+  assert.equal(positive.calls.length, 0);
+  positive.app.unmount();
+});
+
+test('unassociated space can use its negative root alias as the authorized root', async () => {
+  const aliasTree = () => [{ ...inst(`biz|${SPACE_BIZ}`, [inst('set|2', [inst('module|3')])]), bk_biz_id: SPACE_BIZ }];
+  for (const query of [{}, { nodeId: `biz|${SPACE_BIZ}` }]) {
+    const h = spaceHarness(query);
+    await flush();
+    assert.equal(h.topo.scopeError.value, false);
+    assert.equal(h.topo.selectedNode.value.id, `biz|${SPACE_BIZ}`);
+    h.respond('getHostTopoTreeByBizId', aliasTree(), args => args[2] === false);
+    await flush();
+    assert.equal(h.topo.selectedNode.value.id, `biz|${SPACE_BIZ}`);
+    assert.equal(h.topo.selectedNode.value.name, `biz|${SPACE_BIZ}`);
+    h.app.unmount();
+  }
+});
+
+test('positive business root and node URLs keep their selection and refresh', async () => {
+  const h = harness();
+  await flush();
+  h.respond('getHostTopoTreeByBizId', skeleton(), args => args[2] === false);
+  await flush();
+  assert.equal(h.topo.selectedNode.value.id, 'biz|1');
+  await clickRow(h, 'biz|1');
+  assert.equal(h.topo.scopeError.value, false);
+  const before = topoCalls(h);
+  h.topo.handleRefresh();
+  await flush();
+  assert.equal(topoCalls(h), before + 2);
+  h.app.unmount();
+  const node = harness({ nodeId: 'module|3' });
+  await flush();
+  node.respond('getHostTopoTreeByBizId', skeleton(), args => args[2] === false);
+  await flush();
+  assert.equal(node.topo.selectedNode.value.id, 'module|3');
+  node.app.unmount();
 });
 
 test('large skeleton keeps range bounded and incremental loading does not rebuild expansion state', t => {

@@ -110,11 +110,13 @@ export const useHostTopoTreeWorker = () => {
     selectedId: string,
     complete = true,
     preserve = false,
-    anchorId = ''
+    anchorId = '',
+    fallbackToRoot = false
   ) =>
     postRequest<Extract<WorkerResponse, { type: 'INIT_DONE' }>>({
       anchorId,
       complete,
+      fallbackToRoot,
       hideEmptyNode,
       searchValue,
       selectedId,
