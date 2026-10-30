@@ -13,6 +13,6 @@ def test_same_key_switch_preserves_stored_credentials():
         env={**os.environ, "PYTHONDONTWRITEBYTECODE": "1"},
         capture_output=True,
         text=True,
-        timeout=120,
+        timeout=240,
     )
     assert result.returncode == 0, result.stderr

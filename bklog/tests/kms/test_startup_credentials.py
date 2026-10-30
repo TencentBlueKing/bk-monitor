@@ -571,3 +571,40 @@ def test_celery_implicit_host_defaults_preserved(configure, name):
     assert connection.userid == PAYLOAD["rabbitmq"]["default"]["username"]
     assert connection.password == PAYLOAD["rabbitmq"]["default"]["password"]
     app.close()
+
+
+@pytest.mark.parametrize("as_class", [False, True])
+def test_kms_off_preserves_real_custom_cipher_classes(monkeypatch, as_class):
+    from bkcrypto.symmetric.ciphers.aes import AESSymmetricCipher
+
+    class CustomAES(AESSymmetricCipher):
+        pass
+
+    configured = CustomAES if as_class else "custom_crypto.AES"
+    classes = {"AES": configured, "CUSTOM": "custom_crypto.Other"}
+    data = {"BKCRYPTO": {"SYMMETRIC_CIPHER_CLASSES": classes}}
+    monkeypatch.setenv("ENABLE_KMS", "false")
+    kms.credentials.cache_clear()
+    kms.apply_settings(data)
+    assert data["BKCRYPTO"]["SYMMETRIC_CIPHER_CLASSES"] is classes
+    assert classes == {"AES": configured, "CUSTOM": "custom_crypto.Other"}
+
+
+@pytest.mark.parametrize(
+    "configured",
+    ["bkcrypto.symmetric.ciphers.AESSymmetricCipher", "bkcrypto.symmetric.ciphers.aes.AESSymmetricCipher"],
+)
+def test_explicit_builtin_aes_normalization_does_not_mutate_overlay(monkeypatch, configured):
+    classes = {"AES": configured, "SM4": "bkcrypto.symmetric.ciphers.SM4SymmetricCipher"}
+    data = {"BKCRYPTO": {"SYMMETRIC_CIPHER_CLASSES": classes}}
+    monkeypatch.setenv("ENABLE_KMS", "false")
+    kms.credentials.cache_clear()
+    kms.apply_settings(data)
+    assert classes["AES"] == configured
+    assert data["BKCRYPTO"]["SYMMETRIC_CIPHER_CLASSES"] == {
+        "AES": LEGACY_SYMMETRIC_CIPHER_CLASSES["AES"],
+        "SM4": classes["SM4"],
+    }
+    normalized = data["BKCRYPTO"]["SYMMETRIC_CIPHER_CLASSES"]
+    kms.apply_settings(data)
+    assert data["BKCRYPTO"]["SYMMETRIC_CIPHER_CLASSES"] is normalized

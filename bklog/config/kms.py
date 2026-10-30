@@ -7,6 +7,7 @@ the KMS SDK or read its files.
 
 import json
 import os
+from collections.abc import Mapping
 from functools import lru_cache
 from pathlib import Path
 from urllib.parse import parse_qsl, quote, urlencode, urlsplit, urlunsplit
@@ -125,7 +126,28 @@ def apply_settings(settings):
         from apps.utils.crypto import LEGACY_SYMMETRIC_CIPHER_CLASSES, ensure_crypto_field_copy_compatibility
 
         ensure_crypto_field_copy_compatibility()
-        settings["BKCRYPTO"].setdefault("SYMMETRIC_CIPHER_CLASSES", dict(LEGACY_SYMMETRIC_CIPHER_CLASSES))
+        cipher_classes = settings["BKCRYPTO"].setdefault(
+            "SYMMETRIC_CIPHER_CLASSES", dict(LEGACY_SYMMETRIC_CIPHER_CLASSES)
+        )
+        if isinstance(cipher_classes, Mapping):
+            from bkcrypto.symmetric.ciphers.aes import AESSymmetricCipher
+
+            aes_class = cipher_classes.get("AES")
+            # Explicit SDK defaults need the same historical key handling as
+            # omitted defaults. Preserve real custom classes without importing
+            # their modules early, and avoid mutating an overlay's shared map.
+            if aes_class is AESSymmetricCipher or (
+                isinstance(aes_class, str)
+                and aes_class
+                in (
+                    "bkcrypto.symmetric.ciphers.AESSymmetricCipher",
+                    "bkcrypto.symmetric.ciphers.aes.AESSymmetricCipher",
+                )
+            ):
+                settings["BKCRYPTO"]["SYMMETRIC_CIPHER_CLASSES"] = {
+                    **cipher_classes,
+                    "AES": LEGACY_SYMMETRIC_CIPHER_CLASSES["AES"],
+                }
     data = credentials()
     if data is None:
         return

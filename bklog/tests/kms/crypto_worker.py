@@ -41,9 +41,19 @@ configuration = dict(
         },
     },
 )
+aes_class = case.get("aes_class")
+if aes_class is not None:
+    if aes_class == "class":
+        from bkcrypto.symmetric.ciphers.aes import AESSymmetricCipher
+
+        aes_class = "bkcrypto.symmetric.ciphers.AESSymmetricCipher" if case["legacy"] else AESSymmetricCipher
+    configuration["BKCRYPTO"]["SYMMETRIC_CIPHER_CLASSES"] = {
+        "AES": aes_class,
+        "SM4": "bkcrypto.symmetric.ciphers.SM4SymmetricCipher",
+    }
 if not case["legacy"]:
-    # Exercise the real final configuration stage with an overlay that omitted
-    # SYMMETRIC_CIPHER_CLASSES, as legacy deployments do.
+    # Exercise the real final configuration stage with omitted or explicit
+    # cipher classes, as supplied by environment/local settings overlays.
     path = Path(__file__).resolve().parents[2] / "config/kms.py"
     spec = importlib.util.spec_from_file_location("crypto_kms_config", path)
     module = importlib.util.module_from_spec(spec)
@@ -68,9 +78,17 @@ django.setup()
 from django.db import connection, models
 from bkcrypto.contrib.django.fields import SymmetricTextField
 
+basecrypt = case.get("consumer") == "basecrypt"
+if basecrypt:
+    from apps.utils.base_crypt import BaseCrypt
+
+
+def stored_value(plaintext):
+    return BaseCrypt().encrypt(plaintext.encode("utf-8")) if basecrypt else plaintext
+
 
 class Credential(models.Model):
-    value = SymmetricTextField(using=alias)
+    value = models.TextField() if basecrypt else SymmetricTextField(using=alias)
 
     class Meta:
         app_label = "kms_probe"
@@ -79,14 +97,18 @@ class Credential(models.Model):
 if case["operation"] == "write":
     with connection.schema_editor() as editor:
         editor.create_model(Credential)
-    Credential.objects.create(value=case["plaintext"])
+    Credential.objects.create(value=stored_value(case["plaintext"]))
 else:
     actual = Credential.objects.get(pk=1).value
+    if basecrypt:
+        actual = BaseCrypt().decrypt(actual)
     assert actual == case["plaintext"], "ORM did not return the original plaintext"
     if case["operation"] != "read_only":
-        Credential.objects.filter(pk=1).update(value=case.get("replacement", case["plaintext"]))
+        Credential.objects.filter(pk=1).update(value=stored_value(case.get("replacement", case["plaintext"])))
 with connection.cursor() as cursor:
     cursor.execute("SELECT value FROM kms_probe_credential")
     raw = cursor.fetchone()[0]
-assert raw != case["plaintext"] and raw.startswith(case["cipher"].lower() + "_str:::")
+assert raw != case["plaintext"]
+if not basecrypt:
+    assert raw.startswith(case["cipher"].lower() + "_str:::")
 print("OK")
