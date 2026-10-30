@@ -21,10 +21,10 @@ function check(name, operation, fix) {
 }
 
 check(
-  'Node.js >= 20.17.0',
+  'Node.js 24.x >= 24.22.2',
   () => {
-    const [major, minor] = process.versions.node.split('.').map(Number);
-    if (major < 20 || (major === 20 && minor < 17)) {
+    const [major, minor, patch] = process.versions.node.split('.').map(Number);
+    if (major !== 24 || minor < 22 || (minor === 22 && patch < 2)) {
       throw new Error(`当前版本 ${process.versions.node}`);
     }
     return process.versions.node;

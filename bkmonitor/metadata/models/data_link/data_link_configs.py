@@ -708,6 +708,7 @@ class DataBusConfig(DataLinkResourceConfigBase):
     bk_data_id = models.IntegerField(verbose_name="数据源ID", default=0)
     sink_names = models.JSONField(verbose_name="处理配置列表", default=list, help_text="格式为kind:name，便于检索")
     consumer_group = models.CharField(verbose_name="Consumer Group", max_length=255, default="", blank=True)
+    options = models.JSONField(verbose_name="清洗任务额外配置", default=dict, blank=True)
     data_link_strategy = models.CharField(verbose_name="数据链路策略标记", max_length=64, default="", blank=True)
     source_kind = models.CharField(verbose_name="源资源类型", max_length=64, default=DataLinkKind.DATAID.value)
     source_name = models.CharField(verbose_name="源资源名称", max_length=64, default="", blank=True)
