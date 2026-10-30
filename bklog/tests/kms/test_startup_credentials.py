@@ -10,11 +10,11 @@ from pathlib import Path
 from urllib.parse import unquote, urlsplit
 
 import pytest
-from cryptography.hazmat.primitives import hashes, padding, serialization
-from cryptography.hazmat.primitives.asymmetric import padding as rsa_padding, rsa
-from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
+from cryptography.hazmat.primitives import serialization
+from cryptography.hazmat.primitives.asymmetric import rsa
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
+from apps.tests.log_extract.kms_helpers import PAYLOAD, envelope
 from apps.utils.crypto import LEGACY_SYMMETRIC_CIPHER_CLASSES
 
 MODULE = Path(__file__).resolve().parents[2] / "config/kms.py"
@@ -22,47 +22,10 @@ spec = importlib.util.spec_from_file_location("kms_under_test", MODULE)
 kms = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(kms)
 
-PAYLOAD = {
-    "bkapp_id_secret": {"default": {"app_code": "bk_log_search", "app_secret": "app-secret-" * 4}},
-    "mysql": {"default": {"username": "db-user", "password": "db-password"}},
-    "rabbitmq": {"default": {"username": "user:/@%", "password": "密钥:/@%?#\\\n"}},
-    "redis": {"default": {"password": ""}},
-    "bkrepo": {"default": {"username": "repo-user", "password": "repo-password"}},
-    "bcs": {"default": {"token": "bcs-token"}},
-    "encryption": {"bk_crypto_key": ""},
-}
-
 
 @pytest.fixture(scope="module")
 def private_key():
     return rsa.generate_private_key(public_exponent=65537, key_size=2048)
-
-
-def envelope(text, key, mode="CTR"):
-    data_key, iv = os.urandom(16), os.urandom(16)
-    raw = text.encode()
-    if mode == "CBC":
-        pad = padding.PKCS7(128).padder()
-        raw = pad.update(raw) + pad.finalize()
-    encrypt = Cipher(algorithms.AES(data_key), modes.CTR(iv) if mode == "CTR" else modes.CBC(iv)).encryptor()
-    encrypted_key = key.public_key().encrypt(
-        data_key, rsa_padding.OAEP(mgf=rsa_padding.MGF1(hashes.SHA256()), algorithm=hashes.SHA256(), label=None)
-    )
-
-    def encode(value):
-        return base64.b64encode(value).decode()
-
-    return encode(
-        json.dumps(
-            dict(
-                asymmetric_type="RSA",
-                symmetric_type="AES",
-                symmetric_mode=mode,
-                encrypted_key=encode(encrypted_key),
-                ciphertext=encode(iv + encrypt.update(raw) + encrypt.finalize()),
-            )
-        ).encode()
-    )
 
 
 @pytest.fixture

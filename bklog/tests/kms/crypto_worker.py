@@ -48,8 +48,16 @@ if not case["legacy"]:
     spec = importlib.util.spec_from_file_location("crypto_kms_config", path)
     module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)
-    os.environ["ENABLE_KMS"] = "false"
+    kms_enabled = case.get("kms_enabled", False)
+    os.environ["ENABLE_KMS"] = "true" if kms_enabled else "false"
+    if kms_enabled:
+        # Prove the envelope is actually consumed, rather than accidentally
+        # retaining the same values supplied by the disabled configuration.
+        configuration.update(SECRET_KEY="stale-overlay-secret", BKPAAS_BK_CRYPTO_KEY="stale-overlay-key")
+        configuration["BROKER_URL"] = "amqp://localhost//"
     module.apply_settings(configuration)
+    assert configuration["SECRET_KEY"] == case["app_secret"]
+    assert configuration["BKPAAS_BK_CRYPTO_KEY"] == case["crypto_key"]
 settings.configure(**configuration)
 # Keep a deliberately different default alias, so archive must use its own options.
 if alias != "default":
@@ -75,7 +83,8 @@ if case["operation"] == "write":
 else:
     actual = Credential.objects.get(pk=1).value
     assert actual == case["plaintext"], "ORM did not return the original plaintext"
-    Credential.objects.filter(pk=1).update(value=case["plaintext"])
+    if case["operation"] != "read_only":
+        Credential.objects.filter(pk=1).update(value=case.get("replacement", case["plaintext"]))
 with connection.cursor() as cursor:
     cursor.execute("SELECT value FROM kms_probe_credential")
     raw = cursor.fetchone()[0]
