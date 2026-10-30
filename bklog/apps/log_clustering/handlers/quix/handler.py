@@ -46,7 +46,7 @@ from bkm_space.utils import space_uid_to_bk_biz_id
 # 开启流程中各步骤对应到现有接入状态的三段展示
 ACCESS_STATUS_STEPS = {
     "flow_create": ("create_task", "wait_task_ready", "wait_worker_ready"),
-    "flow_run": ("metadata_set", "wait_adoption", "confirm_adoption"),
+    "flow_run": ("metadata_set", "wait_adoption", "confirm_adoption", "finish"),
 }
 
 
@@ -58,6 +58,7 @@ class QuixClusteringHandler:
         self.index_set_id = log_index_set.index_set_id
 
     def enable(self, params: dict) -> dict:
+        from apps.log_clustering.handlers.clustering_config import ClusteringConfigHandler
         from apps.log_clustering.tasks.quix import run_quix_clustering_operation
 
         has_exist = ClusteringConfigHasExistException(
@@ -81,6 +82,12 @@ class QuixClusteringHandler:
         get_quix_config()
 
         collector_config = CollectorConfig.objects.get(collector_config_id=self.index_set.collector_config_id)
+        etl_config = collector_config.get_etl_config()
+        ClusteringConfigHandler.pre_check_fields(
+            fields=etl_config["fields"],
+            etl_config=collector_config.etl_config,
+            clustering_fields=clustering_fields,
+        )
         pattern_index, state_index = build_index_names(self.index_set_id)
         # 业务配置与可调度操作一起提交，保存失败时不能由定时恢复任务继续开启。
         with transaction.atomic():
@@ -190,7 +197,7 @@ class QuixClusteringHandler:
         # 非开启操作不涉及任务创建，整个操作的进度展示在链路运行段
         if section == "flow_create":
             return ()
-        return tuple(QuixClusteringOperationRunner.STEPS.get(operation.operation_type, ()))
+        return (*QuixClusteringOperationRunner.STEPS.get(operation.operation_type, ()), "finish")
 
     @staticmethod
     def _section_status(status_code, operation: LogClusteringOperation | None, steps: tuple) -> dict:

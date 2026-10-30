@@ -23,6 +23,8 @@ class TestQuixClusteringHandler(TestCase):
             table_id="2_bklog.demo",
             bk_data_id=1001,
         )
+        self.collector_config = collector_config
+        collector_config.get_etl_config.return_value = {"fields": [{"field_name": "message", "alias_name": "content"}]}
         for target, kwargs in (
             (
                 "apps.log_clustering.handlers.quix.handler.CollectorConfig.objects.get",
@@ -49,6 +51,56 @@ class TestQuixClusteringHandler(TestCase):
         self.assertEqual(runtime.pattern_index, "log-clustering-42-pattern")
         self.assertFalse(ClusteringConfig.objects.get(index_set_id=INDEX_SET_ID).access_finished)
         mock_delay.assert_called_once_with(result["operation_id"])
+
+    def test_missing_custom_field_is_rejected_before_writes(self, mock_delay):
+        with self.assertRaises(ValueError):
+            QuixClusteringHandler(self.index_set).enable({"clustering_fields": "missing"})
+        self.assertFalse(LogClusteringRuntime.objects.exists())
+        self.assertFalse(LogClusteringOperation.objects.exists())
+        self.assertFalse(ClusteringConfig.objects.exists())
+        mock_delay.assert_not_called()
+
+    def test_custom_field_alias_is_accepted(self, mock_delay):
+        QuixClusteringHandler(self.index_set).enable({"clustering_fields": "content"})
+        runtime = LogClusteringRuntime.objects.get(index_set_id=INDEX_SET_ID)
+        self.assertEqual(runtime.pending_config["input_mapping"]["log"], "content")
+        mock_delay.assert_called_once()
+
+    def test_default_log_field_remains_allowed_without_explicit_etl_field(self, mock_delay):
+        self.collector_config.get_etl_config.return_value = {"fields": []}
+        QuixClusteringHandler(self.index_set).enable({})
+        self.assertEqual(
+            LogClusteringRuntime.objects.get(index_set_id=INDEX_SET_ID).pending_config["input_mapping"]["log"], "log"
+        )
+        mock_delay.assert_called_once()
+
+    def test_finish_failure_and_retry_are_shown_in_flow_run(self, mock_delay):
+        from apps.log_clustering.handlers.quix.operation import QuixClusteringOperationRunner
+
+        operation = create_enable_operation()
+        for step in QuixClusteringOperationRunner.STEPS[operation.operation_type]:
+            operation.record_step(step, ClusteringOperationStatusEnum.SUCCESS.value)
+        operation.step = "finish"
+        operation.last_error = "finish: tag update failed"
+        for status, expected in (
+            (ClusteringOperationStatusEnum.FAILED.value, "FAILED"),
+            (ClusteringOperationStatusEnum.RUNNING.value, "RUNNING"),
+        ):
+            with self.subTest(status=status):
+                operation.status = status
+                operation.save()
+                result = QuixClusteringHandler(self.index_set).get_access_status()
+                self.assertEqual(result["flow_create"]["status"], "SUCCESS")
+                self.assertEqual(result["flow_run"]["status"], expected)
+                if expected == "FAILED":
+                    self.assertEqual(result["flow_run"]["message"], operation.last_error)
+                self.assertFalse(result["access_finished"])
+        operation.status = ClusteringOperationStatusEnum.SUCCESS.value
+        operation.save()
+        LogClusteringRuntime.objects.filter(index_set_id=INDEX_SET_ID).update(phase="running")
+        result = QuixClusteringHandler(self.index_set).get_access_status()
+        self.assertTrue(result["access_finished"])
+        self.assertEqual(result["flow_run"]["status"], "SUCCESS")
 
     def test_enable_passes_saved_model_parameters_to_bkfara(self, mock_delay):
         from apps.log_clustering.handlers.quix.operation import QuixClusteringOperationRunner
