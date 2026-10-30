@@ -21,7 +21,16 @@ from apps.feature_toggle.plugins.constants import LOG_DESENSITIZE
 from apps.log_clustering.models import ClusteringConfig
 from apps.log_desensitize.handlers.desensitize import DesensitizeHandler
 from apps.log_desensitize.models import DesensitizeConfig, DesensitizeFieldConfig
-from apps.log_desensitize.utils import expand_nested_data, merge_nested_data
+from apps.log_desensitize.utils import (
+    _extract_value_by_path,
+    _get_sensitive_top_fields,
+    _is_fail_closed,
+    _MASKED_VALUE,
+    _mask_sensitive_fields,
+    merge_nested_data,
+    path_aware_expand,
+    restore_by_metadata,
+)
 from apps.log_esquery.esquery.builder.query_string_builder import QueryStringBuilder
 from apps.log_esquery.exceptions import (
     BaseSearchIndexSetDataDoseNotExists,
@@ -674,9 +683,37 @@ class UnifyQueryHandler:
         log_list = []
         origin_log_list = []
         for log in result_dict["list"]:
-            log = merge_nested_data(log)
-            if (self.field_configs or self.text_fields_field_configs) and self.is_desensitize:
-                log = self._log_desensitize(log)
+            # pre-desensitize merge: 将 ES 返回的 flatten 格式（{"a.b": 1}）合并为嵌套 dict（{"a": {"b": 1}}）。
+            # 后续 _log_desensitize 内部 path_aware_expand 会再展开，形成一次"合 → 展"往返。
+            # 这是兼容行为，确保旧版 expand_nested_data 路径的消费者不受影响。
+            merge_failed = False
+            try:
+                log = merge_nested_data(log)
+            except Exception as e:
+                logger.error(
+                    "[desensitize] merge_nested_data failed (doc_id=%s): %s, masking sensitive fields",
+                    log.get("__doc_id", "unknown") if isinstance(log, dict) else "unknown",
+                    e,
+                )
+                sensitive_fields = _get_sensitive_top_fields(
+                    self.field_configs, self.text_fields_field_configs, self.text_fields
+                )
+                log = _mask_sensitive_fields(log, sensitive_fields) if isinstance(log, dict) else log
+                merge_failed = True
+            if not merge_failed and (self.field_configs or self.text_fields_field_configs) and self.is_desensitize:
+                try:
+                    log = self._log_desensitize(log)
+                except Exception as e:
+                    # fail-closed：脱敏异常时遮罩配置涉及的敏感字段，保留元数据字段
+                    logger.error(
+                        "[desensitize] failed to desensitize log (doc_id=%s): %s, masking sensitive fields",
+                        log.get("__doc_id", "unknown"),
+                        e,
+                    )
+                    sensitive_fields = _get_sensitive_top_fields(
+                        self.field_configs, self.text_fields_field_configs, self.text_fields
+                    )
+                    log = _mask_sensitive_fields(log, sensitive_fields)
             log = self._add_cmdb_fields(log)
             log = self._add_bcs_cluster_fields(log)
             # 联合索引 增加索引集id信息
@@ -788,34 +825,79 @@ class UnifyQueryHandler:
         if not log:
             return log
 
-        # 展开object对象
-        log = expand_nested_data(log)
-        # 保存一份未处理之前的log字段 用于脱敏之后的日志原文处理
-        log_content_tmp = copy.deepcopy(log)
+        # 提取已配置字段的 dotted path 列表，用于路径感知展开
+        configured_paths = [c["field_name"] for c in self.field_configs if c.get("field_name")]
+
+        # 先 deepcopy 原始 log，用于后续日志原文替换
+        # 必须在 path_aware_expand 之前执行，否则 log 已被展开为 dotted-key 形式
+        if self.text_fields:
+            try:
+                log_content_tmp = copy.deepcopy(log)
+            except RecursionError:
+                logger.warning(
+                    "[desensitize] deepcopy failed due to deeply nested structure, "
+                    "falling back to shallow copy"
+                )
+                log_content_tmp = copy.copy(log)
+
+        # 路径感知展开（支持 flattened / JSON 字符串子路径）
+        log, restore_metadata = path_aware_expand(log, configured_paths)
+
+        # 在 transform_dict 之前检测 fail-closed 状态
+        # 必须在此处检测：transform_dict 可能修改 _MASKED_VALUE 值导致后续检测失效
+        has_fail_closed = _is_fail_closed(log, restore_metadata)
 
         # 字段脱敏处理
         log = self.desensitize_handler.transform_dict(log)
 
-        # 原文字段应用其他字段的脱敏结果
-        if not self.text_fields:
-            return log
+        if self.text_fields and has_fail_closed:
+            # fail-closed 场景下原文字段整体遮罩
+            for text_field in self.text_fields:
+                text_tuple = (text_field,)
+                if text_tuple in log and isinstance(log[text_tuple], str) and log[text_tuple]:
+                    log[text_tuple] = _MASKED_VALUE
+                elif text_tuple not in log and text_tuple in restore_metadata:
+                    # text_field 被 path_aware_expand 展开为子路径，key 已消失
+                    keys_to_remove = [k for k in log if len(k) > 1 and k[0] == text_field]
+                    for k in keys_to_remove:
+                        del log[k]
+                    log[text_tuple] = _MASKED_VALUE
+                    restore_metadata[text_tuple] = {"type": "scalar"}
+        elif self.text_fields:
+            # 原文字段应用其他字段的脱敏结果（原有逻辑，仅在非 fail-closed 时生效）
+            # 对副本做空路径展开，获得 path-token 形式的原始值
+            log_content_tmp_expanded, _ = path_aware_expand(log_content_tmp, [])
 
-        for text_field in self.text_fields:  # ["log"]
-            # 判断原文字段是否存在log中
-            if text_field not in log.keys():
-                continue
-
-            for _config in self.field_configs:
-                field_name = _config["field_name"]
-                if field_name not in log.keys() or field_name == text_field:
+            for text_field in self.text_fields:  # ["log"]
+                text_tuple = (text_field,)
+                # 判断原文字段是否存在log中
+                if text_tuple not in log:
                     continue
-                log[text_field] = log[text_field].replace(str(log_content_tmp[field_name]), str(log[field_name]))
 
-        # 处理原文字段自身绑定的脱敏逻辑
-        if self.text_fields:
+                for _config in self.field_configs:
+                    field_name = _config["field_name"]
+                    field_tuple = tuple(field_name.split("."))
+                    if field_tuple not in log or field_tuple == text_tuple:
+                        continue
+
+                    # 优先从展开后的副本获取原始值
+                    original_value = log_content_tmp_expanded.get(field_tuple)
+                    if original_value is None:
+                        # 空路径展开时 JSON 字符串子路径不会被展开
+                        # 从原始 log 按 dotted path 导航提取
+                        original_value = _extract_value_by_path(log_content_tmp, field_name)
+                        if original_value is None:
+                            continue
+
+                    log[text_tuple] = log[text_tuple].replace(
+                        str(original_value), str(log[field_tuple])
+                    )
+
+            # 处理原文字段自身绑定的脱敏逻辑
             log = self.text_fields_desensitize_handler.transform_dict(log)
-        # 折叠object对象
-        log = merge_nested_data(log)
+
+        # 按原始容器类型还原（dict 保持 dict，JSON 字符串保持字符串）
+        log = restore_by_metadata(log, restore_metadata)
         return log
 
     @classmethod

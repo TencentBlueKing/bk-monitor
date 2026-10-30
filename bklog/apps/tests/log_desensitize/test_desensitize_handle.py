@@ -19,10 +19,13 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 We undertake not to change the open source license (MIT license) applicable to the current version of
 the project delivered to anyone in the future.
 """
-from django.test import TestCase
+import json
+
+from django.test import SimpleTestCase, TestCase
 
 from apps.log_desensitize.constants import DesensitizeOperator
-from apps.log_desensitize.handlers.desensitize import DesensitizeHandler
+from apps.log_desensitize.handlers.desensitize import DesensitizeHandler, DesensitizeRuleHandler
+from apps.log_desensitize.utils import path_aware_expand, restore_by_metadata
 
 
 class TestDesensitizeOperator(TestCase):
@@ -52,10 +55,518 @@ class TestDesensitizeOperator(TestCase):
             "sort_index": 1
         }
 
-        text = {"test_field_1": "13234345678", "test_field_2": "13234345678"}
+        text = {("test_field_1",): "13234345678", ("test_field_2",): "13234345678"}
         desensitize_config_info = [param_1, param_2]
 
         result = DesensitizeHandler(desensitize_config_info=desensitize_config_info).transform_dict(text)
 
-        self.assertEqual(result.get("test_field_1"), "132*****678")
-        self.assertEqual(result.get("test_field_2"), "abc3434defg")
+        self.assertEqual(result.get(("test_field_1",)), "132*****678")
+        self.assertEqual(result.get(("test_field_2",)), "abc3434defg")
+
+    def test_transform_dict_dotted_key(self):
+        """dotted key 嵌套字段脱敏：transform_dict 能匹配展开后的 tuple key"""
+        config = {
+            "field_name": "body.player.id",
+            "rule_id": 0,
+            "operator": DesensitizeOperator.MASK_SHIELD.value,
+            "params": {"preserve_head": 1, "preserve_tail": 1, "replace_mark": "*"},
+            "match_pattern": "",
+            "sort_index": 0,
+        }
+        text = {("body", "player", "id"): "12345"}
+        result = DesensitizeHandler(desensitize_config_info=[config]).transform_dict(text)
+
+        self.assertEqual(result.get(("body", "player", "id")), "1***5")
+
+
+class TestPreviewConsistency(TestCase):
+    """预览与查询一致性测试"""
+
+    def test_preview_flattened_subpath(self):
+        """预览能正确处理 JSON 字符串子路径，结果返回脱敏后的值"""
+        logs = [{"body": '{"player":{"id":"12345"}}'}]
+        field_configs = [
+            {
+                "field_name": "body.player.id",
+                "rules": [
+                    {
+                        "rule_id": 0,
+                        "operator": DesensitizeOperator.MASK_SHIELD.value,
+                        "params": {"preserve_head": 1, "preserve_tail": 1, "replace_mark": "*"},
+                        "match_pattern": "",
+                    }
+                ],
+            }
+        ]
+        text_fields = []
+
+        result = DesensitizeRuleHandler.preview(logs, field_configs, text_fields)
+
+        self.assertIn("body.player.id", result)
+        self.assertEqual(result["body.player.id"][0], "1***5")
+
+    def test_preview_json_string_subpath(self):
+        """预览能正确处理 JSON 字符串子路径"""
+        logs = [{"body": '{"player":{"id":"12345"},"server":{"ip":"10.0.0.1"}}'}]
+        field_configs = [
+            {
+                "field_name": "body.player.id",
+                "rules": [
+                    {
+                        "rule_id": 0,
+                        "operator": DesensitizeOperator.MASK_SHIELD.value,
+                        "params": {"preserve_head": 1, "preserve_tail": 1, "replace_mark": "*"},
+                        "match_pattern": "",
+                    }
+                ],
+            }
+        ]
+        text_fields = []
+
+        result = DesensitizeRuleHandler.preview(logs, field_configs, text_fields)
+
+        self.assertIn("body.player.id", result)
+        self.assertEqual(result["body.player.id"][0], "1***5")
+        # preview 只返回配置字段（body.player.id）的值，不返回中间路径（body）
+        self.assertNotIn("body", result)
+
+    def test_preview_with_text_fields(self):
+        """预览带 text_fields 时，JSON 字符串子路径脱敏仍正确返回"""
+        logs = [{"body": '{"player":{"id":"12345"}}', "log": "player id 12345"}]
+        field_configs = [
+            {
+                "field_name": "body.player.id",
+                "rules": [
+                    {
+                        "rule_id": 0,
+                        "operator": DesensitizeOperator.MASK_SHIELD.value,
+                        "params": {"preserve_head": 1, "preserve_tail": 1, "replace_mark": "*"},
+                        "match_pattern": "",
+                    }
+                ],
+            },
+        ]
+        text_fields = ["log"]
+
+        result = DesensitizeRuleHandler.preview(logs, field_configs, text_fields)
+
+        # JSON 字符串子路径脱敏结果正确返回
+        self.assertIn("body.player.id", result)
+        self.assertEqual(result["body.player.id"][0], "1***5")
+
+    def test_expand_restore_consistency(self):
+        """展开-脱敏-还原与直接查询结果一致（JSON 字符串数据还原为字符串）"""
+        original = {"body": '{"player":{"id":"12345"}}'}
+        paths = ["body.player.id"]
+
+        # 模拟查询链路
+        expanded, metadata = path_aware_expand(original, paths)
+        config = {
+            "field_name": "body.player.id",
+            "rule_id": 0,
+            "operator": DesensitizeOperator.MASK_SHIELD.value,
+            "params": {"preserve_head": 1, "preserve_tail": 1, "replace_mark": "*"},
+            "match_pattern": "",
+            "sort_index": 0,
+        }
+        handler = DesensitizeHandler(desensitize_config_info=[config])
+        desensitized = handler.transform_dict(expanded)
+        restored = restore_by_metadata(desensitized, metadata)
+
+        # 结果应为 JSON 字符串，且内部值被脱敏
+        self.assertIsInstance(restored["body"], str)
+        parsed = json.loads(restored["body"])
+        self.assertEqual(parsed["player"]["id"], "1***5")
+
+    def test_expand_restore_consistency_json_string(self):
+        """展开-脱敏-还原完整回路：JSON 字符串数据还原为字符串"""
+        original = {"body": '{"player":{"id":"12345"},"server":{"ip":"10.0.0.1"}}'}
+        paths = ["body.player.id"]
+
+        # 模拟查询链路
+        expanded, metadata = path_aware_expand(original, paths)
+        config = {
+            "field_name": "body.player.id",
+            "rule_id": 0,
+            "operator": DesensitizeOperator.MASK_SHIELD.value,
+            "params": {"preserve_head": 1, "preserve_tail": 1, "replace_mark": "*"},
+            "match_pattern": "",
+            "sort_index": 0,
+        }
+        handler = DesensitizeHandler(desensitize_config_info=[config])
+        desensitized = handler.transform_dict(expanded)
+        restored = restore_by_metadata(desensitized, metadata)
+
+        # 结果应为 JSON 字符串，且内部值被脱敏
+        self.assertIsInstance(restored["body"], str)
+        parsed = json.loads(restored["body"])
+        self.assertEqual(parsed["player"]["id"], "1***5")
+        # 未配置脱敏的字段保持原值
+        self.assertEqual(parsed["server"]["ip"], "10.0.0.1")
+
+    def test_preview_consistency_with_query_result(self):
+        """预览结果与查询链路（展开-脱敏-还原）结果一致"""
+        original = {"body": {"player": {"id": "12345"}}}
+        paths = ["body.player.id"]
+        config = {
+            "field_name": "body.player.id",
+            "rule_id": 0,
+            "operator": DesensitizeOperator.MASK_SHIELD.value,
+            "params": {"preserve_head": 1, "preserve_tail": 1, "replace_mark": "*"},
+            "match_pattern": "",
+            "sort_index": 0,
+        }
+
+        # 预览方式
+        preview_configs = [
+            {
+                "field_name": "body.player.id",
+                "rules": [
+                    {
+                        "rule_id": 0,
+                        "operator": DesensitizeOperator.MASK_SHIELD.value,
+                        "params": {"preserve_head": 1, "preserve_tail": 1, "replace_mark": "*"},
+                        "match_pattern": "",
+                    }
+                ],
+            }
+        ]
+        preview_result = DesensitizeRuleHandler.preview(
+            [original], preview_configs, []
+        )
+        preview_value = preview_result["body.player.id"][0]
+
+        # 查询链路方式
+        handler = DesensitizeHandler(desensitize_config_info=[config])
+        expanded, metadata = path_aware_expand(original, paths)
+        desensitized = handler.transform_dict(expanded)
+        restored = restore_by_metadata(desensitized, metadata)
+        query_value = restored["body"]["player"]["id"]
+
+        # 两者应一致
+        self.assertEqual(preview_value, query_value)
+        self.assertEqual(preview_value, "1***5")
+
+
+class TestPathAwareExpandRoundtrip(SimpleTestCase):
+    """path_aware_expand + restore_by_metadata 回路测试（纯内存）"""
+
+    def test_dict_roundtrip_preserves_structure(self):
+        """dict 类型回路：展开-脱敏-还原后结构不变"""
+        original = {"body": {"player": {"id": "123", "name": "alice"}}}
+        paths = ["body.player.id"]
+        expanded, metadata = path_aware_expand(original, paths)
+
+        # 脱敏只修改配置路径的值
+        expanded[("body", "player", "id")] = "***"
+        restored = restore_by_metadata(expanded, metadata)
+
+        self.assertIsInstance(restored["body"], dict)
+        self.assertEqual(restored["body"]["player"]["id"], "***")
+        self.assertEqual(restored["body"]["player"]["name"], "alice")
+
+    def test_json_string_roundtrip_preserves_structure(self):
+        """JSON 字符串回路：展开-脱敏-还原后结构不变"""
+        original = {"body": '{"player":{"id":"123","name":"alice"}}'}
+        paths = ["body.player.id"]
+        expanded, metadata = path_aware_expand(original, paths)
+
+        # 脱敏只修改配置路径的值
+        expanded[("body", "player", "id")] = "***"
+        restored = restore_by_metadata(expanded, metadata)
+
+        self.assertIsInstance(restored["body"], str)
+        parsed = json.loads(restored["body"])
+        self.assertEqual(parsed["player"]["id"], "***")
+        self.assertEqual(parsed["player"]["name"], "alice")
+
+
+class TestPreviewFalsyValues(TestCase):
+    """
+    验证 preview 方法修复后对 falsy 值的正确处理。
+
+    修复前: `restored_result.get(_field_name)` 对 0/False/"" 返回 falsy，
+    导致回退到 result.get(_field_name) 取到错误值。
+    修复后: `_field_name in restored_result` 仅判断 key 是否存在。
+
+    注意：对于 dotted path（如 body.player.id），key 不会出现在 restored_result 中
+    （因为 restore_by_metadata 产出嵌套结构），所以修复前后行为一致。
+    修复真正影响的场景是顶层字段（无点号）且值为 falsy 的情况。
+    """
+
+    def test_preview_top_level_zero_value(self):
+        """preview 中顶层字段脱敏后值为 '0' 时正确返回"""
+        logs = [{"count": 0}]
+        field_configs = [
+            {
+                "field_name": "count",
+                "rules": [
+                    {
+                        "rule_id": 0,
+                        "operator": DesensitizeOperator.MASK_SHIELD.value,
+                        "params": {"preserve_head": 0, "preserve_tail": 0, "replace_mark": "*"},
+                        "match_pattern": "",
+                    }
+                ],
+            }
+        ]
+
+        result = DesensitizeRuleHandler.preview(logs, field_configs, [])
+
+        # count=0 → transform_dict 转为 "0" → mask_shield(preserve 0+0) 替换全部 → "*"
+        self.assertIn("count", result)
+        self.assertEqual(result["count"][0], "*")
+
+    def test_preview_top_level_none_value(self):
+        """preview 中顶层字段值为 None 时，transform_dict 转为空字符串后脱敏"""
+        logs = [{"note": None}]
+        field_configs = [
+            {
+                "field_name": "note",
+                "rules": [
+                    {
+                        "rule_id": 0,
+                        "operator": DesensitizeOperator.MASK_SHIELD.value,
+                        "params": {"preserve_head": 0, "preserve_tail": 0, "replace_mark": "#"},
+                        "match_pattern": "",
+                    }
+                ],
+            }
+        ]
+
+        result = DesensitizeRuleHandler.preview(logs, field_configs, [])
+
+        # None → transform_dict 中 str_value="" → mask_shield("") 返回 ""
+        # restore_by_metadata: scalar 类型，sub_items.get("note")=""
+        # "note" in restored_result → True, str("")=""
+        self.assertIn("note", result)
+        self.assertEqual(result["note"][0], "")
+
+    def test_preview_dotted_path_falsy_value(self):
+        """preview 中 dotted path 字段值为 0 时，通过 result.get 回退正确取值"""
+        logs = [{"body": {"player": {"level": 0}}}]
+        field_configs = [
+            {
+                "field_name": "body.player.level",
+                "rules": [
+                    {
+                        "rule_id": 0,
+                        "operator": DesensitizeOperator.MASK_SHIELD.value,
+                        "params": {"preserve_head": 1, "preserve_tail": 1, "replace_mark": "*"},
+                        "match_pattern": "",
+                    }
+                ],
+            }
+        ]
+
+        result = DesensitizeRuleHandler.preview(logs, field_configs, [])
+
+        # dotted path 在 restored_result（嵌套结构）中不存在，走 result.get 分支
+        self.assertIn("body.player.level", result)
+        # "0" len=1, preserve 1+1=2>=1, 不脱敏返回原值 "0"
+        self.assertEqual(result["body.player.level"][0], "0")
+
+    def test_preview_dotted_path_boolean_false(self):
+        """preview 中 dotted path 字段值为 False 时正确返回"""
+        logs = [{"body": {"player": {"online": False}}}]
+        field_configs = [
+            {
+                "field_name": "body.player.online",
+                "rules": [
+                    {
+                        "rule_id": 0,
+                        "operator": DesensitizeOperator.MASK_SHIELD.value,
+                        "params": {"preserve_head": 1, "preserve_tail": 1, "replace_mark": "*"},
+                        "match_pattern": "",
+                    }
+                ],
+            }
+        ]
+
+        result = DesensitizeRuleHandler.preview(logs, field_configs, [])
+
+        self.assertIn("body.player.online", result)
+        # False → "False" len=5, preserve 1+1=2<5, 脱敏: "F***e"
+        self.assertEqual(result["body.player.online"][0], "F***e")
+
+    def test_preview_normal_string_not_affected(self):
+        """preview 中正常字符串值不受修复影响"""
+        logs = [{"body": {"player": {"id": "12345"}}}]
+        field_configs = [
+            {
+                "field_name": "body.player.id",
+                "rules": [
+                    {
+                        "rule_id": 0,
+                        "operator": DesensitizeOperator.MASK_SHIELD.value,
+                        "params": {"preserve_head": 1, "preserve_tail": 1, "replace_mark": "*"},
+                        "match_pattern": "",
+                    }
+                ],
+            }
+        ]
+
+        result = DesensitizeRuleHandler.preview(logs, field_configs, [])
+
+        self.assertEqual(result["body.player.id"][0], "1***5")
+
+
+class TestRestoreByMetadataFalsyValues(SimpleTestCase):
+    """验证 restore_by_metadata 对 falsy 值的正确还原（纯内存）"""
+
+    def test_restore_json_string_with_zero(self):
+        """JSON 字符串还原：内部数值 0 正确保留"""
+        expanded = {("body", "player", "level"): 0}
+        metadata = {("body",): {"type": "json_string"}}
+        restored = restore_by_metadata(expanded, metadata)
+
+        self.assertIsInstance(restored["body"], str)
+        parsed = json.loads(restored["body"])
+        self.assertEqual(parsed["player"]["level"], 0)
+
+    def test_restore_dict_with_false(self):
+        """dict 类型还原：布尔值 False 正确保留"""
+        expanded = {("body", "player", "online"): False}
+        metadata = {("body",): {"type": "dict"}}
+        restored = restore_by_metadata(expanded, metadata)
+
+        self.assertIsInstance(restored["body"], dict)
+        self.assertFalse(restored["body"]["player"]["online"])
+
+    def test_restore_dict_with_none(self):
+        """dict 类型还原：None 值正确保留"""
+        expanded = {("body", "player", "note"): None}
+        metadata = {("body",): {"type": "dict"}}
+        restored = restore_by_metadata(expanded, metadata)
+
+        self.assertIsNone(restored["body"]["player"]["note"])
+
+    def test_restore_json_string_with_empty_string(self):
+        """JSON 字符串还原：内部空字符串正确保留"""
+        expanded = {("body", "player", "name"): ""}
+        metadata = {("body",): {"type": "json_string"}}
+        restored = restore_by_metadata(expanded, metadata)
+
+        self.assertIsInstance(restored["body"], str)
+        parsed = json.loads(restored["body"])
+        self.assertEqual(parsed["player"]["name"], "")
+
+
+class TestMatchRuleWithJsonSubpath(TestCase):
+    """测试 match_rule 对 JSON 字符串子路径的匹配"""
+
+    @classmethod
+    def setUpTestData(cls):
+        from apps.log_desensitize.models import DesensitizeRule
+
+        DesensitizeRule.objects.create(
+            rule_name="test_mask",
+            operator=DesensitizeOperator.MASK_SHIELD.value,
+            params={"preserve_head": 1, "preserve_tail": 1, "replace_mark": "*"},
+            space_uid="bkcc__test",
+            is_public=False,
+            match_pattern="",
+            match_fields=["body.player.id"],
+            is_active=True,
+        )
+        DesensitizeRule.objects.create(
+            rule_name="test_text_replace",
+            operator=DesensitizeOperator.TEXT_REPLACE.value,
+            params={"template_string": "[FILTERED]"},
+            space_uid="bkcc__test",
+            is_public=False,
+            match_pattern="",
+            match_fields=["log"],
+            is_active=True,
+        )
+
+    def test_match_rule_json_string_subpath(self):
+        """match_rule 能正确匹配 JSON 字符串中的子路径"""
+        logs = [{"body": '{"player":{"id":"12345"}}'}]
+        fields = ["body.player.id"]
+        result = DesensitizeRuleHandler.match_rule("bkcc__test", logs, fields)
+
+        self.assertIn("body.player.id", result)
+        self.assertEqual(len(result["body.player.id"]), 1)
+        self.assertEqual(result["body.player.id"][0]["rule_name"], "test_mask")
+
+    def test_match_rule_json_string_subpath_multiple_logs(self):
+        """多条日志时，match_rule 对 JSON 字符串子路径正确去重"""
+        logs = [
+            {"body": '{"player":{"id":"11111"}}'},
+            {"body": '{"player":{"id":"22222"}}'},
+        ]
+        fields = ["body.player.id"]
+        result = DesensitizeRuleHandler.match_rule("bkcc__test", logs, fields)
+
+        self.assertIn("body.player.id", result)
+        # 规则去重后仍为 1 条
+        self.assertEqual(len(result["body.player.id"]), 1)
+        self.assertEqual(result["body.player.id"][0]["rule_name"], "test_mask")
+
+    def test_match_rule_regular_field_preserved(self):
+        """普通字段（非 JSON 字符串）走 match_rule 仍正常匹配"""
+        logs = [{"log": "some raw text"}]
+        fields = ["log"]
+        result = DesensitizeRuleHandler.match_rule("bkcc__test", logs, fields)
+
+        self.assertIn("log", result)
+        self.assertEqual(result["log"][0]["rule_name"], "test_text_replace")
+
+    def test_match_rule_json_and_scalar(self):
+        """混合 JSON 子路径与标量字段，两者均正确匹配"""
+        logs = [
+            {
+                "body": '{"player":{"id":"12345"}}',
+                "log": "some text",
+            }
+        ]
+        fields = ["body.player.id", "log"]
+        result = DesensitizeRuleHandler.match_rule("bkcc__test", logs, fields)
+
+        self.assertIn("body.player.id", result)
+        self.assertIn("log", result)
+
+    def test_match_rule_no_rules_returns_empty(self):
+        """空间无规则时返回空 dict"""
+        logs = [{"body": '{"player":{"id":"12345"}}'}]
+        fields = ["body.player.id"]
+        result = DesensitizeRuleHandler.match_rule("bkcc__other", logs, fields)
+        self.assertEqual(result["body.player.id"], [])
+
+    def test_match_rule_field_not_in_log(self):
+        """请求的字段在日志中不存在时返回空列表"""
+        logs = [{"body": '{"player":{"id":"12345"}}'}]
+        fields = ["nonexistent.field"]
+        result = DesensitizeRuleHandler.match_rule("bkcc__test", logs, fields)
+        self.assertEqual(result["nonexistent.field"], [])
+
+    def test_match_rule_empty_logs(self):
+        """空日志列表返回空匹配"""
+        result = DesensitizeRuleHandler.match_rule("bkcc__test", [], ["body.player.id"])
+        self.assertEqual(result["body.player.id"], [])
+
+    def test_match_rule_nested_json_string(self):
+        """多层 JSON 字符串嵌套的子路径也能被 match_rule 匹配"""
+        from apps.log_desensitize.models import DesensitizeRule
+
+        DesensitizeRule.objects.create(
+            rule_name="test_nested",
+            operator=DesensitizeOperator.MASK_SHIELD.value,
+            params={"preserve_head": 1, "preserve_tail": 1, "replace_mark": "*"},
+            space_uid="bkcc__test",
+            is_public=False,
+            match_pattern="",
+            match_fields=["body.auth_info.bk_token"],
+            is_active=True,
+        )
+        logs = [
+            {
+                "body": '{"auth_info":"{\\"bk_token\\":\\"test_token_value\\"}","uin":"anonymous"}',
+            }
+        ]
+        fields = ["body.auth_info.bk_token"]
+        result = DesensitizeRuleHandler.match_rule("bkcc__test", logs, fields)
+
+        self.assertIn("body.auth_info.bk_token", result)
+        self.assertEqual(result["body.auth_info.bk_token"][0]["rule_name"], "test_nested")

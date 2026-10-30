@@ -36,10 +36,11 @@ from apps.log_desensitize.exceptions import (
 )
 from apps.log_desensitize.handlers.desensitize_operator import OPERATOR_MAPPING
 from apps.log_desensitize.models import DesensitizeFieldConfig, DesensitizeRule
-from apps.log_desensitize.utils import expand_nested_data, merge_nested_data
+from apps.log_desensitize.utils import path_aware_expand, restore_by_metadata, _extract_value_by_path
 from apps.log_search.constants import CollectorScenarioEnum
 from apps.log_search.models import LogIndexSet, Scenario
 from apps.models import model_to_dict
+from apps.utils.log import logger
 import builtins
 
 
@@ -131,28 +132,45 @@ class DesensitizeHandler:
     def transform_dict(self, log_content: dict = None):
         """
         params: log_content 需要处理的文本内容
-        处理字典类型 单条log内容的格式 {"field_a": 12345, "field_b": "abc"}
+        处理字典类型 单条log内容的格式 {("field_a",): 12345, ("field_b",): "abc"}
         根据脱敏配置列表 desensitize_config_list 以流水线方式处理 log 字段的内容
+
+        log_content 的 key 为 tuple（path token），配置的 field_name 为 dotted string。
+        匹配时将 field_name 转为 tuple 进行比较。
         """
         if not self.field_rule_mapping or not log_content:
             return log_content
 
-        for field, value in log_content.items():
+        # 预计算配置路径的 tuple 表示
+        config_tuples = {
+            tuple(field.split(".")): rules
+            for field, rules in self.field_rule_mapping.items()
+        }
+
+        for field_tuple, value in log_content.items():
             # 查找字段对应的处理规则
             rules = None
             # 优先精确匹配字段
-            if field in self.field_rule_mapping:
-                rules = self.field_rule_mapping[field]
-            # 处理嵌套字段
-            elif "." in field:
-                top_level_field = field.split(".", 1)[0]  # 只分割一次，处理深层嵌套
-                if top_level_field in self.field_rule_mapping:
-                    rules = self.field_rule_mapping[top_level_field]
+            if field_tuple in config_tuples:
+                rules = config_tuples[field_tuple]
+            else:
+                # 处理嵌套字段：顶层前缀匹配（保持 master 分支行为）
+                if len(field_tuple) > 1:
+                    top_tuple = (field_tuple[0],)
+                    if top_tuple in config_tuples:
+                        rules = config_tuples[top_tuple]
+                # 字面点号 key 的 split 解释匹配（fail-closed：宁可多脱不可漏脱）
+                # 字面 key "a.b" 的 tuple 是 ("body", "a.b")，配置路径可能是 ("body", "a", "b")
+                # 将 field_tuple 中含点号的段展开后匹配
+                if rules is None and any("." in seg for seg in field_tuple):
+                    split_field_tuple = tuple(s for seg in field_tuple for s in seg.split("."))
+                    if split_field_tuple in config_tuples:
+                        rules = config_tuples[split_field_tuple]
 
             if rules:
                 # str(None)会转成字符串"None"，需要特殊处理
                 str_value = "" if value is None else str(value)
-                log_content[field] = self.transform(log=str_value, rules=rules)
+                log_content[field_tuple] = self.transform(log=str_value, rules=rules)
 
         return log_content
 
@@ -541,10 +559,12 @@ class DesensitizeRuleHandler:
             if not desensitize_rule_info:
                 continue
             for _original_log in logs:
-                _log = expand_nested_data(_original_log)
-                if _field not in _log and _field not in _original_log:
+                # 使用 path_aware_expand 展开，支持 JSON 字符串子路径 / flattened 子路径
+                _log, _ = path_aware_expand(_original_log, fields)
+                _field_tuple = tuple(_field.split("."))
+                if _field_tuple not in _log and _field not in _original_log:
                     continue
-                _text = str(_original_log[_field]) if _field in _original_log else str(_log[_field])
+                _text = str(_original_log[_field]) if _field in _original_log else str(_log[_field_tuple])
                 for _rule in desensitize_rule_info:
                     match_fields = _rule["match_fields"]
                     match_pattern = _rule["match_pattern"]
@@ -656,36 +676,71 @@ class DesensitizeRuleHandler:
 
         all_field_names = field_names.union(set(text_fields))
 
+        # 提取已配置字段的 dotted path 列表，用于路径感知展开
+        configured_paths = list(field_names)
+
         # 日志原文脱敏处理
-        for _log in logs:
-            _log = expand_nested_data(_log)
-            log_content_tmp = copy.deepcopy(_log)
+        for _original_log in logs:
+            # 先 deepcopy 原始 log，用于后续日志原文替换
+            # 必须在 path_aware_expand 之前执行，避免 fail-closed 遮罩覆盖原始值
+            if text_fields:
+                try:
+                    log_content_tmp = copy.deepcopy(_original_log)
+                except RecursionError:
+                    logger.warning(
+                        "[desensitize] deepcopy failed due to deeply nested structure, "
+                        "falling back to shallow copy"
+                    )
+                    log_content_tmp = copy.copy(_original_log)
+
+            _log, restore_metadata = path_aware_expand(_original_log, configured_paths)
 
             result = desensitize_handler.transform_dict(_log)
 
             # 日志原文字段同步应用其他字段的脱敏结果
-            for text_field in text_fields:  # ["log"]
-                # 判断原文字段是否存在log中
-                if text_field not in result:
-                    continue
+            if text_fields:
+                # 对副本做空路径展开，获得 path-token 形式的原始值
+                # 使用空 configured_paths 确保不解析 JSON 字符串、不触发 fail-closed
+                log_content_tmp_expanded, _ = path_aware_expand(log_content_tmp, [])
 
-                for field_name in field_names:
-                    if field_name not in result or field_name == text_field:
+                for text_field in text_fields:  # ["log"]
+                    text_tuple = (text_field,)
+                    # 判断原文字段是否存在log中
+                    if text_tuple not in result:
                         continue
-                    result[text_field] = result[text_field].replace(
-                        str(log_content_tmp[field_name]), str(result[field_name])
-                    )
+
+                    for field_name in field_names:
+                        field_tuple = tuple(field_name.split("."))
+                        if field_tuple not in result or field_tuple == text_tuple:
+                            continue
+
+                        # 优先从展开后的副本获取原始值
+                        original_value = log_content_tmp_expanded.get(field_tuple)
+                        if original_value is None:
+                            # 空路径展开时 JSON 字符串子路径不会被展开
+                            # 从原始 log 按 dotted path 导航提取
+                            original_value = _extract_value_by_path(log_content_tmp, field_name)
+                            if original_value is None:
+                                continue
+
+                        result[text_tuple] = result[text_tuple].replace(
+                            str(original_value), str(result[field_tuple])
+                        )
 
             # 处理日志原文字段自身的脱敏逻辑
             result = text_fields_desensitize_handler.transform_dict(_log)
-            merged_result = merge_nested_data(result)  # 用于处理flattened字段类型，合并成一个字段
+            restored_result = restore_by_metadata(result, restore_metadata)  # 按原始类型还原
 
             for _field_name in all_field_names:
                 if _field_name not in res:
                     res[_field_name] = list()
 
-                res[_field_name].append(
-                    str(merged_result[_field_name]) if merged_result.get(_field_name) else result.get(_field_name)
-                )
+                # restored_result 是嵌套 dict（key 为 string），需要按 dotted path 导航
+                if _field_name in restored_result:
+                    res[_field_name].append(str(restored_result[_field_name]))
+                else:
+                    # dotted path 在嵌套 dict 中导航
+                    val = _extract_value_by_path(restored_result, _field_name)
+                    res[_field_name].append(str(val) if val is not None else None)
 
         return res
