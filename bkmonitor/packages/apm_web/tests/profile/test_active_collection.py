@@ -20,7 +20,6 @@ from django.urls import reverse
 from rest_framework.test import APIRequestFactory
 
 from apm.models import ProfileDataSource
-from apm_web.profile.active_collection import fixtures
 from apm_web.profile.active_collection.constants import META_CONFIG
 from apm_web.profile.active_collection.constants import (
     EXECUTION_DETAIL_HOST_COLUMNS,
@@ -221,6 +220,12 @@ def test_meta_config_enabled_when_profile_data_id_exists(mocker):
     assert result == {**META_CONFIG, "enabled": True}
     # 事件分组与 Profiling 数据源由 enable 一起创建，开通状态只看 Profiling 数据源
     event_group.assert_not_called()
+    # parsing 只用于展示主机行，不提供筛选；后台 MySQL 能按 unknown 筛选
+    assert set(result["execution_statuses"]) - set(result["execution_status_filters"]) == {"parsing"}
+    assert "unknown" in result["execution_status_filters"]
+    assert "outdate" in result["execution_statuses"]
+    assert "outdate" in result["deployment_statuses"]
+    assert result["diagram_types"] == ["flamegraph", "table", "callgraph"]
 
 
 @pytest.mark.parametrize("bk_data_id", [None, -1])
@@ -1054,39 +1059,6 @@ def test_task_submit_keeps_all_target_hosts(process_selector):
     assert serializer.validated_data["target_config"]["nodes"] == TWO_HOSTS_TARGET_CONFIG["nodes"]
 
 
-def test_is_mock_returns_fixtures_and_skips_write_side_effects():
-    hosts = QueryHostsResource().perform_request({"is_mock": True})
-    assert [column["name"] for column in hosts["columns"] if column["field"] in ("ip", "task")] == [
-        "目标 IP",
-        "采集历史",
-    ]
-    assert hosts["data"][-1]["status"] == "outdate"
-
-    tasks = ListTasksResource().perform_request({"is_mock": True})
-    assert tasks["data"][1]["deployment_status"] == "outdate"
-    meta = ActiveProfilingMetaConfigResource().perform_request({"is_mock": True})
-    assert meta["enabled"] is True
-    assert "outdate" in meta["execution_statuses"]
-    # parsing 只用于展示主机行，不提供筛选；后台 MySQL 能按 unknown 筛选
-    assert set(meta["execution_statuses"]) - set(meta["execution_status_filters"]) == {"parsing"}
-    assert "unknown" in meta["execution_status_filters"]
-    assert "outdate" in meta["deployment_statuses"]
-    assert meta["diagram_types"] == ["flamegraph", "table", "callgraph"]
-
-    assert EnableActiveCollectionResource().perform_request({"is_mock": True, "bk_biz_id": 2}) is None
-    assert "task_id" not in ExecutionDetailResource().perform_request({"is_mock": True, "schedule_type": "immediate"})
-    assert QueryTopKResource().perform_request({"is_mock": True, "field": "process_names"})[0]["alias"] == "java"
-    assert QueryTopKResource().perform_request({"is_mock": True, "field": "process_pids"})[0]["alias"] == "java:1234"
-    result = QueryResultsResource().perform_request({"is_mock": True, "diagram_types": ["table"]})
-    assert set(result) == {"table_data", "type", "unit"}
-    result = QueryResultsResource().perform_request({"is_mock": True, "diagram_types": ["callgraph"]})
-    assert set(result) == {"call_graph_data", "call_graph_all", "type", "unit"}
-    data_types = QueryResultDataTypesResource().perform_request({"is_mock": True})["data_types"]
-    assert data_types[1] == {"key": "alloc_space/bytes", "name": "ALLOC_SPACE"}
-    response = ExportResultsResource().perform_request({"is_mock": True})
-    assert gzip.decompress(response.content) == b"mock-active-profiling-pprof"
-
-
 @pytest.mark.parametrize(
     "cron_expression",
     [
@@ -1155,9 +1127,8 @@ def test_backend_queries_forward_request_and_add_columns(
 
     assert resource_cls().request(request_data) == expected
 
-    # is_mock 只在 SaaS 侧生效，其余参数原样转给后台
+    # 参数原样转给后台
     sent = backend_api.call_args.kwargs
-    assert "is_mock" not in sent
     assert {key: sent[key] for key in request_data} == request_data
 
 
@@ -1201,28 +1172,4 @@ def test_backend_operations_forward_request_and_return_nothing(mocker, resource_
 
     assert resource_cls().request(request_data) is None
 
-    sent = backend_api.call_args.kwargs
-    assert "is_mock" not in sent
-    assert sent["bk_biz_id"] == 2
-
-
-def test_backend_resources_return_fixtures_without_calling_backend(mocker):
-    backend_apis = [
-        mocker.patch(f"core.drf_resource.api.apm_api.{api_name}")
-        for api_name in (
-            "query_active_profiling_hosts",
-            "list_active_profiling_tasks",
-            "submit_active_profiling_task",
-            "cancel_active_profiling_execution",
-            "rename_active_profiling_execution",
-        )
-    ]
-
-    assert QueryHostsResource().perform_request({"is_mock": True}) == fixtures.HOST_QUERY
-    assert ListTasksResource().perform_request({"is_mock": True}) == fixtures.TASK_LIST
-    assert SubmitTaskResource().perform_request({"is_mock": True}) is None
-    assert CancelExecutionResource().perform_request({"is_mock": True}) is None
-    assert RenameExecutionResource().perform_request({"is_mock": True}) is None
-
-    for backend_api in backend_apis:
-        backend_api.assert_not_called()
+    assert backend_api.call_args.kwargs["bk_biz_id"] == 2

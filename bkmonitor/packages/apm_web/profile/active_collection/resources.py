@@ -16,7 +16,6 @@ from django.conf import settings
 from django.utils.translation import gettext_lazy as _
 
 from apm.models import ProfileDataSource
-from apm_web.profile.active_collection import fixtures
 from apm_web.profile.active_collection.constants import (
     BKMONITORBEAT_RELATIVE_PATH,
     ERROR_TYPE_CONFIG_INVALID,
@@ -58,20 +57,12 @@ from constants.apm import BUILTIN_PROFILING_APP_NAME
 from core.drf_resource import Resource, api, resource
 
 
-def _backend_params(validated_request_data):
-    """计划、执行与查询都由后台 apm 处理；is_mock 只在 SaaS 侧生效，不转发给后台"""
-    return {key: value for key, value in validated_request_data.items() if key != "is_mock"}
-
-
 class ActiveProfilingMetaConfigResource(Resource):
     """获取表单默认值、请求枚举，以及当前业务是否已开通"""
 
     RequestSerializer = MetaConfigRequestSerializer
 
     def perform_request(self, validated_request_data):
-        if validated_request_data.get("is_mock"):
-            return {**META_CONFIG, "enabled": True}
-
         return {**META_CONFIG, "enabled": self._is_enabled(validated_request_data["bk_biz_id"])}
 
     @staticmethod
@@ -87,9 +78,6 @@ class EnableActiveCollectionResource(Resource):
     RequestSerializer = EnableRequestSerializer
 
     def perform_request(self, validated_request_data):
-        if validated_request_data.get("is_mock"):
-            return
-
         api.apm_api.enable_active_profiling(bk_biz_id=validated_request_data["bk_biz_id"])
 
 
@@ -99,9 +87,6 @@ class PreviewProcessesResource(Resource):
     RequestSerializer = ProcessPreviewRequestSerializer
 
     def perform_request(self, validated_request_data):
-        if validated_request_data.get("is_mock"):
-            return fixtures.PROCESS_PREVIEW
-
         nodes = validated_request_data["target_config"]["nodes"]
         if len(nodes) > PROCESS_PREVIEW_MAX_HOSTS:
             raise ValueError(_("预览主机数不能超过 {} 台").format(PROCESS_PREVIEW_MAX_HOSTS))
@@ -158,12 +143,9 @@ class ListTasksResource(Resource):
     RequestSerializer = TaskListRequestSerializer
 
     def perform_request(self, validated_request_data):
-        if validated_request_data.get("is_mock"):
-            return fixtures.TASK_LIST
-
         return {
             "columns": TASK_LIST_COLUMNS,
-            **api.apm_api.list_active_profiling_tasks(**_backend_params(validated_request_data)),
+            **api.apm_api.list_active_profiling_tasks(**validated_request_data),
         }
 
 
@@ -173,10 +155,7 @@ class SubmitTaskResource(Resource):
     RequestSerializer = TaskSubmitRequestSerializer
 
     def perform_request(self, validated_request_data):
-        if validated_request_data.get("is_mock"):
-            return
-
-        api.apm_api.submit_active_profiling_task(**_backend_params(validated_request_data))
+        api.apm_api.submit_active_profiling_task(**validated_request_data)
 
 
 class EditTaskResource(Resource):
@@ -185,10 +164,7 @@ class EditTaskResource(Resource):
     RequestSerializer = TaskEditRequestSerializer
 
     def perform_request(self, validated_request_data):
-        if validated_request_data.get("is_mock"):
-            return
-
-        api.apm_api.edit_active_profiling_task(**_backend_params(validated_request_data))
+        api.apm_api.edit_active_profiling_task(**validated_request_data)
 
 
 class DeleteTaskResource(Resource):
@@ -197,10 +173,7 @@ class DeleteTaskResource(Resource):
     RequestSerializer = TaskDeleteRequestSerializer
 
     def perform_request(self, validated_request_data):
-        if validated_request_data.get("is_mock"):
-            return
-
-        api.apm_api.delete_active_profiling_task(**_backend_params(validated_request_data))
+        api.apm_api.delete_active_profiling_task(**validated_request_data)
 
 
 class SwitchTaskResource(Resource):
@@ -209,10 +182,7 @@ class SwitchTaskResource(Resource):
     RequestSerializer = TaskSwitchRequestSerializer
 
     def perform_request(self, validated_request_data):
-        if validated_request_data.get("is_mock"):
-            return
-
-        api.apm_api.switch_active_profiling_task(**_backend_params(validated_request_data))
+        api.apm_api.switch_active_profiling_task(**validated_request_data)
 
 
 class QueryHostsResource(Resource):
@@ -221,12 +191,9 @@ class QueryHostsResource(Resource):
     RequestSerializer = EventListRequestSerializer
 
     def perform_request(self, validated_request_data):
-        if validated_request_data.get("is_mock"):
-            return fixtures.HOST_QUERY
-
         return {
             "columns": HOST_QUERY_COLUMNS,
-            "data": api.apm_api.query_active_profiling_hosts(**_backend_params(validated_request_data)),
+            "data": api.apm_api.query_active_profiling_hosts(**validated_request_data),
         }
 
 
@@ -236,12 +203,9 @@ class ListExecutionsResource(Resource):
     RequestSerializer = EventListRequestSerializer
 
     def perform_request(self, validated_request_data):
-        if validated_request_data.get("is_mock"):
-            return fixtures.EXECUTION_LIST
-
         return {
             "task_columns": EXECUTION_LIST_TASK_COLUMNS,
-            "data": api.apm_api.list_active_profiling_executions(**_backend_params(validated_request_data)),
+            "data": api.apm_api.list_active_profiling_executions(**validated_request_data),
         }
 
 
@@ -251,10 +215,7 @@ class QueryTopKResource(Resource):
     RequestSerializer = TopKRequestSerializer
 
     def perform_request(self, validated_request_data):
-        if validated_request_data.get("is_mock"):
-            return fixtures.topk(validated_request_data["field"])
-
-        return api.apm_api.query_active_profiling_top_k(**_backend_params(validated_request_data))
+        return api.apm_api.query_active_profiling_top_k(**validated_request_data)
 
 
 class ExecutionDetailResource(Resource):
@@ -263,12 +224,9 @@ class ExecutionDetailResource(Resource):
     RequestSerializer = ExecutionDetailRequestSerializer
 
     def perform_request(self, validated_request_data):
-        if validated_request_data.get("is_mock"):
-            return fixtures.execution_detail(validated_request_data)
-
         return {
             "host_columns": EXECUTION_DETAIL_HOST_COLUMNS,
-            **api.apm_api.query_active_profiling_execution_detail(**_backend_params(validated_request_data)),
+            **api.apm_api.query_active_profiling_execution_detail(**validated_request_data),
         }
 
 
@@ -278,10 +236,7 @@ class CancelExecutionResource(Resource):
     RequestSerializer = ExecutionCancelRequestSerializer
 
     def perform_request(self, validated_request_data):
-        if validated_request_data.get("is_mock"):
-            return
-
-        api.apm_api.cancel_active_profiling_execution(**_backend_params(validated_request_data))
+        api.apm_api.cancel_active_profiling_execution(**validated_request_data)
 
 
 class RenameExecutionResource(Resource):
@@ -290,10 +245,7 @@ class RenameExecutionResource(Resource):
     RequestSerializer = ExecutionRenameRequestSerializer
 
     def perform_request(self, validated_request_data):
-        if validated_request_data.get("is_mock"):
-            return
-
-        api.apm_api.rename_active_profiling_execution(**_backend_params(validated_request_data))
+        api.apm_api.rename_active_profiling_execution(**validated_request_data)
 
 
 class QueryResultsResource(ActiveProfilingResultMixin, Resource):
@@ -302,9 +254,6 @@ class QueryResultsResource(ActiveProfilingResultMixin, Resource):
     RequestSerializer = ResultQueryRequestSerializer
 
     def perform_request(self, validated_request_data):
-        if validated_request_data.get("is_mock"):
-            return fixtures.result_query(validated_request_data["diagram_types"])
-
         tree_converter = self._convert_samples(validated_request_data, TreeConverter())
         if tree_converter is None or tree_converter.empty():
             return {}
@@ -322,9 +271,6 @@ class QueryResultDataTypesResource(ActiveProfilingResultMixin, Resource):
     RequestSerializer = ResultDataTypesRequestSerializer
 
     def perform_request(self, validated_request_data):
-        if validated_request_data.get("is_mock"):
-            return {"data_types": fixtures.RESULT_DATA_TYPES}
-
         data_types = QueryServicesDetailResource.to_data_types(self._query_sample_types(validated_request_data))
         return {"data_types": [{"key": data_type["key"], "name": data_type["name"]} for data_type in data_types]}
 
@@ -335,9 +281,6 @@ class ExportResultsResource(ActiveProfilingResultMixin, Resource):
     RequestSerializer = ResultExportRequestSerializer
 
     def perform_request(self, validated_request_data):
-        if validated_request_data.get("is_mock"):
-            return fixtures.export_response()
-
         from apm_web.profile.views import ProfileQueryViewSet
 
         # 没有样本时传 None，由检索导出统一报“未查询到有效数据”

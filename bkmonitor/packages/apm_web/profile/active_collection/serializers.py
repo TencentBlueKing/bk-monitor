@@ -36,15 +36,11 @@ from apm_web.profile.active_collection.constants import (
 )
 
 
-class IsMockSerializer(serializers.Serializer):
-    is_mock = serializers.BooleanField(label="是否返回 mock", required=False, default=False)
-
-
 class QuerySourceSerializer(serializers.Serializer):
     source = serializers.ChoiceField(label="查询数据源", choices=QUERY_SOURCE_CHOICES, default="mysql")
 
 
-class MetaConfigRequestSerializer(IsMockSerializer):
+class MetaConfigRequestSerializer(serializers.Serializer):
     bk_biz_id = serializers.IntegerField(label="业务 ID")
 
 
@@ -259,7 +255,7 @@ class JavaCollectorConfigSerializer(serializers.Serializer):
     duration_sec = serializers.IntegerField(label="采集时长(秒)", min_value=1, max_value=COLLECTOR_MAX_DURATION_SEC)
 
 
-class TopKRequestSerializer(IsMockSerializer, QuerySourceSerializer):
+class TopKRequestSerializer(QuerySourceSerializer):
     bk_biz_id = serializers.IntegerField(label="业务 ID")
     start_time = serializers.IntegerField(label="查询开始时间")
     end_time = serializers.IntegerField(label="查询结束时间")
@@ -307,23 +303,23 @@ class CancelHostSerializer(serializers.Serializer):
     ip = serializers.CharField(label="主机 IP")
 
 
-class EnableRequestSerializer(IsMockSerializer):
+class EnableRequestSerializer(serializers.Serializer):
     bk_biz_id = serializers.IntegerField(label="业务 ID")
 
 
-class ProcessPreviewRequestSerializer(IsMockSerializer):
+class ProcessPreviewRequestSerializer(serializers.Serializer):
     bk_biz_id = serializers.IntegerField(label="业务 ID")
     target_config = TargetConfigSerializer(label="目标主机配置")
     process_selector = PreviewProcessSelectorSerializer(label="进程选择器")
 
 
-class TaskListRequestSerializer(IsMockSerializer):
+class TaskListRequestSerializer(serializers.Serializer):
     bk_biz_id = serializers.IntegerField(label="业务 ID")
     page = serializers.IntegerField(label="页码", min_value=1, default=1)
     page_size = serializers.IntegerField(label="每页数量", min_value=1, default=20)
 
 
-class TaskSubmitRequestSerializer(IsMockSerializer):
+class TaskSubmitRequestSerializer(serializers.Serializer):
     COLLECTOR_CONFIG_SERIALIZER_MAP = {
         "native_cpu": NativeCpuCollectorConfigSerializer,
         "go_cpu": GoCpuCollectorConfigSerializer,
@@ -376,18 +372,18 @@ class TaskEditRequestSerializer(PlannedTaskSubmitRequestSerializer):
     task_id = serializers.IntegerField(label="任务 ID")
 
 
-class TaskDeleteRequestSerializer(IsMockSerializer):
+class TaskDeleteRequestSerializer(serializers.Serializer):
     bk_biz_id = serializers.IntegerField(label="业务 ID")
     task_id = serializers.IntegerField(label="任务 ID")
 
 
-class TaskSwitchRequestSerializer(IsMockSerializer):
+class TaskSwitchRequestSerializer(serializers.Serializer):
     bk_biz_id = serializers.IntegerField(label="业务 ID")
     task_id = serializers.IntegerField(label="任务 ID")
     enabled = serializers.BooleanField(label="是否启用")
 
 
-class EventListRequestSerializer(IsMockSerializer, QuerySourceSerializer):
+class EventListRequestSerializer(QuerySourceSerializer):
     bk_biz_id = serializers.IntegerField(label="业务 ID")
     start_time = serializers.IntegerField(label="查询开始时间")
     end_time = serializers.IntegerField(label="查询结束时间")
@@ -401,7 +397,7 @@ class EventListRequestSerializer(IsMockSerializer, QuerySourceSerializer):
         return attrs
 
 
-class ExecutionKeySerializer(IsMockSerializer):
+class ExecutionKeySerializer(serializers.Serializer):
     bk_biz_id = serializers.IntegerField(label="业务 ID")
     schedule_type = serializers.ChoiceField(label="执行方式", choices=SCHEDULE_TYPE_CHOICES)
     scheduled_at = serializers.IntegerField(label="执行计划时间")
@@ -428,7 +424,7 @@ class ExecutionRenameRequestSerializer(ExecutionKeySerializer):
     task_name = serializers.CharField(label="任务名称", max_length=128)
 
 
-class ResultDataTypesRequestSerializer(IsMockSerializer):
+class ResultDataTypesRequestSerializer(serializers.Serializer):
     bk_biz_id = serializers.IntegerField(label="业务 ID")
     scheduled_at = serializers.IntegerField(label="执行计划时间")
     bk_host_id = serializers.IntegerField(label="主机 ID")
