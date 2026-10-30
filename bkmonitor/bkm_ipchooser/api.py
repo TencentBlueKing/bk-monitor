@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 import abc
 
 from django.conf import settings
@@ -99,6 +98,22 @@ class AbstractBkApi(metaclass=abc.ABCMeta):
     @staticmethod
     def list_service_instance_detail(params: dict = None):
         """查询服务实例列表"""
+        raise NotImplementedError
+
+    @staticmethod
+    def get_service_instance_module_index(bk_biz_id: int) -> dict[int, list[int]] | None:
+        """查询「模块 -> 服务实例 ID」索引，仅含 ID 不含明细"""
+        raise NotImplementedError
+
+    @staticmethod
+    def refresh_service_instance_module_index(bk_biz_id: int, service_instances: list[dict]) -> None:
+        """
+        用一份刚拉取的全量明细刷新「模块 -> 服务实例 ID」索引
+
+        列表侧自行拉取明细后必须调用，使索引与明细缓存指向同一份快照；否则树统计
+        （明细未命中时读索引）会拿着更旧的索引口径计数，与列表条数对不上。
+        写入失败会向上抛出，需要「不影响主流程」的调用方应自行捕获。
+        """
         raise NotImplementedError
 
     @staticmethod

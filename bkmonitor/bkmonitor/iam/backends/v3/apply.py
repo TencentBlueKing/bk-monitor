@@ -13,6 +13,7 @@ from iam.apply.models import (
 from iam.utils import gen_perms_apply_data
 from bkmonitor.iam.action import canonicalize_action_id
 from iam_engine.core.requests import to_definition_id
+from iam_engine.v3.apply import application_resource_path
 
 logger = logging.getLogger(__name__)
 
@@ -56,14 +57,11 @@ class V3ApplicationBuilder:
             instances = [
                 ResourceInstance(
                     [
-                        ResourceNode(
-                            type=p.codec.encode_resource_type(rt),
-                            id=p.codec.encode_resource_id(rt, str(r.id)),
-                            name=r.name or r.id,
-                        )
+                        ResourceNode(type=node["type"], id=node["id"], name=node["name"])
+                        for node in application_resource_path(resource, leaf_name=resource.attribute["name"])
                     ]
                 )
-                for r in matched
+                for resource in sdk_resources
             ]
             sdk_actions.append(
                 ActionWithResources(
