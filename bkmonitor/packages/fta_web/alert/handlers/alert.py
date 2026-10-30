@@ -1510,14 +1510,15 @@ class AlertQueryHandler(BaseBizQueryHandler):
                 "size": self.NOTICE_WAY_PAIRS_PAGE_SIZE,
                 "sources": [
                     {"alert_id": {"terms": {"field": "alert_id"}}},
-                    {"notice_way": {"terms": {"field": "notice_way"}}},
+                    # 字段名与写入侧共用常量，避免两处漂移
+                    {NoticeWay.NOTICE_WAY_FIELD: {"terms": {"field": NoticeWay.NOTICE_WAY_FIELD}}},
                 ],
             }
             if after_key:
                 composite["after"] = after_key
             search.aggs.bucket("pairs", "composite", **composite)
             if page_no == 0:
-                search.aggs.bucket("unfilled", "filter", ~Q("exists", field="notice_way"))
+                search.aggs.bucket("unfilled", "filter", ~Q("exists", field=NoticeWay.NOTICE_WAY_FIELD))
 
             # 只取聚合结果，不需要 total；track_total_hits=False 可免掉一次全量计数
             search_result = search.extra(size=0, track_total_hits=False).execute()

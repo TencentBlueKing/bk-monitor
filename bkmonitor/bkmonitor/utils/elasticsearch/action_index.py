@@ -25,8 +25,17 @@ def list_action_indices(es_client) -> list[str]:
     )
 
 
+def invalid_index_names(indices: list[str]) -> list[str]:
+    """返回不符合物理索引命名（bkfta_action_YYYYMMDD_N）的名字，供命令做入参校验。"""
+    return [name for name in indices if not ACTION_INDEX_NAME_PATTERN.match(name)]
+
+
 def index_has_field(es_client, index: str, field: str) -> bool:
-    """判断物理索引的 mapping 中是否已存在指定字段。"""
+    """判断物理索引的 mapping 中是否已包含指定字段。
+
+    仅用于物理索引：调用方（补字段 / 回填命令）的 --indices 已限制为物理索引名，
+    自动枚举也做了正则过滤；传入别名时 ES 返回的 key 是具体索引名，本函数不做兼容。
+    """
     mapping = es_client.indices.get_mapping(index=index)
     properties = (mapping.get(index) or {}).get("mappings", {}).get("properties") or {}
     return field in properties

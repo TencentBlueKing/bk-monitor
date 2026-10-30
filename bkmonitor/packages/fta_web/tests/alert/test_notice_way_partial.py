@@ -763,6 +763,17 @@ def test_query_by_records_biz_terms_follow_tenant_wide_authorization(monkeypatch
     assert ("bk_biz_id" in query) is expect_biz_terms
 
 
+@pytest.mark.parametrize(("switch", "expected"), [(True, True), (False, False)])
+def test_add_aggs_gates_min_begin_time_by_switch(switch, expected):
+    """开关关闭时主查询不应挂载 min_begin_time 聚合"""
+    handler = make_handler()
+    handler._notice_way_by_records = switch
+
+    search = handler.add_aggs(Search())
+
+    assert ("min_begin_time" in json.dumps(search.to_dict()["aggs"])) is expected
+
+
 def test_query_by_records_disables_total_hits(monkeypatch):
     handler = make_handler()
     handler._notice_way_by_records = True
@@ -808,6 +819,30 @@ def test_query_by_records_terminates_on_full_page_without_after_key(monkeypatch)
 
     assert handler._query_notice_ways_by_records({"1"}, None) == {"1": {"voice", "mail"}}
     assert len(captured) == 1
+
+
+def test_handle_aggs_notice_way_counts_children_and_total():
+    """children 按渠道累加；count 按告警去重且包含面板外渠道"""
+    handler = make_handler()
+    handler._notice_ways_cache = {
+        "1": {NoticeWay.MAIL, NoticeWay.SMS},
+        "2": {NoticeWay.BK_CHAT},  # 面板外渠道：只计入 count，不出现在 children
+        "999": {NoticeWay.MAIL},  # 不在本次结果集内，必须被过滤
+    }
+
+    result = handler.handle_aggs_notice_way({"1", "2"})
+
+    children = {item["id"]: item["count"] for item in result["children"]}
+    assert children == {
+        NoticeWay.SMS: 1,
+        NoticeWay.MAIL: 1,
+        NoticeWay.WEIXIN: 0,
+        NoticeWay.QY_WEIXIN: 0,
+        NoticeWay.VOICE: 0,
+        NoticeWay.WX_BOT: 0,
+    }
+    assert result["count"] == 2
+    assert result["is_partial"] is False
 
 
 def test_notice_way_aggregation_degrades_to_partial_when_query_raises(monkeypatch):
@@ -860,3 +895,10 @@ def test_handler_reads_switch_once_from_settings(settings):
     handler = AlertQueryHandler(bk_biz_ids=None, username="tester", need_bucket_count=False)
 
     assert handler._notice_way_by_records is True
+
+
+def test_document_field_name_matches_constant():
+    """documents/action.py 的字段名无法引用常量，用测试兜住漂移"""
+    mapping = alert_handler.ActionInstanceDocument._doc_type.mapping.to_dict()
+
+    assert NoticeWay.NOTICE_WAY_FIELD in mapping["properties"]

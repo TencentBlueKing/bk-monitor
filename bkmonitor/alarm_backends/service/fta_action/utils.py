@@ -248,7 +248,7 @@ def to_document(action_instance: ActionInstance, current_time, alerts=None):
             raw_notice_way = action_instance.inputs.get("notice_way")
             if not isinstance(raw_notice_way, list):
                 raw_notice_way = [raw_notice_way] if raw_notice_way else []
-            action_info["notice_way"] = raw_notice_way or [NoticeWay.NOTICE_WAY_NONE]
+            action_info[NoticeWay.NOTICE_WAY_FIELD] = raw_notice_way or [NoticeWay.NOTICE_WAY_NONE]
     action_info.update(target_info)
     converge_info = getattr(action_instance, "converge_info", {})
     action_info.update(converge_info)
