@@ -95,7 +95,7 @@
     "postcss": "^8.4.38"
   },
   "engines": {
-    "node": ">= 18"
+    "node": "^24.22.2"
   },
   "simple-git-hooks": {
     "pre-commit": "npx lint-staged --concurrent false",

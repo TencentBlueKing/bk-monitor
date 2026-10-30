@@ -29,7 +29,10 @@ RUN if [ ${replace_debian_source} ] ; then \
     fi
 
 # install node and pnpm
-RUN apt-get update && apt-get install -y curl && curl -sL https://deb.nodesource.com/setup_20.x | bash - && apt-get install -y nodejs
+RUN apt-get update && apt-get install -y curl \
+    && curl -fsSL https://deb.nodesource.com/setup_24.x | bash - \
+    && apt-get install -y nodejs=24.22.2-1nodesource1 \
+    && node --version
 RUN npm install -g pnpm@8.15.9
 
 WORKDIR /app
@@ -85,6 +88,7 @@ RUN apt-get update  \
 COPY --from=builder --chown=${username}:${username} /app/venv /app/venv
 COPY --from=builder --chown=${username}:${username} /app/code/ /app/code/
 COPY --from=builder --chown=${username}:${username} /app/code/docs/api/monitor_v3.yaml /app/code/kernel_api/monitor_v3.yaml
+RUN /app/venv/bin/python /app/code/scripts/verify_pillow_build.py
 RUN echo ${version} > /app/code/VERSION
 
 USER ${username}
