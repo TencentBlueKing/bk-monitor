@@ -31,12 +31,13 @@ import { useI18n } from 'vue-i18n';
 import { getCollectionExecution } from '../services/collection-history';
 import {
   downloadCollectionProfile,
+  getCollectionCallGraph,
   getCollectionDataTypes,
   getCollectionProfile,
 } from '../services/collection-results';
 import { canViewHostResult, executionResultRows, resultParams } from '../utils/collection-results';
 
-import type { ProfileResult } from '../types';
+import type { GraphMode, ProfileResult } from '../types';
 import type { CollectionResultSelection } from '../types/collection-history';
 import type { CollectionDataType, CollectionHostResult } from '../types/collection-results';
 
@@ -45,10 +46,12 @@ export function useCollectionResultDetail({
   selection,
   source,
   dataType,
+  graphMode,
   onDataType,
 }: {
   bizId: Ref<number>;
   dataType: Ref<string>;
+  graphMode: Ref<GraphMode>;
   onDataType: (value: string) => void;
   selection: Ref<CollectionResultSelection>;
   source: Ref<CollectionHostResult | undefined>;
@@ -57,30 +60,41 @@ export function useCollectionResultDetail({
   const row = shallowRef<CollectionHostResult>();
   const types = shallowRef<CollectionDataType[]>([]);
   const data = shallowRef<ProfileResult>({});
+  const callGraph = shallowRef('');
+  // 常规图与调用图的加载状态独立，切换视图不能提前结束仍在进行的常规图请求。
+  const profileLoading = shallowRef(false);
+  const callLoading = shallowRef(false);
+  const graphLoading = computed(() => profileLoading.value || (graphMode.value === 'callgraph' && callLoading.value));
   const loading = shallowRef(false);
-  const graphLoading = shallowRef(false);
   const error = shallowRef('');
-  const graphError = shallowRef('');
+  const profileError = shallowRef('');
+  const callError = shallowRef('');
+  const graphError = computed(() => (graphMode.value === 'callgraph' ? callError.value : profileError.value));
   const exporting = shallowRef(false);
   const selectedType = computed(
     () => types.value.find(type => type.key === dataType.value)?.key || types.value[0]?.key || ''
   );
   let controller: AbortController;
   let graphController: AbortController;
+  let callController: AbortController;
   let exportController: AbortController;
 
   async function load() {
     controller?.abort();
     graphController?.abort();
+    callController?.abort();
     exportController?.abort();
     const current = new AbortController();
     controller = current;
     row.value = undefined;
     types.value = [];
     data.value = {};
+    callGraph.value = '';
     error.value = '';
-    graphError.value = '';
-    graphLoading.value = false;
+    profileError.value = '';
+    callError.value = '';
+    profileLoading.value = false;
+    callLoading.value = false;
     exporting.value = false;
     loading.value = true;
     try {
@@ -107,13 +121,13 @@ export function useCollectionResultDetail({
     graphController?.abort();
     exportController?.abort();
     exporting.value = false;
-    graphLoading.value = false;
-    graphError.value = '';
+    profileLoading.value = false;
+    profileError.value = '';
     data.value = {};
     if (!row.value || !selectedType.value) return;
     const current = new AbortController();
     graphController = current;
-    graphLoading.value = true;
+    profileLoading.value = true;
     try {
       const result = await getCollectionProfile(
         resultParams(row.value, bizId.value),
@@ -122,10 +136,39 @@ export function useCollectionResultDetail({
       );
       if (!current.signal.aborted) data.value = result;
     } catch (e) {
-      if (!current.signal.aborted) graphError.value = (e as Error)?.message || t('采集结果加载失败，请重试');
+      if (!current.signal.aborted) profileError.value = (e as Error)?.message || t('采集结果加载失败，请重试');
     } finally {
-      if (!current.signal.aborted) graphLoading.value = false;
+      if (!current.signal.aborted) profileLoading.value = false;
     }
+  }
+
+  async function loadCallGraph() {
+    callController?.abort();
+    callLoading.value = false;
+    callError.value = '';
+    callGraph.value = '';
+    if (!row.value || !selectedType.value) return;
+    const current = new AbortController();
+    callController = current;
+    callLoading.value = true;
+    try {
+      const result = await getCollectionCallGraph(
+        resultParams(row.value, bizId.value),
+        selectedType.value,
+        current.signal
+      );
+      if (!current.signal.aborted) callGraph.value = result.call_graph_data || '';
+    } catch (e) {
+      if (!current.signal.aborted) callError.value = (e as Error)?.message || t('调用图加载失败，请重试');
+    } finally {
+      if (!current.signal.aborted) callLoading.value = false;
+    }
+  }
+
+  function loadCharts() {
+    // 打开详情即并行请求常规图与调用图，任一失败不影响另一份数据展示。
+    loadProfile();
+    loadCallGraph();
   }
 
   async function exportProfile() {
@@ -157,17 +200,19 @@ export function useCollectionResultDetail({
   watch([bizId, () => JSON.stringify(selection.value)], load, { immediate: true });
   watch(selectedType, value => {
     if (value && value !== dataType.value) onDataType(value);
-    loadProfile();
+    loadCharts();
   });
   onScopeDispose(() => {
     controller?.abort();
     graphController?.abort();
+    callController?.abort();
     exportController?.abort();
   });
   return {
     row,
     types,
     data,
+    callGraph,
     loading,
     graphLoading,
     error,
@@ -175,7 +220,7 @@ export function useCollectionResultDetail({
     exporting,
     selectedType,
     load,
-    loadProfile,
+    retryGraph: () => (graphMode.value === 'callgraph' ? loadCallGraph() : loadProfile()),
     exportProfile,
   };
 }

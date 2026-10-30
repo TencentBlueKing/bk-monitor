@@ -55,6 +55,14 @@ export async function downloadCollectionProfile(
   }
 }
 
+export function getCollectionCallGraph(
+  params: CollectionResultParams,
+  dataType: string,
+  signal: AbortSignal
+): Promise<ProfileResult> {
+  return queryResult({ ...params, data_type: dataType, diagram_types: ['callgraph'] }, options(signal));
+}
+
 export function getCollectionDataTypes(
   params: CollectionResultParams,
   signal: AbortSignal
