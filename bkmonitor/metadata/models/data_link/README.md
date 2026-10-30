@@ -115,7 +115,7 @@ conditionalSink2 --> vmBinding3[VmStorageBinding]
 
 | 关联对象 | 关联字段 | 说明 |
 | --- | --- | --- |
-| `DataLink` -> 各 `*Config` | `data_link_name` | 同一条链路下的组件实例归组键，删除链路时按它反查组件并逆序清理。 |
+| `DataLink` -> 各 `*Config` | `data_link_name` | 同一条链路下的组件实例归组键，停用链路时仅按它清理 Databus，其余组件保留。 |
 | 各 `*Config` 资源唯一键 | `(bk_tenant_id, namespace, name)` | 通过 `update_or_create` 保证幂等更新。 |
 | `DataBusConfig` -> Sink 速查 | `sink_names` | 本地存储为 `kind:name` 列表，便于检索与排障。 |
 
@@ -219,10 +219,9 @@ conditionalSink2 --> vmBinding3[VmStorageBinding]
 
 ### 6.2 删除链路（`DataLink.delete_data_link`）
 
-1. 从 `STRATEGY_RELATED_COMPONENTS` 取当前策略对应组件列表。
-2. 逆序遍历组件类型并查询 `data_link_name` 相关实例。
-3. 对每个组件执行 `delete_config()`（先删 BKBase，再删本地）。
-4. 最后删除 `DataLink` 本身。
+1. 所有链路策略统一只查询当前租户、命名空间和 `data_link_name` 下的 Databus。
+2. 对每个 Databus 执行 `delete_config()`（先删 BKBase，再删本地）。
+3. 保留 `DataLink`、ResultTable、存储绑定、其他组件及结果表映射，避免停用后丢失 RT 与物理表的关联。
 
 ### 6.3 状态与配置查询
 
@@ -247,7 +246,7 @@ conditionalSink2 --> vmBinding3[VmStorageBinding]
 - `compose_configs(...)`：策略分发入口。
 - `apply_data_link(...)`：链路申请主流程。
 - `apply_data_link_with_retry(configs)`：重试下发。
-- `delete_data_link()`：链路删除。
+- `delete_data_link()`：停用链路，仅删除 Databus 并保留其他组件关系。
 - `sync_metadata(data_source, table_id, storage_cluster_name)`：普通链路元数据同步。
 - `sync_basereport_metadata(...)`：基础采集链路元数据同步。
 
