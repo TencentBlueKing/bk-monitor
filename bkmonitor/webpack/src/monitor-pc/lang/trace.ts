@@ -209,4 +209,10 @@ export default {
   重置视图: 'Reset view',
   'AI 诊断': 'AI Diagnosis',
   请输入你的问题: 'Enter your question',
+  当前告警未配置AI诊断: 'AI diagnosis is not configured for this alert',
+  立即诊断: 'Diagnose now',
+  前往配置: 'Go to configuration',
+  'AI诊断中，请稍候…': 'AI diagnosis in progress, please wait…',
+  AI诊断错误: 'AI diagnosis error',
+  联系管理员: 'Contact administrator',
 };

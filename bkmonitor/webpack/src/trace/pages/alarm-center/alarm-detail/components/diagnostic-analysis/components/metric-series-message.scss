@@ -1,0 +1,61 @@
+@import './common';
+
+.metric-series-message {
+  @extend %message-block;
+
+  .metric-series-message-text {
+    @extend %message-text;
+  }
+
+  .metric-series-card {
+    background: #f7f9fc;
+
+    @extend %message-card;
+
+    .metric-series-card-title {
+      @extend %message-card-title;
+    }
+
+    .metric-series-card-tags {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 4px;
+      align-items: flex-start;
+    }
+
+    .metric-series-tag {
+      display: inline-flex;
+      align-items: center;
+      height: 22px;
+      padding: 0 8px;
+      font-size: 12px;
+      line-height: 20px;
+      color: #3a84ff;
+      white-space: nowrap;
+      background: #fff;
+      border: 1px solid #e4e9f2;
+      border-radius: 4px;
+    }
+
+    .metric-series-card-chart,
+    .metric-series-echart {
+      width: 100%;
+    }
+
+    .metric-series-card-legend {
+      @extend %message-legend;
+    }
+
+    .metric-series-legend-item {
+      @extend %message-legend-item;
+    }
+
+    .metric-series-legend-bar {
+      @extend %message-legend-bar;
+    }
+
+    .metric-series-legend-name {
+      @extend %message-legend-name;
+    }
+  }
+}

@@ -409,4 +409,6 @@ export default {
   累计里程碑: 'Cumulative Milestone',
   专业解释: 'Professional explanation',
   用户感受: 'User experience',
+  '共 {n} 个事件': 'Total {n} events',
+  '该 Pattern 共匹配到 {n} 条日志': 'This pattern matches {n} log entries',
 };

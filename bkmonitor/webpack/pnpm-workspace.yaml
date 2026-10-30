@@ -45,6 +45,7 @@ minimumReleaseAgeExclude:
   - '@blueking/open-telemetry@0.0.14 || 0.0.33'
   - '@blueking/monitor-apm-log@2.3.28 || 2.3.29 || 2.3.30 || 2.3.31 || 2.3.32 || 2.3.33 || 2.3.34 || 2.3.35'
   - '@blueking/monitor-trace-log@2.0.27'
+  - '@blueking/chat-x@3.1.0-beta.6 || 3.1.1'
 
 allowBuilds:
   '@biomejs/biome': true

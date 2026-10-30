@@ -613,4 +613,8 @@ export default {
   '当前 Trace 无会话 ID': 'Current Trace has no session ID',
   本快照未提供事件数据: 'This snapshot does not contain event data',
   事件数量: 'Event count',
+  '共 {n} 个告警': 'Total {n} alarms',
+  '示例日志': 'Example log',
+  '展开更多': 'Expand more',
+  '新对话': 'New conversation',
 };

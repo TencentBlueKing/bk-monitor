@@ -1,0 +1,110 @@
+@import './common';
+
+.alert-list-message {
+  @extend %message-block;
+
+  .alert-list-message-text {
+    @extend %message-text;
+  }
+
+  .alert-list-card {
+    background: #f2f6fc;
+
+    @extend %message-card;
+
+    .alert-list-card-title {
+      @extend %message-card-title;
+    }
+
+    .alert-list-card-list {
+      @extend %message-card-list;
+    }
+  }
+
+  .alert-list-item {
+    gap: 8px;
+
+    @extend %message-record-item;
+
+    .alert-list-item-header {
+      display: flex;
+      gap: 8px;
+      align-items: flex-start;
+      width: 100%;
+    }
+
+    .alert-list-severity {
+      display: inline-flex;
+      flex-shrink: 0;
+      align-items: center;
+      height: 20px;
+      padding: 0 4px;
+      font-size: 12px;
+      font-weight: 500;
+      line-height: 20px;
+      color: #fff;
+      white-space: nowrap;
+      border-radius: 4px;
+
+      &.is-fatal {
+        background: #ea3636;
+      }
+
+      &.is-warning {
+        background: #f59500;
+      }
+
+      &.is-remind {
+        background: #3a84ff;
+      }
+    }
+
+    .alert-list-item-title {
+      @extend %message-item-title;
+    }
+
+    .alert-list-item-fields {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+      width: 100%;
+    }
+
+    .alert-list-field {
+      @extend %message-field;
+
+      .alert-list-field-key {
+        @extend %message-field-key;
+      }
+
+      .alert-list-field-value {
+        @extend %message-field-value;
+      }
+    }
+
+    .alert-list-item-footer {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      width: 100%;
+    }
+
+    .alert-list-item-time {
+      @extend %message-item-time;
+    }
+
+    .alert-list-item-status {
+      display: inline-flex;
+      flex-shrink: 0;
+      gap: 4px;
+      align-items: center;
+      font-size: 11px;
+      line-height: 20px;
+      color: #4d4f56;
+    }
+
+    .alert-list-item-status-icon {
+      font-size: 14px;
+    }
+  }
+}
