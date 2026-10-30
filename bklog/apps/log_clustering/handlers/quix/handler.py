@@ -163,6 +163,7 @@ class QuixClusteringHandler:
                 "filter_rules": filter_rules,
                 "min_members": params.get("min_members", OnlineTaskTrainingArgs.MIN_MEMBERS),
                 "max_dist_list": OnlineTaskTrainingArgs.MAX_DIST_LIST,
+                "depth": OnlineTaskTrainingArgs.DEPTH,
                 "delimeter": params.get("delimeter", OnlineTaskTrainingArgs.DELIMETER),
                 "max_log_length": params.get("max_log_length", OnlineTaskTrainingArgs.MAX_LOG_LENGTH),
                 "is_case_sensitive": params.get("is_case_sensitive", OnlineTaskTrainingArgs.IS_CASE_SENSITIVE),

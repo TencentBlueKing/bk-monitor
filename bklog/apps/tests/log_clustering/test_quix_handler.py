@@ -122,6 +122,8 @@ class TestQuixClusteringHandler(TestCase):
         ):
             QuixClusteringOperationRunner(operation.operation_id)._step_create_task()
         self.assertEqual(create_task.call_args.args[0]["training"], {"parameters": parameters})
+        self.assertEqual(create_task.call_args.args[0]["training"]["parameters"]["depth"], 7)
+        self.assertEqual(ClusteringConfig.objects.get(index_set_id=INDEX_SET_ID).depth, 7)
         self.assertEqual(create_task.call_args.args[0]["profile"], QUIX_CONFIG["profile"])
 
     def test_enable_rolls_back_operation_if_business_config_fails(self, mock_delay):
