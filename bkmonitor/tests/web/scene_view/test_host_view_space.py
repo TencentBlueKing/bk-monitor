@@ -8,6 +8,8 @@ import pytest
 from rest_framework.exceptions import NotFound
 
 from bkm_space.errors import NoRelatedResourceError
+from bkmonitor.share.handler import HostApiAuthChecker
+from core.errors.share import ParamsPermissionDeniedError
 from monitor_web.scene_view.builtin import host
 from monitor_web.scene_view.resources import host as host_resources
 from monitor_web.scene_view.resources import view as view_resources
@@ -52,6 +54,9 @@ class Rows(list):
 
     def values(self, *fields):
         return [{field: getattr(row, field) for field in fields} for row in self]
+
+    def values_list(self, *fields):
+        return [tuple(getattr(row, field) for field in fields) for row in self]
 
 
 @pytest.fixture
@@ -199,3 +204,72 @@ def test_generic_view_validation_preserves_other_scenes_and_ids(host_views, scen
     serializer.is_valid(raise_exception=True)
 
     assert serializer.validated_data["bk_biz_id"] == -999
+
+
+def share_checker(space_id):
+    checker = object.__new__(HostApiAuthChecker)
+    checker.bk_biz_id = space_id
+    checker.bk_tenant_id = "tenant"
+    checker.token = SimpleNamespace(namespaces=[f"biz#{space_id}"])
+    checker.scope = {"version": 1, "target_type": "host", "bk_host_id": 101}
+    checker.allowed_hosts = [SimpleNamespace(bk_host_id=101, ip="192.0.2.1", bk_cloud_id=0)]
+    return checker
+
+
+def share_query(view_id, space_id):
+    panel = host.get_panels(SimpleNamespace(id=view_id, bk_biz_id=space_id))[0]
+    query = deepcopy(panel["targets"][0]["data"]["query_configs"][0])
+    query["filter_dict"]["targets"] = [{"bk_host_id": 101}]
+    return query
+
+
+@pytest.mark.parametrize("view_id", ["host", "process"])
+@pytest.mark.parametrize("space_id", SPACES)
+@pytest.mark.parametrize("metric_owner", [0, 2, 3])
+def test_share_metric_whitelist_uses_related_business_without_changing_scope(
+    host_views, view_id, space_id, metric_owner
+):
+    checker = share_checker(space_id)
+    original_scope = deepcopy(checker.scope)
+    query = share_query(view_id, space_id)
+    if metric_owner:
+        query["metrics"][0]["field"] = f"{view_id}_{metric_owner}"
+
+    if metric_owner == 3:
+        with pytest.raises(ParamsPermissionDeniedError):
+            checker.query_configs_check([query])
+    else:
+        checker.query_configs_check([query])
+
+    assert checker.bk_biz_id == space_id
+    assert checker.token.namespaces == [f"biz#{space_id}"]
+    assert checker.scope == original_scope
+    assert host_views.metric_filter.call_args.kwargs["bk_biz_id__in"] == [0, 2]
+    assert host_views.metric_filter.call_args.kwargs["bk_tenant_id"] == "tenant"
+
+
+@pytest.mark.parametrize("view_id", ["host", "process"])
+@pytest.mark.parametrize("space_id", SPACES)
+def test_share_business_metrics_keep_host_target_restrictions(host_views, view_id, space_id):
+    checker = share_checker(space_id)
+    query = share_query(view_id, space_id)
+    query["metrics"][0]["field"] = f"{view_id}_2"
+    query["filter_dict"]["targets"] = [{"bk_host_id": 102}]
+
+    with pytest.raises(ParamsPermissionDeniedError):
+        checker.query_configs_check([query])
+
+    assert checker.bk_biz_id == space_id
+    assert checker.token.namespaces == [f"biz#{space_id}"]
+
+
+def test_share_unrelated_space_returns_resource_unavailable(host_views):
+    checker = share_checker(-999)
+
+    with pytest.raises(NotFound) as error:
+        checker.query_configs_check([])
+
+    assert error.value.status_code == 404
+    assert checker.bk_biz_id == -999
+    assert checker.token.namespaces == ["biz#-999"]
+    host_views.metric_filter.assert_not_called()
