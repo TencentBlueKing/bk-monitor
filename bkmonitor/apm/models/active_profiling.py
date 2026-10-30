@@ -160,4 +160,4 @@ class ActiveProfilingHostExecution(models.Model):
         verbose_name = "主动 Profiling 主机执行"
         unique_together = ("execution_id", "bk_host_id")
         # 末尾补上排序列，已采数据按 scheduled_at、execution_id、bk_host_id 同向倒序时直接沿索引读
-        index_together = [["bk_biz_id", "scheduled_at", "execution_id", "bk_host_id"]]
+        index_together = [["bk_biz_id", "scheduled_at", "execution_id", "bk_host_id"], ["status", "unknown_at"]]
