@@ -9,9 +9,11 @@ specific language governing permissions and limitations under the License.
 """
 
 import logging
+import time
 from typing import Any
 
 from alarm_backends.core.cache.circuit_breaking import CircuitBreakingCacheManager
+from alarm_backends.core.circuit_breaking.groups import CircuitBreakingRuleGroupStore
 from alarm_backends.core.circuit_breaking.matcher import gen_circuit_breaking_matcher
 
 logger = logging.getLogger("circuit_breaking")
@@ -19,13 +21,41 @@ logger = logging.getLogger("circuit_breaking")
 
 class BaseCircuitBreakingManager:
     module = ""
+    legacy_fallback_module = None
 
     def __init__(self):
-        self.config = CircuitBreakingCacheManager.get_config(self.module)
-        self.matcher = gen_circuit_breaking_matcher(self.config)
+        self.config, self.matcher = self._load_legacy(self.module)
+        if self.matcher is None and self.legacy_fallback_module:
+            self.config, self.matcher = self._load_legacy(self.legacy_fallback_module)
+        self.group_matchers = []
+        self._group_snapshot_time = time.monotonic()
+        self._group_server_time_ms = 0
+        try:
+            snapshot = CircuitBreakingRuleGroupStore().snapshot(self.module)
+            self._group_server_time_ms = snapshot["server_time_ms"]
+            for group in snapshot["groups"]:
+                matcher = gen_circuit_breaking_matcher(group["conditions"])
+                self.group_matchers.append((group["expires_at_ms"], matcher))
+        except Exception:
+            logger.exception("[circuit breaking] [%s] failed to load rule groups", self.module)
+
+    @staticmethod
+    def _load_legacy(module):
+        try:
+            config = CircuitBreakingCacheManager.get_config(module)
+            return config, gen_circuit_breaking_matcher(config)
+        except Exception:
+            logger.exception("[circuit breaking] [%s] failed to load legacy rules", module)
+            return [], None
+
+    def _active_group_matchers(self):
+        # Monotonic elapsed time preserves independent deadlines for a manager
+        # reused across many targets without another Redis call per target.
+        now_ms = self._group_server_time_ms + (time.monotonic() - self._group_snapshot_time) * 1000
+        return (matcher for expires_at_ms, matcher in self.group_matchers if expires_at_ms > now_ms)
 
     def __bool__(self) -> bool:
-        return bool(self.matcher)
+        return bool(self.matcher) or any(self._active_group_matchers())
 
     def is_cb(self, target_instance: dict) -> bool:
         """
@@ -33,18 +63,23 @@ class BaseCircuitBreakingManager:
         :param target_instance: 目标实例数据
         :return: 是否需要熔断
         """
-        if not self.matcher:
+        matchers = ([self.matcher] if self.matcher else []) + list(self._active_group_matchers())
+        if not matchers:
             return False
 
         # 清理目标实例维度
         clean_instance = self.clean_cb_dimension(**target_instance)
 
         # 使用统一匹配器进行匹配
-        is_match = self.matcher.is_match(clean_instance)
+        matched_rules = []
+        for matcher in matchers:
+            if matcher.is_match(clean_instance):
+                matched_rules = matcher.config_rules
+                break
+        is_match = bool(matched_rules)
 
         if is_match:
             # 获取匹配的具体规则用于日志记录
-            matched_rules = self.matcher.config_rules
             logger.debug(
                 f"[circuit breaking] [{self.module}] circuit breaking triggered for module {self.module}, "
                 f"matched_rules: {matched_rules}, instance: {clean_instance}"
@@ -147,12 +182,7 @@ class AlertManagerCircuitBreakingManager(BaseCircuitBreakingManager):
     """
 
     module = "alert.manager"
-
-    def __init__(self):
-        super().__init__()
-        if self.matcher is None:
-            self.config = CircuitBreakingCacheManager.get_config("alert.builder")
-            self.matcher = gen_circuit_breaking_matcher(self.config)
+    legacy_fallback_module = "alert.builder"
 
 
 class ActionCircuitBreakingManager(BaseCircuitBreakingManager):
