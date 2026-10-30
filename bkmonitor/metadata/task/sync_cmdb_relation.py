@@ -19,14 +19,12 @@ from django.db import transaction
 
 from alarm_backends.core.lock.service_lock import share_lock
 from bkmonitor.utils.cipher import transform_data_id_to_token
-from bkmonitor.utils.graph_relation import get_graph_relation_v4_biz_ids
 from bkmonitor.utils.tenant import bk_biz_id_to_bk_tenant_id
 from core.prometheus import metrics
 from metadata import config
 from metadata.models import (
     ClusterInfo,
     DataSource,
-    DataSourceResultTable,
     GraphRelationV4DataLinkOption,
     Label,
     ResultTable,
@@ -86,112 +84,64 @@ def _canonical_graph_definitions(definitions: list) -> list[str]:
     return sorted(json.dumps(item, sort_keys=True, ensure_ascii=False) for item in definitions)
 
 
-def _is_relation_surrealdb_dual_write_enabled(bk_biz_id: int, enabled_biz_ids: set[int] | None = None) -> bool:
-    enabled_biz_ids = enabled_biz_ids if enabled_biz_ids is not None else get_graph_relation_v4_biz_ids()
-    return bk_biz_id in enabled_biz_ids
+def _refresh_existing_graph_storage(result_table: ResultTable, bk_biz_id: int) -> bool:
+    """Keep an already configured SurrealDB graph link aligned with its definitions."""
+    graph_option_record = ResultTableOption.objects.filter(
+        bk_tenant_id=result_table.bk_tenant_id,
+        table_id=result_table.table_id,
+        name=ResultTableOption.OPTION_GRAPH_RELATION_V4_DATA_LINK,
+    ).first()
+    if graph_option_record is None:
+        return False
 
+    graph_option = GraphRelationV4DataLinkOption.from_option_value(graph_option_record.get_value())
+    if not graph_option.should_write_surrealdb:
+        return False
 
-def _compose_relation_graph_v4_storage_config(
-    bk_tenant_id: str,
-    bk_biz_id: int,
-    table_id: str,
-) -> dict[str, Any]:
-    """校验 Graph V4 依赖，并生成保持已有集群稳定的 SurrealDB external storage 配置。"""
     surrealdb_storage = SurrealDBStorage.objects.filter(
-        bk_tenant_id=bk_tenant_id,
-        table_id=table_id,
+        bk_tenant_id=result_table.bk_tenant_id,
+        table_id=result_table.table_id,
     ).first()
     if surrealdb_storage is not None:
         storage_cluster_id = surrealdb_storage.storage_cluster_id
+        table_type = surrealdb_storage.table_type
     else:
         default_clusters = list(
             ClusterInfo.objects.filter(
-                bk_tenant_id=bk_tenant_id,
+                bk_tenant_id=result_table.bk_tenant_id,
                 cluster_type=ClusterInfo.TYPE_SURREALDB,
                 is_default_cluster=True,
             )
         )
         if len(default_clusters) != 1:
             raise ValueError(
-                f"sync_relation_redis_data: tenant({bk_tenant_id}) requires exactly one default SurrealDB cluster, "
+                f"relation graph storage for {result_table.table_id} requires one default SurrealDB cluster, "
                 f"found {len(default_clusters)}"
             )
         storage_cluster_id = default_clusters[0].cluster_id
+        table_type = SurrealDBStorage.TEMPORARY_TABLE_TYPE
 
     vertices, relations = EntityMeta.auto_query_graph_definitions(bk_biz_id=bk_biz_id)
-    if not vertices:
-        raise ValueError(f"sync_relation_redis_data: bk_biz_id({bk_biz_id}) graph vertices are empty")
-    if not relations:
-        raise ValueError(f"sync_relation_redis_data: bk_biz_id({bk_biz_id}) graph relations are empty")
+    if not vertices or not relations:
+        raise ValueError(f"relation graph definitions are incomplete for bk_biz_id={bk_biz_id}")
 
-    return {
+    if (
+        surrealdb_storage is not None
+        and _canonical_graph_definitions(surrealdb_storage.vertices) == _canonical_graph_definitions(vertices)
+        and _canonical_graph_definitions(surrealdb_storage.relations) == _canonical_graph_definitions(relations)
+    ):
+        return False
+
+    storage_config = {
         "storage_cluster_id": storage_cluster_id,
-        "table_type": SurrealDBStorage.TEMPORARY_TABLE_TYPE,
+        "table_type": table_type,
         "vertices": vertices,
         "relations": relations,
     }
-
-
-def _modify_relation_graph_v4_result_table(
-    result_table: ResultTable,
-    storage_config: dict[str, Any],
-) -> bool:
-    """通过普通 ResultTable 变更流程同步刷新 Graph V4 storage、option 和接入链路。"""
-    # storage、option 和 Graph V4 接入必须处于同一事务；同步 apply 失败时由
-    # ResultTable.modify 回滚本地配置。
     with transaction.atomic(using=config.DATABASE_CONNECTION_NAME):
-        result_table = (
+        locked_result_table = (
             ResultTable.objects.using(config.DATABASE_CONNECTION_NAME).select_for_update().get(pk=result_table.pk)
         )
-        desired_graph_option = GraphRelationV4DataLinkOption(write_targets=["vm", "surrealdb"])
-        surrealdb_storage = (
-            SurrealDBStorage.objects.using(config.DATABASE_CONNECTION_NAME)
-            .filter(
-                bk_tenant_id=result_table.bk_tenant_id,
-                table_id=result_table.table_id,
-            )
-            .first()
-        )
-        graph_option_record = (
-            ResultTableOption.objects.using(config.DATABASE_CONNECTION_NAME)
-            .filter(
-                bk_tenant_id=result_table.bk_tenant_id,
-                table_id=result_table.table_id,
-                name=ResultTableOption.OPTION_GRAPH_RELATION_V4_DATA_LINK,
-            )
-            .first()
-        )
-        current_graph_option = None
-        if graph_option_record is not None:
-            try:
-                current_graph_option = GraphRelationV4DataLinkOption.from_option_value(graph_option_record.get_value())
-            except (TypeError, ValueError):
-                # 非法旧值视为配置变化，交给普通 modify 流程覆盖修复。
-                pass
-
-        storage_unchanged = bool(
-            surrealdb_storage
-            and surrealdb_storage.storage_cluster_id == storage_config["storage_cluster_id"]
-            and surrealdb_storage.table_type == storage_config["table_type"]
-            and _canonical_graph_definitions(surrealdb_storage.vertices)
-            == _canonical_graph_definitions(storage_config["vertices"])
-            and _canonical_graph_definitions(surrealdb_storage.relations)
-            == _canonical_graph_definitions(storage_config["relations"])
-        )
-        option_unchanged = bool(
-            current_graph_option and current_graph_option.model_dump() == desired_graph_option.model_dump()
-        )
-        if storage_unchanged and option_unchanged:
-            logger.info(
-                "sync_relation_redis_data: graph relation config unchanged, skip ResultTable.modify, "
-                "bk_tenant_id->[%s], table_id->[%s]",
-                result_table.bk_tenant_id,
-                result_table.table_id,
-            )
-            return False
-
-        # ResultTable.modify 会以传入 option 为完整期望状态，因此先合并当前全部
-        # ResultTableOption，仅覆盖 Graph V4 配置，避免丢失已有查询或清洗选项。
         options = {
             option.name: option.get_value()
             for option in ResultTableOption.objects.using(config.DATABASE_CONNECTION_NAME).filter(
@@ -199,42 +149,12 @@ def _modify_relation_graph_v4_result_table(
                 table_id=result_table.table_id,
             )
         }
-        options[ResultTableOption.OPTION_GRAPH_RELATION_V4_DATA_LINK] = desired_graph_option.model_dump()
-        result_table.modify(
+        locked_result_table.modify(
             operator="system",
             external_storage={ClusterInfo.TYPE_SURREALDB: storage_config},
             option=options,
         )
-        return True
-
-
-def enable_relation_surrealdb_dual_write(
-    ds: DataSource,
-    bk_tenant_id: str,
-    bk_biz_id: int,
-    storage_config: dict[str, Any] | None = None,
-) -> bool:
-    """将 CMDB relation RT 配置为普通 Graph V4 VM + SurrealDB 双写链路"""
-    table_ids = list(
-        DataSourceResultTable.objects.filter(bk_data_id=ds.bk_data_id, bk_tenant_id=bk_tenant_id).values_list(
-            "table_id", flat=True
-        )
-    )
-    if len(table_ids) != 1:
-        raise ValueError(
-            f"enable_relation_surrealdb_dual_write: tenant({bk_tenant_id}) data_id({ds.bk_data_id}) "
-            f"requires exactly one result table, found {len(table_ids)}"
-        )
-    result_table = ResultTable.objects.get(
-        bk_tenant_id=bk_tenant_id,
-        table_id=table_ids[0],
-    )
-    storage_config = storage_config or _compose_relation_graph_v4_storage_config(
-        bk_tenant_id,
-        bk_biz_id,
-        result_table.table_id,
-    )
-    return _modify_relation_graph_v4_result_table(result_table, storage_config)
+    return True
 
 
 def _parse_relation_redis_value(field: bytes | str, raw_value: bytes | str) -> dict[str, Any]:
@@ -300,7 +220,6 @@ def _sync_relation_metadata(
     context: _RelationSyncContext,
     result_table: ResultTable | None,
     time_series_group: TimeSeriesGroup | None,
-    graph_storage_config: dict[str, Any] | None,
 ) -> DataSource:
     """创建或读取 relation 元数据，并统一回写 Redis token。"""
     # 步骤 1：复用已有 DataSource，或在一个事务内创建完整的 relation 元数据。
@@ -332,9 +251,7 @@ def _sync_relation_metadata(
                 table_id=context.table_id,
                 is_builtin=True,
                 bk_tenant_id=context.bk_tenant_id,
-                # Graph 白名单业务先创建本地 RT，再由 ResultTable.modify 一次性
-                # 下发 VM + SurrealDB，避免提前创建一条普通 VM 链路。
-                is_sync_db=graph_storage_config is None,
+                is_sync_db=True,
             )
         modify_time = int(time_series_group.last_modify_time.timestamp())
 
@@ -361,7 +278,6 @@ def _sync_relation_redis_item(
     context: _RelationSyncContext,
     result_table: ResultTable | None,
     time_series_group: TimeSeriesGroup | None,
-    enabled_graph_biz_ids: set[int],
 ) -> None:
     """同步单个 relation field，并将异常隔离在当前业务。"""
     logger.info("sync_relation_redis_data: start sync field->[%s]", context.key)
@@ -378,36 +294,15 @@ def _sync_relation_redis_item(
         )
         return
 
-    # 步骤 2：为白名单业务准备 Graph 配置。依赖异常时仅跳过本轮 Graph。
-    graph_storage_config = None
-    if _is_relation_surrealdb_dual_write_enabled(context.bk_biz_id, enabled_graph_biz_ids):
-        try:
-            graph_storage_config = _compose_relation_graph_v4_storage_config(
-                context.bk_tenant_id,
-                context.bk_biz_id,
-                context.table_id,
-            )
-        except Exception as e:  # pylint: disable=broad-except
-            # Graph 依赖异常只影响本轮 Graph 配置，普通 relation RT 和
-            # Redis token 仍按主流程维护。
-            logger.warning(
-                "sync_relation_redis_data: graph relation dependency check failed, "
-                "bk_tenant_id->[%s], bk_biz_id->[%s], error->[%s]",
-                context.bk_tenant_id,
-                context.bk_biz_id,
-                e,
-            )
-
-    # 步骤 3：创建或复用 relation 元数据，并完成 Redis token 回写。
+    # 步骤 2：创建或复用 relation 元数据，并完成 Redis token 回写。
     # 失败只终止当前 field，后续业务继续处理。
     action = "update" if result_table is not None else "create"
     try:
-        data_source = _sync_relation_metadata(
+        _sync_relation_metadata(
             redis_key,
             context,
             result_table,
             time_series_group,
-            graph_storage_config,
         )
     except Exception as e:  # pylint: disable=broad-except
         logger.warning(
@@ -419,23 +314,15 @@ def _sync_relation_redis_item(
         )
         return
 
-    # 步骤 4：Graph 接入作为附加能力 best-effort 执行。
-    # 接入失败只记录告警，并在下个
-    # 周期重试，不回滚已经完成的 RT 创建和 Redis token 更新。
-    if graph_storage_config is not None:
+    if result_table is not None:
         try:
-            enable_relation_surrealdb_dual_write(
-                data_source,
-                context.bk_tenant_id,
-                context.bk_biz_id,
-                storage_config=graph_storage_config,
-            )
+            _refresh_existing_graph_storage(result_table, context.bk_biz_id)
         except Exception as e:  # pylint: disable=broad-except
             logger.warning(
-                "sync_relation_redis_data: graph relation dual-write best-effort setup failed, "
-                "data_id->[%s], bk_biz_id->[%s], error->[%s]",
-                data_source.bk_data_id,
-                context.bk_biz_id,
+                "sync_relation_redis_data: existing graph storage refresh failed, "
+                "bk_tenant_id->[%s], table_id->[%s], error->[%s]",
+                context.bk_tenant_id,
+                context.table_id,
                 e,
             )
 
@@ -449,10 +336,9 @@ def _sync_relation_redis_item(
 
 @share_lock(ttl=3600, identify="metadata_sync_relation_redis_data")
 def sync_relation_redis_data():
-    """按 Redis field 同步 CMDB relation 内置 RT、token 和 Graph V4 配置。
+    """按 Redis field 同步 CMDB relation 内置 RT、token 和已配置的 Graph 存储定义。
 
-    主流程只负责批量加载已有元数据和逐项调度。单业务的数据解析、创建/更新
-    以及 Graph best-effort 异常均在各自 helper 内隔离，避免影响后续业务。
+    查询灰度不自动启用双写；单业务的数据解析、创建/更新异常不影响后续业务。
     """
     logger.info("sync_relation_redis_data started")
     start_time = time.time()
@@ -476,7 +362,6 @@ def sync_relation_redis_data():
     existing_time_series_group_map = {
         (group.bk_tenant_id, group.table_id): group for group in existing_time_series_groups
     }
-    enabled_graph_biz_ids = get_graph_relation_v4_biz_ids()
 
     # 步骤 3：逐个解析 Redis field 并同步，单 field 异常在内部隔离。
     for field, raw_value in redis_data.items():
@@ -490,7 +375,6 @@ def sync_relation_redis_data():
             context,
             existing_result_table_map.get(identity),
             existing_time_series_group_map.get(identity),
-            enabled_graph_biz_ids,
         )
 
     # 步骤 4：所有 field 处理完成后统一上报本轮任务指标。

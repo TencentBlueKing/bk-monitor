@@ -16,6 +16,7 @@ from api.unify_query.default import (
 from api.unify_query.relation_routing import resolve_relation_query_path
 from bkm_space.api import SpaceApi
 from bkm_space.utils import bk_biz_id_to_space_uid
+from bkmonitor.utils.graph_relation import RELATION_SCHEMA_VERSION_HEADER, get_relation_schema_version
 from bkmonitor.utils.local import local
 from bkmonitor.utils.request import get_request, get_request_tenant_id
 from bkmonitor.utils.tenant import space_uid_to_bk_tenant_id
@@ -90,7 +91,10 @@ def query_uq(operation, params, *, max_bytes=None):
         headers["X-Bk-Scope-Space-Uid"] = space_uid
     if bk_tenant_id:
         headers["X-Bk-Tenant-Id"] = bk_tenant_id
-    path = resolve_relation_query_path(client.path, client.v1beta3_path, bk_biz_id)
+    schema_version = get_relation_schema_version(bk_biz_id) if client.v1beta3_path else ""
+    if schema_version:
+        headers[RELATION_SCHEMA_VERSION_HEADER] = schema_version
+    path = resolve_relation_query_path(client.path, client.v1beta3_path, schema_version=schema_version)
     url = urljoin(get_unify_query_url(space_uid), path.format(**params))
     with requests.request(
         method=client.method,
