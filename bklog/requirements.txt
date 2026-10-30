@@ -119,7 +119,10 @@ luqum==0.12.0
 drf-yasg==1.21.8
 
 # bk crypto
-bk-crypto-python-sdk==2.0.0
+bk-crypto-python-sdk[gm]==4.1.1
+bk-kms-sdk==1.0.0
+# Legacy BaseCrypt/AESCipher still use Crypto.*; bkcrypto 4.x no longer depends on it.
+pycryptodome==3.23.0
 
 # bk notice
 bk-notice-sdk==1.4.2

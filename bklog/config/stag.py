@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making BK-LOG 蓝鲸日志平台 available.
 Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
@@ -19,6 +18,9 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 We undertake not to change the open source license (MIT license) applicable to the current version of
 the project delivered to anyone in the future.
 """
+
+# Framework settings are intentionally imported from blueapps with import *.
+# ruff: noqa: F405
 
 from django.utils.translation import gettext_lazy as _
 
@@ -91,7 +93,7 @@ BK_IAM_SYSTEM_NAME = _("日志平台")
 
 BK_IAM_INNER_HOST = os.getenv("BK_IAM_HOST", os.getenv("BK_IAM_V3_INNER_HOST", "http://iam.service.consul"))
 
-BK_IAM_RESOURCE_API_HOST = os.getenv("BKAPP_IAM_RESOURCE_API_HOST", "{}{}".format(BK_PAAS_INNER_HOST, SITE_URL))
+BK_IAM_RESOURCE_API_HOST = os.getenv("BKAPP_IAM_RESOURCE_API_HOST", f"{BK_PAAS_INNER_HOST}{SITE_URL}")
 
 # 权限中心 SaaS host
 BK_IAM_APP_CODE = os.getenv("BK_IAM_V3_APP_CODE", "bk_iam")
@@ -102,3 +104,8 @@ env_settings = load_settings()
 for _setting in env_settings.keys():
     if _setting == _setting.upper():
         locals()[_setting] = env_settings.get(_setting)
+
+# Final credentials must survive environment/local settings overlays.
+from config.kms import apply_settings  # noqa: E402
+
+apply_settings(locals())

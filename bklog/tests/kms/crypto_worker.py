@@ -1,0 +1,83 @@
+"""Subprocess probe: run the same SQLite ORM scenario under each real SDK."""
+
+import json
+import sys
+from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
+from django.conf import settings
+from bkcrypto.constants import SymmetricMode
+from bkcrypto.contrib.django.init_configs import SymmetricKeyConfig
+
+import importlib.util
+import os
+
+case = json.loads(sys.stdin.read())
+alias = case.get("alias", "default")
+
+
+def legacy_key(cipher_type):
+    return SymmetricKeyConfig(key=case["crypto_key"] or case["app_secret"])
+
+
+configuration = dict(
+    SECRET_KEY=case["app_secret"],
+    BKPAAS_BK_CRYPTO_KEY=case["crypto_key"],
+    INSTALLED_APPS=[],
+    DATABASES={"default": {"ENGINE": "django.db.backends.sqlite3", "NAME": case["db"]}},
+    BKCRYPTO={
+        "SYMMETRIC_CIPHER_TYPE": case["cipher"],
+        "SYMMETRIC_CIPHERS": {
+            alias: {
+                "get_key_config": "__main__.legacy_key"
+                if case["legacy"]
+                else "apps.utils.aes.get_default_symmetric_key_config",
+                "common": {
+                    "key_size": case["key_size"],
+                    "mode": SymmetricMode(case["mode"]),
+                    "encoding": case.get("encoding", "utf-8"),
+                },
+            }
+        },
+    },
+)
+if not case["legacy"]:
+    # Exercise the real final configuration stage with an overlay that omitted
+    # SYMMETRIC_CIPHER_CLASSES, as legacy deployments do.
+    path = Path(__file__).resolve().parents[2] / "config/kms.py"
+    spec = importlib.util.spec_from_file_location("crypto_kms_config", path)
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    os.environ["ENABLE_KMS"] = "false"
+    module.apply_settings(configuration)
+settings.configure(**configuration)
+# Keep a deliberately different default alias, so archive must use its own options.
+if alias != "default":
+    settings.BKCRYPTO["SYMMETRIC_CIPHERS"]["default"] = {"get_key_config": "__main__.legacy_key"}
+import django
+
+django.setup()
+from django.db import connection, models
+from bkcrypto.contrib.django.fields import SymmetricTextField
+
+
+class Credential(models.Model):
+    value = SymmetricTextField(using=alias)
+
+    class Meta:
+        app_label = "kms_probe"
+
+
+if case["operation"] == "write":
+    with connection.schema_editor() as editor:
+        editor.create_model(Credential)
+    Credential.objects.create(value=case["plaintext"])
+else:
+    actual = Credential.objects.get(pk=1).value
+    assert actual == case["plaintext"], "ORM did not return the original plaintext"
+    Credential.objects.filter(pk=1).update(value=case["plaintext"])
+with connection.cursor() as cursor:
+    cursor.execute("SELECT value FROM kms_probe_credential")
+    raw = cursor.fetchone()[0]
+assert raw != case["plaintext"] and raw.startswith(case["cipher"].lower() + "_str:::")
+print("OK")
