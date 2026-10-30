@@ -18,7 +18,7 @@ from functools import reduce
 from typing import Any
 
 from django.core.exceptions import EmptyResultSet
-from django.db import models
+from django.db import IntegrityError, models, router, transaction
 from django.db.models import Count, Q
 from django.db.models.query import QuerySet
 from django.utils import timezone
@@ -26,7 +26,6 @@ from django.utils.translation import gettext as _
 from humanize import naturaldelta
 
 from bkmonitor.models.bcs_label import BCSLabel
-from bkmonitor.utils.common_utils import chunks
 from bkmonitor.utils.kubernetes import BcsClusterType, BkmMetricbeatEndpointUpStatus
 from core.drf_resource import api
 
@@ -100,6 +99,8 @@ class BCSBaseManager(models.Manager):
 
 
 class BCSBase(models.Model):
+    SYNC_IDENTITY_FIELDS = ("bcs_cluster_id", "namespace", "name")
+
     class Meta:
         abstract = True
 
@@ -272,90 +273,91 @@ class BCSBase(models.Model):
         return has_ids
 
     @classmethod
-    def bulk_save_labels(cls, items: list) -> None:
-        """批量更新标签 ."""
-        bulk_create_label_list = []
-        bcs_cluster_id_list = []
-        resource_id_map_hash_ids = {}
-
-        # 获得资源的标签hash_id
-        has_id_set = set(cls.hash_resource_labels(items))
-
-        # 获取可以新增的标签
-        hash_id_existed = []
-        for hash_ids in chunks(list(has_id_set), 500):
-            hash_id_existed.extend(
-                list(BCSLabel.objects.filter(hash_id__in=hash_ids).values_list("hash_id", flat=True))
-            )
-        hash_id_created = set(has_id_set) - set(hash_id_existed)
-
-        # 批量添加标签
+    def bulk_save_labels(cls, items: list, using=None) -> None:
+        """替换本批资源的标签，空标签也清理；失败交由资源批事务回滚。"""
+        database = using or router.db_for_write(cls)
+        labels = BCSLabel.objects.using(database)
+        relations = cls.labels.through.objects.using(database)
+        expected = {}
+        resource_labels = {}
         for item in items:
             if isinstance(item, dict):
-                item_id = item.get("id")
-                item_labels = item.get("api_labels", {})
-                bcs_cluster_id = item.get("bcs_cluster_id")
+                resource_id, cluster_id = item.get("id"), item["bcs_cluster_id"]
+                api_labels = item.get("api_labels", {})
             else:
-                item_id = item.id
-                item_labels = item.api_labels
-                bcs_cluster_id = item.bcs_cluster_id
-
-            if not item_id:
-                continue
-
-            for k, v in item_labels.items():
-                if k in IGNORE_LABEL_KEYS:
+                resource_id, cluster_id = item.id, item.bcs_cluster_id
+                api_labels = item.api_labels
+            if api_labels is None:
+                api_labels = {}
+            if not resource_id:
+                raise ValueError("cannot save labels without resource id")
+            hashes = set()
+            for key, value in api_labels.items():
+                if key in IGNORE_LABEL_KEYS:
                     continue
-                bcs_cluster_id_list.append(bcs_cluster_id)
-                # 获得标签hash值
-                hash_id = cls.md5str(k + ":" + v)
-                resource_id_map_hash_ids.setdefault((item_id, bcs_cluster_id), []).append(hash_id)
-                # 需要新增的标签
-                if hash_id in hash_id_created:
-                    bulk_create_label_list.append(BCSLabel(hash_id=hash_id, key=k, value=v))
-        if bulk_create_label_list:
-            try:
-                BCSLabel.objects.bulk_create(bulk_create_label_list, 200)
-            except Exception as exc_info:
-                logger.warning(f"bulk_create_label_list, exc_info: {exc_info}")
+                hash_id = cls.md5str(key + ":" + value)
+                if hash_id in expected and expected[hash_id] != (key, value):
+                    raise ValueError("different label values share a hash")
+                expected[hash_id] = (key, value)
+                hashes.add(hash_id)
+            resource_labels[(resource_id, cluster_id)] = hashes
 
-        # 获得中间表远程唯一性数据
-        new_resource_label_hash_set = {
-            (key[0], key[1], label_hash_id)
-            for key, label_hash_ids in resource_id_map_hash_ids.items()
-            for label_hash_id in label_hash_ids
-        }
+        with transaction.atomic(using=database):
+            existing = {label.hash_id: label for label in labels.filter(hash_id__in=expected)}
+            missing = [
+                BCSLabel(hash_id=hash_id, key=key, value=value)
+                for hash_id, (key, value) in expected.items()
+                if hash_id not in existing
+            ]
+            if missing:
+                try:
+                    # 独立 savepoint，唯一键竞争后仍能读取并验证胜出的标签。
+                    with transaction.atomic(using=database):
+                        labels.bulk_create(missing, batch_size=200)
+                except IntegrityError:
+                    # 锁定读可见并发事务刚提交的行，避免一致性快照把已存在标签再次判新。
+                    competing = {
+                        label.hash_id: label for label in labels.select_for_update().filter(hash_id__in=expected)
+                    }
+                    retry = []
+                    for label in missing:
+                        saved = competing.get(label.hash_id)
+                        if saved is None:
+                            retry.append(label)
+                            continue
+                        if (saved.key, saved.value) != (label.key, label.value):
+                            raise ValueError("label hash conflicts with different key/value")
+                    if len(retry) == len(missing):
+                        raise
+                    if retry:
+                        labels.bulk_create(retry, batch_size=200)
+            persisted = {label.hash_id: label for label in labels.select_for_update().filter(hash_id__in=expected)}
+            for hash_id, key_value in expected.items():
+                if hash_id not in persisted or (persisted[hash_id].key, persisted[hash_id].value) != key_value:
+                    raise ValueError("failed to read back matching label")
 
-        # 获得中间表历史唯一性数据
-        old_resource_label_hash_set = {
-            (item.resource_id, item.bcs_cluster_id, item.label_id)
-            for item in cls.labels.through.objects.filter(bcs_cluster_id__in=bcs_cluster_id_list)
-        }
-
-        # 中间表添加数据
-        bulk_create_label_relation_list = []
-        resource_label_hash_set_inserted = new_resource_label_hash_set - old_resource_label_hash_set
-        if resource_label_hash_set_inserted:
-            for resource_id, bcs_cluster_id, label_hash_id in resource_label_hash_set_inserted:
-                bulk_create_label_relation_list.append(
-                    cls.labels.through(
-                        bcs_cluster_id=bcs_cluster_id,
-                        label_id=label_hash_id,
-                        resource_id=resource_id,
-                    )
+            resource_ids = [key[0] for key in resource_labels]
+            previous = list(
+                relations.filter(resource_id__in=resource_ids).values_list(
+                    "id", "resource_id", "bcs_cluster_id", "label_id"
                 )
-            try:
-                cls.labels.through.objects.bulk_create(bulk_create_label_relation_list, 200)
-            except Exception as exc_info:
-                logger.exception(exc_info)
-
-        # 中间表删除数据
-        label_hash_set_inserted_deleted = old_resource_label_hash_set - new_resource_label_hash_set
-        if label_hash_set_inserted_deleted:
-            for resource_id, bcs_cluster_id, label_hash_id in label_hash_set_inserted_deleted:
-                cls.labels.through.objects.filter(
-                    bcs_cluster_id=bcs_cluster_id, label_id=label_hash_id, resource_id=resource_id
-                ).delete()
+            )
+            old_relations = {tuple(item[1:]) for item in previous}
+            new_relations = {
+                (resource_id, cluster_id, hash_id)
+                for (resource_id, cluster_id), hashes in resource_labels.items()
+                for hash_id in hashes
+            }
+            removed = old_relations - new_relations
+            if removed:
+                relations.filter(id__in=[item[0] for item in previous if tuple(item[1:]) in removed]).delete()
+            relations.bulk_create(
+                [
+                    cls.labels.through(resource_id=resource_id, bcs_cluster_id=cluster_id, label_id=hash_id)
+                    for resource_id, cluster_id, hash_id in new_relations - old_relations
+                ],
+                batch_size=200,
+            )
 
     @staticmethod
     def md5str(source: str):

@@ -8,15 +8,12 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 
-import itertools
-
 from django.db import models
 from django.utils import timezone
 from django.utils.dateparse import parse_datetime
 from django.utils.translation import gettext as _
 
 from bkmonitor.models import BCSBase, BCSBaseManager, BCSBaseResources, BCSLabel, BCSPod
-from core.drf_resource import api
 
 
 class BCSWorkloadManager(BCSBaseManager):
@@ -24,6 +21,7 @@ class BCSWorkloadManager(BCSBaseManager):
 
 
 class BCSWorkload(BCSBase, BCSBaseResources):
+    SYNC_IDENTITY_FIELDS = ("bcs_cluster_id", "namespace", "type", "name")
     type = models.CharField(max_length=128)
     name = models.CharField(max_length=128)
     namespace = models.CharField(max_length=128)
@@ -289,7 +287,7 @@ class BCSWorkload(BCSBase, BCSBaseResources):
         return columns
 
     @staticmethod
-    def load_list_from_api(params: dict[str, tuple[str, int]]) -> list["BCSWorkload"]:
+    def load_list_from_api(params: dict[str, tuple[str, int]]):
         """
         从API获取工作负载列表
 
@@ -299,16 +297,14 @@ class BCSWorkload(BCSBase, BCSBaseResources):
         Returns:
             BCSWorkload列表
         """
-        bulk_request_params = [
-            {"bcs_cluster_id": bcs_cluster_id, "bk_tenant_id": bk_tenant_id}
-            for bcs_cluster_id, (bk_tenant_id, _) in params.items()
-        ]
-        api_workloads = api.kubernetes.fetch_k8s_workload_list_by_cluster.bulk_request(
-            bulk_request_params, ignore_exceptions=True
-        )
+        from api.kubernetes.default import iter_k8s_workloads_for_sync
 
-        workloads = []
-        for w in itertools.chain.from_iterable(item for item in api_workloads if item):
+        api_workloads = (
+            item
+            for cluster_id, (tenant_id, _) in params.items()
+            for item in iter_k8s_workloads_for_sync(tenant_id, cluster_id)
+        )
+        for w in api_workloads:
             # 忽略非顶层的workload，包含两种情况
             # 1. Job是从CronJob生成的
             # 2. ReplicaSet是从Deployment生成的
@@ -341,8 +337,7 @@ class BCSWorkload(BCSBase, BCSBaseResources):
             bcs_workload.unique_hash = bcs_workload.get_unique_hash()
 
             bcs_workload.api_labels = w.get("labels", {})
-            workloads.append(bcs_workload)
-        return workloads
+            yield bcs_workload
 
     def render_name(self, bk_biz_id, render_type="list"):
         if render_type == "list":
