@@ -946,6 +946,9 @@ def _get_bkbase_components_config(
             )
             extra_config["sink_names"] = [f"{sink['kind']}:{sink['name']}" for sink in spec["sinks"]]
             extra_config["consumer_group"] = spec.get("consumerGroup") or ""
+            extra_config["options"] = {
+                key: spec[key] for key in ("subTaskNum", "batch", "preferCluster") if key in spec
+            }
         case DataLinkKind.BASEREPORTSINK.value:
             vm_storage_binding_names = []
             for mapping in spec.get("mappings", []):
@@ -957,6 +960,8 @@ def _get_bkbase_components_config(
 
 
 def _should_update_bkbase_component_field(kind: str, field: str, value: Any) -> bool:
+    if kind == DataLinkKind.DATABUS.value and field == "options":
+        return True
     if value:
         return True
     return kind == DataLinkKind.SURREALDBBINDING.value and field in {"vertices", "relations"} and value == []
