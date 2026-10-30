@@ -23,271 +23,184 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { type PropType, computed, defineComponent } from 'vue';
+import { type PropType, computed, defineComponent, toRef } from 'vue';
 
-import { type TableProps, type TableSort, PrimaryTable } from '@blueking/tdesign-ui';
-import { Button, Pagination, Switcher } from 'bkui-vue';
 import { useI18n } from 'vue-i18n';
 
-import {
-  collectionMethodLabels,
-  collectionTypeLabels,
-  deploymentStatusLabels,
-  formatCollectionTime,
-  isTaskDeleteBlocked,
-  scheduleLabels,
-  TASK_OPERATION_FIELD,
-} from '../../utils/collection';
-import CollectionCrontab from './collection-crontab';
-import CollectionSkeleton from './collection-skeleton';
-import CommonStatus, { type CommonStatusType } from '@/components/common-detail/common-status/common-status';
+import CommonTable from '../../../alarm-center/components/alarm-table/components/common-table/common-table';
+import { useCollectionTaskColumnsRenderer } from '../../composables/use-collection-task-columns-renderer';
 import EmptyStatus from '@/components/empty-status/empty-status';
 
 import type { CollectionTask, CollectionTaskTableColumn, ScheduleType } from '../../types/collection';
-import type { BkUiSettings } from '@blueking/tdesign-ui';
+import type { BkUiSettings, FilterValue } from '@blueking/tdesign-ui';
+import type { SlotReturnValue } from 'tdesign-vue-next';
 
 import './collection-task-table.scss';
 
-// 表头吸顶的滚动容器：工具条内的表格区（引导说明与工具条在容器外，天然常驻），
-// 表头贴合容器顶部即可，无需按工具条高度做偏移
+/** 表头吸顶的滚动容器：工具条内的表格区（引导说明与工具条在容器外，天然常驻），表头贴合容器顶部即可，无需按工具条高度做偏移 */
 const taskTableAffixed = { container: '.collection-task-toolbar-content' };
-/** 有专属插槽的字段，其余字段按列类型渲染；用 Map 避免后端字段命中原型属性 */
-const taskColumnSlots = new Map<string, string>([
-  ['deployment_status', 'deploymentStatus'],
-  ['name', 'taskName'],
-  ['schedule', 'scheduleType'],
-  ['schedule_time', 'scheduleTime'],
-  ['task_status', 'taskStatus'],
-  [TASK_OPERATION_FIELD, 'operations'],
-]);
-/** 部署状态对应的状态点样式，与采集结果状态列保持同一套语义 */
-const deploymentStatusTypes: Record<string, CommonStatusType> = {
-  deploying: 'waiting',
-  failed: 'failed',
-  outdate: 'disabled',
-  success: 'success',
-};
-/** 分页可选条数 */
-const taskPageSizes = [10, 20, 50, 100];
 
 export default defineComponent({
   name: 'CollectionTaskTable',
   props: {
-    /** 表格列配置：列名、列宽、固定、排序、筛选、默认/锁定态由外部组装后传入 */
+    /** 表格列配置（列名、列宽、固定、排序、筛选、默认/锁定态由外部组装后传入） */
     columns: { type: Array as PropType<CollectionTaskTableColumn[]>, default: () => [] },
     /** 当前页数据 */
     rows: { type: Array as PropType<CollectionTask[]>, default: () => [] },
     /** 过滤后的总条数（分页计数） */
     total: { type: Number, default: 0 },
+    /** 表格加载状态 */
     loading: { type: Boolean, default: false },
-    timezone: { type: String, required: true },
+    /** 是否只读，只读时禁用所有写操作 */
     readonly: { type: Boolean, default: false },
     /** 是否有任务正在执行操作，期间禁用所有行操作 */
     busy: { type: Boolean, default: false },
+    /** 表格排序信息 */
     sort: { type: Object as PropType<null | { descending: boolean; sortBy: string }>, default: null },
+    /** 执行方式筛选值 */
     scheduleTypes: { type: Array as PropType<ScheduleType[]>, default: () => [] },
+    /** 启停状态筛选值 */
     statuses: { type: Array as PropType<string[]>, default: () => [] },
     /** 是否已有查询条件生效，用于空态区分暂无数据与无匹配结果 */
     hasFilters: { type: Boolean, default: false },
     /** 表格列设置（显示列、可配置列、锁定列），由外部持久化后受控传入 */
     tableSettings: { type: Object as PropType<Omit<BkUiSettings, 'hasCheckAll'>>, default: () => ({}) },
+    /** 当前页码 */
     page: { type: Number, required: true },
+    /** 每页条数 */
     pageSize: { type: Number, required: true },
   },
   emits: {
+    /** 显示任务详情 */
     detail: (_row: CollectionTask) => true,
+    /** 查看执行记录 */
     history: (_row: CollectionTask) => true,
+    /** 编辑任务 */
     edit: (_row: CollectionTask) => true,
+    /** 立即执行任务 */
     execute: (_row: CollectionTask) => true,
+    /** 删除任务 */
     delete: (_row: CollectionTask) => true,
+    /** 切换任务启停状态 */
     toggle: (_row: CollectionTask) => true,
+    /** 表头筛选变化 */
     filterChange: (_value: { scheduleTypes: ScheduleType[]; statuses: string[] }) => true,
+    /** 排序变化（null 表示取消排序） */
     sortChange: (_value: null | { descending: boolean; sortBy: string }) => true,
+    /** 页码变化 */
     pageChange: (_value: number) => true,
+    /** 每页条数变化 */
     limitChange: (_value: number) => true,
+    /** 显示列字段变化 */
     settingsChange: (_value: string[]) => true,
+    /** 列宽拖拽变化（key 为 colKey，value 为列宽） */
     columnResizeChange: (_value: Record<string, number>) => true,
+    /** 清空查询条件 */
     resetFilters: () => true,
   },
   setup(props, { emit }) {
     const { t } = useI18n();
-    /** 空态需要撑满工具条下的剩余高度，避免底部大片留白 */
-    const isEmpty = computed(() => !props.loading && !props.rows.length);
-    const showPagination = computed(() => !props.loading && !!props.rows.length);
+    /** 表格设置 */
+    const settings = computed<BkUiSettings>(() => ({ ...props.tableSettings, hasCheckAll: true }));
+    /** 表格分页配置 */
+    const pagination = computed(() => ({ currentPage: props.page, pageSize: props.pageSize, total: props.total }));
+    /** 表头筛选受控值 */
+    const filterValue = computed<FilterValue>(() => ({
+      schedule: props.scheduleTypes,
+      task_status: props.statuses,
+    }));
+    /** 表格排序，转换为 CommonTable 的字符串格式：倒序 => -field；正序 => field */
+    const tableSort = computed(() => (props.sort ? `${props.sort.descending ? '-' : ''}${props.sort.sortBy}` : ''));
 
-    /** 按列类型兜底渲染单元格，已知业务字段走各自的展示文案 */
-    function renderCell(column: CollectionTaskTableColumn, row: CollectionTask) {
-      const value = (row as unknown as Record<string, unknown>)[column.colKey];
-      if (column.colKey === 'collection_method') return collectionMethodLabels[row.collection_method] || '--';
-      if (column.colKey === 'collection_type') return collectionTypeLabels[row.collection_type] || '--';
-      if (column.fieldType === 'datetime' || column.fieldType === 'schedule_time')
-        return formatCollectionTime(typeof value === 'number' ? value : 0, props.timezone);
-      if (column.fieldType === 'status') return value ? deploymentStatusLabels[String(value)] || String(value) : '--';
-      return value === null || value === undefined || value === '' ? '--' : String(value);
-    }
-    /** 列的结构属性由外部给定，这里只补单元格渲染（对齐 IssuesTable 的 transformColumns） */
-    const tableColumns = computed<TableProps['columns']>(() => [
-      ...props.columns.map<NonNullable<TableProps['columns']>[number]>(column => ({
-        ...column,
-        cell: taskColumnSlots.get(String(column.colKey)) || ((_, { row }) => renderCell(column, row as CollectionTask)),
-      })),
-    ]);
+    /** 任务列渲染器 */
+    const { transformColumns } = useCollectionTaskColumnsRenderer({
+      busy: toRef(props, 'busy'),
+      readonly: toRef(props, 'readonly'),
+      onDelete: row => emit('delete', row),
+      onDetail: row => emit('detail', row),
+      onEdit: row => emit('edit', row),
+      onExecute: row => emit('execute', row),
+      onHistory: row => emit('history', row),
+      onToggle: row => emit('toggle', row),
+    });
+    /** 转换后的列配置 */
+    const transformedColumns = computed(() => transformColumns(props.columns));
+    /** 表格渲染数据（CommonTable 的 data 类型为通用记录） */
+    const tableData = computed(() => props.rows as unknown as Record<string, unknown>[]);
 
     /**
-     * @description 处理排序变化
-     * @param value 排序信息
+     * @description 表格排序变化后回调，将 CommonTable 的字符串排序转换回 { sortBy, descending } 结构
+     * @param {string | string[]} sort - 排序规则字符串（倒序以 - 开头），空值表示取消排序
+     * @returns {void}
      */
-    function changeSort(value: TableSort) {
-      const info = Array.isArray(value) ? value[0] : value;
-      emit('sortChange', info?.sortBy ? { sortBy: info.sortBy, descending: info.descending === true } : null);
+    function handleSortChange(sort: string | string[]) {
+      const rule = Array.isArray(sort) ? sort[0] : sort;
+      if (!rule) {
+        emit('sortChange', null);
+        return;
+      }
+      const descending = rule.startsWith('-');
+      emit('sortChange', { sortBy: descending ? rule.slice(1) : rule, descending });
     }
 
-    return { t, changeSort, isEmpty, showPagination, tableColumns };
+    /**
+     * @description 表头筛选变化后回调，将筛选值拆分为执行方式与启停状态两组
+     * @param {FilterValue} value - 表头筛选值
+     * @returns {void}
+     */
+    function handleFilterChange(value: FilterValue) {
+      emit('filterChange', {
+        scheduleTypes: (value.schedule || []) as ScheduleType[],
+        statuses: (value.task_status || []) as string[],
+      });
+    }
+
+    return {
+      t,
+      filterValue,
+      handleFilterChange,
+      handleSortChange,
+      pagination,
+      settings,
+      tableSort,
+      tableData,
+      transformedColumns,
+    };
   },
   render() {
     return (
-      <>
-        <div class={['collection-task-table', { 'is-empty': this.isEmpty }]}>
-          {this.loading ? (
-            <CollectionSkeleton />
-          ) : (
-            <PrimaryTable
-              v-slots={{
-                empty: () => (
-                  <div class='collection-task-empty'>
-                    <EmptyStatus
-                      textMap={{ empty: this.t('暂无定时任务'), 'search-empty': this.t('暂无匹配任务') }}
-                      type={this.hasFilters ? 'search-empty' : 'empty'}
-                      onOperation={() => this.$emit('resetFilters')}
-                    />
-                  </div>
-                ),
-                taskName: ({ row }: { row: CollectionTask }) => (
-                  <Button
-                    theme='primary'
-                    text
-                    onClick={() => this.$emit('detail', row)}
-                  >
-                    {row.name}
-                  </Button>
-                ),
-                scheduleType: ({ row }: { row: CollectionTask }) => this.t(scheduleLabels[row.schedule.type]),
-                scheduleTime: ({ row }: { row: CollectionTask }) =>
-                  row.schedule.type === 'cron' ? (
-                    <CollectionCrontab
-                      timezone={row.schedule.timezone}
-                      value={row.schedule.cron_expression}
-                      readonly
-                    />
-                  ) : (
-                    <span v-tippy={row.schedule.timezone}>
-                      {formatCollectionTime(row.schedule.execute_at, row.schedule.timezone)}
-                    </span>
-                  ),
-                taskStatus: ({ row }: { row: CollectionTask }) => (
-                  <span
-                    v-tippy={{
-                      content: this.t('任务已过期，无法切换启停状态'),
-                      onShow: () => row.deployment_status === 'outdate',
-                    }}
-                  >
-                    <Switcher
-                      // 计划已过期（outdate）的任务保留当前启停状态，但不允许再切换
-                      disabled={this.readonly || this.busy || row.deployment_status === 'outdate'}
-                      modelValue={row.task_status === 'enabled'}
-                      size='small'
-                      theme='primary'
-                      onChange={() => this.$emit('toggle', row)}
-                    />
-                  </span>
-                ),
-                deploymentStatus: ({ row }: { row: CollectionTask }) => (
-                  <CommonStatus
-                    text={deploymentStatusLabels[row.deployment_status] || row.deployment_status || '--'}
-                    type={deploymentStatusTypes[row.deployment_status] || 'disabled'}
-                  />
-                ),
-                operations: ({ row }: { row: CollectionTask }) => (
-                  <div class='collection-row-actions'>
-                    <Button
-                      theme='primary'
-                      text
-                      onClick={() => this.$emit('history', row)}
-                    >
-                      {this.t('执行记录')}
-                    </Button>
-                    <Button
-                      disabled={this.readonly || this.busy}
-                      theme='primary'
-                      text
-                      onClick={() => this.$emit('edit', row)}
-                    >
-                      {this.t('编辑')}
-                    </Button>
-                    <Button
-                      disabled={this.readonly || this.busy}
-                      theme='primary'
-                      text
-                      onClick={() => this.$emit('execute', row)}
-                    >
-                      {this.t('立即执行')}
-                    </Button>
-                    <span
-                      v-tippy={{
-                        content: this.t('请先停用任务后再删除'),
-                        onShow: () => isTaskDeleteBlocked(row),
-                      }}
-                    >
-                      <Button
-                        disabled={this.readonly || this.busy || isTaskDeleteBlocked(row)}
-                        theme='primary'
-                        text
-                        onClick={() => this.$emit('delete', row)}
-                      >
-                        {this.t('删除')}
-                      </Button>
-                    </span>
-                  </div>
-                ),
-              }}
-              bkUiSettings={{ ...this.tableSettings, hasCheckAll: true }}
-              columns={this.tableColumns}
-              data={this.rows}
-              filterValue={{ schedule: this.scheduleTypes, task_status: this.statuses }}
-              headerAffixedTop={taskTableAffixed}
-              needCustomScroll={false}
-              rowKey='task_id'
-              size='small'
-              sort={this.sort || undefined}
-              resizable
-              onBkUiSettingsChange={value => this.$emit('settingsChange', value.columns)}
-              onColumnResizeChange={context => this.$emit('columnResizeChange', context.columnsWidth)}
-              onFilterChange={value =>
-                this.$emit('filterChange', {
-                  scheduleTypes: (value.schedule || []) as ScheduleType[],
-                  statuses: (value.task_status || []) as string[],
-                })
-              }
-              onSortChange={this.changeSort}
-            />
-          )}
-        </div>
-        {this.showPagination && (
-          <Pagination
-            class='collection-task-pagination'
-            align='right'
-            count={this.total}
-            layout={['total', 'limit', 'list']}
-            limit={this.pageSize}
-            limitList={taskPageSizes}
-            location='right'
-            modelValue={this.page}
-            small
-            onChange={value => this.$emit('pageChange', value)}
-            onLimitChange={value => this.$emit('limitChange', value)}
-          />
-        )}
-      </>
+      <div class={['collection-task-table', { 'is-empty': !this.loading && !this.rows.length }]}>
+        <CommonTable
+          empty={() =>
+            (
+              <div class='collection-task-empty'>
+                <EmptyStatus
+                  textMap={{ empty: this.t('暂无定时任务'), 'search-empty': this.t('暂无匹配任务') }}
+                  type={this.hasFilters ? 'search-empty' : 'empty'}
+                  onOperation={() => this.$emit('resetFilters')}
+                />
+              </div>
+            ) as unknown as SlotReturnValue
+          }
+          autoFillSpace={!this.rows.length}
+          columns={this.transformedColumns}
+          data={this.tableData}
+          filterValue={this.filterValue}
+          headerAffixedTop={taskTableAffixed}
+          horizontalScrollAffixedBottom={taskTableAffixed}
+          loading={this.loading}
+          pagination={this.pagination}
+          rowKey='task_id'
+          sort={this.tableSort}
+          tableSettings={this.settings}
+          onColumnResizeChange={context => this.$emit('columnResizeChange', context.columnsWidth)}
+          onCurrentPageChange={page => this.$emit('pageChange', page)}
+          onDisplayColFieldsChange={fields => this.$emit('settingsChange', fields)}
+          onFilterChange={this.handleFilterChange}
+          onPageSizeChange={size => this.$emit('limitChange', size)}
+          onSortChange={this.handleSortChange}
+        />
+      </div>
     );
   },
 });

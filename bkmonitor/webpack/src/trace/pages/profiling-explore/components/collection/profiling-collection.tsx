@@ -221,7 +221,6 @@ export default defineComponent({
                     scheduleTypes={state.scheduleTypes}
                     sort={state.sort}
                     statuses={state.statuses}
-                    timezone={this.timezone}
                     total={c.filtered.value.length}
                     onColumnResizeChange={this.resizeTaskColumns}
                     onDelete={row => {
