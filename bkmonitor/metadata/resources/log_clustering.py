@@ -8,6 +8,7 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 
+import copy
 import json
 import logging
 from contextlib import contextmanager
@@ -21,7 +22,7 @@ from rest_framework.exceptions import ValidationError
 from tenacity import RetryError
 
 from bkmonitor.utils.serializers import TenantIdField
-from core.drf_resource import Resource, api
+from core.drf_resource import Resource
 from metadata import models
 from metadata.config import DATABASE_CONNECTION_NAME
 from metadata.models.data_link import DataLinkResourceConfigBase
@@ -36,14 +37,20 @@ logger = logging.getLogger("metadata")
 
 __all__ = ["SetLogClusteringConfigResource", "OperateLogClusteringResource", "GetLogClusteringStatusResource"]
 
-# 单租户部署下 BKBase 日志聚类动作/状态接口路径中的租户
-# TODO: 当前取 BKBase 联调环境示例值，待 BKBase 正式接口约定单租户路径租户后核对
-BKBASE_SINGLE_TENANT = "default"
-BKBASE_ACTIONS = ["drain", "finish", "resume"]
+CLUSTERING_ENABLE_ACTIONS = {"disable": False, "enable": True}
 # metadata 内部动作：切换 Databus 是否引用聚类 Sink 后完整下发日志链路
 SINK_REFERENCE_ACTIONS = {"detach": False, "attach": True}
 
-LOG_FILTER_METHODS = ["eq", "neq", "include", "exclude"]
+LOG_FILTER_METHODS = [
+    "eq",
+    "neq",
+    "include",
+    "exclude",
+    "starts_with",
+    "not_starts_with",
+    "ends_with",
+    "not_ends_with",
+]
 DISTANCE_THRESHOLDS = ["0.1", "0.3", "0.5", "0.7", "0.9"]
 DEFAULT_MAX_MESSAGE_BYTES = 1024 * 1024
 MAX_MESSAGE_BYTES_LIMIT = 16 * 1024 * 1024
@@ -94,14 +101,18 @@ class LogClusteringInputMappingSerializer(serializers.Serializer):
 class LogClusteringBindingSerializer(serializers.Serializer):
     task_id = serializers.CharField(label="BKFara 任务ID")
     index_id = serializers.CharField(label="日志平台索引ID")
+    # 由 BKFara 管理：分别取任务 current_generation 和聚类配置 input_revision，调用方原样传入。
+    # metadata 不生成或递增这两个版本，也不把它们作为本地配置修订号。
     generation = serializers.IntegerField(label="任务代际", min_value=0)
     config_revision = serializers.IntegerField(label="BKFara 输入配置版本", min_value=0)
     kafka = LogClusteringKafkaSerializer(label="Kafka 绑定")
     log_filter = LogClusteringFilterRuleSerializer(label="聚类过滤规则", many=True, default=list)
     input_mapping = LogClusteringInputMappingSerializer(label="输入字段映射")
-    distance_threshold = serializers.ChoiceField(label="距离档位", choices=DISTANCE_THRESHOLDS)
+    distance_threshold = serializers.ChoiceField(label="距离档位", choices=DISTANCE_THRESHOLDS, default="0.5")
     pattern_index = serializers.CharField(label="Pattern 索引")
     state_index = serializers.CharField(label="恢复状态索引")
+    # Kafka 候选消息的序列化大小预算，不是原文日志长度限制；这里只校验和透传。
+    # 实际超限处理由 BKBase Runtime 执行。
     max_message_bytes = serializers.IntegerField(
         label="候选消息上限(字节)", min_value=1, max_value=MAX_MESSAGE_BYTES_LIMIT, default=DEFAULT_MAX_MESSAGE_BYTES
     )
@@ -247,10 +258,6 @@ def format_log_clustering_identity(bk_tenant_id: str, component: DataLinkResourc
     return {"tenant": bk_tenant_id, "namespace": component.namespace, "name": component.name}
 
 
-def get_bkbase_tenant(bk_tenant_id: str) -> str:
-    return bk_tenant_id if settings.ENABLE_MULTI_TENANT_MODE else BKBASE_SINGLE_TENANT
-
-
 def get_databus_sink_refs(databus_config: dict[str, Any] | None) -> list[dict[str, Any]]:
     if not databus_config:
         return []
@@ -264,7 +271,7 @@ class SetLogClusteringConfigResource(Resource):
     Databus 尚未引用聚类 Sink 时（首次接入、关闭后重新保存）按日志链路完整下发；
     已引用时只下发聚类 Sink，过滤规则等绑定变更不重复下发 Databus；rawSink 无法唯一确定时仍按日志链路完整下发。
     下发失败时调用方重试同一请求即可。
-    调用方需要先完成 BKBase 侧的 drain/finish，本接口不等待排空，也不代表 Runtime 已采用新配置。
+    过滤更新由 BKBase 内部完成交接，调用方无需先执行排空动作；本接口不代表 Runtime 已采用新配置。
     """
 
     class RequestSerializer(serializers.Serializer):
@@ -350,16 +357,19 @@ class OperateLogClusteringResource(Resource):
     """
     执行日志聚类控制动作
 
-    drain/finish/resume 透传 BKBase 日志聚类动作接口；
+    disable/enable 通过原资源 apply 修改 spec.clustering.enabled；
     detach/attach 是 metadata 内部动作：切换 Databus 是否引用聚类 Sink 后完整下发日志链路，
-    detach 即恢复原存储绑定。动作只表示请求已提交，实际排空、解绑结果需通过状态接口回读。
+    detach 即恢复原存储绑定，调用方应先确认 disable 收尾完成。动作只表示请求已提交，
+    实际收尾、解绑结果需通过状态接口回读。模型更新、Worker 维护不调用这些业务动作。
     动作失败时调用方重试同一动作即可。
     """
 
     class RequestSerializer(serializers.Serializer):
         bk_tenant_id = TenantIdField(label="租户ID")
         table_id = serializers.CharField(label="监控结果表ID")
-        action = serializers.ChoiceField(label="动作", choices=BKBASE_ACTIONS + list(SINK_REFERENCE_ACTIONS))
+        action = serializers.ChoiceField(
+            label="动作", choices=list(CLUSTERING_ENABLE_ACTIONS) + list(SINK_REFERENCE_ACTIONS)
+        )
 
     def perform_request(self, validated_request_data: dict[str, Any]) -> dict[str, Any]:
         bk_tenant_id = validated_request_data["bk_tenant_id"]
@@ -367,7 +377,6 @@ class OperateLogClusteringResource(Resource):
         action = validated_request_data["action"]
 
         datalink = get_log_clustering_datalink(bk_tenant_id, table_id)
-        databus = get_log_clustering_databus(datalink)
 
         with serialize_log_clustering_change(datalink):
             with transaction.atomic(using=DATABASE_CONNECTION_NAME):
@@ -379,23 +388,24 @@ class OperateLogClusteringResource(Resource):
                     sink.attached = SINK_REFERENCE_ACTIONS[action]
                     sink.save()
 
-            bkbase_result = None
             if action in SINK_REFERENCE_ACTIONS:
                 apply_log_datalink(bk_tenant_id=bk_tenant_id, table_id=table_id)
             else:
-                bkbase_result = api.bkdata.log_clustering_action(
-                    bk_tenant_id=bk_tenant_id,
-                    tenant=get_bkbase_tenant(bk_tenant_id),
-                    namespace=databus.namespace,
-                    databus_name=databus.name,
-                    action=action,
-                )
+                remote_sink = datalink.get_existing_component_config(sink.kind, sink.name, sink.namespace)
+                if remote_sink is None:
+                    raise ValidationError(f"log clustering sink({sink.name}) does not exist in BKBase")
+                # 保留完整远端配置，只更新开关；不把 status 等运行态写回，也不重下发 Databus。
+                config = {key: copy.deepcopy(remote_sink[key]) for key in ("kind", "metadata", "spec")}
+                config["spec"]["clustering"]["enabled"] = CLUSTERING_ENABLE_ACTIONS[action]
+                try:
+                    datalink.apply_data_link_with_retry([config])
+                except RetryError as e:
+                    raise e.__cause__ if e.__cause__ else e
 
         logger.info("OperateLogClusteringResource: table_id->[%s] sink->[%s] action->[%s]", table_id, sink.name, action)
         return {
             "action": action,
             "attached": sink.attached,
-            "bkbase_result": bkbase_result,
         }
 
 
@@ -403,7 +413,8 @@ class GetLogClusteringStatusResource(Resource):
     """
     查询日志聚类配置与运行状态
 
-    返回本地保存的绑定与按链路派生的 rawSink，并原样透传 BKBase 回读的聚类 Sink、Databus 资源和日志聚类状态。
+    返回本地保存的绑定与按链路派生的 rawSink，透传聚类 Sink、Databus 资源，
+    从聚类 Sink 的 status.message 解析运行进度，不额外请求专用状态接口。
     sink_referenced/raw_sink_referenced 只说明远端 Databus 配置的引用情况，不代表 Runtime 已实际采用。
     远端查询失败不影响其他字段返回，错误记录在 errors 中。
     """
@@ -442,15 +453,17 @@ class GetLogClusteringStatusResource(Resource):
             "databus_resource",
             lambda: datalink.get_existing_component_config(databus.kind, databus.name, databus.namespace),
         )
-        clustering_status = fetch(
-            "clustering_status",
-            lambda: api.bkdata.get_log_clustering_status(
-                bk_tenant_id=bk_tenant_id,
-                tenant=get_bkbase_tenant(bk_tenant_id),
-                namespace=databus.namespace,
-                databus_name=databus.name,
-            ),
-        )
+
+        def read_clustering_status():
+            message = ((sink_resource or {}).get("status") or {}).get("message")
+            if not message:
+                return None
+            progress = json.loads(message)
+            if not isinstance(progress, dict):
+                raise ValueError("LogClusteringSink status.message must contain a JSON object")
+            return progress
+
+        clustering_status = fetch("clustering_status", read_clustering_status)
 
         raw_sink = get_log_clustering_raw_sink(datalink)
         return {

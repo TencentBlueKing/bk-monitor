@@ -63,6 +63,26 @@ class TestLogClusteringRuntimeStartOperation(TestCase):
         with self.assertRaises(IntegrityError), transaction.atomic():
             LogClusteringRuntime.objects.create(index_set_id=INDEX_SET_ID, **RUNTIME_DEFAULTS)
 
+    def test_model_update_keeps_its_request_separate_from_filter_update(self):
+        model_parameters = {"predefined_varibles": [{"regex": r"\d+", "name": "number"}], "delimeter": ","}
+        runtime, first = LogClusteringRuntime.start_operation(
+            INDEX_SET_ID,
+            ClusteringOperationTypeEnum.UPDATE_MODEL.value,
+            {"model_parameters": model_parameters},
+            defaults=RUNTIME_DEFAULTS,
+        )
+        first.refresh_from_db()
+        self.assertEqual(first.operation_type, ClusteringOperationTypeEnum.UPDATE_MODEL.value)
+        self.assertEqual(first.request_snapshot["model_parameters"], model_parameters)
+
+        LogClusteringOperation.objects.filter(pk=first.pk).update(status=ClusteringOperationStatusEnum.SUCCESS.value)
+        same_runtime, second = LogClusteringRuntime.start_operation(
+            INDEX_SET_ID, ClusteringOperationTypeEnum.UPDATE.value, {"filter_rules": []}
+        )
+        self.assertEqual(same_runtime.pk, runtime.pk)
+        self.assertNotEqual(first.operation_type, second.operation_type)
+        self.assertEqual(second.request_snapshot, {"filter_rules": []})
+
 
 class TestLogClusteringOperation(TestCase):
     def setUp(self):
@@ -71,12 +91,23 @@ class TestLogClusteringOperation(TestCase):
         )
 
     def test_idempotency_key_is_stable_across_retries(self):
-        first_key = self.operation.get_idempotency_key("create_task")
+        with self.assertNumQueries(0):
+            first_key = self.operation.get_idempotency_key("create_task")
 
         reloaded = LogClusteringOperation.objects.get(pk=self.operation.pk)
 
-        self.assertEqual(reloaded.get_idempotency_key("create_task"), first_key)
-        self.assertNotEqual(reloaded.get_idempotency_key("configure_clustering"), first_key)
+        with self.assertNumQueries(0):
+            self.assertEqual(reloaded.get_idempotency_key("create_task"), first_key)
+            self.assertNotEqual(reloaded.get_idempotency_key("configure_clustering"), first_key)
+
+    def test_different_operations_use_different_idempotency_keys(self):
+        LogClusteringOperation.objects.filter(pk=self.operation.pk).update(
+            status=ClusteringOperationStatusEnum.SUCCESS.value
+        )
+        _, another = LogClusteringRuntime.start_operation(INDEX_SET_ID, ClusteringOperationTypeEnum.REOPEN.value, {})
+        self.assertNotEqual(
+            self.operation.get_idempotency_key("create_task"), another.get_idempotency_key("create_task")
+        )
 
     def test_record_step_persists_history(self):
         self.operation.record_step("create_task", ClusteringOperationStatusEnum.SUCCESS.value)

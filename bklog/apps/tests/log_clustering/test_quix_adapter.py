@@ -18,7 +18,7 @@ KAFKA_BINDING = {
     "partitions": 2,
     "retention_ms": 604800000,
     "recovery_window_ms": 86400000,
-    "source_namespace": "bklog-prod",
+    "source_namespace": "test-namespace",
     "mapping_revision": "log-v1",
 }
 
@@ -42,13 +42,50 @@ class TestConvertFilterRules(SimpleTestCase):
             ],
         )
 
+    def test_like_patterns_map_to_all_eight_methods(self):
+        for op, positive in (("LIKE", True), ("NOT LIKE", False)):
+            for pattern, expected in (
+                ("error", "eq" if positive else "neq"),
+                ("%error%", "include" if positive else "exclude"),
+                ("error%", "starts_with" if positive else "not_starts_with"),
+                ("%error", "ends_with" if positive else "not_ends_with"),
+            ):
+                with self.subTest(op=op, pattern=pattern):
+                    result = convert_filter_rules([{"fields_name": "log", "op": op, "value": [pattern]}])
+                    self.assertEqual(result, [{"key": "log", "method": expected, "value": ["error"], "condition": ""}])
+
+    def test_prefix_suffix_operators(self):
+        for op in ("starts_with", "not_starts_with", "ends_with", "not_ends_with"):
+            with self.subTest(op=op):
+                self.assertEqual(
+                    convert_filter_rules([{"fields_name": "log", "op": op, "value": "x"}])[0]["method"], op
+                )
+
+    def test_like_values_preserve_literal_content_and_grouping(self):
+        rules = [
+            {"fields_name": "log", "op": "LIKE", "value": ["% error %", "%warn'%"]},
+            {"fields_name": "log", "op": "NOT LIKE", "value": ["debug%", "trace%"], "logic_operator": "or"},
+        ]
+        result = convert_filter_rules(rules)
+        self.assertEqual(result[0]["value"], [" error ", "warn'"])
+        self.assertEqual(
+            result[1], {"key": "log", "method": "not_starts_with", "value": ["debug", "trace"], "condition": "or"}
+        )
+        self.assertEqual(rules[0]["value"], ["% error %", "%warn'%"])
+
+    def test_unsupported_like_patterns_are_rejected_without_reinterpretation(self):
+        for values in (["er%ror"], ["err_r"], [r"error\%"], ["%"], ["%%error"], ["error%", "%warn"]):
+            for op in ("LIKE", "NOT LIKE"):
+                with self.subTest(values=values, op=op), self.assertRaises(QuixClusteringParamsInvalidException):
+                    convert_filter_rules([{"fields_name": "log", "op": op, "value": values}])
+
     def test_empty_rules_mean_all_logs(self):
         self.assertEqual(convert_filter_rules([]), [])
         self.assertEqual(convert_filter_rules(None), [])
 
     def test_unsupported_rules_are_rejected(self):
         invalid_rules = [
-            [{"fields_name": "log", "op": "LIKE", "value": ["%err%"]}],
+            [{"fields_name": "log", "op": "LIKE", "value": ["er%ror"]}],
             [{"fields_name": "", "op": "=", "value": ["ERROR"]}],
             [{"fields_name": "level", "op": "=", "value": []}],
             [
@@ -74,9 +111,9 @@ class TestBuildBinding(SimpleTestCase):
             build_clustering_config("", [])
 
     def test_binding_comes_from_runtime_facts(self):
-        pattern_index, state_index = build_index_names(24466)
+        pattern_index, state_index = build_index_names(42)
         runtime = LogClusteringRuntime(
-            index_set_id=24466,
+            index_set_id=42,
             bkfara_task_id="task-uuid",
             generation=1,
             input_revision=3,
@@ -92,15 +129,15 @@ class TestBuildBinding(SimpleTestCase):
             binding,
             {
                 "task_id": "task-uuid",
-                "index_id": "24466",
+                "index_id": "42",
                 "generation": 1,
                 "config_revision": 3,
                 "kafka": KAFKA_BINDING,
                 "log_filter": [],
                 "input_mapping": {"log": "log", "timestamp": "dtEventTimeStamp"},
                 "distance_threshold": "0.5",
-                "pattern_index": "log-clustering-24466-pattern",
-                "state_index": "log-clustering-24466-state",
+                "pattern_index": "log-clustering-42-pattern",
+                "state_index": "log-clustering-42-state",
                 "max_message_bytes": 1048576,
             },
         )

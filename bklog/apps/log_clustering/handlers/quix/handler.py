@@ -23,6 +23,8 @@ from django.db import transaction
 from django.utils import timezone
 from django.utils.translation import gettext as _
 
+from apps.api import BkFaraApi
+
 from apps.log_clustering.constants import (
     CLUSTERING_CONFIG_EXCLUDE,
     DEFAULT_CLUSTERING_FIELDS,
@@ -33,8 +35,8 @@ from apps.log_clustering.constants import (
 )
 from apps.log_clustering.exceptions import ClusteringConfigHasExistException, QuixClusteringParamsInvalidException
 from apps.log_clustering.handlers.dataflow.constants import OnlineTaskTrainingArgs
+from apps.log_clustering.handlers.dataflow.dataflow_handler import DataFlowHandler
 from apps.log_clustering.handlers.quix.adapter import build_clustering_config, build_index_names
-from apps.log_clustering.handlers.quix.bkfara import BkFaraClient
 from apps.log_clustering.handlers.quix.config import get_quix_config
 from apps.log_clustering.handlers.quix.operation import QuixClusteringOperationRunner
 from apps.log_clustering.handlers.regex_template import RegexTemplateHandler
@@ -45,7 +47,7 @@ from apps.models import model_to_dict
 from apps.utils.log import logger
 from bkm_space.utils import space_uid_to_bk_biz_id
 
-# 只影响页面展示的业务配置，更新时直接保存，不触发链路变更
+# 页面配置；其中模型参数通过现有参数构造方法映射到 BKFara。
 BUSINESS_UPDATE_FIELDS = (
     "min_members",
     "predefined_varibles",
@@ -70,8 +72,8 @@ UNBOUND_RESET_FIELDS = {
 
 # 开启流程中各步骤对应到现有接入状态的三段展示
 ACCESS_STATUS_STEPS = {
-    "flow_create": ("create_task", "wait_task_ready", "configure_clustering", "wait_worker_ready"),
-    "flow_run": ("metadata_set", "wait_adoption", "confirm_adoption"),
+    "flow_create": ("create_task", "wait_task_ready", "wait_worker_ready"),
+    "flow_run": ("metadata_set", "wait_adoption", "confirm_adoption", "finish"),
 }
 
 
@@ -83,6 +85,7 @@ class QuixClusteringHandler:
         self.index_set_id = log_index_set.index_set_id
 
     def enable(self, params: dict) -> dict:
+        from apps.log_clustering.handlers.clustering_config import ClusteringConfigHandler
         from apps.log_clustering.tasks.quix import run_quix_clustering_operation
 
         has_exist = ClusteringConfigHasExistException(
@@ -109,6 +112,12 @@ class QuixClusteringHandler:
         get_quix_config()
 
         collector_config = CollectorConfig.objects.get(collector_config_id=self.index_set.collector_config_id)
+        etl_config = collector_config.get_etl_config()
+        ClusteringConfigHandler.pre_check_fields(
+            fields=etl_config["fields"],
+            etl_config=collector_config.etl_config,
+            clustering_fields=clustering_fields,
+        )
         pattern_index, state_index = build_index_names(self.index_set_id)
         enable_fields = {
             "phase": ClusteringRuntimePhaseEnum.ENABLING.value,
@@ -133,65 +142,74 @@ class QuixClusteringHandler:
                 allowed_phases=(ClusteringRuntimePhaseEnum.STOPPED.value,) if runtime else None,
                 updates={**enable_fields, **UNBOUND_RESET_FIELDS} if runtime else None,
             )
-            self._save_business_config(collector_config, params, clustering_fields, filter_rules)
+            business_config = self._save_business_config(collector_config, params, clustering_fields, filter_rules)
+            operation.request_snapshot["model_parameters"] = DataFlowHandler.get_clustering_training_params(
+                business_config
+            )
+            operation.save(update_fields=["request_snapshot", "updated_at", "updated_by"])
         run_quix_clustering_operation.delay(operation.operation_id)
         return self._access_response(operation)
 
     def update(self, params: dict) -> str | None:
-        """更新过滤规则，返回操作ID；规则无变化时只保存业务配置并返回 None"""
+        """分别下发过滤配置和已有模型参数；相同目标的在途请求可续跑。"""
         from apps.log_clustering.tasks.quix import run_quix_clustering_operation
 
-        runtime = LogClusteringRuntime.objects.get(index_set_id=self.index_set_id)
-        if not runtime.active_config:
-            raise QuixClusteringParamsInvalidException(
-                QuixClusteringParamsInvalidException.MESSAGE.format(detail=_("聚类开启尚未完成，暂不能修改过滤规则"))
-            )
-        # 未传过滤规则表示不修改；按空规则处理会变成全部日志参与聚类
-        if "filter_rules" in params:
-            filter_rules = params["filter_rules"]
-        else:
-            business_config = ClusteringConfig.get_by_index_set_id(
-                index_set_id=self.index_set_id, raise_exception=False
-            )
-            filter_rules = (business_config.filter_rules if business_config else None) or []
-        clustering_fields = params.get("clustering_fields") or runtime.active_config["input_mapping"]["log"]
-        clustering_config = build_clustering_config(clustering_fields, filter_rules)
-        if clustering_config["input_mapping"] != runtime.active_config["input_mapping"]:
-            raise QuixClusteringParamsInvalidException(
-                QuixClusteringParamsInvalidException.MESSAGE.format(
-                    detail=_("首版仅支持修改过滤规则，不支持修改聚类字段")
-                )
-            )
-
-        # 待生效规则、操作和页面配置必须一起提交，避免恢复任务重放旧规则。
         with transaction.atomic():
-            operation = None
-            if (
-                runtime.phase == ClusteringRuntimePhaseEnum.UPDATING.value
-                and runtime.pending_config == clustering_config
-            ):
-                # 相同规则再次提交时续跑失败的更新，沿用已固定的排空范围；仍在执行的更新直接返回其操作
-                operation = (
-                    self._resume_failed_operation(ClusteringOperationTypeEnum.UPDATE.value)
-                    or LogClusteringOperation.objects.filter(
-                        index_set_id=self.index_set_id,
-                        operation_type=ClusteringOperationTypeEnum.UPDATE.value,
-                        status__in=ClusteringOperationStatusEnum.runnable_statuses(),
-                    ).first()
+            runtime = LogClusteringRuntime.objects.select_for_update().get(index_set_id=self.index_set_id)
+            if not runtime.active_config:
+                raise QuixClusteringParamsInvalidException(
+                    QuixClusteringParamsInvalidException.MESSAGE.format(detail=_("聚类开启尚未完成，暂不能修改配置"))
                 )
-            elif clustering_config != runtime.active_config or runtime.pending_config is not None:
-                # 即使提交的是旧生效规则，在途的新规则也不能被当成“无变化”跳过；
-                # 仍由 start_operation 校验运行阶段，避免只改页面配置而新绑定继续生效。
-                runtime, operation = LogClusteringRuntime.start_operation(
-                    self.index_set_id,
-                    ClusteringOperationTypeEnum.UPDATE.value,
-                    {"filter_rules": filter_rules},
-                    allowed_phases=(ClusteringRuntimePhaseEnum.RUNNING.value,),
+            business_config = ClusteringConfig.objects.get(index_set_id=self.index_set_id)
+            original_model = DataFlowHandler.get_clustering_training_params(business_config)
+            filter_rules = params.get("filter_rules", business_config.filter_rules or [])
+            clustering_fields = params.get("clustering_fields") or runtime.active_config["input_mapping"]["log"]
+            clustering_config = build_clustering_config(clustering_fields, filter_rules)
+            if clustering_config["input_mapping"] != runtime.active_config["input_mapping"]:
+                raise QuixClusteringParamsInvalidException(
+                    QuixClusteringParamsInvalidException.MESSAGE.format(detail=_("首版不支持修改聚类字段"))
                 )
-                runtime.pending_config = clustering_config
-                runtime.phase = ClusteringRuntimePhaseEnum.UPDATING.value
-                runtime.save(update_fields=["pending_config", "phase", "updated_at", "updated_by"])
-
+            for field in BUSINESS_UPDATE_FIELDS:
+                if field in params:
+                    setattr(business_config, field, params[field])
+            model_parameters = DataFlowHandler.get_clustering_training_params(business_config)
+            operation = LogClusteringOperation.objects.filter(
+                index_set_id=self.index_set_id,
+                status__in=ClusteringOperationStatusEnum.unfinished_statuses(),
+            ).first()
+            if operation:
+                if (
+                    operation.operation_type
+                    not in (ClusteringOperationTypeEnum.UPDATE.value, ClusteringOperationTypeEnum.UPDATE_MODEL.value)
+                    or operation.request_snapshot.get("filter_rules") != filter_rules
+                    or operation.request_snapshot.get("model_parameters") != model_parameters
+                ):
+                    raise QuixClusteringParamsInvalidException(
+                        QuixClusteringParamsInvalidException.MESSAGE.format(
+                            detail=_("已有未完成操作，请完成后再修改配置")
+                        )
+                    )
+                if operation.status == ClusteringOperationStatusEnum.FAILED.value:
+                    operation = self._resume_failed_operation(operation.operation_type)
+            else:
+                filter_changed = clustering_config != runtime.active_config
+                model_changed = model_parameters != original_model
+                if filter_changed or model_changed:
+                    runtime, operation = LogClusteringRuntime.start_operation(
+                        self.index_set_id,
+                        ClusteringOperationTypeEnum.UPDATE.value
+                        if filter_changed
+                        else ClusteringOperationTypeEnum.UPDATE_MODEL.value,
+                        {
+                            "filter_rules": filter_rules,
+                            "model_parameters": model_parameters,
+                            "update_model": model_changed,
+                        },
+                        allowed_phases=(ClusteringRuntimePhaseEnum.RUNNING.value,),
+                    )
+                    runtime.pending_config = clustering_config if filter_changed else None
+                    runtime.phase = ClusteringRuntimePhaseEnum.UPDATING.value
+                    runtime.save(update_fields=["pending_config", "phase", "updated_at", "updated_by"])
             ClusteringConfig.objects.filter(index_set_id=self.index_set_id).update(
                 filter_rules=filter_rules,
                 **{field: params[field] for field in BUSINESS_UPDATE_FIELDS if field in params},
@@ -296,7 +314,6 @@ class QuixClusteringHandler:
         )
         result["quix"] = {
             "phase": runtime.phase,
-            "coverage_gaps": runtime.coverage_gaps,
             "operation": self._format_operation(operation),
             "bkfara": self._get_bkfara_clustering(runtime),
         }
@@ -308,7 +325,7 @@ class QuixClusteringHandler:
         if not runtime.bkfara_task_id:
             return None
         try:
-            return BkFaraClient().get_clustering(runtime.bkfara_task_id)
+            return BkFaraApi.get_clustering({"task_id": runtime.bkfara_task_id})
         except Exception as e:  # pylint: disable=broad-except
             # 原始错误可能包含内部地址等运维细节，只记录到服务端日志
             logger.warning("[quix_clustering] index_set(%s) get bkfara status failed: %s", runtime.index_set_id, e)
@@ -342,6 +359,7 @@ class QuixClusteringHandler:
                 "filter_rules": filter_rules,
                 "min_members": params.get("min_members", OnlineTaskTrainingArgs.MIN_MEMBERS),
                 "max_dist_list": OnlineTaskTrainingArgs.MAX_DIST_LIST,
+                "depth": OnlineTaskTrainingArgs.DEPTH,
                 "delimeter": params.get("delimeter", OnlineTaskTrainingArgs.DELIMETER),
                 "max_log_length": params.get("max_log_length", OnlineTaskTrainingArgs.MAX_LOG_LENGTH),
                 "is_case_sensitive": params.get("is_case_sensitive", OnlineTaskTrainingArgs.IS_CASE_SENSITIVE),
@@ -358,6 +376,7 @@ class QuixClusteringHandler:
         clustering_config.predefined_varibles = regex_template["predefined_varibles"]
         clustering_config.regex_rule_type = RegexRuleTypeEnum.TEMPLATE.value
         clustering_config.save()
+        return clustering_config
 
     def _access_response(self, operation: LogClusteringOperation) -> dict:
         clustering_config = ClusteringConfig.get_by_index_set_id(index_set_id=self.index_set_id)
@@ -375,7 +394,7 @@ class QuixClusteringHandler:
         # 非开启操作不涉及任务创建，整个操作的进度展示在链路运行段
         if section == "flow_create":
             return ()
-        return tuple(QuixClusteringOperationRunner.STEPS.get(operation.operation_type, ()))
+        return (*QuixClusteringOperationRunner.STEPS.get(operation.operation_type, ()), "finish")
 
     @staticmethod
     def _section_status(status_code, operation: LogClusteringOperation | None, steps: tuple) -> dict:

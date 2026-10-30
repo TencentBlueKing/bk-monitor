@@ -23,8 +23,9 @@ from apps.log_clustering.handlers.quix.operation import (
 from apps.log_clustering.models import ClusteringConfig, LogClusteringOperation, LogClusteringRuntime
 from apps.log_search.models import LogIndexSet
 from apps.tests.log_clustering.test_quix_operation import INDEX_SET_ID, QUIX_CONFIG
-from apps.tests.log_clustering.test_quix_update import DRAINED, WARN_RULES, create_running_runtime
+from apps.tests.log_clustering.test_quix_update import WARN_RULES, create_running_runtime
 
+DRAINED = {"can_unbind": True, "storage_complete": True, "outbox_drained": True, "source_committed": True}
 BOUNDARY = {"0": 10, "1": 10}
 ATTACHED = {"configured": True, "attached": True}
 BOUNDARY_READY = {"clustering_status": {"boundary_ready": True, "boundary": BOUNDARY, "outbox_boundary": {"0": 100}}}
@@ -57,7 +58,7 @@ class TestQuixDisableRunner(TestCase):
         self.receipt = Mock(return_value=True)
         self.delete_tag = Mock()
         for target, value in (
-            ("apps.log_clustering.handlers.quix.operation.BkFaraClient", Mock(return_value=self.bkfara)),
+            ("apps.log_clustering.handlers.quix.operation.BkFaraApi", self.bkfara),
             ("apps.log_clustering.handlers.quix.operation.TransferApi", self.transfer),
             ("apps.log_clustering.handlers.quix.operation.get_quix_config", Mock(return_value=QUIX_CONFIG)),
             ("apps.log_clustering.handlers.quix.operation.runtime_detach_confirmed", self.receipt),
@@ -92,10 +93,10 @@ class TestQuixDisableRunner(TestCase):
         actions = [call.args[0]["action"] for call in self.transfer.operate_log_clustering.call_args_list]
         self.assertEqual(actions, ["drain", "finish", "detach"])
         first_stop, final_stop = self.bkfara.stop_clustering.call_args_list
-        self.assertEqual(first_stop.args, ("task-uuid", BOUNDARY))
+        self.assertEqual(first_stop.args, ({"task_id": "task-uuid", "boundary": BOUNDARY},))
         self.assertEqual(first_stop.kwargs, {})
         self.assertEqual(
-            final_stop.kwargs["completion"],
+            final_stop.args[0]["completion"],
             {"input_boundary": BOUNDARY, "storage_complete": True, "binding_removed": True},
         )
 
@@ -113,7 +114,9 @@ class TestQuixDisableRunner(TestCase):
 
         self.run_operation()
 
-        self.assertEqual(self.bkfara.stop_clustering.call_args_list[0].args, ("task-uuid", BOUNDARY))
+        self.assertEqual(
+            self.bkfara.stop_clustering.call_args_list[0].args, ({"task_id": "task-uuid", "boundary": BOUNDARY},)
+        )
 
     def test_waits_for_boundary_before_first_stop(self):
         self.transfer.get_log_clustering_status.side_effect = [
@@ -139,8 +142,12 @@ class TestQuixDisableRunner(TestCase):
 
         self.run_operation()
 
-        self.assertEqual(self.bkfara.stop_clustering.call_args_list[0].args, ("task-uuid", {"0": 7}))
-        self.assertEqual(self.bkfara.stop_clustering.call_args_list[1].kwargs["completion"]["input_boundary"], {"0": 7})
+        self.assertEqual(
+            self.bkfara.stop_clustering.call_args_list[0].args, ({"task_id": "task-uuid", "boundary": {"0": 7}},)
+        )
+        self.assertEqual(
+            self.bkfara.stop_clustering.call_args_list[1].args[0]["completion"]["input_boundary"], {"0": 7}
+        )
 
     def test_unbound_clustering_only_stops_bkfara_with_zero_boundary(self):
         LogClusteringRuntime.objects.filter(index_set_id=INDEX_SET_ID).update(sink={}, kafka_binding={"partitions": 2})
@@ -150,8 +157,8 @@ class TestQuixDisableRunner(TestCase):
         self.transfer.operate_log_clustering.assert_not_called()
         self.transfer.get_log_clustering_status.assert_not_called()
         first_stop, final_stop = self.bkfara.stop_clustering.call_args_list
-        self.assertEqual(first_stop.args, ("task-uuid", {"0": 0, "1": 0}))
-        self.assertTrue(final_stop.kwargs["completion"]["binding_removed"])
+        self.assertEqual(first_stop.args, ({"task_id": "task-uuid", "boundary": {"0": 0, "1": 0}},))
+        self.assertTrue(final_stop.args[0]["completion"]["binding_removed"])
         self.assertEqual(
             LogClusteringRuntime.objects.get(index_set_id=INDEX_SET_ID).phase,
             ClusteringRuntimePhaseEnum.STOPPED.value,

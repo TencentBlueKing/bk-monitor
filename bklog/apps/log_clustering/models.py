@@ -565,7 +565,8 @@ class RegexTemplate(models.Model):
 class LogClusteringRuntime(OperateRecordModel):
     """
     轻量化聚类（BKBase LogClusteringSink + BKFara Quix）的运行绑定，每个索引集一条
-    业务配置仍由 ClusteringConfig 维护；这里只保存跨系统身份、版本和收尾所需的事实
+    业务配置仍由 ClusteringConfig 维护；这里只保存跨系统身份、版本和业务收尾所需的事实。
+    Worker 消费恢复、原日志投递边界与覆盖进度由 BKFara/BKBase 管理，不在日志平台另存一份。
     """
 
     index_set_id = models.IntegerField(_("索引集id"), unique=True)
@@ -589,9 +590,8 @@ class LogClusteringRuntime(OperateRecordModel):
     pattern_index = models.CharField(_("Pattern 索引"), max_length=255, default="", blank=True)
     state_index = models.CharField(_("恢复状态索引"), max_length=255, default="", blank=True)
 
+    # 仅用于业务关闭时向 BKFara 交接，由 BKBase 回执提供；不用于模型更新或 Worker 维护重启。
     candidate_boundary = models.JSONField(_("候选 Topic 停止边界"), null=True, blank=True)
-    outbox_boundary = models.JSONField(_("原日志 Topic 停止边界"), null=True, blank=True)
-    coverage_gaps = models.JSONField(_("聚类覆盖缺口"), default=list, blank=True)
 
     class Meta:
         verbose_name = _("日志聚类轻量化运行绑定")
@@ -661,8 +661,8 @@ class LogClusteringOperation(OperateRecordModel):
     )
     step = models.CharField(_("当前步骤"), max_length=64, default="", blank=True)
     steps = models.JSONField(_("步骤记录"), default=list, blank=True)
+    # 模型参数更新复用请求快照承载逐索引参数，调用协议由 BKFara 适配层映射。
     request_snapshot = models.JSONField(_("请求快照"), default=dict, blank=True)
-    idempotency_keys = models.JSONField(_("外部调用幂等键"), default=dict, blank=True)
     request_payloads = models.JSONField(_("外部写调用请求体"), default=dict, blank=True)
     retry_count = models.IntegerField(_("重试次数"), default=0)
     next_retry_at = models.DateTimeField(_("下次重试时间"), null=True, blank=True)
@@ -674,11 +674,8 @@ class LogClusteringOperation(OperateRecordModel):
         verbose_name_plural = _("日志聚类轻量化操作记录")
 
     def get_idempotency_key(self, action: str) -> str:
-        """同一操作内同一外部动作的重试必须沿用首次生成的幂等键"""
-        if action not in self.idempotency_keys:
-            self.idempotency_keys[action] = f"{self.operation_id}-{action}"
-            self.save(update_fields=["idempotency_keys", "updated_at", "updated_by"])
-        return self.idempotency_keys[action]
+        """由已持久化的操作 ID 和动作确定，重试保持一致，无需额外存储或写库。"""
+        return f"{self.operation_id}-{action}"
 
     def get_request_payload(self, action: str, build_payload) -> dict:
         """同一幂等键必须对应同一请求体：首次发送前落库，重试时原样重放，不随环境配置变化重新组装"""
