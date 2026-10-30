@@ -197,7 +197,7 @@ export function useCollectionResultDetail({
     }
   }
 
-  watch([bizId, () => JSON.stringify(selection.value)], load, { immediate: true });
+  watch([bizId, () => JSON.stringify(selection.value), source], load, { immediate: true });
   watch(selectedType, value => {
     if (value && value !== dataType.value) onDataType(value);
     loadCharts();
