@@ -1,8 +1,10 @@
 from datetime import timedelta
+from unittest.mock import patch
 
 from django.test import TestCase, override_settings
 from django.utils import timezone
 
+from apps.exceptions import PermissionError as BklogPermissionError
 from apps.exceptions import ValidationError
 from apps.log_admin_resource.handlers.sharded_export import (
     DETAIL_FUNC_NAME,
@@ -24,7 +26,7 @@ from apps.log_search.constants import (
     IndexSetType,
 )
 from apps.log_search.export.models import ExportJob, ExportPart, ExportPlan
-from apps.log_search.models import AsyncTask
+from apps.log_search.models import AsyncTask, Space
 
 
 def make_job(**overrides):
@@ -137,6 +139,8 @@ class ShardedExportListTest(TestCase):
         union_items = list_sharded_export_jobs({"index_set_ids": [10, 11]})["items"]
         self.assertEqual([item["job_id"] for item in union_items], [union.id])
         self.assertEqual(union_items[0]["target"], {"type": "union", "index_set_ids": [10, 11]})
+        unordered_items = list_sharded_export_jobs({"index_set_ids": [11, 10, 11]})["items"]
+        self.assertEqual([item["job_id"] for item in unordered_items], [union.id])
         scene_items = list_sharded_export_jobs({"search_type": ExportSearchType.SCENE})["items"]
         self.assertEqual([item["job_id"] for item in scene_items], [scene.id])
         self.assertEqual(scene_items[0]["target"]["type"], "scene")
@@ -318,6 +322,47 @@ class ShardedExportDetailTest(TestCase):
         get_sharded_export_job_detail({"job_id": job.id})
 
         self.assertEqual(ExportJob.objects.filter(id=job.id).values().get(), before)
+
+
+@override_settings(ENABLE_MULTI_TENANT_MODE=True)
+class ShardedExportTenantScopeTest(TestCase):
+    @staticmethod
+    def create_space(bk_biz_id, tenant_id):
+        return Space.objects.create(
+            space_uid=f"bkcc__{bk_biz_id}",
+            bk_biz_id=bk_biz_id,
+            space_type_id="bkcc",
+            space_type_name="业务",
+            space_id=str(bk_biz_id),
+            space_name=f"biz-{bk_biz_id}",
+            bk_tenant_id=tenant_id,
+        )
+
+    def setUp(self):
+        self.create_space(2, "tenant-1")
+        self.create_space(3, "tenant-2")
+        self.own_job = make_job(space_uid="bkcc__2", bk_biz_id=2)
+        self.other_job = make_job(space_uid="bkcc__3", bk_biz_id=3)
+
+    @patch("apps.log_admin_resource.handlers.inspection.get_request_tenant_id", return_value="tenant-1")
+    def test_list_only_returns_jobs_in_request_tenant(self, _mock_tenant):
+        result = list_sharded_export_jobs({})
+        self.assertEqual([item["job_id"] for item in result["items"]], [self.own_job.id])
+        self.assertEqual(result["total"], 1)
+        self.assertEqual(list_sharded_export_jobs({"bk_biz_id": 3})["total"], 0)
+
+    @patch("apps.log_admin_resource.handlers.inspection.get_request_tenant_id", return_value="tenant-1")
+    def test_detail_hides_other_tenant_job_as_missing(self, _mock_tenant):
+        self.assertEqual(get_sharded_export_job_detail({"job_id": self.own_job.id})["job_id"], self.own_job.id)
+        with self.assertRaisesRegex(ValidationError, "sharded export job does not exist"):
+            get_sharded_export_job_detail({"job_id": self.other_job.id})
+
+    @patch("apps.log_admin_resource.handlers.inspection.get_request_tenant_id", return_value="")
+    def test_missing_request_tenant_fails_closed(self, _mock_tenant):
+        with self.assertRaisesRegex(BklogPermissionError, "request tenant is required"):
+            list_sharded_export_jobs({})
+        with self.assertRaisesRegex(BklogPermissionError, "request tenant is required"):
+            get_sharded_export_job_detail({"job_id": self.own_job.id})
 
 
 @override_settings(RESOURCE_CALL_APP_CODE_WHITE_LIST=[])

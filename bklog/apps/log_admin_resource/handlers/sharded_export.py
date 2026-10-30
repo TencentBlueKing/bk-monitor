@@ -1,6 +1,7 @@
 from __future__ import annotations
 
-from django.db.models import Case, IntegerField, Value, When
+from django.conf import settings
+from django.db.models import Case, IntegerField, Subquery, Value, When
 from django.utils import timezone
 
 from apps.exceptions import ValidationError
@@ -13,7 +14,7 @@ from apps.log_admin_resource.handlers.async_export import (
     _positive_int,
     _sanitize_failure_reason,
 )
-from apps.log_admin_resource.handlers.inspection import sanitize_json
+from apps.log_admin_resource.handlers.inspection import request_tenant_spaces, sanitize_json
 from apps.log_admin_resource.response_schema import diagnostic_schema, nullable_schema, object_schema, pagination_schema
 from apps.log_search.constants import (
     ExportErrorCode,
@@ -61,7 +62,7 @@ def list_sharded_export_jobs(params):
     params = params or {}
     page = _positive_int(params.get("page", 1), "page")
     page_size = _positive_int(params.get("page_size", 20), "page_size", maximum=MAX_PAGE_SIZE)
-    queryset = ExportJob.objects.all()
+    queryset = _tenant_jobs()
     filters = {
         "job_id": "id",
         "bk_biz_id": "bk_biz_id",
@@ -77,7 +78,8 @@ def list_sharded_export_jobs(params):
     if params.get("index_set_id") not in (None, ""):
         queryset = queryset.filter(index_set_ids=[_positive_int(params["index_set_id"], "index_set_id")])
     if params.get("index_set_ids"):
-        queryset = queryset.filter(index_set_ids=list(params["index_set_ids"]))
+        # 创建任务时按 sorted(set(...)) 落库，精确匹配前按同一口径规范化
+        queryset = queryset.filter(index_set_ids=sorted(set(params["index_set_ids"])))
     if params.get("created_from"):
         queryset = queryset.filter(created_at__gte=_datetime(params["created_from"], "created_from"))
     if params.get("created_to"):
@@ -108,9 +110,8 @@ def get_sharded_export_job_detail(params):
     unknown_statuses = sorted(set(part_statuses) - set(PART_STATUSES))
     if unknown_statuses:
         raise ValidationError(f"unsupported part_status: {', '.join(unknown_statuses)}")
-    try:
-        job = ExportJob.objects.get(id=job_id)
-    except ExportJob.DoesNotExist:
+    job = _tenant_jobs().filter(id=job_id).first()
+    if job is None:
         raise ValidationError(f"sharded export job does not exist: {job_id}")
 
     load_export_progress([job])
@@ -171,6 +172,13 @@ def get_sharded_export_job_detail(params):
         "consistency_warnings": _consistency_warnings(job, stats, current_plan),
         "evidence_scope": "db_only",
     }
+
+
+def _tenant_jobs():
+    queryset = ExportJob.objects.all()
+    if not settings.ENABLE_MULTI_TENANT_MODE:
+        return queryset
+    return queryset.filter(space_uid__in=Subquery(request_tenant_spaces().values("space_uid")))
 
 
 def _list_item(job):
@@ -584,7 +592,8 @@ FUNCTIONS = {
         "func_name": LIST_FUNC_NAME,
         "description": (
             "Discover sharded async export jobs (ExportJob) through bounded read-only filters; "
-            "legacy AsyncTask exports stay in bklog.async_export.list."
+            "index_set_id matches single-index jobs and index_set_ids matches the full union set exactly. "
+            "Legacy AsyncTask exports stay in bklog.async_export.list."
         ),
         "safety_level": "read",
         "validate_params": True,
