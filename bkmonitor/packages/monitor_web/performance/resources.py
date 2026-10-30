@@ -10,6 +10,9 @@ specific language governing permissions and limitations under the License.
 
 import logging
 
+from django.utils.translation import gettext as _
+from rest_framework.exceptions import ValidationError
+
 from api.cmdb.define import Host, TopoNode, TopoTree
 from bkm_space.validate import validate_bk_biz_id
 from bkmonitor.share.api_auth_resource import ApiAuthResource
@@ -246,15 +249,21 @@ class HostTopoNodeDetailResource(Resource):
         bk_biz_id = params["bk_biz_id"]
 
         # 查询节点信息
-        topo_nodes = api.cmdb.get_topo_tree(bk_biz_id=bk_biz_id).get_all_nodes_with_relation()
-        node = topo_nodes.get(f"{bk_obj_id}_{bk_inst_id}")
-
-        # 查询节点下的主机
-        hosts = api.cmdb.get_host_by_topo_node(bk_biz_id=bk_biz_id, topo_nodes={bk_obj_id: [bk_inst_id]})
+        topo_tree = api.cmdb.get_topo_tree(bk_biz_id=bk_biz_id)
+        if bk_obj_id == "biz":
+            if bk_inst_id not in (bk_biz_id, topo_tree.bk_inst_id):
+                raise ValidationError(_("业务节点不属于当前空间"))
+            node = topo_tree
+            hosts = api.cmdb.get_host_by_topo_node(bk_biz_id=bk_biz_id)
+        else:
+            node = topo_tree.get_all_nodes_with_relation().get(f"{bk_obj_id}|{bk_inst_id}")
+            if node is None:
+                return {}
+            hosts = api.cmdb.get_host_by_topo_node(bk_biz_id=bk_biz_id, topo_nodes={bk_obj_id: [bk_inst_id]})
 
         # 查询关联策略数量
         enabled_strategy_count, disabled_strategy_count = resource.cc.get_topo_strategy_count(
-            bk_biz_id=bk_biz_id, bk_obj_id=bk_obj_id, bk_inst_id=bk_inst_id
+            bk_biz_id=bk_biz_id, bk_obj_id=bk_obj_id, bk_inst_id=node.bk_inst_id
         )
 
         # 查询主备负责人
@@ -267,9 +276,9 @@ class HostTopoNodeDetailResource(Resource):
 
         return {
             "bk_obj_id": bk_obj_id,
-            "bk_inst_id": bk_inst_id,
-            "bk_obj_name": node.bk_obj_name if node else "",
-            "bk_inst_name": node.bk_inst_name if node else "",
+            "bk_inst_id": node.bk_inst_id,
+            "bk_obj_name": node.bk_obj_name,
+            "bk_inst_name": node.bk_inst_name,
             "operator": operator,
             "bk_bak_operator": bk_bak_operator,
             "child_count": len(hosts) if bk_obj_id == "module" else len(node.child),
