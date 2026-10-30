@@ -37,7 +37,7 @@ class PersistenceTests(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         import django
-        from django.apps import apps
+        from django.apps import AppConfig, apps
         from django.conf import settings
 
         if not settings.configured:
@@ -108,12 +108,19 @@ class PersistenceTests(unittest.TestCase):
                 unique_together = [("key", "value")]
 
         class Relation(models.Model):
-            resource_id = models.BigIntegerField()
+            resource = models.ForeignKey(Resource, db_constraint=False, on_delete=models.CASCADE)
             label_id = models.CharField(max_length=64)
             bcs_cluster_id = models.CharField(max_length=40)
 
             class Meta:
                 app_label = "bcs_sync_regression"
+
+        # Register the private app so Django's deletion collector follows the real label relation.
+        app_config = AppConfig("bcs_sync_regression", sys.modules[__name__])
+        app_config.apps = apps
+        app_config.models = apps.all_models["bcs_sync_regression"]
+        apps.app_configs[app_config.label] = app_config
+        apps.clear_cache()
 
         label_namespace = {
             "BCSLabel": Label,
@@ -449,6 +456,151 @@ class PersistenceTests(unittest.TestCase):
         for resource in resources.values():
             resource._base_manager.using.return_value.filter.assert_called_once_with(bcs_cluster_id__in={"cluster-a"})
             resource._base_manager.using.return_value.filter.return_value.delete.assert_called_once_with()
+
+    def inventory_resources(self):
+        return {
+            "BCSNode": self.Resource,
+            **{
+                name: Mock()
+                for name in (
+                    "BCSPod",
+                    "BCSContainer",
+                    "BCSWorkload",
+                    "BCSService",
+                    "BCSIngress",
+                    "BCSServiceMonitor",
+                    "BCSPodMonitor",
+                )
+            },
+        }
+
+    def test_inventory_cleanup_failure_rolls_back_and_retries(self):
+        from django.db import DatabaseError
+        from django.db.models.sql.compiler import SQLDeleteCompiler
+
+        execute_sql = SQLDeleteCompiler.execute_sql
+        for failed_model in (self.Cluster, self.Resource, self.Relation):
+            with self.subTest(failed_model=failed_model.__name__):
+                self.setUp()
+                old = self.Cluster.objects.using(DATABASE).create(name="last", unique_hash="last")
+                self.sync([self.row("old", labels={"app": "demo"})])
+                relation_id = self.Relation.objects.using(DATABASE).get().id
+
+                def fail_delete(compiler, *args, **kwargs):
+                    if compiler.query.model is failed_model:
+                        raise DatabaseError("cleanup unavailable")
+                    return execute_sql(compiler, *args, **kwargs)
+
+                api = SimpleNamespace(bk_login=SimpleNamespace(list_tenant=lambda: [{"id": "tenant"}]))
+                with (
+                    patch.object(self.Cluster, "load_list_from_api", return_value=[], create=True),
+                    patch.dict(self.namespace, {"api": api, **self.inventory_resources()}),
+                ):
+                    with patch.object(SQLDeleteCompiler, "execute_sql", fail_delete):
+                        with self.assertRaisesRegex(RuntimeError, "1 objects"):
+                            self.namespace["sync_bcs_cluster_to_db"]()
+                    self.assertTrue(self.Cluster.objects.using(DATABASE).filter(id=old.id).exists())
+                    self.assertEqual(self.Resource._base_manager.using(DATABASE).count(), 1)
+                    self.assertEqual(self.Relation.objects.using(DATABASE).get().id, relation_id)
+                    self.namespace["sync_bcs_cluster_to_db"]()
+                self.assertEqual(self.Cluster.objects.using(DATABASE).count(), 0)
+                self.assertEqual(self.Resource._base_manager.using(DATABASE).count(), 0)
+                self.assertEqual(self.Relation.objects.using(DATABASE).count(), 0)
+
+    def test_inventory_cleanup_failure_preserves_updates_and_later_tenants(self):
+        from django.db import DatabaseError
+
+        for tenant, cluster in (("tenant", "cluster-a"), ("later", "cluster-b")):
+            self.Cluster.objects.using(DATABASE).create(
+                name=cluster, bk_tenant_id=tenant, bcs_cluster_id=cluster, unique_hash=cluster
+            )
+            self.row("old", cluster=cluster).save(using=DATABASE)
+        new = self.Cluster(name="new", unique_hash="new", bcs_cluster_id="cluster-new")
+        later = self.Cluster(name="later", unique_hash="later", bk_tenant_id="later", bcs_cluster_id="cluster-later")
+
+        def load(params):
+            return [new] if params["bk_tenant_id"] == "tenant" else [later]
+
+        resources = self.inventory_resources()
+
+        def cleanup(params):
+            query = Mock()
+            if "cluster-a" in params:
+                query.delete.side_effect = DatabaseError("last resource cleanup unavailable")
+            return query
+
+        resources["BCSPodMonitor"]._base_manager.using.return_value.filter.side_effect = lambda **kwargs: cleanup(
+            kwargs["bcs_cluster_id__in"]
+        )
+        count = Mock(return_value={"node_count": 3})
+        api = SimpleNamespace(
+            bk_login=SimpleNamespace(list_tenant=lambda: [{"id": "tenant"}, {"id": "later"}]),
+            kubernetes=SimpleNamespace(fetch_k8s_node_count_by_cluster=count),
+        )
+        with (
+            patch.object(self.Cluster, "load_list_from_api", side_effect=load, create=True),
+            patch.dict(self.namespace, {"api": api, **resources}),
+        ):
+            with self.assertRaisesRegex(RuntimeError, "1 objects"):
+                self.namespace["sync_bcs_cluster_to_db"]()
+        self.assertEqual(
+            set(self.Cluster.objects.using(DATABASE).values_list("bcs_cluster_id", flat=True)),
+            {"cluster-a", "cluster-new", "cluster-later"},
+        )
+        self.assertEqual(
+            list(self.Resource._base_manager.using(DATABASE).values_list("bcs_cluster_id", flat=True)), ["cluster-a"]
+        )
+        self.assertEqual(self.Cluster.objects.using(DATABASE).get(bcs_cluster_id="cluster-later").node_count, 3)
+        self.assertEqual(
+            [call.args[0] for call in count.call_args_list],
+            [
+                {"bk_tenant_id": "tenant", "bcs_cluster_id": "cluster-new"},
+                {"bk_tenant_id": "later", "bcs_cluster_id": "cluster-later"},
+            ],
+        )
+
+    def test_inventory_cleanup_preserves_cluster_shared_by_another_tenant(self):
+        for tenant in ("tenant", "failed"):
+            self.Cluster.objects.using(DATABASE).create(name=tenant, bk_tenant_id=tenant, unique_hash=tenant)
+        self.sync([self.row("old", labels={"app": "demo"})])
+
+        def load(params):
+            if params["bk_tenant_id"] == "failed":
+                raise RuntimeError("inventory unavailable")
+            return []
+
+        api = SimpleNamespace(bk_login=SimpleNamespace(list_tenant=lambda: [{"id": "tenant"}, {"id": "failed"}]))
+        with (
+            patch.object(self.Cluster, "load_list_from_api", side_effect=load, create=True),
+            patch.dict(self.namespace, {"api": api, **self.inventory_resources()}),
+        ):
+            with self.assertRaisesRegex(RuntimeError, "1 objects"):
+                self.namespace["sync_bcs_cluster_to_db"]()
+        self.assertEqual(list(self.Cluster.objects.using(DATABASE).values_list("bk_tenant_id", flat=True)), ["failed"])
+        self.assertEqual(self.Resource._base_manager.using(DATABASE).count(), 1)
+        self.assertEqual(self.Relation.objects.using(DATABASE).count(), 1)
+
+    def test_inventory_cleanup_preserves_cluster_transferred_to_later_tenant(self):
+        self.Cluster.objects.using(DATABASE).create(name="old", unique_hash="old")
+        self.sync([self.row("old", labels={"app": "demo"})])
+        moved = self.Cluster(name="moved", unique_hash="moved", bk_tenant_id="later")
+        api = SimpleNamespace(
+            bk_login=SimpleNamespace(list_tenant=lambda: [{"id": "tenant"}, {"id": "later"}]),
+            kubernetes=SimpleNamespace(fetch_k8s_node_count_by_cluster=Mock(return_value={"node_count": 3})),
+        )
+        with (
+            patch.object(
+                self.Cluster,
+                "load_list_from_api",
+                side_effect=lambda params: [] if params["bk_tenant_id"] == "tenant" else [moved],
+                create=True,
+            ),
+            patch.dict(self.namespace, {"api": api, **self.inventory_resources()}),
+        ):
+            self.namespace["sync_bcs_cluster_to_db"]()
+        self.assertEqual(list(self.Cluster.objects.using(DATABASE).values_list("bk_tenant_id", flat=True)), ["later"])
+        self.assertEqual(self.Resource._base_manager.using(DATABASE).count(), 1)
+        self.assertEqual(self.Relation.objects.using(DATABASE).count(), 1)
 
     def test_pod_and_container_share_stream_and_defer_cleanup_until_complete(self):
         self.Cluster.objects.using(DATABASE).create(name="cluster", unique_hash="cluster")

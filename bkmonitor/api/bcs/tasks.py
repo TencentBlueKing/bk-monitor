@@ -137,7 +137,7 @@ def delete_missing_resources(resource, sync_filter, seen_ids):
 @share_lock(identify="sync_bcs_cluster_to_db")
 def sync_bcs_cluster_to_db() -> list[BCSCluster]:
     """先提交各租户基础名录，再独立统计节点；失败租户不参与清理。"""
-    cluster_models, failures, deleted_cluster_ids = [], [], set()
+    cluster_models, failures, tenant_inventories = [], [], []
     sync_fields = [
         "bk_tenant_id",
         "bk_biz_id",
@@ -162,33 +162,40 @@ def sync_bcs_cluster_to_db() -> list[BCSCluster]:
             if len(cluster_ids) != len(set(cluster_ids)):
                 raise ValueError("duplicate cluster identity in tenant inventory")
             tenant_filter = {"bk_tenant_id": tenant_id}
-            previous_ids = set(manager.filter(**tenant_filter).values_list("bcs_cluster_id", flat=True))
-            bulk_save_resources(BCSCluster, models, "unique_hash", sync_fields, tenant_filter)
-            deleted_cluster_ids.update(previous_ids - set(cluster_ids))
+            bulk_save_resources(BCSCluster, models, "unique_hash", sync_fields, tenant_filter, delete_missing=False)
+            tenant_inventories.append((tenant_id, set(cluster_ids)))
             cluster_models.extend(models)
         except Exception as exc_info:
             failures.append(exc_info)
             logger.exception("sync_bcs_cluster_to_db tenant(%s) failed", tenant_id)
 
-    # 只清理成功名录明确删除的集群，含最后一个集群和 Ingress。
-    still_existing = set(
-        manager.filter(bcs_cluster_id__in=deleted_cluster_ids).values_list("bcs_cluster_id", flat=True)
-    )
-    deleted_cluster_ids -= still_existing
-    if deleted_cluster_ids:
-        for resource in [
-            BCSNode,
-            BCSPod,
-            BCSContainer,
-            BCSWorkload,
-            BCSService,
-            BCSIngress,
-            BCSServiceMonitor,
-            BCSPodMonitor,
-        ]:
-            resource._base_manager.using(router.db_for_write(resource)).filter(
-                bcs_cluster_id__in=deleted_cluster_ids
-            ).delete()
+    # 全部基础名录提交后再清理；删除失败时保留 Cluster，供下轮重试。
+    for tenant_id, cluster_ids in tenant_inventories:
+        try:
+            with transaction.atomic(using=database):
+                stale_clusters = manager.filter(bk_tenant_id=tenant_id).exclude(bcs_cluster_id__in=cluster_ids)
+                deleted_cluster_ids = set(stale_clusters.values_list("bcs_cluster_id", flat=True))
+                stale_clusters.delete()
+                # 同一集群仍被其它租户持有时，保留共用资源。
+                still_existing = set(
+                    manager.filter(bcs_cluster_id__in=deleted_cluster_ids).values_list("bcs_cluster_id", flat=True)
+                )
+                deleted_cluster_ids -= still_existing
+                if deleted_cluster_ids:
+                    for resource in [
+                        BCSNode,
+                        BCSPod,
+                        BCSContainer,
+                        BCSWorkload,
+                        BCSService,
+                        BCSIngress,
+                        BCSServiceMonitor,
+                        BCSPodMonitor,
+                    ]:
+                        resource._base_manager.using(database).filter(bcs_cluster_id__in=deleted_cluster_ids).delete()
+        except Exception as exc_info:
+            failures.append(exc_info)
+            logger.exception("sync_bcs_cluster_to_db tenant(%s) cleanup failed", tenant_id)
 
     # 基础名录已经全部推进后才请求计数；失败保留原值，继续后序集群。
     for cluster in cluster_models:
