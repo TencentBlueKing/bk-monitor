@@ -19,8 +19,6 @@ We undertake not to change the open source license (MIT license) applicable to t
 the project delivered to anyone in the future.
 """
 
-"""BKFara 管理接口；传输、超时、日志和认证头发送复用 DataAPI。"""
-
 import copy
 
 from django.conf import settings
@@ -82,27 +80,91 @@ class _BkFaraApi:
     MODULE = "BKFara"
 
     def __init__(self):
-        for name, method, path in (
-            ("create_task", "POST", "/ct/v1/clustering/tasks"),
-            ("get_task", "GET", "/ct/v1/tasks/{task_id}"),
-            ("get_task_parameters", "GET", "/ct/v1/tasks/{task_id}/parameters"),
-            ("update_task_parameters", "PATCH", "/ct/v1/tasks/{task_id}/parameters"),
-            ("configure_clustering", "PUT", "/ct/v1/tasks/{task_id}/clustering"),
-            ("get_clustering", "GET", "/ct/v1/tasks/{task_id}/clustering"),
-            ("stop_clustering", "POST", "/internal/ct/v1/clustering/tasks/{task_id}/stop"),
-            ("restart_clustering", "POST", "/internal/ct/v1/clustering/tasks/{task_id}/restart"),
-        ):
-            setattr(
-                self,
-                name,
-                _BkFaraDataAPI(
-                    method=method,
-                    url=settings.BKFARA_API_URL.rstrip("/") + path,
-                    module=self.MODULE,
-                    url_keys=["task_id"] if "{task_id}" in path else [],
-                    header_keys=["Authorization", "Idempotency-Key"],
-                    before_request=bkfara_before_request,
-                    after_request=bkfara_after_request,
-                    no_query_params=True,
-                ),
-            )
+        bkfara_api_url = settings.BKFARA_API_URL.rstrip("/")
+        self.create_task = _BkFaraDataAPI(
+            method="POST",
+            url=bkfara_api_url + "/ct/v1/clustering/tasks",
+            module=self.MODULE,
+            description="创建聚类任务",
+            header_keys=["Authorization", "Idempotency-Key"],
+            before_request=bkfara_before_request,
+            after_request=bkfara_after_request,
+            no_query_params=True,
+        )
+        self.get_task = _BkFaraDataAPI(
+            method="GET",
+            url=bkfara_api_url + "/ct/v1/tasks/{task_id}",
+            module=self.MODULE,
+            description="查询聚类任务",
+            url_keys=["task_id"],
+            header_keys=["Authorization", "Idempotency-Key"],
+            before_request=bkfara_before_request,
+            after_request=bkfara_after_request,
+            no_query_params=True,
+        )
+        self.get_task_parameters = _BkFaraDataAPI(
+            method="GET",
+            url=bkfara_api_url + "/ct/v1/tasks/{task_id}/parameters",
+            module=self.MODULE,
+            description="查询聚类模型参数及采用状态",
+            url_keys=["task_id"],
+            header_keys=["Authorization", "Idempotency-Key"],
+            before_request=bkfara_before_request,
+            after_request=bkfara_after_request,
+            no_query_params=True,
+        )
+        self.update_task_parameters = _BkFaraDataAPI(
+            method="PATCH",
+            url=bkfara_api_url + "/ct/v1/tasks/{task_id}/parameters",
+            module=self.MODULE,
+            description="更新已有聚类模型参数",
+            url_keys=["task_id"],
+            header_keys=["Authorization", "Idempotency-Key"],
+            before_request=bkfara_before_request,
+            after_request=bkfara_after_request,
+            no_query_params=True,
+        )
+        self.configure_clustering = _BkFaraDataAPI(
+            method="PUT",
+            url=bkfara_api_url + "/ct/v1/tasks/{task_id}/clustering",
+            module=self.MODULE,
+            description="配置聚类绑定",
+            url_keys=["task_id"],
+            header_keys=["Authorization", "Idempotency-Key"],
+            before_request=bkfara_before_request,
+            after_request=bkfara_after_request,
+            no_query_params=True,
+        )
+        self.get_clustering = _BkFaraDataAPI(
+            method="GET",
+            url=bkfara_api_url + "/ct/v1/tasks/{task_id}/clustering",
+            module=self.MODULE,
+            description="查询聚类绑定",
+            url_keys=["task_id"],
+            header_keys=["Authorization", "Idempotency-Key"],
+            before_request=bkfara_before_request,
+            after_request=bkfara_after_request,
+            no_query_params=True,
+        )
+        self.stop_clustering = _BkFaraDataAPI(
+            method="POST",
+            url=bkfara_api_url + "/internal/ct/v1/clustering/tasks/{task_id}/stop",
+            module=self.MODULE,
+            description="关闭聚类业务",
+            url_keys=["task_id"],
+            header_keys=["Authorization", "Idempotency-Key"],
+            before_request=bkfara_before_request,
+            after_request=bkfara_after_request,
+            no_query_params=True,
+        )
+        self.restart_clustering = _BkFaraDataAPI(
+            method="POST",
+            url=bkfara_api_url + "/internal/ct/v1/clustering/tasks/{task_id}/restart",
+            module=self.MODULE,
+            description="重新开启聚类业务",
+            url_keys=["task_id"],
+            header_keys=["Authorization", "Idempotency-Key"],
+            before_request=bkfara_before_request,
+            after_request=bkfara_after_request,
+            no_query_params=True,
+        )
