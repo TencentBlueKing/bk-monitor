@@ -4,7 +4,7 @@
 
 - [pnpm](https://pnpm.io/installation) 用于前端依赖管理
 
-- [nvm](https://github.com/nvm-sh/nvm?tab=readme-ov-file#installing-and-updating) 用于nodejs 版本管理 `nodejs`版本要求在 `20`版本以上
+- [nvm](https://github.com/nvm-sh/nvm?tab=readme-ov-file#installing-and-updating) 用于nodejs 版本管理，使用已修复 Node2Shell 的 Node.js `24.22.2`（与 `.nvmrc` 一致）。
 
 #### 开发使用
 

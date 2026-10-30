@@ -1,4 +1,4 @@
-ARG NODE_IMAGE=node:20.11.1-slim
+ARG NODE_IMAGE=node:24.22.2-bookworm-slim
 ARG PNPM_VERSION=8
 ARG NODE_PLATFORM=linux/amd64
 

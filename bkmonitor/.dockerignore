@@ -6,7 +6,8 @@ conf/*/ieod.py
 conf/*/*/ieod.py
 bkmonitor/utils/rsa/bk.key
 version/
-scripts/
+scripts/*
+!scripts/verify_pillow_build.py
 tests/
 */tests/
 */*/tests/
