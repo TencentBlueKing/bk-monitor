@@ -13,7 +13,7 @@ from __future__ import annotations
 import json
 from typing import Any
 
-from bkmonitor.models.strategy import StrategyModel
+from bkmonitor.models.strategy import QueryConfigModel, StrategyModel
 from bkmonitor.iam import ActionEnum
 from bkmonitor.strategy.new_strategy import Strategy
 from core.drf_resource.exceptions import CustomException
@@ -27,16 +27,23 @@ OPERATION_LIST_BY_PRIORITY_GROUP = "list_by_priority_group"
 OPERATION_SHARED_GROUP = "shared_group"
 OPERATION_LIST_ENABLED = "list_enabled"
 OPERATION_BY_NAME = "by_name"
+OPERATION_BY_RESULT_TABLE = "by_result_table"
 ALLOWED_OPERATIONS = {
     OPERATION_DETAIL,
     OPERATION_LIST_BY_PRIORITY_GROUP,
     OPERATION_SHARED_GROUP,
     OPERATION_LIST_ENABLED,
     OPERATION_BY_NAME,
+    OPERATION_BY_RESULT_TABLE,
 }
 
 DEFAULT_PAGE_SIZE = 500
 MAX_PAGE_SIZE = 2000
+RESULT_TABLE_DEFAULT_PAGE_SIZE = 50
+RESULT_TABLE_MAX_PAGE_SIZE = 200
+RESULT_TABLE_MAX_WINDOW = 10000
+RESULT_TABLE_ALLOWED_PARAMS = {"operation", "bk_biz_id", "result_table_id", "page", "page_size", "bk_tenant_id"}
+RESULT_TABLE_SUMMARY_FIELDS = ("id", "name", "bk_biz_id", "scenario", "is_enabled", "is_invalid")
 # ``.strategy_group`` 的保留字段，不是策略 ID
 GROUP_RESERVED_FIELDS = ("interval_list", "strategy_source", "bk_biz_id")
 # CHECK_RESULT 清理任务的周期（``0 */2 * * *``，见 config/role/worker.py 的 crontab 配置）。
@@ -59,7 +66,58 @@ def inspect_strategy_config(params: dict[str, Any]) -> dict[str, Any]:
         return _list_enabled(params)
     if operation == OPERATION_BY_NAME:
         return _inspect_by_name(params)
+    if operation == OPERATION_BY_RESULT_TABLE:
+        return _inspect_by_result_table(params)
     return _list_by_priority_group(params)
+
+
+def _inspect_by_result_table(params: dict[str, Any]) -> dict[str, Any]:
+    unknown_fields = sorted(set(params) - RESULT_TABLE_ALLOWED_PARAMS)
+    if unknown_fields:
+        raise CustomException(message=f"by_result_table 不支持参数: {', '.join(unknown_fields)}")
+    bk_biz_id = params.get("bk_biz_id")
+    if type(bk_biz_id) is not int or bk_biz_id == 0:
+        raise CustomException(message="by_result_table 必须提供非零整数 bk_biz_id")
+    table_id = params.get("result_table_id")
+    if not isinstance(table_id, str) or not table_id.strip() or len(table_id) > 128:
+        raise CustomException(message="by_result_table 必须提供非空且不超过 128 字符的 result_table_id")
+    table_id = table_id.strip()
+    page = params.get("page", 1)
+    page_size = params.get("page_size", RESULT_TABLE_DEFAULT_PAGE_SIZE)
+    if type(page) is not int or page < 1:
+        raise CustomException(message="by_result_table page 必须是大于等于 1 的整数")
+    if type(page_size) is not int or not 1 <= page_size <= RESULT_TABLE_MAX_PAGE_SIZE:
+        raise CustomException(message=f"by_result_table page_size 必须是 1 至 {RESULT_TABLE_MAX_PAGE_SIZE} 的整数")
+    if page * page_size > RESULT_TABLE_MAX_WINDOW:
+        raise CustomException(message=f"by_result_table 页结果窗口不能超过 {RESULT_TABLE_MAX_WINDOW}")
+
+    authorize_strategy_business(params, ActionEnum.VIEW_RULE)
+    scoped_strategies = StrategyModel.objects.filter(bk_biz_id=bk_biz_id)
+    matching_queries = QueryConfigModel.objects.filter(
+        strategy_id__in=scoped_strategies.values("id"), config__result_table_id=table_id
+    )
+    # IN 子查询按策略去重，不展开配置或读取 Redis 缓存人口。
+    queryset = scoped_strategies.filter(id__in=matching_queries.values("strategy_id")).order_by("id")
+    count = queryset.count()
+    start = (page - 1) * page_size
+    strategies = list(queryset.values(*RESULT_TABLE_SUMMARY_FIELDS)[start : start + page_size])
+    return {
+        "operation": OPERATION_BY_RESULT_TABLE,
+        "bk_biz_id": bk_biz_id,
+        "result_table_id": table_id,
+        "match_scope": "query_config.result_table_id",
+        "count": count,
+        "truncated": len(strategies) < count,
+        "page": {
+            "number": page,
+            "size": page_size,
+            "returned": len(strategies),
+            "total_pages": (count + page_size - 1) // page_size,
+            "has_more": start + len(strategies) < count,
+            "max_result_window": RESULT_TABLE_MAX_WINDOW,
+        },
+        "strategies": strategies,
+    }
 
 
 def _inspect_by_name(params: dict[str, Any]) -> dict[str, Any]:
@@ -636,8 +694,12 @@ _LIST_ENABLED_PARAMS_SCHEMA = {
     "node_id": "operation=list_enabled 可选，按 CacheRouter 区间过滤该节点承载的策略；与 strategy_id_min/max 互斥",
     "strategy_id_min": "operation=list_enabled 可选，闭区间下界",
     "strategy_id_max": "operation=list_enabled 可选，闭区间上界，省略表示无上界",
-    "page": "operation=list_enabled 可选，页码，从 1 开始，默认 1",
-    "page_size": f"operation=list_enabled 可选，默认 {DEFAULT_PAGE_SIZE}，上限 {MAX_PAGE_SIZE}",
+    "page": "operation=list_enabled/by_result_table 可选，页码，从 1 开始，默认 1",
+    "page_size": (
+        f"operation=list_enabled 默认 {DEFAULT_PAGE_SIZE}、上限 {MAX_PAGE_SIZE}；"
+        f"by_result_table 默认 {RESULT_TABLE_DEFAULT_PAGE_SIZE}、上限 {RESULT_TABLE_MAX_PAGE_SIZE}，"
+        f"page * page_size <= {RESULT_TABLE_MAX_WINDOW}"
+    ),
     "include_item_ids": "operation=list_enabled 可选，是否返回 item_ids 明细，默认 true",
     "include_detect_profile": (
         "operation=list_enabled 可选，是否附带当前页各策略的 point_required / interval / "
@@ -651,13 +713,14 @@ KernelRPCRegistry.register_function(
     summary="读取策略聚合配置",
     description=(
         "bkm-cli inspect-strategy-config 后端函数，读取策略详情、优先级分组摘要、"
-        "当前 access 共享查询组成员，或批量枚举启用策略与监控项映射。"
+        "业务内结果表精确检索、当前 access 共享查询组成员，或批量枚举启用策略与监控项映射。"
     ),
     handler=inspect_strategy_config,
     params_schema={
-        "operation": "detail | by_name | list_by_priority_group | shared_group | list_enabled",
+        "operation": "detail | by_name | by_result_table | list_by_priority_group | shared_group | list_enabled",
         "bk_biz_id": "integer",
         "name": "operation=by_name 必填，业务内精确名称查询，包含已停用和无效策略",
+        "result_table_id": "operation=by_result_table 必填，最长 128 字符，精确匹配查询配置结果表；包含停用/无效策略",
         "strategy_id": "operation=detail 必填",
         "priority_group_key": "operation=list_by_priority_group 必填",
         "strategy_group_key": "operation=shared_group 必填",
@@ -681,16 +744,17 @@ BkmCliOpRegistry.register(
     summary="读取策略聚合配置",
     description=(
         "通过 monitor-api 服务桥读取策略完整配置、同 priority_group_key 策略摘要、"
-        "当前 access 共享查询组成员，或批量枚举启用策略与监控项映射（用于策略级缓存成本核算）。"
+        "业务内结果表精确检索、当前 access 共享查询组成员，或批量枚举启用策略与监控项映射。"
     ),
     capability_level="inspect",
     risk_level="low",
     requires_confirmation=False,
     audit_tags=["db", "strategy", "inspect"],
     params_schema={
-        "operation": "detail | by_name | list_by_priority_group | shared_group | list_enabled",
+        "operation": "detail | by_name | by_result_table | list_by_priority_group | shared_group | list_enabled",
         "bk_biz_id": "integer",
         "name": "operation=by_name 必填，业务内精确名称查询，包含已停用和无效策略",
+        "result_table_id": "operation=by_result_table 必填，最长 128 字符，精确匹配查询配置结果表；包含停用/无效策略",
         "strategy_id": "integer",
         "priority_group_key": "string",
         "strategy_group_key": "string",
