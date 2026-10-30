@@ -90,8 +90,27 @@ class TestClusteringConfigHandler(SimpleTestCase):
             }
         )
 
+    @patch("apps.log_clustering.handlers.clustering_config.LogIndexSet.objects.get")
+    @patch("apps.log_clustering.handlers.clustering_config.QuixClusteringHandler")
+    @patch("apps.log_clustering.handlers.clustering_config.LogClusteringRuntime.objects.filter")
     @patch("apps.log_clustering.handlers.clustering_config.ClusteringConfig.get_by_index_set_id")
-    def test_get_access_status_uses_unified_count_for_origin_and_clustered(self, mock_get_clustering_config):
+    def test_get_access_status_routes_to_quix_runtime(
+        self, mock_get_clustering_config, mock_runtime_filter, mock_quix_handler, mock_get_index_set
+    ):
+        mock_runtime_filter.return_value.exists.return_value = True
+        mock_quix_handler.return_value.get_access_status.return_value = {"access_finished": False}
+
+        result = ClusteringConfigHandler(index_set_id=TEST_INDEX_SET_ID).get_access_status()
+
+        self.assertEqual(result, {"access_finished": False})
+        mock_quix_handler.assert_called_once_with(mock_get_index_set.return_value)
+
+    @patch("apps.log_clustering.handlers.clustering_config.LogClusteringRuntime.objects.filter")
+    @patch("apps.log_clustering.handlers.clustering_config.ClusteringConfig.get_by_index_set_id")
+    def test_get_access_status_uses_unified_count_for_origin_and_clustered(
+        self, mock_get_clustering_config, mock_runtime_filter
+    ):
+        mock_runtime_filter.return_value.exists.return_value = False
         clustering_config = Mock(
             index_set_id=TEST_INDEX_SET_ID,
             bk_biz_id=TEST_BK_BIZ_ID,
