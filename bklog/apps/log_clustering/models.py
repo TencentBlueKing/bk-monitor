@@ -606,11 +606,13 @@ class LogClusteringRuntime(OperateRecordModel):
         request_snapshot: dict,
         defaults: dict | None = None,
         allowed_phases: tuple | None = None,
+        updates: dict | None = None,
     ) -> tuple["LogClusteringRuntime", "LogClusteringOperation"]:
         """
         在运行绑定的行锁内创建控制操作，同一索引集同时只允许一个未结束的操作
         :param defaults: 首次开启时创建运行绑定所需的字段
         :param allowed_phases: 允许发起该操作的运行阶段
+        :param updates: 校验通过后与操作同时写入运行绑定的字段
         """
         runtime, _created = cls.objects.select_for_update().get_or_create(
             index_set_id=index_set_id, defaults=defaults or {}
@@ -630,6 +632,10 @@ class LogClusteringRuntime(OperateRecordModel):
                     index_set_id=index_set_id, operation_id=unfinished.operation_id
                 )
             )
+        if updates:
+            for field, value in updates.items():
+                setattr(runtime, field, value)
+            runtime.save(update_fields=[*updates, "updated_at", "updated_by"])
         operation = LogClusteringOperation.objects.create(
             operation_id=uuid.uuid4().hex,
             index_set_id=index_set_id,

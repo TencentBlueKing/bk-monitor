@@ -271,6 +271,13 @@ class ClusteringConfigHandler:
         )
         return pipeline.id
 
+    def close(self) -> str:
+        """关闭轻量化聚类，仅支持通过 BKBase LogClusteringSink 链路接入的索引集"""
+        if not LogClusteringRuntime.objects.filter(index_set_id=self.index_set_id).exists():
+            raise ClusteringAccessNotSupportedException()
+        log_index_set = LogIndexSet.objects.get(index_set_id=self.index_set_id)
+        return QuixClusteringHandler(log_index_set).disable()
+
     def synchronous_update(self, params):
         regex_template_id = params["regex_template_id"]
         if params["regex_rule_type"] == RegexRuleTypeEnum.CUSTOMIZE.value:

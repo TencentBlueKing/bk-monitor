@@ -106,8 +106,16 @@ class QuixClusteringOperationRunner:
             "update_model_parameters",
             "confirm_model_parameters",
         ],
+        # 本次业务收尾完成且 Databus 恢复原存储配置后，才向 BKFara 提交最终完成确认
+        ClusteringOperationTypeEnum.DISABLE.value: [
+            "disable_clustering",
+            "confirm_closed",
+            "detach",
+            "wait_detached",
+            "stop_completed",
+        ],
     }
-    RECEIPT_STEPS = {"confirm_adoption"}
+    RECEIPT_STEPS = {"confirm_adoption", "confirm_closed"}
 
     def __init__(self, operation_id: str):
         self.operation = LogClusteringOperation.objects.get(operation_id=operation_id)
@@ -325,6 +333,88 @@ class QuixClusteringOperationRunner:
 
     def _finish_update_model(self):
         self._save_runtime(phase=ClusteringRuntimePhaseEnum.RUNNING.value)
+
+    def _operate_metadata(self, action: str) -> bool:
+        TransferApi.operate_log_clustering(self._metadata_params(action=action))
+        return True
+
+    def _step_disable_clustering(self) -> bool:
+        # sink 在 metadata 写入确认后才保存，且解绑不清空。因此只有从未绑定的任务才能跳过。
+        # 本地 attached 是目标状态，不能用于判定 Runtime 是否已解绑。
+        return self._operate_metadata("disable") if self.runtime.sink else True
+
+    def _step_confirm_closed(self) -> bool:
+        if not self.runtime.sink:
+            if not self.runtime.bkfara_task_id:
+                return True
+            if self.runtime.candidate_boundary is None:
+                clustering = BkFaraApi.get_clustering({"task_id": self.runtime.bkfara_task_id})
+                partitions = (clustering.get("kafka") or {}).get("partitions")
+                if type(partitions) is not int or partitions <= 0:
+                    return False
+                # 未曾下发日志绑定，候选 Topic 没有业务写入；分区数从任务实际绑定获取。
+                self._save_runtime(candidate_boundary={str(partition): 0 for partition in range(partitions)})
+            return True
+        status = TransferApi.get_log_clustering_status(self._metadata_params())
+        resource = status.get("sink_resource") or {}
+        progress = status.get("clustering_status") or {}
+        requested_epoch = progress.get("requested_epoch")
+        if (
+            status.get("errors")
+            or not status.get("configured")
+            or (resource.get("spec") or {}).get("clustering", {}).get("enabled") is not False
+            or (resource.get("status") or {}).get("phase") != "Ok"
+            or not requested_epoch
+            or progress.get("applied_epoch") != requested_epoch
+            or progress.get("configuration_applied") is not True
+            or progress.get("clustering_closed") is not True
+        ):
+            return False
+        boundary = progress.get("input_boundary")
+        if not isinstance(boundary, dict) or not boundary:
+            return False
+        if any(type(value) is not int or value < 0 for value in boundary.values()):
+            return False
+        self._save_runtime(candidate_boundary=boundary)
+        return True
+
+    def _step_detach(self) -> bool:
+        return self._operate_metadata("detach") if self.runtime.sink else True
+
+    def _step_wait_detached(self) -> bool:
+        if not self.runtime.sink:
+            return True
+        status = TransferApi.get_log_clustering_status(self._metadata_params())
+        databus_phase = ((status.get("databus_resource") or {}).get("status") or {}).get("phase")
+        return (
+            not status.get("errors")
+            and bool(status.get("raw_sink_referenced"))
+            and status.get("sink_referenced") is False
+            and databus_phase == "Ok"
+        )
+
+    def _step_stop_completed(self) -> bool:
+        if not self.runtime.bkfara_task_id:
+            return True
+        payload = self.operation.get_request_payload(
+            "stop_completed",
+            lambda: {
+                "task_id": self.runtime.bkfara_task_id,
+                "boundary": self.runtime.candidate_boundary,
+                "completion": {
+                    "input_boundary": self.runtime.candidate_boundary,
+                    "storage_complete": True,
+                    "binding_removed": True,
+                },
+            },
+        )
+        result = BkFaraApi.stop_clustering(payload.copy())
+        return result.get("state") == "STOPPED" and result.get("stop_boundary") == payload["boundary"]
+
+    def _finish_disable(self):
+        self._save_runtime(phase=ClusteringRuntimePhaseEnum.STOPPED.value)
+        ClusteringConfig.objects.filter(index_set_id=self.runtime.index_set_id).update(access_finished=False)
+        LogIndexSet.delete_tag_by_name(self.runtime.index_set_id, InnerTag.CLUSTERING.value)
 
     def _finish_enable(self):
         self._promote_pending_config(phase=ClusteringRuntimePhaseEnum.RUNNING.value)
