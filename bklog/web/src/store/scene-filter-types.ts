@@ -78,12 +78,20 @@ export interface SceneDimensionValuesRequest {
   filters?: Record<string, string>;
 }
 
+/** 维度可选项：id 为过滤使用的原始值，name 为展示文本 */
+export interface SceneDimensionOption {
+  id: string;
+  name: string;
+}
+
 /** 维度值预览响应 */
 export interface SceneDimensionValuesResponse {
   /** 查询的维度 key（回显） */
   dimensionKey: string;
   /** 该维度下去重后的所有可选值 */
   values: string[];
+  /** 带展示文本的可选项（如集群 ID 与 BCS 集群名称） */
+  options?: SceneDimensionOption[];
 }
 
 /** ============ 组件内部使用类型 ============ */
