@@ -487,7 +487,7 @@ export default defineComponent({
             </div>
           )}
         </div>
-        {this.selection?.scope === 'host' && (
+        {this.selection?.scope === 'host' && this.selectedRow && (
           <CollectionResultDetail
             key={JSON.stringify(this.selection)}
             bizId={this.bizId}

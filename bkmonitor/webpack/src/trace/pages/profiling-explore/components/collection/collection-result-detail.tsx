@@ -68,6 +68,7 @@ export default defineComponent({
       selection: computed(() => props.selection),
       source: computed(() => props.source),
       dataType: computed(() => props.state.dataType),
+      graphMode: computed(() => props.state.view.graphMode),
       onDataType: dataType => emit('change', { dataType }),
     });
     return { t, fullscreen, d };
@@ -209,7 +210,7 @@ export default defineComponent({
                   </div>
                 )}
                 <ProfileVisualization
-                  allowCallGraph={false}
+                  callGraph={d.callGraph.value}
                   data={d.data.value}
                   dataType={d.selectedType.value.split('/')[0]}
                   error={d.error.value || d.graphError.value}
@@ -219,7 +220,7 @@ export default defineComponent({
                   view={this.state.view}
                   onExport={d.exportProfile}
                   onModeChange={graphMode => this.$emit('change', { view: { ...this.state.view, graphMode } })}
-                  onRetry={d.error.value ? d.load : d.loadProfile}
+                  onRetry={d.error.value ? d.load : d.retryGraph}
                   onViewChange={view => this.$emit('change', { view: { ...this.state.view, ...view } })}
                 />
               </div>
