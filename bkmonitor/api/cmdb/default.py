@@ -24,6 +24,8 @@ from rest_framework import serializers
 
 from api.cmdb.define import _split_member_list
 from bkm_space.api import SpaceApi
+from bkm_space.errors import NoRelatedResourceError
+from bkm_space.validate import validate_bk_biz_id
 from bkmonitor.commons.tools import batch_request
 from bkmonitor.utils.cache import CacheType, mem_cache, using_cache
 from bkmonitor.utils.common_utils import to_dict
@@ -287,6 +289,18 @@ class HostRequestSerializer(serializers.Serializer):
         return params
 
 
+def _is_biz_root_scope(bk_biz_id: int, topo_nodes: dict) -> bool:
+    """业务根包含全业务主机，不依赖拓扑缓存中的模块全集。"""
+    if not topo_nodes.get("biz"):
+        return False
+    try:
+        cmdb_biz_id = validate_bk_biz_id(bk_biz_id)
+    except NoRelatedResourceError:
+        return False
+    node_ids = {int(node_id) for node_id in topo_nodes["biz"]}
+    return bool(node_ids & {int(bk_biz_id), cmdb_biz_id})
+
+
 class GetHostByTopoNode(CacheResource):
     """
     根据拓扑节点批量查询主机
@@ -304,7 +318,7 @@ class GetHostByTopoNode(CacheResource):
         mem_cache.clear()
         hosts = get_host_dict_by_biz(params["bk_biz_id"], params["fields"])
 
-        if params.get("topo_nodes", {}):
+        if params.get("topo_nodes") and not _is_biz_root_scope(params["bk_biz_id"], params["topo_nodes"]):
             # 将查询节点转换为模块ID
             module_ids = _trans_topo_node_to_module_ids(params["bk_biz_id"], params["topo_nodes"])
 
@@ -354,7 +368,7 @@ class GetHostPage(Resource):
             request_params["host_property_filter"]["rules"].append(
                 {"field": "bk_host_id", "operator": "equal", "value": params["bk_host_id"]}
             )
-        if params.get("topo_nodes") and params["topo_nodes"] != {"biz": [params["bk_biz_id"]]}:
+        if params.get("topo_nodes") and not _is_biz_root_scope(params["bk_biz_id"], params["topo_nodes"]):
             module_ids = _trans_topo_node_to_module_ids(params["bk_biz_id"], copy.deepcopy(params["topo_nodes"]))
             if not module_ids:
                 return {"items": [], "total": 0}
@@ -425,7 +439,7 @@ class GetHostIdentities(Resource):
         ip_counts = Counter((host["bk_host_innerip"], int(host.get("bk_cloud_id") or 0)) for host in hosts)
         if params.get("bk_host_id") is not None:
             hosts = [host for host in hosts if host["bk_host_id"] == params["bk_host_id"]]
-        elif params.get("topo_nodes") and params["topo_nodes"] != {"biz": [params["bk_biz_id"]]}:
+        elif params.get("topo_nodes") and not _is_biz_root_scope(params["bk_biz_id"], params["topo_nodes"]):
             module_ids = _trans_topo_node_to_module_ids(params["bk_biz_id"], copy.deepcopy(params["topo_nodes"]))
             hosts = [host for host in hosts if set(host["bk_module_ids"]) & module_ids]
         return [
