@@ -79,6 +79,30 @@ export default defineComponent({
     /** id→name 映射表：用于 tags 显示选中值的名称 */
     const filterLabels = ref<Record<string, Record<string, string>>>({});
 
+    /** dynamic 维度接口返回的 id→name 映射：URL、收藏、历史恢复后未经下拉选择时，tags 仍可显示名称 */
+    const optionLabels = ref<Record<string, Record<string, string>>>({});
+
+    /** 吸顶 tags 使用的映射：接口返回的名称优先，其次为选择时记录的名称 */
+    const tagLabels = computed<Record<string, Record<string, string>>>(() => {
+      const result: Record<string, Record<string, string>> = { ...filterLabels.value };
+      for (const [fieldName, labels] of Object.entries(optionLabels.value)) {
+        result[fieldName] = { ...(result[fieldName] ?? {}), ...labels };
+      }
+      return result;
+    });
+
+    const handleOptionLabelsChange = (labels: Record<string, Record<string, string>>) => {
+      optionLabels.value = labels;
+    };
+
+    // 切换业务时组件会被复用，清空选择时记录的名称
+    watch(
+      () => store.state.spaceUid,
+      () => {
+        filterLabels.value = {};
+      },
+    );
+
     const syncUrlParams = (options?: { clearKeywordAndAddition?: boolean }) => {
       const { scene_active, scene_filter_values } = store.state.indexItem;
       const resolver = new RetrieveUrlResolver({
@@ -366,10 +390,11 @@ export default defineComponent({
             on-filter-change={handleFilterChange}
             on-clear={handleClear}
             on-display-fields-change={handleDisplayFieldsChange}
+            on-option-labels-change={handleOptionLabelsChange}
           />
         </div>
         <div class='scene-search-sticky'>
-          {props.isSticky && <SceneFilterTags filterLabels={filterLabels.value} />}
+          {props.isSticky && <SceneFilterTags filterLabels={tagLabels.value} />}
           <V3Searchbar />
           <transition name='slide-hint'>
             {showQueryHint.value && !isSceneFilterEmpty.value && (
