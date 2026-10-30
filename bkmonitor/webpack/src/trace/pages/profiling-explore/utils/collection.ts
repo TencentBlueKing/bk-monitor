@@ -580,6 +580,21 @@ export function immediateCollectionPayload(task: CollectionTask, bizId: number, 
 }
 
 /**
+ * @description 进程匹配选择的展示文案，命令行匹配同时展示包含与排除条件
+ * @param selector 进程匹配条件
+ * @param t i18n 翻译函数
+ * @returns 已翻译的展示文案
+ */
+export function processSelectorText(selector: ProcessSelector, t: (key: string) => string): string {
+  if (selector.type === 'command') {
+    const matched = `${t(processLabels.command)} - ${t('包含')}：${selector.config.match_pattern}`;
+    return selector.config.exclude_pattern ? `${matched}；${t('排除')}：${selector.config.exclude_pattern}` : matched;
+  }
+  if (selector.type === 'pid_file') return `${t(processLabels.pid_file)}：${selector.config.pid_path}`;
+  return `${t(processLabels.pid)}：${selector.config?.pids}`;
+}
+
+/**
  * @description 按当前进程匹配方式校验匹配条件，返回首条错误文案
  * @param draft 采集表单草稿
  * @returns 未翻译的错误文案，合法时为 undefined

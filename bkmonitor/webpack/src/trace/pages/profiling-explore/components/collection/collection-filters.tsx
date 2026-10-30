@@ -52,6 +52,8 @@ export default defineComponent({
     loading: Boolean,
     // 选中筛选值后立即查询，无须再点查询按钮
     autoQuery: Boolean,
+    // 按任务 ID 筛选时的任务名，用于任务下拉回显
+    taskName: { type: String, default: '' },
   },
   emits: { change: (_value: CollectionHistoryFilters) => true, refresh: () => true },
   setup(props, { emit }) {
@@ -92,6 +94,28 @@ export default defineComponent({
           name={item.alias || String(item.value)}
         />
       ));
+    // 按任务 ID 进入时该任务名可能不在候选中，补一个选项让任务下拉回显名称
+    const taskOptions = () => {
+      const items = this.candidates.task_name || [];
+      const options = items.map(item => (
+        <Select.Option
+          id={String(item.value)}
+          key={`task_name:${item.value}`}
+          name={item.alias || String(item.value)}
+        />
+      ));
+      const name = this.taskName;
+      if (draft.task_id && name && !items.some(item => String(item.value) === name)) {
+        options.unshift(
+          <Select.Option
+            id={name}
+            key={`task_name:${name}`}
+            name={name}
+          />
+        );
+      }
+      return options;
+    };
     return (
       <div class='collection-history-filters'>
         <label>
@@ -115,15 +139,16 @@ export default defineComponent({
           <span>{this.t('任务')}</span>
           <Select
             loading={this.loading}
-            modelValue={draft.task_name}
+            modelValue={draft.task_id ? this.taskName : draft.task_name}
             allowCreate
             filterable
             inputSearch
             onChange={value => {
-              this.apply({ task_name: String(value || '') });
+              // 选择任务名后改为按名称筛选，不再按任务 ID 定位
+              this.apply({ task_id: null, task_name: String(value || '') });
             }}
           >
-            {options('task_name')}
+            {taskOptions()}
           </Select>
         </label>
         <label>

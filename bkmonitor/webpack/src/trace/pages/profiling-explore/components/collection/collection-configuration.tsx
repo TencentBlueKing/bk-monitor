@@ -32,12 +32,12 @@ import {
   collectionMethodLabels,
   collectionTypeLabels,
   formatCollectionTime,
-  processLabels,
+  processSelectorText,
   scheduleLabels,
 } from '../../utils/collection';
 import CollectionCrontab from './collection-crontab';
 
-import type { CollectionHost, CollectionPayload, ProcessSelector } from '../../types/collection';
+import type { CollectionHost, CollectionPayload } from '../../types/collection';
 
 import './collection-configuration.scss';
 
@@ -78,15 +78,7 @@ export default defineComponent({
       </div>
     );
     const time = (value: number) => formatCollectionTime(value, schedule.timezone);
-    const processText = (item: ProcessSelector) => {
-      if (item.type === 'command') {
-        const matched = `${this.t(processLabels.command)} - ${this.t('包含')}：${item.config.match_pattern}`;
-        return item.config.exclude_pattern ? `${matched}；${this.t('排除')}：${item.config.exclude_pattern}` : matched;
-      }
-      if (item.type === 'pid_file') return `${this.t(processLabels.pid_file)}：${item.config.pid_path}`;
-      return `${this.t(processLabels.pid)}：${item.config.pids}`;
-    };
-    const processTag = selector ? processText(selector) : '';
+    const processTag = selector ? processSelectorText(selector, this.t) : '';
     return (
       <div class='collection-config-body'>
         <section>

@@ -98,6 +98,8 @@ export default defineComponent({
       default: () => Object.keys(executionStatusLabels).filter(status => status !== 'outdate'),
     },
     rangeError: { type: String, default: '' },
+    // 按任务 ID 筛选时的任务名，用于筛选面板回显
+    taskName: { type: String, default: '' },
     revision: { type: Number, required: true },
     // 每次查询重新解析时间表达式，使「近 N 分钟/小时」取最新边界
     resolveRange: { type: Function as PropType<() => SelectionRange>, default: undefined },
@@ -159,6 +161,7 @@ export default defineComponent({
     // 面板与表格列任一筛选生效时，空态区分无匹配结果与暂无数据
     const filtered = computed(
       () =>
+        !!props.filters.task_id ||
         !!props.filters.task_name ||
         !!props.filters.status ||
         props.filters.schedule_types.length ||
@@ -275,6 +278,7 @@ export default defineComponent({
           candidates={h.candidates.value}
           filters={this.filters}
           loading={h.candidateLoading.value}
+          taskName={this.taskName}
           autoQuery
           onChange={value => this.$emit('change', value)}
           onRefresh={h.refresh}
@@ -457,6 +461,10 @@ export default defineComponent({
               this.executionBusy = value;
             }}
             onCreated={() => this.$emit('created')}
+            onRenamed={() => {
+              // 改名只影响这一次执行，重新查询让列表名称同步
+              h.refresh();
+            }}
             onResult={value => this.$emit('result', value, true)}
             onShare={value => this.$emit('share', value)}
           />

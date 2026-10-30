@@ -252,6 +252,7 @@ export default defineComponent({
                 </CollectionTaskToolbar>
               </div>
             ) : state.tab === 'history' ? (
+              // 按任务进入历史时以 task_id 精确定位，historyTaskName 仅供筛选面板回显
               <CollectionHistory
                 key={this.bizId}
                 bizId={this.bizId}
@@ -262,9 +263,10 @@ export default defineComponent({
                 resolveRange={this.resolveRange}
                 revision={this.revision}
                 statusFilters={c.meta.value.execution_status_filters}
+                taskName={state.historyTaskName}
                 timezone={this.timezone}
                 onBusy={value => this.$emit('busy', value)}
-                onChange={history => this.patch({ history, historyTaskName: history.task_name, historyTaskId: null })}
+                onChange={c.changeHistory}
                 onCreated={() => this.$emit('created')}
                 onResult={(value, newPage) => this.$emit('result', value, newPage)}
                 onShare={value => this.$emit('share', value)}

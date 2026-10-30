@@ -30,6 +30,8 @@ import {
   resultDataTypes,
 } from 'monitor-api/modules/apm_profile_active_collection';
 
+import { historyFiltersPayload } from '../utils/collection-history';
+
 import type { ProfileResult, SelectionRange } from '../types';
 import type { CollectionHistoryFilters } from '../types/collection-history';
 import type { CollectionDataType, CollectionHostResult, CollectionResultParams } from '../types/collection-results';
@@ -76,7 +78,15 @@ export function getCollectionResults(
   signal: AbortSignal
 ): Promise<{ data: CollectionHostResult[] }> {
   return queryHosts(
-    { bk_biz_id: bizId, start_time: range[0], end_time: range[1], filters, offset, limit: 20 },
+    {
+      bk_biz_id: bizId,
+      start_time: range[0],
+      end_time: range[1],
+      // 与执行历史共用同一套筛选，未按任务 ID 筛选时不传该字段
+      filters: historyFiltersPayload(filters),
+      offset,
+      limit: 20,
+    },
     options(signal)
   );
 }

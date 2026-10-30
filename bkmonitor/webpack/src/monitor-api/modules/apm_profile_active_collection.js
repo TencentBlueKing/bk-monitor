@@ -16,5 +16,6 @@ export const queryHosts = request('POST', `${prefix}hosts/query/`);
 export const resultDataTypes = request('POST', `${prefix}results/data_types/`);
 export const queryResult = request('POST', `${prefix}results/query/`);
 export const exportResult = request('POST', `${prefix}results/export/`);
+export const executionsRename = request('POST', `${prefix}executions/rename/`);
 
-export default { metaConfig, previewProcesses, listTasks, createTask, editTask, deleteTask, switchTask, listExecutions, executionDetail, cancelExecution, collectionTopk, queryHosts, resultDataTypes, queryResult, exportResult };
+export default { metaConfig, previewProcesses, listTasks, createTask, editTask, deleteTask, switchTask, listExecutions, executionDetail, cancelExecution, collectionTopk, queryHosts, resultDataTypes, queryResult, exportResult, executionsRename };
