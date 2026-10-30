@@ -114,3 +114,8 @@ try:
     from config.local_settings import *  # noqa
 except ImportError:
     pass
+
+# Final credentials must survive environment/local settings overlays.
+from config.kms import apply_settings  # noqa: E402
+
+apply_settings(locals())

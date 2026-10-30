@@ -16,6 +16,29 @@ from kernel_api.rpc.functions.bkm_cli.cache import read_config_cache
 
 
 class TestReadConfigCacheDispatch:
+    @pytest.mark.parametrize(
+        "cache_type,handler",
+        [
+            ("strategy", "_read_strategy"),
+            ("host", "_read_host"),
+            ("assign.biz", "_read_assign"),
+            ("shield.biz", "_read_shield"),
+            ("action_config", "_read_action_config"),
+        ],
+    )
+    def test_explicit_snapshot_preserves_all_legacy_receipts(self, mocker, cache_type, handler):
+        receipt = {"cache_type": cache_type, "params": {"id": 1}, "exists": False, "data": None}
+        read = mocker.patch(f"kernel_api.rpc.functions.bkm_cli.cache.{handler}", return_value=receipt)
+        request = {"cache_type": cache_type, "params": {"id": 1}}
+        assert read_config_cache(request) == receipt
+        assert read_config_cache({**request, "operation": "snapshot"}) == receipt
+        assert read.call_count == 2
+
+    @pytest.mark.parametrize("operation", [None, "", "preview", "update", 1, []])
+    def test_unknown_or_null_operation_raises(self, operation):
+        with pytest.raises(CustomException, match="operation must be snapshot"):
+            read_config_cache({"cache_type": "strategy", "params": {"strategy_id": 1}, "operation": operation})
+
     def test_missing_cache_type_raises(self):
         with pytest.raises(CustomException, match="cache_type is required"):
             read_config_cache({"params": {}})

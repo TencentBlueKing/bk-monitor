@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making BK-LOG 蓝鲸日志平台 available.
 Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
@@ -20,28 +19,30 @@ We undertake not to change the open source license (MIT license) applicable to t
 the project delivered to anyone in the future.
 """
 
-
 import os
-import importlib
 
-__author__ = u"蓝鲸智云"
+from config import kms
+
+__author__ = "蓝鲸智云"
 __copyright__ = "Copyright © 2012-2019 Tencent BlueKing. All Rights Reserved."
 __all__ = ["celery_app", "ENVIRONMENT", "RUN_VER", "APP_CODE", "SECRET_KEY", "BK_URL", "BASE_DIR"]
-
-# This will make sure the app is always imported when
-# Django starts so that shared_task will use this app.
-from blueapps.core.celery import celery_app
 
 
 def get_env_or_raise(*keys):
     """Get an environment variable, if it does not exist, raise an exception"""
+    # Blueapps calls this same extension point again when patching V2/V3
+    # identity. Keep both paths on the validated startup snapshot.
+    if kms.credentials() is not None:
+        for key in keys:
+            if key in ("APP_ID", "BKPAAS_APP_ID"):
+                return kms.value("bkapp_id_secret", "app_code")
+            if key in ("APP_TOKEN", "BKPAAS_APP_SECRET"):
+                return kms.value("bkapp_id_secret", "app_secret")
     for key in keys:
         value = os.environ.get(key)
         if value:
             return value
-    raise RuntimeError(
-        ('Environment variable "{}" not found, you must set this variable to run this application.').format(keys)
-    )
+    raise RuntimeError(f'Environment variable "{keys}" not found, you must set this variable to run this application.')
 
 
 # SaaS运行版本，如非必要请勿修改
@@ -73,6 +74,9 @@ BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
 # read VERSION file
 try:
-    VERSION = open(os.path.join(BASE_DIR, "VERSION"), "r", encoding="utf-8").read().strip()
+    VERSION = open(os.path.join(BASE_DIR, "VERSION"), encoding="utf-8").read().strip()
 except:  # noqa
     VERSION = "Unknown version"
+
+# Identity is available before framework imports can initialize clients.
+from blueapps.core.celery import celery_app  # noqa: E402

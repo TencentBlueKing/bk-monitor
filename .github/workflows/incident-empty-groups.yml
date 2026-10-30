@@ -17,7 +17,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
-          node-version: '22'
+          node-version: '24.22.2'
       - name: Install isolated test dependencies
         run: npm install --prefix "$RUNNER_TEMP/topology-runtime" --ignore-scripts typescript@5.5.3 elkjs@0.8.2 lodash@4.17.21 vue@3.4.31
       - name: Timeline category visibility

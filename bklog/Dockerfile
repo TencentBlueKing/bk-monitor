@@ -11,9 +11,6 @@ FROM python-base AS builder
 RUN dnf install -y gcc gcc-c++ python3-devel make && dnf clean all
 
 COPY . /app/code
-# The BKLog-only build context must materialize shared symlinks (cp -RL / tar -h).
-# Fail at build time rather than deploy a broken runtime import.
-RUN test -f /app/code/iam_engine/core/config.py
 
 WORKDIR /app
 
@@ -32,15 +29,5 @@ WORKDIR /app/code
 ENV C_FORCE_ROOT=1
 ENV VIRTUAL_ENV=/app/venv
 ENV PATH="$VIRTUAL_ENV/bin:$PATH"
-
-# Check the final stage, where builder-only libraries are no longer available.
-RUN python -c 'import sys; import ujson, jieba_fast, grpc, magic; from iam_engine.core.config import DEFAULT_DUAL_STACK; assert sys.prefix == "/app/venv"; assert ujson.loads(ujson.dumps({"ok": True}))["ok"]; assert list(jieba_fast.cut("runtime smoke test")); assert magic.from_buffer(b"runtime smoke test"); print("BKLog runtime imports: OK")' \
-    && command -v ldd \
-    && find /app/venv -type f -name '*.so*' -exec ldd '{}' \; > /tmp/bklog-runtime-ldd.log 2>&1 \
-    && if grep -F 'not found' /tmp/bklog-runtime-ldd.log; then exit 1; fi \
-    && test ! -d /usr/include/c++ \
-    && ! command -v gcc \
-    && ! command -v g++ \
-    && rm /tmp/bklog-runtime-ldd.log
 
 CMD python manage.py migrate

@@ -719,6 +719,8 @@ def _read_action_config(params: dict[str, Any]) -> dict[str, Any]:
 
 
 def read_config_cache(params: dict[str, Any]) -> dict[str, Any]:
+    if "operation" in params and params["operation"] != "snapshot":
+        raise CustomException(message="operation must be snapshot")
     cache_type = str(params.get("cache_type") or "").strip()
     if not cache_type:
         raise CustomException(message="cache_type is required")
@@ -737,9 +739,19 @@ def read_config_cache(params: dict[str, Any]) -> dict[str, Any]:
         return _read_shield(cache_params)
     elif cache_type == "action_config":
         return _read_action_config(cache_params)
+    elif cache_type == "circuit_breaking":
+        from kernel_api.rpc.functions.bkm_cli.circuit_breaking import read_circuit_breaking
+
+        unknown = set(params) - {"cache_type", "params", "operation", "bk_tenant_id"}
+        if unknown:
+            raise CustomException(message=f"unsupported circuit breaking parameters: {sorted(unknown)}")
+        return read_circuit_breaking(cache_params)
     else:
         raise CustomException(
-            message=f"不支持的 cache_type: {cache_type}。允许: strategy, host, assign.biz, shield.biz, action_config"
+            message=(
+                f"不支持的 cache_type: {cache_type}。"
+                "允许: strategy, host, assign.biz, shield.biz, action_config, circuit_breaking"
+            )
         )
 
 
@@ -855,11 +867,12 @@ KernelRPCRegistry.register_function(
     description=(
         "bkm-cli read-config-cache 后端函数。"
         "按 cache_type 读取 alarm_backends CacheManager 子类管理的 Redis 配置缓存。"
-        "支持的 cache_type: strategy, host, assign.biz, shield.biz, action_config。"
+        "支持的 cache_type: strategy, host, assign.biz, shield.biz, action_config, circuit_breaking。"
     ),
     handler=read_config_cache,
     params_schema={
-        "cache_type": "缓存类型: strategy | host | assign.biz | shield.biz | action_config",
+        "operation": "snapshot，默认 snapshot",
+        "cache_type": "缓存类型: strategy | host | assign.biz | shield.biz | action_config | circuit_breaking",
         "params": "缓存查询参数，因 cache_type 而异（action_config 需 config_id）",
     },
     example_params={
@@ -881,6 +894,7 @@ BkmCliOpRegistry.register(
     requires_confirmation=False,
     audit_tags=["cache", "redis", "readonly", "config"],
     params_schema={
+        "operation": "snapshot，默认 snapshot",
         "cache_type": "string",
         "params": "object",
     },
