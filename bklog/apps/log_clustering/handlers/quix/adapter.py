@@ -28,6 +28,10 @@ FILTER_OP_TO_METHOD = {
     "!=": "neq",
     "contains": "include",
     "not contains": "exclude",
+    "starts_with": "starts_with",
+    "not_starts_with": "not_starts_with",
+    "ends_with": "ends_with",
+    "not_ends_with": "not_ends_with",
 }
 FILTER_CONDITIONS = ("and", "or")
 DEFAULT_FILTER_CONDITION = "and"
@@ -56,14 +60,45 @@ def convert_filter_rules(filter_rules: list[dict]) -> list[dict]:
         if not key:
             raise _invalid(f"filter rule #{position} fields_name is empty")
 
-        method = FILTER_OP_TO_METHOD.get(rule.get("op"))
-        if not method:
-            raise _invalid(f"filter rule #{position} op({rule.get('op')}) is not supported")
-
         value = rule.get("value")
         values = value if isinstance(value, list) else [value]
         if not values or any(item is None for item in values):
             raise _invalid(f"filter rule #{position} value is empty")
+
+        op = rule.get("op")
+        if op in ("LIKE", "NOT LIKE"):
+            methods, literals = set(), []
+            for item in values:
+                pattern = str(item)
+                literal = pattern.strip("%")
+                # 仅转换首尾单个 %；内部通配符及转义不能等价表达为 BKBase 字符串匹配。
+                if (
+                    not literal
+                    or "%" in literal
+                    or "_" in pattern
+                    or "\\" in pattern
+                    or pattern.startswith("%%")
+                    or pattern.endswith("%%")
+                ):
+                    raise _invalid(f"filter rule #{position} LIKE pattern is not supported")
+                if pattern.startswith("%") and pattern.endswith("%"):
+                    method = "include" if op == "LIKE" else "exclude"
+                elif pattern.endswith("%"):
+                    method = "starts_with" if op == "LIKE" else "not_starts_with"
+                elif pattern.startswith("%"):
+                    method = "ends_with" if op == "LIKE" else "not_ends_with"
+                else:
+                    method = "eq" if op == "LIKE" else "neq"
+                methods.add(method)
+                literals.append(literal)
+            # 同一规则的多个值共享一个 method；不拆组，避免改变 AND/OR 语义。
+            if len(methods) != 1:
+                raise _invalid(f"filter rule #{position} mixed LIKE patterns are not supported")
+            values = literals
+        else:
+            method = FILTER_OP_TO_METHOD.get(op)
+            if not method:
+                raise _invalid(f"filter rule #{position} op({op}) is not supported")
 
         condition = ""
         if index > 0:

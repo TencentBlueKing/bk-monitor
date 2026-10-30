@@ -168,26 +168,6 @@ class ClusteringOperationConflictException(BaseClusteringException):
     MESSAGE = _("索引集({index_set_id})存在未结束的聚类操作({operation_id})，请等待完成或取消后再试")
 
 
-class BkFaraNotConfiguredException(BaseClusteringException):
-    ERROR_CODE = "032"
-    MESSAGE = _("BKFara 管理接口未配置，请检查 BKAPP_BKFARA_API_URL 与 BKAPP_BKFARA_API_TOKEN")
-
-
-class BkFaraApiException(BaseClusteringException):
-    ERROR_CODE = "033"
-    MESSAGE = _("BKFara 接口请求失败: {method} {path}, 状态码: {status_code}, 详情: {detail}")
-
-
-class BkFaraConflictException(BkFaraApiException):
-    ERROR_CODE = "034"
-    MESSAGE = _("BKFara 控制版本或幂等请求冲突: {method} {path}, 详情: {detail}")
-
-
-class BkFaraResultUnknownException(BaseClusteringException):
-    ERROR_CODE = "035"
-    MESSAGE = _("BKFara 接口请求结果未知，需使用相同幂等键重试: {method} {path}, 详情: {detail}")
-
-
 class QuixClusteringConfigInvalidException(BaseClusteringException):
     ERROR_CODE = "036"
     MESSAGE = _("日志聚类轻量化环境配置不完整: {detail}")
