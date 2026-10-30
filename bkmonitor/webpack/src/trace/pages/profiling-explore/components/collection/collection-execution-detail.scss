@@ -35,12 +35,33 @@
     }
 
     .collection-execution-detail-name {
+      min-width: 0;
       overflow: hidden;
       text-overflow: ellipsis;
       font-size: 14px;
       line-height: 22px;
       color: #979ba5;
       white-space: nowrap;
+    }
+
+    // 任务名就地编辑：图标入口、输入框容器与宽度
+    .collection-execution-rename-icon {
+      flex-shrink: 0;
+      font-size: 20px;
+      color: #979ba5;
+      cursor: pointer;
+
+      &:hover {
+        color: #3a84ff;
+      }
+    }
+
+    .collection-execution-rename {
+      flex-shrink: 0;
+    }
+
+    .collection-execution-rename-input {
+      width: 320px;
     }
 
     .collection-execution-detail-actions {

@@ -23,15 +23,15 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { type PropType, computed, defineComponent, onScopeDispose, shallowRef, watch } from 'vue';
+import { type PropType, computed, defineComponent, nextTick, onScopeDispose, shallowRef, watch } from 'vue';
 
 import { type TableProps, PrimaryTable } from '@blueking/tdesign-ui';
-import { Alert, Button, Dialog, Input, Message, Sideslider, Tab } from 'bkui-vue';
+import { Alert, Button, Dialog, Input, Loading, Message, Sideslider, Tab } from 'bkui-vue';
 import { useI18n } from 'vue-i18n';
 
 import { saveCollectionTask } from '../../services/collection';
-import { getCollectionExecution } from '../../services/collection-history';
-import { collectionTypeLabels, formatCollectionTime } from '../../utils/collection';
+import { getCollectionExecution, renameCollectionExecution } from '../../services/collection-history';
+import { collectionTypeLabels, formatCollectionTime, processSelectorText } from '../../utils/collection';
 import {
   canRetryExecution,
   canViewExecution,
@@ -86,6 +86,7 @@ export default defineComponent({
     result: (_value: CollectionResultSelection) => true,
     share: (_value?: CollectionResultSelection | null) => true,
     created: () => true,
+    renamed: () => true,
     busy: (_value: boolean) => true,
   },
   setup(props, { emit }) {
@@ -98,6 +99,12 @@ export default defineComponent({
     const rerunBusy = shallowRef(false);
     const rerunError = shallowRef('');
     let rerunController: AbortController;
+    // 执行任务名就地编辑：只改这一次执行，计划任务名不受影响
+    const renameInput = shallowRef<null | { $el?: HTMLElement }>(null);
+    const renaming = shallowRef(false);
+    const renameName = shallowRef('');
+    const renameBusy = shallowRef(false);
+    let renameController: AbortController;
     const resultSource = computed(() => {
       const selection = resultSelection.value;
       const detail = props.controller.detail.value;
@@ -111,12 +118,18 @@ export default defineComponent({
         resultSelection.value = null;
         rerunHost.value = null;
         rerunError.value = '';
+        renaming.value = false;
+        renameName.value = '';
       }
     );
-    // 重新采集提交状态上报，父级据此暂停自动刷新；同步上报避免关闭详情卸载组件后丢失复位
-    watch(rerunBusy, value => emit('busy', value), { immediate: true, flush: 'sync' });
+    // 重新采集与改名的提交状态上报，父级据此暂停自动刷新；同步上报避免关闭详情卸载组件后丢失复位
+    watch([rerunBusy, renameBusy], ([rerun, rename]) => emit('busy', rerun || rename), {
+      immediate: true,
+      flush: 'sync',
+    });
     onScopeDispose(() => {
       rerunController?.abort();
+      renameController?.abort();
       // 提交中途被卸载时请求随之中止，finally 不再复位，这里兜底
       emit('busy', false);
     });
@@ -173,6 +186,40 @@ export default defineComponent({
         if (!current.signal.aborted) rerunBusy.value = false;
       }
     }
+    function startRename() {
+      const execution = props.controller.detail.value || props.controller.selected.value;
+      if (props.readonly || renameBusy.value || !execution) return;
+      renameName.value = execution.task_name;
+      renaming.value = true;
+      nextTick(() => renameInput.value?.$el?.querySelector<HTMLInputElement>('input')?.focus());
+    }
+    async function submitRename() {
+      if (renameBusy.value) return;
+      const execution = props.controller.detail.value || props.controller.selected.value;
+      const name = renameName.value.trim();
+      // 名称未变或为空时直接退出编辑，不提交空名称
+      if (!execution || !name || name === execution.task_name) {
+        renaming.value = false;
+        return;
+      }
+      renameController?.abort();
+      const current = new AbortController();
+      renameController = current;
+      renameBusy.value = true;
+      try {
+        await renameCollectionExecution(props.bizId, execution, name, current.signal);
+        if (current.signal.aborted) return;
+        props.controller.renameExecution(name);
+        renaming.value = false;
+        Message({ theme: 'success', message: t('任务名修改成功') });
+        emit('renamed');
+      } catch (e) {
+        if (!current.signal.aborted)
+          Message({ theme: 'error', message: (e as Error)?.message || t('任务名修改失败，请重试') });
+      } finally {
+        if (!current.signal.aborted) renameBusy.value = false;
+      }
+    }
     return {
       t,
       diagnosis,
@@ -187,12 +234,22 @@ export default defineComponent({
       patchResult,
       requestRerun,
       confirmRerun,
+      renameInput,
+      renaming,
+      renameName,
+      renameBusy,
+      startRename,
+      submitRename,
     };
   },
   render() {
     const c = this.controller;
     const detail = c.detail.value;
+    // 详情未返回前先用列表行撑起头部
     const execution = detail || c.selected.value;
+    // 目标进程只在配置快照就绪后展示，旧数据可能没有配置
+    const processSelector = detail?.config?.process_selector;
+    const processTag = processSelector ? processSelectorText(processSelector, this.t) : '';
     const resultSelection = this.resultSelection;
     // 优先使用后端下发的列定义，旧接口无该字段时回退默认列并翻译列名
     const hostColumns = detail?.host_columns?.length
@@ -255,7 +312,8 @@ export default defineComponent({
             this.closeResult();
             return false;
           }
-          return !c.busy.value;
+          // 取消或改名的提交未完成时禁止关闭，避免请求被中止后列表仍显示旧名称
+          return !c.busy.value && !this.renameBusy;
         }}
         isShow={true}
         transfer={false}
@@ -269,12 +327,43 @@ export default defineComponent({
                 class='collection-execution-title-divider'
                 aria-hidden='true'
               />
-              <span
-                class='collection-execution-detail-name'
-                title={execution.task_name}
-              >
-                {execution.task_name}
-              </span>
+              {/* 任务名就地编辑：回车或失焦提交，只改这一次执行 */}
+              {this.renaming ? (
+                <Loading
+                  class='collection-execution-rename'
+                  loading={this.renameBusy}
+                  size='small'
+                >
+                  <Input
+                    ref='renameInput'
+                    class='collection-execution-rename-input'
+                    behavior='simplicity'
+                    maxlength={128}
+                    modelValue={this.renameName}
+                    onBlur={this.submitRename}
+                    onChange={value => {
+                      this.renameName = String(value ?? '');
+                    }}
+                    onEnter={this.submitRename}
+                  />
+                </Loading>
+              ) : (
+                <>
+                  <span
+                    class='collection-execution-detail-name'
+                    title={execution.task_name}
+                  >
+                    {execution.task_name}
+                  </span>
+                  {!this.readonly && (
+                    <i
+                      class='icon-monitor icon-bianji collection-execution-rename-icon'
+                      v-tippy={this.t('修改执行任务名')}
+                      onClick={this.startRename}
+                    />
+                  )}
+                </>
+              )}
               <CollectionExecutionStatus
                 status={execution.execution_status}
                 tag
@@ -394,8 +483,8 @@ export default defineComponent({
                         </dd>
                       </div>
                       <div>
-                        <dt>{this.t('实际引擎')}：</dt>
-                        <dd>-- · {this.t('安全替代')}：--</dd>
+                        <dt>{this.t('目标进程')}：</dt>
+                        <dd>{processTag || '--'}</dd>
                       </div>
                     </dl>
                     <div class='collection-execution-toolbar'>

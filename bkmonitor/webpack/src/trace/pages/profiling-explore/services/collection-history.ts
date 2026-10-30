@@ -27,10 +27,11 @@ import {
   cancelExecution,
   collectionTopk,
   executionDetail,
+  executionsRename,
   listExecutions,
 } from 'monitor-api/modules/apm_profile_active_collection';
 
-import { executionKey } from '../utils/collection-history';
+import { executionKey, historyFiltersPayload } from '../utils/collection-history';
 
 import type { SelectionRange } from '../types';
 import type {
@@ -80,12 +81,23 @@ export function getCollectionHistory(
       bk_biz_id: bizId,
       start_time: range[0],
       end_time: range[1],
-      filters,
+      // 未按任务 ID 筛选时不传该字段，接口不接受 null
+      filters: historyFiltersPayload(filters),
       offset,
       limit: COLLECTION_HISTORY_PAGE_SIZE,
     },
     options(signal)
   );
+}
+
+export function renameCollectionExecution(
+  bizId: number,
+  execution: CollectionExecutionKey,
+  taskName: string,
+  signal: AbortSignal
+): Promise<void> {
+  // 执行定位键与 detail/cancel 一致，立即执行不带 task_id
+  return executionsRename({ bk_biz_id: bizId, ...executionKey(execution), task_name: taskName }, options(signal));
 }
 
 export function stopCollectionExecution(

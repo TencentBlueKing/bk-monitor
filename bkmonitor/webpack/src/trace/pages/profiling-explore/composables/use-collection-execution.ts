@@ -125,6 +125,12 @@ export function useCollectionExecution({
     error.value = '';
   }
 
+  // 改名只影响这次执行，同步详情与列表共用的本地快照，避免关闭详情后仍显示旧名称
+  function renameExecution(taskName: string) {
+    if (detail.value) detail.value = { ...detail.value, task_name: taskName };
+    if (selected.value) selected.value = { ...selected.value, task_name: taskName };
+  }
+
   function requestAction(action: CollectionExecutionAction, execution: CollectionExecution) {
     if (readonly.value || busy.value) return;
     if (
@@ -213,6 +219,7 @@ export function useCollectionExecution({
     open,
     close,
     refresh,
+    renameExecution,
     requestAction,
     dismissAction,
     confirmAction,

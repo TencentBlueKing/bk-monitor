@@ -71,7 +71,6 @@ const hostStatusRanks: Record<string, number> = {
   running: 2,
   partial_succeed: 3,
   succeed: 4,
-  parsing: 4,
   cancelled: 5,
   outdate: 6,
   unknown: 7,
@@ -95,6 +94,9 @@ export const hostErrorTypeLabels: Record<string, string> = {
   collect_failed: '采集执行失败，详情见原始信息',
 };
 
+/** 请求体的筛选结构：task_id 只在按任务 ID 筛选时出现 */
+export type CollectionHistoryFiltersPayload = Omit<CollectionHistoryFilters, 'task_id'> & { task_id?: number };
+
 type ProcessFilters = Pick<CollectionHistoryFilters, 'process_names' | 'process_pids'>;
 
 export function compareExecutionHostStatus(left: CollectionExecutionHost, right: CollectionExecutionHost): number {
@@ -105,7 +107,8 @@ export function compareExecutionHostStatus(left: CollectionExecutionHost, right:
 }
 
 export function createHistoryFilters(): CollectionHistoryFilters {
-  return { ips: [], task_name: '', process_names: [], process_pids: [], schedule_types: [], status: '' };
+  // 默认不限任务：task_id 为空时按 task_name 关键词筛选
+  return { ips: [], task_id: null, task_name: '', process_names: [], process_pids: [], schedule_types: [], status: '' };
 }
 
 export function executionHostMessage(host: CollectionExecutionHost): string {
@@ -118,6 +121,12 @@ export function executionKey(value: CollectionExecutionKey): CollectionExecution
     scheduled_at: value.scheduled_at,
     ...(value.schedule_type === 'immediate' ? {} : { task_id: value.task_id }),
   };
+}
+
+// 接口不接受为空的 task_id，未按任务 ID 筛选时整个字段不传
+export function historyFiltersPayload(filters: CollectionHistoryFilters): CollectionHistoryFiltersPayload {
+  const { task_id: taskId, ...rest } = filters;
+  return taskId ? { ...rest, task_id: taskId } : rest;
 }
 
 export function parseProcessSelection(values: string[]): ProcessFilters {
@@ -156,9 +165,13 @@ export function processCandidateOptions(
 
 export function restoreHistoryFilters(value?: Partial<CollectionHistoryFilters>): CollectionHistoryFilters {
   const strings = (items: unknown) => (Array.isArray(items) ? items.filter(item => typeof item === 'string') : []);
+  const taskId =
+    typeof value?.task_id === 'number' && Number.isInteger(value.task_id) && value.task_id > 0 ? value.task_id : null;
   return {
     ips: strings(value?.ips),
-    task_name: typeof value?.task_name === 'string' ? value.task_name : '',
+    task_id: taskId,
+    // 任务 ID 与任务名互斥，按 ID 精确定位时不再保留名称关键词
+    task_name: taskId ? '' : typeof value?.task_name === 'string' ? value.task_name : '',
     process_names: strings(value?.process_names),
     process_pids: strings(value?.process_pids),
     // 仅保留后端支持的执行方式，过滤掉历史数据或异常取值

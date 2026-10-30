@@ -48,6 +48,7 @@ import type {
   CollectionTask,
   CollectionTaskColumn,
 } from '../types/collection';
+import type { CollectionHistoryFilters } from '../types/collection-history';
 
 export type UseProfilingCollectionReturn = ReturnType<typeof useProfilingCollection>;
 
@@ -149,11 +150,23 @@ export function useProfilingCollection(
 
   function openHistory(task?: CollectionTask) {
     detailId.value = undefined;
+    const taskName = task?.name || '';
+    const historyTaskId = task?.task_id || null;
     patch({
       tab: 'history',
-      historyTaskId: task?.task_id || null,
-      historyTaskName: task?.name || '',
-      history: { ...createHistoryFilters(), task_name: task?.name || '' },
+      historyTaskId,
+      historyTaskName: taskName,
+      // 计划任务按 ID 精确定位，避免同名任务串结果；没有 ID 时沿用任务名筛选
+      history: { ...createHistoryFilters(), task_id: historyTaskId, task_name: historyTaskId ? '' : taskName },
+    });
+  }
+
+  function changeHistory(history: CollectionHistoryFilters) {
+    patch({
+      history,
+      historyTaskId: history.task_id,
+      // 按任务 ID 筛选时任务名不在筛选条件里，筛选面板沿用进入时的任务名回显
+      historyTaskName: history.task_id ? state.value.historyTaskName : history.task_name,
     });
   }
 
@@ -249,6 +262,7 @@ export function useProfilingCollection(
     runAction,
     openEditor,
     openHistory,
+    changeHistory,
     saved,
   };
 }

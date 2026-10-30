@@ -78,9 +78,15 @@ test('结果链接和历史筛选能恢复，立即执行不能混入任务 ID',
   const { executionSelection } = load('utils/collection-history.ts');
   const detail = execution();
   const result = executionSelection(detail, detail.hosts[0]);
-  const history = { ips: ['192.0.2.1'], task_name: 'cpu', process_names: ['worker'], process_pids: ['22'], status: 'failed' };
+  const history = {
+    ips: ['192.0.2.1'], task_id: 7, task_name: '', process_names: ['worker'], process_pids: ['22'], status: 'failed',
+  };
   const restored = restoreCollectionQuery(JSON.parse(JSON.stringify({ tab: 'results', history, result })));
   assert.deepEqual(restored.history, history);
+  // 任务 ID 与任务名互斥：按 ID 定位时丢弃名称关键词，非法 ID 退回按名称筛选
+  assert.equal(restoreCollectionQuery({ history: { ...history, task_name: 'cpu' } }).history.task_name, '');
+  assert.equal(restoreCollectionQuery({ history: { ...history, task_id: -1 } }).history.task_id, null);
+  assert.equal(restoreCollectionQuery({ history: { ...history, task_id: -1, task_name: 'cpu' } }).history.task_name, 'cpu');
   assert.deepEqual(restored.result, result);
   assert.equal(restored.result.scope, 'host');
   assert.equal(restored.result.bk_host_id, 1);
