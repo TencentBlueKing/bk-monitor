@@ -683,8 +683,10 @@ class UnifyQueryRawResource(ApiAuthResource):
                         # 只切换主机身份模式，不修改查询空间与鉴权参数。
                         identity_bk_biz_id = validate_bk_biz_id(bk_biz_id)
                     except NoRelatedResourceError:
-                        return value
+                        identity_bk_biz_id = None
                 for target in targets:
+                    if identity_bk_biz_id is None:
+                        continue
                     if is_ipv6_biz(identity_bk_biz_id):
                         target.pop("bk_target_ip", None)
                         target.pop("bk_target_cloud_id", None)
