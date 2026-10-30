@@ -291,7 +291,7 @@ export default defineComponent({
             theme='primary'
           />
         ),
-        title: t('状态'),
+        title: t('启/停'),
       },
       {
         /** 操作列 */
