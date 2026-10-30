@@ -334,6 +334,7 @@ export default defineComponent({
                   loading={this.renameBusy}
                   size='small'
                 >
+                  {/* change 是原生 change 事件，回车早于它触发，改名必须用 input 实时同步 */}
                   <Input
                     ref='renameInput'
                     class='collection-execution-rename-input'
@@ -341,10 +342,10 @@ export default defineComponent({
                     maxlength={128}
                     modelValue={this.renameName}
                     onBlur={this.submitRename}
-                    onChange={value => {
+                    onEnter={this.submitRename}
+                    onInput={value => {
                       this.renameName = String(value ?? '');
                     }}
-                    onEnter={this.submitRename}
                   />
                 </Loading>
               ) : (
