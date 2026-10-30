@@ -1243,33 +1243,6 @@ class DeleteDataLink(DataAccessAPIResource):
         name = serializers.CharField(label="资源名称")
 
 
-class LogClusteringAction(DataAccessAPIResource):
-    """执行 Databus 日志聚类动作"""
-
-    action = "/v4/databus/log_clustering/{tenant}/{namespace}/{databus_name}/action/"
-    method = "POST"
-
-    class RequestSerializer(serializers.Serializer):
-        bk_tenant_id = serializers.CharField(label="租户ID")
-        tenant = serializers.CharField(label="BKBase 资源租户")
-        namespace = serializers.CharField(label="命名空间")
-        databus_name = serializers.CharField(label="Databus 名称")
-        action = serializers.ChoiceField(label="动作", choices=["drain", "finish", "resume"])
-
-
-class GetLogClusteringStatus(DataAccessAPIResource):
-    """查询 Databus 日志聚类运行状态"""
-
-    action = "/v4/databus/log_clustering/{tenant}/{namespace}/{databus_name}/status/"
-    method = "GET"
-
-    class RequestSerializer(serializers.Serializer):
-        bk_tenant_id = serializers.CharField(label="租户ID")
-        tenant = serializers.CharField(label="BKBase 资源租户")
-        namespace = serializers.CharField(label="命名空间")
-        databus_name = serializers.CharField(label="Databus 名称")
-
-
 class ApplyRecordRuleFlow(ApplyDataLink):
     """通过预计算专用网关创建或更新 Flow"""
 

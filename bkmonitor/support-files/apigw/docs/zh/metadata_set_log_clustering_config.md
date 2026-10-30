@@ -28,12 +28,35 @@ Databus 尚未引用聚类 Sink 时按日志链路完整下发（Databus.spec.si
 | generation         | int    | 是  | BKFara 任务 current_generation                     |
 | config_revision    | int    | 是  | BKFara 聚类配置 input_revision                       |
 | kafka              | dict   | 是  | BKFara 聚类配置返回的 Kafka 绑定                          |
-| log_filter         | list   | 否  | 聚类过滤规则，method 取 eq/neq/include/exclude，首条 condition 为空 |
+| log_filter         | list   | 否  | 聚类过滤规则，method 取值见下表，首条 condition 为空 |
 | input_mapping      | dict   | 是  | 模型入参映射，log 为正文字段，timestamp 为毫秒时间字段               |
-| distance_threshold | string | 是  | 距离档位，取 0.1/0.3/0.5/0.7/0.9                      |
+| distance_threshold | string | 否  | 距离档位，默认字符串 "0.5"，取 0.1/0.3/0.5/0.7/0.9 |
 | pattern_index      | string | 是  | Pattern 索引名                                      |
 | state_index        | string | 是  | 恢复状态索引名                                          |
-| max_message_bytes  | int    | 否  | 候选消息上限，默认 1048576，最大 16 MiB                     |
+| max_message_bytes  | int    | 否  | 单条 Kafka 候选消息的序列化大小上限（字节），默认 1048576（1 MiB），范围 1～16777216（16 MiB） |
+
+#### 聚类过滤方法
+
+| method | 含义 |
+|---|---|
+| eq | 等于 |
+| neq | 不等于 |
+| include | 包含 |
+| exclude | 不包含 |
+| starts_with | 以给定值开头 |
+| not_starts_with | 不以给定值开头 |
+| ends_with | 以给定值结尾 |
+| not_ends_with | 不以给定值结尾 |
+
+metadata 校验方法枚举并原样保存和下发规则，不执行日志匹配。匹配值中的空字符串、首尾空白和特殊字符不被裁剪或改写；未知方法拒绝下发。
+
+#### 版本来源与消息大小
+
+generation 取 BKFara 任务查询返回的 current_generation；config_revision 取 BKFara 聚类配置返回的 input_revision。
+调用方原样提供，metadata 不生成或递增这两个版本。它们不是 metadata 本地配置修订号，修改过滤规则时也不自行加一。
+
+max_message_bytes 用于候选 Kafka 消息的体积预算，不是原文日志长度配置。metadata 只校验并透传该值，
+不根据它裁剪或丢弃日志。实际超限处理及对原文入库的影响由 BKBase Runtime 负责，需要在联调中验证。
 
 ### 请求参数示例
 

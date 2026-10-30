@@ -32,6 +32,7 @@ from apps.log_clustering.constants import (
 )
 from apps.log_clustering.exceptions import ClusteringConfigHasExistException, QuixClusteringParamsInvalidException
 from apps.log_clustering.handlers.dataflow.constants import OnlineTaskTrainingArgs
+from apps.log_clustering.handlers.dataflow.dataflow_handler import DataFlowHandler
 from apps.log_clustering.handlers.quix.adapter import build_clustering_config, build_index_names
 from apps.log_clustering.handlers.quix.config import get_quix_config
 from apps.log_clustering.handlers.quix.operation import QuixClusteringOperationRunner
@@ -55,8 +56,8 @@ BUSINESS_UPDATE_FIELDS = (
 
 # 开启流程中各步骤对应到现有接入状态的三段展示
 ACCESS_STATUS_STEPS = {
-    "flow_create": ("create_task", "wait_task_ready", "configure_clustering", "wait_worker_ready"),
-    "flow_run": ("metadata_set", "wait_adoption", "confirm_adoption"),
+    "flow_create": ("create_task", "wait_task_ready", "wait_worker_ready"),
+    "flow_run": ("metadata_set", "wait_adoption", "confirm_adoption", "finish"),
 }
 
 
@@ -68,6 +69,7 @@ class QuixClusteringHandler:
         self.index_set_id = log_index_set.index_set_id
 
     def enable(self, params: dict) -> dict:
+        from apps.log_clustering.handlers.clustering_config import ClusteringConfigHandler
         from apps.log_clustering.tasks.quix import run_quix_clustering_operation
 
         has_exist = ClusteringConfigHasExistException(
@@ -91,6 +93,12 @@ class QuixClusteringHandler:
         get_quix_config()
 
         collector_config = CollectorConfig.objects.get(collector_config_id=self.index_set.collector_config_id)
+        etl_config = collector_config.get_etl_config()
+        ClusteringConfigHandler.pre_check_fields(
+            fields=etl_config["fields"],
+            etl_config=collector_config.etl_config,
+            clustering_fields=clustering_fields,
+        )
         pattern_index, state_index = build_index_names(self.index_set_id)
         # 业务配置与可调度操作一起提交，保存失败时不能由定时恢复任务继续开启。
         with transaction.atomic():
@@ -110,7 +118,11 @@ class QuixClusteringHandler:
                     "state_index": state_index,
                 },
             )
-            self._save_business_config(collector_config, params, clustering_fields, filter_rules)
+            business_config = self._save_business_config(collector_config, params, clustering_fields, filter_rules)
+            operation.request_snapshot["model_parameters"] = DataFlowHandler.get_clustering_training_params(
+                business_config
+            )
+            operation.save(update_fields=["request_snapshot", "updated_at", "updated_by"])
         run_quix_clustering_operation.delay(operation.operation_id)
         return self._access_response(operation)
 
@@ -195,7 +207,6 @@ class QuixClusteringHandler:
         )
         result["quix"] = {
             "phase": runtime.phase,
-            "coverage_gaps": runtime.coverage_gaps,
             "operation": self._format_operation(operation),
         }
         return result
@@ -228,6 +239,7 @@ class QuixClusteringHandler:
                 "filter_rules": filter_rules,
                 "min_members": params.get("min_members", OnlineTaskTrainingArgs.MIN_MEMBERS),
                 "max_dist_list": OnlineTaskTrainingArgs.MAX_DIST_LIST,
+                "depth": OnlineTaskTrainingArgs.DEPTH,
                 "delimeter": params.get("delimeter", OnlineTaskTrainingArgs.DELIMETER),
                 "max_log_length": params.get("max_log_length", OnlineTaskTrainingArgs.MAX_LOG_LENGTH),
                 "is_case_sensitive": params.get("is_case_sensitive", OnlineTaskTrainingArgs.IS_CASE_SENSITIVE),
@@ -244,6 +256,7 @@ class QuixClusteringHandler:
         clustering_config.predefined_varibles = regex_template["predefined_varibles"]
         clustering_config.regex_rule_type = RegexRuleTypeEnum.TEMPLATE.value
         clustering_config.save()
+        return clustering_config
 
     def _access_response(self, operation: LogClusteringOperation) -> dict:
         clustering_config = ClusteringConfig.get_by_index_set_id(index_set_id=self.index_set_id)
@@ -261,7 +274,7 @@ class QuixClusteringHandler:
         # 非开启操作不涉及任务创建，整个操作的进度展示在链路运行段
         if section == "flow_create":
             return ()
-        return tuple(QuixClusteringOperationRunner.STEPS.get(operation.operation_type, ()))
+        return (*QuixClusteringOperationRunner.STEPS.get(operation.operation_type, ()), "finish")
 
     @staticmethod
     def _section_status(status_code, operation: LogClusteringOperation | None, steps: tuple) -> dict:

@@ -195,6 +195,8 @@ class DataAPI:
     """Single API for DATA"""
 
     HTTP_STATUS_OK = 200
+    HTTP_SUCCESS_STATUS_CODES = None
+    EXCLUDE_URL_KEYS = False
 
     class PaginationStyle(Enum):
         PAGE_NUMBER = "PageNumberPagination"
@@ -392,7 +394,7 @@ class DataAPI:
                 raise DataAPIException(self, self.get_error_message(str(e)))
 
             # http层面的处理结果
-            if raw_response.status_code != self.HTTP_STATUS_OK:
+            if raw_response.status_code not in (self.HTTP_SUCCESS_STATUS_CODES or (self.HTTP_STATUS_OK,)):
                 request_response = {
                     "result": False,
                     "message": f"[{raw_response.status_code}]" + (raw_response.text or raw_response.reason),
@@ -560,6 +562,8 @@ class DataAPI:
         session.headers.update({"X-Bk-Tenant-Id": bk_tenant_id})
         self.headers = session.headers
         url = self.build_actual_url(params)
+        if self.EXCLUDE_URL_KEYS:
+            params = {key: value for key, value in params.items() if key not in (self.url_keys or [])}
 
         # 发出请求并返回结果
         query_params = {"bklog_request_id": request_id}

@@ -9,7 +9,8 @@ from apps.log_clustering.constants import (
     ClusteringOperationTypeEnum,
     ClusteringRuntimePhaseEnum,
 )
-from apps.log_clustering.exceptions import BkFaraConflictException, BkFaraResultUnknownException
+from apps.exceptions import ApiRequestError
+from apps.log_clustering.exceptions import QuixClusteringConfigInvalidException
 from apps.log_clustering.handlers.quix.adapter import build_clustering_config
 from apps.log_clustering.handlers.quix.operation import (
     POLL_INTERVAL_SECONDS,
@@ -19,24 +20,11 @@ from apps.log_clustering.handlers.quix.operation import (
 )
 from apps.log_clustering.models import ClusteringConfig, LogClusteringOperation, LogClusteringRuntime
 
-INDEX_SET_ID = 24466
+INDEX_SET_ID = 42
 TASK_ID = "task-uuid"
 KAFKA = {"cluster_ref": "quix-e2e", "input_topic": f"lc-{TASK_ID}-in", "partitions": 2}
 QUIX_CONFIG = {
-    "task_template": {"base_model_ref": {"uri": "base"}},
-    "resource_profile_ref": {"uri": "profile"},
-    "kafka": {
-        "cluster_ref": "quix-e2e",
-        "partitions": 2,
-        "retention_ms": 604800000,
-        "recovery_window_ms": 86400000,
-        "source_namespace": "bklog",
-        "mapping_revision": "log-v1",
-        "input_topic": "lc-{task_id}-in",
-        "output_topic": "lc-{task_id}-out",
-        "consumer_group": "lc-{task_id}-worker",
-        "result_group": "lc-{task_id}-result",
-    },
+    "profile": "test-clustering-es",
     "kafka_resource": {"kind": "Kafka", "namespace": "bklog", "name": "kafka"},
     "pattern_resource": {"kind": "ElasticSearch", "namespace": "bklog", "name": "pattern_es"},
 }
@@ -61,8 +49,8 @@ def create_enable_operation():
             "bk_data_id": 1001,
             "phase": ClusteringRuntimePhaseEnum.ENABLING.value,
             "pending_config": build_clustering_config("log", []),
-            "pattern_index": "log-clustering-24466-pattern",
-            "state_index": "log-clustering-24466-state",
+            "pattern_index": "log-clustering-42-pattern",
+            "state_index": "log-clustering-42-state",
         },
     )
     return operation
@@ -90,7 +78,7 @@ class TestQuixEnableRunner(TestCase):
         self.transfer.set_log_clustering_config.return_value = SET_RESULT
         self.transfer.get_log_clustering_status.return_value = ADOPTED_STATUS
         for target, value in (
-            ("apps.log_clustering.handlers.quix.operation.BkFaraClient", Mock(return_value=self.bkfara)),
+            ("apps.log_clustering.handlers.quix.operation.BkFaraApi", self.bkfara),
             ("apps.log_clustering.handlers.quix.operation.get_quix_config", Mock(return_value=QUIX_CONFIG)),
             ("apps.log_clustering.handlers.quix.operation.TransferApi", self.transfer),
             ("apps.log_clustering.handlers.quix.operation.LogIndexSet.set_tag", Mock()),
@@ -116,11 +104,10 @@ class TestQuixEnableRunner(TestCase):
         )
 
     def confirm_receipt(self, confirmed=True):
-        patcher = patch(
-            "apps.log_clustering.handlers.quix.operation.runtime_adoption_confirmed", Mock(return_value=confirmed)
-        )
-        patcher.start()
-        self.addCleanup(patcher.stop)
+        self.transfer.get_log_clustering_status.return_value = {
+            **ADOPTED_STATUS,
+            "clustering_status": {"configuration_applied": confirmed},
+        }
 
     def test_canceled_operation_is_not_restarted_by_stale_runner(self):
         runner = QuixClusteringOperationRunner(self.operation.operation_id)
@@ -198,8 +185,7 @@ class TestQuixEnableRunner(TestCase):
         self.assertNotIn("operation_id", set_params)
         self.assertEqual(set_params["binding"]["task_id"], TASK_ID)
         self.assertEqual(set_params["binding"]["config_revision"], 1)
-        configure_payload = self.bkfara.configure_clustering.call_args.args[1]
-        self.assertEqual(configure_payload["kafka"]["input_topic"], f"lc-{TASK_ID}-in")
+        self.bkfara.configure_clustering.assert_not_called()
 
     def test_waiting_step_reschedules_without_recreating_task(self):
         self.bkfara.get_task.return_value = {"status": "TRAINING"}
@@ -230,25 +216,50 @@ class TestQuixEnableRunner(TestCase):
         )
 
     def test_unknown_result_retries_with_same_idempotency_key(self):
-        self.bkfara.create_task.side_effect = [BkFaraResultUnknownException(), {"task_id": TASK_ID}]
+        self.bkfara.create_task.side_effect = [ApiRequestError("request failed"), {"task_id": TASK_ID}]
 
         delay = self.run_operation()
         self.run_operation()
 
         self.assertGreater(delay, POLL_INTERVAL_SECONDS)
-        first_key, second_key = (call.args[1] for call in self.bkfara.create_task.call_args_list)
+        first_key, second_key = (call.args[0]["Idempotency-Key"] for call in self.bkfara.create_task.call_args_list)
         self.assertEqual(first_key, second_key)
         self.assertEqual(LogClusteringRuntime.objects.get(index_set_id=INDEX_SET_ID).bkfara_task_id, TASK_ID)
 
-    def test_control_version_conflict_fails_without_retry(self):
-        self.bkfara.configure_clustering.side_effect = BkFaraConflictException()
+    def test_invalid_environment_fails_without_retry(self):
+        with patch(
+            "apps.log_clustering.handlers.quix.operation.get_quix_config",
+            side_effect=QuixClusteringConfigInvalidException(),
+        ):
+            self.assertIsNone(self.run_operation())
+        self.assertEqual(
+            LogClusteringOperation.objects.get(pk=self.operation.pk).status, ClusteringOperationStatusEnum.FAILED.value
+        )
+        self.bkfara.create_task.assert_not_called()
 
-        self.assertIsNone(self.run_operation())
+    def test_model_parameters_are_sent_from_snapshot(self):
+        parameters = {"delimeter": "encoded-delimiter", "predefined_variables": "encoded-regex"}
+        self.operation.request_snapshot = {"model_parameters": parameters}
+        self.operation.save()
+        self.run_operation()
+        request = self.bkfara.create_task.call_args.args[0]
+        self.assertEqual(request["training"], {"parameters": parameters})
+        self.assertEqual(request["profile"], QUIX_CONFIG["profile"])
+        self.assertNotIn("kafka", request)
 
-        operation = LogClusteringOperation.objects.get(pk=self.operation.pk)
-        self.assertEqual(operation.status, ClusteringOperationStatusEnum.FAILED.value)
-        self.assertEqual(operation.step, "configure_clustering")
-        self.transfer.set_log_clustering_config.assert_not_called()
+    def test_receipt_with_errors_or_detached_sink_cannot_finish(self):
+        self.run_operation()
+        for changes in (
+            {"errors": ["unavailable"]},
+            {"sink_referenced": False},
+            {"sink_resource": {"status": {"phase": "Pending"}}},
+        ):
+            self.transfer.get_log_clustering_status.return_value = {
+                **ADOPTED_STATUS,
+                "clustering_status": {"configuration_applied": True},
+                **changes,
+            }
+            self.assertEqual(self.run_operation(), RECEIPT_POLL_INTERVAL_SECONDS)
 
     def test_adoption_waits_until_databus_references_sink(self):
         self.transfer.get_log_clustering_status.return_value = {**ADOPTED_STATUS, "sink_referenced": False}
@@ -288,16 +299,16 @@ class TestQuixEnableRunner(TestCase):
         )
 
     def test_retry_replays_first_request_payload_after_config_change(self):
-        self.bkfara.create_task.side_effect = [BkFaraResultUnknownException(), {"task_id": TASK_ID}]
+        self.bkfara.create_task.side_effect = [ApiRequestError("request failed"), {"task_id": TASK_ID}]
         self.run_operation()
-        changed_config = {**QUIX_CONFIG, "task_template": {"base_model_ref": {"uri": "changed"}}}
+        changed_config = {**QUIX_CONFIG, "profile": "changed"}
 
         with patch("apps.log_clustering.handlers.quix.operation.get_quix_config", Mock(return_value=changed_config)):
             self.run_operation()
 
         first_payload, second_payload = (call.args[0] for call in self.bkfara.create_task.call_args_list)
         self.assertEqual(first_payload, second_payload)
-        self.assertEqual(second_payload["base_model_ref"], {"uri": "base"})
+        self.assertEqual(second_payload["profile"], QUIX_CONFIG["profile"])
 
     def test_finish_is_atomic_with_operation_success(self):
         self.create_clustering_config()

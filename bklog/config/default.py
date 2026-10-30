@@ -251,7 +251,6 @@ CELERY_IMPORTS = (
     "apps.log_clustering.tasks.msg",
     "apps.log_clustering.tasks.sync_pattern",
     "apps.log_clustering.tasks.subscription",
-    "apps.log_clustering.tasks.quix",
     "apps.log_extract.tasks.extract",
 )
 
@@ -975,12 +974,8 @@ BKLOG_CONFIG_KIND = os.getenv("BKAPP_BKLOG_CONFIG_KIND", "BkLogConfig")
 BKLOG_CONFIG_API_VERSION = os.getenv("BKAPP_BKLOG_CONFIG_API_VERSION", "bk.tencent.com/v1alpha1")
 BKLOG_CONFIG_VERSION = os.getenv("BKAPP_BKLOG_CONFIG_VERSION", "v1alpha1")
 
-# 日志聚类轻量化：BKFara 聚类任务管理接口
+# 日志聚类轻量化：覆盖 BKFara 网关地址；为空时使用 domains 中的公共网关地址
 BKFARA_API_URL = os.getenv("BKAPP_BKFARA_API_URL", "")
-BKFARA_API_TOKEN = os.getenv("BKAPP_BKFARA_API_TOKEN", "")
-# 为空时使用系统 CA 校验证书
-BKFARA_CA_CERT_PATH = os.getenv("BKAPP_BKFARA_CA_CERT_PATH", "")
-BKFARA_API_TIMEOUT = int(os.getenv("BKAPP_BKFARA_API_TIMEOUT", 30))
 
 # 是否关闭权限中心校验
 IGNORE_IAM_PERMISSION = os.environ.get("BKAPP_IGNORE_IAM_PERMISSION", False)
