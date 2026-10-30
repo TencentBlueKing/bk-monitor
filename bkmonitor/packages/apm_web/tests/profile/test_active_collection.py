@@ -80,6 +80,7 @@ from apm_web.profile.active_collection.views import (
     TasksViewSet,
     TopKViewSet,
 )
+from apm_web.profile.constants import CallGraphResponseDataMode
 from apm_web.profile.diagrams import get_diagrammer
 from apm_web.profile.diagrams.tree_converter import TreeConverter
 from apm_web.profile.doris.converter import DorisProfileConverter
@@ -439,6 +440,10 @@ def result_apis(mocker):
         "bkdata": mocker.patch(
             "core.drf_resource.api.bkdata.query_profile_data", return_value={"list": list(PROFILE_SAMPLES)}
         ),
+        # 调用图由 Graphviz 渲染 SVG，本地不依赖 dot 可执行文件
+        "svg": mocker.patch(
+            "apm_web.profile.diagrams.callgraph.Digraph.pipe", return_value=b"<svg><title>main</title><g/></svg>"
+        ),
     }
 
 
@@ -452,7 +457,11 @@ def expected_diagrams(diagram_types):
     converter.convert({"list": PROFILE_SAMPLES})
     expected = {}
     for diagram_type in diagram_types:
-        expected.update(get_diagrammer(diagram_type).draw(converter, sort="-total"))
+        expected.update(
+            get_diagrammer(diagram_type).draw(
+                converter, sort="-total", data_mode=CallGraphResponseDataMode.IMAGE_DATA_MODE
+            )
+        )
     return {**expected, "type": "cpu", "unit": "nanoseconds"}
 
 
@@ -493,6 +502,14 @@ def test_query_results_only_return_requested_diagrams(result_apis, diagram_types
     result = QueryResultsResource().request({**IMMEDIATE_RESULT_REQUEST, "diagram_types": diagram_types})
 
     assert result == expected_diagrams(diagram_types)
+
+
+def test_query_results_draws_callgraph_as_svg(result_apis):
+    result = QueryResultsResource().request({**IMMEDIATE_RESULT_REQUEST, "diagram_types": ["callgraph"]})
+
+    # 与 query/samples 一致，call_graph_data 是去掉 title 的 SVG 字符串
+    assert (result["call_graph_data"], result["call_graph_all"]) == ("<svg><g/></svg>", 800)
+    assert (result["type"], result["unit"]) == ("cpu", "nanoseconds")
 
 
 def test_query_results_returns_empty_when_no_samples(result_apis):

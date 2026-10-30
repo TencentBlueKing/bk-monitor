@@ -48,7 +48,7 @@ from apm_web.profile.active_collection.serializers import (
     TaskSwitchRequestSerializer,
     TopKRequestSerializer,
 )
-from apm_web.profile.constants import DEFAULT_EXPORT_FORMAT
+from apm_web.profile.constants import DEFAULT_EXPORT_FORMAT, CallGraphResponseDataMode
 from apm_web.profile.diagrams import get_diagrammer
 from apm_web.profile.diagrams.tree_converter import TreeConverter
 from apm_web.profile.doris.converter import DorisProfileConverter
@@ -258,9 +258,11 @@ class QueryResultsResource(ActiveProfilingResultMixin, Resource):
         if tree_converter is None or tree_converter.empty():
             return {}
 
+        # 与 Profiling 检索的 query/samples 一致，调用图返回渲染好的 SVG
+        options = {"sort": "-total", "data_mode": CallGraphResponseDataMode.IMAGE_DATA_MODE}
         result = {}
         for diagram_type in validated_request_data["diagram_types"]:
-            result.update(get_diagrammer(diagram_type).draw(tree_converter, sort="-total"))
+            result.update(get_diagrammer(diagram_type).draw(tree_converter, **options))
         result.update(tree_converter.get_sample_type())
         return result
 
