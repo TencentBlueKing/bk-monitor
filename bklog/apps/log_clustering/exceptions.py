@@ -171,3 +171,8 @@ class ClusteringOperationConflictException(BaseClusteringException):
 class QuixClusteringConfigInvalidException(BaseClusteringException):
     ERROR_CODE = "036"
     MESSAGE = _("日志聚类轻量化环境配置不完整: {detail}")
+
+
+class QuixClusteringParamsInvalidException(BaseClusteringException):
+    ERROR_CODE = "037"
+    MESSAGE = _("日志聚类轻量化参数不合法: {detail}")
