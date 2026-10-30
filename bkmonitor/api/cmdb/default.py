@@ -246,8 +246,9 @@ def _trans_topo_node_to_module_ids(bk_biz_id: int, topo_nodes: dict[str, typing.
     :rtype: List[int]
     """
 
-    # 取出模块ID
-    module_ids = {int(module_id) for module_id in topo_nodes.pop("module", [])}
+    # 不修改调用方的节点条件或缓存中的拓扑树。
+    topo_nodes = {key: {int(node_id) for node_id in values} for key, values in topo_nodes.items()}
+    module_ids = topo_nodes.pop("module", set())
 
     # 如果没有待查询节点，则直接返回
     if not topo_nodes:
@@ -256,25 +257,19 @@ def _trans_topo_node_to_module_ids(bk_biz_id: int, topo_nodes: dict[str, typing.
     # 查询拓扑树
     topo_tree: dict = _get_topo_tree(bk_biz_id)
 
-    # 调整待查询拓扑节点结构，合并相同类型的节点
-    for bk_obj_id in topo_nodes:
-        topo_nodes[bk_obj_id] = {int(topo_node_id) for topo_node_id in topo_nodes[bk_obj_id]}
+    # 非业务空间使用自己的空间号作为业务根别名。
+    if int(bk_biz_id) in topo_nodes.get("biz", set()):
+        topo_nodes["biz"].add(int(topo_tree["bk_inst_id"]))
 
     # 广度优先遍历拓扑树，找到节点下所有的模块ID
-    queue: list[dict] = topo_tree["child"]
+    queue = [(topo_tree, False)]
     while queue:
-        node = queue.pop()
-
-        # 如果该节点需要被查询，则标记其子节点
-        if node.get("mark") or node["bk_inst_id"] in topo_nodes.get(node["bk_obj_id"], []):
-            node["mark"] = True
-            for child in node["child"]:
-                child["mark"] = True
-
-        if node["bk_obj_id"] == "module" and node.get("mark"):
-            module_ids.add(node["bk_inst_id"])
+        node, selected_parent = queue.pop()
+        selected = selected_parent or int(node["bk_inst_id"]) in topo_nodes.get(node["bk_obj_id"], set())
+        if node["bk_obj_id"] == "module" and selected:
+            module_ids.add(int(node["bk_inst_id"]))
         elif node["child"]:
-            queue.extend(node["child"])
+            queue.extend((child, selected) for child in node["child"])
 
     return module_ids
 
