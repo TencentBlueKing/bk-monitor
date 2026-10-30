@@ -7,7 +7,7 @@ from django.test import SimpleTestCase, override_settings
 
 from apps.api.base import DataAPI
 from apps.api.modules.bkfara import _BkFaraApi
-from apps.exceptions import ApiRequestError
+from apps.exceptions import ApiRequestError, ApiResultError
 from apps.log_clustering.exceptions import QuixClusteringConfigInvalidException
 from apps.log_clustering.handlers.quix.payload import build_create_task_payload
 from apps.log_clustering.handlers.quix.config import get_quix_config
@@ -29,13 +29,13 @@ def response(status=200, body=None):
     return value
 
 
-@override_settings(BKFARA_API_URL="https://bkfara.example/", BKFARA_API_TOKEN="token")
+@override_settings(BKFARA_API_URL="https://bkfara.example/", APP_CODE="test-app", SECRET_KEY="test-secret")
 class TestBkFaraApi(SimpleTestCase):
     def setUp(self):
         patcher = patch("requests.sessions.Session.request")
         self.request = patcher.start()
         self.addCleanup(patcher.stop)
-        patcher = patch("apps.api.base.get_request_api_headers", return_value="{}")
+        patcher = patch("apps.api.base.get_request_username", return_value="test-user")
         patcher.start()
         self.addCleanup(patcher.stop)
         self.api = _BkFaraApi()
@@ -46,22 +46,24 @@ class TestBkFaraApi(SimpleTestCase):
         self.assertIsInstance(BkFaraApi.create_task, DataAPI)
         self.assertEqual(self.api.create_task.default_timeout, DataAPI("GET", "", "").default_timeout)
 
-    def test_create_accepts_200_201_202_and_preserves_inputs(self):
-        params = {**build_create_task_payload(24466, QUIX_CONFIG, MODEL_PARAMETERS), "Idempotency-Key": "op-create"}
-        original = copy.deepcopy(params)
+    def test_create_accepts_200_201_202_with_standard_app_auth(self):
         for status in (200, 201, 202):
             with self.subTest(status=status):
                 self.request.return_value = response(status, {"task_id": TASK_ID, "clustering": {"input_revision": 1}})
-                result = self.api.create_task(params)
+                result = self.api.create_task(
+                    {**build_create_task_payload(42, QUIX_CONFIG, MODEL_PARAMETERS), "Idempotency-Key": "op-create"}
+                )
                 self.assertEqual(result, {"task_id": TASK_ID, "clustering": {"input_revision": 1}})
                 kwargs = self.request.call_args.kwargs
                 self.assertEqual(kwargs["url"], "https://bkfara.example/ct/v1/clustering/tasks")
                 self.assertEqual(
-                    json.loads(kwargs["data"]), build_create_task_payload(24466, QUIX_CONFIG, MODEL_PARAMETERS)
+                    json.loads(kwargs["data"]), build_create_task_payload(42, QUIX_CONFIG, MODEL_PARAMETERS)
                 )
                 self.assertEqual(kwargs["params"], {})
-                self.assertEqual(params, original)
-                self.assertEqual(self.api.create_task.headers["Authorization"], "Bearer token")
+                self.assertNotIn("Authorization", self.api.create_task.headers)
+                auth = json.loads(self.api.create_task.headers["X-Bkapi-Authorization"])
+                self.assertEqual(auth["bk_app_code"], "test-app")
+                self.assertEqual(auth["bk_app_secret"], "test-secret")
                 self.assertEqual(self.api.create_task.headers["Idempotency-Key"], "op-create")
 
     def test_parameter_get_has_no_path_fields_in_query(self):
@@ -85,7 +87,6 @@ class TestBkFaraApi(SimpleTestCase):
             "expected_control_version": 4,
             "training": {"parameters": MODEL_PARAMETERS},
         }
-        original = copy.deepcopy(params)
         self.request.return_value = response(202, {"control_version": 5})
         self.assertEqual(self.api.update_task_parameters(params), {"control_version": 5})
         kwargs = self.request.call_args.kwargs
@@ -93,7 +94,6 @@ class TestBkFaraApi(SimpleTestCase):
         self.assertEqual(
             json.loads(kwargs["data"]), {"expected_control_version": 4, "training": {"parameters": MODEL_PARAMETERS}}
         )
-        self.assertEqual(params, original)
 
     def test_business_stop_and_restart_use_declared_paths(self):
         self.request.return_value = response(body={"state": "STOPPED"})
@@ -107,52 +107,49 @@ class TestBkFaraApi(SimpleTestCase):
         self.assertTrue(self.request.call_args.kwargs["url"].endswith(f"/{TASK_ID}/restart"))
         self.assertEqual(json.loads(self.request.call_args.kwargs["data"]), {"expected_control_version": 2})
 
-    def test_http_errors_preserve_status_and_business_code(self):
-        for status, code, unknown in [
-            (409, "CONTROL_VERSION_CONFLICT", False),
-            (422, "TASK_PARAMETERS_INVALID", False),
-            (503, "RUNTIME_UNAVAILABLE", True),
+    def test_http_errors_use_standard_api_request_error(self):
+        for status, code in [
+            (409, "CONTROL_VERSION_CONFLICT"),
+            (422, "TASK_PARAMETERS_INVALID"),
+            (503, "RUNTIME_UNAVAILABLE"),
         ]:
             with self.subTest(status=status):
                 self.request.return_value = response(status, {"code": code})
                 with self.assertRaises(ApiRequestError) as ctx:
                     self.api.update_task_parameters({"task_id": TASK_ID, "Idempotency-Key": "op-model"})
-                self.assertEqual(ctx.exception.errors, {"status_code": status, "code": code, "result_unknown": unknown})
+                self.assertIn(str(status), str(ctx.exception))
+                self.assertIn(code, str(ctx.exception))
 
-    def test_timeout_has_no_automatic_retry_and_inputs_can_be_reused(self):
-        params = {"profile": "p", "index_id": "24466", "Idempotency-Key": "op-create"}
-        original = copy.deepcopy(params)
-        self.request.side_effect = requests.exceptions.ReadTimeout("timeout")
-        with self.assertRaises(ApiRequestError) as ctx:
-            self.api.create_task(params)
-        self.assertTrue(ctx.exception.errors["result_unknown"])
-        self.assertEqual(self.request.call_count, 1)
-        self.assertEqual(params, original)
-        self.request.side_effect = None
-        self.request.return_value = response(201, {"task_id": TASK_ID})
-        self.api.create_task(params)
-        self.assertEqual(self.api.create_task.headers["Idempotency-Key"], "op-create")
-        self.assertEqual(params, original)
+    def test_transport_errors_use_standard_error_without_retry(self):
+        for error in (requests.exceptions.ReadTimeout("timeout"), requests.exceptions.SSLError("bad certificate")):
+            with self.subTest(error=type(error).__name__):
+                self.request.reset_mock()
+                self.request.side_effect = error
+                with self.assertRaises(ApiRequestError):
+                    self.api.create_task({"profile": "p", "index_id": "42", "Idempotency-Key": "op-create"})
+                self.assertEqual(self.request.call_count, 1)
 
-    def test_tls_error_is_not_an_unknown_write_result(self):
-        self.request.side_effect = requests.exceptions.SSLError("bad certificate")
-        with self.assertRaises(ApiRequestError) as ctx:
-            self.api.create_task({})
-        self.assertFalse(ctx.exception.errors["result_unknown"])
-
-    def test_success_with_invalid_json_is_unknown_for_write(self):
+    def test_invalid_json_uses_standard_error(self):
         value = response(201)
         value._content = b"not json"
         self.request.return_value = value
-        with self.assertRaises(ApiRequestError) as ctx:
-            self.api.create_task({})
-        self.assertTrue(ctx.exception.errors["result_unknown"])
-
-    @override_settings(BKFARA_API_TOKEN="")
-    def test_missing_config_fails_before_request(self):
         with self.assertRaises(ApiRequestError):
             self.api.create_task({})
-        self.request.assert_not_called()
+
+    def test_business_failure_is_not_wrapped_as_success(self):
+        self.request.return_value = response(body={"result": False, "code": "INVALID", "message": "invalid parameters"})
+        with self.assertRaises(ApiResultError):
+            self.api.create_task({})
+
+    def test_cookie_forwarding_uses_standard_default(self):
+        session = requests.Session()
+        self.request.return_value = response(body={"task_id": TASK_ID})
+        with (
+            patch("apps.api.base.requests.session", return_value=session),
+            patch("apps.api.base.get_request", return_value=Mock(COOKIES={"sessionid": "test-cookie"})),
+        ):
+            self.api.create_task({"profile": "p", "index_id": "42"})
+        self.assertEqual(session.cookies.get("sessionid"), "test-cookie")
 
     def test_standard_data_api_still_requires_200_and_keeps_url_keys(self):
         api = DataAPI("POST", "https://example.test/{task_id}", "test", url_keys=["task_id"], no_query_params=True)
@@ -165,22 +162,22 @@ class TestBkFaraApi(SimpleTestCase):
 class TestBkFaraPayload(SimpleTestCase):
     def test_create_uses_profile_and_string_index_id(self):
         self.assertEqual(
-            build_create_task_payload(24466, QUIX_CONFIG),
-            {"profile": "log-clustering-es", "index_id": "24466"},
+            build_create_task_payload(42, QUIX_CONFIG),
+            {"profile": "log-clustering-es", "index_id": "42"},
         )
 
     def test_create_model_parameters_use_training_parameters_without_mutating_inputs(self):
         config, parameters = copy.deepcopy(QUIX_CONFIG), copy.deepcopy(MODEL_PARAMETERS)
-        payload = build_create_task_payload(24466, config, parameters)
+        payload = build_create_task_payload(42, config, parameters)
         self.assertEqual(
-            payload, {"profile": "log-clustering-es", "index_id": "24466", "training": {"parameters": MODEL_PARAMETERS}}
+            payload, {"profile": "log-clustering-es", "index_id": "42", "training": {"parameters": MODEL_PARAMETERS}}
         )
         payload["training"]["parameters"]["min_members"] = 10
         self.assertEqual(parameters, MODEL_PARAMETERS)
         self.assertEqual(config, QUIX_CONFIG)
 
     def test_explicit_empty_parameters_are_preserved(self):
-        self.assertEqual(build_create_task_payload(24466, QUIX_CONFIG, {})["training"], {"parameters": {}})
+        self.assertEqual(build_create_task_payload(42, QUIX_CONFIG, {})["training"], {"parameters": {}})
 
 
 class TestQuixConfig(SimpleTestCase):

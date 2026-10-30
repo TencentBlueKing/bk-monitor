@@ -19,21 +19,9 @@ We undertake not to change the open source license (MIT license) applicable to t
 the project delivered to anyone in the future.
 """
 
-import copy
-
 from django.conf import settings
-from requests.exceptions import ConnectionError, SSLError, Timeout
 
 from apps.api.base import DataAPI
-from apps.api.exception import DataAPIException
-from apps.exceptions import ApiRequestError
-
-
-def bkfara_before_request(params):
-    if not settings.BKFARA_API_URL or not settings.BKFARA_API_TOKEN:
-        raise ApiRequestError("BKFara 管理接口未配置，请检查 BKAPP_BKFARA_API_URL 与 BKAPP_BKFARA_API_TOKEN")
-    params["Authorization"] = f"Bearer {settings.BKFARA_API_TOKEN}"
-    return params
 
 
 def bkfara_after_request(response):
@@ -44,36 +32,6 @@ def bkfara_after_request(response):
 class _BkFaraDataAPI(DataAPI):
     HTTP_SUCCESS_STATUS_CODES = (200, 201, 202)
     EXCLUDE_URL_KEYS = True
-
-    def __call__(self, params=None, **kwargs):
-        kwargs["request_cookies"] = False
-        return super().__call__(copy.deepcopy(params), **kwargs)
-
-    def _send_request(self, params, timeout, request_id, request_cookies, bk_tenant_id):
-        try:
-            return super()._send_request(params, timeout, request_id, request_cookies, bk_tenant_id)
-        except DataAPIException as error:
-            response, cause = error.response, error.__context__
-            status = response.status_code if response is not None else None
-            body = {}
-            if response is not None:
-                try:
-                    body = response.json()
-                except ValueError:
-                    pass
-            if not isinstance(body, dict):
-                body = {}
-            # 不自动重试写操作；调用方持久保存并沿用相同幂等键和请求体。
-            unknown = self.method.upper() != "GET" and (
-                status in (502, 503, 504)
-                or status in self.HTTP_SUCCESS_STATUS_CODES
-                or isinstance(cause, Timeout | ConnectionError)
-                and not isinstance(cause, SSLError)
-            )
-            raise ApiRequestError(
-                error.error_message,
-                errors={"status_code": status, "code": body.get("code"), "result_unknown": unknown},
-            ) from error
 
 
 class _BkFaraApi:
@@ -86,8 +44,7 @@ class _BkFaraApi:
             url=bkfara_api_url + "/ct/v1/clustering/tasks",
             module=self.MODULE,
             description="创建聚类任务",
-            header_keys=["Authorization", "Idempotency-Key"],
-            before_request=bkfara_before_request,
+            header_keys=["Idempotency-Key"],
             after_request=bkfara_after_request,
             no_query_params=True,
         )
@@ -97,8 +54,7 @@ class _BkFaraApi:
             module=self.MODULE,
             description="查询聚类任务",
             url_keys=["task_id"],
-            header_keys=["Authorization", "Idempotency-Key"],
-            before_request=bkfara_before_request,
+            header_keys=["Idempotency-Key"],
             after_request=bkfara_after_request,
             no_query_params=True,
         )
@@ -108,8 +64,7 @@ class _BkFaraApi:
             module=self.MODULE,
             description="查询聚类模型参数及采用状态",
             url_keys=["task_id"],
-            header_keys=["Authorization", "Idempotency-Key"],
-            before_request=bkfara_before_request,
+            header_keys=["Idempotency-Key"],
             after_request=bkfara_after_request,
             no_query_params=True,
         )
@@ -119,8 +74,7 @@ class _BkFaraApi:
             module=self.MODULE,
             description="更新已有聚类模型参数",
             url_keys=["task_id"],
-            header_keys=["Authorization", "Idempotency-Key"],
-            before_request=bkfara_before_request,
+            header_keys=["Idempotency-Key"],
             after_request=bkfara_after_request,
             no_query_params=True,
         )
@@ -130,8 +84,7 @@ class _BkFaraApi:
             module=self.MODULE,
             description="配置聚类绑定",
             url_keys=["task_id"],
-            header_keys=["Authorization", "Idempotency-Key"],
-            before_request=bkfara_before_request,
+            header_keys=["Idempotency-Key"],
             after_request=bkfara_after_request,
             no_query_params=True,
         )
@@ -141,8 +94,7 @@ class _BkFaraApi:
             module=self.MODULE,
             description="查询聚类绑定",
             url_keys=["task_id"],
-            header_keys=["Authorization", "Idempotency-Key"],
-            before_request=bkfara_before_request,
+            header_keys=["Idempotency-Key"],
             after_request=bkfara_after_request,
             no_query_params=True,
         )
@@ -152,8 +104,7 @@ class _BkFaraApi:
             module=self.MODULE,
             description="关闭聚类业务",
             url_keys=["task_id"],
-            header_keys=["Authorization", "Idempotency-Key"],
-            before_request=bkfara_before_request,
+            header_keys=["Idempotency-Key"],
             after_request=bkfara_after_request,
             no_query_params=True,
         )
@@ -163,8 +114,7 @@ class _BkFaraApi:
             module=self.MODULE,
             description="重新开启聚类业务",
             url_keys=["task_id"],
-            header_keys=["Authorization", "Idempotency-Key"],
-            before_request=bkfara_before_request,
+            header_keys=["Idempotency-Key"],
             after_request=bkfara_after_request,
             no_query_params=True,
         )

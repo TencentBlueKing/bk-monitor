@@ -976,7 +976,6 @@ BKLOG_CONFIG_VERSION = os.getenv("BKAPP_BKLOG_CONFIG_VERSION", "v1alpha1")
 
 # 日志聚类轻量化：BKFara 聚类任务管理接口
 BKFARA_API_URL = os.getenv("BKAPP_BKFARA_API_URL", "")
-BKFARA_API_TOKEN = os.getenv("BKAPP_BKFARA_API_TOKEN", "")
 
 # 是否关闭权限中心校验
 IGNORE_IAM_PERMISSION = os.environ.get("BKAPP_IGNORE_IAM_PERMISSION", False)
