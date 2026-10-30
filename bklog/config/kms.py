@@ -122,8 +122,9 @@ def apply_settings(settings):
     # Restore the project cipher defaults after overlays, including KMS-off,
     # while respecting explicitly configured custom cipher classes.
     if "BKCRYPTO" in settings:
-        from apps.utils.crypto import LEGACY_SYMMETRIC_CIPHER_CLASSES
+        from apps.utils.crypto import LEGACY_SYMMETRIC_CIPHER_CLASSES, ensure_crypto_field_copy_compatibility
 
+        ensure_crypto_field_copy_compatibility()
         settings["BKCRYPTO"].setdefault("SYMMETRIC_CIPHER_CLASSES", dict(LEGACY_SYMMETRIC_CIPHER_CLASSES))
     data = credentials()
     if data is None:
