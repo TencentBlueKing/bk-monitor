@@ -2,13 +2,14 @@ from unittest.mock import MagicMock, Mock, patch
 
 from django.test import TestCase
 
+from apps.exceptions import ApiRequestError
+
 from apps.log_clustering.constants import (
     ClusteringOperationStatusEnum,
     ClusteringOperationTypeEnum,
     ClusteringRuntimePhaseEnum,
 )
 from apps.log_clustering.exceptions import (
-    BkFaraResultUnknownException,
     ClusteringAccessNotSupportedException,
     QuixClusteringParamsInvalidException,
 )
@@ -54,7 +55,7 @@ class TestQuixReopenRunner(TestCase):
         ]
         self.receipt = Mock(return_value=True)
         for target, value in (
-            ("apps.log_clustering.handlers.quix.operation.BkFaraClient", Mock(return_value=self.bkfara)),
+            ("apps.log_clustering.handlers.quix.operation.BkFaraApi", self.bkfara),
             ("apps.log_clustering.handlers.quix.operation.TransferApi", self.transfer),
             ("apps.log_clustering.handlers.quix.operation.get_quix_config", Mock(return_value=QUIX_CONFIG)),
             ("apps.log_clustering.handlers.quix.operation.runtime_adoption_confirmed", self.receipt),
@@ -96,7 +97,13 @@ class TestQuixReopenRunner(TestCase):
     def test_reopen_restarts_task_then_reattaches_and_resumes(self):
         self.assertIsNone(self.run_operation())
 
-        self.bkfara.restart_clustering.assert_called_once_with("task-uuid", 5, f"{self.operation.operation_id}-restart")
+        self.bkfara.restart_clustering.assert_called_once_with(
+            {
+                "task_id": "task-uuid",
+                "expected_control_version": 5,
+                "Idempotency-Key": f"{self.operation.operation_id}-restart",
+            }
+        )
         self.bkfara.create_task.assert_not_called()
         actions = [call.args[0]["action"] for call in self.transfer.operate_log_clustering.call_args_list]
         self.assertEqual(actions, ["attach", "resume"])
@@ -131,12 +138,12 @@ class TestQuixReopenRunner(TestCase):
         self.assertEqual(actions, ["attach"])
 
     def test_restart_retry_keeps_idempotency_key(self):
-        self.bkfara.restart_clustering.side_effect = [BkFaraResultUnknownException(), {}]
+        self.bkfara.restart_clustering.side_effect = [ApiRequestError("request failed"), {}]
 
         self.run_operation()
         self.run_operation()
 
-        keys = {call.args[2] for call in self.bkfara.restart_clustering.call_args_list}
+        keys = {call.args[0]["Idempotency-Key"] for call in self.bkfara.restart_clustering.call_args_list}
         self.assertEqual(keys, {f"{self.operation.operation_id}-restart"})
 
 

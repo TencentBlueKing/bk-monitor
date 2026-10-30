@@ -25,20 +25,18 @@ from django.db import transaction
 from django.utils import timezone
 from django.utils.functional import cached_property
 
-from apps.api import TransferApi
+from apps.api import BkFaraApi, TransferApi
 from apps.log_clustering.constants import (
     ClusteringOperationStatusEnum,
     ClusteringOperationTypeEnum,
     ClusteringRuntimePhaseEnum,
 )
 from apps.log_clustering.exceptions import (
-    BkFaraConflictException,
-    BkFaraNotConfiguredException,
     QuixClusteringConfigInvalidException,
     QuixClusteringParamsInvalidException,
 )
 from apps.log_clustering.handlers.quix.adapter import build_binding
-from apps.log_clustering.handlers.quix.bkfara import BkFaraClient, build_clustering_payload, build_create_task_payload
+from apps.log_clustering.handlers.quix.payload import build_create_task_payload
 from apps.log_clustering.handlers.quix.config import get_quix_config
 from apps.log_clustering.models import ClusteringConfig, LogClusteringOperation, LogClusteringRuntime
 from apps.log_search.constants import InnerTag
@@ -53,36 +51,26 @@ WAIT_TIMEOUT_SECONDS = 30 * 60
 RECEIPT_POLL_INTERVAL_SECONDS = 5 * 60
 STEP_TIME_FORMAT = "%Y-%m-%d %H:%M:%S"
 
-# 旧范围内待办已投递、结果已入库、原源消费已确认，才能切换绑定
-DRAINED_STATUS_KEYS = ("can_unbind", "storage_complete", "outbox_drained", "source_committed")
-
 # BKBase 日志聚类状态中运行记录状态的字段，完整 schema 待 BKBase 确认
 CLUSTERING_STATE_KEY = "state"
 CLUSTERING_STATE_STOPPED = "STOPPED"
 
 # 配置、凭据或控制版本问题，重试同一请求不会成功，需要人工处理后续跑
 NON_RETRYABLE_EXCEPTIONS = (
-    BkFaraNotConfiguredException,
-    BkFaraConflictException,
     QuixClusteringConfigInvalidException,
     QuixClusteringParamsInvalidException,
 )
 
 
 def runtime_adoption_confirmed(status: dict) -> bool:
-    """
-    BKBase 是否回执所有相关 Runtime 实例已采用当前下发的聚类配置
-    配置层证据（Databus 引用、资源 phase=Ok）不能代替采用回执；BKBase 提供可核验的回执前一律视为未确认
-    """
-    return False
-
-
-def runtime_detach_confirmed(status: dict) -> bool:
-    """
-    BKBase 是否回执所有相关 Runtime 实例已恢复原存储绑定
-    binding_removed=true 只能来自该回执；BKBase status 中的 binding_removed 固定为 false，提供可核验的回执前一律视为未确认
-    """
-    return False
+    """读取 BKBase 回执；资源存在或 phase=Ok 本身不能代表配置已采用。"""
+    sink_phase = ((status.get("sink_resource") or {}).get("status") or {}).get("phase")
+    return (
+        not status.get("errors")
+        and bool(status.get("sink_referenced"))
+        and sink_phase == "Ok"
+        and (status.get("clustering_status") or {}).get("configuration_applied") is True
+    )
 
 
 def is_worker_ready(clustering: dict) -> bool:
@@ -105,32 +93,29 @@ class QuixClusteringOperationRunner:
         ClusteringOperationTypeEnum.ENABLE.value: [
             "create_task",
             "wait_task_ready",
-            "configure_clustering",
             "wait_worker_ready",
             "metadata_set",
             "wait_adoption",
             "confirm_adoption",
         ],
-        # Quix 保持运行；旧范围收尾后才提交新过滤规则，过渡期新增日志不参与聚类，记为覆盖缺口
+        # 同时修改模型和过滤时，先由 BKFara 接受模型参数，再下发过滤配置。
         ClusteringOperationTypeEnum.UPDATE.value: [
-            "drain",
-            "wait_drained",
-            "finish",
+            "update_model_parameters",
+            "confirm_model_parameters",
             "metadata_set",
             "wait_adoption",
             "confirm_adoption",
         ],
-        # 候选边界只固定一次；结果入库并实际恢复原存储绑定后，才向 BKFara 提交最终完成确认
+        ClusteringOperationTypeEnum.UPDATE_MODEL.value: [
+            "update_model_parameters",
+            "confirm_model_parameters",
+        ],
+        # 本次业务收尾完成且 Databus 恢复原存储配置后，才向 BKFara 提交最终完成确认
         ClusteringOperationTypeEnum.DISABLE.value: [
-            "check_binding",
-            "drain",
-            "wait_boundary",
-            "stop_draining",
-            "wait_drained",
-            "finish",
+            "disable_clustering",
+            "confirm_closed",
             "detach",
             "wait_detached",
-            "confirm_detached",
             "stop_completed",
         ],
         # 复用原任务、Topic、消费组和运行态模型，继续原消费位置
@@ -144,15 +129,11 @@ class QuixClusteringOperationRunner:
             "confirm_adoption",
         ],
     }
-    RECEIPT_STEPS = {"confirm_adoption", "confirm_detached"}
+    RECEIPT_STEPS = {"confirm_adoption", "confirm_closed"}
 
     def __init__(self, operation_id: str):
         self.operation = LogClusteringOperation.objects.get(operation_id=operation_id)
         self.runtime = LogClusteringRuntime.objects.get(index_set_id=self.operation.index_set_id)
-
-    @cached_property
-    def bkfara(self) -> BkFaraClient:
-        return BkFaraClient()
 
     @cached_property
     def quix_config(self) -> dict:
@@ -274,33 +255,26 @@ class QuixClusteringOperationRunner:
         if self.runtime.bkfara_task_id:
             return True
         payload = self.operation.get_request_payload(
-            "create_task", lambda: build_create_task_payload(self.runtime.index_set_id, self.quix_config)
+            "create_task",
+            lambda: build_create_task_payload(
+                self.runtime.index_set_id, self.quix_config, self.operation.request_snapshot.get("model_parameters")
+            ),
         )
-        result = self.bkfara.create_task(payload, self.operation.get_idempotency_key("create_task"))
+        result = BkFaraApi.create_task(
+            {**payload, "Idempotency-Key": self.operation.get_idempotency_key("create_task")}
+        )
         self._save_runtime(bkfara_task_id=result["task_id"])
         return True
 
     def _step_wait_task_ready(self) -> bool:
-        task = self.bkfara.get_task(self.runtime.bkfara_task_id)
+        task = BkFaraApi.get_task({"task_id": self.runtime.bkfara_task_id})
         if task.get("status") != "READY" or not task.get("trained_model_ref"):
             return False
         self._save_runtime(control_version=task["control_version"], generation=task["current_generation"])
         return True
 
-    def _step_configure_clustering(self) -> bool:
-        payload = self.operation.get_request_payload(
-            "configure_clustering",
-            lambda: build_clustering_payload(
-                self.runtime.bkfara_task_id, self.runtime.control_version, self.quix_config
-            ),
-        )
-        self.bkfara.configure_clustering(
-            self.runtime.bkfara_task_id, payload, self.operation.get_idempotency_key("configure_clustering")
-        )
-        return True
-
     def _step_wait_worker_ready(self) -> bool:
-        clustering = self.bkfara.get_clustering(self.runtime.bkfara_task_id)
+        clustering = BkFaraApi.get_clustering({"task_id": self.runtime.bkfara_task_id})
         if not is_worker_ready(clustering):
             return False
         if self.operation.operation_type == ClusteringOperationTypeEnum.REOPEN.value:
@@ -328,7 +302,7 @@ class QuixClusteringOperationRunner:
                 pattern_resource=self.quix_config["pattern_resource"],
             ),
         )
-        result = TransferApi.set_log_clustering_config(params)
+        result = TransferApi.set_log_clustering_config(params.copy())
         self._save_runtime(sink=result["sink"])
         return True
 
@@ -348,124 +322,133 @@ class QuixClusteringOperationRunner:
             fields.update(active_config=self.runtime.pending_config, pending_config=None)
         self._save_runtime(**fields)
 
+    def _step_update_model_parameters(self) -> bool:
+        if not self.operation.request_snapshot.get("update_model"):
+            return True
+
+        def build_payload():
+            current = BkFaraApi.get_task_parameters({"task_id": self.runtime.bkfara_task_id})
+            return {
+                "task_id": self.runtime.bkfara_task_id,
+                "expected_control_version": current["control_version"],
+                "training": {"parameters": self.operation.request_snapshot["model_parameters"]},
+            }
+
+        # 固定版本和请求体；超时重试沿用幂等键，不创建任务或重置已有模型。
+        payload = self.operation.get_request_payload("update_model_parameters", build_payload)
+        BkFaraApi.update_task_parameters(
+            {**payload, "Idempotency-Key": self.operation.get_idempotency_key("update_model_parameters")}
+        )
+        return True
+
+    def _step_confirm_model_parameters(self) -> bool:
+        if not self.operation.request_snapshot.get("update_model"):
+            return True
+        current = BkFaraApi.get_task_parameters({"task_id": self.runtime.bkfara_task_id})
+        expected = self.operation.request_snapshot["model_parameters"]
+        actual = (current.get("training") or {}).get("parameters") or {}
+        if any(actual.get(key) != value for key, value in expected.items()):
+            return False
+        # 这里只确认任务配置已提交。已有模型的增量训练及 Worker 采用由 BKFara 负责，
+        # 不能把历史 adoptions 或当前 Worker READY 当成新参数训练完成的证明。
+        self._save_runtime(control_version=current["control_version"])
+        return True
+
+    def _finish_update(self):
+        self._promote_pending_config(phase=ClusteringRuntimePhaseEnum.RUNNING.value)
+
+    def _finish_update_model(self):
+        self._save_runtime(phase=ClusteringRuntimePhaseEnum.RUNNING.value)
+
     def _operate_metadata(self, action: str) -> bool:
         TransferApi.operate_log_clustering(self._metadata_params(action=action))
         return True
 
-    @property
-    def _binding_attached(self) -> bool:
-        """日志链路是否引用聚类 Sink；只有关闭会在首步判定，其余操作必然已绑定"""
-        return self.operation.request_snapshot.get("binding_attached", True)
+    def _step_disable_clustering(self) -> bool:
+        # sink 在 metadata 写入确认后才保存，且解绑不清空。因此只有从未绑定的任务才能跳过。
+        # 本地 attached 是目标状态，不能用于判定 Runtime 是否已解绑。
+        return self._operate_metadata("disable") if self.runtime.sink else True
 
-    def _step_check_binding(self) -> bool:
-        # 关闭可能接替失败或待确认的操作：已绑定时重新取候选边界；未绑定时跳过 BKBase 收尾，沿用已有候选边界
-        attached = False
-        if self.runtime.sink:
-            status = TransferApi.get_log_clustering_status(self._metadata_params())
-            attached = bool(status.get("configured")) and bool(status.get("attached"))
-        if attached:
-            self._save_runtime(candidate_boundary=None, outbox_boundary=None)
-        self.operation.request_snapshot = {**self.operation.request_snapshot, "binding_attached": attached}
-        self.operation.save(update_fields=["request_snapshot", "updated_at", "updated_by"])
-        return True
-
-    def _step_drain(self) -> bool:
-        return self._operate_metadata("drain") if self._binding_attached else True
-
-    def _step_finish(self) -> bool:
-        return self._operate_metadata("finish") if self._binding_attached else True
-
-    def _step_wait_drained(self) -> bool:
-        if not self._binding_attached:
+    def _step_confirm_closed(self) -> bool:
+        if not self.runtime.sink:
+            if not self.runtime.bkfara_task_id:
+                return True
+            if self.runtime.candidate_boundary is None:
+                clustering = BkFaraApi.get_clustering({"task_id": self.runtime.bkfara_task_id})
+                partitions = (clustering.get("kafka") or {}).get("partitions")
+                if type(partitions) is not int or partitions <= 0:
+                    return False
+                # 未曾下发日志绑定，候选 Topic 没有业务写入；分区数从任务实际绑定获取。
+                self._save_runtime(candidate_boundary={str(partition): 0 for partition in range(partitions)})
             return True
         status = TransferApi.get_log_clustering_status(self._metadata_params())
-        clustering_status = status.get("clustering_status") or {}
-        if not all(clustering_status.get(key) for key in DRAINED_STATUS_KEYS):
+        resource = status.get("sink_resource") or {}
+        progress = status.get("clustering_status") or {}
+        requested_epoch = progress.get("requested_epoch")
+        if (
+            status.get("errors")
+            or not status.get("configured")
+            or (resource.get("spec") or {}).get("clustering", {}).get("enabled") is not False
+            or (resource.get("status") or {}).get("phase") != "Ok"
+            or not requested_epoch
+            or progress.get("applied_epoch") != requested_epoch
+            or progress.get("configuration_applied") is not True
+            or progress.get("clustering_closed") is not True
+        ):
             return False
-        # can_unbind 只表示可以技术切换，coverage_complete=false 时说明旧范围内有跳过的日志
-        if not any(gap["operation_id"] == self.operation.operation_id for gap in self.runtime.coverage_gaps):
-            self.runtime.coverage_gaps.append(
-                {
-                    "operation_id": self.operation.operation_id,
-                    "operation_type": self.operation.operation_type,
-                    "started_at": self._step_finished_at("drain"),
-                    "ended_at": None,
-                    "coverage_complete": clustering_status.get("coverage_complete"),
-                }
-            )
-        self._save_runtime(
-            coverage_gaps=self.runtime.coverage_gaps,
-            outbox_boundary=clustering_status.get("outbox_boundary"),
-        )
-        return True
-
-    def _step_wait_boundary(self) -> bool:
-        if self.runtime.candidate_boundary is not None:
-            return True
-        if not self._binding_attached:
-            # 从未绑定到日志链路时候选 Topic 没有写入过数据，结束位置即各分区起点
-            partitions = self.runtime.kafka_binding.get("partitions") or self.quix_config["kafka"]["partitions"]
-            self._save_runtime(candidate_boundary={str(partition): 0 for partition in range(partitions)})
-            return True
-        status = TransferApi.get_log_clustering_status(self._metadata_params())
-        clustering_status = status.get("clustering_status") or {}
-        if not clustering_status.get("boundary_ready") or clustering_status.get("boundary") is None:
+        boundary = progress.get("input_boundary")
+        if not isinstance(boundary, dict) or not boundary:
             return False
-        # boundary 是候选 Topic 范围，outbox_boundary 是原日志 Topic 范围，两者不能混用
-        self._save_runtime(
-            candidate_boundary=clustering_status["boundary"],
-            outbox_boundary=clustering_status.get("outbox_boundary"),
-        )
-        return True
-
-    def _step_stop_draining(self) -> bool:
-        if not self.runtime.bkfara_task_id:
-            return True
-        self.bkfara.stop_clustering(self.runtime.bkfara_task_id, self.runtime.candidate_boundary)
+        if any(type(value) is not int or value < 0 for value in boundary.values()):
+            return False
+        self._save_runtime(candidate_boundary=boundary)
         return True
 
     def _step_detach(self) -> bool:
-        return self._operate_metadata("detach") if self._binding_attached else True
+        return self._operate_metadata("detach") if self.runtime.sink else True
 
     def _step_wait_detached(self) -> bool:
-        # 配置层就绪：Databus 已改回原存储绑定；任一远端状态查询失败都视为未就绪
-        if not self._binding_attached:
+        if not self.runtime.sink:
             return True
         status = TransferApi.get_log_clustering_status(self._metadata_params())
         databus_phase = ((status.get("databus_resource") or {}).get("status") or {}).get("phase")
         return (
             not status.get("errors")
             and bool(status.get("raw_sink_referenced"))
-            and not status.get("sink_referenced")
+            and status.get("sink_referenced") is False
             and databus_phase == "Ok"
         )
-
-    def _step_confirm_detached(self) -> bool:
-        # 未绑定过日志链路时解绑是既成事实；已绑定时需要 BKBase 回执，回执前不能向 BKFara 提交 binding_removed
-        if not self._binding_attached:
-            return True
-        status = TransferApi.get_log_clustering_status(self._metadata_params())
-        return not status.get("errors") and runtime_detach_confirmed(status)
 
     def _step_stop_completed(self) -> bool:
         if not self.runtime.bkfara_task_id:
             return True
-        boundary = self.runtime.candidate_boundary
-        self.bkfara.stop_clustering(
-            self.runtime.bkfara_task_id,
-            boundary,
-            completion={"input_boundary": boundary, "storage_complete": True, "binding_removed": True},
+        payload = self.operation.get_request_payload(
+            "stop_completed",
+            lambda: {
+                "task_id": self.runtime.bkfara_task_id,
+                "boundary": self.runtime.candidate_boundary,
+                "completion": {
+                    "input_boundary": self.runtime.candidate_boundary,
+                    "storage_complete": True,
+                    "binding_removed": True,
+                },
+            },
         )
-        return True
+        result = BkFaraApi.stop_clustering(payload.copy())
+        return result.get("state") == "STOPPED" and result.get("stop_boundary") == payload["boundary"]
 
     def _step_refresh_control_version(self) -> bool:
-        task = self.bkfara.get_task(self.runtime.bkfara_task_id)
+        task = BkFaraApi.get_task({"task_id": self.runtime.bkfara_task_id})
         self._save_runtime(control_version=task["control_version"])
         return True
 
     def _step_restart(self) -> bool:
-        self.bkfara.restart_clustering(
-            self.runtime.bkfara_task_id, self.runtime.control_version, self.operation.get_idempotency_key("restart")
+        BkFaraApi.restart_clustering(
+            {
+                "task_id": self.runtime.bkfara_task_id,
+                "expected_control_version": self.runtime.control_version,
+                "Idempotency-Key": self.operation.get_idempotency_key("restart"),
+            }
         )
         return True
 
@@ -490,28 +473,9 @@ class QuixClusteringOperationRunner:
         LogIndexSet.set_tag(self.runtime.index_set_id, InnerTag.CLUSTERING.value)
 
     def _finish_disable(self):
-        self._close_coverage_gap()
-        self._save_runtime(phase=ClusteringRuntimePhaseEnum.STOPPED.value, coverage_gaps=self.runtime.coverage_gaps)
+        self._save_runtime(phase=ClusteringRuntimePhaseEnum.STOPPED.value)
         ClusteringConfig.objects.filter(index_set_id=self.runtime.index_set_id).update(access_finished=False)
         LogIndexSet.delete_tag_by_name(self.runtime.index_set_id, InnerTag.CLUSTERING.value)
-
-    def _step_finished_at(self, step: str) -> str | None:
-        for item in reversed(self.operation.steps):
-            if item["step"] == step and item["status"] == ClusteringOperationStatusEnum.SUCCESS.value:
-                return item["time"]
-        return None
-
-    def _close_coverage_gap(self):
-        ended_at = timezone.now().strftime(STEP_TIME_FORMAT)
-        for gap in self.runtime.coverage_gaps:
-            if gap["operation_id"] == self.operation.operation_id and gap["ended_at"] is None:
-                gap["ended_at"] = ended_at
-
-    def _finish_update(self):
-        self._close_coverage_gap()
-        self._promote_pending_config(
-            phase=ClusteringRuntimePhaseEnum.RUNNING.value, coverage_gaps=self.runtime.coverage_gaps
-        )
 
     def _finish_enable(self):
         self._promote_pending_config(phase=ClusteringRuntimePhaseEnum.RUNNING.value)
