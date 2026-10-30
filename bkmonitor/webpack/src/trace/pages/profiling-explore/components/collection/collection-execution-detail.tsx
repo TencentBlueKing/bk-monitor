@@ -342,7 +342,11 @@ export default defineComponent({
                     maxlength={128}
                     modelValue={this.renameName}
                     onBlur={this.submitRename}
-                    onEnter={this.submitRename}
+                    onEnter={(_value, e) => {
+                      // 输入法组字中的回车只用于上屏，此时 renameName 仍是上屏前的旧值
+                      if (e?.isComposing) return;
+                      this.submitRename();
+                    }}
                     onInput={value => {
                       this.renameName = String(value ?? '');
                     }}
