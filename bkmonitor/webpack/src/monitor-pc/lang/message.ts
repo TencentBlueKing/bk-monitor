@@ -402,9 +402,9 @@ export default {
   '修改集群历史数据会全部丢失，确认要更换么':
     'All the historical data of modifying the cluster will be lost. replace it?',
   '确认切换存储集群？': 'Confirm switching storage cluster?',
-  '确认切换': 'Confirm switch',
-  '当前集群': 'Current cluster',
-  '目标集群': 'Target cluster',
+  确认切换: 'Confirm switch',
+  当前集群: 'Current cluster',
+  目标集群: 'Target cluster',
   '切换后保留天数：{days} 天': 'Retention days after switch: {days}',
   '切换生效后，新增数据将写入目标集群。历史数据仍可查询，并按切换后生效的保留时长自动清理。':
     'After the switch takes effect, new data will be written to the target cluster. Historical data can still be queried and will be automatically cleaned up according to the effective retention period.',
@@ -593,4 +593,11 @@ export default {
   '已配置，立即分析': 'Configured, analyze immediately',
   源码仓库已关联: 'Source code repository has been associated',
   源码分析进行中: 'Source code analysis in progress',
+  无法发起源码分析: 'Unable to start source code analysis',
+  '当前 Issue 未匹配到可用的源码分析规则，请查看规则配置。':
+    'The current Issue does not match any available source code analysis rule. Please check the rule configuration.',
+  查看规则配置: 'View rule configuration',
+
+  '确认重新分析？': 'Confirm to re-analyze?',
+  '分析失败，请稍后重试': 'Analysis failed. Please try again later',
 };

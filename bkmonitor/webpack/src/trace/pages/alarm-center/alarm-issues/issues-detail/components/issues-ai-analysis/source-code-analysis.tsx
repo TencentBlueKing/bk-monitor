@@ -26,7 +26,7 @@
 
 import { type PropType, computed, defineComponent, onBeforeUnmount, shallowRef, watch } from 'vue';
 
-import { Alert, Button, Message } from 'bkui-vue';
+import { Alert, Button, Message, PopConfirm } from 'bkui-vue';
 import { Success } from 'bkui-vue/lib/icon';
 import dayjs from 'dayjs';
 import { useI18n } from 'vue-i18n';
@@ -317,11 +317,14 @@ export default defineComponent({
               title={latest.failure.message}
             />
             <div class='guide-btns'>
-              <Button
-                disabled={loading.retryAnalysis}
-                loading={loading.retryAnalysis}
-                theme='primary'
-                onClick={() => {
+              <PopConfirm
+                width='320'
+                confirmText={t('确认')}
+                content={t('重新分析将基于最新告警重新触发 AI 源码分析，是否继续？')}
+                placement='top'
+                title={t('确认重新分析？')}
+                trigger='click'
+                onConfirm={() => {
                   handleReanalyzeSourceAnalysis({
                     bk_biz_id: props.detail.bk_biz_id,
                     issue_id: props.detail.id,
@@ -329,8 +332,14 @@ export default defineComponent({
                   });
                 }}
               >
-                {t('重新分析')}
-              </Button>
+                <Button
+                  disabled={loading.retryAnalysis}
+                  loading={loading.retryAnalysis}
+                  theme='primary'
+                >
+                  {t('重新分析')}
+                </Button>
+              </PopConfirm>
               {executionDetailUrl && (
                 <Button
                   onClick={() => {
