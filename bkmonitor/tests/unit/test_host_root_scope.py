@@ -2,6 +2,7 @@
 
 import ast
 import copy
+import inspect
 import os
 import re
 import subprocess
@@ -385,6 +386,23 @@ def test_graph_serialized_root_passes_same_share_scope(production, obj, node):
     checker.query_target_check(target, "targets.0")
     with pytest.raises(production.denied):
         checker.query_target_check({"bk_obj_id": "biz", "bk_inst_id": ["2", "9"]}, "targets.0")
+
+
+@pytest.mark.parametrize("node", [-100, 2, [-100], [2]])
+@pytest.mark.parametrize("reverse", [False, True])
+def test_mixed_host_identity_and_business_root_keep_original_scope(production, node, reverse):
+    production.namespace["is_ipv6_biz"] = lambda business: business == 2
+    host = {"bk_host_id": "101", "bk_target_ip": "192.0.2.1", "bk_target_cloud_id": "0"}
+    root = {"bk_obj_id": "biz", "bk_inst_id": node}
+    targets = [root, host] if reverse else [host, root]
+    # The identity-mode fix is independently releasable; exercise it when present.
+    kwargs = (
+        {"is_host_query": True} if "is_host_query" in inspect.signature(production.process_filter).parameters else {}
+    )
+    result = production.process_filter(None, -100, {"targets": copy.deepcopy(targets)}, **kwargs)
+    actual = next(target for target in result["targets"] if target.get("bk_obj_id") == "biz")
+    assert actual["bk_inst_id"] == (["2"] if isinstance(node, list) else "2")
+    production.checker(make_token(-100)).query_target_check(actual, "targets.0")
 
 
 def set_list_route(production, name):
