@@ -102,12 +102,19 @@ export default defineComponent({
     /** dynamic 维度已获取到的 id→name 映射，用于下拉未展开时回显及吸顶标签展示名称 */
     const dynamicOptionLabels = ref<Record<string, Record<string, string>>>({});
 
+    /** 生成维度选项的展示文本：集群展示为 ID(名称)，其他维度展示名称；名称为空或与 ID 相同时只展示 ID */
+    const formatDimensionOptionName = (fieldKey: string, id: string, name?: string) => {
+      const label = name ? String(name).trim() : '';
+      if (!label || label === id) return id;
+      return fieldKey === 'cluster_id' ? `${id}(${label})` : label;
+    };
+
     /** 解析维度值接口返回：优先使用带展示文本的 options，未返回时回退为 values */
-    const parseDimensionOptions = (data: SceneDimensionValuesResponse): SceneDimensionOption[] => {
+    const parseDimensionOptions = (fieldKey: string, data: SceneDimensionValuesResponse): SceneDimensionOption[] => {
       if (Array.isArray(data.options) && data.options.length > 0) {
         return data.options.map(opt => {
           const id = String(opt.id);
-          return { id, name: opt.name ? String(opt.name) : id };
+          return { id, name: formatDimensionOptionName(fieldKey, id, opt.name) };
         });
       }
       return (data.values ?? []).map(v => ({ id: String(v), name: String(v) }));
@@ -166,7 +173,7 @@ export default defineComponent({
         });
 
         const data = (res.data ?? res) as SceneDimensionValuesResponse;
-        const options = parseDimensionOptions(data);
+        const options = parseDimensionOptions(field.key, data);
         fieldState.options = options;
         mergeDynamicOptionLabels(field.key, options);
       } catch (err) {
@@ -377,7 +384,7 @@ export default defineComponent({
         });
 
         const data = (res.data ?? res) as SceneDimensionValuesResponse;
-        const options = parseDimensionOptions(data);
+        const options = parseDimensionOptions('cluster_id', data);
         fullClusterList.value = options;
         mergeDynamicOptionLabels('cluster_id', options);
       } catch (err) {
