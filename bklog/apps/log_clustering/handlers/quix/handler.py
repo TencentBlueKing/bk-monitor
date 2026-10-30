@@ -67,7 +67,6 @@ UNBOUND_RESET_FIELDS = {
     "kafka_binding": {},
     "active_config": {},
     "candidate_boundary": None,
-    "outbox_boundary": None,
 }
 
 # 开启流程中各步骤对应到现有接入状态的三段展示
@@ -272,8 +271,8 @@ class QuixClusteringHandler:
         completed = {
             item["step"] for item in operation.steps if item["status"] == ClusteringOperationStatusEnum.SUCCESS.value
         }
-        unconfirmed = (set(operation.request_payloads) | set(operation.idempotency_keys)) - completed
-        if unconfirmed & {"create_task", "configure_clustering", "metadata_set"}:
+        unconfirmed = set(operation.request_payloads) - completed
+        if unconfirmed & {"create_task", "update_model_parameters", "metadata_set"}:
             raise QuixClusteringParamsInvalidException(
                 QuixClusteringParamsInvalidException.MESSAGE.format(
                     detail=_("外部写请求结果尚未确认，请先重试原操作确认结果，再关闭聚类")
