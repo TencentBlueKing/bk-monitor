@@ -12,6 +12,7 @@ import re
 import sys
 import time
 import unittest
+from collections import defaultdict
 from datetime import datetime
 from pathlib import Path
 from types import ModuleType, SimpleNamespace
@@ -22,7 +23,7 @@ import pytz
 from django.db import models
 from django.http import HttpResponseForbidden
 from rest_framework import serializers
-from rest_framework.exceptions import ValidationError
+from rest_framework.exceptions import NotFound, ParseError, PermissionDenied, ValidationError
 
 ROOT = Path(__file__).resolve().parents[2]
 HANDLER = "bkmonitor/share/handler.py"
@@ -106,9 +107,16 @@ class TestHostShareRouteAuthorization(unittest.TestCase):
             get_host_page=Mock(side_effect=lambda **kw: {"items": self.get_hosts(**kw)}),
             get_topo_tree=Mock(
                 return_value=SimpleNamespace(
+                    bk_obj_id="biz",
+                    bk_inst_id=2,
+                    bk_obj_name="business",
+                    bk_inst_name="business",
+                    child=[],
                     convert_to_topo_link=lambda: {},
                     get_all_nodes_with_relation=lambda: {
-                        f"{obj}|{node}": SimpleNamespace(bk_obj_name=obj, bk_inst_name=str(node), child=[])
+                        f"{obj}|{node}": SimpleNamespace(
+                            bk_obj_id=obj, bk_inst_id=node, bk_obj_name=obj, bk_inst_name=str(node), child=[]
+                        )
                         for obj, node in [("biz", 2), ("set", 3), ("module", 4), ("module", 5)]
                     },
                 )
@@ -125,9 +133,13 @@ class TestHostShareRouteAuthorization(unittest.TestCase):
         resource.cc = cc
         self.namespace = dict(
             serializers=serializers,
+            NotFound=NotFound,
+            ParseError=ParseError,
+            PermissionDenied=PermissionDenied,
             ValidationError=ValidationError,
             models=models,
             datetime=datetime,
+            defaultdict=defaultdict,
             pytz=pytz,
             re=re,
             copy=copy,
@@ -167,6 +179,27 @@ class TestHostShareRouteAuthorization(unittest.TestCase):
             load_data_source=lambda *_args: lambda **kwargs: kwargs,
             UnifyQuery=lambda **kwargs: SimpleNamespace(query_data=self.storage),
         )
+        # Load the real scope serializer when present in the source under test;
+        # older consumers continue to use their original Serializer base.
+        load("bkm_space/errors.py", "NoRelatedResourceError", self.namespace)
+        scope_path = "bkm_space/serializers.py"
+        if any(
+            isinstance(node, ast.ClassDef) and node.name == "CMDBScopeSerializer"
+            for node in ast.parse((ROOT / scope_path).read_text()).body
+        ):
+            load(scope_path, "resolve_cmdb_biz_id", self.namespace)
+            load(scope_path, "CMDBScopeSerializer", self.namespace)
+        load("packages/monitor_web/cc/resources/cmdb.py", "_build_host_target_filter", self.namespace)
+        builtin_path = "packages/monitor_web/scene_view/builtin/host.py"
+        if any(
+            isinstance(node, ast.FunctionDef) and node.name == "get_host_metric_bk_biz_id"
+            for node in ast.parse((ROOT / builtin_path).read_text()).body
+        ):
+            helper_module = ModuleType("monitor_web.scene_view.builtin.host")
+            helper_module.get_host_metric_bk_biz_id = load(builtin_path, "get_host_metric_bk_biz_id", self.namespace)
+            helper_patch = patch.dict(sys.modules, {helper_module.__name__: helper_module})
+            helper_patch.start()
+            self.addCleanup(helper_patch.stop)
         token_path = "bkmonitor/models/token.py"
         load(token_path, "AuthType", self.namespace)
         for node in ast.parse((ROOT / token_path).read_text()).body:
