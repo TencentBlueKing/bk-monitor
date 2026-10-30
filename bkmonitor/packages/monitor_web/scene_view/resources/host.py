@@ -27,6 +27,7 @@ from bkmonitor.utils.thread_backend import ThreadPool
 from constants.data_source import DataSourceLabel, DataTypeLabel
 from core.drf_resource import Resource, api, resource
 from monitor_web.constants import AGENT_STATUS
+from monitor_web.scene_view.builtin.host import get_host_metric_bk_biz_id
 from monitor_web.scene_view.process_group import group_process_configs
 from monitor_web.scene_view.resources.view import GetSceneViewResource
 
@@ -669,7 +670,8 @@ class GetHostViewsPanelsResource(Resource):
         bk_biz_id = serializers.IntegerField(label="业务ID")
 
         def validate_bk_biz_id(self, value):
-            return validate_bk_biz_id(value)
+            get_host_metric_bk_biz_id(value)
+            return value
 
     def perform_request(self, validated_request_data):
         params = {
@@ -692,7 +694,8 @@ class GetHostViewsPanelsOrderResource(Resource):
         bk_biz_id = serializers.IntegerField(label="业务ID")
 
         def validate_bk_biz_id(self, value):
-            return validate_bk_biz_id(value)
+            get_host_metric_bk_biz_id(value)
+            return value
 
     def perform_request(self, validated_request_data):
         params = {
@@ -715,7 +718,8 @@ class GetProcessViewsPanelsResource(Resource):
         bk_biz_id = serializers.IntegerField(label="业务ID")
 
         def validate_bk_biz_id(self, value):
-            return validate_bk_biz_id(value)
+            get_host_metric_bk_biz_id(value)
+            return value
 
     def perform_request(self, validated_request_data):
         params = {
@@ -738,7 +742,8 @@ class GetProcessViewsPanelsOrderResource(Resource):
         bk_biz_id = serializers.IntegerField(label="业务ID")
 
         def validate_bk_biz_id(self, value):
-            return validate_bk_biz_id(value)
+            get_host_metric_bk_biz_id(value)
+            return value
 
     def perform_request(self, validated_request_data):
         params = {

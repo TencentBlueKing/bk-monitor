@@ -12,7 +12,10 @@ import json
 from copy import deepcopy
 
 from django.utils.translation import gettext as _
+from rest_framework.exceptions import NotFound
 
+from bkm_space.errors import NoRelatedResourceError
+from bkm_space.validate import validate_bk_biz_id
 from bkmonitor.commons.tools import is_ipv6_biz
 from bkmonitor.models import MetricListCache
 from bkmonitor.utils.tenant import bk_biz_id_to_bk_tenant_id
@@ -209,13 +212,22 @@ def get_order_config(view: SceneViewModel):
         return default_order
 
 
+def get_host_metric_bk_biz_id(bk_biz_id: int) -> int:
+    """解析主机指标所属业务，视图配置仍使用请求空间。"""
+    try:
+        return validate_bk_biz_id(bk_biz_id)
+    except NoRelatedResourceError as err:
+        raise NotFound(_("当前空间未关联业务，无法获取主机视图")) from err
+
+
 def get_panels(view: SceneViewModel) -> list[dict]:
     """
     获取指标信息，包含指标信息及该指标需要使用的聚合方法、聚合维度、聚合周期等
     """
+    bk_biz_id = get_host_metric_bk_biz_id(view.bk_biz_id)
     metrics = MetricListCache.objects.filter(
-        bk_tenant_id=bk_biz_id_to_bk_tenant_id(view.bk_biz_id),
-        bk_biz_id__in=[0, view.bk_biz_id],
+        bk_tenant_id=bk_biz_id_to_bk_tenant_id(bk_biz_id),
+        bk_biz_id__in=[0, bk_biz_id],
         result_table_label="host_process" if view.id == "process" else "os",
         data_source_label="bk_monitor",
         data_type_label="time_series",
@@ -225,7 +237,7 @@ def get_panels(view: SceneViewModel) -> list[dict]:
 
     panels = []
     for metric in metrics:
-        panel = get_metric_panel(bk_biz_id=view.bk_biz_id, metric=metric, view_id=view.id)
+        panel = get_metric_panel(bk_biz_id=bk_biz_id, metric=metric, view_id=view.id)
         panels.append(panel)
     return panels
 
