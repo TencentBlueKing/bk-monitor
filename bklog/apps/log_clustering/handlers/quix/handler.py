@@ -246,6 +246,25 @@ class QuixClusteringHandler:
         run_quix_clustering_operation.delay(operation.operation_id)
         return operation.operation_id
 
+    def reopen(self) -> str:
+        """重开已关闭的聚类，复用原任务和绑定；返回操作ID"""
+        from apps.log_clustering.tasks.quix import run_quix_clustering_operation
+
+        runtime = LogClusteringRuntime.objects.get(index_set_id=self.index_set_id)
+        operation = None
+        if runtime.phase == ClusteringRuntimePhaseEnum.REOPENING.value:
+            operation = self._resume_failed_operation(ClusteringOperationTypeEnum.REOPEN.value)
+        if not operation:
+            runtime, operation = LogClusteringRuntime.start_operation(
+                self.index_set_id,
+                ClusteringOperationTypeEnum.REOPEN.value,
+                {},
+                allowed_phases=(ClusteringRuntimePhaseEnum.STOPPED.value,),
+                updates={"phase": ClusteringRuntimePhaseEnum.REOPENING.value},
+            )
+        run_quix_clustering_operation.delay(operation.operation_id)
+        return operation.operation_id
+
     def _supersede_unfinished_operation(self) -> dict:
         """
         关闭接替失败或待采用确认的开启/更新/重开操作，避免这些操作无法续跑时索引集无法关闭
@@ -272,7 +291,9 @@ class QuixClusteringHandler:
             item["step"] for item in operation.steps if item["status"] == ClusteringOperationStatusEnum.SUCCESS.value
         }
         unconfirmed = set(operation.request_payloads) - completed
-        if unconfirmed & {"create_task", "update_model_parameters", "metadata_set"}:
+        if operation.step == "attach" and "attach" not in completed:
+            unconfirmed.add("attach")
+        if unconfirmed & {"create_task", "update_model_parameters", "metadata_set", "restart", "attach"}:
             raise QuixClusteringParamsInvalidException(
                 QuixClusteringParamsInvalidException.MESSAGE.format(
                     detail=_("外部写请求结果尚未确认，请先重试原操作确认结果，再关闭聚类")

@@ -51,6 +51,10 @@ WAIT_TIMEOUT_SECONDS = 30 * 60
 RECEIPT_POLL_INTERVAL_SECONDS = 5 * 60
 STEP_TIME_FORMAT = "%Y-%m-%d %H:%M:%S"
 
+# BKBase 日志聚类状态中运行记录状态的字段，完整 schema 待 BKBase 确认
+CLUSTERING_STATE_KEY = "state"
+CLUSTERING_STATE_STOPPED = "STOPPED"
+
 # 配置、凭据或控制版本问题，重试同一请求不会成功，需要人工处理后续跑
 NON_RETRYABLE_EXCEPTIONS = (
     QuixClusteringConfigInvalidException,
@@ -113,6 +117,16 @@ class QuixClusteringOperationRunner:
             "detach",
             "wait_detached",
             "stop_completed",
+        ],
+        # 复用原任务、Topic、消费组和运行态模型，继续原消费位置
+        ClusteringOperationTypeEnum.REOPEN.value: [
+            "refresh_control_version",
+            "restart",
+            "wait_worker_ready",
+            "attach",
+            "wait_adoption",
+            "resume",
+            "confirm_adoption",
         ],
     }
     RECEIPT_STEPS = {"confirm_adoption", "confirm_closed"}
@@ -263,6 +277,18 @@ class QuixClusteringOperationRunner:
         clustering = BkFaraApi.get_clustering({"task_id": self.runtime.bkfara_task_id})
         if not is_worker_ready(clustering):
             return False
+        if self.operation.operation_type == ClusteringOperationTypeEnum.REOPEN.value:
+            # 重开沿用 metadata 中的原绑定；BKFara 侧绑定变化时不能静默覆盖本地记录，需人工确认后处理
+            if (clustering["kafka"], clustering["input_revision"]) != (
+                self.runtime.kafka_binding,
+                self.runtime.input_revision,
+            ):
+                raise QuixClusteringParamsInvalidException(
+                    QuixClusteringParamsInvalidException.MESSAGE.format(
+                        detail="bkfara clustering binding changed after restart"
+                    )
+                )
+            return True
         self._save_runtime(kafka_binding=clustering["kafka"], input_revision=clustering["input_revision"])
         return True
 
@@ -410,6 +436,41 @@ class QuixClusteringOperationRunner:
         )
         result = BkFaraApi.stop_clustering(payload.copy())
         return result.get("state") == "STOPPED" and result.get("stop_boundary") == payload["boundary"]
+
+    def _step_refresh_control_version(self) -> bool:
+        task = BkFaraApi.get_task({"task_id": self.runtime.bkfara_task_id})
+        self._save_runtime(control_version=task["control_version"])
+        return True
+
+    def _step_restart(self) -> bool:
+        BkFaraApi.restart_clustering(
+            {
+                "task_id": self.runtime.bkfara_task_id,
+                "expected_control_version": self.runtime.control_version,
+                "Idempotency-Key": self.operation.get_idempotency_key("restart"),
+            }
+        )
+        return True
+
+    def _step_attach(self) -> bool:
+        return self._operate_metadata("attach")
+
+    def _step_resume(self) -> bool:
+        # 同一绑定的旧运行记录仍为 STOPPED 时才需要 resume，新配置会自动建立运行记录
+        status = TransferApi.get_log_clustering_status(self._metadata_params())
+        state = (status.get("clustering_status") or {}).get(CLUSTERING_STATE_KEY)
+        if status.get("errors") or not state:
+            return False
+        if state == CLUSTERING_STATE_STOPPED:
+            return self._operate_metadata("resume")
+        return True
+
+    def _finish_reopen(self):
+        self._save_runtime(
+            phase=ClusteringRuntimePhaseEnum.RUNNING.value, candidate_boundary=None, outbox_boundary=None
+        )
+        ClusteringConfig.objects.filter(index_set_id=self.runtime.index_set_id).update(access_finished=True)
+        LogIndexSet.set_tag(self.runtime.index_set_id, InnerTag.CLUSTERING.value)
 
     def _finish_disable(self):
         self._save_runtime(phase=ClusteringRuntimePhaseEnum.STOPPED.value)
