@@ -190,6 +190,8 @@ class ViewLoadingTimingSection(WaterfallSection):
 
 
 class ViewSpanBuilder(SpanBuilder):
+    RECORD_ID_FIELD = "attributes.view.id"
+    RELATED_SPAN_TYPES = (RumSpanType.VIEW.value, RumSpanType.VITAL.value)
     OVERVIEW = ViewSpanOverview
     SECTIONS = (ViewKeyInfoSection, ViewWebVitalsSection, ViewLoadingTimingSection)
 

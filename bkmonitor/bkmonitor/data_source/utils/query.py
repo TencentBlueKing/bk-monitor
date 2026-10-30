@@ -560,7 +560,6 @@ class BaseQuery:
 
         time_agg = False
         instant = True
-        expression: str = self._sum_expression(fields)
         if self.TIME_BUCKET_FIELD in group_by:
             group_by = [field_name for field_name in group_by if field_name != self.TIME_BUCKET_FIELD]
             if interval is None:
@@ -574,7 +573,7 @@ class BaseQuery:
 
         qs = (
             self.get_qs(start_time, end_time)
-            .expression(expression)
+            .expression(self._sum_expression(fields))
             .time_agg(time_agg)
             .instant(instant)
             .limit(1 if instant and not group_by else self.QUERY_MAX_LIMIT)

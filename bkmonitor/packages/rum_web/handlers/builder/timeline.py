@@ -13,9 +13,10 @@ from dataclasses import dataclass, field
 from typing import Any
 
 from bkmonitor.data_source.format import flatten_dict_data
-from semconv.rum.constants import RumSpanType, SessionPhase
+from semconv.rum.constants import RumSpanType
 
 from rum_web.handlers.builder.span import build as build_span
+from rum_web.handlers.builder.span.session import session_time_range
 from rum_web.handlers.builder.utils import get_safe_number
 
 
@@ -87,21 +88,6 @@ def _attach(members: Sequence[_Span]) -> list[dict[str, Any]]:
     return children
 
 
-def _session_times(sessions: Sequence[_Span]) -> tuple[int | float | None, int | float | None]:
-    """会话开始取 start/rotate 的最早起点，结束取 end 的最晚终点。"""
-    starts: list[int | float] = []
-    ends: list[int | float] = []
-    for item in sessions:
-        phase = item.flatten_data.get("attributes.session.phase")
-        if phase in (SessionPhase.START.value, SessionPhase.ROTATE.value):
-            if (start := get_safe_number(item.flatten_data.get("start_time"), None)) is not None:
-                starts.append(start)
-        elif phase == SessionPhase.END.value:
-            if (end := get_safe_number(item.flatten_data.get("end_time"), None)) is not None:
-                ends.append(end)
-    return min(starts, default=None), max(ends, default=None)
-
-
 def _version(item: _Span) -> int | float:
     return get_safe_number(item.flatten_data.get("attributes.view.version"))
 
@@ -130,5 +116,5 @@ def build(spans: Sequence[dict[str, Any]]) -> dict[str, Any]:
         tree.append(_node(view.origin_data["span_id"], _attach(group.members)))
         records.append(build_span(view.origin_data, [item.origin_data for item in (*group.snapshots, *group.vitals)]))
         records.extend(build_span(item.origin_data) for item in group.members)
-    start_time, end_time = _session_times(sessions)
+    start_time, end_time = session_time_range([item.flatten_data for item in sessions])
     return {"start_time": start_time, "end_time": end_time, "tree": tree, "records": records}

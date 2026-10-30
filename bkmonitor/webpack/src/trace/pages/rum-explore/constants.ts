@@ -300,10 +300,10 @@ export const RUM_HTTP_STATUS_CODE_MAP: Record<
   },
 };
 
-/** 视角 Tab 配置，当前仅 span 有实现，其余渲染占位 */
+/** 视角 Tab 配置 */
 export const RUM_MODE_TAB_LIST: Array<{ disabled: boolean; icon: string; label: string; value: RumModeType }> = [
-  { value: RumModeEnum.SESSION, label: 'Session', icon: 'icon-Session', disabled: true },
-  { value: RumModeEnum.VIEW, label: 'View', icon: 'icon-View', disabled: true },
+  { value: RumModeEnum.SESSION, label: 'Session', icon: 'icon-Session', disabled: false },
+  { value: RumModeEnum.VIEW, label: 'View', icon: 'icon-View', disabled: false },
   { value: RumModeEnum.SPAN, label: 'Span (OT)', icon: 'icon-Span', disabled: false },
 ];
 
