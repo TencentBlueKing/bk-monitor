@@ -26,6 +26,7 @@ from bkmonitor.utils.request import get_request
 from bkmonitor.utils.thread_backend import ThreadPool
 from constants.data_source import DataSourceLabel, DataTypeLabel
 from core.drf_resource import Resource, api, resource
+from monitor_web.cc.resources.cmdb import _build_host_target_filter
 from monitor_web.constants import AGENT_STATUS
 from monitor_web.scene_view.process_group import group_process_configs
 from monitor_web.scene_view.resources.view import GetSceneViewResource
@@ -433,7 +434,10 @@ class GetHostProcessUptimeResource(ApiAuthResource):
         if not hosts:
             return []
         host = hosts[0]
-        ip, bk_cloud_id = host.bk_host_innerip, host.bk_cloud_id
+        target_filter = _build_host_target_filter(params["bk_biz_id"], [host])
+        if not target_filter:
+            # 单主机查询始终保留身份过滤；无 IPv4 地址时按主机 ID 查询。
+            target_filter = {"targets": [{"bk_host_id": [str(host.bk_host_id)]}]}
 
         data_source_class = load_data_source(DataSourceLabel.BK_MONITOR_COLLECTOR, DataTypeLabel.TIME_SERIES)
         data_source = data_source_class(
@@ -441,11 +445,7 @@ class GetHostProcessUptimeResource(ApiAuthResource):
             interval=60,
             group_by=["bk_target_ip", "bk_target_cloud_id", "display_name"],
             metrics=[{"field": "uptime", "method": "MAX", "alias": "A"}],
-            filter_dict={
-                "bk_target_ip": ip,
-                "bk_target_cloud_id": bk_cloud_id,
-                "display_name": params["display_name"],
-            },
+            filter_dict={**target_filter, "display_name": params["display_name"]},
         )
         query = UnifyQuery(bk_biz_id=params["bk_biz_id"], data_sources=[data_source], expression="A")
         # 取选中时点的进程组快照；前端传秒，UQ 查询使用毫秒。
