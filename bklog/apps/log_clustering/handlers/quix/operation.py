@@ -25,20 +25,18 @@ from django.db import transaction
 from django.utils import timezone
 from django.utils.functional import cached_property
 
-from apps.api import TransferApi
+from apps.api import BkFaraApi, TransferApi
 from apps.log_clustering.constants import (
     ClusteringOperationStatusEnum,
     ClusteringOperationTypeEnum,
     ClusteringRuntimePhaseEnum,
 )
 from apps.log_clustering.exceptions import (
-    BkFaraConflictException,
-    BkFaraNotConfiguredException,
     QuixClusteringConfigInvalidException,
     QuixClusteringParamsInvalidException,
 )
 from apps.log_clustering.handlers.quix.adapter import build_binding
-from apps.log_clustering.handlers.quix.bkfara import BkFaraClient, build_clustering_payload, build_create_task_payload
+from apps.log_clustering.handlers.quix.payload import build_create_task_payload
 from apps.log_clustering.handlers.quix.config import get_quix_config
 from apps.log_clustering.models import ClusteringConfig, LogClusteringOperation, LogClusteringRuntime
 from apps.log_search.constants import InnerTag
@@ -55,19 +53,20 @@ STEP_TIME_FORMAT = "%Y-%m-%d %H:%M:%S"
 
 # 配置、凭据或控制版本问题，重试同一请求不会成功，需要人工处理后续跑
 NON_RETRYABLE_EXCEPTIONS = (
-    BkFaraNotConfiguredException,
-    BkFaraConflictException,
     QuixClusteringConfigInvalidException,
     QuixClusteringParamsInvalidException,
 )
 
 
 def runtime_adoption_confirmed(status: dict) -> bool:
-    """
-    BKBase 是否回执所有相关 Runtime 实例已采用当前下发的聚类配置
-    配置层证据（Databus 引用、资源 phase=Ok）不能代替采用回执；BKBase 提供可核验的回执前一律视为未确认
-    """
-    return False
+    """读取 BKBase 回执；资源存在或 phase=Ok 本身不能代表配置已采用。"""
+    sink_phase = ((status.get("sink_resource") or {}).get("status") or {}).get("phase")
+    return (
+        not status.get("errors")
+        and bool(status.get("sink_referenced"))
+        and sink_phase == "Ok"
+        and (status.get("clustering_status") or {}).get("configuration_applied") is True
+    )
 
 
 def is_worker_ready(clustering: dict) -> bool:
@@ -90,7 +89,6 @@ class QuixClusteringOperationRunner:
         ClusteringOperationTypeEnum.ENABLE.value: [
             "create_task",
             "wait_task_ready",
-            "configure_clustering",
             "wait_worker_ready",
             "metadata_set",
             "wait_adoption",
@@ -102,10 +100,6 @@ class QuixClusteringOperationRunner:
     def __init__(self, operation_id: str):
         self.operation = LogClusteringOperation.objects.get(operation_id=operation_id)
         self.runtime = LogClusteringRuntime.objects.get(index_set_id=self.operation.index_set_id)
-
-    @cached_property
-    def bkfara(self) -> BkFaraClient:
-        return BkFaraClient()
 
     @cached_property
     def quix_config(self) -> dict:
@@ -227,33 +221,26 @@ class QuixClusteringOperationRunner:
         if self.runtime.bkfara_task_id:
             return True
         payload = self.operation.get_request_payload(
-            "create_task", lambda: build_create_task_payload(self.runtime.index_set_id, self.quix_config)
+            "create_task",
+            lambda: build_create_task_payload(
+                self.runtime.index_set_id, self.quix_config, self.operation.request_snapshot.get("model_parameters")
+            ),
         )
-        result = self.bkfara.create_task(payload, self.operation.get_idempotency_key("create_task"))
+        result = BkFaraApi.create_task(
+            {**payload, "Idempotency-Key": self.operation.get_idempotency_key("create_task")}
+        )
         self._save_runtime(bkfara_task_id=result["task_id"])
         return True
 
     def _step_wait_task_ready(self) -> bool:
-        task = self.bkfara.get_task(self.runtime.bkfara_task_id)
+        task = BkFaraApi.get_task({"task_id": self.runtime.bkfara_task_id})
         if task.get("status") != "READY" or not task.get("trained_model_ref"):
             return False
         self._save_runtime(control_version=task["control_version"], generation=task["current_generation"])
         return True
 
-    def _step_configure_clustering(self) -> bool:
-        payload = self.operation.get_request_payload(
-            "configure_clustering",
-            lambda: build_clustering_payload(
-                self.runtime.bkfara_task_id, self.runtime.control_version, self.quix_config
-            ),
-        )
-        self.bkfara.configure_clustering(
-            self.runtime.bkfara_task_id, payload, self.operation.get_idempotency_key("configure_clustering")
-        )
-        return True
-
     def _step_wait_worker_ready(self) -> bool:
-        clustering = self.bkfara.get_clustering(self.runtime.bkfara_task_id)
+        clustering = BkFaraApi.get_clustering({"task_id": self.runtime.bkfara_task_id})
         if not is_worker_ready(clustering):
             return False
         self._save_runtime(kafka_binding=clustering["kafka"], input_revision=clustering["input_revision"])
@@ -269,7 +256,7 @@ class QuixClusteringOperationRunner:
                 pattern_resource=self.quix_config["pattern_resource"],
             ),
         )
-        result = TransferApi.set_log_clustering_config(params)
+        result = TransferApi.set_log_clustering_config(params.copy())
         self._save_runtime(sink=result["sink"])
         return True
 

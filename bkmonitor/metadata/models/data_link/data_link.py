@@ -3190,6 +3190,13 @@ class DataLink(models.Model):
         # 合并spec
         cls._fill_missing_dict(merged_config["spec"], existing_config["spec"])
 
+        # 聚类开关由业务动作通过 apply 更新；普通清洗重生成未声明开关时保留远端值。
+        # 不递归补齐 binding，避免把已删除的过滤配置重新带回。
+        if merged_config.get("kind") == DataLinkKind.LOGCLUSTERINGSINK.value:
+            existing_clustering = existing_config["spec"].get("clustering", {})
+            if "enabled" in existing_clustering:
+                merged_config["spec"]["clustering"].setdefault("enabled", existing_clustering["enabled"])
+
         return merged_config
 
     @classmethod

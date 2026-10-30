@@ -27,23 +27,6 @@ from apps.log_clustering.exceptions import QuixClusteringConfigInvalidException
 
 QUIX_FEATURE_CONFIG_KEY = "bkbase_quix"
 
-# Topic 与消费组按 task_id 隔离，命名需与 BKFara 部署约定一致
-DEFAULT_KAFKA_NAME_TEMPLATES = {
-    "input_topic": "lc-{task_id}-in",
-    "output_topic": "lc-{task_id}-out",
-    "consumer_group": "lc-{task_id}-worker",
-    "result_group": "lc-{task_id}-result",
-}
-
-REQUIRED_KAFKA_KEYS = (
-    "cluster_ref",
-    "partitions",
-    "retention_ms",
-    "recovery_window_ms",
-    "source_namespace",
-    "mapping_revision",
-)
-
 REQUIRED_RESOURCE_KEYS = ("kind", "namespace", "name")
 
 
@@ -51,27 +34,18 @@ def get_quix_config() -> dict:
     """
     读取 MINI_CLUSTERING_CONFIG 开关 feature_config 中的 bkbase_quix 配置，结构：
     {
-        "task_template": {...},           # BKFara 创建任务请求中除 runtime_key 外的完整对象（模型、回流、训练、serving 引用）
-        "resource_profile_ref": {...},    # BKFara 已登记的 Worker 资源配置引用
-        "kafka": {
-            "cluster_ref": "...", "partitions": 2, "retention_ms": 604800000, "recovery_window_ms": 86400000,
-            "source_namespace": "...", "mapping_revision": "log-v1",
-            "input_topic": "lc-{task_id}-in", ...  # 可选，覆盖默认命名模板
-        },
+        "profile": "...",               # BKFara 部署方登记的聚类任务 Profile 名称
         "kafka_resource": {"kind": "Kafka", "namespace": "...", "name": "..."},           # BKBase 已登记资源
         "pattern_resource": {"kind": "ElasticSearch", "namespace": "...", "name": "..."},
         "max_message_bytes": 1048576,     # 可选
     }
-    引用对象由部署方成套提供，这里只做完整性校验，不修改其中的摘要
+    任务模板、Worker Profile 和 Kafka 绑定由 BKFara 解析；这里保留 BKBase 所需的资源引用。
     """
     feature = FeatureToggleObject.toggle(MINI_CLUSTERING_CONFIG)
     feature_config = (feature.feature_config if feature else None) or {}
     config = copy.deepcopy(feature_config.get(QUIX_FEATURE_CONFIG_KEY) or {})
 
-    missing = [key for key in ("task_template", "resource_profile_ref") if not config.get(key)]
-
-    kafka = {**DEFAULT_KAFKA_NAME_TEMPLATES, **(config.get("kafka") or {})}
-    missing.extend(f"kafka.{key}" for key in REQUIRED_KAFKA_KEYS if kafka.get(key) in (None, ""))
+    missing = ["profile"] if not config.get("profile") else []
 
     for resource_key in ("kafka_resource", "pattern_resource"):
         resource = config.get(resource_key) or {}
@@ -82,12 +56,4 @@ def get_quix_config() -> dict:
             QuixClusteringConfigInvalidException.MESSAGE.format(detail=f"missing {', '.join(missing)}")
         )
 
-    if kafka["recovery_window_ms"] > kafka["retention_ms"]:
-        raise QuixClusteringConfigInvalidException(
-            QuixClusteringConfigInvalidException.MESSAGE.format(
-                detail="kafka.recovery_window_ms must not exceed kafka.retention_ms"
-            )
-        )
-
-    config["kafka"] = kafka
     return config

@@ -32,6 +32,7 @@ from apps.log_clustering.constants import (
 )
 from apps.log_clustering.exceptions import ClusteringConfigHasExistException
 from apps.log_clustering.handlers.dataflow.constants import OnlineTaskTrainingArgs
+from apps.log_clustering.handlers.dataflow.dataflow_handler import DataFlowHandler
 from apps.log_clustering.handlers.quix.adapter import build_clustering_config, build_index_names
 from apps.log_clustering.handlers.quix.config import get_quix_config
 from apps.log_clustering.handlers.quix.operation import QuixClusteringOperationRunner
@@ -44,7 +45,7 @@ from bkm_space.utils import space_uid_to_bk_biz_id
 
 # 开启流程中各步骤对应到现有接入状态的三段展示
 ACCESS_STATUS_STEPS = {
-    "flow_create": ("create_task", "wait_task_ready", "configure_clustering", "wait_worker_ready"),
+    "flow_create": ("create_task", "wait_task_ready", "wait_worker_ready"),
     "flow_run": ("metadata_set", "wait_adoption", "confirm_adoption"),
 }
 
@@ -99,7 +100,11 @@ class QuixClusteringHandler:
                     "state_index": state_index,
                 },
             )
-            self._save_business_config(collector_config, params, clustering_fields, filter_rules)
+            business_config = self._save_business_config(collector_config, params, clustering_fields, filter_rules)
+            operation.request_snapshot["model_parameters"] = DataFlowHandler.get_clustering_training_params(
+                business_config
+            )
+            operation.save(update_fields=["request_snapshot", "updated_at", "updated_by"])
         run_quix_clustering_operation.delay(operation.operation_id)
         return self._access_response(operation)
 
@@ -119,7 +124,6 @@ class QuixClusteringHandler:
         )
         result["quix"] = {
             "phase": runtime.phase,
-            "coverage_gaps": runtime.coverage_gaps,
             "operation": self._format_operation(operation),
         }
         return result
@@ -168,6 +172,7 @@ class QuixClusteringHandler:
         clustering_config.predefined_varibles = regex_template["predefined_varibles"]
         clustering_config.regex_rule_type = RegexRuleTypeEnum.TEMPLATE.value
         clustering_config.save()
+        return clustering_config
 
     def _access_response(self, operation: LogClusteringOperation) -> dict:
         clustering_config = ClusteringConfig.get_by_index_set_id(index_set_id=self.index_set_id)

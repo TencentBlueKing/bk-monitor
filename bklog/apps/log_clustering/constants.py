@@ -292,12 +292,14 @@ class ClusteringOperationTypeEnum(ChoicesEnum):
 
     ENABLE = "enable"
     UPDATE = "update"
+    UPDATE_MODEL = "update_model"
     DISABLE = "disable"
     REOPEN = "reopen"
 
     _choices_labels = (
         (ENABLE, _("开启")),
         (UPDATE, _("更新过滤规则")),
+        (UPDATE_MODEL, _("更新模型参数")),
         (DISABLE, _("关闭")),
         (REOPEN, _("重开")),
     )

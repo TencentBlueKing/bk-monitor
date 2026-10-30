@@ -379,3 +379,27 @@ def test_compose_log_configs_rejects_attached_sink_without_single_es_binding(log
 
     with pytest.raises(ValueError, match="requires exactly one ElasticSearchBinding"):
         compose(*log_datalink)
+
+
+@pytest.mark.parametrize("enabled", [False, True])
+def test_regeneration_preserves_remote_clustering_switch(enabled, default_biz):
+    generated = build_sink().compose_config(RAW_SINK)
+    remote = build_sink().compose_config(RAW_SINK)
+    remote["spec"]["clustering"]["enabled"] = enabled
+    remote["spec"]["clustering"]["binding"]["log_filter"] = []
+    remote["status"] = {"phase": "Ok"}
+
+    merged = DataLink.merge_component_config(remote, generated)
+
+    assert merged["spec"]["clustering"]["enabled"] is enabled
+    assert merged["spec"]["clustering"]["binding"] == BINDING
+    assert "status" not in merged
+
+
+def test_explicit_clustering_switch_overrides_remote_value(default_biz):
+    generated = build_sink().compose_config(RAW_SINK)
+    generated["spec"]["clustering"]["enabled"] = True
+    remote = build_sink().compose_config(RAW_SINK)
+    remote["spec"]["clustering"]["enabled"] = False
+
+    assert DataLink.merge_component_config(remote, generated)["spec"]["clustering"]["enabled"] is True
