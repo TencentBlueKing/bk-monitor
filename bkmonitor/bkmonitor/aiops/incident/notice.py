@@ -206,6 +206,11 @@ class IncidentNoticeHelper:
             "level": level,
             "begin_time": duration_info["duration_range"][0],
             "notify_time": notify_time,
+            "sms_event_time": kwargs.get("operate_time"),
+            "sms_level": incident.level,
+            "sms_alert_count": len(incident.snapshot.content.incident_alerts)
+            if incident.snapshot and incident.snapshot.content
+            else incident.alert_count or 0,
             "business_name": business_name,
             "incident_reason": incident_reason,
             "status": status,

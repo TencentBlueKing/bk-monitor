@@ -23,6 +23,7 @@ from bkcrypto.symmetric.options import AESSymmetricOptions, SM4SymmetricOptions
 from bkcrypto.utils.convertors import Base64Convertor
 from blueapps.conf.default_settings import *  # noqa
 from blueapps.conf.log import get_logging_config_dict
+from django.core.exceptions import ImproperlyConfigured
 from django.utils.translation import gettext_lazy as _
 
 from bkmonitor.utils.i18n import TranslateDict
@@ -816,6 +817,10 @@ FTA_ES_RETENTION = 365
 
 # 短信通知最大长度设置
 SMS_CONTENT_LENGTH = 0
+SMS_NOTICE_TEMPLATE_MODE_DEFAULT = os.getenv("BKAPP_SMS_NOTICE_TEMPLATE_MODE", "legacy")
+if SMS_NOTICE_TEMPLATE_MODE_DEFAULT not in ("legacy", "standard"):
+    raise ImproperlyConfigured("BKAPP_SMS_NOTICE_TEMPLATE_MODE must be legacy or standard")
+SMS_NOTICE_TEMPLATE_MODE = SMS_NOTICE_TEMPLATE_MODE_DEFAULT
 WECOM_ROBOT_CONTENT_LENGTH = 0
 
 # 二次确认

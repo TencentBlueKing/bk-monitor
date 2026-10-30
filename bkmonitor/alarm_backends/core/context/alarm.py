@@ -861,13 +861,19 @@ class Alarm(BaseContextObject):
         return [alert.ack_operator for alert in self.parent.alerts if alert.ack_operator]
 
     @cached_property
+    def ack_logs(self):
+        if not self.parent.alert:
+            return []
+
+        return AlertLog.get_ack_logs([alert.id for alert in self.parent.alerts])
+
+    @cached_property
     def ack_reason(self):
         if not self.parent.alert:
             return None
 
-        ack_logs = AlertLog.get_ack_logs([alert.id for alert in self.parent.alerts])
         ack_messages = []
-        for ack_log in ack_logs:
+        for ack_log in self.ack_logs:
             ack_messages.append(ack_log.description)
         return ack_messages
 

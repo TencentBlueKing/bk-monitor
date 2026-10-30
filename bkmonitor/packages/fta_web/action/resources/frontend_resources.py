@@ -14,7 +14,7 @@ import time
 from collections import defaultdict
 
 from django.conf import settings
-from django.utils import translation
+from django.utils import timezone, translation
 from django.utils.translation import gettext as _
 from rest_framework.exceptions import PermissionDenied
 
@@ -35,6 +35,7 @@ from bkmonitor.documents.base import BulkActionType
 from bkmonitor.iam import ActionEnum, Permission
 from bkmonitor.models.fta import ActionConfig, ActionInstance, ActionPlugin
 from bkmonitor.utils.request import get_request, get_request_username
+from bkmonitor.utils.sms import format_sms_time
 from bkmonitor.utils.template import AlarmNoticeTemplate, NoticeRowRenderer
 from bkmonitor.utils.template_ref_values import output_references
 from bkmonitor.utils.user import get_user_display_name
@@ -618,6 +619,16 @@ class AssignAlertResource(Resource):
         )
         alert_ids = validated_request_data["alert_ids"] = [alert.id for alert in alerts]
         current_time = int(time.time())
+        validated_request_data["current_time"] = current_time
+        validated_request_data["sms_assign_time"] = format_sms_time(
+            current_time, tz=timezone.get_current_timezone(), language=settings.DEFAULT_LOCALE
+        )
+        if alerts:
+            validated_request_data["sms_assign_alert"] = {
+                "name": alerts[0].alert_name,
+                "severity": alerts[0].severity,
+                "count": len(alerts),
+            }
         alert_log = AlertLog(
             **dict(
                 op_type=AlertLog.OpType.ACTION,
