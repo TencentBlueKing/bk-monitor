@@ -22,6 +22,7 @@ the project delivered to anyone in the future.
 from django.conf import settings
 
 from apps.api.base import DataAPI
+from config.domains import BKFARA_APIGATEWAY_ROOT
 
 
 def bkfara_after_request(response):
@@ -38,7 +39,7 @@ class _BkFaraApi:
     MODULE = "BKFara"
 
     def __init__(self):
-        bkfara_api_url = settings.BKFARA_API_URL.rstrip("/")
+        bkfara_api_url = (settings.BKFARA_API_URL or BKFARA_APIGATEWAY_ROOT).rstrip("/")
         self.create_task = _BkFaraDataAPI(
             method="POST",
             url=bkfara_api_url + "/ct/v1/clustering/tasks",

@@ -974,7 +974,7 @@ BKLOG_CONFIG_KIND = os.getenv("BKAPP_BKLOG_CONFIG_KIND", "BkLogConfig")
 BKLOG_CONFIG_API_VERSION = os.getenv("BKAPP_BKLOG_CONFIG_API_VERSION", "bk.tencent.com/v1alpha1")
 BKLOG_CONFIG_VERSION = os.getenv("BKAPP_BKLOG_CONFIG_VERSION", "v1alpha1")
 
-# 日志聚类轻量化：BKFara 聚类任务管理接口
+# 日志聚类轻量化：覆盖 BKFara 网关地址；为空时使用 domains 中的公共网关地址
 BKFARA_API_URL = os.getenv("BKAPP_BKFARA_API_URL", "")
 
 # 是否关闭权限中心校验

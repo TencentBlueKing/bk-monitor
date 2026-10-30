@@ -1,8 +1,11 @@
 import copy
 import json
+from pathlib import Path
+from types import SimpleNamespace
 from unittest.mock import Mock, patch
 
 import requests
+import yaml
 from django.test import SimpleTestCase, override_settings
 
 from apps.api.base import DataAPI
@@ -39,6 +42,34 @@ class TestBkFaraApi(SimpleTestCase):
         patcher.start()
         self.addCleanup(patcher.stop)
         self.api = _BkFaraApi()
+
+    @override_settings(BKFARA_API_URL="")
+    def test_default_gateway_uses_environment_domains(self):
+        from config.env import load_domains
+        from config.domains import API_ROOTS
+
+        self.assertIn("BKFARA_APIGATEWAY_ROOT", API_ROOTS)
+        root = Path(__file__).resolve().parents[3]
+        for environment in ("dev", "stag", "prod"):
+            with self.subTest(environment=environment):
+                config = yaml.safe_load((root / f"{environment}.env.yml").read_text())
+                with patch(
+                    "config.env.load_env",
+                    return_value={"domains": {"BKFARA_APIGATEWAY_ROOT": config["domains"]["BKFARA_APIGATEWAY_ROOT"]}},
+                ):
+                    domain = load_domains(SimpleNamespace(PAAS_API_HOST="https://gateway.example"))[
+                        "BKFARA_APIGATEWAY_ROOT"
+                    ]
+                self.assertEqual(domain, "https://gateway.example/api/aiops-service/prod/")
+                with patch("apps.api.modules.bkfara.BKFARA_APIGATEWAY_ROOT", domain):
+                    api = _BkFaraApi()
+                self.assertEqual(api.create_task.url, domain + "ct/v1/clustering/tasks")
+                self.assertEqual(api.stop_clustering.url, domain + "internal/ct/v1/clustering/tasks/{task_id}/stop")
+
+    def test_explicit_url_override_accepts_trailing_slash(self):
+        for url in ("https://custom.example/prefix", "https://custom.example/prefix/"):
+            with self.subTest(url=url), override_settings(BKFARA_API_URL=url):
+                self.assertEqual(_BkFaraApi().create_task.url, "https://custom.example/prefix/ct/v1/clustering/tasks")
 
     def test_registered_api_uses_standard_data_api(self):
         from apps.api import BkFaraApi
