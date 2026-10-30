@@ -126,9 +126,7 @@ def test_field_catalog_matches_retained_table_without_uq(mode, expected_raw, exp
     assert fields["frustration_count"]["field_type"] == "long"
 
 
-@pytest.mark.parametrize(
-    "query_class, mode, phase", [(SessionQuery, "session", "start"), (ViewQuery, "view", "update")]
-)
+@pytest.mark.parametrize("query_class, mode, phase", [(SessionQuery, "session", "start"), (ViewQuery, "view", "start")])
 def test_analysis_uses_required_event_and_keeps_user_filters(query_class, mode, phase):
     query = query_class([target()])
     filters = [equal_filter("attributes.user.id", ["alice"])]
@@ -245,6 +243,8 @@ def test_supplement_batches_by_page_ids_not_rows():
         assert query_body["limit"] == (query.QUERY_MAX_LIMIT if config["metrics"] else len(ids))
         if config["metrics"]:
             captured_metrics.append(config)
+            if "status.code" in config["group_by"]:
+                return [{"attributes.session.id": "s1", "status.code": status, "_result_": 1} for status in (0, 1, "2")]
             if len(config["group_by"]) == 2:
                 return [{"attributes.session.id": "s1", "attributes.span_type": "error", "_result_": 2}]
             metric = config["metrics"][0]
@@ -267,38 +267,77 @@ def test_supplement_batches_by_page_ids_not_rows():
 
     with patch("bkmonitor.data_source.unify_query.builder.QueryHelper.query", side_effect=execute):
         summaries = query.query_summaries(ids)
-    assert len(captured_metrics) == 8 and len(captured_records) == 3
+    assert len(captured_metrics) == 7 and len(captured_records) == 3
     assert summaries["s1"]["view_count"] == 2
     assert summaries["s1"]["error_count"] == 2
+    assert summaries["s1"]["request_count"] == 3
+    assert summaries["s1"]["request_error_count"] == 1
     assert summaries["s1"]["frustration_count"] == 1
     assert summaries["s1"]["enter_url_template"] == "/first"
     assert summaries["s1"]["exit_url_template"] == "/last"
     assert summaries["s1"]["snapshot"]["attributes.session.phase"] == "end"
-    error_query = next(config for config in captured_metrics if "status.code" in config["filter_dict"])
-    assert error_query["filter_dict"]["status.code"] == [2]
-    assert error_query["filter_dict"]["attributes.resource.type"] == ["xhr", "fetch"]
+    request_query = next(config for config in captured_metrics if "status.code" in config["group_by"])
+    assert "status.code" not in request_query["filter_dict"]
+    assert request_query["filter_dict"]["attributes.resource.type"] == ["xhr", "fetch"]
 
 
 def test_vitals_use_latest_snapshot_per_metric_and_preserve_zero():
     query = ViewQuery([target()])
+    vital_requests = []
 
     def execute(table_id, query_body):
         config = query_body["query_configs"][0]
         if config["metrics"]:
             return []
-        metric = config["filter_dict"].get("attributes.vital.metric", [None])[0]
-        if metric:
+        metrics = config["filter_dict"].get("attributes.vital.metric")
+        if metrics:
+            vital_requests.append(config)
             assert config["order_by"] == ["end_time desc"]
-            return [{"attributes.view.id": "v1", "attributes.vital.value": 0}] if metric == "cls" else []
+            assert not config["distinct"]
+            return [
+                {
+                    "attributes.view.id": "v1",
+                    "attributes.vital.metric": "CLS",
+                    "attributes.vital.value": 1,
+                    "end_time": 200,
+                },
+                {
+                    "attributes.view.id": "v1",
+                    "attributes.vital.metric": "cls",
+                    "attributes.vital.value": 0,
+                    "end_time": 300,
+                },
+                {
+                    "attributes.view.id": "v2",
+                    "attributes.vital.metric": "cls",
+                    "attributes.vital.value": 9,
+                    "end_time": 400,
+                },
+                {
+                    "attributes.view.id": "v1",
+                    "attributes.vital.metric": "lcp",
+                    "attributes.vital.value": 2000,
+                    "end_time": 400,
+                },
+                {
+                    "attributes.view.id": "v1",
+                    "attributes.vital.metric": "LCP",
+                    "attributes.vital.value": 1200,
+                    "end_time": 500,
+                },
+            ]
         assert config["order_by"] == ["attributes.view.version desc", "end_time desc"]
         return [{"attributes.view.id": "v1", "attributes.view.phase": "update", "end_time": 400}]
 
     with patch("bkmonitor.data_source.unify_query.builder.QueryHelper.query", side_effect=execute):
-        summaries = query.query_summaries(["v1"])
+        summaries = query.query_summaries(["v1", "v2"])
+    assert len(vital_requests) == 1
     assert summaries["v1"]["web_vitals.cls"] == 0
-    assert "web_vitals.lcp" not in summaries["v1"]
+    assert summaries["v2"]["web_vitals.cls"] == 9
+    assert summaries["v1"]["web_vitals.lcp"] == 1200
+    assert "web_vitals.inp" not in summaries["v1"]
     row = query.fill_records([{"attributes.view.id": "v1"}], summaries)[0]
-    assert row["web_vitals.cls"] == 0 and row["web_vitals.lcp"] is None
+    assert row["web_vitals.cls"] == 0 and row["web_vitals.inp"] is None
     assert row["frustration_count"] == 0
     assert row["is_active"] is True and row["close_time"] is None and row["close_reason"] is None
 
@@ -385,15 +424,28 @@ def test_resource_to_uq_list_and_supplement(mocker):
         where = json.dumps(config["filter_dict"])
         if config["metrics"]:
             metric = config["metrics"][0]
+            if "status.code" in config["group_by"]:
+                return [
+                    {"attributes.view.id": "v1", "status.code": 0, "_result_": 1},
+                    {"attributes.view.id": "v1", "status.code": 2, "_result_": 2},
+                ]
             if len(config["group_by"]) == 2:
                 return [{"attributes.view.id": "v1", "attributes.span_type": "action", "_result_": 7}]
             if "attributes.action.frustration.type" in where:
                 return [{"attributes.view.id": "v1", "_result_": 2}]
             values = {"start_time": 100, "end_time": 900, "links.trace_id": 2}
             return [{"attributes.view.id": "v1", "_result_": values.get(metric["field"], 0)}]
-        assert config["distinct"] == "attributes.view.id"
         if "attributes.vital.metric" in where:
-            return [{"attributes.view.id": "v1", "attributes.vital.value": 0.05}] if "cls" in where else []
+            assert not config["distinct"]
+            return [
+                {
+                    "attributes.view.id": "v1",
+                    "attributes.vital.metric": "cls",
+                    "attributes.vital.value": 0.05,
+                    "end_time": 900,
+                }
+            ]
+        assert config["distinct"] == "attributes.view.id"
         if "attributes.span_type" in where:
             return [{"attributes": {"view.id": "v1", "view.phase": "end", "view.name": "首页"}, "end_time": 800}]
         assert body["offset"] == 10 and body["limit"] == 2
@@ -425,7 +477,7 @@ def test_resource_to_uq_list_and_supplement(mocker):
     assert row["frustration_count"] == 2
     assert row["web_vitals.cls"] == 0.05 and row["web_vitals.lcp"] is None
     assert row["is_active"] is False and row["close_time"] == 800
-    assert len(captured) == 14
+    assert len(captured) == 9
 
 
 def test_shared_targets_keep_application_isolation():
@@ -536,7 +588,9 @@ def test_span_counts_skip_invalid_types_and_keep_multiple_counts(mocker):
         ],
     )
 
-    assert query._query_span_counts(["s1"], query._get_q("end_time")) == {"s1": {"action_count": 2, "error_count": 3}}
+    assert query._query_counts(["s1"], query._get_q("end_time"), "attributes.span_type", query.SPAN_COUNT_FIELDS) == {
+        "s1": {"action_count": 2, "error_count": 3}
+    }
 
 
 @pytest.mark.parametrize("method, field", [("MIN", "start_time"), ("MAX", "end_time")])
@@ -601,6 +655,8 @@ def test_summary_builders_preserve_sources_windows_and_metric_values(mocker, que
         config = query_body["query_configs"][0]
         if not config["metrics"]:
             return []
+        if "status.code" in config["group_by"]:
+            return [{query.group_field: "id1", "status.code": 2, "_result_": 3}]
         return [
             {query.group_field: "id1", "attributes.span_type": "action", "_result_": 3.4567},
             {query.group_field: "id2", "attributes.span_type": "error", "_result_": None},
@@ -611,7 +667,7 @@ def test_summary_builders_preserve_sources_windows_and_metric_values(mocker, que
         mocker.patch("bkmonitor.data_source.unify_query.builder.QueryHelper.query", side_effect=execute)
         summaries = query.query_summaries(["id1", "id2"])
 
-    assert len(requests) == (11 if query.MODE == "session" else 13)
+    assert len(requests) == (10 if query.MODE == "session" else 8)
     assert summaries["id1"]["trace_count"] == 3
     assert summaries["id1"]["start_time"] == 3.46
     assert summaries["id1"]["action_count"] == 3

@@ -66,7 +66,8 @@
 
 - 请求中的 `start_time`、`end_time` 为 Unix 秒级时间戳，响应中的时间与时长按 `field_unit` 解释（`us` 为微秒，`ms` 为毫秒）。
 - `list_records` 返回扁平字段名（如 `attributes.session.id`），详情的 `origin_data` 保留原始嵌套结构。
-- Session/View 的字段分析按记录计数，统计去重实体数时使用 `statistics`，对相应的 Session ID / View ID 执行 `distinct`。
+- Session/View 字段分析以查询窗口内的开始事件为样本，列表可包含窗口前已开始、窗口内仍有活动的实体。
+- View 字段分析使用创建时的字段值，加载耗时等后续产生的字段可能没有统计结果。
 
 ---
 

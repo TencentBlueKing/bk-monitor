@@ -9,7 +9,7 @@ specific language governing permissions and limitations under the License.
 """
 
 from abc import ABC, abstractmethod
-from collections.abc import Callable, Iterator
+from collections.abc import Callable, Iterator, Mapping
 from dataclasses import replace
 from functools import partial
 from typing import Any
@@ -39,10 +39,10 @@ class BaseFallbackRumQuery(BaseRumQuery, ABC):
     DEFAULT_SORT = ["-start_time"]
     ANALYSIS_PHASE: str
     SNAPSHOT_SORT: tuple[str, ...] = ("-end_time",)
-    SPAN_COUNT_FIELDS: dict[str, str] = {
-        RumSpanType.ERROR.value: "error_count",
-        RumSpanType.ACTION.value: "action_count",
-        RumSpanType.LONG_TASK.value: "long_task_count",
+    SPAN_COUNT_FIELDS: dict[str, tuple[str, ...]] = {
+        RumSpanType.ERROR.value: ("error_count",),
+        RumSpanType.ACTION.value: ("action_count",),
+        RumSpanType.LONG_TASK.value: ("long_task_count",),
     }
     COUNT_FIELD_NAMES: tuple[str, ...] = tuple(field.field_name for field in COUNT_FIELDS)
 
@@ -154,17 +154,17 @@ class BaseFallbackRumQuery(BaseRumQuery, ABC):
         ...
 
     def _build_summary_tasks(self, ids: list[str], q: QueryConfigBuilder) -> SummaryTasks:
-        request_q = q.filter(
-            **{
-                "attributes.span_type": [RumSpanType.RESOURCE.value],
-                "attributes.resource.type": [ResourceType.XHR.value, ResourceType.FETCH.value],
-            }
-        )
         return [
             self._build_metric_task(ids, q, "start_time", "start_time", AggregatedMethod.MIN.value),
             self._build_metric_task(ids, q, "end_time", "end_time", AggregatedMethod.MAX.value),
             self._build_metric_task(ids, q, "trace_count", "links.trace_id", AggregatedMethod.COUNT.value),
-            partial(self._query_span_counts, ids, q),
+            partial(
+                self._query_counts,
+                ids,
+                q.filter(**{"attributes.span_type": list(self.SPAN_COUNT_FIELDS)}),
+                "attributes.span_type",
+                self.SPAN_COUNT_FIELDS,
+            ),
             # 数组只用于筛选，对匹配的 Action 记录计数。
             self._build_metric_task(
                 ids,
@@ -178,13 +178,22 @@ class BaseFallbackRumQuery(BaseRumQuery, ABC):
                 "_index",
                 AggregatedMethod.COUNT.value,
             ),
-            self._build_metric_task(ids, request_q, "request_count", "_index", AggregatedMethod.COUNT.value),
-            self._build_metric_task(
+            partial(
+                self._query_counts,
                 ids,
-                request_q.filter(**{"status.code": [SpanStatusCode.ERROR.value]}),
-                "request_error_count",
-                "_index",
-                AggregatedMethod.COUNT.value,
+                q.filter(
+                    **{
+                        "attributes.span_type": [RumSpanType.RESOURCE.value],
+                        "attributes.resource.type": [ResourceType.XHR.value, ResourceType.FETCH.value],
+                    }
+                ),
+                "status.code",
+                {
+                    str(status.value): ("request_count", "request_error_count")
+                    if status == SpanStatusCode.ERROR
+                    else ("request_count",)
+                    for status in SpanStatusCode
+                },
             ),
             partial(self._query_snapshot, ids, q),
         ]
@@ -236,22 +245,26 @@ class BaseFallbackRumQuery(BaseRumQuery, ABC):
         records = self._query_group_list(self._get_summary_queries(q), None, None, self.group_field, limit=len(ids))
         return {record_id: {"snapshot": record} for record_id, record in self._group_records(records, ids)}
 
-    def _query_span_counts(self, ids: list[str], q: QueryConfigBuilder) -> Summaries:
+    def _query_counts(
+        self,
+        ids: list[str],
+        q: QueryConfigBuilder,
+        dimension: str,
+        count_fields: Mapping[str, tuple[str, ...]],
+    ) -> Summaries:
+        """按维度值映射，将计数累计到对应字段。"""
         records = self._query_metric_records(
-            q.filter(**{"attributes.span_type": list(self.SPAN_COUNT_FIELDS)}),
+            q,
             "_index",
             AggregatedMethod.COUNT.value,
-            len(ids) * len(self.SPAN_COUNT_FIELDS),
-            group_by=[self.group_field, "attributes.span_type"],
+            len(ids) * len(count_fields),
+            group_by=[self.group_field, dimension],
         )
         result: Summaries = {}
         for record_id, record in self._group_records(records, ids):
-            span_type = record.get("attributes.span_type")
-            if not isinstance(span_type, str):
-                continue
-            count_field = self.SPAN_COUNT_FIELDS.get(span_type)
-            if count_field is not None:
-                result.setdefault(record_id, {})[count_field] = record.get("_result_")
+            for count_field in count_fields.get(str(record[dimension]), ()):
+                counts: Record = result.setdefault(record_id, {})
+                counts[count_field] = counts.get(count_field, 0) + (record["_result_"] or 0)
         return result
 
     def _group_records(self, records: list[Record], ids: list[str] | None = None) -> Iterator[tuple[str, Record]]:
