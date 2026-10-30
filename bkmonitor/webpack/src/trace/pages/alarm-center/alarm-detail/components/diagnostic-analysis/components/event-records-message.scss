@@ -1,0 +1,132 @@
+@import './common';
+
+.event-records-message {
+  @extend %message-block;
+
+  .event-records-message-text {
+    @extend %message-text;
+  }
+
+  .event-records-card {
+    background: #f2f6fc;
+
+    @extend %message-card;
+
+    .event-records-card-title {
+      @extend %message-card-title;
+    }
+
+    .event-records-card-list {
+      @extend %message-card-list;
+    }
+  }
+
+  .event-records-item {
+    gap: 4px;
+
+    @extend %message-record-item;
+
+    .event-records-item-header {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+      width: 100%;
+    }
+
+    .event-records-source {
+      display: inline-flex;
+      flex-shrink: 0;
+      gap: 1px;
+      align-items: center;
+      height: 20px;
+      padding: 0 5px 0 2px;
+      background: #2b3c56;
+      border-radius: 999px;
+    }
+
+    .event-records-source-icon {
+      display: inline-block;
+      flex-shrink: 0;
+      width: 16px;
+      height: 16px;
+      background-repeat: no-repeat;
+      background-position: center;
+      background-size: contain;
+
+      &.is-bcs {
+        background-image: url('../../../../../../../monitor-common/svg/svg/bcs.svg');
+      }
+
+      &.is-bkci {
+        background-image: url('../../../../../../../monitor-common/svg/svg/landun.svg');
+      }
+
+      &.is-host {
+        background-image: url('../../../../../../../monitor-common/svg/svg/host.svg');
+      }
+
+      &.is-default {
+        background-image: url('../../../../../../../monitor-common/svg/svg/default.svg');
+      }
+    }
+
+    .event-records-source-name {
+      font-size: 12px;
+      font-weight: 600;
+      line-height: 20px;
+      color: #fff;
+      white-space: nowrap;
+    }
+
+    .event-records-item-title {
+      @extend %message-item-title;
+    }
+
+    .event-records-item-fields {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+      width: 100%;
+    }
+
+    .event-records-field {
+      @extend %message-field;
+
+      .event-records-field-key {
+        @extend %message-field-key;
+      }
+
+      .event-records-field-value {
+        @extend %message-field-value;
+
+        &.is-link {
+          text-decoration: none;
+          cursor: pointer;
+        }
+      }
+    }
+
+    .event-records-item-time {
+      @extend %message-item-time;
+    }
+  }
+
+  .event-records-expand {
+    display: flex;
+    gap: 3px;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+    padding: 0;
+    font-size: 12px;
+    line-height: 20px;
+    color: #3a84ff;
+    cursor: pointer;
+    background: transparent;
+    border: 0;
+
+    .icon-double-down {
+      font-size: 12px;
+    }
+  }
+}

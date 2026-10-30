@@ -632,4 +632,8 @@ export default {
   统计分析: 'Statistics analysis',
   'Token 统计分析': 'Token statistics analysis',
   复位省略: 'Reset ellipsis',
+  '共 {n} 个告警': 'Total {n} alarms',
+  '示例日志': 'Example log',
+  '展开更多': 'Expand more',
+  '新对话': 'New conversation',
 };

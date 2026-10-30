@@ -680,8 +680,8 @@ importers:
         specifier: 0.1.8
         version: 0.1.8(highlight.js@11.11.1)(vue@3.5.44(typescript@5.9.3))
       '@blueking/chat-x':
-        specifier: 3.1.0-beta.1
-        version: 3.1.0-beta.1(typescript@5.9.3)
+        specifier: 3.1.1
+        version: 3.1.1(typescript@5.9.3)
       '@blueking/crontab':
         specifier: 0.0.2-beta.7
         version: 0.0.2-beta.7(@blueking/bkui-library@0.0.0-beta.6)(vue@3.5.44(typescript@5.9.3))
@@ -1652,8 +1652,8 @@ packages:
   '@blueking/bkui-library@0.0.0-beta.6':
     resolution: {integrity: sha512-1M6pNDIOQYWzOu3uVRxo0h67d+huTbBQYDjj8+QF4Ka3HSe/mLgSrIkaZhhUVlJJl5zP8HK+UwXpkWcjL8zIsw==}
 
-  '@blueking/chat-x@3.1.0-beta.1':
-    resolution: {integrity: sha512-UDzrvaByDLNXmCF1iqOz2GKrc1HjTibrI+LYmnAh4ZpnKb3B2jQ7ucUQzcO6mwQPwn1BTZu9ooMszpayFvag5g==}
+  '@blueking/chat-x@3.1.1':
+    resolution: {integrity: sha512-A+p7G8BWfHUOLUJMzVh5UEFi+xp7F9Kgt1Q0ZU73QK3ki9QsYCyyyA7Dc/Kj/8oNMW5y+UX4ombYDMbyzJHEsg==}
     hasBin: true
 
   '@blueking/crontab@0.0.2-beta.7':
@@ -11083,13 +11083,13 @@ snapshots:
     dependencies:
       '@vue/runtime-dom': 3.5.30
 
-  '@blueking/chat-x@3.1.0-beta.1(typescript@5.9.3)':
+  '@blueking/chat-x@3.1.1(typescript@5.9.3)':
     dependencies:
       '@modelcontextprotocol/sdk': 1.32.2(zod@4.6.7)
       bkui-vue: 2.0.2-beta.81(highlight.js@11.11.1)(vue@3.5.44(typescript@5.9.3))
       dompurify: 3.4.17
       highlight.js: 11.11.1
-      katex: 0.16.45
+      katex: 0.16.47
       lodash: 4.18.1
       markdown-it-footnote: 4.0.0
       markdown-it-ins: 4.0.0

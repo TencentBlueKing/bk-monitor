@@ -25,11 +25,17 @@
  */
 import { defineComponent, shallowRef } from 'vue';
 
-import { ChatContainer, MessageToolsStatus } from '@blueking/chat-x';
+import { ChatContainer, MessageRender, MessageToolsStatus, type Message } from '@blueking/chat-x';
 import { Button } from 'bkui-vue';
 import { useI18n } from 'vue-i18n';
 
+import AlertListMessage from './components/alert-list-message';
+import DiagnosticStatus from './components/diagnostic-status';
+import EventRecordsMessage from './components/event-records-message';
+import LogRecordsMessage from './components/log-records-message';
+import MetricSeriesMessage from './components/metric-series-message';
 import { useDiagnosticAnalysis } from './hooks/use-diagnostic-analysis';
+import { getAlertListResult, getEventRecordsResult, getLogRecordsResult, getMetricSeriesResult } from './typing';
 
 import './diagnostic-analysis.scss';
 import '@blueking/chat-x/dist/index.css';
@@ -41,12 +47,65 @@ export default defineComponent({
     const panelRef = shallowRef<HTMLElement>();
     const controller = useDiagnosticAnalysis();
 
+    /**
+     * 将带告警分析结果 envelope 的消息解析为对应的数据卡片插槽。
+     * 按结果种类逐一匹配，未命中则返回 undefined 走 chat-x 默认渲染。
+     */
+    const resolveMessageSlot = (message: Message) => {
+      const metricResult = getMetricSeriesResult(message);
+      if (metricResult) {
+        return {
+          default: ({ content }: { content: string }) => (
+            <MetricSeriesMessage
+              content={content}
+              result={metricResult}
+            />
+          ),
+        };
+      }
+      const alertListResult = getAlertListResult(message);
+      if (alertListResult) {
+        return {
+          default: ({ content }: { content: string }) => (
+            <AlertListMessage
+              content={content}
+              result={alertListResult}
+            />
+          ),
+        };
+      }
+      const logResult = getLogRecordsResult(message);
+      if (logResult) {
+        return {
+          default: ({ content }: { content: string }) => (
+            <LogRecordsMessage
+              content={content}
+              result={logResult}
+            />
+          ),
+        };
+      }
+      const eventResult = getEventRecordsResult(message);
+      if (eventResult) {
+        return {
+          default: ({ content }: { content: string }) => (
+            <EventRecordsMessage
+              content={content}
+              result={eventResult}
+            />
+          ),
+        };
+      }
+      return undefined;
+    };
+
     return {
       t,
       panelRef,
       ...controller,
       commonTippyOptions: { appendTo: () => panelRef.value },
       handleClosed: () => emit('close'),
+      resolveMessageSlot,
     };
   },
   render() {
@@ -99,23 +158,41 @@ export default defineComponent({
             </div>
           </header>
           <div class='diagnostic-analysis-wrapper-content'>
-            <ChatContainer
-              key={this.contextKey}
-              v-slots={{ welcome: () => <div class='diagnostic-analysis-message-placeholder' /> }}
-              asideCollapsed={true}
-              commonTippyOptions={this.commonTippyOptions}
-              menuSources={[]}
-              messages={this.panelState.messages}
-              messageStatus={this.messageStatus}
-              messageToolsStatus={MessageToolsStatus.Hidden}
-              models={[]}
-              modelValue={this.panelState.draft}
-              placeholder={this.t('请输入你的问题')}
-              resizeProps={{ disabled: true, initialDivide: 0, min: 0 }}
-              shortcuts={[]}
-              supportUpload={false}
-              onUpdate:modelValue={this.handleDraftChange}
-            />
+            {!this.panelState.messages.length ? (
+              <DiagnosticStatus
+                status={this.diagnosisStatus}
+                onConfigure={this.handleConfigure}
+                onContactAdmin={this.handleContactAdmin}
+              />
+            ) : (
+              <ChatContainer
+                key={this.contextKey}
+                v-slots={{
+                  message: ({ message, messageToolsStatus, onInterruptResume }) => (
+                    <MessageRender
+                      message={message}
+                      messageToolsStatus={messageToolsStatus}
+                      tippyOptions={this.commonTippyOptions}
+                      onInterruptResume={onInterruptResume}
+                      v-slots={this.resolveMessageSlot(message)}
+                    />
+                  ),
+                }}
+                asideCollapsed={true}
+                commonTippyOptions={this.commonTippyOptions}
+                menuSources={[]}
+                messages={this.panelState.messages}
+                messageStatus={this.messageStatus}
+                messageToolsStatus={MessageToolsStatus.Hidden}
+                models={[]}
+                modelValue={this.panelState.draft}
+                placeholder={this.t('请输入你的问题')}
+                resizeProps={{ disabled: true, initialDivide: 0, min: 0 }}
+                shortcuts={[]}
+                supportUpload={false}
+                onUpdate:modelValue={this.handleDraftChange}
+              />
+            )}
           </div>
         </div>
       </section>

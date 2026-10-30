@@ -1,0 +1,83 @@
+@import './common';
+
+.log-records-message {
+  @extend %message-block;
+
+  .log-records-message-text {
+    @extend %message-text;
+  }
+
+  .log-records-card {
+    gap: 12px;
+    background: #f7f9fc;
+
+    @extend %message-card;
+
+    .log-records-card-title {
+      @extend %message-card-title;
+    }
+
+    .log-records-card-chart,
+    .log-records-echart {
+      width: 100%;
+    }
+
+    .log-records-card-legend {
+      @extend %message-legend;
+    }
+
+    .log-records-legend-item {
+      @extend %message-legend-item;
+    }
+
+    .log-records-legend-bar {
+      @extend %message-legend-bar;
+    }
+
+    .log-records-legend-name {
+      @extend %message-legend-name;
+    }
+  }
+
+  .log-records-section {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    width: 100%;
+
+    .log-records-section-title {
+      font-size: 12px;
+      font-weight: 500;
+      line-height: 20px;
+      color: #111214;
+    }
+  }
+
+  .log-records-code-block {
+    width: 100%;
+    padding: 8px;
+    font-family: Menlo, Monaco, Consolas, 'Courier New', RobotoMono-Regular, 'PingFang SC', 'Microsoft YaHei',
+      monospace;
+    font-size: 12px;
+    line-height: 20px;
+    color: #313238;
+    overflow-wrap: break-word;
+    white-space: pre-wrap;
+    background: #fff;
+    border: 1px solid #e9edf5;
+    border-radius: 4px;
+  }
+
+  .log-records-token {
+    &.is-wildcard {
+      padding: 0 2px;
+      font-weight: 700;
+      background: #e4e9f2;
+      border-radius: 4px;
+    }
+
+    &.is-value {
+      font-weight: 700;
+    }
+  }
+}

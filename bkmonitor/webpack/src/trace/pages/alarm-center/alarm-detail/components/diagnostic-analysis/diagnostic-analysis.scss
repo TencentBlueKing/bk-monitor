@@ -75,8 +75,28 @@
         overflow-y: auto;
       }
 
-      .diagnostic-analysis-message-placeholder {
-        width: 100%;
+      // 面板内消息占满宽度，并放开 chat-x 默认的最大宽度限制
+      .ai-message-container {
+        max-width: none;
+      }
+
+      .ai-info-message {
+        color: #8f9fbd;
+
+        &::before,
+        &::after {
+          border-bottom-color: #e9edf5;
+          border-bottom-style: solid;
+        }
+      }
+
+      .ai-assistant-message-content {
+        .alert-list-message,
+        .event-records-message,
+        .log-records-message,
+        .metric-series-message {
+          width: 100%;
+        }
       }
 
       .ai-chat-input-container {

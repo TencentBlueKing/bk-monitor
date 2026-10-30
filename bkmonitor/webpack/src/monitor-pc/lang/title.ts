@@ -413,4 +413,6 @@ export default {
   '{0}月{1}日 {2}': '{0}/{1} {2}',
   '会话结束 · 总时长 {0}': 'Session End · Total Duration {0}',
   会话事件时间轴: 'Session Event Timeline',
+  '共 {n} 个事件': 'Total {n} events',
+  '该 Pattern 共匹配到 {n} 条日志': 'This pattern matches {n} log entries',
 };

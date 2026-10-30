@@ -83,3 +83,121 @@
     }
   }
 }
+
+// Message 卡片通用样式（告警列表 / 事件 / 日志 / 指标）
+%message-block {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  width: 100%;
+}
+
+%message-text {
+  margin: 0;
+  font-size: 12px;
+  line-height: 20px;
+  color: #4d4f56;
+}
+
+%message-card {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  width: 100%;
+  padding: 12px;
+  overflow: hidden;
+  border: 1px solid #e9edf5;
+  border-radius: 6px;
+}
+
+%message-card-title {
+  font-size: 14px;
+  font-weight: 500;
+  line-height: 20px;
+  color: #000;
+}
+
+%message-card-list {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  width: 100%;
+}
+
+%message-record-item {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  padding: 8px 12px;
+  background: #fff;
+  border: 1px solid #e4e9f2;
+  border-radius: 4px;
+}
+
+%message-item-title {
+  flex: 1;
+  min-width: 0;
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 20px;
+  color: #313238;
+  overflow-wrap: break-word;
+}
+
+%message-field {
+  display: flex;
+  gap: 4px;
+  align-items: flex-start;
+  width: 100%;
+  padding: 3px 8px;
+  overflow: hidden;
+  background: #f2f6fc;
+  border-radius: 2px;
+}
+
+%message-field-key {
+  flex-shrink: 0;
+  width: 48px;
+  font-size: 12px;
+  line-height: 20px;
+  color: #4e5e7a;
+}
+
+%message-field-value {
+  flex: 1;
+  min-width: 0;
+  font-size: 12px;
+  line-height: 20px;
+  color: #000;
+  overflow-wrap: break-word;
+}
+
+%message-item-time {
+  font-size: 11px;
+  line-height: 20px;
+  color: #8f9fbd;
+}
+
+%message-legend {
+  display: flex;
+  gap: 24px;
+  align-items: center;
+}
+
+%message-legend-item {
+  display: flex;
+  gap: 4px;
+  align-items: center;
+}
+
+%message-legend-bar {
+  flex-shrink: 0;
+  width: 8px;
+  height: 3px;
+}
+
+%message-legend-name {
+  font-size: 12px;
+  line-height: 20px;
+  color: #4d4f56;
+}
