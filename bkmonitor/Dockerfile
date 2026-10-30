@@ -8,7 +8,10 @@ ARG username=bkmonitor
 ARG pypi_index_url=https://pypi.org/simple/
 
 # install tools
-RUN dnf install -y vim wget strace graphviz tini mysql-libs https://dl.google.com/linux/direct/google-chrome-stable_current_x86_64.rpm && dnf clean all
+# TSSA-2026:1230 backports the Brotli decoder fix without changing its upstream version.
+RUN dnf install -y vim wget strace graphviz tini mysql-libs \
+    libbrotli-1.1.0-4.tl4.2 freetype libjpeg-turbo zlib libtiff lcms2 libwebp openjpeg2 libraqm libxcb \
+    https://dl.google.com/linux/direct/google-chrome-stable_current_x86_64.rpm && dnf clean all
 
 # install chinese fonts
 RUN --mount=type=cache,target=/app/fonts \
@@ -26,17 +29,21 @@ FROM python-base AS python-builder
 
 WORKDIR /app
 
-RUN dnf install -y gcc python3-devel mysql-devel
+RUN dnf install -y gcc python3-devel mysql-devel pkgconf-pkg-config \
+    freetype-devel libjpeg-turbo-devel zlib-devel libtiff-devel lcms2-devel \
+    libwebp-devel openjpeg2-devel libraqm-devel libxcb-devel
 
 # install python packages
 RUN --mount=type=cache,target=/root/.cache/uv \
     --mount=type=bind,source=bkmonitor/pyproject.toml,target=pyproject.toml \
     --mount=type=bind,source=bkmonitor/uv.lock,target=uv.lock \
     --mount=type=bind,source=bk-monitor-base,target=/bk-monitor-base \
-    uv venv venv --seed --link-mode=copy && . venv/bin/activate && uv sync --locked --no-install-project --no-dev --active
+    uv venv venv --seed --link-mode=copy && . venv/bin/activate \
+    && uv sync --locked --no-install-project --no-dev --active \
+        --no-binary-package pillow --config-settings-package pillow:freetype=enable
 
 # build frontend
-FROM node:20-bullseye-slim AS node-builder
+FROM node:24.22.2-bookworm-slim AS node-builder
 
 # pnpm
 RUN npm install -g pnpm@10
@@ -63,6 +70,9 @@ COPY --from=node-builder --chown=${username}:${username} /app/dist/ /app/code/st
 COPY --chown=${username}:${username} bkmonitor/ /app/code/
 COPY --chown=${username}:${username} iam_engine/ /app/iam_engine/
 COPY --chown=${username}:${username} bk-monitor-base/ /bk-monitor-base/
+
+# Verify the copied environment against the final image's libraries and fonts.
+RUN /app/venv/bin/python /app/code/scripts/verify_pillow_build.py
 
 ARG version
 RUN echo ${version} > /app/code/VERSION && rm -r /app/code/webpack && cp /app/code/docs/api/monitor_v3.yaml /app/code/kernel_api/monitor_v3.yaml
