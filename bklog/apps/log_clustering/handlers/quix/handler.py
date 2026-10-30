@@ -43,7 +43,7 @@ from apps.log_search.models import LogIndexSet, Space
 from apps.models import model_to_dict
 from bkm_space.utils import space_uid_to_bk_biz_id
 
-# 只影响页面展示的业务配置，更新时直接保存，不触发链路变更
+# 页面配置；其中模型参数通过现有参数构造方法映射到 BKFara。
 BUSINESS_UPDATE_FIELDS = (
     "min_members",
     "predefined_varibles",
@@ -127,60 +127,65 @@ class QuixClusteringHandler:
         return self._access_response(operation)
 
     def update(self, params: dict) -> str | None:
-        """更新过滤规则，返回操作ID；规则无变化时只保存业务配置并返回 None"""
+        """分别下发过滤配置和已有模型参数；相同目标的在途请求可续跑。"""
         from apps.log_clustering.tasks.quix import run_quix_clustering_operation
 
-        runtime = LogClusteringRuntime.objects.get(index_set_id=self.index_set_id)
-        if not runtime.active_config:
-            raise QuixClusteringParamsInvalidException(
-                QuixClusteringParamsInvalidException.MESSAGE.format(detail=_("聚类开启尚未完成，暂不能修改过滤规则"))
-            )
-        # 未传过滤规则表示不修改；按空规则处理会变成全部日志参与聚类
-        if "filter_rules" in params:
-            filter_rules = params["filter_rules"]
-        else:
-            business_config = ClusteringConfig.get_by_index_set_id(
-                index_set_id=self.index_set_id, raise_exception=False
-            )
-            filter_rules = (business_config.filter_rules if business_config else None) or []
-        clustering_fields = params.get("clustering_fields") or runtime.active_config["input_mapping"]["log"]
-        clustering_config = build_clustering_config(clustering_fields, filter_rules)
-        if clustering_config["input_mapping"] != runtime.active_config["input_mapping"]:
-            raise QuixClusteringParamsInvalidException(
-                QuixClusteringParamsInvalidException.MESSAGE.format(
-                    detail=_("首版仅支持修改过滤规则，不支持修改聚类字段")
-                )
-            )
-
-        # 待生效规则、操作和页面配置必须一起提交，避免恢复任务重放旧规则。
         with transaction.atomic():
-            operation = None
-            if (
-                runtime.phase == ClusteringRuntimePhaseEnum.UPDATING.value
-                and runtime.pending_config == clustering_config
-            ):
-                # 相同规则再次提交时续跑失败的更新，沿用已固定的排空范围；仍在执行的更新直接返回其操作
-                operation = (
-                    self._resume_failed_operation(ClusteringOperationTypeEnum.UPDATE.value)
-                    or LogClusteringOperation.objects.filter(
-                        index_set_id=self.index_set_id,
-                        operation_type=ClusteringOperationTypeEnum.UPDATE.value,
-                        status__in=ClusteringOperationStatusEnum.runnable_statuses(),
-                    ).first()
+            runtime = LogClusteringRuntime.objects.select_for_update().get(index_set_id=self.index_set_id)
+            if not runtime.active_config:
+                raise QuixClusteringParamsInvalidException(
+                    QuixClusteringParamsInvalidException.MESSAGE.format(detail=_("聚类开启尚未完成，暂不能修改配置"))
                 )
-            elif clustering_config != runtime.active_config or runtime.pending_config is not None:
-                # 即使提交的是旧生效规则，在途的新规则也不能被当成“无变化”跳过；
-                # 仍由 start_operation 校验运行阶段，避免只改页面配置而新绑定继续生效。
-                runtime, operation = LogClusteringRuntime.start_operation(
-                    self.index_set_id,
-                    ClusteringOperationTypeEnum.UPDATE.value,
-                    {"filter_rules": filter_rules},
-                    allowed_phases=(ClusteringRuntimePhaseEnum.RUNNING.value,),
+            business_config = ClusteringConfig.objects.get(index_set_id=self.index_set_id)
+            original_model = DataFlowHandler.get_clustering_training_params(business_config)
+            filter_rules = params.get("filter_rules", business_config.filter_rules or [])
+            clustering_fields = params.get("clustering_fields") or runtime.active_config["input_mapping"]["log"]
+            clustering_config = build_clustering_config(clustering_fields, filter_rules)
+            if clustering_config["input_mapping"] != runtime.active_config["input_mapping"]:
+                raise QuixClusteringParamsInvalidException(
+                    QuixClusteringParamsInvalidException.MESSAGE.format(detail=_("首版不支持修改聚类字段"))
                 )
-                runtime.pending_config = clustering_config
-                runtime.phase = ClusteringRuntimePhaseEnum.UPDATING.value
-                runtime.save(update_fields=["pending_config", "phase", "updated_at", "updated_by"])
-
+            for field in BUSINESS_UPDATE_FIELDS:
+                if field in params:
+                    setattr(business_config, field, params[field])
+            model_parameters = DataFlowHandler.get_clustering_training_params(business_config)
+            operation = LogClusteringOperation.objects.filter(
+                index_set_id=self.index_set_id,
+                status__in=ClusteringOperationStatusEnum.unfinished_statuses(),
+            ).first()
+            if operation:
+                if (
+                    operation.operation_type
+                    not in (ClusteringOperationTypeEnum.UPDATE.value, ClusteringOperationTypeEnum.UPDATE_MODEL.value)
+                    or operation.request_snapshot.get("filter_rules") != filter_rules
+                    or operation.request_snapshot.get("model_parameters") != model_parameters
+                ):
+                    raise QuixClusteringParamsInvalidException(
+                        QuixClusteringParamsInvalidException.MESSAGE.format(
+                            detail=_("已有未完成操作，请完成后再修改配置")
+                        )
+                    )
+                if operation.status == ClusteringOperationStatusEnum.FAILED.value:
+                    operation = self._resume_failed_operation(operation.operation_type)
+            else:
+                filter_changed = clustering_config != runtime.active_config
+                model_changed = model_parameters != original_model
+                if filter_changed or model_changed:
+                    runtime, operation = LogClusteringRuntime.start_operation(
+                        self.index_set_id,
+                        ClusteringOperationTypeEnum.UPDATE.value
+                        if filter_changed
+                        else ClusteringOperationTypeEnum.UPDATE_MODEL.value,
+                        {
+                            "filter_rules": filter_rules,
+                            "model_parameters": model_parameters,
+                            "update_model": model_changed,
+                        },
+                        allowed_phases=(ClusteringRuntimePhaseEnum.RUNNING.value,),
+                    )
+                    runtime.pending_config = clustering_config if filter_changed else None
+                    runtime.phase = ClusteringRuntimePhaseEnum.UPDATING.value
+                    runtime.save(update_fields=["pending_config", "phase", "updated_at", "updated_by"])
             ClusteringConfig.objects.filter(index_set_id=self.index_set_id).update(
                 filter_rules=filter_rules,
                 **{field: params[field] for field in BUSINESS_UPDATE_FIELDS if field in params},

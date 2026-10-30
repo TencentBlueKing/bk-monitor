@@ -51,9 +51,6 @@ WAIT_TIMEOUT_SECONDS = 30 * 60
 RECEIPT_POLL_INTERVAL_SECONDS = 5 * 60
 STEP_TIME_FORMAT = "%Y-%m-%d %H:%M:%S"
 
-# 旧范围内待办已投递、结果已入库、原源消费已确认，才能切换绑定
-DRAINED_STATUS_KEYS = ("can_unbind", "storage_complete", "outbox_drained", "source_committed")
-
 # 配置、凭据或控制版本问题，重试同一请求不会成功，需要人工处理后续跑
 NON_RETRYABLE_EXCEPTIONS = (
     QuixClusteringConfigInvalidException,
@@ -97,14 +94,17 @@ class QuixClusteringOperationRunner:
             "wait_adoption",
             "confirm_adoption",
         ],
-        # Quix 保持运行；旧范围收尾后才提交新过滤规则，过渡期新增日志不参与聚类，记为覆盖缺口
+        # 同时修改模型和过滤时，先由 BKFara 接受模型参数，再下发过滤配置。
         ClusteringOperationTypeEnum.UPDATE.value: [
-            "drain",
-            "wait_drained",
-            "finish",
+            "update_model_parameters",
+            "confirm_model_parameters",
             "metadata_set",
             "wait_adoption",
             "confirm_adoption",
+        ],
+        ClusteringOperationTypeEnum.UPDATE_MODEL.value: [
+            "update_model_parameters",
+            "confirm_model_parameters",
         ],
     }
     RECEIPT_STEPS = {"confirm_adoption"}
@@ -288,55 +288,43 @@ class QuixClusteringOperationRunner:
             fields.update(active_config=self.runtime.pending_config, pending_config=None)
         self._save_runtime(**fields)
 
-    def _operate_metadata(self, action: str) -> bool:
-        TransferApi.operate_log_clustering(self._metadata_params(action=action))
-        return True
+    def _step_update_model_parameters(self) -> bool:
+        if not self.operation.request_snapshot.get("update_model"):
+            return True
 
-    def _step_drain(self) -> bool:
-        return self._operate_metadata("drain")
+        def build_payload():
+            current = BkFaraApi.get_task_parameters({"task_id": self.runtime.bkfara_task_id})
+            return {
+                "task_id": self.runtime.bkfara_task_id,
+                "expected_control_version": current["control_version"],
+                "training": {"parameters": self.operation.request_snapshot["model_parameters"]},
+            }
 
-    def _step_finish(self) -> bool:
-        return self._operate_metadata("finish")
-
-    def _step_wait_drained(self) -> bool:
-        status = TransferApi.get_log_clustering_status(self._metadata_params())
-        clustering_status = status.get("clustering_status") or {}
-        if not all(clustering_status.get(key) for key in DRAINED_STATUS_KEYS):
-            return False
-        # can_unbind 只表示可以技术切换，coverage_complete=false 时说明旧范围内有跳过的日志
-        if not any(gap["operation_id"] == self.operation.operation_id for gap in self.runtime.coverage_gaps):
-            self.runtime.coverage_gaps.append(
-                {
-                    "operation_id": self.operation.operation_id,
-                    "operation_type": self.operation.operation_type,
-                    "started_at": self._step_finished_at("drain"),
-                    "ended_at": None,
-                    "coverage_complete": clustering_status.get("coverage_complete"),
-                }
-            )
-        self._save_runtime(
-            coverage_gaps=self.runtime.coverage_gaps,
-            outbox_boundary=clustering_status.get("outbox_boundary"),
+        # 固定版本和请求体；超时重试沿用幂等键，不创建任务或重置已有模型。
+        payload = self.operation.get_request_payload("update_model_parameters", build_payload)
+        BkFaraApi.update_task_parameters(
+            {**payload, "Idempotency-Key": self.operation.get_idempotency_key("update_model_parameters")}
         )
         return True
 
-    def _step_finished_at(self, step: str) -> str | None:
-        for item in reversed(self.operation.steps):
-            if item["step"] == step and item["status"] == ClusteringOperationStatusEnum.SUCCESS.value:
-                return item["time"]
-        return None
-
-    def _close_coverage_gap(self):
-        ended_at = timezone.now().strftime(STEP_TIME_FORMAT)
-        for gap in self.runtime.coverage_gaps:
-            if gap["operation_id"] == self.operation.operation_id and gap["ended_at"] is None:
-                gap["ended_at"] = ended_at
+    def _step_confirm_model_parameters(self) -> bool:
+        if not self.operation.request_snapshot.get("update_model"):
+            return True
+        current = BkFaraApi.get_task_parameters({"task_id": self.runtime.bkfara_task_id})
+        expected = self.operation.request_snapshot["model_parameters"]
+        actual = (current.get("training") or {}).get("parameters") or {}
+        if any(actual.get(key) != value for key, value in expected.items()):
+            return False
+        # 这里只确认任务配置已提交。已有模型的增量训练及 Worker 采用由 BKFara 负责，
+        # 不能把历史 adoptions 或当前 Worker READY 当成新参数训练完成的证明。
+        self._save_runtime(control_version=current["control_version"])
+        return True
 
     def _finish_update(self):
-        self._close_coverage_gap()
-        self._promote_pending_config(
-            phase=ClusteringRuntimePhaseEnum.RUNNING.value, coverage_gaps=self.runtime.coverage_gaps
-        )
+        self._promote_pending_config(phase=ClusteringRuntimePhaseEnum.RUNNING.value)
+
+    def _finish_update_model(self):
+        self._save_runtime(phase=ClusteringRuntimePhaseEnum.RUNNING.value)
 
     def _finish_enable(self):
         self._promote_pending_config(phase=ClusteringRuntimePhaseEnum.RUNNING.value)
