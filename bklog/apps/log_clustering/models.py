@@ -641,6 +641,7 @@ class LogClusteringOperation(OperateRecordModel):
     steps = models.JSONField(_("步骤记录"), default=list, blank=True)
     # 模型参数更新复用请求快照承载逐索引参数，调用协议由 BKFara 适配层映射。
     request_snapshot = models.JSONField(_("请求快照"), default=dict, blank=True)
+    request_payloads = models.JSONField(_("外部写调用请求体"), default=dict, blank=True)
     retry_count = models.IntegerField(_("重试次数"), default=0)
     next_retry_at = models.DateTimeField(_("下次重试时间"), null=True, blank=True)
     last_error = models.TextField(_("最近错误"), default="", blank=True)
@@ -653,6 +654,13 @@ class LogClusteringOperation(OperateRecordModel):
     def get_idempotency_key(self, action: str) -> str:
         """由已持久化的操作 ID 和动作确定，重试保持一致，无需额外存储或写库。"""
         return f"{self.operation_id}-{action}"
+
+    def get_request_payload(self, action: str, build_payload) -> dict:
+        """同一幂等键必须对应同一请求体：首次发送前落库，重试时原样重放，不随环境配置变化重新组装"""
+        if action not in self.request_payloads:
+            self.request_payloads[action] = build_payload()
+            self.save(update_fields=["request_payloads", "updated_at", "updated_by"])
+        return self.request_payloads[action]
 
     def record_step(self, step: str, status: str, message: str = ""):
         self.step = step
