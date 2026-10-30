@@ -45,7 +45,11 @@ from apps.log_clustering.constants import (
     YearOnYearChangeEnum,
     YearOnYearEnum,
 )
-from apps.log_clustering.exceptions import ClusteringConfigNotExistException, ClusteringOperationConflictException
+from apps.log_clustering.exceptions import (
+    ClusteringConfigNotExistException,
+    ClusteringOperationConflictException,
+    QuixClusteringParamsInvalidException,
+)
 from apps.log_clustering.handlers.dataflow.constants import OnlineTaskTrainingArgs
 from apps.models import OperateRecordModel, SoftDeleteModel
 from apps.utils.local import get_external_app_code
@@ -596,15 +600,27 @@ class LogClusteringRuntime(OperateRecordModel):
     @classmethod
     @transaction.atomic
     def start_operation(
-        cls, index_set_id: int, operation_type: str, request_snapshot: dict, defaults: dict | None = None
+        cls,
+        index_set_id: int,
+        operation_type: str,
+        request_snapshot: dict,
+        defaults: dict | None = None,
+        allowed_phases: tuple | None = None,
     ) -> tuple["LogClusteringRuntime", "LogClusteringOperation"]:
         """
         在运行绑定的行锁内创建控制操作，同一索引集同时只允许一个未结束的操作
         :param defaults: 首次开启时创建运行绑定所需的字段
+        :param allowed_phases: 允许发起该操作的运行阶段
         """
         runtime, _created = cls.objects.select_for_update().get_or_create(
             index_set_id=index_set_id, defaults=defaults or {}
         )
+        if allowed_phases and runtime.phase not in allowed_phases:
+            raise QuixClusteringParamsInvalidException(
+                QuixClusteringParamsInvalidException.MESSAGE.format(
+                    detail=f"phase({runtime.phase}) does not allow {operation_type}"
+                )
+            )
         unfinished = LogClusteringOperation.objects.filter(
             index_set_id=index_set_id, status__in=ClusteringOperationStatusEnum.unfinished_statuses()
         ).first()

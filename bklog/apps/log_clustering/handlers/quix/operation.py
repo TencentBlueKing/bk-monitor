@@ -94,6 +94,18 @@ class QuixClusteringOperationRunner:
             "wait_adoption",
             "confirm_adoption",
         ],
+        # 同时修改模型和过滤时，先由 BKFara 接受模型参数，再下发过滤配置。
+        ClusteringOperationTypeEnum.UPDATE.value: [
+            "update_model_parameters",
+            "confirm_model_parameters",
+            "metadata_set",
+            "wait_adoption",
+            "confirm_adoption",
+        ],
+        ClusteringOperationTypeEnum.UPDATE_MODEL.value: [
+            "update_model_parameters",
+            "confirm_model_parameters",
+        ],
     }
     RECEIPT_STEPS = {"confirm_adoption"}
 
@@ -275,6 +287,44 @@ class QuixClusteringOperationRunner:
         if self.runtime.pending_config is not None:
             fields.update(active_config=self.runtime.pending_config, pending_config=None)
         self._save_runtime(**fields)
+
+    def _step_update_model_parameters(self) -> bool:
+        if not self.operation.request_snapshot.get("update_model"):
+            return True
+
+        def build_payload():
+            current = BkFaraApi.get_task_parameters({"task_id": self.runtime.bkfara_task_id})
+            return {
+                "task_id": self.runtime.bkfara_task_id,
+                "expected_control_version": current["control_version"],
+                "training": {"parameters": self.operation.request_snapshot["model_parameters"]},
+            }
+
+        # 固定版本和请求体；超时重试沿用幂等键，不创建任务或重置已有模型。
+        payload = self.operation.get_request_payload("update_model_parameters", build_payload)
+        BkFaraApi.update_task_parameters(
+            {**payload, "Idempotency-Key": self.operation.get_idempotency_key("update_model_parameters")}
+        )
+        return True
+
+    def _step_confirm_model_parameters(self) -> bool:
+        if not self.operation.request_snapshot.get("update_model"):
+            return True
+        current = BkFaraApi.get_task_parameters({"task_id": self.runtime.bkfara_task_id})
+        expected = self.operation.request_snapshot["model_parameters"]
+        actual = (current.get("training") or {}).get("parameters") or {}
+        if any(actual.get(key) != value for key, value in expected.items()):
+            return False
+        # 这里只确认任务配置已提交。已有模型的增量训练及 Worker 采用由 BKFara 负责，
+        # 不能把历史 adoptions 或当前 Worker READY 当成新参数训练完成的证明。
+        self._save_runtime(control_version=current["control_version"])
+        return True
+
+    def _finish_update(self):
+        self._promote_pending_config(phase=ClusteringRuntimePhaseEnum.RUNNING.value)
+
+    def _finish_update_model(self):
+        self._save_runtime(phase=ClusteringRuntimePhaseEnum.RUNNING.value)
 
     def _finish_enable(self):
         self._promote_pending_config(phase=ClusteringRuntimePhaseEnum.RUNNING.value)

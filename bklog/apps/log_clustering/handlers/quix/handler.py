@@ -30,7 +30,7 @@ from apps.log_clustering.constants import (
     ClusteringRuntimePhaseEnum,
     RegexRuleTypeEnum,
 )
-from apps.log_clustering.exceptions import ClusteringConfigHasExistException
+from apps.log_clustering.exceptions import ClusteringConfigHasExistException, QuixClusteringParamsInvalidException
 from apps.log_clustering.handlers.dataflow.constants import OnlineTaskTrainingArgs
 from apps.log_clustering.handlers.dataflow.dataflow_handler import DataFlowHandler
 from apps.log_clustering.handlers.quix.adapter import build_clustering_config, build_index_names
@@ -42,6 +42,17 @@ from apps.log_databus.models import CollectorConfig
 from apps.log_search.models import LogIndexSet, Space
 from apps.models import model_to_dict
 from bkm_space.utils import space_uid_to_bk_biz_id
+
+# 页面配置；其中模型参数通过现有参数构造方法映射到 BKFara。
+BUSINESS_UPDATE_FIELDS = (
+    "min_members",
+    "predefined_varibles",
+    "delimeter",
+    "max_log_length",
+    "is_case_sensitive",
+    "regex_rule_type",
+    "regex_template_id",
+)
 
 # 开启流程中各步骤对应到现有接入状态的三段展示
 ACCESS_STATUS_STEPS = {
@@ -114,6 +125,76 @@ class QuixClusteringHandler:
             operation.save(update_fields=["request_snapshot", "updated_at", "updated_by"])
         run_quix_clustering_operation.delay(operation.operation_id)
         return self._access_response(operation)
+
+    def update(self, params: dict) -> str | None:
+        """分别下发过滤配置和已有模型参数；相同目标的在途请求可续跑。"""
+        from apps.log_clustering.tasks.quix import run_quix_clustering_operation
+
+        with transaction.atomic():
+            runtime = LogClusteringRuntime.objects.select_for_update().get(index_set_id=self.index_set_id)
+            if not runtime.active_config:
+                raise QuixClusteringParamsInvalidException(
+                    QuixClusteringParamsInvalidException.MESSAGE.format(detail=_("聚类开启尚未完成，暂不能修改配置"))
+                )
+            business_config = ClusteringConfig.objects.get(index_set_id=self.index_set_id)
+            original_model = DataFlowHandler.get_clustering_training_params(business_config)
+            filter_rules = params.get("filter_rules", business_config.filter_rules or [])
+            clustering_fields = params.get("clustering_fields") or runtime.active_config["input_mapping"]["log"]
+            clustering_config = build_clustering_config(clustering_fields, filter_rules)
+            if clustering_config["input_mapping"] != runtime.active_config["input_mapping"]:
+                raise QuixClusteringParamsInvalidException(
+                    QuixClusteringParamsInvalidException.MESSAGE.format(detail=_("首版不支持修改聚类字段"))
+                )
+            for field in BUSINESS_UPDATE_FIELDS:
+                if field in params:
+                    setattr(business_config, field, params[field])
+            model_parameters = DataFlowHandler.get_clustering_training_params(business_config)
+            operation = LogClusteringOperation.objects.filter(
+                index_set_id=self.index_set_id,
+                status__in=ClusteringOperationStatusEnum.unfinished_statuses(),
+            ).first()
+            if operation:
+                if (
+                    operation.operation_type
+                    not in (ClusteringOperationTypeEnum.UPDATE.value, ClusteringOperationTypeEnum.UPDATE_MODEL.value)
+                    or operation.request_snapshot.get("filter_rules") != filter_rules
+                    or operation.request_snapshot.get("model_parameters") != model_parameters
+                ):
+                    raise QuixClusteringParamsInvalidException(
+                        QuixClusteringParamsInvalidException.MESSAGE.format(
+                            detail=_("已有未完成操作，请完成后再修改配置")
+                        )
+                    )
+                if operation.status == ClusteringOperationStatusEnum.FAILED.value:
+                    operation = self._resume_failed_operation(operation.operation_type)
+            else:
+                filter_changed = clustering_config != runtime.active_config
+                model_changed = model_parameters != original_model
+                if filter_changed or model_changed:
+                    runtime, operation = LogClusteringRuntime.start_operation(
+                        self.index_set_id,
+                        ClusteringOperationTypeEnum.UPDATE.value
+                        if filter_changed
+                        else ClusteringOperationTypeEnum.UPDATE_MODEL.value,
+                        {
+                            "filter_rules": filter_rules,
+                            "model_parameters": model_parameters,
+                            "update_model": model_changed,
+                        },
+                        allowed_phases=(ClusteringRuntimePhaseEnum.RUNNING.value,),
+                    )
+                    runtime.pending_config = clustering_config if filter_changed else None
+                    runtime.phase = ClusteringRuntimePhaseEnum.UPDATING.value
+                    runtime.save(update_fields=["pending_config", "phase", "updated_at", "updated_by"])
+            ClusteringConfig.objects.filter(index_set_id=self.index_set_id).update(
+                filter_rules=filter_rules,
+                **{field: params[field] for field in BUSINESS_UPDATE_FIELDS if field in params},
+            )
+        if not operation:
+            return None
+        if operation.status == ClusteringOperationStatusEnum.PENDING.value:
+            run_quix_clustering_operation.delay(operation.operation_id)
+        return operation.operation_id
 
     def get_access_status(self) -> dict:
         from apps.log_clustering.handlers.clustering_config import ClusteringConfigHandler

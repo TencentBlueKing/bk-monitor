@@ -158,11 +158,6 @@ class ModelFileStructureInvalidException(BaseClusteringException):
     MESSAGE = _("AIOPS 模型文件结构非法: {detail}")
 
 
-class MiniClusteringNotReadyException(BaseClusteringException):
-    ERROR_CODE = "030"
-    MESSAGE = _("日志聚类轻量化链路尚未接通，暂不支持接入: {index_set_id}")
-
-
 class ClusteringOperationConflictException(BaseClusteringException):
     ERROR_CODE = "031"
     MESSAGE = _("索引集({index_set_id})存在未结束的聚类操作({operation_id})，请等待完成或取消后再试")
