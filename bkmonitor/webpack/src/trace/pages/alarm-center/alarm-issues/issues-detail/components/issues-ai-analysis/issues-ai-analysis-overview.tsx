@@ -26,7 +26,7 @@
 
 import { type PropType, computed, defineComponent, watch } from 'vue';
 
-import { Button, Exception, Loading, PopConfirm } from 'bkui-vue';
+import { Button, Dialog, Exception, Loading, PopConfirm } from 'bkui-vue';
 import { useI18n } from 'vue-i18n';
 
 import { useIssuesAiAnalysis } from '../../../composables/use-issues-ai-analysis';
@@ -54,6 +54,7 @@ export default defineComponent({
       sourceAnalysisData,
       loading: analysisLoading,
       sourceAnalysisIsPending,
+      sourceAnalysisNotConfiguredShow,
       handleReanalyzeSourceAnalysis,
       getSourceAnalysisData,
       handleToSetting,
@@ -61,6 +62,17 @@ export default defineComponent({
     } = useIssuesAiAnalysis();
 
     const loading = computed(() => analysisLoading.sourceAnalysis);
+
+    /** 关闭未匹配源码分析规则弹窗 */
+    const handleNotConfiguredClose = () => {
+      sourceAnalysisNotConfiguredShow.value = false;
+    };
+
+    /** 查看源码分析规则配置 */
+    const handleViewRuleConfig = () => {
+      handleToSetting(props.detail.bk_biz_id);
+      handleNotConfiguredClose();
+    };
 
     watch(
       () => props.detail,
@@ -262,12 +274,43 @@ export default defineComponent({
       );
     };
 
+    /** 未匹配到可用的源码分析规则提示 */
+    const renderNotConfiguredDialog = () => (
+      <Dialog
+        width='480'
+        v-slots={{
+          footer: () => (
+            <>
+              <Button
+                theme='primary'
+                onClick={handleViewRuleConfig}
+              >
+                {t('查看规则配置')}
+              </Button>
+              <Button
+                style='margin-left: 8px'
+                onClick={handleNotConfiguredClose}
+              >
+                {t('关闭')}
+              </Button>
+            </>
+          ),
+        }}
+        is-show={sourceAnalysisNotConfiguredShow.value}
+        title={t('无法发起源码分析')}
+        onClosed={handleNotConfiguredClose}
+      >
+        <div>{t('当前 Issue 未匹配到可用的源码分析规则，请查看规则配置。')}</div>
+      </Dialog>
+    );
+
     return {
       t,
       loading,
       sourceAnalysisData,
       renderSkeleton,
       renderSourceCodeAnalysisView,
+      renderNotConfiguredDialog,
     };
   },
   render() {
@@ -298,6 +341,7 @@ export default defineComponent({
             {this.renderSourceCodeAnalysisView()}
           </div>
         )}
+        {this.renderNotConfiguredDialog()}
       </BasicCard>
     );
   },

@@ -26,7 +26,7 @@
 
 import { type PropType, computed, defineComponent, onBeforeUnmount, shallowRef, watch } from 'vue';
 
-import { Alert, Button, Dialog, Message, PopConfirm } from 'bkui-vue';
+import { Alert, Button, Message, PopConfirm } from 'bkui-vue';
 import { Success } from 'bkui-vue/lib/icon';
 import dayjs from 'dayjs';
 import { useI18n } from 'vue-i18n';
@@ -63,24 +63,12 @@ export default defineComponent({
       sourceAnalysisData,
       sourceAnalysisIsPending,
       sourceAnalysisScene,
-      sourceAnalysisNotConfiguredShow,
       loading,
       getSourceAnalysisData,
       handleReanalyzeSourceAnalysis,
       handleStartAnalysis,
       handleToSetting,
     } = useIssuesAiAnalysis();
-
-    /** 关闭未匹配源码分析规则弹窗 */
-    const handleNotConfiguredClose = () => {
-      sourceAnalysisNotConfiguredShow.value = false;
-    };
-
-    /** 查看源码分析规则配置 */
-    const handleViewRuleConfig = () => {
-      handleToSetting(props.detail.bk_biz_id);
-      handleNotConfiguredClose();
-    };
 
     const assigneeChangeLoading = shallowRef(false);
     /**
@@ -396,51 +384,15 @@ export default defineComponent({
       );
     };
 
-    /** 未匹配到可用的源码分析规则提示 */
-    const renderNotConfiguredDialog = () => (
-      <Dialog
-        width='480'
-        v-slots={{
-          footer: () => (
-            <>
-              <Button
-                theme='primary'
-                onClick={handleViewRuleConfig}
-              >
-                {t('查看规则配置')}
-              </Button>
-              <Button
-                style='margin-left: 8px'
-                onClick={handleNotConfiguredClose}
-              >
-                {t('关闭')}
-              </Button>
-            </>
-          ),
-        }}
-        is-show={sourceAnalysisNotConfiguredShow.value}
-        title={t('无法发起源码分析')}
-        onClosed={handleNotConfiguredClose}
-      >
-        <div>{t('当前 Issue 未匹配到可用的源码分析规则，请查看规则配置。')}</div>
-      </Dialog>
-    );
-
     onBeforeUnmount(() => {
       sourceAnalysisScene.value = 'overview';
     });
 
     return {
       renderSourceCodeAnalysisView,
-      renderNotConfiguredDialog,
     };
   },
   render() {
-    return (
-      <div class='source-code-analysis'>
-        {this.renderSourceCodeAnalysisView()}
-        {this.renderNotConfiguredDialog()}
-      </div>
-    );
+    return <div class='source-code-analysis'>{this.renderSourceCodeAnalysisView()}</div>;
   },
 });
