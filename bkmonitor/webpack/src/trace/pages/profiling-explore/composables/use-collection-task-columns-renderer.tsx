@@ -34,16 +34,15 @@ import {
   collectionMethodLabels,
   collectionTypeLabels,
   deploymentStatusLabels,
+  formatCollectionTime,
   isTaskDeleteBlocked,
   scheduleLabels,
+  TASK_OPERATION_FIELD,
 } from '../utils/collection';
 import { ExploreTableColumnTypeEnum } from '@/pages/trace-explore/components/trace-explore-table/typing';
 
 import type { CollectionTask, CollectionTaskTableColumn } from '../types/collection';
-import type {
-  BaseTableColumn,
-  TableCellRenderContext,
-} from '@/pages/trace-explore/components/trace-explore-table/typing';
+import type { BaseTableColumn } from '@/pages/trace-explore/components/trace-explore-table/typing';
 import type { SlotReturnValue } from 'tdesign-vue-next';
 
 /** useCollectionTaskColumnsRenderer 入参：渲染依赖的状态 + 行操作回调 */
@@ -75,17 +74,11 @@ export const useCollectionTaskColumnsRenderer = (rendererCtx: CollectionTaskColu
   const { t } = useI18n();
 
   /**
-   * @description 执行时间列渲染（周期任务展示 crontab 表达式，单次任务复用 TIME 类型渲染执行时刻）
+   * @description 执行时间列渲染（周期任务展示 crontab 表达式，单次任务按任务所属时区展示执行时刻）
    * @param {CollectionTask} row - 当前行任务数据
-   * @param {BaseTableColumn} column - 列配置，通过 getRenderValue 读取单次任务的执行时间
-   * @param {TableCellRenderContext} renderCtx - 表格单元格渲染上下文，提供 TIME 类型渲染函数
    * @returns {SlotReturnValue} 执行时间列 JSX
    */
-  const renderScheduleTime = (
-    row: CollectionTask,
-    column: BaseTableColumn,
-    renderCtx: TableCellRenderContext
-  ): SlotReturnValue => {
+  const renderScheduleTime = (row: CollectionTask): SlotReturnValue => {
     if (row.schedule.type === 'cron') {
       return (
         <CollectionCrontab
@@ -95,7 +88,11 @@ export const useCollectionTaskColumnsRenderer = (rendererCtx: CollectionTaskColu
         />
       ) as unknown as SlotReturnValue;
     }
-    return renderCtx.cellRenderHandleMap[ExploreTableColumnTypeEnum.TIME](row, column, renderCtx);
+    return (
+      <span v-tippy={row.schedule.timezone}>
+        {formatCollectionTime(row.schedule.execute_at, row.schedule.timezone)}
+      </span>
+    ) as unknown as SlotReturnValue;
   };
 
   /**
@@ -182,10 +179,7 @@ export const useCollectionTaskColumnsRenderer = (rendererCtx: CollectionTaskColu
     collection_method: { getRenderValue: (row: CollectionTask) => collectionMethodLabels[row.collection_method] },
     collection_type: { getRenderValue: (row: CollectionTask) => collectionTypeLabels[row.collection_type] },
     schedule: { getRenderValue: (row: CollectionTask) => t(scheduleLabels[row.schedule.type]) },
-    schedule_time: {
-      cellRenderer: renderScheduleTime,
-      getRenderValue: (row: CollectionTask) => ('execute_at' in row.schedule ? row.schedule.execute_at : undefined),
-    },
+    schedule_time: { cellRenderer: renderScheduleTime },
     task_status: { cellRenderer: renderTaskStatus },
     deployment_status: {
       renderType: ExploreTableColumnTypeEnum.PREFIX_ICON,
@@ -195,7 +189,7 @@ export const useCollectionTaskColumnsRenderer = (rendererCtx: CollectionTaskColu
       }),
     },
     updated_at: { renderType: ExploreTableColumnTypeEnum.TIME },
-    operation: { cellRenderer: renderOperations },
+    [TASK_OPERATION_FIELD]: { cellRenderer: renderOperations },
   };
 
   /**
