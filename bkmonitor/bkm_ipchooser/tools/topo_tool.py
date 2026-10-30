@@ -87,10 +87,20 @@ class TopoTool:
                 # 暂不统计非缓存数据，遇到不一致的情况需要触发缓存更新
                 ids_gby_module_id[host_topo_relation["bk_module_id"]].append(bk_host_id)
         else:
+            # 只读「模块 -> 实例 ID」索引，绝不在此读取明细：本方法要为每次打开选择器
+            # 付出成本，而全量明细（1 万实例约 30MB，含 process_instances 三层嵌套）
+            # 一旦被读取，轻量索引路径就退化成整份反序列化。
+            # 口径一致性由写入侧承担：列表自拉明细后会同步刷新索引
+            # （见 TopoHandler.query_service_instance），因此**下一次**树请求读到的
+            # 索引就是本次列表展示的那份数据。已知取舍：同一次打开里树与列表并行发出
+            # 且索引恰好陈旧时，首屏两个数字仍可能不同（索引是稀疏快照，非实时），
+            # 刷新后即收敛；用首屏偶发偏差换取树接口不反序列化全量明细。
             # 索引未命中时的明细拉取由 BkApi 实现方负责：IpChooserApi 内部会借
-            # get_service_instance_by_biz 拉取并构建分组（该函数自带 1 小时 cron 缓存，
-            # 且内部顺带回写索引），因此本层只消费结果，不再重复实现一套全量拉取。
-            # 索引读取或回退失败时不降级为 0，按原行为向上抛出，避免把故障显示成“无实例”。
+            # get_service_instance_by_biz 拉取并构建分组（该函数带 1 小时 TTL 的缓存，
+            # 并由每分钟一次的 cron 分环刷新，单业务约 10 分钟一轮），因此本层只消费
+            # 结果，不再重复实现一套全量拉取。
+            # 索引读取或回退失败时不降级为 0，按原行为向上抛出，
+            # 避免把故障显示成“无实例”。
             module_index: dict[int, list[int]] = BkApi.get_service_instance_module_index(bk_biz_id) or {}
             for module_id, service_instance_ids in module_index.items():
                 ids_gby_module_id[module_id].extend(service_instance_ids)

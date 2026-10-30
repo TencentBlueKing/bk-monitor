@@ -1,21 +1,25 @@
 """
 TopoTool 服务实例数量统计：索引消费契约
 
-TopoTool 不负责「索引未命中时如何取数」——该职责已下沉到 BkApi 实现方
-（IpChooserApi 内部借 get_service_instance_by_biz 拉取并构建分组，该函数自带
-1 小时 cron 缓存且内部顺带回写索引）。因此本层只消费索引结果：
+TopoTool 只消费「模块 -> 实例 ID」索引，不负责「索引未命中时如何取数」——该职责
+已下沉到 BkApi 实现方（IpChooserApi 内部借 get_service_instance_by_biz 拉取并
+构建分组，该函数带 1 小时 TTL 缓存、由 cron 分环刷新且内部顺带回写索引）。契约如下：
 
-- 索引有数据时按模块分组统计，不触发任何明细查询
+- 读索引：索引有数据时按模块分组统计，不触发任何明细查询
 - 索引为空 dict（业务确实无服务实例）时 count 为 0
 - BkApi 返回 None 时 count 为 0；读取异常/未实现按原行为向上抛出，不静默降级
 - 父节点 count 为子树实例 ID 并集，不是节点自身 len
 - 统计主机数量时不得读取服务实例索引
+
+本方法绝不读取明细缓存：全量明细（1 万实例约 30MB）一旦被读取，轻量索引路径
+就退化成整份反序列化。树与列表的口径一致性由写入侧负责——列表自拉明细后同步
+刷新索引，两侧因此指向同一份快照（见 test_cold_start_service_instance_detail.py）。
 """
 
 import pytest
 
 from bkm_ipchooser import constants
-from bkm_ipchooser.tools import topo_tool
+from bkm_ipchooser.tools import service_instance_cache, topo_tool
 
 
 def _build_topo_tree():
@@ -205,3 +209,27 @@ def test_index_path_not_used_for_host_count(mocker):
     assert counts[(constants.ObjectType.MODULE.value, 10)] == 1
     assert counts[(constants.ObjectType.MODULE.value, 20)] == 1
     get_index.assert_not_called()
+
+
+def test_tree_count_never_reads_detail_cache(mocker):
+    """
+    统计服务实例数量时绝不读取明细缓存，即使缓存命中且内容与索引不同
+
+    明细缓存体积随实例数线性增长（1 万实例约 30MB，含 process_instances 三层嵌套），
+    一旦读取，树统计就从「读 0.23MB ID 索引」退化成「整份反序列化」。口径一致性由
+    写入侧保证（列表自拉明细后刷新索引），不靠树统计读明细来对齐。
+    """
+    mocker.patch.object(
+        service_instance_cache,
+        "get_details",
+        side_effect=AssertionError("tree count must not read detail cache"),
+    )
+    mocker.patch.object(
+        topo_tool.BkApi,
+        "get_service_instance_module_index",
+        return_value={10: [101, 102, 103], 20: [201, 202]},
+    )
+
+    counts = _collect_counts(_get_topo_tree_with_count(mocker), {})
+
+    assert counts == MODULE_COUNTS
