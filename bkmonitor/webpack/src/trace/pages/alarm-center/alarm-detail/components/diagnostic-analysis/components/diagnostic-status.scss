@@ -1,0 +1,73 @@
+.diagnostic-status {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 100%;
+
+  .bk-exception-part {
+    margin-top: -40px;
+    font-family: 'PingFang SC', sans-serif;
+
+    .bk-exception-title {
+      margin-top: 12px;
+      font-size: 14px;
+      font-weight: 500;
+      line-height: 22px;
+      color: #313238;
+    }
+
+    .bk-exception-footer {
+      margin-top: 12px;
+    }
+  }
+
+  .diagnostic-status-error-icon {
+    font-size: 48px;
+    line-height: 1;
+    color: #ea3636;
+  }
+
+  .diagnostic-status-actions {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+
+    &.is-unconfigured {
+      gap: 12px;
+    }
+
+    &.is-error {
+      gap: 8px;
+    }
+  }
+
+  &.is-unconfigured {
+    .bk-exception-img {
+      width: 260px;
+      height: 120px;
+      margin-bottom: -12px;
+    }
+  }
+
+  &.is-error {
+    .bk-exception-img {
+      width: 48px;
+      height: 48px;
+    }
+  }
+
+  &.is-diagnosing {
+    .bk-loading-indicator {
+      align-items: center;
+    }
+
+    .bk-loading-title {
+      margin-top: 16px !important;
+      font-size: 14px;
+      font-weight: 500;
+      line-height: 22px;
+      color: #313238;
+    }
+  }
+}
