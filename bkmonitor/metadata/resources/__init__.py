@@ -2,6 +2,7 @@ from .bkdata_link import *  # noqa
 from .resource_storage import *  # noqa
 from .cluster import *  # noqa
 from .datalink_operation import *  # noqa
+from .log_clustering import *  # noqa
 from .log_datalink import *  # noqa
 from .entity_relation import *  # noqa
 from .resources import *  # noqa

@@ -517,6 +517,11 @@ class ESStorageBindingConfig(DataLinkResourceConfigBase):
             err_msg_prefix="compose es storage binding config",
         )
 
+    @property
+    def reference(self) -> dict[str, str]:
+        """Databus.spec.sinks 中引用本资源的条目"""
+        return {"kind": self.kind, "name": self.name, "namespace": self.namespace}
+
 
 class VMStorageBindingConfig(DataLinkResourceConfigBase):
     """

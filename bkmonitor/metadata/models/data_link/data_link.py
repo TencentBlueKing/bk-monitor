@@ -1392,13 +1392,7 @@ class DataLink(models.Model):
                         rt_name=result_table.name,
                     )
                 )
-                databus_sinks.append(
-                    {
-                        "kind": DataLinkKind.ESSTORAGEBINDING.value,
-                        "name": binding.name,
-                        "namespace": self.namespace,
-                    }
-                )
+                databus_sinks.append(binding.reference)
 
             # 创建 Doris 存储绑定配置
             if doris_storage and datalink_option.doris_storage_config:
@@ -1451,6 +1445,12 @@ class DataLink(models.Model):
             if not bingding_configs:
                 raise ValueError("至少需要一个存储绑定配置")
 
+            # 已接入日志聚类时，Databus 改为引用聚类 Sink，原存储绑定作为其 rawSink
+            clustering_sink = self._claim_attached_log_clustering_sink(databus_sinks, existing_context)
+            if clustering_sink is not None:
+                bingding_configs.append(clustering_sink.compose_config(raw_sink=databus_sinks[0]))
+                databus_sinks = [clustering_sink.reference]
+
             # 创建数据总线配置
             existing_databus = (
                 existing_context.claim(DataBusConfig, lambda c: True) if existing_context is not None else None
@@ -1485,6 +1485,35 @@ class DataLink(models.Model):
             )
 
         return config_list
+
+    def _claim_attached_log_clustering_sink(
+        self,
+        databus_sinks: list[dict[str, Any]],
+        existing_context: ExistingComponentContext | None,
+    ) -> LogClusteringSinkConfig | None:
+        """获取当前日志链路已接入 Databus 的聚类 Sink，其 rawSink 即本次生成的唯一 ES 存储绑定。
+
+        Args:
+            databus_sinks: 本次 compose 生成的原始存储绑定引用。
+            existing_context: 既有组件复用上下文，传入时认领聚类 Sink，避免其被视为 leftover。
+        """
+        clustering_sink = LogClusteringSinkConfig.objects.filter(
+            bk_tenant_id=self.bk_tenant_id,
+            namespace=self.namespace,
+            data_link_name=self.data_link_name,
+            attached=True,
+        ).first()
+        if clustering_sink is None:
+            return None
+        if len(databus_sinks) != 1 or databus_sinks[0]["kind"] != DataLinkKind.ESSTORAGEBINDING.value:
+            raise ValueError(
+                f"log clustering sink({clustering_sink.name}) requires exactly one "
+                f"{DataLinkKind.ESSTORAGEBINDING.value} sink, got {databus_sinks}"
+            )
+
+        if existing_context is not None:
+            existing_context.claim(LogClusteringSinkConfig, lambda c: c.pk == clustering_sink.pk)
+        return clustering_sink
 
     def compose_system_proc_configs(
         self,
@@ -3160,6 +3189,13 @@ class DataLink(models.Model):
 
         # 合并spec
         cls._fill_missing_dict(merged_config["spec"], existing_config["spec"])
+
+        # 聚类开关由业务动作通过 apply 更新；普通清洗重生成未声明开关时保留远端值。
+        # 不递归补齐 binding，避免把已删除的过滤配置重新带回。
+        if merged_config.get("kind") == DataLinkKind.LOGCLUSTERINGSINK.value:
+            existing_clustering = existing_config["spec"].get("clustering", {})
+            if "enabled" in existing_clustering:
+                merged_config["spec"]["clustering"].setdefault("enabled", existing_clustering["enabled"])
 
         return merged_config
 
