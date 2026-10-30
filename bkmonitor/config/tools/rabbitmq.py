@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2025 Tencent. All rights reserved.
@@ -11,6 +10,7 @@ specific language governing permissions and limitations under the License.
 
 import os
 
+from config import kms
 from config.tools.environment import PAAS_VERSION
 
 
@@ -39,9 +39,12 @@ def get_rabbitmq_settings(app_code: str, backend=False):
         user = os.getenv("RABBITMQ_USER", "guest")
         password = os.getenv("RABBITMQ_PASSWORD", "guest")
 
-    broker_url = "amqp://{user}:{password}@{host}:{port}/{vhost}".format(
-        user=user, password=password, host=host, port=port, vhost=vhost
-    )
+    if kms.enabled():
+        alias = "backend" if backend else "saas"
+        user = kms.value("rabbitmq", alias, "username")
+        password = kms.value("rabbitmq", alias, "password")
+
+    broker_url = f"amqp://{user}:{password}@{host}:{port}/{vhost}"
     return host, port, vhost, user, password, broker_url
 
 

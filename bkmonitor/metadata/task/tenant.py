@@ -64,18 +64,19 @@ def _init_es_cluster(bk_tenant_id: str):
     初始化ES集群
     """
     # 0. 判断是否存在ES7的信息，如果不存在，则直接退出，不做刷新
-    if os.environ.get("BK_MONITOR_ES7_HOST") is None:
+    if settings.BACKEND_ES7_HOST is None:
         logger.info("BK_MONITOR_ES7_HOST is not set, skipping ES7 cluster initialization.")
         return True
 
-    try:
-        es_host = os.environ["BK_MONITOR_ES7_HOST"]
-        es_port = os.environ["BK_MONITOR_ES7_REST_PORT"]
-        es_username = os.environ.get("BK_MONITOR_ES7_USER", "")
-        es_password = os.environ.get("BK_MONITOR_ES7_PASSWORD", "")
-    except KeyError as error:
-        logger.error(f"get es7 env or tenant({bk_tenant_id}) failed: {error}")
-        raise ValueError(f"failed to get environ->[{error}] for es7 cluster maybe something go wrong on init?")
+    es_host = settings.BACKEND_ES7_HOST
+    es_port = settings.BACKEND_ES7_REST_PORT
+    es_username = settings.BACKEND_ES7_USER
+    es_password = settings.BACKEND_ES7_PASSWORD
+    if es_port is None:
+        logger.error(f"get es7 env or tenant({bk_tenant_id}) failed: 'BK_MONITOR_ES7_REST_PORT'")
+        raise ValueError(
+            "failed to get environ->['BK_MONITOR_ES7_REST_PORT'] for es7 cluster maybe something go wrong on init?"
+        )
 
     # 0. 判断是否已经存在了默认集群ES7，并确认是否初始化
     default_es = ClusterInfo.objects.filter(

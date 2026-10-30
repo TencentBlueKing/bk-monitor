@@ -14,6 +14,7 @@ import sys
 
 from jinja2 import DebugUndefined
 
+from config import kms
 from config.tools.consul import get_consul_settings
 from config.tools.rabbitmq import get_rabbitmq_management_host, get_rabbitmq_settings
 from config.tools.redis import get_cache_redis_settings, get_redis_settings
@@ -518,7 +519,9 @@ CACHES = {
 # BkBase Redis
 BKBASE_REDIS_HOST = os.environ.get("BKBASE_REDIS_HOST")
 BKBASE_REDIS_PORT = os.environ.get("BKBASE_REDIS_PORT")
-BKBASE_REDIS_PASSWORD = os.environ.get("BKBASE_REDIS_PASSWORD")
+BKBASE_REDIS_PASSWORD = (
+    kms.value("redis", "bkbase", "password") if kms.enabled() else os.environ.get("BKBASE_REDIS_PASSWORD")
+)
 
 # django cache backend using redis
 DJANGO_REDIS_PASSWORD = os.environ.get("DJANGO_REDIS_PASSWORD")
