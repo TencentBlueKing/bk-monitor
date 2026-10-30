@@ -343,8 +343,9 @@ export default defineComponent({
                     modelValue={this.renameName}
                     onBlur={this.submitRename}
                     onEnter={(_value, e) => {
-                      // 输入法组字中的回车只用于上屏，此时 renameName 仍是上屏前的旧值
-                      if (e?.isComposing) return;
+                      // 输入法组字中的回车只用于上屏，不应提交改名：Chrome 组字期间 keyCode 为 229，
+                      // Safari 先触发 compositionend 再触发 keydown，此时 isComposing 已是 false，只能靠 229 识别
+                      if (e?.isComposing || e?.keyCode === 229) return;
                       this.submitRename();
                     }}
                     onInput={value => {
