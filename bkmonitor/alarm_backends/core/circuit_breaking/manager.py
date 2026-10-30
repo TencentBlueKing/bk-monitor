@@ -28,10 +28,14 @@ class BaseCircuitBreakingManager:
         if self.matcher is None and self.legacy_fallback_module:
             self.config, self.matcher = self._load_legacy(self.legacy_fallback_module)
         self.group_matchers = []
-        self._group_snapshot_time = time.monotonic()
+        self._group_snapshot_time = 0
         self._group_server_time_ms = 0
         try:
             snapshot = CircuitBreakingRuleGroupStore().snapshot(self.module)
+            # Pair Redis TIME with receipt, excluding pre-sample request delays.
+            # Transit/decoding after the server sample conservatively delays
+            # local expiry; matcher construction and later elapsed time count.
+            self._group_snapshot_time = time.monotonic()
             self._group_server_time_ms = snapshot["server_time_ms"]
             for group in snapshot["groups"]:
                 matcher = gen_circuit_breaking_matcher(group["conditions"])

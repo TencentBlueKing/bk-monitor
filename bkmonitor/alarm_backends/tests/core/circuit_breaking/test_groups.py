@@ -305,6 +305,37 @@ def test_existing_manager_stops_using_expired_groups_without_a_redis_read(store,
     assert not manager.is_strategy_only_circuit_breaking(101)
 
 
+@pytest.mark.parametrize("matcher_delay", [0, 0.5, 1])
+def test_delayed_snapshot_does_not_expire_groups_before_their_remaining_lifetime(store, monkeypatch, matcher_delay):
+    clock = [100.0]
+
+    def delayed_snapshot(*args):
+        # Redis samples TIME after two seconds of connection or queueing delay.
+        clock[0] = 102.0
+        return {"server_time_ms": 102000, "groups": [{"expires_at_ms": 103000, "conditions": [rule()]}]}
+
+    def delayed_matcher(conditions):
+        matcher = gen_circuit_breaking_matcher(conditions)
+        clock[0] += matcher_delay
+        return matcher
+
+    monkeypatch.setattr("alarm_backends.core.circuit_breaking.manager.time.monotonic", lambda: clock[0])
+    monkeypatch.setattr(CircuitBreakingRuleGroupStore, "snapshot", delayed_snapshot)
+    monkeypatch.setattr("alarm_backends.core.circuit_breaking.manager.gen_circuit_breaking_matcher", delayed_matcher)
+    manager = AccessDataCircuitBreakingManager()
+    monkeypatch.setattr(store.redis, "eval", lambda *args: pytest.fail("matching must not query Redis"))
+
+    assert bool(manager) is (matcher_delay < 1)
+    assert manager.is_strategy_only_circuit_breaking(101) is (matcher_delay < 1)
+    if matcher_delay < 1:
+        clock[0] = 102.999
+        assert manager
+        assert manager.is_strategy_only_circuit_breaking(101)
+    clock[0] = 103.0
+    assert not manager
+    assert not manager.is_strategy_only_circuit_breaking(101)
+
+
 def test_legacy_setters_do_not_change_groups_and_groups_do_not_change_legacy(store):
     CircuitBreakingCacheManager.set_config("access.data", [rule(value="102")])
     legacy_key = CircuitBreakingCacheManager.get_cache_key("access.data")
