@@ -434,7 +434,8 @@ class GetHostProcessUptimeResource(ApiAuthResource):
         if not hosts:
             return []
         host = hosts[0]
-        target_filter = _build_host_target_filter(params["bk_biz_id"], [host])
+        # 身份模式取关联业务配置，指标查询仍使用原空间。
+        target_filter = _build_host_target_filter(validate_bk_biz_id(params["bk_biz_id"]), [host])
         if not target_filter:
             # 单主机查询始终保留身份过滤；无 IPv4 地址时按主机 ID 查询。
             target_filter = {"targets": [{"bk_host_id": [str(host.bk_host_id)]}]}

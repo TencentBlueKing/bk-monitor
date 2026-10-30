@@ -26,7 +26,9 @@ from django.utils import timezone
 from rest_framework import serializers
 from rest_framework.exceptions import ValidationError
 
+from bkm_space.errors import NoRelatedResourceError
 from bkm_space.utils import bk_biz_id_to_space_uid
+from bkm_space.validate import validate_bk_biz_id
 from bkmonitor.commons.tools import is_ipv6_biz
 from bkmonitor.data_source import (
     FunctionCategories,
@@ -637,7 +639,16 @@ class UnifyQueryRawResource(ApiAuthResource):
                 if not UnifyQueryRawResource.re_down_sample.match(attrs["down_sample_range"]):
                     attrs["down_sample_range"] = ""
 
-                query_config["filter_dict"] = self.process_filter_dict(attrs["bk_biz_id"], query_config["filter_dict"])
+                query_config["filter_dict"] = self.process_filter_dict(
+                    attrs["bk_biz_id"],
+                    query_config["filter_dict"],
+                    is_host_query=(
+                        query_config["data_source_label"] == DataSourceLabel.BK_MONITOR_COLLECTOR
+                        and query_config["data_type_label"] == DataTypeLabel.TIME_SERIES
+                        and query_config.get("table", "").startswith("system.")
+                        and not query_config.get("data_label")
+                    ),
+                )
             return attrs
 
         def validate_target(self, target: list):
@@ -652,7 +663,7 @@ class UnifyQueryRawResource(ApiAuthResource):
                 return target[0][0]["value"]
             return target
 
-        def process_filter_dict(self, bk_biz_id: int, value):
+        def process_filter_dict(self, bk_biz_id: int, value, is_host_query: bool = False):
             if value:
                 delete_fields = []
                 for k, v in value.items():
@@ -664,6 +675,14 @@ class UnifyQueryRawResource(ApiAuthResource):
             # 过滤主机监控图表的targets过滤字段
             targets = value.get("targets")
             if targets:
+                if is_host_query and any(
+                    {"bk_host_id", "bk_target_ip", "bk_target_cloud_id"}.intersection(target) for target in targets
+                ):
+                    try:
+                        # 只切换主机身份模式，不修改查询空间与鉴权参数。
+                        bk_biz_id = validate_bk_biz_id(bk_biz_id)
+                    except NoRelatedResourceError:
+                        return value
                 for target in targets:
                     if is_ipv6_biz(bk_biz_id):
                         target.pop("bk_target_ip", None)
