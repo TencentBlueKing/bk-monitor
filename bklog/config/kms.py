@@ -175,8 +175,8 @@ def apply_settings(settings):
             if location is not None:
                 cache["LOCATION"] = type(location)(cleaned) if isinstance(location, list | tuple) else cleaned[0]
 
-    # Blueapps builds its default URL without escaping vhost. Escape that raw
-    # value before URL/failover parsing, including literal /, ?, # and ;.
+    # Blueapps interpolates credentials and vhost without URL escaping. Rebuild
+    # its generated URL before parsing so stale credentials cannot alter topology.
     vhost = os.getenv("RABBITMQ_VHOST")
     generated = "amqp://{user}:{password}@{host}:{port}/{vhost}".format(
         user=os.getenv("RABBITMQ_USER"),
@@ -198,7 +198,13 @@ def apply_settings(settings):
         try:
             raw = settings[name]
             if vhost is not None and raw == generated:
-                raw = generated.removesuffix(vhost) + quote(vhost, safe="")
+                raw = "amqp://{user}:{password}@{host}:{port}/{vhost}".format(
+                    user=quote(value("rabbitmq", "username"), safe=""),
+                    password=quote(value("rabbitmq", "password"), safe=""),
+                    host=os.getenv("RABBITMQ_HOST"),
+                    port=os.getenv("RABBITMQ_PORT"),
+                    vhost=quote(vhost, safe=""),
+                )
             settings[name] = _broker_credentials(raw, value("rabbitmq", "username"), value("rabbitmq", "password"))
         except (KeyError, ValueError, TypeError):
             raise KMSConfigurationError(f"KMS requires a valid RabbitMQ {name}") from None
