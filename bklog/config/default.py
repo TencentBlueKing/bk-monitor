@@ -31,6 +31,8 @@ from django.urls import reverse
 from django.utils.translation import gettext_lazy as _
 
 from config.log import get_logging_config_dict
+from config import kms
+from apps.utils.crypto import LEGACY_SYMMETRIC_CIPHER_CLASSES
 
 # 使用k8s部署模式
 IS_K8S_DEPLOY_MODE = os.getenv("DEPLOY_MODE") == "kubernetes"
@@ -258,8 +260,9 @@ if os.environ.get("BKAPP_FEATURE_TGPA_TASK", "off") == "on":
     CELERY_IMPORTS += ("apps.tgpa.tasks",)
 
 # bk crypto sdk配置
-BKPAAS_BK_CRYPTO_KEY = os.getenv("BKPAAS_BK_CRYPTO_KEY")
+BKPAAS_BK_CRYPTO_KEY = kms.value("encryption", "bk_crypto_key", os.getenv("BKPAAS_BK_CRYPTO_KEY"))
 BKCRYPTO = {
+    "SYMMETRIC_CIPHER_CLASSES": LEGACY_SYMMETRIC_CIPHER_CLASSES,
     "SYMMETRIC_CIPHERS": {
         "default": {
             "get_key_config": "apps.utils.aes.get_default_symmetric_key_config",
@@ -1127,6 +1130,8 @@ if REDIS_MODE == "sentinel" and not BKAPP_IS_BKLOG_API:
     REDIS_SENTINEL_PORT = int(os.getenv("BKAPP_REDIS_SENTINEL_PORT", 26379))
     REDIS_SENTINEL_MASTER_NAME = os.getenv("BKAPP_REDIS_SENTINEL_MASTER_NAME", "mymaster")
     REDIS_SENTINEL_PASSWORD = os.getenv("BKAPP_REDIS_SENTINEL_MASTER_PASSWORD", "")
+
+REDIS_PASSWD = kms.value("redis", "password", REDIS_PASSWD)
 
 # BKLOG 后台QOS配置
 BKLOG_QOS_USE = os.getenv("BKAPP_QOS_USE", "on") == "on"
