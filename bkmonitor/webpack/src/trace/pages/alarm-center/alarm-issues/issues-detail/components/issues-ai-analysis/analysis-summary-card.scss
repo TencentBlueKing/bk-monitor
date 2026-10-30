@@ -1,5 +1,6 @@
 .analysis-summary-card {
   display: flex;
+  gap: 4px;
   align-items: center;
   justify-content: space-between;
   padding: 10px 12px;
@@ -36,6 +37,7 @@
 
   .analysis-summary-card-right {
     display: flex;
+    flex-shrink: 0;
     gap: 60px;
     align-items: center;
 
