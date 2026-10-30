@@ -41,9 +41,14 @@ class KMSSwitchTest(unittest.TestCase):
                     payload["encryption"]["bk_crypto_key"] = crypto_key
                     (root / "envelope").write_text(envelope(json.dumps(payload), private_key), encoding="utf-8")
                     (root / "private-key").write_text(base64.b64encode(pem).decode(), encoding="utf-8")
-                    # Start with a clean child environment, without CI or local
-                    # plaintext credentials conflicting with the real envelope.
+                    # Isolate business credentials, but retain the interpreter's
+                    # loader paths (actions/setup-python needs LD_LIBRARY_PATH).
                     env = {
+                        **{
+                            name: os.environ[name]
+                            for name in ("LD_LIBRARY_PATH", "DYLD_LIBRARY_PATH", "DYLD_FALLBACK_LIBRARY_PATH")
+                            if name in os.environ
+                        },
                         "PATH": os.environ.get("PATH", os.defpath),
                         "PYTHONDONTWRITEBYTECODE": "1",
                         "BKPAAS_APP_ID": payload["bkapp_id_secret"]["default"]["app_code"],
