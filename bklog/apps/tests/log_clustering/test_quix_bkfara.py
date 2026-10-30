@@ -1,20 +1,15 @@
 import copy
+import json
 from unittest.mock import Mock, patch
 
 import requests
 from django.test import SimpleTestCase, override_settings
 
-from apps.log_clustering.exceptions import (
-    BkFaraApiException,
-    BkFaraConflictException,
-    BkFaraNotConfiguredException,
-    BkFaraResultUnknownException,
-    QuixClusteringConfigInvalidException,
-)
-from apps.log_clustering.handlers.quix.bkfara import (
-    BkFaraClient,
-    build_create_task_payload,
-)
+from apps.api.base import DataAPI
+from apps.api.modules.bkfara import _BkFaraApi
+from apps.exceptions import ApiRequestError
+from apps.log_clustering.exceptions import QuixClusteringConfigInvalidException
+from apps.log_clustering.handlers.quix.payload import build_create_task_payload
 from apps.log_clustering.handlers.quix.config import get_quix_config
 
 TASK_ID = "6f1c2c1e-0000-4000-8000-000000000001"
@@ -26,138 +21,145 @@ QUIX_CONFIG = {
 MODEL_PARAMETERS = {"delimeter": "WyIgIl0=", "min_members": 3, "max_log_length": 1000}
 
 
-def _response(status_code=200, body=None):
-    response = Mock(status_code=status_code, ok=200 <= status_code < 300)
-    response.content = b"{}" if body is not None else b""
-    response.json.return_value = body
-    return response
+def response(status=200, body=None):
+    value = requests.Response()
+    value.status_code = status
+    value._content = json.dumps({} if body is None else body).encode()
+    value.encoding = "utf-8"
+    return value
 
 
-@override_settings(
-    BKFARA_API_URL="https://bkfara.example/", BKFARA_API_TOKEN="token", BKFARA_CA_CERT_PATH="/etc/ca.pem"
-)
-class TestBkFaraClient(SimpleTestCase):
+@override_settings(BKFARA_API_URL="https://bkfara.example/", BKFARA_API_TOKEN="token")
+class TestBkFaraApi(SimpleTestCase):
     def setUp(self):
-        patcher = patch.object(requests.Session, "request")
-        self.mock_request = patcher.start()
+        patcher = patch("requests.sessions.Session.request")
+        self.request = patcher.start()
         self.addCleanup(patcher.stop)
-        self.client = BkFaraClient()
+        patcher = patch("apps.api.base.get_request_api_headers", return_value="{}")
+        patcher.start()
+        self.addCleanup(patcher.stop)
+        self.api = _BkFaraApi()
 
-    def test_create_task_sends_auth_idempotency_key_and_ca(self):
-        self.mock_request.return_value = _response(body={"task_id": TASK_ID})
+    def test_registered_api_uses_standard_data_api(self):
+        from apps.api import BkFaraApi
 
-        result = self.client.create_task(
-            build_create_task_payload(24466, QUIX_CONFIG), idempotency_key="op-create_task"
-        )
+        self.assertIsInstance(BkFaraApi.create_task, DataAPI)
+        self.assertEqual(self.api.create_task.default_timeout, DataAPI("GET", "", "").default_timeout)
 
-        self.assertEqual(result, {"task_id": TASK_ID})
-        args, kwargs = self.mock_request.call_args
-        self.assertEqual(args, ("POST", "https://bkfara.example/ct/v1/clustering/tasks"))
-        self.assertEqual(kwargs["headers"], {"Idempotency-Key": "op-create_task"})
-        self.assertEqual(kwargs["verify"], "/etc/ca.pem")
-        self.assertEqual(self.client.session.headers["Authorization"], "Bearer token")
+    def test_create_accepts_200_201_202_and_preserves_inputs(self):
+        params = {**build_create_task_payload(24466, QUIX_CONFIG, MODEL_PARAMETERS), "Idempotency-Key": "op-create"}
+        original = copy.deepcopy(params)
+        for status in (200, 201, 202):
+            with self.subTest(status=status):
+                self.request.return_value = response(status, {"task_id": TASK_ID, "clustering": {"input_revision": 1}})
+                result = self.api.create_task(params)
+                self.assertEqual(result, {"task_id": TASK_ID, "clustering": {"input_revision": 1}})
+                kwargs = self.request.call_args.kwargs
+                self.assertEqual(kwargs["url"], "https://bkfara.example/ct/v1/clustering/tasks")
+                self.assertEqual(
+                    json.loads(kwargs["data"]), build_create_task_payload(24466, QUIX_CONFIG, MODEL_PARAMETERS)
+                )
+                self.assertEqual(kwargs["params"], {})
+                self.assertEqual(params, original)
+                self.assertEqual(self.api.create_task.headers["Authorization"], "Bearer token")
+                self.assertEqual(self.api.create_task.headers["Idempotency-Key"], "op-create")
 
-    def test_get_parameters_preserves_configuration_and_adoption_snapshot(self):
+    def test_parameter_get_has_no_path_fields_in_query(self):
         snapshot = {
-            "task_id": TASK_ID,
             "control_version": 4,
             "config_revision": 3,
             "training": {"parameters": MODEL_PARAMETERS},
-            "adoptions": [{"binding__config_revision": 2}],
+            "adoptions": [],
         }
-        self.mock_request.return_value = _response(body=snapshot)
-        self.assertEqual(self.client.get_task_parameters(TASK_ID), snapshot)
-        args, kwargs = self.mock_request.call_args
-        self.assertEqual(args, ("GET", f"https://bkfara.example/ct/v1/tasks/{TASK_ID}/parameters"))
-        self.assertEqual(kwargs["headers"], {})
-        self.assertIsNone(kwargs["json"])
+        self.request.return_value = response(body=snapshot)
+        self.assertEqual(self.api.get_task_parameters({"task_id": TASK_ID}), snapshot)
+        self.assertEqual(self.request.call_args.kwargs["params"], {})
+        self.assertEqual(
+            self.request.call_args.kwargs["url"], f"https://bkfara.example/ct/v1/tasks/{TASK_ID}/parameters"
+        )
 
-    def test_update_parameters_uses_patch_control_version_and_idempotency_key(self):
-        self.mock_request.return_value = _response(202, {"control_version": 5})
-        parameters = copy.deepcopy(MODEL_PARAMETERS)
-        result = self.client.update_task_parameters(TASK_ID, 4, parameters, "op-update-model")
-        self.assertEqual(result, {"control_version": 5})
-        args, kwargs = self.mock_request.call_args
-        self.assertEqual(args, ("PATCH", f"https://bkfara.example/ct/v1/tasks/{TASK_ID}/parameters"))
-        self.assertEqual(kwargs["headers"], {"Idempotency-Key": "op-update-model"})
-        self.assertEqual(kwargs["json"], {"expected_control_version": 4, "training": {"parameters": MODEL_PARAMETERS}})
-        kwargs["json"]["training"]["parameters"]["min_members"] = 10
-        self.assertEqual(parameters, MODEL_PARAMETERS)
+    def test_parameter_patch_keeps_version_key_and_body_separate(self):
+        params = {
+            "task_id": TASK_ID,
+            "Idempotency-Key": "op-model",
+            "expected_control_version": 4,
+            "training": {"parameters": MODEL_PARAMETERS},
+        }
+        original = copy.deepcopy(params)
+        self.request.return_value = response(202, {"control_version": 5})
+        self.assertEqual(self.api.update_task_parameters(params), {"control_version": 5})
+        kwargs = self.request.call_args.kwargs
+        self.assertEqual(kwargs["method"], "PATCH")
+        self.assertEqual(
+            json.loads(kwargs["data"]), {"expected_control_version": 4, "training": {"parameters": MODEL_PARAMETERS}}
+        )
+        self.assertEqual(params, original)
 
-    def test_model_update_unknown_result_reuses_request_and_key(self):
-        self.mock_request.side_effect = [requests.exceptions.ReadTimeout("timeout"), _response(202, {"accepted": True})]
-        with self.assertRaises(BkFaraResultUnknownException):
-            self.client.update_task_parameters(TASK_ID, 4, MODEL_PARAMETERS, "op-update-model")
-        self.client.update_task_parameters(TASK_ID, 4, MODEL_PARAMETERS, "op-update-model")
-        first, second = self.mock_request.call_args_list
-        self.assertEqual(first, second)
-
-    def test_model_update_conflict_keeps_business_code(self):
-        self.mock_request.return_value = _response(409, {"code": "CONTROL_VERSION_CONFLICT"})
-        with self.assertRaises(BkFaraConflictException) as ctx:
-            self.client.update_task_parameters(TASK_ID, 4, MODEL_PARAMETERS, "op-update-model")
-        self.assertEqual(ctx.exception.data["code"], "CONTROL_VERSION_CONFLICT")
-
-    def test_business_stop_accepts_optional_completion(self):
-        self.mock_request.return_value = _response(body={"state": "DRAINING"})
-        boundary = {"0": 10, "1": 10}
+    def test_business_stop_and_restart_use_declared_paths(self):
+        self.request.return_value = response(body={"state": "STOPPED"})
+        boundary = {"0": 10}
         completion = {"input_boundary": boundary, "storage_complete": True, "binding_removed": True}
+        self.api.stop_clustering({"task_id": TASK_ID, "boundary": boundary, "completion": completion})
+        self.assertEqual(
+            json.loads(self.request.call_args.kwargs["data"]), {"boundary": boundary, "completion": completion}
+        )
+        self.api.restart_clustering({"task_id": TASK_ID, "expected_control_version": 2, "Idempotency-Key": "op-reopen"})
+        self.assertTrue(self.request.call_args.kwargs["url"].endswith(f"/{TASK_ID}/restart"))
+        self.assertEqual(json.loads(self.request.call_args.kwargs["data"]), {"expected_control_version": 2})
 
-        self.client.stop_clustering(TASK_ID, boundary)
-        self.client.stop_clustering(TASK_ID, boundary, completion)
+    def test_http_errors_preserve_status_and_business_code(self):
+        for status, code, unknown in [
+            (409, "CONTROL_VERSION_CONFLICT", False),
+            (422, "TASK_PARAMETERS_INVALID", False),
+            (503, "RUNTIME_UNAVAILABLE", True),
+        ]:
+            with self.subTest(status=status):
+                self.request.return_value = response(status, {"code": code})
+                with self.assertRaises(ApiRequestError) as ctx:
+                    self.api.update_task_parameters({"task_id": TASK_ID, "Idempotency-Key": "op-model"})
+                self.assertEqual(ctx.exception.errors, {"status_code": status, "code": code, "result_unknown": unknown})
 
-        first, second = self.mock_request.call_args_list
-        self.assertEqual(first.kwargs["json"], {"boundary": boundary})
-        self.assertEqual(second.kwargs["json"], {"boundary": boundary, "completion": completion})
-        self.assertEqual(second.args[1], f"https://bkfara.example/internal/ct/v1/clustering/tasks/{TASK_ID}/stop")
-        self.assertEqual(second.kwargs["headers"], {})
+    def test_timeout_has_no_automatic_retry_and_inputs_can_be_reused(self):
+        params = {"profile": "p", "index_id": "24466", "Idempotency-Key": "op-create"}
+        original = copy.deepcopy(params)
+        self.request.side_effect = requests.exceptions.ReadTimeout("timeout")
+        with self.assertRaises(ApiRequestError) as ctx:
+            self.api.create_task(params)
+        self.assertTrue(ctx.exception.errors["result_unknown"])
+        self.assertEqual(self.request.call_count, 1)
+        self.assertEqual(params, original)
+        self.request.side_effect = None
+        self.request.return_value = response(201, {"task_id": TASK_ID})
+        self.api.create_task(params)
+        self.assertEqual(self.api.create_task.headers["Idempotency-Key"], "op-create")
+        self.assertEqual(params, original)
 
-    def test_restart_uses_expected_control_version(self):
-        self.mock_request.return_value = _response(body={})
+    def test_tls_error_is_not_an_unknown_write_result(self):
+        self.request.side_effect = requests.exceptions.SSLError("bad certificate")
+        with self.assertRaises(ApiRequestError) as ctx:
+            self.api.create_task({})
+        self.assertFalse(ctx.exception.errors["result_unknown"])
 
-        self.client.restart_clustering(TASK_ID, expected_control_version=2, idempotency_key="op-restart")
-
-        kwargs = self.mock_request.call_args.kwargs
-        self.assertEqual(kwargs["json"], {"expected_control_version": 2})
-        self.assertEqual(kwargs["headers"], {"Idempotency-Key": "op-restart"})
-
-    def test_timeout_and_gateway_error_are_result_unknown(self):
-        self.mock_request.side_effect = requests.exceptions.ReadTimeout("read timeout")
-        with self.assertRaises(BkFaraResultUnknownException):
-            self.client.configure_clustering(TASK_ID, {}, idempotency_key="op-configure")
-
-        self.mock_request.side_effect = None
-        self.mock_request.return_value = _response(504, {"message": "gateway timeout"})
-        with self.assertRaises(BkFaraResultUnknownException):
-            self.client.configure_clustering(TASK_ID, {}, idempotency_key="op-configure")
-
-    def test_conflict_keeps_business_code(self):
-        self.mock_request.return_value = _response(409, {"code": "CONTROL_VERSION_CONFLICT", "message": "stale"})
-
-        with self.assertRaises(BkFaraConflictException) as ctx:
-            self.client.restart_clustering(TASK_ID, expected_control_version=1, idempotency_key="op-restart")
-
-        self.assertEqual(ctx.exception.data, {"status_code": 409, "code": "CONTROL_VERSION_CONFLICT"})
-
-    def test_business_error_and_ssl_error_are_api_errors(self):
-        self.mock_request.return_value = _response(400, {"code": "CLUSTER_QUARANTINE_PENDING", "message": "pending"})
-        with self.assertRaises(BkFaraApiException) as ctx:
-            self.client.stop_clustering(TASK_ID, {"0": 1})
-        self.assertNotIsInstance(ctx.exception, BkFaraConflictException)
-        self.assertEqual(ctx.exception.data["code"], "CLUSTER_QUARANTINE_PENDING")
-
-        self.mock_request.side_effect = requests.exceptions.SSLError("certificate verify failed")
-        with self.assertRaises(BkFaraApiException):
-            self.client.get_task(TASK_ID)
+    def test_success_with_invalid_json_is_unknown_for_write(self):
+        value = response(201)
+        value._content = b"not json"
+        self.request.return_value = value
+        with self.assertRaises(ApiRequestError) as ctx:
+            self.api.create_task({})
+        self.assertTrue(ctx.exception.errors["result_unknown"])
 
     @override_settings(BKFARA_API_TOKEN="")
-    def test_missing_config_raises(self):
-        with self.assertRaises(BkFaraNotConfiguredException):
-            BkFaraClient()
+    def test_missing_config_fails_before_request(self):
+        with self.assertRaises(ApiRequestError):
+            self.api.create_task({})
+        self.request.assert_not_called()
 
-    @override_settings(BKFARA_CA_CERT_PATH="")
-    def test_empty_ca_uses_system_ca(self):
-        self.assertIs(BkFaraClient().verify, True)
+    def test_standard_data_api_still_requires_200_and_keeps_url_keys(self):
+        api = DataAPI("POST", "https://example.test/{task_id}", "test", url_keys=["task_id"], no_query_params=True)
+        self.request.return_value = response(201, {"result": True, "data": {}})
+        with self.assertRaises(ApiRequestError):
+            api({"task_id": "task-1"}, request_cookies=False)
+        self.assertEqual(json.loads(self.request.call_args.kwargs["data"]), {"task_id": "task-1"})
 
 
 class TestBkFaraPayload(SimpleTestCase):
