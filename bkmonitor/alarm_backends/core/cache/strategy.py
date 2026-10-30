@@ -22,6 +22,8 @@ from typing import Any
 import arrow
 from bk_monitor_base.strategy import list_strategy
 from bkm_space.api import SpaceApi
+from bkm_space.define import SpaceTypeEnum
+from bkm_space.utils import BKMS_SPACE_ID_PREFIX, is_disabled_bkms_space
 from django.conf import settings
 
 from alarm_backends.constants import CONST_ONE_DAY
@@ -52,6 +54,8 @@ from constants.strategy import (
 )
 from core.drf_resource import api
 from core.prometheus import metrics
+from metadata.models.space import Space
+from metadata.models.space.constants import SpaceStatus
 
 logger = logging.getLogger("cache")
 
@@ -217,10 +221,21 @@ class StrategyCacheManager(CacheManager):
                     del value["bk_cloud_id"]
 
     @classmethod
+    def get_disabled_bkms_biz_ids(cls) -> set[int]:
+        """每轮读取持久状态，策略执行资格不使用进程内空间缓存。"""
+        spaces = Space.objects.filter(
+            space_type_id=SpaceTypeEnum.BKCI.value,
+            space_id__istartswith=BKMS_SPACE_ID_PREFIX,
+            status=SpaceStatus.DISABLED.value,
+        ).values("id", "space_type_id", "space_id", "status")
+        return {-space["id"] for space in spaces if is_disabled_bkms_space(space)}
+
+    @classmethod
     def get_strategies_map(cls, bk_biz_ids: set[int] | list[int] | None = None) -> dict:
         """
         获取全部策略配置, 返回字典格式
         """
+        disabled_bkms_biz_ids = cls.get_disabled_bkms_biz_ids()
         list_kwargs: dict[str, Any] = {
             "apply_converters": False,
             "is_enabled": True,
@@ -241,6 +256,8 @@ class StrategyCacheManager(CacheManager):
         result_map = {}
         cls.fake_event_agg_interval = getattr(settings, "FAKE_EVENT_AGG_INTERVAL", 60)
         for strategy_id, strategy_config in strategy_configs_map.items():
+            if strategy_config["bk_biz_id"] in disabled_bkms_biz_ids:
+                continue
             # 过滤没有item的策略
             if not strategy_config["items"]:
                 logger.warning(f"strategy({strategy_config['id']}) items is empty")
@@ -625,7 +642,8 @@ class StrategyCacheManager(CacheManager):
         # 从缓存中获取当前保存的所有策略ID，形成一个集合。
         old_strategy_ids: set = set(cls.get_strategy_ids())
         # 获取当前存在的业务ID列表
-        existed_bk_biz_ids = set(BusinessManager.keys())
+        disabled_bkms_biz_ids = cls.get_disabled_bkms_biz_ids()
+        existed_bk_biz_ids = set(BusinessManager.keys()) - disabled_bkms_biz_ids
         # 不存在的业务id的策略id集合
         invalid_strategy_ids = set()
 
@@ -650,9 +668,9 @@ class StrategyCacheManager(CacheManager):
             missing_strategy_ids = old_strategy_ids - updated_strategy_ids
             if missing_strategy_ids:
                 enabled_strategy_ids = set(
-                    StrategyModel.objects.filter(id__in=missing_strategy_ids, is_enabled=True).values_list(
-                        "id", flat=True
-                    )
+                    StrategyModel.objects.filter(id__in=missing_strategy_ids, is_enabled=True)
+                    .exclude(bk_biz_id__in=disabled_bkms_biz_ids)
+                    .values_list("id", flat=True)
                 )
                 invalid_strategy_ids.update(missing_strategy_ids - enabled_strategy_ids)
         # 增量更新

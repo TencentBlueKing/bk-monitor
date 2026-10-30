@@ -18,6 +18,7 @@ from django.utils.translation import gettext as _
 from rest_framework import serializers
 from rest_framework.exceptions import ValidationError
 
+from bkm_space.utils import is_bkms_space
 from bkmonitor.utils.request import get_request, get_request_tenant_id
 from bkmonitor.utils.user import get_local_username, get_request_username
 from core.drf_resource import Resource
@@ -192,6 +193,32 @@ class UpdateSpaceResource(Resource):
 
     def perform_request(self, request_data):
         return utils.update_space(**request_data)
+
+
+class SetBkmsSpaceStatusResource(Resource):
+    """设置当前租户下 BKMS 空间的启停状态。"""
+
+    class RequestSerializer(serializers.Serializer):
+        space_uid = serializers.CharField(label="空间唯一标识")
+        status = serializers.ChoiceField(label="空间状态", choices=space.Space.SPACE_STATUS)
+
+        def validate_space_uid(self, value):
+            parts = value.split(constants.SPACE_UID_HYPHEN, 1)
+            if len(parts) != 2 or not is_bkms_space(*parts):
+                raise ValidationError(_("仅支持 bkci 类型且空间 ID 以 bkms- 开头的空间"))
+            return value
+
+    def perform_request(self, request_data):
+        space_type_id, space_id = space.Space.objects.split_space_uid(request_data["space_uid"])
+        target = space.Space.objects.filter(
+            bk_tenant_id=get_request_tenant_id(), space_type_id=space_type_id, space_id=space_id
+        ).first()
+        if target is None:
+            raise SpaceNotFound(space_type_id=space_type_id, space_id=space_id)
+        if not is_bkms_space(target.space_type_id, target.space_id):
+            raise ValidationError(_("仅支持 bkci 类型且空间 ID 以 bkms- 开头的空间"))
+        space.Space.objects.filter(pk=target.pk).update(status=request_data["status"])
+        return {"space_uid": target.space_uid, "status": request_data["status"]}
 
 
 class MergeSpaceResource(Resource):
