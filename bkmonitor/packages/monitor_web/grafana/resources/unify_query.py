@@ -675,16 +675,17 @@ class UnifyQueryRawResource(ApiAuthResource):
             # 过滤主机监控图表的targets过滤字段
             targets = value.get("targets")
             if targets:
+                identity_bk_biz_id = bk_biz_id
                 if is_host_query and any(
                     {"bk_host_id", "bk_target_ip", "bk_target_cloud_id"}.intersection(target) for target in targets
                 ):
                     try:
                         # 只切换主机身份模式，不修改查询空间与鉴权参数。
-                        bk_biz_id = validate_bk_biz_id(bk_biz_id)
+                        identity_bk_biz_id = validate_bk_biz_id(bk_biz_id)
                     except NoRelatedResourceError:
                         return value
                 for target in targets:
-                    if is_ipv6_biz(bk_biz_id):
+                    if is_ipv6_biz(identity_bk_biz_id):
                         target.pop("bk_target_ip", None)
                         target.pop("bk_target_cloud_id", None)
                     else:
