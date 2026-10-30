@@ -72,6 +72,8 @@ def inspect_strategy_config(params: dict[str, Any]) -> dict[str, Any]:
 
 
 def _inspect_by_result_table(params: dict[str, Any]) -> dict[str, Any]:
+    if params.get("operation") != OPERATION_BY_RESULT_TABLE:
+        raise CustomException(message="by_result_table operation 必须精确匹配，不接受首尾空白")
     unknown_fields = sorted(set(params) - RESULT_TABLE_ALLOWED_PARAMS)
     if unknown_fields:
         raise CustomException(message=f"by_result_table 不支持参数: {', '.join(unknown_fields)}")

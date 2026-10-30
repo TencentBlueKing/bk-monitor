@@ -181,6 +181,16 @@ def test_invalid_parameters_are_rejected_before_authorization_or_database(overri
     assert not queries
 
 
+@pytest.mark.parametrize("whitespace", [" ", "\t", "\n", "\u0085", "\u001c", "\u001d", "\u001e", "\u001f"])
+@pytest.mark.parametrize("position", ["prefix", "suffix"])
+def test_noncanonical_operation_is_rejected_before_authorization_or_database(whitespace, position, authorize):
+    operation = f"{whitespace}by_result_table" if position == "prefix" else f"by_result_table{whitespace}"
+    with CaptureQueriesContext(connection) as queries, pytest.raises(CustomException, match="operation 必须精确匹配"):
+        lookup(operation=operation)
+    authorize.assert_not_called()
+    assert not queries
+
+
 def test_permission_denied_propagates_before_strategy_reads(authorize):
     authorize.side_effect = PermissionDenied("synthetic permission refusal")
     with CaptureQueriesContext(connection) as queries, pytest.raises(PermissionDenied):
