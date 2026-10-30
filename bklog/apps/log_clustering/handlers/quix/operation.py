@@ -106,13 +106,12 @@ class QuixClusteringOperationRunner:
             "update_model_parameters",
             "confirm_model_parameters",
         ],
-        # 候选边界只固定一次；结果入库并实际恢复原存储绑定后，才向 BKFara 提交最终完成确认
+        # 本次业务收尾完成且 Databus 恢复原存储配置后，才向 BKFara 提交最终完成确认
         ClusteringOperationTypeEnum.DISABLE.value: [
             "disable_clustering",
             "confirm_closed",
             "detach",
             "wait_detached",
-            "confirm_detached",
             "stop_completed",
         ],
     }
@@ -392,17 +391,6 @@ class QuixClusteringOperationRunner:
             and bool(status.get("raw_sink_referenced"))
             and status.get("sink_referenced") is False
             and databus_phase == "Ok"
-        )
-
-    def _step_confirm_detached(self) -> bool:
-        if not self.runtime.sink:
-            return True
-        # BKBase 当前协议只回报配置下发完成，没有 Runtime 解绑回执。
-        # 显式暴露协议缺口，不能以 Databus Ok 冒充 binding_removed，也不能永久空轮询。
-        raise QuixClusteringConfigInvalidException(
-            QuixClusteringConfigInvalidException.MESSAGE.format(
-                detail="BKBase 当前协议未提供 Runtime 实际解绑回执，不能向 BKFara 确认 binding_removed"
-            )
         )
 
     def _step_stop_completed(self) -> bool:

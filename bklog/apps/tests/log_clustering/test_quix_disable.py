@@ -56,6 +56,7 @@ class TestQuixDisableRunner(TestCase):
             INDEX_SET_ID, ClusteringOperationTypeEnum.DISABLE.value, {}
         )
         self.bkfara = MagicMock()
+        self.bkfara.stop_clustering.return_value = {"state": "STOPPED", "stop_boundary": BOUNDARY}
         self.transfer = MagicMock()
         self.transfer.get_log_clustering_status.side_effect = [CLOSED, DETACHED]
         self.delete_tag = Mock()
@@ -71,19 +72,50 @@ class TestQuixDisableRunner(TestCase):
     def run_operation(self):
         return QuixClusteringOperationRunner(self.operation.operation_id).run()
 
-    def test_closed_receipt_allows_detach_but_not_false_runtime_completion(self):
+    def test_closed_receipt_and_raw_binding_allow_bkfara_stop(self):
         self.assertIsNone(self.run_operation())
         self.operation.refresh_from_db()
         self.assertEqual(
             [c.args[0]["action"] for c in self.transfer.operate_log_clustering.call_args_list], ["disable", "detach"]
         )
-        self.assertEqual((self.operation.status, self.operation.step), ("failed", "confirm_detached"))
-        self.assertIn("Runtime 实际解绑回执", self.operation.last_error)
-        self.bkfara.stop_clustering.assert_not_called()
-        self.delete_tag.assert_not_called()
+        self.assertEqual(self.operation.status, "success")
+        self.bkfara.stop_clustering.assert_called_once_with(
+            {
+                "task_id": "task-uuid",
+                "boundary": BOUNDARY,
+                "completion": {"input_boundary": BOUNDARY, "storage_complete": True, "binding_removed": True},
+            }
+        )
+        self.delete_tag.assert_called_once()
         runtime = LogClusteringRuntime.objects.get(index_set_id=INDEX_SET_ID)
         self.assertEqual(runtime.candidate_boundary, BOUNDARY)
-        self.assertEqual(runtime.phase, "disabling")
+        self.assertEqual(runtime.phase, "stopped")
+
+    def test_bound_stop_waits_for_raw_binding_then_resumes_without_reapplying(self):
+        self.transfer.get_log_clustering_status.side_effect = [
+            CLOSED,
+            {**DETACHED, "sink_referenced": True},
+            DETACHED,
+        ]
+        self.assertEqual(self.run_operation(), POLL_INTERVAL_SECONDS)
+        self.bkfara.stop_clustering.assert_not_called()
+        self.assertIsNone(self.run_operation())
+        self.assertEqual(
+            [c.args[0]["action"] for c in self.transfer.operate_log_clustering.call_args_list], ["disable", "detach"]
+        )
+        self.bkfara.stop_clustering.assert_called_once()
+        self.operation.refresh_from_db()
+        self.assertEqual(self.operation.status, "success")
+
+    def test_bound_stop_requires_matching_stopped_response(self):
+        self.bkfara.stop_clustering.return_value = {"state": "STOPPED", "stop_boundary": {"0": 0}}
+        self.assertEqual(self.run_operation(), POLL_INTERVAL_SECONDS)
+        self.delete_tag.assert_not_called()
+        self.bkfara.stop_clustering.return_value = {"state": "STOPPED", "stop_boundary": BOUNDARY}
+        self.assertIsNone(self.run_operation())
+        first, second = self.bkfara.stop_clustering.call_args_list
+        self.assertEqual(first, second)
+        self.assertEqual(self.transfer.get_log_clustering_status.call_count, 2)
 
     def test_stale_or_incomplete_close_receipts_do_not_detach(self):
         from copy import deepcopy
