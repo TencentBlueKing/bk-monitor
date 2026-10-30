@@ -2066,3 +2066,8 @@ BKAPP_RUM_SDK = os.getenv("BKAPP_RUM_SDK", "otlp")  # otlp / ageis
 BKAPP_RUM_ENDPOINT = os.getenv("BKAPP_RUM_ENDPOINT", "")
 BKAPP_RUM_TOKEN = os.getenv("BKAPP_RUM_TOKEN", "")
 BKAPP_RUM_ENABLED = str(os.getenv("BKAPP_RUM_ENABLED", False)).lower() == "true"
+
+# 告警列表「通知类型」按通知记录统计（新口径开关，默认关闭）。
+# DynamicSettings 先读取静态 settings，此处不定义会在读取时抛 AttributeError；
+# 查询侧部署在 web 角色，因此放在 default.py 而不是只对 worker 生效的 role 配置。
+ALERT_NOTICE_WAY_BY_RECORDS = False
