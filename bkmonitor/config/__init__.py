@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making BK-LOG 蓝鲸日志平台 available.
 Copyright (C) 2017-2025 Tencent.  All rights reserved.
@@ -24,6 +23,8 @@ import os
 
 from config.celery.celery import app as celery_app
 
+from . import kms
+
 __author__ = "蓝鲸智云"
 __copyright__ = "Copyright © 2012-2019 Tencent BlueKing. All Rights Reserved."
 __all__ = ["celery_app", "ENVIRONMENT", "RUN_VER", "APP_CODE", "SECRET_KEY", "BK_URL", "BASE_DIR"]
@@ -39,9 +40,7 @@ def get_env_or_raise(*keys, default=None):
     if default is not None:
         return default
 
-    raise RuntimeError(
-        'Environment variable "{}" not found, you must set this variable to run this application.'.format(keys)
-    )
+    raise RuntimeError(f'Environment variable "{keys}" not found, you must set this variable to run this application.')
 
 
 # SaaS运行版本，如非必要请勿修改
@@ -49,7 +48,12 @@ RUN_VER = os.environ.get("BKPAAS_ENGINE_REGION", "open")
 
 APP_CODE = get_env_or_raise("APP_ID", "BKPAAS_APP_ID", "BK_MONITOR_APP_CODE", "APP_CODE", default="bkmonitorv3")
 # 应用用于调用云 API 的 Secret
-SECRET_KEY = get_env_or_raise("APP_TOKEN", "BKPAAS_APP_SECRET", "BK_MONITOR_APP_SECRET", "APP_SECRET", default="")
+if kms.enabled():
+    SECRET_KEY = kms.value("bkapp_id_secret", "saas", "app_secret")
+    # bk-monitor-base caches its config object; inject before any module reads it.
+    kms.apply_base_config()
+else:
+    SECRET_KEY = get_env_or_raise("APP_TOKEN", "BKPAAS_APP_SECRET", "BK_MONITOR_APP_SECRET", "APP_SECRET", default="")
 
 
 # V3判断环境的环境变量为BKPAAS_ENVIRONMENT
@@ -73,6 +77,6 @@ BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
 # read VERSION file
 try:
-    VERSION = open(os.path.join(BASE_DIR, "VERSION"), "r", encoding="utf-8").read().strip()
+    VERSION = open(os.path.join(BASE_DIR, "VERSION"), encoding="utf-8").read().strip()
 except:  # noqa
     VERSION = "Unknown version"

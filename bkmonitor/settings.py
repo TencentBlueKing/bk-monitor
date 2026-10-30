@@ -107,3 +107,8 @@ try:
     globals()["DATABASES"][OLD_MONITOR_BACKEND_DB_NAME] = globals()["DATABASES"]["monitor_api"].copy()
 except ImportError as e:
     print(f"import bk-monitor-base and load settings failed, error: {e}")
+
+# bkcrypto 4.x 的加密字段无法被 Django 迁移复制，需要在模型加载前修复
+from bk_monitor_base.infras.symmetric_field import ensure_symmetric_field_copy_compatibility  # noqa: E402
+
+ensure_symmetric_field_copy_compatibility()
