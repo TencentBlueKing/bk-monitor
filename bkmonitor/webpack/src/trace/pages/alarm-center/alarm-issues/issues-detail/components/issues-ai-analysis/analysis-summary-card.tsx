@@ -98,17 +98,26 @@ export default defineComponent({
                 time: dayjs.tz(triggered_at * 1000, window.timezone).format('YYYY-MM-DD HH:mm:ssZZ'),
               })}
             </span>
-            <Button
-              disabled={this.loading.retryAnalysis}
-              loading={this.loading.retryAnalysis}
-              theme='primary'
-              text
-              onClick={() => {
+            <PopConfirm
+              width='320'
+              confirmText={this.t('确认')}
+              content={this.t('重新分析将基于最新告警重新触发 AI 源码分析，是否继续？')}
+              placement='top'
+              title={this.t('确认重新分析？')}
+              trigger='click'
+              onConfirm={() => {
                 this.$emit('reanalyzeAnalysis');
               }}
             >
-              {this.t('重新分析')}
-            </Button>
+              <Button
+                disabled={this.loading.retryAnalysis}
+                loading={this.loading.retryAnalysis}
+                theme='primary'
+                text
+              >
+                {this.t('重新分析')}
+              </Button>
+            </PopConfirm>
           </div>
 
           {result.result_card.responsibility?.bk_username && (

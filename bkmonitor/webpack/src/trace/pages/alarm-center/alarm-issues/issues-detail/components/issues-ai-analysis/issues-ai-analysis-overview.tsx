@@ -26,7 +26,7 @@
 
 import { type PropType, computed, defineComponent, watch } from 'vue';
 
-import { Button, Exception, Loading } from 'bkui-vue';
+import { Button, Exception, Loading, PopConfirm } from 'bkui-vue';
 import { useI18n } from 'vue-i18n';
 
 import { useIssuesAiAnalysis } from '../../../composables/use-issues-ai-analysis';
@@ -185,13 +185,14 @@ export default defineComponent({
             type='500'
           >
             <div>{sourceAnalysisData.value.latest.failure.message}</div>
-            <Button
-              style='margin-top: 10px'
-              disabled={analysisLoading.retryAnalysis}
-              loading={analysisLoading.retryAnalysis}
-              theme='primary'
-              text
-              onClick={() => {
+            <PopConfirm
+              width='320'
+              confirmText={t('确认')}
+              content={t('重新分析将基于最新告警重新触发 AI 源码分析，是否继续？')}
+              placement='top'
+              title={t('确认重新分析？')}
+              trigger='click'
+              onConfirm={() => {
                 handleReanalyzeSourceAnalysis({
                   bk_biz_id: props.detail.bk_biz_id,
                   issue_id: props.detail.id,
@@ -199,8 +200,16 @@ export default defineComponent({
                 });
               }}
             >
-              {t('重新分析')}
-            </Button>
+              <Button
+                style='margin-top: 10px'
+                disabled={analysisLoading.retryAnalysis}
+                loading={analysisLoading.retryAnalysis}
+                theme='primary'
+                text
+              >
+                {t('重新分析')}
+              </Button>
+            </PopConfirm>
           </Exception>
         );
       }
@@ -224,21 +233,30 @@ export default defineComponent({
               {t('查看完整报告')}
             </Button>
             <div class='divider' />
-            <Button
-              disabled={analysisLoading.retryAnalysis}
-              loading={analysisLoading.retryAnalysis}
-              theme='primary'
-              text
-              onClick={() => {
+            <PopConfirm
+              width='320'
+              confirmText={t('确认')}
+              content={t('重新分析将基于最新告警重新触发 AI 源码分析，是否继续？')}
+              placement='top'
+              title={t('确认重新分析？')}
+              trigger='click'
+              onConfirm={() => {
                 handleReanalyzeSourceAnalysis({
                   bk_biz_id: props.detail.bk_biz_id,
                   issue_id: props.detail.id,
                 });
               }}
             >
-              <i class='icon-monitor icon-shuaxin' />
-              {t('重新分析')}
-            </Button>
+              <Button
+                disabled={analysisLoading.retryAnalysis}
+                loading={analysisLoading.retryAnalysis}
+                theme='primary'
+                text
+              >
+                <i class='icon-monitor icon-shuaxin' />
+                {t('重新分析')}
+              </Button>
+            </PopConfirm>
           </div>
         </div>
       );
