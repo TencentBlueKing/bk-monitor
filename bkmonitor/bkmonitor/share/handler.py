@@ -283,7 +283,12 @@ class HostApiAuthChecker(BaseApiAuthChecker):
                 raise InvalidParamsError({"key": "start_time,end_time"})
             self.time_check(request_data["start_time"], request_data["end_time"])
 
-        if request_data.get("query_configs") and self.get_request_view_action() not in self.HOST_LIST_ACTIONS:
+        # Select the authorization contract by route. Other resources may drop
+        # unknown query_configs fields before executing their target parameters.
+        if self.get_request_view_action() == (
+            "monitor_web.grafana.views.GrafanaViewSet",
+            "time_series/unify_query",
+        ):
             self.query_configs_check(request_data["query_configs"])
         else:
             self.params_check(request_data)
