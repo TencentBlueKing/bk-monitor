@@ -4,6 +4,7 @@ const path = require('node:path');
 const test = require('node:test');
 const vm = require('node:vm');
 const ts = require('typescript');
+const { serviceHarness } = require('./helpers/host-service-harness.cjs');
 
 const vue = require('../src/trace/node_modules/vue');
 
@@ -31,8 +32,9 @@ const inst = (id, children = []) => ({
 const skeleton = () => [inst('biz|1', [inst('set|2', [inst('module|3'), inst('module|4')])])];
 const fullTree = () => [inst('biz|1', [inst('set|2', [inst('module|3', [leaf(11), leaf(12)]), inst('module|4')])])];
 
-function harness(query = {}, readonly = false, workerResponse, requestOwner, bizId = 1) {
+function harness(query = {}, readonly = false, workerResponse, requestOwner, bizId = 1, requestBoundary = false) {
   global.window = { cc_biz_id: bizId, timezone: 'UTC', i18n: { t: value => value }, rawWindow: requestOwner };
+  if (requestBoundary) global.window.enable_cmdb_level = true;
   global.ResizeObserver = class {
     observe() {}
     disconnect() {}
@@ -59,7 +61,8 @@ function harness(query = {}, readonly = false, workerResponse, requestOwner, biz
     hostProcessKeyword: '',
   });
   const calls = [];
-  const services = Object.fromEntries(
+  const http = requestBoundary ? serviceHarness(requestOwner, { cc_biz_id: bizId }) : null;
+  const services = http?.api || Object.fromEntries(
     [
       'getHostInfoPage',
       'getHostInfoList',
@@ -71,7 +74,12 @@ function harness(query = {}, readonly = false, workerResponse, requestOwner, biz
     ].map(name => [name, (...args) => new Promise((resolve, reject) => calls.push({ name, args, resolve, reject }))])
   );
   const chartTargets = [];
+  const chartRequests = [];
   let processTable,
+    detail,
+    formatShare,
+    header,
+    statCards,
     restores = 0,
     table,
     topo;
@@ -147,6 +155,15 @@ function harness(query = {}, readonly = false, workerResponse, requestOwner, biz
         return { useRoute: () => route, useRouter: () => ({ resolve: () => ({ fullPath: '/' }), replace() {} }) };
       if (id === 'pinia') return { storeToRefs: vue.toRefs };
       if (id === 'vue-i18n') return { useI18n: () => ({ t: value => value }) };
+      if (id === 'monitor-api/cancel') return { CancelToken: class {} };
+      if (id === 'monitor-common/utils/equal') return { arraysEqual: (a, b) => JSON.stringify(a) === JSON.stringify(b) };
+      if (id === 'monitor-ui/chart-plugins/constants/charts') return { COLOR_LIST: [], COLOR_LIST_BAR: [] };
+      if (id === 'monitor-ui/monitor-echarts/valueFormats/valueFormats') return { getValueFormat: () => () => ({}) };
+      if (id === './use-chart-view-option') return { useChartViewOption: () => ({ watchHighlightPeak() {} }) };
+      if (id === './use-chart-tooltips') return {};
+      if (id === '@/common/embed-context') return { withEmbedQuery: value => value };
+      if (id === '@/pages/host/components/dashbords/variables/resolve')
+        return load(`${root}/components/dashbords/variables/resolve.ts`);
       if (id === '@vueuse/core') return { useDebounceFn: fn => fn };
       if (id === 'bkui-vue')
         return {
@@ -165,6 +182,26 @@ function harness(query = {}, readonly = false, workerResponse, requestOwner, biz
       if (id.endsWith('/use-host-topo-tree-worker')) return { useHostTopoTreeWorker: () => treeClient(workerResponse) };
       if (id.endsWith('/use-host-list-worker')) return { useHostListWorker: () => listWorker };
       if (id.endsWith('/host-service')) return services;
+      if (requestBoundary && id.endsWith('/common-header/common-header'))
+        return {
+          default: vue.defineComponent({
+            setup: (_, { attrs, slots }) => () => {
+              header = attrs;
+              return vue.h('header', [slots.left?.(), slots.accessGuide?.()]);
+            },
+          }),
+        };
+      if (requestBoundary && id.endsWith('/host-location-bar/host-location-bar'))
+        return load(`${root}/components/host-location-bar/host-location-bar.tsx`);
+      if (requestBoundary && id.endsWith('/temporary-share/temporary-share'))
+        return {
+          default: vue.defineComponent({
+            setup: (_, { attrs }) => () => {
+              formatShare = attrs.formatTokenParams;
+              return null;
+            },
+          }),
+        };
       if (id === 'monitor-api/modules/scene_view') return services;
       if (id.endsWith('/process-table')) return { default: ProcessTable };
       if (id.endsWith('/use-metric-groups')) return { useMetricGroups: metricGroups };
@@ -174,15 +211,35 @@ function harness(query = {}, readonly = false, workerResponse, requestOwner, biz
         return {
           ...variables,
           DashboardPanel: vue.defineComponent({
-            setup:
-              (_, { attrs }) =>
-              () => {
+            setup: (_, { attrs }) => {
+              if (requestBoundary) {
+                const panel = vue.computed(() => variables.resolveGraphPanel({
+                  id: 'cpu',
+                  targets: [{
+                    apiModule: 'grafana',
+                    apiFunc: 'graphUnifyQuery',
+                    data: { query_configs: [{ filter_dict: { targets: ['$current_target', '$compare_targets'] } }] },
+                  }],
+                }, attrs.scopedVars));
+                load(path.join(root, '../trace-explore/components/explore-chart/use-echarts.ts')).useEcharts({
+                  panel,
+                  chartRef: vue.shallowRef(null),
+                  params: {},
+                  customOptions: {},
+                  $api: { grafana: { graphUnifyQuery: params => {
+                    chartRequests.push({ params, bizId: appStore.bizId });
+                    return Promise.resolve({ series: [], metrics: [] });
+                  } } },
+                });
+              }
+              return () => {
                 chartTargets.push(
                   variables.resolveVariables({ targets: ['$current_target', '$compare_targets'] }, attrs.scopedVars)
                     .targets
                 );
                 return null;
-              },
+              };
+            },
           }),
         };
       }
@@ -197,9 +254,22 @@ function harness(query = {}, readonly = false, workerResponse, requestOwner, biz
             }
           },
         };
+      if (requestBoundary && id.endsWith('/use-host-detail'))
+        return {
+          useHostDetail: (...args) => (detail = load(`${root}/composables/use-host-detail.ts`).useHostDetail(...args)),
+        };
       if (id.endsWith('/use-host-detail'))
         return { useHostDetail: () => ({ detailData: vue.shallowRef([]), loading: vue.shallowRef(false) }) };
       if (id.endsWith('/host-list-table')) return { default: Table };
+      if (requestBoundary && id.endsWith('/host-stat-cards'))
+        return {
+          default: vue.defineComponent({
+            setup: (_, { attrs }) => () => {
+              statCards = attrs;
+              return null;
+            },
+          }),
+        };
       if (id.endsWith('/host-list-toolbar') || id.endsWith('/host-list-filter') || id.endsWith('/host-stat-cards'))
         return { default: empty };
       if (id.endsWith('/useUserConfig'))
@@ -210,6 +280,7 @@ function harness(query = {}, readonly = false, workerResponse, requestOwner, biz
       if (id === 'monitor-common/utils')
         return {
           isObject: value => !!value && typeof value === 'object',
+          random: () => 'chart',
           commonPageSizeGet: () => 100,
           parseBizId: Number,
           tryURLDecodeParse: (value, fallback) => {
@@ -295,6 +366,12 @@ function harness(query = {}, readonly = false, workerResponse, requestOwner, biz
     calls,
     store,
     chartTargets,
+    chartRequests,
+    http,
+    get detail() { return detail; },
+    get formatShare() { return formatShare; },
+    get header() { return header; },
+    get statCards() { return statCards; },
     get processTable() {
       return processTable;
     },
@@ -370,7 +447,7 @@ function treeClient(workerResponse = value => Promise.resolve(value)) {
       anchorId = '',
       fallbackToRoot = false
     ) =>
-      Promise.resolve(
+      workerResponse(
         send({
           type: preserve ? 'REPLACE' : 'INIT',
           treeData,
@@ -620,18 +697,22 @@ test('complete tree overtakes skeleton and scope parser rejects malformed and cr
   for (const id of ['biz|-1', 'biz|0', 'set|-2', 'module|-3', '-11', 'biz|-1|2'])
     assert.equal(resolveInitialHostScope(false, {}, id, -5066), null);
   assert.equal(resolveInitialHostScope(false, {}, 'biz|-1', 1), null);
-  assert.equal(resolveInitialHostScope(true, {}, 'biz|18818', -5066), null);
-  assert.equal(resolveInitialHostScope(true, {}, 'biz|-5066', -5066), null);
-  assert.equal(
+  assert.deepEqual(resolveInitialHostScope(true, {}, 'biz|18818', -5066), {
+    bk_obj_id: 'biz', bk_inst_id: 18818, pending: true,
+  });
+  assert.deepEqual(resolveInitialHostScope(true, {}, 'biz|-5066', -5066), {
+    bk_obj_id: 'biz', bk_inst_id: -5066, pending: true,
+  });
+  assert.deepEqual(
     resolveInitialHostScope(true, { shareTargetType: 'topo', shareBkObjId: 'biz', shareBkInstId: 18818 }, '', -5066),
-    null
+    { bk_obj_id: 'biz', bk_inst_id: 18818, pending: true }
   );
   h.app.unmount();
 });
 
 const SPACE_BIZ = -5066;
 const REAL_BIZ = 18818;
-const withBiz = node => ({ ...node, bk_biz_id: REAL_BIZ, ...(node.children ? { children: node.children.map(withBiz) } : {}) });
+const withBiz = node => ({ ...node, bk_biz_id: SPACE_BIZ, ...(node.children ? { children: node.children.map(withBiz) } : {}) });
 const spaceSkeleton = () => [withBiz(inst(`biz|${REAL_BIZ}`, [inst('set|2', [inst('module|3'), inst('module|4')])]))];
 const spaceFullTree = () => [
   withBiz(inst(`biz|${REAL_BIZ}`, [inst('set|2', [inst('module|3', [leaf(11), leaf(12)]), inst('module|4')])])),
@@ -654,10 +735,10 @@ test('space entry backfills the default root placeholder with the authorized rea
   await flush();
   assert.equal(h.topo.scopeError.value, false);
   assert.equal(h.topo.selectedNode.value.id, `biz|${REAL_BIZ}`);
-  assert.equal(h.topo.selectedNode.value.bk_biz_id, REAL_BIZ);
+  assert.equal(h.topo.selectedNode.value.bk_biz_id, SPACE_BIZ);
   assert.deepEqual(h.topo.selectedIds.value, [`biz|${REAL_BIZ}`]);
   assert.ok(
-    h.pending('getHostInfoPage', ([p]) => p.bk_biz_id === REAL_BIZ && p.bk_obj_id === 'biz' && p.bk_inst_id === REAL_BIZ)
+    h.pending('getHostInfoPage', ([p]) => p.bk_biz_id === SPACE_BIZ && p.bk_obj_id === 'biz' && p.bk_inst_id === REAL_BIZ)
   );
   h.respond('getHostTopoTreeByBizId', spaceFullTree(), args => args[2] !== false);
   await flush();
@@ -722,8 +803,8 @@ test('clicked real space root keeps URL identity across tree refresh and URL reo
   reopened.respond('getHostTopoTreeByBizId', spaceSkeleton(), args => args[2] === false);
   await flush();
   assert.equal(reopened.topo.selectedNode.value.id, `biz|${REAL_BIZ}`);
-  assert.equal(reopened.topo.selectedNode.value.bk_biz_id, REAL_BIZ);
-  assert.ok(reopened.pending('getHostInfoPage', ([p]) => p.bk_biz_id === REAL_BIZ && p.bk_inst_id === REAL_BIZ));
+  assert.equal(reopened.topo.selectedNode.value.bk_biz_id, SPACE_BIZ);
+  assert.ok(reopened.pending('getHostInfoPage', ([p]) => p.bk_biz_id === SPACE_BIZ && p.bk_inst_id === REAL_BIZ));
   reopened.app.unmount();
 });
 
@@ -801,6 +882,209 @@ test('positive business root and node URLs keep their selection and refresh', as
   await flush();
   assert.equal(node.topo.selectedNode.value.id, 'module|3');
   node.app.unmount();
+});
+
+const scopeHarness = (query, readonly = true, workerResponse) =>
+  harness({ from: '100', to: '200', ...query }, readonly, workerResponse, undefined, SPACE_BIZ, true);
+const pendingHttp = (h, name, predicate = () => true) =>
+  h.http.calls.find(call => !call.done && call.name === name && predicate(call.params));
+const respondHttp = (h, name, result, predicate) => {
+  const call = pendingHttp(h, name, predicate);
+  assert.ok(call, name);
+  call.done = true;
+  call.resolve(result);
+};
+const confirmRoot = async (h, tree = spaceSkeleton()) => {
+  respondHttp(h, 'getTopoTree', tree, params => !params.instance_type);
+  await flush();
+};
+const rootQuery = instId => ({ shareTargetType: 'topo', shareBkObjId: 'biz', shareBkInstId: String(instId) });
+const assertRootParams = params => {
+  assert.equal(params.bk_biz_id, SPACE_BIZ);
+  assert.equal(params.bk_obj_id, 'biz');
+  assert.equal(params.bk_inst_id, REAL_BIZ);
+  assert.equal('pending' in params, false);
+};
+
+test('root share formatter reopens readonly only after authorization and keeps request space context', async () => {
+  const source = scopeHarness({}, false);
+  await flush();
+  await confirmRoot(source);
+  const token = source.formatShare({ default_time_range: ['100', '200'], lock_search: true });
+  assert.deepEqual(token.data.scope, { version: 1, target_type: 'topo', bk_obj_id: 'biz', bk_inst_id: REAL_BIZ });
+  assert.equal(token.data.params.id, `biz|${REAL_BIZ}`);
+  source.app.unmount();
+
+  const urlQuery = Object.fromEntries(Object.entries(token.data.query).filter(([, value]) => value !== undefined).map(([key, value]) => [key, String(value)]));
+  for (const query of [urlQuery, rootQuery(SPACE_BIZ), { ...rootQuery(REAL_BIZ), nodeId: 'module|999' }, { nodeId: `biz|${REAL_BIZ}` }, { nodeId: `biz|${SPACE_BIZ}` }]) {
+    const h = scopeHarness(query);
+    await flush();
+    assert.equal(h.topo.scopeError.value, false);
+    assert.equal(h.topo.selectedNode.value, null);
+    assert.equal(h.http.calls.length, 2);
+    for (const call of h.http.calls) {
+      assert.equal(call.name, 'getTopoTree');
+      assert.equal(call.params.bk_biz_id, SPACE_BIZ);
+      assert.equal(call.params.bk_obj_id, 'biz');
+      assert.equal('pending' in call.params, false);
+    }
+    await confirmRoot(h);
+    assert.equal(h.topo.selectedNode.value.id, `biz|${REAL_BIZ}`);
+    assert.equal(h.topo.selectedNode.value.bk_biz_id, SPACE_BIZ);
+    assertRootParams(pendingHttp(h, 'getHostOrTopoNodeDetail').params);
+    assertRootParams(pendingHttp(h, 'searchHostInfo', params => params.page === 1).params);
+    assertRootParams(pendingHttp(h, 'searchHostInfo', params => !params.page).params);
+    for (const call of h.http.calls.filter(call => call.name === 'searchHostMetricStats' || call.name === 'searchHostMetric')) {
+      assertRootParams(call.params);
+      assert.equal(call.params.start_time, 100);
+      assert.equal(call.params.end_time, 200);
+    }
+    respondHttp(h, 'getHostOrTopoNodeDetail', [{ id: 'root-detail', type: 'text' }]);
+    respondHttp(h, 'searchHostInfo', { items: [host(11)], page: 1, page_size: 100, total: 1 }, p => p.page === 1);
+    for (const category of ['cpu', 'mem', 'disk'])
+      respondHttp(h, 'searchHostMetricStats', { complete: true, value: 5 }, p => p.category === category);
+    await flush();
+    assert.equal(h.detail.detailData.value[0].id, 'root-detail');
+    assert.equal(h.table.data[0].bk_host_id, 11);
+    assert.equal(h.statCards.stats.cpu, 5);
+    if (query.shareLink) assert.ok(h.header.timeRangeDisabledTip);
+    const before = h.http.calls.filter(c => c.name === 'getTopoTree').length;
+    h.topo.handleRefresh();
+    await flush();
+    // The in-flight service requests remain shared; the confirmed root does not return to pending.
+    assert.equal(h.topo.selectedNode.value.id, `biz|${REAL_BIZ}`);
+    assert.ok(h.http.calls.filter(c => c.name === 'getTopoTree').length >= before);
+    h.app.unmount();
+  }
+});
+
+test('readonly root charts wait for authorization and use the confirmed root target', async () => {
+  for (const query of [rootQuery(REAL_BIZ), rootQuery(SPACE_BIZ)]) {
+    const h = scopeHarness({ ...query, activeTab: 'metric' });
+    await flush();
+    assert.equal(h.chartTargets.length, 0);
+    assert.equal(h.chartRequests.length, 0);
+    await confirmRoot(h);
+    assert.deepEqual(h.chartTargets.at(-1), [{ bk_inst_id: REAL_BIZ, bk_obj_id: 'biz' }]);
+    assert.ok(h.chartRequests.length > 0);
+    for (const request of h.chartRequests) {
+      assert.equal(request.bizId, SPACE_BIZ);
+      assert.equal(request.params.start_time, 100);
+      assert.equal(request.params.end_time, 200);
+      assert.deepEqual(request.params.query_configs[0].filter_dict.targets, [{ bk_inst_id: REAL_BIZ, bk_obj_id: 'biz' }]);
+    }
+    assertRootParams(pendingHttp(h, 'getHostOrTopoNodeDetail').params);
+    h.app.unmount();
+  }
+});
+
+test('readonly invalid scopes fail closed and an unauthorized root cannot revive from a late tree', async () => {
+  for (const query of [
+    rootQuery(-1), rootQuery(0), rootQuery('1.5'), rootQuery('9007199254740992'),
+    { ...rootQuery(REAL_BIZ), shareBkInstId: [String(REAL_BIZ)] },
+    { ...rootQuery(REAL_BIZ), shareBkObjId: ['biz'] },
+    { shareTargetType: 'host', shareBkHostId: '-11' },
+    { shareTargetType: 'topo', shareBkObjId: 'set', shareBkInstId: '-2' },
+    { shareTargetType: 'topo', shareBkObjId: 'module', shareBkInstId: '-3' },
+    { shareTargetType: 'invalid' },
+  ]) {
+    const h = scopeHarness(query);
+    await flush();
+    assert.equal(h.topo.scopeError.value, true, JSON.stringify(query));
+    assert.equal(h.http.calls.length, 0, JSON.stringify(query));
+    h.app.unmount();
+  }
+  const h = scopeHarness(rootQuery(999));
+  await flush();
+  await confirmRoot(h);
+  assert.equal(h.topo.scopeError.value, true);
+  assert.equal(h.topo.selectedNode.value, null);
+  respondHttp(h, 'getTopoTree', spaceFullTree(), p => p.instance_type === 'host');
+  await flush();
+  assert.equal(h.topo.scopeError.value, true);
+  assert.equal(h.http.calls.filter(call => call.name !== 'getTopoTree').length, 0);
+  h.app.unmount();
+});
+
+test('readonly alias confirmation preserves token scope when a descendant is selected', async () => {
+  const h = scopeHarness(rootQuery(SPACE_BIZ));
+  await flush();
+  await confirmRoot(h);
+  const module = { ...inst('module|3'), bk_biz_id: SPACE_BIZ };
+  h.topo.handleSelectNode(module);
+  await flush();
+  h.store.refreshGeneration++;
+  await flush();
+  const fullRequests = h.http.calls.filter(call =>
+    (call.name === 'searchHostInfo' && !call.params.page) || call.name === 'searchHostMetric'
+  );
+  assert.ok(fullRequests.length);
+  for (const call of fullRequests) assertRootParams(call.params);
+  h.app.unmount();
+});
+
+test('readonly negative roots handle empty and unassociated topology without widening', async () => {
+  for (const instId of [REAL_BIZ, SPACE_BIZ]) {
+    const h = scopeHarness(rootQuery(instId));
+    await flush();
+    await confirmRoot(h, []);
+    assert.equal(h.topo.scopeError.value, true);
+    assert.equal(h.http.calls.filter(call => call.name !== 'getTopoTree').length, 0);
+    h.app.unmount();
+  }
+  const h = scopeHarness(rootQuery(SPACE_BIZ));
+  await flush();
+  await confirmRoot(h, [withBiz(inst(`biz|${SPACE_BIZ}`))]);
+  assert.equal(h.topo.scopeError.value, false);
+  assert.equal(h.topo.selectedNode.value.id, `biz|${SPACE_BIZ}`);
+  const params = pendingHttp(h, 'getHostOrTopoNodeDetail').params;
+  assert.equal(params.bk_biz_id, SPACE_BIZ);
+  assert.equal(params.bk_inst_id, SPACE_BIZ);
+  assert.equal(params.bk_obj_id, 'biz');
+  h.app.unmount();
+});
+
+test('late readonly root confirmation cannot overwrite a newer token scope', async () => {
+  let release;
+  const h = scopeHarness(rootQuery(SPACE_BIZ), true, value =>
+    value.type === 'INIT_DONE' && value.selectedNode?.bk_obj_id === 'biz'
+      ? new Promise(resolve => { release = () => resolve(value); })
+      : Promise.resolve(value)
+  );
+  await flush();
+  await confirmRoot(h);
+  assert.ok(release);
+  h.route.query.shareBkObjId = 'module';
+  h.route.query.shareBkInstId = '3';
+  await flush();
+  assert.equal(h.topo.selectedNode.value.id, 'module|3');
+  release();
+  respondHttp(h, 'getTopoTree', spaceFullTree(), p => p.instance_type === 'host' && p.bk_obj_id === 'biz');
+  await flush();
+  assert.equal(h.topo.selectedNode.value.id, 'module|3');
+  assert.equal(h.topo.scopeError.value, false);
+  for (const call of h.http.calls.filter(call => call.name !== 'getTopoTree')) {
+    assert.equal(call.params.bk_biz_id, SPACE_BIZ);
+    assert.equal(call.params.bk_obj_id, 'module');
+    assert.equal(call.params.bk_inst_id, 3);
+  }
+  h.app.unmount();
+});
+
+test('positive readonly business, module and host scopes retain their request identity', async () => {
+  for (const query of [rootQuery(1), { shareTargetType: 'topo', shareBkObjId: 'module', shareBkInstId: '3' }, { shareTargetType: 'host', shareBkHostId: '11' }]) {
+    const h = harness({ from: '100', to: '200', ...query }, true, undefined, undefined, 1, true);
+    await flush();
+    assert.equal(h.topo.scopeError.value, false);
+    const params = pendingHttp(h, 'getHostOrTopoNodeDetail').params;
+    assert.equal(params.bk_biz_id, 1);
+    if (query.shareTargetType === 'host') assert.equal(params.bk_host_id, 11);
+    else {
+      assert.equal(params.bk_obj_id, query.shareBkObjId);
+      assert.equal(params.bk_inst_id, Number(query.shareBkInstId));
+    }
+    h.app.unmount();
+  }
 });
 
 test('large skeleton keeps range bounded and incremental loading does not rebuild expansion state', t => {

@@ -31,7 +31,7 @@ import { useRoute } from 'vue-router';
 
 import { getHostInfoPage, getHostTopoTreeByBizId } from '../services/host-service';
 import { handleCreateCompares, handleCreateItemId } from '../utils/host-list-core';
-import { createHostTarget, resolveInitialHostScope } from '../utils/share-scope';
+import { createHostTarget, resolveHostRequestScope, resolveInitialHostScope } from '../utils/share-scope';
 import { isHostNode } from '../utils/topo-tree';
 import { useHostTopoTreeWorker } from './use-host-topo-tree-worker';
 import { useAppStore } from '@/store/modules/app';
@@ -126,7 +126,7 @@ export const useHostTopoTree = (nodeId: ShallowRef<string>, readonly = false) =>
   let spaceRoot: IHostTopoTreeNode | null = null;
   let scrollEl: HTMLElement = null;
 
-  const shareScope = computed(() => (readonly ? initialScope.value : {}));
+  const shareScope = computed(() => resolveHostRequestScope(readonly, route.query, initialScope.value));
   const scopeKey = computed(() => JSON.stringify([Number(appStore.bizId), shareScope.value]));
 
   const spaceRootId = () => `biz|${Number(appStore.bizId)}`;
@@ -136,9 +136,12 @@ export const useHostTopoTree = (nodeId: ShallowRef<string>, readonly = false) =>
     const scope = resolveInitialHostScope(readonly, route.query, nodeId.value, Number(appStore.bizId));
     if (!scope) return null;
     const node = createHostTarget(scope, Number(appStore.bizId));
-    if (!readonly && spaceRoot && node?.id === spaceRootId()) return { id: spaceRoot.id, node: spaceRoot };
-    return { id: node?.id ?? `${scope.bk_obj_id}|${scope.bk_inst_id}`, node };
+    const id = node?.id ?? `${scope.bk_obj_id}|${scope.bk_inst_id}`;
+    if (spaceRoot && id === spaceRootId()) return { id: spaceRoot.id, node: spaceRoot };
+    return { id, node };
   };
+
+  const currentTargetId = () => selectedNode.value?.id || resolveNodeIdTarget()?.id || '';
 
   /** 目标不在授权拓扑中：按无效目标处理，作废在途拓扑请求，不发出详情 / 主机请求 */
   const rejectTarget = () => {
@@ -285,15 +288,17 @@ export const useHostTopoTree = (nodeId: ShallowRef<string>, readonly = false) =>
     const anchorScrollTop = viewportScrollTop;
     const firstVisible = Math.floor(anchorScrollTop / TOPO_ROW_HEIGHT);
     const anchorId = visibleRows.value[firstVisible - visibleStart.value]?.id || '';
-    const currentId = selectedNode.value?.id || nodeId.value;
+    const currentId = currentTargetId();
     // 仅空间根目标（空 nodeId 或 biz|当前空间号）在拓扑中找不到时回填真实根
     const fallbackToRoot =
-      !readonly &&
-      createHostTarget(initialScope.value, Number(appStore.bizId))?.id === spaceRootId() &&
+      (!readonly || Number(appStore.bizId) < 0) &&
+      initialScope.value?.bk_obj_id === 'biz' &&
+      initialScope.value.bk_inst_id === Number(appStore.bizId) &&
       (currentId === spaceRootId() || currentId === spaceRoot?.id);
     if (!preserve && tree[0]) {
       tree = [...tree];
-      tree[0] = { ...tree[0], isOpen: true } as IHostTopoTreeNode & { isOpen?: boolean };
+      const rootNode: IHostTopoTreeNode & { isOpen?: boolean } = { ...tree[0], isOpen: true };
+      tree[0] = rootNode;
     }
     const result = await topoTreeWorker.init(
       tree,
@@ -309,7 +314,7 @@ export const useHostTopoTree = (nodeId: ShallowRef<string>, readonly = false) =>
     rawTreeData.value = tree;
     initialized = true;
     // 加载期间用户已切换选择时不覆盖
-    if ((selectedNode.value?.id || nodeId.value) === currentId && result.selectedNode) {
+    if (currentTargetId() === currentId && result.selectedNode) {
       selectedNode.value = result.selectedNode;
       if (fallbackToRoot) spaceRoot = result.selectedNode;
     }
