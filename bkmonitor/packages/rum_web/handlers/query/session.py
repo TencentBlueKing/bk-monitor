@@ -8,10 +8,12 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 
+from functools import partial
+
 from bkmonitor.data_source.unify_query.builder import QueryConfigBuilder
-from constants.otel_query import AggregatedMethod
 from rum_web.constants import RumQueryMode
-from rum_web.handlers.query.fallback import BaseFallbackRumQuery, SummaryTasks
+from rum_web.handlers.builder.utils import get_safe_number
+from rum_web.handlers.query.fallback import BaseFallbackRumQuery, Record, Summaries, SummaryTasks
 from semconv.rum.constants import RumSpanType, SessionPhase
 from semconv.rum.session import SessionSpec
 
@@ -25,11 +27,26 @@ class SessionQuery(BaseFallbackRumQuery):
     COUNT_FIELD_NAMES = (*BaseFallbackRumQuery.COUNT_FIELD_NAMES, "view_count")
 
     def _add_summary_tasks(self, ids: list[str], q: QueryConfigBuilder, tasks: SummaryTasks) -> None:
-        view_q = q.filter(**{"attributes.span_type": [RumSpanType.VIEW.value]})
-        tasks.append(
-            self._build_metric_task(ids, view_q, "view_count", "attributes.view.id", AggregatedMethod.DISTINCT.value)
+        tasks.append(partial(self._query_views, ids, q))
+
+    def _query_views(self, ids: list[str], q: QueryConfigBuilder) -> Summaries:
+        q = (
+            q.filter(**{"attributes.span_type": [RumSpanType.VIEW.value]})
+            .values(self.group_field, "attributes.view.id", "attributes.view.url_template", "start_time")
+            .order_by("start_time")
         )
-        for field_name, sort in (("enter_url_template", "start_time"), ("exit_url_template", "start_time desc")):
-            tasks.append(
-                self._build_record_task(ids, view_q.order_by(sort), {field_name: "attributes.view.url_template"})
-            )
+        records = self._query_list(self._get_summary_queries(q), None, None, 0, self.QUERY_MAX_LIMIT)
+        result: Summaries = {}
+        view_ids: dict[str, set[str]] = {}
+        for record_id, record in sorted(
+            self._group_records(records, ids), key=lambda item: get_safe_number(item[1].get("start_time"))
+        ):
+            summary: Record = result.setdefault(record_id, {})
+            session_view_ids: set[str] = view_ids.setdefault(record_id, set())
+            view_id = record.get("attributes.view.id")
+            if isinstance(view_id, str):
+                session_view_ids.add(view_id)
+            summary["view_count"] = len(session_view_ids)
+            summary.setdefault("enter_url_template", record.get("attributes.view.url_template"))
+            summary["exit_url_template"] = record.get("attributes.view.url_template")
+        return result

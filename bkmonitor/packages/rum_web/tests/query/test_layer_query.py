@@ -15,7 +15,7 @@ from unittest.mock import patch
 
 import pytest
 
-from bkmonitor.data_source import q_to_dict
+from bkmonitor.data_source import filter_dict_to_conditions, q_to_dict
 from bkmonitor.data_source.utils.apm import LevelTarget, TraceDatasourceTarget
 from bkmonitor.data_source.utils.query import BaseQuery
 from rum_web.handlers.level.factory import RumLevelHandlerFactory
@@ -240,19 +240,26 @@ def test_supplement_batches_by_page_ids_not_rows():
         config = query_body["query_configs"][0]
         filters = config["filter_dict"]
         assert filters["attributes.session.id"] == ids
-        assert query_body["limit"] == (query.QUERY_MAX_LIMIT if config["metrics"] else len(ids))
+        assert query_body["limit"] == (
+            len(ids) if filters.get("attributes.span_type") == ["session"] else query.QUERY_MAX_LIMIT
+        )
         if config["metrics"]:
             captured_metrics.append(config)
             if "status.code" in config["group_by"]:
-                return [{"attributes.session.id": "s1", "status.code": status, "_result_": 1} for status in (0, 1, "2")]
-            if len(config["group_by"]) == 2:
-                return [{"attributes.session.id": "s1", "attributes.span_type": "error", "_result_": 2}]
+                return [
+                    {
+                        "attributes.session.id": "s1",
+                        "attributes.span_type": "resource",
+                        "status.code": status,
+                        "_result_": 1,
+                    }
+                    for status in (0, 1, "2")
+                ] + [{"attributes.session.id": "s1", "attributes.span_type": "error", "status.code": 2, "_result_": 2}]
             metric = config["metrics"][0]
             values = {
                 ("start_time", "min"): 100,
                 ("end_time", "max"): 900,
                 ("links.trace_id", "count"): 3,
-                ("attributes.view.id", "distinct"): 2,
             }
             return [{"attributes.session.id": "s1", "_result_": values.get((metric["field"], metric["method"]), 1)}]
         captured_records.append(config)
@@ -261,13 +268,27 @@ def test_supplement_batches_by_page_ids_not_rows():
         return [
             {
                 "attributes.session.id": "s1",
-                "attributes.view.url_template": "/first" if config["order_by"] == ["start_time"] else "/last",
-            }
+                "attributes.view.id": "v1",
+                "attributes.view.url_template": "/last",
+                "start_time": 300,
+            },
+            {
+                "attributes.session.id": "s1",
+                "attributes.view.id": "v1",
+                "attributes.view.url_template": "/first",
+                "start_time": 100,
+            },
+            {
+                "attributes.session.id": "s1",
+                "attributes.view.id": "v2",
+                "attributes.view.url_template": "/middle",
+                "start_time": 200,
+            },
         ]
 
     with patch("bkmonitor.data_source.unify_query.builder.QueryHelper.query", side_effect=execute):
         summaries = query.query_summaries(ids)
-    assert len(captured_metrics) == 7 and len(captured_records) == 3
+    assert len(captured_metrics) == 5 and len(captured_records) == 2
     assert summaries["s1"]["view_count"] == 2
     assert summaries["s1"]["error_count"] == 2
     assert summaries["s1"]["request_count"] == 3
@@ -277,8 +298,75 @@ def test_supplement_batches_by_page_ids_not_rows():
     assert summaries["s1"]["exit_url_template"] == "/last"
     assert summaries["s1"]["snapshot"]["attributes.session.phase"] == "end"
     request_query = next(config for config in captured_metrics if "status.code" in config["group_by"])
+    assert request_query["group_by"] == ["attributes.session.id", "attributes.span_type", "status.code"]
     assert "status.code" not in request_query["filter_dict"]
-    assert request_query["filter_dict"]["attributes.resource.type"] == ["xhr", "fetch"]
+    assert request_query["filter_dict"]["__q_to_dict_or"] == [
+        {"attributes.span_type": ["error", "action", "long_task"]},
+        {"attributes.span_type": ["resource"], "attributes.resource.type": ["xhr", "fetch"]},
+    ]
+
+
+def test_session_views_deduplicate_updates_and_order_across_sources(mocker):
+    query = SessionQuery([target(), TraceDatasourceTarget.build(2, "other", "bk_rum.other.span", retention=3)])
+    requests = []
+
+    def execute(table_id, query_body):
+        requests.append(query_body)
+        assert len(query_body["query_configs"]) == 2
+        for config in query_body["query_configs"]:
+            assert config["filter_dict"]["attributes.session.id"] == ["s1", "s2", "s3"]
+            assert config["filter_dict"]["attributes.span_type"] == ["view"]
+            assert config["order_by"] == ["start_time"]
+            assert not config["metrics"] and not config["distinct"]
+            assert set(config["select"]) == {
+                "attributes.session.id",
+                "attributes.view.id",
+                "attributes.view.url_template",
+                "start_time",
+            }
+        return [
+            {
+                "attributes.session.id": "s1",
+                "attributes.view.id": "v1",
+                "attributes.view.url_template": "/later",
+                "start_time": 200,
+            },
+            {
+                "attributes.session.id": "s1",
+                "attributes.view.id": "v2",
+                "attributes.view.url_template": "/exit",
+                "start_time": 300,
+            },
+            {"attributes.session.id": "s2", "attributes.view.id": "v1", "start_time": 0},
+            {
+                "attributes.session.id": "s1",
+                "attributes.view.id": "v1",
+                "attributes.view.url_template": "/enter",
+                "start_time": 0,
+            },
+            {
+                "attributes.session.id": "s2",
+                "attributes.view.id": "v1",
+                "attributes.view.url_template": "/only",
+                "start_time": 100,
+            },
+            {
+                "attributes.session.id": "other",
+                "attributes.view.id": "v3",
+                "attributes.view.url_template": "/other",
+                "start_time": 400,
+            },
+        ]
+
+    mocker.patch("bkmonitor.data_source.unify_query.builder.QueryHelper.query", side_effect=execute)
+    summaries = query._query_views(
+        ["s1", "s2", "s3"], query._get_q("end_time").filter(**{query.group_field: ["s1", "s2", "s3"]})
+    )
+    assert len(requests) == 1
+    assert summaries == {
+        "s1": {"view_count": 2, "enter_url_template": "/enter", "exit_url_template": "/exit"},
+        "s2": {"view_count": 1, "enter_url_template": None, "exit_url_template": "/only"},
+    }
 
 
 def test_vitals_use_latest_snapshot_per_metric_and_preserve_zero():
@@ -426,11 +514,10 @@ def test_resource_to_uq_list_and_supplement(mocker):
             metric = config["metrics"][0]
             if "status.code" in config["group_by"]:
                 return [
-                    {"attributes.view.id": "v1", "status.code": 0, "_result_": 1},
-                    {"attributes.view.id": "v1", "status.code": 2, "_result_": 2},
+                    {"attributes.view.id": "v1", "attributes.span_type": "resource", "status.code": 0, "_result_": 1},
+                    {"attributes.view.id": "v1", "attributes.span_type": "resource", "status.code": 2, "_result_": 2},
+                    {"attributes.view.id": "v1", "attributes.span_type": "action", "status.code": 0, "_result_": 7},
                 ]
-            if len(config["group_by"]) == 2:
-                return [{"attributes.view.id": "v1", "attributes.span_type": "action", "_result_": 7}]
             if "attributes.action.frustration.type" in where:
                 return [{"attributes.view.id": "v1", "_result_": 2}]
             values = {"start_time": 100, "end_time": 900, "links.trace_id": 2}
@@ -474,10 +561,11 @@ def test_resource_to_uq_list_and_supplement(mocker):
     assert row["attributes.view.url_template"] == "/home"
     assert row["start_time"] == 100 and row["duration"] == 800
     assert row["action_count"] == 7 and row["trace_count"] == 2
+    assert row["request_count"] == 3 and row["request_error_count"] == 2
     assert row["frustration_count"] == 2
     assert row["web_vitals.cls"] == 0.05 and row["web_vitals.lcp"] is None
     assert row["is_active"] is False and row["close_time"] == 800
-    assert len(captured) == 9
+    assert len(captured) == 8
 
 
 def test_shared_targets_keep_application_isolation():
@@ -574,23 +662,51 @@ def test_summaries_skip_invalid_and_unrequested_ids():
     assert summaries == {"s1": {"trace_count": 3}}
 
 
-def test_span_counts_skip_invalid_types_and_keep_multiple_counts(mocker):
+def test_span_and_request_counts_accumulate_across_statuses(mocker):
     query = SessionQuery([target()])
     mocker.patch.object(
         query,
         "_query_metric_records",
         return_value=[
-            {query.group_field: "s1", "attributes.span_type": None, "_result_": 99},
-            {query.group_field: "s1", "attributes.span_type": [], "_result_": 99},
-            {query.group_field: "s1", "attributes.span_type": "action", "_result_": 2},
-            {query.group_field: "s1", "attributes.span_type": "error", "_result_": 3},
+            {query.group_field: "s1", "attributes.span_type": None, "status.code": 0, "_result_": 99},
+            {query.group_field: "s1", "attributes.span_type": [], "status.code": 0, "_result_": 99},
+            {query.group_field: "s1", "attributes.span_type": "action", "status.code": 0, "_result_": 2},
+            {query.group_field: "s1", "attributes.span_type": "action", "status.code": 2, "_result_": 4},
+            {query.group_field: "s1", "attributes.span_type": "error", "status.code": 2, "_result_": 3},
+            {query.group_field: "s1", "attributes.span_type": "long_task", "status.code": 0, "_result_": 8},
+            {query.group_field: "s1", "attributes.span_type": "resource", "status.code": 0, "_result_": 5},
+            {query.group_field: "s1", "attributes.span_type": "resource", "status.code": "2", "_result_": 2},
             {query.group_field: "unrequested", "attributes.span_type": "action", "_result_": 4},
         ],
     )
 
-    assert query._query_counts(["s1"], query._get_q("end_time"), "attributes.span_type", query.SPAN_COUNT_FIELDS) == {
-        "s1": {"action_count": 2, "error_count": 3}
+    count_task = query._build_summary_tasks(["s1"], query._get_q("end_time"))[3]
+    assert count_task() == {
+        "s1": {"action_count": 6, "error_count": 3, "long_task_count": 8, "request_count": 7, "request_error_count": 2}
     }
+
+
+@pytest.mark.parametrize("dimensions", [["category"], ["category", "state"]])
+def test_query_counts_accepts_custom_dimensions_and_field_mappings(mocker, dimensions):
+    query = SessionQuery([target()])
+    q = query._get_q("end_time").filter(application=["test"])
+    count_fields = {
+        (("download",) if len(dimensions) == 1 else ("download", "0")): ("total",),
+        (("upload",) if len(dimensions) == 1 else ("upload", "2")): ("total", "failed"),
+    }
+    metric_query = mocker.patch.object(
+        query,
+        "_query_metric_records",
+        return_value=[
+            {query.group_field: "s1", "category": "download", "state": 0, "_result_": 3},
+            {query.group_field: "s1", "category": "upload", "state": 2, "_result_": 2},
+            {query.group_field: "s1", "category": "ignored", "state": 0, "_result_": 99},
+            {query.group_field: "s2", "category": "upload", "state": 2, "_result_": 7},
+        ],
+    )
+    assert query._query_counts(["s1"], q, dimensions, count_fields) == {"s1": {"total": 5, "failed": 2}}
+    metric_query.assert_called_once_with(q, "_index", "count", 2, group_by=[query.group_field, *dimensions])
+    assert q_to_dict(q.query.where) == {"application": ["test"]}
 
 
 @pytest.mark.parametrize("method, field", [("MIN", "start_time"), ("MAX", "end_time")])
@@ -652,11 +768,30 @@ def test_summary_builders_preserve_sources_windows_and_metric_values(mocker, que
                 assert "bk_biz_id__eq" not in config["filter_dict"]
                 assert "app_name__eq" not in config["filter_dict"]
             assert len(config["metrics"]) <= 1
+            if "status.code" in config["group_by"]:
+                branches: list[dict] = [{}]
+                for condition in filter_dict_to_conditions(config["filter_dict"], []):
+                    if condition.get("condition") == "or":
+                        branches.append({})
+                    branches[-1][condition["key"]] = condition["value"]
+                assert len(branches) == 2
+                for branch in branches:
+                    assert branch[query.group_field] == ["id1", "id2"]
+                    if shared:
+                        assert branch["bk_biz_id"] == ["2"]
+                        assert branch["app_name"] == [target.app.app_name]
+                assert branches[0]["attributes.span_type"] == ["error", "action", "long_task"]
+                assert "attributes.resource.type" not in branches[0]
+                assert branches[1]["attributes.span_type"] == ["resource"]
+                assert branches[1]["attributes.resource.type"] == ["xhr", "fetch"]
         config = query_body["query_configs"][0]
         if not config["metrics"]:
             return []
         if "status.code" in config["group_by"]:
-            return [{query.group_field: "id1", "status.code": 2, "_result_": 3}]
+            return [
+                {query.group_field: "id1", "attributes.span_type": "resource", "status.code": 2, "_result_": 3},
+                {query.group_field: "id1", "attributes.span_type": "action", "status.code": 0, "_result_": 3},
+            ]
         return [
             {query.group_field: "id1", "attributes.span_type": "action", "_result_": 3.4567},
             {query.group_field: "id2", "attributes.span_type": "error", "_result_": None},
@@ -667,7 +802,7 @@ def test_summary_builders_preserve_sources_windows_and_metric_values(mocker, que
         mocker.patch("bkmonitor.data_source.unify_query.builder.QueryHelper.query", side_effect=execute)
         summaries = query.query_summaries(["id1", "id2"])
 
-    assert len(requests) == (10 if query.MODE == "session" else 8)
+    assert len(requests) == 7
     assert summaries["id1"]["trace_count"] == 3
     assert summaries["id1"]["start_time"] == 3.46
     assert summaries["id1"]["action_count"] == 3

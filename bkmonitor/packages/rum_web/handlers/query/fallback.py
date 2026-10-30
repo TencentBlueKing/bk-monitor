@@ -14,6 +14,8 @@ from dataclasses import replace
 from functools import partial
 from typing import Any
 
+from django.db.models import Q
+
 from bkmonitor.data_source.format import flatten_dict_data
 from bkmonitor.data_source.unify_query.builder import QueryConfigBuilder
 from bkmonitor.data_source.utils import types
@@ -154,6 +156,19 @@ class BaseFallbackRumQuery(BaseRumQuery, ABC):
         ...
 
     def _build_summary_tasks(self, ids: list[str], q: QueryConfigBuilder) -> SummaryTasks:
+        count_fields: dict[tuple[str, ...], tuple[str, ...]] = {
+            (span_type, str(status.value)): fields
+            for span_type, fields in self.SPAN_COUNT_FIELDS.items()
+            for status in SpanStatusCode
+        }
+        count_fields.update(
+            {
+                (RumSpanType.RESOURCE.value, str(status.value)): ("request_count", "request_error_count")
+                if status == SpanStatusCode.ERROR
+                else ("request_count",)
+                for status in SpanStatusCode
+            }
+        )
         return [
             self._build_metric_task(ids, q, "start_time", "start_time", AggregatedMethod.MIN.value),
             self._build_metric_task(ids, q, "end_time", "end_time", AggregatedMethod.MAX.value),
@@ -161,9 +176,17 @@ class BaseFallbackRumQuery(BaseRumQuery, ABC):
             partial(
                 self._query_counts,
                 ids,
-                q.filter(**{"attributes.span_type": list(self.SPAN_COUNT_FIELDS)}),
-                "attributes.span_type",
-                self.SPAN_COUNT_FIELDS,
+                q.filter(
+                    Q(**{"attributes.span_type": list(self.SPAN_COUNT_FIELDS)})
+                    | Q(
+                        **{
+                            "attributes.span_type": [RumSpanType.RESOURCE.value],
+                            "attributes.resource.type": [ResourceType.XHR.value, ResourceType.FETCH.value],
+                        }
+                    )
+                ),
+                ["attributes.span_type", "status.code"],
+                count_fields,
             ),
             # 数组只用于筛选，对匹配的 Action 记录计数。
             self._build_metric_task(
@@ -178,23 +201,6 @@ class BaseFallbackRumQuery(BaseRumQuery, ABC):
                 "_index",
                 AggregatedMethod.COUNT.value,
             ),
-            partial(
-                self._query_counts,
-                ids,
-                q.filter(
-                    **{
-                        "attributes.span_type": [RumSpanType.RESOURCE.value],
-                        "attributes.resource.type": [ResourceType.XHR.value, ResourceType.FETCH.value],
-                    }
-                ),
-                "status.code",
-                {
-                    str(status.value): ("request_count", "request_error_count")
-                    if status == SpanStatusCode.ERROR
-                    else ("request_count",)
-                    for status in SpanStatusCode
-                },
-            ),
             partial(self._query_snapshot, ids, q),
         ]
 
@@ -204,13 +210,6 @@ class BaseFallbackRumQuery(BaseRumQuery, ABC):
         def query() -> Summaries:
             records = self._query_metric_records(q, field, method, len(ids))
             return self._project_records(records, ids, {target_field: "_result_"})
-
-        return query
-
-    def _build_record_task(self, ids: list[str], q: QueryConfigBuilder, fields: dict[str, str]) -> SummaryTask:
-        def query() -> Summaries:
-            records = self._query_group_list(self._get_summary_queries(q), None, None, self.group_field, limit=len(ids))
-            return self._project_records(records, ids, fields)
 
         return query
 
@@ -249,8 +248,8 @@ class BaseFallbackRumQuery(BaseRumQuery, ABC):
         self,
         ids: list[str],
         q: QueryConfigBuilder,
-        dimension: str,
-        count_fields: Mapping[str, tuple[str, ...]],
+        dimensions: list[str],
+        count_fields: Mapping[tuple[str, ...], tuple[str, ...]],
     ) -> Summaries:
         """按维度值映射，将计数累计到对应字段。"""
         records = self._query_metric_records(
@@ -258,11 +257,12 @@ class BaseFallbackRumQuery(BaseRumQuery, ABC):
             "_index",
             AggregatedMethod.COUNT.value,
             len(ids) * len(count_fields),
-            group_by=[self.group_field, dimension],
+            group_by=[self.group_field, *dimensions],
         )
         result: Summaries = {}
         for record_id, record in self._group_records(records, ids):
-            for count_field in count_fields.get(str(record[dimension]), ()):
+            dimension_values: tuple[str, ...] = tuple(str(record[dimension]) for dimension in dimensions)
+            for count_field in count_fields.get(dimension_values, ()):
                 counts: Record = result.setdefault(record_id, {})
                 counts[count_field] = counts.get(count_field, 0) + (record["_result_"] or 0)
         return result
