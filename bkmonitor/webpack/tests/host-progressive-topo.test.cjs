@@ -823,11 +823,21 @@ test('space entry rejects unauthorized roots without widening and recovers on a 
   const before = topoCalls(h);
   h.topo.handleRefresh();
   await flush();
-  assert.equal(topoCalls(h), before);
+  assert.equal(topoCalls(h), before + 2);
+  assert.equal(h.topo.selectedNode.value, null);
+  h.respond('getHostTopoTreeByBizId', spaceSkeleton(), args => args[2] === false);
+  await flush();
+  assert.equal(h.topo.scopeError.value, true);
+  assert.equal(h.topo.loadError.value, true);
+  assert.equal(h.topo.selectedNode.value, null);
+  assert.equal(h.calls.filter(call => call.name !== 'getHostTopoTreeByBizId').length, 0);
+  h.respond('getHostTopoTreeByBizId', spaceFullTree(), args => args[2] !== false);
+  await flush();
+  assert.equal(h.topo.scopeError.value, true);
   h.route.query.nodeId = 'set|2';
   await flush();
   assert.equal(h.topo.scopeError.value, false);
-  assert.equal(topoCalls(h), before + 2);
+  assert.equal(topoCalls(h), before + 4);
   h.respond('getHostTopoTreeByBizId', spaceSkeleton(), args => args[2] === false);
   await flush();
   assert.equal(h.topo.selectedNode.value.id, 'set|2');
@@ -838,6 +848,9 @@ test('space entry rejects unauthorized roots without widening and recovers on a 
     const invalid = spaceHarness({ nodeId });
     await flush();
     assert.equal(invalid.topo.scopeError.value, true, nodeId);
+    assert.equal(invalid.calls.length, 0, nodeId);
+    invalid.topo.handleRefresh();
+    await flush();
     assert.equal(invalid.calls.length, 0, nodeId);
     invalid.app.unmount();
   }
@@ -953,7 +966,14 @@ test('root share formatter reopens readonly only after authorization and keeps r
     await flush();
     // The in-flight service requests remain shared; the confirmed root does not return to pending.
     assert.equal(h.topo.selectedNode.value.id, `biz|${REAL_BIZ}`);
-    assert.ok(h.http.calls.filter(c => c.name === 'getTopoTree').length >= before);
+    const refreshed = h.http.calls.filter(c => c.name === 'getTopoTree').slice(before);
+    assert.ok(refreshed.some(call => !call.params.instance_type));
+    for (const call of refreshed) {
+      assert.equal(call.params.bk_biz_id, SPACE_BIZ);
+      assert.equal(call.params.bk_obj_id, 'biz');
+      assert.equal(call.params.bk_inst_id, Number(query.shareBkInstId ?? query.nodeId.split('|')[1]));
+      assert.equal('pending' in call.params, false);
+    }
     h.app.unmount();
   }
 });
@@ -1004,6 +1024,37 @@ test('readonly invalid scopes fail closed and an unauthorized root cannot revive
   assert.equal(h.topo.scopeError.value, true);
   assert.equal(h.http.calls.filter(call => call.name !== 'getTopoTree').length, 0);
   h.app.unmount();
+});
+
+test('rejected readonly roots recover on refresh after authorized topology becomes available', async () => {
+  for (const instId of [REAL_BIZ, SPACE_BIZ]) {
+    const h = scopeHarness(rootQuery(instId));
+    await flush();
+    await confirmRoot(h, []);
+    respondHttp(h, 'getTopoTree', [], p => p.instance_type === 'host');
+    await flush();
+    assert.equal(h.topo.scopeError.value, true);
+    const before = h.http.calls.length;
+    h.topo.handleRefresh();
+    await flush();
+    const refreshed = h.http.calls.slice(before);
+    assert.equal(refreshed.length, 2);
+    for (const call of refreshed) {
+      assert.equal(call.name, 'getTopoTree');
+      assert.equal(call.params.bk_biz_id, SPACE_BIZ);
+      assert.equal(call.params.bk_obj_id, 'biz');
+      assert.equal(call.params.bk_inst_id, instId);
+    }
+    assert.equal(h.topo.selectedNode.value, null);
+    assert.equal(h.http.calls.filter(call => call.name !== 'getTopoTree').length, 0);
+    await confirmRoot(h);
+    assert.equal(h.topo.scopeError.value, false);
+    assert.equal(h.topo.loadError.value, false);
+    assert.equal(h.topo.selectedNode.value.id, `biz|${REAL_BIZ}`);
+    assertRootParams(pendingHttp(h, 'getHostOrTopoNodeDetail').params);
+    assertRootParams(pendingHttp(h, 'searchHostInfo', params => params.page === 1).params);
+    h.app.unmount();
+  }
 });
 
 test('readonly alias confirmation preserves token scope when a descendant is selected', async () => {

@@ -471,6 +471,7 @@ export const useHostTopoTree = (nodeId: ShallowRef<string>, readonly = false) =>
   };
 
   const handleRefresh = () => {
+    if (targetRejected.value) return reloadTopoTree();
     loadTopoTree();
   };
 
