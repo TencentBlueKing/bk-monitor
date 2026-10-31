@@ -32,7 +32,7 @@ const inst = (id, children = []) => ({
 const skeleton = () => [inst('biz|1', [inst('set|2', [inst('module|3'), inst('module|4')])])];
 const fullTree = () => [inst('biz|1', [inst('set|2', [inst('module|3', [leaf(11), leaf(12)]), inst('module|4')])])];
 
-function harness(query = {}, readonly = false, workerResponse, requestOwner, bizId = 1, requestBoundary = false) {
+function harness(query = {}, readonly = false, workerResponse, requestOwner, bizId = 1, requestBoundary = false, mount = 'page') {
   global.window = { cc_biz_id: bizId, timezone: 'UTC', i18n: { t: value => value }, rawWindow: requestOwner };
   if (requestBoundary) global.window.enable_cmdb_level = true;
   global.ResizeObserver = class {
@@ -144,7 +144,7 @@ function harness(query = {}, readonly = false, workerResponse, requestOwner, biz
   });
   const cache = new Map();
   const own =
-    /(?:host\.tsx|host-content-tabs\.tsx|host-list\.tsx|host-topo-tree\.tsx|host-process\.tsx|host-metric\.tsx|process-detail\.tsx|use-process-list\.ts|process-service\.ts|host-request\.ts|use-metric-aggregation\.ts|constants\/process\.ts|utils\/process\.ts|variables\/resolve\.ts|use-host-topo-tree\.ts|use-host-url-params\.ts|use-host-list\.ts|use-host-list-data\.ts|host-list-core\.ts|share-scope\.ts|topo-tree\.ts|constants\/enum\.ts|constants\/constants\.ts)$/;
+    /(?:host\.tsx|host-content-tabs\.tsx|host-observe-panel\.tsx|use-host-observe-target\.ts|host-loading\.tsx|host-list\.tsx|host-topo-tree\.tsx|host-process\.tsx|host-metric\.tsx|process-detail\.tsx|use-process-list\.ts|process-service\.ts|host-request\.ts|use-metric-aggregation\.ts|constants\/process\.ts|utils\/process\.ts|variables\/resolve\.ts|use-host-topo-tree\.ts|use-host-url-params\.ts|use-host-list\.ts|use-host-list-data\.ts|host-list-core\.ts|share-scope\.ts|topo-tree\.ts|constants\/enum\.ts|constants\/constants\.ts)$/;
   const load = file => {
     if (cache.has(file)) return cache.get(file);
     const module = { exports: {} };
@@ -299,7 +299,7 @@ function harness(query = {}, readonly = false, workerResponse, requestOwner, biz
       if (id.endsWith('/constants/host-list'))
         return { HOST_FILTER_FIELDS: [], HOST_LIST_COLUMNS: [], HOST_LIST_DEFAULT_PAGE_SIZE: 100, NUMBER_METHODS: [] };
       if (id.endsWith('/constants/aggregation')) return { DEFAULT_AGGREGATION_STATE: {} };
-      if (/\.scss$/.test(id)) return {};
+      if (/\.(scss|css)$/.test(id)) return {};
       const resolved = path.resolve(path.dirname(file), id);
       for (const ext of ['.ts', '.tsx'])
         if (own.test(resolved + ext) && fs.existsSync(resolved + ext)) return load(resolved + ext);
@@ -312,6 +312,7 @@ function harness(query = {}, readonly = false, workerResponse, requestOwner, biz
         module: ts.ModuleKind.CommonJS,
         jsx: ts.JsxEmit.React,
         jsxFactory: 'h',
+        jsxFragmentFactory: 'Fragment',
       },
     }).outputText;
     const h = (type, props, ...children) =>
@@ -323,7 +324,7 @@ function harness(query = {}, readonly = false, workerResponse, requestOwner, biz
             ? children[0]
             : children)
       );
-    new Function('require', 'module', 'exports', 'h', code)(dependency, module, module.exports, h);
+    new Function('require', 'module', 'exports', 'h', 'Fragment', code)(dependency, module, module.exports, h, vue.Fragment);
     if (file.endsWith('/host-topo-tree.tsx')) {
       const setup = module.exports.default.setup;
       module.exports.default.setup = (props, context) => {
@@ -346,7 +347,15 @@ function harness(query = {}, readonly = false, workerResponse, requestOwner, biz
     cache.set(file, module.exports);
     return module.exports;
   };
-  const app = renderer().createApp(load(`${root}/host.tsx`).default);
+  const component = mount === 'process' ? vue.defineComponent({
+    setup() {
+      load(`${root}/composables/use-host-url-params.ts`).useHostUrlParams().getUrlParams();
+      topo = load(`${root}/composables/use-host-topo-tree.ts`).useHostTopoTree(vue.toRef(store, 'nodeId'), readonly);
+      const HostProcess = load(`${root}/components/host-process/host-process.tsx`).default;
+      return () => vue.h(HostProcess, { host: topo.selectedNode.value });
+    },
+  }) : load(`${root}/host.tsx`).default;
+  const app = renderer().createApp(component);
   app.config.warnHandler = () => {};
   const element = { type: 'root', children: [], props: {} };
   app.mount(element);
@@ -1236,8 +1245,8 @@ test('actual host system/share chart waits for exact metadata, independently of 
   }
 });
 
-test('actual HostProcess service requests ID before metadata, then mounts detail chart without refetching list', async () => {
-  const h = harness({ nodeId: '11', activeTab: 'process', hostProcessName: 'fixture-process', from: '100', to: '200' });
+test('actual standalone HostProcess service requests ID before metadata, then mounts detail chart without refetching list', async () => {
+  const h = harness({ nodeId: '11', activeTab: 'process', hostProcessName: 'fixture-process', from: '100', to: '200' }, false, undefined, undefined, 1, false, 'process');
   await flush();
   const processCall = h.pending('getHostProcessList');
   assert.deepEqual(processCall.args[0], { bk_biz_id: 1, bk_host_id: 11, start_time: 100, end_time: 200 });
@@ -1260,8 +1269,9 @@ test('actual process detail remount shares pending uptime through its service', 
   const open = async () => {
     const h = harness({ ...query }, false, undefined, owner);
     await flush();
-    h.respond('getHostProcessList', [{ name: 'fixture-process', ports: [], hostIp: '127.0.0.11' }]);
     h.respond('getHostInfoPage', { items: [{ ...host(11), bk_cloud_id: 7 }], page: 1, page_size: 1, total: 1 });
+    await flush();
+    h.respond('getHostProcessList', [{ name: 'fixture-process', ports: [], hostIp: '127.0.0.11' }]);
     await flush();
     return h;
   };
@@ -1450,5 +1460,29 @@ test('topology Worker viewport failure ends loading and shows an error instead o
   assert.equal(h.topo.loading.value, false);
   assert.equal(h.topo.loadError.value, true);
   assert.equal(h.topo.fullTreeLoading.value, false);
+  h.app.unmount();
+});
+
+test('actual HostPage process waits for metadata then uses exact identity and opens requested process once', async () => {
+  const h = harness({ nodeId: '11', activeTab: 'process', hostProcessName: 'fixture-process', from: '100', to: '200' });
+  await flush();
+  assert.equal(h.pending('getHostProcessList'), undefined);
+  assert.equal(h.chartTargets.length, 0);
+  assert.equal(h.pending('getHostProcessUptime'), undefined);
+  const skeleton = findElement(h.element, node => node.props?.class?.includes('host-loading--dashboard'));
+  assert.ok(skeleton, 'the actual page renders the production dashboard skeleton while metadata is pending');
+  assert.equal(skeleton.props.role, 'status');
+  assert.equal(skeleton.props['aria-busy'], 'true');
+  h.respond('getHostInfoPage', { items: [{ ...host(11), bk_cloud_id: 7 }], page: 1, page_size: 1, total: 1 });
+  await flush();
+  assert.deepEqual(h.pending('getHostProcessList').args[0], { bk_biz_id: 1, bk_host_id: 11, start_time: 100, end_time: 200 });
+  h.respond('getHostProcessList', [{ name: 'fixture-process', ports: [], hostIp: '127.0.0.11' }]);
+  await flush();
+  assert.equal(h.processTable.data.length, 1);
+  assert.deepEqual(h.chartTargets.at(-1), [{ bk_host_id: 11, bk_target_ip: '127.0.0.11', bk_target_cloud_id: 7 }]);
+  assert.equal(h.calls.filter(call => call.name === 'getHostProcessList').length, 1);
+  assert.equal(h.pending('getHostProcessUptime').args[0].bk_host_id, 11);
+  assert.equal(h.pending('getHostProcessUptime').args[0].display_name, 'fixture-process');
+  assert.equal(h.topo.fullTreeReady.value, false);
   h.app.unmount();
 });
