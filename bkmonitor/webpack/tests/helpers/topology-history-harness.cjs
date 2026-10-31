@@ -10,6 +10,7 @@ function load(file, imports = {}) {
   const module = { exports: {} };
   const boundary = name => {
     if (Object.hasOwn(imports, name)) return imports[name];
+    if (name === 'vue') return require('node:module').createRequire(path.resolve(__dirname, '../../src/trace/package.json'))('vue');
     if (name === 'vue-i18n') return { useI18n: () => ({ t: value => value }) };
     if (name === 'monitor-common/utils/utils.js') return { deepClone: structuredClone, random: () => 'animation' };
     if (name.endsWith('service-combo')) return { default: { labelChange() {} }, __esModule: true };

@@ -54,11 +54,12 @@ test('layout rejection becomes a visible error instead of an unhandled blank can
   const code = ts.transpileModule(`const renderGraph = ${initializer};`, { compilerOptions: { target: ts.ScriptTarget.ES2020 } }).outputText;
   for (const sync of [true, false]) {
     const state = { errorData: { value: {} } };
-    const render = new Function('getGraph', 'clearEdgeIntervals', 'topoData', 'state', 't', `${code}; return renderGraph;`)(
-      () => ({}), () => {}, { resolveLayout() { if (sync) throw new Error('invalid'); return Promise.reject(new Error('invalid')); } }, state, x => x
+    const render = new Function('getGraph', 'clearEdgeIntervals', 'topoData', 'state', 't', 'topologyFailure', `${code}; return renderGraph;`)(
+      () => ({}), () => {}, { resolveLayout() { if (sync) throw new Error('invalid'); return Promise.reject(new Error('invalid')); } }, state, x => x, require('./helpers/topology-history-harness.cjs').load('graph/topology-status.ts').topologyFailure
     );
     await render({ nodes: [], edges: [], combos: [] });
     assert.equal(state.errorData.value.isError, true);
-    assert.equal(state.errorData.value.msg, '图谱布局失败，请刷新重试');
+    assert.equal(state.errorData.value.reason, 'layout_failed');
+    assert.equal(state.errorData.value.title, '图谱布局失败');
   }
 });

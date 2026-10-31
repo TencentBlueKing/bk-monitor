@@ -414,6 +414,7 @@ class TestIncidentTopologyHistory(SimpleTestCase):
                     return_value=snapshots,
                 ),
                 patch("monitor_web.incident.resources.IncidentSnapshot", side_effect=lambda content: content),
+                patch("monitor_web.incident.resources.snapshot_display_status", return_value="OK"),
                 patch.object(IncidentTopologyResource, "generate_entities_orders", return_value={}),
                 patch.object(
                     IncidentTopologyResource,
