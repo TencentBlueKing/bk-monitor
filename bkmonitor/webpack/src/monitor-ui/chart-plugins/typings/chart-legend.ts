@@ -27,6 +27,8 @@ export interface ILegendItem {
   alias?: string;
   avg?: number | string;
   avgSource?: number;
+  /** 与 avg 同时展示时：@HH:mm，来自 stat.avg 首位非 0 时间戳 */
+  avgTime?: number;
   borderColor?: string;
   color?: string;
   dimensions?: Record<string, string>;
@@ -49,6 +51,8 @@ export interface ILegendItem {
   tipsName?: string;
   total?: number | string;
   totalSource?: number;
+  /** 与 total 同时展示时：@HH:mm，来自 stat.sum 首位非 0 时间戳 */
+  totalTime?: number;
   value?: number | string;
 }
 export interface IRelationStatusItem {
