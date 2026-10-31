@@ -414,7 +414,9 @@ self.onmessage = event => {
       invalidateRangeCache();
       const selectedIndex = nodeIndexById.get(String(message.selectedId || ''));
       const fallbackIndex = roots[0];
-      const targetIndex = message.selectedId ? selectedIndex : fallbackIndex;
+      // fallbackToRoot：空间根占位不在授权拓扑中时回填真实根；显式目标找不到仍返回 null
+      const targetIndex =
+        message.selectedId && !(message.fallbackToRoot && selectedIndex === undefined) ? selectedIndex : fallbackIndex;
       const selectedNodeOffset = getNodeOffset(message.selectedId);
       self.postMessage({
         anchorOffset: getNodeOffset(message.anchorId),

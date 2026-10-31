@@ -26,6 +26,7 @@ from bkmonitor.utils.request import get_request
 from bkmonitor.utils.thread_backend import ThreadPool
 from constants.data_source import DataSourceLabel, DataTypeLabel
 from core.drf_resource import Resource, api, resource
+from monitor_web.cc.resources.cmdb import _build_host_target_filter
 from monitor_web.constants import AGENT_STATUS
 from monitor_web.scene_view.builtin.host import get_host_metric_bk_biz_id
 from monitor_web.scene_view.process_group import group_process_configs
@@ -160,7 +161,8 @@ class GetHostOrTopoNodeDetailResource(ApiAuthResource):
         host = hosts[0]
 
         # 查询拓扑信息
-        topo_links: dict[str, list[TopoNode]] = api.cmdb.get_topo_tree(bk_biz_id=bk_biz_id).convert_to_topo_link()
+        topo_tree = api.cmdb.get_topo_tree(bk_biz_id=bk_biz_id)
+        topo_links: dict[str, list[TopoNode]] = topo_tree.convert_to_topo_link()
         topo_links = {key: value for key, value in topo_links.items() if int(key.split("|")[1]) in host.bk_module_ids}
 
         # 查询Agent状态
@@ -211,7 +213,8 @@ class GetHostOrTopoNodeDetailResource(ApiAuthResource):
                 "type": "link",
                 "need_copy": bool(host.bk_host_innerip),
                 "value": {
-                    "url": urljoin(settings.BK_CC_URL, f"/#/resource/host/{bk_biz_id}/{host.bk_host_id}"),
+                    # 拓扑根保留关联的 CMDB 业务身份，供配置平台跳转使用。
+                    "url": urljoin(settings.BK_CC_URL, f"/#/resource/host/{topo_tree.bk_inst_id}/{host.bk_host_id}"),
                     "value": host.bk_host_innerip,
                 },
                 "children": [
@@ -308,21 +311,27 @@ class GetHostOrTopoNodeDetailResource(ApiAuthResource):
         ]
 
     @classmethod
-    def get_node_info(cls, bk_biz_id: int, bk_obj_id: str, bk_inst_id: str):
+    def get_node_info(cls, bk_biz_id: int, bk_obj_id: str, bk_inst_id: int):
         """
         获取节点信息
         """
-        topo_nodes = api.cmdb.get_topo_tree(bk_biz_id=bk_biz_id).get_all_nodes_with_relation()
-        node = topo_nodes.get(f"{bk_obj_id}|{bk_inst_id}")
+        topo_tree = api.cmdb.get_topo_tree(bk_biz_id=bk_biz_id)
         if bk_obj_id == "biz":
+            # 页面空间号可以作为业务根别名，CMDB 返回的节点仍使用真实业务号。
+            if bk_inst_id not in (bk_biz_id, topo_tree.bk_inst_id):
+                raise ValidationError(_("业务节点不属于当前空间"))
+            node = topo_tree
             hosts = api.cmdb.get_host_by_topo_node(bk_biz_id=bk_biz_id)
         else:
+            node = topo_tree.get_all_nodes_with_relation().get(f"{bk_obj_id}|{bk_inst_id}")
+            if node is None:
+                return []
             hosts = api.cmdb.get_host_by_topo_node(bk_biz_id=bk_biz_id, topo_nodes={bk_obj_id: [bk_inst_id]})
 
         result = [
-            {"name": _("节点ID"), "type": "number", "value": bk_inst_id},
-            {"name": _("节点类型"), "type": "string", "value": node.bk_obj_name if node else ""},
-            {"name": _("节点名称"), "type": "string", "value": node.bk_inst_name if node else ""},
+            {"name": _("节点ID"), "type": "number", "value": node.bk_inst_id},
+            {"name": _("节点类型"), "type": "string", "value": node.bk_obj_name},
+            {"name": _("节点名称"), "type": "string", "value": node.bk_inst_name},
             {
                 "name": _("子级数量"),
                 "type": "number",
@@ -434,7 +443,11 @@ class GetHostProcessUptimeResource(ApiAuthResource):
         if not hosts:
             return []
         host = hosts[0]
-        ip, bk_cloud_id = host.bk_host_innerip, host.bk_cloud_id
+        # 身份模式取关联业务配置，指标查询仍使用原空间。
+        target_filter = _build_host_target_filter(validate_bk_biz_id(params["bk_biz_id"]), [host])
+        if not target_filter:
+            # 单主机查询始终保留身份过滤；无 IPv4 地址时按主机 ID 查询。
+            target_filter = {"targets": [{"bk_host_id": [str(host.bk_host_id)]}]}
 
         data_source_class = load_data_source(DataSourceLabel.BK_MONITOR_COLLECTOR, DataTypeLabel.TIME_SERIES)
         data_source = data_source_class(
@@ -442,11 +455,7 @@ class GetHostProcessUptimeResource(ApiAuthResource):
             interval=60,
             group_by=["bk_target_ip", "bk_target_cloud_id", "display_name"],
             metrics=[{"field": "uptime", "method": "MAX", "alias": "A"}],
-            filter_dict={
-                "bk_target_ip": ip,
-                "bk_target_cloud_id": bk_cloud_id,
-                "display_name": params["display_name"],
-            },
+            filter_dict={**target_filter, "display_name": params["display_name"]},
         )
         query = UnifyQuery(bk_biz_id=params["bk_biz_id"], data_sources=[data_source], expression="A")
         # 取选中时点的进程组快照；前端传秒，UQ 查询使用毫秒。

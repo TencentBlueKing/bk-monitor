@@ -24,7 +24,7 @@
  * IN THE SOFTWARE.
  */
 
-import { type PropType, defineComponent } from 'vue';
+import { type PropType, computed, defineComponent } from 'vue';
 
 import type { IHostListRow } from '../../../types/host-list';
 
@@ -39,25 +39,41 @@ export default defineComponent({
     },
   },
   setup(props) {
-    const handleToCMDB = () => {
-      if (!props.row) return;
+    /**
+     * 当前行主机在 CMDB 中的地址
+     * 必须使用行内主机所属的 CMDB 业务号：关联空间入口下页面 cc_biz_id 为负空间号，CMDB 无法识别；
+     * 行内业务号或主机号无效时返回空串，不提供跳转
+     */
+    const cmdbHostUrl = computed(() => {
+      const bizId = Number(props.row?.bk_biz_id);
+      const hostId = Number(props.row?.bk_host_id);
+      if (!Number.isInteger(bizId) || bizId <= 0 || !Number.isInteger(hostId) || hostId <= 0) return '';
       const cmdbUrl = (window as Window & { bk_cc_url?: string }).bk_cc_url || '';
-      const url = `${cmdbUrl}#/business/${window.cc_biz_id}/index/host/${props.row.bk_host_id}`;
-      window.open(url);
+      return `${cmdbUrl}#/business/${bizId}/index/host/${hostId}`;
+    });
+
+    const handleToCMDB = () => {
+      if (!cmdbHostUrl.value) return;
+      window.open(cmdbHostUrl.value);
+    };
+
+    const renderCmdbLink = () => {
+      if (!cmdbHostUrl.value) return <span>CMDB</span>;
+      return (
+        <span
+          class='link'
+          onClick={handleToCMDB}
+        >
+          CMDB
+        </span>
+      );
     };
 
     return () => {
       if (props.row?.ignore_monitoring) {
         return (
           <div class='ip-status-tips'>
-            <i18n-t keypath='不监控，就是不进行告警策略判断。可在{0}进行设置。'>
-              <span
-                class='link'
-                onClick={handleToCMDB}
-              >
-                CMDB
-              </span>
-            </i18n-t>
+            <i18n-t keypath='不监控，就是不进行告警策略判断。可在{0}进行设置。'>{renderCmdbLink()}</i18n-t>
           </div>
         );
       }
@@ -65,14 +81,7 @@ export default defineComponent({
       if (props.row?.is_shielding) {
         return (
           <div class='ip-status-tips'>
-            <i18n-t keypath='不告警，会生成告警但不进行告警通知等处理。可在{0}进行设置'>
-              <span
-                class='link'
-                onClick={handleToCMDB}
-              >
-                CMDB
-              </span>
-            </i18n-t>
+            <i18n-t keypath='不告警，会生成告警但不进行告警通知等处理。可在{0}进行设置'>{renderCmdbLink()}</i18n-t>
           </div>
         );
       }

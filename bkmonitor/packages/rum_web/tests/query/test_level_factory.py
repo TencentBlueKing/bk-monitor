@@ -15,6 +15,8 @@ from rum_web.constants import RumQueryMode
 from rum_web.handlers.level.base import BaseRumLevelHandler
 from rum_web.handlers.level.factory import RumLevelHandlerFactory, UnsupportedRumQueryMode
 from rum_web.handlers.level.span import SpanLevelHandler
+from rum_web.handlers.level.view import ViewLevelHandler
+from rum_web.handlers.level.session import SessionLevelHandler
 
 
 def _make_target(table_id: str = "bk_rum.default.span") -> TraceDatasourceTarget:
@@ -41,15 +43,9 @@ class TestRumLevelHandlerFactory:
         with pytest.raises(UnsupportedRumQueryMode):
             RumLevelHandlerFactory.create("unknown_mode", [_make_target()])
 
-    def test_view_mode_not_registered_raises(self):
-        """view 尚未注册，应明确失败"""
-        with pytest.raises(UnsupportedRumQueryMode):
-            RumLevelHandlerFactory.create(RumQueryMode.VIEW.value, [_make_target()])
-
-    def test_session_mode_not_registered_raises(self):
-        """session 尚未注册，应明确失败"""
-        with pytest.raises(UnsupportedRumQueryMode):
-            RumLevelHandlerFactory.create(RumQueryMode.SESSION.value, [_make_target()])
+    @pytest.mark.parametrize("mode, handler_class", [("view", ViewLevelHandler), ("session", SessionLevelHandler)])
+    def test_entity_modes(self, mode, handler_class):
+        assert isinstance(RumLevelHandlerFactory.create(mode, [_make_target()]), handler_class)
 
     def test_empty_mode_raises(self):
         with pytest.raises(UnsupportedRumQueryMode):

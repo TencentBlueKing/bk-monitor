@@ -10,8 +10,11 @@ specific language governing permissions and limitations under the License.
 
 import logging
 
+from django.utils.translation import gettext as _
+from rest_framework.exceptions import ValidationError
+
 from api.cmdb.define import Host, TopoNode, TopoTree
-from bkm_space.validate import validate_bk_biz_id
+from bkm_space.serializers import CMDBScopeSerializer
 from bkmonitor.share.api_auth_resource import ApiAuthResource
 from bkmonitor.utils import time_tools
 from bkmonitor.utils.cache import CacheType
@@ -246,15 +249,21 @@ class HostTopoNodeDetailResource(Resource):
         bk_biz_id = params["bk_biz_id"]
 
         # 查询节点信息
-        topo_nodes = api.cmdb.get_topo_tree(bk_biz_id=bk_biz_id).get_all_nodes_with_relation()
-        node = topo_nodes.get(f"{bk_obj_id}_{bk_inst_id}")
-
-        # 查询节点下的主机
-        hosts = api.cmdb.get_host_by_topo_node(bk_biz_id=bk_biz_id, topo_nodes={bk_obj_id: [bk_inst_id]})
+        topo_tree = api.cmdb.get_topo_tree(bk_biz_id=bk_biz_id)
+        if bk_obj_id == "biz":
+            if bk_inst_id not in (bk_biz_id, topo_tree.bk_inst_id):
+                raise ValidationError(_("业务节点不属于当前空间"))
+            node = topo_tree
+            hosts = api.cmdb.get_host_by_topo_node(bk_biz_id=bk_biz_id)
+        else:
+            node = topo_tree.get_all_nodes_with_relation().get(f"{bk_obj_id}|{bk_inst_id}")
+            if node is None:
+                return {}
+            hosts = api.cmdb.get_host_by_topo_node(bk_biz_id=bk_biz_id, topo_nodes={bk_obj_id: [bk_inst_id]})
 
         # 查询关联策略数量
         enabled_strategy_count, disabled_strategy_count = resource.cc.get_topo_strategy_count(
-            bk_biz_id=bk_biz_id, bk_obj_id=bk_obj_id, bk_inst_id=bk_inst_id
+            bk_biz_id=bk_biz_id, bk_obj_id=bk_obj_id, bk_inst_id=node.bk_inst_id
         )
 
         # 查询主备负责人
@@ -267,9 +276,9 @@ class HostTopoNodeDetailResource(Resource):
 
         return {
             "bk_obj_id": bk_obj_id,
-            "bk_inst_id": bk_inst_id,
-            "bk_obj_name": node.bk_obj_name if node else "",
-            "bk_inst_name": node.bk_inst_name if node else "",
+            "bk_inst_id": node.bk_inst_id,
+            "bk_obj_name": node.bk_obj_name,
+            "bk_inst_name": node.bk_inst_name,
             "operator": operator,
             "bk_bak_operator": bk_bak_operator,
             "child_count": len(hosts) if bk_obj_id == "module" else len(node.child),
@@ -319,7 +328,7 @@ class SearchHostInfoResource(ApiAuthResource):
     主机信息查询
     """
 
-    class RequestSerializer(serializers.Serializer):
+    class RequestSerializer(CMDBScopeSerializer):
         bk_biz_id = serializers.IntegerField(required=True, label="业务ID")
         bk_host_id = serializers.IntegerField(required=False, label="主机ID")
         bk_obj_id = serializers.CharField(required=False, label="拓扑对象ID")
@@ -332,12 +341,7 @@ class SearchHostInfoResource(ApiAuthResource):
                 raise InvalidParamsError({"key": "bk_obj_id,bk_inst_id"})
             if ("page" in attrs) != ("page_size" in attrs):
                 raise InvalidParamsError({"key": "page,page_size"})
-            if "page" in attrs and attrs.get("bk_obj_id") == "biz" and attrs["bk_inst_id"] != attrs["bk_biz_id"]:
-                raise InvalidParamsError({"key": "bk_inst_id"})
-            return attrs
-
-        def validate_bk_biz_id(self, value):
-            return validate_bk_biz_id(value)
+            return super().validate(attrs)
 
     @staticmethod
     def get_module_info(
@@ -445,7 +449,7 @@ class SearchHostMetricResource(ApiAuthResource):
     查询指定主机的agent及指标信息
     """
 
-    class RequestSerializer(serializers.Serializer):
+    class RequestSerializer(CMDBScopeSerializer):
         bk_host_ids = serializers.ListField(
             label="主机ID",
             child=serializers.IntegerField(),
@@ -462,10 +466,6 @@ class SearchHostMetricResource(ApiAuthResource):
         # 不传则保持默认"最近三分钟"行为（向后兼容）
         start_time = serializers.IntegerField(required=False, label="开始时间(秒级时间戳)")
         end_time = serializers.IntegerField(required=False, label="结束时间(秒级时间戳)")
-
-        # 主机场景，以关联资源身份请求
-        def validate_bk_biz_id(self, value):
-            return validate_bk_biz_id(value)
 
     @staticmethod
     def validate_scope_host_ids(params):
@@ -637,6 +637,9 @@ class SearchHostMetricResource(ApiAuthResource):
         if params.get("bk_host_id") is not None:
             hosts = api.cmdb.get_host_by_id(bk_biz_id=bk_biz_id, bk_host_ids=[params["bk_host_id"]])
             return True, hosts, [host.bk_host_id for host in hosts]
+        if params.get("bk_obj_id") == "biz" and params.get("bk_inst_id") == bk_biz_id:
+            hosts = api.cmdb.get_host_by_topo_node(bk_biz_id=bk_biz_id)
+            return False, hosts, [host.bk_host_id for host in hosts]
         if params.get("bk_obj_id") and params.get("bk_inst_id") is not None:
             hosts = api.cmdb.get_host_by_topo_node(
                 bk_biz_id=bk_biz_id,
@@ -688,7 +691,7 @@ class SearchHostMetricResource(ApiAuthResource):
 class SearchHostMetricStatsResource(ApiAuthResource):
     """按当前节点范围查询单张主机性能卡片，不接受任意查询表达式。"""
 
-    class RequestSerializer(serializers.Serializer):
+    class RequestSerializer(CMDBScopeSerializer):
         bk_biz_id = serializers.IntegerField()
         bk_host_id = serializers.IntegerField(required=False)
         bk_obj_id = serializers.CharField(required=False)
@@ -697,9 +700,6 @@ class SearchHostMetricStatsResource(ApiAuthResource):
         start_time = serializers.IntegerField(required=False)
         end_time = serializers.IntegerField(required=False)
 
-        def validate_bk_biz_id(self, value):
-            return validate_bk_biz_id(value)
-
         def validate(self, attrs):
             if bool(attrs.get("bk_obj_id")) != (attrs.get("bk_inst_id") is not None):
                 raise InvalidParamsError({"key": "bk_obj_id,bk_inst_id"})
@@ -707,9 +707,7 @@ class SearchHostMetricStatsResource(ApiAuthResource):
                 raise InvalidParamsError({"key": "start_time,end_time"})
             if "start_time" in attrs and attrs["start_time"] > attrs["end_time"]:
                 raise InvalidParamsError({"key": "start_time,end_time"})
-            if attrs.get("bk_obj_id") == "biz" and attrs["bk_inst_id"] != attrs["bk_biz_id"]:
-                raise InvalidParamsError({"key": "bk_inst_id"})
-            return attrs
+            return super().validate(attrs)
 
     def perform_request(self, params):
         if params.get("bk_host_id") is None and params.get("bk_obj_id") in (None, "biz"):

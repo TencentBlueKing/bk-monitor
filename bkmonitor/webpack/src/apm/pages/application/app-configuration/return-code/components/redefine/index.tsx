@@ -33,6 +33,8 @@ import { listCodeRedefinedRule, serviceList, setCodeRedefinedRule } from 'monito
 import { downloadFile, random } from 'monitor-common/utils';
 import TagBlock from 'monitor-pc/components/tag-block';
 
+import CodeRuleTextarea from './code-rule-textarea';
+
 import type { TimeRangeType } from 'monitor-pc/components/time-range/time-range';
 import type { CallOptions, CodeRedefineItem } from 'monitor-ui/chart-plugins/plugins/apm-service-caller-callee/type';
 import ValueTagSelector from 'monitor-pc/components/retrieval-filter/value-tag-selector';
@@ -685,7 +687,7 @@ export default class RedefineTabContent extends tsc<Props> {
                   );
                 }
                 return (
-                  <div class='interface-column'>
+                  <div class='interface-column kind-column'>
                     {(row.isImport || row.isNew) && <div class='new-sign-bar' />}
                     {/* 编辑态：类型可选且可自定义创建 */}
                     <bk-select
@@ -860,10 +862,9 @@ export default class RedefineTabContent extends tsc<Props> {
                         class='code-status-rule-item'
                       >
                         <bk-form-item property={item.value}>
-                          <bk-input
+                          <CodeRuleTextarea
                             value={row.code_type_rules[item.value]}
-                            // on-change 与组件事件命名保持一致
-                            on-change={v => this.handleValueChange(v, item.value, row.id)}
+                            onChange={v => this.handleValueChange(v, item.value, row.id)}
                           />
                         </bk-form-item>
                         <i18n path={'重定义为 {0}'}>

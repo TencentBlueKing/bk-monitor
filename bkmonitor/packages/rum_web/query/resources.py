@@ -17,8 +17,8 @@ from bkmonitor.data_source.format import flatten_dict_data
 from bkmonitor.data_source.utils.apm import TraceDatasourceTarget
 from bkmonitor.utils.thread_backend import ThreadPool
 from core.drf_resource import Resource
-from rum_web.constants import RumQueryMode
 from rum_web.handlers.level.factory import RumLevelHandlerFactory
+from rum_web.handlers.level.span import SpanLevelHandler
 from rum_web.models.application import Application
 from rum_web.query.serializers import (
     RumFieldsOptionValuesRequestSerializer,
@@ -221,5 +221,5 @@ class RumTimelineResource(Resource):
 
     def perform_request(self, data: dict[str, Any]) -> dict[str, Any]:
         application = _get_application(data["bk_biz_id"], data["app_name"])
-        handler = RumLevelHandlerFactory.create(RumQueryMode.SPAN.value, _build_data_sources([application]))
+        handler = SpanLevelHandler(_build_data_sources([application]))
         return handler.timeline(session_id=data.get("session_id"), view_id=data.get("view_id"))
