@@ -65,14 +65,17 @@ class TraceListSerializer(SpanListSerializer):
 
 class TraceDetailSerializer(AppSerializer, PageSerializer):
     trace_id = serializers.CharField()
+    page_size = serializers.IntegerField(min_value=1, max_value=10000, default=1000)
 
 
 class SpanDetailSerializer(AppSerializer):
-    span_id = serializers.CharField()
+    span_ids = serializers.ListField(child=serializers.CharField(), min_length=1, max_length=100)
     trace_id = serializers.CharField(required=False)
 
 
-class SpanRelationSerializer(SpanDetailSerializer, PageSerializer):
+class SpanRelationSerializer(AppSerializer, PageSerializer):
+    span_id = serializers.CharField()
+    trace_id = serializers.CharField(required=False)
     relation = serializers.ChoiceField(choices=["parent", "children", "links_out", "links_in"])
 
 
@@ -107,6 +110,7 @@ PARAM_PROPERTIES = {
     "end_time": {"type": ["integer", "null"], "minimum": 0, "description": "Unix 秒"},
     "trace_id": {"type": "string", "minLength": 1},
     "span_id": {"type": "string", "minLength": 1},
+    "span_ids": {"type": "array", "items": {"type": "string", "minLength": 1}, "minItems": 1, "maxItems": 100},
     "parent_span_id": {"type": "string", "minLength": 1},
     "page": {"type": "integer", "minimum": 1, "default": 1},
     "page_size": {"type": "integer", "minimum": 1, "maximum": 100, "default": 20},
@@ -124,10 +128,17 @@ def _register(name, serializer_class, description, example):
     return KernelRPCRegistry.register(
         f"admin.apm.{name}",
         summary=description,
-        description=f"inspect，只读，至少 operator。{description}；分页不提供总数，使用 has_more。",
+        description=f"inspect，只读，至少 operator。{description}。",
         params_schema={
             "type": "object",
-            "properties": {key: PARAM_PROPERTIES[key] for key in fields},
+            "properties": {
+                key: (
+                    {**PARAM_PROPERTIES[key], "maximum": field.max_value, "default": field.default}
+                    if key == "page_size"
+                    else PARAM_PROPERTIES[key]
+                )
+                for key, field in fields.items()
+            },
             "required": [key for key, field in fields.items() if field.required],
             "additionalProperties": False,
         },
@@ -185,16 +196,18 @@ def _query(proxy, params, mode):
     return proxy._get_query(mode, params["start_time"], params["end_time"])
 
 
-def _list(query, params, filters=None, *, full=False, offset=None, limit=None):
+def _list(query, params, filters=None, *, full=False, fields=None, offset=None, limit=None):
     from apm.core.handlers.query.origin_trace_query import OriginTraceQuery
 
     sort = [f"{field[1:]} desc" if field.startswith("-") else field for field in params.get("sort", [])]
     offset = (params.get("page", 1) - 1) * params.get("page_size", 20) if offset is None else offset
     limit = params.get("page_size", 20) + 1 if limit is None else limit
     filters = _filters(params) if filters is None else filters
-    if full:
+    if full or fields:
         # 不做 values 投影，保留原始 Span 的全部字段（包括扩展字段）。
         queries = [q.order_by(*(sort or ["end_time desc", "span_id"])) for q in query.build_queries(filters)]
+        if fields:
+            queries = [q.values(*fields) for q in queries]
         return query._query_list(queries, params["start_time"], params["end_time"], offset, limit)
     if isinstance(query, OriginTraceQuery):
         # 原有 origin 列表会忽略单条 Trace 处理异常；Admin 查询必须把失败返回调用方。
@@ -285,50 +298,115 @@ def span_list(params):
     return _response("span_list", params, _page(_list(_query(proxy, params, "span"), params), params))
 
 
+TRACE_SPAN_FIELDS = (
+    "trace_id",
+    "span_id",
+    "parent_span_id",
+    "span_name",
+    "kind",
+    "start_time",
+    "end_time",
+    "elapsed_time",
+    "status",
+    "resource.service.name",
+    "attributes.db.system",
+    "attributes.rpc.system",
+    "attributes.messaging.system",
+    "attributes.http.method",
+    "attributes.http.url",
+    "attributes.http.status_code",
+)
+
+
+def _basic_span(span):
+    attributes = span.get("attributes") or {}
+    span_type = next(
+        (attributes[key] for key in ("db.system", "rpc.system", "messaging.system") if attributes.get(key)), None
+    )
+    if span_type is None and any(key.startswith("http.") for key in attributes):
+        span_type = "http"
+    return {
+        **{key: span[key] for key in TRACE_SPAN_FIELDS if key in span},
+        "service_name": (span.get("resource") or {}).get("service.name"),
+        "span_type": span_type,
+        "duration_ms": span["elapsed_time"] / 1000 if span.get("elapsed_time") is not None else None,
+    }
+
+
 @_register(
     "trace_detail",
     TraceDetailSerializer,
-    "查询 Trace 预计算摘要与分页 Span；摘要可能延迟，不从当前页合成统计",
+    "一次查询 Trace 原始 Span 基础列表与实际数量；含父子 ID、类型、耗时及状态，默认每页 1000 条",
     {
         **APP_EXAMPLE,
         "trace_id": "example-trace",
         "page": 1,
-        "page_size": 20,
+        "page_size": 1000,
     },
 )
 def trace_detail(params):
     params = _validate(TraceDetailSerializer, params)
     proxy = _make_proxy(params)
-    spans = _list(_query(proxy, params, "span"), params)
-    summary = _list(_query(proxy, params, "trace"), params, offset=0, limit=1)
-    warnings = (
-        [] if summary else [{"code": "TRACE_SUMMARY_UNAVAILABLE", "message": "预计算摘要缺失或延迟，请参考原始 Span"}]
+    query = _query(proxy, params, "span")
+    span_count = int(
+        query.query_field_aggregated_value(
+            params["start_time"], params["end_time"], "span_id", "count", _filters(params)
+        )
+    )
+    offset = (params["page"] - 1) * params["page_size"]
+    limit = min(params["page_size"], max(0, span_count - offset))
+    spans = (
+        _list(query, {**params, "sort": ["start_time", "span_id"]}, fields=TRACE_SPAN_FIELDS, limit=limit)
+        if limit
+        else []
     )
     return _response(
         "trace_detail",
         params,
         {
             "trace_id": params["trace_id"],
-            "summary": summary[0] if summary else None,
-            "spans": _page(spans, params),
+            "span_count": span_count,
+            "spans": {
+                "items": [_basic_span(span) for span in spans],
+                "page": params["page"],
+                "page_size": params["page_size"],
+                "has_more": offset + len(spans) < span_count,
+            },
         },
-        warnings,
     )
 
 
 @_register(
     "span_detail",
     SpanDetailSerializer,
-    "查询完整原始 Span，保留 resource、attributes、events 和 links",
+    "批量查询完整原始 Span，保留 resource、attributes、events、links 及扩展字段；返回未命中的 ID",
     {
         **APP_EXAMPLE,
-        "span_id": "example-span",
+        "span_ids": ["example-span", "child-span"],
         "trace_id": "example-trace",
     },
 )
 def span_detail(params):
     params = _validate(SpanDetailSerializer, params)
-    return _response("span_detail", params, {"span": _find_span(_make_proxy(params), params)})
+    query = _query(_make_proxy(params), params, "span")
+    filters = [{"key": "span_id", "operator": "equal", "value": params["span_ids"]}]
+    if params.get("trace_id"):
+        filters.append({"key": "trace_id", "operator": "equal", "value": [params["trace_id"]]})
+    spans = []
+    while True:
+        batch = _list(query, params, filters, full=True, offset=len(spans), limit=1000)
+        spans.extend(batch)
+        if len(batch) < 1000:
+            break
+    found = {span["span_id"] for span in spans}
+    return _response(
+        "span_detail",
+        params,
+        {
+            "items": spans,
+            "missing_span_ids": list(dict.fromkeys(key for key in params["span_ids"] if key not in found)),
+        },
+    )
 
 
 def _reference(span):

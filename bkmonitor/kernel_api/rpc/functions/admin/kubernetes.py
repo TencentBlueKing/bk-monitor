@@ -1,6 +1,7 @@
 """通过 BCSClusterInfo 的认证客户端查询 Kubernetes；仅开放资源 GET。"""
 
 from rest_framework import serializers
+from rest_framework.exceptions import PermissionDenied
 
 from kernel_api.rpc import KernelRPCRegistry
 from kernel_api.rpc.functions.admin.bcs_cluster import _get_bcs_cluster_or_raise
@@ -29,9 +30,29 @@ class DiscoverySerializer(ScopeSerializer):
     page_size = serializers.IntegerField(min_value=1, max_value=100, default=20)
 
 
+class UnmaskRuleSerializer(serializers.Serializer):
+    bk_tenant_id = serializers.CharField(max_length=128)
+    cluster_id = serializers.CharField(max_length=253)
+    namespace = serializers.RegexField(SEGMENT, max_length=253)
+    api_group = serializers.CharField(allow_blank=True, max_length=253)
+    resource = serializers.RegexField(SEGMENT, max_length=253)
+    resource_names = serializers.ListField(child=serializers.RegexField(SEGMENT, max_length=253), required=False)
+
+
 class ResourceSerializer(ScopeSerializer):
     resource = serializers.RegexField(SEGMENT, max_length=253)
     namespace = serializers.RegexField(SEGMENT, max_length=253, required=False)
+    include_sensitive = serializers.BooleanField(default=False)
+    unmask_rules = UnmaskRuleSerializer(many=True, required=False)
+
+    def validate(self, attrs):
+        attrs = super().validate(attrs)
+        if attrs["include_sensitive"]:
+            if not attrs.get("namespace"):
+                raise serializers.ValidationError("原文查询必须指定 namespace")
+            if not _matching_rules(attrs):
+                raise PermissionDenied("没有适用的 Kubernetes 遮罩例外规则")
+        return attrs
 
 
 class ListSerializer(ResourceSerializer):
@@ -70,26 +91,46 @@ def _get(client, path, query=()):
     )
 
 
-def _resource_path(client, prefix, params, verb):
+def _matching_rules(params, name=None):
+    group = params["api_version"].split("/")[0] if "/" in params["api_version"] else ""
+    name = name if name is not None else params.get("name")
+    return [
+        rule
+        for rule in params.get("unmask_rules", [])
+        if rule["bk_tenant_id"] == params["bk_tenant_id"]
+        and rule["cluster_id"] == params["cluster_id"]
+        and rule["namespace"] == params.get("namespace")
+        and rule["api_group"] == group
+        and rule["resource"] == params["resource"]
+        and (name is None or not rule.get("resource_names") or name in rule["resource_names"])
+    ]
+
+
+def _resource_context(client, prefix, params, verb):
     # Discovery 决定资源作用域，并排除 proxy/exec/log 等子资源。
     resources = _get(client, prefix)["resources"]
     resource = next((item for item in resources if item["name"] == params["resource"]), None)
     if resource is None or verb not in resource.get("verbs", []):
         raise serializers.ValidationError("资源不存在或不支持此只读操作")
+    if params.get("include_sensitive") and (resource["kind"] == "Secret" or not resource["namespaced"]):
+        raise PermissionDenied("Secret 和集群级资源不能解除遮罩")
     namespace = params.get("namespace")
     if not resource["namespaced"] and namespace:
         raise serializers.ValidationError("集群级资源不能指定 namespace")
     if resource["namespaced"] and verb == "get" and not namespace:
         raise serializers.ValidationError("查询命名空间资源详情必须指定 namespace")
     path = prefix + (f"/namespaces/{namespace}" if namespace else "") + f"/{params['resource']}"
-    return path
+    return path, resource["kind"]
 
 
-def _redact(value):
+def _redact(value, kind=None, allow_unmask=False, revealed=None):
     if isinstance(value, list):
-        return [_redact(item) for item in value]
+        return [_redact(item, allow_unmask=allow_unmask, revealed=revealed) for item in value]
     if not isinstance(value, dict):
         return _redact_sensitive_value(value)
+    kind = kind or value.get("kind")
+    if kind == "Secret":
+        allow_unmask = False
     result = {}
     for key, item in value.items():
         if key in {"secretKeyRef", "configMapKeyRef", "secretRef", "configMapRef"} and isinstance(item, dict):
@@ -98,25 +139,51 @@ def _redact(value):
         elif _is_sensitive_key(key) and not isinstance(item, bool):
             result[key] = "[REDACTED]"
         else:
-            result[key] = _redact(item)
-    if result.get("kind") == "Secret":
+            result[key] = _redact(item, allow_unmask=allow_unmask, revealed=revealed)
+    # 列表项可能省略 kind；根资源类型使用本次 discovery 的结果。
+    kind = kind or result.get("kind")
+    if kind == "Secret":
         result.pop("data", None)
         result.pop("stringData", None)
         result["metadata"] = {k: v for k, v in result.get("metadata", {}).items() if k != "annotations"}
-    if result.get("kind") == "ConfigMap":
+    if kind == "ConfigMap":
         for key in ("data", "binaryData"):
             if isinstance(result.get(key), dict):
-                result[key] = {name: "[REDACTED]" for name in result[key]}
+                result[key] = dict(value[key]) if allow_unmask else {name: "[REDACTED]" for name in result[key]}
+                if allow_unmask and result[key] and revealed is not None:
+                    revealed.append(key)
     # 遍历 Pod spec 和所有工作负载模板，覆盖普通、初始化及临时容器。
     if isinstance(result.get("env"), list):
         result["env"] = [
-            {**entry, "value": "[REDACTED]"} if isinstance(entry, dict) and "value" in entry else entry
-            for entry in result["env"]
+            {**entry, "value": value["env"][index]["value"] if allow_unmask else "[REDACTED]"}
+            if isinstance(entry, dict) and "value" in entry
+            else entry
+            for index, entry in enumerate(result["env"])
         ]
+        if (
+            allow_unmask
+            and revealed is not None
+            and any(isinstance(entry, dict) and "value" in entry for entry in result["env"])
+        ):
+            revealed.append("env")
     if isinstance(result.get("annotations"), dict):
         result["annotations"] = {
             key: item for key, item in result["annotations"].items() if not key.endswith("last-applied-configuration")
         }
+    return result
+
+
+def _redact_resource(resource, kind, params, unmasked_resources):
+    metadata = resource.get("metadata", {})
+    allowed = bool(
+        params.get("include_sensitive")
+        and metadata.get("namespace") == params.get("namespace")
+        and _matching_rules(params, metadata.get("name"))
+    )
+    revealed = []
+    result = _redact(resource, kind=kind, allow_unmask=allowed, revealed=revealed)
+    if revealed:
+        unmasked_resources.append({"namespace": metadata["namespace"], "name": metadata["name"]})
     return result
 
 
@@ -192,6 +259,12 @@ def api_resources(params):
             "namespace": {"maxLength": 253, "pattern": "^[a-z0-9][a-z0-9.-]*$", "type": "string"},
             "page_size": {"default": 20, "maximum": 100, "minimum": 1, "type": "integer"},
             "resource": {"maxLength": 253, "pattern": "^[a-z0-9][a-z0-9.-]*$", "type": "string"},
+            "include_sensitive": {"type": "boolean", "default": False},
+            "unmask_rules": {
+                "type": "array",
+                "description": "仅由受信 Admin 服务按环境配置注入的例外规则",
+                "items": {"type": "object"},
+            },
         },
         "required": ["bk_tenant_id", "cluster_id", "resource"],
         "type": "object",
@@ -206,7 +279,7 @@ def api_resources(params):
 )
 def list_resources(params):
     values, client, prefix = _context(params, ListSerializer)
-    path = _resource_path(client, prefix, values, "list")
+    path, kind = _resource_context(client, prefix, values, "list")
     query = [("limit", values["page_size"])]
     for source, target in (
         ("continue", "continue"),
@@ -218,11 +291,18 @@ def list_resources(params):
     result = _get(client, path, query)
     metadata = result.get("metadata", {})
     cursor = metadata.get("continue", "")
+    unmasked_resources = []
+    items = [_redact_resource(item, kind, values, unmasked_resources) for item in result["items"]]
     return _response(
         "kubernetes.list",
         values,
         {
-            "items": [_redact(item) for item in result["items"]],
+            "items": items,
+            **(
+                {"unmasked_resources": unmasked_resources, "unmasked_count": len(unmasked_resources)}
+                if values["include_sensitive"]
+                else {}
+            ),
             "continue": cursor,
             "resource_version": metadata.get("resourceVersion", ""),
             "has_more": bool(cursor),
@@ -247,6 +327,12 @@ def list_resources(params):
             "name": {"maxLength": 253, "pattern": "^[a-z0-9][a-z0-9.-]*$", "type": "string"},
             "namespace": {"maxLength": 253, "pattern": "^[a-z0-9][a-z0-9.-]*$", "type": "string"},
             "resource": {"maxLength": 253, "pattern": "^[a-z0-9][a-z0-9.-]*$", "type": "string"},
+            "include_sensitive": {"type": "boolean", "default": False},
+            "unmask_rules": {
+                "type": "array",
+                "description": "仅由受信 Admin 服务按环境配置注入的例外规则",
+                "items": {"type": "object"},
+            },
         },
         "required": ["bk_tenant_id", "cluster_id", "resource", "name"],
         "type": "object",
@@ -262,5 +348,19 @@ def list_resources(params):
 )
 def get_resource(params):
     values, client, prefix = _context(params, GetSerializer)
-    path = _resource_path(client, prefix, values, "get") + f"/{values['name']}"
-    return _response("kubernetes.get", values, {"resource": _redact(_get(client, path))})
+    path, kind = _resource_context(client, prefix, values, "get")
+    resource = _get(client, path + f"/{values['name']}")
+    unmasked_resources = []
+    resource = _redact_resource(resource, kind, values, unmasked_resources)
+    return _response(
+        "kubernetes.get",
+        values,
+        {
+            "resource": resource,
+            **(
+                {"unmasked_resources": unmasked_resources, "unmasked_count": len(unmasked_resources)}
+                if values["include_sensitive"]
+                else {}
+            ),
+        },
+    )
