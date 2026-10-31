@@ -31,7 +31,7 @@ import { useRoute } from 'vue-router';
 
 import { getHostInfoPage, getHostTopoTreeByBizId } from '../services/host-service';
 import { handleCreateCompares, handleCreateItemId } from '../utils/host-list-core';
-import { createHostTarget, resolveInitialHostScope } from '../utils/share-scope';
+import { createHostTarget, resolveHostRequestScope, resolveInitialHostScope } from '../utils/share-scope';
 import { isHostNode } from '../utils/topo-tree';
 import { useHostTopoTreeWorker } from './use-host-topo-tree-worker';
 import { useAppStore } from '@/store/modules/app';
@@ -82,7 +82,9 @@ export const useHostTopoTree = (nodeId: ShallowRef<string>, readonly = false) =>
   const initialScope = computed(() =>
     resolveInitialHostScope(readonly, route.query, nodeId.value, Number(appStore.bizId))
   );
-  const scopeError = computed(() => initialScope.value === null);
+  /** 空间入口下待确认的业务根未出现在本次授权拓扑中 */
+  const targetRejected = shallowRef(false);
+  const scopeError = computed(() => initialScope.value === null || targetRejected.value);
   const selectedNode = shallowRef<IHostTopoTreeNode | null>(
     createHostTarget(initialScope.value, Number(appStore.bizId))
   );
@@ -118,10 +120,40 @@ export const useHostTopoTree = (nodeId: ShallowRef<string>, readonly = false) =>
   let loadRequestVersion = 0;
   /** 是否已初始化 */
   let initialized = false;
+  /** 拓扑加载因目标无效被阻断，目标变为有效后需重新加载 */
+  let scopeBlocked = false;
+  /** 空间根占位按本次授权拓扑回填后的真实根 */
+  let spaceRoot: IHostTopoTreeNode | null = null;
   let scrollEl: HTMLElement = null;
 
-  const shareScope = computed(() => (readonly ? initialScope.value : {}));
+  const shareScope = computed(() => resolveHostRequestScope(readonly, route.query, initialScope.value));
   const scopeKey = computed(() => JSON.stringify([Number(appStore.bizId), shareScope.value]));
+
+  const spaceRootId = () => `biz|${Number(appStore.bizId)}`;
+
+  /** 当前 nodeId 对应的选中目标；node 为空表示需由授权拓扑确认 */
+  const resolveNodeIdTarget = (): null | { id: string; node: IHostTopoTreeNode | null } => {
+    const scope = resolveInitialHostScope(readonly, route.query, nodeId.value, Number(appStore.bizId));
+    if (!scope) return null;
+    const node = createHostTarget(scope, Number(appStore.bizId));
+    const id = node?.id ?? `${scope.bk_obj_id}|${scope.bk_inst_id}`;
+    if (spaceRoot && id === spaceRootId()) return { id: spaceRoot.id, node: spaceRoot };
+    return { id, node };
+  };
+
+  const currentTargetId = () => selectedNode.value?.id || resolveNodeIdTarget()?.id || '';
+
+  /** 目标不在授权拓扑中：按无效目标处理，作废在途拓扑请求，不发出详情 / 主机请求 */
+  const rejectTarget = () => {
+    loadRequestVersion += 1;
+    fullRequestVersion += 1;
+    scopeBlocked = true;
+    targetRejected.value = true;
+    selectedNode.value = null;
+    fullTreeLoading.value = false;
+    loading.value = false;
+    loadError.value = true;
+  };
 
   /** URL 主机直达无需等待完整拓扑，但图表仍需要真实 IP / 管控区域。 */
   const loadHostMetadata = async () => {
@@ -256,10 +288,17 @@ export const useHostTopoTree = (nodeId: ShallowRef<string>, readonly = false) =>
     const anchorScrollTop = viewportScrollTop;
     const firstVisible = Math.floor(anchorScrollTop / TOPO_ROW_HEIGHT);
     const anchorId = visibleRows.value[firstVisible - visibleStart.value]?.id || '';
-    const currentId = selectedNode.value?.id || nodeId.value;
+    const currentId = currentTargetId();
+    // 仅空间根目标（空 nodeId 或 biz|当前空间号）在拓扑中找不到时回填真实根
+    const fallbackToRoot =
+      (!readonly || Number(appStore.bizId) < 0) &&
+      initialScope.value?.bk_obj_id === 'biz' &&
+      initialScope.value.bk_inst_id === Number(appStore.bizId) &&
+      (currentId === spaceRootId() || currentId === spaceRoot?.id);
     if (!preserve && tree[0]) {
       tree = [...tree];
-      tree[0] = { ...tree[0], isOpen: true } as IHostTopoTreeNode & { isOpen?: boolean };
+      const rootNode: IHostTopoTreeNode & { isOpen?: boolean } = { ...tree[0], isOpen: true };
+      tree[0] = rootNode;
     }
     const result = await topoTreeWorker.init(
       tree,
@@ -268,12 +307,17 @@ export const useHostTopoTree = (nodeId: ShallowRef<string>, readonly = false) =>
       currentId,
       complete,
       preserve,
-      anchorId
+      anchorId,
+      fallbackToRoot
     );
     if (disposed || version !== loadRequestVersion || (!complete && fullArrived)) return;
     rawTreeData.value = tree;
     initialized = true;
-    if (selectedNode.value?.id === currentId && result.selectedNode) selectedNode.value = result.selectedNode;
+    // 加载期间用户已切换选择时不覆盖
+    if (currentTargetId() === currentId && result.selectedNode) {
+      selectedNode.value = result.selectedNode;
+      if (fallbackToRoot) spaceRoot = result.selectedNode;
+    }
     totalRows.value = result.total;
     if (preserve && result.anchorOffset >= 0 && viewportScrollTop === anchorScrollTop) {
       viewportScrollTop = result.anchorOffset * TOPO_ROW_HEIGHT + (viewportScrollTop % TOPO_ROW_HEIGHT);
@@ -321,6 +365,7 @@ export const useHostTopoTree = (nodeId: ShallowRef<string>, readonly = false) =>
   /** Skeleton and complete tree are independent; the latter supplies global search and exact counts. */
   const loadTopoTree = async () => {
     const version = ++loadRequestVersion;
+    scopeBlocked = scopeError.value;
     if (scopeError.value) {
       loading.value = false;
       loadError.value = true;
@@ -351,13 +396,18 @@ export const useHostTopoTree = (nodeId: ShallowRef<string>, readonly = false) =>
 
   const handleSelectNodeOfNodeId = async () => {
     const version = loadRequestVersion;
-    const target = resolveInitialHostScope(readonly, route.query, nodeId.value, Number(appStore.bizId));
+    const requestNodeId = nodeId.value;
+    const target = resolveNodeIdTarget();
     if (!target) return;
-    const requested = createHostTarget(target, Number(appStore.bizId));
-    if (selectedNode.value?.id !== requested.id) selectedNode.value = requested;
+    if (selectedNode.value?.id !== target.id) selectedNode.value = target.node;
     if (!initialized) return;
-    const result = await topoTreeWorker.select(requested.id);
-    if (disposed || version !== loadRequestVersion || selectedNode.value?.id !== requested.id) return;
+    const result = await topoTreeWorker.select(target.id);
+    if (disposed || version !== loadRequestVersion || nodeId.value !== requestNodeId) return;
+    if ((selectedNode.value?.id ?? target.id) !== target.id) return;
+    if (!result.selectedNode && !target.node) {
+      rejectTarget();
+      return;
+    }
     if (result.selectedNode) selectedNode.value = result.selectedNode;
     if (result.selectedNodeOffset >= 0) {
       viewportScrollTop = result.selectedNodeOffset * TOPO_ROW_HEIGHT;
@@ -421,6 +471,7 @@ export const useHostTopoTree = (nodeId: ShallowRef<string>, readonly = false) =>
   };
 
   const handleRefresh = () => {
+    if (targetRejected.value) return reloadTopoTree();
     loadTopoTree();
   };
 
@@ -469,28 +520,38 @@ export const useHostTopoTree = (nodeId: ShallowRef<string>, readonly = false) =>
     applyViewResult(result, start, end, version);
   };
 
+  const reloadTopoTree = () => {
+    viewRequestVersion += 1;
+    initialized = false;
+    visibleRows.value = [];
+    totalRows.value = 0;
+    rawTreeData.value = [];
+    fullTreeLoading.value = false;
+    fullTreeError.value = false;
+    targetRejected.value = false;
+    spaceRoot = null;
+    selectedNode.value = createHostTarget(initialScope.value, Number(appStore.bizId));
+    resetViewport();
+    void loadTopoTree();
+  };
+
   watch(
     scopeKey,
     (_, previous) => {
-      viewRequestVersion += 1;
       const previousBiz = JSON.parse(previous)[0];
       if (!readonly && String(previousBiz) !== String(appStore.bizId)) nodeId.value = '';
-      initialized = false;
-      visibleRows.value = [];
-      totalRows.value = 0;
-      rawTreeData.value = [];
-      fullTreeLoading.value = false;
-      fullTreeError.value = false;
-      selectedNode.value = createHostTarget(initialScope.value, Number(appStore.bizId));
-      resetViewport();
-      void loadTopoTree();
+      reloadTopoTree();
     },
     { flush: 'sync' }
   );
 
   watch(nodeId, () => {
-    const target = createHostTarget(initialScope.value, Number(appStore.bizId));
-    if (target?.id !== selectedNode.value?.id) void handleSelectNodeOfNodeId();
+    targetRejected.value = false;
+    if (scopeBlocked && !scopeError.value) {
+      reloadTopoTree();
+      return;
+    }
+    if (resolveNodeIdTarget()?.id !== selectedNode.value?.id) void handleSelectNodeOfNodeId();
   });
 
   onMounted(() => {
