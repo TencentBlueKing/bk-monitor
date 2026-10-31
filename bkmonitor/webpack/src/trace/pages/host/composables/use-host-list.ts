@@ -474,7 +474,7 @@ export const useHostList = (options: IUseHostListOptions) => {
     resetPage();
   };
 
-  /** 复制选中主机的指定 IP 字段（每行一个，换行分隔） */
+  /** 复制选中主机的指定 IP 字段或主机 ID（每行一个，换行分隔） */
   const handleCopyIp = async (field?: TCopyIpField) => {
     if (!selectedRowKeys.value.size || !field) {
       return;
@@ -483,12 +483,21 @@ export const useHostList = (options: IUseHostListOptions) => {
     const rows = fullDataReady.value
       ? (await hostListWorker.getSelectedRows(selected)).rows
       : pagedRows.value.filter(row => selectedRowKeys.value.has(String(row.id)));
-    const ipList = rows.map(item => item[field]).filter(Boolean);
-    const ipText = ipList.join('\n');
-    copyText(ipText, (msg: string) => {
+    const isHostId = field === 'bk_host_id';
+    // bk_host_id 为数值，用 != null 过滤避免误丢 0
+    const copyList = isHostId
+      ? rows.filter(item => item.bk_host_id != null).map(item => String(item.bk_host_id))
+      : rows.map(item => item[field]).filter(Boolean);
+    const copyContent = copyList.join('\n');
+    copyText(copyContent, (msg: string) => {
       Message({ message: msg, theme: 'error' });
     });
-    Message({ message: window.i18n.t('复制成功 {num} 个IP', { num: ipList.length }), theme: 'success' });
+    Message({
+      message: isHostId
+        ? window.i18n.t('复制成功 {num} 个ID', { num: copyList.length })
+        : window.i18n.t('复制成功 {num} 个IP', { num: copyList.length }),
+      theme: 'success',
+    });
   };
 
   onMounted(() => {

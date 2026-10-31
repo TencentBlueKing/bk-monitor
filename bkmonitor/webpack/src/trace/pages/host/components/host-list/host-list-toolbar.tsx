@@ -67,7 +67,7 @@ export default defineComponent({
   setup(props, { emit }) {
     const { t } = useI18n();
 
-    /** 复制 IP 下拉菜单：内网/外网 × IPv4/IPv6 四种可选字段 */
+    /** 复制 IP 下拉菜单：内网/外网 × IPv4/IPv6 四种 IP 字段，末尾为复制主机 ID */
     const copyMenuList: {
       field: TCopyIpField;
       label: string;
@@ -87,6 +87,10 @@ export default defineComponent({
       {
         field: 'bk_host_outerip_v6',
         label: t('外网IPv6'),
+      },
+      {
+        field: 'bk_host_id',
+        label: t('复制ID'),
       },
     ];
 
