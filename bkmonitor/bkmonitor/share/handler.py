@@ -429,11 +429,14 @@ class HostApiAuthChecker(BaseApiAuthChecker):
         raise InvalidParamsError({"key": check_part})
 
     def query_configs_check(self, query_configs):
+        from monitor_web.scene_view.builtin.host import get_host_metric_bk_biz_id
+
+        metric_bk_biz_id = get_host_metric_bk_biz_id(self.bk_biz_id)
         # 增加主机指标范围校验
         host_metrics = set(
             MetricListCache.objects.filter(
                 bk_tenant_id=self.bk_tenant_id,
-                bk_biz_id__in=[0, self.bk_biz_id],
+                bk_biz_id__in=[0, metric_bk_biz_id],
                 result_table_label="os",
                 data_source_label="bk_monitor",
                 data_type_label="time_series",
@@ -442,7 +445,7 @@ class HostApiAuthChecker(BaseApiAuthChecker):
         process_metrics = set(
             MetricListCache.objects.filter(
                 bk_tenant_id=self.bk_tenant_id,
-                bk_biz_id__in=[0, self.bk_biz_id],
+                bk_biz_id__in=[0, metric_bk_biz_id],
                 result_table_id="system.proc",
                 data_source_label="bk_monitor",
                 data_type_label="time_series",
