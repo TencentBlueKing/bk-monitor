@@ -307,21 +307,27 @@ class GetHostOrTopoNodeDetailResource(ApiAuthResource):
         ]
 
     @classmethod
-    def get_node_info(cls, bk_biz_id: int, bk_obj_id: str, bk_inst_id: str):
+    def get_node_info(cls, bk_biz_id: int, bk_obj_id: str, bk_inst_id: int):
         """
         获取节点信息
         """
-        topo_nodes = api.cmdb.get_topo_tree(bk_biz_id=bk_biz_id).get_all_nodes_with_relation()
-        node = topo_nodes.get(f"{bk_obj_id}|{bk_inst_id}")
+        topo_tree = api.cmdb.get_topo_tree(bk_biz_id=bk_biz_id)
         if bk_obj_id == "biz":
+            # 页面空间号可以作为业务根别名，CMDB 返回的节点仍使用真实业务号。
+            if bk_inst_id not in (bk_biz_id, topo_tree.bk_inst_id):
+                raise ValidationError(_("业务节点不属于当前空间"))
+            node = topo_tree
             hosts = api.cmdb.get_host_by_topo_node(bk_biz_id=bk_biz_id)
         else:
+            node = topo_tree.get_all_nodes_with_relation().get(f"{bk_obj_id}|{bk_inst_id}")
+            if node is None:
+                return []
             hosts = api.cmdb.get_host_by_topo_node(bk_biz_id=bk_biz_id, topo_nodes={bk_obj_id: [bk_inst_id]})
 
         result = [
-            {"name": _("节点ID"), "type": "number", "value": bk_inst_id},
-            {"name": _("节点类型"), "type": "string", "value": node.bk_obj_name if node else ""},
-            {"name": _("节点名称"), "type": "string", "value": node.bk_inst_name if node else ""},
+            {"name": _("节点ID"), "type": "number", "value": node.bk_inst_id},
+            {"name": _("节点类型"), "type": "string", "value": node.bk_obj_name},
+            {"name": _("节点名称"), "type": "string", "value": node.bk_inst_name},
             {
                 "name": _("子级数量"),
                 "type": "number",

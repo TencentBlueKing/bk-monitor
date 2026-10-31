@@ -14,6 +14,7 @@ import re
 
 from django.db.models import Q
 
+from bkm_space.serializers import resolve_cmdb_biz_id
 from bkmonitor.models import ApiAuthToken, MetricListCache
 from bkmonitor.utils.request import get_request, get_request_tenant_id
 from constants.data_source import DataSourceLabel, DataTypeLabel
@@ -203,6 +204,8 @@ class HostApiAuthChecker(BaseApiAuthChecker):
     def __init__(self, token):
         super().__init__(token)
         self.scope = validate_host_share_scope(token.params.get("data", {}))
+        if self.scope.get("bk_obj_id") == "biz":
+            self.scope["bk_inst_id"] = resolve_cmdb_biz_id(self.bk_biz_id, self.scope["bk_inst_id"])
         self.allowed_hosts = self.get_allowed_hosts()
 
     def get_allowed_hosts(self):
@@ -294,6 +297,7 @@ class HostApiAuthChecker(BaseApiAuthChecker):
             self.params_check(request_data)
 
     def params_check(self, request_data):
+        request_data = self.normalize_root_target(request_data)
         view_name, action = self.get_request_view_action()
         allow_descendant = action == "create" and (
             view_name == "monitor_web.performance.views.SearchHostMetricStatsViewSet"
@@ -350,7 +354,17 @@ class HostApiAuthChecker(BaseApiAuthChecker):
                     {"key": key, "error_params": request_data[key], "correct_params": value}
                 )
 
+    def normalize_root_target(self, target):
+        if self.scope.get("bk_obj_id") == "biz" and target.get("bk_obj_id") in ("biz", ["biz"]):
+            node_ids = target.get("bk_inst_id")
+            node_ids = node_ids if isinstance(node_ids, list) else [node_ids]
+            aliases = {str(self.bk_biz_id), str(self.scope["bk_inst_id"])}
+            if node_ids and all(str(node_id) in aliases for node_id in node_ids):
+                return {**target, "bk_obj_id": "biz", "bk_inst_id": self.scope["bk_inst_id"]}
+        return target
+
     def query_target_check(self, target, check_part):
+        target = self.normalize_root_target(target)
         allowed_host_ids = {str(host.bk_host_id) for host in self.allowed_hosts}
         allowed_ip_cloud_ids = {
             (str(ip), str(host.bk_cloud_id))
