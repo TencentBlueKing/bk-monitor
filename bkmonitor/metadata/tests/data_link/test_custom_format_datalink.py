@@ -576,7 +576,7 @@ def test_custom_format_clean_rule_update_keeps_internal_resources_stable(custom_
     ]
 
 
-def test_custom_format_disable_deletes_managed_components_only(mocker, custom_format_records):
+def test_custom_format_disable_and_reenable_keeps_components(mocker, custom_format_records):
     data_source, result_table, data_link = custom_format_records
     data_link.compose_custom_format_configs(
         bk_biz_id=2,
@@ -585,6 +585,10 @@ def test_custom_format_disable_deletes_managed_components_only(mocker, custom_fo
         storage_cluster_name="vm-cluster",
         inner_kafka_channel_name="kafka-inner",
     )
+    retained_components = [
+        component_class.objects.get(data_link_name=data_link.pk)
+        for component_class in (models.ResultTableConfig, models.ChannelBindingConfig, models.VMStorageBindingConfig)
+    ]
     models.BkBaseResultTable.objects.create(
         bk_tenant_id="system",
         data_link_name=data_link.data_link_name,
@@ -606,16 +610,29 @@ def test_custom_format_disable_deletes_managed_components_only(mocker, custom_fo
 
     result_table.delete_datalink()
 
-    assert delete_remote.call_count == 5
-    assert not models.DataLink.objects.filter(data_link_name=data_link.data_link_name).exists()
-    assert not models.ResultTableConfig.objects.filter(data_link_name=data_link.data_link_name).exists()
-    assert not models.ChannelBindingConfig.objects.filter(data_link_name=data_link.data_link_name).exists()
-    assert not models.VMStorageBindingConfig.objects.filter(data_link_name=data_link.data_link_name).exists()
+    assert delete_remote.call_count == 2
+    assert {call.kwargs["kind"] for call in delete_remote.call_args_list} == {"databuses"}
+    assert models.DataLink.objects.filter(data_link_name=data_link.data_link_name).exists()
+    assert models.ResultTableConfig.objects.filter(data_link_name=data_link.data_link_name).exists()
+    assert models.ChannelBindingConfig.objects.filter(data_link_name=data_link.data_link_name).exists()
+    assert models.VMStorageBindingConfig.objects.filter(data_link_name=data_link.data_link_name).exists()
     assert not models.DataBusConfig.objects.filter(data_link_name=data_link.data_link_name).exists()
     assert models.DataIdConfig.objects.filter(name="bkm_custom_format_source").exists()
     assert models.ResultTable.objects.filter(table_id=result_table.table_id).exists()
-    assert not models.BkBaseResultTable.objects.filter(data_link_name=data_link.data_link_name).exists()
-    assert not models.AccessVMRecord.objects.filter(result_table_id=result_table.table_id).exists()
+    assert models.BkBaseResultTable.objects.filter(data_link_name=data_link.data_link_name).exists()
+    assert models.AccessVMRecord.objects.filter(result_table_id=result_table.table_id).exists()
+
+    data_link.compose_custom_format_configs(
+        bk_biz_id=2,
+        data_source=data_source,
+        table_id=result_table.table_id,
+        storage_cluster_name="vm-cluster",
+        inner_kafka_channel_name="kafka-inner",
+    )
+
+    assert models.DataBusConfig.objects.filter(data_link_name=data_link.pk).count() == 2
+    for component in retained_components:
+        assert type(component).objects.get(data_link_name=data_link.pk).pk == component.pk
 
 
 def test_custom_format_datasource_cannot_switch_etl(custom_format_records):

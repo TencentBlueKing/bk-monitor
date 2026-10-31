@@ -571,48 +571,23 @@ class ResultTable(models.Model):
         return result_table
 
     def delete_datalink(self) -> None:
-        """删除数据链路及对应的关联记录"""
+        """删除链路的 Databus，保留结果表和存储等关联记录。"""
         from metadata.models.data_link.data_link import DataLink
-        from metadata.models.vm.record import AccessVMRecord
-
-        data_source_ids = DataSourceResultTable.objects.filter(
-            bk_tenant_id=self.bk_tenant_id,
-            table_id=self.table_id,
-        ).values_list("bk_data_id", flat=True)
-        is_custom_format = DataSource.objects.filter(
-            bk_tenant_id=self.bk_tenant_id,
-            bk_data_id__in=data_source_ids,
-            etl_config=EtlConfigs.BK_CUSTOM_FORMAT.value,
-        ).exists()
 
         # 查询结果表对应的Datalink
         records = BkBaseResultTable.objects.filter(bk_tenant_id=self.bk_tenant_id, monitor_table_id=self.table_id)
         if not records:
             logger.info("delete_datalink: tenant(%s) %s no bkbase record found", self.bk_tenant_id, self.table_id)
-            if is_custom_format:
-                AccessVMRecord.objects.filter(
-                    bk_tenant_id=self.bk_tenant_id,
-                    result_table_id=self.table_id,
-                ).delete()
             return
 
-        # 删除数据链路及对应的关联记录
+        # 只清理 Databus，保留链路及结果表映射。
         for record in records:
             data_link_name = record.data_link_name
             datalink = DataLink.objects.filter(bk_tenant_id=self.bk_tenant_id, data_link_name=data_link_name).first()
             if datalink:
                 datalink.delete_data_link()
-            if is_custom_format:
-                record.delete()
-            else:
-                record.status = DataLinkResourceStatus.TERMINATING.value
-                record.save()
-
-        if is_custom_format:
-            AccessVMRecord.objects.filter(
-                bk_tenant_id=self.bk_tenant_id,
-                result_table_id=self.table_id,
-            ).delete()
+            record.status = DataLinkResourceStatus.TERMINATING.value
+            record.save()
 
     def apply_datalink(self, force_update: bool = False, delay: bool = True) -> None:
         """创建数据链路"""
@@ -640,7 +615,7 @@ class ResultTable(models.Model):
         if datasource.etl_config == EtlConfigs.BK_CUSTOM_FORMAT.value:
             enable_option_name = ResultTableOption.OPTION_ENABLE_CUSTOM_FORMAT_V4_DATA_LINK
             if not options.get(enable_option_name, False):
-                # 未配置开关不申请；显式关闭时清理该 ResultTable 派生的全部运行态资源。
+                # 未配置开关不申请；显式关闭时仅清理该 ResultTable 对应的 Databus。
                 if enable_option_name in options:
                     self.delete_datalink()
                 return
