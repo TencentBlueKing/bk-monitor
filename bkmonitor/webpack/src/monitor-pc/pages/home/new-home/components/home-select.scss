@@ -5,7 +5,7 @@
   position: absolute;
   z-index: 10;
   width: 100%;
-  min-height: 52px;
+  min-height: 100px;
 
   .loading-view {
     width: 170px;
@@ -25,10 +25,13 @@
     margin-top: 30px;
   }
 
+  // 单行时输入区在 100px 内垂直居中，多行时随 textarea 自动撑高
   .new-home-select-input {
     position: relative;
+    display: flex;
+    align-items: center;
     width: 100%;
-    min-height: 52px;
+    min-height: 100px;
     padding: 0 14px 0 58px;
     margin: 0 auto;
     background-image: linear-gradient(to right, #2b3547, #2b3547), linear-gradient(90deg, #57a8fa, #58c2be);
@@ -39,13 +42,14 @@
 
     .clear-btn {
       position: absolute;
-      top: 16px;
+      top: 50%;
       right: 12px;
       z-index: 1;
       font-size: 18px;
       color: #979ba5;
       cursor: pointer;
       border-radius: 50%;
+      transform: translateY(-50%);
     }
   }
 
@@ -101,16 +105,17 @@
 
   .new-home-select-icon {
     position: absolute;
-    top: 8px;
+    top: 50%;
     left: 15px;
     font-size: 28px;
     color: #dcdee5;
+    transform: translateY(-50%);
   }
 
   .home-select-input {
     box-sizing: border-box;
     width: 98%;
-    margin: 12px 0 4px;
+    margin: 8px 0;
     font-size: 14px;
     line-height: 22px;
     color: #f0f1f5;
@@ -183,8 +188,10 @@
   }
 }
 
+// 输入框加高后不能依赖静态位置，固定从输入框下沿弹出，避免遮挡输入框
 .new-home-select-popover {
   position: absolute;
+  top: 100%;
   left: 0;
   z-index: 500;
   width: 100%;
@@ -510,6 +517,7 @@
   }
 
   .new-home-select-input {
+    display: block;
     min-height: 32px;
     padding: 0;
     background: #252f43;
@@ -520,6 +528,7 @@
       top: 8px;
       right: 30px;
       font-size: 14px;
+      transform: none;
     }
   }
 
@@ -540,6 +549,7 @@
   }
 
   .new-home-select-popover {
+    top: auto;
     margin-top: 6px;
     border-radius: 2px;
 
