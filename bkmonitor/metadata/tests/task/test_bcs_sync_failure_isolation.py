@@ -65,6 +65,7 @@ class TestDiscoveryFailureIsolation(unittest.TestCase):
         )
         self.settings = SimpleNamespace(
             NEW_ENV_START_CLUSTER_ID=None,
+            NEW_ENV_CLUSTER_ID_RANGES=[],
             NEW_ENV_CLUSTER_BLACK_LIST=[],
             NEW_ENV_CLUSTER_WHITE_LIST=[],
             ALWAYS_RUNNING_FAKE_BCS_CLUSTER_ID_LIST=[],
@@ -98,6 +99,7 @@ class TestDiscoveryFailureIsolation(unittest.TestCase):
         for name in (
             "get_bcs_cluster_id_suffix",
             "get_discover_start_cluster_id_suffix",
+            "get_discover_cluster_id_ranges",
             "is_discover_biz_blacklisted",
             "is_discover_biz_whitelisted",
             "is_discover_managed_cluster",
@@ -139,6 +141,120 @@ class TestDiscoveryFailureIsolation(unittest.TestCase):
         self.assertEqual(
             self.namespace["metrics"].METADATA_CRON_TASK_STATUS_TOTAL.labels.call_args.kwargs["status"], status
         )
+
+    def test_multiple_ranges_override_legacy_threshold_and_exclude_boundaries(self):
+        self.settings.NEW_ENV_START_CLUSTER_ID = "BCS-K8S-90000"
+        self.settings.NEW_ENV_CLUSTER_ID_RANGES = [
+            {"start": 25200, "end": 40000},
+            {"start": 41200, "end": None},
+        ]
+        ranges = self.namespace["get_discover_cluster_id_ranges"]()
+        self.assertEqual(ranges, self.settings.NEW_ENV_CLUSTER_ID_RANGES)
+        for suffix, expected in (
+            (25199, False),
+            (25200, False),
+            (25201, True),
+            (39999, True),
+            (40000, False),
+            (41000, False),
+            (41200, False),
+            (41201, True),
+            (100000, True),
+        ):
+            with self.subTest(suffix=suffix):
+                self.assertEqual(
+                    self.namespace["is_discover_managed_cluster"](f"BCS-K8S-{suffix}", ranges, 1), expected
+                )
+        self.assertFalse(self.namespace["is_discover_managed_cluster"]("invalid-cluster", ranges, 1))
+
+    def test_arbitrary_multiple_ranges(self):
+        self.settings.NEW_ENV_CLUSTER_ID_RANGES = [
+            {"start": 80, "end": None},
+            {"start": 10, "end": 20},
+            {"start": 30, "end": 40},
+        ]
+        ranges = self.namespace["get_discover_cluster_id_ranges"]()
+        for suffix in (11, 19, 31, 39, 81):
+            self.assertTrue(self.namespace["is_discover_managed_cluster"](f"BCS-K8S-{suffix:05}", ranges, 1))
+        for suffix in (10, 20, 25, 30, 40, 80):
+            self.assertFalse(self.namespace["is_discover_managed_cluster"](f"BCS-K8S-{suffix:05}", ranges, 1))
+
+    def test_empty_ranges_fall_back_to_legacy_threshold(self):
+        for suffix in (0, 5):
+            with self.subTest(suffix=suffix):
+                self.settings.NEW_ENV_START_CLUSTER_ID = f"BCS-K8S-{suffix:05}"
+                ranges = self.namespace["get_discover_cluster_id_ranges"]()
+                self.assertEqual(ranges, [{"start": suffix, "end": None}])
+                self.assertFalse(self.namespace["is_discover_managed_cluster"](f"BCS-K8S-{suffix:05}", ranges, 1))
+                self.assertTrue(self.namespace["is_discover_managed_cluster"](f"BCS-K8S-{suffix + 1:05}", ranges, 1))
+
+    def test_unconfigured_or_invalid_legacy_threshold_keeps_historical_behavior(self):
+        for start_cluster_id in (None, "", "invalid-cluster"):
+            with self.subTest(start_cluster_id=start_cluster_id):
+                self.settings.NEW_ENV_START_CLUSTER_ID = start_cluster_id
+                ranges = self.namespace["get_discover_cluster_id_ranges"]()
+                self.assertEqual(ranges, [])
+                for cluster_id in ("BCS-K8S-00001", "invalid-cluster"):
+                    self.assertTrue(self.namespace["is_discover_managed_cluster"](cluster_id, ranges, 1))
+
+    def test_blacklist_overrides_whitelist_and_whitelist_exempts_ranges(self):
+        self.settings.NEW_ENV_CLUSTER_BLACK_LIST = ["3"]
+        self.settings.NEW_ENV_CLUSTER_WHITE_LIST = [2, 3]
+        ranges = [{"start": 10, "end": 20}]
+        self.assertFalse(self.namespace["is_discover_managed_cluster"]("BCS-K8S-00001", ranges, 1))
+        self.assertTrue(self.namespace["is_discover_managed_cluster"]("BCS-K8S-00001", ranges, "2"))
+        for cluster_id in ("BCS-K8S-00001", "BCS-K8S-00011"):
+            self.assertFalse(self.namespace["is_discover_managed_cluster"](cluster_id, ranges, 3))
+        self.assertFalse(self.namespace["is_discover_managed_cluster"]("BCS-K8S-00011", [], 3))
+
+    def test_discovery_registers_only_clusters_in_configured_ranges(self):
+        self.settings.NEW_ENV_CLUSTER_ID_RANGES = [
+            {"start": 25200, "end": 40000},
+            {"start": 41200, "end": None},
+        ]
+        self.api.kubernetes.fetch_k8s_cluster_list.return_value = [
+            self.discovered(f"BCS-K8S-{suffix}") for suffix in (25200, 25201, 39999, 40000, 41000, 41200, 41201)
+        ]
+        self.discover()
+        self.assertEqual(
+            {cluster.cluster_id for cluster in self.records}, {"BCS-K8S-25201", "BCS-K8S-39999", "BCS-K8S-41201"}
+        )
+        self.assert_task_status("success")
+
+    def test_discovery_skips_updates_and_init_retries_outside_ranges(self):
+        self.settings.NEW_ENV_CLUSTER_ID_RANGES = [{"start": 10, "end": 20}]
+        managed = self.cluster("BCS-K8S-00011", status="init_failed")
+        excluded = self.cluster("BCS-K8S-00020", status="init_failed")
+        for cluster in (managed, excluded):
+            cluster.api_key_content = "previous-token"
+        self.api.kubernetes.fetch_k8s_cluster_list.return_value = [
+            self.discovered(cluster.cluster_id) for cluster in (managed, excluded)
+        ]
+        self.discover()
+        managed.init_resource.assert_called_once()
+        managed.save.assert_called_once()
+        self.assertEqual(managed.status, "RUNNING")
+        self.assertEqual(managed.api_key_content, self.settings.BCS_API_GATEWAY_TOKEN)
+        excluded.init_resource.assert_not_called()
+        excluded.save.assert_not_called()
+        self.assertEqual(excluded.status, "init_failed")
+        self.assertEqual(excluded.api_key_content, "previous-token")
+        self.assert_task_status("success")
+
+    def test_missing_clusters_are_marked_deleted_only_within_ranges(self):
+        self.settings.NEW_ENV_CLUSTER_ID_RANGES = [
+            {"start": 25200, "end": 40000},
+            {"start": 41200, "end": None},
+        ]
+        for suffix in (25200, 25201, 39999, 40000, 41000, 41200, 41201):
+            self.cluster(f"BCS-K8S-{suffix}")
+        self.discover()
+        managed_cluster_ids = {"BCS-K8S-25201", "BCS-K8S-39999", "BCS-K8S-41201"}
+        for cluster in self.records:
+            with self.subTest(cluster_id=cluster.cluster_id):
+                expected = "DELETED" if cluster.cluster_id in managed_cluster_ids else "RUNNING"
+                self.assertEqual(cluster.status, expected)
+        self.assert_task_status("success")
 
     def test_registration_failure_does_not_block_retry_or_next_tenant(self):
         retry = self.cluster("BCS-K8S-00002", status="init_failed")
@@ -237,6 +353,33 @@ class TestDiscoveryFailureIsolation(unittest.TestCase):
         self.pod = SimpleNamespace(PLURAL="PodMonitor", refresh_resource=Mock(), refresh_custom_resource=Mock())
         self.namespace.update(ServiceMonitorInfo=self.service, PodMonitorInfo=self.pod)
         return load_definition("metadata/task/bcs.py", "refresh_bcs_monitor_info", self.namespace)
+
+    def test_refresh_applies_ranges_and_business_lists(self):
+        self.settings.NEW_ENV_CLUSTER_ID_RANGES = [
+            {"start": 25200, "end": 40000},
+            {"start": 41200, "end": None},
+        ]
+        self.settings.NEW_ENV_CLUSTER_WHITE_LIST = [2, 3]
+        self.settings.NEW_ENV_CLUSTER_BLACK_LIST = [3]
+        managed = [self.cluster("BCS-K8S-25201"), self.cluster("BCS-K8S-41201"), self.cluster("BCS-K8S-00001", biz=2)]
+        excluded = [self.cluster(f"BCS-K8S-{suffix}") for suffix in (25200, 40000, 41000, 41200)]
+        excluded.append(self.cluster("BCS-K8S-25202", biz=3))
+        refresh = self.refresh()
+        refresh()
+        for cluster in managed:
+            cluster.refresh_common_resource.assert_called_once()
+        for cluster in excluded:
+            cluster.refresh_common_resource.assert_not_called()
+        for resource in (self.service, self.pod):
+            self.assertEqual(
+                {call.args[0] for call in resource.refresh_resource.call_args_list},
+                {cluster.cluster_id for cluster in managed},
+            )
+            self.assertEqual(
+                {call.kwargs["cluster_id"] for call in resource.refresh_custom_resource.call_args_list},
+                {cluster.cluster_id for cluster in managed},
+            )
+        self.assert_task_status("success")
 
     def test_optional_pod_type_missing_still_refreshes_service_custom_dataid(self):
         cluster = self.cluster("BCS-K8S-00001")

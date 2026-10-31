@@ -394,9 +394,7 @@ def _build_profiling_component_item(
         item["data_id_name"] = resource_names.get("data_id_name")
         doris_binding_name = resource_names.get("doris_binding_name")
         item["sink_names"] = (
-            [{"kind": "DorisBinding", "name": doris_binding_name, "namespace": namespace}]
-            if doris_binding_name
-            else []
+            [{"kind": "DorisBinding", "name": doris_binding_name, "namespace": namespace}] if doris_binding_name else []
         )
 
     if include_component_config:
@@ -424,18 +422,14 @@ def _empty_profiling_datalink_detail(
             if profile_datasource and isinstance(profile_datasource.bkdata_datalink_config, dict)
             else None
         ),
-        "v4_resource_names": (
-            _read_profiling_v4_resource_names(profile_datasource) if profile_datasource else {}
-        ),
+        "v4_resource_names": (_read_profiling_v4_resource_names(profile_datasource) if profile_datasource else {}),
         "data_link_name": f"profile_{application.app_name}",
         "bk_tenant_id": application.bk_tenant_id,
         "namespace": namespace,
         "data_link_strategy": PROFILING_DATALINK_STRATEGY,
         "bk_data_id": getattr(profile_datasource, "bk_data_id", None) or 0,
         "table_ids": (
-            [profile_datasource.result_table_id]
-            if profile_datasource and profile_datasource.result_table_id
-            else []
+            [profile_datasource.result_table_id] if profile_datasource and profile_datasource.result_table_id else []
         ),
         "created_at": serialize_value(getattr(profile_datasource, "created", None)) or "",
         "updated_at": serialize_value(getattr(profile_datasource, "updated", None)) or "",
@@ -512,7 +506,8 @@ def _load_instance_count_map(application: Any, topo_keys: list[str]) -> dict[str
     params_schema={
         "bk_tenant_id": PAGE_LIST_TENANT_SCHEMA,
         "bk_biz_id": "可选，业务 ID",
-        "app_name": "可选，应用名或别名包含匹配",
+        "app_name": "可选，仅应用名包含匹配",
+        "keyword": "可选，应用名或别名包含匹配；与其他过滤条件取交集",
         "status": "可选，状态原始值包含匹配",
         "application_ids": "可选，APM 应用 ID 列表，支持数组或逗号分隔字符串",
         "bk_data_id": "可选，关联 DataId",
@@ -520,7 +515,7 @@ def _load_instance_count_map(application: Any, topo_keys: list[str]) -> dict[str
         "page": "可选，默认 1",
         "page_size": "可选，默认 20，最大 100",
     },
-    example_params={"bk_tenant_id": "system", "application_ids": [1, 2], "page": 1, "page_size": 20},
+    example_params={"bk_tenant_id": "system", "bk_biz_id": 2, "keyword": "运维", "page": 1, "page_size": 20},
 )
 def list_apm_applications(params: dict[str, Any]) -> dict[str, Any]:
     bk_tenant_id = get_page_list_bk_tenant_id(params)
@@ -538,6 +533,9 @@ def list_apm_applications(params: dict[str, Any]) -> dict[str, Any]:
     app_name = str(params.get("app_name") or "").strip()
     if app_name:
         queryset = queryset.filter(app_name__icontains=app_name)
+    keyword = str(params.get("keyword") or "").strip()
+    if keyword:
+        queryset = queryset.filter(Q(app_name__icontains=keyword) | Q(app_alias__icontains=keyword))
 
     queryset = _filter_application_queryset_by_datasource_params(queryset, params)
     total = queryset.count()
@@ -862,9 +860,7 @@ def get_apm_profiling_datalink_detail(params: dict[str, Any]) -> dict[str, Any]:
                 warnings_list.append(
                     {
                         "code": "COMPONENT_CONFIG_UNAVAILABLE",
-                        "message": (
-                            f"component_config 获取失败: namespace={namespace}, kind={kind}, name={name}"
-                        ),
+                        "message": (f"component_config 获取失败: namespace={namespace}, kind={kind}, name={name}"),
                     }
                 )
 

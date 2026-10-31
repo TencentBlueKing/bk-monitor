@@ -10,13 +10,21 @@ specific language governing permissions and limitations under the License.
 
 import math
 from collections.abc import Iterable
-from typing import Any
+from typing import Any, overload
 
 from semconv.constants import FieldUnit
 from semconv.rum.constants import RatingLevel
 from semconv.rum.field import RatingThreshold
 from semconv.rum.trace import SpanSpec
 from rum_web.handlers.builder.hover import Hover, get_rating_hover
+
+
+@overload
+def get_safe_number(value: Any, default: int | float = 0) -> int | float: ...
+
+
+@overload
+def get_safe_number(value: Any, default: int | float | None) -> int | float | None: ...
 
 
 def get_safe_number(value: Any, default: int | float | None = 0) -> int | float | None:

@@ -23,10 +23,12 @@ from django.conf import settings
 from django.db.models import Q
 from django.forms import model_to_dict
 from django.utils import timezone
+from django.utils.translation import gettext as _
 from rest_framework import serializers
-from rest_framework.exceptions import ValidationError
+from rest_framework.exceptions import ParseError, ValidationError
 
 from bkm_space.errors import NoRelatedResourceError
+from bkm_space.serializers import resolve_cmdb_biz_id
 from bkm_space.utils import bk_biz_id_to_space_uid
 from bkm_space.validate import validate_bk_biz_id
 from bkmonitor.commons.tools import is_ipv6_biz
@@ -685,6 +687,16 @@ class UnifyQueryRawResource(ApiAuthResource):
                     except NoRelatedResourceError:
                         identity_bk_biz_id = None
                 for target in targets:
+                    if target.get("bk_obj_id") in ("biz", ["biz"]):
+                        node_ids = target.get("bk_inst_id")
+                        if node_ids in (None, "", []):
+                            raise ParseError(_("缺少业务节点 ID"))
+                        if isinstance(node_ids, list):
+                            target["bk_inst_id"] = [
+                                str(resolve_cmdb_biz_id(bk_biz_id, node_id)) for node_id in node_ids
+                            ]
+                        else:
+                            target["bk_inst_id"] = str(resolve_cmdb_biz_id(bk_biz_id, node_ids))
                     if identity_bk_biz_id is None:
                         continue
                     if is_ipv6_biz(identity_bk_biz_id):

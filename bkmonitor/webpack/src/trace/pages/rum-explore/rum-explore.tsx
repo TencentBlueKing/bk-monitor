@@ -707,14 +707,16 @@ export default defineComponent({
                         <RumExploreView
                           ref='rumExploreViewRef'
                           v-slots={{
-                            affixedTop: () => (
-                              <RumSpanTypeFilter
-                                list={spanTypeCtx.chipList.value}
-                                loading={this.configLoading}
-                                value={spanTypeCtx.activeSpanType.value}
-                                onChange={this.handleSpanTypeChange}
-                              />
-                            ),
+                            affixedTop: this.isSpanMode
+                              ? () => (
+                                  <RumSpanTypeFilter
+                                    list={spanTypeCtx.chipList.value}
+                                    loading={this.configLoading}
+                                    value={spanTypeCtx.activeSpanType.value}
+                                    onChange={this.handleSpanTypeChange}
+                                  />
+                                )
+                              : undefined,
                             default: () =>
                               this.configLoading ? (
                                 <RumExploreSkeleton kind='table' />

@@ -182,7 +182,8 @@ export const useHostList = (options: IUseHostListOptions) => {
     () => {
       resetPage();
       resetSelection();
-      if (!fullDataReady.value) void data.loadCategoryStats();
+      // 目标待确认 / 无效时没有选中节点，不能退化为全业务统计
+      if (!fullDataReady.value && selectedNode.value) void data.loadCategoryStats();
     },
     { flush: 'sync' }
   );

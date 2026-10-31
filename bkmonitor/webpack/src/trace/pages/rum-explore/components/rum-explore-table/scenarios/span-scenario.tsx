@@ -41,17 +41,11 @@ import {
   RUM_HTTP_STATUS_CODE_MAP,
   RUM_OUTCOME_TYPE_MAP,
   RUM_STATUS_CODE_MAP,
-  RumFieldDisplayEnum,
   SPAN_KIND_MAPS,
   SPAN_TYPE_FIELD,
   SPAN_TYPE_META,
 } from '../../../constants';
-import {
-  ARRAY_ITEM_EMPTY_PLACEHOLDER,
-  formatArrayItem,
-  formatUnitValue,
-  resolveArrayItemFormatter,
-} from '../../../utils';
+import { ARRAY_ITEM_EMPTY_PLACEHOLDER, formatArrayItem, resolveArrayItemFormatter } from '../../../utils';
 import CollapseArrayCell from '../components/collapse-array-cell/collapse-array-cell';
 import { BaseScenario } from './base-scenario';
 
@@ -167,20 +161,7 @@ export class SpanScenario extends BaseScenario {
         },
       };
     }
-    switch (field?.field_display_type) {
-      case RumFieldDisplayEnum.DATETIME:
-        return { renderType: ExploreTableColumnTypeEnum.TIME };
-      case RumFieldDisplayEnum.DURATION:
-        return {
-          renderType: ExploreTableColumnTypeEnum.DURATION,
-          cellSpecificProps: { durationUnit: field?.field_unit as 'ms' | 'us' },
-        };
-      default: {
-        const unit = field?.field_unit;
-        if (!unit) return {};
-        return { getRenderValue: row => formatUnitValue(row[colKey], unit) };
-      }
-    }
+    return super.buildBaseline(colKey);
   }
 
   // ----------------- Span 场景私有逻辑方法 -----------------

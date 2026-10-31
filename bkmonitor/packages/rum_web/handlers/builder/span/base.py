@@ -60,6 +60,7 @@ class SpanTypeItem(NamedKeyValueItem):
     field_alias: str | Promise = _("类型")
 
     SPAN_TYPE_MAP = {
+        RumSpanType.SESSION.value: "Session",
         RumSpanType.VIEW.value: "View",
         RumSpanType.RESOURCE.value: "Resource",
         RumSpanType.ERROR.value: "Error",
@@ -109,6 +110,8 @@ class SpanBuilder:
     公共头部 ``origin_data``、``span_id`` 与空 ``sections`` 在此统一处理。
     """
 
+    RECORD_ID_FIELD = ""
+    RELATED_SPAN_TYPES: tuple[str, ...] = ()
     OVERVIEW: type[BaseOverview] = SpanOverview
     SECTIONS: tuple[type[BaseSection], ...] = ()
 

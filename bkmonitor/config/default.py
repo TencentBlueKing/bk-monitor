@@ -1578,15 +1578,19 @@ CUSTOM_REPORT_AES_KEY = os.getenv("CUSTOM_REPORT_AES_KEY", "")
 # 新环境新业务的起始业务ID，如果没有配置就不是新环境。
 # 仅接管 bk_biz_id 严格大于该阈值的 CMDB 业务；阈值以下业务交由旧环境/其它链路管理。
 NEW_ENV_START_BIZ_ID = os.getenv("NEW_ENV_START_BIZ_ID", "")
-# 新环境新集群的起始集群ID，用于判断是否需要执行相关发现任务。
+# 新环境新集群的起始集群ID，未配置多区间时用于判断是否需要执行相关发现任务。
 # 取值示例: "BCS-K8S-10000" 表示仅接管后缀 > 10000 的集群变更。
 NEW_ENV_START_CLUSTER_ID = os.getenv("NEW_ENV_START_CLUSTER_ID", "")
+# 新环境集群编号区间，非空时优先于 NEW_ENV_START_CLUSTER_ID；命中任一区间即可接管。
+# 区间两端均不包含，end 为 null 表示无上界；空列表回退到旧的单阈值配置。
+# 示例: [{"start": 25200, "end": 40000}, {"start": 41200, "end": null}]
+NEW_ENV_CLUSTER_ID_RANGES = json.loads(os.getenv("NEW_ENV_CLUSTER_ID_RANGES", "[]"))
 
 # 业务黑白名单，黑名单是给旧环境使用的，白名单是给新环境与起始业务ID配合使用
 NEW_ENV_BIZ_BLACK_LIST = []
 NEW_ENV_BIZ_WHITE_LIST = []
 
-# 集群黑白名单，黑名单是给旧环境使用的，白名单是给新环境与起始集群ID配合使用
+# 集群黑白名单（业务ID），黑名单优先，白名单可豁免集群编号区间或起始集群ID过滤
 NEW_ENV_CLUSTER_BLACK_LIST = []
 NEW_ENV_CLUSTER_WHITE_LIST = []
 
