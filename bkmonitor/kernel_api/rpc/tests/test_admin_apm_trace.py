@@ -12,8 +12,14 @@ ROOT = {
     "trace_id": "trace-a",
     "span_id": "root",
     "parent_span_id": "",
+    "span_name": "request",
+    "kind": 2,
+    "start_time": 1000000,
+    "end_time": 1001500,
+    "elapsed_time": 1500,
+    "status": {"code": 1},
     "resource": {"service.name": "checkout"},
-    "attributes": {"foo": "bar"},
+    "attributes": {"foo": "bar", "http.method": "GET"},
     "custom_extension": "preserved",
     "events": [{"name": "start"}],
     "links": [
@@ -39,10 +45,15 @@ class SpanQuery:
         query = Mock()
         query.filters = filters
         query.order_by.return_value = query
+        query.values.return_value = query
         return [query]
 
     def _query_list(self, queries, start, end, offset, limit):
         return self.query_list(start, end, offset, limit, queries[0].filters, ["keep_all"], "", None)
+
+    def query_field_aggregated_value(self, start, end, field, method, filters):
+        assert (field, method) == ("span_id", "count")
+        return len(self.query_list(start, end, 0, len(self.rows), filters, ["keep_all"], "", None))
 
     def query_list(self, start, end, offset, limit, filters, exclude, query_string, sort):
         self.calls.append((start, end, offset, limit, filters, exclude, query_string, sort))
@@ -81,6 +92,10 @@ def test_registered_json_schema_and_examples(name):
     assert detail["params_schema"]["additionalProperties"] is False
     assert "bk_tenant_id" in detail["params_schema"]["required"]
     assert detail["example_params"]["bk_tenant_id"] == "system"
+    if name == "trace_detail":
+        assert detail["params_schema"]["properties"]["page_size"]["default"] == 1000
+    if name == "span_detail":
+        assert "span_ids" in detail["params_schema"]["required"]
 
 
 @pytest.mark.parametrize(
@@ -139,17 +154,60 @@ def test_precalculation_and_origin_are_explicit(queries):
         assert proxy._get_query.call_args.args[0] == expected
 
 
-def test_trace_detail_survives_missing_precalculation_and_paginates_spans(queries):
-    result = apm_trace.trace_detail({**APP, "trace_id": "trace-a", "page_size": 1})
-    assert result["data"]["summary"] is None
-    assert result["data"]["spans"]["has_more"] is True
-    assert "attributes" not in result["data"]["spans"]["items"][0]
-    assert result["warnings"][0]["code"] == "TRACE_SUMMARY_UNAVAILABLE"
+def test_trace_detail_returns_basic_spans_and_actual_count_without_precalculation(queries):
+    proxy, _, _ = queries
+    result = apm_trace.trace_detail({**APP, "trace_id": "trace-a"})
+    assert result["data"]["span_count"] == 2
+    assert result["data"]["spans"]["page_size"] == 1000
+    assert result["data"]["spans"]["has_more"] is False
+    root, child = result["data"]["spans"]["items"]
+    assert root["span_id"] == child["parent_span_id"]
+    assert root["service_name"] == "checkout"
+    assert root["span_type"] == "http"
+    assert root["duration_ms"] == 1.5
+    assert root["kind"] == 2
+    assert root["status"] == {"code": 1}
+    assert not ({"attributes", "events", "links", "resource", "custom_extension"} & root.keys())
+    assert all(call.args[0] == "span" for call in proxy._get_query.call_args_list)
+    assert result["warnings"] == []
+
+
+def test_large_trace_can_be_paged_above_the_ordinary_list_limit(queries):
+    _, span, _ = queries
+    span.rows = [{**ROOT, "span_id": f"span-{i}"} for i in range(1001)]
+    first = apm_trace.trace_detail({**APP, "trace_id": "trace-a"})["data"]
+    assert first["span_count"] == 1001
+    assert len(first["spans"]["items"]) == 1000
+    assert first["spans"]["has_more"] is True
+    assert span.calls[-1][3] == 1000
+    second = apm_trace.trace_detail({**APP, "trace_id": "trace-a", "page": 2})["data"]
+    assert second["span_count"] == 1001
+    assert len(second["spans"]["items"]) == 1
+    assert second["spans"]["has_more"] is False
+    assert span.calls[-1][3] == 1
 
 
 def test_span_detail_keeps_raw_fields_and_can_disambiguate_trace(queries):
-    assert apm_trace.span_detail({**APP, "span_id": "root"})["data"]["span"] == ROOT
-    assert apm_trace.span_detail({**APP, "span_id": "root", "trace_id": "wrong"})["data"]["span"] is None
+    assert apm_trace.span_detail({**APP, "span_ids": ["root"]})["data"]["items"] == [ROOT]
+    assert apm_trace.span_detail({**APP, "span_ids": ["root"], "trace_id": "wrong"})["data"] == {
+        "items": [],
+        "missing_span_ids": ["root"],
+    }
+
+
+def test_span_detail_batches_ids_in_one_storage_query_and_reports_missing(queries):
+    _, span, _ = queries
+    result = apm_trace.span_detail({**APP, "trace_id": "trace-a", "span_ids": ["root", "child", "missing"]})
+    assert result["data"]["items"] == [ROOT, CHILD]
+    assert result["data"]["missing_span_ids"] == ["missing"]
+    assert len(span.calls) == 1
+    assert span.calls[0][4][0]["value"] == ["root", "child", "missing"]
+
+
+@pytest.mark.parametrize("span_ids", [[], ["x"] * 101])
+def test_span_detail_validates_batch_request_size(span_ids):
+    with pytest.raises(ValidationError):
+        apm_trace.span_detail({**APP, "span_ids": span_ids})
 
 
 def relation(kind, span_id="root", **extra):
@@ -202,6 +260,8 @@ def test_query_failure_is_not_empty_data(queries):
     proxy._get_query.side_effect = RuntimeError("upstream down")
     with pytest.raises(RuntimeError, match="upstream down"):
         apm_trace.span_list({**APP, "trace_id": "trace-a"})
+    with pytest.raises(RuntimeError, match="upstream down"):
+        apm_trace.span_detail({**APP, "span_ids": ["root"]})
 
 
 def test_application_is_looked_up_in_explicit_tenant():
@@ -312,6 +372,18 @@ def test_native_span_query_routes_history_and_isolates_shared_application(monkey
     apm_trace._list(query, params, full=True, offset=0, limit=1)
     raw = query_storage.call_args.kwargs["query_body"]
     assert all(config["select"] == [] for config in raw["query_configs"])
+    apm_trace._list(query, params, fields=apm_trace.TRACE_SPAN_FIELDS)
+    basic = query_storage.call_args.kwargs["query_body"]
+    assert all(set(config["select"]) == set(apm_trace.TRACE_SPAN_FIELDS) for config in basic["query_configs"])
+    query_storage.return_value = [{"_result_": 2}]
+    assert (
+        query.query_field_aggregated_value(
+            params["start_time"], params["end_time"], "span_id", "count", apm_trace._filters(params)
+        )
+        == 2
+    )
+    count_body = query_storage.call_args.kwargs["query_body"]
+    assert all(config["metrics"][0]["field"] == "span_id" for config in count_body["query_configs"])
 
 
 def test_origin_summary_failure_propagates_instead_of_dropping_trace(monkeypatch):
