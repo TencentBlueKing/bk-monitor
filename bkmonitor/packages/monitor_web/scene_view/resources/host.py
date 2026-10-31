@@ -159,7 +159,8 @@ class GetHostOrTopoNodeDetailResource(ApiAuthResource):
         host = hosts[0]
 
         # 查询拓扑信息
-        topo_links: dict[str, list[TopoNode]] = api.cmdb.get_topo_tree(bk_biz_id=bk_biz_id).convert_to_topo_link()
+        topo_tree = api.cmdb.get_topo_tree(bk_biz_id=bk_biz_id)
+        topo_links: dict[str, list[TopoNode]] = topo_tree.convert_to_topo_link()
         topo_links = {key: value for key, value in topo_links.items() if int(key.split("|")[1]) in host.bk_module_ids}
 
         # 查询Agent状态
@@ -210,7 +211,8 @@ class GetHostOrTopoNodeDetailResource(ApiAuthResource):
                 "type": "link",
                 "need_copy": bool(host.bk_host_innerip),
                 "value": {
-                    "url": urljoin(settings.BK_CC_URL, f"/#/resource/host/{bk_biz_id}/{host.bk_host_id}"),
+                    # 拓扑根保留关联的 CMDB 业务身份，供配置平台跳转使用。
+                    "url": urljoin(settings.BK_CC_URL, f"/#/resource/host/{topo_tree.bk_inst_id}/{host.bk_host_id}"),
                     "value": host.bk_host_innerip,
                 },
                 "children": [
