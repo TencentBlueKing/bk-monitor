@@ -1,7 +1,7 @@
 from unittest.mock import Mock
 
 import pytest
-from rest_framework.exceptions import ValidationError
+from rest_framework.exceptions import PermissionDenied, ValidationError
 
 from kernel_api.rpc.functions.admin import kubernetes as module
 
@@ -323,8 +323,6 @@ def test_unmask_configmap_only_matching_names_and_fields(client, query):
     ],
 )
 def test_unmask_scope_denied_before_lookup(client, overrides):
-    from rest_framework.exceptions import PermissionDenied
-
     with pytest.raises(PermissionDenied):
         module.get_resource(
             params(
@@ -344,7 +342,7 @@ def test_unmask_scope_denied_before_lookup(client, overrides):
         ({"include_sensitive": True}, ValidationError),
         (
             {"include_sensitive": True, "namespace": "default"},
-            __import__("rest_framework.exceptions", fromlist=["PermissionDenied"]).PermissionDenied,
+            PermissionDenied,
         ),
     ],
 )
@@ -355,8 +353,6 @@ def test_unmask_requires_namespace_and_rules(client, args, exception):
 
 
 def test_secret_cannot_be_unmasked(client):
-    from rest_framework.exceptions import PermissionDenied
-
     client.call_api.return_value = discovery("secrets", kind="Secret")
     with pytest.raises(PermissionDenied):
         module.list_resources(
@@ -396,3 +392,19 @@ def test_custom_workload_unmask_env_only_when_requested(client, include_sensitiv
     assert "hidden-spec-password" not in str(data)
     if include_sensitive:
         assert data["unmasked_count"] == 1
+
+
+def test_unmask_no_matching_items_records_zero(client):
+    client.call_api.side_effect = [
+        discovery("configmaps", kind="ConfigMap"),
+        {
+            "items": [{"metadata": {"name": "other", "namespace": "default"}, "data": {"key": "private"}}],
+            "metadata": {},
+        },
+    ]
+    data = module.list_resources(
+        params(resource="configmaps", namespace="default", include_sensitive=True, unmask_rules=[unmask_rule()])
+    )["data"]
+    assert data["unmasked_count"] == 0
+    assert data["unmasked_resources"] == []
+    assert "private" not in str(data)

@@ -9,6 +9,19 @@ from kernel_api.rpc.functions.admin.common import build_response
 from kernel_api.rpc.functions.admin.consul import _is_sensitive_key, _redact_sensitive_value
 
 SEGMENT = r"^[a-z0-9][a-z0-9.-]*$"
+UNMASK_RULE_SCHEMA = {
+    "type": "object",
+    "additionalProperties": False,
+    "required": ["bk_tenant_id", "cluster_id", "namespace", "api_group", "resource"],
+    "properties": {
+        "bk_tenant_id": {"type": "string", "minLength": 1},
+        "cluster_id": {"type": "string", "minLength": 1},
+        "namespace": {"type": "string", "pattern": SEGMENT},
+        "api_group": {"type": "string"},
+        "resource": {"type": "string", "pattern": SEGMENT},
+        "resource_names": {"type": "array", "items": {"type": "string", "pattern": SEGMENT}},
+    },
+}
 
 
 class ScopeSerializer(serializers.Serializer):
@@ -128,6 +141,7 @@ def _redact(value, kind=None, allow_unmask=False, revealed=None):
         return [_redact(item, allow_unmask=allow_unmask, revealed=revealed) for item in value]
     if not isinstance(value, dict):
         return _redact_sensitive_value(value)
+    # 列表项可能省略 kind；根资源类型使用本次 discovery 的结果。
     kind = kind or value.get("kind")
     if kind == "Secret":
         allow_unmask = False
@@ -140,8 +154,6 @@ def _redact(value, kind=None, allow_unmask=False, revealed=None):
             result[key] = "[REDACTED]"
         else:
             result[key] = _redact(item, allow_unmask=allow_unmask, revealed=revealed)
-    # 列表项可能省略 kind；根资源类型使用本次 discovery 的结果。
-    kind = kind or result.get("kind")
     if kind == "Secret":
         result.pop("data", None)
         result.pop("stringData", None)
@@ -263,7 +275,7 @@ def api_resources(params):
             "unmask_rules": {
                 "type": "array",
                 "description": "仅由受信 Admin 服务按环境配置注入的例外规则",
-                "items": {"type": "object"},
+                "items": UNMASK_RULE_SCHEMA,
             },
         },
         "required": ["bk_tenant_id", "cluster_id", "resource"],
@@ -331,7 +343,7 @@ def list_resources(params):
             "unmask_rules": {
                 "type": "array",
                 "description": "仅由受信 Admin 服务按环境配置注入的例外规则",
-                "items": {"type": "object"},
+                "items": UNMASK_RULE_SCHEMA,
             },
         },
         "required": ["bk_tenant_id", "cluster_id", "resource", "name"],
