@@ -76,7 +76,10 @@ def list_sharded_export_jobs(params):
         if params.get(param_name) not in (None, ""):
             queryset = queryset.filter(**{field_name: params[param_name]})
     if params.get("index_set_id") not in (None, ""):
-        queryset = queryset.filter(index_set_ids=[_positive_int(params["index_set_id"], "index_set_id")])
+        queryset = queryset.filter(
+            index_set_type=IndexSetType.SINGLE.value,
+            index_set_ids=[_positive_int(params["index_set_id"], "index_set_id")],
+        )
     if params.get("index_set_ids"):
         # 创建任务时按 sorted(set(...)) 落库，精确匹配前按同一口径规范化
         queryset = queryset.filter(index_set_ids=sorted(set(params["index_set_ids"])))

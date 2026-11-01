@@ -145,6 +145,19 @@ class ShardedExportListTest(TestCase):
         self.assertEqual([item["job_id"] for item in scene_items], [scene.id])
         self.assertEqual(scene_items[0]["target"]["type"], "scene")
 
+    def test_single_index_filter_excludes_one_member_union(self):
+        single = make_job(index_set_ids=[10])
+        union = make_job(index_set_ids=[10], index_set_type=IndexSetType.UNION.value)
+
+        result = list_sharded_export_jobs({"index_set_id": 10})
+
+        self.assertEqual(result["total"], 1)
+        self.assertEqual([item["job_id"] for item in result["items"]], [single.id])
+        self.assertEqual(result["items"][0]["target"]["type"], "single")
+        list_result = list_sharded_export_jobs({"index_set_ids": [10]})
+        self.assertEqual(list_result["total"], 2)
+        self.assertEqual({item["job_id"] for item in list_result["items"]}, {single.id, union.id})
+
     def test_list_supports_time_window_and_ascending_order(self):
         older = make_job()
         newer = make_job()
