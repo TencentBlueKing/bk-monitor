@@ -20,7 +20,7 @@ from django.utils import timezone
 from django.utils.translation import gettext as _
 
 from bkmonitor.aiops.alert.utils import AIOPSManager
-from bkmonitor.aiops.incident.graph_snapshot import edge_identity, graph_analysis, target_analysis
+from bkmonitor.aiops.incident.graph_snapshot import edge_identity, graph_analysis, snapshot_context, target_analysis
 from bkmonitor.aiops.incident.models import (
     IncidentGraphEdge,
     IncidentGraphEdgeType,
@@ -366,6 +366,7 @@ class IncidentBaseResource(Resource):
         topology_data = {
             "nodes": nodes,
             "graph_analysis": copy.deepcopy(graph_analysis(snapshot.incident_snapshot_content)),
+            "snapshot_context": snapshot_context(snapshot.incident_snapshot_content),
             "edges": [
                 self.generate_edge_info(snapshot, edge)
                 for edge in snapshot.incident_graph_edges.values()
@@ -818,6 +819,12 @@ class IncidentTopologyResource(IncidentBaseResource):
                     "incident_id": incident_snapshot.incident_id,
                     "fpp_snapshot_id": incident_snapshot.fpp_snapshot_id,
                     "create_time": incident_snapshot.create_time,
+                    "snapshot_context": {
+                        **(snapshot_context(snapshot.incident_snapshot_content) or {}),
+                        "snapshot_id": incident_snapshot.fpp_snapshot_id,
+                        "recorded_at": incident_snapshot.create_time,
+                        "recorded_at_semantics": "monitor_snapshot_record",
+                    },
                     "content": topo_data,
                 }
             )
@@ -826,6 +833,7 @@ class IncidentTopologyResource(IncidentBaseResource):
             "latest": latest_snapshot_content,
             "diff" if validated_request_data["only_diff"] else "full": topologies_data,
             "complete": {
+                "evidence_semantics": "layout_union_only",
                 "nodes": list(complete_topologies["nodes"].values()),
                 "edges": list(complete_topologies["edges"].values()),
                 "sub_combos": list(complete_topologies["sub_combos"].values()),
@@ -887,6 +895,7 @@ class IncidentTopologyResource(IncidentBaseResource):
         self.generate_delete_tag("sub_combos", current_sub_combos, complete_topologies, new_sub_combos)
 
         return current, {
+            "snapshot_context": current.get("snapshot_context"),
             "nodes": new_nodes,
             "edges": new_edges,
             "sub_combos": new_sub_combos,

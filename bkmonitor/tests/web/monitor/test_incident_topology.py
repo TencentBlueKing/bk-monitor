@@ -413,12 +413,15 @@ class TestIncidentTopologyHistory(SimpleTestCase):
                     "monitor_web.incident.resources.IncidentSnapshotDocument.list_by_incident_id",
                     return_value=snapshots,
                 ),
-                patch("monitor_web.incident.resources.IncidentSnapshot", side_effect=lambda content: content),
+                patch(
+                    "monitor_web.incident.resources.IncidentSnapshot",
+                    side_effect=lambda content: SimpleNamespace(incident_snapshot_content=content),
+                ),
                 patch.object(IncidentTopologyResource, "generate_entities_orders", return_value={}),
                 patch.object(
                     IncidentTopologyResource,
                     "generate_topology_data_from_snapshot",
-                    side_effect=lambda incident, snapshot: snapshot,
+                    side_effect=lambda incident, snapshot: snapshot.incident_snapshot_content,
                 ),
             ):
                 # The document API exposes mapping access for sorting as well as attribute access.
@@ -431,4 +434,9 @@ class TestIncidentTopologyHistory(SimpleTestCase):
             self.assertEqual({combo["id"] for combo in result["complete"]["combos"]}, {"0", "1"})
             self.assertEqual(result["latest"]["combos"], [{"id": "0"}])
             self.assertEqual(len(result["complete"]["nodes"]), 2)
+            self.assertEqual(result["complete"]["evidence_semantics"], "layout_union_only")
+            frame = result["diff" if only_diff else "full"][0]
+            self.assertEqual(frame["snapshot_context"]["snapshot_id"], "snapshot-0")
+            self.assertEqual(frame["snapshot_context"]["recorded_at"], 0)
+            self.assertEqual(frame["snapshot_context"]["recorded_at_semantics"], "monitor_snapshot_record")
             self.assertNotIn("is_deleted", result["diff" if only_diff else "full"][0]["content"]["nodes"][0])
