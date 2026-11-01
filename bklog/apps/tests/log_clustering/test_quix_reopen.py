@@ -21,7 +21,16 @@ from apps.log_search.models import LogIndexSet
 from apps.tests.log_clustering.test_quix_operation import INDEX_SET_ID, KAFKA, QUIX_CONFIG
 from apps.tests.log_clustering.test_quix_update import create_running_runtime
 
-ADOPTED = {"sink_referenced": True, "sink_resource": {"status": {"phase": "Ok"}}}
+ADOPTED = {
+    "sink_referenced": True,
+    "sink_resource": {"spec": {"clustering": {"enabled": True}}, "status": {"phase": "Ok"}},
+    "clustering_status": {
+        "requested_epoch": "20",
+        "applied_epoch": "20",
+        "configuration_applied": True,
+        "phase": "RUNNING",
+    },
+}
 
 
 class TestQuixReopenRunner(TestCase):
@@ -30,7 +39,6 @@ class TestQuixReopenRunner(TestCase):
         LogClusteringRuntime.objects.filter(index_set_id=INDEX_SET_ID).update(
             phase=ClusteringRuntimePhaseEnum.REOPENING.value,
             candidate_boundary={"0": 10},
-            outbox_boundary={"0": 100},
             control_version=2,
             kafka_binding=KAFKA,
             input_revision=1,
@@ -48,17 +56,12 @@ class TestQuixReopenRunner(TestCase):
             "input_revision": 1,
         }
         self.transfer = MagicMock()
-        self.transfer.get_log_clustering_status.side_effect = [
-            ADOPTED,
-            {"clustering_status": {"state": "STOPPED"}},
-            ADOPTED,
-        ]
-        self.receipt = Mock(return_value=True)
+        self.transfer.get_log_clustering_status.return_value = ADOPTED
+        self.bkfara.restart_clustering.return_value = {"state": "RUNNING", "control_version": 6}
         for target, value in (
             ("apps.log_clustering.handlers.quix.operation.BkFaraApi", self.bkfara),
             ("apps.log_clustering.handlers.quix.operation.TransferApi", self.transfer),
             ("apps.log_clustering.handlers.quix.operation.get_quix_config", Mock(return_value=QUIX_CONFIG)),
-            ("apps.log_clustering.handlers.quix.operation.runtime_adoption_confirmed", self.receipt),
             ("apps.log_clustering.handlers.quix.operation.LogIndexSet.set_tag", Mock()),
         ):
             patcher = patch(target, value)
@@ -69,7 +72,7 @@ class TestQuixReopenRunner(TestCase):
         return QuixClusteringOperationRunner(self.operation.operation_id).run()
 
     def test_reopen_stops_at_awaiting_receipt(self):
-        self.receipt.return_value = False
+        self.transfer.get_log_clustering_status.return_value = {**ADOPTED, "clustering_status": {}}
 
         self.assertEqual(self.run_operation(), RECEIPT_POLL_INTERVAL_SECONDS)
 
@@ -94,7 +97,7 @@ class TestQuixReopenRunner(TestCase):
         self.assertEqual(LogClusteringRuntime.objects.get(index_set_id=INDEX_SET_ID).input_revision, 1)
         self.transfer.operate_log_clustering.assert_not_called()
 
-    def test_reopen_restarts_task_then_reattaches_and_resumes(self):
+    def test_reopen_restarts_existing_task_then_enables_and_attaches(self):
         self.assertIsNone(self.run_operation())
 
         self.bkfara.restart_clustering.assert_called_once_with(
@@ -106,45 +109,53 @@ class TestQuixReopenRunner(TestCase):
         )
         self.bkfara.create_task.assert_not_called()
         actions = [call.args[0]["action"] for call in self.transfer.operate_log_clustering.call_args_list]
-        self.assertEqual(actions, ["attach", "resume"])
+        self.assertEqual(actions, ["enable", "attach"])
         runtime = LogClusteringRuntime.objects.get(index_set_id=INDEX_SET_ID)
         self.assertEqual(runtime.phase, ClusteringRuntimePhaseEnum.RUNNING.value)
-        self.assertEqual((runtime.candidate_boundary, runtime.outbox_boundary), (None, None))
+        self.assertIsNone(runtime.candidate_boundary)
+        self.assertEqual(runtime.control_version, 6)
         self.assertTrue(ClusteringConfig.objects.get(index_set_id=INDEX_SET_ID).access_finished)
 
-    def test_resume_retries_unknown_status_instead_of_completing_step(self):
-        self.transfer.get_log_clustering_status.side_effect = None
-        runner = QuixClusteringOperationRunner(self.operation.operation_id)
-        for status in ({"errors": [{"source": "clustering_status"}], "clustering_status": None}, {}):
-            with self.subTest(status=status):
-                self.transfer.get_log_clustering_status.return_value = status
-                self.assertFalse(runner._step_resume())
-                self.transfer.operate_log_clustering.assert_not_called()
-
-        self.transfer.get_log_clustering_status.return_value = {"clustering_status": {"state": "STOPPED"}}
-        self.assertTrue(runner._step_resume())
-        self.assertEqual(self.transfer.operate_log_clustering.call_args.args[0]["action"], "resume")
-
-    def test_running_binding_does_not_resume(self):
+    def test_stale_receipts_do_not_finish_or_repeat_provider_writes(self):
+        progress = ADOPTED["clustering_status"]
         self.transfer.get_log_clustering_status.side_effect = [
-            ADOPTED,
-            {"clustering_status": {"state": "RUNNING"}},
+            {**ADOPTED, "clustering_status": {**progress, "applied_epoch": "19"}},
+            {**ADOPTED, "clustering_status": {**progress, "phase": "STOPPED"}},
+            {**ADOPTED, "sink_resource": {"spec": {"clustering": {"enabled": False}}, "status": {"phase": "Ok"}}},
+            {**ADOPTED, "sink_referenced": False},
             ADOPTED,
         ]
+        for _ in range(4):
+            self.assertEqual(self.run_operation(), RECEIPT_POLL_INTERVAL_SECONDS)
+            runtime = LogClusteringRuntime.objects.get(index_set_id=INDEX_SET_ID)
+            self.assertEqual((runtime.phase, runtime.candidate_boundary), ("reopening", {"0": 10}))
+        self.assertIsNone(self.run_operation())
+        self.bkfara.restart_clustering.assert_called_once()
+        self.assertEqual(
+            [c.args[0]["action"] for c in self.transfer.operate_log_clustering.call_args_list], ["enable", "attach"]
+        )
 
-        self.run_operation()
-
-        actions = [call.args[0]["action"] for call in self.transfer.operate_log_clustering.call_args_list]
-        self.assertEqual(actions, ["attach"])
-
-    def test_restart_retry_keeps_idempotency_key(self):
-        self.bkfara.restart_clustering.side_effect = [ApiRequestError("request failed"), {}]
-
-        self.run_operation()
-        self.run_operation()
-
-        keys = {call.args[0]["Idempotency-Key"] for call in self.bkfara.restart_clustering.call_args_list}
-        self.assertEqual(keys, {f"{self.operation.operation_id}-restart"})
+    def test_restart_timeout_blocks_close_and_replays_original_request(self):
+        self.bkfara.restart_clustering.side_effect = [ApiRequestError("timeout"), {"control_version": 6}]
+        self.assertIsNotNone(self.run_operation())
+        self.operation.refresh_from_db()
+        self.assertEqual(
+            self.operation.request_payloads["restart"], {"task_id": "task-uuid", "expected_control_version": 5}
+        )
+        LogClusteringOperation.objects.filter(pk=self.operation.pk).update(
+            status=ClusteringOperationStatusEnum.FAILED.value
+        )
+        handler = QuixClusteringHandler(LogIndexSet(index_set_id=INDEX_SET_ID, space_uid="bkcc__2"))
+        with self.assertRaises(QuixClusteringParamsInvalidException):
+            handler.disable()
+        with patch("apps.log_clustering.tasks.quix.run_quix_clustering_operation.delay"):
+            self.assertEqual(handler.reopen(), self.operation.operation_id)
+        self.bkfara.get_task.return_value = {"control_version": 6}
+        self.assertIsNone(self.run_operation())
+        first, retry = self.bkfara.restart_clustering.call_args_list
+        self.assertEqual(first, retry)
+        self.assertEqual(first.args[0]["Idempotency-Key"], f"{self.operation.operation_id}-restart")
+        self.bkfara.get_task.assert_called_once()
 
 
 @patch("apps.log_clustering.tasks.quix.run_quix_clustering_operation.delay")
@@ -188,11 +199,10 @@ class TestQuixClusteringHandlerReopen(TestCase):
         operation_id = QuixClusteringHandler(self.index_set).reopen()
         operation = LogClusteringOperation.objects.get(operation_id=operation_id)
         mock_delay.reset_mock()
-        for step in ("restart", "attach"):
+        for step in ("enable_clustering", "attach"):
             with self.subTest(step=step):
                 operation.status = ClusteringOperationStatusEnum.FAILED.value
                 operation.step = step
-                operation.idempotency_keys = {"restart": "fixed-key"} if step == "restart" else {}
                 operation.save()
                 with self.assertRaises(QuixClusteringParamsInvalidException):
                     QuixClusteringHandler(self.index_set).disable()

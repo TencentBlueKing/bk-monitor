@@ -291,9 +291,16 @@ class QuixClusteringHandler:
             item["step"] for item in operation.steps if item["status"] == ClusteringOperationStatusEnum.SUCCESS.value
         }
         unconfirmed = set(operation.request_payloads) - completed
-        if operation.step == "attach" and "attach" not in completed:
-            unconfirmed.add("attach")
-        if unconfirmed & {"create_task", "update_model_parameters", "metadata_set", "restart", "attach"}:
+        if operation.step in ("enable_clustering", "attach") and operation.step not in completed:
+            unconfirmed.add(operation.step)
+        if unconfirmed & {
+            "create_task",
+            "update_model_parameters",
+            "metadata_set",
+            "restart",
+            "enable_clustering",
+            "attach",
+        }:
             raise QuixClusteringParamsInvalidException(
                 QuixClusteringParamsInvalidException.MESSAGE.format(
                     detail=_("外部写请求结果尚未确认，请先重试原操作确认结果，再关闭聚类")
