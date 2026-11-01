@@ -39,6 +39,7 @@ class TestQuixReopenRunner(TestCase):
         LogClusteringRuntime.objects.filter(index_set_id=INDEX_SET_ID).update(
             phase=ClusteringRuntimePhaseEnum.REOPENING.value,
             candidate_boundary={"0": 10},
+            sink={"name": "existing-sink"},
             control_version=2,
             kafka_binding=KAFKA,
             input_revision=1,
@@ -162,6 +163,8 @@ class TestQuixReopenRunner(TestCase):
 class TestQuixClusteringHandlerReopen(TestCase):
     def setUp(self):
         self.runtime = create_running_runtime()
+        self.runtime.sink = {"name": "existing-sink"}
+        self.runtime.save(update_fields=["sink"])
         self.index_set = LogIndexSet(index_set_id=INDEX_SET_ID, space_uid="bkcc__2")
 
     def test_reopen_from_stopped(self, mock_delay):
@@ -173,6 +176,23 @@ class TestQuixClusteringHandlerReopen(TestCase):
             LogClusteringRuntime.objects.get(pk=self.runtime.pk).phase, ClusteringRuntimePhaseEnum.REOPENING.value
         )
         mock_delay.assert_called_once_with(operation_id)
+
+    def test_stopped_reopen_requires_original_sink_and_task(self, mock_delay):
+        for sink, task_id in (({}, ""), ({}, "existing-task"), ({"name": "existing-sink"}, "")):
+            with self.subTest(sink=sink, task_id=task_id):
+                LogClusteringRuntime.objects.filter(pk=self.runtime.pk).update(
+                    phase=ClusteringRuntimePhaseEnum.STOPPED.value, sink=sink, bkfara_task_id=task_id
+                )
+                with self.assertRaises(QuixClusteringParamsInvalidException):
+                    QuixClusteringHandler(self.index_set).reopen()
+                self.runtime.refresh_from_db()
+                self.assertEqual(self.runtime.phase, ClusteringRuntimePhaseEnum.STOPPED.value)
+                self.assertFalse(
+                    LogClusteringOperation.objects.filter(
+                        index_set_id=INDEX_SET_ID, operation_type=ClusteringOperationTypeEnum.REOPEN.value
+                    ).exists()
+                )
+                mock_delay.assert_not_called()
 
     def test_reopen_rolls_back_operation_when_phase_save_fails(self, mock_delay):
         LogClusteringRuntime.objects.filter(pk=self.runtime.pk).update(phase=ClusteringRuntimePhaseEnum.STOPPED.value)

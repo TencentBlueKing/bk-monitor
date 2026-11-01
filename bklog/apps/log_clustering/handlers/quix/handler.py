@@ -251,6 +251,15 @@ class QuixClusteringHandler:
         from apps.log_clustering.tasks.quix import run_quix_clustering_operation
 
         runtime = LogClusteringRuntime.objects.get(index_set_id=self.index_set_id)
+        if not runtime.sink or not runtime.bkfara_task_id:
+            detail = (
+                _("未建立聚类 Sink 绑定，请通过开启入口接入聚类")
+                if not runtime.sink
+                else _("缺少原 BKFara 任务，无法重开聚类")
+            )
+            raise QuixClusteringParamsInvalidException(
+                QuixClusteringParamsInvalidException.MESSAGE.format(detail=detail)
+            )
         operation = None
         if runtime.phase == ClusteringRuntimePhaseEnum.REOPENING.value:
             operation = self._resume_failed_operation(ClusteringOperationTypeEnum.REOPEN.value)
