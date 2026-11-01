@@ -269,6 +269,22 @@ class ClusteringConfigViewSet(APIViewSet):
         """
         return Response({"operation_id": ClusteringConfigHandler(index_set_id=index_set_id).close()})
 
+    @detail_route(methods=["POST"], url_path="access/reopen")
+    def reopen_access(self, request, index_set_id, *args, **kwargs):
+        """
+        @api {post} /clustering_config/$index_set_id/access/reopen/ 2_聚类设置-重开接入
+        @apiName reopen_clustering_access
+        @apiGroup log_clustering
+        @apiSuccessExample {json} 成功返回:
+        {
+            "message": "",
+            "code": 0,
+            "data": {"operation_id": "5f0c9c1e0f6c4f1a9a3f0b6b2a1d7e8c"},
+            "result": true
+        }
+        """
+        return Response({"operation_id": ClusteringConfigHandler(index_set_id=index_set_id).reopen()})
+
     @detail_route(methods=["GET"], url_path="access/status")
     def access_status(self, request, index_set_id, *args, **kwargs):
         """

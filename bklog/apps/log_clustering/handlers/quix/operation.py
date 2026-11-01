@@ -114,8 +114,16 @@ class QuixClusteringOperationRunner:
             "wait_detached",
             "stop_completed",
         ],
+        # 复用原任务、Topic、消费组和运行态模型，继续原消费位置
+        ClusteringOperationTypeEnum.REOPEN.value: [
+            "restart",
+            "check_reopen_binding",
+            "enable_clustering",
+            "attach",
+            "confirm_reopen",
+        ],
     }
-    RECEIPT_STEPS = {"confirm_adoption", "confirm_closed"}
+    RECEIPT_STEPS = {"confirm_adoption", "confirm_closed", "confirm_reopen"}
 
     def __init__(self, operation_id: str):
         self.operation = LogClusteringOperation.objects.get(operation_id=operation_id)
@@ -410,6 +418,54 @@ class QuixClusteringOperationRunner:
         )
         result = BkFaraApi.stop_clustering(payload.copy())
         return result.get("state") == "STOPPED" and result.get("stop_boundary") == payload["boundary"]
+
+    def _step_restart(self) -> bool:
+        def build_payload():
+            task = BkFaraApi.get_task({"task_id": self.runtime.bkfara_task_id})
+            return {"task_id": self.runtime.bkfara_task_id, "expected_control_version": task["control_version"]}
+
+        payload = self.operation.get_request_payload("restart", build_payload)
+        result = BkFaraApi.restart_clustering(
+            {**payload, "Idempotency-Key": self.operation.get_idempotency_key("restart")}
+        )
+        self._save_runtime(control_version=result["control_version"])
+        return True
+
+    def _step_check_reopen_binding(self) -> bool:
+        clustering = BkFaraApi.get_clustering({"task_id": self.runtime.bkfara_task_id})
+        if (clustering["kafka"], clustering["input_revision"]) != (
+            self.runtime.kafka_binding,
+            self.runtime.input_revision,
+        ):
+            raise QuixClusteringParamsInvalidException(
+                QuixClusteringParamsInvalidException.MESSAGE.format(
+                    detail="bkfara clustering binding changed after restart"
+                )
+            )
+        return True
+
+    def _step_enable_clustering(self) -> bool:
+        return self._operate_metadata("enable")
+
+    def _step_attach(self) -> bool:
+        return self._operate_metadata("attach")
+
+    def _step_confirm_reopen(self) -> bool:
+        status = TransferApi.get_log_clustering_status(self._metadata_params())
+        resource = status.get("sink_resource") or {}
+        progress = status.get("clustering_status") or {}
+        return (
+            runtime_adoption_confirmed(status)
+            and (resource.get("spec") or {}).get("clustering", {}).get("enabled") is True
+            and bool(progress.get("requested_epoch"))
+            and progress.get("applied_epoch") == progress["requested_epoch"]
+            and progress.get("phase") == "RUNNING"
+        )
+
+    def _finish_reopen(self):
+        self._save_runtime(phase=ClusteringRuntimePhaseEnum.RUNNING.value, candidate_boundary=None)
+        ClusteringConfig.objects.filter(index_set_id=self.runtime.index_set_id).update(access_finished=True)
+        LogIndexSet.set_tag(self.runtime.index_set_id, InnerTag.CLUSTERING.value)
 
     def _finish_disable(self):
         self._save_runtime(phase=ClusteringRuntimePhaseEnum.STOPPED.value)

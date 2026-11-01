@@ -273,10 +273,16 @@ class ClusteringConfigHandler:
 
     def close(self) -> str:
         """关闭轻量化聚类，仅支持通过 BKBase LogClusteringSink 链路接入的索引集"""
+        return self._get_quix_handler().disable()
+
+    def reopen(self) -> str:
+        """重开已关闭的轻量化聚类"""
+        return self._get_quix_handler().reopen()
+
+    def _get_quix_handler(self) -> QuixClusteringHandler:
         if not LogClusteringRuntime.objects.filter(index_set_id=self.index_set_id).exists():
             raise ClusteringAccessNotSupportedException()
-        log_index_set = LogIndexSet.objects.get(index_set_id=self.index_set_id)
-        return QuixClusteringHandler(log_index_set).disable()
+        return QuixClusteringHandler(LogIndexSet.objects.get(index_set_id=self.index_set_id))
 
     def synchronous_update(self, params):
         regex_template_id = params["regex_template_id"]

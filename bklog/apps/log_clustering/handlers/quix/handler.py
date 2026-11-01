@@ -246,6 +246,34 @@ class QuixClusteringHandler:
         run_quix_clustering_operation.delay(operation.operation_id)
         return operation.operation_id
 
+    def reopen(self) -> str:
+        """重开已关闭的聚类，复用原任务和绑定；返回操作ID"""
+        from apps.log_clustering.tasks.quix import run_quix_clustering_operation
+
+        runtime = LogClusteringRuntime.objects.get(index_set_id=self.index_set_id)
+        if not runtime.sink or not runtime.bkfara_task_id:
+            detail = (
+                _("未建立聚类 Sink 绑定，请通过开启入口接入聚类")
+                if not runtime.sink
+                else _("缺少原 BKFara 任务，无法重开聚类")
+            )
+            raise QuixClusteringParamsInvalidException(
+                QuixClusteringParamsInvalidException.MESSAGE.format(detail=detail)
+            )
+        operation = None
+        if runtime.phase == ClusteringRuntimePhaseEnum.REOPENING.value:
+            operation = self._resume_failed_operation(ClusteringOperationTypeEnum.REOPEN.value)
+        if not operation:
+            runtime, operation = LogClusteringRuntime.start_operation(
+                self.index_set_id,
+                ClusteringOperationTypeEnum.REOPEN.value,
+                {},
+                allowed_phases=(ClusteringRuntimePhaseEnum.STOPPED.value,),
+                updates={"phase": ClusteringRuntimePhaseEnum.REOPENING.value},
+            )
+        run_quix_clustering_operation.delay(operation.operation_id)
+        return operation.operation_id
+
     def _supersede_unfinished_operation(self) -> dict:
         """
         关闭接替失败或待采用确认的开启/更新/重开操作，避免这些操作无法续跑时索引集无法关闭
@@ -272,7 +300,16 @@ class QuixClusteringHandler:
             item["step"] for item in operation.steps if item["status"] == ClusteringOperationStatusEnum.SUCCESS.value
         }
         unconfirmed = set(operation.request_payloads) - completed
-        if unconfirmed & {"create_task", "update_model_parameters", "metadata_set"}:
+        if operation.step in ("enable_clustering", "attach") and operation.step not in completed:
+            unconfirmed.add(operation.step)
+        if unconfirmed & {
+            "create_task",
+            "update_model_parameters",
+            "metadata_set",
+            "restart",
+            "enable_clustering",
+            "attach",
+        }:
             raise QuixClusteringParamsInvalidException(
                 QuixClusteringParamsInvalidException.MESSAGE.format(
                     detail=_("外部写请求结果尚未确认，请先重试原操作确认结果，再关闭聚类")
