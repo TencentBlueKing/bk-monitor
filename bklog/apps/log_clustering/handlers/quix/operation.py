@@ -117,7 +117,7 @@ class QuixClusteringOperationRunner:
         # 复用原任务、Topic、消费组和运行态模型，继续原消费位置
         ClusteringOperationTypeEnum.REOPEN.value: [
             "restart",
-            "wait_worker_ready",
+            "check_reopen_binding",
             "enable_clustering",
             "attach",
             "confirm_reopen",
@@ -271,18 +271,6 @@ class QuixClusteringOperationRunner:
         clustering = BkFaraApi.get_clustering({"task_id": self.runtime.bkfara_task_id})
         if not is_worker_ready(clustering):
             return False
-        if self.operation.operation_type == ClusteringOperationTypeEnum.REOPEN.value:
-            # 重开沿用 metadata 中的原绑定；BKFara 侧绑定变化时不能静默覆盖本地记录，需人工确认后处理
-            if (clustering["kafka"], clustering["input_revision"]) != (
-                self.runtime.kafka_binding,
-                self.runtime.input_revision,
-            ):
-                raise QuixClusteringParamsInvalidException(
-                    QuixClusteringParamsInvalidException.MESSAGE.format(
-                        detail="bkfara clustering binding changed after restart"
-                    )
-                )
-            return True
         self._save_runtime(kafka_binding=clustering["kafka"], input_revision=clustering["input_revision"])
         return True
 
@@ -441,6 +429,19 @@ class QuixClusteringOperationRunner:
             {**payload, "Idempotency-Key": self.operation.get_idempotency_key("restart")}
         )
         self._save_runtime(control_version=result["control_version"])
+        return True
+
+    def _step_check_reopen_binding(self) -> bool:
+        clustering = BkFaraApi.get_clustering({"task_id": self.runtime.bkfara_task_id})
+        if (clustering["kafka"], clustering["input_revision"]) != (
+            self.runtime.kafka_binding,
+            self.runtime.input_revision,
+        ):
+            raise QuixClusteringParamsInvalidException(
+                QuixClusteringParamsInvalidException.MESSAGE.format(
+                    detail="bkfara clustering binding changed after restart"
+                )
+            )
         return True
 
     def _step_enable_clustering(self) -> bool:

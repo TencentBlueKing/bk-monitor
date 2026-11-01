@@ -52,7 +52,7 @@ class TestQuixReopenRunner(TestCase):
         self.bkfara.get_clustering.return_value = {
             "state": "RUNNING",
             "target_model_ref": {"uri": "model"},
-            "all_ready_model_ref": {"uri": "model"},
+            "all_ready_model_ref": None,
             "kafka": KAFKA,
             "input_revision": 1,
         }
@@ -86,19 +86,27 @@ class TestQuixReopenRunner(TestCase):
             ClusteringRuntimePhaseEnum.REOPENING.value,
         )
 
-    def test_changed_bkfara_binding_fails_without_overwriting_runtime(self):
+    def test_changed_input_topic_blocks_enable_while_worker_is_not_ready(self):
+        self.bkfara.get_clustering.return_value["kafka"] = {**KAFKA, "input_topic": "changed-topic"}
+        self.assertIsNone(self.run_operation())
+        self.operation.refresh_from_db()
+        self.assertEqual((self.operation.status, self.operation.step), ("failed", "check_reopen_binding"))
+        self.assertEqual(LogClusteringRuntime.objects.get(index_set_id=INDEX_SET_ID).kafka_binding, KAFKA)
+        self.transfer.operate_log_clustering.assert_not_called()
+
+    def test_changed_input_revision_fails_without_overwriting_runtime(self):
         self.bkfara.get_clustering.return_value = {**self.bkfara.get_clustering.return_value, "input_revision": 2}
 
         self.assertIsNone(self.run_operation())
 
         operation = LogClusteringOperation.objects.get(pk=self.operation.pk)
         self.assertEqual(
-            (operation.status, operation.step), (ClusteringOperationStatusEnum.FAILED.value, "wait_worker_ready")
+            (operation.status, operation.step), (ClusteringOperationStatusEnum.FAILED.value, "check_reopen_binding")
         )
         self.assertEqual(LogClusteringRuntime.objects.get(index_set_id=INDEX_SET_ID).input_revision, 1)
         self.transfer.operate_log_clustering.assert_not_called()
 
-    def test_reopen_restarts_existing_task_then_enables_and_attaches(self):
+    def test_reopen_enables_and_attaches_while_worker_is_not_ready(self):
         self.assertIsNone(self.run_operation())
 
         self.bkfara.restart_clustering.assert_called_once_with(
