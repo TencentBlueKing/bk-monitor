@@ -78,7 +78,9 @@ class BKConsul(consul.Consul):
             verify = server_cert
 
         kwargs["host"] = host
-        kwargs.setdefault("token", get_settings("CONSUL_CLIENT_TOKEN"))
+        # 仅 KMS 模式下不为 None（可能为空字符串）
+        kms_token = getattr(settings, "CONSUL_CLIENT_TOKEN", None)
+        kwargs.setdefault("token", kms_token or None)
         # 如果有任何一个证书的配置，则将scheme改为https
         if cert is not None:
             scheme = "https"
@@ -90,3 +92,6 @@ class BKConsul(consul.Consul):
                 kwargs["host"] = "localhost"
 
         super().__init__(scheme=scheme, verify=verify, cert=cert, port=port, **kwargs)
+        # python-consul 优先读取 CONSUL_HTTP_TOKEN 环境变量，KMS 模式下以信封中的 token 为准
+        if kms_token is not None:
+            self.token = kwargs["token"]

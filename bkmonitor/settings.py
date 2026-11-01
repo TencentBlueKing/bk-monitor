@@ -13,6 +13,7 @@ import os
 import sys
 
 import monkey
+from config import kms
 from config.tools.environment import ENVIRONMENT, ROLE
 
 try:
@@ -59,6 +60,9 @@ for key, value in list(os.environ.items()):
     upper_key = key.upper()
     if upper_key.startswith(SETTING_ENV_PREFIX):
         settings_key = upper_key.replace(SETTING_ENV_PREFIX, "")
+        if kms.enabled() and settings_key in kms.PROTECTED_SETTINGS:
+            print(f"[Django Settings] Ignore config from env: {settings_key} (provided by KMS)")
+            continue
         locals()[settings_key] = value
         print(f'[Django Settings] Set config from env: {settings_key} = "{value}"')
 

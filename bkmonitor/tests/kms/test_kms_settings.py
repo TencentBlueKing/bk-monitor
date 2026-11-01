@@ -36,6 +36,7 @@ result = {
     "databases": dbs,
     "celery_broker": [broker.userid, broker.password],
     "es7_fta": [s.ES7_USER, s.ES7_PASSWORD],
+    "fta_es7_settings": [s.FTA_ES7_USER, s.FTA_ES7_PASSWORD],
     "es_dsl_auth": list(s.ELASTICSEARCH_DSL["default"]["http_auth"] or []),
     "backend_es7": [s.BACKEND_ES7_HOST, s.BACKEND_ES7_REST_PORT, s.BACKEND_ES7_USER, s.BACKEND_ES7_PASSWORD],
     "influxdb_init": [s.INFLUXDB_INIT_IP_LIST, s.INFLUXDB_INIT_PORT, s.INFLUXDB_INIT_USER, s.INFLUXDB_INIT_PASSWORD],
@@ -123,6 +124,7 @@ def test_envelope_reaches_settings_and_clients(tmp_path, role):
     es = PAYLOAD["elasticsearch"]
     assert result["es7_fta"] == [es["fta"]["username"], es["fta"]["password"]]
     assert result["es_dsl_auth"] == result["es7_fta"]
+    assert result["fta_es7_settings"] == result["es7_fta"]
     assert result["backend_es7"] == ["es.example", "9200", es["backend"]["username"], es["backend"]["password"]]
     influx = PAYLOAD["influxdb"]["default"]
     assert result["influxdb_init"] == [
@@ -165,26 +167,52 @@ def test_empty_consul_token_leaves_client_without_token(tmp_path):
     assert result["consul_token"] is None
 
 
-@pytest.mark.parametrize(
-    "name",
-    [
-        "BK_MONITOR_REDIS_PASSWORD",
-        "BK_MONITOR_MYSQL_PASSWORD",
-        "RABBITMQ_PASSWORD",
-        "BKREPO_PASSWORD",
-        "BKAPP_BCS_API_GATEWAY_TOKEN",
-        "BKAPP_BK_CRYPTO_KEY",
-        "CONSUL_HTTP_TOKEN",
-        "BKAPP_SETTINGS_SECRET_KEY",
-        "BKAPP_SETTINGS_DATABASES",
-    ],
+PLAINTEXT = (
+    "APP_TOKEN",
+    "BK_MONITOR_APP_SECRET",
+    "BKAPP_SAAS_DB_PASSWORD",
+    "BK_MONITOR_MYSQL_PASSWORD",
+    "BK_MONITOR_REDIS_PASSWORD",
+    "BKBASE_REDIS_PASSWORD",
+    "RABBITMQ_PASSWORD",
+    "BK_MONITOR_RABBITMQ_PASSWORD",
+    "BK_MONITOR_ES7_PASSWORD",
+    "BKAPP_FTA_ES7_PASSWORD",
+    "BK_MONITOR_INFLUXDB_PASSWORD",
+    "BKREPO_PASSWORD",
+    "BKAPP_BCS_API_GATEWAY_TOKEN",
+    "GSE_SLOT_TOKEN",
+    "BKAPP_BK_CRYPTO_KEY",
+    "CUSTOM_REPORT_AES_KEY",
+    "CONSUL_HTTP_TOKEN",
+    "BKAPP_SETTINGS_SECRET_KEY",
+    "BKAPP_SETTINGS_DATABASES",
+    "bkapp_settings_redis_passwd",
 )
-def test_plaintext_environment_conflicts_fail_closed(tmp_path, name):
-    completed = run_settings(tmp_path, "worker", PAYLOAD, **{name: "plaintext-marker"})
-    assert completed.returncode != 0
-    assert f"KMS conflicts with plaintext environment field: {name}" in completed.stderr
-    # The settings loop prints BKAPP_SETTINGS_* values; the KMS check must fail before it.
+
+
+@pytest.mark.parametrize("role", ["web", "worker"])
+def test_plaintext_sources_are_ignored(tmp_path, role):
+    expected = probe(tmp_path, role, PAYLOAD)
+    completed = run_settings(tmp_path, role, PAYLOAD, **dict.fromkeys(PLAINTEXT, "plaintext-marker"))
+    assert completed.returncode == 0, completed.stderr[-4000:]
+    assert last_json(completed.stdout) == expected
+    # The settings loop prints BKAPP_SETTINGS_* values; protected ones must be skipped unprinted.
     assert "plaintext-marker" not in completed.stdout + completed.stderr
+
+
+def test_celery_broker_environment_fails_closed(tmp_path):
+    completed = run_settings(tmp_path, "worker", PAYLOAD, CELERY_BROKER_URL="amqp://u:plaintext-marker@mq.example//")
+    assert completed.returncode != 0
+    assert "KMS does not support the environment field: CELERY_BROKER_URL" in completed.stderr
+    assert "plaintext-marker" not in completed.stdout + completed.stderr
+
+
+def test_broker_url_escapes_envelope_credentials(tmp_path):
+    special = "p@ss/w:rd#?%"
+    data = payload(**{"rabbitmq.saas.username": "user@x", "rabbitmq.saas.password": special})
+    result = probe(tmp_path, "worker", data)
+    assert result["celery_broker"] == ["user@x", special]
 
 
 @pytest.mark.parametrize(

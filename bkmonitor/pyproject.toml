@@ -168,6 +168,7 @@ testpaths = [
     "bkmonitor/data_source/tests",
     "metadata/tests",
     "tests/api/unify_query",
+    "tests/kms",
     "tests/test_bcs_resource_inputs.py",
     "tests/test_bcs_sync_persistence.py",
     "tests/unit/test_bcs_sync_readers.py",

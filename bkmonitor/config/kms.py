@@ -11,7 +11,8 @@ Load the monitor startup credential envelope (bk_monitor_monitor_runtime_config)
 
 This module must stay independent of Django: the config package and config.tools read it
 while settings are still being assembled. It never writes os.environ, and a disabled
-deployment neither imports the KMS SDK nor reads its files.
+deployment neither imports the KMS SDK nor reads its files. When enabled, envelope values
+take precedence over plaintext environment variables and BKAPP_SETTINGS_* overrides.
 """
 
 import json
@@ -57,61 +58,11 @@ NON_EMPTY = (
     ("bcs", "default", "token"),
 )
 
-# Plaintext sources that the config readers would otherwise consume.
-PROTECTED_ENV = (
-    "APP_TOKEN",
-    "APP_SECRET",
-    "SECRET_KEY",
-    "BKPAAS_APP_SECRET",
-    "BK_MONITOR_APP_SECRET",
-    "GCS_MYSQL_USER",
-    "GCS_MYSQL_PASSWORD",
-    "MYSQL_USER",
-    "MYSQL_PASSWORD",
-    "DB_USERNAME",
-    "DB_PASSWORD",
-    "BKAPP_SAAS_DB_USER",
-    "BKAPP_SAAS_DB_PASSWORD",
-    "BK_PAAS_MYSQL_USER",
-    "BK_PAAS_MYSQL_PASSWORD",
-    "BK_MONITOR_MYSQL_USER",
-    "BK_MONITOR_MYSQL_PASSWORD",
-    "BKAPP_BACKEND_DB_USERNAME",
-    "BKAPP_BACKEND_DB_PASSWORD",
-    "REDIS_PASSWORD",
-    "BK_MONITOR_REDIS_PASSWORD",
-    "BK_MONITOR_REDIS_SENTINEL_PASSWORD",
-    "BKBASE_REDIS_PASSWORD",
-    "RABBITMQ_USER",
-    "RABBITMQ_PASSWORD",
-    "BK_BROKER_URL",
-    "BK_MONITOR_RABBITMQ_USERNAME",
-    "BK_MONITOR_RABBITMQ_PASSWORD",
-    "BK_MONITOR_ES7_USER",
-    "BK_MONITOR_ES7_PASSWORD",
-    "BKAPP_FTA_ES7_USER",
-    "BKAPP_FTA_ES7_PASSWORD",
-    "BK_FTA_ES7_USER",
-    "BK_FTA_ES7_PASSWORD",
-    "BK_MONITOR_INFLUXDB_USER",
-    "BK_MONITOR_INFLUXDB_PASSWORD",
-    "BK_MONITOR_INFLUXDB_PASS",
-    "INFLUXDB_BKMONITORV3_USER",
-    "INFLUXDB_BKMONITORV3_PASS",
-    "BKREPO_USERNAME",
-    "BKREPO_PASSWORD",
-    "BKAPP_BKREPO_USERNAME",
-    "BKAPP_BKREPO_PASSWORD",
-    "BKAPP_BCS_API_GATEWAY_TOKEN",
-    "BK_BCS_API_GATEWAY_TOKEN",
-    "GSE_SLOT_TOKEN",
-    "BKAPP_BK_CRYPTO_KEY",
-    "BKAPP_SYMMETRIC_CIPHER_KEY",
-    "CUSTOM_REPORT_AES_KEY",
-    "CONSUL_HTTP_TOKEN",
-)
+# Celery reads these ahead of its config, and one process-wide URL cannot carry both the
+# saas and backend broker identities, so they cannot be overridden and must not be set.
+UNSUPPORTED_ENV = ("CELERY_BROKER_URL", "CELERY_BROKER_READ_URL", "CELERY_BROKER_WRITE_URL")
 
-# settings.py turns BKAPP_SETTINGS_<NAME> into settings and prints the value.
+# settings.py skips these BKAPP_SETTINGS_<NAME> overrides (and does not print them) when enabled.
 PROTECTED_SETTINGS = (
     "SECRET_KEY",
     "APP_TOKEN",
@@ -173,14 +124,10 @@ def _validate(result):
         raise KMSConfigurationError("KMS field consul.default.tls_private_key_base64 is not supported yet")
 
 
-def _check_conflicts(result):
-    for name in PROTECTED_ENV:
+def _check_environment(result):
+    for name in UNSUPPORTED_ENV:
         if os.environ.get(name):
-            raise KMSConfigurationError(f"KMS conflicts with plaintext environment field: {name}")
-    for key in os.environ:
-        upper_key = key.upper()
-        if upper_key.startswith("BKAPP_SETTINGS_") and upper_key[len("BKAPP_SETTINGS_") :] in PROTECTED_SETTINGS:
-            raise KMSConfigurationError(f"KMS conflicts with plaintext environment field: {key}")
+            raise KMSConfigurationError(f"KMS does not support the environment field: {name}")
     # Application codes are not secrets and stay in the environment; the envelope must match them.
     saas_code = os.getenv("BKPAAS_APP_ID") or os.getenv("APP_ID") or os.getenv("APP_CODE")
     if saas_code and saas_code != result["bkapp_id_secret"]["saas"]["app_code"]:
@@ -207,7 +154,7 @@ def credentials():
         # Neither SDK exceptions nor JSON errors may echo credential contents.
         raise KMSConfigurationError("Cannot load or decrypt KMS startup credentials") from None
     _validate(result)
-    _check_conflicts(result)
+    _check_environment(result)
     return result
 
 

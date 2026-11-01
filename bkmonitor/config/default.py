@@ -708,8 +708,12 @@ RUM_CUSTOM_EVENT_REPORT_CONFIG = {}
 FTA_ES7_HOST = os.getenv("BKAPP_FTA_ES7_HOST", os.getenv("BK_FTA_ES7_HOST", "es7.service.consul"))
 FTA_ES7_REST_PORT = os.getenv("BKAPP_FTA_ES7_REST_PORT", os.getenv("BK_FTA_ES7_REST_PORT", "9200"))
 FTA_ES7_TRANSPORT_PORT = os.getenv("BKAPP_FTA_ES7_TRANSPORT_PORT", os.getenv("BK_FTA_ES7_TRANSPORT_PORT", "9301"))
-FTA_ES7_USER = os.getenv("BKAPP_FTA_ES7_USER", os.getenv("BK_FTA_ES7_USER", ""))
-FTA_ES7_PASSWORD = os.getenv("BKAPP_FTA_ES7_PASSWORD", os.getenv("BK_FTA_ES7_PASSWORD", ""))
+if kms.enabled():
+    FTA_ES7_USER = kms.value("elasticsearch", "fta", "username")
+    FTA_ES7_PASSWORD = kms.value("elasticsearch", "fta", "password")
+else:
+    FTA_ES7_USER = os.getenv("BKAPP_FTA_ES7_USER", os.getenv("BK_FTA_ES7_USER", ""))
+    FTA_ES7_PASSWORD = os.getenv("BKAPP_FTA_ES7_PASSWORD", os.getenv("BK_FTA_ES7_PASSWORD", ""))
 ELASTICSEARCH_DSL = {
     "default": {
         "hosts": FTA_ES7_HOST,
@@ -979,7 +983,7 @@ ELASTICSEARCH_DSL = {
     },
 }
 
-# Consul ACL Token；为空时由 python-consul 读取 CONSUL_HTTP_TOKEN 环境变量
+# Consul ACL Token；仅 KMS 模式下不为 None 并覆盖 CONSUL_HTTP_TOKEN，否则由 python-consul 读取该环境变量
 CONSUL_CLIENT_TOKEN = kms.value("consul", "default", "token") if kms.enabled() else None
 
 # 初始化时写入 metadata 的默认存储集群

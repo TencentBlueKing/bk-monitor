@@ -9,6 +9,7 @@ specific language governing permissions and limitations under the License.
 """
 
 import os
+from urllib.parse import quote
 
 from config import kms
 from config.tools.environment import PAAS_VERSION
@@ -43,8 +44,9 @@ def get_rabbitmq_settings(app_code: str, backend=False):
         alias = "backend" if backend else "saas"
         user = kms.value("rabbitmq", alias, "username")
         password = kms.value("rabbitmq", alias, "password")
-
-    broker_url = f"amqp://{user}:{password}@{host}:{port}/{vhost}"
+        broker_url = f"amqp://{quote(user, safe='')}:{quote(password, safe='')}@{host}:{port}/{vhost}"
+    else:
+        broker_url = f"amqp://{user}:{password}@{host}:{port}/{vhost}"
     return host, port, vhost, user, password, broker_url
 
 
