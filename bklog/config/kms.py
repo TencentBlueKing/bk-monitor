@@ -1,4 +1,4 @@
-"""Load the BKLog startup credential envelope once, without changing os.environ.
+"""Load the BKLog startup credential envelope once.
 
 This module must remain independent of Django/blueapps: application identity is
 needed before either framework loads settings. Disabled deployments do not import
@@ -59,30 +59,6 @@ def credentials():
     ):
         if not result[group]["default"][name]:
             raise KMSConfigurationError(f"Empty required KMS field: {group}.{name}")
-    # envFrom/extraEnv must not leave an alternative plaintext credential source.
-    protected = (
-        "APP_TOKEN",
-        "BKPAAS_APP_SECRET",
-        "DB_USERNAME",
-        "DB_PASSWORD",
-        "RABBITMQ_USER",
-        "RABBITMQ_PASSWORD",
-        "CELERY_BROKER_URL",
-        "CELERY_BROKER_READ_URL",
-        "CELERY_BROKER_WRITE_URL",
-        "REDIS_PASSWORD",
-        "BKAPP_REDIS_PASSWORD",
-        "BK_BKLOG_REDIS_PASSWORD",
-        "BKREPO_USERNAME",
-        "BKREPO_PASSWORD",
-        "BKAPP_BKREPO_USERNAME",
-        "BKAPP_BKREPO_PASSWORD",
-        "BKAPP_BCS_API_GATEWAY_TOKEN",
-        "BKPAAS_BK_CRYPTO_KEY",
-    )
-    for name in protected:
-        if os.environ.get(name):
-            raise KMSConfigurationError(f"KMS conflicts with plaintext environment field: {name}")
     expected_app = os.getenv("APP_ID") or os.getenv("BKPAAS_APP_ID")
     if not expected_app or result["bkapp_id_secret"]["default"]["app_code"] != expected_app:
         raise KMSConfigurationError("KMS application identity does not match APP_ID/BKPAAS_APP_ID")
@@ -199,8 +175,8 @@ def apply_settings(settings):
             if location is not None:
                 cache["LOCATION"] = type(location)(cleaned) if isinstance(location, list | tuple) else cleaned[0]
 
-    # Blueapps builds its default URL without escaping vhost. Escape that raw
-    # value before URL/failover parsing, including literal /, ?, # and ;.
+    # Blueapps interpolates credentials and vhost without URL escaping. Rebuild
+    # its generated URL before parsing so stale credentials cannot alter topology.
     vhost = os.getenv("RABBITMQ_VHOST")
     generated = "amqp://{user}:{password}@{host}:{port}/{vhost}".format(
         user=os.getenv("RABBITMQ_USER"),
@@ -222,10 +198,27 @@ def apply_settings(settings):
         try:
             raw = settings[name]
             if vhost is not None and raw == generated:
-                raw = generated.removesuffix(vhost) + quote(vhost, safe="")
+                raw = "amqp://{user}:{password}@{host}:{port}/{vhost}".format(
+                    user=quote(value("rabbitmq", "username"), safe=""),
+                    password=quote(value("rabbitmq", "password"), safe=""),
+                    host=os.getenv("RABBITMQ_HOST"),
+                    port=os.getenv("RABBITMQ_PORT"),
+                    vhost=quote(vhost, safe=""),
+                )
             settings[name] = _broker_credentials(raw, value("rabbitmq", "username"), value("rabbitmq", "password"))
         except (KeyError, ValueError, TypeError):
             raise KMSConfigurationError(f"KMS requires a valid RabbitMQ {name}") from None
+
+    # Celery reads these environment variables ahead of its settings object.
+    # Preserve explicit topology while replacing only authentication.
+    for name in ("CELERY_BROKER_URL", "CELERY_BROKER_READ_URL", "CELERY_BROKER_WRITE_URL"):
+        if os.environ.get(name):
+            try:
+                os.environ[name] = _broker_credentials(
+                    os.environ[name], value("rabbitmq", "username"), value("rabbitmq", "password")
+                )
+            except (ValueError, TypeError):
+                raise KMSConfigurationError(f"KMS requires a valid RabbitMQ {name}") from None
 
     # Validate the actual business cipher before the first ORM access. Do not
     # let SymmetricTextField's tolerant read path hide an unusable key/backend.

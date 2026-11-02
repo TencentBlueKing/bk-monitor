@@ -196,6 +196,17 @@ def test_real_settings_entrypoints(configure, monkeypatch, role, redis_mode):
         RABBITMQ_PORT="5672",
         REDIS_HOST="redis.local",
         REDIS_PORT="6379",
+        APP_TOKEN="old-app-secret",
+        BKPAAS_APP_SECRET="old-app-secret",
+        DB_USERNAME="old-db-user",
+        DB_PASSWORD="old-db-password",
+        RABBITMQ_USER="old-mq-user",
+        RABBITMQ_PASSWORD="old-mq-password",
+        REDIS_PASSWORD="old-redis-password",
+        BKREPO_USERNAME="old-repo-user",
+        BKREPO_PASSWORD="old-repo-password",
+        BKPAAS_BK_CRYPTO_KEY="old-crypto-key-that-must-not-win",
+        BKAPP_BCS_API_GATEWAY_TOKEN="old-bcs-token",
         BKAPP_REDIS_MODE=redis_mode,
         BK_BKLOG_REDIS_MODE=redis_mode,
         BKAPP_IS_BKLOG_API="1" if role == "api" else "",
@@ -234,7 +245,7 @@ from bkcrypto.contrib.django.ciphers import symmetric_cipher_manager
 cipher = symmetric_cipher_manager.cipher()
 assert cipher.decrypt(cipher.encrypt('historical-key-test')) == 'historical-key-test'
 assert cipher.config.key == project.SECRET_KEY.encode()[:16]
-assert 'BKPAAS_APP_SECRET' not in os.environ
+assert os.environ['BKPAAS_APP_SECRET'] == 'old-app-secret'
 print('OK')
 """
     result = subprocess.run([sys.executable, "-c", code, role], env=env, capture_output=True, text=True)
@@ -311,43 +322,12 @@ def test_invalid_business_key_blocks_startup(configure, key):
         kms.apply_settings(data)
 
 
-@pytest.mark.parametrize(
-    "field",
-    [
-        "APP_TOKEN",
-        "BKPAAS_APP_SECRET",
-        "DB_USERNAME",
-        "DB_PASSWORD",
-        "RABBITMQ_USER",
-        "RABBITMQ_PASSWORD",
-        "REDIS_PASSWORD",
-        "BKREPO_PASSWORD",
-        "BKPAAS_BK_CRYPTO_KEY",
-    ],
-)
-def test_plaintext_environment_conflict(configure, monkeypatch, field):
-    configure()
-    monkeypatch.setenv(field, "DO_NOT_LOG")
-    with pytest.raises(kms.KMSConfigurationError) as error:
-        kms.credentials()
-    assert field in str(error.value)
-    assert "DO_NOT_LOG" not in str(error.value)
-
-
 @pytest.mark.parametrize("field", ["CELERY_BROKER_URL", "CELERY_BROKER_READ_URL", "CELERY_BROKER_WRITE_URL"])
-def test_celery_environment_override_rejected(configure, monkeypatch, field):
-    configure()
-    monkeypatch.setenv(field, "amqp://old-user:DO_NOT_LOG@old-host//")
-    with pytest.raises(kms.KMSConfigurationError) as error:
-        kms.credentials()
-    assert field in str(error.value)
-    assert "DO_NOT_LOG" not in str(error.value)
-
-
-def test_celery_actual_connections_use_kms(configure):
+def test_celery_actual_connections_use_kms(configure, monkeypatch, field):
     from celery import Celery
 
     configure()
+    monkeypatch.setenv(field, "amqp://old-user:old-password@env-rabbit:5673/env-vhost")
     data = {
         "BKCRYPTO": {"SYMMETRIC_CIPHER_CLASSES": LEGACY_SYMMETRIC_CIPHER_CLASSES, "SYMMETRIC_CIPHERS": {"default": {}}},
         "DATABASES": {"default": {}},
@@ -356,10 +336,13 @@ def test_celery_actual_connections_use_kms(configure):
     kms.apply_settings(data)
     app = Celery("kms-regression")
     app.config_from_object(data)
-    for connection in (app.connection_for_read(), app.connection_for_write()):
+    for direction, connection in (("READ", app.connection_for_read()), ("WRITE", app.connection_for_write())):
         assert connection.userid == PAYLOAD["rabbitmq"]["default"]["username"]
         assert connection.password == PAYLOAD["rabbitmq"]["default"]["password"]
-        assert connection.hostname == "rabbit"
+        uses_env = field in ("CELERY_BROKER_URL", f"CELERY_BROKER_{direction}_URL")
+        assert connection.hostname == ("env-rabbit" if uses_env else "rabbit")
+        assert connection.port == (5673 if uses_env else 5672)
+        assert connection.virtual_host == ("env-vhost" if uses_env else "/")
     app.close()
 
 
@@ -532,6 +515,9 @@ def test_redis_pool_kwargs_cannot_override_kms(configure, monkeypatch, password,
 def test_kms_off_preserves_all_legacy_overrides(configure, monkeypatch):
     configure()
     monkeypatch.setenv("ENABLE_KMS", "false")
+    for name in ("CELERY_BROKER_URL", "CELERY_BROKER_READ_URL", "CELERY_BROKER_WRITE_URL"):
+        monkeypatch.setenv(name, "amqp://legacy:legacy@env-rabbit//")
+    expected_env = dict(os.environ)
     data = broker_settings()
     data.update(
         BROKER_READ_URL="amqp://legacy:legacy@reader//",
@@ -551,6 +537,7 @@ def test_kms_off_preserves_all_legacy_overrides(configure, monkeypatch):
     expected = copy.deepcopy(data)
     kms.apply_settings(data)
     assert data == expected
+    assert dict(os.environ) == expected_env
 
 
 @pytest.mark.parametrize("name", ["BROKER_URL", "BROKER_READ_URL", "BROKER_WRITE_URL"])

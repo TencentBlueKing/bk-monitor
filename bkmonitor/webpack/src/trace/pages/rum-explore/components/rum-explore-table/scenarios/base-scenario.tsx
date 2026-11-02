@@ -29,6 +29,9 @@ import type { MaybeRef } from 'vue';
 import { get } from '@vueuse/core';
 
 import FieldTypeIcon from '../../../../trace-explore/components/field-type-icon';
+import { ExploreTableColumnTypeEnum } from '../../../../trace-explore/components/trace-explore-table/typing';
+import { RumFieldDisplayEnum } from '../../../constants';
+import { formatUnitValue } from '../../../utils';
 
 import type { BaseTableColumn } from '../../../../trace-explore/components/trace-explore-table/typing';
 import type { IRumField } from '../../../typings';
@@ -39,7 +42,7 @@ import type { IRumField } from '../../../typings';
  * 职责边界：只负责「单元格怎么画、点了干什么」（renderType / getRenderValue / clickCallback / 表头..），
  *
  * 列配置解析采用「基线 + 场景增量」两层合并（模板方法 resolveColumnConfig）：
- *   - 基线 buildBaseline：子类按需基于字段元数据（fieldMap）推导本场景渲染语义，基类默认空实现；
+ *   - 基线 buildBaseline：子类按需基于字段元数据（fieldMap）推导本场景渲染语义，基类提供时间、耗时和单位格式化；
  *   - 增量 columnOverrides：模式特有字段的取值映射 / renderType 覆盖 / 点击交互。
  * 列级 entry 做一层浅合并，增量只写自己知道的字段，其余继承基线。
  */
@@ -114,13 +117,27 @@ export abstract class BaseScenario {
 
   /**
    * @description 场景私有钩子：由子类按需基于字段元数据（fieldMap）推导本场景的渲染语义，
-   *              基类默认空实现（无公共推导）。读取 fieldMap 即满足「动态/响应式」：后台字段变更时随之变化。
+   *              基类复用字段元数据进行时间、耗时和单位格式化。
    *              若某场景无需元数据推导，可直接复用默认实现。
    * @param {string} colKey 列键
    * @returns 声明式列配置（仅渲染/交互相关）
    */
-  protected buildBaseline(_colKey: string): Partial<BaseTableColumn> {
-    return {};
+  protected buildBaseline(colKey: string): Partial<BaseTableColumn> {
+    const field = get(this.context.fieldMap).get(colKey);
+    switch (field?.field_display_type) {
+      case RumFieldDisplayEnum.DATETIME:
+        return { renderType: ExploreTableColumnTypeEnum.TIME };
+      case RumFieldDisplayEnum.DURATION:
+        return {
+          renderType: ExploreTableColumnTypeEnum.DURATION,
+          cellSpecificProps: { durationUnit: field?.field_unit as 'ms' | 'us' },
+        };
+      default: {
+        const unit = field?.field_unit;
+        if (!unit) return {};
+        return { getRenderValue: row => formatUnitValue(row[colKey], unit) };
+      }
+    }
   }
 
   /**
