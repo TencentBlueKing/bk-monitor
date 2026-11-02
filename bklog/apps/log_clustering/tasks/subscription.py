@@ -58,6 +58,7 @@ from apps.utils.local import set_local_param
 from apps.utils.log import logger
 from apps.utils.task import high_priority_task
 from bkm_space import api
+from bkm_space.utils import space_uid_to_bk_biz_id
 
 
 def validate_end_time(freq: dict, end_time: datetime):
@@ -173,7 +174,7 @@ def query_logs(
         "size": 1,
     }
     params = custom_params_valid(SearchAttrSerializer, params)
-    params.update({"index_set_ids": [config.index_set_id], "bk_biz_id": config.bk_biz_id})
+    params.update({"index_set_ids": [config.index_set_id], "bk_biz_id": space_uid_to_bk_biz_id(config.space_uid)})
     logger.info(f"{log_prefix} Query signature log params: {params}")
     result = UnifyQueryHandler(params).search()
     logger.info(f"{log_prefix} Query signature log result: {result}")
