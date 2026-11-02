@@ -15,21 +15,17 @@ BUILTIN_PROFILE_SERVICE_NAME = "active_allocation"
 COLLECTION_METHOD_CHOICES = (
     ("perf", "perf"),
     ("golang", "golang"),
-    ("java", "java"),
 )
 
 COLLECTION_TYPE_CHOICES = (
     ("native_cpu", "native_cpu"),
     ("go_cpu", "go_cpu"),
     ("go_heap", "go_heap"),
-    ("java_cpu", "java_cpu"),
-    ("java_allocation", "java_allocation"),
 )
 
 COLLECTION_TYPES_BY_METHOD = {
     "perf": ("native_cpu",),
     "golang": ("go_cpu", "go_heap"),
-    "java": ("java_cpu", "java_allocation"),
 }
 
 SCHEDULE_TYPE_CHOICES = (
@@ -213,12 +209,6 @@ META_CONFIG = {
         "go_heap": {
             "ip_address": "127.0.0.1",
             "port": 6060,
-        },
-        "java_cpu": {
-            "duration_sec": 30,
-        },
-        "java_allocation": {
-            "duration_sec": 30,
         },
     },
     "resource_guard_config": {

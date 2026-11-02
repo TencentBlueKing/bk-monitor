@@ -251,10 +251,6 @@ class GoHeapCollectorConfigSerializer(serializers.Serializer):
     port = serializers.IntegerField(label="pprof 端口", min_value=1)
 
 
-class JavaCollectorConfigSerializer(serializers.Serializer):
-    duration_sec = serializers.IntegerField(label="采集时长(秒)", min_value=1, max_value=COLLECTOR_MAX_DURATION_SEC)
-
-
 class TopKRequestSerializer(QuerySourceSerializer):
     bk_biz_id = serializers.IntegerField(label="业务 ID")
     start_time = serializers.IntegerField(label="查询开始时间")
@@ -324,8 +320,6 @@ class TaskSubmitRequestSerializer(serializers.Serializer):
         "native_cpu": NativeCpuCollectorConfigSerializer,
         "go_cpu": GoCpuCollectorConfigSerializer,
         "go_heap": GoHeapCollectorConfigSerializer,
-        "java_cpu": JavaCollectorConfigSerializer,
-        "java_allocation": JavaCollectorConfigSerializer,
     }
 
     bk_biz_id = serializers.IntegerField(label="业务 ID")
@@ -353,7 +347,7 @@ class TaskSubmitRequestSerializer(serializers.Serializer):
             if process_selector is not None:
                 raise serializers.ValidationError("Golang 不传 process_selector")
         elif process_selector is None:
-            raise serializers.ValidationError("Perf/Java 必须传 process_selector")
+            raise serializers.ValidationError("Perf 必须传 process_selector")
 
         # 选择器原样下发到全部目标主机，勾选的进程只能来自这些主机
         if process_selector and "host_pids" in process_selector["config"]:

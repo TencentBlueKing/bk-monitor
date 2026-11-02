@@ -116,8 +116,8 @@ RESOURCE_GUARD_CONFIG = {
 TASK_SUBMIT_REQUEST = {
     "bk_biz_id": 2,
     "name": "java-cpu-daily",
-    "collection_method": "java",
-    "collection_type": "java_cpu",
+    "collection_method": "perf",
+    "collection_type": "native_cpu",
     "target_config": {"node_type": "INSTANCE", "nodes": [{"bk_host_id": 456}]},
     "process_selector": {"type": "pid_file", "config": {"pid_path": "/var/run/demo.pid"}},
     "schedule": {
@@ -127,7 +127,7 @@ TASK_SUBMIT_REQUEST = {
         "effective_start_at": 1788310800000,
         "effective_end_at": 1788915600000,
     },
-    "collector_config": {"duration_sec": 30},
+    "collector_config": {"duration_sec": 30, "frequency_hz": 99, "stack_unwind": "fp"},
     "resource_guard_config": RESOURCE_GUARD_CONFIG,
 }
 
@@ -227,6 +227,8 @@ def test_meta_config_enabled_when_profile_data_id_exists(mocker):
     assert "outdate" in result["execution_statuses"]
     assert "outdate" in result["deployment_statuses"]
     assert result["diagram_types"] == ["flamegraph", "table", "callgraph"]
+    assert result["collection_methods"] == ["perf", "golang"]
+    assert "java" not in result["collection_types_by_method"]
 
 
 @pytest.mark.parametrize("bk_data_id", [None, -1])
@@ -827,7 +829,11 @@ def test_request_serializers_accept_doc_payload(serializer_cls, params):
         ),
         (
             TaskSubmitRequestSerializer,
-            {**TASK_SUBMIT_REQUEST, "collection_type": "native_cpu"},
+            {**TASK_SUBMIT_REQUEST, "collection_type": "go_cpu"},
+        ),
+        (
+            TaskSubmitRequestSerializer,
+            {**TASK_SUBMIT_REQUEST, "collection_method": "java", "collection_type": "java_cpu"},
         ),
         (
             TaskSubmitRequestSerializer,
@@ -903,11 +909,17 @@ def test_request_serializers_reject_invalid_nested_config(serializer_cls, params
         (TopKRequestSerializer, {**TOPK_REQUEST, "start_time": 2, "end_time": 1}),
         (
             TaskSubmitRequestSerializer,
-            {**TASK_SUBMIT_REQUEST, "collector_config": {"duration_sec": 0}},
+            {
+                **TASK_SUBMIT_REQUEST,
+                "collector_config": {**TASK_SUBMIT_REQUEST["collector_config"], "duration_sec": 0},
+            },
         ),
         (
             TaskSubmitRequestSerializer,
-            {**TASK_SUBMIT_REQUEST, "collector_config": {"duration_sec": 301}},
+            {
+                **TASK_SUBMIT_REQUEST,
+                "collector_config": {**TASK_SUBMIT_REQUEST["collector_config"], "duration_sec": 301},
+            },
         ),
         (
             TaskSubmitRequestSerializer,
@@ -995,7 +1007,12 @@ def test_request_serializers_reject_invalid_boundaries(serializer_cls, params):
 
 
 def test_task_submit_accepts_max_duration():
-    serializer = TaskSubmitRequestSerializer(data={**TASK_SUBMIT_REQUEST, "collector_config": {"duration_sec": 300}})
+    serializer = TaskSubmitRequestSerializer(
+        data={
+            **TASK_SUBMIT_REQUEST,
+            "collector_config": {**TASK_SUBMIT_REQUEST["collector_config"], "duration_sec": 300},
+        }
+    )
 
     assert serializer.is_valid(), serializer.errors
 
