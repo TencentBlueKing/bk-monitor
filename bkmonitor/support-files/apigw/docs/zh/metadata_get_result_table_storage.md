@@ -10,8 +10,7 @@
 | 字段           | 类型   | 必选 | 描述        |
 | -------------- | ------ | ---- | ----------- |
 | result_table_list  | string | 是   | 结果表ID |
-| storage_type | string | 是 | 存储类型 |
-| data_label | string | 否 | 仅返回当前租户下属于该标签的已启用结果表；ES 存储的 storage_config.index_set 返回路由登记的查询索引 |
+| storage_type | string | 是 | 存储类型 | 
 
 
 ### 请求参数示例

@@ -3,6 +3,7 @@ from types import SimpleNamespace
 from unittest.mock import patch
 
 from django.test import TestCase
+from django.utils import timezone
 from rest_framework.exceptions import PermissionDenied, ValidationError
 
 from apps.log_clustering.handlers.quix.query import QuixPatternHandler, apply_query_scope, result_query
@@ -20,6 +21,7 @@ class TestQuixPatternQuery(TestCase):
         self.index = LogIndexSet.objects.create(index_set_id=42, space_uid="bkcc__2", scenario_id=Scenario.LOG)
         self.runtime = SimpleNamespace(
             index_set_id=42,
+            created_at=timezone.now(),
             bk_tenant_id="system",
             pattern_index="log-clustering-42-pattern",
             active_config={"distance_threshold": "0.5", "input_mapping": {"log": "message"}},
@@ -79,27 +81,19 @@ class TestQuixPatternQuery(TestCase):
                 ]
             },
         )
-        rt = "bklog_index_set_42_pattern.__default__"
-        route = self.start_patch(
-            MODULE + ".TransferApi.get_result_table_storage",
-            return_value={
-                rt: {"cluster_config": {"cluster_id": 7}, "storage_config": {"index_set": self.runtime.pattern_index}}
-            },
-        )
-        dsl = self.start_patch(
-            MODULE + ".BkLogApi.dsl",
-            return_value={"hits": {"hits": [{"_source": {"signature": "a", "pattern": "error <*>"}}]}},
-        )
         self.start_patch("apps.log_clustering.handlers.pattern.FeatureToggleObject.toggle", return_value=None)
         ClusteringRemark.objects.create(bk_biz_id=2, signature="a", group_hash="", owners=["operator"])
         self.handler._include_origin_log = True
         raw = self.start_patch(
             "apps.log_unifyquery.handler.base.UnifyQueryApi.query_ts_raw",
-            return_value={"list": [{"log_signature": "a", "message": "sample log", "host": "node"}]},
+            side_effect=[
+                {"list": [{"signature": "a", "pattern": "error <*>"}]},
+                {"list": [{"log_signature": "a", "message": "sample log", "host": "node"}]},
+            ],
         )
         rows = self.handler.pattern_search()
         self.assertEqual([r["origin_log"] for r in rows], ["sample log", ""])
-        raw.assert_called_once()
+        self.assertEqual(raw.call_count, 2)
         self.assertEqual(raw.call_args.args[0]["query_list"][0]["collapse"], {"field": "log_signature"})
         self.assertEqual(
             [(row["signature"], row["count"], row["pattern"], row["group"]) for row in rows],
@@ -114,20 +108,14 @@ class TestQuixPatternQuery(TestCase):
             {"field_name": "log_cluster_distance_threshold", "op": "eq", "value": ["0.5"]},
             q["conditions"]["field_list"],
         )
-        self.assertEqual(route.call_args.args[0]["data_label"], "bklog_index_set_42_pattern")
-        payload = dsl.call_args.args[0]
-        self.assertEqual(
-            (payload["indices"], payload["storage_cluster_id"], payload["index_set_id"]),
-            (self.runtime.pattern_index, 7, 42),
-        )
-        self.assertEqual(dsl.call_args.kwargs["bk_tenant_id"], "system")
-        self.assertEqual(
-            set(payload["body"]["query"]["ids"]["values"]),
-            {
-                "8d06980787765a76ad75687053bad5b38dc255a56edd5198c8ae5e120bb6d32f",
-                "909bcb0ace1e5b7241fd8f8e28b367cd9e39bc8ca8b2c42e9a9304cbb6c0e731",
-            },
-        )
+        template_call = raw.call_args_list[0]
+        self.assertEqual(template_call.kwargs["bk_tenant_id"], "system")
+        template_request = template_call.args[0]
+        self.assertEqual(template_request["bk_biz_id"], 2)
+        template = template_request["query_list"][0]
+        self.assertEqual(template["table_id"], "bklog_index_set_42_pattern")
+        conditions = {f["field_name"]: set(f["value"]) for f in template["conditions"]["field_list"]}
+        self.assertEqual(conditions, {"signature": {"a", "b"}, "index_set_id": {"42"}, "distance_threshold": {"0.5"}})
 
     def test_drilldown_keeps_time_group_and_effective_level(self):
         params = {
@@ -151,14 +139,12 @@ class TestQuixPatternQuery(TestCase):
             result_query(42, self.runtime.active_config, params)
         self.assertEqual(QuixPatternHandler(self.runtime, {**self.params, "pattern_level": "07"}).pattern_search(), [])
 
-    def test_missing_route_fails_without_querying_es(self):
-        route = self.start_patch(MODULE + ".TransferApi.get_result_table_storage", return_value={})
-        dsl = self.start_patch(MODULE + ".BkLogApi.dsl")
+    def test_template_query_error_is_not_a_missing_template(self):
+        raw = self.start_patch(MODULE + ".UnifyQueryApi.query_ts_raw", side_effect=RuntimeError("route unavailable"))
         self.assertEqual(self.handler._signature_patterns([]), [])
-        route.assert_not_called()
-        with self.assertRaises(ValidationError):
+        raw.assert_not_called()
+        with self.assertRaisesRegex(RuntimeError, "route unavailable"):
             self.handler._signature_patterns(["a"])
-        dsl.assert_not_called()
 
     def test_product_entry_points_use_effective_runtime_after_close(self):
         LogClusteringRuntime.objects.create(

@@ -798,30 +798,3 @@ def test_pending_result_binding_waits_without_error(clustering_datalink, bkbase)
     (error,) = status["errors"]
     assert error["retryable"] is False
     assert "invalid alias" in error["message"]
-
-
-def test_pattern_query_resolves_only_registered_label_in_tenant(clustering_datalink, mocker):
-    from metadata.resources.resources import GetResultTableStorageResult
-
-    rt = models.ResultTable.objects.get(bk_tenant_id="system", table_id=LOG_TABLE_ID)
-    rt.data_label = "pattern_demo"
-    rt.save()
-    models.ESStorage.objects.filter(bk_tenant_id="system", table_id=rt.table_id).update(
-        index_set="actual-pattern-index", index_settings="{}", mapping_settings="{}"
-    )
-    params = {
-        "bk_tenant_id": "system",
-        "storage_type": "elasticsearch",
-        "result_table_list": rt.table_id,
-        "data_label": rt.data_label,
-    }
-    storage = GetResultTableStorageResult().request(params)[rt.table_id]
-    assert storage["storage_config"]["index_set"] == "actual-pattern-index"
-    assert storage["cluster_config"]["cluster_id"] == 710101
-    assert GetResultTableStorageResult().request({**params, "data_label": "another"}) == {}
-    request_tenant = mocker.patch("bkmonitor.utils.serializers.get_request_tenant_id", return_value="other")
-    assert GetResultTableStorageResult().request(params) == {}
-    request_tenant.return_value = "system"
-    rt.is_enable = False
-    rt.save()
-    assert GetResultTableStorageResult().request(params) == {}

@@ -19,17 +19,18 @@ We undertake not to change the open source license (MIT license) applicable to t
 the project delivered to anyone in the future.
 """
 
-import hashlib
 from collections import defaultdict
 from copy import deepcopy
 
+from django.conf import settings
+from django.utils import timezone
 from rest_framework.exceptions import PermissionDenied, ValidationError
 
-from apps.api import BkLogApi, TransferApi
+from apps.api import UnifyQueryApi
 from apps.log_clustering.handlers.pattern import PatternHandler
 from apps.log_clustering.models import LogClusteringRuntime
 from apps.log_search.handlers.index_set import BaseIndexSetHandler
-from apps.log_search.models import LogIndexSet, Scenario
+from apps.log_search.models import LogIndexSet
 from apps.log_search.utils import get_search_request_scope
 from apps.log_unifyquery.handler.pattern import UnifyQueryPatternHandler
 from apps.utils.local import get_request_tenant_id
@@ -137,35 +138,37 @@ class QuixPatternHandler(PatternHandler):
     def _signature_patterns(self, signatures):
         if not signatures:
             return []
-        # Pattern 文档无事件时间。由已鉴权的源索引集派生标签，按已注册的查询目标做无时间过滤的精确查找。
         label = f"{BaseIndexSetHandler.get_data_label(self._index_set_id)}_pattern"
-        rt = f"{label}.__default__"
-        tenant = self.runtime.bk_tenant_id
-        storage = TransferApi.get_result_table_storage(
-            {"result_table_list": rt, "storage_type": "elasticsearch", "data_label": label},
-            bk_tenant_id=tenant,
-        ).get(rt)
-        if not storage or storage["storage_config"].get("index_set") != self.runtime.pattern_index:
-            raise ValidationError("Pattern 路由未就绪或与生效的 Pattern 索引不一致")
-        records = []
         threshold = self.runtime.active_config["distance_threshold"]
+        # 模板是在任务运行期间更新的映射，不能把日志页面的时间窗口套在模板上。
+        start = str(int(self.runtime.created_at.timestamp() * 1000))
+        end = str(int(timezone.now().timestamp() * 1000))
+        records = []
         for batch in self._chunk_values(signatures, 500):
-            # BKBase save_pattern 的文档主键：SHA256(index_id + NUL + threshold + NUL + signature)。
-            ids = [
-                hashlib.sha256(f"{self._index_set_id}\0{threshold}\0{signature}".encode()).hexdigest()
-                for signature in batch
+            fields = [
+                {"field_name": "index_set_id", "op": "eq", "value": [str(self._index_set_id)]},
+                {"field_name": "distance_threshold", "op": "eq", "value": [threshold]},
+                {"field_name": "signature", "op": "eq", "value": batch},
             ]
-            result = BkLogApi.dsl(
+            result = UnifyQueryApi.query_ts_raw(
                 {
-                    "index_set_id": self._index_set_id,
-                    "indices": self.runtime.pattern_index,
-                    "scenario_id": Scenario.ES,
-                    "storage_cluster_id": storage["cluster_config"]["cluster_id"],
-                    "body": {"size": len(ids), "query": {"ids": {"values": ids}}, "_source": ["signature", "pattern"]},
+                    "bk_biz_id": self._query["bk_biz_id"],
+                    "start_time": start,
+                    "end_time": end,
+                    "limit": len(batch),
+                    "metric_merge": "a",
+                    "query_list": [
+                        {
+                            "table_id": label,
+                            "data_source": settings.UNIFY_QUERY_DATA_SOURCE,
+                            "field_name": "signature",
+                            "reference_name": "a",
+                            "conditions": {"field_list": fields, "condition_list": ["and", "and"]},
+                            "keep_columns": ["signature", "pattern"],
+                        }
+                    ],
                 },
-                bk_tenant_id=tenant,
+                bk_tenant_id=self.runtime.bk_tenant_id,
             )
-            if result.get("timed_out") or result.get("_shards", {}).get("failed"):
-                raise ValidationError("Pattern 映射表查询未完整返回")
-            records.extend(hit["_source"] for hit in result["hits"]["hits"])
+            records.extend(result["list"])
         return records
