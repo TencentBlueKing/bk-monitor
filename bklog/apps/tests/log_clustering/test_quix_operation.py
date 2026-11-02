@@ -45,7 +45,7 @@ ADOPTED_STATUS = {
             "cluster_id": 3,
             "table_id": "2_bklog.demo",
             "query_index": "2_bklog_demo",
-            "source_type": "log",
+            "need_add_time": True,
         },
         "pattern": {"storage_type": "elasticsearch", "cluster_id": 7, "pattern_index": "log-clustering-42-pattern"},
     },
@@ -194,7 +194,7 @@ class TestQuixEnableRunner(TestCase):
         self.assertEqual(failed, retry)
         clustered, pattern = first.args[0], retry.args[0]
         self.assertEqual(clustered["data_label"], "bklog_index_set_42_clustered")
-        self.assertEqual(clustered["table_info"][0]["origin_table_id"], "2_bklog.demo")
+        self.assertEqual(clustered["table_info"][0]["index_set"], "2_bklog_demo")
         self.assertEqual(pattern["data_label"], "bklog_index_set_42_pattern")
         self.assertEqual((pattern["space_type"], pattern["space_id"]), ("bkcc", "2"))
         self.assertEqual(pattern["table_info"][0]["index_set"], "log-clustering-42-pattern")
@@ -210,7 +210,8 @@ class TestQuixEnableRunner(TestCase):
                 "clustered": {
                     **targets["clustered"],
                     "table_id": "2_bklog.predict",
-                    "query_index": "2_bklog_predict",
+                    "query_index": "custom-predict-write",
+                    "need_add_time": False,
                     "cluster_id": 9,
                 },
             },
@@ -220,8 +221,8 @@ class TestQuixEnableRunner(TestCase):
         self.assertEqual(clustered["data_label"], "bklog_index_set_42_clustered")
         table = clustered["table_info"][0]
         self.assertEqual(
-            (table["origin_table_id"], table["index_set"], table["cluster_id"]),
-            ("2_bklog.predict", "2_bklog_predict", 9),
+            (table["index_set"], table["cluster_id"]),
+            ("custom-predict-write", 9),
         )
         self.assertEqual(table["query_alias_settings"], [{"field_name": "log_signature", "query_alias": "signature"}])
         self.assertEqual(pattern["table_info"][0]["index_set"], targets["pattern"]["pattern_index"])

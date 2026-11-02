@@ -305,9 +305,15 @@ class QuixClusteringOperationRunner:
         # 每个 Data Label 关联独立的虚拟 RT；原表回写时也不能改写源日志 RT 的标签。
         routes = {
             clustered_label: {
-                "origin_table_id": result["table_id"],
                 "storage_type": result["storage_type"],
-                "source_type": result["source_type"],
+                "source_type": Scenario.ES,
+                "options": [
+                    {
+                        "name": "need_add_time",
+                        "value_type": "bool",
+                        "value": "true" if result["need_add_time"] else "false",
+                    }
+                ],
                 "cluster_id": result["cluster_id"],
                 "index_set": result["query_index"],
                 "query_alias_settings": [{"field_name": "log_signature", "query_alias": "signature"}],

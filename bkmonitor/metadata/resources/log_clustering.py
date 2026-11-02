@@ -409,51 +409,80 @@ class OperateLogClusteringResource(Resource):
         }
 
 
-def get_log_clustering_query_targets(tenant: str, source_table_id: str, spec: dict) -> dict:
-    """从已下发的 Sink 解析结果表及 Pattern 物理索引，供 SaaS 登记两个查询标签。"""
+def get_log_clustering_query_targets(datalink: models.DataLink, source_table_id: str, spec: dict) -> dict:
+    """按实际 Sink → ES binding → 存储资源解析查询目标。"""
+    tenant = datalink.bk_tenant_id
     clustering = spec["clustering"]
-    result = clustering.get("result")
-    # 旧版 Sink 只支持回写 rawSink；新协议必须明确声明 result.mode。
-    if result is None and "rawSink" in spec:
-        result = {"mode": "update_original"}
-    if result and result["mode"] == "update_original":
-        table_id = source_table_id
-    elif result and result["mode"] == "append":
-        rt, binding = result["result_table"], result["es_binding"]
-        if (rt["kind"], binding["kind"]) != ("ResultTable", "ElasticSearchBinding") or any(
-            ref.get("tenant", tenant) != tenant for ref in (rt, binding)
-        ):
-            raise ValidationError("invalid append result references")
-        table_id = models.ResultTableConfig.objects.get(
-            bk_tenant_id=tenant,
-            namespace=rt["namespace"],
-            name=rt["name"],
-        ).table_id
-        if (
-            table_id == source_table_id
-            or not models.ESStorageBindingConfig.objects.filter(
-                bk_tenant_id=tenant,
-                namespace=binding["namespace"],
-                name=binding["name"],
-                bkbase_result_table_name=rt["name"],
-                table_id=table_id,
-            ).exists()
-        ):
-            raise ValidationError("append binding must reference the independent result table")
+    result = clustering.get("result") or ({"mode": "update_original"} if "rawSink" in spec else {})
+    mode = result.get("mode")
+    if mode == "update_original":
+        binding_ref = spec.get("raw_sink") or spec["rawSink"]
+    elif mode == "append":
+        binding_ref = result["es_binding"]
     else:
         raise ValidationError("unknown LogClusteringSink result mode")
 
-    storage = models.ESStorage.objects.get(bk_tenant_id=tenant, table_id=table_id)
+    def check_ref(ref, kind):
+        if ref["kind"] != kind or ref.get("tenant", tenant) != tenant:
+            raise ValidationError(f"invalid {kind} reference in clustering target")
+
+    check_ref(binding_ref, "ElasticSearchBinding")
+    binding = datalink.get_existing_component_config(binding_ref["kind"], binding_ref["name"], binding_ref["namespace"])
+    if not binding or binding.get("status", {}).get("phase") != "Ok":
+        raise ValidationError("clustering result ES binding is not ready")
+    data, storage = binding["spec"]["data"], binding["spec"]["storage"]
+    check_ref(data, "ResultTable")
+    check_ref(storage, "ElasticSearch")
+    if mode == "append" and any(
+        result["result_table"].get(k, tenant) != data.get(k, tenant) for k in ("kind", "namespace", "name", "tenant")
+    ):
+        raise ValidationError("append binding must reference the selected result table")
+    table_id = models.ResultTableConfig.objects.get(
+        bk_tenant_id=tenant,
+        namespace=data["namespace"],
+        name=data["name"],
+    ).table_id
+    if (mode == "update_original") != (table_id == source_table_id):
+        raise ValidationError("clustering result binding points to the wrong result table")
+    cluster = models.ClusterInfo.objects.get(
+        bk_tenant_id=tenant, cluster_type=models.ClusterInfo.TYPE_ES, cluster_name=storage["name"]
+    )
+
+    alias = binding["spec"].get("write_alias")
+    need_add_time = False
+    if alias is None:
+        query_index = binding["metadata"].get("annotations", {}).get("physical_table_name")
+        if not query_index:
+            rt = datalink.get_existing_component_config(data["kind"], data["name"], data["namespace"])
+            rt_spec = rt["spec"]
+            query_index = rt_spec.get("predefiend_result_table_id")
+            if not query_index:
+                biz_prefix = str(rt_spec["biz_id"]) + "_"
+                query_index = (
+                    data["name"] if data["name"].startswith(biz_prefix) else biz_prefix + data["name"].replace("-", "_")
+                )
+    elif "Fixed" in alias:
+        query_index = alias["Fixed"]
+    else:
+        # 日志链路的日写别名 write_YYYYMMDD_<name> 对应 <name>_YYYYMMDD_read。
+        alias_format = alias.get("TimeBased", {}).get("format", "")
+        prefix = "write_%Y%m%d_"
+        if not alias_format.startswith(prefix) or "%" in alias_format[len(prefix) :]:
+            raise ValidationError("no known read alias for the time-based clustering result binding")
+        query_index = alias_format[len(prefix) :]
+        need_add_time = True
+    if not query_index or any(c in query_index for c in "*,?"):
+        raise ValidationError("invalid clustering result query index")
     pattern_cluster = get_log_clustering_pattern_cluster(
         tenant, clustering.get("pattern_resource") or clustering["patternResource"]
     )
     return {
         "clustered": {
             "table_id": table_id,
-            "storage_type": storage.STORAGE_TYPE,
-            "cluster_id": storage.storage_cluster_id,
-            "query_index": storage.index_set or table_id.replace(".", "_"),
-            "source_type": storage.source_type or "log",
+            "storage_type": cluster.cluster_type,
+            "cluster_id": cluster.cluster_id,
+            "query_index": query_index,
+            "need_add_time": need_add_time,
         },
         "pattern": {
             "cluster_id": pattern_cluster.cluster_id,
@@ -524,7 +553,7 @@ class GetLogClusteringStatusResource(Resource):
         query = {}
         if validated_request_data["include_query_targets"] and sink_resource:
             query["query_targets"] = fetch(
-                "query_targets", lambda: get_log_clustering_query_targets(bk_tenant_id, table_id, sink_resource["spec"])
+                "query_targets", lambda: get_log_clustering_query_targets(datalink, table_id, sink_resource["spec"])
             )
         return {
             **query,

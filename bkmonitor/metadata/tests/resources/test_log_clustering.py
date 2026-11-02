@@ -106,7 +106,11 @@ def bkbase(mocker):
     mocker.patch(
         "metadata.models.DataLink.get_existing_component_config",
         side_effect=lambda kind, name, namespace: copy.deepcopy(
-            state["remote_databus"] if kind == "Databus" else state["remote_sink"]
+            state["remote_databus"]
+            if kind == "Databus"
+            else state["remote_sink"]
+            if kind == "LogClusteringSink"
+            else state.get((kind, name))
         ),
     )
     state["apply_log_datalink"] = mocker.patch("metadata.resources.log_clustering.apply_log_datalink")
@@ -149,6 +153,18 @@ def create_es_binding(name: str = ES_BINDING_REF["name"]) -> models.ESStorageBin
 def attach_remotely(state: dict) -> None:
     """模拟首次完整下发后的状态：已生成 ES 存储绑定，远端 Databus 已引用聚类 Sink"""
     create_es_binding()
+    models.ResultTableConfig.objects.create(
+        name="raw", namespace="bklog", bk_tenant_id="system", table_id=LOG_TABLE_ID, bk_biz_id=2
+    )
+    state[("ElasticSearchBinding", ES_BINDING_REF["name"])] = {
+        "metadata": {},
+        "status": {"phase": "Ok"},
+        "spec": {
+            "data": {"kind": "ResultTable", "namespace": "bklog", "name": "raw"},
+            "storage": {"kind": "ElasticSearch", "namespace": "bklog", "name": "es_clustering_demo"},
+            "write_alias": {"TimeBased": {"format": "write_%Y%m%d_actual_raw"}},
+        },
+    }
     state["remote_sink"] = get_sink().compose_config(raw_sink=ES_BINDING_REF)
     state["remote_sink"]["status"] = {
         "phase": "Ok",
@@ -646,7 +662,7 @@ def test_pattern_label_resolves_to_binding_through_bulk_router(clustering_datali
 
 
 @pytest.mark.parametrize("mode", ["update_original", "append"])
-def test_query_targets_follow_remote_result_binding(clustering_datalink, bkbase, mode):
+def test_query_targets_follow_remote_result_binding(clustering_datalink, bkbase, mocker, mode):
     set_config()
     attach_remotely(bkbase)
     result = {"mode": mode}
@@ -660,23 +676,87 @@ def test_query_targets_follow_remote_result_binding(clustering_datalink, bkbase,
         models.ResultTableConfig.objects.create(
             name="predict", namespace="bklog", bk_tenant_id="system", table_id=table_id, bk_biz_id=2
         )
-        models.ESStorageBindingConfig.objects.create(
-            name="predict-es",
-            namespace="bklog",
-            bk_tenant_id="system",
-            table_id=table_id,
-            bkbase_result_table_name="predict",
-            bk_biz_id=2,
+        models.ESStorage.objects.create(
+            bk_tenant_id="system", table_id=table_id, storage_cluster_id=710101, index_set="stale-local-index"
         )
-        models.ESStorage.objects.create(bk_tenant_id="system", table_id=table_id, storage_cluster_id=cluster_id)
+        bkbase[("ElasticSearchBinding", "predict-es")] = {
+            "metadata": {"annotations": {"physical_table_name": "shadowed-by-fixed-alias"}},
+            "status": {"phase": "Ok"},
+            "spec": {
+                "data": result["result_table"],
+                "storage": PATTERN_RESOURCE,
+                "write_alias": {"Fixed": "actual-predict-write"},
+            },
+        }
     bkbase["remote_sink"]["spec"]["clustering"]["result"] = result
     params = {"bk_tenant_id": "system", "table_id": LOG_TABLE_ID, "include_query_targets": True}
     targets = GetLogClusteringStatusResource().request(params)["query_targets"]
     assert targets["clustered"]["table_id"] == table_id
     assert targets["clustered"]["cluster_id"] == cluster_id
+    assert targets["clustered"]["query_index"] == ("actual-predict-write" if mode == "append" else "actual_raw")
+    assert targets["clustered"]["need_add_time"] == (mode == "update_original")
     assert targets["pattern"]["pattern_index"] == BINDING["pattern_index"]
+    models.Space.objects.create(
+        bk_tenant_id="system", space_type_id="bkcc", space_id="2", space_code="test", space_name="test"
+    )
+    label = "bklog_index_set_42_clustered"
+    route = f"{label}.__default__"
+    mocker.patch.object(SpaceTableIDRedis, "_compose_metric_table_id_detail", return_value={})
+    mocker.patch.object(SpaceTableIDRedis, "_compose_bkcc_space_table_ids", return_value={route: {}})
+    writes = mocker.patch("metadata.models.space.space_table_id_redis.RedisTools.hmset_to_redis", return_value=True)
+    mocker.patch("metadata.models.space.space_table_id_redis.RedisTools.publish")
+    target = targets["clustered"]
+    BulkCreateOrUpdateLogRouter().request(
+        {
+            "bk_tenant_id": "system",
+            "space_type": "bkcc",
+            "space_id": "2",
+            "data_label": label,
+            "table_info": [
+                {
+                    "table_id": route,
+                    "cluster_id": target["cluster_id"],
+                    "storage_type": target["storage_type"],
+                    "source_type": "es",
+                    "index_set": target["query_index"],
+                    "options": [
+                        {"name": "need_add_time", "value_type": "bool", "value": json.dumps(target["need_add_time"])}
+                    ],
+                }
+            ],
+        }
+    )
+    writes_by_key = {call.args[0]: call.args[1] for call in writes.call_args_list}
+    assert json.loads(writes_by_key[DATA_LABEL_TO_RESULT_TABLE_KEY][label]) == [route]
+    detail = json.loads(writes_by_key[RESULT_TABLE_DETAIL_KEY][route])
+    assert (detail["storage_id"], detail["db"], detail["options"]["need_add_time"]) == (
+        cluster_id,
+        target["query_index"],
+        mode == "update_original",
+    )
+    assert {r["storage_id"] for r in detail["storage_cluster_records"]} == {cluster_id}
     if mode == "append":
         result["es_binding"]["name"] = "missing"
         status = GetLogClusteringStatusResource().request(params)
         assert status["query_targets"] is None
         assert status["errors"][0]["source"] == "query_targets"
+
+
+@pytest.mark.parametrize(
+    "annotation,rt_spec,expected",
+    [
+        ("actual-physical-name", {}, "actual-physical-name"),
+        (None, {"predefiend_result_table_id": "explicit-id", "biz_id": 2}, "explicit-id"),
+        (None, {"biz_id": 2}, "2_raw"),
+    ],
+)
+def test_result_binding_without_write_alias(clustering_datalink, bkbase, annotation, rt_spec, expected):
+    set_config()
+    attach_remotely(bkbase)
+    binding = bkbase[("ElasticSearchBinding", ES_BINDING_REF["name"])]
+    del binding["spec"]["write_alias"]
+    binding["metadata"]["annotations"] = {"physical_table_name": annotation}
+    bkbase[("ResultTable", "raw")] = {"spec": rt_spec}
+    params = {"bk_tenant_id": "system", "table_id": LOG_TABLE_ID, "include_query_targets": True}
+    target = GetLogClusteringStatusResource().request(params)["query_targets"]["clustered"]
+    assert (target["query_index"], target["need_add_time"]) == (expected, False)

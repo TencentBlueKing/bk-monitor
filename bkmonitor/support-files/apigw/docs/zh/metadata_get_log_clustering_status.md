@@ -41,7 +41,7 @@ sink_referenced、raw_sink_referenced 只说明远端 Databus 配置的引用情
 | clustering_status   | dict   | 聚类 Sink 的 status.message 解析出的 JSON 对象；暂无进度或解析失败时为 null                   |
 | errors              | list   | 远端查询失败信息，元素包含 source、message          |
 
-传入 `include_query_targets=true` 时，`query_targets.clustered` 返回实际结果表的 `table_id`、`cluster_id`、`storage_type`、`source_type` 和 `query_index`。`update_original` 指向原日志表，`append` 按 Sink 的 `result_table` 和 `es_binding` 解析独立结果表；无法解析时在 `errors` 中返回原因。下游用 `bklog_index_set_<id>_clustered` 查询日志，`signature` 映射到物理字段 `log_signature`。
+传入 `include_query_targets=true` 时，`query_targets.clustered` 返回实际结果表的 `table_id`、`cluster_id`、`storage_type`、`query_index` 和 `need_add_time`。`update_original` 指向原日志表，`append` 按 Sink 的 `result_table` 和 `es_binding` 解析独立结果表；无法解析时在 `errors` 中返回原因。集群从已就绪 ES binding 的 `spec.storage` 解析。固定写别名直接查询；标准日写别名使用对应的按日读别名。未指定写别名时先取 binding 的 `physical_table_name` 注解，再取实际 BKBase 结果表 ID。无法映射的时间格式不发布路由。下游用 `bklog_index_set_<id>_clustered` 查询日志，`signature` 映射到物理字段 `log_signature`。
 
 `query_targets.pattern` 单独返回 `cluster_id`、`storage_type` 和 `pattern_index`，用于登记 `bklog_index_set_<id>_pattern`。该标签指向签名与模板的映射表。
 
