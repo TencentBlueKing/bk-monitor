@@ -20,6 +20,7 @@ import json, sys
 import settings as s
 from kombu import Connection
 from config.celery.config import Config
+from config.tools.rabbitmq import build_amqp_url
 from bkmonitor.utils.consul import BKConsul
 from bk_monitor_base.config import get_config
 
@@ -50,6 +51,13 @@ result = {
 if s.ROLE in ("worker", "api"):
     result.update(
         rabbitmq=[s.RABBITMQ_USER, s.RABBITMQ_PASS],
+        # alarm_backends.service.scheduler.app builds its broker URL the same way; importing it needs a database.
+        backend_broker=[
+            (c := Connection(build_amqp_url(s.RABBITMQ_USER, s.RABBITMQ_PASS, s.RABBITMQ_HOST, s.RABBITMQ_PORT, s.RABBITMQ_VHOST))).userid,
+            c.password,
+            c.hostname,
+            c.virtual_host,
+        ],
         redis=[s.REDIS_PASSWD, s.REDIS_SENTINEL_PASS, s.CACHE_REDIS_PASSWD, s.CACHE_REDIS_SENTINEL_PASS],
         redis_confs={name: getattr(s, name)["password"] for name in ("REDIS_LOG_CONF", "REDIS_CACHE_CONF", "REDIS_CELERY_CONF", "REDIS_SERVICE_CONF")},
         cache_sentinel=s.REDIS_CACHE_CONF["sentinel_password"],
@@ -210,9 +218,17 @@ def test_celery_broker_environment_fails_closed(tmp_path):
 
 def test_broker_url_escapes_envelope_credentials(tmp_path):
     special = "p@ss/w:rd#?%"
-    data = payload(**{"rabbitmq.saas.username": "user@x", "rabbitmq.saas.password": special})
+    data = payload(
+        **{
+            "rabbitmq.saas.username": "user@x",
+            "rabbitmq.saas.password": special,
+            "rabbitmq.backend.username": "backend@x",
+            "rabbitmq.backend.password": special,
+        }
+    )
     result = probe(tmp_path, "worker", data)
     assert result["celery_broker"] == ["user@x", special]
+    assert result["backend_broker"] == ["backend@x", special, "mq.example", "bk_bkmonitorv3"]
 
 
 @pytest.mark.parametrize(

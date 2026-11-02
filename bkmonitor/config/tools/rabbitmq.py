@@ -15,6 +15,11 @@ from config import kms
 from config.tools.environment import PAAS_VERSION
 
 
+def build_amqp_url(user, password, host, port, vhost) -> str:
+    """AMQP Broker URL，账号密码按 URL 编码（含 `/`、`@`、`:` 等字符）"""
+    return f"amqp://{quote(user, safe='')}:{quote(password, safe='')}@{host}:{port}/{vhost}"
+
+
 def get_rabbitmq_settings(app_code: str, backend=False):
     """
     获取RabbitMQ配置及Broker URL
@@ -44,7 +49,7 @@ def get_rabbitmq_settings(app_code: str, backend=False):
         alias = "backend" if backend else "saas"
         user = kms.value("rabbitmq", alias, "username")
         password = kms.value("rabbitmq", alias, "password")
-        broker_url = f"amqp://{quote(user, safe='')}:{quote(password, safe='')}@{host}:{port}/{vhost}"
+        broker_url = build_amqp_url(user, password, host, port, vhost)
     else:
         broker_url = f"amqp://{user}:{password}@{host}:{port}/{vhost}"
     return host, port, vhost, user, password, broker_url
