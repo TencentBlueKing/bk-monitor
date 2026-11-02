@@ -56,7 +56,7 @@ export default defineComponent({
     const { t } = useLocale();
     let statusTimer: ReturnType<typeof setTimeout> | null = null;
     let statusRequest = 0;
-    let initializedIndex = '';
+    const initializedIndex = ref('');
     const statusError = ref('');
     const submitting = ref(false);
     const loadingWidthList = {
@@ -115,15 +115,18 @@ export default defineComponent({
     );
     // 无字段提取或者聚类开关没开时直接不显示聚类nav和table，来源如果是数据平台并且日志聚类开关有打开则进入text判断，有text则提示去开启日志聚类, 无则显示跳转计算平台
     const exhibitAll = computed(() => totalFields.value.some(el => el.field_type === 'text'));
-    const isShowTopNav = computed(() => exhibitAll.value && clusterSwitch.value && !isShowClusterStep.value);
     const indexSetId = computed(() =>
       window.__IS_MONITOR_COMPONENT__ ? (route.query.indexId as string) : route.params.indexId,
+    );
+    const isTableReady = computed(() => initializedIndex.value === indexSetId.value);
+    const isShowTopNav = computed(
+      () => exhibitAll.value && clusterSwitch.value && !isShowClusterStep.value && isTableReady.value,
     );
     const clusterParams = computed(() => store.state.clusterParams);
     const collectorConfigId = computed(() => indexSetFieldConfig.value.clean_config.extra?.collector_config_id);
 
     watch(indexSetId, () => {
-      initializedIndex = '';
+      initializedIndex.value = '';
       isInitPage.value = true;
       isShowClusterStep.value = true;
       clusterStepData.value = null;
@@ -177,7 +180,7 @@ export default defineComponent({
       }
     };
 
-    const initTableOperator = async (id: string) => {
+    const initTableOperator = async (id: string, seq: number) => {
       const { log_clustering_level_year_on_year: yearOnYearList, log_clustering_level } =
         store.state.globals.globalsData;
       const activeLevel = quix.value?.distance_threshold?.replace('.', '');
@@ -224,7 +227,7 @@ export default defineComponent({
       });
       // 这里判断是否有保存过所有人都显示一样的分组 如果有则直接显示相应的分组
       const groupFields = await getInitGroupFields();
-      if (!isClusterActive.value || indexSetId.value !== id) return;
+      if (seq !== statusRequest || !isClusterActive.value || indexSetId.value !== id) return;
       if (groupFields?.length) {
         const selectGroupList = fingerOperateData.value.selectGroupList.filter(item => !groupFields.includes(item));
         // 如果初始化时有默认维度的字段 将维度和分组分开来处理
@@ -261,10 +264,10 @@ export default defineComponent({
         clusterStepData.value = res.data;
         const state = res.data.quix;
         isShowClusterStep.value = state ? !state.distance_threshold : !res.data.access_finished;
-        if (!isShowClusterStep.value && initializedIndex !== id && totalFields.value.length) {
+        if (!isShowClusterStep.value && initializedIndex.value !== id && totalFields.value.length) {
           filterGroupList();
-          await initTableOperator(id);
-          if (seq === statusRequest) initializedIndex = id;
+          await initTableOperator(id, seq);
+          if (seq === statusRequest) initializedIndex.value = id;
         }
         if (seq !== statusRequest) return;
         const pending = state
@@ -375,7 +378,7 @@ export default defineComponent({
           return;
         }
         // 无字段提取或者聚类开关没开时直接不显示聚类nav和table，来源如果是数据平台并且日志聚类大开关有打开则进入text判断，有text则提示去开启日志聚类 无则显示跳转计算平台
-        if (!initializedIndex && totalFields.value.length) void clusterPolling();
+        if (!initializedIndex.value && totalFields.value.length) void clusterPolling();
       },
       {
         immediate: true,
@@ -467,13 +470,21 @@ export default defineComponent({
                   // 聚类启动失败
                   return <cluster-start-fail cluster-step-data={clusterStepData.value} />;
                 }
-                if (!clusterSwitch.value) {
+                if (!clusterSwitch.value || !clusterStepData.value) {
                   // 快速开启日志聚类
                   return (
                     <QuickOpenCluster
                       indexSetId={indexSetId.value}
                       totalFields={totalFields.value}
                       on-create-cluster={handleClusterCreate}
+                    />
+                  );
+                }
+                if (!isTableReady.value) {
+                  return statusError.value ? null : (
+                    <clustering-loader
+                      width-list={loadingWidthList.global}
+                      is-loading
                     />
                   );
                 }
