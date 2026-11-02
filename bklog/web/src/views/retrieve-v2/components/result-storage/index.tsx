@@ -273,7 +273,7 @@ export default defineComponent({
           <span class='switch-label'>{$t('换行')}</span>
         </bk-checkbox>
 
-        {isUnionSearch.value && (
+        {isUnionSearch.value && !isSceneMode.value && (
           <bk-checkbox
             style='margin: 0 12px 0 0'
             class='bklog-option-item'

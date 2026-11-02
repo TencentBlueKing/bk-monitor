@@ -36,6 +36,7 @@ export default () => {
 
   const fieldTypeMap = computed(() => store.state.globals.fieldTypeMap);
   const isUnionSearch = computed(() => store.getters.isUnionSearch);
+  const isSceneMode = computed(() => store.getters.isSceneMode);
   const unionIndexItemList = computed(() => store.getters.unionIndexItemList);
   const visibleFields = computed(() => store.getters.visibleFields);
   const isNotVisibleFieldsShow = computed(() => store.state.isNotVisibleFieldsShow);
@@ -65,7 +66,7 @@ export default () => {
       const content = fieldTypeMap.value[fieldType]?.name;
       let unionContent = '';
       // 联合查询判断字段来源 若indexSetIDs缺少已检索的索引集内容 则增加字段来源判断
-      if (isUnionSearch.value) {
+      if (isUnionSearch.value && !isSceneMode.value) {
         const indexSetIDs = field.index_set_ids?.map(item => String(item)) || [];
         const isDifferentFields = indexSetIDs.length !== unionIndexItemList.value.length;
         if (isDifferentFields && !isUnionSource) {
