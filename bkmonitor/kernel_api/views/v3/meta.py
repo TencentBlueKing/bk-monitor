@@ -538,6 +538,10 @@ class GetLogClusteringStatusViewSet(MetaViewSet):
     resource_routes = [ResourceRoute("GET", resource.GetLogClusteringStatusResource)]
 
 
+class CreateOrUpdateLogClusteringPatternRouterViewSet(MetaViewSet):
+    resource_routes = [ResourceRoute("POST", resource.CreateOrUpdateLogClusteringPatternRouterResource)]
+
+
 class ModifyDataIdSourceViewSet(MetaViewSet):
     resource_routes = [ResourceRoute("POST", resource.ModifyDataIdSource)]
 
