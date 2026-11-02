@@ -88,7 +88,8 @@
                 "value": 80
               }
             ]
-          }
+          },
+          "unit": "short"
         },
         "overrides": []
       },
@@ -191,7 +192,8 @@
                 "value": 80
               }
             ]
-          }
+          },
+          "unit": "short"
         },
         "overrides": []
       },
@@ -294,7 +296,8 @@
                 "value": 80
               }
             ]
-          }
+          },
+          "unit": "percent"
         },
         "overrides": []
       },
@@ -397,7 +400,8 @@
                 "value": 80
               }
             ]
-          }
+          },
+          "unit": "percent"
         },
         "overrides": []
       },
@@ -513,7 +517,8 @@
                 "value": 80
               }
             ]
-          }
+          },
+          "unit": "percent"
         },
         "overrides": []
       },
@@ -553,7 +558,7 @@
           "query_configs": [],
           "refId": "A",
           "showLastPoint": false,
-          "source": "100 * avg by (node, gpu, UUID, GPU_I_ID, GPU_I_PROFILE, pod_name) (\n  ${MetricPrefix:raw}DCGM_FI_PROF_PIPE_TENSOR_ACTIVE{\n    bcs_cluster_id=\"$Cluster\",\n    GPU_I_ID!=\"\"\n  }\n)",
+          "source": "100 * avg by (node, gpu, UUID, GPU_I_ID, GPU_I_PROFILE, namespace, pod_name) (\n  ${MetricPrefix:raw}DCGM_FI_PROF_PIPE_TENSOR_ACTIVE{\n    bcs_cluster_id=\"$Cluster\",\n    GPU_I_ID!=\"\"\n  }\n)",
           "step": "",
           "type": "range"
         }
@@ -616,7 +621,8 @@
                 "value": 80
               }
             ]
-          }
+          },
+          "unit": "percent"
         },
         "overrides": []
       },
@@ -656,7 +662,7 @@
           "query_configs": [],
           "refId": "A",
           "showLastPoint": false,
-          "source": "100 * avg by (node, gpu, UUID, GPU_I_ID, GPU_I_PROFILE, pod_name) (\n  ${MetricPrefix:raw}DCGM_FI_PROF_DRAM_ACTIVE{\n    bcs_cluster_id=\"$Cluster\",\n    GPU_I_ID!=\"\"\n  }\n)",
+          "source": "100 * avg by (node, gpu, UUID, GPU_I_ID, GPU_I_PROFILE, namespace, pod_name) (\n  ${MetricPrefix:raw}DCGM_FI_PROF_DRAM_ACTIVE{\n    bcs_cluster_id=\"$Cluster\",\n    GPU_I_ID!=\"\"\n  }\n)",
           "step": "",
           "type": "range"
         }
@@ -718,7 +724,8 @@
                 "value": 80
               }
             ]
-          }
+          },
+          "unit": "mbytes"
         },
         "overrides": []
       },
@@ -833,7 +840,8 @@
                 "value": 80
               }
             ]
-          }
+          },
+          "unit": "short"
         },
         "overrides": []
       },
@@ -873,13 +881,14 @@
           "query_configs": [],
           "refId": "A",
           "showLastPoint": false,
-          "source": "count(${MetricPrefix:raw}DCGM_FI_DEV_GPU_UTIL{bcs_cluster_id=\"$Cluster\", pod_name=~\"$Pod\"})",
+          "source": "count(count by (node, gpu, UUID) (\n  ${MetricPrefix:raw}DCGM_FI_DEV_GPU_UTIL{bcs_cluster_id=\"$Cluster\", namespace=~\"^($Namespace)$\", pod_name=~\"^($Pod)$\"}\n))",
           "step": "",
           "type": "range"
         }
       ],
       "title": "整卡数（所选 Pod）",
-      "type": "timeseries"
+      "type": "timeseries",
+      "description": "统计所选 Namespace 和 Pod 关联的整卡，按 node、gpu、UUID 去重；MIG 切片不作为独立整卡计数。"
     },
     {
       "datasource": {
@@ -935,7 +944,8 @@
                 "value": 80
               }
             ]
-          }
+          },
+          "unit": "percent"
         },
         "overrides": []
       },
@@ -975,13 +985,14 @@
           "query_configs": [],
           "refId": "A",
           "showLastPoint": false,
-          "source": "avg(${MetricPrefix:raw}DCGM_FI_DEV_GPU_UTIL{bcs_cluster_id=\"$Cluster\",pod_name=~\"$Pod\"})",
+          "source": "avg(avg by (node, gpu, UUID) (\n  ${MetricPrefix:raw}DCGM_FI_DEV_GPU_UTIL{bcs_cluster_id=\"$Cluster\", namespace=~\"^($Namespace)$\", pod_name=~\"^($Pod)$\"}\n))",
           "step": "",
           "type": "range"
         }
       ],
       "title": "整卡平均利用率（所选 Pod）",
-      "type": "timeseries"
+      "type": "timeseries",
+      "description": "所选 Namespace 和 Pod 关联整卡的等权平均利用率，先合并每张物理卡的重复采集系列。"
     },
     {
       "datasource": {
@@ -1078,7 +1089,7 @@
           "query_configs": [],
           "refId": "A",
           "showLastPoint": false,
-          "source": "sum(${MetricPrefix:raw}DCGM_FI_DEV_FB_USED{bcs_cluster_id=\"$Cluster\",pod_name=~\"$Pod\"})",
+          "source": "sum(max by (node, gpu, UUID, GPU_I_ID) (\n  ${MetricPrefix:raw}DCGM_FI_DEV_FB_USED{bcs_cluster_id=\"$Cluster\", namespace=~\"^($Namespace)$\", pod_name=~\"^($Pod)$\"}\n))",
           "step": "",
           "type": "range"
         },
@@ -1099,7 +1110,7 @@
           "query_configs": [],
           "refId": "B",
           "showLastPoint": false,
-          "source": "sum(${MetricPrefix:raw}DCGM_FI_DEV_FB_FREE{bcs_cluster_id=\"$Cluster\",pod_name=~\"$Pod\"})",
+          "source": "sum(max by (node, gpu, UUID, GPU_I_ID) (\n  ${MetricPrefix:raw}DCGM_FI_DEV_FB_FREE{bcs_cluster_id=\"$Cluster\", namespace=~\"^($Namespace)$\", pod_name=~\"^($Pod)$\"}\n))",
           "step": "",
           "type": "range"
         },
@@ -1120,13 +1131,14 @@
           "query_configs": [],
           "refId": "C",
           "showLastPoint": false,
-          "source": "sum(${MetricPrefix:raw}DCGM_FI_DEV_FB_RESERVED{bcs_cluster_id=\"$Cluster\",pod_name=~\"$Pod\"})",
+          "source": "sum(max by (node, gpu, UUID, GPU_I_ID) (\n  ${MetricPrefix:raw}DCGM_FI_DEV_FB_RESERVED{bcs_cluster_id=\"$Cluster\", namespace=~\"^($Namespace)$\", pod_name=~\"^($Pod)$\"}\n))",
           "step": "",
           "type": "range"
         }
       ],
       "title": "显存用量",
-      "type": "timeseries"
+      "type": "timeseries",
+      "description": "合计所选 Pod 关联的整卡或 MIG 实例显存，按 node、gpu、UUID、GPU_I_ID 去重；保留不同 MIG 实例，避免重复采集或同设备关联多个 Pod 时重复累加。单位为 MiB。"
     },
     {
       "datasource": {
@@ -1223,13 +1235,14 @@
           "query_configs": [],
           "refId": "A",
           "showLastPoint": false,
-          "source": "100 * sum(${MetricPrefix:raw}DCGM_FI_DEV_FB_USED{bcs_cluster_id=\"$Cluster\",pod_name=~\"$Pod\"}) / (sum(${MetricPrefix:raw}DCGM_FI_DEV_FB_USED{bcs_cluster_id=\"$Cluster\",pod_name=~\"$Pod\"}) + sum(${MetricPrefix:raw}DCGM_FI_DEV_FB_FREE{bcs_cluster_id=\"$Cluster\",pod_name=~\"$Pod\"}))",
+          "source": "100 * sum(max by (node, gpu, UUID, GPU_I_ID) (${MetricPrefix:raw}DCGM_FI_DEV_FB_USED{bcs_cluster_id=\"$Cluster\", namespace=~\"^($Namespace)$\", pod_name=~\"^($Pod)$\"})) / (\n  sum(max by (node, gpu, UUID, GPU_I_ID) (${MetricPrefix:raw}DCGM_FI_DEV_FB_USED{bcs_cluster_id=\"$Cluster\", namespace=~\"^($Namespace)$\", pod_name=~\"^($Pod)$\"})) + sum(max by (node, gpu, UUID, GPU_I_ID) (${MetricPrefix:raw}DCGM_FI_DEV_FB_FREE{bcs_cluster_id=\"$Cluster\", namespace=~\"^($Namespace)$\", pod_name=~\"^($Pod)$\"}))\n)",
           "step": "",
           "type": "range"
         }
       ],
       "title": "显存利用率",
-      "type": "timeseries"
+      "type": "timeseries",
+      "description": "所选 GPU/MIG 实例的已用显存 /（已用 + 空闲显存），按容量加权；各显存指标先按设备及 MIG 实例去重，不含保留显存。"
     },
     {
       "datasource": {
@@ -1326,21 +1339,14 @@
           "query_configs": [],
           "refId": "A",
           "showLastPoint": false,
-          "source": "avg by (pod_name) (\n  ${MetricPrefix:raw}DCGM_FI_DEV_GPU_TEMP{bcs_cluster_id=\"$Cluster\", pod_name=~\"$Pod\"}\n)",
+          "source": "avg by (namespace, pod_name) (\n  avg by (namespace, pod_name, node, gpu, UUID) (\n    ${MetricPrefix:raw}DCGM_FI_DEV_GPU_TEMP{bcs_cluster_id=\"$Cluster\", namespace=~\"^($Namespace)$\", pod_name=~\"^($Pod)$\"}\n  )\n)",
           "step": "",
           "type": "range"
         }
       ],
       "title": "GPU 温度",
-      "transformations": [
-        {
-          "id": "labelsToFields",
-          "options": {
-            "valueLabel": "pod_name"
-          }
-        }
-      ],
-      "type": "timeseries"
+      "type": "timeseries",
+      "description": "按 Namespace 和 Pod 分组，先合并每张物理卡的重复采集系列，再按物理卡等权平均。"
     },
     {
       "datasource": {
@@ -1437,21 +1443,14 @@
           "query_configs": [],
           "refId": "A",
           "showLastPoint": false,
-          "source": "avg by (pod_name) (\n  ${MetricPrefix:raw}DCGM_FI_DEV_MEMORY_TEMP{bcs_cluster_id=\"$Cluster\", pod_name=~\"$Pod\"}\n)",
+          "source": "avg by (namespace, pod_name) (\n  avg by (namespace, pod_name, node, gpu, UUID) (\n    ${MetricPrefix:raw}DCGM_FI_DEV_MEMORY_TEMP{bcs_cluster_id=\"$Cluster\", namespace=~\"^($Namespace)$\", pod_name=~\"^($Pod)$\"}\n  )\n)",
           "step": "",
           "type": "range"
         }
       ],
       "title": "显存温度",
-      "transformations": [
-        {
-          "id": "labelsToFields",
-          "options": {
-            "valueLabel": "pod_name"
-          }
-        }
-      ],
-      "type": "timeseries"
+      "type": "timeseries",
+      "description": "按 Namespace 和 Pod 分组，先合并每张物理卡的重复采集系列，再按物理卡等权平均。"
     },
     {
       "datasource": {
@@ -1548,21 +1547,14 @@
           "query_configs": [],
           "refId": "A",
           "showLastPoint": false,
-          "source": "avg by (pod_name) (${MetricPrefix:raw}DCGM_FI_DEV_ENC_UTIL{bcs_cluster_id=\"$Cluster\", pod_name=~\"$Pod\"})",
+          "source": "avg by (namespace, pod_name) (\n  avg by (namespace, pod_name, node, gpu, UUID) (\n    ${MetricPrefix:raw}DCGM_FI_DEV_ENC_UTIL{bcs_cluster_id=\"$Cluster\", namespace=~\"^($Namespace)$\", pod_name=~\"^($Pod)$\"}\n  )\n)",
           "step": "",
           "type": "range"
         }
       ],
       "title": "视频编码器利用率",
-      "transformations": [
-        {
-          "id": "labelsToFields",
-          "options": {
-            "valueLabel": "pod_name"
-          }
-        }
-      ],
-      "type": "timeseries"
+      "type": "timeseries",
+      "description": "按 Namespace 和 Pod 分组，先合并每张物理卡的重复采集系列，再按物理卡等权平均。"
     },
     {
       "datasource": {
@@ -1659,21 +1651,14 @@
           "query_configs": [],
           "refId": "A",
           "showLastPoint": false,
-          "source": "avg by (pod_name) (${MetricPrefix:raw}DCGM_FI_DEV_DEC_UTIL{bcs_cluster_id=\"$Cluster\", pod_name=~\"$Pod\"})",
+          "source": "avg by (namespace, pod_name) (\n  avg by (namespace, pod_name, node, gpu, UUID) (\n    ${MetricPrefix:raw}DCGM_FI_DEV_DEC_UTIL{bcs_cluster_id=\"$Cluster\", namespace=~\"^($Namespace)$\", pod_name=~\"^($Pod)$\"}\n  )\n)",
           "step": "",
           "type": "range"
         }
       ],
       "title": "视频解码器利用率",
-      "transformations": [
-        {
-          "id": "labelsToFields",
-          "options": {
-            "valueLabel": "pod_name"
-          }
-        }
-      ],
-      "type": "timeseries"
+      "type": "timeseries",
+      "description": "按 Namespace 和 Pod 分组，先合并每张物理卡的重复采集系列，再按物理卡等权平均。"
     },
     {
       "datasource": {
@@ -1770,28 +1755,21 @@
           "query_configs": [],
           "refId": "A",
           "showLastPoint": false,
-          "source": "avg by (pod_name) (${MetricPrefix:raw}DCGM_FI_DEV_POWER_USAGE{bcs_cluster_id=\"$Cluster\",pod_name=~\"$Pod\"})",
+          "source": "sum by (namespace, pod_name) (\n  max by (namespace, pod_name, node, gpu, UUID) (\n    ${MetricPrefix:raw}DCGM_FI_DEV_POWER_USAGE{bcs_cluster_id=\"$Cluster\", namespace=~\"^($Namespace)$\", pod_name=~\"^($Pod)$\"}\n  )\n)",
           "step": "",
           "type": "range"
         }
       ],
-      "title": "GPU 实时功耗（瓦特）",
-      "transformations": [
-        {
-          "id": "labelsToFields",
-          "options": {
-            "valueLabel": "pod_name"
-          }
-        }
-      ],
-      "type": "timeseries"
+      "title": "Pod 关联 GPU 总功耗（瓦特）",
+      "type": "timeseries",
+      "description": "按 Namespace 和 Pod 关联的物理卡去重后累加功耗。MIG 共享卡不按切片分摊；同一物理卡关联多个 Pod 时，各 Pod 数值可能重叠，不宜跨 Pod 相加。"
     },
     {
       "datasource": {
         "type": "bkmonitor-timeseries-datasource",
         "uid": "${DS_蓝鲸监控_-_指标数据}"
       },
-      "description": "",
+      "description": "按 Namespace 和 Pod 关联的物理卡去重后求和，展示设备自驱动加载以来的累计能耗，非 Pod 生命周期累计。MIG 共享卡不按切片分摊；同一物理卡关联多个 Pod 时，各 Pod 的数值可能重叠，不宜跨 Pod 相加。",
       "fieldConfig": {
         "defaults": {
           "color": {
@@ -1882,21 +1860,12 @@
           "query_configs": [],
           "refId": "A",
           "showLastPoint": false,
-          "source": "sum by (pod_name) (\n  max by (pod_name, node, gpu, UUID) (\n    ${MetricPrefix:raw}DCGM_FI_DEV_TOTAL_ENERGY_CONSUMPTION{bcs_cluster_id=\"$Cluster\", pod_name=~\"$Pod\"}\n  )\n) / 1000",
+          "source": "sum by (namespace, pod_name) (\n  max by (namespace, pod_name, node, gpu, UUID) (\n    ${MetricPrefix:raw}DCGM_FI_DEV_TOTAL_ENERGY_CONSUMPTION{bcs_cluster_id=\"$Cluster\", namespace=~\"^($Namespace)$\", pod_name=~\"^($Pod)$\"}\n  )\n) / 1000",
           "step": "",
           "type": "range"
         }
       ],
       "title": "累计能耗（焦耳）",
-      "description": "按 Pod 关联的物理卡去重后求和，展示设备自驱动加载以来的累计能耗，非 Pod 生命周期累计。MIG 共享卡不按切片分摊；同一物理卡关联多个 Pod 时，各 Pod 的数值可能重叠，不宜跨 Pod 相加。",
-      "transformations": [
-        {
-          "id": "labelsToFields",
-          "options": {
-            "valueLabel": "pod_name"
-          }
-        }
-      ],
       "type": "timeseries"
     },
     {
@@ -1994,21 +1963,13 @@
           "query_configs": [],
           "refId": "A",
           "showLastPoint": false,
-          "source": "sum by (pod_name) (\n  max by (pod_name, node, gpu, UUID) (\n    increase(${MetricPrefix:raw}DCGM_FI_DEV_TOTAL_ENERGY_CONSUMPTION{bcs_cluster_id=\"$Cluster\", pod_name=~\"$Pod\"}[5m])\n  )\n) / 1000",
+          "source": "sum by (namespace, pod_name) (\n  max by (namespace, pod_name, node, gpu, UUID) (\n    increase(${MetricPrefix:raw}DCGM_FI_DEV_TOTAL_ENERGY_CONSUMPTION{bcs_cluster_id=\"$Cluster\", namespace=~\"^($Namespace)$\", pod_name=~\"^($Pod)$\"}[5m])\n  )\n) / 1000",
           "step": "",
           "type": "range"
         }
       ],
       "title": "过去 5 分钟的能耗增量（焦耳）",
-      "description": "先计算各原始计数器的增量，再按 Pod 关联的物理卡去重求和。MIG 共享卡不按切片分摊；同一物理卡关联多个 Pod 时，各 Pod 的数值可能重叠，不宜跨 Pod 相加。",
-      "transformations": [
-        {
-          "id": "labelsToFields",
-          "options": {
-            "valueLabel": "pod_name"
-          }
-        }
-      ],
+      "description": "先计算各原始计数器的增量，再按 Namespace 和 Pod 关联的物理卡去重求和。MIG 共享卡不按切片分摊；同一物理卡关联多个 Pod 时，各 Pod 的数值可能重叠，不宜跨 Pod 相加。",
       "type": "timeseries"
     },
     {
@@ -2106,21 +2067,13 @@
           "query_configs": [],
           "refId": "A",
           "showLastPoint": false,
-          "source": "sum by (pod_name) (\n  max by (pod_name, node, gpu, UUID) (\n    increase(${MetricPrefix:raw}DCGM_FI_DEV_TOTAL_ENERGY_CONSUMPTION{bcs_cluster_id=\"$Cluster\", pod_name=~\"$Pod\"}[1h])\n  )\n) / 3600000000",
+          "source": "sum by (namespace, pod_name) (\n  max by (namespace, pod_name, node, gpu, UUID) (\n    increase(${MetricPrefix:raw}DCGM_FI_DEV_TOTAL_ENERGY_CONSUMPTION{bcs_cluster_id=\"$Cluster\", namespace=~\"^($Namespace)$\", pod_name=~\"^($Pod)$\"}[1h])\n  )\n) / 3600000000",
           "step": "",
           "type": "range"
         }
       ],
       "title": "过去 1 小时耗电（kWh）",
-      "description": "先计算各原始计数器的增量，再按 Pod 关联的物理卡去重求和。MIG 共享卡不按切片分摊；同一物理卡关联多个 Pod 时，各 Pod 的数值可能重叠，不宜跨 Pod 相加。",
-      "transformations": [
-        {
-          "id": "labelsToFields",
-          "options": {
-            "valueLabel": "pod_name"
-          }
-        }
-      ],
+      "description": "先计算各原始计数器的增量，再按 Namespace 和 Pod 关联的物理卡去重求和。MIG 共享卡不按切片分摊；同一物理卡关联多个 Pod 时，各 Pod 的数值可能重叠，不宜跨 Pod 相加。",
       "type": "timeseries"
     },
     {
@@ -2218,21 +2171,14 @@
           "query_configs": [],
           "refId": "A",
           "showLastPoint": false,
-          "source": "avg by (pod_name) (${MetricPrefix:raw}DCGM_FI_DEV_SM_CLOCK{bcs_cluster_id=\"$Cluster\", pod_name=~\"$Pod\"})",
+          "source": "avg by (namespace, pod_name) (\n  avg by (namespace, pod_name, node, gpu, UUID) (\n    ${MetricPrefix:raw}DCGM_FI_DEV_SM_CLOCK{bcs_cluster_id=\"$Cluster\", namespace=~\"^($Namespace)$\", pod_name=~\"^($Pod)$\"}\n  )\n)",
           "step": "",
           "type": "range"
         }
       ],
       "title": "SM 时钟频率",
-      "transformations": [
-        {
-          "id": "labelsToFields",
-          "options": {
-            "valueLabel": "pod_name"
-          }
-        }
-      ],
-      "type": "timeseries"
+      "type": "timeseries",
+      "description": "按 Namespace 和 Pod 分组，先合并每张物理卡的重复采集系列，再按物理卡等权平均。"
     },
     {
       "datasource": {
@@ -2329,21 +2275,14 @@
           "query_configs": [],
           "refId": "A",
           "showLastPoint": false,
-          "source": "avg by (pod_name) (${MetricPrefix:raw}DCGM_FI_DEV_MEM_CLOCK{bcs_cluster_id=\"$Cluster\", pod_name=~\"$Pod\"})",
+          "source": "avg by (namespace, pod_name) (\n  avg by (namespace, pod_name, node, gpu, UUID) (\n    ${MetricPrefix:raw}DCGM_FI_DEV_MEM_CLOCK{bcs_cluster_id=\"$Cluster\", namespace=~\"^($Namespace)$\", pod_name=~\"^($Pod)$\"}\n  )\n)",
           "step": "",
           "type": "range"
         }
       ],
       "title": "显存时钟频率",
-      "transformations": [
-        {
-          "id": "labelsToFields",
-          "options": {
-            "valueLabel": "pod_name"
-          }
-        }
-      ],
-      "type": "timeseries"
+      "type": "timeseries",
+      "description": "按 Namespace 和 Pod 分组，先合并每张物理卡的重复采集系列，再按物理卡等权平均。"
     },
     {
       "datasource": {
@@ -2440,21 +2379,14 @@
           "query_configs": [],
           "refId": "A",
           "showLastPoint": false,
-          "source": "avg by (pod_name) (increase(${MetricPrefix:raw}DCGM_FI_DEV_PCIE_REPLAY_COUNTER{bcs_cluster_id=\"$Cluster\", pod_name=~\"$Pod\"}[1h]))",
+          "source": "sum by (namespace, pod_name) (\n  max by (namespace, pod_name, node, gpu, UUID) (\n    increase(${MetricPrefix:raw}DCGM_FI_DEV_PCIE_REPLAY_COUNTER{bcs_cluster_id=\"$Cluster\", namespace=~\"^($Namespace)$\", pod_name=~\"^($Pod)$\"}[1h])\n  )\n)",
           "step": "",
           "type": "range"
         }
       ],
-      "title": "PCIe 重放计数（链路质量）",
-      "transformations": [
-        {
-          "id": "labelsToFields",
-          "options": {
-            "valueLabel": "pod_name"
-          }
-        }
-      ],
-      "type": "timeseries"
+      "title": "过去 1 小时 PCIe 重放总次数",
+      "type": "timeseries",
+      "description": "先计算各原始计数器的 1 小时重放增量，再按 Namespace 和 Pod 关联的物理卡去重求和；MIG 共享卡不按切片分摊，不宜跨 Pod 相加。"
     }
   ],
   "schemaVersion": 39,
@@ -2495,6 +2427,30 @@
         "type": "query"
       },
       {
+        "allValue": ".*",
+        "current": {},
+        "datasource": {
+          "type": "bkmonitor-timeseries-datasource",
+          "uid": "${DS_蓝鲸监控_-_指标数据}"
+        },
+        "definition": "- Blueking Monitor - prometheus",
+        "hide": 0,
+        "includeAll": true,
+        "label": "Namespace",
+        "multi": true,
+        "name": "Namespace",
+        "options": [],
+        "query": {
+          "promql": "label_values(${MetricPrefix:raw}DCGM_FI_DEV_FB_USED{bcs_cluster_id=\"$Cluster\"}, namespace)\n",
+          "queryType": "prometheus"
+        },
+        "refresh": 1,
+        "regex": "",
+        "skipUrlSync": false,
+        "sort": 0,
+        "type": "query"
+      },
+      {
         "allValue": ".+",
         "current": {},
         "datasource": {
@@ -2509,7 +2465,7 @@
         "name": "Pod",
         "options": [],
         "query": {
-          "promql": "label_values(${MetricPrefix:raw}DCGM_FI_DEV_FB_USED{bcs_cluster_id=\"$Cluster\", pod_name!=\"\"}, pod_name)\n",
+          "promql": "label_values(${MetricPrefix:raw}DCGM_FI_DEV_FB_USED{bcs_cluster_id=\"$Cluster\", namespace=~\"^($Namespace)$\", pod_name!=\"\"}, pod_name)\n",
           "queryType": "prometheus"
         },
         "refresh": 1,
