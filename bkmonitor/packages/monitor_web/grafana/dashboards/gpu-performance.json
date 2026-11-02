@@ -1882,12 +1882,13 @@
           "query_configs": [],
           "refId": "A",
           "showLastPoint": false,
-          "source": "sum by (pod_name) (${MetricPrefix:raw}DCGM_FI_DEV_TOTAL_ENERGY_CONSUMPTION{bcs_cluster_id=\"$Cluster\", pod_name=~\"$Pod\"}) / 1000",
+          "source": "sum by (pod_name) (\n  max by (pod_name, node, gpu, UUID) (\n    ${MetricPrefix:raw}DCGM_FI_DEV_TOTAL_ENERGY_CONSUMPTION{bcs_cluster_id=\"$Cluster\", pod_name=~\"$Pod\"}\n  )\n) / 1000",
           "step": "",
           "type": "range"
         }
       ],
       "title": "累计能耗（焦耳）",
+      "description": "按 Pod 关联的物理卡去重后求和，展示设备自驱动加载以来的累计能耗，非 Pod 生命周期累计。MIG 共享卡不按切片分摊；同一物理卡关联多个 Pod 时，各 Pod 的数值可能重叠，不宜跨 Pod 相加。",
       "transformations": [
         {
           "id": "labelsToFields",
@@ -1993,12 +1994,13 @@
           "query_configs": [],
           "refId": "A",
           "showLastPoint": false,
-          "source": "avg by(pod_name) (increase(${MetricPrefix:raw}DCGM_FI_DEV_TOTAL_ENERGY_CONSUMPTION{bcs_cluster_id=\"$Cluster\", pod_name=~\"$Pod\"}[5m])) / 1000",
+          "source": "sum by (pod_name) (\n  max by (pod_name, node, gpu, UUID) (\n    increase(${MetricPrefix:raw}DCGM_FI_DEV_TOTAL_ENERGY_CONSUMPTION{bcs_cluster_id=\"$Cluster\", pod_name=~\"$Pod\"}[5m])\n  )\n) / 1000",
           "step": "",
           "type": "range"
         }
       ],
       "title": "过去 5 分钟的能耗增量（焦耳）",
+      "description": "先计算各原始计数器的增量，再按 Pod 关联的物理卡去重求和。MIG 共享卡不按切片分摊；同一物理卡关联多个 Pod 时，各 Pod 的数值可能重叠，不宜跨 Pod 相加。",
       "transformations": [
         {
           "id": "labelsToFields",
@@ -2104,12 +2106,13 @@
           "query_configs": [],
           "refId": "A",
           "showLastPoint": false,
-          "source": "avg by(pod_name) (increase(${MetricPrefix:raw}DCGM_FI_DEV_TOTAL_ENERGY_CONSUMPTION{bcs_cluster_id=\"$Cluster\", pod_name=~\"$Pod\"}[1h]) / 3600000000\n)",
+          "source": "sum by (pod_name) (\n  max by (pod_name, node, gpu, UUID) (\n    increase(${MetricPrefix:raw}DCGM_FI_DEV_TOTAL_ENERGY_CONSUMPTION{bcs_cluster_id=\"$Cluster\", pod_name=~\"$Pod\"}[1h])\n  )\n) / 3600000000",
           "step": "",
           "type": "range"
         }
       ],
       "title": "过去 1 小时耗电（kWh）",
+      "description": "先计算各原始计数器的增量，再按 Pod 关联的物理卡去重求和。MIG 共享卡不按切片分摊；同一物理卡关联多个 Pod 时，各 Pod 的数值可能重叠，不宜跨 Pod 相加。",
       "transformations": [
         {
           "id": "labelsToFields",
@@ -2175,7 +2178,7 @@
               }
             ]
           },
-          "unit": "rothz"
+          "unit": "rotmhz"
         },
         "overrides": []
       },
@@ -2286,7 +2289,7 @@
               }
             ]
           },
-          "unit": "rothz"
+          "unit": "rotmhz"
         },
         "overrides": []
       },
