@@ -24,12 +24,22 @@
  * IN THE SOFTWARE.
  */
 
-import { type PropType, computed, defineComponent, onBeforeUnmount, shallowRef, useTemplateRef, watch } from 'vue';
+import {
+  type PropType,
+  computed,
+  defineComponent,
+  nextTick,
+  onBeforeUnmount,
+  shallowRef,
+  useTemplateRef,
+  watch,
+} from 'vue';
 
 import { Exception, Switcher } from 'bkui-vue';
 import { useI18n } from 'vue-i18n';
 
 import VerticalDrawer from '../../../../components/vertical-drawer/vertical-drawer';
+import { useTableScrollOptimize } from '../../../../hooks/use-table-scroll-optimize';
 import CommonTable from '../../../alarm-center/components/alarm-table/components/common-table/common-table';
 import ExploreConditionMenu from '../../../trace-explore/components/trace-explore-table/components/explore-condition-menu';
 import {
@@ -48,6 +58,9 @@ import type { IEventsListColumn, IRumField, IRumSpanRecord } from '../../typings
 import type { SlotReturnValue } from 'tdesign-vue-next';
 
 import './rum-events-drawer.scss';
+
+/** 抽屉表格的滚动容器：CommonTable 内容区（横向 / 纵向滚动都发生在这里） */
+const DRAWER_SCROLL_CONTAINER_SELECTOR = '.t-table__content';
 
 export default defineComponent({
   name: 'RumEventsDrawer',
@@ -94,12 +107,21 @@ export default defineComponent({
     /** 单元格检索条件菜单组件实例 ref，其 $el 作为 popover 内容 */
     const conditionMenuRef = useTemplateRef<InstanceType<typeof ExploreConditionMenu>>('conditionMenuRef');
     /** 抽屉行缓存：菜单据 data-row-id / data-col-id 回源取单元格原始值（行内即原始值） */
-    const { activeConditionMenuTarget, cacheRows, clearCache, closeMenu, hideMenu, initListeners } =
+    const { activeConditionMenuTarget, cacheRows, clearCache, closeMenu, hideMenu, rebindListeners } =
       useCellConditionMenu({
         delegationRoot: tableWrapEl,
         menuRef: conditionMenuRef,
         rowKey: 'rowId',
       });
+    /**
+     * 表格滚动时收起条件菜单，与主表共用同一条封装；
+     * 滚动容器在抽屉根节点内部，随抽屉显隐重建，重建时由下方 watch 重新绑定。
+     */
+    const { addScrollListener, removeScrollListener } = useTableScrollOptimize({
+      rootElement: tableWrapEl,
+      scrollContainerElement: DRAWER_SCROLL_CONTAINER_SELECTOR,
+      onScroll: () => hideMenu(),
+    });
     /** 过渡序号，用于丢弃被新过渡覆盖的收尾 */
     let transitionSeq = 0;
     /** 是否展示全部字段（含主表隐藏的 events.* 字段） */
@@ -211,17 +233,32 @@ export default defineComponent({
       { immediate: true }
     );
 
-    /** 表格根节点随抽屉显隐重建后，重新绑定事件委托 */
+    /**
+     * 滚动容器是抽屉表格内部的节点，会随根节点重建、列集合切换一起重建，
+     * 因此在这两类时机都要重新解析并绑定（nextTick 保证新节点已渲染）。
+     */
+    function rebindScrollListener() {
+      removeScrollListener();
+      nextTick(() => addScrollListener());
+    }
+
+    /** 表格根节点随抽屉显隐重建后，重新绑定事件委托与滚动监听 */
     watch(
       tableWrapEl,
-      el => {
-        if (el) initListeners();
+      (el, oldEl) => {
+        if (oldEl) removeScrollListener();
+        if (!el) return;
+        rebindListeners();
+        rebindScrollListener();
       },
       { flush: 'post' }
     );
 
-    /** 骨架切换会重建单元格，触发元素消失后菜单需同步收起 */
-    watch(skeletonType, () => hideMenu());
+    /** 骨架结束（表格重新渲染完成）后重绑滚动监听；期间触发元素消失，菜单需同步收起 */
+    watch(skeletonType, value => {
+      hideMenu();
+      if (value === 'none') rebindScrollListener();
+    });
 
     /** 卸载后作废进行中的过渡，避免 rAF / 定时器收尾继续写状态 */
     onBeforeUnmount(() => {

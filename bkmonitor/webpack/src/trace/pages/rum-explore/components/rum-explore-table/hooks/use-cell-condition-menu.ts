@@ -170,12 +170,22 @@ export const useCellConditionMenu = ({ delegationRoot, menuRef, rowKey }: UseCel
     closeMenu();
   }
 
+  /**
+   * @description 重新绑定全部事件委托：左键菜单委托、右键菜单、左键收起三类一起重建。
+   * 委托根节点会随表格 / 抽屉显隐重建，重建后必须整体重绑，否则旧节点上的右键与左键收起监听不再触发。
+   */
+  function rebindListeners() {
+    initListeners();
+    contextMenuRoot?.removeEventListener('contextmenu', handleContextMenu, true);
+    contextMenuRoot?.removeEventListener('click', handleClickCellClick, true);
+    contextMenuRoot = getRootDom();
+    contextMenuRoot?.addEventListener('contextmenu', handleContextMenu, true);
+    contextMenuRoot?.addEventListener('click', handleClickCellClick, true);
+  }
+
   onMounted(() => {
     nextTick(() => {
-      initListeners();
-      contextMenuRoot = getRootDom();
-      contextMenuRoot?.addEventListener('contextmenu', handleContextMenu, true);
-      contextMenuRoot?.addEventListener('click', handleClickCellClick, true);
+      rebindListeners();
     });
   });
 
@@ -196,7 +206,7 @@ export const useCellConditionMenu = ({ delegationRoot, menuRef, rowKey }: UseCel
     closeMenu,
     /** 收起菜单（滚动等场景） */
     hideMenu: handlePopoverHide,
-    /** 重新绑定事件委托（委托根节点会随显隐重建时调用） */
-    initListeners,
+    /** 重新绑定事件委托（委托根节点会随显隐重建时调用）：左键菜单委托、右键菜单与左键收起一起重绑 */
+    rebindListeners,
   };
 };
