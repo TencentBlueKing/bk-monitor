@@ -804,21 +804,47 @@ class SceneSearchViewSet(APIViewSet):
 
         复用 BcsApi.get_cluster_by_cluster_id 按 cluster_id 精确查询（自带 5 分钟缓存），
         与既有 _get_bcs_cluster_name 范式一致，不依赖业务 ID，关联空间的集群也能查到名称。
+        通过 MultiExecuteFunc 并发查询多个集群（与同文件 fetch_distinct_count_list 范式一致），
+        避免多集群串行 HTTP 往返导致接口延迟线性叠加。
         降级策略：BCS API 调用失败或某 cluster_id 无名称时，name 回退为 cluster_id 本身，
-        保证接口不因外部依赖失败。
+        保证接口不因外部依赖失败；单个查询失败不影响其他集群（并发隔离）。
         """
         from apps.api import BcsApi
         from apps.exceptions import ApiError
         from apps.utils.log import logger
+        from apps.utils.thread import MultiExecuteFunc
 
-        result = []
-        for cid in sorted(cluster_ids):
-            name = cid
+        sorted_ids = sorted(cluster_ids)
+
+        def _query_one(cid):
+            """查询单个集群名称，失败降级为 cid 本身。
+
+            ApiError（BCS 外部调用失败）为预期降级场景，记 error 日志后返回 cid；
+            其他异常（编程错误）非预期，记 exception 堆栈便于排查后重新抛出，
+            由 MultiExecuteFunc 兜底降级，避免中断其他集群的并发查询。
+            """
             try:
                 info = BcsApi.get_cluster_by_cluster_id({"cluster_id": cid.upper()})
-                name = info.get("clusterName") or cid
+                return info.get("clusterName") or cid
             except ApiError:
                 logger.error("get bcs cluster name error, cluster_id: %s", cid)
+                return cid
+            except Exception:  # pylint: disable=broad-except
+                logger.exception("unexpected error querying cluster name, cluster_id: %s", cid)
+                raise
+
+        # 并发查询所有集群（FuncThread会把主线程request上下文传递到子线程，保证BcsApi的before_request鉴权正常）
+        multi = MultiExecuteFunc()
+        for cid in sorted_ids:
+            multi.append(cid, _query_one, params=cid)
+        multi.run(return_exception=True)
+
+        # 按字典序组装结果；并发失败的 task 结果为 Exception 对象，降级为 cid
+        result = []
+        for cid in sorted_ids:
+            name = multi.results.get(cid)
+            if isinstance(name, Exception):
+                name = cid
             result.append({"id": cid, "name": name})
         return result
 
