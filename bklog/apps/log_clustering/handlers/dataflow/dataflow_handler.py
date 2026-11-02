@@ -275,7 +275,14 @@ class DataFlowHandler(BaseAiopsHandler):
         )
         for idx, val in enumerate(filter_rule.get("value")):
             op = filter_rule.get("op", "=")
-            if op == "!=":
+            escape_clause = ""
+            if op in ("starts_with", "not_starts_with", "ends_with", "not_ends_with"):
+                # 自定义 LIKE 转义符，用户输入的 %、_ 和 ! 均按字面值匹配。
+                val = str(val).replace("!", "!!").replace("%", "!%").replace("_", "!_")
+                val = f"{val}%" if op.endswith("starts_with") else f"%{val}"
+                op = "NOT LIKE" if op.startswith("not_") else "LIKE"
+                escape_clause = " ESCAPE '!'"
+            elif op == "!=":
                 op = "<>"
             elif op == "contains":
                 op = "LIKE"
@@ -289,7 +296,7 @@ class DataFlowHandler(BaseAiopsHandler):
                     result.append("and")
                 else:
                     result.append("or")
-            literal = cls._quote_sql_literal(val)
+            literal = cls._quote_sql_literal(val) + escape_clause
             # 嵌套 JSON 字段 + 负向条件 (<> / NOT LIKE) 必须 null-safe:
             # JSON_VALUE 在 key 缺失时返回 NULL, NULL <> 'xxx' 在 Flink SQL 下不为 TRUE,
             # 会把本该参与聚类的日志(没填该 key 的)误过滤掉.

@@ -350,10 +350,33 @@ class QuixClusteringHandler:
         )
         result["quix"] = {
             "phase": runtime.phase,
+            "distance_threshold": runtime.active_config.get("distance_threshold"),
+            "can_reopen": bool(runtime.sink and runtime.bkfara_task_id),
             "operation": self._format_operation(operation),
             "bkfara": self._get_bkfara_clustering(runtime),
         }
         return result
+
+    @transaction.atomic
+    def retry(self, operation_id: str) -> str:
+        """只续跑页面看到的失败操作，沿用它保存的请求和已完成步骤。"""
+        from apps.log_clustering.tasks.quix import run_quix_clustering_operation
+
+        LogClusteringRuntime.objects.select_for_update().get(index_set_id=self.index_set_id)
+        operation = LogClusteringOperation.objects.select_for_update().filter(index_set_id=self.index_set_id).last()
+        if (
+            not operation
+            or operation.operation_id != operation_id
+            or operation.status != ClusteringOperationStatusEnum.FAILED.value
+        ):
+            raise QuixClusteringParamsInvalidException(_("只能重试当前失败的聚类操作，请刷新状态"))
+        operation.status = ClusteringOperationStatusEnum.PENDING.value
+        operation.retry_count = 0
+        operation.last_error = ""
+        operation.finished_at = None
+        operation.save(update_fields=["status", "retry_count", "last_error", "finished_at", "updated_at", "updated_by"])
+        transaction.on_commit(lambda: run_quix_clustering_operation.delay(operation_id))
+        return operation_id
 
     @staticmethod
     def _get_bkfara_clustering(runtime: LogClusteringRuntime) -> dict | None:

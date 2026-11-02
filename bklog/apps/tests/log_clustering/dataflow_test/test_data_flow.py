@@ -273,6 +273,27 @@ class TestPatternSearch(TestCase):
 
         self.assertEqual(result, ["`log`", "NOT LIKE", "'%Can''t find CfgTaskItem by TaskType%'"])
 
+    def test_legacy_prefix_suffix_rules_quote_literal_values_and_group_negation(self):
+        for op, sql_op, patterns, join in (
+            ("starts_with", "LIKE", ["a.!%!_!!''%", "z%"], "or"),
+            ("ends_with", "LIKE", ["%a.!%!_!!''", "%z"], "or"),
+            ("not_starts_with", "NOT LIKE", ["a.!%!_!!''%", "z%"], "and"),
+            ("not_ends_with", "NOT LIKE", ["%a.!%!_!!''", "%z"], "and"),
+        ):
+            with self.subTest(op=op):
+                rule = {"fields_name": "context.path", "op": op, "value": ["a.%_!'", "z"]}
+                expr = "JSON_VALUE(`context`, '$.path')"
+                matches = [f"{expr} {sql_op} '{pattern}' ESCAPE '!'" for pattern in patterns]
+                if join == "and":
+                    matches = [f"( {expr} IS NULL OR {match} )" for match in matches]
+                filters = [rule, {"fields_name": "log", "op": "=", "value": "ok", "logic_operator": "and"}]
+                where, complement = DataFlowHandler._init_filter_rule(
+                    filters, {"context": "context", "log": "log"}, "log"
+                )
+                expected = f"( {matches[0]} {join} {matches[1]} )"
+                self.assertIn(expected, where)
+                self.assertIn(expected, complement)
+
     def test_build_doris_fields(self):
         all_fields = [
             {"field_name": "dtEventTimeStamp", "field_type": "timestamp"},

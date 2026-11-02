@@ -28,10 +28,13 @@ from rest_framework.exceptions import PermissionDenied, ValidationError
 
 from apps.api import UnifyQueryApi
 from apps.log_clustering.handlers.pattern import PatternHandler
+from apps.log_clustering.handlers.quix.adapter import FILTER_OP_TO_METHOD
 from apps.log_clustering.models import LogClusteringRuntime
 from apps.log_search.handlers.index_set import BaseIndexSetHandler
 from apps.log_search.models import LogIndexSet
 from apps.log_search.utils import get_search_request_scope
+from apps.log_unifyquery.constants import BASE_OP_MAP
+from apps.log_unifyquery.handler.base import UnifyQueryHandler
 from apps.log_unifyquery.handler.pattern import UnifyQueryPatternHandler
 from apps.utils.local import get_local_param, get_request_tenant_id
 from apps.utils.time_handler import generate_time_range
@@ -48,6 +51,42 @@ def apply_query_scope(index_set, params, request):
     if space_uid != index_set.space_uid:
         raise PermissionDenied("聚类查询需要源索引集空间的访问权限")
     params["bk_biz_id"] = biz_id
+
+
+class ClusteringPreviewQuery(UnifyQueryHandler):
+    """趋势和样例使用相同的候选规则，直接查询原始日志。"""
+
+    _LUCENE_LITERAL = str.maketrans({char: "\\" + char for char in r'\.?+*|{}[]()"#@&<>~^$'})
+
+    def _transform_additions(self, index_info):
+        fields, conditions = [], []
+        for rule in self.search_params["addition"]:
+            if not isinstance(rule, dict) or rule.get("operator") not in FILTER_OP_TO_METHOD:
+                raise ValidationError("不支持的预览过滤条件")
+            values = rule.get("value")
+            field = rule.get("field")
+            if not isinstance(field, str) or not field or not isinstance(values, list) or not values:
+                raise ValidationError("预览过滤条件缺少字段或值")
+            if fields:
+                condition = str(rule.get("condition") or "and").lower()
+                if condition not in ("and", "or"):
+                    raise ValidationError("不支持的预览过滤条件连接符")
+                conditions.append(condition)
+            operator = rule["operator"]
+            values = [str(value) for value in values]
+            if operator in BASE_OP_MAP:
+                op = BASE_OP_MAP[operator]
+            else:
+                # ES regexp 在整个索引词上匹配。转义 Lucene 保留字符，以锚点让 UnifyQuery 生成前缀或后缀表达式。
+                op = "nreq" if operator.startswith("not_") else "req"
+                values = [value.translate(self._LUCENE_LITERAL) for value in values]
+                values = ["^" + value if operator.endswith("starts_with") else value + "$" for value in values]
+            fields.append({"field_name": field, "op": op, "value": values})
+        return {"field_list": fields, "condition_list": conditions}
+
+    @staticmethod
+    def query_ts_reference(search_dict, raise_exception=True):
+        return UnifyQueryHandler.query_ts_reference(search_dict, raise_exception=raise_exception)
 
 
 def signature_condition(field):

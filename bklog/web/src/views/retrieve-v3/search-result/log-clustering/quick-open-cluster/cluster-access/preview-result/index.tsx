@@ -61,8 +61,8 @@ export default defineComponent({
     const chartInstance = ref();
     const showPreViewContent = ref(false);
     const showWarnTip = ref(false);
-    const chartLoading = ref(false);
-    const logLoading = ref(false);
+    const previewLoading = ref(false);
+    let previewRevision = 0;
     const logDataList = ref<string[]>([]);
     // 都为空不允许提交
     const isRecordEmpty = ref(false);
@@ -105,7 +105,7 @@ export default defineComponent({
       const xAxisData = isEmpty ? getLast7Days() : buckets.map(item => item.key_as_string.split(' ')[0]);
       const yAxisData = isEmpty ? Array(7).fill(0) : buckets.map(item => item.doc_count);
 
-      chartInstance.value.setOption({
+      chartInstance.value?.setOption({
         animation: false, // 关闭所有动画
         grid: {
           top: 12,
@@ -181,55 +181,33 @@ export default defineComponent({
       };
     };
 
-    const fetchChartData = async () => {
-      try {
-        chartLoading.value = true;
-        // 用传聚类字段
-        const res = (await $http.request('retrieve/getLogChartList', {
-          params: { index_set_id: props.indexSetId },
-          data: generateQueryData(),
-        })) as IResponseData<Histogram>;
-        localBuckets.value = res.data.aggs?.group_by_histogram?.buckets || [];
-        updateChart(localBuckets.value);
-      } catch (e) {
-        console.error(e);
-      } finally {
-        chartLoading.value = false;
-      }
-    };
-
-    const fetchLogList = async () => {
-      try {
-        logLoading.value = true;
-        const res = (await $http.request('retrieve/getLogTableList', {
-          params: { index_set_id: props.indexSetId },
-          data: generateQueryData(),
-        })) as IResponseData<LogSearchResult>;
-        logDataList.value = res.data.list.map(item => item[props.fieldName]);
-      } catch (e) {
-        console.error(e);
-      } finally {
-        logLoading.value = false;
-      }
-    };
-
-    const handleClickPreview = () => {
-      emit('preview-success');
-      showWarnTip.value = false;
+    const handleClickPreview = async () => {
+      const revision = ++previewRevision;
+      previewLoading.value = true;
       showPreViewContent.value = true;
-      initChart();
-      Promise.all([fetchChartData(), fetchLogList()]).then(() => {
-        if (!localBuckets.value.length && !logDataList.value.length) {
-          isRecordEmpty.value = true;
-          emit('record-empty', true);
-        } else {
-          isRecordEmpty.value = false;
-          emit('record-empty', false);
-        }
-      });
+      showWarnTip.value = true;
+      emit('record-empty', true);
+      try {
+        const res = (await $http.request('retrieve/previewClusteringAccess', {
+          params: { index_set_id: props.indexSetId },
+          data: generateQueryData(),
+        })) as IResponseData<Histogram & LogSearchResult>;
+        if (revision !== previewRevision) return;
+        localBuckets.value = res.data.aggs?.group_by_histogram?.buckets || [];
+        logDataList.value = res.data.list.map(item => item[props.fieldName]);
+        updateChart(localBuckets.value);
+        isRecordEmpty.value = !localBuckets.value.some(bucket => bucket.doc_count > 0) && !logDataList.value.length;
+        emit('record-empty', isRecordEmpty.value);
+        emit('preview-success');
+        showWarnTip.value = false;
+      } finally {
+        if (revision === previewRevision) previewLoading.value = false;
+      }
     };
 
     const setWarn = (isWarn: boolean) => {
+      ++previewRevision;
+      previewLoading.value = false;
       if (!chartInstance.value) {
         return;
       }
@@ -245,6 +223,7 @@ export default defineComponent({
         <div class='operate-main'>
           <bk-button
             theme='primary'
+            loading={previewLoading.value}
             style='width: 88px'
             outline
             on-click={handleClickPreview}
@@ -282,7 +261,7 @@ export default defineComponent({
         {showPreViewContent.value && (
           <div class='preview-content'>
             <div class='item-title'>{t('最近 1 周日志趋势')}</div>
-            <div v-bkloading={{ isLoading: chartLoading.value }}>
+            <div v-bkloading={{ isLoading: previewLoading.value }}>
               <div
                 class='chart-main'
                 ref={chartRef}
@@ -292,7 +271,7 @@ export default defineComponent({
             <div
               class='log-demo-main'
               style={{ borderBottom: logDataList.value.length > 0 ? 'solid 1px #dcdee5' : 'none' }}
-              v-bkloading={{ isLoading: logLoading.value }}
+              v-bkloading={{ isLoading: previewLoading.value }}
             >
               {logDataList.value.length > 0 ? (
                 logDataList.value.map((item, index) => (

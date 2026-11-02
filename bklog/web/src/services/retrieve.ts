@@ -355,7 +355,25 @@ const updateClusteringConfig = {
   url: '/clustering_config/:index_set_id/access/update/',
   method: 'post',
 };
+export interface QuixStatus {
+  phase: 'enabling' | 'running' | 'updating' | 'disabling' | 'stopped' | 'reopening';
+  distance_threshold: string | null;
+  can_reopen: boolean;
+  operation: {
+    operation_id: string;
+    operation_type: 'enable' | 'update' | 'update_model' | 'disable' | 'reopen';
+    status: 'pending' | 'running' | 'awaiting_receipt' | 'failed' | 'success' | 'canceled';
+    last_error: string;
+  } | null;
+  bkfara: { state?: string; error?: string; pending_result_count?: number } | null;
+}
+const closeClusteringAccess = { url: '/clustering_config/:index_set_id/access/close/', method: 'post' };
+const reopenClusteringAccess = { url: '/clustering_config/:index_set_id/access/reopen/', method: 'post' };
+const previewClusteringAccess = { url: '/clustering_config/:index_set_id/access/preview/', method: 'post' };
+const retryClusteringAccess = { url: '/clustering_config/:index_set_id/access/retry/:operation_id/', method: 'post' };
+
 export interface ClusteringConfigStatus {
+  quix?: QuixStatus;
   access_finished: boolean;
   flow_create: {
     status: string;
@@ -623,6 +641,10 @@ export {
   createClusteringConfig,
   updateClusteringConfig,
   getClusteringConfigStatus,
+  closeClusteringAccess,
+  reopenClusteringAccess,
+  retryClusteringAccess,
+  previewClusteringAccess,
   updateUserFiledTableConfig,
   generateQueryString,
   setIndexSetCustomConfig,

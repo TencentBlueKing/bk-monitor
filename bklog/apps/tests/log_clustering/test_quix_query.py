@@ -6,10 +6,16 @@ from unittest.mock import patch
 from django.test import TestCase
 from rest_framework.exceptions import PermissionDenied, ValidationError
 
-from apps.log_clustering.handlers.quix.query import QuixPatternHandler, apply_query_scope, result_query
+from apps.log_clustering.handlers.quix.query import (
+    ClusteringPreviewQuery,
+    QuixPatternHandler,
+    apply_query_scope,
+    result_query,
+)
 from apps.log_clustering.models import ClusteringConfig, ClusteringRemark, LogClusteringRuntime
 from apps.log_search.models import LogIndexSet, Scenario
 from apps.log_search.views.search_views import SearchViewSet
+from apps.log_clustering.views.clustering_config_views import ClusteringConfigViewSet
 from apps.log_clustering.views.pattern_views import PatternViewSet
 from apps.tests.log_clustering.test_pattern_search import PARAMS
 
@@ -51,6 +57,45 @@ class TestQuixPatternQuery(TestCase):
         self.start_patch(
             "apps.log_search.models.LogIndexSet.get_indexes", return_value=[{"result_table_id": "2_bklog.source"}]
         )
+
+    def test_creation_preview_reads_source_and_preserves_rule_connectors(self):
+        view = ClusteringConfigViewSet()
+        view.params_valid = lambda _: {
+            "start_time": self.params["start_time"],
+            "end_time": self.params["end_time"],
+            "addition": [
+                {"field": "level", "operator": "=", "value": ["error"]},
+                {"field": "message", "operator": "starts_with", "value": ["timeout"], "condition": "OR"},
+            ],
+        }
+        request = SimpleNamespace(data={"bk_biz_id": 2}, query_params={})
+        with (
+            patch.object(ClusteringPreviewQuery, "search", return_value={"list": []}) as search,
+            patch.object(ClusteringPreviewQuery, "date_histogram", autospec=True, return_value={"aggs": {}}) as trend,
+        ):
+            response = view.preview_access(request, index_set_id=42)
+        search.assert_called_once_with(search_type="")
+        query = trend.call_args.args[0]
+        self.assertEqual(query.index_set_ids, [42])
+        conditions = query.base_dict["query_list"][0]["conditions"]
+        self.assertEqual(conditions["condition_list"], ["or"])
+        self.assertEqual([f["op"] for f in conditions["field_list"]], ["eq", "req"])
+        self.assertEqual(conditions["field_list"][1]["field_name"], "message")
+        self.assertEqual(response.data, {"list": [], "aggs": {}})
+
+    def test_preview_prefix_suffix_use_selected_field(self):
+        query = object.__new__(ClusteringPreviewQuery)
+        ops = ["starts_with", "not_starts_with", "ends_with", "not_ends_with"]
+        query.search_params = {
+            "addition": [{"field": "log", "operator": op, "value": ["a.*%_!", "z"], "condition": "or"} for op in ops]
+        }
+        conditions = query._transform_additions({})
+        self.assertEqual(conditions["condition_list"], ["or", "or", "or"])
+        fields = conditions["field_list"]
+        self.assertEqual([item["op"] for item in fields], ["req", "nreq", "req", "nreq"])
+        self.assertTrue(all(item["field_name"] == "log" for item in fields))
+        prefix, suffix = [r"^a\.\*%_!", "^z"], [r"a\.\*%_!$", "z$"]
+        self.assertEqual([item["value"] for item in fields], [prefix, prefix, suffix, suffix])
 
     def start_patch(self, target, **kwargs):
         p = patch(target, **kwargs)
