@@ -17,7 +17,7 @@ from config.tools.environment import PAAS_VERSION
 
 def build_amqp_url(user, password, host, port, vhost) -> str:
     """AMQP Broker URL，账号密码按 URL 编码（含 `/`、`@`、`:` 等字符）"""
-    return f"amqp://{quote(user, safe='')}:{quote(password, safe='')}@{host}:{port}/{vhost}"
+    return f"amqp://{quote(user, safe='')}:{quote(password, safe='')}@{host}:{port}/{quote(vhost, safe='')}"
 
 
 def get_rabbitmq_settings(app_code: str, backend=False):

@@ -133,6 +133,8 @@ def base_env(tmp_path, role="web", **extra):
         "BK_MONITOR_BASE_CONFIG_YAML_FILE": str(config_yaml),
         "BKAPPS_BKMONITOR_LOG_PATH": str(tmp_path),
     }
+    if "LD_LIBRARY_PATH" in os.environ:
+        env["LD_LIBRARY_PATH"] = os.environ["LD_LIBRARY_PATH"]
     env.update({k: str(v) for k, v in extra.items()})
     return env
 

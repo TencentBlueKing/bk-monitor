@@ -64,7 +64,7 @@ for key, value in list(os.environ.items()):
             print(f"[Django Settings] Ignore config from env: {settings_key} (provided by KMS)")
             continue
         locals()[settings_key] = value
-        print(f'[Django Settings] Set config from env: {settings_key} = "{value}"')
+        print(f"[Django Settings] Set config from env: {settings_key}")
 
 
 # 多人开发时，无法共享的本地配置可以放到新建的 local_settings.py 文件中
@@ -74,6 +74,13 @@ if RUN_MODE == "DEVELOP":  # noqa
         from local_settings import *  # noqa
     except ImportError:
         pass
+
+# Assign envelope-owned aliases after environment and local settings overlays.
+if kms.enabled():
+    SAAS_APP_CODE = kms.value("bkapp_id_secret", "saas", "app_code")
+    SAAS_SECRET_KEY = kms.value("bkapp_id_secret", "saas", "app_secret")
+    FTA_ES7_USER = kms.value("elasticsearch", "fta", "username")
+    FTA_ES7_PASSWORD = kms.value("elasticsearch", "fta", "password")
 
 # Django 4.2+ 不再官方支持 Mysql 5.7，但目前 Django 仅是对 5.7 做了软性的不兼容改动，
 # 在没有使用 8.0 特异的功能时，对 5.7 版本的使用无影响，为兼容存量的 Mysql 5.7 DB 做此 Patch

@@ -36,6 +36,7 @@ result = {
     "base_app_secret": get_config().blueking.app_secret,
     "databases": dbs,
     "celery_broker": [broker.userid, broker.password],
+    "broker_topology": [broker.virtual_host, broker.alt],
     "es7_fta": [s.ES7_USER, s.ES7_PASSWORD],
     "fta_es7_settings": [s.FTA_ES7_USER, s.FTA_ES7_PASSWORD],
     "es_dsl_auth": list(s.ELASTICSEARCH_DSL["default"]["http_auth"] or []),
@@ -60,6 +61,7 @@ if s.ROLE in ("worker", "api"):
         ],
         redis=[s.REDIS_PASSWD, s.REDIS_SENTINEL_PASS, s.CACHE_REDIS_PASSWD, s.CACHE_REDIS_SENTINEL_PASS],
         redis_confs={name: getattr(s, name)["password"] for name in ("REDIS_LOG_CONF", "REDIS_CACHE_CONF", "REDIS_CELERY_CONF", "REDIS_SERVICE_CONF")},
+        backend_alternates=c.alt,
         cache_sentinel=s.REDIS_CACHE_CONF["sentinel_password"],
         bkbase_redis=s.BKBASE_REDIS_PASSWORD,
     )
@@ -194,6 +196,8 @@ PLAINTEXT = (
     "CUSTOM_REPORT_AES_KEY",
     "CONSUL_HTTP_TOKEN",
     "BKAPP_SETTINGS_SECRET_KEY",
+    "BKAPP_SETTINGS_FTA_ES7_USER",
+    "BKAPP_SETTINGS_FTA_ES7_PASSWORD",
     "BKAPP_SETTINGS_DATABASES",
     "bkapp_settings_redis_passwd",
 )
@@ -205,7 +209,7 @@ def test_plaintext_sources_are_ignored(tmp_path, role):
     completed = run_settings(tmp_path, role, PAYLOAD, **dict.fromkeys(PLAINTEXT, "plaintext-marker"))
     assert completed.returncode == 0, completed.stderr[-4000:]
     assert last_json(completed.stdout) == expected
-    # The settings loop prints BKAPP_SETTINGS_* values; protected ones must be skipped unprinted.
+    # Startup diagnostics must never print legacy credential values.
     assert "plaintext-marker" not in completed.stdout + completed.stderr
 
 
@@ -216,7 +220,8 @@ def test_celery_broker_environment_fails_closed(tmp_path):
     assert "plaintext-marker" not in completed.stdout + completed.stderr
 
 
-def test_broker_url_escapes_envelope_credentials(tmp_path):
+@pytest.mark.parametrize("vhost", ["team;blue", "team?#blue", "tenant/项目%"])
+def test_broker_url_escapes_envelope_credentials(tmp_path, vhost):
     special = "p@ss/w:rd#?%"
     data = payload(
         **{
@@ -226,9 +231,11 @@ def test_broker_url_escapes_envelope_credentials(tmp_path):
             "rabbitmq.backend.password": special,
         }
     )
-    result = probe(tmp_path, "worker", data)
+    result = probe(tmp_path, "worker", data, RABBITMQ_VHOST=vhost, BK_MONITOR_RABBITMQ_VHOST=vhost)
+    assert result["broker_topology"] == [vhost, []]
+    assert result["backend_alternates"] == []
     assert result["celery_broker"] == ["user@x", special]
-    assert result["backend_broker"] == ["backend@x", special, "mq.example", "bk_bkmonitorv3"]
+    assert result["backend_broker"] == ["backend@x", special, "mq.example", vhost]
 
 
 @pytest.mark.parametrize(
@@ -307,3 +314,56 @@ def test_kms_disabled_keeps_environment_sources(tmp_path, role):
         assert result["rabbitmq"] == ["env-backend-mq-user", "env-backend-mq-pass"]
         assert result["redis"][0] == "env-redis-pass"
         assert result["bkbase_redis"] == "env-bkbase-pass"
+
+
+@pytest.mark.parametrize("role", ["api", "worker"])
+@pytest.mark.parametrize("dynamic", ["0", "1"])
+@pytest.mark.parametrize("enabled", [False, True])
+def test_backend_saas_request_identity(tmp_path, role, dynamic, enabled):
+    env = base_env(tmp_path, role=role, **DEPLOYMENT, USE_DYNAMIC_SETTINGS=dynamic)
+    if enabled:
+        env.update(write_kms_files(tmp_path, PAYLOAD))
+    env.update(
+        BKAPP_SETTINGS_SAAS_APP_CODE="legacy-code",
+        BKAPP_SETTINGS_SAAS_SECRET_KEY="legacy-marker",
+        BK_MONITOR_APP_SECRET="legacy-backend",
+        USE_BKREPO="false",
+    )
+    code = """
+import json
+from unittest.mock import MagicMock, patch
+from django.conf import settings
+from config.tools.iam_credentials import get_saas_setting
+from bkmonitor.utils.dynamic_settings import hack_settings
+from api.bkdata.default import UseSaaSAuthInfoMixin
+
+# The normal app startup loads the global setting definitions before installing the dynamic wrapper.
+from bkmonitor.define import global_config
+model = MagicMock()
+model.get.return_value = "stale-stored-identity"
+hack_settings(model)
+class Base:
+    def get_headers(self):
+        return {"x-bkapi-authorization": "{}"}
+class Request(UseSaaSAuthInfoMixin, Base):
+    pass
+with patch("bkmonitor.utils.dynamic_settings.redis_cache", None), patch("bkmonitor.utils.dynamic_settings.locmem_cache", None):
+    headers = json.loads(Request().get_headers()["x-bkapi-authorization"])
+    print(json.dumps({"bkdata": headers, "iam": get_saas_setting("SAAS_SECRET_KEY"), "own": settings.SECRET_KEY}))
+"""
+    result = run_python(code, env)
+    assert result.returncode == 0, result.stderr[-4000:]
+    # Exclude the synthetic consumer probe itself when checking startup diagnostics.
+    assert "legacy-marker" not in result.stdout.rsplit('{"bkdata"', 1)[0] + result.stderr
+    identity = PAYLOAD["bkapp_id_secret"]
+    if enabled:
+        code, secret = identity["saas"]["app_code"], identity["saas"]["app_secret"]
+    elif dynamic == "1":
+        code = secret = "stale-stored-identity"
+    else:
+        code, secret = "legacy-code", "legacy-marker"
+    assert last_json(result.stdout) == {
+        "bkdata": {"bk_app_code": code, "bk_app_secret": secret},
+        "iam": secret,
+        "own": identity["backend"]["app_secret"] if enabled else "legacy-backend",
+    }
