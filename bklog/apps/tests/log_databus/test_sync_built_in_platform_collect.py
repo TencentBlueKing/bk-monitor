@@ -24,6 +24,11 @@ class TestSyncBuiltInPlatformCollect(TestCase):
                 f,
             )
 
+        # 其他用例可能残留请求上下文，导致 save() 用请求用户覆盖 updated_by
+        request_patcher = patch("apps.utils.local._local.request", None, create=True)
+        request_patcher.start()
+        self.addCleanup(request_patcher.stop)
+
     def tearDown(self):
         self.temp_dir.cleanup()
 
