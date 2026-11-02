@@ -3190,12 +3190,10 @@ class DataLink(models.Model):
         # 合并spec
         cls._fill_missing_dict(merged_config["spec"], existing_config["spec"])
 
-        # 聚类开关由业务动作通过 apply 更新；普通清洗重生成未声明开关时保留远端值。
-        # 不递归补齐 binding，避免把已删除的过滤配置重新带回。
+        # 聚类结果的写入目标和运行集群由 Sink 配置决定，更新过滤条件时沿用。
+        # 只合并 clustering 的顶层字段；本次声明的 binding 必须完整替换。
         if merged_config.get("kind") == DataLinkKind.LOGCLUSTERINGSINK.value:
-            existing_clustering = existing_config["spec"].get("clustering", {})
-            if "enabled" in existing_clustering:
-                merged_config["spec"]["clustering"].setdefault("enabled", existing_clustering["enabled"])
+            cls._fill_missing_dict(merged_config["spec"]["clustering"], existing_config["spec"].get("clustering", {}))
 
         return merged_config
 

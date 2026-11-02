@@ -19,6 +19,7 @@ from apps.log_clustering.handlers.quix.operation import (
     QuixClusteringOperationRunner,
 )
 from apps.log_clustering.models import ClusteringConfig, LogClusteringOperation, LogClusteringRuntime
+from apps.log_search.models import LogIndexSet
 
 INDEX_SET_ID = 42
 TASK_ID = "task-uuid"
@@ -34,7 +35,22 @@ SET_RESULT = {
     "sink": {"tenant": "system", "namespace": "bklog", "name": "bkm_lcs_1001_abc"},
     "databus": {"tenant": "system", "namespace": "bklog", "name": "bklog_databus"},
 }
-ADOPTED_STATUS = {"sink_referenced": True, "sink_resource": {"status": {"phase": "Ok"}}, "errors": []}
+ADOPTED_STATUS = {
+    "sink_referenced": True,
+    "sink_resource": {"status": {"phase": "Ok"}},
+    "errors": [],
+    "query_targets": {
+        "clustered": {
+            "storage_type": "elasticsearch",
+            "cluster_id": 3,
+            "table_id": "2_bklog.demo",
+            "query_index": "2_bklog_demo",
+            "need_add_time": True,
+            "source_type": "log",
+        },
+        "pattern": {"storage_type": "elasticsearch", "cluster_id": 7, "pattern_index": "log-clustering-42-pattern"},
+    },
+}
 
 
 def create_enable_operation():
@@ -58,6 +74,7 @@ def create_enable_operation():
 
 class TestQuixEnableRunner(TestCase):
     def setUp(self):
+        LogIndexSet.objects.create(index_set_id=INDEX_SET_ID, space_uid="bkcc__2")
         self.operation = create_enable_operation()
         self.bkfara = MagicMock()
         self.bkfara.create_task.return_value = {"task_id": TASK_ID}
@@ -160,6 +177,89 @@ class TestQuixEnableRunner(TestCase):
             LogClusteringOperation.objects.get(pk=self.operation.pk).status,
             ClusteringOperationStatusEnum.AWAITING_RECEIPT.value,
         )
+
+    def test_register_routes_records_metadata_errors_and_only_waits_when_pending(self):
+        self.confirm_receipt()
+        ready = self.transfer.get_log_clustering_status.return_value
+        transient = {"source": "sink_resource", "message": "gateway unavailable"}
+        invalid = {"source": "query_targets", "message": "binding timezone mismatch", "retryable": False}
+        self.transfer.get_log_clustering_status.side_effect = [
+            ready,
+            ready,
+            {**ready, "query_targets": None},
+            {**ready, "errors": [transient]},
+            {**ready, "errors": [invalid]},
+        ]
+        self.assertEqual(self.run_operation(), POLL_INTERVAL_SECONDS)
+        self.operation.refresh_from_db()
+        self.assertEqual(self.operation.step, "register_query_routes")
+        self.assertEqual(self.operation.retry_count, 0)
+        self.assertFalse(self.operation.last_error)
+
+        self.assertGreater(self.run_operation(), POLL_INTERVAL_SECONDS)
+        self.operation.refresh_from_db()
+        self.assertIn("sink_resource: gateway unavailable", self.operation.last_error)
+        self.assertEqual(self.operation.retry_count, 1)
+
+        self.assertIsNone(self.run_operation())
+        self.operation.refresh_from_db()
+        self.assertEqual(self.operation.status, ClusteringOperationStatusEnum.FAILED.value)
+        self.assertIn("query_targets: binding timezone mismatch", self.operation.last_error)
+        self.assertEqual(self.operation.steps[-1]["message"], self.operation.last_error)
+        self.transfer.bulk_create_or_update_log_router.assert_not_called()
+
+    def test_pattern_registration_retries_bulk_route_without_reapplying_binding(self):
+        self.confirm_receipt()
+        self.transfer.bulk_create_or_update_log_router.side_effect = [
+            None,
+            ApiRequestError("publish failed"),
+            None,
+            None,
+        ]
+        self.run_operation()
+        self.operation.refresh_from_db()
+        self.assertEqual(self.operation.step, "register_query_routes")
+        self.run_operation()
+        first, failed, replay, retry = self.transfer.bulk_create_or_update_log_router.call_args_list
+        self.assertEqual(first, replay)
+        self.assertEqual(failed, retry)
+        clustered, pattern = first.args[0], retry.args[0]
+        self.assertEqual(clustered["data_label"], "bklog_index_set_42_clustered")
+        self.assertEqual(clustered["table_info"][0]["source_type"], "log")
+        self.assertEqual(clustered["table_info"][0]["index_set"], "2_bklog_demo")
+        self.assertEqual(pattern["data_label"], "bklog_index_set_42_pattern")
+        self.assertEqual((pattern["space_type"], pattern["space_id"]), ("bkcc", "2"))
+        self.assertEqual(pattern["table_info"][0]["index_set"], "log-clustering-42-pattern")
+        self.transfer.set_log_clustering_config.assert_called_once()
+
+    def test_append_routes_clustered_label_to_independent_result(self):
+        targets = ADOPTED_STATUS["query_targets"]
+        self.transfer.get_log_clustering_status.return_value = {
+            **ADOPTED_STATUS,
+            "clustering_status": {"configuration_applied": True},
+            "query_targets": {
+                **targets,
+                "clustered": {
+                    **targets["clustered"],
+                    "table_id": "2_bklog.predict",
+                    "query_index": "custom-predict-write",
+                    "need_add_time": False,
+                    "source_type": "bkdata",
+                    "cluster_id": 9,
+                },
+            },
+        }
+        self.run_operation()
+        clustered, pattern = [call.args[0] for call in self.transfer.bulk_create_or_update_log_router.call_args_list]
+        self.assertEqual(clustered["data_label"], "bklog_index_set_42_clustered")
+        table = clustered["table_info"][0]
+        self.assertEqual(
+            (table["index_set"], table["cluster_id"]),
+            ("custom-predict-write", 9),
+        )
+        self.assertEqual(table["source_type"], "bkdata")
+        self.assertEqual(table["query_alias_settings"], [{"field_name": "log_signature", "query_alias": "signature"}])
+        self.assertEqual(pattern["table_info"][0]["index_set"], targets["pattern"]["pattern_index"])
 
     def test_enable_runs_through_and_activates_config_after_receipt(self):
         self.create_clustering_config()

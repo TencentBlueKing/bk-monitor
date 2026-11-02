@@ -592,6 +592,7 @@ class BulkCreateOrUpdateLogRouter(Resource):
                 bk_tenant_id=bk_tenant_id,
                 table_id_list=processed_table_ids,
                 is_publish=True,
+                raise_on_log_write_error=True,
             )
         if data_label and processed_table_ids:
             logger.info("CreateOrUpdateLogDataLink: pushing data_label route for [%s]", data_label)

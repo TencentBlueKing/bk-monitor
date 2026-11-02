@@ -25,6 +25,7 @@ from bkmonitor.utils.serializers import TenantIdField
 from core.drf_resource import Resource
 from metadata import models
 from metadata.config import DATABASE_CONNECTION_NAME
+from metadata.models.constants import EsSourceType
 from metadata.models.data_link import DataLinkResourceConfigBase
 from metadata.models.data_link import utils as data_link_utils
 from metadata.models.data_link.constants import DataLinkKind, DataLinkNameScene
@@ -409,6 +410,103 @@ class OperateLogClusteringResource(Resource):
         }
 
 
+def get_log_clustering_query_targets(datalink: models.DataLink, source_table_id: str, spec: dict) -> dict | None:
+    """按实际 Sink → ES binding → 存储资源解析查询目标。"""
+    tenant = datalink.bk_tenant_id
+    clustering = spec["clustering"]
+    result = clustering.get("result") or ({"mode": "update_original"} if "rawSink" in spec else {})
+    mode = result.get("mode")
+    if mode == "update_original":
+        binding_ref = spec.get("raw_sink") or spec["rawSink"]
+    elif mode == "append":
+        binding_ref = result["es_binding"]
+    else:
+        raise ValidationError("unknown LogClusteringSink result mode")
+
+    def check_ref(ref, kind):
+        if ref["kind"] != kind or ref.get("tenant", tenant) != tenant:
+            raise ValidationError(f"invalid {kind} reference in clustering target")
+
+    check_ref(binding_ref, "ElasticSearchBinding")
+    binding = datalink.get_existing_component_config(binding_ref["kind"], binding_ref["name"], binding_ref["namespace"])
+    if binding is None:
+        raise ValidationError(f"clustering result ES binding {binding_ref['name']} not found")
+    binding_status = binding.get("status") or {}
+    phase = binding_status.get("phase")
+    if phase in (None, "", "Pending", "Reconciling", "Initializing", "Creating"):
+        return None
+    if phase != "Ok":
+        raise ValidationError(f"ES binding {binding_ref['name']} is {phase}: {binding_status.get('message', '')}")
+    data, storage = binding["spec"]["data"], binding["spec"]["storage"]
+    check_ref(data, "ResultTable")
+    check_ref(storage, "ElasticSearch")
+    if mode == "append" and any(
+        result["result_table"].get(k, tenant) != data.get(k, tenant) for k in ("kind", "namespace", "name", "tenant")
+    ):
+        raise ValidationError("append binding must reference the selected result table")
+    table_id = models.ResultTableConfig.objects.get(
+        bk_tenant_id=tenant,
+        namespace=data["namespace"],
+        name=data["name"],
+    ).table_id
+    if (mode == "update_original") != (table_id == source_table_id):
+        raise ValidationError("clustering result binding points to the wrong result table")
+    cluster = models.ClusterInfo.objects.get(
+        bk_tenant_id=tenant, cluster_type=models.ClusterInfo.TYPE_ES, cluster_name=storage["name"]
+    )
+
+    source_type = models.ESStorage.objects.get(bk_tenant_id=tenant, table_id=table_id).source_type
+    if not source_type:
+        raise ValidationError("missing query source type for clustering result table")
+    alias = binding["spec"].get("write_alias")
+    need_add_time = False
+    if alias is None:
+        query_index = binding["metadata"].get("annotations", {}).get("physical_table_name")
+        if not query_index:
+            rt = datalink.get_existing_component_config(data["kind"], data["name"], data["namespace"])
+            rt_spec = rt["spec"]
+            query_index = rt_spec.get("predefiend_result_table_id")
+            if not query_index:
+                biz_prefix = str(rt_spec["biz_id"]) + "_"
+                query_index = (
+                    data["name"] if data["name"].startswith(biz_prefix) else biz_prefix + data["name"].replace("-", "_")
+                )
+    elif "Fixed" in alias:
+        query_index = alias["Fixed"]
+    else:
+        # 日志链路的日写别名 write_YYYYMMDD_<name> 对应 <name>_YYYYMMDD_read。
+        alias_format = alias.get("TimeBased", {}).get("format", "")
+        prefix = "write_%Y%m%d_"
+        if not alias_format.startswith(prefix) or "%" in alias_format[len(prefix) :]:
+            raise ValidationError("no known read alias for the time-based clustering result binding")
+        # UnifyQuery 按来源展开日期：bkdata 使用东八区，其他来源使用 UTC。
+        query_timezone = 8 if source_type == EsSourceType.BKDATA.value else 0
+        if alias["TimeBased"].get("timezone", 0) != query_timezone:
+            raise ValidationError(f"time-based ES binding timezone differs from {source_type} query timezone")
+        query_index = alias_format[len(prefix) :]
+        need_add_time = True
+    if not query_index or any(c in query_index for c in "*,?"):
+        raise ValidationError("invalid clustering result query index")
+    pattern_cluster = get_log_clustering_pattern_cluster(
+        tenant, clustering.get("pattern_resource") or clustering["patternResource"]
+    )
+    return {
+        "clustered": {
+            "table_id": table_id,
+            "storage_type": cluster.cluster_type,
+            "source_type": source_type,
+            "cluster_id": cluster.cluster_id,
+            "query_index": query_index,
+            "need_add_time": need_add_time,
+        },
+        "pattern": {
+            "cluster_id": pattern_cluster.cluster_id,
+            "storage_type": pattern_cluster.cluster_type,
+            "pattern_index": clustering["binding"]["pattern_index"],
+        },
+    }
+
+
 class GetLogClusteringStatusResource(Resource):
     """
     查询日志聚类配置与运行状态
@@ -422,6 +520,7 @@ class GetLogClusteringStatusResource(Resource):
     class RequestSerializer(serializers.Serializer):
         bk_tenant_id = TenantIdField(label="租户ID")
         table_id = serializers.CharField(label="监控结果表ID")
+        include_query_targets = serializers.BooleanField(default=False)
 
     def perform_request(self, validated_request_data: dict[str, Any]) -> dict[str, Any]:
         bk_tenant_id = validated_request_data["bk_tenant_id"]
@@ -433,7 +532,7 @@ class GetLogClusteringStatusResource(Resource):
             return {"configured": False}
         databus = get_log_clustering_databus(datalink)
 
-        errors: list[dict[str, str]] = []
+        errors: list[dict[str, Any]] = []
 
         def fetch(source: str, func):
             try:
@@ -442,7 +541,11 @@ class GetLogClusteringStatusResource(Resource):
                 logger.warning(
                     "GetLogClusteringStatusResource: table_id->[%s] fetch %s failed, error->[%s]", table_id, source, e
                 )
-                errors.append({"source": source, "message": str(e)})
+                error = {"source": source, "message": str(e)}
+                if source == "query_targets" and isinstance(e, ValidationError):
+                    error["retryable"] = False
+                    error["message"] = "; ".join(map(str, e.detail)) if isinstance(e.detail, list) else str(e.detail)
+                errors.append(error)
                 return None
 
         sink_resource = fetch(
@@ -466,7 +569,13 @@ class GetLogClusteringStatusResource(Resource):
         clustering_status = fetch("clustering_status", read_clustering_status)
 
         raw_sink = get_log_clustering_raw_sink(datalink)
+        query = {}
+        if validated_request_data["include_query_targets"] and sink_resource:
+            query["query_targets"] = fetch(
+                "query_targets", lambda: get_log_clustering_query_targets(datalink, table_id, sink_resource["spec"])
+            )
         return {
+            **query,
             "configured": True,
             "attached": sink.attached,
             "binding": sink.binding,
