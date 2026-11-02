@@ -1,10 +1,11 @@
 import logging
 import os
 
+from django.conf import settings
 from django.db import migrations
 
 from bk_monitor_base.metadata.migration_util import models
-from bk_monitor_base.metadata.utils.env import get_backend_es7_init_settings, get_influxdb_init_settings
+from bk_monitor_base.metadata.utils.env import get_backend_es7_init_settings
 
 logger = logging.getLogger("metadata")
 
@@ -36,7 +37,15 @@ def get_environ(name, is_list=False):
 def init_influxdb_backend_info():
     """追加influxdb backend的初始化数据"""
     # 获取用户名和密码
-    _, _, username, password = get_influxdb_init_settings()
+    if hasattr(settings, "INFLUXDB_INIT_IP_LIST"):
+        username, password = settings.INFLUXDB_INIT_USER, settings.INFLUXDB_INIT_PASSWORD
+    else:
+        username = os.getenv("BK_MONITOR_INFLUXDB_USER") or os.getenv("INFLUXDB_BKMONITORV3_USER", "")
+        # 0003 历史部署使用 BK_MONITOR_INFLUXDB_PASS；优先变量明确设为空时保留空密码。
+        password = os.getenv(
+            "BK_MONITOR_INFLUXDB_PASSWORD",
+            os.getenv("INFLUXDB_BKMONITORV3_PASS", os.getenv("BK_MONITOR_INFLUXDB_PASS", "")),
+        )
     # 获取所有主机的信息
     port = get_environ("BK_MONITOR_INFLUXDB_PORT")
     host_list = get_environ("BK_MONITOR_INFLUXDB_IP", is_list=True)
