@@ -17,7 +17,6 @@ import sys
 
 import pytest
 
-from config.kms import UNSUPPORTED_ENV
 from tests.kms.helpers import BKMONITOR_DIR, PAYLOAD, new_private_key, payload, write_kms_files
 
 SECRETS = ("saas-secret-", "backend-secret-", "saas-db-pass", "redis-pass")
@@ -27,7 +26,7 @@ CLEARED_ENV = ("APP_ID", "APP_CODE", "BKPAAS_APP_ID", "BK_MONITOR_APP_CODE", "US
 @pytest.fixture
 def load_kms(monkeypatch):
     for name in list(os.environ):
-        if name.upper().startswith(("ENABLE_KMS", "KMS_", "BKAPP_SETTINGS_")) or name in CLEARED_ENV + UNSUPPORTED_ENV:
+        if name.upper().startswith(("ENABLE_KMS", "KMS_", "BKAPP_SETTINGS_")) or name in CLEARED_ENV:
             monkeypatch.delenv(name, raising=False)
 
     def load(**env):
@@ -126,9 +125,3 @@ def test_plaintext_sources_do_not_block_loading(load_kms, tmp_path):
         **write_kms_files(tmp_path, PAYLOAD), BK_MONITOR_REDIS_PASSWORD="x", bkapp_settings_bk_crypto_key="x"
     )
     assert module.enabled() is True
-
-
-@pytest.mark.parametrize("name", UNSUPPORTED_ENV)
-def test_celery_broker_environment_is_rejected(load_kms, tmp_path, name):
-    module = load_kms(**write_kms_files(tmp_path, PAYLOAD), **{name: "amqp://user:pass@mq.example//"})
-    assert_fails(module, f"KMS does not support the environment field: {name}")

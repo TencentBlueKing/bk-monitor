@@ -16,7 +16,7 @@ import six.moves.urllib.error
 import six.moves.urllib.parse
 import six.moves.urllib.request
 from billiard import cpu_count
-from celery import Celery, Task
+from celery import Task
 from celery.schedules import maybe_schedule
 from celery.signals import beat_init, setup_logging
 from kombu import Exchange, Queue
@@ -25,6 +25,7 @@ from django.db import close_old_connections
 
 from alarm_backends.core.cluster import get_cluster
 from bkmonitor.utils.common_utils import package_contents
+from config.celery.app import SchedulerCelery
 from config.tools.rabbitmq import build_amqp_url
 from core.prometheus.tools import celery_app_timer
 
@@ -183,7 +184,7 @@ def rabbitmq_conf():
     return RabbitmqConf
 
 
-app = Celery("backend")
+app = SchedulerCelery("backend")
 app.config_from_object(rabbitmq_conf())
 
 

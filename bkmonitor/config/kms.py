@@ -58,14 +58,8 @@ NON_EMPTY = (
     ("bcs", "default", "token"),
 )
 
-# Celery reads these ahead of its config, and one process-wide URL cannot carry both the
-# saas and backend broker identities, so they cannot be overridden and must not be set.
-UNSUPPORTED_ENV = ("CELERY_BROKER_URL", "CELERY_BROKER_READ_URL", "CELERY_BROKER_WRITE_URL")
-
 # settings.py skips these BKAPP_SETTINGS_<NAME> overrides (and does not print them) when enabled.
 PROTECTED_SETTINGS = (
-    "SECRET_KEY",
-    "APP_TOKEN",
     "DATABASES",
     "CACHES",
     "REDIS_PASSWD",
@@ -124,9 +118,6 @@ def _validate(result):
 
 
 def _check_environment(result):
-    for name in UNSUPPORTED_ENV:
-        if os.environ.get(name):
-            raise KMSConfigurationError(f"KMS does not support the environment field: {name}")
     # Application codes are not secrets and stay in the environment; the envelope must match them.
     saas_code = os.getenv("BKPAAS_APP_ID") or os.getenv("APP_ID") or os.getenv("APP_CODE")
     if saas_code and saas_code != result["bkapp_id_secret"]["saas"]["app_code"]:
@@ -167,6 +158,11 @@ def value(group, alias, field=None):
     if group == "encryption":
         return data["encryption"][alias]
     return data[group][alias][field]
+
+
+def app_identity(role):
+    account = credentials()["bkapp_id_secret"]["saas" if role == "web" else "backend"]
+    return account["app_code"], account["app_secret"]
 
 
 def apply_base_config():

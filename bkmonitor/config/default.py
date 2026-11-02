@@ -138,9 +138,8 @@ SAAS_APP_CODE = ""
 SAAS_SECRET_KEY = ""
 
 if kms.enabled():
-    _identity = "saas" if ROLE == "web" else "backend"
-    APP_ID = APP_CODE = kms.value("bkapp_id_secret", _identity, "app_code")
-    APP_TOKEN = SECRET_KEY = kms.value("bkapp_id_secret", _identity, "app_secret")
+    APP_CODE, SECRET_KEY = kms.app_identity(ROLE)
+    APP_ID, APP_TOKEN = APP_CODE, SECRET_KEY
     BACKEND_APP_CODE = kms.value("bkapp_id_secret", "backend", "app_code")
 elif ROLE == "web":
     # BKPAAS_APP_ID是PaasV3，APP_ID/APP_CODE是PaasV2

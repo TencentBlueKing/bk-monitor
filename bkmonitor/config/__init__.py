@@ -46,13 +46,15 @@ def get_env_or_raise(*keys, default=None):
 # SaaS运行版本，如非必要请勿修改
 RUN_VER = os.environ.get("BKPAAS_ENGINE_REGION", "open")
 
-APP_CODE = get_env_or_raise("APP_ID", "BKPAAS_APP_ID", "BK_MONITOR_APP_CODE", "APP_CODE", default="bkmonitorv3")
 # 应用用于调用云 API 的 Secret
 if kms.enabled():
-    SECRET_KEY = kms.value("bkapp_id_secret", "saas", "app_secret")
+    from config.tools.environment import ROLE
+
+    APP_CODE, SECRET_KEY = kms.app_identity(ROLE)
     # bk-monitor-base caches its config object; inject before any module reads it.
     kms.apply_base_config()
 else:
+    APP_CODE = get_env_or_raise("APP_ID", "BKPAAS_APP_ID", "BK_MONITOR_APP_CODE", "APP_CODE", default="bkmonitorv3")
     SECRET_KEY = get_env_or_raise("APP_TOKEN", "BKPAAS_APP_SECRET", "BK_MONITOR_APP_SECRET", "APP_SECRET", default="")
 
 

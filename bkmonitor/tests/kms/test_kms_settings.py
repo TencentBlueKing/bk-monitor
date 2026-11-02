@@ -213,13 +213,6 @@ def test_plaintext_sources_are_ignored(tmp_path, role):
     assert "plaintext-marker" not in completed.stdout + completed.stderr
 
 
-def test_celery_broker_environment_fails_closed(tmp_path):
-    completed = run_settings(tmp_path, "worker", PAYLOAD, CELERY_BROKER_URL="amqp://u:plaintext-marker@mq.example//")
-    assert completed.returncode != 0
-    assert "KMS does not support the environment field: CELERY_BROKER_URL" in completed.stderr
-    assert "plaintext-marker" not in completed.stdout + completed.stderr
-
-
 @pytest.mark.parametrize("vhost", ["team;blue", "team?#blue", "tenant/项目%"])
 def test_broker_url_escapes_envelope_credentials(tmp_path, vhost):
     special = "p@ss/w:rd#?%"
@@ -367,3 +360,109 @@ with patch("bkmonitor.utils.dynamic_settings.redis_cache", None), patch("bkmonit
         "iam": secret,
         "own": identity["backend"]["app_secret"] if enabled else "legacy-backend",
     }
+
+
+@pytest.mark.parametrize("role", ["web", "worker", "api"])
+@pytest.mark.parametrize("enabled", [False, True])
+def test_gateway_header_uses_matching_role_credentials(tmp_path, role, enabled):
+    env = base_env(tmp_path, role=role, **DEPLOYMENT)
+    env.update(
+        USE_BKREPO="false",
+        BKAPP_SETTINGS_APP_CODE="override-code",
+        BKAPP_SETTINGS_APP_ID="override-id",
+        BKAPP_SETTINGS_SECRET_KEY="override-secret",
+        BKAPP_SETTINGS_APP_TOKEN="override-token",
+    )
+    if enabled:
+        env.update(write_kms_files(tmp_path, PAYLOAD))
+    code = """
+import json
+from types import SimpleNamespace
+from django.conf import settings
+from core.drf_resource.contrib.api import APIResource
+
+request = SimpleNamespace(bk_username="test-user", _get_tenant_id=lambda: "default")
+headers = APIResource.get_headers(request)
+print(json.dumps({"auth": json.loads(headers["x-bkapi-authorization"]), "id": settings.APP_ID, "token": settings.APP_TOKEN}))
+"""
+    completed = run_python(code, env)
+    assert completed.returncode == 0, completed.stderr[-4000:]
+    result = last_json(completed.stdout)
+    account = PAYLOAD["bkapp_id_secret"]["saas" if role == "web" else "backend"]
+    assert (result["auth"]["bk_app_code"], result["auth"]["bk_app_secret"]) == (
+        (account["app_code"], account["app_secret"]) if enabled else ("override-code", "override-secret")
+    )
+    assert (result["id"], result["token"]) == (
+        (account["app_code"], account["app_secret"]) if enabled else ("override-id", "override-token")
+    )
+
+
+@pytest.mark.parametrize("enabled", [False, True])
+def test_real_celery_apps_keep_independent_broker_credentials(tmp_path, enabled):
+    env = base_env(tmp_path, role="worker", **DEPLOYMENT)
+    env.update(
+        USE_BKREPO="false",
+        BK_MONITOR_APP_SECRET="legacy-app-secret",
+        RABBITMQ_USER="legacy-saas",
+        RABBITMQ_PASSWORD="legacy-saas-password",
+        BK_MONITOR_RABBITMQ_USERNAME="legacy-backend",
+        BK_MONITOR_RABBITMQ_PASSWORD="legacy-backend-password",
+        BK_MONITOR_RABBITMQ_VHOST="alarm",
+        CELERY_BROKER_URL="amqp://old:old@explicit:5680/preload",
+    )
+    if enabled:
+        env.update(write_kms_files(tmp_path, PAYLOAD))
+    # Use the normal Django test startup, which defers database initialization
+    # until migrations. Both broker instances below are the production apps.
+    code = """
+import json, os, sys
+from unittest.mock import patch
+import django
+sys.argv.append("test")
+django.setup()
+from config.celery.celery import app as normal
+from alarm_backends.service.scheduler.app import app as scheduler
+
+keys = ("CELERY_BROKER_URL", "CELERY_BROKER_READ_URL", "CELERY_BROKER_WRITE_URL")
+def url(host):
+    return f"amqp://old:old-secret@{host}:5680/team%3Bblue?heartbeat=21;amqp://old:old-secret@backup:5681/standby"
+def inspect(connection):
+    return [connection.hostname, connection.port, connection.virtual_host, connection.userid, connection.password]
+
+result = {}
+for case, values in {"default": {}, "both": {keys[0]: url("both")}, "read": {keys[1]: url("read")},
+                     "write": {keys[2]: url("write")}, "split": dict(zip(keys, map(url, ("both", "read", "write"))))}.items():
+    with patch.dict(os.environ):
+        for key in keys:
+            os.environ.pop(key, None)
+        os.environ.update(values)
+        before = dict(os.environ)
+        record = {}
+        for app, alias in ((normal,"saas"), (scheduler,"backend")):
+            for direction, connection in (("read",app.connection_for_read()), ("write",app.connection_for_write())):
+                route = [inspect(connection)]
+                if connection.alt:
+                    assert len(connection.alt) == 2 and float(connection.heartbeat) == 21
+                    connection.switch(connection.alt[1])
+                    route.append(inspect(connection))
+                record[alias + "-" + direction] = route
+        assert dict(os.environ) == before
+        result[case] = record
+print(json.dumps(result))
+"""
+    completed = run_python(code, env)
+    assert completed.returncode == 0, completed.stderr[-4000:]
+    for case, routes in last_json(completed.stdout).items():
+        for key, route in routes.items():
+            alias, direction = key.split("-")
+            host = direction if case == "split" or case == direction else "both" if case == "both" else None
+            account = PAYLOAD["rabbitmq"][alias]
+            auth = (
+                [account["username"], account["password"]]
+                if enabled
+                else (["old", "old-secret"] if host else [f"legacy-{alias}", f"legacy-{alias}-password"])
+            )
+            if host:
+                assert route == [[host, 5680, "team;blue", *auth], ["backup", 5681, "standby", *auth]]
+            else:
+                assert route == [["mq.example", 5672, "bk_monitorv3" if alias == "saas" else "alarm", *auth]]

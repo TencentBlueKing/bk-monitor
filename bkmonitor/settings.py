@@ -77,6 +77,9 @@ if RUN_MODE == "DEVELOP":  # noqa
 
 # Assign envelope-owned aliases after environment and local settings overlays.
 if kms.enabled():
+    APP_CODE, SECRET_KEY = kms.app_identity(_module.ROLE)
+    APP_ID, APP_TOKEN = APP_CODE, SECRET_KEY
+    BACKEND_APP_CODE = kms.value("bkapp_id_secret", "backend", "app_code")
     SAAS_APP_CODE = kms.value("bkapp_id_secret", "saas", "app_code")
     SAAS_SECRET_KEY = kms.value("bkapp_id_secret", "saas", "app_secret")
     FTA_ES7_USER = kms.value("elasticsearch", "fta", "username")
