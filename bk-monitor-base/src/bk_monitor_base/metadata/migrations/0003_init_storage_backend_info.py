@@ -1,9 +1,11 @@
 import logging
 import os
 
+from django.conf import settings
 from django.db import migrations
 
 from bk_monitor_base.metadata.migration_util import models
+from bk_monitor_base.metadata.utils.env import get_backend_es7_init_settings
 
 logger = logging.getLogger("metadata")
 
@@ -35,8 +37,15 @@ def get_environ(name, is_list=False):
 def init_influxdb_backend_info():
     """追加influxdb backend的初始化数据"""
     # 获取用户名和密码
-    username = get_environ("BK_MONITOR_INFLUXDB_USER")
-    password = get_environ("BK_MONITOR_INFLUXDB_PASS")
+    if hasattr(settings, "INFLUXDB_INIT_IP_LIST"):
+        username, password = settings.INFLUXDB_INIT_USER, settings.INFLUXDB_INIT_PASSWORD
+    else:
+        username = os.getenv("BK_MONITOR_INFLUXDB_USER") or os.getenv("INFLUXDB_BKMONITORV3_USER", "")
+        # 0003 历史部署使用 BK_MONITOR_INFLUXDB_PASS；优先变量明确设为空时保留空密码。
+        password = os.getenv(
+            "BK_MONITOR_INFLUXDB_PASSWORD",
+            os.getenv("INFLUXDB_BKMONITORV3_PASS", os.getenv("BK_MONITOR_INFLUXDB_PASS", "")),
+        )
     # 获取所有主机的信息
     port = get_environ("BK_MONITOR_INFLUXDB_PORT")
     host_list = get_environ("BK_MONITOR_INFLUXDB_IP", is_list=True)
@@ -63,10 +72,9 @@ def init_influxdb_backend_info():
 
 def init_es_storage_backend_info():
     """增加ES存储集群的初始化数据"""
-    es_host = os.environ.get("BK_MONITOR_ES7_HOST", "")
-    es_port = int(os.environ.get("BK_MONITOR_ES7_REST_PORT", 0))
-    es_username = os.environ.get("BK_MONITOR_ES7_USER", "")
-    es_password = os.environ.get("BK_MONITOR_ES7_PASSWORD", "")
+    es_host, es_port, es_username, es_password = get_backend_es7_init_settings()
+    es_host = es_host or ""
+    es_port = int(es_port or 0)
 
     # 创建集群信息
     models["ClusterInfo"].objects.update_or_create(

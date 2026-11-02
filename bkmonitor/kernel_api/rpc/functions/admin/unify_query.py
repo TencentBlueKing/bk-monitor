@@ -13,6 +13,7 @@ FUNC_QUERY = "admin.unify_query.query"
 class QuerySerializer(serializers.Serializer):
     bk_tenant_id = serializers.CharField(max_length=128)
     bk_biz_id = serializers.IntegerField(min_value=1, default=lambda: settings.DEFAULT_BK_BIZ_ID)
+    parse_only = serializers.BooleanField(default=False)
     promql = serializers.CharField(max_length=65536)
     start = serializers.IntegerField(min_value=0)
     end = serializers.IntegerField(min_value=0)
@@ -36,6 +37,7 @@ class QuerySerializer(serializers.Serializer):
         "properties": {
             "bk_tenant_id": {"type": "string", "minLength": 1},
             "bk_biz_id": {"type": "integer", "minimum": 1, "description": "缺省使用 DEFAULT_BK_BIZ_ID"},
+            "parse_only": {"type": "boolean", "default": False, "description": "仅解析路由和存储请求，不执行查询"},
             "promql": {"type": "string", "minLength": 1, "maxLength": 65536},
             "start": {"type": "integer", "minimum": 0, "description": "Unix 秒"},
             "end": {"type": "integer", "minimum": 0, "description": "Unix 秒"},
@@ -56,7 +58,11 @@ def query(params):
     serializer = QuerySerializer(data=params)
     serializer.is_valid(raise_exception=True)
     validated = serializer.validated_data
-    result = api.unify_query.query_data_by_promql(
+    # 预览必须使用专用 check 入口；失败不能回退到实际查询。
+    resource = (
+        api.unify_query.check_query_ts_by_promql if validated["parse_only"] else api.unify_query.query_data_by_promql
+    )
+    result = resource(
         bk_tenant_id=validated["bk_tenant_id"],
         bk_biz_ids=[str(validated["bk_biz_id"])],
         promql=validated["promql"],
@@ -66,7 +72,7 @@ def query(params):
     )
     return build_response(
         operation="unify_query.query",
-        func_name=FUNC_QUERY,
+        func_name="admin.unify_query.preview" if validated["parse_only"] else FUNC_QUERY,
         bk_tenant_id=validated["bk_tenant_id"],
         data={
             "source": {
@@ -76,3 +82,22 @@ def query(params):
             "result": result,
         },
     )
+
+
+@KernelRPCRegistry.register(
+    "admin.unify_query.preview",
+    summary="Admin unify-query 解析预览（不执行查询）",
+    description="使用专用 check 入口返回路由和存储请求预览；不回退到查询入口。",
+    params_schema=KernelRPCRegistry.get_function_detail(FUNC_QUERY)["params_schema"],
+    example_params={
+        "bk_tenant_id": "system",
+        "bk_biz_id": 2,
+        "promql": "up",
+        "start": 1790100000,
+        "end": 1790103600,
+        "step": 60,
+        "parse_only": True,
+    },
+)
+def preview(params):
+    return query({**params, "parse_only": True})

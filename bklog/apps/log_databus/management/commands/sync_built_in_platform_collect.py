@@ -40,6 +40,7 @@ from apps.log_databus.handlers.etl import EtlHandler
 from apps.log_databus.models import CollectorConfig
 from apps.log_databus.serializers import CollectorEtlStorageSerializer
 from apps.log_search.constants import CollectorScenarioEnum, EncodingsEnum
+from apps.utils.local import get_backend_username
 
 
 class Command(BaseCommand):
@@ -76,30 +77,38 @@ class Command(BaseCommand):
             config = yaml.safe_load(f.read())
         config = config or {}
 
-        for built_in_info in config.get("builtin_collect") or []:
+        built_in_collect_list = config.get("builtin_collect") or []
+        if not built_in_collect_list:
+            print("builtin collect config is empty. do nothing")
+            return
+
+        # 内置采集项固定使用默认租户
+        operator = get_backend_username(bk_tenant_id=settings.BK_APP_TENANT_ID)
+
+        for built_in_info in built_in_collect_list:
             try:
                 if not (BUILT_IN_MIN_DATAID <= int(built_in_info["dataId"]) <= BUILT_IN_MAX_DATAID):
                     print("data id ({}) not valid, do nothing".format(built_in_info["dataId"]))
                     continue
 
                 # 1. 创建采集配置
-                collect_config, is_create = self.create_or_update_build_in_collect(built_in_info)
+                collect_config, is_create = self.create_or_update_build_in_collect(built_in_info, operator)
 
                 # 2. 申请内置dataid
                 # collector_scenario.update_or_create_data_id
-                self.create_data_id(collect_config)
+                self.create_data_id(collect_config, operator)
 
                 # 3. 创建存储相关结果表 & 创建索引集
                 if is_create:
                     # 新建的采集项才需要初始化清洗和集群配置，存量的由页面操作，否则这里会覆盖页面的操作
                     # 完美的做法是都需要，但是精细到每一步都判断是否有，再将配置融合的处理方式
-                    self.create_etl_handle_and_index_set(collect_config, default_es_cluster_id)
+                    self.create_etl_handle_and_index_set(collect_config, default_es_cluster_id, operator)
 
             except Exception as e:  # pylint: disable=broad-except
                 print(f"create build in collect error({e}), ")
 
     @classmethod
-    def create_or_update_build_in_collect(cls, built_in_info):
+    def create_or_update_build_in_collect(cls, built_in_info, operator):
         data_id = built_in_info["dataId"]
         module_name = built_in_info["moduleName"]
 
@@ -134,15 +143,15 @@ class Command(BaseCommand):
                     "category_id": "other_rt",
                     "bk_biz_id": settings.BLUEKING_BK_BIZ_ID,
                     "collector_scenario_id": CollectorScenarioEnum.CUSTOM.value,
-                    "created_by": settings.SYSTEM_USE_API_ACCOUNT,
-                    "updated_by": settings.SYSTEM_USE_API_ACCOUNT,
+                    "created_by": operator,
+                    "updated_by": operator,
                 }
             )
             collect_config.save()
             return collect_config, True
 
     @classmethod
-    def create_data_id(cls, collect_config):
+    def create_data_id(cls, collect_config, operator):
         data_name = CollectorHandler.build_bk_data_name(
             collect_config.bk_biz_id, collect_config.collector_config_name_en
         )
@@ -153,8 +162,8 @@ class Command(BaseCommand):
             "source_label": "bk_monitor",
             "type_label": "log",
             "option": {"encoding": EncodingsEnum.UTF.value, "is_log_data": True, "allow_metrics_missing": True},
-            "bk_username": settings.SYSTEM_USE_API_ACCOUNT,
-            "operator": settings.SYSTEM_USE_API_ACCOUNT,
+            "bk_username": operator,
+            "operator": operator,
             "bk_data_id": collect_config.bk_data_id,
             "bk_biz_id": collect_config.bk_biz_id,
         }
@@ -165,7 +174,7 @@ class Command(BaseCommand):
             return TransferApi.modify_data_id(params)
 
     @classmethod
-    def create_etl_handle_and_index_set(cls, collect_config, storage_cluster_id):
+    def create_etl_handle_and_index_set(cls, collect_config, storage_cluster_id, operator):
         if not storage_cluster_id:
             es_clusters = TransferApi.get_cluster_info({"cluster_type": STORAGE_CLUSTER_TYPE, "no_request": True})
             for es in es_clusters:
@@ -188,6 +197,6 @@ class Command(BaseCommand):
         )
         etl_storage.is_valid()
         params = etl_storage.data
-        params["username"] = settings.SYSTEM_USE_API_ACCOUNT
+        params["username"] = operator
         etl_handler = EtlHandler.get_instance(collect_config.collector_config_id)
         etl_handler.update_or_create(**params)

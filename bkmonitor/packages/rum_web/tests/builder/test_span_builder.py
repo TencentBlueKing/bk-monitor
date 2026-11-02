@@ -894,3 +894,35 @@ class TestViewSpanBuilder:
         assert data["milestones"] == []
         assert [phase["key"] for phase in data["phases"]] == ["dom_processing"]
         assert _section(result, "web_vitals")["data"]["lcp"]["attributes.vital.value"] is None
+
+
+@pytest.mark.parametrize("flatten", [False, True])
+def test_session_overview_without_end_uses_navigation_order(flatten):
+    from bkmonitor.data_source.format import flatten_dict_data
+
+    main = _span("session", {"session.phase": "start"})
+    enter = _span("view", {"view.started_at": 100, "view.url_template": "/enter"}, start_time=500000)
+    exit_view = _span("view", {"view.started_at": 200, "view.url_template": "/exit"}, start_time=300000)
+    related = [enter, exit_view]
+    if flatten:
+        main = flatten_dict_data(main)
+        related = [flatten_dict_data(item) for item in related]
+    before = deepcopy([main, *related])
+    result = build(main, related)
+    items = {item["field_name"]: item["value"] for item in result["overview"]["items"]}
+    assert items["start_time"] == REPORT_TIME
+    assert items["end_time"] is None
+    assert items["enter_url_template"] == "/enter"
+    assert items["exit_url_template"] == "/exit"
+    assert result["sections"] == []
+    assert result["origin_data"] == main
+    assert [main, *related] == before
+
+
+def test_session_overview_missing_lifecycle_and_views():
+    result = build(_span("session", {"session.phase": "end"}))
+    items = {item["field_name"]: item["value"] for item in result["overview"]["items"]}
+    assert items["start_time"] is None
+    assert items["end_time"] == REPORT_TIME
+    assert items["enter_url_template"] is None
+    assert items["exit_url_template"] is None

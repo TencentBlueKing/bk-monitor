@@ -77,9 +77,6 @@ class TestBaseRumLevelHandler:
             def record_detail(self, record_id, extra_config=None):
                 return {}
 
-            def timeline(self, session_id=None, view_id=None):
-                return {}
-
             def generate_query_string(self, filters, extra_config=None):
                 return ""
 
@@ -122,7 +119,7 @@ class TestBaseRumLevelHandler:
         field_param = sig.parameters["field"]
         assert field_param.annotation in (str, inspect.Parameter.empty)
 
-    # [d] 9 项公共方法声明参数与返回类型
+    # [d] 公共方法声明参数与返回类型
     @pytest.mark.parametrize(
         "method_name",
         [
@@ -133,14 +130,13 @@ class TestBaseRumLevelHandler:
             "get_fields_option_values",
             "list_records",
             "record_detail",
-            "timeline",
             "generate_query_string",
         ],
     )
-    def test_base_declares_abstract_method(self, method_name: str):
+    def test_base_declares_shared_methods(self, method_name: str):
         assert hasattr(BaseRumLevelHandler, method_name)
         method = getattr(BaseRumLevelHandler, method_name)
-        assert getattr(method, "__isabstractmethod__", False), f"{method_name} 应为抽象方法"
+        assert callable(method)
 
     def test_view_config_signature(self):
         sig = inspect.signature(BaseRumLevelHandler.view_config)
@@ -409,6 +405,15 @@ class TestSpanRecordDetail:
         handler.record_detail("v")
         query_list.assert_not_called()
 
+    @pytest.mark.parametrize("view_id", [None, "", 123, [], {}])
+    def test_invalid_view_id_skips_related_query(self, handler, mocker, view_id):
+        query_list = mocker.patch.object(handler.query, "query_list")
+
+        result = handler._query_related_spans({"attributes.span_type": "view", "attributes.view.id": view_id})
+
+        assert result == []
+        query_list.assert_not_called()
+
     def test_view_related_filters_and_builder_output(self, handler, mocker):
         from bkmonitor.data_source.utils.apm import FilterOperator
 
@@ -433,7 +438,7 @@ class TestSpanRecordDetail:
             start_time=None,
             end_time=None,
             offset=0,
-            limit=handler.VIEW_RELATED_SPAN_LIMIT,
+            limit=handler.RELATED_SPAN_LIMIT,
             filters=[
                 {"key": "attributes.view.id", "value": ["view-1"], "operator": FilterOperator.EQUAL},
                 {"key": "attributes.span_type", "value": ["view", "vital"], "operator": FilterOperator.EQUAL},

@@ -105,6 +105,7 @@ class IncidentOperationManager:
 
         # 从 kwargs 中提取 incident_document（不存入 extra_info）
         incident_document = kwargs.pop("incident_document", None)
+        operate_time = operate_time if operate_time else int(time.time())
 
         IncidentOperationDocument.bulk_create(
             [
@@ -112,7 +113,7 @@ class IncidentOperationManager:
                     incident_id=incident_id,
                     operator=operator,
                     operation_type=operation_type.value,
-                    create_time=operate_time if operate_time else int(time.time()),
+                    create_time=operate_time,
                     extra_info=kwargs,
                 )
             ],
@@ -133,7 +134,13 @@ class IncidentOperationManager:
             )
         if notice_enabled and send_notice:
             if operation_type in cls.NOTICE_TRIGGER_OPERATIONS:
-                cls._send_incident_notice(incident_id, operation_type, incident_document=incident_document, **kwargs)
+                cls._send_incident_notice(
+                    incident_id,
+                    operation_type,
+                    incident_document=incident_document,
+                    operate_time=operate_time,
+                    **kwargs,
+                )
 
     @classmethod
     def _send_incident_notice(

@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2025 Tencent. All rights reserved.
@@ -9,10 +8,10 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 
-
 import logging
 import os
 
+from django.conf import settings
 from django.db import migrations
 
 logger = logging.getLogger("metadata")
@@ -34,7 +33,7 @@ def get_environ(name, is_list=False):
     index = 0
     result = []
     while True:
-        current_name = "{}{}".format(name, index)
+        current_name = f"{name}{index}"
         current_value = os.environ.get(current_name)
         # 如果当前的这个遍历已经获取不到值了，则直接退出
         if current_value is None:
@@ -53,10 +52,10 @@ def init_es_storage_info(apps, *args, **kwargs):
 
     ClusterInfo = models["ClusterInfo"]
 
-    es_host = os.environ.get("BK_MONITOR_ES7_HOST", "")
-    es_port = int(os.environ.get("BK_MONITOR_ES7_REST_PORT", 0))
-    es_username = os.environ.get("BK_MONITOR_ES7_USER", "")
-    es_password = os.environ.get("BK_MONITOR_ES7_PASSWORD", "")
+    es_host = settings.BACKEND_ES7_HOST or ""
+    es_port = int(settings.BACKEND_ES7_REST_PORT or 0)
+    es_username = settings.BACKEND_ES7_USER
+    es_password = settings.BACKEND_ES7_PASSWORD
 
     # 创建集群信息
     ClusterInfo.objects.create(

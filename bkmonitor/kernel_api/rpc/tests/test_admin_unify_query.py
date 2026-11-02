@@ -55,3 +55,19 @@ def test_resource_accepts_explicit_tenant():
         {"bk_tenant_id": "query-tenant", "promql": "up", "start": "100", "end": "200", "step": "60s"}
     )
     assert validated["bk_tenant_id"] == "query-tenant"
+
+
+@pytest.mark.parametrize("entry", [unify_query.query, unify_query.preview])
+def test_preview_never_calls_data_query(monkeypatch, entry):
+    raw = {"data": [{"sql": "select value from metrics"}], "route_info": [{"table_id": "system.cpu"}]}
+    check = Mock(return_value=raw)
+    query = Mock()
+    monkeypatch.setattr(unify_query.api.unify_query, "check_query_ts_by_promql", check)
+    monkeypatch.setattr(unify_query.api.unify_query, "query_data_by_promql", query)
+    assert entry(params(parse_only=True))["data"]["result"] == raw
+    assert check.call_args.kwargs["promql"] == "up"
+    query.assert_not_called()
+    check.side_effect = RuntimeError("check unavailable")
+    with pytest.raises(RuntimeError, match="check unavailable"):
+        entry(params(parse_only=True))
+    query.assert_not_called()

@@ -37,8 +37,24 @@ class PluginMigrationRouter(SpaceTableIDRedis):
 class Command(DefaultPluginCommand):
     help = "多表插件迁移到 default/V4，保留旧表及历史查询；precheck / pre-run / execute / status"
 
+    def add_arguments(self, parser):
+        super().add_arguments(parser)
+        parser.add_argument(
+            "--skip-space-route-refresh",
+            action="store_true",
+            help="跳过空间路由刷新，仍发布 RT 详情和 data_label 路由，并执行 Transfer 收尾",
+        )
+
+    def handle(self, *args, **options):
+        self.skip_space_route_refresh = options.get("skip_space_route_refresh", False)
+        return super().handle(*args, **options)
+
     def load_context(self, data_id, vm_cluster_name):
         super().load_context(data_id, vm_cluster_name)
+        # CMDB 层级派生表不参与本次迁移、指标合并或兼容路由配置。
+        self.ignored_table_ids = [table_id for table_id in self.related_tables if table_id.endswith("_cmdb_level")]
+        self.linked_tables = [table_id for table_id in self.linked_tables if not table_id.endswith("_cmdb_level")]
+        self.related_tables = [table_id for table_id in self.related_tables if not table_id.endswith("_cmdb_level")]
         self.table_id = f"{self.source.data_name}.__default__"
         tables = list(
             models.ResultTable.objects.filter(bk_tenant_id=self.tenant, table_id__in=self.related_tables).order_by(
@@ -82,6 +98,10 @@ class Command(DefaultPluginCommand):
             self.options[self.table_id].get(models.ResultTableOption.OPTION_DATA_LABEL_ALIASES, []),
             [table.table_id for table in self.legacy_tables],
         )
+        self.alias_plan = {
+            table_id: [alias for alias in aliases if not alias.endswith("_cmdb_level")]
+            for table_id, aliases in self.alias_plan.items()
+        }
         self.labels = merge_aliases((self.table.data_label or "").split(","), self.alias_plan[self.table_id])
         self.vm_record = models.AccessVMRecord.objects.filter(
             bk_tenant_id=self.tenant, result_table_id=self.table_id
@@ -101,6 +121,32 @@ class Command(DefaultPluginCommand):
         else:
             self.cluster = None
         self.metric_info = []
+        from monitor_web.models import PluginVersionHistory
+
+        _, _, plugin_id = self.source.data_name.partition("_")
+        version = (
+            PluginVersionHistory.objects.filter(
+                bk_tenant_id=self.tenant,
+                plugin_id__iexact=plugin_id,
+                stage=PluginVersionHistory.Stage.RELEASE,
+            )
+            .select_related("info")
+            .last()
+        )
+        self.migrate_whitelist_fields = version is not None and not version.info.enable_field_blacklist
+        self.plugin_metric_json = version.info.metric_json if version else []
+        self.legacy_dimensions = list(
+            models.ResultTableField.objects.filter(
+                bk_tenant_id=self.tenant,
+                table_id__in=[table.table_id for table in self.legacy_tables],
+                tag__in=["dimension", "group"],
+                is_disabled=False,
+            )
+            .order_by("table_id", "field_name")
+            .values(
+                "table_id", "field_name", "tag", "field_type", "description", "unit", "alias_name", "is_config_by_user"
+            )
+        )
         self.spaces = self.get_route_spaces()
 
     def get_route_spaces(self):
@@ -160,12 +206,8 @@ class Command(DefaultPluginCommand):
             errors.append("已是唯一 default 单指标单表，请使用 migrate_default_plugin_v4")
         if self.group and (self.group.table_id != self.table_id or self.group.is_delete):
             errors.append("已有 TimeSeriesGroup 未指向有效 default 表，请先单独处理")
-        if any(table_id.endswith(("_cmdb_level", "_cmdb")) for table_id in self.related_tables):
+        if any(table_id.endswith("_cmdb") for table_id in self.related_tables):
             errors.append("包含 CMDB 分表，需单独处理节点聚合兼容")
-        if models.CMDBLevelRecord.objects.filter(
-            bk_tenant_id=self.tenant, source_table_id__in=self.related_tables, is_disable=False
-        ).exists():
-            errors.append("存在启用的 CMDB 分表关系，需先单独处理")
         if not self.cluster:
             errors.append("没有唯一可复用的 VM 集群，请指定 --vm-cluster-name")
         if not self.topic:
@@ -191,19 +233,28 @@ class Command(DefaultPluginCommand):
                 .values_list("name", flat=True)
             )
             errors.append(f"已有 V4 组件记录不完整，需先单独处理，禁止重复 apply；关联或历史 Databus：{historical}")
-        if not self.group:
+        if not self.group or self.migrate_whitelist_fields:
             self.metric_info, metric_errors = self.collect_metric_info()
             errors.extend(metric_errors)
         return errors
 
     def collect_metric_info(self):
-        """从旧 RT 的指标/维度定义准备新组，不从全环境扫描插件配置。"""
-        table_ids = self.related_tables
-        fields = list(
-            models.ResultTableField.objects.filter(
-                bk_tenant_id=self.tenant, table_id__in=table_ids, is_disabled=False
-            ).values("table_id", "field_name", "tag", "field_type", "description", "unit", "alias_name")
-        )
+        """白名单以插件配置为准，自动发现沿用旧 RT 的指标/维度定义。"""
+        if self.migrate_whitelist_fields:
+            # 白名单中的 active 不决定迁移范围；旧 RT 可能尚未包含这些指标。
+            fields = self.whitelist_fields()
+            configured_fields = {(field["table_id"], field["field_name"]) for field in fields}
+            fields.extend(
+                field
+                for field in self.legacy_dimensions
+                if (field["table_id"], field["field_name"]) not in configured_fields
+            )
+        else:
+            fields = list(
+                models.ResultTableField.objects.filter(
+                    bk_tenant_id=self.tenant, table_id__in=self.related_tables, is_disabled=False
+                ).values("table_id", "field_name", "tag", "field_type", "description", "unit", "alias_name")
+            )
         dimensions = defaultdict(list)
         for field in fields:
             if field["tag"] in ("dimension", "group"):
@@ -237,11 +288,28 @@ class Command(DefaultPluginCommand):
             )
         return metrics, errors
 
+    def whitelist_fields(self):
+        return [
+            {
+                "table_id": f"{self.source.data_name}.{table['table_name'].lower()}",
+                "field_name": field["name"],
+                "tag": field["monitor_type"],
+                "field_type": {"double": "float", "text": "string"}.get(field["type"], field["type"]),
+                "description": field.get("description", ""),
+                "unit": field.get("unit", ""),
+                "alias_name": field.get("source_name", ""),
+                "is_config_by_user": True,
+            }
+            for table in self.plugin_metric_json
+            for field in table["fields"]
+        ]
+
     def plan(self):
         plan = super().plan()
         plan.update(
             default_exists=self.default_exists,
-            metric_count=len(self.metric_info) if not self.group else None,
+            metric_count=len(self.metric_info) if not self.group or self.migrate_whitelist_fields else None,
+            metric_source="plugin_whitelist" if self.migrate_whitelist_fields else "result_table",
             legacy_table_ids=[table.table_id for table in self.legacy_tables],
             data_label_aliases=self.alias_plan,
             space_routes_to_refresh=self.spaces,
@@ -295,6 +363,8 @@ class Command(DefaultPluginCommand):
                     is_need_deploy_collector_config=False,
                 )
                 models.TimeSeriesGroup._post_process_create(self.group, {})
+            if self.migrate_whitelist_fields or self.metric_info:
+                # 白名单重跑也补齐字段，覆盖此前已创建但指标为空的 default/TimeSeriesGroup。
                 self.group.update_metrics(self.metric_info)
                 # update_metrics 创建 RT 指标时使用默认类型；补回旧表的字段定义。
                 definitions = {metric["field_name"]: metric for metric in self.metric_info}
@@ -313,6 +383,42 @@ class Command(DefaultPluginCommand):
                     models.ResultTableField.objects.bulk_update(
                         fields, ["field_type", "description", "unit", "alias_name"]
                     )
+            self.sync_legacy_dimensions()
+
+    def sync_legacy_dimensions(self):
+        """旧表维度独立同步；即使没有指标也保留 dimension/group 字段。"""
+        definitions = {}
+        for field in self.legacy_dimensions:
+            definitions.setdefault(field["field_name"], field)
+        if self.migrate_whitelist_fields:
+            for field in self.whitelist_fields():
+                if field["tag"] in ("dimension", "group"):
+                    definitions.setdefault(field["field_name"], field)
+        existing = {
+            field.field_name: field
+            for field in models.ResultTableField.objects.filter(
+                bk_tenant_id=self.tenant, table_id=self.table_id, field_name__in=definitions
+            )
+        }
+        attributes = ["tag", "field_type", "description", "unit", "alias_name", "is_config_by_user"]
+        created, updated = [], []
+        for name, definition in definitions.items():
+            field = existing.get(name)
+            if field is not None and field.tag == "metric":
+                continue
+            values = {key: definition[key] for key in attributes}
+            if field is None:
+                created.append(
+                    models.ResultTableField(bk_tenant_id=self.tenant, table_id=self.table_id, field_name=name, **values)
+                )
+            else:
+                for key, value in values.items():
+                    setattr(field, key, value)
+                updated.append(field)
+        if created:
+            models.ResultTableField.objects.bulk_create(created)
+        if updated:
+            models.ResultTableField.objects.bulk_update(updated, attributes)
 
     def consumer_group_status(self):
         expected = compose_transfer_consumer_group(self.source)
@@ -412,11 +518,22 @@ class Command(DefaultPluginCommand):
             is_publish=True,
         )
         self.spaces = self.get_route_spaces()
-        for space in self.spaces:
-            router.push_space_table_ids(space["space_type_id"], space["space_id"], is_publish=True)
-        router.push_data_label_table_ids(bk_tenant_id=self.tenant, table_id_list=list(self.alias_plan), is_publish=True)
+        if self.skip_space_route_refresh:
+            self.stdout.write("已跳过空间路由刷新；RT 详情和 data_label 路由仍正常发布。")
+        else:
+            for space in self.spaces:
+                router.push_space_table_ids(
+                    space["space_type_id"],
+                    space["space_id"],
+                    is_publish=True,
+                )
+        router.push_data_label_table_ids(
+            bk_tenant_id=self.tenant,
+            table_id_list=list(self.alias_plan),
+            is_publish=True,
+        )
         self.source.delete_consul_config()
-        self.stdout.write("default 与兼容路由已发布，Transfer 已清理；旧 RT 和存储保留。")
+        self.stdout.write("default 与兼容标签已配置，Transfer 已清理；旧 RT 和存储保留。")
 
     def check_status(self):
         if not self.default_exists:

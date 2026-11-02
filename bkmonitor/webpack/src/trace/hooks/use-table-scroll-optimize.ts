@@ -148,4 +148,11 @@ export const useTableScrollOptimize = (options: UseTableScrollOptimizeOptions) =
     scrollPointerEventsTimer && clearTimeout(scrollPointerEventsTimer);
     removeScrollListener();
   });
+
+  return {
+    /** 重新绑定滚动监听（滚动容器随表格 / 抽屉显隐重建时调用，内部会先解绑旧节点） */
+    addScrollListener,
+    /** 解绑滚动监听 */
+    removeScrollListener,
+  };
 };

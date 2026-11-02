@@ -120,8 +120,8 @@ class V3PermissionProviderApplyTest(SimpleTestCase):
         )
 
         instances = data["actions"][0]["related_resource_types"][0]["instances"]
-        self.assertEqual([instance[0]["id"] for instance in instances], ["28"])
-        self.assertEqual([instance[0]["name"] for instance in instances], ["collection-28"])
+        self.assertEqual([instance[-1]["id"] for instance in instances], ["28"])
+        self.assertEqual([instance[-1]["name"] for instance in instances], ["collection-28"])
 
     def test_apply_url_passes_v3_sdk_resources_straight_through(self):
         client = Mock()
@@ -138,3 +138,56 @@ class V3PermissionProviderApplyTest(SimpleTestCase):
         related = application["actions"][0]["related_resource_types"]
         self.assertEqual(related[0]["instances"], [[{"type": "collection", "id": "28", "name": "collection-28"}]])
         self.assertTrue(any(item.category is DeprecationWarning for item in caught))
+
+
+@override_settings(BK_IAM_SYSTEM_ID="bk_log_search", BK_IAM_SYSTEM_NAME="Log")
+class V3ApplicationAncestorsTest(SimpleTestCase):
+    def test_child_resource_paths_in_url_and_permission_prompt(self):
+        cases = [
+            ("indices", ["search_log_v2", "manage_indices_v2"]),
+            ("collection", ["view_collection_v2", "manage_collection_v2"]),
+            ("es_source", ["manage_es_source_v2"]),
+        ]
+        for resource_type, actions in cases:
+            for path in ("/space,12/", "/space,-12/", "/bk_monitorv3,space,-12/"):
+                with self.subTest(resource_type=resource_type, path=path):
+                    client = Mock()
+                    client.get_apply_url.return_value = (True, "", "https://iam.example.test/apply")
+                    provider = V3PermissionProvider(client, "bk_log_search", action_resolver=get_action_by_id)
+                    resources = [
+                        EngineResourceInstance(
+                            resource_type, rid, system="bk_log_search", name=rid, attributes={"_bk_iam_path_": path}
+                        )
+                        for rid in ("31", "32")
+                    ]
+                    data, url = provider.get_apply_data(actions, resources)
+                    application = client.get_apply_url.call_args.args[0]
+                    application.validate()
+                    self.assertEqual(url, "https://iam.example.test/apply?tab_key=independent")
+                    for action, prompt in zip(application.to_dict()["actions"], data["actions"]):
+                        self.assertEqual(action["id"], prompt["id"])
+                        related = action["related_resource_types"][0]
+                        self.assertEqual(related["system_id"], "bk_log_search")
+                        self.assertEqual(len(related["instances"]), 2)
+                        for instance, resource, prompt_path in zip(
+                            related["instances"], resources, prompt["related_resource_types"][0]["instances"]
+                        ):
+                            self.assertEqual(
+                                [(n["type"], n["id"]) for n in instance],
+                                [("space", path.rstrip("/").split(",")[-1]), (resource_type, resource.id)],
+                            )
+                            self.assertEqual(instance, [{k: n[k] for k in ("type", "id", "name")} for n in prompt_path])
+                    self.assertEqual(resources[0].attributes["_bk_iam_path_"], path)
+                    self.assertTrue(data["actions"][0]["related_resource_types"][0]["instances"][0][0]["type_name"])
+
+    def test_root_space_is_not_duplicated(self):
+        client = Mock()
+        client.get_apply_url.return_value = (True, "", "https://iam.example.test/apply")
+        provider = V3PermissionProvider(client, "bk_log_search", action_resolver=get_action_by_id)
+        data, _ = provider.get_apply_data(
+            ["view_business_v2"], [EngineResourceInstance("space", "-12", system="bk_monitorv3", name="Space")]
+        )
+        application = client.get_apply_url.call_args.args[0].to_dict()
+        expected = [[{"type": "space", "id": "-12", "name": "Space"}]]
+        self.assertEqual(application["actions"][0]["related_resource_types"][0]["instances"], expected)
+        self.assertEqual(len(data["actions"][0]["related_resource_types"][0]["instances"][0]), 1)
