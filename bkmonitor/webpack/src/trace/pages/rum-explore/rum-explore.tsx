@@ -788,6 +788,7 @@ export default defineComponent({
             fields={this.columnConfig.displayableFields.value}
             isShow={eventsDrawerCtx.show.value}
             row={eventsRow}
+            onConditionChange={this.handleConditionChange}
             onUpdate:isShow={(value: boolean) => {
               /* 关闭统一走 closeDrawer：主表激活单元格高亮随抽屉关闭清除，激活行高亮保留（不随关闭清空） */
               if (value) {
