@@ -216,6 +216,23 @@ def test_assignment_preserves_legacy_and_other_channel_content(assignment, count
     assert assignment.mail.call_args.kwargs["bk_tenant_id"] == "tenant-a"
 
 
+@pytest.mark.parametrize(("severity", "level"), [(1, "Emergency"), (2, "Critical")])
+def test_english_assignment_preserves_alert_name(assignment, settings, severity, level):
+    settings.DEFAULT_LOCALE = "en"
+    data = make_data(name="CPU usage too high")
+    data["sms_assign_time"] = "2026-12-31 23:59"
+    data["sms_assign_alert"]["severity"] = severity
+
+    with translation.override("zh-hans"):
+        tasks.notify_to_appointee(data)
+
+    body = assignment.sms.call_args.kwargs["content"]
+    assert body.startswith(f"2026-12-31 23:59 Assigned 1 {level} alert(CPU usage")
+    assert body.endswith("…). See WeCom/BK.")
+    assert sms_utf16_length(body) == 70
+    assert assignment.created[-1].status == ActionStatus.SUCCESS
+
+
 def test_old_assignment_task_loads_only_effective_business_alerts(assignment):
     data = make_data(count=3)
     data.pop("sms_assign_alert")
