@@ -25,14 +25,9 @@
  */
 import { parser } from '@prometheus-io/lezer-promql';
 
-import { type PromqlQuery, type PromqlSourceData, getSourceQueries, isExistingMultiPromql } from './model';
+import { type PromqlQuery, type PromqlSourceData, getSourceQueries } from './model';
 
 const EMPTY_QUERY_MESSAGE = '查询 {alias} 不能为空，请填写 PromQL 或删除该查询。';
-
-export interface PromqlValidateOptions {
-  /** 为 false 时只校验单条 PromQL 与 Step；已有多查询不拦截保存。 */
-  allowMulti?: boolean;
-}
 
 export interface PromqlValidationError {
   aliases?: string[];
@@ -81,13 +76,8 @@ export class PromqlQueryController {
     return 'abcdefghijklmnopqrstuvwxyz'.split('').find(alias => !aliases.has(alias));
   }
 
-  validate(
-    source: PromqlSourceData,
-    expression: string,
-    options?: PromqlValidateOptions
-  ): null | PromqlValidationError {
+  validate(source: PromqlSourceData, expression: string): null | PromqlValidationError {
     if (source.legacyMultiQuery) return null;
-    if (options?.allowMulti === false && isExistingMultiPromql(source, expression)) return null;
     const queries = getSourceQueries(source);
     const aliases = new Set(queries.map(query => query.alias));
     for (const alias of this.queryCache.keys()) {
@@ -96,15 +86,12 @@ export class PromqlQueryController {
     // 任一查询为空即为错误，提示与红框覆盖全部空查询，与表达式是否引用它们无关。
     const empty = queries.filter(query => !query.promql.trim()).map(query => query.alias);
     if (empty.length) {
-      const referenced =
-        options?.allowMulti === false
-          ? new Set<string>()
-          : new Set(expression.trim() ? this.analyzeExpression(expression).aliases : []);
+      const referenced = new Set(expression.trim() ? this.analyzeExpression(expression).aliases : []);
       return {
         aliases: empty,
         // 表达式引用了空查询时立即提示；仅新增、尚未被引用的空查询仍等失焦或提交后再校验。
         immediate: empty.some(alias => referenced.has(alias)),
-        message: options?.allowMulti === false ? '查询 {alias} 不能为空，请填写 PromQL。' : EMPTY_QUERY_MESSAGE,
+        message: EMPTY_QUERY_MESSAGE,
         params: { alias: empty.join('、') },
       };
     }
@@ -129,7 +116,6 @@ export class PromqlQueryController {
     if (!Number.isInteger(Number(source.step)) || Number(source.step) <= 0) {
       return { message: 'Step需填写合法的整数值' };
     }
-    if (options?.allowMulti === false) return null;
     const effective = this.effectiveExpression(source, expression);
     if (!effective.trim()) return { message: '请填写计算表达式' };
     const analysis = this.analyzeExpression(effective);

@@ -621,7 +621,9 @@ export default defineComponent({
                       />
                     )}
                     beforeHide={beforePopoverHide}
-                    content-class='bklog-v3-grade-setting'
+                    content-class='bklog-v3-grade-setting bklog-popover-stop'
+                    ignoreSelector='.bklog-popover-stop, .bk-selector-list, .bk-select-dropdown'
+                    overlayGroup='retrieve-grade'
                     options={tippyOptions as any}
                   >
                     <span class='bklog-icon bklog-shezhi' />

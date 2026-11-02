@@ -24,10 +24,10 @@
  * IN THE SOFTWARE.
  */
 
-import { defineComponent, ref, PropType } from 'vue';
+import { defineComponent, onBeforeUnmount, ref, PropType } from 'vue';
 import useLocale from '@/hooks/use-locale';
 import { bkMessage } from 'bk-magic-vue';
-import tippy from 'tippy.js';
+import { createRawTippyOverlay } from '@/global/overlay';
 import RegexMatchDialog from './regex-match';
 import { copyMessage } from '@/common/util';
 import { type LogPattern } from '@/services/log-clustering';
@@ -63,6 +63,7 @@ export default defineComponent({
 
     const isShowRuleDialog = ref(false);
     const regexSampleStr = ref('');
+    const patternMenuId = `cluster-pattern-menu-${Math.random().toString(36).slice(2, 10)}`;
     let popoverInstance: any = null;
     let intersectionObserver: any = null;
 
@@ -83,18 +84,26 @@ export default defineComponent({
         return;
       }
       destroyPopover();
-      popoverInstance = tippy(e.target as Element, {
-        appendTo: () => document.body,
-        content: eventTippyRef.value,
-        arrow: true,
-        trigger: 'click',
-        theme: 'light',
-        placement: 'bottom',
-        interactive: true,
-        allowHTML: true,
-        onShow: handlePopoverShow,
-        onHidden: handlePopoverHide,
-      });
+      popoverInstance = createRawTippyOverlay(
+        e.target as Element,
+        {
+          content: eventTippyRef.value,
+          arrow: true,
+          trigger: 'click',
+          theme: 'light',
+          placement: 'bottom',
+          interactive: true,
+          allowHTML: true,
+          onShow: handlePopoverShow,
+          onHidden: handlePopoverHide,
+        },
+        {
+          id: patternMenuId,
+          type: 'menu',
+          group: 'cluster-pattern-menu',
+          rootSelector: '.pattern-event-tippy',
+        },
+      );
       popoverInstance.show(500);
     };
 
@@ -167,6 +176,10 @@ export default defineComponent({
     const handlePopoverHide = () => {
       unregisterOberver();
     };
+
+    onBeforeUnmount(() => {
+      destroyPopover();
+    });
 
     const popoverSlot = () => (
       <div style={{ display: 'none' }}>

@@ -13,10 +13,8 @@ BK_BIZ_ID = 20009
 
 
 class TestGetDocCount(SimpleTestCase):
-    @patch(f"{MODULE}.AggsViewAdapter")
     @patch(f"{MODULE}.UnifyQueryHandler")
-    @patch(f"{MODULE}.FeatureToggleObject.switch", return_value=True)
-    def test_unify_query_enabled_skips_esquery(self, _mock_switch, mock_unify_handler, mock_aggs_adapter):
+    def test_unify_query_returns_doc_count(self, mock_unify_handler):
         mock_unify_handler.return_value.date_histogram.return_value = {
             "aggs": {"group_by_histogram": {"buckets": [{"doc_count": 3}, {"doc_count": 4}]}}
         }
@@ -24,36 +22,17 @@ class TestGetDocCount(SimpleTestCase):
         doc_count = get_doc_count(index_set_id=INDEX_SET_ID, bk_biz_id=BK_BIZ_ID)
 
         self.assertEqual(doc_count, 7)
-        mock_aggs_adapter.assert_not_called()
         query_data = mock_unify_handler.call_args.args[0]
         self.assertEqual(query_data["index_set_ids"], [INDEX_SET_ID])
         self.assertEqual(query_data["group_field"], "")
         self.assertEqual(query_data["bk_biz_id"], BK_BIZ_ID)
 
-    @patch(f"{MODULE}.AggsViewAdapter")
     @patch(f"{MODULE}.UnifyQueryHandler")
-    @patch(f"{MODULE}.FeatureToggleObject.switch", return_value=True)
-    def test_unify_query_without_series_returns_zero(self, _mock_switch, mock_unify_handler, _mock_aggs_adapter):
+    def test_unify_query_without_series_returns_zero(self, mock_unify_handler):
         # UnifyQuery 查不到数据时只返回 {"aggs": {}}
         mock_unify_handler.return_value.date_histogram.return_value = {"aggs": {}}
 
         self.assertEqual(get_doc_count(index_set_id=INDEX_SET_ID, bk_biz_id=BK_BIZ_ID), 0)
-
-    @patch(f"{MODULE}.AggsViewAdapter")
-    @patch(f"{MODULE}.UnifyQueryHandler")
-    @patch(f"{MODULE}.FeatureToggleObject.switch", return_value=False)
-    def test_unify_query_disabled_falls_back_to_esquery(self, _mock_switch, mock_unify_handler, mock_aggs_adapter):
-        mock_aggs_adapter.return_value.date_histogram.return_value = {
-            "aggs": {"group_by_histogram": {"buckets": [{"doc_count": 5}]}}
-        }
-
-        doc_count = get_doc_count(index_set_id=INDEX_SET_ID, bk_biz_id=BK_BIZ_ID)
-
-        self.assertEqual(doc_count, 5)
-        mock_unify_handler.assert_not_called()
-        call_kwargs = mock_aggs_adapter.return_value.date_histogram.call_args.kwargs
-        self.assertEqual(call_kwargs["index_set_id"], INDEX_SET_ID)
-        self.assertNotIn("index_set_ids", call_kwargs["query_data"])
 
 
 @patch(f"{MODULE}.NOTIFY_EVENT")

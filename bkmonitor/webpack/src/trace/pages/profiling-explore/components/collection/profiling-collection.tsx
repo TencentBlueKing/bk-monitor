@@ -185,7 +185,7 @@ export default defineComponent({
               >
                 <span class='collection-create-btn-inner'>
                   <i class='icon-monitor icon-a-1jiahao' />
-                  {this.t('新建采集')}
+                  {this.t('trace-新建采集')}
                 </span>
               </Button>
             </div>

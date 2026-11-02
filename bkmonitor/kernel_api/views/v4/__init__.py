@@ -27,12 +27,15 @@ from .import_export import *  # noqa
 from .kernel_rpc import *  # noqa
 from .mail_report import *  # noqa
 from .metrics import *  # noqa
+from .mcp import *  # noqa
 from .new_report import *  # noqa
 from .notice_group import *  # noqa
 from .openclaw import *  # noqa
 from .operation import *  # noqa
 from .plugin import *  # noqa
 from .relation import *  # noqa
+from .recording_rule import *  # noqa
+from .recording_rule_mcp import *  # noqa
 from .shield import *  # noqa
 from .strategy import *  # noqa
 from .strategy_v2 import *  # noqa

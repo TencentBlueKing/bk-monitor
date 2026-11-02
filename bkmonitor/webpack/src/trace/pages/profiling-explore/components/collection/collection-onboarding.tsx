@@ -45,9 +45,9 @@ export default defineComponent({
   },
   render() {
     const steps = [
-      { title: this.t('选择目标'), description: this.t('选择需要分析的主机和进程。') },
+      { title: this.t('trace-选择目标'), description: this.t('选择需要分析的主机和进程。') },
       { title: this.t('配置采集'), description: this.t('设置采集类型、时长和执行方式。') },
-      { title: this.t('分析结果'), description: this.t('查看火焰图与调用栈，定位性能开销。') },
+      { title: this.t('trace-分析结果'), description: this.t('查看火焰图与调用栈，定位性能开销。') },
     ];
     return (
       <div class='collection-onboarding'>

@@ -129,6 +129,7 @@ declare global {
     enable_apm: boolean;
     enable_cmdb_level: string;
     enable_create_chat_group: boolean;
+    enable_issue_ai_analysis: boolean;
     enable_message_queue: boolean;
     // 多租户用户中心是否开启
     enable_multi_tenant_mode?: boolean;

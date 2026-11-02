@@ -160,8 +160,11 @@ def test_grafana_read_gate_keeps_request_bypass(is_superuser, skip_check):
 
 
 def test_grafana_gate_uses_current_business_not_global_policy(monkeypatch):
+    from django.core.cache.backends.locmem import LocMemCache
+
     check = Mock(return_value=(True, GrafanaRole.Anonymous, {}))
     monkeypatch.setattr(grafana.DashboardPermission, "has_permission", check)
+    monkeypatch.setattr(grafana, "cache", LocMemCache("grafana-gate-test", {}))
     request = SimpleNamespace(biz_id=20, user=SimpleNamespace(username="alice"))
     fallback = Mock(has_permission=Mock(return_value=False))
     assert grafana.GrafanaReadPermission(fallback).has_permission(request, None) is False
@@ -288,9 +291,7 @@ def test_v3_application_registers_sdk_metadata_in_a_fresh_process(monkeypatch):
 
     monkeypatch.setattr(meta, "__meta_info__", {"system": {}, "resources": {}, "actions": {}})
     provider = build_provider("v3", "system", username="alice")
-    client = V3Client(
-        "offline", "offline", "https://iam.example.test", "bk_monitorv3", MonitorV3Codec(), enable_v1_compat=False
-    )
+    client = V3Client("offline", "offline", "https://iam.example.test", "bk_monitorv3", MonitorV3Codec())
     client.get_apply_url = Mock(return_value=(True, "", "https://iam.example.test/apply"))
     provider.client_factory = lambda tid: client
     monkeypatch.setattr(provider, "_resolve", lambda resource, **kwargs: resource)

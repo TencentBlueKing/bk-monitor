@@ -28,7 +28,7 @@ from metadata.tests.common_utils import consul_client
 
 
 @pytest.fixture
-def create_or_delete_records(mocker):
+def create_or_delete_records(mocker, settings):
     """
     测试用例
     联邦代理集群--BCS-K8S-10001--60010
@@ -36,6 +36,8 @@ def create_or_delete_records(mocker):
     联邦子集群--BCS-K8S-10002--60011
     联邦子集群--BCS-K8S-10003--60012
     """
+    settings.ENABLE_MULTI_TENANT_MODE = False
+    mocker.patch("bkmonitor.utils.tenant.get_tenant_default_biz_id", return_value=2)
     # 批量创建 BCSClusterInfo 数据
     bcs_cluster_info_data = [
         models.BCSClusterInfo(
@@ -186,6 +188,17 @@ def create_or_delete_records(mocker):
         ),
     ]
     models.ResultTable.objects.bulk_create(result_table_data)
+    models.ResultTable.objects.bulk_create(
+        [
+            models.ResultTable(
+                table_id=f"1001_bkmonitor_time_series_{data_id}.__default__",
+                table_name_zh="federation metric",
+                bk_biz_id=1001,
+                is_custom_table=False,
+            )
+            for data_id in (60011, 60012, 70010)
+        ]
+    )
 
     # 批量创建 EventGroup 数据
     event_group_data = [
@@ -281,10 +294,6 @@ def test_sync_federation_clusters(create_or_delete_records):
     """
     测试同步联邦拓扑信息
     """
-    bkbase_data_name_10002_fed = "fed_bkm_bcs_BCS_K8S_10002_k8s_metric"
-    bkbase_vmrt_name_10002_fed = "bkm_1001_bkmonitor_time_series_60011_fed"
-    bkbase_data_name_10003_fed = "fed_bkm_bcs_BCS_K8S_10003_k8s_metric"
-    bkbase_vmrt_name_10003_fed = "bkm_1001_bkmonitor_time_series_60012_fed"
     with (
         patch.object(models.DataLink, "get_existing_component_config", return_value=None),
         patch.object(models.DataLink, "apply_data_link_with_retry", return_value={"status": "success"}),
@@ -306,6 +315,18 @@ def test_sync_federation_clusters(create_or_delete_records):
         }
         plan = sync_federation_clusters(fed_clusters=bcs_api_fed_returns)
         reconcile_federation_data_links(bk_tenant_id="system", plan=plan)
+        bkbase_data_name_10002_fed = models.DataLink.objects.get(
+            bk_data_id=60011, data_link_strategy=models.DataLink.BCS_FEDERAL_SUBSET_TIME_SERIES
+        ).pk
+        bkbase_vmrt_name_10002_fed = models.ConditionalSinkConfig.objects.get(
+            data_link_name=bkbase_data_name_10002_fed
+        ).name
+        bkbase_data_name_10003_fed = models.DataLink.objects.get(
+            bk_data_id=60012, data_link_strategy=models.DataLink.BCS_FEDERAL_SUBSET_TIME_SERIES
+        ).pk
+        bkbase_vmrt_name_10003_fed = models.ConditionalSinkConfig.objects.get(
+            data_link_name=bkbase_data_name_10003_fed
+        ).name
 
         fed_record_10002_part1 = models.BcsFederalClusterInfo.objects.get(
             sub_cluster_id="BCS-K8S-10002", fed_cluster_id="BCS-K8S-10001", is_deleted=False

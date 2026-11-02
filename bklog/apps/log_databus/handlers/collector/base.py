@@ -80,12 +80,12 @@ from apps.log_databus.exceptions import (
     ResultTableNotExistException,
     SubscriptionInfoNotFoundException,
     CollectorIdNotExistException,
-    SubscriptionStatisticException,
 )
 from apps.log_databus.handlers.collector_scenario import CollectorScenario
 from apps.log_databus.handlers.collector_scenario.custom_define import get_custom
 from apps.log_databus.handlers.etl_storage import EtlStorage
 from apps.log_databus.handlers.storage import StorageHandler
+from apps.log_databus.nodeman_v3.mode import resolve_nodeman_v3_collector_ids, should_use_nodeman_v3
 from apps.log_databus.models import (
     ArchiveConfig,
     CleanStash,
@@ -337,6 +337,14 @@ class CollectorHandler:
         @return:
         """
         result = context
+        if should_use_nodeman_v3(self.data):
+            # V3 没有订阅对象，详情回显的事实源就是 CollectorConfig.params 本身。
+            # 这里显式返回而不是靠「subscription_id 恰好为空」兜住：后者是隐式依赖，
+            # 一旦有人给 V3 模式回填了 subscription_id，就会去调 get_subscription_info 并报错。
+            #
+            # 注意两侧口径并不完全相同：V2 走 collector_scenario.parse_steps 从订阅步骤反解，
+            # 会做一轮归一化；V3 直接用库里的 params。字段差异需要在 BKL-5 联调时按六种场景对齐。
+            return collector_config
         if self.data.subscription_id and "subscription_config" in result:
             if not result["subscription_config"]:
                 raise SubscriptionInfoNotFoundException()
@@ -692,33 +700,38 @@ class CollectorHandler:
         删除采集配置
         :return: task_id
         """
+        # V2/容器链路保持原有语义：停止与后续删除仍在同一个外层事务中。
+        self.stop()
+        return self._destroy_after_stop(**kwargs)
+
+    @transaction.atomic
+    def _destroy_after_stop(self, *, skip_pre_destroy: bool = False, **kwargs):
+        """完成已停止采集项的本地删除；供需要先提交停止期望态的 V3 链路复用。"""
         # 1. 重新命名采集项名称
         collector_config_name = (
             self.data.collector_config_name + "_delete_" + datetime.datetime.now().strftime("%Y%m%d%H%M%S")
         )
 
-        # 2. 停止采集（删除配置文件）
-        self.stop()
+        # 2. 区分物理机和容器。V3 已由 stop() 完成远端清理，跳过等价的 destroy() 重放。
+        if not skip_pre_destroy:
+            self._pre_destroy()
 
-        # 3. 区分物理机和容器
-        self._pre_destroy()
-
-        # 4. 删除索引集
+        # 3. 删除索引集
         if self.data.index_set_id:
             index_set_handler = IndexSetHandler(index_set_id=self.data.index_set_id)
             index_set_handler.delete(self.data.collector_config_name)
 
-        # 5. 删除CollectorConfig记录
+        # 4. 删除CollectorConfig记录
         self.data.collector_config_name = collector_config_name
         self.data.save()
         self.data.delete()
 
-        # 6. 删除META采集项：直接重命名采集项名称
+        # 5. 删除META采集项：直接重命名采集项名称
         collector_scenario = CollectorScenario.get_instance(collector_scenario_id=self.data.collector_scenario_id)
         if self.data.bk_data_id:
             collector_scenario.delete_data_id(self.data.bk_data_id, collector_config_name)
 
-        # 7. 如果存在归档使用了当前采集项, 则删除归档
+        # 6. 如果存在归档使用了当前采集项, 则删除归档
         qs = ArchiveConfig.objects.filter(
             instance_id=self.data.collector_config_id, instance_type=ArchiveInstanceType.COLLECTOR_CONFIG.value
         )
@@ -1249,6 +1262,59 @@ class CollectorHandler:
         )
         return return_data, subscription_id_list, subscription_collector_map
 
+    @staticmethod
+    def _get_subscription_status_by_list_v3(collector_list, container_collector_mapping) -> list:
+        """
+        V3 下的采集项状态汇总，替代 V2 的 subscription_statistic。
+
+        输出字段与 V2 的 format_subscription_status 保持一致（前端不改），差别只有两处：
+
+        - `subscription_id` 恒为 None：V3 没有订阅对象，任务标识是字符串 trigger_id/workflow_id，
+          写不进 IntegerField，也不该硬塞给前端当订阅用
+        - 「已生效但旧版」计入 success：它确实在出数，翻红会让用户去重试一个正在正常采集的采集项
+        """
+        from apps.log_databus.nodeman_v3.status import CollectorStatusReader, summary_to_status
+
+        return_data: list = []
+        for collector_obj in collector_list:
+            if collector_obj.is_container_environment:
+                # 容器采集不在 V3 本期范围（BKL-5 的 Out 明确排除 K8s/BCS），沿用原路径
+                collector_handler = import_string("apps.log_databus.handlers.collector.K8sCollectorHandler")
+                return_data = collector_handler.get_container_return_data(
+                    collector_obj, container_collector_mapping, return_data
+                )
+                continue
+
+            try:
+                summary = CollectorStatusReader(collector_obj).summary()
+            except Exception:  # pylint: disable=broad-except
+                # 单个采集项查不到状态不能让整个列表页 500，降级成 UNKNOWN
+                logger.exception(
+                    "get nodeman v3 status failed, collector_config_id: %s", collector_obj.collector_config_id
+                )
+                return_data.append(
+                    {
+                        "collector_id": collector_obj.collector_config_id,
+                        "subscription_id": None,
+                        "status": CollectStatus.UNKNOWN,
+                        "status_name": RunStatus.UNKNOWN,
+                        "total": 0,
+                        "success": 0,
+                        "failed": 0,
+                        "pending": 0,
+                    }
+                )
+                continue
+
+            return_data.append(
+                {
+                    "collector_id": collector_obj.collector_config_id,
+                    "subscription_id": None,
+                    **summary_to_status(summary, collector_obj),
+                }
+            )
+        return return_data
+
     def get_subscription_status_by_list(
         self, collector_id_list: list, *, no_request: bool = False, bk_tenant_id: str | None = None
     ) -> list:
@@ -1267,6 +1333,18 @@ class CollectorHandler:
         container_collector_mapping = defaultdict(list)
         for config in ContainerCollectorConfig.objects.filter(collector_config_id__in=collector_id_list):
             container_collector_mapping[config.collector_config_id].append(config)
+
+        # 灰度期间同一个列表里会混着两类采集项：V3 归属的与存量 V2 的。必须按归属分流后各查各的，
+        # 不能按环境模式一刀切 —— 那会让存量 V2 采集项在状态页集体失能（查不到 V3 binding 全变 UNKNOWN）
+        v3_collector_ids = resolve_nodeman_v3_collector_ids(collector_list)
+        if v3_collector_ids:
+            return_data += self._get_subscription_status_by_list_v3(
+                [obj for obj in collector_list if obj.collector_config_id in v3_collector_ids],
+                container_collector_mapping,
+            )
+            collector_list = [obj for obj in collector_list if obj.collector_config_id not in v3_collector_ids]
+            if not collector_list:
+                return self._clean_terminated(return_data)
 
         for collector_obj in collector_list:
             return_data, subscription_id_list, subscription_collector_map = self._pre_get_subscription_status_by_list(
@@ -1295,11 +1373,7 @@ class CollectorHandler:
             if isinstance(ret, Exception):
                 # 子查询异常
                 logger.exception("subscription id(%s),subscription statistic failed：%s", key, ret)
-                raise SubscriptionStatisticException(
-                    SubscriptionStatisticException.MESSAGE.format(
-                        reason=f"subscription id({key}),subscription statistic failed：{ret}"
-                    )
-                )
+                continue
             status_result.extend(ret)
 
         # 如果没有订阅ID，则直接返回

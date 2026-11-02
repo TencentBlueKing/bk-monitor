@@ -29,11 +29,12 @@ import { shallowRef } from 'vue';
 import { Button, Exception, Message } from 'bkui-vue';
 import { request } from 'monitor-api/base';
 import { copyText, random } from 'monitor-common/utils';
+import EmptyStatus from 'trace/components/empty-status/empty-status';
 import { type IWhereItem, EMode } from 'trace/components/retrieval-filter/typing';
 import { useI18n } from 'vue-i18n';
 
-import { DetailLoadStatus, DetailTableSkeleton } from '../../detail-loading';
 import RetrievalFilter from '../../../../../components/retrieval-filter/retrieval-filter';
+import { DetailLoadStatus, DetailTableSkeleton } from '../../detail-loading';
 import IndexSetSelector from './index-set-selector/index-set-selector';
 import LogTableNew from './log-table/log-table-new';
 
@@ -80,7 +81,10 @@ export default defineComponent({
     const selectError = shallowRef(false);
     let requestId = 0;
     let fieldsRevision = 0;
-    onScopeDispose(() => { ++requestId; ++fieldsRevision; });
+    onScopeDispose(() => {
+      ++requestId;
+      ++fieldsRevision;
+    });
     /** 索引集列表 */
     const indexSetList = shallowRef([]);
     const relatedBkBizId = shallowRef(-1);
@@ -109,16 +113,16 @@ export default defineComponent({
       selectError.value = false;
       selectLoading.value = true;
       try {
-      const data = await alertLogRelationList({
-        alert_id: props.detail.id,
-        bk_biz_id: props.detail.bk_biz_id,
-      });
-      if (current !== requestId) return;
-      indexSetList.value = data;
-      // 优先选择列表里第一个有数据的索引集
-      const dataValidItem = data.find(item => item.tags?.every(tag => tag.tag_id !== 4));
-      const indexSetId = dataValidItem ? dataValidItem.index_set_id : data?.[0]?.index_set_id || '';
-      handleChangeIndexSet(indexSetId);
+        const data = await alertLogRelationList({
+          alert_id: props.detail.id,
+          bk_biz_id: props.detail.bk_biz_id,
+        });
+        if (current !== requestId) return;
+        indexSetList.value = data;
+        // 优先选择列表里第一个有数据的索引集
+        const dataValidItem = data.find(item => item.tags?.every(tag => tag.tag_id !== 4));
+        const indexSetId = dataValidItem ? dataValidItem.index_set_id : data?.[0]?.index_set_id || '';
+        handleChangeIndexSet(indexSetId);
       } catch {
         if (current === requestId) selectError.value = true;
       } finally {
@@ -169,51 +173,98 @@ export default defineComponent({
             search_mode: filterMode.value === EMode.ui ? 'ui' : 'sql',
             sort_list: [...(params?.sortList || []), ...defaultSortList.value],
             keyword: filterMode.value !== EMode.ui ? keyword.value : '',
+          }).then(res => {
+            return res;
           })
-            .then(res => {
-              return res;
-            })
-
         : null;
       return data;
     }
 
     const fieldsData = shallowRef(null);
+    /** 日志字段接口返回检索无权限时，tab 内展示申请入口，不再挂表格 */
+    const logPermission = shallowRef<null | { applyUrl: string; message: string }>(null);
+    const fieldsChecking = shallowRef(false);
+
+    function resolveLogPermissionDenied(err: unknown) {
+      if (!err || typeof err !== 'object') return null;
+      const raw = err as Record<string, any>;
+      const body = raw.code != null || raw.permission || raw.data?.apply_url ? raw : raw.data;
+      if (!body || typeof body !== 'object') return null;
+      const applyUrl = typeof body.data?.apply_url === 'string' ? body.data.apply_url : '';
+      const denied = String(body.code) === '9900403' || Boolean(applyUrl && body.permission);
+      if (!denied) return null;
+      return {
+        applyUrl,
+        message: typeof body.message === 'string' ? body.message : '',
+      };
+    }
+
     const getFieldsData = async () => {
       const current = fieldsRevision;
       if (fieldsData.value) {
         return fieldsData.value;
       }
-      const data = selectIndexSet.value
-        ? await getLogFieldsData(selectIndexSet.value, {
+      if (logPermission.value || !selectIndexSet.value) {
+        return null;
+      }
+      try {
+        const data = await getLogFieldsData(
+          selectIndexSet.value,
+          {
             is_realtime: 'True',
             ...bizIdParams(),
             ...timeParams(),
-          })
-            .then(res => res)
-
-        : null;
-      if (current !== fieldsRevision) return null;
-      setLogFilterParams({
-        index_set_id: selectIndexSet.value,
-        ...bizIdParams(),
-        ...timeParams(),
-      });
-      fieldsData.value = data;
-      defaultSortList.value = data?.default_sort_list || [];
-      tableColumnsSetting.value = formatHierarchy(fieldsData.value?.fields || []).map(item => {
-        return {
-          id: item.field_name,
-          name: item.query_alias || item.field_name,
-          type: item.field_type,
-        };
-      });
-      /** 优先使用user_custom_config配置，如果没有再使用display_fields配置 */
-      displayColumnFields.value = data?.user_custom_config?.displayFields?.length
-        ? data.user_custom_config.displayFields
-        : data?.display_fields || [];
-      return data;
+          },
+          { needMessage: false }
+        );
+        if (current !== fieldsRevision) return null;
+        logPermission.value = null;
+        setLogFilterParams({
+          index_set_id: selectIndexSet.value,
+          ...bizIdParams(),
+          ...timeParams(),
+        });
+        fieldsData.value = data;
+        defaultSortList.value = data?.default_sort_list || [];
+        tableColumnsSetting.value = formatHierarchy(fieldsData.value?.fields || []).map(item => {
+          return {
+            id: item.field_name,
+            name: item.query_alias || item.field_name,
+            type: item.field_type,
+          };
+        });
+        /** 优先使用user_custom_config配置，如果没有再使用display_fields配置 */
+        displayColumnFields.value = data?.user_custom_config?.displayFields?.length
+          ? data.user_custom_config.displayFields
+          : data?.display_fields || [];
+        return data;
+      } catch (err) {
+        if (current !== fieldsRevision) return null;
+        const denied = resolveLogPermissionDenied(err);
+        if (denied) {
+          logPermission.value = denied;
+          return null;
+        }
+        throw err;
+      }
     };
+
+    async function ensureFields() {
+      const current = fieldsRevision;
+      if (!selectIndexSet.value) {
+        logPermission.value = null;
+        fieldsChecking.value = false;
+        return;
+      }
+      fieldsChecking.value = true;
+      try {
+        await getFieldsData();
+      } catch {
+        // 非权限失败仍交给日志表自己的错误态
+      } finally {
+        if (current === fieldsRevision) fieldsChecking.value = false;
+      }
+    }
 
     /** 需要展示的表格字段 */
     const displayColumnFields = shallowRef([]);
@@ -314,7 +365,23 @@ export default defineComponent({
       }
       ++fieldsRevision;
       fieldsData.value = null;
+      logPermission.value = null;
       tableRefreshKey.value = random(8);
+      void ensureFields();
+    }
+
+    function handleApplyLogPermission() {
+      const applyUrl = logPermission.value?.applyUrl;
+      if (!applyUrl) return;
+      try {
+        if (self === top) {
+          window.open(applyUrl, '_blank');
+        } else {
+          (top as any).BLUEKING.api.open_app_by_other('bk_iam', applyUrl);
+        }
+      } catch {
+        window.open(applyUrl, '_blank');
+      }
     }
 
     /**
@@ -462,7 +529,10 @@ export default defineComponent({
       tableRefreshKey,
       selectIndexSet,
       selectLoading,
-      selectError, retryIndexSets: init,
+      selectError,
+      fieldsChecking,
+      logPermission,
+      retryIndexSets: init,
       keyword,
       filterMode,
       displayColumnFields,
@@ -471,6 +541,7 @@ export default defineComponent({
       where,
       tableColumnsSetting,
       handleChangeIndexSet,
+      handleApplyLogPermission,
       t,
       handleGoLog,
       handleSearch,
@@ -509,57 +580,91 @@ export default defineComponent({
             <span class='icon-monitor icon-fenxiang ml-6' />
           </Button>
         </div>
-        <div class='panel-log-filter'>
-          <RetrievalFilter
-            fields={this.retrievalFields}
-            filterMode={this.filterMode}
-            getValueFn={this.getFieldsOptionValuesProxy}
-            isShowClear={true}
-            noValueOfMethods={['exists', 'not exists', 'is false', 'is true']}
-            queryString={this.keyword}
-            where={this.where}
-            zIndex={4000}
-            onModeChange={this.handleModeChange}
-            onQueryStringChange={this.handleQueryStringChange}
-            onSearch={this.handleSearch}
-            onWhereChange={this.handleWhereChange}
-          />
-        </div>
-        {this.selectError ? <DetailLoadStatus error onRetry={this.retryIndexSets} /> : this.selectLoading ? <DetailTableSkeleton columns={[{ colKey: 'time', title: this.t('时间'), width: 200 }, { colKey: 'log', title: this.t('日志内容') }]} /> : <LogTableNew
-          displayFields={this.displayColumnFields}
-          getFieldsData={this.getFieldsData}
-          getTableData={this.getTableData}
-          headerAffixedTop={this.headerAffixedTop}
-          refreshKey={this.tableRefreshKey}
-          onAddField={this.handleAddField}
-          onClickMenu={this.handleClickMenu}
-          onRemoveField={this.handleRemoveField}
-        >
-          {{
-            settingBtn: () => {
-              return (
-                <TableFieldSetting
-                  class='table-field-setting'
-                  sourceList={this.tableColumnsSetting}
-                  targetList={this.displayColumnFields}
-                  onConfirm={this.handleDisplayColumnFieldsChange}
+        {this.logPermission ? (
+          <EmptyStatus
+            textMap={this.logPermission.message ? { 403: this.logPermission.message } : null}
+            type='403'
+          >
+            {this.logPermission.applyUrl ? (
+              <Button
+                theme='primary'
+                onClick={this.handleApplyLogPermission}
+              >
+                {this.t('去申请')}
+              </Button>
+            ) : undefined}
+          </EmptyStatus>
+        ) : (
+          <>
+            {!this.fieldsChecking && (
+              <div class='panel-log-filter'>
+                <RetrievalFilter
+                  fields={this.retrievalFields}
+                  filterMode={this.filterMode}
+                  getValueFn={this.getFieldsOptionValuesProxy}
+                  isShowClear={true}
+                  noValueOfMethods={['exists', 'not exists', 'is false', 'is true']}
+                  queryString={this.keyword}
+                  where={this.where}
+                  zIndex={4000}
+                  onModeChange={this.handleModeChange}
+                  onQueryStringChange={this.handleQueryStringChange}
+                  onSearch={this.handleSearch}
+                  onWhereChange={this.handleWhereChange}
                 />
-              );
-            },
-            empty: () => {
-              if (!this.indexSetList.length) {
-                return (
-                  <Exception type='building'>
-                    <span style='margin: 0 24px 16px 24px;font-size: 14px;color: rgb(151, 155, 165);display: inline-block;'>
-                      {this.t('暂无关联日志')}
-                    </span>
-                  </Exception>
-                );
-              }
-              return <LogException />;
-            },
-          }}
-        </LogTableNew>}
+              </div>
+            )}
+            {this.selectError ? (
+              <DetailLoadStatus
+                error
+                onRetry={this.retryIndexSets}
+              />
+            ) : this.selectLoading || this.fieldsChecking ? (
+              <DetailTableSkeleton
+                columns={[
+                  { colKey: 'time', title: this.t('时间'), width: 200 },
+                  { colKey: 'log', title: this.t('日志内容') },
+                ]}
+              />
+            ) : (
+              <LogTableNew
+                displayFields={this.displayColumnFields}
+                getFieldsData={this.getFieldsData}
+                getTableData={this.getTableData}
+                headerAffixedTop={this.headerAffixedTop}
+                refreshKey={this.tableRefreshKey}
+                onAddField={this.handleAddField}
+                onClickMenu={this.handleClickMenu}
+                onRemoveField={this.handleRemoveField}
+              >
+                {{
+                  settingBtn: () => {
+                    return (
+                      <TableFieldSetting
+                        class='table-field-setting'
+                        sourceList={this.tableColumnsSetting}
+                        targetList={this.displayColumnFields}
+                        onConfirm={this.handleDisplayColumnFieldsChange}
+                      />
+                    );
+                  },
+                  empty: () => {
+                    if (!this.indexSetList.length) {
+                      return (
+                        <Exception type='building'>
+                          <span style='margin: 0 24px 16px 24px;font-size: 14px;color: rgb(151, 155, 165);display: inline-block;'>
+                            {this.t('暂无关联日志')}
+                          </span>
+                        </Exception>
+                      );
+                    }
+                    return <LogException />;
+                  },
+                }}
+              </LogTableNew>
+            )}
+          </>
+        )}
       </div>
     );
   },

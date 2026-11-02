@@ -31,6 +31,7 @@ import $http from '@/api';
 import useStore from '@/hooks/use-store';
 import { showMessage } from '../../utils';
 
+import 'tippy.js/dist/tippy.css';
 import './tag-more.scss';
 import { t } from '@/hooks/use-locale';
 
@@ -70,6 +71,8 @@ export type ITagMoreProps = {
   className?: string;
   /** tag之间的间距，默认8px */
   gap?: number;
+  /** 是否至少展示首个标签，默认true；false时允许全部折叠为+n */
+  keepFirstTag?: boolean;
   /** 每个tag的最大宽度，默认128px */
   maxTagWidth: number;
   /** 最大展示行数，默认1行 */
@@ -82,6 +85,10 @@ export type ITagMoreProps = {
   selectLabelList?: ITagItem[];
   /** 是否显示tooltip，默认true */
   showTooltip?: boolean;
+  /** tooltip显示模式：默认允许悬浮提示，overflow仅在出现+n时允许 */
+  tooltipMode?: 'always' | 'overflow';
+  /** tooltip触发节点：默认外层容器，more仅由+n触发 */
+  tooltipTarget?: 'container' | 'more';
   /** 标签列表 */
   tags: ITagItem[];
   /** tooltip标题 */
@@ -109,6 +116,10 @@ export default defineComponent({
       default: 8,
       type: Number,
     },
+    keepFirstTag: {
+      default: true,
+      type: Boolean,
+    },
     maxTagWidth: {
       default: 128,
       type: Number,
@@ -133,6 +144,14 @@ export default defineComponent({
       default: true,
       type: Boolean,
     },
+    tooltipMode: {
+      default: 'always',
+      type: String as () => 'always' | 'overflow',
+    },
+    tooltipTarget: {
+      default: 'container',
+      type: String as () => 'container' | 'more',
+    },
     tags: {
       default: () => [],
       type: Array as () => ITagItem[],
@@ -152,10 +171,20 @@ export default defineComponent({
     const containerRef = ref<HTMLDivElement>(); // 主容器引用
     const measureRef = ref<HTMLDivElement>(); // 隐藏的测量容器引用
     const tipsPanelRef = ref<HTMLDivElement>(); // tooltip内容面板引用
+    const indicatorRef = ref<HTMLSpanElement>(); // +n触发节点引用
+    const tooltipTriggerTarget = computed(() =>
+      props.tooltipTarget === 'more' ? indicatorRef.value : containerRef.value,
+    );
 
     // 状态管理
     const visibleTags = ref<ITagItem[]>([]); // 当前可见的标签列表
     const hiddenCount = ref(0); // 隐藏的标签数量
+    const canShowTooltip = computed(
+      () =>
+        props.showTooltip &&
+        !!tooltipTriggerTarget.value &&
+        (props.tooltipMode !== 'overflow' || hiddenCount.value > 0),
+    );
     const contentBounds = ref<ITagMoreContentBounds | null>(null);
     let resizeObserver: ResizeObserver | undefined; // 容器尺寸监听器
     let contentResizeObserver: ResizeObserver | undefined;
@@ -422,8 +451,9 @@ export default defineComponent({
       const maxRows = Math.max(1, Math.floor(props.maxRows || 1));
       const gap = props.gap;
       const tagWidths = tagList.map(tag => measureItemWidth(tag.name));
+      const minVisibleCount = props.keepFirstTag ? 1 : 0;
 
-      for (let visibleCount = tagList.length; visibleCount >= 1; visibleCount -= 1) {
+      for (let visibleCount = tagList.length; visibleCount >= minVisibleCount; visibleCount -= 1) {
         const remainingCount = tagList.length - visibleCount;
         const itemWidths = tagWidths.slice(0, visibleCount).map((width, index) => {
           const hasNextTagOrIndicator = index < visibleCount - 1 || remainingCount > 0;
@@ -445,9 +475,9 @@ export default defineComponent({
         }
       }
 
-      // 极窄容器下仍保证至少展示第一个标签，与原有行为保持一致。
-      visibleTags.value = tagList.slice(0, 1);
-      hiddenCount.value = Math.max(0, tagList.length - 1);
+      // 极窄容器下按配置保留首个标签，或将所有标签折叠为 +n。
+      visibleTags.value = tagList.slice(0, minVisibleCount);
+      hiddenCount.value = tagList.length - minVisibleCount;
     };
 
     /** 获取参与触发框视觉区域测量的可见内容节点。 */
@@ -559,7 +589,7 @@ export default defineComponent({
     const initActionPop = () => {
       if (
         tippyInstance ||
-        !(props.showTooltip && containerRef.value && tipsPanelRef.value) ||
+        !(props.showTooltip && containerRef.value && tipsPanelRef.value && tooltipTriggerTarget.value) ||
         (hasCustomTrigger.value && isDisabledAddNewTag.value)
       ) {
         return;
@@ -567,13 +597,19 @@ export default defineComponent({
 
       tippyInstance = tippy(containerRef.value as SingleTarget, {
         content: tipsPanelRef.value as HTMLElement,
+        triggerTarget: tooltipTriggerTarget.value,
         placement: props.tooltipPlacement,
         interactive: true, // 允许用户与tooltip交互
         hideOnClick: true, // 点击后隐藏
         appendTo: () => document.body, // 挂载到body，避免被父容器裁剪
-        // 定位锚点优先使用调用方渲染的触发框（.tag-more-trigger-frame），使 tooltip
-        // 对齐实际内容区域的正下方；frame 不存在或未布局（display:none）时回退到容器。
+        onShow: () => {
+          if (!canShowTooltip.value) return false;
+        },
+        // more 模式对齐 +n；容器模式沿用调用方触发框或外层容器定位。
         getReferenceClientRect: () => {
+          if (props.tooltipTarget === 'more' && indicatorRef.value) {
+            return indicatorRef.value.getBoundingClientRect();
+          }
           const container = containerRef.value as HTMLElement;
           const frameRect = container?.querySelector('.tag-more-trigger-frame')?.getBoundingClientRect();
           if (frameRect && frameRect.width > 0 && frameRect.height > 0) {
@@ -583,6 +619,28 @@ export default defineComponent({
         },
       });
     };
+
+    watch(canShowTooltip, canShow => {
+      if (!canShow) {
+        tippyInstance?.hide();
+        return;
+      }
+      nextTick(initActionPop);
+    });
+
+    // +n 随折叠状态挂载或移除，等待 DOM 提交后切换事件目标，避免回退到容器触发。
+    watch(
+      tooltipTriggerTarget,
+      target => {
+        if (tippyInstance) {
+          tippyInstance.hide();
+          tippyInstance.setProps({ triggerTarget: target || [] });
+        } else if (target) {
+          initActionPop();
+        }
+      },
+      { flush: 'post' },
+    );
 
     /**
      * 组件挂载后的初始化
@@ -663,9 +721,9 @@ export default defineComponent({
 
     /**
      * 监听影响布局的属性变化
-     * gap、maxTagWidth和maxRows的变化会影响标签布局，需要重新计算
+     * 间距、宽度、行数和首个标签保留策略变化时需要重新计算
      */
-    watch([() => props.gap, () => props.maxTagWidth, () => props.maxRows], () => {
+    watch([() => props.gap, () => props.maxTagWidth, () => props.maxRows, () => props.keepFirstTag], () => {
       nextTick(debouncedCalculate);
     });
 
@@ -905,6 +963,7 @@ export default defineComponent({
     const renderIndicator = () =>
       hiddenCount.value > 0 && (
         <span
+          ref={indicatorRef}
           style={{ marginLeft: '0' }}
           class='tag-more-indicator'
         >

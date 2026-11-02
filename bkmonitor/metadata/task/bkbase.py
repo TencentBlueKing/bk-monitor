@@ -88,11 +88,16 @@ def sync_bkbase_v4_metadata(key, skip_types: list[str] | None = None):
     bk_base_data_id = key.split(":")[-1]  # 提取 bk_base_data_id
 
     try:
-        vm_record = models.AccessVMRecord.objects.filter(bk_base_data_id=bk_base_data_id)
-        if vm_record.exists():  # 若接入VM记录存在,说明是指标链路,常规流程,通过table_id获取监控平台DataId
-            table_id = vm_record.first().result_table_id
+        vm_record = models.AccessVMRecord.objects.filter(bk_base_data_id=bk_base_data_id).first()
+        if vm_record:  # 若接入VM记录存在,说明是指标链路,常规流程,通过table_id获取监控平台DataId
+            table_id = vm_record.result_table_id
             # 兼容 DataId--RT 一对多的边缘场景
-            bk_data_id = models.DataSourceResultTable.objects.filter(table_id=table_id).first().bk_data_id
+            # 同名 RT 可存在于多个租户，反查时沿用 AccessVMRecord 的租户。
+            bk_data_id = (
+                models.DataSourceResultTable.objects.filter(bk_tenant_id=vm_record.bk_tenant_id, table_id=table_id)
+                .first()
+                .bk_data_id
+            )
         else:  # 否则,说明是日志链路,日志链路中,无论是纯V4还是V3->V4,DataId是一样的
             bk_data_id = bk_base_data_id
     except Exception as e:  # pylint: disable=broad-except
@@ -941,6 +946,9 @@ def _get_bkbase_components_config(
             )
             extra_config["sink_names"] = [f"{sink['kind']}:{sink['name']}" for sink in spec["sinks"]]
             extra_config["consumer_group"] = spec.get("consumerGroup") or ""
+            extra_config["options"] = {
+                key: spec[key] for key in ("subTaskNum", "batch", "preferCluster") if key in spec
+            }
         case DataLinkKind.BASEREPORTSINK.value:
             vm_storage_binding_names = []
             for mapping in spec.get("mappings", []):
@@ -952,6 +960,8 @@ def _get_bkbase_components_config(
 
 
 def _should_update_bkbase_component_field(kind: str, field: str, value: Any) -> bool:
+    if kind == DataLinkKind.DATABUS.value and field == "options":
+        return True
     if value:
         return True
     return kind == DataLinkKind.SURREALDBBINDING.value and field in {"vertices", "relations"} and value == []

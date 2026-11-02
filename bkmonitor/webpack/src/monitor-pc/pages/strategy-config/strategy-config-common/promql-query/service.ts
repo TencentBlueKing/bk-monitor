@@ -27,19 +27,12 @@ import { promqlToQueryConfig, queryConfigToPromql } from 'monitor-api/modules/st
 
 import { type PromqlSourceData, getSourceQueries } from './model';
 
-export function buildPromqlItem(source: PromqlSourceData, expression: string, options?: { preserveMulti?: boolean }) {
+export function buildPromqlItem(source: PromqlSourceData, expression: string) {
   if (source.legacyMultiQuery) {
     return {
       expression: source.legacyExpression,
       origin_sql: source.legacyOriginSql,
       query_configs: source.legacyQueryConfigs.map(query => ({ ...query })),
-    };
-  }
-  if (options?.preserveMulti && source.rawQueryConfigs?.length) {
-    return {
-      expression: source.rawExpression ?? expression,
-      origin_sql: source.rawOriginSql ?? source.sourceCode,
-      query_configs: source.rawQueryConfigs.map(query => ({ ...query })),
     };
   }
   const queries = getSourceQueries(source);

@@ -33,7 +33,13 @@ def expected_v4_model():
 
     payload = {
         "version": 1,
-        "system": {key: info[key] for key in ("name", "description", "clients")},
+        "system": {
+            **{key: info[key] for key in ("name", "description", "clients")},
+            "removed_clients": ["bk_paas3", "paasv3cli"],
+        },
+        "role_delegations": [
+            {"role_id": "space_operator", "grantee_type": "system", "grantee_id": "bk_paas3", "tenant_mode": "global"}
+        ],
         "resource_types": [
             {"id": item.id, "name": item.name, "ancestors": [item.ancestor] if item.ancestor else []}
             for item in schema.resource_types.values()

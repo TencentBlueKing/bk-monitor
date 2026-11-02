@@ -2,7 +2,6 @@
 @import '@/scss/mixins/flex.scss';
 
 .filed-item {
-  min-width: max-content;
   padding: 0px 12px 0px 0px;
 
   .hidden-icon {
@@ -39,31 +38,23 @@
   .filed-title {
     position: relative;
     display: flex;
-    flex-wrap: nowrap;
-    align-items: center;
-    width: max-content;
-    min-width: 100%;
+    width: 100%;
     padding: 6px 0;
     line-height: 16px;
-    white-space: nowrap;
     cursor: pointer;
     border-radius: 2px;
 
     > div {
-      flex-shrink: 0;
-
       > span {
-        display: inline-flex;
-        flex-shrink: 0;
-        align-items: center;
-        word-break: keep-all;
-        white-space: nowrap;
+        display: inline-block;
+        word-break: break-all;
+        white-space: pre-line;
       }
     }
 
     > :first-child {
       display: flex;
-      flex: 1 0 auto;
+      flex: 1;
       align-items: center;
       justify-content: flex-start;
     }
@@ -117,14 +108,11 @@
     }
 
     .field-name {
-      flex-shrink: 0;
-      width: auto;
-      max-width: none;
+      width: calc(100% - 42px);
       font-size: 12px;
       color: #16171a;
-      word-break: keep-all;
-      overflow-wrap: normal;
-      white-space: nowrap;
+      word-break: break-all;
+      overflow-wrap: break-word;
     }
 
     .field-badge {

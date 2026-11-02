@@ -29,7 +29,7 @@ from django.test import SimpleTestCase, override_settings
 from apps.api.modules.cmsi import _CmsiApi
 from apps.log_clustering.tasks import subscription
 from apps.log_databus.models import RestoreConfig
-from apps.log_search.tasks import async_export, unify_query_async_export
+from apps.log_search.tasks import unify_query_async_export
 from apps.log_unifyquery.handler import scene_async_export
 from apps.utils.notify import EmailNotify
 
@@ -166,8 +166,6 @@ class CmsiContractTest(SimpleTestCase):
 class NotificationTenantTest(SimpleTestCase):
     def test_all_export_notification_paths_use_task_business(self):
         cases = (
-            (async_export.AsyncExportUtils, {"index_set_id": 1}),
-            (async_export.UnionAsyncExportUtils, {"index_set_ids": [1]}),
             (unify_query_async_export.AsyncExportUtils, {"index_set_id": 1}),
             (unify_query_async_export.UnionAsyncExportUtils, {"index_set_ids": [1]}),
             (scene_async_export.SceneExportUtils, {}),

@@ -23,29 +23,36 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import PopInstanceUtil from '../pop-instance-util';
-const instance = new PopInstanceUtil({
-  onHiddenFn: () => true,
-  tippyOptions: {
-    hideOnClick: true,
-    theme: 'segment-light',
-    placement: 'bottom',
-    appendTo: document.body,
-    popperOptions: {
-      strategy: 'fixed',
+import { createOverlayTippy } from '../overlay';
+
+const overlayTippy = createOverlayTippy({
+  id: 'retrieve-segment-pop-instance',
+  group: 'retrieve-segment',
+  tippy: {
+    onHiddenFn: () => true,
+    tippyOptions: {
+      hideOnClick: true,
+      theme: 'segment-light',
+      placement: 'bottom',
+      appendTo: document.body,
+      popperOptions: {
+        strategy: 'fixed',
+      },
     },
   },
 });
+
+const instance = overlayTippy.instance;
 
 export default {
   show: (target, content) => {
     if (content) {
       instance.setContent(content);
     }
-    instance.show(target);
+    overlayTippy.show(target);
   },
   hide: () => {
-    instance.hide();
+    overlayTippy.hide();
   },
   getInstance: () => instance.getTippyInstance(),
 };

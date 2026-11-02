@@ -46,5 +46,11 @@ export { default as AlarmCenterApm, mount as mountAlarmCenter } from './pages/al
 
 export type { BridgeEmit, BridgeProps, MountHandle, MountOptions } from './pages/alarm-center/alarm-center-apm-entry';
 
+/** 单台主机的系统指标和进程。抽屉或内嵌由 props.mode 决定，关闭事件为 sliderClose */
+export {
+  default as HostObservePanelApm,
+  mount as mountHostPanel,
+} from './pages/host/components/host-observe-panel/host-observe-panel-entry';
+
 /** Trace 检索：入参与句柄结构与告警中心一致 */
 export { mount as mountTraceExplore, default as TraceExploreApm } from './pages/trace-explore/trace-explore-apm-entry';

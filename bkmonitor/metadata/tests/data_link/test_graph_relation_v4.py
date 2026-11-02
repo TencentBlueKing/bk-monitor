@@ -517,13 +517,17 @@ def test_removing_graph_option_follows_standard_metric_datalink_rules(
     mock_vm_apply.assert_not_called()
 
 
+@pytest.mark.parametrize("new_link", [False, True])
 def test_apply_graph_relation_v4_surrealdb_only_does_not_create_vm_record(
     mocker,
     graph_relation_v4_records,
+    new_link,
 ):
     from metadata.task.datalink import apply_graph_relation_v4_datalink
 
     ctx = graph_relation_v4_records
+    if new_link:
+        ctx["data_link"].delete()
     models.ResultTableOption.objects.create(
         bk_tenant_id="system",
         table_id=ctx["table_id"],
@@ -547,7 +551,12 @@ def test_apply_graph_relation_v4_surrealdb_only_does_not_create_vm_record(
 
     apply_graph_relation_v4_datalink(bk_tenant_id="system", table_id=ctx["table_id"])
 
-    data_link = DataLink.objects.get(data_link_name="bkm_graph_relation_v4_metric")
+    data_link = DataLink.objects.get(bk_data_id=ctx["data_source"].pk)
+    if new_link:
+        assert data_link.data_link_name.startswith(f"bkm_gr_{ctx['data_source'].pk}_")
+        assert data_link.data_link_name != "bkm_graph_relation_v4_metric"
+    else:
+        assert data_link.data_link_name == "bkm_graph_relation_v4_metric"
     assert data_link.data_link_strategy == DataLink.GRAPH_RELATION_TIME_SERIES
     mock_apply.assert_called_once()
     assert mock_apply.call_args.kwargs["storage_type"] == models.ClusterInfo.TYPE_SURREALDB
@@ -560,6 +569,10 @@ def test_apply_graph_relation_v4_surrealdb_only_does_not_create_vm_record(
         bk_tenant_id="system",
         result_table_id=ctx["table_id"],
     ).exists()
+    generator = mocker.patch("metadata.task.datalink.generate_bkdata_resource_name")
+    apply_graph_relation_v4_datalink(bk_tenant_id="system", table_id=ctx["table_id"])
+    assert DataLink.objects.get(bk_data_id=ctx["data_source"].pk).pk == data_link.pk
+    generator.assert_not_called()
 
 
 def test_apply_graph_relation_v4_fails_when_data_id_config_missing(mocker, graph_relation_v4_records):
@@ -690,3 +703,145 @@ def test_apply_graph_relation_v4_reuses_existing_graph_datalink(mocker, graph_re
     legacy_data_link.refresh_from_db()
     assert legacy_data_link.data_link_strategy == DataLink.GRAPH_RELATION_TIME_SERIES
     assert legacy_data_link.table_ids == [ctx["table_id"]]
+
+
+@pytest.mark.parametrize("saved_name", ["", "saved_graph_rt"])
+def test_missing_graph_rt_and_binding_restore_saved_identity(graph_relation_v4_records, mocker, saved_name):
+    ctx = graph_relation_v4_records
+    link = ctx["data_link"]
+    models.ResultTableOption.objects.create(
+        bk_tenant_id="system",
+        table_id=ctx["table_id"],
+        name=models.ResultTableOption.OPTION_GRAPH_RELATION_V4_DATA_LINK,
+        value=json.dumps({"write_targets": ["surrealdb"]}),
+        value_type=models.ResultTableOption.TYPE_STRING,
+        creator="system",
+    )
+    DataBusConfig.objects.create(
+        bk_tenant_id="system",
+        namespace="bkmonitor",
+        name="saved_graph_databus",
+        data_link_name=link.pk,
+        bk_biz_id=2,
+        data_id_name="bkm_graph_relation_v4_metric",
+        sink_names=["SurrealDBBinding:saved_graph_binding"],
+    )
+    models.BkBaseResultTable.objects.create(
+        bk_tenant_id="system",
+        monitor_table_id=ctx["table_id"],
+        data_link_name=link.pk,
+        bkbase_rt_name=saved_name,
+        bkbase_table_id="42_saved_graph_rt",
+        storage_type=models.ClusterInfo.TYPE_SURREALDB,
+    )
+    mocker.patch(
+        "metadata.models.data_link.utils.generate_bkdata_resource_name",
+        side_effect=AssertionError("regenerated"),
+    )
+
+    configs = link.compose_graph_relation_v4_time_series_configs(
+        bk_biz_id=2, data_source=ctx["data_source"], table_id=ctx["table_id"]
+    )
+    restored_rt = ResultTableConfig.objects.get(data_link_name=link.pk)
+    binding = next(config for config in configs if config["kind"] == "SurrealDBBinding")
+    assert restored_rt.name == "saved_graph_rt"
+    assert restored_rt.bkbase_table_id == "42_saved_graph_rt"
+    assert binding["metadata"]["name"] == "saved_graph_binding"
+    assert binding["spec"]["data"]["name"] == restored_rt.name
+    assert DataBusConfig.objects.get(data_link_name=link.pk).name == "saved_graph_databus"
+
+
+@pytest.mark.django_db(databases="__all__", transaction=True)
+def test_concurrent_graph_first_creation_reuses_one_link(graph_relation_v4_records, mocker):
+    from concurrent.futures import ThreadPoolExecutor
+    from threading import Event
+
+    from django.db import close_old_connections
+    from django.db.models.query import QuerySet
+
+    from metadata.task.datalink import apply_graph_relation_v4_datalink
+
+    ctx = graph_relation_v4_records
+    ctx["data_link"].delete()
+    models.ResultTableOption.objects.create(
+        bk_tenant_id="system",
+        table_id=ctx["table_id"],
+        name=models.ResultTableOption.OPTION_GRAPH_RELATION_V4_DATA_LINK,
+        value=json.dumps({"write_targets": ["surrealdb"]}),
+        value_type=models.ResultTableOption.TYPE_STRING,
+        creator="system",
+    )
+    first_allocation = Event()
+    release_first = Event()
+    second_completed = Event()
+    original_create = QuerySet.create
+
+    def pause_first_creation(query, **kwargs):
+        if query.model is DataLink and not first_allocation.is_set():
+            first_allocation.set()
+            assert release_first.wait(timeout=10)
+        return original_create(query, **kwargs)
+
+    mocker.patch.object(QuerySet, "create", pause_first_creation)
+    apply = mocker.patch.object(DataLink, "apply_data_link", autospec=True)
+    mocker.patch.object(DataLink, "sync_metadata")
+
+    def run(*, second=False):
+        close_old_connections()
+        try:
+            apply_graph_relation_v4_datalink(bk_tenant_id="system", table_id=ctx["table_id"])
+        finally:
+            close_old_connections()
+            if second:
+                second_completed.set()
+
+    with ThreadPoolExecutor(max_workers=2) as pool:
+        first = pool.submit(run)
+        try:
+            assert first_allocation.wait(timeout=10)
+            second = pool.submit(run, second=True)
+            # 无 RT 锁时第二个任务会先完成另一条链路；有锁时等待第一个事务提交。
+            second_completed.wait(timeout=2)
+        finally:
+            release_first.set()
+        first.result(timeout=20)
+        second.result(timeout=20)
+
+    link = DataLink.objects.get(bk_tenant_id="system", bk_data_id=ctx["data_source"].pk)
+    assert apply.call_count == 2
+    assert {call.args[0].pk for call in apply.call_args_list} == {link.pk}
+    relation = models.BkBaseResultTable.objects.get(bk_tenant_id="system", monitor_table_id=ctx["table_id"])
+    assert relation.data_link_name == link.pk
+
+
+@pytest.mark.parametrize("strategy", [DataLink.BK_STANDARD_V2_TIME_SERIES, DataLink.GRAPH_RELATION_TIME_SERIES])
+def test_graph_entry_recovers_legacy_link_without_mapping(graph_relation_v4_records, mocker, strategy):
+    from metadata.task.datalink import apply_graph_relation_v4_datalink
+
+    ctx = graph_relation_v4_records
+    link = ctx["data_link"]
+    link.bk_data_id = 0
+    link.table_ids = []
+    link.data_link_strategy = strategy
+    link.save(update_fields=["bk_data_id", "table_ids", "data_link_strategy"])
+    models.ResultTableOption.objects.create(
+        bk_tenant_id="system",
+        table_id=ctx["table_id"],
+        name=models.ResultTableOption.OPTION_GRAPH_RELATION_V4_DATA_LINK,
+        value=json.dumps({"write_targets": ["surrealdb"]}),
+        value_type=models.ResultTableOption.TYPE_STRING,
+        creator="system",
+    )
+    mocker.patch("metadata.task.datalink.generate_bkdata_resource_name", side_effect=AssertionError("regenerated"))
+    apply = mocker.patch.object(DataLink, "apply_data_link", autospec=True)
+    mocker.patch.object(DataLink, "sync_metadata")
+
+    apply_graph_relation_v4_datalink(bk_tenant_id="system", table_id=ctx["table_id"])
+
+    assert apply.call_args.args[0].pk == link.pk
+    link.refresh_from_db()
+    assert link.bk_data_id == ctx["data_source"].pk
+    assert link.table_ids == [ctx["table_id"]]
+    assert link.data_link_strategy == DataLink.GRAPH_RELATION_TIME_SERIES
+    assert DataLink.objects.count() == 1
+    assert models.BkBaseResultTable.objects.get(data_link_name=link.pk).monitor_table_id == ctx["table_id"]

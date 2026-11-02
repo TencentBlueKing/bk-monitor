@@ -501,12 +501,14 @@ export default defineComponent({
     };
   },
   render() {
+    // transfer 挂到 body，进程详情才能盖在主机抽屉上面，不会被外层位移裁切。
     return (
       <Sideslider
         width={1200}
         extCls='process-detail-sideslider'
         isShow={this.show}
         quickClose
+        transfer
         onUpdate:isShow={v => this.$emit('update:show', v)}
       >
         {{

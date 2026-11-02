@@ -10,12 +10,12 @@ from apps.iam.backends.v4.provider import V4PermissionProvider
     SECRET_KEY="secret",
     BK_IAM_SYSTEM_ID="bk_log_search",
     BK_COMPONENT_API_URL="https://bkapi.example.com",
-    BK_IAM_APIGATEWAY_URL="https://bk-iam.apigw.o.woa.com/stage/",
+    BK_IAM_APIGATEWAY_URL="https://bk-iam.example.com/stage/",
 )
 class V4GatewayConfigTest(SimpleTestCase):
     def test_resolve_v4_gateway_url_uses_explicit_v4_setting(self):
-        with self.settings(BK_IAM_V4_APIGATEWAY_URL="https://bkiam.apigw.o.woa.com/prod/"):
-            self.assertEqual(resolve_v4_gateway_url(), "https://bkiam.apigw.o.woa.com/prod/")
+        with self.settings(BK_IAM_V4_APIGATEWAY_URL="https://bkiam.example.com/prod/"):
+            self.assertEqual(resolve_v4_gateway_url(), "https://bkiam.example.com/prod/")
 
     def test_resolve_v4_gateway_url_derives_component_default(self):
         with self.settings(BK_IAM_V4_APIGATEWAY_URL=""):
@@ -29,14 +29,14 @@ class V4GatewayConfigTest(SimpleTestCase):
         with self.settings(
             BK_IAM_V4_APIGATEWAY_URL="",
             BK_COMPONENT_API_URL="",
-            BK_IAM_APIGATEWAY_URL="https://bk-iam.apigw.o.woa.com/stage/",
+            BK_IAM_APIGATEWAY_URL="https://bk-iam.example.com/stage/",
         ):
             self.assertEqual(resolve_v4_gateway_url(), "")
 
     def test_v4_options_from_settings_uses_v4_gateway(self):
-        with self.settings(BK_IAM_V4_APIGATEWAY_URL="https://bkiam.apigw.o.woa.com/prod/"):
+        with self.settings(BK_IAM_V4_APIGATEWAY_URL="https://bkiam.example.com/prod/"):
             options = V4Options.from_settings()
-            self.assertEqual(options.gateway_url, "https://bkiam.apigw.o.woa.com/prod/")
+            self.assertEqual(options.gateway_url, "https://bkiam.example.com/prod/")
             self.assertIn("{system_id}", options.auth_path)
 
     def test_v4_batch_chunk_size_is_capped_at_iam_contract_limit(self):

@@ -1,4 +1,5 @@
 from types import SimpleNamespace
+
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2025 Tencent. All rights reserved.
@@ -12,7 +13,7 @@ specific language governing permissions and limitations under the License.
 from bkmonitor.iam.backends.config import build_provider
 
 # ==============================================================================
-# V3PermissionProvider 单元测试（mock CompatibleIAM，无需真实 IAM 平台）
+# V3PermissionProvider 单元测试（mock V3Client，无需真实 IAM 平台）
 #
 # 覆盖：
 #   1. 从 options 构造，验证 schema/codec/config/client 正确初始化
@@ -73,34 +74,34 @@ def _build_test_schema():
     """测试直接提供最小的产品定义映射。"""
     schema = SimpleNamespace(actions={}, resource_types={}, roles={})
     schema.actions["view_business"] = ActionDef(
-            id="view_business",
-            name="业务访问",
-            resource_type="space",
-            extensions={"v3": {"action_id": "view_business_v2", "type": "view", "version": 1}},
-        )
+        id="view_business",
+        name="业务访问",
+        resource_type="space",
+        extensions={"v3": {"action_id": "view_business_v2", "type": "view", "version": 1}},
+    )
     schema.actions["manage_synthetic"] = ActionDef(
-            id="manage_synthetic",
-            name="拨测管理",
-            resource_type="space",
-            extensions={"v3": {"action_id": "manage_synthetic_v2", "type": "manage", "version": 1}},
-        )
+        id="manage_synthetic",
+        name="拨测管理",
+        resource_type="space",
+        extensions={"v3": {"action_id": "manage_synthetic_v2", "type": "manage", "version": 1}},
+    )
     schema.actions["using_dashboard_mcp"] = ActionDef(
-            id="using_dashboard_mcp",
-            name="使用仪表盘MCP",
-            resource_type="space",
-            extensions={"v3": {"action_id": "using_dashboard_mcp", "type": "view", "version": 1}},
-        )
+        id="using_dashboard_mcp",
+        name="使用仪表盘MCP",
+        resource_type="space",
+        extensions={"v3": {"action_id": "using_dashboard_mcp", "type": "view", "version": 1}},
+    )
     schema.actions["manage_global_setting"] = ActionDef(
-            id="manage_global_setting",
-            name="全局配置编辑",
-            resource_type="",
-            extensions={"v3": {"action_id": "manage_global_setting", "type": "manage", "version": 1}},
-        )
+        id="manage_global_setting",
+        name="全局配置编辑",
+        resource_type="",
+        extensions={"v3": {"action_id": "manage_global_setting", "type": "manage", "version": 1}},
+    )
     schema.resource_types["space"] = ResourceTypeDef(
-            id="space",
-            name="空间",
-            extensions={"v3": {"system_id": "bk_monitorv3", "selection_mode": "instance"}},
-        )
+        id="space",
+        name="空间",
+        extensions={"v3": {"system_id": "bk_monitorv3", "selection_mode": "instance"}},
+    )
 
     return schema
 
@@ -130,6 +131,7 @@ class TestV3ProviderConstruction:
         assert p._cfg.system.id == "bk_monitorv3"
         assert p._cfg.chunk_size == 8
         assert p._cfg.max_workers == 1
+
 
 class TestV3ProviderCapabilities:
     """Native three-state contract with the real product codec and mocked SDK."""

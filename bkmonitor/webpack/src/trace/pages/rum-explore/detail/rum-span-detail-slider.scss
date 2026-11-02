@@ -72,7 +72,7 @@
   .rum-detail-body {
     display: flex;
     flex-direction: column;
-    min-height: 100%;
+    height: calc(100vh - 52px);
   }
 
   .detail-loading,
@@ -116,10 +116,26 @@
     flex: 1;
     flex-direction: column;
     padding: 24px 40px;
+    overflow-y: auto;
     background: #fff;
 
     .related-trace-alert {
       margin-bottom: 12px;
+
+      .related-trace-alert-content {
+        display: flex;
+        align-items: center;
+      }
+
+      .copy-icon {
+        margin-left: 4px;
+        color: #3a84ff;
+        cursor: pointer;
+      }
+
+      .jump-btn {
+        margin-left: auto;
+      }
 
       .icon-fenxiang {
         margin-left: 8px;

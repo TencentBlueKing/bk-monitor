@@ -292,6 +292,48 @@ ALLOWED_MODEL_SPECS: dict[str, ModelSpec] = {
         note="新邮件订阅发送记录；必须传已授权业务 bk_biz_id 并按正整数 report_id 精确读取，校验父订阅业务归属。",
         examples=[{"bk_biz_id": 2, "filter": {"report_id": 1}, "order_by": ["-send_time"], "limit": 20}],
     ),
+    "monitor.models.UptimeCheckTask": ModelSpec(
+        model_path="monitor.models.UptimeCheckTask",
+        fields={
+            "id",
+            "bk_biz_id",
+            "name",
+            "protocol",
+            "status",
+            "check_interval",
+            "indepentent_dataid",
+            "is_deleted",
+            "create_time",
+            "update_time",
+            "update_user",
+        },
+        # config 为加密 JSON，可含 HTTP 头、认证参数等拨测目标凭据。
+        sensitive_fields={"config", "labels", "location"},
+        manager_name="origin_objects",
+        required_exact_filter="id",
+        note="拨测任务；必须传已授权业务 bk_biz_id 并按正整数 id 精确读取，仅返回该业务记录，含软删行。",
+        examples=[{"bk_biz_id": 2, "filter": {"id": 1}, "limit": 1}],
+    ),
+    "monitor.models.UptimeCheckTaskSubscription": ModelSpec(
+        model_path="monitor.models.UptimeCheckTaskSubscription",
+        fields={
+            "id",
+            "uptimecheck_id",
+            "subscription_id",
+            "bk_biz_id",
+            "is_deleted",
+            "create_time",
+            "update_time",
+            "update_user",
+        },
+        manager_name="origin_objects",
+        required_exact_filter="uptimecheck_id",
+        note=(
+            "拨测任务→节点管理订阅映射；必须传任务所属已授权业务 bk_biz_id 并按正整数 uptimecheck_id 精确读取，"
+            "校验任务业务归属，含软删行。行内 bk_biz_id 是拨测节点所属业务，可与任务业务不同。"
+        ),
+        examples=[{"bk_biz_id": 2, "filter": {"uptimecheck_id": 1}, "limit": 20}],
+    ),
     "metadata.models.bcs.cluster.BCSClusterInfo": ModelSpec(
         model_path="metadata.models.bcs.cluster.BCSClusterInfo",
         fields={
@@ -1126,8 +1168,8 @@ def read_db_model(params: dict[str, Any]) -> dict[str, Any]:
     selected_fields = _normalize_selected_fields(params.get("fields"), params.get("exclude_fields"), spec)
 
     queryset = getattr(model_cls, spec.manager_name).all()
-    if model_name in REPORT_MODELS:
-        queryset = _scope_report_queryset(queryset, model_name, params, normalized_filter)
+    if model_name in BUSINESS_SCOPED_MODELS:
+        queryset = _scope_business_queryset(queryset, model_name, params, normalized_filter)
     if spec.queryset_scope is not None:
         queryset = spec.queryset_scope(queryset)
     if spec.select_related:
@@ -1157,20 +1199,23 @@ def read_db_model(params: dict[str, Any]) -> dict[str, Any]:
 REPORT_LEGACY_MODELS = frozenset(
     {"bkmonitor.models.base.ReportItems", "bkmonitor.models.base.ReportContents", "bkmonitor.models.base.ReportStatus"}
 )
-REPORT_MODELS = REPORT_LEGACY_MODELS | {
+UPTIME_CHECK_SUBSCRIPTION_MODEL = "monitor.models.UptimeCheckTaskSubscription"
+BUSINESS_SCOPED_MODELS = REPORT_LEGACY_MODELS | {
     "bkmonitor.models.report.Report",
     "bkmonitor.models.report.ReportChannel",
     "bkmonitor.models.report.ReportSendRecord",
+    "monitor.models.UptimeCheckTask",
+    UPTIME_CHECK_SUBSCRIPTION_MODEL,
 }
 
 
-def _scope_report_queryset(queryset: Any, model_name: str, params: dict[str, Any], filters: dict[str, Any]) -> Any:
+def _scope_business_queryset(queryset: Any, model_name: str, params: dict[str, Any], filters: dict[str, Any]) -> Any:
     from bkmonitor.models.report import Report
     from kernel_api.rpc.functions.bkm_cli.platform_catalog.cmdb import ParamsGuardRejected, _authorize_business
 
     bk_biz_id = params.get("bk_biz_id")
     if type(bk_biz_id) is not int or bk_biz_id <= 0:
-        _raise_discovery_error("邮件订阅读取必须传正整数 bk_biz_id")
+        _raise_discovery_error("邮件订阅与拨测模型读取必须传正整数 bk_biz_id")
     try:
         tenant = _authorize_business(bk_biz_id)
     except ParamsGuardRejected as error:
@@ -1179,8 +1224,15 @@ def _scope_report_queryset(queryset: Any, model_name: str, params: dict[str, Any
     if model_name in REPORT_LEGACY_MODELS:
         # 旧三表没有业务字段，只能在已授权业务所属租户内读取。
         return queryset.filter(bk_tenant_id=tenant)
-    if model_name == "bkmonitor.models.report.Report":
+    if model_name in {"bkmonitor.models.report.Report", "monitor.models.UptimeCheckTask"}:
         return queryset.filter(bk_biz_id=bk_biz_id)
+    if model_name == UPTIME_CHECK_SUBSCRIPTION_MODEL:
+        from monitor.models import UptimeCheckTask
+
+        # 订阅按拨测节点所属业务拆分，行内 bk_biz_id 不等于任务业务，只能经任务行校验归属。
+        if not UptimeCheckTask.origin_objects.filter(id=filters["uptimecheck_id"], bk_biz_id=bk_biz_id).exists():
+            _raise_discovery_error("拨测任务不存在或不属于已授权业务")
+        return queryset
     # 子表没有业务字段，先验证父订阅归属，软删父订阅也能回溯历史发送状态。
     if not Report.origin_objects.filter(id=filters["report_id"], bk_biz_id=bk_biz_id).exists():
         _raise_discovery_error("订阅不存在或不属于已授权业务")
@@ -1378,7 +1430,7 @@ KernelRPCRegistry.register_function(
     handler=read_db_model,
     params_schema={
         "model": "白名单模型路径",
-        "bk_biz_id": "邮件订阅模型必填：当前调用身份已获授权的业务 ID",
+        "bk_biz_id": "邮件订阅与拨测模型必填：当前调用身份已获授权的业务 ID",
         "filter": "安全 ORM lookup 对象",
         "fields": "可选字段数组，必须在模型字段白名单内",
         "exclude_fields": "可选排除字段数组",
@@ -1417,7 +1469,7 @@ BkmCliOpRegistry.register(
     audit_tags=["db", "readonly"],
     params_schema={
         "model": "string",
-        "bk_biz_id": "integer；邮件订阅模型必填，目标授权业务",
+        "bk_biz_id": "integer；邮件订阅与拨测模型必填，目标授权业务",
         "filter": "object",
         "fields": "string[]",
         "exclude_fields": "string[]",

@@ -109,25 +109,32 @@ match_word () {
     local target_file=$1; shift
     local match_type=$1; shift
     local words=$1
+    local pattern
+    local negate=0
     case $match_type in
       keyword_or)
         # shellcheck disable=SC2001
-        local or_pattern=$(echo "${words[@]}" | sed 's/ / \|\| /g')
-        awk '/'"$or_pattern"'/' "$logfile" > "$target_file"
+        pattern=$(printf '%s\n' "$words" | sed 's/ / \|\| /g')
         ;;
       keyword_and)
         # shellcheck disable=SC2001
-        local and_pattern=$(echo "${words[@]}" | sed 's/ / \&\& /g')
-        awk '/'"$and_pattern"'/' "$logfile" > "$target_file"
+        pattern=$(printf '%s\n' "$words" | sed 's/ / \&\& /g')
         ;;
       keyword_not)
         # shellcheck disable=SC2001
-        local pattern=$(echo "${words[@]}" | sed 's/ /|/g')
-        awk '$0 !~ ''/'"$pattern"'/' "$logfile" > "$target_file"
+        pattern=$(printf '%s\n' "$words" | sed 's/ /|/g')
+        negate=1
         ;;
       *)
-        ;;
+        return
     esac
+
+    # Keep user input out of awk source. ENVIRON also avoids -v decoding
+    # backslash escapes before the regular expression is evaluated.
+    BKLOG_EXTRACT_PATTERN="$pattern" awk -v negate="$negate" '
+        BEGIN { pattern = ENVIRON["BKLOG_EXTRACT_PATTERN"] }
+        ($0 ~ pattern) != negate
+    ' "$logfile" > "$target_file"
 }
 
 match_range () {

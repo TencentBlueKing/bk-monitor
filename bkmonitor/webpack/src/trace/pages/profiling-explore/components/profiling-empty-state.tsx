@@ -23,7 +23,7 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { defineComponent } from 'vue';
+import { type PropType, defineComponent } from 'vue';
 
 import './profiling-empty-state.scss';
 
@@ -34,13 +34,14 @@ export default defineComponent({
     title: { type: String, required: true },
     description: { type: String, required: true },
     hint: { type: String, default: '' },
+    tone: { type: String as PropType<'default' | 'warning'>, default: 'default' },
   },
   render() {
     return (
       <section class='profiling-empty-state'>
         <div class='profiling-empty-state-content'>
           <div
-            class='profiling-empty-state-icon'
+            class={['profiling-empty-state-icon', `is-${this.tone}`]}
             aria-hidden='true'
           >
             <i class={`icon-monitor icon-${this.icon}`} />

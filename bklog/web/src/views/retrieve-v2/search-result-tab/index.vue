@@ -196,7 +196,7 @@
     </div>
     <div class="retrieve2-tab-right">
       <div
-        v-if="!isSceneMode"
+        v-if="!isExternal && !isSceneMode"
         class="btn-alert-dashboard btn-spacing"
         @click="handleAddAlertDashboard"
       >

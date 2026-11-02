@@ -728,6 +728,27 @@ def test_compose_databus_config_with_consumer_group(create_or_delete_records):
     assert log_databus_ins.compose_base_event_config()["spec"]["consumerGroup"] == consumer_group
 
 
+@pytest.mark.parametrize("multi_tenant", [False, True])
+def test_databus_options_do_not_affect_rendering(mocker, settings, multi_tenant):
+    settings.ENABLE_MULTI_TENANT_MODE = multi_tenant
+    mocker.patch("bkmonitor.utils.tenant.get_tenant_default_biz_id", return_value=2)
+    databus = DataBusConfig(name="options_databus", data_id_name="options_data_id", namespace="bkmonitor", bk_biz_id=2)
+    sinks = [{"kind": "VmStorageBinding", "name": "options_binding", "namespace": "bkmonitor"}]
+    expected = [
+        databus.compose_config(sinks),
+        databus.compose_log_config(sinks=sinks, rules=[]),
+        databus.compose_base_event_config(),
+    ]
+
+    databus.options = {"subTaskNum": 4, "batch": None, "preferCluster": {"name": "databus-cluster"}}
+
+    assert [
+        databus.compose_config(sinks),
+        databus.compose_log_config(sinks=sinks, rules=[]),
+        databus.compose_base_event_config(),
+    ] == expected
+
+
 @pytest.mark.django_db(databases="__all__")
 def test_compose_log_databus_config(create_or_delete_records):
     """

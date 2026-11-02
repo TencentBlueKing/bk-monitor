@@ -20,6 +20,7 @@ from metadata.models.record_rule.constants import (
     RecordRuleV4FlowActionType,
     RecordRuleV4FlowStatus,
 )
+from metadata.models.record_rule.v4.limits import check_deployment_limits
 from metadata.models.record_rule.v4.models import (
     CONDITION_FALSE,
     CONDITION_FLOW_HEALTHY,
@@ -285,6 +286,14 @@ class RecordRuleV4Runner:
         Operator.prepare_output_resources 仅准备本地查询元数据和 VMRT 映射。
         """
 
+        # 对实际待下发的 Flow 读取最新动态配置，保存和解析快照不受部署上限影响。
+        nodes = flow_config["spec"]["nodes"]
+        deployment_check = check_deployment_limits(
+            source_count=sum(node["kind"] == "VmSourceNode" for node in nodes),
+            rule_count=sum(len(node["config"]) for node in nodes if node["kind"] == "RecordingRuleNode"),
+        )
+        if not deployment_check["can_apply"]:
+            raise ValueError("; ".join(error["message"] for error in deployment_check["errors"]))
         response = api.bkdata.apply_record_rule_flow(bk_tenant_id=self.rule.bk_tenant_id, config=[flow_config])
         self.rule.last_refresh_time = now()
         return response

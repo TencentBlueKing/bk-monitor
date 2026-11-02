@@ -32,8 +32,6 @@ from rest_framework.authentication import SessionAuthentication
 from rest_framework.response import Response
 
 from apps.api import MonitorApi
-from apps.feature_toggle.handlers.toggle import FeatureToggleObject
-from apps.feature_toggle.plugins.constants import UNIFY_QUERY_SEARCH
 from apps.generic import APIViewSet
 from apps.grafana.authentication import NoCsrfSessionAuthentication
 from apps.grafana.data_source import CustomESDataSourceHandler
@@ -226,10 +224,7 @@ class GrafanaViewSet(APIViewSet):
         }
         """
         params = self.get_validated_data()
-        if FeatureToggleObject.switch(UNIFY_QUERY_SEARCH, params["bk_biz_id"]):
-            data = GrafanaQueryHandler(params["bk_biz_id"]).unify_query(params)
-        else:
-            data = GrafanaQueryHandler(params["bk_biz_id"]).query(params)
+        data = GrafanaQueryHandler(params["bk_biz_id"]).unify_query(params)
         return Response(data)
 
     @list_route(methods=["post"])

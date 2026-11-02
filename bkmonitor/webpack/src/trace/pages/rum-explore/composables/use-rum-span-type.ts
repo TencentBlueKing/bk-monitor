@@ -27,11 +27,13 @@ import { computed } from 'vue';
 import type { Ref } from 'vue';
 
 import { useRumExploreStore } from '../../../store/modules/rum-explore';
-import { ALL_SPAN_TYPE, SPAN_TYPE_FIELD, SPAN_TYPE_META } from '../constants';
+import { ALL_SPAN_TYPE, RumModeEnum, SPAN_TYPE_FIELD, SPAN_TYPE_META } from '../constants';
 
 import type { IRumFieldGroup, IRumFilter, IRumViewConfig } from '../typings';
 
 export interface IRumSpanTypeChip {
+  /** 无 svg 图标的类型走图标字体，取值为类名 */
+  fontIcon: string;
   icon: string;
   label: string;
   value: string;
@@ -58,21 +60,22 @@ export function useRumSpanType(viewConfig: Ref<IRumViewConfig>) {
     spanTypeList.value.map(type => ({
       value: type,
       icon: SPAN_TYPE_META[type]?.icon || '',
+      fontIcon: SPAN_TYPE_META[type]?.fontIcon || '',
       label: SPAN_TYPE_META[type]?.label || optionAliasMap.value.get(type) || type,
     }))
   );
 
-  const activeSpanType = computed(() => store.spanType);
+  const activeSpanType = computed(() => (store.mode === RumModeEnum.SPAN ? store.spanType : ALL_SPAN_TYPE));
 
   /** 选中类型时附加到查询条件上的 filter，选中「全部」时为空 */
   const spanTypeFilters = computed<IRumFilter[]>(() =>
-    store.spanType ? [{ key: SPAN_TYPE_FIELD, operator: 'equal', value: [store.spanType] }] : []
+    activeSpanType.value ? [{ key: SPAN_TYPE_FIELD, operator: 'equal', value: [activeSpanType.value] }] : []
   );
 
   /** 分组是否适用于当前类型，不适用的分组在左侧栏折叠 */
   function isGroupSupported(group: IRumFieldGroup) {
-    if (!store.spanType || !group.supported_span_types?.length) return true;
-    return group.supported_span_types.includes(store.spanType);
+    if (!activeSpanType.value || !group.supported_span_types?.length) return true;
+    return group.supported_span_types.includes(activeSpanType.value);
   }
 
   function setSpanType(type: string) {

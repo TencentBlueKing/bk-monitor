@@ -72,7 +72,7 @@ export const collectionTypeLabels = {
   java_allocation: 'Java Allocation',
 };
 /** 调度方式对应的展示名 */
-export const scheduleLabels = { immediate: '立即执行', once_at: '指定时间', cron: '周期执行' };
+export const scheduleLabels = { immediate: '立即执行', once_at: 'trace-指定时间', cron: '周期执行' };
 /** 进程匹配方式对应的展示名 */
 export const processLabels = { command: '命令行匹配', pid_file: 'PID 文件匹配', pid: '搜索 PID' };
 /** 部署状态对应的展示名（未知状态直接展示原始值） */

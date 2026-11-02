@@ -195,6 +195,7 @@ class GetDataLinkMetadataResource(BkDataAPIGWResource):
     class RequestSerializer(serializers.Serializer):
         bk_data_id = serializers.IntegerField(required=False, label="计算平台数据ID")
         vm_result_table_id = serializers.CharField(required=False, label="VM结果表ID")
+        timeout = serializers.FloatField(required=False, min_value=0.001, label="请求超时秒数")
 
         def validate(self, attrs):
             if not (bool(attrs.get("bk_data_id")) ^ bool(attrs.get("vm_result_table_id"))):
@@ -261,9 +262,8 @@ class DataAccessAPIResource(BkDataAPIGWResource, metaclass=abc.ABCMeta):
             validated_request_data["_origin_user"] = get_request().user.username
         except Exception:
             pass
-        # 优先取参数里面的username(如需要使用特权帐号来请求接口的场景)
-        if not validated_request_data.get("bk_username"):
-            self.bk_username = settings.BK_DATA_PROJECT_MAINTAINER
+        self.bk_username = settings.BK_DATA_PROJECT_MAINTAINER
+        validated_request_data["bk_username"] = self.bk_username
         return validated_request_data
 
 

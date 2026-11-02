@@ -4,6 +4,8 @@ const path = require('node:path');
 const test = require('node:test');
 const ts = require('typescript');
 
+global.window = { i18n: { t: value => value } };
+
 const root = path.resolve(__dirname, '../src/trace/pages/profiling-explore');
 
 function load(entry, external = {}) {
@@ -17,6 +19,8 @@ function load(entry, external = {}) {
     });
     new Function('require', 'module', 'exports', outputText)(id => {
       if (id in external) return external[id];
+      // These tests exercise collection behavior, not the unrelated chart unit formatter.
+      if (id === '../../rum-explore/utils') return { formatUnitValue: () => { throw new Error('Unexpected formatter call'); } };
       if (id.startsWith('.')) return read(path.resolve(path.dirname(file), `${id}.ts`));
       if (id.startsWith('@/')) return read(path.resolve(root, '../..', `${id.slice(2)}.ts`));
       if (id === 'vue' || id === 'dayjs') return require(`../src/trace/node_modules/${id}`);
@@ -32,7 +36,7 @@ function execution() {
     task_id: 123, task_name: 'historical-cpu', schedule_type: 'cron', scheduled_at: 1700000000000,
     collection_method: 'perf', collection_type: 'native_cpu', execution_status: 'partial_succeed',
     started_at: 1700000001000, finished_at: 1700000031000, duration_ms: 30000,
-    status_summary: { succeed: 1, failed: 1, timeout: 1, cancelled: 1, unknown: 1, outdated: 1 },
+    status_summary: { succeed: 1, failed: 1, timeout: 1, cancelled: 1, unknown: 1, outdate: 1 },
     total_hosts: 6,
     config: {
       schedule: { type: 'cron', cron_expression: '0 * * * *', timezone: 'Asia/Shanghai', effective_start_at: 1690000000000, effective_end_at: 1710000000000 },
@@ -41,7 +45,7 @@ function execution() {
       collector_config: { duration_sec: 30, frequency_hz: 99, stack_unwind: 'fp' },
       resource_guard_config: { auto_stop_on_resource_pressure: true, max_disk_usage: 1024, min_mem_level: 100 },
     },
-    hosts: ['succeed', 'failed', 'timeout', 'cancelled', 'unknown', 'outdated'].map((status, index) => ({
+    hosts: ['succeed', 'failed', 'timeout', 'cancelled', 'unknown', 'outdate'].map((status, index) => ({
       bk_host_id: index + 1, ip: `192.0.2.${index + 1}`, status, processes: [], message: '',
       started_at: 1700000001000, finished_at: 1700000031000, duration_ms: 30000,
     })),
@@ -73,13 +77,36 @@ test('失败重试拒绝仍在采集的轮次或没有失败目标的轮次', ()
   assert.throws(() => buildExecutionPayload(detail, 2, true), /失败/);
 });
 
+test('失败重试拒绝没有已选择进程的主机，保留历史配置', () => {
+  const { buildExecutionPayload } = load('utils/collection-history.ts');
+  const detail = execution();
+  detail.config.process_selector.config.host_pids = [{ bk_host_id: 1, pid: 11 }];
+  const original = JSON.stringify(detail);
+  assert.throws(() => buildExecutionPayload(detail, 2, true), /没有已选择的进程/);
+  assert.equal(JSON.stringify(detail), original);
+});
+
+test('单台重新采集拒绝没有已选择进程的主机，动态采集仍可重新匹配', () => {
+  const { buildHostCollectionPayload } = load('utils/collection-results.ts');
+  const detail = execution();
+  const original = JSON.stringify(detail);
+  assert.throws(() => buildHostCollectionPayload(detail, 4, 2), /没有已选择的进程/);
+  assert.equal(JSON.stringify(detail), original);
+  detail.config.process_selector.config.enable_dynamic_collection = true;
+  delete detail.config.process_selector.config.host_pids;
+  const payload = buildHostCollectionPayload(detail, 4, 2);
+  assert.deepEqual(payload.target_config.nodes, [{ bk_host_id: 4 }]);
+  assert.equal(payload.process_selector.config.enable_dynamic_collection, true);
+  assert.equal(payload.process_selector.config.host_pids, undefined);
+});
+
 test('结果链接和历史筛选能恢复，立即执行不能混入任务 ID', () => {
   const { restoreCollectionQuery } = load('utils/collection.ts');
   const { executionSelection } = load('utils/collection-history.ts');
   const detail = execution();
   const result = executionSelection(detail, detail.hosts[0]);
   const history = {
-    ips: ['192.0.2.1'], task_id: 7, task_name: '', process_names: ['worker'], process_pids: ['22'], status: 'failed',
+    ips: ['192.0.2.1'], task_id: 7, task_name: '', process_names: ['worker'], process_pids: ['22'], schedule_types: [], status: 'failed',
   };
   const restored = restoreCollectionQuery(JSON.parse(JSON.stringify({ tab: 'results', history, result })));
   assert.deepEqual(restored.history, history);
@@ -165,7 +192,7 @@ test('确认失败重试重新读取历史详情，创建成功才切换现场�
 test('详情状态排序支持正反向、搜索和恢复接口顺序，不修改历史快照', async () => {
   const { effectScope, shallowRef } = require('../src/trace/node_modules/vue');
   const snapshot = execution();
-  const statuses = ['succeed', 'failed', 'unknown', 'timeout', 'outdated', 'running', 'cancelled', 'partial_succeed', 'failed', 'outdate'];
+  const statuses = ['succeed', 'failed', 'unknown', 'timeout', 'outdate', 'running', 'cancelled', 'partial_succeed', 'failed', 'outdate'];
   snapshot.hosts = statuses.map((status, index) => ({
     ...snapshot.hosts[0], bk_host_id: index + 1, ip: `192.0.2.${index + 1}`, status,
   }));
@@ -233,6 +260,8 @@ test('历史接入全局时间与手动刷新，新页链接保留业务和执�
     } },
     '@/i18n/dayjs': { getDefaultTimezone: () => 'Asia/Shanghai', updateTimezone: () => {} },
     '@/store/modules/app': { useAppStore: () => ({ bizId: 2 }) },
+    'bkui-vue': { Message: () => { throw new Error('Unexpected notification'); } },
+    'monitor-common/utils/utils': { copyText: () => { throw new Error('Unexpected clipboard write'); } },
     'monitor-api/modules/apm_meta': {}, 'monitor-api/modules/apm_profile': {}, 'monitor-api/modules/model': {},
   });
   const scope = vue.effectScope();

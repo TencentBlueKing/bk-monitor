@@ -154,6 +154,15 @@ class PrecalculateStorage:
             return f"0:{trace_datasource.result_table_id}"
         return f"{bk_biz_id}:{app_name}"
 
+    def get_result_table_id(self, trace_table_id: str) -> str:
+        """按历史 Trace 表解析预计算表，不重新加载存储环。"""
+        route_key: str = (
+            f"0:{trace_table_id}"
+            if trace_table_id.startswith(ApmGlobalTablePrefix.SHARED)
+            else f"{self.bk_biz_id}:{self.app_name}"
+        )
+        return self.hash_ring.select_node(route_key).split("-", 1)[-1]
+
     @classmethod
     def _create_default(cls, bk_biz_id, datalink):
         """当预计算配置不存在时 基于默认存储创建索引"""

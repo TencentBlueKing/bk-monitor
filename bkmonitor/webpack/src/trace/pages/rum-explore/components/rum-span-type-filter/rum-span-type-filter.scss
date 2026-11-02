@@ -46,14 +46,19 @@
 
       /* 选中态底色为主蓝，图标自带的彩色不再适用，统一提亮为白 */
       .chip-icon {
+        color: #fff;
         filter: brightness(0) invert(1);
       }
     }
   }
 
+  /* svg 图标按 16px 展示，图标字体的类型（如会话）用 font-size 控制，配色取会话类型主色 */
   .chip-icon {
     width: 16px;
     height: 16px;
+    font-size: 16px;
+    line-height: 16px;
+    color: #3a84ff;
   }
 
   .chip-label {

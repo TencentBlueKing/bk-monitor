@@ -76,19 +76,33 @@ def run_init_builtin_action_config(bk_biz_id):
         logger.info("[init_builtin_action_config(%s)] builtin config is existed", bk_biz_id)
         return
 
-    try:
-        for template_data in [
+    # 查询失败时直接结束任务，不能把查询异常当作流程不存在。
+    all_templates = api.sops.get_template_list(bk_biz_id=bk_biz_id)
+    existing_names = {template["name"] for template in all_templates}
+    idle_template_name = QuickSolutionsConfig.QUICK_SOLUTIONS_TEMPLATE_NAMES[QuickSolutionsConfig.UPDATE_MODULE_TO_IDLE]
+    template_packages = [
+        (
             QuickSolutionsConfig.QUICK_SOLUTIONS_TEMPLATE,
-            QuickSolutionsConfig.IDLE_TEMPLATE,
-        ]:
+            set(QuickSolutionsConfig.QUICK_SOLUTIONS_TEMPLATE_NAMES.values()) - {idle_template_name},
+        ),
+        (QuickSolutionsConfig.IDLE_TEMPLATE, {idle_template_name}),
+    ]
+    imported = False
+    try:
+        for template_data, template_names in template_packages:
+            # 标准运维按整包新增流程；包内已有流程时复用，避免重试再次导入。
+            if template_names & existing_names:
+                continue
             api.sops.import_project_template(bk_biz_id=bk_biz_id, project_id=bk_biz_id, template_data=template_data)
+            imported = True
     except BaseException as error:
         logger.exception("[init_builtin_action_config(%s)] error: %s", bk_biz_id, str(error))
         return
 
     actions = []
 
-    all_templates = api.sops.get_template_list(bk_biz_id=bk_biz_id)
+    if imported:
+        all_templates = api.sops.get_template_list(bk_biz_id=bk_biz_id)
     for template in all_templates:
         if template["name"] not in QuickSolutionsConfig.QUICK_SOLUTIONS_TEMPLATE_NAMES.values():
             continue
@@ -433,3 +447,28 @@ def sync_tapd_issue_status():
         )
     except Exception as e:
         logger.exception("[sync_tapd_issue_status] failed, error: %s", e)
+
+
+@shared_task(ignore_result=True, queue="celery_resource")
+def run_source_analysis_execution(analysis_id: str):
+    """推进一次源码分析；活动任务按短周期自调度，服务重启后由补偿任务重新接管。"""
+
+    # Resource 需要复用本任务作为前端触发后的调度入口，延迟导入以解除 tasks <-> resources 循环依赖。
+    from fta_web.issue.resources import SourceAnalysisExecutionBaseResource
+
+    next_poll_after_seconds = SourceAnalysisExecutionBaseResource.advance_bkfara_task(analysis_id)
+    if next_poll_after_seconds is not None:
+        run_source_analysis_execution.apply_async(
+            args=(analysis_id,),
+            countdown=next_poll_after_seconds,
+        )
+
+
+@shared_task(ignore_result=True, queue="celery_resource")
+def recover_source_analysis_executions():
+    """补偿超过恢复窗口仍未推进的活动任务，覆盖消息丢失和 Worker 重启。"""
+
+    from fta_web.issue.resources import SourceAnalysisExecutionBaseResource
+
+    for analysis_id in SourceAnalysisExecutionBaseResource.get_recoverable_analysis_ids():
+        run_source_analysis_execution.apply_async(args=(analysis_id,))

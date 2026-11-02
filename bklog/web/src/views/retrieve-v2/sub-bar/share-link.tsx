@@ -323,7 +323,7 @@ export default defineComponent({
         <BklogPopover
           class='bklog-v3-select-popover-share'
           beforeHide={beforePopoverHide}
-          options={{ hideOnClick: false, onShow: beforeShow } as any}
+          options={{ appendTo: document.body, hideOnClick: false, onShow: beforeShow } as any}
           trigger='click'
           {...{
             scopedSlots: { content: getContentView },

@@ -1,0 +1,380 @@
+paths:
+  /app/recording_rule/preview_config/:
+    post:
+      operationId: recording_rule_preview_config
+      description: 预解析 RecordingRule 配置；返回 deployment_check，包含数量、上限、是否可下发和结构化 errors。解析业务失败返回 HTTP 200、result=false、code=3300004、data.errors（code/message/path）；超限返回 HTTP 200，can_apply=false。
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+              - config
+              anyOf:
+              - required:
+                - bk_biz_id
+              - required:
+                - space_uid
+              properties:
+                bk_biz_id:
+                  type: integer
+                  description: 业务 ID，与 space_uid 至少提供一个
+                space_uid:
+                  type: string
+                  description: 空间 UID，与 bk_biz_id 至少提供一个
+                config:
+                  oneOf:
+                  - type: object
+                  - type: string
+                  description: AsCode 单 group 对象或 YAML 字符串，不含外层 groups
+                id:
+                  type: integer
+                  minimum: 1
+                  description: 规则组 ID，必须属于当前租户及指定空间且未软删除
+      responses:
+        '200':
+          description: 标准响应信封；保存与下发结果分别见 data.saved 和 data.execution
+      x-bk-apigateway-resource:
+        isPublic: true
+        allowApplyPermission: true
+        matchSubpath: false
+        enableWebsocket: false
+        backend:
+          name: default
+          method: post
+          path: /api/v4/recording_rule/preview_config/
+          matchSubpath: false
+          timeout: 0
+        authConfig:
+          appVerifiedRequired: true
+          userVerifiedRequired: false
+          resourcePermissionRequired: true
+  /app/recording_rule/create_config/:
+    post:
+      operationId: recording_rule_create_config
+      description: 新建 RecordingRule 配置
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+              - config
+              anyOf:
+              - required:
+                - bk_biz_id
+              - required:
+                - space_uid
+              properties:
+                bk_biz_id:
+                  type: integer
+                  description: 业务 ID，与 space_uid 至少提供一个
+                space_uid:
+                  type: string
+                  description: 空间 UID，与 bk_biz_id 至少提供一个
+                config:
+                  oneOf:
+                  - type: object
+                  - type: string
+                  description: AsCode 单 group 对象或 YAML 字符串，不含外层 groups
+                apply:
+                  type: boolean
+                  default: false
+                  description: 是否立即解析下发，不改变 auto_refresh
+      responses:
+        '200':
+          description: 标准响应信封；保存与下发结果分别见 data.saved 和 data.execution
+      x-bk-apigateway-resource:
+        isPublic: true
+        allowApplyPermission: true
+        matchSubpath: false
+        enableWebsocket: false
+        backend:
+          name: default
+          method: post
+          path: /api/v4/recording_rule/create_config/
+          matchSubpath: false
+          timeout: 0
+        authConfig:
+          appVerifiedRequired: true
+          userVerifiedRequired: false
+          resourcePermissionRequired: true
+  /app/recording_rule/update_config/:
+    post:
+      operationId: recording_rule_update_config
+      description: 修改 RecordingRule 配置
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+              - id
+              - config
+              anyOf:
+              - required:
+                - bk_biz_id
+              - required:
+                - space_uid
+              properties:
+                bk_biz_id:
+                  type: integer
+                  description: 业务 ID，与 space_uid 至少提供一个
+                space_uid:
+                  type: string
+                  description: 空间 UID，与 bk_biz_id 至少提供一个
+                id:
+                  type: integer
+                  minimum: 1
+                  description: 规则组 ID，必须属于当前租户及指定空间且未软删除
+                config:
+                  oneOf:
+                  - type: object
+                  - type: string
+                  description: AsCode 单 group 对象或 YAML 字符串，不含外层 groups
+                apply:
+                  type: boolean
+                  default: false
+                  description: 是否立即解析下发，不改变 auto_refresh
+      responses:
+        '200':
+          description: 标准响应信封；保存与下发结果分别见 data.saved 和 data.execution
+      x-bk-apigateway-resource:
+        isPublic: true
+        allowApplyPermission: true
+        matchSubpath: false
+        enableWebsocket: false
+        backend:
+          name: default
+          method: post
+          path: /api/v4/recording_rule/update_config/
+          matchSubpath: false
+          timeout: 0
+        authConfig:
+          appVerifiedRequired: true
+          userVerifiedRequired: false
+          resourcePermissionRequired: true
+  /app/recording_rule/delete_config/:
+    post:
+      operationId: recording_rule_delete_config
+      description: 软删除 RecordingRule 配置
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+              - id
+              anyOf:
+              - required:
+                - bk_biz_id
+              - required:
+                - space_uid
+              properties:
+                bk_biz_id:
+                  type: integer
+                  description: 业务 ID，与 space_uid 至少提供一个
+                space_uid:
+                  type: string
+                  description: 空间 UID，与 bk_biz_id 至少提供一个
+                id:
+                  type: integer
+                  minimum: 1
+                  description: 规则组 ID，必须属于当前租户及指定空间且未软删除
+      responses:
+        '200':
+          description: 标准响应信封；保存与下发结果分别见 data.saved 和 data.execution
+      x-bk-apigateway-resource:
+        isPublic: true
+        allowApplyPermission: true
+        matchSubpath: false
+        enableWebsocket: false
+        backend:
+          name: default
+          method: post
+          path: /api/v4/recording_rule/delete_config/
+          matchSubpath: false
+          timeout: 0
+        authConfig:
+          appVerifiedRequired: true
+          userVerifiedRequired: false
+          resourcePermissionRequired: true
+  /app/recording_rule/get_config/:
+    get:
+      operationId: recording_rule_get_config
+      description: 查询 RecordingRule 配置
+      parameters:
+      - name: bk_biz_id
+        in: query
+        required: false
+        description: 业务 ID，与 space_uid 至少提供一个
+        schema:
+          type: integer
+          description: 业务 ID，与 space_uid 至少提供一个
+      - name: space_uid
+        in: query
+        required: false
+        description: 空间 UID，与 bk_biz_id 至少提供一个
+        schema:
+          type: string
+          description: 空间 UID，与 bk_biz_id 至少提供一个
+      - name: id
+        in: query
+        required: true
+        description: 规则组 ID，必须属于当前租户及指定空间且未软删除
+        schema:
+          type: integer
+          minimum: 1
+          description: 规则组 ID，必须属于当前租户及指定空间且未软删除
+      - name: with_status
+        in: query
+        required: false
+        description: 是否查询已下发 Flow 的实时状态
+        schema:
+          type: boolean
+          default: false
+          description: 是否查询已下发 Flow 的实时状态
+      responses:
+        '200':
+          description: 标准响应信封；保存与下发结果分别见 data.saved 和 data.execution
+      x-bk-apigateway-resource:
+        isPublic: true
+        allowApplyPermission: true
+        matchSubpath: false
+        enableWebsocket: false
+        backend:
+          name: default
+          method: get
+          path: /api/v4/recording_rule/get_config/
+          matchSubpath: false
+          timeout: 0
+        authConfig:
+          appVerifiedRequired: true
+          userVerifiedRequired: false
+          resourcePermissionRequired: true
+  /app/recording_rule/apply_config/:
+    post:
+      operationId: recording_rule_apply_config
+      description: 解析下发 RecordingRule 配置
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+              - id
+              anyOf:
+              - required:
+                - bk_biz_id
+              - required:
+                - space_uid
+              properties:
+                bk_biz_id:
+                  type: integer
+                  description: 业务 ID，与 space_uid 至少提供一个
+                space_uid:
+                  type: string
+                  description: 空间 UID，与 bk_biz_id 至少提供一个
+                id:
+                  type: integer
+                  minimum: 1
+                  description: 规则组 ID，必须属于当前租户及指定空间且未软删除
+      responses:
+        '200':
+          description: 标准响应信封；保存与下发结果分别见 data.saved 和 data.execution
+      x-bk-apigateway-resource:
+        isPublic: true
+        allowApplyPermission: true
+        matchSubpath: false
+        enableWebsocket: false
+        backend:
+          name: default
+          method: post
+          path: /api/v4/recording_rule/apply_config/
+          matchSubpath: false
+          timeout: 0
+        authConfig:
+          appVerifiedRequired: true
+          userVerifiedRequired: false
+          resourcePermissionRequired: true
+  /app/recording_rule/list_configs/:
+    get:
+      operationId: recording_rule_list_configs
+      description: 查询 RecordingRule 配置列表
+      parameters:
+      - name: bk_biz_id
+        in: query
+        required: false
+        description: 业务 ID，与 space_uid 至少提供一个
+        schema:
+          type: integer
+          description: 业务 ID，与 space_uid 至少提供一个
+      - name: space_uid
+        in: query
+        required: false
+        description: 空间 UID，与 bk_biz_id 至少提供一个
+        schema:
+          type: string
+          description: 空间 UID，与 bk_biz_id 至少提供一个
+      - name: name
+        in: query
+        required: false
+        description: 规则组名称，包含匹配
+        schema:
+          type: string
+          description: 规则组名称，包含匹配
+      - name: app
+        in: query
+        required: false
+        description: AsCode 配置分组，精确匹配；空串表示非托管配置
+        schema:
+          type: string
+          maxLength: 128
+          description: AsCode 配置分组，精确匹配；空串表示非托管配置
+      - name: status
+        in: query
+        required: false
+        description: 本地聚合状态，精确匹配
+        schema:
+          type: string
+          description: 本地聚合状态，精确匹配
+      - name: page
+        in: query
+        required: false
+        description: 页码，从 1 开始，默认 1
+        schema:
+          type: integer
+          default: 1
+          minimum: 1
+      - name: page_size
+        in: query
+        required: false
+        description: 每页数量，默认 20，最大 100
+        schema:
+          type: integer
+          default: 20
+          minimum: 1
+          maximum: 100
+      responses:
+        '200':
+          description: 标准响应信封；保存与下发结果分别见 data.saved 和 data.execution
+      x-bk-apigateway-resource:
+        isPublic: true
+        allowApplyPermission: true
+        matchSubpath: false
+        enableWebsocket: false
+        backend:
+          name: default
+          method: get
+          path: /api/v4/recording_rule/list_configs/
+          matchSubpath: false
+          timeout: 0
+        authConfig:
+          appVerifiedRequired: true
+          userVerifiedRequired: false
+          resourcePermissionRequired: true

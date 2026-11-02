@@ -42,6 +42,13 @@ class MetadataBaseSerializer(serializers.Serializer):
         return attrs
 
 
+class QueryResourceStorageResource(MetaDataAPIGWResource):
+    """批量查询业务场景资源的结果表和存储关联。"""
+
+    action = "/app/metadata/query_resource_storage/"
+    method = "POST"
+
+
 class GetLabelResource(MetaDataAPIGWResource):
     """
     获取分类标签（一二级标签）
@@ -301,6 +308,7 @@ class CreateResultTableMetricSplitResource(MetaDataAPIGWResource):
 class ListMonitorResultTableResource(Resource):
     # todo to being legacy
     class RequestSerializer(serializers.Serializer):
+        bk_tenant_id = TenantIdField(label="租户ID")
         bk_biz_id = serializers.IntegerField(required=False, label="业务ID")
         datasource_type = serializers.CharField(required=False, label="需要过滤的结果表类型，如 system")
         is_public_include = serializers.BooleanField(required=False, label="是否包含全业务结果表")

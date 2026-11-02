@@ -133,4 +133,12 @@
   .t-table .t-table__last-full-row td .t-table__row-full-element {
     padding: 0;
   }
+
+  /* 排序列的内置灰底（--td-bg-color-secondarycontainer）画在 td 上，会盖住 tr 上的激活 / hover 整行高亮：
+   * 仅在高亮行内让该列单元格透明，透出整行底色，普通行的排序列底色保持不变。
+   * CommonTable 固定 hover={true} 与 showSortColumnBgColor={true}，该冲突在所有消费方都存在，故修在共享层 */
+  .common-table tbody > tr.t-table__row--active > td.t-table__sort-column,
+  .common-table tbody > tr:hover > td.t-table__sort-column {
+    background-color: transparent;
+  }
 }

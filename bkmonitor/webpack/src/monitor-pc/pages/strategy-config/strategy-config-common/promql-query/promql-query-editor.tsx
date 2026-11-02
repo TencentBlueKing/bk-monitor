@@ -30,13 +30,7 @@ import { Component as tsc } from 'vue-tsx-support';
 
 import AIWhaleIcon from '../../../../components/ai-whale-icon/ai-whale-icon';
 import { PromqlQueryController } from './controller';
-import {
-  type PromqlQuery,
-  type PromqlSourceData,
-  getSourceQueries,
-  isExistingMultiPromql,
-  isMultiPromqlBiz,
-} from './model';
+import { type PromqlQuery, type PromqlSourceData, getSourceQueries } from './model';
 
 import './promql-query-editor.scss';
 
@@ -79,16 +73,6 @@ export default class PromqlQueryEditor extends tsc<Props, Events> {
     return getSourceQueries(this.sourceData);
   }
 
-  /** 当前业务是否允许配置多 PromQL。 */
-  get allowMulti() {
-    return isMultiPromqlBiz(this.$store?.getters?.bizId);
-  }
-
-  /** 非多 PromQL 业务下，已有多查询或非别名表达式只读。 */
-  get multiLocked() {
-    return !this.allowMulti && isExistingMultiPromql(this.sourceData, this.expression);
-  }
-
   get effectiveExpression() {
     return this.controller.effectiveExpression(this.sourceData, this.expression);
   }
@@ -106,12 +90,12 @@ export default class PromqlQueryEditor extends tsc<Props, Events> {
   }
 
   get isReadonly() {
-    return this.readonly || this.sourceData.legacyMultiQuery || this.multiLocked;
+    return this.readonly || this.sourceData.legacyMultiQuery;
   }
 
   /** immediate 错误无需等待提交校验即可展示，其余错误在失焦或执行后才提示。 */
   get validationError() {
-    const error = this.controller.validate(this.sourceData, this.expression, { allowMulti: this.allowMulti });
+    const error = this.controller.validate(this.sourceData, this.expression);
     return this.validationShown || error?.immediate ? error : null;
   }
 
@@ -119,7 +103,6 @@ export default class PromqlQueryEditor extends tsc<Props, Events> {
     if (this.validationError) {
       return this.$t(this.validationError.message, this.validationError.params || {});
     }
-    if (!this.allowMulti) return '';
     if (this.queries.some(query => query.alias === this.addedAlias)) {
       return this.$t('新增查询 {alias}；填写后可在表达式中引用，原表达式保持不变。', { alias: this.addedAlias });
     }
@@ -149,7 +132,7 @@ export default class PromqlQueryEditor extends tsc<Props, Events> {
   }
 
   handleAdd() {
-    if (this.isReadonly || !this.allowMulti) return;
+    if (this.isReadonly) return;
     const alias = this.controller.nextAlias(this.queries);
     if (!alias) return;
     this.validationShown = false;
@@ -180,9 +163,6 @@ export default class PromqlQueryEditor extends tsc<Props, Events> {
             {this.$t('历史多 PromQL 查询配置仅可查看；其他策略设置可正常保存。查询请通过 API 或 as-code 修改。')}
           </div>
         )}
-        {this.multiLocked && !this.sourceData.legacyMultiQuery && (
-          <div class='legacy-query-hint'>{this.$t('当前业务不支持配置多 PromQL，已有查询和表达式仅可查看。')}</div>
-        )}
         {!this.loading &&
           this.queries.map(query => (
             <div
@@ -194,7 +174,7 @@ export default class PromqlQueryEditor extends tsc<Props, Events> {
                   {query.alias}
                   {'  PromQL'}
                 </span>
-                {this.allowMulti && !this.isReadonly && (
+                {!this.isReadonly && (
                   <span
                     class='source-query-delete'
                     v-bk-tooltips={{
@@ -224,32 +204,30 @@ export default class PromqlQueryEditor extends tsc<Props, Events> {
               />
             </div>
           ))}
-        {(this.allowMulti || this.multiLocked) && (
-          <div class='source-expression-row'>
-            <span class='source-expression-label'>{this.$t('表达式')}</span>
-            <bk-input
-              class='source-expression-input'
-              behavior='simplicity'
-              readonly={this.isReadonly}
-              value={this.effectiveExpression}
-              onBlur={() => {
-                this.validate();
-                this.$emit('expressionBlur', this.effectiveExpression);
-              }}
-              onChange={(value: string) => this.$emit('expressionChange', value)}
-              onEnter={() => this.$emit('execute', !this.validate())}
-            />
-            {this.allowMulti && !this.isReadonly && (
-              <bk-button
-                class='source-add-query'
-                disabled={!this.controller.nextAlias(this.queries)}
-                onClick={this.handleAdd}
-              >
-                {this.$t('添加查询')}
-              </bk-button>
-            )}
-          </div>
-        )}
+        <div class='source-expression-row'>
+          <span class='source-expression-label'>{this.$t('表达式')}</span>
+          <bk-input
+            class='source-expression-input'
+            behavior='simplicity'
+            readonly={this.isReadonly}
+            value={this.effectiveExpression}
+            onBlur={() => {
+              this.validate();
+              this.$emit('expressionBlur', this.effectiveExpression);
+            }}
+            onChange={(value: string) => this.$emit('expressionChange', value)}
+            onEnter={() => this.$emit('execute', !this.validate())}
+          />
+          {!this.isReadonly && (
+            <bk-button
+              class='source-add-query'
+              disabled={!this.controller.nextAlias(this.queries)}
+              onClick={this.handleAdd}
+            >
+              {this.$t('添加查询')}
+            </bk-button>
+          )}
+        </div>
         {!this.isReadonly && !!this.hint && (
           <div class={['source-expression-hint', { 'is-error': !!this.validationError }]}>{this.hint}</div>
         )}

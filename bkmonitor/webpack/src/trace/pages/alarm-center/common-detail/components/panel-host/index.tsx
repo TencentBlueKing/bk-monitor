@@ -28,6 +28,7 @@ import { type PropType, computed, defineComponent, shallowRef, toRef, watch } fr
 import { get } from '@vueuse/core';
 import { storeToRefs } from 'pinia';
 
+import { resolveLegacyHostHash } from 'monitor-pc/common/legacy-host-url';
 import DetailLoading, { DetailLoadStatus } from '../../detail-loading';
 import { useAlarmCenterDetailStore } from '../../../../../store/modules/alarm-center-detail';
 // import AiHighlightCard from '../../../components/ai-highlight-card/ai-highlight-card';
@@ -127,13 +128,9 @@ export default defineComponent({
       const ip = target?.bk_target_ip ?? '0.0.0.0';
       const cloudId = target?.bk_cloud_id ?? '0';
       const bkHostId = target?.bk_host_id ?? 0;
-      // 跳转至容器监控时的详情Id
-      const detailId = bkHostId ? bkHostId : `${ip}-${cloudId}`;
-      const url = commOpenUrl(`#/performance/detail/${detailId}`, get(bizId));
-      // TODO : 待确认 跳转至主机监控时的路径参数
-      // 模块级别 ?filter-bk_inst_id=190&filter-bk_obj_id=module
-      // 主机级别 ?filter-bk_target_ip=10.0.7.4&filter-bk_target_cloud_id=0&filter-bk_host_id=8
-      window.open(url);
+      const detailId = bkHostId ? String(bkHostId) : `${ip}-${cloudId}`;
+      const hash = resolveLegacyHostHash({ id: detailId });
+      window.open(commOpenUrl(hash, get(bizId)));
     };
 
     /**

@@ -32,7 +32,6 @@ export default {
   'strategy-云区域ID': 'Cloud ID',
   'strategy-主机ID': 'Host ID',
   '查询 {alias} 不能为空，请填写 PromQL 或删除该查询。': 'Query {alias} is empty. Enter PromQL or delete the query.',
-  '查询 {alias} 不能为空，请填写 PromQL。': 'Query {alias} is empty. Enter PromQL.',
   '查询 {alias} 的 PromQL 语法有误，请检查。': 'Invalid PromQL syntax in query {alias}. Please check the query.',
   '表达式语法有误，请检查。': 'Invalid expression syntax. Please check the expression.',
   '时间范围、offset 和标签过滤请填写在各条 PromQL 查询中。':
@@ -55,6 +54,4 @@ export default {
   '继续编辑 PromQL': 'Continue editing PromQL',
   '历史多 PromQL 查询配置仅可查看；其他策略设置可正常保存。查询请通过 API 或 as-code 修改。':
     'Legacy multi-PromQL queries are read-only. Other strategy settings can be saved. Edit queries through the API or as-code.',
-  '当前业务不支持配置多 PromQL，已有查询和表达式仅可查看。':
-    'Multi-PromQL is unavailable for this business. Existing queries and the expression are read-only.',
 };

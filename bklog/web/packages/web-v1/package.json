@@ -160,7 +160,7 @@
     "axios": "1.15.2"
   },
   "engines": {
-    "node": ">= 18"
+    "node": "26.12.1"
   },
   "simple-git-hooks": {
     "pre-commit": "npx lint-staged --concurrent false",

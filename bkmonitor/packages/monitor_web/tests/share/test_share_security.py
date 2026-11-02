@@ -1004,7 +1004,8 @@ def test_create_host_share_token_requires_canonical_existing_scope(mocker):
     create.assert_not_called()
 
 
-def test_update_host_share_token_requires_view_host(mocker):
+@pytest.mark.parametrize("space_id", [2, -100])
+def test_update_host_share_token_requires_view_host(mocker, space_id):
     expected_permission_error = RuntimeError("VIEW_HOST required")
     permission = mocker.patch("monitor_web.share.resources.Permission")
     permission.return_value.is_allowed_by_biz.side_effect = expected_permission_error
@@ -1013,7 +1014,7 @@ def test_update_host_share_token_requires_view_host(mocker):
     token = SimpleNamespace(
         token="share-token",
         type="host",
-        namespaces=["biz#2"],
+        namespaces=[f"biz#{space_id}"],
         is_deleted=False,
         is_expired=lambda: False,
         expire_time=datetime.now(),
@@ -1026,7 +1027,7 @@ def test_update_host_share_token_requires_view_host(mocker):
         UpdateShareTokenResource().perform_request({"token": "share-token"})
 
     permission.return_value.is_allowed_by_biz.assert_called_once_with(
-        bk_biz_id=2,
+        bk_biz_id=space_id,
         action=ActionEnum.VIEW_HOST,
         raise_exception=True,
     )
@@ -1034,26 +1035,156 @@ def test_update_host_share_token_requires_view_host(mocker):
     token.save.assert_not_called()
 
 
-def test_update_host_share_token_preserves_and_revalidates_scope(mocker):
-    mocker.patch("monitor_web.share.resources.Permission")
+@pytest.mark.parametrize("space_id", [2, -100])
+@pytest.mark.parametrize(
+    "scope",
+    [
+        {"version": 1, "target_type": "host", "bk_host_id": 100},
+        {"version": 1, "target_type": "topo", "bk_obj_id": "module", "bk_inst_id": 10},
+    ],
+)
+@pytest.mark.parametrize("update_type", ["expire", "lock"])
+def test_update_host_share_token_preserves_and_revalidates_scope(mocker, space_id, scope, update_type):
+    permission = mocker.patch("monitor_web.share.resources.Permission")
     mocker.patch("monitor_web.share.resources.get_request_tenant_id", return_value="system")
     token = SimpleNamespace(
         token="share-token",
         type="host",
-        namespaces=["biz#2"],
+        namespaces=[f"biz#{space_id}"],
         is_deleted=False,
         is_expired=lambda: False,
-        expire_time=datetime.now(),
+        expire_time=datetime.fromtimestamp(1900000000),
+        params={
+            "lock_search": False,
+            "start_time": None,
+            "end_time": None,
+            "default_time_range": [],
+            "expire_period": "1h",
+            "data": {"scope": scope},
+        },
+        save=Mock(),
+    )
+    get_token = mocker.patch.object(ApiAuthToken.origin_objects, "get", return_value=token)
+    get_host_by_id = mocker.patch(
+        "monitor_web.share.resources.api.cmdb.get_host_by_id", return_value=[make_host(ip="192.0.2.1")]
+    )
+    get_host_by_topo_node = mocker.patch(
+        "monitor_web.share.resources.api.cmdb.get_host_by_topo_node", return_value=[make_host(ip="192.0.2.1")]
+    )
+    if update_type == "expire":
+        update = {"expire_time": 1900007200, "expire_period": "2h"}
+    else:
+        update = {"lock_search": True, "start_time": 100, "end_time": 200, "default_time_range": []}
+
+    result = UpdateShareTokenResource().perform_request({"token": "share-token", **update})
+
+    get_token.assert_called_once_with(bk_tenant_id="system", token="share-token")
+    permission.return_value.is_allowed_by_biz.assert_called_once_with(
+        bk_biz_id=space_id, action=ActionEnum.VIEW_HOST, raise_exception=True
+    )
+    if scope["target_type"] == "host":
+        get_host_by_id.assert_called_once_with(bk_biz_id=space_id, bk_host_ids=[scope["bk_host_id"]])
+        get_host_by_topo_node.assert_not_called()
+    else:
+        get_host_by_topo_node.assert_called_once_with(
+            bk_biz_id=space_id, topo_nodes={scope["bk_obj_id"]: [scope["bk_inst_id"]]}
+        )
+        get_host_by_id.assert_not_called()
+    assert token.namespaces == [f"biz#{space_id}"]
+    assert result["data"] == {"scope": scope}
+    for key, value in update.items():
+        assert result[key] == value
+    if update_type == "expire":
+        assert result["lock_search"] is False
+        assert result["start_time"] is None
+        assert result["end_time"] is None
+    else:
+        assert result["expire_time"] == 1900000000
+        assert result["expire_period"] == "1h"
+    token.save.assert_called_once_with()
+
+
+@pytest.mark.parametrize("space_id", [2, -100])
+@pytest.mark.parametrize(
+    "scope",
+    [
+        {"version": 1, "target_type": "host", "bk_host_id": 101},
+        {"version": 1, "target_type": "topo", "bk_obj_id": "module", "bk_inst_id": 11},
+    ],
+)
+def test_update_host_share_token_rejects_target_outside_token_space(mocker, space_id, scope):
+    permission = mocker.patch("monitor_web.share.resources.Permission")
+    mocker.patch("monitor_web.share.resources.get_request_tenant_id", return_value="system")
+    token = SimpleNamespace(
+        token="share-token",
+        type="host",
+        namespaces=[f"biz#{space_id}"],
+        is_deleted=False,
+        is_expired=lambda: False,
         params={"data": {"scope": {"version": 1, "target_type": "host", "bk_host_id": 100}}},
         save=Mock(),
     )
     mocker.patch.object(ApiAuthToken.origin_objects, "get", return_value=token)
-    get_host_by_id = mocker.patch("monitor_web.share.resources.api.cmdb.get_host_by_id", return_value=[make_host()])
+    get_host_by_id = mocker.patch("monitor_web.share.resources.api.cmdb.get_host_by_id", return_value=[])
+    get_host_by_topo_node = mocker.patch("monitor_web.share.resources.api.cmdb.get_host_by_topo_node", return_value=[])
 
-    UpdateShareTokenResource().perform_request({"token": "share-token"})
+    with pytest.raises(TokenValidatedError):
+        UpdateShareTokenResource().perform_request({"token": "share-token", "data": {"scope": scope}})
 
-    get_host_by_id.assert_called_once_with(bk_biz_id=2, bk_host_ids=[100])
-    token.save.assert_called_once_with()
+    permission.return_value.is_allowed_by_biz.assert_called_once_with(
+        bk_biz_id=space_id, action=ActionEnum.VIEW_HOST, raise_exception=True
+    )
+    if scope["target_type"] == "host":
+        get_host_by_id.assert_called_once_with(bk_biz_id=space_id, bk_host_ids=[scope["bk_host_id"]])
+    else:
+        get_host_by_topo_node.assert_called_once_with(
+            bk_biz_id=space_id, topo_nodes={scope["bk_obj_id"]: [scope["bk_inst_id"]]}
+        )
+    assert token.params["data"]["scope"] == {"version": 1, "target_type": "host", "bk_host_id": 100}
+    assert token.namespaces == [f"biz#{space_id}"]
+    token.save.assert_not_called()
+
+
+@pytest.mark.parametrize(
+    "namespaces",
+    [
+        [],
+        ["other#2"],
+        ["biz#2", "biz#-100"],
+        ["biz#"],
+        ["biz#0"],
+        ["biz#-0"],
+        ["biz#+2"],
+        ["biz#--100"],
+        ["biz#-100.0"],
+        ["biz# 2"],
+        ["biz#2 "],
+        ["biz#2_extra"],
+        ["biz#²"],
+    ],
+)
+def test_update_host_share_token_rejects_invalid_namespace(mocker, namespaces):
+    permission = mocker.patch("monitor_web.share.resources.Permission")
+    mocker.patch("monitor_web.share.resources.get_request_tenant_id", return_value="system")
+    token = SimpleNamespace(
+        token="share-token",
+        type="host",
+        namespaces=namespaces,
+        is_deleted=False,
+        is_expired=lambda: False,
+        expire_time=datetime.fromtimestamp(1900000000),
+        params={},
+        save=Mock(),
+    )
+    mocker.patch.object(ApiAuthToken.origin_objects, "get", return_value=token)
+    validate_target = mocker.patch("monitor_web.share.resources.validate_host_share_target")
+
+    with pytest.raises(TokenValidatedError):
+        UpdateShareTokenResource().perform_request({"token": "share-token"})
+
+    permission.assert_not_called()
+    validate_target.assert_not_called()
+    token.save.assert_not_called()
 
 
 def test_update_non_host_share_token_keeps_existing_permission_contract(mocker):

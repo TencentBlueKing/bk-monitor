@@ -24,6 +24,7 @@ import hashlib
 import os
 import time
 from collections import defaultdict
+from contextlib import contextmanager
 from typing import Any
 
 import arrow
@@ -41,7 +42,7 @@ from jinja2.sandbox import SandboxedEnvironment as Environment
 from redis.exceptions import RedisError
 
 from apps.api import TransferApi
-from apps.constants import SpacePropertyEnum
+from apps.constants import USERNAME_MAX_LENGTH, SpacePropertyEnum
 from apps.exceptions import BizNotExistError
 from apps.feature_toggle.handlers.toggle import feature_switch
 from apps.log_clustering.constants import PatternEnum, YearOnYearEnum
@@ -50,6 +51,8 @@ from apps.log_search.constants import (
     ASYNC_EXPORT_SCENE_ID,
     DEFAULT_INDEX_SET_FIELDS_CONFIG_NAME,
     DEFAULT_TIME_FIELD,
+    ExportJobStatus,
+    ExportSearchType,
     ExportStatus,
     ExportType,
     INDEX_SET_NO_DATA_CHECK_INTERVAL,
@@ -94,7 +97,8 @@ from apps.log_search.exceptions import (
     ScenarioNotSupportedException,
     SourceDuplicateException,
 )
-from apps.log_search.utils import fetch_request_username
+from apps.log_search.utils import display_index_set_name, fetch_request_username
+from apps.log_search.export.models import ExportJob  # noqa: F401
 from apps.models import (
     JsonField,
     MultiStrSplitByCommaField,
@@ -1165,6 +1169,9 @@ class UserIndexSetConfig(SoftDeleteModel):
 
 
 class UserIndexSetSearchHistory(SoftDeleteModel):
+    created_by = models.CharField(_("创建者"), max_length=USERNAME_MAX_LENGTH, default="")
+    updated_by = models.CharField(_("修改者"), max_length=USERNAME_MAX_LENGTH, blank=True, default="")
+    deleted_by = models.CharField(_("删除者"), max_length=USERNAME_MAX_LENGTH, blank=True, null=True)
     index_set_id = models.IntegerField(_("索引集ID"), null=True, default=None)
     params = JsonField(_("检索条件"), null=True, default=None)
     search_type = models.CharField(_("检索类型"), max_length=32, default="default")
@@ -1287,6 +1294,8 @@ class FavoriteSearch(SoftDeleteModel):
 
 
 class Favorite(OperateRecordModel):
+    created_by = models.CharField(_("创建者"), max_length=USERNAME_MAX_LENGTH, default="")
+    updated_by = models.CharField(_("修改者"), max_length=USERNAME_MAX_LENGTH, blank=True, default="")
     space_uid = models.CharField(_("空间唯一标识"), blank=True, default="", max_length=256, db_index=True)
     index_set_id = models.IntegerField(_("索引集ID"), null=True, default=None)
     name = models.CharField(_("收藏名称"), max_length=255)
@@ -1384,9 +1393,12 @@ class Favorite(OperateRecordModel):
                 index_set_id_list.extend(index_set_ids)
         index_set_id_list = list(set(index_set_id_list))
         active_index_set_id_dict = {
-            i["index_set_id"]: {"index_set_name": i["index_set_name"], "is_active": i["is_active"]}
+            i["index_set_id"]: {
+                "index_set_name": display_index_set_name(i["index_set_name"], i["collector_config_id"]),
+                "is_active": i["is_active"],
+            }
             for i in LogIndexSet.objects.filter(index_set_id__in=index_set_id_list).values(
-                "index_set_id", "index_set_name", "is_active"
+                "index_set_id", "index_set_name", "is_active", "collector_config_id"
             )
         }
         for fi in qs.all():
@@ -1432,6 +1444,8 @@ class Favorite(OperateRecordModel):
 class FavoriteGroup(OperateRecordModel):
     """收藏组"""
 
+    created_by = models.CharField(_("创建者"), max_length=USERNAME_MAX_LENGTH, default="")
+    updated_by = models.CharField(_("修改者"), max_length=USERNAME_MAX_LENGTH, blank=True, default="")
     name = models.CharField(_("收藏组名称"), max_length=64)
     group_type = models.CharField(_("收藏组类型"), max_length=64, choices=FavoriteGroupType.get_choices())
     space_uid = models.CharField(_("空间唯一标识"), blank=True, default="", max_length=256, db_index=True)
@@ -1769,6 +1783,8 @@ class AsyncTask(OperateRecordModel):
     导出任务状态表
     """
 
+    created_by = models.CharField(_("创建者"), max_length=USERNAME_MAX_LENGTH, default="")
+    updated_by = models.CharField(_("修改者"), max_length=USERNAME_MAX_LENGTH, blank=True, default="")
     request_param = models.JSONField(_("检索请求参数"))
     sorted_param = models.JSONField(_("异步导出排序字段"), null=True, blank=True)
     scenario_id = models.CharField(_("接入场景"), max_length=64, null=True, blank=True)
@@ -1810,22 +1826,64 @@ class AsyncTask(OperateRecordModel):
         else:
             qs = qs.exclude(scenario_id=ASYNC_EXPORT_SCENE_ID)
 
-        if (
-            qs.filter(Q(export_status__in=running_status) | Q(export_status__isnull=True)).count()
-            >= settings.MAX_CONCURRENT_EXPORT_TASKS
-        ):
+        running_count = qs.filter(Q(export_status__in=running_status) | Q(export_status__isnull=True)).count()
+
+        export_job_qs = ExportJob.objects.filter(created_by=username, status__in=ExportJobStatus.ACTIVE)
+        if is_scene:
+            export_job_qs = export_job_qs.filter(search_type=ExportSearchType.SCENE)
+        else:
+            export_job_qs = export_job_qs.exclude(search_type=ExportSearchType.SCENE)
+        running_count += export_job_qs.count()
+        if running_count >= settings.MAX_CONCURRENT_EXPORT_TASKS:
             raise ConcurrentExportLimitException(
                 ConcurrentExportLimitException.MESSAGE.format(limit_count=settings.MAX_CONCURRENT_EXPORT_TASKS)
             )
 
     @classmethod
-    def async_export_task_create_with_running_limit(cls, username: str, is_scene: bool = False, **task_params):
-        """
-        校验并创建异步导出任务
+    def export_create_lock_key(cls, username: str, is_scene: bool = False) -> str:
+        """用户级导出创建锁的 key：新旧导出链路必须算出同一个 key 才能共用同一份用户额度。"""
+        task_group = ASYNC_EXPORT_SCENE_ID if is_scene else "default"
+        username_hash = hashlib.sha256(username.encode("utf-8")).hexdigest()[:32]
+        return f"async_export_create:{task_group}:{username_hash}"
 
-        Redis 启用且可用时，在用户导出分组锁内完成并发数复检与任务创建，避免并发请求击穿限制；
+    @classmethod
+    @contextmanager
+    def export_create_lock(cls, username: str, is_scene: bool = False):
+        """
+        用户级导出创建锁：Redis 可用时在锁内复检并发数并创建任务，避免并发请求击穿限制；
         Redis 禁用或连接异常时降级为非原子校验，极端并发下任务数可能短暂超过限制。
         """
+        if not settings.USE_REDIS:
+            yield
+            return
+
+        lock_key = cls.export_create_lock_key(username, is_scene)
+        try:
+            lock = cache.lock(lock_key, timeout=30, blocking_timeout=5)
+            lock_acquired = lock.acquire()
+        except RedisError:
+            logger.exception(
+                "[AsyncTask.export_create_lock] Redis is unavailable, falling back to non-atomic validation, lock_key=%s",
+                lock_key,
+            )
+            yield
+            return
+
+        if not lock_acquired:
+            logger.warning("[AsyncTask.export_create_lock] failed to acquire lock, lock_key=%s", lock_key)
+            raise AsyncExportRequestBusyException()
+
+        try:
+            yield
+        finally:
+            try:
+                lock.release()
+            except RedisError:
+                logger.exception("[AsyncTask.export_create_lock] failed to release lock, lock_key=%s", lock_key)
+
+    @classmethod
+    def async_export_task_create_with_running_limit(cls, username: str, is_scene: bool = False, **task_params):
+        """校验并创建异步导出任务：在用户级创建锁内复检并发数，避免并发请求击穿限制。"""
 
         def check_and_create_task():
             cls.check_running_count_by_user(username, is_scene=is_scene)
@@ -1833,42 +1891,9 @@ class AsyncTask(OperateRecordModel):
             task_params["export_type"] = ExportType.ASYNC
             return cls.objects.create(**task_params)
 
-        if not settings.USE_REDIS:
-            return check_and_create_task()
-
-        task_group = ASYNC_EXPORT_SCENE_ID if is_scene else "default"
-        username_hash = hashlib.sha256(username.encode("utf-8")).hexdigest()[:32]
-        lock_key = f"async_export_create:{task_group}:{username_hash}"
-
-        try:
-            lock = cache.lock(lock_key, timeout=30, blocking_timeout=5)
-            lock_acquired = lock.acquire()
-        except RedisError:
-            logger.exception(
-                "[AsyncTask.async_export_task_create_with_running_limit] Redis is unavailable, "
-                "falling back to non-atomic validation, lock_key=%s",
-                lock_key,
-            )
-            return check_and_create_task()
-
-        if not lock_acquired:
-            logger.warning(
-                "[AsyncTask.async_export_task_create_with_running_limit] failed to acquire lock, lock_key=%s",
-                lock_key,
-            )
-            raise AsyncExportRequestBusyException()
-
-        try:
+        with cls.export_create_lock(username, is_scene=is_scene):
             with atomic():
                 return check_and_create_task()
-        finally:
-            try:
-                lock.release()
-            except RedisError:
-                logger.exception(
-                    "[AsyncTask.async_export_task_create_with_running_limit] failed to release lock, lock_key=%s",
-                    lock_key,
-                )
 
     class Meta:
         db_table = "export_task"
@@ -1927,7 +1952,7 @@ class EmailTemplate(OperateRecordModel):
 
 
 class UserMetaConf(models.Model):
-    username = models.CharField(_("创建者"), max_length=32, default="")
+    username = models.CharField(_("创建者"), max_length=USERNAME_MAX_LENGTH, default="")
     conf = models.JSONField(_("用户meta配置"), default=dict)
     type = models.CharField(_("数据类型"), max_length=64)
 
@@ -2287,7 +2312,7 @@ class UserIndexSetFieldsConfig(models.Model):
 
     index_set_id = models.IntegerField(_("索引集ID"), null=True, blank=True, db_index=True)
     config_id = models.IntegerField(_("索引集配置ID"), db_index=True)
-    username = models.CharField(_("用户名"), max_length=32, default="", db_index=True)
+    username = models.CharField(_("用户名"), max_length=USERNAME_MAX_LENGTH, default="", db_index=True)
     scope = models.CharField(_("范围"), max_length=16, default=SearchScopeEnum.DEFAULT.value, db_index=True)
     source_app_code = models.CharField(
         verbose_name=_("来源系统"), default=get_request_app_code, max_length=32, blank=True

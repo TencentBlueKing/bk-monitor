@@ -12,13 +12,14 @@ import logging
 import math
 import os
 import re
+import subprocess
 from collections import deque
 from dataclasses import dataclass
 from io import BytesIO
 from typing import Any
 
 from graphviz import Digraph
-from graphviz.backend import CalledProcessError, ExecutableNotFound
+from graphviz.backend import DOT_BINARY
 
 from django.utils.translation import gettext_lazy as _
 
@@ -29,9 +30,12 @@ from core.drf_resource.exceptions import CustomException
 
 logger = logging.getLogger(__name__)
 
-CALLGRAPH_MAX_NODES = 1500
-CALLGRAPH_MAX_EDGES = 2400
-CALLGRAPH_MAX_DOT_BYTES = 768 * 1024
+CALLGRAPH_MAX_NODES = 2500
+CALLGRAPH_MAX_EDGES = 4000
+CALLGRAPH_MAX_DOT_BYTES = 4 * 1024 * 1024
+CALLGRAPH_RENDER_TIMEOUT_SECONDS = 30
+# 限制 dot 交叉最小化与坐标定位的迭代次数，否则大图布局耗时随规模超线性增长
+CALLGRAPH_LAYOUT_ATTRS = {"mclimit": "0.3", "nslimit": "0.5", "nslimit1": "2"}
 
 # 定义正则表达式 来过滤切割不同语言的 pkg 名称
 cpp_anonymous_prefix_re = re.compile(r"^\(anonymous namespace\)::")
@@ -196,7 +200,7 @@ def generate_svg_data(tree: FunctionTree, data: dict, unit: str):
     edge_count = len(call_graph_edges)
     _validate_call_graph_size(node_count, edge_count)
 
-    dot = Digraph(comment="The Round Table", format="svg")
+    dot = Digraph(comment="The Round Table", format="svg", graph_attr=CALLGRAPH_LAYOUT_ATTRS)
     for node in call_graph_nodes:
         ratio = 0.00 if data["call_graph_all"] == 0 else node["value"] / data["call_graph_all"]
         ratio_str = f"{ratio:.2%}"
@@ -234,13 +238,13 @@ def generate_svg_data(tree: FunctionTree, data: dict, unit: str):
         ratio = 0.00 if data["call_graph_all"] == 0 else edge["value"] / data["call_graph_all"]
         background_color = dot_color(score=ratio, is_back_ground=False)
 
+        # 边 label 会让 dot 的布局层数翻倍并插入大量虚拟节点，xlabel 在布局完成后再放置
         dot.edge(
             str(edge["source_id"]),
             str(edge["target_id"]),
-            label=f"{display(edge['value'], unit)}",
+            xlabel=f"{display(edge['value'], unit)}",
             tooltip=tooltip,
             color=background_color,
-            splines="curved",
             penwidth=str(penwidth),
         )
 
@@ -248,8 +252,26 @@ def generate_svg_data(tree: FunctionTree, data: dict, unit: str):
     _validate_call_graph_size(node_count, edge_count, dot_bytes)
 
     try:
-        svg_data = dot.pipe(format="svg")
-    except (BrokenPipeError, CalledProcessError) as e:
+        svg_data = subprocess.run(
+            [DOT_BINARY, "-Tsvg"],
+            input=dot.source.encode("utf-8"),
+            capture_output=True,
+            check=True,
+            timeout=CALLGRAPH_RENDER_TIMEOUT_SECONDS,
+        ).stdout
+    except subprocess.TimeoutExpired as e:
+        logger.warning(
+            "Graphviz timed out while rendering call graph: nodes=%s, edges=%s, dot_bytes=%s, timeout=%s",
+            node_count,
+            edge_count,
+            dot_bytes,
+            CALLGRAPH_RENDER_TIMEOUT_SECONDS,
+        )
+        raise CustomException(
+            _("调用图包含的函数或调用关系过多，无法生成可读图形，请缩小查询时间范围或增加过滤条件后重试。"),
+            code=CustomException.code,
+        ) from e
+    except (BrokenPipeError, subprocess.CalledProcessError) as e:
         logger.exception(
             "Graphviz failed to render call graph: nodes=%s, edges=%s, dot_bytes=%s",
             node_count,
@@ -260,7 +282,7 @@ def generate_svg_data(tree: FunctionTree, data: dict, unit: str):
             _("调用图生成失败，请缩小查询时间范围或增加过滤条件后重试；若问题持续存在，请联系管理员。"),
             code=CustomException.code,
         ) from e
-    except (ExecutableNotFound, OSError) as e:
+    except OSError as e:
         logger.exception(
             "Graphviz is unavailable while rendering call graph: nodes=%s, edges=%s, dot_bytes=%s",
             node_count,

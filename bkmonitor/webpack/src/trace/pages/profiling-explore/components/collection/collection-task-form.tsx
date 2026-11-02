@@ -214,7 +214,7 @@ export default defineComponent({
         escClose={!f.loading.value}
         isShow={true}
         quickClose={false}
-        title={this.t(this.task ? '编辑采集' : '新建采集')}
+        title={this.t(this.task ? '编辑采集' : 'trace-新建采集')}
         transfer={false}
         zIndex={this.sidesliderZIndex}
         onClosed={this.close}

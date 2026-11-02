@@ -350,16 +350,16 @@ class ResultTableConfig(DataLinkResourceConfigBase):
 
         # 优先使用ResultTableConfig记录的bkbase_table_id，因为重建链路的所属业务并不稳定
         if self.bkbase_table_id:
-            bk_biz_id = int(self.bkbase_table_id.split("_")[0])
+            data_biz_id = int(self.bkbase_table_id.split("_")[0])
         else:
-            bk_biz_id = self.datalink_biz_ids.label_biz_id
+            data_biz_id = self.datalink_biz_ids.data_biz_id
 
         maintainer = settings.BK_DATA_PROJECT_MAINTAINER.split(",")
         render_params = {
             "name": self.name,
             "namespace": self.namespace,
-            "bk_biz_id": bk_biz_id,  # 数据实际归属的业务ID
-            "monitor_biz_id": self.datalink_biz_ids.data_biz_id,  # 接入者的业务ID
+            "bk_biz_id": data_biz_id if self.bkbase_table_id else self.datalink_biz_ids.label_biz_id,  # 保持原标签规则
+            "monitor_biz_id": data_biz_id,  # 完整 BKBase RT ID 的业务前缀
             "data_type": self.data_type,
             "maintainers": json.dumps(maintainer),
             "fields": json.dumps(fields, ensure_ascii=False) if fields else "null",
@@ -708,6 +708,7 @@ class DataBusConfig(DataLinkResourceConfigBase):
     bk_data_id = models.IntegerField(verbose_name="数据源ID", default=0)
     sink_names = models.JSONField(verbose_name="处理配置列表", default=list, help_text="格式为kind:name，便于检索")
     consumer_group = models.CharField(verbose_name="Consumer Group", max_length=255, default="", blank=True)
+    options = models.JSONField(verbose_name="清洗任务额外配置", default=dict, blank=True)
     data_link_strategy = models.CharField(verbose_name="数据链路策略标记", max_length=64, default="", blank=True)
     source_kind = models.CharField(verbose_name="源资源类型", max_length=64, default=DataLinkKind.DATAID.value)
     source_name = models.CharField(verbose_name="源资源名称", max_length=64, default="", blank=True)

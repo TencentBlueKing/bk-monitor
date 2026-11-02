@@ -12,7 +12,9 @@ import logging
 
 from rest_framework import serializers
 
-from core.drf_resource import Resource, api
+from core.drf_resource import api
+from kernel_api.resource.mcp_response import MCPResource as Resource
+from kernel_api.resource.mcp_response import is_mcp_request
 from kernel_api.serializers.mixins import TimeSpanValidationPassThroughSerializer
 
 logger = logging.getLogger(__name__)
@@ -45,6 +47,10 @@ class QueryMultiResourceRelationResource(Resource):
         query_list = validated_request_data["query_list"]
 
         logger.info("QueryMultiResourceRelationResource: try to query relation,bk_biz_id->[%s]", bk_biz_id)
+        if is_mcp_request():
+            from kernel_api.resource.mcp_uq import query_uq
+
+            return query_uq("query_multi", {"bk_biz_ids": [str(bk_biz_id)], "query_list": query_list})
         return api.unify_query.query_multi(bk_biz_ids=[str(bk_biz_id)], query_list=query_list)
 
 
@@ -77,4 +83,8 @@ class QueryMultiResourceRelationRangeResource(Resource):
         query_list = validated_request_data["query_list"]
 
         logger.info("QueryMultiResourceRelationRangeResource: try to query relation,bk_biz_id->[%s]", bk_biz_id)
+        if is_mcp_request():
+            from kernel_api.resource.mcp_uq import query_uq
+
+            return query_uq("query_multi_resource_range", {"bk_biz_ids": [str(bk_biz_id)], "query_list": query_list})
         return api.unify_query.query_multi_resource_range(bk_biz_ids=[str(bk_biz_id)], query_list=query_list)

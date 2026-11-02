@@ -104,9 +104,11 @@ export const RUM_TOPK_LIMIT = 5;
 interface ISpanTypeMeta {
   /** 类型主色，与 icon 内置填充色一致，类型标签底色按该色降低透明度得到 */
   color: string;
+  /** 图标字体类名，供无设计稿 svg 的类型（如 session）使用；与 icon 二选一，同时存在时以 icon 为准 */
+  fontIcon?: string;
   /** 类型图标，取自设计稿导出的 svg 资源，颜色已内置在 svg 中 */
   icon: string;
-  label: string;
+  label?: string;
 }
 
 /**
@@ -124,6 +126,8 @@ export const SPAN_TYPE_META: Record<string, ISpanTypeMeta> = {
   action: { icon: ActionIcon, label: 'Action', color: '#DE7CC7' },
   websocket: { icon: WebsocketIcon, label: 'Websocket', color: '#6DA861' },
   custom: { icon: CustomIcon, label: 'Custom', color: '#8F9FBD' },
+  /** session 无设计稿 svg，图标走内置的 icon-Session；文案仍取后台别名（会话） */
+  session: { icon: '', fontIcon: 'icon-monitor icon-Session', color: '#3A84FF' },
 };
 
 export const SPAN_TYPE_META_ICON = {
@@ -296,10 +300,10 @@ export const RUM_HTTP_STATUS_CODE_MAP: Record<
   },
 };
 
-/** 视角 Tab 配置，当前仅 span 有实现，其余渲染占位 */
+/** 视角 Tab 配置 */
 export const RUM_MODE_TAB_LIST: Array<{ disabled: boolean; icon: string; label: string; value: RumModeType }> = [
-  { value: RumModeEnum.SESSION, label: 'Session', icon: 'icon-Session', disabled: true },
-  { value: RumModeEnum.VIEW, label: 'View', icon: 'icon-View', disabled: true },
+  { value: RumModeEnum.SESSION, label: 'Session', icon: 'icon-Session', disabled: false },
+  { value: RumModeEnum.VIEW, label: 'View', icon: 'icon-View', disabled: false },
   { value: RumModeEnum.SPAN, label: 'Span (OT)', icon: 'icon-Span', disabled: false },
 ];
 

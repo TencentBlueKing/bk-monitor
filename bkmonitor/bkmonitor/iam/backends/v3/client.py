@@ -11,15 +11,13 @@ specific language governing permissions and limitations under the License.
 # ---------------------------------------------------------------------------
 # V3Client — IAM V3 SDK 客户端（iam_v3 包内自包含）
 #
-# 继承 SDK IAM 基类，覆盖 _do_policy_query / _do_policy_query_by_actions：
-#   1. V1→V2 迁移兼容（V1 双查 + biz→space 替换 + OR 合并）
-#   2. Action 语义别名（new_dashboard → manage_dashboard + manage_datasource）
+# 继承 SDK IAM 基类，在 _do_policy_query 中保留 Action 语义别名：
+# new_dashboard → manage_dashboard + manage_datasource
 #
-# 设计要点（旧 CompatibleIAM 兼容层已删除，本类是其替代）：
+# 设计要点：
 #   - 不依赖 Django settings / GlobalConfig
 #   - 不依赖 bkmonitor.iam.action.get_action_by_id
 #   - 使用注入的 NameCodec 做 action_id 编解码
-#   - enable_v1_compat 由构造参数控制（代替 DB 配置读取）
 #   - ACTION_COMPATIBLE_ALIASES 使用 Business ID
 # ---------------------------------------------------------------------------
 
@@ -29,7 +27,6 @@ import copy
 import logging
 import json
 import threading
-from collections.abc import Callable
 
 from cachetools import TTLCache, cachedmethod
 
@@ -41,7 +38,7 @@ from iam_engine.provider.codec import NameCodec
 logger = logging.getLogger(__name__)
 
 # 动作语义兼容别名（Business ID）：
-# 仅在策略查询（policy_query / policy_query_by_actions）层生效——把键动作的策略
+# 仅在单 Action 策略查询（_do_policy_query）层生效——把键动作的策略
 # 用值列表中动作的策略 OR 合并后返回；直接鉴权（is_allowed / batch_by_resource /
 # batch_by_action）走 IAM 平台，平台不做别名合并，会按原动作查。
 #
@@ -59,8 +56,8 @@ ACTION_COMPATIBLE_ALIASES: dict[str, list[str]] = {
 class V3Client(IAM):
     """IAM V3 SDK 客户端。
 
-    覆盖 _do_policy_query / _do_policy_query_by_actions，
-    注入 V1→V2 兼容逻辑和 action 语义别名逻辑。
+    覆盖 _do_policy_query，批量查询沿用 SDK 实现，
+    保留 action 语义别名逻辑，策略查询使用 SDK 当前协议。
     通过构造参数注入 system_id 和 codec，不依赖 Django settings。
     """
 
@@ -72,7 +69,6 @@ class V3Client(IAM):
         system_id: str,
         codec: NameCodec,
         bk_tenant_id: str = "",
-        enable_v1_compat: bool | Callable[[], bool] = True,
     ):
         """初始化 V3 客户端。
 
@@ -83,20 +79,17 @@ class V3Client(IAM):
             system_id: V3 系统 ID（如 "bk_monitorv3"）
             codec: NameCodec 实例，用于 action_id 编解码
             bk_tenant_id: 租户 ID
-            enable_v1_compat: 是否启用 V1→V2 兼容模式（默认 True，后续可关闭）
         """
         super().__init__(app_code, app_secret, bk_apigateway_url, bk_tenant_id=bk_tenant_id)
         self._system_id = system_id
         self._codec = codec
-        self._enable_v1_compat = enable_v1_compat
         # SDK 默认缓存跨实例共享且忽略租户；在租户/凭据独立的客户端内持有缓存。
         self._allowed_cache = TTLCache(maxsize=1024, ttl=10)
         self._policy_cache = TTLCache(maxsize=1024, ttl=60)
         self._cache_lock = threading.RLock()
 
     def _request_cache_key(self, request):
-        compat = self._enable_v1_compat() if callable(self._enable_v1_compat) else self._enable_v1_compat
-        return json.dumps(request.to_dict(), sort_keys=True), bool(compat)
+        return json.dumps(request.to_dict(), sort_keys=True)
 
     @cachedmethod(lambda self: self._allowed_cache, key=_request_cache_key, lock=lambda self: self._cache_lock)
     def is_allowed_with_cache(self, request):
@@ -187,30 +180,6 @@ class V3Client(IAM):
             return {"status": "error", "error": str(e)[:200]}
 
     # ================================================================
-    # V1→V2 兼容模式
-    # ================================================================
-
-    def _has_v1_actions(self) -> bool:
-        """检查 IAM 平台是否仍注册了 V1 操作 ID。"""
-        ok, message, data = self._client.query(self._system_id)
-        if not ok:
-            return False
-        return "view_business" in [action["id"] for action in data["actions"]]
-
-    def _patch_policy_expression(self, expression: dict | None) -> None:
-        """将 V1 业务资源表达式（biz）转换为 V2 空间资源（space）。"""
-        if not expression:
-            return
-        if expression["op"] == "OR":
-            for sub_expr in expression["content"]:
-                self._patch_policy_expression(sub_expr)
-        else:
-            if expression["field"] == "biz.id":
-                expression["field"] = "space.id"
-            if "biz" in expression["value"]:
-                expression["value"] = expression["value"].replace("biz", "space")
-
-    # ================================================================
     # Action 语义别名
     # ================================================================
 
@@ -238,101 +207,6 @@ class V3Client(IAM):
             policies = alias_policies if not policies else {"op": "OR", "content": [policies, alias_policies]}
         return policies
 
-    # ================================================================
-    # _do_policy_query — 覆盖基类，注入 V1 兼容 + alias 逻辑
-    # ================================================================
-
     def _do_policy_query(self, request, with_resources: bool = True):
-        # 未开启兼容模式 → 标准查询 + alias
-        if not (self._enable_v1_compat() if callable(self._enable_v1_compat) else self._enable_v1_compat):
-            policies = super()._do_policy_query(request, with_resources)
-            return self._merge_alias_policies(request, policies, with_resources)
-
-        data = request.to_dict()
-        logger.debug(f"the request: {data}")
-
-        # NOTE: 不向服务端传任何 resource，用于统一类资源的批量鉴权
-        # 将会返回所有策略，然后遍历资源列表和策略列表逐一计算
-        if not with_resources:
-            data["resources"] = []
-
-        ok, message, policies = self._client.policy_query(data)
-
-        # ---- V1 兼容双查 ----
-        if data["action"]["id"].endswith("_v2"):
-            v1_data = copy.deepcopy(data)
-
-            # 替换 action_id（去掉 _v2 后缀）
-            v1_data["action"]["id"] = v1_data["action"]["id"].replace("_v2", "")
-
-            # 替换资源名称：space → biz（CMDB）
-            for resource in v1_data["resources"]:
-                if resource["type"] == "space":
-                    resource["system"] = "bk_cmdb"
-                    resource["type"] = "biz"
-                iam_path = resource.get("attribute", {}).get("_bk_iam_path_", "")
-                if "space" in iam_path:
-                    resource["attribute"]["_bk_iam_path_"] = iam_path.replace("space", "biz")
-
-            v1_ok, v1_message, v1_policies = self._client.policy_query(v1_data)
-            self._patch_policy_expression(v1_policies)
-
-            if v1_policies:
-                if not policies:
-                    policies = v1_policies
-                else:
-                    policies = {"op": "OR", "content": [policies, v1_policies]}
-
-        # ---- Action 语义别名（OR 合并） ----
-        policies = self._merge_alias_policies(request, policies, with_resources)
-
-        if not policies and not ok:
-            raise AuthAPIError(message)
-        return policies
-
-    # ================================================================
-    # _do_policy_query_by_actions — 覆盖基类，注入 V1 兼容（批量）
-    # ================================================================
-
-    def _do_policy_query_by_actions(self, request, with_resources: bool = True):
-        if not (self._enable_v1_compat() if callable(self._enable_v1_compat) else self._enable_v1_compat):
-            return super()._do_policy_query_by_actions(request, with_resources)
-
-        data = request.to_dict()
-        logger.debug(f"the request: {data}")
-
-        if not with_resources:
-            data["resources"] = []
-
-        ok, message, action_policies = self._client.policy_query_by_actions(data)
-
-        # ---- V1 兼容双查（批量） ----
-        v2_actions = [action["id"] for action in data["actions"] if action["id"].endswith("_v2")]
-
-        if v2_actions:
-            v1_data = copy.deepcopy(data)
-
-            # 替换 action_id（去掉 _v2 后缀）
-            v1_data["actions"] = [{"id": action_id.replace("_v2", "")} for action_id in v2_actions]
-
-            v1_ok, v1_message, v1_action_policies = self._client.policy_query_by_actions(v1_data)
-            for v1_policy in v1_action_policies or []:
-                v1_policy["action"]["id"] += "_v2"
-                self._patch_policy_expression(v1_policy["condition"])
-
-                for policy in action_policies:
-                    if v1_policy["action"]["id"] != policy["action"]["id"]:
-                        continue
-                    if not v1_policy["condition"]:
-                        continue
-                    if not policy["condition"]:
-                        policy["condition"] = v1_policy["condition"]
-                    else:
-                        policy["condition"] = {
-                            "op": "OR",
-                            "content": [policy["condition"], v1_policy["condition"]],
-                        }
-
-        if not ok:
-            raise AuthAPIError(message)
-        return action_policies
+        policies = super()._do_policy_query(request, with_resources)
+        return self._merge_alias_policies(request, policies, with_resources)

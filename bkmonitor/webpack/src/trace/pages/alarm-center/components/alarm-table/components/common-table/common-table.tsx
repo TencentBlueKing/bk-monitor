@@ -143,7 +143,7 @@ export default defineComponent({
     },
     /** 行高亮类型：single 高亮一行、multiple 高亮多行，'' 关闭（官方类型未声明，运行时默认值） */
     activeRowType: {
-      type: String as PropType<'' | TdBaseTableProps['activeRowType']>,
+      type: String as PropType<'' | null | TdBaseTableProps['activeRowType']>,
       default: 'single',
     },
     /**

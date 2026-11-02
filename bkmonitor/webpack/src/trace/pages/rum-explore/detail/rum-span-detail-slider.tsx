@@ -188,6 +188,10 @@ export default defineComponent({
         `#/trace/home?app_name=${info.app_name}&trace_id=${info.trace_id}&sceneMode=trace&filterMode=ui`
       );
 
+    const handleCopyTraceId = () => {
+      copyText(originData.value.links?.[0]?.trace_id);
+    };
+
     const handleJumpTrace = () => {
       if (traceInfo.value) {
         window.open(getTraceUrl(traceInfo.value));
@@ -304,9 +308,14 @@ export default defineComponent({
               class='related-trace-alert'
               v-slots={{
                 title: () => (
-                  <div>
+                  <div class='related-trace-alert-content'>
                     <span>{t('已有关联 Trace：')}</span>
-                    <span>{originData.value.links?.[0]?.trace_id || '--'}，</span>
+                    <span>{originData.value.links?.[0]?.trace_id || '--'}</span>
+                    <i
+                      class='icon-monitor icon-mc-copy copy-icon'
+                      v-bk-tooltips={{ content: t('复制') }}
+                      onClick={handleCopyTraceId}
+                    />
                     <Button
                       class='jump-btn'
                       theme='primary'

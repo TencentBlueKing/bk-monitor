@@ -88,6 +88,8 @@ export function buildHostCollectionPayload(
     payload.process_selector.config.host_pids = payload.process_selector.config.host_pids.filter(
       item => item.bk_host_id === hostId
     );
+    if (!payload.process_selector.config.host_pids.length)
+      throw new Error('当前主机没有已选择的进程，请编辑采集配置后重试');
   }
   return payload;
 }

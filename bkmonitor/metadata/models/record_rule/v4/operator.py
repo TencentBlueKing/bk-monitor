@@ -223,10 +223,12 @@ class RecordRuleV4Operator:
             )
             table_id = RecordRuleV4.compose_table_id(pk=rule.pk, name=name)
             flow_name = RecordRuleV4.compose_group_flow_name(pk=rule.pk, name=name, table_id=table_id)
+            # 首次声明时保存随机输出名；Flow 创建资源，后续执行复用完整 VMRT。
+            result_table_config_name = RecordRuleV4OutputResources.generate_result_table_config_name(rule.pk)
             dst_vm_table_id = RecordRuleV4OutputResources.compose_vm_result_table_id(
                 bk_tenant_id=bk_tenant_id,
                 bk_biz_id=RecordRuleV4.resolve_bk_biz_id(space_type, space_id),
-                table_id=table_id,
+                result_table_config_name=result_table_config_name,
             )
             rule.table_id = table_id
             rule.flow_name = flow_name

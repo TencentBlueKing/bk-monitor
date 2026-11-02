@@ -47,13 +47,13 @@ class SpaceAccessWriterTest(SimpleTestCase):
         items = client.add_authorization.call_args.kwargs["items"]
         self.assertEqual(items[0]["resources"], [{"type": "space", "id": "-3"}])
 
-    def test_v3_grants_view_business_through_instance_authorization_api(self):
-        grant_instance_api = Mock()
-        writer = V3AuthorizationWriter(Mock(), bk_tenant_id="tenant-1", grant_instance_api=grant_instance_api)
+    def test_v3_grants_view_business_through_path_authorization_api(self):
+        grant_path_api = Mock()
+        writer = V3AuthorizationWriter(Mock(), bk_tenant_id="tenant-1", grant_path_api=grant_path_api)
 
         writer.grant_space_access(space_id="2", subject_id="owner1", space_name="[业务] 蓝鲸")
 
-        grant_instance_api.assert_called_once_with(
+        grant_path_api.assert_called_once_with(
             {
                 "asynchronous": False,
                 "operate": "grant",
@@ -65,7 +65,7 @@ class SpaceAccessWriterTest(SimpleTestCase):
                     {
                         "system": "bk_monitorv3",
                         "type": "space",
-                        "instances": [{"id": "2", "name": "[业务] 蓝鲸"}],
+                        "paths": [[{"type": "space", "id": "2", "name": "[业务] 蓝鲸"}]],
                     }
                 ],
             },
@@ -74,22 +74,22 @@ class SpaceAccessWriterTest(SimpleTestCase):
         )
 
     def test_v3_falls_back_to_space_id_when_name_is_unknown(self):
-        grant_instance_api = Mock()
-        writer = V3AuthorizationWriter(Mock(), grant_instance_api=grant_instance_api)
+        grant_path_api = Mock()
+        writer = V3AuthorizationWriter(Mock(), grant_path_api=grant_path_api)
 
         writer.grant_space_access(space_id="2", subject_id="owner1")
 
-        instances = grant_instance_api.call_args[0][0]["resources"][0]["instances"]
-        self.assertEqual(instances, [{"id": "2", "name": "2"}])
+        paths = grant_path_api.call_args[0][0]["resources"][0]["paths"]
+        self.assertEqual(paths, [[{"type": "space", "id": "2", "name": "2"}]])
 
-    def test_v3_default_api_is_the_batch_instance_endpoint(self):
-        """默认实现必须落在权限中心实例授权接口上，否则线上是空转。"""
+    def test_v3_default_api_is_the_batch_path_endpoint(self):
+        """默认实现必须落在已开放 view_business_v2 的路径授权接口上。"""
         writer = V3AuthorizationWriter(Mock())
 
-        with patch("apps.api.IAMApi.batch_instance") as batch_instance:
+        with patch("apps.api.IAMApi.batch_path") as batch_path:
             writer.grant_space_access(space_id="2", subject_id="owner1")
 
-        batch_instance.assert_called_once()
+        batch_path.assert_called_once()
 
 
 @override_settings(BK_IAM_SYSTEM_ID="bk_log_search", BK_APP_TENANT_ID="default")

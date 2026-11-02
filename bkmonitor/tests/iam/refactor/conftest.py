@@ -14,7 +14,7 @@ specific language governing permissions and limitations under the License.
 # 新老 IAM 版本对照测试（只读权限查询）共享设施：
 #   1. 真实 schema（Actions / ResourceTypes / Roles 定义）构建的冻结注册表
 #   2. 可注入 mock client 的 V3PermissionProvider（新鉴权路径）
-#   3. 旧版参考实现（Legacy 兼容客户端 / 旧 Permission 行为），用于路径对照
+#   3. 旧版参考实现（关闭 V1 兼容的 SDK / 旧 Permission 行为），用于路径对照
 #   4. 直接装配实际 Permission 与 fake Provider
 #   5. 实测环境 gate（BK_IAM_ENGINE_USER）
 #
@@ -27,7 +27,6 @@ from __future__ import annotations
 
 from bkmonitor.iam.backends.config import build_provider
 
-import copy
 import os
 import warnings
 from typing import Any
@@ -169,140 +168,6 @@ OLD_ADMIN_ACTION_IDS = {
 
 
 # ---------------------------------------------------------------------------
-# 旧版参考实现（Legacy 兼容客户端）
-#
-# 忠实复刻 merge-base 上 bkmonitor/iam/compatible.py 的 CompatibleIAM：
-#   - V1→V2 双查 + biz→space 表达式修正
-#   - new_dashboard → manage_dashboard_v2 / manage_datasource_v2 语义别名（V3 ID）
-# 差异说明：in_compatibility_mode() 恒定 True（旧版默认行为 = GlobalConfig
-# IAM_V1_COMPATIBLE 缺失时默认 True）。
-# ---------------------------------------------------------------------------
-
-LEGACY_ACTION_COMPATIBLE_ALIASES: dict[str, list[str]] = {
-    "new_dashboard": ["manage_dashboard_v2", "manage_datasource_v2"],
-}
-
-
-class LegacyCompatibleIAM:
-    """旧版 CompatibleIAM 参考实现（仅查询路径，无真实网络）。"""
-
-    def __init__(self, system_id: str, codec=None):
-        self._system_id = system_id
-        # codec: 兼容新版的反向解码（request.action.id 为 V3 ID → 业务 ID），
-        # 旧版通过 get_action_by_id 实现；测试里用 MonitorV3Codec 等价替代。
-        self._codec = codec
-        self._client = None  # 注入 mock（与新版 V3Client 共用同一 mock 可做 payload 对照）
-
-    # ---- V3 平台 API 查询（mock 注入点） ----
-    def policy_query(self, data: dict) -> tuple[bool, str, Any]:
-        if self._client is not None:
-            return self._client.policy_query(data)
-        return True, "", {"op": "any"}
-
-    def policy_query_by_actions(self, data: dict) -> tuple[bool, str, Any]:
-        if self._client is not None:
-            return self._client.policy_query_by_actions(data)
-        return True, "", []
-
-    # ---- V1 兼容逻辑（与旧 compatible.py 一致） ----
-
-    def _has_v1_actions(self) -> bool:
-        ok, _message, data = self.policy_query({"action": {"id": "view_business"}})
-        if not ok:
-            return False
-        return "view_business" in [a["id"] for a in (data or {}).get("actions", [])]
-
-    def in_compatibility_mode(self) -> bool:
-        return True
-
-    def _patch_policy_expression(self, expression: dict | None) -> None:
-        if not expression:
-            return
-        if expression["op"] == "OR":
-            for sub_expr in expression["content"]:
-                self._patch_policy_expression(sub_expr)
-        else:
-            if expression["field"] == "biz.id":
-                expression["field"] = "space.id"
-            if "biz" in expression["value"]:
-                expression["value"] = expression["value"].replace("biz", "space")
-
-    def _biz_to_v3_action_id(self, biz_action_id: str) -> str:
-        if self._codec is not None:
-            return self._codec.encode_action(biz_action_id)
-        return biz_action_id
-
-    def _merge_alias_policies(self, request, policies, with_resources=True):
-        # 旧版：ACTION_COMPATIBLE_ALIASES 键为 V3 平台 ID（new_dashboard 恒等）
-        for alias_action_id in LEGACY_ACTION_COMPATIBLE_ALIASES.get(request["action"]["id"], []):
-            alias_request = copy.deepcopy(request)
-            alias_request["action"] = {"id": alias_action_id}
-            try:
-                alias_policies = self._do_policy_query(alias_request, with_resources)
-            except Exception:
-                continue
-            if not alias_policies:
-                continue
-            policies = alias_policies if not policies else {"op": "OR", "content": [policies, alias_policies]}
-        return policies
-
-    def _do_policy_query(self, request, with_resources=True):
-        """旧版 _do_policy_query（V1 双查 + 别名），request 为 dict 形态。"""
-        data = copy.deepcopy(request)
-        if not with_resources:
-            data["resources"] = []
-
-        ok, message, policies = self.policy_query(data)
-        if not ok:
-            raise RuntimeError(message)
-
-        if data["action"]["id"].endswith("_v2"):
-            v1_data = copy.deepcopy(data)
-            v1_data["action"]["id"] = v1_data["action"]["id"].replace("_v2", "")
-            for resource in v1_data["resources"]:
-                if resource["type"] == "space":
-                    resource["system"] = "bk_cmdb"
-                    resource["type"] = "biz"
-                iam_path = resource.get("attribute", {}).get("_bk_iam_path_", "")
-                if "space" in iam_path:
-                    resource["attribute"]["_bk_iam_path_"] = iam_path.replace("space", "biz")
-            _v1_ok, _v1_message, v1_policies = self.policy_query(v1_data)
-            self._patch_policy_expression(v1_policies)
-            if v1_policies:
-                policies = v1_policies if not policies else {"op": "OR", "content": [policies, v1_policies]}
-
-        policies = self._merge_alias_policies(request, policies, with_resources)
-        return policies
-
-    def _do_policy_query_by_actions(self, request, with_resources=True):
-        data = copy.deepcopy(request)
-        if not with_resources:
-            data["resources"] = []
-        ok, message, action_policies = self.policy_query_by_actions(data)
-        if not ok:
-            raise RuntimeError(message)
-
-        v2_actions = [a["id"] for a in data["actions"] if a["id"].endswith("_v2")]
-        if v2_actions:
-            v1_data = copy.deepcopy(data)
-            v1_data["actions"] = [{"id": a.replace("_v2", "")} for a in v2_actions]
-            _v1_ok, _v1_message, v1_action_policies = self.policy_query_by_actions(v1_data)
-            for v1_policy in v1_action_policies or []:
-                v1_policy["action"]["id"] += "_v2"
-                self._patch_policy_expression(v1_policy["condition"])
-                for policy in action_policies:
-                    if v1_policy["action"]["id"] != policy["action"]["id"]:
-                        continue
-                    if not v1_policy["condition"]:
-                        continue
-                    if not policy["condition"]:
-                        policy["condition"] = v1_policy["condition"]
-                    else:
-                        policy["condition"] = {"op": "OR", "content": [policy["condition"], v1_policy["condition"]]}
-        return action_policies
-
-
-# ---------------------------------------------------------------------------
 # fixtures
 # ---------------------------------------------------------------------------
 
@@ -311,7 +176,9 @@ class LegacyCompatibleIAM:
 def real_schema():
     """The same static definitions consumed by the product entry point."""
     from bkmonitor.iam import definitions
+
     return definitions
+
 
 def build_v3_options(**overrides) -> dict:
     """构造 V3Provider options（默认指向本地假地址，测试中 client 会被替换）。"""

@@ -26,7 +26,7 @@
 import { defineComponent, shallowRef } from 'vue';
 import type { PropType } from 'vue';
 
-import { Button, Input } from 'bkui-vue';
+import { Input } from 'bkui-vue';
 import { EnlargeLine } from 'bkui-vue/lib/icon';
 import { useI18n } from 'vue-i18n';
 import VueJsonPretty from 'vue-json-pretty';
@@ -138,6 +138,13 @@ export default defineComponent({
               {row.key}
             </span>
             <div class='row-operator'>
+              {isJson ? (
+                <i
+                  class='icon-monitor icon-code'
+                  v-bk-tooltips={{ content: t('格式化') }}
+                  onClick={() => toggleFormat(rowId)}
+                />
+              ) : null}
               {/* 回传 originKey：嵌套块里 row.key 只是末级字段名，检索条件需要完整路径 */}
               <EnlargeLine
                 class='icon-add-query'
@@ -155,18 +162,6 @@ export default defineComponent({
           <div class='row-value'>
             {isJson && showJson ? <VueJsonPretty data={JSON.parse(row.value)} /> : row.displayValue}
           </div>
-          {isJson ? (
-            <Button
-              class='format-button'
-              outline={showJson}
-              size='small'
-              theme='primary'
-              onClick={() => toggleFormat(rowId)}
-            >
-              <i class='icon-monitor icon-code' />
-              {t('格式化')}
-            </Button>
-          ) : null}
         </div>
       );
     }

@@ -1,14 +1,38 @@
-# -*- coding: utf-8 -*-
-
+import json
 import logging
 
 from kubernetes import client as k8s_client
+from kubernetes.client.exceptions import ApiException
 from kubernetes.dynamic import client as dynamic_client
 from kubernetes.dynamic.exceptions import NotFoundError, ResourceNotFoundError
 
 from metadata import config
 
 logger = logging.getLogger("metadata")
+
+
+def is_missing_custom_resource_definition(api_client: k8s_client.ApiClient, group: str, plural: str) -> bool:
+    """通过 CRD 的具名 NotFound 响应确认资源类型未安装，其它访问错误继续抛出。"""
+    name = f"{plural}.{group}"
+    try:
+        k8s_client.ApiextensionsV1Api(api_client).read_custom_resource_definition(name)
+    except ApiException as error:
+        try:
+            status = json.loads(error.body or "{}")
+        except (TypeError, ValueError):
+            raise error
+        details = status.get("details", {})
+        if (
+            error.status == 404
+            and status.get("kind") == "Status"
+            and status.get("reason") == "NotFound"
+            and details.get("group") == "apiextensions.k8s.io"
+            and details.get("kind") == "customresourcedefinitions"
+            and details.get("name") == name
+        ):
+            return True
+        raise
+    return False
 
 
 def is_equal_dict(source: dict, target: dict) -> bool:
@@ -71,7 +95,7 @@ def ensure_data_id_resource(api_client: k8s_client.ApiClient, resource_name: str
         return False
     except Exception as e:
         # 异常捕获
-        logger.error("unexpected error in ensure dataid:{}".format(e))
+        logger.error("unexpected error in ensure dataid:%s", e)
         return False
 
     logger.info(

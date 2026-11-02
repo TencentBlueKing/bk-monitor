@@ -70,7 +70,7 @@ const historyTableAffixed = { container: '.collection-history-scroll' };
 
 // 未下发 task_columns 时回退的默认列，列名在渲染时翻译
 const fallbackTaskColumns: CollectionTaskColumn[] = [
-  { field: 'task_name', name: '任务名称', type: 'text' },
+  { field: 'task_name', name: 'trace-任务名称', type: 'text' },
   { field: 'collection_type', name: '采集进程', type: 'text' },
   { field: 'hosts', name: '目标', type: 'text' },
   { field: 'schedule_type', name: '执行方式', type: 'text' },

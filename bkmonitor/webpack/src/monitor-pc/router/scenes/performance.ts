@@ -25,14 +25,11 @@
  */
 
 import { applyGuidePage } from '../../common';
+import { redirectLegacyHostRoute } from '../../common/legacy-host-url';
 import * as performanceAuth from '../../pages/performance/authority-map';
 import { beforeEnter } from '../utils';
 
 import type { RouteConfig } from 'vue-router';
-
-const Performance = () => import(/* webpackChunkName: 'Performance' */ '../../pages/performance/performance-wrapper');
-const PerformanceDetail = () =>
-  import(/* webpackChunkName: 'PerformanceDetail' */ '../../pages/performance/performance-detail/performance-detail');
 
 const Host = () => import(/* webpackChunkName: 'Host' */ '../../pages/host/host');
 
@@ -41,22 +38,17 @@ export default applyGuidePage(
     {
       path: '/performance',
       name: 'performance',
-      props: {
-        noCache: true,
-      },
-      components: {
-        noCache: Performance,
-      },
+      beforeEnter: redirectLegacyHostRoute,
       meta: {
         title: '主机监控',
-        navId: 'performance',
+        navId: 'host',
+        noChangeLoading: true,
         authority: {
           page: performanceAuth.VIEW_AUTH,
         },
         route: {
           parent: 'scenes',
         },
-        noNavBar: true,
       },
     },
     {
@@ -85,49 +77,37 @@ export default applyGuidePage(
     {
       path: '/performance/detail/:id/:process?',
       name: 'performance-detail',
-      components: {
-        noCache: PerformanceDetail,
-      },
-      props: {
-        noCache: true,
-      },
+      beforeEnter: redirectLegacyHostRoute,
       meta: {
-        needBack: true,
-        navId: 'performance',
+        title: '主机监控',
+        navId: 'host',
+        noChangeLoading: true,
         authority: {
           map: performanceAuth,
           page: performanceAuth.VIEW_AUTH,
         },
-        customContent: true,
-        noNavBar: true,
         route: {
-          parent: 'performance',
+          parent: 'scenes',
         },
       },
     },
     {
       path: '/performance/detail-new/:id/:process?',
       name: 'performance-detail-new',
-      components: {
-        noCache: PerformanceDetail,
-      },
-      props: {
-        noCache: true,
-      },
+      beforeEnter: redirectLegacyHostRoute,
       meta: {
-        needBack: true,
-        navId: 'performance',
+        title: '主机监控',
+        navId: 'host',
+        noChangeLoading: true,
         authority: {
           map: performanceAuth,
           page: performanceAuth.VIEW_AUTH,
         },
-        customContent: true,
-        noNavBar: true,
         route: {
-          parent: 'performance',
+          parent: 'scenes',
         },
       },
     },
   ] as RouteConfig[],
-  ['host']
+  ['host', 'performance', 'performance-detail', 'performance-detail-new']
 );

@@ -187,8 +187,10 @@ test('Vue2 retains all existing panel services and request scope after upgrading
   const pcRequire = createRequire(path.join(root, 'src/monitor-pc/package.json'));
   const manager = managerHarness();
   const calls = [];
+  let customSettings = {};
   const api = new Proxy({}, { get: (_target, name) => params => {
     calls.push({ name, params });
+    if (name === 'batchGetIpChooserConfig') return Promise.resolve(customSettings);
     return Promise.resolve(name === 'queryHostIdInfosIpChooserTopo' ? { data: [{ host_id: 1, cloud_id: 0 }] } : []);
   } });
   const Wrapper = loadSource('src/monitor-pc/components/monitor-ip-selector/monitor-ip-selector.tsx', id => {
@@ -208,6 +210,13 @@ test('Vue2 retains all existing panel services and request scope after upgrading
   manager.merge({ ...instance.ipSelectorServices, panelList: panels, serviceConfigError: true });
   assert.deepEqual(manager.errors, []);
   assert.equal(instance.ipSelectorConfig.warningSelectAllBusinesses, false);
+  assert.deepEqual(instance.ipSelectorConfig.hostTableRenderColumnList, ['ip', 'ipv6', 'alive', 'osName']);
+  const customColumns = new Wrapper({
+    beforeCreate() { this.$store = { getters: { bizId: 42 } }; },
+    propsData: { hostTableRenderColumnList: ['ip', 'hostName'] },
+  });
+  assert.deepEqual(customColumns.ipSelectorConfig.hostTableRenderColumnList, ['ip', 'hostName']);
+  customColumns.$destroy();
   await instance.ipSelectorServices.fetchTopologyHostsNodes({ search_content: '', start: 0, page_size: 10 });
   assert.deepEqual(calls.pop(), {
     name: 'queryHostsIpChooserTopo',
@@ -221,5 +230,16 @@ test('Vue2 retains all existing panel services and request scope after upgrading
     name: 'checkIpChooserHost',
     params: { scope_list: [{ scope_type: 'biz', scope_id: 42 }], ip_list: ['192.0.2.1'] },
   });
+  customSettings = {
+    ip_selector_host_list3: { hostListColumn: ['ip', 'hostName'], hostListColumnSort: ['ip', 'hostName'] },
+    unrelated: { value: 1 },
+  };
+  const settings = await instance.fetchCustomSettings({ module_list: ['ip_selector_host_list3'] });
+  assert.deepEqual(settings.ip_selector_host_list3.hostListColumn, ['ip', 'hostName']);
+  assert.deepEqual(settings.ip_selector_host_list3.hostListColumnSort, ['ip', 'hostName', 'topoPathList', 'cpuArch']);
+  assert.deepEqual(customSettings.ip_selector_host_list3.hostListColumnSort, ['ip', 'hostName']);
+  assert.deepEqual(settings.unrelated, { value: 1 });
+  customSettings = settings;
+  assert.deepEqual(await instance.fetchCustomSettings({ module_list: ['ip_selector_host_list3'] }), settings);
   instance.$destroy();
 });

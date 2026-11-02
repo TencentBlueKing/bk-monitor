@@ -73,40 +73,43 @@
   }
 
   .big-tree {
-    min-width: max-content;
-    overflow: visible;
+    overflow-y: hidden;
 
     .bk-big-tree-node {
-      display: flex;
-      align-items: center;
-      min-width: max-content;
       height: 28px;
-      overflow: visible;
-      white-space: nowrap;
+
+      &:hover {
+        background-color: #f4f5f8;
+
+        .expand {
+          opacity: 1;
+        }
+
+        .field-badge {
+          background-color: white;
+        }
+
+        .operation-text {
+          /* stylelint-disable-next-line declaration-no-important */
+          display: flex !important;
+        }
+      }
     }
 
     .is-leaf {
-      height: 28px;
+      height: auto;
       padding-left: calc(var(--level) * var(--padding) + 2px);
-      line-height: 28px;
+      line-height: normal;
     }
 
     .node-options {
       display: none;
     }
-
-    .node-content {
-      display: flex;
-      flex-shrink: 0;
-      align-items: center;
-      min-width: max-content;
-      overflow: visible;
-    }
   }
 
   .field-filter-container-new {
     height: calc(100vh - var(--top-searchbar-height) - 210px);
-    overflow: auto;
+    overflow-y: auto;
     font-family: Roboto-Regular;
     font-size: 12px;
     line-height: 20px;
@@ -124,6 +127,13 @@
     .fields-container {
       padding-bottom: 4px;
       margin-bottom: 9px;
+
+      &.is-selected {
+        .field-badge,
+        .expand {
+          display: none;
+        }
+      }
 
       &.inside-fields {
         position: sticky;
@@ -177,10 +187,6 @@
         margin: 0 0 7px 20px;
         line-height: 26px;
         color: #63656e;
-      }
-
-      .filed-list {
-        min-width: max-content;
       }
 
       .filed-item + .expand-all {

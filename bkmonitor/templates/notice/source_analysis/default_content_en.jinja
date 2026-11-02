@@ -1,0 +1,13 @@
+{% if succeeded %}The source analysis you started at {{triggered_at}} has completed.
+
+Conclusion: {{description | safe}}
+Confidence: {% if high_confidence %}High{% else %}Insufficient evidence{% endif %}
+{% if commit_id %}Responsible commit: {{commit_id | safe}}{% if author_name %} · {{author_name | safe}}{% endif %}
+{% endif %}
+View full report: {{detail_url | safe}}
+{% else %}The source analysis you started at {{triggered_at}} has failed.
+
+Failure reason: {% if local_failure %}{{gettext(failure_message)}}{% else %}{{failure_message | safe}}{% endif %}
+
+View details and analyze again: {{detail_url | safe}}
+{% endif %}

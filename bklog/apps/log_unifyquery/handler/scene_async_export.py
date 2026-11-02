@@ -19,7 +19,6 @@ from rest_framework.reverse import reverse
 
 from apps.constants import RemoteStorageType
 from apps.feature_toggle.handlers.toggle import FeatureToggleObject
-from apps.feature_toggle.plugins.constants import UNIFY_QUERY_SEARCH_EXPORT
 from apps.log_search.constants import (
     ASYNC_DIR,
     ASYNC_EXPORT_EMAIL_TEMPLATE,
@@ -29,10 +28,16 @@ from apps.log_search.constants import (
     FEATURE_ASYNC_EXPORT_EXTERNAL,
     FEATURE_ASYNC_EXPORT_NOTIFY_TYPE,
     FEATURE_ASYNC_EXPORT_STORAGE_TYPE,
+    ExportSearchType,
     ExportStatus,
     MAX_ASYNC_COUNT,
     MAX_QUICK_EXPORT_ASYNC_COUNT,
     MsgModel,
+)
+from apps.log_search.export.history import (
+    paginate_export_history,
+    sharded_export_history_queryset,
+    sharded_job_history_item,
 )
 from apps.log_search.models import AsyncTask, Space
 from apps.log_unifyquery.handler.scene_search import SceneUnifyQueryHandler
@@ -44,7 +49,6 @@ from apps.utils.local import (
     get_request_language_code,
     get_request_username,
 )
-from apps.utils.drf import DataPageNumberPagination
 from apps.utils.log import logger
 from apps.utils.notify import NotifyType
 from apps.utils.remote_storage import StorageType
@@ -83,13 +87,12 @@ class SceneAsyncExportHandler:
         # 校验用户正在运行导出的任务数量
         AsyncTask.check_running_count_by_user(self.request_user, is_scene=True)
 
-        if FeatureToggleObject.switch(UNIFY_QUERY_SEARCH_EXPORT, self.bk_biz_id):
-            if AsyncTask.objects.filter(
-                request_param=self.search_dict,
-                created_by=self.request_user,
-                export_status=ExportStatus.DOWNLOAD_LOG,
-            ).exists():
-                raise DuplicateUnifyQueryExportException()
+        if AsyncTask.objects.filter(
+            request_param=self.search_dict,
+            created_by=self.request_user,
+            export_status=ExportStatus.DOWNLOAD_LOG,
+        ).exists():
+            raise DuplicateUnifyQueryExportException()
 
         result = self.scene_handler.pre_get_result(
             sorted_fields=self.scene_handler.origin_order_by,
@@ -158,18 +161,21 @@ class SceneAsyncExportHandler:
         if not show_all:
             query_set = query_set.filter(created_by=self.request_user)
 
-        pg = DataPageNumberPagination()
-        page_history = (
-            pg.paginate_queryset(
-                queryset=query_set.order_by("-created_at", "created_by"),
-                request=request,
-                view=view,
-            )
-            or []
-        )
         from apps.models import model_to_dict
 
-        return pg.get_paginated_response([self._format_history(model_to_dict(h)) for h in page_history])
+        # 灰度期间兼容两种数据结构：同一场景化历史列表同时展示旧 AsyncTask 与分片导出 ExportJob
+        job_query_set = sharded_export_history_queryset(
+            bk_biz_id=self.bk_biz_id,
+            search_type=ExportSearchType.SCENE,
+            table_id_conditions=table_id_conditions,
+            created_by=None if show_all else self.request_user,
+        )
+        pg, page_history = paginate_export_history(query_set, job_query_set, request, view)
+        history_items = [
+            self._format_history(model_to_dict(task)) if isinstance(task, AsyncTask) else sharded_job_history_item(task)
+            for task in page_history
+        ]
+        return pg.get_paginated_response(history_items)
 
     @staticmethod
     def _format_history(task_dict):

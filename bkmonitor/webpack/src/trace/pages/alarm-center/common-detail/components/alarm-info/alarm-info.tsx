@@ -35,8 +35,6 @@ import { storeToRefs } from 'pinia';
 import { useI18n } from 'vue-i18n';
 import VueJsonPretty from 'vue-json-pretty';
 
-import { DetailLoadStatus } from '../../detail-loading';
-import { useAlarmCenterDetailStore } from '@/store/modules/alarm-center-detail';
 import {
   AlertTargetType,
   getDimensionDisplayValue,
@@ -44,6 +42,8 @@ import {
   getTargetJumpUrl,
   isTargetDimension,
 } from '../../../utils/dimension-scene-links';
+import { DetailLoadStatus } from '../../detail-loading';
+import { useAlarmCenterDetailStore } from '@/store/modules/alarm-center-detail';
 
 import type { AlarmDetail, AlertActionOverview, IDimension } from '../../../typings';
 
@@ -347,8 +347,20 @@ export default defineComponent({
 
     /** 告警状态 */
     function renderAlarmStatus() {
-      if (props.statusLoading) return <span class='skeleton-element' style={{ display: 'inline-block', width: '144px', height: '12px' }} />;
-      if (props.statusError) return <DetailLoadStatus error onRetry={() => emit('statusRetry')} />;
+      if (props.statusLoading)
+        return (
+          <span
+            style={{ display: 'inline-block', width: '144px', height: '12px' }}
+            class='skeleton-element'
+          />
+        );
+      if (props.statusError)
+        return (
+          <DetailLoadStatus
+            error
+            onRetry={() => emit('statusRetry')}
+          />
+        );
       return (
         <div class='alarm-status'>
           <span class='total'>{handleStatusString.value}</span>

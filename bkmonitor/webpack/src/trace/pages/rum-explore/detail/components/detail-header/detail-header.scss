@@ -67,14 +67,14 @@
   .header-info-items {
     display: flex;
     flex-wrap: wrap;
-    gap: 4px 0;
+    gap: 4px 8px;
     align-items: center;
     width: 100%;
 
     .header-item {
       display: flex;
       align-items: center;
-      width: 20%;
+      width: calc(20% - 7px);
       font-size: 12px;
       line-height: 20px;
 

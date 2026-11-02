@@ -23,7 +23,8 @@ from bkmonitor.strategy.new_strategy import IssueConfig, Strategy, get_metric_id
 from constants.action import MAX_ACTION_EXECUTE_TIMEOUT
 from constants.shield import ShieldEndPolicy
 from constants.strategy import DATALINK_SOURCE
-from core.drf_resource import Resource, resource
+from core.drf_resource import resource
+from kernel_api.resource.mcp_response import MCPResource as Resource
 from fta_web.alert.resources import AlertTopNResource as FtaAlertTopNResource
 from fta_web.alert.resources import ListAlertTagsResource  # noqa
 from fta_web.alert.resources import SearchAlertByEventResource, SearchAlertResource, SearchEventResource  # noqa

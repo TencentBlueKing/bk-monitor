@@ -59,6 +59,8 @@ export default class ExploreConditionMenu extends tsc<ExploreConditionMenuProps,
   /** 容器监控就地侧滑打开，由表格层提供；返回 false 表示需保持原有新开页行为 */
   @Inject({ from: 'openK8sSlider', default: null })
   readonly openK8sSlider: (url: string, subTitle?: string) => boolean;
+  @Inject({ from: 'openHostSlider', default: null })
+  readonly openHostSlider: ((url: string) => boolean) | null;
 
   allMenuMap = {
     [KVValueMenuEnum.COPY]: {
@@ -173,7 +175,7 @@ export default class ExploreConditionMenu extends tsc<ExploreConditionMenuProps,
    *
    */
   handleNewK8sPage(targetScene: IExploreSceneUrlItem) {
-    if (!this.openK8sSlider?.(targetScene.url, targetScene.scene)) {
+    if (!this.openK8sSlider?.(targetScene.url, targetScene.scene) && !this.openHostSlider?.(targetScene.url)) {
       window.open(targetScene.url, '_blank');
     }
     this.handleScenePopoverHide();

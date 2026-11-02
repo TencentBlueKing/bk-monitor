@@ -199,6 +199,7 @@
     delayShowInstance,
     repositionTippyInstance,
     hideTippyInstance,
+    hideTippyInstanceImmediate,
     handleInputBlur,
     getTippyUtil,
   } = useFocusInput(props, {
@@ -237,7 +238,7 @@
       placement: 'top',
       delay: [0, 300],
       appendTo: props.popupAppendToBody || window.__IS_MONITOR_TRACE__ ? document.body : undefined,
-      zIndex: props.popupAppendToBody || window.__IS_MONITOR_TRACE__ ? 99999 : undefined,
+      zIndex: undefined,
       popperOptions: props.popupAppendToBody
         ? {
             strategy: 'fixed',
@@ -394,6 +395,8 @@
 
     const targetValue = formatModelValueItem(isFulltextEnterVlaue ? getInputQueryDefaultItem(inputVal) : payload);
 
+    hideTippyInstanceImmediate();
+
     if (isInputTextFocus.value) {
       setSearchInputValue('');
     }
@@ -401,7 +404,6 @@
     if (activeIndex.value !== null && activeIndex.value >= 0) {
       Object.assign(modelValue.value[activeIndex.value], targetValue);
       emitChange(modelValue.value);
-      hideTippyInstance();
       activeIndex.value = null;
 
       return;
@@ -409,7 +411,6 @@
 
     modelValue.value.push({ ...targetValue, disabled: false });
     emitChange(modelValue.value);
-    repositionTippyInstance();
     refSearchInput.value?.focus();
   };
 

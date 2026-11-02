@@ -24,8 +24,6 @@ from apps.api.modules.utils import (
     get_bkcc_biz_id_related_spaces,
     get_non_bkcc_space_related_bkcc_biz_id,
 )
-from apps.feature_toggle.handlers.toggle import FeatureToggleObject
-from apps.feature_toggle.plugins.constants import UNIFY_QUERY_SEARCH
 from apps.log_databus.models import CollectorConfig
 from apps.log_search.constants import TraceMatchFieldType, TraceMatchResult
 from apps.log_search.exceptions import (
@@ -125,7 +123,8 @@ class ResultTableHandler(APIModel):
             "bk_username": self.username,
             "bkdata_authentication_method": "user",
         }
-        if self.bk_biz_id and FeatureToggleObject.switch(UNIFY_QUERY_SEARCH, self.bk_biz_id):
+        # bk_biz_id 缺失时无法构造 UQ metadata 路由，保留 ES mapping 兜底
+        if self.bk_biz_id:
             _result_table_id = result_table_id
             _cluster_id = self.storage_cluster_id
 

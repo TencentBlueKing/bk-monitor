@@ -67,6 +67,8 @@
 <script lang="ts">
 import { Component, Prop, Vue } from 'vue-property-decorator';
 
+import { resolveLegacyHostHash } from 'monitor-pc/common/legacy-host-url';
+
 import type { IAnnotation, IAnnotationListItem } from '../options/type-interface';
 
 @Component({ name: 'ChartAnnotation' })
@@ -81,14 +83,19 @@ export default class ChartAnnotation extends Vue {
   }
   handleGotoDetail(item: IAnnotationListItem) {
     switch (item.id) {
-      case 'ip':
-        window.open(location.href.replace(location.hash, `#/performance/detail/${item.value}`));
+      case 'ip': {
+        const hash = resolveLegacyHostHash({ id: String(item.value) });
+        window.open(location.href.replace(location.hash, hash));
         break;
-      case 'process':
-        window.open(
-          location.href.replace(location.hash, `#/performance/detail-new/${item.value.id}/${item.value.processId}`)
-        );
+      }
+      case 'process': {
+        const hash = resolveLegacyHostHash({
+          id: String(item.value.id),
+          processName: String(item.value.processId),
+        });
+        window.open(location.href.replace(location.hash, hash));
         break;
+      }
       case 'strategy':
         window.open(location.href.replace(location.hash, `#/strategy-config?metricId=${item.value}`));
         break;

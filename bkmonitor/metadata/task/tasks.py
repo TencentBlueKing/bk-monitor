@@ -39,12 +39,14 @@ from metadata.models.constants import (
     BASE_EVENT_RESULT_TABLE_FIELD_OPTION_MAP,
     BASE_EVENT_RESULT_TABLE_OPTION_MAP,
     BASEREPORT_RESULT_TABLE_FIELD_MAP,
+    GSE_SYSTEM_EVENT_TABLE_ID,
     SYSTEM_PROC_DATA_LINK_CONFIGS,
     DataIdCreatedFromSystem,
 )
 from metadata.models.data_link.constants import (
     BASEREPORT_SOURCE_SYSTEM,
     BASEREPORT_USAGES,
+    BKBASE_NAMESPACE_BK_LOG,
     BKBASE_NAMESPACE_BK_MONITOR,
 )
 from metadata.models.data_link.data_link import DataLink
@@ -2245,9 +2247,7 @@ def create_system_proc_datalink_for_bkcc(bk_tenant_id: str, bk_biz_id: int, stor
     )
 
 
-def create_single_tenant_system_datalink(
-    data_bk_biz_id: int | None = None, kafka_cluster_name: str = "kafka_outer_default"
-):
+def create_single_tenant_system_datalink(data_bk_biz_id: int | None = None, kafka_cluster_name: str = ""):
     """创建单租户系统数据链路
 
     Note: 单租户全新部署的情况下，将1001指定为BKDATA来源的数据源，并将内置结果表指向固定的vmrt。
@@ -2255,7 +2255,7 @@ def create_single_tenant_system_datalink(
 
     Args:
         bk_biz_id: 业务ID
-        kafka_cluster_name: 消息队列集群名称，默认使用kafka_outer_default
+        kafka_cluster_name: 消息队列集群名称，为空时使用默认 Kafka 集群。
     """
 
     # 如果开启了多租户模式，则跳过
@@ -2275,13 +2275,19 @@ def create_single_tenant_system_datalink(
     if datasource.created_from != DataIdCreatedFromSystem.BKDATA.value:
         datasource.created_from = DataIdCreatedFromSystem.BKDATA.value
         # 获取BKDATA使用的消息队列
+        kafka_cluster_filters = (
+            {"cluster_name": kafka_cluster_name} if kafka_cluster_name else {"is_default_cluster": True}
+        )
         try:
             bkdata_mq_cluster = ClusterInfo.objects.get(
-                cluster_type=ClusterInfo.TYPE_KAFKA, cluster_name=kafka_cluster_name
+                bk_tenant_id=datasource.bk_tenant_id,
+                cluster_type=ClusterInfo.TYPE_KAFKA,
+                **kafka_cluster_filters,
             )
         except ClusterInfo.DoesNotExist:
             logger.error(
-                f"create_single_tenant_system_datalink: Kafka cluster with name '{kafka_cluster_name}' does not exist, aborting."
+                "create_single_tenant_system_datalink: Kafka cluster '%s' does not exist, aborting.",
+                kafka_cluster_name or "default",
             )
             return
         datasource.mq_cluster_id = bkdata_mq_cluster.cluster_id
@@ -2336,9 +2342,70 @@ def create_single_tenant_system_datalink(
     SpaceTableIDRedis().push_table_id_detail(bk_tenant_id=DEFAULT_TENANT_ID, table_id_list=table_ids, is_publish=True)
 
 
-def create_single_tenant_system_proc_datalink(
-    data_bk_biz_id: int | None = None, kafka_cluster_name: str = "kafka_outer_default"
-):
+def create_single_tenant_system_event_datalink(data_bk_biz_id: int | None = None, kafka_cluster_name: str = ""):
+    """为单租户系统事件 Data ID 1000 创建 V4 清洗链路，复用已有结果表及 ES 存储。
+
+    Args:
+        data_bk_biz_id: 计算平台业务 ID，默认使用 DEFAULT_BKDATA_BIZ_ID。
+        kafka_cluster_name: 计算平台使用的消息队列集群名称，为空时使用默认 Kafka 集群。
+    """
+    if settings.ENABLE_MULTI_TENANT_MODE:
+        logger.info("create_single_tenant_system_event_datalink: multi tenant mode is enabled, return!")
+        return
+
+    bk_biz_id = settings.DEFAULT_BKDATA_BIZ_ID if data_bk_biz_id is None else data_bk_biz_id
+    datasource = DataSource.objects.get(bk_data_id=settings.GSE_BASE_ALARM_DATAID)
+    table_id = GSE_SYSTEM_EVENT_TABLE_ID
+    es_storage = models.ESStorage.objects.get(bk_tenant_id=datasource.bk_tenant_id, table_id=table_id)
+    data_name = f"base_{bk_biz_id}_agent_event"
+
+    if datasource.created_from != DataIdCreatedFromSystem.BKDATA.value:
+        kafka_cluster_filters = (
+            {"cluster_name": kafka_cluster_name} if kafka_cluster_name else {"is_default_cluster": True}
+        )
+        try:
+            bkdata_mq_cluster = ClusterInfo.objects.get(
+                bk_tenant_id=datasource.bk_tenant_id,
+                cluster_type=ClusterInfo.TYPE_KAFKA,
+                **kafka_cluster_filters,
+            )
+        except ClusterInfo.DoesNotExist:
+            logger.error(
+                "create_single_tenant_system_event_datalink: Kafka cluster '%s' does not exist, aborting.",
+                kafka_cluster_name or "default",
+            )
+            return
+        datasource.mq_cluster_id = bkdata_mq_cluster.cluster_id
+        datasource.register_to_bkbase(
+            bk_biz_id=bk_biz_id, namespace=BKBASE_NAMESPACE_BK_LOG, bkbase_data_name=data_name
+        )
+
+    data_link_ins, _ = DataLink.objects.update_or_create(
+        bk_tenant_id=datasource.bk_tenant_id,
+        data_link_name=data_name,
+        defaults={
+            "data_link_strategy": DataLink.BASE_EVENT_V1,
+            "namespace": BKBASE_NAMESPACE_BK_LOG,
+            "bk_data_id": datasource.bk_data_id,
+            "table_ids": [table_id],
+        },
+    )
+    data_link_ins.apply_data_link(
+        data_source=datasource,
+        table_id=table_id,
+        storage_cluster_name=es_storage.storage_cluster.cluster_name,
+        bk_biz_id=bk_biz_id,
+    )
+
+    # 完整链路下发成功后再停用旧 transfer；清理失败时，下次建链仍会重试清理。
+    datasource.delete_consul_config()
+
+    SpaceTableIDRedis().push_table_id_detail(
+        bk_tenant_id=datasource.bk_tenant_id, table_id_list=[table_id], is_publish=True
+    )
+
+
+def create_single_tenant_system_proc_datalink(data_bk_biz_id: int | None = None, kafka_cluster_name: str = ""):
     """创建单租户系统进程数据链路
 
     Note: 单租户全新部署的情况下，将1007/1013指定为BKDATA来源的数据源，并将内置结果表指向固定的vmrt。
@@ -2346,7 +2413,7 @@ def create_single_tenant_system_proc_datalink(
 
     Args:
         bk_biz_id: 业务ID
-        kafka_cluster_name: 消息队列集群名称，默认使用kafka_outer_default
+        kafka_cluster_name: 消息队列集群名称，为空时使用默认 Kafka 集群。
     """
 
     # 如果开启了多租户模式，则跳过
@@ -2364,13 +2431,17 @@ def create_single_tenant_system_proc_datalink(
     vm_cluster = ClusterInfo.objects.get(is_default_cluster=True, cluster_type=ClusterInfo.TYPE_VM)
 
     # 获取kafka集群
+    kafka_cluster_filters = {"cluster_name": kafka_cluster_name} if kafka_cluster_name else {"is_default_cluster": True}
     try:
         bkdata_mq_cluster = ClusterInfo.objects.get(
-            cluster_type=ClusterInfo.TYPE_KAFKA, cluster_name=kafka_cluster_name
+            bk_tenant_id=DEFAULT_TENANT_ID,
+            cluster_type=ClusterInfo.TYPE_KAFKA,
+            **kafka_cluster_filters,
         )
     except ClusterInfo.DoesNotExist:
         logger.error(
-            f"create_single_tenant_system_proc_datalink: Kafka cluster with name '{kafka_cluster_name}' does not exist, aborting."
+            "create_single_tenant_system_proc_datalink: Kafka cluster '%s' does not exist, aborting.",
+            kafka_cluster_name or "default",
         )
         return
 

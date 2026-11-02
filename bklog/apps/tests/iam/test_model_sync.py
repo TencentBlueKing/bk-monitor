@@ -144,6 +144,7 @@ class ModelSyncCommandTest(SimpleTestCase):
             plan = model_sync.LegacyModelMigrator().migrate(dry_run=True)
         migrator.assert_not_called()
         client.assert_not_called()
+        assert plan.files == ("initial.json",)
         assert "not a remote diff" in plan.describe()
 
     def test_v3_apply_retains_sdk_flow_and_restores_command_guard(self):
@@ -152,10 +153,10 @@ class ModelSyncCommandTest(SimpleTestCase):
             patch.object(model_sync, "IAMMigrator") as migrator,
             patch.object(Permission, "get_iam_client") as client,
         ):
-            client.return_value.in_compatibility_mode.return_value = False
             migrator.return_value.migrate.side_effect = lambda: self.assertIn("migrate", sys.argv)
             model_sync.LegacyModelMigrator().migrate(dry_run=False)
             assert "migrate" not in sys.argv
+        client.assert_not_called()
         migrator.assert_called_once_with("initial.json")
         migrator.return_value.migrate.assert_called_once()
 

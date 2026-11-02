@@ -3146,6 +3146,8 @@ BASEREPORT_RESULT_TABLE_FIELD_MAP = {
     ],
 }
 
+GSE_SYSTEM_EVENT_TABLE_ID = "gse_system_event"
+
 BASE_EVENT_RESULT_TABLE_FIELD_MAP = {
     "base_event": [
         {

@@ -28,29 +28,29 @@
 
 可以直接描述任务，也可以点名使用的 skill。不是所有任务都要走完整开发流程。
 
-| 你要做的事 | 主要入口 | 得到什么 |
-| --- | --- | --- |
-| 首次搭建环境 | `bkmonitor-onboarding` | 工具、代码、skills、鉴权与目标页面的启动验证 |
-| 已有环境启动或排错 | `bkmonitor-dev-server` | 实际访问地址、进程归属、编译与鉴权状态 |
-| 开发功能、修 bug、接续开发 | `bkmonitor-workflow` | 基线与方案、实现、验证和下一步交接 |
-| 查询架构、规范或审查实现 | `bkmonitor-dev` + `bkmonitor-dev-guardrails` | 技术栈依据、现状、影响面与验证范围 |
-| 按 Figma 或截图实现界面 | `blueking-figma-dev`，由开发流程衔接 | 设计状态、组件映射与视觉验收输入 |
-| 针对本次需求跑 E2E | `bkmonitor-e2e-test` | 一次性用例、实际结果、本地报告与交付事实 |
-| 验证设计还原或布局缺陷 | `bkmonitor-e2e-visual`，配合 E2E | 视觉对比、几何断言和截图证据 |
-| TAPD 建单、Git / PR 交付、回写 | `blueking-tapd-dev` | 已核验的单据、提交、PR 与评论；该 skill 不编码 |
-| 沉淀已验证的会话经验 | `bkmonitor-continual-learning` | 经审阅的团队知识；仅在明确要求时执行 |
+| 你要做的事                     | 主要入口                                     | 得到什么                                       |
+| ------------------------------ | -------------------------------------------- | ---------------------------------------------- |
+| 首次搭建环境                   | `bkmonitor-onboarding`                       | 工具、代码、skills、鉴权与目标页面的启动验证   |
+| 已有环境启动或排错             | `bkmonitor-dev-server`                       | 实际访问地址、进程归属、编译与鉴权状态         |
+| 开发功能、修 bug、接续开发     | `bkmonitor-workflow`                         | 基线与方案、实现、验证和下一步交接             |
+| 查询架构、规范或审查实现       | `bkmonitor-dev` + `bkmonitor-dev-guardrails` | 技术栈依据、现状、影响面与验证范围             |
+| 按 Figma 或截图实现界面        | `blueking-figma-dev`，由开发流程衔接         | 设计状态、组件映射与视觉验收输入               |
+| 针对本次需求跑 E2E             | `bkmonitor-e2e-test`                         | 一次性用例、实际结果、本地报告与交付事实       |
+| 验证设计还原或布局缺陷         | `bkmonitor-e2e-visual`，配合 E2E             | 视觉对比、几何断言和截图证据                   |
+| TAPD 建单、Git / PR 交付、回写 | `blueking-tapd-dev`                          | 已核验的单据、提交、PR 与评论；该 skill 不编码 |
+| 沉淀已验证的会话经验           | `bkmonitor-continual-learning`               | 经审阅的团队知识；仅在明确要求时执行           |
 
 组件与框架问题按**实际 import、Vue 入口和安装版本**选择资料：
 
-| 依赖 / 能力 | 对应 skill |
-| --- | --- |
-| Vue2 `bk-magic-vue` | `bk-magicbox-vue-components` |
-| Vue3 `bkui-vue` | `bkui-vue-components` |
-| `@blueking/tdesign-ui` | `blueking-tdesign-ui` |
-| `@blueking/date-picker` | `blueking-date-picker` |
-| `@blueking/search-select-v3` | `blueking-search-select-v3` |
-| `@blueking/bk-weweb` 微前端 | `bk-weweb` |
-| `@blueking/open-telemetry` RUM SDK | `bk-rum-otele` |
+| 依赖 / 能力                        | 对应 skill                   |
+| ---------------------------------- | ---------------------------- |
+| Vue2 `bk-magic-vue`                | `bk-magicbox-vue-components` |
+| Vue3 `bkui-vue`                    | `bkui-vue-components`        |
+| `@blueking/tdesign-ui`             | `blueking-tdesign-ui`        |
+| `@blueking/date-picker`            | `blueking-date-picker`       |
+| `@blueking/search-select-v3`       | `blueking-search-select-v3`  |
+| `@blueking/bk-weweb` 微前端        | `bk-weweb`                   |
+| `@blueking/open-telemetry` RUM SDK | `bk-rum-otele`               |
 
 组件名称或相邻用法不能单独证明 API。文档缺失或与依赖冲突时，需要核对匹配版本的类型、源码或官方资料；示例还需适配目标 package 的写法。
 
@@ -117,14 +117,14 @@ PR 标题、正文及 TAPD 评论的自然语言说明默认简体中文，路�
 
 一次性 E2E 围绕本次需求及相关 diff 编写，不等于全站回归。设计任务包含视觉对比；溢出、遮挡、截断等布局问题需要对应几何断言和最终截图。
 
-| 当前情况 | 处理方式 |
-| --- | --- |
-| 已测试，代码内容未变 | 复用已有结果，不因提交 PR 重跑 |
-| 测试后代码发生变化 | 按影响范围复测，保留历史证据 |
-| 仅 commit SHA 变化，内容相同 | 核对内容后复用，保留测试时的提交记录 |
-| 仅 PR 文案、报告展示或附件变化 | 核对、更新交付材料，不重跑业务 E2E |
-| 验收、测试源码、设计基准或执行工具变化 | 核对证据有效性，按验证规则重验 |
-| 测试失败、环境阻塞或未执行 | 如实记录原因、影响与恢复点，不归为通过 |
+| 当前情况                               | 处理方式                               |
+| -------------------------------------- | -------------------------------------- |
+| 已测试，代码内容未变                   | 复用已有结果，不因提交 PR 重跑         |
+| 测试后代码发生变化                     | 按影响范围复测，保留历史证据           |
+| 仅 commit SHA 变化，内容相同           | 核对内容后复用，保留测试时的提交记录   |
+| 仅 PR 文案、报告展示或附件变化         | 核对、更新交付材料，不重跑业务 E2E     |
+| 验收、测试源码、设计基准或执行工具变化 | 核对证据有效性，按验证规则重验         |
+| 测试失败、环境阻塞或未执行             | 如实记录原因、影响与恢复点，不归为通过 |
 
 本地报告位于 `.e2e-runs/<run-id>/report/index.html`，`delivery-facts.json` 保存交付使用的测试事实。测试目录、截图、视频、trace 及认证状态不提交到 Git。报告“当前有效”只覆盖声明的测试范围，交付前仍须核对完整 diff。
 
@@ -141,14 +141,14 @@ pnpm e2e:install  # 需要时安装项目版本对应的 Chromium
 
 ### 应用与技术栈
 
-| 应用 / 目录 | 主要职责 | 主要技术栈 | 启动命令 |
-| --- | --- | --- | --- |
-| [`src/monitor-pc`](./src/monitor-pc) | 监控主应用与微前端宿主入口 | Vue2、TSX class、Vuex、bk-magic-vue | `pnpm pc:dev` |
-| [`src/trace`](./src/trace) | Vue3 应用，包含检索、告警、主机、Profiling、RUM 等页面 | Vue3、TSX、Pinia、bkui-vue / TDesign | `pnpm trace:dev` |
-| [`src/apm`](./src/apm) | APM 应用 | Vue2、TSX class、Vuex | `pnpm apm:dev` |
-| [`src/fta-solutions`](./src/fta-solutions) | 故障自愈应用 | Vue2、TSX class、Vuex | `pnpm fta:dev` |
-| [`src/monitor-mobile`](./src/monitor-mobile) | 移动端 | Vue2 SFC、Vuex、Vant | `pnpm mobile:dev` |
-| `external` 构建变体 | 复用 `src/monitor-pc` 的外部应用 | Vue2，按构建变量裁剪 | `pnpm external:dev` |
+| 应用 / 目录                                  | 主要职责                                               | 主要技术栈                           | 启动命令            |
+| -------------------------------------------- | ------------------------------------------------------ | ------------------------------------ | ------------------- |
+| [`src/monitor-pc`](./src/monitor-pc)         | 监控主应用与微前端宿主入口                             | Vue2、TSX class、Vuex、bk-magic-vue  | `pnpm pc:dev`       |
+| [`src/trace`](./src/trace)                   | Vue3 应用，包含检索、告警、主机、Profiling、RUM 等页面 | Vue3、TSX、Pinia、bkui-vue / TDesign | `pnpm trace:dev`    |
+| [`src/apm`](./src/apm)                       | APM 应用                                               | Vue2、TSX class、Vuex                | `pnpm apm:dev`      |
+| [`src/fta-solutions`](./src/fta-solutions)   | 故障自愈应用                                           | Vue2、TSX class、Vuex                | `pnpm fta:dev`      |
+| [`src/monitor-mobile`](./src/monitor-mobile) | 移动端                                                 | Vue2 SFC、Vuex、Vant                 | `pnpm mobile:dev`   |
+| `external` 构建变体                          | 复用 `src/monitor-pc` 的外部应用                       | Vue2，按构建变量裁剪                 | `pnpm external:dev` |
 
 `external` 不是独立源码 package；应用和产物目录的映射见 [webpack/utils.js](./webpack/utils.js)。共享模块及 Vue2 / Vue3 适配入口须按实际依赖确认，不能仅根据 API 名称判断技术栈。
 
@@ -187,7 +187,7 @@ bkmonitor/webpack/
 
 ### 工具与依赖
 
-当前 `.nvmrc` 指定 Node 22，团队 onboarding 使用 Node **22.12.0 及以上的 22.x** 和 **pnpm 10.x**。根 `package.json` 的 Node 下限较宽，不能仅凭该字段判断整套构建工具可用；实际还需满足锁定依赖的 engines。
+当前 `.nvmrc` 指定 Node **24.22.2**，`package.json` 要求 **24.22.2 及以上的 24.x**，依赖安装使用 **pnpm 10.x**。两个前端构建镜像使用相同的 Node 版本，包含 CVE-2026-111497 的 Brotli 解码器修复。
 
 已安装并加载 nvm 时：
 
@@ -217,26 +217,26 @@ pnpm pc:dev
 
 ### 常用构建命令
 
-| 目标 | 命令 |
-| --- | --- |
-| 构建所有应用 | `pnpm build` / `make build` |
-| 构建监控主应用 | `pnpm pc:build` |
-| 构建 Vue3 应用 | `pnpm trace:build` |
-| 构建其他应用 | `pnpm apm:build` / `pnpm fta:build` / `pnpm mobile:build` / `pnpm external:build` |
-| 串行构建应用 | `make build-s` |
-| 查看 Make 任务 | `make help` |
+| 目标           | 命令                                                                              |
+| -------------- | --------------------------------------------------------------------------------- |
+| 构建所有应用   | `pnpm build` / `make build`                                                       |
+| 构建监控主应用 | `pnpm pc:build`                                                                   |
+| 构建 Vue3 应用 | `pnpm trace:build`                                                                |
+| 构建其他应用   | `pnpm apm:build` / `pnpm fta:build` / `pnpm mobile:build` / `pnpm external:build` |
+| 串行构建应用   | `make build-s`                                                                    |
+| 查看 Make 任务 | `make help`                                                                       |
 
 `make prod` 还会清理并搬运产物到 `../static/`，按实际交付需要使用。完整命令以 [package.json](./package.json) 和 [Makefile](./Makefile) 为准。部分名称看似“检查”的任务会写文件，例如 `make check-pc` 包含 `--write`；AI 不主动处理格式问题或运行批量格式修复。
 
 ## 进一步阅读
 
-| 要核对的内容 | 入口 |
-| --- | --- |
-| AI 路由、开发约束与交付口径 | [AGENTS.md](./AGENTS.md) |
-| 当前脚本与依赖声明 | [package.json](./package.json)、[pnpm-workspace.yaml](./pnpm-workspace.yaml)、[pnpm-lock.yaml](./pnpm-lock.yaml) |
-| Node 版本选择 | [.nvmrc](./.nvmrc) |
-| 应用映射、代理与端口行为 | [webpack/utils.js](./webpack/utils.js)、[webpack.config.js](./webpack.config.js) |
-| 公共 E2E 运行配置 | [e2e/README.md](./e2e/README.md) |
-| 日常开发、源码约定、验证与交付 | [开发与 AI 协作指南](./wikis/contributes.md) |
+| 要核对的内容                   | 入口                                                                                                             |
+| ------------------------------ | ---------------------------------------------------------------------------------------------------------------- |
+| AI 路由、开发约束与交付口径    | [AGENTS.md](./AGENTS.md)                                                                                         |
+| 当前脚本与依赖声明             | [package.json](./package.json)、[pnpm-workspace.yaml](./pnpm-workspace.yaml)、[pnpm-lock.yaml](./pnpm-lock.yaml) |
+| Node 版本选择                  | [.nvmrc](./.nvmrc)                                                                                               |
+| 应用映射、代理与端口行为       | [webpack/utils.js](./webpack/utils.js)、[webpack.config.js](./webpack.config.js)                                 |
+| 公共 E2E 运行配置              | [e2e/README.md](./e2e/README.md)                                                                                 |
+| 日常开发、源码约定、验证与交付 | [开发与 AI 协作指南](./wikis/contributes.md)                                                                     |
 
 不同分支的目录、依赖和命令可能变化。遇到 README、历史文档与当前实现不一致时，先确认目标分支与版本，再依据源码和配置核验；不要沿用未经确认的历史结论。

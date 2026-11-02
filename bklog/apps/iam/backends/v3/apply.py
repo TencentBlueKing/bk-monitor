@@ -15,6 +15,7 @@ from iam.apply.models import (
     ResourceNode,
 )
 from iam.utils import meta
+from iam_engine.v3.apply import application_resource_path
 
 from apps.iam.backends.v3.meta import setup_meta
 from apps.iam.exceptions import ActionNotExistError
@@ -34,6 +35,9 @@ def gen_perms_apply_data(system: str, action_to_resources_list: list[dict[str, A
     ]
     单个 action 中对应的 resources_list 必须是同类型的 Resource
     """
+    from apps.iam.handlers.resources import _all_resources
+
+    resource_systems = {key: resource.system_id for key, resource in _all_resources.items()}
     data = {
         "system_id": system,
         "system_name": meta.get_system_name(system),
@@ -77,11 +81,16 @@ def gen_perms_apply_data(system: str, action_to_resources_list: list[dict[str, A
                 for resource in resources:
                     inst_item = [
                         {
-                            "type": resource.type,
-                            "type_name": meta.get_resource_name(system_id, resource.type),
-                            "id": resource.id,
-                            "name": resource.attribute.get("name", "") if resource.attribute else "",
+                            "type": node["type"],
+                            "type_name": meta.get_resource_name(node["system"], node["type"]),
+                            "id": node["id"],
+                            "name": node["name"],
                         }
+                        for node in application_resource_path(
+                            resource,
+                            leaf_name=(resource.attribute or {}).get("name", ""),
+                            resource_systems=resource_systems,
+                        )
                     ]
                     instances.append(inst_item)
 
@@ -163,7 +172,12 @@ class V3ApplicationBuilder:
                         if r.system == related_resource.system_id and r.type == related_resource.id:
                             instances.append(
                                 ResourceInstance(
-                                    [ResourceNode(type=r.type, id=r.id, name=r.attribute.get("name", r.id))]
+                                    [
+                                        ResourceNode(type=node["type"], id=node["id"], name=node["name"])
+                                        for node in application_resource_path(
+                                            r, leaf_name=r.attribute.get("name", r.id)
+                                        )
+                                    ]
                                 )
                             )
 

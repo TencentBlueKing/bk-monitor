@@ -5,11 +5,15 @@ from collections import defaultdict
 from dataclasses import dataclass, field
 
 from django.conf import settings
+from django.db import transaction
+from django.db.models import Q
 
 from constants.data_source import DATA_LINK_V4_VERSION_NAME
 from metadata import models
 from metadata.models.data_link import DataLink
-from metadata.models.data_link.utils import compose_bkdata_data_id_name
+from metadata.config import DATABASE_CONNECTION_NAME
+from metadata.models.data_link import utils as data_link_utils
+from metadata.models.data_link.constants import DataLinkNameScene
 from metadata.models.space.constants import SpaceTypes
 from metadata.models.vm.constants import ACCESS_DATA_LINK_FAILURE_STATUS, ACCESS_DATA_LINK_SUCCESS_STATUS
 from metadata.models.vm.utils import (
@@ -224,11 +228,29 @@ def _build_federation_routes(bk_tenant_id: str, sub_cluster_id: str) -> list[dic
     return routes
 
 
-def _get_subset_data_link_name(context: FederationMetricContext) -> str:
-    return compose_bkdata_data_id_name(
-        context.data_source.data_name,
-        strategy=DataLink.BCS_FEDERAL_SUBSET_TIME_SERIES,
+def _get_subset_data_link(context: FederationMetricContext) -> DataLink | None:
+    """按联邦子链路的业务关系定位，兼容存量名字以及尚未完成 sync_metadata 的链路。"""
+    tenant = context.data_source.bk_tenant_id
+    # 名称不再能由 DataId 推导；先收集 RT 映射，同时兼容只写入主记录的未完成申请。
+    related_names = set(
+        models.BkBaseResultTable.objects.filter(
+            bk_tenant_id=tenant,
+            monitor_table_id=context.table_id,
+        ).values_list("data_link_name", flat=True)
     )
+    candidates = [
+        link
+        for link in DataLink.objects.filter(
+            Q(bk_data_id=context.data_source.bk_data_id) | Q(data_link_name__in=related_names),
+            bk_tenant_id=tenant,
+            namespace=settings.DEFAULT_VM_DATA_LINK_NAMESPACE,
+            data_link_strategy=DataLink.BCS_FEDERAL_SUBSET_TIME_SERIES,
+        )
+        if link.pk in related_names or context.table_id in link.table_ids or not link.table_ids
+    ]
+    if len(candidates) > 1:
+        raise FederationReconcileError(f"ambiguous federation subset links: tenant={tenant}, table={context.table_id}")
+    return candidates[0] if candidates else None
 
 
 def ensure_federal_subset_data_link(bk_tenant_id: str, sub_cluster_id: str) -> None:
@@ -238,28 +260,31 @@ def ensure_federal_subset_data_link(bk_tenant_id: str, sub_cluster_id: str) -> N
         delete_federal_subset_data_link(bk_tenant_id=bk_tenant_id, sub_cluster_id=sub_cluster_id)
         return
 
-    data_link_name = _get_subset_data_link_name(context)
-    data_link = DataLink.objects.filter(data_link_name=data_link_name).first()
-    if data_link is None:
-        data_link = DataLink.objects.create(
-            bk_tenant_id=bk_tenant_id,
-            data_link_name=data_link_name,
-            namespace=settings.DEFAULT_VM_DATA_LINK_NAMESPACE,
-            data_link_strategy=DataLink.BCS_FEDERAL_SUBSET_TIME_SERIES,
-            bk_data_id=context.data_source.bk_data_id,
-            table_ids=[context.table_id],
-        )
-    else:
-        if data_link.bk_tenant_id != bk_tenant_id:
-            raise ValueError(
-                f"data_link_name({data_link_name}) belongs to tenant({data_link.bk_tenant_id}), "
-                f"cannot use for tenant({bk_tenant_id})"
+    # 首次名称分配和 RT 映射在本地一起提交，后续 apply 失败时按此关系继续重试。
+    with transaction.atomic(using=DATABASE_CONNECTION_NAME):
+        models.ResultTable.objects.select_for_update().get(bk_tenant_id=bk_tenant_id, table_id=context.table_id)
+        data_link = _get_subset_data_link(context)
+        if data_link is None:
+            data_link = data_link_utils.create_resource_with_random_name(
+                DataLink,
+                DataLinkNameScene.FEDERAL_SUBSET,
+                context.data_source.bk_data_id,
+                name_field="data_link_name",
+                bk_tenant_id=bk_tenant_id,
+                namespace=settings.DEFAULT_VM_DATA_LINK_NAMESPACE,
+                data_link_strategy=DataLink.BCS_FEDERAL_SUBSET_TIME_SERIES,
+                bk_data_id=context.data_source.bk_data_id,
+                table_ids=[context.table_id],
             )
-        data_link.namespace = settings.DEFAULT_VM_DATA_LINK_NAMESPACE
-        data_link.data_link_strategy = DataLink.BCS_FEDERAL_SUBSET_TIME_SERIES
-        data_link.bk_data_id = context.data_source.bk_data_id
-        data_link.table_ids = [context.table_id]
-        data_link.save(update_fields=["namespace", "data_link_strategy", "bk_data_id", "table_ids", "last_modify_time"])
+        else:
+            data_link.bk_data_id = context.data_source.bk_data_id
+            data_link.table_ids = [context.table_id]
+            data_link.save(update_fields=["bk_data_id", "table_ids", "last_modify_time"])
+        models.BkBaseResultTable.objects.get_or_create(
+            bk_tenant_id=bk_tenant_id,
+            data_link_name=data_link.pk,
+            defaults={"monitor_table_id": context.table_id, "storage_type": models.ClusterInfo.TYPE_VM},
+        )
 
     logger.info(
         "ensure_federal_subset_data_link: tenant->[%s],sub_cluster_id->[%s],routes->[%s]",
@@ -287,18 +312,18 @@ def ensure_federal_subset_data_link(bk_tenant_id: str, sub_cluster_id: str) -> N
 
 def delete_federal_subset_data_link(bk_tenant_id: str, sub_cluster_id: str) -> None:
     context = _get_metric_context(bk_tenant_id=bk_tenant_id, cluster_id=sub_cluster_id)
-    data_link_name = _get_subset_data_link_name(context)
-    data_link = DataLink.objects.filter(
-        bk_tenant_id=bk_tenant_id,
-        data_link_name=data_link_name,
-        data_link_strategy=DataLink.BCS_FEDERAL_SUBSET_TIME_SERIES,
-    ).first()
-    if data_link:
+    # 创建和删除使用同一套关联查询；Subset 的删除策略只清理自身路由组件，保留共享 RT/Binding。
+    with transaction.atomic(using=DATABASE_CONNECTION_NAME):
+        models.ResultTable.objects.select_for_update().get(bk_tenant_id=bk_tenant_id, table_id=context.table_id)
+        data_link = _get_subset_data_link(context)
+        if data_link is None:
+            return
+        data_link_name = data_link.pk
         data_link.delete_data_link()
-    models.BkBaseResultTable.objects.filter(
-        bk_tenant_id=bk_tenant_id,
-        data_link_name=data_link_name,
-    ).delete()
+        models.BkBaseResultTable.objects.filter(
+            bk_tenant_id=bk_tenant_id,
+            data_link_name=data_link_name,
+        ).delete()
     logger.info(
         "delete_federal_subset_data_link: tenant->[%s],sub_cluster_id->[%s],data_link_name->[%s]",
         bk_tenant_id,
@@ -350,6 +375,7 @@ def reconcile_federation_data_links(bk_tenant_id: str, plan: FederationReconcile
     failures: list[str] = []
     failed_proxy_cluster_ids: set[str] = set()
 
+    # 先确保 Proxy 修复好共享组件，再更新 Subset 引用；父链路失败时阻止依赖它的子链路下发。
     for fed_cluster_id in plan.active_proxy_cluster_ids:
         try:
             ensure_federal_proxy_data_link(bk_tenant_id=bk_tenant_id, fed_cluster_id=fed_cluster_id)

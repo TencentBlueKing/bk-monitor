@@ -506,3 +506,134 @@ def refresh_record_rule_v4():
 保存不调用解析、输出准备或下发；后台任务仍遵循 `auto_refresh`，立即执行使用已有 apply RPC。
 接口 schema 和示例通过 Kernel RPC `__meta__.detail` 查询；配置查看 safety 为 read，创建和更新为 write。
 无需新增数据库迁移。
+
+## AsCode 与公共配置 API
+
+公共配置入口使用 `/app/recording_rule/`，后端对应 `/api/v4/recording_rule/`：
+
+| 接口 | 方法 | 用途 |
+| --- | --- | --- |
+| preview_config | POST | 预解析单 group，返回 MetricQL、来源 VMRT 和资源信息；不写库或下发 |
+| create_config | POST | 新建声明，apply 默认 false |
+| update_config | POST | 按 ID 完整修改声明，名称和空间不变；apply 默认 false |
+| delete_config | POST | 软删除并执行 Flow 删除 |
+| get_config | GET | 读取配置，with_status=true 时观测已下发 Flow |
+| apply_config | POST | 解析并下发当前声明 |
+| list_configs | GET | 分页列表，支持 name、app、status 筛选 |
+
+请求提供 bk_biz_id 或 space_uid，租户来自认证上下文。配置参数 config 使用单 group 对象或其 YAML 字符串，无外层 groups；预解析可以附带已有规则 ID，以排除自身输出表。预解析仅构造内存中的声明输入，调用 Resolver 的只读解析方法，不创建数据库记录、输出元数据或 Flow。
+
+新建／修改返回 saved、rule、config、execution。apply=true 时执行解析下发；execution.succeeded 表示执行结果，error 提供失败原因。下发失败保留已保存声明，可按 ID 重试。apply=false 只关闭本次请求的立即下发，auto_refresh 仍决定后台是否自动下发；需要人工发布时应在配置中设置 auto_refresh=false。
+
+get_config 默认不查询 BKBase。开启 with_status 后，observation 返回 succeeded、flow_status、error，观测过程沿用既有状态和事件记录；没有已下发 Flow 时直接返回“尚未下发 Flow”。列表只查询本地状态，不逐条访问 BKBase。
+
+### 通用 AsCode 导入导出
+
+通用导入识别 recording_rule/ 目录，文件使用多 group 格式：
+
+```yaml
+groups:
+  - name: cpu_summary
+    interval: 1min
+    bkmonitor:
+      description: CPU 平均使用率
+      auto_refresh: false
+      desired_status: running
+    rules:
+      - record: cpu_usage_avg
+        expr: avg(system_cpu_usage)
+```
+
+导入先解析本批 RecordingRule 文件，随后保存并立即下发；auto_refresh 控制后续后台行为。规则保存 app 和来源 path，按租户、空间、app、group 名称匹配，因此移动文件不重建规则。同一批不能出现重复 group 名称。overwrite=true 可接管同空间其他 app 的同名有效规则；有多个候选时返回错误。
+
+incremental=false 且本次包含 recording_rule 文件时，在新增／更新和下发均成功后，软删除当前 app 下未出现的规则。未包含该类型时不清理 RecordingRule。失败按文件和 group 位置返回，已保存声明和已成功下发的其他 group 保留，不执行本次旧规则清理。
+
+导出新增 recording_rule_ids，支持 JSON 响应与压缩包入口；None 表示全部，空列表表示不导出，非空列表按 ID 筛选。导出过滤租户、空间、app 和软删除状态，保留原始表达方式。默认保留来源文件路径，lock_filename=true 使用稳定输出表名生成文件名；同文件多个 group 一并导出。RecordingRule 配置不携带数据库 ID，with_id 不改变它的格式。
+
+JSON 导出保留来源目录层级；压缩包沿用目录分隔符转连字符的规则，转换后路径相同的文件会合并 group，避免相互覆盖。
+
+### 部署规模上限
+
+在全局动态配置中统一使用 `RECORD_RULE_V4_CONFIG`：
+
+```json
+{
+  "max_sources": 20,
+  "max_rules": 20
+}
+```
+
+两个值均使用正整数，未配置的键默认取 20，可按环境调整。`max_sources` 限制单个 Flow 的来源数量，按 BKBase ResultTable 的 namespace/name 去重；`max_rules` 限制 group 下的规则条数。一个 group 仍合并成一个 RecordingRuleNode，规则条数按节点的 config 项数计算，不改变现有 Flow 协议。
+
+- 保存声明和正式解析不因超限失败，仍保留 Spec、Resolved 及 Flow 快照。
+- 预解析仍返回规范化配置和解析记录，额外返回 `deployment_check`，包含 `can_apply`、实际数量、当前上限和 `errors`。超限时 `can_apply=false`，预解析本身不写库或下发。
+- 每次真正下发前按当前生效的动态配置重新检查。超限时不调用 BKBase，记录下发失败及原因；此前已生效的 Flow 保留。API/MCP、AsCode、Admin 和后台任务共用该限制。
+- 调整上限不会主动停止已有 Flow。调整后可重试下发，已有解析快照可继续使用；删除 Flow 不受上限影响。
+
+监控侧配置应与当前 BKBase 环境的实际限制保持一致，配置变更遵循现有动态配置缓存刷新机制。
+
+预解析业务错误使用统一的 `{code, message, path}` 条目：`INVALID_CONFIG`、`INVALID_SPACE`、`RULE_NOT_FOUND`、`RESOLVE_FAILED` 沿用后台 API 的 HTTP 200 / `result=false` / `code=3300004`，详情在 `data.errors`。解析成功但超限时，`deployment_check.errors` 返回 `SOURCE_LIMIT_EXCEEDED` 或 `RULE_LIMIT_EXCEEDED`，并提供 `actual` 和 `limit`。API 和 MCP 错误码与处理方式一致，完整示例见各自预解析接口文档。
+
+### 指标选择器
+
+执行声明准备好输出 ResultTable 和指标字段后，V4 指标会随现有指标缓存刷新进入“监控采集 / 预计算指标”，支持单租户和多租户。可按输出指标名、规则组名称、结果表 ID 或 `data_label` 搜索；配置了 `data_label` 时可使用 `data_label.metric_name` 形式的可读指标名。
+
+结果表列表包含 V4 和旧版预计算，并统一参与分页。缓存保留真实业务 ID，按租户及空间隔离；非 bkcc 空间沿用负数业务 ID，可通过现有手动刷新入口更新指标目录。仅保存声明、尚未准备输出元数据的规则不会生成指标目录项。目录来自输出元数据，运行情况通过 Flow 状态查询。
+
+软删除、删除声明或 Flow 删除完成的规则不再进入目录，下次周期刷新或手动刷新后移除对应缓存；历史元数据和已有历史查询窗口保留。
+
+### 软删除边界
+
+is_deleted 由 AsCode／公共配置 API 和指标目录入口过滤。删除入口在同一事务内设置 is_deleted=true 并声明 desired_status=deleted，提交后执行 Flow 删除。所有公共查询、修改、预解析已有对象、下发、导入匹配和导出都过滤 is_deleted=false。重复删除返回对象不存在；重新导入同名配置创建新对象。
+
+外部 Flow 删除失败时仍保持 is_deleted=true，由原有后台任务重试。deleted_at 继续表示 Flow 删除完成时间；规则、Spec、Resolved、Flow 和事件保留。全局 Manager、Admin 接口、后台调度条件及历史查询窗口不变。
+
+数据库迁移新增 app、path、is_deleted，并将已有删除声明或已完成删除的记录标为软删除。部署需先应用 Metadata 迁移，再启用公共入口和同步网关资源。
+
+
+## MCP 用户入口与业务权限
+
+MCP 提供独立的 `/mcp/<tool_name>/` 入口，统一使用 POST，后端为 `/api/v4/recording_rule_mcp/<endpoint>/`。
+同一组工具也注册到统一 MCP 的 `recording_rule` 分类，支持工具检索、Schema 查询、权限探测及执行。
+
+网关强制用户鉴权（`userVerifiedRequired=true`）。后端复用 MCP 的网关用户、租户和业务归属检查，并按当前请求用户执行 IAM 鉴权。
+`bk_biz_id` 必填，不能通过应用身份、请求体中的用户名或权限请求头代替用户授权。原有应用 API 与 Admin 行为保持不变。
+
+业务权限按读写拆分，在权限中心的“数据集成 / 预计算规则”下注册：
+
+| 工具 | 功能 | 业务权限 |
+|---|---|---|
+| `preview_recording_rule` | 预解析 | `view_recording_rule_v2` |
+| `create_recording_rule` | 新建 | `manage_recording_rule_v2` |
+| `update_recording_rule` | 修改 | `manage_recording_rule_v2` |
+| `delete_recording_rule` | 软删除 | `manage_recording_rule_v2` |
+| `get_recording_rule` | 详情 | `view_recording_rule_v2` |
+| `apply_recording_rule` | 解析下发 | `manage_recording_rule_v2` |
+| `list_recording_rules` | 分页列表 | `view_recording_rule_v2` |
+
+`manage_recording_rule_v2` 关联 `view_business_v2` 和 `view_recording_rule_v2`。
+V4 业务查看角色包含查看权限；业务运维和业务管理角色同时包含查看和管理权限。
+写操作沿用现有 MCP 约定：用户确认后传 `confirm=true`；预解析、详情和列表不需要该参数。
+MCP 复用公共配置执行链路和软删除过滤，`apply`、`auto_refresh`、`with_status` 及失败返回语义相同。
+
+统一 MCP 新建示例：
+
+```json
+{
+  "tool_name": "create_recording_rule",
+  "tool_args": {
+    "bk_biz_id": "2",
+    "config": {
+      "name": "cpu_summary",
+      "interval": "1min",
+      "bkmonitor": {"auto_refresh": false},
+      "rules": [{"record": "cpu_avg", "expr": "avg(system_cpu_usage)"}]
+    },
+    "apply": false,
+    "confirm": true
+  }
+}
+```
+
+部署时执行 IAM 注册迁移 `0017_recording_rule_mcp` 并同步 APIGW 资源。
+独立 MCP Server 使用 `recording-rule` 后缀及 `recording_rule_mcp` 资源标签；同一 Server 的读写操作按工具路由分别鉴权。

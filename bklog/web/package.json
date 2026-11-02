@@ -124,7 +124,7 @@
     "webpack-sources": "3.2.3"
   },
   "devDependencies": {
-    "@aafe/agent-runtime": "^0.2.29",
+    "@aafe/agent-runtime": "^0.2.31",
     "@eslint/js": "9.39.4",
     "@commitlint/cli": "19.2.1",
     "@commitlint/config-conventional": "12.1.4",
@@ -186,7 +186,7 @@
     "axios": "1.15.2"
   },
   "engines": {
-    "node": ">= 18"
+    "node": "26.12.1"
   },
   "simple-git-hooks": {
     "pre-commit": "npm --prefix bklog/web run quality:staged",

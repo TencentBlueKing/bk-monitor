@@ -277,7 +277,7 @@ const hrefs = {
     plugin: '/plugin-manager',
   },
   process: {
-    performance: '/performance',
+    performance: '/trace/host',
   },
 };
 export default {
@@ -362,7 +362,7 @@ export default {
       this.commonGotoPage(`component/?component=${name}`);
     },
     gotoHostPage() {
-      this.customBizIdGotoPage(this.homeItemBizId, '/performance');
+      this.customBizIdGotoPage(this.homeItemBizId, '/trace/host');
       // this.$router.push({
       //   name: 'performance'
       // });

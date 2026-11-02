@@ -23,10 +23,14 @@ from django.conf import settings
 from django.db.models import Q
 from django.forms import model_to_dict
 from django.utils import timezone
+from django.utils.translation import gettext as _
 from rest_framework import serializers
-from rest_framework.exceptions import ValidationError
+from rest_framework.exceptions import ParseError, ValidationError
 
+from bkm_space.errors import NoRelatedResourceError
+from bkm_space.serializers import resolve_cmdb_biz_id
 from bkm_space.utils import bk_biz_id_to_space_uid
+from bkm_space.validate import validate_bk_biz_id
 from bkmonitor.commons.tools import is_ipv6_biz
 from bkmonitor.data_source import (
     FunctionCategories,
@@ -637,7 +641,16 @@ class UnifyQueryRawResource(ApiAuthResource):
                 if not UnifyQueryRawResource.re_down_sample.match(attrs["down_sample_range"]):
                     attrs["down_sample_range"] = ""
 
-                query_config["filter_dict"] = self.process_filter_dict(attrs["bk_biz_id"], query_config["filter_dict"])
+                query_config["filter_dict"] = self.process_filter_dict(
+                    attrs["bk_biz_id"],
+                    query_config["filter_dict"],
+                    is_host_query=(
+                        query_config["data_source_label"] == DataSourceLabel.BK_MONITOR_COLLECTOR
+                        and query_config["data_type_label"] == DataTypeLabel.TIME_SERIES
+                        and query_config.get("table", "").startswith("system.")
+                        and not query_config.get("data_label")
+                    ),
+                )
             return attrs
 
         def validate_target(self, target: list):
@@ -652,7 +665,7 @@ class UnifyQueryRawResource(ApiAuthResource):
                 return target[0][0]["value"]
             return target
 
-        def process_filter_dict(self, bk_biz_id: int, value):
+        def process_filter_dict(self, bk_biz_id: int, value, is_host_query: bool = False):
             if value:
                 delete_fields = []
                 for k, v in value.items():
@@ -664,8 +677,29 @@ class UnifyQueryRawResource(ApiAuthResource):
             # 过滤主机监控图表的targets过滤字段
             targets = value.get("targets")
             if targets:
+                identity_bk_biz_id = bk_biz_id
+                if is_host_query and any(
+                    {"bk_host_id", "bk_target_ip", "bk_target_cloud_id"}.intersection(target) for target in targets
+                ):
+                    try:
+                        # 只切换主机身份模式，不修改查询空间与鉴权参数。
+                        identity_bk_biz_id = validate_bk_biz_id(bk_biz_id)
+                    except NoRelatedResourceError:
+                        identity_bk_biz_id = None
                 for target in targets:
-                    if is_ipv6_biz(bk_biz_id):
+                    if target.get("bk_obj_id") in ("biz", ["biz"]):
+                        node_ids = target.get("bk_inst_id")
+                        if node_ids in (None, "", []):
+                            raise ParseError(_("缺少业务节点 ID"))
+                        if isinstance(node_ids, list):
+                            target["bk_inst_id"] = [
+                                str(resolve_cmdb_biz_id(bk_biz_id, node_id)) for node_id in node_ids
+                            ]
+                        else:
+                            target["bk_inst_id"] = str(resolve_cmdb_biz_id(bk_biz_id, node_ids))
+                    if identity_bk_biz_id is None:
+                        continue
+                    if is_ipv6_biz(identity_bk_biz_id):
                         target.pop("bk_target_ip", None)
                         target.pop("bk_target_cloud_id", None)
                     else:
@@ -675,6 +709,7 @@ class UnifyQueryRawResource(ApiAuthResource):
     @classmethod
     def get_metric_info(cls, params: dict) -> list:
         metric_queries = []
+        host_metric_queries = []
         for query_config in params["query_configs"]:
             metric_fields = [metric["field"] for metric in query_config["metrics"]]
             if not metric_fields:
@@ -682,31 +717,76 @@ class UnifyQueryRawResource(ApiAuthResource):
 
             if query_config["data_source_label"] != DataSourceLabel.BK_LOG_SEARCH:
                 if query_config.get("data_label"):
-                    metric_queries.append(Q(data_label=query_config["data_label"], metric_field__in=metric_fields))
+                    metric_query = Q(data_label=query_config["data_label"], metric_field__in=metric_fields)
                 else:
-                    metric_queries.append(Q(result_table_id=query_config["table"], metric_field__in=metric_fields))
+                    metric_query = Q(result_table_id=query_config["table"], metric_field__in=metric_fields)
             else:
-                metric_queries.append(Q(related_id=query_config["index_set_id"], metric_field__in=metric_fields))
+                metric_query = Q(related_id=query_config["index_set_id"], metric_field__in=metric_fields)
+            metric_queries.append(metric_query)
+
+            if (
+                params["bk_biz_id"] <= 0
+                and query_config["data_source_label"] == DataSourceLabel.BK_MONITOR_COLLECTOR
+                and query_config["data_type_label"] == DataTypeLabel.TIME_SERIES
+                and not query_config.get("data_label")
+                and query_config["table"].startswith("system.")
+            ):
+                host_metric_queries.append(metric_query)
 
         if not metric_queries:
             return []
+
+        related_bk_biz_id = params["bk_biz_id"]
+        if host_metric_queries:
+            try:
+                related_bk_biz_id = validate_bk_biz_id(params["bk_biz_id"])
+            except NoRelatedResourceError:
+                # 泛型图表仍可读取原空间和公共指标的元数据。
+                pass
 
         metrics = MetricListCache.objects.filter(
             reduce(lambda x, y: x | y, metric_queries),
             bk_tenant_id=bk_biz_id_to_bk_tenant_id(params["bk_biz_id"]),
             bk_biz_id__in=[params["bk_biz_id"], 0],
         )
-        metric_infos = cls.transfer_metric(bk_biz_id=params["bk_biz_id"], metrics=metrics)
+        metric_infos = cls.transfer_metric(
+            bk_biz_id=params["bk_biz_id"], metrics=metrics, host_bk_biz_id=related_bk_biz_id
+        )
+        if related_bk_biz_id != params["bk_biz_id"]:
+            # 只补充关联业务的主机基础指标，保留原空间已有元数据及其优先级。
+            host_metrics = MetricListCache.objects.filter(
+                reduce(lambda x, y: x | y, host_metric_queries),
+                bk_tenant_id=bk_biz_id_to_bk_tenant_id(related_bk_biz_id),
+                bk_biz_id=related_bk_biz_id,
+                data_source_label=DataSourceLabel.BK_MONITOR_COLLECTOR,
+                data_type_label=DataTypeLabel.TIME_SERIES,
+                result_table_label__in=["os", "host_process"],
+            )
+            existing_metric_ids = {metric["metric_id"] for metric in metric_infos}
+            metric_infos.extend(
+                metric
+                for metric in cls.transfer_metric(bk_biz_id=related_bk_biz_id, metrics=host_metrics)
+                if metric["metric_id"] not in existing_metric_ids
+            )
         return metric_infos
 
     @staticmethod
-    def transfer_metric(bk_biz_id, metrics):
+    def transfer_metric(bk_biz_id, metrics, host_bk_biz_id=None):
         metric_infos = []
         for metric in metrics:
             metric_info = model_to_dict(metric)
             metric_info.pop("bk_biz_id", None)
 
-            if is_ipv6_biz(bk_biz_id) and "bk_target_ip" in metric_info["default_dimensions"]:
+            dimension_bk_biz_id = bk_biz_id
+            if (
+                host_bk_biz_id is not None
+                and metric.data_source_label == DataSourceLabel.BK_MONITOR_COLLECTOR
+                and metric.data_type_label == DataTypeLabel.TIME_SERIES
+                and metric.result_table_id.startswith("system.")
+                and metric.result_table_label in ["os", "host_process"]
+            ):
+                dimension_bk_biz_id = host_bk_biz_id
+            if is_ipv6_biz(dimension_bk_biz_id) and "bk_target_ip" in metric_info["default_dimensions"]:
                 metric_info["default_dimensions"] = ["bk_host_id"]
             else:
                 metric_info["default_dimensions"] = ["bk_target_ip", "bk_target_cloud_id"]
@@ -1124,7 +1204,9 @@ class GraphUnifyQueryResource(UnifyQueryRawResource):
             return data
 
         # 主机ID
-        host_id_list = {row["dimensions"]["bk_host_id"] for row in data if row["dimensions"].get("bk_host_id")}
+        host_id_list = {
+            row["dimensions"]["bk_host_id"] for row in data if str(row["dimensions"].get("bk_host_id", "")).isdecimal()
+        }
         if host_id_list:
             try:
                 hosts = api.cmdb.get_host_by_id(bk_biz_id=params["bk_biz_id"], bk_host_ids=host_id_list)
@@ -1137,9 +1219,9 @@ class GraphUnifyQueryResource(UnifyQueryRawResource):
         service_instance_id_list = set()  # 服务实例
         bcs_cluster_id_list = set()  # BCS集群
         for row in data:
-            if row["dimensions"].get("bk_service_instance_id"):
+            if str(row["dimensions"].get("bk_service_instance_id", "")).isdecimal():
                 service_instance_id_list.add(row["dimensions"]["bk_service_instance_id"])
-            if row["dimensions"].get("bk_target_service_instance_id"):
+            if str(row["dimensions"].get("bk_target_service_instance_id", "")).isdecimal():
                 service_instance_id_list.add(row["dimensions"]["bk_target_service_instance_id"])
             if row["dimensions"].get("bcs_cluster_id"):
                 bcs_cluster_id_list.add(row["dimensions"]["bcs_cluster_id"])

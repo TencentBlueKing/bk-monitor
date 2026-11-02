@@ -17,7 +17,7 @@ export const STATUS_ENUM = [
     background: '#C5DBFF',
   },
   {
-    label: window.$t('部署中'),
+    label: window.$t('未知'),
     value: 'UNKNOWN',
     color: '#3A84FF',
     background: '#C5DBFF',
@@ -63,6 +63,10 @@ export const STATUS_ENUM_FILTER = [
   {
     label: window.$t('停用'),
     value: 'terminated',
+  },
+  {
+    label: window.$t('未知'),
+    value: 'unknown',
   },
 ];
 /**
@@ -513,6 +517,7 @@ export const getOperatorCanClick = (row: ICollectListRowData, operateType: Colle
   const isTerminated = status === 'terminated';
   const isSuccess = status === 'success';
   const isFailed = status === 'failed';
+  const isUnknown = status === 'unknown';
   const isCompleted = row.storage_cluster_id !== -1; // 采集项已完成：storage_cluster_id 存在
 
   switch (operateType) {
@@ -532,17 +537,17 @@ export const getOperatorCanClick = (row: ICollectListRowData, operateType: Colle
       // 克隆 - 无限制条件
       return true;
     case 'stop':
-      // 停用 - 采集状态为"正常"或"异常"
-      return isSuccess || isFailed;
+      // 停用 - 采集状态为"正常"、"异常"或"未知"
+      return isSuccess || isFailed || isUnknown;
     case 'start':
       // 启用 - 采集状态为"停用"
       return isTerminated;
     case 'delete':
-      // 只有采集项需要已停用才能删除，计算平台、第三方ES、自定义上报不需要限制
+      // 采集项已停用或状态未知时可删除，计算平台、第三方ES、自定义上报不限制状态
       if (['bkdata', 'es', 'custom_report'].includes(row.log_access_type)) {
         return true;
       }
-      return isTerminated;
+      return isTerminated || isUnknown;
     default:
       return true;
   }

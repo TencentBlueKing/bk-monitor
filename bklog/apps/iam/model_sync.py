@@ -7,7 +7,6 @@ from functools import partial
 from django.conf import settings
 from iam.contrib.iam_migration.migrator import IAMMigrator
 
-from apps.iam.handlers.permission import Permission
 from apps.iam.backends.v4.model_migrator import V4ModelMigrator
 from apps.iam.mode import get_deployment_mode_provider
 from iam_engine.core.config import AuthMode
@@ -31,10 +30,8 @@ class LegacyModelMigrator:
     def migrate(self, *, dry_run=True):
         # A preview must not query policies or call the legacy write-only migrator.
         if dry_run:
-            return LegacyModelPlan(("legacy.json (only if V1 compatibility is detected)", "initial.json"))
+            return LegacyModelPlan(("initial.json",))
         with legacy_migration_command():
-            if Permission.get_iam_client(settings.BK_APP_TENANT_ID).in_compatibility_mode():
-                IAMMigrator("legacy.json").migrate()
             IAMMigrator("initial.json").migrate()
         return LegacyModelPlan(("initial.json",))
 

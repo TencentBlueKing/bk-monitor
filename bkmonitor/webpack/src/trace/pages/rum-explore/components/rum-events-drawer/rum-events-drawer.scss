@@ -93,6 +93,23 @@
     padding: 0;
   }
 
+  /* 可点击唤起检索条件菜单的单元格（与主表、trace 检索保持一致） */
+  .explore-table-condition-menu {
+    cursor: pointer;
+
+    &:hover {
+      color: #3a84ff;
+    }
+  }
+
+  .common-table-ellipsis {
+    &:has(> .explore-table-condition-menu) {
+      &:hover {
+        color: #3a84ff;
+      }
+    }
+  }
+
   /* 激活列整列高亮：内容列与表头同色系，表头重一档。
      th 侧需带上 .t-table__header 提升特异性，才能盖过 TDesign 固定表头的背景规则 */
   td.events-col-active {

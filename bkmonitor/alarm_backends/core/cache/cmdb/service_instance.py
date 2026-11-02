@@ -9,14 +9,11 @@ specific language governing permissions and limitations under the License.
 """
 
 import json
-from collections import defaultdict
 from collections.abc import Sequence
 from typing import cast
 
-from alarm_backends.core.cache.cmdb.host import HostManager
-from api.cmdb.define import ServiceInstance, TopoTree
+from api.cmdb.define import ServiceInstance
 from bkmonitor.utils.local import local
-from core.drf_resource import api
 
 from .base import CMDBCacheManager
 
@@ -108,48 +105,3 @@ class ServiceInstanceManager(CMDBCacheManager):
         if not result:
             return []
         return [int(service_instance_id) for service_instance_id in json.loads(result)]
-
-    @classmethod
-    def refresh_by_biz(cls, *, bk_tenant_id: str, bk_biz_id: int) -> list[ServiceInstance]:
-        """
-        按业务ID刷新缓存
-        """
-        instances: list[ServiceInstance] = api.cmdb.get_service_instance_by_topo_node(bk_biz_id=bk_biz_id)
-        topo_tree: TopoTree = api.cmdb.get_topo_tree(bk_biz_id=bk_biz_id)
-
-        # 填充拓扑链
-        topo_link_dict = topo_tree.convert_to_topo_link()
-        host_to_service_instance = defaultdict(list)
-
-        for instance in instances:
-            key = f"module|{instance.bk_module_id}"
-            instance.topo_link = {key: topo_link_dict.get(key, [])}
-
-            # 从缓存中补全主机IP信息
-            host = HostManager.get_by_id(bk_tenant_id=bk_tenant_id, bk_host_id=instance.bk_host_id)
-            if host:
-                host_to_service_instance[str(host.bk_host_id)].append(instance.service_instance_id)
-                instance.ip = host.ip  # type: ignore
-                instance.bk_cloud_id = host.bk_cloud_id  # type: ignore
-
-        # 刷新服务实例缓存
-        cache_key = cls.get_cache_key(bk_tenant_id)
-        pipeline = cls.cache.pipeline()
-        for i in range(0, len(instances), 1000):
-            pipeline.hmset(
-                cache_key,
-                {
-                    str(instance.service_instance_id): json.dumps(instance.to_dict(), ensure_ascii=False)
-                    for instance in instances[i : i + 1000]
-                },
-            )
-        pipeline.execute()
-
-        # 刷新主机与服务实例的映射关系
-        cache_key = cls.get_host_to_service_instance_id_cache_key(bk_tenant_id)
-        pipeline = cls.cache.pipeline()
-        for host_id, service_instance_ids in host_to_service_instance.items():
-            pipeline.hset(cache_key, host_id, json.dumps(service_instance_ids))
-        pipeline.execute()
-
-        return instances

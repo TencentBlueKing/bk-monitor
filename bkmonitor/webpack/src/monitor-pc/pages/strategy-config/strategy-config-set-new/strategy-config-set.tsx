@@ -66,8 +66,6 @@ import {
   type PromqlQuery,
   createPromqlSourceData,
   getSourceQueries,
-  isExistingMultiPromql,
-  isMultiPromqlBiz,
 } from '../strategy-config-common/promql-query/model';
 import {
   buildPromqlItem,
@@ -444,9 +442,6 @@ export default class StrategyConfigSet extends tsc<IStrategyConfigSetProps, IStr
   get bizId(): number | string {
     return this.$store.getters.bizId;
   }
-  get allowMultiPromql() {
-    return isMultiPromqlBiz(this.bizId);
-  }
   get noticePreviewItem() {
     if (this.isMultivariateAnomalyDetection) {
       return {
@@ -458,21 +453,13 @@ export default class StrategyConfigSet extends tsc<IStrategyConfigSetProps, IStr
     }
     const item =
       this.monitorDataEditMode === 'Source'
-        ? buildPromqlItem(this.sourceData, this.expression, { preserveMulti: this.promqlMultiLocked })
+        ? buildPromqlItem(this.sourceData, this.expression)
         : {
             expression: this.expression?.toLocaleLowerCase?.() || LETTERS.at(0),
             origin_sql: this.sourceData.sourceCode,
             query_configs: this.handleQueryConfig(),
           };
     return { ...item, functions: this.localExpFunctions, query_output_config: this.queryOutputConfig };
-  }
-  /** 非多 PromQL 业务下，已有多查询或非别名表达式不可改写。 */
-  get promqlMultiLocked() {
-    return (
-      this.monitorDataEditMode === 'Source' &&
-      !this.allowMultiPromql &&
-      isExistingMultiPromql(this.sourceData, this.expression)
-    );
   }
   get rightWidth() {
     return typeof this.strategyView.rightWidth === 'string'
@@ -1026,9 +1013,6 @@ export default class StrategyConfigSet extends tsc<IStrategyConfigSetProps, IStr
     this.sourceData.legacyExpression = undefined;
     this.sourceData.legacyOriginSql = undefined;
     this.sourceData.queryConfigs = [{ alias: 'a', promql: '' }];
-    this.sourceData.rawQueryConfigs = undefined;
-    this.sourceData.rawExpression = undefined;
-    this.sourceData.rawOriginSql = undefined;
     this.expression = '';
     this.localExpress = '';
     this.target = [];
@@ -1830,8 +1814,7 @@ export default class StrategyConfigSet extends tsc<IStrategyConfigSetProps, IStr
     if (this.monitorDataEditMode === 'Source' && !this.sourceData.legacyMultiQuery) {
       const error = this.sourceController.validate(
         this.sourceData,
-        this.expression || (this.sourceQueries.length === 1 ? this.sourceQueries[0].alias : ''),
-        { allowMulti: this.allowMultiPromql }
+        this.expression || (this.sourceQueries.length === 1 ? this.sourceQueries[0].alias : '')
       );
       this.monitorDataRef?.validateSource();
       if (error) {
@@ -1940,7 +1923,7 @@ export default class StrategyConfigSet extends tsc<IStrategyConfigSetProps, IStr
         // Edit：保持表单既有 expression 小写 + queryCode 逻辑
         const monitorItem =
           this.monitorDataEditMode === 'Source'
-            ? buildPromqlItem(this.sourceData, this.expression, { preserveMulti: this.promqlMultiLocked })
+            ? buildPromqlItem(this.sourceData, this.expression)
             : {
                 expression: this.expression?.toLocaleLowerCase?.() || LETTERS.at(0),
                 origin_sql: this.sourceData.sourceCode,
@@ -2293,8 +2276,7 @@ export default class StrategyConfigSet extends tsc<IStrategyConfigSetProps, IStr
     this.localExpFunctions = functions;
   }
   handleSourceQueriesChange(queries: PromqlQuery[]) {
-    if (this.sourceData.legacyMultiQuery || this.promqlMultiLocked) return;
-    if (!this.allowMultiPromql && queries.length > 1) return;
+    if (this.sourceData.legacyMultiQuery) return;
     this.sourceConversionId++;
     if (!this.expression && this.sourceQueries.length === 1) this.expression = this.sourceQueries[0].alias;
     this.sourceData.queryConfigs = queries;
@@ -2304,7 +2286,7 @@ export default class StrategyConfigSet extends tsc<IStrategyConfigSetProps, IStr
     this.monitorDataLoading = false;
   }
   handleSourceExpressionChange(value: string) {
-    if (this.sourceData.legacyMultiQuery || this.promqlMultiLocked || !this.allowMultiPromql) return;
+    if (this.sourceData.legacyMultiQuery) return;
     this.sourceConversionId++;
     this.expression = value;
     this.monitorDataLoading = false;
@@ -2312,7 +2294,7 @@ export default class StrategyConfigSet extends tsc<IStrategyConfigSetProps, IStr
     this.sourceData.errorMsg = '';
   }
   handleSourceStepChange(v: number | string) {
-    if (this.sourceData.legacyMultiQuery || this.promqlMultiLocked) return;
+    if (this.sourceData.legacyMultiQuery) return;
     this.sourceConversionId++;
     this.sourceData.step = v;
     this.monitorDataLoading = false;
@@ -2320,7 +2302,7 @@ export default class StrategyConfigSet extends tsc<IStrategyConfigSetProps, IStr
   }
   // 清空指标
   handleClearMetric() {
-    if (this.sourceData.legacyMultiQuery || this.promqlMultiLocked) return;
+    if (this.sourceData.legacyMultiQuery) return;
     this.sourceConversionId++;
     this.monitorDataLoading = false;
     this.metricData = [];
@@ -2338,9 +2320,6 @@ export default class StrategyConfigSet extends tsc<IStrategyConfigSetProps, IStr
       legacyExpression: undefined,
       legacyOriginSql: undefined,
       queryConfigs: [{ alias: 'a', promql: '' }],
-      rawQueryConfigs: undefined,
-      rawExpression: undefined,
-      rawOriginSql: undefined,
       errorMsg: '',
       promqlError: false,
       sourceCodeCache: '',
@@ -2571,7 +2550,7 @@ export default class StrategyConfigSet extends tsc<IStrategyConfigSetProps, IStr
    * @param {EditModeType} mode
    */
   async handleEditModeChange({ mode }: { hasError: boolean; mode: EditModeType }) {
-    if (this.sourceData.legacyMultiQuery || this.promqlMultiLocked) return;
+    if (this.sourceData.legacyMultiQuery) return;
     this.sourceConversionId++;
     // 切换指标的编辑模式时，警告有则消失
     if (this.metricTipType) {
@@ -2585,9 +2564,6 @@ export default class StrategyConfigSet extends tsc<IStrategyConfigSetProps, IStr
         this.sourceData.legacyExpression = undefined;
         this.sourceData.legacyOriginSql = undefined;
         this.sourceData.queryConfigs = [{ alias: 'a', promql: '' }];
-        this.sourceData.rawQueryConfigs = undefined;
-        this.sourceData.rawExpression = undefined;
-        this.sourceData.rawOriginSql = undefined;
         this.sourceData.promqlError = false;
         this.expression = 'a';
         this.localExpress = 'a';
@@ -2872,7 +2848,7 @@ export default class StrategyConfigSet extends tsc<IStrategyConfigSetProps, IStr
               class='mb10'
               title={this.$t('监控数据')}
             >
-              {!this.isDetailMode && !this.sourceData.legacyMultiQuery && !this.promqlMultiLocked && (
+              {!this.isDetailMode && !this.sourceData.legacyMultiQuery && (
                 <bk-button
                   style={{ paddingRight: 0, display: this.metricData.length ? 'inline-block' : 'none' }}
                   slot='tools'

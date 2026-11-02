@@ -383,6 +383,26 @@ class ActionEnum:
         version=1,
     )
 
+    VIEW_RECORDING_RULE = ActionMeta(
+        id="view_recording_rule_v2",
+        name=_("查看预计算规则"),
+        name_en="View RecordingRule",
+        type="view",
+        related_resource_types=[SPACE_RESOURCE],
+        related_actions=[VIEW_BUSINESS.id],
+        version=1,
+    )
+
+    MANAGE_RECORDING_RULE = ActionMeta(
+        id="manage_recording_rule_v2",
+        name=_("管理预计算规则"),
+        name_en="Manage RecordingRule",
+        type="manage",
+        related_resource_types=[SPACE_RESOURCE],
+        related_actions=[VIEW_BUSINESS.id, VIEW_RECORDING_RULE.id],
+        version=1,
+    )
+
     VIEW_DOWNTIME = ActionMeta(
         id="view_downtime_v2",
         name=_("屏蔽查看"),
@@ -760,6 +780,8 @@ _ACTION_ALIAS_TO_BUSINESS = {
     "view_collection_v2": "view_collection",
     "view_notify_team_v2": "view_notify_team",
     "view_rule_v2": "view_rule",
+    "view_recording_rule_v2": "view_recording_rule",
+    "manage_recording_rule_v2": "manage_recording_rule",
     "view_downtime_v2": "view_downtime",
     "view_custom_metric_v2": "view_custom_metric",
     "view_custom_event_v2": "view_custom_event",
@@ -781,7 +803,7 @@ _ACTION_ALIAS_TO_BUSINESS = {
     "view_apm_application_v2": "view_apm_application",
     "view_rum_application_v2": "view_rum_application",
     "manage_apm_application_v2": "manage_apm_application",
-    "manage_rum_application_v2": "manage_rum_application"
+    "manage_rum_application_v2": "manage_rum_application",
 }
 _BUSINESS_TO_LEGACY = {value: key for key, value in _ACTION_ALIAS_TO_BUSINESS.items()}
 

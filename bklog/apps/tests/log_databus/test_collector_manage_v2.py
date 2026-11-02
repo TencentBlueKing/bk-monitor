@@ -23,6 +23,7 @@ from unittest.mock import patch
 
 import arrow
 from django.test import TestCase
+from django.utils.translation import override
 
 from bkm_space.define import Space, SpaceTypeEnum
 from apps.exceptions import ValidationError
@@ -177,6 +178,83 @@ class TestLogCollectorHandlerRelatedSpaces(TestCase):
     def _collectors_from_result(result):
         """从返回结果中筛选出采集项（collector_config_id 非空）的记录。"""
         return [item for item in result["list"] if item.get("collector_config_id")]
+
+    def test_collector_status_distinguishes_unknown_from_running(self):
+        statistics = {
+            self.current_collector.subscription_id: {
+                "subscription_id": self.current_collector.subscription_id,
+                "instances": 0,
+                "status": [],
+            },
+            self.related_collector.subscription_id: {
+                "subscription_id": self.related_collector.subscription_id,
+                "instances": 1,
+                "status": [{"status": "PENDING", "count": 1}],
+            },
+        }
+        with (
+            patch(
+                "apps.log_databus.handlers.collector.base.NodeApi.subscription_statistic",
+                side_effect=lambda params: [statistics[params["subscription_id_list"][0]]],
+            ),
+            override("zh-hans"),
+        ):
+            result = LogCollectorHandler.get_collector_status(
+                [self.current_collector.collector_config_id, self.related_collector.collector_config_id]
+            )
+            self.assertEqual(
+                {item["collector_id"]: (item["status"], str(item["status_name"])) for item in result},
+                {
+                    self.current_collector.collector_config_id: ("unknown", "未知"),
+                    self.related_collector.collector_config_id: ("running", "部署中"),
+                },
+            )
+
+            self.current_collector.is_active = False
+            self.current_collector.save(update_fields=["is_active"])
+            result = LogCollectorHandler.get_collector_status([self.current_collector.collector_config_id])
+            self.assertEqual(result[0]["status"], "terminated")
+            self.assertEqual(str(result[0]["status_name"]), "停用")
+
+    def test_collector_status_filters_separate_unknown_and_running(self):
+        self._setup_related_space_mocks()
+        self.related_collector.bk_biz_id = CURRENT_BK_BIZ_ID
+        self.related_collector.save(update_fields=["bk_biz_id"])
+
+        def subscription_statistic(params):
+            subscription_id = params["subscription_id_list"][0]
+            is_running = subscription_id == self.related_collector.subscription_id
+            return [
+                {
+                    "subscription_id": subscription_id,
+                    "instances": 1 if is_running else 0,
+                    "status": [{"status": "RUNNING", "count": 1}] if is_running else [],
+                }
+            ]
+
+        with patch(
+            "apps.log_databus.handlers.collector.base.NodeApi.subscription_statistic",
+            side_effect=subscription_statistic,
+        ):
+            for status, expected_id in (
+                ("unknown", self.current_collector.collector_config_id),
+                ("running", self.related_collector.collector_config_id),
+            ):
+                with self.subTest(status=status):
+                    serializer = LogCollectorSerializer(
+                        data={
+                            "space_uid": CURRENT_SPACE_UID,
+                            "page": PAGE,
+                            "pagesize": PAGESIZE,
+                            "conditions": [{"key": "status", "value": [status]}],
+                        }
+                    )
+                    self.assertTrue(serializer.is_valid(), serializer.errors)
+                    result = LogCollectorHandler(CURRENT_SPACE_UID).get_log_collectors(serializer.validated_data)
+                    self.assertEqual(result["total"], 1)
+                    self.assertEqual(
+                        [item["collector_config_id"] for item in self._collectors_from_result(result)], [expected_id]
+                    )
 
     def test_default_include_both_current_and_related_space(self):
         """默认（include_related_spaces=True 且不传 collector_source）应返回当前空间和关联空间的采集项。"""

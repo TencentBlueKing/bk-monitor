@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making BK-LOG 蓝鲸日志平台 available.
 Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
@@ -19,6 +18,7 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 We undertake not to change the open source license (MIT license) applicable to the current version of
 the project delivered to anyone in the future.
 """
+
 from django.conf import settings
 
 """
@@ -28,11 +28,14 @@ import base64  # noqa
 import math  # noqa
 
 from bkcrypto.contrib.django.init_configs import SymmetricKeyConfig
+from bkcrypto.symmetric.ciphers.aes import AESSymmetricCipher
+
+from apps.utils.crypto import LegacySymmetricKeyMixin
 from Crypto import Random  # noqa
 from Crypto.Cipher import AES  # noqa
 
 
-class AESCipher(object):
+class AESCipher:
     """
     AES256加解密器
     注意事项：
@@ -123,9 +126,8 @@ def get_default_symmetric_key_config(cipher_type: str) -> SymmetricKeyConfig:
     :param cipher_type:
     :return:
     """
-    # 优先使用 BKPAAS_BK_CRYPTO_KEY 作为对称加密密钥
-    if settings.BKPAAS_BK_CRYPTO_KEY:
-        return SymmetricKeyConfig(key=settings.BKPAAS_BK_CRYPTO_KEY)
-    else:
-        # 若环境变量未注入，取 APP_SECRET 作为对称加密密钥，SDK 会截断，取符合预期的 key length
-        return SymmetricKeyConfig(key=settings.SECRET_KEY)
+    return SymmetricKeyConfig(key=settings.BKPAAS_BK_CRYPTO_KEY or settings.SECRET_KEY)
+
+
+class LegacyAESSymmetricCipher(LegacySymmetricKeyMixin, AESSymmetricCipher):
+    pass

@@ -186,6 +186,9 @@ class CollectorScenario:
                         }
                     )
 
+            if FeatureToggleObject.switch("log_v4_data_link", bk_biz_id):
+                params["created_from"] = "bkdata"
+
             bk_data_id = TransferApi.create_data_id(params)["bk_data_id"]
             logger.info(f"[create_data_id] bk_data_id=>{bk_data_id}, params=>{params}")
         else:

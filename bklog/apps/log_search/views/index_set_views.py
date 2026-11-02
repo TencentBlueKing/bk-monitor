@@ -31,6 +31,7 @@ from apps.generic import ModelViewSet
 from apps.iam import ActionEnum, ResourceEnum
 from apps.iam.handlers.drf import (
     BusinessActionPermission,
+    IAMPermission,
     InstanceActionPermission,
     ViewBusinessPermission,
     insert_permission_field,
@@ -61,6 +62,43 @@ from apps.utils.drf import detail_route, list_route
 from bkm_space.serializers import SpaceUIDField
 
 
+class DesensitizeConfigWritePermission(IAMPermission):
+    """
+    脱敏配置写操作鉴权。
+
+    脱敏规则以 index_set_id 为主键，但用户侧入口的权限资源并不统一：
+    有采集项的索引集走采集项「采集管理」（MANAGE_COLLECTION@collector_config_id），
+    无采集项的索引集（如第三方 ES）走索引集「索引集配置管理」（MANAGE_INDICES@index_set_id）。
+    因此按 LogIndexSet.collector_config_id 动态选择校验资源，避免仅有采集管理权限的
+    用户在保存脱敏规则时被误判为无权限。
+    """
+
+    def __init__(self):
+        super().__init__([])
+
+    def has_permission(self, request, view):
+        if settings.IGNORE_IAM_PERMISSION:
+            return True
+
+        index_set_id = view.kwargs[view.lookup_url_kwarg or view.lookup_field]
+        collector_config_id = (
+            LogIndexSet.objects.filter(index_set_id=index_set_id)
+            .values_list("collector_config_id", flat=True)
+            .first()
+        )
+
+        # collector_config_id=0 在语义上等同于「无采集项」（合法值从 1 开始），
+        # 因此用 truthy 判断而非 `is not None`，确保 collector_config_id=0 也走无采集项路径。
+        if collector_config_id:
+            self.actions = [ActionEnum.MANAGE_COLLECTION]
+            self.resources = [ResourceEnum.COLLECTION.create_instance(collector_config_id)]
+        else:
+            self.actions = [ActionEnum.MANAGE_INDICES]
+            self.resources = [ResourceEnum.INDICES.create_instance(index_set_id)]
+
+        return super().has_permission(request, view)
+
+
 class IndexSetViewSet(ModelViewSet):
     """
     索引集管理
@@ -79,6 +117,15 @@ class IndexSetViewSet(ModelViewSet):
     ]
 
     def get_permissions(self):
+        # 脱敏配置写操作不接受 ESQUERY 白名单豁免：会新增/修改/删除脱敏规则，
+        # 删除规则等同于明文暴露，必须先于白名单返回权限类做实例鉴权（fail-closed）。
+        # 与 CollectorViewSet.update_or_create_clean_config 的处理方式一致。
+        if self.action in [
+            "desensitize_config_create",
+            "desensitize_config_update",
+            "desensitize_config_delete",
+        ]:
+            return [DesensitizeConfigWritePermission()]
         try:
             auth_info = Permission.get_auth_info(self.request)
             # ESQUERY白名单不需要鉴权

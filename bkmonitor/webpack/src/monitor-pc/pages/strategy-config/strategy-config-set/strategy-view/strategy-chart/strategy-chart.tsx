@@ -38,7 +38,6 @@ import { handleThreshold } from 'monitor-ui/chart-plugins/utils';
 import { LETTERS } from '../../../../../common/constant';
 import { SET_DIMENSIONS_OF_SERIES } from '../../../../../store/modules/strategy-config';
 import { PromqlQueryController } from '../../../strategy-config-common/promql-query/controller';
-import { isMultiPromqlBiz } from '../../../strategy-config-common/promql-query/model';
 import { buildPromqlPreview } from '../../../strategy-config-common/promql-query/service';
 import { transformSensitivityValue } from '../../../util';
 import { EShortcutsType } from '../typing';
@@ -226,12 +225,7 @@ export default class StrategyChart extends tsc<IProps, IEvent> {
   /** 初始化图表panel */
   @Debounce(1000)
   async initPanel() {
-    if (
-      this.editMode === 'Source' &&
-      this.sourceController.validate(this.sourceData, this.expression, {
-        allowMulti: isMultiPromqlBiz(this.$store.getters.bizId),
-      })
-    ) {
+    if (this.editMode === 'Source' && this.sourceController.validate(this.sourceData, this.expression)) {
       this.panel = null;
       return;
     }

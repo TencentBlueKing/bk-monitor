@@ -88,7 +88,7 @@ export function buildWaterfall(data: IRumWaterfallData, spanType: string): IRumW
       key: phase.key,
       hover: phase.hover,
       label: phase.alias || phase.key,
-      durationText: formatDuration(Number(phase.duration) || 0, '', 3, data.unit || 'us').replace(/ /g, ''),
+      durationText: formatDuration(Number(phase.duration) || 0, '', 2, data.unit || 'us').replace(/ /g, ''),
       startPercent: Math.min((phase.start / total) * 100, 100),
       durationPercent: Math.max(Math.min((phase.duration / total) * 100, 100), phase.duration > 0 ? 1 : 0),
       color: WATERFALL_PHASE_COLOR[phase.key] || WATERFALL_FALLBACK_COLORS[index % WATERFALL_FALLBACK_COLORS.length],
@@ -106,7 +106,7 @@ export function buildWaterfall(data: IRumWaterfallData, spanType: string): IRumW
       percent: Math.min((marker.value / total) * 100, 100),
       value: marker.value,
       color: RATING_META[matchRating(marker.value, marker['display.rating_config'])].color,
-      valueText: formatDuration(Number(marker.value) || 0, '', 3, data.unit || 'us').replace(/ /g, ''),
+      valueText: formatDuration(Number(marker.value) || 0, '', 2, data.unit || 'us').replace(/ /g, ''),
     })),
     milestones: data.milestones
       ?.filter(item => item.value)
@@ -114,7 +114,7 @@ export function buildWaterfall(data: IRumWaterfallData, spanType: string): IRumW
         key: item.key,
         hover: item.hover,
         name: MILESTONES_KEY_MAP[item.key],
-        value: formatDuration(item.value, '', 3, data.unit || 'us').replace(/ /g, ''),
+        value: formatDuration(item.value, '', 2, data.unit || 'us').replace(/ /g, ''),
       })),
   };
 }
@@ -210,7 +210,7 @@ export function useDetailSections(
             ...base,
             waterfall,
             subTitle: waterfallData.total_duration
-              ? `${t('总耗时')}：${formatDuration(Number(waterfallData.total_duration) || 0, '', 3, waterfallData.unit || 'us').replace(/ /g, '')}`
+              ? `${t('总耗时')}：${formatDuration(Number(waterfallData.total_duration) || 0, '', 2, waterfallData.unit || 'us').replace(/ /g, '')}`
               : '',
             spanType: type,
           });
@@ -339,8 +339,8 @@ function buildTtfbBreakdown(data: IRumWaterfallData): IRumTtfbBreakdownVM | unde
   if (!items.length) return undefined;
   const itemsTotal = items.reduce((sum, phase) => sum + (Number(phase.duration) || 0), 0);
   return {
-    itemsTotalText: formatDuration(itemsTotal, '', 3, unit).replace(/ /g, ''),
-    diffText: formatDuration(Math.abs(ttfbValue - itemsTotal), '', 3, unit).replace(/ /g, ''),
+    itemsTotalText: formatDuration(itemsTotal, '', 2, unit).replace(/ /g, ''),
+    diffText: formatDuration(Math.abs(ttfbValue - itemsTotal), '', 2, unit).replace(/ /g, ''),
   };
 }
 

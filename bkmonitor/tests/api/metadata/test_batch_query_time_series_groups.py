@@ -50,7 +50,7 @@ class TestBatchQueryTimeSeriesGroups:
     def test_batch_query(self, mock_single_query, expected_count):
         """测试批量查询。"""
         groups = api.metadata.query_time_series_group()
-        expected_call_count = math.ceil(expected_count / self.LIMIT) + 1  # 额外的一次请求以计算 count
+        expected_call_count = max(1, math.ceil(expected_count / self.LIMIT))
         actual_call_count = mock_single_query.call_count
 
         assert actual_call_count == expected_call_count

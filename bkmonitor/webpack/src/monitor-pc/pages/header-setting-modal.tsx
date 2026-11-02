@@ -35,6 +35,7 @@ import {
   COMMON_ROUTE_STORE_KEY,
   DEFAULT_ROUTE_LIST,
   getLocalStoreRoute,
+  normalizeStoredRouteIds,
 } from '../router/router-config';
 
 import './header-setting-modal.scss';
@@ -92,12 +93,13 @@ class HeaderSettingModal extends Mixins(UserConfigMixin) {
     return this.getStoreRoutesByIdList(configList);
   }
   getStoreRoutesByIdList(routeIds: string[]) {
+    const normalizedIds = normalizeStoredRouteIds(routeIds);
     const routes = [];
     this.flatRoutes.forEach(item => {
-      const list = item.children?.filter(set => routeIds.includes(set.id));
+      const list = item.children?.filter(set => normalizedIds.includes(set.id));
       list?.length && routes.push(...list);
     });
-    return routeIds.map(id => routes.find(item => item.id === id)).filter(Boolean);
+    return normalizedIds.map(id => routes.find(item => item.id === id)).filter(Boolean);
   }
   setStoreRoutes() {
     this.handleSetUserConfig(COMMON_ROUTE_STORE_KEY, JSON.stringify(this.storeRoutes.map(item => item.id)));

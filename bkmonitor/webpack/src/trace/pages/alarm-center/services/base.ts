@@ -49,6 +49,14 @@ import type {
 } from '../typings';
 import type { IFilterField } from '@/components/retrieval-filter/typing';
 
+/** 告警关联数据按需请求选项 */
+export interface AlterRelevanceOptions extends RequestOptions {
+  /** 是否请求关联事件数，默认 true */
+  needEventCount?: boolean;
+  /** 是否请求关联信息，默认 true */
+  needRelatedInfo?: boolean;
+}
+
 /** 请求配置选项 */
 export interface RequestOptions {
   /** 中止信号 */
@@ -87,11 +95,11 @@ export abstract class AlarmService<S = AlarmType> {
   /**
    * @description: 获取告警表格数据关联的事件数和关联告警信息
    * @param {(ActionTableItem | AlertTableItem | IncidentTableItem)[]} data 表格数据
-   * @param {RequestOptions} options 请求配置选项
+   * @param {AlterRelevanceOptions} options 请求配置；needEventCount / needRelatedInfo 默认 true
    */
   async getAlterRelevance(
     data: (ActionTableItem | AlertTableItem | IncidentTableItem)[],
-    options?: RequestOptions
+    options?: AlterRelevanceOptions
   ): Promise<{
     event_count: AlertEventCountResult;
     extend_info: AlertExtendInfoResult;
@@ -99,9 +107,25 @@ export abstract class AlarmService<S = AlarmType> {
     if (this.scenes !== AlarmType.ALERT) {
       return null;
     }
+    const needEventCount = options?.needEventCount ?? true;
+    const needRelatedInfo = options?.needRelatedInfo ?? true;
+    if (!needEventCount && !needRelatedInfo) {
+      return null;
+    }
+    if (!data.length) {
+      return { event_count: undefined, extend_info: undefined };
+    }
+    const requestOptions = {
+      needMessage: false,
+      ...(options?.signal ? { signal: options.signal } : {}),
+    };
     const params = { ids: data.map(item => item.id) };
-    const eventCountPromise = alertEventCount(params, options).catch(() => {}) as Promise<Record<string, number>>;
-    const relateInfosPromise = alertRelatedInfo(params, options).catch(() => {});
+    const eventCountPromise = (
+      needEventCount ? alertEventCount(params, requestOptions).catch(() => {}) : Promise.resolve(undefined)
+    ) as Promise<AlertEventCountResult>;
+    const relateInfosPromise = (
+      needRelatedInfo ? alertRelatedInfo(params, requestOptions).catch(() => {}) : Promise.resolve(undefined)
+    ) as Promise<AlertExtendInfoResult>;
 
     const [eventCount, extendInfo] = (await Promise.allSettled([eventCountPromise, relateInfosPromise])) as [
       PromiseFulfilledResult<AlertEventCountResult>,
@@ -176,4 +200,14 @@ export abstract class AlarmService<S = AlarmType> {
   updateFavorite(id: string, params: any) {
     return updateFavorite(id, params);
   }
+}
+
+/** 根据当前显示列判断需要请求哪些关联接口 */
+export function getAlertRelevanceNeeds(visibleColumns: string[]) {
+  return {
+    /** 依赖 event_count 的列：关联事件数 */
+    needEventCount: visibleColumns.includes('event_count'),
+    /** 依赖 related_info 的列：关联信息、监控目标 */
+    needRelatedInfo: ['extend_info', 'target_key'].some(colKey => visibleColumns.includes(colKey)),
+  };
 }

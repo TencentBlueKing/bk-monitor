@@ -46,8 +46,15 @@ export default defineComponent({
     spanType: {
       type: String,
     },
+    /** 卡片是否展开：折叠时只保留头部摘要 */
+    expanded: {
+      type: Boolean,
+      default: true,
+    },
   },
   emits: {
+    /** 点击右上角按钮，切换卡片展开 / 折叠 */
+    toggle: () => true,
     /** 点击「View 详情」，打开该 View 的详情抽屉 */
     viewClick: (_view: IRumTimelineViewVM) => true,
   },
@@ -90,7 +97,10 @@ export default defineComponent({
       ].filter(Boolean);
 
       return (
-        <div class='timeline-view-header'>
+        <div
+          class={{ 'timeline-view-header': true, 'is-collapsed': !props.expanded }}
+          onClick={() => emit('toggle')}
+        >
           <div class='view-title-row'>
             <span
               class='view-title'
@@ -121,6 +131,9 @@ export default defineComponent({
               ) : null,
               metric,
             ])}
+          </div>
+          <div class='view-expand-btn'>
+            <i class={['icon-monitor icon-arrow-right-copy', { expand: props.expanded }]} />
           </div>
           <div style='display: none'>
             <div ref='hoverInfo'>

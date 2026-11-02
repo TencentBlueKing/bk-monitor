@@ -22,7 +22,6 @@ the project delivered to anyone in the future.
 import abc
 import copy
 import datetime
-import operator
 from collections import defaultdict
 
 from django.conf import settings
@@ -35,7 +34,6 @@ from apps.log_search.handlers.search.search_handlers_esquery import (
 )
 from apps.utils.local import get_local_param
 from apps.utils.log import logger
-from apps.utils.thread import MultiExecuteFunc
 from apps.utils.time_handler import (
     DTEVENTTIMESTAMP_MULTIPLICATOR,
     generate_time_range,
@@ -298,27 +296,6 @@ class AggsViewAdapter:
     def __init__(self):
         self._aggs_handlers = AggsHandlers
 
-    @staticmethod
-    def _init_union_configs(union_configs=None):
-        """
-        初始化索引集配置
-        """
-        union_config_map = dict()
-
-        if not union_configs:
-            return union_config_map
-
-        for config in union_configs:
-            if not isinstance(config, dict):
-                continue
-            index_set_id = int(config.get("index_set_id"))
-            custom_indices = config.get("custom_indices", "")
-
-            if index_set_id not in union_config_map:
-                union_config_map[index_set_id] = {}
-            union_config_map[index_set_id].update({"index_set_id": index_set_id, "custom_indices": custom_indices})
-        return union_config_map
-
     def terms(self, index_set_id, query_data: dict):
         terms_result = self._aggs_handlers.terms(index_set_id, query_data)
         aggs_result = terms_result.get("aggs", {})
@@ -429,128 +406,6 @@ class AggsViewAdapter:
                 )
         return_data["aggs"] = self._del_empty_histogram(return_data["aggs"])
         return return_data
-
-    def union_search_date_histogram(self, query_data: dict):
-        index_set_ids = query_data.get("index_set_ids", [])
-        union_configs = query_data.get("union_configs", [])
-
-        # 初始化索引集配置
-        union_config_map = self._init_union_configs(union_configs)
-
-        # 多线程请求数据
-        multi_execute_func = MultiExecuteFunc()
-
-        for index_set_id in index_set_ids:
-            if union_config_map:
-                query_data["custom_indices"] = union_config_map.get(index_set_id, {}).get("custom_indices", "")
-            params = {"index_set_id": index_set_id, "query_data": query_data}
-            multi_execute_func.append(
-                result_key=f"union_search_date_histogram_{index_set_id}",
-                func=AggsViewAdapter().date_histogram,
-                params=params,
-                multi_func_params=True,
-            )
-
-        multi_result = multi_execute_func.run()
-
-        buckets_info = dict()
-        # 处理返回结果
-        for index_set_id in index_set_ids:
-            result = multi_result.get(f"union_search_date_histogram_{index_set_id}", {})
-            aggs = result.get("aggs", {})
-            if not aggs:
-                continue
-            buckets = aggs["group_by_histogram"]["buckets"]
-            for bucket in buckets:
-                key_as_string = bucket["key_as_string"]
-                if key_as_string not in buckets_info:
-                    buckets_info[key_as_string] = bucket
-                else:
-                    buckets_info[key_as_string]["doc_count"] += bucket["doc_count"]
-
-        ret_data = (
-            {"aggs": {"group_by_histogram": {"buckets": buckets_info.values()}}} if buckets_info else {"aggs": {}}
-        )
-
-        return ret_data
-
-    def union_search_terms(self, query_data: dict):
-        index_set_ids = query_data.get("index_set_ids", [])
-        union_configs = query_data.get("union_configs", [])
-
-        # 初始化索引集配置
-        union_config_map = self._init_union_configs(union_configs)
-
-        # 多线程请求数据
-        multi_execute_func = MultiExecuteFunc()
-
-        for index_set_id in index_set_ids:
-            if union_config_map:
-                query_data["custom_indices"] = union_config_map.get(index_set_id, {}).get("custom_indices", "")
-            params = {"index_set_id": index_set_id, "query_data": query_data}
-            multi_execute_func.append(
-                result_key=f"union_search_terms_{index_set_id}",
-                func=AggsViewAdapter().terms,
-                params=params,
-                multi_func_params=True,
-            )
-
-        multi_result = multi_execute_func.run()
-
-        aggs_all = dict()
-        aggs_items_all = dict()
-        # 处理返回结果
-        for index_set_id in index_set_ids:
-            result = multi_result.get(f"union_search_terms_{index_set_id}", {})
-
-            if not result:
-                continue
-
-            # 处理 aggs
-            for key, value in result.get("aggs", {}).items():
-                if not value or not isinstance(value, dict):
-                    value = dict()
-                if key not in aggs_all:
-                    aggs_all[key] = value
-                else:
-                    try:
-                        for v_kk, v_vv in value.items():
-                            if isinstance(v_vv, int):
-                                aggs_all[key][v_kk] += v_vv
-                            elif isinstance(v_vv, list):
-                                aggs_all[key][v_kk].extend(v_vv)
-                    except Exception as e:  # pylint: disable=broad-except
-                        logger.error(f"[union_search_terms error] e={e}")
-                        continue
-
-            # 处理 aggs_items
-            for items_k, items_v in result.get("aggs_items", {}).items():
-                if items_k not in aggs_items_all:
-                    aggs_items_all[items_k] = items_v
-                    continue
-                elif isinstance(items_v, list):
-                    aggs_items_all[items_k].extend(items_v)
-                aggs_items_all[items_k] = list(set(aggs_items_all[items_k]))
-
-        # buckets 合并排序
-        for all_key, all_value in aggs_all.items():
-            if not all_value or not isinstance(all_value, dict):
-                continue
-            buckets = all_value.get("buckets", [])
-            if not buckets:
-                continue
-            buckets_info = dict()
-            for bucket in buckets:
-                bucket_key = bucket["key"]
-                if bucket_key not in buckets_info:
-                    buckets_info[bucket_key] = bucket
-                else:
-                    buckets_info[bucket_key]["doc_count"] += bucket["doc_count"]
-
-            sorted_buckets = sorted(list(buckets_info.values()), key=operator.itemgetter("doc_count"), reverse=True)
-            all_value["buckets"] = sorted_buckets
-
-        return {"aggs": aggs_all, "aggs_items": aggs_items_all}
 
     def _del_empty_histogram(self, aggs):
         """

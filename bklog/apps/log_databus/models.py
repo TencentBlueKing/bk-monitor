@@ -126,7 +126,7 @@ class CollectorConfig(CollectorBase):
     """
 
     collector_config_id = models.AutoField(_("采集配置ID"), primary_key=True)
-    collector_config_name = models.CharField(_("采集配置名称"), max_length=64)
+    collector_config_name = models.CharField(_("采集配置名称"), max_length=128)
     collector_plugin_id = models.BigIntegerField(_("采集插件ID"), db_index=True, null=True)
     bk_app_code = models.CharField(_("接入的来源APP"), max_length=64, default="bk_log_search")
     collector_scenario_id = models.CharField(_("采集场景"), max_length=64)
@@ -892,3 +892,13 @@ class GrokInfo(OperateRecordModel):
         verbose_name = _("Grok规则")
         verbose_name_plural = _("Grok规则")
         unique_together = ("name", "bk_biz_id")
+
+
+# 节点管理 V3 控制面模型。定义在 nodeman_v3 子包内（模型声明了 app_label="log_databus"），
+# 在此导入以便 Django 完成注册与迁移发现。
+from apps.log_databus.nodeman_v3.models import (  # noqa  pylint: disable=unused-import
+    NodeManV3Binding,
+    NodeManV3Operation,
+    NodeManV3SubConfigTarget,
+    NodeManV3Workflow,
+)

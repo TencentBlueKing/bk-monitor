@@ -30,6 +30,7 @@ from django.utils.translation import gettext_lazy as _
 from pipeline.service import task_service
 
 
+from apps.constants import USERNAME_MAX_LENGTH
 from apps.log_extract.constants import PIPELINE_TIME_FORMAT, ExtractLinkType, LogExtractTargetNodeTypeEnum
 from apps.models import (
     JsonField,
@@ -74,6 +75,8 @@ class Tasks(OperateRecordModel):
     """任务记录 一个"下载"行为记作一个"Task" """
 
     objects = TasksManager()
+    created_by = models.CharField(_("创建者"), max_length=USERNAME_MAX_LENGTH, default="")
+    updated_by = models.CharField(_("修改者"), max_length=USERNAME_MAX_LENGTH, blank=True, default="")
     task_id = models.AutoField(_("任务记录id"), primary_key=True)
     bk_biz_id = models.IntegerField(_("业务id"), db_index=True)
     target_node_type = models.CharField(

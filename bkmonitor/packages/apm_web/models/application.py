@@ -42,7 +42,6 @@ from apm_web.constants import (
 )
 from apm_web.meta.plugin.log_trace_plugin_config import LogTracePluginConfig
 from apm_web.meta.plugin.plugin import LOG_TRACE
-from apm_web.metric_handler import RequestCountInstance
 from bkm_space.api import SpaceApi
 from bkmonitor.data_source.utils.apm import TraceDatasourceTarget
 from bkmonitor.iam import Permission, ResourceEnum
@@ -319,13 +318,6 @@ class Application(AbstractRecordModel):
         if no_data_config:
             return no_data_config.config_value[self.NoDataConfig.no_data_period]
         return DEFAULT_NO_DATA_PERIOD
-
-    @cached_property
-    def doc_count(self):
-        """应用过期时间内的文档数量"""
-        start_time, end_time = get_datetime_range("day", self.es_retention)
-        start_time, end_time = int(start_time.timestamp()), int(end_time.timestamp())
-        return RequestCountInstance(self, start_time, end_time).query_instance()
 
     def set_service_count_and_data_status(self) -> None:
         """刷新应用的服务数量。"""

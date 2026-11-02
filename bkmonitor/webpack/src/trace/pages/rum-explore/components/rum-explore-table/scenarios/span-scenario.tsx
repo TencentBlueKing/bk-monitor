@@ -41,17 +41,11 @@ import {
   RUM_HTTP_STATUS_CODE_MAP,
   RUM_OUTCOME_TYPE_MAP,
   RUM_STATUS_CODE_MAP,
-  RumFieldDisplayEnum,
   SPAN_KIND_MAPS,
   SPAN_TYPE_FIELD,
   SPAN_TYPE_META,
 } from '../../../constants';
-import {
-  ARRAY_ITEM_EMPTY_PLACEHOLDER,
-  formatArrayItem,
-  formatUnitValue,
-  resolveArrayItemFormatter,
-} from '../../../utils';
+import { ARRAY_ITEM_EMPTY_PLACEHOLDER, formatArrayItem, resolveArrayItemFormatter } from '../../../utils';
 import CollapseArrayCell from '../components/collapse-array-cell/collapse-array-cell';
 import { BaseScenario } from './base-scenario';
 
@@ -167,20 +161,7 @@ export class SpanScenario extends BaseScenario {
         },
       };
     }
-    switch (field?.field_display_type) {
-      case RumFieldDisplayEnum.DATETIME:
-        return { renderType: ExploreTableColumnTypeEnum.TIME };
-      case RumFieldDisplayEnum.DURATION:
-        return {
-          renderType: ExploreTableColumnTypeEnum.DURATION,
-          cellSpecificProps: { durationUnit: field?.field_unit as 'ms' | 'us' },
-        };
-      default: {
-        const unit = field?.field_unit;
-        if (!unit) return {};
-        return { getRenderValue: row => formatUnitValue(row[colKey], unit) };
-      }
-    }
+    return super.buildBaseline(colKey);
   }
 
   // ----------------- Span 场景私有逻辑方法 -----------------
@@ -377,18 +358,22 @@ export class SpanScenario extends BaseScenario {
    */
   private getSpanTypeRenderValue(value: unknown) {
     const meta = SPAN_TYPE_META[value as string];
+    /** 与「类型选择」芯片保持同样的取值优先级：有设计稿 svg 用 svg，没有才走内置图标字体（图标类尺寸配色见 span-table-theme.scss） */
+    const prefixIcon = meta?.icon
+      ? () =>
+          (
+            <img
+              class='span-type-icon'
+              alt=''
+              src={meta.icon}
+            />
+          ) as unknown as SlotReturnValue
+      : meta?.fontIcon
+        ? `${meta.fontIcon} span-type-font-icon`
+        : '';
     return {
       alias: meta?.label || value,
-      prefixIcon: meta?.icon
-        ? () =>
-            (
-              <img
-                class='span-type-icon'
-                alt=''
-                src={meta.icon}
-              />
-            ) as unknown as SlotReturnValue
-        : '',
+      prefixIcon,
     };
   }
 

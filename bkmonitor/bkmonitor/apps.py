@@ -28,6 +28,10 @@ class Config(AppConfig):
     label = "bkmonitor"
 
     def ready(self):
+        from patches.blueapps import patch_ticket_authenticate
+
+        patch_ticket_authenticate()
+
         from bkmonitor.utils.db_connection import install_discard_dead_db_connection
 
         install_discard_dead_db_connection()
@@ -48,7 +52,10 @@ class Config(AppConfig):
             if settings.ROLE == "worker":
                 CacheNode.refresh_from_settings()
 
-        # 调用自定义实现的patch_bkoauth方法，消除大量的MissingSchema异常堆栈，之所以在这里调用，是因为bkoauth的初始化依赖于Django的初始化
+        # Open 只在业务显式授权时换票；每次启动时确保断开框架的登录换票信号。
+        if settings.RUN_VER == "open":
+            patch_bkoauth_update_user_access_token()
+        # 内网沿用迁移后的登录换票补丁。
         post_migrate.connect(patch_bkoauth_update_user_access_token, sender=self, dispatch_uid="bkoauth")
 
         if os.getenv("BK_MONITOR_UNIFY_QUERY_HOST"):

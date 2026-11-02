@@ -1774,10 +1774,12 @@ export default defineComponent({
             stopCollectStatusTimer();
             return;
           }
-          const isHasRunning = res.data.filter(item => item.status === 'running').length > 0;
+          const shouldContinuePolling =
+            res.data.filter(item => ['running', 'unknown'].includes(item.status)).length > 0;
           tableList.value = tableList.value.map(item => {
             const info = res.data.find(val => val.collector_id === item.collector_config_id);
-            const { status_name, status } = info || {};
+            if (!info?.status) return item;
+            const { status_name, status } = info;
             return {
               ...item,
               status,
@@ -1785,15 +1787,15 @@ export default defineComponent({
             };
           });
 
-          // 如果还有运行中的状态，则10s后继续轮询
-          if (isHasRunning) {
+          // 如果还有部署中或未知状态，则10s后继续轮询
+          if (shouldContinuePolling) {
             // 清除之前的定时器（如果存在）
             stopCollectStatusTimer();
             collectStatusTimer = setTimeout(() => {
               getCollectStatus(collectorConfigIdList);
             }, 10000);
           } else {
-            // 没有运行中的状态，停止轮询
+            // 没有部署中或未知状态，停止轮询
             stopCollectStatusTimer();
           }
         })

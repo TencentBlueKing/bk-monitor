@@ -1,19 +1,20 @@
 import asyncio
+import inspect
 import logging
 import os
 import time
 from functools import lru_cache
 from threading import Lock
-from typing import Optional
 
 from celery import platforms
 from celery.signals import worker_process_init, worker_process_shutdown
-from pyppeteer import launch
 from pyppeteer.browser import Browser
+from pyppeteer.launcher import Launcher
 
 logger = logging.getLogger("bkmonitor")
 
-_browser: Optional[Browser] = None
+_browser: Browser | None = None
+_launcher: Launcher | None = None
 _browser_lock = Lock()
 _browser_connected = False
 _browser_start_time = 0
@@ -47,6 +48,7 @@ async def get_browser():
     global _browser
     global _browser_connected
     global _browser_start_time
+    global _launcher
 
     with _browser_lock:
         # 如果浏览器断开，尝试关闭浏览器
@@ -76,8 +78,8 @@ async def get_browser():
         # 获取浏览器路径
         chrome_path = get_browser_path()
 
-        # 启动浏览器
-        _browser = await launch(
+        # 启动浏览器，先持有 launcher，launch 中途被取消时仍能拿到已拉起的浏览器进程
+        _launcher = Launcher(
             headless=True,
             executablePath=chrome_path,
             options={
@@ -95,12 +97,55 @@ async def get_browser():
                 "timeout": 5000,
             },
         )
+        _browser = await _launcher.launch()
 
         # 监听浏览器连接断开事件
         _browser_connected = True
         _browser.on("disconnected", _on_browser_disconnected)
         _browser_start_time = time.time()
         return _browser
+
+
+def kill_browser():
+    """
+    强制结束当前进程拉起的浏览器并丢弃实例
+    Browser.close 依赖浏览器应答，浏览器卡住时同样会卡住，只能直接杀进程
+    """
+    global _browser, _browser_connected, _browser_start_time, _launcher
+    launcher, _launcher = _launcher, None
+    _browser = None
+    _browser_connected = False
+    _browser_start_time = 0
+
+    if not launcher:
+        return
+    # pyppeteer 注册的 atexit/信号钩子据此跳过 killChrome，避免退出时再次卡在浏览器应答上
+    launcher.chromeClosed = True
+    try:
+        proc = getattr(launcher, "proc", None)
+        if proc:
+            proc.kill()
+            proc.wait(timeout=5)
+        launcher._cleanup_tmp_user_data_dir()
+    except Exception as e:
+        logger.exception(f"kill browser failed, error: {e}")
+
+    connection = getattr(launcher, "connection", None)
+    if not connection:
+        return
+    # pyppeteer 1.0.2 不持有 Connection 起的后台任务，WebSocket 未建连时 _async_send 会一直 sleep(0) 空转，只能按绑定实例找出来取消
+    loop = connection._loop
+    recv = connection._recv_fut
+    if recv.done() and not recv.cancelled() and recv.exception():
+        logger.warning(f"browser connection failed, error: {recv.exception()!r}")
+    tasks = [t for t in asyncio.all_tasks(loop) if inspect.getcoroutinelocals(t.get_coro()).get("self") is connection]
+    try:
+        for task in tasks:
+            task.cancel()
+        if tasks and not loop.is_running():
+            loop.run_until_complete(asyncio.wait(tasks, timeout=5))
+    except Exception as e:
+        logger.exception(f"cancel browser connection tasks failed, error: {e}")
 
 
 def get_or_create_eventloop() -> asyncio.AbstractEventLoop:

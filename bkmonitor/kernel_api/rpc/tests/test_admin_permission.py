@@ -806,7 +806,7 @@ class TestQueryUserPermissions:
         setting = next(a for a in data["actions"] if a["action_id"] == codec.encode_action("manage_global_setting"))
         assert setting["grant_type"] == "all"
 
-        # CompatibleIAM V1+V2 merge 等价
+        # manage_public_plugin 全局授权
         plugin_mgr = next(a for a in data["actions"] if a["action_id"] == codec.encode_action("manage_public_plugin"))
         assert plugin_mgr["grant_type"] == "all"
 

@@ -43,7 +43,7 @@ import type {
 export const executionStatusLabels = {
   running: '采集中',
   succeed: '成功',
-  parsing: '解析中',
+  parsing: 'trace-解析中',
   partial_succeed: '部分成功',
   failed: '失败',
   timeout: '超时',
@@ -62,7 +62,7 @@ export const resultStatusLabels = {
   cancelled: '已取消',
   unknown: '未知',
   outdate: '结果已过期',
-  parsing: '解析中',
+  parsing: 'trace-解析中',
 };
 
 const hostStatusRanks: Record<string, number> = {
@@ -308,6 +308,8 @@ export function buildExecutionPayload(
       config.process_selector.config.host_pids = config.process_selector.config.host_pids.filter(host =>
         hosts.has(host.bk_host_id)
       );
+      if (!config.process_selector.config.host_pids.length)
+        throw new Error('当前主机没有已选择的进程，请编辑采集配置后重试');
     }
   }
   return {

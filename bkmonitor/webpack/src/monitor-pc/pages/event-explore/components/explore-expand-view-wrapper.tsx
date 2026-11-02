@@ -2,6 +2,7 @@ import { Component, Emit, InjectReactive, Prop } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
 import { copyText } from 'monitor-common/utils';
+import { buildSyncLegacyHostHash } from 'monitor-common/utils/host-monitor-url';
 /*
  * Tencent is pleased to support the open source community by making
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
@@ -166,8 +167,13 @@ export default class ExploreExpandViewWrapper extends tsc<
           const cloudId =
             this.getValueBySourceName('bk_cloud_id') || this.getValueBySourceName('bk_target_cloud_id') || '0';
           const endStr = `${value}${fieldName === 'bk_host_id' ? '' : `-${cloudId}`}`;
-          const query = `?from=${timezone[0]}&to=${timezone[1]}`;
-          path = `#/performance/detail/${endStr}${query}`;
+          path = buildSyncLegacyHostHash({
+            id: String(endStr),
+            query: {
+              from: String(timezone[0] ?? ''),
+              to: String(timezone[1] ?? ''),
+            },
+          });
         }
         break;
       case ExploreEntitiesTypeEnum.K8S:

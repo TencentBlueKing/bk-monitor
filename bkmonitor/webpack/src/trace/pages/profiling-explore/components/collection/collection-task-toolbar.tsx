@@ -53,7 +53,7 @@ export default defineComponent({
               title: () => (
                 <i18n-t keypath='新建任务：如果选择 <{0}> 提交后将马上进入<采集任务历史>；如果选择 <{1} / {2}> 将进入下方的 <定时任务列表>。'>
                   <b>{this.t('立即执行')}</b>
-                  <b>{this.t('指定时间')}</b>
+                  <b>{this.t('trace-指定时间')}</b>
                   <b>{this.t('周期执行')}</b>
                 </i18n-t>
               ),

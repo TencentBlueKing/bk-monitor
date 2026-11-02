@@ -216,3 +216,8 @@ Basic 用户名固定为 `bk_iam`；Token 由共同客户端获取。缓存键�
 后者仍执行租户过滤，由同一产品 Provider 提供相应原生操作。
 
 机制去向、目录及调用链对照见 [架构对齐验收](docs/architecture-alignment.md)。
+
+## Action V1 兼容退役
+
+两平台已移除旧 Action V1 的兼容查询和配置开关。升级条件、保留边界与回退说明见
+[Action V1 兼容退役说明](docs/action-v1-retirement.md)。IAM V3 协议仍受支持。

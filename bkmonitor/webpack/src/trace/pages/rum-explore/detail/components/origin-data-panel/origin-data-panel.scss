@@ -124,12 +124,14 @@
         align-items: center;
         margin: 0 10px 0 auto;
 
-        .icon-add-query {
+        .icon-add-query,
+        .icon-code {
           margin-right: 4px;
         }
 
         .icon-add-query,
-        .icon-mc-copy {
+        .icon-mc-copy,
+        .icon-code {
           font-size: 16px;
           color: #979ba5;
           cursor: pointer;
@@ -161,27 +163,6 @@
         .vjs-key {
           white-space: nowrap;
         }
-      }
-    }
-
-    .format-button {
-      position: absolute;
-      top: 0;
-      right: 0;
-      z-index: 1;
-      display: none;
-      height: 22px;
-      padding: 2px 4px;
-
-      .icon-monitor {
-        margin-right: 2px;
-        font-size: 12px;
-      }
-    }
-
-    &:hover {
-      .format-button {
-        display: flex;
       }
     }
   }

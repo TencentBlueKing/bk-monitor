@@ -30,7 +30,6 @@ function draft(overrides = {}) {
       sourceCode: 'vector(1)', step: 60,
       queryConfigs: [{ alias: 'a', promql: 'vector(1)' }, { alias: 'b', promql: 'vector(2)' }],
     },
-    promqlMultiLocked: false,
     localExpFunctions: [],
     queryOutputConfig: undefined,
     ...overrides,
@@ -60,14 +59,8 @@ test('draft explicit disabling and custom output identities are preserved withou
   assert.equal(vm.noticePreviewItem.query_output_config.output_list[0].reference_name, 'Total');
 });
 
-test('locked and legacy multi-query previews retain the same original item as save', () => {
+test('legacy multi-query preview retains the same original item as save', () => {
   const queries = [{ alias: 'a', promql: 'vector(10)' }, { alias: 'b', promql: 'vector(20)' }];
-  const locked = draft({ promqlMultiLocked: true, sourceData: {
-    sourceCode: 'edited', step: 60, rawQueryConfigs: queries, rawExpression: 'a/b', rawOriginSql: 'original',
-  } });
-  assert.equal(locked.noticePreviewItem.expression, 'a/b');
-  assert.equal(locked.noticePreviewItem.origin_sql, 'original');
-  assert.deepEqual(locked.noticePreviewItem.query_configs, queries);
   const legacy = draft({ sourceData: {
     sourceCode: 'edited', step: 60, legacyMultiQuery: true, legacyQueryConfigs: queries,
     legacyExpression: 'a*b', legacyOriginSql: 'legacy',

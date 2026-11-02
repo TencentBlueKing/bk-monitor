@@ -24,9 +24,12 @@
  * IN THE SOFTWARE.
  */
 import { defineComponent, ref, type PropType, onMounted, onUnmounted, type VNode } from 'vue';
+import { overlayRegistry, shouldHideOnOutsideClick } from '../../global/overlay';
 import PopInstanceUtil from '../../global/pop-instance-util';
 import type { Props as TippyProps } from 'tippy.js';
 import './index.scss';
+
+let bklogPopoverSeq = 0;
 
 // 导出theme类型
 export type BklogPopoverTheme = 'bklog-light' | 'bklog-dark' | 'bklog-basic-light' | 'bklog-basic-dark';
@@ -64,31 +67,61 @@ export default defineComponent({
       type: [String, Function] as PropType<(() => VNode) | VNode | string>,
       default: undefined,
     },
+    overlayId: {
+      type: String,
+      default: '',
+    },
+    overlayGroup: {
+      type: String,
+      default: '',
+    },
+    overlayParentId: {
+      type: String,
+      default: '',
+    },
+    ignoreSelector: {
+      type: String,
+      default: '.bklog-popover-stop, .bk-selector-list, .bk-select-dropdown',
+    },
   },
   setup(props, { slots, expose }) {
     const refContentElement = ref(null);
     const refTargetElement = ref(null);
     let isDocumentClickBinded = false;
     let instance: PopInstanceUtil = null;
+    bklogPopoverSeq += 1;
+    const resolvedOverlayId = props.overlayId || `bklog-popover-${bklogPopoverSeq}`;
+    const overlayRootSelector = `[data-overlay-id="${resolvedOverlayId}"]`;
+
+    const hideViaRegistry = () => {
+      overlayRegistry.hide(resolvedOverlayId);
+    };
 
     const hanldeDocumentClick = (e: MouseEvent) => {
-      if (refContentElement.value?.contains(e.target as HTMLElement)) {
+      if (!instance?.isShown()) {
         return;
       }
 
-      if (instance?.isShown()) {
-        const target = e.target as HTMLElement;
-        if (target === refTargetElement.value) {
-          return;
-        }
+      const target = e.target as HTMLElement;
+      if (target === refTargetElement.value || refTargetElement.value?.contains(target)) {
+        return;
+      }
 
-        if (refTargetElement.value.contains(target)) {
-          return;
-        }
+      if (overlayRegistry.isClickInsideRecord(e, resolvedOverlayId)) {
+        return;
+      }
 
-        if (props.beforeHide?.(e) ?? true) {
-          instance?.hide();
-        }
+      if (
+        !shouldHideOnOutsideClick(e, {
+          rootSelector: overlayRootSelector,
+          ignoreSelector: props.ignoreSelector,
+        })
+      ) {
+        return;
+      }
+
+      if (props.beforeHide?.(e) ?? true) {
+        hideViaRegistry();
       }
     };
 
@@ -107,6 +140,7 @@ export default defineComponent({
         },
         onHidden: (...args) => {
           props.options.onHidden?.(...args);
+          overlayRegistry.hide(resolvedOverlayId);
           if (props.options.hideOnClick === false && props.trigger === 'click' && isDocumentClickBinded) {
             document.removeEventListener('click', hanldeDocumentClick);
             isDocumentClickBinded = false;
@@ -115,23 +149,44 @@ export default defineComponent({
       },
     });
 
-    const handleRootElementClick = () => {
-      // e.stopPropagation();
-      // e.preventDefault();
-      // e.stopImmediatePropagation();
+    overlayRegistry.register(resolvedOverlayId, {
+      type: 'popover',
+      group: props.overlayGroup || undefined,
+      parentId: props.overlayParentId || undefined,
+      rootSelector: overlayRootSelector,
+      ignoreSelector: props.ignoreSelector,
+      hide: () => instance.hide(),
+    });
 
+    const openInstance = (target?: HTMLElement) => {
+      const anchor = target ?? props.delegateTarget ?? refTargetElement.value;
+      const parentId = props.overlayParentId || overlayRegistry.findParentIdByElement(anchor);
+      overlayRegistry.register(resolvedOverlayId, {
+        type: 'popover',
+        group: props.overlayGroup || undefined,
+        parentId: parentId || undefined,
+        rootSelector: overlayRootSelector,
+        ignoreSelector: props.ignoreSelector,
+        hide: () => instance.hide(),
+        anchor,
+      });
+      overlayRegistry.open(resolvedOverlayId, { anchor });
+      instance.show(anchor);
+    };
+
+    const handleRootElementClick = () => {
       if (instance.isShown()) {
-        instance.hide();
+        hideViaRegistry();
         return;
       }
-      instance.show(props.delegateTarget ?? refTargetElement.value);
+      openInstance();
     };
 
     const handleRootElementMouseenter = () => {
       if (instance.isShown()) {
         return;
       }
-      instance.show(props.delegateTarget ?? refTargetElement.value);
+      openInstance();
     };
 
     const handleRootElementMouseleave = () => {
@@ -162,11 +217,15 @@ export default defineComponent({
 
     const show = (target?: HTMLElement) => {
       instance.cancelHide();
-      instance.show(target ?? props.delegateTarget ?? refTargetElement.value);
+      openInstance(target);
     };
 
     const hide = (delay?: number) => {
-      instance.hide(delay);
+      if (delay) {
+        instance.hide(delay);
+        return;
+      }
+      hideViaRegistry();
     };
 
     const setProps = (prop: TippyProps) => {
@@ -198,9 +257,12 @@ export default defineComponent({
         document.removeEventListener('click', hanldeDocumentClick);
         isDocumentClickBinded = false;
       }
+
+      overlayRegistry.dispose(resolvedOverlayId);
+      instance.uninstallInstance();
     });
 
-    expose({ show, hide, setProps, update });
+    expose({ show, hide, setProps, update, overlayId: resolvedOverlayId });
     const renderSlot = () => {
       if (typeof props.content === 'function') {
         return props.content();
@@ -215,7 +277,8 @@ export default defineComponent({
         <div style='display: none;'>
           <div
             ref={refContentElement}
-            class={props.contentClass}
+            class={['bklog-overlay-root', props.contentClass].filter(Boolean).join(' ')}
+            data-overlay-id={resolvedOverlayId}
           >
             {slots.content?.() ?? renderSlot()}
           </div>

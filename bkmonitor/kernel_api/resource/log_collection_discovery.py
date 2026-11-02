@@ -3,7 +3,8 @@
 from rest_framework import serializers
 from rest_framework.exceptions import PermissionDenied
 
-from core.drf_resource import Resource, api
+from core.drf_resource import api
+from kernel_api.resource.mcp_response import MCPResource as Resource
 
 
 def ensure_storage_clusters_visible(bk_biz_id: int, storage_cluster_ids: set[int]) -> None:

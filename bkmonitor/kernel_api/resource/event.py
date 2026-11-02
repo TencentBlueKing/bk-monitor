@@ -15,7 +15,7 @@ from apm_web.event.resources import (
     EventLogsResource as APMEventLogsResource,
     EventViewConfigResource as APMEventViewConfigResource,
 )
-from core.drf_resource import Resource
+from kernel_api.resource.mcp_response import MCPResource as Resource
 from packages.monitor_web.grafana.resources.event import GetDataSourceConfigResource
 from packages.monitor_web.data_explorer.event.resources import EventLogsResource, EventViewConfigResource
 from kernel_api.serializers.mixins import TimeSpanValidationPassThroughSerializer

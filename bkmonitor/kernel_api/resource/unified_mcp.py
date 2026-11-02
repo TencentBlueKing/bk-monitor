@@ -12,7 +12,7 @@ from bkm_space.utils import space_uid_to_bk_biz_id
 from bkmonitor.iam import Permission, ResourceEnum
 from bkmonitor.iam.action import get_action_by_id
 from bkmonitor.utils.request import get_request
-from core.drf_resource import Resource
+from kernel_api.resource.mcp_response import MCPResource as Resource
 from kernel_api.unified_mcp.dispatcher import dispatch_tool
 from kernel_api.unified_mcp.registry import CATEGORIES, get_tool_registry
 from kernel_api.unified_mcp.permissions import execute_native_tool, permission_state
@@ -501,6 +501,8 @@ class ExecuteToolResource(Resource):
                     raise ValidationError(
                         {f"tool_args.{tool.resource_arg}": "A valid integer business ID is required."}
                     ) from exc
+                # Bind the validated scope before a shared standalone/Unified Resource executes.
+                request.biz_id = bk_biz_id
                 middleware_checked = getattr(request, "unified_mcp_permission_checked", False)
                 permission = None
                 for action_id in tool.legacy_action_ids:

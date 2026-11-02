@@ -7,7 +7,8 @@ from typing import Any
 from rest_framework import serializers
 from rest_framework.exceptions import PermissionDenied
 
-from core.drf_resource import Resource, api
+from core.drf_resource import api
+from kernel_api.resource.mcp_response import MCPResource as Resource
 from kernel_api.resource.log_collection import get_log_access_type, normalize_environment
 
 MAX_TASK_IDS = 100

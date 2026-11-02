@@ -362,3 +362,73 @@ class TestUnifiedGraphSnapshot(SimpleTestCase):
         api.bkdata.get_incident_topo_by_entity.assert_called_once_with(
             incident_id=1, entity_id="a", snapshot_id="legacy-snapshot"
         )
+
+
+class TestIncidentTopologyHistory(SimpleTestCase):
+    def test_history_retains_categories_and_does_not_mutate_earlier_frames(self):
+        resource = IncidentTopologyResource()
+        first = {
+            "nodes": [{"id": "service", "comboId": "0"}, {"id": "pod", "comboId": "1"}],
+            "edges": [{"source": "service", "target": "pod", "edge_type": "dependency"}],
+            "combos": [{"id": "0", "label": "Service"}, {"id": "1", "label": "Pod"}],
+            "sub_combos": [],
+        }
+        second = {"nodes": [first["nodes"][0]], "edges": [], "combos": first["combos"][:1], "sub_combos": []}
+        original = copy.deepcopy(first)
+        complete = {"nodes": {}, "edges": {}, "sub_combos": {}, "combos": {}}
+        with patch.object(resource, "generate_topology_data_from_snapshot", side_effect=[first, second, original]):
+            previous, initial = resource.generate_topology_diff_from_snapshot(None, None, None, complete)
+            previous, deletion = resource.generate_topology_diff_from_snapshot(None, None, previous, complete)
+            self.assertEqual(first, original)
+            self.assertNotIn("is_deleted", initial["nodes"][1])
+            self.assertNotIn("is_deleted", initial["edges"][0])
+            self.assertTrue(deletion["nodes"][0]["is_deleted"])
+            self.assertEqual(set(complete["combos"]), {"0", "1"})
+            _, restored = resource.generate_topology_diff_from_snapshot(None, None, previous, complete)
+        self.assertEqual(restored["nodes"], [original["nodes"][1]])
+        self.assertFalse(complete["nodes"]["pod"].get("is_deleted", False))
+        self.assertTrue(deletion["nodes"][0]["is_deleted"])
+
+    def test_complete_groups_are_returned_in_both_full_and_diff_modes(self):
+        frames = [
+            {"nodes": [{"id": "pod", "comboId": "1"}], "edges": [], "combos": [{"id": "1"}], "sub_combos": []},
+            {"nodes": [{"id": "service", "comboId": "0"}], "edges": [], "combos": [{"id": "0"}], "sub_combos": []},
+        ]
+        snapshots = [
+            SimpleNamespace(
+                id=index,
+                incident_id=1,
+                fpp_snapshot_id=f"snapshot-{index}",
+                create_time=index,
+                content=SimpleNamespace(to_dict=lambda frame=frame: copy.deepcopy(frame)),
+            )
+            for index, frame in enumerate(frames)
+        ]
+        incident = SimpleNamespace(incident_id=1, snapshot=snapshots[-1])
+        for only_diff in (True, False):
+            with (
+                self.subTest(only_diff=only_diff),
+                patch("monitor_web.incident.resources.IncidentDocument.get", return_value=incident),
+                patch(
+                    "monitor_web.incident.resources.IncidentSnapshotDocument.list_by_incident_id",
+                    return_value=snapshots,
+                ),
+                patch("monitor_web.incident.resources.IncidentSnapshot", side_effect=lambda content: content),
+                patch.object(IncidentTopologyResource, "generate_entities_orders", return_value={}),
+                patch.object(
+                    IncidentTopologyResource,
+                    "generate_topology_data_from_snapshot",
+                    side_effect=lambda incident, snapshot: snapshot,
+                ),
+            ):
+                # The document API exposes mapping access for sorting as well as attribute access.
+                class Document(SimpleNamespace):
+                    def __getitem__(self, key):
+                        return getattr(self, key)
+
+                snapshots[:] = [Document(**vars(snapshot)) for snapshot in snapshots]
+                result = IncidentTopologyResource().perform_request({"id": 1, "start_time": 1, "only_diff": only_diff})
+            self.assertEqual({combo["id"] for combo in result["complete"]["combos"]}, {"0", "1"})
+            self.assertEqual(result["latest"]["combos"], [{"id": "0"}])
+            self.assertEqual(len(result["complete"]["nodes"]), 2)
+            self.assertNotIn("is_deleted", result["diff" if only_diff else "full"][0]["content"]["nodes"][0])
