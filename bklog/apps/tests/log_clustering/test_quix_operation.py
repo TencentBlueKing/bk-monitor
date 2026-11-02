@@ -19,6 +19,7 @@ from apps.log_clustering.handlers.quix.operation import (
     QuixClusteringOperationRunner,
 )
 from apps.log_clustering.models import ClusteringConfig, LogClusteringOperation, LogClusteringRuntime
+from apps.log_search.models import LogIndexSet
 
 INDEX_SET_ID = 42
 TASK_ID = "task-uuid"
@@ -29,6 +30,7 @@ QUIX_CONFIG = {
     "pattern_resource": {"kind": "ElasticSearch", "namespace": "bklog", "name": "pattern_es"},
 }
 SET_RESULT = {
+    "pattern_target": {"cluster_id": 7, "index_set": "log-clustering-42-pattern"},
     "attached": True,
     "applied_scope": "datalink",
     "sink": {"tenant": "system", "namespace": "bklog", "name": "bkm_lcs_1001_abc"},
@@ -58,6 +60,7 @@ def create_enable_operation():
 
 class TestQuixEnableRunner(TestCase):
     def setUp(self):
+        LogIndexSet.objects.create(index_set_id=INDEX_SET_ID, space_uid="bkcc__2")
         self.operation = create_enable_operation()
         self.bkfara = MagicMock()
         self.bkfara.create_task.return_value = {"task_id": TASK_ID}
@@ -160,6 +163,45 @@ class TestQuixEnableRunner(TestCase):
             LogClusteringOperation.objects.get(pk=self.operation.pk).status,
             ClusteringOperationStatusEnum.AWAITING_RECEIPT.value,
         )
+
+    def test_pattern_registration_retries_bulk_route_without_reapplying_binding(self):
+        self.transfer.bulk_create_or_update_log_router.side_effect = [ApiRequestError("publish failed"), None]
+        self.assertIsNotNone(self.run_operation())
+        self.operation.refresh_from_db()
+        self.assertEqual(self.operation.step, "register_pattern_route")
+        self.run_operation()
+        first, retry = self.transfer.bulk_create_or_update_log_router.call_args_list
+        self.assertEqual(first, retry)
+        self.assertEqual(
+            first.args[0],
+            {
+                "space_type": "bkcc",
+                "space_id": "2",
+                "data_label": "bklog_index_set_42_pattern",
+                "table_info": [
+                    {
+                        "table_id": "bklog_index_set_42_pattern.__default__",
+                        "storage_type": "elasticsearch",
+                        "source_type": "es",
+                        "cluster_id": 7,
+                        "index_set": "log-clustering-42-pattern",
+                        "is_enable": True,
+                    }
+                ],
+            },
+        )
+        self.transfer.set_log_clustering_config.assert_called_once()
+
+    def test_resume_after_preexisting_metadata_step_registers_missing_label(self):
+        self.run_operation()
+        self.operation.refresh_from_db()
+        self.operation.steps = [step for step in self.operation.steps if step["step"] != "register_pattern_route"]
+        del self.operation.request_payloads["register_pattern_route"]
+        self.operation.save()
+        self.transfer.reset_mock()
+        self.run_operation()
+        self.transfer.set_log_clustering_config.assert_called_once()
+        self.transfer.bulk_create_or_update_log_router.assert_called_once()
 
     def test_enable_runs_through_and_activates_config_after_receipt(self):
         self.create_clustering_config()

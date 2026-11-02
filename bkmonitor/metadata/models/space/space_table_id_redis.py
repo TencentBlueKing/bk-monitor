@@ -128,9 +128,8 @@ class SpaceTableIDRedis:
         table_id_list: list | None = None,
         is_publish: bool | None = False,
         bk_tenant_id: str = DEFAULT_TENANT_ID,
-        include_empty: bool = False,
     ):
-        """推送标签映射。include_empty 用于改名重试，也刷新已无结果表的指定标签。"""
+        """推送 data_label 及对应的结果表"""
         logger.info(
             "start to push data_label table_id data, data_label_list: %s, table_id_list: %s, is_publish: %s,"
             "bk_tenant_id: %s",
@@ -139,13 +138,9 @@ class SpaceTableIDRedis:
             is_publish,
             bk_tenant_id,
         )
-        if include_empty:
-            # 指定标签即使已不属于任何表，也需要覆盖 Redis 中原有的映射。
-            data_labels = sorted({label for group in data_label_list or [] for label in group.split(",") if label})
-        else:
-            data_labels = self._refine_available_data_label(
-                table_id_list=table_id_list, data_label_list=data_label_list, bk_tenant_id=bk_tenant_id
-            )
+        data_labels = self._refine_available_data_label(
+            table_id_list=table_id_list, data_label_list=data_label_list, bk_tenant_id=bk_tenant_id
+        )
 
         # 如果data_labels为空，则直接返回
         if not data_labels:
@@ -165,7 +160,7 @@ class SpaceTableIDRedis:
         ).values("table_id", "data_label")
 
         # 组装数据
-        rt_dl_map = {label: [] for label in data_labels} if include_empty else {}
+        rt_dl_map = {}
         for data in rt_dl_qs:
             # data_label可能存在逗号分割，需要拆分
             # 部分data_label可能不在data_labels中，需要过滤
@@ -313,7 +308,7 @@ class SpaceTableIDRedis:
         bk_tenant_id: str,
         table_id_list: list[str] | None = None,
         is_publish: bool = False,
-        strict_log_route: bool = False,
+        raise_on_log_write_error: bool = False,
     ) -> None:
         """刷新一个租户的 ``result_table_detail`` 路由。
 
@@ -333,7 +328,6 @@ class SpaceTableIDRedis:
 
         :param bk_tenant_id: 本次刷新唯一允许读取和写入的租户 ID，不能为空。
         :param table_id_list: 待刷新的结果表 ID；``None`` 或 ``[]`` 表示租户全量刷新。
-        :param strict_log_route: 单条日志路由登记时将详情缺失或 Redis 写入失败返回给调用方。
         :param is_publish: 写入 Redis 后是否向 ``RESULT_TABLE_DETAIL_CHANNEL`` 发布变更 field。
         """
 
@@ -385,8 +379,6 @@ class SpaceTableIDRedis:
             for table_id in claimed_table_ids:
                 metric_table_id_detail.pop(table_id, None)
 
-            if strict_log_route and set(batch_detail) != set(batch_table_ids):
-                raise ValueError(f"missing log route detail for {set(batch_table_ids) - set(batch_detail)}")
             if not batch_detail:
                 continue
             try:
@@ -397,7 +389,7 @@ class SpaceTableIDRedis:
                     normalize_table_id=True,
                 )
             except Exception:  # pylint: disable=broad-except
-                if strict_log_route:
+                if raise_on_log_write_error:
                     raise
                 # 延续原 ES/Doris 路由后处理的容错；普通指标路由写入仍按旧语义向上抛错。
                 logger.exception(

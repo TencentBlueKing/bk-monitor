@@ -91,6 +91,7 @@ class QuixClusteringOperationRunner:
             "wait_task_ready",
             "wait_worker_ready",
             "metadata_set",
+            "register_pattern_route",
             "wait_adoption",
             "confirm_adoption",
         ],
@@ -99,6 +100,7 @@ class QuixClusteringOperationRunner:
             "update_model_parameters",
             "confirm_model_parameters",
             "metadata_set",
+            "register_pattern_route",
             "wait_adoption",
             "confirm_adoption",
         ],
@@ -286,6 +288,37 @@ class QuixClusteringOperationRunner:
         )
         result = TransferApi.set_log_clustering_config(params.copy())
         self._save_runtime(sink=result["sink"])
+        # 将本次绑定的实际查询目标固化到操作中，注册失败时只重试通用路由接口。
+        self.operation.get_request_payload(
+            "register_pattern_route", lambda: self._pattern_route_params(result["pattern_target"])
+        )
+        return True
+
+    def _pattern_route_params(self, target: dict) -> dict:
+        index_set = LogIndexSet.objects.get(index_set_id=self.runtime.index_set_id)
+        space_type, space_id = index_set.space_uid.split("__", 1)
+        data_label = f"bklog_index_set_{index_set.index_set_id}_pattern"
+        return {
+            "space_type": space_type,
+            "space_id": space_id,
+            "data_label": data_label,
+            "table_info": [
+                {
+                    "table_id": f"{data_label}.__default__",
+                    "storage_type": "elasticsearch",
+                    "source_type": "es",
+                    "cluster_id": target["cluster_id"],
+                    "index_set": target["index_set"],
+                    "is_enable": True,
+                }
+            ],
+        }
+
+    def _step_register_pattern_route(self) -> bool:
+        if "register_pattern_route" not in self.operation.request_payloads:
+            # 兼容升级前已完成 metadata_set 的在途操作；沿用原操作保存的绑定请求。
+            self._step_metadata_set()
+        TransferApi.bulk_create_or_update_log_router(self.operation.request_payloads["register_pattern_route"].copy())
         return True
 
     def _step_wait_adoption(self) -> bool:

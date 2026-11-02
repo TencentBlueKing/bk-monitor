@@ -97,6 +97,7 @@ max_message_bytes 用于候选 Kafka 消息的体积预算，不是原文日志�
 |----------------|--------|--------------------------------------------|
 | attached       | bool   | Databus 是否引用聚类 Sink                         |
 | applied_scope  | string | 本次下发范围：datalink（完整链路）或 sink_only（仅聚类 Sink） |
+| pattern_target | dict | Pattern 所在 metadata ES cluster_id 和绑定中的实际索引 index_set，供日志平台登记 Data Label |
 | sink           | dict   | 聚类 Sink 身份：tenant、namespace、name            |
 | databus        | dict   | Databus 身份：tenant、namespace、name            |
 
@@ -110,8 +111,12 @@ max_message_bytes 用于候选 Kafka 消息的体积预算，不是原文日志�
     "data": {
         "attached": true,
         "applied_scope": "datalink",
+        "pattern_target": {"cluster_id": 3, "index_set": "log-clustering-24466-pattern"},
         "sink": {"tenant": "system", "namespace": "bklog", "name": "bkm_lcs_50010_a1b2c3d4e5f6"},
         "databus": {"tenant": "system", "namespace": "bklog", "name": "bklog_2_abcdefghijklmnop"}
     }
 }
 ```
+
+
+日志平台以索引集 ID 生成独立标签 `bklog_index_set_<id>_pattern`，通过已有批量日志路由接口登记 `<data_label>.__default__`。结果表的 ES 集群和物理索引取自本次响应的 `pattern_target`。下游按标签解析到该结果表，再通过表详情取得查询目标。标签登记不改变 Pattern 文档结构，普通 UnifyQuery ES 时间范围检索仍要求文档具备可过滤的时间字段。

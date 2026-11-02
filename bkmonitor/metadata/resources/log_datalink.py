@@ -9,7 +9,6 @@ specific language governing permissions and limitations under the License.
 """
 
 import datetime
-import json
 import logging
 from typing import Any
 
@@ -359,8 +358,6 @@ def _create_or_update_log_router(
 class CreateOrUpdateLogRouter(Resource):
     """更新或者创建log路由信息"""
 
-    pending_label_option = None
-
     class RequestSerializer(ParamsSerializer):
         space_type = serializers.CharField(required=True, label="空间类型")
         space_id = serializers.CharField(required=True, label="空间ID")
@@ -386,9 +383,6 @@ class CreateOrUpdateLogRouter(Resource):
             required=False, label="查询别名设置", default=None, many=True
         )
 
-    def _get_existing_route(self, space: models.Space, params: dict) -> models.ResultTable | None:
-        return models.ResultTable.objects.filter(bk_tenant_id=space.bk_tenant_id, table_id=params["table_id"]).first()
-
     def perform_request(self, validated_request_data: dict) -> None:
         space = models.Space.objects.get(
             space_type_id=validated_request_data["space_type"],
@@ -399,6 +393,9 @@ class CreateOrUpdateLogRouter(Resource):
 
         # 根据结果表判断是创建或更新
         table_id: str = validated_request_data["table_id"]
+        result_table = models.ResultTable.objects.filter(bk_tenant_id=bk_tenant_id, table_id=table_id).first()
+        is_create = result_table is None
+        old_data_label = result_table.data_label if result_table else ""
         storage_type = validated_request_data["storage_type"]
         options = validated_request_data["options"]
         data_label = validated_request_data.get("data_label", "")
@@ -416,20 +413,6 @@ class CreateOrUpdateLogRouter(Resource):
 
         # 查询别名与日志路由 Storage/default_storage 使用同一个 metadata DB 事务。
         with atomic(config.DATABASE_CONNECTION_NAME):
-            result_table = self._get_existing_route(space, validated_request_data)
-            is_create = result_table is None
-            old_data_label = result_table.data_label if result_table else ""
-            pending = None
-            if self.pending_label_option:
-                key = {"bk_tenant_id": bk_tenant_id, "table_id": table_id, "name": self.pending_label_option}
-                pending = models.ResultTableOption.objects.filter(**key).first()
-                if old_data_label and data_label and old_data_label != data_label:
-                    # 标签修改和待刷新集合一起提交。即使发布中断，重试仍能找到上次的旧标签。
-                    labels = set(json.loads(pending.value)) if pending else set()
-                    labels.update(old_data_label.split(","))
-                    pending, _ = models.ResultTableOption.objects.update_or_create(
-                        **key, defaults={"value": json.dumps(sorted(labels)), "value_type": "list", "creator": "system"}
-                    )
             if validated_request_data.get("query_alias_settings") is not None:
                 operator = get_request_username() or "system"
                 models.ESFieldQueryAliasOption.manage_query_alias_settings(
@@ -455,16 +438,14 @@ class CreateOrUpdateLogRouter(Resource):
             )
 
         space_client = SpaceTableIDRedis()
-        republish = bool(self.pending_label_option)
         logger.info("CreateOrUpdateLogRouter: try to push table detail route for table_id->[%s]", table_id)
         space_client.push_table_id_detail(
             bk_tenant_id=bk_tenant_id,
             table_id_list=[table_id],
             is_publish=True,
-            **({"strict_log_route": True} if republish else {}),
         )
 
-        if is_create or republish:
+        if is_create:
             logger.info("CreateOrUpdateLogRouter: try to push space route for table_id->[%s]", table_id)
             space_client.push_space_table_ids(
                 space_type=space.space_type_id,
@@ -472,14 +453,9 @@ class CreateOrUpdateLogRouter(Resource):
                 is_publish=True,
             )
 
-        # 更新请求省略标签时，结果表沿用原标签；重放映射也应使用该标签。
-        if republish and not data_label:
-            data_label = old_data_label
-        if data_label and (republish or data_label != old_data_label):
+        if data_label and data_label != old_data_label:
             data_labels = [data_label]
-            if pending:
-                data_labels.extend(label for label in json.loads(pending.value) if label != data_label)
-            elif old_data_label and old_data_label != data_label:
+            if old_data_label:
                 data_labels.append(old_data_label)
             logger.info(
                 "CreateOrUpdateLogRouter: try to push data label routes for table_id->[%s], data_labels->[%s]",
@@ -490,10 +466,7 @@ class CreateOrUpdateLogRouter(Resource):
                 data_label_list=data_labels,
                 bk_tenant_id=bk_tenant_id,
                 is_publish=True,
-                **({"include_empty": True} if republish else {}),
             )
-            if pending:
-                pending.delete()
 
 
 class BulkCreateOrUpdateLogRouter(Resource):
@@ -619,6 +592,7 @@ class BulkCreateOrUpdateLogRouter(Resource):
                 bk_tenant_id=bk_tenant_id,
                 table_id_list=processed_table_ids,
                 is_publish=True,
+                raise_on_log_write_error=True,
             )
         if data_label and processed_table_ids:
             logger.info("CreateOrUpdateLogDataLink: pushing data_label route for [%s]", data_label)

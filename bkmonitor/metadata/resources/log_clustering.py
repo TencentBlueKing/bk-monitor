@@ -25,27 +25,18 @@ from bkmonitor.utils.serializers import TenantIdField
 from core.drf_resource import Resource
 from metadata import models
 from metadata.config import DATABASE_CONNECTION_NAME
-from metadata.models.constants import EsSourceType
 from metadata.models.data_link import DataLinkResourceConfigBase
 from metadata.models.data_link import utils as data_link_utils
 from metadata.models.data_link.constants import DataLinkKind, DataLinkNameScene
 from metadata.models.result_table import LogV4DataLinkOption
-from metadata.resources.log_datalink import CreateOrUpdateLogRouter, ParamsSerializer
 from metadata.task.datalink import apply_log_datalink
 from metadata.tools.redis_lock import DistributedLock
 from metadata.utils.redis_tools import RedisTools
 
 logger = logging.getLogger("metadata")
 
-__all__ = [
-    "SetLogClusteringConfigResource",
-    "OperateLogClusteringResource",
-    "GetLogClusteringStatusResource",
-    "CreateOrUpdateLogClusteringPatternRouterResource",
-]
+__all__ = ["SetLogClusteringConfigResource", "OperateLogClusteringResource", "GetLogClusteringStatusResource"]
 
-PATTERN_PENDING_LABEL_OPTION = "clustering_pattern_pending_labels"
-PATTERN_SOURCE_OPTION = "clustering_pattern_source"
 CLUSTERING_ENABLE_ACTIONS = {"disable": False, "enable": True}
 # metadata 内部动作：切换 Databus 是否引用聚类 Sink 后完整下发日志链路
 SINK_REFERENCE_ACTIONS = {"detach": False, "attach": True}
@@ -311,7 +302,7 @@ class SetLogClusteringConfigResource(Resource):
 
         datalink = get_log_clustering_datalink(bk_tenant_id, table_id)
         databus = get_log_clustering_databus(datalink)
-        get_log_clustering_pattern_cluster(bk_tenant_id, config_fields["pattern_resource"])
+        pattern_cluster = get_log_clustering_pattern_cluster(bk_tenant_id, config_fields["pattern_resource"])
         dsrt = models.DataSourceResultTable.objects.filter(bk_tenant_id=bk_tenant_id, table_id=table_id).last()
         if dsrt is None:
             raise ValidationError(f"table_id({table_id}) related datasource not found")
@@ -357,6 +348,7 @@ class SetLogClusteringConfigResource(Resource):
         return {
             "attached": sink.attached,
             "applied_scope": applied_scope,
+            "pattern_target": {"cluster_id": pattern_cluster.cluster_id, "index_set": sink.binding["pattern_index"]},
             "sink": format_log_clustering_identity(bk_tenant_id, sink),
             "databus": format_log_clustering_identity(bk_tenant_id, databus),
         }
@@ -492,103 +484,4 @@ class GetLogClusteringStatusResource(Resource):
             ),
             "clustering_status": clustering_status,
             "errors": errors,
-        }
-
-
-class CreateOrUpdateLogClusteringPatternRouterResource(CreateOrUpdateLogRouter):
-    """
-    创建或更新日志聚类 Pattern 查询路由
-
-    查询索引固定取当前有效绑定的 pattern_index，集群由 patternResource 对应的 metadata ES 集群确定，
-    state_index 仅供 BKBase 内部恢复使用，不登记查询路由。路由结果表、空间与选项由调用方给出，复用日志路由体系落库和推送。
-    """
-
-    pending_label_option = PATTERN_PENDING_LABEL_OPTION
-
-    class RequestSerializer(ParamsSerializer):
-        table_id = serializers.CharField(label="日志采集项对应的监控结果表ID")
-        space_type = serializers.CharField(label="空间类型")
-        space_id = serializers.CharField(label="空间ID")
-        route_table_id = serializers.CharField(label="Pattern 路由结果表ID")
-        data_label = serializers.CharField(label="数据标签", required=False, allow_blank=True, default="")
-
-        def validate(self, attrs):
-            if attrs["route_table_id"] == attrs["table_id"]:
-                raise serializers.ValidationError(
-                    {"route_table_id": "Pattern route cannot replace the source log table"}
-                )
-            names = {option["name"] for option in attrs["options"]}
-            if "time_field" in names:
-                raise serializers.ValidationError({"options": "Pattern snapshots have no time field"})
-            if names & {PATTERN_SOURCE_OPTION, PATTERN_PENDING_LABEL_OPTION}:
-                raise serializers.ValidationError({"options": "Pattern route ownership is managed by metadata"})
-            return attrs
-
-    def _get_existing_route(self, space: models.Space, params: dict) -> models.ResultTable | None:
-        route = (
-            models.ResultTable.objects.select_for_update()
-            .filter(bk_tenant_id=space.bk_tenant_id, table_id=params["table_id"])
-            .first()
-        )
-        if route and route.bk_biz_id != space.get_bk_biz_id():
-            raise ValidationError(f"route_table_id({route.table_id}) belongs to another space")
-        if (
-            route
-            and not models.ResultTableOption.objects.filter(
-                bk_tenant_id=space.bk_tenant_id,
-                table_id=route.table_id,
-                name=PATTERN_SOURCE_OPTION,
-                value=params["pattern_source_table_id"],
-            ).exists()
-        ):
-            raise ValidationError(f"route_table_id({route.table_id}) already belongs to another route")
-        return route
-
-    def perform_request(self, validated_request_data: dict[str, Any]) -> dict[str, Any]:
-        bk_tenant_id = validated_request_data["bk_tenant_id"]
-        table_id = validated_request_data["table_id"]
-
-        datalink = get_log_clustering_datalink(bk_tenant_id, table_id, check_storage=False)
-        sink = get_log_clustering_sink(datalink)
-        if sink is None or not sink.binding.get("pattern_index"):
-            raise ValidationError(f"table_id({table_id}) has no log clustering pattern index")
-
-        pattern_cluster = get_log_clustering_pattern_cluster(bk_tenant_id, sink.pattern_resource)
-
-        route_params = {
-            "bk_tenant_id": bk_tenant_id,
-            "space_type": validated_request_data["space_type"],
-            "space_id": validated_request_data["space_id"],
-            "table_id": validated_request_data["route_table_id"],
-            "data_label": validated_request_data["data_label"],
-            "cluster_id": pattern_cluster.cluster_id,
-            "index_set": sink.binding["pattern_index"],
-            "source_type": EsSourceType.LOG.value,
-            "storage_type": models.ClusterInfo.TYPE_ES,
-            "pattern_source_table_id": table_id,
-            "options": [
-                *validated_request_data["options"],
-                {
-                    "name": PATTERN_SOURCE_OPTION,
-                    "value": table_id,
-                    "value_type": models.ResultTableOption.TYPE_STRING,
-                    "creator": "system",
-                },
-            ],
-        }
-        with serialize_log_clustering_change(datalink):
-            super().perform_request(route_params)
-
-        logger.info(
-            "CreateOrUpdateLogClusteringPatternRouterResource: table_id->[%s] route_table_id->[%s] "
-            "cluster_id->[%s] index_set->[%s]",
-            table_id,
-            route_params["table_id"],
-            route_params["cluster_id"],
-            route_params["index_set"],
-        )
-        return {
-            "route_table_id": route_params["table_id"],
-            "cluster_id": route_params["cluster_id"],
-            "index_set": route_params["index_set"],
         }

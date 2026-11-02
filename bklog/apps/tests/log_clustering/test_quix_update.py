@@ -60,8 +60,10 @@ class TestQuixUpdateRunner(TestCase):
         _, self.operation = LogClusteringRuntime.start_operation(
             INDEX_SET_ID, ClusteringOperationTypeEnum.UPDATE.value, {"filter_rules": WARN_RULES}
         )
+        LogIndexSet.objects.create(index_set_id=INDEX_SET_ID, space_uid="bkcc__2")
         self.transfer = MagicMock()
         self.transfer.set_log_clustering_config.return_value = {
+            "pattern_target": {"cluster_id": 7, "index_set": "log-clustering-42-pattern"},
             "sink": {"name": "sink"},
             "databus": {"name": "databus"},
         }
