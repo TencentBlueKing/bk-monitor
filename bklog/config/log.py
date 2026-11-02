@@ -20,6 +20,8 @@ APP_CODE = os.environ.get("APP_ID", APP_CODE)
 # copy from blueapps
 def get_logging_config_dict(settings_module):
     log_class = "logging.handlers.RotatingFileHandler"
+    if settings_module.get("IS_CELERY") and not settings_module.get("IS_CELERY_BEAT"):
+        log_class = "apps.utils.log_handlers.ForkSafeRotatingFileHandler"
     log_level = settings_module.get("LOG_LEVEL", "INFO")
 
     if settings_module.get("IS_LOCAL", False):

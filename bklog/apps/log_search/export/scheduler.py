@@ -30,6 +30,7 @@ from uuid import uuid4
 from blueapps.core.celery.celery import app
 from celery.exceptions import SoftTimeLimitExceeded
 from django.conf import settings
+from django.db import OperationalError
 from django.db.models import Count, F, Q
 from django.utils import timezone
 
@@ -76,11 +77,23 @@ def _enqueue(job_ids, field, statuses, task_name, queue=PLAN_QUEUE, **filters):
     sent = []
     for job_id in job_ids:
         now = timezone.now()
-        claimed = (
-            ExportJob.objects.filter(pk=job_id, status__in=statuses, **filters)
-            .filter(_lease_expired(field, now))
-            .update(**{field: now})
-        )
+        try:
+            claimed = (
+                ExportJob.objects.filter(pk=job_id, status__in=statuses, **filters)
+                .filter(_lease_expired(field, now))
+                .update(**{field: now})
+            )
+        except OperationalError as error:
+            if not error.args or error.args[0] not in (1205, 1213):
+                raise
+            # 单个任务的锁冲突不应阻断其余任务；未取得租约时不修改已有占位。
+            logger.warning(
+                "[sharded_export_enqueue_lock_conflict] job_id=%s field=%s error_code=%s",
+                job_id,
+                field,
+                error.args[0],
+            )
+            continue
         if not claimed:
             continue
         try:

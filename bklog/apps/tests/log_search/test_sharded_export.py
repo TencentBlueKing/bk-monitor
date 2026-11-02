@@ -1294,7 +1294,8 @@ class ExportStateTestCase(TestCase):
         part = state.claim_part(part.pk, "upload-task")
         state.set_stage(part.pk, fence_of(part), ExportStage.UPLOAD)
 
-        state.fail_part(part.pk, fence_of(part), error_code="UPLOAD_FAILED", error_detail="上传失败")
+        with self.captureOnCommitCallbacks(execute=True):
+            state.fail_part(part.pk, fence_of(part), error_code="UPLOAD_FAILED", error_detail="上传失败")
 
         message, *args = mock_logger.warning.call_args.args
         message %= tuple(args)

@@ -37,6 +37,7 @@ from apps.log_search.constants import (
     ExportStage,
 )
 from apps.log_search.export.config import policy_from_snapshot
+from apps.log_search.export.logging import log_after_commit
 from apps.log_search.export.models import ExportJob, ExportPart, ExportPlan
 from apps.log_search.export.query import time_order
 from apps.log_search.export.storage import merged_name
@@ -137,7 +138,8 @@ def _finish_job(job, status, error_code="", error_detail=""):
     """任务进入终态后，未投递和已投递但尚未开始的分片直接作废。"""
     now = timezone.now()
     if status == ExportJobStatus.FAILED:
-        logger.warning(
+        log_after_commit(
+            logger.warning,
             "[sharded_export_job_failure] job_id=%s plan_version=%s status=%s "
             "planning_attempts=%s finalization_attempts=%s error_code=%s error_detail=%s",
             job.pk,
@@ -218,7 +220,8 @@ def claim_planning(job_id):
             planning_started_at=now,
             planning_attempts=job.planning_attempts + 1,
         )
-        logger.info(
+        log_after_commit(
+            logger.info,
             "[sharded_export_planning_started] job_id=%s plan_version=%s planning_attempts=%s",
             job.pk,
             job.plan_version + 1,
@@ -232,7 +235,8 @@ def persist_plan(job_id, planning_attempt, *, parts, estimated_total, plan_resul
     with transaction.atomic():
         job = ExportJob.objects.select_for_update().get(pk=job_id)
         if job.status != ExportJobStatus.PLANNING or job.planning_attempts != planning_attempt:
-            logger.info(
+            log_after_commit(
+                logger.info,
                 "[sharded_export_plan_discarded] job_id=%s planning_attempts=%s current_planning_attempts=%s status=%s",
                 job.pk,
                 planning_attempt,
@@ -268,7 +272,8 @@ def persist_plan(job_id, planning_attempt, *, parts, estimated_total, plan_resul
             error_detail="",
         )
         sync_actual_total(job)
-        logger.info(
+        log_after_commit(
+            logger.info,
             "[sharded_export_plan_completed] job_id=%s plan_version=%s planning_attempts=%s "
             "planned_parts=%s estimated_total=%s",
             job.pk,
@@ -291,7 +296,8 @@ def fail_planning(job_id, planning_attempt, code, detail="", retryable=False):
             status=ExportPlanStatus.FAILED, finished_at=now, updated_at=now
         )
         if retryable and job.planning_attempts < policy_from_snapshot(job.policy).planning_attempts:
-            logger.warning(
+            log_after_commit(
+                logger.warning,
                 "[sharded_export_planning_retry] job_id=%s plan_version=%s planning_attempts=%s "
                 "error_code=%s error_detail=%s",
                 job.pk,
@@ -364,7 +370,8 @@ def claim_part(part_id, task_id):
             attempts=part.attempts + 1,
             started_at=timezone.now(),
         )
-        logger.info(
+        log_after_commit(
+            logger.info,
             "[sharded_export_part_started] job_id=%s part_id=%s part_no=%s plan_version=%s "
             "attempts=%s task_id=%s start_time=%s end_time=%s",
             job.pk,
@@ -400,7 +407,8 @@ def complete_part(part_id, fence, *, actual_rows, actual_bytes, compressed_bytes
         job = ExportJob.objects.select_for_update().get(pk=_job_id_of(part_id))
         part = ExportPart.objects.select_for_update().get(pk=part_id)
         if part.status not in ExportPartStatus.EXECUTING or not _fenced(part, fence):
-            logger.info(
+            log_after_commit(
+                logger.info,
                 "[sharded_export_part_result_discarded] job_id=%s part_id=%s attempts=%s task_id=%s "
                 "current_attempts=%s current_task_id=%s status=%s job_status=%s",
                 job.pk,
@@ -416,7 +424,8 @@ def complete_part(part_id, fence, *, actual_rows, actual_bytes, compressed_bytes
             return None
         now = timezone.now()
         if job.status != ExportJobStatus.RUNNING:
-            logger.info(
+            log_after_commit(
+                logger.info,
                 "[sharded_export_part_result_discarded] job_id=%s part_id=%s attempts=%s task_id=%s job_status=%s",
                 job.pk,
                 part.pk,
@@ -439,7 +448,8 @@ def complete_part(part_id, fence, *, actual_rows, actual_bytes, compressed_bytes
             error_detail="",
         )
         sync_actual_total(job)
-        logger.info(
+        log_after_commit(
+            logger.info,
             "[sharded_export_part_completed] job_id=%s part_id=%s part_no=%s plan_version=%s "
             "attempts=%s task_id=%s actual_rows=%s actual_bytes=%s compressed_bytes=%s",
             job.pk,
@@ -480,8 +490,9 @@ def _classify_failure(job, part, error_code):
 def _fail_locked(job, part, error_code, error_detail, retryable=True):
     if part.status not in ExportPartStatus.INFLIGHT:
         return None
-    # 阶段和投递身份随后可能被重置，先记录失败时的上下文以便追踪重试及超时回收。
-    logger.warning(
+    # 阶段和投递身份随后可能被重置，先冻结失败上下文以便追踪重试及超时回收。
+    log_after_commit(
+        logger.warning,
         "[sharded_export_part_failure] job_id=%s part_id=%s part_no=%s plan_version=%s "
         "attempts=%s task_id=%s status=%s stage=%s start_time=%s end_time=%s "
         "retryable=%s error_code=%s error_detail=%s",
@@ -508,7 +519,8 @@ def _fail_locked(job, part, error_code, error_detail, retryable=True):
         and job.status in (ExportJobStatus.READY, ExportJobStatus.RUNNING)
         and part.attempts < policy_from_snapshot(job.policy).part_max_attempts
     ):
-        logger.info(
+        log_after_commit(
+            logger.info,
             "[sharded_export_part_retry] job_id=%s part_id=%s attempts=%s task_id=%s error_code=%s",
             job.pk,
             part.pk,
@@ -554,7 +566,8 @@ def _split_locked(job, part, error_code, error_detail):
 
     next_no = (ExportPart.objects.filter(job=job).aggregate(Max("part_no"))["part_no__max"] or 0) + 1
     estimated_rows = part.estimated_rows or 0
-    logger.info(
+    log_after_commit(
+        logger.info,
         "[sharded_export_part_split] job_id=%s part_id=%s plan_version=%s "
         "child_part_nos=%s,%s start_time=%s split_time=%s end_time=%s error_code=%s",
         job.pk,
@@ -679,7 +692,8 @@ def claim_finalization(job_id):
             # 重试复用同一对象名，避免旧尝试延迟上传的清单与数据库不一致。
             merged_object_key=job.merged_object_key or merged_name(job),
         )
-        logger.info(
+        log_after_commit(
+            logger.info,
             "[sharded_export_finalization_started] job_id=%s plan_version=%s finalization_attempts=%s "
             "parts_total=%s actual_total=%s",
             job.pk,
@@ -700,7 +714,8 @@ def fail_finalization(job_id, finalization_attempt, detail="", code=ExportErrorC
         detail = (detail or "")[:2000]
         if finalization_attempt >= policy_from_snapshot(job.policy).finalization_attempts:
             return _finish_job(job, ExportJobStatus.FAILED, code, detail)
-        logger.warning(
+        log_after_commit(
+            logger.warning,
             "[sharded_export_finalization_retry] job_id=%s plan_version=%s finalization_attempts=%s "
             "error_code=%s error_detail=%s",
             job.pk,
@@ -734,7 +749,8 @@ def finalize_job(
     with transaction.atomic():
         job = ExportJob.objects.select_for_update().get(pk=job_id)
         if job.status != ExportJobStatus.FINALIZING or job.finalization_attempts != finalization_attempt:
-            logger.info(
+            log_after_commit(
+                logger.info,
                 "[sharded_export_finalization_discarded] job_id=%s finalization_attempts=%s "
                 "current_finalization_attempts=%s status=%s",
                 job.pk,
@@ -772,7 +788,8 @@ def finalize_job(
             error_code="",
             error_detail="",
         )
-        logger.info(
+        log_after_commit(
+            logger.info,
             "[sharded_export_job_completed] job_id=%s plan_version=%s finalization_attempts=%s "
             "parts_total=%s actual_total=%s merged_bytes=%s manifest_bytes=%s",
             job.pk,
