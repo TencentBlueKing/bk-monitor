@@ -35,7 +35,6 @@ from apps.log_search.models import LogIndexSet
 from apps.log_search.utils import get_search_request_scope
 from apps.log_unifyquery.constants import BASE_OP_MAP
 from apps.log_unifyquery.handler.base import UnifyQueryHandler
-from apps.log_unifyquery.handler.mapping import UnifyQueryMappingHandler
 from apps.log_unifyquery.handler.pattern import UnifyQueryPatternHandler
 from apps.utils.local import get_local_param, get_request_tenant_id
 from apps.utils.time_handler import generate_time_range
@@ -61,7 +60,6 @@ class ClusteringPreviewQuery(UnifyQueryHandler):
 
     def _transform_additions(self, index_info):
         fields, conditions = [], []
-        field_types = None
         for rule in self.search_params["addition"]:
             if not isinstance(rule, dict) or rule.get("operator") not in FILTER_OP_TO_METHOD:
                 raise ValidationError("不支持的预览过滤条件")
@@ -83,17 +81,6 @@ class ClusteringPreviewQuery(UnifyQueryHandler):
                 op = "nreq" if operator.startswith("not_") else "req"
                 values = [value.translate(self._LUCENE_LITERAL) for value in values]
                 values = ["^" + value if operator.endswith("starts_with") else value + "$" for value in values]
-                if field_types is None:
-                    mapping = UnifyQueryMappingHandler.get_fields_by_table_id(
-                        self.bk_biz_id, BaseIndexSetHandler.get_data_label(index_info["index_set_id"])
-                    )
-                    field_types = {item["field_name"]: item["field_type"] for item in mapping}
-                if field not in field_types:
-                    raise ValidationError(f"无法确认预览字段 {field} 的索引类型")
-                if field_types.get(field) == "text":
-                    if field_types.get(field + ".keyword") != "keyword":
-                        raise ValidationError(f"字段 {field} 没有可用于前后缀预览的 keyword 子字段")
-                    field += ".keyword"
             fields.append({"field_name": field, "op": op, "value": values})
         return {"field_list": fields, "condition_list": conditions}
 

@@ -65,7 +65,7 @@ class TestQuixPatternQuery(TestCase):
             "end_time": self.params["end_time"],
             "addition": [
                 {"field": "level", "operator": "=", "value": ["error"]},
-                {"field": "message", "operator": "contains", "value": ["timeout"], "condition": "OR"},
+                {"field": "message", "operator": "starts_with", "value": ["timeout"], "condition": "OR"},
             ],
         }
         request = SimpleNamespace(data={"bk_biz_id": 2}, query_params={})
@@ -79,29 +79,23 @@ class TestQuixPatternQuery(TestCase):
         self.assertEqual(query.index_set_ids, [42])
         conditions = query.base_dict["query_list"][0]["conditions"]
         self.assertEqual(conditions["condition_list"], ["or"])
-        self.assertEqual([f["op"] for f in conditions["field_list"]], ["eq", "contains"])
+        self.assertEqual([f["op"] for f in conditions["field_list"]], ["eq", "req"])
+        self.assertEqual(conditions["field_list"][1]["field_name"], "message")
         self.assertEqual(response.data, {"list": [], "aggs": {}})
 
-    def test_preview_prefix_suffix_match_literal_whole_values(self):
+    def test_preview_prefix_suffix_use_selected_field(self):
         query = object.__new__(ClusteringPreviewQuery)
-        query.bk_biz_id = 2
         ops = ["starts_with", "not_starts_with", "ends_with", "not_ends_with"]
         query.search_params = {
             "addition": [{"field": "log", "operator": op, "value": ["a.*%_!", "z"], "condition": "or"} for op in ops]
         }
-        mapping = [{"field_name": "log", "field_type": "text"}, {"field_name": "log.keyword", "field_type": "keyword"}]
-        with patch(f"{MODULE}.UnifyQueryMappingHandler.get_fields_by_table_id", return_value=mapping) as get_fields:
-            conditions = query._transform_additions({"index_set_id": 42})
-        get_fields.assert_called_once()
+        conditions = query._transform_additions({})
         self.assertEqual(conditions["condition_list"], ["or", "or", "or"])
         fields = conditions["field_list"]
         self.assertEqual([item["op"] for item in fields], ["req", "nreq", "req", "nreq"])
-        self.assertTrue(all(item["field_name"] == "log.keyword" for item in fields))
+        self.assertTrue(all(item["field_name"] == "log" for item in fields))
         prefix, suffix = [r"^a\.\*%_!", "^z"], [r"a\.\*%_!$", "z$"]
         self.assertEqual([item["value"] for item in fields], [prefix, prefix, suffix, suffix])
-        with patch(f"{MODULE}.UnifyQueryMappingHandler.get_fields_by_table_id", return_value=mapping[:1]):
-            with self.assertRaisesMessage(ValidationError, "keyword"):
-                query._transform_additions({"index_set_id": 42})
 
     def start_patch(self, target, **kwargs):
         p = patch(target, **kwargs)
