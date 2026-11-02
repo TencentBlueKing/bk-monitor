@@ -37,6 +37,11 @@ export default {
   关闭聚类失败: 'Failed to stop clustering',
   重新开启聚类失败: 'Failed to restart clustering',
   '配置已下发，等待采用确认': 'Configuration submitted. Waiting for confirmation.',
+  以指定值开头: 'Starts with',
+  不以指定值开头: 'Does not start with',
+  以指定值结尾: 'Ends with',
+  不以指定值结尾: 'Does not end with',
+  '等待 BKBase 确认聚类已关闭': 'Waiting for BKBase to confirm clustering is closed',
   '历史聚类结果仍可查询；资源释放状态需单独确认。':
     'Historical results are available. Resource release is confirmed separately.',
   待处理结果数: 'Pending results',

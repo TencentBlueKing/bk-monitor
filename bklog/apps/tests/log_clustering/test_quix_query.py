@@ -82,6 +82,27 @@ class TestQuixPatternQuery(TestCase):
         self.assertEqual([f["op"] for f in conditions["field_list"]], ["eq", "contains"])
         self.assertEqual(response.data, {"list": [], "aggs": {}})
 
+    def test_preview_prefix_suffix_match_literal_whole_values(self):
+        query = object.__new__(ClusteringPreviewQuery)
+        query.bk_biz_id = 2
+        ops = ["starts_with", "not_starts_with", "ends_with", "not_ends_with"]
+        query.search_params = {
+            "addition": [{"field": "log", "operator": op, "value": ["a.*%_!", "z"], "condition": "or"} for op in ops]
+        }
+        mapping = [{"field_name": "log", "field_type": "text"}, {"field_name": "log.keyword", "field_type": "keyword"}]
+        with patch(f"{MODULE}.UnifyQueryMappingHandler.get_fields_by_table_id", return_value=mapping) as get_fields:
+            conditions = query._transform_additions({"index_set_id": 42})
+        get_fields.assert_called_once()
+        self.assertEqual(conditions["condition_list"], ["or", "or", "or"])
+        fields = conditions["field_list"]
+        self.assertEqual([item["op"] for item in fields], ["req", "nreq", "req", "nreq"])
+        self.assertTrue(all(item["field_name"] == "log.keyword" for item in fields))
+        prefix, suffix = [r"^a\.\*%_!", "^z"], [r"a\.\*%_!$", "z$"]
+        self.assertEqual([item["value"] for item in fields], [prefix, prefix, suffix, suffix])
+        with patch(f"{MODULE}.UnifyQueryMappingHandler.get_fields_by_table_id", return_value=mapping[:1]):
+            with self.assertRaisesMessage(ValidationError, "keyword"):
+                query._transform_additions({"index_set_id": 42})
+
     def start_patch(self, target, **kwargs):
         p = patch(target, **kwargs)
         obj = p.start()

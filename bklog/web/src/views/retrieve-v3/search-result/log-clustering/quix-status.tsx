@@ -65,7 +65,11 @@ export default defineComponent({
           aria-live='polite'
         >
           <strong>{t(failed ? failureText[operation.operation_type] : phaseText[phase])}</strong>
-          {operation?.status === 'awaiting_receipt' && <span>{t('配置已下发，等待采用确认')}</span>}
+          {operation?.status === 'awaiting_receipt' && (
+            <span>
+              {t(operation.operation_type === 'disable' ? '等待 BKBase 确认聚类已关闭' : '配置已下发，等待采用确认')}
+            </span>
+          )}
           {operation?.last_error && (failed || operation.status === 'running') && <span>{operation.last_error}</span>}
           {bkfara?.error && <span>{bkfara.error}</span>}
           {!!bkfara?.pending_result_count && (

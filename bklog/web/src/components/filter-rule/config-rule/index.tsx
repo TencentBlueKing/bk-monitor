@@ -34,6 +34,7 @@ import { storeRuntimeCacheService } from '@/store/services/runtime-cache.service
 import { BK_LOG_STORAGE } from '@/store/store.type';
 
 import ControlOperate from './control-operate';
+import { clusteringFilterLabels } from '../operators';
 import RuleTrigger from './rule-trigger';
 
 import './index.scss';
@@ -112,12 +113,7 @@ export default defineComponent({
       );
     });
 
-    const conditionList = [
-      { id: '=', name: '=' },
-      { id: '!=', name: '!=' },
-      { id: 'contains', name: t('包含') },
-      { id: 'not contains', name: t('不包含') },
-    ];
+    const conditionList = Object.entries(clusteringFilterLabels).map(([id, label]) => ({ id, name: t(label) }));
 
     const formRules = {
       op: [
@@ -338,6 +334,7 @@ export default defineComponent({
         on-show={handlePopoverShow}
       >
         <RuleTrigger
+          operatorName={conditionList.find(({ id }) => id === localFormData.value.op)?.name ?? localFormData.value.op}
           data={localFormData.value}
           isCreate={props.isCreate}
           on-click={handleClickTrigger}

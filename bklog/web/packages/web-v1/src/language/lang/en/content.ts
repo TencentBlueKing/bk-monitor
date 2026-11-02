@@ -26,6 +26,10 @@
 /** biome-ignore-all lint/suspicious/noTemplateCurlyInString: reason */
 
 export default {
+  以指定值开头: 'Starts with',
+  不以指定值开头: 'Does not start with',
+  以指定值结尾: 'Ends with',
+  不以指定值结尾: 'Does not end with',
   '正则匹配：': 'Regex matching:',
   '范围匹配：': 'Range matching:',
   搜索字段名: 'Search field name',
