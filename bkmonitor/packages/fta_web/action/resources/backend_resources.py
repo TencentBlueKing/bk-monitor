@@ -139,6 +139,7 @@ class BatchCreateActionResource(Resource):
                     bk_biz_id=validated_request_data["bk_biz_id"],
                     assignee=[creator],
                     generate_uuid=generate_uuid,
+                    inputs={"alert_latest_time": max(alert.latest_time for alert in alerts)},
                 )
 
                 display_name = get_user_display_name(creator)
