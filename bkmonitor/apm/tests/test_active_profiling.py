@@ -1090,7 +1090,7 @@ def test_submit_planned_task_persists_and_deploys_with_task_id(deploy_apis):
     step = kwargs["steps"][0]
     assert step["config"] == {
         "plugin_name": "bkmonitorbeat",
-        "plugin_version": "0.0.5",
+        "plugin_version": "latest",
         "config_templates": [{"name": "bkmonitorbeat_active_profile.conf", "version": "latest"}],
     }
     assert step["params"]["context"] == {
