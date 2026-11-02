@@ -40,7 +40,9 @@ from apps.log_clustering.handlers.quix.payload import build_create_task_payload
 from apps.log_clustering.handlers.quix.config import get_quix_config
 from apps.log_clustering.models import ClusteringConfig, LogClusteringOperation, LogClusteringRuntime
 from apps.log_search.constants import InnerTag
-from apps.log_search.models import LogIndexSet
+from apps.log_search.handlers.index_set import BaseIndexSetHandler
+from apps.log_search.models import LogIndexSet, Scenario
+from bkm_space.utils import parse_space_uid
 from apps.utils.log import logger
 
 POLL_INTERVAL_SECONDS = 15
@@ -91,18 +93,18 @@ class QuixClusteringOperationRunner:
             "wait_task_ready",
             "wait_worker_ready",
             "metadata_set",
-            "register_pattern_route",
             "wait_adoption",
             "confirm_adoption",
+            "register_query_routes",
         ],
         # 同时修改模型和过滤时，先由 BKFara 接受模型参数，再下发过滤配置。
         ClusteringOperationTypeEnum.UPDATE.value: [
             "update_model_parameters",
             "confirm_model_parameters",
             "metadata_set",
-            "register_pattern_route",
             "wait_adoption",
             "confirm_adoption",
+            "register_query_routes",
         ],
         ClusteringOperationTypeEnum.UPDATE_MODEL.value: [
             "update_model_parameters",
@@ -288,37 +290,44 @@ class QuixClusteringOperationRunner:
         )
         result = TransferApi.set_log_clustering_config(params.copy())
         self._save_runtime(sink=result["sink"])
-        # 将本次绑定的实际查询目标固化到操作中，注册失败时只重试通用路由接口。
-        self.operation.get_request_payload(
-            "register_pattern_route", lambda: self._pattern_route_params(result["pattern_target"])
-        )
         return True
 
-    def _pattern_route_params(self, target: dict) -> dict:
+    def _step_register_query_routes(self) -> bool:
+        status = TransferApi.get_log_clustering_status(self._metadata_params(include_query_targets=True))
+        if not runtime_adoption_confirmed(status) or not status.get("query_targets"):
+            return False
+        targets = status["query_targets"]
         index_set = LogIndexSet.objects.get(index_set_id=self.runtime.index_set_id)
-        space_type, space_id = index_set.space_uid.split("__", 1)
-        data_label = f"bklog_index_set_{index_set.index_set_id}_pattern"
-        return {
-            "space_type": space_type,
-            "space_id": space_id,
-            "data_label": data_label,
-            "table_info": [
-                {
-                    "table_id": f"{data_label}.__default__",
-                    "storage_type": "elasticsearch",
-                    "source_type": "es",
-                    "cluster_id": target["cluster_id"],
-                    "index_set": target["index_set"],
-                    "is_enable": True,
-                }
-            ],
+        space_type, space_id = parse_space_uid(index_set.space_uid)
+        result, pattern = targets["clustered"], targets["pattern"]
+        clustered_label = BaseIndexSetHandler.get_data_label(index_set.index_set_id, clustered_rt=True)
+        pattern_label = f"{BaseIndexSetHandler.get_data_label(index_set.index_set_id)}_pattern"
+        # 每个 Data Label 关联独立的虚拟 RT；原表回写时也不能改写源日志 RT 的标签。
+        routes = {
+            clustered_label: {
+                "origin_table_id": result["table_id"],
+                "storage_type": result["storage_type"],
+                "source_type": result["source_type"],
+                "cluster_id": result["cluster_id"],
+                "index_set": result["query_index"],
+                "query_alias_settings": [{"field_name": "log_signature", "query_alias": "signature"}],
+            },
+            pattern_label: {
+                "storage_type": pattern["storage_type"],
+                "source_type": Scenario.ES,
+                "cluster_id": pattern["cluster_id"],
+                "index_set": pattern["pattern_index"],
+            },
         }
-
-    def _step_register_pattern_route(self) -> bool:
-        if "register_pattern_route" not in self.operation.request_payloads:
-            # 兼容升级前已完成 metadata_set 的在途操作；沿用原操作保存的绑定请求。
-            self._step_metadata_set()
-        TransferApi.bulk_create_or_update_log_router(self.operation.request_payloads["register_pattern_route"].copy())
+        for label, table in routes.items():
+            TransferApi.bulk_create_or_update_log_router(
+                {
+                    "space_type": space_type,
+                    "space_id": space_id,
+                    "data_label": label,
+                    "table_info": [{"table_id": f"{label}.__default__", "is_enable": True, **table}],
+                }
+            )
         return True
 
     def _step_wait_adoption(self) -> bool:

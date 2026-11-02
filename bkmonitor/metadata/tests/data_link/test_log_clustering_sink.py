@@ -386,11 +386,14 @@ def test_regeneration_preserves_remote_clustering_switch(enabled, default_biz):
     generated = build_sink().compose_config(RAW_SINK)
     remote = build_sink().compose_config(RAW_SINK)
     remote["spec"]["clustering"]["enabled"] = enabled
+    result = {"mode": "append", "result_table": {"name": "predict"}, "es_binding": {"name": "predict-es"}}
+    remote["spec"]["clustering"]["result"] = result
     remote["spec"]["clustering"]["binding"]["log_filter"] = []
     remote["status"] = {"phase": "Ok"}
 
     merged = DataLink.merge_component_config(remote, generated)
 
+    assert merged["spec"]["clustering"]["result"] == result
     assert merged["spec"]["clustering"]["enabled"] is enabled
     assert merged["spec"]["clustering"]["binding"] == BINDING
     assert "status" not in merged

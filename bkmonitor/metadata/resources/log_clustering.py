@@ -302,7 +302,7 @@ class SetLogClusteringConfigResource(Resource):
 
         datalink = get_log_clustering_datalink(bk_tenant_id, table_id)
         databus = get_log_clustering_databus(datalink)
-        pattern_cluster = get_log_clustering_pattern_cluster(bk_tenant_id, config_fields["pattern_resource"])
+        get_log_clustering_pattern_cluster(bk_tenant_id, config_fields["pattern_resource"])
         dsrt = models.DataSourceResultTable.objects.filter(bk_tenant_id=bk_tenant_id, table_id=table_id).last()
         if dsrt is None:
             raise ValidationError(f"table_id({table_id}) related datasource not found")
@@ -348,7 +348,6 @@ class SetLogClusteringConfigResource(Resource):
         return {
             "attached": sink.attached,
             "applied_scope": applied_scope,
-            "pattern_target": {"cluster_id": pattern_cluster.cluster_id, "index_set": sink.binding["pattern_index"]},
             "sink": format_log_clustering_identity(bk_tenant_id, sink),
             "databus": format_log_clustering_identity(bk_tenant_id, databus),
         }
@@ -410,6 +409,60 @@ class OperateLogClusteringResource(Resource):
         }
 
 
+def get_log_clustering_query_targets(tenant: str, source_table_id: str, spec: dict) -> dict:
+    """从已下发的 Sink 解析结果表及 Pattern 物理索引，供 SaaS 登记两个查询标签。"""
+    clustering = spec["clustering"]
+    result = clustering.get("result")
+    # 旧版 Sink 只支持回写 rawSink；新协议必须明确声明 result.mode。
+    if result is None and "rawSink" in spec:
+        result = {"mode": "update_original"}
+    if result and result["mode"] == "update_original":
+        table_id = source_table_id
+    elif result and result["mode"] == "append":
+        rt, binding = result["result_table"], result["es_binding"]
+        if (rt["kind"], binding["kind"]) != ("ResultTable", "ElasticSearchBinding") or any(
+            ref.get("tenant", tenant) != tenant for ref in (rt, binding)
+        ):
+            raise ValidationError("invalid append result references")
+        table_id = models.ResultTableConfig.objects.get(
+            bk_tenant_id=tenant,
+            namespace=rt["namespace"],
+            name=rt["name"],
+        ).table_id
+        if (
+            table_id == source_table_id
+            or not models.ESStorageBindingConfig.objects.filter(
+                bk_tenant_id=tenant,
+                namespace=binding["namespace"],
+                name=binding["name"],
+                bkbase_result_table_name=rt["name"],
+                table_id=table_id,
+            ).exists()
+        ):
+            raise ValidationError("append binding must reference the independent result table")
+    else:
+        raise ValidationError("unknown LogClusteringSink result mode")
+
+    storage = models.ESStorage.objects.get(bk_tenant_id=tenant, table_id=table_id)
+    pattern_cluster = get_log_clustering_pattern_cluster(
+        tenant, clustering.get("pattern_resource") or clustering["patternResource"]
+    )
+    return {
+        "clustered": {
+            "table_id": table_id,
+            "storage_type": storage.STORAGE_TYPE,
+            "cluster_id": storage.storage_cluster_id,
+            "query_index": storage.index_set or table_id.replace(".", "_"),
+            "source_type": storage.source_type or "log",
+        },
+        "pattern": {
+            "cluster_id": pattern_cluster.cluster_id,
+            "storage_type": pattern_cluster.cluster_type,
+            "pattern_index": clustering["binding"]["pattern_index"],
+        },
+    }
+
+
 class GetLogClusteringStatusResource(Resource):
     """
     查询日志聚类配置与运行状态
@@ -423,6 +476,7 @@ class GetLogClusteringStatusResource(Resource):
     class RequestSerializer(serializers.Serializer):
         bk_tenant_id = TenantIdField(label="租户ID")
         table_id = serializers.CharField(label="监控结果表ID")
+        include_query_targets = serializers.BooleanField(default=False)
 
     def perform_request(self, validated_request_data: dict[str, Any]) -> dict[str, Any]:
         bk_tenant_id = validated_request_data["bk_tenant_id"]
@@ -467,7 +521,13 @@ class GetLogClusteringStatusResource(Resource):
         clustering_status = fetch("clustering_status", read_clustering_status)
 
         raw_sink = get_log_clustering_raw_sink(datalink)
+        query = {}
+        if validated_request_data["include_query_targets"] and sink_resource:
+            query["query_targets"] = fetch(
+                "query_targets", lambda: get_log_clustering_query_targets(bk_tenant_id, table_id, sink_resource["spec"])
+            )
         return {
+            **query,
             "configured": True,
             "attached": sink.attached,
             "binding": sink.binding,

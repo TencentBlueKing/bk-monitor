@@ -14,6 +14,7 @@ sink_referenced、raw_sink_referenced 只说明远端 Databus 配置的引用情
 |--------------|--------|----|-----------------|
 | bk_tenant_id | string | 否  | 租户ID，缺省时取请求租户   |
 | table_id     | string | 是  | 日志采集项对应的监控结果表ID |
+| include_query_targets | bool | 否 | 默认 false；设为 true 时从远端 Sink 配置解析实际查询目标 |
 
 ### 请求参数示例
 
@@ -39,6 +40,10 @@ sink_referenced、raw_sink_referenced 只说明远端 Databus 配置的引用情
 | raw_sink_referenced | bool   | 远端 Databus.spec.sinks 是否引用 raw_sink；raw_sink 为 null 时为 false |
 | clustering_status   | dict   | 聚类 Sink 的 status.message 解析出的 JSON 对象；暂无进度或解析失败时为 null                   |
 | errors              | list   | 远端查询失败信息，元素包含 source、message          |
+
+传入 `include_query_targets=true` 时，`query_targets.clustered` 返回实际结果表的 `table_id`、`cluster_id`、`storage_type`、`source_type` 和 `query_index`。`update_original` 指向原日志表，`append` 按 Sink 的 `result_table` 和 `es_binding` 解析独立结果表；无法解析时在 `errors` 中返回原因。下游用 `bklog_index_set_<id>_clustered` 查询日志，`signature` 映射到物理字段 `log_signature`。
+
+`query_targets.pattern` 单独返回 `cluster_id`、`storage_type` 和 `pattern_index`，用于登记 `bklog_index_set_<id>_pattern`。该标签指向签名与模板的映射表。
 
 ### 响应参数示例
 

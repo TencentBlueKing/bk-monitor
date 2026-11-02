@@ -588,8 +588,17 @@ def test_filter_update_preserves_remote_disabled_state(clustering_datalink, bkba
 
 @pytest.mark.parametrize("failure_key", [RESULT_TABLE_DETAIL_KEY, DATA_LABEL_TO_RESULT_TABLE_KEY])
 def test_pattern_label_resolves_to_binding_through_bulk_router(clustering_datalink, bkbase, mocker, failure_key):
-    target = set_config()["pattern_target"]
-    assert target == {"cluster_id": PATTERN_CLUSTER_ID, "index_set": BINDING["pattern_index"]}
+    set_config()
+    attach_remotely(bkbase)
+    targets = GetLogClusteringStatusResource().request(
+        {"bk_tenant_id": "system", "table_id": LOG_TABLE_ID, "include_query_targets": True}
+    )["query_targets"]
+    target = targets["pattern"]
+    assert target == {
+        "cluster_id": PATTERN_CLUSTER_ID,
+        "storage_type": "elasticsearch",
+        "pattern_index": BINDING["pattern_index"],
+    }
     label = f"bklog_index_set_{BINDING['index_id']}_pattern"
     route = f"{label}.__default__"
     params = {
@@ -598,7 +607,14 @@ def test_pattern_label_resolves_to_binding_through_bulk_router(clustering_datali
         "bk_tenant_id": "system",
         "data_label": label,
         "table_info": [
-            {"table_id": route, "storage_type": "elasticsearch", "source_type": "es", **target, "is_enable": True}
+            {
+                "table_id": route,
+                "storage_type": "elasticsearch",
+                "source_type": "es",
+                "cluster_id": target["cluster_id"],
+                "index_set": target["pattern_index"],
+                "is_enable": True,
+            }
         ],
     }
     models.Space.objects.create(
@@ -627,3 +643,40 @@ def test_pattern_label_resolves_to_binding_through_bulk_router(clustering_datali
     assert (detail["storage_id"], detail["db"]) == (PATTERN_CLUSTER_ID, BINDING["pattern_index"])
     assert route in json.loads(hashes[SPACE_TO_RESULT_TABLE_KEY]["bkcc__2"])
     assert models.ResultTable.objects.filter(bk_tenant_id="system", table_id=route).count() == 1
+
+
+@pytest.mark.parametrize("mode", ["update_original", "append"])
+def test_query_targets_follow_remote_result_binding(clustering_datalink, bkbase, mode):
+    set_config()
+    attach_remotely(bkbase)
+    result = {"mode": mode}
+    table_id, cluster_id = LOG_TABLE_ID, 710101
+    if mode == "append":
+        table_id, cluster_id = "2_bklog.predict", PATTERN_CLUSTER_ID
+        result.update(
+            result_table={"kind": "ResultTable", "name": "predict", "namespace": "bklog"},
+            es_binding={"kind": "ElasticSearchBinding", "name": "predict-es", "namespace": "bklog"},
+        )
+        models.ResultTableConfig.objects.create(
+            name="predict", namespace="bklog", bk_tenant_id="system", table_id=table_id, bk_biz_id=2
+        )
+        models.ESStorageBindingConfig.objects.create(
+            name="predict-es",
+            namespace="bklog",
+            bk_tenant_id="system",
+            table_id=table_id,
+            bkbase_result_table_name="predict",
+            bk_biz_id=2,
+        )
+        models.ESStorage.objects.create(bk_tenant_id="system", table_id=table_id, storage_cluster_id=cluster_id)
+    bkbase["remote_sink"]["spec"]["clustering"]["result"] = result
+    params = {"bk_tenant_id": "system", "table_id": LOG_TABLE_ID, "include_query_targets": True}
+    targets = GetLogClusteringStatusResource().request(params)["query_targets"]
+    assert targets["clustered"]["table_id"] == table_id
+    assert targets["clustered"]["cluster_id"] == cluster_id
+    assert targets["pattern"]["pattern_index"] == BINDING["pattern_index"]
+    if mode == "append":
+        result["es_binding"]["name"] = "missing"
+        status = GetLogClusteringStatusResource().request(params)
+        assert status["query_targets"] is None
+        assert status["errors"][0]["source"] == "query_targets"

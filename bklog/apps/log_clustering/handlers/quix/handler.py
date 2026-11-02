@@ -72,7 +72,7 @@ UNBOUND_RESET_FIELDS = {
 # 开启流程中各步骤对应到现有接入状态的三段展示
 ACCESS_STATUS_STEPS = {
     "flow_create": ("create_task", "wait_task_ready", "wait_worker_ready"),
-    "flow_run": ("metadata_set", "register_pattern_route", "wait_adoption", "confirm_adoption", "finish"),
+    "flow_run": ("metadata_set", "wait_adoption", "confirm_adoption", "register_query_routes", "finish"),
 }
 
 
