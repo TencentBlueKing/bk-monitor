@@ -67,7 +67,10 @@ class Migration(migrations.Migration):
             options={
                 "verbose_name": "主动 Profiling 主机执行",
                 "unique_together": {("execution_id", "bk_host_id")},
-                "index_together": {("bk_biz_id", "scheduled_at", "execution_id", "bk_host_id")},
+                "index_together": {
+                    ("bk_biz_id", "scheduled_at", "execution_id", "bk_host_id"),
+                    ("status", "unknown_at"),
+                },
             },
         ),
         migrations.CreateModel(
