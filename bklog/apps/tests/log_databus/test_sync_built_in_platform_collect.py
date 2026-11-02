@@ -32,6 +32,27 @@ class TestSyncBuiltInPlatformCollect(TestCase):
             call_command("sync_built_in_platform_collect", *args, stdout=StringIO())
 
     @override_settings(ENABLE_MULTI_TENANT_MODE=True)
+    @patch("apps.utils.local.BKLoginApi.batch_lookup_virtual_user")
+    def test_skips_operator_lookup_without_config(self, mock_lookup):
+        with patch.dict(os.environ, {"BK_LOG_BUILTIN_COLLECT_CONFIG_PATH": ""}):
+            call_command("sync_built_in_platform_collect", stdout=StringIO())
+
+        mock_lookup.assert_not_called()
+
+    @override_settings(ENABLE_MULTI_TENANT_MODE=True)
+    @patch("apps.utils.local.BKLoginApi.batch_lookup_virtual_user")
+    def test_skips_operator_lookup_when_config_empty(self, mock_lookup):
+        empty_config_path = os.path.join(self.temp_dir.name, "empty_builtin_collect.yaml")
+        with open(empty_config_path, "w", encoding="utf-8") as f:
+            yaml.safe_dump({"builtin_collect": []}, f)
+
+        with patch.dict(os.environ, {"BK_LOG_BUILTIN_COLLECT_CONFIG_PATH": empty_config_path}):
+            call_command("sync_built_in_platform_collect", stdout=StringIO())
+
+        mock_lookup.assert_not_called()
+        self.assertFalse(CollectorConfig.objects.filter(bk_data_id=BUILT_IN_DATA_ID).exists())
+
+    @override_settings(ENABLE_MULTI_TENANT_MODE=True)
     @patch(f"{COMMAND_MODULE}.Command.create_etl_handle_and_index_set")
     @patch(f"{COMMAND_MODULE}.TransferApi.create_data_id", return_value=BUILT_IN_DATA_ID)
     @patch("apps.utils.local.BKLoginApi.batch_lookup_virtual_user", return_value=[{"bk_username": "bk_admin_t1"}])

@@ -61,8 +61,6 @@ class Command(BaseCommand):
         ]
         """
         default_es_cluster_id = options.get("es_cluster_id")
-        # 内置采集项固定使用默认租户
-        operator = get_backend_username(bk_tenant_id=settings.BK_APP_TENANT_ID)
 
         builtin_collect_file_path = os.environ.get("BK_LOG_BUILTIN_COLLECT_CONFIG_PATH", "")
         if not builtin_collect_file_path:
@@ -79,7 +77,15 @@ class Command(BaseCommand):
             config = yaml.safe_load(f.read())
         config = config or {}
 
-        for built_in_info in config.get("builtin_collect") or []:
+        built_in_collect_list = config.get("builtin_collect") or []
+        if not built_in_collect_list:
+            print("builtin collect config is empty. do nothing")
+            return
+
+        # 内置采集项固定使用默认租户
+        operator = get_backend_username(bk_tenant_id=settings.BK_APP_TENANT_ID)
+
+        for built_in_info in built_in_collect_list:
             try:
                 if not (BUILT_IN_MIN_DATAID <= int(built_in_info["dataId"]) <= BUILT_IN_MAX_DATAID):
                     print("data id ({}) not valid, do nothing".format(built_in_info["dataId"]))
