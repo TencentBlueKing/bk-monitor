@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2025 Tencent. All rights reserved.
@@ -8,7 +7,6 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
-
 
 import os
 
@@ -55,7 +53,7 @@ class BKConsul(consul.Consul):
         """
         # 如果不需要使用tls，直接返回
         if not using_settings:
-            super(BKConsul, self).__init__(scheme=scheme, verify=verify, cert=cert, port=port, **kwargs)
+            super().__init__(scheme=scheme, verify=verify, cert=cert, port=port, **kwargs)
             return
 
         # 判断是否存在consul的证书认证配置
@@ -80,6 +78,9 @@ class BKConsul(consul.Consul):
             verify = server_cert
 
         kwargs["host"] = host
+        # 仅 KMS 模式下不为 None（可能为空字符串）
+        kms_token = getattr(settings, "CONSUL_CLIENT_TOKEN", None)
+        kwargs.setdefault("token", kms_token or None)
         # 如果有任何一个证书的配置，则将scheme改为https
         if cert is not None:
             scheme = "https"
@@ -90,4 +91,7 @@ class BKConsul(consul.Consul):
             if kwargs.get("host") == "127.0.0.1":
                 kwargs["host"] = "localhost"
 
-        super(BKConsul, self).__init__(scheme=scheme, verify=verify, cert=cert, port=port, **kwargs)
+        super().__init__(scheme=scheme, verify=verify, cert=cert, port=port, **kwargs)
+        # python-consul 优先读取 CONSUL_HTTP_TOKEN 环境变量，KMS 模式下以信封中的 token 为准
+        if kms_token is not None:
+            self.token = kwargs["token"]

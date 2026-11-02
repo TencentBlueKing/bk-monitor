@@ -256,17 +256,21 @@ sdist = { url = "https://files.pythonhosted.org/packages/a8/05/91523d2a5f842ebee
 
 [[package]]
 name = "bk-crypto-python-sdk"
-version = "2.0.1"
+version = "4.1.1"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
+    { name = "cryptography" },
     { name = "dacite" },
-    { name = "pycryptodomex" },
-    { name = "tongsuopy-crayon" },
-    { name = "wrapt" },
+    { name = "typing-extensions" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/27/96/38195b6886e4e4a5b40320b70dff5dd6902f17d81ff1cc29e0d14cff7b97/bk_crypto_python_sdk-2.0.1.tar.gz", hash = "sha256:bd33cb86cd287d96eb1f843831b1697b9840feddc95a3cfb5b92669d5246c209", size = 20415, upload-time = "2024-12-16T14:05:54.125Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/52/6c/30a553bf6297456192675b20b67b6bed1625386b0955b1b3833682b0e7fd/bk_crypto_python_sdk-4.1.1.tar.gz", hash = "sha256:89908ab53e2e71eca7316cf5b64b80cce762b38888c51956fb0850fd1abc7dae", size = 141563, upload-time = "2026-09-01T12:19:22.781Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/62/62/b8ae8fb04e8f2a7f84c01ea9504e5366f11168cfb8b4f0683ae951737a30/bk_crypto_python_sdk-2.0.1-py3-none-any.whl", hash = "sha256:6df90b38e75d756fac2016d60e3e820c0026013b0219289f3032bceba300f49b", size = 44927, upload-time = "2024-12-16T14:05:52.129Z" },
+    { url = "https://files.pythonhosted.org/packages/38/b7/5df1b46e8e8cfb2faaa4b75093e48a4be02718f670d3b2b0c2bbe65a6410/bk_crypto_python_sdk-4.1.1-py3-none-any.whl", hash = "sha256:795f8ca88a70d82073a9862f165ec57db42ab0b5138f0a423f50d510b91a0bd5", size = 51462, upload-time = "2026-09-01T12:19:21.712Z" },
+]
+
+[package.optional-dependencies]
+gm = [
+    { name = "tongsuopy-crayon" },
 ]
 
 [[package]]
@@ -285,12 +289,24 @@ wheels = [
 ]
 
 [[package]]
+name = "bk-kms-sdk"
+version = "1.0.0"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "bk-crypto-python-sdk" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/82/09/005d9c6a32574b78bcc1f7fa08b230ce73ed69eb75292fbfc02b6e03fe76/bk_kms_sdk-1.0.0.tar.gz", hash = "sha256:34962182f15f7e1c6b4edbde25ab43610d0d0344373b2977e9084808484a0fd4", size = 8516, upload-time = "2026-10-09T03:46:24.449Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/37/b8/9cc7810f14b2f7c81191f372598f4ee83ea76d300c8db04811df47ff6204/bk_kms_sdk-1.0.0-py3-none-any.whl", hash = "sha256:ba7357de1ec442e676a2e203ecd465fb7c79f0c5d0614a380d4629e85484107d", size = 11300, upload-time = "2026-10-09T03:46:23.248Z" },
+]
+
+[[package]]
 name = "bk-monitor-base"
 version = "0.0.1"
 source = { editable = "../bk-monitor-base" }
 dependencies = [
     { name = "arrow" },
-    { name = "bk-crypto-python-sdk" },
+    { name = "bk-crypto-python-sdk", extra = ["gm"] },
     { name = "bkstorages" },
     { name = "blue-krill" },
     { name = "celery" },
@@ -333,9 +349,9 @@ dependencies = [
 [package.metadata]
 requires-dist = [
     { name = "arrow", specifier = "==0.6" },
-    { name = "bk-crypto-python-sdk", specifier = "==2.0.1" },
+    { name = "bk-crypto-python-sdk", extras = ["gm"], specifier = "==4.1.1" },
     { name = "bkstorages", specifier = ">=2.0.1,<2.1.0" },
-    { name = "blue-krill", specifier = "==2.1.0" },
+    { name = "blue-krill", specifier = "==3.1.1" },
     { name = "celery", specifier = "==5.4.0" },
     { name = "confluent-kafka", specifier = "==2.4.0" },
     { name = "django", specifier = "<5" },
@@ -438,8 +454,9 @@ dependencies = [
     { name = "babel" },
     { name = "betterproto" },
     { name = "bk-audit" },
-    { name = "bk-crypto-python-sdk" },
+    { name = "bk-crypto-python-sdk", extra = ["gm"] },
     { name = "bk-iam" },
+    { name = "bk-kms-sdk" },
     { name = "bk-monitor-base" },
     { name = "bk-notice-sdk" },
     { name = "bkstorages" },
@@ -572,8 +589,9 @@ requires-dist = [
     { name = "babel", specifier = "==2.14.0" },
     { name = "betterproto", specifier = "==2.0.0b7" },
     { name = "bk-audit", specifier = "==1.0.7" },
-    { name = "bk-crypto-python-sdk", specifier = "==2.0.1" },
+    { name = "bk-crypto-python-sdk", extras = ["gm"], specifier = "==4.1.1" },
     { name = "bk-iam", specifier = "==2.0.3" },
+    { name = "bk-kms-sdk", specifier = "==1.0.0" },
     { name = "bk-monitor-base", editable = "../bk-monitor-base" },
     { name = "bk-notice-sdk", specifier = "==1.4.2" },
     { name = "bkstorages", specifier = "==2.0.3" },
@@ -726,7 +744,7 @@ wheels = [
 
 [[package]]
 name = "blue-krill"
-version = "2.1.0"
+version = "3.1.1"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "bk-crypto-python-sdk" },
@@ -738,14 +756,12 @@ dependencies = [
     { name = "pyjwt" },
     { name = "python-editor" },
     { name = "requests" },
-    { name = "six" },
     { name = "toml" },
-    { name = "urllib3" },
     { name = "watchdog" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/68/15/2696474aa56070faa12d9572a113f0ed0fcf06c4c6ec8625f3cebfd14324/blue_krill-2.1.0.tar.gz", hash = "sha256:b2cd00ae57b8e5e9ddb706a07a545f2e8e1278cef66476b1af5adbe542d2ee55", size = 64714, upload-time = "2025-02-24T06:39:54.422Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/19/54/0b026611c5bf4f6a01f069294a68108c51e8619167cb1b2cd6c1d5a2450e/blue_krill-3.1.1.tar.gz", hash = "sha256:01ad73b29ccabecf58ef26fb886240714cee9f3f046cbd6fffa61a3b734a879c", size = 63951, upload-time = "2026-06-30T11:32:10.353Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/f2/ed/1351b5f9a6cde1b816416d1aa912aeac0467b4d1e5062b5cd735da5879b1/blue_krill-2.1.0-py3-none-any.whl", hash = "sha256:f59a0632ebe8259eced5021b6b1b9a1c52ba649483b8a712b5d48a90363e5e30", size = 103040, upload-time = "2025-02-24T06:39:51.91Z" },
+    { url = "https://files.pythonhosted.org/packages/c1/3b/a155a9b7c4fd625c15df7efd8fa84aec27c7cc4e3bcc5539c5009d280dca/blue_krill-3.1.1-py3-none-any.whl", hash = "sha256:7b797ba24e4079ae6b142b37a4b4bbdf2b0047048ccfac20fbaac8fce2019e15", size = 97162, upload-time = "2026-06-30T11:32:08.218Z" },
 ]
 
 [[package]]
@@ -3002,24 +3018,6 @@ wheels = [
 ]
 
 [[package]]
-name = "pycryptodomex"
-version = "3.22.0"
-source = { registry = "https://pypi.org/simple" }
-sdist = { url = "https://files.pythonhosted.org/packages/ba/d5/861a7daada160fcf6b0393fb741eeb0d0910b039ad7f0cd56c39afdd4a20/pycryptodomex-3.22.0.tar.gz", hash = "sha256:a1da61bacc22f93a91cbe690e3eb2022a03ab4123690ab16c46abb693a9df63d", size = 4917584, upload-time = "2025-03-15T23:11:11.991Z" }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/62/c2/8c97e649ccd3886eaf4918bd87791d3b52e80ba5b9c4678e2b631f2f8340/pycryptodomex-3.22.0-cp37-abi3-macosx_10_9_universal2.whl", hash = "sha256:aef4590263b9f2f6283469e998574d0bd45c14fb262241c27055b82727426157", size = 2494197, upload-time = "2025-03-15T23:10:19.824Z" },
-    { url = "https://files.pythonhosted.org/packages/f1/62/e947c35efebf95ba9bfe3fd76d766caa8d66d3f5d440fca05328c18b3352/pycryptodomex-3.22.0-cp37-abi3-macosx_10_9_x86_64.whl", hash = "sha256:5ac608a6dce9418d4f300fab7ba2f7d499a96b462f2b9b5c90d8d994cd36dcad", size = 1638999, upload-time = "2025-03-15T23:10:22.574Z" },
-    { url = "https://files.pythonhosted.org/packages/51/af/f877f8ec1c4185e3ede3bf2beb286e5150099d2b3cba528c98d832372f38/pycryptodomex-3.22.0-cp37-abi3-manylinux_2_17_aarch64.manylinux2014_aarch64.whl", hash = "sha256:7a24f681365ec9757ccd69b85868bbd7216ba451d0f86f6ea0eed75eeb6975db", size = 2181008, upload-time = "2025-03-15T23:10:24.615Z" },
-    { url = "https://files.pythonhosted.org/packages/6f/72/e7e748c682c889f30a0a7c3072a27a002b50a6cf5912ad1ce1269e327f40/pycryptodomex-3.22.0-cp37-abi3-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:259664c4803a1fa260d5afb322972813c5fe30ea8b43e54b03b7e3a27b30856b", size = 2267300, upload-time = "2025-03-15T23:10:27.396Z" },
-    { url = "https://files.pythonhosted.org/packages/a9/ff/c45a97427aefbea07e8e6f2e08b10b4f2b287b99997bd22a4cef913e53a6/pycryptodomex-3.22.0-cp37-abi3-manylinux_2_5_i686.manylinux1_i686.manylinux_2_17_i686.manylinux2014_i686.whl", hash = "sha256:7127d9de3c7ce20339e06bcd4f16f1a1a77f1471bcf04e3b704306dde101b719", size = 2306939, upload-time = "2025-03-15T23:10:29.433Z" },
-    { url = "https://files.pythonhosted.org/packages/80/c7/cfbdd748a45b7fe8769a5494f130b092e9392e780ad204b5bc39c1a3a521/pycryptodomex-3.22.0-cp37-abi3-musllinux_1_2_aarch64.whl", hash = "sha256:ee75067b35c93cc18b38af47b7c0664998d8815174cfc66dd00ea1e244eb27e6", size = 2180286, upload-time = "2025-03-15T23:10:31.729Z" },
-    { url = "https://files.pythonhosted.org/packages/91/db/26f5d2af7cf809acfe1d1d7182a81fc0d0c13c26dd995b22c5b41be28bf9/pycryptodomex-3.22.0-cp37-abi3-musllinux_1_2_i686.whl", hash = "sha256:1a8b0c5ba061ace4bcd03496d42702c3927003db805b8ec619ea6506080b381d", size = 2340887, upload-time = "2025-03-15T23:10:34.66Z" },
-    { url = "https://files.pythonhosted.org/packages/a1/4c/78307b989d4855f806fff16424f837400e22df3695725f6aa45553e3a13c/pycryptodomex-3.22.0-cp37-abi3-musllinux_1_2_x86_64.whl", hash = "sha256:bfe4fe3233ef3e58028a3ad8f28473653b78c6d56e088ea04fe7550c63d4d16b", size = 2265831, upload-time = "2025-03-15T23:10:36.913Z" },
-    { url = "https://files.pythonhosted.org/packages/fb/ad/cc69805083af164419a4413bc0ebc791e17103327da6979b14d5d3c7e7e5/pycryptodomex-3.22.0-cp37-abi3-win32.whl", hash = "sha256:2cac9ed5c343bb3d0075db6e797e6112514764d08d667c74cb89b931aac9dddd", size = 1766824, upload-time = "2025-03-15T23:10:39.667Z" },
-    { url = "https://files.pythonhosted.org/packages/15/c8/79ab16e5b95a8988caee792236a776beceabcaa2518979d4e21b6ee20f57/pycryptodomex-3.22.0-cp37-abi3-win_amd64.whl", hash = "sha256:ff46212fda7ee86ec2f4a64016c994e8ad80f11ef748131753adb67e9b722ebd", size = 1797989, upload-time = "2025-03-15T23:10:41.76Z" },
-]
-
-[[package]]
 name = "pydantic"
 version = "2.11.10"
 source = { registry = "https://pypi.org/simple" }
@@ -3133,11 +3131,11 @@ wheels = [
 
 [[package]]
 name = "pyjwt"
-version = "2.10.1"
+version = "2.15.1"
 source = { registry = "https://pypi.org/simple" }
-sdist = { url = "https://files.pythonhosted.org/packages/e7/46/bd74733ff231675599650d3e47f361794b22ef3e3770998dda30d3b63726/pyjwt-2.10.1.tar.gz", hash = "sha256:3cc5772eb20009233caf06e9d8a0577824723b44e6648ee0a2aedb6cf9381953", size = 87785, upload-time = "2024-11-28T03:43:29.933Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/43/ea/5194e52748b0da83d71e082d75496eaec6e58f419f5e184786ded517e6a9/pyjwt-2.15.1.tar.gz", hash = "sha256:4f259e80cdfb6b3fc18a7de51fd1ef9ec79652f25019bae68975ca2468a34df8", size = 121252, upload-time = "2026-09-28T18:40:42.598Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/61/ad/689f02752eeec26aed679477e80e632ef1b682313be70793d798c1d5fc8f/PyJWT-2.10.1-py3-none-any.whl", hash = "sha256:dcdd193e30abefd5debf142f9adfcdd2b58004e644f25406ffaebd50bd98dacb", size = 22997, upload-time = "2024-11-28T03:43:27.893Z" },
+    { url = "https://files.pythonhosted.org/packages/50/ca/44de4e75f8aadc457f0634be3b542815078ded46dca30efb960edeecad6e/pyjwt-2.15.1-py3-none-any.whl", hash = "sha256:42d59d631f7768a1028a64c7ff581a9bf7519804daf91fc5b6c56e30eec5e193", size = 33860, upload-time = "2026-09-28T18:40:41.429Z" },
 ]
 
 [[package]]

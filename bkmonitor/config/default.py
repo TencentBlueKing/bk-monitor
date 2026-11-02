@@ -27,8 +27,8 @@ from django.utils.translation import gettext_lazy as _
 
 from bkmonitor.utils.i18n import TranslateDict
 
-from . import get_env_or_raise
-from .tools.elasticsearch import get_es7_settings
+from . import get_env_or_raise, kms
+from .tools.elasticsearch import get_backend_es7_init_settings, get_es7_settings
 from .tools.environment import (
     BKAPP_DEPLOY_PLATFORM,
     ENVIRONMENT,
@@ -37,6 +37,7 @@ from .tools.environment import (
     PLATFORM,
     ROLE,
 )
+from .tools.influxdb import get_influxdb_init_settings
 from .tools.mysql import (
     get_backend_alert_mysql_settings,
     get_backend_mysql_settings,
@@ -136,7 +137,11 @@ USE_L10N = True
 SAAS_APP_CODE = ""
 SAAS_SECRET_KEY = ""
 
-if ROLE == "web":
+if kms.enabled():
+    APP_CODE, SECRET_KEY = kms.app_identity(ROLE)
+    APP_ID, APP_TOKEN = APP_CODE, SECRET_KEY
+    BACKEND_APP_CODE = kms.value("bkapp_id_secret", "backend", "app_code")
+elif ROLE == "web":
     # BKPAAS_APP_ID是PaasV3，APP_ID/APP_CODE是PaasV2
     APP_ID = APP_CODE = get_env_or_raise("BKPAAS_APP_ID", "APP_ID", "APP_CODE", default="bk_monitorv3")
     # BKPAAS_APP_TOKEN是PaasV3，APP_TOKEN/SECRET_KEY是PaasV2
@@ -702,8 +707,12 @@ RUM_CUSTOM_EVENT_REPORT_CONFIG = {}
 FTA_ES7_HOST = os.getenv("BKAPP_FTA_ES7_HOST", os.getenv("BK_FTA_ES7_HOST", "es7.service.consul"))
 FTA_ES7_REST_PORT = os.getenv("BKAPP_FTA_ES7_REST_PORT", os.getenv("BK_FTA_ES7_REST_PORT", "9200"))
 FTA_ES7_TRANSPORT_PORT = os.getenv("BKAPP_FTA_ES7_TRANSPORT_PORT", os.getenv("BK_FTA_ES7_TRANSPORT_PORT", "9301"))
-FTA_ES7_USER = os.getenv("BKAPP_FTA_ES7_USER", os.getenv("BK_FTA_ES7_USER", ""))
-FTA_ES7_PASSWORD = os.getenv("BKAPP_FTA_ES7_PASSWORD", os.getenv("BK_FTA_ES7_PASSWORD", ""))
+if kms.enabled():
+    FTA_ES7_USER = kms.value("elasticsearch", "fta", "username")
+    FTA_ES7_PASSWORD = kms.value("elasticsearch", "fta", "password")
+else:
+    FTA_ES7_USER = os.getenv("BKAPP_FTA_ES7_USER", os.getenv("BK_FTA_ES7_USER", ""))
+    FTA_ES7_PASSWORD = os.getenv("BKAPP_FTA_ES7_PASSWORD", os.getenv("BK_FTA_ES7_PASSWORD", ""))
 ELASTICSEARCH_DSL = {
     "default": {
         "hosts": FTA_ES7_HOST,
@@ -713,7 +722,10 @@ ELASTICSEARCH_DSL = {
 }
 
 # BCS API Gateway 配置
-BCS_API_GATEWAY_TOKEN = os.environ.get("BKAPP_BCS_API_GATEWAY_TOKEN", os.getenv("BK_BCS_API_GATEWAY_TOKEN", None))
+if kms.enabled():
+    BCS_API_GATEWAY_TOKEN = kms.value("bcs", "default", "token")
+else:
+    BCS_API_GATEWAY_TOKEN = os.environ.get("BKAPP_BCS_API_GATEWAY_TOKEN", os.getenv("BK_BCS_API_GATEWAY_TOKEN", None))
 BCS_API_GATEWAY_HOST = os.environ.get("BKAPP_BCS_API_GATEWAY_HOST", os.getenv("BK_BCS_API_GATEWAY_HOST", None))
 BCS_API_GATEWAY_PORT = os.environ.get("BKAPP_BCS_API_GATEWAY_PORT", os.getenv("BK_BCS_API_GATEWAY_PORT", "443"))
 BCS_API_GATEWAY_SCHEMA = os.getenv("BKAPP_BCS_API_GATEWAY_SCHEMA", os.getenv("BK_BCS_API_GATEWAY_SCHEMA", "https"))
@@ -969,6 +981,13 @@ ELASTICSEARCH_DSL = {
         "http_auth": (ES7_USER, ES7_PASSWORD) if ES7_USER and ES7_PASSWORD else None,
     },
 }
+
+# Consul ACL Token；仅 KMS 模式下不为 None 并覆盖 CONSUL_HTTP_TOKEN，否则由 python-consul 读取该环境变量
+CONSUL_CLIENT_TOKEN = kms.value("consul", "default", "token") if kms.enabled() else None
+
+# 初始化时写入 metadata 的默认存储集群
+BACKEND_ES7_HOST, BACKEND_ES7_REST_PORT, BACKEND_ES7_USER, BACKEND_ES7_PASSWORD = get_backend_es7_init_settings()
+INFLUXDB_INIT_IP_LIST, INFLUXDB_INIT_PORT, INFLUXDB_INIT_USER, INFLUXDB_INIT_PASSWORD = get_influxdb_init_settings()
 
 # Kafka config
 KAFKA_HOST = [os.environ.get("BK_MONITOR_KAFKA_HOST", "kafka.service.consul")]
@@ -1573,7 +1592,9 @@ BKCRYPTO = {
 # 迁移专用配置
 
 # 自定义上报/APM使用的密钥
-CUSTOM_REPORT_AES_KEY = os.getenv("CUSTOM_REPORT_AES_KEY", "")
+CUSTOM_REPORT_AES_KEY = (
+    kms.value("encryption", "custom_report_aes_key") if kms.enabled() else os.getenv("CUSTOM_REPORT_AES_KEY", "")
+)
 
 # 新环境新业务的起始业务ID，如果没有配置就不是新环境。
 # 仅接管 bk_biz_id 严格大于该阈值的 CMDB 业务；阈值以下业务交由旧环境/其它链路管理。
@@ -1602,7 +1623,7 @@ DISABLE_BCS_CLUSTER_REFRESH_COMMON_RESOURCE = (
 
 # 特别的AES加密配置信息(全局配置)
 SPECIFY_AES_KEY = ""
-BK_CRYPTO_KEY = os.getenv("BKAPP_BK_CRYPTO_KEY", "")
+BK_CRYPTO_KEY = kms.value("encryption", "symmetric_key") if kms.enabled() else os.getenv("BKAPP_BK_CRYPTO_KEY", "")
 
 # 前端事件上报
 FRONTEND_REPORT_DATA_ID = 0
@@ -1970,8 +1991,12 @@ BK_DOC_VERSION = "3.9"
 if os.getenv("USE_BKREPO", os.getenv("BKAPP_USE_BKREPO", "")).lower() == "true":
     USE_CEPH = True
     BKREPO_ENDPOINT_URL = os.getenv("BKAPP_BKREPO_ENDPOINT_URL") or os.environ["BKREPO_ENDPOINT_URL"]
-    BKREPO_USERNAME = os.getenv("BKAPP_BKREPO_USERNAME") or os.environ["BKREPO_USERNAME"]
-    BKREPO_PASSWORD = os.getenv("BKAPP_BKREPO_PASSWORD") or os.environ["BKREPO_PASSWORD"]
+    if kms.enabled():
+        BKREPO_USERNAME = kms.value("bkrepo", "default", "username")
+        BKREPO_PASSWORD = kms.value("bkrepo", "default", "password")
+    else:
+        BKREPO_USERNAME = os.getenv("BKAPP_BKREPO_USERNAME") or os.environ["BKREPO_USERNAME"]
+        BKREPO_PASSWORD = os.getenv("BKAPP_BKREPO_PASSWORD") or os.environ["BKREPO_PASSWORD"]
     BKREPO_PROJECT = os.getenv("BKAPP_BKREPO_PROJECT") or os.environ["BKREPO_PROJECT"]
     BKREPO_BUCKET = os.getenv("BKAPP_BKREPO_BUCKET") or os.environ["BKREPO_BUCKET"]
 
@@ -2015,7 +2040,7 @@ BK_USER_WEB_API_URL = os.getenv("BK_USER_WEB_API_URL") or f"{BK_COMPONENT_API_UR
 
 # GSE消息槽
 GSE_SLOT_ID = int(os.getenv("GSE_SLOT_ID", 0))
-GSE_SLOT_TOKEN = os.getenv("GSE_SLOT_TOKEN", "")
+GSE_SLOT_TOKEN = kms.value("gse", "default", "slot_token") if kms.enabled() else os.getenv("GSE_SLOT_TOKEN", "")
 # 是否开启公共拨测节点鉴权
 ENABLE_PUBLIC_SYNTHETIC_LOCATION_AUTH = False
 

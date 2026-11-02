@@ -209,6 +209,11 @@ def apply_settings(settings):
         except (KeyError, ValueError, TypeError):
             raise KMSConfigurationError(f"KMS requires a valid RabbitMQ {name}") from None
 
+    if value("rabbitmq", "password") == "":
+        # pyamqp substitutes 'guest' for an empty URL password. Transport
+        # options are applied afterwards, when it constructs the AMQP client.
+        settings["BROKER_TRANSPORT_OPTIONS"] = {**(settings.get("BROKER_TRANSPORT_OPTIONS") or {}), "password": ""}
+
     # Celery reads these environment variables ahead of its settings object.
     # Preserve explicit topology while replacing only authentication.
     for name in ("CELERY_BROKER_URL", "CELERY_BROKER_READ_URL", "CELERY_BROKER_WRITE_URL"):
