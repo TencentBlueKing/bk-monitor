@@ -709,8 +709,7 @@ ACTIVE_PROFILING_EXPIRED_TASK_STOP_DELAY_MS = 24 * 3600 * 1000
 # 子配置模板随 bkmonitorbeat 插件包发布，context 结构由模板约定
 ACTIVE_PROFILING_SUBSCRIPTION_STEP_ID = "bkmonitorbeat_active_profile"
 ACTIVE_PROFILING_CONFIG_TEMPLATE_NAME = "bkmonitorbeat_active_profile.conf"
-# TODO: 测试包写死 0.0.5，正式发布前改回 latest
-ACTIVE_PROFILING_PLUGIN_VERSION = "0.0.5"
+ACTIVE_PROFILING_PLUGIN_VERSION = "latest"
 ACTIVE_PROFILING_PROFILE_SERVICE_NAME = "active_allocation"
 
 ACTIVE_PROFILING_BEAT_RELATIVE_PATH = "plugins/bin/bkmonitorbeat"
