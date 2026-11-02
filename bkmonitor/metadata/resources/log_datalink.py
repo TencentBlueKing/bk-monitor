@@ -358,6 +358,8 @@ def _create_or_update_log_router(
 class CreateOrUpdateLogRouter(Resource):
     """更新或者创建log路由信息"""
 
+    republish_route_mappings = False
+
     class RequestSerializer(ParamsSerializer):
         space_type = serializers.CharField(required=True, label="空间类型")
         space_id = serializers.CharField(required=True, label="空间ID")
@@ -448,7 +450,7 @@ class CreateOrUpdateLogRouter(Resource):
             is_publish=True,
         )
 
-        if is_create:
+        if is_create or self.republish_route_mappings:
             logger.info("CreateOrUpdateLogRouter: try to push space route for table_id->[%s]", table_id)
             space_client.push_space_table_ids(
                 space_type=space.space_type_id,
@@ -456,9 +458,12 @@ class CreateOrUpdateLogRouter(Resource):
                 is_publish=True,
             )
 
-        if data_label and data_label != old_data_label:
+        # 更新请求省略标签时，结果表沿用原标签；重放映射也应使用该标签。
+        if self.republish_route_mappings and not data_label:
+            data_label = old_data_label
+        if data_label and (self.republish_route_mappings or data_label != old_data_label):
             data_labels = [data_label]
-            if old_data_label:
+            if old_data_label and old_data_label != data_label:
                 data_labels.append(old_data_label)
             logger.info(
                 "CreateOrUpdateLogRouter: try to push data label routes for table_id->[%s], data_labels->[%s]",

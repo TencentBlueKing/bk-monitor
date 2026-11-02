@@ -3,7 +3,7 @@
 创建或更新日志聚类 Pattern 查询路由。
 
 查询索引固定取当前有效聚类绑定的 pattern_index，集群由聚类绑定中 patternResource 对应的 metadata ES 集群确定；
-state_index 仅供 BKBase 内部恢复使用，不登记查询路由。首次登记需使用空闲的 route_table_id。重复登记只允许更新由同一源日志表创建的 Pattern 路由。
+state_index 仅供 BKBase 内部恢复使用，不登记查询路由。首次登记需使用空闲的 route_table_id。重复登记只允许更新由同一源日志表在同一空间创建的 Pattern 路由。
 
 ### 请求参数
 
@@ -56,10 +56,11 @@ state_index 仅供 BKBase 内部恢复使用，不登记查询路由。首次登
 
 BKBase 将当前模板保存在独立 ES 索引。文档包含 signature、pattern、distance_threshold 和 publish_revision，当前写入协议没有更新时间字段。普通 UnifyQuery ES 时间范围检索会附加 range 过滤，省略 time_field 也不能用它查询这些快照。
 
-有对应查询权限的日志平台调用方可复用现有 `POST /api/v1/esquery/dsl/`。将登记响应的 cluster_id 作为 storage_cluster_id、index_set 作为 indices，使用不含时间条件的 ES DSL。例如：
+有对应查询权限的日志平台调用方可复用现有 `POST /api/v1/esquery/dsl/`。将登记响应的 cluster_id 作为 storage_cluster_id、index_set 作为 indices，使用不含时间条件的 ES DSL。非 ESQUERY 白名单应用还需提供源日志索引集的 index_set_id，入口按该索引集校验 SEARCH_LOG 权限。白名单应用沿用已有应用鉴权策略。index_set_id 用于鉴权，实际查询目标仍取登记响应中的集群与索引。
 
 ```json
 {
+    "index_set_id": 24466,
     "scenario_id": "es",
     "storage_cluster_id": 3,
     "indices": "log-clustering-24466-pattern",

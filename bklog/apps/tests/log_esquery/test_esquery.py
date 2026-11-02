@@ -22,7 +22,7 @@ the project delivered to anyone in the future.
 import copy
 from unittest.mock import Mock, patch
 
-from django.test import TestCase
+from django.test import TestCase, override_settings
 
 from apps.log_databus.models import CollectorConfig
 from apps.log_esquery.esquery.dsl_builder.query_builder.query_builder_logic import (
@@ -30,6 +30,7 @@ from apps.log_esquery.esquery.dsl_builder.query_builder.query_builder_logic impo
 )
 from apps.log_esquery.esquery.esquery import EsQuery
 from apps.log_esquery.serializers import EsQueryDslAttrSerializer, EsQuerySearchAttrSerializer
+from apps.log_esquery.views.esquery_views import EsQueryViewSet
 from apps.log_search.exceptions import (
     IndexResultTableApiException,
     ScenarioNotSupportedException,
@@ -486,6 +487,26 @@ class TestEsquery(TestCase):
         result = EsQuery(params).dsl()
         self.assertEqual(result, DSL_RESULT_ES)
 
+    @override_settings(ESQUERY_WHITE_LIST=[], IGNORE_IAM_PERMISSION=False)
+    def test_pattern_dsl_checks_permission_on_source_index_set(self):
+        view = EsQueryViewSet()
+        view.action = "dsl"
+        view.request = Mock(
+            data={"index_set_id": 42, "scenario_id": Scenario.ES, "indices": "log-clustering-42-pattern"}
+        )
+        with (
+            patch(
+                "apps.log_esquery.views.esquery_views.Permission.get_auth_info",
+                return_value={"bk_app_code": "test-app"},
+            ),
+            patch("apps.iam.handlers.drf.Permission.is_allowed") as check,
+        ):
+            (permission,) = view.get_permissions()
+            permission.has_permission(view.request, view)
+        kwargs = check.call_args.kwargs
+        self.assertEqual(kwargs["action"], view.ActionEnum.SEARCH_LOG)
+        self.assertEqual(kwargs["resources"][0].id, "42")
+
     def test_pattern_snapshot_dsl_uses_exact_index_without_time_filter(self):
         index = "log-clustering-42-pattern"
         body = {
@@ -494,7 +515,13 @@ class TestEsquery(TestCase):
             "query": {"match_all": {}},
         }
         serializer = EsQueryDslAttrSerializer(
-            data={"scenario_id": Scenario.ES, "indices": index, "storage_cluster_id": 3, "body": body}
+            data={
+                "index_set_id": 42,
+                "scenario_id": Scenario.ES,
+                "indices": index,
+                "storage_cluster_id": 3,
+                "body": body,
+            }
         )
         serializer.is_valid(raise_exception=True)
         transport = Mock()

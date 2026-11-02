@@ -618,6 +618,51 @@ def test_pattern_router_registers_and_updates_only_its_own_route(clustering_data
     pattern_route_space.return_value.push_table_id_detail.assert_called()
 
 
+@pytest.mark.parametrize("failed_push", ["push_table_id_detail", "push_space_table_ids", "push_data_label_table_ids"])
+def test_pattern_router_retry_republishes_mappings(clustering_datalink, bkbase, pattern_route_space, failed_push):
+    set_config()
+    redis = pattern_route_space.return_value
+    getattr(redis, failed_push).side_effect = [RuntimeError("publish failed"), None]
+    with pytest.raises(RuntimeError, match="publish failed"):
+        create_pattern_router()
+    redis.reset_mock()
+    result = create_pattern_router()
+    redis.push_table_id_detail.assert_called_once_with(
+        bk_tenant_id="system", table_id_list=[result["route_table_id"]], is_publish=True
+    )
+    redis.push_space_table_ids.assert_called_once_with(space_type="bkcc", space_id="2", is_publish=True)
+    redis.push_data_label_table_ids.assert_called_once_with(
+        data_label_list=["bklog_index_set_24466_pattern"], bk_tenant_id="system", is_publish=True
+    )
+
+
+def test_pattern_router_retry_without_label_republishes_existing_label(
+    clustering_datalink, bkbase, pattern_route_space
+):
+    set_config()
+    create_pattern_router()
+    redis = pattern_route_space.return_value
+    redis.reset_mock()
+    create_pattern_router(data_label="")
+    redis.push_data_label_table_ids.assert_called_once_with(
+        data_label_list=["bklog_index_set_24466_pattern"], bk_tenant_id="system", is_publish=True
+    )
+
+
+def test_pattern_router_cannot_update_another_space(clustering_datalink, bkbase, pattern_route_space):
+    set_config()
+    result = create_pattern_router()
+    models.Space.objects.create(
+        bk_tenant_id="system", space_type_id="bkcc", space_id="3", space_code="other", space_name="other"
+    )
+    pattern_route_space.reset_mock()
+    with pytest.raises(ValidationError, match="belongs to another space"):
+        create_pattern_router(space_id="3", data_label="other-space")
+    route = models.ResultTable.objects.get(bk_tenant_id="system", table_id=result["route_table_id"])
+    assert (route.bk_biz_id, route.data_label) == (2, "bklog_index_set_24466_pattern")
+    pattern_route_space.assert_not_called()
+
+
 def test_pattern_router_cannot_replace_source(clustering_datalink, bkbase, pattern_route_space):
     set_config()
     raw = models.ESStorage.objects.get(bk_tenant_id="system", table_id=LOG_TABLE_ID)

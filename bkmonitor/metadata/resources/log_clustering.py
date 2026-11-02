@@ -502,6 +502,8 @@ class CreateOrUpdateLogClusteringPatternRouterResource(CreateOrUpdateLogRouter):
     state_index 仅供 BKBase 内部恢复使用，不登记查询路由。路由结果表、空间与选项由调用方给出，复用日志路由体系落库和推送。
     """
 
+    republish_route_mappings = True
+
     class RequestSerializer(ParamsSerializer):
         table_id = serializers.CharField(label="日志采集项对应的监控结果表ID")
         space_type = serializers.CharField(label="空间类型")
@@ -527,6 +529,8 @@ class CreateOrUpdateLogClusteringPatternRouterResource(CreateOrUpdateLogRouter):
             .filter(bk_tenant_id=space.bk_tenant_id, table_id=params["table_id"])
             .first()
         )
+        if route and route.bk_biz_id != space.get_bk_biz_id():
+            raise ValidationError(f"route_table_id({route.table_id}) belongs to another space")
         if (
             route
             and not models.ResultTableOption.objects.filter(
