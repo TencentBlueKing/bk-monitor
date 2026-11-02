@@ -1569,6 +1569,26 @@ paths:
           userVerifiedRequired: false
           resourcePermissionRequired: true
         descriptionEn: update space
+  /app/metadata/set_bkms_space_status/:
+    post:
+      operationId: metadata_set_bkms_space_status
+      description: 设置 BKMS 空间启停状态
+      tags:
+      - metadata
+      x-bk-apigateway-resource:
+        isPublic: false
+        allowApplyPermission: true
+        matchSubpath: false
+        backend:
+          name: default
+          method: post
+          path: /api/v3/meta/set_bkms_space_status/
+          matchSubpath: false
+        authConfig:
+          appVerifiedRequired: true
+          userVerifiedRequired: false
+          resourcePermissionRequired: true
+        descriptionEn: set BKMS space status
   /app/metadata/list_clusters/:
     get:
       operationId: metadata_list_clusters

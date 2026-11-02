@@ -15,6 +15,7 @@ from unittest.mock import Mock
 
 import fakeredis
 import pytest
+import redis
 
 from alarm_backends.core.cache import strategy as module
 from alarm_backends.core.cache.strategy import StrategyCacheManager as Manager
@@ -53,13 +54,18 @@ class Histories(list):
 
 @pytest.fixture
 def state(monkeypatch):
-    cache = fakeredis.FakeStrictRedis(server=fakeredis.FakeServer(), decode_responses=True)
+    # 全局 Redis Mock 会影响 fakeredis 按构造器签名识别 decode_responses。
+    with monkeypatch.context() as patch:
+        patch.setattr(redis, "Redis", redis.client.Redis)
+        cache = fakeredis.FakeStrictRedis(server=fakeredis.FakeServer(), decode_responses=True)
     cache.flushall()
     cache.set(Manager.BK_BIZ_IDS_CACHE_KEY, "[2, 3]")
     monkeypatch.setattr(Manager, "cache", cache)
     for name in ("add_source_identity", "add_target_shield_condition", "add_enabled_cluster_condition"):
-        monkeypatch.setattr(Manager, name, Mock())
+        monkeypatch.setattr(Manager, name, Mock(__name__=name))
     monkeypatch.setattr(module.BusinessManager, "keys", lambda: [2, 3])
+    spaces = Mock(return_value=[])
+    monkeypatch.setattr(module.Space.objects, "filter", Mock(return_value=SimpleNamespace(values=spaces)))
     monkeypatch.setattr(module.metrics, "report_all", Mock())
     monkeypatch.setattr(module, "sync_aiops_strategy_signal", Mock())
     current = strategy()
@@ -70,6 +76,7 @@ def state(monkeypatch):
     monkeypatch.setattr(module.StrategyHistoryModel.objects, "filter", history_filter)
     model_filter = Mock()
     model_filter.return_value.values_list.return_value = [1]
+    model_filter.return_value.exclude.return_value = model_filter.return_value
     monkeypatch.setattr(module.StrategyModel.objects, "filter", model_filter)
     get_strategies = Mock(return_value=[current])
     monkeypatch.setattr(Manager, "get_strategies", get_strategies)
@@ -84,6 +91,7 @@ def state(monkeypatch):
         model_filter=model_filter,
         get_strategies=get_strategies,
         clock=clock,
+        spaces=spaces,
     )
 
 
@@ -257,3 +265,110 @@ def test_full_ids_database_failure_does_not_publish_or_delete(state):
         Manager.refresh_strategy_ids([state.current])
     assert json.loads(state.cache.get(Manager.IDS_CACHE_KEY)) == [1, 2]
     assert state.cache.exists(key)
+
+
+def test_disabled_bkms_scope_reads_fresh_spaces_and_uses_negative_ids(state):
+    state.spaces.return_value = [
+        {"id": 101, "space_type_id": "bkci", "space_id": "bkms-disabled", "status": "disabled"},
+        {"id": 102, "space_type_id": "bkci", "space_id": "bkms-active", "status": "normal"},
+        {"id": 103, "space_type_id": "bkci", "space_id": "other-project", "status": "disabled"},
+        {"id": 104, "space_type_id": "bkcc", "space_id": "bkms-other-type", "status": "disabled"},
+        {"id": 105, "space_type_id": "bkci", "space_id": "BKMS-uppercase", "status": "disabled"},
+    ]
+    assert Manager.get_disabled_bkms_biz_ids() == {-101}
+    module.Space.objects.filter.assert_called_once_with(
+        space_type_id="bkci", space_id__istartswith="bkms-", status="disabled"
+    )
+    state.spaces.assert_called_once_with("id", "space_type_id", "space_id", "status")
+
+
+def test_get_strategies_map_excludes_only_disabled_bkms_and_restores_on_enable(state, monkeypatch):
+    disabled = {"id": 101, "space_type_id": "bkci", "space_id": "bkms-disabled", "status": "disabled"}
+    state.spaces.return_value = [disabled]
+    configs = [strategy(1, biz=-101), strategy(2, biz=-102), strategy(3, biz=2)]
+    reader = Mock(return_value={"data": configs})
+    monkeypatch.setattr(module, "list_strategy", reader)
+    monkeypatch.setattr(Manager, "handle_strategy", lambda config: True)
+    assert set(Manager.get_strategies_map()) == {2, 3}
+    disabled["status"] = "normal"
+    assert set(Manager.get_strategies_map()) == {1, 2, 3}
+    assert all(config["is_enabled"] for config in configs)
+
+
+def test_full_refresh_removes_disabled_bkms_from_all_indexes_and_restores(state, monkeypatch):
+    disabled = {"id": 101, "space_type_id": "bkci", "space_id": "bkms-disabled", "status": "disabled"}
+    state.spaces.return_value = [disabled]
+    monkeypatch.setattr(module.BusinessManager, "keys", lambda: [-101, 2])
+    state.histories.clear()
+    configs = [
+        strategy(1, biz=-101, group="bkms", sdk=True, nodata=True),
+        strategy(2, biz=2, group="healthy"),
+        strategy(3, biz=-101, group="gse"),
+        strategy(4, biz=-101, group="fta"),
+    ]
+    configs[0]["items"][0]["query_configs"][0].update(agg_method="REAL_TIME", result_table_id="custom.fixture")
+    configs[2]["items"][0]["query_configs"][0].update(data_type_label="event")
+    configs[3]["items"][0]["query_configs"][0].update(
+        data_source_label="bk_fta", data_type_label="alert", alert_name="fixture"
+    )
+    monkeypatch.setattr(module, "list_strategy", Mock(return_value={"data": configs}))
+    monkeypatch.setattr(Manager, "handle_strategy", lambda config: True)
+    state.cache.set(Manager.IDS_CACHE_KEY, "[1, 2, 3, 4]")
+    state.model_filter.return_value.values_list.return_value = [1, 2, 3, 4]
+    for config in configs:
+        state.cache.set(Manager.CACHE_KEY_TEMPLATE.format(strategy_id=config["id"]), json.dumps(config))
+    put_group(state, "bkms", [1], biz=-101)
+    put_group(state, "healthy", [2])
+    for refresh in [
+        Manager.refresh_real_time_strategy_ids,
+        Manager.refresh_gse_alarm_strategy_ids,
+        Manager.refresh_fta_alert_strategy_ids,
+        Manager.refresh_nodata_strategy_ids,
+        Manager.refresh_aiops_sdk_strategy_ids,
+    ]:
+        refresh(configs)
+    assert Manager.get_real_time_data_strategy_ids()["custom.fixture"]["-101"] == [1]
+    assert Manager.get_gse_alarm_strategy_ids()["-101"] == [3]
+    assert Manager.get_fta_alert_strategy_ids(alert_name="fixture") == {"-101": [4]}
+
+    Manager.refresh()
+    assert Manager.get_strategy_ids() == [2]
+    assert not Manager.get_strategy_by_id(1)
+    assert Manager.get_strategy_by_id(2)
+    assert not state.cache.hexists(Manager.STRATEGY_GROUP_CACHE_KEY, "bkms")
+    assert Manager.get_real_time_data_strategy_ids() == {}
+    assert Manager.get_gse_alarm_strategy_ids() == {}
+    assert Manager.get_fta_alert_strategy_ids(alert_name="fixture") == {}
+    assert Manager.get_nodata_strategy_ids() == []
+    assert Manager.get_aiops_sdk_strategy_ids() == []
+
+    disabled["status"] = "normal"
+    Manager.refresh()
+    assert set(Manager.get_strategy_ids()) == {1, 2, 3, 4}
+    assert Manager.get_strategy_by_id(1)
+    assert state.cache.hexists(Manager.STRATEGY_GROUP_CACHE_KEY, "bkms")
+    assert Manager.get_nodata_strategy_ids() == [1]
+    assert Manager.get_aiops_sdk_strategy_ids() == [1]
+    assert Manager.get_real_time_data_strategy_ids()["custom.fixture"]["-101"] == [1]
+    assert Manager.get_gse_alarm_strategy_ids()["-101"] == [3]
+    assert Manager.get_fta_alert_strategy_ids(alert_name="fixture")["-101"] == [4]
+
+
+def test_space_status_without_strategy_history_waits_for_full_refresh(state):
+    state.histories.clear()
+    state.cache.set(Manager.IDS_CACHE_KEY, "[1]")
+    state.cache.set(Manager.CACHE_KEY_TEMPLATE.format(strategy_id=1), json.dumps(state.current))
+    Manager.smart_refresh()
+    state.spaces.assert_not_called()
+    assert Manager.get_strategy_ids() == [1]
+
+
+def test_disabled_bkms_id_is_removed_even_when_cached_detail_is_missing(state):
+    state.spaces.return_value = [
+        {"id": 101, "space_type_id": "bkci", "space_id": "bkms-disabled", "status": "disabled"}
+    ]
+    state.cache.set(Manager.IDS_CACHE_KEY, "[1, 2]")
+    state.model_filter.return_value.values_list.return_value = [2]
+    Manager.refresh_strategy_ids([])
+    state.model_filter.return_value.exclude.assert_called_once_with(bk_biz_id__in={-101})
+    assert Manager.get_strategy_ids() == [2]
