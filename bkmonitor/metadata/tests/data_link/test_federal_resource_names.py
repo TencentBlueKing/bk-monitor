@@ -501,7 +501,21 @@ def test_subset_service_retry_and_delete_reuse_persisted_identity(source, mocker
     assert models.BkBaseResultTable.objects.filter(data_link_name=link.pk).exists()
     assert not models.DataBusConfig.objects.filter(data_link_name=link.pk).exists()
     assert models.VMStorageBindingConfig.objects.filter(name="historical_binding").exists()
+    from metadata.models.data_link.constants import DataLinkResourceStatus
+    from metadata.task.bkbase import _refresh_bkbase_result_table_statuses
+
+    record = models.BkBaseResultTable.objects.get(data_link_name=link.pk)
+    link_key = ("system", link.pk)
+    report = mocker.patch("metadata.task.bkbase.report_metadata_data_link_status_info")
+    for _ in range(2):
+        _refresh_bkbase_result_table_statuses({link_key: [DataLinkResourceStatus.OK.value]}, set(), {link_key: 2})
+        record.refresh_from_db()
+        assert record.status == DataLinkResourceStatus.TERMINATING.value
+        assert report.call_args.kwargs["status"] == DataLinkResourceStatus.TERMINATING.value
+
     service.ensure_federal_subset_data_link("system", "child")
+    record.refresh_from_db()
+    assert record.status == DataLinkResourceStatus.OK.value
     assert models.DataLink.objects.get(data_link_strategy=models.DataLink.BCS_FEDERAL_SUBSET_TIME_SERIES).pk == link.pk
     assert models.ConditionalSinkConfig.objects.get(data_link_name=link.pk).pk == sink.pk
     assert models.DataBusConfig.objects.filter(data_link_name=link.pk).exists()

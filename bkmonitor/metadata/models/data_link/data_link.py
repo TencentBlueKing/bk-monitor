@@ -3093,6 +3093,12 @@ class DataLink(models.Model):
             response,
         )
         self._cleanup_absent_components(components_to_delete)
+        # 仅在远端下发成功后解除停用状态，交由周期任务汇总组件状态。
+        BkBaseResultTable.objects.filter(
+            bk_tenant_id=self.bk_tenant_id,
+            data_link_name=self.data_link_name,
+            status=DataLinkResourceStatus.TERMINATING.value,
+        ).update(status=DataLinkResourceStatus.INITIALIZING.value)
         if should_update_bkbase_rt_storage_type:
             bkbase_rt_record.storage_type = storage_type
             bkbase_rt_record.save(update_fields=["storage_type"])

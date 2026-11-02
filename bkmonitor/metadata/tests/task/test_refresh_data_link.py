@@ -1172,3 +1172,21 @@ def test_refresh_component_without_data_link_does_not_update_bkbase_status(mocke
     bkbase_record.refresh_from_db()
     assert component.status == DataLinkResourceStatus.OK.value
     assert bkbase_record.status == DataLinkResourceStatus.CREATING.value
+
+
+@pytest.mark.django_db(databases="__all__")
+def test_refresh_preserves_disabled_link_with_healthy_retained_components(mocker):
+    _create_result_table_component("disabled_rt", "disabled_link", status=DataLinkResourceStatus.OK.value)
+    record = _create_bkbase_result_table("disabled_link", status=DataLinkResourceStatus.TERMINATING.value)
+    mocker.patch(
+        "metadata.task.bkbase.api.bkdata.list_data_link",
+        return_value=[_remote_component("disabled_rt", DataLinkResourceStatus.OK.value)],
+    )
+    report = mocker.patch("metadata.task.bkbase.report_metadata_data_link_status_info")
+
+    for _ in range(2):
+        _, changed_count = _refresh_and_aggregate()
+        record.refresh_from_db()
+        assert changed_count == 0
+        assert record.status == DataLinkResourceStatus.TERMINATING.value
+        assert report.call_args.kwargs["status"] == DataLinkResourceStatus.TERMINATING.value

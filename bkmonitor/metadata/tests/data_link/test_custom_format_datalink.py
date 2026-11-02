@@ -622,13 +622,40 @@ def test_custom_format_disable_and_reenable_keeps_components(mocker, custom_form
     assert models.BkBaseResultTable.objects.filter(data_link_name=data_link.data_link_name).exists()
     assert models.AccessVMRecord.objects.filter(result_table_id=result_table.table_id).exists()
 
-    data_link.compose_custom_format_configs(
+    from metadata.task.bkbase import _refresh_bkbase_result_table_statuses
+
+    record = models.BkBaseResultTable.objects.get(data_link_name=data_link.pk)
+    link_key = ("system", data_link.pk)
+    report = mocker.patch("metadata.task.bkbase.report_metadata_data_link_status_info")
+
+    def refresh_status(expected):
+        _refresh_bkbase_result_table_statuses(
+            {link_key: [DataLinkResourceStatus.OK.value] * len(retained_components)}, set(), {link_key: 2}
+        )
+        record.refresh_from_db()
+        assert record.status == expected
+        assert report.call_args.kwargs["status"] == expected
+
+    refresh_status(DataLinkResourceStatus.TERMINATING.value)
+    mocker.patch.object(DataLink, "get_existing_component_config", return_value=None)
+    remote = mocker.patch.object(DataLink, "apply_data_link_with_retry", side_effect=RuntimeError("offline"))
+    apply_kwargs = dict(
         bk_biz_id=2,
         data_source=data_source,
         table_id=result_table.table_id,
         storage_cluster_name="vm-cluster",
         inner_kafka_channel_name="kafka-inner",
     )
+    with pytest.raises(RuntimeError, match="offline"):
+        data_link.apply_data_link(**apply_kwargs)
+    refresh_status(DataLinkResourceStatus.TERMINATING.value)
+
+    remote.side_effect = None
+    remote.return_value = {}
+    data_link.apply_data_link(**apply_kwargs)
+    record.refresh_from_db()
+    assert record.status == DataLinkResourceStatus.INITIALIZING.value
+    refresh_status(DataLinkResourceStatus.OK.value)
 
     assert models.DataBusConfig.objects.filter(data_link_name=data_link.pk).count() == 2
     for component in retained_components:
