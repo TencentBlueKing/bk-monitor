@@ -35,8 +35,8 @@ class TestSyncBuiltInPlatformCollect(TestCase):
     @patch(f"{COMMAND_MODULE}.Command.create_etl_handle_and_index_set")
     @patch(f"{COMMAND_MODULE}.TransferApi.create_data_id", return_value=BUILT_IN_DATA_ID)
     @patch("apps.utils.local.BKLoginApi.batch_lookup_virtual_user", return_value=[{"bk_username": "bk_admin_t1"}])
-    def test_uses_tenant_admin_in_multi_tenant_mode(self, mock_lookup, mock_create_data_id, _mock_etl):
-        self._call_command("--bk_tenant_id", "tenant-a")
+    def test_uses_default_tenant_admin_in_multi_tenant_mode(self, mock_lookup, mock_create_data_id, _mock_etl):
+        self._call_command()
 
         collect_config = CollectorConfig.objects.get(bk_data_id=BUILT_IN_DATA_ID)
         self.assertEqual(collect_config.created_by, "bk_admin_t1")
@@ -45,8 +45,7 @@ class TestSyncBuiltInPlatformCollect(TestCase):
         params = mock_create_data_id.call_args.args[0]
         self.assertEqual(params["bk_username"], "bk_admin_t1")
         self.assertEqual(params["operator"], "bk_admin_t1")
-        self.assertEqual(mock_create_data_id.call_args.kwargs["bk_tenant_id"], "tenant-a")
-        self.assertEqual(mock_lookup.call_args.kwargs["bk_tenant_id"], "tenant-a")
+        self.assertEqual(mock_lookup.call_args.kwargs["bk_tenant_id"], settings.BK_APP_TENANT_ID)
 
     @override_settings(ENABLE_MULTI_TENANT_MODE=False)
     @patch(f"{COMMAND_MODULE}.Command.create_etl_handle_and_index_set")
@@ -61,4 +60,3 @@ class TestSyncBuiltInPlatformCollect(TestCase):
         params = mock_create_data_id.call_args.args[0]
         self.assertEqual(params["bk_username"], "admin")
         self.assertEqual(params["operator"], "admin")
-        self.assertEqual(mock_create_data_id.call_args.kwargs["bk_tenant_id"], settings.BK_APP_TENANT_ID)

@@ -46,7 +46,6 @@ from apps.utils.local import get_backend_username
 class Command(BaseCommand):
     def add_arguments(self, parser):
         parser.add_argument("--es_cluster_id", type=int, help="es storage cluster id(default:0)")
-        parser.add_argument("--bk_tenant_id", type=str, help="tenant id")
 
     def handle(self, **options):
         """
@@ -62,8 +61,8 @@ class Command(BaseCommand):
         ]
         """
         default_es_cluster_id = options.get("es_cluster_id")
-        bk_tenant_id = options.get("bk_tenant_id") or settings.BK_APP_TENANT_ID
-        operator = get_backend_username(bk_tenant_id=bk_tenant_id)
+        # 内置采集项固定使用默认租户
+        operator = get_backend_username(bk_tenant_id=settings.BK_APP_TENANT_ID)
 
         builtin_collect_file_path = os.environ.get("BK_LOG_BUILTIN_COLLECT_CONFIG_PATH", "")
         if not builtin_collect_file_path:
@@ -91,7 +90,7 @@ class Command(BaseCommand):
 
                 # 2. 申请内置dataid
                 # collector_scenario.update_or_create_data_id
-                self.create_data_id(collect_config, bk_tenant_id, operator)
+                self.create_data_id(collect_config, operator)
 
                 # 3. 创建存储相关结果表 & 创建索引集
                 if is_create:
@@ -146,7 +145,7 @@ class Command(BaseCommand):
             return collect_config, True
 
     @classmethod
-    def create_data_id(cls, collect_config, bk_tenant_id, operator):
+    def create_data_id(cls, collect_config, operator):
         data_name = CollectorHandler.build_bk_data_name(
             collect_config.bk_biz_id, collect_config.collector_config_name_en
         )
@@ -163,10 +162,10 @@ class Command(BaseCommand):
             "bk_biz_id": collect_config.bk_biz_id,
         }
         try:
-            return TransferApi.create_data_id(params, bk_tenant_id=bk_tenant_id)
+            return TransferApi.create_data_id(params)
         except ApiResultError:
             params["data_id"] = params["bk_data_id"]
-            return TransferApi.modify_data_id(params, bk_tenant_id=bk_tenant_id)
+            return TransferApi.modify_data_id(params)
 
     @classmethod
     def create_etl_handle_and_index_set(cls, collect_config, storage_cluster_id, operator):
