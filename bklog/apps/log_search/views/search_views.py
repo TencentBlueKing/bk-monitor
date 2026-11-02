@@ -46,6 +46,12 @@ from apps.iam.handlers.drf import (
     PlatformAwareIndexSearchPermission,
     ViewBusinessPermission,
 )
+from apps.log_clustering.handlers.quix.query import (
+    apply_query_scope,
+    get_query_runtime,
+    result_query,
+    signature_condition,
+)
 from apps.log_search.constants import (
     FEATURE_ASYNC_EXPORT_COMMON,
     FEATURE_ASYNC_EXPORT_NOTIFY_TYPE,
@@ -424,7 +430,16 @@ class SearchViewSet(APIViewSet):
         }
         """
         data = self.params_valid(SearchAttrSerializer)
-        _apply_index_set_search_bk_biz_id(self.get_object(), data, request)
+        index_set = self.get_object()
+        _apply_index_set_search_bk_biz_id(index_set, data, request)
+        if any(signature_condition(item.get("field", "")) for item in data.get("addition", [])):
+            runtime = get_query_runtime(index_set_id)
+            if runtime:
+                apply_query_scope(index_set, data, request)
+                if not runtime.active_config:
+                    raise serializers.ValidationError(_("聚类配置尚未生效"))
+                query_handler = result_query(index_set_id, runtime.active_config, data)
+                return Response(query_handler.search())
         if data.get("is_scroll_search"):
             search_handler = SearchHandlerEsquery(index_set_id, data)
             return Response(search_handler.scroll_search())
