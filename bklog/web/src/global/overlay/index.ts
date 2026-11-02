@@ -29,6 +29,7 @@ export {
   createDialogVisibleState,
   createRawTippyLifecycle,
   isClickInsideClosest,
+  isEscapeEvent,
   isValidAnchorRect,
   overlayRegistry,
   OverlayRegistry,

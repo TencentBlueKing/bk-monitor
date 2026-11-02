@@ -30,6 +30,11 @@
     background: #edf4ff;
     border-radius: 16px;
 
+    &.is-warning {
+      color: #ff9c01;
+      background: #fff6e8;
+    }
+
     .icon-monitor {
       font-size: 36px;
       line-height: 1;

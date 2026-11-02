@@ -330,19 +330,21 @@ def test_is_discover_managed_cluster_white_list_exempts_threshold(monkeypatch):
     """测试白名单业务豁免起始集群阈值：后缀不大于阈值的集群仍被接管。"""
     monkeypatch.setattr(settings, "NEW_ENV_CLUSTER_BLACK_LIST", [])
     monkeypatch.setattr(settings, "NEW_ENV_CLUSTER_WHITE_LIST", ["2"])
+    cluster_id_ranges = [{"start": 5, "end": None}]
 
     # 阈值后缀为 5，集群后缀为 1（不大于阈值）：非白名单业务不接管
-    assert is_discover_managed_cluster("BCS-K8S-00001", start_cluster_id_suffix=5, bk_biz_id=3) is False
+    assert is_discover_managed_cluster("BCS-K8S-00001", cluster_id_ranges=cluster_id_ranges, bk_biz_id=3) is False
     # 业务命中白名单：豁免阈值，接管
-    assert is_discover_managed_cluster("BCS-K8S-00001", start_cluster_id_suffix=5, bk_biz_id=2) is True
+    assert is_discover_managed_cluster("BCS-K8S-00001", cluster_id_ranges=cluster_id_ranges, bk_biz_id=2) is True
 
 
 def test_is_discover_managed_cluster_black_list_overrides_white_list(monkeypatch):
     """测试黑名单优先级高于白名单：业务同时命中黑白名单时不接管。"""
     monkeypatch.setattr(settings, "NEW_ENV_CLUSTER_BLACK_LIST", [2])
     monkeypatch.setattr(settings, "NEW_ENV_CLUSTER_WHITE_LIST", [2])
+    cluster_id_ranges = [{"start": 5, "end": None}]
 
-    assert is_discover_managed_cluster("BCS-K8S-00001", start_cluster_id_suffix=5, bk_biz_id=2) is False
+    assert is_discover_managed_cluster("BCS-K8S-00001", cluster_id_ranges=cluster_id_ranges, bk_biz_id=2) is False
 
 
 BCS_CLUSTER_ID = "BCS-K8S-00000"

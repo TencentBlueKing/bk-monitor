@@ -583,6 +583,9 @@ APM_APPLICATION_METRIC_DISCOVER_SPLIT_DELTA = 200
 # 服务数据状态的观测窗口（独立于应用级无数据周期），单位：秒。
 APM_SERVICE_DATA_STATUS_LOOKBACK_SECONDS = 60 * 60
 
+# 关联日志索引状态快照的有效期，单位：秒。
+APM_RELATED_LOG_INDEX_STATUS_CACHE_TTL = 15 * 60
+
 # 是否下发平台级别api_name构成配置
 APM_IS_DISTRIBUTE_PLATFORM_API_NAME_CONFIG = (
     os.getenv("BKAPP_APM_IS_DISTRIBUTE_PLATFORM_API_NAME_CONFIG", "false").lower() == "true"
@@ -646,6 +649,8 @@ APM_BMW_DEPLOY_BIZ_ID = 0
 # 在列表中业务，才会创建虚拟指标， [2]
 APM_CREATE_VIRTUAL_METRIC_ENABLED_BK_BIZ_ID = []
 APM_BMW_TASK_QUEUES = ["apm-01"]
+# 预计算任务定时分派空跑：bmw_task_cron 直接跳过，不下发或删除任务
+APM_BMW_TASK_CRON_DRY_RUN = False
 # APM V4 链路 metric data status 配置
 APM_V4_METRIC_DATA_STATUS_CONFIG = {}
 # APM 自定义指标 SDK 映射配置
@@ -1573,15 +1578,19 @@ CUSTOM_REPORT_AES_KEY = os.getenv("CUSTOM_REPORT_AES_KEY", "")
 # 新环境新业务的起始业务ID，如果没有配置就不是新环境。
 # 仅接管 bk_biz_id 严格大于该阈值的 CMDB 业务；阈值以下业务交由旧环境/其它链路管理。
 NEW_ENV_START_BIZ_ID = os.getenv("NEW_ENV_START_BIZ_ID", "")
-# 新环境新集群的起始集群ID，用于判断是否需要执行相关发现任务。
+# 新环境新集群的起始集群ID，未配置多区间时用于判断是否需要执行相关发现任务。
 # 取值示例: "BCS-K8S-10000" 表示仅接管后缀 > 10000 的集群变更。
 NEW_ENV_START_CLUSTER_ID = os.getenv("NEW_ENV_START_CLUSTER_ID", "")
+# 新环境集群编号区间，非空时优先于 NEW_ENV_START_CLUSTER_ID；命中任一区间即可接管。
+# 区间两端均不包含，end 为 null 表示无上界；空列表回退到旧的单阈值配置。
+# 示例: [{"start": 25200, "end": 40000}, {"start": 41200, "end": null}]
+NEW_ENV_CLUSTER_ID_RANGES = json.loads(os.getenv("NEW_ENV_CLUSTER_ID_RANGES", "[]"))
 
 # 业务黑白名单，黑名单是给旧环境使用的，白名单是给新环境与起始业务ID配合使用
 NEW_ENV_BIZ_BLACK_LIST = []
 NEW_ENV_BIZ_WHITE_LIST = []
 
-# 集群黑白名单，黑名单是给旧环境使用的，白名单是给新环境与起始集群ID配合使用
+# 集群黑白名单（业务ID），黑名单优先，白名单可豁免集群编号区间或起始集群ID过滤
 NEW_ENV_CLUSTER_BLACK_LIST = []
 NEW_ENV_CLUSTER_WHITE_LIST = []
 
@@ -2061,3 +2070,8 @@ BKAPP_RUM_SDK = os.getenv("BKAPP_RUM_SDK", "otlp")  # otlp / ageis
 BKAPP_RUM_ENDPOINT = os.getenv("BKAPP_RUM_ENDPOINT", "")
 BKAPP_RUM_TOKEN = os.getenv("BKAPP_RUM_TOKEN", "")
 BKAPP_RUM_ENABLED = str(os.getenv("BKAPP_RUM_ENABLED", False)).lower() == "true"
+
+# 告警列表「通知类型」按通知记录统计（新口径开关，默认关闭）。
+# DynamicSettings 先读取静态 settings，此处不定义会在读取时抛 AttributeError；
+# 查询侧部署在 web 角色，因此放在 default.py 而不是只对 worker 生效的 role 配置。
+ALERT_NOTICE_WAY_BY_RECORDS = False

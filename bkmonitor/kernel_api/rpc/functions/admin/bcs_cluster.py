@@ -1021,7 +1021,14 @@ def list_bcs_clusters(params: dict[str, Any]) -> dict[str, Any]:
     queryset = _build_bcs_cluster_queryset(params, bk_tenant_id).order_by(ordering, "cluster_id")
     clusters, total = paginate_queryset(queryset, page=page, page_size=page_size)
 
-    items = [_serialize_bcs_cluster(c) for c in clusters]
+    from kernel_api.rpc.functions.admin.bcs_management import management_scope
+
+    items = []
+    for cluster in clusters:
+        item = _serialize_bcs_cluster(cluster)
+        scope = management_scope(cluster.cluster_id, cluster.bk_biz_id)
+        item["management_scope"] = {"managed": scope["managed"], "reason": scope["reason"]}
+        items.append(item)
 
     return build_response(
         operation="bcs_cluster.list",

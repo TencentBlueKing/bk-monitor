@@ -681,6 +681,7 @@ class TraceSearchItem(SearchItem):
         path_pool = ThreadPool(len(paths))
         unfinished_paths = len(paths)
         seen_apps: dict[int, Application] = {}
+        checked_app_ids: set[int] = set()
         try:
             for path_name, path in paths:
                 path_pool.apply_async(_drain_path, (path_name, path))
@@ -700,7 +701,28 @@ class TraceSearchItem(SearchItem):
                 if app is path_done:
                     unfinished_paths -= 1
                     continue
-                if app.application_id in seen_apps:
+                if app.application_id in checked_app_ids:
+                    continue
+                checked_app_ids.add(app.application_id)
+
+                # 两条路径统一校验应用查看权限，无权限命中不进入快照，也不占用 TopK。
+                allowed_items: list[dict] = filter_data_by_permission(
+                    bk_tenant_id=bk_tenant_id,
+                    data=[
+                        {
+                            "application_id": app.application_id,
+                            "bk_biz_id": app.bk_biz_id,
+                            "app_name": app.app_name,
+                        }
+                    ],
+                    actions=[ActionEnum.VIEW_APM_APPLICATION],
+                    resource_meta=ResourceEnum.APM_APPLICATION,
+                    id_field=lambda item: item["application_id"],
+                    instance_create_func=ResourceEnum.APM_APPLICATION.create_instance_by_info,
+                    mode="any",
+                    username=username,
+                )
+                if not allowed_items:
                     continue
 
                 seen_apps[app.application_id] = app

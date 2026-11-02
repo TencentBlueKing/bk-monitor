@@ -499,6 +499,54 @@ def test_apm_platform_integration_apigw_contract() -> None:
         assert (_DOCS_DIR / f"{operation_id}.md").is_file()
 
 
+def test_apm_return_code_configuration_apigw_contract(tmp_path) -> None:
+    """返回码配置经合并后仍使用受授权的应用态路由，并指向已注册的 Resource。"""
+    import shutil
+
+    backend_root: Path = _RESOURCES_DIR.parents[2]
+    service_tree: ast.Module = ast.parse((backend_root / "packages/apm_web/service/views.py").read_text())
+    routes: dict[str, tuple[str, str]] = {
+        ast.literal_eval(node.args[2]): (ast.literal_eval(node.args[0]), node.args[1].id)
+        for node in ast.walk(service_tree)
+        if isinstance(node, ast.Call)
+        and isinstance(node.func, ast.Name)
+        and node.func.id == "ResourceRoute"
+        and len(node.args) >= 3
+    }
+    expected_resources: dict[str, str] = {
+        "list_code_redefined_rule": "ListCodeRedefinedRuleResource",
+        "set_code_redefined_rule": "SetCodeRedefinedRuleResource",
+        "get_code_remarks": "GetCodeRemarksResource",
+        "set_code_remark": "SetCodeRemarkResource",
+    }
+    shutil.copytree(_RESOURCES_DIR, tmp_path / "resources")
+    merge_resources_func(tmp_path / "resources")
+    merged_paths: dict = _load_paths(tmp_path / "resources.yaml")
+
+    for endpoint, resource_class in expected_resources.items():
+        path: str = f"/app/apm/service/{endpoint}/"
+        assert routes[endpoint] == ("POST", resource_class)
+        assert path not in _load_paths(_EXTERNAL_APM_FILE)
+        operation: dict = merged_paths[path]["post"]
+        assert operation["operationId"] == f"apm_{endpoint}"
+        assert operation["tags"] == ["apm"]
+        resource: dict = operation["x-bk-apigateway-resource"]
+        assert resource["isPublic"] is False
+        assert resource["matchSubpath"] is False
+        assert resource["backend"] == {
+            "name": "default",
+            "method": "post",
+            "path": f"/api/v4/service_web/{endpoint}/",
+            "matchSubpath": False,
+        }
+        assert resource["authConfig"] == {
+            "appVerifiedRequired": True,
+            "userVerifiedRequired": False,
+            "resourcePermissionRequired": True,
+        }
+        assert (_DOCS_DIR / f"apm_{endpoint}.md").is_file()
+
+
 def test_llm_observability_apigw_contract() -> None:
     """旧 APM Trace API 保持不变，新增 LLM API 转发到 V4 Resource。"""
     paths = _load_paths(_INTERNAL_APM_FILE)
@@ -700,3 +748,66 @@ def test_personal_tokens_are_opted_in_and_survive_merge(tmp_path):
         "lookup_metadata",
     } <= enabled
     assert "execute_tool" not in enabled
+
+
+def test_shared_read_backends_move_only_mcp_resources(tmp_path):
+    """Check the generated gateway deployment input; original app paths stay intact."""
+    import shutil
+
+    expected = {
+        "get_alert_info": ("get", "/app/alert/detail/", "/api/v4/alert/alert/detail/"),
+        "list_time_series_metrics": (
+            "get",
+            "/app/metadata/get_time_series_metrics/",
+            "/api/v3/meta/get_time_series_metrics/",
+        ),
+        "search_spaces": ("get", "/app/metadata/list_spaces/", "/api/v3/meta/list_spaces/"),
+        "get_dashboard_tree_list": (
+            "get",
+            "/app/dashboard/get_dashboard_directory_tree/",
+            "/api/v4/grafana/get_directory_tree/",
+        ),
+        "get_dashboard_detail_by_uid": (
+            "get",
+            "/app/dashboard/get_dashboard_detail/",
+            "/api/v4/grafana/get_dashboard_detail/",
+        ),
+        "list_apm_services": ("post", "/app/apm/service/service_list/", "/api/v4/service_web/service_list/"),
+        "calculate_by_range": ("post", "/app/apm/calculate_by_range/", "/api/v4/apm_metric_web/calculate_by_range/"),
+    }
+    shutil.copytree(_RESOURCES_DIR, tmp_path / "resources")
+    merge_resources_func(tmp_path / "resources")
+    paths = yaml.safe_load((tmp_path / "resources.yaml").read_text())["paths"]
+    app_backends, mcp_backends = set(), {}
+    for frontend, methods in paths.items():
+        for operation in methods.values():
+            resource = operation["x-bk-apigateway-resource"]
+            backend = resource["backend"]
+            pair = (backend["method"].lower(), backend["path"])
+            if frontend.startswith("/app/"):
+                app_backends.add(pair)
+            elif frontend.startswith("/mcp/"):
+                mcp_backends[frontend] = pair
+    for name, (method, app_frontend, original) in expected.items():
+        app = paths[app_frontend][method]["x-bk-apigateway-resource"]
+        user_operation = paths["/mcp/" + name + "/"][method]
+        user = user_operation["x-bk-apigateway-resource"]
+        assert app["backend"]["path"] == original
+        assert app["authConfig"]["appVerifiedRequired"] is True
+        assert app["authConfig"]["userVerifiedRequired"] is False
+        assert app["authConfig"]["resourcePermissionRequired"] is True
+        assert user["backend"]["path"] == "/api/v4/mcp/" + name + "/"
+        assert user["authConfig"]["userVerifiedRequired"] is True
+        assert user["authConfig"]["oauth2PersonalClientEnabled"] is True
+        assert user["authConfig"]["resourcePermissionRequired"] is True
+        assert user["matchSubpath"] is False and user["backend"]["matchSubpath"] is False
+        assert user_operation["operationId"] == ("apm_mcp_calculate_by_range" if name == "calculate_by_range" else name)
+    # The two ops MCP overlaps are intentionally unchanged and remain user-only.
+    assert app_backends & set(mcp_backends.values()) == {
+        ("get", "/api/v3/meta/query_data_link_metadata/"),
+        ("get", "/api/v3/meta/get_data_link_metadata/"),
+    }
+    for name in ("query_datalink_metadata", "get_data_link_metadata"):
+        auth = paths["/mcp/" + name + "/"]["get"]["x-bk-apigateway-resource"]["authConfig"]
+        assert auth["userVerifiedRequired"] is True
+        assert not auth.get("oauth2PersonalClientEnabled", False)

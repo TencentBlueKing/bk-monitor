@@ -35,6 +35,10 @@ ADVANCED_OPTIONS = OrderedDict(
         ("QOS_DROP_ACTION_WINDOW", slz.IntegerField(label="处理动作流控窗口大小(秒)", default=60)),
         ("QOS_ALERT_THRESHOLD", slz.IntegerField(label="告警生成流控丢弃阈值", default=100)),
         ("QOS_ALERT_WINDOW", slz.IntegerField(label="告警生成流控窗口大小(秒)", default=60)),
+        (
+            "ALERT_NOTICE_WAY_BY_RECORDS",
+            slz.BooleanField(label="告警列表通知类型按通知记录统计", default=False),
+        ),
         ("SAAS_APP_CODE", slz.CharField(label="SAAS 应用码", default=settings.APP_CODE)),
         ("SAAS_SECRET_KEY", slz.CharField(label="SAAS 应用密钥", default=settings.SECRET_KEY)),
         (
@@ -227,6 +231,10 @@ ADVANCED_OPTIONS = OrderedDict(
         ("APM_APP_BKDATA_OPERATOR", slz.CharField(label="APM应用操作数据平台所用到的用户名", default="admin")),
         ("APM_APP_BKDATA_MAINTAINER", slz.ListField(label="APM应用操作数据平台时数据源的默认维护人", default=[])),
         ("APM_APPLICATION_QUICK_REFRESH_INTERVAL", slz.IntegerField(label=_("新建应用的刷新频率"), default=2)),
+        (
+            "APM_RELATED_LOG_INDEX_STATUS_CACHE_TTL",
+            slz.IntegerField(label=_("APM 关联日志索引状态快照有效期（秒）"), default=15 * 60, min_value=1),
+        ),
         (
             "APM_APPLICATION_QUICK_REFRESH_DELTA",
             slz.IntegerField(label=_("新建应用的创建时间到当前时间的时长范围"), default=30),
@@ -742,6 +750,10 @@ STANDARD_CONFIGS = OrderedDict(
         ),
         ("APM_CREATE_VIRTUAL_METRIC_ENABLED_BK_BIZ_ID", slz.ListField(label=_("APM 创建虚拟指标业务列表"), default=[])),
         ("APM_BMW_TASK_QUEUES", slz.ListField(label=_("APM BMW 任务能够使用的队列名称"), default=["apm-01"])),
+        (
+            "APM_BMW_TASK_CRON_DRY_RUN",
+            slz.BooleanField(label=_("APM BMW 预计算任务定时分派空跑(跳过分派，不下发/删除任务)"), default=False),
+        ),
         ("PER_ROUND_SPAN_MAX_SIZE", slz.IntegerField(label=_("拓扑发现允许的最大 Span 数量"), default=1000)),
         ("WXWORK_BOT_NAME", slz.CharField(label=_("蓝鲸监控机器人名称"), default="BK-Monitor", allow_blank=True)),
         ("WXWORK_BOT_SEND_IMAGE", slz.BooleanField(label=_("蓝鲸监控机器人发送图片"), default=True)),

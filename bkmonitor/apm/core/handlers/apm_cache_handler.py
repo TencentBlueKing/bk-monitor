@@ -67,8 +67,13 @@ class ApmCacheHandler:
         if not update_map:
             return
 
-        self.redis_client.set(name, json.dumps(update_map), ex=ex)
-        logger.info(f"[ApmCacheHandler] {name} update {len(update_map)}")
+        try:
+            self.redis_client.set(name, json.dumps(update_map), ex=ex)
+        except Exception:
+            logger.exception(
+                "[apm_cache] event=refresh_failed key=%s entry_count=%s ttl_s=%s", name, len(update_map), ex
+            )
+            raise
 
     def get_lock_key(self, lock_type: str, **kwargs) -> str:
         """

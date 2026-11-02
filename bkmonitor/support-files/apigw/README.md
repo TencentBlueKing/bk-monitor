@@ -121,5 +121,31 @@ MCP 来源 Header。命中工具必须具有已验证的网关用户与租户，
 未启用时仍检查完整的 MCP 权限及附加动作。目录、身份、资源或 IAM 错误均拒绝请求。
 写入、导出、专用 MCP 和未登记路由不通过这一只读自动入口扩展访问能力。
 
+### MCP 与应用共用接口的后端隔离
+
+以下七个工具改用 `/api/v4/mcp/<工具名>/`。网关 `/mcp/...` 路径、operationId、
+参数和个人令牌配置保持不变；应用资源的网关路径及后端路径均保持原样。
+`calculate_by_range` 的网关 operationId 仍为 `apm_mcp_calculate_by_range`。
+
+| MCP 工具 | 保留的应用后端路径 |
+| --- | --- |
+| `get_alert_info` | `/api/v4/alert/alert/detail/` |
+| `list_time_series_metrics` | `/api/v3/meta/get_time_series_metrics/` |
+| `search_spaces` | `/api/v3/meta/list_spaces/` |
+| `get_dashboard_tree_list` | `/api/v4/grafana/get_directory_tree/` |
+| `get_dashboard_detail_by_uid` | `/api/v4/grafana/get_dashboard_detail/` |
+| `list_apm_services` | `/api/v4/service_web/service_list/` |
+| `calculate_by_range` | `/api/v4/apm_metric_web/calculate_by_range/` |
+
+新 MCP 路径复用原业务 Resource，并由目录强制验证网关用户、租户和工具权限；删除 MCP
+Header 不能跳过检查。`search_spaces` 保留现有发现工具的权限豁免，但仍须验证用户，
+其结果不授权后续数据查询。原应用路径要求签名 JWT 中的已验证应用身份，继续执行原有
+应用范围检查和业务 Resource；用户凭证不能借旧路径退回应用授权。
+网关仍须验证应用的资源调用授权，应用身份签名本身不证明资源授权。
+
+直接调用旧后端路径的个人令牌客户端须迁至新 MCP 路径；通过 `/mcp/...` 调用的客户端
+地址无需修改。发布时须确保所有 API 实例已支持新路由，再发布网关资源映射；两者需配套。
+本地修改与测试不代表线上已切换。`ops_mcp.yaml` 的专用运维认证和后端不在本次迁移范围。
+
 `lookup_permissions` 是预检，不是后续请求的授权凭据。实际执行的 `MCP_USAGE` 日志包含
 工具、入口、权限来源、权限动作和网关请求 ID；不得记录 Token、请求正文或业务结果。

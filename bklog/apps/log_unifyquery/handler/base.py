@@ -73,7 +73,6 @@ from apps.feature_toggle.handlers.toggle import FeatureToggleObject
 from apps.api import MonitorApi
 from apps.log_databus.models import CollectorConfig
 from apps.log_databus.constants import EtlConfig
-from apps.log_search.constants import ASYNC_SORTED
 from bkm_space.utils import space_uid_to_bk_biz_id
 
 
@@ -1261,20 +1260,6 @@ class UnifyQueryHandler:
             # done为true代表已经获取完所有数据，可以结束查询
             if search_result.get("done", False):
                 break
-
-    def _get_user_sorted_list(self, sorted_fields):
-        index_set_id = self.index_info_list[0]["index_set_id"]
-        config = UserIndexSetFieldsConfig.get_config(index_set_id=index_set_id, username=self.request_username)
-        if not config:
-            return [[sorted_field, ASYNC_SORTED] for sorted_field in sorted_fields]
-        user_sort_list = config.sort_list
-        user_sort_fields = [i[0] for i in user_sort_list]
-        for sorted_field in sorted_fields:
-            if sorted_field in user_sort_fields:
-                continue
-            user_sort_list.append([sorted_field, ASYNC_SORTED])
-
-        return user_sort_list
 
     @classmethod
     def verify_sort_list_item(cls, index_set_id: int, sort_list: list):

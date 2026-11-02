@@ -242,6 +242,13 @@ def to_document(action_instance: ActionInstance, current_time, alerts=None):
 
     if action_info["action_plugin_type"] == ActionPluginType.NOTICE:
         target_info["operate_target_string"] = notice_way_display
+        # 非父通知记录（子任务、汇总记录）落原始渠道，供告警列表「通知类型」按通知记录统计；
+        # 原始值缺失时写哨兵，保证「字段不存在」只表示尚未回填
+        if not action_instance.is_parent_action:
+            raw_notice_way = action_instance.inputs.get("notice_way")
+            if not isinstance(raw_notice_way, list):
+                raw_notice_way = [raw_notice_way] if raw_notice_way else []
+            action_info[NoticeWay.NOTICE_WAY_FIELD] = raw_notice_way or [NoticeWay.NOTICE_WAY_NONE]
     action_info.update(target_info)
     converge_info = getattr(action_instance, "converge_info", {})
     action_info.update(converge_info)

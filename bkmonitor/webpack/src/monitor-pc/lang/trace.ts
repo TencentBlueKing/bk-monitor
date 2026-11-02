@@ -202,6 +202,8 @@ export default {
   '调用图加载失败，请重试': 'Failed to load the call graph. Please retry.',
   '趋势加载失败，请重试': 'Failed to load trends. Please retry.',
   '选择的应用服务不存在，请重新选择': 'The selected application service does not exist. Please select another.',
+  暂时无法查询: 'Unable to query right now',
+  重新选择: 'Select another',
   条件对比: 'Condition Comparison',
   差异图例: 'Difference legend',
   复制函数名: 'Copy function name',

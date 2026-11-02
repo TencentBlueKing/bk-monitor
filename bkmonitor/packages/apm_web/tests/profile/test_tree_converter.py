@@ -100,6 +100,19 @@ def test_recursive_function_total_is_deduplicated_but_leaf_self_is_retained():
     assert inner_node.self_time == 10
 
 
+def test_nul_char_is_removed_from_function_fields():
+    converter = TreeConverter()
+    converter.convert(
+        {"list": [make_sample(10, 1_000, "A", "\x00")]},
+        agg_method="SUM",
+        agg_interval=1,
+    )
+
+    nodes = converter.tree.function_node_map.values()
+    assert all("\x00" not in node.id + node.name + node.system_name + node.filename for node in nodes)
+    assert get_map_node(converter, "").value == 10
+
+
 def test_avg_uses_same_snapshot_denominator_for_total_and_self():
     converter = TreeConverter()
     converter.convert(

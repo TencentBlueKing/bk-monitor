@@ -82,6 +82,19 @@ class V4ModelClient(V4Client):
 
     # ------------------------------------------------------------------- role
 
+    def batch_create_role_delegations(self, delegations: Sequence[dict[str, Any]]) -> None:
+        if not delegations:
+            return
+        system_id = quote(self.options.system_id, safe="")
+        data = self._request(
+            "POST",
+            f"api/v1/open/mgmt/systems/{system_id}/role-delegations/",
+            body=list(delegations),
+            expected_statuses={HTTPStatus.CREATED},
+        )
+        if data is not None:
+            raise V4ResponseError("IAM V4 role-delegation response must be empty")
+
     def list_roles(self) -> list[dict[str, Any]]:
         return self._list_paged(self._system_path("roles/"), scope="list_roles")
 

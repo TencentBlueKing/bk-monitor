@@ -834,6 +834,54 @@ def test_refresh_updates_databus_consumer_group(mocker):
 
 
 @pytest.mark.django_db(databases="__all__")
+@pytest.mark.parametrize("existing", [False, True], ids=["discovered", "existing"])
+@pytest.mark.parametrize(
+    "options",
+    [
+        pytest.param({"subTaskNum": None, "batch": None, "preferCluster": None}, id="null"),
+        pytest.param(
+            {
+                "subTaskNum": 4,
+                "batch": {"size": 100, "timeout": None},
+                "preferCluster": {"name": "databus-cluster", "namespace": "bkmonitor"},
+            },
+            id="configured",
+        ),
+        pytest.param({}, id="removed"),
+    ],
+)
+def test_refresh_records_databus_options(mocker, existing, options):
+    if existing:
+        component = _create_databus_component("options_databus", "options_link", status=DataLinkResourceStatus.OK.value)
+        component.options = {"subTaskNum": 1, "removedOption": True}
+        component.save(update_fields=["options"])
+
+    remote_config = _remote_databus_component("options_databus", DataLinkResourceStatus.OK.value)
+    remote_config["spec"].update(
+        {
+            "maintainers": ["admin"],
+            "consumerGroup": "bkmonitor_consumer",
+            "transforms": [{"kind": "PreDefinedLogic"}],
+            "extraOption": False,
+        }
+    )
+    remote_config["spec"].update(options)
+    mocker.patch("metadata.task.bkbase.COMPONENT_CLASS_MAP", {DataLinkKind.DATABUS.value: models.DataBusConfig})
+    mocker.patch("metadata.task.bkbase.DATA_LINK_DISCOVERY_NAMESPACES", ["bkmonitor"])
+    mocker.patch("metadata.task.bkbase._get_data_link_discovery_tenant_ids", return_value=["system"])
+    mocker.patch("metadata.task.bkbase.api.bkdata.list_data_link", return_value=[remote_config])
+
+    _, _, _, refresh_stats = _reconcile_data_link_components()
+
+    component = models.DataBusConfig.objects.get(bk_tenant_id="system", namespace="bkmonitor", name="options_databus")
+    assert component.options == options
+    assert component.consumer_group == "bkmonitor_consumer"
+    assert component.sink_names == [f"{DataLinkKind.RESULTTABLE.value}:options_databus_rt"]
+    assert refresh_stats.updated_count == int(existing)
+    assert refresh_stats.created_count == int(not existing)
+
+
+@pytest.mark.django_db(databases="__all__")
 def test_refresh_updates_empty_surrealdb_definitions(mocker):
     component = models.SurrealDBBindingConfig.objects.create(
         name="graph_rt",

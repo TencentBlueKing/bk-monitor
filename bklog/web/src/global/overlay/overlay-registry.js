@@ -67,6 +67,31 @@ const assignRecord = (record, options = {}) => {
   return record;
 };
 
+const isEscapeEvent = event => {
+  return event?.key === 'Escape' || event?.key === 'Esc' || event?.keyCode === 27;
+};
+
+const stopEscapeEvent = event => {
+  event?.preventDefault?.();
+  event?.stopPropagation?.();
+  event?.stopImmediatePropagation?.();
+};
+
+const installEscapeListener = registry => {
+  if (typeof document === 'undefined' || registry.escapeBound) {
+    return;
+  }
+
+  const handler = event => {
+    registry.handleEscape(event);
+  };
+
+  document.addEventListener('keydown', handler, true);
+  document.addEventListener('keyup', handler, true);
+  registry.escapeBound = true;
+  registry.escapeHandler = handler;
+};
+
 const isClickInsideClosest = (event, selectors = []) => {
   const target = event?.target;
   if (!target || typeof target.closest !== 'function') {
@@ -138,6 +163,7 @@ class OverlayRegistry {
     this.stack = [];
     this.hiding = new Set();
     this.fallbackZIndex = FALLBACK_ZINDEX_START;
+    this.escapeConsumed = false;
   }
 
   nextZIndex() {
@@ -213,7 +239,12 @@ class OverlayRegistry {
 
   open(id, extra = {}) {
     const record = this.get(id) || this.register(id, extra);
+    const previousParentId = record.parentId;
     assignRecord(record, extra);
+    if (previousParentId !== record.parentId) {
+      this.unlinkParent(id, previousParentId);
+      this.linkParent(id, record.parentId);
+    }
 
     if (record.group) {
       this.hideGroup(record.group, id);
@@ -258,6 +289,37 @@ class OverlayRegistry {
     } finally {
       this.hiding.delete(id);
     }
+  }
+
+  hideTop() {
+    const topId = this.stack[this.stack.length - 1];
+    if (!topId) {
+      return false;
+    }
+
+    this.hide(topId);
+    return true;
+  }
+
+  handleEscape(event) {
+    if (!isEscapeEvent(event)) {
+      return false;
+    }
+
+    if (event?.type === 'keyup' && this.escapeConsumed) {
+      this.escapeConsumed = false;
+      stopEscapeEvent(event);
+      return true;
+    }
+
+    if (this.stack.length <= 1) {
+      return false;
+    }
+
+    this.hideTop();
+    this.escapeConsumed = true;
+    stopEscapeEvent(event);
+    return true;
   }
 
   hideGroup(group, exceptId) {
@@ -327,6 +389,7 @@ class OverlayRegistry {
 }
 
 const overlayRegistry = new OverlayRegistry();
+installEscapeListener(overlayRegistry);
 
 /**
  * 给检索目录里仍直接 tippy() 的调用点提供统一生命周期。
@@ -365,7 +428,11 @@ const createRawTippyLifecycle = (id, options = {}, registry = overlayRegistry) =
         registry.notifyAnchorLost(id);
         return false;
       }
-      registry.open(id, { anchor: reference ?? null });
+      const parentId = options.parentId || registry.findParentIdByElement(reference);
+      registry.open(id, {
+        anchor: reference ?? null,
+        parentId: parentId || undefined,
+      });
       return true;
     },
     onHidden() {
@@ -383,6 +450,7 @@ export {
   OverlayRegistry,
   overlayRegistry,
   isClickInsideClosest,
+  isEscapeEvent,
   shouldHideOnOutsideClick,
   isValidAnchorRect,
   resolvePopperPlacementRect,

@@ -134,8 +134,6 @@ BKDATA_ASYNC_FIELDS = ["dtEventTimeStamp", "ip", "gseindex", "_iteration_idx"]
 BKDATA_ASYNC_CONTAINER_FIELDS = ["dtEventTimeStamp", "container_id", "gseindex", "_iteration_idx"]
 # 采集异步导出必需字段
 LOG_ASYNC_FIELDS = ["dtEventTimeStamp", "serverIp", "gseIndex", "iterationIndex"]
-# 异步导出默认排序
-ASYNC_SORTED = "desc"
 # 获取异步导出目标多少
 ASYNC_COUNT_SIZE = 1
 # 异步导出最大条数

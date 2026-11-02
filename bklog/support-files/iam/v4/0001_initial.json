@@ -6,11 +6,21 @@
         "clients": [
             "bk_log_search",
             "log-search-4",
-            "bk_bklog",
+            "bk_bklog"
+        ],
+        "removed_clients": [
             "paasv3cli",
             "bk_paas3"
         ]
     },
+    "role_delegations": [
+        {
+            "role_id": "space_operator",
+            "grantee_type": "system",
+            "grantee_id": "bk_paas3",
+            "tenant_mode": "global"
+        }
+    ],
     "resource_types": [
         {
             "id": "space",

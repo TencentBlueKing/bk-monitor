@@ -1,6 +1,9 @@
 import logging
 
 from apps.api.modules.bk_node import BKNodeApi
+from apps.api.modules.utils import get_non_bkcc_space_related_bkcc_biz_id
+from apps.log_databus.nodeman_v3.agent_status import get_agent_status
+from apps.log_databus.nodeman_v3.mode import is_nodeman_v3_admitted
 from bkm_ipchooser import constants, types, exceptions
 from bkm_ipchooser.api import BkApi
 from bkm_ipchooser.handlers.base import BaseHandler
@@ -185,6 +188,14 @@ class TopoHandler:
         host_map = {}
         for index, cc_host in enumerate(cc_hosts):
             host_map[cc_host["bk_host_id"]] = index
+
+        # 准入沿用采集项的原始空间 ID，关联 CC 业务 ID 仅用于 NodeMan 查询。
+        if is_nodeman_v3_admitted(bk_biz_id):
+            related_bk_biz_id = bk_biz_id
+            if bk_biz_id and int(bk_biz_id) < 0:
+                related_bk_biz_id = get_non_bkcc_space_related_bkcc_biz_id(bk_biz_id)
+            return cls._fill_agent_status_v3(cc_hosts, host_map, related_bk_biz_id)
+
         try:
             scope_list = [{"scope_type": constants.ScopeType.BIZ.value, "scope_id": str(bk_biz_id)}]
             meta = BaseHandler.get_meta_data(bk_biz_id)
@@ -198,6 +209,32 @@ class TopoHandler:
                     cc_hosts[host_map[host_id]]["status"] = status["alive"]
         except KeyError as e:
             logger.exception("fill_agent_status exception: %s", e)
+
+        return cc_hosts
+
+    @classmethod
+    def _fill_agent_status_v3(cls, cc_hosts, host_map, bk_biz_id) -> list[dict]:
+        """
+        V3 下从 topo/host/list 获取 Agent 状态。
+
+        V3 只返回节点管理注册过的主机，未返回的主机要预置为不在线；只把 running 视为在线，
+        starting/upgrade 等中间态不能当成在线，否则前端会误判 Agent 已就绪。
+        对外输出整数 1/0，兼容 IP 选择器的严格数值判断。
+        """
+        # 先统一置为不在线，V3 查询失败时也能保持安全默认值
+        for cc_host in cc_hosts:
+            cc_host["status"] = constants.AgentStatusType.NO_ALIVE.value
+
+        try:
+            status_map = get_agent_status(bk_biz_id, list(host_map.keys()))
+            for bk_host_id, alive in status_map.items():
+                if bk_host_id in host_map:
+                    cc_hosts[host_map[bk_host_id]]["status"] = (
+                        constants.AgentStatusType.ALIVE.value if alive else constants.AgentStatusType.NO_ALIVE.value
+                    )
+        except Exception:  # pylint: disable=broad-except
+            # Agent 状态是附加信息，V3 查询失败不能影响主机列表本身
+            logger.exception("fill_agent_status v3 exception")
 
         return cc_hosts
 

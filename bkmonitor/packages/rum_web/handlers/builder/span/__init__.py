@@ -20,6 +20,7 @@ from .action import ActionSpanBuilder
 from .error import ErrorSpanBuilder
 from .longtask import LongTaskSpanBuilder
 from .resource import ResourceSpanBuilder
+from .session import SessionSpanBuilder
 from .view import ViewSpanBuilder
 from .vital import VitalSpanBuilder
 
@@ -31,6 +32,7 @@ BUILDERS: dict[str, type[SpanBuilder]] = {
     RumSpanType.ERROR.value: ErrorSpanBuilder,
     RumSpanType.VITAL.value: VitalSpanBuilder,
     RumSpanType.VIEW.value: ViewSpanBuilder,
+    RumSpanType.SESSION.value: SessionSpanBuilder,
 }
 
 

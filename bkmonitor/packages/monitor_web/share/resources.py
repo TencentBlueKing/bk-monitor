@@ -9,6 +9,7 @@ specific language governing permissions and limitations under the License.
 """
 
 import logging
+import re
 from collections import defaultdict
 from datetime import datetime
 from functools import partial
@@ -85,7 +86,7 @@ def validate_host_share_target(token_type, bk_biz_id, data):
 
 def get_token_biz_id(token_obj):
     biz_ids = [namespace[4:] for namespace in token_obj.namespaces if namespace.startswith("biz#")]
-    if len(biz_ids) != 1 or not biz_ids[0].isdigit():
+    if len(biz_ids) != 1 or not re.fullmatch(r"-?[1-9][0-9]*", biz_ids[0]):
         raise TokenValidatedError
     return int(biz_ids[0])
 

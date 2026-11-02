@@ -31,6 +31,8 @@ from django.urls import reverse
 from django.utils.translation import gettext_lazy as _
 
 from config.log import get_logging_config_dict
+from config import kms
+from apps.utils.crypto import LEGACY_SYMMETRIC_CIPHER_CLASSES
 
 # 使用k8s部署模式
 IS_K8S_DEPLOY_MODE = os.getenv("DEPLOY_MODE") == "kubernetes"
@@ -229,7 +231,6 @@ CELERY_ACCEPT_CONTENT = ["pickle"]
 
 CELERY_IMPORTS = (
     "apps.log_search.tasks.bkdata",
-    "apps.log_search.tasks.async_export",
     "apps.log_search.tasks.scene_async_export",
     "apps.log_search.tasks.unify_query_async_export",
     "apps.log_search.tasks.sharded_export",
@@ -243,6 +244,7 @@ CELERY_IMPORTS = (
     "apps.log_databus.tasks.itsm",
     "apps.log_databus.tasks.bkdata",
     "apps.log_databus.tasks.archive",
+    "apps.log_databus.tasks.nodeman_v3",
     "apps.log_databus.tasks.scene",
     "apps.log_admin_resource.tasks",
     "apps.log_admin_resource.k8s_tasks",
@@ -258,8 +260,9 @@ if os.environ.get("BKAPP_FEATURE_TGPA_TASK", "off") == "on":
     CELERY_IMPORTS += ("apps.tgpa.tasks",)
 
 # bk crypto sdk配置
-BKPAAS_BK_CRYPTO_KEY = os.getenv("BKPAAS_BK_CRYPTO_KEY")
+BKPAAS_BK_CRYPTO_KEY = kms.value("encryption", "bk_crypto_key", os.getenv("BKPAAS_BK_CRYPTO_KEY"))
 BKCRYPTO = {
+    "SYMMETRIC_CIPHER_CLASSES": LEGACY_SYMMETRIC_CIPHER_CLASSES,
     "SYMMETRIC_CIPHERS": {
         "default": {
             "get_key_config": "apps.utils.aes.get_default_symmetric_key_config",
@@ -1128,6 +1131,8 @@ if REDIS_MODE == "sentinel" and not BKAPP_IS_BKLOG_API:
     REDIS_SENTINEL_MASTER_NAME = os.getenv("BKAPP_REDIS_SENTINEL_MASTER_NAME", "mymaster")
     REDIS_SENTINEL_PASSWORD = os.getenv("BKAPP_REDIS_SENTINEL_MASTER_PASSWORD", "")
 
+REDIS_PASSWD = kms.value("redis", "password", REDIS_PASSWD)
+
 # BKLOG 后台QOS配置
 BKLOG_QOS_USE = os.getenv("BKAPP_QOS_USE", "on") == "on"
 BKLOG_QOS_LIMIT_APP = [
@@ -1364,6 +1369,13 @@ INITIALIZED_TENANT_LIST = [BK_APP_TENANT_ID]
 # 兼容非多租户模式
 APIGW_ENABLED = not (ENABLE_MULTI_TENANT_MODE or "test" in sys.argv)
 USE_APIGW = os.getenv("BKAPP_USE_APIGW", "false").lower() == "true"
+
+# 与监控统一的 NodeMan V3 环境级总开关，默认关闭。
+ENABLE_NODEMAN_V3 = os.getenv("BKAPP_ENABLE_NODEMAN_V3", "false").lower() == "true"
+
+# 节点管理 V3 网关地址。留空时按 APIGW 约定拼接，联调环境可直连指定地址；
+# 该地址配置不承担启用开关职责。
+BKNODEMAN_V3_API_BASE_URL = os.getenv("BKAPP_BKNODEMAN_V3_API_BASE_URL", "")
 
 # 预查询时间, 默认6h小时, 0代表禁用
 try:

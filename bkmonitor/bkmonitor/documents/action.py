@@ -81,6 +81,10 @@ class ActionInstanceDocument(BaseDocument):
     # target相关内容
     operate_target_string = field.Keyword()
 
+    # 非父通知记录（子任务、汇总记录）的原始渠道（如 voice、rtx），供告警列表「通知类型」统计；
+    # 原始值缺失时写 NoticeWay.NOTICE_WAY_NONE，使「字段不存在」只表示尚未回填
+    notice_way = field.Keyword(multi=True)
+
     class Dimension(InnerDoc):
         key = field.Keyword()
         value = field.Keyword()

@@ -43,6 +43,7 @@ export default defineComponent({
       id: 'retrieve-realtime-log-dialog',
       type: 'dialog',
       group: 'retrieve-related-log',
+      rootSelector: '.log-realtime-dialog-main',
     });
     /** 每次打开递增，强制销毁并重建 panel，避免复用旧状态/缓存 */
     const mountKey = ref(0);
