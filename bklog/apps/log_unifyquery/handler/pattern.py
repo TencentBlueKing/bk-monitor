@@ -82,7 +82,7 @@ class UnifyQueryPatternHandler(UnifyQueryHandler):
             reordered_group_values = []
             for dimension in dimensions:
                 result_dimension = dimension
-                if dimension == SIGNATURE_AGGS_FIELD and dimension not in key_value_map:
+                if dimension in (SIGNATURE_AGGS_FIELD, "log_signature") and dimension not in key_value_map:
                     result_dimension = SIGNATURE_FIELD
 
                 if result_dimension in key_value_map:

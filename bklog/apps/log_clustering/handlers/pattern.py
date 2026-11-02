@@ -133,24 +133,7 @@ class PatternHandler:
         year_on_year_result = result.get("year_on_year_result", {})
         new_class = result.get("new_class", set())
         new_class_visible_keys = self._build_new_class_visible_keys(new_class)
-        # 同步的pattern保存信息
-        if self._clustering_config.signature_pattern_rt:
-            pattern_map = self._get_pattern_data(patterns=list({p["key"] for p in pattern_aggs}))
-        elif self._clustering_config.model_output_rt:
-            # 在线训练逻辑适配
-            fields = ["signature", "pattern", "origin_pattern"]
-            if self._include_origin_log:
-                fields.append("origin_log")
-            pattern_map = AiopsSignatureAndPattern.objects.filter(
-                model_id=self._clustering_config.model_output_rt
-            ).values(*fields)
-        else:
-            fields = ["signature", "pattern", "origin_pattern"]
-            if self._include_origin_log:
-                fields.append("origin_log")
-            pattern_map = AiopsSignatureAndPattern.objects.filter(model_id=self._clustering_config.model_id).values(
-                *fields
-            )
+        pattern_map = self._signature_patterns(list({p["key"] for p in pattern_aggs}))
         signature_map_pattern = array_hash(pattern_map, "signature", "pattern")
         signature_map_origin_pattern = array_hash(pattern_map, "signature", "origin_pattern")
         signature_map_origin_log = array_hash(pattern_map, "signature", "origin_log")
@@ -245,6 +228,27 @@ class PatternHandler:
             result = map_if(result, if_func=lambda x: x["is_new_class"])
         result = self._get_remark_and_owner(result)
         return result
+
+    def _signature_patterns(self, signatures):
+        # 同步的pattern保存信息
+        if self._clustering_config.signature_pattern_rt:
+            pattern_map = self._get_pattern_data(patterns=signatures)
+        elif self._clustering_config.model_output_rt:
+            # 在线训练逻辑适配
+            fields = ["signature", "pattern", "origin_pattern"]
+            if self._include_origin_log:
+                fields.append("origin_log")
+            pattern_map = AiopsSignatureAndPattern.objects.filter(
+                model_id=self._clustering_config.model_output_rt
+            ).values(*fields)
+        else:
+            fields = ["signature", "pattern", "origin_pattern"]
+            if self._include_origin_log:
+                fields.append("origin_log")
+            pattern_map = AiopsSignatureAndPattern.objects.filter(model_id=self._clustering_config.model_id).values(
+                *fields
+            )
+        return pattern_map
 
     def _build_new_class_visible_keys(self, new_class: set[tuple]) -> set[tuple]:
         group_fields = self._clustering_config.group_fields or []

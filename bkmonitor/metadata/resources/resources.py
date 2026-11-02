@@ -892,6 +892,7 @@ class GetResultTableStorageResult(Resource):
         bk_tenant_id = TenantIdField(label="租户ID")
         result_table_list = serializers.CharField(required=True, label="结果表列表")
         storage_type = serializers.CharField(required=True, label="存储类型")
+        data_label = serializers.CharField(required=False, label="仅查询该标签下已启用的结果表")
         is_plain_text = serializers.BooleanField(required=False, label="是否明文显示链接信息")
 
     def perform_request(self, validated_request_data):
@@ -905,6 +906,14 @@ class GetResultTableStorageResult(Resource):
         storage_class = models.ResultTable.REAL_STORAGE_DICT[storage_type]
         result = {}
 
+        label = validated_request_data.get("data_label")
+        if label:
+            result_table_list = models.ResultTable.objects.filter(
+                bk_tenant_id=validated_request_data["bk_tenant_id"],
+                table_id__in=result_table_list,
+                data_label=label,
+                is_enable=True,
+            ).values_list("table_id", flat=True)
         for result_table in result_table_list:
             try:
                 storage_info = storage_class.objects.get(
@@ -914,6 +923,8 @@ class GetResultTableStorageResult(Resource):
                 continue
 
             result[result_table] = storage_info.consul_config
+            if label and isinstance(storage_info, models.ESStorage):
+                result[result_table]["storage_config"]["index_set"] = storage_info.index_set
 
             # 判断是否需要明文返回链接信息
             if not validated_request_data.get("is_plain_text", False):

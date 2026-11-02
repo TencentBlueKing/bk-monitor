@@ -45,7 +45,7 @@ class PatternSearchSerlaizer(serializers.Serializer):
     time_range = serializers.CharField(required=False, default="customized")
     keyword = serializers.CharField(required=False, allow_null=True, allow_blank=True)
     size = serializers.IntegerField(required=False, default=10000)
-    pattern_level = serializers.CharField(default=PatternEnum.LEVEL_05)
+    pattern_level = serializers.CharField(default=PatternEnum.LEVEL_05.value)
     show_new_pattern = serializers.BooleanField(required=True)
     year_on_year_hour = serializers.IntegerField(required=False, default=0, min_value=0)
     group_by = serializers.ListField(required=False, default=[])

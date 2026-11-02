@@ -29,6 +29,7 @@ from apps.iam import ActionEnum, ResourceEnum
 from apps.log_clustering.handlers.clustering_monitor import ClusteringMonitorHandler
 from apps.log_clustering.handlers.placeholder_analysis import PlaceholderAnalysisHandler
 from apps.log_clustering.handlers.pattern import PatternHandler
+from apps.log_clustering.handlers.quix.query import QuixPatternHandler, apply_query_scope, get_query_runtime
 from apps.log_clustering.models import ClusteringConfig
 from apps.log_clustering.permission import PatternPermission
 from apps.log_clustering.serializers import (
@@ -44,6 +45,7 @@ from apps.log_clustering.serializers import (
     UpdateGroupFieldsSerializer,
     UpdateRemarkSerializer,
 )
+from apps.log_search.models import LogIndexSet
 from apps.utils.drf import detail_route
 
 
@@ -150,6 +152,10 @@ class PatternViewSet(APIViewSet):
             index_set_id = clustering_config.index_set_id
 
         query_data = self.params_valid(PatternSearchSerlaizer)
+        runtime = get_query_runtime(index_set_id)
+        if runtime:
+            apply_query_scope(LogIndexSet.objects.get(index_set_id=index_set_id), query_data, request)
+            return Response(QuixPatternHandler(runtime, query_data).pattern_search())
         return Response(PatternHandler(index_set_id, query_data).pattern_search())
 
     @detail_route(methods=["POST"], url_path="placeholder_distribution")
@@ -367,7 +373,7 @@ class PatternViewSet(APIViewSet):
                 "samples": [
                     {
                         "dtEventTimeStamp": "1710000000000",
-                        "serverIp": "1.1.1.1",
+                        "serverIp": "<server-ip>",
                         "message": "request failed, code=404"
                     }
                 ],
