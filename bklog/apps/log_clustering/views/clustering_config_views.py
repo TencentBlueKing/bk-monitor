@@ -33,10 +33,13 @@ from apps.iam.handlers.drf import InstanceActionPermission
 from apps.log_clustering.constants import CLUSTERING_CONFIG_DEFAULT
 from apps.log_clustering.exceptions import ClusteringClosedException
 from apps.log_clustering.handlers.clustering_config import ClusteringConfigHandler
+from apps.log_clustering.handlers.quix.query import ClusteringPreviewQuery, apply_query_scope
 from apps.log_clustering.serializers import (
     ClusteringConfigSerializer,
     ClusteringDebugSerializer,
 )
+from apps.log_search.models import LogIndexSet
+from apps.log_trace.serializers import DateHistogramSerializer
 from apps.utils.drf import detail_route, list_route
 from apps.utils.log import logger
 
@@ -284,6 +287,30 @@ class ClusteringConfigViewSet(APIViewSet):
         }
         """
         return Response({"operation_id": ClusteringConfigHandler(index_set_id=index_set_id).reopen()})
+
+    @detail_route(methods=["POST"], url_path="access/preview")
+    def preview_access(self, request, index_set_id=None):
+        """首次开启前，在有检索权限的源索引集查询最近的样例和趋势。"""
+        data = self.params_valid(DateHistogramSerializer)
+        params = {
+            "index_set_ids": [index_set_id],
+            "start_time": data["start_time"],
+            "end_time": data["end_time"],
+            "keyword": "*",
+            "addition": data.get("addition") or [],
+            "begin": 0,
+            "size": 10,
+            "interval": "1d",
+            "group_field": None,
+            "is_desensitize": True,
+        }
+        apply_query_scope(LogIndexSet.objects.get(index_set_id=index_set_id), params, request)
+        query = ClusteringPreviewQuery(params)
+        return Response({"list": query.search(search_type="")["list"], "aggs": query.date_histogram()["aggs"]})
+
+    @detail_route(methods=["POST"], url_path=r"access/retry/(?P<operation_id>[0-9a-f]+)")
+    def retry_access(self, request, index_set_id, operation_id):
+        return Response({"operation_id": ClusteringConfigHandler(index_set_id=index_set_id).retry(operation_id)})
 
     @detail_route(methods=["GET"], url_path="access/status")
     def access_status(self, request, index_set_id, *args, **kwargs):

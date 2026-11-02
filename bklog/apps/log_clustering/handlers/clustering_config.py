@@ -275,6 +275,9 @@ class ClusteringConfigHandler:
         """关闭轻量化聚类，仅支持通过 BKBase LogClusteringSink 链路接入的索引集"""
         return self._get_quix_handler().disable()
 
+    def retry(self, operation_id: str) -> str:
+        return self._get_quix_handler().retry(operation_id)
+
     def reopen(self) -> str:
         """重开已关闭的轻量化聚类"""
         return self._get_quix_handler().reopen()

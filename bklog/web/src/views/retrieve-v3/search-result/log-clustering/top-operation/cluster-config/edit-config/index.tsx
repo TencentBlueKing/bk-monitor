@@ -23,12 +23,14 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { defineComponent, onMounted, ref, computed, watch } from 'vue';
+import { inject, defineComponent, onMounted, ref, computed, watch } from 'vue';
 import TextHighlight from 'vue-text-highlight';
 
 import FilterRule from '@/components/filter-rule';
 import RuleConfigOperate from '@/components/rule-config-operate';
 import RuleTable from '@/components/rule-table';
+import { quixPage } from '../../../quix-status';
+import { base64Decode, base64Encode } from '@/common/util';
 import useLocale from '@/hooks/use-locale';
 import useStore from '@/hooks/use-store';
 import { bkNotify } from 'bk-magic-vue';
@@ -67,6 +69,8 @@ export default defineComponent({
   setup(props, { emit }) {
     const { t } = useLocale();
     const store = useStore();
+    const page = inject(quixPage);
+    const quix = computed(() => Boolean(page?.status.value));
 
     const ruleConfigOperateRef = ref<any>(null);
     const ruleOperateRef = ref<any>();
@@ -74,6 +78,7 @@ export default defineComponent({
     const filterRuleRef = ref(null);
     const formRef = ref<any>(null);
     const formData = ref({
+      delimeter: '',
       max_dist_list: '', // 敏感度
       predefined_varibles: '', //	预先定义的正则表达式
       max_log_length: 1, // 最大日志长度
@@ -145,6 +150,7 @@ export default defineComponent({
         const requestUrl = `${baseUrl}${requestBehindUrl}`;
         const res = (await $http.request(requestUrl, !isDefault && { params, data })) as IResponseData<ConfigInfo>;
         const {
+          delimeter,
           max_dist_list,
           predefined_varibles,
           max_log_length,
@@ -164,6 +170,7 @@ export default defineComponent({
         });
         // defaultVaribles.value = predefined_varibles;
         const assignObj = {
+          delimeter: quix.value && delimeter ? JSON.parse(base64Decode(delimeter)) : '',
           max_dist_list,
           predefined_varibles,
           max_log_length,
@@ -176,7 +183,7 @@ export default defineComponent({
         defaultData.value = structuredClone(assignObj);
         // 当前回填的字段如果在聚类字段列表里找不到则赋值为空需要用户重新赋值
         const isHaveFieldsItem = clusterField.value.find(item => item.id === res.data.clustering_fields);
-        if (!isHaveFieldsItem) {
+        if (!isHaveFieldsItem && !quix.value) {
           formData.value.clustering_fields = '';
         }
       } catch (e) {
@@ -222,13 +229,23 @@ export default defineComponent({
               },
               data: {
                 ...paramsData,
+                ...(quix.value &&
+                  formData.value.delimeter !== defaultData.value.delimeter && {
+                    delimeter: base64Encode(JSON.stringify(formData.value.delimeter)),
+                  }),
                 signature_enable: true,
                 collector_config_id: configId.value,
                 index_set_id,
                 bk_biz_id,
               },
             })
-            .then(() => {
+            .then((res: IResponseData<(string | null)[]>) => {
+              if (quix.value) {
+                bkNotify({ title: t(res.data?.[0] ? '配置已提交，等待生效' : '配置没有变化'), offsetY: 80 });
+                page?.refresh();
+                emit('close');
+                return;
+              }
               bkNotify({
                 title: t('保存待生效'),
                 message: t('该保存需要10分钟生效, 请耐心等待'),
@@ -248,6 +265,7 @@ export default defineComponent({
 
     const handleReset = () => {
       formData.value.clustering_fields = defaultData.value.clustering_fields;
+      formData.value.delimeter = defaultData.value.delimeter;
       formData.value.max_log_length = defaultData.value.max_log_length;
       formData.value.filter_rules = structuredClone(defaultData.value.filter_rules);
       ruleOperateRef.value.reset();
@@ -285,6 +303,7 @@ export default defineComponent({
                 <bk-select
                   style='width: 482px'
                   clearable={false}
+                  disabled={quix.value}
                   value={formData.value.clustering_fields}
                   on-change={value => {
                     formData.value.clustering_fields = value;
@@ -307,6 +326,16 @@ export default defineComponent({
                 </span>
               </div>
             </bk-form-item>
+            {quix.value && (
+              <bk-form-item label={t('分隔符')}>
+                <bk-input
+                  value={formData.value.delimeter}
+                  on-change={value => {
+                    formData.value.delimeter = value;
+                  }}
+                />
+              </bk-form-item>
+            )}
             <div class='rule-container'>
               <bk-form-item
                 label={t('最大字段长度')}

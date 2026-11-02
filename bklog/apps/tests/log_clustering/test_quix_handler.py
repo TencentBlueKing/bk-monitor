@@ -74,6 +74,24 @@ class TestQuixClusteringHandler(TestCase):
         )
         mock_delay.assert_called_once()
 
+    def test_retry_resumes_only_current_failed_operation(self, mock_delay):
+        operation = create_enable_operation()
+        operation.record_step("create_task", "success")
+        operation.status = ClusteringOperationStatusEnum.FAILED.value
+        operation.last_error = "publish failed"
+        operation.save()
+        handler = QuixClusteringHandler(self.index_set)
+        with self.assertRaises(QuixClusteringParamsInvalidException):
+            handler.retry("stale")
+        with self.captureOnCommitCallbacks(execute=True):
+            handler.retry(operation.operation_id)
+        operation.refresh_from_db()
+        self.assertEqual(operation.status, "pending")
+        self.assertEqual(operation.steps[0]["step"], "create_task")
+        with self.assertRaises(QuixClusteringParamsInvalidException):
+            handler.retry(operation.operation_id)
+        mock_delay.assert_called_once_with(operation.operation_id)
+
     def test_finish_failure_and_retry_are_shown_in_flow_run(self, mock_delay):
         from apps.log_clustering.handlers.quix.operation import QuixClusteringOperationRunner
 

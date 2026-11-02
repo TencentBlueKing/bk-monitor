@@ -32,6 +32,8 @@ from apps.log_clustering.models import LogClusteringRuntime
 from apps.log_search.handlers.index_set import BaseIndexSetHandler
 from apps.log_search.models import LogIndexSet
 from apps.log_search.utils import get_search_request_scope
+from apps.log_unifyquery.constants import BASE_OP_MAP
+from apps.log_unifyquery.handler.base import UnifyQueryHandler
 from apps.log_unifyquery.handler.pattern import UnifyQueryPatternHandler
 from apps.utils.local import get_local_param, get_request_tenant_id
 from apps.utils.time_handler import generate_time_range
@@ -48,6 +50,31 @@ def apply_query_scope(index_set, params, request):
     if space_uid != index_set.space_uid:
         raise PermissionDenied("聚类查询需要源索引集空间的访问权限")
     params["bk_biz_id"] = biz_id
+
+
+class ClusteringPreviewQuery(UnifyQueryHandler):
+    """趋势和样例使用相同的候选规则，直接查询原始日志。"""
+
+    def _transform_additions(self, index_info):
+        fields, conditions = [], []
+        for rule in self.search_params["addition"]:
+            if not isinstance(rule, dict) or rule.get("operator") not in ("=", "!=", "contains", "not contains"):
+                raise ValidationError("不支持的预览过滤条件")
+            values = rule.get("value")
+            field = rule.get("field")
+            if not isinstance(field, str) or not field or not isinstance(values, list) or not values:
+                raise ValidationError("预览过滤条件缺少字段或值")
+            if fields:
+                condition = str(rule.get("condition") or "and").lower()
+                if condition not in ("and", "or"):
+                    raise ValidationError("不支持的预览过滤条件连接符")
+                conditions.append(condition)
+            fields.append({"field_name": field, "op": BASE_OP_MAP[rule["operator"]], "value": [str(v) for v in values]})
+        return {"field_list": fields, "condition_list": conditions}
+
+    @staticmethod
+    def query_ts_reference(search_dict, raise_exception=True):
+        return UnifyQueryHandler.query_ts_reference(search_dict, raise_exception=raise_exception)
 
 
 def signature_condition(field):

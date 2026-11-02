@@ -24,7 +24,8 @@
  * IN THE SOFTWARE.
  */
 
-import { computed, defineComponent, ref } from 'vue';
+import { inject, computed, defineComponent, ref } from 'vue';
+import { quixPage } from '../quix-status';
 import Stratege from './strategy';
 import QuickFilter from './quick-filter';
 import useLocale from '@/hooks/use-locale';
@@ -107,12 +108,14 @@ export default defineComponent({
         (getGroupStr.value || getDimensionStr.value || getYearStr.value),
     );
 
+    const quix = inject(quixPage);
     const isExternal = window.IS_EXTERNAL === true;
 
     // PO 环境进入聚类设置需同时具备 log_search 与 log_clustering。
     // 只授聚类配置不能隐式获得检索权；只授检索能看结果但看不到设置入口。
     // externalPermissions 在空间加载完成后才写入，不能在 setup 里取一次快照
     const isClusterConfigVisible = computed(() => {
+      if (quix?.status.value && quix.status.value.phase !== 'running') return false;
       if (!isExternal) {
         return true;
       }
