@@ -1712,7 +1712,10 @@ def _refresh_bkbase_result_table_statuses(
         if bkbase_record is None:
             continue
 
-        if all(status == DataLinkResourceStatus.OK.value for status in component_statuses):
+        # 停用后仍保留 RT/Binding；这些组件正常不代表采集链路已重新启用。
+        if bkbase_record.status == DataLinkResourceStatus.TERMINATING.value:
+            status = DataLinkResourceStatus.TERMINATING.value
+        elif all(status == DataLinkResourceStatus.OK.value for status in component_statuses):
             status = DataLinkResourceStatus.OK.value
         elif all(status == DataLinkResourceStatus.TERMINATED.value for status in component_statuses):
             status = DataLinkResourceStatus.TERMINATED.value
