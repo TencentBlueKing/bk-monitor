@@ -432,6 +432,19 @@ class ListFlowsResource(Resource):
         )
         if not raw_spans:
             return None
+        # UQ 历史存储路由可能重复返回同一 Span，在转换前统一执行线与 Token 的去重口径。
+        seen: set[tuple[str, str]] = set()
+        unique_spans: list[dict[str, Any]] = []
+        for span in raw_spans:
+            span_trace_id: Any = span.get(OtlpKey.TRACE_ID)
+            span_id: Any = span.get(OtlpKey.SPAN_ID)
+            if isinstance(span_trace_id, str) and span_trace_id and isinstance(span_id, str) and span_id:
+                key: tuple[str, str] = (span_trace_id, span_id)
+                if key in seen:
+                    continue
+                seen.add(key)
+            unique_spans.append(span)
+        raw_spans = unique_spans
         spans = prepare_flow_spans(
             raw_spans, entity_set, include_input_output=include_input_output, preview=input_output_preview
         )
