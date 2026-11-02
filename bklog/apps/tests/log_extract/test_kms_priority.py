@@ -5,6 +5,8 @@ import copy
 import importlib.util
 import json
 import os
+import subprocess
+import sys
 import tempfile
 import unittest
 from pathlib import Path
@@ -25,6 +27,9 @@ class KMSPriorityTest(unittest.TestCase):
         super().setUpClass()
         key = rsa.generate_private_key(public_exponent=65537, key_size=2048)
         cls.encrypted = envelope(json.dumps(PAYLOAD), key)
+        empty = copy.deepcopy(PAYLOAD)
+        empty["rabbitmq"]["default"]["password"] = ""
+        cls.empty_password_envelope = envelope(json.dumps(empty), key)
         cls.private_key = base64.b64encode(
             key.private_bytes(
                 serialization.Encoding.PEM, serialization.PrivateFormat.PKCS8, serialization.NoEncryption()
@@ -131,6 +136,81 @@ class KMSPriorityTest(unittest.TestCase):
                             self.assert_connection(connection, "custom-rabbit", 5673, "custom-vhost")
                         else:
                             self.assert_connection(connection)
+
+    def test_real_blueapps_celery_authentication(self):
+        root = Path(__file__).resolve().parents[3]
+        env = dict(
+            os.environ,
+            PYTHONPATH=os.pathsep.join((str(root), str(root.parent))),
+            DJANGO_SETTINGS_MODULE="settings",
+            BKPAAS_ENVIRONMENT="prod",
+            BKPAAS_MAJOR_VERSION="3",
+            BKPAAS_APP_ID="bk_log_search",
+            BKPAAS_APP_SECRET="legacy-app-secret" * 2,
+            BK_PAAS2_URL="http://paas.local",
+            DEPLOY_MODE="kubernetes",
+            DB_PREFIX="MYSQL",
+            DB_NAME="bklog",
+            DB_HOST="mysql.local",
+            DB_PORT="3306",
+            REDIS_HOST="redis.local",
+            REDIS_PORT="6379",
+            APP_TOKEN="legacy-app-secret" * 2,
+        )
+        code = """
+import json
+from unittest.mock import patch
+import settings
+from config import celery_app
+
+def auth(connection):
+    transport = connection.transport
+    with patch.object(transport.Connection, "connect"):
+        client = transport.establish_connection()
+    plain = next(method for method in client.authentication if method.mechanism == b"PLAIN")
+    _, user, password = plain.start(client).decode().split(chr(0), 2)
+    return [connection.hostname, user, password]
+
+result = {}
+for direction, factory in (("read", celery_app.connection_for_read), ("write", celery_app.connection_for_write)):
+    connection = factory()
+    route = [auth(connection)]
+    if connection.alt:
+        connection.switch(connection.alt[1])
+        route.append(auth(connection))
+    result[direction] = route
+print(json.dumps(result))
+"""
+        for enabled, encrypted, credentials in (
+            ("true", self.empty_password_envelope, [PAYLOAD["rabbitmq"]["default"]["username"], ""]),
+            (
+                "true",
+                self.encrypted,
+                [PAYLOAD["rabbitmq"]["default"]["username"], PAYLOAD["rabbitmq"]["default"]["password"]],
+            ),
+            ("false", self.empty_password_envelope, None),
+        ):
+            Path(env["KMS_ENVELOPE_FILE"]).write_text(encrypted)
+            for explicit in (False, True):
+                with self.subTest(enabled=enabled, empty=encrypted == self.empty_password_envelope, explicit=explicit):
+                    process_env = dict(env, ENABLE_KMS=enabled)
+                    if explicit:
+                        for direction in ("READ", "WRITE"):
+                            process_env[f"CELERY_BROKER_{direction}_URL"] = (
+                                f"amqp://old:stale@{direction.lower()}/vhost;amqp://old:stale@backup/vhost"
+                            )
+                    run = subprocess.run(
+                        [sys.executable, "-c", code], cwd=root, env=process_env, capture_output=True, text=True
+                    )
+                    self.assertEqual(run.returncode, 0, run.stderr[-3000:])
+                    actual = json.loads(run.stdout.splitlines()[-1])
+                    for direction in ("read", "write"):
+                        if explicit:
+                            user_pass = credentials or ["old", "stale"]
+                            expected = [[direction, *user_pass], ["backup", *user_pass]]
+                        else:
+                            expected = [["rabbit.local", *(credentials or ["old-user", "old-password"])]]
+                        self.assertEqual(actual[direction], expected)
 
     def test_disabled_preserves_settings_and_environment(self):
         os.environ.update(
