@@ -10,6 +10,11 @@ $alarmColor: #dcdee5 #63656e #ea3636;
   z-index: 1;
   width: 100%;
 
+  // 菜单展开时提升层级，避免下拉菜单被后续图表的标题覆盖
+  &.menu-show {
+    z-index: 10;
+  }
+
   .chart-title {
     min-height: 40px;
     padding: 3px 6px 3px 16px;
