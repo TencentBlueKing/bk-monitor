@@ -397,8 +397,8 @@ print(json.dumps({"auth": json.loads(headers["x-bkapi-authorization"]), "id": se
     )
 
 
-@pytest.mark.parametrize("enabled", [False, True])
-def test_real_celery_apps_keep_independent_broker_credentials(tmp_path, enabled):
+@pytest.mark.parametrize(("enabled", "empty_account"), [(False, None), (True, None), (True, "saas"), (True, "backend")])
+def test_real_celery_apps_keep_independent_broker_credentials(tmp_path, enabled, empty_account):
     env = base_env(tmp_path, role="worker", **DEPLOYMENT)
     env.update(
         USE_BKREPO="false",
@@ -410,8 +410,9 @@ def test_real_celery_apps_keep_independent_broker_credentials(tmp_path, enabled)
         BK_MONITOR_RABBITMQ_VHOST="alarm",
         CELERY_BROKER_URL="amqp://old:old@explicit:5680/preload",
     )
+    data = payload(**{f"rabbitmq.{empty_account}.password": ""}) if empty_account else PAYLOAD
     if enabled:
-        env.update(write_kms_files(tmp_path, PAYLOAD))
+        env.update(write_kms_files(tmp_path, data))
     # Use the normal Django test startup, which defers database initialization
     # until migrations. Both broker instances below are the production apps.
     code = """
@@ -427,7 +428,13 @@ keys = ("CELERY_BROKER_URL", "CELERY_BROKER_READ_URL", "CELERY_BROKER_WRITE_URL"
 def url(host):
     return f"amqp://old:old-secret@{host}:5680/team%3Bblue?heartbeat=21;amqp://old:old-secret@backup:5681/standby"
 def inspect(connection):
-    return [connection.hostname, connection.port, connection.virtual_host, connection.userid, connection.password]
+    transport = connection.transport
+    # Let Kombu build the real AMQP client. Stub only the socket connection.
+    with patch.object(transport.Connection, "connect"):
+        client = transport.establish_connection()
+    plain = next(auth for auth in client.authentication if auth.mechanism == b"PLAIN")
+    _, user, password = plain.start(client).decode().split(chr(0), 2)
+    return [connection.hostname, connection.port, connection.virtual_host, user, password]
 
 result = {}
 for case, values in {"default": {}, "both": {keys[0]: url("both")}, "read": {keys[1]: url("read")},
@@ -456,7 +463,7 @@ print(json.dumps(result))
         for key, route in routes.items():
             alias, direction = key.split("-")
             host = direction if case == "split" or case == direction else "both" if case == "both" else None
-            account = PAYLOAD["rabbitmq"][alias]
+            account = data["rabbitmq"][alias]
             auth = (
                 [account["username"], account["password"]]
                 if enabled

@@ -42,6 +42,10 @@ class MonitorCelery(Celery):
                 url = _authenticated_url(url, f"{quote(user, safe='')}:{quote(password, safe='')}")
             except (ValueError, TypeError):
                 raise kms.KMSConfigurationError("KMS requires a valid RabbitMQ broker URL") from None
+            if password == "":
+                # pyamqp defaults an empty URL password to "guest". Its transport
+                # options are applied afterwards, when building the AMQP client.
+                kwargs["transport_options"] = {**(kwargs.get("transport_options") or {}), "password": ""}
         return super()._connection(url, *args, **kwargs)
 
 
