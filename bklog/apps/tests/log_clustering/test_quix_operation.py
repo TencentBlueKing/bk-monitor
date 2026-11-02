@@ -178,6 +178,36 @@ class TestQuixEnableRunner(TestCase):
             ClusteringOperationStatusEnum.AWAITING_RECEIPT.value,
         )
 
+    def test_register_routes_records_metadata_errors_and_only_waits_when_pending(self):
+        self.confirm_receipt()
+        ready = self.transfer.get_log_clustering_status.return_value
+        transient = {"source": "sink_resource", "message": "gateway unavailable"}
+        invalid = {"source": "query_targets", "message": "binding timezone mismatch", "retryable": False}
+        self.transfer.get_log_clustering_status.side_effect = [
+            ready,
+            ready,
+            {**ready, "query_targets": None},
+            {**ready, "errors": [transient]},
+            {**ready, "errors": [invalid]},
+        ]
+        self.assertEqual(self.run_operation(), POLL_INTERVAL_SECONDS)
+        self.operation.refresh_from_db()
+        self.assertEqual(self.operation.step, "register_query_routes")
+        self.assertEqual(self.operation.retry_count, 0)
+        self.assertFalse(self.operation.last_error)
+
+        self.assertGreater(self.run_operation(), POLL_INTERVAL_SECONDS)
+        self.operation.refresh_from_db()
+        self.assertIn("sink_resource: gateway unavailable", self.operation.last_error)
+        self.assertEqual(self.operation.retry_count, 1)
+
+        self.assertIsNone(self.run_operation())
+        self.operation.refresh_from_db()
+        self.assertEqual(self.operation.status, ClusteringOperationStatusEnum.FAILED.value)
+        self.assertIn("query_targets: binding timezone mismatch", self.operation.last_error)
+        self.assertEqual(self.operation.steps[-1]["message"], self.operation.last_error)
+        self.transfer.bulk_create_or_update_log_router.assert_not_called()
+
     def test_pattern_registration_retries_bulk_route_without_reapplying_binding(self):
         self.confirm_receipt()
         self.transfer.bulk_create_or_update_log_router.side_effect = [

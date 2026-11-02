@@ -410,7 +410,7 @@ class OperateLogClusteringResource(Resource):
         }
 
 
-def get_log_clustering_query_targets(datalink: models.DataLink, source_table_id: str, spec: dict) -> dict:
+def get_log_clustering_query_targets(datalink: models.DataLink, source_table_id: str, spec: dict) -> dict | None:
     """按实际 Sink → ES binding → 存储资源解析查询目标。"""
     tenant = datalink.bk_tenant_id
     clustering = spec["clustering"]
@@ -429,8 +429,14 @@ def get_log_clustering_query_targets(datalink: models.DataLink, source_table_id:
 
     check_ref(binding_ref, "ElasticSearchBinding")
     binding = datalink.get_existing_component_config(binding_ref["kind"], binding_ref["name"], binding_ref["namespace"])
-    if not binding or binding.get("status", {}).get("phase") != "Ok":
-        raise ValidationError("clustering result ES binding is not ready")
+    if binding is None:
+        raise ValidationError(f"clustering result ES binding {binding_ref['name']} not found")
+    binding_status = binding.get("status") or {}
+    phase = binding_status.get("phase")
+    if phase in (None, "", "Pending", "Reconciling", "Initializing", "Creating"):
+        return None
+    if phase != "Ok":
+        raise ValidationError(f"ES binding {binding_ref['name']} is {phase}: {binding_status.get('message', '')}")
     data, storage = binding["spec"]["data"], binding["spec"]["storage"]
     check_ref(data, "ResultTable")
     check_ref(storage, "ElasticSearch")
@@ -526,7 +532,7 @@ class GetLogClusteringStatusResource(Resource):
             return {"configured": False}
         databus = get_log_clustering_databus(datalink)
 
-        errors: list[dict[str, str]] = []
+        errors: list[dict[str, Any]] = []
 
         def fetch(source: str, func):
             try:
@@ -535,7 +541,11 @@ class GetLogClusteringStatusResource(Resource):
                 logger.warning(
                     "GetLogClusteringStatusResource: table_id->[%s] fetch %s failed, error->[%s]", table_id, source, e
                 )
-                errors.append({"source": source, "message": str(e)})
+                error = {"source": source, "message": str(e)}
+                if source == "query_targets" and isinstance(e, ValidationError):
+                    error["retryable"] = False
+                    error["message"] = "; ".join(map(str, e.detail)) if isinstance(e.detail, list) else str(e.detail)
+                errors.append(error)
                 return None
 
         sink_resource = fetch(

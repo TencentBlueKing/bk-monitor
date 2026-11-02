@@ -294,9 +294,17 @@ class QuixClusteringOperationRunner:
 
     def _step_register_query_routes(self) -> bool:
         status = TransferApi.get_log_clustering_status(self._metadata_params(include_query_targets=True))
-        if not runtime_adoption_confirmed(status) or not status.get("query_targets"):
+        errors = status.get("errors") or []
+        if errors:
+            message = "; ".join(f"{error['source']}: {error['message']}" for error in errors)
+            if any(error.get("retryable") is False for error in errors):
+                raise QuixClusteringParamsInvalidException(message)
+            raise RuntimeError(message)
+        if not runtime_adoption_confirmed(status):
             return False
         targets = status["query_targets"]
+        if targets is None:
+            return False
         index_set = LogIndexSet.objects.get(index_set_id=self.runtime.index_set_id)
         space_type, space_id = parse_space_uid(index_set.space_uid)
         result, pattern = targets["clustered"], targets["pattern"]

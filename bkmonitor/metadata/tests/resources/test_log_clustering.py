@@ -741,7 +741,7 @@ def test_query_targets_follow_remote_result_binding(clustering_datalink, bkbase,
     assert detail["source_type"] == ("bkdata" if mode == "append" else "log")
     assert all(r["storage_id"] == cluster_id for r in detail["storage_cluster_records"])
     if mode == "append":
-        result["es_binding"]["name"] = "missing"
+        result["result_table"]["name"] = "mismatched"
         status = GetLogClusteringStatusResource().request(params)
         assert status["query_targets"] is None
         assert status["errors"][0]["source"] == "query_targets"
@@ -775,7 +775,26 @@ def test_daily_binding_uses_result_table_query_timezone(clustering_datalink, bkb
     # 日界线附近，UTC 的 log 查询不会覆盖东八区写入的次日别名。
     status = GetLogClusteringStatusResource().request(params)
     assert status["query_targets"] is None
+    assert status["errors"][0]["retryable"] is False
     assert "query timezone" in status["errors"][0]["message"]
     models.ESStorage.objects.filter(bk_tenant_id="system", table_id=LOG_TABLE_ID).update(source_type="bkdata")
     target = GetLogClusteringStatusResource().request(params)["query_targets"]["clustered"]
     assert (target["source_type"], target["query_index"], target["need_add_time"]) == ("bkdata", "actual_raw", True)
+
+
+def test_pending_result_binding_waits_without_error(clustering_datalink, bkbase):
+    set_config()
+    attach_remotely(bkbase)
+    bkbase[("ElasticSearchBinding", ES_BINDING_REF["name"])]["status"] = {"phase": "Pending"}
+    status = GetLogClusteringStatusResource().request(
+        {"bk_tenant_id": "system", "table_id": LOG_TABLE_ID, "include_query_targets": True}
+    )
+    assert status["query_targets"] is None
+    assert status["errors"] == []
+    bkbase[("ElasticSearchBinding", ES_BINDING_REF["name"])]["status"] = {"phase": "Failed", "message": "invalid alias"}
+    status = GetLogClusteringStatusResource().request(
+        {"bk_tenant_id": "system", "table_id": LOG_TABLE_ID, "include_query_targets": True}
+    )
+    (error,) = status["errors"]
+    assert error["retryable"] is False
+    assert "invalid alias" in error["message"]
