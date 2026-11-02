@@ -16,6 +16,12 @@ from rest_framework.exceptions import ValidationError
 
 from core.drf_resource.exceptions import CustomException
 from metadata import models
+from metadata.models.space.constants import (
+    DATA_LABEL_TO_RESULT_TABLE_KEY,
+    RESULT_TABLE_DETAIL_KEY,
+    SPACE_TO_RESULT_TABLE_KEY,
+)
+from metadata.models.space.space_table_id_redis import SpaceTableIDRedis
 from metadata.resources.log_clustering import (
     CreateOrUpdateLogClusteringPatternRouterResource,
     GetLogClusteringStatusResource,
@@ -628,11 +634,11 @@ def test_pattern_router_retry_republishes_mappings(clustering_datalink, bkbase, 
     redis.reset_mock()
     result = create_pattern_router()
     redis.push_table_id_detail.assert_called_once_with(
-        bk_tenant_id="system", table_id_list=[result["route_table_id"]], is_publish=True
+        bk_tenant_id="system", table_id_list=[result["route_table_id"]], is_publish=True, strict_log_route=True
     )
     redis.push_space_table_ids.assert_called_once_with(space_type="bkcc", space_id="2", is_publish=True)
     redis.push_data_label_table_ids.assert_called_once_with(
-        data_label_list=["bklog_index_set_24466_pattern"], bk_tenant_id="system", is_publish=True
+        data_label_list=["bklog_index_set_24466_pattern"], bk_tenant_id="system", is_publish=True, include_empty=True
     )
 
 
@@ -645,8 +651,59 @@ def test_pattern_router_retry_without_label_republishes_existing_label(
     redis.reset_mock()
     create_pattern_router(data_label="")
     redis.push_data_label_table_ids.assert_called_once_with(
-        data_label_list=["bklog_index_set_24466_pattern"], bk_tenant_id="system", is_publish=True
+        data_label_list=["bklog_index_set_24466_pattern"], bk_tenant_id="system", is_publish=True, include_empty=True
     )
+
+
+@pytest.mark.parametrize("shared_old_label", [False, True])
+def test_rename_retry_repairs_redis_state(clustering_datalink, bkbase, pattern_route_space, mocker, shared_old_label):
+    set_config()
+    publisher = SpaceTableIDRedis()
+    pattern_route_space.return_value = publisher
+    mocker.patch.object(publisher, "_compose_metric_table_id_detail", return_value={})
+    route = "pattern.__default__"
+    other = "other.__default__"
+    mocker.patch.object(publisher, "_compose_bkcc_space_table_ids", return_value={route: {}})
+    hashes = {}
+    fail_key = None
+
+    def write(key, values):
+        if key == fail_key:
+            raise RuntimeError("Redis write failed")
+        hashes.setdefault(key, {}).update(values)
+        return True
+
+    mocker.patch("metadata.models.space.space_table_id_redis.RedisTools.hmset_to_redis", side_effect=write)
+    mocker.patch("metadata.models.space.space_table_id_redis.RedisTools.publish")
+
+    def register(label):
+        return create_pattern_router(route_table_id=route, data_label=label)
+
+    # 首次写详情失败必须向上传播；此时 DB 已提交，重试仍要发布空间、详情和标签。
+    fail_key = RESULT_TABLE_DETAIL_KEY
+    with pytest.raises(RuntimeError, match="Redis write failed"):
+        register("old")
+    assert models.ResultTable.objects.get(table_id=route).data_label == "old"
+    fail_key = None
+    register("old")
+    assert json.loads(hashes[DATA_LABEL_TO_RESULT_TABLE_KEY]["old"]) == [route]
+    if shared_old_label:
+        create_pattern_router(route_table_id=other, data_label="old")
+
+    # 改名后分别中断空间和标签写入；两次重试均已读到新标签。
+    for fail_key in (SPACE_TO_RESULT_TABLE_KEY, DATA_LABEL_TO_RESULT_TABLE_KEY):
+        with pytest.raises(RuntimeError, match="Redis write failed"):
+            register("new")
+        assert models.ResultTable.objects.get(table_id=route).data_label == "new"
+    fail_key = None
+    register("new")
+    assert json.loads(hashes[RESULT_TABLE_DETAIL_KEY][route])["data_label"] == "new"
+    assert route in json.loads(hashes[SPACE_TO_RESULT_TABLE_KEY]["bkcc__2"])
+    assert json.loads(hashes[DATA_LABEL_TO_RESULT_TABLE_KEY]["new"]) == [route]
+    assert json.loads(hashes[DATA_LABEL_TO_RESULT_TABLE_KEY]["old"]) == ([other] if shared_old_label else [])
+    assert not models.ResultTableOption.objects.filter(
+        table_id=route, name="clustering_pattern_pending_labels"
+    ).exists()
 
 
 def test_pattern_router_cannot_update_another_space(clustering_datalink, bkbase, pattern_route_space):

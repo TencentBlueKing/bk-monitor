@@ -44,6 +44,7 @@ __all__ = [
     "CreateOrUpdateLogClusteringPatternRouterResource",
 ]
 
+PATTERN_PENDING_LABEL_OPTION = "clustering_pattern_pending_labels"
 PATTERN_SOURCE_OPTION = "clustering_pattern_source"
 CLUSTERING_ENABLE_ACTIONS = {"disable": False, "enable": True}
 # metadata 内部动作：切换 Databus 是否引用聚类 Sink 后完整下发日志链路
@@ -502,7 +503,7 @@ class CreateOrUpdateLogClusteringPatternRouterResource(CreateOrUpdateLogRouter):
     state_index 仅供 BKBase 内部恢复使用，不登记查询路由。路由结果表、空间与选项由调用方给出，复用日志路由体系落库和推送。
     """
 
-    republish_route_mappings = True
+    pending_label_option = PATTERN_PENDING_LABEL_OPTION
 
     class RequestSerializer(ParamsSerializer):
         table_id = serializers.CharField(label="日志采集项对应的监控结果表ID")
@@ -519,7 +520,7 @@ class CreateOrUpdateLogClusteringPatternRouterResource(CreateOrUpdateLogRouter):
             names = {option["name"] for option in attrs["options"]}
             if "time_field" in names:
                 raise serializers.ValidationError({"options": "Pattern snapshots have no time field"})
-            if PATTERN_SOURCE_OPTION in names:
+            if names & {PATTERN_SOURCE_OPTION, PATTERN_PENDING_LABEL_OPTION}:
                 raise serializers.ValidationError({"options": "Pattern route ownership is managed by metadata"})
             return attrs
 
@@ -575,7 +576,8 @@ class CreateOrUpdateLogClusteringPatternRouterResource(CreateOrUpdateLogRouter):
                 },
             ],
         }
-        super().perform_request(route_params)
+        with serialize_log_clustering_change(datalink):
+            super().perform_request(route_params)
 
         logger.info(
             "CreateOrUpdateLogClusteringPatternRouterResource: table_id->[%s] route_table_id->[%s] "
