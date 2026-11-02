@@ -44,6 +44,7 @@ __all__ = [
     "CreateOrUpdateLogClusteringPatternRouterResource",
 ]
 
+PATTERN_SOURCE_OPTION = "clustering_pattern_source"
 CLUSTERING_ENABLE_ACTIONS = {"disable": False, "enable": True}
 # metadata 内部动作：切换 Databus 是否引用聚类 Sink 后完整下发日志链路
 SINK_REFERENCE_ACTIONS = {"detach": False, "attach": True}
@@ -493,7 +494,7 @@ class GetLogClusteringStatusResource(Resource):
         }
 
 
-class CreateOrUpdateLogClusteringPatternRouterResource(Resource):
+class CreateOrUpdateLogClusteringPatternRouterResource(CreateOrUpdateLogRouter):
     """
     创建或更新日志聚类 Pattern 查询路由
 
@@ -507,6 +508,36 @@ class CreateOrUpdateLogClusteringPatternRouterResource(Resource):
         space_id = serializers.CharField(label="空间ID")
         route_table_id = serializers.CharField(label="Pattern 路由结果表ID")
         data_label = serializers.CharField(label="数据标签", required=False, allow_blank=True, default="")
+
+        def validate(self, attrs):
+            if attrs["route_table_id"] == attrs["table_id"]:
+                raise serializers.ValidationError(
+                    {"route_table_id": "Pattern route cannot replace the source log table"}
+                )
+            names = {option["name"] for option in attrs["options"]}
+            if "time_field" in names:
+                raise serializers.ValidationError({"options": "Pattern snapshots have no time field"})
+            if PATTERN_SOURCE_OPTION in names:
+                raise serializers.ValidationError({"options": "Pattern route ownership is managed by metadata"})
+            return attrs
+
+    def _get_existing_route(self, space: models.Space, params: dict) -> models.ResultTable | None:
+        route = (
+            models.ResultTable.objects.select_for_update()
+            .filter(bk_tenant_id=space.bk_tenant_id, table_id=params["table_id"])
+            .first()
+        )
+        if (
+            route
+            and not models.ResultTableOption.objects.filter(
+                bk_tenant_id=space.bk_tenant_id,
+                table_id=route.table_id,
+                name=PATTERN_SOURCE_OPTION,
+                value=params["pattern_source_table_id"],
+            ).exists()
+        ):
+            raise ValidationError(f"route_table_id({route.table_id}) already belongs to another route")
+        return route
 
     def perform_request(self, validated_request_data: dict[str, Any]) -> dict[str, Any]:
         bk_tenant_id = validated_request_data["bk_tenant_id"]
@@ -529,9 +560,18 @@ class CreateOrUpdateLogClusteringPatternRouterResource(Resource):
             "index_set": sink.binding["pattern_index"],
             "source_type": EsSourceType.LOG.value,
             "storage_type": models.ClusterInfo.TYPE_ES,
-            "options": validated_request_data["options"],
+            "pattern_source_table_id": table_id,
+            "options": [
+                *validated_request_data["options"],
+                {
+                    "name": PATTERN_SOURCE_OPTION,
+                    "value": table_id,
+                    "value_type": models.ResultTableOption.TYPE_STRING,
+                    "creator": "system",
+                },
+            ],
         }
-        CreateOrUpdateLogRouter().request(route_params)
+        super().perform_request(route_params)
 
         logger.info(
             "CreateOrUpdateLogClusteringPatternRouterResource: table_id->[%s] route_table_id->[%s] "

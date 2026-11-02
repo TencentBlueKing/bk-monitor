@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making BK-LOG 蓝鲸日志平台 available.
 Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
@@ -19,8 +18,9 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 We undertake not to change the open source license (MIT license) applicable to the current version of
 the project delivered to anyone in the future.
 """
+
 import copy
-from unittest.mock import patch
+from unittest.mock import Mock, patch
 
 from django.test import TestCase
 
@@ -29,7 +29,7 @@ from apps.log_esquery.esquery.dsl_builder.query_builder.query_builder_logic impo
     EsQueryBuilder,
 )
 from apps.log_esquery.esquery.esquery import EsQuery
-from apps.log_esquery.serializers import EsQuerySearchAttrSerializer
+from apps.log_esquery.serializers import EsQueryDslAttrSerializer, EsQuerySearchAttrSerializer
 from apps.log_search.exceptions import (
     IndexResultTableApiException,
     ScenarioNotSupportedException,
@@ -485,6 +485,40 @@ class TestEsquery(TestCase):
         params.update({"scenario_id": Scenario.ES})
         result = EsQuery(params).dsl()
         self.assertEqual(result, DSL_RESULT_ES)
+
+    def test_pattern_snapshot_dsl_uses_exact_index_without_time_filter(self):
+        index = "log-clustering-42-pattern"
+        body = {
+            "size": 20,
+            "_source": ["signature", "pattern", "distance_threshold", "publish_revision"],
+            "query": {"match_all": {}},
+        }
+        serializer = EsQueryDslAttrSerializer(
+            data={"scenario_id": Scenario.ES, "indices": index, "storage_cluster_id": 3, "body": body}
+        )
+        serializer.is_valid(raise_exception=True)
+        transport = Mock()
+        document = {
+            "signature": "s",
+            "pattern": "connection <*> closed",
+            "distance_threshold": "0.5",
+            "publish_revision": 1,
+        }
+        transport.search.return_value = {"hits": {"hits": [{"_source": document}]}}
+
+        def connect(client, check_ping):
+            self.assertEqual(client.storage_cluster_id, 3)
+            client._client = transport
+
+        with patch(
+            "apps.log_esquery.esquery.client.QueryClientEs.QueryClientEs._build_connection",
+            autospec=True,
+            side_effect=connect,
+        ):
+            result = EsQuery(serializer.validated_data).dsl()
+        self.assertEqual(result["hits"]["hits"][0]["_source"], document)
+        self.assertEqual(transport.search.call_args.kwargs["index"], index)
+        self.assertEqual(transport.search.call_args.kwargs["body"], body)
 
     @patch("apps.log_esquery.esquery.client.QueryClientEs.QueryClientEs.mapping", return_value={})
     @patch("apps.log_esquery.esquery.client.QueryClientBkData.QueryClientBkData.mapping", return_value={})

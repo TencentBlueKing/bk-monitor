@@ -383,6 +383,9 @@ class CreateOrUpdateLogRouter(Resource):
             required=False, label="查询别名设置", default=None, many=True
         )
 
+    def _get_existing_route(self, space: models.Space, params: dict) -> models.ResultTable | None:
+        return models.ResultTable.objects.filter(bk_tenant_id=space.bk_tenant_id, table_id=params["table_id"]).first()
+
     def perform_request(self, validated_request_data: dict) -> None:
         space = models.Space.objects.get(
             space_type_id=validated_request_data["space_type"],
@@ -393,9 +396,6 @@ class CreateOrUpdateLogRouter(Resource):
 
         # 根据结果表判断是创建或更新
         table_id: str = validated_request_data["table_id"]
-        result_table = models.ResultTable.objects.filter(bk_tenant_id=bk_tenant_id, table_id=table_id).first()
-        is_create = result_table is None
-        old_data_label = result_table.data_label if result_table else ""
         storage_type = validated_request_data["storage_type"]
         options = validated_request_data["options"]
         data_label = validated_request_data.get("data_label", "")
@@ -413,6 +413,9 @@ class CreateOrUpdateLogRouter(Resource):
 
         # 查询别名与日志路由 Storage/default_storage 使用同一个 metadata DB 事务。
         with atomic(config.DATABASE_CONNECTION_NAME):
+            result_table = self._get_existing_route(space, validated_request_data)
+            is_create = result_table is None
+            old_data_label = result_table.data_label if result_table else ""
             if validated_request_data.get("query_alias_settings") is not None:
                 operator = get_request_username() or "system"
                 models.ESFieldQueryAliasOption.manage_query_alias_settings(

@@ -581,8 +581,12 @@ def test_filter_update_preserves_remote_disabled_state(clustering_datalink, bkba
 
 
 @pytest.fixture
-def log_router(mocker):
-    return mocker.patch("metadata.resources.log_clustering.CreateOrUpdateLogRouter")
+def pattern_route_space(mocker):
+    models.Space.objects.create(
+        bk_tenant_id="system", space_type_id="bkcc", space_id="2", space_code="pattern-test", space_name="pattern-test"
+    )
+    mocker.patch("metadata.resources.log_datalink.get_request_tenant_id", return_value="system")
+    return mocker.patch("metadata.resources.log_datalink.SpaceTableIDRedis")
 
 
 def create_pattern_router(**overrides) -> dict:
@@ -593,50 +597,70 @@ def create_pattern_router(**overrides) -> dict:
         "space_id": "2",
         "route_table_id": "bklog_index_set_24466_pattern.__default__",
         "data_label": "bklog_index_set_24466_pattern",
-        "options": [{"name": "time_field", "value": '{"name": "updated_at"}', "value_type": "dict"}],
     }
-    params.update(overrides)
-    return CreateOrUpdateLogClusteringPatternRouterResource().request(params)
+    return CreateOrUpdateLogClusteringPatternRouterResource().request({**params, **overrides})
 
 
-def test_pattern_router_routes_pattern_index_on_pattern_cluster(clustering_datalink, bkbase, log_router):
+def test_pattern_router_registers_and_updates_only_its_own_route(clustering_datalink, bkbase, pattern_route_space):
     set_config()
-
     result = create_pattern_router()
-
-    log_router.return_value.request.assert_called_once_with(
-        {
-            "bk_tenant_id": "system",
-            "space_type": "bkcc",
-            "space_id": "2",
-            "table_id": "bklog_index_set_24466_pattern.__default__",
-            "data_label": "bklog_index_set_24466_pattern",
-            "cluster_id": PATTERN_CLUSTER_ID,
-            "index_set": BINDING["pattern_index"],
-            "source_type": "log",
-            "storage_type": "elasticsearch",
-            "options": [
-                {"name": "time_field", "value": '{"name": "updated_at"}', "value_type": "dict", "creator": "system"}
-            ],
-        }
-    )
     assert result == {
         "route_table_id": "bklog_index_set_24466_pattern.__default__",
         "cluster_id": PATTERN_CLUSTER_ID,
         "index_set": BINDING["pattern_index"],
     }
+    assert create_pattern_router(data_label="updated_label") == result
+    route = models.ResultTable.objects.get(bk_tenant_id="system", table_id=result["route_table_id"])
+    storage = models.ESStorage.objects.get(bk_tenant_id="system", table_id=route.table_id)
+    assert route.data_label == "updated_label"
+    assert (storage.index_set, storage.storage_cluster_id) == (BINDING["pattern_index"], PATTERN_CLUSTER_ID)
+    assert not models.ResultTableOption.objects.filter(table_id=route.table_id, name="time_field").exists()
+    pattern_route_space.return_value.push_table_id_detail.assert_called()
 
 
-def test_pattern_router_requires_clustering_config(clustering_datalink, bkbase, log_router):
+def test_pattern_router_cannot_replace_source(clustering_datalink, bkbase, pattern_route_space):
+    set_config()
+    raw = models.ESStorage.objects.get(bk_tenant_id="system", table_id=LOG_TABLE_ID)
+    original = (raw.index_set, raw.storage_cluster_id)
+    with pytest.raises(CustomException, match="source log table"):
+        create_pattern_router(route_table_id=LOG_TABLE_ID)
+    raw.refresh_from_db()
+    assert (raw.index_set, raw.storage_cluster_id) == original
+    pattern_route_space.assert_not_called()
+
+
+@pytest.mark.parametrize("other_owner", [None, "other.log"])
+def test_pattern_router_rejects_existing_unrelated_route(clustering_datalink, bkbase, pattern_route_space, other_owner):
+    set_config()
+    result = create_pattern_router()
+    key = {"bk_tenant_id": "system", "table_id": result["route_table_id"]}
+    marker = models.ResultTableOption.objects.filter(**key, name="clustering_pattern_source")
+    if other_owner:
+        marker.update(value=other_owner)
+    else:
+        marker.delete()
+    pattern_route_space.reset_mock()
+    with pytest.raises(ValidationError, match="already belongs"):
+        create_pattern_router(data_label="incorrect")
+    assert models.ResultTable.objects.get(**key).data_label != "incorrect"
+    pattern_route_space.assert_not_called()
+
+
+@pytest.mark.parametrize("option_name", ["time_field", "clustering_pattern_source"])
+def test_pattern_router_rejects_unsupported_options(clustering_datalink, bkbase, pattern_route_space, option_name):
+    set_config()
+    with pytest.raises(CustomException, match="options"):
+        create_pattern_router(options=[{"name": option_name, "value": "untrusted"}])
+    pattern_route_space.assert_not_called()
+
+
+def test_pattern_router_requires_clustering_config(clustering_datalink, bkbase):
     with pytest.raises(ValidationError, match="no log clustering pattern index"):
         create_pattern_router()
-    log_router.assert_not_called()
 
 
-def test_pattern_router_requires_metadata_pattern_cluster(clustering_datalink, bkbase, log_router):
+def test_pattern_router_requires_metadata_pattern_cluster(clustering_datalink, bkbase):
     set_config()
     models.ClusterInfo.objects.filter(cluster_id=PATTERN_CLUSTER_ID).delete()
-
     with pytest.raises(ValidationError, match="not a metadata elasticsearch cluster"):
         create_pattern_router()
-    log_router.assert_not_called()
