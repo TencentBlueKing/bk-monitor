@@ -1,9 +1,9 @@
 import copy
+from datetime import datetime, timezone
 from types import SimpleNamespace
 from unittest.mock import patch
 
 from django.test import TestCase
-from django.utils import timezone
 from rest_framework.exceptions import PermissionDenied, ValidationError
 
 from apps.log_clustering.handlers.quix.query import QuixPatternHandler, apply_query_scope, result_query
@@ -21,7 +21,6 @@ class TestQuixPatternQuery(TestCase):
         self.index = LogIndexSet.objects.create(index_set_id=42, space_uid="bkcc__2", scenario_id=Scenario.LOG)
         self.runtime = SimpleNamespace(
             index_set_id=42,
-            created_at=timezone.now(),
             bk_tenant_id="system",
             pattern_index="log-clustering-42-pattern",
             active_config={"distance_threshold": "0.5", "input_mapping": {"log": "message"}},
@@ -116,6 +115,18 @@ class TestQuixPatternQuery(TestCase):
         self.assertEqual(template["table_id"], "bklog_index_set_42_pattern")
         conditions = {f["field_name"]: set(f["value"]) for f in template["conditions"]["field_list"]}
         self.assertEqual(conditions, {"signature": {"a", "b"}, "index_set_id": {"42"}, "distance_threshold": {"0.5"}})
+
+    def test_historical_page_template_window_includes_later_refresh(self):
+        self.start_patch(MODULE + ".get_local_param", return_value="Asia/Shanghai")
+        now = datetime(2026, 11, 2, 4, tzinfo=timezone.utc)
+        self.start_patch(MODULE + ".timezone.now", return_value=now)
+        raw = self.start_patch(MODULE + ".UnifyQueryApi.query_ts_raw", return_value={"list": []})
+        self.params.update(start_time="2026-11-01 10:00:00", end_time="2026-11-01 11:00:00")
+        self.handler._signature_patterns(["a"])
+        payload = raw.call_args.args[0]
+        expected_start = datetime(2026, 10, 31, 2, tzinfo=timezone.utc)
+        self.assertEqual(payload["start_time"], str(int(expected_start.timestamp() * 1000)))
+        self.assertEqual(payload["end_time"], str(int(now.timestamp() * 1000)))
 
     def test_drilldown_keeps_time_group_and_effective_level(self):
         params = {

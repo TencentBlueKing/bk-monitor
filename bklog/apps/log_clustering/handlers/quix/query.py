@@ -33,7 +33,8 @@ from apps.log_search.handlers.index_set import BaseIndexSetHandler
 from apps.log_search.models import LogIndexSet
 from apps.log_search.utils import get_search_request_scope
 from apps.log_unifyquery.handler.pattern import UnifyQueryPatternHandler
-from apps.utils.local import get_request_tenant_id
+from apps.utils.local import get_local_param, get_request_tenant_id
+from apps.utils.time_handler import generate_time_range
 
 
 def get_query_runtime(index_set_id):
@@ -140,8 +141,14 @@ class QuixPatternHandler(PatternHandler):
             return []
         label = f"{BaseIndexSetHandler.get_data_label(self._index_set_id)}_pattern"
         threshold = self.runtime.active_config["distance_threshold"]
-        # 模板是在任务运行期间更新的映射，不能把日志页面的时间窗口套在模板上。
-        start = str(int(self.runtime.created_at.timestamp() * 1000))
+        # 从页面开始时间多看一天；历史日志命中的签名也能读到页面结束后刷新的模板。
+        page_start, _ = generate_time_range(
+            "customized",
+            self._query["start_time"],
+            self._query["end_time"],
+            get_local_param("time_zone", settings.TIME_ZONE),
+        )
+        start = str(int(page_start.shift(days=-1).timestamp() * 1000))
         end = str(int(timezone.now().timestamp() * 1000))
         records = []
         for batch in self._chunk_values(signatures, 500):
