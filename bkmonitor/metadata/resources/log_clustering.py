@@ -25,6 +25,7 @@ from bkmonitor.utils.serializers import TenantIdField
 from core.drf_resource import Resource
 from metadata import models
 from metadata.config import DATABASE_CONNECTION_NAME
+from metadata.models.constants import EsSourceType
 from metadata.models.data_link import DataLinkResourceConfigBase
 from metadata.models.data_link import utils as data_link_utils
 from metadata.models.data_link.constants import DataLinkKind, DataLinkNameScene
@@ -448,6 +449,9 @@ def get_log_clustering_query_targets(datalink: models.DataLink, source_table_id:
         bk_tenant_id=tenant, cluster_type=models.ClusterInfo.TYPE_ES, cluster_name=storage["name"]
     )
 
+    source_type = models.ESStorage.objects.get(bk_tenant_id=tenant, table_id=table_id).source_type
+    if not source_type:
+        raise ValidationError("missing query source type for clustering result table")
     alias = binding["spec"].get("write_alias")
     need_add_time = False
     if alias is None:
@@ -469,6 +473,10 @@ def get_log_clustering_query_targets(datalink: models.DataLink, source_table_id:
         prefix = "write_%Y%m%d_"
         if not alias_format.startswith(prefix) or "%" in alias_format[len(prefix) :]:
             raise ValidationError("no known read alias for the time-based clustering result binding")
+        # UnifyQuery 按来源展开日期：bkdata 使用东八区，其他来源使用 UTC。
+        query_timezone = 8 if source_type == EsSourceType.BKDATA.value else 0
+        if alias["TimeBased"].get("timezone", 0) != query_timezone:
+            raise ValidationError(f"time-based ES binding timezone differs from {source_type} query timezone")
         query_index = alias_format[len(prefix) :]
         need_add_time = True
     if not query_index or any(c in query_index for c in "*,?"):
@@ -480,6 +488,7 @@ def get_log_clustering_query_targets(datalink: models.DataLink, source_table_id:
         "clustered": {
             "table_id": table_id,
             "storage_type": cluster.cluster_type,
+            "source_type": source_type,
             "cluster_id": cluster.cluster_id,
             "query_index": query_index,
             "need_add_time": need_add_time,

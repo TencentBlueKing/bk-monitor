@@ -677,7 +677,11 @@ def test_query_targets_follow_remote_result_binding(clustering_datalink, bkbase,
             name="predict", namespace="bklog", bk_tenant_id="system", table_id=table_id, bk_biz_id=2
         )
         models.ESStorage.objects.create(
-            bk_tenant_id="system", table_id=table_id, storage_cluster_id=710101, index_set="stale-local-index"
+            bk_tenant_id="system",
+            table_id=table_id,
+            storage_cluster_id=710101,
+            index_set="stale-local-index",
+            source_type="bkdata",
         )
         bkbase[("ElasticSearchBinding", "predict-es")] = {
             "metadata": {"annotations": {"physical_table_name": "shadowed-by-fixed-alias"}},
@@ -717,7 +721,7 @@ def test_query_targets_follow_remote_result_binding(clustering_datalink, bkbase,
                     "table_id": route,
                     "cluster_id": target["cluster_id"],
                     "storage_type": target["storage_type"],
-                    "source_type": "es",
+                    "source_type": target["source_type"],
                     "index_set": target["query_index"],
                     "options": [
                         {"name": "need_add_time", "value_type": "bool", "value": json.dumps(target["need_add_time"])}
@@ -734,7 +738,8 @@ def test_query_targets_follow_remote_result_binding(clustering_datalink, bkbase,
         target["query_index"],
         mode == "update_original",
     )
-    assert {r["storage_id"] for r in detail["storage_cluster_records"]} == {cluster_id}
+    assert detail["source_type"] == ("bkdata" if mode == "append" else "log")
+    assert all(r["storage_id"] == cluster_id for r in detail["storage_cluster_records"])
     if mode == "append":
         result["es_binding"]["name"] = "missing"
         status = GetLogClusteringStatusResource().request(params)
@@ -760,3 +765,17 @@ def test_result_binding_without_write_alias(clustering_datalink, bkbase, annotat
     params = {"bk_tenant_id": "system", "table_id": LOG_TABLE_ID, "include_query_targets": True}
     target = GetLogClusteringStatusResource().request(params)["query_targets"]["clustered"]
     assert (target["query_index"], target["need_add_time"]) == (expected, False)
+
+
+def test_daily_binding_uses_result_table_query_timezone(clustering_datalink, bkbase):
+    set_config()
+    attach_remotely(bkbase)
+    bkbase[("ElasticSearchBinding", ES_BINDING_REF["name"])]["spec"]["write_alias"]["TimeBased"]["timezone"] = 8
+    params = {"bk_tenant_id": "system", "table_id": LOG_TABLE_ID, "include_query_targets": True}
+    # 日界线附近，UTC 的 log 查询不会覆盖东八区写入的次日别名。
+    status = GetLogClusteringStatusResource().request(params)
+    assert status["query_targets"] is None
+    assert "query timezone" in status["errors"][0]["message"]
+    models.ESStorage.objects.filter(bk_tenant_id="system", table_id=LOG_TABLE_ID).update(source_type="bkdata")
+    target = GetLogClusteringStatusResource().request(params)["query_targets"]["clustered"]
+    assert (target["source_type"], target["query_index"], target["need_add_time"]) == ("bkdata", "actual_raw", True)

@@ -46,6 +46,7 @@ ADOPTED_STATUS = {
             "table_id": "2_bklog.demo",
             "query_index": "2_bklog_demo",
             "need_add_time": True,
+            "source_type": "log",
         },
         "pattern": {"storage_type": "elasticsearch", "cluster_id": 7, "pattern_index": "log-clustering-42-pattern"},
     },
@@ -194,6 +195,7 @@ class TestQuixEnableRunner(TestCase):
         self.assertEqual(failed, retry)
         clustered, pattern = first.args[0], retry.args[0]
         self.assertEqual(clustered["data_label"], "bklog_index_set_42_clustered")
+        self.assertEqual(clustered["table_info"][0]["source_type"], "log")
         self.assertEqual(clustered["table_info"][0]["index_set"], "2_bklog_demo")
         self.assertEqual(pattern["data_label"], "bklog_index_set_42_pattern")
         self.assertEqual((pattern["space_type"], pattern["space_id"]), ("bkcc", "2"))
@@ -212,6 +214,7 @@ class TestQuixEnableRunner(TestCase):
                     "table_id": "2_bklog.predict",
                     "query_index": "custom-predict-write",
                     "need_add_time": False,
+                    "source_type": "bkdata",
                     "cluster_id": 9,
                 },
             },
@@ -224,6 +227,7 @@ class TestQuixEnableRunner(TestCase):
             (table["index_set"], table["cluster_id"]),
             ("custom-predict-write", 9),
         )
+        self.assertEqual(table["source_type"], "bkdata")
         self.assertEqual(table["query_alias_settings"], [{"field_name": "log_signature", "query_alias": "signature"}])
         self.assertEqual(pattern["table_info"][0]["index_set"], targets["pattern"]["pattern_index"])
 

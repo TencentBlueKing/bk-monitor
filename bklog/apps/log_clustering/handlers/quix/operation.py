@@ -306,7 +306,7 @@ class QuixClusteringOperationRunner:
         routes = {
             clustered_label: {
                 "storage_type": result["storage_type"],
-                "source_type": Scenario.ES,
+                "source_type": result["source_type"],
                 "options": [
                     {
                         "name": "need_add_time",
