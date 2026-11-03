@@ -201,7 +201,8 @@ export default defineComponent({
               <i
                 class='icon-monitor icon-mc-copy'
                 v-bk-tooltips={{ content: t('复制'), delay: 200, boundary: 'window' }}
-                onClick={() => {
+                onClick={event => {
+                  event.stopPropagation();
                   handleCopyText(detail);
                 }}
               />
@@ -408,8 +409,9 @@ export default defineComponent({
                       v-slots={{
                         content: () => this.handleErrorPopoverContent(this.t('错误信息'), errorDescription),
                       }}
+                      offset={0}
                       placement='bottom'
-                      popoverDelay={[300, 0]}
+                      popoverDelay={[300, 200]}
                     >
                       <img
                         class='error-icon'
