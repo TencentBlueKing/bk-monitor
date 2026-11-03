@@ -340,6 +340,35 @@ class TestQuixClusteringHandlerUpdate(TestCase):
         self.assertEqual(ClusteringConfig.objects.get(index_set_id=INDEX_SET_ID).delimeter, "encoded-delimiter")
 
     @patch("apps.log_clustering.handlers.quix.operation.BkFaraApi")
+    def test_close_requires_readback_after_model_write(self, bkfara, mock_delay):
+        from apps.log_clustering.handlers.quix.operation import MAX_STEP_RETRIES
+
+        handler = QuixClusteringHandler(self.index_set)
+        operation_id = handler.update({"max_log_length": 2000})
+        bkfara.get_task_parameters.side_effect = [
+            {"control_version": 3},
+            *[RuntimeError("readback unavailable")] * MAX_STEP_RETRIES,
+        ]
+        for _ in range(MAX_STEP_RETRIES):
+            QuixClusteringOperationRunner(operation_id).run()
+
+        with self.assertRaises(QuixClusteringParamsInvalidException):
+            handler.disable()
+        operation = LogClusteringOperation.objects.get(operation_id=operation_id)
+        self.assertEqual(operation.status, ClusteringOperationStatusEnum.FAILED.value)
+        self.assertEqual(ClusteringConfig.objects.get(index_set_id=INDEX_SET_ID).max_log_length, 1000)
+
+        bkfara.get_task_parameters.side_effect = [
+            {"control_version": 4, "training": {"parameters": operation.request_snapshot["model_parameters"]}}
+        ]
+        handler.retry(operation_id)
+        self.assertIsNone(QuixClusteringOperationRunner(operation_id).run())
+        bkfara.update_task_parameters.assert_called_once()
+        self.assertEqual(ClusteringConfig.objects.get(index_set_id=INDEX_SET_ID).max_log_length, 2000)
+        close = LogClusteringOperation.objects.get(operation_id=handler.disable())
+        self.assertEqual(close.operation_type, ClusteringOperationTypeEnum.DISABLE.value)
+
+    @patch("apps.log_clustering.handlers.quix.operation.BkFaraApi")
     def test_resubmit_after_failed_version_read_and_close_uses_existing_task(self, bkfara, mock_delay):
         from apps.log_clustering.handlers.quix.operation import MAX_STEP_RETRIES
 

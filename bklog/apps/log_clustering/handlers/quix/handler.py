@@ -311,6 +311,9 @@ class QuixClusteringHandler:
         completed = {
             item["step"] for item in operation.steps if item["status"] == ClusteringOperationStatusEnum.SUCCESS.value
         }
+        # 模型 PATCH 后还需回读并保存业务参数，关闭不能接替尚未确认的写入。
+        if "confirm_model_parameters" not in completed:
+            completed.discard("update_model_parameters")
         unconfirmed = set(operation.request_payloads) - completed
         if operation.step in ("enable_clustering", "attach") and operation.step not in completed:
             unconfirmed.add(operation.step)
