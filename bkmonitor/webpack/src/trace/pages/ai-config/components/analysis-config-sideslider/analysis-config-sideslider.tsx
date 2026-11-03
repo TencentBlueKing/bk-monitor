@@ -346,7 +346,6 @@ export default defineComponent({
                   />
                 ) : (
                   <AiResourceSelect
-                    footerText={t('新增智能体')}
                     loading={agentSelect.loading.value}
                     modelValue={detail.value?.agent_id || undefined}
                     multiple={false}
@@ -376,7 +375,6 @@ export default defineComponent({
                   />
                 ) : (
                   <AiResourceSelect
-                    footerText={t('新增知识库')}
                     loading={knowledgeBaseSelect.loading.value}
                     modelValue={detail.value?.knowledge_base_ids ?? []}
                     multiple={true}
@@ -408,7 +406,6 @@ export default defineComponent({
                   />
                 ) : (
                   <AiResourceSelect
-                    footerText={t('新增Skill')}
                     loading={skillSelect.loading.value}
                     modelValue={detail.value?.skill_ids ?? []}
                     multiple={true}

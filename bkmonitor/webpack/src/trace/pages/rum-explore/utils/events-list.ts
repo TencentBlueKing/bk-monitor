@@ -24,16 +24,17 @@
  * IN THE SOFTWARE.
  */
 
-import { ARRAY_ITEM_EMPTY_PLACEHOLDER, formatArrayItem } from './array-field-formatter';
-
 import type { IEventsListColumn, IRumSpanRecord } from '../typings';
 
 /**
  * @description 把一条 span 的 events 字段按数组下标展开成表格行。
- *              各 events.* 字段的值按数组处理（非数组视为单项），行数取最长数组的长度，该下标缺值补空占位符。
+ *              各 events.* 字段的值按数组处理（非数组视为单项），行数取最长数组的长度。
+ *              行内保存原始值（不格式化）：单元格展示文案由列的 getRenderValue 格式化，
+ *              检索条件菜单据此取到可直接检索的原始值。空洞项 / 缺值统一为空串，对象项序列化为 JSON 文本。
  * @param {IRumSpanRecord | null} row 当前行数据
  * @param {IEventsListColumn[]} columns 参与展示的列
- * @returns {Record<string, unknown>[]} 表格行，以字段名为键，另含 index 下标
+ * @returns {Record<string, unknown>[]} 表格行，以字段名为键，另含 index 下标与字符串行 ID rowId（span_id + 下标，跨 span 唯一；
+ *          表格取行 ID 时 `|| ''` 会把第 0 行的数字下标 0 当作空值丢弃，故不直接用 index）
  */
 export function buildEventsListRows(
   row: IRumSpanRecord | null,
@@ -49,12 +50,14 @@ export function buildEventsListRows(
   const size = lists.reduce((max, list) => Math.max(max, list.length), 0);
   if (!size) return [];
   return Array.from({ length: size }, (_, index) => {
-    const item: Record<string, unknown> = { index };
+    const item: Record<string, unknown> = { index, rowId: `${row.span_id}_${index}` };
     columns.forEach((column, columnIndex) => {
-      item[column.name] =
-        index < lists[columnIndex].length
-          ? formatArrayItem(lists[columnIndex][index], column.formatter)
-          : ARRAY_ITEM_EMPTY_PLACEHOLDER;
+      const value = lists[columnIndex][index];
+      if (value === null || value === undefined) {
+        item[column.name] = '';
+      } else {
+        item[column.name] = typeof value === 'object' ? JSON.stringify(value) : value;
+      }
     });
     return item;
   });

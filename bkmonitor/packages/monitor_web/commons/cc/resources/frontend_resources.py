@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2025 Tencent. All rights reserved.
@@ -14,6 +13,7 @@ import copy
 from django.utils.translation import gettext as _
 from rest_framework import serializers
 
+from bkm_space.serializers import resolve_cmdb_biz_id
 from bkmonitor.commons.tools import get_host_view_display_fields
 from bkmonitor.share.api_auth_resource import ApiAuthResource
 from core.drf_resource import Resource, api, resource
@@ -112,7 +112,13 @@ class GetTopoTree(ApiAuthResource):
         topo_tree = resource.commons.cc_topo_tree(validated_request_data)
 
         if validated_request_data.get("bk_host_id") is not None or validated_request_data.get("bk_obj_id"):
-            topo_tree = self.filter_scope_node(topo_tree, validated_request_data)
+            scope_params = validated_request_data
+            if scope_params.get("bk_obj_id") == "biz":
+                scope_params = {
+                    **scope_params,
+                    "bk_inst_id": resolve_cmdb_biz_id(scope_params["bk_biz_id"], scope_params["bk_inst_id"]),
+                }
+            topo_tree = self.filter_scope_node(topo_tree, scope_params)
             if not topo_tree:
                 return []
 

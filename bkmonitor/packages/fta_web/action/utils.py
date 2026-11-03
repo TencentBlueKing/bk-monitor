@@ -11,13 +11,16 @@ specific language governing permissions and limitations under the License.
 import json
 
 from django.conf import settings
+from django.utils import translation
 from django.utils.translation import gettext as _
 from jinja2 import DebugUndefined
 from jinja2.sandbox import SandboxedEnvironment as Environment
 
 from bkmonitor.models import ActionPlugin
+from bkmonitor.utils.sms import format_sms_time, get_sms_template_mode, render_standard_sms
 from bkmonitor.utils.template import AlarmNoticeTemplate
 from constants.action import DEFAULT_TEMPLATE, ConvergeType, NoticeWay
+from constants.alert import EVENT_SEVERITY_DICT
 from fta_web.action.constant import BK_PLUGIN_INITIAL_TEMPLATE
 
 
@@ -90,7 +93,24 @@ def parse_bk_plugin_deployed_info(data):
     return True, plugin_code, plugin_info
 
 
-def compile_assign_action_config(validated_request_data):
+def compile_assign_action_config(validated_request_data, sms_template_mode=None):
+    if sms_template_mode is None:
+        sms_template_mode = get_sms_template_mode()
+    standard_sms = None
+    if sms_template_mode == "standard" and NoticeWay.SMS in validated_request_data["notice_ways"]:
+        snapshot = validated_request_data["sms_assign_alert"]
+        with translation.override(settings.DEFAULT_LOCALE):
+            standard_sms = render_standard_sms(
+                "assign/converge" if snapshot["count"] > 1 else "assign/action",
+                {
+                    "time": validated_request_data.get("sms_assign_time")
+                    or format_sms_time(None, language=settings.DEFAULT_LOCALE),
+                    "level": str(EVENT_SEVERITY_DICT.get(snapshot["severity"], snapshot["severity"])),
+                    "count": snapshot["count"],
+                    "name": snapshot["name"],
+                },
+                language=settings.DEFAULT_LOCALE,
+            )
     operator = validated_request_data["operator"]
     appointees = validated_request_data["appointees"]
     assign_reason = validated_request_data["reason"]
@@ -111,6 +131,9 @@ def compile_assign_action_config(validated_request_data):
         title_template = AlarmNoticeTemplate.get_template(title_template_path)
         title_template = title_template if title_template else "{{user_title}}"
         message_template = message_template if message_template else "{{user_content}}"
+        if notice_way == NoticeWay.SMS and sms_template_mode == "standard":
+            # 字面量可由原有参数 API 渲染，名称内的模板标记不会再次执行。
+            message_template = "{{ " + json.dumps(standard_sms, ensure_ascii=False) + " }}"
         message_tmpl = None
         if notice_way == NoticeWay.MAIL:
             message_tmpl = "{{content.assign_reason}}\n{{content.appointees}}\n" + DEFAULT_TEMPLATE

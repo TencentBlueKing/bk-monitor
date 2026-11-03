@@ -83,7 +83,8 @@ class TestQueryFieldsAggregatedGroup:
             result = query._query_fields_aggregated_group([], 1000, 2000, ["f1"], "count")
         assert result == [{"_result_": 0}]
 
-    def test_with_group_uses_add_query(self, query):
+    @pytest.mark.parametrize("method", ["count", "min", "max"])
+    def test_with_group_uses_add_query(self, query, method):
         """带 group_by 时走分组查询，直接返回 _add_query 的执行结果"""
         fake_qs = MagicMock()
         # 方法内部通过 list(qs) 迭代结果，需 mock __iter__
@@ -92,8 +93,15 @@ class TestQueryFieldsAggregatedGroup:
             patch.object(query, "_get_time_range", return_value=(1000, 2000)),
             patch.object(query, "_add_query", return_value=fake_qs) as mock_add,
         ):
-            result = query._query_fields_aggregated_group([], 1000, 2000, ["f1"], "count", group_by=["service"])
+            result = query._query_fields_aggregated_group(
+                query.get_queries(), 1000, 2000, ["f1"], method, group_by=["service"]
+            )
         mock_add.assert_called_once()
+        qs, metric_queries = mock_add.call_args.args
+        # min/max 已在子查询中按维度聚合，外层再次聚合会丢掉分组标签。
+        assert qs.query.expression == "q0"
+        assert list(metric_queries[0].query.group_by) == ["service"]
+        assert metric_queries[0].query.metrics[0]["method"] == method
         assert result == [{"service": "a", "_result_": 10}]
 
     @pytest.mark.parametrize("group_by", [["time"], ["service", "time"]])

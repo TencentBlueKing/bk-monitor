@@ -11,13 +11,14 @@ specific language governing permissions and limitations under the License.
 from types import SimpleNamespace
 from unittest.mock import patch
 
+from django.db.models import QuerySet
 from django.test import SimpleTestCase, TestCase, override_settings
 from django.urls import resolve
 from rest_framework import permissions
 
 from bkmonitor.iam import ActionEnum
 from bkmonitor.iam.drf import BusinessActionPermission
-from bkmonitor.models import IssueSourceAnalysisConfig, IssueSourceAnalysisRule
+from bkmonitor.models import IssueSourceAnalysisConfig, IssueSourceAnalysisExecution, IssueSourceAnalysisRule
 from bkmonitor.utils.user import set_local_username
 from core.drf_resource import api
 from core.drf_resource.exceptions import custom_exception_handler
@@ -144,7 +145,7 @@ class TestSourceAnalysisRuleSerializers(SimpleTestCase):
     @patch("fta_web.issue.resources.get_request", return_value=object())
     @patch("fta_web.issue.resources.oauth_client.get_access_token")
     @patch("fta_web.issue.resources.oauth_client.get_access_token_by_user")
-    def test_prepare_rule_run_as_user_persists_and_reads_back_token(
+    def test_prepare_config_run_as_user_persists_and_reads_back_token(
         self,
         get_access_token_by_user,
         get_access_token,
@@ -154,7 +155,7 @@ class TestSourceAnalysisRuleSerializers(SimpleTestCase):
         get_access_token.return_value = SimpleNamespace(access_token="web-token")
         get_access_token_by_user.return_value = SimpleNamespace(access_token="persisted-token")
 
-        username = SourceAnalysisBaseResource.prepare_rule_run_as_user()
+        username = SourceAnalysisBaseResource.prepare_config_run_as_user()
 
         self.assertEqual(username, "alice")
         get_access_token.assert_called_once_with(get_request.return_value)
@@ -218,6 +219,9 @@ class TestSourceAnalysisConfigAndRules(TestCase):
 
     def setUp(self):
         set_local_username("alice")
+        self.prepare_config_user = self.enterContext(
+            patch.object(SourceAnalysisBaseResource, "prepare_config_run_as_user", return_value="alice")
+        )
         self.aidev_calls = []
         for api_name in ("list_agents", "list_skills", "list_spaces", "list_knowledge_bases"):
             mock = self.enterContext(
@@ -230,7 +234,7 @@ class TestSourceAnalysisConfigAndRules(TestCase):
         for mock in self.aidev_calls:
             mock.assert_not_called()
 
-    @patch.object(SourceAnalysisBaseResource, "prepare_rule_run_as_user", return_value="alice")
+    @patch.object(SourceAnalysisBaseResource, "prepare_config_run_as_user", return_value="alice")
     def test_create_update_enable_and_disable_do_not_query_aidev(self, prepare_run_as_user):
         self.create_config()
         result = CreateSourceAnalysisRuleResource().perform_request(
@@ -255,18 +259,19 @@ class TestSourceAnalysisConfigAndRules(TestCase):
                 data["rule_id"] = result["id"]
                 result = UpdateSourceAnalysisRuleResource().perform_request(data)
                 if result["is_enabled"]:
-                    prepare_run_as_user.assert_called_once_with()
+                    prepare_run_as_user.assert_not_called()
                     self.assertEqual(result["run_as_user"], "alice")
                 else:
                     prepare_run_as_user.assert_not_called()
 
     @patch.object(
         SourceAnalysisBaseResource,
-        "prepare_rule_run_as_user",
+        "prepare_config_run_as_user",
         side_effect=SourceAnalysisExecutionCredentialUnavailableError(),
     )
-    def test_enabling_rule_rejects_unavailable_credentials(self, prepare_run_as_user):
-        self.create_config()
+    def test_enabling_rule_rejects_missing_config_owner(self, prepare_run_as_user):
+        config = self.create_config()
+        IssueSourceAnalysisConfig.objects.filter(id=config.id).update(update_user="")
         rule = self.create_rule(
             conditions=[{"field": "alert.strategy_id", "value": ["1"], "method": "eq", "condition": "and"}]
         )
@@ -274,7 +279,7 @@ class TestSourceAnalysisConfigAndRules(TestCase):
         data["rule_id"] = rule.id
         with self.assertRaises(SourceAnalysisExecutionCredentialUnavailableError):
             UpdateSourceAnalysisRuleResource().perform_request(data)
-        prepare_run_as_user.assert_called_once_with()
+        prepare_run_as_user.assert_not_called()
         rule.refresh_from_db()
         self.assertFalse(rule.is_enabled)
 
@@ -298,17 +303,160 @@ class TestSourceAnalysisConfigAndRules(TestCase):
         return IssueSourceAnalysisRule.objects.create(**defaults)
 
     @patch.object(SourceAnalysisBaseResource, "validate_repository")
+    def test_unchanged_save_by_another_user_preserves_config_and_rule_snapshots(self, validate_repository):
+        config = self.create_config()
+        rule = self.create_rule(run_as_user="legacy-editor")
+        original_time = config.update_time
+        set_local_username("bob")
+
+        result = SaveSourceAnalysisConfigResource().perform_request(
+            {"bk_biz_id": 2, "bkci_project_id": "project-a", "repository_alias": "repo-a"}
+        )
+
+        validate_repository.assert_not_called()
+        self.prepare_config_user.assert_not_called()
+        config.refresh_from_db()
+        rule.refresh_from_db()
+        self.assertEqual(result["updated_by"], "alice")
+        self.assertEqual(config.update_user, "alice")
+        self.assertEqual(config.update_time, original_time)
+        self.assertEqual(rule.run_as_user, "legacy-editor")
+        # 历史快照不做数据迁移，读取与执行使用配置人，不再把旧编辑人当执行人。
+        self.assertEqual(ListSourceAnalysisRulesResource().perform_request({"bk_biz_id": 2})[0]["run_as_user"], "alice")
+
+    @patch.object(SourceAnalysisBaseResource, "validate_repository")
+    def test_repository_switch_updates_all_rule_identities_but_not_history(self, validate_repository):
+        self.create_config()
+        self.create_rule(priority=-1, is_default=True, run_as_user="alice")
+        self.create_rule(priority=10, is_enabled=True, run_as_user="another-editor")
+        self.create_rule(priority=20, is_enabled=False, run_as_user="disabled-editor")
+        old_execution = IssueSourceAnalysisExecution.objects.create(
+            bk_biz_id=2,
+            issue_id="issue-1",
+            alert_id="alert-1",
+            bkci_project_id="project-a",
+            repository_alias="repo-a",
+            run_as_user="alice",
+        )
+        set_local_username("bob")
+        self.prepare_config_user.return_value = "bob"
+
+        result = SaveSourceAnalysisConfigResource().perform_request(
+            {"bk_biz_id": 2, "bkci_project_id": "project-b", "repository_alias": "repo-b"}
+        )
+
+        validate_repository.assert_called_once_with(2, "project-b", "repo-b")
+        self.prepare_config_user.assert_called_once_with()
+        self.assertEqual(result["updated_by"], "bob")
+        for rule in IssueSourceAnalysisRule.objects.all():
+            self.assertEqual(
+                (rule.bkci_project_id, rule.repository_alias, rule.run_as_user), ("project-b", "repo-b", "bob")
+            )
+        old_execution.refresh_from_db()
+        self.assertEqual(
+            (old_execution.bkci_project_id, old_execution.repository_alias, old_execution.run_as_user),
+            ("project-a", "repo-a", "alice"),
+        )
+
+    @patch.object(SourceAnalysisBaseResource, "validate_repository")
+    def test_credential_failure_does_not_switch_existing_binding(self, _validate_repository):
+        config = self.create_config()
+        rule = self.create_rule(run_as_user="alice", bkci_project_id="project-a", repository_alias="repo-a")
+        self.prepare_config_user.side_effect = SourceAnalysisExecutionCredentialUnavailableError()
+        with self.assertRaises(SourceAnalysisExecutionCredentialUnavailableError):
+            SaveSourceAnalysisConfigResource().perform_request(
+                {"bk_biz_id": 2, "bkci_project_id": "project-b", "repository_alias": "repo-b"}
+            )
+        config.refresh_from_db()
+        rule.refresh_from_db()
+        self.assertEqual(
+            (config.bkci_project_id, config.repository_alias, config.update_user), ("project-a", "repo-a", "alice")
+        )
+        self.assertEqual(
+            (rule.bkci_project_id, rule.repository_alias, rule.run_as_user), ("project-a", "repo-a", "alice")
+        )
+
+    @patch.object(SourceAnalysisBaseResource, "validate_repository")
+    def test_config_change_rolls_back_when_rule_snapshot_update_fails(self, _validate_repository):
+        config = self.create_config()
+        self.create_rule(run_as_user="alice")
+        set_local_username("bob")
+        self.prepare_config_user.return_value = "bob"
+        with patch.object(QuerySet, "update", side_effect=RuntimeError("snapshot update failed")):
+            with self.assertRaises(RuntimeError):
+                SaveSourceAnalysisConfigResource().perform_request(
+                    {"bk_biz_id": 2, "bkci_project_id": "project-b", "repository_alias": "repo-b"}
+                )
+        config.refresh_from_db()
+        self.assertEqual(
+            (config.bkci_project_id, config.repository_alias, config.update_user), ("project-a", "repo-a", "alice")
+        )
+        self.assertEqual(IssueSourceAnalysisRule.objects.count(), 1)
+        self.assertEqual(IssueSourceAnalysisRule.objects.get().run_as_user, "alice")
+
+    @patch.object(SourceAnalysisBaseResource, "validate_repository")
+    def test_same_binding_saved_during_credential_preparation_keeps_winning_user(self, _validate_repository):
+        config = self.create_config()
+        self.create_rule(run_as_user="alice")
+
+        def another_request_finishes():
+            IssueSourceAnalysisConfig.objects.filter(id=config.id).update(
+                bkci_project_id="project-b", repository_alias="repo-b", update_user="charlie"
+            )
+            IssueSourceAnalysisRule.objects.all().update(
+                bkci_project_id="project-b", repository_alias="repo-b", run_as_user="charlie"
+            )
+            return "bob"
+
+        set_local_username("bob")
+        self.prepare_config_user.side_effect = another_request_finishes
+        result = SaveSourceAnalysisConfigResource().perform_request(
+            {"bk_biz_id": 2, "bkci_project_id": "project-b", "repository_alias": "repo-b"}
+        )
+        self.assertEqual(result["updated_by"], "charlie")
+        self.assertEqual(IssueSourceAnalysisRule.objects.get().run_as_user, "charlie")
+
+    @patch.object(SourceAnalysisBaseResource, "validate_repository")
+    def test_legacy_config_without_owner_can_initialize_same_repository(self, validate_repository):
+        config = self.create_config()
+        IssueSourceAnalysisConfig.objects.filter(id=config.id).update(update_user="unknown")
+        result = SaveSourceAnalysisConfigResource().perform_request(
+            {"bk_biz_id": 2, "bkci_project_id": "project-a", "repository_alias": "repo-a"}
+        )
+        validate_repository.assert_called_once_with(2, "project-a", "repo-a")
+        self.prepare_config_user.assert_called_once_with()
+        self.assertEqual(result["updated_by"], "alice")
+        self.assertEqual(IssueSourceAnalysisRule.objects.get(is_default=True).run_as_user, "alice")
+
+    def test_other_rule_editor_never_takes_over_execution_identity(self):
+        self.create_config()
+        set_local_username("bob")
+        rule = CreateSourceAnalysisRuleResource().perform_request(
+            {
+                "bk_biz_id": 2,
+                "priority": 10,
+                "is_enabled": True,
+                "conditions": [{"field": "alert.strategy_id", "value": ["1"], "method": "eq", "condition": "and"}],
+            }
+        )
+        self.assertEqual(rule["run_as_user"], "alice")
+        self.assertEqual(rule["updated_by"], "bob")
+        for change in ({"priority": 20}, {"is_enabled": False}, {"is_enabled": True}):
+            with self.subTest(change=change):
+                result = UpdateSourceAnalysisRuleResource().perform_request(
+                    {"bk_biz_id": 2, "rule_id": rule["id"], **change}
+                )
+                self.assertEqual(result["run_as_user"], "alice")
+                self.assertEqual(result["updated_by"], "bob")
+        self.prepare_config_user.assert_not_called()
+
+    @patch.object(SourceAnalysisBaseResource, "validate_repository")
     def test_config_save_and_rule_update_lock_config_before_rules(self, _validate_repository):
         self.create_config()
         rule = self.create_rule()
         lock_order = []
-        update_config = IssueSourceAnalysisConfig.objects.update_or_create
         lock_config = IssueSourceAnalysisConfig.objects.select_for_update
         lock_rules = IssueSourceAnalysisRule.objects.select_for_update
-
-        def record_update_config(*args, **kwargs):
-            lock_order.append("config")
-            return update_config(*args, **kwargs)
 
         def record_lock_config(*args, **kwargs):
             lock_order.append("config")
@@ -319,14 +467,13 @@ class TestSourceAnalysisConfigAndRules(TestCase):
             return lock_rules(*args, **kwargs)
 
         with (
-            patch.object(IssueSourceAnalysisConfig.objects, "update_or_create", side_effect=record_update_config),
             patch.object(IssueSourceAnalysisConfig.objects, "select_for_update", side_effect=record_lock_config),
             patch.object(IssueSourceAnalysisRule.objects, "select_for_update", side_effect=record_lock_rules),
         ):
             SaveSourceAnalysisConfigResource().perform_request(
-                {"bk_biz_id": 2, "bkci_project_id": "project-a", "repository_alias": "repo-a"}
+                {"bk_biz_id": 2, "bkci_project_id": "project-b", "repository_alias": "repo-b"}
             )
-            self.assertEqual(lock_order, ["config", "rule"])
+            self.assertEqual(lock_order, ["config", "config", "rule"])
             lock_order.clear()
             UpdateSourceAnalysisRuleResource().perform_request({"bk_biz_id": 2, "rule_id": rule.id, "priority": 2})
             self.assertEqual(lock_order, ["config", "rule"])
@@ -432,7 +579,7 @@ class TestSourceAnalysisConfigAndRules(TestCase):
 
         self.assertFalse(IssueSourceAnalysisRule.objects.exists())
 
-    @patch.object(SourceAnalysisBaseResource, "prepare_rule_run_as_user", return_value="alice")
+    @patch.object(SourceAnalysisBaseResource, "prepare_config_run_as_user", return_value="alice")
     def test_enabled_rule_records_run_as_user(self, prepare_run_as_user):
         self.create_config()
         data = validate(
@@ -448,13 +595,13 @@ class TestSourceAnalysisConfigAndRules(TestCase):
 
         result = CreateSourceAnalysisRuleResource().perform_request(data)
 
-        prepare_run_as_user.assert_called_once_with()
+        prepare_run_as_user.assert_not_called()
         self.assertTrue(result["is_enabled"])
         self.assertEqual(result["run_as_user"], "alice")
         self.assertEqual((result["bkci_project_id"], result["repository_alias"]), ("project-a", "repo-a"))
 
-    @patch.object(SourceAnalysisBaseResource, "prepare_rule_run_as_user", return_value="bob")
-    def test_enabled_rule_uses_current_configurer_as_run_as_user(self, prepare_run_as_user):
+    @patch.object(SourceAnalysisBaseResource, "prepare_config_run_as_user", return_value="bob")
+    def test_enabled_rule_inherits_repository_configurer(self, prepare_run_as_user):
         self.create_config()
         data = validate(
             SourceAnalysisRuleWriteSerializer,
@@ -469,17 +616,18 @@ class TestSourceAnalysisConfigAndRules(TestCase):
 
         result = CreateSourceAnalysisRuleResource().perform_request(data)
 
-        prepare_run_as_user.assert_called_once_with()
+        prepare_run_as_user.assert_not_called()
         self.assertTrue(result["is_enabled"])
-        self.assertEqual(result["run_as_user"], "bob")
+        self.assertEqual(result["run_as_user"], "alice")
 
     @patch.object(
         SourceAnalysisBaseResource,
-        "prepare_rule_run_as_user",
+        "prepare_config_run_as_user",
         side_effect=SourceAnalysisExecutionCredentialUnavailableError(),
     )
-    def test_enabled_rule_save_fails_when_configurer_token_is_unavailable(self, _prepare_run_as_user):
-        self.create_config()
+    def test_enabled_rule_save_rejects_missing_config_owner(self, _prepare_run_as_user):
+        config = self.create_config()
+        IssueSourceAnalysisConfig.objects.filter(id=config.id).update(update_user="")
         data = validate(
             SourceAnalysisRuleWriteSerializer,
             {
@@ -526,8 +674,8 @@ class TestSourceAnalysisConfigAndRules(TestCase):
         with self.assertRaises(SourceAnalysisDefaultRulePriorityImmutableError):
             UpdateSourceAnalysisRuleResource().perform_request(data)
 
-    @patch.object(SourceAnalysisBaseResource, "prepare_rule_run_as_user", return_value="bob")
-    def test_enabled_rule_patch_refreshes_run_as_user(self, prepare_run_as_user):
+    @patch.object(SourceAnalysisBaseResource, "prepare_config_run_as_user", return_value="bob")
+    def test_enabled_rule_patch_preserves_repository_configurer(self, prepare_run_as_user):
         self.create_config()
         rule = self.create_rule(
             is_enabled=True,
@@ -552,13 +700,13 @@ class TestSourceAnalysisConfigAndRules(TestCase):
 
         result = UpdateSourceAnalysisRuleResource().perform_request(data)
 
-        prepare_run_as_user.assert_called_once_with()
+        prepare_run_as_user.assert_not_called()
         self.assertEqual(result["agent_id"], "ai-log-to-code")
         self.assertEqual(result["skill_ids"], ["bk-data-fetcher"])
         self.assertEqual(result["knowledge_base_ids"], ["bkmonitor_terms_base"])
-        self.assertEqual(result["run_as_user"], "bob")
+        self.assertEqual(result["run_as_user"], "alice")
 
-    @patch.object(SourceAnalysisBaseResource, "prepare_rule_run_as_user", return_value="alice")
+    @patch.object(SourceAnalysisBaseResource, "prepare_config_run_as_user", return_value="alice")
     def test_enabled_rule_patch_does_not_initialize_scene(self, prepare_run_as_user):
         self.create_config()
         rule = self.create_rule(
@@ -574,7 +722,7 @@ class TestSourceAnalysisConfigAndRules(TestCase):
 
         result = UpdateSourceAnalysisRuleResource().perform_request(data)
 
-        prepare_run_as_user.assert_called_once_with()
+        prepare_run_as_user.assert_not_called()
         self.assertEqual(result["agent_id"], "agent-b")
         self.assertEqual(result["run_as_user"], "alice")
 

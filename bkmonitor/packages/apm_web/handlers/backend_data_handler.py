@@ -469,6 +469,11 @@ class MetricBackendHandler(TelemetryBackendHandler):
         return databus_config.data_id_name if databus_config and databus_config.data_id_name else ""
 
     def storage_info(self):
+        if self.datalink_version == DATA_LINK_V4_VERSION_NAME:
+            return self._v4_storage_info()
+        return self._v3_storage_info()
+
+    def _v3_storage_info(self):
         storage_info = []
         result_table = api.bkdata.get_result_table(result_table_id=self.bk_vm_result_table_id)
         storage = result_table.get("storages", {}).get("vm")
@@ -496,6 +501,53 @@ class MetricBackendHandler(TelemetryBackendHandler):
             }
             storage_info.append(ret_storage)
         return storage_info
+
+    def _v4_storage_info(self):
+        from metadata import models
+        from metadata.models.data_link.constants import DataLinkKind, DataLinkResourceStatus
+
+        vm_binding = (
+            models.VMStorageBindingConfig.objects.filter(
+                bk_tenant_id=self.app.bk_tenant_id, table_id=self.result_table_id
+            )
+            .exclude(status=DataLinkResourceStatus.TERMINATED.value)
+            .first()
+        )
+        if not vm_binding:
+            return []
+
+        vm_storage_binding = api.bkdata.get_data_link(
+            bk_tenant_id=self.app.bk_tenant_id,
+            kind=DataLinkKind.get_choice_value(DataLinkKind.VMSTORAGEBINDING.value),
+            namespace=vm_binding.namespace,
+            name=vm_binding.name,
+        )
+        phase = vm_storage_binding.get("status", {}).get("phase", "")
+        if phase == DataLinkResourceStatus.OK.value:
+            status, status_display = "running", _("运行中")
+        elif phase == DataLinkResourceStatus.FAILED.value:
+            status, status_display = "failed", _("异常")
+        else:
+            status, status_display = "stopped", phase
+
+        storage = vm_storage_binding.get("spec", {}).get("storage", {})
+        return [
+            {
+                "raw_data_id": self.bk_base_data_id,
+                "bk_biz_id": self.app.bk_biz_id,
+                "result_table_id": self.bk_vm_result_table_id,
+                "storage_type": "vm",
+                "storage_type_alias": "",
+                "storage_cluster": storage.get("name"),
+                "storage_cluster_alias": storage.get("name"),
+                "expire_time": "180d",
+                "expire_time_alias": _("180天"),
+                "status": status,
+                "status_display": status_display,
+                "created_at": vm_binding.create_time,
+                "created_by": self.app.create_user,
+            }
+        ]
 
     @property
     def storage_status(self):

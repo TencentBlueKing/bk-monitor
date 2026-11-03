@@ -2989,12 +2989,11 @@ class ExportJobPermissionTests(TestCase):
 
 
 class LegacyExportRoutingTests(SimpleTestCase):
-    def test_custom_indices_and_quick_exports_keep_the_original_chain(self):
+    def test_custom_indices_and_quick_exports_keep_the_unify_query_chain(self):
         request = SimpleNamespace(user=SimpleNamespace(is_superuser=False))
         module = "apps.log_search.views.search_views"
         with (
             patch(f"{module}.is_sharded_export_enabled", return_value=True),
-            patch(f"{module}.FeatureToggleObject.switch", return_value=False),
             patch(f"{module}.FeatureToggleObject.toggle", return_value=SimpleNamespace(feature_config={})),
             patch(f"{module}._apply_index_set_search_bk_biz_id"),
             patch(f"{module}._reject_platform_index_sets"),
@@ -3025,7 +3024,7 @@ class LegacyExportRoutingTests(SimpleTestCase):
                     view.params_valid = Mock(return_value=data)
                     view.get_object = Mock()
                     view._sharded_export_from_data = Mock(return_value=SimpleNamespace(data={"task_id": 19}))
-                    handler_name = "UnionAsyncExportHandlers" if is_union else "AsyncExportHandlers"
+                    handler_name = "UnifyQueryUnionAsyncExportHandlers" if is_union else "UnifyQueryAsyncExportHandlers"
                     with patch(f"{module}.{handler_name}") as legacy_handler:
                         legacy_handler.return_value.async_export.return_value = (7, 1)
                         if is_union:

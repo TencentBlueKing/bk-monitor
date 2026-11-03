@@ -320,7 +320,7 @@ paths:
         backend:
           name: default
           method: get
-          path: /api/v4/alert/alert/detail/
+          path: /api/v4/mcp/get_alert_info/
           matchSubpath: false
           timeout: 0
         pluginConfigs: []

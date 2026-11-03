@@ -22,12 +22,9 @@ the project delivered to anyone in the future.
 from rest_framework import serializers
 from rest_framework.response import Response
 
-from apps.feature_toggle.handlers.toggle import FeatureToggleObject
-from apps.feature_toggle.plugins.constants import UNIFY_QUERY_SEARCH
 from apps.generic import APIViewSet
 from apps.iam import ActionEnum, ResourceEnum
 from apps.iam.handlers.drf import BatchIAMPermission, InstanceActionPermission
-from apps.log_search.handlers.search.aggs_handlers import AggsViewAdapter
 from apps.log_trace.serializers import (
     AggsTermsSerializer,
     DateHistogramSerializer,
@@ -97,10 +94,8 @@ class AggsViewSet(APIViewSet):
         }
         """
         data = self.params_valid(AggsTermsSerializer)
-        if FeatureToggleObject.switch(UNIFY_QUERY_SEARCH, data.get("bk_biz_id")):
-            data["index_set_ids"] = [index_set_id]
-            return Response(UnifyQueryTermsAggsHandler(data.get("fields", []), data).terms())
-        return Response(AggsViewAdapter().terms(index_set_id, data))
+        data["index_set_ids"] = [index_set_id]
+        return Response(UnifyQueryTermsAggsHandler(data.get("fields", []), data).terms())
 
     @detail_route(methods=["POST"], url_path="aggs/date_histogram")
     def date_histogram(self, request, index_set_id=None):
@@ -183,10 +178,8 @@ class AggsViewSet(APIViewSet):
         }
         """
         data = self.params_valid(DateHistogramSerializer)
-        if FeatureToggleObject.switch(UNIFY_QUERY_SEARCH, data.get("bk_biz_id")):
-            data["index_set_ids"] = [index_set_id]
-            return Response(UnifyQueryHandler(data).date_histogram())
-        return Response(AggsViewAdapter().date_histogram(index_set_id, data))
+        data["index_set_ids"] = [index_set_id]
+        return Response(UnifyQueryHandler(data).date_histogram())
 
     @list_route(methods=["POST"], url_path="aggs/union_search/date_histogram")
     def union_search_date_histogram(self, request, *args, **kwargs):
@@ -263,9 +256,7 @@ class AggsViewSet(APIViewSet):
         }
         """
         data = self.params_valid(UnionSearchDateHistogramSerializer)
-        if FeatureToggleObject.switch(UNIFY_QUERY_SEARCH, data.get("bk_biz_id")):
-            return Response(UnifyQueryHandler(data).date_histogram())
-        return Response(AggsViewAdapter().union_search_date_histogram(data))
+        return Response(UnifyQueryHandler(data).date_histogram())
 
     @list_route(methods=["POST"], url_path="aggs/union_search/terms")
     def union_search_terms(self, request, *args, **kwargs):
@@ -315,6 +306,4 @@ class AggsViewSet(APIViewSet):
         }
         """
         data = self.params_valid(UnionSearchAggsTermsSerializer)
-        if FeatureToggleObject.switch(UNIFY_QUERY_SEARCH, data.get("bk_biz_id")):
-            return Response(UnifyQueryTermsAggsHandler(data.get("fields", []), data).terms())
-        return Response(AggsViewAdapter().union_search_terms(data))
+        return Response(UnifyQueryTermsAggsHandler(data.get("fields", []), data).terms())

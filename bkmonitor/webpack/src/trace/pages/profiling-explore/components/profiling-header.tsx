@@ -82,6 +82,14 @@ export default defineComponent({
       selector,
       serviceSelector,
       createApplication: () => serviceSelector.value?.goToApplication(true),
+      openService: () => {
+        const trigger = selector.value?.querySelector<HTMLElement>('.profiling-service-trigger');
+        if (!trigger || trigger.classList.contains('active')) return;
+        // 当前点击还在冒泡，Popover 会把它当成外部点击立刻收起；等这次点击结束后再打开。
+        window.setTimeout(() => {
+          if (!trigger.classList.contains('active')) trigger.click();
+        }, 0);
+      },
       serviceValue,
       changeTime,
       formatTime: (time: null | number) =>

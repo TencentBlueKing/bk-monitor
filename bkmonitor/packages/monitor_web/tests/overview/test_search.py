@@ -8,6 +8,8 @@ from unittest import mock
 
 import pytest
 
+from bkmonitor.iam.action import ActionEnum
+from bkmonitor.iam.resource import ResourceEnum
 from monitor_web.overview.search import SearchItem, Searcher, TraceSearchItem
 from monitor_web.overview.views import SearchViewSet
 
@@ -26,7 +28,100 @@ def _app(application_id: int, bk_biz_id: int = 2) -> SimpleNamespace:
     )
 
 
+@pytest.fixture(autouse=True)
+def application_permission() -> Iterator[mock.MagicMock]:
+    def _allow_all(actions: list, resources: list) -> dict[str, dict[str, bool]]:
+        return {str(resource[0].id): {action.id: True for action in actions} for resource in resources}
+
+    with (
+        mock.patch("bkmonitor.iam.drf.Permission") as permission_class,
+        mock.patch("bkmonitor.iam.drf.check_iam_batch_preflight", return_value=None),
+    ):
+        permission_class.return_value.batch_is_allowed.side_effect = _allow_all
+        yield permission_class
+
+
 class TestTraceSearchItem:
+    @pytest.mark.parametrize("path", ["precalc", "raw"])
+    def test_business_permission_does_not_expose_denied_application(
+        self, path: str, application_permission: mock.MagicMock
+    ) -> None:
+        app = _app(1)
+        queryset = mock.MagicMock()
+        queryset.exclude.return_value = queryset
+        queryset.order_by.return_value = queryset
+        queryset.only.return_value = queryset
+        queryset.first.return_value = app
+        queryset.__iter__.return_value = iter([app])
+        application_permission.return_value.batch_is_allowed.side_effect = None
+        application_permission.return_value.batch_is_allowed.return_value = {
+            str(app.application_id): {ActionEnum.VIEW_APM_APPLICATION.id: False}
+        }
+
+        with (
+            mock.patch.object(TraceSearchItem, "_aggregate_user_visits", return_value={}),
+            mock.patch.object(TraceSearchItem, "_get_default_biz_id", return_value=None),
+            mock.patch.object(TraceSearchItem, "_get_allowed_bk_biz_ids", return_value=[app.bk_biz_id]) as allowed_biz,
+            mock.patch("monitor_web.overview.search.Application.objects.filter", return_value=queryset),
+            mock.patch.object(TraceSearchItem, "_load_precalc_table_ids", return_value=["precalc_table"]),
+            mock.patch.object(
+                TraceSearchItem,
+                "_query_precalc_apps_by_trace_id",
+                return_value=[{"bk_biz_id": app.bk_biz_id, "app_name": app.app_name}],
+            ),
+            mock.patch.object(TraceSearchItem, "_query_raw_apps_by_trace_id", return_value=True),
+            mock.patch.object(
+                TraceSearchItem, f"_path_{'raw' if path == 'precalc' else 'precalc'}", return_value=iter([])
+            ),
+            mock.patch.object(TraceSearchItem, "_get_biz_name") as biz_name,
+        ):
+            snapshots = list(TraceSearchItem.search("tenant", "user", TRACE_ID, current_bk_biz_id=app.bk_biz_id))
+
+        assert snapshots == []
+        biz_name.assert_not_called()
+        application_permission.assert_called_once_with(username="user", bk_tenant_id="tenant", request=None)
+        actions, resources = application_permission.return_value.batch_is_allowed.call_args.args
+        assert actions == [ActionEnum.VIEW_APM_APPLICATION]
+        assert resources[0][0].type == ResourceEnum.APM_APPLICATION.id
+        assert str(resources[0][0].id) == str(app.application_id)
+        assert resources[0][0].attributes["bk_biz_id"] == str(app.bk_biz_id)
+        if path == "raw":
+            allowed_biz.assert_called_once_with("tenant", "user", ActionEnum.VIEW_BUSINESS)
+
+    def test_denied_hits_do_not_consume_top_k_or_repeat_permission_checks(
+        self, application_permission: mock.MagicMock
+    ) -> None:
+        apps = [_app(application_id) for application_id in range(1, 8)]
+
+        def _allowed(actions: list, resources: list) -> dict[str, dict[str, bool]]:
+            return {
+                str(resource[0].id): {action.id: int(resource[0].id) > 3 for action in actions}
+                for resource in resources
+            }
+
+        application_permission.return_value.batch_is_allowed.side_effect = _allowed
+        with (
+            mock.patch.object(TraceSearchItem, "_path_precalc", return_value=iter([*apps[:3], *apps[:3], *apps[3:]])),
+            mock.patch.object(TraceSearchItem, "_path_raw", return_value=iter([])),
+            mock.patch.object(TraceSearchItem, "_get_biz_name", return_value="业务 2"),
+        ):
+            snapshots = list(TraceSearchItem.search("tenant", "user", TRACE_ID))
+
+        assert [len(snapshot["items"]) for snapshot in snapshots] == [1, 2, 3]
+        assert [item["application_id"] for item in snapshots[-1]["items"]] == [4, 5, 6]
+        assert application_permission.return_value.batch_is_allowed.call_count == 6
+
+    def test_permission_failure_does_not_return_unchecked_hit(self, application_permission: mock.MagicMock) -> None:
+        application_permission.return_value.batch_is_allowed.side_effect = RuntimeError("permission query failed")
+        with (
+            mock.patch.object(TraceSearchItem, "_path_precalc", return_value=iter([_app(1)])),
+            mock.patch.object(TraceSearchItem, "_path_raw", return_value=iter([])),
+            mock.patch.object(TraceSearchItem, "_get_biz_name") as biz_name,
+            pytest.raises(RuntimeError, match="permission query failed"),
+        ):
+            assert list(TraceSearchItem.search("tenant", "user", TRACE_ID)) == []
+        biz_name.assert_not_called()
+
     def test_collect_candidate_apps_uses_slim_query_and_preserves_priority(self) -> None:
         visited_app = _app(4, bk_biz_id=3)
         current_service_app = _app(3)
@@ -578,8 +673,15 @@ def test_search_view_streams_snapshots_and_end_event() -> None:
     assert response["X-Accel-Buffering"] == "no"
 
 
-def test_search_view_streaming_trace_query_uses_application_scope() -> None:
+@pytest.mark.parametrize("can_view_application", [True, False])
+def test_search_view_streaming_trace_query_uses_application_scope(
+    can_view_application: bool, application_permission: mock.MagicMock
+) -> None:
     app = _app(1, bk_biz_id=42)
+    application_permission.return_value.batch_is_allowed.side_effect = None
+    application_permission.return_value.batch_is_allowed.return_value = {
+        str(app.application_id): {ActionEnum.VIEW_APM_APPLICATION.id: can_view_application}
+    }
     request = SimpleNamespace(query_params={"query": TRACE_ID}, user=SimpleNamespace(username="admin"))
 
     with (
@@ -600,4 +702,7 @@ def test_search_view_streaming_trace_query_uses_application_scope() -> None:
     query.assert_called_once()
     query_body = query.call_args.kwargs["query_body"]
     assert query_body["bk_biz_id"] == app.bk_biz_id
-    assert json.loads(chunks[1].removeprefix("data: "))["items"][0]["application_id"] == app.application_id
+    if can_view_application:
+        assert json.loads(chunks[1].removeprefix("data: "))["items"][0]["application_id"] == app.application_id
+    else:
+        assert chunks == ["event: start\n\n", "event: end\n\n"]

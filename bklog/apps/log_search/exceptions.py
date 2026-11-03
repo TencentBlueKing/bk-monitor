@@ -578,11 +578,6 @@ class GetAllFieldsException(BaseSearchException):
 # =================================================
 
 
-class MissAsyncExportException(BaseException):
-    ERROR_CODE = "501"
-    MESSAGE = _("对应索引集缺少异步导出必备fields{}")
-
-
 class OverAsyncExportMaxCount(BaseException):
     ERROR_CODE = "502"
     MESSAGE = _("超过异步导出最大条数限制{max_async_export_count}")

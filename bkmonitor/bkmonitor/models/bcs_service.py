@@ -8,8 +8,6 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 
-import itertools
-
 from django.db import models
 from django.utils import timezone
 from django.utils.translation import gettext as _
@@ -179,7 +177,7 @@ class BCSService(BCSBase):
         return columns
 
     @staticmethod
-    def load_list_from_api(params: dict[str, tuple[str, int]]) -> list["BCSService"]:
+    def load_list_from_api(params: dict[str, tuple[str, int]]):
         """
         从API获取Service列表
 
@@ -189,16 +187,14 @@ class BCSService(BCSBase):
         Returns:
             BCSService列表
         """
-        bulk_request_params = [
-            {"bcs_cluster_id": bcs_cluster_id, "bk_tenant_id": bk_tenant_id}
-            for bcs_cluster_id, (bk_tenant_id, _) in params.items()
-        ]
-        api_services = api.kubernetes.fetch_k8s_service_list_by_cluster.bulk_request(
-            bulk_request_params, ignore_exceptions=True
-        )
+        from api.kubernetes.default import iter_k8s_services_for_sync
 
-        services = []
-        for s in itertools.chain.from_iterable(item for item in api_services if item):
+        api_services = (
+            item
+            for cluster_id, (tenant_id, _) in params.items()
+            for item in iter_k8s_services_for_sync(tenant_id, cluster_id)
+        )
+        for s in api_services:
             bcs_cluster_id = s.get("bcs_cluster_id")
             bk_biz_id = params[bcs_cluster_id][1]
             bcs_service = BCSService()
@@ -221,8 +217,7 @@ class BCSService(BCSBase):
             bcs_service.unique_hash = bcs_service.get_unique_hash()
 
             bcs_service.api_labels = s.get("labels", {})
-            services.append(bcs_service)
-        return services
+            yield bcs_service
 
     def render_name(self, bk_biz_id, render_type="list"):
         if render_type == "list":

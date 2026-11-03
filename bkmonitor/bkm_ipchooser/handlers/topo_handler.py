@@ -2,13 +2,11 @@ import itertools
 import logging
 from collections import defaultdict
 
-from django.core.cache import cache
-
 from bkm_ipchooser import constants, types
 from bkm_ipchooser.api import BkApi
 from bkm_ipchooser.handlers.base import BaseHandler
 from bkm_ipchooser.query import resource
-from bkm_ipchooser.tools import batch_request, topo_tool
+from bkm_ipchooser.tools import batch_request, service_instance_cache, topo_tool
 from bkm_ipchooser.tools.gse_tool import fill_agent_status
 from bkmonitor.utils.tenant import bk_biz_id_to_bk_tenant_id
 
@@ -291,14 +289,24 @@ class TopoHandler:
 
         # 如果没有按服务实例ID列表过滤，则查询所有服务实例
         if not service_instance_ids and not search_content:
-            # 查询业务下所有服务实例（缓存5分钟）
-            cache_key = f"all_service_instance_detail:{bk_biz_id}"
-            service_instances: list[dict] = cache.get(cache_key)
-            if not service_instances:
+            # 查询业务下所有服务实例（缓存5分钟，键定义见 service_instance_cache）
+            # 用 is None 判断未命中：空列表是「业务确实无实例」的正常结果，
+            # 同样要复用缓存，否则空业务每次打开都会重跑一轮全量分页请求。
+            service_instances: list[dict] | None = service_instance_cache.get_details(bk_biz_id)
+            if service_instances is None:
                 service_instances = batch_request.batch_request(
                     func=BkApi.list_service_instance_detail, params={"bk_biz_id": bk_biz_id}, limit=200
                 )
-                cache.set(cache_key, service_instances, 300)
+                service_instance_cache.set_details(bk_biz_id, service_instances)
+                # 同步刷新模块索引：树统计在明细缓存未命中时读的就是这份索引。
+                # 若只写明细不写索引，索引会停留在 cron 上一次刷新的状态
+                # （cache_cmdb_resource 每分钟跑、按业务分环，单业务约 10 分钟一轮），
+                # 明细缓存一过期树就回落到该索引计数，与列表刚展示的条数对不上。
+                # 刷新失败不影响本次返回：明细已经拉到，索引最迟由 cron 兜底刷新。
+                try:
+                    BkApi.refresh_service_instance_module_index(bk_biz_id, service_instances)
+                except Exception:
+                    logger.exception("[ipchooser] 刷新服务实例模块索引失败, bk_biz_id: %s", bk_biz_id)
         else:
             params = {"bk_biz_id": bk_biz_id, "service_instance_ids": service_instance_ids}
             service_instances = batch_request.batch_request(

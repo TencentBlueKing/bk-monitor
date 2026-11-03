@@ -8,6 +8,7 @@ from django.db.transaction import atomic
 from django.utils.functional import cached_property
 from django.utils.translation import gettext as _
 from kubernetes import client as k8s_client
+from kubernetes.client.exceptions import ApiException
 
 from bkmonitor.utils.consul import BKConsul
 from metadata import config
@@ -15,7 +16,7 @@ from metadata.utils import consul_tools
 
 from .cluster import BCSClusterInfo, BcsFederalClusterInfo
 from .replace import ReplaceConfig
-from .utils import ensure_data_id_resource, is_equal_config
+from .utils import ensure_data_id_resource, is_equal_config, is_missing_custom_resource_definition
 
 logger = logging.getLogger("metadata")
 
@@ -100,7 +101,7 @@ class BCSResource(models.Model):
         """
         刷新自定义资源信息，追加部署的资源，更新未同步的资源
         :param cluster_id: 集群ID
-        :return: True | False
+        :return: None；DataID 写入失败时抛出异常
         """
         api_client = cls.make_bcs_client(cluster_id=cluster_id)
         custom_client = k8s_client.CustomObjectsApi(api_client)
@@ -127,14 +128,18 @@ class BCSResource(models.Model):
             # 检查k8s集群里是否已经存在对应resource
             if item.config_name not in resource_items.keys():
                 # 如果k8s_resource不存在，则增加
-                ensure_data_id_resource(api_client=api_client, resource_name=item.config_name, config_data=item.config)
+                if not ensure_data_id_resource(
+                    api_client=api_client, resource_name=item.config_name, config_data=item.config
+                ):
+                    raise RuntimeError(f"failed to create dataid resource {item.config_name}")
                 logger.info("cluster->[%s] add new resource->[%s]", cluster_id, item.config)
             else:
                 # 否则检查信息是否一致，不一致则更新
                 if not is_equal_config(item.config, resource_items[item.config_name]):
-                    ensure_data_id_resource(
+                    if not ensure_data_id_resource(
                         api_client=api_client, resource_name=item.config_name, config_data=item.config
-                    )
+                    ):
+                        raise RuntimeError(f"failed to update dataid resource {item.config_name}")
                     logger.info("cluster->[%s] update resource->[%s]", cluster_id, item.config)
 
     @classmethod
@@ -144,15 +149,23 @@ class BCSResource(models.Model):
         刷新集群资源信息，追加未发现的资源,删除已不存在的资源
         :param cluster_id: 集群ID
         :param common_data_id: 公共data_id，所有的资源都会注册到该data_id下
-        :return: True | False
+        :return: True 表示同步完成，False 表示确认可选 CRD 未安装；其它错误抛出异常
         """
         api_client = cls.make_bcs_client(cluster_id=cluster_id)
         custom_client = k8s_client.CustomObjectsApi(api_client)
 
         # 1. 获取所有命名空间下的本资源信息
-        resource_list = custom_client.list_cluster_custom_object(
-            group=cls.GROUP, version=cls.VERSION, plural=cls.PLURALS
-        )
+        try:
+            resource_list = custom_client.list_cluster_custom_object(
+                group=cls.GROUP, version=cls.VERSION, plural=cls.PLURALS
+            )
+        except ApiException as error:
+            if error.status == 404 and is_missing_custom_resource_definition(api_client, cls.GROUP, cls.PLURALS):
+                logger.info(
+                    "cluster->[%s] optional resource type->[%s] is not installed, skip", cluster_id, cls.PLURALS
+                )
+                return False
+            raise
         logger.info("cluster->[%s] got resource->[%s] total->[%s]", cluster_id, cls.PLURAL, len(resource_list["items"]))
 
         resource_name_list = []
@@ -341,7 +354,10 @@ class BCSResource(models.Model):
         )
 
         # 2. 更新data_id资源
-        ensure_data_id_resource(api_client=self.bcs_client, resource_name=self.config_name, config_data=self.config)
+        if not ensure_data_id_resource(
+            api_client=self.bcs_client, resource_name=self.config_name, config_data=self.config
+        ):
+            raise RuntimeError(f"failed to update dataid resource {self.config_name}")
 
         return
 

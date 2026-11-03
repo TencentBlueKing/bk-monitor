@@ -11,7 +11,7 @@ specific language governing permissions and limitations under the License.
 from django.conf import settings
 
 # 获取需要增加事务的DB链接名
-DATABASE_CONNECTION_NAME = getattr(settings, "METADATA_DEFAULT_DATABASE_NAME", "monitor_api")
+DATABASE_CONNECTION_NAME = getattr(settings, "BACKEND_DATABASE_NAME", "monitor_api")
 
 # RUM 全局数据链路配置（替代 APM 的 DataLink 模型，从 Django settings 中读取）
 # kafka 集群 ID，创建 data_id 时作为 mq_cluster 参数

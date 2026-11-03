@@ -25,6 +25,8 @@ DEFAULT_DATA_LABEL = "APM"  # 数据标签，用来查询数据时三段式前�
 
 # 内置资源只建后台数据源，不写 apm_web 应用表与 monitor_web 自定义事件表，对用户不可见
 BUILTIN_PROFILING_APP_NAME = "active_profiling_builtin_allocation_source"
+BUILTIN_EVENT_GROUP_NAME = "active_profiling_builtin_events"
+BUILTIN_EVENT_GROUP_LABEL = "application_check"
 
 APM_METRIC_TABLE_REGEX = re.compile(r"(?:.*_)?bkapm_(?:.*)?metric_.*")
 

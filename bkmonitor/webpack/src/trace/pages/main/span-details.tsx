@@ -49,6 +49,7 @@ import { query as apmProfileQuery } from 'monitor-api/modules/apm_profile';
 import { listLinks, spanDetail } from 'monitor-api/modules/apm_trace';
 import { getSceneView } from 'monitor-api/modules/scene_view';
 import { buildHostMonitorTarget, hostMonitorHash } from 'monitor-common/utils/host-monitor-url';
+import { profilingExploreHash } from 'monitor-common/utils/profiling-url';
 import { copyText, deepClone, random } from 'monitor-common/utils/utils';
 import { useI18n } from 'vue-i18n';
 import VueJsonPretty from 'vue-json-pretty';
@@ -1570,17 +1571,15 @@ export default defineComponent({
           if (!span_id) return;
           const { start_time, end_time } = getProfilingTimeRange();
           window.open(
-            `#/trace/profiling/?target=${encodeURIComponent(
-              JSON.stringify({
-                app_name,
-                service_name,
-                start: (start_time / 1000).toFixed(0),
-                end: (end_time / 1000).toFixed(0),
-                filter_labels: {
-                  span_id,
-                },
-              })
-            )}`
+            profilingExploreHash({
+              app_name,
+              service_name,
+              start: (start_time / 1000).toFixed(0),
+              end: (end_time / 1000).toFixed(0),
+              filter_labels: {
+                span_id,
+              },
+            })
           );
           return;
         }

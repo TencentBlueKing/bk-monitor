@@ -22,7 +22,6 @@ from apm_ebpf.handlers.workload import WorkloadContent, WorkloadHandler
 from bk_dataview.provisioning import sync_data_sources
 from bkm_space.api import SpaceApi
 from bkm_space.define import SpaceTypeEnum
-from bkm_space.utils import bk_biz_id_to_space_uid
 from bkmonitor.utils import group_by
 from bkmonitor.utils.bcs import BcsKubeClient
 from bkmonitor.utils.tenant import bk_biz_id_to_bk_tenant_id
@@ -237,28 +236,25 @@ class DeepflowHandler:
         获取集群某个节点的访问IP
         """
         bcs_client = BcsKubeClient(cluster_id)
-        nodes = bcs_client.core_api.list_node()
-
-        for node in nodes.items:
-            if node.status.addresses:
-                for addr in node.status.addresses:
-                    if addr.type == "InternalIP":
-                        return addr.address
+        continuation = None
+        while True:
+            nodes = bcs_client.core_api.list_node(limit=100, _continue=continuation)
+            for node in nodes.items:
+                if node.status.addresses:
+                    for addr in node.status.addresses:
+                        if addr.type == "InternalIP":
+                            return addr.address
+            continuation = nodes.metadata._continue if nodes.metadata else None
+            if not continuation:
+                break
         return None
 
     def _get_cluster_access_ip_by_api(self, cluster_id):
         try:
-            bk_tenant_id = bk_biz_id_to_space_uid(self.bk_biz_id)
+            bk_tenant_id = bk_biz_id_to_bk_tenant_id(self.bk_biz_id)
         except ValueError:
             return None
-        nodes = api.kubernetes.fetch_k8s_node_list_by_cluster(
-            {"bk_tenant_id": bk_tenant_id, "bcs_cluster_id": cluster_id}
-        )
-        for node in nodes:
-            node_ip = node.get("node_ip")
-            if node_ip and node.get("status") == "Ready":
-                return node_ip
-        return None
+        return api.kubernetes.fetch_k8s_node_access_ip({"bk_tenant_id": bk_tenant_id, "bcs_cluster_id": cluster_id})
 
     def _get_cluster_access_ip(self, cluster_id):
         access_ip = None

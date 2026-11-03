@@ -262,9 +262,8 @@ class DataAccessAPIResource(BkDataAPIGWResource, metaclass=abc.ABCMeta):
             validated_request_data["_origin_user"] = get_request().user.username
         except Exception:
             pass
-        # 优先取参数里面的username(如需要使用特权帐号来请求接口的场景)
-        if not validated_request_data.get("bk_username"):
-            self.bk_username = settings.BK_DATA_PROJECT_MAINTAINER
+        self.bk_username = settings.BK_DATA_PROJECT_MAINTAINER
+        validated_request_data["bk_username"] = self.bk_username
         return validated_request_data
 
 

@@ -287,6 +287,222 @@ paths:
           userVerifiedRequired: false
           resourcePermissionRequired: true
         descriptionEn: query builtin profile datasource
+  /app/apm/profiling/enable_active_profiling/:
+    post:
+      operationId: enable_active_profiling
+      description: 开通业务的主动 Profiling 资源
+      x-bk-apigateway-resource:
+        isPublic: false
+        allowApplyPermission: true
+        matchSubpath: false
+        backend:
+          name: default
+          method: post
+          path: /apm_api/v1/profiling/enable_active_profiling/
+          matchSubpath: false
+        authConfig:
+          appVerifiedRequired: true
+          userVerifiedRequired: false
+          resourcePermissionRequired: true
+        descriptionEn: enable active profiling resources of business
+  /app/apm/profiling/active_profiling_hosts/:
+    post:
+      operationId: query_active_profiling_hosts
+      description: 查询主动 Profiling 已采数据
+      x-bk-apigateway-resource:
+        isPublic: false
+        allowApplyPermission: true
+        matchSubpath: false
+        backend:
+          name: default
+          method: post
+          path: /apm_api/v1/profiling/active_profiling_hosts/
+          matchSubpath: false
+        authConfig:
+          appVerifiedRequired: true
+          userVerifiedRequired: false
+          resourcePermissionRequired: true
+        descriptionEn: query collected hosts of active profiling
+  /app/apm/profiling/active_profiling_executions/:
+    post:
+      operationId: list_active_profiling_executions
+      description: 查询主动 Profiling 任务历史
+      x-bk-apigateway-resource:
+        isPublic: false
+        allowApplyPermission: true
+        matchSubpath: false
+        backend:
+          name: default
+          method: post
+          path: /apm_api/v1/profiling/active_profiling_executions/
+          matchSubpath: false
+        authConfig:
+          appVerifiedRequired: true
+          userVerifiedRequired: false
+          resourcePermissionRequired: true
+        descriptionEn: list executions of active profiling
+  /app/apm/profiling/active_profiling_topk/:
+    get:
+      operationId: query_active_profiling_topk
+      description: 查询主动 Profiling 搜索框候选值
+      x-bk-apigateway-resource:
+        isPublic: false
+        allowApplyPermission: true
+        matchSubpath: false
+        backend:
+          name: default
+          method: get
+          path: /apm_api/v1/profiling/active_profiling_topk/
+          matchSubpath: false
+        authConfig:
+          appVerifiedRequired: true
+          userVerifiedRequired: false
+          resourcePermissionRequired: true
+        descriptionEn: query search candidates of active profiling
+  /app/apm/profiling/active_profiling_execution_detail/:
+    post:
+      operationId: query_active_profiling_execution_detail
+      description: 查询主动 Profiling 单次执行详情
+      x-bk-apigateway-resource:
+        isPublic: false
+        allowApplyPermission: true
+        matchSubpath: false
+        backend:
+          name: default
+          method: post
+          path: /apm_api/v1/profiling/active_profiling_execution_detail/
+          matchSubpath: false
+        authConfig:
+          appVerifiedRequired: true
+          userVerifiedRequired: false
+          resourcePermissionRequired: true
+        descriptionEn: query execution detail of active profiling
+  /app/apm/profiling/active_profiling_execution_cancel/:
+    post:
+      operationId: cancel_active_profiling_execution
+      description: 取消主动 Profiling 执行
+      x-bk-apigateway-resource:
+        isPublic: false
+        allowApplyPermission: true
+        matchSubpath: false
+        backend:
+          name: default
+          method: post
+          path: /apm_api/v1/profiling/active_profiling_execution_cancel/
+          matchSubpath: false
+        authConfig:
+          appVerifiedRequired: true
+          userVerifiedRequired: false
+          resourcePermissionRequired: true
+        descriptionEn: cancel execution of active profiling
+  /app/apm/profiling/active_profiling_execution_rename/:
+    post:
+      operationId: rename_active_profiling_execution
+      description: 修改主动 Profiling 执行的任务名
+      x-bk-apigateway-resource:
+        isPublic: false
+        allowApplyPermission: true
+        matchSubpath: false
+        backend:
+          name: default
+          method: post
+          path: /apm_api/v1/profiling/active_profiling_execution_rename/
+          matchSubpath: false
+        authConfig:
+          appVerifiedRequired: true
+          userVerifiedRequired: false
+          resourcePermissionRequired: true
+        descriptionEn: rename execution of active profiling
+  /app/apm/profiling/active_profiling_tasks/:
+    get:
+      operationId: list_active_profiling_tasks
+      description: 查询主动 Profiling 计划
+      x-bk-apigateway-resource:
+        isPublic: false
+        allowApplyPermission: true
+        matchSubpath: false
+        backend:
+          name: default
+          method: get
+          path: /apm_api/v1/profiling/active_profiling_tasks/
+          matchSubpath: false
+        authConfig:
+          appVerifiedRequired: true
+          userVerifiedRequired: false
+          resourcePermissionRequired: true
+        descriptionEn: list tasks of active profiling
+  /app/apm/profiling/active_profiling_task_submit/:
+    post:
+      operationId: submit_active_profiling_task
+      description: 提交主动 Profiling 采集
+      x-bk-apigateway-resource:
+        isPublic: false
+        allowApplyPermission: true
+        matchSubpath: false
+        backend:
+          name: default
+          method: post
+          path: /apm_api/v1/profiling/active_profiling_task_submit/
+          matchSubpath: false
+        authConfig:
+          appVerifiedRequired: true
+          userVerifiedRequired: false
+          resourcePermissionRequired: true
+        descriptionEn: submit task of active profiling
+  /app/apm/profiling/active_profiling_task_edit/:
+    post:
+      operationId: edit_active_profiling_task
+      description: 编辑主动 Profiling 计划
+      x-bk-apigateway-resource:
+        isPublic: false
+        allowApplyPermission: true
+        matchSubpath: false
+        backend:
+          name: default
+          method: post
+          path: /apm_api/v1/profiling/active_profiling_task_edit/
+          matchSubpath: false
+        authConfig:
+          appVerifiedRequired: true
+          userVerifiedRequired: false
+          resourcePermissionRequired: true
+        descriptionEn: edit task of active profiling
+  /app/apm/profiling/active_profiling_task_delete/:
+    post:
+      operationId: delete_active_profiling_task
+      description: 删除主动 Profiling 计划
+      x-bk-apigateway-resource:
+        isPublic: false
+        allowApplyPermission: true
+        matchSubpath: false
+        backend:
+          name: default
+          method: post
+          path: /apm_api/v1/profiling/active_profiling_task_delete/
+          matchSubpath: false
+        authConfig:
+          appVerifiedRequired: true
+          userVerifiedRequired: false
+          resourcePermissionRequired: true
+        descriptionEn: delete task of active profiling
+  /app/apm/profiling/active_profiling_task_switch/:
+    post:
+      operationId: switch_active_profiling_task
+      description: 启停主动 Profiling 计划
+      x-bk-apigateway-resource:
+        isPublic: false
+        allowApplyPermission: true
+        matchSubpath: false
+        backend:
+          name: default
+          method: post
+          path: /apm_api/v1/profiling/active_profiling_task_switch/
+          matchSubpath: false
+        authConfig:
+          appVerifiedRequired: true
+          userVerifiedRequired: false
+          resourcePermissionRequired: true
+        descriptionEn: switch task of active profiling
   /app/apm/query_apm_topo_relation/:
     post:
       operationId: query_apm_topo_relation
@@ -1097,6 +1313,78 @@ paths:
           userVerifiedRequired: false
           resourcePermissionRequired: true
         descriptionEn: "update service config"
+  /app/apm/service/list_code_redefined_rule/:
+    post:
+      operationId: apm_list_code_redefined_rule
+      description: 【APM】查询返回码重定义规则
+      x-bk-apigateway-resource:
+        isPublic: false
+        allowApplyPermission: false
+        matchSubpath: false
+        backend:
+          name: default
+          method: post
+          path: /api/v4/service_web/list_code_redefined_rule/
+          matchSubpath: false
+        authConfig:
+          appVerifiedRequired: true
+          userVerifiedRequired: false
+          resourcePermissionRequired: true
+        descriptionEn: "list return code redefinition rules"
+  /app/apm/service/set_code_redefined_rule/:
+    post:
+      operationId: apm_set_code_redefined_rule
+      description: 【APM】设置返回码重定义规则
+      x-bk-apigateway-resource:
+        isPublic: false
+        allowApplyPermission: false
+        matchSubpath: false
+        backend:
+          name: default
+          method: post
+          path: /api/v4/service_web/set_code_redefined_rule/
+          matchSubpath: false
+        authConfig:
+          appVerifiedRequired: true
+          userVerifiedRequired: false
+          resourcePermissionRequired: true
+        descriptionEn: "set return code redefinition rules"
+  /app/apm/service/get_code_remarks/:
+    post:
+      operationId: apm_get_code_remarks
+      description: 【APM】查询返回码备注
+      x-bk-apigateway-resource:
+        isPublic: false
+        allowApplyPermission: false
+        matchSubpath: false
+        backend:
+          name: default
+          method: post
+          path: /api/v4/service_web/get_code_remarks/
+          matchSubpath: false
+        authConfig:
+          appVerifiedRequired: true
+          userVerifiedRequired: false
+          resourcePermissionRequired: true
+        descriptionEn: "get return code remarks"
+  /app/apm/service/set_code_remark/:
+    post:
+      operationId: apm_set_code_remark
+      description: 【APM】设置返回码备注
+      x-bk-apigateway-resource:
+        isPublic: false
+        allowApplyPermission: false
+        matchSubpath: false
+        backend:
+          name: default
+          method: post
+          path: /api/v4/service_web/set_code_remark/
+          matchSubpath: false
+        authConfig:
+          appVerifiedRequired: true
+          userVerifiedRequired: false
+          resourcePermissionRequired: true
+        descriptionEn: "set return code remarks"
   /app/apm/list_spans/:
     post:
       operationId: list_spans

@@ -16,6 +16,7 @@ from django.test import TestCase
 
 from bkmonitor.models import IssueSourceAnalysisConfig, IssueSourceAnalysisExecution, IssueSourceAnalysisRule
 from bkmonitor.models.issue import IssueMergeRelation
+from bkmonitor.utils.user import set_local_username
 from constants.issue import SourceAnalysisStage, SourceAnalysisStatus, SourceAnalysisTriggerType
 from core.errors.issue import SourceAnalysisUpstreamUnavailableError
 from fta_web.issue.resources import SourceAnalysisExecutionBaseResource
@@ -31,6 +32,12 @@ class TestSourceAnalysisInitialTrigger(TestCase):
 
     @classmethod
     def create_rule(cls, **kwargs) -> IssueSourceAnalysisRule:
+        config, created = IssueSourceAnalysisConfig.objects.get_or_create(
+            bk_biz_id=cls.BK_BIZ_ID,
+            defaults={"bkci_project_id": "project-a", "repository_alias": "repo-a"},
+        )
+        if created:
+            IssueSourceAnalysisConfig.objects.filter(pk=config.pk).update(update_user="configurator")
         defaults = {
             "bk_biz_id": cls.BK_BIZ_ID,
             "priority": 0,
@@ -71,6 +78,60 @@ class TestSourceAnalysisInitialTrigger(TestCase):
     @staticmethod
     def alert() -> SimpleNamespace:
         return SimpleNamespace(id=TestSourceAnalysisInitialTrigger.ALERT_ID, assignee=[])
+
+    @patch("fta_web.issue.resources.AssignRuleMatch")
+    @patch.object(SourceAnalysisExecutionBaseResource, "get_alert_match_dimensions", return_value={})
+    @patch.object(SourceAnalysisExecutionBaseResource, "get_latest_alert")
+    def test_initial_retry_and_reanalysis_inherit_current_config_without_changing_history(
+        self, get_latest_alert, _get_dimensions, rule_match
+    ):
+        set_local_username("click-user")
+        self.addCleanup(set_local_username, None)
+        rule = self.create_rule(run_as_user="legacy-rule-editor", repository_alias="legacy-repo")
+        get_latest_alert.return_value = self.alert()
+        rule_match.return_value.is_matched.return_value = True
+
+        initial, created = SourceAnalysisExecutionBaseResource.create_initial_execution(
+            self.BK_BIZ_ID, self.ISSUE_ID, "click-user"
+        )
+        self.assertTrue(created)
+        self.assertEqual((initial.run_as_user, initial.repository_alias), ("configurator", "repo-a"))
+        initial.status = SourceAnalysisStatus.FAILED
+        initial.save()
+
+        IssueSourceAnalysisConfig.objects.filter(bk_biz_id=self.BK_BIZ_ID).update(
+            update_user="new-configurator", bkci_project_id="project-b", repository_alias="repo-b"
+        )
+        set_local_username("another-click-user")
+        retry, created = SourceAnalysisExecutionBaseResource.create_retry_execution(
+            self.BK_BIZ_ID, self.ISSUE_ID, initial.analysis_id, "another-click-user"
+        )
+        self.assertTrue(created)
+        self.assertEqual(
+            (retry.run_as_user, retry.bkci_project_id, retry.repository_alias),
+            ("new-configurator", "project-b", "repo-b"),
+        )
+        self.assertEqual(retry.create_user, "another-click-user")
+        retry.status = SourceAnalysisStatus.SUCCESS
+        retry.save()
+
+        set_local_username("third-click-user")
+        reanalysis, created = SourceAnalysisExecutionBaseResource.create_reanalysis_execution(
+            self.BK_BIZ_ID, self.ISSUE_ID, "third-click-user"
+        )
+        self.assertTrue(created)
+        self.assertEqual((reanalysis.run_as_user, reanalysis.repository_alias), ("new-configurator", "repo-b"))
+        self.assertEqual(
+            SourceAnalysisExecutionBaseResource.build_ensure_scene_params(reanalysis)["bk_username"],
+            "new-configurator",
+        )
+        self.assertEqual(
+            SourceAnalysisExecutionBaseResource.build_trigger_params(reanalysis)["bk_username"], "new-configurator"
+        )
+        initial.refresh_from_db()
+        rule.refresh_from_db()
+        self.assertEqual((initial.run_as_user, initial.repository_alias), ("configurator", "repo-a"))
+        self.assertEqual((rule.run_as_user, rule.repository_alias), ("legacy-rule-editor", "legacy-repo"))
 
     @patch("fta_web.issue.resources.api.cmdb.get_module")
     @patch("fta_web.issue.resources.api.cmdb.get_set")
@@ -165,11 +226,6 @@ class TestSourceAnalysisInitialTrigger(TestCase):
     @patch.object(SourceAnalysisExecutionBaseResource, "get_alert_match_dimensions")
     @patch.object(SourceAnalysisExecutionBaseResource, "get_latest_alert")
     def test_first_matching_rule_creates_execution_snapshot(self, get_latest_alert, get_alert_match_dimensions):
-        IssueSourceAnalysisConfig.objects.create(
-            bk_biz_id=self.BK_BIZ_ID,
-            bkci_project_id="project-a",
-            repository_alias="repo-a",
-        )
         self.create_rule(
             priority=100,
             conditions=[

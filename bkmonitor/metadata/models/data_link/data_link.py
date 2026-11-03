@@ -577,24 +577,21 @@ class DataLink(models.Model):
         verbose_name_plural = verbose_name
 
     def delete_data_link(self):
-        """删除数据链路"""
+        """仅删除 Databus，保留链路及其他组件关系以支持历史数据查询。"""
         logger.info("delete_data_link: data_link_name->[%s]", self.data_link_name)
-        component_classes = self.get_delete_component_classes()
-        for component_class in reversed(component_classes):
-            components = component_class.objects.filter(
-                bk_tenant_id=self.bk_tenant_id,
-                namespace=self.namespace,
-                data_link_name=self.data_link_name,
+        components = DataBusConfig.objects.filter(
+            bk_tenant_id=self.bk_tenant_id,
+            namespace=self.namespace,
+            data_link_name=self.data_link_name,
+        )
+        for component in components:
+            logger.info(
+                "delete_data_link: delete data_link_name->[%s] kind->[%s] component->[%s]",
+                self.data_link_name,
+                component.kind,
+                component.name,
             )
-            for component in components:
-                logger.info(
-                    "delete_data_link: delete data_link_name->[%s] kind->[%s] component->[%s]",
-                    self.data_link_name,
-                    component.kind,
-                    component.name,
-                )
-                component.delete_config()
-        self.delete()
+            component.delete_config()
 
     def get_related_component_classes(self) -> list[type["DataLinkResourceConfigBase"]]:
         if self.data_link_strategy == self.GRAPH_RELATION_TIME_SERIES:
@@ -616,11 +613,6 @@ class DataLink(models.Model):
                 return component_classes
 
         return list(dict.fromkeys(self.STRATEGY_RELATED_COMPONENTS[self.data_link_strategy]))
-
-    def get_delete_component_classes(self) -> list[type["DataLinkResourceConfigBase"]]:
-        if self.data_link_strategy == self.BCS_FEDERAL_SUBSET_TIME_SERIES:
-            return [ConditionalSinkConfig, DataBusConfig]
-        return self.STRATEGY_RELATED_COMPONENTS[self.data_link_strategy]
 
     def _get_compose_method(self):
         """获取当前 strategy 对应的配置组装方法。"""
@@ -3140,6 +3132,12 @@ class DataLink(models.Model):
             response,
         )
         self._cleanup_absent_components(components_to_delete)
+        # 仅在远端下发成功后解除停用状态，交由周期任务汇总组件状态。
+        BkBaseResultTable.objects.filter(
+            bk_tenant_id=self.bk_tenant_id,
+            data_link_name=self.data_link_name,
+            status=DataLinkResourceStatus.TERMINATING.value,
+        ).update(status=DataLinkResourceStatus.INITIALIZING.value)
         if should_update_bkbase_rt_storage_type:
             bkbase_rt_record.storage_type = storage_type
             bkbase_rt_record.save(update_fields=["storage_type"])

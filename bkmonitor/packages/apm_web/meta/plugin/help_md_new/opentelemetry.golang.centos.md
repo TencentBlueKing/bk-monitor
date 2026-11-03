@@ -2,14 +2,7 @@
 
 {{QUICK_START_OVERVIEW}}
 
-## 1. 环境要求
-
-在开始之前，请确保您已经安装了以下软件：
-* Git
-* Docker 或者其他平替的容器工具。
-
-
-## 2. 初始化示例 demo
+## 1. 接入样例获取
 
 ```shell
 git clone {{ECOSYSTEM_REPOSITORY_URL}}
@@ -17,8 +10,11 @@ cd {{ECOSYSTEM_REPOSITORY_NAME}}/examples/go-examples/helloworld
 docker build -t helloworld-go:latest .
 ```
 
+- *[1] Git 用于获取样例，Docker（或兼容容器工具）用于构建和运行容器样例，仅供快速验证。*
+- *[2] 数据上报不依赖 Git 或 Docker，业务可参考后文代码或上报协议，自行组织上报方式。*
 
-## 3. 运行示例 demo
+
+## 2. 运行示例 demo
 
 复制以下命令参数在你的终端运行：
 

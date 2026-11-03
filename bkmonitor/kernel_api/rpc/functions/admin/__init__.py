@@ -10,9 +10,11 @@ specific language governing permissions and limitations under the License.
 
 from . import (
     apm,
+    apm_trace,
     api_auth_token,
     ascode_import_task,
     bcs_cluster,
+    bcs_metadata,
     bcs_federal_cluster,
     cluster_info,
     config_delivery,
@@ -25,6 +27,8 @@ from . import (
     es_storage,
     kafka_sample,
     kafka_status,
+    kubernetes,
+    metric,
     migration_status,
     permission,
     query_route,
@@ -38,15 +42,18 @@ from . import (
     tenant,
     token,
     uptime_check,
+    unify_query,
     vm_short_link,
     vm_query,
 )
 
 __all__ = [
     "apm",
+    "apm_trace",
     "api_auth_token",
     "ascode_import_task",
     "bcs_cluster",
+    "bcs_metadata",
     "bcs_federal_cluster",
     "cluster_info",
     "config_delivery",
@@ -59,6 +66,8 @@ __all__ = [
     "es_storage",
     "kafka_sample",
     "kafka_status",
+    "kubernetes",
+    "metric",
     "migration_status",
     "permission",
     "query_route",
@@ -72,6 +81,7 @@ __all__ = [
     "tenant",
     "token",
     "uptime_check",
+    "unify_query",
     "vm_short_link",
     "vm_query",
 ]

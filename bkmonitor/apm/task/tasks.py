@@ -32,6 +32,7 @@ from apm.core.discover.profile.base import DiscoverHandler as ProfileDiscoverHan
 from apm.core.handlers.apm_cache_handler import ApmCacheHandler
 from apm.core.handlers.bk_data.tail_sampling import TailSamplingFlow
 from apm.core.handlers.bk_data.virtual_metric import VirtualMetricFlow
+from apm.core.handlers.profile.active_profiling import ActiveProfilingConsulHandler, ActiveProfilingNodeManHandler
 from apm.core.handlers.trace_index_set import TraceScopeIndexSetHandler
 from apm.core.platform_config import PlatformConfig
 from apm.models import (
@@ -54,13 +55,44 @@ from core.errors.alarm_backends import LockError
 logger = logging.getLogger("apm")
 
 
-@app.task(ignore_result=True, queue="celery_cron")
-def handler(bk_biz_id, app_name):
-    start = time.time()
-    topo_handler = TopoHandler(bk_biz_id, app_name)
-    if topo_handler.is_valid():
-        topo_handler.discover()
-    logger.info(f"[topo_discover_cron] end. app_name: {app_name} cost: {time.time() - start}")
+@app.task(bind=True, ignore_result=True, queue="celery_cron")
+def handler(self, bk_biz_id, app_name):
+    start: float = time.monotonic()
+    started_at: float = time.time()
+    # 用消息头传递时间，兼容滚动发布期间仍接收旧参数的 worker。
+    enqueued_at: float | None = (self.request.headers or {}).get("discovery_enqueued_at")
+    task_id: str | None = self.request.id
+    logger.info(
+        "[trace_discovery] event=started bk_biz_id=%s app_name=%s task_id=%s queue_delay_s=%s",
+        bk_biz_id,
+        app_name,
+        task_id,
+        round(started_at - enqueued_at, 3) if enqueued_at is not None else None,
+    )
+    status: str = "failed"
+    try:
+        topo_handler = TopoHandler(bk_biz_id, app_name, task_id=task_id)
+        if not topo_handler.is_valid():
+            status = "skipped"
+            return
+        status = "success" if topo_handler.discover() else "partial"
+    except Exception:
+        logger.exception(
+            "[trace_discovery] event=failed bk_biz_id=%s app_name=%s task_id=%s",
+            bk_biz_id,
+            app_name,
+            task_id,
+        )
+        raise
+    finally:
+        logger.info(
+            "[trace_discovery] event=finished bk_biz_id=%s app_name=%s task_id=%s status=%s duration_s=%.3f",
+            bk_biz_id,
+            app_name,
+            task_id,
+            status,
+            time.monotonic() - start,
+        )
 
 
 def topo_discover_cron():
@@ -78,31 +110,39 @@ def topo_discover_cron():
     )
     for application in to_be_refreshed:
         bk_biz_id, app_name, app_id, create_time = application
+        # 新应用仍保留快速发现频率，未命中本轮的应用不访问 Redis 锁。
+        is_quick: bool = (current_time - create_time) < datetime.timedelta(
+            minutes=settings.APM_APPLICATION_QUICK_REFRESH_DELTA
+        )
+        refresh_interval: int = interval_quick if is_quick else interval
+        if app_id % refresh_interval != (slug_quick if is_quick else slug):
+            continue
         try:
             apm_cache_handler = ApmCacheHandler()
             with apm_cache_handler.distributed_lock("topo_discover", app_id=app_id):
-                # 在 settings.APM_APPLICATION_QUICK_REFRESH_DELTA 时间内新创建的应用，每 interval_quick 分钟执行一次拓扑发现
-                if (current_time - create_time) < datetime.timedelta(
-                    minutes=settings.APM_APPLICATION_QUICK_REFRESH_DELTA
-                ):
-                    if app_id % interval_quick == slug_quick:
-                        logger.info(
-                            f"[topo_discover_cron] the applications that were created within the last "
-                            f"{settings.APM_APPLICATION_QUICK_REFRESH_DELTA} minutes are starting. "
-                            f"app_name: {app_name}, app_id: {app_id}"
-                        )
-                        handler.delay(bk_biz_id, app_name)
-                else:
-                    if app_id % interval == slug:
-                        logger.info(
-                            f"[topo_discover_cron] the applications that were created more than"
-                            f" {settings.APM_APPLICATION_QUICK_REFRESH_DELTA} minutes ago are starting. "
-                            f"app_name: {app_name}, app_id: {app_id}"
-                        )
-                        handler.delay(bk_biz_id, app_name)
+                enqueued_at: float = time.time()
+                task = handler.apply_async(args=(bk_biz_id, app_name), headers={"discovery_enqueued_at": enqueued_at})
+                logger.info(
+                    "[trace_discovery] event=dispatched bk_biz_id=%s app_name=%s task_id=%s dispatch_delay_s=%.3f",
+                    bk_biz_id,
+                    app_name,
+                    task.id,
+                    enqueued_at - current_time.timestamp(),
+                )
         except LockError:
-            logger.info(f"skipped: [topo_discover_cron] already running. app_name: {app_name}, app_id: {app_id}")
+            logger.info(
+                "[trace_discovery] event=dispatch_skipped reason=locked bk_biz_id=%s app_name=%s",
+                bk_biz_id,
+                app_name,
+            )
             continue
+        except Exception:
+            logger.exception(
+                "[trace_discovery] event=dispatch_failed bk_biz_id=%s app_name=%s",
+                bk_biz_id,
+                app_name,
+            )
+            raise
 
 
 @app.task(ignore_result=True, queue="celery_cron")
@@ -261,6 +301,28 @@ def check_apm_consul_config():
 
 
 @app.task(ignore_result=True, queue="celery_cron")
+def refresh_active_profiling_consul_config(bk_biz_id: int):
+    """业务开通主动 Profiling 后，同步其事件分组 DataID 的 Kafka 信息到 consul"""
+    ActiveProfilingConsulHandler.refresh(bk_biz_id)
+
+
+@app.task(ignore_result=True, queue="celery_cron")
+def check_active_profiling_consul_config():
+    """遍历开通主动 Profiling 的业务，对账 consul 中的事件分组 DataID 配置"""
+    logger.info(f"[check_active_profiling_consul_config] start {datetime.datetime.now()}")
+    ActiveProfilingConsulHandler.check_update()
+    logger.info(f"[check_active_profiling_consul_config] end {datetime.datetime.now()}")
+
+
+@app.task(ignore_result=True, queue="celery_cron")
+def stop_expired_active_profiling_tasks():
+    """主动 Profiling 的指定时间/周期计划最后一次执行过去 1 天后停用，由节点管理移除各主机上残留的子配置"""
+    logger.info(f"[stop_expired_active_profiling_tasks] start {datetime.datetime.now()}")
+    ActiveProfilingNodeManHandler.stop_expired_tasks()
+    logger.info(f"[stop_expired_active_profiling_tasks] end {datetime.datetime.now()}")
+
+
+@app.task(ignore_result=True, queue="celery_cron")
 def profile_handler(bk_biz_id: int, app_name: str):
     logger.info(f"[profile_handler] ({bk_biz_id}){app_name} start at {datetime.datetime.now()}")
     try:
@@ -384,6 +446,10 @@ def bmw_task_cron():
     """
     定时检测所有应用的 BMW 预计算任务是否正常运行
     """
+    if settings.APM_BMW_TASK_CRON_DRY_RUN:
+        logger.info("[bmw_task_cron] dry run, skip")
+        return
+
     set_local_tenant_id(DEFAULT_TENANT_ID)
     unopened_mapping, running_mapping, removed_tasks = PreCalculateCheck.get_application_info_mapping()
     distribution = PreCalculateCheck.calculate_distribution(running_mapping, unopened_mapping)

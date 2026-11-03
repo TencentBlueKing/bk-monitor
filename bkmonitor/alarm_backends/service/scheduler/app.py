@@ -16,7 +16,7 @@ import six.moves.urllib.error
 import six.moves.urllib.parse
 import six.moves.urllib.request
 from billiard import cpu_count
-from celery import Celery, Task
+from celery import Task
 from celery.schedules import maybe_schedule
 from celery.signals import beat_init, setup_logging
 from kombu import Exchange, Queue
@@ -25,6 +25,8 @@ from django.db import close_old_connections
 
 from alarm_backends.core.cluster import get_cluster
 from bkmonitor.utils.common_utils import package_contents
+from config.celery.app import SchedulerCelery
+from config.tools.rabbitmq import build_amqp_url
 from core.prometheus.tools import celery_app_timer
 
 try:
@@ -133,7 +135,13 @@ def rabbitmq_conf():
                 queue_arguments={"x-message-ttl": 600000, "x-max-length": 1000},
             ),
         ]
-        broker_url = f"amqp://{six.moves.urllib.parse.quote(settings.RABBITMQ_USER)}:{six.moves.urllib.parse.quote(settings.RABBITMQ_PASS)}@{settings.RABBITMQ_HOST}:{settings.RABBITMQ_PORT}/{settings.RABBITMQ_VHOST}"
+        broker_url = build_amqp_url(
+            settings.RABBITMQ_USER,
+            settings.RABBITMQ_PASS,
+            settings.RABBITMQ_HOST,
+            settings.RABBITMQ_PORT,
+            settings.RABBITMQ_VHOST,
+        )
         if not get_cluster().is_default():
             broker_transport_options = {
                 "queue_name_prefix": f"{get_cluster().name}-",
@@ -176,7 +184,7 @@ def rabbitmq_conf():
     return RabbitmqConf
 
 
-app = Celery("backend")
+app = SchedulerCelery("backend")
 app.config_from_object(rabbitmq_conf())
 
 
