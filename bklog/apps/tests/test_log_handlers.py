@@ -67,6 +67,7 @@ def record(message):
 
 filename = Path(sys.argv[1])
 handler_class = ForkSafeRotatingFileHandler if sys.argv[2] == "safe" else RotatingFileHandler
+exit_mode = sys.argv[3] if len(sys.argv) > 3 else "os"
 handler = handler_class(filename, maxBytes=1024, backupCount=1, encoding="utf-8")
 handler.stream.close()
 inherited = io.TextIOWrapper(io.BufferedWriter(BlockingRaw(filename)), encoding="utf-8")
@@ -85,7 +86,11 @@ try:
         try:
             handler.handle(record("child"))
             handler.close()
+            if exit_mode == "sys":
+                sys.exit(0)
             os._exit(0)
+        except SystemExit:
+            raise
         except BaseException:
             os._exit(2)
     deadline = time.monotonic() + 2
@@ -129,7 +134,14 @@ class ForkSafeRotatingFileHandlerTests(unittest.TestCase):
         self.assertTrue(result["parent_stream_unchanged"], result)
         self.assertEqual(sorted(result["contents"].splitlines()), ["child", "parent"])
 
-    def _run_fork_reproducer(self, handler_type):
+    @unittest.skipUnless(hasattr(os, "fork"), "需要 fork 支持")
+    def test_child_exits_cleanly_through_python_finalization(self):
+        # gunicorn worker 走 sys.exit，退出时模块清理不能卡在继承流的锁上
+        result = self._run_fork_reproducer("safe", exit_mode="sys")
+        self.assertTrue(result["completed"], result)
+        self.assertEqual(result["exitcode"], 0, result)
+
+    def _run_fork_reproducer(self, handler_type, exit_mode="os"):
         with tempfile.TemporaryDirectory() as directory:
             process = subprocess.Popen(
                 [
@@ -138,6 +150,7 @@ class ForkSafeRotatingFileHandlerTests(unittest.TestCase):
                     textwrap.dedent(_FORK_REPRODUCER),
                     str(Path(directory) / "fork.log"),
                     handler_type,
+                    exit_mode,
                 ],
                 stdout=subprocess.PIPE,
                 stderr=subprocess.PIPE,
@@ -190,25 +203,20 @@ class ForkSafeRotatingFileHandlerTests(unittest.TestCase):
             finally:
                 handler.close()
 
-    def test_only_celery_workers_use_fork_safe_file_handlers(self):
+    def test_all_file_loggers_use_fork_safe_handlers(self):
+        # web(gunicorn) 与 celery worker 都会 fork，文件 handler 必须统一替换
         from config.log import get_logging_config_dict
 
         with tempfile.TemporaryDirectory() as directory:
-            for flags, expected_class in (
-                ({}, "logging.handlers.RotatingFileHandler"),
-                ({"IS_CELERY": False, "IS_CELERY_BEAT": False}, "logging.handlers.RotatingFileHandler"),
-                (
-                    {"IS_CELERY": True, "IS_CELERY_BEAT": False},
-                    "apps.utils.log_handlers.ForkSafeRotatingFileHandler",
-                ),
-                ({"IS_CELERY": True, "IS_CELERY_BEAT": True}, "logging.handlers.RotatingFileHandler"),
-            ):
-                config = get_logging_config_dict({"LOG_DIR_PREFIX": directory, **flags})
-                for name in ("root", "component", "mysql", "celery"):
-                    with self.subTest(flags=flags, handler=name):
-                        self.assertEqual(config["handlers"][name]["class"], expected_class)
-                        self.assertEqual(config["handlers"][name]["maxBytes"], 10 * 1024 * 1024)
-                        self.assertEqual(config["handlers"][name]["backupCount"], 5)
+            config = get_logging_config_dict({"LOG_DIR_PREFIX": directory})
+            for name in ("root", "component", "mysql", "celery"):
+                with self.subTest(handler=name):
+                    self.assertEqual(
+                        config["handlers"][name]["class"],
+                        "apps.utils.log_handlers.ForkSafeRotatingFileHandler",
+                    )
+                    self.assertEqual(config["handlers"][name]["maxBytes"], 10 * 1024 * 1024)
+                    self.assertEqual(config["handlers"][name]["backupCount"], 5)
 
     @staticmethod
     def _record(message):
