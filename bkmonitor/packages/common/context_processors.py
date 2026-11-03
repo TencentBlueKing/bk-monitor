@@ -227,6 +227,8 @@ def get_basic_context(request, space_list: list[dict[str, Any]], bk_biz_id: int)
             "BK_USER_WEB_API_URL": settings.BK_USER_WEB_API_URL,
             # RUM 是否开启
             "RUM_BIZ_LIST": settings.RUM_BIZ_LIST,
+            # Profiling 主动采集是否开启
+            "ACTIVE_PROFILING_BIZ_LIST": settings.ACTIVE_PROFILING_BIZ_LIST,
         }
     )
 

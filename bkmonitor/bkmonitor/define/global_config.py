@@ -896,6 +896,8 @@ STANDARD_CONFIGS = OrderedDict(
         ("RUM_FUNC_INTRODUCTION_URL", slz.CharField(label=_("RUM产品白皮书"), default="", allow_blank=True)),
         # RUM新版灰度配置
         ("RUM_BIZ_LIST", slz.ListField(label=_("RUM 新版灰度配置"), default=[])),
+        # Profiling 主动采集灰度配置
+        ("ACTIVE_PROFILING_BIZ_LIST", slz.ListField(label=_("Profiling 主动采集灰度配置"), default=[])),
         # LLM 观测灰度业务列表
         ("LLM_BIZ_LIST", slz.ListField(label=_("LLM 观测灰度业务列表"), default=[])),
     ]
