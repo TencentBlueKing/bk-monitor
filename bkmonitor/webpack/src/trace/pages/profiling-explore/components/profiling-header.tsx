@@ -33,6 +33,7 @@ import ProfilingServiceSelect from './profiling-service-select';
 import RefreshRate from '@/components/refresh-rate/refresh-rate';
 import { useSelectorShortcut } from '@/components/selector-shortcut/selector-shortcut';
 import TimeRangePicker from '@/components/time-range/time-range';
+import { useAppStore } from '@/store/modules/app';
 
 import type { Application, CompareMode, ProfilingTab, QueryState, ServiceDetail } from '../types';
 
@@ -56,6 +57,8 @@ export default defineComponent({
   },
   setup(props, { emit }) {
     const { t } = useI18n();
+    const store = useAppStore();
+    const bizId = computed(() => Number(store.bizId));
     const detailsVisible = shallowRef(false);
     const selector = shallowRef<HTMLElement>();
     const serviceSelector = shallowRef<InstanceType<typeof ProfilingServiceSelect>>();
@@ -82,6 +85,7 @@ export default defineComponent({
     }
     return {
       t,
+      bizId,
       detailsVisible,
       selector,
       serviceSelector,
@@ -132,7 +136,9 @@ export default defineComponent({
         >
           <Radio.Button label='application'>{this.t('应用服务')}</Radio.Button>
           <Radio.Button label='file'>{this.t('文件分析')}</Radio.Button>
-          <Radio.Button label='collection'>{this.t('主动采集')}</Radio.Button>
+          {window.active_profiling_biz_list?.includes(+this.bizId) && (
+            <Radio.Button label='collection'>{this.t('主动采集')}</Radio.Button>
+          )}
         </Radio.Group>
         {this.tab === 'application' && (
           <>
