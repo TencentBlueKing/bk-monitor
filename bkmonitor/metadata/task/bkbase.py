@@ -887,13 +887,11 @@ def _get_doris_physical_tables(config: dict[str, Any]) -> dict[str, str]:
     return {"main": physical_table} if physical_table else {}
 
 
-def _sync_doris_physical_tables(
+def _get_doris_sync_targets(
     bk_tenant_id: str, namespace: str, parsed_configs: dict[str, ParsedComponentConfig]
-) -> None:
-    """每轮同步当前实体存储，并仅补齐尚未记录的当前历史快照。"""
-    configs = [extra for _, extra in parsed_configs.values() if extra.get("physical_tables")]
-    if not configs:
-        return
+) -> dict[tuple[str, str, int], dict[str, str]]:
+    """按逻辑 RT、BKBase RT、集群选择唯一且就绪的 Binding。"""
+    configs = [extra for _, extra in parsed_configs.values()]
     result_tables = {
         rt.name: rt
         for rt in ResultTableConfig.objects.filter(
@@ -909,49 +907,81 @@ def _sync_doris_physical_tables(
             cluster_name__in={extra["doris_cluster_name"] for extra in configs},
         ).values_list("cluster_name", "cluster_id")
     )
-    tables_by_storage = {}
-    for extra in configs:
+    candidates = defaultdict(list)
+    for name, (_, extra) in parsed_configs.items():
         rt = result_tables.get(extra["bkbase_result_table_name"])
         cluster_id = cluster_ids.get(extra["doris_cluster_name"])
         if rt is not None and rt.table_id and rt.bkbase_table_id and cluster_id is not None:
-            tables_by_storage[(rt.table_id, rt.bkbase_table_id, cluster_id)] = extra["physical_tables"]
-    if not tables_by_storage:
-        return
+            candidates[(rt.table_id, rt.bkbase_table_id, cluster_id)].append((name, extra))
 
+    targets = {}
+    for key, bindings in candidates.items():
+        if len(bindings) != 1:
+            logger.warning(
+                "sync Doris physical tables: multiple bindings, tenant->[%s], namespace->[%s], "
+                "storage->[%s], bindings->[%s]",
+                bk_tenant_id,
+                namespace,
+                key,
+                [name for name, _ in bindings],
+            )
+            continue
+        _, binding = bindings[0]
+        physical_tables = binding["physical_tables"]
+        if binding["status"] != DataLinkResourceStatus.OK.value:
+            continue
+        # Binding 可记录部分配置；实体存储和历史快照只接受完整的表组合。
+        if set(physical_tables) in ({"main"}, {"sample", "label"}):
+            targets[key] = physical_tables
+    return targets
+
+
+def _sync_doris_physical_tables(
+    bk_tenant_id: str, namespace: str, parsed_configs: dict[str, ParsedComponentConfig]
+) -> None:
+    """批量更新已关联的实体存储，再补齐对应的当前历史快照。"""
+    targets = _get_doris_sync_targets(bk_tenant_id, namespace, parsed_configs)
+    if not targets:
+        return
     storages = models.DorisStorage.objects.filter(
         Q(origin_table_id="") | Q(origin_table_id__isnull=True),
         bk_tenant_id=bk_tenant_id,
-        table_id__in={key[0] for key in tables_by_storage},
-        storage_cluster_id__in={key[2] for key in tables_by_storage},
+        table_id__in={table_id for table_id, _, _ in targets},
+        storage_cluster_id__in={cluster_id for _, _, cluster_id in targets},
     )
     changed_storages = []
-    snapshots = {}
+    matched_storages = {}
     for storage in storages:
-        physical_tables = tables_by_storage.get((storage.table_id, storage.bkbase_table_id, storage.storage_cluster_id))
+        physical_tables = targets.get((storage.table_id, storage.bkbase_table_id, storage.storage_cluster_id))
         if physical_tables is None:
             continue
-        snapshots[(storage.table_id, storage.storage_cluster_id)] = (storage.bkbase_table_id, physical_tables)
         if storage.physical_tables != physical_tables:
             storage.physical_tables = physical_tables
             changed_storages.append(storage)
+        matched_storages[(storage.table_id, storage.storage_cluster_id)] = storage
     if changed_storages:
         models.DorisStorage.objects.bulk_update(changed_storages, ["physical_tables"], batch_size=1000)
-    if not snapshots:
-        return
+    if matched_storages:
+        _fill_doris_storage_snapshots(bk_tenant_id, matched_storages)
 
+
+def _fill_doris_storage_snapshots(
+    bk_tenant_id: str, storages_by_key: dict[tuple[str, int], models.DorisStorage]
+) -> None:
+    """只补空字段，不覆盖已有快照，也不合并不同轮次的 Profiling 表。"""
     records = models.StorageClusterRecord.objects.filter(
         bk_tenant_id=bk_tenant_id,
-        table_id__in={key[0] for key in snapshots},
-        cluster_id__in={key[1] for key in snapshots},
+        table_id__in={key[0] for key in storages_by_key},
+        cluster_id__in={key[1] for key in storages_by_key},
         is_current=True,
         is_deleted=False,
     )
     records_by_fields = defaultdict(list)
     for record in records:
-        snapshot = snapshots.get((record.table_id, record.cluster_id))
-        if snapshot is None:
+        storage = storages_by_key.get((record.table_id, record.cluster_id))
+        if storage is None:
             continue
-        bkbase_table_id, physical_tables = snapshot
+        bkbase_table_id, physical_tables = storage.bkbase_table_id, storage.physical_tables
         # 已有快照属于其他版本时，不将本轮配置拼入其中。
         if (record.bkbase_table_id and record.bkbase_table_id != bkbase_table_id) or (
             record.physical_tables and record.physical_tables != physical_tables

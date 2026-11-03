@@ -379,6 +379,7 @@ def test_bulk_sync_query_count_does_not_grow_per_table(sync_environment):
                 "bkbase_result_table_name": name,
                 "doris_cluster_name": "doris_cluster",
                 "physical_tables": {"main": f"db.{name}_*"},
+                "status": "Ok",
             },
         )
     with CaptureQueriesContext(connection) as many:
@@ -387,3 +388,80 @@ def test_bulk_sync_query_count_does_not_grow_per_table(sync_environment):
     assert len(many) == len(single)
     assert models.DorisStorage.objects.exclude(physical_tables={}).count() == 21
     assert models.StorageClusterRecord.objects.exclude(physical_tables={}).count() == 21
+
+
+@pytest.mark.parametrize("reverse", [False, True])
+def test_multiple_bindings_for_same_target_preserve_existing_values(sync_environment, reverse, caplog):
+    _, remote = sync_environment
+    storage = create_storage(physical_tables={"main": "db.existing"})
+    record = create_record()
+    other = deepcopy(remote)
+    other["metadata"]["name"] = "other_binding"
+    other["spec"]["storage_config"]["table"] = "other_*"
+    configs = [remote, other]
+    if reverse:
+        configs.reverse()
+    parsed = {
+        config["metadata"]["name"]: _get_bkbase_components_config(
+            "system",
+            DataLinkKind.DORISBINDING.value,
+            "bklog",
+            config,
+        )
+        for config in configs
+    }
+    with caplog.at_level("WARNING", logger="metadata"):
+        _sync_doris_physical_tables("system", "bklog", parsed)
+    storage.refresh_from_db()
+    record.refresh_from_db()
+    assert storage.physical_tables == {"main": "db.existing"}
+    assert record.physical_tables == {}
+    assert record.bkbase_table_id == ""
+    assert "multiple bindings" in caplog.text
+
+
+@pytest.mark.parametrize("phase", ["Failed", "Pending", "Terminated"])
+def test_unready_binding_is_recorded_without_updating_storage(sync_environment, phase):
+    _, remote = sync_environment
+    storage = create_storage()
+    record = create_record()
+    remote["status"]["phase"] = phase
+    _reconcile_data_link_components()
+    binding = models.DorisStorageBindingConfig.objects.get(name="doris_binding")
+    assert binding.status == phase
+    assert binding.physical_tables == {"main": "db.logs_*"}
+    storage.refresh_from_db()
+    record.refresh_from_db()
+    assert storage.physical_tables == record.physical_tables == {}
+    assert record.bkbase_table_id == ""
+    remote["status"]["phase"] = "Ok"
+    _reconcile_data_link_components()
+    storage.refresh_from_db()
+    record.refresh_from_db()
+    assert storage.physical_tables == record.physical_tables == {"main": "db.logs_*"}
+
+
+@pytest.mark.parametrize("first_role", ["sample", "label"])
+def test_profile_snapshot_waits_for_complete_table_pair(sync_environment, first_role):
+    _, remote = sync_environment
+    storage = create_storage()
+    record = create_record()
+    remote["spec"]["storage_config"] = {
+        "is_profiling": True,
+        "db": "db",
+        f"{first_role}_table_name": first_role,
+    }
+    _reconcile_data_link_components()
+    storage.refresh_from_db()
+    record.refresh_from_db()
+    assert storage.physical_tables == record.physical_tables == {}
+    assert record.bkbase_table_id == ""
+    assert models.DorisStorageBindingConfig.objects.get(name="doris_binding").physical_tables == {
+        first_role: f"db.{first_role}",
+    }
+    remote["spec"]["storage_config"].update(sample_table_name="sample", label_table_name="label")
+    _reconcile_data_link_components()
+    storage.refresh_from_db()
+    record.refresh_from_db()
+    assert storage.physical_tables == record.physical_tables == {"sample": "db.sample", "label": "db.label"}
+    assert record.bkbase_table_id == "2_log_rt"
