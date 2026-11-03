@@ -5,8 +5,11 @@ from dataclasses import asdict, dataclass
 from django.conf import settings
 
 from apps.feature_toggle.handlers.toggle import FeatureToggleObject
-from apps.log_search.export.logging import log_after_commit
-from apps.utils.log import logger
+from apps.log_search.export.logging import CommitSafeLogger
+from apps.utils.log import logger as _logger
+
+# 策略快照在事务内解析，配置告警同样不能阻塞持锁事务
+logger = CommitSafeLogger(_logger)
 
 
 FEATURE_ASYNC_EXPORT_SHARDED = "feature_async_export_sharded"
@@ -98,7 +101,7 @@ def _validated_policy(raw):
     defaults = ExportPolicy()
     if not isinstance(raw, dict):
         if raw is not None:
-            log_after_commit(logger.warning, "[sharded_export_config] feature_config is not a mapping, using defaults")
+            logger.warning("[sharded_export_config] feature_config is not a mapping, using defaults")
         return defaults
 
     values = defaults.snapshot()
@@ -106,9 +109,7 @@ def _validated_policy(raw):
         value = raw.get(name, values[name])
         # bool 是 int 的子类，需要显式排除
         if isinstance(value, bool) or not isinstance(value, types) or not minimum <= value <= maximum:
-            log_after_commit(
-                logger.warning, "[sharded_export_config] invalid %s=%r, using default=%r", name, value, values[name]
-            )
+            logger.warning("[sharded_export_config] invalid %s=%r, using default=%r", name, value, values[name])
             continue
         values[name] = float(value) if types is not int else value
 

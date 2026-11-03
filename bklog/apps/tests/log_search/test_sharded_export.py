@@ -1286,7 +1286,7 @@ class ExportStateTestCase(TestCase):
         self.assertEqual(part.status, ExportPartStatus.WAITING)
         self.assertEqual(part.task_id, "")
 
-    @patch("apps.log_search.export.state.logger")
+    @patch("apps.log_search.export.state.logger._logger")
     def test_failure_log_preserves_stage_and_execution_identity_before_requeue(self, mock_logger):
         self.plan()
         part = ExportPart.objects.filter(job=self.job).order_by("part_no").first()

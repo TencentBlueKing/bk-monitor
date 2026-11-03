@@ -7,7 +7,7 @@ from django.test import SimpleTestCase, TransactionTestCase
 
 from apps.log_search.constants import ExportJobStatus, ExportPartStatus, ExportStage
 from apps.log_search.export import config, state
-from apps.log_search.export.logging import log_after_commit
+from apps.log_search.export.logging import CommitSafeLogger, log_after_commit
 from apps.log_search.export.models import ExportJob, ExportPart
 from apps.tests.log_search.test_sharded_export import create_job
 
@@ -25,7 +25,7 @@ class ExportTransactionLoggingTests(TransactionTestCase):
             actual_rows=10,
         )
 
-    @patch("apps.log_search.export.state.logger")
+    @patch("apps.log_search.export.state.logger._logger")
     def test_finalization_log_observes_committed_claim(self, logger):
         observed = []
 
@@ -41,7 +41,7 @@ class ExportTransactionLoggingTests(TransactionTestCase):
         logger.info.assert_called_once()
         self.assertEqual(observed, [(False, ExportJobStatus.FINALIZING, 1)])
 
-    @patch("apps.log_search.export.state.logger")
+    @patch("apps.log_search.export.state.logger._logger")
     def test_finalization_log_waits_for_outer_transaction(self, logger):
         observed = []
         logger.info.side_effect = lambda *args: observed.append(connection.in_atomic_block)
@@ -53,7 +53,7 @@ class ExportTransactionLoggingTests(TransactionTestCase):
         logger.info.assert_called_once()
         self.assertEqual(observed, [False])
 
-    @patch("apps.log_search.export.state.logger")
+    @patch("apps.log_search.export.state.logger._logger")
     def test_rollback_discards_state_log(self, logger):
         with self.assertRaisesMessage(ValueError, "rollback"):
             with transaction.atomic():
@@ -66,7 +66,7 @@ class ExportTransactionLoggingTests(TransactionTestCase):
         self.assertEqual(self.job.finalization_attempts, 0)
 
     @patch("django.db.backends.base.base.logger")
-    @patch("apps.log_search.export.state.logger")
+    @patch("apps.log_search.export.state.logger._logger")
     def test_log_failure_does_not_fail_committed_claim(self, logger, database_logger):
         logger.info.side_effect = RuntimeError("log unavailable")
 
@@ -78,7 +78,7 @@ class ExportTransactionLoggingTests(TransactionTestCase):
         self.assertEqual(self.job.finalization_attempts, 1)
         database_logger.error.assert_called_once()
 
-    @patch("apps.log_search.export.state.logger")
+    @patch("apps.log_search.export.state.logger._logger")
     def test_retry_log_keeps_original_execution_identity(self, logger):
         ExportPart.objects.filter(pk=self.part.pk).update(
             status=ExportPartStatus.UPLOADING,
@@ -113,7 +113,7 @@ class ExportTransactionLoggingTests(TransactionTestCase):
         ):
             self.assertIn(expected, rendered)
 
-    @patch("apps.log_search.export.config.logger")
+    @patch("apps.log_search.export.config.logger._logger")
     def test_invalid_snapshot_warning_waits_for_commit(self, logger):
         observed = []
         logger.warning.side_effect = lambda *args: observed.append(connection.in_atomic_block)
@@ -126,7 +126,7 @@ class ExportTransactionLoggingTests(TransactionTestCase):
         logger.warning.assert_called_once()
         self.assertEqual(observed, [False])
 
-    @patch("apps.log_search.export.config.logger")
+    @patch("apps.log_search.export.config.logger._logger")
     def test_non_mapping_snapshot_warning_is_discarded_on_rollback(self, logger):
         with self.assertRaisesMessage(ValueError, "rollback"):
             with transaction.atomic():
@@ -155,9 +155,38 @@ class ExportLoggingWithoutTransactionTests(SimpleTestCase):
 
         log_method.assert_called_once_with("task_id=%s", "task")
 
-    @patch("apps.log_search.export.config.logger")
+    @patch("apps.log_search.export.config.logger._logger")
     def test_invalid_snapshot_warning_does_not_require_database_access(self, logger):
         policy = config.policy_from_snapshot({"target_rows": 0})
 
         self.assertEqual(policy.target_rows, config.ExportPolicy().target_rows)
         logger.warning.assert_called_once()
+
+
+class CommitSafeLoggerTests(TransactionTestCase):
+    """模块级 logger 代理：事务内延迟，事务外与非日志接口保持原样。"""
+
+    def test_proxy_defers_state_log_in_transaction(self):
+        raw = Mock()
+        proxy = CommitSafeLogger(raw)
+
+        with transaction.atomic():
+            proxy.info("task_id=%s", "t1")
+            raw.info.assert_not_called()
+
+        raw.info.assert_called_once_with("task_id=%s", "t1")
+
+    def test_proxy_exception_is_immediate(self):
+        raw = Mock()
+        proxy = CommitSafeLogger(raw)
+
+        with transaction.atomic():
+            proxy.exception("failed")
+
+        raw.exception.assert_called_once_with("failed")
+
+    def test_proxy_passes_through_non_log_methods(self):
+        raw = Mock()
+        proxy = CommitSafeLogger(raw)
+
+        self.assertIs(proxy.isEnabledFor, raw.isEnabledFor)
