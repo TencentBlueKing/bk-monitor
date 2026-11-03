@@ -75,6 +75,8 @@ export default class CallerCalleeFilter extends tsc<ICallerCalleeFilterProps, IC
   calleeFilter: IFilterOption[] = [];
   callerNameMap: Record<string, string> = {};
   calleeNameMap: Record<string, string> = {};
+  /** 各字段最近一次搜索词。初始化请求返回后按它过滤，避免覆盖用户后续输入 */
+  latestValueSearch: Record<string, string> = {};
   // 变量对应
   get scopedVars() {
     return {
@@ -229,21 +231,26 @@ export default class CallerCalleeFilter extends tsc<ICallerCalleeFilterProps, IC
         ...this.handleRegexData(this.callFilter.filter(item => key !== item.key && item.value.length > 0)),
       ],
     }).catch(() => false);
-    curOption.loading = false;
+    // 点击查询会重建筛选项，结果写回当前列表中的对象
+    const target = this.callFilter.find(item => item.key === key) || curOption;
+    if (target !== curOption) {
+      curOption.loading = false;
+    }
+    target.loading = false;
     const options = data?.length ? [{ ...filterOption }, ...data] : [];
-    if (curOption.value?.length) {
+    if (target.value?.length) {
       // let value = curOption.value;
       // if(curOption.method === 'reg') {
       //   value= this.resetBeforeOrAfterReg(value).value;
       // }
-      for (const val of curOption.value) {
+      for (const val of target.value) {
         const opt = options.find(opt => opt.value === val);
         if (!opt) {
           options.push({ text: val, value: val });
         }
       }
     }
-    curOption.options = options;
+    target.options = options;
   }
   resetBeforeOrAfterReg(values: string[]) {
     let method: 'after_req' | 'before_req' = 'before_req';
@@ -268,13 +275,16 @@ export default class CallerCalleeFilter extends tsc<ICallerCalleeFilterProps, IC
    */
   getValueCallback(item: IFilterOption): TGetValueFn {
     return async (params: IGetValueFnParams & { isInit__?: boolean }): Promise<IOptionsInfo> => {
+      const field = item.key;
+      this.latestValueSearch[field] = params.search ?? '';
       if (params.isInit__) {
-        await this.getOptionListByKey(item.key);
+        await this.getOptionListByKey(field);
       }
-      const search = params.search?.toLocaleLowerCase() ?? '';
+      const current = this.callFilter.find(opt => opt.key === field);
+      const search = (this.latestValueSearch[field] ?? '').toLocaleLowerCase();
       return {
         count: 0 as const,
-        list: (item.options || []).reduce<IValue[]>((results, opt) => {
+        list: (current?.options || []).reduce<IValue[]>((results, opt) => {
           if (
             !search ||
             String(opt.value).toLocaleLowerCase().includes(search) ||
