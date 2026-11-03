@@ -22,7 +22,9 @@ the project delivered to anyone in the future.
 import copy
 from dataclasses import dataclass
 from datetime import timedelta
+from functools import partial
 
+from django.db import transaction
 from django.shortcuts import get_object_or_404
 from django.utils import timezone
 from django.utils.translation import gettext as _
@@ -39,6 +41,7 @@ from apps.log_search.export.config import current_policy, is_sharded_export_enab
 from apps.log_search.export.models import ExportJob, ExportPart
 from apps.log_search.export.notification import build_notification_context
 from apps.log_search.export.query import UnsupportedExportTimeField, normalize_export_sort, snapshot_time_fields
+from apps.log_search.export.scheduler import request_planning
 from apps.log_search.export.storage import build_storage
 from apps.log_search.models import AsyncTask, LogIndexSet, Space
 from apps.log_unifyquery.handler.base import UnifyQueryHandler
@@ -239,6 +242,7 @@ def create_export_job(data, raw_params=None, job_bk_biz_id=None) -> ExportJob | 
         job.end_time,
         job.requested_parallelism,
     )
+    transaction.on_commit(partial(request_planning, job.pk))
     return job
 
 

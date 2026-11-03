@@ -67,13 +67,13 @@ def _lease_expired(field, now):
     return Q(**{f"{field}__isnull": True}) | Q(**{f"{field}__lt": now - lease})
 
 
-def _enqueue(job_ids, field, statuses, task_name, queue=PLAN_QUEUE):
+def _enqueue(job_ids, field, statuses, task_name, queue=PLAN_QUEUE, **filters):
     """条件更新抢占入队租约以防重复发布；发布失败释放租约，崩溃或消息丢失由租约到期恢复。"""
     sent = []
     for job_id in job_ids:
         now = timezone.now()
         claimed = (
-            ExportJob.objects.filter(pk=job_id, status__in=statuses)
+            ExportJob.objects.filter(pk=job_id, status__in=statuses, **filters)
             .filter(_lease_expired(field, now))
             .update(**{field: now})
         )
@@ -118,6 +118,17 @@ def enqueue_planning(limit):
         [ExportJobStatus.PENDING, ExportJobStatus.PLANNING],
         PLAN_TASK_NAME,
     )
+
+
+def request_planning(job_id):
+    """新任务提交后定点入队，失败时保留给周期扫描恢复。"""
+    try:
+        return _enqueue(
+            [job_id], "planning_enqueued_at", [ExportJobStatus.PENDING], PLAN_TASK_NAME, planning_attempts=0
+        )
+    except Exception as error:  # pylint: disable=broad-except
+        logger.exception("[request_planning] job=%s enqueue failed: %s", job_id, error)
+        return []
 
 
 def _quota_keys(job):
@@ -322,6 +333,33 @@ def enqueue_finalization(limit):
         FINALIZE_TASK_NAME,
         queue=FINALIZE_QUEUE,
     )
+
+
+def request_finalization(job_id):
+    """成功分片提交后检查本任务，收尾重试仍交给周期扫描。"""
+    try:
+        job_ids = list(
+            ExportJob.objects.filter(
+                pk=job_id,
+                status=ExportJobStatus.RUNNING,
+                plan_version__gt=0,
+                finalization_attempts=0,
+            )
+            .annotate(**state.leaf_counts_annotation())
+            .filter(leaf_total__gt=0, leaf_success=F("leaf_total"))
+            .values_list("pk", flat=True)
+        )
+        return _enqueue(
+            job_ids,
+            "finalization_enqueued_at",
+            [ExportJobStatus.RUNNING],
+            FINALIZE_TASK_NAME,
+            queue=FINALIZE_QUEUE,
+            finalization_attempts=0,
+        )
+    except Exception as error:  # pylint: disable=broad-except
+        logger.exception("[request_finalization] job=%s enqueue failed: %s", job_id, error)
+        return []
 
 
 def pending_notifications(limit):
