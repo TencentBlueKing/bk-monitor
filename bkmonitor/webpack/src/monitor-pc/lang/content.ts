@@ -138,6 +138,7 @@ export default {
   '已选择 {0} 个 Issue': '{0} Issues selected',
   '当前已选 {0} 项': '{0} items selected',
   '已选择 {n} 个主机': 'Selected {n} hosts',
+  '采集器正常 {n} / {total}': 'Healthy collectors {n} / {total}',
   '已选择 {n} 个动态分组': 'Selected {n} dynamic groups',
   '已选择{count}条': 'Selected {count} Items',
   '当前已选择{0}条数据': 'Currently selected {0} pieces of data',

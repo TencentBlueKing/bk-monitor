@@ -248,9 +248,12 @@ export default class MonitorIpSelector extends tsc<IMonitorIpSelectorProps, IMon
       // 主机列表显示列（默认值：['ip', 'ipv6', 'alive', 'osName']），按配置顺序显示列
       // 内置所有列的 key ['ip', 'ipv6', 'cloudArea', 'alive', 'hostName',
       //  'osName', 'coludVerdor', 'osType', 'hostId', 'agentId']
-      hostTableRenderColumnList: this.hostTableRenderColumnList ?? [],
+      hostTableRenderColumnList: this.hostTableRenderColumnList?.length
+        ? this.hostTableRenderColumnList
+        : ['ip', 'ipv6', 'alive', 'osName'],
       hostViewFieldRender: this.hostViewFieldRender,
       serviceConfigError: true,
+      warningSelectAllBusinesses: false,
     };
   }
   // 动态分组api
@@ -482,7 +485,21 @@ export default class MonitorIpSelector extends tsc<IMonitorIpSelectorProps, IMon
     return await agentStatisticsIpChooserTemplate(params).catch(() => []);
   }
   async fetchCustomSettings(params: CommonParams) {
-    return await batchGetIpChooserConfig(params).catch(() => ({}));
+    const settings = await batchGetIpChooserConfig(params).catch(() => ({}));
+    const hostSettings = settings.ip_selector_host_list3;
+    const columnSort = hostSettings?.hostListColumnSort;
+    // 1.0.6 新增拓扑路径、CPU 架构列，补全排序才能继续使用旧版保存的显示列。
+    const addedColumns = ['topoPathList', 'cpuArch'].filter(key => !columnSort?.includes(key));
+    if (columnSort?.length && addedColumns.length) {
+      return {
+        ...settings,
+        ip_selector_host_list3: {
+          ...hostSettings,
+          hostListColumnSort: [...columnSort, ...addedColumns],
+        },
+      };
+    }
+    return settings;
   }
   async updateCustomSettings(params: CommonParams) {
     return await updateConfigIpChooserConfig(params).catch(() => ({}));

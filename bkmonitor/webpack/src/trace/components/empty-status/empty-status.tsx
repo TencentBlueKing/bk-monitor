@@ -123,10 +123,16 @@ export default defineComponent({
           type={this.type}
           {...this.$attrs}
         >
-          <div class='empty-text-content'>
-            <p class='empty-text'>{this.typeText}</p>
-            {this.showOperation && (this.$slots.default?.() || defaultOperation())}
-          </div>
+          {{
+            // 透传插槽允许调用方替换默认插图
+            type: this.$slots.type,
+            default: () => (
+              <div class='empty-text-content'>
+                {this.typeText && <p class='empty-text'>{this.typeText}</p>}
+                {this.showOperation && (this.$slots.default?.() || defaultOperation())}
+              </div>
+            ),
+          }}
         </Exception>
       </div>
     );

@@ -1,0 +1,61 @@
+/* stylelint-disable selector-class-pattern */
+.collection-row-actions {
+  display: flex;
+  gap: 16px;
+  align-items: center;
+  white-space: nowrap;
+}
+
+// 部署状态点：样式对齐 CommonStatus 的状态点，颜色按 deployment_status 直接对应；未登记状态沿用默认的停用样式
+.collection-deployment-dot {
+  width: 8px;
+  height: 8px;
+  margin-right: 8px;
+  background-color: #f0f1f5;
+  border: 1px solid #c4c6cc;
+  border-radius: 50%;
+
+  &.is-success {
+    background-color: #e5f6ea;
+    border-color: #3fc06d;
+  }
+
+  &.is-failed {
+    background-color: #ffe6e6;
+    border-color: #ea3636;
+  }
+
+  &.is-deploying {
+    background-color: #ffe8c3;
+    border-color: #ff9c01;
+  }
+}
+
+// 表格区：有数据时按内容高度排布，滚动交给 .collection-task-panel；
+// 无数据时撑满面板剩余高度（CommonTable 的 autoFillSpace），避免空态下底部大片留白
+.collection-task-table {
+  &.is-empty {
+    display: flex;
+    flex: 1;
+    flex-direction: column;
+    min-height: 0;
+
+    .common-table-wrapper {
+      flex: 1;
+      min-height: 0;
+    }
+
+    .t-table__body,
+    .t-table__empty {
+      height: 100%;
+    }
+  }
+}
+
+.collection-task-empty {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  min-height: 240px;
+}

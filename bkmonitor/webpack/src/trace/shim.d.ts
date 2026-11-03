@@ -38,6 +38,10 @@ declare global {
   interface Window {
     __BK_WEWEB_DATA__?: Vue3WewebData;
     __POWERED_BY_BK_WEWEB__?: boolean;
+    /*
+     * 灰度开启 Profiling 检索主动采集Tab
+     */
+    active_profiling_biz_list?: number[];
     AJAX_URL_PREFIX: string;
     apm_ebpf_enabled: boolean;
     // APM 监控相关
@@ -66,7 +70,6 @@ declare global {
     i18n: typeof i18n.global;
     // 以下为日志全局变量配置
     mainComponent: any;
-
     rawWindow?: Window;
     site_url: string;
     source_app: string;
