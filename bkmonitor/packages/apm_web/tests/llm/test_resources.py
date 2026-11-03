@@ -1,4 +1,5 @@
 import contextlib
+from copy import deepcopy
 from threading import Barrier, get_ident
 from unittest import TestCase, mock
 
@@ -1194,6 +1195,143 @@ class ListSpansResourceTestCase(TestCase):
 class ListFlowsResourceTestCase(TestCase):
     def setUp(self):
         self.enterContext(override_settings(LLM_BIZ_LIST=[11]))
+
+    def test_duplicate_spans_do_not_repeat_flow_or_token_statistics(self):
+        def span(span_id, parent_span_id, operation, start_time, attributes=None):
+            return {
+                "trace_id": "trace-1",
+                "span_id": span_id,
+                "parent_span_id": parent_span_id,
+                "span_name": operation or "framework",
+                "start_time": start_time,
+                "end_time": start_time + 10,
+                "elapsed_time": 10,
+                "attributes": {"gen_ai.operation.name": operation, **(attributes or {})},
+                "status": {"code": 1},
+                "resource": {"service.name": "agent-service"},
+            }
+
+        raw_spans = [
+            span(
+                "agent",
+                "",
+                "invoke_agent",
+                100,
+                {
+                    "gen_ai.input.messages": [{"role": "user", "parts": [{"type": "text", "content": "question"}]}],
+                    "gen_ai.output.messages": [{"role": "assistant", "parts": [{"type": "text", "content": "answer"}]}],
+                },
+            ),
+            span("framework", "agent", "", 110),
+            span(
+                "llm-1",
+                "framework",
+                "chat",
+                120,
+                {
+                    "gen_ai.usage.input_tokens": 10,
+                    "gen_ai.usage.output_tokens": 3,
+                    "gen_ai.usage.cache_read.input_tokens": 2,
+                },
+            ),
+            span("tool", "llm-1", "execute_tool", 130),
+            span(
+                "llm-2",
+                "agent",
+                "chat",
+                140,
+                {
+                    "gen_ai.usage.input_tokens": 20,
+                    "gen_ai.usage.output_tokens": 7,
+                    "gen_ai.usage.cache_write.input_tokens": 4,
+                },
+            ),
+        ]
+        entity_set = mock.Mock(service_names=["agent-service"])
+        entity_set.get_system.return_value = {"is_support_llm": True, "product": "default"}
+        span_query = mock.Mock()
+        request_data = {"bk_biz_id": 11, "app_name": "demo", "group_field": "trace_id", "group_id": "trace-1"}
+        expected_tokens = {
+            "input_tokens": 30,
+            "output_tokens": 10,
+            "total_tokens": 40,
+            "cache_read_input_tokens": 2,
+            "cache_write_input_tokens": 4,
+        }
+        for include_input_output, preview in ((True, False), (True, True), (False, False)):
+            with (
+                self.subTest(include_input_output=include_input_output, preview=preview),
+                mock.patch("apm_web.llm.resources.EntitySet", return_value=entity_set),
+                mock.patch("apm_web.llm.resources.Application.objects.get"),
+                mock.patch("apm_web.llm.resources.get_query", return_value=span_query),
+            ):
+                data = {**request_data, "include_input_output": include_input_output, "input_output_preview": preview}
+                span_query.query_by_group_ids.return_value = deepcopy(raw_spans)
+                expected = ListFlowsResource().request(data)
+                duplicated = deepcopy(raw_spans + raw_spans)
+                original = deepcopy(duplicated)
+                span_query.query_by_group_ids.return_value = duplicated
+                result = ListFlowsResource().request(data)
+                self.assertEqual(result, expected)
+                self.assertEqual(duplicated, original)
+                flow = result["traces"][0]["flow"]
+                self.assertEqual([node["span_id"] for node in flow], ["agent"])
+                self.assertEqual([node["span_id"] for node in flow[0]["childs"]], ["llm-1", "llm-2"])
+                self.assertEqual([node["span_id"] for node in flow[0]["childs"][0]["childs"]], ["tool"])
+                self.assertEqual({name: result[name] for name in expected_tokens}, expected_tokens)
+                if include_input_output:
+                    self.assertEqual(result["traces"][0]["input"], "question")
+                    self.assertEqual(result["traces"][0]["output"], "answer")
+                statistics = TokenStatisticsResource().request(
+                    {"bk_biz_id": 11, "app_name": "demo", "trace_id": "trace-1"}
+                )
+                self.assertEqual(statistics["statistics"], {"agent": expected_tokens})
+
+    def test_flow_deduplication_preserves_first_record_and_trace_identity(self):
+        records = [
+            {"trace_id": "trace-1", "span_id": "span-1", "attributes": {"value": "first"}},
+            {"trace_id": "trace-1", "span_id": "span-2"},
+            {"trace_id": "trace-1", "span_id": "span-1", "attributes": {"value": "later"}},
+            {"trace_id": "trace-2", "span_id": "span-1"},
+        ]
+        expected = [records[0], records[1], records[3]]
+        original = deepcopy(records)
+        span_query = mock.Mock()
+        span_query.query_by_group_ids.return_value = records
+        entity_set = mock.Mock(service_names=[])
+        with (
+            mock.patch("apm_web.llm.resources.Application.objects.get"),
+            mock.patch("apm_web.llm.resources.get_query", return_value=span_query),
+            mock.patch("apm_web.llm.resources.prepare_flow_spans", return_value=[]) as prepare,
+            mock.patch("apm_web.llm.resources.FlowBuilder") as builder,
+        ):
+            ListFlowsResource.build_trace_flow(11, "demo", "trace-1", entity_set)
+        retained = prepare.call_args.args[0]
+        self.assertEqual(retained, expected)
+        for actual, first in zip(retained, expected):
+            self.assertIs(actual, first)
+        builder.assert_called_once_with(retained, [])
+        self.assertEqual(records, original)
+
+    def test_flow_deduplication_keeps_missing_or_invalid_span_identity(self):
+        for field in ("trace_id", "span_id"):
+            for value in (None, "", 0, [], {}):
+                record = {"trace_id": "trace-1", "span_id": "span-1", field: value}
+                records = [record, deepcopy(record)]
+                if value is None:
+                    for item in records:
+                        item.pop(field)
+                span_query = mock.Mock()
+                span_query.query_by_group_ids.return_value = records
+                with (
+                    self.subTest(field=field, value=value),
+                    mock.patch("apm_web.llm.resources.Application.objects.get"),
+                    mock.patch("apm_web.llm.resources.get_query", return_value=span_query),
+                    mock.patch("apm_web.llm.resources.prepare_flow_spans", return_value=[]) as prepare,
+                    mock.patch("apm_web.llm.resources.FlowBuilder"),
+                ):
+                    ListFlowsResource.build_trace_flow(11, "demo", "trace-1", mock.Mock(service_names=[]))
+                self.assertEqual(prepare.call_args.args[0], records)
 
     def test_disabled_grayscale_skips_topology_and_span_queries(self):
         for biz_list in ([], [22]):
