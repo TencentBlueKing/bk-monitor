@@ -5,6 +5,8 @@ import type { IEdge, ITopoCombo, ITopoNode } from '../types/topo';
 
 /** Keep historical categories when the latest snapshot no longer contains their nodes. */
 export function historyCombos(complete: TopoCacheFrame, latest: TopoCacheFrame): ITopoCombo[] {
+  validateTopologyShape(complete);
+  validateTopologyShape(latest);
   const combos = new Map<string, ITopoCombo>();
   for (const combo of [...(latest.combos ?? []), ...(complete.combos ?? [])]) {
     combos.set(String(combo.id), { ...combo });
@@ -24,11 +26,29 @@ export function historyCombos(complete: TopoCacheFrame, latest: TopoCacheFrame):
   return [...combos.values()];
 }
 
+function validateTopologyShape(data: TopoCacheFrame): void {
+  if (
+    !data ||
+    !Array.isArray(data.nodes) ||
+    [data.combos, data.edges, data.sub_combos].some(items => items != null && !Array.isArray(items)) ||
+    data.nodes.some(node => !node || typeof node.id !== 'string') ||
+    (data.combos ?? []).some(combo => !combo) ||
+    (data.edges ?? []).some(edge => !edge) ||
+    (data.sub_combos ?? []).some(combo => !combo)
+  ) {
+    throw new Error('INVALID_TOPOLOGY_HISTORY');
+  }
+}
+
 /** Fail before ELK receives dangling endpoints or nodes outside the layout hierarchy. */
 export function validateTopology(data: TopoCacheFrame): void {
+  validateTopologyShape(data);
   const combos = new Set((data.combos ?? []).map(combo => String(combo.id)));
   const nodes = new Set(data.nodes.map(node => node.id));
   if (
+    nodes.size !== data.nodes.length ||
+    data.nodes.some(node => !node.id) ||
+    combos.size !== (data.combos ?? []).length ||
     data.nodes.some(node => node.comboId == null || !combos.has(String(node.comboId))) ||
     (data.edges ?? []).some(edge => !nodes.has(edge.source) || !nodes.has(edge.target)) ||
     (data.sub_combos ?? []).some(combo => !combos.has(String(combo.comboId)))
@@ -43,6 +63,7 @@ export function prepareHistoryFrames(diff: DiffItem[]): void {
   const edges = new Map<string, IEdge>();
   const subCombos = new Map<string, ITopoCombo>();
   for (const frame of diff) {
+    validateTopologyShape(frame?.content);
     frame.showNodes = [...nodes.values()];
     frame.showSubCombos = [...subCombos.values()];
     for (const node of frame.content.nodes) nodes.set(node.id, node);

@@ -190,6 +190,7 @@ export type IncidentTopologyReason =
   | 'execution_failed'
   | 'feature_disabled'
   | 'insufficient_data'
+  | 'sync_failed'
   | 'no_result'
   | 'not_scheduled'
   | 'running';

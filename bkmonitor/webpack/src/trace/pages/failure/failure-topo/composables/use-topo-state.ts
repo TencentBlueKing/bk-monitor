@@ -150,7 +150,7 @@ export function useTopoState(props: TopoStateProps) {
 
     const reason = (topoReason.value || undefined) as IncidentTopologyReason | undefined;
     const accessReasons: IncidentTopologyReason[] = ['feature_disabled', 'insufficient_data'];
-    const tipReasons: IncidentTopologyReason[] = ['not_scheduled', 'execution_failed', 'running', 'no_result'];
+    const tipReasons: IncidentTopologyReason[] = ['not_scheduled', 'execution_failed', 'running', 'no_result', 'sync_failed'];
 
     if (reason && accessReasons.includes(reason)) return 'access';
     if (reason && tipReasons.includes(reason)) return 'tip';
@@ -188,6 +188,7 @@ export function useTopoState(props: TopoStateProps) {
       execution_failed: t('系统异常'),
       running: t('分析中'),
       no_result: t('暂无图谱 RCA 分析结果'),
+      sync_failed: t('图谱快照同步失败'),
     };
     return titleMap[reason] || t('暂无数据');
   };
@@ -206,7 +207,7 @@ export function useTopoState(props: TopoStateProps) {
   });
 
   /** tip 态是否为错误样式（execution_failed） */
-  const topoTipIsError = computed(() => topoReason.value === 'execution_failed');
+  const topoTipIsError = computed(() => ['execution_failed', 'sync_failed'].includes(topoReason.value || ''));
 
   // ---------------------------------------------------------------------------
   // DOM Ref — 模板引用

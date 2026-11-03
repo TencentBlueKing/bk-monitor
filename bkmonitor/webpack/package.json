@@ -6,6 +6,7 @@
   "author": "bkfe",
   "license": "MIT",
   "scripts": {
+    "test:topology": "node --test tests/topology-history.test.cjs tests/stored-snapshot-chain.test.cjs tests/topology-status.test.cjs",
     "build:vue3-components": "node ./scripts/vue3-lib/vite-build.mjs ./scripts/build.vue3.components.ts",
     "build:apm-vue3-for-vue2": "node ./scripts/vue3-lib/vite-build.mjs ./scripts/build.apm-vue3-for-vue2.ts",
     "dev:apm-vue3-for-vue2": "node ./scripts/vue3-lib/vite-build.mjs ./scripts/build.apm-vue3-for-vue2.ts --watch",

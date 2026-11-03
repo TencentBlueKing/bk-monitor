@@ -324,96 +324,97 @@ export default defineComponent({
                   style={{ width: this.getTopoWidth }}
                   class='topo-graph-wrapper-padding'
                 >
-                  {this.errorData.isError || this.errorData.isNoData ? (
+                  {(this.errorData.isError || this.errorData.isNoData) && (
                     <ExceptionComp
                       errorMsg={this.errorData.msg}
                       imgHeight={100}
                       isDarkTheme={true}
                       isError={this.errorData.isError}
-                      title={this.errorData.isError ? this.t('查询异常') : this.t('暂无数据')}
+                      title={this.errorData.title || (this.errorData.isError ? this.t('查询异常') : this.t('暂无数据'))}
                     />
-                  ) : (
-                    <>
-                      <div
-                        id='topo-graph'
-                        ref='graphRef'
-                        class='topo-graph'
+                  )}
+                  <div
+                    style={{ display: this.errorData.isError || this.errorData.isNoData ? 'none' : 'block', height: '100%' }}
+                  >
+                    <div
+                      id='topo-graph'
+                      ref='graphRef'
+                      class='topo-graph'
+                    />
+                    <div class='failure-topo-graph-zoom'>
+                      <Popover
+                        extCls='failure-topo-graph-legend-popover'
+                        v-slots={{
+                          content: <LegendPopoverContent />,
+                          default: (
+                            <div
+                              class={[
+                                'failure-topo-graph-legend',
+                                this.showLegend && 'failure-topo-graph-legend-active',
+                              ]}
+                              v-bk-tooltips={{
+                                content: this.t('显示图例'),
+                                disabled: this.showLegend,
+                                boundary: this.wrapRef,
+                                extCls: 'failure-topo-dark-tooltip',
+                              }}
+                              onClick={this.handleShowLegend}
+                            >
+                              <i class='icon-monitor icon-legend' />
+                            </div>
+                          ),
+                        }}
+                        always={true}
+                        arrow={false}
+                        boundary='body'
+                        disabled={!this.showLegend}
+                        isShow={this.showLegend}
+                        offset={{ crossAxis: 90, mainAxis: 10 }}
+                        placement='top'
+                        renderType='auto'
+                        theme='dark common-table'
+                        trigger='manual'
+                        zIndex={100}
                       />
-                      <div class='failure-topo-graph-zoom'>
-                        <Popover
-                          extCls='failure-topo-graph-legend-popover'
-                          v-slots={{
-                            content: <LegendPopoverContent />,
-                            default: (
-                              <div
-                                class={[
-                                  'failure-topo-graph-legend',
-                                  this.showLegend && 'failure-topo-graph-legend-active',
-                                ]}
-                                v-bk-tooltips={{
-                                  content: this.t('显示图例'),
-                                  disabled: this.showLegend,
-                                  boundary: this.wrapRef,
-                                  extCls: 'failure-topo-dark-tooltip',
-                                }}
-                                onClick={this.handleShowLegend}
-                              >
-                                <i class='icon-monitor icon-legend' />
-                              </div>
-                            ),
-                          }}
-                          always={true}
-                          arrow={false}
-                          boundary='body'
-                          disabled={!this.showLegend}
-                          isShow={this.showLegend}
-                          offset={{ crossAxis: 90, mainAxis: 10 }}
-                          placement='top'
-                          renderType='auto'
-                          theme='dark common-table'
-                          trigger='manual'
-                          zIndex={100}
-                        />
-                        <span class='failure-topo-graph-line' />
-                        <div class='failure-topo-graph-zoom-slider'>
-                          <div
-                            class={['failure-topo-graph-setting', { disabled: this.isPlay }]}
-                            onClick={this.handleUpdateZoom.bind(this, -2)}
-                          >
-                            <i class='icon-monitor icon-minus-line' />
-                          </div>
-                          <Slider
-                            class='slider'
-                            v-model={this.zoomValue}
-                            disable={this.isPlay}
-                            maxValue={20}
-                            minValue={2}
-                            onChange={this.handleZoomChange}
-                            onUpdate:modelValue={this.handleZoomChange}
-                          />
-                          <div
-                            class={['failure-topo-graph-setting', { disabled: this.isPlay }]}
-                            onClick={this.handleUpdateZoom.bind(this, 2)}
-                          >
-                            <i class='icon-monitor icon-plus-line' />
-                          </div>
-                        </div>
-                        <span class='failure-topo-graph-line' />
+                      <span class='failure-topo-graph-line' />
+                      <div class='failure-topo-graph-zoom-slider'>
                         <div
-                          class={['failure-topo-graph-proportion', { disabled: this.isPlay }]}
-                          v-bk-tooltips={{
-                            content: this.t('重置比例'),
-                            boundary: this.wrapRef,
-                            zIndex: 999999,
-                            extCls: 'failure-topo-dark-tooltip',
-                          }}
-                          onClick={this.handleResetZoom}
+                          class={['failure-topo-graph-setting', { disabled: this.isPlay }]}
+                          onClick={this.handleUpdateZoom.bind(this, -2)}
                         >
-                          <i class='icon-monitor icon-mc-restoration-ratio' />
+                          <i class='icon-monitor icon-minus-line' />
+                        </div>
+                        <Slider
+                          class='slider'
+                          v-model={this.zoomValue}
+                          disable={this.isPlay}
+                          maxValue={20}
+                          minValue={2}
+                          onChange={this.handleZoomChange}
+                          onUpdate:modelValue={this.handleZoomChange}
+                        />
+                        <div
+                          class={['failure-topo-graph-setting', { disabled: this.isPlay }]}
+                          onClick={this.handleUpdateZoom.bind(this, 2)}
+                        >
+                          <i class='icon-monitor icon-plus-line' />
                         </div>
                       </div>
-                    </>
-                  )}
+                      <span class='failure-topo-graph-line' />
+                      <div
+                        class={['failure-topo-graph-proportion', { disabled: this.isPlay }]}
+                        v-bk-tooltips={{
+                          content: this.t('重置比例'),
+                          boundary: this.wrapRef,
+                          zIndex: 999999,
+                          extCls: 'failure-topo-dark-tooltip',
+                        }}
+                        onClick={this.handleResetZoom}
+                      >
+                        <i class='icon-monitor icon-mc-restoration-ratio' />
+                      </div>
+                    </div>
+                  </div>
                 </div>
                 {this.showResourceGraph && !this.isPlay && (
                   <ResourceGraph

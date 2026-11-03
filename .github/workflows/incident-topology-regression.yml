@@ -1,0 +1,36 @@
+name: Incident stored snapshot regression
+on:
+  pull_request:
+    branches: [master, feat/troubleshooting_op]
+    paths:
+      - 'bkmonitor/bkmonitor/aiops/incident/**'
+      - 'bkmonitor/packages/monitor_web/incident/**'
+      - 'bkmonitor/webpack/src/trace/pages/failure/failure-topo/**'
+      - 'bkmonitor/webpack/tests/**'
+      - '.github/workflows/incident-topology-regression.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  stored-snapshots:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - uses: pnpm/action-setup@v4
+        with:
+          version: '10'
+      - name: Install isolated contract test dependencies
+        run: |
+          mkdir -p "$RUNNER_TEMP/topology-test-runtime"
+          echo '{}' > "$RUNNER_TEMP/topology-test-runtime/package.json"
+          pnpm --dir "$RUNNER_TEMP/topology-test-runtime" add --ignore-scripts typescript@5.5.3 elkjs@0.8.2 lodash@4.17.21 vue@3.4.31
+      - name: Stored snapshots to history, layout and timeline
+        working-directory: bkmonitor/webpack
+        run: NODE_PATH="$RUNNER_TEMP/topology-test-runtime/node_modules" node --test tests/topology-history.test.cjs tests/stored-snapshot-chain.test.cjs tests/topology-status.test.cjs
