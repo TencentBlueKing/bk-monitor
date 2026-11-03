@@ -28,7 +28,7 @@
     "manager": "pnpm",
     "manifest": "pnpm-workspace.yaml",
     "members": ["packages/web-v3"],
-    "excluded": ["packages/web-v1"],
+    "excluded": ["packages/web-v1", "packages/web-v2"],
     "targetVue": "3",
     "sourceVue": "2"
   },
@@ -36,14 +36,14 @@
     "sourceNode": "26.12.1",
     "workspaceManager": "pnpm",
     "sourcePackageManager": "npm",
-    "sourceStart": "npm run dev",
+    "sourceStart": "npm run dev:v2",
     "sourceE2EStart": "AAFE_E2E_PORT=8011 npm run dev:e2e",
     "sourceBuild": "npm run build",
     "proxyTarget": "https://bklog.bkop.woa.com"
   },
   "requiredPaths": [
-    "package.json",
-    "src",
-    "webpack.config.js"
+    "packages/web-v2/package.json",
+    "packages/web-v2/src",
+    "packages/web-v2/webpack.config.js"
   ]
 }

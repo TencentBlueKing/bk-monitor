@@ -46,12 +46,12 @@
           :property="'bk_data_id'"
           required
         >
-          <bk-input
+          <t-input
             v-model="formData.bk_data_id"
             class="form-input"
             disabled
           >
-          </bk-input>
+          </t-input>
         </bk-form-item>
         <!-- <bk-form-item :label="$t('数据token')" required :property="'name'">
           <bk-input class="form-input" :disabled="true" v-model="formData.name"></bk-input>
@@ -64,13 +64,13 @@
           :rules="baseRules.collector_config_name"
           required
         >
-          <bk-input
+          <t-input
             v-model="formData.collector_config_name"
             class="form-input"
             data-test-id="addNewCustomBox_input_dataName"
             maxlength="50"
-            show-word-limit
-          ></bk-input>
+            :show-limit-number="true"
+          ></t-input>
         </bk-form-item>
         <!-- 数据类型 -->
         <bk-form-item
@@ -80,7 +80,7 @@
         >
           <div style="min-width: 500px; margin-top: -4px">
             <div class="bk-button-group">
-              <bk-button
+              <t-button
                 v-for="(item, index) of globalsData.databus_custom"
                 :key="index"
                 :class="`${formData.custom_type === item.id ? 'is-selected' : ''}`"
@@ -90,7 +90,7 @@
                 @click="handleChangeType(item.id)"
               >
                 {{ item.name }}
-              </bk-button>
+              </t-button>
             </div>
             <p
               slot="tip"
@@ -114,15 +114,15 @@
         >
           <div class="en-name-box">
             <div>
-              <bk-input
+              <t-input
                 v-model="formData.collector_config_name_en"
                 class="form-input"
                 :disabled="submitLoading || isEdit"
                 :placeholder="$t('支持数字、字母、下划线，长短5～50字符')"
                 data-test-id="addNewCustomBox_input_englishName"
                 maxlength="50"
-                show-word-limit
-              ></bk-input>
+                :show-limit-number="true"
+              ></t-input>
               <span
                 v-if="!isTextValid"
                 class="text-error"
@@ -130,11 +130,11 @@
               >
             </div>
             <span v-bk-tooltips.top="$t('自动转换成正确的数据名格式')">
-              <bk-button
+              <t-button :variant="(true) ? 'text' : ('base')"
                 v-if="!isTextValid"
-                text
+                
                 @click="handleEnConvert"
-                >{{ $t('自动转换') }}</bk-button
+                >{{ $t('自动转换') }}</t-button
               >
             </span>
           </div>
@@ -408,25 +408,27 @@
     </div>
 
     <div class="submit-btn">
-      <bk-button
+      <t-button
         style="margin-right: 20px"
         :loading="submitLoading"
         theme="primary"
         @click="handleSubmitChange"
       >
         {{ $t('提交') }}
-      </bk-button>
-      <bk-button
+      </t-button>
+      <t-button
         theme="default"
         @click="cancel"
       >
         {{ $t('取消') }}
-      </bk-button>
+      </t-button>
     </div>
   </div>
 </template>
 
-<script>import { ServicesInstance } from '@/platform/services';
+<script>
+import { MessagePlugin as TDesignMessage } from 'tdesign-vue-next';
+import { ServicesInstance } from '@/platform/services';
 
   import clusterTable from '@/features/collection/access/components/cluster-table';
   import ClusterTypeTabs from '@/features/clusters/current/cluster-manage/cluster-type-tabs';
@@ -689,10 +691,7 @@
       },
       handleSubmitChange() {
         if (this.formData.storage_cluster_id === '') {
-          this.$bkMessage({
-            theme: 'error',
-            message: this.$t('请选择集群'),
-          });
+          TDesignMessage("error", { content: this.$t('请选择集群') });
           return;
         }
         this.$refs.validateForm.validate().then(

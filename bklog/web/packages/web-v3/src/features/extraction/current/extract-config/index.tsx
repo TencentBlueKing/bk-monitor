@@ -1,3 +1,5 @@
+
+import { MessagePlugin as TDesignMessage, Button as TButton } from 'tdesign-vue-next';
 import { ServicesInstance } from '@/platform/services';
 /*
  * Tencent is pleased to support the open source community by making
@@ -31,7 +33,7 @@ import * as authorityMap from '@/shared/lib/authority-map';
 import EmptyStatus from '@/shared/ui/empty-status/index.vue';
 import useLocale from '@/shared/composables/use-locale';
 import useStore from '@/shared/composables/use-store';
-import { bkMessage as Message } from 'bk-magic-vue';
+
 import { bkInfoBox as InfoBox } from '@/platform/compat/tdesign/info-box';
 
 import ConfigSlider from './config-slider.tsx';
@@ -199,10 +201,7 @@ export default defineComponent({
             strategy_id: id,
           },
         });
-        Message({
-          theme: 'success',
-          message: t('删除成功'),
-        });
+        TDesignMessage("success", { content: t('删除成功') });
         await initStrategyList();
       } catch (e) {
         console.warn(e);
@@ -223,10 +222,7 @@ export default defineComponent({
             data,
           });
           showManageDialog.value = false;
-          Message({
-            theme: 'success',
-            message: t('创建成功'),
-          });
+          TDesignMessage("success", { content: t('创建成功') });
           await initStrategyList();
         } catch (e) {
           console.warn(e);
@@ -241,10 +237,7 @@ export default defineComponent({
             },
             data,
           });
-          Message({
-            theme: 'success',
-            message: t('修改成功'),
-          });
+          TDesignMessage("success", { content: t('修改成功') });
           showManageDialog.value = false;
           await initStrategyList();
         } catch (e) {
@@ -295,7 +288,7 @@ export default defineComponent({
       >
         {/* 新增按钮区域 */}
         <div>
-          <bk-button
+          <TButton
             style='width: 120px; margin: 20px 0'
             class='king-button'
             {...{
@@ -315,7 +308,7 @@ export default defineComponent({
             onClick={handleCreateStrategy}
           >
             {t('新增')}
-          </bk-button>
+          </TButton>
         </div>
 
         {/* 策略列表表格 */}

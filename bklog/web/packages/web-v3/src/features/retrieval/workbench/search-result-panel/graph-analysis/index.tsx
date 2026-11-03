@@ -1,3 +1,5 @@
+
+import { Button as TButton } from 'tdesign-vue-next';
 import { includesValue } from '@/shared/utils/typed-record';
 /*
  * Tencent is pleased to support the open source community by making
@@ -94,7 +96,7 @@ export default class GraphAnalysisIndex extends tsc<IProps> {
   activeSettings = ['basic_info', 'field_setting'];
   isSqlMode = true;
 
-  graphCategoryList = [
+  graphCategoryList: (keyof GraphAnalysisIndex['graphCategory'])[] = [
     GraphCategory.TABLE,
     GraphCategory.LINE,
     GraphCategory.BAR,
@@ -557,7 +559,7 @@ export default class GraphAnalysisIndex extends tsc<IProps> {
                   key='footer'
                   class='bk-exception-footer'
                 >
-                  <bk-button
+                  <TButton
                     class='mr10'
                     size='small'
                     theme='primary'
@@ -565,8 +567,8 @@ export default class GraphAnalysisIndex extends tsc<IProps> {
                     onClick={this.handleEditorSearchClick}
                   >
                     {this.$t('查询')}
-                  </bk-button>
-                  <bk-button
+                  </TButton>
+                  <TButton
                     class='mr10'
                     size='small'
                     onClick={() => {
@@ -574,7 +576,7 @@ export default class GraphAnalysisIndex extends tsc<IProps> {
                     }}
                   >
                     {this.$t('我知道了')}
-                  </bk-button>
+                  </TButton>
                 </div>,
               ]
             : ''}

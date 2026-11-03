@@ -1,3 +1,5 @@
+
+import { MessagePlugin as TDesignMessage, Button as TButton } from 'tdesign-vue-next';
 import { ServicesInstance } from '@/platform/services';
 /*
  * Tencent is pleased to support the open source community by making
@@ -30,7 +32,7 @@ import { defineComponent, ref, reactive, computed, watch, onMounted, nextTick } 
 import * as authorityMap from '@/shared/lib/authority-map';
 import useLocale from '@/shared/composables/use-locale';
 import useStore from '@/shared/composables/use-store';
-import { bkMessage as Message } from 'bk-magic-vue';
+
 import { bkInfoBox as InfoBox } from '@/platform/compat/tdesign/info-box';
 
 
@@ -206,10 +208,7 @@ export default defineComponent({
         document.body.click();
       } else {
         customRetentionDay.value = '';
-        Message({
-          theme: 'error',
-          message: t('请输入有效数值'),
-        });
+        TDesignMessage("error", { content: t('请输入有效数值') });
       }
     };
 
@@ -249,11 +248,7 @@ export default defineComponent({
         });
 
         // 提示保存成功
-        Message({
-          theme: 'success',
-          message: t('保存成功'),
-          delay: 1500,
-        });
+        TDesignMessage("success", { content: t('保存成功'), duration: 1500 });
 
         // 通知父组件更新
         emit('handleUpdatedTable');
@@ -460,7 +455,7 @@ export default defineComponent({
 
                       {/* 提交/取消按钮 */}
                       <bk-form-item style='margin-top: 40px'>
-                        <bk-button
+                        <TButton
                           class='king-button mr10'
                           data-test-id='formContainer_button_handleSubmit'
                           loading={confirmLoading.value}
@@ -468,13 +463,13 @@ export default defineComponent({
                           onClick={handleConfirm}
                         >
                           {t('提交')}
-                        </bk-button>
-                        <bk-button
+                        </TButton>
+                        <TButton
                           data-test-id='formContainer_button_handleCancel'
                           onClick={handleCancel}
                         >
                           {t('取消')}
-                        </bk-button>
+                        </TButton>
                       </bk-form-item>
                     </bk-form>
                   )}

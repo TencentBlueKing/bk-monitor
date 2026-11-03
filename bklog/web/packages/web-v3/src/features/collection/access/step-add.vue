@@ -26,12 +26,12 @@
 
 <template>
   <div class="add-collection-container">
-    <bk-alert
+    <t-alert data-v2-display="alert"
       class="king-alert"
-      type="info"
-      closable
+      :theme="'info'"
+      :close-btn="true"
     >
-      <template #title>
+      <template #message>
         <div class="slot-title-container">
           <i18n path="接入前请查看 {0} ，尤其是在日志量大的情况下请务必提前沟通。">
             <a
@@ -43,7 +43,7 @@
           </i18n>
         </div>
       </template>
-    </bk-alert>
+    </t-alert>
     <bk-form
       ref="validateForm"
       :label-width="labelWidth"
@@ -61,14 +61,14 @@
           :required="true"
           :rules="rules.collector_config_name"
         >
-          <bk-input
+          <t-input
             v-model="formData.collector_config_name"
             class="w520"
             data-test-id="baseMessage_input_fillName"
             maxlength="50"
-            show-word-limit
+            :show-limit-number="true"
           >
-          </bk-input>
+          </t-input>
         </bk-form-item>
         <bk-form-item
           ext-cls="en-bk-form"
@@ -80,16 +80,16 @@
         >
           <div class="en-name-box">
             <div>
-              <bk-input
+              <t-input
                 v-model="formData.collector_config_name_en"
                 class="w520"
                 :disabled="isUpdate && !!formData.collector_config_name_en"
                 :placeholder="$t('支持数字、字母、下划线，长短5～50字符')"
                 data-test-id="baseMessage_input_fillEnglishName"
                 maxlength="50"
-                show-word-limit
+                :show-limit-number="true"
               >
-              </bk-input>
+              </t-input>
               <span
                 v-if="!isTextValid"
                 class="text-error"
@@ -97,11 +97,11 @@
               >
             </div>
             <span v-bk-tooltips.top="$t('自动转换成正确的数据名格式')">
-              <bk-button
+              <t-button :variant="(true) ? 'text' : ('base')"
                 v-if="!isTextValid"
-                text
+                
                 @click="handleEnConvert"
-                >{{ $t('自动转换') }}</bk-button
+                >{{ $t('自动转换') }}</t-button
               >
             </span>
           </div>
@@ -136,14 +136,14 @@
               v-bk-tooltips.top="{ content: $t('请先选择集群'), delay: 500 }"
               :disabled="!!formData.bcs_cluster_id"
             >
-              <bk-switcher
+              <t-switch
                 v-model="isYaml"
                 class="ml10"
                 :disabled="!formData.bcs_cluster_id"
-                :pre-check="handelChangeYaml"
-                theme="primary"
+                :before-change="() => (handelChangeYaml)(!(isYaml))"
+                
               >
-              </bk-switcher>
+              </t-switch>
             </div>
           </div>
         </div>
@@ -256,7 +256,7 @@
           required
         >
           <div class="bk-button-group log-type">
-            <bk-button
+            <t-button
               v-for="(item, index) in getCollectorScenario"
               :key="index"
               :class="{
@@ -267,7 +267,7 @@
               :disabled="isUpdate && isUpdateAndSelectedWinEvent && isWinEventLog"
               @click="chooseLogType(item)"
               >{{ item.name }}
-            </bk-button>
+            </t-button>
           </div>
         </bk-form-item>
         <!-- 容器环境 日志类型 -->
@@ -277,7 +277,7 @@
           required
         >
           <div class="bk-button-group log-type">
-            <bk-button
+            <t-button
               v-for="(item, index) in getCollectorScenario"
               :key="index"
               :class="{
@@ -286,7 +286,7 @@
               :data-test-id="`sourceLogBox_buttom_checkoutType${item.id}`"
               @click="chooseLogType(item)"
               >{{ item.name }}
-            </bk-button>
+            </t-button>
           </div>
         </bk-form-item>
 
@@ -303,18 +303,18 @@
             :rules="rules.nodes"
             required
           >
-            <bk-button
+            <t-button
               style="font-size: 12px"
               :class="colorRules ? 'rulesColor' : ''"
               :disabled="!formData.category_id"
               :title="$t('新增')"
               data-test-id="sourceLogBox_button_addCollectionTarget"
-              icon="plus"
+              
               theme="default"
               @click="showIpSelectorDialog = true"
-            >
+            ><template #icon><span :class="`bk-icon icon-${'plus'}`"></span></template>
               {{ $t('选择目标') }}
-            </bk-button>
+            </t-button>
             <input
               style="display: none"
               :value="formData.target_nodes"
@@ -410,17 +410,17 @@
                 :key="index"
                 class="add-log-label form-div"
               >
-                <bk-input
+                <t-input
                   v-model.trim="item.key"
                   :class="{ 'extra-error': item.key === '' && isExtraError }"
                   @blur="isExtraError = false"
-                ></bk-input>
+                ></t-input>
                 <span>=</span>
-                <bk-input
+                <t-input
                   v-model.trim="item.value"
                   :class="{ 'extra-error': item.value === '' && isExtraError }"
                   @blur="isExtraError = false"
-                ></bk-input>
+                ></t-input>
                 <div class="ml9">
                   <i
                     :class="['bk-icon icon-plus-circle-shape icons']"
@@ -437,18 +437,18 @@
                   ></i>
                 </div>
               </div>
-              <bk-checkbox
+              <t-checkbox
                 v-model="formData.add_pod_label"
                 class="mt8"
               >
                 {{ $t('自动添加Pod中的{n}', { n: 'label' }) }}
-              </bk-checkbox>
-              <bk-checkbox
+              </t-checkbox>
+              <t-checkbox
                 v-model="formData.add_pod_annotation"
                 class="mt8 ml10"
               >
                 {{ $t('自动添加Pod中的{n}', { n: 'annotation' }) }}
-              </bk-checkbox>
+              </t-checkbox>
             </bk-form-item>
           </div>
         </template>
@@ -490,7 +490,7 @@
         </bk-dialog> -->
 
       <div class="page-operate">
-        <bk-button
+        <t-button
           :disabled="!collectProject"
           :loading="isHandle"
           :title="isFinishCreateStep ? $t('保存') : $t('开始采集')"
@@ -499,8 +499,8 @@
           @click.stop.prevent="startCollect()"
         >
           {{ isFinishCreateStep ? $t('保存') : $t('下一步') }}
-        </bk-button>
-        <bk-button
+        </t-button>
+        <t-button
           class="ml10"
           :title="$t('取消')"
           data-test-id="acquisitionConfig_div_cancel"
@@ -508,13 +508,15 @@
           @click="cancel"
         >
           {{ $t('取消') }}
-        </bk-button>
+        </t-button>
       </div>
     </bk-form>
   </div>
 </template>
 
-<script>import { ServicesInstance } from '@/platform/services';
+<script>
+import { MessagePlugin as TDesignMessage } from 'tdesign-vue-next';
+import { ServicesInstance } from '@/platform/services';
 
   import { projectManages, random, deepEqual } from '@/shared/lib/util';
   import LogIpSelector, { toTransformNode, toSelectorNode } from '@/features/collection/ip-selector/log-ip-selector';
@@ -1183,7 +1185,7 @@
               ? this.$t('yaml缺少必要的字段')
               : this.$t('yaml语法出错');
             this.formData.yaml_config === '' && (message = this.$t('yaml不能为空'));
-            this.$bkMessage({ theme: 'error', message });
+            TDesignMessage("error", { content: message });
             return false;
           }
           return true;
@@ -1215,7 +1217,7 @@
           if (!containerConfigValidate || this.isExtraError) return false;
           if (this.getIsSharedCluster() && this.formData.configs.some(conf => !conf.namespaces.length)) {
             // 容器环境下选择了共享集群 但NameSpace为空
-            this.$bkMessage({ theme: 'error', message: this.$t('配置项命名空间不能为空') });
+            TDesignMessage("error", { content: this.$t('配置项命名空间不能为空') });
             return false;
           }
         }
@@ -1962,7 +1964,7 @@
       }
 
       .log-paths {
-        .bk-form-control {
+        .t-input__wrap {
           width: 460px;
         }
       }
@@ -1973,7 +1975,7 @@
     }
 
     .w520 {
-      &.bk-form-control {
+      &.t-input__wrap {
         width: 520px;
       }
 
@@ -2003,7 +2005,7 @@
               /* stylelint-disable-next-line declaration-no-important */
               margin: 0 !important;
 
-              .bk-form-control {
+              .t-input__wrap {
                 width: 64px;
                 margin: 0 6px;
               }
@@ -2086,7 +2088,7 @@
       height: 32px;
       border-radius: 2px;
 
-      .bk-button {
+      .t-button {
         min-width: 106px;
         font-size: 12px;
 
@@ -2298,7 +2300,7 @@
     }
 
     .extra-error {
-      .bk-form-input {
+      .t-input__inner {
         border-color: #ff5656;
       }
     }
@@ -2316,7 +2318,7 @@
         color: #ff9c01;
       }
 
-      .bk-form-control {
+      .t-input__wrap {
         width: 240px;
       }
     }

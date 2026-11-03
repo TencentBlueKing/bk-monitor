@@ -1,0 +1,211 @@
+{
+  "status": "IN_PROGRESS",
+  "date": "2026-11-02",
+  "reference": {
+    "v2Origin": "http://appdev.woa.com:8001",
+    "v3Origin": "http://appdev.woa.com:4175",
+    "hash": "#/retrieve/16176?spaceUid=bkcc__5000140&bizId=5000140&search_mode=ui&keyword=&addition=%5B%5D&pid=%5B%22%23%22%5D&h_12=10174228&f_11=20680",
+    "observations": [
+      "V2 and V3 both normalize empty addition away after query; other query parameters match.",
+      "V3 real query returned results; no existing business resources modified."
+    ]
+  },
+  "converted": {
+    "buttons": 505,
+    "choiceControls": 229,
+    "simpleMessages": 120,
+    "styleFiles": 76,
+    "displayControls": 63,
+    "textInputs": 86
+  },
+  "pending": {
+    "files": 363,
+    "occurrences": 2529,
+    "counts": {
+      "import": 47,
+      "component": 1806,
+      "directive": 582,
+      "service": 93,
+      "declaration": 1
+    },
+    "complexMessageContracts": 17
+  },
+  "checks": {
+    "automatedTests": {
+      "status": "PASS",
+      "tests": 219,
+      "log": "/tmp/bklog-display-text-tests-complete.log"
+    },
+    "strictTypes": {
+      "status": "FAIL",
+      "beforeDiagnostics": 1986,
+      "afterDiagnostics": 1977,
+      "newDiagnostics": 0,
+      "log": "/tmp/bklog-display-text-types-complete.log"
+    },
+    "applicationBuild": {
+      "status": "PASS",
+      "delivery": "STATIC_DELIVERY_VERIFIED",
+      "legacyRuntimeAccepted": false,
+      "log": "/tmp/bklog-display-text-build-complete.log"
+    },
+    "apmBuild": {
+      "status": "PASS",
+      "log": "/tmp/bklog-display-text-apm-complete.log"
+    },
+    "traceBuild": {
+      "status": "PASS",
+      "log": "/tmp/bklog-display-text-trace-complete.log"
+    },
+    "aiIndex": {
+      "status": "PASS",
+      "files": 1350,
+      "edges": 4282
+    }
+  },
+  "browserEvidence": {
+    "directory": "migration-project/evidence/20261102-native-tdesign",
+    "screenshots": [
+      "native-controls-offline.jpg",
+      "retrieve-16176-native-toolbar.jpg"
+    ],
+    "viewport": [
+      1440,
+      900
+    ],
+    "queryButtonSize": [
+      74,
+      50
+    ],
+    "scope": "Native control contracts and real retrieval toolbar; not full business acceptance."
+  },
+  "limitations": [
+    "Business legacy call audit is intentionally failing until all pending occurrences are migrated.",
+    "Strict type checking is not passing.",
+    "Date-picker format/value warnings remain to investigate.",
+    "Full visual, permission and write-flow acceptance has not been completed."
+  ],
+  "monitorIdentity": {
+    "sourceDigest": "9471ed684d40044f0e85d27f57a1f807040080dbe82ad0e4d3f15a9345787a2f",
+    "buildConfigDigest": "2b1f812a403562d11940aad2ee7ab734d0091bf2fba118c603cf9d84d6672923"
+  },
+  "batches": [
+    {
+      "id": "buttons-choice-feedback",
+      "converted": {
+        "buttons": 505,
+        "choiceControls": 229,
+        "simpleMessages": 120,
+        "styleFiles": 76,
+        "displayControls": 63,
+        "textInputs": 86
+      },
+      "checks": {
+        "automatedTests": {
+          "status": "PASS",
+          "tests": 206,
+          "log": "/tmp/bklog-native-control-tests-final4.log"
+        },
+        "strictTypes": {
+          "status": "FAIL",
+          "beforeDiagnostics": 2040,
+          "afterDiagnostics": 1986,
+          "newDiagnostics": 0,
+          "log": "/tmp/bklog-native-control-types-final2.log"
+        },
+        "applicationBuild": {
+          "status": "PASS",
+          "log": "/tmp/bklog-native-control-build-final2.log"
+        },
+        "traceBuild": {
+          "status": "PASS",
+          "log": "/tmp/bklog-native-control-trace-final.log"
+        },
+        "apmBuild": {
+          "status": "PASS",
+          "log": "/tmp/bklog-native-control-apm-final.log"
+        },
+        "aiIndex": {
+          "status": "PASS",
+          "files": 1348,
+          "edges": 4273
+        }
+      }
+    },
+    {
+      "id": "display-text-highlight",
+      "status": "IN_PROGRESS",
+      "converted": {
+        "Alert": 34,
+        "Tag": 22,
+        "Progress": 5,
+        "Badge": 2,
+        "textInputs": 86,
+        "nativeTextHighlightConsumers": 8
+      },
+      "pendingInputContracts": 233,
+      "beforeLegacyCalls": 2678,
+      "afterLegacyCalls": 2529,
+      "checks": {
+        "automatedTests": {
+          "status": "PASS",
+          "tests": 219,
+          "log": "/tmp/bklog-display-text-tests-complete.log"
+        },
+        "strictTypes": {
+          "status": "FAIL",
+          "beforeDiagnostics": 1986,
+          "afterDiagnostics": 1977,
+          "newDiagnostics": 0,
+          "log": "/tmp/bklog-display-text-types-complete.log"
+        },
+        "applicationBuild": {
+          "status": "PASS",
+          "delivery": "STATIC_DELIVERY_VERIFIED",
+          "legacyRuntimeAccepted": false,
+          "log": "/tmp/bklog-display-text-build-complete.log"
+        },
+        "apmBuild": {
+          "status": "PASS",
+          "log": "/tmp/bklog-display-text-apm-complete.log"
+        },
+        "traceBuild": {
+          "status": "PASS",
+          "log": "/tmp/bklog-display-text-trace-complete.log"
+        },
+        "aiIndex": {
+          "status": "PASS",
+          "files": 1350,
+          "edges": 4282
+        }
+      },
+      "browser": {
+        "referenceBusiness": 16176,
+        "status": "PARTIAL_VERIFICATION",
+        "passed": [
+          "Real retrieval returns results.",
+          "V2 Pattern is visible; V3 Pattern text and token highlights restored.",
+          "Offline input trim/Enter, tag close, alert close, retry payload and 37% progress verified."
+        ],
+        "screenshots": [
+          "display-text-contracts.png",
+          "retrieve-16176-pattern-v2.png",
+          "retrieve-16176-pattern-after.png"
+        ],
+        "resourceWrites": false,
+        "screenshotsVerifiedAfterLoad": true
+      },
+      "limitations": [
+        "Not every migrated call has completed browser acceptance.",
+        "Strict type checking still fails.",
+        "Complex inputs, selects, forms, dialogs, tables and directives remain.",
+        "Tab-navigation pid encoding difference is observed; cause and functional impact remain unverified.",
+        "Original text-highlight pure matcher dependency is retained; Vue2 renderer is no longer mounted by these consumers."
+      ],
+      "monitorIdentity": {
+        "sourceDigest": "9471ed684d40044f0e85d27f57a1f807040080dbe82ad0e4d3f15a9345787a2f",
+        "buildConfigDigest": "2b1f812a403562d11940aad2ee7ab734d0091bf2fba118c603cf9d84d6672923"
+      }
+    }
+  ]
+}

@@ -512,7 +512,7 @@ export default defineComponent({
       const fromRow = row
         ? (row[fieldName] ??
           fieldName
-            .split('./index')
+            .split('.')
             .reduce((cur: any, key: string) => (cur === null || cur === undefined ? undefined : cur[key]), row))
         : undefined;
       // 时间格式化只影响展示；date 字段必须回取行内原始时间戳

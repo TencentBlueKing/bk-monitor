@@ -38,28 +38,28 @@
       v-bkloading="{ isLoading: basicLoading }"
       class="step-field"
     >
-      <bk-alert
+      <t-alert data-v2-display="alert"
         v-if="!isCleanField && !isTempField && !isSetEdit"
         class="king-alert"
-        type="info"
+        :theme="'info'"
       >
-        <template #title>
+        <template #message>
           <div class="slot-title-container">
             {{ $t('通过字段清洗，可以格式化日志内容方便检索、告警和分析。') }}
           </div>
         </template>
-      </bk-alert>
-      <bk-alert
+      </t-alert>
+      <t-alert data-v2-display="alert"
         v-if="isSetEdit"
         class="king-alert"
-        type="info"
+        :theme="'info'"
       >
-        <template #title>
+        <template #message>
           <div class="slot-title-container">
             {{ $t('将过滤后的日志采集上来后，日志检索模块可进行日志内容格式化，方便检索和分析。') }}
           </div>
         </template>
-      </bk-alert>
+      </t-alert>
       <bk-form
         ref="validateForm"
         :label-width="labelWidth"
@@ -119,13 +119,13 @@
             :label="$t('原始日志')"
           >
             <div class="origin-log-config">
-              <bk-radio-group v-model="formData.etl_params.retain_original_text">
-                <bk-radio :value="true">
+              <t-radio-group v-model="formData.etl_params.retain_original_text">
+                <t-radio :value="true">
                   <span v-bk-tooltips="$t('确认保留原始日志,会存储在log字段. 其他字段提取内容会进行追加')">{{
                     $t('保留')
                   }}</span>
-                </bk-radio>
-                <bk-radio :value="false">
+                </t-radio>
+                <t-radio :value="false">
                   <span
                     v-bk-tooltips="
                       $t('不保留将丢弃原始日志，仅展示清洗后日志。请通过字段清洗，调试并输出您关心的日志。')
@@ -133,8 +133,8 @@
                   >
                     {{ $t('丢弃') }}
                   </span>
-                </bk-radio>
-              </bk-radio-group>
+                </t-radio>
+              </t-radio-group>
               <div
                 v-show="formData.etl_params.retain_original_text"
                 class="flex-box select-container"
@@ -157,18 +157,18 @@
                     </bk-option>
                   </bk-select>
                 </div>
-                <bk-input
+                <t-input
                   v-if="originParticipleState === 'custom'"
                   v-model="formData.etl_params.original_text_tokenize_on_chars"
                   style="width: 170px; margin-left: 8px"
                 >
-                </bk-input>
-                <bk-checkbox
+                </t-input>
+                <t-checkbox
                   v-model="formData.etl_params.original_text_is_case_sensitive"
                   style="margin-left: 24px"
                 >
                   <span>{{ $t('大小写敏感') }}</span>
-                </bk-checkbox>
+                </t-checkbox>
               </div>
             </div>
           </bk-form-item>
@@ -210,7 +210,7 @@
               <!-- 选择字段过滤方法 -->
               <div class="field-button-group">
                 <div class="bk-button-group">
-                  <bk-button
+                  <t-button
                     v-for="option in globalsData.etl_config"
                     :key="option.id"
                     :class="params.etl_config === option.id ? 'is-selected' : ''"
@@ -220,7 +220,7 @@
                     @click="handleSelectConfig(option.id)"
                   >
                     {{ option.name }}
-                  </bk-button>
+                  </t-button>
                 </div>
                 <template v-if="params.etl_config === 'bk_log_regexp'">
                   <span
@@ -252,7 +252,7 @@
                   </bk-option>
                 </bk-select>
 
-                <bk-button
+                <t-button
                   class="fl debug-btn"
                   :disabled="!logOriginal || isExtracting || !showDebugBtn || isSetDisabled"
                   data-test-id="fieldExtractionBox_button_debugging"
@@ -260,7 +260,7 @@
                   @click="debugHandler"
                 >
                   {{ $t('调试') }}
-                </bk-button>
+                </t-button>
                 <p
                   v-if="isJsonOrOperator && !formatResult"
                   class="format-error ml10 fl"
@@ -386,17 +386,17 @@
             property="log_reporting_time"
           >
             <div class="origin-log-config">
-              <bk-radio-group v-model="formData.log_reporting_time">
-                <bk-radio :value="true">
+              <t-radio-group v-model="formData.log_reporting_time">
+                <t-radio :value="true">
                   <span v-bk-tooltips="$t('平台上报日志的时间，默认选择该设置')">{{ $t('日志上报时间') }}</span>
-                </bk-radio>
-                <bk-radio :value="false">
+                </t-radio>
+                <t-radio :value="false">
                   <span v-bk-tooltips="$t('你可以自行指定日志展示时间，勾选前请提前清洗日志时间')">{{
                     $t('指定字段为日志时间')
                   }}</span>
                   <span style="font-size: 12px; color: #000"> (切换时间为纳秒，历史数据将无法查询，请谨慎切换) </span>
-                </bk-radio>
-              </bk-radio-group>
+                </t-radio>
+              </t-radio-group>
             </div>
           </bk-form-item>
           <div
@@ -501,8 +501,8 @@
             :label="$t('保留失败日志')"
           >
             <div class="origin-log-config">
-              <bk-radio-group v-model="formData.etl_params.enable_retain_content">
-                <bk-radio :value="true">
+              <t-radio-group v-model="formData.etl_params.enable_retain_content">
+                <t-radio :value="true">
                   <span
                     v-bk-tooltips="
                       $t(
@@ -511,11 +511,11 @@
                     "
                     >{{ $t('保留') }}</span
                   >
-                </bk-radio>
-                <bk-radio :value="false">
+                </t-radio>
+                <t-radio :value="false">
                   {{ $t('丢弃') }}
-                </bk-radio>
-              </bk-radio-group>
+                </t-radio>
+              </t-radio-group>
             </div>
           </bk-form-item>
           <bk-form-item
@@ -525,11 +525,11 @@
             :label="$t('JSON 字段动态新增')"
           >
             <div class="origin-log-config">
-              <bk-switcher
+              <t-switch
                 v-model="formData.etl_params.retain_extra_json"
-                theme="primary"
+                
                 @change="handleRetainExtraJsonChange"
-              ></bk-switcher>
+              ></t-switch>
               <div class="switcher-tips">
                 <i class="bk-icon icon-info-circle" />
                 <span>
@@ -570,24 +570,24 @@
               <p class="expand-depth-tips">
                 {{ $t('解析层级越大，可直接检索的字段越多，但也更容易达到 ES 字段数量上限。') }}
               </p>
-              <bk-alert
+              <t-alert data-v2-display="alert"
                 v-if="expandDepthSelect === 'unlimited'"
                 class="expand-depth-alert"
-                type="warning"
-                :title="
+                :theme="'warning'"
+                :message="
                   $t(
                     '无限解析可能产生大量动态字段，达到 ES 字段上限后，相关日志可能写入失败。建议仅在字段结构稳定时使用。',
                   )
                 "
-              ></bk-alert>
-              <bk-button
+              ></t-alert>
+              <t-button :variant="(true) ? 'text' : ('base')"
                 class="expand-depth-example-btn"
-                text
+                
                 theme="primary"
                 @click="expandDepthExampleVisible = true"
               >
                 {{ $t('查看解析示例') }}
-              </bk-button>
+              </t-button>
             </div>
           </bk-form-item>
           <bk-form-item
@@ -597,10 +597,10 @@
             :label="$t('路径元数据')"
           >
             <div class="origin-log-config">
-              <bk-switcher
+              <t-switch
                 v-model="enableMetaData"
-                theme="primary"
-              ></bk-switcher>
+                
+              ></t-switch>
             </div>
           </bk-form-item>
           <bk-form-item
@@ -610,11 +610,11 @@
             :label="$t('路径样例')"
           >
             <div class="origin-log-config">
-              <bk-input
+              <t-input
                 v-model="pathExample"
                 style="width: 520px"
               >
-              </bk-input>
+              </t-input>
               <i
                 class="path-refresh-icon bk-icon bk-icon icon-refresh"
                 @click="pathRefreshClick"
@@ -630,13 +630,13 @@
             required
           >
             <div class="origin-log-config">
-              <bk-input
+              <t-input
                 v-model="formData.etl_params.path_regexp"
                 style="width: 520px"
                 :placeholder="defaultRegex"
               >
-              </bk-input>
-              <bk-button
+              </t-input>
+              <t-button
                 class="debug-btn"
                 :disabled="!showDebugPathRegexBtn || isDebugLoading"
                 :loading="isDebugLoading"
@@ -645,7 +645,7 @@
                 @click="debuggerPathRegex"
               >
                 {{ $t('调试') }}
-              </bk-button>
+              </t-button>
             </div>
             <div
               v-if="metaDataList && metaDataList.length"
@@ -687,16 +687,16 @@
             :label="$t('可见范围')"
           >
             <div class="origin-log-config">
-              <bk-radio-group v-model="formData.visible_type">
-                <bk-radio
+              <t-radio-group v-model="formData.visible_type">
+                <t-radio
                   v-for="item of visibleScopeSelectList"
                   :key="item.id"
                   class="scope-radio"
                   :value="item.id"
                 >
                   {{ item.name }}
-                </bk-radio>
-              </bk-radio-group>
+                </t-radio>
+              </t-radio-group>
               <bk-select
                 v-show="scopeValueType"
                 v-model="visibleBkBiz"
@@ -783,7 +783,7 @@
       <div class="form-button">
         <template v-if="!isFinishCreateStep && !isCleanField">
           <!-- 上一步 -->
-          <bk-button
+          <t-button
             v-if="!isTempField && !isSetEdit"
             class="mr10"
             :disabled="isLoading"
@@ -793,7 +793,7 @@
             @click="prevHandler"
           >
             {{ $t('上一步') }}
-          </bk-button>
+          </t-button>
           <!-- 前往高级清洗 -->
           <!-- <log-button
             v-if="activePanel === 'advance'"
@@ -806,7 +806,7 @@
           >
           </log-button> -->
           <!-- 下一步/完成 -->
-          <bk-button
+          <t-button
             v-if="activePanel === 'base' && !isTempField"
             :disabled="!collectProject || isSetDisabled"
             :loading="isLoading"
@@ -816,9 +816,9 @@
           >
             <!-- || !showDebugBtn || !hasFields -->
             {{ isSetEdit ? $t('保存') : $t('下一步') }}
-          </bk-button>
+          </t-button>
           <!-- 保存模板 -->
-          <bk-button
+          <t-button
             v-if="activePanel === 'base'"
             class="ml10"
             :disabled="!hasFields || isSetDisabled"
@@ -827,9 +827,9 @@
             @click="openTemplateDialog(true)"
           >
             {{ $t('保存模板') }}
-          </bk-button>
+          </t-button>
           <!-- 日志清洗 保存模板 取消 -->
-          <bk-button
+          <t-button
             v-if="isTempField"
             class="ml10"
             data-test-id="fieldExtractionBox_button_cancelSaveTemplate"
@@ -837,9 +837,9 @@
             @click="handleCancel()"
           >
             {{ isSetEdit ? $t('重置') : $t('取消') }}
-          </bk-button>
+          </t-button>
           <!-- 检索字段提取设置 重置 -->
-          <bk-button
+          <t-button
             v-if="isSetEdit"
             class="ml10"
             :disabled="!collectProject || !showDebugBtn || !hasFields || isSetDisabled"
@@ -848,26 +848,26 @@
             @click="setDetail(setId)"
           >
             {{ $t('重置') }}
-          </bk-button>
+          </t-button>
         </template>
         <template v-else>
-          <bk-button
+          <t-button
             :disabled="!collectProject"
             :loading="isLoading"
             theme="primary"
             @click.stop.prevent="finish(true)"
           >
             {{ $t('保存') }}
-          </bk-button>
-          <bk-button
+          </t-button>
+          <t-button
             class="ml10"
             theme="default"
             @click="handleCancel()"
           >
             {{ $t('取消') }}
-          </bk-button>
+          </t-button>
           <!-- 保存模板 -->
-          <bk-button
+          <t-button
             v-if="activePanel === 'base'"
             class="ml10"
             :disabled="!hasFields || isSetDisabled"
@@ -876,7 +876,7 @@
             @click="openTemplateDialog(true)"
           >
             {{ $t('保存模板') }}
-          </bk-button>
+          </t-button>
         </template>
       </div>
 
@@ -939,10 +939,10 @@
         <div class="template-content">
           <div v-if="isSaveTempDialog">
             <label style="color: #63656e">{{ $t('模板名称') }}</label>
-            <bk-input
+            <t-input
               v-model="saveTempName"
               style="margin-top: 8px"
-            ></bk-input>
+            ></t-input>
           </div>
           <div v-else>
             <bk-input
@@ -993,13 +993,16 @@
     </div>
   </section>
 </template>
-<script>import { ServicesInstance } from '@/platform/services';
+<script>
+import { MessagePlugin as TDesignMessage } from 'tdesign-vue-next';
+import { ServicesInstance } from '@/platform/services';
 
   import { projectManages, judgeNumber } from '@/shared/lib/util';
   import AuthContainerPage from '@/shared/ui/common/auth-container-page';
   import { isFeatureToggleOn } from '@/shared/composables/use-feature-toggle';
   import { computed, getCurrentInstance } from 'vue';
   import { useSpaceSelector } from '@/shared/composables/use-space-selector';
+  import useFullscreenLoading from '@/shared/composables/use-fullscreen-loading';
   import { mapGetters, mapState } from '@/app/state/map-helpers';
   import * as authorityMap from '../../../shared/lib/authority-map';
   import { deepEqual } from '../../../shared/lib/util';
@@ -1024,11 +1027,13 @@
         set: value => { instance.proxy.visibleBkBiz = value; },
       });
       const spaces = useSpaceSelector(selectedSpaces, { isUseMark: false });
+      const { showFullscreenLoading } = useFullscreenLoading();
       return {
         spaceMultiple: spaces.spaceMultiple,
         isUseMark: spaces.isUseMark,
         virtualscrollSpaceList: spaces.virtualscrollSpaceList,
         handleSelectSpaceChange: spaces.handleSelectSpaceChange,
+        showFullscreenLoading,
       };
     },
   emits: ["update-log-fields","updateLogFields","step-change","stepChange","change-submit","changeSubmit","reset-page","resetPage","change-clean","changeClean"],
@@ -2498,20 +2503,14 @@ __ext_json.service.labels   ${this.$t('动态对象字段')}`;
       handleTemplConfirm() {
         if (this.isSaveTempDialog) {
           if (this.saveTempName.trim() === '') {
-            this.$bkMessage({
-              theme: 'error',
-              message: this.$t('请输入模板名称'),
-            });
+            TDesignMessage("error", { content: this.$t('请输入模板名称') });
             return;
           }
           this.templateDialogVisible = false;
           this.fieldCollection(false);
         } else {
           if (!this.selectTemplate) {
-            this.$bkMessage({
-              theme: 'error',
-              message: this.$t('请选择清洗模板'),
-            });
+            TDesignMessage("error", { content: this.$t('请选择清洗模板') });
             return;
           }
 
@@ -2678,8 +2677,8 @@ __ext_json.service.labels   ${this.$t('动态对象字段')}`;
       // 采集项列表点击申请采集项目管理权限
       async applyProjectAccess(item) {
         this.$el.click(); // 手动关闭下拉
+        const loading = this.showFullscreenLoading();
         try {
-          this.$bkLoading();
           const res = await this.$store.dispatch('getApplyData', {
             action_ids: [authorityMap.MANAGE_COLLECTION_AUTH],
             resources: [
@@ -2693,7 +2692,7 @@ __ext_json.service.labels   ${this.$t('动态对象字段')}`;
         } catch (err) {
           console.warn(err);
         } finally {
-          this.$bkLoading.hide();
+          loading.hide();
         }
       },
       handleOpenDocument() {
@@ -2941,9 +2940,9 @@ __ext_json.service.labels   ${this.$t('动态对象字段')}`;
               index_set_id: indexSetId,
             },
           });
-          this.fieldsObjectData = res.data.fields.filter(item => item.field_name.includes('./index'));
+          this.fieldsObjectData = res.data.fields.filter(item => item.field_name.includes('.'));
           this.fieldsObjectData.forEach(item => {
-            const name = item.field_name.split('./index')[0];
+            const name = item.field_name.split('.')[0];
             // flattened 边界字段保持类型，页面展示为「动态对象字段」，不继续挂载子 mapping
             if (item.field_type !== 'flattened') {
               item.field_type = typeConversion[item.field_type] || item.field_type;
@@ -2965,13 +2964,13 @@ __ext_json.service.labels   ${this.$t('动态对象字段')}`;
         });
       },
       addChildrenToBuiltField(builtFieldList, item, name) {
-        const fieldName = name.split('./index')[0].replace(/^_+|_+$/g, '');
+        const fieldName = name.split('.')[0].replace(/^_+|_+$/g, '');
         builtFieldList.forEach(builtField => {
           // 动态对象边界字段（flattened）不再递归挂载内部 mapping 字段
           if (builtField.field_type === 'flattened') {
             return;
           }
-          if (builtField.field_type === 'object' && fieldName === builtField.field_name?.split('./index')[0]) {
+          if (builtField.field_type === 'object' && fieldName === builtField.field_name?.split('.')[0]) {
             if (!Array.isArray(builtField.children)) {
               builtField.children = [];
               this.$set(builtField, 'expand', false);
@@ -3072,7 +3071,7 @@ __ext_json.service.labels   ${this.$t('动态对象字段')}`;
         padding: 0 22px 0 10px;
       }
 
-      .bk-form-control {
+      .t-input__wrap {
         display: inline-block;
       }
     }
@@ -3159,11 +3158,11 @@ __ext_json.service.labels   ${this.$t('动态对象字段')}`;
       }
     }
 
-    .bk-form-control .control-icon {
+    .t-input__wrap .control-icon {
       top: 18px;
     }
 
-    .bk-switcher-small {
+    .t-size-s {
       width: 36px;
       height: 20px;
 

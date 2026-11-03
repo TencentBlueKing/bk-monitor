@@ -1,3 +1,5 @@
+
+import { Button as TButton } from 'tdesign-vue-next';
 import { ServicesInstance } from '@/platform/services';
 /*
  * Tencent is pleased to support the open source community by making
@@ -402,20 +404,20 @@ export default defineComponent({
             <span class='value'>{t('移动光标')}</span>
           </div>
           <div class='grok-popover-list-actions'>
-            <bk-button
+            <TButton
               size='small'
               theme='primary'
               disabled={!activeItem.value}
               onClick={handleConfirm}
             >
               {shortcutLabel.value}
-            </bk-button>
-            <bk-button
+            </TButton>
+            <TButton
               size='small'
               onClick={handleCancel}
             >
               {t('取消')}
-            </bk-button>
+            </TButton>
           </div>
         </div>
       </div>

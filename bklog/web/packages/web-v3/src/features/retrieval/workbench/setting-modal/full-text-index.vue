@@ -33,27 +33,27 @@
         :label="$t('大小写敏感')"
         :required="true"
       >
-        <bk-switcher
+        <t-switch
           v-model="formData.is_case_sensitive"
           class="ml200"
           :disabled="!globalEditable"
           size="large"
-          theme="primary"
-        ></bk-switcher>
+          
+        ></t-switch>
       </bk-form-item>
       <!-- 包含中文 -->
       <bk-form-item
         :label="$t('包含中文')"
         :required="true"
       >
-        <bk-switcher
+        <t-switch
           v-model="demo1"
           class="ml200"
           :disabled="!globalEditable"
           size="large"
-          theme="primary"
+          
         >
-        </bk-switcher>
+        </t-switch>
       </bk-form-item>
       <!-- 分词符 -->
       <bk-form-item
@@ -74,7 +74,7 @@
         style="margin-top: 40px"
         class="ml200"
       >
-        <bk-button
+        <t-button
           :disabled="!globalEditable"
           :loading="isHandle"
           :title="$t('保存')"
@@ -82,23 +82,23 @@
           @click.stop.prevent="handleSubmit"
         >
           {{ $t('保存') }}
-        </bk-button>
-        <bk-button
+        </t-button>
+        <t-button
           :disabled="!globalEditable"
           :title="$t('重置')"
           theme="default"
           @click="handleReset"
         >
           {{ $t('重置') }}
-        </bk-button>
-        <bk-button
+        </t-button>
+        <t-button
           :disabled="!globalEditable"
           :title="$t('恢复默认')"
           theme="default"
           @click="handleDefaultReset"
         >
           {{ $t('恢复默认') }}
-        </bk-button>
+        </t-button>
       </bk-form-item>
     </bk-form>
   </div>

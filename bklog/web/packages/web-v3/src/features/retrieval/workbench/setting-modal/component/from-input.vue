@@ -30,13 +30,13 @@
       class="add-new"
       @click="handleShowAddInput"
     >
-      <bk-button
+      <t-button :variant="(true) ? 'text' : ('base')"
         class="config-btn"
-        :text="true"
+        
       >
         <i class="bk-icon icon-plus-circle-shape"></i>
         <span>{{ btnStr }}</span>
-      </bk-button>
+      </t-button>
     </div>
     <bk-form
       v-show="isShowAddInput"
@@ -51,11 +51,11 @@
         :error-display-type="'normal'"
       >
         <div class="config-tab-item">
-          <bk-input
+          <t-input
             v-model="verifyData.inputStr"
             :placeholder="placeholder"
             @enter="handleAddNew"
-          ></bk-input>
+          ></t-input>
           <div class="panel-operate">
             <i
               class="bk-icon icon-check-line"

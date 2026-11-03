@@ -47,21 +47,21 @@
           property="resultTableId"
           required
         >
-          <bk-input
+          <t-input
             v-model.trim="formData.resultTableId"
             class="king-input"
             placeholder="log_search_*"
             @enter="handleSearch"
-            @focus="handleFocus"
-          ></bk-input>
-          <bk-button
+            @focus="(value, {e}) => handleFocus(value, e)"
+          ></t-input>
+          <t-button
             class="king-button"
             :disabled="!formData.resultTableId || formData.resultTableId === '*'"
             :loading="searchLoading"
             @click="handleSearch"
           >
             {{ $t('搜索') }}
-          </bk-button>
+          </t-button>
           <div
             v-if="indexErrorText"
             class="error-tips-container"
@@ -155,18 +155,18 @@
         slot="footer"
         class="button-footer"
       >
-        <bk-button
+        <t-button
           class="king-button"
           :loading="confirmLoading"
           theme="primary"
           @click="handleConfirm"
         >
           {{ $t('添加') }}
-        </bk-button>
-        <bk-button
+        </t-button>
+        <t-button
           class="king-button"
           @click="handleCancel"
-          >{{ $t('取消') }}</bk-button
+          >{{ $t('取消') }}</t-button
         >
       </div>
     </div>

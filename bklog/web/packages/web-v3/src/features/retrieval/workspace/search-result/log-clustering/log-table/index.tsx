@@ -1,3 +1,5 @@
+
+import { Loading as TLoading, RadioGroup as TRadioGroup, Radio as TRadio } from 'tdesign-vue-next';
 import { ServicesInstance } from '@/platform/services';
 /*
  * Tencent is pleased to support the open source community by making
@@ -746,20 +748,26 @@ export default defineComponent({
       );
     };
 
+    const renderLoadingIndicator = () => (
+      <span class='bklog-loading-dots bklog-loading-dots--large'>
+        {[0, 1, 2, 3].map(index => <span key={index} />)}
+      </span>
+    );
+
     return () => (
       <div
         class='log-table-main'
         ref={rootElement}
       >
         {props.requestData?.group_by.length > 0 && (
-          <bk-radio-group
+          <TRadioGroup
             class='display-type-main'
             value={displayType.value}
-            onChange={handleDisplayTypeChange}
+            onChange={(value) => { if (typeof value === 'string') (handleDisplayTypeChange)(value); }}
           >
-            <bk-radio value='flatten'>{t('平铺模式')}</bk-radio>
-            <bk-radio value='group'>{t('分组模式')}</bk-radio>
-          </bk-radio-group>
+            <TRadio value='flatten'>{t('平铺模式')}</TRadio>
+            <TRadio value='group'>{t('分组模式')}</TRadio>
+          </TRadioGroup>
         )}
         <main-header
           class='bklog-fill-offset-x'
@@ -772,40 +780,49 @@ export default defineComponent({
           onColumnSort={handleColumnSort}
           onResizeColumn={handleHeaderResizeColumn}
         />
-        <div
-          ref={logTableRef}
-          class='table-list-content'
-          style={{ padding: showGroupBy.value ? '0 12px' : '0px' }}
-          v-bkloading={{ isLoading: tableLoading.value }}
+        <TLoading
+          class='cluster-table-loading'
+          data-testid='cluster-table-loading'
+          indicator={renderLoadingIndicator}
+          loading={tableLoading.value}
+          showOverlay
+          size='large'
+          zIndex={0}
         >
-          {tableLoading.value ? (
-            <clustering-loader
-              width-list={smallLoaderWidthList.value}
-              is-loading
-            />
-          ) : pagination.value.visibleCount > 0 ? (
-            [
-              <ContentTable
-                ref={tablesRef}
-                class='bklog-fill-offset-x'
-                tableList={tableList.value}
-                widthList={widthList.value}
-                displayMode={displayType.value}
-                requestData={props.requestData}
-                tableColumnWidth={tableColumnWidth.value}
-                groupListState={groupListState.value}
-                pagination={pagination.value}
-                indexId={props.indexId}
-                getPatternOriginLog={getPatternOriginLog}
-                onOpenClusterConfig={() => emit('open-cluster-config')}
-                onGroupStateChange={handleGroupStateChange}
-                onRowUpdated={handleRowUpdated}
-              />,
-            ]
-          ) : (
-            getExceptionOption()
-          )}
-        </div>
+          <div
+            ref={logTableRef}
+            class='table-list-content'
+            style={{ padding: showGroupBy.value ? '0 12px' : '0px' }}
+          >
+            {tableLoading.value ? (
+              <clustering-loader
+                width-list={smallLoaderWidthList.value}
+                is-loading
+              />
+            ) : pagination.value.visibleCount > 0 ? (
+              [
+                <ContentTable
+                  ref={tablesRef}
+                  class='bklog-fill-offset-x'
+                  tableList={tableList.value}
+                  widthList={widthList.value}
+                  displayMode={displayType.value}
+                  requestData={props.requestData}
+                  tableColumnWidth={tableColumnWidth.value}
+                  groupListState={groupListState.value}
+                  pagination={pagination.value}
+                  indexId={props.indexId}
+                  getPatternOriginLog={getPatternOriginLog}
+                  onOpenClusterConfig={() => emit('open-cluster-config')}
+                  onGroupStateChange={handleGroupStateChange}
+                  onRowUpdated={handleRowUpdated}
+                />,
+              ]
+            ) : (
+              getExceptionOption()
+            )}
+          </div>
+        </TLoading>
         <div
           ref={paginationRef}
           style='width: 100%;'

@@ -1,3 +1,7 @@
+
+import { Alert as TAlert } from 'tdesign-vue-next';
+
+import { Button as TButton } from 'tdesign-vue-next';
 import { ServicesInstance } from '@/platform/services';
 /*
  * Tencent is pleased to support the open source community by making
@@ -187,9 +191,9 @@ export default defineComponent({
           content: () => (
             <div>
               <div class='cluster-access-main'>
-                <bk-alert
-                  type='info'
-                  title={t('大量的日志会导致聚类结果过多，建议使用过滤规则将重要日志进行聚类；如：仅聚类 warn 日志')}
+                <TAlert
+                  theme={'info'}
+                  message={t('大量的日志会导致聚类结果过多，建议使用过滤规则将重要日志进行聚类；如：仅聚类 warn 日志')} data-v2-display='alert'
                 />
                 <bk-form
                   ref={quickClusterFromRef}
@@ -264,16 +268,16 @@ export default defineComponent({
                     disabled: isPreviewed.value && !isConfigChanged.value && !isRecordEmpty.value,
                   }}
                 >
-                  <bk-button
+                  <TButton
                     theme='primary'
                     disabled={!isPreviewed.value || isConfigChanged.value || isRecordEmpty.value}
                     loading={confirmLoading.value}
                     onClick={handleConfirmSubmit}
                   >
                     {t('提交')}
-                  </bk-button>
+                  </TButton>
                 </span>
-                <bk-button onClick={() => (isShowDialog.value = false)}>{t('取消')}</bk-button>
+                <TButton onClick={() => (isShowDialog.value = false)}>{t('取消')}</TButton>
               </div>
             </div>
           ),

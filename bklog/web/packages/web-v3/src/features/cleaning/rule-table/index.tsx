@@ -1,3 +1,5 @@
+
+import { Button as TButton } from 'tdesign-vue-next';
 /*
  * Tencent is pleased to support the open source community by making
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
@@ -210,25 +212,25 @@ export default defineComponent({
                     <div class='placement-column'>{Object.keys(item)[0]}</div>
                     {!props.readonly && (
                       <div class='operate-column'>
-                        <bk-button
-                          text
-                          onClick={() => handleClickEditRule(item, index)}
+                        <TButton
+                          
+                          onClick={() => handleClickEditRule(item, index)} variant={(true) ? 'text' : ('base')}
                         >
                           <log-icon
                             class='opt-icon'
                             type='edit'
                           />
-                        </bk-button>
-                        <bk-button
-                          text
-                          onClick={() => handleClickEditRule(item, index, true)}
+                        </TButton>
+                        <TButton
+                          
+                          onClick={() => handleClickEditRule(item, index, true)} variant={(true) ? 'text' : ('base')}
                         >
                           <log-icon
                             class='opt-icon'
                             type='plus-circle'
                             common
                           />
-                        </bk-button>
+                        </TButton>
                         <bk-popconfirm
                           width={280}
                           content={t('删除操作无法撤回，请谨慎操作！')}
@@ -237,13 +239,13 @@ export default defineComponent({
                           trigger='click'
                           onConfirm={() => handleClickRemoveRule(index)}
                         >
-                          <bk-button text>
+                          <TButton  variant={(true) ? 'text' : ('base')}>
                             <log-icon
                               class='opt-icon'
                               type='minus-circle'
                               common
                             />
-                          </bk-button>
+                          </TButton>
                         </bk-popconfirm>
                       </div>
                     )}
@@ -267,15 +269,15 @@ export default defineComponent({
                 type='empty'
               >
                 <span style='font-size:12px;'>{t('暂无聚类规则')}，</span>
-                <bk-button
+                <TButton
                   style='padding:0;'
                   size='small'
                   theme='primary'
-                  text
-                  onClick={() => handleClickEditRule(null, -1, true)}
+                  
+                  onClick={() => handleClickEditRule(null, -1, true)} variant={(true) ? 'text' : ('base')}
                 >
                   {t('立即新建')}
-                </bk-button>
+                </TButton>
               </bk-exception>
             )}
           </div>

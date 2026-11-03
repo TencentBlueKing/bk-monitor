@@ -23,11 +23,13 @@
 * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
 * IN THE SOFTWARE.
 -->
-<script setup>import { ServicesInstance } from '@/platform/services';
+<script setup>
+import { MessagePlugin as TDesignMessage } from 'tdesign-vue-next';
+import { ServicesInstance } from '@/platform/services';
 
   import { ref, onMounted, defineExpose } from 'vue';
   import { useRoute } from "vue-router";
-  import { bkMessage } from 'bk-magic-vue';
+  
   import * as monaco from 'monaco-editor';
   import useLocale from '@/shared/composables/use-locale';
   import PreviewSql from './common/PreviewSql.vue';
@@ -73,10 +75,7 @@
       },
     });
     if (!res.data.list.length) {
-      bkMessage({
-        theme: 'primary',
-        message: '没有查询到数据',
-      });
+      TDesignMessage("info", { content: '没有查询到数据' });
       return;
     }
     emit('search-completed', res);
@@ -114,7 +113,7 @@ LIMIT 2;`,
       class="editorContainer"
     ></div>
     <div class="sql-editor-tools">
-      <bk-button
+      <t-button
         class="sql-editor-query-button font-small mr-small"
         theme="primary"
         size="small"
@@ -126,22 +125,22 @@ LIMIT 2;`,
           @click="sqlSearch"
           >{{ $t('查询') }}</span
         >
-      </bk-button>
-      <bk-button
+      </t-button>
+      <t-button
         class="sql-editor-view-button text-center pl-min pr-min mr-small cursor-pointer"
         size="small"
         @click="emitStop"
       >
         <span class="icon bklog-icon bklog-stop" />
         <span>{{ $t('中止') }}</span>
-      </bk-button>
-      <bk-button
+      </t-button>
+      <t-button
         class="sql-editor-view-button text-center pl-min pr-min cursor-pointer"
         size="small"
         @click="preview"
       >
         {{ $t('预览查询 SQL') }}
-      </bk-button>
+      </t-button>
       <PreviewSql
         :is-show="showDialog"
         :sql-content="sqlContent"

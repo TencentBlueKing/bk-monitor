@@ -1,3 +1,7 @@
+
+import { Switch as TSwitch } from 'tdesign-vue-next';
+
+import { Button as TButton } from 'tdesign-vue-next';
 import { ServicesInstance } from '@/platform/services';
 import { asDictionary } from '@/shared/utils/typed-record';
 /*
@@ -38,7 +42,7 @@ import {
 } from './type';
 import ValidatorInput from './validator-input';
 
-import type { Form } from 'bk-magic-vue';
+import type { Form } from '@/platform/compat/tdesign/magic-controls';
 
 import './index.scss';
 
@@ -353,7 +357,8 @@ export default class LogFilter extends tsc<LogFilterProps> {
         default: ({ $index, row }) => (
           <ValidatorInput
             ref={`match-${groupid}-${row.tableIndex}-${$index}`}
-            v-model={row.fieldindex}
+            value={row.fieldindex}
+            onChange={value => { row.fieldindex = value; }}
             activeType={this.activeType}
             inputType={'number'}
             originalFilterItemSelect={this.originalFilterItemSelect}
@@ -370,7 +375,8 @@ export default class LogFilter extends tsc<LogFilterProps> {
           <div>
             <ValidatorInput
               ref={`value-${groupId}-${row.tableIndex}-${$index}`}
-              v-model={row.word}
+              value={row.word}
+              onChange={value => { row.word = value; }}
               activeType={this.activeType}
               placeholder={['regex', 'nregex'].includes(row.op) ? this.$t('支持正则匹配，如18*123') : this.$t('请输入')}
               rowData={row}
@@ -415,10 +421,10 @@ export default class LogFilter extends tsc<LogFilterProps> {
     return (
       <div class='log-filter-container'>
         <div class='switcher-container'>
-          <bk-switcher
+          <TSwitch
             v-model={this.filterSwitcher}
             size='large'
-            theme='primary'
+            
           />
           <div class='switcher-tips'>
             <i class='bk-icon icon-info-circle' />
@@ -429,14 +435,14 @@ export default class LogFilter extends tsc<LogFilterProps> {
           <div class='filter-table-container'>
             <div class='bk-button-group'>
               {btnGroupList.map(item => (
-                <bk-button
+                <TButton
                   key={item.id}
                   class={{ 'is-selected': this.activeType === item.id }}
                   size='small'
                   onClick={() => this.handleClickFilterType(item.id as btnType)}
                 >
                   {item.name}
-                </bk-button>
+                </TButton>
               ))}
             </div>
             {!this.isMatchType && (
@@ -454,13 +460,13 @@ export default class LogFilter extends tsc<LogFilterProps> {
                       />
                     ))}
                   </bk-select>
-                  <bk-button
+                  <TButton
                     disabled={!(this.logOriginal && this.separator) || this.logOriginalLoading}
                     theme='primary'
                     onClick={() => this.logOriginDebug()}
                   >
                     {this.$t('调试')}
-                  </bk-button>
+                  </TButton>
                 </div>
                 <div class='input-style'>
                   <bk-input

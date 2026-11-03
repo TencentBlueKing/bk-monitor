@@ -1,3 +1,7 @@
+
+import { Switch as TSwitch } from 'tdesign-vue-next';
+
+import { MessagePlugin as TDesignMessage, Button as TButton } from 'tdesign-vue-next';
 /*
  * Tencent is pleased to support the open source community by making
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
@@ -25,7 +29,7 @@
  */
 
 import { defineComponent, ref, watch } from 'vue';
-import { bkMessage } from 'bk-magic-vue';
+
 import useLocale from '@/shared/composables/use-locale';
 
 import './index.scss';
@@ -113,10 +117,7 @@ export default defineComponent({
     const handleEnterCompared = (val: string) => {
       const matchVal = val.match(/^(\d+)h$/);
       if (!matchVal) {
-        bkMessage({
-          theme: 'warning',
-          message: t('请按照提示输入'),
-        });
+        TDesignMessage("warning", { content: t('请按照提示输入') });
         return;
       }
       changeCustomizeState(true);
@@ -172,10 +173,10 @@ export default defineComponent({
                 <div class='piece-item'>
                   <span class='title'>{t('同比')}</span>
                   <div class='year-on-year'>
-                    <bk-switcher
+                    <TSwitch
                       value={yearSwitch.value}
-                      theme='primary'
-                      onChange={(val: boolean) => (yearSwitch.value = val)}
+                      
+                      onChange={(value) => { if (typeof value === 'boolean') ((val: boolean) => (yearSwitch.value = val))(value); }}
                     />
                     <bk-select
                       v-slots={{
@@ -228,21 +229,21 @@ export default defineComponent({
                   </div>
                 </div>
                 <div class='popover-button'>
-                  <bk-button
+                  <TButton
                     style='margin-right: 8px'
                     size='small'
                     theme='primary'
                     onClick={handleConfirm}
                   >
                     {t('确定')}
-                  </bk-button>
-                  <bk-button
+                  </TButton>
+                  <TButton
                     size='small'
                     theme='default'
                     onClick={cancelPopover}
                   >
                     {t('取消')}
-                  </bk-button>
+                  </TButton>
                 </div>
               </div>
             </div>

@@ -1,3 +1,9 @@
+
+import { Alert as TAlert } from 'tdesign-vue-next';
+
+import { Checkbox as TCheckbox } from 'tdesign-vue-next';
+
+import { Button as TButton } from 'tdesign-vue-next';
 import { ServicesInstance } from '@/platform/services';
 /*
  * Tencent is pleased to support the open source community by making
@@ -170,27 +176,27 @@ export default defineComponent({
             <div>
               <div class='dimension-popover'>
                 <div class='title-main'>{t('聚合维度')}</div>
-                <bk-alert
+                <TAlert
                   v-slots={{
-                    title: () => (
+                    message: () => (
                       <div>
                         <i18n path='如需根据某些维度拆分聚类结果，可将字段设置为维度；维度拆分是比较 {0} 的，根据拆分结果填写责任人和备注，较少改动（临时分组需求请使用“{1}”功能）'>
                           <span style='font-weight: 700'>{t('固化')}</span>
-                          <bk-button
+                          <TButton
                             style='font-size: 12px'
                             theme='primary'
-                            text
-                            onClick={() => emit('open-temp-group')}
+                            
+                            onClick={() => emit('open-temp-group')} variant={(true) ? 'text' : ('base')}
                           >
                             {t('临时分组')}
-                          </bk-button>
+                          </TButton>
                         </i18n>
                       </div>
                     ),
                   }}
                   style='color: #4D4F56'
-                  type='info'
-                ></bk-alert>
+                  theme={'info'} data-v2-display='alert'
+                ></TAlert>
                 <div class='piece-item'>
                   <span class='title'>{t('维度')}</span>
                   <bk-select
@@ -210,32 +216,32 @@ export default defineComponent({
                         key={option.id}
                         name={option.name}
                       >
-                        <bk-checkbox
+                        <TCheckbox
                           checked={dimension.value.includes(option.id)}
                           title={option.name}
                         >
                           {option.name}
-                        </bk-checkbox>
+                        </TCheckbox>
                       </bk-option>
                     ))}
                   </bk-select>
                 </div>
                 <div class='popover-button'>
-                  <bk-button
+                  <TButton
                     style='margin-right: 8px'
                     size='small'
                     theme='primary'
                     onClick={submitPopover}
                   >
                     {t('确定')}
-                  </bk-button>
-                  <bk-button
+                  </TButton>
+                  <TButton
                     size='small'
                     theme='default'
                     onClick={closePopover}
                   >
                     {t('取消')}
-                  </bk-button>
+                  </TButton>
                 </div>
               </div>
             </div>

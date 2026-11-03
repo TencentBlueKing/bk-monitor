@@ -38,12 +38,12 @@
 
     @include flex-center();
 
-    .bk-checkbox-text {
+    .t-checkbox__label {
       font-size: 12px;
     }
   }
 
-  .bk-checkbox-text {
+  .t-checkbox__label {
     width: calc(100% - 20px);
     overflow: hidden;
     text-overflow: ellipsis;

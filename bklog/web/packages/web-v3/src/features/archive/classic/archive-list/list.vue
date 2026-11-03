@@ -30,14 +30,14 @@
     data-test-id="archive_section_archiveList"
   >
     <section class="top-operation">
-      <bk-button
+      <t-button
         class="fl"
         data-test-id="archiveList_button_newArchive"
         theme="primary"
         @click="handleCreate"
       >
         {{ $t('归档') }}
-      </bk-button>
+      </t-button>
       <div class="list-search fr">
         <bk-input
           v-model="keyword"
@@ -139,41 +139,41 @@
           <template #default="props">
             <div class="collect-table-operate">
               <!-- 回溯 -->
-              <bk-button
+              <t-button :variant="(true) ? 'text' : ('base')"
                 v-cursor="{
                   active: !(props.row.permission && props.row.permission[authorityMap.MANAGE_COLLECTION_AUTH]),
                 }"
                 class="mr10 king-button"
                 theme="primary"
-                text
+                
                 @click.stop="operateHandler(props.row, 'restore')"
               >
                 {{ $t('回溯') }}
-              </bk-button>
+              </t-button>
               <!-- 编辑 -->
-              <bk-button
+              <t-button :variant="(true) ? 'text' : ('base')"
                 v-cursor="{
                   active: !(props.row.permission && props.row.permission[authorityMap.MANAGE_COLLECTION_AUTH]),
                 }"
                 class="mr10 king-button"
                 theme="primary"
-                text
+                
                 @click.stop="operateHandler(props.row, 'edit')"
               >
                 {{ $t('编辑') }}
-              </bk-button>
+              </t-button>
               <!-- 删除 -->
-              <bk-button
+              <t-button :variant="(true) ? 'text' : ('base')"
                 v-cursor="{
                   active: !(props.row.permission && props.row.permission[authorityMap.MANAGE_COLLECTION_AUTH]),
                 }"
                 class="mr10 king-button"
                 theme="primary"
-                text
+                
                 @click.stop="operateHandler(props.row, 'delete')"
               >
                 {{ $t('删除') }}
-              </bk-button>
+              </t-button>
             </div>
           </template>
         </bk-table-column>
@@ -434,7 +434,7 @@
 
       @include clearfix;
 
-      .bk-button {
+      .t-button {
         width: 120px;
       }
     }

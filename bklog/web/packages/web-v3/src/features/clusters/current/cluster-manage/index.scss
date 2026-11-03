@@ -9,8 +9,6 @@
     overflow: hidden;
   }
 
-
-
   .king-table {
     .state-container {
       display: flex;
@@ -18,7 +16,7 @@
       align-items: center;
       white-space: nowrap;
 
-      .bk-badge {
+      .t-badge {
         width: 5px;
         height: 5px;
         margin-right: 4px;
@@ -101,5 +99,27 @@
 
   .bk-table-setting-content .content-line-height {
     display: none;
+  }
+}
+
+.cluster-column-settings {
+  width: 480px;
+  padding: 12px;
+  .settings-heading {
+    margin-bottom: 12px;
+    font-weight: 600;
+  }
+  .settings-fields {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 12px;
+    margin: 16px 0;
+  }
+  .settings-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 8px;
+    padding-top: 12px;
+    border-top: 1px solid #dcdee5;
   }
 }

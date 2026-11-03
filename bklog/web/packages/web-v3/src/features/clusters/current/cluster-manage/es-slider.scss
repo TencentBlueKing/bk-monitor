@@ -31,7 +31,7 @@
       }
     }
 
-    .bk-form-item {
+    .t-form__item {
       margin-top: 18px;
     }
 
@@ -42,7 +42,7 @@
     .selected-tag {
       max-width: 94%;
 
-      .bk-tag {
+      .t-tag {
         position: relative;
         padding-left: 18px;
         margin-left: 10px;
@@ -84,7 +84,7 @@
       // border: 1px solid red;
       @include flex-justify(space-between);
 
-      .bk-form-item {
+      .t-form__item {
         position: relative;
         width: 48%;
         margin-top: 18px;
@@ -223,11 +223,11 @@
       @include flex-justify(space-between);
 
       .bk-select,
-      .bk-form-control {
+      .t-input__wrap {
         flex: 1;
       }
 
-      :deep(.bk-form-input) {
+      :deep(.t-input__inner) {
         height: 34px;
       }
     }
@@ -258,4 +258,8 @@
     background: #fafbfd;
     border-top: 1px solid #dcdee5;
   }
+}
+
+.bklog-cluster-drawer .t-drawer__body {
+  padding: 0;
 }

@@ -239,8 +239,8 @@
 }
 
 .agg-field-item-sideslider {
-  .bk-sideslider-header {
-    .bk-sideslider-title {
+  .t-drawer__header {
+    .agg-sides-slider-header {
       /* stylelint-disable-next-line declaration-no-important */
       padding-right: 40px !important;
     }
@@ -271,7 +271,7 @@
       }
 
       .fnBtn {
-        .bk-primary.bk-button-text {
+        .t-button--variant-text {
           padding-right: 0;
 
           .download-btn {
@@ -289,7 +289,7 @@
     }
   }
 
-  .bk-sideslider-content {
+  .t-drawer__body {
     .agg-sides-content.slider-content {
       padding-right: 40px;
       padding-left: 40px;
@@ -313,4 +313,36 @@
 .agg-sides-content {
   padding: 16px;
   font-size: 12px;
+}
+
+.analysis-chart-popup .t-popup__content {
+  margin-left: 10px;
+  border: 1px solid #dcdee5;
+  box-shadow: 0 2px 12px #0003;
+}
+.agg-field-item-sideslider {
+  .t-drawer__header {
+    font-weight: normal;
+    height: 52px;
+    min-height: 52px;
+    padding: 0 16px 0 46px;
+  }
+  .t-drawer__body {
+    padding: 0;
+  }
+  .agg-sides-slider-header {
+    width: 100%;
+  }
+  .agg-header-close {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 30px;
+    height: 52px;
+    padding: 0;
+    border: 0;
+    background: #3a84ff;
+    color: #fff;
+    cursor: pointer;
+  }
 }

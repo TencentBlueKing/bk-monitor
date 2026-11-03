@@ -78,16 +78,16 @@
               class="top-middle"
               :disabled="!isShowFingerTips"
             >
-              <bk-switcher
+              <t-switch
                 v-model="fingerSwitch"
                 class="left-word"
                 :disabled="!globalEditable || fingerSwitch"
-                :pre-check="() => false"
+                :before-change="() => (() => false)(!(fingerSwitch))"
                 data-test-id="LogCluster_div_isOpenSignature"
                 size="large"
-                theme="primary"
+                
               >
-              </bk-switcher>
+              </t-switch>
             </span>
           </div>
         </div>
@@ -149,7 +149,7 @@
       </div>
     </bk-form>
     <div class="submit-div">
-      <bk-button
+      <t-button
         :disabled="!globalEditable"
         :loading="isHandle"
         :title="$t('保存')"
@@ -158,8 +158,8 @@
         @click.stop.prevent="handleSubmit"
       >
         {{ $t('保存') }}
-      </bk-button>
-      <bk-button
+      </t-button>
+      <t-button
         style="margin-left: 8px"
         :disabled="!globalEditable"
         :title="$t('重置')"
@@ -167,7 +167,7 @@
         @click="resetPage"
       >
         {{ $t('重置') }}
-      </bk-button>
+      </t-button>
     </div>
     <!-- 保存dialog -->
     <bk-dialog
@@ -181,12 +181,12 @@
       <div class="submit-dialog-container">
         <p class="submit-dialog-title">{{ $t('保存待生效') }}</p>
         <p class="submit-dialog-text">{{ $t('该保存需要10分钟生效, 请耐心等待') }}</p>
-        <bk-button
+        <t-button
           class="submit-dialog-btn"
           theme="primary"
           @click="closeKnowDialog"
         >
-          {{ $t('我知道了') }}</bk-button
+          {{ $t('我知道了') }}</t-button
         >
       </div>
     </bk-dialog>
@@ -492,7 +492,7 @@
     }
 
     .submit-dialog-container {
-      :deep(.bk-button) {
+      :deep(.t-button) {
         margin-left: 100px;
       }
 

@@ -1,3 +1,5 @@
+
+import { Button as TButton } from 'tdesign-vue-next';
 /*
  * Tencent is pleased to support the open source community by making
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
@@ -28,6 +30,7 @@ import { computed, defineComponent, ref } from 'vue';
 
 import { clearTableFilter } from '@/shared/lib/util';
 import EmptyStatus from '@/shared/ui/empty-status/index.vue';
+import BklogLoading from '@/shared/ui/loading';
 import { t } from '@/shared/composables/use-locale';
 import { useTableSetting } from '@/features/management/manage-v2/hooks/use-table-setting';
 
@@ -218,14 +221,13 @@ export default defineComponent({
                 disabled: !builtin,
               }}
             >
-              <bk-button
-                text
+              <TButton
                 theme='primary'
                 disabled={builtin}
-                onClick={() => handleEdit(row)}
+                onClick={() => handleEdit(row)} variant={(true) ? 'text' : ('base')}
               >
                 {t('编辑')}
-              </bk-button>
+              </TButton>
             </span>
             <span
               class='king-button'
@@ -234,14 +236,13 @@ export default defineComponent({
                 disabled: !builtin,
               }}
             >
-              <bk-button
-                text
+              <TButton
                 theme='primary'
                 disabled={builtin}
-                onClick={() => handleDelete(row)}
+                onClick={() => handleDelete(row)} variant={(true) ? 'text' : ('base')}
               >
                 {t('删除')}
-              </bk-button>
+              </TButton>
             </span>
           </div>
         );
@@ -250,35 +251,38 @@ export default defineComponent({
 
     return () => (
       <div class='grok-table'>
-        <bk-table
-          data={props.data}
-          pagination={props.pagination}
-          ref={grokTableRef}
-          v-bkloading={{ isLoading: props.loading }}
-          onPage-change={handlePageChange}
-          onPage-limit-change={handlePageLimitChange}
-          onSort-change={handleSortChange}
-          onFilter-change={handleFilterChange}
-          v-slots={{
-            empty: () => (
-              <div>
-                <EmptyStatus
-                  emptyType={emptyType.value}
-                  onOperation={clearFilters}
-                />
-              </div>
-            ),
-          }}
+        <BklogLoading
+          data-testid='grok-table-loading'
+          loading={props.loading}
         >
-          <bk-table-column
-            nativeCellSlot={true}
-            key='name'
-            class-name='filter-column'
-            label={t('名称')}
-            prop='name'
-            min-width='120'
-            v-slots={nameSlot}
-          />
+          <bk-table
+            data={props.data}
+            pagination={props.pagination}
+            ref={grokTableRef}
+            onPage-change={handlePageChange}
+            onPage-limit-change={handlePageLimitChange}
+            onSort-change={handleSortChange}
+            onFilter-change={handleFilterChange}
+            v-slots={{
+              empty: () => (
+                <div>
+                  <EmptyStatus
+                    emptyType={emptyType.value}
+                    onOperation={clearFilters}
+                  />
+                </div>
+              ),
+            }}
+          >
+            <bk-table-column
+              nativeCellSlot={true}
+              key='name'
+              class-name='filter-column'
+              label={t('名称')}
+              prop='name'
+              min-width='120'
+              v-slots={nameSlot}
+            />
           {checkFields('is_builtin') && (
             <bk-table-column
               nativeCellSlot={true}
@@ -358,19 +362,20 @@ export default defineComponent({
             fixed='right'
             v-slots={operateSlot}
           />
-          <bk-table-column
-            type='setting'
-            key='setting'
-            tippy-options={{ zIndex: 3000 }}
-          >
-            <bk-table-setting-content
-              v-en-style='width: 530px'
-              fields={columnSetting.value.fields}
-              selected={columnSetting.value.selectedFields}
-              onSettingChange={handleSettingChange}
-            />
-          </bk-table-column>
-        </bk-table>
+            <bk-table-column
+              type='setting'
+              key='setting'
+              tippy-options={{ zIndex: 3000 }}
+            >
+              <bk-table-setting-content
+                v-en-style='width: 530px'
+                fields={columnSetting.value.fields}
+                selected={columnSetting.value.selectedFields}
+                onSettingChange={handleSettingChange}
+              />
+            </bk-table-column>
+          </bk-table>
+        </BklogLoading>
       </div>
     );
   },

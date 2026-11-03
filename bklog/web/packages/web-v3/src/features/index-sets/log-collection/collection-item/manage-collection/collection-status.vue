@@ -53,16 +53,16 @@
           <div>
             <span>{{ $t('每15分钟按照CMDB最新拓扑自动部署或取消采集') }}</span>
             <!-- <span class="bk-icon icon-question-circle" v-bk-tooltips="$t('每15分钟按照CMDB最新拓扑自动部署或取消采集')"></span> -->
-            <bk-button
+            <t-button
               class="mr10"
               :disabled="!collectProject"
               :size="size"
               :title="$t('重试')"
-              icon="right-turn-line"
+              
               theme="default"
               @click="retryClick(dataFal, dataFir.contents.length)"
-              >{{ $t('失败批量重试') }}
-            </bk-button>
+              ><template #icon><span :class="`bk-icon icon-${'right-turn-line'}`"></span></template>{{ $t('失败批量重试') }}
+            </t-button>
             <!-- <bk-button
             :theme="'primary'"
             :title="$t('数据采样')"
@@ -174,14 +174,14 @@
                 label=""
               >
                 <template #default="props">
-                  <bk-button
+                  <t-button :variant="(true) ? 'text' : ('base')"
                     v-if="props.row.status === 'FAILED'"
                     theme="primary"
-                    text
+                    
                     @click="retryClick(props.row, 'odd')"
                   >
                     {{ $t('重试') }}
-                  </bk-button>
+                  </t-button>
                 </template>
               </bk-table-column>
               <template #empty>
@@ -234,7 +234,9 @@
   </div>
 </template>
 
-<script>import { ServicesInstance } from '@/platform/services';
+<script>
+import { MessagePlugin as TDesignMessage } from 'tdesign-vue-next';
+import { ServicesInstance } from '@/platform/services';
 
   import { projectManages } from '@/shared/lib/util';
   import EmptyStatus from '@/shared/ui/empty-status/index';
@@ -587,10 +589,7 @@
             }
           })
           .catch(err => {
-            this.$bkMessage({
-              theme: 'error',
-              message: err.message || err,
-            });
+            TDesignMessage("error", { content: err.message || err });
           })
           .finally(() => {
             this.detail.loading = false;
@@ -666,7 +665,7 @@
         color: #979ba5;
       }
 
-      :deep(.bk-button) {
+      :deep(.t-button) {
         padding: 0 10px;
         font-size: 12px;
 

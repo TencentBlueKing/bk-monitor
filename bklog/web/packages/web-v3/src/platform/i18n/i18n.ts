@@ -27,7 +27,6 @@
 import { computed, ref, type App } from 'vue';
 import { m } from '#paraglide/messages.js';
 import { setLocale as setCompiledLocale } from '#paraglide/runtime.js';
-import { locale as controlLocale, lang } from 'bk-magic-vue';
 import jsCookie from 'js-cookie';
 import Vue from '@/platform/compat/vue-runtime.mjs';
 import keys from './legacy-message-keys.json';
@@ -40,7 +39,6 @@ function setLocale(value: string) {
   const next: ApplicationLocale = value === 'en' ? 'en' : 'zh-cn';
   setCompiledLocale(next, { reload: false });
   activeLocale.value = next;
-  controlLocale.use(next === 'en' ? lang.enUS : lang.zhCN);
 }
 setLocale(initialLocale);
 
@@ -62,7 +60,6 @@ const i18n = {
     Reflect.set(app.config.globalProperties, '$i18n', i18n);
   },
 };
-controlLocale.i18n((key, values) => t(key, values));
 // Standalone legacy controls still use the compatibility constructor (e.g. API
 // error toasts); install the same translator explicitly without a global Mixin.
 Reflect.set(Vue.prototype, '$t', t);

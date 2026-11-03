@@ -93,7 +93,7 @@
             .king-input {
               width: 86%;
 
-              :deep(.bk-form-input.error) {
+              :deep(.t-input__inner.error) {
                 border-color: #ea3636;
               }
             }

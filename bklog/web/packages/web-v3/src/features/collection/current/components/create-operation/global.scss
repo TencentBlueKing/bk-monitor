@@ -24,7 +24,7 @@
       display: flex;
       margin-bottom: 16px;
       .bk-button-group {
-        .bk-button {
+        .t-button {
           width: 120px;
           font-size: 12px;
           padding: 1px 15px;
@@ -67,7 +67,7 @@
       }
       .form-box {
         flex: 1;
-        .bk-form-radio {
+        .t-radio {
           margin-top: 5px;
         }
         .form-box-tips {
@@ -99,7 +99,7 @@
             top: -3px;
           }
         }
-        .bk-radio-text {
+        .t-radio__label {
           margin-left: 5px;
         }
         .mr-24 {

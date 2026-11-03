@@ -1,3 +1,4 @@
+import { Empty as TEmpty, Tooltip as TTooltip } from 'tdesign-vue-next';
 import { ServicesInstance } from '@/platform/services';
 /*
  * Tencent is pleased to support the open source community by making
@@ -217,11 +218,13 @@ export default class FieldAnalysis extends Vue {
       this.chartLoading = true;
 
       const isScene = store.getters.isSceneMode;
-      const urlStr = (isScene ? ServicesInstance.retrieve.getSceneFieldStatisticsInfo : ServicesInstance.retrieve.fieldStatisticsInfo);
+      const urlStr = isScene
+        ? ServicesInstance.retrieve.getSceneFieldStatisticsInfo
+        : ServicesInstance.retrieve.fieldStatisticsInfo;
 
       const res = await urlStr(
         { data: { ...this.queryParams } },
-        { cancelToken: new CancelToken(c => (this.getInfoCancelFn = c)) },
+        { cancelToken: new CancelToken((c) => (this.getInfoCancelFn = c)) },
       );
 
       Object.assign(this.fieldData, res.data);
@@ -244,13 +247,15 @@ export default class FieldAnalysis extends Vue {
       }
 
       const isScene = store.getters.isSceneMode;
-      const urlStr = (isScene ? ServicesInstance.retrieve.getSceneFieldStatisticsGraph : ServicesInstance.retrieve.fieldStatisticsGraph);
+      const urlStr = isScene
+        ? ServicesInstance.retrieve.getSceneFieldStatisticsGraph
+        : ServicesInstance.retrieve.fieldStatisticsGraph;
 
       const res = await urlStr(
         { data },
         {
           catchIsShowMessage: false,
-          cancelToken: new CancelToken(c => (this.getChartsCancelFn = c)),
+          cancelToken: new CancelToken((c) => (this.getChartsCancelFn = c)),
         },
       );
 
@@ -365,7 +370,7 @@ export default class FieldAnalysis extends Vue {
     }));
     // 收集所有时间戳
 
-    const allTimestamps = series.flatMap(s => s.data.map((d: [number, number]) => d[0]));
+    const allTimestamps = series.flatMap((s) => s.data.map((d: [number, number]) => d[0]));
     const minTimestamp = Math.min(...allTimestamps);
     const maxTimestamp = Math.max(...allTimestamps);
 
@@ -479,7 +484,7 @@ export default class FieldAnalysis extends Vue {
 
   handleSetTimeTooltip(params: any[]) {
     const sortedParams = [...params].sort((a, b) => b.value[1] - a.value[1]);
-    const liHtmls = sortedParams.map(item => {
+    const liHtmls = sortedParams.map((item) => {
       const formattedName = item.seriesName.replace(/(.{85})(?=.{85})/g, '$1\n');
       const formattedValue = formatNumberWithRegex(item.value[1]);
       /** 折线图tooltips不能使用纯CSS来处理换行 会有宽度贴图表边缘变小问题 字符串添加换行倍数为85 */
@@ -542,7 +547,7 @@ export default class FieldAnalysis extends Vue {
     const eventType = e.shiftKey && actionType === 'click' ? 'shift-click' : actionType;
 
     const newLegendData = [...this.legendData];
-    const itemIndex = newLegendData.findIndex(legend => legend.name === item.name);
+    const itemIndex = newLegendData.findIndex((legend) => legend.name === item.name);
 
     if (itemIndex === -1) {
       return;
@@ -560,11 +565,11 @@ export default class FieldAnalysis extends Vue {
 
     this.legendData = newLegendData;
 
-    const showSeriesName = newLegendData.filter(legend => legend.show).map(legend => legend.name);
+    const showSeriesName = newLegendData.filter((legend) => legend.show).map((legend) => legend.name);
 
-    const showSeries = this.seriesData.filter(series => showSeriesName.includes(series.name));
+    const showSeries = this.seriesData.filter((series) => showSeriesName.includes(series.name));
 
-    const showColor = newLegendData.filter(legend => legend.show).map(legend => legend.color);
+    const showColor = newLegendData.filter((legend) => legend.show).map((legend) => legend.color);
 
     if (this.chart) {
       const options = this.chart.getOption();
@@ -722,37 +727,27 @@ export default class FieldAnalysis extends Vue {
             <span class='total-num'>
               {window.mainComponent.$t('总行数')} : {formatNumberWithRegex(fieldData.total_count)}
             </span>
-            <span
-              class='appear-num'
-              v-bk-tooltips={{ content: window.mainComponent.$t('字段在该事件范围内有数据的日志条数') }}
-            >
-              {window.mainComponent.$t('出现行数')} : {formatNumberWithRegex(fieldData.field_count)}
-            </span>
-            <span
-              class='appear-num'
-              v-bk-tooltips={{ content: window.mainComponent.$t('字段在该事件范围内有数据的日志条数') }}
-            >
-              {window.mainComponent.$t('日志条数')} : {fieldPercent}
-              <span class='log-unit'>%</span>
-            </span>
+            <TTooltip content={window.mainComponent.$t('字段在该事件范围内有数据的日志条数')}>
+              <span class='appear-num'>
+                {window.mainComponent.$t('出现行数')} : {formatNumberWithRegex(fieldData.field_count)}
+              </span>
+            </TTooltip>
+            <TTooltip content={window.mainComponent.$t('字段在该事件范围内有数据的日志条数')}>
+              <span class='appear-num'>
+                {window.mainComponent.$t('日志条数')} : {fieldPercent}
+                <span class='log-unit'>%</span>
+              </span>
+            </TTooltip>
           </div>
 
           {isPillarChart && (
             <div>
               {infoLoading ? (
-                <ItemSkeleton
-                  columns={2}
-                  rowHeight={'22px'}
-                  rows={2}
-                  widths={['50%', '50%']}
-                />
+                <ItemSkeleton columns={2} rowHeight={'22px'} rows={2} widths={['50%', '50%']} />
               ) : (
                 <div class='number-num-container'>
-                  {totalConfig.map(item => (
-                    <div
-                      key={item.key}
-                      class='num-box'
-                    >
+                  {totalConfig.map((item) => (
+                    <div key={item.key} class='num-box'>
                       <span class='num-key'>{window.mainComponent.$t(item.label)}</span>
                       <span class='num-val'>{formatNumberWithRegex(fieldData.value_analysis[item.key] || 0)}</span>
                     </div>
@@ -771,20 +766,20 @@ export default class FieldAnalysis extends Vue {
         >
           {isShowEmpty ? (
             <div class='not-data-empty'>
-              <bk-exception
-                scene='part'
-                type={emptyTipsStr ? '500' : 'empty'}
-              >
-                <div style={{ marginTop: '10px' }}>
-                  <span>{emptyStr}</span>
-                  {emptyTipsStr && (
-                    <i
-                      class='bk-icon icon-exclamation-circle'
-                      v-bk-tooltips={{ content: emptyTipsStr }}
-                    />
-                  )}
-                </div>
-              </bk-exception>
+              <TEmpty
+                size='small'
+                type={emptyTipsStr ? 'fail' : 'empty'}
+                title={() => (
+                  <div style={{ marginTop: '10px' }}>
+                    <span>{emptyStr}</span>
+                    {emptyTipsStr && (
+                      <TTooltip content={emptyTipsStr}>
+                        <i class='bk-icon icon-exclamation-circle' />
+                      </TTooltip>
+                    )}
+                  </div>
+                )}
+              />
             </div>
           ) : (
             <div>
@@ -796,36 +791,21 @@ export default class FieldAnalysis extends Vue {
               {chartLoading ? (
                 <ChartSkeleton type={isPillarChart ? 'bar' : 'line'} />
               ) : (
-                <div
-                  ref='fieldChart'
-                  style={{ width: '100%', height: `${height}px` }}
-                />
+                <div ref='fieldChart' style={{ width: '100%', height: `${height}px` }} />
               )}
 
               {!(chartLoading || isPillarChart) && (
-                <div
-                  style={{ height: `${CHART_HEIGHTS.LEGEND_BOX}px` }}
-                  class='legend-box'
-                >
-                  <div
-                    ref='commonLegend'
-                    class='common-legend'
-                  >
+                <div style={{ height: `${CHART_HEIGHTS.LEGEND_BOX}px` }} class='legend-box'>
+                  <div ref='commonLegend' class='common-legend'>
                     {legendData.map((legend, index) => (
                       <div
                         key={`${index}-${legend}`}
                         class='common-legend-item'
                         title={legend.name}
-                        onClick={e => this.handleLegendEvent(e, 'click', legend)}
+                        onClick={(e) => this.handleLegendEvent(e, 'click', legend)}
                       >
-                        <span
-                          style={{ backgroundColor: legend.show ? legend.color : '#ccc' }}
-                          class='legend-icon'
-                        />
-                        <div
-                          style={{ color: legend.show ? '#63656e' : '#ccc' }}
-                          class='legend-name title-overflow'
-                        >
+                        <span style={{ backgroundColor: legend.show ? legend.color : '#ccc' }} class='legend-icon' />
+                        <div style={{ color: legend.show ? '#63656e' : '#ccc' }} class='legend-name title-overflow'>
                           {legend.name}
                         </div>
                       </div>
@@ -859,18 +839,13 @@ export default class FieldAnalysis extends Vue {
                 </div>
                 <div class='more-fn'>
                   {!chartLoading && fieldData.distinct_count > 5 && (
-                    <span
-                      class='more-distinct'
-                      onClick={() => this.showMore(true)}
-                    >
+                    <span class='more-distinct' onClick={() => this.showMore(true)}>
                       {window.mainComponent.$t('查看全部')}
                     </span>
                   )}
-                  <span
-                    class='fn-btn bk-icon icon-download'
-                    v-bk-tooltips={window.mainComponent.$t('下载')}
-                    onClick={this.downloadFieldStatistics}
-                  ></span>
+                  <TTooltip content={window.mainComponent.$t('下载')}>
+                    <span class='fn-btn bk-icon icon-download' onClick={this.downloadFieldStatistics} />
+                  </TTooltip>
                   {/* <span
                     class='bklog-icon bklog-yibiaopan'
                     v-bk-tooltips='查看仪表盘'

@@ -71,14 +71,14 @@
                 {{ $t('跳转至') }}{{ item.name }}
                 <span class="bklog-icon bklog-tiaozhuan"></span>
               </a>
-              <bk-button
+              <t-button :variant="(true) ? 'outline' : 'base'"
                 v-else
                 class="wx-button"
-                :outline="true"
+                
                 size="small"
                 theme="primary"
                 @click="handleCreateAGroup(sItem)"
-                >{{ $t('一键拉群') }}</bk-button
+                >{{ $t('一键拉群') }}</t-button
               >
             </div>
           </template>
@@ -121,7 +121,9 @@
   </div>
 </template>
 
-<script>import { ServicesInstance } from '@/platform/services';
+<script>
+import { MessagePlugin as TDesignMessage } from 'tdesign-vue-next';
+import { ServicesInstance } from '@/platform/services';
 
   import BkUserSelector from '@blueking/user-selector';
   import { mapGetters, mapState } from '@/app/state/map-helpers';
@@ -197,17 +199,11 @@
           })
           .then(res => {
             if (res.data) {
-              this.$bkMessage({
-                theme: 'success',
-                message: this.$t('创建成功'),
-              });
+              TDesignMessage("success", { content: this.$t('创建成功') });
             }
           })
           .catch(() => {
-            this.$bkMessage({
-              theme: 'error',
-              message: this.$t('创建失败'),
-            });
+            TDesignMessage("error", { content: this.$t('创建失败') });
           });
       },
       handleCancelQWGroup() {

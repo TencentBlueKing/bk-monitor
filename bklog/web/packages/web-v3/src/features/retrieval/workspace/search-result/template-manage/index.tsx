@@ -1,3 +1,5 @@
+
+import { MessagePlugin as TDesignMessage, Button as TButton } from 'tdesign-vue-next';
 import { ServicesInstance } from '@/platform/services';
 /*
  * Tencent is pleased to support the open source community by making
@@ -32,7 +34,7 @@ import RuleConfigOperate from '@/features/cleaning/rule-config/index';
 import RuleTable from '@/features/cleaning/rule-table/index';
 import useLocale from '@/shared/composables/use-locale';
 import { type RuleTemplate } from '@/features/retrieval/services/log-clustering';
-import { bkMessage } from 'bk-magic-vue';
+
 import dayjs from 'dayjs';
 import { useRoute, useRouter } from 'vue-router';
 
@@ -95,10 +97,7 @@ export default defineComponent({
           currentRuleList.value = list;
         } catch (err) {
           console.error(err);
-          bkMessage({
-            theme: 'error',
-            message: t('不是有效的json文件'),
-          });
+          TDesignMessage("error", { content: t('不是有效的json文件') });
         }
       };
       // 以Text的形式读取文件:
@@ -117,10 +116,7 @@ export default defineComponent({
     const handleExportRule = () => {
       const ruleList = ruleTableRef.value.getRuleList();
       if (!ruleList.length) {
-        bkMessage({
-          theme: 'error',
-          message: t('聚类规则为空，无法导出规则'),
-        });
+        TDesignMessage("error", { content: t('聚类规则为空，无法导出规则') });
         return;
       }
       const eleLink = document.createElement('a');
@@ -177,10 +173,7 @@ export default defineComponent({
         })
         .then(res => {
           if (res.code === 0) {
-            bkMessage({
-              message: t('更新成功'),
-              theme: 'success',
-            });
+            TDesignMessage("success", { content: t('更新成功') });
             handleTemplateListRefresh();
           }
         })
@@ -232,12 +225,12 @@ export default defineComponent({
                       v-slots={{
                         'dropdown-trigger': () => (
                           <div>
-                            <bk-button
+                            <TButton
                               class='operate-btn'
                               data-test-id='LogCluster_button_addNewRules'
                             >
                               {t('导入')}
-                            </bk-button>
+                            </TButton>
                           </div>
                         ),
                         'dropdown-content': () => (
@@ -262,12 +255,12 @@ export default defineComponent({
                         ),
                       }}
                     ></bk-dropdown-menu>
-                    <bk-button
+                    <TButton
                       class='operate-btn'
                       onClick={handleExportRule}
                     >
                       {t('导出')}
-                    </bk-button>
+                    </TButton>
                   </div>
                   <bk-input
                     style='width: 480px'

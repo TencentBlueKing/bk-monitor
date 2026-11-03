@@ -57,9 +57,9 @@
           <span>{{ statusNameList[item.id] }} {{ item.listNum }}</span>
         </div>
       </div>
-      <bk-button @click.stop="issuedRetry()">
+      <t-button @click.stop="issuedRetry()">
         {{ $t('失败批量重试') }}
-      </bk-button>
+      </t-button>
     </div>
     <div class="table-section">
       <div

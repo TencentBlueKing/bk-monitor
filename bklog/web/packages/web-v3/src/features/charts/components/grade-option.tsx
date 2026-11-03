@@ -29,6 +29,7 @@ import { computed, defineComponent, nextTick, ref, watch } from 'vue';
 
 import useLocale from '@/shared/composables/use-locale';
 import useStore from '@/shared/composables/use-store';
+import BklogLoading from '@/shared/ui/loading';
 import {
   Form,
   FormItem,
@@ -344,7 +345,11 @@ export default defineComponent({
     };
 
     return () => (
-      <div v-bkloading={{ isLoading: isLoading.value, size: 'mini' }}>
+      <BklogLoading
+        data-testid='grade-option-loading'
+        loading={isLoading.value}
+        size='mini'
+      >
         <div class='grade-title'>{$t('日志分级展示')}</div>
         <div class='grade-row grade-switcher'>
           <div class='grade-label'>{$t('分级展示')}</div>
@@ -532,7 +537,7 @@ export default defineComponent({
             {$t('取消')}
           </Button>
         </div>
-      </div>
+      </BklogLoading>
     );
   },
 });

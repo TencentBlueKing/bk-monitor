@@ -1,3 +1,5 @@
+
+import { MessagePlugin as TDesignMessage, Button as TButton } from 'tdesign-vue-next';
 import { ServicesInstance } from '@/platform/services';
 /*
  * Tencent is pleased to support the open source community by making
@@ -28,7 +30,7 @@ import { ServicesInstance } from '@/platform/services';
 import { computed, defineComponent, ref, watch } from 'vue';
 import useLocale from '@/shared/composables/use-locale';
 import useStore from '@/shared/composables/use-store';
-import { bkMessage } from 'bk-magic-vue';
+
 import { formatDate } from '@/shared/lib/util';
 
 
@@ -187,10 +189,7 @@ export default defineComponent({
           if (res.result) {
             const { remark } = res.data;
             emit('update', remark);
-            bkMessage({
-              theme: 'success',
-              message: t('操作成功'),
-            });
+            TDesignMessage("success", { content: t('操作成功') });
             isShowEditRemarkDialog.value = false;
           }
         })
@@ -255,11 +254,11 @@ export default defineComponent({
               paddingBottom: currentRemarkList.value.length > 0 ? '4px' : '0px',
             }}
           >
-            <bk-button
-              text
+            <TButton
+              
               theme='primary'
               size='small'
-              onClick={() => handleEditRemark(null, 'add')}
+              onClick={() => handleEditRemark(null, 'add')} variant={(true) ? 'text' : ('base')}
             >
               <log-icon
                 common
@@ -267,7 +266,7 @@ export default defineComponent({
                 style='font-size: 22px;margin-right: 6px;'
               />
               {t('新增备注')}
-            </bk-button>
+            </TButton>
           </div>
         </div>
         <bk-dialog

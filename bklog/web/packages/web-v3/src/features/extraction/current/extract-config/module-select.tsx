@@ -1,3 +1,5 @@
+
+import { RadioGroup as TRadioGroup, Radio as TRadio, Checkbox as TCheckbox } from 'tdesign-vue-next';
 import { ServicesInstance } from '@/platform/services';
 /*
  * Tencent is pleased to support the open source community by making
@@ -323,19 +325,19 @@ export default defineComponent({
           class='module-select-container'
           v-bkloading={{ isLoading: isLoading.value }}
         >
-          <bk-radio-group
+          <TRadioGroup
             style='margin-bottom: 20px'
             value={selectedTypeData.value}
-            onChange={(val: string) => (selectedTypeData.value = val)}
+            onChange={(value) => { if (typeof value === 'string') ((val: string) => (selectedTypeData.value = val))(value); }}
           >
-            <bk-radio
+            <TRadio
               style='margin-right: 16px'
               value='topo'
             >
               {t('按大区选择')}
-            </bk-radio>
-            <bk-radio value='module'>{t('按模块选择')}</bk-radio>
-          </bk-radio-group>
+            </TRadio>
+            <TRadio value='module'>{t('按模块选择')}</TRadio>
+          </TRadioGroup>
 
           {/* 按大区选择 */}
           <div
@@ -359,16 +361,16 @@ export default defineComponent({
             v-show={selectedTypeData.value === 'module'}
           >
             <div class='checkbox-container'>
-              <bk-checkbox
+              <TCheckbox
                 indeterminate={indeterminate.value}
-                value={isSelectAllModule.value}
+                checked={isSelectAllModule.value}
                 onChange={(val: boolean) => {
                   isSelectAllModule.value = val;
                   handleSelectAllChange(val);
                 }}
               >
                 {t('全选')}
-              </bk-checkbox>
+              </TCheckbox>
             </div>
             <bk-big-tree
               ref={moduleTreeRef}

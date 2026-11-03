@@ -51,7 +51,7 @@ import '../../shared/styles/theme/theme-dark.scss';
 import '../../shared/styles/theme/theme-light.scss';
 import '../../shared/assets/static/font-face/index.css';
 import '../../shared/assets/static/style.css';
-import '@blueking/bk-user-selector/vue2/vue2.css';
+import '@blueking/bk-user-selector/vue3/vue3.css';
 import { BK_LOG_STORAGE } from '../state/store.type.ts';
 import { urlArgs } from '../state/default-values.ts';
 import { DEFAULT_MENU_LISTS } from '../state/menu-config.ts';

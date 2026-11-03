@@ -14,14 +14,14 @@
         {{ $t('前往清洗') }}<span class="bklog-icon bklog-jump"></span>
       </div>
       <div style="display: flex; align-items: center">
-        <bk-checkbox
+        <t-checkbox
           v-model="builtFieldVisible"
           class="visible-built-btn"
           size="small"
           theme="primary"
         >
           {{ $t('显示内置字段') }}
-        </bk-checkbox>
+        </t-checkbox>
 
         <bk-input
           v-model="keyword"
@@ -116,12 +116,12 @@
                     >
                       {{ props.row.alias_name }}
                     </div>
-                    <bk-input
+                    <t-input
                       v-else
                       v-model.trim="props.row.alias_name"
                       class="alias-name"
                       @blur="checkAliasNameItem(props.row)"
-                    ></bk-input>
+                    ></t-input>
                     <template v-if="props.row.fieldErr">
                       <i
                         v-bk-tooltips.top="props.row.fieldErr"
@@ -136,12 +136,12 @@
                   v-else
                   :class="{ 'is-required is-error': props.row.fieldErr }"
                 >
-                  <bk-input
+                  <t-input
                     v-model.trim="props.row.field_name"
                     class="participle-disabled-input"
                     :disabled="getFieldEditDisabled(props.row)"
                     @blur="checkFieldNameItem(props.row)"
-                  ></bk-input>
+                  ></t-input>
                   <template v-if="props.row.fieldErr">
                     <i
                       v-bk-tooltips.top="props.row.fieldErr"
@@ -301,19 +301,19 @@
                                 :label="$t('分词')"
                                 :property="'source_name'"
                               >
-                                <bk-switcher
+                                <t-switch
                                   v-model="currentIsAnalyzed"
                                   :disabled="getCustomizeDisabled(props.row, 'analyzed')"
-                                  theme="primary"
+                                  
                                   @change="() => handelChangeAnalyzed()"
-                                ></bk-switcher>
+                                ></t-switch>
                               </bk-form-item>
                               <bk-form-item
                                 :label="$t('分词符')"
                                 :property="'participle'"
                               >
                                 <div class="bk-button-group">
-                                  <bk-button
+                                  <t-button
                                     v-for="option in participleList"
                                     :key="option.id"
                                     class="participle-btn"
@@ -323,25 +323,25 @@
                                     @click="handleChangeParticipleState(option.id, props.$index)"
                                   >
                                     {{ option.name }}
-                                  </bk-button>
+                                  </t-button>
                                 </div>
-                                <bk-input
+                                <t-input
                                   v-if="currentParticipleState === 'custom'"
                                   v-model="currentTokenizeOnChars"
                                   style="margin-top: 10px"
                                   :disabled="getCustomizeDisabled(props.row)"
                                 >
-                                </bk-input>
+                                </t-input>
                               </bk-form-item>
                               <bk-form-item
                                 :label="$t('大小写敏感')"
                                 :property="'is_case_sensitive'"
                               >
-                                <bk-switcher
+                                <t-switch
                                   v-model="currentIsCaseSensitive"
                                   :disabled="getCustomizeDisabled(props.row)"
-                                  theme="primary"
-                                ></bk-switcher>
+                                  
+                                ></t-switch>
                               </bk-form-item>
                             </bk-form>
                           </div>
@@ -373,12 +373,12 @@
                     </bk-popconfirm>
                   </div>
                   <div v-else>
-                    <bk-input
+                    <t-input
                       class="participle-disabled-input"
                       :placeholder="$t('无需设置')"
                       disabled
                     >
-                    </bk-input>
+                    </t-input>
                   </div>
                 </template>
               </template>
@@ -1181,13 +1181,13 @@
         }
       }
 
-      :deep(.bk-form-input) {
+      :deep(.t-input__inner) {
         height: 60px;
         border: 1px solid transparent;
       }
 
       :deep(.participle-disabled-input) {
-        .bk-form-input[disabled] {
+        .t-input__inner[disabled] {
           border-color: transparent;
         }
       }
@@ -1359,7 +1359,7 @@
   .participle-form {
     margin-right: 10px;
 
-    .bk-form-control {
+    .t-input__wrap {
       width: 200px;
     }
 

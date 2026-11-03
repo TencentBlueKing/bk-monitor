@@ -84,18 +84,18 @@
     </div>
     <div class="config-buttons">
       <!-- 确定、取消按钮 -->
-      <bk-button
+      <t-button
         style="margin-right: 8px"
         size="small"
         theme="primary"
         @click="handleConfirm"
-        >{{ $t('确定') }}</bk-button
+        >{{ $t('确定') }}</t-button
       >
-      <bk-button
+      <t-button
         style="margin-right: 24px"
         size="small"
         @click="handleCancel"
-        >{{ $t('取消') }}</bk-button
+        >{{ $t('取消') }}</t-button
       >
     </div>
   </div>

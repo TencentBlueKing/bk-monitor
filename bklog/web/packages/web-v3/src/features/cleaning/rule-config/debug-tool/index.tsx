@@ -1,3 +1,5 @@
+
+import { Button as TButton } from 'tdesign-vue-next';
 import { ServicesInstance } from '@/platform/services';
 /*
  * Tencent is pleased to support the open source community by making
@@ -25,7 +27,7 @@ import { ServicesInstance } from '@/platform/services';
  * IN THE SOFTWARE.
  */
 import { defineComponent, onMounted, ref, computed } from 'vue';
-import TextHighlight from 'vue-text-highlight';
+import TextHighlight from '@/shared/ui/text-highlight';
 
 import { base64Encode } from '@/shared/lib/util';
 import useLocale from '@/shared/composables/use-locale';
@@ -174,7 +176,7 @@ export default defineComponent({
           />
         </div>
 
-        <bk-button
+        <TButton
           class='debug-btn'
           disabled={!(logOriginal.value && props.ruleList.length)}
           loading={debugRequest.value}
@@ -186,7 +188,7 @@ export default defineComponent({
             class='play-icon'
             type='bofang'
           />
-        </bk-button>
+        </TButton>
         <div class='debug-title'>{t('效果预览')}</div>
         <div
           class='effect-container'

@@ -5,7 +5,7 @@
         width: 480px;
     }
 
-    .bk-form-radio {
+    .t-radio {
         margin-right: 24px;
 
         input {
@@ -14,7 +14,7 @@
     }
 
     .client-type-radio-group {
-        .bk-form-radio:last-child {
+        .t-radio:last-child {
             margin-right: 0;
         }
     }
@@ -30,7 +30,7 @@
     .button-group {
         margin-top: 32px;
 
-        .bk-button {
+        .t-button {
             width: 88px;
         }
 

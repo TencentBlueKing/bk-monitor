@@ -42,10 +42,10 @@
       <span class="bk-icon icon-refresh-line"></span>
       <span @click="handleRefresh">{{ $t('刷新') }}</span>
     </div>
-    <bk-button
+    <t-button
       class="back-list"
       @click="backToList"
-      >{{ $t('返回列表') }}</bk-button
+      >{{ $t('返回列表') }}</t-button
     >
   </div>
 </template>

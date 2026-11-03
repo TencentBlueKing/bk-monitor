@@ -95,6 +95,8 @@
 </template>
 
 <script>
+import { MessagePlugin as TDesignMessage } from 'tdesign-vue-next';
+
   import { TABLE_LOG_FIELDS_SORT_REGULAR, copyMessage } from '@/shared/lib/util';
   import { getFieldNameByField } from '@/shared/composables/use-field-name';
   import { useTableRowDeepView } from '@/shared/composables/use-table-row-deep-view';
@@ -435,7 +437,7 @@
           console.warn('[expand-view] copy origin row failed', error);
         }
 
-        this.$bkMessage?.({ theme: 'warning', message: this.$t('原始日志数据读取失败，请稍后重试') });
+        TDesignMessage("warning", { content: this.$t('原始日志数据读取失败，请稍后重试') });
       },
       handleSearch() {
         this.activeSearchKeyword = this.searchKeyword.trim();
@@ -522,7 +524,7 @@
         .search-input {
           margin-right: 10px;
 
-          :deep(.bk-form-input) {
+          :deep(.t-input__inner) {
             width: 200px;
             height: 22px;
             padding: 0;

@@ -30,26 +30,30 @@
     data-test-id="linkConfiguration_div_linkConfigBox"
   >
     <div class="header">
-      <bk-button
+      <t-button
         style="width: 120px"
         data-test-id="linkConfigBox_button_addNewLinkConfig"
         theme="primary"
         @click="createConfig"
-        >{{ $t('新建') }}</bk-button
+        >{{ $t('新建') }}</t-button
       >
     </div>
-    <bk-table
-      v-bkloading="{ isLoading: tableLoading }"
-      :data="tableData"
-      :empty-text="$t('暂无内容')"
-      data-test-id="linkConfigBox_table_linkConfigTable"
+    <bklog-loading
+      class="link-configuration-table-loading"
+      data-testid="data-link-table-loading"
+      :loading="tableLoading"
     >
-      <bk-table-column
-        :label="$t('链路名称')"
-        :render-header="$renderHeader"
-        min-width="20"
-        prop="link_group_name"
-      ></bk-table-column>
+      <bk-table
+        :data="tableData"
+        :empty-text="$t('暂无内容')"
+        data-test-id="linkConfigBox_table_linkConfigTable"
+      >
+        <bk-table-column
+          :label="$t('链路名称')"
+          :render-header="$renderHeader"
+          min-width="20"
+          prop="link_group_name"
+        ></bk-table-column>
       <bk-table-column
         native-cell-slot
         :label="$t('允许的空间')"
@@ -100,25 +104,26 @@
         min-width="10"
       >
         <template #default="props">
-          <bk-button
+          <t-button :variant="(true) ? 'text' : ('base')"
             theme="primary"
-            text
+            
             @click="editConfig(props.row)"
           >
             {{ $t('编辑') }}
-          </bk-button>
+          </t-button>
           <!--<bk-button theme="primary" text @click="deleteConfig(props.row)">{{ $t('删除') }}</bk-button>-->
         </template>
       </bk-table-column>
-      <template #empty>
-        <div>
-          <empty-status
-            :empty-type="emptyType"
-            @operation="handleOperation"
-          />
-        </div>
-      </template>
-    </bk-table>
+        <template #empty>
+          <div>
+            <empty-status
+              :empty-type="emptyType"
+              @operation="handleOperation"
+            />
+          </div>
+        </template>
+      </bk-table>
+    </bklog-loading>
     <config-dialog
       :data-source="dialogSetting.dataSource"
       :project-list="projectList"
@@ -133,12 +138,14 @@
 <script>import { ServicesInstance } from '@/platform/services';
 
   import EmptyStatus from '@/shared/ui/empty-status/index';
+  import BklogLoading from '@/shared/ui/loading';
 
   import ConfigDialog from './config-dialog';
 
   export default {
     name: 'LinkConfiguration',
     components: {
+      BklogLoading,
       ConfigDialog,
       EmptyStatus,
     },

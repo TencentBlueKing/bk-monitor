@@ -1,3 +1,5 @@
+
+import { MessagePlugin as TDesignMessage, Button as TButton } from 'tdesign-vue-next';
 import { ServicesInstance } from '@/platform/services';
 /*
  * Tencent is pleased to support the open source community by making
@@ -62,10 +64,7 @@ class QuickCreateSubscription extends tsc<IProps> {
           data: response,
         })
         .then(() => {
-          this.$bkMessage({
-            theme: 'success',
-            message: this.$t('保存成功'),
-          });
+          TDesignMessage("success", { content: this.$t('保存成功') });
           this.$emit('change', false);
         })
         .finally(() => {
@@ -126,31 +125,31 @@ class QuickCreateSubscription extends tsc<IProps> {
                   />
                 </div>
                 <div class='footer-bar'>
-                  <bk-button
+                  <TButton
                     style='width: 88px; margin-right: 8px;'
                     loading={this.isSaving}
                     theme='primary'
                     onClick={this.handleSave}
                   >
                     {this.$t('保存')}
-                  </bk-button>
-                  <bk-button
+                  </TButton>
+                  <TButton
                     style='width: 88px; margin-right: 8px;'
                     loading={this.isSending}
                     theme='primary'
-                    outline
-                    onClick={() => this.testSending('self')}
+                    
+                    onClick={() => this.testSending('self')} variant={(true) ? 'outline' : 'base'}
                   >
                     {this.$t('测试发送')}
-                  </bk-button>
+                  </TButton>
                   {/* 20240305 若默认测试发送只给自己，那么没必要再出一次气泡窗选择了 */}
                   {false}
-                  <bk-button
+                  <TButton
                     style='width: 88px;'
                     onClick={() => this.$emit('change', false)}
                   >
                     {this.$t('取消')}
-                  </bk-button>
+                  </TButton>
                 </div>
               </div>
             ),

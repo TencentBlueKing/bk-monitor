@@ -2,8 +2,8 @@
   "schemaVersion": 1,
   "kind": "trace",
   "sourceRoot": "src",
-  "sourceDigest": "cdd178603545fabf88337968ce646ee59f3d0edf7b5f4edd5016397f0d404b54",
-  "buildConfigDigest": "d4f0a676a38097a41cd074dde9cc9747277ed87a9143f9c5aaa8200c493c5bed",
+  "sourceDigest": "67069e965cf4424ae1bd85feda076d0559c12274e2c01322f0e595ed57da575d",
+  "buildConfigDigest": "8490585e954ac646a29c9f2eb369e9a390dfcd0f32897d4291f821544a4c7555",
   "format": "commonjs",
   "entry": "main.js",
   "stylesheet": "css/main.css",
@@ -119,10 +119,6 @@
       "sha256": "b3739e8ee80150321a36019690a77894a2c47b8b361127b9150c98726a7250b1"
     },
     {
-      "path": "assets/iconcool-BAjY5-Bo.eot",
-      "sha256": "f301b3cedad839535a3cac135ddad5e3784178071aab064fa13e1691c3f4fd08"
-    },
-    {
       "path": "assets/iconcool-BPISw6gC.woff",
       "sha256": "14f4c444d693f9617ce6fc2e0774683f5ef3134e859808454acd2b27cdcc4b51"
     },
@@ -147,10 +143,6 @@
       "sha256": "cba47ffdf47ca2871797d995cf1490462333eca913ddd78078829c9199b4e8d8"
     },
     {
-      "path": "assets/iconcool-DpDdG6Rg.woff",
-      "sha256": "aa547d57f085a0d9d2e7cb4a3f9602efbe49bfe2ca7e654dd2af54c53bfcc89c"
-    },
-    {
       "path": "assets/iconcool-jUH_vN9u.woff",
       "sha256": "72e2ccc42256d12c7895470eca192d6d5f4eb221ce065301e7d16c72fb82511a"
     },
@@ -159,16 +151,16 @@
       "sha256": "dd0bfa288c1d0cdc7dd71d471fa90a7280763871c0a5e3a97dac0c23f4ddd9f2"
     },
     {
-      "path": "assets/iconcool-t5rwgMaP.ttf",
-      "sha256": "aea3e24aaac1a62034fd7ae71d0305856161595d2da9d6787b72bc6d7c646515"
-    },
-    {
-      "path": "assets/iconcool-z3WbMDXB.svg",
-      "sha256": "e050b92bc2b85fe8fea76e2723acbd361d5e73d726291d38ee0651726272d744"
+      "path": "assets/iconcool.2d2b49b.-DpDdG6Rg.woff",
+      "sha256": "aa547d57f085a0d9d2e7cb4a3f9602efbe49bfe2ca7e654dd2af54c53bfcc89c"
     },
     {
       "path": "assets/iconcool.6932c3a.-BDZyMPXa.ttf",
       "sha256": "bf78c5ecdc6f5f9b2ce751cc8f15c309f3abe51f7106a1b20cdd80818622efe6"
+    },
+    {
+      "path": "assets/iconcool.9f9ea49.-z3WbMDXB.svg",
+      "sha256": "e050b92bc2b85fe8fea76e2723acbd361d5e73d726291d38ee0651726272d744"
     },
     {
       "path": "assets/iconcool.a3107b1.-DKYNWC_Q.eot",
@@ -183,24 +175,24 @@
       "sha256": "85b4f02ff8a06c99d26b8271c05c7c21f745f0b9a5367a532b16997e49b98a8e"
     },
     {
+      "path": "assets/iconcool.d9da183.-BAjY5-Bo.eot",
+      "sha256": "f301b3cedad839535a3cac135ddad5e3784178071aab064fa13e1691c3f4fd08"
+    },
+    {
+      "path": "assets/iconcool.e198a85.-t5rwgMaP.ttf",
+      "sha256": "aea3e24aaac1a62034fd7ae71d0305856161595d2da9d6787b72bc6d7c646515"
+    },
+    {
+      "path": "assets/retrieve-search.worker-3cu3-U-e.js",
+      "sha256": "fb4693cdf9be61e23e735738c35d25bbb81bca9bf2eb43e500d5e2cf25c7558d"
+    },
+    {
       "path": "assets/retrieve-search.worker-DS55qK74.ts",
       "sha256": "b996d542f2c8a7f4d2461c8a8b835516b1d2db6035c6ff5b30ede26604086535"
     },
     {
-      "path": "assets/retrieve-search.worker-DTNloUbA.js",
-      "sha256": "80be0f7b7468f47d80f309fdd18def65630318b1a2ef68892457f20bc00c8aa0"
-    },
-    {
       "path": "assets/rowAiNew-3qRmpZ6Q.svg",
       "sha256": "0058b753c05a8f6192059f03c68b682f112003d34725633637441c3253fb69db"
-    },
-    {
-      "path": "assets/spinner-CKnwqN4l.svg",
-      "sha256": "c1fb177228b80e2e66a7ba8f3b71ae1525720f2995c79ab1c940b679105cb287"
-    },
-    {
-      "path": "assets/transfer-DDgbiOHy.png",
-      "sha256": "f82f590415ac1b27b4a8256e14b9893a13543aa84375d65fe65ece397eebcf50"
     },
     {
       "path": "assets/trend-chart-worker-Cp-QJdum.js",
@@ -216,15 +208,15 @@
     },
     {
       "path": "build-identity.json",
-      "sha256": "84fbb3465ddc32818a57e7370d7f682ae591bfed833cbfaa4809a950c7455989"
+      "sha256": "c3d87689353f314297b5f6e2739f7177f1708b2e9e1aa7b3fc80739c94391554"
     },
     {
       "path": "css/main.css",
-      "sha256": "fc764b04379e4c0ce1c5a6b8f8abee4459fb8b5353685fd8081279195f2f807d"
+      "sha256": "4152f5d39f509d5c0f3b0f180ad5361ed2acaaa836897ffce5ae695c0860038d"
     },
     {
       "path": "main.js",
-      "sha256": "64c95522638585e50fafaf9867b1864c7a3493193740368a56e463a2fb1741fb"
+      "sha256": "86275ef422420a83d27c464f8cde1ccf9a48784302f15a38676ccd938518cee9"
     },
     {
       "path": "package.json",

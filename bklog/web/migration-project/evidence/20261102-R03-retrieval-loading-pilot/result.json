@@ -1,0 +1,90 @@
+{
+  "task": "R03-retrieval-loading-pilot",
+  "date": "2026-11-02",
+  "state": "ACCEPTED",
+  "scope": [
+    "packages/web-v3/src/features/retrieval/workspace/search-result/log-clustering/log-table/index.tsx",
+    "packages/web-v3/src/features/retrieval/workspace/search-result/log-clustering/log-table/index.scss",
+    "packages/web-v3/src/app/skeleton/clustering-loader.vue"
+  ],
+  "contract": {
+    "requestLifecycleChanged": false,
+    "requestOwnershipPreserved": true,
+    "staleResponseGuardPreserved": true,
+    "unmountGuardPreserved": true,
+    "loadingImplementation": "tdesign-vue-next TLoading",
+    "indicator": {
+      "count": 4,
+      "renderedDotSize": "8.4px",
+      "colors": [
+        "rgb(253, 97, 84)",
+        "rgb(255, 183, 38)",
+        "rgb(76, 208, 132)",
+        "rgb(87, 163, 241)"
+      ]
+    },
+    "overlay": {
+      "background": "rgba(255, 255, 255, 0.9)",
+      "zIndex": 0
+    },
+    "skeleton": {
+      "legacyTableDependencyRemoved": true,
+      "rows": 24,
+      "rowHeight": "43px",
+      "totalHeight": "1032px"
+    }
+  },
+  "browserComparison": {
+    "reference": "http://appdev.woa.com:8001/#/retrieve/16176",
+    "target": "http://appdev.woa.com:4175/#/retrieve/16176",
+    "v2": {
+      "rows": 24,
+      "rowHeight": "43px",
+      "contentHeight": "1032px",
+      "overlayHeight": "1032px",
+      "overlayBackground": "rgba(255, 255, 255, 0.9)",
+      "overlayZIndex": "0",
+      "indicatorDots": 4
+    },
+    "v3": {
+      "rows": 24,
+      "rowHeight": "43px",
+      "contentHeight": "1032px",
+      "overlayHeight": "1032px",
+      "overlayBackground": "rgba(255, 255, 255, 0.9)",
+      "overlayZIndex": "0",
+      "indicatorDots": 4,
+      "stableResultRows": 4
+    },
+    "result": "PASSED"
+  },
+  "verification": [
+    {
+      "command": "node --test tests/retrieval-loading-pilot.test.mjs",
+      "result": "PASSED",
+      "evidence": "1 focused test passed."
+    },
+    {
+      "command": "node tools/check-source-syntax.mjs",
+      "result": "PASSED",
+      "evidence": "733 source modules passed syntax validation."
+    },
+    {
+      "command": "pnpm --ignore-workspace ai:index && pnpm --ignore-workspace verify",
+      "result": "PASSED",
+      "evidence": "AI index refreshed to 1350 files and 4283 edges; boundary violations remained 0; 225 tests passed; production build and static delivery verification exited 0."
+    },
+    {
+      "command": "pnpm --ignore-workspace typecheck:regression",
+      "result": "BASELINE_DEBT",
+      "evidence": "Target diagnostics remain 1977, unchanged from R00/R02. The source-origin comparison reclassified existing diagnostics after index refresh and exited 1; clustering-loader.vue has no target diagnostic."
+    }
+  ],
+  "remaining": [
+    "R03 remains IMPLEMENTING: the collection asynchronous-step pilot is not yet migrated.",
+    "The remaining Loading directives and command-style Loading services still require domain-by-domain migration.",
+    "R02 DatePicker remains independently blocked and is not accepted by this result."
+  ],
+  "businessAccepted": true,
+  "visualAccepted": true
+}

@@ -1,3 +1,5 @@
+
+import { MessagePlugin as TDesignMessage } from 'tdesign-vue-next';
 /*
  * Tencent is pleased to support the open source community by making
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
@@ -29,7 +31,7 @@ import { resolveAddToSearch } from '@/shared/composables/log-query-compiler/inde
 import useStore from '@/shared/composables/use-store';
 import { BK_LOG_STORAGE, SEARCH_MODE_DIC } from '@/app/state/store.type.ts';
 import { RetrieveUrlResolver } from '@/app/state/url-resolver';
-import { bkMessage } from 'bk-magic-vue';
+
 import { useRoute, useRouter } from "vue-router";
 
 import RetrieveHelper, { RetrieveEvent } from '../../retrieve-helper';
@@ -200,10 +202,7 @@ export default (emit?: (_event: string, ..._args: any[]) => void, from?: string)
       const url = `${window.__IS_MONITOR_COMPONENT__ ? location.origin : window.MONITOR_URL}${path}`;
       window.open(url, '_blank', 'noopener,noreferrer');
     } else {
-      bkMessage({
-        theme: 'warning',
-        message: window.$t('未找到相关的应用，请确认是否有Trace数据的接入。'),
-      });
+      TDesignMessage("warning", { content: window.$t('未找到相关的应用，请确认是否有Trace数据的接入。') });
     }
   };
 

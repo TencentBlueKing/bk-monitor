@@ -1,3 +1,5 @@
+
+import { Button as TButton } from 'tdesign-vue-next';
 import { ServicesInstance } from '@/platform/services';
 /*
  * Tencent is pleased to support the open source community by making
@@ -246,14 +248,14 @@ export default defineComponent({
       <div class='preview-result-main'>
         {showWarnTip.value && <div class='warn-mask'></div>}
         <div class='operate-main'>
-          <bk-button
+          <TButton
             theme='primary'
             style='width: 88px'
-            outline
-            onClick={handleClickPreview}
+            
+            onClick={handleClickPreview} variant={(true) ? 'outline' : 'base'}
           >
             {t('预览')}
-          </bk-button>
+          </TButton>
           {showPreViewContent.value && (
             <div class='preview-tip'>
               {showWarnTip.value ? (

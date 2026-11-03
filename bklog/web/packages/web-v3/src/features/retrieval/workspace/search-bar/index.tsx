@@ -1,3 +1,5 @@
+
+import { MessagePlugin as TDesignMessage } from 'tdesign-vue-next';
 /*
  * Tencent is pleased to support the open source community by making
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
@@ -35,7 +37,7 @@ import aiBluekingSvg from '@/shared/assets/images/ai/ai-bluking-2.svg';
 import RetrieveHelper, { RetrieveEvent } from '../../retrieve-helper';
 import V2SearchBar from '../../workbench/search-bar/index.vue';
 import V3AiMode from './ai-mode/index';
-import { bkMessage } from 'bk-magic-vue';
+
 
 import { handleTransformToTimestamp } from '@/shared/ui/time-range/utils';
 import { AiQueryResult, AiQueryContent } from './types';
@@ -377,10 +379,7 @@ export default defineComponent({
         aiQueryResult.value.explain = explain;
       } catch (e) {
         console.error(e);
-        bkMessage({
-          theme: 'error',
-          message: e.message,
-        });
+        TDesignMessage("error", { content: e.message });
       }
     };
 

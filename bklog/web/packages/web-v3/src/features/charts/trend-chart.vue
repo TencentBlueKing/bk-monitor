@@ -4,6 +4,7 @@
   import useStore from '@/shared/composables/use-store';
   import useTrendChart from '@/shared/composables/use-trend-chart';
   import useRetrieveEvent from '@/shared/composables/use-retrieve-event';
+  import BklogLoading from '@/shared/ui/loading';
   import { useRoute } from "vue-router";
   import { getCommonFilterAdditionWithValues } from '../../app/state/helper';
   import { RetrieveEvent } from '../retrieval/retrieve-helper';
@@ -211,15 +212,18 @@
   };
 </script>
 <template>
-  <div
-    v-bkloading="{ isLoading: isLoading, zIndex: 10, size: 'mini' }"
+  <bklog-loading
     class="monitor-echart-wrap"
+    data-testid="trend-chart-loading"
+    :loading="isLoading"
+    size="mini"
+    :z-index="10"
   >
     <div
       ref="refDataTrendCanvas"
       :style="{ height: dynamicHeight + 'px' }"
     ></div>
-  </div>
+  </bklog-loading>
 </template>
 <style lang="scss" scoped>
   .monitor-echart-wrap {

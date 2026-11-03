@@ -32,7 +32,7 @@
   >
     <section class="operation">
       <div class="top-operation">
-        <bk-button
+        <t-button
           v-cursor="{ active: isAllowedCreate === false }"
           class="fl"
           :disabled="!collectProject || isAllowedCreate === null || isRequest"
@@ -41,7 +41,7 @@
           @click="operateHandler({}, 'add')"
         >
           {{ $t('新建自定义上报') }}
-        </bk-button>
+        </t-button>
         <div class="collect-search fr">
           <bk-input
             v-model="inputKeyWords"
@@ -204,40 +204,40 @@
           >
             <template #default="props">
               <div class="collect-table-operate">
-                <bk-button
+                <t-button :variant="(true) ? 'text' : ('base')"
                   v-cursor="{ active: !(props.row.permission && props.row.permission[authorityMap.SEARCH_LOG_AUTH]) }"
                   class="king-button"
                   :disabled="
                     !props.row.is_active || (!props.row.index_set_id && !props.row.bkdata_index_set_ids.length)
                   "
                   theme="primary"
-                  text
+                  
                   @click="operateHandler(props.row, 'search')"
                 >
-                  {{ $t('检索') }}</bk-button
+                  {{ $t('检索') }}</t-button
                 >
-                <bk-button
+                <t-button :variant="(true) ? 'text' : ('base')"
                   v-cursor="{
                     active: !(props.row.permission && props.row.permission[authorityMap.MANAGE_COLLECTION_AUTH]),
                   }"
                   class="king-button"
                   theme="primary"
-                  text
+                  
                   @click="operateHandler(props.row, 'edit')"
                 >
-                  {{ $t('编辑') }}</bk-button
+                  {{ $t('编辑') }}</t-button
                 >
-                <bk-button
+                <t-button :variant="(true) ? 'text' : ('base')"
                   v-cursor="{
                     active: !(props.row.permission && props.row.permission[authorityMap.MANAGE_COLLECTION_AUTH]),
                   }"
                   :disabled="!props.row.table_id"
                   theme="primary"
-                  text
+                  
                   @click="operateHandler(props.row, 'clean')"
                 >
                   {{ $t('清洗') }}
-                </bk-button>
+                </t-button>
                 <bk-popover
                   class="dot-menu"
                   :arrow="false"
@@ -647,7 +647,7 @@
 
       @include clearfix;
 
-      .bk-button {
+      .t-button {
         width: 150px;
       }
 

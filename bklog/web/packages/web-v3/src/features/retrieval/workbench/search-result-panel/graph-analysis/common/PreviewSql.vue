@@ -19,7 +19,7 @@
     </template>
     <template #footer>
       <!-- <bk-button @click="copy" theme="primary">{{ $t("复制SQL") }}</bk-button> -->
-      <bk-button @click="close">{{ $t('关闭') }}</bk-button>
+      <t-button @click="close">{{ $t('关闭') }}</t-button>
     </template>
   </bk-dialog>
 </template>

@@ -1,3 +1,7 @@
+
+import { Checkbox as TCheckbox } from 'tdesign-vue-next';
+
+import { Button as TButton } from 'tdesign-vue-next';
 /*
  * Tencent is pleased to support the open source community by making
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
@@ -313,9 +317,9 @@ export default defineComponent({
         </div>
         <div class='filter-item-bottom'>
           <div class='operate-left'>
-            <bk-checkbox
+            <TCheckbox
               style='margin-right: 6px'
-              value={ignoreCase.value}
+              checked={ignoreCase.value}
               onChange={(value: boolean) => {
                 ignoreCase.value = value;
               }}
@@ -326,9 +330,9 @@ export default defineComponent({
                 style='margin-left: 14px'
                 class='row-control'
               >
-                <bk-checkbox
+                <TCheckbox
                   style='margin-right: 6px'
-                  value={intervalSwitcher.value}
+                  checked={intervalSwitcher.value}
                   onChange={handleChangeIntervalShow}
                 />
                 <span>{t('显示前')}</span>
@@ -380,13 +384,13 @@ export default defineComponent({
                 </div>
               ))}
             </div>
-            <bk-button onClick={() => emit('fix-current-row')}>
+            <TButton onClick={() => emit('fix-current-row')}>
               <span
                 style='font-size:14px;margin-right:5px'
                 class='icon bklog-icon bklog-position'
               ></span>
               <span style='font-size:12px'>{t('定位到当前行')}</span>
-            </bk-button>
+            </TButton>
             <div class='log-display-type-main'>
               <div
                 class={{

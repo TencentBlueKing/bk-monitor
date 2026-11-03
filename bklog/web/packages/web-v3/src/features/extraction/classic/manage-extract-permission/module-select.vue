@@ -37,17 +37,17 @@
       v-bkloading="{ isLoading }"
       class="module-select-container"
     >
-      <bk-radio-group
+      <t-radio-group
         v-model="selectedTypeData"
         style="margin-bottom: 20px"
       >
-        <bk-radio
+        <t-radio
           style="margin-right: 16px"
           value="topo"
-          >{{ $t('按大区选择') }}</bk-radio
+          >{{ $t('按大区选择') }}</t-radio
         >
-        <bk-radio value="module">{{ $t('按模块选择') }}</bk-radio>
-      </bk-radio-group>
+        <t-radio value="module">{{ $t('按模块选择') }}</t-radio>
+      </t-radio-group>
       <div
         v-show="selectedTypeData === 'topo'"
         class="tree-container"
@@ -68,13 +68,13 @@
         class="tree-container"
       >
         <div class="checkbox-container">
-          <bk-checkbox
+          <t-checkbox
             :indeterminate="indeterminate"
-            :value="isSelectAllModule"
+            :checked="isSelectAllModule"
             @change="handleSelectAllChange"
           >
             {{ $t('全选') }}
-          </bk-checkbox>
+          </t-checkbox>
         </div>
         <bk-big-tree
           ref="moduleTreeRef"

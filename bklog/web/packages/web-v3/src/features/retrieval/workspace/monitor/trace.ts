@@ -1,3 +1,9 @@
+
+import { Alert as TAlert, Badge as TBadge, Progress as TProgress, Tag as TTag } from 'tdesign-vue-next';
+
+import { Checkbox as TCheckbox, CheckboxGroup as TCheckboxGroup, Radio as TRadio, RadioButton as TRadioButton, RadioGroup as TRadioGroup, Switch as TSwitch, Loading as TLoading } from 'tdesign-vue-next';
+
+import { Button as TButton } from 'tdesign-vue-next';
 /*
  * Tencent is pleased to support the open source community by making
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
@@ -24,85 +30,7 @@
  * IN THE SOFTWARE.
  */
 import Vue from '@/platform/compat/vue-runtime.mjs';
-import {
-  bkBackTop,
-  bkAffix,
-  bkFixedNavbar,
-  bkTransition,
-  bkAlert,
-  bkBadge,
-  bkButton,
-  bkAnimateNumber,
-  bkCheckbox,
-  bkCheckboxGroup,
-  bkCollapse,
-  bkCollapseItem,
-  bkColorPicker,
-  bkComposeFormItem,
-  bkDatePicker,
-  bkDialog,
-  bkDiff,
-  bkDropdownMenu,
-  bkException,
-  bkForm,
-  bkFormItem,
-  bkIcon,
-  bkInput,
-  bkOption,
-  bkOptionGroup,
-  bkPagination,
-  bkPopover,
-  bkPopconfirm,
-  bkProcess,
-  bkProgress,
-  bkRadio,
-  bkRadioButton,
-  bkRadioGroup,
-  bkRoundProgress,
-  bkSelect,
-  bkSideslider,
-  bkSlider,
-  bkSteps,
-  bkSwitcher,
-  bkTab,
-  bkTabPanel,
-  bkTable,
-  bkTableColumn,
-  bkTableSettingContent,
-  bkTagInput,
-  bkTimePicker,
-  bkTimeline,
-  bkTransfer,
-  bkTree,
-  bkUpload,
-  bkContainer,
-  bkCol,
-  bkRow,
-  bkNavigation,
-  bkNavigationMenu,
-  bkNavigationMenuItem,
-  bkNavigationMenuGroup,
-  bkSearchSelect,
-  bkRate,
-  bkStar,
-  bkSwiper,
-  bkVirtualScroll,
-  bkZoomImage,
-  bkBigTree,
-  bkLink,
-  bkCascade,
-  bkVersionDetail,
-  bkCard,
-  bkImage,
-  bkImageViewer,
-  bkBreadcrumb,
-  bkBreadcrumbItem,
-  bkDivider,
-  bkTag,
-  bkResizeLayout,
-  bkSpin,
-  bkVirtualRender,
-} from 'bk-magic-vue';
+import { bkBackTop, bkAffix, bkFixedNavbar, bkTransition, bkAnimateNumber, bkCollapse, bkCollapseItem, bkColorPicker, bkComposeFormItem, bkDatePicker, bkDialog, bkDiff, bkDropdownMenu, bkException, bkForm, bkFormItem, bkIcon, bkInput, bkOption, bkOptionGroup, bkPagination, bkPopover, bkPopconfirm, bkProcess, bkRoundProgress, bkSelect, bkSideslider, bkSlider, bkSteps, bkTab, bkTabPanel, bkTable, bkTableColumn, bkTableSettingContent, bkTagInput, bkTimePicker, bkTimeline, bkTransfer, bkTree, bkUpload, bkContainer, bkCol, bkRow, bkNavigation, bkNavigationMenu, bkNavigationMenuItem, bkNavigationMenuGroup, bkSearchSelect, bkRate, bkStar, bkSwiper, bkVirtualScroll, bkZoomImage, bkBigTree, bkLink, bkCascade, bkVersionDetail, bkCard, bkImage, bkImageViewer, bkBreadcrumb, bkBreadcrumbItem, bkDivider, bkResizeLayout, bkVirtualRender } from '@/platform/compat/tdesign/magic-controls';
 
 import i18n from '@/platform/i18n/i18n';
 import JsonFormatWrapper from '@/shared/global/json-format-wrapper.vue';
@@ -126,18 +54,18 @@ const initMonitorState = (payload: unknown) => {
 const initGlobalComponents = () => {
   Vue.component('JsonFormatWrapper', JsonFormatWrapper);
   Vue.component('BkAffix', bkAffix);
-  Vue.component('BkAlert', bkAlert);
+  Vue.component('TAlert', TAlert);
   Vue.component('BkAnimateNumber', bkAnimateNumber);
   Vue.component('BkBackTop', bkBackTop);
-  Vue.component('BkBadge', bkBadge);
+  Vue.component('TBadge', TBadge);
   Vue.component('BkBigTree', bkBigTree);
   Vue.component('BkBreadcrumb', bkBreadcrumb);
   Vue.component('BkBreadcrumbItem', bkBreadcrumbItem);
-  Vue.component('BkButton', bkButton);
+  Vue.component('TButton', TButton);
   Vue.component('BkCard', bkCard);
   Vue.component('BkCascade', bkCascade);
-  Vue.component('BkCheckbox', bkCheckbox);
-  Vue.component('BkCheckboxGroup', bkCheckboxGroup);
+  Vue.component('TCheckbox', TCheckbox);
+  Vue.component('TCheckboxGroup', TCheckboxGroup);
   Vue.component('BkCol', bkCol);
   Vue.component('BkCollapse', bkCollapse);
   Vue.component('BkCollapseItem', bkCollapseItem);
@@ -168,10 +96,10 @@ const initGlobalComponents = () => {
   Vue.component('BkPopconfirm', bkPopconfirm);
   Vue.component('BkPopover', bkPopover);
   Vue.component('BkProcess', bkProcess);
-  Vue.component('BkProgress', bkProgress);
-  Vue.component('BkRadio', bkRadio);
-  Vue.component('BkRadioButton', bkRadioButton);
-  Vue.component('BkRadioGroup', bkRadioGroup);
+  Vue.component('TProgress', TProgress);
+  Vue.component('TRadio', TRadio);
+  Vue.component('TRadioButton', TRadioButton);
+  Vue.component('TRadioGroup', TRadioGroup);
   Vue.component('BkRate', bkRate);
   Vue.component('BkResizeLayout', bkResizeLayout);
   Vue.component('BkRoundProgress', bkRoundProgress);
@@ -180,17 +108,17 @@ const initGlobalComponents = () => {
   Vue.component('BkSelect', bkSelect);
   Vue.component('BkSideslider', bkSideslider);
   Vue.component('BkSlider', bkSlider);
-  Vue.component('BkSpin', bkSpin);
+  Vue.component('TLoading', TLoading);
   Vue.component('BkStar', bkStar);
   Vue.component('BkSteps', bkSteps);
   Vue.component('BkSwiper', bkSwiper);
-  Vue.component('BkSwitcher', bkSwitcher);
+  Vue.component('TSwitch', TSwitch);
   Vue.component('BkTab', bkTab);
   Vue.component('BkTabPanel', bkTabPanel);
   Vue.component('BkTable', bkTable);
   Vue.component('BkTableColumn', bkTableColumn);
   Vue.component('BkTableSettingContent', bkTableSettingContent);
-  Vue.component('BkTag', bkTag);
+  Vue.component('TTag', TTag);
   Vue.component('BkTagInput', bkTagInput);
   Vue.component('BkTimePicker', bkTimePicker);
   Vue.component('BkTimeline', bkTimeline);

@@ -1,3 +1,5 @@
+
+import { MessagePlugin as TDesignMessage, Button as TButton } from 'tdesign-vue-next';
 import { ServicesInstance } from '@/platform/services';
 /*
  * Tencent is pleased to support the open source community by making
@@ -32,7 +34,7 @@ import EmptyStatus from '@/shared/ui/empty-status/index.vue';
 import useLocale from '@/shared/composables/use-locale';
 import useRouter from '@/shared/composables/use-router';
 import useStore from '@/shared/composables/use-store';
-import { bkMessage as Message } from 'bk-magic-vue';
+
 import { bkInfoBox as InfoBox } from '@/platform/compat/tdesign/info-box';
 
 
@@ -188,10 +190,7 @@ export default defineComponent({
             link_id: id,
           },
         });
-        Message({
-          theme: 'success',
-          message: t('删除成功'),
-        });
+        TDesignMessage("success", { content: t('删除成功') });
         await initList();
       } catch (e) {
         console.warn(e);
@@ -224,7 +223,7 @@ export default defineComponent({
       >
         {/* 新增按钮 */}
         <div>
-          <bk-button
+          <TButton
             style='width: 120px; margin: 20px 0'
             class='king-button'
             v-cursor={{ active: isAllowedManage.value === false }}
@@ -235,7 +234,7 @@ export default defineComponent({
             onClick={handleCreate}
           >
             {t('新增')}
-          </bk-button>
+          </TButton>
         </div>
         {/* 链路表格 */}
         <bk-table

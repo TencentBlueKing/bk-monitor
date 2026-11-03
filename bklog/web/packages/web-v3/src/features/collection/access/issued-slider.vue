@@ -118,16 +118,16 @@
                     <div>{{ `${tabItem.name}(${tabItem.num})` }}</div>
                   </div>
                 </div>
-                <bk-button
+                <t-button
                   v-if="hasFailed"
                   class="fr"
                   :disabled="hasRunning"
                   :title="$t('失败批量重试')"
                   data-test-id="collectionDistribution_button_refresh"
-                  icon="refresh"
+                  
                   @click="issuedRetry"
-                  >{{ $t('失败批量重试') }}
-                </bk-button>
+                  ><template #icon><span :class="`bk-icon icon-${'refresh'}`"></span></template>{{ $t('失败批量重试') }}
+                </t-button>
               </div>
               <div class="step-issued-content">
                 <section
@@ -243,14 +243,14 @@
                 >
                   <div class="detail-header">
                     <div class="detail-title">{{ $t('采集详情') }}</div>
-                    <bk-button
+                    <t-button
                       class="header-refresh"
                       :loading="detail.loading"
                       size="small"
                       @click="handleRefreshDetail"
                     >
                       {{ $t('刷新') }}
-                    </bk-button>
+                    </t-button>
                   </div>
                   <!-- eslint-disable vue/no-v-html -- API log detail is sanitized by DOMPurify via $xss. -->
                   <div
@@ -274,7 +274,7 @@
             v-if="isStopCollection && !isFinishStep"
             class="step-issued-footer"
           >
-            <bk-button
+            <t-button
               v-if="isSwitch"
               :disabled="hasRunning"
               :loading="isHandle"
@@ -282,13 +282,13 @@
               @click="nextHandler"
             >
               {{ getNextPageStr }}
-            </bk-button>
-            <bk-button
+            </t-button>
+            <t-button
               data-test-id="collectionDistribution_button_cancel"
               @click="cancel"
             >
               {{ $t('返回列表') }}
-            </bk-button>
+            </t-button>
           </div>
         </div>
         <div v-else>
@@ -304,7 +304,9 @@
     </bk-sideslider>
   </div>
 </template>
-<script>import { ServicesInstance } from '@/platform/services';
+<script>
+import { MessagePlugin as TDesignMessage } from 'tdesign-vue-next';
+import { ServicesInstance } from '@/platform/services';
 
   import rightPanel from '@/features/collection/ip-select/right-panel';
   import containerStatus from '@/features/index-sets/log-collection/collection-item/manage-collection/components/container-status';
@@ -673,10 +675,7 @@
             }
           })
           .catch(err => {
-            this.$bkMessage({
-              theme: 'error',
-              message: err.message,
-            });
+            TDesignMessage("error", { content: err.message });
           })
           .finally(() => {
             setTimeout(() => {
@@ -729,10 +728,7 @@
             }
           })
           .catch(err => {
-            this.$bkMessage({
-              theme: 'error',
-              message: err.message,
-            });
+            TDesignMessage("error", { content: err.message });
           });
       },
       // 同步机器状态信息
@@ -779,10 +775,7 @@
             }
           })
           .catch(err => {
-            this.$bkMessage({
-              theme: 'error',
-              message: err.message || err,
-            });
+            TDesignMessage("error", { content: err.message || err });
           })
           .finally(() => {
             this.detail.loading = false;

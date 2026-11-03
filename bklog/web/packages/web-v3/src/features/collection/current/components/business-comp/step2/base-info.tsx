@@ -1,3 +1,12 @@
+import {
+  Button as TButton,
+  Form as TForm,
+  FormItem as TFormItem,
+  Input as TInput,
+  Textarea as TTextarea,
+  Tooltip as TTooltip,
+} from 'tdesign-vue-next';
+import type { FormInstanceFunctions, FormRules } from 'tdesign-vue-next';
 import { ServicesInstance } from '@/platform/services';
 /*
  * Tencent is pleased to support the open source community by making
@@ -25,7 +34,7 @@ import { ServicesInstance } from '@/platform/services';
  * IN THE SOFTWARE.
  */
 
-import { defineComponent, ref, computed, watch, nextTick, type PropType } from 'vue';
+import { defineComponent, ref, computed, watch, nextTick, type PropType, type VNode } from 'vue';
 
 import useLocale from '@/shared/composables/use-locale';
 import useStore from '@/shared/composables/use-store';
@@ -48,6 +57,7 @@ export type IBaseInfo = {
 
 export default defineComponent({
   name: 'BaseInfo',
+  compatConfig: { MODE: 3 },
   props: {
     typeKey: {
       type: String,
@@ -80,7 +90,7 @@ export default defineComponent({
     // const formData = ref<IBaseInfo>({ index_set_name: '', parent_index_set_ids: [] });
     const formData = ref<IBaseInfo>({ ...props.data });
     /** 表单引用 */
-    const formRef = ref();
+    const formRef = ref<FormInstanceFunctions<IBaseInfo>>();
     /** 数据名格式校验状态 */
     const isTextValid = ref(true);
 
@@ -96,7 +106,9 @@ export default defineComponent({
 
     // ==================== 全局数据 ====================
     /** 全局数据（包含自定义上报类型列表） */
-    const globalsData = computed(() => store.getters['globals/globalsData']);
+    const globalsData = computed(
+      () => store.getters['globals/globalsData'] as { databus_custom?: { id: string; name: string }[] },
+    );
 
     const disabled = computed(() => props.isEdit);
 
@@ -162,7 +174,7 @@ export default defineComponent({
     /**
      * 表单校验规则
      */
-    const ruleData = ref({
+    const ruleData = computed<FormRules<IBaseInfo>>(() => ({
       index_set_name: [
         {
           message: t('必填项'),
@@ -203,12 +215,11 @@ export default defineComponent({
         },
         {
           // 检查数据名是否可用
-          validator: checkEnNameRepeat,
-          message: () => enNameErrorMessage.value,
+          validator: async () => ({ result: (await checkEnNameRepeat()) === true, message: enNameErrorMessage.value }),
           trigger: 'blur',
         },
       ],
-    });
+    }));
 
     // ==================== 监听器 ====================
     /**
@@ -256,8 +267,11 @@ export default defineComponent({
      * 表单校验
      * @returns Promise - 校验结果
      */
-    const validate = () => {
-      return formRef.value.validate();
+    const validate = async () => {
+      const result = await formRef.value?.validate();
+      // The step coordinator relies on rejection to block progression.
+      if (result !== true) throw result;
+      return true;
     };
 
     /**
@@ -293,14 +307,13 @@ export default defineComponent({
      */
     const handleEnConvert = () => {
       const originalStr = getCollectorConfigNameEn();
-      const convertStr = convertToValidEnName(originalStr);
+      const convertStr = convertToValidEnName(originalStr ?? '');
 
       updateFormField('collector_config_name_en', convertStr);
 
       // 转换后重新校验
       nextTick(() => {
-        formRef.value
-          .validate()
+        validate()
           .then(() => {
             isTextValid.value = true;
           })
@@ -323,21 +336,22 @@ export default defineComponent({
      */
     const renderCategoryButtons = () => {
       const customTypes = globalsData.value.databus_custom || [];
-      const buttons: ((JSX.Element))[] = [];
+      const buttons: VNode[] = [];
 
       for (let i = 0; i < customTypes.length; i++) {
         const item = customTypes[i];
         const isSelected = formData.value.custom_type === item.id;
 
         buttons.push(
-          <bk-button
+          <TButton
             key={item.id}
             disabled={disabled.value}
+            theme='default'
             class={isSelected ? 'is-selected' : ''}
             onClick={() => handleChangeType(item.id)}
           >
             {item.name}
-          </bk-button>,
+          </TButton>,
         );
       }
 
@@ -353,38 +367,30 @@ export default defineComponent({
       const shouldShowDesc = showDescKey.includes(props.typeKey);
 
       return (
-        <bk-form
+        <TForm
           ref={formRef}
           class='base-info-form'
-          label-width={100}
+          labelWidth={100}
+          requiredMarkPosition='right'
           {...{
             ...{
-              model: formData.value,
+              data: formData.value,
               rules: ruleData.value,
             },
           }}
         >
           {/* 采集名 */}
-          <bk-form-item
-            label={t('采集名')}
-            property='index_set_name'
-            required={true}
-          >
-            <bk-input
+          <TFormItem label={t('采集名')} name='index_set_name' requiredMark={true}>
+            <TInput
               maxlength={50}
               value={formData.value.index_set_name}
-              onInput={(val: string|undefined) => updateFormField('index_set_name', val)}
+              onChange={(value) => updateFormField('index_set_name', String(value))}
             />
-          </bk-form-item>
+          </TFormItem>
 
           {/* 数据分类（仅自定义类型显示） */}
           {shouldShowCategory && (
-            <bk-form-item
-              class='category-form-item'
-              label={t('数据分类')}
-              property='name'
-              required={true}
-            >
+            <TFormItem class='category-form-item' label={t('数据分类')} name='name' requiredMark={true}>
               <div class='bk-button-group'>{renderCategoryButtons()}</div>
               <InfoTips
                 class='block'
@@ -392,58 +398,48 @@ export default defineComponent({
                   '自定义上报数据，可以通过采集器，或者指定协议例如otlp等方式进行上报，自定义上报有一定的使用要求，具体可以查看使用说明',
                 )}
               />
-            </bk-form-item>
+            </TFormItem>
           )}
 
           {/* 数据名（默认和自定义类型显示） */}
           {shouldShowName && (
-            <bk-form-item
-              label={t('数据名')}
-              property='collector_config_name_en'
-              required={true}
-            >
-              <bk-input
+            <TFormItem label={t('数据名')} name='collector_config_name_en' requiredMark={true}>
+              <TInput
                 maxlength={50}
-                minlength={5}
                 disabled={disabled.value}
                 placeholder={t('用于索引和数据源，仅支持数字、字母、下划线，5～50 字符')}
                 value={formData.value.collector_config_name_en}
-                onInput={(val: string|undefined) => updateFormField('collector_config_name_en', val)}
+                onChange={(value) => updateFormField('collector_config_name_en', String(value))}
               />
               {!isTextValid.value && (
-                <span v-bk-tooltips={{ content: t('自动转换成正确的数据名格式') }}>
-                  <span
-                    class='auto-convert'
-                    onClick={handleEnConvert}
-                  >
+                <TTooltip content={t('自动转换成正确的数据名格式')}>
+                  <span class='auto-convert' onClick={handleEnConvert}>
                     {t('自动转换')}
                   </span>
-                </span>
+                </TTooltip>
               )}
-            </bk-form-item>
+            </TFormItem>
           )}
 
           {/* 所属索引集 */}
-          <bk-form-item label={t('所属索引集')}>
+          <TFormItem label={t('所属索引集')}>
             <IndexSetSelect
               value={formData.value.parent_index_set_ids}
-              onSelect={val => updateFormField('parent_index_set_ids', val)}
+              onSelect={(val) => updateFormField('parent_index_set_ids', val)}
             />
-          </bk-form-item>
+          </TFormItem>
 
           {/* 备注说明（默认和自定义类型显示） */}
           {shouldShowDesc && (
-            <bk-form-item label={t('备注说明')}>
-              <bk-input
+            <TFormItem label={t('备注说明')}>
+              <TTextarea
                 maxlength={100}
-                type='textarea'
                 value={formData.value.description}
-                clearable
-                onInput={(val: string|undefined) => updateFormField('description', val)}
+                onChange={(value) => updateFormField('description', String(value))}
               />
-            </bk-form-item>
+            </TFormItem>
           )}
-        </bk-form>
+        </TForm>
       );
     };
 

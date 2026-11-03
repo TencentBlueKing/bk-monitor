@@ -30,7 +30,7 @@
       v-if="isShowEditBtn"
       class="edit-btn-container"
     >
-      <bk-button
+      <t-button
         v-cursor="{ active: !editAuth }"
         style="min-width: 88px; color: #3a84ff"
         class="mr10"
@@ -38,7 +38,7 @@
         @click="handleClickEdit"
       >
         {{ $t('编辑') }}
-      </bk-button>
+      </t-button>
     </div>
     <section class="partial-content">
       <div class="main-title">

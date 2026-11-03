@@ -1,3 +1,7 @@
+
+import { Alert as TAlert } from 'tdesign-vue-next';
+
+import { Button as TButton } from 'tdesign-vue-next';
 import { ServicesInstance } from '@/platform/services';
 import { asDictionary } from '@/shared/utils/typed-record';
 /*
@@ -447,14 +451,14 @@ export default defineComponent({
               </div>
               <div class='content'>
                 <div class='bk-button-group target-type-group'>
-                  <bk-button
+                  <TButton
                     class='is-selected'
                     theme='primary'
-                    outline
+                     variant={(true) ? 'outline' : 'base'}
                   >
                     {t('主机')}
-                  </bk-button>
-                  <bk-button disabled>{t('容器')}</bk-button>
+                  </TButton>
+                  <TButton disabled>{t('容器')}</TButton>
                 </div>
               </div>
             </div>
@@ -465,14 +469,14 @@ export default defineComponent({
               </div>
               <div class='content'>
                 <div class='target-selection'>
-                  <bk-button
+                  <TButton
                     class='select-target-button'
                     data-test-id='addNewExtraction_button_selectTheServer'
-                    icon='plus'
+                    icon={() => <span class={`bk-icon icon-${'plus'}`} />}
                     onClick={() => (showSelectDialog.value = true)}
                   >
                     {t('选择目标')}
-                  </bk-button>
+                  </TButton>
                   <div class='select-text'>
                     <i18n path='已选择{0}个节点'>
                       <span class={selectedCount.value ? 'primary' : 'error'}>{selectedCount.value}</span>
@@ -568,17 +572,17 @@ export default defineComponent({
         </div>
 
         <div class='create-task-footer'>
-          <bk-button
+          <TButton
             class='preview-button'
             disabled={canSubmit.value || isSubmitLoading.value}
             loading={isSubmitLoading.value}
             theme='primary'
-            outline
-            onClick={handlePreview}
+            
+            onClick={handlePreview} variant={(true) ? 'outline' : 'base'}
           >
             {t('预览')}
-          </bk-button>
-          <bk-button
+          </TButton>
+          <TButton
             data-test-id='addNewExtraction_button_submitConfigure'
             disabled={canSubmit.value || isSubmitLoading.value}
             loading={isSubmitLoading.value}
@@ -586,20 +590,20 @@ export default defineComponent({
             onClick={handlePreview}
           >
             {t('预览并下发')}
-          </bk-button>
-          <bk-button
+          </TButton>
+          <TButton
             class='cancel-button'
             data-test-id='addNewExtraction_button_cancel'
             onClick={goToHome}
           >
             {t('取消')}
-          </bk-button>
+          </TButton>
         </div>
         <bk-dialog
           v-slots={{
             footer: () => (
               <div class='extract-preview-footer'>
-                <bk-button
+                <TButton
                   class='confirm-extract-button'
                   disabled={isSubmitLoading.value}
                   loading={isSubmitLoading.value}
@@ -607,14 +611,14 @@ export default defineComponent({
                   onClick={handleSubmit}
                 >
                   {t('确认下发')}
-                </bk-button>
-                <bk-button
+                </TButton>
+                <TButton
                   class='modify-extract-button'
                   disabled={isSubmitLoading.value}
                   onClick={closePreview}
                 >
                   {t('返回修改')}
-                </bk-button>
+                </TButton>
               </div>
             ),
           }}
@@ -633,9 +637,9 @@ export default defineComponent({
         >
           {previewData.value && (
             <div class='extract-preview-content'>
-              <bk-alert
+              <TAlert
                 v-slots={{
-                  title: () => (
+                  message: () => (
                     <>
                       <span class='bk-icon icon-exclamation-circle' />
                       <div>
@@ -650,9 +654,9 @@ export default defineComponent({
                   ),
                 }}
                 class='extract-preview-risk'
-                showIcon={false}
-                type='warning'
-              ></bk-alert>
+                icon={(false) ? undefined : () => null}
+                theme={'warning'} data-v2-display='alert'
+              ></TAlert>
               <dl
                 class='extract-preview-details'
                 v-en-class="'en-title'"

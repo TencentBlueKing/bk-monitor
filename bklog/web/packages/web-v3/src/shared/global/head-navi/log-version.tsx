@@ -28,7 +28,7 @@ import { PropType, computed, defineComponent, onBeforeUnmount, ref, watch } from
 
 import useStore from '@/shared/composables/use-store';
 // 版本日志对话框（Composition API + TSX）
-import { bkDialog as BkDialog } from 'bk-magic-vue';
+import { bkDialog as BkDialog } from '@/platform/compat/tdesign/magic-controls';
 
 import { axiosInstance } from '@/platform/http/index';
 

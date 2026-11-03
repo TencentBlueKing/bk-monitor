@@ -32,7 +32,7 @@ const here = dirname(fileURLToPath(import.meta.url));
 const config = JSON.parse(readFileSync(resolve(here, 'migration.config.json'), 'utf8'));
 const sourceRoot = resolve(here, config.sourceProject);
 const targetRoot = resolve(here, config.targetProject);
-const packagePath = resolve(sourceRoot, 'package.json');
+const packagePath = resolve(sourceRoot, 'packages/web-v2/package.json');
 const required = (config.requiredPaths || []).map(item => resolve(sourceRoot, item));
 const missing = required.filter(item => !existsSync(item));
 

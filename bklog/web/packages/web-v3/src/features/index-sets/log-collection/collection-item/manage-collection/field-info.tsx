@@ -1,3 +1,7 @@
+
+import { Tag as TTag } from 'tdesign-vue-next';
+
+import { Button as Button } from 'tdesign-vue-next';
 import { ServicesInstance } from '@/platform/services';
 import { asDictionary } from '@/shared/utils/typed-record';
 /*
@@ -29,7 +33,7 @@ import { asDictionary } from '@/shared/utils/typed-record';
 import { Component, Prop } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
-import { bkTable as Table, bkTableColumn as TableColumn, bkPopover as Popover, bkButton as Button } from 'bk-magic-vue';
+import { bkTable as Table, bkTableColumn as TableColumn, bkPopover as Popover } from '@/platform/compat/tdesign/magic-controls';
 
 
 import { getFlatObjValues } from '../../../../../shared/lib/util';
@@ -415,23 +419,23 @@ export default class FieldInfo extends tsc<IProps> {
           <div>
             {row.field_name}
             {row.metadata_type === 'path' || this.extra_labels?.includes(row.field_name) ? (
-              <bk-tag
-                radius='6px'
-                theme='info'
+              <TTag
+                style={{borderRadius: '6px'}}
+                theme={"primary"} variant='light' data-v2-display='tag'
               >
                 {this.$t('元数据')}
-              </bk-tag>
+              </TTag>
             ) : (
               ''
             )}
             {row.field_time_format ? (
-              <bk-tag
+              <TTag
                 v-bk-tooltips={this.getTimeZoneName(row.field_time_zone)}
-                radius='6px'
-                theme='success'
+                style={{borderRadius: '6px'}}
+                theme={"success"} variant='light' data-v2-display='tag'
               >
                 {this.$t('指定日志时间')}
-              </bk-tag>
+              </TTag>
             ) : (
               ''
             )}

@@ -24,13 +24,13 @@
 * IN THE SOFTWARE.
 -->
 <template>
-  <bk-checkbox
+  <t-checkbox
     :disabled="disabled"
     :indeterminate="value === 1"
-    :value="value === 2"
+    :checked="value === 2"
     @change="handleCheckChange"
   >
-  </bk-checkbox>
+  </t-checkbox>
 </template>
 <script>
   export default {

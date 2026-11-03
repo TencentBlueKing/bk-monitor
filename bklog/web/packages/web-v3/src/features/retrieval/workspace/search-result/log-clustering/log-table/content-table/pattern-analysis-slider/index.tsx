@@ -1,3 +1,5 @@
+
+import { Button as TButton } from 'tdesign-vue-next';
 import { ServicesInstance } from '@/platform/services';
 /*
  * Tencent is pleased to support the open source community by making
@@ -786,18 +788,18 @@ export default defineComponent({
                     onChange={handleTimeRangeChange}
                     type='normal'
                   />
-                  <bk-button
+                  <TButton
                     theme='primary'
-                    outline
+                    
                     v-bk-tooltips={{
                       placement: 'top',
                       content: t('当前仅支持下载1w条数据'),
                       delay: 300,
                     }}
-                    onClick={handleViewOriginalLog}
+                    onClick={handleViewOriginalLog} variant={(true) ? 'outline' : 'base'}
                   >
                     {t('下载')}
-                  </bk-button>
+                  </TButton>
                 </div>
               </div>
 

@@ -57,7 +57,9 @@
     </monaco-editor>
   </div>
 </template>
-<script>import { ServicesInstance } from '@/platform/services';
+<script>
+import { MessagePlugin as TDesignMessage } from 'tdesign-vue-next';
+import { ServicesInstance } from '@/platform/services';
 
   import { base64Encode, base64Decode } from '@/shared/lib/util';
   import { setDiagnosticsOptions } from 'monaco-yaml';
@@ -179,10 +181,7 @@
         if (!this.inputDocument.value) return;
         const file = this.inputDocument.files[0];
         if (!/.*(?<=\.yaml|\.yml)$/.test(file.name)) {
-          this.$bkMessage({
-            theme: 'error',
-            message: this.$t('不是有效的yaml文件'),
-          });
+          TDesignMessage("error", { content: this.$t('不是有效的yaml文件') });
           return;
         }
         // 读取文件:

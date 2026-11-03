@@ -1,3 +1,7 @@
+
+import { Alert as TAlert } from 'tdesign-vue-next';
+
+import { MessagePlugin as TDesignMessage, Button as TButton } from 'tdesign-vue-next';
 import { ServicesInstance } from '@/platform/services';
 /*
  * Tencent is pleased to support the open source community by making
@@ -30,7 +34,7 @@ import useLocale from '@/shared/composables/use-locale';
 import useStore from '@/shared/composables/use-store';
 import { createRawTippyOverlay, useDialogVisible } from '@/shared/global/overlay/index';
 import RegexTable, { type RowData } from './regex-table/index';
-import { bkMessage } from 'bk-magic-vue';
+
 
 import OccupyInput from './occupy-input/index';
 import RegexPreview from './regex-preview/index';
@@ -174,13 +178,9 @@ export default defineComponent({
       const payload = err as { name?: string; rowIndex?: number; column?: string; message?: string };
       const rowIndex = typeof payload?.rowIndex === 'number' ? payload.rowIndex : -1;
       const detail = payload?.message || (err instanceof Error ? err.message : String(err || ''));
-      bkMessage({
-        theme: 'error',
-        message:
-          rowIndex >= 0
+      TDesignMessage("error", { content: rowIndex >= 0
             ? t('第 {n} 行填写不规范：{msg}', { n: rowIndex + 1, msg: detail })
-            : detail || t('请检查正则和占位符填写是否正确'),
-      });
+            : detail || t('请检查正则和占位符填写是否正确') });
       if (rowIndex >= 0) {
         tableRef.value?.focusCell?.(rowIndex, payload.column);
       }
@@ -427,10 +427,7 @@ export default defineComponent({
         })
         .then(res => {
           if (res.code === 0) {
-            bkMessage({
-              message: t('更新成功'),
-              theme: 'success',
-            });
+            TDesignMessage("success", { content: t('更新成功') });
             handleConfirmSuccess();
           }
         });
@@ -454,10 +451,7 @@ export default defineComponent({
         })
         .then(res => {
           if (res.code === 0) {
-            bkMessage({
-              message: t('更新成功'),
-              theme: 'success',
-            });
+            TDesignMessage("success", { content: t('更新成功') });
             handleConfirmSuccess();
           }
         })
@@ -500,18 +494,18 @@ export default defineComponent({
                   </div>
                 )}
                 <span ref={previewBtnRef}>
-                  <bk-button
+                  <TButton
                     theme='primary'
-                    outline
+                    
                     size='small'
                     disabled={!regexList.value.length}
-                    onClick={handleClickPreview}
+                    onClick={handleClickPreview} variant={(true) ? 'outline' : 'base'}
                   >
                     {t('预览')}
-                  </bk-button>
+                  </TButton>
                 </span>
                 <span ref={confirmBtnRef}>
-                  <bk-button
+                  <TButton
                     theme='primary'
                     size='small'
                     disabled={!regexList.value.length}
@@ -519,14 +513,14 @@ export default defineComponent({
                     onClick={handleConfirm}
                   >
                     {t('确定')}
-                  </bk-button>
+                  </TButton>
                 </span>
-                <bk-button
+                <TButton
                   size='small'
                   onClick={handleCancel}
                 >
                   {t('取消')}
-                </bk-button>
+                </TButton>
               </div>
             ),
           }}
@@ -541,9 +535,9 @@ export default defineComponent({
         >
           <div class='sample-box'>
             <div class='title'>{t('日志样例')}</div>
-            <bk-alert
-              type='info'
-              title={t('鼠标左键框选字段，可提取并生成正则表达式。')}
+            <TAlert
+              theme={'info'}
+              message={t('鼠标左键框选字段，可提取并生成正则表达式。')} data-v2-display='alert'
             />
             <div
               ref={logSampleRef}

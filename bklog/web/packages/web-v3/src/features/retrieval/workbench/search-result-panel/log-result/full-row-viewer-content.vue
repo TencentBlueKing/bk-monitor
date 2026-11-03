@@ -99,6 +99,8 @@
 </template>
 
 <script>
+import { MessagePlugin as TDesignMessage } from 'tdesign-vue-next';
+
   import { retrieveRowCacheService } from '@/platform/persistence/index';
   import { copyMessage } from '@/shared/lib/util';
   import { collectPageHighlightRanges, escapeHtml, pageHighlightState } from '@/features/retrieval/core/page-highlight';
@@ -1008,7 +1010,7 @@
       async copyContentAsync() {
         const originRow = await this.getOriginCopyRow();
         if (this.writeCopyContent(originRow)) return;
-        this.$bkMessage?.({ theme: 'warning', message: this.$t('正在读取全量数据...') });
+        TDesignMessage("warning", { content: this.$t('正在读取全量数据...') });
       },
     },
   };

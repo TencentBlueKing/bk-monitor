@@ -2,12 +2,12 @@
   &.form-input {
     height: 100%;
 
-    .bk-form,
-    .bk-select,
-    .bk-form-item,
-    .bk-select-dropdown,
-    .bk-tooltip-ref,
-    .bk-form-content,
+    .t-form,
+    .t-select,
+    .t-form__item,
+    .t-select__wrap,
+    .t-input-number,
+    .t-form__controls,
     .input-trigger {
       width: 100%;
       height: 100%;
@@ -21,7 +21,7 @@
       background: #fff;
     }
 
-    .bk-form-input,
+    .t-input,
     .input-trigger {
       border: 1px solid transparent;
       border-radius: 0;
@@ -36,16 +36,31 @@
       border: none;
     }
 
-    .bk-select {
+    .t-select {
       border: none;
     }
 
-    .bk-form-content {
+    .t-form__controls {
       height: 42px;
     }
 
-    .bk-form-content .tooltips-icon {
+    .t-form__controls .t-input__suffix {
       top: 14px;
     }
+  }
+}
+
+.bklog-log-filter.form-input {
+  .t-form__item {
+    margin: 0;
+  }
+  .t-form__controls-content,
+  .t-input__wrap,
+  .t-input {
+    height: 100%;
+    width: 100%;
+  }
+  .t-input-number {
+    width: 100%;
   }
 }

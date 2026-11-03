@@ -221,7 +221,7 @@
       @include flex-justify(space-between);
 
       .bk-select,
-      .bk-form-control {
+      .t-input__wrap {
         flex: 1;
       }
 
@@ -229,7 +229,7 @@
         flex-shrink: 0;
       }
 
-      :deep(.bk-form-input) {
+      :deep(.t-input__inner) {
         height: 34px;
       }
     }

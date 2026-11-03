@@ -1,3 +1,9 @@
+
+import { Input as TInput } from 'tdesign-vue-next';
+
+import { Checkbox as TCheckbox } from 'tdesign-vue-next';
+
+import { MessagePlugin as TDesignMessage, Button as TButton } from 'tdesign-vue-next';
 import { ServicesInstance } from '@/platform/services';
 import { asDictionary } from '@/shared/utils/typed-record';
 /*
@@ -27,7 +33,7 @@ import { asDictionary } from '@/shared/utils/typed-record';
  */
 import { copyText } from '@/features/charts/utils';
 import { defineComponent, ref, onMounted } from 'vue';
-import { bkMessage } from 'bk-magic-vue';
+
 import useLocale from '@/shared/composables/use-locale';
 
 import { type VariableList } from '@/features/reporting/services/new-report';
@@ -66,16 +72,10 @@ export default defineComponent({
 
     const handleCopy = (text: string) => {
       copyText(`{{${text}}}`, (msg: unknown) => {
-        bkMessage({
-          message: msg,
-          theme: 'error',
-        });
+        TDesignMessage("error", { content: String(msg) });
         return;
       });
-      bkMessage({
-        message: t('复制成功'),
-        theme: 'success',
-      });
+      TDesignMessage("success", { content: t('复制成功') });
     };
 
     /**
@@ -137,15 +137,15 @@ export default defineComponent({
           >
             <div>
               <div style='display: flex;'>
-                <bk-input
+                <TInput
                   style='width: 465px;'
                   value={formData.value.content_config.title}
                   placeholder={t('请输入')}
-                  onChange={(value: string) => {
+                  onChange={value => ((value: string) => {
                     formData.value.content_config.title = value;
                     formData.value.content_config__title = formData.value.content_config.title;
-                  }}
-                ></bk-input>
+                  })(String(value))}
+                ></TInput>
 
                 <bk-popover
                   v-slots={{
@@ -194,21 +194,21 @@ export default defineComponent({
                   theme='light'
                   trigger='click'
                 >
-                  <bk-button
+                  <TButton
                     theme='primary'
                     size='small'
-                    text
+                     variant={(true) ? 'text' : ('base')}
                   >
                     {t('变量列表')}
-                  </bk-button>
+                  </TButton>
                 </bk-popover>
               </div>
-              <bk-checkbox
-                value={formData.value.content_config.is_link_enabled}
+              <TCheckbox
+                checked={formData.value.content_config.is_link_enabled}
                 onChange={(value: boolean) => (formData.value.content_config.is_link_enabled = value)}
               >
                 {t('附带链接')}
-              </bk-checkbox>
+              </TCheckbox>
             </div>
           </bk-form-item>
         </bk-form>

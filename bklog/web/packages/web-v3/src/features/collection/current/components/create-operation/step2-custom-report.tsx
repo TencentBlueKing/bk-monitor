@@ -1,3 +1,7 @@
+
+import { Alert as TAlert, Loading as TLoading } from 'tdesign-vue-next';
+
+import { Button as TButton } from 'tdesign-vue-next';
 import { ServicesInstance } from '@/platform/services';
 /*
  * Tencent is pleased to support the open source community by making
@@ -148,44 +152,47 @@ export default defineComponent({
         return;
       }
       isInitializing.value = true;
-      if (props.isEdit) {
-        loading.value = true;
-        const res = await ServicesInstance.collect.details({
-          params: {
-            collector_config_id: collectorId.value,
-          },
-        });
-        loading.value = false;
-        const responseData = res?.data ?? {};
-        const {
-          collector_config_name: collectorConfigName,
-          index_set_id: indexSetId,
-          target_fields: targetFields,
-          sort_fields: sortFields,
-        } = responseData;
-        configData.value = {
-          ...configData.value,
-          ...responseData,
-          index_set_name: collectorConfigName,
-          target_fields: targetFields || [],
-          sort_fields: sortFields || [],
-          index_set_id: indexSetId || '',
-        };
-        store.commit('collect/setCurCollect', responseData);
-        // 保存初始表单数据快照
-        saveInitialFormData();
-        emit('detail', configData.value);
-        // 编辑模式下初始化字段选择列表
-        if (indexSetId) {
-          initTargetFieldSelectList(indexSetId);
+      try {
+        if (props.isEdit) {
+          loading.value = true;
+          const res = await ServicesInstance.collect.details({
+            params: {
+              collector_config_id: collectorId.value,
+            },
+          });
+          const responseData = res?.data ?? {};
+          const {
+            collector_config_name: collectorConfigName,
+            index_set_id: indexSetId,
+            target_fields: targetFields,
+            sort_fields: sortFields,
+          } = responseData;
+          configData.value = {
+            ...configData.value,
+            ...responseData,
+            index_set_name: collectorConfigName,
+            target_fields: targetFields || [],
+            sort_fields: sortFields || [],
+            index_set_id: indexSetId || '',
+          };
+          store.commit('collect/setCurCollect', responseData);
+          // 保存初始表单数据快照
+          saveInitialFormData();
+          emit('detail', configData.value);
+          // 编辑模式下初始化字段选择列表
+          if (indexSetId) {
+            initTargetFieldSelectList(indexSetId);
+          }
+        } else {
+          const { retention } = configData.value;
+          Object.assign(configData.value, {
+            retention: retention ? `${retention}` : defaultRetention.value,
+          });
         }
-      } else {
-        const { retention } = configData.value;
-        Object.assign(configData.value, {
-          retention: retention ? `${retention}` : defaultRetention.value,
-        });
+      } finally {
+        loading.value = false;
+        isInitializing.value = false;
       }
-      isInitializing.value = false;
     };
 
     /**
@@ -283,10 +290,10 @@ export default defineComponent({
     /** 字段设置 */
     const renderFieldSetting = () => (
       <div class='field-setting-box'>
-        <bk-alert
+        <TAlert
           class='field-setting-alert'
-          title={t('未匹配到对应字段，请手动指定字段后提交。')}
-          type='warning'
+          message={t('未匹配到对应字段，请手动指定字段后提交。')}
+          theme={'warning'} data-v2-display='alert'
         />
         {/* 目标字段选择 */}
         <div class='label-form-box'>
@@ -463,61 +470,74 @@ export default defineComponent({
       handleSubmitSave,
     });
 
+    const renderLoadingIndicator = () => (
+      <span class='bklog-loading-dots bklog-loading-dots--large'>
+        {[0, 1, 2, 3].map(index => <span key={index} />)}
+      </span>
+    );
+
     return () => (
-      <div
-        class='operation-step2-custom-report'
-        v-bkloading={{ isLoading: loading.value }}
+      <TLoading
+        class='operation-step2-custom-report-loading'
+        data-testid='collection-custom-report-loading'
+        indicator={renderLoadingIndicator}
+        loading={loading.value}
+        showOverlay
+        size='large'
+        zIndex={1000}
       >
-        {cardRender(cardConfig.value)}
-        <div class='classify-btns'>
-          {!props.isEdit && (
-            <bk-button
-              class='mr-8'
-              onClick={() => {
-                emit('prev');
-              }}
-            >
-              {t('上一步')}
-            </bk-button>
-          )}
-          <bk-button
-            class='width-88 mr-8'
-            theme='primary'
-            loading={submitLoading.value}
-            onClick={() => {
-              baseInfoRef.value
-                .validate()
-                .then(() => {
-                  emit('next', configData.value);
-                })
-                .catch(() => {
-                  console.log('error');
-                });
-            }}
-          >
-            {t('下一步')}
-          </bk-button>
-          {props.isEdit && (
-            <bk-button
+        <div class='operation-step2-custom-report'>
+          {cardRender(cardConfig.value)}
+          <div class='classify-btns'>
+            {!props.isEdit && (
+              <TButton
+                class='mr-8'
+                onClick={() => {
+                  emit('prev');
+                }}
+              >
+                {t('上一步')}
+              </TButton>
+            )}
+            <TButton
               class='width-88 mr-8'
               theme='primary'
               loading={submitLoading.value}
               onClick={() => {
-                handleSubmitSave({ action: 'back' });
+                baseInfoRef.value
+                  .validate()
+                  .then(() => {
+                    emit('next', configData.value);
+                  })
+                  .catch(() => {
+                    console.log('error');
+                  });
               }}
             >
-              {t('提交')}
-            </bk-button>
-          )}
-          <bk-button
-            onClick={() => {
-              emit('cancel');
-            }}
-          >
-            {t('取消')}
-          </bk-button>
+              {t('下一步')}
+            </TButton>
+            {props.isEdit && (
+              <TButton
+                class='width-88 mr-8'
+                theme='primary'
+                loading={submitLoading.value}
+                onClick={() => {
+                  handleSubmitSave({ action: 'back' });
+                }}
+              >
+                {t('提交')}
+              </TButton>
+            )}
+            <TButton
+              onClick={() => {
+                emit('cancel');
+              }}
+            >
+              {t('取消')}
+            </TButton>
+          </div>
         </div>
-      </div>
+      </TLoading>
     );
   },
 });

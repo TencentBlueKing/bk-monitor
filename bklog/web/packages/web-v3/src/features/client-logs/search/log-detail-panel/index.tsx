@@ -1,3 +1,7 @@
+
+import { Loading as TLoading } from 'tdesign-vue-next';
+
+import { MessagePlugin as TDesignMessage, Button as TButton } from 'tdesign-vue-next';
 import { ServicesInstance } from '@/platform/services';
 /*
  * Tencent is pleased to support the open source community by making
@@ -26,7 +30,7 @@ import { ServicesInstance } from '@/platform/services';
  */
 
 import { defineComponent, ref, watch, computed, onMounted, onUnmounted } from 'vue';
-import { bkMessage } from 'bk-magic-vue';
+
 
 import { t } from '@/shared/composables/use-locale';
 import useStore from '@/shared/composables/use-store';
@@ -693,10 +697,7 @@ export default defineComponent({
       // 重新拼接 hash
       url.hash = `${hashPath}?${hashSearchParams.toString()}`;
       navigator.clipboard.writeText(url.toString()).then(() => {
-        bkMessage({
-          message: t('复制成功'),
-          theme: 'success',
-        });
+        TDesignMessage("success", { content: t('复制成功') });
       });
     };
 
@@ -754,12 +755,12 @@ export default defineComponent({
         <bk-exception type='empty'>
           <div class='tip'>{t('暂未采集，无法获取日志')}</div>
           {!props.hideCollectButton && (
-            <bk-button
+            <TButton
               theme='primary'
               onClick={() => emit('collect', props.selectedLogItem)}
             >
               {t('立即采集')}
-            </bk-button>
+            </TButton>
           )}
         </bk-exception>
       </div>
@@ -769,7 +770,7 @@ export default defineComponent({
     const renderCollectingContent = () => (
       <div class='collecting-content'>
         <div class='collecting-spin'>
-          <bk-spin size='normal'></bk-spin>
+          <TLoading size='normal'></TLoading>
         </div>
         <div class='collecting-title'>{t('正在采集目标日志文件，预计2-3分钟')}</div>
       </div>
@@ -781,12 +782,12 @@ export default defineComponent({
         <bk-exception type='empty'>
           <div class='tip'>{t('日志采集失败，请重新采集')}</div>
           {!props.hideCollectButton && (
-            <bk-button
+            <TButton
               theme='primary'
               onClick={() => emit('collect', props.selectedLogItem)}
             >
               {t('立即采集')}
-            </bk-button>
+            </TButton>
           )}
         </bk-exception>
       </div>
@@ -952,7 +953,7 @@ export default defineComponent({
                     disabled: !isDownloadDisabled(),
                   }}
                 >
-                  <bk-button
+                  <TButton
                     disabled={isDownloadDisabled()}
                     class={[{ 'disabled-download': !props.isAllowedDownload }]}
                     v-cursor={{ active: !isDownloadDisabled() && !props.isAllowedDownload }}
@@ -960,16 +961,16 @@ export default defineComponent({
                   >
                     <i class='bk-icon icon-download'></i>
                     {t('下载')}
-                  </bk-button>
+                  </TButton>
                 </span>
-                <bk-button onClick={handleShare}>
+                <TButton onClick={handleShare}>
                   <i class='bklog-icon bklog-share-fenxiang'></i>
                   {t('分享')}
-                </bk-button>
-                <bk-button onClick={handleFullscreen}>
+                </TButton>
+                <TButton onClick={handleFullscreen}>
                   <i class={`bk-icon ${isFullscreen.value ? 'icon-unfull-screen' : 'icon-full-screen'}`}></i>
                   {isFullscreen.value ? t('退出') : t('全屏')}
-                </bk-button>
+                </TButton>
               </div>
             )}
           </header>

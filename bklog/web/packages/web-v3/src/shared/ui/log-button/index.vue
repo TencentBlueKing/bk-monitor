@@ -29,16 +29,16 @@
     v-bk-tooltips="tooltips"
     class="log-button"
   >
-    <bk-button
+    <t-button :variant="(text) ? 'text' : ('base')"
       v-cursor="{ active: cursorActive }"
       :disabled="disabled"
-      :ext-cls="extCls"
-      :text="text"
-      :theme="theme"
+      :class="extCls"
+      
+      :theme="theme === 'dark' ? 'default' : theme"
       @click.stop="handleClick"
     >
       {{ buttonText }}
-    </bk-button>
+    </t-button>
   </section>
 </template>
 

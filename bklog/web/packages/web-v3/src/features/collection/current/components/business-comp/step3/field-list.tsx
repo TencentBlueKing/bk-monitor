@@ -1,3 +1,9 @@
+
+import { Input as TInput } from 'tdesign-vue-next';
+
+import { Switch as TSwitch, Checkbox as TCheckbox } from 'tdesign-vue-next';
+
+import { Button as TButton } from 'tdesign-vue-next';
 /*
  * Tencent is pleased to support the open source community by making
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
@@ -319,13 +325,13 @@ export default defineComponent({
               <div class='word-breaker-menu-content'>
                 <div class='menu-item'>
                   <span class='menu-item-label'>{t('分词')}</span>
-                  <bk-switcher
+                  <TSwitch
                     // disabled={getCustomizeDisabled(props.row, 'analyzed')}
-                    theme='primary'
+                    
                     value={cacheData.value.is_analyzed}
-                    onChange={(value: boolean) => {
+                    onChange={(value) => { if (typeof value === 'boolean') ((value: boolean) => {
                       cacheData.value.is_analyzed = value;
-                    }}
+                    })(value); }}
                     // on-change={handelChangeAnalyzed}
                   />
                 </div>
@@ -333,7 +339,7 @@ export default defineComponent({
                   <span class='menu-item-label'>{t('分词符')}</span>
                   <div class='bk-button-group'>
                     {participleList.map(option => (
-                      <bk-button
+                      <TButton
                         key={option.id}
                         class={{
                           'participle-btn': true,
@@ -345,33 +351,33 @@ export default defineComponent({
                         onClick={() => handleChangeParticipleState(option.id)}
                       >
                         {option.name}
-                      </bk-button>
+                      </TButton>
                     ))}
                   </div>
                   {currentParticipleState.value === 'custom' && (
-                    <bk-input
+                    <TInput
                       class='custom-input'
                       disabled={!cacheData.value.is_analyzed}
                       value={cacheData.value.tokenize_on_chars}
-                      onChange={(value: string) => {
+                      onChange={value => ((value: string) => {
                         cacheData.value.tokenize_on_chars = value;
-                      }}
+                      })(String(value))}
                     />
                   )}
                 </div>
                 <div class='menu-item'>
                   <span class='menu-item-label'>{t('大小写敏感')}</span>
-                  <bk-switcher
+                  <TSwitch
                     disabled={!cacheData.value.is_analyzed}
-                    theme='primary'
+                    
                     value={cacheData.value.is_case_sensitive}
-                    onChange={(value: boolean) => {
+                    onChange={(value) => { if (typeof value === 'boolean') ((value: boolean) => {
                       cacheData.value.is_case_sensitive = value;
-                    }}
+                    })(value); }}
                   />
                 </div>
                 <div class='menu-footer'>
-                  <bk-button
+                  <TButton
                     data-row-index={row.field_index}
                     data-row-name={row.field_name}
                     size='small'
@@ -389,13 +395,13 @@ export default defineComponent({
                     }}
                   >
                     {t('确定')}
-                  </bk-button>
-                  <bk-button
+                  </TButton>
+                  <TButton
                     size='small'
                     onClick={handleWordBreakerCancelClick}
                   >
                     {t('取消')}
-                  </bk-button>
+                  </TButton>
                 </div>
               </div>
             </div>
@@ -1029,7 +1035,7 @@ export default defineComponent({
           )}
 
           {row.is_built_in && row.alias_name ? (
-            <bk-input
+            <TInput
               class='participle-field-name-input-pl5'
               disabled={getFieldEditDisabled(row)}
               value={row.field_name}
@@ -1050,7 +1056,7 @@ export default defineComponent({
               }}
             />
           ) : (
-            <bk-input
+            <TInput
               class={{
                 'participle-field-name-input': row.alias_name || row.alias_name_show,
                 'participle-field-name-input-pl5': true,
@@ -1083,7 +1089,7 @@ export default defineComponent({
             </span>
           )}
           {(row.alias_name || row.alias_name_show) && !row.is_built_in && (
-            <bk-input
+            <TInput
               class={{
                 'participle-alias-name-input': true,
                 'input-error': !!row.fieldErr,
@@ -1117,7 +1123,7 @@ export default defineComponent({
             />
           )}
           {props.selectEtlConfig === 'bk_log_json' && row.fieldAliasErr && !row.alias_name && !row.alias_name_show && (
-            <bk-button
+            <TButton
               class='tooltips-btn'
               disabled={props.isTemplateSource}
               onClick={() => handlePopoverRename(row)}
@@ -1129,7 +1135,7 @@ export default defineComponent({
               theme='danger'
             >
               {t('重命名')}
-            </bk-button>
+            </TButton>
           )}
         </div>
       );
@@ -1378,9 +1384,9 @@ export default defineComponent({
         <div class='tab-box'>
           {renderTab()}
           <span class='checkbox-box'>
-            <bk-checkbox
+            <TCheckbox
               class='mr-5'
-              value={showBuiltIn.value}
+              checked={showBuiltIn.value}
               onChange={handleShowBuiltIn}
             />
             {t('显示内置字段')}

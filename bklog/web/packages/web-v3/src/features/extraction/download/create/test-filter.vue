@@ -43,14 +43,14 @@
       v-show="filterType === 'match_word'"
       class="filter-content"
     >
-      <bk-input
+      <t-input
         v-model="filterContent.keyword"
         style="width: 300px"
         :maxlength="64"
         :placeholder="$t('多个关键字用英文逗号')"
         data-test-id="addNewExtraction_input_filterKeyword"
       >
-      </bk-input>
+      </t-input>
       <bk-select
         v-model="filterContent.keyword_type"
         style="width: 70px; margin-right: 10px; background-color: #fff"
@@ -73,18 +73,18 @@
         class="filter-content"
         path="从匹配{0}开始到匹配{1}之间的所有行"
       >
-        <bk-input
+        <t-input
           v-model="filterContent.start"
           style="width: 180px; margin: 0 6px"
           :maxlength="64"
         >
-        </bk-input>
-        <bk-input
+        </t-input>
+        <t-input
           v-model="filterContent.end"
           style="width: 180px; margin: 0 6px"
           :maxlength="64"
         >
-        </bk-input>
+        </t-input>
       </i18n>
     </div>
     <!-- 最新行数 -->

@@ -21,7 +21,7 @@
           color: #979ba5;
         }
 
-        :deep(.bk-form-control) {
+        :deep(.t-input__wrap) {
           padding: 0 8px;
 
           .left-icon {
@@ -30,7 +30,7 @@
           }
 
           .bk-input-text {
-            .bk-form-input {
+            .t-input__inner {
               padding-left: 38px;
               border-bottom-color: #eaebf0;
             }
@@ -324,7 +324,7 @@
     .ui-btn-opts {
       font-size: 0;
 
-      .bk-button {
+      .t-button {
         min-width: 64px;
         font-size: 14px;
 

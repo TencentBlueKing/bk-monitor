@@ -30,7 +30,7 @@ import { createRequire } from 'node:module';
 import { fileURLToPath } from 'node:url';
 const web=resolve(dirname(fileURLToPath(import.meta.url)),'../..');
 const root=resolve(web,'packages/web-v3/src-native');
-const require=createRequire(resolve(web,'package.json'));
+const require=createRequire(resolve(web,'packages/web-v2/package.json'));
 const {parse}=require('@babel/parser');const {parse:parseVue}=require('@vue/compiler-sfc');
 function files(dir){return readdirSync(dir,{withFileTypes:true}).flatMap(e=>e.isDirectory()?files(resolve(dir,e.name)):[resolve(dir,e.name)]);}
 function walk(node,callback){if(!node||typeof node!=='object')return;if(node.type)callback(node);for(const[key,value]of Object.entries(node)){if(['loc','comments','tokens'].includes(key))continue;if(Array.isArray(value))value.forEach(v=>walk(v,callback));else if(value&&typeof value==='object')walk(value,callback);}}

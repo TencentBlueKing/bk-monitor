@@ -1,13 +1,11 @@
 /* Copyright (C) 2021 THL A29 Limited, a Tencent company, MIT License. */
 import { readFileSync, writeFileSync, mkdirSync, existsSync } from 'node:fs';
-import { createRequire } from 'node:module';
 import { fileURLToPath } from 'node:url';
 import { resolve } from 'node:path';
 import { createHash } from 'node:crypto';
 import ts from 'typescript';
 import { getBaselineRoot } from './source-baseline.mjs';
 const root = fileURLToPath(new URL('../', import.meta.url));
-const require = createRequire(new URL('../package.json', import.meta.url));
 const sources = ['route', 'button', 'label', 'content'].map(name => `language/lang/en/${name}.ts`);
 const sourcePath = file => resolve(getBaselineRoot(), file);
 function readDictionary(file) {
@@ -31,8 +29,8 @@ function flatten(input, prefix = '', output = {}) {
 const dictionaries = sources.map(readDictionary);
 const english = Object.assign({}, ...dictionaries);
 const owner = Object.assign({}, ...dictionaries.map((dictionary, index) => Object.fromEntries(Object.keys(dictionary).map(key => [key, sources[index].split('/').at(-1).replace('.ts', '')]))));
-const zh = flatten(require('bk-magic-vue/lib/locale/lang/zh-CN').default);
-const en = flatten(require('bk-magic-vue/lib/locale/lang/en-US').default);
+const zh = flatten(JSON.parse(readFileSync(resolve(root, 'tools/vendor-control-locale/zh-CN.json'), 'utf8')));
+const en = flatten(JSON.parse(readFileSync(resolve(root, 'tools/vendor-control-locale/en-US.json'), 'utf8')));
 for (const [key, value] of Object.entries(english)) { zh[key] = key; en[key] = value; }
 for (const key of new Set([...Object.keys(zh), ...Object.keys(en)])) {
   zh[key] ??= key;
@@ -61,7 +59,7 @@ const provenance = { schemaVersion: 1, migration: 'vue-i18n-to-paraglide', local
   policy: 'Stable canonical IDs avoid compiler identifier collisions. Original keys remain in legacy-message-keys.json. Preserve translations and interpolation names; no generated translations.',
   ownMessages: Object.keys(english).length, messages: { 'zh-cn': Object.keys(zh).length, en: Object.keys(en).length },
   sources: sources.map(file => ({ file, sha256: createHash('sha256').update(readFileSync(sourcePath(file))).digest('hex') })),
-  vendor: { package: 'bk-magic-vue', version: require('bk-magic-vue/package.json').version, dictionaries: ['lib/locale/lang/zh-CN.js', 'lib/locale/lang/en-US.js'] },
+  vendor: { package: 'tdesign-vue-next', dictionaries: ['tools/vendor-control-locale/zh-CN.json', 'tools/vendor-control-locale/en-US.json'] },
 };
 writeFileSync(resolve(root, 'ai-native/paraglide-catalog-origin.json'), JSON.stringify(provenance, null, 2) + '\n');
 console.log(JSON.stringify({ownMessages: provenance.ownMessages, messages: provenance.messages}, null, 2));

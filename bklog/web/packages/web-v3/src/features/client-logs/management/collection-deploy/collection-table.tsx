@@ -1,3 +1,7 @@
+
+import { Loading as TLoading } from 'tdesign-vue-next';
+
+import { Button as TButton } from 'tdesign-vue-next';
 /*
  * Tencent is pleased to support the open source community by making
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
@@ -219,14 +223,14 @@ export default defineComponent({
     // 任务名称插槽
     const nameSlot = {
       default: ({ row }: { row: CollectionTask }) => (
-        <bk-button
+        <TButton
           class='king-button name-button'
-          text
+          
           theme='primary'
-          onClick={() => viewTask(row)}
+          onClick={() => viewTask(row)} variant={(true) ? 'text' : ('base')}
         >
           {row.task_name}
-        </bk-button>
+        </TButton>
       ),
     };
 
@@ -261,7 +265,7 @@ export default defineComponent({
 
         const renderStatusIcon = () => {
           if (loadingStatuses.includes(row.status)) {
-            return <bk-spin size='mini'></bk-spin>;
+            return <TLoading size="small"></TLoading>;
           }
           if (failedStatuses.includes(row.status)) {
             return <div class='status-dot status-failed'></div>;
@@ -326,23 +330,23 @@ export default defineComponent({
               disabled: row.process_status === 'success',
             }}
           >
-            <bk-button
-              text
+            <TButton
+              
               theme='primary'
               disabled={row.process_status !== 'success'}
-              onClick={() => handleSearchTask(row)}
+              onClick={() => handleSearchTask(row)} variant={(true) ? 'text' : ('base')}
             >
               {t('检索')}
-            </bk-button>
+            </TButton>
           </span>
-          <bk-button
+          <TButton
             class='king-button'
-            text
+            
             theme='primary'
-            onClick={() => cloneTask(row)}
+            onClick={() => cloneTask(row)} variant={(true) ? 'text' : ('base')}
           >
             {t('克隆')}
-          </bk-button>
+          </TButton>
           <span
             class='king-button'
             v-bk-tooltips={{
@@ -350,9 +354,9 @@ export default defineComponent({
               disabled: row.status === TaskStatus.COMPLETED,
             }}
           >
-            <bk-button
+            <TButton
               disabled={row.status !== TaskStatus.COMPLETED}
-              text
+              
               class={[
                 {
                   'disabled-download': !props.isAllowedDownload,
@@ -362,10 +366,10 @@ export default defineComponent({
               v-cursor={{
                 active: row.status === TaskStatus.COMPLETED && !props.isAllowedDownload,
               }}
-              onClick={() => downloadFile(row.file_name, row.status)}
+              onClick={() => downloadFile(row.file_name, row.status)} variant={(true) ? 'text' : ('base')}
             >
               {t('下载文件')}
-            </bk-button>
+            </TButton>
           </span>
         </div>
       ),

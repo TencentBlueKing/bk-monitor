@@ -1,3 +1,5 @@
+
+import { Button as TButton } from 'tdesign-vue-next';
 import { ServicesInstance } from '@/platform/services';
 /*
  * Tencent is pleased to support the open source community by making
@@ -296,13 +298,13 @@ export default defineComponent({
     const renderCollectors = () => (
       <div class='detail-card collector-card'>
         <div class='collector-toolbar'>
-          <bk-button
+          <TButton
             disabled={!canSync.value}
             theme='primary'
             onClick={handleSync}
           >
             {t('一键同步')}
-          </bk-button>
+          </TButton>
           <bk-input
             value={keyword.value}
             placeholder={t('搜索 采集项名称、ID')}
@@ -359,17 +361,17 @@ export default defineComponent({
                       </div>
                     </div>
                     <div class='detail-actions'>
-                      <bk-button
-                        icon='edit-line'
+                      <TButton
+                        icon={() => <span class={`bk-icon icon-${'edit-line'}`} />}
                         onClick={handleEdit}
                       >
                         {t('编辑')}
-                      </bk-button>
+                      </TButton>
                       <DeleteConfirmPopover
                         templateName={currentTemplate.value?.name || '--'}
                         onConfirm={handleDelete}
                       >
-                        <bk-button icon='delete'>{t('删除')}</bk-button>
+                        <TButton icon={() => <span class={`bk-icon icon-${'delete'}`} />}>{t('删除')}</TButton>
                       </DeleteConfirmPopover>
                     </div>
                   </header>

@@ -31,20 +31,20 @@
       <div class="flbc">
         <p>{{ $t('聚类规则') }}</p>
         <div class="bk-button-group template-check-content">
-          <bk-button
+          <t-button
             :class="{ 'is-selected': ruleType === 'template' }"
             size="small"
             @click="handleClickTemplateBtn('template')"
           >
             {{ $t('模板') }}
-          </bk-button>
-          <bk-button
+          </t-button>
+          <t-button
             :class="{ 'is-selected': ruleType === 'customize' }"
             size="small"
             @click="handleClickTemplateBtn('customize')"
           >
             {{ $t('自定义') }}
-          </bk-button>
+          </t-button>
         </div>
         <bk-select
           v-if="ruleType === 'template'"
@@ -82,14 +82,14 @@
       <div class="table-operate">
         <bk-dropdown-menu>
           <template slot="dropdown-trigger">
-            <bk-button
+            <t-button
               style="min-width: 48px"
               class="btn-hover"
               data-test-id="LogCluster_button_addNewRules"
               size="small"
             >
               {{ $t('导入') }}
-            </bk-button>
+            </t-button>
           </template>
           <ul
             slot="dropdown-content"
@@ -113,15 +113,15 @@
             </li>
           </ul>
         </bk-dropdown-menu>
-        <bk-button
+        <t-button
           style="min-width: 48px"
           class="btn-hover"
           size="small"
           @click="() => handleExportRule()"
         >
           {{ $t('导出') }}
-        </bk-button>
-        <bk-button
+        </t-button>
+        <t-button
           style="min-width: 72px"
           class="btn-hover"
           data-test-id="LogCluster_button_reductionRules"
@@ -129,7 +129,7 @@
           @click="reductionRule"
         >
           {{ $t('恢复默认') }}
-        </bk-button>
+        </t-button>
       </div>
     </div>
     <!-- 添加规则dialog -->
@@ -154,10 +154,10 @@
           :rules="rules.regular"
           required
         >
-          <bk-input
+          <t-input
             v-model="addRulesData.regular"
             style="width: 560px"
-          ></bk-input>
+          ></t-input>
           <span>{{ $t('样例') }}：\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}</span>
         </bk-form-item>
         <bk-form-item
@@ -166,10 +166,10 @@
           :rules="rules.placeholder"
           required
         >
-          <bk-input
+          <t-input
             v-model="addRulesData.placeholder"
             style="width: 560px"
-          ></bk-input>
+          ></t-input>
           <span>{{ $t('样例') }}：IP</span>
         </bk-form-item>
       </bk-form>
@@ -181,11 +181,11 @@
               class="inspection-status"
             >
               <div>
-                <bk-spin
+                <t-loading
                   v-if="isDetection"
                   class="spin"
-                  size="mini"
-                ></bk-spin>
+                  size="small"
+                ></t-loading>
                 <span
                   v-else
                   :style="`color:${isRuleCorrect ? '#45E35F' : '#FE5376'}`"
@@ -197,14 +197,14 @@
           </div>
 
           <div>
-            <bk-button
+            <t-button
               :disabled="isDetection"
               theme="primary"
               @click="handleRuleSubmit"
             >
-              {{ isRuleCorrect ? $t('保存') : $t('检测语法') }}</bk-button
+              {{ isRuleCorrect ? $t('保存') : $t('检测语法') }}</t-button
             >
-            <bk-button @click="isShowAddRule = false">{{ $t('取消') }}</bk-button>
+            <t-button @click="isShowAddRule = false">{{ $t('取消') }}</t-button>
           </div>
         </div>
       </template>
@@ -255,17 +255,19 @@
           :rules="indexSetRules.export_type"
           required
         >
-          <bk-radio-group v-model="indexSetData.export_type">
-            <bk-radio value="replace"> {{ $t('替换') }} </bk-radio>
-            <bk-radio value="assign"> {{ $t('补齐') }} </bk-radio>
-          </bk-radio-group>
+          <t-radio-group v-model="indexSetData.export_type">
+            <t-radio value="replace"> {{ $t('替换') }} </t-radio>
+            <t-radio value="assign"> {{ $t('补齐') }} </t-radio>
+          </t-radio-group>
         </bk-form-item>
       </bk-form>
     </bk-dialog>
   </div>
 </template>
 
-<script>import { ServicesInstance } from '@/platform/services';
+<script>
+import { MessagePlugin as TDesignMessage } from 'tdesign-vue-next';
+import { ServicesInstance } from '@/platform/services';
 
   import { base64Decode } from '@/shared/lib/util';
   import * as authorityMap from '@/shared/lib/authority-map';
@@ -511,10 +513,7 @@
             });
             this.rulesList = list;
           } catch {
-            this.$bkMessage({
-              theme: 'error',
-              message: this.$t('不是有效的json文件'),
-            });
+            TDesignMessage("error", { content: this.$t('不是有效的json文件') });
           }
         };
         // 以Text的形式读取文件:
@@ -523,10 +522,7 @@
       /** 导出规则 */
       handleExportRule(filename = '') {
         if (!this.rulesList.length) {
-          this.$bkMessage({
-            theme: 'error',
-            message: this.$t('聚类规则为空，无法导出规则'),
-          });
+          TDesignMessage("error", { content: this.$t('聚类规则为空，无法导出规则') });
           return;
         }
         const eleLink = document.createElement('a');
@@ -752,10 +748,7 @@
             if (res.code === 0) {
               this.templateList[configItem.index].name = configItem.editStr;
               this.templateList[configItem.index].isShowEdit = false;
-              this.$bkMessage({
-                theme: 'success',
-                message: this.$t('操作成功'),
-              });
+              TDesignMessage("success", { content: this.$t('操作成功') });
             }
           })
           .catch(err => {
@@ -776,10 +769,7 @@
             if (res.code === 0) {
               this.initTemplateList().then(() => {
                 this.$refs.templateListRef.show();
-                this.$bkMessage({
-                  theme: 'success',
-                  message: this.$t('操作成功'),
-                });
+                TDesignMessage("success", { content: this.$t('操作成功') });
               });
             }
           })
@@ -832,7 +822,7 @@
         top: 0;
         right: 0;
 
-        .bk-button {
+        .t-button {
           margin-left: 2px;
           border-radius: 3px;
         }
@@ -872,12 +862,12 @@
       }
     }
 
-    .bk-form-control {
+    .t-input__wrap {
       display: flex;
       align-items: center;
       height: 32px;
 
-      .bk-form-radio {
+      .t-radio {
         margin-right: 20px;
       }
     }

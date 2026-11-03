@@ -44,16 +44,16 @@
           handle=".icon-grag-fill"
         >
           <transition-group>
-            <bk-tag
+            <t-tag variant="light" data-v2-display="tag"
               v-for="(item, index) in sortFields"
               :key="item"
-              ext-cls="tag-items"
+              :class="'tag-items'"
               closable
-              @close="handleCloseSortFiled(item, index)"
+              @close="({e}) => handleCloseSortFiled(item, index)"
             >
               <i class="bk-icon icon-grag-fill"></i>
               {{ item }}
-            </bk-tag>
+            </t-tag>
           </transition-group>
         </vue-draggable>
         <bk-select
@@ -64,10 +64,10 @@
           @selected="handleAddSortFields"
         >
           <template #trigger>
-            <bk-button
+            <t-button
               class="king-button"
-              icon="plus"
-            ></bk-button>
+              
+            ><template #icon><span :class="`bk-icon icon-${'plus'}`"></span></template></t-button>
           </template>
           <bk-option
             v-for="option in targetFieldSelectList"

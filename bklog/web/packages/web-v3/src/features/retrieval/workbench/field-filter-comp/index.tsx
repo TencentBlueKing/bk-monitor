@@ -1,5 +1,12 @@
 import type { FieldInfoItem } from '@/app/state/store.type';
-interface FieldTreeNode extends FieldInfoItem { children?: FieldTreeNode[]; fullName?: string; full_name?: string; parentFieldName?: string; parent_field_name?: string; filterVisible?: boolean; }
+interface FieldTreeNode extends FieldInfoItem {
+  children?: FieldTreeNode[];
+  fullName?: string;
+  full_name?: string;
+  parentFieldName?: string;
+  parent_field_name?: string;
+  filterVisible?: boolean;
+}
 /*
  * Tencent is pleased to support the open source community by making
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
@@ -32,8 +39,16 @@ import { Component as tsc } from 'vue-tsx-support';
 import { TABLE_LOG_FIELDS_SORT_REGULAR, getRegExp } from '@/shared/lib/util';
 import { builtInInitHiddenList } from '@/shared/constants/index.ts';
 import { isFeatureToggleOn } from '@/shared/composables/use-feature-toggle';
-import VueDraggable from 'vuedraggable';
-import { Input } from 'tdesign-vue-next';
+import VueDraggable from 'vuedraggable-vue3';
+Object.assign(VueDraggable, { compatConfig: { MODE: 3 } });
+// Vue.Draggable 4.1 emits `end`, but its published declaration omits Sortable events.
+// Keep the installed props and add only the event used by this business list.
+type FieldDragInstance = InstanceType<typeof VueDraggable> & {
+  $props: InstanceType<typeof VueDraggable>['$props'] & { onEnd?: () => void };
+};
+const FieldDraggable = VueDraggable as typeof VueDraggable & (new () => FieldDragInstance);
+
+import { Input, Tree as TTree, Tooltip as TTooltip } from 'tdesign-vue-next';
 import 'tdesign-vue-next/es/input/style/index.css';
 
 import EmptyStatus from '../../../../shared/ui/empty-status/index.vue';
@@ -47,15 +62,15 @@ import FieldSetting from './update/field-setting.vue';
 import './index.scss';
 
 interface FieldFilterCompProps {
-  "totalFields"?: FieldTreeNode[];
-  "visibleFields"?: FieldTreeNode[];
-  "sortList"?: any[];
-  "fieldAliasMap"?: object;
-  "showFieldAlias"?: boolean;
-  "retrieveParams"?: object;
-  "datePickerValue"?: any[];
-  "indexSetItem"?: any;
-  "onFieldsUpdated"?: (value0: string[]) => void;
+  totalFields?: FieldTreeNode[];
+  visibleFields?: FieldTreeNode[];
+  sortList?: any[];
+  fieldAliasMap?: object;
+  showFieldAlias?: boolean;
+  retrieveParams?: object;
+  datePickerValue?: any[];
+  indexSetItem?: any;
+  onFieldsUpdated?: (value0: string[]) => void;
 }
 
 @Component
@@ -103,8 +118,8 @@ export default class FieldFilterComp extends tsc<FieldFilterCompProps> {
   }
   /** 可选字段 */
   get hiddenFields() {
-    const visibleFieldNames = new Set(this.visibleFields.map(item => item.field_name));
-    return this.totalFields.filter(item => !visibleFieldNames.has(item.field_name));
+    const visibleFieldNames = new Set(this.visibleFields.map((item) => item.field_name));
+    return this.totalFields.filter((item) => !visibleFieldNames.has(item.field_name));
   }
   /** 显示字段 */
   get showFields() {
@@ -207,7 +222,7 @@ export default class FieldFilterComp extends tsc<FieldFilterCompProps> {
   builtInFieldsShowObj() {
     const builtInFieldsValue = this.builtInFields();
     const { initHiddenList, otherList } = builtInFieldsValue.reduce(
-      (acc: { initHiddenList: any[]; otherList: any[]; }, cur: { field_name: string; }) => {
+      (acc: { initHiddenList: any[]; otherList: any[] }, cur: { field_name: string }) => {
         if (this.builtInInitHiddenList.includes(cur.field_name)) {
           acc.initHiddenList.push(cur);
         } else {
@@ -223,7 +238,8 @@ export default class FieldFilterComp extends tsc<FieldFilterCompProps> {
 
     const visibleBuiltLength = builtInFieldsValue.filter((item) => item.filterVisible).length;
     const hiddenFieldVisible =
-      !!initHiddenList.filter((item: { filterVisible: any; }) => item.filterVisible).length && visibleBuiltLength === builtInFieldsValue.length;
+      !!initHiddenList.filter((item: { filterVisible: any }) => item.filterVisible).length &&
+      visibleBuiltLength === builtInFieldsValue.length;
 
     return {
       // 若没找到初始隐藏的内置字段且内置字段不足10条则不展示展开按钮
@@ -240,7 +256,7 @@ export default class FieldFilterComp extends tsc<FieldFilterCompProps> {
     return tree.length > 10 || tree.some((item) => item.children?.length);
   }
   get expandedFieldIdSet() {
-    return new Set(Object.keys(this.expandedFieldIds).filter(id => this.expandedFieldIds[id]));
+    return new Set(Object.keys(this.expandedFieldIds).filter((id) => this.expandedFieldIds[id]));
   }
   /** 只把已展开节点的下一层 children 交给树，避免一次挂上全部后代 */
   hydrateVisibleTree(node: FieldTreeNode, expandedSet: Set<string>): FieldTreeNode {
@@ -252,7 +268,7 @@ export default class FieldFilterComp extends tsc<FieldFilterCompProps> {
     if (!expandedSet.has(nodeId)) {
       return {
         ...node,
-        children: childList.map(child => ({
+        children: childList.map((child) => ({
           ...child,
           children: undefined,
         })),
@@ -260,10 +276,15 @@ export default class FieldFilterComp extends tsc<FieldFilterCompProps> {
     }
     return {
       ...node,
-      children: childList.map(child => this.hydrateVisibleTree(child, expandedSet)),
+      children: childList.map((child) => this.hydrateVisibleTree(child, expandedSet)),
     };
   }
-  markSearchExpanded(nodes: FieldTreeNode[] | undefined, keyword: string, expanded: Record<string, boolean>, ancestors: string[] = []) {
+  markSearchExpanded(
+    nodes: FieldTreeNode[] | undefined,
+    keyword: string,
+    expanded: Record<string, boolean>,
+    ancestors: string[] = [],
+  ) {
     if (!keyword) {
       return false;
     }
@@ -278,7 +299,7 @@ export default class FieldFilterComp extends tsc<FieldFilterCompProps> {
       const childMatch = this.markSearchExpanded(node.children, keyword, expanded, [...ancestors, nodeId]);
       if (selfMatch || childMatch) {
         matched = true;
-        ancestors.forEach(id => {
+        ancestors.forEach((id) => {
           expanded[id] = true;
         });
       }
@@ -290,7 +311,7 @@ export default class FieldFilterComp extends tsc<FieldFilterCompProps> {
     if (this.searchKeyword) {
       this.markSearchExpanded(nodes, this.searchKeyword, expanded);
     }
-    const expandedSet = new Set(Object.keys(expanded).filter(id => expanded[id]));
+    const expandedSet = new Set(Object.keys(expanded).filter((id) => expanded[id]));
     return (nodes || []).map((node: FieldTreeNode) => this.hydrateVisibleTree(node, expandedSet));
   }
   /** 折叠时最多 10 个根；展开全部也只按层挂载，不一次渲染 1117 个节点 */
@@ -372,7 +393,7 @@ export default class FieldFilterComp extends tsc<FieldFilterCompProps> {
 
   @Watch('visibleFields', { immediate: true, deep: true })
   watchVisibleFields() {
-    this.dragVisibleFields = this.visibleFields.map(item => item.field_name);
+    this.dragVisibleFields = this.visibleFields.map((item) => item.field_name);
   }
 
   // 字段类型过滤：可聚合、字段类型
@@ -396,16 +417,8 @@ export default class FieldFilterComp extends tsc<FieldFilterCompProps> {
           regExp.test(fieldItem.query_alias || '');
       }
     }
-    this.$nextTick(() => {
-      for (const refName of Object.keys(this.$refs)) {
-        if (refName.startsWith('bigTreeRef-')) {
-          const bigTreeRef = this.$refs[refName];
-          (bigTreeRef as any)?.filter(searchKeyword);
-        }
-      }
-    });
   }
-  filterMethod(keyword: string, node: { data: any; }) {
+  filterMethod(keyword: string, node: { data: any }) {
     const fieldItem = node.data;
     const regExp = getRegExp(keyword.trim());
     return regExp.test(fieldItem.field_name) || regExp.test(fieldItem.query_alias || '');
@@ -427,13 +440,13 @@ export default class FieldFilterComp extends tsc<FieldFilterCompProps> {
     return fieldName;
   }
 
-  getDisplayFieldName(fieldItem: { field_type: string; field_name: any; }) {
+  getDisplayFieldName(fieldItem: { field_type: string; field_name: any }) {
     return fieldItem.field_type === 'object' ? this.getFieldFullName(fieldItem) : fieldItem.field_name;
   }
 
   // 字段显示或隐藏
-  handleToggleItem(type: string, fieldItem: { field_type: string; field_name: any; }) {
-    const displayFieldNames = this.visibleFields.map(item => item.field_name);
+  handleToggleItem(type: string, fieldItem: { field_type: string; field_name: any }) {
+    const displayFieldNames = this.visibleFields.map((item) => item.field_name);
     const fieldName = this.getDisplayFieldName(fieldItem);
 
     if (!fieldName) {
@@ -442,7 +455,7 @@ export default class FieldFilterComp extends tsc<FieldFilterCompProps> {
 
     if (type === 'visible') {
       // 需要隐藏字段
-      const index = displayFieldNames.findIndex(item => item === fieldName);
+      const index = displayFieldNames.findIndex((item) => item === fieldName);
       if (index > -1) {
         displayFieldNames.splice(index, 1);
       }
@@ -463,7 +476,7 @@ export default class FieldFilterComp extends tsc<FieldFilterCompProps> {
   sortHiddenList(list: FieldTreeNode[][]) {
     const sortList: any[] = [];
     for (const item of list) {
-      const sortItem = item.sort((a: { field_name: string; }, b: { field_name: string; }) => {
+      const sortItem = item.sort((a: { field_name: string }, b: { field_name: string }) => {
         const sortA = a.field_name.replace(TABLE_LOG_FIELDS_SORT_REGULAR, 'z');
         const sortB = b.field_name.replace(TABLE_LOG_FIELDS_SORT_REGULAR, 'z');
         return sortA.localeCompare(sortB);
@@ -481,7 +494,7 @@ export default class FieldFilterComp extends tsc<FieldFilterCompProps> {
     this.$store.dispatch('requestIndexSetFieldInfo');
   }
   // 记录bigTree展开节点
-  expandChange(TreeNode: { id: any; expanded: any; }, ref: string) {
+  expandChange(TreeNode: { id: any; expanded: any }, ref: string) {
     this.expandedNodes[ref] = this.expandedNodes[ref] || [];
     const nodeId = TreeNode.id;
     if (TreeNode.expanded) {
@@ -489,18 +502,23 @@ export default class FieldFilterComp extends tsc<FieldFilterCompProps> {
         this.expandedNodes[ref].push(nodeId);
       }
       if (nodeId) {
-        this.$set(this.expandedFieldIds, nodeId, true);
+        this.expandedFieldIds[nodeId] = true;
       }
     } else {
       this.expandedNodes[ref] = this.expandedNodes[ref].filter((id: unknown) => id !== nodeId);
       if (nodeId) {
-        this.$delete(this.expandedFieldIds, nodeId);
+        delete this.expandedFieldIds[nodeId];
       }
     }
   }
-  bigTreeRender(field: { field_name: any; }, index: string) {
+  bigTreeRender(field: FieldTreeNode, index: string) {
+    const searchExpanded = { ...this.expandedFieldIds };
+    if (this.searchKeyword) this.markSearchExpanded([field], this.searchKeyword, searchExpanded);
     const defaultExpandedNodes = Array.from(
-      new Set([...(this.expandedNodes[`bigTreeRef-${index}`] || []), ...Array.from(this.expandedFieldIdSet)]),
+      new Set([
+        ...(this.expandedNodes[`bigTreeRef-${index}`] || []),
+        ...Object.keys(searchExpanded).filter((id) => searchExpanded[id]),
+      ]),
     );
     const scopedSlots = {
       default: ({ data }: { data: FieldTreeNode }) => (
@@ -516,22 +534,27 @@ export default class FieldFilterComp extends tsc<FieldFilterCompProps> {
           showFieldAlias={this.showFieldAlias}
           statisticalFieldData={this.statisticalFieldsData[data.field_name]}
           type={index.includes('show') ? 'visible' : 'hidden'}
-          onToggleItem={({ type, fieldItem }: { type: string; fieldItem: FieldTreeNode }) => this.handleToggleItem(type, fieldItem)}
+          onToggleItem={({ type, fieldItem }: { type: string; fieldItem: FieldTreeNode }) =>
+            this.handleToggleItem(type, fieldItem)
+          }
         />
       ),
     };
     return (
-      <bk-big-tree
+      <TTree
         key={field.field_name}
-        ref={`bigTreeRef-${index}`}
         class='big-tree'
+        icon={false}
         data={[field]}
-        default-expanded-nodes={defaultExpandedNodes}
-        expand-on-click={true}
-        filter-method={(keyword: string, node: { data: any; }) => this.filterMethod(keyword, node)}
-        options={{ nameKey: 'fullName', idKey: 'fullName', childrenKey: 'children' }}
-        v-slots={scopedSlots}
-        onExpandChange={(node: { id: any; expanded: any; }) => this.expandChange(node, `bigTreeRef-${index}`)}
+        expanded={defaultExpandedNodes}
+        expandOnClickNode
+        keys={{ label: 'fullName', value: 'fullName', children: 'children' }}
+        filter={this.searchKeyword ? (node) => this.filterMethod(this.searchKeyword, { data: node.data }) : undefined}
+        v-slots={{ label: ({ node }: { node: { data: FieldTreeNode } }) => scopedSlots.default({ data: node.data }) }}
+        onExpand={(values, { node }) => {
+          if (node.value == null) return;
+          this.expandChange({ id: node.value, expanded: values.includes(node.value) }, `bigTreeRef-${index}`);
+        }}
       />
     );
   }
@@ -540,9 +563,11 @@ export default class FieldFilterComp extends tsc<FieldFilterCompProps> {
       return [];
     }
 
-    const sourceByName = new Map(arrData.map(item => [item.field_name, item]));
+    const sourceByName = new Map(arrData.map((item) => [item.field_name, item]));
     const visit = (node: FieldTreeNode): FieldTreeNode | null => {
-      const children = (node.children ?? []).map(visit).filter((item): item is NonNullable<typeof item> => Boolean(item));
+      const children = (node.children ?? [])
+        .map(visit)
+        .filter((item): item is NonNullable<typeof item> => Boolean(item));
       const fieldName = node.full_name || node.fullName || node.field_name;
       const sourceField = sourceByName.get(fieldName);
       if (!sourceField && !children.length) {
@@ -569,17 +594,14 @@ export default class FieldFilterComp extends tsc<FieldFilterCompProps> {
             placeholder={this.$t('搜索 字段名')}
             suffixIcon={() => <i class='bk-icon icon-search' />}
             clearable
-            onChange={value => {
+            onChange={(value) => {
               this.searchKeyword = value as string;
               this.filterListByCondition();
             }}
             // onClear={() => this.handleSearchException('clear-filter')}
           />
         </div>
-        <div
-          ref='fieldFilter'
-          class='field-filter-container-new'
-        >
+        <div ref='fieldFilter' class='field-filter-container-new'>
           {!this.isFieldLoading && !this.hasFilterVisibleFields && (
             <EmptyStatus
               style={{ marginTop: '20%' }}
@@ -591,16 +613,15 @@ export default class FieldFilterComp extends tsc<FieldFilterCompProps> {
                 <div class='error-empty'>
                   <p>
                     {this.$t('获取字段列表失败')}
-                    <i
-                      class='bklog-icon bklog-log-refresh'
-                      v-bk-tooltips={{ content: this.$t('刷新') }}
-                      onClick={() => this.handleSearchException('refresh')}
-                    />
-                    <i
-                      class={`bklog-icon bklog-${this.isShowErrInfo ? 'collapse-small' : 'expand-small'}`}
-                      v-bk-tooltips={{ content: this.$t('详情') }}
-                      onClick={() => (this.isShowErrInfo = !this.isShowErrInfo)}
-                    />
+                    <TTooltip content={this.$t('刷新')}>
+                      <i class='bklog-icon bklog-log-refresh' onClick={() => this.handleSearchException('refresh')} />
+                    </TTooltip>
+                    <TTooltip content={this.$t('详情')}>
+                      <i
+                        class={`bklog-icon bklog-${this.isShowErrInfo ? 'collapse-small' : 'expand-small'}`}
+                        onClick={() => (this.isShowErrInfo = !this.isShowErrInfo)}
+                      />
+                    </TTooltip>
                   </p>
                   {this.isShowErrInfo && <div class='error-info'>{this.errInfo}</div>}
                 </div>
@@ -613,34 +634,37 @@ export default class FieldFilterComp extends tsc<FieldFilterCompProps> {
                 <span>{this.$t('显示字段')}</span>
                 <FieldSetting />
               </div>
-              {this.visibleFields.filter(item => item.filterVisible).length ? (
-                <VueDraggable
+              {this.visibleFields.filter((item) => item.filterVisible).length ? (
+                <FieldDraggable
                   class='filed-list'
                   v-model={this.dragVisibleFields}
-                  {...{ ...this.dragOptions }}
-                  animation='150'
+                  itemKey={(name: string) => name}
+                  {...this.dragOptions}
                   onEnd={this.handleVisibleMoveEnd}
-                >
-                  <transition-group>
-                    {this.visibleFields.map(item => (
-                      // item.children?.length ? this.bigTreeRender(item, index+'show') :
-                      <FieldItem
-                        key={item.field_name}
-                        v-show={item.filterVisible}
-                        datePickerValue={this.datePickerValue}
-                        fieldAliasMap={this.fieldAliasMap}
-                        fieldItem={item}
-                        isFrontStatistics={this.isFrontStatistics}
-                        retrieveParams={this.retrieveParams}
-                        showFieldAlias={this.showFieldAlias}
-                        statisticalFieldData={this.statisticalFieldsData[item.field_name]}
-                        type='visible'
-                        visibleFields={this.visibleFields}
-                        onToggleItem={({ type, fieldItem }: { type: string; fieldItem: FieldTreeNode }) => this.handleToggleItem(type, fieldItem)}
-                      />
-                    ))}
-                  </transition-group>
-                </VueDraggable>
+                  v-slots={{
+                    item: ({ element }: { element: string }) => {
+                      const item = this.visibleFields.find((field) => field.field_name === element)!;
+                      return (
+                        <FieldItem
+                          key={item.field_name}
+                          v-show={item.filterVisible}
+                          datePickerValue={this.datePickerValue}
+                          fieldAliasMap={this.fieldAliasMap}
+                          fieldItem={item}
+                          isFrontStatistics={this.isFrontStatistics}
+                          retrieveParams={this.retrieveParams}
+                          showFieldAlias={this.showFieldAlias}
+                          statisticalFieldData={this.statisticalFieldsData[item.field_name]}
+                          type='visible'
+                          visibleFields={this.visibleFields}
+                          onToggleItem={({ type, fieldItem }: { type: string; fieldItem: FieldTreeNode }) =>
+                            this.handleToggleItem(type, fieldItem)
+                          }
+                        />
+                      );
+                    },
+                  }}
+                />
               ) : (
                 <span class='all-field-item'>{this.$t('当前显示全部字段')}</span>
               )}
@@ -651,7 +675,7 @@ export default class FieldFilterComp extends tsc<FieldFilterCompProps> {
               <div class='fields-container not-selected optional-field'>
                 <div class='title'>{this.$t('可选字段')}</div>
                 <ul class='filed-list'>
-                  {this.showIndexSetFields.map((item: { children?: any; filterVisible?: any; field_name: any; }, index: unknown) =>
+                  {this.showIndexSetFields.map((item: FieldTreeNode, index: number) =>
                     item.children?.length ? (
                       this.bigTreeRender(item, `${index}select`)
                     ) : (
@@ -666,15 +690,14 @@ export default class FieldFilterComp extends tsc<FieldFilterCompProps> {
                         showFieldAlias={this.showFieldAlias}
                         statisticalFieldData={this.statisticalFieldsData[item.field_name]}
                         type='hidden'
-                        onToggleItem={({ type, fieldItem }: { type: string; fieldItem: FieldTreeNode }) => this.handleToggleItem(type, fieldItem)}
+                        onToggleItem={({ type, fieldItem }: { type: string; fieldItem: FieldTreeNode }) =>
+                          this.handleToggleItem(type, fieldItem)
+                        }
                       />
                     ),
                   )}
                   {this.getIsShowIndexSetExpand() && (
-                    <div
-                      class='expand-all'
-                      onClick={() => (this.isShowAllIndexSet = !this.isShowAllIndexSet)}
-                    >
+                    <div class='expand-all' onClick={() => (this.isShowAllIndexSet = !this.isShowAllIndexSet)}>
                       {this.isShowAllIndexSet ? this.$t('收起') : this.$t('展开全部')}
                     </div>
                   )}
@@ -684,15 +707,12 @@ export default class FieldFilterComp extends tsc<FieldFilterCompProps> {
             {/* 内置字段 */}
             {!!this.builtInFields().filter((item) => item.filterVisible).length && (
               <div class='fields-container not-selected inside-fields'>
-                <div
-                  class='title'
-                  onClick={() => (this.isShowAllBuiltIn = !this.isShowAllBuiltIn)}
-                >
+                <div class='title' onClick={() => (this.isShowAllBuiltIn = !this.isShowAllBuiltIn)}>
                   <span class={['bklog-icon bklog-arrow-down-filled-2', { 'is-expand-all': this.isShowAllBuiltIn }]} />
                   {(this.$t('label-内置字段') as string).replace('label-', '')}
                 </div>
                 <ul class='filed-list'>
-                  {this.builtInLazyShowFields.map((item: { children?: any; filterVisible?: any; field_name: any; }, index: unknown) =>
+                  {this.builtInLazyShowFields.map((item: FieldTreeNode, index: number) =>
                     item.children?.length ? (
                       this.bigTreeRender(item, `${index}built`)
                     ) : (
@@ -707,7 +727,9 @@ export default class FieldFilterComp extends tsc<FieldFilterCompProps> {
                         showFieldAlias={this.showFieldAlias}
                         statisticalFieldData={this.statisticalFieldsData[item.field_name]}
                         type='hidden'
-                        onToggleItem={({ type, fieldItem }: { type: string; fieldItem: FieldTreeNode }) => this.handleToggleItem(type, fieldItem)}
+                        onToggleItem={({ type, fieldItem }: { type: string; fieldItem: FieldTreeNode }) =>
+                          this.handleToggleItem(type, fieldItem)
+                        }
                       />
                     ),
                   )}

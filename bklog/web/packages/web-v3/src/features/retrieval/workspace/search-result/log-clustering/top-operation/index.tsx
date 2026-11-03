@@ -1,3 +1,5 @@
+
+import { Tag as TTag } from 'tdesign-vue-next';
 import { includesValue } from '@/shared/utils/typed-record';
 /*
  * Tencent is pleased to support the open source community by making
@@ -187,24 +189,24 @@ export default defineComponent({
         </div>
         {isShowGroupTag.value && (
           <div class='tags-main'>
-            {getDimensionStr.value && <bk-tag type='stroke'>{getDimensionStr.value}</bk-tag>}
+            {getDimensionStr.value && <TTag variant={"outline"} data-v2-display='tag'>{getDimensionStr.value}</TTag>}
             {getGroupStr.value && (
-              <bk-tag
-                type='stroke'
+              <TTag
+                variant={"outline"}
                 closable
-                onClose={handleCloseGroupTag}
+                onClose={handleCloseGroupTag} data-v2-display='tag'
               >
                 {getGroupStr.value}
-              </bk-tag>
+              </TTag>
             )}
             {getYearStr.value && (
-              <bk-tag
-                type='stroke'
+              <TTag
+                variant={"outline"}
                 closable
-                onClose={handleCloseYearTag}
+                onClose={handleCloseYearTag} data-v2-display='tag'
               >
                 {getYearStr.value}
-              </bk-tag>
+              </TTag>
             )}
           </div>
         )}

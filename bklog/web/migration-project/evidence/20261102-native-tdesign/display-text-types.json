@@ -1,0 +1,11 @@
+{
+  "status": "NO_NEW_DIAGNOSTICS",
+  "strictTypecheckPassed": false,
+  "before": 1986,
+  "after": 1977,
+  "added": [],
+  "logs": [
+    "/tmp/bklog-display-types-before.log",
+    "/tmp/bklog-display-text-types-complete.log"
+  ]
+}

@@ -1,3 +1,7 @@
+
+import { Alert as TAlert } from 'tdesign-vue-next';
+
+import { Button as TButton } from 'tdesign-vue-next';
 import { ServicesInstance } from '@/platform/services';
 /*
  * Tencent is pleased to support the open source community by making
@@ -545,11 +549,11 @@ export default defineComponent({
       <div class='user-report'>
         {/* Alert 提示 */}
         <span onClick={handleViewSDKDoc}>
-          <bk-alert
+          <TAlert
             class='alert-info'
-            type='info'
-            title={t('使用本功能，需要在您的项目中集成并初始化相应的软件开发工具包（SDK），点击查看。')}
-          ></bk-alert>
+            theme={'info'}
+            message={t('使用本功能，需要在您的项目中集成并初始化相应的软件开发工具包（SDK），点击查看。')} data-v2-display='alert'
+          ></TAlert>
         </span>
 
         {/* 操作区域 */}
@@ -561,13 +565,13 @@ export default defineComponent({
                 disabled: selectedFileNames.value.length > 0,
               }}
             >
-              <bk-button
+              <TButton
                 theme='primary'
                 onClick={handleBatchUpload}
                 disabled={selectedFileNames.value.length === 0}
               >
                 {t('批量上传')}
-              </bk-button>
+              </TButton>
             </span>
             {/* <bk-button onClick={handleCleanConfig}>{t('清洗配置')}</bk-button> */}
           </div>

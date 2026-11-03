@@ -27,12 +27,12 @@
 <template>
   <div class="log-filter-container">
     <div class="switcher-container">
-      <bk-switcher
+      <t-switch
         v-model="switcherValue"
         size="large"
-        theme="primary"
+        
         @change="switcherChange"
-      ></bk-switcher>
+      ></t-switch>
       <div class="switcher-tips">
         <i class="bk-icon icon-info-circle" />
         <span>
@@ -76,14 +76,14 @@
             class="add-log-label form-div"
           >
             <div class="keyInputBox">
-              <bk-input
+              <t-input
                 v-model.trim="item.key"
                 :class="{ 'extra-error': item.key === '' && isExtraError }"
                 @blur="
                   isExtraError = false;
                   item.duplicateKey = false;
                 "
-              ></bk-input>
+              ></t-input>
               <template v-if="item.duplicateKey">
                 <i
                   v-bk-tooltips.top="$t('自定义标签key与元数据key重复')"
@@ -93,11 +93,11 @@
               </template>
             </div>
             <span>=</span>
-            <bk-input
+            <t-input
               v-model.trim="item.value"
               :class="{ 'extra-error': item.value === '' && isExtraError }"
               @blur="isExtraError = false"
-            ></bk-input>
+            ></t-input>
             <div class="ml9">
               <i
                 :class="['bk-icon icon-plus-circle-shape icons']"
@@ -269,13 +269,13 @@
         color: #ff9c01;
       }
 
-      .bk-form-control {
+      .t-input__wrap {
         width: 240px;
       }
     }
 
     .extra-error {
-      .bk-form-input {
+      .t-input__inner {
         border-color: #ff5656;
       }
     }

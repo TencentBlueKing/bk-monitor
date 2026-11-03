@@ -30,7 +30,7 @@ import { resolve, dirname, relative, extname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { createHash } from 'node:crypto';
 const web = resolve(dirname(fileURLToPath(import.meta.url)), '../..');
-const require = createRequire(resolve(web, 'package.json'));
+const require = createRequire(resolve(web, 'packages/web-v2/package.json'));
 const { parse } = require('@babel/parser');
 const { parse: parseVue } = require('@vue/compiler-sfc');
 const replacements = new Map([

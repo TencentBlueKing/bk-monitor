@@ -1,3 +1,5 @@
+
+import { Checkbox as TCheckbox } from 'tdesign-vue-next';
 import { asDictionary } from '@/shared/utils/typed-record';
 /*
  * Tencent is pleased to support the open source community by making
@@ -133,17 +135,17 @@ export default defineComponent({
             disabled: props.strategyHaveSubmit,
           }}
         >
-          <bk-checkbox
+          <TCheckbox
             class='new-class-checkbox'
-            value={isNear24.value}
+            checked={isNear24.value}
             disabled={!props.clusterSwitch || !props.strategyHaveSubmit}
-            false-value={false}
-            true-value={true}
+            
+            
             data-test-id='fingerTable_checkBox_selectCustomSize'
             onChange={handleShowNearPattern}
           >
             <span>{t('仅查看新类 Pattern')}</span>
-          </bk-checkbox>
+          </TCheckbox>
         </div>
         <div class='split-line'></div>
         <dimension-split

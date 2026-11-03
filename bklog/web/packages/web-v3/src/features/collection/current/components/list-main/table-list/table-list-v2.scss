@@ -620,10 +620,10 @@
         opacity: 0.6;
       }
 
-      :deep(.bk-checkbox) {
+      :deep(.t-checkbox) {
         width: 100%;
 
-        .bk-checkbox-text {
+        .t-checkbox__label {
           font-size: 12px;
           color: #63656e;
           white-space: nowrap;

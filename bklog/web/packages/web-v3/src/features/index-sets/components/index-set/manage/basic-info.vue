@@ -36,7 +36,7 @@
           v-if="isV2Enabled"
           class="edit-btn-container"
         >
-          <bk-button
+          <t-button
             v-cursor="{ active: !editAuth }"
             style="min-width: 88px; color: #3a84ff"
             class="mr10"
@@ -44,9 +44,9 @@
             @click="handleClickEdit"
           >
             {{ $t('编辑') }}
-          </bk-button>
+          </t-button>
           <bk-popover placement="bottom-end">
-            <bk-button class="bklog-icon bklog-lishijilu" />
+            <t-button class="bklog-icon bklog-lishijilu" />
             <template #content>
               <div class="create-name-and-time">
                 <div
@@ -182,14 +182,14 @@
           :label="$t('操作')"
         >
           <template #default="{ row }">
-            <bk-button
+            <t-button :variant="(true) ? 'text' : ('base')"
               :disabled="pagedIndexesList.length === 1"
               theme="primary"
-              text
+              
               @click="removeIndex(row)"
             >
               {{ $t('删除') }}
-            </bk-button>
+            </t-button>
           </template>
         </bk-table-column>
       </bk-table>

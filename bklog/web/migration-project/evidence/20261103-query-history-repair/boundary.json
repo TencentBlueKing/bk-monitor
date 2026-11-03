@@ -1,0 +1,13 @@
+{
+  "status": "FROZEN_WITH_TRACKED_DEBT",
+  "scope": "source imports, dynamic imports, reexports, and literal global registrations",
+  "counts": {
+    "imports": 54,
+    "compatibilityImports": 26,
+    "sdkImports": 27,
+    "legacyRegistrations": 66,
+    "trackedDebt": 103,
+    "violations": 0
+  },
+  "violations": []
+}

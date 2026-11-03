@@ -414,7 +414,7 @@ export const useFavorite = () => {
    */
   const updateGroupName = async (
     groupData: { group_id?: number | string; group_new_name: string },
-    spaceUid: number,
+    spaceUid: string | number,
     isCreate = true,
     callback?: (res: any) => void,
   ): Promise<void> => {
@@ -599,7 +599,7 @@ export const useFavorite = () => {
   };
 
   /** 获取组列表 */
-  const requestGroupList = async (spaceUid: number, callback?: (res: any) => void) => {
+  const requestGroupList = async (spaceUid: string | number, callback?: (res: any) => void) => {
     try {
       const sourceType = store.getters.isSceneMode ? 'scene' : 'index_set';
       const query = {

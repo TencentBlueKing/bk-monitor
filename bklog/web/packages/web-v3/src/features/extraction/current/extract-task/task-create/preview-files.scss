@@ -99,12 +99,12 @@
       flex-shrink: 0;
       margin-bottom: 7px;
 
-      .bk-checkbox-text {
+      .t-checkbox__label {
         font-size: 12px;
       }
     }
 
-    > .bk-button {
+    > .t-button {
       flex-shrink: 0;
     }
   }
@@ -202,7 +202,7 @@
       color: #313238;
     }
 
-    .bk-button-text {
+    .t-button--variant-text {
       font-size: 12px;
     }
   }
@@ -226,7 +226,7 @@
     display: flex;
     gap: 16px;
 
-    .bk-radio-text {
+    .t-radio__label {
       margin-left: 6px;
       font-size: 12px;
       line-height: 20px;
@@ -238,11 +238,11 @@
     background: #f0f5ff;
     border-color: #a3c5fd;
 
-    .bk-alert-wraper {
+    .t-alert {
       padding: 6px 8px;
     }
 
-    .bk-alert-title {
+    .t-alert__message {
       display: flex;
       gap: 8px;
       align-items: flex-start;

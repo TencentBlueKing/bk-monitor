@@ -1,0 +1,13 @@
+{
+  "sourceDigest": "5d47af81b7bd2e937427871a3eb10ad2f04c6378e63c02d53f74a85e1493bc5b",
+  "buildConfigDigest": "31868c9550859762189593649793d0a21fa329931e88f3354343340db0aca2d1",
+  "nativeModules": 3817,
+  "bundleBytes": 621110,
+  "gzipBytes": 193227,
+  "nativeVueRuntimeInputs": [
+    "node_modules/.pnpm/@vue+runtime-core@3.5.44/node_modules/@vue/runtime-core/dist/runtime-core.esm-bundler.js",
+    "node_modules/.pnpm/@vue+runtime-dom@3.5.44/node_modules/@vue/runtime-dom/dist/runtime-dom.esm-bundler.js"
+  ],
+  "compatRuntimeInputs": [],
+  "sdkVersion": "4.0.0-beta.9"
+}

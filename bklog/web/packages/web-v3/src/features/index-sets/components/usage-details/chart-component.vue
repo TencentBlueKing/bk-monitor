@@ -31,14 +31,14 @@
   >
     <div class="chart-header">
       <div class="title">{{ type }}</div>
-      <bk-button
+      <t-button :variant="(true) ? 'text' : ('base')"
         v-if="type === $t('检索耗时统计') && retrieveTimeGuide"
         style="font-size: 12px"
-        text
+        
         @click="goToGuide"
       >
         {{ $t('耗时优化指引 >') }}
-      </bk-button>
+      </t-button>
     </div>
     <div
       ref="chartRef"

@@ -1,3 +1,5 @@
+
+import { Button as TButton } from 'tdesign-vue-next';
 /*
  * Tencent is pleased to support the open source community by making
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
@@ -230,15 +232,15 @@ export default defineComponent({
                       content: () => (
                         <span>
                           <i18n path='聚类正则已生效，请前往 {0} 修改'>
-                            <bk-button
-                              text
+                            <TButton
+                              
                               theme='primary'
                               size='small'
                               style='padding:0;color:#699DF4'
-                              onClick={handleOpenClusterConfig}
+                              onClick={handleOpenClusterConfig} variant={(true) ? 'text' : ('base')}
                             >
                               {t('聚类设置')}
-                            </bk-button>
+                            </TButton>
                           </i18n>
                         </span>
                       ),
@@ -263,15 +265,15 @@ export default defineComponent({
                       content: () => (
                         <span>
                           <i18n path='聚类正则已生效，请前往 {0} 修改'>
-                            <bk-button
-                              text
+                            <TButton
+                              
                               theme='primary'
                               size='small'
                               style='padding:0;color:#699DF4'
-                              onClick={handleOpenClusterConfig}
+                              onClick={handleOpenClusterConfig} variant={(true) ? 'text' : ('base')}
                             >
                               {t('聚类设置')}
-                            </bk-button>
+                            </TButton>
                           </i18n>
                         </span>
                       ),

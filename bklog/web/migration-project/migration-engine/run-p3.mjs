@@ -56,8 +56,8 @@ function solidPng(rgba) {
   return PNG.sync.write(png);
 }
 
-const labelSource = resolve(webRoot, 'src/components/collection-access/components/step-add/label-target-dialog.vue');
-const selectSource = resolve(webRoot, 'src/components/collection-access/components/step-add/container-target-item.vue');
+const labelSource = resolve(webRoot, 'packages/web-v2/src/components/collection-access/components/step-add/label-target-dialog.vue');
+const selectSource = resolve(webRoot, 'packages/web-v2/src/components/collection-access/components/step-add/container-target-item.vue');
 const labelContract = extractContract(labelSource, 'label-target-dialog');
 labelContract.source = relative(webRoot, labelSource);
 labelContract.invariants = [

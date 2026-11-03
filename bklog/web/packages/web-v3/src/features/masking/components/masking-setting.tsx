@@ -1,3 +1,9 @@
+
+import { Alert as Alert, Tag as Tag } from 'tdesign-vue-next';
+
+import { Switch as Switcher } from 'tdesign-vue-next';
+
+import { MessagePlugin as TDesignMessage, Button as Button } from 'tdesign-vue-next';
 import { ServicesInstance } from '@/platform/services';
 import { asDictionary } from '@/shared/utils/typed-record';
 /*
@@ -29,17 +35,7 @@ import { asDictionary } from '@/shared/utils/typed-record';
 import { Component, Prop } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
-import {
-  bkAlert as Alert,
-  bkButton as Button,
-  bkInput as Input,
-  bkTable as Table,
-  bkTableColumn as TableColumn,
-  bkTag as Tag,
-  bkSwitcher as Switcher,
-  bkTableSettingContent as TableSettingContent,
-  bkDialog as Dialog,
-} from 'bk-magic-vue';
+import { bkInput as Input, bkTable as Table, bkTableColumn as TableColumn, bkTableSettingContent as TableSettingContent, bkDialog as Dialog } from '@/platform/compat/tdesign/magic-controls';
 
 
 import * as authorityMap from '../../../shared/lib/authority-map';
@@ -423,10 +419,7 @@ export default class MaskingSetting extends tsc<IProps> {
         // 这里如果直接请求新的接口会 后端会返回不同
         if (res.result) {
           this.handleChangeTableListValue(row.id, tItem => (tItem.isActive = false));
-          this.$bkMessage({
-            message: this.$t('操作成功'),
-            theme: 'success',
-          });
+          TDesignMessage("success", { content: this.$t('操作成功') });
         }
       }
       return;
@@ -434,10 +427,7 @@ export default class MaskingSetting extends tsc<IProps> {
     const res = await this.requestStopOrStartRule(row.id, 'start');
     if (res.result) {
       this.handleChangeTableListValue(row.id, tItem => (tItem.isActive = true));
-      this.$bkMessage({
-        message: this.$t('操作成功'),
-        theme: 'success',
-      });
+      TDesignMessage("success", { content: this.$t('操作成功') });
     }
   }
   handleChangeTableListValue(
@@ -621,7 +611,7 @@ export default class MaskingSetting extends tsc<IProps> {
           }}
         >
           {row.matchFields.length ? (
-            row.matchFields.map((item: string|number|symbol|undefined) => <Tag key={item}>{item}</Tag>)
+            row.matchFields.map((item: string|number|symbol|undefined) => <Tag key={item} variant='light' data-v2-display='tag'>{item}</Tag>)
           ) : (
             <span style='padding-left: 10px;'>{'-'}</span>
           )}
@@ -669,8 +659,8 @@ export default class MaskingSetting extends tsc<IProps> {
     const accessItemSlot = {
       default: ({ row }: { row: MaskingRuleRow }) => (
         <Button
-          text
-          onClick={() => this.handleClickAccess(row)}
+          
+          onClick={() => this.handleClickAccess(row)} variant={(true) ? 'text' : ('base')}
         >
           {row.accessNum}
         </Button>
@@ -686,9 +676,9 @@ export default class MaskingSetting extends tsc<IProps> {
           <Switcher
             v-model={row.isActive}
             disabled={this.isDisabledClick(row)}
-            preCheck={() => false}
+            beforeChange={() => false}
             size='small'
-            theme='primary'
+            
           />
         </div>
       ),
@@ -700,16 +690,16 @@ export default class MaskingSetting extends tsc<IProps> {
           <Button
             v-cursor={{ active: !this.isAllowed }}
             disabled={this.isDisabledClick(row)}
-            text
-            onClick={() => this.handleEditRule(row)}
+            
+            onClick={() => this.handleEditRule(row)} variant={(true) ? 'text' : ('base')}
           >
             {this.$t('编辑')}
           </Button>
           <Button
             v-cursor={{ active: !this.isAllowed }}
             disabled={this.isDisabledClick(row)}
-            text
-            onClick={() => this.handleDeleteRule(row)}
+            
+            onClick={() => this.handleDeleteRule(row)} variant={(true) ? 'text' : ('base')}
           >
             {this.$t('删除')}
           </Button>
@@ -742,8 +732,8 @@ export default class MaskingSetting extends tsc<IProps> {
           v-slots={{
             default: ({ row }: import("@/shared/types/table-row-scope").TableRowScope<typeof this.stopOrStartAccessValue.accessInfo>) => (
               <Button
-                text
-                onClick={() => this.handleJumpAccess(row)}
+                
+                onClick={() => this.handleJumpAccess(row)} variant={(true) ? 'text' : ('base')}
               >
                 {row.ids.length}
               </Button>
@@ -761,11 +751,11 @@ export default class MaskingSetting extends tsc<IProps> {
       <div class='masking-table-container'>
         <Alert
           class='top-alert'
-          title={this.$t(
+          message={this.$t(
             '脱敏规则会应用到本业务全部索引集。为保证脱敏规则效力，配置规则后，需针对计算平台索引集、第三方ES索引集进行手动校准指定，校准后索引集恢复可用状态。',
           )}
-          type='info'
-          closable
+          theme={'info'}
+          closeBtn={true} data-v2-display='alert'
         />
 
         <div class='search-box'>

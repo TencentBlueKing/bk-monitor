@@ -1,3 +1,9 @@
+
+import { Input as TInput } from 'tdesign-vue-next';
+
+import { Radio as TRadio } from 'tdesign-vue-next';
+
+import { Button as TButton } from 'tdesign-vue-next';
 import { ServicesInstance } from '@/platform/services';
 import { asDictionary } from '@/shared/utils/typed-record';
 /*
@@ -240,25 +246,25 @@ export default defineComponent({
             <span style='display: inline-block; min-width: fit-content;'>{t('时间格式')}：</span>
             <div>
               <div style='margin-bottom: 6px;'>
-                <bk-radio
+                <TRadio
                   style='font-size: 12px;'
                   checked={timeValueType.value === 'static'}
                   onChange={(val: unknown) => val && handleTimeValueTypeChange('static')}
                 >
                   {t('静态时间')}
-                </bk-radio>
+                </TRadio>
                 <span style='margin-left: 8px; font-size: 10px; color: #979BA5;'>
                   {t('会将时间转换为时间戳，按照访问人的时间进行载入')}
                 </span>
               </div>
               <div>
-                <bk-radio
+                <TRadio
                   style='font-size: 12px;'
                   checked={timeValueType.value === 'dynamic'}
                   onChange={(val: unknown) => val && handleTimeValueTypeChange('dynamic')}
                 >
                   {t('动态时间')}
-                </bk-radio>
+                </TRadio>
                 <span style='margin-left: 8px; font-size: 10px; color: #979BA5;'>
                   {t('会将近 xxx 这种时间保留，按照访问人的近 xxx 时间进行载入')}
                 </span>
@@ -293,28 +299,28 @@ export default defineComponent({
                 class='bklog-v3-select-popover'
               >
                 <span style='display: inline-block; min-width: fit-content;'>{t('自定义')}:</span>
-                <bk-input
+                <TInput
                   style='width: 100%; height: 28px; margin-left: 4px;'
                   placeholder='{number}d|w|m'
-                  onEnter={(val: string) => handleCutomExpireTimeChange(val)}
-                ></bk-input>
+                  onEnter={value => ((val: string) => handleCutomExpireTimeChange(val))(String(value))}
+                ></TInput>
               </div>
             </bk-select>
           </div>
 
           <div style='display: flex; width: 100%; margin-top: 12px;'>
-            <bk-input
+            <TInput
               placeholder={`{SITE_URL}/share/{LINK_ID}`}
               readonly={true}
               value={link.value}
-            ></bk-input>
-            <bk-button
+            ></TInput>
+            <TButton
               style='margin-left: -2px; border-radius: 0 2px 2px 0; min-width: fit-content;'
               theme='primary'
               onClick={handleShareLinkClick}
             >
               {t('生成并复制链接')}
-            </bk-button>
+            </TButton>
           </div>
         </div>
       );

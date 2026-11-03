@@ -25,6 +25,7 @@
  */
 
 import { computed, defineComponent, ref, watch } from 'vue';
+import { Input as TInput, Empty as TEmpty, Loading as TLoading } from 'tdesign-vue-next';
 
 import useLocale from '@/shared/composables/use-locale';
 import useStore from '@/shared/composables/use-store';
@@ -51,7 +52,7 @@ export default defineComponent({
     },
   },
 
-  emits: ['show-change', "showChange"],
+  emits: ['show-change', 'showChange'],
 
   setup(props, { emit }) {
     const { t } = useLocale();
@@ -124,16 +125,13 @@ export default defineComponent({
      */
     const renderEmpty = (emptyType: string) => {
       return (
-        <div
-          class='data-empty-box'
-          v-bkloading={{ isLoading: favoriteLoading.value }}
-        >
-          <bk-exception
+        <TLoading class='data-empty-box' loading={favoriteLoading.value}>
+          <TEmpty
             class='exception-wrap-item exception-part'
-            scene='part'
-            type={emptyType}
+            type='empty'
+            title={emptyType === 'search-empty' ? t('bk.exception.searchEmpty') : t('暂无数据')}
           />
-        </div>
+        </TLoading>
       );
     };
 
@@ -179,7 +177,7 @@ export default defineComponent({
     // 监听显示状态变化
     watch(
       () => props.isShowCollect,
-      value => {
+      (value) => {
         if (value) {
           getFavoriteList();
         } else {
@@ -201,24 +199,16 @@ export default defineComponent({
     return () => (
       <div class='collect-main-box'>
         <div class='collect-main-top'>
-          <CollectHead
-            total={allFavoriteNumber.value}
-            onCollapse={handleCollapse}
-            onRefresh={handleRefresh}
-          />
-          <bk-input
+          <CollectHead total={allFavoriteNumber.value} onCollapse={handleCollapse} onRefresh={handleRefresh} />
+          <TInput
             class='collect-main-search-input'
             clearable={true}
             placeholder={t('请输入')}
-            right-icon='bk-icon icon-search'
+            suffixIcon={() => <i class='bk-icon icon-search' />}
             value={searchValue.value}
-            onInput={handleSearchInput}
+            onChange={(value) => handleSearchInput(String(value ?? ''))}
           />
-          <CollectTab
-            active={activeTab.value}
-            list={tabList.value}
-            onTabChange={handleTabChange}
-          />
+          <CollectTab active={activeTab.value} list={tabList.value} onTabChange={handleTabChange} />
           <CollectTool
             ref={collectToolRef}
             collapseAll={isCollapseList.value}

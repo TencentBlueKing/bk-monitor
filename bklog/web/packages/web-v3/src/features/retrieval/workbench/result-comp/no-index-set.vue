@@ -39,14 +39,14 @@
           <p>{{ $t('日志数据已进入数据平台或ES') }}</p>
           <p>{{ $t('关联已入库的数据') }}</p>
         </div>
-        <bk-button
+        <t-button :variant="(true) ? 'outline' : 'base'"
           class="king-button"
-          :outline="true"
+          
           theme="primary"
           @click="goToCreateIndex"
         >
           {{ $t('新建索引集') }}
-        </bk-button>
+        </t-button>
       </div>
       <!-- 日志数据还在服务器上 需要采集日志，请先创建采集任务 -->
       <div class="index-manage">
@@ -54,14 +54,14 @@
           <p>{{ $t('日志数据还在服务器上') }}</p>
           <p>{{ $t('需要采集日志，请先创建采集任务') }}</p>
         </div>
-        <bk-button
+        <t-button :variant="(true) ? 'outline' : 'base'"
           class="king-button"
-          :outline="true"
+          
           theme="primary"
           @click="goToCreateCollection"
         >
           {{ $t('新建采集接入') }}
-        </bk-button>
+        </t-button>
       </div>
     </div>
     <!-- 请联系业务运维配索引集 -->

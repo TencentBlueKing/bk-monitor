@@ -1,4 +1,3 @@
-import type { Instance, Props } from 'tippy.js';
 /*
  * Tencent is pleased to support the open source community by making
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
@@ -24,122 +23,63 @@ import type { Instance, Props } from 'tippy.js';
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { Component, Emit, Prop, Ref } from 'vue-property-decorator';
-import { Component as tsc } from 'vue-tsx-support';
-
+import { computed, defineComponent, ref, type PropType } from 'vue';
+import { Popup } from 'tdesign-vue-next';
+import useLocale from '@/shared/composables/use-locale';
 import './setting-more-menu.scss';
 
-interface SettingMoreMenuProps {
-  settingMoreList?: MenuOption[];
-}
-interface SettingMoreMenuEvents {
-  onMenuClick: (operation: MenuOptionsEnum) => void;
-}
-
+type MenuOperation = 'edit' | 'export' | 'delete';
 interface MenuOption {
-  id: MenuOptionsEnum;
+  id: MenuOperation;
   name: string;
 }
 
-/** 下拉菜单选项类型枚举 */
-enum MenuOptionsEnum {
-  DELETE = 'delete',
-  EDIT = 'edit',
-  EXPORT = 'export',
-}
-
-/** 下拉菜单选项数组 */
-const FIELD_SETTING_MENU = [
-  {
-    id: MenuOptionsEnum.EDIT,
-    name: window.$t('重命名'),
+export default defineComponent({
+  name: 'FieldSettingMoreMenu',
+  props: {
+    settingMoreList: { type: Array as PropType<MenuOption[]>, default: undefined },
   },
-  {
-    id: MenuOptionsEnum.EXPORT,
-    name: window.$t('导出'),
-  },
-  {
-    id: MenuOptionsEnum.DELETE,
-    name: window.$t('删除'),
-  },
-];
-
-@Component
-export default class SettingMoreMenu extends tsc<SettingMoreMenuProps, SettingMoreMenuEvents> {
-  /** 字段设置 more 下拉菜单 */
-  @Prop({ default: () => FIELD_SETTING_MENU }) settingMoreList!: MenuOption[];
-
-  @Ref('menu')
-  menuRef!: any;
-
-  /** popover 弹窗实例 */
-  popoverInstance: (Instance<Props>) | null = null;
-
-  /**
-   * @description 菜单点击后回调
-   *
-   */
-  @Emit('menu-click')
-  handleMenuClick(operation: MenuOptionsEnum) {
-    this.popoverInstance?.hide?.();
-    return operation;
-  }
-
-  /**
-   * @description 打开 menu下拉菜单 popover 弹窗
-   *
-   */
-  handleMenuListShow(e: Event) {
-    if (this.popoverInstance) {
-      return;
+  emits: { 'menu-click': (_operation: MenuOperation) => true },
+  setup(props, { emit }) {
+    const { $t } = useLocale();
+    const visible = ref(false);
+    const menu = computed<MenuOption[]>(
+      () =>
+        props.settingMoreList ?? [
+          { id: 'edit', name: $t('重命名') },
+          { id: 'export', name: $t('导出') },
+          { id: 'delete', name: $t('删除') },
+        ],
+    );
+    function handleMenuClick(operation: MenuOperation) {
+      visible.value = false;
+      emit('menu-click', operation);
     }
-    this.popoverInstance = this.$bkPopover(e.currentTarget, {
-      content: this.menuRef,
-      animateFill: false,
-      trigger: 'click',
-      placement: 'bottom-end',
-      theme: 'light field-template-menu field-template-menu-expand',
-      arrow: false,
-      followCursor: false,
-      boundary: 'viewport',
-      distance: 4,
-      offset: '8, 0',
-      onHidden: () => {
-        this.popoverInstance?.destroy?.();
-        this.popoverInstance = null;
-      },
-    });
-    this.$nextTick(() => {
-      this.popoverInstance?.show(100);
-    });
-  }
-
-  render() {
-    return (
+    return () => (
       <div class='field-setting-more'>
-        <div
-          class={`popover-trigger ${this.popoverInstance ? 'is-active' : ''}`}
-          onClick={this.handleMenuListShow}
+        <Popup
+          visible={visible.value}
+          onVisibleChange={(value) => {
+            visible.value = value;
+          }}
+          trigger='click'
+          placement='bottom-right'
+          overlayClassName='bklog-v3-popover-tag field-template-menu field-template-menu-expand'
+          content={() => (
+            <ul class='field-setting-list-menu bklog-v3-popover-tag'>
+              {menu.value.map((item) => (
+                <li key={item.id} class='menu-item' onClick={() => handleMenuClick(item.id)}>
+                  {item.name}
+                </li>
+              ))}
+            </ul>
+          )}
         >
-          <i class='bklog-icon bklog-more' />
-        </div>
-        <div style='display: none'>
-          <ul
-            ref='menu'
-            class='field-setting-list-menu bklog-v3-popover-tag'
-          >
-            {this.settingMoreList.map(item => (
-              <li
-                key={item.id}
-                class='menu-item'
-                onClick={() => this.handleMenuClick(item.id)}
-              >
-                {item.name}
-              </li>
-            ))}
-          </ul>
-        </div>
+          <div class={`popover-trigger ${visible.value ? 'is-active' : ''}`}>
+            <i class='bklog-icon bklog-more' />
+          </div>
+        </Popup>
       </div>
     );
-  }
-}
+  },
+});

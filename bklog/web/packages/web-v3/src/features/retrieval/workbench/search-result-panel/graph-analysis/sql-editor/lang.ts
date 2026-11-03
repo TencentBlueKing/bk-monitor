@@ -179,8 +179,8 @@ const fetchDorisFieldsPromise = (range: {
 }) => {
   return (fetchDorisFieldsFn?.() ?? []).map((field, _index) => {
     let insertText = field.name;
-    if (field.name.indexOf('./index') > 0) {
-      const splitList = field.name.split('./index');
+    if (field.name.indexOf('.') > 0) {
+      const splitList = field.name.split('.');
       if (splitList.length > 1) {
         insertText = `CAST(${splitList.map(castFieldMapFn).join('')} AS TEXT)`;
       }

@@ -157,7 +157,7 @@ export default defineComponent({
     let isNestedValue = false; // data-depth
     const setWordList = () => {
       const fieldName = props.field.field_name;
-      const fieldKeys = fieldName.split('./index');
+      const fieldKeys = fieldName.split('.');
       isNestedValue = isNestedField(fieldKeys, props.data);
       wordList = textSegmentInstance.getChildNodes(isNestedValue);
     };

@@ -1,3 +1,9 @@
+
+import { Alert as TAlert } from 'tdesign-vue-next';
+
+import { Checkbox as TCheckbox, RadioGroup as TRadioGroup, Radio as TRadio } from 'tdesign-vue-next';
+
+import { Button as TButton } from 'tdesign-vue-next';
 import { ServicesInstance } from '@/platform/services';
 /*
  * Tencent is pleased to support the open source community by making
@@ -249,7 +255,7 @@ export default defineComponent({
 
     // 首条历史是检索起点；返回时用弹出记录恢复列表，用剩余栈顶恢复路径。
     const getExplorerList = (row: any = {}) => {
-      if (row.path === '../index' && !hasParentDirectory.value) {
+      if (row.path === '../' && !hasParentDirectory.value) {
         return;
       }
       explorerRequestVersion += 1;
@@ -259,7 +265,7 @@ export default defineComponent({
       currentPage.value = 1;
       clearSelectedFiles();
 
-      if (path === '../index') {
+      if (path === '../') {
         const parent = historyStack.value.pop();
         explorerList.value = parent.exploreList;
         emit('update:fileOrPath', historyStack.value.at(-1).fileOrPath);
@@ -496,15 +502,15 @@ export default defineComponent({
                   }}
                 />
               </div>
-              <bk-checkbox
+              <TCheckbox
                 class='search-child-checkbox'
                 data-test-id='addNewExtraction_div_isSearchSubdirectory'
-                value={isSearchChild.value}
+                checked={isSearchChild.value}
                 onChange={(val: boolean) => (isSearchChild.value = val)}
               >
                 {t('搜索子目录')}
-              </bk-checkbox>
-              <bk-button
+              </TCheckbox>
+              <TButton
                 data-test-id='addNewExtraction_button_searchFilterCondition'
                 disabled={!(props.ipList.length && props.fileOrPath)}
                 loading={isLoading.value}
@@ -512,7 +518,7 @@ export default defineComponent({
                 onClick={() => getExplorerList({})}
               >
                 {t('检索')}
-              </bk-button>
+              </TButton>
             </div>
           </div>
           <div
@@ -546,13 +552,13 @@ export default defineComponent({
               {hasParentDirectory.value && (
                 <template slot='prepend'>
                   <div class='parent-directory-row'>
-                    <bk-button
+                    <TButton
                       disabled={isLoading.value}
-                      text
-                      onClick={() => getExplorerList({ path: '../index' })}
+                      
+                      onClick={() => getExplorerList({ path: '../' })} variant={(true) ? 'text' : ('base')}
                     >
                       ../
-                    </bk-button>
+                    </TButton>
                   </div>
                 </template>
               )}
@@ -609,27 +615,27 @@ export default defineComponent({
         <aside class='selected-files-panel'>
           <div class='selected-files-heading'>
             <strong>{t('已选预览')}</strong>
-            <bk-button
+            <TButton
               disabled={!selectedFiles.value.length}
-              text
-              onClick={clearSelectedFiles}
+              
+              onClick={clearSelectedFiles} variant={(true) ? 'text' : ('base')}
             >
               {t('清空')}
-            </bk-button>
+            </TButton>
           </div>
           <div class='selected-files-content'>
             <div class='extraction-direction-controls'>
-              <bk-radio-group
+              <TRadioGroup
                 class='extraction-direction-group'
                 value={extractionDirection.value}
-                onChange={(val: string) => (extractionDirection.value = val)}
+                onChange={(value) => { if (typeof value === 'string') ((val: string) => (extractionDirection.value = val))(value); }}
               >
-                <bk-radio value='forward'>{t('正向提取')}</bk-radio>
-                <bk-radio value='reverse'>{t('反向提取')}</bk-radio>
-              </bk-radio-group>
-              <bk-alert
+                <TRadio value='forward'>{t('正向提取')}</TRadio>
+                <TRadio value='reverse'>{t('反向提取')}</TRadio>
+              </TRadioGroup>
+              <TAlert
                 v-slots={{
-                  title: () => (
+                  message: () => (
                     <>
                       <span class='bk-icon icon-info-circle extraction-tips-icon' />
                       <div class='extraction-tips-content'>
@@ -663,9 +669,9 @@ export default defineComponent({
                   ),
                 }}
                 class='extraction-direction-tips'
-                showIcon={false}
-                type='info'
-              ></bk-alert>
+                icon={(false) ? undefined : () => null}
+                theme={'info'} data-v2-display='alert'
+              ></TAlert>
             </div>
             <div class='selected-files-list'>
               {selectedFiles.value.map(file => (

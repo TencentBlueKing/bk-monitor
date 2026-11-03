@@ -30,14 +30,14 @@
     data-test-id="archive_section_storehouseContainer"
   >
     <section class="top-operation">
-      <bk-button
+      <t-button
         class="fl"
         data-test-id="storehouseContainer_button_addNewStoreHouse"
         theme="primary"
         @click="handleCreate"
       >
         {{ $t('新建') }}
-      </bk-button>
+      </t-button>
       <div class="repository-search fr">
         <bk-input
           v-model="params.keyword"
@@ -157,17 +157,17 @@
               {{ $t('编辑') }}
             </bk-button> -->
               <!-- 删除 -->
-              <bk-button
+              <t-button :variant="(true) ? 'text' : ('base')"
                 v-cursor="{
                   active: !(props.row.permission && props.row.permission[authorityMap.MANAGE_ES_SOURCE_AUTH]),
                 }"
                 class="mr10 king-button"
                 theme="primary"
-                text
+                
                 @click.stop="operateHandler(props.row, 'delete')"
               >
                 {{ $t('删除') }}
-              </bk-button>
+              </t-button>
             </div>
           </template>
         </bk-table-column>
@@ -481,7 +481,7 @@
 
       @include clearfix;
 
-      .bk-button {
+      .t-button {
         width: 120px;
       }
     }

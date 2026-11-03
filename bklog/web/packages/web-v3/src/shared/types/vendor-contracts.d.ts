@@ -40,9 +40,9 @@ declare module 'tiny-pinyin/dist/patchers/56l.js' {
   const patcher: import('tiny-pinyin').Patcher & { shouldPatch(toToken: (text: string) => unknown): boolean };
   export = patcher;
 }
-declare module '@blueking/notice-component-vue2' {
+declare module '@blueking/notice-component' {
   import type { DefineComponent } from 'vue';
-  const component: DefineComponent<{ apiUrl?: string; bkBizId?: number | string; onChange?: (...args: unknown[]) => void }>;
+  const component: DefineComponent<{ apiUrl?: string; onShowAlertChange?: (isShow: boolean) => void }>;
   export default component;
 }
 declare module '@blueking/platform-config' {
@@ -71,4 +71,20 @@ declare module '@blueking/ip-selector/dist/vue3.x' {
   import type { DefineComponent } from 'vue';
   const IpSelector: DefineComponent<{ value?: object; config?: object; onChange?: (value: object) => void; onConfirm?: (value: object) => void }> & { compatConfig?: { MODE: number } };
   export default IpSelector;
+}
+
+// The bare entry exposes the original pure matcher without document/style
+// injection. Only this computed function is reused; its Vue2 renderer is not.
+declare module 'vue-text-highlight/dist/component.js' {
+  const source: {
+    computed: {
+      highlights: (this: {
+        text: string;
+        queries: string | RegExp | Array<string | RegExp>;
+        caseSensitive?: boolean;
+        diacriticsSensitive?: boolean;
+      }) => Array<{text: string; isHighlighted: boolean; highlightIndex?: number}>;
+    };
+  };
+  export default source;
 }

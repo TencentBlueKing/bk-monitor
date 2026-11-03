@@ -26,13 +26,13 @@
 
 <template>
   <div class="validate-input">
-    <bk-input
+    <t-input
       :class="isError && 'is-error'"
       :placeholder="placeholder"
       :value="value"
       @blur="handleBlur"
       @change="handleChange"
-    ></bk-input>
+    ></t-input>
   </div>
 </template>
 

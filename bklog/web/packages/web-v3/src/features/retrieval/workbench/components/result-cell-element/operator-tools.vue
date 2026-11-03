@@ -175,6 +175,8 @@
 </template>
 
 <script>
+import { MessagePlugin as TDesignMessage } from 'tdesign-vue-next';
+
   import nativeAsset0 from '@/shared/assets/images/rowAiNew.svg';
   import { mapGetters } from '@/app/state/map-helpers';
   export default {
@@ -373,10 +375,7 @@
               window.open(url, '_blank', 'noopener,noreferrer');
             }
           } else {
-            this.$bkMessage({
-              theme: 'warning',
-              message: this.$t('当前选中日志暂无trace字段，请检查日志内容'),
-            });
+            TDesignMessage("warning", { content: this.$t('当前选中日志暂无trace字段，请检查日志内容') });
           }
 
           return;

@@ -1,5 +1,5 @@
 .collection-favorite-popover {
-  .bk-form-input[readonly],
+  .t-input__inner[readonly],
   .bk-form-textarea[readonly] {
     /* stylelint-disable-next-line declaration-no-important */
     background-color: #f0f1f5 !important;
@@ -27,9 +27,9 @@
     height: 414px;
 
     .bk-form-content {
-      .bk-form-control {
+      .t-input__wrap {
         .bk-input-text {
-          .bk-form-input[readonly] {
+          .t-input__inner[readonly] {
             border: 0px;
           }
         }
@@ -63,7 +63,7 @@
       line-height: 48px;
       text-align: right;
 
-      .bk-button {
+      .t-button {
         height: 32px;
         margin-right: 8px;
       }

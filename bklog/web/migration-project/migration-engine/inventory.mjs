@@ -32,7 +32,7 @@ import { createHash } from 'node:crypto';
 import { execFileSync } from 'node:child_process';
 
 const web = resolve(dirname(fileURLToPath(import.meta.url)), '../..');
-const require = createRequire(resolve(web, 'package.json'));
+const require = createRequire(resolve(web, 'packages/web-v2/package.json'));
 const { parse } = require('@babel/parser');
 const { parse: parseSfc } = require('@vue/compiler-sfc');
 const extensions = ['.ts', '.tsx', '.js', '.jsx', '.vue', '.mjs', '.scss', '.css'];
@@ -53,7 +53,7 @@ function files(dir) {
 }
 function resolveLocal(specifier, importer) {
   if (!specifier.startsWith('.') && !specifier.startsWith('@/')) return null;
-  const base = specifier.startsWith('@/') ? resolve(web, 'src', specifier.slice(2)) : resolve(dirname(importer), specifier);
+  const base = specifier.startsWith('@/') ? resolve(web, 'packages/web-v2/src', specifier.slice(2)) : resolve(dirname(importer), specifier);
   return [base, ...extensions.map(ext => base + ext), ...extensions.map(ext => resolve(base, 'index' + ext))]
     .find(path => existsSync(path) && !readdirIsDirectory(path)) || null;
 }
@@ -98,7 +98,7 @@ export function analyzeSource(source, filename) {
 }
 
 export function inventory() {
-  const sourceFiles = files(resolve(web, 'src'));
+  const sourceFiles = files(resolve(web, 'packages/web-v2/src'));
   const modules = [];
   const errors = [];
   const routes = [];
@@ -111,7 +111,7 @@ export function inventory() {
         return { specifier, target: target ? relative(web, target) : null, local: specifier.startsWith('.') || specifier.startsWith('@/') };
       });
       modules.push({ path, dependencies });
-      if (/^src\/router\//.test(path)) for (const route of result.routes) {
+      if (/^packages\/web-v2\/src\/router\//.test(path)) for (const route of result.routes) {
         const target = route.component && resolveLocal(route.component, file);
         routes.push({ id: route.name || `${path}:${route.line}`, source: path, ...route,
           target: target ? relative(web, target) : null, business: 'PENDING', visual: 'PENDING', scenarios: [],
@@ -119,7 +119,7 @@ export function inventory() {
       }
     } catch (error) { errors.push({ path, error: error.message }); }
   }
-  const hashes = [...sourceFiles, ...['package.json', 'package-lock.json', 'webpack.config.js'].map(p => resolve(web, p))]
+  const hashes = [...sourceFiles, ...['package.json', 'package-lock.json', 'webpack.config.js'].map(p => resolve(web, 'packages/web-v2', p))]
     .map(file => ({ path: relative(web, file), sha256: createHash('sha256').update(readFileSync(file)).digest('hex') }));
   return { schemaVersion: 1, generatedAt: new Date().toISOString(),
     revision: execFileSync('git', ['rev-parse', 'HEAD'], { cwd: web, encoding: 'utf8' }).trim(),

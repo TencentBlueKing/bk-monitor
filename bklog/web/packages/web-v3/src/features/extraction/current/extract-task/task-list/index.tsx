@@ -1,3 +1,9 @@
+
+import { Tag as TTag } from 'tdesign-vue-next';
+
+import { Loading as TLoading } from 'tdesign-vue-next';
+
+import { Button as TButton } from 'tdesign-vue-next';
 import { ServicesInstance } from '@/platform/services';
 /*
  * Tencent is pleased to support the open source community by making
@@ -392,14 +398,14 @@ export default defineComponent({
       >
         {/* 新建和搜索框 */}
         <div class='option-container'>
-          <bk-button
+          <TButton
             class='create-task-button'
             data-test-id='fromBox_button_addNewExtraction'
             theme='primary'
             onClick={handleCreateTask}
           >
             {t('新建')}
-          </bk-button>
+          </TButton>
           <bk-input
             class='king-input-search'
             clearable={true}
@@ -495,13 +501,13 @@ export default defineComponent({
               nativeCellSlot={true}
               v-slots={{
                 default: () => (
-                  <bk-tag
+                  <TTag
                     class='target-type-tag'
-                    radius='4px'
-                    theme='warning'
+                    style={{borderRadius: '4px'}}
+                    theme={"warning"} variant='light' data-v2-display='tag'
                   >
                     {t('主机')}
-                  </bk-tag>
+                  </TTag>
                 ),
               }}
               label={t('目标类型')}
@@ -550,7 +556,7 @@ export default defineComponent({
                           ]}
                         />
                       ) : (
-                        <bk-spin size='mini' />
+                        <TLoading size="small" />
                       )}
                     </span>
                     <span class='task-status-text'>{row.download_status_display}</span>

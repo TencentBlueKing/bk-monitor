@@ -1,4 +1,6 @@
-<script setup>import { ServicesInstance } from '@/platform/services';
+<script setup>
+import { MessagePlugin as TDesignMessage } from 'tdesign-vue-next';
+import { ServicesInstance } from '@/platform/services';
 
   import { computed, nextTick, ref, watch } from 'vue';
 
@@ -15,7 +17,7 @@
   // #endif
 
   import { ConditionOperator } from '@/app/state/condition-operator';
-  import { bkMessage } from 'bk-magic-vue';
+  
 
   
   import { copyMessage } from '@/shared/lib/util';
@@ -499,10 +501,7 @@
         })
         .catch(err => {
           console.log(err);
-          bkMessage({
-            theme: 'warning',
-            message: err?.message || $t('UI查询转换语句模式失败'),
-          });
+          TDesignMessage("warning", { content: err?.message || $t('UI查询转换语句模式失败') });
           applySearchModeChange(nextType, nextMode);
         });
       return;
@@ -637,10 +636,7 @@
             if (res.result) {
               copyMessage(res.data?.querystring || '', $t('复制成功'));
             } else {
-              bkMessage({
-                theme: 'error',
-                message: $t('复制失败'),
-              });
+              TDesignMessage("error", { content: $t('复制失败') });
             }
           })
           .catch(err => {
@@ -748,18 +744,12 @@
               search_mode: 'sql',
             });
           } else {
-            bkMessage({
-              theme: 'error',
-              message: $t('UI查询转换语句模式失败'),
-            });
+            TDesignMessage("error", { content: $t('UI查询转换语句模式失败') });
           }
         })
         .catch(err => {
           console.log(err);
-          bkMessage({
-            theme: 'error',
-            message: err.message,
-          });
+          TDesignMessage("error", { content: err.message });
         });
 
       return;
@@ -977,15 +967,15 @@
         class="search-tool search-btn"
         @click="handleBtnQueryClick"
       >
-        <bk-button
-          :icon="btnIconName"
+        <t-button
+          
           size="small"
           theme="primary"
           :disabled="isQueryBtnDisabled"
-          :ext-cls="isShowQueryText ? 'search-query-btn' : ''"
-        >
+          :class="isShowQueryText ? 'search-query-btn' : ''"
+        ><template #icon><span :class="`bk-icon icon-${btnIconName}`"></span></template>
           {{ isShowQueryText ? $t('查询') : '' }}
-        </bk-button>
+        </t-button>
       </div>
     </div>
     <template v-if="searchMode === 'sql'">

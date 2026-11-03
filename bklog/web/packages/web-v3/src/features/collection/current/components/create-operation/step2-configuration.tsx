@@ -1,3 +1,7 @@
+
+import { CheckboxGroup as TCheckboxGroup, Checkbox as TCheckbox, RadioGroup as TRadioGroup, Radio as TRadio } from 'tdesign-vue-next';
+
+import { Button as TButton } from 'tdesign-vue-next';
 import { ServicesInstance } from '@/platform/services';
 /*
  * Tencent is pleased to support the open source community by making
@@ -884,13 +888,13 @@ export default defineComponent({
             <div class='form-box'>
               <div class='bk-button-group'>
                 {LOG_TYPE_LIST.map(item => (
-                  <bk-button
+                  <TButton
                     key={item.value}
                     class={{ 'is-selected': logType.value === item.value }}
                     onClick={() => handleLogType(item)}
                   >
                     {item.text}
-                  </bk-button>
+                  </TButton>
                 ))}
               </div>
               {isSectionLog.value && renderSegment(formData.value.params)}
@@ -901,18 +905,18 @@ export default defineComponent({
           <div class='label-form-box'>
             <span class='label-title'>{t('采集目标')}</span>
             <div class='form-box'>
-              <bk-button
+              <TButton
                 class={{
                   'target-btn': true,
                   error: isTargetNodesEmpty.value,
                 }}
-                icon='plus'
+                icon={() => <span class={`bk-icon icon-${'plus'}`} />}
                 onClick={() => {
                   showSelectDialog.value = true;
                 }}
               >
                 {t('选择目标')}
-              </bk-button>
+              </TButton>
               {formData.value.target_nodes.length > 0 && (
                 <span class='count-box'>
                   <i18n path={collectTargetTarget[formData.value.target_node_type]}>
@@ -927,18 +931,18 @@ export default defineComponent({
           <div class='label-form-box'>
             <span class='label-title'>{t('日志种类')}</span>
             <div class='form-box'>
-              <bk-checkbox-group
+              <TCheckboxGroup
                 class='log-type-box'
                 value={selectLogSpeciesList.value}
-                onChange={(val: string[]) => {
+                onChange={(value) => { if (value.every(item => typeof item === 'string')) ((val: string[]) => {
                   isConfigChange.value = true;
                   selectLogSpeciesList.value = val;
                   formData.value.params.winlog_name = val;
-                }}
+                })(value); }}
               >
                 <div class='species-item'>
                   {LOG_SPECIES_LIST.map(item => (
-                    <bk-checkbox
+                    <TCheckbox
                       key={item.id}
                       class={{
                         other: item.id === 'Other',
@@ -947,7 +951,7 @@ export default defineComponent({
                       value={item.id}
                     >
                       {item.name}
-                    </bk-checkbox>
+                    </TCheckbox>
                   ))}
                   <bk-tag-input
                     allow-auto-match={true}
@@ -958,7 +962,7 @@ export default defineComponent({
                     onChange={handleLogTypeOther}
                   />
                 </div>
-              </bk-checkbox-group>
+              </TCheckboxGroup>
             </div>
           </div>
         )}
@@ -1041,27 +1045,27 @@ export default defineComponent({
                   disabled: !isUpdate.value,
                 }}
               >
-                <bk-radio-group
+                <TRadioGroup
                   value={formData.value.params.tail_files}
-                  onChange={(val: boolean|undefined) => {
+                  onChange={(value) => { if (typeof value === 'boolean') ((val: boolean|undefined) => {
                     isConfigChange.value = true;
                     formData.value.params.tail_files = val;
-                  }}
+                  })(value); }}
                 >
-                  <bk-radio
+                  <TRadio
                     class='mr-24'
                     value={true}
                     disabled={isUpdate.value}
                   >
                     {t('仅采集下发后的日志')}
-                  </bk-radio>
-                  <bk-radio
+                  </TRadio>
+                  <TRadio
                     value={false}
                     disabled={isUpdate.value}
                   >
                     {t('采集全量日志')}
-                  </bk-radio>
-                </bk-radio-group>
+                  </TRadio>
+                </TRadioGroup>
               </span>
             </div>
             <div class='label-form-box large-width'>
@@ -1618,40 +1622,40 @@ export default defineComponent({
         />
         <div class='classify-btns-fixed'>
           {!isCloneOrUpdate.value && (
-            <bk-button
+            <TButton
               class='mr-8'
               onClick={() => {
                 emit('prev');
               }}
             >
               {t('上一步')}
-            </bk-button>
+            </TButton>
           )}
-          <bk-button
+          <TButton
             class='width-88 mr-8'
             loading={loadingSave.value}
             theme='primary'
             onClick={() => handleSubmitSave()}
           >
             {t('下一步')}
-          </bk-button>
+          </TButton>
           {isUpdate.value && (
-            <bk-button
+            <TButton
               class='width-88 mr-8'
               loading={loadingSave.value}
               theme='primary'
               onClick={() => handleSubmitSave({ action: 'back' })}
             >
               {t('提交')}
-            </bk-button>
+            </TButton>
           )}
-          <bk-button
+          <TButton
             onClick={() => {
               emit('cancel');
             }}
           >
             {t('取消')}
-          </bk-button>
+          </TButton>
         </div>
         {/* 索引配置导入对话框组件 */}
         <IndexConfigImportDialog

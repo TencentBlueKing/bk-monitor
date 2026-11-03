@@ -14,11 +14,11 @@
     .bk-form-checkbox {
       display: flex;
 
-      .bk-checkbox {
+      .t-checkbox {
         flex-shrink: 0;
       }
 
-      .bk-checkbox-text {
+      .t-checkbox__label {
         font-size: 12px;
         min-width: 0;
         overflow: hidden;
@@ -58,7 +58,7 @@
     margin-bottom: 12px;
   }
   .tool-sort-item {
-    .bk-radio-text {
+    .t-radio__label {
       margin-left: 5px;
     }
     .tool-sort-radio {

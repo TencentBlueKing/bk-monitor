@@ -34,7 +34,7 @@ import { defineConfig } from 'vite';
 
 const require = createRequire(import.meta.url);
 const webRoot = resolve(dirname(fileURLToPath(import.meta.url)), '../..');
-const settingsFile = resolve(webRoot, 'local.settings.js');
+const settingsFile = resolve(webRoot, 'packages/web-v2/local.settings.js');
 
 function loadLocalSettings() {
   if (!existsSync(settingsFile) || !existsSync(resolve(webRoot, '.cookie'))) return {};

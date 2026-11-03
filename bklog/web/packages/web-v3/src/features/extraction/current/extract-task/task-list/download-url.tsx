@@ -1,3 +1,7 @@
+
+import { Alert as TAlert } from 'tdesign-vue-next';
+
+import { Button as TButton } from 'tdesign-vue-next';
 /*
  * Tencent is pleased to support the open source community by making
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
@@ -66,7 +70,7 @@ export default defineComponent({
         <div class='list-title'>
           <span class='bk-icon icon-download' />
           <h2 class='text'>{t('下载链接')}</h2>
-          <bk-button
+          <TButton
             ref={buttonRef}
             style='margin-left: 20px'
             loading={loading.value}
@@ -74,12 +78,12 @@ export default defineComponent({
             onClick={handleClick}
           >
             {t('点击获取')}
-          </bk-button>
+          </TButton>
         </div>
-        <bk-alert
+        <TAlert
           style='margin-top: 10px'
-          title={t('链接可重复获取，每个链接只能下载一次。')}
-          type='info'
+          message={t('链接可重复获取，每个链接只能下载一次。')}
+          theme={'info'} data-v2-display='alert'
         />
       </div>
     );

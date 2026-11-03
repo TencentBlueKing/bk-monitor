@@ -1,3 +1,5 @@
+
+import { Button as TButton } from 'tdesign-vue-next';
 /*
  * Tencent is pleased to support the open source community by making
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
@@ -126,7 +128,7 @@ export default defineComponent({
           ))}
         </div>
         <div class='classify-btns'>
-          <bk-button
+          <TButton
             class='width-88 mr-8'
             theme='primary'
             onClick={() => {
@@ -134,14 +136,14 @@ export default defineComponent({
             }}
           >
             {t('下一步')}
-          </bk-button>
-          <bk-button
+          </TButton>
+          <TButton
             onClick={() => {
               emit('cancel');
             }}
           >
             {t('取消')}
-          </bk-button>
+          </TButton>
         </div>
       </div>
     );

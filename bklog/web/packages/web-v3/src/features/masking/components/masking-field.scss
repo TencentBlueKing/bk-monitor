@@ -85,14 +85,14 @@
         height: 22px;
       }
 
-      .bk-form-input {
+      .t-input__inner {
         height: 22px;
 
         /* stylelint-disable-next-line declaration-no-important */
         background: transparent !important;
       }
 
-      .bk-switcher {
+      .t-switch {
         margin: 0 10px 0 20px;
       }
 
@@ -201,7 +201,7 @@
           color: #c4c6cc;
         }
 
-        .bk-tag {
+        .t-tag {
           cursor: pointer;
         }
 
@@ -383,7 +383,7 @@
 
       @include flex-justify(center);
 
-      .bk-button {
+      .t-button {
         margin-right: 9px;
       }
     }

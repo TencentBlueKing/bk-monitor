@@ -30,14 +30,14 @@
     data-test-id="cleanTemplate_section_cleanTemplateBox"
   >
     <section class="top-operation">
-      <bk-button
+      <t-button
         class="fl"
         data-test-id="cleanTemplateBox_button_addNewCleanTemplate"
         theme="primary"
         @click="handleCreate"
       >
         {{ $t('新建') }}
-      </bk-button>
+      </t-button>
       <div class="clean-search fr">
         <bk-input
           v-model="params.keyword"
@@ -97,23 +97,23 @@
           <template #default="props">
             <div class="collect-table-operate">
               <!-- 编辑 -->
-              <bk-button
+              <t-button :variant="(true) ? 'text' : ('base')"
                 class="mr10 king-button"
                 theme="primary"
-                text
+                
                 @click.stop="operateHandler(props.row, 'edit')"
               >
                 {{ $t('编辑') }}
-              </bk-button>
+              </t-button>
               <!-- 删除 -->
-              <bk-button
+              <t-button :variant="(true) ? 'text' : ('base')"
                 class="mr10 king-button"
                 theme="primary"
-                text
+                
                 @click.stop="operateHandler(props.row, 'delete')"
               >
                 {{ $t('删除') }}
-              </bk-button>
+              </t-button>
             </div>
           </template>
         </bk-table-column>
@@ -343,7 +343,7 @@
 
       @include clearfix;
 
-      .bk-button {
+      .t-button {
         width: 120px;
       }
     }

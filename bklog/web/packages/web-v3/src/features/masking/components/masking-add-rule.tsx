@@ -1,3 +1,7 @@
+
+import { Checkbox as Checkbox, RadioGroup as RadioGroup, Radio as Radio } from 'tdesign-vue-next';
+
+import { Button as Button } from 'tdesign-vue-next';
 import { ServicesInstance } from '@/platform/services';
 import type { LegacyFormInstance } from '@/shared/types/legacy-form';
 import { asDictionary } from '@/shared/utils/typed-record';
@@ -27,27 +31,12 @@ import { asDictionary } from '@/shared/utils/typed-record';
  * IN THE SOFTWARE.
  */
 
-import TextHighlight from 'vue-text-highlight';
+import TextHighlight from '@/shared/ui/text-highlight';
 
 import { Component, Model, Emit, Prop, Ref, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
-import {
-  bkSideslider as Sideslider,
-  bkForm as Form,
-  bkFormItem as FormItem,
-  bkInput as Input,
-  bkCheckbox as Checkbox,
-  bkButton as Button,
-  bkRadioGroup as RadioGroup,
-  bkRadio as Radio,
-  bkCollapse as Collapse,
-  bkCollapseItem as CollapseItem,
-  bkTable as Table,
-  bkTableColumn as TableColumn,
-  bkDialog as Dialog,
-  bkTagInput as TagInput,
-} from 'bk-magic-vue';
+import { bkSideslider as Sideslider, bkForm as Form, bkFormItem as FormItem, bkInput as Input, bkCollapse as Collapse, bkCollapseItem as CollapseItem, bkTable as Table, bkTableColumn as TableColumn, bkDialog as Dialog, bkTagInput as TagInput } from '@/platform/compat/tdesign/magic-controls';
 
 
 
@@ -495,8 +484,8 @@ export default class MaskingAddRule extends tsc<IProps> {
           v-slots={{
             default: ({ row }: import("@/shared/types/table-row-scope").TableRowScope<typeof this.editAccessValue.accessInfo>) => (
               <Button
-                text
-                onClick={() => this.handleJumpAccess(row)}
+                
+                onClick={() => this.handleJumpAccess(row)} variant={(true) ? 'text' : ('base')}
               >
                 {row.ids.length}
               </Button>
@@ -702,8 +691,8 @@ export default class MaskingAddRule extends tsc<IProps> {
                             style='font-size: 12px;'
                             disabled={this.isCanClickDebugBtn}
                             theme='primary'
-                            outline
-                            onClick={this.handleDebugging}
+                            
+                            onClick={this.handleDebugging} variant={(true) ? 'outline' : 'base'}
                           >
                             {this.$t('结果预览')}
                           </Button>

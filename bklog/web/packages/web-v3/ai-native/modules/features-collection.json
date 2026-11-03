@@ -3,7 +3,7 @@
   "id": "features/collection",
   "purpose": "日志采集创建、编辑、详情与源节点选择",
   "root": "src/features/collection",
-  "files": 162,
+  "files": 164,
   "entryPoints": [
     "features/collection/access/components/index-import-modal/index.tsx",
     "features/collection/access/components/log-filter/index.tsx",

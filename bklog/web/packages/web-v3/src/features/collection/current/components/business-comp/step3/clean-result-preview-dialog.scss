@@ -345,7 +345,7 @@
     }
 
     .preview-editable-column {
-      .bk-form-input {
+      .t-input__inner {
         border: none !important;
         height: 42px;
         line-height: 42px;
@@ -407,7 +407,7 @@
         line-height: 26px;
 
         .bk-input-text,
-        .bk-form-input {
+        .t-input__inner {
           height: 26px;
           line-height: 26px;
         }
@@ -419,7 +419,7 @@
       margin-top: 10px;
       margin-bottom: 6px;
 
-      .bk-button {
+      .t-button {
         min-width: 54px;
         height: 24px;
         line-height: 22px;

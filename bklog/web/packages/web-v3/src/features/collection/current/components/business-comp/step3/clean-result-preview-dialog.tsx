@@ -1,3 +1,11 @@
+
+import { Input as TInput } from 'tdesign-vue-next';
+
+import { Alert as TAlert } from 'tdesign-vue-next';
+
+import { Switch as TSwitch } from 'tdesign-vue-next';
+
+import { Button as TButton } from 'tdesign-vue-next';
 import { ServicesInstance } from '@/platform/services';
 ﻿/*
  * Tencent is pleased to support the open source community by making
@@ -462,19 +470,19 @@ export default defineComponent({
             <div class='word-breaker-menu-content'>
               <div class='menu-item'>
                 <span class='menu-item-label'>{t('分词')}</span>
-                <bk-switcher
-                  theme='primary'
+                <TSwitch
+                  
                   value={cacheData.value.is_analyzed}
-                  onChange={(value: boolean) => {
+                  onChange={(value) => { if (typeof value === 'boolean') ((value: boolean) => {
                     cacheData.value.is_analyzed = value;
-                  }}
+                  })(value); }}
                 />
               </div>
               <div class='menu-item'>
                 <span class='menu-item-label'>{t('分词符')}</span>
                 <div class='bk-button-group'>
                   {participleList.map(option => (
-                    <bk-button
+                    <TButton
                       key={option.id}
                       class={{
                         'participle-btn': true,
@@ -485,33 +493,33 @@ export default defineComponent({
                       onClick={() => handleChangeParticipleState(option.id)}
                     >
                       {t(option.name)}
-                    </bk-button>
+                    </TButton>
                   ))}
                 </div>
                 {currentParticipleState.value === 'custom' && (
-                  <bk-input
+                  <TInput
                     class='custom-input'
                     disabled={!cacheData.value.is_analyzed}
                     value={cacheData.value.tokenize_on_chars}
-                    onChange={(value: string) => {
+                    onChange={value => ((value: string) => {
                       cacheData.value.tokenize_on_chars = value;
-                    }}
+                    })(String(value))}
                   />
                 )}
               </div>
               <div class='menu-item'>
                 <span class='menu-item-label'>{t('大小写敏感')}</span>
-                <bk-switcher
+                <TSwitch
                   disabled={!cacheData.value.is_analyzed}
-                  theme='primary'
+                  
                   value={cacheData.value.is_case_sensitive}
-                  onChange={(value: boolean) => {
+                  onChange={(value) => { if (typeof value === 'boolean') ((value: boolean) => {
                     cacheData.value.is_case_sensitive = value;
-                  }}
+                  })(value); }}
                 />
               </div>
               <div class='menu-footer'>
-                <bk-button
+                <TButton
                   size='small'
                   theme='primary'
                   onClick={() => {
@@ -522,13 +530,13 @@ export default defineComponent({
                   }}
                 >
                   {t('确定')}
-                </bk-button>
-                <bk-button
+                </TButton>
+                <TButton
                   size='small'
                   onClick={handleWordBreakerCancelClick}
                 >
                   {t('取消')}
-                </bk-button>
+                </TButton>
               </div>
             </div>
           </div>
@@ -846,25 +854,25 @@ export default defineComponent({
                   trigger='click'
                   onConfirm={handleConfirm}
                 >
-                  <bk-button
+                  <TButton
                     class='mr-8'
                     theme='primary'
                     disabled={tableData.value.length === 0}
                   >
                     {hasException.value ? t('忽略冲突并继续填入') : t('确认并填入')}
-                  </bk-button>
+                  </TButton>
                 </bk-popconfirm>
               ) : (
-                <bk-button
+                <TButton
                   class='mr-8'
                   theme='primary'
                   disabled={tableData.value.length === 0}
                   onClick={handleConfirm}
                 >
                   {hasException.value ? t('忽略冲突并继续填入') : t('确认并填入')}
-                </bk-button>
+                </TButton>
               )}
-              <bk-button onClick={handleClose}>{t('取消')}</bk-button>
+              <TButton onClick={handleClose}>{t('取消')}</TButton>
             </div>
           ),
         }}
@@ -913,13 +921,13 @@ export default defineComponent({
                 logExampleText.value = val;
               }}
             />
-            <bk-button
+            <TButton
               class='re-debug-btn'
               disabled={!logExampleText.value || isDebugLoading.value}
               onClick={handleDebug}
             >
               {t('重新调试')}
-            </bk-button>
+            </TButton>
           </div>
 
           {/* 三个统计卡片 */}
@@ -941,9 +949,9 @@ export default defineComponent({
           )}
 
           {/* 冲突说明 alert */}
-          <bk-alert
+          <TAlert
             v-slots={{
-              title: () => (
+              message: () => (
                 <div class='exception-title'>
                   <div class='exception-header'>
                     {t('如果在下方列表编辑了内容，将自动脱离模板，转为手动配置清洗规则。')}
@@ -952,8 +960,8 @@ export default defineComponent({
               ),
             }}
             class='exception-alert'
-            type='warning'
-          ></bk-alert>
+            theme={'warning'} data-v2-display='alert'
+          ></TAlert>
 
           {/* 字段表格 */}
           <TableComponent

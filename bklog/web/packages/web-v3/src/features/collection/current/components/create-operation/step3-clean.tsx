@@ -1,3 +1,9 @@
+
+import { Alert as TAlert } from 'tdesign-vue-next';
+
+import { Switch as TSwitch, RadioGroup as TRadioGroup, Radio as TRadio, Checkbox as TCheckbox } from 'tdesign-vue-next';
+
+import { Button as TButton, MessagePlugin as TDesignMessage } from 'tdesign-vue-next';
 import { ServicesInstance } from '@/platform/services';
 import type { EtlParams, EtlField, EtlConfigInput, CleanFormState, CleanTemplate, TemplateConfigSnapshot } from './clean-form.type';
 /*
@@ -32,7 +38,7 @@ import useLocale from '@/shared/composables/use-locale';
 import useStore from '@/shared/composables/use-store';
 import { isFeatureToggleOn } from '@/shared/composables/use-feature-toggle';
 import { LocationQueryValue, useRoute } from 'vue-router';
-import { bkMessage as Message } from 'bk-magic-vue';
+import { bkMessage as Message } from '@/platform/compat/tdesign/magic-controls';
 import { bkInfoBox as InfoBox } from '@/platform/compat/tdesign/info-box';
 import { useOperation } from '../../hook/useOperation';
 import { useCollectList } from '../../hook/useCollectList';
@@ -1058,13 +1064,13 @@ __ext_json.service.labels   ${t('动态对象字段')}`;
        */
       if (cleaningMode.value === 'bk_log_json') {
         return (
-          <bk-button
+          <TButton
             class='clean-btn'
             disabled={!logOriginal.value}
-            onClick={debugHandler}
+            onClick={() => debugHandler()}
           >
             {t('清洗')}
-          </bk-button>
+          </TButton>
         );
       }
       /**
@@ -1093,13 +1099,13 @@ __ext_json.service.labels   ${t('动态对象字段')}`;
                 ))}
               </bk-select>
             </div>
-            <bk-button
+            <TButton
               class='clean-btn'
               disabled={!logOriginal.value || !delimiter.value}
-              onClick={debugHandler}
+              onClick={() => debugHandler()}
             >
               {t('调试')}
-            </bk-button>
+            </TButton>
           </div>
         );
       }
@@ -1142,13 +1148,13 @@ __ext_json.service.labels   ${t('动态对象字段')}`;
                 };
               }}
             />
-            <bk-button
+            <TButton
               class='clean-btn'
               disabled={!(logOriginal.value && separatorRegexp.value)}
-              onClick={debugHandler}
+              onClick={() => debugHandler()}
             >
               {t('调试')}
-            </bk-button>
+            </TButton>
           </div>
         );
       }
@@ -1231,10 +1237,7 @@ __ext_json.service.labels   ${t('动态对象字段')}`;
             });
             syncFailed = syncRes?.result === false || !Array.isArray(syncRes?.data) || !syncRes.data.length;
             if (syncFailed) {
-              Message({
-                theme: 'error',
-                message: syncRes?.message || t('同步失败，未返回采集项结果'),
-              });
+              TDesignMessage("error", { content: syncRes?.message || t('同步失败，未返回采集项结果') });
             } else {
               const failures = syncRes.data.filter((item: { status: string; }) => item.status !== 'SUCCESS');
               syncFailed = failures.length > 0;
@@ -1417,7 +1420,7 @@ __ext_json.service.labels   ${t('动态对象字段')}`;
           </div>
           <div class='unbind-popover-desc'>{t('解除绑定后，将实例化为手动配置的清洗规则，不再随模板更新。')}</div>
           <div class='unbind-popover-footer'>
-            <bk-button
+            <TButton
               theme='primary'
               size='small'
               onClick={() => {
@@ -1427,13 +1430,13 @@ __ext_json.service.labels   ${t('动态对象字段')}`;
               }}
             >
               {t('确认解除')}
-            </bk-button>
-            <bk-button
+            </TButton>
+            <TButton
               size='small'
               onClick={() => unbindPopoverRef.value?.hide()}
             >
               {t('取消')}
-            </bk-button>
+            </TButton>
           </div>
         </div>
       </div>
@@ -1475,10 +1478,10 @@ __ext_json.service.labels   ${t('动态对象字段')}`;
     const renderSetting = () => (
       <div class='clean-setting'>
         {!props.isCleanField && !props.isTempField && (
-          <bk-alert
+          <TAlert
             class='clean-alert'
-            title={t('通过字段清洗，可以格式化日志内容方便检索、告警和分析。')}
-            type='info'
+            message={t('通过字段清洗，可以格式化日志内容方便检索、告警和分析。')}
+            theme={'info'} data-v2-display='alert'
           />
         )}
         {(props.isCleanField || props.isTempField) && (
@@ -1550,12 +1553,12 @@ __ext_json.service.labels   ${t('动态对象字段')}`;
           <div class='label-form-box'>
             <span class='label-title no-require'>{t('开启清洗')}</span>
             <div class='form-box mt-5 clean-enable-row'>
-              <bk-switcher
+              <TSwitch
                 size='large'
-                theme='primary'
+                
                 value={isClean.value}
                 disabled={props.isCleanField && !cleanCollectorId.value}
-                onChange={(val: boolean) => {
+                onChange={(value) => { if (typeof value === 'boolean') ((val: boolean) => {
                   const type = val ? 'bk_log_json' : 'bk_log_text';
                   cleaningMode.value = type;
                   if (!val) {
@@ -1570,26 +1573,26 @@ __ext_json.service.labels   ${t('动态对象字段')}`;
                     formData.value.time_format = '';
                     formData.value.time_zone = '';
                   }
-                }}
+                })(value); }}
               />
               {isClean.value && (
                 <div class='bk-button-group clean-rule-mode-group'>
-                  <bk-button
+                  <TButton
                     class={{ 'is-selected': cleanRuleMode.value === 'manual' }}
                     onClick={() => {
                       cleanRuleMode.value = 'manual';
                     }}
                   >
                     {t('手动配置清洗规则')}
-                  </bk-button>
-                  <bk-button
+                  </TButton>
+                  <TButton
                     class={{ 'is-selected': cleanRuleMode.value === 'template' }}
                     onClick={() => {
                       cleanRuleMode.value = 'template';
                     }}
                   >
                     {t('使用模板')}
-                  </bk-button>
+                  </TButton>
                 </div>
               )}
             </div>
@@ -1601,13 +1604,13 @@ __ext_json.service.labels   ${t('动态对象字段')}`;
             <div class='form-box'>
               <div class='bk-button-group'>
                 {cleaningModeList.map(mode => (
-                  <bk-button
+                  <TButton
                     key={mode.value}
                     class={{ 'is-selected': mode.value === cleaningMode.value }}
                     onClick={() => handleChangeCleaningMode(mode)}
                   >
                     {mode.label}
-                  </bk-button>
+                  </TButton>
                 ))}
               </div>
               {renderCleaningMode()}
@@ -1683,16 +1686,16 @@ __ext_json.service.labels   ${t('动态对象字段')}`;
                   </div>
                 </div>
               ) : (
-                <bk-button
+                <TButton
                   theme='primary'
-                  icon='plus'
-                  outline={true}
+                  icon={() => <span class={`bk-icon icon-${'plus'}`} />}
+                  
                   onClick={() => {
                     cleanTemplateDialogVisible.value = true;
-                  }}
+                  }} variant={(true) ? 'outline' : 'base'}
                 >
                   {t('选择清洗模板')}
-                </bk-button>
+                </TButton>
               )}
             </div>
           </div>
@@ -1758,24 +1761,24 @@ __ext_json.service.labels   ${t('动态对象字段')}`;
           </bk-select>
           <p class='expand-depth-tips'>{t('解析层级越大，可直接检索的字段越多，但也更容易达到 ES 字段数量上限。')}</p>
           {expandDepthSelect.value === UNLIMITED_EXPAND_DEPTH && (
-            <bk-alert
+            <TAlert
               class='expand-depth-alert'
-              type='warning'
-              title={t(
+              theme={'warning'}
+              message={t(
                 '无限解析可能产生大量动态字段，达到 ES 字段上限后，相关日志可能写入失败。建议仅在字段结构稳定时使用。',
-              )}
+              )} data-v2-display='alert'
             />
           )}
-          <bk-button
+          <TButton
             class='expand-depth-example-btn'
-            text
+            
             theme='primary'
             onClick={() => {
               expandDepthExampleVisible.value = true;
-            }}
+            }} variant={(true) ? 'text' : ('base')}
           >
             {t('查看解析示例')}
-          </bk-button>
+          </TButton>
         </div>
       </div>
     );
@@ -1786,13 +1789,13 @@ __ext_json.service.labels   ${t('动态对象字段')}`;
         <div class='label-form-box'>
           <span class='label-title'>{t('原始日志')}</span>
           <div class='form-box'>
-            <bk-radio-group
+            <TRadioGroup
               value={formData.value.etl_params.retain_original_text}
-              onChange={(val: boolean) => {
+              onChange={(value) => { if (typeof value === 'boolean') ((val: boolean) => {
                 formData.value.etl_params.retain_original_text = val;
-              }}
+              })(value); }}
             >
-              <bk-radio
+              <TRadio
                 class='mr-24'
                 disabled={isTemplateBound.value}
                 value={true}
@@ -1805,8 +1808,8 @@ __ext_json.service.labels   ${t('动态对象字段')}`;
                 >
                   {t('保留')}
                 </span>
-              </bk-radio>
-              <bk-radio
+              </TRadio>
+              <TRadio
                 disabled={isTemplateBound.value}
                 value={false}
               >
@@ -1818,8 +1821,8 @@ __ext_json.service.labels   ${t('动态对象字段')}`;
                 >
                   {t('丢弃')}
                 </span>
-              </bk-radio>
-            </bk-radio-group>
+              </TRadio>
+            </TRadioGroup>
             {formData.value.etl_params.retain_original_text && (
               <div class='select-group'>
                 <div class='select-item'>
@@ -1855,10 +1858,10 @@ __ext_json.service.labels   ${t('动态对象字段')}`;
                   />
                 )}
                 <div class='select-item'>
-                  <bk-checkbox
+                  <TCheckbox
                     class='mr-5'
                     disabled={isTemplateBound.value}
-                    value={formData.value.etl_params.original_text_is_case_sensitive}
+                    checked={formData.value.etl_params.original_text_is_case_sensitive}
                     onChange={(val: boolean) => {
                       formData.value.etl_params.original_text_is_case_sensitive = val;
                     }}
@@ -1872,26 +1875,26 @@ __ext_json.service.labels   ${t('动态对象字段')}`;
         <div class='label-form-box'>
           <span class='label-title no-require'>{t('指定日志时间')}</span>
           <div class='form-box'>
-            <bk-radio-group
+            <TRadioGroup
               value={formData.value.log_reporting_time}
-              onChange={(val: boolean) => {
+              onChange={(value) => { if (typeof value === 'boolean') ((val: boolean) => {
                 formData.value.log_reporting_time = val;
-              }}
+              })(value); }}
             >
-              <bk-radio
+              <TRadio
                 class='mr-24'
                 disabled={isTemplateBound.value}
                 value={true}
               >
                 {t('日志上报时间')}
-              </bk-radio>
-              <bk-radio
+              </TRadio>
+              <TRadio
                 disabled={isTemplateBound.value}
                 value={false}
               >
                 {t('指定字段为日志时间')}
-              </bk-radio>
-            </bk-radio-group>
+              </TRadio>
+            </TRadioGroup>
             {!formData.value.log_reporting_time && (
               <div class='select-group'>
                 <div class='select-item'>
@@ -1958,45 +1961,45 @@ __ext_json.service.labels   ${t('动态对象字段')}`;
         {timeCheckErrContent.value && <p class='format-error'>{timeCheckErrContent.value}</p>}
         <div class='label-form-box'>
           <span class='label-title no-require'>{t('失败日志')}</span>
-          <bk-radio-group
+          <TRadioGroup
             class='form-box'
             value={formData.value.etl_params.enable_retain_content}
-            onChange={(val: boolean) => {
+            onChange={(value) => { if (typeof value === 'boolean') ((val: boolean) => {
               formData.value.etl_params.enable_retain_content = val;
-            }}
+            })(value); }}
           >
-            <bk-radio
+            <TRadio
               class='mr-24'
               disabled={isTemplateBound.value}
               value={true}
             >
               {t('保留')}
-            </bk-radio>
-            <bk-radio
+            </TRadio>
+            <TRadio
               disabled={isTemplateBound.value}
               value={false}
             >
               {t('丢弃')}
-            </bk-radio>
-          </bk-radio-group>
+            </TRadio>
+          </TRadioGroup>
         </div>
         {cleaningMode.value === 'bk_log_json' && (
           <div class='label-form-box'>
             <span class='label-title no-require'>{t('JSON 字段动态新增')}</span>
             <div class='form-box mt-5'>
-              <bk-switcher
+              <TSwitch
                 size='large'
-                theme='primary'
+                
                 disabled={isTemplateBound.value}
                 value={formData.value.etl_params.retain_extra_json}
-                onChange={(val: boolean) => {
+                onChange={(value) => { if (typeof value === 'boolean') ((val: boolean) => {
                   // 整体替换 etl_params，确保 Vue2 能触发 showExpandDepthConfig 更新
                   formData.value.etl_params = {
                     ...formData.value.etl_params,
                     retain_extra_json: val,
                   };
                   syncExpandDepthOnRetainExtraJsonChange(val);
-                }}
+                })(value); }}
               />
               <InfoTips
                 class='ml-12'
@@ -2011,14 +2014,14 @@ __ext_json.service.labels   ${t('动态对象字段')}`;
         <div class='label-form-box'>
           <span class='label-title no-require'>{t('路径元数据')}</span>
           <div class='form-box mt-5'>
-            <bk-switcher
+            <TSwitch
               size='large'
-              theme='primary'
+              
               disabled={isTemplateBound.value}
               value={enableMetaData.value}
-              onChange={(val: boolean) => {
+              onChange={(value) => { if (typeof value === 'boolean') ((val: boolean) => {
                 enableMetaData.value = val;
-              }}
+              })(value); }}
             />
             <InfoTips
               class='ml-12'
@@ -2067,13 +2070,13 @@ __ext_json.service.labels   ${t('动态对象字段')}`;
                     };
                   }}
                 />
-                <bk-button
+                <TButton
                   class='debug-btn'
                   disabled={isTemplateBound.value || !showDebugPathRegexBtn.value || isPathDebugLoading.value}
                   onClick={debuggerPathRegex}
                 >
                   {t('调试')}
-                </bk-button>
+                </TButton>
               </div>
               <div class='debug-box'>
                 {(formData.value.etl_params.metadata_fields || []).map(item => (
@@ -2154,22 +2157,22 @@ __ext_json.service.labels   ${t('动态对象字段')}`;
           <div class='label-form-box'>
             <span class='label-title no-require'>{t('可见范围')}</span>
             <div class='form-box'>
-              <bk-radio-group
+              <TRadioGroup
                 value={formData.value.visible_type}
-                onChange={(val: string) => {
+                onChange={(value) => { if (typeof value === 'string') ((val: string) => {
                   formData.value.visible_type = val;
                   visibleBkBiz.value = val !== 'multi_biz' ? [] : structuredClone(cacheVisibleList.value);
-                }}
+                })(value); }}
               >
                 {visibleScopeSelectList.map(item => (
-                  <bk-radio
+                  <TRadio
                     class='mr-24'
                     value={item.id}
                   >
                     {item.name}
-                  </bk-radio>
+                  </TRadio>
                 ))}
-              </bk-radio-group>
+              </TRadioGroup>
             </div>
           </div>
           {formData.value.visible_type === 'multi_biz' && (
@@ -2624,48 +2627,48 @@ __ext_json.service.labels   ${t('动态对象字段')}`;
         </bk-dialog>
         <div class='classify-btns-fixed'>
           {!props.isTempField && !props.isCleanField && (
-            <bk-button
+            <TButton
               class='mr-8'
               onClick={() => {
                 emit('prev', props.configData);
               }}
             >
               {t('上一步')}
-            </bk-button>
+            </TButton>
           )}
           {!props.isTempField && (
-            <bk-button
+            <TButton
               class='width-88 mr-8'
               theme='primary'
               loading={loading.value}
               onClick={() => handleSubmitSave()}
             >
               {props.isCleanField ? t('保存') : t('下一步')}
-            </bk-button>
+            </TButton>
           )}
           {/* 提交按钮：编辑模式且非清洗列表编辑且非模板编辑且显示"下一步"时显示 */}
           {isUpdate.value && !props.isCleanField && !props.isTempField && !props.isCleanField && (
-            <bk-button
+            <TButton
               class='width-88 mr-8'
               theme='primary'
               loading={loading.value}
               onClick={() => handleSubmitSave({ action: 'back' })}
             >
               {t('提交')}
-            </bk-button>
+            </TButton>
           )}
 
           {props.isTempField ? (
-            <bk-button
+            <TButton
               class='width-88 mr-8'
               theme='primary'
               loading={loading.value}
               onClick={handleTemplateSubmit}
             >
               {isEditTemp.value ? t('保存') : t('提交')}
-            </bk-button>
+            </TButton>
           ) : (
-            <bk-button
+            <TButton
               class='template-btn'
               disabled={formData.value.etl_fields.length === 0}
               onClick={() => {
@@ -2676,10 +2679,10 @@ __ext_json.service.labels   ${t('动态对象字段')}`;
               }}
             >
               {t('另存为模板')}
-            </bk-button>
+            </TButton>
           )}
           {!props.isTempField && !props.isCleanField && (
-            <bk-button
+            <TButton
               class='mr-8'
               onClick={async () => {
                 formData.value = deepClone(cacheTemplateData.value);
@@ -2691,15 +2694,15 @@ __ext_json.service.labels   ${t('动态对象字段')}`;
               }}
             >
               {t('重置')}
-            </bk-button>
+            </TButton>
           )}
-          <bk-button
+          <TButton
             onClick={() => {
               emit('cancel');
             }}
           >
             {t('取消')}
-          </bk-button>
+          </TButton>
         </div>
         {/* 另存为模板弹窗 */}
         <bk-dialog
@@ -2767,19 +2770,19 @@ __ext_json.service.labels   ${t('动态对象字段')}`;
               </div>
             </div>
             <div class='confirm-actions'>
-              <bk-button
+              <TButton
                 theme='primary'
                 loading={loading.value}
                 onClick={() => handleTempConfirm(true)}
               >
                 {t('同步所有采集项')}
-              </bk-button>
-              <bk-button
+              </TButton>
+              <TButton
                 disabled={loading.value}
                 onClick={() => handleTempConfirm(false)}
               >
                 {t('仅保存模板')}
-              </bk-button>
+              </TButton>
             </div>
           </div>
         </bk-dialog>

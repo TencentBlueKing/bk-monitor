@@ -139,7 +139,7 @@
         </div>
       </div>
       <div class="bklog-common-field-filter fields-button-container">
-        <bk-button
+        <t-button
           class="mr10"
           :loading="isLoading"
           :theme="'primary'"
@@ -147,14 +147,14 @@
           @click="confirmModifyFields"
         >
           {{ $t('确定') }}
-        </bk-button>
-        <bk-button
+        </t-button>
+        <t-button
           :theme="'default'"
           type="submit"
           @click="cancelModifyFields"
         >
           {{ $t('取消') }}
-        </bk-button>
+        </t-button>
       </div>
     </template>
   </bk-popover>
@@ -353,7 +353,7 @@
           padding: 0 8px;
           margin-top: 5px;
 
-          .bk-form-control {
+          .t-input__wrap {
             .left-icon {
               color: #979ba5;
             }

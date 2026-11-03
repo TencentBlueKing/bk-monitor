@@ -1,3 +1,7 @@
+
+import { Loading as TLoading } from 'tdesign-vue-next';
+
+import { Button as TButton } from 'tdesign-vue-next';
 /*
  * Tencent is pleased to support the open source community by making
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
@@ -208,10 +212,10 @@ export default defineComponent({
             key={row.status}
           >
             {row.status === FileUploadStatus.RUNNING ? (
-              <bk-spin
-                size='mini'
+              <TLoading
+                size="small"
                 class='status-spin'
-              ></bk-spin>
+              ></TLoading>
             ) : (
               <div class='status-dot-wrapper'>
                 <span class={`status-dot ${row.status}`}></span>
@@ -386,14 +390,14 @@ export default defineComponent({
               disabled: row.status === FileUploadStatus.SUCCESS,
             }}
           >
-            <bk-button
-              text
+            <TButton
+              
               theme='primary'
               onClick={() => handleSearchTask(row)}
-              disabled={row.status !== FileUploadStatus.SUCCESS}
+              disabled={row.status !== FileUploadStatus.SUCCESS} variant={(true) ? 'text' : ('base')}
             >
               {t('检索')}
-            </bk-button>
+            </TButton>
           </span>
           <span
             class='king-button'
@@ -402,18 +406,18 @@ export default defineComponent({
               disabled: row.status !== FileUploadStatus.RUNNING && row.status !== FileUploadStatus.SUCCESS,
             }}
           >
-            <bk-button
-              text
+            <TButton
+              
               theme='primary'
               onClick={() => handleUpload(row)}
-              disabled={row.status !== FileUploadStatus.FAILED && row.status !== FileUploadStatus.PENDING}
+              disabled={row.status !== FileUploadStatus.FAILED && row.status !== FileUploadStatus.PENDING} variant={(true) ? 'text' : ('base')}
             >
               {t('上传')}
-            </bk-button>
+            </TButton>
           </span>
           <span class='king-button'>
-            <bk-button
-              text
+            <TButton
+              
               class={[
                 {
                   'disabled-download': !props.isAllowedDownload,
@@ -423,10 +427,10 @@ export default defineComponent({
               v-cursor={{
                 active: !props.isAllowedDownload,
               }}
-              onClick={() => downloadFile(row.file_name)}
+              onClick={() => downloadFile(row.file_name)} variant={(true) ? 'text' : ('base')}
             >
               {t('下载文件')}
-            </bk-button>
+            </TButton>
           </span>
         </div>
       ),

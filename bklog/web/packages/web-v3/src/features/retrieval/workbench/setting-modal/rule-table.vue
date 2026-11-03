@@ -87,54 +87,54 @@
                   >
                 </div>
                 <div class="rule-btn">
-                  <bk-button
+                  <t-button :variant="(true) ? 'text' : ('base')"
                     style="margin-right: 10px"
                     :disabled="!globalEditable"
                     theme="primary"
-                    text
+                    
                     @click="clusterAddRule(index)"
                   >
                     {{ $t('添加') }}
-                  </bk-button>
-                  <bk-button
+                  </t-button>
+                  <t-button :variant="(true) ? 'text' : ('base')"
                     style="margin-right: 10px"
                     :disabled="!globalEditable"
                     theme="primary"
-                    text
+                    
                     @click="clusterEdit(index)"
                   >
                     {{ $t('编辑') }}
-                  </bk-button>
+                  </t-button>
                   <bk-popover
                     ref="deletePopoverRef"
                     ext-cls="config-item"
                     :tippy-options="tippyOptions"
                   >
-                    <bk-button
+                    <t-button :variant="(true) ? 'text' : ('base')"
                       :disabled="!globalEditable"
                       theme="primary"
-                      text
+                      
                     >
                       {{ $t('删除') }}
-                    </bk-button>
+                    </t-button>
                     <template #content>
                       <div>
                         <div class="popover-slot">
                           <span>{{ $t('确定要删除当前规则？') }}</span>
                           <div class="popover-btn">
-                            <bk-button
-                              text
+                            <t-button :variant="(true) ? 'text' : ('base')"
+                              
                               @click="clusterRemove(index)"
                             >
                               {{ $t('确定') }}
-                            </bk-button>
-                            <bk-button
+                            </t-button>
+                            <t-button :variant="(true) ? 'text' : ('base')"
                               theme="danger"
-                              text
+                              
                               @click="handleCancelDelete(index)"
                             >
                               {{ $t('取消') }}
-                            </bk-button>
+                            </t-button>
                           </div>
                         </div>
                       </div>
@@ -172,14 +172,14 @@
       </div>
 
       <div class="debug-input-box">
-        <bk-alert
+        <t-alert data-v2-display="alert"
           v-if="isChangeRule"
-          type="warning"
-          :title="$t('当前聚类规则有更变，请调试后进行保存')"
-        ></bk-alert>
+          :theme="'warning'"
+          :message="$t('当前聚类规则有更变，请调试后进行保存')"
+        ></t-alert>
         <div class="fl-jfsb mt18">
           <p style="height: 32px">{{ $t('原始日志') }}</p>
-          <bk-button
+          <t-button
             style="min-width: 48px"
             :class="logOriginal !== '' && !!rulesList.length ? 'btn-hover' : ''"
             :disabled="!globalEditable || !logOriginal || !rulesList.length"
@@ -188,7 +188,7 @@
             @click="debugging"
           >
             {{ $t('调试') }}
-          </bk-button>
+          </t-button>
         </div>
 
         <div class="log-style">
@@ -230,7 +230,7 @@
         >
           <span></span>
           <div v-if="isChangeRule">
-            <bk-button
+            <t-button
               :theme="'primary'"
               :class="logOriginal !== '' && !!rulesList.length ? 'btn-hover' : ''"
               :disabled="!globalEditable || !logOriginal || !rulesList.length || !effectOriginal"
@@ -238,10 +238,10 @@
               @click="submitRuleChange"
             >
               {{ $t('保存') }}
-            </bk-button>
-            <bk-button @click="() => (isClickAlertIcon = false)">
+            </t-button>
+            <t-button @click="() => (isClickAlertIcon = false)">
               {{ $t('取消') }}
-            </bk-button>
+            </t-button>
           </div>
         </div>
       </div>
@@ -254,7 +254,7 @@
   import EmptyStatus from '@/shared/ui/empty-status/index';
   import RegisterColumn from '@/features/retrieval/classic/result-comp/register-column';
   import ClusterEventPopover from '@/features/retrieval/classic/result-table-panel/log-clustering/components/cluster-event-popover';
-  import TextHighlight from 'vue-text-highlight';
+  import TextHighlight from '@/shared/ui/text-highlight';
   import VueDraggable from 'vuedraggable';
   import RuleTopTools from './component/rule-top-tools.vue';
 
@@ -579,7 +579,7 @@
           word-break: break-all;
         }
 
-        .bk-button-text {
+        .t-button--variant-text {
           font-size: 12px;
         }
       }

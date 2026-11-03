@@ -25,7 +25,7 @@
  */
 
 import { createRequire } from 'node:module';
-const require = createRequire(import.meta.url);
+const require = createRequire(new URL('../../packages/web-v3/package.json', import.meta.url));
 const { parse } = require('@babel/parser');
 const traverse = require('@babel/traverse').default;
 // Change only framework syntax nodes; keep business expressions and comments.

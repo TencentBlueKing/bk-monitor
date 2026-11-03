@@ -1,3 +1,6 @@
+import { Switch as TSwitch, Select as TSelect, Textarea as TTextarea, Loading as TLoading } from 'tdesign-vue-next';
+
+import { Button as TButton } from 'tdesign-vue-next';
 import { ServicesInstance } from '@/platform/services';
 /*
  * Tencent is pleased to support the open source community by making
@@ -28,24 +31,20 @@ import { ServicesInstance } from '@/platform/services';
 import { defineComponent, ref, onMounted, watch, computed, nextTick } from 'vue';
 
 import useLocale from '@/shared/composables/use-locale';
+import { toWorkerMessage } from '@/shared/lib/worker-message';
 import useStore from '@/shared/composables/use-store';
 // import { debounce } from 'throttle-debounce';
 
-import {
-  type btnType,
-  type ISelectItem,
-  type ITableRowItem,
-  operatorSelectList,
-  btnGroupList,
-  normalizeOperator,
-  tableRowBaseObj,
-} from '../../../utils';
+import { type btnType, operatorSelectList, btnGroupList, normalizeOperator, tableRowBaseObj } from '../../../utils';
 import InfoTips from '../../common-comp/info-tips';
 import ValidatorInput from './validator-input';
 
-
-import type { IConditions } from '../../../type';
+import type { IConditions, ISelectItem, ISeparatorFilter } from '../../../type';
 import './log-filter.scss';
+
+interface FilterDraft extends ISeparatorFilter {
+  tableIndex: number;
+}
 
 /**
  * 日志过滤组件
@@ -53,6 +52,7 @@ import './log-filter.scss';
 
 export default defineComponent({
   name: 'LogFilter',
+  compatConfig: { MODE: 3 },
   props: {
     // 过滤条件配置，用于初始化组件
     conditions: {
@@ -66,7 +66,7 @@ export default defineComponent({
     },
   },
 
-  emits: ['conditions-change', "conditionsChange"],
+  emits: ['conditions-change', 'conditionsChange'],
 
   setup(props, { emit, expose }) {
     const { t } = useLocale();
@@ -86,7 +86,7 @@ export default defineComponent({
      * 外层数组表示过滤组（组间为OR关系）
      * 内层数组表示组内规则（组内为AND关系）
      */
-    const filterData = ref<ITableRowItem[][]>([
+    const filterData = ref<FilterDraft[][]>([
       [
         {
           fieldindex: '',
@@ -98,8 +98,8 @@ export default defineComponent({
     ]);
     /** 缓存不同过滤类型的规则数据，切换类型时恢复 */
     const filterDataCache = ref({
-      match: structuredClone(filterData.value),
-      separator: structuredClone(filterData.value),
+      match: structuredClone(toWorkerMessage(filterData.value)),
+      separator: structuredClone(toWorkerMessage(filterData.value)),
     });
     /** 原始日志字段选择项（从日志样例解析而来） */
     const originalFilterItemSelect = ref<ISelectItem[]>([]);
@@ -115,7 +115,7 @@ export default defineComponent({
     // -------------------------- 计算属性 --------------------------
     /** 全局数据分隔符选项（从store获取） */
     const globalDataDelimiter = computed<ISelectItem[]>(() => {
-      return store.getters['globals/globalsData']?.data_delimiter || [];
+      return (store.getters['globals/globalsData']?.data_delimiter as ISelectItem[] | undefined) || [];
     });
 
     /** 当前选中的采集配置（从store获取） */
@@ -129,7 +129,7 @@ export default defineComponent({
     });
     /** 需要监听的响应式数据集合（用于触发条件变更） */
     //  const watchTarget = computed<{
-    //   filterData: ITableRowItem[][];
+    //   filterData: FilterDraft[][];
     //   switcher: boolean;
     //   separator: string;
     // }>(() => ({
@@ -145,7 +145,7 @@ export default defineComponent({
      */
     const operatorOptions = computed<ISelectItem[]>(() => {
       const targetId = isMatchType.value ? 'include' : 'eq';
-      return operatorSelectList.map(option => (option.id === targetId ? { ...option, id: '=' } : option));
+      return operatorSelectList.map((option) => (option.id === targetId ? { ...option, id: '=' } : option));
     });
 
     // -------------------------- 核心方法 --------------------------
@@ -191,7 +191,7 @@ export default defineComponent({
     /**
      * 初始化匹配类型过滤数据
      */
-    const handleMatchTypeInit = (separatorFilters?: ITableRowItem[], matchContent?: string, matchType?: string) => {
+    const handleMatchTypeInit = (separatorFilters?: ISeparatorFilter[], matchContent?: string, matchType?: string) => {
       filterSwitcher.value = true;
       activeFilterType.value = 'match';
 
@@ -218,7 +218,7 @@ export default defineComponent({
     /**
      * 初始化分隔符类型过滤数据
      */
-    const handleSeparatorTypeInit = (sep?: string, separatorFilters?: ITableRowItem[]) => {
+    const handleSeparatorTypeInit = (sep?: string, separatorFilters?: ISeparatorFilter[]) => {
       filterSwitcher.value = true;
       activeFilterType.value = 'separator';
       separator.value = sep || '|';
@@ -238,15 +238,15 @@ export default defineComponent({
      * @param isMatch 是否为字符串（match）过滤模式，决定操作符的归一化方向
      * @returns 分组后的规则（组间OR，组内AND）
      */
-    const splitFiltersIntoGroups = (filters: ITableRowItem[], isMatch: boolean): ITableRowItem[][] => {
-      const groups: ITableRowItem[][] = [];
-      let currentGroup: ITableRowItem[] = [];
+    const splitFiltersIntoGroups = (filters: ISeparatorFilter[], isMatch: boolean): FilterDraft[][] => {
+      const groups: FilterDraft[][] = [];
+      let currentGroup: FilterDraft[] = [];
 
       filters.forEach((filter, index) => {
         // 映射操作符并设置组索引
-        const mappedFilter: ITableRowItem = {
+        const mappedFilter: FilterDraft = {
           ...filter,
-          op: normalizeOperator(filter.op, isMatch),
+          op: filter.op === undefined ? undefined : normalizeOperator(filter.op, isMatch),
           tableIndex: groups.length,
         };
         currentGroup.push(mappedFilter);
@@ -270,7 +270,7 @@ export default defineComponent({
      * 更新所有规则的组索引（删除分组后调用）
      */
     const updateTableIndexes = () => {
-      filterData.value.forEach((group: unknown, groupIndex: unknown) => {
+      filterData.value.forEach((group, groupIndex) => {
         for (const item of group) {
           item.tableIndex = groupIndex;
         }
@@ -336,7 +336,7 @@ export default defineComponent({
      */
     const switchFilterType = (type: btnType) => {
       // 缓存当前类型数据
-      filterDataCache.value[activeFilterType.value] = structuredClone(filterData.value);
+      filterDataCache.value[activeFilterType.value] = structuredClone(toWorkerMessage(filterData.value));
       // 切换到目标类型数据
       filterData.value = filterDataCache.value[type];
       activeFilterType.value = type;
@@ -361,8 +361,8 @@ export default defineComponent({
       const validateResults: boolean[] = [];
 
       // 遍历所有规则行进行验证
-      filterData.value.forEach((group: unknown[], groupIndex: unknown) => {
-        group.forEach((row: { tableIndex: any; word: any; fieldindex: any; }, rowIndex: unknown) => {
+      filterData.value.forEach((group, groupIndex) => {
+        group.forEach((row, rowIndex) => {
           // 验证值输入框（所有类型都需要）
           const valueKey = `value-${groupIndex}-${row.tableIndex}-${rowIndex}`;
           const valueValidator = validatorInputRefs.value[valueKey];
@@ -398,7 +398,7 @@ export default defineComponent({
       });
 
       // 检查是否有验证失败的情况
-      const allValid = validateResults.every(result => result === true);
+      const allValid = validateResults.every((result) => result === true);
       if (allValid) {
         return true;
       }
@@ -414,7 +414,7 @@ export default defineComponent({
       const validGroups = filterData.value;
 
       // 扁平化规则并添加逻辑运算符（组间OR，组内AND）
-      let flatConditions: Array<ITableRowItem & { logic_op: string }> = validGroups.flatMap((group: { [x: string]: any; tableIndex: any; }[], groupIndex: number) => {
+      let flatConditions: ISeparatorFilter[] = validGroups.flatMap((group, groupIndex) => {
         return group.map((row, rowIndex: number) => {
           const { tableIndex, ...rest } = row;
           return {
@@ -427,7 +427,7 @@ export default defineComponent({
 
       // 匹配类型特殊处理：固定字段索引为-1
       if (isMatchType.value) {
-        flatConditions = flatConditions.map(item => ({
+        flatConditions = flatConditions.map((item) => ({
           ...item,
           fieldindex: '-1',
         }));
@@ -551,7 +551,7 @@ export default defineComponent({
     /**
      * 渲染字段索引输入框（仅分隔符类型显示）
      */
-    const renderFieldIndexInput = (groupIndex: number, row: ITableRowItem, rowIndex: number) => (
+    const renderFieldIndexInput = (groupIndex: number, row: FilterDraft, rowIndex: number) => (
       <ValidatorInput
         ref={(el: any) => registerValidatorRef(el, `match-${groupIndex}-${row.tableIndex}-${rowIndex}`)}
         activeType={activeFilterType.value}
@@ -571,11 +571,13 @@ export default defineComponent({
     /**
      * 渲染值输入框
      */
-    const renderValueInput = (groupIndex: number, row: ITableRowItem, rowIndex: number) => (
+    const renderValueInput = (groupIndex: number, row: FilterDraft, rowIndex: number) => (
       <ValidatorInput
-        ref={el => registerValidatorRef(el, `value-${groupIndex}-${row.tableIndex}-${rowIndex}`)}
+        ref={(el) => registerValidatorRef(el, `value-${groupIndex}-${row.tableIndex}-${rowIndex}`)}
         activeType={activeFilterType.value}
-        placeholder={['regex', 'nregex'].includes(row.op) ? t('支持正则匹配，如18*123') : t('请输入')}
+        placeholder={
+          ['regex', 'nregex'].some((operator) => operator === row.op) ? t('支持正则匹配，如18*123') : t('请输入')
+        }
         rowData={row}
         value={row.word}
         onChange={(val: string) => {
@@ -588,30 +590,25 @@ export default defineComponent({
     /**
      * 渲染操作符选择器
      */
-    const renderOperatorSelect = (row: ITableRowItem) => (
-      <bk-select
+    const renderOperatorSelect = (row: FilterDraft) => (
+      <TSelect
         class='item-select'
         clearable={false}
         value={row.op}
-        onSelected={(val: string) => {
-          row.op = val;
-          emitConditionsChange();
+        options={operatorOptions.value.map((option) => ({ value: option.id, label: option.name }))}
+        onChange={(value) => {
+          if (typeof value === 'string') {
+            row.op = value;
+            emitConditionsChange();
+          }
         }}
-      >
-        {operatorOptions.value.map(option => (
-          <bk-option
-            id={option.id}
-            key={option.id}
-            name={option.name}
-          />
-        ))}
-      </bk-select>
+      />
     );
 
     /**
      * 渲染行操作按钮（添加/删除行）
      */
-    const renderRowOperators = (row: ITableRowItem, rowIndex: number) => (
+    const renderRowOperators = (row: FilterDraft, rowIndex: number) => (
       <div class='item-tool btns-group'>
         <i
           class='bk-icon icon-plus-circle-shape icons'
@@ -642,7 +639,7 @@ export default defineComponent({
     /**
      * 渲染表格行
      */
-    const renderTableRow = (row: ITableRowItem, rowIndex: number, groupIndex: number) => (
+    const renderTableRow = (row: FilterDraft, rowIndex: number, groupIndex: number) => (
       <div class='table-box-item'>
         {!isMatchType.value && <div class='item-default'>{renderFieldIndexInput(groupIndex, row, rowIndex)}</div>}
         <div class='item-default'>{renderOperatorSelect(row)}</div>
@@ -654,7 +651,7 @@ export default defineComponent({
     /**
      * 渲染过滤组内容
      */
-    const renderFilterGroup = (group: ITableRowItem[], groupIndex: number) => (
+    const renderFilterGroup = (group: FilterDraft[], groupIndex: number) => (
       <div class='table-box-main'>
         {renderTableHeader()}
         <div class='custom-table-body'>{group.map((row, rowIndex) => renderTableRow(row, rowIndex, groupIndex))}</div>
@@ -666,19 +663,18 @@ export default defineComponent({
       <div class='log-filter-main'>
         {/* 过滤器开关区域 */}
         <div class='switch-box'>
-          <bk-switcher
+          <TSwitch
             size='large'
-            theme='primary'
             value={filterSwitcher.value}
-            onChange={(val: boolean) => {
-              filterSwitcher.value = val;
-              emitConditionsChange();
+            onChange={(value) => {
+              if (typeof value === 'boolean')
+                ((val: boolean) => {
+                  filterSwitcher.value = val;
+                  emitConditionsChange();
+                })(value);
             }}
           />
-          <InfoTips
-            class='ml-12'
-            tips={t('仅保留命中以下规则的日志，未命中将被丢弃。')}
-          />
+          <InfoTips class='ml-12' tips={t('仅保留命中以下规则的日志，未命中将被丢弃。')} />
         </div>
 
         {/* 过滤器配置区域（开关开启时显示） */}
@@ -686,15 +682,16 @@ export default defineComponent({
           <div class='log-filter-box'>
             {/* 过滤类型切换按钮组 */}
             <div class='bk-button-group'>
-              {btnGroupList.map(item => (
-                <bk-button
+              {btnGroupList.map((item) => (
+                <TButton
                   key={item.id}
                   class={{ 'is-selected': activeFilterType.value === item.id }}
                   size='small'
+                  theme='default'
                   onClick={() => switchFilterType(item.id as btnType)}
                 >
                   {item.name}
-                </bk-button>
+                </TButton>
               ))}
             </div>
 
@@ -702,60 +699,49 @@ export default defineComponent({
             {!isMatchType.value && (
               <div class='separator-box'>
                 <div class='separator-box-top'>
-                  <bk-select
+                  <TSelect
                     class='separator-box-top-select'
                     clearable={false}
                     value={separator.value}
-                    onSelected={(val: string) => {
-                      separator.value = val;
-                      emitConditionsChange();
-                    }}
-                  >
-                    {globalDataDelimiter.value.map(option => (
-                      <bk-option
-                        id={option.id}
-                        key={option.id}
-                        name={option.name}
-                      />
-                    ))}
-                  </bk-select>
-                  <bk-button
-                    disabled={!(logOriginal.value && separator.value) || logOriginalLoading.value}
-                    theme='primary'
-                    onClick={debugLogOrigin}
-                  >
-                    {t('调试')}
-                  </bk-button>
-                </div>
-                <div class='input-style'>
-                  <bk-input
-                    class='separator-box-bottom'
-                    v-bkloading={{ isLoading: logOriginalLoading.value }}
-                    placeholder={t('请输入日志样例')}
-                    rows={3}
-                    type='textarea'
-                    value={logOriginal.value}
-                    onInput={(val: string) => {
-                      logOriginal.value = val;
+                    options={globalDataDelimiter.value.map((option) => ({ value: option.id, label: option.name }))}
+                    onChange={(value) => {
+                      if (typeof value === 'string') {
+                        separator.value = value;
+                        emitConditionsChange();
+                      }
                     }}
                   />
+                  <TButton
+                    disabled={!(logOriginal.value && separator.value) || logOriginalLoading.value}
+                    theme='primary'
+                    onClick={() => debugLogOrigin()}
+                  >
+                    {t('调试')}
+                  </TButton>
+                </div>
+                <div class='input-style'>
+                  <TLoading loading={logOriginalLoading.value} style='width: 100%'>
+                    <TTextarea
+                      class='separator-box-bottom'
+                      placeholder={t('请输入日志样例')}
+                      autosize={{ minRows: 3, maxRows: 3 }}
+                      value={logOriginal.value}
+                      onChange={(value) => {
+                        logOriginal.value = String(value);
+                      }}
+                    />
+                  </TLoading>
                 </div>
               </div>
             )}
 
             {/* 过滤规则分组列表 */}
-            {filterData.value.map((group: ITableRowItem[], groupIndex: string|number|symbol|undefined) => (
-              <div
-                key={groupIndex}
-                class='table-box'
-              >
+            {filterData.value.map((group: FilterDraft[], groupIndex: number) => (
+              <div key={groupIndex} class='table-box'>
                 <div class='table-box-header'>
                   <span>{t('第{n}组', { n: groupIndex + 1 })}</span>
                   {filterData.value.length > 1 && (
-                    <i
-                      class='bk-icon icon-delete del-icons'
-                      onClick={() => deleteFilterGroup(groupIndex)}
-                    />
+                    <i class='bk-icon icon-delete del-icons' onClick={() => deleteFilterGroup(groupIndex)} />
                   )}
                 </div>
                 {renderFilterGroup(group, groupIndex)}
@@ -763,10 +749,7 @@ export default defineComponent({
             ))}
 
             {/* 新增过滤组按钮 */}
-            <div
-              class='add-new-group-btn'
-              onClick={addFilterGroup}
-            >
+            <div class='add-new-group-btn' onClick={addFilterGroup}>
               <i class='bk-icon icon-plus-line icons' />
               <span>{t('新增过滤组')}</span>
             </div>

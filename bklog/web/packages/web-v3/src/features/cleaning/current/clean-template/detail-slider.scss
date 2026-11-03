@@ -70,13 +70,13 @@
     flex-shrink: 0;
     gap: 6px;
 
-    .bk-button > div:last-child {
+    .t-button > div:last-child {
       display: inline-flex;
       align-items: center;
       height: 100%;
     }
 
-    .bk-button .left-icon {
+    .t-button .left-icon {
       top: 0;
       margin-right: 6px;
       font-size: 14px;
@@ -212,7 +212,7 @@
     gap: 10px;
     margin-bottom: 10px;
 
-    .bk-form-control {
+    .t-input__wrap {
       flex: 1;
     }
   }

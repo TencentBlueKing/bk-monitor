@@ -1,0 +1,20 @@
+{
+  "checkedAt": "2026-10-29T07:31:30.369Z",
+  "cause": "V3 classic iframe requested old log-web1-dll path; Vite returned HTML fallback as 200 causing Unexpected token <",
+  "fix": "Use deployment-base legacy-v1/assets for entries and Webpack chunks; reject text/html during resource HEAD checks",
+  "browser": {
+    "queryButtonVisible": true,
+    "resultSummary": "检索结果（找到 2,701 条结果，用时305毫秒) , 将搜索条件 添加为监控 ",
+    "switchToV1": "PASSED",
+    "query": "PASSED",
+    "returnToV3": "PASSED",
+    "reenterV1": "PASSED",
+    "reloadV1": "PASSED"
+  },
+  "tests": {
+    "passed": 193,
+    "failed": 0
+  },
+  "sealedAssetsVerified": 215,
+  "scope": "V1 loading and version switching only; not full V1 business acceptance"
+}

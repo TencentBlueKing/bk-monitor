@@ -86,7 +86,7 @@
       @include flex-center;
     }
 
-    .bk-form-input {
+    .t-input__inner {
       display: block;
       border-top-left-radius: 0;
       border-bottom-left-radius: 0;
@@ -106,14 +106,14 @@
 
     @include flex-align();
 
-    .bk-button {
+    .t-button {
       width: 96px;
       margin-right: 8px;
     }
   }
 
   .bk-label-text,
-  .bk-checkbox-text {
+  .t-checkbox__label {
     font-size: 12px;
   }
 

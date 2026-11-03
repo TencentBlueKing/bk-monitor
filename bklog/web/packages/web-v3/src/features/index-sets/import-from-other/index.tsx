@@ -1,3 +1,5 @@
+
+import { RadioGroup as TRadioGroup, Radio as TRadio } from 'tdesign-vue-next';
 import { ServicesInstance } from '@/platform/services';
 /*
  * Tencent is pleased to support the open source community by making
@@ -254,13 +256,13 @@ export default defineComponent({
             label={t('导入模式')}
             required
           >
-            <bk-radio-group
+            <TRadioGroup
               value={indexSetData.value.export_type}
-              onChange={(value: string) => (indexSetData.value.export_type = value)}
+              onChange={(value) => { if (typeof value === 'string') ((value: string) => (indexSetData.value.export_type = value))(value); }}
             >
-              <bk-radio value='replace'> {t('替换')} </bk-radio>
-              <bk-radio value='assign'> {t('补齐')} </bk-radio>
-            </bk-radio-group>
+              <TRadio value='replace'> {t('替换')} </TRadio>
+              <TRadio value='assign'> {t('补齐')} </TRadio>
+            </TRadioGroup>
           </bk-form-item>
         </bk-form>
       </bk-dialog>

@@ -49,11 +49,11 @@
             property="index_set_name"
             required
           >
-            <bk-input
+            <t-input
               v-model="formData.index_set_name"
               data-test-id="newlogIndexSetBox_input_indexSetName"
             >
-            </bk-input>
+            </t-input>
           </bk-form-item>
           <bk-form-item
             :label="$t('数据分类')"
@@ -138,14 +138,14 @@
             <div class="collection-label">{{ $t('已选索引') }}</div>
             <div class="selected-collection">
               <template>
-                <bk-tag
+                <t-tag variant="light" data-v2-display="tag"
                   v-for="(item, index) in formData.indexes"
                   :key="item.result_table_id"
                   :class="{ 'selected-tag': scenarioId === 'es' }"
-                  :theme="getIndexActive(item.result_table_id)"
+                  :theme="(getIndexActive(item.result_table_id)) === 'info' ? 'primary' : ((getIndexActive(item.result_table_id)) || 'default')"
                   closable
                   @click="handleClickTag(item.result_table_id)"
-                  @close="removeCollection(index, item.result_table_id)"
+                  @close="({e}) => removeCollection(index, item.result_table_id)"
                 >
                   <span
                     v-bk-overflow-tips
@@ -154,14 +154,14 @@
                   >
                     {{ item.result_table_id }}
                   </span>
-                </bk-tag>
+                </t-tag>
               </template>
-              <bk-button
+              <t-button
                 class="king-button"
                 data-test-id="newlogIndexSetBox_button_addNewIndex"
-                icon="plus"
+                
                 @click="openDialog"
-              ></bk-button>
+              ><template #icon><span :class="`bk-icon icon-${'plus'}`"></span></template></t-button>
             </div>
           </div>
           <div
@@ -308,16 +308,16 @@
               handle=".icon-grag-fill"
             >
               <transition-group>
-                <bk-tag
+                <t-tag variant="light" data-v2-display="tag"
                   v-for="item in formData.sort_fields"
                   :key="item"
-                  ext-cls="tag-items"
+                  :class="'tag-items'"
                   closable
-                  @close="handleCloseSortFiled(item)"
+                  @close="({e}) => handleCloseSortFiled(item)"
                 >
                   <i class="bk-icon icon-grag-fill"></i>
                   {{ item }}
-                </bk-tag>
+                </t-tag>
               </transition-group>
             </vue-draggable>
             <bk-select
@@ -327,10 +327,10 @@
               @selected="handleAddSortFields"
             >
               <template #trigger>
-                <bk-button
+                <t-button
                   class="king-button"
-                  icon="plus"
-                ></bk-button>
+                  
+                ><template #icon><span :class="`bk-icon icon-${'plus'}`"></span></template></t-button>
               </template>
               <bk-option
                 v-for="option in targetFieldSelectList"
@@ -344,7 +344,7 @@
           </div>
         </div>
       </article>
-      <bk-button
+      <t-button
         style="width: 86px"
         :loading="submitLoading"
         data-test-id="newlogIndexSetBox_button_submit"
@@ -352,7 +352,7 @@
         @click="submitForm"
       >
         {{ $t('提交') }}
-      </bk-button>
+      </t-button>
       <component
         :is="scenarioId === 'es' ? 'SelectEs' : 'SelectCollection'"
         ref="selectCollectionRef"
@@ -961,7 +961,7 @@
           flex-flow: wrap;
           padding: 10px 0 0;
 
-          :deep(.bk-tag) {
+          :deep(.t-tag) {
             display: inline-flex;
             align-items: center;
             height: 32px;
@@ -971,12 +971,12 @@
             background: #f0f1f5;
             background-color: #f0f1f5;
 
-            .bk-tag-close {
+            .t-tag__icon-close {
               font-size: 18px;
               color: #63656e;
             }
 
-            &.bk-tag-info {
+            &.t-tag--primary {
               /* stylelint-disable-next-line declaration-no-important */
               background: #ebf2ff !important;
             }

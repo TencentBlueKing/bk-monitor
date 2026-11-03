@@ -1,3 +1,7 @@
+
+import { RadioGroup as TRadioGroup, Radio as TRadio } from 'tdesign-vue-next';
+
+import { Button as TButton } from 'tdesign-vue-next';
 import { ServicesInstance } from '@/platform/services';
 /*
  * Tencent is pleased to support the open source community by making
@@ -391,19 +395,19 @@ export default defineComponent({
               property='is_enable'
               required
             >
-              <bk-radio-group
+              <TRadioGroup
                 data-test-id='basicInformation_radio_whetherToEnable'
                 value={formData.value.is_enable}
                 onChange={(val: unknown) => (formData.value.is_enable = val)}
               >
-                <bk-radio
+                <TRadio
                   style='margin-right: 16px'
                   value={true}
                 >
                   {t('是')}
-                </bk-radio>
-                <bk-radio value={false}>{t('否')}</bk-radio>
-              </bk-radio-group>
+                </TRadio>
+                <TRadio value={false}>{t('否')}</TRadio>
+              </TRadioGroup>
             </bk-form-item>
           </bk-form>
         </article>
@@ -481,33 +485,33 @@ export default defineComponent({
                       />
                     </div>
                     <div class='min-box operation-container'>
-                      <bk-button
+                      <TButton
                         style='padding: 0'
                         disabled={formData.value.hosts.length === 1}
                         size='small'
-                        text
-                        onClick={() => deleteHost(index)}
+                        
+                        onClick={() => deleteHost(index)} variant={(true) ? 'text' : ('base')}
                       >
                         {t('删除')}
-                      </bk-button>
+                      </TButton>
                     </div>
                   </li>
                 ))}
               </ul>
 
               {/* 添加中转机按钮 */}
-              <bk-button
+              <TButton
                 class='king-button'
                 onClick={addHost}
               >
                 {t('添加链路中转机')}
-              </bk-button>
+              </TButton>
             </div>
           </div>
         </article>
 
         {/* 提交按钮 */}
-        <bk-button
+        <TButton
           style='width: 86px'
           data-test-id='basicInformation_button_submitFrom'
           loading={submitLoading.value}
@@ -515,7 +519,7 @@ export default defineComponent({
           onClick={submitForm}
         >
           {t('提交')}
-        </bk-button>
+        </TButton>
       </div>
     );
   },

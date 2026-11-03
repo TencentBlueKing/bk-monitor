@@ -1,3 +1,7 @@
+
+import { Checkbox as TCheckbox, CheckboxGroup as TCheckboxGroup } from 'tdesign-vue-next';
+
+import { MessagePlugin as TDesignMessage, Button as TButton } from 'tdesign-vue-next';
 import { ServicesInstance } from '@/platform/services';
 import type { Canceler } from 'axios';
 import { asDictionary } from '@/shared/utils/typed-record';
@@ -31,7 +35,7 @@ import { computed, defineComponent, ref, watch, type PropType, onBeforeUnmount }
 
 import useLocale from '@/shared/composables/use-locale';
 import useStore from '@/shared/composables/use-store';
-import { bkMessage } from 'bk-magic-vue';
+
 import axios from 'axios';
 
 import TableComponent from '../../common-comp/table-component';
@@ -177,7 +181,7 @@ export default defineComponent({
     /** 复选框列插槽 - 用于显示选中状态 */
     const checkBoxSlot = (row: ICollectorListItem) => (
       <div class='import-check-box'>
-        <bk-checkbox
+        <TCheckbox
           class='group-check-box'
           checked={getCheckedStatus(row)}
           onChange={() => handleRowCheckChange(row)}
@@ -368,10 +372,7 @@ export default defineComponent({
       // 验证同步类型
       if (!syncType.value.length) {
         setTimeout(() => {
-          bkMessage({
-            theme: 'error',
-            message: t('请选择需要同步的配置'),
-          });
+          TDesignMessage("error", { content: t('请选择需要同步的配置') });
         }, 100);
         return;
       }
@@ -394,10 +395,7 @@ export default defineComponent({
         })
         .catch(err => {
           console.log('获取采集器详情失败:', err);
-          bkMessage({
-            theme: 'error',
-            message: t('获取配置信息失败，请稍后重试'),
-          });
+          TDesignMessage("error", { content: t('获取配置信息失败，请稍后重试') });
         })
         .finally(() => {
           submitLoading.value = false;
@@ -516,7 +514,7 @@ export default defineComponent({
         v-slots={{
           footer: () => (
             <div>
-              <bk-button
+              <TButton
                 theme='primary'
                 class='mr-8'
                 onClick={handleSave}
@@ -524,8 +522,8 @@ export default defineComponent({
                 disabled={!currentCheckImportID.value}
               >
                 {t('确定')}
-              </bk-button>
-              <bk-button onClick={handleCancel}>{t('取消')}</bk-button>
+              </TButton>
+              <TButton onClick={handleCancel}>{t('取消')}</TButton>
             </div>
           ),
         }}
@@ -540,22 +538,22 @@ export default defineComponent({
       >
         <div class='index-config-import-dialog-content'>
           <div class='content-top'>
-            <bk-checkbox-group
+            <TCheckboxGroup
               value={syncType.value}
-              onChange={(val: string[]) => {
+              onChange={(value) => { if (value.every(item => typeof item === 'string')) ((val: string[]) => {
                 syncType.value = val;
-              }}
+              })(value); }}
             >
               {showType.value.map(item => (
-                <bk-checkbox
+                <TCheckbox
                   value={item.id}
                   key={item.id}
                   disabled={syncType.value.length === 1 && syncType.value.includes(item.id)}
                 >
                   {item.name}
-                </bk-checkbox>
+                </TCheckbox>
               ))}
-            </bk-checkbox-group>
+            </TCheckboxGroup>
             <bk-input
               placeholder={t('搜索名称')}
               right-icon='bk-icon icon-search'

@@ -1,3 +1,5 @@
+
+import { Button as TButton } from 'tdesign-vue-next';
 import { ServicesInstance } from '@/platform/services';
 import { asDictionary } from '@/shared/utils/typed-record';
 /*
@@ -664,7 +666,7 @@ export default defineComponent({
               </span>
             ))}
           </span>
-          <bk-button onClick={() => containerRetry()}>{t('失败批量重试')}</bk-button>
+          <TButton onClick={() => containerRetry()}>{t('失败批量重试')}</TButton>
         </div>
         <div class='container-table-section'>
           {containerRenderList.value.map((renderItem, renderIndex) => (
@@ -775,7 +777,7 @@ export default defineComponent({
         </div>
         {props.isStopCollection && !loading.value && (
           <div class='content-footer'>
-            <bk-button
+            <TButton
               theme='primary'
               class='mr-12'
               disabled={props.isContainer ? containerHasRunning.value : isRunning.value}
@@ -783,14 +785,14 @@ export default defineComponent({
               loading={isHandle.value}
             >
               {t('停用')}
-            </bk-button>
-            <bk-button
+            </TButton>
+            <TButton
               onClick={() => {
                 emit('change', false);
               }}
             >
               {t('取消')}
-            </bk-button>
+            </TButton>
           </div>
         )}
       </div>

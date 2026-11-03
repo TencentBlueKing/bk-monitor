@@ -24,6 +24,7 @@
  * IN THE SOFTWARE.
  */
 
+import { datePickerIsland } from './tools/date-picker-island.ts';
 import { paraglideVitePlugin } from '@inlang/paraglide-js';
 import paraglideConfig from './project.inlang/paraglide.config.mjs';
 import { createRequire } from 'node:module';
@@ -56,6 +57,7 @@ export default {
     },
   },
   plugins: [
+    datePickerIsland(here),
     paraglideVitePlugin({ ...paraglideConfig, project: resolve(here, 'project.inlang'), outdir: resolve(here, '.paraglide') }),
     monitorHostFixture(here),
     legacyStaticEntry(),
@@ -91,9 +93,11 @@ export default {
     },
     vue({
       script: { babelParserPlugins: ['jsx', 'decorators-legacy'] },
-      template: { compilerOptions: { compatConfig: { MODE: 2 } } },
+      template: { compilerOptions: { compatConfig: { MODE: 2 }, isCustomElement: tag => tag === 'bk-user-display-name' } },
     }),
     vueJsx({
+      // This SDK registers a browser Custom Element, not a Vue component.
+      isCustomElement: tag => tag === 'bk-user-display-name',
       include: [/\.[jt]sx$/, /src\/.*\.jsx?$/, /\.vue\?vue&type=script.*lang\.[jt]sx$/],
       babelPlugins: [
         [require.resolve('@babel/plugin-proposal-decorators'), { legacy: true }],

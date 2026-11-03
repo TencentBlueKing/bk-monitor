@@ -1,0 +1,53 @@
+{
+  "schemaVersion": 1,
+  "task": "R02",
+  "date": "2026-11-02",
+  "status": "URL_ACCEPTED_TIME_BLOCKED",
+  "businessAccepted": false,
+  "visualAccepted": false,
+  "reference": "http://appdev.woa.com:8001/#/retrieve/16176?spaceUid=bkcc__5000140&bizId=5000140&search_mode=ui&keyword=&addition=%5B%5D&pid=%5B%22%23%22%5D&h_12=10174228&f_11=20680",
+  "urlContract": {
+    "status": "PASSED",
+    "implementation": [
+      "src/platform/routing/source-router.ts exports stringifyLegacyQuery.",
+      "src/app/router/index.js configures Vue Router 4 with the Vue Router 3-compatible serializer."
+    ],
+    "verifiedBehavior": [
+      "Original-log to clustering preserves addition=%5B%5D and pid=%5B%22%23%22%5D and percent-encodes clusterParams like the 8001 reference.",
+      "Returning to original logs removes clusterParams, keeps tab=origin, and preserves query encoding.",
+      "Refresh restores the selected mode and query result.",
+      "The serializer covers percent signs, hash signs, plus signs, Chinese text, empty strings, null, undefined, arrays, repeated array parameters, and JSON strings without double encoding."
+    ]
+  },
+  "datePickerContract": {
+    "package": "@blueking/date-picker@4.0.0-beta.9",
+    "entry": "official Vue3 entry",
+    "status": "BLOCKED",
+    "warningReproduction": "No format, value, modelValue, or timezone warning was emitted by either the 8001 reference or the 4175 V3 page after hard reload and panel interaction.",
+    "callSite": {
+      "modelValue": ["now-15m", "now"],
+      "format": "YYYY-MM-DD HH:mm:ss",
+      "timezone": "Asia/Shanghai",
+      "events": ["update:modelValue", "update:format", "update:timezone"],
+      "conclusion": "The current call-side value, format, timezone, and event names match the official Vue3 contract."
+    },
+    "runtimeDifference": {
+      "reference": "The 8001 page mounts the same official component in an isolated native Vue3 application. Its panel rendered at approximately 618 by 395 pixels with relative presets, custom range, format, and timezone controls.",
+      "v3": "Under the compatibility host, the panel tippy mounted as an approximately 2 by 2 pixel empty node. The dropdown-panel VNode existed but its root was disconnected from document.",
+      "rootCause": "tippy moves panelContentRef before the SDK lazily renders dropdown-panel; the compatibility renderer leaves the newly rendered panel root detached. This is not a malformed format/modelValue input."
+    },
+    "rolledBackExperiments": [
+      "No node_modules or compressed package file was changed.",
+      "A native Vue3 island experiment restored panel ownership but the SDK's bkui-vue imports resolve to the project's TDesign compatibility adapter, whose components remain on the compatibility runtime. Cross-runtime lifecycle registration then failed in the internal Tab component at setNavsWrap because navsWrapRef was undefined.",
+      "The experimental runtime-island files and edits were fully removed."
+    ],
+    "requiredFollowUp": "Resolve the whole DatePicker plus bkui-vue-to-TDesign dependency graph on one native Vue3 runtime, or obtain an SDK fix that keeps the lazy panel node connected. Do not patch the published minified file and do not add another partial compatibility layer."
+  },
+  "verification": {
+    "focusedTests": "4 passed, 0 failed: native SDK boundary plus source router and legacy query serialization.",
+    "sourceSyntax": "733 modules passed.",
+    "fullVerify": "Exit 0 after refreshing the AI dependency index; 224 tests passed and production build plus static deployment verification passed.",
+    "strictTypeDiagnostics": "1977, unchanged from R00/R01. typecheck:regression exits 1 because its historical 4932 baseline comparison reports pre-existing migration deltas.",
+    "browser": "URL behavior passed. DatePicker reference behavior passed; V3 DatePicker panel remains blocked as described above."
+  }
+}

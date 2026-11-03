@@ -1,3 +1,5 @@
+
+import { Button as TButton } from 'tdesign-vue-next';
 /*
  * Tencent is pleased to support the open source community by making
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
@@ -117,7 +119,7 @@ export default defineComponent({
           v-slots={{
             footer: () => (
               <div>
-                <bk-button
+                <TButton
                   style='margin-right: 8px'
                   class='btn-confirm'
                   disabled={!selectResult.value.length}
@@ -125,13 +127,13 @@ export default defineComponent({
                   onClick={handleConfirm}
                 >
                   确认
-                </bk-button>
-                <bk-button
+                </TButton>
+                <TButton
                   class='btn-cancel'
                   onClick={() => (showBtachDialog.value = false)}
                 >
                   取消
-                </bk-button>
+                </TButton>
               </div>
             ),
           }}
@@ -158,15 +160,15 @@ export default defineComponent({
                 />
               </div>
               <div style='margin-top: 16px;display: flex;justify-content: space-between;'>
-                <bk-button
+                <TButton
                   style='width: 280px;margin-right: 8px'
-                  outline={true}
+                  
                   theme='primary'
-                  onClick={handleResolveBtnClick}
+                  onClick={handleResolveBtnClick} variant={(true) ? 'outline' : 'base'}
                 >
                   点击解析
-                </bk-button>
-                <bk-button onClick={handleClearBtnClick}>清空</bk-button>
+                </TButton>
+                <TButton onClick={handleClearBtnClick}>清空</TButton>
               </div>
             </div>
             <div style='width: 460px; margin-left: 16px;'>

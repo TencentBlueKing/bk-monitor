@@ -11,7 +11,7 @@ import '@/shared/styles/theme/theme-dark.scss';
 import '@/shared/styles/theme/theme-light.scss';
 import '@/shared/styles/theme/tdesign-bklog.scss';
 import 'vue-virtual-scroller/dist/vue-virtual-scroller.css';
-import '@blueking/bk-user-selector/vue2/vue2.css';
+import '@blueking/bk-user-selector/vue3/vue3.css';
 import type { App } from 'vue';
 import { configureApp } from '../bootstrap/configure-app';
 import store from '../state';

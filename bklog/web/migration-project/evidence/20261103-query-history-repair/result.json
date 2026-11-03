@@ -1,0 +1,69 @@
+{
+  "date": "2026-11-03",
+  "scope": "query-history-native-popup-and-source-contract",
+  "status": "PARTIAL_VERIFIED",
+  "businessAccepted": false,
+  "visualAccepted": false,
+  "sourceDigest": "a5ff4a24e3bede7b560b650cac491572846bc65c46d344f6430abd8827efc9d2",
+  "buildConfigDigest": "31868c9550859762189593649793d0a21fa329931e88f3354343340db0aca2d1",
+  "tests": {
+    "passed": 252,
+    "failed": 0,
+    "newTests": 7,
+    "baselineParityTestsPassed": 2
+  },
+  "typecheck": {
+    "passed": false,
+    "before": 1975,
+    "after": 1975,
+    "introduced": []
+  },
+  "builds": {
+    "main": "PASSED",
+    "apm": "PASSED",
+    "trace": "PASSED",
+    "monitorIdentityMatchesCurrent": true,
+    "monitorHostRuntimeAccepted": false,
+    "legacyV1StaticDelivery": "PASSED",
+    "legacyV1RuntimeAccepted": false
+  },
+  "aiIndex": "PASSED",
+  "thirdPartyBoundaryViolations": 0,
+  "browser": {
+    "indexSetId": 16176,
+    "spaceUid": "bkcc__5000140",
+    "bizId": 5000140,
+    "viewports": {
+      "v2": [
+        1280,
+        720
+      ],
+      "v3": [
+        1280,
+        720
+      ]
+    },
+    "verified": [
+      "open-history-popup",
+      "search-filter",
+      "clear-search-restores-30-records",
+      "UI-history-addition-restoration",
+      "SQL-history-mode-and-keyword-restoration",
+      "history-popup-closes-after-restore",
+      "history-bookmark-popup-open",
+      "bookmark-focus-does-not-close-history",
+      "bookmark-cancel-keeps-history",
+      "outside-click-close"
+    ],
+    "resourceWrites": 0,
+    "backendMayRecordSearchHistory": true,
+    "restoredRoute": "http://appdev.woa.com:4175/#/retrieve/16176?spaceUid=bkcc__5000140&bizId=5000140&search_mode=ui&keyword=&addition=%5B%5D"
+  },
+  "remaining": [
+    "union-and-scene-real-browser-flows",
+    "favorite-save-and-group-write-flows",
+    "complete-keyboard-and-visual-regression",
+    "other-retrieval-controls-and-management-modules",
+    "actual-APM-and-Trace-host-runtime"
+  ]
+}

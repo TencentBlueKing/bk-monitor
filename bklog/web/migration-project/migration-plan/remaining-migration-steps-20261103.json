@@ -1,0 +1,813 @@
+{
+  "schemaVersion": 1,
+  "date": "2026-11-03",
+  "agentState": "PAUSED_BY_USER",
+  "resumeRequiresExplicitUserInstruction": true,
+  "baseline": "remaining-migration-baseline-20261103.json",
+  "completedBatch": "../evidence/20261103-collection-base-multiline-repair/result.json",
+  "tasks": [
+    {
+      "id": "H00",
+      "title": "恢复事实基线和入口台账",
+      "status": "PENDING",
+      "dependsOn": [],
+      "inputs": [
+        "ai-native/routes.json",
+        "ai-native/source-map.json",
+        "ai-native/modules.json",
+        "ai-native/dependency-graph.json",
+        "tools/business-control-audit.mjs"
+      ],
+      "steps": [
+        "保存 git status 和 diff 摘要；确认新旧源码根目录，禁止重置或覆盖当前未提交修改。",
+        "读取本次事实快照，重跑旧控件 AST 审计和严格检查；诊断按文件、错误码、消息比较，忽略行号漂移，记录新增诊断。",
+        "将当前90条路由记录逐条归入业务任务；目前88条具名记录。补齐重定向、无名布局、外链、动态组件和条件编译入口，不能仅沿原87个名字统计。",
+        "确认每个当前入口实际落到 classic/current、workbench/workspace 哪条组件链；将无用户可达入口的旧分支标为来源候选，不擅自删除。",
+        "复查 V2 8001、V3 4175 初始化、语言、空间、认证和真实结果；固定绝对时间或测试响应后再拍对照截图。"
+      ],
+      "acceptance": [
+        "入口均有去向；每个待处理操作能定位源组件、V3实现、API和验收场景。",
+        "将动态入口与 SDK 边界人工复核结果写入任务队列；审计命中数不得换算成功能完成率。"
+      ],
+      "pitfalls": [
+        "旧手册和历史报告中的1977、1886等数量仅是旧快照；本次1521才是此次最终严格检查值。",
+        "现有 AST 会命中部分自有 Bklog 业务组件；不得按前缀删除。"
+      ],
+      "businessAccepted": false,
+      "visualAccepted": false
+    },
+    {
+      "id": "H01",
+      "title": "完成采集基础信息的索引集选择和新增闭环",
+      "status": "PENDING",
+      "dependsOn": [
+        "H00"
+      ],
+      "inputs": [
+        "src/features/collection/current/components/business-comp/step2/base-info.tsx",
+        "src/features/collection/current/components/business-comp/step2/index-set-select.tsx",
+        "src/features/collection/current/components/business-comp/step2/add-index-set.tsx",
+        "src/features/collection/current/hook/useOperation.tsx"
+      ],
+      "steps": [
+        "先回归本批基础表单校验、数据名重复检查、自动转换和备注；保留 reject-on-failure 的父级协调器协议。",
+        "分析 index-set-select 中列表加载、数值ID、多选回填、搜索、取消选择、关闭新增编辑区及新增完成刷新。",
+        "使用原生 Select 的 options/multiple/filterable/panelBottomContent 等协议重写；数组中ID必须保持 number，不静默转为字符串。",
+        "迁移 AddIndexSet 的 Form、按钮、焦点、异步唯一性校验和提交反馈；确认请求、父级刷新和选择状态。",
+        "用专用新建索引集验证新增及清理。测试前记录已有索引集，不用它们验证重命名或删除。",
+        "核验“取消新增采集后再次进入”是否继承旧过滤草稿；两版都复现后定位 HOST_COLLECTION_CONFIG.params、configData 和路由生命周期，确认根因后再修复。"
+      ],
+      "acceptance": [
+        "已有索引集只读选择/移除选择正常；自建索引集能新增、回显、按原协议清理。",
+        "后台重复名和请求失败的错误信息可见；关闭重开不会错误恢复新增编辑区。"
+      ],
+      "pitfalls": [
+        "本批没有迁移 IndexSetSelect 内部旧控件。",
+        "共享默认 params 引用只是待核验风险，目前不能写成已确认的 V3 独有缺陷；不要自行新增持久草稿业务规则。"
+      ],
+      "businessAccepted": false,
+      "visualAccepted": false
+    },
+    {
+      "id": "H02",
+      "title": "完成采集目标 路径 黑名单和元数据",
+      "status": "PENDING",
+      "dependsOn": [
+        "H01"
+      ],
+      "inputs": [
+        "src/features/collection/current/components/business-comp/step2/log-path-config.tsx",
+        "src/features/collection/current/components/business-comp/step2/device-metadata.tsx",
+        "src/features/collection/ip-selector",
+        "src/features/collection/current/components/create-operation/step2-configuration.tsx"
+      ],
+      "steps": [
+        "分别读取 V2 主机选择、IP/拓扑、Agent状态、日志路径、路径增删、黑名单、字符集、采集范围与元数据组件。",
+        "迁移实际调用的 Select/Input/Table/Dialog 与组合控件；保留所有权限、禁用理由和 API 参数。",
+        "验证单一路径最后一行不能被误删、空路径校验、黑名单转换、字段保留和侧栏取消。",
+        "仅使用用户确认的专用新建资源和可测试目标；检索 index16176 不是主机ID或可采集路径，不能由其推导目标。",
+        "记录元数据新增行、删除行、错误态及最终 params；取消不写入后端。"
+      ],
+      "acceptance": [
+        "目标、路径、黑名单、编码、范围和元数据完整回填；父级校验能阻止非法下发。",
+        "隔离资源上提交前后 DTO 与 V2 对齐，现有生产主机和采集配置未被修改。"
+      ],
+      "pitfalls": [
+        "不能用普通输入框代替原有拓扑/主机选择器。",
+        "第三方 IP 选择器内部兼容与业务外围控件迁移分开记录。"
+      ],
+      "businessAccepted": false,
+      "visualAccepted": false
+    },
+    {
+      "id": "H03",
+      "title": "完成采集所有类型和步骤流转",
+      "status": "PENDING",
+      "dependsOn": [
+        "H02"
+      ],
+      "inputs": [
+        "src/features/collection/current/components/business-comp/step2/container-collection",
+        "src/features/collection/current/components/business-comp/step2/event-filter.tsx",
+        "src/features/collection/current/components/business-comp/step2/third-party-logs",
+        "src/features/collection/current/components/create-operation",
+        "src/features/collection/access"
+      ],
+      "steps": [
+        "先完成一条新增、前进、返回、校验、提交、详情回显、清理闭环，再逐类型扩展。",
+        "覆盖 Linux 行/段日志、Windows events、容器文件、标准输出、标签/namespace/workload、计算平台、第三方ES和自定义上报。",
+        "逐个保留字段显隐、默认值、过滤逻辑、配置导入、父子表单和场景切换缓存。",
+        "分别分析 current 和 access 两条实际入口；access ValidatorInput 已改为原生且离线测试通过，但完整兼容采集页面尚未浏览器验收。",
+        "使用新建采集项验证编辑、启停、重试和清理；不得操作列表中的既有采集项。"
+      ],
+      "acceptance": [
+        "每种类型有独立用例和请求证据，不能用Linux成功代表容器/Windows成功。",
+        "两个已修复过滤组件的校验契约保持分别测试；数字首字、样例搜索、模式缓存不回退。"
+      ],
+      "pitfalls": [
+        "禁止把现有稳定业务数据当作写入测试夹具。",
+        "资源不足的下发分支标阻塞并列出具体缺少项，不伪造成功回显。"
+      ],
+      "businessAccepted": false,
+      "visualAccepted": false
+    },
+    {
+      "id": "H04",
+      "title": "完成采集字段 清洗 存储和结果步骤",
+      "status": "PENDING",
+      "dependsOn": [
+        "H03"
+      ],
+      "inputs": [
+        "src/features/collection/current/components/create-operation/step3-clean.tsx",
+        "src/features/collection/current/components/business-comp/step3",
+        "src/features/collection/current/components/create-operation",
+        "src/features/index-sets/log-collection"
+      ],
+      "steps": [
+        "以 step3-clean 为起点建立字段、类型、时间字段、清洗预览、模板、存储和策略配置的调用链。",
+        "先迁移真实 Form/Table/列编辑和校验，再迁移弹层、提交和回显；保留字段重名、类型变化及时间规则。",
+        "覆盖前进/返回编辑草稿、清洗失败、请求超时、下发中、部分失败、重试和状态详情。",
+        "完整对齐列表操作、详情专用列和筛选，不能用通用 ResourcePage 替代。"
+      ],
+      "acceptance": [
+        "从自建资源的创建到清洗、存储、详情及状态反馈形成闭环。",
+        "本文件40条严格诊断的根因逐项修复，不能用any或删除列渲染抹平。"
+      ],
+      "pitfalls": [
+        "清洗预览成功不等于采集下发成功。"
+      ],
+      "businessAccepted": false,
+      "visualAccepted": false
+    },
+    {
+      "id": "H05",
+      "title": "收尾索引集及接入类型管理",
+      "status": "PENDING",
+      "dependsOn": [
+        "H04"
+      ],
+      "inputs": [
+        "src/features/index-sets/log-collection",
+        "src/features/index-sets/custom-report",
+        "src/features/index-sets/import",
+        "src/features/index-sets/import-from-other",
+        "src/features/index-sets/components"
+      ],
+      "steps": [
+        "按路由逐项列出日志索引集、计算平台、第三方ES、自定义上报、数据平台和SDK接入。",
+        "迁移列表列、搜索、排序、分页、标签、权限、详情、编辑、新增及导入；对照后端字段和状态码。",
+        "对自建索引验证组合关系、字段配置及权限限制；撤销和删除仅针对本批资源。",
+        "将自建索引用于后续检索历史删除与字段持久化测试，按依赖顺序清理，不能提前删除。"
+      ],
+      "acceptance": [
+        "全部接入类型都有独立记录；原型替代页面清零。"
+      ],
+      "pitfalls": [
+        "不得通过重置既有索引的字段或别名进行写入测试。"
+      ],
+      "businessAccepted": false,
+      "visualAccepted": false
+    },
+    {
+      "id": "H06",
+      "title": "迁移 Monitor 使用的经典索引选择器",
+      "status": "PENDING",
+      "dependsOn": [
+        "H00"
+      ],
+      "inputs": [
+        "src/features/retrieval/workbench/condition-comp/select-index-set.tsx",
+        "src/features/retrieval/workbench/condition-comp/select-index-set-input.tsx",
+        "src/features/retrieval/workspace/monitor",
+        "src/features/retrieval/workspace/use-app-init.tsx"
+      ],
+      "steps": [
+        "确认 APM/Trace、嵌入、联合索引实际是否加载此链；主应用新版索引选择器通过不能替代此处。",
+        "读 V2 旧选择器的分组、权限、搜索、联合索引、历史、收藏、表单和命令式 $bkPopover。",
+        "拆分本地弹层/编辑草稿与共享检索状态；将全部旧控件改为原生协议，清除已移除服务的实际调用。",
+        "对权限拒绝、唯一ID、隐含子索引、取消组合、删除确认和历史回填逐项建测试。",
+        "使用实际 Monitor 宿主检查索引/时间/查询状态同步及销毁；没有宿主时只标构建/夹具通过。"
+      ],
+      "acceptance": [
+        "真实嵌入/普通/联合状态分别验收，原34条严格诊断不新增。"
+      ],
+      "pitfalls": [
+        "不要给旧类补充虚假的 $bkPopover 声明来消除运行问题。",
+        "不要打开真实环境隐藏的联合功能开关以伪造在线验收。"
+      ],
+      "businessAccepted": false,
+      "visualAccepted": false
+    },
+    {
+      "id": "H07",
+      "title": "完整查询编辑器和场景检索迁移",
+      "status": "PENDING",
+      "dependsOn": [
+        "H00"
+      ],
+      "inputs": [
+        "src/features/retrieval/workbench/search-bar",
+        "src/features/retrieval/workspace/search-bar",
+        "src/features/retrieval/workbench/search-bar/ui-mode",
+        "src/features/retrieval/workbench/search-bar/sql-mode",
+        "src/app/state/actions/query-condition-actions.js"
+      ],
+      "steps": [
+        "沿 V2 UI条件、类型、操作符、逻辑分组、Tag、SQL/Lucene、模式切换和校验的实际引用链分析。",
+        "逐字段登记 URL、addition、keyword、search_mode、pid、h_12、f_11、grep_field 及场景表条件，未知参数按源行为保留。",
+        "迁移输入/弹层/快捷键/清空/撤销/编译和错误反馈；不能用单个文本输入代替原有结构化编辑。",
+        "在普通、联合、场景、APM/Trace中分别验证查询；回归已迁移历史/收藏的所有回填字段。",
+        "为中文输入法、Tab/Enter/Escape、粘贴、长表达式、非法SQL、切换时的草稿和取消建立用例。"
+      ],
+      "acceptance": [
+        "查询输入、索引、时间、模式、场景和URL形成完整闭环。"
+      ],
+      "pitfalls": [
+        "不能把历史入口能打开视为历史恢复全部正确。"
+      ],
+      "businessAccepted": false,
+      "visualAccepted": false
+    },
+    {
+      "id": "H08",
+      "title": "收尾时间 自动刷新 历史与 AI 入口",
+      "status": "PENDING",
+      "dependsOn": [
+        "H07"
+      ],
+      "inputs": [
+        "src/features/retrieval/workbench/sub-bar",
+        "src/platform/sdk/date-picker",
+        "tools/date-picker-island.ts",
+        "src/features/retrieval/workbench/search-bar/components",
+        "src/features/retrieval/workspace/toolbar"
+      ],
+      "steps": [
+        "保留官方 @blueking/date-picker 和独立 Vue3 SDK 岛；按已有报告回归全部预设、绝对时间、时区和刷新联动。",
+        "检查自动刷新定时器、失败恢复、外部关闭、键盘及卸载，区分主应用和嵌入。",
+        "完成普通/联合/场景历史和收藏入口最终回填；已有索引历史不得删除，使用 H05 自建索引产生专用历史。",
+        "迁移AI入口、上下文、取消、失败和结果应用；AI只能作用于源代码允许的字段，不增加新后端协议或自动执行权限。"
+      ],
+      "acceptance": [
+        "每个可见入口有真实行为；SDK岛边界和原生业务控件不发生VNode交叉。"
+      ],
+      "pitfalls": [
+        "旧时间 DatePicker 并非全部等于被豁免的官方检索组件，须逐项判断。"
+      ],
+      "businessAccepted": false,
+      "visualAccepted": false
+    },
+    {
+      "id": "H09",
+      "title": "完整字段 趋势 日志结果及详情回归",
+      "status": "PENDING",
+      "dependsOn": [
+        "H07"
+      ],
+      "inputs": [
+        "src/features/retrieval/workbench/field-filter-comp",
+        "src/features/retrieval/workbench/result-comp",
+        "src/features/retrieval/workbench/search-result-panel",
+        "src/features/retrieval/workspace/search-result/original-log",
+        "src/shared/global/overlay"
+      ],
+      "steps": [
+        "基于本次字段树、统计、模板、导出修复报告，逐项补齐别名、拖拽、分组、模板与持久化；写入只用自建索引。",
+        "覆盖趋势周期、缩放、刻度、收起、时间选择、原始/表格模式、排序、分页/加载更多、行号和换行。",
+        "逐字段比较原始日志，检查时间列、字段选择、嵌套对象、空值、数组、超长文本、JSON、高亮和划词操作；不能仅比较正文拼接。",
+        "恢复详情侧栏、上下文、Trace/AI/实时日志、下载/导出历史及取消、竞态、失败恢复。",
+        "导出任务157仅为当前测试自建产物，文件下载字节未验收；重新用专用任务校验实际字节、压缩格式、字段、数量和清理策略。"
+      ],
+      "acceptance": [
+        "固定数据业务结果一致；成功/空/加载/错误/展开/弹层均有证据。"
+      ],
+      "pitfalls": [
+        "不要输出带签名下载URL、Cookie或日志中的凭据。",
+        "前后响应数量随时间变化不能直接判定迁移数据丢失，必须固定时间或响应。"
+      ],
+      "businessAccepted": false,
+      "visualAccepted": false
+    },
+    {
+      "id": "H10",
+      "title": "完成收藏 聚类 Pattern 和订阅闭环",
+      "status": "PENDING",
+      "dependsOn": [
+        "H09"
+      ],
+      "inputs": [
+        "src/features/retrieval/workbench/collect",
+        "src/features/retrieval/workspace/favorite",
+        "src/features/retrieval/workbench/search-result-panel/log-clustering",
+        "src/features/retrieval/workspace/search-result/log-clustering"
+      ],
+      "steps": [
+        "回归本次普通收藏新增、改名、移动、批量和清理；补齐联合、场景、共享、权限、拖拽和异常。",
+        "分别验证不支持、未接入、已接入聚类分支和接入向导，不能只测试有Pattern的业务。",
+        "迁移 Pattern 表格、分页、排序、详情、标注、屏蔽、对比、趋势、策略和导出。",
+        "处理 quick-create-subscription 和聚类结果表的类型/原生控件；保留原渠道、订阅者、频率、校验和提交副作用。",
+        "所有写入仅用新建收藏/分组/标注/订阅对象，记录ID和清理证明。"
+      ],
+      "acceptance": [
+        "普通/联合/场景/嵌入分别有业务验收，内容表34条和订阅表27条诊断按根因修复。"
+      ],
+      "pitfalls": [
+        "先前测试创建的两组收藏和一个查询已全部清理，不得把同名历史记录当作本批可删除资源。"
+      ],
+      "businessAccepted": false,
+      "visualAccepted": false
+    },
+    {
+      "id": "H11",
+      "title": "完成图表分析和图表共享组件",
+      "status": "PENDING",
+      "dependsOn": [
+        "H09"
+      ],
+      "inputs": [
+        "src/features/retrieval/workbench/search-result-panel/graph-analysis",
+        "src/features/charts",
+        "src/features/dashboards"
+      ],
+      "steps": [
+        "保留图表类别、SQL编辑、指标/维度、时间维度、轴、单位、排序、空态和错误态。",
+        "校验图表类别枚举与真实可见类别，不能为通过索引类型检查而新增V2没有的类别。",
+        "迁移 Table/Form/Select/Popover、拖动与保存到仪表盘；消费方变更同步回归检索、仪表盘和嵌入。",
+        "对 series 数据、趋势值和单值图固定响应建语义断言，再拍图，不以像素图替代数据正确性。"
+      ],
+      "acceptance": [
+        "每种图表可以配置、查询、切换、保存和恢复；无未经接受的高影响差异。"
+      ],
+      "pitfalls": [
+        "共享图表工具 JS 转 TS 应保留所有业务单位换算，已修复的小数分隔符不能被路径工具再次改坏。"
+      ],
+      "businessAccepted": false,
+      "visualAccepted": false
+    },
+    {
+      "id": "H12",
+      "title": "完成清洗 模板 Grok 和脱敏",
+      "status": "PENDING",
+      "dependsOn": [
+        "H04"
+      ],
+      "inputs": [
+        "src/features/cleaning",
+        "src/features/grok",
+        "src/features/masking"
+      ],
+      "steps": [
+        "分离 classic/current 实际入口；先迁移共享规则表、字段选择、校验和预览，再迁移列表及新建/编辑/克隆。",
+        "覆盖清洗模板增删改、Grok表达式和多规则、匹配结果、脱敏字段/规则/顺序/启停。",
+        "恢复专用列、权限、保存/取消、异步异常及详情回显；禁止把复杂列转换成单个文本列。",
+        "脱敏设置、规则和字段的旧类转换为组合函数时先冻结输入输出，逐文件清除实例调用。",
+        "隔离资源中验证新增、编辑、应用及清理，已有清洗/脱敏规则保持不动。"
+      ],
+      "acceptance": [
+        "每种规则有成功、无匹配、非法表达式、无权限和后台失败用例。"
+      ],
+      "pitfalls": [
+        "正则预览与后端实际清洗效果分别验证，不能因为预览可用就标全部通过。"
+      ],
+      "businessAccepted": false,
+      "visualAccepted": false
+    },
+    {
+      "id": "H13",
+      "title": "完成提取任务 配置 目录与下载",
+      "status": "PENDING",
+      "dependsOn": [
+        "H00"
+      ],
+      "inputs": [
+        "src/features/extraction/current",
+        "src/features/extraction/classic",
+        "src/features/extraction/download"
+      ],
+      "steps": [
+        "先复核已修复的父目录 ../ 选择语义，避免路径整理工具再次改写业务字符串。",
+        "迁移提取配置、目录权限、链路选择、创建/克隆、任务进度、失败重试和下载。",
+        "覆盖路径树、目标选择、表单组合、分页、取消和后端错误；按原API恢复状态操作。",
+        "只在专用目录和新建任务上验证写入，记录文件路径、任务ID和清理责任。"
+      ],
+      "acceptance": [
+        "新增到下载和清理形成闭环；预览目录与最终提取范围一致。"
+      ],
+      "pitfalls": [
+        "不得操作已有文件和提取任务，也不得把检索业务ID当作文件目录授权。"
+      ],
+      "businessAccepted": false,
+      "visualAccepted": false
+    },
+    {
+      "id": "H14",
+      "title": "完成归档仓库 策略 恢复",
+      "status": "PENDING",
+      "dependsOn": [
+        "H00"
+      ],
+      "inputs": [
+        "src/features/archive/current",
+        "src/features/archive/classic"
+      ],
+      "steps": [
+        "依次迁移仓库表单/校验、归档策略/筛选、恢复任务/时间范围及结果详情。",
+        "保留仓库类型、索引范围、有效期、容量、状态、失败重试和权限语义。",
+        "用专用仓库或用户明确可写资源验证新增策略和恢复；没有资源则完成离线/只读验证并标具体阻塞。",
+        "恢复任务确认、状态推进和结果可查询分别验证。"
+      ],
+      "acceptance": [
+        "各类仓库和恢复分支都有明确状态，不能用空列表占位验收。"
+      ],
+      "pitfalls": [
+        "index16176/biz5000140不直接代表可写仓库标识。"
+      ],
+      "businessAccepted": false,
+      "visualAccepted": false
+    },
+    {
+      "id": "H15",
+      "title": "完成集群 订阅 接入追踪和链路管理",
+      "status": "PENDING",
+      "dependsOn": [
+        "H00"
+      ],
+      "inputs": [
+        "src/features/clusters",
+        "src/features/reporting",
+        "src/features/tracing",
+        "src/features/data-links"
+      ],
+      "steps": [
+        "回归已修复的 ES 原生抽屉和管理布局，再迁移剩余集群列表、详情、连通性、表单和权限。",
+        "分别迁移订阅、客户端/SDK接入追踪、数据链路设置及字段联动。",
+        "校验真实请求参数和反馈，不自行创建连接协议或推导凭据。",
+        "新建测试连接/订阅/链路必须记录范围和清理；敏感配置不写入截图或交接文档。"
+      ],
+      "acceptance": [
+        "各模块具备自身的专用筛选、列、表单、弹层及状态操作验证。"
+      ],
+      "pitfalls": [
+        "站内监控和仪表盘外链语义必须保留，不能被普通站内路由替代。"
+      ],
+      "businessAccepted": false,
+      "visualAccepted": false
+    },
+    {
+      "id": "H16",
+      "title": "完成仪表盘首页 目录 创建和导入",
+      "status": "PENDING",
+      "dependsOn": [
+        "H11"
+      ],
+      "inputs": [
+        "src/features/dashboards",
+        "src/features/navigation",
+        "src/features/monitoring"
+      ],
+      "steps": [
+        "确认站内仪表盘管理和跳转监控仪表盘的两种入口，不混淆目标。",
+        "迁移首页、目录、创建、默认仪表盘、导入、删除及权限。",
+        "对新建测试仪表盘验证查询结果图表保存、刷新深链和清理。"
+      ],
+      "acceptance": [
+        "所有范围内仪表盘入口去向和参数保持V2语义。"
+      ],
+      "pitfalls": [
+        "外链打开成功不能替代站内创建/导入验收。"
+      ],
+      "businessAccepted": false,
+      "visualAccepted": false
+    },
+    {
+      "id": "H17",
+      "title": "完成分享 授权 data_id 客户端日志和外部集成",
+      "status": "PENDING",
+      "dependsOn": [
+        "H06",
+        "H10"
+      ],
+      "inputs": [
+        "src/features/sharing",
+        "src/features/authorization",
+        "src/features/data-id",
+        "src/features/client-logs",
+        "src/features/integrations"
+      ],
+      "steps": [
+        "沿路由复核分享、过期、无权限、授权申请/管理、data_id到索引集跳转及客户端日志。",
+        "迁移列表、表单、树/多选、弹层、时间及外部窗口通信，不擅自扩大授权范围。",
+        "覆盖有效/失效/无权限分享、索引变化、空间恢复和嵌入状态同步。",
+        "使用测试资源和当前用户允许范围验证；涉及新增安全敏感授权时按实际权限确认流程处理。"
+      ],
+      "acceptance": [
+        "深链参数、鉴权和父窗口消息按V2保留；32条授权列表诊断按原生契约解决。"
+      ],
+      "pitfalls": [
+        "仅同源且来自目标iframe的消息可被兼容宿主接受。"
+      ],
+      "businessAccepted": false,
+      "visualAccepted": false
+    },
+    {
+      "id": "H18",
+      "title": "消除业务旧库别名 指令和服务余额",
+      "status": "PENDING",
+      "dependsOn": [
+        "H05",
+        "H08",
+        "H10",
+        "H12",
+        "H13",
+        "H14",
+        "H15",
+        "H16",
+        "H17"
+      ],
+      "inputs": [
+        "tools/business-control-audit.mjs",
+        "tools/third-party-boundary-audit.mjs",
+        "src/platform/compat/tdesign",
+        "src/app/bootstrap",
+        "src/shared/global",
+        "src/shared/types"
+      ],
+      "steps": [
+        "重新跑AST，按真实导入、注册、调用和所属域分类，不按前缀批量改名。",
+        "把剩余 Loading、Tooltip、OverflowTips、Clickoutside、InfoBox、复杂Message、Notify按消费方契约迁为原生状态/组件。",
+        "Form.validate、Select事件、多选值、Table slot、Dialog close、Popup portal和受控checked/value逐项核实。",
+        "业务消费者清零后再删除相应全局注册、类型声明和通用伪装壳；第三方SDK仍需的边界单独保留。",
+        "跨模块共享组件变更必须回归之前通过的时间、历史、字段、收藏、导出及采集批次。"
+      ],
+      "acceptance": [
+        "业务无 bk-magic-vue/魔法别名调用；SDK原名仅出现在审核过的边界。"
+      ],
+      "pitfalls": [
+        "目前两旧库不在package/lock不代表业务调用已经清零。",
+        "不能删除还被 SDK 直接 import 的 bkui-vue 符号或字体资源。"
+      ],
+      "businessAccepted": false,
+      "visualAccepted": false
+    },
+    {
+      "id": "H19",
+      "title": "收尾 Pinia 组合函数和 Vue3 生命周期",
+      "status": "PENDING",
+      "dependsOn": [
+        "H18"
+      ],
+      "inputs": [
+        "src/app/state",
+        "src/shared/composables",
+        "src/platform/compat/class-component-jsx.d.ts",
+        "src/platform/compat/vue-runtime.mjs"
+      ],
+      "steps": [
+        "核验当前Pinia承接的getter/action/commit兼容层，按业务域逐个将调用改为类型化store和Hooks。",
+        "36个静态扫描命中文件只是旧类/TSX协议依赖集合，逐个确认真实Class、decorator、ref和生命周期；Mixin模式扫描未命中也不能替代运行检查。",
+        "重点修复箭头方法在类字段初始化时捕获临时this的问题，按本次AggChart案例回归路由和应用上下文。",
+        "组件卸载清理定时器、事件监听、请求和popover；应用初始化、空间切换、URL恢复和跨组件状态分别回归。",
+        "最后一个兼容业务消费者移除后才评估全局MODE3；SDK岛和封版V1保持独立。"
+      ],
+      "acceptance": [
+        "无业务Mixins/Class实例耦合；状态源唯一，订阅和副作用有销毁证据。"
+      ],
+      "pitfalls": [
+        "只补充真实已安装的全局属性；当前$t声明可用，不允许虚假声明已移除$bk服务。",
+        "不能通过注册第二个Vuex或第二套检索状态“兼容”旧代码。"
+      ],
+      "businessAccepted": false,
+      "visualAccepted": false
+    },
+    {
+      "id": "H20",
+      "title": "ServicesInstance 和全部应用 JS 升级为 TS",
+      "status": "PENDING",
+      "dependsOn": [
+        "H19"
+      ],
+      "inputs": [
+        "src/platform/services",
+        "src/platform/http",
+        "src/app/state",
+        "src/app/router/index.js",
+        "src/app/bootstrap/start.js",
+        "src/shared/lib/util.js"
+      ],
+      "steps": [
+        "以快照列出的19个JS/JSX/MJS文件为准，逐文件确认应用源码与第三方/生成物边界；另有158个未TS化SFC script块。",
+        "先定义API请求/响应和错误模型，再迁移HTTP、领域service、state actions、router/start、算法和工具。",
+        "服务调用使用 ServicesInstance.module.endpoint，保留认证、空间头、错误处理、取消信号及原请求参数。",
+        "纯工具先建含边界值的测试；路由、Codemirror模式和worker相关代码按真实导入/运行方式迁移，不靠改后缀。",
+        "兼容Vue运行时的MJS入口若需暂留，须明确标注兼容例外及退出条件，不谎称已完成全TS。"
+      ],
+      "acceptance": [
+        "应用JS与SFC脚本都有类型化实现/明确批准例外；无业务字符串路由式服务调用。"
+      ],
+      "pitfalls": [
+        "源码source-map中的source是冻结来源，不应随改后缀覆盖历史标识。"
+      ],
+      "businessAccepted": false,
+      "visualAccepted": false
+    },
+    {
+      "id": "H21",
+      "title": "Paraglide及中英界面最终验收",
+      "status": "PENDING",
+      "dependsOn": [
+        "H19"
+      ],
+      "inputs": [
+        "src/platform/i18n",
+        "src/platform/i18n/messages",
+        "project.inlang",
+        "tools/compile-messages.mjs",
+        "tests/translation.test.mjs",
+        "tests/class-translator-contract.test.mjs"
+      ],
+      "steps": [
+        "验证编译目录、语言初始化、Cookie、切换、日期时区、复数/插值、富文本和回退。",
+        "新UI复用已存在的稳定消息键；例如搜索为空须用 bk.exception.searchEmpty，不能添加重复消息ID别名。",
+        "逐域检查英文长文案布局、表单标签宽、弹窗、溢出和错误提示。",
+        "保留source translation的slot语义；去除vue-i18n运行依赖后重建全部消费者。"
+      ],
+      "acceptance": [
+        "中英均可编译、启动和切换；占位参数不丢失，富文本不被拼成HTML。"
+      ],
+      "pitfalls": [
+        "类组件$t类型是安装事实的声明，不是vue-i18n重新接入。"
+      ],
+      "businessAccepted": false,
+      "visualAccepted": false
+    },
+    {
+      "id": "H22",
+      "title": "严格类型诊断清零",
+      "status": "PENDING",
+      "dependsOn": [
+        "H18",
+        "H19",
+        "H20",
+        "H21"
+      ],
+      "inputs": [
+        "tsconfig.json",
+        "migration-plan/remaining-migration-baseline-20261103.json"
+      ],
+      "steps": [
+        "以1521条快照和实时检查作起点，按文件/错误码/根因分组，不逐行堆断言。",
+        "优先领域DTO、可空生命周期、ref、props/emits/slots、旧类/组件契约和已安装第三方类型；逐模块收敛。",
+        "每批比较诊断集合，保留数量下降和新增诊断；对签名变化回归真实处理器和浏览器。",
+        "将required/可选值、错误对象、取消和业务枚举表达为真实类型；类型断言仅限已验证边界。",
+        "最终完整 vue-tsc --noEmit 和正式 typecheck 均为0，不缩小include，不关闭strict。"
+      ],
+      "acceptance": [
+        "全项目严格检查0条，测试和全部构建通过；没有新增any或ts-ignore掩盖错误。"
+      ],
+      "pitfalls": [
+        "默认脚本先编译i18n，可能触发Dev整页刷新；最终浏览器证据须在刷新后重取。"
+      ],
+      "businessAccepted": false,
+      "visualAccepted": false
+    },
+    {
+      "id": "H23",
+      "title": "封版 V1 字体 资源和通信独立验收",
+      "status": "PENDING",
+      "dependsOn": [
+        "H00"
+      ],
+      "inputs": [
+        "tools/legacy-static-entry.mjs",
+        "tools/verify-legacy-deployment.mjs",
+        "migration-runtime",
+        "src/features/migration",
+        "migration-project/migration-engine/freeze-v1.mjs"
+      ],
+      "steps": [
+        "复核冻结来源、构建命令、锁文件和产物hash，资源必须同域且支持部署子路径。",
+        "检查V1缺失图标是否字体文件/CSS路径/字形类名/加载时序问题；从冻结源修复重建，不直接改压缩包。",
+        "验证加载、查询、刷新深链、返回V3、登录恢复及ready/navigate/return-to-v3/auth-required协议。",
+        "测试时关闭V2服务以证明封版V1不依赖8001；隔离检查后恢复对照服务。"
+      ],
+      "acceptance": [
+        "封版V1可以独立运行，全部资源存在且返回正确MIME，消息同源与窗口来源校验通过。"
+      ],
+      "pitfalls": [
+        "静态资源校验通过不代表 legacyRuntimeAccepted=true；此前仍为false。"
+      ],
+      "businessAccepted": false,
+      "visualAccepted": false
+    },
+    {
+      "id": "H24",
+      "title": "真实 Monitor 宿主和发布资源验收",
+      "status": "PENDING",
+      "dependsOn": [
+        "H06",
+        "H08",
+        "H17",
+        "H18",
+        "H20"
+      ],
+      "inputs": [
+        "vite.monitor.config.ts",
+        "tools/verify-monitor-build.mjs",
+        "tools/package-monitor.mjs",
+        "tests/browser/monitor-host.html",
+        "bklog/web/monitor-apm-retrieve",
+        "bklog/web/monitor-trace-retrieve"
+      ],
+      "steps": [
+        "为APM/Trace分别核验公开export、初始化/销毁、宿主空间/索引/时间、父子路由、请求生命周期和外部版限制。",
+        "验证样式作用域、字体/图标/worker、挂载多实例和重复卸载；不能只验导出符号。",
+        "主应用、APM、Trace按同一源码和配置摘要连续构建，中途不改源码；校验migration-build及消费者。",
+        "确认宿主实际支持的Vue/打包格式和已发布包消费者，再变更移除依赖。"
+      ],
+      "acceptance": [
+        "两个真实宿主分别通过，不以离线host夹具或构建成功替代。"
+      ],
+      "pitfalls": [
+        "build:apm/build:trace不会自动证明已发布包消费者兼容；禁止未经授权发布包。"
+      ],
+      "businessAccepted": false,
+      "visualAccepted": false
+    },
+    {
+      "id": "H25",
+      "title": "全业务签收 发布回归和 V2 退役",
+      "status": "PENDING",
+      "dependsOn": [
+        "H01",
+        "H02",
+        "H03",
+        "H04",
+        "H05",
+        "H06",
+        "H07",
+        "H08",
+        "H09",
+        "H10",
+        "H11",
+        "H12",
+        "H13",
+        "H14",
+        "H15",
+        "H16",
+        "H17",
+        "H18",
+        "H19",
+        "H20",
+        "H21",
+        "H22",
+        "H23",
+        "H24"
+      ],
+      "inputs": [
+        "ai-native/routes.json",
+        "migration-project/artifacts/tasks/execution-status.json",
+        "migration-project/migration-engine/full-business-gate.mjs",
+        "package.json",
+        "bklog/web/package.json"
+      ],
+      "steps": [
+        "逐路由/场景/状态核对功能、权限、异常、取消、竞态和视觉；路由覆盖与业务/UI状态通过率分别统计。",
+        "固定1440×900主视口及1280×800补充视口，实际读取尺寸后保存；当前1280×720截图不能替代。",
+        "隔离环境验证部署子路径、深链刷新、资源MIME、SDK/V1/Monitor、回滚和干净检出构建。",
+        "测试环境完整部署产物并验收，真实发布切换遵循明确授权；保留前一版可回滚产物。",
+        "只有全量验收通过后，迁移共享脚本/消费者并删除V2业务源码、独占配置/依赖/构建链；更新根Dev/CI。",
+        "最后总结源契约、TDesign差异、失败案例、验证方法、成本和AI Native规则。"
+      ],
+      "acceptance": [
+        "无未批准功能遗漏/高影响UI差异；严格检查0、全业务通过、封版V1独立、两个Monitor宿主通过。",
+        "干净检出可构建V3及封版V1，开发生产均不需要当前V2源码或构建链。"
+      ],
+      "pitfalls": [
+        "任何关键验收仍待验证/阻塞时，v2RetirementAllowed必须保持false。"
+      ],
+      "businessAccepted": false,
+      "visualAccepted": false
+    }
+  ]
+}

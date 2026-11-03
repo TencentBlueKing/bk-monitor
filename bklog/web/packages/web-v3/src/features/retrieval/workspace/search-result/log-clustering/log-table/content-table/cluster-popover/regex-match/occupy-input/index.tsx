@@ -1,3 +1,5 @@
+
+import { Button as TButton } from 'tdesign-vue-next';
 /*
  * Tencent is pleased to support the open source community by making
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
@@ -109,19 +111,19 @@ export default defineComponent({
               />
             </bk-form-item>
             <div class='btn-box'>
-              <bk-button
+              <TButton
                 size='small'
                 theme='primary'
                 onClick={handleSubmitOccupy}
               >
                 {t('确认提取')}
-              </bk-button>
-              <bk-button
+              </TButton>
+              <TButton
                 size='small'
                 onClick={handleCancelOccupy}
               >
                 {t('取消')}
-              </bk-button>
+              </TButton>
             </div>
           </bk-form>
         </div>

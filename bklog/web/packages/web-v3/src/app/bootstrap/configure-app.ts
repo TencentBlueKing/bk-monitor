@@ -1,4 +1,5 @@
 import { ServicesInstance } from '@/platform/services';
+import { Button, Checkbox, CheckboxGroup, Radio, RadioButton, RadioGroup, Switch, Loading, Alert, Tag, Progress, Badge, Input } from 'tdesign-vue-next';
 /*
  * Tencent is pleased to support the open source community by making
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
@@ -35,17 +36,23 @@ import methods from '../../platform/plugins/methods';
 import { bkLoadingDirective } from '../../platform/compat/tdesign/loading';
 import SourceTranslation from '../../platform/i18n/translation';
 import { patchLegacyComponentSlots } from '../../platform/compat/tdesign/legacy-slot';
-import * as LegacyControls from 'bk-magic-vue';
-import { patchLegacyFunctionalContext } from '../../platform/compat/tdesign/legacy-functional';
-import { bkBigTree } from 'bk-magic-vue';
 import { installHttp } from '@/platform/http';
 
 export function configureApp(app: import('vue').App) {
+  app.component('TButton', Button);
+  app.component('TCheckbox', Checkbox);
+  app.component('TCheckboxGroup', CheckboxGroup);
+  app.component('TRadio', Radio);
+  app.component('TRadioButton', RadioButton);
+  app.component('TRadioGroup', RadioGroup);
+  app.component('TSwitch', Switch);
+  app.component('TLoading', Loading);
+  app.component('TAlert', Alert);
+  app.component('TTag', Tag);
+  app.component('TProgress', Progress);
+  app.component('TBadge', Badge);
+  app.component('TInput', Input);
   app.config.globalProperties.$services = ServicesInstance;
-  patchLegacyFunctionalContext(bkBigTree);
-  for (const component of Object.values(LegacyControls)) patchLegacyComponentSlots(component);
-  // Vue.use may have registered a constructor cloned from the exported options.
-  // Patch that actual column definition before mounting the application's tables.
   patchLegacyComponentSlots(app.component('bk-table-column'));
   app.component('i18n', SourceTranslation);
   app.directive('bkloading', bkLoadingDirective);

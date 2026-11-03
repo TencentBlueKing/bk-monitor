@@ -1,3 +1,5 @@
+
+import { Button as TButton } from 'tdesign-vue-next';
 import type { ServiceOperation } from '@/platform/services/runtime/service-client';
 import { ServicesInstance } from '@/platform/services';
 /*
@@ -148,7 +150,7 @@ export default defineComponent({
       if (props.isFrom) {
         return (
           <div class='add-btns'>
-            <bk-button
+            <TButton
               class='mr8'
               size='small'
               theme='primary'
@@ -156,14 +158,14 @@ export default defineComponent({
               onClick={handleEditGroupSubmit}
             >
               {t('确定')}
-            </bk-button>
-            <bk-button
+            </TButton>
+            <TButton
               size='small'
               loading={loading.value}
               onClick={handleEditGroupCancel}
             >
               {t('取消')}
-            </bk-button>
+            </TButton>
           </div>
         );
       }

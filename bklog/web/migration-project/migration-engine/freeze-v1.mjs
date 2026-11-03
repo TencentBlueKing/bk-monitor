@@ -31,7 +31,7 @@ import { fileURLToPath } from 'node:url';
 import { createHash } from 'node:crypto';
 
 const web = resolve(dirname(fileURLToPath(import.meta.url)), '../..');
-const require = createRequire(resolve(web, 'package.json'));
+const require = createRequire(resolve(web, 'packages/web-v2/package.json'));
 const source = dirname(require.resolve('@blueking/log-web'));
 const target = resolve(web, 'packages/web-v3/public/legacy-v1/assets');
 const manifestPath = resolve(target, '../sealed-manifest.json');

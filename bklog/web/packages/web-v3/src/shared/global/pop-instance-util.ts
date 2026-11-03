@@ -25,6 +25,7 @@
  */
 import { isRef, ref, type Ref } from 'vue';
 
+import { overlayRegistry } from './overlay/overlay-registry';
 import { debounce } from 'lodash-es';
 import tippy, { type Props, type Placement, type Instance, MultipleTargets } from 'tippy.js';
 
@@ -50,7 +51,7 @@ type PopInstanceUtilType = {
 
 export const markBklogTippy = (instances: Instance | Instance[]) => {
   const instanceList = Array.isArray(instances) ? instances : [instances];
-  instanceList.forEach(instance => {
+  instanceList.forEach((instance) => {
     instance.popper.classList.add('bklog-tippy');
   });
 };
@@ -68,7 +69,7 @@ export default class PopInstanceUtil {
   private delayShowInstance;
   private watchElement: Ref<HTMLElement | null | undefined> = ref(null);
   private isShowing = false;
-  private hiddenTimer: string|number|NodeJS.Timeout|null|undefined;
+  private hiddenTimer: string | number | NodeJS.Timeout | null | undefined;
 
   constructor({
     refContent,
@@ -99,7 +100,7 @@ export default class PopInstanceUtil {
     this.isShowing = isShowing;
   }
 
-  immediateShowInstance(target: EventTarget|MultipleTargets|null|undefined) {
+  immediateShowInstance(target: EventTarget | MultipleTargets | null | undefined) {
     if (this.isShown()) {
       this.repositionTippyInstance();
       return;
@@ -180,7 +181,7 @@ export default class PopInstanceUtil {
       placement: 'bottom-start' as Placement,
       interactive: true,
       maxWidth: 800,
-      zIndex: (window as any).__bk_zIndex_manager.nextZIndex(),
+      zIndex: overlayRegistry.nextZIndex(),
       onShow: () => {
         this.onMounted();
         return this.onShowFn?.(this.tippyInstance) ?? true;
@@ -203,35 +204,28 @@ export default class PopInstanceUtil {
   }
 
   getMergeTippyOptions(): Partial<Props> {
-    const options = this.getDefaultOption();
-
-    for (const key of Object.keys(this.tippyOptions)) {
-      if (typeof this.tippyOptions[key] === 'function') {
-        const defaultFn = options[key];
-
-        /**
-         * 只有默认配置里存在同名钩子（onShow/onShown/onHide/onHidden）时才需要串联执行。
-         * 其余函数型配置（例如 getReferenceClientRect）必须原样透传：
-         * 包装后会丢掉调用方的返回值，tippy 拿到 undefined 会定位异常。
-         */
-        if (typeof defaultFn !== 'function') {
-          options[key] = this.tippyOptions[key];
-          continue;
-        }
-
-        options[key] = (...args: unknown[]) => {
-          this.tippyOptions[key](...args);
-          return defaultFn(...args);
-        };
-      } else if (this.tippyOptions[key] !== undefined && this.tippyOptions[key] !== null) {
-        options[key] = this.tippyOptions[key];
+    const options: Record<string, unknown> = { ...this.getDefaultOption() };
+    const custom = this.tippyOptions as Record<string, unknown>;
+    for (const key of Object.keys(custom)) {
+      const next = custom[key];
+      if (typeof next === 'function') {
+        const previous = options[key];
+        // Preserve lifecycle chaining, and pass positioning callbacks through unchanged.
+        options[key] =
+          typeof previous === 'function'
+            ? (...args: unknown[]) => {
+                Reflect.apply(next, this.tippyOptions, args);
+                return Reflect.apply(previous, undefined, args);
+              }
+            : next;
+      } else if (next !== undefined && next !== null) {
+        options[key] = next;
       }
     }
-
-    return options as any;
+    return options as Partial<Props>;
   }
 
-  initInistance(target: HTMLElement|MultipleTargets|null) {
+  initInistance(target: HTMLElement | MultipleTargets | null) {
     if (this.newInstance) {
       this.uninstallInstance();
     }
@@ -243,7 +237,7 @@ export default class PopInstanceUtil {
     }
   }
 
-  show(target: EventTarget|null|undefined, cancelHidding = false, immediate = false) {
+  show(target: EventTarget | null | undefined, cancelHidding = false, immediate = false) {
     if (this.isShowing) {
       return;
     }
@@ -257,7 +251,7 @@ export default class PopInstanceUtil {
     this.immediateShowInstance(target);
   }
 
-  repositionTippyInstance(force?: boolean|undefined) {
+  repositionTippyInstance(force?: boolean | undefined) {
     if (this.getTippyInstance()?.state.isShown || force) {
       this.getTippyInstance()?.popperInstance?.update();
     }
@@ -265,7 +259,7 @@ export default class PopInstanceUtil {
     return this.getTippyInstance()?.state.isShown;
   }
 
-  hide(delay?: number|undefined) {
+  hide(delay?: number | undefined) {
     this.delayShowInstance.cancel();
     if (delay) {
       // 清理掉之前的隐藏定时器，保证只有一个定时器

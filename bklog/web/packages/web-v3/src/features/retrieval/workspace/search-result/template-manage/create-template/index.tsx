@@ -1,3 +1,5 @@
+
+import { Button as TButton } from 'tdesign-vue-next';
 import { ServicesInstance } from '@/platform/services';
 /*
  * Tencent is pleased to support the open source community by making
@@ -135,20 +137,20 @@ export default defineComponent({
                   </bk-form-item>
                 </bk-form>
                 <div class='operate-btns'>
-                  <bk-button
+                  <TButton
                     theme='primary'
                     loading={confirmLoading.value}
                     size='small'
                     onClick={handleConfirm}
                   >
                     {t('确定')}
-                  </bk-button>
-                  <bk-button
+                  </TButton>
+                  <TButton
                     size='small'
                     onClick={handleCancel}
                   >
                     {t('取消')}
-                  </bk-button>
+                  </TButton>
                 </div>
               </div>
             </div>

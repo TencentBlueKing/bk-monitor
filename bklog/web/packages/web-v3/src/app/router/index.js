@@ -43,6 +43,7 @@ import monitorRoutes from './monitor';
 import manageRoutes from './manage';
 import retrieveRoutes from './retrieve';
 import http from '@/platform/http/index';
+import { stringifyLegacyQuery } from '@/platform/routing/source-router';
 import store from '@/app/state/index';
 
 // Vue3 returns navigation failures instead of throwing on duplicate navigation.
@@ -142,6 +143,7 @@ export default (spaceId, bkBizId, externalMenu) => {
   const router = createRouter({
     history: createWebHashHistory(),
     routes,
+    stringifyQuery: stringifyLegacyQuery,
   });
 
   retainNavigationContract(router);

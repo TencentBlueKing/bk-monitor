@@ -1,0 +1,365 @@
+{
+  "files": [
+    "src/features/archive/classic/archive-list/list.vue",
+    "src/features/archive/classic/archive-repository/list.vue",
+    "src/features/archive/classic/archive-repository/repository-slider.vue",
+    "src/features/archive/classic/archive-restore/list.vue",
+    "src/features/archive/classic/archive-restore/restore-slider.vue",
+    "src/features/archive/current/archive-list/index.tsx",
+    "src/features/archive/current/archive-list/list-slider.tsx",
+    "src/features/archive/current/archive-repository/index.tsx",
+    "src/features/archive/current/archive-repository/repository-slider.tsx",
+    "src/features/archive/current/archive-restore/index.tsx",
+    "src/features/archive/current/archive-restore/restore-slider.tsx",
+    "src/features/authorization/authorization-dialog.tsx",
+    "src/features/authorization/authorization-list.tsx",
+    "src/features/authorization/denied/index.tsx",
+    "src/features/cleaning/classic/clean-manage/list.vue",
+    "src/features/cleaning/classic/clean-template/list.vue",
+    "src/features/cleaning/current/clean-template/delete-confirm-popover.tsx",
+    "src/features/cleaning/current/clean-template/detail-slider.tsx",
+    "src/features/cleaning/current/clean-template/export-dialog.tsx",
+    "src/features/cleaning/current/clean-template/list.tsx",
+    "src/features/cleaning/current/clean-template/sync-slider.tsx",
+    "src/features/cleaning/rule-config/debug-tool/index.tsx",
+    "src/features/cleaning/rule-config/index.tsx",
+    "src/features/cleaning/rule-table/add-rule/index.tsx",
+    "src/features/cleaning/rule-table/index.tsx",
+    "src/features/client-logs/management/collection-deploy/collection-table.tsx",
+    "src/features/client-logs/management/collection-deploy/index.tsx",
+    "src/features/client-logs/management/collection-slider/index.tsx",
+    "src/features/client-logs/management/download-message.ts",
+    "src/features/client-logs/management/user-report/index.tsx",
+    "src/features/client-logs/management/user-report/report-table.tsx",
+    "src/features/client-logs/management/user-report/upload-result.tsx",
+    "src/features/client-logs/search/log-detail-panel/index.tsx",
+    "src/features/client-logs/search/search-bar/index.tsx",
+    "src/features/client-logs/search/task-list-panel/batch-download-dialog.tsx",
+    "src/features/client-logs/search/task-list-panel/selected-task-table.tsx",
+    "src/features/client-logs/search/task-list-panel/selection-info.tsx",
+    "src/features/clusters/current/cluster-manage/es-slider.tsx",
+    "src/features/clusters/current/cluster-manage/index.tsx",
+    "src/features/clusters/current/cluster-manage/intro-panel.tsx",
+    "src/features/clusters/status/es-cluster-mess/components/intro-panel.vue",
+    "src/features/clusters/status/es-cluster-mess/es-slider.vue",
+    "src/features/clusters/status/es-cluster-mess/index.vue",
+    "src/features/collection/access/advance-clean-land.vue",
+    "src/features/collection/access/components/index-import-modal/index.tsx",
+    "src/features/collection/access/components/log-filter/index.tsx",
+    "src/features/collection/access/components/step-add/config-log-set-item.vue",
+    "src/features/collection/access/components/step-add/configs-select.vue",
+    "src/features/collection/access/components/step-add/label-target-dialog.vue",
+    "src/features/collection/access/components/step-add/multiline-reg-dialog.vue",
+    "src/features/collection/access/components/step-add/yaml-editor.vue",
+    "src/features/collection/access/field-table.vue",
+    "src/features/collection/access/issued-slider.vue",
+    "src/features/collection/access/step-add.vue",
+    "src/features/collection/access/step-field.vue",
+    "src/features/collection/access/step-masking.tsx",
+    "src/features/collection/access/step-result.vue",
+    "src/features/collection/access/step-storage.vue",
+    "src/features/collection/current/components/business-comp/step2/add-index-set.tsx",
+    "src/features/collection/current/components/business-comp/step2/base-info.tsx",
+    "src/features/collection/current/components/business-comp/step2/index-config-import-dialog.tsx",
+    "src/features/collection/current/components/business-comp/step2/log-filter.tsx",
+    "src/features/collection/current/components/business-comp/step2/multiline-reg-dialog.tsx",
+    "src/features/collection/current/components/business-comp/step2/third-party-logs/bkdata-select-dialog.tsx",
+    "src/features/collection/current/components/business-comp/step2/third-party-logs/es-select-dialog.tsx",
+    "src/features/collection/current/components/business-comp/step3/clean-result-preview-dialog.tsx",
+    "src/features/collection/current/components/business-comp/step3/collect-issued-slider.tsx",
+    "src/features/collection/current/components/business-comp/step3/field-list.tsx",
+    "src/features/collection/current/components/common-comp/table-component.tsx",
+    "src/features/collection/current/components/create-operation/step1-classify.tsx",
+    "src/features/collection/current/components/create-operation/step2-bk-data-collection.tsx",
+    "src/features/collection/current/components/create-operation/step2-configuration.tsx",
+    "src/features/collection/current/components/create-operation/step2-custom-report.tsx",
+    "src/features/collection/current/components/create-operation/step3-clean.tsx",
+    "src/features/collection/current/components/create-operation/step4-storage.tsx",
+    "src/features/collection/current/components/list-main/add-existing-collect-dialog.tsx",
+    "src/features/collection/current/components/list-main/list-item.tsx",
+    "src/features/collection/current/components/list-main/table-list/table-list-v1.tsx",
+    "src/features/collection/current/components/list-main/table-list/table-list-v2.tsx",
+    "src/features/collection/current/components/masking-operation/index.tsx",
+    "src/features/collection/filter-rule/config-rule/control-operate/index.tsx",
+    "src/features/dashboards/home.tsx",
+    "src/features/data-links/manage-data-link-conf/index.vue",
+    "src/features/extraction/classic/manage-extract-permission/directory-manage.vue",
+    "src/features/extraction/classic/manage-extract-permission/index.vue",
+    "src/features/extraction/current/extract-config/config-slider.tsx",
+    "src/features/extraction/current/extract-config/index.tsx",
+    "src/features/extraction/current/extract-link/link-create.tsx",
+    "src/features/extraction/current/extract-link/link-list.tsx",
+    "src/features/extraction/current/extract-task/task-create/index.tsx",
+    "src/features/extraction/current/extract-task/task-create/preview-files.tsx",
+    "src/features/extraction/current/extract-task/task-list/download-url.tsx",
+    "src/features/extraction/current/extract-task/task-list/index.tsx",
+    "src/features/extraction/download/create/index.vue",
+    "src/features/extraction/download/create/ip-select.vue",
+    "src/features/extraction/download/create/preview-files.vue",
+    "src/features/extraction/download/home/download-url.vue",
+    "src/features/extraction/download/home/index.vue",
+    "src/features/grok/current/components/grok-popover-list.tsx",
+    "src/features/grok/current/grok-slider.tsx",
+    "src/features/grok/current/grok-table.tsx",
+    "src/features/grok/current/index.tsx",
+    "src/features/index-sets/components/index-set/create/index.vue",
+    "src/features/index-sets/components/index-set/create/select-collection.vue",
+    "src/features/index-sets/components/index-set/create/select-es.vue",
+    "src/features/index-sets/components/index-set/list/index.vue",
+    "src/features/index-sets/components/index-set/manage/basic-info.vue",
+    "src/features/index-sets/components/usage-details/chart-component.vue",
+    "src/features/index-sets/custom-report/components/field-setting.vue",
+    "src/features/index-sets/custom-report/create.vue",
+    "src/features/index-sets/custom-report/list.vue",
+    "src/features/index-sets/label-select/index.tsx",
+    "src/features/index-sets/log-collection/collection-item/index.vue",
+    "src/features/index-sets/log-collection/collection-item/manage-collection/basic-info.vue",
+    "src/features/index-sets/log-collection/collection-item/manage-collection/collection-status.vue",
+    "src/features/index-sets/log-collection/collection-item/manage-collection/components/container-status.vue",
+    "src/features/index-sets/log-collection/collection-item/manage-collection/data-storage.vue",
+    "src/features/index-sets/log-collection/collection-item/manage-collection/field-info.tsx",
+    "src/features/masking/components/masking-add-rule.tsx",
+    "src/features/masking/components/masking-field-input.tsx",
+    "src/features/masking/components/masking-field.tsx",
+    "src/features/masking/components/masking-select-rule-table.tsx",
+    "src/features/masking/components/masking-setting.tsx",
+    "src/features/masking/index.tsx",
+    "src/features/retrieval/workbench/collect/batch-operation-menu.vue",
+    "src/features/retrieval/workbench/collect/favorite-manage-dialog.vue",
+    "src/features/retrieval/workbench/components/batch-input/index.tsx",
+    "src/features/retrieval/workbench/components/index-set-choice/index-set-list.tsx",
+    "src/features/retrieval/workbench/components/result-cell-element/expand-view.vue",
+    "src/features/retrieval/workbench/components/result-cell-element/operator-tools.vue",
+    "src/features/retrieval/workbench/condition-comp/select-index-set.tsx",
+    "src/features/retrieval/workbench/field-filter-comp/field-item.tsx",
+    "src/features/retrieval/workbench/field-filter-comp/update/field-alias.vue",
+    "src/features/retrieval/workbench/hooks/use-text-action.ts",
+    "src/features/retrieval/workbench/result-comp/download/exportTask.ts",
+    "src/features/retrieval/workbench/result-comp/export-history.vue",
+    "src/features/retrieval/workbench/result-comp/export-log.vue",
+    "src/features/retrieval/workbench/result-comp/fields-setting-operate.vue",
+    "src/features/retrieval/workbench/result-comp/fields-setting.vue",
+    "src/features/retrieval/workbench/result-comp/kv-list.vue",
+    "src/features/retrieval/workbench/result-comp/no-index-set.vue",
+    "src/features/retrieval/workbench/result-comp/update/children/save-as-popover.vue",
+    "src/features/retrieval/workbench/result-comp/update/fields-setting-operate.vue",
+    "src/features/retrieval/workbench/result-comp/update/fields-setting.vue",
+    "src/features/retrieval/workbench/search-bar/components/ai-parse-result-banner.tsx",
+    "src/features/retrieval/workbench/search-bar/components/common-filter-setting.vue",
+    "src/features/retrieval/workbench/search-bar/index.vue",
+    "src/features/retrieval/workbench/search-bar/ui-mode/fuzzy-match-mode.vue",
+    "src/features/retrieval/workbench/search-bar/ui-mode/ui-input-option.vue",
+    "src/features/retrieval/workbench/search-result-panel/graph-analysis/SqlPanel.vue",
+    "src/features/retrieval/workbench/search-result-panel/graph-analysis/common/PreviewSql.vue",
+    "src/features/retrieval/workbench/search-result-panel/graph-analysis/index.tsx",
+    "src/features/retrieval/workbench/search-result-panel/graph-analysis/sql-editor/index.tsx",
+    "src/features/retrieval/workbench/search-result-panel/log-clustering/components/finger-operate.vue",
+    "src/features/retrieval/workbench/search-result-panel/log-clustering/components/finger-tools/cluster-filter.tsx",
+    "src/features/retrieval/workbench/search-result-panel/log-clustering/components/finger-tools/cluster-rule-dialog.tsx",
+    "src/features/retrieval/workbench/search-result-panel/log-clustering/components/quick-create-subscription-drawer/create-subscription-form.tsx",
+    "src/features/retrieval/workbench/search-result-panel/log-clustering/components/quick-create-subscription-drawer/quick-create-subscription.tsx",
+    "src/features/retrieval/workbench/search-result-panel/log-clustering/components/quick-open-cluster-step/quick-open-cluster.tsx",
+    "src/features/retrieval/workbench/search-result-panel/log-clustering/components/strategy/index.tsx",
+    "src/features/retrieval/workbench/search-result-panel/log-clustering/data-fingerprint.vue",
+    "src/features/retrieval/workbench/search-result-panel/log-result/full-row-viewer-content.vue",
+    "src/features/retrieval/workbench/search-result-panel/log-result/index.vue",
+    "src/features/retrieval/workbench/search-result-panel/log-result/log-result-exception.tsx",
+    "src/features/retrieval/workbench/setting-modal/component/from-input.vue",
+    "src/features/retrieval/workbench/setting-modal/component/rule-top-tools.vue",
+    "src/features/retrieval/workbench/setting-modal/component/template-option.vue",
+    "src/features/retrieval/workbench/setting-modal/full-text-index.vue",
+    "src/features/retrieval/workbench/setting-modal/log-cluster.vue",
+    "src/features/retrieval/workbench/setting-modal/rule-table.vue",
+    "src/features/retrieval/workbench/sub-bar/bar-global-setting.tsx",
+    "src/features/retrieval/workbench/sub-bar/index.vue",
+    "src/features/retrieval/workbench/sub-bar/share-link.tsx",
+    "src/features/retrieval/workbench/sub-bar/warning-setting.vue",
+    "src/features/retrieval/workspace/favorite/components/collect-list/add-group.tsx",
+    "src/features/retrieval/workspace/favorite/components/collect-list/collect-list.tsx",
+    "src/features/retrieval/workspace/grep/index.tsx",
+    "src/features/retrieval/workspace/monitor/trace.ts",
+    "src/features/retrieval/workspace/search-bar/index.tsx",
+    "src/features/retrieval/workspace/search-bar/scene-filter/filter-panel.tsx",
+    "src/features/retrieval/workspace/search-result/log-clustering/log-table/content-table/cluster-popover/index.tsx",
+    "src/features/retrieval/workspace/search-result/log-clustering/log-table/content-table/cluster-popover/regex-match/index.tsx",
+    "src/features/retrieval/workspace/search-result/log-clustering/log-table/content-table/cluster-popover/regex-match/occupy-input/index.tsx",
+    "src/features/retrieval/workspace/search-result/log-clustering/log-table/content-table/cluster-popover/regex-match/regex-table/index.tsx",
+    "src/features/retrieval/workspace/search-result/log-clustering/log-table/content-table/cluster-popover/regex-match/second-confirm/index.tsx",
+    "src/features/retrieval/workspace/search-result/log-clustering/log-table/content-table/index.tsx",
+    "src/features/retrieval/workspace/search-result/log-clustering/log-table/content-table/pattern-analysis-slider/index.tsx",
+    "src/features/retrieval/workspace/search-result/log-clustering/log-table/content-table/remark-edit-tip/index.tsx",
+    "src/features/retrieval/workspace/search-result/log-clustering/log-table/main-header/filter-operate/index.tsx",
+    "src/features/retrieval/workspace/search-result/log-clustering/quick-open-cluster/cluster-access/index.tsx",
+    "src/features/retrieval/workspace/search-result/log-clustering/quick-open-cluster/cluster-access/preview-result/index.tsx",
+    "src/features/retrieval/workspace/search-result/log-clustering/quick-open-cluster/index.tsx",
+    "src/features/retrieval/workspace/search-result/log-clustering/top-operation/cluster-config/edit-config/rule-operate/index.tsx",
+    "src/features/retrieval/workspace/search-result/log-clustering/top-operation/email-subscription/create-subscription/index.tsx",
+    "src/features/retrieval/workspace/search-result/log-clustering/top-operation/email-subscription/create-subscription/subscription-form/email-config/index.tsx",
+    "src/features/retrieval/workspace/search-result/log-clustering/top-operation/email-subscription/create-subscription/subscription-form/send-config/index.tsx",
+    "src/features/retrieval/workspace/search-result/log-clustering/top-operation/email-subscription/create-subscription/subscription-form/subscription-content/index.tsx",
+    "src/features/retrieval/workspace/search-result/log-clustering/top-operation/quick-filter/dimension-split/index.tsx",
+    "src/features/retrieval/workspace/search-result/log-clustering/top-operation/quick-filter/temporary-group/index.tsx",
+    "src/features/retrieval/workspace/search-result/log-clustering/top-operation/quick-filter/time-compare/index.tsx",
+    "src/features/retrieval/workspace/search-result/log-clustering/top-operation/strategy/config-item/index.tsx",
+    "src/features/retrieval/workspace/search-result/log-clustering/top-operation/strategy/edit-strategy/index.tsx",
+    "src/features/retrieval/workspace/search-result/original-log/components/data-filter/fields-config/index.tsx",
+    "src/features/retrieval/workspace/search-result/original-log/components/data-filter/index.tsx",
+    "src/features/retrieval/workspace/search-result/original-log/standalone-tab/hooks/use-standalone-related-page.tsx",
+    "src/features/retrieval/workspace/search-result/template-manage/create-template/index.tsx",
+    "src/features/retrieval/workspace/search-result/template-manage/index.tsx",
+    "src/features/retrieval/workspace/search-result/template-manage/template-list/create-template/index.tsx",
+    "src/features/retrieval/workspace/search-result/template-manage/template-list/template-item/delete-template/index.tsx",
+    "src/features/retrieval/workspace/search-result/template-manage/template-list/template-item/edit-template/index.tsx",
+    "src/shared/global/bk-space-choice/index.tsx",
+    "src/shared/global/field-setting.vue",
+    "src/shared/global/setting-table.vue",
+    "src/shared/lib/demand-import-lite.ts",
+    "src/shared/lib/preload-import.ts",
+    "src/shared/lib/util.js",
+    "src/shared/ui/common/auth-container-page.vue",
+    "src/shared/ui/common/fields-config.vue",
+    "src/shared/ui/log-button/index.vue"
+  ],
+  "buttons": 505,
+  "messages": 120,
+  "skipped": [
+    {
+      "file": "src/features/client-logs/management/download-message.ts",
+      "kind": "message",
+      "expression": "Message({\n    theme: 'error',\n    zIndex: 9999,\n    extCls: 'client-log-batch-download-message',\n    actions: [{ id: 'assistant', disabled: true }],\n    message: {\n      title: String(t('批量下载：{n} 个文件下载失败', { n: failures.length })),\n      type: 'json',\n      details: failures,\n    },\n  })",
+      "unsupported": [
+        "extCls",
+        "actions"
+      ]
+    },
+    {
+      "file": "src/features/collection/access/components/step-add/monaco-editor.vue",
+      "kind": "message",
+      "expression": "this.$bkMessage({\n            showClose: true,\n            message: `${this.$t('此浏览器不支持全屏操作')}, ${this.$t('请使用chrome浏览器')}`,\n            theme: 'warning',\n          })",
+      "unsupported": [
+        "showClose"
+      ]
+    },
+    {
+      "file": "src/features/collection/access/step-field.vue",
+      "kind": "message",
+      "expression": "this.$bkMessage({\n          message: h(\n            'p',\n            {\n              style: {\n                textAlign: 'center',\n              },\n            },\n            this.$t('复制成功'),\n          ),\n          offsetY: 80,\n        })",
+      "unsupported": [
+        "offsetY"
+      ]
+    },
+    {
+      "file": "src/features/collection/current/components/create-operation/step3-clean.tsx",
+      "kind": "message",
+      "expression": "Message({\n                  theme: 'error',\n                  zIndex: 9999,\n                  extCls: 'clean-template-sync-message',\n                  actions: [{ id: 'assistant', disabled: true }],\n                  message: {\n                    title: t('{n} 个采集项同步失败', { n: failures.length }),\n                    type: 'json',\n                    details: failures,\n                  },\n                })",
+      "unsupported": [
+        "extCls",
+        "actions"
+      ]
+    },
+    {
+      "file": "src/features/collection/current/utils.ts",
+      "kind": "message",
+      "expression": "window.mainComponent?.$bkMessage({ message, theme })",
+      "unsupported": [
+        "dynamic-theme"
+      ]
+    },
+    {
+      "file": "src/features/index-sets/log-collection/collection-item/manage-collection/data-status/data-sampling.vue",
+      "kind": "message",
+      "expression": "this.$bkMessage({\n          message: h(\n            'p',\n            {\n              style: {\n                textAlign: 'center',\n              },\n            },\n            this.$t('复制成功'),\n          ),\n          offsetY: 80,\n        })",
+      "unsupported": [
+        "offsetY"
+      ]
+    },
+    {
+      "file": "src/features/retrieval/workbench/result-comp/export-log.vue",
+      "kind": "message",
+      "expression": "this.$bkMessage({\n                theme: 'success',\n                ellipsisLine: 2,\n                message: this.$t(EXPORT_SUBMITTED_MESSAGE),\n              })",
+      "unsupported": [
+        "ellipsisLine"
+      ]
+    },
+    {
+      "file": "src/features/retrieval/workbench/result-comp/export-log.vue",
+      "kind": "message",
+      "expression": "this.$bkMessage({\n                theme: 'error',\n                ellipsisLine: 2,\n                message: res.message,\n              })",
+      "unsupported": [
+        "ellipsisLine"
+      ]
+    },
+    {
+      "file": "src/features/retrieval/workbench/result-comp/export-log.vue",
+      "kind": "message",
+      "expression": "this.$bkMessage({\n                theme: 'success',\n                ellipsisLine: 2,\n                message: this.$t(EXPORT_SUBMITTED_MESSAGE),\n              })",
+      "unsupported": [
+        "ellipsisLine"
+      ]
+    },
+    {
+      "file": "src/features/retrieval/workbench/result-comp/export-log.vue",
+      "kind": "message",
+      "expression": "this.$bkMessage({\n                theme: currentStatus === 'success' ? 'success' : 'error',\n                message,\n                closeIcon: true,\n              })",
+      "unsupported": [
+        "closeIcon"
+      ]
+    },
+    {
+      "file": "src/features/retrieval/workbench/search-result-panel/log-clustering/data-fingerprint.vue",
+      "kind": "message",
+      "expression": "this.$bkMessage({\n              theme,\n              message,\n              ellipsisLine: 0,\n            })",
+      "unsupported": [
+        "ellipsisLine"
+      ]
+    },
+    {
+      "file": "src/features/retrieval/workspace/favorite/utils/index.ts",
+      "kind": "message",
+      "expression": "window.mainComponent?.$bkMessage({ message, theme })",
+      "unsupported": [
+        "dynamic-theme"
+      ]
+    },
+    {
+      "file": "src/shared/lib/bkmagic.ts",
+      "kind": "message",
+      "expression": "bkMessage({\n    message,\n    delay,\n    ellipsisLine,\n    theme: 'error',\n    zIndex: 9999,\n  })",
+      "unsupported": [
+        "ellipsisLine"
+      ]
+    },
+    {
+      "file": "src/shared/lib/bkmagic.ts",
+      "kind": "message",
+      "expression": "bkMessage({\n    message,\n    delay,\n    ellipsisLine,\n    theme: 'success',\n    zIndex: 9999,\n  })",
+      "unsupported": [
+        "ellipsisLine"
+      ]
+    },
+    {
+      "file": "src/shared/lib/bkmagic.ts",
+      "kind": "message",
+      "expression": "bkMessage({\n    message,\n    delay,\n    ellipsisLine,\n    theme: 'primary',\n    zIndex: 9999,\n  })",
+      "unsupported": [
+        "ellipsisLine"
+      ]
+    },
+    {
+      "file": "src/shared/lib/bkmagic.ts",
+      "kind": "message",
+      "expression": "bkMessage({\n    message,\n    delay,\n    ellipsisLine,\n    theme: 'warning',\n    zIndex: 9999,\n  })",
+      "unsupported": [
+        "ellipsisLine"
+      ]
+    },
+    {
+      "file": "src/shared/lib/preload-import.ts",
+      "kind": "message",
+      "expression": "bkMessage({ ...args, zIndex: 5000 })",
+      "unsupported": [
+        null
+      ]
+    }
+  ]
+}

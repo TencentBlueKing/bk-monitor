@@ -1,3 +1,7 @@
+
+import { RadioGroup as TRadioGroup, Radio as TRadio } from 'tdesign-vue-next';
+
+import { MessagePlugin as TDesignMessage, Button as TButton } from 'tdesign-vue-next';
 import { ServicesInstance } from '@/platform/services';
 /*
  * Tencent is pleased to support the open source community by making
@@ -28,7 +32,7 @@ import { ServicesInstance } from '@/platform/services';
 import { defineComponent, ref, watch } from 'vue';
 
 import useStore from '@/shared/composables/use-store';
-import { bkMessage as Message } from 'bk-magic-vue';
+
 import { bkInfoBox as InfoBox } from '@/platform/compat/tdesign/info-box';
 import { BK_LOG_STORAGE } from '@/app/state/store.type.ts';
 
@@ -136,7 +140,7 @@ export default defineComponent({
         await ServicesInstance.collect.createCollectionTask({
           data: postData,
         });
-        Message({ theme: 'success', message: t('保存成功'), delay: 1500 });
+        TDesignMessage("success", { content: t('保存成功'), duration: 1500 });
 
         // 通知父组件刷新列表
         emit('updated-table');
@@ -285,43 +289,43 @@ export default defineComponent({
                       required
                       property='scene'
                     >
-                      <bk-radio-group
+                      <TRadioGroup
                         value={formData.value.scene}
-                        onChange={(value: number) => (formData.value.scene = value)}
+                        onChange={(value) => { if (typeof value === 'number') ((value: number) => (formData.value.scene = value))(value); }}
                       >
                         {TASK_STAGE_OPTIONS.map(option => (
-                          <bk-radio value={option.value}>{option.label}</bk-radio>
+                          <TRadio value={option.value}>{option.label}</TRadio>
                         ))}
-                      </bk-radio-group>
+                      </TRadioGroup>
                     </bk-form-item>
                     <bk-form-item
                       label={t('客户端类型')}
                       required
                       property='platform'
                     >
-                      <bk-radio-group
+                      <TRadioGroup
                         value={formData.value.platform}
-                        onChange={(value: string) => (formData.value.platform = value)}
+                        onChange={(value) => { if (typeof value === 'string') ((value: string) => (formData.value.platform = value))(value); }}
                         class='client-type-radio-group'
                       >
                         {CLIENT_TYPE_OPTIONS.map(option => (
-                          <bk-radio value={option.value}>{option.label}</bk-radio>
+                          <TRadio value={option.value}>{option.label}</TRadio>
                         ))}
-                      </bk-radio-group>
+                      </TRadioGroup>
                     </bk-form-item>
                     <bk-form-item
                       label={t('触发频率')}
                       required
                       property='frequency'
                     >
-                      <bk-radio-group
+                      <TRadioGroup
                         value={formData.value.frequency}
-                        onChange={(value: string) => (formData.value.frequency = value)}
+                        onChange={(value) => { if (typeof value === 'string') ((value: string) => (formData.value.frequency = value))(value); }}
                       >
                         {TRIGGER_FREQUENCY_OPTIONS.map(option => (
-                          <bk-radio value={option.value}>{option.label}</bk-radio>
+                          <TRadio value={option.value}>{option.label}</TRadio>
                         ))}
-                      </bk-radio-group>
+                      </TRadioGroup>
                     </bk-form-item>
                     {formData.value.frequency === 'sustain' && (
                       <bk-form-item
@@ -390,21 +394,21 @@ export default defineComponent({
                     </bk-form-item>
                     {props.operateType !== 'view' && (
                       <bk-form-item class='button-group'>
-                        <bk-button
+                        <TButton
                           theme='primary'
-                          title='提交'
+                          {...({ title: '提交' } satisfies import('vue').HTMLAttributes)}
                           class='button-submit'
                           loading={confirmLoading.value}
                           onClick={handleConfirm}
                         >
                           {t('提交')}
-                        </bk-button>
-                        <bk-button
-                          title='取消'
+                        </TButton>
+                        <TButton
+                          {...({ title: '取消' } satisfies import('vue').HTMLAttributes)}
                           onClick={handleCancel}
                         >
                           {t('取消')}
-                        </bk-button>
+                        </TButton>
                       </bk-form-item>
                     )}
                   </bk-form>

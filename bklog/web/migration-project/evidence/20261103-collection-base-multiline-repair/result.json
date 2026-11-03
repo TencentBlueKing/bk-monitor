@@ -1,0 +1,72 @@
+{
+  "date": "2026-11-03",
+  "status": "IMPLEMENTING",
+  "businessAccepted": false,
+  "visualAccepted": false,
+  "scope": [
+    "base-info native form/input/textarea/tooltip",
+    "line-rule native inputs and suffixes",
+    "multiline native dialog/form/preview"
+  ],
+  "tests": {
+    "passed": 358,
+    "failed": 0,
+    "log": "/tmp/bklog-base-regex-final-tests.log"
+  },
+  "typecheck": {
+    "diagnostics": 1521,
+    "prior": 1530,
+    "introducedDiagnostics": 0,
+    "log": "/tmp/bklog-base-regex-final-types.log"
+  },
+  "build": {
+    "main": "PASSED",
+    "apm": "PASSED",
+    "trace": "PASSED",
+    "sourceDigest": "67069e965cf4424ae1bd85feda076d0559c12274e2c01322f0e595ed57da575d",
+    "buildConfigDigest": "8490585e954ac646a29c9f2eb369e9a390dfcd0f32897d4291f821544a4c7555",
+    "currentSourceVerified": true
+  },
+  "browser": {
+    "business": 5000140,
+    "space": "bkcc__5000140",
+    "actualViewport": {
+      "width": 1280,
+      "height": 720
+    },
+    "resourceWrites": false,
+    "draftsCancelled": true,
+    "passed": [
+      "invalid data-name format and conversion",
+      "multiline remarks retained",
+      "native form validation blocks empty sample",
+      "same sample and pattern returns 2 matches in V2 and V3",
+      "save returns pattern to parent",
+      "close/reopen resets sample and match result",
+      "same header/top/width and Save/Cancel order"
+    ],
+    "remaining": [
+      "full collection creation/deployment lifecycle",
+      "custom/container/windows form branches",
+      "exact visual matrix at required viewports",
+      "invalid-form tooltip versus inline-message presentation review"
+    ],
+    "dialogBounds": {
+      "v2": {
+        "x": 300,
+        "y": 170,
+        "width": 680,
+        "height": 353.3359375
+      },
+      "v3": {
+        "x": 300,
+        "y": 170,
+        "width": 680,
+        "height": 351
+      }
+    },
+    "lowImpactDifferences": [
+      "approximately 2.3px dialog height difference remains unaccepted"
+    ]
+  }
+}

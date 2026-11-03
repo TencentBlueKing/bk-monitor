@@ -1,3 +1,5 @@
+
+import { Button as TButton } from 'tdesign-vue-next';
 /*
  * Tencent is pleased to support the open source community by making
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
@@ -62,19 +64,19 @@ export default defineComponent({
         <div>
           已迁移监控平台仪表盘
           <span style='padding: 0 8px;'></span>
-          <bk-button
+          <TButton
             theme='primary'
-            onClick={handleBtnClick}
+            onClick={() => handleBtnClick()}
           >
             点击跳转新版
-          </bk-button>
+          </TButton>
           <span style='padding: 0 8px;'></span>
-          <bk-button
-            outline={true}
-            onClick={() => handleBtnClick(false)}
+          <TButton
+            
+            onClick={() => handleBtnClick(false)} variant={(true) ? 'outline' : 'base'}
           >
             查看旧版
-          </bk-button>
+          </TButton>
         </div>
       </div>
     );

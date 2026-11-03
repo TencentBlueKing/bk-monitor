@@ -215,7 +215,7 @@ export default class JsonView {
     const { plainText: keyText } = parseResultMarkedText(key);
     if (jsonStringFieldPath) return jsonStringFieldPath;
     if (!parentPath) return keyText;
-    return parentPath.concat('./index', keyText);
+    return parentPath.concat('.', keyText);
   }
 
   /** DOM 绑定前按 Fields 列表收敛路径，避免挂上无效深路径 */
@@ -237,7 +237,7 @@ export default class JsonView {
     row.setAttribute('data-search-field-name', searchFieldPath);
     // Object 深路径同样收敛，禁止挂上 Fields 未声明的 __ext_json.name.first_name。
     const rawSegmentFieldPath = jsonStringFieldPath
-      ? [parentPath, parseResultMarkedText(key).plainText].filter((item): item is NonNullable<typeof item> => Boolean(item)).join('./index')
+      ? [parentPath, parseResultMarkedText(key).plainText].filter((item): item is NonNullable<typeof item> => Boolean(item)).join('.')
       : rawSearchFieldPath;
     const segmentFieldPath = this.clampMappedFieldPath(rawSegmentFieldPath);
     row.setAttribute('data-segment-field-name', segmentFieldPath);

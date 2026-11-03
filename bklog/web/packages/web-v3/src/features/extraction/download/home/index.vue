@@ -31,12 +31,12 @@
     data-test-id="logExtraction_div_fromBox"
   >
     <div class="option-container">
-      <bk-button
+      <t-button
         style="width: 120px"
         data-test-id="fromBox_button_addNewExtraction"
         theme="primary"
         @click="handleCreateTask"
-        >{{ $t('新建') }}</bk-button
+        >{{ $t('新建') }}</t-button
       >
       <bk-input
         v-model="searchKeyword"

@@ -1,3 +1,5 @@
+
+import { MessagePlugin as TDesignMessage } from 'tdesign-vue-next';
 import { ServicesInstance } from '@/platform/services';
 import { asDictionary } from '@/shared/utils/typed-record';
 /*
@@ -30,7 +32,7 @@ import type { CreateElement } from '@legacy-vue';
 import { computed, defineComponent, ref } from 'vue';
 import useLocale from '@/shared/composables/use-locale';
 import EditStrategy from '../edit-strategy/index';
-import { bkMessage } from 'bk-magic-vue';
+
 import { bkInfoBox as bkInfoBox } from '@/platform/compat/tdesign/info-box';
 
 import { StrategyType } from '../index';
@@ -127,10 +129,7 @@ export default defineComponent({
             });
             if (res.code === 0) {
               isShowDialog.value = false;
-              bkMessage({
-                theme: 'success',
-                message: t('操作成功'),
-              });
+              TDesignMessage("success", { content: t('操作成功') });
               emit('refresh-strategy-info');
             }
             return true;

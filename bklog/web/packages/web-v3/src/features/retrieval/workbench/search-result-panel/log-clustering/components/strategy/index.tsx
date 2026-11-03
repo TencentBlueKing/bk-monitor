@@ -1,3 +1,5 @@
+
+import { MessagePlugin as TDesignMessage, Button as TButton } from 'tdesign-vue-next';
 import { ServicesInstance } from '@/platform/services';
 import { asDictionary } from '@/shared/utils/typed-record';
 /*
@@ -29,7 +31,7 @@ import { asDictionary } from '@/shared/utils/typed-record';
 import { Component, Ref, Prop, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
-import type { From } from 'bk-magic-vue';
+import type { From } from '@/platform/compat/tdesign/magic-controls';
 
 import './index.scss';
 
@@ -221,10 +223,7 @@ export default class Strategy extends tsc<StrategyProps> {
         })
         .then(res => {
           if (res.code === 0) {
-            this.$bkMessage({
-              theme: 'success',
-              message: this.$t('操作成功'),
-            });
+            TDesignMessage("success", { content: this.$t('操作成功') });
             this.isShowDialog = false;
           }
         });
@@ -284,10 +283,7 @@ export default class Strategy extends tsc<StrategyProps> {
           });
           if (res.code === 0) {
             this.isShowDialog = false;
-            this.$bkMessage({
-              theme: 'success',
-              message: this.$t('操作成功'),
-            });
+            TDesignMessage("success", { content: this.$t('操作成功') });
             this.initStrategyInfo();
           }
           return true;
@@ -374,20 +370,20 @@ export default class Strategy extends tsc<StrategyProps> {
         </div>
       </bk-alert> */}
         <div class={['select-group bk-button-group', { 'increase-group': !this.isAlarmType }]}>
-          <bk-button
+          <TButton
             class={{ 'is-selected': this.isAlarmType }}
             disabled={this.alarmIsSubmit && !this.isEdit}
             onClick={() => this.handleSelectFromType('alarm')}
           >
             {$i18n.t('新类告警策略')}
-          </bk-button>
-          <bk-button
+          </TButton>
+          <TButton
             class={{ 'is-selected': !this.isAlarmType }}
             disabled={this.increaseIsSubmit && !this.isEdit}
             onClick={() => this.handleSelectFromType('increase')}
           >
             {$i18n.t('数量突增告警')}
-          </bk-button>
+          </TButton>
         </div>
         <bk-form
           ref='strategyFrom'
@@ -546,30 +542,30 @@ export default class Strategy extends tsc<StrategyProps> {
               disabled: !this.addBtnIsDisabled,
             }}
           >
-            <bk-button
+            <TButton
               disabled={this.addBtnIsDisabled || !this.clusterSwitch}
-              icon='plus'
+              icon={() => <span class={`bk-icon icon-${'plus'}`} />}
               size='small'
               onClick={this.handleAddNewStrategy}
             >
               {$i18n.t('新建策略')}
-            </bk-button>
+            </TButton>
           </div>
           {this.alarmIsSubmit && popoverSlot('alarm')}
           {this.increaseIsSubmit && popoverSlot('increase')}
         </div>
         {!!this.labelName.length && (
-          <bk-button
+          <TButton
             size='small'
-            text
-            onClick={this.handleJumpStrategyList}
+            
+            onClick={this.handleJumpStrategyList} variant={(true) ? 'text' : ('base')}
           >
             <span>{$i18n.t('查看策略')}</span>
             <i
               style={{ 'margin-left': '4px' }}
               class='bklog-icon bklog-jump'
             />
-          </bk-button>
+          </TButton>
         )}
       </div>
     );

@@ -24,283 +24,262 @@
 * IN THE SOFTWARE.
 -->
 
-<script setup>import { ServicesInstance } from '@/platform/services';
+<script setup lang="ts">
+import { BK_LOG_STORAGE } from '@/app/state/store.type';
+import { ServicesInstance } from '@/platform/services';
 
-  import Vue, { computed, ref, nextTick } from 'vue';
+import { computed, ref, nextTick } from 'vue';
 
-  import useLocale from '@/shared/composables/use-locale';
-  import useStore from '@/shared/composables/use-store';
-  import { useRoute } from "vue-router";
+import { Popup as TPopup, Input as TInput } from 'tdesign-vue-next';
+import type { Props as TippyProps } from 'tippy.js';
+import BklogLoading from '@/shared/ui/loading';
+import type { SortPair } from '../../result-comp/update/field-settings.types';
 
-  import FieldsSetting from '../../result-comp/update/fields-setting';
-  import BkLogPopover from '@/shared/ui/bklog-popover/index';
-  import RetrieveHelper, { RetrieveEvent } from '@/features/retrieval/retrieve-helper';
-  
+interface FieldConfig {
+  name: string;
+  id: number;
+  display_fields: string[];
+  sort_list: SortPair[];
+}
+interface SettingPopover {
+  show: (target?: HTMLElement) => void;
+  hide: () => void;
+}
+import useLocale from '@/shared/composables/use-locale';
+import useStore from '@/shared/composables/use-store';
+import { useRoute } from 'vue-router';
 
-  const store = useStore();
-  const route = useRoute();
-  const { $t } = useLocale();
-  const { $bkPopover } = Vue.prototype;
+import FieldsSetting from '../../result-comp/update/fields-setting.vue';
+import BkLogPopover from '@/shared/ui/bklog-popover/index';
+import RetrieveHelper, { RetrieveEvent } from '@/features/retrieval/retrieve-helper';
 
-  const emit = defineEmits(['select-fields-config', 'handle-popover-hide', "selectFieldsConfig", "handlePopoverHide"]);
+const store = useStore();
+const route = useRoute();
+const { $t } = useLocale();
 
-  /** popover 弹窗实例 */
-  let popoverInstance = null;
+const emit = defineEmits(['select-fields-config', 'handle-popover-hide', 'selectFieldsConfig', 'handlePopoverHide']);
 
-  const showFieldsSetting = ref(false);
-  const isLoading = ref(false);
-  const configList = ref([]);
-  const searchKeyword = ref('');
+/** popover 弹窗实例 */
+const dropdownVisible = ref(false);
 
-  /** 打开 popover 弹窗时获取相对位置需要依据的目标节点 */
-  const popoverTrigger = ref(null);
-  /** 字段模版下拉菜单容器实例 */
-  const dropdownRef = ref(null);
-  /** 字段设置弹窗 BkLogPopover 组件引用 */
-  const settingPopoverRef = ref(null);
-  /** 考虑字段配置管理内容较多，增加简易的懒加载机制 */
-  const popoverLazyLoaded = ref({
-    dropdown: false,
-    setting: false,
+const showFieldsSetting = ref(false);
+const isLoading = ref(false);
+const configList = ref<FieldConfig[]>([]);
+const searchKeyword = ref('');
+
+/** 打开 popover 弹窗时获取相对位置需要依据的目标节点 */
+const popoverTrigger = ref<HTMLElement>();
+/** 字段设置弹窗 BkLogPopover 组件引用 */
+const settingPopoverRef = ref<SettingPopover>();
+/** 考虑字段配置管理内容较多，增加简易的懒加载机制 */
+const popoverLazyLoaded = ref({
+  dropdown: false,
+  setting: false,
+});
+
+const unionIndexList = computed(() => store.state.unionIndexList);
+const isUnionSearch = computed(() => store.getters.isUnionSearch);
+const isSceneMode = computed(() => store.getters.isSceneMode);
+const isStartTextEllipsis = computed(() => store.state.storage[BK_LOG_STORAGE.TEXT_ELLIPSIS_DIR] === 'start');
+
+/** 字段配置管理组件所需参数 */
+const retrieveParams = computed(() => store.getters.retrieveParams);
+/** 字段配置管理组件所需参数 */
+const fieldAliasMap = computed(() => {
+  return store.getters.fieldAliasMap;
+});
+
+const searchConfigList = computed(() => {
+  return configList.value.filter((item) => {
+    // 确保 item.name 是一个字符串
+    const name = String(item.name);
+    // 检查 name 是否包含 searchString
+    return name.includes(searchKeyword.value);
   });
+});
 
-  const unionIndexList = computed(() => store.state.unionIndexList);
-  const isUnionSearch = computed(() => store.state.isUnionSearch);
-  const isSceneMode = computed(() => store.getters.isSceneMode);
-  const isStartTextEllipsis = computed(() => store.state.storage.textEllipsisDir === 'start');
+/** 字段设置 popover 配置 */
+const settingTippyOptions: Partial<TippyProps> = {
+  placement: 'top-start',
+  arrow: false,
+  hideOnClick: false,
+  maxWidth: 1200,
+  offset: [-16, -40],
+  zIndex: 3000,
+  appendTo: document.body,
+  // Keep the full panel usable when neither vertical placement fits a short
+  // viewport. Popper otherwise preserves the preferred, clipped top position.
+  popperOptions: {
+    modifiers: [{ name: 'preventOverflow', options: { altAxis: true, padding: 8 } }],
+  },
+};
 
-  /** 字段配置管理组件所需参数 */
-  const retrieveParams = computed(() => store.getters.retrieveParams);
-  /** 字段配置管理组件所需参数 */
-  const fieldAliasMap = computed(() => {
-    return store.getters.fieldAliasMap;
-  });
-
-  const searchConfigList = computed(() => {
-    return configList.value.filter(item => {
-      // 确保 item.name 是一个字符串
-      const name = String(item.name);
-      // 检查 name 是否包含 searchString
-      return name.includes(searchKeyword.value);
-    });
-  });
-
-  /** 字段设置 popover 配置 */
-  const settingTippyOptions = {
-    placement: 'top-start',
-    arrow: false,
-    hideOnClick: false,
-    maxWidth: 1200,
-    offset: [-16, -40],
-    zIndex: 3000,
-    appendTo: document.body,
-    // Keep the full panel usable when neither vertical placement fits a short
-    // viewport. Popper otherwise preserves the preferred, clipped top position.
-    popperOptions: {
-      modifiers: [{ name: 'preventOverflow', options: { altAxis: true, padding: 8 } }],
-    },
-  };
-
-  /**
-   * @description 字段设置弹窗隐藏前的钩子
-   */
-  function handleSettingBeforeHide(e) {
-    // 点击弹窗内部元素时不关闭
-    if (e.target?.closest?.('.bklog-v3-popover-tag')) {
-      return false;
-    }
-    showFieldsSetting.value = false;
-    return true;
+/**
+ * @description 字段设置弹窗隐藏前的钩子
+ */
+function handleSettingBeforeHide(e: MouseEvent) {
+  // 点击弹窗内部元素时不关闭
+  if ((e.target as Element | null)?.closest?.('.bklog-v3-popover-tag')) {
+    return false;
   }
+  showFieldsSetting.value = false;
+  return true;
+}
 
-  /**
-   * @description 打开字段模板 menu popover
-   * @param {Event} e click 点击触发事件 targetEvent
-   *
-   */
-  async function handleDropdownPopoverShow(e) {
-    if (popoverInstance) {
-      return;
-    }
-    if (!popoverLazyLoaded.value.dropdown) {
-      popoverLazyLoaded.value.dropdown = true;
-      await nextTick();
-    }
-    // 兼容日志表格设置icon打开的 列表配置 中需要能够点击打开字段模板逻辑
-    const triggerDom = e?.currentTarget || popoverTrigger.value;
-    popoverInstance = $bkPopover(triggerDom, {
-      content: dropdownRef.value,
-      trigger: 'click',
-      animateFill: false,
-      placement: 'right',
-      theme: 'light field-template-menu field-template-menu-expand',
-      arrow: false,
-      interactive: true,
-      boundary: 'viewport',
-      onHidden: async () => {
-        popoverInstance?.destroy?.();
-        popoverInstance = null;
-        emit('handle-popover-hide');
-      },
-    });
-    await nextTick();
-    popoverInstance?.show();
+/**
+ * @description 打开字段模板 menu popover
+ * @param {Event} e click 点击触发事件 targetEvent
+ *
+ */
+function handleDropdownVisibleChange(visible: boolean) {
+  if (visible === dropdownVisible.value) return;
+  dropdownVisible.value = visible;
+  if (visible) {
+    popoverLazyLoaded.value.dropdown = true;
     getFiledConfigList();
-  }
-
-  /**
-   * @description 打开 字段设置 popover
-   *
-   */
-  async function handleFieldSettingPopoverShow() {
-    if (popoverInstance) {
-      popoverInstance?.hide?.();
-      emit('handle-popover-hide');
-    }
-    if (!popoverLazyLoaded.value.setting) {
-      popoverLazyLoaded.value.setting = true;
-      await nextTick();
-    }
-
-    // 使用 BkLogPopover 组件打开字段设置弹窗
-    settingPopoverRef.value?.show?.(popoverTrigger.value);
-    showFieldsSetting.value = true;
-  }
-
-  /**
-   * @description 关闭 popover
-   *
-   */
-  async function handlePopoverHide() {
-    popoverInstance?.hide?.();
-    popoverInstance?.destroy?.();
-    popoverInstance = null;
+  } else {
     emit('handle-popover-hide');
   }
+}
 
-  /**
-   * @description 由于 fields-setting 组件中自定义监听click事件关闭popover，防止导致字段模板下拉菜单也失效单独处理关闭逻辑
-   *
-   */
-  function handleFieldsSettingHide() {
-    if (!showFieldsSetting.value) {
-      return;
-    }
-    settingPopoverRef.value?.hide?.();
-    showFieldsSetting.value = false;
+/**
+ * @description 打开 字段设置 popover
+ *
+ */
+async function handleFieldSettingPopoverShow() {
+  handlePopoverHide();
+  if (!popoverLazyLoaded.value.setting) {
+    popoverLazyLoaded.value.setting = true;
+    await nextTick();
   }
 
-  const getFiledConfigList = async () => {
-    isLoading.value = true;
-    try {
-      const requestName = (isSceneMode.value ? ServicesInstance.retrieve.sceneListConfig : ServicesInstance.retrieve.getFieldsListConfig);
-      const data = isSceneMode.value
-        ? {
-            bk_biz_id: store.state.bkBizId,
-            scene_id: store.state.indexItem.scene_active,
-            scope: 'default',
-          }
-        : {
-            ...(isUnionSearch.value
-              ? { index_set_ids: unionIndexList.value }
-              : { index_set_id: window.__IS_MONITOR_COMPONENT__ ? route.query.indexId : route.params.indexId }),
-            scope: 'default',
-            index_set_type: isUnionSearch.value ? 'union' : 'single',
-          };
-      const res = await requestName({ data });
-      configList.value = res.data;
-    } catch {
-      // 配置加载失败时保留当前列表，错误由请求层统一处理
-    } finally {
-      isLoading.value = false;
-    }
-  };
+  // 使用 BkLogPopover 组件打开字段设置弹窗
+  settingPopoverRef.value?.show?.(popoverTrigger.value);
+  showFieldsSetting.value = true;
+}
 
-  const handleClickSelectConfig = async item => {
-    handlePopoverHide();
-    store.commit('retrieve/updateFiledSettingConfigID', item.id);
-    store.commit('updateState', { localSort: false });
-    store.commit('updateIsSetDefaultTableColumn', false);
+/**
+ * @description 关闭 popover
+ *
+ */
+function handlePopoverHide() {
+  if (!dropdownVisible.value) return;
+  dropdownVisible.value = false;
+  emit('handle-popover-hide');
+}
 
-    // 先等待用户配置保存完成
-    await store.dispatch('userFieldConfigChange', {
-      displayFields: item.display_fields,
-      sortList: item.sort_list,
-      fieldsWidth: {},
-    });
+/**
+ * @description 由于 fields-setting 组件中自定义监听click事件关闭popover，防止导致字段模板下拉菜单也失效单独处理关闭逻辑
+ *
+ */
+function handleFieldsSettingHide() {
+  if (!showFieldsSetting.value) {
+    return;
+  }
+  settingPopoverRef.value?.hide?.();
+  showFieldsSetting.value = false;
+}
 
-    // 更新本地显示字段状态
-    store.commit('resetVisibleFields', item.display_fields);
-    store.commit('updateIsSetDefaultTableColumn');
-    emit('select-fields-config', item.display_fields);
+const getFiledConfigList = async () => {
+  isLoading.value = true;
+  try {
+    const requestName = isSceneMode.value
+      ? ServicesInstance.retrieve.sceneListConfig
+      : ServicesInstance.retrieve.getFieldsListConfig;
+    const data = isSceneMode.value
+      ? {
+          bk_biz_id: store.state.bkBizId,
+          scene_id: store.state.indexItem.scene_active,
+          scope: 'default',
+        }
+      : {
+          ...(isUnionSearch.value
+            ? { index_set_ids: unionIndexList.value }
+            : { index_set_id: window.__IS_MONITOR_COMPONENT__ ? route.query.indexId : route.params.indexId }),
+          scope: 'default',
+          index_set_type: isUnionSearch.value ? 'union' : 'single',
+        };
+    const res = await requestName({ data });
+    configList.value = res.data as FieldConfig[];
+  } catch {
+    // 配置加载失败时保留当前列表，错误由请求层统一处理
+  } finally {
+    isLoading.value = false;
+  }
+};
 
-    // 应用模板后重新请求数据
-    await store.dispatch('requestIndexSetFieldInfo');
-    await store.dispatch('requestIndexSetQuery');
-    RetrieveHelper.fire(RetrieveEvent.SORT_LIST_CHANGED);
-  };
+const handleClickSelectConfig = async (item: FieldConfig) => {
+  handlePopoverHide();
+  store.commit('retrieve/updateFiledSettingConfigID', item.id);
+  store.commit('updateState', { localSort: false });
+  store.commit('updateIsSetDefaultTableColumn', false);
 
-  const isPopoverInstance = () => {
-    return popoverInstance?.state.isShown;
-  };
-  defineExpose({
-    isPopoverInstance,
+  // 先等待用户配置保存完成
+  await store.dispatch('userFieldConfigChange', {
+    displayFields: item.display_fields,
+    sortList: item.sort_list,
+    fieldsWidth: {},
   });
+
+  // 更新本地显示字段状态
+  store.commit('resetVisibleFields', item.display_fields);
+  store.commit('updateIsSetDefaultTableColumn');
+  emit('select-fields-config', item.display_fields);
+
+  // 应用模板后重新请求数据
+  await store.dispatch('requestIndexSetFieldInfo');
+  await store.dispatch('requestIndexSetQuery');
+  RetrieveHelper.fire(RetrieveEvent.SORT_LIST_CHANGED);
+};
+
+const isPopoverInstance = () => {
+  return dropdownVisible.value;
+};
+defineExpose({
+  isPopoverInstance,
+});
 </script>
 <template>
   <div class="field-select-config-v2">
-    <div
-      :ref="vm => (popoverTrigger = vm)"
-      class="dropdown-trigger"
-      @click="handleDropdownPopoverShow"
+    <TPopup
+      :visible="dropdownVisible"
+      trigger="click"
+      placement="right"
+      overlay-class-name="bklog-v3-popover-tag field-template-menu-theme light-theme field-template-menu-expand-theme"
+      @visible-change="handleDropdownVisibleChange"
     >
-      <span class="bklog-icon bklog-overview1"></span>
-      <span class="trigger-label"> {{ $t('字段模板') }} </span>
-      <i class="bk-icon icon-angle-right-line"></i>
-    </div>
-    <div style="display: none">
-      <div
-        v-if="popoverLazyLoaded.dropdown"
-        :ref="
-          vm => {
-            dropdownRef = vm;
-          }
-        "
-        class="dropdown-content"
-      >
-        <div class="dropdown-search">
-          <bk-input
-            v-model="searchKeyword"
-            class="field-input"
-            left-icon="icon-search"
-            :placeholder="$t('请输入模板名称')"
-            clearable
-          />
-        </div>
-        <div class="underline-box"></div>
-        <ul
-          v-bkloading="{ isLoading: isLoading, size: 'small' }"
-          class="dropdown-list"
-        >
-          <li
-            v-for="item in searchConfigList"
-            :key="item.name"
-            class="dropdown-item"
-            @click="() => handleClickSelectConfig(item)"
-          >
-            <span> {{ item.name }} </span>
-          </li>
-        </ul>
-        <div
-          class="dropdown-setting bklog-v3-popover-tag"
-          @click="handleFieldSettingPopoverShow"
-        >
-          <span class="bklog-icon bklog-shezhi" />
-          <span>
-            {{ $t('管理配置') }}
-          </span>
-        </div>
+      <div ref="popoverTrigger" class="dropdown-trigger">
+        <span class="bklog-icon bklog-overview1"></span>
+        <span class="trigger-label">{{ $t('字段模板') }}</span>
+        <i class="bk-icon icon-angle-right-line"></i>
       </div>
+      <template #content>
+        <div v-if="popoverLazyLoaded.dropdown" class="dropdown-content">
+          <div class="dropdown-search">
+            <TInput v-model="searchKeyword" class="field-input" :placeholder="$t('请输入模板名称')" clearable>
+              <template #prefix-icon><span class="bklog-icon bklog-search" /></template>
+            </TInput>
+          </div>
+          <div class="underline-box"></div>
+          <BklogLoading :loading="isLoading">
+            <ul class="dropdown-list">
+              <li
+                v-for="item in searchConfigList"
+                :key="item.name"
+                class="dropdown-item"
+                @click="handleClickSelectConfig(item)"
+              >
+                <span>{{ item.name }}</span>
+              </li>
+            </ul>
+          </BklogLoading>
+          <div class="dropdown-setting bklog-v3-popover-tag" @click="handleFieldSettingPopoverShow">
+            <span class="bklog-icon bklog-shezhi" /><span>{{ $t('管理配置') }}</span>
+          </div>
+        </div>
+      </template>
+    </TPopup>
+    <div style="display: none">
       <!-- 字段设置弹窗使用 BkLogPopover -->
       <BkLogPopover
         v-if="popoverLazyLoaded.setting"
@@ -309,10 +288,7 @@
         :before-hide="handleSettingBeforeHide"
       >
         <template #content>
-          <div
-            class="fields-setting-container"
-            :class="{ 'is-start-text-ellipsis': isStartTextEllipsis }"
-          >
+          <div class="fields-setting-container" :class="{ 'is-start-text-ellipsis': isStartTextEllipsis }">
             <fields-setting
               :field-alias-map="fieldAliasMap"
               :is-show="showFieldsSetting"
@@ -328,5 +304,5 @@
   </div>
 </template>
 <style lang="scss">
-  @import './field-list.scss';
+@import './field-list.scss';
 </style>

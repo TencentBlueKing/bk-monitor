@@ -157,10 +157,10 @@
           error-display-type="normal"
           property="is_active"
         >
-          <bk-checkbox
+          <t-checkbox
             v-model="formData.is_active"
             data-test-id="linkConfigForm_checkbox_isEnable"
-          ></bk-checkbox>
+          ></t-checkbox>
         </bk-form-item>
         <bk-form-item
           :label="$t('备注')"

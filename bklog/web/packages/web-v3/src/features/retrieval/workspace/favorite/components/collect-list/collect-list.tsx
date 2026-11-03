@@ -1,3 +1,4 @@
+import { Button as TButton, Dialog as TDialog, Loading as TLoading } from 'tdesign-vue-next';
 import { asDictionary } from '@/shared/utils/typed-record';
 /*
  * Tencent is pleased to support the open source community by making
@@ -62,7 +63,7 @@ export default defineComponent({
       default: false,
     },
   },
-  emits: ['refresh', 'select-item', "selectItem"],
+  emits: ['refresh', 'select-item', 'selectItem'],
   setup(props, { emit }) {
     const { t } = useLocale();
     const store = useStore();
@@ -73,7 +74,7 @@ export default defineComponent({
     const privateGroupID = ref(0);
     const currentFavorite = ref();
     const listMenuPopoverMap = ref({});
-    const delData = ref({});
+    const delData = ref<{ key: string; item: IFavoriteItem } | null>(null);
     /** 操作菜单（含「移动至分组」二级菜单）展开时保持对应收藏项 Hover 背景 */
     const menuOpenFavoriteId = ref<IFavoriteItem['id'] | null>(null);
     const favoriteMenuHover = createFavoriteMenuHoverState();
@@ -152,7 +153,7 @@ export default defineComponent({
         },
       ];
       if (window.__IS_MONITOR_APM__) {
-        return list.filter(item => item.key !== 'new-link');
+        return list.filter((item) => item.key !== 'new-link');
       }
       return list;
     });
@@ -160,7 +161,7 @@ export default defineComponent({
     // 用户信息
     const userMeta = computed(() => store.state.userMeta);
     // 去掉个人收藏的组列表
-    const unPrivateGroupList = computed(() => props.list.filter(g => g.group_type !== 'private'));
+    const unPrivateGroupList = computed(() => props.list.filter((g) => g.group_type !== 'private'));
 
     // 根据用户名判断是否时自己创建的收藏 若不是自己的则去除个人收藏选项
     const showGroupList = (item: IFavoriteItem) => {
@@ -231,7 +232,7 @@ export default defineComponent({
     /** 展开所有 */
     const handleCollapse = () => {
       const map = {};
-      props.list.forEach(item => {
+      props.list.forEach((item) => {
         map[item.group_id] = true;
       });
       expandedMap.value = map;
@@ -254,7 +255,7 @@ export default defineComponent({
     // 是否展开/收起所有
     watch(
       () => props.isCollapse,
-      value => {
+      (value) => {
         if (value) {
           handleCollapse();
         } else {
@@ -328,7 +329,10 @@ export default defineComponent({
           { delete: isPoint && menu.key !== 'reset-group-name', 'no-border': item?.id && isFailFavorite(item) },
         ]}
         onClick={() => {
-          !isPoint ? handleMenuClick(menu.key, item) : handleDelClick(menu.key, item);
+          // Rename is opened by its enclosing popover. Only the source delete
+          // action keys are allowed to enter the deletion confirmation.
+          if (!isPoint) handleMenuClick(menu.key, item);
+          else if (deleteKey.includes(menu.key)) handleDelClick(menu.key, item);
         }}
       >
         {menu.label}
@@ -345,14 +349,10 @@ export default defineComponent({
           </div>
           <div class='menu-delete-item-content'>{delTxtConfig[type].tips}</div>
           <div class='menu-delete-item-btns'>
-            <bk-button
-              size='small'
-              theme='danger'
-              onClick={() => handleMenuClick(type, item)}
-            >
+            <TButton size='small' theme='danger' onClick={() => handleMenuClick(type, item)}>
               {delTxtConfig[type].label}
-            </bk-button>
-            <bk-button
+            </TButton>
+            <TButton
               class='ml8'
               size='small'
               onClick={() => {
@@ -360,7 +360,7 @@ export default defineComponent({
               }}
             >
               {t('取消')}
-            </bk-button>
+            </TButton>
           </div>
         </div>
       );
@@ -368,7 +368,7 @@ export default defineComponent({
     /** 关闭删除操作弹框，并清空待删除数据 */
     const closeDelDialog = () => {
       setDelDialogVisible(false);
-      delData.value = {};
+      delData.value = null;
     };
     /** 显示删除操作弹框 */
     const handleDelClick = (type: string, item: IFavoriteItem) => {
@@ -392,8 +392,8 @@ export default defineComponent({
       <div class='menu-move-group-popover'>
         <div class='move-group-list'>
           {showGroupList(item)
-            .filter(group => group.group_id !== item.group_id)
-            .map(group => (
+            .filter((group) => group.group_id !== item.group_id)
+            .map((group) => (
               <div
                 class='list-item'
                 onClick={() => {
@@ -407,10 +407,7 @@ export default defineComponent({
             ))}
         </div>
         <div class='move-group-add'>
-          <AddGroup
-            rules={ruleData.value}
-            onSubmit={() => handleRefreshMenu(item)}
-          />
+          <AddGroup rules={ruleData.value} onSubmit={() => handleRefreshMenu(item)} />
         </div>
       </div>
     );
@@ -418,10 +415,10 @@ export default defineComponent({
     const renderMenu = (list: IMenuItem[], item: IFavoriteItem, isChild = true) => {
       const isDataExist = isChild && isFailFavorite(item);
       /** 数据源不存在的情况下，只支持删除操作 */
-      const showList = isDataExist ? list.filter(item => item.key === 'delete') : list;
+      const showList = isDataExist ? list.filter((item) => item.key === 'delete') : list;
       return (
         <div class='collect-list-menu-popover'>
-          {showList.map(menu => {
+          {showList.map((menu) => {
             /** 删除类的操作 */
             if (deleteKey.includes(menu.key)) {
               return defaultItem(menu, item, true);
@@ -455,7 +452,7 @@ export default defineComponent({
                           isCreate={false}
                           isFormType={true}
                           rules={ruleData.value}
-                          onCancel={item => {
+                          onCancel={(item) => {
                             listMenuPopoverMap.value[item.group_id]?.hide();
                           }}
                           onSubmit={() => handleMenuClick(menu.key, item)}
@@ -508,10 +505,7 @@ export default defineComponent({
             </div>
           )}
           {tipsData.map((tips, ind) => (
-            <div
-              key={ind}
-              class='tips-item'
-            >
+            <div key={ind} class='tips-item'>
               {`${tips.title}：`}
               {tips.isUserAccount ? <bk-user-display-name user-id={tips.value}></bk-user-display-name> : tips.value}
             </div>
@@ -520,20 +514,14 @@ export default defineComponent({
       );
     };
     return () => (
-      <div
-        class='collect-list-box'
-        v-bkloading={{ isLoading: props.loading }}
-      >
-        {(props.list || []).map(item => (
+      <TLoading class='collect-list-box' loading={props.loading}>
+        {(props.list || []).map((item) => (
           <div
             key={item.group_id}
             style={{ display: props.isSearch && item.favorites.length === 0 ? 'none' : 'block' }}
             class='collect-list-item'
           >
-            <div
-              class='collect-list-item-main'
-              onClick={() => handleToggleExpand(item.group_id)}
-            >
+            <div class='collect-list-item-main' onClick={() => handleToggleExpand(item.group_id)}>
               <span
                 class={`bklog-icon item-icon bklog-${item.group_type === 'private' ? 'file-personal' : showIcon(item)}`}
               ></span>
@@ -550,7 +538,7 @@ export default defineComponent({
               </span>
               {item.group_type === 'public' && (
                 <BklogPopover
-                  ref={el => (listMenuPopoverMap.value[item.group_id] = el)}
+                  ref={(el) => (listMenuPopoverMap.value[item.group_id] = el)}
                   options={{ offset: [50, 5], placement: 'bottom-end', appendTo: document.body, arrow: false } as any}
                   trigger='hover'
                   v-slots={{ content: () => renderMenu(groupMenu.value, item, false) }}
@@ -562,7 +550,7 @@ export default defineComponent({
             {/* 子收藏夹列表 */}
             {(item.favorites || []).length > 0 && expandedMap.value[item.group_id] && (
               <div class='collect-list-item-child'>
-                {item.favorites.map(child => (
+                {item.favorites.map((child) => (
                   <BklogPopover
                     class='child-item-name'
                     options={
@@ -594,7 +582,7 @@ export default defineComponent({
 
                       {/* 数据源不存在 */}
                       <BklogPopover
-                        ref={el => (listMenuPopoverMap.value[child.id] = el)}
+                        ref={(el) => (listMenuPopoverMap.value[child.id] = el)}
                         options={getFavoriteMenuTippyOptions(child.id, {
                           offset: [30, 5],
                           placement: 'bottom-end',
@@ -614,17 +602,19 @@ export default defineComponent({
           </div>
         ))}
         {/* 删除操作弹窗 */}
-        <bk-dialog
-          show-footer={false}
-          theme='primary'
-          value={delDialogShow.value}
-          onValueChange={handleDelDialogChange}
+        <TDialog
+          width={400}
+          attach='body'
+          header={false}
+          footer={false}
+          visible={delDialogShow.value}
+          onClose={closeDelDialog}
         >
-          {delDialogShow.value && delRender(delData.value.key, delData.value.item)}
-        </bk-dialog>
+          {delDialogShow.value && delData.value && delRender(delData.value.key, delData.value.item)}
+        </TDialog>
         {/* 编辑收藏弹窗 */}
         <EditDialog
-          activeFavoriteID={selectedId.value}
+          activeFavoriteID={selectedId.value ?? undefined}
           data={currentFavorite.value}
           favoriteList={props.list}
           isShow={isShowEdit.value}
@@ -633,7 +623,7 @@ export default defineComponent({
             emit('refresh');
           }}
         />
-      </div>
+      </TLoading>
     );
   },
 });

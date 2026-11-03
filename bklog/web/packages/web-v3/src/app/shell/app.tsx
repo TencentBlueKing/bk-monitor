@@ -39,8 +39,8 @@ import './app.scss';
 import(/* webpackChunkName: 'appload-import' */ '../../shared/lib/appload-import');
 const NoticeComponent = defineAsyncComponent(() =>
   Promise.all([
-    import(/* webpackChunkName: 'notice-component' */ '@blueking/notice-component-vue2'),
-    import(/* webpackChunkName: 'notice-component' */ '@blueking/notice-component-vue2/dist/style.css'),
+    import(/* webpackChunkName: 'notice-component' */ '@blueking/notice-component'),
+    import(/* webpackChunkName: 'notice-component' */ '@blueking/notice-component/dist/style.css'),
   ]).then(([component]) => (component as any).default ?? component),
 );
 const AuthDialog = defineAsyncComponent(

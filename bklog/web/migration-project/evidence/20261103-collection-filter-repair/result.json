@@ -1,0 +1,63 @@
+{
+  "status": "IMPLEMENTING",
+  "businessAccepted": false,
+  "visualAccepted": false,
+  "scope": [
+    "compat collection validator input",
+    "current collection validator input and filter controls",
+    "truthful class translator typing"
+  ],
+  "reference": [
+    "packages/web-v2/src/components/collection-access/components/log-filter/validator-input.tsx",
+    "packages/web-v2/src/views/manage-v2/log-collection/components/business-comp/step2/log-filter.tsx",
+    "packages/web-v2/src/views/manage-v2/log-collection/components/business-comp/step2/validator-input.tsx"
+  ],
+  "browser": {
+    "business": 5000140,
+    "space": "bkcc__5000140",
+    "viewport": {
+      "width": 1280,
+      "height": 720
+    },
+    "resourceWrites": false,
+    "tests": [
+      "V2 and V3 alpha|error|omega preview returns 3 matching field choices",
+      "second field selection backfills 第2列 | error",
+      "separator rule value error survives match mode draft edit and return",
+      "adding and removing a draft group preserves first rule",
+      "rule row height V2=42 V3=42",
+      "native Popup search omega leaves manual fifth-column draft unchanged",
+      "preview selection then manual fourth-column editing both persist after blur",
+      "selected/default button computed background/border/text colors match V2",
+      "input focus prevents first digit unmount/clear regression",
+      "actual keyboard ArrowDown+Enter selects third preview column",
+      "empty search shows one 搜索为空 state",
+      "Escape and outside clicks close preview popup",
+      "both V2 and V3 new collection drafts cancelled without submitting"
+    ],
+    "remaining": [
+      "compat collection branch full browser matrix",
+      "full collection creation/deployment acceptance not included"
+    ],
+    "draftCleanupVerified": true
+  },
+  "tests": {
+    "count": 349,
+    "failed": 0,
+    "log": "/tmp/bklog-collection-filter-final-tests.log"
+  },
+  "typecheck": {
+    "diagnostics": 1530,
+    "introducedDiagnostics": 0,
+    "baseline": 1886,
+    "log": "/tmp/bklog-collection-filter-final-types.log"
+  },
+  "build": {
+    "main": "PASSED",
+    "apm": "PASSED",
+    "trace": "PASSED",
+    "sourceDigest": "f484c153b9fa640164addaf2a984ca252e2bd979ac79f3c20c9b3f8490169765",
+    "buildConfigDigest": "8490585e954ac646a29c9f2eb369e9a390dfcd0f32897d4291f821544a4c7555",
+    "currentSourceVerified": true
+  }
+}

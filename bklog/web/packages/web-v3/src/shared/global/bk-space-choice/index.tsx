@@ -1,3 +1,5 @@
+
+import { Button as TButton } from 'tdesign-vue-next';
 import { includesValue } from '@/shared/utils/typed-record';
 /*
  * Tencent is pleased to support the open source community by making
@@ -638,15 +640,15 @@ export default defineComponent({
             v-slots={{
               footer: () => (
                 <div>
-                  <bk-button
+                  <TButton
                     class='btn-confirm'
                     loading={setDefaultBizIdLoading.value}
                     theme='primary'
                     onClick={handleDefaultId}
                   >
                     确认
-                  </bk-button>
-                  <bk-button
+                  </TButton>
+                  <TButton
                     class='btn-cancel'
                     onClick={() => {
                       defaultSpace.value = null;
@@ -654,7 +656,7 @@ export default defineComponent({
                     }}
                   >
                     取消
-                  </bk-button>
+                  </TButton>
                 </div>
               ),
             }}

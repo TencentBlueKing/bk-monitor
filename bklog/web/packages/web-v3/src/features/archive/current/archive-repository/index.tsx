@@ -1,3 +1,5 @@
+
+import { MessagePlugin as TDesignMessage, Button as TButton } from 'tdesign-vue-next';
 import { ServicesInstance } from '@/platform/services';
 /*
  * Tencent is pleased to support the open source community by making
@@ -32,7 +34,7 @@ import { clearTableFilter } from '@/shared/lib/util';
 import EmptyStatus from '@/shared/ui/empty-status/index.vue';
 import useLocale from '@/shared/composables/use-locale';
 import useStore from '@/shared/composables/use-store';
-import { bkMessage as Message } from 'bk-magic-vue';
+
 import { bkInfoBox as InfoBox } from '@/platform/compat/tdesign/info-box';
 
 import RepositorySlider from './repository-slider.tsx';
@@ -217,10 +219,7 @@ export default defineComponent({
         })
         .then((res: any) => {
           if (res.result) {
-            Message({
-              theme: 'success',
-              message: t('删除成功'),
-            });
+            TDesignMessage("success", { content: t('删除成功') });
             tableDataOrigin.value = tableDataOrigin.value.filter(
               item => !(item.cluster_id === row.cluster_id && item.repository_name === row.repository_name),
             );
@@ -282,14 +281,14 @@ export default defineComponent({
       >
         {/* 顶部操作栏 */}
         <section class='top-operation'>
-          <bk-button
+          <TButton
             class='fl'
             data-test-id='storehouseContainer_button_addNewStoreHouse'
             theme='primary'
             onClick={handleCreate}
           >
             {t('新建')}
-          </bk-button>
+          </TButton>
           <div class='repository-search fr'>
             <bk-input
               data-test-id='storehouseContainer_input_searchTableItem'
@@ -392,15 +391,15 @@ export default defineComponent({
               v-slots={{
                 default: (props: any) => (
                   <div class='repository-table-operate'>
-                    <bk-button
+                    <TButton
                       class='mr10 king-button'
                       disabled={!props.row.permission?.[authorityMapComputed.value.MANAGE_ES_SOURCE_AUTH]}
                       theme='primary'
-                      text
-                      onClick={() => operateHandler(props.row, 'delete')}
+                      
+                      onClick={() => operateHandler(props.row, 'delete')} variant={(true) ? 'text' : ('base')}
                     >
                       {t('删除')}
-                    </bk-button>
+                    </TButton>
                   </div>
                 ),
               }}

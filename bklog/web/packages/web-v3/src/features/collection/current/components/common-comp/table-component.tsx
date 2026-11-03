@@ -1,3 +1,7 @@
+
+import { Checkbox as TCheckbox } from 'tdesign-vue-next';
+
+import { Button as TButton } from 'tdesign-vue-next';
 /*
  * Tencent is pleased to support the open source community by making
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
@@ -508,8 +512,8 @@ export default defineComponent({
                         key={field.id}
                         class='column-config-item'
                       >
-                        <bk-checkbox
-                          value={checked}
+                        <TCheckbox
+                          checked={checked}
                           disabled={isDefault}
                           onChange={(val: boolean) => {
                             if (!isDefault) {
@@ -518,25 +522,25 @@ export default defineComponent({
                           }}
                         >
                           {field.label}
-                        </bk-checkbox>
+                        </TCheckbox>
                       </span>
                     );
                   })}
                 </div>
                 <div class='column-config-footer'>
-                  <bk-button
+                  <TButton
                     theme='primary'
                     size='small'
                     onClick={handleColumnConfigConfirm}
                   >
                     {t('确定')}
-                  </bk-button>
-                  <bk-button
+                  </TButton>
+                  <TButton
                     size='small'
                     onClick={handleCloseColumnConfig}
                   >
                     {t('取消')}
-                  </bk-button>
+                  </TButton>
                 </div>
               </div>
             </div>

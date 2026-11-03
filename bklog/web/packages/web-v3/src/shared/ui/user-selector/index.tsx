@@ -23,11 +23,11 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { computed, defineComponent, ref, watch } from 'vue';
+import { computed, defineComponent, h, ref, watch } from 'vue';
 
 import useLocale from '@/shared/composables/use-locale';
 import useStore from '@/shared/composables/use-store';
-import BkUserSelector from '@blueking/bk-user-selector/vue2';
+import BkUserSelector from '@blueking/bk-user-selector';
 
 import './index.scss';
 
@@ -106,23 +106,22 @@ export default defineComponent({
       isError.value = !props.value.length;
     };
 
-    return () => (
-      <div class='validate-user-selector'>
-        <bk-user-selector
-          style={props.customStyle}
-          class={isError.value ? 'is-error' : ''}
-          api-base-url={apiBaseUrl}
-          disabled={props.disabled}
-          empty-text={t('无匹配人员')}
-          enableMultiTenantMode={!!tenantId.value}
-          modelValue={localValue.value}
-          multiple={props.multiple}
-          placeholder={props.placeholder}
-          tenant-id={tenantId.value}
-          onBlur={handleBlur}
-          onChange={handleChange}
-        />
-      </div>
-    );
+    return () =>
+      h('div', { class: 'validate-user-selector' }, [
+        h(BkUserSelector, {
+          style: props.customStyle,
+          class: isError.value ? 'is-error' : '',
+          apiBaseUrl,
+          disabled: props.disabled,
+          emptyText: t('无匹配人员'),
+          enableMultiTenantMode: !!tenantId.value,
+          modelValue: localValue.value,
+          multiple: props.multiple,
+          placeholder: props.placeholder,
+          tenantId: tenantId.value || '',
+          onBlur: handleBlur,
+          'onUpdate:modelValue': handleChange,
+        }),
+      ]);
   },
 });

@@ -1,3 +1,9 @@
+
+import { Tag as TTag } from 'tdesign-vue-next';
+
+import { Checkbox as TCheckbox } from 'tdesign-vue-next';
+
+import { Button as TButton } from 'tdesign-vue-next';
 import { ServicesInstance } from '@/platform/services';
 import type { IndexSetOption, IndexSetTag } from '@/app/state/retrieval-state.type';
 import type { Instance, Props } from 'tippy.js';
@@ -1043,14 +1049,14 @@ export default class SelectIndexSet extends tsc<{ popoverOptions?: object }> {
                   >
                     <div class='tag-box'>
                       {item.index_set_names?.map((setName: string) => (
-                        <bk-tag
+                        <TTag
                           key={setName}
-                          class='title-overflow'
-                          ext-cls='tag-item'
-                          v-bk-overflow-tips
+                          class={['title-overflow', 'tag-item']}
+                          
+                          v-bk-overflow-tips variant='light' data-v2-display='tag'
                         >
                           {setName}
-                        </bk-tag>
+                        </TTag>
                       ))}
                     </div>
                     <i
@@ -1142,18 +1148,18 @@ export default class SelectIndexSet extends tsc<{ popoverOptions?: object }> {
                       </bk-form-item>
                     </bk-form>
                     <div class='operate-button'>
-                      <bk-button
-                        text
-                        onClick={() => this.handleClickFavoritePopoverBtn('add')}
+                      <TButton
+                        
+                        onClick={() => this.handleClickFavoritePopoverBtn('add')} variant={(true) ? 'text' : ('base')}
                       >
                         {this.$t('确认收藏')}
-                      </bk-button>
-                      <bk-button
-                        text
-                        onClick={() => this.handleClickFavoritePopoverBtn('cancel')}
+                      </TButton>
+                      <TButton
+                        
+                        onClick={() => this.handleClickFavoritePopoverBtn('cancel')} variant={(true) ? 'text' : ('base')}
                       >
                         {this.$t('取消')}
-                      </bk-button>
+                      </TButton>
                     </div>
                   </div>
                 ),
@@ -1182,12 +1188,12 @@ export default class SelectIndexSet extends tsc<{ popoverOptions?: object }> {
             class='index-tag-box'
           >
             {this.selectedItemList.map((item: IndexSetOption) => (
-              <bk-tag
+              <TTag
                 key={item.id ?? item.index_set_id}
                 style='background: #FAFBFD;'
-                type='stroke'
+                variant={"outline"}
                 closable
-                onClose={() => this.handleCloseSelectTag(item)}
+                onClose={() => this.handleCloseSelectTag(item)} data-v2-display='tag'
               >
                 <span class='tag-name'>
                   {item.isNotVal && <i class='not-val' />}
@@ -1198,7 +1204,7 @@ export default class SelectIndexSet extends tsc<{ popoverOptions?: object }> {
                     {item.indexName}
                   </span>
                 </span>
-              </bk-tag>
+              </TTag>
             ))}
           </div>
         </div>
@@ -1214,7 +1220,7 @@ export default class SelectIndexSet extends tsc<{ popoverOptions?: object }> {
         );
       }
       return (
-        <bk-checkbox
+        <TCheckbox
           checked={this.getCheckedVal(item.index_set_id)}
           disabled={this.getDisabled(item.index_set_id)}
         />

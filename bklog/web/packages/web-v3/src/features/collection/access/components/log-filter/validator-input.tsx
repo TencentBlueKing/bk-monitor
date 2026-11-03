@@ -1,3 +1,4 @@
+import SampleColumnSelect from '@/features/collection/shared/sample-column-select';
 /*
  * Tencent is pleased to support the open source community by making BK-LOG 蓝鲸日志平台 available.
  * Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
@@ -20,191 +21,156 @@
  * SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE
  */
 
-import { Component, Prop, Watch, Emit, Model, Ref } from 'vue-property-decorator';
-import { Component as tsc } from 'vue-tsx-support';
-
+import { computed, defineComponent, nextTick, reactive, ref, watch, type PropType } from 'vue';
+import { Form, FormItem, Input, InputNumber } from 'tdesign-vue-next';
+import type { FormInstanceFunctions, FormRules, InputProps } from 'tdesign-vue-next';
+import i18n from '@/platform/i18n/i18n';
 import './validator-input.scss';
 
-interface IProps {
-  value: string;
+interface FilterRow {
+  fieldindex?: string;
+  word?: string;
+}
+interface FilterOption {
+  id: string;
+  name: string;
+  value?: string;
 }
 
-interface LogFilterProps {
-  "value"?: IProps['value'];
-  "placeholder"?: string;
-  "activeType"?: string;
-  "inputType"?: string;
-  "rowData"?: any;
-  "originalFilterItemSelect"?: any[];
-  "onChange"?: (value: string) => void;
-}
-
-@Component
-export default class LogFilter extends tsc<LogFilterProps> {
-  @Model('change', { type: String, default: '' }) value!: IProps['value'];
-  @Prop({ type: String, default: '' }) placeholder!: string;
-  @Prop({ type: String, default: '' }) activeType!: string;
-  @Prop({ type: String, default: 'text' }) inputType!: string;
-  @Prop({ type: Object, default: () => ({}) }) rowData!: any;
-  @Prop({ type: Array, default: () => [] }) originalFilterItemSelect!: any[];
-  @Ref('input') readonly inputRef!: any;
-  @Ref('validateForm') readonly validateFormRef!: any;
-
-  isClick = false;
-  formData = {
-    inputValue: '',
-  };
-
-  rules = {
-    inputValue: [
-      {
-        validator: this.checkValidator,
-        message: window.mainComponent.$t('必填项'),
-        trigger: 'blur',
+export default defineComponent({
+  name: 'LogFilterValidatorInput',
+  compatConfig: { MODE: 3 },
+  props: {
+    value: { type: String, default: '' },
+    placeholder: { type: String, default: '' },
+    activeType: { type: String, default: '' },
+    inputType: { type: String as PropType<NonNullable<InputProps['type']>>, default: 'text' },
+    rowData: { type: Object as PropType<FilterRow>, default: () => ({}) },
+    originalFilterItemSelect: { type: Array as PropType<FilterOption[]>, default: () => [] },
+    tableIndex: Number,
+  },
+  emits: { change: (_value: string) => true },
+  setup(props, { emit, expose }) {
+    const editing = ref(false);
+    const input = ref<{ focus(): void }>();
+    const form = ref<FormInstanceFunctions<{ inputValue: string }>>();
+    const data = reactive({ inputValue: props.value });
+    watch(
+      () => props.value,
+      (value) => {
+        data.inputValue = value;
       },
-    ],
-  };
-
-  get isShowSelect() {
-    return !!this.originalFilterItemSelect.length;
-  }
-  /** 当有下拉框的情况下 显示调试后行对应的值 */
-  get selectedShowStr() {
-    return this.originalFilterItemSelect.find(item => item.id === this.formData.inputValue)?.name;
-  }
-  /** 是否展示输入框  点击情况或者值为空的情况 */
-  get isShowFormInput() {
-    return this.isClick || !this.formData.inputValue;
-  }
-
-  @Watch('formData.inputValue')
-  watchInputValue() {
-    this.handleEmitModel();
-  }
-
-  @Watch('value', { immediate: true })
-  watchPropsValue() {
-    this.formData.inputValue = this.value;
-  }
-
-  @Emit('change')
-  handleEmitModel() {
-    return this.formData.inputValue;
-  }
-
-  validate() {
-    return new Promise<boolean>(reject => {
-      if (!this.validateFormRef) {
-        reject(true);
-      }
-      this.validateFormRef.validate().then(
-        () => reject(true),
-        () => reject(false),
-      );
-    });
-  }
-
-  handleClickInput() {
-    this.isClick = true;
-    this.$nextTick(() => {
-      this.inputRef.focus();
-    });
-  }
-
-  blurInput() {
-    this.isClick = false;
-  }
-
-  checkValidator() {
-    const { fieldindex, word } = this.rowData;
-    if (!(fieldindex || word) || (fieldindex && word) || this.formData.inputValue || this.activeType === 'match') {
-      return true;
+    );
+    watch(
+      () => data.inputValue,
+      (value) => {
+        emit('change', value);
+      },
+    );
+    const showInput = computed(() => editing.value || !data.inputValue);
+    const hasOptions = computed(() => props.originalFilterItemSelect.length > 0);
+    const selectedLabel = computed(
+      () => props.originalFilterItemSelect.find((item) => item.id === data.inputValue)?.name,
+    );
+    // Preserve V2's paired fieldindex/word validation, including match mode.
+    function checkValidator() {
+      const { fieldindex, word } = props.rowData;
+      return !!(!(fieldindex || word) || (fieldindex && word) || data.inputValue || props.activeType === 'match');
     }
-    return false;
-  }
-
-  render() {
-    const inputTriggerSlot = (isSelect = false) => (
-      <div
-        class={{ 'input-trigger': true, 'none-border': this.isShowFormInput }}
-        onClick={this.handleClickInput}
-      >
-        {this.isShowFormInput ? (
-          formInput()
-        ) : (
-          <div class='input-box'>
-            <span
-              class='input-value overflow-tips'
-              v-bk-overflow-tips
-            >
-              {isSelect
-                ? `${this.selectedShowStr || this.$t('第{n}行', { n: this.formData.inputValue })}`
-                : this.$t('第{n}行', { n: this.formData.inputValue })}
-            </span>
-          </div>
-        )}
-      </div>
-    );
-    const formInput = () => (
-      <bk-form
-        ref='validateForm'
-        form-type='inline'
-        {...{
-          ...{
-            model: this.formData,
-            rules: this.rules,
-          },
-        }}
-      >
-        <bk-form-item
-          label=''
-          property='inputValue'
-        >
-          <bk-input
-            ref='input'
-            v-model={this.formData.inputValue}
-            min={1}
-            placeholder={this.placeholder ?? this.$t('请输入')}
-            show-controls={false}
-            type={this.inputType}
-            clearable
-            show-clear-only-hover
-            onBlur={this.blurInput}
-          />
-        </bk-form-item>
-      </bk-form>
-    );
-    return (
+    const rules = computed<FormRules<typeof data>>(() => ({
+      inputValue: [
+        {
+          validator: checkValidator,
+          message: i18n.t('必填项'),
+          trigger: 'blur',
+        },
+      ],
+    }));
+    async function validate(): Promise<boolean> {
+      if (!form.value) return true;
+      try {
+        return (await form.value.validate()) === true;
+      } catch {
+        return false;
+      }
+    }
+    async function edit() {
+      editing.value = true;
+      await nextTick();
+      input.value?.focus();
+    }
+    function change(value: string | number | undefined) {
+      data.inputValue = value === undefined ? '' : String(value);
+    }
+    expose({ validate });
+    function formInput() {
+      return (
+        <Form ref={form} data={data} rules={rules.value} layout='inline' labelWidth={0}>
+          <FormItem name='inputValue' label=''>
+            {props.inputType === 'number' ? (
+              <InputNumber
+                largeNumber
+                ref={input}
+                value={data.inputValue}
+                min={1}
+                theme='normal'
+                allowInputOverLimit={false}
+                placeholder={props.placeholder}
+                onChange={change}
+                onFocus={() => {
+                  editing.value = true;
+                }}
+                onBlur={() => {
+                  editing.value = false;
+                }}
+              />
+            ) : (
+              <Input
+                ref={input}
+                value={data.inputValue}
+                type={props.inputType}
+                clearable
+                placeholder={props.placeholder}
+                onChange={change}
+                onFocus={() => {
+                  editing.value = true;
+                }}
+                onBlur={() => {
+                  editing.value = false;
+                }}
+              />
+            )}
+          </FormItem>
+        </Form>
+      );
+    }
+    function trigger(isSelect = false) {
+      return (
+        <div class={{ 'input-trigger': true, 'none-border': showInput.value }} onClick={edit}>
+          {showInput.value ? (
+            formInput()
+          ) : (
+            <div class='input-box'>
+              <span class='input-value overflow-tips' title={isSelect ? selectedLabel.value : undefined}>
+                {(isSelect && selectedLabel.value) || i18n.t('第{n}行', { n: data.inputValue })}
+              </span>
+            </div>
+          )}
+        </div>
+      );
+    }
+    return () => (
       <div class='bklog-log-filter form-input'>
-        {this.isShowSelect ? (
-          <bk-select
-            v-model={this.formData.inputValue}
-            v-slots={{
-              trigger: () => inputTriggerSlot(true),
-            }}
-            clearable={false}
-            popover-width={320}
-            searchable
-          >
-            {this.originalFilterItemSelect.map(option => (
-              <bk-option
-                id={option.id}
-                key={option.id}
-                name={option.name}
-              >
-                <span
-                  class='overflow-tips'
-                  title={`${this.$t('第{n}行', { n: option.id })} ${option.value || ''}`}
-                >{`${this.$t('第{n}行', { n: option.id })} ${option.value || ''}`}</span>
-              </bk-option>
-            ))}
-          </bk-select>
-        ) : this.inputType !== 'number' ? (
+        {hasOptions.value ? (
+          <SampleColumnSelect value={data.inputValue} options={props.originalFilterItemSelect} onChange={change}>
+            {() => trigger(true)}
+          </SampleColumnSelect>
+        ) : props.inputType !== 'number' ? (
           formInput()
         ) : (
-          inputTriggerSlot()
+          trigger()
         )}
       </div>
     );
-  }
-}
+  },
+});

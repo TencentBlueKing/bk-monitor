@@ -15,7 +15,7 @@
     .king-input {
       width: 100%;
 
-      .bk-form-input {
+      .t-input__inner {
         background-color: #f0f1f5;
         border: 1px solid transparent;
 
@@ -86,8 +86,11 @@
   .big-tree {
     overflow-y: hidden;
 
-    .bk-big-tree-node {
-      height: 28px;
+    .t-tree__item {
+      height: auto;
+      min-height: 0;
+      padding-left: calc(var(--level) * 16px + 2px);
+      line-height: normal;
 
       &:hover {
         background-color: #f4f5f8;
@@ -105,6 +108,30 @@
           display: flex !important;
         }
       }
+    }
+
+    .t-tree__item--hidden {
+      visibility: hidden;
+    }
+
+    .t-tree__item--visible {
+      max-height: none;
+    }
+
+    .t-tree__item::before {
+      height: 28px;
+    }
+
+    .t-tree__icon {
+      display: none;
+    }
+
+    .t-tree__label {
+      margin: 0;
+      display: block;
+      flex: 1;
+      min-width: 0;
+      padding: 0;
     }
 
     .is-leaf {
@@ -168,7 +195,7 @@
 
       &.not-selected {
         margin-bottom: 0;
-        
+
         .title {
           span.bklog-icon {
             margin-right: 4px;
@@ -180,7 +207,7 @@
         }
       }
 
-      &.optional-field{
+      &.optional-field {
         border-bottom: 1px solid #f0f1f5;
       }
 

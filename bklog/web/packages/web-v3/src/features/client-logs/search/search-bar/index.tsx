@@ -1,3 +1,5 @@
+
+import { Button as TButton } from 'tdesign-vue-next';
 import { ServicesInstance } from '@/platform/services';
 /*
  * Tencent is pleased to support the open source community by making
@@ -371,15 +373,15 @@ export default defineComponent({
           />
         </div>
 
-        <bk-button
+        <TButton
           theme='primary'
-          ext-cls='search-bar-btn'
-          icon=' bklog-icon bklog-shoudongchaxun'
+          class='search-bar-btn'
+          icon={() => <span class={`bk-icon icon-${' bklog-icon bklog-shoudongchaxun'}`} />}
           disabled={isSearchDisabled.value}
           onClick={handleButtonSearch}
         >
           {t('查询')}
-        </bk-button>
+        </TButton>
       </div>
     );
   },

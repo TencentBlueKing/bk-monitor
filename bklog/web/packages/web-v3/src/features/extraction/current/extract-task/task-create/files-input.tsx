@@ -1,3 +1,5 @@
+
+import { Input as TInput } from 'tdesign-vue-next';
 /*
  * Tencent is pleased to support the open source community by making
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
@@ -117,14 +119,14 @@ export default defineComponent({
         v-slots={{
           // 默认插槽：输入框
           default: () => (
-            <bk-input
+            <TInput
               class={isError.value ? 'is-error' : ''}
               data-test-id='addNewExtraction_input_specifyFolder'
               value={showValue.value}
-              onChange={(val: string) => {
+              onChange={value => ((val: string) => {
                 showValue.value = val;
                 handleChange(val);
-              }}
+              })(String(value))}
             />
           ),
           // 内容插槽：下拉选项列表

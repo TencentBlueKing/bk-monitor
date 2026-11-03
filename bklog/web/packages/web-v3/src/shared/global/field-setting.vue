@@ -21,7 +21,7 @@
       <template #header>
         <div>
           {{ t('索引配置') }}
-          <bk-button
+          <t-button
             v-if="!isEdit"
             class="mt10 fr"
             data-test-id="fieldSettingSlider_button_edit"
@@ -29,7 +29,7 @@
             @click="handleEdit"
           >
             {{ $t('编辑') }}
-          </bk-button>
+          </t-button>
         </div>
       </template>
       <template #content>
@@ -56,14 +56,14 @@
               :rules="basicRules.collector_config_name"
             >
               <div @click.stop="() => ({})">
-                <bk-input
+                <t-input
                   v-if="isEdit || isEditConfigName"
                   v-model="formData.collector_config_name"
                   class="w520"
                   maxlength="50"
-                  show-word-limit
+                  :show-limit-number="true"
                 >
-                </bk-input>
+                </t-input>
                 <div v-else>
                   {{ formData.collector_config_name }}
                   <!-- <i
@@ -82,14 +82,14 @@
               :rules="basicRules.collector_config_name_en"
             >
               <div class="en-name-box">
-                <bk-input
+                <t-input
                   v-if="isEdit"
                   v-model="formData.collector_config_name_en"
                   class="w520"
                   disabled
-                  show-word-limit
+                  :show-limit-number="true"
                 >
-                </bk-input>
+                </t-input>
                 <div v-else>{{ formData.collector_config_name_en }}</div>
               </div>
             </bk-form-item>
@@ -100,13 +100,13 @@
               :required="isEdit"
               :rules="basicRules.bk_data_id"
             >
-              <bk-input
+              <t-input
                 v-if="isEdit"
                 v-model="formData.bk_data_id"
                 class="form-input"
                 disabled
               >
-              </bk-input>
+              </t-input>
               <div v-else>{{ formData.bk_data_id }}</div>
             </bk-form-item>
             <div class="add-collection-title">{{ $t('存储配置') }}</div>
@@ -223,7 +223,7 @@
             </div>
           </bk-form>
           <div class="submit-container">
-            <bk-button
+            <t-button
               v-if="isEdit"
               class="king-button mr10"
               :loading="confirmLoading"
@@ -232,12 +232,12 @@
               @click.stop.prevent="submit"
             >
               {{ $t('提交') }}
-            </bk-button>
-            <bk-button
+            </t-button>
+            <t-button
               v-if="isEdit"
               data-test-id="fieldSettingSlider_button_cancel"
               @click="handleCancel"
-              >{{ $t('取消') }}</bk-button
+              >{{ $t('取消') }}</t-button
             >
           </div>
         </div>

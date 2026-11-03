@@ -25,7 +25,6 @@
 -->
 <script setup>
   import { ref, defineExpose } from 'vue';
-  import 'bk-magic-vue/lib/utils/svg-icon';
   const isShow = ref(false);
   const checkValue = ref(false);
   const inputValue = ref('');
@@ -73,16 +72,16 @@
     header-position="left"
     :title="$t('收藏至仪表盘')"
   >
-    <bk-checkbox
+    <t-checkbox
       v-model="checkValue"
       class="dialog_checkbox"
-      >{{ $t('同名视图替换') }}</bk-checkbox
+      >{{ $t('同名视图替换') }}</t-checkbox
     >
-    <bk-input
+    <t-input
       v-model="inputValue"
-      right-icon="icon-search"
+      
     >
-    </bk-input>
+    <template #suffix><i :class="'icon-search'" /></template></t-input>
     <bk-collapse
       v-model="collapseValue"
       class="my-menu"

@@ -1,3 +1,5 @@
+
+import { Checkbox as TCheckbox, Loading as TLoading } from 'tdesign-vue-next';
 /*
  * Tencent is pleased to support the open source community by making
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
@@ -280,10 +282,10 @@ export default defineComponent({
                   }}
                   onClick={(event: MouseEvent) => event.stopPropagation()}
                 >
-                  <bk-checkbox
+                  <TCheckbox
                     aria-label={t('选择任务')}
                     disabled={item.process_status !== 'success'}
-                    value={props.isTaskSelected(item)}
+                    checked={props.isTaskSelected(item)}
                     onChange={(checked: boolean) => emit('selection-change', item, checked)}
                   />
                 </span>
@@ -292,7 +294,7 @@ export default defineComponent({
                   <div class='task-header'>
                     <span class='task-time'>{item.report_time ?? item.processed_at}</span>
                     <span class={`task-status ${mapToCollectionStatus(item.process_status)}`}>
-                      {item.process_status === 'running' ? <bk-spin size='mini'></bk-spin> : <i class='status-dot'></i>}
+                      {item.process_status === 'running' ? <TLoading size="small"></TLoading> : <i class='status-dot'></i>}
                       {t(mapToCollectionStatusText(item.process_status))}
                     </span>
                   </div>

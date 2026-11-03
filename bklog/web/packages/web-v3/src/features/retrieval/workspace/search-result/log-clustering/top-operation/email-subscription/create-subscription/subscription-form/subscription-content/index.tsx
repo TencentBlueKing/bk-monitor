@@ -1,3 +1,7 @@
+
+import { Checkbox as TCheckbox } from 'tdesign-vue-next';
+
+import { Button as TButton } from 'tdesign-vue-next';
 import { ServicesInstance } from '@/platform/services';
 import { asDictionary } from '@/shared/utils/typed-record';
 /*
@@ -240,11 +244,11 @@ export default defineComponent({
           )}
 
           <div class='advanced-option'>
-            <bk-button
+            <TButton
               theme='primary'
               size='small'
-              text
-              onClick={() => (isShowAdvancedOption.value = !isShowAdvancedOption.value)}
+              
+              onClick={() => (isShowAdvancedOption.value = !isShowAdvancedOption.value)} variant={(true) ? 'text' : ('base')}
             >
               <div style='display: flex; align-items: center;'>
                 {props.mode === 'create' && t('高级配置')}
@@ -256,7 +260,7 @@ export default defineComponent({
                   ]}
                 ></i>
               </div>
-            </bk-button>
+            </TButton>
           </div>
 
           {/* 高级设置 */}
@@ -313,12 +317,12 @@ export default defineComponent({
               </bk-form-item>
               <div class='mix-operate-main'>
                 <div class='yoy-main'>
-                  <bk-checkbox
-                    value={isShowYOY.value}
+                  <TCheckbox
+                    checked={isShowYOY.value}
                     onChange={handleIsShowYoyChange}
                   >
                     {t('展示同比')}
-                  </bk-checkbox>
+                  </TCheckbox>
                   <bk-select
                     style='width: 116px;margin-left: 12px;'
                     value={formData.value.scenario_config.year_on_year_hour}
@@ -338,20 +342,20 @@ export default defineComponent({
                   </bk-select>
                 </div>
                 <div style='margin-top: 8px;'>
-                  <bk-checkbox
-                    value={formData.value.scenario_config.generate_attachment}
+                  <TCheckbox
+                    checked={formData.value.scenario_config.generate_attachment}
                     onChange={(value: boolean) => (formData.value.scenario_config.generate_attachment = value)}
                   >
                     {t('生成附件')}
-                  </bk-checkbox>
+                  </TCheckbox>
                 </div>
                 <div style='margin-top: 12px;'>
-                  <bk-checkbox
-                    value={formData.value.scenario_config.is_show_new_pattern}
+                  <TCheckbox
+                    checked={formData.value.scenario_config.is_show_new_pattern}
                     onChange={(value: boolean) => (formData.value.scenario_config.is_show_new_pattern = value)}
                   >
                     {t('只展示新类 Pattern')}
-                  </bk-checkbox>
+                  </TCheckbox>
                 </div>
               </div>
             </div>

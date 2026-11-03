@@ -512,7 +512,7 @@
           }
         }
 
-        .bk-tag {
+        .t-tag {
           flex-shrink: 0;
           cursor: pointer;
         }
@@ -592,7 +592,7 @@
 
       @include flex-justify(start);
 
-      .bk-tag {
+      .t-tag {
         flex-shrink: 0;
       }
     }
@@ -683,7 +683,7 @@
 
       @include flex-align(center);
 
-      .bk-button-text {
+      .t-button--variant-text {
         font-size: 12px;
 
         @include flex-align(center);

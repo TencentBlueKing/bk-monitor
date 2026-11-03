@@ -44,12 +44,12 @@
 
       <div class="config-container">
         <div class="config-cluster-box">
-          <bk-alert
+          <t-alert data-v2-display="alert"
             v-if="isShowContainerTips(conItem)"
-            :show-icon="false"
-            type="info"
+            :icon="(false) ? undefined : () => null"
+            :theme="'info'"
           >
-            <template #title>
+            <template #message>
               <div>
                 <i class="bk-icon icon-info"></i>
                 <span>
@@ -57,7 +57,7 @@
                 </span>
               </div>
             </template>
-          </bk-alert>
+          </t-alert>
           <div class="config-cluster-title justify-bt">
             <div>
               <span class="title">{{ $t('选择{n}范围', { n: isNode ? 'Node' : 'Container' }) }}</span>
@@ -214,15 +214,15 @@
                   v-bk-tooltips.top="{ content: $t('请先选择集群'), delay: 500 }"
                   :disabled="!!formData.bcs_cluster_id"
                 >
-                  <bk-button
+                  <t-button :variant="(true) ? 'outline' : 'base'"
                     :disabled="!formData.bcs_cluster_id"
-                    icon="plus"
+                    
                     size="small"
                     theme="primary"
-                    outline
-                  >
+                    
+                  ><template #icon><span :class="`bk-icon icon-${'plus'}`"></span></template>
                     {{ $t('添加范围') }}
-                  </bk-button>
+                  </t-button>
                 </div>
               </div>
             </template>

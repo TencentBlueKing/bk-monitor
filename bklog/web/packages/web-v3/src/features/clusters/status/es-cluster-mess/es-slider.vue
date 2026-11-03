@@ -40,9 +40,10 @@
       @animation-end="updateIsShow"
     >
       <template #content>
-        <div
-          v-bkloading="{ isLoading: sliderLoading }"
+        <bklog-loading
           class="king-slider-content"
+          data-testid="cluster-slider-loading"
+          :loading="sliderLoading"
         >
           <bk-form
             v-if="!sliderLoading"
@@ -59,12 +60,12 @@
               property="cluster_name"
               required
             >
-              <bk-input
+              <t-input
                 v-model="basicFormData.cluster_name"
                 :readonly="isEdit"
                 data-test-id="esAccessFromBox_input_fillName"
                 maxlength="50"
-              ></bk-input>
+              ></t-input>
             </bk-form-item>
             <!-- 来源 es地址 -->
             <div class="form-item-container">
@@ -95,12 +96,12 @@
                 property="domain_name"
                 required
               >
-                <bk-input
+                <t-input
                   v-model="basicFormData.domain_name"
                   class="address-input"
                   :readonly="isEdit"
                   data-test-id="esAccessFromBox_input_fillDomainName"
-                ></bk-input>
+                ></t-input>
               </bk-form-item>
             </div>
             <!-- 端口  协议 -->
@@ -144,23 +145,23 @@
             <!-- 用户名 密码 -->
             <div class="form-item-container">
               <bk-form-item :label="$t('用户名')">
-                <bk-input
+                <t-input
                   v-model="basicFormData.auth_info.username"
                   data-test-id="esAccessFromBox_input_fillUsername"
-                ></bk-input>
+                ></t-input>
               </bk-form-item>
               <bk-form-item :label="$t('密码')">
-                <bk-input
+                <t-input
                   v-model="basicFormData.auth_info.password"
                   data-test-id="esAccessFromBox_input_fillPassword"
                   type="password"
-                ></bk-input>
+                ></t-input>
               </bk-form-item>
             </div>
             <!-- 连通性测试 -->
             <bk-form-item label="">
               <div class="test-container">
-                <bk-button
+                <t-button
                   :loading="connectLoading"
                   data-test-id="esAccessFromBox_button_connectivityTest"
                   theme="primary"
@@ -168,7 +169,7 @@
                   @click="handleTestConnect"
                 >
                   {{ $t('连通性测试') }}
-                </bk-button>
+                </t-button>
                 <div
                   v-if="connectResult === 'success'"
                   class="success-text"
@@ -206,16 +207,16 @@
                 style="margin-top: 4px"
                 :label="$t('可见范围')"
               >
-                <bk-radio-group v-model="formData.visible_config.visible_type">
-                  <bk-radio
+                <t-radio-group v-model="formData.visible_config.visible_type">
+                  <t-radio
                     v-for="item of visibleScopeSelectList"
                     :key="item.id"
                     class="scope-radio"
                     :value="item.id"
                   >
                     {{ item.name }}
-                  </bk-radio>
-                </bk-radio-group>
+                  </t-radio>
+                </t-radio-group>
                 <bk-select
                   v-show="!scopeValueType"
                   v-model="visibleBkBiz"
@@ -232,16 +233,16 @@
                   <template #trigger>
                     <div class="visible-scope-box">
                       <div class="selected-tag">
-                        <bk-tag
+                        <t-tag variant="light" data-v2-display="tag"
                           v-for="(tag, index) in visibleList"
                           :key="tag.id"
                           v-bk-tooltips="inUseProjectPopover(tag.is_use)"
                           :class="`tag-icon ${tag.is_use ? 'is-active' : 'is-normal'}`"
                           :closable="!tag.is_use"
-                          @close="handleDeleteTag(index)"
+                          @close="({e}) => handleDeleteTag(index)"
                         >
                           {{ tag.name }}
-                        </bk-tag>
+                        </t-tag>
                       </div>
                       <span
                         v-if="!visibleList.length"
@@ -409,13 +410,12 @@
                 :label="$t('冷热数据')"
               >
                 <div class="form-flex-container">
-                  <bk-switcher
+                  <t-switch
                     v-model="formData.enable_hot_warm"
                     :disabled="isDisableHotSetting"
                     size="large"
-                    theme="primary"
                     @change="handleChangeHotWarm"
-                  ></bk-switcher>
+                  ></t-switch>
                   <template v-if="isDisableHotSetting && !connectLoading">
                     <span class="bk-icon icon-info"></span>
                     <span style="font-size: 12px">{{ $t('没有获取到正确的标签，') }}</span>
@@ -495,11 +495,10 @@
               <div class="form-item-container">
                 <bk-form-item :label="$t('日志归档')">
                   <div class="document-container">
-                    <bk-switcher
+                    <t-switch
                       v-model="formData.enable_archive"
                       size="large"
-                      theme="primary"
-                    ></bk-switcher>
+                    ></t-switch>
                     <div
                       v-if="archiveDocUrl"
                       class="check-document button-text"
@@ -514,11 +513,10 @@
                   v-if="isItsm"
                   :label="$t('容量评估')"
                 >
-                  <bk-switcher
+                  <t-switch
                     v-model="formData.enable_assessment"
                     size="large"
-                    theme="primary"
-                  ></bk-switcher>
+                  ></t-switch>
                 </bk-form-item>
               </div>
               <!-- 集群负责人 -->
@@ -555,7 +553,7 @@
           </bk-form>
 
           <div class="submit-container">
-            <bk-button
+            <t-button
               class="king-button mr10"
               :disabled="isDisableClickSubmit"
               :loading="confirmLoading"
@@ -564,14 +562,14 @@
               @click.stop.prevent="handleConfirm"
             >
               {{ $t('提交') }}
-            </bk-button>
-            <bk-button
+            </t-button>
+            <t-button
               data-test-id="esAccessFromBox_button_cancel"
               @click="handleCancel"
-              >{{ $t('取消') }}</bk-button
+              >{{ $t('取消') }}</t-button
             >
           </div>
-        </div>
+        </bklog-loading>
       </template>
     </bk-sideslider>
     <!-- 查看实例列表弹窗 -->
@@ -584,13 +582,17 @@
   </div>
 </template>
 
-<script>import { ServicesInstance } from '@/platform/services';
+<script>
+import { overlayRegistry } from '@/shared/global/overlay/overlay-registry';
+import { MessagePlugin as TDesignMessage } from 'tdesign-vue-next';
+import { ServicesInstance } from '@/platform/services';
 
   import { computed, getCurrentInstance } from 'vue';
   import { useSidebarDiff } from '@/shared/composables/use-sidebar-diff';
   import { useSpaceSelector } from '@/shared/composables/use-space-selector';
   import { isFeatureToggleOn } from '@/shared/composables/use-feature-toggle';
   import { mapState, mapGetters } from '@/app/state/map-helpers';
+  import BklogLoading from '@/shared/ui/loading';
   import ValidateUserSelector from '@/shared/ui/user-selector/index';
 
   import EsDialog from './es-dialog';
@@ -618,6 +620,7 @@
 
     components: {
       EsDialog,
+      BklogLoading,
       ValidateUserSelector,
     },
     props: {
@@ -895,7 +898,7 @@
     },
     methods: {
       handleShowSlider() {
-        this.selectZIndex = window.__bk_zIndex_manager.nextZIndex();
+        this.selectZIndex = overlayRegistry.nextZIndex();
       },
       updateIsShow() {
         this.$emit('hidden');
@@ -1152,11 +1155,7 @@
             data: postData,
             params: paramsData,
           });
-          this.$bkMessage({
-            theme: 'success',
-            message: this.$t('保存成功'),
-            delay: 1500,
-          });
+          TDesignMessage("success", { content: this.$t('保存成功'), duration: 1500 });
           this.$emit('updated');
         } catch (e) {
           console.warn(e);
@@ -1332,10 +1331,7 @@
           !this.bkBizLabelsList.length &&
           (messageType = this.$t('可见类型为多业务时，可见业务范围不能为空'));
         if (messageType) {
-          this.$bkMessage({
-            theme: 'error',
-            message: messageType,
-          });
+          TDesignMessage("error", { content: messageType });
           return false;
         }
         return true;
@@ -1388,7 +1384,7 @@
       .selected-tag {
         max-width: 94%;
 
-        .bk-tag {
+        .t-tag {
           position: relative;
           padding-left: 18px;
           margin-left: 10px;
@@ -1592,11 +1588,11 @@
       @include flex-justify(space-between);
 
       .bk-select,
-      .bk-form-control {
+      .t-input__wrap {
         flex: 1;
       }
 
-      :deep(.bk-form-input) {
+      :deep(.t-input__inner) {
         height: 34px;
       }
     }

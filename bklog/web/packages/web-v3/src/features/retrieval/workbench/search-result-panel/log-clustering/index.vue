@@ -56,32 +56,32 @@
         v-if="isShowGroupTag"
         style="margin: 0 0 16px -6px"
       >
-        <bk-tag v-if="getDimensionStr">
+        <t-tag variant="light" data-v2-display="tag" v-if="getDimensionStr">
           {{ getDimensionStr }}
-        </bk-tag>
-        <bk-tag
+        </t-tag>
+        <t-tag variant="light" data-v2-display="tag"
           v-if="getGroupStr"
           closable
-          @close="handleCloseGroupTag"
+          @close="({e}) => handleCloseGroupTag(e)"
         >
           {{ getGroupStr }}
-        </bk-tag>
-        <bk-tag
+        </t-tag>
+        <t-tag variant="light" data-v2-display="tag"
           v-if="getYearStr"
           closable
-          @close="handleCloseYearTag"
+          @close="({e}) => handleCloseYearTag(e)"
         >
           {{ getYearStr }}
-        </bk-tag>
+        </t-tag>
       </div>
 
-      <bk-alert
+      <t-alert data-v2-display="alert"
         v-if="clusterSwitch && !exhibitAll"
-        :title="$t('日志聚类必需至少有一个text类型的字段，当前无该字段类型，请前往日志清洗进行设置。')"
-        type="info"
-        closable
+        :message="$t('日志聚类必需至少有一个text类型的字段，当前无该字段类型，请前往日志清洗进行设置。')"
+        :theme="'info'"
+        :close-btn="true"
       >
-      </bk-alert>
+      </t-alert>
 
       <template v-if="exhibitAll">
         <clustering-loader
@@ -757,7 +757,7 @@
       @include flex-justify(space-between);
     }
 
-    .bk-alert {
+    .t-alert {
       margin-bottom: 16px;
     }
   }

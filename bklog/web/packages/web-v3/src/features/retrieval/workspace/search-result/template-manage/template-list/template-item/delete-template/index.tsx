@@ -1,3 +1,5 @@
+
+import { MessagePlugin as TDesignMessage, Button as TButton } from 'tdesign-vue-next';
 import { ServicesInstance } from '@/platform/services';
 /*
  * Tencent is pleased to support the open source community by making
@@ -27,7 +29,7 @@ import { ServicesInstance } from '@/platform/services';
 
 import { defineComponent, PropType, ref } from 'vue';
 import useLocale from '@/shared/composables/use-locale';
-import { bkMessage } from 'bk-magic-vue';
+
 
 import { type TemplateItem } from '../../../index';
 import './index.scss';
@@ -56,10 +58,7 @@ export default defineComponent({
         })
         .then(res => {
           if (res.code === 0) {
-            bkMessage({
-              theme: 'success',
-              message: t('操作成功'),
-            });
+            TDesignMessage("success", { content: t('操作成功') });
             emit('success');
           }
         })
@@ -93,7 +92,7 @@ export default defineComponent({
           </i18n>
         </div>
         <div class='operate-btns'>
-          <bk-button
+          <TButton
             theme='primary'
             class='confirm-btn'
             size='small'
@@ -101,14 +100,14 @@ export default defineComponent({
             onClick={handleConfirm}
           >
             {t('删除')}
-          </bk-button>
-          <bk-button
+          </TButton>
+          <TButton
             size='small'
             class='cancel-btn'
             onClick={handleCancel}
           >
             {t('取消')}
-          </bk-button>
+          </TButton>
         </div>
       </div>
     );

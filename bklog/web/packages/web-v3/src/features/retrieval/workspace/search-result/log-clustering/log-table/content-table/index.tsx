@@ -1,3 +1,7 @@
+
+import { Switch as TSwitch } from 'tdesign-vue-next';
+
+import { MessagePlugin as TDesignMessage } from 'tdesign-vue-next';
 import { ServicesInstance } from '@/platform/services';
 /*
  * Tencent is pleased to support the open source community by making
@@ -26,13 +30,13 @@ import { ServicesInstance } from '@/platform/services';
  */
 
 import { computed, defineComponent, isRef, nextTick, onBeforeUnmount, onMounted, ref, type PropType } from 'vue';
-import TextHighlight from 'vue-text-highlight';
+import TextHighlight from '@/shared/ui/text-highlight';
 
 import useLocale from '@/shared/composables/use-locale';
 import useStore from '@/shared/composables/use-store';
 // import { BK_LOG_STORAGE } from '@/app/state/store.type.ts';
 import BkUserSelector from '@blueking/user-selector';
-import { bkMessage } from 'bk-magic-vue';
+
 import { bkInfoBox as bkInfoBox } from '@/platform/compat/tdesign/info-box';
 import { createRawTippyOverlay } from '@/shared/global/overlay/index';
 
@@ -317,10 +321,7 @@ export default defineComponent({
       currentRowId.value = row.id;
       // 当创建告警策略开启时，不允许删掉最后一个责任人
       if (row.strategy_enabled && !val?.length) {
-        bkMessage({
-          theme: 'error',
-          message: t('删除失败，开启告警时，需要至少一个责任人'),
-        });
+        TDesignMessage("error", { content: t('删除失败，开启告警时，需要至少一个责任人') });
         return;
       }
       ServicesInstance.logClustering.setOwner({
@@ -338,10 +339,7 @@ export default defineComponent({
           if (res.result) {
             const { owners } = res.data;
             updateTableRowData(row, 'owners', owners);
-            bkMessage({
-              theme: 'success',
-              message: t('操作成功'),
-            });
+            TDesignMessage("success", { content: t('操作成功') });
           }
         });
     };
@@ -359,10 +357,7 @@ export default defineComponent({
       if (row.strategy_enabled && !owners.length) {
         // 开启告警时需至少一个责任人：回滚本地改动，不发请求
         updateTableRowData(row, 'owners', [...editingOwnerPrevOwners.value]);
-        bkMessage({
-          theme: 'error',
-          message: t('删除失败，开启告警时，需要至少一个责任人'),
-        });
+        TDesignMessage("error", { content: t('删除失败，开启告警时，需要至少一个责任人') });
       } else if (owners.join(',') !== editingOwnerPrevOwners.value.join(',')) {
         handleChangePrincipal(owners, row);
       }
@@ -389,10 +384,7 @@ export default defineComponent({
         .then(res => {
           if (res.result) {
             const { strategy_id } = res.data;
-            bkMessage({
-              theme: 'success',
-              message: t('操作成功'),
-            });
+            TDesignMessage("success", { content: t('操作成功') });
             updateTableRowData(row, 'strategy_id', strategy_id);
             updateTableRowData(row, 'strategy_enabled', enabled);
           }
@@ -759,10 +751,10 @@ export default defineComponent({
               <div class='create-strategy-main'>
                 {getOwners(row.data).length > 0 ? (
                   <div class='is-able'>
-                    <bk-switcher
-                      theme='primary'
+                    <TSwitch
+                      
                       value={row.data?.strategy_enabled}
-                      onChange={(val: boolean) => changeStrategy(val, row.data)}
+                      onChange={(value) => { if (typeof value === 'boolean') ((val: boolean) => changeStrategy(val, row.data))(value); }}
                     />
                     {row.data?.strategy_id > 0 && (
                       <span onClick={() => handleStrategyInfoClick(row.data)}>
@@ -774,9 +766,9 @@ export default defineComponent({
                     )}
                   </div>
                 ) : (
-                  <bk-switcher
+                  <TSwitch
                     v-bk-tooltips={t('暂无配置责任人，无法自动创建告警策略')}
-                    theme='primary'
+                    
                     value={row.data?.strategy_enabled}
                     disabled
                   />

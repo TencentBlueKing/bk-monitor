@@ -1,3 +1,7 @@
+
+import { Checkbox as TCheckbox, CheckboxGroup as TCheckboxGroup } from 'tdesign-vue-next';
+
+import { MessagePlugin as TDesignMessage } from 'tdesign-vue-next';
 import { ServicesInstance } from '@/platform/services';
 /*
  * Tencent is pleased to support the open source community by making
@@ -28,7 +32,7 @@ import { ServicesInstance } from '@/platform/services';
 import { Component, ModelSync, Watch, Emit } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
-import { bkDialog as Dialog, bkTable as Table } from 'bk-magic-vue';
+import { bkDialog as Dialog, bkTable as Table } from '@/platform/compat/tdesign/magic-controls';
 
 import './index.scss';
 
@@ -203,17 +207,11 @@ export default class IndexImportModal extends tsc<IProps> {
   handleConfirmDialog() {
     if (!(this.currentCheckImportID && this.syncType.length)) {
       if (!this.currentCheckImportID) {
-        this.$bkMessage({
-          theme: 'error',
-          message: $i18n.t('请选择目标索引集'),
-        });
+        TDesignMessage("error", { content: $i18n.t('请选择目标索引集') });
       }
       if (!this.syncType.length) {
         setTimeout(() => {
-          this.$bkMessage({
-            theme: 'error',
-            message: $i18n.t('请选择需要同步的配置'),
-          });
+          TDesignMessage("error", { content: $i18n.t('请选择需要同步的配置') });
         }, 100);
       }
       return;
@@ -261,7 +259,7 @@ export default class IndexImportModal extends tsc<IProps> {
     const checkBoxSlot = {
       default: ({ row }) => (
         <div class='import-check-box'>
-          <bk-checkbox
+          <TCheckbox
             class='group-check-box'
             checked={this.getCheckedStatus(row)}
           />
@@ -294,17 +292,17 @@ export default class IndexImportModal extends tsc<IProps> {
           >
             <bk-form-item required={true}>
               <div class='top-sync-select'>
-                <bk-checkbox-group v-model={this.syncType}>
+                <TCheckboxGroup v-model={this.syncType}>
                   {this.syncTypeList.map(item => (
-                    <bk-checkbox
+                    <TCheckbox
                       key={item.id}
                       style='margin-right: 24px;'
                       value={item.id}
                     >
                       {item.name}
-                    </bk-checkbox>
+                    </TCheckbox>
                   ))}
-                </bk-checkbox-group>
+                </TCheckboxGroup>
                 <bk-input
                   v-model={this.searchKeyword}
                   placeholder={$i18n.t('搜索名称')}

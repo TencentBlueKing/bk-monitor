@@ -41,11 +41,11 @@
       <div class="select-title">
         <div class="server-info">{{ $t('共 {n} 台', { n: selectedIpNodes.length }) }}：</div>
         <div class="server-options">
-          <bk-button @click="copyIp">{{ $t('复制IP') }}</bk-button>
-          <bk-button
+          <t-button @click="copyIp">{{ $t('复制IP') }}</t-button>
+          <t-button
             theme="danger"
             @click="clearIp"
-            >{{ $t('清空IP') }}</bk-button
+            >{{ $t('清空IP') }}</t-button
           >
         </div>
       </div>
@@ -91,10 +91,10 @@
               align="center"
             >
               <template #default="scope">
-                <bk-button
-                  text
+                <t-button :variant="(true) ? 'text' : ('base')"
+                  
                   @click="handleRemoveIp(scope)"
-                  >{{ $t('移除') }}</bk-button
+                  >{{ $t('移除') }}</t-button
                 >
               </template>
             </bk-table-column>
@@ -275,7 +275,7 @@
       margin-bottom: 4px;
       font-size: 14px;
 
-      .server-options .bk-button {
+      .server-options .t-button {
         margin-left: 10px;
       }
     }

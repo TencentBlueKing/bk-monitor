@@ -1,3 +1,5 @@
+
+import { Button as TButton } from 'tdesign-vue-next';
 import { ServicesInstance } from '@/platform/services';
 /*
  * Tencent is pleased to support the open source community by making
@@ -298,7 +300,7 @@ export default defineComponent({
     const renderTools = () => {
       return (
         <div class='sql-editor-tools'>
-          <bk-button
+          <TButton
             class='sql-editor-query-button'
             v-bk-tooltips={{ content: $t('查询'), theme: 'light' }}
             loading={isRequesting.value}
@@ -307,8 +309,8 @@ export default defineComponent({
             onClick={handleQueryBtnClick}
           >
             <i class='bklog-icon bklog-bofang' />
-          </bk-button>
-          <bk-button
+          </TButton>
+          <TButton
             class='sql-editor-view-button'
             v-bk-tooltips={{ content: $t('中止'), theme: 'light' }}
             disabled={!isRequesting.value}
@@ -316,7 +318,7 @@ export default defineComponent({
             onClick={handleStopBtnClick}
           >
             <i class='bk-icon icon-stop-shape' />
-          </bk-button>
+          </TButton>
 
           <BookmarkPop
             class='bklog-sqleditor-bookmark'

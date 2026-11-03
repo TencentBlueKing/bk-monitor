@@ -1,3 +1,7 @@
+
+import { Checkbox as TCheckbox } from 'tdesign-vue-next';
+
+import { Button as TButton } from 'tdesign-vue-next';
 /*
  * Tencent is pleased to support the open source community by making
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
@@ -102,22 +106,22 @@ export default defineComponent({
             ),
             extension: () => (
               <div class='operate-btns'>
-                <bk-button
+                <TButton
                   size='small'
                   theme='primary'
-                  text
-                  onClick={handleConfirm}
+                  
+                  onClick={handleConfirm} variant={(true) ? 'text' : ('base')}
                 >
                   {t('确定')}
-                </bk-button>
-                <bk-button
+                </TButton>
+                <TButton
                   size='small'
                   theme='primary'
-                  text
-                  onClick={handleReset}
+                  
+                  onClick={handleReset} variant={(true) ? 'text' : ('base')}
                 >
                   {t('重置')}
-                </bk-button>
+                </TButton>
               </div>
             ),
           }}
@@ -138,7 +142,7 @@ export default defineComponent({
               id={option.id}
               name={option.name}
             >
-              <bk-checkbox checked={localValue.value.includes(option.id)} />
+              <TCheckbox checked={localValue.value.includes(option.id)} />
               <span
                 v-bk-tooltips={{
                   content: option.name,

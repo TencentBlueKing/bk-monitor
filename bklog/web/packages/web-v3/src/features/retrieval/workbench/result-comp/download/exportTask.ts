@@ -1,3 +1,4 @@
+import { MessagePlugin as TDesignMessage, DialogPlugin as TDesignDialog } from 'tdesign-vue-next';
 import type { ServiceOperation } from '@/platform/services/runtime/service-client';
 import { ServicesInstance } from '@/platform/services';
 /*
@@ -37,8 +38,6 @@ export const EXPORT_SUBMITTED_MESSAGE = '任务提交成功，下载完成将会
 
 interface ExportSubmitContext {
   $t: (key: string, values?: Record<string, string>) => string;
-  $bkInfo: (options: Record<string, any>) => void;
-  $bkMessage: (options: Record<string, any>) => void;
 }
 
 /** 后端预检排序，确认前不创建任务；始终提交独立快照，不能修改页面或历史记录的排序。 */
@@ -56,20 +55,25 @@ export async function submitExportWithSortConfirmation(
   const sortDescription = sortList
     .map(([field, direction]) => `${field} ${context.$t(direction === 'desc' ? '降序' : '升序')}`)
     .join(' → ');
-  const confirmed = await new Promise<boolean>(resolve => {
-    context.$bkInfo({
-      type: 'warning',
-      title: context.$t('确认调整导出排序'),
-      subTitle: context.$t(
+  const confirmed = await new Promise<boolean>((resolve) => {
+    let dialog: ReturnType<typeof TDesignDialog.confirm> | undefined;
+    const settle = (confirmed: boolean) => {
+      resolve(confirmed);
+      dialog?.destroy();
+    };
+    dialog = TDesignDialog.confirm({
+      attach: 'body',
+      theme: 'warning',
+      header: context.$t('确认调整导出排序'),
+      body: context.$t(
         '为支持分片并行导出，将优先按日志时间降序排列，同一时间内保留其他字段的排序规则。筛选条件、导出字段和数据范围不变。实际导出排序：{sort}',
         { sort: sortDescription },
       ),
-      okText: context.$t('按此排序导出'),
-      maskClose: false,
-      confirmFn: () => resolve(true),
-      cancelFn: () => resolve(false),
-      closeFn: () => resolve(false),
-      afterLeaveFn: () => resolve(false),
+      confirmBtn: context.$t('按此排序导出'),
+      closeOnOverlayClick: false,
+      onConfirm: () => settle(true),
+      onClose: () => settle(false),
+      onClosed: () => resolve(false),
     });
   });
   if (!confirmed) return null;
@@ -78,7 +82,7 @@ export async function submitExportWithSortConfirmation(
   const result = await operation(request);
   // 不循环确认或静默创建：路由配置变化时应重新打开导出流程。
   if (result.data?.requires_sort_confirmation) {
-    context.$bkMessage({ theme: 'error', message: context.$t('导出排序已变化，请重新提交并确认') });
+    TDesignMessage('error', { content: context.$t('导出排序已变化，请重新提交并确认') });
     return null;
   }
   return result;
@@ -102,12 +106,12 @@ export function getExportDownloadFileName(
       ? task.log_index_set_ids
       : task.search_dict.index_set_ids?.length
         ? task.search_dict.index_set_ids
-        : task.search_dict.union_configs?.map((item: { index_set_id: any; }) => item.index_set_id) || [];
+        : task.search_dict.union_configs?.map((item: { index_set_id: any }) => item.index_set_id) || [];
     return indexSetIds.length ? `bk_log_union_search_${indexSetIds.join('_')}.log` : 'bk_log_union_search.log';
   }
 
   const indexSetId = task.log_index_set_id ?? task.search_dict.index_set_id ?? task.search_dict.index_set_ids?.[0];
-  const lightName = indexSetList.find(item => String(item.index_set_id) === String(indexSetId))?.lightenName;
+  const lightName = indexSetList.find((item) => String(item.index_set_id) === String(indexSetId))?.lightenName;
   const name = lightName?.substring(2, lightName.length - 1);
   return name ? `bk_log_search_${name}.log` : 'bk_log_search.log';
 }
@@ -119,8 +123,12 @@ export function buildExportRetryRequest(task: ExportTask) {
   const isSync = task.engine !== 'sharded' && task.export_type === 'sync';
   const config: { data: Record<string, any>; params?: { index_set_id: number | string } } = { data };
   let url: string;
-  const service = type === 'scene' ? ServicesInstance.retrieve.getSceneAsyncExport
-    : type === 'union' ? ServicesInstance.retrieve.unionExportAsync : ServicesInstance.retrieve.exportAsync;
+  const service =
+    type === 'scene'
+      ? ServicesInstance.retrieve.getSceneAsyncExport
+      : type === 'union'
+        ? ServicesInstance.retrieve.unionExportAsync
+        : ServicesInstance.retrieve.exportAsync;
 
   if (type === 'scene') {
     url = isSync ? '/search/scene/export/sample/' : service.id;
@@ -129,7 +137,7 @@ export function buildExportRetryRequest(task: ExportTask) {
       if (!data.index_set_ids?.length) {
         data.index_set_ids = task.log_index_set_ids?.length
           ? cloneDeep(task.log_index_set_ids)
-          : data.union_configs?.map((item: { index_set_id: any; }) => item.index_set_id);
+          : data.union_configs?.map((item: { index_set_id: any }) => item.index_set_id);
       }
       url = '/search/index_set/union_search/export/';
     } else {

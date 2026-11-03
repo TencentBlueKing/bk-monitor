@@ -61,8 +61,8 @@
           align-items: center;
         }
 
-        .is-input-error.bk-form-control {
-          .bk-form-input {
+        .is-input-error.t-input__wrap {
+          .t-input__inner {
             /* stylelint-disable-next-line declaration-no-important */
             border-color: #ff5656 !important;
           }

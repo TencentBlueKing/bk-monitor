@@ -32,7 +32,7 @@ import vueJsx from '@vitejs/plugin-vue-jsx';
 import base from './vite.base.config';
 const here = dirname(fileURLToPath(import.meta.url));
 const sourceRoot = resolve(here, 'src');
-const require = createRequire(resolve(here, '../../package.json'));
+const require = createRequire(resolve(here, 'package.json'));
 const { parse: preprocess } = require('ifdef-loader/preprocessor');
 const app = process.env.MONITOR_APP || 'log';
 const nativeConfig = mergeConfig(base, defineConfig({
@@ -49,6 +49,9 @@ const nativeConfig = mergeConfig(base, defineConfig({
    },
  }, vueJsx()],
  resolve: { extensions: ['.mjs', '.js', '.mts', '.ts', '.jsx', '.tsx', '.json', '.vue'], alias: [
+   { find: /^bkui-vue\/lib\/icon$/, replacement: resolve(sourceRoot, 'platform/compat/tdesign/bkui-icons.ts') },
+   { find: /^bkui-vue\/lib\/form$/, replacement: resolve(sourceRoot, 'platform/compat/tdesign/bkui-vue.ts') },
+   { find: /^bkui-vue$/, replacement: resolve(sourceRoot, 'platform/compat/tdesign/bkui-vue.ts') },
    { find: '@', replacement: sourceRoot },
    { find: /^path$/, replacement: require.resolve('path-browserify') },
    { find: /^vue$/, replacement: resolve(here, 'node_modules/vue/dist/vue.runtime.esm-bundler.js') },

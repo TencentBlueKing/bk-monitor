@@ -1,3 +1,4 @@
+import { Input as TInput, Tooltip as TTooltip } from 'tdesign-vue-next';
 import { ServicesInstance } from '@/platform/services';
 import { asDictionary } from '@/shared/utils/typed-record';
 /*
@@ -35,7 +36,6 @@ import RetrieveHelper, { RetrieveEvent } from '@/features/retrieval/retrieve-hel
 import DOMPurify from 'dompurify';
 import { escape as _escape } from 'lodash-es';
 
-
 import store from '@/app/state/index';
 import { BK_LOG_STORAGE } from '../../../../app/state/store.type.ts';
 
@@ -48,17 +48,22 @@ const OPERATOR_MAPPING = asDictionary({
 });
 
 interface AggChartProps {
-  "fieldName": string;
-  "fieldType": string;
-  "parentExpand"?: boolean;
-  "retrieveParams": any;
-  "isFrontStatistics"?: boolean;
-  "statisticalFieldData"?: any;
-  "limit"?: number;
-  "colorList"?: string[];
-  "showSearchKeyword"?: boolean;
-  "onDistinctCount"?: (value: number, arg0: number) => void;
-  "onAddCondition"?: (value: { operator: string; value: any; fieldName: string; }, arg0: string, arg1: any, arg2: string) => void;
+  fieldName: string;
+  fieldType: string;
+  parentExpand?: boolean;
+  retrieveParams: any;
+  isFrontStatistics?: boolean;
+  statisticalFieldData?: any;
+  limit?: number;
+  colorList?: string[];
+  showSearchKeyword?: boolean;
+  onDistinctCount?: (value: number, arg0: number) => void;
+  onAddCondition?: (
+    value: { operator: string; value: any; fieldName: string },
+    arg0: string,
+    arg1: any,
+    arg2: string,
+  ) => void;
 }
 
 @Component
@@ -107,7 +112,7 @@ export default class AggChart extends tsc<AggChartProps> {
       .map(([key, value]) => {
         const markList = key.toString().match(/(<mark>).*?(<\/mark>)/g) || [];
         if (markList.length) {
-          return [markList.map(m => m.replace(/<mark>/g, '').replace(/<\/mark>/g, '')).join(','), value] as [
+          return [markList.map((m) => m.replace(/<mark>/g, '').replace(/<\/mark>/g, '')).join(','), value] as [
             string,
             unknown,
           ];
@@ -143,7 +148,7 @@ export default class AggChart extends tsc<AggChartProps> {
   }
 
   get filterList() {
-    return this.showFiveList?.filter(item => item[0]?.includes(this.searchKeyword)) || [];
+    return this.showFiveList?.filter((item) => item[0]?.includes(this.searchKeyword)) || [];
   }
 
   @Watch('watchQueryParams', { deep: true })
@@ -197,7 +202,7 @@ export default class AggChart extends tsc<AggChartProps> {
   }
 
   // 添加查询条件
-  addCondition = (operator: string, value: any, fieldName: string) => {
+  addCondition(operator: string, value: any, fieldName: string) {
     if (this.fieldType === '__virtual__') {
       return;
     }
@@ -231,7 +236,7 @@ export default class AggChart extends tsc<AggChartProps> {
             this.emitAddCondition(operator, value, fieldName);
           });
       });
-  };
+  }
 
   // 获取工具提示内容
   getIconPopover = (operator: string, value: any, fieldName: string) => {
@@ -252,16 +257,18 @@ export default class AggChart extends tsc<AggChartProps> {
 
     if (this.searchMode === 0) {
       const mappedOperator = OPERATOR_MAPPING[operator] || operator;
-      return store.getters.retrieveParams?.addition?.some((addition: { field: string; operator: any; value: { toString: () => any; }; }) => {
-        return (
-          addition.field === fieldName &&
-          addition.operator === mappedOperator &&
-          addition.value.toString() === value.toString()
-        );
-      });
+      return store.getters.retrieveParams?.addition?.some(
+        (addition: { field: string; operator: any; value: { toString: () => any } }) => {
+          return (
+            addition.field === fieldName &&
+            addition.operator === mappedOperator &&
+            addition.value.toString() === value.toString()
+          );
+        },
+      );
     }
 
-    const formatJsonString = (formatResult: string|Node) => {
+    const formatJsonString = (formatResult: string | Node) => {
       if (typeof formatResult === 'string') {
         return DOMPurify.sanitize(formatResult);
       }
@@ -330,7 +337,9 @@ export default class AggChart extends tsc<AggChartProps> {
         ...(isScene ? {} : { index_set_ids: indexSetIDs }),
       };
 
-      const urlStr = (isScene ? ServicesInstance.retrieve.getSceneFieldFetchTopList : ServicesInstance.retrieve.fieldFetchTopList);
+      const urlStr = isScene
+        ? ServicesInstance.retrieve.getSceneFieldFetchTopList
+        : ServicesInstance.retrieve.fieldFetchTopList;
       const res = await urlStr({ data });
 
       if (res.code === 0) {
@@ -350,20 +359,19 @@ export default class AggChart extends tsc<AggChartProps> {
       <div class='retrieve-v2 field-data'>
         {this.showSearchKeyword ? (
           <div style={{ marginBottom: '10px' }}>
-            <bk-input
-              v-model={this.searchKeyword}
+            <TInput
+              value={this.searchKeyword}
+              onChange={(value) => {
+                this.searchKeyword = String(value ?? '');
+              }}
               placeholder={this.$t('搜索')}
               clearable
-              right-icon='icon-search'
+              suffixIcon={() => <i class='bklog-icon bklog-search' />}
             />
           </div>
         ) : null}
         {this.listLoading ? (
-          <ItemSkeleton
-            columns={2}
-            rows={this.limit > 6 ? Math.ceil(this.limit / 8) : 2}
-            widths={['10%', '90%']}
-          />
+          <ItemSkeleton columns={2} rows={this.limit > 6 ? Math.ceil(this.limit / 8) : 2} widths={['10%', '90%']} />
         ) : this.filterList.length ? (
           <ul class='chart-list'>
             {this.filterList.map((item, index) => {
@@ -374,31 +382,34 @@ export default class AggChart extends tsc<AggChartProps> {
               const isNotFiltered = this.filterIsExist('is not', value, this.fieldName);
 
               return (
-                <li
-                  key={`${index}-${value}`}
-                  style={this.getCssVar(index)}
-                  class='chart-item'
-                >
+                <li key={`${index}-${value}`} style={this.getCssVar(index)} class='chart-item'>
                   <div class='operation-container'>
-                    <span
-                      class={['bk-icon icon-enlarge-line', { disable: isFiltered }]}
-                      v-bk-tooltips={this.getIconPopover('=', value, this.fieldName)}
-                      onClick={() => !isFiltered && this.addCondition('is', value, this.fieldName)}
-                    />
-                    <span
-                      class={['bk-icon icon-narrow-line', { disable: isNotFiltered }]}
-                      v-bk-tooltips={this.getIconPopover('!=', value, this.fieldName)}
-                      onClick={() => !isNotFiltered && this.addCondition('is not', value, this.fieldName)}
-                    />
+                    <TTooltip
+                      content={() => (
+                        <span innerHTML={DOMPurify.sanitize(this.getIconPopover('=', value, this.fieldName))} />
+                      )}
+                    >
+                      <span
+                        class={['bk-icon icon-enlarge-line', { disable: isFiltered }]}
+                        onClick={() => !isFiltered && this.addCondition('is', value, this.fieldName)}
+                      />
+                    </TTooltip>
+                    <TTooltip
+                      content={() => (
+                        <span innerHTML={DOMPurify.sanitize(this.getIconPopover('!=', value, this.fieldName))} />
+                      )}
+                    >
+                      <span
+                        class={['bk-icon icon-narrow-line', { disable: isNotFiltered }]}
+                        onClick={() => !isNotFiltered && this.addCondition('is not', value, this.fieldName)}
+                      />
+                    </TTooltip>
                   </div>
                   <div class='chart-content'>
                     <div class='text-container'>
-                      <div
-                        class='text-value'
-                        v-bk-overflow-tips
-                      >
-                        {value}
-                      </div>
+                      <TTooltip content={value}>
+                        <div class='text-value'>{value}</div>
+                      </TTooltip>
                       <div class='percent-value'>
                         <span>
                           {count}
@@ -408,10 +419,7 @@ export default class AggChart extends tsc<AggChartProps> {
                       </div>
                     </div>
                     <div class='percent-bar-container'>
-                      <div
-                        style={{ width: percentValue }}
-                        class='percent-bar'
-                      />
+                      <div style={{ width: percentValue }} class='percent-bar' />
                     </div>
                   </div>
                 </li>

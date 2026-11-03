@@ -1,3 +1,5 @@
+
+import { Checkbox as TCheckbox } from 'tdesign-vue-next';
 /*
  * Tencent is pleased to support the open source community by making
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
@@ -203,24 +205,24 @@ export default defineComponent({
           ))}
         </div>
         <div class='checkbox-group'>
-          <bk-checkbox
-            value={localData.value.add_pod_label}
+          <TCheckbox
+            checked={localData.value.add_pod_label}
             onChange={(val: boolean) => {
               localData.value.add_pod_label = val;
               handleChangeSubmit();
             }}
           >
             {t('自动添加 Pod 中的 label')}
-          </bk-checkbox>
-          <bk-checkbox
-            value={localData.value.add_pod_annotation}
+          </TCheckbox>
+          <TCheckbox
+            checked={localData.value.add_pod_annotation}
             onChange={(val: boolean) => {
               localData.value.add_pod_annotation = val;
               handleChangeSubmit();
             }}
           >
             {t('自动添加 Pod 中的 annotation')}
-          </bk-checkbox>
+          </TCheckbox>
         </div>
       </div>
     );

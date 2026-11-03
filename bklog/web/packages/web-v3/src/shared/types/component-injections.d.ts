@@ -11,7 +11,8 @@ import type { renderHeader, xssFilter } from '@/shared/lib/util';
 import type { createInfoService } from '@/platform/compat/tdesign/info-box-contract';
 
 export interface ApplicationInjections {
-  $bkNotify: typeof import('bk-magic-vue').bkNotify;
+  $bkNotify: typeof import('@/platform/compat/tdesign/magic-controls').bkNotify;
+  $bkLoading: ((options?: { opacity?: number; title?: string; [key: string]: unknown }) => void) & { hide: () => void };
   messageError: typeof import('@/shared/lib/bkmagic').messageError;
   messageSuccess: typeof import('@/shared/lib/bkmagic').messageSuccess;
   messageInfo: typeof import('@/shared/lib/bkmagic').messageInfo;

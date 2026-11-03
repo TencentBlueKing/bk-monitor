@@ -37,12 +37,12 @@
       </div>
       <div class="content">
         <div class="flex-box">
-          <bk-button
+          <t-button
             data-test-id="addNewExtraction_button_selectTheServer"
             size="small"
             theme="primary"
             @click="showSelectDialog = true"
-            >{{ $t('选择服务器') }}</bk-button
+            >{{ $t('选择服务器') }}</t-button
           >
           <div class="select-text">
             <i18n path="已选择{0}个节点">
@@ -117,10 +117,10 @@
     <div class="row-container">
       <div class="title">{{ $t('备注') }}</div>
       <div class="content">
-        <bk-input
+        <t-input
           v-model="remark"
           style="width: 261px"
-        ></bk-input>
+        ></t-input>
       </div>
     </div>
     <div class="row-container">
@@ -145,7 +145,7 @@
     </div>
 
     <div class="button-container">
-      <bk-button
+      <t-button
         style="width: 120px; margin-right: 16px"
         :disabled="canSubmit"
         data-test-id="addNewExtraction_button_submitConfigure"
@@ -153,12 +153,12 @@
         @click="handleSubmit"
       >
         {{ $t('提交下载任务') }}
-      </bk-button>
-      <bk-button
+      </t-button>
+      <t-button
         style="width: 120px"
         data-test-id="addNewExtraction_button_cancel"
         @click="goToHome"
-        >{{ $t('取消') }}</bk-button
+        >{{ $t('取消') }}</t-button
       >
     </div>
   </div>

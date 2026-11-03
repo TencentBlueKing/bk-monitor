@@ -46,16 +46,16 @@
         </template>
       </p> -->
       <div class="result-button-group">
-        <bk-button
+        <t-button
           data-test-id="finishBox_button_backToList"
           @click="routeChange('complete')"
-          >{{ $t('返回列表') }}</bk-button
+          >{{ $t('返回列表') }}</t-button
         >
-        <bk-button
+        <t-button
           data-test-id="finishBox_button_goToSearch"
           theme="primary"
           @click="routeChange('search')"
-          >{{ $t('日志检索') }}</bk-button
+          >{{ $t('日志检索') }}</t-button
         >
       </div>
     </div>
@@ -215,7 +215,7 @@
       margin-top: 36px;
       font-size: 0;
 
-      .bk-button + .bk-button {
+      .t-button + .t-button {
         margin-left: 10px;
       }
     }

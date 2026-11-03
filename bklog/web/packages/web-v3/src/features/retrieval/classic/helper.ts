@@ -218,20 +218,30 @@ export const DATE_HOVER_TOOLTIP_DISMISS_SCRIPT = `(function () {
   document.addEventListener('mouseout', onMouseOut, true);
 })();`;
 
-/**
- * 构建完整的资源 URL
- * @param relativePath 相对路径
- * @param isDev 是否为开发环境, process.env.NODE_ENV === 'development'
- * @returns 完整的资源 URL
- */
-export const getResourceUrl = (relativePath: string) => {
-  // 获取 BK_STATIC_URL，例如: "/static/dist"
-  const bkStaticUrl = (window as any).BK_STATIC_URL || '/static/dist';
+/** V3 同域托管封版 V1；入口和 Webpack 懒加载资源必须使用同一个部署根路径。 */
+export const getLegacyAssetRoot = (base: string, pageHref: string) =>
+  new URL(`${base.replace(/\/?$/, '/')}legacy-v1/assets/`, pageHref).href;
 
-  // 生产环境：根据 BK_STATIC_URL 构建完整路径（V1版本兼容包）
-  // 例如: BK_STATIC_URL = "/static/dist" -> "/static/dist/log-web1-dll/js/main.xxx.js"
-  return `${bkStaticUrl}/log-web1-dll/${relativePath}`;
-};
+export const getResourceUrl = (relativePath: string) =>
+  new URL(relativePath, getLegacyAssetRoot(import.meta.env.BASE_URL, window.location.href)).href;
+
+// The published CSS contains origin-root /fonts URLs. Keep the sealed files intact
+// and use isolated font families so lazy-loaded CSS cannot restore those URLs.
+export const LEGACY_FONT_FACES = [
+  { family: 'bklog-v1-bk', file: 'iconcool2d2b49b.woff', format: 'woff', selector: '.bk-icon' },
+  { family: 'bklog-v1-bklog', file: 'iconcool44e4ccd.woff', format: 'woff', selector: '.bklog-icon' },
+  { family: 'bklog-v1-ipselector', file: 'iconcool.ce0b93a.ce0b93a.woff', format: 'woff', selector: '.bk-ipselector-icon' },
+  { family: 'bklog-v1-codicon', file: 'codiconade7057.ttf', format: 'truetype', selector: '.codicon' },
+  { family: 'Roboto-Regular', file: 'Roboto-Regular2f9dbc9.woff2', format: 'woff2' },
+  { family: 'RobotoMono-Medium', file: 'RobotoMono-Medium907fc45.woff2', format: 'woff2' },
+  { family: 'RobotoMono-Regular', file: 'RobotoMono-Regularf664813.woff2', format: 'woff2' },
+];
+
+export const getLegacyFontStyles = (assetRoot: string) => LEGACY_FONT_FACES.map(font => {
+  const face = `@font-face{font-family:"${font.family}";font-style:normal;font-weight:400;src:url(${JSON.stringify(new URL(`fonts/${font.file}`, assetRoot).href)}) format("${font.format}");}`;
+  const rule = font.selector ? `html body ${font.selector}{font-family:"${font.family}"!important;}` : '';
+  return face + rule;
+}).join('\n');
 
 /**
  * 检查资源是否存在
@@ -254,7 +264,8 @@ export const checkResourceExists = async (url: string, timeout = 5000): Promise<
     })
       .then(response => {
         clearTimeout(timeoutId);
-        resolve(response.ok);
+        // Vite's SPA fallback returns 200 HTML for missing assets.
+        resolve(response.ok && !/text\/html/i.test(response.headers.get('content-type') || ''));
       })
       .catch(() => {
         clearTimeout(timeoutId);
@@ -400,8 +411,8 @@ export const getEnvVariables = (isDev: boolean) => {
     .join('\n    ');
 
   // 设置 webpack public path
-  const publicPath = isDev ? '/log-web1-dll/' : `${(window as any).BK_STATIC_URL}/log-web1-dll/`;
-  envScript += `window.__WEBPACK_PUBLIC_PATH__ = '${publicPath}';`;
+  const publicPath = getLegacyAssetRoot(import.meta.env.BASE_URL, window.location.href);
+  envScript += `window.__WEBPACK_PUBLIC_PATH__ = ${JSON.stringify(publicPath)};`;
 
   return envScript;
 };
@@ -698,6 +709,7 @@ export const generateIframeSrcdoc = (isDev: boolean) => {
     }
   </style>
   <link rel="stylesheet" href="${cssUrl}">
+  <style>${getLegacyFontStyles(getLegacyAssetRoot(import.meta.env.BASE_URL, window.location.href))}</style>
 </head>
 <body>
   <div id="app">

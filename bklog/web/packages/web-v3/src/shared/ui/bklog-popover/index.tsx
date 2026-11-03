@@ -37,7 +37,7 @@ export type BklogPopoverTheme = 'bklog-light' | 'bklog-dark' | 'bklog-basic-ligh
 export default defineComponent({
   props: {
     options: {
-      type: Object as PropType<TippyProps>,
+      type: Object as PropType<Partial<TippyProps>>,
       default: () => ({}),
     },
     trigger: {
@@ -277,7 +277,9 @@ export default defineComponent({
         <div style='display: none;'>
           <div
             ref={refContentElement}
-            class={['bklog-overlay-root', props.contentClass].filter((item): item is NonNullable<typeof item> => Boolean(item)).join(' ')}
+            class={['bklog-overlay-root', props.contentClass]
+              .filter((item): item is NonNullable<typeof item> => Boolean(item))
+              .join(' ')}
             data-overlay-id={resolvedOverlayId}
           >
             {slots.content?.() ?? renderSlot()}

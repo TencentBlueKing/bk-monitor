@@ -1,3 +1,9 @@
+
+import { Input as TInput } from 'tdesign-vue-next';
+
+import { RadioGroup as TRadioGroup, RadioButton as TRadioButton, Checkbox as TCheckbox, Radio as TRadio } from 'tdesign-vue-next';
+
+import { MessagePlugin as TDesignMessage } from 'tdesign-vue-next';
 import { ServicesInstance } from '@/platform/services';
 import { asDictionary } from '@/shared/utils/typed-record';
 /*
@@ -27,7 +33,7 @@ import { asDictionary } from '@/shared/utils/typed-record';
  */
 import BkUserSelector from '@blueking/user-selector';
 import { defineComponent, ref, onMounted, nextTick, watch } from 'vue';
-import { bkMessage } from 'bk-magic-vue';
+
 import useLocale from '@/shared/composables/use-locale';
 
 import dayjs from 'dayjs';
@@ -395,10 +401,7 @@ export default defineComponent({
       // 添加自定义 发送频率 ，如果输入有重复要直接选中。
       let inputNumber = Number(customHourInput.value);
       if (!inputNumber) {
-        return bkMessage({
-          theme: 'warning',
-          message: t('请输入有效数值'),
-        });
+        return TDesignMessage("warning", { content: t('请输入有效数值') });
       }
       const minNum = 0.5;
       const maxNum = 24;
@@ -491,11 +494,11 @@ export default defineComponent({
             property='name'
             required
           >
-            <bk-input
+            <TInput
               style='width: 465px;'
               value={formData.value.name}
-              onChange={(value: string) => (formData.value.name = value)}
-            ></bk-input>
+              onChange={value => ((value: string) => (formData.value.name = value))(String(value))}
+            ></TInput>
           </bk-form-item>
 
           {/* 需要自定义校验规则 */}
@@ -509,14 +512,14 @@ export default defineComponent({
           >
             {props.mode === 'create' && (
               <div>
-                <bk-radio-group
+                <TRadioGroup
                   style='display: inline;'
                   value={formData.value.subscriber_type}
-                  onChange={(value: string) => (formData.value.subscriber_type = value)}
+                  onChange={(value) => { if (typeof value === 'string') ((value: string) => (formData.value.subscriber_type = value))(value); }}
                 >
-                  <bk-radio-button value='self'>{t('仅自己')}</bk-radio-button>
-                  <bk-radio-button value='others'>{t('给他人')}</bk-radio-button>
-                </bk-radio-group>
+                  <TRadioButton value='self'>{t('仅自己')}</TRadioButton>
+                  <TRadioButton value='others'>{t('给他人')}</TRadioButton>
+                </TRadioGroup>
                 {formData.value.subscriber_type === 'others' && (
                   <span style='margin-left: 10px;'>
                     <i
@@ -531,12 +534,12 @@ export default defineComponent({
 
             {formData.value.subscriber_type === 'others' && (
               <div>
-                <bk-checkbox
-                  value={formData.value.channels[0].is_enabled}
+                <TCheckbox
+                  checked={formData.value.channels[0].is_enabled}
                   onChange={(value: unknown) => (formData.value.channels[0].is_enabled = value)}
                 >
                   {t('内部邮件')}
-                </bk-checkbox>
+                </TCheckbox>
                 <br />
                 <div data-is-show-error-msg={String(errorTips.value.user.isShow)}>
                   <bk-user-selector
@@ -568,13 +571,13 @@ export default defineComponent({
                 </div>
 
                 <div style='margin-top: 10px;'>
-                  <bk-checkbox
+                  <TCheckbox
                     style='margin-top: 10px;'
-                    value={formData.value.channels[1].is_enabled}
+                    checked={formData.value.channels[1].is_enabled}
                     onChange={(value: unknown) => (formData.value.channels[1].is_enabled = value)}
                   >
                     {t('外部邮件')}
-                  </bk-checkbox>
+                  </TCheckbox>
                 </div>
                 <div>
                   <bk-popover
@@ -621,13 +624,13 @@ export default defineComponent({
                 {errorTips.value.email.isShow && <div class='form-error-tip'>{errorTips.value.email.message}</div>}
 
                 <div style='margin-top: 10px;'>
-                  <bk-checkbox
+                  <TCheckbox
                     style='margin-top: 10px;'
-                    value={formData.value.channels[2].is_enabled}
+                    checked={formData.value.channels[2].is_enabled}
                     onChange={(value: unknown) => (formData.value.channels[2].is_enabled = value)}
                   >
                     {t('企业微信群')}
-                  </bk-checkbox>
+                  </TCheckbox>
                 </div>
 
                 <div data-is-show-error-msg={String(errorTips.value.wxbot.isShow)}>
@@ -677,15 +680,15 @@ export default defineComponent({
             property='frequency'
             required
           >
-            <bk-radio-group
+            <TRadioGroup
               class='frequency-radio-group'
               value={formData.value.frequency.type}
-              onChange={(value: number) => (formData.value.frequency.type = value)}
+              onChange={(value) => { if (typeof value === 'number') ((value: number) => (formData.value.frequency.type = value))(value); }}
             >
               {frequencyList.map(item => (
-                <bk-radio label={item.label}>{item.text}</bk-radio>
+                <TRadio value={item.label}>{item.text}</TRadio>
               ))}
-            </bk-radio-group>
+            </TRadioGroup>
             {formData.value.frequency.type === FrequencyType.hourly && (
               <bk-select
                 v-slots={{
@@ -776,13 +779,13 @@ export default defineComponent({
                 />
                 {/* 该复选值不需要提交，后续在编辑的时候需要通过 INCLUDES_WEEKEND 和 weekList 去判断即可 */}
                 {formData.value.frequency.type === FrequencyType.dayly && (
-                  <bk-checkbox
+                  <TCheckbox
                     style='margin-left: 10px;'
-                    value={isIncludeWeekend.value}
+                    checked={isIncludeWeekend.value}
                     onChange={(value: boolean) => (isIncludeWeekend.value = value)}
                   >
                     {t('包含周末')}
-                  </bk-checkbox>
+                  </TCheckbox>
                 )}
               </div>
             )}

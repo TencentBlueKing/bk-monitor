@@ -34,13 +34,13 @@
       />
       <div class="flex-jsb">
         <div class="detail">{{ $t('您没有相应资源的访问权限') }}</div>
-        <bk-button
+        <t-button
           class="king-button"
           theme="primary"
           @click="confirmPageApply"
         >
           {{ $t('去申请') }}
-        </bk-button>
+        </t-button>
       </div>
       <div class="permission-container">
         <table class="permission-table table-header">

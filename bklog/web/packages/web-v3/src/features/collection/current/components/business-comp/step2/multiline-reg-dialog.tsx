@@ -1,3 +1,13 @@
+import {
+  Button as TButton,
+  Dialog as TDialog,
+  Form as TForm,
+  FormItem as TFormItem,
+  Input as TInput,
+  Textarea as TTextarea,
+} from 'tdesign-vue-next';
+import type { FormInstanceFunctions, FormRule } from 'tdesign-vue-next';
+import SourceTranslation from '@/platform/i18n/translation';
 import { ServicesInstance } from '@/platform/services';
 /*
  * Tencent is pleased to support the open source community by making
@@ -25,13 +35,11 @@ import { ServicesInstance } from '@/platform/services';
  * IN THE SOFTWARE.
  */
 
-import { computed, defineComponent, ref } from 'vue';
+import { computed, defineComponent, ref, watch } from 'vue';
 
 import useLocale from '@/shared/composables/use-locale';
 import useStore from '@/shared/composables/use-store';
 import { useRoute } from 'vue-router';
-
-
 
 import './multiline-reg-dialog.scss';
 /**
@@ -40,6 +48,7 @@ import './multiline-reg-dialog.scss';
 
 export default defineComponent({
   name: 'MultilineRegDialog',
+  compatConfig: { MODE: 3 },
   props: {
     showDialog: {
       type: Boolean,
@@ -62,14 +71,15 @@ export default defineComponent({
     const { t } = useLocale();
     const store = useStore();
     const route = useRoute();
-    const matchLines = ref<(number) | null>(null);
+    const matchLines = ref<number | null>(null);
     const isMatchLoading = ref(false);
-    const formRef = ref<import("@/shared/types/legacy-form").LegacyFormInstance | null>(null);
+    let matchGeneration = 0;
+    const formRef = ref<FormInstanceFunctions<{ log_sample: string; multiline_pattern: string }>>();
     const formData = ref({
       log_sample: '', // 日志样例
       multiline_pattern: '', // 行首正则表达式
     });
-    const notEmptyRule = ref([
+    const notEmptyRule = ref<FormRule[]>([
       {
         required: true,
         trigger: 'blur',
@@ -91,8 +101,10 @@ export default defineComponent({
 
     const handleSave = () => {
       emit('update', formData.value.multiline_pattern);
+      emit('cancel', false);
     };
-    const handleValueChange = (val: unknown) => {
+    const handleValueChange = (val: boolean) => {
+      matchGeneration++;
       emit('cancel', val);
       if (val) {
         // 打开时填入采集页行首正则内容
@@ -102,107 +114,123 @@ export default defineComponent({
         formData.value.log_sample = '';
         formData.value.multiline_pattern = '';
         matchLines.value = null;
+        isMatchLoading.value = false;
+        formRef.value?.clearValidate();
       }
     };
 
+    watch(
+      () => props.showDialog,
+      (value, previous) => {
+        if (previous === undefined && !value) return;
+        handleValueChange(value);
+      },
+      { immediate: true },
+    );
+
     // 匹配验证
     const handleMatch = async () => {
+      const generation = ++matchGeneration;
       try {
-        await formRef.value?.validate();
+        const result = await formRef.value?.validate();
+        if (generation !== matchGeneration) return;
+        if (result !== true) {
+          matchLines.value = 0;
+          return;
+        }
         isMatchLoading.value = true;
         const res = await ServicesInstance.collect.regexDebug({
           params: {
             collector_id: Number(route.params.collectorId),
           },
-          data: formData.value,
+          data: { ...formData.value },
         });
-        matchLines.value = res.data.match_lines;
+        if (generation === matchGeneration) matchLines.value = res.data.match_lines;
       } catch (e) {
         console.log(e);
-        matchLines.value = 0;
+        if (generation === matchGeneration) matchLines.value = 0;
       } finally {
-        isMatchLoading.value = false;
+        if (generation === matchGeneration) isMatchLoading.value = false;
       }
     };
-    const handleLogSample = (val: string, key: string) => {
-      formData.value[key] = val.trim();
+    const handleLogSample = (val: string | number, key: keyof typeof formData.value) => {
+      formData.value[key] = String(val).trim();
     };
     const handleCancel = () => {
       emit('cancel', !props.showDialog);
     };
 
     return () => (
-      <bk-dialog
+      <TDialog
         width={getDialogWidth.value}
         class='multiline-reg-dialog-box'
-        header-position='left'
-        mask-close={false}
-        ok-text={t('保存')}
-        position={{ top: dialogTop.value }}
-        title={t('行首正则调试')}
-        value={props.showDialog}
-        onCancel={handleCancel}
+        closeOnOverlayClick={false}
+        footer={() => (
+          <>
+            <TButton theme='primary' onClick={handleSave}>
+              {t('保存')}
+            </TButton>
+            <TButton theme='default' onClick={handleCancel}>
+              {t('取消')}
+            </TButton>
+          </>
+        )}
+        top={dialogTop.value}
+        header={t('行首正则调试')}
+        visible={props.showDialog}
+        onClose={handleCancel}
         onConfirm={handleSave}
-        onValueChange={handleValueChange}
       >
         <div class='multiline-reg-dialog-content'>
-          <bk-form
+          <TForm
             ref={formRef}
-            label-width={getLabelWidth.value}
+            labelWidth={getLabelWidth.value}
+            requiredMarkPosition='right'
             {...{
               ...{
-                model: formData.value,
+                data: { ...formData.value },
               },
             }}
           >
-            <bk-form-item
+            <TFormItem
               style='margin-bottom: 20px'
               label={t('日志样例')}
-              property='log_sample'
-              required={true}
+              name='log_sample'
+              requiredMark={true}
               rules={notEmptyRule.value}
             >
-              <bk-input
-                rows={6}
-                type='textarea'
+              <TTextarea
+                autosize={{ minRows: 6, maxRows: 6 }}
                 value={formData.value.log_sample}
-                onInput={(val: string) => handleLogSample(val, 'log_sample')}
+                onChange={(value) => handleLogSample(value, 'log_sample')}
               />
-            </bk-form-item>
-            <bk-form-item
+            </TFormItem>
+            <TFormItem
               style='margin-bottom: 20px'
               label={t('行首正则表达式')}
-              property='multiline_pattern'
-              required={true}
+              name='multiline_pattern'
+              requiredMark={true}
               rules={notEmptyRule.value}
             >
-              <bk-input
+              <TInput
                 value={formData.value.multiline_pattern}
-                onInput={(val: string) => handleLogSample(val, 'multiline_pattern')}
+                onChange={(value) => handleLogSample(value, 'multiline_pattern')}
               />
-            </bk-form-item>
-          </bk-form>
-          <div
-            style={`padding-left: ${getLabelWidth.value}px;`}
-            class='test-container'
-          >
-            <bk-button
-              class='mr15'
-              loading={isMatchLoading.value}
-              theme='primary'
-              onClick={handleMatch}
-            >
+            </TFormItem>
+          </TForm>
+          <div style={`padding-left: ${getLabelWidth.value}px;`} class='test-container'>
+            <TButton class='mr15' loading={isMatchLoading.value} theme='primary' onClick={handleMatch}>
               {t('匹配验证')}
-            </bk-button>
+            </TButton>
             {matchLines.value !== null && (
               <div class='test-result'>
                 <span
                   class={matchLines.value ? 'bk-icon icon-check-circle-shape' : 'bk-icon icon-close-circle-shape'}
                 />
                 {matchLines.value ? (
-                  <i18n path='成功匹配 {0} 条日志'>
+                  <SourceTranslation path='成功匹配 {0} 条日志'>
                     <span class='match-counts'>{matchLines.value}</span>
-                  </i18n>
+                  </SourceTranslation>
                 ) : (
                   <span>{t('未成功匹配')}</span>
                 )}
@@ -210,7 +238,7 @@ export default defineComponent({
             )}
           </div>
         </div>
-      </bk-dialog>
+      </TDialog>
     );
   },
 });

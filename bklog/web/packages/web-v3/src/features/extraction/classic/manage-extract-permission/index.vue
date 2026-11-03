@@ -31,7 +31,7 @@
     data-test-id="extractAuthManage_div_extractAuthManageBox"
   >
     <div>
-      <bk-button
+      <t-button
         v-cursor="{ active: isAllowedManage === false }"
         style="width: 120px; margin: 20px 0"
         class="king-button"
@@ -42,7 +42,7 @@
         @click="handleCreateStrategy"
       >
         {{ $t('新增') }}
-      </bk-button>
+      </t-button>
     </div>
     <bk-table
       class="king-table"

@@ -1,3 +1,7 @@
+
+import { Alert as Alert } from 'tdesign-vue-next';
+
+import { Button as Button } from 'tdesign-vue-next';
 import { ServicesInstance } from '@/platform/services';
 /*
  * Tencent is pleased to support the open source community by making
@@ -27,7 +31,7 @@ import { ServicesInstance } from '@/platform/services';
 
 import { Component, Prop, Emit, Vue } from 'vue-property-decorator';
 
-import { bkButton as Button, bkTab as Tab, bkTabPanel as TabPanel, bkAlert as Alert } from 'bk-magic-vue';
+import { bkTab as Tab, bkTabPanel as TabPanel } from '@/platform/compat/tdesign/magic-controls';
 
 
 import MonacoEditor from '../../collection/access/components/step-add/monaco-editor.vue';
@@ -244,7 +248,7 @@ class MaskingFieldInput extends Vue {
         {this.isShowAlertTips && (
           <Alert
             v-slots={{
-              title: () => (
+              message: () => (
                 <div>
                   <i class='bklog-icon bklog-log-loading' />
                   <span>{this.$t('正在下发采集配置，需要3-5分钟来生成采集日志，请稍后配置脱敏规则…')}</span>
@@ -252,9 +256,9 @@ class MaskingFieldInput extends Vue {
               ),
             }}
             style='margin-bottom: 16px;'
-            showIcon={false}
-            type='warning'
-            closable
+            icon={(false) ? undefined : () => null}
+            theme={'warning'}
+            closeBtn={true} data-v2-display='alert'
           ></Alert>
         )}
         <div class='item-title'>
@@ -346,8 +350,8 @@ class MaskingFieldInput extends Vue {
             disabled={!this.jsonValueList.length}
             size='small'
             theme='primary'
-            outline
-            onClick={() => this.handleCreateRule()}
+            
+            onClick={() => this.handleCreateRule()} variant={(true) ? 'outline' : 'base'}
           >
             {this.$t('自动匹配脱敏规则')}
           </Button>

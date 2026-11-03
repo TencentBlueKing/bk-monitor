@@ -393,14 +393,14 @@
           @value-change="handleBatchInputChange"
           @show-change="handleBatchShowChange"
         />
-        <bk-button
-          text
+        <t-button :variant="(true) ? 'text' : ('base')"
+          
           :disabled="keywordList.length === 0 && !inputValue.length"
           class="fuzzy-match-clear-btn"
           @click="handleClear"
         >
           {{ t('清空') }}
-        </bk-button>
+        </t-button>
       </span>
       <span class="fuzzy-match-title-wrap">
         <span class="fuzzy-match-title">{{ t('匹配模式') }}</span>
@@ -480,15 +480,15 @@
       class="fuzzy-match-relation"
     >
       <span class="fuzzy-match-relation-label">{{ t('组间关系') }}</span>
-      <bk-radio-group v-model="currentRelation">
-        <bk-radio
+      <t-radio-group v-model="currentRelation">
+        <t-radio
           style="margin-right: 12px"
           value="AND"
         >
           AND
-        </bk-radio>
-        <bk-radio value="OR"> OR </bk-radio>
-      </bk-radio-group>
+        </t-radio>
+        <t-radio value="OR"> OR </t-radio>
+      </t-radio-group>
     </div>
 
     <div class="fuzzy-match-preview-card">
@@ -730,13 +730,13 @@
     color: #63656e;
     white-space: nowrap;
 
-    :deep(.bk-radio-group) {
+    :deep(.t-radio-group) {
       display: inline-flex;
       flex-wrap: nowrap;
       align-items: center;
     }
 
-    :deep(.bk-form-radio) {
+    :deep(.t-radio) {
       display: inline-flex;
       flex-shrink: 0;
       align-items: center;

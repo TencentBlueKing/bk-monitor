@@ -114,7 +114,7 @@ git config tag.gpgsign true
 
   ```bash
   # pc端本地开发模式
-  npm run dev
+  npm run dev:v2
   ```
 
 ### 本地 `hosts` 文件配置
@@ -127,7 +127,7 @@ git config tag.gpgsign true
 
 ### 前端环境变量配置
 
-  1. 新建文件 `local.settings.js`
+  1. 在 `packages/web-v2` 新建文件 `local.settings.js`
 
   2. 配置自定义内容 参考如下 [更多配置参见](https://webpack.docschina.org/configuration/dev-server/)
 

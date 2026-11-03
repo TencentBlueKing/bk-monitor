@@ -1,3 +1,5 @@
+
+import { Alert as TAlert } from 'tdesign-vue-next';
 /*
  * Tencent is pleased to support the open source community by making
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
@@ -79,10 +81,10 @@ export default defineComponent({
     return () => (
       <div>
         {props.clusterSwitch && (
-          <bk-alert
-            title={t('日志聚类必需至少有一个text类型的字段，当前无该字段类型，请前往日志清洗进行设置。')}
-            type='info'
-            closable
+          <TAlert
+            message={t('日志聚类必需至少有一个text类型的字段，当前无该字段类型，请前往日志清洗进行设置。')}
+            theme={'info'}
+            closeBtn={true} data-v2-display='alert'
           />
         )}
         <bk-table

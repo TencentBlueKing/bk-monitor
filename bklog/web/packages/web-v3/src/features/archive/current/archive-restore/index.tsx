@@ -1,3 +1,5 @@
+
+import { MessagePlugin as TDesignMessage, Button as TButton } from 'tdesign-vue-next';
 import { ServicesInstance } from '@/platform/services';
 /*
  * Tencent is pleased to support the open source community by making
@@ -33,7 +35,7 @@ import EmptyStatus from '@/shared/ui/empty-status/index.vue';
 import useLocale from '@/shared/composables/use-locale';
 import useStore from '@/shared/composables/use-store';
 import useUtils from '@/shared/composables/use-utils';
-import { bkMessage as Message } from 'bk-magic-vue';
+
 import { bkInfoBox as InfoBox } from '@/platform/compat/tdesign/info-box';
 
 import RestoreSlider from './restore-slider.tsx';
@@ -298,10 +300,7 @@ export default defineComponent({
           const page =
             dataList.value.length <= 1 ? (pagination.current > 1 ? pagination.current - 1 : 1) : pagination.current;
 
-          Message({
-            theme: 'success',
-            message: t('删除成功'),
-          });
+          TDesignMessage("success", { content: t('删除成功') });
 
           if (page !== pagination.current) {
             handlePageChange(page);
@@ -366,14 +365,14 @@ export default defineComponent({
       >
         {/* 顶部操作栏 */}
         <section class='top-operation'>
-          <bk-button
+          <TButton
             class='fl'
             data-test-id='restoreContainer_button_addNewRestore'
             theme='primary'
             onClick={handleCreate}
           >
             {t('新建')}
-          </bk-button>
+          </TButton>
           <div class='restore-search fr'>
             <bk-input
               data-test-id='restoreContainer_input_searchRestoreItem'
@@ -469,44 +468,44 @@ export default defineComponent({
                 default: (props: any) => (
                   <div class='restore-table-operate'>
                     {/* 检索 */}
-                    <bk-button
+                    <TButton
                       class='mr10 king-button'
                       v-cursor={{
                         active: !props.row.permission?.[authorityMapComputed.value.MANAGE_COLLECTION_AUTH],
                       }}
                       disabled={props.row.is_expired}
                       theme='primary'
-                      text
-                      onClick={() => operateHandler(props.row, 'search')}
+                      
+                      onClick={() => operateHandler(props.row, 'search')} variant={(true) ? 'text' : ('base')}
                     >
                       {t('检索')}
-                    </bk-button>
+                    </TButton>
                     {/* 编辑 */}
-                    <bk-button
+                    <TButton
                       class='mr10 king-button'
                       v-cursor={{
                         active: !props.row.permission?.[authorityMapComputed.value.MANAGE_COLLECTION_AUTH],
                       }}
                       disabled={props.row.is_expired}
                       theme='primary'
-                      text
-                      onClick={() => operateHandler(props.row, 'edit')}
+                      
+                      onClick={() => operateHandler(props.row, 'edit')} variant={(true) ? 'text' : ('base')}
                     >
                       {t('编辑')}
-                    </bk-button>
+                    </TButton>
                     {/* 删除 */}
-                    <bk-button
+                    <TButton
                       class='mr10 king-button'
                       v-cursor={{
                         active: !props.row.permission?.[authorityMapComputed.value.MANAGE_COLLECTION_AUTH],
                       }}
                       disabled={props.row.is_expired}
                       theme='primary'
-                      text
-                      onClick={() => operateHandler(props.row, 'delete')}
+                      
+                      onClick={() => operateHandler(props.row, 'delete')} variant={(true) ? 'text' : ('base')}
                     >
                       {t('删除')}
-                    </bk-button>
+                    </TButton>
                   </div>
                 ),
               }}

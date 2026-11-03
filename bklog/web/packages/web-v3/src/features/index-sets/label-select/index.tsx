@@ -1,3 +1,7 @@
+
+import { Tag as Tag } from 'tdesign-vue-next';
+
+import { MessagePlugin as TDesignMessage } from 'tdesign-vue-next';
 import { ServicesInstance } from '@/platform/services';
 import type { LegacyFormInstance } from '@/shared/types/legacy-form';
 /*
@@ -29,14 +33,7 @@ import type { LegacyFormInstance } from '@/shared/types/legacy-form';
 import { Component, PropSync, Prop, Emit, Ref } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
-import {
-  bkSelect as Select,
-  bkOption as Option,
-  bkTag as Tag,
-  bkForm as Form,
-  bkFormItem as FormItem,
-  bkInput as Input,
-} from 'bk-magic-vue';
+import { bkSelect as Select, bkOption as Option, bkForm as Form, bkFormItem as FormItem, bkInput as Input } from '@/platform/compat/tdesign/magic-controls';
 
 
 import { xssFilter } from '../../../shared/lib/util';
@@ -160,10 +157,7 @@ export default class QueryStatement extends tsc<IProps> {
       .then(() => {
         const newLabel = this.selectLabelList.find(item => item.tag_id === tagID);
         this.propLabelList.push(newLabel);
-        this.$bkMessage({
-          theme: 'success',
-          message: this.$t('操作成功'),
-        });
+        TDesignMessage("success", { content: this.$t('操作成功') });
       })
       .finally(() => {});
   }
@@ -214,10 +208,7 @@ export default class QueryStatement extends tsc<IProps> {
       })
       .then(() => {
         this.propLabelList = this.propLabelList.filter(item => item.tag_id !== tagID);
-        this.$bkMessage({
-          theme: 'success',
-          message: this.$t('操作成功'),
-        });
+        TDesignMessage("success", { content: this.$t('操作成功') });
       })
       .finally(() => {});
   }
@@ -247,7 +238,7 @@ export default class QueryStatement extends tsc<IProps> {
                   key={item.tag_id}
                   class='tag-label-item'
                 >
-                  <Tag>
+                  <Tag variant='light' data-v2-display='tag'>
                     <span class='label-tag'>
                       <span
                         class='title-overflow'

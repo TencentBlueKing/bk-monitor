@@ -30,14 +30,14 @@
     data-test-id="archive_section_restoreContainer"
   >
     <section class="top-operation">
-      <bk-button
+      <t-button
         class="fl"
         data-test-id="restoreContainer_button_addNewRestore"
         theme="primary"
         @click="handleCreate"
       >
         {{ $t('回溯') }}
-      </bk-button>
+      </t-button>
       <div class="restore-search fr">
         <bk-input
           v-model="params.keyword"
@@ -151,31 +151,31 @@
               >
               </log-button>
               <!-- 编辑 -->
-              <bk-button
+              <t-button :variant="(true) ? 'text' : ('base')"
                 v-cursor="{
                   active: !(props.row.permission && props.row.permission[authorityMap.MANAGE_COLLECTION_AUTH]),
                 }"
                 class="mr10 king-button"
                 :disabled="props.row.is_expired"
                 theme="primary"
-                text
+                
                 @click.stop="operateHandler(props.row, 'edit')"
               >
                 {{ $t('编辑') }}
-              </bk-button>
+              </t-button>
               <!-- 删除 -->
-              <bk-button
+              <t-button :variant="(true) ? 'text' : ('base')"
                 v-cursor="{
                   active: !(props.row.permission && props.row.permission[authorityMap.MANAGE_COLLECTION_AUTH]),
                 }"
                 class="mr10 king-button"
                 :disabled="props.row.is_expired"
                 theme="primary"
-                text
+                
                 @click.stop="operateHandler(props.row, 'delete')"
               >
                 {{ $t('删除') }}
-              </bk-button>
+              </t-button>
             </div>
           </template>
         </bk-table-column>
@@ -538,7 +538,7 @@
 
       @include clearfix;
 
-      .bk-button {
+      .t-button {
         width: 120px;
       }
     }

@@ -10,18 +10,25 @@
     gap: 14px;
     margin: 0 0 8px 12px;
 
-    .bk-form-radio {
+    .t-radio {
       color: #4d4f56;
       font-family: MicrosoftYaHei;
       font-weight: normal;
     }
   }
 
-  .table-list-content {
+  .cluster-table-loading {
     flex: 1;
+    display: flex;
+    min-height: 0;
+    flex-direction: column;
 
-    .bk-loading {
-      z-index: 0 !important;
+    .table-list-content {
+      flex: 1;
+    }
+
+    > .t-loading__overlay {
+      background-color: rgba(255, 255, 255, 0.9);
     }
   }
 

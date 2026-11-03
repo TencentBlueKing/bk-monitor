@@ -1,3 +1,5 @@
+
+import { Alert as TAlert } from 'tdesign-vue-next';
 /*
  * Tencent is pleased to support the open source community by making
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
@@ -760,9 +762,9 @@ export default defineComponent({
       <div class='config-cluster-box-main'>
         {/* 容器提示信息 */}
         {isShowContainerTips(props.config) && (
-          <bk-alert
+          <TAlert
             v-slots={{
-              title: () => (
+              message: () => (
                 <>
                   <i class='bk-icon icon-info' />
                   <span>{t('采集范围排除能力依赖采集器 bk-log-collector >= 0.3.2，请保证采集器已升级到最新版本')}</span>
@@ -770,9 +772,9 @@ export default defineComponent({
               ),
             }}
             class='container-alert'
-            showIcon={false}
-            type='info'
-          ></bk-alert>
+            icon={(false) ? undefined : () => null}
+            theme={'info'} data-v2-display='alert'
+          ></TAlert>
         )}
         {/* 配置标题和预览按钮 */}
         <div class='config-cluster-title justify-bt'>

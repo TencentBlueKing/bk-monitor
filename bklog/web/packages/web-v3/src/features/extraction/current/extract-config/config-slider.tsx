@@ -1,3 +1,5 @@
+
+import { Button as TButton } from 'tdesign-vue-next';
 import { ServicesInstance } from '@/platform/services';
 /*
  * Tencent is pleased to support the open source community by making
@@ -132,7 +134,7 @@ export default defineComponent({
 
     // 校验文件后缀
     const validateFileExtension = (val: string) => {
-      return !val.startsWith('./index') && val;
+      return !val.startsWith('.') && val;
     };
 
     // 添加授权目录
@@ -365,14 +367,14 @@ export default defineComponent({
             </div>
             <div class='content'>
               <div class='flex-box'>
-                <bk-button
+                <TButton
                   size='small'
                   onClick={() => {
                     showSelectDialog.value = true;
                   }}
                 >
                   + {t('选择目标')}
-                </bk-button>
+                </TButton>
                 <div class='select-text'>
                   <i18n path='已选择{0}个节点'>
                     <span class={manageStrategyData.value.modules.length ? 'primary' : 'error'}>
@@ -416,13 +418,13 @@ export default defineComponent({
                   class='execute-people'
                   user-id={manageStrategyData.value?.operator}
                 ></bk-user-display-name>
-                <bk-button
+                <TButton
                   loading={isChangeOperatorLoading.value}
                   size='small'
                   onClick={changeOperator}
                 >
                   {t('改为我')}
-                </bk-button>
+                </TButton>
               </div>
             </div>
           </div>
@@ -430,15 +432,15 @@ export default defineComponent({
 
         {/* 确认/取消按钮 */}
         <div class='button-container'>
-          <bk-button
+          <TButton
             style='margin-right: 24px'
             disabled={!isValidated.value}
             theme='primary'
             onClick={handleConfirm}
           >
             {t('确认')}
-          </bk-button>
-          <bk-button onClick={handleCancel}>{t('取消')}</bk-button>
+          </TButton>
+          <TButton onClick={handleCancel}>{t('取消')}</TButton>
         </div>
       </div>
     );

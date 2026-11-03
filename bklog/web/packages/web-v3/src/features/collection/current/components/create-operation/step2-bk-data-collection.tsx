@@ -1,3 +1,7 @@
+
+import { Alert as TAlert } from 'tdesign-vue-next';
+
+import { Button as TButton } from 'tdesign-vue-next';
 import { ServicesInstance } from '@/platform/services';
 /*
  * Tencent is pleased to support the open source community by making
@@ -414,10 +418,10 @@ export default defineComponent({
      */
     const renderFieldSetting = () => (
       <div class='field-setting-box'>
-        <bk-alert
+        <TAlert
           class='field-setting-alert'
-          title={t('未匹配到对应字段，请手动指定字段后提交。')}
-          type='warning'
+          message={t('未匹配到对应字段，请手动指定字段后提交。')}
+          theme={'warning'} data-v2-display='alert'
         />
         {/* 目标字段选择 */}
         <div class='label-form-box'>
@@ -934,26 +938,26 @@ export default defineComponent({
         <div class='classify-btns-fixed'>
           {/* 非编辑模式显示上一步按钮 */}
           {!props.isEdit && (
-            <bk-button
+            <TButton
               class='mr-8'
               onClick={() => {
                 emit('prev');
               }}
             >
               {t('上一步')}
-            </bk-button>
+            </TButton>
           )}
           {/* 提交按钮 */}
-          <bk-button
+          <TButton
             class='width-88 mr-8'
             loading={submitLoading.value}
             theme='primary'
             onClick={handleSave}
           >
             {t('提交')}
-          </bk-button>
+          </TButton>
           {/* 取消按钮 */}
-          <bk-button onClick={handleClose}>{t('取消')}</bk-button>
+          <TButton onClick={handleClose}>{t('取消')}</TButton>
         </div>
 
         {/* 索引选择对话框 */}

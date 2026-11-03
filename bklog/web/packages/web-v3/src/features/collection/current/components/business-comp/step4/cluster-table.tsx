@@ -1,3 +1,7 @@
+
+import { Progress as TProgress } from 'tdesign-vue-next';
+
+import { Radio as TRadio } from 'tdesign-vue-next';
 /*
  * Tencent is pleased to support the open source community by making
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
@@ -156,14 +160,14 @@ export default defineComponent({
           title: t('集群名'),
           colKey: 'storage_display_name',
           cell: (h: unknown, { row }: { row: IClusterItem }) => (
-            <bk-radio checked={isSelected(row)}>
+            <TRadio checked={isSelected(row)}>
               <div
                 class='overflow-tips'
                 v-bk-overflow-tips
               >
                 <span class='cluster-name'>{row.storage_display_name}</span>
               </div>
-            </bk-radio>
+            </TRadio>
           ),
           width: 200,
           ellipsis: true,
@@ -181,10 +185,10 @@ export default defineComponent({
           cell: (h: unknown, { row }: { row: IClusterItem }) => (
             <div class='percent'>
               <div class='percent-progress'>
-                <bk-progress
-                  percent={getPercent(row)}
-                  show-text={false}
-                  theme='success'
+                <TProgress
+                  percentage={Number(((getPercent(row)) * 100).toFixed(0))}
+                  label={false}
+                  color={"#2dcb56"}
                 />
               </div>
               <span class='percent-count'>{`${100 - row.storage_usage}%`}</span>

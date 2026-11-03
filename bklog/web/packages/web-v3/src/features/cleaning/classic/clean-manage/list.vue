@@ -30,14 +30,14 @@
     data-test-id="cleaningList_section_cleaningListBox"
   >
     <section class="top-operation">
-      <bk-button
+      <t-button
         class="fl"
         data-test-id="cleaningListBox_button_addNewCleaningList"
         theme="primary"
         @click="handleCreate"
       >
         {{ $t('新增') }}
-      </bk-button>
+      </t-button>
       <div class="clean-search fr">
         <bk-input
           v-model="params.keyword"
@@ -140,15 +140,15 @@
             <div class="collect-table-operate">
               <!-- bkdata_auth_url不为null则表示需要跳转计算平台检索 -->
               <!-- 高级清洗授权 -->
-              <bk-button
+              <t-button :variant="(true) ? 'text' : ('base')"
                 v-if="props.row.bkdata_auth_url"
                 class="mr10 king-button"
                 theme="primary"
-                text
+                
                 @click="handleAuth(props.row)"
               >
                 {{ $t('授权') }}
-              </bk-button>
+              </t-button>
               <!-- 检索 -->
               <log-button
                 v-else
@@ -163,17 +163,17 @@
               >
               </log-button>
               <!-- 编辑 -->
-              <bk-button
+              <t-button :variant="(true) ? 'text' : ('base')"
                 v-cursor="{
                   active: !(props.row.permission && props.row.permission[authorityMap.MANAGE_COLLECTION_AUTH]),
                 }"
                 class="mr10 king-button"
                 theme="primary"
-                text
+                
                 @click.stop="operateHandler(props.row, 'edit')"
               >
                 {{ $t('编辑') }}
-              </bk-button>
+              </t-button>
               <!-- 删除 -->
               <log-button
                 ext-cls="mr10 king-button"
@@ -555,7 +555,7 @@
 
       @include clearfix;
 
-      .bk-button {
+      .t-button {
         width: 120px;
       }
     }

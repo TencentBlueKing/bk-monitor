@@ -47,13 +47,13 @@
         :time-range.sync="timeRange"
         :time-value.sync="timeValue"
       />
-      <bk-checkbox
+      <t-checkbox
         v-model="isSearchChild"
         style="margin-right: 20px"
         data-test-id="addNewExtraction_div_isSearchSubdirectory"
-        >{{ $t('是否搜索子目录') }}</bk-checkbox
+        >{{ $t('是否搜索子目录') }}</t-checkbox
       >
-      <bk-button
+      <t-button
         :disabled="!ipList.length || !fileOrPath"
         :loading="isLoading"
         data-test-id="addNewExtraction_button_searchFilterCondition"
@@ -61,7 +61,7 @@
         theme="primary"
         @click="getExplorerList({})"
         >{{ $t('搜索') }}
-      </bk-button>
+      </t-button>
     </div>
     <div class="preview-table-head">
       <span class="table-head-text">{{ $t('从下载目标中选择预览目标') }}</span>
@@ -275,7 +275,7 @@
         };
         this.setSelectedFilePaths([]);
         this.emitSelectedFiles();
-        if (path === '../index' && this.historyStack.length) {
+        if (path === '../' && this.historyStack.length) {
           // 返回上一级
           const cache = this.historyStack.pop();
           this.explorerList = cache.exploreList;
@@ -305,7 +305,7 @@
               this.historyStack.push(cacheList);
               const temp = {
                 ...row,
-                path: '../index',
+                path: '../',
               };
 
               if (size === '0') this.explorerList = [temp, ...res.data];

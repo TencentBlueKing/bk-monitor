@@ -111,7 +111,7 @@
       @include flex-center;
     }
 
-    .bk-form-input {
+    .t-input__inner {
       display: block;
       border-top-left-radius: 0;
       border-bottom-left-radius: 0;
@@ -125,12 +125,12 @@
 
     @include flex-align();
 
-    .bk-form-control {
+    .t-input__wrap {
       width: 96px;
       margin: 0 6px;
     }
 
-    .bk-form-input {
+    .t-input__inner {
       display: flex;
     }
   }
@@ -147,7 +147,7 @@
 
     @include flex-align();
 
-    .bk-button {
+    .t-button {
       width: 96px;
       margin-right: 8px;
     }
@@ -246,12 +246,12 @@
   }
 
   .bk-label-text,
-  .bk-checkbox-text,
-  .bk-radio-text {
+  .t-checkbox__label,
+  .t-radio__label {
     font-size: 12px;
   }
 
-  .bk-form-radio {
+  .t-radio {
     margin-right: 24px;
   }
 

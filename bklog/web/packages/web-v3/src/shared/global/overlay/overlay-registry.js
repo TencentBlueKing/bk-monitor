@@ -67,22 +67,22 @@ const assignRecord = (record, options = {}) => {
   return record;
 };
 
-const isEscapeEvent = event => {
+const isEscapeEvent = (event) => {
   return event?.key === 'Escape' || event?.key === 'Esc' || event?.keyCode === 27;
 };
 
-const stopEscapeEvent = event => {
+const stopEscapeEvent = (event) => {
   event?.preventDefault?.();
   event?.stopPropagation?.();
   event?.stopImmediatePropagation?.();
 };
 
-const installEscapeListener = registry => {
+const installEscapeListener = (registry) => {
   if (typeof document === 'undefined' || registry.escapeBound) {
     return;
   }
 
-  const handler = event => {
+  const handler = (event) => {
     registry.handleEscape(event);
   };
 
@@ -93,19 +93,22 @@ const installEscapeListener = registry => {
 };
 
 const isClickInsideClosest = (event, selectors = []) => {
-  const target = event?.target;
-  if (!target || typeof target.closest !== 'function') {
-    return false;
-  }
-
-  return selectors.filter(Boolean).some(selector => Boolean(target.closest(selector)));
+  // A Vue update can detach the clicked row before the document listener runs.
+  // The original event path still includes its overlay ancestors.
+  const path = event?.composedPath?.() ?? [];
+  const targets = [event?.target, ...path];
+  return targets.some(
+    (target) =>
+      typeof target?.closest === 'function' &&
+      selectors.filter(Boolean).some((selector) => Boolean(target.closest(selector))),
+  );
 };
 
 const shouldHideOnOutsideClick = (event, { rootSelector, ignoreSelector } = {}) => {
   return !isClickInsideClosest(event, [rootSelector, ignoreSelector]);
 };
 
-const isValidAnchorRect = rect => {
+const isValidAnchorRect = (rect) => {
   if (!rect) {
     return false;
   }
@@ -115,7 +118,7 @@ const isValidAnchorRect = rect => {
   return width > 0 && height > 0;
 };
 
-const resolvePopperPlacementRect = rect => {
+const resolvePopperPlacementRect = (rect) => {
   if (!isValidAnchorRect(rect)) {
     return null;
   }
@@ -130,7 +133,7 @@ const resolvePopperPlacementRect = rect => {
 const createDialogVisibleState = (initial = false, hooks = {}) => {
   let visible = Boolean(initial);
 
-  const apply = next => {
+  const apply = (next) => {
     const value = Boolean(next);
     if (visible === value) {
       return visible;
@@ -266,7 +269,7 @@ class OverlayRegistry {
       return;
     }
 
-    [...record.children].forEach(childId => {
+    [...record.children].forEach((childId) => {
       this.hide(childId);
     });
   }
@@ -282,7 +285,7 @@ class OverlayRegistry {
       this.hideChildren(id);
       const wasVisible = record.visible;
       record.visible = false;
-      this.stack = this.stack.filter(itemId => itemId !== id);
+      this.stack = this.stack.filter((itemId) => itemId !== id);
       if (wasVisible) {
         record.hide?.();
       }
@@ -328,7 +331,7 @@ class OverlayRegistry {
     }
 
     const protectedIds = new Set([exceptId, ...this.collectAncestors(exceptId)]);
-    [...this.records.values()].forEach(record => {
+    [...this.records.values()].forEach((record) => {
       if (record.group === group && record.visible && !protectedIds.has(record.id)) {
         this.hide(record.id);
       }
@@ -373,7 +376,7 @@ class OverlayRegistry {
       return true;
     }
 
-    return [...record.children].some(childId => this.isClickInsideRecord(event, childId));
+    return [...record.children].some((childId) => this.isClickInsideRecord(event, childId));
   }
 
   dispose(id) {
@@ -404,7 +407,7 @@ const createRawTippyLifecycle = (id, options = {}, registry = overlayRegistry) =
 
   const hideInstance = () => {
     if (Array.isArray(instance)) {
-      instance.forEach(item => item?.hide?.());
+      instance.forEach((item) => item?.hide?.());
       return;
     }
     instance?.hide?.();

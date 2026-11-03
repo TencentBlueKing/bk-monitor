@@ -1,3 +1,7 @@
+
+import { Alert as Alert, Tag as Tag } from 'tdesign-vue-next';
+
+import { MessagePlugin as TDesignMessage, Button as TButton, Button as Button } from 'tdesign-vue-next';
 import { ServicesInstance } from '@/platform/services';
 /*
  * Tencent is pleased to support the open source community by making
@@ -29,17 +33,7 @@ import { Component } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
 import BizMenuSelect from '@/shared/global/bk-space-choice/index';
-import {
-  bkAlert as Alert,
-  bkMessage as Message,
-  bkSelect as Select,
-  bkOption as Option,
-  bkButton as Button,
-  bkInput as Input,
-  bkTable as Table,
-  bkTableColumn as TableColumn,
-  bkTag as Tag,
-} from 'bk-magic-vue';
+import { bkSelect as Select, bkOption as Option, bkInput as Input, bkTable as Table, bkTableColumn as TableColumn } from '@/platform/compat/tdesign/magic-controls';
 import dayjs from 'dayjs';
 
 
@@ -477,10 +471,7 @@ export default class AuthorizationList extends tsc<object> {
   // 创建、修改授权人
   async createOrUpdateAuthUser() {
     if (!this.memberValue) {
-      Message({
-        message: this.$t('不能为空'),
-        theme: 'error',
-      });
+      TDesignMessage("error", { content: this.$t('不能为空') });
       return;
     }
     try {
@@ -769,7 +760,7 @@ export default class AuthorizationList extends tsc<object> {
                 {row.authorized_users?.map((item: string|number|symbol|undefined) => (
                   <Tag
                     key={item}
-                    class='user-tag'
+                    class='user-tag' variant='light' data-v2-display='tag'
                   >
                     {item}
                   </Tag>
@@ -971,10 +962,10 @@ export default class AuthorizationList extends tsc<object> {
 
         <div class='page-content'>
           <Alert
-            title={this.$t(
+            message={this.$t(
               '需遵循公司规范，禁止对外暴露用户或公司内部敏感信息（用户PII信息、账号密码、云AKSK、内部系统鉴权/Token、保密文档等），若因授权不当造成数据泄露须承担相应责任; ',
             )}
-            type='error'
+            theme={'error'} data-v2-display='alert'
           />
 
           <div class='authorization-header'>
@@ -996,17 +987,17 @@ export default class AuthorizationList extends tsc<object> {
                 </Select>
                 <Button
                   class='member-btn'
-                  title='primary'
-                  text
-                  onClick={this.createOrUpdateAuthUser}
+                  {...({ title: 'primary' } satisfies import('vue').HTMLAttributes)}
+                  
+                  onClick={this.createOrUpdateAuthUser} variant={(true) ? 'text' : ('base')}
                 >
                   {this.$t('确定')}
                 </Button>
                 <Button
                   class='member-btn'
-                  title='primary'
-                  text
-                  onClick={() => (this.isEditMember = false)}
+                  {...({ title: 'primary' } satisfies import('vue').HTMLAttributes)}
+                  
+                  onClick={() => (this.isEditMember = false)} variant={(true) ? 'text' : ('base')}
                 >
                   {this.$t('取消')}
                 </Button>
@@ -1041,7 +1032,7 @@ export default class AuthorizationList extends tsc<object> {
                   <Button
                     class='auth-btn'
                     disabled={!this.memberSelect}
-                    icon='plus'
+                    icon={() => <span class={`bk-icon icon-${'plus'}`} />}
                     theme='primary'
                     type='submit'
                     onClick={() => this.showDialog()}
@@ -1141,30 +1132,30 @@ export default class AuthorizationList extends tsc<object> {
                     default: ({ row }: import("@/shared/types/table-row-scope").TableRowScope<AuthorizationList["listData"]>) => (
                       <div>
                         {this.angleType === 'approval' ? (
-                          <bk-button
-                            text
-                            onClick={() => window.open(row.approval_url)}
+                          <TButton
+                            
+                            onClick={() => window.open(row.approval_url)} variant={(true) ? 'text' : ('base')}
                           >
                             {this.$t('查看详情')}
-                          </bk-button>
+                          </TButton>
                         ) : (
                           [
-                            <bk-button
+                            <TButton
                               key='edit'
                               style='margin-right: 16px'
-                              text
+                              
                               disabled={row.status === 'expired' || row.status === 'invalid'}
-                              onClick={() => this.showDialog(row)}
+                              onClick={() => this.showDialog(row)} variant={(true) ? 'text' : ('base')}
                             >
                               {this.$t('编辑')}
-                            </bk-button>,
-                            <bk-button
+                            </TButton>,
+                            <TButton
                               key='delete'
-                              text
-                              onClick={() => this.handleDelete(row)}
+                              
+                              onClick={() => this.handleDelete(row)} variant={(true) ? 'text' : ('base')}
                             >
                               {this.$t('删除')}
-                            </bk-button>,
+                            </TButton>,
                           ]
                         )}
                       </div>

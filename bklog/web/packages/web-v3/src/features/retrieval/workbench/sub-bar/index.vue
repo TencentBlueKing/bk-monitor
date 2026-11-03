@@ -1,10 +1,12 @@
 <script setup>
+import { MessagePlugin as TDesignMessage } from 'tdesign-vue-next';
+
   import { computed, ref } from 'vue';
 
   import useStore from '@/shared/composables/use-store';
   import { ConditionOperator } from '@/app/state/condition-operator';
   import { RetrieveUrlResolver } from '@/app/state/url-resolver';
-  import { bkMessage } from 'bk-magic-vue';
+  
   import { isEqual } from 'lodash-es';
   import { useRoute, useRouter } from "vue-router";
 
@@ -420,10 +422,7 @@
     if (isFieldSettingShow.value) {
       RetrieveHelper.setAliasConfigOpen(true);
     } else {
-      bkMessage({
-        theme: 'primary',
-        message: '第三方ES、计算平台索引集类型不支持自定义分词',
-      });
+      TDesignMessage("info", { content: '第三方ES、计算平台索引集类型不支持自定义分词' });
     }
   }
 </script>

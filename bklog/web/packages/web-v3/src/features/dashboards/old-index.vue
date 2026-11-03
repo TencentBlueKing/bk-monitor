@@ -25,9 +25,10 @@
 -->
 
 <template>
-  <div
-    v-bkloading="{ isLoading }"
+  <bklog-loading
     class="dashboard-container"
+    data-testid="dashboard-loading"
+    :loading="isLoading"
   >
     <auth-container-page
       v-if="authPageInfo"
@@ -40,11 +41,12 @@
       :src="src"
       @load="handleIframeLoad"
     ></iframe>
-  </div>
+  </bklog-loading>
 </template>
 
 <script>
   import AuthContainerPage from '@/shared/ui/common/auth-container-page';
+  import BklogLoading from '@/shared/ui/loading';
 
   import * as authorityMap from '../../shared/lib/authority-map';
 
@@ -52,6 +54,7 @@
     name: 'Dashboard',
     components: {
       AuthContainerPage,
+      BklogLoading,
     },
     data() {
       return {

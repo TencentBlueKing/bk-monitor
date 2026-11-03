@@ -1,3 +1,5 @@
+
+import { Button as TButton } from 'tdesign-vue-next';
 import { ServicesInstance } from '@/platform/services';
 import { includesValue } from '@/shared/utils/typed-record';
 import type { Canceler } from 'axios';
@@ -1983,15 +1985,15 @@ export default defineComponent({
         </div>
         <div class='v2-log-collection-table-tool'>
           <div class='tool-btns'>
-            <bk-button
-              icon='plus'
+            <TButton
+              icon={() => <span class={`bk-icon icon-${'plus'}`} />}
               theme='primary'
               onClick={handleCreateOperation}
               v-cursor={{ active: isAllowedCreate }}
               disabled={!collectProject.value || isLoading.value || isAllowedCreate === null}
             >
               {t('采集项')}
-            </bk-button>
+            </TButton>
             <AddExistingCollectDialog
               indexSetId={(props.indexSet as IListItemData)?.index_set_id ?? ''}
               spaceUid={spaceUid.value}
@@ -2000,16 +2002,16 @@ export default defineComponent({
                 emit('refresh-index-group');
               }}
             >
-              <bk-button
-                outline={true}
+              <TButton
+                
                 theme='primary'
                 v-cursor={{ active: isAllowedCreate }}
                 disabled={!collectProject.value || isLoading.value || isAllowedCreate === null}
-                v-show={(props.indexSet as IListItemData)?.index_set_id !== 'all'}
+                v-show={(props.indexSet as IListItemData)?.index_set_id !== 'all'} variant={(true) ? 'outline' : 'base'}
               >
                 <i class='bklog-icon bklog-link-guanlian' />
                 {t('关联采集项管理')}
-              </bk-button>
+              </TButton>
             </AddExistingCollectDialog>
           </div>
           <bk-input

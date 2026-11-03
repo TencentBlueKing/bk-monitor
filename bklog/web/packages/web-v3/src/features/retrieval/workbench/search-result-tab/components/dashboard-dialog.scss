@@ -109,7 +109,7 @@ q
     height: 42px;
     border-bottom: 1px solid #f0f1f5;
 
-    :deep(.bk-form-control) .control-icon {
+    :deep(.t-input__wrap) .control-icon {
       color: #979ba5;
     }
   }

@@ -1,0 +1,48 @@
+{
+  "date": "2026-11-03",
+  "state": "IMPLEMENTING",
+  "businessAccepted": false,
+  "visualAccepted": false,
+  "tests": {
+    "passed": 304,
+    "failed": 0
+  },
+  "strictTypeDiagnostics": 1924,
+  "builds": {
+    "main": "PASSED",
+    "apm": "PASSED",
+    "trace": "PASSED",
+    "sourceDigest": "146ecbadaddbb4f53dbb4f55feea5222f22f7dccd38dc4dc88618c162419b3e8",
+    "buildConfigDigest": "31868c9550859762189593649793d0a21fa329931e88f3354343340db0aca2d1"
+  },
+  "sourceParity": {
+    "restoredBusinessLiterals": 21,
+    "files": 12
+  },
+  "browser": {
+    "indexSet": 16176,
+    "spaceUid": "bkcc__5000140",
+    "bizId": 5000140,
+    "actualViewport": "1280x720",
+    "nativeTreeSearch": "PASSED",
+    "nestedExpansionCollapse": "PASSED",
+    "statisticsDrawerSearch": "PASSED",
+    "addCondition": {
+      "operator": "=",
+      "value": 0,
+      "results": 390
+    },
+    "excludeCondition": {
+      "operator": "!=",
+      "value": 0,
+      "results": 2308
+    },
+    "note": "Counts are dynamic snapshots. Attempted viewport override did not change actual page dimensions."
+  },
+  "pending": [
+    "fixed-response visual parity at 1440x900 and 1280x800",
+    "field order persistence on an isolated new index/fixture",
+    "statistics download bytes and exception matrix",
+    "remaining business modules"
+  ]
+}

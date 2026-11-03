@@ -4,7 +4,7 @@ import { readFileSync, existsSync } from 'node:fs';
 import { resolve, basename } from 'node:path';
 import { fileURLToPath } from 'node:url';
 const webRoot = fileURLToPath(new URL('../..', import.meta.url));
-const require = createRequire(resolve(webRoot, 'package.json'));
+const require = createRequire(resolve(webRoot, 'packages/web-v2/package.json'));
 const { parse } = require('@babel/parser');
 const traverse = require('@babel/traverse').default;
 const literal = node =>
@@ -79,7 +79,7 @@ export function compareRouteContracts(source, target) {
 }
 export function currentRouteContract() {
   return compareRouteContracts(
-    scanRouteContracts(resolve(webRoot, 'src/router')),
+    scanRouteContracts(resolve(webRoot, 'packages/web-v2/src/router')),
     scanRouteContracts(resolve(webRoot, 'packages/web-v3/src/app/router')),
   );
 }

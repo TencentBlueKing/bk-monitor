@@ -1,3 +1,5 @@
+
+import { Progress as TProgress } from 'tdesign-vue-next';
 /*
  * Tencent is pleased to support the open source community by making
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
@@ -25,7 +27,7 @@
  */
 
 import { defineComponent } from 'vue';
-import { bkProgress, bkLink } from 'bk-magic-vue';
+import { bkLink } from '@/platform/compat/tdesign/magic-controls';
 import { t } from '@/shared/composables/use-locale';
 import { formatNumber } from '@/features/retrieval/workbench/result-comp/download/downloadProgress';
 import './TaskItem.scss';
@@ -33,7 +35,7 @@ import './TaskItem.scss';
 export default defineComponent({
   name: 'TaskItem',
   components: {
-    bkProgress,
+    TProgress,
     bkLink,
   },
   props: {
@@ -131,10 +133,10 @@ export default defineComponent({
 
         {/* 进度条区域 */}
         <div class='task-progress-area'>
-          <bk-progress
-            percent={(props.item.progressPercent ?? 0) / 100}
-            theme={progressTheme()}
-            showText={false}
+          <TProgress
+            percentage={Number((((props.item.progressPercent ?? 0) / 100) * 100).toFixed(0))}
+            color={({'primary':'#3a84ff','success':'#2dcb56','warning':'#ff9c01','danger':'#ea3636'}[(progressTheme()) || 'primary'])}
+            label={false}
             strokeWidth={6}
           />
         </div>

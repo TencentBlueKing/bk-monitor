@@ -25,6 +25,7 @@
  */
 
 import { defineComponent, ref } from 'vue';
+import { Tooltip as TTooltip } from 'tdesign-vue-next';
 
 import useLocale from '@/shared/composables/use-locale';
 
@@ -68,25 +69,14 @@ export default defineComponent({
           <span class='collect-head-box-left-num'>{props.total}</span>
         </span>
         <span class='collect-head-box-right'>
-          <span
-            class='bklog-icon bklog-refresh-icon box-icon'
-            onClick={handleRefreshClick}
-            v-bk-tooltips={t('刷新收藏')}
-          ></span>
-          <span
-            class='bklog-icon bklog-shezhi box-icon'
-            onClick={handleFavoriteSettingClick}
-          ></span>
-          <span
-            class='bklog-icon bklog-collapse box-icon'
-            onClick={handleCollapse}
-          ></span>
+          <TTooltip content={t('刷新收藏')}>
+            <span class='bklog-icon bklog-refresh-icon box-icon' onClick={handleRefreshClick} />
+          </TTooltip>
+          <span class='bklog-icon bklog-shezhi box-icon' onClick={handleFavoriteSettingClick}></span>
+          <span class='bklog-icon bklog-collapse box-icon' onClick={handleCollapse}></span>
         </span>
         {/* 收藏管理弹框 */}
-        <FavoriteManageDialog
-          modelValue={isShowManageDialog.value}
-          onClose={closeShowManageDialog}
-        />
+        <FavoriteManageDialog modelValue={isShowManageDialog.value} onClose={closeShowManageDialog} />
       </div>
     );
   },

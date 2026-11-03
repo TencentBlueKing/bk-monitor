@@ -1,3 +1,9 @@
+
+import { Alert as TAlert } from 'tdesign-vue-next';
+
+import { Switch as TSwitch, RadioGroup as TRadioGroup, Radio as TRadio, RadioButton as TRadioButton, Checkbox as TCheckbox } from 'tdesign-vue-next';
+
+import { MessagePlugin as TDesignMessage, Button as TButton } from 'tdesign-vue-next';
 import { ServicesInstance } from '@/platform/services';
 import type { LegacyFormInstance } from '@/shared/types/legacy-form';
 import { asDictionary } from '@/shared/utils/typed-record';
@@ -567,16 +573,10 @@ class QuickCreateSubscription extends tsc<IProps> {
    */
   handleCopy(text: unknown) {
     copyText(`{{${text}}}`, (msg: unknown) => {
-      this.$bkMessage({
-        message: msg,
-        theme: 'error',
-      });
+      TDesignMessage("error", { content: String(msg) });
       return;
     });
-    this.$bkMessage({
-      message: this.$t('复制成功'),
-      theme: 'success',
-    });
+    TDesignMessage("success", { content: this.$t('复制成功') });
   }
 
   /**
@@ -737,11 +737,11 @@ class QuickCreateSubscription extends tsc<IProps> {
             )}
 
             <div>
-              <bk-button
+              <TButton
                 style='margin-left: 120px; margin-bottom: 10px; margin-top: 20px;font-size: 12px;'
                 theme='primary'
-                text
-                onClick={() => (this.isShowAdvancedOption = !this.isShowAdvancedOption)}
+                
+                onClick={() => (this.isShowAdvancedOption = !this.isShowAdvancedOption)} variant={(true) ? 'text' : ('base')}
               >
                 <div style='display: flex; align-items: center;'>
                   {this.mode === 'create' && this.$t('内容配置')}
@@ -753,7 +753,7 @@ class QuickCreateSubscription extends tsc<IProps> {
                     ]}
                   />
                 </div>
-              </bk-button>
+              </TButton>
             </div>
 
             {/* 高级设置 */}
@@ -782,10 +782,10 @@ class QuickCreateSubscription extends tsc<IProps> {
                         })}
                       </bk-select>
                       <div style='margin-top: 8px;width: 100%;'>
-                        <bk-alert
+                        <TAlert
                           style='width: 465px;'
-                          title={this.$t('当前日志查询时间范围不支持静态区间')}
-                          type='warning'
+                          message={this.$t('当前日志查询时间范围不支持静态区间')}
+                          theme={'warning'} data-v2-display='alert'
                         />
                       </div>
                     </bk-form-item>
@@ -839,9 +839,9 @@ class QuickCreateSubscription extends tsc<IProps> {
                   required
                 >
                   <div style='display: flex; align-items: center;'>
-                    <bk-switcher
+                    <TSwitch
                       v-model={this.isShowYOY}
-                      theme='primary'
+                      
                       onChange={() => {
                         this.formData.scenario_config.year_on_year_hour = this.isShowYOY ? 1 : 0;
                       }}
@@ -871,15 +871,15 @@ class QuickCreateSubscription extends tsc<IProps> {
                   property='scenario_config.generate_attachment'
                   required
                 >
-                  <bk-radio-group
+                  <TRadioGroup
                     v-model={this.isGenerateAttach}
                     onChange={() => {
                       this.formData.scenario_config.generate_attachment = !!this.isGenerateAttach;
                     }}
                   >
-                    <bk-radio label={1}>{this.$t('是')}</bk-radio>
-                    <bk-radio label={0}>{this.$t('否')}</bk-radio>
-                  </bk-radio-group>
+                    <TRadio value={1}>{this.$t('是')}</TRadio>
+                    <TRadio value={0}>{this.$t('否')}</TRadio>
+                  </TRadioGroup>
                 </bk-form-item>
 
                 <bk-form-item
@@ -887,15 +887,15 @@ class QuickCreateSubscription extends tsc<IProps> {
                   property='scenario_config.generate_attachment'
                   required
                 >
-                  <bk-radio-group
+                  <TRadioGroup
                     v-model={this.isShowNewPattern}
                     onChange={() => {
                       this.formData.scenario_config.is_show_new_pattern = !!this.isShowNewPattern;
                     }}
                   >
-                    <bk-radio label={1}>{this.$t('是')}</bk-radio>
-                    <bk-radio label={0}>{this.$t('否')}</bk-radio>
-                  </bk-radio-group>
+                    <TRadio value={1}>{this.$t('是')}</TRadio>
+                    <TRadio value={0}>{this.$t('否')}</TRadio>
+                  </TRadioGroup>
                 </bk-form-item>
               </div>
             )}
@@ -979,17 +979,17 @@ class QuickCreateSubscription extends tsc<IProps> {
                   theme='light'
                   trigger='click'
                 >
-                  <bk-button
+                  <TButton
                     style='margin-left: 16px;font-size: 12px;'
                     theme='primary'
-                    text
+                     variant={(true) ? 'text' : ('base')}
                   >
                     <i
                       style='margin-right: 7px;'
                       class='icon-monitor icon-mc-detail'
                     />
                     {this.$t('变量列表')}
-                  </bk-button>
+                  </TButton>
                 </bk-popover>
               </div>
             </bk-form-item>
@@ -999,15 +999,15 @@ class QuickCreateSubscription extends tsc<IProps> {
               property='content_config.is_link_enabled'
               required
             >
-              <bk-radio-group
+              <TRadioGroup
                 v-model={this.isLinkEnabled}
                 onChange={() => {
                   this.formData.content_config.is_link_enabled = !!this.isLinkEnabled;
                 }}
               >
-                <bk-radio label={1}>{this.$t('是')}</bk-radio>
-                <bk-radio label={0}>{this.$t('否')}</bk-radio>
-              </bk-radio-group>
+                <TRadio value={1}>{this.$t('是')}</TRadio>
+                <TRadio value={0}>{this.$t('否')}</TRadio>
+              </TRadioGroup>
             </bk-form-item>
           </bk-form>
         </div>
@@ -1048,13 +1048,13 @@ class QuickCreateSubscription extends tsc<IProps> {
             >
               {this.mode === 'create' && (
                 <div>
-                  <bk-radio-group
+                  <TRadioGroup
                     style='display: inline;'
                     v-model={this.formData.subscriber_type}
                   >
-                    <bk-radio-button value='self'>{this.$t('仅自己')}</bk-radio-button>
-                    <bk-radio-button value='others'>{this.$t('给他人')}</bk-radio-button>
-                  </bk-radio-group>
+                    <TRadioButton value='self'>{this.$t('仅自己')}</TRadioButton>
+                    <TRadioButton value='others'>{this.$t('给他人')}</TRadioButton>
+                  </TRadioGroup>
                   {this.formData.subscriber_type === 'others' && (
                     <span style='margin-left: 10px;'>
                       <i
@@ -1069,7 +1069,7 @@ class QuickCreateSubscription extends tsc<IProps> {
 
               {this.formData.subscriber_type === 'others' && (
                 <div>
-                  <bk-checkbox v-model={this.formData.channels[0].is_enabled}>{this.$t('内部邮件')}</bk-checkbox>
+                  <TCheckbox v-model={this.formData.channels[0].is_enabled}>{this.$t('内部邮件')}</TCheckbox>
                   <br />
                   <div data-is-show-error-msg={String(this.errorTips.user.isShow)}>
                     <bk-user-selector
@@ -1100,12 +1100,12 @@ class QuickCreateSubscription extends tsc<IProps> {
                   </div>
 
                   <div style='margin-top: 10px;'>
-                    <bk-checkbox
+                    <TCheckbox
                       style='margin-top: 10px;'
                       v-model={this.formData.channels[1].is_enabled}
                     >
                       {this.$t('外部邮件')}
-                    </bk-checkbox>
+                    </TCheckbox>
                   </div>
                   <div>
                     <bk-popover
@@ -1150,12 +1150,12 @@ class QuickCreateSubscription extends tsc<IProps> {
                   {this.errorTips.email.isShow && <div class='form-error-tip'>{this.errorTips.email.message}</div>}
 
                   <div style='margin-top: 10px;'>
-                    <bk-checkbox
+                    <TCheckbox
                       style='margin-top: 10px;'
                       v-model={this.formData.channels[2].is_enabled}
                     >
                       {this.$t('企业微信群')}
-                    </bk-checkbox>
+                    </TCheckbox>
                   </div>
 
                   <div data-is-show-error-msg={String(this.errorTips.wxbot.isShow)}>
@@ -1204,13 +1204,13 @@ class QuickCreateSubscription extends tsc<IProps> {
               property='frequency'
               required
             >
-              <bk-radio-group v-model={this.formData.frequency.type}>
-                <bk-radio label={FrequencyType.hourly}>{this.$t('按小时')}</bk-radio>
-                <bk-radio label={FrequencyType.dayly}>{this.$t('按天')}</bk-radio>
-                <bk-radio label={FrequencyType.weekly}>{this.$t('按周')}</bk-radio>
-                <bk-radio label={FrequencyType.monthly}>{this.$t('按月')}</bk-radio>
-                <bk-radio label={FrequencyType.onlyOnce}>{this.$t('仅一次')}</bk-radio>
-              </bk-radio-group>
+              <TRadioGroup v-model={this.formData.frequency.type}>
+                <TRadio value={FrequencyType.hourly}>{this.$t('按小时')}</TRadio>
+                <TRadio value={FrequencyType.dayly}>{this.$t('按天')}</TRadio>
+                <TRadio value={FrequencyType.weekly}>{this.$t('按周')}</TRadio>
+                <TRadio value={FrequencyType.monthly}>{this.$t('按月')}</TRadio>
+                <TRadio value={FrequencyType.onlyOnce}>{this.$t('仅一次')}</TRadio>
+              </TRadioGroup>
 
               {this.formData.frequency.type === FrequencyType.hourly && (
                 <bk-select
@@ -1230,11 +1230,7 @@ class QuickCreateSubscription extends tsc<IProps> {
                             // 添加自定义 发送频率 ，如果输入有重复要直接选中。
                             let inputNumber = Number(this.customHourInput);
                             if (!inputNumber) {
-                              // @ts-expect-error
-                              return this.$bkMessage({
-                                theme: 'warning',
-                                message: this.$t('请输入有效数值'),
-                              });
+                              return TDesignMessage("warning", { content: this.$t('请输入有效数值') });
                             }
                             const minNum = 0.5;
                             const maxNum = 24;
@@ -1335,12 +1331,12 @@ class QuickCreateSubscription extends tsc<IProps> {
                   />
                   {/* 该复选值不需要提交，后续在编辑的时候需要通过 INCLUDES_WEEKEND 和 weekList 去判断即可 */}
                   {this.formData.frequency.type === FrequencyType.dayly && (
-                    <bk-checkbox
+                    <TCheckbox
                       style='margin-left: 10px;'
                       v-model={this.isIncludeWeekend}
                     >
                       {this.$t('包含周末')}
-                    </bk-checkbox>
+                    </TCheckbox>
                   )}
                 </div>
               )}

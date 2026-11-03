@@ -53,13 +53,13 @@
                 v-if="tokenLoading"
                 class="loading"
               ></span>
-              <bk-button
+              <t-button :variant="(true) ? 'text' : ('base')"
                 v-cursor="{ active: !editAuth }"
                 class="view-btn"
                 :loading="tokenLoading"
-                text
+                
                 @click="handleGetToken"
-                >{{ tokenLoading ? '' : $t('点击查看') }}</bk-button
+                >{{ tokenLoading ? '' : $t('点击查看') }}</t-button
               >
             </span>
             <span
@@ -290,7 +290,7 @@
       ></container-base>
     </div>
     <div>
-      <bk-button
+      <t-button
         v-cursor="{ active: !editAuth }"
         style="min-width: 88px; color: #3a84ff"
         class="mr10"
@@ -298,9 +298,9 @@
         @click="handleClickEdit"
       >
         {{ $t('编辑') }}
-      </bk-button>
+      </t-button>
       <bk-popover placement="bottom-end">
-        <bk-button class="bklog-icon bklog-lishijilu"></bk-button>
+        <t-button class="bklog-icon bklog-lishijilu"></t-button>
         <template #content>
           <div class="create-name-and-time">
             <div

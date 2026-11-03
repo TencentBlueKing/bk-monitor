@@ -45,15 +45,15 @@
         v-if="isLabel"
         class="customize-box"
       >
-        <bk-input
+        <t-input
           v-model.trim="matchKey"
           :class="`label-input ${isKeyError && 'input-error'}`"
-        ></bk-input>
+        ></t-input>
         <span>=</span>
-        <bk-input
+        <t-input
           v-model.trim="matchValue"
           :class="`label-input ${isValueError && 'input-error'}`"
-        ></bk-input>
+        ></t-input>
       </div>
       <div
         v-else
@@ -85,11 +85,11 @@
           >
           </bk-option>
         </bk-select>
-        <bk-input
+        <t-input
           v-model.trim="matchValue"
           :class="`fill-input ${isValueError && 'input-error'}`"
           :disabled="expressInputIsDisabled"
-        ></bk-input>
+        ></t-input>
       </div>
       <div class="add-operate flex-ac">
         <span
@@ -107,8 +107,8 @@
       class="list-container"
     >
       <template v-if="matchList.length">
-        <bk-checkbox-group v-model="matchSelectList">
-          <bk-checkbox
+        <t-checkbox-group v-model="matchSelectList">
+          <t-checkbox
             v-for="item of matchList"
             :key="item.id"
             :value="item.id"
@@ -149,8 +149,8 @@
                 </span>
               </div>
             </div>
-          </bk-checkbox>
-        </bk-checkbox-group>
+          </t-checkbox>
+        </t-checkbox-group>
       </template>
       <div
         v-else
@@ -472,7 +472,7 @@
     border-color: #ff5656;
   }
 
-  :deep(.input-error .bk-form-input) {
+  :deep(.input-error .t-input__inner) {
     border-color: #ff5656;
   }
 </style>

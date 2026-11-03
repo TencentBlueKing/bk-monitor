@@ -1,3 +1,7 @@
+
+import { Loading as TLoading } from 'tdesign-vue-next';
+
+import { Button as TButton } from 'tdesign-vue-next';
 import { ServicesInstance } from '@/platform/services';
 /*
  * Tencent is pleased to support the open source community by making
@@ -217,9 +221,9 @@ export default defineComponent({
                   {isClickSubmit.value && (
                     <div>
                       {isDetection.value ? (
-                        <bk-spin
+                        <TLoading
                           class='spin'
-                          size='mini'
+                          size="small"
                         />
                       ) : (
                         <span
@@ -235,14 +239,14 @@ export default defineComponent({
                   )}
                 </div>
                 <div class='btns-main'>
-                  <bk-button
+                  <TButton
                     disabled={isDetection.value}
                     theme='primary'
                     onClick={handleRuleSubmit}
                   >
                     {isRuleCorrect.value ? t('保存') : t('检测语法')}
-                  </bk-button>
-                  <bk-button onClick={handleClickCancel}>{t('取消')}</bk-button>
+                  </TButton>
+                  <TButton onClick={handleClickCancel}>{t('取消')}</TButton>
                 </div>
               </div>
             </div>

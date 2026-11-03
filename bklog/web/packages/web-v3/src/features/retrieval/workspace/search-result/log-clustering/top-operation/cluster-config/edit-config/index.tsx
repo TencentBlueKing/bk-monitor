@@ -25,14 +25,14 @@ import { ServicesInstance } from '@/platform/services';
  * IN THE SOFTWARE.
  */
 import { defineComponent, onMounted, ref, computed, watch } from 'vue';
-import TextHighlight from 'vue-text-highlight';
+import TextHighlight from '@/shared/ui/text-highlight';
 
 import FilterRule from '@/features/collection/filter-rule/index';
 import RuleConfigOperate from '@/features/cleaning/rule-config/index';
 import RuleTable from '@/features/cleaning/rule-table/index';
 import useLocale from '@/shared/composables/use-locale';
 import useStore from '@/shared/composables/use-store';
-import { bkNotify } from 'bk-magic-vue';
+import { bkNotify } from '@/platform/compat/tdesign/magic-controls';
 
 import RuleOperate from './rule-operate/index';
 

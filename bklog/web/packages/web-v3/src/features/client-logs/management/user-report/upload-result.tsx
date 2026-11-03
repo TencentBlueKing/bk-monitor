@@ -1,3 +1,7 @@
+
+import { Loading as TLoading } from 'tdesign-vue-next';
+
+import { Button as TButton } from 'tdesign-vue-next';
 /*
  * Tencent is pleased to support the open source community by making
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
@@ -72,12 +76,12 @@ export default defineComponent({
           class='upload-icon running'
           key='running'
         >
-          <bk-spin size='normal'></bk-spin>
+          <TLoading size='normal'></TLoading>
         </div>
         <div class='upload-title'>{t('日志上传中...')}</div>
         <div class='upload-desc'>{t('预计等待2-3分钟，窗口关闭后不会影响任务执行')}</div>
         <div class='upload-actions'>
-          <bk-button onClick={handleClose}>{t('关闭')}</bk-button>
+          <TButton onClick={handleClose}>{t('关闭')}</TButton>
         </div>
       </div>
     );
@@ -93,13 +97,13 @@ export default defineComponent({
         </div>
         <div class='upload-title'>{t('日志上传成功')}</div>
         <div class='upload-actions'>
-          <bk-button
+          <TButton
             theme='primary'
             onClick={handleGoSearch}
           >
             {t('去首页查询')}
-          </bk-button>
-          <bk-button onClick={handleBackList}>{t('返回列表')}</bk-button>
+          </TButton>
+          <TButton onClick={handleBackList}>{t('返回列表')}</TButton>
         </div>
       </div>
     );
@@ -115,12 +119,12 @@ export default defineComponent({
         </div>
         <div class='upload-title'>{t('日志上传失败')}</div>
         <div class='upload-actions'>
-          <bk-button
+          <TButton
             theme='primary'
             onClick={handleRetry}
           >
             {t('重试')}
-          </bk-button>
+          </TButton>
         </div>
       </div>
     );

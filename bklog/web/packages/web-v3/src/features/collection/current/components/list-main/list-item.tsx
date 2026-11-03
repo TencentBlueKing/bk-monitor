@@ -1,3 +1,5 @@
+
+import { Button as TButton } from 'tdesign-vue-next';
 /*
  * Tencent is pleased to support the open source community by making
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
@@ -302,20 +304,20 @@ export default defineComponent({
         </div>
         <div class='del-tips'>{t('删除索引集，不影响已有的采集项。')}</div>
         <div class='btns-box del-btns'>
-          <bk-button
+          <TButton
             class='mr8'
             size='small'
             theme='danger'
             onClick={handleDelSubmit}
           >
             {t('删除')}
-          </bk-button>
-          <bk-button
+          </TButton>
+          <TButton
             size='small'
             onClick={handleDelCancel}
           >
             {t('取消')}
-          </bk-button>
+          </TButton>
         </div>
       </div>
     );

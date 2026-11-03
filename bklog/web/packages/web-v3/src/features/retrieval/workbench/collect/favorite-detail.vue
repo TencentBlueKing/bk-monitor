@@ -27,10 +27,7 @@
   <div class="favorite-manage___favorite-detail-component">
     <div class="header-title">
       {{ $t('收藏详情') }}
-      <span
-        class="bklog-icon bklog-close"
-        @click="handleCloseDialog"
-      />
+      <span class="bklog-icon bklog-close" @click="handleCloseDialog" />
     </div>
     <div class="detail-items-wrap">
       <!-- 收藏名称 -->
@@ -41,25 +38,14 @@
             <template v-if="!showNameInput">
               <span class="edit-name-wrap">
                 <div class="edit-name">{{ value.name }}</div>
-                <span
-                  class="bklog-icon bklog-edit"
-                  @click="handleEditName"
-                />
+                <span class="bklog-icon bklog-edit" @click="handleEditName" />
               </span>
             </template>
             <template v-else>
-              <bk-input
-                v-model="nameInput"
-                class="edit-input-wrap"
-                @blur="handleUpdateName"
-                @enter="handleUpdateName"
-              />
+              <t-input v-model="nameInput" class="edit-input-wrap" @blur="handleUpdateName" @enter="handleUpdateName" />
             </template>
           </template>
-          <div
-            v-else
-            class="skeleton-element input-loading"
-          />
+          <div v-else class="skeleton-element input-loading" />
         </div>
       </div>
 
@@ -71,32 +57,16 @@
             <template v-if="!showGroupInput">
               <span class="edit-name-wrap">
                 <div class="edit-name">{{ value.group_name }}</div>
-                <span
-                  class="bklog-icon bklog-edit"
-                  @click="handleEditGroup"
-                />
+                <span class="bklog-icon bklog-edit" @click="handleEditGroup" />
               </span>
             </template>
             <template v-else>
-              <bk-select
-                v-model="groupInput"
-                class="edit-input-wrap"
-                :clearable="false"
-                @change="handleUpdateGroup"
-              >
-                <bk-option
-                  v-for="item in groups"
-                  :id="String(item.id)"
-                  :key="String(item.id)"
-                  :name="item.name"
-                />
-              </bk-select>
+              <TSelect v-model="groupInput" class="edit-input-wrap" :clearable="false" @change="handleUpdateGroup">
+                <TOption v-for="item in groups" :value="String(item.id)" :key="String(item.id)" :label="item.name" />
+              </TSelect>
             </template>
           </template>
-          <div
-            v-else
-            class="skeleton-element input-loading"
-          />
+          <div v-else class="skeleton-element input-loading" />
         </div>
       </div>
 
@@ -122,265 +92,259 @@
   </div>
 </template>
 
-<script setup>import { ServicesInstance } from '@/platform/services';
+<script setup lang="ts">
+import { Select as TSelect, Option as TOption } from 'tdesign-vue-next';
+import type { FavoriteRecord, FavoriteGroup } from './favorite.types';
+import { ServicesInstance } from '@/platform/services';
 
-  import { ref, watch, computed } from 'vue';
-  
-  import useLocale from '@/shared/composables/use-locale';
-  const { $t } = useLocale();
+import { ref, watch, computed } from 'vue';
 
-  const props = defineProps({
-    value: {
-      type: Object,
-      default: () => ({}),
-    },
-    groups: {
-      type: Array,
-      default: () => [],
-    },
-    favoriteType: {
-      type: String,
-      default: 'event',
-    },
-  });
+import useLocale from '@/shared/composables/use-locale';
+const { $t } = useLocale();
 
-  const emit = defineEmits(['success', 'close']);
+const props = withDefaults(defineProps<{ value: FavoriteRecord; groups?: FavoriteGroup[]; favoriteType?: string }>(), {
+  groups: () => [],
+  favoriteType: 'event',
+});
 
-  const showNameInput = ref(false);
-  const nameInput = ref('');
-  const nameLoading = ref(false);
-  const showGroupInput = ref(false);
-  const groupInput = ref(null);
-  const groupLoading = ref(false);
+const emit = defineEmits<{ success: [value: FavoriteRecord]; close: [] }>();
 
-  const handleEditName = () => {
-    showNameInput.value = true;
-    showGroupInput.value = false;
-    nameInput.value = props.value.name;
-  };
+const showNameInput = ref(false);
+const nameInput = ref('');
+const nameLoading = ref(false);
+const showGroupInput = ref(false);
+const groupInput = ref<string>('null');
+const groupLoading = ref(false);
 
-  const handleEditGroup = () => {
-    showGroupInput.value = true;
-    showNameInput.value = false;
-    groupInput.value = props.value.group_id;
-  };
+const handleEditName = () => {
+  showNameInput.value = true;
+  showGroupInput.value = false;
+  nameInput.value = props.value.name;
+};
 
-  const handleUpdateName = async () => {
-    showNameInput.value = false;
-    if (nameInput.value && nameInput.value !== props.value.name) {
-      nameLoading.value = true;
-      const params = {
-        ...props.value,
-        name: nameInput.value,
-      };
-      const success = await handleUpdateFavorite(params);
-      nameLoading.value = false;
-      success && emit('success', params);
-    }
-  };
+const handleEditGroup = () => {
+  showGroupInput.value = true;
+  showNameInput.value = false;
+  groupInput.value = String(props.value.group_id);
+};
 
-  const handleUpdateGroup = async () => {
-    showGroupInput.value = false;
-    if (groupInput.value && groupInput.value !== props.value.group_id) {
-      groupLoading.value = true;
-      const groupName = props.groups.find(item => String(item.id) === String(groupInput.value))?.name;
-      const params = {
-        ...props.value,
-        group_id: groupInput.value === 'null' ? null : groupInput.value,
-      };
-      const success = await handleUpdateFavorite(params);
-      groupLoading.value = false;
-      success &&
-        emit('success', {
-          ...params,
-          group_name: groupName || props.value.group_name,
-        });
-    }
-  };
-
-  const handleUpdateFavorite = async row => {
-    const params = [
-      {
-        id: row.id,
-        name: row.name,
-        keyword: row.keyword,
-        group_id: row.group_id,
-        search_fields: row.search_fields,
-        visible_type: row.visible_type,
-        display_fields: row.display_fields,
-        is_enable_display_fields: row.is_enable_display_fields,
-        ip_chooser: row.params.ip_chooser,
-        addition: row.params.addition,
-        search_mode: row.search_mode,
-      },
-    ];
-
-    return ServicesInstance.favorite.batchFavoriteUpdate({
-        data: {
-          params,
-        },
-      })
-      .then(() => {
-        return Promise.resolve(true);
-      })
-      .catch(error => {
-        console.error('Batch update failed', error);
-        return Promise.reject(error);
-      });
-  };
-  function handleCloseDialog() {
-    emit('close');
+const handleUpdateName = async () => {
+  showNameInput.value = false;
+  if (nameInput.value && nameInput.value !== props.value.name) {
+    nameLoading.value = true;
+    const params = {
+      ...props.value,
+      name: nameInput.value,
+    };
+    const success = await handleUpdateFavorite(params);
+    nameLoading.value = false;
+    success && emit('success', params);
   }
-  // function mergeWhereList(source, target) {
-  //   let result = [];
-  //   const sourceMap = new Map();
-  //   for (const item of source) {
-  //     sourceMap.set(item.key, item);
-  //   }
-  //   const localTarget = [];
-  //   for (const item of target) {
-  //     const sourceItem = sourceMap.get(item.key);
-  //     if (
-  //       !(
-  //         sourceItem &&
-  //         sourceItem.key === item.key &&
-  //         sourceItem.method === item.method &&
-  //         JSON.stringify(sourceItem.value) === JSON.stringify(item.value) &&
-  //         sourceItem?.options?.is_wildcard === item?.options?.is_wildcard
-  //       )
-  //     ) {
-  //       localTarget.push(item);
-  //     }
-  //   }
-  //   result = [...source, ...localTarget];
-  //   return result;
-  // }
+};
 
-  const queryContent = computed(() => {
-    return props.value.keyword;
-  });
+const handleUpdateGroup = async () => {
+  showGroupInput.value = false;
+  if (groupInput.value && groupInput.value !== String(props.value.group_id)) {
+    groupLoading.value = true;
+    const groupName = props.groups.find((item) => String(item.id) === String(groupInput.value))?.name;
+    const params = {
+      ...props.value,
+      group_id: groupInput.value === 'null' ? null : groupInput.value,
+    };
+    const success = await handleUpdateFavorite(params);
+    groupLoading.value = false;
+    success &&
+      emit('success', {
+        ...params,
+        group_name: groupName || props.value.group_name,
+      });
+  }
+};
 
-  watch(
-    () => props.value,
-    () => {
-      showNameInput.value = false;
-      showGroupInput.value = false;
-      nameLoading.value = false;
-      groupLoading.value = false;
+const handleUpdateFavorite = async (row: FavoriteRecord) => {
+  const params = [
+    {
+      id: row.id,
+      name: row.name,
+      keyword: row.keyword,
+      group_id: row.group_id,
+      search_fields: row.search_fields,
+      visible_type: row.visible_type,
+      display_fields: row.display_fields,
+      is_enable_display_fields: row.is_enable_display_fields,
+      ip_chooser: row.params.ip_chooser,
+      addition: row.params.addition,
+      search_mode: row.search_mode,
     },
-  );
+  ];
+
+  return ServicesInstance.favorite
+    .batchFavoriteUpdate({
+      data: {
+        params,
+      },
+    })
+    .then(() => {
+      return Promise.resolve(true);
+    })
+    .catch((error) => {
+      console.error('Batch update failed', error);
+      return Promise.reject(error);
+    });
+};
+function handleCloseDialog() {
+  emit('close');
+}
+// function mergeWhereList(source, target) {
+//   let result = [];
+//   const sourceMap = new Map();
+//   for (const item of source) {
+//     sourceMap.set(item.key, item);
+//   }
+//   const localTarget = [];
+//   for (const item of target) {
+//     const sourceItem = sourceMap.get(item.key);
+//     if (
+//       !(
+//         sourceItem &&
+//         sourceItem.key === item.key &&
+//         sourceItem.method === item.method &&
+//         JSON.stringify(sourceItem.value) === JSON.stringify(item.value) &&
+//         sourceItem?.options?.is_wildcard === item?.options?.is_wildcard
+//       )
+//     ) {
+//       localTarget.push(item);
+//     }
+//   }
+//   result = [...source, ...localTarget];
+//   return result;
+// }
+
+const queryContent = computed(() => {
+  return props.value.keyword;
+});
+
+watch(
+  () => props.value,
+  () => {
+    showNameInput.value = false;
+    showGroupInput.value = false;
+    nameLoading.value = false;
+    groupLoading.value = false;
+  },
+);
 </script>
 
 <style lang="scss" scoped>
-  .favorite-manage___favorite-detail-component {
-    padding: 14px 16px;
+.favorite-manage___favorite-detail-component {
+  padding: 14px 16px;
 
-    .header-title {
-      display: flex;
-      justify-content: space-between;
-      margin-bottom: 12px;
-      font-size: 16px;
-      line-height: 24px;
-      color: #313238;
+  .header-title {
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 12px;
+    font-size: 16px;
+    line-height: 24px;
+    color: #313238;
 
-      .bklog-close {
-        cursor: pointer;
-      }
+    .bklog-close {
+      cursor: pointer;
     }
+  }
 
-    .detail-items-wrap {
-      .form-item {
+  .detail-items-wrap {
+    .form-item {
+      display: flex;
+      align-items: flex-start;
+      font-size: 12px;
+
+      .form-item-label {
+        width: 60px;
+        margin: 6px 0;
+        line-height: 20px;
+        color: #4d4f56;
+        text-align: right;
+      }
+
+      .form-item-content {
         display: flex;
-        align-items: flex-start;
-        font-size: 12px;
+        align-items: center;
+        line-height: 20px;
 
-        .form-item-label {
-          width: 60px;
-          margin: 6px 0;
-          line-height: 20px;
-          color: #4d4f56;
-          text-align: right;
+        .input-loading {
+          width: 248px;
+          height: 20px;
+          margin-top: 6px;
         }
 
-        .form-item-content {
+        .edit-name-wrap {
           display: flex;
-          align-items: center;
-          line-height: 20px;
+          align-items: flex-start;
+          margin-top: 6px;
 
-          .input-loading {
-            width: 248px;
+          .edit-name {
+            line-height: 20px;
+          }
+
+          .bklog-edit {
+            display: inline-block;
+            width: 20px;
             height: 20px;
-            margin-top: 6px;
+            margin-left: 4px;
+            font-size: 16px;
+            line-height: 20px;
+            cursor: pointer;
           }
+        }
 
-          .edit-name-wrap {
-            display: flex;
-            align-items: flex-start;
-            margin-top: 6px;
+        .item-name {
+          margin-top: 6px;
+        }
 
-            .edit-name {
-              line-height: 20px;
-            }
+        .edit-input-wrap {
+          width: 248px;
+          background: #fff;
+        }
 
-            .bklog-edit {
-              display: inline-block;
-              width: 20px;
-              height: 20px;
-              margin-left: 4px;
-              font-size: 16px;
-              line-height: 20px;
-              cursor: pointer;
-            }
-          }
+        .query-content-wrap {
+          position: relative;
+          width: 440px;
+          padding: 8px 12px;
+          font-size: 12px;
+          line-height: 18px;
+          background: #f0f1f5;
+          border-radius: 2px;
 
-          .item-name {
-            margin-top: 6px;
-          }
+          .json-wrap {
+            width: auto;
+            max-height: 500px;
+            overflow-y: auto;
 
-          .edit-input-wrap {
-            width: 248px;
-            background: #fff;
-          }
+            .vjs-tree {
+              font-size: 12px;
 
-          .query-content-wrap {
-            position: relative;
-            width: 440px;
-            padding: 8px 12px;
-            font-size: 12px;
-            line-height: 18px;
-            background: #f0f1f5;
-            border-radius: 2px;
+              .vjs-value-string {
+                tab-size: 3;
+                white-space: pre-wrap;
+              }
 
-            .json-wrap {
-              width: auto;
-              max-height: 500px;
-              overflow-y: auto;
+              .vjs-value__string {
+                color: #1f6d89;
+              }
 
-              .vjs-tree {
-                font-size: 12px;
-
-                .vjs-value-string {
-                  tab-size: 3;
-                  white-space: pre-wrap;
-                }
-
-                .vjs-value__string {
-                  color: #1f6d89;
-                }
-
-                .vjs-key {
-                  color: #9d694c;
-                }
+              .vjs-key {
+                color: #9d694c;
               }
             }
+          }
 
-            .promql-val {
-              width: 100%;
-              word-wrap: break-word;
-            }
+          .promql-val {
+            width: 100%;
+            word-wrap: break-word;
           }
         }
       }
     }
   }
+}
 </style>

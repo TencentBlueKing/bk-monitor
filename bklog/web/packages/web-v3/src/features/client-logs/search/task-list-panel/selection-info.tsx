@@ -1,3 +1,5 @@
+
+import { Button as TButton } from 'tdesign-vue-next';
 /*
  * Tencent is pleased to support the open source community by making
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
@@ -123,20 +125,20 @@ export default defineComponent({
               </div>
             )}
             <div class='task-selection-actions'>
-              <bk-button
+              <TButton
                 size='small'
                 onClick={() => emit('select-all')}
               >
                 {t('全选已采集')}
-              </bk-button>
-              <bk-button
+              </TButton>
+              <TButton
                 size='small'
                 onClick={() => emit('clear')}
               >
                 {t('取消')}
-              </bk-button>
+              </TButton>
             </div>
-            <bk-button
+            <TButton
               class='task-selection-download'
               disabled={isOverLimit}
               size='small'
@@ -144,7 +146,7 @@ export default defineComponent({
               onClick={() => emit('download')}
             >
               {t('下载已选（{n}）', { n: count })}
-            </bk-button>
+            </TButton>
           </div>
         </BklogPopover>
       );

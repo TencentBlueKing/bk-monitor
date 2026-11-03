@@ -29,14 +29,14 @@
     class="index-set-container"
     data-test-id="logIndexSet_section_logIndexSetBox"
   >
-    <bk-alert
+    <t-alert data-v2-display="alert"
       v-if="searchParams.is_trace_log === '0'"
       class="alert-info"
-      :title="alertText"
-      type="info"
-    ></bk-alert>
+      :message="alertText"
+      :theme="'info'"
+    ></t-alert>
     <div class="operate-box">
-      <bk-button
+      <t-button
         v-cursor="{ active: isAllowedCreate === false }"
         style="min-width: 120px"
         :disabled="!collectProject || isTableLoading || isAllowedCreate === null"
@@ -46,17 +46,17 @@
         @click="addIndexSet"
       >
         {{ $t('新建索引集') }}
-      </bk-button>
-      <bk-input
+      </t-button>
+      <t-input
         v-model="searchParams.keyword"
         style="width: 300px"
         :placeholder="$t('请输入索引集名称')"
-        :right-icon="'bk-icon icon-search'"
+        
         data-test-id="logIndexSetBox_input_searchIndexSet"
         @change="handleSearchChange"
         @enter="reFilter"
       >
-      </bk-input>
+      <template #suffix><i :class="'bk-icon icon-search'" /></template></t-input>
     </div>
     <bk-table
       v-bkloading="{ isLoading: isTableLoading }"
@@ -183,29 +183,29 @@
         :render-header="$renderHeader"
       >
         <template #default="props">
-          <bk-button
+          <t-button :variant="(true) ? 'text' : ('base')"
             v-cursor="{ active: !(props.row.permission && props.row.permission[authorityMap.MANAGE_INDICES_AUTH]) }"
             style="margin-right: 4px"
             theme="primary"
-            text
+            
             @click="manageIndexSet('search', props.row)"
             >{{ $t('检索') }}
-          </bk-button>
+          </t-button>
           <!-- { active: !(props.row.permission && props.row.permission[authorityMap.MANAGE_INDICES_AUTH]) } -->
-          <bk-button
+          <t-button :variant="(true) ? 'text' : ('base')"
             v-if="isShowMaskingTemplate"
             style="margin-right: 4px"
             theme="primary"
-            text
+            
             @click="manageIndexSet('masking', props.row)"
             >{{ $t('日志脱敏') }}
-          </bk-button>
-          <bk-button
+          </t-button>
+          <t-button :variant="(true) ? 'text' : ('base')"
             v-cursor="{ active: !(props.row.permission && props.row.permission.manage_indices_v2) }"
             style="margin-right: 4px"
             :disabled="!props.row.is_editable"
             theme="primary"
-            text
+            
             @click="manageIndexSet('edit', props.row)"
           >
             <span
@@ -215,15 +215,15 @@
               }"
               >{{ $t('编辑') }}</span
             >
-          </bk-button>
-          <bk-button
+          </t-button>
+          <t-button :variant="(true) ? 'text' : ('base')"
             v-cursor="{ active: !(props.row.permission && props.row.permission.manage_indices_v2) }"
             theme="primary"
-            text
+            
             @click="manageIndexSet('delete', props.row)"
           >
             <span>{{ $t('删除') }}</span>
-          </bk-button>
+          </t-button>
         </template>
       </bk-table-column>
       <template #empty>
@@ -247,12 +247,16 @@
   import { formatBytes, requestStorageUsage } from '../../../util';
   import * as authorityMap from '../../../../../shared/lib/authority-map';
   import useUtils from '@/shared/composables/use-utils';
+  import useFullscreenLoading from '@/shared/composables/use-fullscreen-loading';
 
   export default {
     name: 'IndexSetList',
     components: {
       EmptyStatus,
       IndexSetLabelSelect,
+    },
+    setup() {
+      return useFullscreenLoading();
     },
     data() {
       const scenarioId = this.$route.name.split('-')[0];
@@ -510,21 +514,18 @@
           this.$bkInfo({
             subTitle: this.$t('当前索引集为{n}，确认要删除？', { n: row.index_set_name }),
             maskClose: true,
-            confirmFn: () => {
-              this.$bkLoading({
-                opacity: 0.6,
-              });
-              ServicesInstance.indexSet.remove({
+            confirmFn: async () => {
+              const loading = this.showFullscreenLoading({ opacity: 0.6 });
+              try {
+                await ServicesInstance.indexSet.remove({
                   params: {
                     index_set_id: row.index_set_id,
                   },
-                })
-                .then(() => {
-                  this.getIndexSetList();
-                })
-                .finally(() => {
-                  this.$bkLoading.hide();
                 });
+                this.getIndexSetList();
+              } finally {
+                loading.hide();
+              }
             },
           });
         } else if (type === 'masking') {

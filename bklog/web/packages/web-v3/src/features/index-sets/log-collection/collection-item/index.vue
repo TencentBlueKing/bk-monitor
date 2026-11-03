@@ -30,7 +30,7 @@
     data-test-id="logCollection_div_logCollectionBox"
   >
     <section class="top-operation">
-      <bk-button
+      <t-button
         v-cursor="{ active: isAllowedCreate === false }"
         class="fl"
         :disabled="!collectProject || isAllowedCreate === null || isTableLoading"
@@ -39,7 +39,7 @@
         @click="operateHandler({}, 'add')"
       >
         {{ $t('新建采集项') }}
-      </bk-button>
+      </t-button>
       <div class="collect-search fr">
         <bk-input
           v-model="searchKeyword"
@@ -373,15 +373,15 @@
                 }"
                 class="king-button"
               >
-                <bk-button
+                <t-button :variant="(true) ? 'text' : ('base')"
                   v-cursor="{ active: !(props.row.permission && props.row.permission[authorityMap.SEARCH_LOG_AUTH]) }"
                   :disabled="!getOperatorCanClick(props.row, 'search')"
                   theme="primary"
-                  text
+                  
                   @click="operateHandler(props.row, 'search')"
                 >
                   {{ $t('检索') }}
-                </bk-button>
+                </t-button>
               </span>
               <!-- 编辑 -->
               <span
@@ -392,17 +392,17 @@
                 }"
                 class="king-button"
               >
-                <bk-button
+                <t-button :variant="(true) ? 'text' : ('base')"
                   v-cursor="{
                     active: !(props.row.permission && props.row.permission[authorityMap.MANAGE_COLLECTION_AUTH]),
                   }"
                   :disabled="!getOperatorCanClick(props.row, 'edit')"
                   theme="primary"
-                  text
+                  
                   @click.stop="operateHandler(props.row, 'edit')"
                 >
                   {{ $t('编辑') }}
-                </bk-button>
+                </t-button>
               </span>
 
               <!-- 清洗 -->
@@ -414,17 +414,17 @@
                 }"
                 class="king-button"
               >
-                <bk-button
+                <t-button :variant="(true) ? 'text' : ('base')"
                   v-cursor="{
                     active: !(props.row.permission && props.row.permission[authorityMap.MANAGE_COLLECTION_AUTH]),
                   }"
                   :disabled="!getOperatorCanClick(props.row, 'clean')"
                   theme="primary"
-                  text
+                  
                   @click.stop="operateHandler(props.row, 'clean')"
                 >
                   {{ $t('清洗') }}
-                </bk-button>
+                </t-button>
               </span>
 
               <bk-popover
@@ -1323,7 +1323,7 @@
 
       @include clearfix;
 
-      .bk-button {
+      .t-button {
         width: 120px;
       }
     }

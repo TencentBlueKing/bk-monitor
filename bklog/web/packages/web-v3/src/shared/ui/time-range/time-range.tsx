@@ -24,18 +24,14 @@
  * IN THE SOFTWARE.
  */
 
-import { defineComponent, h, onMounted, ref, type PropType } from 'vue';
-import DatePicker from '@blueking/date-picker';
+import { defineComponent, h, onMounted, onBeforeUnmount, onDeactivated, watch, ref, type PropType } from 'vue';
+import { mountDatePicker } from 'virtual:bklog-native-date-picker';
+import type { DatePickerHandle, DatePickerState, DatePickerValue } from '@/platform/sdk/date-picker/contract';
 import { updateTimezone } from '../../../platform/i18n/dayjs';
 import { DEFAULT_TIME_RANGE } from './utils';
 import { BK_LOG_STORAGE } from '@/app/state/store.type.ts';
 import useStore from '@/shared/composables/use-store';
 import '@blueking/date-picker/vue3/vue3.css';
-
-// The official Vue3 component consumes modelValue/update:modelValue. Keep that
-// contract when it is rendered inside the temporary Vue2 compatibility host.
-// This metadata is ignored by the final native Vue3 runtime.
-Object.assign(DatePicker, { compatConfig: { MODE: 3 } });
 
 export type TimeRangeType = [string, string];
 type TimeRangeDisplayType = 'normal' | 'simplicity';
@@ -50,14 +46,23 @@ export default defineComponent({
     needTimezone: { type: Boolean, default: true },
     maxDuration: Number,
   },
-  emits: ['change', 'format-change', 'timezone-change', "formatChange", "timezoneChange"],
+  emits: ['change', 'format-change', 'timezone-change', 'formatChange', 'timezoneChange'],
   setup(props, { emit, expose }) {
     const store = useStore();
-    const datePicker = ref();
+    const host = ref<HTMLElement>();
+    const datePicker = ref<DatePickerHandle>();
+    const getState = (): DatePickerState => ({
+      modelValue: [...props.value],
+      behavior: props.type,
+      needTimezone: props.needTimezone,
+      timezone: props.timezone,
+      format: formatStr.value,
+      maxDuration: props.maxDuration,
+    });
     const formatStr = ref(store.getters.retrieveParams.format);
     onMounted(() => store.commit('retrieve/updateCachePickerValue', props.value));
-    function handleModelValueChange(value: TimeRangeType) {
-      if (value.every(item => typeof item === 'string'))
+    function handleModelValueChange(value: DatePickerValue) {
+      if (value.every((item) => typeof item === 'string'))
         localStorage.setItem('SEARCH_DEFAULT_TIME', JSON.stringify(value));
       store.commit('updateStorage', { [BK_LOG_STORAGE.CACHED_BATCH_LIST]: [] });
       store.commit('retrieve/updateCachePickerValue', props.value);
@@ -73,21 +78,17 @@ export default defineComponent({
       emit('timezone-change', timezone);
     }
     expose({ datePicker, handleModelValueChange, handleFormatChange, handleTimezoneChange });
-    return () =>
-      h('div', { style: { display: 'inline-flex' } }, [
-        h(DatePicker, {
-          ref: datePicker,
-          behavior: props.type,
-          modelValue: props.value,
-          needTimezone: props.needTimezone,
-          enableFormatClick: true,
-          timezone: props.timezone,
-          format: formatStr.value,
-          maxDuration: props.maxDuration,
-          'onUpdate:modelValue': handleModelValueChange,
-          'onUpdate:format': handleFormatChange,
-          'onUpdate:timezone': handleTimezoneChange,
-        }),
-      ]);
+    onMounted(() => {
+      if (host.value)
+        datePicker.value = mountDatePicker(host.value, getState(), {
+          value: handleModelValueChange,
+          format: handleFormatChange,
+          timezone: handleTimezoneChange,
+        });
+    });
+    watch(getState, (state) => datePicker.value?.update(state), { deep: true });
+    onDeactivated(() => datePicker.value?.handleHidePanel());
+    onBeforeUnmount(() => datePicker.value?.destroy());
+    return () => h('div', { ref: host, style: { display: 'inline-flex' }, 'data-testid': 'official-date-picker-host' });
   },
 });

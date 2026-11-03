@@ -1,3 +1,5 @@
+
+import { MessagePlugin as TDesignMessage, Button as TButton } from 'tdesign-vue-next';
 import { ServicesInstance } from '@/platform/services';
 /*
  * Tencent is pleased to support the open source community by making
@@ -27,7 +29,7 @@ import { ServicesInstance } from '@/platform/services';
 
 import { defineComponent, onBeforeUnmount, onMounted, ref, computed } from 'vue';
 
-import { bkMessage } from 'bk-magic-vue';
+
 import { DialogPlugin } from 'tdesign-vue-next';
 import 'tdesign-vue-next/es/dialog/style/index.css';
 import { debounce } from 'lodash-es';
@@ -276,10 +278,7 @@ export default defineComponent({
         await ServicesInstance.grok.deleteGrok({
           params: { id: row.id },
         });
-        bkMessage({
-          theme: 'success',
-          message: t('Grok 模式删除成功'),
-        });
+        TDesignMessage("success", { content: t('Grok 模式删除成功') });
         fetchAllData();
       } catch (error) {
         console.warn('删除 Grok 失败:', error);
@@ -307,10 +306,7 @@ export default defineComponent({
               description: formData.description,
             },
           });
-          bkMessage({
-            theme: 'success',
-            message: t('Grok 模式更新成功'),
-          });
+          TDesignMessage("success", { content: t('Grok 模式更新成功') });
         } else {
           // 创建
           await ServicesInstance.grok.createGrok({
@@ -322,10 +318,7 @@ export default defineComponent({
               description: formData.description,
             },
           });
-          bkMessage({
-            theme: 'success',
-            message: t('Grok 模式创建成功'),
-          });
+          TDesignMessage("success", { content: t('Grok 模式创建成功') });
         }
         dialogVisible.value = false;
         fetchAllData();
@@ -378,13 +371,13 @@ export default defineComponent({
         {/* 操作区域 */}
         <div class='operating-area'>
           <div class='operating-left'>
-            <bk-button
+            <TButton
               theme='primary'
               disabled={isLoading.value}
               onClick={handleCreate}
             >
               {t('新建')}
-            </bk-button>
+            </TButton>
           </div>
           <div class='operating-right'>
             <bk-input

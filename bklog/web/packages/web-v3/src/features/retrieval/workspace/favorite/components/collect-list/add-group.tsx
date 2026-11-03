@@ -1,3 +1,5 @@
+import { Button as TButton, Form as TForm, FormItem as TFormItem, Input as TInput } from 'tdesign-vue-next';
+import type { FormInstanceFunctions, FormRules } from 'tdesign-vue-next';
 /*
  * Tencent is pleased to support the open source community by making
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
@@ -39,7 +41,7 @@ export default defineComponent({
   name: 'AddGroup',
   props: {
     rules: {
-      type: Object as PropType<Record<string, any>>,
+      type: Object as PropType<FormRules>,
       default: () => ({}),
     },
     /** 是否以表单形式展示 */
@@ -66,12 +68,12 @@ export default defineComponent({
     const spaceUid = computed(() => store.state.spaceUid);
     const formData = reactive({ group_name: '' });
     const isShowAddGroup = ref(false);
-    const checkInputFormRef = ref<import("@/shared/types/legacy-form").LegacyFormInstance | null>(null);
+    const checkInputFormRef = ref<FormInstanceFunctions | null>(null);
     // 使用自定义 hook 管理状态
     const { updateGroupName } = useFavorite();
     watch(
       () => props.isCreate,
-      val => {
+      (val) => {
         if (!val) {
           formData.group_name = props.data.group_name || '';
         }
@@ -80,23 +82,21 @@ export default defineComponent({
     );
 
     /** 创建分组 */
-    const handleCreateGroup = () => {
-      checkInputFormRef.value
-        ?.validate()
-        .then(async () => {
-          if (!formData.group_name.trim()) return;
-          const { group_id } = props.data;
-          const params = props.isCreate
-            ? { group_new_name: formData.group_name }
-            : { group_new_name: formData.group_name, group_id };
-          updateGroupName(params, spaceUid.value, props.isCreate, res => {
-            isShowAddGroup.value = false;
-            emit('submit', res.id, formData.group_name);
-          });
-        })
-        .catch((err: unknown) => {
-          handleApiError(err, '创建分组失败');
+    const handleCreateGroup = async () => {
+      try {
+        if ((await checkInputFormRef.value?.validate()) !== true) return;
+        if (!formData.group_name.trim()) return;
+        const { group_id } = props.data;
+        const params = props.isCreate
+          ? { group_new_name: formData.group_name }
+          : { group_new_name: formData.group_name, group_id };
+        await updateGroupName(params, spaceUid.value, props.isCreate, (res) => {
+          isShowAddGroup.value = false;
+          emit('submit', res.id, formData.group_name);
         });
+      } catch (err: unknown) {
+        handleApiError(err, '创建分组失败');
+      }
     };
     /** 取消按钮的handle */
     const handleCancel = () => {
@@ -104,16 +104,13 @@ export default defineComponent({
         isShowAddGroup.value = false;
       }
       formData.group_name = props.isCreate ? '' : props.data.group_name;
-      checkInputFormRef.value?.clearError();
+      checkInputFormRef.value?.clearValidate();
       emit('cancel', props.data);
     };
     const addRender = () => {
       if (!props.isFormType && !isShowAddGroup.value) {
         return (
-          <div
-            class='select-add-new-group'
-            onClick={() => (isShowAddGroup.value = true)}
-          >
+          <div class='select-add-new-group' onClick={() => (isShowAddGroup.value = true)}>
             <div>
               <i class='bk-icon icon-plus-circle'></i> {t('新建分组')}
             </div>
@@ -122,60 +119,46 @@ export default defineComponent({
       }
       return (
         <div class={props.isFormType ? 'add-new-from-input' : 'add-new-page-input'}>
-          <bk-form
+          <TForm
             ref={checkInputFormRef}
             style={{ width: '100%' }}
-            form-type={props.isFormType ? 'vertical' : 'horizontal'}
+            labelAlign={props.isFormType ? 'top' : 'left'}
             labelWidth={props.isFormType ? 80 : 0}
             {...{
               ...{
-                model: formData,
+                data: formData,
                 rules: props.rules,
               },
             }}
           >
-            <bk-form-item
+            <TFormItem
               class='add-new-group-item'
               label={props.isFormType ? t('分组名称') : ''}
-              property='group_name'
-              required
+              name='group_name'
+              requiredMark
             >
-              <bk-input
+              <TInput
                 class='add-new-group-input'
                 placeholder={t('{n}, （长度30个字符）', { n: t('请输入组名') })}
                 value={formData.group_name}
                 clearable
-                onInput={(val: string) => (formData.group_name = val)}
-              ></bk-input>
-            </bk-form-item>
-          </bk-form>
+                onChange={(value) => (formData.group_name = String(value ?? ''))}
+              ></TInput>
+            </TFormItem>
+          </TForm>
           {props.isFormType ? (
             <div class='add-group-from-btns'>
-              <bk-button
-                size='small'
-                theme='primary'
-                onClick={handleCreateGroup}
-              >
+              <TButton size='small' theme='primary' onClick={handleCreateGroup}>
                 {t('保存')}
-              </bk-button>
-              <bk-button
-                class='ml8'
-                size='small'
-                onClick={handleCancel}
-              >
+              </TButton>
+              <TButton class='ml8' theme='default' size='small' onClick={handleCancel}>
                 {t('取消')}
-              </bk-button>
+              </TButton>
             </div>
           ) : (
             <div class='operate-button'>
-              <span
-                class='bk-icon icon-check-line submit-icon'
-                onClick={handleCreateGroup}
-              ></span>
-              <span
-                class='bk-icon icon-close-line-2 close-icon'
-                onClick={handleCancel}
-              ></span>
+              <span class='bk-icon icon-check-line submit-icon' onClick={handleCreateGroup}></span>
+              <span class='bk-icon icon-close-line-2 close-icon' onClick={handleCancel}></span>
             </div>
           )}
         </div>

@@ -1,3 +1,9 @@
+
+import { Tag as Tag } from 'tdesign-vue-next';
+
+import { Switch as Switcher } from 'tdesign-vue-next';
+
+import { Button as Button } from 'tdesign-vue-next';
 import { ServicesInstance } from '@/platform/services';
 import type { CreateElement } from '@legacy-vue';
 import { asDictionary } from '@/shared/utils/typed-record';
@@ -30,17 +36,7 @@ import { asDictionary } from '@/shared/utils/typed-record';
 import { Component, Emit, Prop, Ref } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
-import {
-  bkDialog as Dialog,
-  bkTag as Tag,
-  bkInput as Input,
-  bkSwitcher as Switcher,
-  bkTable as Table,
-  bkTableColumn as TableColumn,
-  bkButton as Button,
-  bkPopover as Popover,
-  bkSideslider as Sideslider,
-} from 'bk-magic-vue';
+import { bkDialog as Dialog, bkInput as Input, bkTable as Table, bkTableColumn as TableColumn, bkPopover as Popover, bkSideslider as Sideslider } from '@/platform/compat/tdesign/magic-controls';
 import VueDraggable from 'vuedraggable';
 
 
@@ -1367,10 +1363,10 @@ export default class MaskingField extends tsc<IProps> {
       if (rItem.state === 'update' && !rItem.change_state) {
         return (
           <Tag
-            extCls='sync-tag'
-            theme='warning'
-            type='filled'
-            onClick={() => this.handleShowRuleChangeDialog(fieldItem, rItem, rIndex, 'update')}
+            class={'sync-tag'}
+            theme={"warning"}
+            variant={"dark"}
+            onClick={() => (() => this.handleShowRuleChangeDialog(fieldItem, rItem, rIndex, 'update'))()} data-v2-display='tag'
           >
             {this.$t('已变更')}
           </Tag>
@@ -1379,10 +1375,10 @@ export default class MaskingField extends tsc<IProps> {
       if (rItem.state === 'delete') {
         return (
           <Tag
-            extCls='sync-tag'
-            theme='danger'
-            type='filled'
-            onClick={() => this.handleShowRuleChangeDialog(fieldItem, rItem, rIndex, 'delete')}
+            class={'sync-tag'}
+            theme={"danger"}
+            variant={"dark"}
+            onClick={() => (() => this.handleShowRuleChangeDialog(fieldItem, rItem, rIndex, 'delete'))()} data-v2-display='tag'
           >
             {this.$t('已删除')}
           </Tag>
@@ -1410,11 +1406,11 @@ export default class MaskingField extends tsc<IProps> {
       return (
         <div class='tag-box'>
           <Tag
-            class='title-overflow'
-            extCls={`field-tag ${rItem?.disabled ? 'is-failed' : ''}`}
-            icon={this.getMoveFillIcon(fieldItem.rules)}
+            class={['title-overflow', `field-tag ${rItem?.disabled ? 'is-failed' : ''}`]}
+            
+            icon={() => <i class={this.getMoveFillIcon(fieldItem.rules)} />}
             closable
-            onClose={() => this.handleCloseRule(rIndex, fieldItem)}
+            onClose={() => this.handleCloseRule(rIndex, fieldItem)} variant='light' data-v2-display='tag'
           >
             <span
               class={['tag-name', { 'is-failed': JSON.stringify(fieldItem.preview) === '{}' }]}
@@ -1470,8 +1466,8 @@ export default class MaskingField extends tsc<IProps> {
               ) : (
                 <div class='tag-box'>
                   <Button
-                    text
-                    onClick={() => this.handleClickAddRuleIcon(item)}
+                    
+                    onClick={() => this.handleClickAddRuleIcon(item)} variant={(true) ? 'text' : ('base')}
                   >
                     <i class='bk-icon icon-plus push' />
                     <span style='margin-left: 8px;'>{this.$t('添加规则')}</span>
@@ -1652,7 +1648,7 @@ export default class MaskingField extends tsc<IProps> {
               />
               <Switcher
                 v-model={this.previewSwitch}
-                theme='primary'
+                
               />
               <span>{this.$t('结果预览')}</span>
             </div>

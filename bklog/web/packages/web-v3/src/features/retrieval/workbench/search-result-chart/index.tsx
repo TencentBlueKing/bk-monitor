@@ -1,3 +1,5 @@
+
+import { Loading as TLoading } from 'tdesign-vue-next';
 import { ServicesInstance } from '@/platform/services';
 import type { ServiceOperation } from '@/platform/services/runtime/service-client';
 /*
@@ -652,7 +654,7 @@ export default defineComponent({
         {/* 标题部分 */}
         <div class='title-wrapper'>
           {chartTitleContent()}
-          {isLoading.value && !isFold.value && <bk-spin class='chart-spin' />}
+          {isLoading.value && !isFold.value && <TLoading class='chart-spin' />}
         </div>
         {/* 图表部分：loading/polling 不展示空态；empty 为唯一空态终态 */}
         <div

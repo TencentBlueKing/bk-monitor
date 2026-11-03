@@ -36,7 +36,7 @@
 
     @include flex-justify(space-between);
 
-    .bk-form-control {
+    .t-input__wrap {
       width: 320px;
     }
   }
@@ -56,7 +56,7 @@
     display: inline-flex !important;
   }
 
-  .bk-switcher-small::after {
+  .t-size-s::after {
     /* stylelint-disable-next-line declaration-no-important */
     top: 2px !important;
   }
@@ -97,7 +97,7 @@
 
     @include flex-justify(space-between);
 
-    .bk-button {
+    .t-button {
       padding: 0px 29px;
       margin-right: 8px;
     }

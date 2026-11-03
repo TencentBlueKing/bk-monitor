@@ -1,3 +1,5 @@
+
+import { Button as TButton } from 'tdesign-vue-next';
 import { ServicesInstance } from '@/platform/services';
 /*
  * Tencent is pleased to support the open source community by making
@@ -109,7 +111,7 @@ export default defineComponent({
         v-slots={{
           footer: () => (
             <div>
-              <bk-button
+              <TButton
                 class='mr-8'
                 disabled={!selectedTemplate.value}
                 loading={exporting.value}
@@ -117,13 +119,13 @@ export default defineComponent({
                 onClick={handleExport}
               >
                 {t('导出')}
-              </bk-button>
-              <bk-button
+              </TButton>
+              <TButton
                 disabled={exporting.value}
                 onClick={handleClose}
               >
                 {t('取消')}
-              </bk-button>
+              </TButton>
             </div>
           ),
         }}

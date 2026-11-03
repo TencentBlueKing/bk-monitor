@@ -62,21 +62,21 @@
           :rules="notEmptyRule"
           property="multiline_pattern"
         >
-          <bk-input v-model.trim="formData.multiline_pattern"></bk-input>
+          <t-input v-model.trim="formData.multiline_pattern"></t-input>
         </bk-form-item>
       </bk-form>
       <div
         :style="`padding-left: ${getLabelWidth}px;`"
         class="test-container"
       >
-        <bk-button
+        <t-button
           class="mr15"
           :loading="isMatchLoading"
           theme="primary"
           @click="handleMatch"
         >
           {{ $t('匹配验证') }}
-        </bk-button>
+        </t-button>
         <div
           v-if="matchLines !== null"
           class="test-result"

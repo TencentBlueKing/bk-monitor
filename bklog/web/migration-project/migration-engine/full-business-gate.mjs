@@ -93,7 +93,7 @@ export function evaluateFullBusinessAcceptance(report, { routes, identity, evide
 export function validateCurrentAcceptance(report) {
   const contract = currentRouteContract();
   const result = evaluateFullBusinessAcceptance(report, {
-    routes: scanRouteContracts(resolve(webRoot, 'src/router')),
+    routes: scanRouteContracts(resolve(webRoot, 'packages/web-v2/src/router')),
     identity: monitorBuildIdentity(),
     evidenceExists: file => {
       const path = resolve(webRoot, file),

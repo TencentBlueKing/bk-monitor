@@ -1,3 +1,5 @@
+
+import { MessagePlugin as TDesignMessage, Button as TButton } from 'tdesign-vue-next';
 import { ServicesInstance } from '@/platform/services';
 /*
  * Tencent is pleased to support the open source community by making
@@ -154,10 +156,7 @@ export default defineComponent({
           data,
         });
         if (res.result && stepChange) {
-          window.mainComponent.$bkMessage({
-            theme: 'success',
-            message: t('操作成功'),
-          });
+          TDesignMessage("success", { content: t('操作成功') });
           goBack();
         }
       } catch (err) {
@@ -186,19 +185,19 @@ export default defineComponent({
           )}
         </div>
         <div class='submit-content'>
-          <bk-button
+          <TButton
             loading={submitLoading.value}
             theme='primary'
             onClick={() => submitSelectRule(true)}
           >
             {t('应用')}
-          </bk-button>
-          <bk-button
+          </TButton>
+          <TButton
             theme='default'
             onClick={goBack}
           >
             {t('取消')}
-          </bk-button>
+          </TButton>
         </div>
       </div>
     );

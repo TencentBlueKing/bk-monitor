@@ -1,4 +1,8 @@
-import type { Instance, Props } from 'tippy.js';
+import { Tag as TTag } from 'tdesign-vue-next';
+
+import { MessagePlugin as TDesignMessage, Button as TButton } from 'tdesign-vue-next';
+import { Popup as TPopup, Drawer as TDrawer, Tooltip as TTooltip } from 'tdesign-vue-next';
+import type { PopupInstanceFunctions, PopupVisibleChangeContext } from 'tdesign-vue-next';
 /*
  * Tencent is pleased to support the open source community by making
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
@@ -26,6 +30,7 @@ import type { Instance, Props } from 'tippy.js';
  */
 
 import { Component, Emit, Prop, Ref, Watch } from 'vue-property-decorator';
+import type { ApplicationInjections } from '@/shared/types/component-injections';
 import { Component as tsc } from 'vue-tsx-support';
 
 import { blobDownload } from '@/shared/lib/util';
@@ -42,23 +47,28 @@ import { LocationQueryValue } from 'vue-router';
 
 const { resolveObjectFieldChildrenCount, shouldShowObjectFieldTreeMeta } = objectFieldTreeMeta;
 interface FieldItemProps {
-  "type"?: string;
-  "fieldItem"?: any;
-  "fieldAliasMap"?: object;
-  "showFieldAlias"?: boolean;
-  "datePickerValue"?: any[];
-  "retrieveSearchNumber"?: number;
-  "retrieveParams": any;
-  "visibleFields"?: any[];
-  "statisticalFieldData"?: object;
-  "isFrontStatistics": boolean;
-  "isFieldObject"?: boolean;
-  "onToggleItem"?: (value: { type: string; fieldItem: any; }, arg0: { type: string; fieldItem: any; }) => void;
+  type?: string;
+  fieldItem?: any;
+  fieldAliasMap?: object;
+  showFieldAlias?: boolean;
+  datePickerValue?: any[];
+  retrieveSearchNumber?: number;
+  retrieveParams: any;
+  visibleFields?: any[];
+  statisticalFieldData?: object;
+  isFrontStatistics: boolean;
+  isFieldObject?: boolean;
+  onToggleItem?: (value: { type: string; fieldItem: any }, arg0: { type: string; fieldItem: any }) => void;
+}
+
+interface FieldItem {
+  $t: ApplicationInjections['$t'];
 }
 
 @Component
-export default class FieldItem extends tsc<FieldItemProps> {
-  @Prop({ type: String, default: 'visible', validator: v => ['visible', 'hidden'].includes(v as string) }) type!: string;
+class FieldItem extends tsc<FieldItemProps> {
+  @Prop({ type: String, default: 'visible', validator: (v) => ['visible', 'hidden'].includes(v as string) })
+  type!: string;
   @Prop({ type: Object, default: () => ({}) }) fieldItem!: any;
   @Prop({ type: Object, default: () => ({}) }) fieldAliasMap!: object;
   @Prop({ type: Boolean, default: false }) showFieldAlias!: boolean;
@@ -69,10 +79,10 @@ export default class FieldItem extends tsc<FieldItemProps> {
   @Prop({ type: Object, default: () => ({}) }) statisticalFieldData!: object;
   @Prop({ type: Boolean, required: true }) isFrontStatistics!: boolean;
   @Prop({ type: Boolean, default: false }) isFieldObject!: boolean;
-  @Ref('fieldChart') fieldChartRef!: any;
+  @Ref('analysisPopup') analysisPopupRef!: PopupInstanceFunctions;
+  @Ref('statsDrawerContent') statsDrawerContentRef!: HTMLElement;
   isExpand = false;
   analysisActive = false;
-  operationInstance: (Instance<Props>) | null = null;
   ifShowMore = false;
   fieldData = null;
   distinctCount = 0;
@@ -143,8 +153,8 @@ export default class FieldItem extends tsc<FieldItemProps> {
   /** 冲突字段索引集名称*/
   get unionConflictFieldsName() {
     return this.unionIndexItemList
-      .filter((item: { index_set_id: any; }) => this.unionIndexList.includes(item.index_set_id))
-      .map((item: { indexName: any; }) => item.indexName);
+      .filter((item: { index_set_id: any }) => this.unionIndexList.includes(item.index_set_id))
+      .map((item: { indexName: any }) => item.indexName);
   }
 
   /** 聚合 / 请求始终使用业务主键 field_name，禁止把 UI 别名写入请求参数 */
@@ -158,7 +168,7 @@ export default class FieldItem extends tsc<FieldItemProps> {
       : this.fieldItem.field_name;
 
     if (this.isFieldObject) {
-      const parts = name.split('./index');
+      const parts = name.split('.');
       name = parts.at(-1) || parts[0];
     }
     return name;
@@ -170,6 +180,21 @@ export default class FieldItem extends tsc<FieldItemProps> {
 
   beforeDestroy() {
     this.instanceDestroy();
+    this.detachDrawerOutside();
+  }
+  @Watch('ifShowMore')
+  handleDrawerVisibilityChange(visible: boolean) {
+    this.detachDrawerOutside();
+    if (visible) document.addEventListener('mousedown', this.handleDrawerOutside, true);
+  }
+  detachDrawerOutside() {
+    document.removeEventListener('mousedown', this.handleDrawerOutside, true);
+  }
+  handleDrawerOutside(event: MouseEvent) {
+    if (!this.ifShowMore) return;
+    const drawer = this.statsDrawerContentRef?.closest('.agg-field-item-sideslider');
+    if (drawer && event.composedPath().includes(drawer)) return;
+    this.closeSlider();
   }
   // 数据变化后关闭图表分析
   @Watch('statisticalFieldData')
@@ -179,7 +204,7 @@ export default class FieldItem extends tsc<FieldItemProps> {
     }, 100);
   }
   @Emit('toggleItem')
-  emitToggleItem(v: { type: string; fieldItem: any; }) {
+  emitToggleItem(v: { type: string; fieldItem: any }) {
     return v;
   }
   // 缓存图标信息
@@ -211,58 +236,29 @@ export default class FieldItem extends tsc<FieldItemProps> {
     this.ifShowMore = false;
   }
   /** 点击查看图表分析 */
-  handleClickAnalysisItem() {
+  handleClickAnalysisItem(event?: MouseEvent) {
     if (!this.isShowFieldsAnalysis || this.isFrontStatistics) {
       return;
     }
 
+    // The controlled popup must not treat the opening title click as an outside click.
+    event?.stopPropagation();
     this.instanceDestroy();
     this.analysisActive = true;
-
-    // const indexSetIDs = this.isUnionSearch
-    //   ? this.unionIndexList
-    //   : [window.__IS_MONITOR_COMPONENT__ ? this.$route.query.indexId : this.$route.params.indexId];
-
-    // this.queryParams = {
-    //   ...this.retrieveParams,
-    //   index_set_ids: indexSetIDs,
-    //   field_type: this.fieldItem.field_type,
-    //   agg_field: this.agg_field,
-    //   statisticalFieldData: this.statisticalFieldData,
-    //   isFrontStatisticsL: this.isFrontStatistics,
-    // };
-
-    // 使用nextTick确保DOM更新
-    this.$nextTick(() => {
-      if (!this.fieldChartRef) {
-        return;
-      }
-
-      this.operationInstance = this.$bkPopover(this.$refs.operationRef, {
-        content: this.fieldChartRef,
-        arrow: true,
-        placement: 'right-center',
-        boundary: 'viewport',
-        trigger: 'click',
-        theme: 'light analysis-chart',
-        interactive: true,
-        appendTo: document.body,
-        onHidden: () => {
-          this.instanceDestroy();
-        },
-      });
-      this.operationInstance.show(100);
-    });
   }
+  handleAnalysisVisibleChange(visible: boolean, context: PopupVisibleChangeContext) {
+    // Field/title and action icons retain their explicit V2 click handlers.
+    if (context.trigger === 'trigger-element-click') return;
+    if (!visible) this.instanceDestroy();
+  }
+
   /** 更新Popper位置 */
   updatePopperInstance() {
     setTimeout(() => {
-      this.operationInstance.popperInstance.update();
+      this.analysisPopupRef?.update?.();
     }, 100);
   }
   instanceDestroy() {
-    this.operationInstance?.destroy();
-    this.operationInstance = null;
     this.analysisActive = false;
   }
   /** 联合查询并且有冲突字段 */
@@ -270,11 +266,11 @@ export default class FieldItem extends tsc<FieldItemProps> {
     return this.isUnionSearch && fieldType === 'conflict';
   }
 
-  getFieldIconColor = (type: string|number) => {
+  getFieldIconColor = (type: string | number) => {
     return this.fieldTypeMap?.[type] ? this.fieldTypeMap?.[type]?.color : '#EAEBF0';
   };
 
-  getFieldIconTextColor = (type: string|number) => {
+  getFieldIconTextColor = (type: string | number) => {
     return this.fieldTypeMap?.[type]?.textColor;
   };
   /** 下载 */
@@ -294,12 +290,9 @@ export default class FieldItem extends tsc<FieldItemProps> {
     };
     axiosInstance
       .post(downRequestUrl, data)
-      .then(res => {
+      .then((res) => {
         if (typeof res !== 'string') {
-          this.$bkMessage({
-            theme: 'error',
-            message: this.$t('下载失败'),
-          });
+          TDesignMessage('error', { content: this.$t('下载失败') });
           return;
         }
         const routerIndexSet = window.__IS_MONITOR_COMPONENT__ ? this.$route.query.indexId : this.$route.params.indexId;
@@ -327,108 +320,124 @@ export default class FieldItem extends tsc<FieldItemProps> {
 
     return (
       <li class='filed-item'>
-        <div class={{ 'filed-title': true, expanded: this.isExpand }}>
-          <div onClick={this.handleClickAnalysisItem}>
-            {/* 拖动字段位置按钮 */}
-            <div class='bklog-drag-dots-box'>
-              <span class={['icon bklog-icon bklog-drag-dots', { 'hidden-icon': this.type === 'hidden' }]} />
-            </div>
-
-            {/* 字段类型对应的图标 */}
-            <div class='bklog-field-icon'>
-              <span
-                style={iconStyle}
-                class={[fieldIconInfo.icon, 'field-type-icon']}
-                v-bk-tooltips={{
-                  content: this.fieldTypeMap[this.fieldItem.field_type]?.name,
-                  disabled: !this.fieldTypeMap[this.fieldItem.field_type],
-                }}
-              />
-            </div>
-
-            {/* 字段名 */}
-            <span>
-              <span class='field-name'>{this.computedFieldName}</span>
-              {showObjectTreeMeta && (
-                <span>
-                  <span class='field-badge'>{childrenCount}</span>
-                  <span class={['bk-icon', 'expand', this.expandIconShow ? 'icon-angle-up' : 'icon-angle-down']} />
-                </span>
-              )}
-
-              {this.isUnionConflictFields(this.fieldItem.field_type) && (
-                <bk-popover
-                  v-slots={{
-                    content: () => (
-                      <div>
-                        <p>{this.$t('该字段在以下索引集存在冲突')}</p>
-                        {this.unionConflictFieldsName.map((item: unknown) => (
-                          <bk-tag key={item}>{item}</bk-tag>
-                        ))}
-                      </div>
-                    ),
-                  }}
-                  ext-cls='conflict-popover'
-                  theme='light'
-                >
-                  <i class='conflict-icon bk-icon icon-exclamation-triangle-shape' />
-                </bk-popover>
-              )}
-            </span>
-          </div>
-          {showOperationText && (
-            <div
-              ref='operationRef'
-              class={['operation-text', { 'analysis-active': this.analysisActive }]}
-            >
-              {showAnalysisOperation && (
-                <div
-                  class='operation-icon-box'
-                  v-bk-tooltips={{ content: this.$t('图表分析') }}
-                  onClick={e => {
-                    e.stopPropagation();
-                    this.handleClickAnalysisItem();
-                  }}
-                >
-                  <i class='bklog-icon bklog-chart-2' />
-                </div>
-              )}
-              {this.isFieldDisplayToggleSupported && (
-                <div
-                  class='operation-icon-box'
-                  v-bk-tooltips={{
-                    content: this.type === 'visible' ? this.$t('隐藏') : this.$t('显示'),
-                  }}
-                  onClick={e => {
-                    e.stopPropagation();
-                    this.handleShowOrHiddenItem();
-                  }}
-                >
-                  <i class={['bk-icon include-icon', this.type === 'visible' ? 'icon-eye' : 'icon-eye-slash']} />
-                </div>
-              )}
-            </div>
-          )}
-          <div style='display: none'>
-            <div ref='fieldChart'>
-              {this.analysisActive && (
+        <TPopup
+          ref='analysisPopup'
+          visible={this.analysisActive}
+          trigger='click'
+          placement='right'
+          showArrow
+          attach='body'
+          overlayClassName='analysis-chart-popup bklog-v3-popover-tag'
+          overlayInnerStyle={{ padding: '5px 10px', lineHeight: 'normal' }}
+          onVisibleChange={this.handleAnalysisVisibleChange}
+          v-slots={{
+            content: () =>
+              this.analysisActive ? (
                 <FieldAnalysis
                   queryParams={this.queryParams}
                   onDownloadFieldStatistics={this.downloadFieldStatistics}
                   onShowMore={this.showMore}
                   onStatisticsInfoFinish={this.updatePopperInstance}
                 />
-              )}
+              ) : null,
+          }}
+        >
+          <div class={{ 'filed-title': true, expanded: this.isExpand }}>
+            <div onClick={this.handleClickAnalysisItem}>
+              {/* 拖动字段位置按钮 */}
+              <div class='bklog-drag-dots-box'>
+                <span class={['icon bklog-icon bklog-drag-dots', { 'hidden-icon': this.type === 'hidden' }]} />
+              </div>
+
+              {/* 字段类型对应的图标 */}
+              <div class='bklog-field-icon'>
+                <TTooltip
+                  content={this.fieldTypeMap[this.fieldItem.field_type]?.name}
+                  disabled={!this.fieldTypeMap[this.fieldItem.field_type]}
+                >
+                  <span style={iconStyle} class={[fieldIconInfo.icon, 'field-type-icon']} />
+                </TTooltip>
+              </div>
+
+              {/* 字段名 */}
+              <span>
+                <span class='field-name'>{this.computedFieldName}</span>
+                {showObjectTreeMeta && (
+                  <span>
+                    <span class='field-badge'>{childrenCount}</span>
+                    <span class={['bk-icon', 'expand', this.expandIconShow ? 'icon-angle-up' : 'icon-angle-down']} />
+                  </span>
+                )}
+
+                {this.isUnionConflictFields(this.fieldItem.field_type) && (
+                  <TPopup
+                    v-slots={{
+                      content: () => (
+                        <div>
+                          <p>{this.$t('该字段在以下索引集存在冲突')}</p>
+                          {this.unionConflictFieldsName.map((item: unknown) => (
+                            <TTag key={String(item)} variant='light' data-v2-display='tag'>
+                              {item}
+                            </TTag>
+                          ))}
+                        </div>
+                      ),
+                    }}
+                    overlayClassName='conflict-popover'
+                    placement='top'
+                  >
+                    <i class='conflict-icon bk-icon icon-exclamation-triangle-shape' />
+                  </TPopup>
+                )}
+              </span>
             </div>
+            {showOperationText && (
+              <div ref='operationRef' class={['operation-text', { 'analysis-active': this.analysisActive }]}>
+                {showAnalysisOperation && (
+                  <TTooltip content={this.$t('图表分析')}>
+                    <div
+                      class='operation-icon-box'
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        this.handleClickAnalysisItem();
+                      }}
+                    >
+                      <i class='bklog-icon bklog-chart-2' />
+                    </div>
+                  </TTooltip>
+                )}
+                {this.isFieldDisplayToggleSupported && (
+                  <TTooltip content={this.type === 'visible' ? this.$t('隐藏') : this.$t('显示')}>
+                    <div
+                      class='operation-icon-box'
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        this.handleShowOrHiddenItem();
+                      }}
+                    >
+                      <i class={['bk-icon include-icon', this.type === 'visible' ? 'icon-eye' : 'icon-eye-slash']} />
+                    </div>
+                  </TTooltip>
+                )}
+              </div>
+            )}
           </div>
-        </div>
+        </TPopup>
 
         {this.ifShowMore && (
-          <bk-sideslider
+          <TDrawer
             v-slots={{
               header: () => (
                 <>
                   <div class='agg-sides-slider-header'>
+                    <button
+                      class='agg-header-close'
+                      type='button'
+                      aria-label={this.$t('关闭')}
+                      onClick={this.closeSlider}
+                    >
+                      <span class='bklog-icon bklog-arrow-right' />
+                    </button>
                     <div class='distinct-num'>
                       <span class='field-name'>{this.fieldItem?.field_name}</span>
                       <div class='col-line' />
@@ -436,28 +445,28 @@ export default class FieldItem extends tsc<FieldItemProps> {
                       <span class='distinct-count-num'>{`(${this.distinctCount})`}</span>
                     </div>
                     <div class='fnBtn'>
-                      <bk-button
+                      <TButton
                         loading={this.btnLoading}
                         size='small'
-                        text
-                        onClick={(e: { stopPropagation: () => void; }) => {
+                        onClick={(e: { stopPropagation: () => void }) => {
                           e.stopPropagation();
                           this.downloadFieldStatistics();
                         }}
+                        variant={true ? 'text' : 'base'}
                       >
                         <div class='download-btn'>
                           <i class='bklog-icon bklog-download' />
                           <span>{this.$t('下载')}</span>
                         </div>
-                      </bk-button>
+                      </TButton>
                       {/* <bk-button size='small'>查看仪表盘</bk-button> */}
                     </div>
                   </div>
                 </>
               ),
-              content: () => (
+              default: () => (
                 <>
-                  <div class='agg-sides-content slider-content'>
+                  <div ref='statsDrawerContent' class='agg-sides-content slider-content'>
                     <AggChart
                       fieldName={this.agg_field}
                       fieldType={this.fieldItem.field_type}
@@ -473,16 +482,20 @@ export default class FieldItem extends tsc<FieldItemProps> {
                 </>
               ),
             }}
-            width={480}
-            class='agg-field-item-sideslider'
-            is-show={true}
-            show-mask={false}
-            quick-close
-            transfer
-            onAnimation-end={this.closeSlider}
-          ></bk-sideslider>
+            size='480px'
+            attach='body'
+            drawerClassName='agg-field-item-sideslider'
+            visible={true}
+            closeBtn={false}
+            showOverlay={false}
+            footer={false}
+            closeOnOverlayClick
+            onClose={this.closeSlider}
+          ></TDrawer>
         )}
       </li>
     );
   }
 }
+
+export default FieldItem;

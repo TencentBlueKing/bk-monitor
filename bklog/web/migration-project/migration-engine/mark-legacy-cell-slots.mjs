@@ -2,7 +2,7 @@ import { createRequire } from 'node:module';
 import { readFileSync, writeFileSync, readdirSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 const root = fileURLToPath(new URL('../..', import.meta.url));
-const req = createRequire(root + '/package.json');
+const req = createRequire(root + '/packages/web-v2/package.json');
 const { parse } = req('@babel/parser');
 const traverse = req('@babel/traverse').default;
 const { parse: parseSfc } = req('@vue/compiler-sfc');

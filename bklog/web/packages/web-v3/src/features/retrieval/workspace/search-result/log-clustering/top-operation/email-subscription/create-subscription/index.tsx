@@ -1,3 +1,5 @@
+
+import { MessagePlugin as TDesignMessage, Button as TButton } from 'tdesign-vue-next';
 import { ServicesInstance } from '@/platform/services';
 /*
  * Tencent is pleased to support the open source community by making
@@ -26,7 +28,7 @@ import { ServicesInstance } from '@/platform/services';
  */
 import { defineComponent, ref } from 'vue';
 import useLocale from '@/shared/composables/use-locale';
-import { bkMessage } from 'bk-magic-vue';
+
 import useStore from '@/shared/composables/use-store';
 import SubscriptionForm from './subscription-form/index';
 
@@ -74,10 +76,7 @@ export default defineComponent({
             await ServicesInstance.newReport.createOrUpdateReport({
               data: formData,
             });
-            bkMessage({
-              theme: 'success',
-              message: t('保存成功'),
-            });
+            TDesignMessage("success", { content: t('保存成功') });
             emit('change', false);
           } finally {
             isSaving.value = false;
@@ -140,29 +139,29 @@ export default defineComponent({
                   scenario={props.scenario}
                 />
                 <div class='footer-bar'>
-                  <bk-button
+                  <TButton
                     style='width: 88px;'
                     loading={isSaving.value}
                     theme='primary'
                     onClick={handleSave}
                   >
                     {t('保存')}
-                  </bk-button>
-                  <bk-button
+                  </TButton>
+                  <TButton
                     style='width: 88px;'
                     loading={isSending.value}
                     theme='primary'
-                    outline
-                    onClick={() => testSending('self')}
+                    
+                    onClick={() => testSending('self')} variant={(true) ? 'outline' : 'base'}
                   >
                     {t('测试发送')}
-                  </bk-button>
-                  <bk-button
+                  </TButton>
+                  <TButton
                     style='width: 88px;'
                     onClick={() => emit('change', false)}
                   >
                     {t('取消')}
-                  </bk-button>
+                  </TButton>
                 </div>
               </div>
             ),

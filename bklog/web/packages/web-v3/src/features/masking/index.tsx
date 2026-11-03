@@ -1,3 +1,5 @@
+
+import { MessagePlugin as TDesignMessage, Button as Button } from 'tdesign-vue-next';
 import { ServicesInstance } from '@/platform/services';
 import { includesValue } from '@/shared/utils/typed-record';
 /*
@@ -29,7 +31,7 @@ import { includesValue } from '@/shared/utils/typed-record';
 import { Component, Ref } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
-import { bkButton as Button } from 'bk-magic-vue';
+
 
 
 import MaskingField from './components/masking-field';
@@ -92,10 +94,7 @@ export default class FieldMaskingSeparate extends tsc<IProps> {
         data,
       });
       if (res.result && stepChange) {
-        this.$bkMessage({
-          theme: 'success',
-          message: this.$t('操作成功'),
-        });
+        TDesignMessage("success", { content: this.$t('操作成功') });
         this.$router.go(-1);
       }
     } catch {

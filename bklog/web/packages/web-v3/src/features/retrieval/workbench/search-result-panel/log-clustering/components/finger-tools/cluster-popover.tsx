@@ -30,7 +30,7 @@ import { Component as tsc } from 'vue-tsx-support';
 
 import ClusterRuleDialog from './cluster-rule-dialog';
 
-import type { Popover } from 'bk-magic-vue';
+import type { Popover } from '@/platform/compat/tdesign/magic-controls';
 
 import './cluster-popover.scss';
 const { $i18n } = window.mainComponent;

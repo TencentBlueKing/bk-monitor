@@ -1,3 +1,5 @@
+
+import { MessagePlugin as TDesignMessage, Button as TButton } from 'tdesign-vue-next';
 import { ServicesInstance } from '@/platform/services';
 /*
  * Tencent is pleased to support the open source community by making
@@ -31,7 +33,7 @@ import { xssFilter } from '@/shared/lib/util';
 import useLocale from '@/shared/composables/use-locale';
 import useStore from '@/shared/composables/use-store';
 import BkUserSelector from '@blueking/user-selector';
-import { bkMessage as Message } from 'bk-magic-vue';
+
 
 
 
@@ -95,11 +97,11 @@ export default defineComponent({
       try {
         const res = await ServicesInstance.collect.createWeWork({ data });
         if (res.data) {
-          Message({ theme: 'success', message: t('创建成功') });
+          TDesignMessage("success", { content: t('创建成功') });
           isShowDialog.value = false;
         }
       } catch {
-        Message({ theme: 'error', message: t('创建失败') });
+        TDesignMessage("error", { content: t('创建失败') });
         isShowDialog.value = false;
       }
     };
@@ -163,16 +165,16 @@ export default defineComponent({
                         <span class='bklog-icon bklog-tiaozhuan' />
                       </a>
                     ) : (
-                      <bk-button
+                      <TButton
                         key={`${sIndex}-${sItem}`}
                         class='wx-button'
-                        outline={true}
+                        
                         size='small'
                         theme='primary'
-                        onClick={() => handleCreateAGroup(sItem)}
+                        onClick={() => handleCreateAGroup(sItem)} variant={(true) ? 'outline' : 'base'}
                       >
                         {t('一键拉群')}
-                      </bk-button>
+                      </TButton>
                     ),
                   )}
               </div>

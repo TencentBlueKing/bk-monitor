@@ -74,12 +74,12 @@
         :render-header="renderHeader"
       >
         <template #default="{ row }">
-          <bk-checkbox
+          <t-checkbox
             :checked="getCheckedStatus(row)"
             :disabled="isRequestAlarm"
             @change="handleRowCheckChange(row, $event)"
           >
-          </bk-checkbox>
+          </t-checkbox>
         </template>
       </bk-table-column>
 
@@ -284,10 +284,10 @@
               v-if="row.owners.length"
               theme="primary"
             >
-              <bk-switcher
+              <t-switch
                 v-model="row.strategy_enabled"
                 @change="val => changeStrategy(val, row)"
-              ></bk-switcher>
+              ></t-switch>
               <span
                 v-if="row.strategy_id"
                 class="button-view"
@@ -295,13 +295,13 @@
                 >{{ $t('前往查看') }} <span class="bklog-icon bklog-jump"></span
               ></span>
             </div>
-            <bk-switcher
+            <t-switch
               v-else
               v-model="row.strategy_enabled"
               v-bk-tooltips="$t('暂无配置责任人，无法自动创建告警策略')"
-              theme="primary"
+              
               :disabled="true"
-            ></bk-switcher>
+            ></t-switch>
           </div>
         </template>
       </bk-table-column>
@@ -444,9 +444,11 @@
 </template>
 
 <script lang="jsx">
+import { MessagePlugin as TDesignMessage } from 'tdesign-vue-next';
+
   import { h as createVNode } from 'vue';import { ServicesInstance } from '@/platform/services';
 
-  import TextHighlight from 'vue-text-highlight';
+  import TextHighlight from '@/shared/ui/text-highlight';
 
   import { copyMessage, formatDate, deepEqual } from '@/shared/lib/util';
   import EmptyStatus from '@/shared/ui/empty-status/index';
@@ -815,10 +817,7 @@
        */
       requestAlarm(alarmList = [], state, callback) {
         if (!alarmList.length) {
-          this.$bkMessage({
-            theme: 'success',
-            message: state ? this.$t('已全部开启告警') : this.$t('已全部关闭告警'),
-          });
+          TDesignMessage("success", { content: state ? this.$t('已全部开启告警') : this.$t('已全部关闭告警') });
           return;
         }
 
@@ -941,10 +940,7 @@
       handleChangePrincipal(val, row) {
         // 当创建告警策略开启时，不允许删掉最后一个责任人
         if (row.strategy_enabled && !val.length) {
-          this.$bkMessage({
-            theme: 'error',
-            message: this.$t('删除失败，开启告警时，需要至少一个责任人'),
-          });
+          TDesignMessage("error", { content: this.$t('删除失败，开启告警时，需要至少一个责任人') });
           return;
         }
 
@@ -975,10 +971,7 @@
                 group: this.requestData.group_by.map(gKey => groups[gKey]),
               };
               this.getHoverRowValue.owners = owners;
-              this.$bkMessage({
-                theme: 'success',
-                message: this.$t('操作成功'),
-              });
+              TDesignMessage("success", { content: this.$t('操作成功') });
             }
           })
           .finally(() => (this.curEditUniqueVal = {}));
@@ -1028,10 +1021,7 @@
                 group: this.requestData.group_by.map(gKey => groups[gKey]),
               };
               this.getHoverRowValue.remark = remark;
-              this.$bkMessage({
-                theme: 'success',
-                message: this.$t('操作成功'),
-              });
+              TDesignMessage("success", { content: this.$t('操作成功') });
             }
           })
           .finally(() => {
@@ -1289,10 +1279,7 @@
               .then(res => {
                 if (res.result) {
                   const { strategy_id } = res.data;
-                  this.$bkMessage({
-                    theme: 'success',
-                    message: this.$t('操作成功'),
-                  });
+                  TDesignMessage("success", { content: this.$t('操作成功') });
                   this.$set(row, 'strategy_id', strategy_id);
                 }
               })

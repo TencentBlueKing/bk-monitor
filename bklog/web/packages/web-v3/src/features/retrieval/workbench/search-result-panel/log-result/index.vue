@@ -562,12 +562,12 @@
 </style>
 <style lang="scss">
   .json-depth-num.json-depth-num-input {
-    &.bk-form-control {
+    &.t-input__wrap {
       width: 96px;
 
       .bk-input-number {
         input {
-          &.bk-form-input {
+          &.t-input__inner {
             height: 26px;
           }
         }

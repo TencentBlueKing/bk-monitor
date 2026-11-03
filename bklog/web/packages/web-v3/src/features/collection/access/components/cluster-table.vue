@@ -61,14 +61,14 @@
             min-width="240"
           >
             <template #default="{ row }">
-              <bk-radio :checked="clusterSelect === row.storage_cluster_id">
+              <t-radio :checked="clusterSelect === row.storage_cluster_id">
                 <div
                   v-bk-overflow-tips
                   class="overflow-tips"
                 >
                   <span @click.stop>{{ row.storage_display_name }}</span>
                 </div>
-              </bk-radio>
+              </t-radio>
             </template>
           </bk-table-column>
           <bk-table-column
@@ -90,11 +90,11 @@
             <template #default="{ row }">
               <div class="percent">
                 <div class="percent-progress">
-                  <bk-progress
-                    :percent="getPercent(row)"
-                    :show-text="false"
-                    :theme="'success'"
-                  ></bk-progress>
+                  <t-progress
+                    :percentage="Number(((getPercent(row)) * 100).toFixed(0))"
+                    :label="false"
+                    :color="'#2dcb56'"
+                  ></t-progress>
                 </div>
                 <span>{{ `${100 - row.storage_usage}%` }}</span>
               </div>
@@ -428,7 +428,7 @@
     }
   }
 
-  :deep(.bk-form-radio) {
+  :deep(.t-radio) {
     display: flex;
     align-items: center;
     white-space: nowrap;
@@ -440,7 +440,7 @@
     }
   }
 
-  :deep(.bk-radio-text) {
+  :deep(.t-radio__label) {
     display: inline;
     width: 100%;
     font-size: 12px;

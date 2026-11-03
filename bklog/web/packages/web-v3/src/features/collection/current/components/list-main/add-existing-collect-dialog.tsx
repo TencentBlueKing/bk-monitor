@@ -1,3 +1,7 @@
+
+import { Checkbox as TCheckbox } from 'tdesign-vue-next';
+
+import { Button as TButton } from 'tdesign-vue-next';
 import { ServicesInstance } from '@/platform/services';
 /*
  * Tencent is pleased to support the open source community by making
@@ -384,13 +388,13 @@ export default defineComponent({
                 onRightIconClick={() => handleSearch(true)}
                 right-icon='bk-icon icon-search'
               />
-              <bk-checkbox
+              <TCheckbox
                 class='hide-checkbox'
-                value={hideNoData.value}
+                checked={hideNoData.value}
                 onChange={handleHideNoDataChange}
               >
                 {t('隐藏无数据')} / {t('停用')}
-              </bk-checkbox>
+              </TCheckbox>
             </div>
             <div
               class='popover-field-list-wrapper'
@@ -420,7 +424,7 @@ export default defineComponent({
                     >
                       {/* 左侧：多选框、日志类型图标和详细信息 */}
                       <div class='field-left-content'>
-                        <bk-checkbox value={isSelected} />
+                        <TCheckbox checked={isSelected} />
                         {logTypeIcon && (
                           <div class='log-type-icon'>
                             <i class={logTypeIcon} />
@@ -483,18 +487,18 @@ export default defineComponent({
                   </span>
                 </i18n>
               </div>
-              <bk-button
-                text
+              <TButton
+                
                 theme='primary'
                 class='header-clear-btn'
                 onClick={() => {
                   addedItems.value = [];
                   existingItems.value = [...existingItems.value, ...removedItems.value];
                   removedItems.value = [];
-                }}
+                }} variant={(true) ? 'text' : ('base')}
               >
                 {t('重置')}
-              </bk-button>
+              </TButton>
             </div>
             <div class='selected-field-list'>
               {/* 新增采集项 */}
@@ -557,19 +561,19 @@ export default defineComponent({
 
         {/* 底部按钮 */}
         <div class='popover-actions'>
-          <bk-button
+          <TButton
             theme='primary'
             onClick={handleConfirm}
             loading={submitting.value || selectedListLoading.value}
           >
             {t('确定')}
-          </bk-button>
-          <bk-button
+          </TButton>
+          <TButton
             onClick={handleCancel}
             disabled={submitting.value}
           >
             {t('取消')}
-          </bk-button>
+          </TButton>
         </div>
       </div>
     );

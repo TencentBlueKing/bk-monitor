@@ -1,3 +1,12 @@
+import {
+  Checkbox as TCheckbox,
+  Input as TInput,
+  Empty as TEmpty,
+  Form as TForm,
+  FormItem as TFormItem,
+} from 'tdesign-vue-next';
+
+import { Button as TButton } from 'tdesign-vue-next';
 import { includesValue } from '@/shared/utils/typed-record';
 /*
  * Tencent is pleased to support the open source community by making
@@ -60,7 +69,7 @@ import * as authorityMap from '../../../../../shared/lib/authority-map';
 import BklogPopover from '../../../../../shared/ui/bklog-popover/index';
 import type { IndexSetItem, TagItem } from './use-choice';
 import useIndexSetList from './use-index-set-list';
-import { buildTagNameMap, resolveTagSearchSync } from './tag-search-sync';
+import { buildTagNameMap, resolveTagSearchSync, type TagFilterState } from './tag-search-sync';
 
 import './index-set-list.scss';
 
@@ -90,7 +99,7 @@ export default defineComponent({
       default: '',
     },
   },
-  emits: ['value-change', 'favorite-change', 'auth-request', "valueChange", "favoriteChange", "authRequest"],
+  emits: ['value-change', 'favorite-change', 'auth-request', 'valueChange', 'favoriteChange', 'authRequest'],
   setup(props, { emit }) {
     const { indexSetTagList, clearAllValue, handleIndexSetItemCheck } = useIndexSetList(props, { emit });
 
@@ -101,18 +110,18 @@ export default defineComponent({
     const searchText = ref('');
     /** 参与过滤计算的关键字（防抖后更新，减少高频重算） */
     const searchKeyword = ref('');
-    const refFavoriteItemName = ref(null);
-    const refFavoriteGroup = ref(null);
+    const favoriteNameError = ref('');
+    const refFavoriteGroup = ref<{ hide: () => void } | null>(null);
     const favoriteFormData = ref({
       name: '',
     });
 
     const isMonitorComponent = window.__IS_MONITOR_COMPONENT__;
 
-    const listNodeOpenManager = ref({});
-    const disableList = ref([]);
+    const listNodeOpenManager = ref<Record<string, 'opened' | 'closed' | 'forceClosed'>>({});
+    const disableList = ref<string[]>([]);
 
-    const tagItem = ref({
+    const tagItem = ref<TagFilterState>({
       tag_id: undefined,
       name: undefined,
       color: undefined,
@@ -124,19 +133,19 @@ export default defineComponent({
     /** 标签名小写 → 标签，供 O(1) 完整匹配 */
     const tagNameMap = computed(() => buildTagNameMap(indexSetTagList.value));
 
-    const selectedUniqueIdSet = computed(() => new Set((props.value ?? []).map(v => v.unique_id)));
+    const selectedUniqueIdSet = computed(() => new Set((props.value ?? []).map((v) => v.unique_id)));
 
-    const isIncludesItem = (item: IndexSetItem) => selectedUniqueIdSet.value.has(item.unique_id);
+    const isIncludesItem = (item: Pick<IndexSetItem, 'unique_id'>) => selectedUniqueIdSet.value.has(item.unique_id);
 
     const hasNoDataTag = (node: { tags?: { tag_id: number }[] }) =>
-      node.tags?.some(tag => tag.tag_id === NO_DATA_TAG_ID) ?? false;
+      node.tags?.some((tag) => tag.tag_id === NO_DATA_TAG_ID) ?? false;
 
     const matchSearchKeyword = (node: IndexSetItem, keyword: string) => {
-      if (SEARCH_KEYS.some(key => `${node[key] ?? ''}`.toLowerCase().includes(keyword))) {
+      if (SEARCH_KEYS.some((key) => `${node[key] ?? ''}`.toLowerCase().includes(keyword))) {
         return true;
       }
       const indices = (node as IndexSetItem & { indices?: { result_table_id?: string }[] }).indices ?? [];
-      return indices.some(idc => `${idc.result_table_id ?? ''}`.toLowerCase().includes(keyword));
+      return indices.some((idc) => `${idc.result_table_id ?? ''}`.toLowerCase().includes(keyword));
     };
 
     const formatList = computed(() => {
@@ -168,7 +177,7 @@ export default defineComponent({
         let isShownNode = isSearching ? true : defaultIsShown;
 
         if (isTagFiltering) {
-          isShownNode = isShownNode && node.tags.some(tag => tag.tag_id === activeTagId);
+          isShownNode = isShownNode && node.tags.some((tag) => tag.tag_id === activeTagId);
         }
 
         if (isShownNode && hideEmpty && !isSelected(node)) {
@@ -214,7 +223,7 @@ export default defineComponent({
         }
 
         const parentOpened = openManager[parentNode.unique_id] === 'opened';
-        const processedChildren = children.map(child => ({
+        const processedChildren = children.map((child) => ({
           ...child,
           is_shown_node: checkNodeShouldShow(child, parentOpened),
         }));
@@ -347,8 +356,7 @@ export default defineComponent({
       e.stopPropagation();
 
       if (favoriteFormData.value.name === '') {
-        refFavoriteItemName.value.validator.state = 'error';
-        refFavoriteItemName.value.validator.content = '收藏名称不能为空';
+        favoriteNameError.value = $t('收藏名称不能为空');
         return;
       }
 
@@ -370,7 +378,10 @@ export default defineComponent({
       Object.assign(tagItem.value, tag);
     };
 
-    const handleDeleteCheckedItem = (e: MouseEvent, item: { children: any; }) => {
+    const handleDeleteCheckedItem = (
+      e: MouseEvent,
+      item: { unique_id: string; children?: { unique_id: string }[] },
+    ) => {
       e.stopPropagation();
 
       // 如果删除的是父节点，需要将子节点从 disableList 中移除，并作为 storeList 传入以保留子节点选中
@@ -392,9 +403,10 @@ export default defineComponent({
       clearAllValue();
     };
 
-    const handleNodeOpenClick = (e: MouseEvent, node: { unique_id: string|number; is_children_open: any; }) => {
+    const handleNodeOpenClick = (e: MouseEvent, node: { unique_id: string | number; is_children_open: any }) => {
       e.stopPropagation();
-      let nextStatus = listNodeOpenManager.value[node.unique_id] === 'opened' ? 'closed' : 'opened';
+      let nextStatus: 'opened' | 'closed' | 'forceClosed' =
+        listNodeOpenManager.value[node.unique_id] === 'opened' ? 'closed' : 'opened';
 
       if (searchKeyword.value?.length > 0 && listNodeOpenManager.value[node.unique_id] !== 'forceClosed') {
         nextStatus = 'forceClosed';
@@ -416,13 +428,13 @@ export default defineComponent({
       emit('auth-request', item);
     };
 
-    const getCheckBoxRender = (item: { [x: string]: string|number|boolean|TagItem[]; unique_id: any; index_set_id?: string; tags?: TagItem[]; }, isRootChecked = false) => {
+    const getCheckBoxRender = (item: Pick<IndexSetItem, 'unique_id'>, isRootChecked = false) => {
       if (props.type === 'single') {
         return null;
       }
 
       return (
-        <bk-checkbox
+        <TCheckbox
           style='margin-right: 4px'
           checked={isIncludesItem(item) || includesValue(disableList.value, item.unique_id)}
           disabled={isRootChecked}
@@ -463,7 +475,7 @@ export default defineComponent({
       hasNoDataChild = false,
     ) => {
       const hasPermission = item.permission?.[authorityMap.SEARCH_LOG_AUTH];
-      const isEmptyNode = item.tags?.some((tag: { tag_id: number; }) => tag.tag_id === 4);
+      const isEmptyNode = item.tags?.some((tag: { tag_id: number }) => tag.tag_id === 4);
       const isClosed = () => isClosedNode(item);
 
       return (
@@ -479,13 +491,13 @@ export default defineComponent({
               active: isIncludesItem(item),
             },
           ]}
-          onClick={e => handleIndexSetItemClick(e, item, isRootChecked)}
+          onClick={(e) => handleIndexSetItemClick(e, item, isRootChecked)}
         >
           <div dir={props.textDir}>
             {props.type === 'single' && (
               <span
                 class={['favorite-icon bklog-icon bklog-lc-star-shape', { 'is-favorite': item.is_favorite }]}
-                onClick={e => handleFavoriteClick(e, item)}
+                onClick={(e) => handleFavoriteClick(e, item)}
               />
             )}
             <span
@@ -495,12 +507,17 @@ export default defineComponent({
                   'is-closed': isClosed(),
                 },
               ]}
-              onClick={e => handleNodeOpenClick(e, item)}
+              onClick={(e) => handleNodeOpenClick(e, item)}
             >
               <i class='bklog-icon bklog-arrow-down-filled' />
             </span>
 
-            <bdi class={['index-set-name', { 'no-data': item.tags?.some((tag: { tag_id: number; }) => tag.tag_id === 4) ?? false }]}>
+            <bdi
+              class={[
+                'index-set-name',
+                { 'no-data': item.tags?.some((tag: { tag_id: number }) => tag.tag_id === 4) ?? false },
+              ]}
+            >
               {getCheckBoxRender(item, isRootChecked)}
               <span class={{ 'bklog-empty-icon': true, 'is-empty': isEmptyNode }} />
               <span class='group-icon'>
@@ -512,20 +529,14 @@ export default defineComponent({
           <div class='index-set-tags'>
             {hasPermission ? (
               item.tags
-                .filter((tag: { tag_id: number; }) => tag?.tag_id !== 4)
+                .filter((tag: { tag_id: number }) => tag?.tag_id !== 4)
                 .map((tag: any) => (
-                  <span
-                    key={tag.tag_id}
-                    class='index-set-tag-item'
-                  >
+                  <span key={tag.tag_id} class='index-set-tag-item'>
                     {tag.name}
                   </span>
                 ))
             ) : (
-              <span
-                class='index-set-tag-item'
-                onClick={e => handleAuthBtnClick(e, item)}
-              >
+              <span class='index-set-tag-item' onClick={(e) => handleAuthBtnClick(e, item)}>
                 {$t('申请权限')}
               </span>
             )}
@@ -539,10 +550,10 @@ export default defineComponent({
         const type = props.list.length ? 'search-empty' : 'empty';
         return (
           <div class='bklog-v3-index-set-list'>
-            <bk-exception
+            <TEmpty
               style='margin-top: 50px'
-              scene='part'
-              type={type}
+              type='empty'
+              title={type === 'search-empty' ? $t('bk.exception.searchEmpty') : $t('暂无数据')}
             />
           </div>
         );
@@ -585,17 +596,11 @@ export default defineComponent({
           <div class='footer'>
             <div class='row-lable'>
               <div>
-                <i18n
-                  style='font-size: 12px; color: #4d4f56;'
-                  path='已选择{0}个索引集'
-                >
+                <i18n style='font-size: 12px; color: #4d4f56;' path='已选择{0}个索引集'>
                   <span style='color: #3A84FF; font-weight: 700;'>{props.value.length}</span>
                 </i18n>
                 ,{' '}
-                <span
-                  style='color: #3A84FF;font-size: 12px;cursor: pointer;'
-                  onClick={handleClearValues}
-                >
+                <span style='color: #3A84FF;font-size: 12px;cursor: pointer;' onClick={handleClearValues}>
                   {$t('清空选择')}
                 </span>
               </div>
@@ -605,38 +610,31 @@ export default defineComponent({
                   trigger='click'
                   v-slots={{
                     content: () => (
-                      <bk-form
-                        style='padding: 16px; width: 300px;'
-                        form-type='vertical'
-                        label-width={200}
-                      >
-                        <bk-form-item
-                          ref={refFavoriteItemName}
+                      <TForm style='padding: 16px; width: 300px;' labelAlign='top' labelWidth={200}>
+                        <TFormItem
                           label={$t('收藏名称')}
-                          property='name'
-                          required={true}
+                          name='name'
+                          requiredMark={true}
+                          status={favoriteNameError.value ? 'error' : undefined}
+                          tips={favoriteNameError.value}
                         >
-                          <bk-input
+                          <TInput
                             value={favoriteFormData.value.name}
-                            onChange={(val: string) => (favoriteFormData.value.name = val)}
+                            onChange={(value) => {
+                              favoriteFormData.value.name = String(value ?? '');
+                              favoriteNameError.value = '';
+                            }}
                           />
-                        </bk-form-item>
-                        <bk-form-item style='text-align: right;'>
-                          <bk-button
-                            style='margin-right: 3px;'
-                            theme='primary'
-                            onClick={handleFavoriteGroupClick}
-                          >
+                        </TFormItem>
+                        <TFormItem style='text-align: right;'>
+                          <TButton style='margin-right: 3px;' theme='primary' onClick={handleFavoriteGroupClick}>
                             {$t('确定')}
-                          </bk-button>
-                          <bk-button
-                            ext-cls='mr5'
-                            theme='default'
-                          >
+                          </TButton>
+                          <TButton class='mr5' theme='default' onClick={() => refFavoriteGroup.value?.hide()}>
                             {$t('取消')}
-                          </bk-button>
-                        </bk-form-item>
-                      </bk-form>
+                          </TButton>
+                        </TFormItem>
+                      </TForm>
                     ),
                   }}
                 >
@@ -650,15 +648,9 @@ export default defineComponent({
             </div>
             <div class='row-item-list'>
               {props.value.map((item: any, index: number) => (
-                <span
-                  key={`${item.unique_id}-${index}`}
-                  class='row-value-item'
-                >
+                <span key={`${item.unique_id}-${index}`} class='row-value-item'>
                   {item.index_set_name}
-                  <span
-                    class='bklog-icon bklog-close'
-                    onClick={e => handleDeleteCheckedItem(e, item)}
-                  />
+                  <span class='bklog-icon bklog-close' onClick={(e) => handleDeleteCheckedItem(e, item)} />
                 </span>
               ))}
             </div>
@@ -738,8 +730,9 @@ export default defineComponent({
       // 直接写 tagItem，禁止走点击回调，避免 toggle / 重复过滤
       Object.assign(tagItem.value, synced.tagItem);
       tagAppliedBySearch.value = synced.tagAppliedBySearch;
-      if (synced.scrollToTagId !== null && synced.scrollToTagId !== undefined) {
-        nextTick(() => scrollTagIntoView(synced.scrollToTagId));
+      const scrollToTagId = synced.scrollToTagId;
+      if (scrollToTagId !== null && scrollToTagId !== undefined) {
+        nextTick(() => scrollTagIntoView(scrollToTagId));
       }
     };
 
@@ -764,42 +757,28 @@ export default defineComponent({
       return (
         <div class='bklog-v3-content-filter'>
           <div class='bklog-v3-search-input'>
-            <bk-input
+            <TInput
               style='width: 100%; margin-right: 12px;'
               placeholder={$t('请输入 索引集、采集项 搜索')}
-              right-icon="'bk-icon icon-search'"
+              suffixIcon={() => <i class='bk-icon icon-search' style={{ color: '#979ba5' }} />}
               value={searchText.value}
               clearable
-              onInput={handleSearchTextChange}
+              onChange={(value) => handleSearchTextChange(String(value ?? ''))}
             />
-            <bk-checkbox
-              checked={hiddenEmptyItem.value}
-              false-value={false}
-              true-value={true}
-              onChange={handleHiddenEmptyItemChange}
-            >
+            <TCheckbox checked={hiddenEmptyItem.value} onChange={handleHiddenEmptyItemChange}>
               <span class='hidden-empty-icon' />
               <span>{$t('隐藏无数据')}</span>
-            </bk-checkbox>
+            </TCheckbox>
           </div>
           <div class={['bklog-v3-tag-list', { 'is-empty': indexSetTagList.value.length === 0 }]}>
-            <div
-              class='move-icon left-icon'
-              onClick={e => tagScrollTo(e, 'left')}
-            >
+            <div class='move-icon left-icon' onClick={(e) => tagScrollTo(e, 'left')}>
               <i class='bk-icon icon-angle-left-line' />
             </div>
-            <div
-              class='move-icon right-icon'
-              onClick={e => tagScrollTo(e, 'right')}
-            >
+            <div class='move-icon right-icon' onClick={(e) => tagScrollTo(e, 'right')}>
               <i class='bk-icon icon-angle-right-line' />
             </div>
-            <div
-              ref={refTagScrollContainer}
-              class='tag-scroll-container'
-            >
-              {indexSetTagList.value.map(item => (
+            <div ref={refTagScrollContainer} class='tag-scroll-container'>
+              {indexSetTagList.value.map((item) => (
                 <span
                   key={item.tag_id}
                   data-tag-id={item.tag_id}

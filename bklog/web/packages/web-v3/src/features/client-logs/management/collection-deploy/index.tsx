@@ -1,3 +1,5 @@
+
+import { Button as TButton } from 'tdesign-vue-next';
 import { ServicesInstance } from '@/platform/services';
 /*
  * Tencent is pleased to support the open source community by making
@@ -427,14 +429,14 @@ export default defineComponent({
           {/* 按钮、搜索区域 */}
           <div class='deploy-header'>
             <div>
-              <bk-button
+              <TButton
                 theme='primary'
                 v-cursor={{ active: !props.isAllowedCreate }}
                 onClick={handleCreateTask}
                 disabled={isLoading.value}
               >
                 {t('新建采集')}
-              </bk-button>
+              </TButton>
             </div>
             <div>
               <bk-input

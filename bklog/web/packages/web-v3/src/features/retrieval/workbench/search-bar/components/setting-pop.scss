@@ -21,9 +21,9 @@
     height: 150px;
 
     .bk-form-content {
-      .bk-form-control {
+      .t-input__wrap {
         .bk-input-text {
-          .bk-form-input[readonly] {
+          .t-input__inner[readonly] {
             border: 0px;
           }
         }

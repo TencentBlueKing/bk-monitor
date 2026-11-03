@@ -17,8 +17,10 @@
 # IN THE SOFTWARE.
 
 # packages/web-v1 的包名是 @blueking/log-web，与根依赖同名，不能加入 workspace。
-# 不要在 bklog/web 执行 pnpm install。Vue 2 的 webpack 仍使用 npm 扁平 node_modules。
+# 不要在 bklog/web 执行 pnpm install。Vue 2 使用 packages/web-v2 里的 npm 扁平 node_modules。
 # 安装 V3：pnpm --dir packages/web-v3 --ignore-workspace install
+# packages/web-v2 是封版 Vue 2，自带 webpack 与 package.json，不能加入 workspace。
+# 安装 V2：在 packages/web-v2 执行 npm ci。
 packages:
   - 'packages/web-v3'
 

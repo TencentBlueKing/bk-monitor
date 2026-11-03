@@ -1,244 +1,124 @@
 <template>
   <div class="retrieve-tab-item-title">
-    <span
-      class="history-button"
-      @click="handleClickHistoryButton"
+    <TPopup
+      :visible="visible"
+      trigger="click"
+      placement="bottom"
+      show-arrow
+      :popper-options="{ modifiers: [{ name: 'offset', options: { offset: [0, -6] } }] }"
+      :overlay-inner-style="{ width: '560px', padding: '6px 0' }"
+      overlay-class-name="retrieve-history-popover"
+      @visible-change="handleVisibleChange"
     >
-      <span class="bklog-icon bklog-history-2"></span>
-      <span>{{ $t('历史查询') }}</span>
-    </span>
-    <div v-show="false">
-      <div ref="historyUlRef">
-        <div class="input-box">
-          <bk-input
-            v-model="searchInput"
-            behavior="simplicity"
-            :left-icon="'bklog-icon bklog-shoudongchaxun'"
-            :clearable="true"
-            :placeholder="$t('请输入关键字')"
-            ext-cls="search-input"
-          ></bk-input>
-        </div>
-        <ul
-          ref="historyUlRef"
-          v-bkloading="{ isLoading: historyLoading, size: 'mini' }"
-          class="retrieve-history-list"
-        >
-          <template v-if="isHistoryRecords">
-            <li
-              v-for="item in filterHistoryRecords"
-              :key="item.id"
-              class="list-item"
-              @click="handleClickHistory(item)"
-            >
-              <div
-                v-bk-tooltips="{
-                  allowHTML: true,
-                  placement: 'top',
-                  content: getContent(item),
-                  disabled: item.query_string.length < 5,
-                }"
-                class="item-text"
-              >
-                <span
-                  class="bklog-icon"
-                  :class="getClass(item.params.search_mode || item.search_mode)"
+      <span
+        class="history-button"
+        role="button"
+        tabindex="0"
+        @keydown.enter.prevent="handleVisibleChange(!visible)"
+        @keydown.space.prevent="handleVisibleChange(!visible)"
+      >
+        <span class="bklog-icon bklog-history-2"></span>
+        <span>{{ $t('历史查询') }}</span>
+      </span>
+      <template #content>
+        <div class="query-history-content" data-testid="query-history-content">
+          <div class="input-box">
+            <TInput v-model="searchInput" clearable :placeholder="$t('请输入关键字')" class="search-input">
+              <template #prefix-icon><span class="bklog-icon bklog-shoudongchaxun"></span></template>
+            </TInput>
+          </div>
+          <BklogLoading :loading="historyLoading" size="small">
+            <ul class="retrieve-history-list">
+              <template v-if="historyRecords.length">
+                <li
+                  v-for="item in filterHistoryRecords"
+                  :key="item.id"
+                  class="list-item"
+                  @click="handleClickHistory(item)"
                 >
-                  <!-- {{ getText(item.search_mode) }} -->
-                </span>
-
-                <div class="text">
-                  {{ item.query_string }}
-                </div>
-                <BookmarkPop
-                  v-if="!isMonitorComponent"
-                  :sql="(item.params.search_mode || item.search_mode) === 'sql' ? item.query_string : ''"
-                  :addition="item.params.addition"
-                  :search-mode="item.params.search_mode || item.search_mode || 'sql'"
-                  active-favorite="history"
-                  @instanceShow="instanceShow"
-                ></BookmarkPop>
-              </div>
-            </li>
-          </template>
-          <li
-            v-else
-            class="list-item not-history"
-          >
-            {{ $t('暂无历史记录') }}
-          </li>
-        </ul>
-      </div>
-    </div>
+                  <TTooltip placement="top" :disabled="item.query_string.length < 5">
+                    <template #content>
+                      <div>{{ $t('检索时间') }}：{{ formatTime(item.created_at) }}</div>
+                      <div>{{ $t('语句') }}："{{ item.query_string }}"</div>
+                    </template>
+                    <div class="item-text">
+                      <span class="bklog-icon" :class="getClass(item.params.search_mode || item.search_mode)"></span>
+                      <div class="text">{{ item.query_string }}</div>
+                      <span v-if="!isMonitorComponent" class="history-bookmark" @click.stop>
+                        <BookmarkPop
+                          :sql="(item.params.search_mode || item.search_mode) === 'sql' ? item.query_string : ''"
+                          :addition="item.params.addition"
+                          :search-mode="item.params.search_mode || item.search_mode || 'sql'"
+                          active-favorite="history"
+                          @instance-show="bookmarkPopRefsShow = $event"
+                        />
+                      </span>
+                    </div>
+                  </TTooltip>
+                </li>
+              </template>
+              <li v-else-if="!historyLoading" class="list-item not-history">{{ $t('暂无历史记录') }}</li>
+            </ul>
+          </BklogLoading>
+        </div>
+      </template>
+    </TPopup>
   </div>
 </template>
-<script>import { ServicesInstance } from '@/platform/services';
-
-  import { ConditionOperator } from '@/app/state/condition-operator';
-  // #if MONITOR_APP !== 'apm' && MONITOR_APP !== 'trace'
-  import BookmarkPop from '../search-bar/components/bookmark-pop.vue';
-  // #else
-  // #code const BookmarkPop = () => null;
-  // #endif
-  import dayjs from 'dayjs';
-  export default {
-  emits: ["change"],
-
-    components: {
-      BookmarkPop,
-    },
-    data() {
-      return {
-        historyLoading: false,
-        isHistoryRecords: true,
-        popoverInstance: null,
-        historyRecords: [],
-        searchInput: '',
-        bookmarkPopRefsShow: false,
-        isMonitorComponent: false,
-      };
-    },
-    computed: {
-      isUnionSearch() {
-        return this.$store.getters.isUnionSearch;
-      },
-      isSceneMode() {
-        return this.$store.getters.isSceneMode;
-      },
-      unionIndexList() {
-        return this.$store.getters.unionIndexList;
-      },
-      indexItem() {
-        return this.$store.state.indexItem;
-      },
-      indexId() {
-        return this.indexItem.ids[0];
-      },
-      retrieveParams() {
-        return this.$store.getters.retrieveParams;
-      },
-      filterHistoryRecords() {
-        if (!this.searchInput?.trim()) return this.historyRecords;
-        const searchTerm = this.searchInput.toLowerCase();
-        return this.historyRecords.filter(item => {
-          return item.query_string?.toLowerCase().includes(searchTerm);
-        });
-      },
-    },
-    mounted() {
-      this.isMonitorComponent = window.__IS_MONITOR_COMPONENT__;
-    },
-    methods: {
-      getClass(searchMode) {
-        const classMap = {
-          ui: 'bklog-ui1',
-          sql: 'bklog-yuju1',
-        };
-        return classMap[searchMode] || '';
-      },
-      getText(searchMode) {
-        const textMap = {
-          ui: 'UI',
-          sql: '</>',
-        };
-        return textMap[searchMode] || '';
-      },
-      escapeHtml(str) {
-        return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
-      },
-      getContent(item) {
-        return `<div><div>${this.$t('检索时间')}：${dayjs(item.created_at).format('YYYY-MM-DD HH:mm:ssZZ')}</div>
-                <div>${this.$t('语句')}："${this.escapeHtml(item.query_string)}"</div></div>`;
-      },
-      async handleClickHistoryButton(e) {
-        await this.requestSearchHistory();
-        const popoverWidth = '560px';
-        this.popoverInstance = this.$bkPopover(e.target, {
-          content: this.$refs.historyUlRef,
-          trigger: 'manual',
-          arrow: true,
-          width: popoverWidth,
-          theme: 'light',
-          sticky: true,
-          duration: [275, 0],
-          interactive: true,
-          placement: 'bottom',
-          extCls: 'retrieve-history-popover',
-          onHide: () => {
-            if (this.bookmarkPopRefsShow) {
-              return false;
-            }
-          },
-          onHidden: () => {
-            this.historyRecords = [];
-            this.isHistoryRecords = true;
-            this.popoverInstance?.destroy();
-            this.popoverInstance = null;
-          },
-        });
-        this.popoverInstance.show();
-      },
-      handleClickHistory(item) {
-        const { params } = item;
-        const {
-          keyword,
-          addition,
-          ip_chooser,
-          search_mode = item.search_mode,
-          scene_filter_values,
-          table_id_conditions,
-        } = params;
-        this.$emit('change', { keyword, addition, ip_chooser, search_mode, scene_filter_values, table_id_conditions });
-        this.popoverInstance.hide();
-      },
-      requestSearchHistory() {
-        this.historyLoading = true;
-        let queryUrl;
-        let params;
-        let requestConfig = {};
-        if (this.isSceneMode) {
-          queryUrl = ServicesInstance.retrieve.getSceneSearchHistory;
-          const { space_uid, table_id_conditions, scene_filter_values } = this.retrieveParams;
-          params = { space_uid, table_id_conditions, scene_filter_values };
-          requestConfig = { data: params };
-        } else if (this.isUnionSearch) {
-          queryUrl = ServicesInstance.unionSearch.unionSearchHistory;
-          params = {
-            index_set_ids: this.unionIndexList,
-          };
-          requestConfig = { params };
-        } else {
-          queryUrl = ServicesInstance.retrieve.getSearchHistory;
-          params = {
-            index_set_id: this.indexId,
-          };
-          requestConfig = { params };
-        }
-        queryUrl(requestConfig)
-          .then(res => {
-            this.historyRecords = res.data
-              .filter(item => item.query_string !== '*')
-              .map(item => {
-                item.params.addition = item.params.addition.map(element => {
-                  const instance = new ConditionOperator(element);
-                  return instance.formatApiOperatorToFront();
-                });
-
-                return item;
-              });
-            this.isHistoryRecords = !!this.historyRecords.length;
-          })
-          .finally(() => {
-            this.historyLoading = false;
-          });
-      },
-      instanceShow(val) {
-        this.bookmarkPopRefsShow = val;
-      },
-    },
-  };
+<script setup lang="ts">
+import { computed } from 'vue';
+import dayjs from 'dayjs';
+import { Popup as TPopup, Input as TInput, Tooltip as TTooltip } from 'tdesign-vue-next';
+import BklogLoading from '@/shared/ui/loading';
+import useStore from '@/shared/composables/use-store';
+import useLocale from '@/shared/composables/use-locale';
+// #if MONITOR_APP !== 'apm' && MONITOR_APP !== 'trace'
+import BookmarkPop from '../search-bar/components/bookmark-pop.vue';
+// #else
+// #code const BookmarkPop = () => null;
+// #endif
+import { useQueryHistory, type HistoryQueryParams } from './use-query-history';
+const emit = defineEmits<{ change: [params: HistoryQueryParams] }>();
+const store = useStore();
+const { $t } = useLocale();
+const isMonitorComponent = computed(() => !!window.__IS_MONITOR_COMPONENT__);
+const {
+  visible,
+  historyLoading,
+  historyRecords,
+  searchInput,
+  filterHistoryRecords,
+  bookmarkPopRefsShow,
+  handleVisibleChange,
+  handleClickHistory,
+} = useQueryHistory(
+  () => ({
+    isSceneMode: store.getters.isSceneMode,
+    isUnionSearch: store.getters.isUnionSearch,
+    indexId: store.state.indexItem.ids[0],
+    unionIndexList: store.getters.unionIndexList,
+    retrieveParams: store.getters.retrieveParams,
+  }),
+  (params) => emit('change', params),
+);
+const getClass = (mode?: string) => (mode === 'ui' ? 'bklog-ui1' : mode === 'sql' ? 'bklog-yuju1' : '');
+const formatTime = (value: string) => dayjs(value).format('YYYY-MM-DD HH:mm:ssZZ');
 </script>
-
 <style lang="scss">
-  @import './query-history.scss';
+@import './query-history.scss';
+.query-history-content .search-input .t-input {
+  border-color: transparent transparent #3a84ff;
+  box-shadow: none;
+}
+.query-history-content .item-text {
+  width: 100%;
+}
+.query-history-content .history-bookmark {
+  position: absolute;
+  right: 10px;
+  top: 0;
+  height: 32px;
+  display: flex;
+  align-items: center;
+}
 </style>

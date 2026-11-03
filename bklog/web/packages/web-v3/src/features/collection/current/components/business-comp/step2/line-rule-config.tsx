@@ -24,6 +24,7 @@
  * IN THE SOFTWARE.
  */
 
+import { Input as TInput } from 'tdesign-vue-next';
 import { defineComponent, ref, reactive, type PropType } from 'vue';
 
 import useLocale from '@/shared/composables/use-locale';
@@ -38,6 +39,7 @@ import './line-rule-config.scss';
  * LineRuleConfig 组件，用于配置行首正则规则
  */
 export default defineComponent({
+  compatConfig: { MODE: 3 },
   name: 'LineRuleConfig', // 组件名称
   props: {
     data: {
@@ -51,7 +53,7 @@ export default defineComponent({
       }),
     },
   },
-  emits: ['debug-reg', 'update', "debugReg"], // 组件触发的事件
+  emits: ['debug-reg', 'update', 'debugReg'], // 组件触发的事件
 
   setup(props, { emit, expose }) {
     const { t } = useLocale(); // 国际化翻译函数
@@ -67,7 +69,7 @@ export default defineComponent({
      * @param field - 字段名
      * @param val - 新的值
      */
-    const handleInputChange = (field: string, val: string) => {
+    const handleInputChange = (field: keyof typeof errorState, val: string) => {
       const MULTILINE_FIELDS = ['multiline_pattern', 'multiline_max_lines', 'multiline_timeout'];
       emit('update', {
         // 触发更新事件
@@ -98,7 +100,7 @@ export default defineComponent({
      * @param field
      * @returns
      */
-    const checkField = (field: string) => {
+    const checkField = (field: keyof typeof errorState) => {
       const value = props.data[field as keyof typeof props.data];
       return value === undefined || value === null || !String(value).trim();
     };
@@ -107,14 +109,14 @@ export default defineComponent({
      * @returns {boolean} 校验是否通过，true表示通过，false表示失败
      */
     const validate = (): boolean => {
-      const fields = ['multiline_pattern', 'multiline_max_lines', 'multiline_timeout'];
-      fields.forEach((field: string) => {
+      const fields = ['multiline_pattern', 'multiline_max_lines', 'multiline_timeout'] as const;
+      fields.forEach((field) => {
         errorState[field] = checkField(field);
       });
       /**
        * 返回校验结果：所有字段都不为空才返回 true
        */
-      return fields.every(field => !errorState[field]);
+      return fields.every((field) => !errorState[field]);
     };
 
     // 暴露校验方法给父组件
@@ -126,36 +128,33 @@ export default defineComponent({
       <div class='line-rule'>
         <div class='label-title text-left'>{t('行首正则')}</div>
         <div class='rule-reg'>
-          <bk-input
+          <TInput
             class={{ 'reg-input': true, 'input-error': errorState.multiline_pattern }}
             value={props.data.multiline_pattern}
-            onInput={(val: string) => handleInputChange('multiline_pattern', val)}
+            onChange={(value) => handleInputChange('multiline_pattern', String(value))}
           />
-          <span
-            class='form-link debug'
-            onClick={handleDebugReg}
-          >
+          <span class='form-link debug' onClick={handleDebugReg}>
             {t('调试')}
           </span>
         </div>
         <div class='line-rule-box'>
           <div class='line-rule-box-item'>
             <div class='label-title text-left'>{t('最多匹配')}</div>
-            <bk-input
-              v-slots={{ append: () => <div class='group-text'>{t('行')}</div> }}
+            <TInput
+              suffix={() => <div class='group-text'>{t('行')}</div>}
               class={{ 'input-error': errorState.multiline_max_lines }}
               value={props.data.multiline_max_lines}
-              onInput={(val: string) => handleInputChange('multiline_max_lines', val)}
-            ></bk-input>
+              onChange={(value) => handleInputChange('multiline_max_lines', String(value))}
+            ></TInput>
           </div>
           <div class='line-rule-box-right'>
             <div class='label-title text-left'>{t('最大耗时')}</div>
-            <bk-input
-              v-slots={{ append: () => <div class='group-text'>{t('秒')}</div> }}
+            <TInput
+              suffix={() => <div class='group-text'>{t('秒')}</div>}
               class={{ 'time-box': true, 'input-error': errorState.multiline_timeout }}
               value={props.data.multiline_timeout}
-              onInput={(val: string) => handleInputChange('multiline_timeout', val)}
-            ></bk-input>
+              onChange={(value) => handleInputChange('multiline_timeout', String(value))}
+            ></TInput>
             <InfoTips tips={t('建议配置 1s, 配置过长时间可能会导致日志积压')} />
           </div>
         </div>

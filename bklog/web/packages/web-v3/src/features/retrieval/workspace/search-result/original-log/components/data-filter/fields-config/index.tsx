@@ -1,3 +1,5 @@
+
+import { Button as TButton } from 'tdesign-vue-next';
 /*
  * Tencent is pleased to support the open source community by making
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
@@ -179,7 +181,7 @@ export default defineComponent({
             </div>
           </div>
           <div class='config-buttons'>
-            <bk-button
+            <TButton
               style='margin-right: 8px'
               loading={confirmLoading.value}
               size='small'
@@ -187,14 +189,14 @@ export default defineComponent({
               onClick={handleConfirm}
             >
               {t('确定')}
-            </bk-button>
-            <bk-button
+            </TButton>
+            <TButton
               style='margin-right: 24px'
               size='small'
               onClick={handleCancel}
             >
               {t('取消')}
-            </bk-button>
+            </TButton>
           </div>
         </div>
       </div>

@@ -1,3 +1,4 @@
+import { MessagePlugin } from 'tdesign-vue-next';
 /*
  * Tencent is pleased to support the open source community by making
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
@@ -49,7 +50,7 @@ export const validateName = (value: string): boolean => {
  * @returns 是否已存在
  */
 export const checkNameExists = <T extends Record<string, any>>(dataList: T[], value: string, key: keyof T): boolean => {
-  return dataList.some(item => item[key] === value);
+  return dataList.some((item) => item[key] === value);
 };
 
 /**
@@ -94,7 +95,7 @@ export const getGroupNameRules = <T extends Record<string, any>>(
  * @param theme 主题类型
  */
 export const showMessage = (message: string, theme: 'error' | 'success' | 'warning' = 'success'): void => {
-  window.mainComponent?.$bkMessage({ message, theme });
+  MessagePlugin(theme, { content: message });
 };
 
 /**

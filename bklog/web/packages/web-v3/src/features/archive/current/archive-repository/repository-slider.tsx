@@ -1,3 +1,9 @@
+
+import { Alert as TAlert } from 'tdesign-vue-next';
+
+import { Switch as TSwitch } from 'tdesign-vue-next';
+
+import { MessagePlugin as TDesignMessage, Button as TButton } from 'tdesign-vue-next';
 import { ServicesInstance } from '@/platform/services';
 import nativeAsset0 from '@/shared/assets/images/hdfs.png';
 import nativeAsset1 from '@/shared/assets/images/fs.png';
@@ -33,7 +39,7 @@ import { defineComponent, ref, reactive, computed, watch } from 'vue';
 import * as authorityMap from '@/shared/lib/authority-map';
 import useLocale from '@/shared/composables/use-locale';
 import useStore from '@/shared/composables/use-store';
-import { bkMessage as Message } from 'bk-magic-vue';
+
 import { bkInfoBox as InfoBox } from '@/platform/compat/tdesign/info-box';
 
 
@@ -266,11 +272,7 @@ export default defineComponent({
         });
 
         // 提示保存成功
-        Message({
-          theme: 'success',
-          message: t('保存成功'),
-          delay: 1500,
-        });
+        TDesignMessage("success", { content: t('保存成功'), duration: 1500 });
 
         // 通知父组件刷新列表
         emit('handleUpdatedTable');
@@ -415,11 +417,11 @@ export default defineComponent({
             required
           >
             <div class='principal-item'>
-              <bk-switcher
+              <TSwitch
                 size='large'
-                theme='primary'
+                
                 value={formData.hdfsFormData.isSecurity}
-                onChange={(val: boolean) => (formData.hdfsFormData.isSecurity = val)}
+                onChange={(value) => { if (typeof value === 'boolean') ((val: boolean) => (formData.hdfsFormData.isSecurity = val))(value); }}
               />
               <bk-input
                 data-test-id='addNewStorehouse_input_principal'
@@ -563,16 +565,16 @@ export default defineComponent({
       };
 
       return (
-        <bk-alert
+        <TAlert
           v-slots={{
-            title: () => (
+            message: () => (
               <>
                 <div class='repository-alert'>{alertContent()}</div>
               </>
             ),
           }}
-          type='info'
-        ></bk-alert>
+          theme={'info'} data-v2-display='alert'
+        ></TAlert>
       );
     };
 
@@ -668,7 +670,7 @@ export default defineComponent({
 
                       {/* 提交/取消按钮 */}
                       <bk-form-item style='margin-top: 40px'>
-                        <bk-button
+                        <TButton
                           class='king-button mr10'
                           data-test-id='addNewStorehouse_button_submit'
                           loading={confirmLoading.value}
@@ -676,13 +678,13 @@ export default defineComponent({
                           onClick={handleConfirm}
                         >
                           {t('提交')}
-                        </bk-button>
-                        <bk-button
+                        </TButton>
+                        <TButton
                           data-test-id='addNewStorehouse_button_cancel'
                           onClick={handleCancel}
                         >
                           {t('取消')}
-                        </bk-button>
+                        </TButton>
                       </bk-form-item>
                     </bk-form>
                   )}

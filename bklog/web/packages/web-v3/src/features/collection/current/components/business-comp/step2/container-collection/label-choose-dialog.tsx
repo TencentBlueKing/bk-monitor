@@ -1,3 +1,5 @@
+
+import { CheckboxGroup as TCheckboxGroup, Checkbox as TCheckbox } from 'tdesign-vue-next';
 import { ServicesInstance } from '@/platform/services';
 /*
  * Tencent is pleased to support the open source community by making
@@ -520,27 +522,27 @@ export default defineComponent({
       const currentCheckedIds = isSelectedArea ? data.map(item => item.id) : [];
 
       return (
-        <bk-checkbox-group
+        <TCheckboxGroup
           value={currentCheckedIds}
-          onChange={(vals: string[]) => handleCheckboxChange(vals, isSelectedArea)}
+          onChange={(value) => { if (value.every(item => typeof item === 'string')) ((vals: string[]) => handleCheckboxChange(vals, isSelectedArea))(value); }}
         >
           {data.map(item => {
             const value = item?.id ?? `${item.key}|${item.operator}|${item.value ?? '-'}`;
             return (
-              <bk-checkbox
+              <TCheckbox
                 key={value}
                 class='selected-item'
-                label={value}
+                value={value}
               >
                 <div class='item-slot'>
                   <span class='key'>{item.key}</span>
                   <span class='operator'>{item.operator}</span>
                   <span class='value'>{item.value || '-'}</span>
                 </div>
-              </bk-checkbox>
+              </TCheckbox>
             );
           })}
-        </bk-checkbox-group>
+        </TCheckboxGroup>
       );
     };
     /**

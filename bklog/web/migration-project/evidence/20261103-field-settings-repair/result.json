@@ -1,0 +1,61 @@
+{
+  "date": "2026-11-03",
+  "state": "PARTIAL_VERIFIED",
+  "businessAccepted": false,
+  "visualAccepted": false,
+  "testCounts": {
+    "passed": 265,
+    "failed": 0,
+    "newFieldSettings": 13
+  },
+  "strictTypes": {
+    "baseline": 1975,
+    "current": 1943,
+    "introduced": 0,
+    "passed": false
+  },
+  "checks": {
+    "aiIndex": "PASSED",
+    "aiCheck": "PASSED",
+    "thirdPartyBoundary": "PASSED"
+  },
+  "builds": {
+    "apm": {
+      "state": "PASSED",
+      "sourceDigest": "00243cebad8a782f81c4e3c20ac263064b353c442d4ba34b6baa625105a5032d",
+      "buildConfigDigest": "31868c9550859762189593649793d0a21fa329931e88f3354343340db0aca2d1",
+      "files": 51
+    },
+    "trace": {
+      "state": "PASSED",
+      "sourceDigest": "00243cebad8a782f81c4e3c20ac263064b353c442d4ba34b6baa625105a5032d",
+      "buildConfigDigest": "31868c9550859762189593649793d0a21fa329931e88f3354343340db0aca2d1",
+      "files": 51
+    }
+  },
+  "mainBuild": "PASSED",
+  "browser": {
+    "indexId": 16176,
+    "business": 5000140,
+    "viewport": [
+      1280,
+      720
+    ],
+    "operations": [
+      "field search/add/remove/all/clear",
+      "drag order and cancel restoration",
+      "save-as required validation/draft/cancel",
+      "template manager read/switch",
+      "more menu/delete confirmation/cancel"
+    ],
+    "resourceWrites": []
+  },
+  "remaining": [
+    "new template full write lifecycle",
+    "alias drawer",
+    "classic field configuration",
+    "union/scene/embed browser flows",
+    "multi-viewport/keyboard/permissions/visual acceptance"
+  ],
+  "report": "V3字段配置与模板交互修复20261103.md"
+}

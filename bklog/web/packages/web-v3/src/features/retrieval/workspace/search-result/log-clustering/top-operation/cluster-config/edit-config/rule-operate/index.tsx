@@ -1,3 +1,7 @@
+
+import { RadioGroup as TRadioGroup, Radio as TRadio } from 'tdesign-vue-next';
+
+import { MessagePlugin as TDesignMessage, Button as TButton } from 'tdesign-vue-next';
 import { ServicesInstance } from '@/platform/services';
 /*
  * Tencent is pleased to support the open source community by making
@@ -30,7 +34,7 @@ import { defineComponent, ref, computed, onMounted, watch, type PropType, nextTi
 import OtherImport from '@/features/index-sets/import-from-other/index';
 import useLocale from '@/shared/composables/use-locale';
 import useStore from '@/shared/composables/use-store';
-import { bkMessage } from 'bk-magic-vue';
+
 import dayjs from 'dayjs';
 import { useRouter } from 'vue-router';
 
@@ -229,10 +233,7 @@ export default defineComponent({
           });
           emit('rule-list-change', list);
         } catch {
-          bkMessage({
-            theme: 'error',
-            message: t('不是有效的json文件'),
-          });
+          TDesignMessage("error", { content: t('不是有效的json文件') });
         }
       };
       // 以Text的形式读取文件:
@@ -250,10 +251,7 @@ export default defineComponent({
     /** 导出规则 */
     const handleExportRule = () => {
       if (!props.ruleList.length) {
-        bkMessage({
-          theme: 'error',
-          message: t('聚类规则为空，无法导出规则'),
-        });
+        TDesignMessage("error", { content: t('聚类规则为空，无法导出规则') });
         return;
       }
       const eleLink = document.createElement('a');
@@ -325,14 +323,14 @@ export default defineComponent({
           }}
           onConfirm={handleRuleTypeChangeConfirm}
         >
-          <bk-radio-group
+          <TRadioGroup
             class='type-choose-main'
             value={ruleType.value}
-            onChange={handleBeforeRuleTypeChange}
+            onChange={(value) => { if (typeof value === 'string') (handleBeforeRuleTypeChange)(value); }}
           >
-            <bk-radio value='customize'>{t('自定义')}</bk-radio>
-            <bk-radio value='template'>{t('模板')}</bk-radio>
-          </bk-radio-group>
+            <TRadio value='customize'>{t('自定义')}</TRadio>
+            <TRadio value='template'>{t('模板')}</TRadio>
+          </TRadioGroup>
         </bk-popconfirm>
         <div class='right-oprate-main'>
           {isCustomize.value ? (
@@ -354,12 +352,12 @@ export default defineComponent({
                 v-slots={{
                   'dropdown-trigger': () => (
                     <div>
-                      <bk-button
+                      <TButton
                         class='operate-btn'
                         data-test-id='LogCluster_button_addNewRules'
                       >
                         {t('导入')}
-                      </bk-button>
+                      </TButton>
                     </div>
                   ),
                   'dropdown-content': () => (
@@ -386,20 +384,20 @@ export default defineComponent({
                   ),
                 }}
               ></bk-dropdown-menu>
-              <bk-button
+              <TButton
                 class='operate-btn'
                 onClick={handleExportRule}
               >
                 {t('导出')}
-              </bk-button>
+              </TButton>
               {!isOriginTemplateConfig.value && (
-                <bk-button
+                <TButton
                   style='min-width: 72px'
                   class='operate-btn'
                   onClick={() => initDefaultConfig(false)}
                 >
                   {t('恢复默认')}
-                </bk-button>
+                </TButton>
               )}
             </div>
           ) : (
@@ -432,15 +430,15 @@ export default defineComponent({
                 )}
               </bk-select>
               {!props.isExternal && templateRuleId.value > 0 && hasMatchedTemplate.value && (
-                <bk-button
+                <TButton
                   size='small'
                   theme='primary'
-                  text
-                  onClick={() => handleGoTemplateManage(templateRuleId.value)}
+                  
+                  onClick={() => handleGoTemplateManage(templateRuleId.value)} variant={(true) ? 'text' : ('base')}
                 >
                   <log-icon type='edit' />
                   <span style='margin-left: 5px'>{t('编辑模板')}</span>
-                </bk-button>
+                </TButton>
               )}
               <bk-popconfirm
                 v-slots={{
@@ -470,26 +468,26 @@ export default defineComponent({
                 onConfirm={handleConfirmUnbindTemplate}
               >
                 {isOriginTemplateConfig.value && isSameTemplateId.value && hasMatchedTemplate.value && (
-                  <bk-button
+                  <TButton
                     size='small'
                     theme='primary'
-                    text
+                     variant={(true) ? 'text' : ('base')}
                   >
                     <log-icon type='jiebang' />
                     <span style='margin-left: 5px'>{t('解绑')}</span>
-                  </bk-button>
+                  </TButton>
                 )}
               </bk-popconfirm>
 
-              <bk-button
+              <TButton
                 size='small'
                 theme='primary'
-                text
-                onClick={handleRefresh}
+                
+                onClick={handleRefresh} variant={(true) ? 'text' : ('base')}
               >
                 <log-icon type='refresh-icon' />
                 <span style='margin-left: 5px'>{t('刷新')}</span>
-              </bk-button>
+              </TButton>
             </div>
           )}
         </div>

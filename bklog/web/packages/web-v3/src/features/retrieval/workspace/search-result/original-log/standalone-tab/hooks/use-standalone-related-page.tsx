@@ -1,3 +1,5 @@
+
+import { Button as TButton } from 'tdesign-vue-next';
 import { computed, ref } from 'vue';
 
 import useLocale from '@/shared/composables/use-locale';
@@ -131,12 +133,12 @@ export const useStandaloneRelatedPage = () => {
       type='500'
     >
       <div>{error.value}</div>
-      <bk-button
+      <TButton
         theme='primary'
         onClick={() => router.replace({ name: 'retrieve' })}
       >
         {t('返回检索')}
-      </bk-button>
+      </TButton>
     </bk-exception>
   );
 

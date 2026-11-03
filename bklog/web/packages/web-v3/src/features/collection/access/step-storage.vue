@@ -262,24 +262,24 @@
         </bk-form-item>
 
         <div class="need-approval">
-          <bk-checkbox
+          <t-checkbox
             v-model="formData.assessment_config.need_approval"
             :disabled="isForcedFillAssessment"
           >
             {{ $t('需要审批') }}
-          </bk-checkbox>
-          <bk-alert
+          </t-checkbox>
+          <t-alert data-v2-display="alert"
             style="width: 607px"
-            :show-icon="false"
-            type="warning"
+            :icon="(false) ? undefined : () => null"
+            :theme="'warning'"
           >
-            <template #title>
+            <template #message>
               <div class="approval-alert">
                 <span class="bk-icon icon-exclamation-circle"></span>
                 <p>{{ $t('勾选需要审批后需等待审批通过后，才会继续进行存储流程') }}</p>
               </div>
             </template>
-          </bk-alert>
+          </t-alert>
         </div>
 
         <bk-form-item :label="$t('审批人')">
@@ -312,7 +312,7 @@
       </bk-form-item> -->
       <bk-form-item class="operate-container">
         <template v-if="!isFinishCreateStep">
-          <bk-button
+          <t-button
             class="mr10"
             :disabled="isLoading"
             :title="$t('上一步')"
@@ -321,8 +321,8 @@
             @click="prevHandler"
           >
             {{ $t('上一步') }}
-          </bk-button>
-          <bk-button
+          </t-button>
+          <t-button
             class="mr10"
             :disabled="!collectProject"
             :loading="isLoading"
@@ -331,10 +331,10 @@
             @click.stop.prevent="finish()"
           >
             {{ $t('下一步') }}
-          </bk-button>
+          </t-button>
         </template>
         <template v-else>
-          <bk-button
+          <t-button
             class="mr10"
             :disabled="!collectProject"
             :loading="isLoading"
@@ -342,20 +342,22 @@
             @click.stop.prevent="finish()"
           >
             {{ $t('保存') }}
-          </bk-button>
+          </t-button>
         </template>
-        <bk-button
+        <t-button
           theme="default"
           @click="cancel"
         >
           {{ $t('取消') }}
-        </bk-button>
+        </t-button>
       </bk-form-item>
     </bk-form>
   </div>
 </template>
 
-<script>import { ServicesInstance } from '@/platform/services';
+<script>
+import { MessagePlugin as TDesignMessage } from 'tdesign-vue-next';
+import { ServicesInstance } from '@/platform/services';
 
   import { deepEqual, projectManages } from '@/shared/lib/util';
   import { isFeatureToggleOn } from '@/shared/composables/use-feature-toggle';
@@ -885,10 +887,7 @@
           this.isForcedFillAssessment && this.isCanUseAssessment && assessmentConfig.log_assessment === '';
         if (isNotSelectedID || isNotFillLog) {
           const message = isNotSelectedID ? this.$t('请选择集群') : this.$t('请填写容量评估的每日单台日志量');
-          this.$bkMessage({
-            theme: 'error',
-            message,
-          });
+          TDesignMessage("error", { content: message });
           return false;
         }
         return true;
@@ -1163,7 +1162,7 @@
 
       @include flex-align;
 
-      .bk-checkbox-text {
+      .t-checkbox__label {
         margin-right: 12px;
         font-size: 12px;
       }

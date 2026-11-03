@@ -29,16 +29,16 @@
       v-bk-tooltips="{ content: $t('请先新建新类告警策略'), disabled: strategyHaveSubmit }"
       class="is-near24"
     >
-      <bk-checkbox
+      <t-checkbox
         v-model="isNear24"
         :disabled="!clusterSwitch || !strategyHaveSubmit"
-        :false-value="false"
-        :true-value="true"
+        
+        
         data-test-id="fingerTable_checkBox_selectCustomSize"
         @change="handleShowNearPattern"
       >
         <span>{{ $t('仅查看新类') }}</span>
-      </bk-checkbox>
+      </t-checkbox>
     </div>
 
     <!-- <div
@@ -149,13 +149,13 @@
                 :key="option.id"
                 :name="option.name"
               >
-                <bk-checkbox
-                  ext-cls="ext-box"
+                <t-checkbox
+                  class="ext-box"
                   :checked="dimension.includes(option.id)"
                   :title="option.name"
                 >
                   {{ option.name }}
-                </bk-checkbox>
+                </t-checkbox>
               </bk-option>
             </bk-select>
             <div class="group-alert">
@@ -179,24 +179,24 @@
                 :key="option.id"
                 :name="option.name"
               >
-                <bk-checkbox
-                  ext-cls="ext-box"
+                <t-checkbox
+                  class="ext-box"
                   :checked="group.includes(option.id)"
                   :title="option.name"
                 >
                   {{ option.name }}
-                </bk-checkbox>
+                </t-checkbox>
               </bk-option>
             </bk-select>
           </div>
           <div class="piece">
             <span class="title">{{ $t('同比') }}</span>
             <div class="year-on-year">
-              <bk-switcher
+              <t-switch
                 v-model="yearSwitch"
-                theme="primary"
+                
               >
-              </bk-switcher>
+              </t-switch>
               <bk-select
                 v-model="yearOnYearHour"
                 ext-cls="compared-select"
@@ -222,11 +222,11 @@
                       <span>{{ $t('自定义') }}</span>
                     </div>
                     <div v-else>
-                      <bk-input
+                      <t-input
                         :placeholder="$t('输入自定义同比，按 Enter 确认')"
                         @enter="handleEnterCompared"
                       >
-                      </bk-input>
+                      </t-input>
                       <div class="compared-select-icon">
                         <span
                           v-bk-tooltips="$t('自定义输入格式: 如 1h 代表一小时 h小时')"
@@ -242,21 +242,21 @@
             </div>
           </div>
           <div class="popover-button">
-            <bk-button
+            <t-button
               style="margin-right: 8px"
               size="small"
               theme="primary"
               @click="submitPopover"
             >
               {{ $t('保存') }}
-            </bk-button>
-            <bk-button
+            </t-button>
+            <t-button
               size="small"
               theme="default"
               @click="cancelPopover"
             >
               {{ $t('取消') }}
-            </bk-button>
+            </t-button>
           </div>
         </div>
       </template>
@@ -264,7 +264,9 @@
   </div>
 </template>
 
-<script>import { ServicesInstance } from '@/platform/services';
+<script>
+import { MessagePlugin as TDesignMessage } from 'tdesign-vue-next';
+import { ServicesInstance } from '@/platform/services';
 
   import { debounce } from 'throttle-debounce';
 
@@ -370,10 +372,7 @@
       handleEnterCompared(val) {
         const matchVal = val.match(/^(\d+)h$/);
         if (!matchVal) {
-          this.$bkMessage({
-            theme: 'warning',
-            message: this.$t('请按照提示输入'),
-          });
+          TDesignMessage("warning", { content: this.$t('请按照提示输入') });
           return;
         }
         this.changeCustomizeState(true);
@@ -564,12 +563,12 @@
       cursor: pointer;
     }
 
-    .bk-form-control {
+    .t-input__wrap {
       width: 90%;
       margin: 0 auto;
     }
 
-    .bk-form-input {
+    .t-input__inner {
       /* stylelint-disable-next-line declaration-no-important */
       padding: 0 18px 0 10px !important;
     }
@@ -648,7 +647,7 @@
 
     @include flex-center();
 
-    :deep(.bk-checkbox-text) {
+    :deep(.t-checkbox__label) {
       width: calc(100% - 20px);
       overflow: hidden;
 

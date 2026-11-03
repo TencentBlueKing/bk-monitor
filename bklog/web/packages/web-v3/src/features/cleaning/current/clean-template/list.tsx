@@ -1,3 +1,5 @@
+
+import { MessagePlugin as TDesignMessage, Button as TButton } from 'tdesign-vue-next';
 import { ServicesInstance } from '@/platform/services';
 /*
  * Tencent is pleased to support the open source community by making
@@ -40,7 +42,7 @@ import useStore from '@/shared/composables/use-store';
 import useUtils from '@/shared/composables/use-utils';
 import TableComponent from '@/features/collection/current/components/common-comp/table-component';
 import { tenantManager, UserInfoLoadedEventData } from '@/features/retrieval/core/tenant-manager';
-import { bkMessage as Message } from 'bk-magic-vue';
+
 import { useRouter } from 'vue-router';
 
 import './list.scss';
@@ -445,17 +447,11 @@ export default defineComponent({
       try {
         importData = JSON.parse(String(fileContent));
       } catch {
-        Message({
-          theme: 'warning',
-          message: t('请导入正确的JSON格式文件~'),
-        });
+        TDesignMessage("warning", { content: t('请导入正确的JSON格式文件~') });
         return;
       }
       if (!isCleanTemplateImportData(importData)) {
-        Message({
-          theme: 'warning',
-          message: t('请导入正确的JSON格式文件~'),
-        });
+        TDesignMessage("warning", { content: t('请导入正确的JSON格式文件~') });
         return;
       }
 
@@ -474,10 +470,7 @@ export default defineComponent({
         if (!res.result) {
           return;
         }
-        Message({
-          theme: 'success',
-          message: t('导入成功'),
-        });
+        TDesignMessage("success", { content: t('导入成功') });
         pagination.current = 1;
         await Promise.all([requestData(), requestOperatorOptions()]);
       } catch (error) {
@@ -540,10 +533,7 @@ export default defineComponent({
       }
       const targetPage =
         templateList.value.length <= 1 && pagination.current > 1 ? pagination.current - 1 : pagination.current;
-      Message({
-        theme: 'success',
-        message: t('删除成功'),
-      });
+      TDesignMessage("success", { content: t('删除成功') });
       if (targetPage !== pagination.current) {
         pagination.current = targetPage;
       }
@@ -706,38 +696,38 @@ export default defineComponent({
         width: 180,
         cell: (_h: unknown, { row }: { row: CleanTemplateItem }) => (
           <div class='template-operations'>
-            <bk-button
+            <TButton
               theme='primary'
-              text
-              onClick={() => handleEdit(row)}
+              
+              onClick={() => handleEdit(row)} variant={(true) ? 'text' : ('base')}
             >
               {t('编辑')}
-            </bk-button>
+            </TButton>
             <span
               v-bk-tooltips={{
                 content: t('该模板已同步至关联采集项，无需同步'),
                 disabled: row.status === 'DRAFT',
               }}
             >
-              <bk-button
+              <TButton
                 disabled={row.status !== 'DRAFT'}
                 theme='primary'
-                text
-                onClick={() => handleOpenSyncSlider(row)}
+                
+                onClick={() => handleOpenSyncSlider(row)} variant={(true) ? 'text' : ('base')}
               >
                 {t('一键同步')}
-              </bk-button>
+              </TButton>
             </span>
             <DeleteConfirmPopover
               templateName={row.name}
               onConfirm={() => requestDelete(row)}
             >
-              <bk-button
+              <TButton
                 theme='primary'
-                text
+                 variant={(true) ? 'text' : ('base')}
               >
                 {t('删除')}
-              </bk-button>
+              </TButton>
             </DeleteConfirmPopover>
           </div>
         ),
@@ -767,30 +757,30 @@ export default defineComponent({
           >
             <div class='template-toolbar'>
               <div class='template-toolbar-actions'>
-                <bk-button
+                <TButton
                   data-test-id='cleanTemplateBox_button_addNewCleanTemplate'
                   theme='primary'
                   onClick={handleCreate}
                 >
                   {t('新建')}
-                </bk-button>
+                </TButton>
                 <LogImport
                   disabled={isImporting.value}
                   onChange={handleImport}
                 >
-                  <bk-button
+                  <TButton
                     data-test-id='cleanTemplateBox_button_importCleanTemplate'
                     loading={isImporting.value}
                   >
                     {t('导入')}
-                  </bk-button>
+                  </TButton>
                 </LogImport>
-                <bk-button
+                <TButton
                   data-test-id='cleanTemplateBox_button_exportCleanTemplate'
                   onClick={() => (exportDialogVisible.value = true)}
                 >
                   {t('导出')}
-                </bk-button>
+                </TButton>
               </div>
               <bk-input
                 class='template-search'

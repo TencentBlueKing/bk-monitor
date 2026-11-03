@@ -1,3 +1,7 @@
+
+import { CheckboxGroup as TCheckboxGroup, Checkbox as TCheckbox } from 'tdesign-vue-next';
+
+import { MessagePlugin as TDesignMessage, Button as TButton } from 'tdesign-vue-next';
 import { ServicesInstance } from '@/platform/services';
 /*
  * Tencent is pleased to support the open source community by making
@@ -28,7 +32,7 @@ import { ServicesInstance } from '@/platform/services';
 import { Component, Emit, Model, Prop, Ref, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
-import { bkMessage as Message } from 'bk-magic-vue';
+
 import dayjs from 'dayjs';
 import isSameOrAfter from 'dayjs/plugin/isSameOrAfter';
 
@@ -295,10 +299,7 @@ export default class AuthorizationDialog extends tsc<IProps, IEvents> {
               const resList = await Promise.all(requestData.map(item => this.authorizedRequest(item)));
               res = resList[0];
             }
-            Message({
-              message: res?.need_approval ? this.$t('已提交审批') : this.$t('操作成功'),
-              theme: 'primary',
-            });
+            TDesignMessage("info", { content: res?.need_approval ? this.$t('已提交审批') : this.$t('操作成功') });
             this.handleCancel(false);
             this.$emit('success', res?.need_approval);
           } catch {
@@ -514,19 +515,19 @@ export default class AuthorizationDialog extends tsc<IProps, IEvents> {
               <span class='label required'>{this.$t('操作权限')}</span>
               <span class='hint'>({this.$t('至少选择一个操作权限')})</span>
             </div>
-            <bk-checkbox-group
+            <TCheckboxGroup
               v-model={this.formData.action_multiple}
-              onChange={this.handleClickActionList}
+              onChange={(value) => { if (value.every(item => typeof item === 'string')) (this.handleClickActionList)(value); }}
             >
               {this.actionList.map(item => (
-                <bk-checkbox
+                <TCheckbox
                   key={item.id}
                   value={item.id}
                 >
                   {item.name}
-                </bk-checkbox>
+                </TCheckbox>
               ))}
-            </bk-checkbox-group>
+            </TCheckboxGroup>
           </bk-form-item>
 
           <bk-form
@@ -576,20 +577,20 @@ export default class AuthorizationDialog extends tsc<IProps, IEvents> {
         v-slots={{
           footer: () => (
             <div>
-              <bk-button
+              <TButton
                 style='margin-right: 8px'
                 loading={this.loading}
                 theme='primary'
                 onClick={this.handleConfirm}
               >
                 {this.$t('确认')}
-              </bk-button>
-              <bk-button
+              </TButton>
+              <TButton
                 theme='default'
                 onClick={() => this.handleCancel(false)}
               >
                 {this.$t('取消')}
-              </bk-button>
+              </TButton>
             </div>
           ),
         }}
@@ -616,18 +617,18 @@ export default class AuthorizationDialog extends tsc<IProps, IEvents> {
         >
           {!this.rowData && (
             <div class='select-group bk-button-group'>
-              <bk-button
+              <TButton
                 class={{ 'is-selected': this.isAloneAddForm }}
                 onClick={() => this.handleSelectAloneType('alone')}
               >
                 {$i18n.t('单独授权')}
-              </bk-button>
-              <bk-button
+              </TButton>
+              <TButton
                 class={{ 'is-selected': !this.isAloneAddForm }}
                 onClick={() => this.handleSelectAloneType('batch')}
               >
                 {$i18n.t('批量授权')}
-              </bk-button>
+              </TButton>
             </div>
           )}
 

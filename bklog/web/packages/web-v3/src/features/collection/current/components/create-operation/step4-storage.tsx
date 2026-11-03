@@ -1,3 +1,5 @@
+
+import { Button as TButton } from 'tdesign-vue-next';
 import { ServicesInstance } from '@/platform/services';
 import type { IClusterItem } from '../business-comp/step4/cluster-table';
 import type { IFormData } from '../../type';
@@ -860,29 +862,29 @@ export default defineComponent({
       <div class='operation-step4-storage'>
         {cardRender(cardConfig)}
         <div class='classify-btns-fixed'>
-          <bk-button
+          <TButton
             class='mr-8'
             onClick={() => {
               emit('prev');
             }}
           >
             {t('上一步')}
-          </bk-button>
-          <bk-button
+          </TButton>
+          <TButton
             class='width-88 mr-8'
             loading={submitLoading.value}
             theme='primary'
-            onClick={handleSubmitSave}
+            onClick={() => handleSubmitSave()}
           >
             {t('提交')}
-          </bk-button>
-          <bk-button
+          </TButton>
+          <TButton
             onClick={() => {
               emit('cancel');
             }}
           >
             {t('取消')}
-          </bk-button>
+          </TButton>
         </div>
       </div>
     );

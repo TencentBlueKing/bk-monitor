@@ -112,7 +112,7 @@
         transform: rotate(-90deg);
       }
 
-      .bk-form-input[disabled] {
+      .t-input__inner[disabled] {
         border-color: transparent !important;
       }
 
@@ -123,7 +123,7 @@
 
       // 错误样式
       &.is-error {
-        .bk-form-input {
+        .t-input__inner {
           border: 1px solid #ea3636 !important;
         }
 
@@ -164,13 +164,13 @@
     .participle-alias-name-input {
       width: 50%;
 
-      .bk-form-input {
+      .t-input__inner {
         padding-left: 15px;
       }
 
       // 别名输入框错误样式
       &.input-error {
-        .bk-form-input {
+        .t-input__inner {
           border-color: #ea3636 !important;
         }
       }
@@ -256,7 +256,7 @@
     .fields-table-column,
     .fields-value-column,
     .fields-analyzed-column {
-      .bk-form-input {
+      .t-input__inner {
         border: none;
         height: 48px;
         line-height: 48px;
@@ -483,7 +483,7 @@
         line-height: 26px;
 
         .bk-input-text,
-        .bk-form-input {
+        .t-input__inner {
           height: 26px;
           line-height: 26px;
         }
@@ -495,7 +495,7 @@
       margin-top: 10px;
       margin-bottom: 6px;
 
-      .bk-button {
+      .t-button {
         min-width: 54px;
         height: 24px;
         line-height: 22px;

@@ -1,0 +1,2226 @@
+{
+  "status": "FROZEN_WITH_TRACKED_DEBT",
+  "scope": "source imports, dynamic imports, reexports, and literal global registrations",
+  "counts": {
+    "imports": 54,
+    "compatibilityImports": 26,
+    "sdkImports": 27,
+    "legacyRegistrations": 66,
+    "trackedDebt": 103,
+    "violations": 0
+  },
+  "imports": [
+    {
+      "file": "app/bootstrap/preload.ts",
+      "source": "@blueking/bk-user-display-name",
+      "symbols": [
+        "default"
+      ],
+      "typeOnly": false,
+      "compat": false,
+      "oldUi": false,
+      "sdk": true,
+      "trackedDebt": false
+    },
+    {
+      "file": "app/bootstrap/start.js",
+      "source": "@blueking/bk-user-selector/vue3/vue3.css",
+      "symbols": [],
+      "typeOnly": false,
+      "compat": false,
+      "oldUi": false,
+      "sdk": true,
+      "trackedDebt": false
+    },
+    {
+      "file": "app/entries/monitor-bootstrap.ts",
+      "source": "@blueking/bk-user-selector/vue3/vue3.css",
+      "symbols": [],
+      "typeOnly": false,
+      "compat": false,
+      "oldUi": false,
+      "sdk": true,
+      "trackedDebt": false
+    },
+    {
+      "file": "app/shell/app.tsx",
+      "source": "@blueking/notice-component",
+      "symbols": [],
+      "typeOnly": false,
+      "compat": false,
+      "oldUi": false,
+      "sdk": true,
+      "trackedDebt": false
+    },
+    {
+      "file": "app/shell/app.tsx",
+      "source": "@blueking/notice-component/dist/style.css",
+      "symbols": [],
+      "typeOnly": false,
+      "compat": false,
+      "oldUi": false,
+      "sdk": true,
+      "trackedDebt": false
+    },
+    {
+      "file": "app/state/modules/platform-config.ts",
+      "source": "@blueking/platform-config",
+      "symbols": [
+        "getPlatformConfig",
+        "setShortcutIcon",
+        "setDocumentTitle"
+      ],
+      "typeOnly": false,
+      "compat": false,
+      "oldUi": false,
+      "sdk": true,
+      "trackedDebt": false
+    },
+    {
+      "file": "features/authorization/authorization-list.tsx",
+      "source": "@/platform/compat/tdesign/magic-controls",
+      "symbols": [
+        "bkSelect",
+        "bkOption",
+        "bkInput",
+        "bkTable",
+        "bkTableColumn"
+      ],
+      "typeOnly": false,
+      "compat": true,
+      "oldUi": false,
+      "sdk": false,
+      "trackedDebt": true
+    },
+    {
+      "file": "features/client-logs/management/download-message.ts",
+      "source": "@/platform/compat/tdesign/magic-controls",
+      "symbols": [
+        "bkMessage"
+      ],
+      "typeOnly": false,
+      "compat": true,
+      "oldUi": false,
+      "sdk": false,
+      "trackedDebt": true
+    },
+    {
+      "file": "features/clusters/current/cluster-manage/intro-panel.tsx",
+      "source": "@blueking/user-selector",
+      "symbols": [
+        "default"
+      ],
+      "typeOnly": false,
+      "compat": false,
+      "oldUi": false,
+      "sdk": true,
+      "trackedDebt": true
+    },
+    {
+      "file": "features/clusters/status/es-cluster-mess/components/intro-panel.vue",
+      "source": "@blueking/user-selector",
+      "symbols": [
+        "default"
+      ],
+      "typeOnly": false,
+      "compat": false,
+      "oldUi": false,
+      "sdk": true,
+      "trackedDebt": true
+    },
+    {
+      "file": "features/collection/access/components/index-import-modal/index.tsx",
+      "source": "@/platform/compat/tdesign/magic-controls",
+      "symbols": [
+        "bkDialog",
+        "bkTable"
+      ],
+      "typeOnly": false,
+      "compat": true,
+      "oldUi": false,
+      "sdk": false,
+      "trackedDebt": true
+    },
+    {
+      "file": "features/collection/access/components/log-filter/index.tsx",
+      "source": "@/platform/compat/tdesign/magic-controls",
+      "symbols": [
+        "Form"
+      ],
+      "typeOnly": true,
+      "compat": true,
+      "oldUi": false,
+      "sdk": false,
+      "trackedDebt": true
+    },
+    {
+      "file": "features/collection/current/components/create-operation/step3-clean.tsx",
+      "source": "@/platform/compat/tdesign/magic-controls",
+      "symbols": [
+        "bkMessage"
+      ],
+      "typeOnly": false,
+      "compat": true,
+      "oldUi": false,
+      "sdk": false,
+      "trackedDebt": true
+    },
+    {
+      "file": "features/collection/ip-selector/log-ip-selector.tsx",
+      "source": "@blueking/ip-selector/dist/vue3.x",
+      "symbols": [
+        "default"
+      ],
+      "typeOnly": false,
+      "compat": false,
+      "oldUi": false,
+      "sdk": true,
+      "trackedDebt": false
+    },
+    {
+      "file": "features/collection/ip-selector/log-ip-selector.tsx",
+      "source": "@blueking/ip-selector/dist/styles/vue2.6.x.css",
+      "symbols": [],
+      "typeOnly": false,
+      "compat": false,
+      "oldUi": false,
+      "sdk": true,
+      "trackedDebt": true
+    },
+    {
+      "file": "features/extraction/classic/manage-extract-permission/directory-manage.vue",
+      "source": "@blueking/user-selector",
+      "symbols": [
+        "default"
+      ],
+      "typeOnly": false,
+      "compat": false,
+      "oldUi": false,
+      "sdk": true,
+      "trackedDebt": true
+    },
+    {
+      "file": "features/extraction/classic/manage-extract-permission/validate-user-selector.vue",
+      "source": "@blueking/user-selector",
+      "symbols": [
+        "default"
+      ],
+      "typeOnly": false,
+      "compat": false,
+      "oldUi": false,
+      "sdk": true,
+      "trackedDebt": true
+    },
+    {
+      "file": "features/index-sets/label-select/index.tsx",
+      "source": "@/platform/compat/tdesign/magic-controls",
+      "symbols": [
+        "bkSelect",
+        "bkOption",
+        "bkForm",
+        "bkFormItem",
+        "bkInput"
+      ],
+      "typeOnly": false,
+      "compat": true,
+      "oldUi": false,
+      "sdk": false,
+      "trackedDebt": true
+    },
+    {
+      "file": "features/index-sets/log-collection/collection-item/manage-collection/field-info.tsx",
+      "source": "@/platform/compat/tdesign/magic-controls",
+      "symbols": [
+        "bkTable",
+        "bkTableColumn",
+        "bkPopover"
+      ],
+      "typeOnly": false,
+      "compat": true,
+      "oldUi": false,
+      "sdk": false,
+      "trackedDebt": true
+    },
+    {
+      "file": "features/masking/components/masking-add-rule.tsx",
+      "source": "@/platform/compat/tdesign/magic-controls",
+      "symbols": [
+        "bkSideslider",
+        "bkForm",
+        "bkFormItem",
+        "bkInput",
+        "bkCollapse",
+        "bkCollapseItem",
+        "bkTable",
+        "bkTableColumn",
+        "bkDialog",
+        "bkTagInput"
+      ],
+      "typeOnly": false,
+      "compat": true,
+      "oldUi": false,
+      "sdk": false,
+      "trackedDebt": true
+    },
+    {
+      "file": "features/masking/components/masking-field-input.tsx",
+      "source": "@/platform/compat/tdesign/magic-controls",
+      "symbols": [
+        "bkTab",
+        "bkTabPanel"
+      ],
+      "typeOnly": false,
+      "compat": true,
+      "oldUi": false,
+      "sdk": false,
+      "trackedDebt": true
+    },
+    {
+      "file": "features/masking/components/masking-field.tsx",
+      "source": "@/platform/compat/tdesign/magic-controls",
+      "symbols": [
+        "bkDialog",
+        "bkInput",
+        "bkTable",
+        "bkTableColumn",
+        "bkPopover",
+        "bkSideslider"
+      ],
+      "typeOnly": false,
+      "compat": true,
+      "oldUi": false,
+      "sdk": false,
+      "trackedDebt": true
+    },
+    {
+      "file": "features/masking/components/masking-select-rule-table.tsx",
+      "source": "@/platform/compat/tdesign/magic-controls",
+      "symbols": [
+        "bkTable",
+        "bkTableColumn",
+        "bkInput"
+      ],
+      "typeOnly": false,
+      "compat": true,
+      "oldUi": false,
+      "sdk": false,
+      "trackedDebt": true
+    },
+    {
+      "file": "features/masking/components/masking-setting.tsx",
+      "source": "@/platform/compat/tdesign/magic-controls",
+      "symbols": [
+        "bkInput",
+        "bkTable",
+        "bkTableColumn",
+        "bkTableSettingContent",
+        "bkDialog"
+      ],
+      "typeOnly": false,
+      "compat": true,
+      "oldUi": false,
+      "sdk": false,
+      "trackedDebt": true
+    },
+    {
+      "file": "features/retrieval/classic/helper.ts",
+      "source": "@blueking/log-web",
+      "symbols": [
+        "default"
+      ],
+      "typeOnly": false,
+      "compat": false,
+      "oldUi": false,
+      "sdk": true,
+      "trackedDebt": false
+    },
+    {
+      "file": "features/retrieval/workbench/result-comp/TaskItem.tsx",
+      "source": "@/platform/compat/tdesign/magic-controls",
+      "symbols": [
+        "bkLink"
+      ],
+      "typeOnly": false,
+      "compat": true,
+      "oldUi": false,
+      "sdk": false,
+      "trackedDebt": true
+    },
+    {
+      "file": "features/retrieval/workbench/search-bar/ui-mode/ui-input-option.vue",
+      "source": "@/platform/compat/tdesign/magic-controls",
+      "symbols": [
+        "bkIcon"
+      ],
+      "typeOnly": false,
+      "compat": true,
+      "oldUi": false,
+      "sdk": false,
+      "trackedDebt": true
+    },
+    {
+      "file": "features/retrieval/workbench/search-result-panel/log-clustering/components/finger-tools/cluster-popover.tsx",
+      "source": "@/platform/compat/tdesign/magic-controls",
+      "symbols": [
+        "Popover"
+      ],
+      "typeOnly": true,
+      "compat": true,
+      "oldUi": false,
+      "sdk": false,
+      "trackedDebt": true
+    },
+    {
+      "file": "features/retrieval/workbench/search-result-panel/log-clustering/components/finger-tools/cluster-rule-dialog.tsx",
+      "source": "@/platform/compat/tdesign/magic-controls",
+      "symbols": [
+        "Popover",
+        "Form"
+      ],
+      "typeOnly": true,
+      "compat": true,
+      "oldUi": false,
+      "sdk": false,
+      "trackedDebt": true
+    },
+    {
+      "file": "features/retrieval/workbench/search-result-panel/log-clustering/components/quick-create-subscription-drawer/create-subscription-form.tsx",
+      "source": "@blueking/user-selector",
+      "symbols": [
+        "default"
+      ],
+      "typeOnly": false,
+      "compat": false,
+      "oldUi": false,
+      "sdk": true,
+      "trackedDebt": true
+    },
+    {
+      "file": "features/retrieval/workbench/search-result-panel/log-clustering/components/quick-open-cluster-step/quick-open-cluster.tsx",
+      "source": "@/platform/compat/tdesign/magic-controls",
+      "symbols": [
+        "From"
+      ],
+      "typeOnly": true,
+      "compat": true,
+      "oldUi": false,
+      "sdk": false,
+      "trackedDebt": true
+    },
+    {
+      "file": "features/retrieval/workbench/search-result-panel/log-clustering/components/strategy/index.tsx",
+      "source": "@/platform/compat/tdesign/magic-controls",
+      "symbols": [
+        "From"
+      ],
+      "typeOnly": true,
+      "compat": true,
+      "oldUi": false,
+      "sdk": false,
+      "trackedDebt": true
+    },
+    {
+      "file": "features/retrieval/workbench/search-result-panel/log-clustering/data-fingerprint.vue",
+      "source": "@blueking/user-selector",
+      "symbols": [
+        "default"
+      ],
+      "typeOnly": false,
+      "compat": false,
+      "oldUi": false,
+      "sdk": true,
+      "trackedDebt": true
+    },
+    {
+      "file": "features/retrieval/workspace/monitor/trace.ts",
+      "source": "@/platform/compat/tdesign/magic-controls",
+      "symbols": [
+        "bkBackTop",
+        "bkAffix",
+        "bkFixedNavbar",
+        "bkTransition",
+        "bkAnimateNumber",
+        "bkCollapse",
+        "bkCollapseItem",
+        "bkColorPicker",
+        "bkComposeFormItem",
+        "bkDatePicker",
+        "bkDialog",
+        "bkDiff",
+        "bkDropdownMenu",
+        "bkException",
+        "bkForm",
+        "bkFormItem",
+        "bkIcon",
+        "bkInput",
+        "bkOption",
+        "bkOptionGroup",
+        "bkPagination",
+        "bkPopover",
+        "bkPopconfirm",
+        "bkProcess",
+        "bkRoundProgress",
+        "bkSelect",
+        "bkSideslider",
+        "bkSlider",
+        "bkSteps",
+        "bkTab",
+        "bkTabPanel",
+        "bkTable",
+        "bkTableColumn",
+        "bkTableSettingContent",
+        "bkTagInput",
+        "bkTimePicker",
+        "bkTimeline",
+        "bkTransfer",
+        "bkTree",
+        "bkUpload",
+        "bkContainer",
+        "bkCol",
+        "bkRow",
+        "bkNavigation",
+        "bkNavigationMenu",
+        "bkNavigationMenuItem",
+        "bkNavigationMenuGroup",
+        "bkSearchSelect",
+        "bkRate",
+        "bkStar",
+        "bkSwiper",
+        "bkVirtualScroll",
+        "bkZoomImage",
+        "bkBigTree",
+        "bkLink",
+        "bkCascade",
+        "bkVersionDetail",
+        "bkCard",
+        "bkImage",
+        "bkImageViewer",
+        "bkBreadcrumb",
+        "bkBreadcrumbItem",
+        "bkDivider",
+        "bkResizeLayout",
+        "bkVirtualRender"
+      ],
+      "typeOnly": false,
+      "compat": true,
+      "oldUi": false,
+      "sdk": false,
+      "trackedDebt": true
+    },
+    {
+      "file": "features/retrieval/workspace/search-result/log-clustering/log-table/content-table/index.tsx",
+      "source": "@blueking/user-selector",
+      "symbols": [
+        "default"
+      ],
+      "typeOnly": false,
+      "compat": false,
+      "oldUi": false,
+      "sdk": true,
+      "trackedDebt": true
+    },
+    {
+      "file": "features/retrieval/workspace/search-result/log-clustering/top-operation/cluster-config/edit-config/index.tsx",
+      "source": "@/platform/compat/tdesign/magic-controls",
+      "symbols": [
+        "bkNotify"
+      ],
+      "typeOnly": false,
+      "compat": true,
+      "oldUi": false,
+      "sdk": false,
+      "trackedDebt": true
+    },
+    {
+      "file": "features/retrieval/workspace/search-result/log-clustering/top-operation/email-subscription/create-subscription/subscription-form/send-config/index.tsx",
+      "source": "@blueking/user-selector",
+      "symbols": [
+        "default"
+      ],
+      "typeOnly": false,
+      "compat": false,
+      "oldUi": false,
+      "sdk": true,
+      "trackedDebt": true
+    },
+    {
+      "file": "platform/http/index.js",
+      "source": "@blueking/login-modal",
+      "symbols": [
+        "showLoginModal"
+      ],
+      "typeOnly": false,
+      "compat": false,
+      "oldUi": false,
+      "sdk": true,
+      "trackedDebt": false
+    },
+    {
+      "file": "platform/observability/open-telemetry.ts",
+      "source": "@blueking/open-telemetry",
+      "symbols": [
+        "BkOpenTelemetry"
+      ],
+      "typeOnly": false,
+      "compat": false,
+      "oldUi": false,
+      "sdk": true,
+      "trackedDebt": false
+    },
+    {
+      "file": "shared/global/ai-assitant/index.tsx",
+      "source": "@blueking/ai-blueking/vue2",
+      "symbols": [
+        "default"
+      ],
+      "typeOnly": false,
+      "compat": false,
+      "oldUi": false,
+      "sdk": true,
+      "trackedDebt": true
+    },
+    {
+      "file": "shared/global/ai-assitant/index.tsx",
+      "source": "@blueking/ai-blueking/dist/vue2/style.css",
+      "symbols": [],
+      "typeOnly": false,
+      "compat": false,
+      "oldUi": false,
+      "sdk": true,
+      "trackedDebt": false
+    },
+    {
+      "file": "shared/global/head-navi/index.tsx",
+      "source": "@blueking/login-userinfo",
+      "symbols": [
+        "default"
+      ],
+      "typeOnly": false,
+      "compat": false,
+      "oldUi": false,
+      "sdk": true,
+      "trackedDebt": false
+    },
+    {
+      "file": "shared/global/head-navi/index.tsx",
+      "source": "@blueking/login-userinfo/vue3/vue3.css",
+      "symbols": [],
+      "typeOnly": false,
+      "compat": false,
+      "oldUi": false,
+      "sdk": true,
+      "trackedDebt": false
+    },
+    {
+      "file": "shared/global/head-navi/log-version.tsx",
+      "source": "@/platform/compat/tdesign/magic-controls",
+      "symbols": [
+        "bkDialog"
+      ],
+      "typeOnly": false,
+      "compat": true,
+      "oldUi": false,
+      "sdk": false,
+      "trackedDebt": true
+    },
+    {
+      "file": "shared/lib/appload-import.ts",
+      "source": "@/platform/compat/tdesign/magic-controls",
+      "symbols": [
+        "bkClickoutside",
+        "bkTooltips",
+        "bkLoading",
+        "bkDivider",
+        "bkResizeLayout",
+        "bkOverflowTips"
+      ],
+      "typeOnly": false,
+      "compat": true,
+      "oldUi": false,
+      "sdk": false,
+      "trackedDebt": true
+    },
+    {
+      "file": "shared/lib/bkmagic.ts",
+      "source": "@/platform/compat/tdesign/magic-controls",
+      "symbols": [
+        "bkMessage"
+      ],
+      "typeOnly": false,
+      "compat": true,
+      "oldUi": false,
+      "sdk": false,
+      "trackedDebt": true
+    },
+    {
+      "file": "shared/lib/demand-import-lite.ts",
+      "source": "@/platform/compat/tdesign/magic-controls",
+      "symbols": [
+        "bkDatePicker",
+        "bkException",
+        "bkLoading",
+        "bkOverflowTips",
+        "bkPopover",
+        "bkSideslider",
+        "bkTab",
+        "bkTabPanel",
+        "bkTable",
+        "bkTableColumn",
+        "bkTooltips"
+      ],
+      "typeOnly": false,
+      "compat": true,
+      "oldUi": false,
+      "sdk": false,
+      "trackedDebt": true
+    },
+    {
+      "file": "shared/lib/demand-import.ts",
+      "source": "@/platform/compat/tdesign/magic-controls",
+      "symbols": [
+        "bkBigTree",
+        "bkCol",
+        "bkCollapse",
+        "bkCollapseItem",
+        "bkContainer",
+        "bkDatePicker",
+        "bkDropdownMenu",
+        "bkException",
+        "bkForm",
+        "bkFormItem",
+        "bkInput",
+        "bkNavigation",
+        "bkNavigationMenu",
+        "bkNavigationMenuGroup",
+        "bkNavigationMenuItem",
+        "bkOption",
+        "bkOptionGroup",
+        "bkPagination",
+        "bkPopover",
+        "bkPopconfirm",
+        "bkProcess",
+        "bkRoundProgress",
+        "bkRow",
+        "bkSearchSelect",
+        "bkSelect",
+        "bkSideslider",
+        "bkSlider",
+        "bkSteps",
+        "bkTab",
+        "bkTabPanel",
+        "bkTable",
+        "bkTableColumn",
+        "bkTableSettingContent",
+        "bkTagInput",
+        "bkTimePicker",
+        "bkTimeline",
+        "bkTransfer",
+        "bkTree",
+        "bkUpload",
+        "bkSwiper",
+        "bkRate",
+        "bkAnimateNumber",
+        "bkVirtualScroll"
+      ],
+      "typeOnly": false,
+      "compat": true,
+      "oldUi": false,
+      "sdk": false,
+      "trackedDebt": true
+    },
+    {
+      "file": "shared/lib/preload-import.ts",
+      "source": "@/platform/compat/tdesign/magic-controls",
+      "symbols": [
+        "bkMessage",
+        "bkNotify",
+        "bkDialog"
+      ],
+      "typeOnly": false,
+      "compat": true,
+      "oldUi": false,
+      "sdk": false,
+      "trackedDebt": true
+    },
+    {
+      "file": "shared/types/global-controls.d.ts",
+      "source": "bk-magic-vue",
+      "symbols": [
+        "bkAffix",
+        "bkAlert",
+        "bkAnimateNumber",
+        "bkBackTop",
+        "bkBadge",
+        "bkBigTree",
+        "bkBreadcrumb",
+        "bkBreadcrumbItem",
+        "bkButton",
+        "bkCard",
+        "bkCascade",
+        "bkCheckbox",
+        "bkCheckboxGroup",
+        "bkCol",
+        "bkCollapse",
+        "bkCollapseItem",
+        "bkColorPicker",
+        "bkComposeFormItem",
+        "bkContainer",
+        "bkDatePicker",
+        "bkDialog",
+        "bkDiff",
+        "bkDivider",
+        "bkDropdownMenu",
+        "bkException",
+        "bkFixedNavbar",
+        "bkForm",
+        "bkFormItem",
+        "bkIcon",
+        "bkImage",
+        "bkImageViewer",
+        "bkInput",
+        "bkLink",
+        "bkNavigation",
+        "bkNavigationMenu",
+        "bkNavigationMenuGroup",
+        "bkNavigationMenuItem",
+        "bkNotify",
+        "bkOption",
+        "bkOptionGroup",
+        "bkOverflowTips",
+        "bkPagination",
+        "bkPopconfirm",
+        "bkPopover",
+        "bkProcess",
+        "bkProgress",
+        "bkRadio",
+        "bkRadioButton",
+        "bkRadioGroup",
+        "bkRate",
+        "bkResizeLayout",
+        "bkRoundProgress",
+        "bkRow",
+        "bkSearchSelect",
+        "bkSelect",
+        "bkSideslider",
+        "bkSlider",
+        "bkSpin",
+        "bkStar",
+        "bkSteps",
+        "bkSwiper",
+        "bkSwitcher",
+        "bkTab",
+        "bkTabPanel",
+        "bkTable",
+        "bkTableColumn",
+        "bkTableSettingContent",
+        "bkTag",
+        "bkTagInput",
+        "bkTimePicker",
+        "bkTimeline",
+        "bkTooltips",
+        "bkTransfer",
+        "bkTransition",
+        "bkTree",
+        "bkUpload",
+        "bkVersionDetail",
+        "bkVirtualRender",
+        "bkVirtualScroll",
+        "bkZoomImage"
+      ],
+      "typeOnly": true,
+      "compat": false,
+      "oldUi": true,
+      "sdk": false,
+      "trackedDebt": true
+    },
+    {
+      "file": "shared/ui/time-range/time-range.tsx",
+      "source": "@blueking/date-picker",
+      "symbols": [
+        "default"
+      ],
+      "typeOnly": false,
+      "compat": false,
+      "oldUi": false,
+      "sdk": true,
+      "trackedDebt": false
+    },
+    {
+      "file": "shared/ui/time-range/time-range.tsx",
+      "source": "@blueking/date-picker/vue3/vue3.css",
+      "symbols": [],
+      "typeOnly": false,
+      "compat": false,
+      "oldUi": false,
+      "sdk": true,
+      "trackedDebt": false
+    },
+    {
+      "file": "shared/ui/time-range/utils.ts",
+      "source": "@blueking/date-picker",
+      "symbols": [
+        "DateRange",
+        "DateValue"
+      ],
+      "typeOnly": false,
+      "compat": false,
+      "oldUi": false,
+      "sdk": true,
+      "trackedDebt": false
+    },
+    {
+      "file": "shared/ui/user-selector/index.tsx",
+      "source": "@blueking/bk-user-selector",
+      "symbols": [
+        "default"
+      ],
+      "typeOnly": false,
+      "compat": false,
+      "oldUi": false,
+      "sdk": true,
+      "trackedDebt": false
+    }
+  ],
+  "registrations": [
+    {
+      "file": "app/bootstrap/configure-app.ts",
+      "kind": "directive",
+      "name": "bkloading"
+    },
+    {
+      "file": "features/retrieval/workspace/monitor/trace.ts",
+      "kind": "component",
+      "name": "BkAffix"
+    },
+    {
+      "file": "features/retrieval/workspace/monitor/trace.ts",
+      "kind": "component",
+      "name": "BkAnimateNumber"
+    },
+    {
+      "file": "features/retrieval/workspace/monitor/trace.ts",
+      "kind": "component",
+      "name": "BkBackTop"
+    },
+    {
+      "file": "features/retrieval/workspace/monitor/trace.ts",
+      "kind": "component",
+      "name": "BkBigTree"
+    },
+    {
+      "file": "features/retrieval/workspace/monitor/trace.ts",
+      "kind": "component",
+      "name": "BkBreadcrumb"
+    },
+    {
+      "file": "features/retrieval/workspace/monitor/trace.ts",
+      "kind": "component",
+      "name": "BkBreadcrumbItem"
+    },
+    {
+      "file": "features/retrieval/workspace/monitor/trace.ts",
+      "kind": "component",
+      "name": "BkCard"
+    },
+    {
+      "file": "features/retrieval/workspace/monitor/trace.ts",
+      "kind": "component",
+      "name": "BkCascade"
+    },
+    {
+      "file": "features/retrieval/workspace/monitor/trace.ts",
+      "kind": "component",
+      "name": "BkCol"
+    },
+    {
+      "file": "features/retrieval/workspace/monitor/trace.ts",
+      "kind": "component",
+      "name": "BkCollapse"
+    },
+    {
+      "file": "features/retrieval/workspace/monitor/trace.ts",
+      "kind": "component",
+      "name": "BkCollapseItem"
+    },
+    {
+      "file": "features/retrieval/workspace/monitor/trace.ts",
+      "kind": "component",
+      "name": "BkColorPicker"
+    },
+    {
+      "file": "features/retrieval/workspace/monitor/trace.ts",
+      "kind": "component",
+      "name": "BkComposeFormItem"
+    },
+    {
+      "file": "features/retrieval/workspace/monitor/trace.ts",
+      "kind": "component",
+      "name": "BkContainer"
+    },
+    {
+      "file": "features/retrieval/workspace/monitor/trace.ts",
+      "kind": "component",
+      "name": "BkDatePicker"
+    },
+    {
+      "file": "features/retrieval/workspace/monitor/trace.ts",
+      "kind": "component",
+      "name": "BkDialog"
+    },
+    {
+      "file": "features/retrieval/workspace/monitor/trace.ts",
+      "kind": "component",
+      "name": "BkDiff"
+    },
+    {
+      "file": "features/retrieval/workspace/monitor/trace.ts",
+      "kind": "component",
+      "name": "BkDivider"
+    },
+    {
+      "file": "features/retrieval/workspace/monitor/trace.ts",
+      "kind": "component",
+      "name": "BkDropdownMenu"
+    },
+    {
+      "file": "features/retrieval/workspace/monitor/trace.ts",
+      "kind": "component",
+      "name": "BkException"
+    },
+    {
+      "file": "features/retrieval/workspace/monitor/trace.ts",
+      "kind": "component",
+      "name": "BkFixedNavbar"
+    },
+    {
+      "file": "features/retrieval/workspace/monitor/trace.ts",
+      "kind": "component",
+      "name": "BkForm"
+    },
+    {
+      "file": "features/retrieval/workspace/monitor/trace.ts",
+      "kind": "component",
+      "name": "BkFormItem"
+    },
+    {
+      "file": "features/retrieval/workspace/monitor/trace.ts",
+      "kind": "component",
+      "name": "BkIcon"
+    },
+    {
+      "file": "features/retrieval/workspace/monitor/trace.ts",
+      "kind": "component",
+      "name": "BkImage"
+    },
+    {
+      "file": "features/retrieval/workspace/monitor/trace.ts",
+      "kind": "component",
+      "name": "BkImageViewer"
+    },
+    {
+      "file": "features/retrieval/workspace/monitor/trace.ts",
+      "kind": "component",
+      "name": "BkInput"
+    },
+    {
+      "file": "features/retrieval/workspace/monitor/trace.ts",
+      "kind": "component",
+      "name": "BkLink"
+    },
+    {
+      "file": "features/retrieval/workspace/monitor/trace.ts",
+      "kind": "component",
+      "name": "BkNavigation"
+    },
+    {
+      "file": "features/retrieval/workspace/monitor/trace.ts",
+      "kind": "component",
+      "name": "BkNavigationMenu"
+    },
+    {
+      "file": "features/retrieval/workspace/monitor/trace.ts",
+      "kind": "component",
+      "name": "BkNavigationMenuGroup"
+    },
+    {
+      "file": "features/retrieval/workspace/monitor/trace.ts",
+      "kind": "component",
+      "name": "BkNavigationMenuItem"
+    },
+    {
+      "file": "features/retrieval/workspace/monitor/trace.ts",
+      "kind": "component",
+      "name": "BkOption"
+    },
+    {
+      "file": "features/retrieval/workspace/monitor/trace.ts",
+      "kind": "component",
+      "name": "BkOptionGroup"
+    },
+    {
+      "file": "features/retrieval/workspace/monitor/trace.ts",
+      "kind": "component",
+      "name": "BkPagination"
+    },
+    {
+      "file": "features/retrieval/workspace/monitor/trace.ts",
+      "kind": "component",
+      "name": "BkPopconfirm"
+    },
+    {
+      "file": "features/retrieval/workspace/monitor/trace.ts",
+      "kind": "component",
+      "name": "BkPopover"
+    },
+    {
+      "file": "features/retrieval/workspace/monitor/trace.ts",
+      "kind": "component",
+      "name": "BkProcess"
+    },
+    {
+      "file": "features/retrieval/workspace/monitor/trace.ts",
+      "kind": "component",
+      "name": "BkRate"
+    },
+    {
+      "file": "features/retrieval/workspace/monitor/trace.ts",
+      "kind": "component",
+      "name": "BkResizeLayout"
+    },
+    {
+      "file": "features/retrieval/workspace/monitor/trace.ts",
+      "kind": "component",
+      "name": "BkRoundProgress"
+    },
+    {
+      "file": "features/retrieval/workspace/monitor/trace.ts",
+      "kind": "component",
+      "name": "BkRow"
+    },
+    {
+      "file": "features/retrieval/workspace/monitor/trace.ts",
+      "kind": "component",
+      "name": "BkSearchSelect"
+    },
+    {
+      "file": "features/retrieval/workspace/monitor/trace.ts",
+      "kind": "component",
+      "name": "BkSelect"
+    },
+    {
+      "file": "features/retrieval/workspace/monitor/trace.ts",
+      "kind": "component",
+      "name": "BkSideslider"
+    },
+    {
+      "file": "features/retrieval/workspace/monitor/trace.ts",
+      "kind": "component",
+      "name": "BkSlider"
+    },
+    {
+      "file": "features/retrieval/workspace/monitor/trace.ts",
+      "kind": "component",
+      "name": "BkStar"
+    },
+    {
+      "file": "features/retrieval/workspace/monitor/trace.ts",
+      "kind": "component",
+      "name": "BkSteps"
+    },
+    {
+      "file": "features/retrieval/workspace/monitor/trace.ts",
+      "kind": "component",
+      "name": "BkSwiper"
+    },
+    {
+      "file": "features/retrieval/workspace/monitor/trace.ts",
+      "kind": "component",
+      "name": "BkTab"
+    },
+    {
+      "file": "features/retrieval/workspace/monitor/trace.ts",
+      "kind": "component",
+      "name": "BkTabPanel"
+    },
+    {
+      "file": "features/retrieval/workspace/monitor/trace.ts",
+      "kind": "component",
+      "name": "BkTable"
+    },
+    {
+      "file": "features/retrieval/workspace/monitor/trace.ts",
+      "kind": "component",
+      "name": "BkTableColumn"
+    },
+    {
+      "file": "features/retrieval/workspace/monitor/trace.ts",
+      "kind": "component",
+      "name": "BkTableSettingContent"
+    },
+    {
+      "file": "features/retrieval/workspace/monitor/trace.ts",
+      "kind": "component",
+      "name": "BkTagInput"
+    },
+    {
+      "file": "features/retrieval/workspace/monitor/trace.ts",
+      "kind": "component",
+      "name": "BkTimePicker"
+    },
+    {
+      "file": "features/retrieval/workspace/monitor/trace.ts",
+      "kind": "component",
+      "name": "BkTimeline"
+    },
+    {
+      "file": "features/retrieval/workspace/monitor/trace.ts",
+      "kind": "component",
+      "name": "BkTransfer"
+    },
+    {
+      "file": "features/retrieval/workspace/monitor/trace.ts",
+      "kind": "component",
+      "name": "BkTransition"
+    },
+    {
+      "file": "features/retrieval/workspace/monitor/trace.ts",
+      "kind": "component",
+      "name": "BkTree"
+    },
+    {
+      "file": "features/retrieval/workspace/monitor/trace.ts",
+      "kind": "component",
+      "name": "BkUpload"
+    },
+    {
+      "file": "features/retrieval/workspace/monitor/trace.ts",
+      "kind": "component",
+      "name": "BkVersionDetail"
+    },
+    {
+      "file": "features/retrieval/workspace/monitor/trace.ts",
+      "kind": "component",
+      "name": "BkVirtualRender"
+    },
+    {
+      "file": "features/retrieval/workspace/monitor/trace.ts",
+      "kind": "component",
+      "name": "BkVirtualScroll"
+    },
+    {
+      "file": "features/retrieval/workspace/monitor/trace.ts",
+      "kind": "component",
+      "name": "BkZoomImage"
+    }
+  ],
+  "trackedDebt": [
+    {
+      "file": "features/authorization/authorization-list.tsx",
+      "source": "@/platform/compat/tdesign/magic-controls",
+      "symbols": [
+        "bkSelect",
+        "bkOption",
+        "bkInput",
+        "bkTable",
+        "bkTableColumn"
+      ],
+      "typeOnly": false,
+      "compat": true,
+      "oldUi": false,
+      "sdk": false,
+      "trackedDebt": true
+    },
+    {
+      "file": "features/client-logs/management/download-message.ts",
+      "source": "@/platform/compat/tdesign/magic-controls",
+      "symbols": [
+        "bkMessage"
+      ],
+      "typeOnly": false,
+      "compat": true,
+      "oldUi": false,
+      "sdk": false,
+      "trackedDebt": true
+    },
+    {
+      "file": "features/clusters/current/cluster-manage/intro-panel.tsx",
+      "source": "@blueking/user-selector",
+      "symbols": [
+        "default"
+      ],
+      "typeOnly": false,
+      "compat": false,
+      "oldUi": false,
+      "sdk": true,
+      "trackedDebt": true
+    },
+    {
+      "file": "features/clusters/status/es-cluster-mess/components/intro-panel.vue",
+      "source": "@blueking/user-selector",
+      "symbols": [
+        "default"
+      ],
+      "typeOnly": false,
+      "compat": false,
+      "oldUi": false,
+      "sdk": true,
+      "trackedDebt": true
+    },
+    {
+      "file": "features/collection/access/components/index-import-modal/index.tsx",
+      "source": "@/platform/compat/tdesign/magic-controls",
+      "symbols": [
+        "bkDialog",
+        "bkTable"
+      ],
+      "typeOnly": false,
+      "compat": true,
+      "oldUi": false,
+      "sdk": false,
+      "trackedDebt": true
+    },
+    {
+      "file": "features/collection/access/components/log-filter/index.tsx",
+      "source": "@/platform/compat/tdesign/magic-controls",
+      "symbols": [
+        "Form"
+      ],
+      "typeOnly": true,
+      "compat": true,
+      "oldUi": false,
+      "sdk": false,
+      "trackedDebt": true
+    },
+    {
+      "file": "features/collection/current/components/create-operation/step3-clean.tsx",
+      "source": "@/platform/compat/tdesign/magic-controls",
+      "symbols": [
+        "bkMessage"
+      ],
+      "typeOnly": false,
+      "compat": true,
+      "oldUi": false,
+      "sdk": false,
+      "trackedDebt": true
+    },
+    {
+      "file": "features/collection/ip-selector/log-ip-selector.tsx",
+      "source": "@blueking/ip-selector/dist/styles/vue2.6.x.css",
+      "symbols": [],
+      "typeOnly": false,
+      "compat": false,
+      "oldUi": false,
+      "sdk": true,
+      "trackedDebt": true
+    },
+    {
+      "file": "features/extraction/classic/manage-extract-permission/directory-manage.vue",
+      "source": "@blueking/user-selector",
+      "symbols": [
+        "default"
+      ],
+      "typeOnly": false,
+      "compat": false,
+      "oldUi": false,
+      "sdk": true,
+      "trackedDebt": true
+    },
+    {
+      "file": "features/extraction/classic/manage-extract-permission/validate-user-selector.vue",
+      "source": "@blueking/user-selector",
+      "symbols": [
+        "default"
+      ],
+      "typeOnly": false,
+      "compat": false,
+      "oldUi": false,
+      "sdk": true,
+      "trackedDebt": true
+    },
+    {
+      "file": "features/index-sets/label-select/index.tsx",
+      "source": "@/platform/compat/tdesign/magic-controls",
+      "symbols": [
+        "bkSelect",
+        "bkOption",
+        "bkForm",
+        "bkFormItem",
+        "bkInput"
+      ],
+      "typeOnly": false,
+      "compat": true,
+      "oldUi": false,
+      "sdk": false,
+      "trackedDebt": true
+    },
+    {
+      "file": "features/index-sets/log-collection/collection-item/manage-collection/field-info.tsx",
+      "source": "@/platform/compat/tdesign/magic-controls",
+      "symbols": [
+        "bkTable",
+        "bkTableColumn",
+        "bkPopover"
+      ],
+      "typeOnly": false,
+      "compat": true,
+      "oldUi": false,
+      "sdk": false,
+      "trackedDebt": true
+    },
+    {
+      "file": "features/masking/components/masking-add-rule.tsx",
+      "source": "@/platform/compat/tdesign/magic-controls",
+      "symbols": [
+        "bkSideslider",
+        "bkForm",
+        "bkFormItem",
+        "bkInput",
+        "bkCollapse",
+        "bkCollapseItem",
+        "bkTable",
+        "bkTableColumn",
+        "bkDialog",
+        "bkTagInput"
+      ],
+      "typeOnly": false,
+      "compat": true,
+      "oldUi": false,
+      "sdk": false,
+      "trackedDebt": true
+    },
+    {
+      "file": "features/masking/components/masking-field-input.tsx",
+      "source": "@/platform/compat/tdesign/magic-controls",
+      "symbols": [
+        "bkTab",
+        "bkTabPanel"
+      ],
+      "typeOnly": false,
+      "compat": true,
+      "oldUi": false,
+      "sdk": false,
+      "trackedDebt": true
+    },
+    {
+      "file": "features/masking/components/masking-field.tsx",
+      "source": "@/platform/compat/tdesign/magic-controls",
+      "symbols": [
+        "bkDialog",
+        "bkInput",
+        "bkTable",
+        "bkTableColumn",
+        "bkPopover",
+        "bkSideslider"
+      ],
+      "typeOnly": false,
+      "compat": true,
+      "oldUi": false,
+      "sdk": false,
+      "trackedDebt": true
+    },
+    {
+      "file": "features/masking/components/masking-select-rule-table.tsx",
+      "source": "@/platform/compat/tdesign/magic-controls",
+      "symbols": [
+        "bkTable",
+        "bkTableColumn",
+        "bkInput"
+      ],
+      "typeOnly": false,
+      "compat": true,
+      "oldUi": false,
+      "sdk": false,
+      "trackedDebt": true
+    },
+    {
+      "file": "features/masking/components/masking-setting.tsx",
+      "source": "@/platform/compat/tdesign/magic-controls",
+      "symbols": [
+        "bkInput",
+        "bkTable",
+        "bkTableColumn",
+        "bkTableSettingContent",
+        "bkDialog"
+      ],
+      "typeOnly": false,
+      "compat": true,
+      "oldUi": false,
+      "sdk": false,
+      "trackedDebt": true
+    },
+    {
+      "file": "features/retrieval/workbench/result-comp/TaskItem.tsx",
+      "source": "@/platform/compat/tdesign/magic-controls",
+      "symbols": [
+        "bkLink"
+      ],
+      "typeOnly": false,
+      "compat": true,
+      "oldUi": false,
+      "sdk": false,
+      "trackedDebt": true
+    },
+    {
+      "file": "features/retrieval/workbench/search-bar/ui-mode/ui-input-option.vue",
+      "source": "@/platform/compat/tdesign/magic-controls",
+      "symbols": [
+        "bkIcon"
+      ],
+      "typeOnly": false,
+      "compat": true,
+      "oldUi": false,
+      "sdk": false,
+      "trackedDebt": true
+    },
+    {
+      "file": "features/retrieval/workbench/search-result-panel/log-clustering/components/finger-tools/cluster-popover.tsx",
+      "source": "@/platform/compat/tdesign/magic-controls",
+      "symbols": [
+        "Popover"
+      ],
+      "typeOnly": true,
+      "compat": true,
+      "oldUi": false,
+      "sdk": false,
+      "trackedDebt": true
+    },
+    {
+      "file": "features/retrieval/workbench/search-result-panel/log-clustering/components/finger-tools/cluster-rule-dialog.tsx",
+      "source": "@/platform/compat/tdesign/magic-controls",
+      "symbols": [
+        "Popover",
+        "Form"
+      ],
+      "typeOnly": true,
+      "compat": true,
+      "oldUi": false,
+      "sdk": false,
+      "trackedDebt": true
+    },
+    {
+      "file": "features/retrieval/workbench/search-result-panel/log-clustering/components/quick-create-subscription-drawer/create-subscription-form.tsx",
+      "source": "@blueking/user-selector",
+      "symbols": [
+        "default"
+      ],
+      "typeOnly": false,
+      "compat": false,
+      "oldUi": false,
+      "sdk": true,
+      "trackedDebt": true
+    },
+    {
+      "file": "features/retrieval/workbench/search-result-panel/log-clustering/components/quick-open-cluster-step/quick-open-cluster.tsx",
+      "source": "@/platform/compat/tdesign/magic-controls",
+      "symbols": [
+        "From"
+      ],
+      "typeOnly": true,
+      "compat": true,
+      "oldUi": false,
+      "sdk": false,
+      "trackedDebt": true
+    },
+    {
+      "file": "features/retrieval/workbench/search-result-panel/log-clustering/components/strategy/index.tsx",
+      "source": "@/platform/compat/tdesign/magic-controls",
+      "symbols": [
+        "From"
+      ],
+      "typeOnly": true,
+      "compat": true,
+      "oldUi": false,
+      "sdk": false,
+      "trackedDebt": true
+    },
+    {
+      "file": "features/retrieval/workbench/search-result-panel/log-clustering/data-fingerprint.vue",
+      "source": "@blueking/user-selector",
+      "symbols": [
+        "default"
+      ],
+      "typeOnly": false,
+      "compat": false,
+      "oldUi": false,
+      "sdk": true,
+      "trackedDebt": true
+    },
+    {
+      "file": "features/retrieval/workspace/monitor/trace.ts",
+      "source": "@/platform/compat/tdesign/magic-controls",
+      "symbols": [
+        "bkBackTop",
+        "bkAffix",
+        "bkFixedNavbar",
+        "bkTransition",
+        "bkAnimateNumber",
+        "bkCollapse",
+        "bkCollapseItem",
+        "bkColorPicker",
+        "bkComposeFormItem",
+        "bkDatePicker",
+        "bkDialog",
+        "bkDiff",
+        "bkDropdownMenu",
+        "bkException",
+        "bkForm",
+        "bkFormItem",
+        "bkIcon",
+        "bkInput",
+        "bkOption",
+        "bkOptionGroup",
+        "bkPagination",
+        "bkPopover",
+        "bkPopconfirm",
+        "bkProcess",
+        "bkRoundProgress",
+        "bkSelect",
+        "bkSideslider",
+        "bkSlider",
+        "bkSteps",
+        "bkTab",
+        "bkTabPanel",
+        "bkTable",
+        "bkTableColumn",
+        "bkTableSettingContent",
+        "bkTagInput",
+        "bkTimePicker",
+        "bkTimeline",
+        "bkTransfer",
+        "bkTree",
+        "bkUpload",
+        "bkContainer",
+        "bkCol",
+        "bkRow",
+        "bkNavigation",
+        "bkNavigationMenu",
+        "bkNavigationMenuItem",
+        "bkNavigationMenuGroup",
+        "bkSearchSelect",
+        "bkRate",
+        "bkStar",
+        "bkSwiper",
+        "bkVirtualScroll",
+        "bkZoomImage",
+        "bkBigTree",
+        "bkLink",
+        "bkCascade",
+        "bkVersionDetail",
+        "bkCard",
+        "bkImage",
+        "bkImageViewer",
+        "bkBreadcrumb",
+        "bkBreadcrumbItem",
+        "bkDivider",
+        "bkResizeLayout",
+        "bkVirtualRender"
+      ],
+      "typeOnly": false,
+      "compat": true,
+      "oldUi": false,
+      "sdk": false,
+      "trackedDebt": true
+    },
+    {
+      "file": "features/retrieval/workspace/search-result/log-clustering/log-table/content-table/index.tsx",
+      "source": "@blueking/user-selector",
+      "symbols": [
+        "default"
+      ],
+      "typeOnly": false,
+      "compat": false,
+      "oldUi": false,
+      "sdk": true,
+      "trackedDebt": true
+    },
+    {
+      "file": "features/retrieval/workspace/search-result/log-clustering/top-operation/cluster-config/edit-config/index.tsx",
+      "source": "@/platform/compat/tdesign/magic-controls",
+      "symbols": [
+        "bkNotify"
+      ],
+      "typeOnly": false,
+      "compat": true,
+      "oldUi": false,
+      "sdk": false,
+      "trackedDebt": true
+    },
+    {
+      "file": "features/retrieval/workspace/search-result/log-clustering/top-operation/email-subscription/create-subscription/subscription-form/send-config/index.tsx",
+      "source": "@blueking/user-selector",
+      "symbols": [
+        "default"
+      ],
+      "typeOnly": false,
+      "compat": false,
+      "oldUi": false,
+      "sdk": true,
+      "trackedDebt": true
+    },
+    {
+      "file": "shared/global/ai-assitant/index.tsx",
+      "source": "@blueking/ai-blueking/vue2",
+      "symbols": [
+        "default"
+      ],
+      "typeOnly": false,
+      "compat": false,
+      "oldUi": false,
+      "sdk": true,
+      "trackedDebt": true
+    },
+    {
+      "file": "shared/global/head-navi/log-version.tsx",
+      "source": "@/platform/compat/tdesign/magic-controls",
+      "symbols": [
+        "bkDialog"
+      ],
+      "typeOnly": false,
+      "compat": true,
+      "oldUi": false,
+      "sdk": false,
+      "trackedDebt": true
+    },
+    {
+      "file": "shared/lib/appload-import.ts",
+      "source": "@/platform/compat/tdesign/magic-controls",
+      "symbols": [
+        "bkClickoutside",
+        "bkTooltips",
+        "bkLoading",
+        "bkDivider",
+        "bkResizeLayout",
+        "bkOverflowTips"
+      ],
+      "typeOnly": false,
+      "compat": true,
+      "oldUi": false,
+      "sdk": false,
+      "trackedDebt": true
+    },
+    {
+      "file": "shared/lib/bkmagic.ts",
+      "source": "@/platform/compat/tdesign/magic-controls",
+      "symbols": [
+        "bkMessage"
+      ],
+      "typeOnly": false,
+      "compat": true,
+      "oldUi": false,
+      "sdk": false,
+      "trackedDebt": true
+    },
+    {
+      "file": "shared/lib/demand-import-lite.ts",
+      "source": "@/platform/compat/tdesign/magic-controls",
+      "symbols": [
+        "bkDatePicker",
+        "bkException",
+        "bkLoading",
+        "bkOverflowTips",
+        "bkPopover",
+        "bkSideslider",
+        "bkTab",
+        "bkTabPanel",
+        "bkTable",
+        "bkTableColumn",
+        "bkTooltips"
+      ],
+      "typeOnly": false,
+      "compat": true,
+      "oldUi": false,
+      "sdk": false,
+      "trackedDebt": true
+    },
+    {
+      "file": "shared/lib/demand-import.ts",
+      "source": "@/platform/compat/tdesign/magic-controls",
+      "symbols": [
+        "bkBigTree",
+        "bkCol",
+        "bkCollapse",
+        "bkCollapseItem",
+        "bkContainer",
+        "bkDatePicker",
+        "bkDropdownMenu",
+        "bkException",
+        "bkForm",
+        "bkFormItem",
+        "bkInput",
+        "bkNavigation",
+        "bkNavigationMenu",
+        "bkNavigationMenuGroup",
+        "bkNavigationMenuItem",
+        "bkOption",
+        "bkOptionGroup",
+        "bkPagination",
+        "bkPopover",
+        "bkPopconfirm",
+        "bkProcess",
+        "bkRoundProgress",
+        "bkRow",
+        "bkSearchSelect",
+        "bkSelect",
+        "bkSideslider",
+        "bkSlider",
+        "bkSteps",
+        "bkTab",
+        "bkTabPanel",
+        "bkTable",
+        "bkTableColumn",
+        "bkTableSettingContent",
+        "bkTagInput",
+        "bkTimePicker",
+        "bkTimeline",
+        "bkTransfer",
+        "bkTree",
+        "bkUpload",
+        "bkSwiper",
+        "bkRate",
+        "bkAnimateNumber",
+        "bkVirtualScroll"
+      ],
+      "typeOnly": false,
+      "compat": true,
+      "oldUi": false,
+      "sdk": false,
+      "trackedDebt": true
+    },
+    {
+      "file": "shared/lib/preload-import.ts",
+      "source": "@/platform/compat/tdesign/magic-controls",
+      "symbols": [
+        "bkMessage",
+        "bkNotify",
+        "bkDialog"
+      ],
+      "typeOnly": false,
+      "compat": true,
+      "oldUi": false,
+      "sdk": false,
+      "trackedDebt": true
+    },
+    {
+      "file": "shared/types/global-controls.d.ts",
+      "source": "bk-magic-vue",
+      "symbols": [
+        "bkAffix",
+        "bkAlert",
+        "bkAnimateNumber",
+        "bkBackTop",
+        "bkBadge",
+        "bkBigTree",
+        "bkBreadcrumb",
+        "bkBreadcrumbItem",
+        "bkButton",
+        "bkCard",
+        "bkCascade",
+        "bkCheckbox",
+        "bkCheckboxGroup",
+        "bkCol",
+        "bkCollapse",
+        "bkCollapseItem",
+        "bkColorPicker",
+        "bkComposeFormItem",
+        "bkContainer",
+        "bkDatePicker",
+        "bkDialog",
+        "bkDiff",
+        "bkDivider",
+        "bkDropdownMenu",
+        "bkException",
+        "bkFixedNavbar",
+        "bkForm",
+        "bkFormItem",
+        "bkIcon",
+        "bkImage",
+        "bkImageViewer",
+        "bkInput",
+        "bkLink",
+        "bkNavigation",
+        "bkNavigationMenu",
+        "bkNavigationMenuGroup",
+        "bkNavigationMenuItem",
+        "bkNotify",
+        "bkOption",
+        "bkOptionGroup",
+        "bkOverflowTips",
+        "bkPagination",
+        "bkPopconfirm",
+        "bkPopover",
+        "bkProcess",
+        "bkProgress",
+        "bkRadio",
+        "bkRadioButton",
+        "bkRadioGroup",
+        "bkRate",
+        "bkResizeLayout",
+        "bkRoundProgress",
+        "bkRow",
+        "bkSearchSelect",
+        "bkSelect",
+        "bkSideslider",
+        "bkSlider",
+        "bkSpin",
+        "bkStar",
+        "bkSteps",
+        "bkSwiper",
+        "bkSwitcher",
+        "bkTab",
+        "bkTabPanel",
+        "bkTable",
+        "bkTableColumn",
+        "bkTableSettingContent",
+        "bkTag",
+        "bkTagInput",
+        "bkTimePicker",
+        "bkTimeline",
+        "bkTooltips",
+        "bkTransfer",
+        "bkTransition",
+        "bkTree",
+        "bkUpload",
+        "bkVersionDetail",
+        "bkVirtualRender",
+        "bkVirtualScroll",
+        "bkZoomImage"
+      ],
+      "typeOnly": true,
+      "compat": false,
+      "oldUi": true,
+      "sdk": false,
+      "trackedDebt": true
+    },
+    {
+      "file": "app/bootstrap/configure-app.ts",
+      "kind": "directive",
+      "name": "bkloading"
+    },
+    {
+      "file": "features/retrieval/workspace/monitor/trace.ts",
+      "kind": "component",
+      "name": "BkAffix"
+    },
+    {
+      "file": "features/retrieval/workspace/monitor/trace.ts",
+      "kind": "component",
+      "name": "BkAnimateNumber"
+    },
+    {
+      "file": "features/retrieval/workspace/monitor/trace.ts",
+      "kind": "component",
+      "name": "BkBackTop"
+    },
+    {
+      "file": "features/retrieval/workspace/monitor/trace.ts",
+      "kind": "component",
+      "name": "BkBigTree"
+    },
+    {
+      "file": "features/retrieval/workspace/monitor/trace.ts",
+      "kind": "component",
+      "name": "BkBreadcrumb"
+    },
+    {
+      "file": "features/retrieval/workspace/monitor/trace.ts",
+      "kind": "component",
+      "name": "BkBreadcrumbItem"
+    },
+    {
+      "file": "features/retrieval/workspace/monitor/trace.ts",
+      "kind": "component",
+      "name": "BkCard"
+    },
+    {
+      "file": "features/retrieval/workspace/monitor/trace.ts",
+      "kind": "component",
+      "name": "BkCascade"
+    },
+    {
+      "file": "features/retrieval/workspace/monitor/trace.ts",
+      "kind": "component",
+      "name": "BkCol"
+    },
+    {
+      "file": "features/retrieval/workspace/monitor/trace.ts",
+      "kind": "component",
+      "name": "BkCollapse"
+    },
+    {
+      "file": "features/retrieval/workspace/monitor/trace.ts",
+      "kind": "component",
+      "name": "BkCollapseItem"
+    },
+    {
+      "file": "features/retrieval/workspace/monitor/trace.ts",
+      "kind": "component",
+      "name": "BkColorPicker"
+    },
+    {
+      "file": "features/retrieval/workspace/monitor/trace.ts",
+      "kind": "component",
+      "name": "BkComposeFormItem"
+    },
+    {
+      "file": "features/retrieval/workspace/monitor/trace.ts",
+      "kind": "component",
+      "name": "BkContainer"
+    },
+    {
+      "file": "features/retrieval/workspace/monitor/trace.ts",
+      "kind": "component",
+      "name": "BkDatePicker"
+    },
+    {
+      "file": "features/retrieval/workspace/monitor/trace.ts",
+      "kind": "component",
+      "name": "BkDialog"
+    },
+    {
+      "file": "features/retrieval/workspace/monitor/trace.ts",
+      "kind": "component",
+      "name": "BkDiff"
+    },
+    {
+      "file": "features/retrieval/workspace/monitor/trace.ts",
+      "kind": "component",
+      "name": "BkDivider"
+    },
+    {
+      "file": "features/retrieval/workspace/monitor/trace.ts",
+      "kind": "component",
+      "name": "BkDropdownMenu"
+    },
+    {
+      "file": "features/retrieval/workspace/monitor/trace.ts",
+      "kind": "component",
+      "name": "BkException"
+    },
+    {
+      "file": "features/retrieval/workspace/monitor/trace.ts",
+      "kind": "component",
+      "name": "BkFixedNavbar"
+    },
+    {
+      "file": "features/retrieval/workspace/monitor/trace.ts",
+      "kind": "component",
+      "name": "BkForm"
+    },
+    {
+      "file": "features/retrieval/workspace/monitor/trace.ts",
+      "kind": "component",
+      "name": "BkFormItem"
+    },
+    {
+      "file": "features/retrieval/workspace/monitor/trace.ts",
+      "kind": "component",
+      "name": "BkIcon"
+    },
+    {
+      "file": "features/retrieval/workspace/monitor/trace.ts",
+      "kind": "component",
+      "name": "BkImage"
+    },
+    {
+      "file": "features/retrieval/workspace/monitor/trace.ts",
+      "kind": "component",
+      "name": "BkImageViewer"
+    },
+    {
+      "file": "features/retrieval/workspace/monitor/trace.ts",
+      "kind": "component",
+      "name": "BkInput"
+    },
+    {
+      "file": "features/retrieval/workspace/monitor/trace.ts",
+      "kind": "component",
+      "name": "BkLink"
+    },
+    {
+      "file": "features/retrieval/workspace/monitor/trace.ts",
+      "kind": "component",
+      "name": "BkNavigation"
+    },
+    {
+      "file": "features/retrieval/workspace/monitor/trace.ts",
+      "kind": "component",
+      "name": "BkNavigationMenu"
+    },
+    {
+      "file": "features/retrieval/workspace/monitor/trace.ts",
+      "kind": "component",
+      "name": "BkNavigationMenuGroup"
+    },
+    {
+      "file": "features/retrieval/workspace/monitor/trace.ts",
+      "kind": "component",
+      "name": "BkNavigationMenuItem"
+    },
+    {
+      "file": "features/retrieval/workspace/monitor/trace.ts",
+      "kind": "component",
+      "name": "BkOption"
+    },
+    {
+      "file": "features/retrieval/workspace/monitor/trace.ts",
+      "kind": "component",
+      "name": "BkOptionGroup"
+    },
+    {
+      "file": "features/retrieval/workspace/monitor/trace.ts",
+      "kind": "component",
+      "name": "BkPagination"
+    },
+    {
+      "file": "features/retrieval/workspace/monitor/trace.ts",
+      "kind": "component",
+      "name": "BkPopconfirm"
+    },
+    {
+      "file": "features/retrieval/workspace/monitor/trace.ts",
+      "kind": "component",
+      "name": "BkPopover"
+    },
+    {
+      "file": "features/retrieval/workspace/monitor/trace.ts",
+      "kind": "component",
+      "name": "BkProcess"
+    },
+    {
+      "file": "features/retrieval/workspace/monitor/trace.ts",
+      "kind": "component",
+      "name": "BkRate"
+    },
+    {
+      "file": "features/retrieval/workspace/monitor/trace.ts",
+      "kind": "component",
+      "name": "BkResizeLayout"
+    },
+    {
+      "file": "features/retrieval/workspace/monitor/trace.ts",
+      "kind": "component",
+      "name": "BkRoundProgress"
+    },
+    {
+      "file": "features/retrieval/workspace/monitor/trace.ts",
+      "kind": "component",
+      "name": "BkRow"
+    },
+    {
+      "file": "features/retrieval/workspace/monitor/trace.ts",
+      "kind": "component",
+      "name": "BkSearchSelect"
+    },
+    {
+      "file": "features/retrieval/workspace/monitor/trace.ts",
+      "kind": "component",
+      "name": "BkSelect"
+    },
+    {
+      "file": "features/retrieval/workspace/monitor/trace.ts",
+      "kind": "component",
+      "name": "BkSideslider"
+    },
+    {
+      "file": "features/retrieval/workspace/monitor/trace.ts",
+      "kind": "component",
+      "name": "BkSlider"
+    },
+    {
+      "file": "features/retrieval/workspace/monitor/trace.ts",
+      "kind": "component",
+      "name": "BkStar"
+    },
+    {
+      "file": "features/retrieval/workspace/monitor/trace.ts",
+      "kind": "component",
+      "name": "BkSteps"
+    },
+    {
+      "file": "features/retrieval/workspace/monitor/trace.ts",
+      "kind": "component",
+      "name": "BkSwiper"
+    },
+    {
+      "file": "features/retrieval/workspace/monitor/trace.ts",
+      "kind": "component",
+      "name": "BkTab"
+    },
+    {
+      "file": "features/retrieval/workspace/monitor/trace.ts",
+      "kind": "component",
+      "name": "BkTabPanel"
+    },
+    {
+      "file": "features/retrieval/workspace/monitor/trace.ts",
+      "kind": "component",
+      "name": "BkTable"
+    },
+    {
+      "file": "features/retrieval/workspace/monitor/trace.ts",
+      "kind": "component",
+      "name": "BkTableColumn"
+    },
+    {
+      "file": "features/retrieval/workspace/monitor/trace.ts",
+      "kind": "component",
+      "name": "BkTableSettingContent"
+    },
+    {
+      "file": "features/retrieval/workspace/monitor/trace.ts",
+      "kind": "component",
+      "name": "BkTagInput"
+    },
+    {
+      "file": "features/retrieval/workspace/monitor/trace.ts",
+      "kind": "component",
+      "name": "BkTimePicker"
+    },
+    {
+      "file": "features/retrieval/workspace/monitor/trace.ts",
+      "kind": "component",
+      "name": "BkTimeline"
+    },
+    {
+      "file": "features/retrieval/workspace/monitor/trace.ts",
+      "kind": "component",
+      "name": "BkTransfer"
+    },
+    {
+      "file": "features/retrieval/workspace/monitor/trace.ts",
+      "kind": "component",
+      "name": "BkTransition"
+    },
+    {
+      "file": "features/retrieval/workspace/monitor/trace.ts",
+      "kind": "component",
+      "name": "BkTree"
+    },
+    {
+      "file": "features/retrieval/workspace/monitor/trace.ts",
+      "kind": "component",
+      "name": "BkUpload"
+    },
+    {
+      "file": "features/retrieval/workspace/monitor/trace.ts",
+      "kind": "component",
+      "name": "BkVersionDetail"
+    },
+    {
+      "file": "features/retrieval/workspace/monitor/trace.ts",
+      "kind": "component",
+      "name": "BkVirtualRender"
+    },
+    {
+      "file": "features/retrieval/workspace/monitor/trace.ts",
+      "kind": "component",
+      "name": "BkVirtualScroll"
+    },
+    {
+      "file": "features/retrieval/workspace/monitor/trace.ts",
+      "kind": "component",
+      "name": "BkZoomImage"
+    }
+  ],
+  "violations": []
+}

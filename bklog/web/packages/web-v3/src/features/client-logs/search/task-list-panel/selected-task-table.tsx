@@ -1,3 +1,5 @@
+
+import { Button as TButton } from 'tdesign-vue-next';
 /*
  * Tencent is pleased to support the open source community by making
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
@@ -107,14 +109,14 @@ export default defineComponent({
             width='64'
             v-slots={{
               default: ({ row }: { row: LogItem }) => (
-                <bk-button
+                <TButton
                   class='selected-task-remove'
-                  text
+                  
                   theme='primary'
-                  onClick={() => emit('remove', row)}
+                  onClick={() => emit('remove', row)} variant={(true) ? 'text' : ('base')}
                 >
                   {t('移出')}
-                </bk-button>
+                </TButton>
               ),
             }}
           />

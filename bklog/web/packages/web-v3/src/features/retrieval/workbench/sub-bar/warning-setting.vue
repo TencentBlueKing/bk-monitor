@@ -10,11 +10,11 @@
       :class="`bklog-icon bklog-${badgeCount !== 0 ? 'gaojing-filled' : 'gaojing-line'}`"
     ></span>
     <span class="warn-table-text">{{ $t('告警') }}</span>
-    <bk-badge
+    <t-badge :max-count="Infinity" show-zero
       v-if="ownPendingCount !== 0"
       style="margin-top: -12px; margin-left: -3px"
-      :val="ownPendingCount"
-      theme="danger"
+      :count="ownPendingCount"
+      :color="'#ea3636'"
     />
 
     <div v-show="false">
@@ -36,11 +36,11 @@
                 class="selector-owner"
               >
                 {{ $t('我的') }}
-                <bk-switcher
+                <t-switch
                   v-model="filterOwner"
                   class="selector-owner-switch"
                   size="small"
-                ></bk-switcher>
+                ></t-switch>
               </div>
               <div
                 v-if="active === 'mission'"
@@ -223,7 +223,9 @@
     </div>
   </div>
 </template>
-<script setup lang="ts">import { ServicesInstance } from '@/platform/services';
+<script setup lang="ts">
+import { MessagePlugin as TDesignMessage } from 'tdesign-vue-next';
+import { ServicesInstance } from '@/platform/services';
 import { asDictionary } from '@/shared/utils/typed-record';
 
   import { computed, onMounted, onUnmounted, ref, watch } from 'vue';
@@ -234,7 +236,7 @@ import { asDictionary } from '@/shared/utils/typed-record';
   import useLocale from '@/shared/composables/use-locale';
   import useStore from '@/shared/composables/use-store';
   import RequestPool from '@/app/state/request-pool';
-  import { bkMessage } from 'bk-magic-vue';
+  
 
   import { ConditionOperator } from '../../../../app/state/condition-operator';
   import useRetrieveHook from '../use-retrieve-hook';
@@ -663,16 +665,10 @@ import { asDictionary } from '@/shared/utils/typed-record';
           return;
         }
 
-        bkMessage({
-          theme: 'error',
-          message: resp.message,
-        });
+        TDesignMessage("error", { content: resp.message });
       })
       .catch(err => {
-        bkMessage({
-          theme: 'error',
-          message: err.message,
-        });
+        TDesignMessage("error", { content: err.message });
       })
       .finally(() => {
         loading.value = false;

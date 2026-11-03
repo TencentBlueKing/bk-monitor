@@ -26,7 +26,7 @@ import { ServicesInstance } from '@/platform/services';
  */
 
 import { computed, defineComponent, ref } from 'vue';
-import TextHighlight from 'vue-text-highlight';
+import TextHighlight from '@/shared/ui/text-highlight';
 
 import { base64Encode } from '@/shared/lib/util';
 import useLocale from '@/shared/composables/use-locale';

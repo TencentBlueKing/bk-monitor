@@ -1,3 +1,7 @@
+
+import { Checkbox as TCheckbox } from 'tdesign-vue-next';
+
+import { Button as TButton } from 'tdesign-vue-next';
 /*
  * Tencent is pleased to support the open source community by making
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
@@ -114,12 +118,12 @@ export default class ClusterFilter extends tsc<IProps> {
                 class='group-item'
                 name={option.name}
               >
-                <bk-checkbox
-                  ext-cls='ext-box'
+                <TCheckbox
+                  class='ext-box'
                   checked={this.getGroupItemCheckedState(option.id)}
                 >
                   <span title={option.name}>{option.name}</span>
-                </bk-checkbox>
+                </TCheckbox>
               </bk-option>
             ))
           ) : (
@@ -138,21 +142,21 @@ export default class ClusterFilter extends tsc<IProps> {
         class='extension-box'
         slot='extension'
       >
-        <bk-button
+        <TButton
           style='margin-right: 8px;'
           size='small'
           theme='primary'
           onClick={this.submitFilter}
         >
           {this.$t('确定')}
-        </bk-button>
-        <bk-button
+        </TButton>
+        <TButton
           size='small'
           theme='default'
           onClick={this.cancelFilter}
         >
           {this.$t('取消')}
-        </bk-button>
+        </TButton>
       </div>
     );
     return (

@@ -1,3 +1,10 @@
+import {
+  RadioGroup as TRadioGroup,
+  Radio as TRadio,
+  Checkbox as TCheckbox,
+  Popup as TPopup,
+  Tooltip as TTooltip,
+} from 'tdesign-vue-next';
 /*
  * Tencent is pleased to support the open source community by making
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
@@ -25,7 +32,7 @@
  */
 import { defineComponent, ref, onMounted, PropType, computed } from 'vue';
 
-import BklogPopover from '@/shared/ui/bklog-popover/index';
+import type { FormRules } from 'tdesign-vue-next';
 import useLocale from '@/shared/composables/use-locale';
 import useStore from '@/shared/composables/use-store';
 
@@ -45,7 +52,7 @@ export default defineComponent({
       default: true,
     },
     rules: {
-      type: Object as PropType<Record<string, any>>,
+      type: Object as PropType<FormRules>,
       default: () => ({}),
     },
   },
@@ -54,10 +61,9 @@ export default defineComponent({
     const { t } = useLocale();
     const store = useStore();
     const isSceneMode = computed(() => store.getters.isSceneMode);
-    const addPopoverRef = ref(null);
-    const sortPopoverRef = ref(null);
+    const addPopoverVisible = ref(false);
+    const sortPopoverVisible = ref(false);
     const active = ref('');
-    const popoverOptions = { placement: 'bottom-end', appendTo: document.body };
     /** 排序列表 */
     const groupSortList = [
       {
@@ -93,10 +99,10 @@ export default defineComponent({
     const handleCancel = (type: 'add' | 'sort') => {
       switch (type) {
         case 'add':
-          addPopoverRef.value?.hide();
+          addPopoverVisible.value = false;
           break;
         case 'sort':
-          sortPopoverRef.value?.hide();
+          sortPopoverVisible.value = false;
           break;
       }
     };
@@ -108,16 +114,10 @@ export default defineComponent({
 
     const renderBtnGroup = (type: 'add' | 'sort') => (
       <div class='collect-tool-btn-box'>
-        <span
-          class='tool-btn-ok'
-          onClick={() => handleOk(type)}
-        >
+        <span class='tool-btn-ok' onClick={() => handleOk(type)}>
           {t('确定')}
         </span>
-        <span
-          class='tool-btn-cancel'
-          onClick={() => handleCancel(type)}
-        >
+        <span class='tool-btn-cancel' onClick={() => handleCancel(type)}>
           {t('取消')}
         </span>
       </div>
@@ -137,20 +137,19 @@ export default defineComponent({
     const renderSort = () => (
       <div class='collect-tool-sort-box'>
         <div class='tool-sort-title'>{t('收藏排序')}</div>
-        <bk-radio-group
+        <TRadioGroup
           class='tool-sort-item'
           value={active.value}
-          onChange={handleSortChange}
+          onChange={(value) => {
+            if (typeof value === 'string') handleSortChange(value);
+          }}
         >
-          {groupSortList.map(item => (
-            <bk-radio
-              class='tool-sort-radio'
-              value={item.id}
-            >
+          {groupSortList.map((item) => (
+            <TRadio class='tool-sort-radio' value={item.id}>
               {item.name}
-            </bk-radio>
+            </TRadio>
           ))}
-        </bk-radio-group>
+        </TRadioGroup>
         {renderBtnGroup('sort')}
       </div>
     );
@@ -160,48 +159,48 @@ export default defineComponent({
       <div class='collect-tool-box'>
         <span class='tool-checkbox'>
           {!isSceneMode.value && (
-            <bk-checkbox
-              value={props.isChecked}
-              onChange={handleChangeIndex}
-            >
+            <TCheckbox checked={props.isChecked} onChange={handleChangeIndex}>
               {t('仅查看当前索引集')}
-            </bk-checkbox>
+            </TCheckbox>
           )}
         </span>
         <span class='tool-icon-box'>
           {/* 新建收藏分组 */}
-          <BklogPopover
-            ref={addPopoverRef}
-            options={popoverOptions as any}
+          <TPopup
+            attach='body'
+            placement='bottom-right'
+            visible={addPopoverVisible.value}
+            onVisibleChange={(value) => (addPopoverVisible.value = value)}
             trigger='click'
             v-slots={{ content: renderAddGroup }}
           >
-            <i
-              class='bklog-icon bklog-xinjianwenjianjia tool-icon'
-              v-bk-tooltips={t('新建收藏分组')}
-            ></i>
-          </BklogPopover>
+            <TTooltip content={t('新建收藏分组')}>
+              <i class='bklog-icon bklog-xinjianwenjianjia tool-icon' />
+            </TTooltip>
+          </TPopup>
           {/* 全部收起/展开 */}
           <div>
-            <i
-              class={`bklog-icon bklog-${props.collapseAll ? 'zhankai-2' : 'shouqi'} tool-icon`}
-              v-bk-tooltips={props.collapseAll ? t('全部展开') : t('全部收起')}
-              onClick={handleCollapseAll}
-            ></i>
+            <TTooltip content={props.collapseAll ? t('全部展开') : t('全部收起')}>
+              <i
+                class={`bklog-icon bklog-${props.collapseAll ? 'zhankai-2' : 'shouqi'} tool-icon`}
+                onClick={handleCollapseAll}
+              />
+            </TTooltip>
           </div>
 
           {/* 调整排序 */}
-          <BklogPopover
-            ref={sortPopoverRef}
-            options={popoverOptions as any}
+          <TPopup
+            attach='body'
+            placement='bottom-right'
+            visible={sortPopoverVisible.value}
+            onVisibleChange={(value) => (sortPopoverVisible.value = value)}
             trigger='click'
             v-slots={{ content: renderSort }}
           >
-            <i
-              class='bklog-icon bklog-paixu tool-icon'
-              v-bk-tooltips={t('调整排序')}
-            ></i>
-          </BklogPopover>
+            <TTooltip content={t('调整排序')}>
+              <i class='bklog-icon bklog-paixu tool-icon' />
+            </TTooltip>
+          </TPopup>
         </span>
       </div>
     );

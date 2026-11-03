@@ -1,3 +1,5 @@
+
+import { Button as TButton } from 'tdesign-vue-next';
 /*
  * Tencent is pleased to support the open source community by making
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
@@ -64,13 +66,13 @@ export default defineComponent({
           <p>1. {t('有利于发现日志中的规律和共性问题，方便从海量日志中排查问题，定位故障')}</p>
           <p>2. {t('可从海量日志中，提取共性部分同时保留独立信息以便于减少存储成本，最多可减少 10% 的存储成本')}</p>
           <p>3. {t('当版本变更时，可快速定位变更后新增问题')}</p>
-          <bk-button
+          <TButton
             style='margin-top: 32px;'
             theme='primary'
             onClick={handleAccessCluster}
           >
             {t('接入日志聚类')}
-          </bk-button>
+          </TButton>
         </div>
         <div class='right-box'>
           <img src={clusterImg} />

@@ -161,7 +161,7 @@
         slot="footer"
         class="button-footer"
       >
-        <bk-button
+        <t-button
           class="king-button"
           :loading="confirmLoading"
           data-test-id="addIndex_button_confirm"
@@ -169,11 +169,11 @@
           @click="handleConfirm"
         >
           {{ $t('添加') }}
-        </bk-button>
-        <bk-button
+        </t-button>
+        <t-button
           class="king-button"
           @click="handleCancel"
-          >{{ $t('取消') }}</bk-button
+          >{{ $t('取消') }}</t-button
         >
       </div>
     </div>

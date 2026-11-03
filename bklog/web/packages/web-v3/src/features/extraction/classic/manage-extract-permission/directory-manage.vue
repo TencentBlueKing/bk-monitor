@@ -164,10 +164,10 @@
         </div>
         <div class="content">
           <div class="flex-box">
-            <bk-button
+            <t-button
               size="small"
               @click="showSelectDialog = true"
-              >+ {{ $t('选择目标') }}</bk-button
+              >+ {{ $t('选择目标') }}</t-button
             >
             <div class="select-text">
               <i18n path="已选择{0}个节点">
@@ -217,35 +217,35 @@
         </div>
         <div class="content">
           <div class="flex-box">
-            <bk-input
+            <t-input
               style="width: 256px; margin-right: 10px"
               :class="!manageStrategyData.operator && 'is-input-error'"
               :value="manageStrategyData.operator"
               readonly
             >
-            </bk-input>
-            <bk-button
+            </t-input>
+            <t-button
               :loading="isChangeOperatorLoading"
               size="small"
               @click="changeOperator"
-              >{{ $t('改为我') }}</bk-button
+              >{{ $t('改为我') }}</t-button
             >
           </div>
         </div>
       </div>
     </div>
     <div class="button-container">
-      <bk-button
+      <t-button
         style="margin-right: 24px"
         :disabled="!isValidated"
         theme="primary"
         @click="handleConfirm"
       >
         {{ $t('确认') }}
-      </bk-button>
-      <bk-button @click="handleCancel">
+      </t-button>
+      <t-button @click="handleCancel">
         {{ $t('取消') }}
-      </bk-button>
+      </t-button>
     </div>
   </div>
 </template>
@@ -350,7 +350,7 @@
       },
       // 校验文件后缀
       validateFileExtension(val) {
-        return !val.startsWith('./index') && val;
+        return !val.startsWith('.') && val;
       },
       handleAddVisibleDir() {
         this.manageStrategyData.visible_dir.push('');
@@ -470,8 +470,8 @@
             }
           }
 
-          .is-input-error.bk-form-control {
-            :deep(.bk-form-input) {
+          .is-input-error.t-input__wrap {
+            :deep(.t-input__inner) {
               /* stylelint-disable-next-line declaration-no-important */
               border-color: #ff5656 !important;
             }

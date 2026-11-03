@@ -1,3 +1,5 @@
+
+import { MessagePlugin as TDesignMessage } from 'tdesign-vue-next';
 import { ServicesInstance } from '@/platform/services';
 /*
  * Tencent is pleased to support the open source community by making
@@ -372,7 +374,7 @@ export default defineComponent({
         })
         .catch(err => {
           searchListTotal.value = 0;
-          window.mainComponent?.$bkMessage({ message: err?.message, theme: 'error' });
+          TDesignMessage("error", { content: err?.message });
         });
     };
     /**

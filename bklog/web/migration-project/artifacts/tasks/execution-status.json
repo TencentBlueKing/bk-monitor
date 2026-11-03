@@ -26,7 +26,9 @@
       "evidence": [
         "migration-project/迁移执行记录.md",
         "migration-project/artifacts/verification/2026-10-28/verification.json",
-        "migration-project/migration-contracts/tdesign-retrieve-pilot-20261028.md"
+        "migration-project/migration-contracts/tdesign-retrieve-pilot-20261028.md",
+        "migration-project/evidence/20261103-date-picker-repair/result.json",
+        "migration-project/evidence/20261103-query-history-repair/result.json"
       ]
     },
     {
@@ -104,6 +106,69 @@
     "sourceRoot": "packages/web-v3/src"
   },
   "defaultApplication": "web-v3",
+  "currentR00Baseline": {
+    "date": "2026-11-02",
+    "state": "ACCEPTED",
+    "businessAccepted": false,
+    "visualAccepted": false,
+    "sourceDigest": "9471ed684d40044f0e85d27f57a1f807040080dbe82ad0e4d3f15a9345787a2f",
+    "buildConfigDigest": "2b1f812a403562d11940aad2ee7ab734d0091bf2fba118c603cf9d84d6672923",
+    "businessControlOccurrences": 2663,
+    "strictTypeDiagnostics": 1977,
+    "staticRoutes": 90,
+    "staticNamedRoutes": 88,
+    "evidence": "migration-project/evidence/20261102-R00-baseline/baseline.json",
+    "note": "This dated baseline supersedes older counts for planning only; it is not business or visual acceptance."
+  },
+  "currentR01Boundary": {
+    "date": "2026-11-02",
+    "state": "ACCEPTED",
+    "businessAccepted": true,
+    "visualAccepted": false,
+    "compatibilityImports": 26,
+    "legacyRegistrations": 66,
+    "trackedDebt": 103,
+    "policyViolations": 0,
+    "evidence": "migration-project/evidence/20261102-R01-third-party-boundary/boundary.json",
+    "note": "The Vue3 selector SDK contract passed search, empty state, isolated selection/removal, ID-array update, display, and error styling. R16 separately owns the management navigation layout defect."
+  },
+  "currentR02UrlTimeContract": {
+    "date": "2026-11-03",
+    "state": "IMPLEMENTING",
+    "businessAccepted": false,
+    "visualAccepted": false,
+    "urlContract": "ACCEPTED",
+    "datePickerContract": "PARTIAL_VERIFIED",
+    "strictTypeDiagnostics": 1975,
+    "testsPassed": 245,
+    "evidence": "migration-project/evidence/20261103-date-picker-repair/result.json",
+    "note": "The complete official SDK graph now renders on one native Vue3 runtime. Preset, relative, absolute, timezone, URL restoration and route cleanup passed. Keyboard, invalid ranges, refresh coupling, visual parity and real Monitor hosts remain to verify; full acceptance stays false.",
+    "panelBlockerResolved": true,
+    "priorEvidence": "migration-project/evidence/20261102-R02-url-time-contract/result.json"
+  },
+  "currentR03LoadingMigration": {
+    "date": "2026-11-02",
+    "state": "IMPLEMENTING",
+    "businessAccepted": false,
+    "visualAccepted": false,
+    "retrievalPilot": "ACCEPTED",
+    "collectionPilot": "ACCEPTED_WITH_R16_HOST_BLOCKER",
+    "commandLoading": "ACCEPTED",
+    "smallDomainLoading": "ACCEPTED_WITH_R13_TABLE_BLOCKER",
+    "chartsGrokLoading": "ACCEPTED_WITH_R16_AND_R11_HOST_BLOCKERS",
+    "clusterLoading": "ACCEPTED_WITH_R16_AND_R11_HOST_BLOCKERS",
+    "remainingLoadingDirectives": 178,
+    "remainingBusinessCommandLoading": 0,
+    "strictTypeDiagnostics": 1977,
+    "testsPassed": 230,
+    "evidence": "migration-project/evidence/20261102-R03-retrieval-loading-pilot/result.json",
+    "collectionEvidence": "migration-project/evidence/20261102-R03-collection-loading-pilot/result.json",
+    "commandEvidence": "migration-project/evidence/20261102-R03-command-loading/result.json",
+    "smallDomainEvidence": "migration-project/evidence/20261102-R03-small-domains/result.json",
+    "chartsGrokEvidence": "migration-project/evidence/20261102-R03-charts-grok/result.json",
+    "clusterEvidence": "migration-project/evidence/20261102-R03-clusters/result.json",
+    "note": "The retrieval, collection, dashboard, data-link, charts, Grok, and cluster batches now use native TLoading, and all three business $bkLoading command sites use owner-scoped TDesign LoadingPlugin instances. Dashboard passes visual verification; collection, Grok, and cluster management remain blocked by R16, the data-link table by R13, and compatibility side-sliders by R11. 178 directive occurrences remain."
+  },
   "fullBusinessAcceptance": {
     "status": "NOT_ACCEPTED",
     "report": "migration-project/evidence/20261029-full-acceptance/acceptance.json",
@@ -112,5 +177,113 @@
     "testsPassed": 190,
     "strictTypeDiagnostics": 1271,
     "allOwnedResourcesCleaned": true
+  },
+  "currentQueryHistoryMigration": {
+    "date": "2026-11-03",
+    "state": "IMPLEMENTING",
+    "businessAccepted": false,
+    "visualAccepted": false,
+    "ordinaryHistory": "PARTIAL_VERIFIED",
+    "unionSceneContracts": "SOURCE_PARITY_PASSED",
+    "testsPassed": 252,
+    "strictTypeDiagnostics": 1975,
+    "evidence": "migration-project/evidence/20261103-query-history-repair/result.json",
+    "note": "Native TDesign popup/input/tooltip/loading restored ordinary UI and SQL history. Union/scene payloads and parent restoration match frozen V2 tests; their full browser flows and favorite writes remain unverified."
+  },
+  "latestBuildVerification": {
+    "date": "2026-11-03",
+    "main": "PASSED",
+    "apm": "PASSED",
+    "trace": "PASSED",
+    "sourceDigest": "67069e965cf4424ae1bd85feda076d0559c12274e2c01322f0e595ed57da575d",
+    "buildConfigDigest": "8490585e954ac646a29c9f2eb369e9a390dfcd0f32897d4291f821544a4c7555",
+    "currentSourceVerified": true,
+    "evidence": "migration-project/evidence/20261103-collection-base-multiline-repair/result.json",
+    "scope": "native collection base form and multiline preview"
+  },
+  "currentFieldSettingsMigration": {
+    "date": "2026-11-03",
+    "state": "IMPLEMENTING",
+    "businessAccepted": false,
+    "visualAccepted": false,
+    "testsPassed": 265,
+    "strictTypeDiagnostics": 1943,
+    "evidence": "migration-project/evidence/20261103-field-settings-repair/result.json",
+    "note": "Native field drafts and template controls verified without writing existing resources. Alias drawer and complete template lifecycle remain in progress.",
+    "aliasDrawer": "NATIVE_IMPLEMENTED_PARTIAL_BROWSER_VERIFIED"
+  },
+  "currentExportMigration": {
+    "date": "2026-11-03",
+    "state": "IMPLEMENTING",
+    "businessAccepted": false,
+    "visualAccepted": false,
+    "testsPassed": 274,
+    "strictTypeDiagnostics": 1943,
+    "createdTaskId": 157,
+    "fileDelivery": "PENDING_VERIFICATION",
+    "evidence": "migration-project/evidence/20261103-export-controls-repair/result.json"
+  },
+  "currentFieldAnalysisMigration": {
+    "date": "2026-11-03",
+    "state": "IMPLEMENTING",
+    "businessAccepted": false,
+    "visualAccepted": false,
+    "strictTypeDiagnostics": 1924,
+    "testsPassed": 304,
+    "evidence": "migration-project/evidence/20261103-field-analysis-repair/result.json"
+  },
+  "currentFavoriteManagementMigration": {
+    "date": "2026-11-03",
+    "state": "IMPLEMENTING",
+    "businessAccepted": false,
+    "visualAccepted": false,
+    "testsPassed": 325,
+    "strictTypeDiagnostics": 1909,
+    "evidence": "migration-project/evidence/20261103-favorite-management-repair/completed-batch.json",
+    "sidebarEvidence": "migration-project/evidence/20261103-favorite-management-repair/sidebar-result.json",
+    "ordinaryCrud": "PASSED_ON_OWNED_RESOURCES",
+    "ownedResourcesCleaned": true,
+    "preexistingMetadataUnchanged": true
+  },
+  "currentIndexSetChoiceMigration": {
+    "date": "2026-11-03",
+    "state": "IMPLEMENTING",
+    "businessAccepted": false,
+    "visualAccepted": false,
+    "testsPassed": 334,
+    "strictTypeDiagnostics": 1886,
+    "evidence": "migration-project/evidence/20261103-index-set-choice-repair/result.json"
+  },
+  "currentCollectionFilterMigration": {
+    "date": "2026-11-03",
+    "state": "IMPLEMENTING",
+    "businessAccepted": false,
+    "visualAccepted": false,
+    "testsPassed": 349,
+    "strictTypeDiagnostics": 1530,
+    "introducedTypeDiagnostics": 0,
+    "sourceContracts": "PASSED",
+    "currentBranchBrowser": "PARTIAL_VERIFIED",
+    "compatBranchBrowser": "PENDING",
+    "resourceWrites": false,
+    "evidence": "migration-project/evidence/20261103-collection-filter-repair/result.json"
+  },
+  "currentCollectionBaseMultilineMigration": {
+    "date": "2026-11-03",
+    "state": "IMPLEMENTING",
+    "businessAccepted": false,
+    "visualAccepted": false,
+    "testsPassed": 358,
+    "strictTypeDiagnostics": 1521,
+    "introducedTypeDiagnostics": 0,
+    "evidence": "migration-project/evidence/20261103-collection-base-multiline-repair/result.json"
+  },
+  "agentMigrationExecution": {
+    "state": "PAUSED_BY_USER",
+    "date": "2026-11-03",
+    "reason": "User requested detailed follow-up steps after current batch and then pause migration work.",
+    "handoff": "migration-project/V3后续迁移实施步骤与暂停交接20261103.md",
+    "queue": "migration-project/migration-plan/remaining-migration-steps-20261103.json",
+    "resumeRequiresExplicitUserInstruction": true
   }
 }

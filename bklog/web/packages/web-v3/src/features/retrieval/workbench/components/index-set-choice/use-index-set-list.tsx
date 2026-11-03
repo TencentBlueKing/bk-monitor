@@ -25,20 +25,26 @@
  */
 import { computed, type ComputedRef } from 'vue';
 
-export default (props: { list: any[]; value: any; }, { emit }: unknown) => {
+export default (
+  props: { list: any[]; value: any },
+  { emit }: { emit: (event: 'value-change', values: string[]) => void },
+) => {
   /**
    * 索引集列表过滤标签
    */
   const indexSetTagList: ComputedRef<{ tag_id: number; name: string; color: string }[]> = computed(() => {
-    const listMap: Map<number, { tag_id: number; name: string; color: string }> = props.list.reduce((acc: { has: (arg0: any) => any; set: (arg0: any,arg1: any) => void; }, item: { tags: any; }) => {
-      for (const tag of item.tags) {
-        if (!acc.has(tag.tag_id) && tag.tag_id !== 4) {
-          acc.set(tag.tag_id, tag);
+    const listMap: Map<number, { tag_id: number; name: string; color: string }> = props.list.reduce(
+      (acc: { has: (arg0: any) => any; set: (arg0: any, arg1: any) => void }, item: { tags: any }) => {
+        for (const tag of item.tags) {
+          if (!acc.has(tag.tag_id) && tag.tag_id !== 4) {
+            acc.set(tag.tag_id, tag);
+          }
         }
-      }
 
-      return acc;
-    }, new Map<number, { tag_id: number; name: string; color: string }>());
+        return acc;
+      },
+      new Map<number, { tag_id: number; name: string; color: string }>(),
+    );
 
     return Array.from(listMap.values());
   });
@@ -55,7 +61,7 @@ export default (props: { list: any[]; value: any; }, { emit }: unknown) => {
    *
    */
 
-  const handleIndexSetItemCheck = (item: { unique_id: string; }, isChecked: unknown, storeList = []) => {
+  const handleIndexSetItemCheck = (item: { unique_id: string }, isChecked: boolean, storeList: string[] = []) => {
     const targetValue = new Set<string>();
     const storeSet = new Set<string>(storeList);
 

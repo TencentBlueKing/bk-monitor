@@ -107,11 +107,11 @@
             <div class="select-title">{{ $t('已选择') }}</div>
             <!-- 标签生成已选择里挑选的 -->
             <div class="select-list">
-              <bk-checkbox-group v-model="matchCheckedList">
-                <bk-checkbox
+              <t-checkbox-group v-model="matchCheckedList">
+                <t-checkbox
                   v-for="labItem in matchCheckedItemList"
                   :key="labItem.id"
-                  ext-cls="select-item"
+                  class="select-item"
                   :value="labItem.id"
                 >
                   <match-label-item
@@ -119,8 +119,8 @@
                     :match-item="labItem"
                     is-dialog-item
                   />
-                </bk-checkbox>
-              </bk-checkbox-group>
+                </t-checkbox>
+              </t-checkbox-group>
             </div>
           </div>
           <div
@@ -128,11 +128,11 @@
             class="no-choice-container select-list"
           >
             <!-- 标签生成备选的 -->
-            <bk-checkbox-group v-model="matchSelectList">
-              <bk-checkbox
+            <t-checkbox-group v-model="matchSelectList">
+              <t-checkbox
                 v-for="labItem in matchSelectItemList"
                 :key="labItem.id"
-                ext-cls="select-item"
+                class="select-item"
                 :value="labItem.id"
               >
                 <match-label-item
@@ -140,8 +140,8 @@
                   :match-item="labItem"
                   is-dialog-item
                 />
-              </bk-checkbox>
-            </bk-checkbox-group>
+              </t-checkbox>
+            </t-checkbox-group>
           </div>
         </div>
         <div
@@ -160,7 +160,7 @@
     </div>
     <template #footer>
       <div>
-        <bk-button
+        <t-button
           style="margin-right: 10px"
           :disabled="!isHaveSelectItem"
           theme="primary"
@@ -168,10 +168,10 @@
           @click="handelConfirmLabel"
         >
           {{ $t('确定') }}
-        </bk-button>
-        <bk-button @click="handelCancelDialog">
+        </t-button>
+        <t-button @click="handelCancelDialog">
           {{ $t('取消') }}
-        </bk-button>
+        </t-button>
       </div>
     </template>
   </bk-dialog>
@@ -635,7 +635,7 @@
 
         @include flex-justify(space-between);
 
-        .bk-checkbox-text {
+        .t-checkbox__label {
           flex: 1;
           margin-left: 14px;
         }

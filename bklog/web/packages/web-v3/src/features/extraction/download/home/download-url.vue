@@ -31,7 +31,7 @@
       <h2 class="text">
         {{ $t('下载链接') }}
       </h2>
-      <bk-button
+      <t-button
         ref="button"
         style="margin-left: 20px"
         :loading="loading"
@@ -39,14 +39,14 @@
         @click="handleClick"
       >
         {{ $t('点击获取') }}
-      </bk-button>
+      </t-button>
     </div>
-    <bk-alert
+    <t-alert data-v2-display="alert"
       style="margin-top: 10px"
-      :title="$t('链接可重复获取，每个链接只能下载一次。')"
-      type="info"
+      :message="$t('链接可重复获取，每个链接只能下载一次。')"
+      :theme="'info'"
     >
-    </bk-alert>
+    </t-alert>
   </div>
 </template>
 

@@ -1,3 +1,7 @@
+
+import { Checkbox as Checkbox } from 'tdesign-vue-next';
+
+import { Button as Button } from 'tdesign-vue-next';
 import { ServicesInstance } from '@/platform/services';
 import { asDictionary } from '@/shared/utils/typed-record';
 /*
@@ -29,13 +33,7 @@ import { asDictionary } from '@/shared/utils/typed-record';
 import { Component, Model, Emit, Prop, Watch, Ref } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
-import {
-  bkTable as Table,
-  bkTableColumn as TableColumn,
-  bkInput as Input,
-  bkButton as Button,
-  bkCheckbox as Checkbox,
-} from 'bk-magic-vue';
+import { bkTable as Table, bkTableColumn as TableColumn, bkInput as Input } from '@/platform/compat/tdesign/magic-controls';
 
 
 import * as authorityMap from '../../../shared/lib/authority-map';
@@ -493,8 +491,8 @@ export default class MaskingSelectRuleTable extends tsc<IProps> {
             class='new-rule-btn'
             v-cursor={{ active: !this.isAllowed }}
             theme='primary'
-            outline
-            onClick={() => this.handleAddNewRule()}
+            
+            onClick={() => this.handleAddNewRule()} variant={(true) ? 'outline' : 'base'}
           >
             <i class='bk-icon icon-plus push' />
             {this.$t('新建规则')}

@@ -1,3 +1,13 @@
+import {
+  Input as TInput,
+  Textarea as TTextarea,
+  Dialog as TDialog,
+  Form as TForm,
+  FormItem as TFormItem,
+  Select as TSelect,
+  Loading as TLoading,
+} from 'tdesign-vue-next';
+import type { FormInstanceFunctions } from 'tdesign-vue-next';
 import { asDictionary } from '@/shared/utils/typed-record';
 /*
  * Tencent is pleased to support the open source community by making
@@ -56,11 +66,11 @@ export default defineComponent({
       default: () => [],
     },
   },
-  emits: ['cancel', 'refresh-group', "refreshGroup"],
+  emits: ['cancel', 'refresh-group', 'refreshGroup'],
   setup(props, { emit }) {
     const { t } = useLocale();
-    const formRef = ref(null);
-    const selectRef = ref<{ close(): void; } | null>(null);
+    const formRef = ref<FormInstanceFunctions | null>(null);
+    const groupPopupVisible = ref(false);
     const store = useStore();
     /** 当前空间id */
     const spaceUid = computed(() => store.state.spaceUid);
@@ -70,10 +80,10 @@ export default defineComponent({
       private: t('个人收藏'),
     });
 
-    const groupList = ref([]);
-    const favoriteData = ref<IFavoriteItem>({});
+    const groupList = ref<Array<{ id: number; name: string; group_type: string }>>([]);
+    const favoriteData = ref<IFavoriteItem>({ display_fields: [] });
     // 可见状态为公共的时候显示的收藏组
-    const publicGroupList = ref([]);
+    const publicGroupList = ref<Array<{ id: number; name: string; group_type: string }>>([]);
     const isClickFavoriteEdit = ref(false);
     const isDisableSelect = ref(false);
     const loading = ref(false);
@@ -83,8 +93,8 @@ export default defineComponent({
 
     /** 获取组列表 */
     const handleRequestGroupList = async () => {
-      requestGroupList(spaceUid.value, res => {
-        groupList.value = res.data.map((item: { group_type: string|number; name: any; }) => ({
+      return requestGroupList(spaceUid.value, (res) => {
+        groupList.value = res.data.map((item: { id: number; group_type: string; name: string }) => ({
           ...item,
           name: groupNameMap[item.group_type] ?? item.name,
         }));
@@ -95,8 +105,8 @@ export default defineComponent({
 
     /** 当前选中分组的favorites */
     const currentGroupFavorite = computed(() => {
-      const favorites = props.favoriteList.find(item => item.group_id === props.data.group_id)?.favorites || [];
-      return favorites.filter(item => item.favorite_id !== props.data.favorite_id);
+      const favorites = props.favoriteList.find((item) => item.group_id === props.data.group_id)?.favorites || [];
+      return favorites.filter((item) => item.favorite_id !== props.data.favorite_id);
     });
     /** 分组名的规则 */
     const ruleData = computed(() => getGroupNameRules(currentGroupFavorite.value, 'name'));
@@ -115,7 +125,10 @@ export default defineComponent({
       const merged = Object.assign({}, favoriteData.value, indexItem.value);
       // 场景化模式：使用 retrieveParams 中已转换的 table_id_conditions 和 scene_filter_values 覆盖
       if (store.getters.isSceneMode) {
-        const { table_id_conditions, scene_filter_values } = store.getters.retrieveParams;
+        const { table_id_conditions, scene_filter_values } = store.getters.retrieveParams as Pick<
+          IFavoriteItem,
+          'table_id_conditions' | 'scene_filter_values'
+        >;
         Object.assign(merged, { table_id_conditions, scene_filter_values });
       }
       return merged;
@@ -123,16 +136,14 @@ export default defineComponent({
 
     /** 修改收藏 */
     const updateFavorite = (item: IFavoriteItem) => {
-      handleUpdateFavorite(item, data => {
+      handleUpdateFavorite(item, (data) => {
         emit('refresh-group', data);
         handleCancel();
       });
     };
 
-    const handleSubmitFormData = () => {
-      formRef.value.validate().then(() => {
-        updateFavorite(currentParamsValue.value);
-      });
+    const handleSubmitFormData = async () => {
+      if ((await formRef.value?.validate()) === true) updateFavorite(currentParamsValue.value);
     };
     /** 刷新 */
     const handleRefreshGroup = () => {
@@ -143,7 +154,7 @@ export default defineComponent({
       if (value) {
         loading.value = true;
         isClickFavoriteEdit.value = props.data.id === props.activeFavoriteID;
-        await getFavoriteData(props.data.id, favoriteData.value);
+        await getFavoriteData(props.data.id!, favoriteData.value);
         await handleRequestGroupList();
         loading.value = false;
         isDisableSelect.value = favoriteData.value.visible_type === 'private';
@@ -155,7 +166,7 @@ export default defineComponent({
       if (data.source_type === 'scene') {
         // 场景化收藏：从 sceneConfigList 中查找场景名称
         const sceneConfigs = store.getters['retrieve/sceneConfigList'] ?? [];
-        const sceneConfig = sceneConfigs.find((s: { type: string|undefined; }) => s.type === data.scene_id);
+        const sceneConfig = sceneConfigs.find((s: { type: string | undefined }) => s.type === data.scene_id);
         return sceneConfig?.label ?? data.scene_id ?? '';
       }
       const { index_set_name: indexSetName, index_set_names: indexSetNames } = data;
@@ -166,89 +177,65 @@ export default defineComponent({
     const handleAddSubmit = (id: number) => {
       handleRefreshGroup();
       favoriteData.value.group_id = id;
-      selectRef.value?.close();
+      groupPopupVisible.value = false;
     };
 
     return () => (
-      <bk-dialog
+      <TDialog
         width={640}
-        ext-cls='add-collect-dialog'
-        auto-close={false}
-        header-position='left'
-        ok-text={t('保存')}
-        render-directive={'if'}
-        title={t('编辑收藏')}
-        value={props.isShow}
-        onCancel={handleCancel}
+        class='favorite-edit-dialog'
+        attach='body'
+        confirmBtn={t('保存')}
+        header={t('编辑收藏')}
+        visible={props.isShow}
+        onClose={handleCancel}
         onConfirm={handleSubmitFormData}
-        onValueChange={handleValueChange}
+        onOpened={() => handleValueChange(true)}
       >
-        <bk-form
-          ref={formRef}
-          v-bkloading={{ isLoading: loading.value }}
-          form-type='vertical'
-          {...{
-            ...{
-              model: favoriteData.value,
-              rules: ruleData.value,
-            },
-          }}
-        >
-          <bk-form-item
-            label={t('收藏名称')}
-            property='name'
-            required={true}
+        <TLoading loading={loading.value}>
+          <TForm
+            ref={formRef}
+            labelAlign='top'
+            {...{
+              ...{
+                data: favoriteData.value,
+                rules: ruleData.value,
+              },
+            }}
           >
-            <bk-input
-              value={favoriteData.value.name}
-              onInput={(val: string|undefined) => (favoriteData.value.name = val)}
-            ></bk-input>
-          </bk-form-item>
-          <bk-form-item
-            label={t('所属分组')}
-            required={true}
-          >
-            <bk-select
-              v-slots={{
-                extension: () => (
+            <TFormItem label={t('收藏名称')} name='name' requiredMark={true}>
+              <TInput
+                value={favoriteData.value.name}
+                onChange={(value) => (favoriteData.value.name = String(value ?? ''))}
+              ></TInput>
+            </TFormItem>
+            <TFormItem label={t('所属分组')} requiredMark={true}>
+              <TSelect
+                panelBottomContent={() => (
                   <div style={{ cursor: 'pointer' }}>
-                    <AddGroup
-                      rules={ruleData.value}
-                      onSubmit={id => handleAddSubmit(id)}
-                    />
+                    <AddGroup rules={ruleData.value} onSubmit={(id) => handleAddSubmit(id)} />
                   </div>
-                ),
-              }}
-              ref={selectRef}
-              clearable={false}
-              searchable={true}
-              value={favoriteData.value.group_id}
-              onChange={(val: number|undefined) => (favoriteData.value.group_id = val)}
-            >
-              {showGroupList.value.map(item => (
-                <bk-option
-                  id={item.id}
-                  key={item.id}
-                  name={item.name}
-                ></bk-option>
-              ))}
-            </bk-select>
-          </bk-form-item>
-          <bk-form-item label={favoriteData.value.source_type === 'scene' ? t('场景') : t('索引集')}>
-            <bk-input
-              disabled={true}
-              value={indexSetName()}
-            ></bk-input>
-          </bk-form-item>
-          <bk-form-item label={t('查询语句')}>
-            <bk-input
-              disabled={true}
-              type='textarea'
-              value={favoriteData.value.query_string}
-            ></bk-input>
-          </bk-form-item>
-        </bk-form>
-      </bk-dialog>
+                )}
+                popupVisible={groupPopupVisible.value}
+                onPopupVisibleChange={(value) => (groupPopupVisible.value = value)}
+                clearable={false}
+                filterable={true}
+                value={favoriteData.value.group_id}
+                options={showGroupList.value.map((item) => ({ ...item, value: item.id, label: item.name }))}
+                onChange={(value) => {
+                  if (typeof value === 'number' || value === undefined) favoriteData.value.group_id = value;
+                }}
+              ></TSelect>
+            </TFormItem>
+            <TFormItem label={favoriteData.value.source_type === 'scene' ? t('场景') : t('索引集')}>
+              <TInput disabled={true} value={indexSetName()}></TInput>
+            </TFormItem>
+            <TFormItem label={t('查询语句')}>
+              <TTextarea disabled={true} value={favoriteData.value.query_string}></TTextarea>
+            </TFormItem>
+          </TForm>
+        </TLoading>
+      </TDialog>
     );
   },
 });

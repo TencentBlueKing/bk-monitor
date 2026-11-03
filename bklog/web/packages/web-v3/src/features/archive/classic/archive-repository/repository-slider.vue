@@ -123,8 +123,8 @@
                 />
               </div>
             </bk-form-item>
-            <bk-alert type="info">
-              <template #title>
+            <t-alert data-v2-display="alert" :theme="'info'">
+              <template #message>
                 <div class="repository-alert">
                   <div v-if="formData.es_config.type === 'hdfs'">
                     <p>
@@ -140,18 +140,18 @@
                   </div>
                 </div>
               </template>
-            </bk-alert>
+            </t-alert>
             <bk-form-item
               :label="$t('仓库名称')"
               property="snapshot_repository_name"
               required
             >
-              <bk-input
+              <t-input
                 v-model="formData.snapshot_repository_name"
                 :placeholder="$t('只能输入英文、数字或者下划线')"
                 data-test-id="addNewStorehouse_input_repoName"
               >
-              </bk-input>
+              </t-input>
             </bk-form-item>
             <!-- HDFS -->
             <div
@@ -164,10 +164,10 @@
                 :rules="basicRules.path"
                 required
               >
-                <bk-input
+                <t-input
                   v-model="formData.hdfsFormData.path"
                   data-test-id="addNewStorehouse_input_archiveCatalog"
-                ></bk-input>
+                ></t-input>
               </bk-form-item>
               <bk-form-item
                 :label="$t('HDFS地址')"
@@ -175,14 +175,14 @@
                 :rules="basicRules.uri"
                 required
               >
-                <bk-input
+                <t-input
                   v-model="formData.hdfsFormData.uri"
                   data-test-id="addNewStorehouse_input_HDFSurl"
                 >
                   <!-- <template slot="prepend">
                   <div class="group-text">hdfs://</div>
                 </template> -->
-                </bk-input>
+                </t-input>
               </bk-form-item>
               <bk-form-item
                 :property="formData.hdfsFormData.security.principal"
@@ -191,16 +191,16 @@
                 required
               >
                 <div class="principal-item">
-                  <bk-switcher
+                  <t-switch
                     v-model="formData.hdfsFormData.isSecurity"
                     size="large"
-                    theme="primary"
+                    
                   >
-                  </bk-switcher>
-                  <bk-input
+                  </t-switch>
+                  <t-input
                     v-model="formData.hdfsFormData.security.principal"
                     data-test-id="addNewStorehouse_input_principal"
-                  ></bk-input>
+                  ></t-input>
                 </div>
               </bk-form-item>
             </div>
@@ -216,7 +216,7 @@
                 data-test-id="addNewStorehouse_input_archiveCatalog"
                 required
               >
-                <bk-input v-model="formData.fsFormData.location"></bk-input>
+                <t-input v-model="formData.fsFormData.location"></t-input>
               </bk-form-item>
             </div>
             <!-- COS -->
@@ -230,10 +230,10 @@
                 :rules="basicRules.base_path"
                 required
               >
-                <bk-input
+                <t-input
                   v-model="formData.cosFormData.base_path"
                   data-test-id="addNewStorehouse_input_archiveCatalog"
-                ></bk-input>
+                ></t-input>
               </bk-form-item>
               <bk-form-item
                 :label="$t('区域')"
@@ -241,10 +241,10 @@
                 :rules="basicRules.region"
                 required
               >
-                <bk-input
+                <t-input
                   v-model="formData.cosFormData.region"
                   data-test-id="addNewStorehouse_input_region"
-                ></bk-input>
+                ></t-input>
               </bk-form-item>
               <bk-form-item
                 :property="formData.cosFormData.access_key_id"
@@ -252,10 +252,10 @@
                 label="Secretld"
                 required
               >
-                <bk-input
+                <t-input
                   v-model="formData.cosFormData.access_key_id"
                   data-test-id="addNewStorehouse_input_Secretld"
-                ></bk-input>
+                ></t-input>
               </bk-form-item>
               <bk-form-item
                 :property="formData.cosFormData.access_key_secret"
@@ -263,11 +263,11 @@
                 label="SecretKey"
                 required
               >
-                <bk-input
+                <t-input
                   v-model="formData.cosFormData.access_key_secret"
                   data-test-id="addNewStorehouse_input_SecretKey"
                   type="password"
-                ></bk-input>
+                ></t-input>
               </bk-form-item>
               <bk-form-item
                 :property="formData.cosFormData.app_id"
@@ -275,10 +275,10 @@
                 label="APPID"
                 required
               >
-                <bk-input
+                <t-input
                   v-model="formData.cosFormData.app_id"
                   data-test-id="addNewStorehouse_input_APPID"
-                ></bk-input>
+                ></t-input>
               </bk-form-item>
               <bk-form-item
                 :label="$t('Bucket名字')"
@@ -286,14 +286,14 @@
                 :rules="basicRules.bucket"
                 required
               >
-                <bk-input
+                <t-input
                   v-model="formData.cosFormData.bucket"
                   data-test-id="addNewStorehouse_input_BucketName"
-                ></bk-input>
+                ></t-input>
               </bk-form-item>
             </div>
             <bk-form-item style="margin-top: 40px">
-              <bk-button
+              <t-button
                 class="king-button mr10"
                 :loading="confirmLoading"
                 data-test-id="addNewStorehouse_button_submit"
@@ -301,11 +301,11 @@
                 @click.stop.prevent="handleConfirm"
               >
                 {{ $t('提交') }}
-              </bk-button>
-              <bk-button
+              </t-button>
+              <t-button
                 data-test-id="addNewStorehouse_button_cancel"
                 @click="handleCancel"
-                >{{ $t('取消') }}</bk-button
+                >{{ $t('取消') }}</t-button
               >
             </bk-form-item>
           </bk-form>
@@ -315,13 +315,16 @@
   </div>
 </template>
 
-<script>import { ServicesInstance } from '@/platform/services';
+<script>
+import { MessagePlugin as TDesignMessage } from 'tdesign-vue-next';
+import { ServicesInstance } from '@/platform/services';
 
   import nativeAsset0 from '@/shared/assets/images/hdfs.png';
   import nativeAsset1 from '@/shared/assets/images/fs.png';
   import nativeAsset2 from '@/shared/assets/images/cos.png';
   import { getCurrentInstance } from 'vue';
   import { useSidebarDiff } from '@/shared/composables/use-sidebar-diff';
+  import useFullscreenLoading from '@/shared/composables/use-fullscreen-loading';
   import { mapGetters } from '@/app/state/map-helpers';
 
   import * as authorityMap from '../../../../shared/lib/authority-map';
@@ -359,10 +362,12 @@
     setup() {
       const instance = getCurrentInstance();
       const sidebar = useSidebarDiff(() => ({ formData: instance.proxy.formData }));
+      const { showFullscreenLoading } = useFullscreenLoading();
       return {
         initSidebarFormData: sidebar.initSidebarFormData,
         handleCloseSidebar: sidebar.handleCloseSidebar,
         $isSidebarClosed: sidebar.isSidebarClosed,
+        showFullscreenLoading,
       };
     },
   emits: ["hidden","update:show-slider","update:showSlider","updated"],
@@ -541,11 +546,7 @@
           await url({
             data: paramsData,
           });
-          this.$bkMessage({
-            theme: 'success',
-            message: this.$t('保存成功'),
-            delay: 1500,
-          });
+          TDesignMessage("success", { content: this.$t('保存成功'), duration: 1500 });
           this.$emit('updated');
         } catch (e) {
           console.warn(e);
@@ -556,8 +557,8 @@
       // es集群管理权限申请
       async applyProjectAccess(option) {
         this.$el.click(); // 手动关闭下拉
+        const loading = this.showFullscreenLoading();
         try {
-          this.$bkLoading();
           const res = await this.$store.dispatch('getApplyData', {
             action_ids: [authorityMap.MANAGE_ES_SOURCE_AUTH],
             resources: [
@@ -571,7 +572,7 @@
         } catch (err) {
           console.warn(err);
         } finally {
-          this.$bkLoading.hide();
+          loading.hide();
         }
       },
     },
@@ -594,7 +595,7 @@
         margin-top: 12px;
       }
 
-      .bk-alert {
+      .t-alert {
         width: 500px;
         margin: 10px 0 12px 34px;
       }
@@ -682,11 +683,11 @@
       display: flex;
       align-items: center;
 
-      .bk-switcher {
+      .t-switch {
         margin-right: 16px;
       }
 
-      .bk-form-control {
+      .t-input__wrap {
         flex: 1;
       }
     }

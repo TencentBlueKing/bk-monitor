@@ -41,16 +41,16 @@
             <span>{{ $t('保留原始日志') }}</span>
           </label> -->
           <div class="bk-form-content">
-            <bk-checkbox
+            <t-checkbox
               v-if="!isPreviewMode && retainExtraJsonIsOpen && !isTempField"
               v-model="builtFieldVisible"
               :checked="false"
-              :false-value="false"
-              :true-value="true"
+              
+              
               @change="handleBuiltField"
             >
               <span style="margin-right: 20px; line-height: 30px">{{ $t('显示内置字段') }}</span>
-            </bk-checkbox>
+            </t-checkbox>
           </div>
         </div>
         <!-- <bk-switcher
@@ -164,21 +164,21 @@
                     @click="expandObject(props.row, false)"
                   ></span>
                   <!-- 如果为内置字段且有alias_name则优先展示alias_name -->
-                  <bk-input
+                  <t-input
                     v-if="props.row.is_built_in && props.row.alias_name"
                     v-model.trim="props.row.alias_name"
                     class="participle-field-name-input-pl5"
                     :disabled="getFieldEditDisabled(props.row)"
                     @blur="checkFieldNameItem(props.row)"
-                  ></bk-input>
-                  <bk-input
+                  ></t-input>
+                  <t-input
                     v-else
                     v-model.trim="props.row.field_name"
                     :class="props.row.alias_name || props.row.alias_name_show ? 'participle-field-name-input' : ''"
                     class="participle-field-name-input-pl5"
                     :disabled="getFieldEditDisabled(props.row)"
                     @blur="checkFieldNameItem(props.row)"
-                  ></bk-input>
+                  ></t-input>
                   <template v-if="(props.row.alias_name || props.row.alias_name_show) && !props.row.is_built_in">
                     <div
                       class="participle-icon"
@@ -189,12 +189,12 @@
                         class="bk-icon bklog-icon bklog-yingshe"
                       ></i>
                     </div>
-                    <bk-input
+                    <t-input
                       v-model.trim="props.row.alias_name"
                       class="participle-alias-name-input"
                       :disabled="getFieldEditDisabled(props.row)"
                       @blur="checkAliasNameItem(props.row)"
-                    ></bk-input>
+                    ></t-input>
                   </template>
                   <template v-if="props.row.fieldErr && !props.row.btnShow">
                     <i
@@ -214,7 +214,7 @@
                       !props.row.alias_name_show
                     "
                   >
-                    <bk-button
+                    <t-button
                       v-bk-tooltips.top="
                         {
                           width: props.row.width,
@@ -226,7 +226,7 @@
                       @click="handlePopoverRename(props.row)"
                     >
                       {{ $t('字段映射') }}
-                    </bk-button>
+                    </t-button>
                   </template>
                 </bk-form-item>
               </template>
@@ -394,19 +394,19 @@
                               :label="$t('分词')"
                               :property="'source_name'"
                             >
-                              <bk-switcher
+                              <t-switch
                                 v-model="currentIsAnalyzed"
                                 :disabled="getCustomizeDisabled(props.row, 'analyzed')"
-                                theme="primary"
+                                
                                 @change="() => handelChangeAnalyzed()"
-                              ></bk-switcher>
+                              ></t-switch>
                             </bk-form-item>
                             <bk-form-item
                               :label="$t('分词符')"
                               :property="'participle'"
                             >
                               <div class="bk-button-group">
-                                <bk-button
+                                <t-button
                                   v-for="option in participleList"
                                   :key="option.id"
                                   class="participle-btn"
@@ -416,25 +416,25 @@
                                   @click="handleChangeParticipleState(option.id, props.$index)"
                                 >
                                   {{ option.name }}
-                                </bk-button>
+                                </t-button>
                               </div>
-                              <bk-input
+                              <t-input
                                 v-if="currentParticipleState === 'custom'"
                                 v-model="currentTokenizeOnChars"
                                 style="margin-top: 10px"
                                 :disabled="getCustomizeDisabled(props.row)"
                               >
-                              </bk-input>
+                              </t-input>
                             </bk-form-item>
                             <bk-form-item
                               :label="$t('大小写敏感')"
                               :property="'is_case_sensitive'"
                             >
-                              <bk-switcher
+                              <t-switch
                                 v-model="currentIsCaseSensitive"
                                 :disabled="getCustomizeDisabled(props.row)"
-                                theme="primary"
-                              ></bk-switcher>
+                                
+                              ></t-switch>
                             </bk-form-item>
                           </bk-form>
                         </div>
@@ -470,12 +470,12 @@
                     </bk-popconfirm>
                   </div>
                   <div v-else>
-                    <bk-input
+                    <t-input
                       class="participle-disabled-input"
                       :placeholder="$t('无需设置')"
                       disabled
                     >
-                    </bk-input>
+                    </t-input>
                   </div>
                 </template>
               </template>
@@ -1290,7 +1290,7 @@
             .rotate {
               transform: rotate(-90deg);
             }
-            .bk-form-input[disabled] {
+            .t-input__inner[disabled] {
               border-color: transparent !important;
             }
             .bk-form-content {
@@ -1318,7 +1318,7 @@
           }
           .participle-alias-name-input {
             width: 50%;
-            .bk-form-input {
+            .t-input__inner {
               padding-left: 15px;
             }
           }
@@ -1354,13 +1354,13 @@
         }
       }
 
-      .bk-form-input {
+      .t-input__inner {
         height: 50px;
         border: 1px solid transparent;
       }
 
       .participle-disabled-input {
-        .bk-form-input[disabled] {
+        .t-input__inner[disabled] {
           /* stylelint-disable-next-line declaration-no-important */
           border-color: transparent !important;
         }
@@ -1464,7 +1464,7 @@
         padding-left: 15px;
       }
 
-      :deep(tbody tr td:first-child .bk-form-input) {
+      :deep(tbody tr td:first-child .t-input__inner) {
         padding-left: 15px;
       }
     }
@@ -1628,7 +1628,7 @@
   .participle-form {
     margin-right: 10px;
 
-    .bk-form-control {
+    .t-input__wrap {
       width: 200px;
     }
 

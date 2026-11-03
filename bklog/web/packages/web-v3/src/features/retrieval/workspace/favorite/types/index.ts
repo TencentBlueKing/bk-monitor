@@ -88,7 +88,7 @@ export interface ITabItem {
 export interface IValidationRule {
   validator?: (val: any) => boolean;
   message: string;
-  trigger: string;
+  trigger: 'blur' | 'change' | 'all';
   required?: boolean;
   max?: number;
 }

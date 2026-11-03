@@ -440,7 +440,7 @@
       width: 100%;
       margin-right: -1px;
 
-      :deep(.bk-form-input) {
+      :deep(.t-input__inner) {
         border-top-right-radius: 0;
         border-bottom-right-radius: 0;
       }
@@ -464,7 +464,7 @@
         max-width: none;
       }
 
-      :deep(.bk-form-input) {
+      :deep(.t-input__inner) {
         border-top-left-radius: 0;
         border-bottom-left-radius: 0;
       }
@@ -499,7 +499,7 @@
     @include flex-justify(space-between);
   }
 
-  :deep(.input-error .bk-form-input) {
+  :deep(.input-error .t-input__inner) {
     border-color: #ff5656;
   }
 

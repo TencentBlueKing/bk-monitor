@@ -1,3 +1,5 @@
+
+import { Button as TButton } from 'tdesign-vue-next';
 /*
  * Tencent is pleased to support the open source community by making
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
@@ -24,7 +26,7 @@
  * IN THE SOFTWARE.
  */
 import { defineComponent, ref } from 'vue';
-import TextHighlight from 'vue-text-highlight';
+import TextHighlight from '@/shared/ui/text-highlight';
 
 import FilterRule from '@/features/collection/filter-rule/index';
 import useLocale from '@/shared/composables/use-locale';
@@ -88,25 +90,25 @@ export default defineComponent({
     return () => (
       <div class='rule-config-operate'>
         <div class='btns-main'>
-          <bk-button
+          <TButton
             loading={isSaving.value}
             theme='primary'
             onClick={handleSubmit}
           >
             {t('保存')}
-          </bk-button>
-          <bk-button
+          </TButton>
+          <TButton
             theme='primary'
-            outline
-            onClick={() => (showDebug.value = !showDebug.value)}
+            
+            onClick={() => (showDebug.value = !showDebug.value)} variant={(true) ? 'outline' : 'base'}
           >
             <span style='margin-right: 4px'>{t('调试工具')}</span>
             <log-icon
               type={showDebug.value ? 'angle-double-down' : 'angle-double-up'}
               common
             />
-          </bk-button>
-          <bk-button onClick={handleReset}>{t('重置')}</bk-button>
+          </TButton>
+          <TButton onClick={handleReset}>{t('重置')}</TButton>
         </div>
         {showDebug.value && (
           <debug-tool

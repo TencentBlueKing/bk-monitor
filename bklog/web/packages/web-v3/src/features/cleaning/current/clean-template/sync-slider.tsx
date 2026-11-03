@@ -1,3 +1,7 @@
+
+import { Alert as TAlert } from 'tdesign-vue-next';
+
+import { Button as TButton } from 'tdesign-vue-next';
 import { ServicesInstance } from '@/platform/services';
 /*
  * Tencent is pleased to support the open source community by making
@@ -167,12 +171,12 @@ export default defineComponent({
                 v-bkloading={{ isLoading: isCollectorsLoading.value }}
               >
                 {!isConfirmed.value && (
-                  <bk-alert
+                  <TAlert
                     class='sync-warning'
-                    type='warning'
-                    title={t(
+                    theme={'warning'}
+                    message={t(
                       '确认同步后，会将模板最新清洗配置同步到以下所有采集项。该操作会影响线上日志字段解析结果。',
-                    )}
+                    )} data-v2-display='alert'
                   />
                 )}
 
@@ -195,20 +199,20 @@ export default defineComponent({
 
                 {!isConfirmed.value && (
                   <div class='sync-actions'>
-                    <bk-button
+                    <TButton
                       disabled={!canSync.value}
                       loading={isSyncing.value}
                       theme='primary'
                       onClick={handleConfirm}
                     >
                       {t('确认同步')}
-                    </bk-button>
-                    <bk-button
+                    </TButton>
+                    <TButton
                       disabled={isSyncing.value}
                       onClick={handleClose}
                     >
                       {t('取消')}
-                    </bk-button>
+                    </TButton>
                   </div>
                 )}
               </div>

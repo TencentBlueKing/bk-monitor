@@ -1,0 +1,18 @@
+{
+  "checkedAt": "2026-10-29T07:40:29.690Z",
+  "cause": "Published V1 CSS uses absolute /fonts URLs while the frozen font files live at legacy-v1/assets/fonts",
+  "filesMissing": false,
+  "fix": "Iframe-only font-face adapter with same-origin deployment-base URLs and isolated icon font families; sealed files unchanged",
+  "fontFaces": 7,
+  "verifiedUi": [
+    "favorite/retrieve toolbar icons",
+    "query actions",
+    "field type icons"
+  ],
+  "tests": {
+    "passed": 194,
+    "failed": 0
+  },
+  "sealedFilesVerified": 215,
+  "scope": "Vue3-hosted V1 iframe icon/font loading"
+}

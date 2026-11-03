@@ -24,7 +24,8 @@
  * IN THE SOFTWARE.
  */
 
-import { computed, defineComponent, ref } from 'vue';
+import { computed, defineComponent, ref, type PropType } from 'vue';
+import { Empty as TEmpty, Loading as TLoading } from 'tdesign-vue-next';
 
 import useLocale from '@/shared/composables/use-locale';
 
@@ -42,7 +43,7 @@ export default defineComponent({
       default: false,
     },
     type: {
-      type: String,
+      type: String as PropType<'history' | 'favorite'>,
       default: 'history',
     },
     idField: {
@@ -70,7 +71,7 @@ export default defineComponent({
       type: [Number, String],
     },
   },
-  emits: ['delete', 'value-click', 'icon-click', "iconClick", "valueClick"],
+  emits: ['delete', 'value-click', 'icon-click', 'iconClick', 'valueClick'],
   setup(props, { emit }) {
     const { $t } = useLocale();
     const textMap = ref({
@@ -109,7 +110,7 @@ export default defineComponent({
       emit('delete', item);
     };
 
-    const getFuncionalPropVal = (prop: string|Function, args: unknown[]) => {
+    const getFuncionalPropVal = (prop: string | Function, args: unknown[]) => {
       if (typeof prop === 'function') {
         return prop(...args);
       }
@@ -121,7 +122,7 @@ export default defineComponent({
       return `${props.value}` === `${item[getFuncionalPropVal(props.idField, [item])]}`;
     };
 
-    const getEllipsisItem = (item: { [x: string]: any; }) => {
+    const getEllipsisItem = (item: { [x: string]: any }) => {
       const list = item[getFuncionalPropVal(props.nameField, [item])];
 
       return (
@@ -129,8 +130,8 @@ export default defineComponent({
           activeEllipsisCount={list.length > 1}
           list={list}
           v-slots={{
-              item: (v: unknown) => <span class='row-item'>{v}</span>,
-            }}
+            item: (v: unknown) => <span class='row-item'>{v}</span>,
+          }}
         />
       );
     };
@@ -138,73 +139,51 @@ export default defineComponent({
     const listItemRender = (item: any) => {
       if (Array.isArray(item?.[getFuncionalPropVal(props.nameField, [item])])) {
         return (
-          <div
-            class={['common-row multi', { active: isActiveItem(item) }]}
-            onClick={() => handleItemClick(item)}
-          >
+          <div class={['common-row multi', { active: isActiveItem(item) }]} onClick={() => handleItemClick(item)}>
             <span class='row-left'>
               <span
                 style={{
                   color: props.itemIcon?.color,
                 }}
                 class={['bklog-icon', props.itemIcon?.icon ?? activeMap.value.itemIcon]}
-                onClick={e => handleItemIconClick(e, item)}
+                onClick={(e) => handleItemIconClick(e, item)}
               />
               <span class='row-item-list'>{getEllipsisItem(item)}</span>
             </span>
             {props.showDelItem && (
-              <span
-                class='bklog-icon bklog-log-delete'
-                onClick={e => handleDeleteItem(e, item)}
-              />
+              <span class='bklog-icon bklog-log-delete' onClick={(e) => handleDeleteItem(e, item)} />
             )}
           </div>
         );
       }
 
       return (
-        <div
-          class={['common-row single', { active: isActiveItem(item) }]}
-          onClick={() => handleItemClick(item)}
-        >
+        <div class={['common-row single', { active: isActiveItem(item) }]} onClick={() => handleItemClick(item)}>
           <span class='row-left'>
             <span
               style={{
                 color: props.itemIcon?.color,
               }}
               class={['bklog-icon', props.itemIcon?.icon ?? activeMap.value.itemIcon]}
-              onClick={e => handleItemIconClick(e, item)}
+              onClick={(e) => handleItemIconClick(e, item)}
             />
             <span class='row-item'>{item[getFuncionalPropVal(props.nameField, [item])]}</span>
           </span>
-          {props.showDelItem && (
-            <span
-              class='bklog-icon bklog-log-delete'
-              onClick={e => handleDeleteItem(e, item)}
-            />
-          )}
+          {props.showDelItem && <span class='bklog-icon bklog-log-delete' onClick={(e) => handleDeleteItem(e, item)} />}
         </div>
       );
     };
 
     const getBodyRender = () => {
       if (props.list.length === 0 && !props.isLoading) {
-        return (
-          <bk-exception
-            scene='part'
-            type='empty'
-          />
-        );
+        return <TEmpty type='empty' title={$t('暂无数据')} />;
       }
 
-      return props.list.map(item => listItemRender(item));
+      return props.list.map((item) => listItemRender(item));
     };
 
     return () => (
-      <div
-        class='bklog-v3-index-set-common-list'
-        v-bkloading={{ isLoading: props.isLoading, size: 'mini' }}
-      >
+      <TLoading class='bklog-v3-index-set-common-list' loading={props.isLoading} size='small'>
         <div class='common-header'>
           <span>
             {activeMap.value.title}（{props.list.length}/20）
@@ -212,13 +191,13 @@ export default defineComponent({
           <span
             style={{ display: activeMap.value.delAll ? 'block' : 'none' }}
             class='bklog-icon bklog-saoba'
-            onClick={e => handleDeleteItem(e, null)}
+            onClick={(e) => handleDeleteItem(e, null)}
           >
             {activeMap.value.delLable}
           </span>
         </div>
         <div class='common-list'>{getBodyRender()}</div>
-      </div>
+      </TLoading>
     );
   },
 });

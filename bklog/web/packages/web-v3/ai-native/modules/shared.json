@@ -3,7 +3,7 @@
   "id": "shared",
   "purpose": "跨域共享组件、hooks、样式与资源",
   "root": "src/shared",
-  "files": 291,
+  "files": 297,
   "entryPoints": [
     "shared/composables/log-query-compiler/detectors/index.ts",
     "shared/composables/log-query-compiler/index.ts",
@@ -21,9 +21,11 @@
     "shared/ui/bklog-popover/index.tsx",
     "shared/ui/ellipsis-tag-list/index.tsx",
     "shared/ui/empty-status/index.vue",
+    "shared/ui/loading/index.tsx",
     "shared/ui/log-button/index.vue",
     "shared/ui/log-icon/index.tsx",
     "shared/ui/step-box/index.vue",
+    "shared/ui/text-highlight/index.ts",
     "shared/ui/user-selector/index.tsx",
     "shared/utils/index.ts"
   ],

@@ -46,20 +46,20 @@
               required
             >
               <div class="flex-ac">
-                <bk-input
+                <t-input
                   v-model.trim="subFormData.params.multiline_pattern"
                   style="width: 320px"
                   data-test-id="sourceLogBox_input_beginningRegular"
-                ></bk-input>
-                <bk-button
+                ></t-input>
+                <t-button :variant="(true) ? 'text' : ('base')"
                   class="king-button"
                   data-test-id="sourceLogBox_button_debugging"
                   size="small"
-                  text
+                  
                   @click="showRegDialog = true"
                 >
                   {{ $t('调试') }}
-                </bk-button>
+                </t-button>
               </div>
             </bk-form-item>
           </div>
@@ -116,7 +116,7 @@
               required
             >
               <div class="log-path flex-ac">
-                <bk-input
+                <t-input
                   v-model="log.value"
                   data-test-id="sourceLogBox_input_addLogPath"
                 />
@@ -182,10 +182,10 @@
                   required
                 >
                   <div class="log-path flex-ac">
-                    <bk-input
+                    <t-input
                       v-model="log.value"
                       data-test-id="sourceLogBox_input_addLogPath"
-                    ></bk-input>
+                    ></t-input>
                     <div class="ml9">
                       <i
                         class="bk-icon icon-plus-circle-shape icons"
@@ -273,19 +273,19 @@
         data-test-id="sourceLogBox_div_logSpecies"
         required
       >
-        <bk-checkbox-group
+        <t-checkbox-group
           v-model="selectLogSpeciesList"
           @change="otherBlurRules"
         >
           <div class="species-item">
-            <bk-checkbox
+            <t-checkbox
               v-for="(item, index) in logSpeciesList"
               :key="index"
               :disabled="selectLogSpeciesList.length === 1 && selectLogSpeciesList[0] === item.id"
               :value="item.id"
             >
               {{ item.name }}
-            </bk-checkbox>
+            </t-checkbox>
             <bk-tag-input
               v-model="otherSpeciesList"
               :allow-auto-match="true"
@@ -298,7 +298,7 @@
             >
             </bk-tag-input>
           </div>
-        </bk-checkbox-group>
+        </t-checkbox-group>
       </bk-form-item>
     </bk-form>
     <!-- win-过滤内容 -->
@@ -796,7 +796,7 @@
       }
     }
 
-    .bk-form-radio {
+    .t-radio {
       font-size: 12px;
     }
 
@@ -817,7 +817,7 @@
   .log-path {
     position: relative;
 
-    .bk-form-control {
+    .t-input__wrap {
       width: 320px;
     }
   }

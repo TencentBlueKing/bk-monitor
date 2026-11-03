@@ -1,3 +1,7 @@
+
+import { Checkbox as TCheckbox } from 'tdesign-vue-next';
+
+import { Button as TButton } from 'tdesign-vue-next';
 /*
  * Tencent is pleased to support the open source community by making
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
@@ -31,7 +35,7 @@ import { xssFilter } from '@/shared/lib/util';
 
 import xiaojingAI from '../../../../../../../shared/assets/images/xiaojingAI.svg';
 
-import type { Popover, Form } from 'bk-magic-vue';
+import type { Popover, Form } from '@/platform/compat/tdesign/magic-controls';
 
 import './cluster-rule-dialog.scss';
 const { $i18n } = window.mainComponent;
@@ -363,19 +367,19 @@ export default class ClusterPopover extends tsc<IProps> {
               />
             </bk-form-item>
             <div class='btn-box'>
-              <bk-button
+              <TButton
                 size='small'
                 theme='primary'
                 onClick={this.handleSubmitOccupy}
               >
                 {$i18n.t('确认提取')}
-              </bk-button>
-              <bk-button
+              </TButton>
+              <TButton
                 size='small'
                 onClick={this.handleCancelOccupy}
               >
                 {$i18n.t('取消')}
-              </bk-button>
+              </TButton>
             </div>
           </bk-form>
         </div>
@@ -417,7 +421,7 @@ export default class ClusterPopover extends tsc<IProps> {
               >
                 <div class='left'>
                   <div class='input-content'>
-                    <bk-checkbox
+                    <TCheckbox
                       v-model={item.isChecked}
                       onChange={this.handleChangeRuleHighlight}
                     />

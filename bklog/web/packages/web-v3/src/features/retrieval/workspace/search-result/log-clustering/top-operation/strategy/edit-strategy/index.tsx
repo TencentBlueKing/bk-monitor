@@ -1,3 +1,5 @@
+
+import { MessagePlugin as TDesignMessage } from 'tdesign-vue-next';
 import { ServicesInstance } from '@/platform/services';
 import { asDictionary } from '@/shared/utils/typed-record';
 /*
@@ -30,7 +32,7 @@ import { defineComponent, ref, computed, watch } from 'vue';
 import useLocale from '@/shared/composables/use-locale';
 
 import useStore from '@/shared/composables/use-store';
-import { bkMessage } from 'bk-magic-vue';
+
 import { StrategyType } from '../index';
 import { type UserGroupList } from '@/features/retrieval/services/retrieve';
 import { type IResponseData } from '@/platform/services/type';
@@ -173,10 +175,7 @@ export default defineComponent({
           data: otherData,
         });
         if (res.code === 0) {
-          bkMessage({
-            theme: 'success',
-            message: t('操作成功'),
-          });
+          TDesignMessage("success", { content: t('操作成功') });
           handleDialogClose();
           emit('success');
         }

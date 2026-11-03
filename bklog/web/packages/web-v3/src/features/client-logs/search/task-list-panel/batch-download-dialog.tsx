@@ -1,3 +1,5 @@
+
+import { Button as TButton } from 'tdesign-vue-next';
 /*
  * Tencent is pleased to support the open source community by making
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
@@ -57,15 +59,15 @@ export default defineComponent({
         v-slots={{
           footer: () => (
             <div>
-              <bk-button onClick={() => emit('close')}>{t('取消')}</bk-button>
-              <bk-button
+              <TButton onClick={() => emit('close')}>{t('取消')}</TButton>
+              <TButton
                 class='batch-download-confirm'
                 disabled={props.selectedItems.length === 0}
                 theme='primary'
                 onClick={() => emit('confirm')}
               >
                 {t('开始下载')}
-              </bk-button>
+              </TButton>
             </div>
           ),
         }}

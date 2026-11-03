@@ -1,3 +1,5 @@
+
+import { Button as Button } from 'tdesign-vue-next';
 import { ServicesInstance } from '@/platform/services';
 /*
  * Tencent is pleased to support the open source community by making
@@ -28,7 +30,7 @@ import { ServicesInstance } from '@/platform/services';
 import { Component, Emit, Prop, Ref } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
-import { bkButton as Button } from 'bk-magic-vue';
+
 
 
 import { deepEqual } from '../../../shared/lib/util';

@@ -36,14 +36,14 @@
     trigger="click"
   >
     <slot name="trigger">
-      <bk-input
+      <t-input
         v-model="showValue"
         style="width: 669px"
         :class="isError && 'is-error'"
         data-test-id="addNewExtraction_input_specifyFolder"
         @change="handleChange"
       >
-      </bk-input>
+      </t-input>
     </slot>
     <template #content>
       <div

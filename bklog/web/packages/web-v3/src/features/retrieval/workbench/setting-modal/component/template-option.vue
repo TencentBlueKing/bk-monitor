@@ -59,11 +59,11 @@
       class="config-tab-item"
       @click="e => e.stopPropagation()"
     >
-      <bk-input
+      <t-input
         v-model="nameStr"
         :class="['config-input', { 'input-error': isInputError }]"
         :placeholder="$t('请输入模板名')"
-      ></bk-input>
+      ></t-input>
       <div class="panel-operate">
         <i
           class="bk-icon icon-check-line"
@@ -218,7 +218,7 @@
     }
 
     .input-error {
-      :deep(.bk-form-input) {
+      :deep(.t-input__inner) {
         border: 1px solid #d7473f;
       }
     }
@@ -234,7 +234,7 @@
           margin-right: 4px;
         }
 
-        .bk-button-text {
+        .t-button--variant-text {
           font-size: 12px;
         }
       }

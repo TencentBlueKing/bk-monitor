@@ -1,3 +1,5 @@
+
+import { MessagePlugin as TDesignMessage } from 'tdesign-vue-next';
 /*
  * Tencent is pleased to support the open source community by making
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
@@ -114,10 +116,7 @@ export default defineComponent({
       }
 
       if (!content) {
-        window.mainComponent?.$bkMessage?.({
-          theme: 'warning',
-          message: $t('没有可复制的内容'),
-        });
+        TDesignMessage("warning", { content: $t('没有可复制的内容') });
         return;
       }
 

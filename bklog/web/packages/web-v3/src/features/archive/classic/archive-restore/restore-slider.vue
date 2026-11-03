@@ -55,11 +55,11 @@
               property="index_set_name"
               required
             >
-              <bk-input
+              <t-input
                 v-model="formData.index_set_name"
                 :disabled="isEdit"
                 data-test-id="addNewRestore_input_indexSetName"
-              ></bk-input>
+              ></t-input>
             </bk-form-item>
             <!-- <bk-alert type="info" :title="$t('COS的自动创建和关联，只能用于腾讯云')"></bk-alert> -->
             <bk-form-item
@@ -126,7 +126,7 @@
               />
             </bk-form-item>
             <bk-form-item style="margin-top: 30px">
-              <bk-button
+              <t-button
                 class="king-button mr10"
                 :loading="confirmLoading"
                 data-test-id="addNewRestore_button_submit"
@@ -134,11 +134,11 @@
                 @click.stop.prevent="handleConfirm"
               >
                 {{ $t('提交') }}
-              </bk-button>
-              <bk-button
+              </t-button>
+              <t-button
                 data-test-id="addNewRestore_button_cancel"
                 @click="handleCancel"
-                >{{ $t('取消') }}</bk-button
+                >{{ $t('取消') }}</t-button
               >
             </bk-form-item>
           </bk-form>
@@ -148,7 +148,9 @@
   </div>
 </template>
 
-<script>import { ServicesInstance } from '@/platform/services';
+<script>
+import { MessagePlugin as TDesignMessage } from 'tdesign-vue-next';
+import { ServicesInstance } from '@/platform/services';
 
   import { getCurrentInstance } from 'vue';
   import { useSidebarDiff } from '@/shared/composables/use-sidebar-diff';
@@ -409,11 +411,7 @@
             params,
           });
 
-          this.$bkMessage({
-            theme: 'success',
-            message: this.$t('保存成功'),
-            delay: 1500,
-          });
+          TDesignMessage("success", { content: this.$t('保存成功'), duration: 1500 });
           this.$emit('updated');
         } catch (e) {
           console.warn(e);
@@ -438,7 +436,7 @@
         margin-top: 18px;
       }
 
-      .bk-alert {
+      .t-alert {
         width: 500px;
         margin-top: 12px;
       }

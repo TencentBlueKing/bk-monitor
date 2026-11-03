@@ -36,7 +36,7 @@
       class="es-cluster-list-container"
     >
       <div class="main-operator-container">
-        <bk-button
+        <t-button
           v-cursor="{ active: isAllowedCreate === false }"
           style="width: 120px"
           :disabled="isAllowedCreate === null || tableLoading"
@@ -44,7 +44,7 @@
           theme="primary"
           @click="addDataSource"
           >{{ $t('新建') }}
-        </bk-button>
+        </t-button>
         <bk-input
           v-model="params.keyword"
           style="float: right; width: 360px"
@@ -56,17 +56,20 @@
         >
         </bk-input>
       </div>
-      <bk-table
-        ref="clusterTable"
-        v-bkloading="{ isLoading: tableLoading }"
-        class="king-table"
-        :data="tableDataPaged"
-        :pagination="pagination"
-        data-test-id="esAccessBox_table_esAccessTableBox"
-        @filter-change="handleFilterChange"
-        @page-change="handlePageChange"
-        @page-limit-change="handleLimitChange"
+      <bklog-loading
+        data-testid="cluster-table-loading"
+        :loading="tableLoading"
       >
+        <bk-table
+          ref="clusterTable"
+          class="king-table"
+          :data="tableDataPaged"
+          :pagination="pagination"
+          data-test-id="esAccessBox_table_esAccessTableBox"
+          @filter-change="handleFilterChange"
+          @page-change="handlePageChange"
+          @page-limit-change="handleLimitChange"
+        >
         <bk-table-column
           :render-header="$renderHeader"
           label="ID"
@@ -176,11 +179,11 @@
           <template #default="{ row }">
             <div class="percent">
               <div class="percent-progress">
-                <bk-progress
-                  :percent="getPercent(row)"
-                  :show-text="false"
-                  :theme="'success'"
-                ></bk-progress>
+                <t-progress
+                  :percentage="Number(((getPercent(row)) * 100).toFixed(0))"
+                  :label="false"
+                  :color="'#2dcb56'"
+                ></t-progress>
               </div>
               <span>{{ `${100 - row.storage_usage}%` }}</span>
             </div>
@@ -275,7 +278,8 @@
             />
           </div>
         </template>
-      </bk-table>
+        </bk-table>
+      </bklog-loading>
     </div>
 
     <div
@@ -311,6 +315,7 @@
 <script>import { ServicesInstance } from '@/platform/services';
 
   import EmptyStatus from '@/shared/ui/empty-status/index';
+  import BklogLoading from '@/shared/ui/loading';
   import { useIntroResize } from '@/shared/composables/use-intro-resize';
   import { mapGetters } from '@/app/state/map-helpers';
 
@@ -332,6 +337,7 @@
       EsSlider,
       IntroPanel,
       EmptyStatus,
+      BklogLoading,
     },
     data() {
       const settingFields = [
@@ -795,7 +801,7 @@
         align-items: center;
         white-space: nowrap;
 
-        .bk-badge {
+        .t-badge {
           width: 5px;
           height: 5px;
           margin-right: 4px;

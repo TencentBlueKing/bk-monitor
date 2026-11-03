@@ -1,3 +1,4 @@
+import SampleColumnSelect from '@/features/collection/shared/sample-column-select';
 /*
  * Tencent is pleased to support the open source community by making
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
@@ -24,19 +25,22 @@
  * IN THE SOFTWARE.
  */
 
-import { defineComponent, ref, reactive, computed, watch, nextTick } from 'vue';
+import { defineComponent, ref, reactive, computed, watch, nextTick, type PropType } from 'vue';
+import { Form as TForm, FormItem as TFormItem, Input as TInput, InputNumber as TInputNumber } from 'tdesign-vue-next';
+import type { FormRules, InputProps } from 'tdesign-vue-next';
 
 import useLocale from '@/shared/composables/use-locale';
 
 import './validator-input.scss';
 
 type IProps = {
+  tableIndex?: number;
   value: string;
   placeholder: string;
   activeType: string;
   inputType: string;
   rowData: any;
-  originalFilterItemSelect: any[];
+  originalFilterItemSelect: { id: string; name: string; value?: string }[];
 };
 
 /**
@@ -44,7 +48,9 @@ type IProps = {
  */
 export default defineComponent({
   name: 'ValidatorInput',
+  compatConfig: { MODE: 3 },
   props: {
+    tableIndex: Number,
     value: {
       type: String,
       default: '',
@@ -66,7 +72,7 @@ export default defineComponent({
       default: () => ({}),
     },
     originalFilterItemSelect: {
-      type: Array,
+      type: Array as PropType<IProps['originalFilterItemSelect']>,
       default: () => [],
     },
   },
@@ -74,7 +80,7 @@ export default defineComponent({
   setup(props: IProps, { emit, expose }) {
     const { t } = useLocale();
     // 引用
-    const inputRef = ref<HTMLInputElement>();
+    const inputRef = ref<{ focus(): void }>();
     const validateFormRef = ref<any>(null);
 
     // 响应式数据
@@ -92,7 +98,7 @@ export default defineComponent({
     };
 
     // 验证规则
-    const rules = {
+    const rules: FormRules<typeof formData> = {
       inputValue: [
         {
           validator: checkValidator,
@@ -125,7 +131,7 @@ export default defineComponent({
 
     watch(
       () => props.value,
-      newVal => {
+      (newVal) => {
         formData.inputValue = newVal;
       },
       { immediate: true },
@@ -164,6 +170,12 @@ export default defineComponent({
       validateValue,
     });
 
+    function updateInput(value: string | number | undefined) {
+      const next = value === undefined ? '' : String(value);
+      formData.inputValue = next;
+      if (isError.value && next && next.trim()) isError.value = false;
+    }
+
     // 渲染辅助函数
     const inputTriggerSlot = (isSelect = false) => (
       <div
@@ -180,7 +192,7 @@ export default defineComponent({
           <div class='input-box'>
             <span
               class='input-value overflow-tips'
-              v-bk-overflow-tips
+              title={isSelect ? selectedShowStr.value : t('第{n}行', { n: formData.inputValue })}
             >
               {isSelect
                 ? `${selectedShowStr.value || t('第{n}行', { n: formData.inputValue })}`
@@ -192,42 +204,51 @@ export default defineComponent({
     );
 
     const formInput = () => (
-      <bk-form
+      <TForm
         ref={validateFormRef}
         class='form-main'
-        form-type='inline'
+        layout='inline'
+        labelWidth={0}
         {...{
           ...{
-            model: formData,
+            data: formData,
             rules,
           },
         }}
       >
-        <bk-form-item
-          label=''
-          property='inputValue'
-        >
-          <bk-input
-            ref={inputRef}
-            class={{ 'validate-input': true, 'input-error': isError.value }}
-            min={1}
-            placeholder={props.placeholder ?? t('请输入')}
-            show-controls={false}
-            type={props.inputType}
-            value={formData.inputValue}
-            clearable
-            show-clear-only-hover
-            onBlur={blurInput}
-            onInput={(val: string) => {
-              formData.inputValue = val;
-              // 输入时清除错误状态
-              if (isError.value && val && String(val).trim()) {
-                isError.value = false;
-              }
-            }}
-          />
-        </bk-form-item>
-      </bk-form>
+        <TFormItem label='' name='inputValue'>
+          {props.inputType === 'number' ? (
+            <TInputNumber
+              largeNumber
+              ref={inputRef}
+              value={formData.inputValue}
+              min={1}
+              theme='normal'
+              placeholder={props.placeholder}
+              class={{ 'validate-input': true, 'input-error': isError.value }}
+              onFocus={() => {
+                isClick.value = true;
+              }}
+              onBlur={blurInput}
+              onChange={updateInput}
+            />
+          ) : (
+            <TInput
+              ref={inputRef}
+              value={formData.inputValue}
+              type={props.inputType as InputProps['type']}
+              placeholder={props.placeholder}
+              class={{ 'validate-input': true, 'input-error': isError.value }}
+              clearable
+              onFocus={() => {
+                isClick.value = true;
+              }}
+              onBlur={blurInput}
+              onChange={updateInput}
+            />
+          )}
+        </TFormItem>
+      </TForm>
     );
 
     const renderMain = () => (props.inputType !== 'number' ? formInput() : inputTriggerSlot());
@@ -235,38 +256,17 @@ export default defineComponent({
     return () => (
       <div class='validator-input-main'>
         {isShowSelect.value ? (
-          <bk-select
-            class={{ 'validate-select': true, 'input-error': isError.value }}
-            v-slots={{
-              trigger: () => inputTriggerSlot(true),
-            }}
-            clearable={false}
-            popover-width={320}
+          <SampleColumnSelect
+            class={{ 'input-error': isError.value }}
             value={formData.inputValue}
-            searchable
-            onSelected={(val: string) => {
-              formData.inputValue = val;
-              // 选择时清除错误状态
-              if (isError.value && val) {
-                isError.value = false;
-              }
+            options={props.originalFilterItemSelect}
+            onChange={(value) => {
+              formData.inputValue = value;
+              if (isError.value && value) isError.value = false;
             }}
           >
-            {props.originalFilterItemSelect.map((option: any) => (
-              <bk-option
-                id={option.id}
-                key={option.id}
-                name={option.name}
-              >
-                <span
-                  class='overflow-tips'
-                  title={`${t('第{n}行', { n: option.id })} ${option.value || ''}`}
-                >
-                  {`${t('第{n}行', { n: option.id })} ${option.value || ''}`}
-                </span>
-              </bk-option>
-            ))}
-          </bk-select>
+            {() => inputTriggerSlot(true)}
+          </SampleColumnSelect>
         ) : (
           renderMain()
         )}

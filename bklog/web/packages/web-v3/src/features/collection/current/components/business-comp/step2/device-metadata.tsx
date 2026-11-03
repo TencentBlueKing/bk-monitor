@@ -1,3 +1,5 @@
+
+import { Switch as TSwitch, Checkbox as TCheckbox } from 'tdesign-vue-next';
 import { ServicesInstance } from '@/platform/services';
 /*
  * Tencent is pleased to support the open source community by making
@@ -357,11 +359,11 @@ export default defineComponent({
     return () => (
       <div class='device-metadata-main'>
         <div class='switcher-container'>
-          <bk-switcher
+          <TSwitch
             size='large'
-            theme='primary'
+            
             value={switcherValue.value}
-            onChange={switcherChange}
+            onChange={(value) => { if (typeof value === 'boolean') (switcherChange)(value); }}
           />
           <InfoTips tips={t('该设置可以将采集设备的元数据信息补充至日志中')} />
         </div>
@@ -381,9 +383,9 @@ export default defineComponent({
                   class='device-metadata-option'
                   name={`${item.field}(${item.name})`}
                 >
-                  <bk-checkbox
+                  <TCheckbox
                     class='mr-5'
-                    value={selectValue.value.includes(item.field)}
+                    checked={selectValue.value.includes(item.field)}
                   />
                   {`${item.field}(${item.name})`}
                 </bk-option>

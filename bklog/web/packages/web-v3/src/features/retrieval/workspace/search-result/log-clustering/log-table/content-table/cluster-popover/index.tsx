@@ -1,3 +1,5 @@
+
+import { MessagePlugin as TDesignMessage } from 'tdesign-vue-next';
 /*
  * Tencent is pleased to support the open source community by making
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
@@ -26,7 +28,7 @@
 
 import { defineComponent, onBeforeUnmount, ref, PropType } from 'vue';
 import useLocale from '@/shared/composables/use-locale';
-import { bkMessage } from 'bk-magic-vue';
+
 import { createRawTippyOverlay } from '@/shared/global/overlay/index';
 import RegexMatchDialog from './regex-match/index';
 import { copyMessage } from '@/shared/lib/util';
@@ -117,17 +119,11 @@ export default defineComponent({
           regexSampleStr.value = await props.getPatternOriginLog(props.rowData);
         }
         if (!regexSampleStr.value) {
-          bkMessage({
-            theme: 'warning',
-            message: t('未获取到日志样例'),
-          });
+          TDesignMessage("warning", { content: t('未获取到日志样例') });
         }
       } catch (err) {
         console.warn(err);
-        bkMessage({
-          theme: 'warning',
-          message: t('日志样例获取失败'),
-        });
+        TDesignMessage("warning", { content: t('日志样例获取失败') });
       }
       isShowRuleDialog.value = true;
     };

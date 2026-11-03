@@ -1,3 +1,5 @@
+
+import { MessagePlugin as TDesignMessage } from 'tdesign-vue-next';
 /*
  * Tencent is pleased to support the open source community by making
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
@@ -26,7 +28,7 @@
 import { computed, defineComponent, type PropType } from 'vue';
 
 import useLocale from '@/shared/composables/use-locale';
-import { bkMessage } from 'bk-magic-vue';
+
 
 import useStore from '../../../../../shared/composables/use-store';
 import RetrieveHelper from '../../../retrieve-helper';
@@ -63,10 +65,7 @@ export default defineComponent({
       if (isFieldSettingShow.value && store.state.spaceUid && hasCollectorConfigId.value) {
         RetrieveHelper.setIndexConfigOpen(true);
       } else {
-        bkMessage({
-          theme: 'primary',
-          message: '第三方ES、计算平台索引集类型不支持自定义分词',
-        });
+        TDesignMessage("info", { content: '第三方ES、计算平台索引集类型不支持自定义分词' });
       }
     };
 

@@ -1,3 +1,5 @@
+
+import { Button as TButton } from 'tdesign-vue-next';
 import { ServicesInstance } from '@/platform/services';
 /*
  * Tencent is pleased to support the open source community by making
@@ -30,6 +32,7 @@ import { computed, defineComponent, reactive, ref, watch } from 'vue';
 
 import { t } from '@/shared/composables/use-locale';
 import useStore from '@/shared/composables/use-store';
+import BklogLoading from '@/shared/ui/loading';
 import { BK_LOG_STORAGE } from '@/app/state/store.type.ts';
 import { useSidebarDiff } from '@/shared/composables/use-sidebar-diff';
 
@@ -322,14 +325,14 @@ export default defineComponent({
             disabled: canSubmit.value,
           }}
         >
-          <bk-button
+          <TButton
             theme='primary'
             disabled={!canSubmit.value}
             loading={props.loading}
             onClick={handleConfirm}
           >
             {t('提交')}
-          </bk-button>
+          </TButton>
         </span>
       );
     };
@@ -339,9 +342,10 @@ export default defineComponent({
         v-slots={{
           content: () => (
             <>
-              <div
+              <BklogLoading
                 class='grok-slider-content'
-                v-bkloading={{ isLoading: props.loading }}
+                data-testid='grok-slider-loading'
+                loading={props.loading}
               >
                 <bk-form
                   ref={formRef}
@@ -416,14 +420,13 @@ export default defineComponent({
 
                     {/* 调试按钮和状态 */}
                     <div class='debug-action'>
-                      <bk-button
+                      <TButton
                         theme='primary'
-                        outline
                         loading={debugLoading.value}
-                        onClick={handleDebug}
+                        onClick={handleDebug} variant={(true) ? 'outline' : 'base'}
                       >
                         {t('调试')}
-                      </bk-button>
+                      </TButton>
                       {renderDebugStatus()}
                     </div>
 
@@ -434,10 +437,10 @@ export default defineComponent({
                   {/* 底部按钮 */}
                   <bk-form-item class='slider-footer'>
                     {renderSubmitButton()}
-                    <bk-button onClick={handleCancel}>{t('取消')}</bk-button>
+                    <TButton onClick={handleCancel}>{t('取消')}</TButton>
                   </bk-form-item>
                 </bk-form>
-              </div>
+              </BklogLoading>
             </>
           ),
         }}

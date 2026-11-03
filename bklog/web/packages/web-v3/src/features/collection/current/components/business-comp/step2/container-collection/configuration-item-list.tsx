@@ -1,3 +1,5 @@
+
+import { RadioGroup as TRadioGroup, Radio as TRadio } from 'tdesign-vue-next';
 import { ServicesInstance } from '@/platform/services';
 /*
  * Tencent is pleased to support the open source community by making
@@ -521,9 +523,9 @@ export default defineComponent({
                   disabled: !props.isEdit,
                 }}
               >
-                <bk-radio-group
+                <TRadioGroup
                   value={item.params?.tail_files ?? true}
-                  onChange={(val: boolean) => {
+                  onChange={(value) => { if (typeof value === 'boolean') ((val: boolean) => {
                     const updatedItem = {
                       ...item,
                       params: {
@@ -532,22 +534,22 @@ export default defineComponent({
                       },
                     };
                     handleDataChange(updatedItem, ind);
-                  }}
+                  })(value); }}
                 >
-                  <bk-radio
+                  <TRadio
                     class='mr-24'
                     value={true}
                     disabled={props.isEdit}
                   >
                     {t('仅采集下发后的日志')}
-                  </bk-radio>
-                  <bk-radio
+                  </TRadio>
+                  <TRadio
                     value={false}
                     disabled={props.isEdit}
                   >
                     {t('采集全量日志')}
-                  </bk-radio>
-                </bk-radio-group>
+                  </TRadio>
+                </TRadioGroup>
               </span>
             </div>
             {/* 日志过滤配置 */}

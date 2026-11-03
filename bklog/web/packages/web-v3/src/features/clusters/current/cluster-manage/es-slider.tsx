@@ -1,3 +1,6 @@
+import { RadioGroup as TRadioGroup, Radio as TRadio, Switch as TSwitch } from 'tdesign-vue-next';
+
+import { MessagePlugin as TDesignMessage, Button as TButton } from 'tdesign-vue-next';
 import { ServicesInstance } from '@/platform/services';
 /*
  * Tencent is pleased to support the open source community by making
@@ -26,13 +29,24 @@ import { ServicesInstance } from '@/platform/services';
  */
 
 import { defineComponent, ref, computed, watch } from 'vue';
+import {
+  Drawer as TDrawer,
+  Form as TForm,
+  FormItem as TFormItem,
+  Input as TInput,
+  InputNumber as TInputNumber,
+  Select as TSelect,
+  Option as TOption,
+  type FormInstanceFunctions,
+} from 'tdesign-vue-next';
+import { overlayRegistry } from '@/shared/global/overlay/overlay-registry';
 
 import { messageError } from '@/shared/lib/bkmagic';
 import { isFeatureToggleOn } from '@/shared/composables/use-feature-toggle';
 import useLocale from '@/shared/composables/use-locale';
 import useStore from '@/shared/composables/use-store';
+import BklogLoading from '@/shared/ui/loading';
 import ValidateUserSelector from '@/shared/ui/user-selector/index';
-import { bkMessage as Message } from 'bk-magic-vue';
 
 import { useSidebarDiff } from '@/shared/composables/use-sidebar-diff';
 import { useSpaceSelector } from '@/shared/composables/use-space-selector';
@@ -40,14 +54,32 @@ import ManageHelper from '../../../management/manage-v2/manage-helper.ts';
 import EsDialog from './es-dialog.tsx';
 import { CLUSTER_TYPES } from './use-cluster-type';
 
-
 import './es-slider.scss';
 
-interface HotColdNode { attr: string; value: string; }
-interface HotColdOption extends HotColdNode { computedId: string; computedName: string; computedCounts: number; isSelected: boolean; }
-interface BusinessProperty { id: string; name: string; multiable?: boolean; remote?: boolean; }
-interface BusinessLabel extends BusinessProperty { values: BusinessProperty[]; }
-interface RetentionOption { id: string; name: string; disabled?: boolean; }
+interface HotColdNode {
+  attr: string;
+  value: string;
+}
+interface HotColdOption extends HotColdNode {
+  computedId: string;
+  computedName: string;
+  computedCounts: number;
+  isSelected: boolean;
+}
+interface BusinessProperty {
+  id: string;
+  name: string;
+  multiable?: boolean;
+  remote?: boolean;
+}
+interface BusinessLabel extends BusinessProperty {
+  values: BusinessProperty[];
+}
+interface RetentionOption {
+  id: string;
+  name: string;
+  disabled?: boolean;
+}
 
 export default defineComponent({
   name: 'EsSlider',
@@ -83,7 +115,7 @@ export default defineComponent({
     const { t } = useLocale();
 
     // 表单与组件引用
-    const validateForm = ref<any>(null);
+    const validateForm = ref<FormInstanceFunctions>();
     const searchSelectRef = ref<any>(null);
 
     const configDocUrl = ref((window as any).BK_HOT_WARM_CONFIG_URL);
@@ -180,9 +212,9 @@ export default defineComponent({
       { id: 'all_biz', name: t('全平台') },
       { id: 'biz_attr', name: t('按照空间属性选择') },
     ]);
-    const visibleBkBiz = ref<((string | number))[]>([]); // 下拉框选中的值列表
-    const visibleList = ref<(({ id: string; name: any; is_use: any; }))[]>([]); // 多业务选择下拉框
-    const cacheVisibleList = ref<(({ id: string; name: any; is_use: any; }))[]>([]); // 缓存多业务选择下拉框
+    const visibleBkBiz = ref<(string | number)[]>([]); // 下拉框选中的值列表
+    const visibleList = ref<{ id: string; name: any; is_use: any }[]>([]); // 多业务选择下拉框
+    const cacheVisibleList = ref<{ id: string; name: any; is_use: any }[]>([]); // 缓存多业务选择下拉框
     const bkBizLabelsList = ref<BusinessLabel[]>([]); // 按照业务属性选择列表
     const cacheBkBizLabelsList = ref<BusinessLabel[]>([]); // 缓存按照业务属性选择
     const bizParentList = ref<BusinessProperty[]>([]); // 按照业务属性父级列表
@@ -240,7 +272,7 @@ export default defineComponent({
     const { virtualscrollSpaceList } = useSpaceSelector(visibleBkBiz);
 
     const handleShowSlider = () => {
-      selectZIndex.value = (window as any).__bk_zIndex_manager.nextZIndex();
+      selectZIndex.value = overlayRegistry.nextZIndex();
     };
 
     // 来源变更：非 other 时清空来源名称
@@ -290,7 +322,7 @@ export default defineComponent({
         }
         const visibleConfig = clusterData.cluster_config.custom_option?.visible_config || {};
         bkBizLabelsList.value = Object.entries(visibleConfig.bk_biz_labels || {}).reduce((pre: any[], cur) => {
-          const propertyName = bizParentList.value.find(item => item.id === cur[0]);
+          const propertyName = bizParentList.value.find((item) => item.id === cur[0]);
           const obj = {
             name: propertyName?.name || cur[0], // 如果找不到名称，使用 ID 作为名称
             id: cur[0],
@@ -305,7 +337,7 @@ export default defineComponent({
         visibleList.value = [];
         cacheVisibleList.value = [];
         for (const val of visibleConfig.visible_bk_biz ?? []) {
-          const target = mySpaceList.value.find(project => project.bk_biz_id === String(val.bk_biz_id));
+          const target = mySpaceList.value.find((project) => project.bk_biz_id === String(val.bk_biz_id));
           if (target) {
             store.commit('patchMySpaceListItem', {
               bkBizId: String(val.bk_biz_id),
@@ -365,7 +397,7 @@ export default defineComponent({
     // 连通性测试
     const handleTestConnect = async () => {
       try {
-        await validateForm.value.validate();
+        if ((await validateForm.value?.validate()) !== true) return;
         const postData: any = {
           bk_biz_id: bkBizId.value,
           cluster_name: basicFormData.value.cluster_name,
@@ -426,7 +458,7 @@ export default defineComponent({
         newItem.computedName = `${item.attr}:${item.value}`;
         newItem.computedCounts = 1;
         newItem.isSelected = false;
-        const exist = set.find(s => s.computedId === newItem.computedId);
+        const exist = set.find((s) => s.computedId === newItem.computedId);
         if (exist) {
           exist.computedCounts += 1;
         } else {
@@ -446,7 +478,7 @@ export default defineComponent({
     // 选择热标签
     const handleHotSelected = (v: string) => {
       selectedHotId.value = v;
-      const item = hotColdAttrSet.value.find(i => i.computedId === v) || {};
+      const item = hotColdAttrSet.value.find((i) => i.computedId === v) || {};
       formData.value.hot_attr_name = (item as any).attr || '';
       formData.value.hot_attr_value = (item as any).value || '';
       computeIsSelected();
@@ -455,7 +487,7 @@ export default defineComponent({
     // 选择冷标签
     const handleColdSelected = (v: string) => {
       selectedColdId.value = v;
-      const item = hotColdAttrSet.value.find(i => i.computedId === v) || {};
+      const item = hotColdAttrSet.value.find((i) => i.computedId === v) || {};
       formData.value.warm_attr_name = (item as any).attr || '';
       formData.value.warm_attr_value = (item as any).value || '';
       computeIsSelected();
@@ -504,12 +536,12 @@ export default defineComponent({
               },
             },
           });
-          Message({ theme: 'success', message: t('保存成功'), delay: 1500 });
+          TDesignMessage('success', { content: t('保存成功'), duration: 1500 });
           emit('handleUpdatedTable');
           return;
         }
 
-        await validateForm.value?.validate();
+        if ((await validateForm.value?.validate()) !== true) return;
         let url = ServicesInstance.source.create;
         const paramsData: any = { bk_biz_id: bkBizId.value };
 
@@ -568,7 +600,7 @@ export default defineComponent({
 
         confirmLoading.value = true;
         await url({ data: newPostData, params: paramsData });
-        Message({ theme: 'success', message: t('保存成功'), delay: 1500 });
+        TDesignMessage('success', { content: t('保存成功'), duration: 1500 });
         emit('handleUpdatedTable');
       } catch (e) {
         console.warn(e);
@@ -589,7 +621,7 @@ export default defineComponent({
         messageType = t('可见类型为业务属性时，业务标签不能为空');
       }
       if (messageType) {
-        Message({ theme: 'error', message: messageType });
+        TDesignMessage('error', { content: messageType });
         return false;
       }
       return true;
@@ -618,10 +650,14 @@ export default defineComponent({
     };
 
     // 关闭侧边栏
+    let closePending = false;
     const handleCancel = async () => {
-      const canClose = await handleCloseSidebar();
-      if (canClose) {
-        emit('handleCancelSlider');
+      if (closePending) return;
+      closePending = true;
+      try {
+        if (await handleCloseSidebar()) emit('handleCancelSlider');
+      } finally {
+        closePending = false;
       }
     };
 
@@ -658,7 +694,7 @@ export default defineComponent({
           return;
         }
         if (isRetention) {
-          if (!retentionDaysList.value.some(item => item.id === stringVal)) {
+          if (!retentionDaysList.value.some((item) => item.id === stringVal)) {
             retentionDaysList.value.push({
               id: stringVal,
               name: stringVal + t('天'),
@@ -667,7 +703,7 @@ export default defineComponent({
           formData.value.setup_config.retention_days_default = stringVal;
           customRetentionDay.value = '';
         } else {
-          if (!maxDaysList.value.some(item => item.id === stringVal)) {
+          if (!maxDaysList.value.some((item) => item.id === stringVal)) {
             maxDaysList.value.push({
               id: stringVal,
               name: stringVal + t('天'),
@@ -708,11 +744,15 @@ export default defineComponent({
     };
 
     const handleRemoteMethod = () =>
-      new Promise(resolve => {
+      new Promise((resolve) => {
         setTimeout(() => {
           // 空值返回全部，搜索返回部分
           if (bizInputStr.value) {
-            resolve((bizChildrenList.value[bizSelectID.value] || []).filter((i: { name: string|string[]; }) => i.name.includes(bizInputStr.value)));
+            resolve(
+              (bizChildrenList.value[bizSelectID.value] || []).filter((i: { name: string | string[] }) =>
+                i.name.includes(bizInputStr.value),
+              ),
+            );
           } else {
             resolve(bizChildrenList.value[bizSelectID.value] || []);
           }
@@ -756,7 +796,7 @@ export default defineComponent({
     // 监听：侧滑显示/隐藏
     watch(
       () => props.showSlider,
-      async val => {
+      async (val) => {
         if (val) {
           // 先获取业务属性列表，确保在编辑模式下回填数据时 bizParentList 已经有值
           await getBizPropertyId();
@@ -852,7 +892,7 @@ export default defineComponent({
     // 监听：可见范围类型切换
     watch(
       () => formData.value.visible_config.visible_type,
-      val => {
+      (val) => {
         if (val !== 'multi_biz') {
           visibleList.value = [];
         } else {
@@ -869,31 +909,26 @@ export default defineComponent({
     // 监听：多业务可见列表变化时，同步 ID 列表
     watch(
       () => visibleList.value,
-      val => {
+      (val) => {
         visibleBkBiz.value = val.map((item: any) => item.id);
       },
       { deep: true },
     );
 
     const renderVisibleScope = () => (
-      <bk-form-item
-        style='margin-top: 4px'
-        label={t('可见范围')}
-      >
-        <bk-radio-group
+      <TFormItem style='margin-top: 4px' label={t('可见范围')}>
+        <TRadioGroup
           value={formData.value.visible_config.visible_type}
-          onChange={(v: string) => (formData.value.visible_config.visible_type = v)}
+          onChange={(value) => {
+            if (typeof value === 'string') ((v: string) => (formData.value.visible_config.visible_type = v))(value);
+          }}
         >
-          {visibleScopeOptions.value.map(item => (
-            <bk-radio
-              key={item.id}
-              class='scope-radio'
-              value={item.id}
-            >
+          {visibleScopeOptions.value.map((item) => (
+            <TRadio key={item.id} class='scope-radio' value={item.id}>
               {item.name}
-            </bk-radio>
+            </TRadio>
           ))}
-        </bk-radio-group>
+        </TRadioGroup>
 
         {/* 多空间选择 */}
         <bk-select
@@ -932,14 +967,11 @@ export default defineComponent({
             onMenu-select={handleMenuSelect}
           />
         )}
-      </bk-form-item>
+      </TFormItem>
     );
 
     const renderRetentionDays = () => (
-      <bk-form-item
-        label={t('过期时间')}
-        required
-      >
+      <TFormItem label={t('过期时间')} requiredMark>
         <div class='flex-space'>
           <div class='flex-space-item'>
             <div class='space-item-label'>{t('默认')}</div>
@@ -970,12 +1002,7 @@ export default defineComponent({
               onChange={(val: string) => (formData.value.setup_config.retention_days_default = val)}
             >
               {retentionDaysList.value.map((option, index) => (
-                <bk-option
-                  id={option.id}
-                  key={index}
-                  disabled={option.disabled}
-                  name={option.name}
-                />
+                <bk-option id={option.id} key={index} disabled={option.disabled} name={option.name} />
               ))}
             </bk-select>
           </div>
@@ -1007,21 +1034,16 @@ export default defineComponent({
               onChange={(val: string) => (formData.value.setup_config.retention_days_max = val)}
             >
               {maxDaysList.value.map((option, index) => (
-                <bk-option
-                  id={option.id}
-                  key={index}
-                  disabled={option.disabled}
-                  name={option.name}
-                />
+                <bk-option id={option.id} key={index} disabled={option.disabled} name={option.name} />
               ))}
             </bk-select>
           </div>
         </div>
-      </bk-form-item>
+      </TFormItem>
     );
 
     const renderManagementToggle = () => (
-      <bk-form-item>
+      <TFormItem>
         <div
           class='es-cluster-management button-text'
           onClick={() => (isShowManagement.value = !isShowManagement.value)}
@@ -1029,32 +1051,30 @@ export default defineComponent({
           <span>{isDoris.value ? t('Doris集群管理') : t('ES集群管理')}</span>
           <span class={['bk-icon icon-angle-double-down', isShowManagement.value ? 'is-show' : ''].join(' ')} />
         </div>
-      </bk-form-item>
+      </TFormItem>
     );
 
     // 主渲染
     return () => (
-      <div
-        class='es-access-slider-container'
-        data-test-id='addNewEsAccess_div_esAccessFromBox'
-      >
-        <bk-sideslider
+      <div class='es-access-slider-container' data-test-id='addNewEsAccess_div_esAccessFromBox'>
+        <TDrawer
           v-slots={{
-            content: () => (
+            default: () => (
               <>
-                <div
+                <BklogLoading
                   class='es-king-slider-content'
-                  v-bkloading={{ isLoading: sliderLoading.value }}
+                  data-testid='cluster-slider-loading'
+                  loading={sliderLoading.value}
                 >
                   {!sliderLoading.value && (
-                    <bk-form
+                    <TForm
                       ref={validateForm}
                       class='king-form'
-                      form-type='vertical'
-                      label-width={170}
+                      labelAlign='top'
+                      labelWidth={170}
                       {...{
                         ...{
-                          model: basicFormData.value,
+                          data: basicFormData.value,
                           rules: basicRules.value,
                         },
                       }}
@@ -1063,185 +1083,135 @@ export default defineComponent({
                       <div class='add-collection-title'>{t('基础信息')}</div>
 
                       {/* 集群名称 */}
-                      <bk-form-item
-                        label={t('集群名称')}
-                        property='display_name'
-                        required
-                      >
-                        <bk-input
+                      <TFormItem label={t('集群名称')} name='display_name' requiredMark>
+                        <TInput
                           data-test-id='esAccessFromBox_input_fillName'
                           maxlength={50}
                           readonly={isDoris.value}
                           value={basicFormData.value.display_name}
-                          onChange={(val: string) => (basicFormData.value.display_name = val)}
+                          onChange={(val) => (basicFormData.value.display_name = String(val))}
                         />
-                      </bk-form-item>
+                      </TFormItem>
 
                       {/* 集群英文名称 */}
-                      <bk-form-item
-                        label={t('集群英文名称')}
-                        property='cluster_name'
-                        required
-                      >
-                        <bk-input
+                      <TFormItem label={t('集群英文名称')} name='cluster_name' requiredMark>
+                        <TInput
                           maxlength={50}
                           readonly={isEdit.value}
                           placeholder={t('支持字母、数字、下划线、连字符')}
                           value={basicFormData.value.cluster_name}
-                          onChange={(val: string) => (basicFormData.value.cluster_name = val)}
+                          onChange={(val) => (basicFormData.value.cluster_name = String(val))}
                         />
-                      </bk-form-item>
+                      </TFormItem>
 
                       {/* 来源 + ES地址 */}
-                      <div
-                        v-show={!isDoris.value}
-                        class='form-item-container'
-                      >
-                        <bk-form-item
-                          label={t('来源')}
-                          property='source_type'
-                          required
-                        >
+                      <div v-show={!isDoris.value} class='form-item-container'>
+                        <TFormItem label={t('来源')} name='source_type' requiredMark>
                           <div class='source-item'>
-                            <bk-select
+                            <TSelect
+                              popupProps={{ zIndex: selectZIndex.value + 1 }}
+                              clearable
                               style='width: 154px; margin-right: 10px'
                               value={basicFormData.value.source_type}
-                              onChange={(val: string) => {
-                                basicFormData.value.source_type = val;
-                                handleChangeSource(val);
+                              onChange={(val) => {
+                                basicFormData.value.source_type = String(val);
+                                handleChangeSource(String(val));
                               }}
                             >
                               {(globalsData.value.es_source_type || []).map((option: any) => (
-                                <bk-option
-                                  id={option.id}
-                                  key={option.id}
-                                  name={option.name}
-                                />
+                                <TOption value={option.id} key={option.id} label={option.name} />
                               ))}
-                            </bk-select>
+                            </TSelect>
                           </div>
-                        </bk-form-item>
+                        </TFormItem>
 
-                        <bk-form-item
-                          class='es-address'
-                          label={t('ES地址')}
-                          property='domain_name'
-                          required
-                        >
-                          <bk-input
+                        <TFormItem class='es-address' label={t('ES地址')} name='domain_name' requiredMark>
+                          <TInput
                             class='address-input'
                             data-test-id='esAccessFromBox_input_fillDomainName'
                             readonly={isEdit.value}
                             value={basicFormData.value.domain_name}
-                            onChange={(val: string) => (basicFormData.value.domain_name = val)}
+                            onChange={(val) => (basicFormData.value.domain_name = String(val))}
                           />
-                        </bk-form-item>
+                        </TFormItem>
                       </div>
 
                       {isDoris.value && (
                         <div class='form-item-container'>
-                          <bk-form-item
-                            label={t('地址')}
-                            property='domain_name'
-                            required
-                          >
-                            <bk-input
+                          <TFormItem label={t('地址')} name='domain_name' requiredMark>
+                            <TInput
                               data-test-id='esAccessFromBox_input_fillDomainName'
                               readonly
                               value={basicFormData.value.domain_name}
                             />
-                          </bk-form-item>
+                          </TFormItem>
 
-                          <bk-form-item
-                            label={t('端口')}
-                            property='port'
-                            required
-                          >
-                            <bk-input
+                          <TFormItem label={t('端口')} name='port' requiredMark>
+                            <TInputNumber
                               data-test-id='esAccessFromBox_input_fillPort'
                               max={65_535}
                               min={0}
                               readonly
-                              show-controls={false}
-                              type='number'
+                              theme='normal'
                               value={basicFormData.value.port}
                             />
-                          </bk-form-item>
+                          </TFormItem>
                         </div>
                       )}
 
                       {/* 端口 + 协议 */}
-                      <div
-                        v-show={!isDoris.value}
-                        class='form-item-container'
-                      >
-                        <bk-form-item
-                          label={t('端口')}
-                          property='port'
-                          required
-                        >
-                          <bk-input
+                      <div v-show={!isDoris.value} class='form-item-container'>
+                        <TFormItem label={t('端口')} name='port' requiredMark>
+                          <TInputNumber
                             data-test-id='esAccessFromBox_input_fillPort'
                             max={65_535}
                             min={0}
                             readonly={isEdit.value}
-                            show-controls={false}
-                            type='number'
+                            theme='normal'
                             value={basicFormData.value.port}
                             onChange={(val: number | string) => (basicFormData.value.port = String(val))}
                           />
-                        </bk-form-item>
+                        </TFormItem>
 
-                        <bk-form-item
-                          label={t('协议')}
-                          required
-                        >
-                          <bk-select
+                        <TFormItem label={t('协议')} requiredMark>
+                          <TSelect
+                            popupProps={{ zIndex: selectZIndex.value + 1 }}
                             clearable={false}
                             data-test-id='esAccessFromBox_select_selectProtocol'
                             value={basicFormData.value.schema}
-                            onChange={(val: string) => (basicFormData.value.schema = val)}
+                            onChange={(val) => (basicFormData.value.schema = String(val))}
                           >
-                            <bk-option
-                              id='http'
-                              name='http'
-                            />
-                            <bk-option
-                              id='https'
-                              name='https'
-                            />
-                          </bk-select>
-                        </bk-form-item>
+                            <TOption value='http' label='http' />
+                            <TOption value='https' label='https' />
+                          </TSelect>
+                        </TFormItem>
                       </div>
 
                       {/* 用户名 + 密码 */}
                       <div class='form-item-container'>
-                        <bk-form-item label={t('用户名')}>
-                          <bk-input
+                        <TFormItem label={t('用户名')}>
+                          <TInput
                             data-test-id='esAccessFromBox_input_fillUsername'
                             readonly={isDoris.value}
                             value={basicFormData.value.auth_info.username}
-                            onChange={(val: string) => (basicFormData.value.auth_info.username = val)}
+                            onChange={(val) => (basicFormData.value.auth_info.username = String(val))}
                           />
-                        </bk-form-item>
-                        <bk-form-item
-                          v-show={!isDoris.value}
-                          label={t('密码')}
-                        >
-                          <bk-input
+                        </TFormItem>
+                        <TFormItem v-show={!isDoris.value} label={t('密码')}>
+                          <TInput
                             data-test-id='esAccessFromBox_input_fillPassword'
                             type='password'
                             value={basicFormData.value.auth_info.password}
-                            onChange={(val: string) => (basicFormData.value.auth_info.password = val)}
+                            onChange={(val) => (basicFormData.value.auth_info.password = String(val))}
                           />
-                        </bk-form-item>
+                        </TFormItem>
                       </div>
 
                       {/* 连通性测试 */}
                       {!isDoris.value && (
-                        <bk-form-item label=''>
+                        <TFormItem label=''>
                           <div class='test-container'>
-                            <bk-button
+                            <TButton
                               data-test-id='esAccessFromBox_button_connectivityTest'
                               loading={connectLoading.value}
                               theme='primary'
@@ -1249,7 +1219,7 @@ export default defineComponent({
                               onClick={handleTestConnect}
                             >
                               {t('连通性测试')}
-                            </bk-button>
+                            </TButton>
                             {connectResult.value === 'success' && (
                               <div class='success-text'>
                                 <i class='bk-icon icon-check-circle-shape' />
@@ -1263,14 +1233,14 @@ export default defineComponent({
                               </div>
                             )}
                           </div>
-                        </bk-form-item>
+                        </TFormItem>
                       )}
 
                       {/* 连通失败信息 */}
                       {!isDoris.value && connectResult.value === 'failed' && !!connectFailedMessage.value && (
-                        <bk-form-item label=''>
+                        <TFormItem label=''>
                           <div class='connect-message'>{connectFailedMessage.value}</div>
-                        </bk-form-item>
+                        </TFormItem>
                       )}
 
                       {/* Doris 集群管理不依赖连通性状态；ES 仍需连通成功后展示 */}
@@ -1292,10 +1262,7 @@ export default defineComponent({
                           {renderRetentionDays()}
 
                           {/* 副本数 */}
-                          <bk-form-item
-                            label={t('副本数')}
-                            required
-                          >
+                          <TFormItem label={t('副本数')} requiredMark>
                             <div class='flex-space'>
                               <div class='flex-space-item'>
                                 <div class='space-item-label'>{t('默认')}</div>
@@ -1321,13 +1288,10 @@ export default defineComponent({
                                 />
                               </div>
                             </div>
-                          </bk-form-item>
+                          </TFormItem>
 
                           {/* 分片数 */}
-                          <bk-form-item
-                            label={t('分片数')}
-                            required
-                          >
+                          <TFormItem label={t('分片数')} requiredMark>
                             <div class='flex-space'>
                               <div class='flex-space-item'>
                                 <div class='space-item-label'>{t('默认')}</div>
@@ -1353,47 +1317,35 @@ export default defineComponent({
                                 />
                               </div>
                             </div>
-                          </bk-form-item>
+                          </TFormItem>
 
                           {/* 冷热数据 */}
-                          <bk-form-item
-                            v-show={connectResult.value === 'success'}
-                            label={t('冷热数据')}
-                          >
+                          <TFormItem v-show={connectResult.value === 'success'} label={t('冷热数据')}>
                             <div class='form-flex-container'>
-                              <bk-switcher
+                              <TSwitch
                                 disabled={isDisableHotSetting.value}
                                 size='large'
-                                theme='primary'
                                 value={formData.value.enable_hot_warm}
-                                onChange={(val: boolean) => {
-                                  formData.value.enable_hot_warm = val;
-                                  handleChangeHotWarm(val);
+                                onChange={(value) => {
+                                  if (typeof value === 'boolean')
+                                    ((val: boolean) => {
+                                      formData.value.enable_hot_warm = val;
+                                      handleChangeHotWarm(val);
+                                    })(value);
                                 }}
                               />
                               {isDisableHotSetting.value &&
                                 !connectLoading.value && [
-                                  <span
-                                    key='icon-info'
-                                    class='bk-icon icon-info'
-                                  />,
-                                  <span
-                                    key='left-text'
-                                    style='font-size: 12px'
-                                  >
+                                  <span key='icon-info' class='bk-icon icon-info' />,
+                                  <span key='left-text' style='font-size: 12px'>
                                     {t('没有获取到正确的标签，')}
                                   </span>,
-                                  <a
-                                    key='button-text'
-                                    class='button-text'
-                                    href={configDocUrl.value}
-                                    target='_blank'
-                                  >
+                                  <a key='button-text' class='button-text' href={configDocUrl.value} target='_blank'>
                                     {t('查看具体的配置方法')}
                                   </a>,
                                 ]}
                             </div>
-                          </bk-form-item>
+                          </TFormItem>
 
                           {/* 冷热数据标签 */}
                           {formData.value.enable_hot_warm && (
@@ -1403,20 +1355,14 @@ export default defineComponent({
                                 <div class='form-item-label'>
                                   <p>{t('热数据标签')}</p>
                                   {formData.value.hot_attr_name && formData.value.hot_attr_value && (
-                                    <div
-                                      class='button-text'
-                                      onClick={() => handleViewInstanceList('hot')}
-                                    >
+                                    <div class='button-text' onClick={() => handleViewInstanceList('hot')}>
                                       <span class='bk-icon icon-eye' />
                                       {t('查看实例列表')}
                                     </div>
                                   )}
                                 </div>
-                                <bk-select
-                                  value={selectedHotId.value}
-                                  onChange={(v: string) => handleHotSelected(v)}
-                                >
-                                  {hotColdAttrSet.value.map(option => (
+                                <bk-select value={selectedHotId.value} onChange={(v: string) => handleHotSelected(v)}>
+                                  {hotColdAttrSet.value.map((option) => (
                                     <bk-option
                                       id={option.computedId}
                                       key={option.computedId}
@@ -1432,20 +1378,14 @@ export default defineComponent({
                                 <div class='form-item-label'>
                                   <p>{t('冷数据标签')}</p>
                                   {formData.value.warm_attr_name && formData.value.warm_attr_value && (
-                                    <div
-                                      class='button-text'
-                                      onClick={() => handleViewInstanceList('cold')}
-                                    >
+                                    <div class='button-text' onClick={() => handleViewInstanceList('cold')}>
                                       <span class='bk-icon icon-eye' />
                                       {t('查看实例列表')}
                                     </div>
                                   )}
                                 </div>
-                                <bk-select
-                                  value={selectedColdId.value}
-                                  onChange={(v: string) => handleColdSelected(v)}
-                                >
-                                  {hotColdAttrSet.value.map(option => (
+                                <bk-select value={selectedColdId.value} onChange={(v: string) => handleColdSelected(v)}>
+                                  {hotColdAttrSet.value.map((option) => (
                                     <bk-option
                                       id={option.computedId}
                                       key={option.computedId}
@@ -1460,13 +1400,15 @@ export default defineComponent({
 
                           {/* 日志归档 / 容量评估 */}
                           <div class='form-item-container'>
-                            <bk-form-item label={t('日志归档')}>
+                            <TFormItem label={t('日志归档')}>
                               <div class='document-container'>
-                                <bk-switcher
+                                <TSwitch
                                   size='large'
-                                  theme='primary'
                                   value={formData.value.enable_archive}
-                                  onChange={(v: boolean) => (formData.value.enable_archive = v)}
+                                  onChange={(value) => {
+                                    if (typeof value === 'boolean')
+                                      ((v: boolean) => (formData.value.enable_archive = v))(value);
+                                  }}
                                 />
                                 {!!archiveDocUrl.value && (
                                   <div
@@ -1478,25 +1420,23 @@ export default defineComponent({
                                   </div>
                                 )}
                               </div>
-                            </bk-form-item>
+                            </TFormItem>
                             {isItsm.value && (
-                              <bk-form-item label={t('容量评估')}>
-                                <bk-switcher
+                              <TFormItem label={t('容量评估')}>
+                                <TSwitch
                                   size='large'
-                                  theme='primary'
                                   value={formData.value.enable_assessment}
-                                  onChange={(v: boolean) => (formData.value.enable_assessment = v)}
+                                  onChange={(value) => {
+                                    if (typeof value === 'boolean')
+                                      ((v: boolean) => (formData.value.enable_assessment = v))(value);
+                                  }}
                                 />
-                              </bk-form-item>
+                              </TFormItem>
                             )}
                           </div>
 
                           {/* 集群负责人 */}
-                          <bk-form-item
-                            desc={t('集群负责人可以用于容量审核等')}
-                            label={t('集群负责人')}
-                            required
-                          >
+                          <TFormItem help={t('集群负责人可以用于容量审核等')} label={t('集群负责人')} requiredMark>
                             <div class='principal'>
                               <ValidateUserSelector
                                 placeholder={t('请选择集群负责人')}
@@ -1504,13 +1444,10 @@ export default defineComponent({
                                 onChange={(val: string[]) => (formData.value.admin = val)}
                               />
                             </div>
-                          </bk-form-item>
+                          </TFormItem>
 
                           {/* 集群说明 */}
-                          <bk-form-item
-                            class='illustrate'
-                            label={t('说明')}
-                          >
+                          <TFormItem class='illustrate' label={t('说明')}>
                             <bk-input
                               maxlength={100}
                               rows={3}
@@ -1518,15 +1455,15 @@ export default defineComponent({
                               value={formData.value.description}
                               onChange={(val: string) => (formData.value.description = val)}
                             />
-                          </bk-form-item>
+                          </TFormItem>
                         </div>
                       )}
-                    </bk-form>
+                    </TForm>
                   )}
 
                   {/* 底部提交按钮 */}
                   <div class='submit-container'>
-                    <bk-button
+                    <TButton
                       class='king-button mr10'
                       data-test-id='esAccessFromBox_button_confirm'
                       disabled={isDisableClickSubmit.value}
@@ -1535,27 +1472,32 @@ export default defineComponent({
                       onClick={handleConfirm}
                     >
                       {t('提交')}
-                    </bk-button>
-                    <bk-button
+                    </TButton>
+                    <TButton
+                      theme='default'
+                      variant='outline'
                       data-test-id='esAccessFromBox_button_cancel'
                       onClick={handleCancel}
                     >
                       {t('取消')}
-                    </bk-button>
+                    </TButton>
                   </div>
-                </div>
+                </BklogLoading>
               </>
             ),
           }}
-          width={640}
-          before-close={handleCloseSidebar}
-          is-show={props.showSlider}
-          quick-close={true}
-          title={isEdit.value ? t('编辑集群') : t('新建集群')}
-          transfer
-          onAnimation-end={() => emit('handleCancelSlider')}
-          onShown={handleShowSlider}
-        ></bk-sideslider>
+          drawerClassName='bklog-cluster-drawer'
+          size='640px'
+          visible={props.showSlider}
+          header={isEdit.value ? t('编辑集群') : t('新建集群')}
+          footer={false}
+          attach='body'
+          closeOnEscKeydown
+          closeOnOverlayClick
+          zIndex={selectZIndex.value}
+          onClose={handleCancel}
+          onBeforeOpen={handleShowSlider}
+        ></TDrawer>
 
         {/* 查看实例列表弹窗 */}
         <EsDialog

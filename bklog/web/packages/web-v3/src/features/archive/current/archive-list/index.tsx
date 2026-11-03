@@ -1,3 +1,5 @@
+
+import { MessagePlugin as TDesignMessage, Button as TButton } from 'tdesign-vue-next';
 import { ServicesInstance } from '@/platform/services';
 /*
  * Tencent is pleased to support the open source community by making
@@ -32,7 +34,7 @@ import { formatFileSize, clearTableFilter } from '@/shared/lib/util';
 import EmptyStatus from '@/shared/ui/empty-status/index.vue';
 import useLocale from '@/shared/composables/use-locale';
 import useStore from '@/shared/composables/use-store';
-import { bkMessage as Message } from 'bk-magic-vue';
+
 import { bkInfoBox as InfoBox } from '@/platform/compat/tdesign/info-box';
 
 import RestoreSlider from '../archive-restore/restore-slider.tsx';
@@ -211,10 +213,7 @@ export default defineComponent({
           if (res.result) {
             const page =
               dataList.value.length <= 1 ? (pagination.current > 1 ? pagination.current - 1 : 1) : pagination.current;
-            Message({
-              theme: 'success',
-              message: t('删除成功'),
-            });
+            TDesignMessage("success", { content: t('删除成功') });
             if (page !== pagination.current) {
               handlePageChange(page);
             } else {
@@ -269,14 +268,14 @@ export default defineComponent({
       >
         {/* 顶部操作栏 */}
         <section class='top-operation'>
-          <bk-button
+          <TButton
             class='fl'
             data-test-id='archiveList_button_newArchive'
             theme='primary'
             onClick={handleCreate}
           >
             {t('新建')}
-          </bk-button>
+          </TButton>
           <div class='fr list-search'>
             <bk-input
               data-test-id='archiveList_input_searchListItem'
@@ -371,35 +370,35 @@ export default defineComponent({
                 default: (props: any) => (
                   <div class='collect-table-operate'>
                     {/* 回溯 */}
-                    <bk-button
+                    <TButton
                       class='mr10 king-button'
                       disabled={!props.row.permission?.[authorityMapComputed.value.MANAGE_COLLECTION_AUTH]}
                       theme='primary'
-                      text
-                      onClick={() => operateHandler(props.row, 'restore')}
+                      
+                      onClick={() => operateHandler(props.row, 'restore')} variant={(true) ? 'text' : ('base')}
                     >
                       {t('回溯')}
-                    </bk-button>
+                    </TButton>
                     {/* 编辑 */}
-                    <bk-button
+                    <TButton
                       class='mr10 king-button'
                       disabled={!props.row.permission?.[authorityMapComputed.value.MANAGE_COLLECTION_AUTH]}
                       theme='primary'
-                      text
-                      onClick={() => operateHandler(props.row, 'edit')}
+                      
+                      onClick={() => operateHandler(props.row, 'edit')} variant={(true) ? 'text' : ('base')}
                     >
                       {t('编辑')}
-                    </bk-button>
+                    </TButton>
                     {/* 删除 */}
-                    <bk-button
+                    <TButton
                       class='mr10 king-button'
                       disabled={!props.row.permission?.[authorityMapComputed.value.MANAGE_COLLECTION_AUTH]}
                       theme='primary'
-                      text
-                      onClick={() => operateHandler(props.row, 'delete')}
+                      
+                      onClick={() => operateHandler(props.row, 'delete')} variant={(true) ? 'text' : ('base')}
                     >
                       {t('删除')}
-                    </bk-button>
+                    </TButton>
                   </div>
                 ),
               }}

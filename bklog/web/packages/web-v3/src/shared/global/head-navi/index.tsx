@@ -270,7 +270,7 @@ export default defineComponent({
       jsCookie.set('blueking_language', value, {
         expires: 3600,
         domain:
-          envConfig.value.bkDomain || location.host.split('./index').slice(-2).join('./index').replace(`:${location.port}`, ''),
+          envConfig.value.bkDomain || location.host.split('.').slice(-2).join('.').replace(`:${location.port}`, ''),
       });
 
       if (state.bk_tenant_id) {

@@ -1,3 +1,5 @@
+
+import { Button as TButton } from 'tdesign-vue-next';
 /*
  * Tencent is pleased to support the open source community by making
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
@@ -194,14 +196,14 @@ export default defineComponent({
       return (
         <div class='bk-button-group'>
           {options.map(item => (
-            <bk-button
-              key={item.value}
+            <TButton
+              key={String(item.value)}
               class={`setting-checkbox ${item.value === activeValue ? 'is-selected' : ''}`}
               size='small'
               onClick={() => clickCallback(item.value)}
             >
               {item.name}
-            </bk-button>
+            </TButton>
           ))}
         </div>
       );
@@ -249,19 +251,19 @@ export default defineComponent({
             </div>
           </div>
           <div class='setting-operation'>
-            <bk-button
+            <TButton
               size='small'
               theme='primary'
-              onclick={handleConfirm}
+              onClick={handleConfirm}
             >
               {$t('确认')}
-            </bk-button>
-            <bk-button
+            </TButton>
+            <TButton
               size='small'
-              onclick={handlePopoverHide}
+              onClick={handlePopoverHide}
             >
               {$t('取消')}
-            </bk-button>
+            </TButton>
           </div>
         </div>
       );

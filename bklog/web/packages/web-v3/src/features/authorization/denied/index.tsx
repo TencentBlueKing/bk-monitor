@@ -1,3 +1,5 @@
+
+import { Button as TButton } from 'tdesign-vue-next';
 /*
  * Tencent is pleased to support the open source community by making
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
@@ -265,14 +267,14 @@ export default defineComponent({
                   </a>
                 )}
                 <div class='un-authorized-help-buttons'>
-                  <bk-button onClick={handleCloseGuide}>{t('关闭')}</bk-button>
-                  <bk-button
+                  <TButton onClick={handleCloseGuide}>{t('关闭')}</TButton>
+                  <TButton
                     theme='primary'
                     onClick={isPermission ? handleApplyPermission : handleCreateCollection}
                   >
                     {isPermission ? t('申请权限') : t('创建采集项')}
                     {isPermission && <i class='bklog-icon bklog-jump' />}
-                  </bk-button>
+                  </TButton>
                 </div>
               </div>
             ),
@@ -430,21 +432,21 @@ export default defineComponent({
             </div>
             <div class='un-authorized-actions'>
               {isIndexset ? (
-                <bk-button
+                <TButton
                   theme='primary'
                   onClick={handleCreateCollection}
                 >
                   <i class='bk-icon icon-plus un-authorized-create-icon' />
                   {t('创建采集项')}
-                </bk-button>
+                </TButton>
               ) : (
-                <bk-button
+                <TButton
                   theme='primary'
                   onClick={handleApplyPermission}
                 >
                   {t('申请权限')}
                   <i class='bklog-icon bklog-jump' />
-                </bk-button>
+                </TButton>
               )}
               {isIndexset ? (
                 <a
@@ -457,10 +459,10 @@ export default defineComponent({
                   <i class='bklog-icon bklog-jump' />
                 </a>
               ) : (
-                <bk-button onClick={handleRetry}>
+                <TButton onClick={handleRetry}>
                   <i class='bklog-icon bklog-refresh-icon' />
                   {t('重新检测权限')}
-                </bk-button>
+                </TButton>
               )}
             </div>
             <p class='un-authorized-hint'>

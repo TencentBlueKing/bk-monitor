@@ -9,7 +9,7 @@
     getOsCommandLabel,
     getRegExp,
   } from '@/shared/lib/util';
-  import { bkIcon } from 'bk-magic-vue';
+  import { bkIcon } from '@/platform/compat/tdesign/magic-controls';
   import useLocale from '@/shared/composables/use-locale';
   import useStore from '@/shared/composables/use-store';
   import imgEnterKey from '@/shared/assets/images/icons/enter-key.svg';
@@ -1539,14 +1539,14 @@
                   @value-change="handleBatchInputChange"
                   @show-change="handleBatchShowChange"
                 />
-                <bk-button
-                  text
+                <t-button :variant="(true) ? 'text' : ('base')"
+                  
                   :disabled="condition.value.length === 0"
                   class="ui-value-clear-btn"
                   @click="handleClearBtnClick"
                 >
                   {{ t('清空') }}
-                </bk-button>
+                </t-button>
               </span>
               <span />
             </div>
@@ -1681,15 +1681,15 @@
               {{ t('组间关系') }}
             </div>
             <div>
-              <bk-radio-group v-model="condition.relation">
-                <bk-radio
+              <t-radio-group v-model="condition.relation">
+                <t-radio
                   style="margin-right: 12px"
                   value="AND"
                 >
                   AND
-                </bk-radio>
-                <bk-radio value="OR"> OR </bk-radio>
-              </bk-radio-group>
+                </t-radio>
+                <t-radio value="OR"> OR </t-radio>
+              </t-radio-group>
             </div>
           </div>
         </template>
@@ -1716,22 +1716,22 @@
         </div>
       </div>
       <div class="ui-btn-opts">
-        <bk-button
+        <t-button
           style="padding: 0 4px; margin-right: 8px"
           class="save-btn"
           :disabled="!isSaveBtnActive"
           theme="primary"
-          @mousedown.native.prevent
+          @mousedown.prevent
           @click.stop="handelSaveBtnClick"
         >
           {{ t('确定') }} {{ getOsCommandLabel() }} + Enter
-        </bk-button>
-        <bk-button
+        </t-button>
+        <t-button
           class="cancel-btn"
           @click="handleCancelBtnClick"
         >
           {{ t('取消') }}
-        </bk-button>
+        </t-button>
       </div>
     </div>
   </div>

@@ -1,3 +1,5 @@
+
+import { Switch as TSwitch } from 'tdesign-vue-next';
 /*
  * Tencent is pleased to support the open source community by making
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
@@ -46,10 +48,10 @@ export default defineComponent({
 
     return () => (
       <div class='grok-mode-switch'>
-        <bk-switcher
-          theme='primary'
+        <TSwitch
+          
           value={props.value}
-          onChange={handleChange}
+          onChange={(value) => { if (typeof value === 'boolean') (handleChange)(value); }}
         />
         <span
           class='grok-mode-label'

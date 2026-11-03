@@ -64,11 +64,11 @@
     display: flex;
     justify-content: flex-end;
 
-    .bk-button {
+    .t-button {
       min-width: 72px;
     }
 
-    .bk-button + .bk-button {
+    .t-button + .t-button {
       margin-left: 8px;
     }
   }

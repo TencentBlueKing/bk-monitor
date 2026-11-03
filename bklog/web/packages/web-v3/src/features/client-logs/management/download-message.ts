@@ -1,3 +1,5 @@
+
+import { MessagePlugin as TDesignMessage } from 'tdesign-vue-next';
 /*
  * Tencent is pleased to support the open source community by making
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
@@ -24,7 +26,7 @@
  * IN THE SOFTWARE.
  */
 
-import { bkMessage as Message } from 'bk-magic-vue';
+import { bkMessage as Message } from '@/platform/compat/tdesign/magic-controls';
 import { t } from '@/shared/composables/use-locale';
 
 import './download-message.scss';
@@ -33,7 +35,7 @@ import type { DownloadFileFailure } from './types';
 
 /** 单文件下载失败立即提示 */
 export const showDownloadFailure = (message: string) => {
-  Message({ theme: 'error', message });
+  TDesignMessage("error", { content: message });
 };
 
 /** 批量下载结束后统一展示失败文件；全部成功时不提示 */

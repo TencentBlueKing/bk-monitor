@@ -1,3 +1,5 @@
+
+import { Button as TButton } from 'tdesign-vue-next';
 import { ServicesInstance } from '@/platform/services';
 /*
  * Tencent is pleased to support the open source community by making
@@ -444,7 +446,7 @@ export default defineComponent({
         v-slots={{
           footer: () => (
             <div>
-              <bk-button
+              <TButton
                 class='mr-8'
                 disabled={!(formData.value.resultTableId && formData.value.time_field)}
                 loading={confirmLoading.value}
@@ -452,8 +454,8 @@ export default defineComponent({
                 onClick={handleConfirm}
               >
                 {t('添加')}
-              </bk-button>
-              <bk-button onClick={handleCancel}>{t('取消')}</bk-button>
+              </TButton>
+              <TButton onClick={handleCancel}>{t('取消')}</TButton>
             </div>
           ),
         }}
@@ -490,13 +492,13 @@ export default defineComponent({
                 formData.value.resultTableId = val;
               }}
             />
-            <bk-button
+            <TButton
               disabled={!formData.value.resultTableId?.trim()}
               loading={searchLoading.value}
               onClick={handleSearch}
             >
               {t('搜索')}
-            </bk-button>
+            </TButton>
             <InfoTips tips={t('支持" * "匹配，不支持其他特殊符号')} />
           </bk-form-item>
 

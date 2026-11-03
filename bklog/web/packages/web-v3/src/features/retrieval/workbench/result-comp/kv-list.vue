@@ -132,6 +132,8 @@
 </template>
 
 <script>
+import { MessagePlugin as TDesignMessage } from 'tdesign-vue-next';
+
   // import { getTextPxWidth, TABLE_FOUNT_FAMILY } from '@/shared/lib/util';
   import { copyMessage, getRowFieldValue } from '@/shared/lib/util';
   import JsonFormatter from '@/shared/global/json-formatter.vue';
@@ -981,10 +983,7 @@
               return;
             }
           } else {
-            this.$bkMessage({
-              theme: 'warning',
-              message: this.$t('未找到相关的应用，请确认是否有Trace数据的接入。'),
-            });
+            TDesignMessage("warning", { content: this.$t('未找到相关的应用，请确认是否有Trace数据的接入。') });
           }
         } else {
           switch (key) {
