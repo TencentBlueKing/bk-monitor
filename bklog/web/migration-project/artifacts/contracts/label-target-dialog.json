@@ -1,0 +1,48 @@
+{
+  "id": "label-target-dialog",
+  "source": "src/components/collection-access/components/step-add/label-target-dialog.vue",
+  "controls": [
+    {
+      "tag": "bk-button",
+      "line": 163,
+      "attrs": {
+        ":disabled": "!isHaveSelectItem",
+        "theme": "primary",
+        "type": "submit"
+      },
+      "events": {
+        "click": "handelConfirmLabel"
+      },
+      "unmapped": []
+    },
+    {
+      "tag": "bk-button",
+      "line": 172,
+      "attrs": {},
+      "events": {
+        "click": "handelCancelDialog"
+      },
+      "unmapped": []
+    },
+    {
+      "tag": "bk-input",
+      "line": 46,
+      "attrs": {
+        "v-model": "filterStr",
+        "right-icon": "bk-icon icon-search",
+        "clearable": true
+      },
+      "events": {
+        "change": "search"
+      },
+      "unmapped": [
+        "right-icon"
+      ]
+    }
+  ],
+  "invariants": [
+    "isHaveSelectItem 为 false 时确定按钮 disabled",
+    "搜索框 @change 调用 search，search 再调用 labelTreeRef.filter(filterStr)",
+    "right-icon 保持未映射，不写成 suffixIcon"
+  ]
+}

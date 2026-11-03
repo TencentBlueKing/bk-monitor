@@ -1,0 +1,640 @@
+{
+  "rules": [
+    {
+      "id": "v-deep",
+      "count": 11,
+      "disposition": "改为 :deep()",
+      "files": [
+        {
+          "file": "src/storage/workers/cluster-table-pipeline.ts",
+          "lines": [
+            114,
+            115
+          ]
+        },
+        {
+          "file": "src/views/manage-v2/log-collection/components/list-main/table-list/table-list-v1.tsx",
+          "lines": [
+            293
+          ]
+        },
+        {
+          "file": "src/views/manage-v2/log-collection/components/list-main/table-list/table-list-v2.tsx",
+          "lines": [
+            407
+          ]
+        },
+        {
+          "file": "src/views/manage-v2/log-collection/utils.ts",
+          "lines": [
+            557
+          ]
+        },
+        {
+          "file": "src/views/retrieve-v2/search-result-panel/log-result/full-row-viewer-content.vue",
+          "lines": [
+            1157,
+            1164,
+            1170,
+            1182,
+            1183
+          ]
+        },
+        {
+          "file": "src/views/retrieve-v3/search-bar/scene-filter/index.tsx",
+          "lines": [
+            80
+          ]
+        }
+      ]
+    },
+    {
+      "id": "deep-fn",
+      "count": 120,
+      "disposition": "已是 Vue 3 推荐写法，迁移时保留",
+      "files": [
+        {
+          "file": "src/components/collection-access/components/cluster-table.vue",
+          "lines": [
+            426,
+            438
+          ]
+        },
+        {
+          "file": "src/components/collection-access/components/step-add/config-log-set-item.vue",
+          "lines": [
+            801
+          ]
+        },
+        {
+          "file": "src/components/collection-access/components/step-add/configs-select.vue",
+          "lines": [
+            718
+          ]
+        },
+        {
+          "file": "src/components/collection-access/components/step-add/container-target-item.vue",
+          "lines": [
+            230
+          ]
+        },
+        {
+          "file": "src/components/collection-access/components/step-add/label-target-dialog.vue",
+          "lines": [
+            568
+          ]
+        },
+        {
+          "file": "src/components/collection-access/components/step-add/match-label-item.vue",
+          "lines": [
+            441,
+            465,
+            500,
+            504,
+            547,
+            551
+          ]
+        },
+        {
+          "file": "src/components/collection-access/components/step-add/match-label.vue",
+          "lines": [
+            473
+          ]
+        },
+        {
+          "file": "src/components/collection-access/components/step-add/multiline-reg-dialog.vue",
+          "lines": [
+            210,
+            214,
+            219
+          ]
+        },
+        {
+          "file": "src/components/collection-access/components/step-add/yaml-editor.vue",
+          "lines": [
+            255
+          ]
+        },
+        {
+          "file": "src/components/collection-access/field-table.vue",
+          "lines": [
+            1252,
+            1441,
+            1456,
+            1460
+          ]
+        },
+        {
+          "file": "src/components/collection-access/issued-slider.vue",
+          "lines": [
+            928,
+            1127,
+            1177
+          ]
+        },
+        {
+          "file": "src/components/common/auth-dialog.vue",
+          "lines": [
+            184
+          ]
+        },
+        {
+          "file": "src/components/ip-select/right-panel.vue",
+          "lines": [
+            204
+          ]
+        },
+        {
+          "file": "src/global/json-format-wrapper.vue",
+          "lines": [
+            308
+          ]
+        },
+        {
+          "file": "src/global/setting-table.vue",
+          "lines": [
+            1111,
+            1179,
+            1184,
+            1190,
+            1209
+          ]
+        },
+        {
+          "file": "src/skeleton/clustering-loader.vue",
+          "lines": [
+            111
+          ]
+        },
+        {
+          "file": "src/skeleton/retrieve-loader.vue",
+          "lines": [
+            170
+          ]
+        },
+        {
+          "file": "src/views/extract/create/ip-select.vue",
+          "lines": [
+            295
+          ]
+        },
+        {
+          "file": "src/views/extract/home/index.vue",
+          "lines": [
+            551,
+            561,
+            628
+          ]
+        },
+        {
+          "file": "src/views/extract/index.vue",
+          "lines": [
+            129
+          ]
+        },
+        {
+          "file": "src/views/manage/es-cluster-status/es-cluster-mess/es-slider.vue",
+          "lines": [
+            1505,
+            1539,
+            1582
+          ]
+        },
+        {
+          "file": "src/views/manage/es-cluster-status/es-cluster-mess/index.vue",
+          "lines": [
+            807
+          ]
+        },
+        {
+          "file": "src/views/manage/index.vue",
+          "lines": [
+            371
+          ]
+        },
+        {
+          "file": "src/views/manage/manage-access/components/index-set/create/index.vue",
+          "lines": [
+            899,
+            961
+          ]
+        },
+        {
+          "file": "src/views/manage/manage-access/components/index-set/create/select-collection.vue",
+          "lines": [
+            418,
+            443
+          ]
+        },
+        {
+          "file": "src/views/manage/manage-access/components/index-set/create/select-es.vue",
+          "lines": [
+            421
+          ]
+        },
+        {
+          "file": "src/views/manage/manage-access/components/index-set/manage/basic-info.vue",
+          "lines": [
+            523
+          ]
+        },
+        {
+          "file": "src/views/manage/manage-access/components/usage-details/select-date.vue",
+          "lines": [
+            99
+          ]
+        },
+        {
+          "file": "src/views/manage/manage-access/log-collection/collection-item/manage-collection/collection-status.vue",
+          "lines": [
+            664,
+            807
+          ]
+        },
+        {
+          "file": "src/views/manage/manage-access/log-collection/collection-item/manage-collection/data-status/data-sampling.vue",
+          "lines": [
+            283,
+            324
+          ]
+        },
+        {
+          "file": "src/views/manage/manage-access/log-collection/collection-item/manage-collection/data-status/select-date.vue",
+          "lines": [
+            283,
+            292
+          ]
+        },
+        {
+          "file": "src/views/manage/manage-data-link/manage-data-link-conf/config-dialog.vue",
+          "lines": [
+            316
+          ]
+        },
+        {
+          "file": "src/views/manage/manage-extract/manage-extract-permission/directory-manage.vue",
+          "lines": [
+            465,
+            498
+          ]
+        },
+        {
+          "file": "src/views/manage/manage-extract/manage-extract-permission/index.vue",
+          "lines": [
+            382
+          ]
+        },
+        {
+          "file": "src/views/manage/manage-extract/manage-extract-permission/validate-user-selector.vue",
+          "lines": [
+            114
+          ]
+        },
+        {
+          "file": "src/views/retrieve-v2/collect/favorite-manage-dialog.vue",
+          "lines": [
+            804,
+            819
+          ]
+        },
+        {
+          "file": "src/views/retrieve-v2/components/result-cell-element/expand-view.vue",
+          "lines": [
+            528,
+            542,
+            564,
+            579
+          ]
+        },
+        {
+          "file": "src/views/retrieve-v2/condition-comp/select-date.vue",
+          "lines": [
+            298,
+            308,
+            369,
+            375,
+            401
+          ]
+        },
+        {
+          "file": "src/views/retrieve-v2/result-comp/export-log.vue",
+          "lines": [
+            1125,
+            1214,
+            1218,
+            1222,
+            1227
+          ]
+        },
+        {
+          "file": "src/views/retrieve-v2/result-comp/fields-setting-operate.vue",
+          "lines": [
+            183,
+            216
+          ]
+        },
+        {
+          "file": "src/views/retrieve-v2/result-comp/fields-setting.vue",
+          "lines": [
+            764,
+            796,
+            800,
+            813,
+            825,
+            832
+          ]
+        },
+        {
+          "file": "src/views/retrieve-v2/result-comp/kv-list.vue",
+          "lines": [
+            1135,
+            1208,
+            1214
+          ]
+        },
+        {
+          "file": "src/views/retrieve-v2/result-comp/update/fields-setting-operate.vue",
+          "lines": [
+            234,
+            248,
+            269
+          ]
+        },
+        {
+          "file": "src/views/retrieve-v2/result-comp/update/fields-setting.vue",
+          "lines": [
+            790,
+            796,
+            800,
+            826,
+            838
+          ]
+        },
+        {
+          "file": "src/views/retrieve-v2/search-bar/components/favorite-list.vue",
+          "lines": [
+            133
+          ]
+        },
+        {
+          "file": "src/views/retrieve-v2/search-bar/sql-mode/sql-query-options.vue",
+          "lines": [
+            1042
+          ]
+        },
+        {
+          "file": "src/views/retrieve-v2/search-bar/ui-mode/fuzzy-match-mode.vue",
+          "lines": [
+            733,
+            739
+          ]
+        },
+        {
+          "file": "src/views/retrieve-v2/search-result-panel/log-clustering/components/finger-operate.vue",
+          "lines": [
+            649
+          ]
+        },
+        {
+          "file": "src/views/retrieve-v2/search-result-panel/log-clustering/data-fingerprint.vue",
+          "lines": [
+            1381,
+            1396,
+            1476,
+            1484,
+            1493,
+            1523,
+            1583
+          ]
+        },
+        {
+          "file": "src/views/retrieve-v2/search-result-panel/log-result/index.vue",
+          "lines": [
+            539
+          ]
+        },
+        {
+          "file": "src/views/retrieve-v2/setting-modal/component/template-option.vue",
+          "lines": [
+            219
+          ]
+        },
+        {
+          "file": "src/views/retrieve-v2/setting-modal/full-text-index.vue",
+          "lines": [
+            135
+          ]
+        },
+        {
+          "file": "src/views/retrieve-v2/setting-modal/index.vue",
+          "lines": [
+            399,
+            405
+          ]
+        },
+        {
+          "file": "src/views/retrieve-v2/setting-modal/log-cluster.vue",
+          "lines": [
+            490,
+            495,
+            509
+          ]
+        },
+        {
+          "file": "src/views/retrieve-v2/setting-modal/rule-table.vue",
+          "lines": [
+            604,
+            610,
+            616
+          ]
+        }
+      ]
+    }
+  ],
+  "bkTags": [
+    {
+      "tag": "bk-button",
+      "count": 983
+    },
+    {
+      "tag": "bk-form-item",
+      "count": 655
+    },
+    {
+      "tag": "bk-table-column",
+      "count": 618
+    },
+    {
+      "tag": "bk-input",
+      "count": 483
+    },
+    {
+      "tag": "bk-select",
+      "count": 369
+    },
+    {
+      "tag": "bk-option",
+      "count": 283
+    },
+    {
+      "tag": "bk-form",
+      "count": 158
+    },
+    {
+      "tag": "bk-table",
+      "count": 136
+    },
+    {
+      "tag": "bk-dialog",
+      "count": 136
+    },
+    {
+      "tag": "bk-checkbox",
+      "count": 133
+    },
+    {
+      "tag": "bk-radio",
+      "count": 130
+    },
+    {
+      "tag": "bk-exception",
+      "count": 117
+    },
+    {
+      "tag": "bk-popover",
+      "count": 89
+    },
+    {
+      "tag": "bk-radio-group",
+      "count": 74
+    },
+    {
+      "tag": "bk-switcher",
+      "count": 63
+    },
+    {
+      "tag": "bk-sideslider",
+      "count": 62
+    },
+    {
+      "tag": "bk-alert",
+      "count": 58
+    },
+    {
+      "tag": "bk-user-display-name",
+      "count": 49
+    },
+    {
+      "tag": "bk-tag",
+      "count": 32
+    },
+    {
+      "tag": "bk-date-picker",
+      "count": 29
+    },
+    {
+      "tag": "bk-tag-input",
+      "count": 25
+    },
+    {
+      "tag": "bk-tab-panel",
+      "count": 24
+    },
+    {
+      "tag": "bk-dropdown-menu",
+      "count": 22
+    },
+    {
+      "tag": "bk-checkbox-group",
+      "count": 18
+    },
+    {
+      "tag": "bk-tab",
+      "count": 16
+    },
+    {
+      "tag": "bk-spin",
+      "count": 15
+    },
+    {
+      "tag": "bk-user-selector",
+      "count": 13
+    },
+    {
+      "tag": "bk-big-tree",
+      "count": 12
+    },
+    {
+      "tag": "bk-popconfirm",
+      "count": 12
+    },
+    {
+      "tag": "bk-option-group",
+      "count": 10
+    },
+    {
+      "tag": "bk-table-setting-content",
+      "count": 9
+    },
+    {
+      "tag": "bk-collapse",
+      "count": 8
+    },
+    {
+      "tag": "bk-collapse-item",
+      "count": 8
+    },
+    {
+      "tag": "bk-slider",
+      "count": 8
+    },
+    {
+      "tag": "bk-radio-button",
+      "count": 8
+    },
+    {
+      "tag": "bk-progress",
+      "count": 7
+    },
+    {
+      "tag": "bk-search-select",
+      "count": 5
+    },
+    {
+      "tag": "bk-steps",
+      "count": 3
+    },
+    {
+      "tag": "bk-badge",
+      "count": 3
+    },
+    {
+      "tag": "bk-navigation",
+      "count": 2
+    },
+    {
+      "tag": "bk-navigation-menu",
+      "count": 2
+    },
+    {
+      "tag": "bk-navigation-menu-group",
+      "count": 2
+    },
+    {
+      "tag": "bk-navigation-menu-item",
+      "count": 2
+    },
+    {
+      "tag": "bk-time-picker",
+      "count": 2
+    },
+    {
+      "tag": "bk-resize-layout",
+      "count": 2
+    },
+    {
+      "tag": "bk-pagination",
+      "count": 1
+    }
+  ]
+}

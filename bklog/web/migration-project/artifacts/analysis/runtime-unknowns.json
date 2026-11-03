@@ -1,0 +1,199 @@
+[
+  {
+    "id": "dynamic-component",
+    "count": 12,
+    "note": "动态组件的真实分支要在运行时确认",
+    "files": [
+      {
+        "file": "src/components/collection-access/index.vue",
+        "lines": [
+          63,
+          64
+        ]
+      },
+      {
+        "file": "src/views/manage/manage-access/components/index-set/create/index.vue",
+        "lines": [
+          354,
+          355
+        ]
+      },
+      {
+        "file": "src/views/manage/manage-access/components/index-set/manage/index.vue",
+        "lines": [
+          62,
+          63
+        ]
+      },
+      {
+        "file": "src/views/manage/manage-access/custom-report/detail.vue",
+        "lines": [
+          64,
+          65
+        ]
+      },
+      {
+        "file": "src/views/manage/manage-access/log-collection/collection-item/manage-collection/index.vue",
+        "lines": [
+          62,
+          63
+        ]
+      },
+      {
+        "file": "src/views/retrieve-v2/setting-modal/index.vue",
+        "lines": [
+          124,
+          125
+        ]
+      }
+    ]
+  },
+  {
+    "id": "dynamic-import",
+    "count": 75,
+    "note": "懒加载目标要和路由清单对照，不能只看静态 import",
+    "files": [
+      {
+        "file": "src/app.tsx",
+        "lines": [
+          38,
+          41,
+          42,
+          45,
+          47,
+          48,
+          53,
+          55
+        ]
+      },
+      {
+        "file": "src/router/dashboard.js",
+        "lines": [
+          28,
+          31,
+          34
+        ]
+      },
+      {
+        "file": "src/router/manage.js",
+        "lines": [
+          40,
+          41,
+          43,
+          45,
+          49,
+          52,
+          53,
+          55,
+          57,
+          59,
+          61,
+          63,
+          65,
+          67,
+          68,
+          69,
+          70,
+          72,
+          74,
+          76,
+          78,
+          80,
+          81,
+          83,
+          85,
+          87,
+          89,
+          91,
+          93,
+          95,
+          97,
+          99,
+          101,
+          105,
+          109,
+          111,
+          112
+        ]
+      },
+      {
+        "file": "src/router/monitor.js",
+        "lines": [
+          28,
+          32
+        ]
+      },
+      {
+        "file": "src/router/retrieve.js",
+        "lines": [
+          28,
+          29,
+          30,
+          31,
+          32,
+          33
+        ]
+      },
+      {
+        "file": "src/views/manage/manage-access/log-collection/collection-item/manage-collection/index.vue",
+        "lines": [
+          83,
+          84,
+          85,
+          86,
+          87,
+          89,
+          93
+        ]
+      },
+      {
+        "file": "src/views/retrieve-hub.tsx",
+        "lines": [
+          31,
+          32
+        ]
+      },
+      {
+        "file": "src/views/retrieve-v2/field-filter-comp/field-analysis.tsx",
+        "lines": [
+          208
+        ]
+      },
+      {
+        "file": "src/views/retrieve-v2/search-bar/components/ip-selector.vue",
+        "lines": [
+          28
+        ]
+      },
+      {
+        "file": "src/views/retrieve-v2/search-result-panel/index.vue",
+        "lines": [
+          23,
+          31,
+          39
+        ]
+      },
+      {
+        "file": "src/views/retrieve-v2/search-result-panel/log-result/pixi-renderer.ts",
+        "lines": [
+          11
+        ]
+      },
+      {
+        "file": "src/views/retrieve-v3/search-result/index.tsx",
+        "lines": [
+          43,
+          46,
+          52,
+          54
+        ]
+      }
+    ]
+  },
+  {
+    "id": "require-context",
+    "count": 0,
+    "note": "webpack 上下文依赖不能直接当成 Vite 可用",
+    "files": []
+  }
+]

@@ -1,0 +1,33 @@
+{
+  "note": "P3 只验证比较器能保存报告。登录后页面截图仍受 R-001 阻塞，这两张纯色图不是 UI 基线。",
+  "same": {
+    "left": {
+      "path": "/Users/lixintao/github/bk-monitor/bklog/web/migration-project/artifacts/visual/p3/primary.png",
+      "width": 2,
+      "height": 2
+    },
+    "right": {
+      "path": "/Users/lixintao/github/bk-monitor/bklog/web/migration-project/artifacts/visual/p3/primary-copy.png",
+      "width": 2,
+      "height": 2
+    },
+    "sameSize": true,
+    "differentPixels": 0,
+    "status": "identical"
+  },
+  "diff": {
+    "left": {
+      "path": "/Users/lixintao/github/bk-monitor/bklog/web/migration-project/artifacts/visual/p3/primary.png",
+      "width": 2,
+      "height": 2
+    },
+    "right": {
+      "path": "/Users/lixintao/github/bk-monitor/bklog/web/migration-project/artifacts/visual/p3/blank.png",
+      "width": 2,
+      "height": 2
+    },
+    "sameSize": true,
+    "differentPixels": 4,
+    "status": "different"
+  }
+}
