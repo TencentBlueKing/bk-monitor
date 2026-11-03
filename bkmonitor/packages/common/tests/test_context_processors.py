@@ -123,6 +123,17 @@ def test_get_basic_context_disables_issue_ai_analysis_for_empty_white_list():
     assert context["ENABLE_ISSUE_AI_ANALYSIS"] is False
 
 
+@override_settings(ACTIVE_PROFILING_BIZ_LIST=[2, 3])
+def test_get_basic_context_exposes_active_profiling_biz_list():
+    with (
+        mock.patch("common.context_processors.get_core_context", return_value={}),
+        mock.patch("common.context_processors.is_ipv6_biz", return_value=False),
+    ):
+        context = get_basic_context(make_request(), [{"bk_biz_id": 2}], 2)
+
+    assert context["ACTIVE_PROFILING_BIZ_LIST"] == [2, 3]
+
+
 @override_settings(BK_IAM_SAAS_HOST="https://iamv4.example.com")
 def test_get_core_context_exposes_iam_my_perm_url_by_mode():
     """上下文按当前 IAM 版本下发 /my-perm 的替代地址，前端改版后直接打开该值。"""
