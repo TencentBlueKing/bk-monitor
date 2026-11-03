@@ -1954,6 +1954,9 @@ K8S_V2_BIZ_LIST = []
 # RUM 灰度列表，关闭灰度: [0] 或删除该配置
 RUM_BIZ_LIST = []
 
+# Profiling 主动采集灰度列表，关闭灰度: [0] 或删除该配置
+ACTIVE_PROFILING_BIZ_LIST = []
+
 # LLM 观测灰度业务列表，关闭灰度: [0] 或删除该配置
 LLM_BIZ_LIST = []
 
