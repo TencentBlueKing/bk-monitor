@@ -411,7 +411,7 @@ export default defineComponent({
                       }}
                       offset={0}
                       placement='bottom'
-                      popoverDelay={[300, 200]}
+                      popoverDelay={[300, 0]}
                     >
                       <img
                         class='error-icon'
