@@ -23,17 +23,19 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { defineComponent, shallowRef } from 'vue';
+import { defineComponent, onBeforeUnmount, onMounted, shallowRef, toRef, watch } from 'vue';
 import type { PropType } from 'vue';
 
 import { Exception } from 'bkui-vue';
 import { useI18n } from 'vue-i18n';
 
+import { useTimelineTraceLinks } from '../../composables/use-timeline-trace-links';
 import WaterfallChart from '../detail-sections/waterfall-chart';
 import TimelineFoldRow from './timeline-fold-row';
 import TimelineSpanRow from './timeline-span-row';
 import TimelineViewHeader from './timeline-view-header';
 
+import type { IRumTraceInfo } from '../../services';
 import type { IRumTimelineItemVM, IRumTimelineSpanVM, IRumTimelineViewVM } from '../../typings';
 
 import './trace-context-panel.scss';
@@ -48,6 +50,14 @@ const SKELETON_ROW_COUNT = 6;
 export default defineComponent({
   name: 'TraceContextPanel',
   props: {
+    bizId: {
+      type: [Number, String],
+      required: true,
+    },
+    scopeKey: {
+      type: String,
+      required: true,
+    },
     loading: {
       type: Boolean,
       default: false,
@@ -73,7 +83,7 @@ export default defineComponent({
     expandFold: (_key: string) => true,
     toggleNode: (_spanId: string) => true,
     spanClick: (_span: IRumTimelineSpanVM) => true,
-    traceClick: (_traceId: string) => true,
+    traceClick: (_trace: IRumTraceInfo) => true,
     viewClick: (_view: IRumTimelineViewVM) => true,
   },
   setup(props, { emit }) {
@@ -81,6 +91,29 @@ export default defineComponent({
 
     /** 卡片展开状态：默认折叠，只展示 View 头部摘要 */
     const expanded = shallowRef(false);
+    const panelRef = shallowRef<HTMLElement>();
+    const { traceLinks, enqueueTraceIds } = useTimelineTraceLinks(toRef(props, 'scopeKey'), toRef(props, 'bizId'));
+    let observer: IntersectionObserver | undefined;
+
+    function observeRows() {
+      observer?.disconnect();
+      panelRef.value?.querySelectorAll<HTMLElement>('[data-trace-ids]').forEach(row => {
+        observer?.observe(row);
+      });
+    }
+
+    onMounted(() => {
+      observer = new IntersectionObserver(entries => {
+        for (const entry of entries) {
+          if (!entry.isIntersecting || !panelRef.value?.contains(entry.target)) continue;
+          enqueueTraceIds((entry.target as HTMLElement).dataset.traceIds.split(','));
+          observer.unobserve(entry.target);
+        }
+      });
+      observeRows();
+    });
+    watch([() => props.items, () => props.scopeKey, () => props.bizId, expanded], observeRows, { flush: 'post' });
+    onBeforeUnmount(() => observer?.disconnect());
 
     function renderSkeleton() {
       return (
@@ -115,6 +148,7 @@ export default defineComponent({
           />
         );
       }
+      const traceEntries = [...traceLinks.value];
       return props.items.map(item =>
         item.kind === 'fold' ? (
           <TimelineFoldRow
@@ -125,10 +159,15 @@ export default defineComponent({
         ) : (
           <TimelineSpanRow
             key={item.data.spanId}
+            traces={
+              item.data.traceIds.length
+                ? traceEntries.flatMap(([traceId, links]) => (item.data.traceIds.includes(traceId) ? links : []))
+                : []
+            }
             data={item.data}
             onSpanClick={span => emit('spanClick', span)}
             onToggle={spanId => emit('toggleNode', spanId)}
-            onTraceClick={traceId => emit('traceClick', traceId)}
+            onTraceClick={trace => emit('traceClick', trace)}
           />
         )
       );
@@ -173,6 +212,15 @@ export default defineComponent({
       );
     }
 
-    return () => <div class='rum-trace-context'>{renderContent()}</div>;
+    return () => (
+      <div
+        ref={el => {
+          panelRef.value = el as HTMLElement;
+        }}
+        class='rum-trace-context'
+      >
+        {renderContent()}
+      </div>
+    );
   },
 });

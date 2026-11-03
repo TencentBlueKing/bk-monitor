@@ -373,41 +373,55 @@ const parseEventStreamData = <T>(eventString: string): null | T => {
 /**
  * 请求 eventStream(SSE) 接口，收集并返回流中所有 data 事件解析后的数据
  * @param url 接口地址
- * @returns 流中所有 data 事件的数据列表，请求失败时返回空数组
+ * @param options 取消信号与逐条数据回调
+ * @returns 已接收的 data 事件，请求失败或取消时保留已收到的数据
  */
-export const fetchEventStream = async <T = any>(url: string): Promise<T[]> => {
+export const fetchEventStream = async <T = any>(
+  url: string,
+  options: { onData?: (data: T) => void; signal?: AbortSignal } = {}
+): Promise<T[]> => {
   const result: T[] = [];
+  let reader: ReadableStreamDefaultReader<Uint8Array> | undefined;
   try {
     const traceparent = `00-${random(32, 'abcdef0123456789')}-${random(16, 'abcdef0123456789')}-01`;
     const response = await fetch(url, {
       method: 'GET',
+      signal: options.signal,
       headers: {
         traceparent,
       },
     });
-    const reader = response.body.getReader();
+    if (!response.ok || !response.body) {
+      throw new Error(`Event stream request failed: ${response.status}`);
+    }
+    reader = response.body.getReader();
     const decoder = new TextDecoder('utf-8');
     let buffer = '';
 
-    while (true) {
+    while (!options.signal?.aborted) {
       const { done, value } = await reader.read();
-      if (done) break;
+      if (done || options.signal?.aborted) break;
 
       buffer += decoder.decode(value, { stream: true });
 
       let boundary = buffer.indexOf('\n\n');
-      while (boundary !== -1) {
+      while (boundary !== -1 && !options.signal?.aborted) {
         const eventString = buffer.substring(0, boundary);
         buffer = buffer.substring(boundary + 2);
         const parsedData = parseEventStreamData<T>(eventString);
         if (parsedData !== null) {
           result.push(parsedData);
+          options.onData?.(parsedData);
         }
         boundary = buffer.indexOf('\n\n');
       }
     }
   } catch (error) {
-    console.error('Error fetching event stream:', error);
+    if (!options.signal?.aborted) {
+      console.error('Error fetching event stream:', error);
+    }
+  } finally {
+    reader?.releaseLock();
   }
   return result;
 };

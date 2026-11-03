@@ -7,11 +7,13 @@ from typing import Any
 from unittest import mock
 
 import pytest
+from rest_framework.exceptions import ValidationError
 
+from bkmonitor.data_source.data_source import BkApmTraceDataSource
 from bkmonitor.iam.action import ActionEnum
 from bkmonitor.iam.resource import ResourceEnum
-from monitor_web.overview.search import SearchItem, Searcher, TraceSearchItem
-from monitor_web.overview.views import SearchViewSet
+from monitor_web.overview.search import ApmApplicationSearchItem, SearchItem, Searcher, TraceSearchItem
+from monitor_web.overview.views import SearchSerializer, SearchViewSet
 
 
 TRACE_ID = "a" * 32
@@ -69,7 +71,7 @@ class TestTraceSearchItem:
                 "_query_precalc_apps_by_trace_id",
                 return_value=[{"bk_biz_id": app.bk_biz_id, "app_name": app.app_name}],
             ),
-            mock.patch.object(TraceSearchItem, "_query_raw_apps_by_trace_id", return_value=True),
+            mock.patch.object(TraceSearchItem, "_query_raw_apps_by_trace_ids", return_value=[TRACE_ID]),
             mock.patch.object(
                 TraceSearchItem, f"_path_{'raw' if path == 'precalc' else 'precalc'}", return_value=iter([])
             ),
@@ -101,7 +103,11 @@ class TestTraceSearchItem:
 
         application_permission.return_value.batch_is_allowed.side_effect = _allowed
         with (
-            mock.patch.object(TraceSearchItem, "_path_precalc", return_value=iter([*apps[:3], *apps[:3], *apps[3:]])),
+            mock.patch.object(
+                TraceSearchItem,
+                "_path_precalc",
+                return_value=iter((TRACE_ID, app) for app in [*apps[:3], *apps[:3], *apps[3:]]),
+            ),
             mock.patch.object(TraceSearchItem, "_path_raw", return_value=iter([])),
             mock.patch.object(TraceSearchItem, "_get_biz_name", return_value="业务 2"),
         ):
@@ -114,7 +120,7 @@ class TestTraceSearchItem:
     def test_permission_failure_does_not_return_unchecked_hit(self, application_permission: mock.MagicMock) -> None:
         application_permission.return_value.batch_is_allowed.side_effect = RuntimeError("permission query failed")
         with (
-            mock.patch.object(TraceSearchItem, "_path_precalc", return_value=iter([_app(1)])),
+            mock.patch.object(TraceSearchItem, "_path_precalc", return_value=iter([(TRACE_ID, _app(1))])),
             mock.patch.object(TraceSearchItem, "_path_raw", return_value=iter([])),
             mock.patch.object(TraceSearchItem, "_get_biz_name") as biz_name,
             pytest.raises(RuntimeError, match="permission query failed"),
@@ -170,8 +176,10 @@ class TestTraceSearchItem:
         app_c = _app(3)
 
         with (
-            mock.patch.object(TraceSearchItem, "_path_precalc", return_value=iter([app_a, app_b])),
-            mock.patch.object(TraceSearchItem, "_path_raw", return_value=iter([app_a, app_c])),
+            mock.patch.object(
+                TraceSearchItem, "_path_precalc", return_value=iter([(TRACE_ID, app_a), (TRACE_ID, app_b)])
+            ),
+            mock.patch.object(TraceSearchItem, "_path_raw", return_value=iter([(TRACE_ID, app_a), (TRACE_ID, app_c)])),
             mock.patch.object(TraceSearchItem, "_get_biz_name", side_effect=lambda bk_biz_id: f"业务 {bk_biz_id}"),
         ):
             snapshots = list(TraceSearchItem.search("tenant", "admin", TRACE_ID))
@@ -194,8 +202,8 @@ class TestTraceSearchItem:
         app_b = _app(2)
 
         with (
-            mock.patch.object(TraceSearchItem, "_path_precalc", return_value=iter([app_a])),
-            mock.patch.object(TraceSearchItem, "_path_raw", return_value=iter([app_b])),
+            mock.patch.object(TraceSearchItem, "_path_precalc", return_value=iter([(TRACE_ID, app_a)])),
+            mock.patch.object(TraceSearchItem, "_path_raw", return_value=iter([(TRACE_ID, app_b)])),
             mock.patch.object(TraceSearchItem, "_get_biz_name", return_value="业务 2"),
         ):
             snapshots = list(TraceSearchItem.search("tenant", "admin", TRACE_ID))
@@ -207,7 +215,7 @@ class TestTraceSearchItem:
         apps = [_app(application_id) for application_id in range(1, 5)]
 
         with (
-            mock.patch.object(TraceSearchItem, "_path_precalc", return_value=iter(apps)),
+            mock.patch.object(TraceSearchItem, "_path_precalc", return_value=iter((TRACE_ID, app) for app in apps)),
             mock.patch.object(TraceSearchItem, "_path_raw", return_value=iter([])),
             mock.patch.object(TraceSearchItem, "_get_biz_name", return_value="业务 2"),
         ):
@@ -226,14 +234,14 @@ class TestTraceSearchItem:
         precalc_done = threading.Event()
         raw_done = threading.Event()
 
-        def _precalc_path() -> Generator[SimpleNamespace, None, None]:
+        def _precalc_path() -> Generator[tuple[str, SimpleNamespace], None, None]:
             try:
-                yield app
+                yield TRACE_ID, app
                 release.wait(timeout=1)
             finally:
                 precalc_done.set()
 
-        def _raw_path() -> Generator[SimpleNamespace, None, None]:
+        def _raw_path() -> Generator[tuple[str, SimpleNamespace], None, None]:
             try:
                 release.wait(timeout=1)
             finally:
@@ -285,7 +293,7 @@ class TestTraceSearchItem:
             hits = list(
                 TraceSearchItem._path_precalc(
                     "tenant",
-                    TRACE_ID,
+                    [TRACE_ID],
                     stop_event=threading.Event(),
                     trace_stop=threading.Event(),
                     deadline=time.monotonic() + 1,
@@ -293,7 +301,7 @@ class TestTraceSearchItem:
             )
 
         assert set(queried_table_ids) == {"broken_table", "healthy_table"}
-        assert hits == [app]
+        assert hits == [(TRACE_ID, app)]
         application_filter.return_value.only.assert_called_once_with(
             "application_id",
             "bk_biz_id",
@@ -305,10 +313,10 @@ class TestTraceSearchItem:
         broken_app = _app(1)
         healthy_app = _app(2)
 
-        def _query_raw(trace_id: str, app: SimpleNamespace) -> bool:
+        def _query_raw(trace_ids: list[str], app: SimpleNamespace) -> list[str]:
             if app is broken_app:
                 raise RuntimeError("unify query failed")
-            return True
+            return trace_ids
 
         with (
             mock.patch.object(
@@ -318,7 +326,7 @@ class TestTraceSearchItem:
             ),
             mock.patch.object(
                 TraceSearchItem,
-                "_query_raw_apps_by_trace_id",
+                "_query_raw_apps_by_trace_ids",
                 side_effect=_query_raw,
             ),
         ):
@@ -326,7 +334,7 @@ class TestTraceSearchItem:
                 TraceSearchItem._path_raw(
                     "tenant",
                     "admin",
-                    TRACE_ID,
+                    [TRACE_ID],
                     None,
                     stop_event=threading.Event(),
                     trace_stop=threading.Event(),
@@ -334,7 +342,7 @@ class TestTraceSearchItem:
                 )
             )
 
-        assert hits == [healthy_app]
+        assert hits == [(TRACE_ID, healthy_app)]
 
     def test_probe_window_limits_concurrency_and_stops_refill(self) -> None:
         max_workers = 4
@@ -409,7 +417,7 @@ class TestTraceSearchItem:
                 list(
                     TraceSearchItem._path_precalc(
                         "tenant",
-                        TRACE_ID,
+                        [TRACE_ID],
                         stop_event=stop_event,
                         trace_stop=trace_stop,
                         deadline=deadline,
@@ -428,7 +436,7 @@ class TestTraceSearchItem:
                     TraceSearchItem._path_raw(
                         "tenant",
                         "admin",
-                        TRACE_ID,
+                        [TRACE_ID],
                         None,
                         stop_event=stop_event,
                         trace_stop=trace_stop,
@@ -706,3 +714,211 @@ def test_search_view_streaming_trace_query_uses_application_scope(
         assert json.loads(chunks[1].removeprefix("data: "))["items"][0]["application_id"] == app.application_id
     else:
         assert chunks == ["event: start\n\n", "event: end\n\n"]
+
+
+@pytest.mark.parametrize("separator", [",", ", ", ",&nbsp;"])
+def test_search_view_rejects_more_than_twenty_unique_trace_ids(separator: str) -> None:
+    trace_ids = [f"{index:032x}" for index in range(21)]
+    request = SimpleNamespace(
+        query_params={"query": f"&nbsp;{separator.join(trace_ids)}&nbsp;"},
+        user=SimpleNamespace(username="admin"),
+    )
+
+    with (
+        mock.patch("monitor_web.overview.views.Searcher") as searcher,
+        pytest.raises(ValidationError, match="最多支持 20 个 TraceID"),
+    ):
+        SearchViewSet().list(request)
+
+    searcher.assert_not_called()
+
+
+def test_trace_batch_parses_whitespace_and_deduplicates_before_limit() -> None:
+    trace_ids = [f"{index:032x}" for index in range(20)]
+    query = " , ".join([*trace_ids, trace_ids[0]])
+    serializer = SearchSerializer(data={"query": query})
+
+    assert serializer.is_valid(), serializer.errors
+    assert TraceSearchItem.parse_trace_ids(serializer.validated_data["query"]) == trace_ids
+    assert TraceSearchItem.match(query)
+    assert not ApmApplicationSearchItem.match(query)
+    assert not TraceSearchItem.match(f"{TRACE_ID},invalid-trace-id")
+    assert not TraceSearchItem.match(f"{TRACE_ID},")
+
+
+def test_search_view_batch_streams_per_trace_top_k_and_checks_shared_app_once(
+    application_permission: mock.MagicMock,
+) -> None:
+    trace_ids = [TRACE_ID, "b" * 32]
+    apps = [_app(application_id) for application_id in range(1, 6)]
+
+    def _allowed(actions: list, resources: list) -> dict[str, dict[str, bool]]:
+        return {
+            str(resource[0].id): {action.id: int(resource[0].id) != 1 for action in actions} for resource in resources
+        }
+
+    application_permission.return_value.batch_is_allowed.side_effect = _allowed
+    request = SimpleNamespace(
+        query_params={"query": ",".join([*trace_ids, trace_ids[0]]), "bk_biz_id": 2},
+        user=SimpleNamespace(username="admin"),
+    )
+    precalc_hits = [(trace_id, app) for app in apps for trace_id in trace_ids]
+    raw_hits = [(trace_id, apps[1]) for trace_id in trace_ids]
+
+    with (
+        mock.patch("monitor_web.overview.views.get_request_tenant_id", return_value="tenant"),
+        mock.patch.object(TraceSearchItem, "_path_precalc", return_value=iter(precalc_hits)) as precalc,
+        mock.patch.object(TraceSearchItem, "_path_raw", return_value=iter(raw_hits)) as raw,
+        mock.patch.object(TraceSearchItem, "_get_biz_name", return_value="业务 2"),
+    ):
+        response = SearchViewSet().list(request)
+        chunks = [chunk.decode() for chunk in response.streaming_content]
+
+    assert chunks[0] == "event: start\n\n"
+    assert chunks[-1] == "event: end\n\n"
+    snapshots = [json.loads(chunk.removeprefix("data: ")) for chunk in chunks[1:-1]]
+    assert [len(snapshot["items"]) for snapshot in snapshots] == [1, 2, 3, 4, 5, 6]
+    pairs = {(item["trace_id"], item["application_id"]) for item in snapshots[-1]["items"]}
+    assert pairs == {(trace_id, app.application_id) for trace_id in trace_ids for app in apps[1:4]}
+    assert application_permission.return_value.batch_is_allowed.call_count == 4
+    assert precalc.call_args.args == ("tenant", trace_ids)
+    assert raw.call_args.args == ("tenant", "admin", trace_ids, 2)
+    for previous, current in zip(snapshots, snapshots[1:]):
+        assert current["items"][:-1] == previous["items"]
+
+
+def test_precalc_batch_keeps_independent_limits_and_reuses_application_lookup() -> None:
+    trace_ids = [TRACE_ID, "b" * 32]
+    app = _app(1)
+    query_bodies: list[dict[str, Any]] = []
+
+    def _query(table_id: str, query_body: dict[str, Any]) -> list[dict[str, Any]]:
+        query_bodies.append(query_body)
+        return [{"bk_biz_id": "2", "app_name": app.app_name}] * 5
+
+    with (
+        mock.patch.object(TraceSearchItem, "_load_precalc_table_ids", return_value=["precalc_table"]),
+        mock.patch("bkmonitor.data_source.unify_query.builder.QueryHelper.query", side_effect=_query),
+        mock.patch("monitor_web.overview.search.Application.objects.filter") as application_filter,
+    ):
+        application_filter.return_value.only.return_value.first.return_value = app
+        hits = list(
+            TraceSearchItem._path_precalc(
+                "tenant", trace_ids, threading.Event(), threading.Event(), time.monotonic() + 1
+            )
+        )
+
+    assert len(query_bodies) == 2
+    assert all(query_body["limit"] == 5 for query_body in query_bodies)
+    assert {tuple(query_body["query_configs"][0]["filter_dict"]["trace_id__eq"]) for query_body in query_bodies} == {
+        (trace_id,) for trace_id in trace_ids
+    }
+    assert len(hits) == 10
+    assert {trace_id for trace_id, _ in hits} == set(trace_ids)
+    application_filter.assert_called_once_with(bk_tenant_id="tenant", bk_biz_id=2, app_name=app.app_name)
+
+
+def test_precalc_batch_interleaves_clusters_when_first_cluster_is_slow() -> None:
+    trace_ids = [f"{index:032x}" for index in range(6)]
+    release = threading.Event()
+    healthy_queried = threading.Event()
+    app = _app(1)
+
+    def _query(trace_id: str, table_id: str, limit: int = 5) -> list[dict[str, Any]]:
+        if table_id == "slow_table":
+            release.wait(timeout=1)
+            return []
+        healthy_queried.set()
+        return [{"bk_biz_id": "2", "app_name": app.app_name}]
+
+    try:
+        with (
+            mock.patch.object(TraceSearchItem, "_load_precalc_table_ids", return_value=["slow_table", "healthy_table"]),
+            mock.patch.object(TraceSearchItem, "_query_precalc_apps_by_trace_id", side_effect=_query),
+            mock.patch("monitor_web.overview.search.Application.objects.filter") as application_filter,
+        ):
+            application_filter.return_value.only.return_value.first.return_value = app
+            hits = list(
+                TraceSearchItem._path_precalc(
+                    "tenant", trace_ids, threading.Event(), threading.Event(), time.monotonic() + 0.15
+                )
+            )
+    finally:
+        release.set()
+
+    assert healthy_queried.is_set()
+    assert hits
+    assert all(hit_app is app for _, hit_app in hits)
+
+
+def test_raw_batch_collapses_spans_and_preserves_shared_application_scope() -> None:
+    trace_ids = [TRACE_ID, "b" * 32]
+    app = _app(1)
+    app.trace_result_table_id = "apm_global.shared_trace"
+    spans = [{"trace_id": TRACE_ID}] * 30 + [{"trace_id": trace_ids[1]}]
+
+    def _query(table_id: str, query_body: dict[str, Any]) -> list[dict[str, Any]]:
+        assert query_body["bk_biz_id"] == app.bk_biz_id
+        assert query_body["limit"] == len(trace_ids)
+        config = query_body["query_configs"][0]
+        assert config["filter_dict"] == {
+            "bk_biz_id__eq": app.bk_biz_id,
+            "app_name__eq": app.app_name,
+            "trace_id__eq": trace_ids,
+        }
+        datasource = BkApmTraceDataSource(bk_biz_id=app.bk_biz_id, bk_tenant_id="tenant", **config)
+        storage_query = datasource.to_unify_query_config()[0]
+        assert storage_query["collapse"] == {"field": "trace_id"}
+        assert storage_query["keep_columns"] == ["trace_id"]
+        # 使用真实序列化的折叠字段和查询上限回放存储响应。
+        collapsed = {}
+        for span in spans:
+            collapsed.setdefault(span[storage_query["collapse"]["field"]], span)
+        return list(collapsed.values())[: query_body["limit"]]
+
+    with (
+        mock.patch.object(TraceSearchItem, "_collect_candidate_apps", return_value=[app]) as candidates,
+        mock.patch("bkmonitor.data_source.unify_query.builder.QueryHelper.query", side_effect=_query) as query,
+    ):
+        hits = list(
+            TraceSearchItem._path_raw(
+                "tenant", "admin", trace_ids, 2, threading.Event(), threading.Event(), time.monotonic() + 1
+            )
+        )
+
+    assert hits == [(trace_id, app) for trace_id in trace_ids]
+    candidates.assert_called_once_with("tenant", "admin", 2)
+    query.assert_called_once()
+
+
+def test_closing_batch_search_stops_both_paths() -> None:
+    stop_events: list[threading.Event] = []
+    paths_done: list[threading.Event] = []
+    both_started = threading.Barrier(2)
+    app = _app(1)
+
+    def _path(
+        *args: Any, stop_event: threading.Event, trace_stop: threading.Event, deadline: float
+    ) -> Generator[tuple[str, SimpleNamespace], None, None]:
+        path_done = threading.Event()
+        paths_done.append(path_done)
+        stop_events.append(trace_stop)
+        try:
+            both_started.wait(timeout=1)
+            yield TRACE_ID, app
+            trace_stop.wait(timeout=1)
+        finally:
+            path_done.set()
+
+    with (
+        mock.patch.object(TraceSearchItem, "_path_precalc", side_effect=_path),
+        mock.patch.object(TraceSearchItem, "_path_raw", side_effect=_path),
+        mock.patch.object(TraceSearchItem, "_get_biz_name", return_value="业务 2"),
+    ):
+        results = TraceSearchItem.search("tenant", "admin", f"{TRACE_ID},{'b' * 32}")
+        assert next(results)["items"][0]["trace_id"] == TRACE_ID
+        results.close()
+
+    assert all(path_done.wait(timeout=1) for path_done in paths_done)
+    assert len(stop_events) == 2
+    assert all(stop_event.is_set() for stop_event in stop_events)

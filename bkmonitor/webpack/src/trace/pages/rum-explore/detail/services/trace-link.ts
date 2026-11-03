@@ -27,8 +27,16 @@ import { fetchEventStream } from '@/utils';
 
 /** 关联 Trace 的检索结果，跳转 Trace 检索页需要其所属的 APM 应用 */
 export interface IRumTraceInfo {
+  app_alias: string;
   app_name: string;
+  application_id: number;
+  bk_biz_id: number;
   trace_id: string;
+}
+
+interface ITraceSearchSnapshot {
+  items: IRumTraceInfo[];
+  type: string;
 }
 
 /**
@@ -39,7 +47,27 @@ export interface IRumTraceInfo {
  */
 export async function searchTraceInfo(traceId: string, bizId: number | string): Promise<IRumTraceInfo | null> {
   if (!traceId) return null;
-  const url = `${location.origin}${window.site_url}rest/v2/overview/search/?query=${encodeURIComponent(traceId)}&bk_biz_id=${encodeURIComponent(String(bizId))}`;
-  const res = await fetchEventStream(url);
-  return res[0]?.items?.[0] ?? null;
+  let result: IRumTraceInfo | null = null;
+  await streamTraceInfos([traceId], bizId, items => {
+    result = items[0] ?? null;
+  });
+  return result;
+}
+
+/** 批量检索关联应用，按服务端快照逐步更新调用方。 */
+export async function streamTraceInfos(
+  traceIds: string[],
+  bizId: number | string,
+  onData: (items: IRumTraceInfo[]) => void,
+  signal?: AbortSignal
+): Promise<void> {
+  if (!traceIds.length) return;
+  const query = new URLSearchParams({ query: traceIds.join(','), bk_biz_id: String(bizId) });
+  const url = `${location.origin}${window.site_url}rest/v2/overview/search/?${query}`;
+  await fetchEventStream<ITraceSearchSnapshot>(url, {
+    signal,
+    onData: snapshot => {
+      if (snapshot.type === 'trace') onData(snapshot.items);
+    },
+  });
 }
