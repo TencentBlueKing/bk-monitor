@@ -1341,7 +1341,7 @@ class TestIndexSetTagExtension(TestCase):
 class TestSceneSearchViewSetDimensionValues(TestCase):
     """POST /search/scene/dimension_values/"""
 
-    @patch("apps.log_search.handlers.scene_search._BCS_GET_CLUSTER")
+    @patch("apps.api.BcsApi.get_cluster_by_cluster_id")
     @patch("apps.log_search.views.scene_search_views.IndexSetHandler.get_all_related_space_uids")
     @patch("apps.log_search.models.IndexSetTag.get_dimension_values")
     def test_dimension_values_success(self, mock_dv, mock_related, mock_bcs):
@@ -1380,7 +1380,7 @@ class TestSceneSearchViewSetDimensionValues(TestCase):
             space_uids=["bkcc__2", "bcs__BCS-K8S-001"],
         )
 
-    @patch("apps.log_search.handlers.scene_search._BCS_GET_CLUSTER")
+    @patch("apps.api.BcsApi.get_cluster_by_cluster_id")
     @patch("apps.log_search.views.scene_search_views.IndexSetHandler.get_all_related_space_uids")
     @patch("apps.log_search.models.IndexSetTag.get_dimension_values")
     def test_dimension_values_with_filters(self, mock_dv, mock_related, mock_bcs):
@@ -1416,7 +1416,7 @@ class TestSceneSearchViewSetDimensionValues(TestCase):
             space_uids=["bkcc__2"],
         )
 
-    @patch("apps.log_search.handlers.scene_search._BCS_GET_CLUSTER")
+    @patch("apps.api.BcsApi.get_cluster_by_cluster_id")
     @patch("apps.log_search.views.scene_search_views.IndexSetHandler.get_all_related_space_uids")
     @patch("apps.log_search.models.IndexSetTag.get_dimension_values")
     def test_dimension_values_with_list_filters(self, mock_dv, mock_related, mock_bcs):

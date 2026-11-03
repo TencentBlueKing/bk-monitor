@@ -16,14 +16,9 @@ from rest_framework.parsers import FormParser, JSONParser, MultiPartParser
 from rest_framework.request import Request
 from rest_framework.test import APIRequestFactory
 
-from apps.exceptions import ApiError, ApiRequestError, ApiResultError
+from apps.exceptions import ApiRequestError, ApiResultError
 from apps.log_search.models import IndexSetTag, LogIndexSet
 from apps.log_search.views.scene_search_views import SceneSearchViewSet
-
-# 名称解析已迁到 handler 层（apps/log_search/handlers/scene_search.py），
-# resolve_bcs_cluster_names 通过模块级解包的 _BCS_GET_CLUSTER（DataAPI 实例）调用 BCS。
-# patch 该模块级引用，确保并发子线程里 mock 生效（SimpleLazyObject 在子线程重新解包会导致 mock 失效）。
-GET_CLUSTER_PATH = "apps.log_search.handlers.scene_search._BCS_GET_CLUSTER"
 
 
 def _setup_k8s_index_set(cluster_ids, space_uid="bkcc__2"):
@@ -89,7 +84,7 @@ class TestDimensionValuesClusterName(TestCase):
         "apps.log_search.views.scene_search_views.IndexSetHandler.get_all_related_space_uids",
         return_value=["bkcc__2"],
     )
-    @patch(GET_CLUSTER_PATH)
+    @patch("apps.api.BcsApi.get_cluster_by_cluster_id")
     def test_cluster_id_returns_id_name_pairs(self, mock_bcs, mock_related):
         """cluster_id 维度 + BCS 正常返回 → options 为 [{id, name}]，values 仍为字符串数组。"""
         _setup_k8s_index_set(["cls-001", "cls-002"])
@@ -113,7 +108,7 @@ class TestDimensionValuesClusterName(TestCase):
         "apps.log_search.views.scene_search_views.IndexSetHandler.get_all_related_space_uids",
         return_value=["bkcc__2"],
     )
-    @patch(GET_CLUSTER_PATH)
+    @patch("apps.api.BcsApi.get_cluster_by_cluster_id")
     def test_cluster_id_unknown_id_falls_back_to_id(self, mock_bcs, mock_related):
         """BCS 无该 cluster_id（查询抛异常）→ options 中 name 回退为 id 本身。"""
         _setup_k8s_index_set(["cls-unknown"])
@@ -133,7 +128,7 @@ class TestDimensionValuesClusterName(TestCase):
         "apps.log_search.views.scene_search_views.IndexSetHandler.get_all_related_space_uids",
         return_value=["bkcc__2"],
     )
-    @patch(GET_CLUSTER_PATH)
+    @patch("apps.api.BcsApi.get_cluster_by_cluster_id")
     def test_cluster_id_bcs_api_exception_falls_back(self, mock_bcs, mock_related):
         """BCS API 网关异常（ApiRequestError）→ options 降级为 name=id，不报错。"""
         _setup_k8s_index_set(["cls-err"])
@@ -153,7 +148,7 @@ class TestDimensionValuesClusterName(TestCase):
         "apps.log_search.views.scene_search_views.IndexSetHandler.get_all_related_space_uids",
         return_value=["bkcc__2"],
     )
-    @patch(GET_CLUSTER_PATH)
+    @patch("apps.api.BcsApi.get_cluster_by_cluster_id")
     def test_cluster_id_empty_values_skips_bcs_call(self, mock_bcs, mock_related):
         """无匹配索引集 → values 为空，无 options 字段，不调用 BCS API。"""
         mock_bcs.side_effect = _cluster_name_side_effect({})
@@ -198,7 +193,7 @@ class TestDimensionValuesClusterName(TestCase):
         "apps.log_search.views.scene_search_views.IndexSetHandler.get_all_related_space_uids",
         return_value=["bkcc__2", "bcs__BCS-K8S-001"],
     )
-    @patch(GET_CLUSTER_PATH)
+    @patch("apps.api.BcsApi.get_cluster_by_cluster_id")
     def test_cluster_id_with_filters_enriches_filtered_results(self, mock_bcs, mock_related):
         """级联筛选后仅对筛选结果补充名称。"""
         scene_tag = IndexSetTag.get_tag_id(name="scene", value="k8s", tag_type="scene")
@@ -245,7 +240,7 @@ class TestDimensionValuesClusterName(TestCase):
         "apps.log_search.views.scene_search_views.IndexSetHandler.get_all_related_space_uids",
         return_value=["bkcc__2"],
     )
-    @patch(GET_CLUSTER_PATH)
+    @patch("apps.api.BcsApi.get_cluster_by_cluster_id")
     def test_cluster_id_sorted_by_id(self, mock_bcs, mock_related):
         """多个 cluster_id → options 按 id 字典序排列。"""
         _setup_k8s_index_set(["cls-c", "cls-a", "cls-b"])
@@ -262,7 +257,7 @@ class TestDimensionValuesClusterName(TestCase):
         "apps.log_search.views.scene_search_views.IndexSetHandler.get_all_related_space_uids",
         return_value=["bkcc__2", "bcs__BCS-K8S-001"],
     )
-    @patch(GET_CLUSTER_PATH)
+    @patch("apps.api.BcsApi.get_cluster_by_cluster_id")
     def test_cluster_id_related_space_enrichment(self, mock_bcs, mock_related):
         """关联空间的 cluster_id 也被补充名称。
 
@@ -300,7 +295,7 @@ class TestDimensionValuesClusterName(TestCase):
         "apps.log_search.views.scene_search_views.IndexSetHandler.get_all_related_space_uids",
         return_value=["bkcc__2"],
     )
-    @patch(GET_CLUSTER_PATH)
+    @patch("apps.api.BcsApi.get_cluster_by_cluster_id")
     def test_view_response_format_cluster_id(self, mock_bcs, mock_related):
         """视图层集成：响应体结构为 {dimension_key, values: [str], options: [{id, name}]}。"""
         _setup_k8s_index_set(["cls-fmt"])
@@ -347,7 +342,7 @@ class TestDimensionValuesClusterName(TestCase):
         "apps.log_search.views.scene_search_views.IndexSetHandler.get_all_related_space_uids",
         return_value=["bkcc__2"],
     )
-    @patch(GET_CLUSTER_PATH)
+    @patch("apps.api.BcsApi.get_cluster_by_cluster_id")
     def test_cluster_id_empty_name_falls_back_to_id(self, mock_bcs, mock_related):
         """BCS 返回 clusterName 为空串 → name 降级为 id 本身。"""
         _setup_k8s_index_set(["cls-noname"])
@@ -365,7 +360,7 @@ class TestDimensionValuesClusterName(TestCase):
         "apps.log_search.views.scene_search_views.IndexSetHandler.get_all_related_space_uids",
         return_value=["bkcc__2"],
     )
-    @patch(GET_CLUSTER_PATH)
+    @patch("apps.api.BcsApi.get_cluster_by_cluster_id")
     def test_cluster_id_none_name_falls_back_to_id(self, mock_bcs, mock_related):
         """BCS 返回 clusterName 为 None（字段缺失/null）→ name 降级为 id 本身。"""
         _setup_k8s_index_set(["cls-nullname"])
@@ -389,7 +384,7 @@ class TestDimensionValuesClusterName(TestCase):
         "apps.log_search.views.scene_search_views.IndexSetHandler.get_all_related_space_uids",
         return_value=["bkcc__2"],
     )
-    @patch(GET_CLUSTER_PATH)
+    @patch("apps.api.BcsApi.get_cluster_by_cluster_id")
     def test_cluster_id_partial_success_mixed(self, mock_bcs, mock_related):
         """混合场景：成功/业务失败/网关失败并存 → 互不影响，各自正确。
 
@@ -429,7 +424,7 @@ class TestDimensionValuesClusterName(TestCase):
         "apps.log_search.views.scene_search_views.IndexSetHandler.get_all_related_space_uids",
         return_value=["bkcc__2"],
     )
-    @patch(GET_CLUSTER_PATH)
+    @patch("apps.api.BcsApi.get_cluster_by_cluster_id")
     def test_cluster_id_non_api_error_degrades_with_isolation(self, mock_bcs, mock_related):
         """非 ApiError 家族异常（编程错误，如 ValueError）在并发下降级为 id，不中断其他集群。
 
@@ -454,7 +449,7 @@ class TestDimensionValuesClusterName(TestCase):
         "apps.log_search.views.scene_search_views.IndexSetHandler.get_all_related_space_uids",
         return_value=["bkcc__2"],
     )
-    @patch(GET_CLUSTER_PATH)
+    @patch("apps.api.BcsApi.get_cluster_by_cluster_id")
     def test_cluster_id_concurrent_many_success(self, mock_bcs, mock_related):
         """25 个集群并发查询，BCS 全部正常返回 → 全部正确映射，无丢失，排序正确。
 
@@ -484,7 +479,7 @@ class TestDimensionValuesClusterName(TestCase):
         "apps.log_search.views.scene_search_views.IndexSetHandler.get_all_related_space_uids",
         return_value=["bkcc__2"],
     )
-    @patch(GET_CLUSTER_PATH)
+    @patch("apps.api.BcsApi.get_cluster_by_cluster_id")
     def test_cluster_id_concurrent_many_all_fail(self, mock_bcs, mock_related):
         """25 个集群并发查询，BCS 全部抛 ApiResultError → 全部降级为 id，排序正确。
 
@@ -511,7 +506,7 @@ class TestDimensionValuesClusterName(TestCase):
         "apps.log_search.views.scene_search_views.IndexSetHandler.get_all_related_space_uids",
         return_value=["bkcc__2"],
     )
-    @patch(GET_CLUSTER_PATH)
+    @patch("apps.api.BcsApi.get_cluster_by_cluster_id")
     def test_cluster_id_concurrent_mixed_success_and_fail(self, mock_bcs, mock_related):
         """25 个集群并发，奇数位成功、偶数位失败 → 成功映射、失败降级，互不影响。
 
@@ -550,7 +545,7 @@ class TestDimensionValuesClusterName(TestCase):
     @patch(
         "apps.log_search.views.scene_search_views.IndexSetHandler.get_all_related_space_uids", return_value=["bkcc__2"]
     )
-    @patch(GET_CLUSTER_PATH)
+    @patch("apps.api.BcsApi.get_cluster_by_cluster_id")
     def test_cluster_id_concurrent_preserves_request_context(self, mock_bcs, mock_related):
         """并发查询时 request 上下文正确传递到子线程。
 
@@ -589,7 +584,7 @@ class TestDimensionValuesClusterName(TestCase):
         "apps.log_search.views.scene_search_views.IndexSetHandler.get_all_related_space_uids",
         return_value=["bkcc__2"],
     )
-    @patch(GET_CLUSTER_PATH)
+    @patch("apps.api.BcsApi.get_cluster_by_cluster_id")
     def test_cluster_id_concurrent_partial_field_missing(self, mock_bcs, mock_related):
         """并发查询，部分集群返回的 dict 无 clusterName 字段 → 缺失字段降级为 id。
 
@@ -620,7 +615,7 @@ class TestDimensionValuesClusterName(TestCase):
         "apps.log_search.views.scene_search_views.IndexSetHandler.get_all_related_space_uids",
         return_value=["bkcc__2"],
     )
-    @patch(GET_CLUSTER_PATH)
+    @patch("apps.api.BcsApi.get_cluster_by_cluster_id")
     def test_cluster_id_concurrent_actually_parallel(self, mock_bcs, mock_related):
         """量化验证：并发查询确实并行执行（而非串行累加）。
 
