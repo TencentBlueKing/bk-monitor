@@ -23,67 +23,249 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { computed, shallowRef, watch } from 'vue';
+import { computed, onScopeDispose, shallowRef, unref, watch } from 'vue';
+import type { MaybeRef } from 'vue';
 
 import { MessageStatus } from '@blueking/chat-x';
 import { fetchAiSetting } from 'monitor-api/modules/aiops';
 import { getBizRouteHref } from 'monitor-common/utils';
 import { storeToRefs } from 'pinia';
 
-import { createAlertListPreviewMessages } from '../mock/alert-list-message';
-import { createEventRecordsPreviewMessages } from '../mock/event-records-message';
-import { createLogRecordsPreviewMessages } from '../mock/log-records-message';
-import { createMetricSeriesPreviewMessages } from '../mock/metric-series-message';
+import { transformDiagnosisPanelView } from '../diagnosis-view-adapter';
 import { createDiagnosticPanelState } from '../model';
+import { diagnosticDataService } from '../services/diagnostic-data-service';
+import {
+  isValidDetailRef,
+  resolveDiagnosticStatus,
+  transformAlertsAnalysisPanel,
+  transformEventsAnalysisPanel,
+  transformIncidentRelation,
+  transformLogsAnalysisPanel,
+  transformTextPanel,
+  transformTraceAnalysisPanel,
+} from '../transform';
 import { useAlarmCenterDetailStore } from '@/store/modules/alarm-center-detail';
 
 import type { DiagnosticStatusType } from '../components/diagnostic-status';
-import type { DiagnosticPanelState } from '../model';
+import type { DiagnosisPanelView } from '../diagnosis-view-adapter';
+import type {
+  DiagnosticAnalysisStatus,
+  DiagnosticCommandCapability,
+  DiagnosticEventGroupViewModel,
+  DiagnosticIncidentViewModel,
+  DiagnosticPanelDetailState,
+  DiagnosticPanelState,
+  DiagnosticSubPanelsState,
+} from '../model';
+import type { DiagnosticDataService } from '../services/diagnostic-data-service';
+import type { DiagnosticPanelKey, PanelDetailParamsDto } from '../typing';
+import type { DiagnosisInteraction, DiagnosisSerializableValue } from '@/components/ai-diagnosis/types';
+import type {
+  DimensionAnalysisViewModel,
+  LogAnalysisViewModel,
+  TraceAnalysisViewModel,
+} from '@/components/ai-diagnosis/types';
 
-/** `useDiagnosticAnalysis` 的返回值类型，供消费方（如 `diagnostic-analysis.tsx`）显式引用 */
+const PANEL_KEYS: DiagnosticPanelKey[] = [
+  'summary',
+  'suggestion',
+  'alerts_analysis',
+  'trace_analysis',
+  'logs_analysis',
+  'events_analysis',
+];
+const COMMAND_UNAVAILABLE_REASON = '告警级诊断启动与重试接口尚未提供';
+
+export interface DiagnosticCommandAdapter {
+  retry?: (context: { alarmId: string; bizId: number }) => Promise<void>;
+  start?: (context: { alarmId: string; bizId: number }) => Promise<void>;
+}
+
+export interface UseDiagnosticAnalysisOptions {
+  alarmId?: MaybeRef<string>;
+  bizId?: MaybeRef<number>;
+  commandAdapter?: DiagnosticCommandAdapter;
+  service?: DiagnosticDataService;
+}
+
 export type UseDiagnosticAnalysisReturn = ReturnType<typeof useDiagnosticAnalysis>;
 
-/**
- * 会话服务接入前的预览面板状态：用本地 mock 消息铺满各类结果卡片
- * （指标趋势 / 告警列表 / 日志聚类 / 事件记录），用于在无后端会话时也能完整展示面板 UI。
- */
-const createPreviewPanelState = (): DiagnosticPanelState => ({
-  ...createDiagnosticPanelState(),
-  messages: [
-    ...createMetricSeriesPreviewMessages(),
-    ...createAlertListPreviewMessages(),
-    ...createLogRecordsPreviewMessages(),
-    ...createEventRecordsPreviewMessages(),
-  ],
-});
-
-/** 在新标签页打开外部链接，空地址直接忽略 */
-const openExternalLink = (url?: string) => {
-  if (!url) return;
-  window.open(url, '_blank', 'noopener,noreferrer');
+const errorMessage = (error: unknown) => {
+  if (error instanceof Error) return error.message;
+  if (typeof error === 'string') return error;
+  return '';
 };
 
-/**
- * 告警详情「AI 诊断」面板的逻辑控制器。
- *
- * 当前阶段尚未接入真实会话服务，因此：
- * - 面板消息为本地 mock（见 `createPreviewPanelState`）；
- * - 输入框处于禁用态（`messageStatus: Disabled`），仅支持编辑草稿。
- */
-export function useDiagnosticAnalysis() {
-  const { alarmId, bizId, detail } = storeToRefs(useAlarmCenterDetailStore());
-  // 以「业务 ID + 告警 ID」作为面板上下文标识，用于在切换告警时重置面板
-  const contextKey = computed(() => `${bizId.value}:${alarmId.value}`);
-  // 面板状态：草稿内容 + 消息列表
-  const panelState = shallowRef(createPreviewPanelState());
-  // AI 诊断配置状态（未配置 / 已配置 / 诊断中 等），默认未配置
-  const diagnosisStatus = shallowRef<DiagnosticStatusType>('unconfigured');
-  // 「联系管理员」跳转的企微客服链接，来自业务 AI 设置
-  const wxCsLink = shallowRef('');
+const isAborted = (error: unknown, signal: AbortSignal) =>
+  signal.aborted ||
+  (error instanceof Error && ['AbortError', 'CanceledError'].includes(error.name)) ||
+  errorMessage(error).toLowerCase() === 'canceled';
 
-  // 拉取业务级 AI 设置中的企微客服链接，缺少业务 ID 或请求失败时置空
+export function useDiagnosticAnalysis(options: UseDiagnosticAnalysisOptions = {}) {
+  const alarmDetailStore = storeToRefs(useAlarmCenterDetailStore());
+  const alarmId = options.alarmId ?? alarmDetailStore.alarmId ?? shallowRef('');
+  const bizId = options.bizId ?? alarmDetailStore.bizId ?? shallowRef(0);
+  const detail = alarmDetailStore.detail as undefined | { value?: null | { bk_biz_id?: number; strategy_id?: number } };
+  const service = options.service || diagnosticDataService;
+  const contextKey = computed(() => `${unref(bizId)}:${unref(alarmId)}`);
+  const panelState = shallowRef(createDiagnosticPanelState());
+  const status = shallowRef<DiagnosticAnalysisStatus>('loading');
+  const wxCsLink = shallowRef('');
+  const diagnosisStatus = computed<DiagnosticStatusType | undefined>(() => {
+    if (status.value === 'loading' || status.value === 'diagnosing') return 'diagnosing';
+    if (status.value === 'failed') return 'error';
+    if (status.value === 'notDiagnosed') return 'unconfigured';
+    return undefined;
+  });
+  const error = shallowRef<string>();
+  const incident = shallowRef<DiagnosticIncidentViewModel>();
+  const summary = shallowRef('');
+  const suggestion = shallowRef('');
+  const alerts = shallowRef<DimensionAnalysisViewModel[]>([]);
+  const traces = shallowRef<TraceAnalysisViewModel[]>([]);
+  const logs = shallowRef<LogAnalysisViewModel[]>([]);
+  const events = shallowRef<DiagnosticEventGroupViewModel[]>([]);
+  const panelSummaries = shallowRef<Partial<Record<DiagnosticPanelKey, string>>>({});
+  const panelViews = shallowRef<Partial<Record<DiagnosticPanelKey, DiagnosisPanelView>>>({});
+  const subPanels = shallowRef<DiagnosticSubPanelsState>({});
+  const panelDetail = shallowRef<DiagnosticPanelDetailState>();
+  const activeDetailRef = shallowRef<DiagnosisSerializableValue>();
+  let generation = 0;
+  let requestController: AbortController | undefined;
+  let detailController: AbortController | undefined;
+
+  const clearContext = () => {
+    requestController?.abort();
+    detailController?.abort();
+    panelState.value = createDiagnosticPanelState();
+    status.value = 'loading';
+    error.value = undefined;
+    incident.value = undefined;
+    summary.value = '';
+    suggestion.value = '';
+    alerts.value = [];
+    traces.value = [];
+    logs.value = [];
+    events.value = [];
+    panelSummaries.value = {};
+    panelViews.value = {};
+    subPanels.value = {};
+    panelDetail.value = undefined;
+    activeDetailRef.value = undefined;
+  };
+
+  const applyPanelData = (
+    key: DiagnosticPanelKey,
+    data: Awaited<ReturnType<DiagnosticDataService['getIncidentDiagnosis']>>
+  ) => {
+    if (['alerts_analysis', 'trace_analysis', 'logs_analysis', 'events_analysis'].includes(key)) {
+      panelViews.value = { ...panelViews.value, [key]: transformDiagnosisPanelView(key, data) };
+    }
+    if (key === 'summary') summary.value = transformTextPanel(data);
+    if (key === 'suggestion') suggestion.value = transformTextPanel(data);
+    if (key === 'alerts_analysis') {
+      const panel = transformAlertsAnalysisPanel(data);
+      alerts.value = panel.items;
+      panelSummaries.value = { ...panelSummaries.value, [key]: panel.summary };
+    }
+    if (key === 'trace_analysis') {
+      const panel = transformTraceAnalysisPanel(data);
+      traces.value = panel.items;
+      panelSummaries.value = { ...panelSummaries.value, [key]: panel.summary };
+    }
+    if (key === 'logs_analysis') {
+      const panel = transformLogsAnalysisPanel(data);
+      logs.value = panel.items;
+      panelSummaries.value = { ...panelSummaries.value, [key]: panel.summary };
+    }
+    if (key === 'events_analysis') {
+      const panel = transformEventsAnalysisPanel(data);
+      events.value = panel.items;
+      panelSummaries.value = { ...panelSummaries.value, [key]: panel.summary };
+    }
+  };
+
+  const load = async () => {
+    clearContext();
+    const currentGeneration = ++generation;
+    const controller = new AbortController();
+    requestController = controller;
+    const isCurrent = () => currentGeneration === generation && !controller.signal.aborted;
+    const currentAlarmId = String(unref(alarmId) || '');
+    if (!currentAlarmId) {
+      status.value = 'notDiagnosed';
+      return;
+    }
+
+    try {
+      const relationDto = await service.getAlertIncidentDetail(currentAlarmId, { signal: controller.signal });
+      if (!isCurrent()) return;
+      const relation = transformIncidentRelation(relationDto);
+      if (!relation) {
+        status.value = 'notDiagnosed';
+        return;
+      }
+      incident.value = relation;
+
+      const results = await service.getIncidentResults(relation.id, relation.bizId, { signal: controller.signal });
+      if (!isCurrent()) return;
+      const diagnosis = results.panels?.incident_diagnosis;
+      const diagnosticStatus = resolveDiagnosticStatus(diagnosis);
+      status.value = diagnosticStatus.status;
+      error.value = diagnosticStatus.error;
+
+      const enabledPanels =
+        diagnosis?.enabled === true ? PANEL_KEYS.filter(key => diagnosis.sub_panels?.[key]?.enabled === true) : [];
+      subPanels.value = Object.fromEntries(
+        enabledPanels.map(key => [
+          key,
+          {
+            enabled: true,
+            loading: true,
+            status: diagnosis?.sub_panels?.[key]?.status,
+          },
+        ])
+      );
+      await Promise.all(
+        enabledPanels.map(async key => {
+          try {
+            const data = await service.getIncidentDiagnosis(relation.id, relation.bizId, key, {
+              signal: controller.signal,
+            });
+            if (!isCurrent()) return;
+            applyPanelData(key, data);
+            subPanels.value = {
+              ...subPanels.value,
+              [key]: { ...subPanels.value[key], enabled: true, loading: false },
+            };
+          } catch (panelError) {
+            if (!isCurrent() || isAborted(panelError, controller.signal)) return;
+            subPanels.value = {
+              ...subPanels.value,
+              [key]: {
+                ...subPanels.value[key],
+                enabled: true,
+                loading: false,
+                error: errorMessage(panelError),
+              },
+            };
+          }
+        })
+      );
+    } catch (loadError) {
+      if (!isCurrent() || isAborted(loadError, controller.signal)) return;
+      status.value = 'failed';
+      error.value = errorMessage(loadError);
+    }
+  };
+
+  const openExternalLink = (url?: string) => {
+    if (!url) return;
+    window.open(url, '_blank', 'noopener,noreferrer');
+  };
   const loadWxCsLink = async () => {
-    const bkBizId = detail.value?.bk_biz_id ?? bizId.value;
+    const currentDetail = detail?.value;
+    const bkBizId = currentDetail?.bk_biz_id ?? Number(unref(bizId));
     if (!bkBizId) {
       wxCsLink.value = '';
       return;
@@ -91,41 +273,111 @@ export function useDiagnosticAnalysis() {
     const res = await fetchAiSetting({ bk_biz_id: bkBizId }).catch(() => ({ wx_cs_link: '' }));
     wxCsLink.value = res?.wx_cs_link ?? '';
   };
-
-  // 前往该告警所属策略的配置页，无策略 ID 时不跳转
   const handleConfigure = () => {
-    const strategyId = detail.value?.strategy_id;
+    const currentDetail = detail?.value;
+    const strategyId = currentDetail?.strategy_id;
     if (!strategyId) return;
-    openExternalLink(getBizRouteHref(`/strategy-config/edit/${strategyId}`, detail.value?.bk_biz_id ?? bizId.value));
+    openExternalLink(
+      getBizRouteHref(`/strategy-config/edit/${strategyId}`, currentDetail?.bk_biz_id ?? Number(unref(bizId)))
+    );
   };
-
-  // 打开企微客服链接联系管理员
   const handleContactAdmin = () => {
     openExternalLink(wxCsLink.value);
   };
 
-  // 切换告警时重置面板内容与诊断状态
-  watch(contextKey, () => {
-    panelState.value = createPreviewPanelState();
-    diagnosisStatus.value = 'unconfigured';
+  watch(contextKey, load, { immediate: true });
+  watch([contextKey, () => detail?.value?.bk_biz_id], loadWxCsLink, {
+    immediate: true,
   });
 
-  // 上下文或业务 ID 变化时重新拉取企微客服链接
-  watch([contextKey, () => detail.value?.bk_biz_id], loadWxCsLink, { immediate: true });
+  const loadPanelDetail = async (interaction?: DiagnosisInteraction, page = 1, pageSize = 30) => {
+    if (interaction?.type !== 'drawer' || !incident.value) return;
+    const payload =
+      interaction.payload && typeof interaction.payload === 'object' && !Array.isArray(interaction.payload)
+        ? interaction.payload
+        : {};
+    const drawerType = payload.drawer_type;
+    if (!['event', 'log', 'trace'].includes(String(drawerType))) return;
+    const detailRef = interaction.detailRef;
+    if (!isValidDetailRef(detailRef)) return;
+    const taskId = typeof detailRef === 'object' && !Array.isArray(detailRef) ? detailRef.incident_task_id : undefined;
+    const currentGeneration = generation;
+    detailController?.abort();
+    const controller = new AbortController();
+    detailController = controller;
+    activeDetailRef.value = detailRef;
+    panelDetail.value = { loading: true };
+    const params: PanelDetailParamsDto = {
+      bk_biz_id: incident.value.bizId,
+      incident_id: incident.value.incidentId,
+      drawer_type: drawerType as PanelDetailParamsDto['drawer_type'],
+      detail_ref: detailRef,
+      ...(typeof taskId === 'string' || typeof taskId === 'number' ? { incident_task_id: String(taskId) } : {}),
+      page,
+      page_size: pageSize,
+    };
+    try {
+      const data = await service.getPanelDetail(params, { signal: controller.signal });
+      if (currentGeneration !== generation || controller.signal.aborted) return;
+      panelDetail.value = { loading: false, data };
+    } catch (detailError) {
+      if (currentGeneration !== generation || isAborted(detailError, controller.signal)) return;
+      panelDetail.value = { loading: false, error: errorMessage(detailError) };
+    }
+  };
 
-  // 仅更新草稿内容，保持消息列表不变
+  const commandCapability: DiagnosticCommandCapability = {
+    canStart: typeof options.commandAdapter?.start === 'function',
+    canRetry: typeof options.commandAdapter?.retry === 'function',
+    reason:
+      typeof window !== 'undefined' && window.i18n
+        ? (window.i18n.t(COMMAND_UNAVAILABLE_REASON) as string)
+        : COMMAND_UNAVAILABLE_REASON,
+  };
+  const runCommand = (command: 'retry' | 'start') => {
+    const handler = options.commandAdapter?.[command];
+    if (!handler) return Promise.resolve();
+    return handler({ alarmId: String(unref(alarmId) || ''), bizId: Number(unref(bizId)) });
+  };
+
+  onScopeDispose(() => {
+    generation += 1;
+    requestController?.abort();
+    detailController?.abort();
+  });
+
   const handleDraftChange = (draft: DiagnosticPanelState['draft']) => {
     panelState.value = { ...panelState.value, draft };
   };
 
   return {
+    activeDetailRef,
+    alerts,
+    commandCapability,
     contextKey,
     diagnosisStatus,
-    panelState,
-    // 会话服务接入前，仅允许编辑草稿，不触发发送。
-    messageStatus: MessageStatus.Disabled,
+    error,
     handleConfigure,
     handleContactAdmin,
+    events,
+    incident,
+    loadPanelDetail,
+    logs,
+    panelDetail,
+    panelSummaries,
+    panelViews,
+    panelState,
+    reload: load,
+    retryDiagnosis: () => runCommand('retry'),
+    startDiagnosis: () => runCommand('start'),
+    status,
+    subPanels,
+    suggestion,
+    summary,
+    traces,
+    wxCsLink,
+    // 会话发送由 useDiagnosticSession 接管；这里保留禁用态，避免面板数据 hook 直接发消息。
+    messageStatus: MessageStatus.Disabled,
     handleDraftChange,
   };
 }
