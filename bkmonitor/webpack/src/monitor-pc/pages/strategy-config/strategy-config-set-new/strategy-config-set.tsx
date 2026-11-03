@@ -154,6 +154,8 @@ const TIME_UNIT_IDS = ['ns', 'µs', 'ms', 's', 'm', 'h', 'd'];
 interface IOriginUnitSnapshot {
   metricId: number | string;
   queryUnit: string;
+  /** 回填后检测规则下拉框展示的单位；空串表示当时没有展示单位 */
+  displayUnit: string;
   /** key 为 `${level}|${type}`，同 key 多条规则按顺序存放 */
   ruleUnits: Record<string, string[]>;
 }
@@ -587,6 +589,7 @@ export default class StrategyConfigSet extends tsc<IStrategyConfigSetProps, IStr
     return (
       !!this.originUnitSnapshot &&
       !this.isUnitManuallyChanged &&
+      this.needShowUnit &&
       this.monitorDataEditMode === 'Edit' &&
       this.selectMetricData.length === 1 &&
       this.selectMetricData[0].metric_id === this.originUnitSnapshot.metricId &&
@@ -1545,6 +1548,7 @@ export default class StrategyConfigSet extends tsc<IStrategyConfigSetProps, IStr
     const queryUnit = queryConfigs?.[0]?.unit || '';
     const isAllEmpty = !queryUnit && algorithms.every(item => !item.unit_prefix);
     const isBackfill = isAllEmpty && TIME_UNIT_IDS.includes(unitType) && this.needShowUnit;
+    const displayUnit = isBackfill ? unitType : firstRuleUnit;
     const ruleUnits: Record<string, string[]> = {};
     for (const { level, type, unit_prefix } of algorithms) {
       const key = `${level}|${type}`;
@@ -1554,9 +1558,10 @@ export default class StrategyConfigSet extends tsc<IStrategyConfigSetProps, IStr
     this.originUnitSnapshot = {
       metricId: this.metricData[0].metric_id,
       queryUnit: isBackfill ? unitType : queryUnit,
+      displayUnit,
       ruleUnits,
     };
-    this.detectionConfig.unit = isBackfill ? unitType : firstRuleUnit;
+    this.detectionConfig.unit = displayUnit;
   }
   // 检测算法回显空数据转换
   displayDetectionRulesConfig(item) {
@@ -1654,6 +1659,14 @@ export default class StrategyConfigSet extends tsc<IStrategyConfigSetProps, IStr
       this.detectionConfig.unitType = this.metricData[0].unit;
       if (!this.detectionConfig.unitType) {
         this.detectionConfig.unit = '';
+      } else if (
+        !this.detectionConfig.unit &&
+        this.originUnitSnapshot?.displayUnit &&
+        !this.isUnitManuallyChanged &&
+        this.metricData[0].metric_id === this.originUnitSnapshot.metricId
+      ) {
+        // COUNT / ignore_unit 清空单位后再恢复时，写回回填展示单位，避免子组件按指标单位默认选中后与快照提交不一致
+        this.detectionConfig.unit = this.originUnitSnapshot.displayUnit;
       }
     }
   }
