@@ -369,6 +369,37 @@ class TestQuixClusteringHandlerUpdate(TestCase):
         self.assertEqual(bkfara.update_task_parameters.call_args.args[0]["training"]["parameters"], expected)
         self.assertEqual(bkfara.update_task_parameters.call_args.args[0]["task_id"], "task-uuid")
         self.assertEqual(transfer.mock_calls, [])
+        self.assertEqual(ClusteringConfig.objects.get(index_set_id=INDEX_SET_ID).delimeter, "encoded-delimiter")
+
+    @patch("apps.log_clustering.handlers.quix.operation.BkFaraApi")
+    def test_resubmit_after_failed_version_read_and_close_uses_existing_task(self, bkfara, mock_delay):
+        from apps.log_clustering.handlers.quix.operation import MAX_STEP_RETRIES
+
+        handler = QuixClusteringHandler(self.index_set)
+        params = {"delimeter": "new-delimiter"}
+        first = handler.update(params)
+        bkfara.get_task_parameters.side_effect = RuntimeError("version unavailable")
+        for _ in range(MAX_STEP_RETRIES):
+            QuixClusteringOperationRunner(first).run()
+        self.assertEqual(LogClusteringOperation.objects.get(operation_id=first).status, "failed")
+        handler.disable()
+        self.assertEqual(LogClusteringOperation.objects.get(operation_id=first).status, "canceled")
+        self.assertEqual(ClusteringConfig.objects.get(index_set_id=INDEX_SET_ID).delimeter, "")
+
+        # 关闭和重开完成后任务身份保留，重新提交相同配置必须继续更新该任务。
+        LogClusteringOperation.objects.filter(index_set_id=INDEX_SET_ID, operation_type="disable").update(
+            status="success"
+        )
+        LogClusteringRuntime.objects.filter(index_set_id=INDEX_SET_ID).update(phase="running")
+        second = handler.update(params)
+        expected = LogClusteringOperation.objects.get(operation_id=second).request_snapshot["model_parameters"]
+        bkfara.get_task_parameters.side_effect = [
+            {"control_version": 3},
+            {"control_version": 4, "training": {"parameters": expected}},
+        ]
+        self.assertIsNone(QuixClusteringOperationRunner(second).run())
+        self.assertEqual(bkfara.update_task_parameters.call_args.args[0]["task_id"], "task-uuid")
+        self.assertEqual(ClusteringConfig.objects.get(index_set_id=INDEX_SET_ID).delimeter, "new-delimiter")
 
     def test_unchanged_parameters_do_not_create_operation(self, mock_delay):
         result = QuixClusteringHandler(self.index_set).update({"max_log_length": 1000})
@@ -392,7 +423,9 @@ class TestQuixClusteringHandlerUpdate(TestCase):
         self.assertEqual(handler.update({"delimeter": "new"}), first_id)
         with self.assertRaises(QuixClusteringParamsInvalidException):
             handler.update({"delimeter": "different"})
-        self.assertEqual(ClusteringConfig.objects.get(index_set_id=INDEX_SET_ID).delimeter, "new")
+        with self.assertRaises(QuixClusteringParamsInvalidException):
+            handler.update({"delimeter": "new", "regex_template_id": 3})
+        self.assertEqual(ClusteringConfig.objects.get(index_set_id=INDEX_SET_ID).delimeter, "")
 
     def test_inflight_update_cannot_silently_revert_business_filter(self, mock_delay):
         first_id = QuixClusteringHandler(self.index_set).update({"filter_rules": WARN_RULES})
@@ -445,7 +478,7 @@ class TestQuixClusteringHandlerUpdate(TestCase):
 
         self.assertIsNotNone(result)
         clustering_config = ClusteringConfig.objects.get(index_set_id=INDEX_SET_ID)
-        self.assertEqual((clustering_config.filter_rules, clustering_config.max_log_length), (ERROR_RULES, 2000))
+        self.assertEqual((clustering_config.filter_rules, clustering_config.max_log_length), (ERROR_RULES, 1000))
         runtime = LogClusteringRuntime.objects.get(index_set_id=INDEX_SET_ID)
         self.assertEqual(runtime.phase, ClusteringRuntimePhaseEnum.UPDATING.value)
         mock_delay.assert_called_once_with(result)
