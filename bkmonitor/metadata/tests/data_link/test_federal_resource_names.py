@@ -199,6 +199,30 @@ def test_subset_uses_ownerless_binding_without_claiming_it(source):
     assert rt.table_id == binding.table_id == ""
 
 
+def test_subset_sync_does_not_claim_legacy_sink_as_result_table(source):
+    historical_components(source)
+    child = make_subset(source)
+    compose_subset(child, source)
+    sink = models.ConditionalSinkConfig.objects.get(data_link_name=child.pk)
+    legacy = models.BkBaseResultTable.objects.create(
+        bk_tenant_id="system",
+        data_link_name="old_subset_mapping",
+        monitor_table_id=child.table_ids[0],
+        storage_type=models.ClusterInfo.TYPE_VM,
+        bkbase_rt_name=sink.name,
+        bkbase_table_id=f"42_{sink.name}",
+    )
+    for _ in range(2):
+        child.sync_metadata(table_id=child.table_ids[0], storage_cluster_name=VM)
+    mapping = models.BkBaseResultTable.objects.get(data_link_name=child.pk)
+    assert mapping.bkbase_rt_name is None and mapping.bkbase_table_id is None
+    assert mapping.bkbase_data_name == "saved_source"
+    assert mapping.status == "Ok"
+    legacy.refresh_from_db()
+    assert legacy.bkbase_rt_name == sink.name
+    assert legacy.bkbase_table_id == f"42_{sink.name}"
+
+
 def test_shared_binding_survives_subsets_and_subset_deletion(source, mocker):
     parent = proxy_link(source)
     rt, binding = historical_components(source)

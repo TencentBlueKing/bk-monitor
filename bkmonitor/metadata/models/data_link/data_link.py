@@ -3419,7 +3419,7 @@ class DataLink(models.Model):
         不变式：
         - ``bkbase_rt_name == ResultTableConfig.name``
         - ``bkbase_table_id == f"{rt.datalink_biz_ids.data_biz_id}_{rt.name}"``
-        - 联邦子集链路不声明独立 ResultTable，兼容使用 ``ConditionalSinkConfig.name`` 回填上述两个字段
+        - 联邦子集链路没有独立 ResultTable 时，上述两个字段置空
         - ``bkbase_data_name == DataBusConfig.data_id_name``
         - ``storage_type`` / ``storage_cluster_id`` 与 ``ClusterInfo`` 实际记录保持一致。
         """
@@ -3461,7 +3461,7 @@ class DataLink(models.Model):
         rt_queryset = rt_queryset.order_by("-last_modify_time", "-id")
         rt_count = rt_queryset.count()
         rt = rt_queryset.first()
-        if rt_count == 0:
+        if rt_count == 0 and self.data_link_strategy != self.BCS_FEDERAL_SUBSET_TIME_SERIES:
             logger.warning(
                 "sync_metadata: data_link_name->[%s] table_id->[%s] ResultTableConfig not found, "
                 "will record partial BkBaseResultTable",
@@ -3529,23 +3529,8 @@ class DataLink(models.Model):
                 }
             )
         elif self.data_link_strategy == self.BCS_FEDERAL_SUBSET_TIME_SERIES:
-            conditional_sink = (
-                ConditionalSinkConfig.objects.filter(
-                    bk_tenant_id=self.bk_tenant_id,
-                    namespace=self.namespace,
-                    data_link_name=self.data_link_name,
-                )
-                .order_by("-last_modify_time", "-id")
-                .first()
-            )
-            if conditional_sink:
-                bkbase_rt_name = conditional_sink.name
-                defaults.update(
-                    {
-                        "bkbase_rt_name": bkbase_rt_name,
-                        "bkbase_table_id": f"{conditional_sink.datalink_biz_ids.data_biz_id}_{bkbase_rt_name}",
-                    }
-                )
+            # Subset 只有 ConditionalSink/Databus，不能将复制组件名登记为独立结果表。
+            defaults.update(bkbase_rt_name=None, bkbase_table_id=None)
         if databus:
             defaults["bkbase_data_name"] = databus.data_id_name
 
