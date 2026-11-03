@@ -177,11 +177,23 @@ class RecordRuleV4OutputResources:
         return cls.ensure_metric_fields(rule, metric_names)
 
     @staticmethod
-    def push_output_route(rule: RecordRuleV4) -> None:
-        """首次创建输出表后刷新空间索引和结果表详情。"""
+    def push_output_route(rule: RecordRuleV4, previous_data_label: str = "") -> None:
+        """输出表创建或标签变化后刷新空间、标签索引和结果表详情。"""
 
         redis_client = SpaceTableIDRedis()
         redis_client.push_space_table_ids(space_type=rule.space_type, space_id=rule.space_id, is_publish=True)
+        # 旧标签不能按当前输出表过滤，否则改名后会被过滤掉，无法清理旧映射。
+        if previous_data_label:
+            redis_client.push_data_label_table_ids(
+                data_label_list=[previous_data_label],
+                is_publish=True,
+                bk_tenant_id=rule.bk_tenant_id,
+            )
+        redis_client.push_data_label_table_ids(
+            table_id_list=[rule.table_id],
+            is_publish=True,
+            bk_tenant_id=rule.bk_tenant_id,
+        )
         redis_client.push_table_id_detail(
             table_id_list=[rule.table_id],
             is_publish=True,

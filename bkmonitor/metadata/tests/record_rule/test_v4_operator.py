@@ -9,6 +9,7 @@ specific language governing permissions and limitations under the License.
 """
 
 import datetime
+import json
 from types import SimpleNamespace
 
 import pytest
@@ -552,6 +553,11 @@ def test_create_supports_description_and_data_label(v4_base_data, external_api):
     assert rule.to_dict()["description"] == "record rule output"
     assert output_table.table_name_zh == RULE_NAME
     assert output_table.data_label == "rr_cpu"
+    external_api.space_redis.push_data_label_table_ids.assert_called_once_with(
+        table_id_list=[rule.table_id],
+        is_publish=True,
+        bk_tenant_id=TENANT_ID,
+    )
 
 
 def test_create_rejects_empty_records(v4_base_data, external_api):
@@ -634,8 +640,20 @@ def test_update_declaration_with_same_records_does_not_create_spec(v4_base_data,
     external_api.check_query_ts.assert_not_called()
 
 
-def test_update_metadata_waits_for_execute_to_refresh_result_table(v4_base_data, external_api):
-    rule = create_rule(apply_immediately=False)
+@pytest.mark.parametrize("previous_data_label", ["", "rr_cpu_old"])
+def test_update_metadata_waits_for_execute_to_refresh_result_table(
+    v4_base_data, external_api, mocker, previous_data_label
+):
+    rule = create_rule(apply_immediately=False, data_label=previous_data_label)
+    external_api.space_redis.push_data_label_table_ids.reset_mock()
+    # 使用真实标签路由逻辑，只 mock Redis 写入，验证旧标签清理与新标签关联。
+    external_api.space_redis.push_data_label_table_ids.side_effect = SpaceTableIDRedis().push_data_label_table_ids
+    redis_values = {}
+    mocker.patch(
+        "metadata.models.space.space_table_id_redis.RedisTools.hmset_to_redis",
+        side_effect=lambda key, values: redis_values.update(values),
+    )
+    mocker.patch("metadata.models.space.space_table_id_redis.RedisTools.publish")
     current_spec_id = rule.current_spec_id
     current_resolved_id = get_latest_resolved(rule).pk
     current_flow_id = get_latest_flow(rule).pk
@@ -656,10 +674,12 @@ def test_update_metadata_waits_for_execute_to_refresh_result_table(v4_base_data,
     assert get_latest_flow(updated).pk == current_flow_id
     assert updated.description == "更新输出表展示信息"
     assert updated.data_label == "rr_cpu"
-    assert output_table.data_label == ""
+    assert output_table.data_label == previous_data_label
     external_api.check_query_ts.assert_not_called()
     external_api.apply_data_link.assert_not_called()
     external_api.space_redis.push_table_id_detail.assert_not_called()
+
+    external_api.space_redis.push_data_label_table_ids.assert_not_called()
 
     operator.execute_declaration(auto_apply=False)
     updated.refresh_from_db()
@@ -673,6 +693,10 @@ def test_update_metadata_waits_for_execute_to_refresh_result_table(v4_base_data,
         bk_tenant_id=TENANT_ID,
     )
     assert updated.events.filter(event_type="user.metadata_changed").exists()
+
+    assert json.loads(redis_values[f"rr_cpu|{TENANT_ID}"]) == [updated.table_id]
+    if previous_data_label:
+        assert json.loads(redis_values[f"{previous_data_label}|{TENANT_ID}"]) == []
 
 
 def test_new_generation_does_not_inherit_previous_failed_condition(v4_base_data, external_api):
