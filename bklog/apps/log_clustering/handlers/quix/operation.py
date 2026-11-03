@@ -389,7 +389,11 @@ class QuixClusteringOperationRunner:
             return False
         # 这里只确认任务配置已提交。已有模型的增量训练及 Worker 采用由 BKFara 负责，
         # 不能把历史 adoptions 或当前 Worker READY 当成新参数训练完成的证明。
-        self._save_runtime(control_version=current["control_version"])
+        with transaction.atomic():
+            business_fields = self.operation.request_snapshot.get("business_fields")
+            if business_fields:
+                ClusteringConfig.objects.filter(index_set_id=self.runtime.index_set_id).update(**business_fields)
+            self._save_runtime(control_version=current["control_version"])
         return True
 
     def _finish_update(self):

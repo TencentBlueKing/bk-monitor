@@ -168,9 +168,10 @@ class QuixClusteringHandler:
                 raise QuixClusteringParamsInvalidException(
                     QuixClusteringParamsInvalidException.MESSAGE.format(detail=_("首版不支持修改聚类字段"))
                 )
-            for field in BUSINESS_UPDATE_FIELDS:
-                if field in params:
-                    setattr(business_config, field, params[field])
+            business_fields = {field: params[field] for field in BUSINESS_UPDATE_FIELDS if field in params}
+            previous_fields = {field: getattr(business_config, field) for field in business_fields}
+            for field, value in business_fields.items():
+                setattr(business_config, field, value)
             model_parameters = DataFlowHandler.get_clustering_training_params(business_config)
             operation = LogClusteringOperation.objects.filter(
                 index_set_id=self.index_set_id,
@@ -182,6 +183,14 @@ class QuixClusteringHandler:
                     not in (ClusteringOperationTypeEnum.UPDATE.value, ClusteringOperationTypeEnum.UPDATE_MODEL.value)
                     or operation.request_snapshot.get("filter_rules") != filter_rules
                     or operation.request_snapshot.get("model_parameters") != model_parameters
+                    or (
+                        operation.request_snapshot.get("update_model")
+                        and any(
+                            value
+                            != operation.request_snapshot.get("business_fields", {}).get(key, previous_fields[key])
+                            for key, value in business_fields.items()
+                        )
+                    )
                 ):
                     raise QuixClusteringParamsInvalidException(
                         QuixClusteringParamsInvalidException.MESSAGE.format(
@@ -203,15 +212,18 @@ class QuixClusteringHandler:
                             "filter_rules": filter_rules,
                             "model_parameters": model_parameters,
                             "update_model": model_changed,
+                            "business_fields": business_fields if model_changed else {},
                         },
                         allowed_phases=(ClusteringRuntimePhaseEnum.RUNNING.value,),
                     )
                     runtime.pending_config = clustering_config if filter_changed else None
                     runtime.phase = ClusteringRuntimePhaseEnum.UPDATING.value
                     runtime.save(update_fields=["pending_config", "phase", "updated_at", "updated_by"])
+            if operation and operation.request_snapshot.get("update_model"):
+                # 模型相关的页面配置随 BKFara 回读一起保存，失败后仍以最后确认值判断变化。
+                business_fields = {}
             ClusteringConfig.objects.filter(index_set_id=self.index_set_id).update(
-                filter_rules=filter_rules,
-                **{field: params[field] for field in BUSINESS_UPDATE_FIELDS if field in params},
+                filter_rules=filter_rules, **business_fields
             )
         if not operation:
             return None
