@@ -162,7 +162,7 @@
   height: 250px;
   padding-top: 30px;
   border-radius: 2px;
-  box-shadow: 0 4px 10px 10px rgb(0 0 0 / 15%);
+  box-shadow: 0 2px 8px 0 rgba(25, 25, 41, 0.06);
 
   .bk-exception-img.part-img .exception-image {
     height: 96px;
@@ -203,7 +203,7 @@
   font-size: 12px;
   background: #fff;
   border-radius: 2px;
-  box-shadow: 0 4px 10px 10px rgb(0 0 0 / 15%);
+  box-shadow: 0 2px 8px 0 rgba(25, 25, 41, 0.06);
 
   .item-list {
     min-height: 100px;
@@ -514,7 +514,7 @@
     padding: 0;
     background: #252f43;
     border: 1px solid #394561 !important;
-    border-radius: 2px;
+    border-radius: 4px;
 
     .clear-btn {
       top: 8px;
@@ -541,14 +541,14 @@
 
   .new-home-select-popover {
     margin-top: 6px;
-    border-radius: 2px;
+    border-radius: 4px;
 
     .new-home-select-popover-content {
-      border-radius: 2px;
+      border-radius: 4px;
     }
   }
 
   .select-empty {
-    border-radius: 2px;
+    border-radius: 4px;
   }
 }

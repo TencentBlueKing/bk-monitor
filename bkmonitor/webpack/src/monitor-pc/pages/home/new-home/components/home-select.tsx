@@ -23,7 +23,7 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { Component, Prop, Ref } from 'vue-property-decorator';
+import { Component, Prop, Ref, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
 import { getAlarmCenterRouteLocation } from 'monitor-common/utils/alarm-center-router';
@@ -97,6 +97,7 @@ export default class HomeSelect extends tsc<IHomeSelectProps, IHomeSelectEvent> 
   windowWidth = 0;
   textareaRow = MIN_ROW;
   showKeywordEle = false;
+  barToolRight = 0;
 
   /** 符合搜索内容的路由列表 */
   get searchRouteList() {
@@ -156,9 +157,23 @@ export default class HomeSelect extends tsc<IHomeSelectProps, IHomeSelectEvent> 
   handleShowChange(v) {
     this.$emit('change', v, this.searchValue);
   }
+  @Watch('show')
+  handleShowPropChange(val: boolean) {
+    if (val) {
+      this.$nextTick(() => this.updateBarToolPosition());
+    }
+  }
   /** 窗口变化时更新宽度值 */
   updateWidth() {
     this.windowWidth = window.innerWidth;
+    this.updateBarToolPosition();
+  }
+  /** 顶栏搜索弹层与原搜索框右对齐 */
+  updateBarToolPosition() {
+    if (!this.isBarToolShow) return;
+    const bar = document.getElementById('nav-search-bar');
+    if (!bar) return;
+    this.barToolRight = Math.max(0, Math.round(window.innerWidth - bar.getBoundingClientRect().right));
   }
   /** 点击收起下拉框 */
   handleClickOutside(event: Event) {
@@ -950,7 +965,10 @@ export default class HomeSelect extends tsc<IHomeSelectProps, IHomeSelectEvent> 
 
   render() {
     return (
-      <div class={['new-home-select', { 'home-select-bar-tool': this.isBarToolShow }]}>
+      <div
+        class={['new-home-select', { 'home-select-bar-tool': this.isBarToolShow }]}
+        style={this.isBarToolShow ? { right: `${this.barToolRight}px` } : undefined}
+      >
         <div
           ref='select'
           style={{ width: `${this.computedWidth}px` }}

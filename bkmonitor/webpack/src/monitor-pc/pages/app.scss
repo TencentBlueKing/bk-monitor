@@ -37,8 +37,12 @@
   color: $font-color-base;
 
   .bk-monitor-navigation {
-    .title-desc {
-      color: #eaebf0;
+    .bk-navigation-title .title-desc {
+      margin-left: 0;
+      font-size: 16px;
+      font-weight: 500;
+      line-height: 24px;
+      color: #fff;
     }
   }
 
@@ -65,13 +69,16 @@
     .header-list {
       height: 100%;
       font-size: 14px;
-      color: #acb5c6;
+      line-height: 22px;
+      color: #a1aec7;
       .header-list-item-block {
-        width: 40px;
+        width: 0;
         height: 100%;
+        overflow: hidden;
       }
 
       @include flex-align(center);
+      gap: 12px;
 
       .bk-dropdown-content {
         padding: 0;
@@ -79,34 +86,39 @@
       }
 
       &-item {
+        position: relative;
         height: 100%;
-        padding: 0 22px;
-        margin-right: 10px;
+        padding: 0 16px;
         font-size: 14px;
-        color: #acb5c6;
-        border-bottom: 3px solid transparent;
+        line-height: 22px;
+        color: #a1aec7;
 
         @include flex-center;
 
         &:hover {
-          color: white;
+          color: #fff;
           cursor: pointer;
-          border-bottom-color: $primary-color;
         }
 
         &.no-border {
-          &:hover {
-            border-bottom-color: transparent;
-          }
-
           .bk-icon {
             margin-left: 4px;
           }
         }
 
         &.item-active {
-          color: white;
-          border-bottom-color: $primary-color;
+          color: #fff;
+
+          &::after {
+            position: absolute;
+            right: 16px;
+            bottom: 8px;
+            left: 16px;
+            height: 4px;
+            content: '';
+            background: $primary-color;
+            border-radius: 6px;
+          }
         }
       }
 
@@ -140,14 +152,13 @@
       display: flex;
       align-items: center;
       justify-content: center;
-      width: 60px;
+      width: 32px;
       height: 52px;
       font-size: 14px;
-      color: white;
-      color: #acb5c6;
+      color: #a1aec7;
 
       &:hover {
-        color: white;
+        color: #fff;
         cursor: pointer;
       }
     }
@@ -474,24 +485,36 @@
   }
 
   .monitor-logo {
-    width: 32px;
-    height: 32px;
+    width: 30px;
+    height: 30px;
     background-repeat: no-repeat;
     background-position: center;
     background-size: contain;
+    border-radius: 4px;
   }
 
   .monitor-head {
     display: flex;
+    gap: 10px;
     align-items: center;
     justify-content: center;
   }
 
   .header-global {
     @include global-icon-mixin;
+    width: 16px;
+    height: 16px;
+    margin-left: 0;
+    font-size: 16px;
+
+    .icon-monitor {
+      width: 16px;
+      height: 16px;
+    }
 
     &:hover {
-      @include global-icon-hover-mixin;
+      color: #fff;
+      cursor: pointer;
     }
   }
 
@@ -558,10 +581,10 @@
 
   @media screen and (max-width: 1500px) {
     .bk-navigation-title {
-      flex: 0 0 154px !important;
+      flex: 0 0 162px !important;
 
       .title-desc {
-        margin-left: 6px;
+        margin-left: 0;
       }
     }
   }

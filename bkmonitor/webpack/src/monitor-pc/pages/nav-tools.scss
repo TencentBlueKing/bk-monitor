@@ -1,12 +1,15 @@
-@mixin defualt-icon-mixin($color: #768197) {
+@mixin defualt-icon-mixin($color: #a1aec7) {
   position: relative;
   display: flex;
+  flex-shrink: 0;
   align-items: center;
   justify-content: center;
-  width: 32px;
-  height: 32px;
-  margin-right: 8px;
+  width: 16px;
+  height: 16px;
+  margin-right: 0;
+  overflow: hidden;
   font-size: 16px;
+  line-height: 16px;
   color: $color;
 }
 
@@ -23,10 +26,8 @@
 }
 
 @mixin icon-hover-mixin {
-  color: #d3d9e4;
+  color: #fff;
   cursor: pointer;
-  background: linear-gradient(270deg, #253047, #263247);
-  border-radius: 100%;
 }
 
 @mixin popover-panel-mxin($width: 150px, $itemHoverColor: #3a84ff) {
@@ -40,7 +41,7 @@
   background: #fff;
   border: 1px solid #e1e1e1;
   border-radius: 2px;
-  box-shadow: 0px 3px 4px 0px rgba(64, 112, 203, 0.06);
+  box-shadow: 0 2px 8px 0 rgba(25, 25, 41, 0.06);
 
   .nav-item {
     display: flex;
@@ -62,48 +63,66 @@
 
 .nav-tools {
   display: flex;
+  gap: 20px;
   align-items: center;
+  padding: 10px 0 10px 10px;
   margin-left: auto;
 
+  > .bk-tooltip {
+    display: inline-flex;
+    flex-shrink: 0;
+    align-items: center;
+    justify-content: center;
+    width: 16px;
+    height: 16px;
+    line-height: 0;
+    vertical-align: middle;
+  }
+
   .search-bar {
-    position: relative;
     display: flex;
     align-items: center;
-    width: 202px;
+    justify-content: space-between;
+    width: 240px;
     height: 32px;
-    padding: 0 50px 0 10px;
-    margin-right: 32px;
-    color: #979ba5;
+    padding: 8px;
+    color: #929bb2;
     cursor: pointer;
-    background: #252f43;
-    border-radius: 2px;
+    background: #303d55;
+    border-radius: 4px;
 
     .search-text {
       overflow: hidden;
       text-overflow: ellipsis;
+      font-size: 12px;
+      line-height: 20px;
       white-space: nowrap;
     }
 
     .icon-search {
-      position: absolute;
-      right: 10px;
-      font-size: 14px;
+      flex-shrink: 0;
+      margin-left: 8px;
+      font-size: 16px;
     }
 
     .search-bar-keyword {
-      position: absolute;
-      top: 8px;
-      right: 5px;
+      margin-left: 4px;
       font-size: 12px;
-      transform: scale(0.9);
+      line-height: 20px;
     }
   }
 
-  .header-language {
+  .header-language,
+  .header-help {
     @include defualt-icon-mixin;
 
-    .language-icon {
-      width: 20px;
+    .icon-monitor {
+      display: block;
+      flex-shrink: 0;
+      width: 16px;
+      height: 16px;
+      font-size: 16px;
+      line-height: 16px;
     }
 
     &:hover {
@@ -112,48 +131,58 @@
   }
 
   .header-help {
-    @include defualt-icon-mixin;
-
     &.is-left {
       @include is-left-mixin;
-    }
-
-    &:hover {
-      @include icon-hover-mixin;
     }
   }
 
   .header-user {
     display: flex;
+    gap: 8px;
     align-items: center;
     justify-content: center;
-    height: 100%;
-    margin-left: 8px;
-    color: #768197;
+    height: 28px;
+    margin-left: 0;
+    font-size: 12px;
+    line-height: 20px;
+    color: #a1aec7;
 
     &.is-external {
       margin-left: 0px;
     }
 
-    .header-user-text {
-      line-height: 32px;
-      color: #96a2b9;
+    .header-user-text,
+    .bk-login-userinfo,
+    .bk-icon,
+    .bk-login-userinfo-icon {
+      font-size: 12px;
+      line-height: 20px;
+      color: #a1aec7;
     }
 
     .bk-icon {
-      margin-left: 5px;
-      font-size: 12px;
-      color: #96a2b9;
+      margin-left: 0;
+    }
+
+    .bk-login-userinfo-icon {
+      margin-left: 8px;
     }
 
     &.is-left {
-      @include is-left-mixin(false, #3a84ff);
+      color: #a1aec7;
+
+      &:hover {
+        color: #fff;
+        background: transparent;
+      }
     }
 
     &:hover {
       .header-user-text,
-      .bk-icon {
-        color: #d3d9e4;
+      .bk-icon,
+      .bk-login-userinfo,
+      .bk-login-userinfo-icon {
+        color: #fff;
         cursor: pointer;
       }
     }
@@ -164,9 +193,30 @@
   @include popover-panel-mxin(170px #63656e);
 
   .language-icon {
-    width: 20px;
-    font-size: 20px;
+    display: inline-flex;
+    flex-shrink: 0;
+    align-items: center;
+    justify-content: center;
+    width: 16px;
+    height: 16px;
+    margin-right: 8px;
+    font-size: 16px;
+    line-height: 16px;
   }
+}
+
+.tippy-tooltip.nav-tools-popover-theme,
+.tippy-box[data-theme~='nav-tools-popover'] {
+  box-shadow: none !important;
+}
+
+[data-tippy-root] .tippy-box[data-theme~='login-userinfo'] {
+  border: none;
+  box-shadow: none !important;
+}
+
+.bk-login-userinfo-panel {
+  box-shadow: 0 2px 8px 0 rgba(25, 25, 41, 0.12);
 }
 
 .migrate-dashboard {
