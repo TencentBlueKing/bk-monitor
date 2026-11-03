@@ -891,46 +891,83 @@ def _sync_doris_physical_tables(
     bk_tenant_id: str, namespace: str, parsed_configs: dict[str, ParsedComponentConfig]
 ) -> None:
     """每轮同步当前实体存储，并仅补齐尚未记录的当前历史快照。"""
+    configs = [extra for _, extra in parsed_configs.values() if extra.get("physical_tables")]
+    if not configs:
+        return
     result_tables = {
-        rt.name: rt for rt in ResultTableConfig.objects.filter(bk_tenant_id=bk_tenant_id, namespace=namespace)
-    }
-    for _, extra_config in parsed_configs.values():
-        physical_tables = extra_config.get("physical_tables")
-        rt = result_tables.get(extra_config["bkbase_result_table_name"])
-        if not physical_tables or rt is None or not rt.table_id or not rt.bkbase_table_id:
-            continue
-        storages = models.DorisStorage.objects.filter(
-            Q(origin_table_id="") | Q(origin_table_id__isnull=True),
+        rt.name: rt
+        for rt in ResultTableConfig.objects.filter(
             bk_tenant_id=bk_tenant_id,
-            table_id=rt.table_id,
-            bkbase_table_id=rt.bkbase_table_id,
+            namespace=namespace,
+            name__in={extra["bkbase_result_table_name"] for extra in configs},
         )
-        for storage in storages:
-            if storage.physical_tables != physical_tables:
-                storage.physical_tables = physical_tables
-                storage.save(update_fields=["physical_tables"])
-            records = models.StorageClusterRecord.objects.filter(
-                bk_tenant_id=bk_tenant_id,
-                table_id=storage.table_id,
-                cluster_id=storage.storage_cluster_id,
-                is_current=True,
-                is_deleted=False,
-            )
-            for record in records:
-                # 已有快照属于其他版本时，不将本轮配置拼入其中。
-                if (record.bkbase_table_id and record.bkbase_table_id != rt.bkbase_table_id) or (
-                    record.physical_tables and record.physical_tables != physical_tables
-                ):
-                    continue
-                fields = []
-                if not record.bkbase_table_id:
-                    record.bkbase_table_id = rt.bkbase_table_id
-                    fields.append("bkbase_table_id")
-                if not record.physical_tables:
-                    record.physical_tables = physical_tables
-                    fields.append("physical_tables")
-                if fields:
-                    record.save(update_fields=fields)
+    }
+    cluster_ids = dict(
+        ClusterInfo.objects.filter(
+            bk_tenant_id=bk_tenant_id,
+            cluster_type=ClusterInfo.TYPE_DORIS,
+            cluster_name__in={extra["doris_cluster_name"] for extra in configs},
+        ).values_list("cluster_name", "cluster_id")
+    )
+    tables_by_storage = {}
+    for extra in configs:
+        rt = result_tables.get(extra["bkbase_result_table_name"])
+        cluster_id = cluster_ids.get(extra["doris_cluster_name"])
+        if rt is not None and rt.table_id and rt.bkbase_table_id and cluster_id is not None:
+            tables_by_storage[(rt.table_id, rt.bkbase_table_id, cluster_id)] = extra["physical_tables"]
+    if not tables_by_storage:
+        return
+
+    storages = models.DorisStorage.objects.filter(
+        Q(origin_table_id="") | Q(origin_table_id__isnull=True),
+        bk_tenant_id=bk_tenant_id,
+        table_id__in={key[0] for key in tables_by_storage},
+        storage_cluster_id__in={key[2] for key in tables_by_storage},
+    )
+    changed_storages = []
+    snapshots = {}
+    for storage in storages:
+        physical_tables = tables_by_storage.get((storage.table_id, storage.bkbase_table_id, storage.storage_cluster_id))
+        if physical_tables is None:
+            continue
+        snapshots[(storage.table_id, storage.storage_cluster_id)] = (storage.bkbase_table_id, physical_tables)
+        if storage.physical_tables != physical_tables:
+            storage.physical_tables = physical_tables
+            changed_storages.append(storage)
+    if changed_storages:
+        models.DorisStorage.objects.bulk_update(changed_storages, ["physical_tables"], batch_size=1000)
+    if not snapshots:
+        return
+
+    records = models.StorageClusterRecord.objects.filter(
+        bk_tenant_id=bk_tenant_id,
+        table_id__in={key[0] for key in snapshots},
+        cluster_id__in={key[1] for key in snapshots},
+        is_current=True,
+        is_deleted=False,
+    )
+    records_by_fields = defaultdict(list)
+    for record in records:
+        snapshot = snapshots.get((record.table_id, record.cluster_id))
+        if snapshot is None:
+            continue
+        bkbase_table_id, physical_tables = snapshot
+        # 已有快照属于其他版本时，不将本轮配置拼入其中。
+        if (record.bkbase_table_id and record.bkbase_table_id != bkbase_table_id) or (
+            record.physical_tables and record.physical_tables != physical_tables
+        ):
+            continue
+        fields = []
+        if not record.bkbase_table_id:
+            record.bkbase_table_id = bkbase_table_id
+            fields.append("bkbase_table_id")
+        if not record.physical_tables:
+            record.physical_tables = physical_tables
+            fields.append("physical_tables")
+        if fields:
+            records_by_fields[tuple(fields)].append(record)
+    for fields, changed_records in records_by_fields.items():
+        models.StorageClusterRecord.objects.bulk_update(changed_records, fields, batch_size=1000)
 
 
 def _get_bkbase_components_config(
@@ -1723,7 +1760,7 @@ def _reconcile_data_link_components() -> tuple[
                 terminated_count += 1
 
             try:
-                with transaction.atomic():
+                with transaction.atomic(using=metadata_config.DATABASE_CONNECTION_NAME):
                     if created_components:
                         component_class.objects.bulk_create(created_components, batch_size=1000)
                     if changed_components:

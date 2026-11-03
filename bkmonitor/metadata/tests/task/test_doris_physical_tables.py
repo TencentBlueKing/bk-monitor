@@ -1,11 +1,20 @@
 """Doris 物理表反向同步：用途解析、当前存储及历史快照。"""
 
+from copy import deepcopy
+
 import pytest
+from django.db import connections
+from django.test.utils import CaptureQueriesContext, override_settings
 from django.utils import timezone
 
-from metadata import models
+from metadata import config as metadata_config, models
 from metadata.models.data_link.constants import DataLinkKind
-from metadata.task.bkbase import _get_doris_physical_tables, _reconcile_data_link_components
+from metadata.task.bkbase import (
+    _get_doris_physical_tables,
+    _reconcile_data_link_components,
+    _get_bkbase_components_config,
+    _sync_doris_physical_tables,
+)
 
 pytestmark = pytest.mark.django_db(databases="__all__")
 
@@ -54,11 +63,40 @@ def test_physical_table_roles(storage_config, expected):
     assert _get_doris_physical_tables(binding_config(storage_config, annotations)) == expected
 
 
+class MetadataDatabaseRouter:
+    def __init__(self, alias):
+        self.alias = alias
+
+    def db_for_read(self, model, **hints):
+        if model._meta.app_label == "metadata":
+            return self.alias
+        return None
+
+    db_for_write = db_for_read
+
+
 @pytest.fixture
-def sync_environment(mocker):
+def metadata_database(request, monkeypatch):
+    alias = getattr(request, "param", metadata_config.DATABASE_CONNECTION_NAME)
+    monkeypatch.setattr(metadata_config, "DATABASE_CONNECTION_NAME", alias)
+    with override_settings(DATABASE_ROUTERS=[MetadataDatabaseRouter(alias)]):
+        yield alias
+
+
+@pytest.fixture
+def sync_environment(mocker, metadata_database):
     mocker.patch("metadata.task.bkbase.report_metadata_data_link_status_info")
     mocker.patch("metadata.task.bkbase.api.bk_login.list_tenant", return_value=[{"id": "system"}])
     mocker.patch("metadata.task.bkbase._check_storage_binding_references", return_value=[])
+    models.ClusterInfo.objects.create(
+        bk_tenant_id="system",
+        cluster_id=123,
+        cluster_name="doris_cluster",
+        cluster_type=models.ClusterInfo.TYPE_DORIS,
+        domain_name="doris.example",
+        port=9030,
+        is_default_cluster=False,
+    )
     rt = models.ResultTableConfig.objects.create(
         bk_tenant_id="system",
         namespace="bklog",
@@ -225,3 +263,127 @@ def test_no_history_record_is_created(sync_environment):
     storage.refresh_from_db()
     assert storage.physical_tables == {"main": "db.logs_*"}
     assert not models.StorageClusterRecord.objects.exists()
+
+
+@pytest.mark.parametrize("old_first", [True, False])
+def test_bindings_for_other_clusters_do_not_pollute_current_snapshot(sync_environment, mocker, old_first):
+    _, remote = sync_environment
+    models.ClusterInfo.objects.create(
+        bk_tenant_id="system",
+        cluster_id=456,
+        cluster_name="old_cluster",
+        cluster_type=models.ClusterInfo.TYPE_DORIS,
+        domain_name="old.example",
+        port=9030,
+        is_default_cluster=False,
+    )
+    storage = create_storage()
+    record = create_record()
+    old = deepcopy(remote)
+    old["metadata"]["name"] = "old_binding"
+    old["spec"]["storage"]["name"] = "old_cluster"
+    old["spec"]["storage_config"]["table"] = "old_*"
+    from metadata.task.bkbase import api
+
+    original = api.bkdata.list_data_link.side_effect
+
+    def list_components(**kwargs):
+        result = original(**kwargs)
+        if result == [remote]:
+            return [old, remote] if old_first else [remote, old]
+        return result
+
+    mocker.patch("metadata.task.bkbase.api.bkdata.list_data_link", side_effect=list_components)
+    _reconcile_data_link_components()
+    storage.refresh_from_db()
+    record.refresh_from_db()
+    assert storage.physical_tables == record.physical_tables == {"main": "db.logs_*"}
+    assert record.bkbase_table_id == "2_log_rt"
+    assert models.DorisStorageBindingConfig.objects.get(name="old_binding").physical_tables == {"main": "db.old_*"}
+
+
+@pytest.mark.parametrize("cluster_tenant,cluster_type", [("other", "doris"), ("system", "elasticsearch")])
+def test_missing_matching_cluster_only_updates_binding(sync_environment, cluster_tenant, cluster_type):
+    models.ClusterInfo.objects.filter(cluster_id=123).update(
+        bk_tenant_id=cluster_tenant,
+        cluster_type=cluster_type,
+    )
+    storage = create_storage()
+    record = create_record()
+    _reconcile_data_link_components()
+    storage.refresh_from_db()
+    record.refresh_from_db()
+    assert storage.physical_tables == record.physical_tables == {}
+    assert record.bkbase_table_id == ""
+    assert models.DorisStorageBindingConfig.objects.get(name="doris_binding").physical_tables == {"main": "db.logs_*"}
+
+
+@pytest.mark.django_db(databases="__all__", transaction=True)
+@pytest.mark.parametrize("metadata_database", ["default", "monitor_api"], indirect=True)
+def test_sync_failure_rolls_back_binding_storage_and_snapshot(sync_environment, mocker, metadata_database):
+    storage = create_storage()
+    record = create_record()
+    original = models.StorageClusterRecord.objects.bulk_update
+
+    def fail_after_write(*args, **kwargs):
+        assert connections[metadata_database].in_atomic_block
+        if metadata_database != "default":
+            assert not connections["default"].in_atomic_block
+        original(*args, **kwargs)
+        raise RuntimeError("snapshot write failed")
+
+    mocker.patch.object(models.StorageClusterRecord.objects, "bulk_update", side_effect=fail_after_write)
+    _, _, _, stats = _reconcile_data_link_components()
+    storage.refresh_from_db()
+    record.refresh_from_db()
+    assert stats.untrusted_batch_count > 0
+    assert storage.physical_tables == record.physical_tables == {}
+    assert record.bkbase_table_id == ""
+    assert not models.DorisStorageBindingConfig.objects.filter(name="doris_binding").exists()
+
+
+def test_bulk_sync_query_count_does_not_grow_per_table(sync_environment):
+    _, remote = sync_environment
+    create_storage()
+    create_record()
+    parsed = {
+        "doris_binding": _get_bkbase_components_config(
+            "system",
+            DataLinkKind.DORISBINDING.value,
+            "bklog",
+            remote,
+        ),
+    }
+    connection = connections[metadata_config.DATABASE_CONNECTION_NAME]
+    with CaptureQueriesContext(connection) as single:
+        _sync_doris_physical_tables("system", "bklog", parsed)
+    for index in range(20):
+        name = f"log_rt_{index}"
+        table_id = f"2.log_{index}"
+        bkbase_table_id = f"2_{name}"
+        models.ResultTableConfig.objects.create(
+            bk_tenant_id="system",
+            namespace="bklog",
+            name=name,
+            table_id=table_id,
+            bkbase_table_id=bkbase_table_id,
+            bk_biz_id=2,
+            data_type="log",
+            status="Ok",
+        )
+        create_storage(table_id=table_id, bkbase_table_id=bkbase_table_id)
+        create_record(table_id=table_id)
+        parsed[name] = (
+            {},
+            {
+                "bkbase_result_table_name": name,
+                "doris_cluster_name": "doris_cluster",
+                "physical_tables": {"main": f"db.{name}_*"},
+            },
+        )
+    with CaptureQueriesContext(connection) as many:
+        _sync_doris_physical_tables("system", "bklog", parsed)
+    assert len(single) > 0
+    assert len(many) == len(single)
+    assert models.DorisStorage.objects.exclude(physical_tables={}).count() == 21
+    assert models.StorageClusterRecord.objects.exclude(physical_tables={}).count() == 21
