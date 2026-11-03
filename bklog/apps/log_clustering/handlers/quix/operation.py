@@ -20,6 +20,7 @@ the project delivered to anyone in the future.
 """
 
 import datetime
+import re
 
 from django.db import transaction
 from django.utils import timezone
@@ -352,7 +353,29 @@ class QuixClusteringOperationRunner:
 
     def _step_confirm_adoption(self) -> bool:
         status = TransferApi.get_log_clustering_status(self._metadata_params())
-        return not status.get("errors") and runtime_adoption_confirmed(status)
+        if not runtime_adoption_confirmed(status):
+            return False
+        if self.operation.operation_type != ClusteringOperationTypeEnum.UPDATE.value:
+            return True
+        # BKBase uses the Sink start_time in nanoseconds as its configuration epoch.
+        # Match both the requested binding and its generation, even on an idempotent retry.
+        sink = status["sink_resource"]
+        binding = sink.get("spec", {}).get("clustering", {}).get("binding") or {}
+        expected = self.operation.request_payloads["metadata_set"]["binding"]
+        if any(binding.get(key) != value for key, value in expected.items()):
+            return False
+        progress = status["clustering_status"]
+        epoch = progress.get("applied_epoch")
+        if type(epoch) is not int or epoch <= 0 or epoch != progress.get("requested_epoch"):
+            return False
+        start = sink["status"].get("start_time") or ""
+        match = re.fullmatch(r"(\d{4}-\d\d-\d\d)[ T](\d\d:\d\d:\d\d)(?:\.(\d{1,9}))?(?: UTC|Z|\+00:00)", start)
+        if not match:
+            return False
+        seconds, nanos = divmod(epoch, 10**9)
+        return datetime.datetime.fromtimestamp(seconds, datetime.timezone.utc).strftime(
+            "%Y-%m-%d %H:%M:%S"
+        ) == f"{match[1]} {match[2]}" and nanos == int((match[3] or "").ljust(9, "0"))
 
     def _promote_pending_config(self, **fields):
         # 待生效配置已提升过时不能再次提升，否则会把空配置写入生效配置

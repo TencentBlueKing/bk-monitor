@@ -8,7 +8,7 @@ from apps.log_clustering.constants import (
     ClusteringRuntimePhaseEnum,
 )
 from apps.log_clustering.exceptions import QuixClusteringParamsInvalidException
-from apps.log_clustering.handlers.quix.adapter import build_clustering_config
+from apps.log_clustering.handlers.quix.adapter import build_binding, build_clustering_config
 from apps.log_clustering.handlers.quix.handler import QuixClusteringHandler
 from apps.log_clustering.handlers.quix.operation import (
     POLL_INTERVAL_SECONDS,
@@ -72,7 +72,23 @@ class TestQuixUpdateRunner(TestCase):
             "sink": {"name": "sink"},
             "databus": {"name": "databus"},
         }
-        self.transfer.get_log_clustering_status.return_value = ADOPTED
+        self.adopted = {
+            **ADOPTED,
+            "sink_resource": {
+                "status": {"phase": "Ok", "start_time": "2026-01-01 00:00:00.000000123 UTC"},
+                "spec": {
+                    "clustering": {
+                        "binding": build_binding(runtime, runtime.pending_config, QUIX_CONFIG.get("max_message_bytes"))
+                    }
+                },
+            },
+            "clustering_status": {
+                "configuration_applied": True,
+                "requested_epoch": 1767225600000000123,
+                "applied_epoch": 1767225600000000123,
+            },
+        }
+        self.transfer.get_log_clustering_status.return_value = self.adopted
         self.bkfara = MagicMock()
         for target, value in (
             ("apps.log_clustering.handlers.quix.operation.TransferApi", self.transfer),
@@ -111,6 +127,22 @@ class TestQuixUpdateRunner(TestCase):
         self.assertEqual(runtime.active_config["log_filter"][0]["value"], ["WARN"])
         self.assertIsNone(runtime.pending_config)
 
+    def test_previous_success_cannot_confirm_new_filter(self):
+        stale = self.adopted["clustering_status"]["applied_epoch"] - 1
+        self.transfer.get_log_clustering_status.return_value = {
+            **self.adopted,
+            "clustering_status": {"configuration_applied": True, "requested_epoch": stale, "applied_epoch": stale},
+        }
+        self.assertEqual(self.run_operation(), RECEIPT_POLL_INTERVAL_SECONDS)
+        self.transfer.get_log_clustering_status.return_value = {
+            **self.adopted,
+            "sink_resource": {**self.adopted["sink_resource"], "spec": {"clustering": {"binding": {"log_filter": []}}}},
+        }
+        self.assertEqual(self.run_operation(), RECEIPT_POLL_INTERVAL_SECONDS)
+        self.transfer.get_log_clustering_status.return_value = self.adopted
+        self.assertIsNone(self.run_operation())
+        self.transfer.set_log_clustering_config.assert_called_once()
+
     def test_resource_not_ready_does_not_promote_filter(self):
         self.transfer.get_log_clustering_status.return_value = {"errors": ["not ready"]}
         self.assertEqual(self.run_operation(), POLL_INTERVAL_SECONDS)
@@ -121,7 +153,7 @@ class TestQuixUpdateRunner(TestCase):
     def test_receipt_retry_does_not_repeat_config_write(self):
         self.transfer.get_log_clustering_status.return_value = {**ADOPTED, "clustering_status": {}}
         self.assertEqual(self.run_operation(), RECEIPT_POLL_INTERVAL_SECONDS)
-        self.transfer.get_log_clustering_status.return_value = ADOPTED
+        self.transfer.get_log_clustering_status.return_value = self.adopted
         self.assertIsNone(self.run_operation())
         self.transfer.set_log_clustering_config.assert_called_once()
 
