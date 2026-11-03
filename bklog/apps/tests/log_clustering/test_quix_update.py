@@ -223,6 +223,43 @@ class TestQuixClusteringHandlerUpdate(TestCase):
         self.runtime = create_running_runtime()
         self.index_set = LogIndexSet(index_set_id=INDEX_SET_ID, space_uid="bkcc__2")
 
+    def test_storage_switch_requires_stopped_runtime(self, mock_delay):
+        from apps.log_databus.handlers.etl.transfer import TransferEtlHandler
+
+        self.index_set.storage_cluster_id = 1
+        self.index_set.save()
+        etl = TransferEtlHandler()
+        etl.data = Mock(index_set_id=INDEX_SET_ID, clean_template_id=None)
+        params = dict(etl_config="bk_log_text", table_id="logs", retention=7, allocation_min_days=0, storage_replies=1)
+        with patch("apps.log_databus.handlers.etl.transfer.StorageHandler", side_effect=LookupError("storage lookup")):
+            with self.assertRaises(QuixClusteringParamsInvalidException):
+                etl.update_or_create(storage_cluster_id=2, **params)
+            with self.assertRaisesRegex(LookupError, "storage lookup"):
+                etl.update_or_create(storage_cluster_id=1, **params)
+            self.runtime.phase = ClusteringRuntimePhaseEnum.STOPPED.value
+            self.runtime.save()
+            with self.assertRaisesRegex(LookupError, "storage lookup"):
+                etl.update_or_create(storage_cluster_id=2, **params)
+
+    def test_bulk_switch_rejects_before_changing_cluster_default(self, mock_delay):
+        from apps.log_databus.models import BcsStorageClusterConfig, CollectorConfig
+        from apps.log_databus.tasks.collector import switch_bcs_collector_storage
+
+        self.index_set.storage_cluster_id = 1
+        self.index_set.save()
+        CollectorConfig.objects.create(
+            index_set_id=INDEX_SET_ID,
+            bk_biz_id=2,
+            bcs_cluster_id="test-cluster",
+            bk_app_code="test",
+            collector_config_name="test",
+            collector_scenario_id="row",
+            category_id="application",
+        )
+        with self.assertRaises(QuixClusteringParamsInvalidException):
+            switch_bcs_collector_storage(2, "test-cluster", 2, "test")
+        self.assertFalse(BcsStorageClusterConfig.objects.filter(bcs_cluster_id="test-cluster").exists())
+
     def test_changed_rules_start_update(self, mock_delay):
         operation_id = QuixClusteringHandler(self.index_set).update(
             {"filter_rules": WARN_RULES, "regex_template_id": 3}

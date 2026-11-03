@@ -23,10 +23,14 @@ import copy
 
 from django.conf import settings
 from django.db import transaction
+from django.utils.translation import gettext as _
 
 from apps.constants import UserOperationActionEnum, UserOperationTypeEnum
 from apps.decorators import user_operation_record
-from apps.log_clustering.models import ClusteringConfig
+
+from apps.log_clustering.constants import ClusteringRuntimePhaseEnum
+from apps.log_clustering.exceptions import QuixClusteringParamsInvalidException
+from apps.log_clustering.models import ClusteringConfig, LogClusteringRuntime
 from apps.log_clustering.tasks.flow import update_clustering_clean
 from apps.log_databus.constants import STORAGE_CLUSTER_TYPE
 from apps.log_databus.exceptions import CleanTemplateNotExistException
@@ -46,6 +50,17 @@ _CLEAN_TEMPLATE_ID_NOT_PROVIDED = object()
 
 
 class TransferEtlHandler(EtlHandler):
+    @staticmethod
+    def validate_storage_switch(changed_index_set_ids):
+        if (
+            LogClusteringRuntime.objects.filter(index_set_id__in=changed_index_set_ids)
+            .exclude(phase=ClusteringRuntimePhaseEnum.STOPPED.value)
+            .exists()
+        ):
+            raise QuixClusteringParamsInvalidException(
+                QuixClusteringParamsInvalidException.MESSAGE.format(detail=_("请先关闭轻量化聚类，再切换存储集群"))
+            )
+
     def _validate_clean_template(self, clean_template_id):
         if clean_template_id is None:
             return None
@@ -159,6 +174,10 @@ class TransferEtlHandler(EtlHandler):
         etl_params = etl_params or {}
         user_fields = copy.deepcopy(fields)
 
+        index_set_obj = LogIndexSet.objects.filter(index_set_id=self.data.index_set_id).first()
+        if index_set_obj and index_set_obj.storage_cluster_id != storage_cluster_id:
+            self.validate_storage_switch([index_set_obj.index_set_id])
+
         # 存储集群信息
         cluster_info = StorageHandler(storage_cluster_id).get_cluster_info_by_id()
 
@@ -200,7 +219,6 @@ class TransferEtlHandler(EtlHandler):
                             f"{EtlStorage.separator_node_name}.", ""
                         )
 
-        index_set_obj = LogIndexSet.objects.filter(index_set_id=self.data.index_set_id).first()
         if sort_fields is None and index_set_obj:
             sort_fields = index_set_obj.sort_fields
         if target_fields is None and index_set_obj:

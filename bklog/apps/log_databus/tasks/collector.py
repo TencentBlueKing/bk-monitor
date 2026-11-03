@@ -589,6 +589,12 @@ def switch_bcs_collector_storage(bk_biz_id, bcs_cluster_id, storage_cluster_id, 
     collectors = CollectorConfig.objects.filter(
         bk_biz_id=bk_biz_id, bcs_cluster_id=bcs_cluster_id, bk_app_code=bk_app_code
     )
+    from apps.log_databus.handlers.etl.transfer import TransferEtlHandler
+
+    changed = LogIndexSet.objects.filter(index_set_id__in=collectors.values("index_set_id")).exclude(
+        storage_cluster_id=storage_cluster_id
+    )
+    TransferEtlHandler.validate_storage_switch(changed.values("index_set_id"))
     # 新增bcs采集存储集群全局配置更新
     BcsStorageClusterConfig.objects.update_or_create(
         bcs_cluster_id=bcs_cluster_id, bk_biz_id=bk_biz_id, defaults={"storage_cluster_id": storage_cluster_id}
