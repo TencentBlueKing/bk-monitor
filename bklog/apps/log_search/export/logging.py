@@ -1,4 +1,9 @@
-"""分片导出日志在状态提交后输出，避免日志阻塞长期占用行锁。"""
+"""分片导出状态日志的提交后输出。
+
+状态函数都在 transaction.atomic() 内持有行锁。日志一旦阻塞，事务无法提交、行锁不会释放，
+调度器的入队更新只能等到锁等待超时，于是单个任务的开销会扩散成整批任务停摆。
+把日志挪到提交后，是为了让日志 I/O 不落在持有行锁的时间窗内。
+"""
 
 from copy import deepcopy
 
@@ -11,6 +16,7 @@ def log_after_commit(log_method, message="", *args, **kwargs):
         log_method(message, *args, **kwargs)
         return
 
+    # 提交前冻结参数：失败上下文常在事务内被就地重置
     snapshot_args = deepcopy(args)
     snapshot_kwargs = deepcopy(kwargs)
 
@@ -22,9 +28,15 @@ def log_after_commit(log_method, message="", *args, **kwargs):
 
 class CommitSafeLogger:
     """
-    事务内的状态日志延后到提交后输出，避免日志 I/O 长时间占用行锁。
+    事务内的状态日志延后到提交后输出。
 
-    非事务场景保持原样输出；exception/critical 等依赖当前异常上下文的接口不透传延迟逻辑。
+    起因：日志 handler 在 fork 后可能继承已消失线程的缓冲流锁，写入会在 futex 上永久等待。
+    该阻塞发生在持有行锁的事务内，导致行锁不释放、并发入队全部锁等待超时，整批任务停在收尾前。
+
+    定位是防御措施，不是业务时序要求：
+    - 只用于运维排查日志，审计日志仍需与业务数据同事务写入
+    - exception/critical 依赖当前异常上下文，保持同步输出
+    - 非事务场景立即输出，不引入额外延迟
     """
 
     _DEFERRED_METHODS = frozenset({"debug", "info", "warning", "error"})
