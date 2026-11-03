@@ -5,11 +5,7 @@ from dataclasses import asdict, dataclass
 from django.conf import settings
 
 from apps.feature_toggle.handlers.toggle import FeatureToggleObject
-from apps.log_search.export.logging import CommitSafeLogger
-from apps.utils.log import logger as _logger
-
-# 策略快照在事务内解析，配置告警同样不能阻塞持锁事务
-logger = CommitSafeLogger(_logger)
+from apps.utils.log import logger
 
 
 FEATURE_ASYNC_EXPORT_SHARDED = "feature_async_export_sharded"

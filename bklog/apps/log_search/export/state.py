@@ -37,14 +37,10 @@ from apps.log_search.constants import (
     ExportStage,
 )
 from apps.log_search.export.config import policy_from_snapshot
-from apps.log_search.export.logging import CommitSafeLogger
 from apps.log_search.export.models import ExportJob, ExportPart, ExportPlan
 from apps.log_search.export.query import time_order
 from apps.log_search.export.storage import merged_name
-from apps.utils.log import logger as _logger
-
-# 状态函数都在事务内持行锁，日志统一延后到提交后输出，避免日志阻塞拖住行锁
-logger = CommitSafeLogger(_logger)
+from apps.utils.log import logger
 
 
 @dataclass(frozen=True)
@@ -484,7 +480,7 @@ def _classify_failure(job, part, error_code):
 def _fail_locked(job, part, error_code, error_detail, retryable=True):
     if part.status not in ExportPartStatus.INFLIGHT:
         return None
-    # 阶段和投递身份随后可能被重置，先冻结失败上下文以便追踪重试及超时回收。
+    # 阶段和投递身份随后可能被重置，先记录失败时的上下文以便追踪重试及超时回收。
     logger.warning(
         "[sharded_export_part_failure] job_id=%s part_id=%s part_no=%s plan_version=%s "
         "attempts=%s task_id=%s status=%s stage=%s start_time=%s end_time=%s "

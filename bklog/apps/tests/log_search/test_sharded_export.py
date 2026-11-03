@@ -1286,7 +1286,7 @@ class ExportStateTestCase(TestCase):
         self.assertEqual(part.status, ExportPartStatus.WAITING)
         self.assertEqual(part.task_id, "")
 
-    @patch("apps.log_search.export.state.logger._logger")
+    @patch("apps.log_search.export.state.logger")
     def test_failure_log_preserves_stage_and_execution_identity_before_requeue(self, mock_logger):
         self.plan()
         part = ExportPart.objects.filter(job=self.job).order_by("part_no").first()
@@ -1294,8 +1294,7 @@ class ExportStateTestCase(TestCase):
         part = state.claim_part(part.pk, "upload-task")
         state.set_stage(part.pk, fence_of(part), ExportStage.UPLOAD)
 
-        with self.captureOnCommitCallbacks(execute=True):
-            state.fail_part(part.pk, fence_of(part), error_code="UPLOAD_FAILED", error_detail="上传失败")
+        state.fail_part(part.pk, fence_of(part), error_code="UPLOAD_FAILED", error_detail="上传失败")
 
         message, *args = mock_logger.warning.call_args.args
         message %= tuple(args)
