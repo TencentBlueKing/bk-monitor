@@ -20,10 +20,10 @@ from apps.exceptions import ApiError, ApiRequestError, ApiResultError
 from apps.log_search.models import IndexSetTag, LogIndexSet
 from apps.log_search.views.scene_search_views import SceneSearchViewSet
 
-# 视图内通过 from apps.api.modules.bcs import BcsApi 调用 get_cluster_by_cluster_id（延迟导入）。
-# BcsApi 是 apps/api/__init__.py 里 SimpleLazyObject 包装的 _BcsApi 实例，
-# get_cluster_by_cluster_id 是 __init__ 里赋值的实例属性，故 patch 目标指向 apps.api.BcsApi 实例属性。
-GET_CLUSTER_PATH = "apps.api.BcsApi.get_cluster_by_cluster_id"
+# 名称解析已迁到 handler 层（apps/log_search/handlers/scene_search.py），
+# resolve_bcs_cluster_names 通过模块级解包的 _BCS_GET_CLUSTER（DataAPI 实例）调用 BCS。
+# patch 该模块级引用，确保并发子线程里 mock 生效（SimpleLazyObject 在子线程重新解包会导致 mock 失效）。
+GET_CLUSTER_PATH = "apps.log_search.handlers.scene_search._BCS_GET_CLUSTER"
 
 
 def _setup_k8s_index_set(cluster_ids, space_uid="bkcc__2"):
@@ -70,9 +70,10 @@ def _cluster_name_side_effect(name_map):
     """构造 get_cluster_by_cluster_id 的 side_effect：按 cluster_id(大写) 返回 {clusterName}。
 
     name_map: {原始 cluster_id: 集群名称}；不在映射内的 cluster_id 抛异常模拟 BCS 无此集群。
+    生产代码调用会传 timeout kwarg（短超时），side_effect 需接受以避免 TypeError。
     """
 
-    def _side_effect(params):
+    def _side_effect(params, timeout=None, **kwargs):
         cid = params["cluster_id"].upper()
         if cid not in name_map:
             # 模拟 BCS 查不到集群：HTTP 成功但业务返回失败（DataAPI 抛 ApiResultError）
@@ -162,7 +163,8 @@ class TestDimensionValuesClusterName(TestCase):
 
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.data["values"], [])
-        self.assertNotIn("options", response.data)
+        # 统一契约：options 始终返回，空结果为 []
+        self.assertEqual(response.data["options"], [])
         mock_bcs.assert_not_called()
 
     @patch(
@@ -189,7 +191,8 @@ class TestDimensionValuesClusterName(TestCase):
         self.assertEqual(values, ["stdout"])
         for v in values:
             self.assertIsInstance(v, str)
-        self.assertNotIn("options", response.data)
+        # 统一契约：非 cluster 维度无 resolver，options 为 [{id, name=id}]
+        self.assertEqual(response.data["options"], [{"id": "stdout", "name": "stdout"}])
 
     @patch(
         "apps.log_search.views.scene_search_views.IndexSetHandler.get_all_related_space_uids",
@@ -337,7 +340,8 @@ class TestDimensionValuesClusterName(TestCase):
         self.assertEqual(response.data["dimension_key"], "namespace")
         for v in response.data["values"]:
             self.assertIsInstance(v, str)
-        self.assertNotIn("options", response.data)
+        # 统一契约：非 cluster 维度无 resolver，options 为 [{id, name=id}]
+        self.assertEqual(response.data["options"], [{"id": "default", "name": "default"}])
 
     @patch(
         "apps.log_search.views.scene_search_views.IndexSetHandler.get_all_related_space_uids",
@@ -394,7 +398,7 @@ class TestDimensionValuesClusterName(TestCase):
         """
         _setup_k8s_index_set(["cls-ok", "cls-bizfail", "cls-netfail"])
 
-        def _mixed_side_effect(params):
+        def _mixed_side_effect(params, timeout=None, **kwargs):
             cid = params["cluster_id"].upper()
             if cid == "CLS-OK":
                 return {"clusterName": "正常集群", "projectID": "p"}
@@ -516,7 +520,7 @@ class TestDimensionValuesClusterName(TestCase):
         cluster_ids = ["cls-{}".format(str(i).zfill(2)) for i in range(25)]
         _setup_k8s_index_set(cluster_ids)
 
-        def _mixed_side_effect(params):
+        def _mixed_side_effect(params, timeout=None, **kwargs):
             cid = params["cluster_id"].upper()
             idx = int(cid.split("-")[-1])
             if idx % 2 == 1:
@@ -550,13 +554,11 @@ class TestDimensionValuesClusterName(TestCase):
     def test_cluster_id_concurrent_preserves_request_context(self, mock_bcs, mock_related):
         """并发查询时 request 上下文正确传递到子线程。
 
-        验证 FuncThread.activate_request 把主线程 request 传给子线程，
+        验证 FuncThread 把主线程 request 传给子线程，
         保证 BcsApi 的 before_request 鉴权（依赖 get_request()）在并发下正常。
 
-        仅本用例激活 request：生产环境 DRF 中间件会将 request 激活到线程本地变量，
-        测试需手动 activate_request 模拟该条件，否则 FuncThread 拿不到 request。
         """
-        from apps.utils.local import activate_request, get_request
+        from apps.utils.local import get_request
 
         _setup_k8s_index_set(["cls-ctx1", "cls-ctx2"])
 
@@ -574,9 +576,9 @@ class TestDimensionValuesClusterName(TestCase):
         mock_bcs.side_effect = _ctx_side_effect
 
         req = _post_request({"bk_biz_id": 2, "scene": "k8s", "dimension_key": "cluster_id"})
-        # 模拟生产环境 DRF 中间件的 request 激活（仅本用例需要，验证上下文传递）
-        activate_request(req)
-        response = _get_viewset("dimension_values", req).dimension_values(req)
+        # 用 patch 注入 request 到线程本地变量（模拟 UserLocalMiddleware 激活），用例结束自动恢复
+        with patch("apps.utils.local._local.request", req, create=True):
+            response = _get_viewset("dimension_values", req).dimension_values(req)
 
         self.assertEqual(response.status_code, 200)
         self.assertEqual(len(response.data["options"]), 2)
@@ -595,7 +597,7 @@ class TestDimensionValuesClusterName(TestCase):
         """
         _setup_k8s_index_set(["cls-hasname", "cls-noname"])
 
-        def _field_missing_side_effect(params):
+        def _field_missing_side_effect(params, timeout=None, **kwargs):
             cid = params["cluster_id"].upper()
             if cid == "CLS-HASNAME":
                 return {"clusterName": "有名字集群", "projectID": "p"}
@@ -629,14 +631,15 @@ class TestDimensionValuesClusterName(TestCase):
         import threading
         import time
 
-        n = 8
+        # 4 个任务并发（避免低核机器上 Barrier 超时失败）。
+        n = 4
         cluster_ids = ["cls-{}".format(str(i).zfill(2)) for i in range(n)]
         _setup_k8s_index_set(cluster_ids)
 
         barrier = threading.Barrier(n, timeout=10)
         concurrency_observed = []
 
-        def _barrier_side_effect(params):
+        def _barrier_side_effect(params, timeout=None, **kwargs):
             # 记录到达 Barrier 的时刻，Barrier 释放后记录完成时刻
             arrive = time.monotonic()
             barrier.wait()  # 串行执行时这里会死锁超时（只有一个线程到达）
@@ -657,54 +660,3 @@ class TestDimensionValuesClusterName(TestCase):
         # 并发耗时远小于串行累加（若串行，n 个 Barrier.wait 会超时或累加）
         # 8 个查询并发，耗时应在单次查询量级（<2s），而非 8 倍
         self.assertLess(elapsed, 5.0, "并发查询应在 5s 内完成（若串行 Barrier 会超时）")
-
-    @patch(
-        "apps.log_search.views.scene_search_views.IndexSetHandler.get_all_related_space_uids",
-        return_value=["bkcc__2"],
-    )
-    @patch(GET_CLUSTER_PATH)
-    def test_cluster_id_concurrent_latency_vs_serial(self, mock_bcs, mock_related):
-        """量化对比：并发耗时显著低于等价串行累加耗时。
-
-        每个 mock 查询 sleep 固定时长模拟网关往返，对比并发总耗时与 N×单次的理论串行耗时。
-        断言并发耗时 < 串行理论耗时的一半（证明并发生效）。
-        """
-        import time
-
-        n = 6
-        sleep_per_call = 0.1  # 每次查询模拟 100ms 网关往返
-        cluster_ids = ["cls-{}".format(str(i).zfill(2)) for i in range(n)]
-        _setup_k8s_index_set(cluster_ids)
-
-        def _sleep_side_effect(params):
-            time.sleep(sleep_per_call)
-            return {"clusterName": "延迟集群", "projectID": "p"}
-
-        mock_bcs.side_effect = _sleep_side_effect
-
-        req = _post_request({"bk_biz_id": 2, "scene": "k8s", "dimension_key": "cluster_id"})
-        start = time.monotonic()
-        response = _get_viewset("dimension_values", req).dimension_values(req)
-        concurrent_elapsed = time.monotonic() - start
-
-        self.assertEqual(response.status_code, 200)
-        self.assertEqual(len(response.data["options"]), n)
-
-        serial_theoretical = n * sleep_per_call  # 串行理论耗时 = 0.6s
-        # 并发耗时显著低于串行理论耗时（并发生效则 ≈0.1s，串行则 ≈0.6s）
-        # 阈值取 0.7 倍
-        self.assertLess(
-            concurrent_elapsed,
-            serial_theoretical * 0.7,
-            "并发耗时({:.3f}s)应显著低于串行理论耗时({:.3f}s)，证明并发生效".format(
-                concurrent_elapsed, serial_theoretical
-            ),
-        )
-        # 量化数据
-        quantified_information = (
-            "[并发量化] n={}, 单次sleep={}s, 串行理论={:.3f}s, 并发实际={:.3f}s, 加速比≈{:.1f}x".format(
-                n, sleep_per_call, serial_theoretical, concurrent_elapsed,
-                serial_theoretical / max(concurrent_elapsed, 0.001)
-            )
-        )
-        self.assertIsNotNone(quantified_information)

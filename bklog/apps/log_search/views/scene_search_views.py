@@ -769,7 +769,12 @@ class SceneSearchViewSet(APIViewSet):
         @apiName scene_search_dimension_values
         @apiGroup 14_SceneSearch
         @apiDescription 获取场景下指定维度的可选值列表（支持级联筛选），供前端下拉框使用。
+            返回 {dimension_key, values, options}：
+            - values: 原始维度值字符串数组（向后兼容）
+            - options: [{id, name}] 结构，始终返回（空结果为 []）；name 默认等于 id，
+              命中名称解析器的维度（如 k8s 场景的 cluster_id）会补充集群名称
         """
+        from apps.log_search.handlers.scene_search import build_dimension_options
         from apps.log_search.models import IndexSetTag
 
         data = self.params_valid(SceneDimensionValuesSerializer)
@@ -784,69 +789,13 @@ class SceneSearchViewSet(APIViewSet):
         )
 
         sorted_values = sorted(values)
-
-        # cluster_id 维度额外补充 options 字段（[{id, name}] 结构）供前端下拉框展示集群名称；
-        # values 仍返回原始字符串数组保持向后兼容，其他维度（stream / namespace 等）不新增 options。
-        if data["dimension_key"] == "cluster_id" and values:
-            return Response(
-                {
-                    "dimension_key": data["dimension_key"],
-                    "values": sorted_values,
-                    "options": self._enrich_cluster_names(values),
-                }
-            )
-
-        return Response({"dimension_key": data["dimension_key"], "values": sorted_values})
-
-    @staticmethod
-    def _enrich_cluster_names(cluster_ids):
-        """为 cluster_id 列表补充集群名称，返回按 id 字典序排列的 [{id, name}] 列表。
-
-        复用 BcsApi.get_cluster_by_cluster_id 按 cluster_id 精确查询（自带 5 分钟缓存），
-        与既有 _get_bcs_cluster_name 范式一致，不依赖业务 ID，关联空间的集群也能查到名称。
-        通过 MultiExecuteFunc 并发查询多个集群（与同文件 fetch_distinct_count_list 范式一致），
-        避免多集群串行 HTTP 往返导致接口延迟线性叠加。
-        降级策略：BCS API 调用失败或某 cluster_id 无名称时，name 回退为 cluster_id 本身，
-        保证接口不因外部依赖失败；单个查询失败不影响其他集群（并发隔离）。
-        """
-        from apps.api import BcsApi
-        from apps.exceptions import ApiError
-        from apps.utils.log import logger
-        from apps.utils.thread import MultiExecuteFunc
-
-        sorted_ids = sorted(cluster_ids)
-
-        def _query_one(cid):
-            """查询单个集群名称，失败降级为 cid 本身。
-
-            ApiError（BCS 外部调用失败）为预期降级场景，记 error 日志后返回 cid；
-            其他异常（编程错误）非预期，记 exception 堆栈便于排查后重新抛出，
-            由 MultiExecuteFunc 兜底降级，避免中断其他集群的并发查询。
-            """
-            try:
-                info = BcsApi.get_cluster_by_cluster_id({"cluster_id": cid.upper()})
-                return info.get("clusterName") or cid
-            except ApiError:
-                logger.error("get bcs cluster name error, cluster_id: %s", cid)
-                return cid
-            except Exception:  # pylint: disable=broad-except
-                logger.exception("unexpected error querying cluster name, cluster_id: %s", cid)
-                raise
-
-        # 并发查询所有集群（FuncThread会把主线程request上下文传递到子线程，保证BcsApi的before_request鉴权正常）
-        multi = MultiExecuteFunc()
-        for cid in sorted_ids:
-            multi.append(cid, _query_one, params=cid)
-        multi.run(return_exception=True)
-
-        # 按字典序组装结果；并发失败的 task 结果为 Exception 对象，降级为 cid
-        result = []
-        for cid in sorted_ids:
-            name = multi.results.get(cid)
-            if isinstance(name, Exception):
-                name = cid
-            result.append({"id": cid, "name": name})
-        return result
+        return Response(
+            {
+                "dimension_key": data["dimension_key"],
+                "values": sorted_values,
+                "options": build_dimension_options(data["scene"], data["dimension_key"], sorted_values),
+            }
+        )
 
     @list_route(methods=["POST"], url_path="list_field_candidates")
     def list_field_candidates(self, request):

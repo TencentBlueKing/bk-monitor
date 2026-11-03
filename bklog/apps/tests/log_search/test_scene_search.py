@@ -1341,11 +1341,17 @@ class TestIndexSetTagExtension(TestCase):
 class TestSceneSearchViewSetDimensionValues(TestCase):
     """POST /search/scene/dimension_values/"""
 
+    @patch("apps.log_search.handlers.scene_search._BCS_GET_CLUSTER")
     @patch("apps.log_search.views.scene_search_views.IndexSetHandler.get_all_related_space_uids")
     @patch("apps.log_search.models.IndexSetTag.get_dimension_values")
-    def test_dimension_values_success(self, mock_dv, mock_related):
+    def test_dimension_values_success(self, mock_dv, mock_related, mock_bcs):
         mock_dv.return_value = ["BCS-K8S-001", "BCS-K8S-002"]
         mock_related.return_value = ["bkcc__2", "bcs__BCS-K8S-001"]
+        mock_bcs.side_effect = lambda params, timeout=None, **kw: {
+            "clusterName": {"BCS-K8S-001": "集群一", "BCS-K8S-002": "集群二"}.get(
+                params["cluster_id"], params["cluster_id"]
+            )
+        }
 
         factory = APIRequestFactory()
         request = factory.post(
@@ -1360,6 +1366,11 @@ class TestSceneSearchViewSetDimensionValues(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.data["dimension_key"], "cluster_id")
         self.assertEqual(response.data["values"], ["BCS-K8S-001", "BCS-K8S-002"])
+        # cluster_id 维度补充 BCS 集群名称
+        self.assertEqual(
+            response.data["options"],
+            [{"id": "BCS-K8S-001", "name": "集群一"}, {"id": "BCS-K8S-002", "name": "集群二"}],
+        )
         mock_related.assert_called_once_with("bkcc__2")
         mock_dv.assert_called_once_with(
             bk_biz_id=2,
@@ -1369,11 +1380,15 @@ class TestSceneSearchViewSetDimensionValues(TestCase):
             space_uids=["bkcc__2", "bcs__BCS-K8S-001"],
         )
 
+    @patch("apps.log_search.handlers.scene_search._BCS_GET_CLUSTER")
     @patch("apps.log_search.views.scene_search_views.IndexSetHandler.get_all_related_space_uids")
     @patch("apps.log_search.models.IndexSetTag.get_dimension_values")
-    def test_dimension_values_with_filters(self, mock_dv, mock_related):
+    def test_dimension_values_with_filters(self, mock_dv, mock_related, mock_bcs):
         mock_dv.return_value = ["BCS-K8S-001"]
         mock_related.return_value = ["bkcc__2"]
+        mock_bcs.side_effect = lambda params, timeout=None, **kw: {
+            "clusterName": {"BCS-K8S-001": "集群一"}.get(params["cluster_id"], params["cluster_id"])
+        }
 
         factory = APIRequestFactory()
         request = factory.post(
@@ -1392,6 +1407,7 @@ class TestSceneSearchViewSetDimensionValues(TestCase):
 
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.data["values"], ["BCS-K8S-001"])
+        self.assertEqual(response.data["options"], [{"id": "BCS-K8S-001", "name": "集群一"}])
         mock_dv.assert_called_once_with(
             bk_biz_id=2,
             scene="k8s",
@@ -1400,11 +1416,15 @@ class TestSceneSearchViewSetDimensionValues(TestCase):
             space_uids=["bkcc__2"],
         )
 
+    @patch("apps.log_search.handlers.scene_search._BCS_GET_CLUSTER")
     @patch("apps.log_search.views.scene_search_views.IndexSetHandler.get_all_related_space_uids")
     @patch("apps.log_search.models.IndexSetTag.get_dimension_values")
-    def test_dimension_values_with_list_filters(self, mock_dv, mock_related):
+    def test_dimension_values_with_list_filters(self, mock_dv, mock_related, mock_bcs):
         mock_dv.return_value = ["BCS-K8S-001"]
         mock_related.return_value = ["bkcc__2"]
+        mock_bcs.side_effect = lambda params, timeout=None, **kw: {
+            "clusterName": {"BCS-K8S-001": "集群一"}.get(params["cluster_id"], params["cluster_id"])
+        }
 
         factory = APIRequestFactory()
         request = factory.post(
@@ -1422,6 +1442,8 @@ class TestSceneSearchViewSetDimensionValues(TestCase):
         response = vs.dimension_values(request)
 
         self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.data["values"], ["BCS-K8S-001"])
+        self.assertEqual(response.data["options"], [{"id": "BCS-K8S-001", "name": "集群一"}])
         mock_dv.assert_called_once_with(
             bk_biz_id=2,
             scene="k8s",

@@ -134,7 +134,7 @@ class TestDimensionValuesRelatedSpace(TestCase):
 
 @override_settings(PRE_SEARCH_SECONDS=60, TIME_ZONE="UTC")
 class TestDimensionValuesViewRelatedSpace(TestCase):
-    @patch("apps.api.BcsApi.get_cluster_by_cluster_id")
+    @patch("apps.log_search.handlers.scene_search._BCS_GET_CLUSTER")
     @patch("apps.log_search.views.scene_search_views.IndexSetHandler.get_all_related_space_uids")
     @patch("apps.log_search.models.IndexSetTag.get_dimension_values")
     def test_view_passes_related_space_uids(self, mock_dv, mock_related, mock_bcs):
