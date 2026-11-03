@@ -504,6 +504,43 @@ def test_proxy_adopts_current_rt_with_legacy_access_record(source, old_record_is
     assert models.ResultTableConfig.objects.count() == models.VMStorageBindingConfig.objects.count() == 1
 
 
+@pytest.mark.parametrize("source_name", ["", "legacy_v3_source"])
+def test_proxy_reuses_only_legacy_access_record_with_existing_target_mapping(source, source_name):
+    models.DataIdConfig.objects.filter(bk_data_id=source.pk).delete()
+    link = proxy_link(source)
+    rt, binding = historical_components(source, record=False)
+    models.BkBaseResultTable.objects.filter(pk=link.pk).update(bkbase_table_id=rt.bkbase_table_id)
+    old_record = models.AccessVMRecord.objects.create(
+        bk_tenant_id="system",
+        result_table_id=TABLE,
+        vm_result_table_id="42_old_clean_rt",
+        bk_base_data_id=557843,
+        bk_base_data_name=source_name,
+        vm_cluster_id=204,
+    )
+    for _ in range(2):
+        create_bkbase_data_link(
+            2,
+            source,
+            TABLE,
+            VM,
+            models.DataLink.BCS_FEDERAL_PROXY_TIME_SERIES,
+            bcs_cluster_id="BCS-K8S-PROXY",
+        )
+        # 与 KafkaTailResource 相同的单记录读取方式仍可用，来源身份保持不变。
+        record = models.AccessVMRecord.objects.get(bk_tenant_id="system", result_table_id=TABLE)
+        assert record.pk == old_record.pk
+        assert (record.bk_base_data_id, record.bk_base_data_name) == (557843, source_name)
+        assert record.vm_result_table_id == "42_historical_rt"
+        assert record.vm_cluster_id == 970001
+        assert record.bcs_cluster_id == "BCS-K8S-PROXY"
+    rt.refresh_from_db()
+    binding.refresh_from_db()
+    assert rt.data_link_name == binding.data_link_name == link.pk
+    assert models.DataLink.objects.filter(bk_data_id=source.pk).count() == 1
+    assert models.ResultTableConfig.objects.count() == models.VMStorageBindingConfig.objects.count() == 1
+
+
 def test_federal_target_keeps_ambiguity_when_both_rt_components_exist(source):
     historical_components(source)
     models.AccessVMRecord.objects.create(

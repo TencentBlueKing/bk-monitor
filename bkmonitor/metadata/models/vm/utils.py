@@ -1002,9 +1002,10 @@ def create_bkbase_data_link(
         result_table_id=monitor_table_id,
     )
     if is_federal_proxy:
-        # 迁移期间旧清洗表记录也可能后写入，只回填本次实际接管的输出表。
-        vm_records = vm_records.filter(vm_result_table_id=vm_result_table_id)
-    vm_record = vm_records.last()
+        # 优先复用当前输出记录；仅有旧接入记录时原地切换输出，避免新增重复记录。
+        vm_record = vm_records.filter(vm_result_table_id=vm_result_table_id).last() or vm_records.last()
+    else:
+        vm_record = vm_records.last()
 
     # 更新AccessVMRecord记录
     if vm_record:
