@@ -26,7 +26,7 @@ class LLMQueryTestCase(TestCase):
             self.assertIn("trace-1", serialized)
             self.assertIn("demo", serialized)
             self.assertEqual(config["bk_biz_id"], 11)
-            self.assertTrue(qs.query.is_es_batch)
+            self.assertFalse(qs.query.is_es_batch)
             return []
 
         with mock.patch.object(self.query, "_add_query", side_effect=query_list):
@@ -41,7 +41,7 @@ class LLMQueryTestCase(TestCase):
             config = original_add_query(qs, queries).config
             self.assertEqual(config["query_configs"][0]["select"], list(fields))
             self.assertNotIn("attributes", config["query_configs"][0]["select"])
-            self.assertTrue(qs.query.is_es_batch)
+            self.assertFalse(qs.query.is_es_batch)
             return [{"span_id": "span-1"}]
 
         with mock.patch.object(self.query, "_add_query", side_effect=query_list):
@@ -203,7 +203,7 @@ class LLMQueryTestCase(TestCase):
         query_builder.order_by.assert_called_once_with("start_time")
         query_builder.filter.assert_called_once_with(**{"attributes.session.id__eq": ["session-1", "session-2"]})
         self.assertEqual(query_list.call_args.args[1], [query_builder])
-        self.assertTrue(query_list.call_args.args[0].query.is_es_batch)
+        self.assertFalse(query_list.call_args.args[0].query.is_es_batch)
 
     def test_query_by_group_ids_returns_empty_without_query(self):
         with mock.patch.object(self.query, "_add_query") as query_list:
@@ -250,7 +250,7 @@ class LLMQueryTestCase(TestCase):
             [tuple(group_ids[: self.query.GROUP_ID_BATCH_SIZE]), tuple(group_ids[self.query.GROUP_ID_BATCH_SIZE :])],
         )
         for call in query_list.call_args_list:
-            self.assertTrue(call.args[0].query.is_es_batch)
+            self.assertFalse(call.args[0].query.is_es_batch)
 
     def test_iter_by_group_ids_yields_one_batch_per_chunk(self):
         group_ids = [f"trace-{index}" for index in range(self.query.GROUP_ID_BATCH_SIZE + 1)]

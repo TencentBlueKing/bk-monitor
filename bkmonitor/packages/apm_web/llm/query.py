@@ -195,7 +195,7 @@ class LLMQuery(SpanQuery):
                 queries = [query.filter(extra_filter) for query in queries]
             if fields:
                 queries = [query.values(*fields) for query in queries]
-            qs = self.get_qs(start_time, end_time).is_es_batch().limit(limit)
+            qs = self.get_qs(start_time, end_time).limit(limit)
             return list(self._add_query(qs, queries))
 
         if len(chunks) == 1:
