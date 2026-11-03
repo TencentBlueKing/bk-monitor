@@ -787,6 +787,7 @@ def create_bkbase_data_link(
     )
     from metadata.models import ResultTable
 
+    is_federal_proxy = data_link_strategy == DataLink.BCS_FEDERAL_PROXY_TIME_SERIES
     with transaction.atomic(using=DATABASE_CONNECTION_NAME):
         ResultTable.objects.select_for_update().get(bk_tenant_id=data_source.bk_tenant_id, table_id=monitor_table_id)
         configured_bkbase_rt = _get_configured_bkbase_result_table(
@@ -813,7 +814,9 @@ def create_bkbase_data_link(
                 bkbase_data_name = (
                     existing_databus.data_id_name
                     if existing_databus is not None
-                    else get_registered_bkdata_data_id_name(data_source, namespace=namespace)
+                    else (
+                        "" if is_federal_proxy else get_registered_bkdata_data_id_name(data_source, namespace=namespace)
+                    )
                 )
             logger.info(
                 "create_bkbase_data_link: use configured BkBaseResultTable relation, data_id->[%s],"
@@ -824,8 +827,12 @@ def create_bkbase_data_link(
                 bkbase_data_name,
             )
         else:
-            # 新建 DataLink 只能依赖已经注册完成的 DataId，缺失配置时直接中止创建流程。
-            bkbase_data_name = get_registered_bkdata_data_id_name(data_source, namespace=namespace)
+            # Proxy 只有输出 RT/Binding，接管历史资源不依赖父集群的来源 DataId 注册。
+            bkbase_data_name = (
+                (data_link_utils.find_registered_bkdata_data_id_name(data_source, namespace) or "")
+                if is_federal_proxy
+                else get_registered_bkdata_data_id_name(data_source, namespace=namespace)
+            )
             # 映射尚未建立时，先找已保存的同来源、同 RT 链路；首次创建才生成新名称。
             try:
                 existing_link = DataLink.objects.get(
@@ -838,11 +845,15 @@ def create_bkbase_data_link(
                 data_link_name = existing_link.data_link_name
             except DataLink.DoesNotExist:
                 # 旧链路可能尚未回填 bk_data_id/table_ids，沿用原来按已登记 DataId 名定位的方式。
-                existing_link = DataLink.objects.filter(
-                    bk_tenant_id=data_source.bk_tenant_id,
-                    namespace=namespace,
-                    data_link_name=bkbase_data_name,
-                ).first()
+                existing_link = (
+                    DataLink.objects.filter(
+                        bk_tenant_id=data_source.bk_tenant_id,
+                        namespace=namespace,
+                        data_link_name=bkbase_data_name,
+                    ).first()
+                    if bkbase_data_name
+                    else None
+                )
                 data_link_name = (
                     existing_link.data_link_name
                     if existing_link
@@ -986,15 +997,20 @@ def create_bkbase_data_link(
         )
 
     # 查询AccessVMRecord记录，这里为了兼容可能存在的多条记录脏数据，默认取最新一条
-    vm_record = AccessVMRecord.objects.filter(
+    vm_records = AccessVMRecord.objects.filter(
         bk_tenant_id=data_source.bk_tenant_id,
         result_table_id=monitor_table_id,
-    ).last()
+    )
+    if is_federal_proxy:
+        # 迁移期间旧清洗表记录也可能后写入，只回填本次实际接管的输出表。
+        vm_records = vm_records.filter(vm_result_table_id=vm_result_table_id)
+    vm_record = vm_records.last()
 
     # 更新AccessVMRecord记录
     if vm_record:
         # NOTE: v3->v4迁移场景中存在双dataid的问题，这里默认先不更新bk_base_data_id，暂时还保留原有信息
-        vm_record.bk_base_data_name = bkbase_data_name
+        if not is_federal_proxy:
+            vm_record.bk_base_data_name = bkbase_data_name
         vm_record.vm_result_table_id = vm_result_table_id
         vm_record.bcs_cluster_id = bcs_cluster_id
         vm_record.vm_cluster_id = storage_cluster_id

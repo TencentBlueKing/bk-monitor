@@ -368,6 +368,105 @@ def test_proxy_full_apply_preserves_legacy_full_vmrt(source):
     assert models.VMStorageBindingConfig.objects.get(pk=binding.pk).data_link_name
 
 
+@pytest.mark.parametrize("source_name", ["", "legacy_v3_source"])
+def test_proxy_adopts_history_without_registered_data_id(source, source_name, mocker):
+    models.DataIdConfig.objects.filter(bk_data_id=source.pk).delete()
+    rt, binding = historical_components(source)
+    models.AccessVMRecord.objects.filter(result_table_id=TABLE).update(
+        bk_base_data_id=557883, bk_base_data_name=source_name
+    )
+    kwargs = dict(
+        bk_biz_id=2,
+        data_source=source,
+        monitor_table_id=TABLE,
+        storage_cluster_name=VM,
+        data_link_strategy=models.DataLink.BCS_FEDERAL_PROXY_TIME_SERIES,
+    )
+    create_bkbase_data_link(**kwargs)
+    generate = mocker.patch.object(utils, "generate_bkdata_resource_name", side_effect=AssertionError("regenerated"))
+    create_bkbase_data_link(**kwargs)
+    link = models.DataLink.objects.get(bk_data_id=source.pk)
+    rt.refresh_from_db()
+    binding.refresh_from_db()
+    assert (rt.data_link_name, rt.table_id) == (link.pk, TABLE)
+    assert (binding.data_link_name, binding.table_id) == (link.pk, TABLE)
+    assert rt.bkbase_table_id == "42_historical_rt"
+    assert binding.vm_cluster_name == VM
+    record = models.AccessVMRecord.objects.get(result_table_id=TABLE)
+    assert (record.bk_base_data_id, record.bk_base_data_name) == (557883, source_name)
+    assert record.vm_result_table_id == rt.bkbase_table_id
+    assert models.BkBaseResultTable.objects.get(monitor_table_id=TABLE).bkbase_table_id == rt.bkbase_table_id
+    assert models.ResultTableConfig.objects.count() == models.VMStorageBindingConfig.objects.count() == 1
+    assert not models.DataIdConfig.objects.filter(bk_data_id=source.pk).exists()
+    generate.assert_not_called()
+
+
+def test_standard_entry_still_requires_registered_data_id(source):
+    models.DataIdConfig.objects.filter(bk_data_id=source.pk).delete()
+    with pytest.raises(models.DataIdConfig.DoesNotExist):
+        create_bkbase_data_link(2, source, TABLE, VM, models.DataLink.BK_STANDARD_V2_TIME_SERIES)
+    assert not models.DataLink.objects.filter(bk_data_id=source.pk).exists()
+
+
+@pytest.mark.parametrize("old_record_is_latest", [False, True])
+def test_proxy_adopts_current_rt_with_legacy_access_record(source, old_record_is_latest):
+    models.DataIdConfig.objects.filter(bk_data_id=source.pk).delete()
+    old_record = models.AccessVMRecord.objects.create(
+        bk_tenant_id="system",
+        result_table_id=TABLE,
+        vm_result_table_id="42_old_clean_rt",
+        bk_base_data_id=557843,
+        vm_cluster_id=204,
+    )
+    rt, binding = historical_components(source)
+    if old_record_is_latest:
+        old_record.delete()
+        old_record.pk = None
+        old_record.save()
+    for _ in range(2):
+        create_bkbase_data_link(2, source, TABLE, VM, models.DataLink.BCS_FEDERAL_PROXY_TIME_SERIES)
+    link = models.DataLink.objects.get(bk_data_id=source.pk)
+    rt.refresh_from_db()
+    binding.refresh_from_db()
+    old_record.refresh_from_db()
+    assert rt.data_link_name == binding.data_link_name == link.pk
+    assert models.BkBaseResultTable.objects.get(monitor_table_id=TABLE).bkbase_table_id == "42_historical_rt"
+    assert (old_record.vm_result_table_id, old_record.bk_base_data_id, old_record.vm_cluster_id) == (
+        "42_old_clean_rt",
+        557843,
+        204,
+    )
+    assert models.AccessVMRecord.objects.filter(result_table_id=TABLE).count() == 2
+    assert models.ResultTableConfig.objects.count() == models.VMStorageBindingConfig.objects.count() == 1
+
+
+def test_federal_target_keeps_ambiguity_when_both_rt_components_exist(source):
+    historical_components(source)
+    models.AccessVMRecord.objects.create(
+        bk_tenant_id="system", result_table_id=TABLE, vm_result_table_id="42_other_rt", bk_base_data_id=557843
+    )
+    models.ResultTableConfig.objects.create(
+        bk_tenant_id="system", namespace="bkmonitor", name="other_rt", bkbase_table_id="42_other_rt", bk_biz_id=2
+    )
+    with pytest.raises(ValueError, match="conflicting federation VMRTs"):
+        utils.get_federal_vm_table_id("system", "bkmonitor", TABLE)
+
+
+def test_standard_proxy_round_trip_recovers_empty_mapping_source(source):
+    kwargs = dict(bk_biz_id=2, data_source=source, monitor_table_id=TABLE, storage_cluster_name=VM)
+    create_bkbase_data_link(**kwargs)
+    link = models.DataLink.objects.get(bk_data_id=source.pk)
+    models.BkBaseResultTable.objects.filter(pk=link.pk).update(bkbase_data_name="")
+    models.DataBusConfig.objects.filter(data_link_name=link.pk).update(data_id_name="legacy_v3_source")
+    models.AccessVMRecord.objects.filter(result_table_id=TABLE).update(
+        bk_base_data_id=557843, bk_base_data_name="legacy_v3_source"
+    )
+    for strategy in [models.DataLink.BCS_FEDERAL_PROXY_TIME_SERIES, models.DataLink.BK_STANDARD_V2_TIME_SERIES]:
+        create_bkbase_data_link(**kwargs, data_link_strategy=strategy)
+        assert models.BkBaseResultTable.objects.get(pk=link.pk).bkbase_data_name == "legacy_v3_source"
+    assert models.DataBusConfig.objects.get(data_link_name=link.pk).data_id_name == "legacy_v3_source"
+
+
 def test_subset_retry_preserves_source_and_names(source, mocker, settings):
     settings.DATA_LINK_COMPONENT_REUSE_STRATEGIES = set()
     historical_components(source)
