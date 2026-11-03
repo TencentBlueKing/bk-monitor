@@ -300,6 +300,14 @@ export function useProfilingQuery() {
     }
   }
 
+  // 未灰度主动采集的业务忽略链接/收藏中的采集视图，避免挂载采集页并触发其请求。
+  function guardCollectionTab(next: QueryState): QueryState {
+    if (next.view.tab !== 'collection' || (window.active_profiling_biz_list ?? []).includes(Number(app.bizId))) {
+      return next;
+    }
+    return { ...next, view: { ...next.view, tab: 'application' } };
+  }
+
   async function initialize() {
     initialized = false;
     writingQuery = '';
@@ -321,6 +329,7 @@ export function useProfilingQuery() {
         initialFavorite.value = favorite;
         next = restoreQueryState(favorite.config.profiling, next.timezone);
       }
+      next = guardCollectionTab(next);
       state.value = next;
       updateTimezone(next.timezone);
       if (next.view.tab !== 'application') {
@@ -440,7 +449,7 @@ export function useProfilingQuery() {
   async function applyState(value: unknown) {
     restoring += 1;
     try {
-      state.value = restoreQueryState(value, getDefaultTimezone());
+      state.value = guardCollectionTab(restoreQueryState(value, getDefaultTimezone()));
       updateTimezone(state.value.timezone);
       controller?.abort();
       labelController?.abort();
