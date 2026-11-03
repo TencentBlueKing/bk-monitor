@@ -2,6 +2,7 @@
 
 from concurrent.futures import ThreadPoolExecutor
 from threading import Barrier
+from types import SimpleNamespace
 from unittest.mock import patch
 
 import pytest
@@ -10,6 +11,7 @@ from django.db import close_old_connections
 from metadata import models
 from metadata.models.data_link import utils
 from metadata.models.vm.utils import create_bkbase_data_link
+from metadata.service.federation_data_link import FederationReconcileError, _get_subset_data_link
 
 pytestmark = pytest.mark.django_db(databases="__all__")
 TABLE = "federal.proxy"
@@ -122,6 +124,44 @@ def compose_subset(link, source):
         storage_cluster_name=VM,
         federation_routes=[dict(fed_cluster_id="BCS-K8S-PROXY", namespaces=["ns1"], target_metric_table_id=TABLE)],
     )
+
+
+@pytest.mark.parametrize("explicit_count", [0, 1, 2])
+def test_subset_prefers_explicit_identity_over_empty_legacy_mapping(source, explicit_count):
+    legacy = models.DataLink.objects.create(
+        bk_tenant_id="system",
+        namespace="bkmonitor",
+        data_link_name="legacy_subset",
+        data_link_strategy=models.DataLink.BCS_FEDERAL_SUBSET_TIME_SERIES,
+        bk_data_id=0,
+        table_ids=[],
+    )
+    models.BkBaseResultTable.objects.create(
+        bk_tenant_id="system",
+        data_link_name=legacy.pk,
+        monitor_table_id=TABLE,
+        storage_type=models.ClusterInfo.TYPE_VM,
+    )
+    explicit = []
+    for index in range(explicit_count):
+        explicit.append(
+            models.DataLink.objects.create(
+                bk_tenant_id="system",
+                namespace="bkmonitor",
+                data_link_name=f"current_subset_{index}",
+                data_link_strategy=models.DataLink.BCS_FEDERAL_SUBSET_TIME_SERIES,
+                bk_data_id=source.pk,
+                table_ids=[TABLE],
+            )
+        )
+    context = SimpleNamespace(data_source=source, table_id=TABLE)
+    if explicit_count == 2:
+        with pytest.raises(FederationReconcileError, match="ambiguous federation subset links"):
+            _get_subset_data_link(context)
+    else:
+        assert _get_subset_data_link(context).pk == (explicit[0].pk if explicit else legacy.pk)
+    legacy.refresh_from_db()
+    assert legacy.bk_data_id == 0 and legacy.table_ids == []
 
 
 @pytest.mark.parametrize("reuse", [False, True])
