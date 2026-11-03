@@ -27,6 +27,7 @@ import { Component, Emit, InjectReactive, Prop, Watch } from 'vue-property-decor
 import { Component as tsc } from 'vue-tsx-support';
 
 import { getFieldOptionValues } from 'monitor-api/modules/apm_metric';
+import ValueTagSelector, { type IValue } from 'monitor-pc/components/retrieval-filter/value-tag-selector';
 import { handleTransformToTimestamp } from 'monitor-pc/components/time-range/utils';
 
 import { VariablesService } from '../../../utils/variable';
@@ -34,6 +35,11 @@ import { type CallOptions, type IFilterCondition, type IFilterOption, type IList
 import { SYMBOL_LIST } from '../utils';
 
 import type { PanelModel } from '../../../typings';
+import type {
+  IGetValueFnParams,
+  IOptionsInfo,
+  TGetValueFn,
+} from 'monitor-pc/components/retrieval-filter/value-selector-typing';
 import type { TimeRangeType } from 'monitor-pc/components/time-range/time-range';
 import type { IViewOptions } from 'monitor-ui/chart-plugins/typings';
 
@@ -95,9 +101,6 @@ export default class CallerCalleeFilter extends tsc<ICallerCalleeFilterProps, IC
   created() {
     this.initCallFilter(EKind.caller);
     this.initCallFilter(EKind.callee);
-    this.$nextTick(() => {
-      this.initFilterOptions();
-    });
   }
   getDefaultTags(callType: EKind) {
     if (callType === EKind.caller) return this.commonOptions?.angle?.caller?.tags;
@@ -146,19 +149,9 @@ export default class CallerCalleeFilter extends tsc<ICallerCalleeFilterProps, IC
     this.calleeFilter = callList;
     this.calleeNameMap = callNameMap;
   }
-  initFilterOptions() {
-    for (const item of this.callFilter) {
-      if (item.value?.length) {
-        this.getOptionListByKey(item.key);
-      }
-    }
-  }
   @Watch('callOptions.call_filter')
   handleCallFilterChange() {
     this.initCallFilter(this.callType);
-    this.$nextTick(() => {
-      this.initFilterOptions();
-    });
   }
 
   @Emit('search')
@@ -270,6 +263,30 @@ export default class CallerCalleeFilter extends tsc<ICallerCalleeFilterProps, IC
     }
     return { method, value: valueList };
   }
+  /**
+   * @description 值选择器候选数据：下拉展开时请求接口并缓存到 item.options，输入搜索时仅本地过滤
+   */
+  getValueCallback(item: IFilterOption): TGetValueFn {
+    return async (params: IGetValueFnParams & { isInit__?: boolean }): Promise<IOptionsInfo> => {
+      if (params.isInit__) {
+        await this.getOptionListByKey(item.key);
+      }
+      const search = params.search?.toLocaleLowerCase() ?? '';
+      return {
+        count: 0 as const,
+        list: (item.options || []).reduce<IValue[]>((results, opt) => {
+          if (
+            !search ||
+            String(opt.value).toLocaleLowerCase().includes(search) ||
+            String(opt.text).toLocaleLowerCase().includes(search)
+          ) {
+            results.push({ id: opt.value, name: opt.text });
+          }
+          return results;
+        }, []),
+      };
+    };
+  }
   handleValueChange(value: string[], item: IFilterOption) {
     item.value = value;
   }
@@ -302,33 +319,25 @@ export default class CallerCalleeFilter extends tsc<ICallerCalleeFilterProps, IC
                     ))}
                   </bk-select>
                 </div>
-                <bk-select
+                <ValueTagSelector
                   key={item.key}
-                  ref={item.key}
-                  display-tag={true}
-                  loading={item.loading}
-                  placeholder={this.callFilterMap[item.key]}
-                  showEmpty={!item.loading && !item.options.length}
-                  value={item.value}
-                  allow-create
-                  collapse-tag
-                  multiple
-                  searchable
-                  onChange={v => this.handleValueChange(v, item)}
-                  onToggle={open => open && this.getOptionListByKey(item.key)}
-                >
-                  {!item.loading ? (
-                    (item.options || []).map(opt => (
-                      <bk-option
-                        id={opt.value}
-                        key={opt.value}
-                        name={opt.text}
-                      />
-                    ))
-                  ) : (
-                    <span class='select-loading'>{this.$t('正在加载中...')}</span>
-                  )}
-                </bk-select>
+                  class='search-item-value'
+                  fieldInfo={{
+                    field: item.key,
+                    alias: this.callFilterMap[item.key],
+                    methods: [],
+                    isEnableOptions: true,
+                  }}
+                  getValueFn={this.getValueCallback(item)}
+                  value={item.value.map(v => ({ id: v, name: v === '' ? filterOption.text : v }))}
+                  tippy-mode
+                  onChange={v =>
+                    this.handleValueChange(
+                      (v as IValue[]).map(opt => opt.id),
+                      item
+                    )
+                  }
+                />
               </div>
             );
           })}
