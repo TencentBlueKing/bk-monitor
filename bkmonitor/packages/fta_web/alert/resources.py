@@ -2140,6 +2140,48 @@ class ActionDateHistogramResource(Resource):
         return handler.date_histogram(interval=interval)
 
 
+class TriggerConditionField(serializers.Field):
+    """
+    告警触发条件（展示用）。
+
+    只接受前端从告警详情中提取的必要标量，不接受文案、整份 strategy 或 origin_alarm。
+    显式传 null 表示"无需追加触发条件文案"，与"未传该字段"（走回退查询）语义不同。
+    """
+
+    CONDITION_FIELDS = {
+        "algorithm": {"type", "check_window", "count"},
+        "no_data": {"type", "continuous"},
+    }
+
+    def to_internal_value(self, data):
+        if not isinstance(data, dict):
+            raise ValidationError(_("trigger_condition 必须为对象"))
+
+        condition_type = data.get("type")
+        allowed_fields = self.CONDITION_FIELDS.get(condition_type)
+        if not allowed_fields:
+            raise ValidationError(_("trigger_condition.type 仅支持 algorithm、no_data"))
+
+        unknown_fields = set(data) - allowed_fields
+        if unknown_fields:
+            raise ValidationError(_("trigger_condition 不支持的字段：{}").format(",".join(sorted(unknown_fields))))
+
+        missing_fields = allowed_fields - {"type"} - set(data)
+        if missing_fields:
+            raise ValidationError(_("trigger_condition 缺少字段：{}").format(",".join(sorted(missing_fields))))
+
+        value = {"type": condition_type}
+        for field_name in sorted(allowed_fields - {"type"}):
+            field_value = data[field_name]
+            if not isinstance(field_value, int) or isinstance(field_value, bool) or field_value <= 0:
+                raise ValidationError(_("trigger_condition.{} 必须为正整数").format(field_name))
+            value[field_name] = field_value
+        return value
+
+    def to_representation(self, value):
+        return value
+
+
 class ListAlertLogResource(ApiAuthResource):
     """
     获取告警流水记录
@@ -2150,6 +2192,10 @@ class ListAlertLogResource(ApiAuthResource):
         offset = serializers.IntegerField(required=False, label="偏移")
         limit = serializers.IntegerField(default=10, label="获取的条数")
         operate = serializers.ListField(default=[], label="记录类型")
+        # 以下两个为详情页展示参数，均可选；同时提供时后端可省去一次告警正文查询
+        # begin_time 必须是有效时间戳：0/负数会被直接渲染成 1970 年，缺少数据时前端应省略该参数走回退
+        begin_time = serializers.IntegerField(required=False, min_value=1, label="告警开始时间（展示用，Unix 秒）")
+        trigger_condition = TriggerConditionField(required=False, allow_null=True, label="告警触发条件（展示用）")
 
     def perform_request(self, validated_request_data):
         alert_id = validated_request_data["id"]
@@ -2157,7 +2203,14 @@ class ListAlertLogResource(ApiAuthResource):
         offset = validated_request_data.get("offset")
         limit = validated_request_data["limit"]
 
-        handler = AlertLogHandler(alert_id)
+        # 用"字段是否传入"判断，不能用真值判断：trigger_condition=None 是完整且有效的输入
+        handler_kwargs = {}
+        if "begin_time" in validated_request_data:
+            handler_kwargs["begin_time"] = validated_request_data["begin_time"]
+        if "trigger_condition" in validated_request_data:
+            handler_kwargs["trigger_condition"] = validated_request_data["trigger_condition"]
+
+        handler = AlertLogHandler(alert_id, **handler_kwargs)
         result_data = handler.search(operate_list=operate_list, offset=offset, limit=limit)
         return result_data
 
