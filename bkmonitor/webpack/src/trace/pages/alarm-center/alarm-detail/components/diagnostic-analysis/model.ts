@@ -1,3 +1,13 @@
+import type { DiagnosticPanelKey, DiagnosticPanelStatus, PanelDetailDto } from './typing';
+import type {
+  DiagnosisAnalysisPanel,
+  DiagnosisTreatmentPlan,
+  DimensionAnalysisViewModel,
+  EventAnalysisGroupViewModel,
+  EventAnalysisViewModel,
+  LogAnalysisViewModel,
+  TraceAnalysisViewModel,
+} from '@/components/ai-diagnosis/types';
 /*
  * Tencent is pleased to support the open source community by making
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
@@ -44,3 +54,52 @@ export const createDiagnosticPanelState = (): DiagnosticPanelState => ({
   draft: '',
   messages: [],
 });
+
+export interface DiagnosticAnalysisData {
+  alerts: DiagnosisAnalysisPanel<DimensionAnalysisViewModel>;
+  error?: string;
+  events: DiagnosisAnalysisPanel<DiagnosticEventGroupViewModel>;
+  logs: DiagnosisAnalysisPanel<LogAnalysisViewModel>;
+  status: DiagnosticAnalysisStatus;
+  suggestion: string;
+  summary: string;
+  traces: DiagnosisAnalysisPanel<TraceAnalysisViewModel>;
+}
+
+export type DiagnosticAnalysisStatus = 'diagnosing' | 'failed' | 'loading' | 'notDiagnosed' | 'ready';
+
+export interface DiagnosticCommandCapability {
+  canRetry: boolean;
+  canStart: boolean;
+  reason: string;
+}
+
+export type DiagnosticEventGroupViewModel = EventAnalysisGroupViewModel;
+
+export interface DiagnosticEventItemViewModel extends EventAnalysisViewModel {
+  subCount?: number;
+}
+
+export interface DiagnosticIncidentViewModel {
+  alertCount?: number;
+  bizId: number;
+  id: string;
+  incidentId: string;
+  name: string;
+  treatmentPlans?: DiagnosisTreatmentPlan[];
+}
+
+export interface DiagnosticPanelDetailState {
+  data?: PanelDetailDto;
+  error?: string;
+  loading: boolean;
+}
+
+export type DiagnosticSubPanelsState = Partial<Record<DiagnosticPanelKey, DiagnosticSubPanelState>>;
+
+export interface DiagnosticSubPanelState {
+  enabled: true;
+  error?: string;
+  loading: boolean;
+  status?: DiagnosticPanelStatus;
+}

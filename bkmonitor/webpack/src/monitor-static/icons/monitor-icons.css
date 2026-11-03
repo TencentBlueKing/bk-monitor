@@ -1,8 +1,9 @@
+/* stylelint-disable */
 @font-face {
   font-family: "icon-monitor"; /* Project id 1185924 */
-  src: url('monitor-icons.woff2?t=1789715444863') format('woff2'),
-       url('monitor-icons.woff?t=1789715444863') format('woff'),
-       url('monitor-icons.ttf?t=1789715444863') format('truetype');
+  src: url('monitor-icons.woff2?t=1793612547417') format('woff2'),
+       url('monitor-icons.woff?t=1793612547417') format('woff'),
+       url('monitor-icons.ttf?t=1793612547417') format('truetype');
 }
 
 .icon-monitor {
@@ -11,6 +12,54 @@
   font-style: normal;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+}
+
+.icon-arrow-solid-right:before {
+  content: "\e896";
+}
+
+.icon-event:before {
+  content: "\e897";
+}
+
+.icon-log:before {
+  content: "\e898";
+}
+
+.icon-arrow:before {
+  content: "\e899";
+}
+
+.icon-trace:before {
+  content: "\e89a";
+}
+
+.icon-published1:before {
+  content: "\e89b";
+}
+
+.icon-alert:before {
+  content: "\e89c";
+}
+
+.icon-expand:before {
+  content: "\e89d";
+}
+
+.icon-content:before {
+  content: "\e89e";
+}
+
+.icon-dimension:before {
+  content: "\e894";
+}
+
+.icon-close:before {
+  content: "\e895";
+}
+
+.icon-add-chat:before {
+  content: "\e893";
 }
 
 .icon-tuiliguocheng:before {
