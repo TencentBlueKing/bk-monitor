@@ -22,6 +22,7 @@ from typing import Any, cast
 import redis
 from django.conf import settings
 from django.db import transaction
+from django.db.models import Q
 from django.utils import timezone
 
 from alarm_backends.core.lock.service_lock import share_lock
@@ -869,6 +870,69 @@ def _get_annotation_value(annotations: dict[str, Any], key: str) -> Any:
     return None
 
 
+def _get_doris_physical_tables(config: dict[str, Any]) -> dict[str, str]:
+    """保存日志库表规则或 Profiling 的 sample/label 表，不展开索引规则。"""
+    storage_config = config["spec"].get("storage_config") or {}
+    database = storage_config.get("db")
+    if storage_config.get("is_profiling"):
+        return {
+            role: f"{database}.{storage_config[field]}"
+            for role, field in (("sample", "sample_table_name"), ("label", "label_table_name"))
+            if database and storage_config.get(field)
+        }
+    annotations = config["metadata"].get("annotations") or {}
+    physical_table = _get_annotation_value(annotations, "physical_table_name")
+    if not physical_table and database and storage_config.get("table"):
+        physical_table = f"{database}.{storage_config['table']}"
+    return {"main": physical_table} if physical_table else {}
+
+
+def _sync_doris_physical_tables(
+    bk_tenant_id: str, namespace: str, parsed_configs: dict[str, ParsedComponentConfig]
+) -> None:
+    """每轮同步当前实体存储，并仅补齐尚未记录的当前历史快照。"""
+    result_tables = {
+        rt.name: rt for rt in ResultTableConfig.objects.filter(bk_tenant_id=bk_tenant_id, namespace=namespace)
+    }
+    for _, extra_config in parsed_configs.values():
+        physical_tables = extra_config.get("physical_tables")
+        rt = result_tables.get(extra_config["bkbase_result_table_name"])
+        if not physical_tables or rt is None or not rt.table_id or not rt.bkbase_table_id:
+            continue
+        storages = models.DorisStorage.objects.filter(
+            Q(origin_table_id="") | Q(origin_table_id__isnull=True),
+            bk_tenant_id=bk_tenant_id,
+            table_id=rt.table_id,
+            bkbase_table_id=rt.bkbase_table_id,
+        )
+        for storage in storages:
+            if storage.physical_tables != physical_tables:
+                storage.physical_tables = physical_tables
+                storage.save(update_fields=["physical_tables"])
+            records = models.StorageClusterRecord.objects.filter(
+                bk_tenant_id=bk_tenant_id,
+                table_id=storage.table_id,
+                cluster_id=storage.storage_cluster_id,
+                is_current=True,
+                is_deleted=False,
+            )
+            for record in records:
+                # 已有快照属于其他版本时，不将本轮配置拼入其中。
+                if (record.bkbase_table_id and record.bkbase_table_id != rt.bkbase_table_id) or (
+                    record.physical_tables and record.physical_tables != physical_tables
+                ):
+                    continue
+                fields = []
+                if not record.bkbase_table_id:
+                    record.bkbase_table_id = rt.bkbase_table_id
+                    fields.append("bkbase_table_id")
+                if not record.physical_tables:
+                    record.physical_tables = physical_tables
+                    fields.append("physical_tables")
+                if fields:
+                    record.save(update_fields=fields)
+
+
 def _get_bkbase_components_config(
     bk_tenant_id: str,
     kind: str,
@@ -925,6 +989,8 @@ def _get_bkbase_components_config(
         case DataLinkKind.DORISBINDING.value:
             extra_config["doris_cluster_name"] = spec["storage"]["name"]
             extra_config["bkbase_result_table_name"] = spec["data"]["name"]
+            extra_config["table_id"] = _get_result_table_id(spec["data"]["name"])
+            extra_config["physical_tables"] = _get_doris_physical_tables(config)
         case DataLinkKind.SURREALDBBINDING.value:
             extra_config["surrealdb_cluster_name"] = spec["storage"]["name"]
             extra_config["bkbase_result_table_name"] = spec["data"]["name"]
@@ -976,7 +1042,11 @@ def _parse_bkbase_component_configs(
         return None
 
     result_table_ids = None
-    if kind in {DataLinkKind.VMSTORAGEBINDING.value, DataLinkKind.SURREALDBBINDING.value}:
+    if kind in {
+        DataLinkKind.VMSTORAGEBINDING.value,
+        DataLinkKind.SURREALDBBINDING.value,
+        DataLinkKind.DORISBINDING.value,
+    }:
         result_table_ids = dict(
             ResultTableConfig.objects.filter(bk_tenant_id=bk_tenant_id, namespace=namespace).values_list(
                 "name", "table_id"
@@ -1527,7 +1597,7 @@ def _reconcile_data_link_components() -> tuple[
     stats = DataLinkRefreshStats()
     discovery_tenant_ids = _get_data_link_discovery_tenant_ids()
 
-    # ResultTable 必须先于依赖其 table_id 的 VM/SurrealDB Binding 落库。
+    # ResultTable 必须先于依赖其 table_id 的 VM/SurrealDB/Doris Binding 落库。
     component_items = sorted(
         COMPONENT_CLASS_MAP.items(),
         key=lambda item: item[0] != DataLinkKind.RESULTTABLE.value,
@@ -1662,6 +1732,8 @@ def _reconcile_data_link_components() -> tuple[
                             sorted(update_fields),
                             batch_size=1000,
                         )
+                    if component_kind == DataLinkKind.DORISBINDING.value:
+                        _sync_doris_physical_tables(bk_tenant_id, namespace, parsed_configs)
             except Exception as error:  # pylint: disable=broad-except
                 logger.exception(
                     "bulk_refresh_data_link_status: reconcile components failed, tenant->[%s], namespace->[%s], "
