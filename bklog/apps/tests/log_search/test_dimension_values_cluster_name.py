@@ -658,5 +658,4 @@ class TestDimensionValuesClusterName(TestCase):
         # 所有 n 个查询都到达 Barrier 并完成（证明并发放行，未死锁）
         self.assertEqual(len(concurrency_observed), n)
         # 并发耗时远小于串行累加（若串行，n 个 Barrier.wait 会超时或累加）
-        # 8 个查询并发，耗时应在单次查询量级（<2s），而非 8 倍
         self.assertLess(elapsed, 5.0, "并发查询应在 5s 内完成（若串行 Barrier 会超时）")
