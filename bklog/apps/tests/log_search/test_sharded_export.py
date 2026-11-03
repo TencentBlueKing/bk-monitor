@@ -38,7 +38,7 @@ from unittest.mock import MagicMock, Mock, patch
 from blueapps.core.celery.celery import app
 from celery.exceptions import SoftTimeLimitExceeded
 from django.conf import settings
-from django.db import OperationalError, transaction
+from django.db import OperationalError
 from django.test import SimpleTestCase, TestCase, override_settings
 from django.utils import timezone
 from qcloud_cos.streambody import StreamBody
@@ -663,10 +663,8 @@ class RunPlanningTests(TestCase):
             patch("apps.log_search.export.planner.sample_rows", return_value=[b"x" * 20]),
             patch("apps.log_search.export.planner.histogram", return_value={0: 40}),
             patch("apps.log_search.export.scheduler._send") as send,
-            self.captureOnCommitCallbacks(execute=True),
         ):
             run_planning(job.pk)
-            send.assert_not_called()
 
         send.assert_called_once_with(DISPATCH_TASK_NAME, queue=COORDINATOR_QUEUE)
 
@@ -685,32 +683,12 @@ class RunPlanningTests(TestCase):
         self.assertEqual(part.status, ExportPartStatus.WAITING)
         self.assertEqual(part.estimated_rows, 40)
 
-    def test_rolled_back_plan_does_not_request_dispatch(self):
-        job = create_job()
-        with (
-            patch(
-                "apps.log_search.export.planner.build_parts",
-                return_value=([PartSpec(0, 4000, 40, 40)], 40, None),
-            ),
-            patch("apps.log_search.export.scheduler._send") as send,
-            self.captureOnCommitCallbacks(execute=True),
-        ):
-            with self.assertRaisesMessage(RuntimeError, "rollback"), transaction.atomic():
-                run_planning(job.pk)
-                raise RuntimeError("rollback")
-
-        send.assert_not_called()
-        job.refresh_from_db()
-        self.assertEqual(job.status, ExportJobStatus.PENDING)
-        self.assertFalse(ExportPart.objects.filter(job=job).exists())
-
     def test_discarded_plan_does_not_request_dispatch(self):
         job = create_job()
         with (
             patch("apps.log_search.export.planner.build_parts", return_value=([], 0, None)),
             patch("apps.log_search.export.planner.state.persist_plan", return_value=None),
             patch("apps.log_search.export.scheduler._send") as send,
-            self.captureOnCommitCallbacks(execute=True),
         ):
             run_planning(job.pk)
 
@@ -1102,12 +1080,8 @@ class PartArtifactLifecycleTests(TestCase):
     def test_accepted_execution_keeps_its_artifact(self):
         part = self.claim("task-1")
 
-        with (
-            patch("apps.log_search.export.scheduler._send") as send,
-            self.captureOnCommitCallbacks(execute=True),
-        ):
+        with patch("apps.log_search.export.scheduler._send") as send:
             self.execute(part, fence_of(part))
-            send.assert_not_called()
 
         send.assert_called_once_with(FINALIZE_TASK_NAME, self.job.pk, queue=FINALIZE_QUEUE)
 
@@ -1129,10 +1103,7 @@ class PartArtifactLifecycleTests(TestCase):
             winner = self.claim("task-2")
             self.execute(winner, fence_of(winner))
 
-        with (
-            patch("apps.log_search.export.worker.request_finalization") as request,
-            self.captureOnCommitCallbacks(execute=True),
-        ):
+        with patch("apps.log_search.export.worker.request_finalization") as request:
             self.execute(late, fence_of(late), before_upload=publish_new_attempt)
 
         request.assert_called_once_with(self.job.pk)
@@ -1147,26 +1118,11 @@ class PartArtifactLifecycleTests(TestCase):
         self.assertEqual(self.part.status, ExportPartStatus.SUCCESS)
         self.assertEqual(self.part.object_key, winner_key)
 
-    @patch("apps.log_search.export.scheduler._send")
-    def test_rolled_back_part_success_does_not_request_finalization(self, send):
-        part = self.claim("task-1")
-        with self.captureOnCommitCallbacks(execute=True):
-            with self.assertRaisesMessage(RuntimeError, "rollback"), transaction.atomic():
-                self.execute(part, fence_of(part))
-                raise RuntimeError("rollback")
-
-        send.assert_not_called()
-        self.part.refresh_from_db()
-        self.assertEqual(self.part.status, ExportPartStatus.RUNNING)
-
     def test_artifact_is_discarded_when_the_job_is_canceled(self):
         part = self.claim("task-1")
         state.cancel_job(self.job.pk)
 
-        with (
-            patch("apps.log_search.export.worker.request_finalization") as request,
-            self.captureOnCommitCallbacks(execute=True),
-        ):
+        with patch("apps.log_search.export.worker.request_finalization") as request:
             self.execute(part, fence_of(part))
 
         request.assert_not_called()
@@ -1192,8 +1148,7 @@ class PartArtifactLifecycleTests(TestCase):
     @patch("apps.log_search.export.scheduler._send", side_effect=RuntimeError("broker down"))
     def test_finalization_publish_failure_keeps_the_accepted_artifact(self, send):
         part = self.claim("task-1")
-        with self.captureOnCommitCallbacks(execute=True):
-            self.execute(part, fence_of(part))
+        self.execute(part, fence_of(part))
 
         self.part.refresh_from_db()
         self.job.refresh_from_db()
@@ -2283,13 +2238,22 @@ class SchedulerTests(TestCase):
                 self.assertEqual(periodic(10), [job.pk])
 
     @patch("apps.log_search.export.scheduler._enqueue", side_effect=OperationalError(1205, "lock timeout"))
-    def test_immediate_enqueue_db_failure_does_not_escape_the_committed_stage(self, enqueue):
+    def test_immediate_enqueue_db_failure_does_not_escape_the_stage(self, enqueue):
         pending = create_job()
         ExportJob.objects.filter(pk=self.job.pk).update(status=ExportJobStatus.RUNNING)
         ExportPart.objects.filter(job=self.job).update(status=ExportPartStatus.SUCCESS)
         self.assertEqual(request_planning(pending.pk), [])
         self.assertEqual(request_finalization(self.job.pk), [])
         self.assertEqual(enqueue.call_count, 2)
+
+    @patch("apps.log_search.export.scheduler._enqueue", side_effect=SoftTimeLimitExceeded)
+    def test_immediate_enqueue_does_not_swallow_soft_time_limit(self, enqueue):
+        """分片任务里的定点收尾入队不能吞掉软超时。"""
+        ExportJob.objects.filter(pk=self.job.pk).update(status=ExportJobStatus.RUNNING)
+        ExportPart.objects.filter(job=self.job).update(status=ExportPartStatus.SUCCESS)
+        with self.assertRaises(SoftTimeLimitExceeded):
+            request_finalization(self.job.pk)
+        self.assertEqual(enqueue.call_count, 1)
 
     def test_inflight_count_groups_by_index_set(self):
         ExportPart.objects.filter(part_no=1).update(status=ExportPartStatus.DISPATCHED)
@@ -3660,23 +3624,11 @@ class ExportJobAdmissionTests(TestCase):
             create_job(created_by="tester", status=status)
 
     @patch("apps.log_search.export.scheduler._send")
-    def test_created_job_requests_planning_after_commit(self, send):
-        with self.captureOnCommitCallbacks(execute=True):
-            job = self.create()
-            send.assert_not_called()
+    def test_created_job_requests_planning(self, send):
+        job = self.create()
 
         send.assert_called_once_with(PLAN_TASK_NAME, job.pk, queue=PLAN_QUEUE)
         self.assertIsNotNone(ExportJob.objects.get(pk=job.pk).planning_enqueued_at)
-
-    @patch("apps.log_search.export.scheduler._send")
-    def test_rolled_back_job_does_not_request_planning(self, send):
-        with self.captureOnCommitCallbacks(execute=True):
-            with self.assertRaisesMessage(RuntimeError, "rollback"), transaction.atomic():
-                self.create()
-                raise RuntimeError("rollback")
-
-        send.assert_not_called()
-        self.assertFalse(ExportJob.objects.filter(created_by="tester").exists())
 
     def occupy_legacy_tasks(self, count):
         for _ in range(count):

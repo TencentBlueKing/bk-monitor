@@ -25,12 +25,10 @@ import hashlib
 import shutil
 import tempfile
 import time
-from functools import partial
 from pathlib import Path
 
 from celery.exceptions import SoftTimeLimitExceeded
 from django.conf import settings
-from django.db import transaction
 
 from apps.api.exception import DataAPIException
 from apps.log_search.constants import (
@@ -203,7 +201,7 @@ def _execute(job, part, fence):
             )
             accepted = result is not None and result.status == ExportPartStatus.SUCCESS
             if accepted:
-                transaction.on_commit(partial(request_finalization, job.pk))
+                request_finalization(job.pk)
         finally:
             # 只有被接受的执行才留下产物
             if not accepted:

@@ -22,9 +22,7 @@ the project delivered to anyone in the future.
 import copy
 from dataclasses import dataclass
 from datetime import timedelta
-from functools import partial
 
-from django.db import transaction
 from django.shortcuts import get_object_or_404
 from django.utils import timezone
 from django.utils.translation import gettext as _
@@ -242,7 +240,7 @@ def create_export_job(data, raw_params=None, job_bk_biz_id=None) -> ExportJob | 
         job.end_time,
         job.requested_parallelism,
     )
-    transaction.on_commit(partial(request_planning, job.pk))
+    request_planning(job.pk)
     return job
 
 

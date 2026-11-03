@@ -24,7 +24,6 @@ from dataclasses import dataclass, replace
 from itertools import groupby
 
 import ujson
-from django.db import transaction
 
 from apps.api import UnifyQueryApi
 from apps.log_search.constants import ExportErrorCode, ExportJobStatus, ExportSearchType
@@ -356,7 +355,7 @@ def run_planning(job_id):
             job.pk, job.planning_attempts, parts=parts, estimated_total=total, plan_result=result
         )
         if planned_job is not None:
-            transaction.on_commit(request_parts_dispatch)
+            request_parts_dispatch()
     except PlanError as error:
         logger.warning("[run_planning] job=%s code=%s detail=%s", job.pk, error.code, error)
         state.fail_planning(job.pk, job.planning_attempts, error.code, str(error), retryable=error.retryable)
