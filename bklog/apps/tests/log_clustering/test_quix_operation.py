@@ -30,10 +30,6 @@ QUIX_CONFIG = {
     "recovery_resource": {"kind": "ElasticSearch", "namespace": "bklog", "name": "context_es"},
     "runtime_cluster": {"kind": "DatabusCluster", "namespace": "quix", "name": "quix-runtime"},
     "state_index": "log-clustering-42-state",
-    "pattern_store": {
-        "result_table": {"kind": "ResultTable", "namespace": "bklog", "name": "shared-patterns"},
-        "es_binding": {"kind": "ElasticSearchBinding", "namespace": "bklog", "name": "shared-patterns-es"},
-    },
 }
 SET_RESULT = {
     "attached": True,
@@ -55,6 +51,7 @@ ADOPTED_STATUS = {
             "source_type": "log",
         },
         "pattern": {
+            "table_id": "bklog.pattern",
             "storage_type": "elasticsearch",
             "source_type": "es",
             "cluster_id": 7,
@@ -174,10 +171,11 @@ class TestQuixEnableRunner(TestCase):
         operation = LogClusteringOperation.objects.get(pk=self.operation.pk)
         self.assertEqual(operation.status, ClusteringOperationStatusEnum.AWAITING_RECEIPT.value)
         params = self.transfer.set_log_clustering_config.call_args.args[0]
-        for field in ("kafka_resource", "runtime_cluster", "recovery_resource", "pattern_store"):
+        for field in ("kafka_resource", "runtime_cluster", "recovery_resource"):
             self.assertEqual(params[field], QUIX_CONFIG[field])
         self.assertNotIn("pattern_index", params["binding"])
         self.assertNotIn("pattern_resource", params)
+        self.assertNotIn("pattern_store", params)
 
         self.assertEqual(operation.step, "confirm_adoption")
         runtime = LogClusteringRuntime.objects.get(index_set_id=INDEX_SET_ID)
@@ -246,6 +244,7 @@ class TestQuixEnableRunner(TestCase):
         self.assertEqual(pattern["data_label"], "bklog_index_set_42_pattern")
         self.assertEqual((pattern["space_type"], pattern["space_id"]), ("bkcc", "2"))
         self.assertEqual(pattern["table_info"][0]["index_set"], "shared-patterns")
+        self.assertEqual(pattern["table_info"][0]["origin_table_id"], "bklog.pattern")
         self.transfer.set_log_clustering_config.assert_called_once()
 
     def test_append_routes_clustered_label_to_independent_result(self):

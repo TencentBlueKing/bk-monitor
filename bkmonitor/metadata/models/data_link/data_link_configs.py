@@ -436,7 +436,7 @@ class ESStorageBindingConfig(DataLinkResourceConfigBase):
     def compose_config(
         self,
         storage_cluster_name: str,
-        write_alias_format: str,
+        write_alias_format: str | None,
         unique_field_list: list[str],
         json_field_list: list[str] | None = None,
         rt_name: str | None = None,
@@ -479,12 +479,14 @@ class ESStorageBindingConfig(DataLinkResourceConfigBase):
                         "name": "{{storage_cluster_name}}"
                     },
                     "doc_type": "{{doc_type}}",
+                    {% if write_alias_format %}
                     "write_alias": {
                         "TimeBased": {
                             "format": "{{write_alias_format}}",
                             "timezone": {{timezone}}
                         }
                     },
+                    {% endif %}
                     "unique_field_list": {{unique_field_list}},
                     "json_field_list": {{json_field_list}},
                     "maintainers": {{maintainers}}

@@ -172,6 +172,32 @@ class TestQuixPatternQuery(TestCase):
         self.assertEqual(payload["start_time"], str(int(expected_start.timestamp() * 1000)))
         self.assertEqual(payload["end_time"], str(int(now.timestamp() * 1000)))
 
+    def test_historical_clusters_duplicate_signature_does_not_hide_other_pattern(self):
+        raw = self.start_patch(
+            MODULE + ".UnifyQueryApi.query_ts_raw",
+            side_effect=[
+                {"list": [{"signature": "a", "pattern": "A"}, {"signature": "a", "pattern": "A"}]},
+                {"list": [{"signature": "b", "pattern": "B"}]},
+            ],
+        )
+        rows = self.handler._signature_patterns(["a", "b"])
+        self.assertEqual({r["signature"]: r["pattern"] for r in rows}, {"a": "A", "b": "B"})
+        self.assertEqual(raw.call_count, 2)
+        retry = raw.call_args.args[0]
+        self.assertEqual(retry["limit"], 1)
+        self.assertEqual(retry["query_list"][0]["conditions"]["field_list"][-1]["value"], ["b"])
+
+    def test_missing_pattern_after_duplicate_hits_finishes_without_more_retries(self):
+        raw = self.start_patch(
+            MODULE + ".UnifyQueryApi.query_ts_raw",
+            side_effect=[
+                {"list": [{"signature": "a", "pattern": "A"}, {"signature": "a", "pattern": "A"}]},
+                {"list": []},
+            ],
+        )
+        self.assertEqual(len(self.handler._signature_patterns(["a", "b"])), 2)
+        self.assertEqual(raw.call_count, 2)
+
     def test_drilldown_keeps_time_group_and_effective_level(self):
         params = {
             **self.params,
