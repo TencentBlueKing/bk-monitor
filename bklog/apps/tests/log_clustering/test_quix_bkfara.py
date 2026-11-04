@@ -19,7 +19,13 @@ TASK_ID = "6f1c2c1e-0000-4000-8000-000000000001"
 QUIX_CONFIG = {
     "profile": "log-clustering-es",
     "kafka_resource": {"kind": "Kafka", "namespace": "bklog", "name": "clustering_kafka"},
-    "pattern_resource": {"kind": "ElasticSearch", "namespace": "bklog", "name": "pattern_es"},
+    "recovery_resource": {"kind": "ElasticSearch", "namespace": "bklog", "name": "context_es"},
+    "runtime_cluster": {"kind": "DatabusCluster", "namespace": "quix", "name": "quix-runtime"},
+    "state_index": "log-clustering-42-state",
+    "pattern_store": {
+        "result_table": {"kind": "ResultTable", "namespace": "bklog", "name": "shared-patterns"},
+        "es_binding": {"kind": "ElasticSearchBinding", "namespace": "bklog", "name": "shared-patterns-es"},
+    },
 }
 MODEL_PARAMETERS = {"delimeter": "WyIgIl0=", "min_members": 3, "max_log_length": 1000}
 
@@ -219,12 +225,12 @@ class TestQuixConfig(SimpleTestCase):
 
     @patch("apps.log_clustering.handlers.quix.config.FeatureToggleObject.toggle")
     def test_missing_keys_are_reported(self, mock_toggle):
-        broken = {**QUIX_CONFIG, "profile": None, "pattern_resource": {"kind": "ElasticSearch"}}
+        broken = {**QUIX_CONFIG, "profile": None, "pattern_store": {"result_table": {"kind": "ResultTable"}}}
         mock_toggle.return_value = Mock(feature_config={"bkbase_quix": broken})
         with self.assertRaises(QuixClusteringConfigInvalidException) as ctx:
             get_quix_config()
         self.assertIn("profile", ctx.exception.message)
-        self.assertIn("pattern_resource.name", ctx.exception.message)
+        self.assertIn("pattern_store.result_table.name", ctx.exception.message)
 
     @patch("apps.log_clustering.handlers.quix.config.FeatureToggleObject.toggle", return_value=None)
     def test_missing_toggle_is_invalid(self, mock_toggle):

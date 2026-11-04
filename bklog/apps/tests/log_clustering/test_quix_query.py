@@ -28,7 +28,6 @@ class TestQuixPatternQuery(TestCase):
         self.runtime = SimpleNamespace(
             index_set_id=42,
             bk_tenant_id="system",
-            pattern_index="log-clustering-42-pattern",
             active_config={"distance_threshold": "0.5", "input_mapping": {"log": "message"}},
             pending_config={"distance_threshold": "0.7"},
         )
@@ -212,7 +211,6 @@ class TestQuixPatternQuery(TestCase):
             phase="stopped",
             active_config=self.runtime.active_config,
             pending_config=self.runtime.pending_config,
-            pattern_index=self.runtime.pattern_index,
         )
         request = SimpleNamespace(data={}, query_params={})
         search_params = {

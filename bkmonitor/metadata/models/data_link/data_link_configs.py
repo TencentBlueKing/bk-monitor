@@ -1356,12 +1356,12 @@ class LogClusteringSinkConfig(DataLinkResourceConfigBase):
     """
     日志聚类包装 Sink 配置
 
-    对应 bkbase 资源 kind=LogClusteringSink：Databus.spec.sinks 引用本资源，spec.rawSink 指向原日志存储绑定，
+    对应 bkbase 资源 kind=LogClusteringSink：Databus.spec.sinks 引用本资源，spec.raw_sink 指向原日志存储绑定，
     spec.clustering 携带 Kafka/Pattern 存储资源引用与 BKFara 任务绑定。
-    rawSink 不落库，组装时由调用方按本链路当前的存储绑定传入。
+    raw_sink 不落库，组装时由调用方按本链路当前的存储绑定传入。
 
     每个日志链路最多一个聚类 Sink，由唯一约束保证。
-    attached 表示日志链路生成 Databus 时是否引用本资源。关闭聚类恢复 rawSink 后置为 False，
+    attached 表示日志链路生成 Databus 时是否引用本资源。关闭聚类恢复 raw_sink 后置为 False，
     资源身份与绑定保留，重开时沿用；确认 Databus 已实际解绑前不能删除。
     """
 
@@ -1370,7 +1370,9 @@ class LogClusteringSinkConfig(DataLinkResourceConfigBase):
     table_id = models.CharField(verbose_name="结果表ID", max_length=255, default="", blank=True)
     binding = models.JSONField(verbose_name="聚类绑定配置", default=dict)
     kafka_resource = models.JSONField(verbose_name="聚类Kafka资源引用", default=dict)
-    pattern_resource = models.JSONField(verbose_name="Pattern存储资源引用", default=dict)
+    pattern_store = models.JSONField(verbose_name="Pattern结果表与存储绑定", default=dict)
+    runtime_cluster = models.JSONField(verbose_name="聚类运行集群", default=dict)
+    recovery_resource = models.JSONField(verbose_name="结果关联存储资源", default=dict)
     attached = models.BooleanField(verbose_name="是否被Databus引用", default=False)
 
     class Meta:
@@ -1383,13 +1385,15 @@ class LogClusteringSinkConfig(DataLinkResourceConfigBase):
         组装 LogClusteringSink 配置，资源引用与 binding 按已保存的内容输出
 
         Args:
-            raw_sink: 本链路原日志存储绑定的引用，作为 spec.rawSink
+            raw_sink: 本链路原日志存储绑定的引用，作为 spec.raw_sink
         """
         required = {
             "raw_sink": raw_sink,
             "binding": self.binding,
             "kafka_resource": self.kafka_resource,
-            "pattern_resource": self.pattern_resource,
+            "pattern_store": self.pattern_store,
+            "runtime_cluster": self.runtime_cluster,
+            "recovery_resource": self.recovery_resource,
         }
         missing = [field for field, value in required.items() if not value]
         if missing:
@@ -1409,10 +1413,13 @@ class LogClusteringSinkConfig(DataLinkResourceConfigBase):
                 }
             },
             "spec": {
-                "rawSink": {{raw_sink}},
+                "raw_sink": {{raw_sink}},
                 "clustering": {
-                    "kafkaResource": {{kafka_resource}},
-                    "patternResource": {{pattern_resource}},
+                    "kafka_resource": {{kafka_resource}},
+                    "pattern_store": {{pattern_store}},
+                    "runtime_cluster": {{runtime_cluster}},
+                    "recovery_resource": {{recovery_resource}},
+                    "result": {"mode": "update_original"},
                     "binding": {{binding}}
                 }
             }
@@ -1424,7 +1431,9 @@ class LogClusteringSinkConfig(DataLinkResourceConfigBase):
             "bk_biz_id": self.datalink_biz_ids.label_biz_id,
             "raw_sink": json.dumps(raw_sink),
             "kafka_resource": json.dumps(self.kafka_resource),
-            "pattern_resource": json.dumps(self.pattern_resource),
+            "pattern_store": json.dumps(self.pattern_store),
+            "runtime_cluster": json.dumps(self.runtime_cluster),
+            "recovery_resource": json.dumps(self.recovery_resource),
             "binding": json.dumps(self.binding),
         }
 

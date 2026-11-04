@@ -4,7 +4,6 @@ from apps.log_clustering.exceptions import QuixClusteringParamsInvalidException
 from apps.log_clustering.handlers.quix.adapter import (
     build_binding,
     build_clustering_config,
-    build_index_names,
     convert_filter_rules,
 )
 from apps.log_clustering.models import LogClusteringRuntime
@@ -111,14 +110,13 @@ class TestBuildBinding(SimpleTestCase):
             build_clustering_config("", [])
 
     def test_binding_comes_from_runtime_facts(self):
-        pattern_index, state_index = build_index_names(42)
+        state_index = "log-clustering-42-state"
         runtime = LogClusteringRuntime(
             index_set_id=42,
             bkfara_task_id="task-uuid",
             generation=1,
             input_revision=3,
             kafka_binding=KAFKA_BINDING,
-            pattern_index=pattern_index,
             state_index=state_index,
         )
         config = build_clustering_config("log", [])
@@ -136,7 +134,6 @@ class TestBuildBinding(SimpleTestCase):
                 "log_filter": [],
                 "input_mapping": {"log": "log", "timestamp": "dtEventTimeStamp"},
                 "distance_threshold": "0.5",
-                "pattern_index": "log-clustering-42-pattern",
                 "state_index": "log-clustering-42-state",
                 "max_message_bytes": 1048576,
             },

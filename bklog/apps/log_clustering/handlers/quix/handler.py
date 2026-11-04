@@ -36,7 +36,7 @@ from apps.log_clustering.constants import (
 from apps.log_clustering.exceptions import ClusteringConfigHasExistException, QuixClusteringParamsInvalidException
 from apps.log_clustering.handlers.dataflow.constants import OnlineTaskTrainingArgs
 from apps.log_clustering.handlers.dataflow.dataflow_handler import DataFlowHandler
-from apps.log_clustering.handlers.quix.adapter import build_clustering_config, build_index_names
+from apps.log_clustering.handlers.quix.adapter import build_clustering_config
 from apps.log_clustering.handlers.quix.config import get_quix_config
 from apps.log_clustering.handlers.quix.operation import QuixClusteringOperationRunner
 from apps.log_clustering.handlers.regex_template import RegexTemplateHandler
@@ -108,7 +108,7 @@ class QuixClusteringHandler:
         filter_rules = params.get("filter_rules", [])
         # 先完成参数与环境配置校验，再落库并申请外部资源
         clustering_config = build_clustering_config(clustering_fields, filter_rules)
-        get_quix_config()
+        quix_config = get_quix_config()
 
         collector_config = CollectorConfig.objects.get(collector_config_id=self.index_set.collector_config_id)
         etl_config = collector_config.get_etl_config()
@@ -117,12 +117,10 @@ class QuixClusteringHandler:
             etl_config=collector_config.etl_config,
             clustering_fields=clustering_fields,
         )
-        pattern_index, state_index = build_index_names(self.index_set_id)
         enable_fields = {
             "phase": ClusteringRuntimePhaseEnum.ENABLING.value,
             "pending_config": clustering_config,
-            "pattern_index": pattern_index,
-            "state_index": state_index,
+            "state_index": quix_config["state_index"],
         }
         # 业务配置与可调度操作一起提交，保存失败时不能由定时恢复任务继续开启。
         with transaction.atomic():

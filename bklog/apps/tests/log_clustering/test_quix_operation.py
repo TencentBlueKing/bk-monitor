@@ -27,7 +27,13 @@ KAFKA = {"cluster_ref": "quix-e2e", "input_topic": f"lc-{TASK_ID}-in", "partitio
 QUIX_CONFIG = {
     "profile": "test-clustering-es",
     "kafka_resource": {"kind": "Kafka", "namespace": "bklog", "name": "kafka"},
-    "pattern_resource": {"kind": "ElasticSearch", "namespace": "bklog", "name": "pattern_es"},
+    "recovery_resource": {"kind": "ElasticSearch", "namespace": "bklog", "name": "context_es"},
+    "runtime_cluster": {"kind": "DatabusCluster", "namespace": "quix", "name": "quix-runtime"},
+    "state_index": "log-clustering-42-state",
+    "pattern_store": {
+        "result_table": {"kind": "ResultTable", "namespace": "bklog", "name": "shared-patterns"},
+        "es_binding": {"kind": "ElasticSearchBinding", "namespace": "bklog", "name": "shared-patterns-es"},
+    },
 }
 SET_RESULT = {
     "attached": True,
@@ -48,7 +54,12 @@ ADOPTED_STATUS = {
             "need_add_time": True,
             "source_type": "log",
         },
-        "pattern": {"storage_type": "elasticsearch", "cluster_id": 7, "pattern_index": "log-clustering-42-pattern"},
+        "pattern": {
+            "storage_type": "elasticsearch",
+            "source_type": "es",
+            "cluster_id": 7,
+            "query_index": "shared-patterns",
+        },
     },
 }
 
@@ -65,7 +76,6 @@ def create_enable_operation():
             "bk_data_id": 1001,
             "phase": ClusteringRuntimePhaseEnum.ENABLING.value,
             "pending_config": build_clustering_config("log", []),
-            "pattern_index": "log-clustering-42-pattern",
             "state_index": "log-clustering-42-state",
         },
     )
@@ -163,6 +173,12 @@ class TestQuixEnableRunner(TestCase):
 
         operation = LogClusteringOperation.objects.get(pk=self.operation.pk)
         self.assertEqual(operation.status, ClusteringOperationStatusEnum.AWAITING_RECEIPT.value)
+        params = self.transfer.set_log_clustering_config.call_args.args[0]
+        for field in ("kafka_resource", "runtime_cluster", "recovery_resource", "pattern_store"):
+            self.assertEqual(params[field], QUIX_CONFIG[field])
+        self.assertNotIn("pattern_index", params["binding"])
+        self.assertNotIn("pattern_resource", params)
+
         self.assertEqual(operation.step, "confirm_adoption")
         runtime = LogClusteringRuntime.objects.get(index_set_id=INDEX_SET_ID)
         self.assertEqual(runtime.phase, ClusteringRuntimePhaseEnum.ENABLING.value)
@@ -229,7 +245,7 @@ class TestQuixEnableRunner(TestCase):
         self.assertEqual(clustered["table_info"][0]["index_set"], "2_bklog_demo")
         self.assertEqual(pattern["data_label"], "bklog_index_set_42_pattern")
         self.assertEqual((pattern["space_type"], pattern["space_id"]), ("bkcc", "2"))
-        self.assertEqual(pattern["table_info"][0]["index_set"], "log-clustering-42-pattern")
+        self.assertEqual(pattern["table_info"][0]["index_set"], "shared-patterns")
         self.transfer.set_log_clustering_config.assert_called_once()
 
     def test_append_routes_clustered_label_to_independent_result(self):
@@ -259,7 +275,7 @@ class TestQuixEnableRunner(TestCase):
         )
         self.assertEqual(table["source_type"], "bkdata")
         self.assertEqual(table["query_alias_settings"], [{"field_name": "log_signature", "query_alias": "signature"}])
-        self.assertEqual(pattern["table_info"][0]["index_set"], targets["pattern"]["pattern_index"])
+        self.assertEqual(pattern["table_info"][0]["index_set"], targets["pattern"]["query_index"])
 
     def test_enable_runs_through_and_activates_config_after_receipt(self):
         self.create_clustering_config()

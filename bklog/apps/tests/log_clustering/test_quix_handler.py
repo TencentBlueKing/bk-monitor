@@ -48,7 +48,7 @@ class TestQuixClusteringHandler(TestCase):
 
         runtime = LogClusteringRuntime.objects.get(index_set_id=INDEX_SET_ID)
         self.assertEqual(runtime.pending_config["log_filter"][0]["method"], "eq")
-        self.assertEqual(runtime.pattern_index, "log-clustering-42-pattern")
+        self.assertEqual(runtime.state_index, QUIX_CONFIG["state_index"])
         self.assertFalse(ClusteringConfig.objects.get(index_set_id=INDEX_SET_ID).access_finished)
         mock_delay.assert_called_once_with(result["operation_id"])
 

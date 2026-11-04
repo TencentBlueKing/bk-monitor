@@ -4,7 +4,7 @@
 
 - `disable`：读取现有 LogClusteringSink，保持完整配置，仅将 `spec.clustering.enabled` 设为 `false`，通过原 `/v4/apply/` 下发。由 BKBase 内部完成已接纳日志的收尾，Databus 仍引用聚类 Sink。
 - `enable`：以相同方式将 `enabled` 设为 `true`，不切换 Databus 引用。
-- `detach`：本地 `attached` 设为 `false`，完整下发日志链路，使 Databus 恢复引用原存储绑定（rawSink）；保留聚类资源和绑定。
+- `detach`：本地 `attached` 设为 `false`，完整下发日志链路，使 Databus 恢复引用原存储绑定（raw_sink）；保留聚类资源和绑定。
 - `attach`：本地 `attached` 设为 `true`，完整下发日志链路，重新引用聚类 Sink；不隐式修改 `enabled`。
 
 `disable/enable` 复用已有资源，不创建资源、不修改模型或过滤规则、不重下发 Databus。远端聚类资源不存在时返回错误。`enabled` 由远端资源回读，普通配置合并保留该值，不新增本地状态副本。

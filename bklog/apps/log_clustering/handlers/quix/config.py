@@ -36,7 +36,13 @@ def get_quix_config() -> dict:
     {
         "profile": "...",               # BKFara 部署方登记的聚类任务 Profile 名称
         "kafka_resource": {"kind": "Kafka", "namespace": "...", "name": "..."},           # BKBase 已登记资源
-        "pattern_resource": {"kind": "ElasticSearch", "namespace": "...", "name": "..."},
+        "runtime_cluster": {"kind": "DatabusCluster", "namespace": "...", "name": "..."},
+        "recovery_resource": {"kind": "ElasticSearch", "namespace": "...", "name": "..."},
+        "state_index": "...",           # 结果关联上下文索引，首次开启时固定
+        "pattern_store": {
+            "result_table": {"kind": "ResultTable", "namespace": "...", "name": "..."},
+            "es_binding": {"kind": "ElasticSearchBinding", "namespace": "...", "name": "..."},
+        },
         "max_message_bytes": 1048576,     # 可选
     }
     任务模板、Worker Profile 和 Kafka 绑定由 BKFara 解析；这里保留 BKBase 所需的资源引用。
@@ -45,11 +51,15 @@ def get_quix_config() -> dict:
     feature_config = (feature.feature_config if feature else None) or {}
     config = copy.deepcopy(feature_config.get(QUIX_FEATURE_CONFIG_KEY) or {})
 
-    missing = ["profile"] if not config.get("profile") else []
+    missing = [key for key in ("profile", "state_index") if not config.get(key)]
 
-    for resource_key in ("kafka_resource", "pattern_resource"):
+    for resource_key in ("kafka_resource", "runtime_cluster", "recovery_resource"):
         resource = config.get(resource_key) or {}
         missing.extend(f"{resource_key}.{key}" for key in REQUIRED_RESOURCE_KEYS if not resource.get(key))
+
+    for key in ("result_table", "es_binding"):
+        resource = (config.get("pattern_store") or {}).get(key) or {}
+        missing.extend(f"pattern_store.{key}.{field}" for field in REQUIRED_RESOURCE_KEYS if not resource.get(field))
 
     if missing:
         raise QuixClusteringConfigInvalidException(

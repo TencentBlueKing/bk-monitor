@@ -587,8 +587,7 @@ class LogClusteringRuntime(OperateRecordModel):
     pending_config = models.JSONField(_("待生效的聚类配置"), null=True, blank=True)
 
     sink = models.JSONField(_("LogClusteringSink 资源身份"), default=dict, blank=True)
-    pattern_index = models.CharField(_("Pattern 索引"), max_length=255, default="", blank=True)
-    state_index = models.CharField(_("恢复状态索引"), max_length=255, default="", blank=True)
+    state_index = models.CharField(_("结果关联上下文索引"), max_length=255, default="", blank=True)
 
     # 仅用于业务关闭时向 BKFara 交接，由 BKBase 回执提供；不用于模型更新或 Worker 维护重启。
     candidate_boundary = models.JSONField(_("候选 Topic 停止边界"), null=True, blank=True)

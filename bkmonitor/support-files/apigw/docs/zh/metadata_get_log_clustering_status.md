@@ -43,7 +43,7 @@ sink_referenced、raw_sink_referenced 只说明远端 Databus 配置的引用情
 
 传入 `include_query_targets=true` 时，`query_targets.clustered` 返回实际结果表的 `table_id`、`cluster_id`、`storage_type`、`source_type`、`query_index` 和 `need_add_time`。`update_original` 指向原日志表，`append` 按 Sink 的 `result_table` 和 `es_binding` 解析独立结果表；无法解析时在 `errors` 中返回原因。集群从已就绪 ES binding 的 `spec.storage` 解析。`source_type` 取自实际结果表的查询来源。固定写别名直接查询；标准日写别名使用对应的按日读别名。未指定写别名时先取 binding 的 `physical_table_name` 注解，再取实际 BKBase 结果表 ID。ES binding 尚未就绪时，返回空查询目标，调用方继续等待。目标配置错误时，`errors` 返回具体原因和 `retryable=false`；其他读取异常由调用方记录原因并有限重试。日写别名的时区必须与查询来源一致（bkdata 为 UTC+8，其他为 UTC）；不一致或无法映射时间格式时，状态接口返回错误。下游用 `bklog_index_set_<id>_clustered` 查询日志，`signature` 映射到物理字段 `log_signature`。
 
-`query_targets.pattern` 单独返回 `cluster_id`、`storage_type` 和 `pattern_index`，用于登记 `bklog_index_set_<id>_pattern`。该标签指向签名与模板的映射表。
+`query_targets.pattern` 单独返回 `table_id`（null）、`cluster_id`、`storage_type`、`source_type`、`query_index` 和 `need_add_time`（false），用于登记 `bklog_index_set_<id>_pattern`。该标签指向签名与模板的映射表，独立于 `_clustered`。集群来自 pattern_store.es_binding 的 storage；索引优先取 physical_table_name 注解，否则按 BKBase ResultTable ID 规则解析。Pattern 只允许固定索引，不按日期追加读别名；绑定与结果表须已就绪且引用一致。多个日志源可以共享此表，查询仍须使用源索引集 ID 和距离档位过滤，签名下钻同样保留源索引集鉴权，所有数据查询经 UnifyQuery。
 
 ### 响应参数示例
 
