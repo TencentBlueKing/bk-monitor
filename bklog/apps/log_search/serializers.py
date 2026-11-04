@@ -393,7 +393,6 @@ class UnionConfigSerializer(serializers.Serializer):
     index_set_id = serializers.IntegerField(label=_("索引集ID"), required=True)
     begin = serializers.IntegerField(required=False, default=0)
     is_desensitize = serializers.BooleanField(label=_("是否脱敏"), required=False, default=True)
-    custom_indices = serializers.CharField(required=False, allow_null=True, allow_blank=True, default="")
 
 
 class UnionSearchAttrSerializer(SearchAttrSerializer):
@@ -591,8 +590,6 @@ class SearchExportSerializer(serializers.Serializer):
     file_type = serializers.ChoiceField(
         label=_("下载文件类型"), required=False, choices=ExportFileType.get_choices(), default=ExportFileType.LOG.value
     )
-    # 自定义索引列表 Eg. -> "2_bklog.0001,2_bklog.0002"
-    custom_indices = serializers.CharField(required=False, allow_null=True, allow_blank=True, default="")
     sort_list = serializers.ListField(required=False, allow_null=True, allow_empty=True, child=serializers.ListField())
 
 

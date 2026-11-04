@@ -115,9 +115,9 @@ from apps.log_databus.handlers.doris_cluster import DorisClusterHandler
 from apps.log_databus.models import CollectorConfig
 from apps.log_search.constants import DEFAULT_TIME_FIELD, TimeFieldUnitEnum, TimeFieldTypeEnum
 from apps.log_search.handlers.index_set import BaseIndexSetHandler
-from apps.log_search.handlers.search.aggs_handlers import AggsViewAdapter
 from apps.log_search.models import LogIndexSet, Scenario
 from apps.log_trace.serializers import DateHistogramSerializer
+from apps.log_unifyquery.handler.base import UnifyQueryHandler
 from apps.utils.drf import custom_params_valid
 from apps.utils.log import logger
 from bkm_space.utils import space_uid_to_bk_biz_id
@@ -2151,7 +2151,13 @@ class DataFlowHandler(BaseAiopsHandler):
                 "time_range": "customized",
             }
             data = custom_params_valid(DateHistogramSerializer, params)
-            result = AggsViewAdapter().date_histogram(index_set_id, data)
+            result = UnifyQueryHandler(
+                {
+                    **data,
+                    "index_set_ids": [index_set_id],
+                    "bk_biz_id": bk_biz_id,
+                }
+            ).date_histogram()
             count_peak_min_list = [0]
             for item in result.get("aggs", {}).get("group_by_histogram", {}).get("buckets", {}):
                 count_peak_min_list.append(item.get("doc_count", 0))

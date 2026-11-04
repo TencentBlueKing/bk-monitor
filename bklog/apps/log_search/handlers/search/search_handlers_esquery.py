@@ -2483,8 +2483,7 @@ class SearchHandler:
                 log_content_tmp = copy.deepcopy(log)
             except RecursionError:
                 logger.warning(
-                    "[desensitize] deepcopy failed due to deeply nested structure, "
-                    "falling back to shallow copy"
+                    "[desensitize] deepcopy failed due to deeply nested structure, falling back to shallow copy"
                 )
                 log_content_tmp = copy.copy(log)
 
@@ -2537,9 +2536,7 @@ class SearchHandler:
                         if original_value is None:
                             continue
 
-                    log[text_tuple] = log[text_tuple].replace(
-                        str(original_value), str(log[field_tuple])
-                    )
+                    log[text_tuple] = log[text_tuple].replace(str(original_value), str(log[field_tuple]))
 
             # 处理原文字段自身绑定的脱敏逻辑
             log = self.text_fields_desensitize_handler.transform_dict(log)
@@ -3049,6 +3046,7 @@ class UnionSearchHandler:
                 search_dict["is_desensitize"] = self.desensitize_mapping.get(index_set_id, True)
                 search_dict["export_fields"] = self.search_dict.get("export_fields", [])
                 search_dict["index_set_ids"] = [index_set_id]
+                search_dict["can_highlight"] = False
                 query_handler = UnifyQueryHandler(search_dict)
                 multi_execute_func.append(f"union_search_{index_set_id}", query_handler.search)
         else:
