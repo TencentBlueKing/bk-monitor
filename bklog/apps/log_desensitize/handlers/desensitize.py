@@ -19,7 +19,7 @@ We undertake not to change the open source license (MIT license) applicable to t
 the project delivered to anyone in the future.
 """
 
-import copy
+import json
 import re
 
 from django.db.models import Q
@@ -36,7 +36,7 @@ from apps.log_desensitize.exceptions import (
 )
 from apps.log_desensitize.handlers.desensitize_operator import OPERATOR_MAPPING
 from apps.log_desensitize.models import DesensitizeFieldConfig, DesensitizeRule
-from apps.log_desensitize.utils import expand_nested_data, merge_nested_data
+from apps.log_desensitize.utils import DesensitizeHit, expand_nested_data, merge_nested_data, sync_text_fields
 from apps.log_search.constants import CollectorScenarioEnum
 from apps.log_search.models import LogIndexSet, Scenario
 from apps.models import model_to_dict
@@ -128,31 +128,54 @@ class DesensitizeHandler:
 
         return text
 
-    def transform_dict(self, log_content: dict = None):
+    def _find_field_rules(self, field: str):
+        """
+        查找字段对应的规则：完全相同的字段名优先，否则按最长上级字段匹配
+
+        例如 __ext_json.http.client.ip 依次查找 __ext_json.http.client、__ext_json.http、__ext_json，
+        使配置在嵌套 flattened / object 父字段上的规则能作用于展开后的子字段
+        """
+        if field in self.field_rule_mapping:
+            return self.field_rule_mapping[field]
+        parts = field.split(".")
+        for end in range(len(parts) - 1, 0, -1):
+            rules = self.field_rule_mapping.get(".".join(parts[:end]))
+            if rules:
+                return rules
+        return None
+
+    def transform_dict(self, log_content: dict = None, hits: list = None):
         """
         params: log_content 需要处理的文本内容
         处理字典类型 单条log内容的格式 {"field_a": 12345, "field_b": "abc"}
         根据脱敏配置列表 desensitize_config_list 以流水线方式处理 log 字段的内容
+        params: hits 传入列表时，记录每次实际发生的替换（DesensitizeHit），用于同步原文字段
         """
         if not self.field_rule_mapping or not log_content:
             return log_content
 
         for field, value in log_content.items():
             # 查找字段对应的处理规则
-            rules = None
-            # 优先精确匹配字段
-            if field in self.field_rule_mapping:
-                rules = self.field_rule_mapping[field]
-            # 处理嵌套字段
-            elif "." in field:
-                top_level_field = field.split(".", 1)[0]  # 只分割一次，处理深层嵌套
-                if top_level_field in self.field_rule_mapping:
-                    rules = self.field_rule_mapping[top_level_field]
+            rules = self._find_field_rules(field)
+            if not rules:
+                continue
 
-            if rules:
-                # str(None)会转成字符串"None"，需要特殊处理
-                str_value = "" if value is None else str(value)
-                log_content[field] = self.transform(log=str_value, rules=rules)
+            # str(None)会转成字符串"None"，需要特殊处理
+            str_value = "" if value is None else str(value)
+            field_hits = None if hits is None else []
+            log_content[field] = self.transform(log=str_value, rules=rules, hits=field_hits)
+            if field_hits:
+                hits.extend(
+                    DesensitizeHit(
+                        field=field,
+                        value=value,
+                        src=src,
+                        masked=masked,
+                        rules=rules,
+                        is_whole=is_whole,
+                    )
+                    for src, masked, is_whole in field_hits
+                )
 
         return log_content
 
@@ -225,7 +248,11 @@ class DesensitizeHandler:
 
         return result
 
-    def transform(self, log: str, rules: list, is_highlight: bool = False):
+    def transform(self, log: str, rules: list, is_highlight: bool = False, hits: list = None):
+        """
+        按规则替换文本
+        params: hits 传入列表时，追加 (原子串, 脱敏后子串, 是否整字段规则)，仅记录实际发生变化的替换
+        """
         substrings = []
         for rule in rules:
             rule_substrings = self.find_substrings_by_rule(log, rule)
@@ -237,14 +264,17 @@ class DesensitizeHandler:
         for substring in substrings:
             outputs.append(log[last_end : substring["start"]])
             # 文本处理
+            src = str(substring["src"])
             _text = self._match_transform(
                 rule=substring["rule"],
-                text=str(substring["src"]),
+                text=src,
                 context=substring["group_dict"],
                 is_highlight=is_highlight,
             )
             outputs.append(_text)
             last_end = substring["end"]
+            if hits is not None and src and _text != src:
+                hits.append((src, _text, not substring["rule"].get("__regex__")))
 
         # 末尾补充
         outputs.append(log[last_end : len(log)])
@@ -656,28 +686,19 @@ class DesensitizeRuleHandler:
 
         all_field_names = field_names.union(set(text_fields))
 
-        # 日志原文脱敏处理
+        # 日志原文脱敏处理（与检索链路 _log_desensitize 使用同一套字段匹配与原文同步逻辑）
         for _log in logs:
-            _log = expand_nested_data(_log)
-            log_content_tmp = copy.deepcopy(_log)
+            result = expand_nested_data(_log)
 
-            result = desensitize_handler.transform_dict(_log)
+            hits = []
+            result = desensitize_handler.transform_dict(result, hits=hits)
 
             # 日志原文字段同步应用其他字段的脱敏结果
-            for text_field in text_fields:  # ["log"]
-                # 判断原文字段是否存在log中
-                if text_field not in result:
-                    continue
-
-                for field_name in field_names:
-                    if field_name not in result or field_name == text_field:
-                        continue
-                    result[text_field] = result[text_field].replace(
-                        str(log_content_tmp[field_name]), str(result[field_name])
-                    )
+            if text_fields:
+                result = sync_text_fields(result, text_fields, hits, desensitize_handler)
 
             # 处理日志原文字段自身的脱敏逻辑
-            result = text_fields_desensitize_handler.transform_dict(_log)
+            result = text_fields_desensitize_handler.transform_dict(result)
             merged_result = merge_nested_data(result)  # 用于处理flattened字段类型，合并成一个字段
 
             for _field_name in all_field_names:
@@ -685,7 +706,36 @@ class DesensitizeRuleHandler:
                     res[_field_name] = list()
 
                 res[_field_name].append(
-                    str(merged_result[_field_name]) if merged_result.get(_field_name) else result.get(_field_name)
+                    DesensitizeRuleHandler._get_preview_value(merged_result, result, _field_name)
                 )
 
         return res
+
+    @staticmethod
+    def _get_preview_value(merged_result: dict, flat_result: dict, field_name: str):
+        """
+        获取预览结果中字段的值
+
+        :param merged_result: 折叠后的嵌套结果
+        :param flat_result: 展开后的扁平结果（字符串 dotted key）
+        :param field_name: 配置的字段名，可能是嵌套父字段
+        :return: 字符串形式的值；字段不存在时返回 None。对象类型以 JSON 字符串返回
+        """
+        if field_name in merged_result:
+            value = merged_result[field_name]
+        elif field_name in flat_result:
+            value = flat_result[field_name]
+        else:
+            # 嵌套父字段（如 __ext_json.data）在折叠后的结构中按路径取子树
+            value = merged_result
+            for part in field_name.split("."):
+                if not isinstance(value, dict) or part not in value:
+                    value = None
+                    break
+                value = value[part]
+
+        if value is None:
+            return None
+        if isinstance(value, (dict, list)):
+            return json.dumps(value, ensure_ascii=False)
+        return str(value)

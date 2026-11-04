@@ -21,7 +21,7 @@ from apps.feature_toggle.plugins.constants import LOG_DESENSITIZE
 from apps.log_clustering.models import ClusteringConfig
 from apps.log_desensitize.handlers.desensitize import DesensitizeHandler
 from apps.log_desensitize.models import DesensitizeConfig, DesensitizeFieldConfig
-from apps.log_desensitize.utils import expand_nested_data, merge_nested_data
+from apps.log_desensitize.utils import expand_nested_data, merge_nested_data, sync_text_fields
 from apps.log_esquery.esquery.builder.query_string_builder import QueryStringBuilder
 from apps.log_esquery.exceptions import (
     BaseSearchIndexSetDataDoseNotExists,
@@ -790,30 +790,25 @@ class UnifyQueryHandler:
 
         # 展开object对象
         log = expand_nested_data(log)
-        # 保存一份未处理之前的log字段 用于脱敏之后的日志原文处理
-        log_content_tmp = copy.deepcopy(log)
 
-        # 字段脱敏处理
-        log = self.desensitize_handler.transform_dict(log)
+        # 字段脱敏处理，同时记录实际发生的替换，用于原文字段同步
+        hits = []
+        log = self.desensitize_handler.transform_dict(log, hits=hits)
 
         # 原文字段应用其他字段的脱敏结果
         if not self.text_fields:
             return log
 
-        for text_field in self.text_fields:  # ["log"]
-            # 判断原文字段是否存在log中
-            if text_field not in log.keys():
-                continue
-
-            for _config in self.field_configs:
-                field_name = _config["field_name"]
-                if field_name not in log.keys() or field_name == text_field:
-                    continue
-                log[text_field] = log[text_field].replace(str(log_content_tmp[field_name]), str(log[field_name]))
+        log = sync_text_fields(
+            log,
+            self.text_fields,
+            hits,
+            self.desensitize_handler,
+            index_set_id=self.index_set_ids[0] if self.index_set_ids else None,
+        )
 
         # 处理原文字段自身绑定的脱敏逻辑
-        if self.text_fields:
-            log = self.text_fields_desensitize_handler.transform_dict(log)
+        log = self.text_fields_desensitize_handler.transform_dict(log)
         # 折叠object对象
         log = merge_nested_data(log)
         return log

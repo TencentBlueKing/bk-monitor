@@ -61,8 +61,46 @@ def fake_unify_result(*, message="plain message"):
     }
 
 
+# ---- 嵌套 flattened / JSON 父字段 + 原文同步 ----------------------------------
+
+IP_PATTERN = r"\d{1,3}(?:\.\d{1,3}){3}"
+
+# 用户实际数据：字段值为 JSON 字符串，location 的 key 顺序与原文不同
+CLIENT_JSON = (
+    '{"ip":"10.20.30.40","port":12345,"user_agent":"user-agent-test0/1.2.3",'
+    '"location":{"city":"北京市","country":"CN","district":"海淀区","province":"北京市"}}'
+)
+LOG_TEXT = (
+    'request done {"client":{"ip":"10.20.30.40","port":12345,"user_agent":"user-agent-test0/1.2.3",'
+    '"location":{"country":"CN","province":"北京市","city":"北京市","district":"海淀区"}}} status=200'
+)
+LOG_TEXT_MASKED = LOG_TEXT.replace("10.20.30.40", "[IP]")
+
+
+def ip_replace_config(field_name, match_pattern=IP_PATTERN, template="[IP]"):
+    """IP 正则替换配置；match_pattern 为空时为整字段规则。"""
+    return {
+        "field_name": field_name,
+        "rule_id": 0,
+        "operator": "text_replace",
+        "params": {"template_string": template},
+        "match_pattern": match_pattern,
+        "sort_index": 0,
+    }
+
+
+def fake_unify_result_record(record):
+    """Return a UnifyQuery response with a single record (UQ 返回的嵌套对象已展开为点号 key)."""
+    base = {"__index": "v2_2_bklog_test_es_20260927_0", "__doc_id": "abc123", "dtEventTimeStamp": 1727452800000}
+    base.update(record)
+    return {"total": 1, "took": 10, "list": [base]}
+
+
 class TestUnifyQueryHandlerEsDesensitize(TestCase):
     """UnifyQueryHandler desensitize with scenario_id='es'."""
+
+    # FeatureToggleObject.toggle 的返回值，None 表示未配置特权白名单
+    feature_toggle = None
 
     def setUp(self):
         # Real model records
@@ -139,7 +177,7 @@ class TestUnifyQueryHandlerEsDesensitize(TestCase):
             ),
             patch(
                 "apps.log_unifyquery.handler.base.FeatureToggleObject.toggle",
-                return_value=None,
+                return_value=self.feature_toggle,
             ),
             patch(
                 "apps.utils.core.cache.cmdb_host.CmdbHostCache.get",
@@ -232,3 +270,74 @@ class TestUnifyQueryHandlerEsDesensitize(TestCase):
         """original_search=True makes is_desensitize=False."""
         handler = self._build_handler({"original_search": True})
         self.assertFalse(handler.is_desensitize)
+
+    # ------------------------------------------------------------------
+    # 嵌套 flattened / JSON 父字段规则 + 原文字段同步（与 SearchHandler 用例预期一致）
+    # ------------------------------------------------------------------
+
+    @override_settings(ESQUERY_WHITE_LIST=["bk_log"])
+    def test_nested_object_parent_rule_desensitized_and_synced(self):
+        """父字段值为对象：子字段命中父字段规则，原文同步命中片段。"""
+        self._put_config(field_configs=[ip_replace_config("__ext_json.http.client")], text_fields=["log"])
+        handler = self._build_handler()
+        record = {
+            "__ext_json.http.client.ip": "10.20.30.40",
+            "__ext_json.http.client.port": 12345,
+            "log": LOG_TEXT,
+        }
+
+        log = handler._deal_query_result(fake_unify_result_record(record))["list"][0]
+
+        self.assertEqual(log["__ext_json"], {"http": {"client": {"ip": "[IP]", "port": "12345"}}})
+        self.assertEqual(log["log"], LOG_TEXT_MASKED)
+
+    @override_settings(ESQUERY_WHITE_LIST=["bk_log"])
+    def test_nested_json_string_key_order_differs_synced(self):
+        """父字段值为 JSON 字符串且 key 顺序与原文不同：字段与原文均脱敏。"""
+        self._put_config(field_configs=[ip_replace_config("__ext_json.http.client")], text_fields=["log"])
+        handler = self._build_handler()
+        record = {"__ext_json.http.client": CLIENT_JSON, "log": LOG_TEXT}
+
+        log = handler._deal_query_result(fake_unify_result_record(record))["list"][0]
+
+        self.assertEqual(log["__ext_json"], {"http": {"client": CLIENT_JSON.replace("10.20.30.40", "[IP]")}})
+        self.assertEqual(log["log"], LOG_TEXT_MASKED)
+
+    @override_settings(ESQUERY_WHITE_LIST=["bk_log"])
+    def test_top_level_field_text_sync_no_regression(self):
+        """普通顶层字段 + 原文同步行为不变。"""
+        self._put_config(field_configs=[ip_replace_config("serverIp")], text_fields=["log"])
+        handler = self._build_handler()
+
+        log = handler._deal_query_result(
+            fake_unify_result_record({"serverIp": "0.1.0.1", "log": "from 0.1.0.1 ok"})
+        )["list"][0]
+
+        self.assertEqual(log["serverIp"], "[IP]")
+        self.assertEqual(log["log"], "from [IP] ok")
+
+    @override_settings(ESQUERY_WHITE_LIST=["bk_log"])
+    def test_whole_rule_partial_leaves_fail_closed(self):
+        """整字段规则 + JSON 叶子只有部分出现在原文中：原文整体遮罩。"""
+        self._put_config(
+            field_configs=[ip_replace_config("__ext_json.http.client", match_pattern="", template="[CLIENT]")],
+            text_fields=["log"],
+        )
+        handler = self._build_handler()
+        record = {"__ext_json.http.client": '{"ip":"10.20.30.40","token":"abc123"}', "log": "client ip 10.20.30.40"}
+
+        log = handler._deal_query_result(fake_unify_result_record(record))["list"][0]
+
+        self.assertEqual(log["__ext_json"], {"http": {"client": "[CLIENT]"}})
+        self.assertEqual(log["log"], "***MASKED***")
+
+    @override_settings(ESQUERY_WHITE_LIST=["bk_log"])
+    def test_privileged_user_desensitize_disabled(self):
+        """特权白名单用户关闭检索脱敏（保持既有行为）。"""
+        self._put_config(field_configs=[MASK_CONFIG])
+        self.feature_toggle = Mock(feature_config={"user_white_list": {"2": ["test_user"]}})
+        handler = self._build_handler()
+
+        self.assertFalse(handler.is_desensitize)
+        log = handler._deal_query_result(fake_unify_result(message="Hello World1234"))["list"][0]
+        self.assertEqual(log["message"], "Hello World1234")

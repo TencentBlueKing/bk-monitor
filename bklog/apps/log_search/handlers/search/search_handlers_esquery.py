@@ -46,7 +46,7 @@ from apps.log_databus.constants import EtlConfig
 from apps.log_databus.models import CollectorConfig
 from apps.log_desensitize.handlers.desensitize import DesensitizeHandler
 from apps.log_desensitize.models import DesensitizeConfig, DesensitizeFieldConfig
-from apps.log_desensitize.utils import expand_nested_data, merge_nested_data
+from apps.log_desensitize.utils import expand_nested_data, merge_nested_data, sync_text_fields
 from apps.log_esquery import metrics
 from apps.log_esquery.esquery.esquery import EsQuery
 from apps.log_esquery.serializers import (
@@ -2455,29 +2455,19 @@ class SearchHandler:
 
         # 展开object对象
         log = expand_nested_data(log)
-        # 保存一份未处理之前的log字段 用于脱敏之后的日志原文处理
-        log_content_tmp = copy.deepcopy(log)
 
-        # 字段脱敏处理
-        log = self.desensitize_handler.transform_dict(log)
+        # 字段脱敏处理，同时记录实际发生的替换，用于原文字段同步
+        hits = []
+        log = self.desensitize_handler.transform_dict(log, hits=hits)
 
         # 原文字段应用其他字段的脱敏结果
         if not self.text_fields:
             return log
 
-        for text_field in self.text_fields:  # ["log"]
-            # 判断原文字段是否存在log中
-            if text_field not in log.keys():
-                continue
-            # 原始内容替换成脱敏后的内容
-            for field_name in log.keys():
-                if field_name == text_field:
-                    continue
-                log[text_field] = log[text_field].replace(str(log_content_tmp[field_name]), str(log[field_name]))
+        log = sync_text_fields(log, self.text_fields, hits, self.desensitize_handler, index_set_id=self.index_set_id)
 
         # 处理原文字段自身绑定的脱敏逻辑
-        if self.text_fields:
-            log = self.text_fields_desensitize_handler.transform_dict(log)
+        log = self.text_fields_desensitize_handler.transform_dict(log)
         # 折叠object对象
         log = merge_nested_data(log)
         return log
