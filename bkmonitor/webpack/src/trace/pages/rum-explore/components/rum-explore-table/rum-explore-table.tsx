@@ -170,8 +170,10 @@ export default defineComponent({
     scrollToEnd: () => true,
     /** 点击清空检索条件 */
     clearFilter: () => true,
-    /** 点击 Span 名称，打开该行的详情抽屉 */
+    /** 点击 Span 名称 / View 页面 URL，打开该行的详情抽屉 */
     openDetail: (_row: Record<string, unknown>) => true,
+    /** 点击 View 视角的数量统计列（错误 / API 请求 / 动作数量），切到 Span 视角并按该行页面 ID 检索 */
+    viewCountClick: (_target: { colKey: string; row: IRumSpanRecord }) => true,
     /** 高亮行变化回调（透传 CommonTable activeChange）：行点击 / 键盘高亮时回传，高亮状态由上层维护 */
     activeChange: (rowKeys: Array<number | string>) => Array.isArray(rowKeys),
   },
@@ -217,6 +219,7 @@ export default defineComponent({
         onEventsCellClick: (row, colKey) => emit('eventsCellClick', { colKey, row }),
         onCellFilter: (colKey, value) => emit('conditionChange', { key: colKey, method: 'equal', value }),
         onOpenDetail: row => emit('openDetail', row),
+        onViewCountClick: (row, colKey) => emit('viewCountClick', { colKey, row }),
         onFieldAnalysis: (trigger, field) => openPopover(trigger, field as unknown as IStatisticsFieldItem),
       }
     );

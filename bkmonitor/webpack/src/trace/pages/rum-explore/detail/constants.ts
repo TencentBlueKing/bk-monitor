@@ -23,9 +23,62 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { RumCardToneEnum, RumRatingEnum } from './typings';
+import { RumRatingEnum } from '../constants';
 
-import type { RumCardToneType } from './typings';
+import type { RumCardToneType } from './typings/enum';
+
+/** 统计卡片主值的语义配色，卡片描述符声明语义、样式层决定具体色值（仅详情侧消费） */
+export const RumCardToneEnum = {
+  /** 默认（深灰文本） */
+  DEFAULT: 'default',
+  /** 成功（绿） */
+  SUCCESS: 'success',
+  /** 警告（橙） */
+  WARNING: 'warning',
+  /** 危险（红） */
+  DANGER: 'danger',
+  /** 链接（蓝，可点击） */
+  LINK: 'link',
+} as const;
+
+/**
+ * 详情区块的展示类型，取值需与 record_detail 接口的 sections[].type 对齐。
+ * 新增展示类型时：这里加枚举 -> section-registry 注册渲染组件，其余代码无需改动。
+ */
+export const RumSectionTypeEnum = {
+  /** 统计卡片组 */
+  SUMMARY_CARDS: 'summary_cards',
+  /** 瀑布时序图 */
+  WATERFALL: 'waterfall',
+  /** 指标评级条 */
+  RATING_BAR: 'rating_bar',
+  /** 平铺键值列表（前端扩展类型，用于「版本关联」这类无对应接口结构的区块） */
+  KEY_VALUE_LIST: 'key_value_list',
+} as const;
+
+/** 详情抽屉的 Tab */
+export const RumDetailTabEnum = {
+  /** 基础信息 */
+  BASIC: 'basic',
+  /** 链路上下文 */
+  TRACE_CONTEXT: 'trace_context',
+} as const;
+
+/** 链路上下文列表的快捷筛选类别，取值口径见 timeline 接口协议 2.12.3 */
+export const RumTimelineFilterCategoryEnum = {
+  /** 全部 */
+  ALL: 'all',
+  /** 动作 */
+  ACTION: 'action',
+  /** 慢节点 */
+  SLOW_NODE: 'slow_node',
+  /** 请求 */
+  REQUEST: 'request',
+  /** 第三方资源 */
+  THIRD_PARTY: 'third_party',
+  /** 异常 */
+  ERROR: 'error',
+} as const;
 
 /** 后端计算字段的前缀，此类字段的别名与格式化值由后端直接给出 */
 export const DISPLAY_FIELD_PREFIX = 'display.';
@@ -122,6 +175,15 @@ export const CARD_TONE_COLOR: Record<RumCardToneType, string> = {
   [RumCardToneEnum.WARNING]: '#F59500',
   [RumCardToneEnum.DANGER]: '#EA3636',
   [RumCardToneEnum.LINK]: '#3A84FF',
+};
+
+/** 结果类型对应的卡片语义配色（当前仅详情侧预留使用） */
+export const OUTCOME_TYPE_TONE_MAP = {
+  success: RumCardToneEnum.SUCCESS,
+  warning: RumCardToneEnum.WARNING,
+  error: RumCardToneEnum.DANGER,
+  timeout: RumCardToneEnum.DANGER,
+  abort: RumCardToneEnum.DEFAULT,
 };
 
 /**

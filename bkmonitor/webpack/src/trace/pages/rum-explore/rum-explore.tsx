@@ -68,6 +68,7 @@ import {
   RUM_RESIDENT_SETTING_KEY,
   RumModeEnum,
   SPAN_TYPE_FIELD,
+  VIEW_ID_FIELD,
 } from './constants';
 import RumSpanDetailSlider from './detail';
 import { OVERVIEW_ISOLATED_LINK_FIELDS } from './detail/constants';
@@ -77,7 +78,7 @@ import EmptyStatus from '@/components/empty-status/empty-status';
 import type { ConditionChangeEvent } from '../trace-explore/typing';
 import type { IRumEventsTarget } from './composables/use-rum-events-drawer';
 import type { IRumDetailContext } from './detail';
-import type { IRumApplication, IRumColumnLayoutPreset, IRumSpanRecord } from './typings';
+import type { IRumApplication, IRumColumnLayoutPreset, IRumSpanRecord, RumModeType } from './typings';
 
 import './rum-explore.scss';
 
@@ -277,17 +278,41 @@ export default defineComponent({
       queryCtx.handleQuery();
     }
 
-    function handleModeChange() {
-      // 切换场景：排序重置为「未设置」，回落到新场景视图配置的 default_sort
+    /**
+     * @description 切换检索视角（store.mode 唯一写入口）：检索字段按视角下发，旧视角条件在新视角无法解析，故清空全部条件并重置排序。
+     * @param {RumModeType} mode 目标视角
+     * @param {boolean} shouldQuery 是否立即检索；需先写入新条件时传 false，由调用方在条件就绪后触发
+     */
+    function handleModeChange(mode: RumModeType, shouldQuery = true) {
+      store.mode = mode;
       store.userSort = null;
-      queryCtx.handleQuery();
+      queryCtx.where.value = [];
+      queryCtx.commonWhere.value = [];
+      queryCtx.queryString.value = '';
+      if (shouldQuery) queryCtx.handleQuery();
     }
 
-    function handleSpanTypeChange(type: string) {
+    /**
+     * @description View 数量统计列点击：切到 Span 视角并按页面 ID 检索；视角切换已清空原条件。
+     *              两个切换函数传 false 跳过提前查询，由 handleConditionChange 在条件就绪后触发一次检索。
+     * @param {{ colKey: string; row: IRumSpanRecord }} target 点击的列与行数据
+     */
+    function handleViewCountClick(target: { colKey: string; row: IRumSpanRecord }) {
+      const viewId = String(target.row?.[VIEW_ID_FIELD] ?? '');
+      if (!viewId) return;
+      handleModeChange(RumModeEnum.SPAN, false);
+      handleSpanTypeChange(ALL_SPAN_TYPE, false);
+      handleConditionChange({ key: VIEW_ID_FIELD, method: EMethod.eq, value: viewId }, false);
+    }
+
+    /**
+     * @description 切换 span 类型筛选，按切换后的类型裁剪常驻条件（回到「全部」时清空）并默认重新检索。
+     * @param {string} type 点击的类型；setSpanType 为 toggle 语义，重复点击回到「全部」，判断须以 activeSpanType 为准
+     * @param {boolean} shouldQuery 是否立即检索；需先改写条件时传 false，由调用方在条件就绪后触发
+     */
+    function handleSpanTypeChange(type: string, shouldQuery = true) {
       spanTypeCtx.setSpanType(type);
-      // setSpanType 是 toggle 语义（再次点击已选中的类型会切回「全部」），判断必须基于切换后的 activeSpanType，不能用入参 type
       const activeType = spanTypeCtx.activeSpanType.value;
-      // 切回「全部」清空常驻条件；具体类型只保留可见常驻字段的交集，空配置也必须清空。
       if (activeType === ALL_SPAN_TYPE) {
         queryCtx.commonWhere.value = [];
       } else {
@@ -295,7 +320,7 @@ export default defineComponent({
           spanTypeResidentFields.value.includes(w.key)
         );
       }
-      queryCtx.handleQuery();
+      if (shouldQuery) queryCtx.handleQuery();
     }
 
     async function handleThumbtackChange(list: string[]) {
@@ -392,14 +417,16 @@ export default defineComponent({
     }
 
     /**
-     * 打开 Span 详情：详情所需的应用、记录 ID、类型与时间都能从列表行与当前查询条件里取到，
+     * 打开详情：详情所需的应用、记录 ID、类型与时间都能从列表行与当前查询条件里取到，
      * 不额外请求列表接口。
+     * View 视角的一行即一条 view span：记录 ID 取页面 ID、类型固定为 view（与 SPAN_TYPE_META 的 view 同源）。
      */
     function handleOpenDetail(row: IRumSpanRecord) {
+      const isViewMode = store.mode === RumModeEnum.VIEW;
       detailContext.value = {
         app_name: store.appName,
-        record_id: String(row?.span_id ?? ''),
-        span_type: String(row?.[SPAN_TYPE_FIELD] ?? ''),
+        record_id: String(row?.[isViewMode ? VIEW_ID_FIELD : 'span_id'] ?? ''),
+        span_type: isViewMode ? 'view' : String(row?.[SPAN_TYPE_FIELD] ?? ''),
         /** 微秒转化为秒 */
         start_time: Math.floor(row.start_time / 1000000),
         end_time: Math.floor(row.end_time / 1000000),
@@ -430,15 +457,18 @@ export default defineComponent({
     function handleStepDetail(step: -1 | 1) {
       const tableData = tableCtx.tableData.value;
       if (!tableData.length) return;
+      /** View 视角的行以页面 ID 为唯一键，且每条 view 行都可打开详情；Span 视角按 span_id 与详情可用类型过滤 */
+      const isViewMode = store.mode === RumModeEnum.VIEW;
+      const rowKey = isViewMode ? VIEW_ID_FIELD : 'span_id';
       const currentIndex = Math.max(
         0,
-        tableData.findIndex(item => item.span_id === detailContext.value?.record_id)
+        tableData.findIndex(item => item[rowKey] === detailContext.value?.record_id)
       );
       // 最多回绕一整圈，offset 走到与起点重合即说明没有其他可展示详情的记录
       for (let offset = 1; offset <= tableData.length; offset++) {
         const index = (currentIndex + step * offset + tableData.length) % tableData.length;
         if (index === currentIndex) return;
-        if (RUM_DETAIL_SPAN_TYPES.has(tableData[index][SPAN_TYPE_FIELD] ?? '')) {
+        if (isViewMode || RUM_DETAIL_SPAN_TYPES.has(tableData[index][SPAN_TYPE_FIELD] ?? '')) {
           handleOpenDetail(tableData[index]);
           return;
         }
@@ -562,6 +592,7 @@ export default defineComponent({
       handleSortChange,
       handleSpanTypeChange,
       handleThumbtackChange,
+      handleViewCountClick,
       handleCreateApp,
       tagValueDisplayFormatter,
       handlePreviousDetail,
@@ -755,6 +786,7 @@ export default defineComponent({
                                   onOpenDetail={this.handleOpenDetail}
                                   onScrollToEnd={tableCtx.handleScrollToEnd}
                                   onSortChange={this.handleSortChange}
+                                  onViewCountClick={this.handleViewCountClick}
                                 />
                               ),
                           }}

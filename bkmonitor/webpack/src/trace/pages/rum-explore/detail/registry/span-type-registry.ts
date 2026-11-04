@@ -23,9 +23,8 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { SectionKeyEnum } from '../constants';
+import { RumCardToneEnum, RumSectionTypeEnum, RumTimelineFilterCategoryEnum, SectionKeyEnum } from '../constants';
 import { getActionRelated, getErrorRelated, getLongTaskRelated, getViewRelated } from '../services';
-import { RumCardToneEnum, RumSectionTypeEnum, RumTimelineFilterCategoryEnum } from '../typings';
 import { EMPTY_TEXT, formatCount } from './card-registry';
 
 import type { IRumFilter, IRumTimeRange, RumModeType } from '../../typings';

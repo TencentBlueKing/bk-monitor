@@ -47,6 +47,8 @@ export interface IRumColumnLayoutPreset {
    * 列的实际顺序沿用展示列顺序，未展示的字段自动忽略。
    */
   leftFixedColumns?: Set<string>;
+  /** 视角私有最小列宽，未配置时用 DEFAULT_MIN_COLUMN_WIDTH；设计稿列宽小于该默认值的视角需显式声明 */
+  minWidth?: number;
   /** 默认列宽：colKey -> 宽度，优先级低于用户列宽覆盖 */
   widthMap?: Record<string, number>;
 }
