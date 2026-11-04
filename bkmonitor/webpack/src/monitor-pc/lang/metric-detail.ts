@@ -111,7 +111,7 @@ export default {
     'The English name of a custom metric can only contain letters, numbers, and underscores, and must start with a letter. The prefix cannot be the same as the plugin type.',
   手动添加: 'Manually add',
   全局: 'Global',
-  指标管理: 'Metric',
+  指标管理: 'Metric Management',
   '确定 Cmd + Enter': '',
   '暂只支持开启，不支持关闭': 'Currently only supports opening, not closing',
   '已开启自动发现新增指标，无法操作': 'Automatic discovery of new metrics has been enabled and cannot be operated',

@@ -13,68 +13,20 @@
   -moz-osx-font-smoothing: grayscale;
 }
 
-.icon-English:before {
+.icon-monitor.icon-English:before {
   content: "\e89f";
 }
 
-.icon-help:before {
+.icon-monitor.icon-help:before {
   content: "\e8a0";
 }
 
-.icon-chinese:before {
+.icon-monitor.icon-chinese:before {
   content: "\e8a1";
 }
 
-.icon-setting1:before {
+.icon-monitor.icon-setting1:before {
   content: "\e8a2";
-}
-
-.icon-arrow-solid-right:before {
-  content: "\e896";
-}
-
-.icon-event:before {
-  content: "\e897";
-}
-
-.icon-log:before {
-  content: "\e898";
-}
-
-.icon-arrow:before {
-  content: "\e899";
-}
-
-.icon-trace:before {
-  content: "\e89a";
-}
-
-.icon-published1:before {
-  content: "\e89b";
-}
-
-.icon-alert:before {
-  content: "\e89c";
-}
-
-.icon-expand:before {
-  content: "\e89d";
-}
-
-.icon-content:before {
-  content: "\e89e";
-}
-
-.icon-dimension:before {
-  content: "\e894";
-}
-
-.icon-close:before {
-  content: "\e895";
-}
-
-.icon-add-chat:before {
-  content: "\e893";
 }
 
 .icon-tuiliguocheng:before {
