@@ -97,6 +97,9 @@ def _resolve_custom_format_vm_dependencies(rt: ResultTable) -> tuple[ClusterInfo
 @app.task(ignore_result=True, queue="celery_metadata_task_worker")
 def apply_custom_format_datalink(bk_tenant_id: str, table_id: str) -> None:
     """按 ResultTable Option 创建或更新一条自定义格式单目标 DataLink。"""
+    route_storage = DorisStorage.objects.filter(bk_tenant_id=bk_tenant_id, table_id=table_id).first()
+    if route_storage and not route_storage.manages_datalink():
+        return
     rt = ResultTable.objects.get(bk_tenant_id=bk_tenant_id, table_id=table_id)
     relations = list(
         DataSourceResultTable.objects.filter(bk_tenant_id=bk_tenant_id, table_id=table_id).values_list(
@@ -455,6 +458,9 @@ def apply_log_datalink(bk_tenant_id: str, table_id: str):
     logger.info("apply_log_datalink: tenant(%s) %s start", bk_tenant_id, table_id)
 
     # 获取结果表和数据源信息
+    route_storage = DorisStorage.objects.filter(bk_tenant_id=bk_tenant_id, table_id=table_id).first()
+    if route_storage and not route_storage.manages_datalink():
+        return
     rt = ResultTable.objects.get(bk_tenant_id=bk_tenant_id, table_id=table_id)
     dsrt = DataSourceResultTable.objects.filter(bk_tenant_id=bk_tenant_id, table_id=table_id).last()
     if not dsrt:

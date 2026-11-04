@@ -6336,10 +6336,31 @@ class DorisStorage(models.Model, StorageResultTable):
     def versioned_name(self):
         return f"bkm_doris_{self.pk}_v{self.table_version}"
 
+    def manages_datalink(self):
+        """虚拟表和无采集数据源的路由表只参与查询，不拥有写入链路。"""
+        from metadata.models import DataSourceResultTable, ResultTableOption
+
+        if self.origin_table_id:
+            return False
+        virtual = ResultTableOption.objects.filter(
+            bk_tenant_id=self.bk_tenant_id,
+            table_id=self.table_id,
+            name=ResultTableOption.OPTION_IS_VIRTUAL_TABLE,
+        ).first()
+        if virtual and virtual.get_value():
+            return False
+        if not DataSourceResultTable.objects.filter(bk_tenant_id=self.bk_tenant_id, table_id=self.table_id).exists():
+            return False
+        from metadata.models.doris_version import get_doris_config
+
+        # 第三方查询表可以有数据源关联，但只有 BKBase 表名，没有监控侧 Doris 写入配置。
+        return get_doris_config(self.table_id, self.bk_tenant_id) is not None
+
     def advance_table_version(self, operator):
         from metadata.models.doris_version import advance_table_version
 
-        advance_table_version(self, operator)
+        if self.manages_datalink():
+            advance_table_version(self, operator)
 
     @classmethod
     def get_by_table_id(cls, bk_tenant_id: str, table_id: str) -> "DorisStorage":
@@ -6950,7 +6971,7 @@ class DorisStorage(models.Model, StorageResultTable):
                         enable_time=django_timezone.make_aware(datetime.datetime(1970, 1, 1)),
                         defaults={"is_current": True},
                     )
-                if source_type == "log" and not origin_table_id and not bkbase_table_id:
+                if is_sync_db and source_type == "log" and not origin_table_id and not bkbase_table_id:
                     new_record.advance_table_version(operator="system")
                 logger.info("CreateDorisStorage: create Doris storage table[%s] success", new_record.table_id)
         except Exception as e:  # pylint: disable=broad-except

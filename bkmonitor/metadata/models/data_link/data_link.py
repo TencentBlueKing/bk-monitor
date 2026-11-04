@@ -2953,6 +2953,9 @@ class DataLink(models.Model):
         }
         arguments = inspect.signature(self._get_compose_method()).bind_partial(*args, **compose_kwargs).arguments
         table_id = arguments.get("table_id")
+        route_storage = DorisStorage.objects.filter(bk_tenant_id=self.bk_tenant_id, table_id=table_id).first()
+        if route_storage and not route_storage.manages_datalink():
+            return
         storage_query = DorisStorage.objects.filter(
             bk_tenant_id=self.bk_tenant_id, table_id=table_id, table_version__gt=0
         )

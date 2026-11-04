@@ -354,3 +354,160 @@ def test_dual_write_reuses_es_alias_and_shared_rt(version_records, mocker):
         key: value for key, value in second["spec"].items() if key != "data"
     }
     assert second["spec"]["data"]["name"] == storage.versioned_name
+
+
+@pytest.mark.parametrize("route_kind", ["origin", "virtual_option", "no_datasource"])
+def test_route_tables_do_not_allocate_versions_or_apply(version_records, route_kind, mocker):
+    from metadata.task.datalink import apply_custom_format_datalink, apply_log_datalink
+
+    rt, ds, storage, link, _ = version_records
+    if route_kind == "origin":
+        storage.origin_table_id = "entity.table"
+        storage.save(update_fields=["origin_table_id"])
+    elif route_kind == "virtual_option":
+        models.ResultTableOption.objects.create(
+            bk_tenant_id="system",
+            table_id=rt.table_id,
+            name=models.ResultTableOption.OPTION_IS_VIRTUAL_TABLE,
+            value="true",
+            value_type="bool",
+            creator="tester",
+        )
+    else:
+        models.DataSourceResultTable.objects.filter(bk_tenant_id="system", table_id=rt.table_id).delete()
+    version = storage.table_version
+    history_count = models.StorageClusterRecord.objects.filter(table_id=rt.table_id).count()
+    apply = mocker.patch.object(DataLink, "_apply_data_link")
+    with transaction.atomic(using=config.DATABASE_CONNECTION_NAME):
+        storage.advance_table_version("tester")
+    rt.apply_datalink()
+    apply_log_datalink("system", rt.table_id)
+    apply_custom_format_datalink("system", rt.table_id)
+    link.apply_data_link(bk_biz_id=2, data_source=ds, table_id=rt.table_id)
+    apply.assert_not_called()
+    storage.refresh_from_db()
+    assert storage.table_version == version
+    assert models.StorageClusterRecord.objects.filter(table_id=rt.table_id).count() == history_count
+    assert not models.BkBaseResultTable.objects.filter(monitor_table_id=rt.table_id).exists()
+
+
+def test_route_storage_create_does_not_name_physical_table(version_records):
+    rt, _, storage, _, _ = version_records
+    storage.delete()
+    models.StorageClusterRecord.objects.filter(table_id=rt.table_id).delete()
+    route = models.DorisStorage.create_table(
+        table_id=rt.table_id,
+        bk_tenant_id="system",
+        storage_cluster_id=99991,
+        source_type="log",
+        is_sync_db=False,
+        create_storage_cluster_record=False,
+    )
+    assert route.table_version == 0
+    assert route.physical_tables == {}
+    assert not route.bkbase_table_id
+    assert not models.StorageClusterRecord.objects.filter(table_id=rt.table_id).exists()
+
+
+@pytest.mark.parametrize("has_datasource", [False, True])
+def test_third_party_query_table_allows_empty_physical_table(version_records, mocker, has_datasource):
+    from metadata.models.space.space_table_id_redis import SpaceTableIDRedis
+    from metadata.task.datalink import apply_custom_format_datalink, apply_log_datalink
+
+    rt, ds, storage, link, option = version_records
+    option.delete()  # 第三方表只有查询信息，不声明监控侧清洗和 Doris 写入配置。
+    if not has_datasource:
+        models.DataSourceResultTable.objects.filter(bk_tenant_id="system", table_id=rt.table_id).delete()
+    models.StorageClusterRecord.objects.filter(table_id=rt.table_id).delete()
+    storage.table_version = 0
+    storage.bkbase_table_id = "2_external_query_table"
+    storage.physical_tables = {}
+    storage.save()
+    physical_lookup = mocker.patch.object(models.DorisStorage, "get_physical_table_name")
+    apply = mocker.patch.object(DataLink, "_apply_data_link")
+    storage.advance_table_version("tester")
+    rt.apply_datalink()
+    apply_log_datalink("system", rt.table_id)
+    apply_custom_format_datalink("system", rt.table_id)
+    link.apply_data_link(bk_biz_id=2, data_source=ds, table_id=rt.table_id)
+    apply.assert_not_called()
+    physical_lookup.assert_not_called()
+    storage.refresh_from_db()
+    assert storage.table_version == 0
+    assert storage.bkbase_table_id == "2_external_query_table"
+    assert storage.physical_tables == {}
+    details, _ = SpaceTableIDRedis()._compose_log_table_id_detail(bk_tenant_id="system", table_id_list=[rt.table_id])
+    assert details[rt.table_id]["storage_type"] == "bk_sql"
+    assert details[rt.table_id]["db"] == "2_external_query_table"
+    assert "physical_tables" not in details[rt.table_id]
+    assert not models.StorageClusterRecord.objects.filter(table_id=rt.table_id).exists()
+
+
+def test_analysis_query_route_matches_external_bkbase_table(mocker):
+    """BKOP __analysis__ 示例：外部 RT 存在，但没有监控写入链路或物理表快照。"""
+    from metadata.models.space.space_table_id_redis import SpaceTableIDRedis
+
+    table_id = "bklog_index_set_324_2_bklog_pure_v4_log_doris_for_unify_query.__analysis__"
+    bkbase_table_id = "2_bklog_pure_v4_log_doris_for_unify_query"
+    models.ClusterInfo.objects.create(
+        bk_tenant_id="system",
+        cluster_id=31,
+        cluster_name="doris_log1",
+        cluster_type="doris",
+        domain_name="localhost",
+        port=9030,
+        is_default_cluster=False,
+    )
+    rt = models.ResultTable.objects.create(
+        bk_tenant_id="system",
+        table_id=table_id,
+        table_name_zh=table_id,
+        bk_biz_id=2,
+        is_custom_table=True,
+        default_storage="doris",
+        creator="system",
+        is_enable=True,
+    )
+    storage = models.DorisStorage.objects.create(
+        bk_tenant_id="system",
+        table_id=table_id,
+        storage_cluster_id=31,
+        source_type="bkdata",
+        origin_table_id=None,
+        bkbase_table_id=bkbase_table_id,
+        physical_tables={},
+    )
+    history = models.StorageClusterRecord.objects.create(
+        bk_tenant_id="system",
+        table_id=table_id,
+        cluster_id=31,
+        is_current=True,
+        enable_time=timezone.now(),
+        creator="system",
+        physical_tables={},
+        bkbase_table_id="",
+    )
+    models.ResultTableConfig.objects.create(
+        bk_tenant_id="system",
+        namespace="bklog",
+        name="bklog_pure_v4_log_doris_for_unify_query",
+        table_id="",
+        data_link_name="",
+        bk_biz_id=2,
+        bkbase_table_id=bkbase_table_id,
+    )
+    lookup = mocker.patch.object(models.DorisStorage, "get_physical_table_name")
+    storage.advance_table_version("tester")
+    rt.apply_datalink()
+    lookup.assert_not_called()
+    details, _ = SpaceTableIDRedis()._compose_log_table_id_detail(bk_tenant_id="system", table_id_list=[table_id])
+    route = details[table_id]
+    assert route["storage_type"] == "bk_sql"
+    assert route["db"] == bkbase_table_id
+    assert "physical_tables" not in route
+    assert route["storage_cluster_records"][0]["db"] == bkbase_table_id
+    storage.refresh_from_db()
+    history.refresh_from_db()
+    assert storage.table_version == 0 and storage.physical_tables == {}
+    assert history.physical_tables == {} and history.bkbase_table_id == ""
+    assert not models.BkBaseResultTable.objects.filter(monitor_table_id=table_id).exists()

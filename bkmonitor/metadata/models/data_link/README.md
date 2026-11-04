@@ -501,3 +501,15 @@ ES 为默认存储时 Doris 的开放时间段不占用 is_current 标记。
 无限时长的失败期查询覆盖，后续单独处理。真实 Doris 建表、写入及查询验收也留待专项执行。
 
 部署前应用 `0283_dorisstorage_table_version` 迁移。迁移只新增默认 0 的版本字段。
+
+虚拟表/路由表不拥有采集链路：DorisStorage 存在 origin_table_id、ResultTable 设置
+is_virtual_table，或没有 DataSourceResultTable 采集关联时，跳过版本分配和声明。
+日志路由接口传入的 is_sync_db=False 不初始化版本或物理表，即使 source_type=log 且未传 BKBase 表名。
+ResultTable 入口、日志/自定义格式任务入口及直接 DataLink 声明入口均遵守该边界；
+查询路由仍按原流程更新，实体存储的版本和物理表不会因虚拟表更新而改变。
+第三方查询表即使存在数据源关联，若没有 log_v4_data_link/custom_format_v4_data_link 中的
+Doris 写入配置，也不属于监控管理的写入表。此类表允许 physical_tables 为空；查询路由继续
+使用 storage_type=bk_sql 和已记录的 bkbase_table_id，不探测或补造物理表名，不递增版本。
+例如 __analysis__ 分析查询表可以只关联已有 BKBase RT，source_type=bkdata、origin_table_id 为空，
+且没有监控 DataLink 关联。这不等同于需要修复物理表同步；判定依据是采集关联和写入配置，
+不依赖表名后缀，也不因为 physical_tables 为空而主动创建资源。
