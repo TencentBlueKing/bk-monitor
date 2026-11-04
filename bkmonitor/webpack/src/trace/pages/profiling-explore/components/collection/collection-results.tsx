@@ -293,9 +293,9 @@ export default defineComponent({
     return (
       <section class='collection-tab-panel collection-history-panel collection-results-panel'>
         <CollectionFilters
-          candidates={h.candidates.value}
+          bizId={this.bizId}
           filters={this.state.filters}
-          loading={h.candidateLoading.value}
+          range={this.range}
           autoQuery
           onChange={filters => this.patch({ filters })}
           onRefresh={h.refresh}
@@ -317,29 +317,6 @@ export default defineComponent({
               {this.t('查看全部采集结果')}
             </Button>
           </div>
-        )}
-        {/* 重试按钮作为插槽传入文案，保持各语言的语序 */}
-        {h.candidateError.value && (
-          <Alert theme='warning'>
-            {{
-              title: () => (
-                <i18n-t keypath='部分筛选候选加载失败，可手动输入条件或 {retry}'>
-                  {{
-                    retry: () => (
-                      <Button
-                        v-tippy={this.t('重新加载筛选候选项')}
-                        theme='primary'
-                        text
-                        onClick={h.loadCandidates}
-                      >
-                        {this.t('重试')}
-                      </Button>
-                    ),
-                  }}
-                </i18n-t>
-              ),
-            }}
-          </Alert>
         )}
         {this.rangeError && (
           <Alert

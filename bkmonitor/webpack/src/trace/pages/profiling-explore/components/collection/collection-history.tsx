@@ -68,6 +68,11 @@ const skeletonRows = Array.from({ length: 10 }, (_, index) => ({ executionKey: `
 /** 表格固定配置项（表头吸顶、横向滚动条吸底），滚动容器为任务历史列表 .collection-history-scroll */
 const historyTableAffixed = { container: '.collection-history-scroll' };
 
+// 距底部多少像素内视为触底，触发加载下一页
+const SCROLL_END_THRESHOLD = 80;
+// 触底加载后视口上移的像素，需大于触底阈值才能跳出触底区间
+const SCROLL_BACK_DISTANCE = 120;
+
 // 未下发 task_columns 时回退的默认列，列名在渲染时翻译
 const fallbackTaskColumns: CollectionTaskColumn[] = [
   { field: 'task_name', name: 'trace-任务名称', type: 'text' },
@@ -141,12 +146,20 @@ export default defineComponent({
     }
     function loadVisiblePage() {
       const element = scrollContainer.value;
-      if (element && !h.error.value && element.scrollHeight - element.scrollTop - element.clientHeight < 80)
-        h.loadMore();
+      if (!element || h.error.value) return;
+      const distance = element.scrollHeight - element.scrollTop - element.clientHeight;
+      if (distance < SCROLL_END_THRESHOLD) h.loadMore();
     }
     // 自动补页只在本页有进展时继续，避免重复页空转；用户滚动与「加载更多」不受此限制
     watch([h.loading, h.hasMore], async () => {
       await nextTick();
+      const element = scrollContainer.value;
+      if (!element || h.loading.value) return;
+      const distance = element.scrollHeight - element.scrollTop - element.clientHeight;
+      // 新数据渲染后仍停在触底区间时把视口上移一段，避免滚动条留在最底部连续触发下一页
+      if (h.canAutoFill.value && distance >= 0 && distance < SCROLL_END_THRESHOLD) {
+        element.scrollTop = Math.max(0, element.scrollTop - SCROLL_BACK_DISTANCE);
+      }
       if (h.canAutoFill.value) loadVisiblePage();
     });
     // 执行详情内重新采集的提交状态也纳入 busy，避免提交期间触发自动刷新；
@@ -275,38 +288,14 @@ export default defineComponent({
     return (
       <section class='collection-tab-panel collection-history-panel'>
         <CollectionFilters
-          candidates={h.candidates.value}
+          bizId={this.bizId}
           filters={this.filters}
-          loading={h.candidateLoading.value}
+          range={this.range}
           taskName={this.taskName}
           autoQuery
           onChange={value => this.$emit('change', value)}
           onRefresh={h.refresh}
         />
-        {h.candidateError.value && (
-          <Alert
-            v-slots={{
-              title: () => (
-                <i18n-t
-                  v-slots={{
-                    retry: () => (
-                      <Button
-                        v-tippy={this.t('重新加载筛选候选项')}
-                        theme='primary'
-                        text
-                        onClick={h.loadCandidates}
-                      >
-                        {this.t('重试')}
-                      </Button>
-                    ),
-                  }}
-                  keypath='部分筛选候选加载失败，可手动输入条件或 {retry}'
-                />
-              ),
-            }}
-            theme='warning'
-          />
-        )}
         {this.rangeError && (
           <Alert
             theme='danger'

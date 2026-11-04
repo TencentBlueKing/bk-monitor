@@ -49,14 +49,28 @@ const options = (signal: AbortSignal) => ({ signal, needMessage: false });
 // 历史列表分页大小，翻页判断需与请求 limit 保持一致
 export const COLLECTION_HISTORY_PAGE_SIZE = 20;
 
+// 候选值下拉单次请求数量；topk 只按前 N 个返回，滚动加载靠递增 limit 重查
+export const COLLECTION_CANDIDATE_PAGE_SIZE = 20;
+// 候选值最多加载的条数，避免持续滚动的请求无限扩大
+export const COLLECTION_CANDIDATE_MAX_LIMIT = 200;
+
 export function getCollectionCandidates(
   bizId: number,
   range: SelectionRange,
   field: CollectionCandidateField,
+  query: { keyword?: string; limit: number },
   signal: AbortSignal
 ): Promise<CollectionCandidate[]> {
   return collectionTopk(
-    { bk_biz_id: bizId, start_time: range[0], end_time: range[1], field, limit: 20 },
+    {
+      bk_biz_id: bizId,
+      start_time: range[0],
+      end_time: range[1],
+      field,
+      limit: query.limit,
+      // 关键字为空时不下发，保持按事件数倒序返回的默认行为
+      ...(query.keyword ? { keyword: query.keyword } : {}),
+    },
     options(signal)
   );
 }
