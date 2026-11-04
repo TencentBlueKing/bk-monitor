@@ -1439,6 +1439,24 @@ paths:
           userVerifiedRequired: false
           resourcePermissionRequired: true
         descriptionEn: "query normalized Agent spans"
+  /app/apm/list_llm_tool_calls/:
+    post:
+      operationId: list_llm_tool_calls
+      description: 按 Trace 查询标准工具调用执行摘要
+      x-bk-apigateway-resource:
+        isPublic: false
+        allowApplyPermission: true
+        matchSubpath: false
+        backend:
+          name: default
+          method: post
+          path: /api/v4/apm_llm_web/list_tool_calls/
+          matchSubpath: false
+        authConfig:
+          appVerifiedRequired: true
+          userVerifiedRequired: false
+          resourcePermissionRequired: true
+        descriptionEn: "query standard tool execution summaries by Trace ID"
   /app/apm/list_llm_flows/:
     post:
       operationId: list_llm_flows
