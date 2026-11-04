@@ -13,10 +13,12 @@ specific language governing permissions and limitations under the License.
 from elasticsearch5 import Elasticsearch
 from elasticsearch5.exceptions import ConnectionError
 from rest_framework.exceptions import APIException
+from sqlparse.exceptions import SQLParseError
 
 from bkmonitor.views import serializers
 from core.drf_resource import Resource
 from query_api.drivers import load_driver_by_sql
+from query_api.exceptions import SQLSyntaxError
 
 
 class GetTSDataResource(Resource):
@@ -25,8 +27,10 @@ class GetTSDataResource(Resource):
 
     def perform_request(self, validated_request_data):
         sql = validated_request_data["sql"]
-        # load driver
-        query_driver = load_driver_by_sql(sql)
+        try:
+            query_driver = load_driver_by_sql(sql)
+        except SQLParseError as err:
+            raise SQLSyntaxError(str(err)) from err
         return query_driver.query()
 
 

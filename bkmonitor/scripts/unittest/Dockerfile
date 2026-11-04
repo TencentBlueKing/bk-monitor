@@ -45,6 +45,7 @@ WORKDIR /
 
 COPY requirements.txt /
 COPY requirements_test.txt /
+COPY third_party/sqlparse/*.whl /third_party/sqlparse/
 
 # 创建 Python 虚拟环境
 RUN set -ex && python -m venv /venv && pip install --upgrade pip && pip install --no-cache-dir -r requirements_test.txt
