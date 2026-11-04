@@ -255,6 +255,10 @@
       margin-right: 6px;
     }
 
+    .row-more-menu {
+      display: inline-flex;
+    }
+
     .more-btn {
       display: inline-block;
       width: 18px;
@@ -543,6 +547,7 @@
       color: #4d4f56;
       font-size: 12px;
       padding: 6px 14px;
+      line-height: 1.4;
       cursor: pointer;
 
       &.disabled {
