@@ -11,9 +11,10 @@ from fta_web.alert.handlers import alert_log as alert_log_module
 from fta_web.alert.handlers.alert_log import AlertLogHandler
 from fta_web.alert.resources import ListAlertLogResource
 
-# 告警 ID 前 10 位即创建时间戳
-ALERT_ID = "1793590271205613713"
-ALERT_CREATE_TIME = 1793590271
+# 构造的测试夹具：固定日期 2026-03-15 08:00:00 UTC，后面补 9 位序列，
+# 与告警 ID「前 10 位时间戳 + 序列」的格式保持一致
+ALERT_CREATE_TIME = 1773561600
+ALERT_ID = f"{ALERT_CREATE_TIME}000000123"
 
 
 class FakeHit(SimpleNamespace):
@@ -51,10 +52,11 @@ class TestBuildSearchObject:
 
         make_handler().build_search_object()
 
+        # 夹具创建日为 2026-03-15，当前时间固定为创建后第 2 天，应逐日枚举 15/16/17
         assert search_patch.call_args.kwargs["index"] == [
-            "bkfta_log_alert_20261102_read",
-            "bkfta_log_alert_20261103_read",
-            "bkfta_log_alert_20261104_read",
+            "bkfta_log_alert_20260315_read",
+            "bkfta_log_alert_20260316_read",
+            "bkfta_log_alert_20260317_read",
         ]
 
     def test_fallback_for_invalid_alert_id(self, monkeypatch):
@@ -115,7 +117,7 @@ class TestBuildSearchObject:
 
         make_handler().search(operate_list=[], offset=ALERT_CREATE_TIME + 86400, limit=20)
 
-        assert search_patch.call_args.kwargs["index"][-1] == "bkfta_log_alert_20261104_read"
+        assert search_patch.call_args.kwargs["index"][-1] == "bkfta_log_alert_20260317_read"
 
 
 class TestDisplayParams:
@@ -282,12 +284,19 @@ class TestRequestSerializer:
             {},
             [],
             "",
+            {"type": []},
+            {"type": {}},
+            {"type": 1},
+            {"type": True},
+            {"type": None},
             {"type": "unknown"},
             {"type": "algorithm", "check_window": 5},
             {"type": "algorithm", "check_window": 5, "count": 3, "text": "文案"},
             {"type": "algorithm", "check_window": 0, "count": 3},
             {"type": "algorithm", "check_window": "5", "count": 3},
+            {"type": "algorithm", "check_window": 5, "count": 3.0},
             {"type": "algorithm", "check_window": True, "count": 3},
+            {"type": "no_data"},
             {"type": "no_data", "continuous": -1},
             "not-a-dict",
         ],
@@ -298,6 +307,8 @@ class TestRequestSerializer:
         )
 
         assert not serializer.is_valid()
+        # 必须归到字段校验错误，而不是把 list/dict 当字典键抛 TypeError
+        assert "trigger_condition" in serializer.errors
 
 
 class TestPerformRequest:
