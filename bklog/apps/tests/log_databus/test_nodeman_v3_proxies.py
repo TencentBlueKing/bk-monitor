@@ -29,34 +29,32 @@ class BizProxiesTest(SimpleTestCase):
         self.addCleanup(client_patch.stop)
         self.client = self.get_client.return_value
 
-    def test_shared_proxies_are_selected_by_business_networkarea(self):
-        self.client.list_hosts.side_effect = [
-            {"total": 3, "items": [host(1, role="agent"), host(2, area_id=0), host(3, area_id=7)]},
-            {
-                "total": 5,
-                "items": [
-                    host(10, biz_id=9, advertise_ip="127.0.0.1"),
-                    host(11, area_id=7, advertise_ip="127.0.0.2"),
-                    host(12, area_id=8, advertise_ip="127.0.0.3"),
-                    host(13, role="agent", advertise_ip="127.0.0.1"),
-                    host(14, area_id=0, advertise_ip="127.0.0.2"),
-                ],
-            },
-        ]
+    def test_business_proxies_are_queried_directly_in_one_request(self):
+        self.client.list_hosts.return_value = {
+            "total": 4,
+            "items": [
+                host(10, advertise_ip="127.0.0.1"),
+                host(11, area_id=7, advertise_ip="127.0.0.2"),
+                host(13, role="agent", advertise_ip="127.0.0.1"),
+                host(14, area_id=0, advertise_ip="127.0.0.2"),
+            ],
+        }
 
         self.assertEqual(
             get_host_biz_proxies(2),
             [{"bk_cloud_id": 3, "conn_ip": "127.0.0.1"}, {"bk_cloud_id": 7, "conn_ip": "127.0.0.2"}],
         )
         self.get_client.assert_called_once_with(2)
-        conditions = [item.args[0]["exact_include_conditions"] for item in self.client.list_hosts.call_args_list]
-        self.assertEqual(conditions, [{"bk_biz_id": [2]}, {"bk_networkarea_id": [3, 7], "node_role": ["proxy"]}])
+        self.client.list_hosts.assert_called_once_with(
+            {
+                "page": {"offset": 0, "limit": 1000},
+                "exact_include_conditions": {"bk_biz_id": [2], "node_role": ["proxy"]},
+            }
+        )
 
     @patch("apps.log_databus.nodeman_v3.proxies.PAGE_LIMIT", 2)
-    def test_both_queries_read_all_pages_and_deduplicate_hosts(self):
+    def test_all_proxy_pages_keep_business_filter_and_deduplicate_hosts(self):
         self.client.list_hosts.side_effect = [
-            {"total": 3, "items": [host(1), host(2, area_id=7)]},
-            {"total": 3, "items": [host(3, area_id=9)]},
             {"total": 3, "items": [host(10, advertise_ip="127.0.0.1"), host(11, advertise_ip="127.0.0.2")]},
             {"total": 3, "items": [host(10, advertise_ip="127.0.0.1")]},
         ]
@@ -66,10 +64,11 @@ class BizProxiesTest(SimpleTestCase):
             [{"bk_cloud_id": 3, "conn_ip": "127.0.0.1"}, {"bk_cloud_id": 3, "conn_ip": "127.0.0.2"}],
         )
         requests = [item.args[0] for item in self.client.list_hosts.call_args_list]
-        self.assertEqual([item["page"] for item in requests], [{"offset": n, "limit": 2} for n in (0, 2, 0, 2)])
-        self.assertEqual(requests[2]["exact_include_conditions"]["bk_networkarea_id"], [3, 7, 9])
+        self.assertEqual([item["page"] for item in requests], [{"offset": n, "limit": 2} for n in (0, 2)])
+        for request in requests:
+            self.assertEqual(request["exact_include_conditions"], {"bk_biz_id": [2], "node_role": ["proxy"]})
 
-    def test_no_business_hosts_or_only_default_area_avoids_unbounded_proxy_query(self):
+    def test_empty_or_default_region_results_need_only_one_request(self):
         for items in ([], [host(1, area_id=0)]):
             with self.subTest(items=items):
                 self.client.reset_mock()
@@ -78,20 +77,17 @@ class BizProxiesTest(SimpleTestCase):
                 self.client.list_hosts.assert_called_once()
 
     def test_service_addresses_take_priority_and_ipv6_is_bracketed(self):
-        self.client.list_hosts.side_effect = [
-            {"total": 1, "items": [host(1)]},
-            {
-                "total": 6,
-                "items": [
-                    host(10, advertise_ip="127.0.0.1", advertise_ip_v6="2001:db8::10"),
-                    host(11, advertise_ip_v6="2001:db8::11", bk_host_innerip_list=["127.0.0.2"]),
-                    host(12, bk_host_innerip_list=["", "127.0.0.3"]),
-                    host(13, bk_host_innerip_v6_list=["2001:db8::13"]),
-                    host(14, export_ip="127.0.0.2", login_ip="127.0.0.3"),
-                    host(15, advertise_ip=" ", bk_host_innerip_list=[" 127.0.0.3 "]),
-                ],
-            },
-        ]
+        self.client.list_hosts.return_value = {
+            "total": 6,
+            "items": [
+                host(10, advertise_ip="127.0.0.1", advertise_ip_v6="2001:db8::10"),
+                host(11, advertise_ip_v6="2001:db8::11", bk_host_innerip_list=["127.0.0.2"]),
+                host(12, bk_host_innerip_list=["", "127.0.0.3"]),
+                host(13, bk_host_innerip_v6_list=["2001:db8::13"]),
+                host(14, export_ip="127.0.0.2", login_ip="127.0.0.3"),
+                host(15, advertise_ip=" ", bk_host_innerip_list=[" 127.0.0.3 "]),
+            ],
+        }
 
         self.assertEqual(
             get_host_biz_proxies(2),
@@ -105,10 +101,7 @@ class BizProxiesTest(SimpleTestCase):
         )
 
     def test_empty_proxy_results_are_valid(self):
-        self.client.list_hosts.side_effect = [
-            {"total": 1, "items": [host(1)]},
-            {"total": 0, "items": []},
-        ]
+        self.client.list_hosts.return_value = {"total": 0, "items": []}
         self.assertEqual(get_host_biz_proxies(2), [])
 
     def test_malformed_or_incomplete_pages_fail(self):
@@ -128,13 +121,14 @@ class BizProxiesTest(SimpleTestCase):
     def test_missing_or_invalid_networkarea_is_not_treated_as_default_area(self):
         for info in ({}, {"bk_networkarea_id": None}, {"bk_networkarea_id": "invalid"}, {"bk_networkarea_id": -1}):
             with self.subTest(info=info):
-                self.client.list_hosts.return_value = {"total": 1, "items": [{"info": info}]}
+                proxy = host(10)
+                proxy["info"] = info
+                self.client.list_hosts.return_value = {"total": 1, "items": [proxy]}
                 with self.assertRaises(NodeManV3APIError):
                     get_host_biz_proxies(2)
 
     def test_error_after_first_page_does_not_return_partial_results(self):
         self.client.list_hosts.side_effect = [
-            {"total": 1, "items": [host(1)]},
             {"total": 2, "items": [host(10, advertise_ip="127.0.0.1")]},
             NodeManV3APIError("unavailable"),
         ]
@@ -144,10 +138,7 @@ class BizProxiesTest(SimpleTestCase):
     def test_proxy_without_host_id_fails(self):
         proxy = host(10, advertise_ip="127.0.0.1")
         del proxy["bk_host_id"]
-        self.client.list_hosts.side_effect = [
-            {"total": 1, "items": [host(1)]},
-            {"total": 1, "items": [proxy]},
-        ]
+        self.client.list_hosts.return_value = {"total": 1, "items": [proxy]}
         with self.assertRaises(NodeManV3APIError):
             get_host_biz_proxies(2)
 

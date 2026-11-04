@@ -66,23 +66,16 @@ def _networkarea_id(host: dict) -> int:
 
 
 def get_host_biz_proxies(bk_biz_id: int) -> list[dict]:
-    """查询业务使用的非默认管控区域内的 Proxy，转换为上报地址入口的兼容字段。"""
+    """按接口文档查询指定业务的 Proxy，转换为上报地址入口的兼容字段。"""
     client = get_client(bk_biz_id)
-    networkarea_ids = {
-        area_id for host in _list_hosts(client, {"bk_biz_id": [bk_biz_id]}) if (area_id := _networkarea_id(host)) != 0
-    }
-    if not networkarea_ids:
-        return []
-
-    # Proxy 可归属其他业务，沿用 V2 按业务所用区域查询的语义。
-    conditions = {"bk_networkarea_id": sorted(networkarea_ids), "node_role": ["proxy"]}
+    conditions = {"bk_biz_id": [bk_biz_id], "node_role": ["proxy"]}
     proxies = []
     seen_host_ids = set()
     for host in _list_hosts(client, conditions):
         if (host.get("state") or {}).get("node_role") != "proxy":
             continue
         area_id = _networkarea_id(host)
-        if area_id not in networkarea_ids:
+        if area_id == 0:
             continue
         try:
             host_id = int(host["bk_host_id"])
@@ -105,6 +98,5 @@ def get_host_biz_proxies(bk_biz_id: int) -> list[dict]:
             continue
         if ":" in ip and not ip.startswith("["):
             ip = f"[{ip}]"
-        # NodeMan 从 CMDB 的 bk_cloud_id 同步 NetworkAreaID，兼容原响应字段。
         proxies.append({"bk_cloud_id": area_id, "conn_ip": ip})
     return proxies
