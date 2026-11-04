@@ -48,6 +48,7 @@ from apps.log_databus.handlers.etl import EtlHandler
 from apps.log_databus.handlers.link import DataLinkHandler
 from apps.log_databus.models import CollectorConfig
 from apps.log_databus.nodeman_v3.mode import is_nodeman_v3_admitted
+from apps.log_databus.nodeman_v3.proxies import get_host_biz_proxies
 from apps.log_databus.serializers import (
     BatchSubscriptionStatusSerializer,
     BCSCollectorSerializer,
@@ -2624,8 +2625,6 @@ class CollectorViewSet(ModelViewSet):
 
         # 通过接口获取云区域上报proxy
         if is_nodeman_v3_admitted(space_uid_to_bk_biz_id(params.get("space_uid"))):
-            from apps.log_databus.nodeman_v3.proxies import get_host_biz_proxies
-
             proxy_hosts = get_host_biz_proxies(space.bk_biz_id)
         else:
             proxy_hosts = NodeApi.get_host_biz_proxies({"bk_biz_id": space.bk_biz_id})

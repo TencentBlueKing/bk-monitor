@@ -100,7 +100,7 @@ class ProxyHostInfoViewTest(SimpleTestCase):
             "report_toggle": patch("apps.log_databus.views.collector_views.FeatureToggleObject.toggle"),
             "v3_toggle": patch("apps.log_databus.nodeman_v3.mode.get_nodeman_v3_toggle", return_value=self.toggle),
             "v2": patch("apps.log_databus.views.collector_views.NodeApi.get_host_biz_proxies"),
-            "v3": patch("apps.log_databus.nodeman_v3.proxies.get_host_biz_proxies"),
+            "v3": patch("apps.log_databus.views.collector_views.get_host_biz_proxies"),
         }
         for name, patcher in patches.items():
             setattr(self, name, patcher.start())
