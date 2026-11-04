@@ -75,8 +75,10 @@ export default class CallerCalleeFilter extends tsc<ICallerCalleeFilterProps, IC
   calleeFilter: IFilterOption[] = [];
   callerNameMap: Record<string, string> = {};
   calleeNameMap: Record<string, string> = {};
-  /** 各字段最近一次搜索词。初始化请求返回后按它过滤，避免覆盖用户后续输入 */
+  /** 按「视角:字段」记录最近一次搜索词，避免主调/被调同名字段互相覆盖 */
   latestValueSearch: Record<string, string> = {};
+  /** 按「视角:字段」记录候选项请求序号，过期响应不再写回 */
+  optionRequestSeq: Record<string, number> = {};
   // 变量对应
   get scopedVars() {
     return {
@@ -91,9 +93,12 @@ export default class CallerCalleeFilter extends tsc<ICallerCalleeFilterProps, IC
   get variablesData() {
     return this.commonOptions?.variables?.data || {};
   }
-  get callFilter() {
-    if (this.callType === EKind.caller) return this.callerFilter;
+  filtersOf(callType: EKind) {
+    if (callType === EKind.caller) return this.callerFilter;
     return this.calleeFilter;
+  }
+  get callFilter() {
+    return this.filtersOf(this.callType);
   }
   get callFilterMap() {
     if (this.callType === EKind.caller) return this.callerNameMap;
@@ -206,15 +211,18 @@ export default class CallerCalleeFilter extends tsc<ICallerCalleeFilterProps, IC
       return { method, value, condition, key };
     });
   }
-  /** 动态获取左侧列表的下拉值 */
-  async getOptionListByKey(key: string) {
-    const curOption = this.callFilter.find(item => item.key === key);
+  /** 动态获取左侧列表的下拉值。请求绑定发起时的视角，返回时丢弃过期响应 */
+  async getOptionListByKey(key: string, callType: EKind = this.callType) {
+    const listOf = () => this.filtersOf(callType);
+    const curOption = listOf().find(item => item.key === key);
     if (!curOption) return;
+    const seqKey = `${callType}:${key}`;
+    const seq = (this.optionRequestSeq[seqKey] = (this.optionRequestSeq[seqKey] ?? 0) + 1);
     curOption.loading = true;
     const [startTime, endTime] = handleTransformToTimestamp(this.timeRange);
     const variablesService = new VariablesService({
       ...this.scopedVars,
-      ...this.callFilter,
+      ...listOf(),
     });
     const newParams = {
       ...variablesService.transformVariables(this.variablesData, {
@@ -228,16 +236,25 @@ export default class CallerCalleeFilter extends tsc<ICallerCalleeFilterProps, IC
       ...newParams,
       where: [
         ...newParams.where,
-        ...this.handleRegexData(this.callFilter.filter(item => key !== item.key && item.value.length > 0)),
+        ...this.handleRegexData(listOf().filter(item => key !== item.key && item.value.length > 0)),
       ],
     }).catch(() => false);
-    // 点击查询会重建筛选项，结果写回当前列表中的对象
-    const target = this.callFilter.find(item => item.key === key) || curOption;
+    if (this.optionRequestSeq[seqKey] !== seq) {
+      // 更新的请求仍在使用当前对象时，不能把 loading 提前关掉
+      if (!listOf().includes(curOption)) {
+        curOption.loading = false;
+      }
+      return;
+    }
+    // 点击查询会重建筛选项，结果写回该视角当前列表中的对象
+    const target = listOf().find(item => item.key === key) || curOption;
     if (target !== curOption) {
       curOption.loading = false;
     }
     target.loading = false;
-    const options = data?.length ? [{ ...filterOption }, ...data] : [];
+    // 接口失败时保留已有候选项，避免把重建时拷贝来的缓存清掉
+    if (!Array.isArray(data)) return;
+    const options = data.length ? [{ ...filterOption }, ...data] : [];
     if (target.value?.length) {
       // let value = curOption.value;
       // if(curOption.method === 'reg') {
@@ -274,14 +291,20 @@ export default class CallerCalleeFilter extends tsc<ICallerCalleeFilterProps, IC
    * @description 值选择器候选数据：下拉展开时请求接口并缓存到 item.options，输入搜索时仅本地过滤
    */
   getValueCallback(item: IFilterOption): TGetValueFn {
+    const callType = this.callType;
+    const field = item.key;
+    const searchKey = `${callType}:${field}`;
     return async (params: IGetValueFnParams & { isInit__?: boolean }): Promise<IOptionsInfo> => {
-      const field = item.key;
-      this.latestValueSearch[field] = params.search ?? '';
+      this.latestValueSearch[searchKey] = params.search ?? '';
       if (params.isInit__) {
-        await this.getOptionListByKey(field);
+        await this.getOptionListByKey(field, callType);
       }
-      const current = this.callFilter.find(opt => opt.key === field);
-      const search = (this.latestValueSearch[field] ?? '').toLocaleLowerCase();
+      // 视角已切换时，这次结果属于已卸载的下拉，不能读到另一侧
+      if (this.callType !== callType) {
+        return { count: 0 as const, list: [] };
+      }
+      const current = this.filtersOf(callType).find(opt => opt.key === field);
+      const search = (this.latestValueSearch[searchKey] ?? '').toLocaleLowerCase();
       return {
         count: 0 as const,
         list: (current?.options || []).reduce<IValue[]>((results, opt) => {
@@ -308,7 +331,7 @@ export default class CallerCalleeFilter extends tsc<ICallerCalleeFilterProps, IC
           {this.callFilter.map(item => {
             return (
               <div
-                key={item.key}
+                key={`${this.callType}-${item.key}`}
                 class='search-item'
               >
                 <div class='search-item-label'>
@@ -330,7 +353,7 @@ export default class CallerCalleeFilter extends tsc<ICallerCalleeFilterProps, IC
                   </bk-select>
                 </div>
                 <ValueTagSelector
-                  key={item.key}
+                  key={`${this.callType}-${item.key}`}
                   class='search-item-value'
                   fieldInfo={{
                     field: item.key,
