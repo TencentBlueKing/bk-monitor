@@ -64,6 +64,7 @@ interface IProps {
   minWidth?: number;
   stickyList?: string[];
   theme?: ThemeType;
+  transfer?: boolean;
   value: number;
   zIndex?: number;
 }
@@ -78,6 +79,7 @@ export default class BizSelect extends tsc<IProps, IEvents> {
   @Prop({ default: true, type: Boolean }) isShowCommon: boolean; // 是否展示常用
   @Prop({ default: null, type: Number }) zIndex: number;
   @Prop({ default: 200, type: Number }) minWidth: number;
+  @Prop({ default: false, type: Boolean }) transfer: boolean;
   @Prop({ default: () => [], type: Array }) stickyList: string[]; // 置顶空间的uid
   @Prop({
     default: 'light',
@@ -635,7 +637,7 @@ export default class BizSelect extends tsc<IProps, IEvents> {
           width={this.listWidth}
           ext-cls={`biz-select-list-${this.theme}`}
           tippy-options={{
-            appendTo: 'parent',
+            ...(this.transfer ? {} : { appendTo: 'parent' }),
             onShow: this.handleSetListWidth,
             onHide: () => {
               this.showBizList = false;
@@ -650,13 +652,15 @@ export default class BizSelect extends tsc<IProps, IEvents> {
           offset={-1}
           placement='bottom-start'
           theme={`${this.theme} common-popover list-${this.theme}`}
+          transfer={this.transfer}
           trigger='click'
+          z-index={this.zIndex || 2500}
         >
           <div class={['biz-select-target', { 'is-shrink': this.isShrink }]}>
             {this.isShrink ? (
               firstCode
             ) : (
-              <div class='biz-select-target-main'>
+              <div class={['biz-select-target-main', { 'is-focus': this.showBizList }]}>
                 {firstCode}
                 <span
                   class='biz-name-text'

@@ -74,6 +74,7 @@ export interface IRouteConfigItem {
   query?: any;
   route?: string;
   shortName?: string;
+  shortNameEn?: string;
   usePath?: boolean;
 }
 // route config
@@ -188,6 +189,7 @@ export const getRouteConfig = () => {
         {
           name: '用户体验',
           shortName: '体验',
+          shortNameEn: 'Expe.',
           id: 'monitor-experience',
           children: [
             {
@@ -286,7 +288,7 @@ export const getRouteConfig = () => {
       children: [
         {
           name: '告警配置',
-          shortName: '告警配置',
+          shortName: '告警',
           id: 'monitor',
           children: [
             {
@@ -335,6 +337,7 @@ export const getRouteConfig = () => {
         {
           name: '告警处理',
           shortName: '处理',
+          shortNameEn: 'Hand.',
           id: 'alert-set',
           children: [
             {
@@ -397,6 +400,7 @@ export const getRouteConfig = () => {
         {
           name: '插件',
           shortName: '插件',
+          shortNameEn: 'Plug.',
           id: 'intergrations',
           children: [
             {
@@ -421,6 +425,7 @@ export const getRouteConfig = () => {
         {
           name: '数据采集',
           shortName: '采集',
+          shortNameEn: 'Data',
           id: 'monitor-collect',
           children: [
             {
@@ -453,6 +458,7 @@ export const getRouteConfig = () => {
         {
           name: '指标管理',
           shortName: '指标',
+          shortNameEn: 'Metr.',
           id: 'metric-manage',
           children: [
             {

@@ -85,6 +85,12 @@ const OVERSEAS_SITES_MENU = 'OVERSEAS_SITES_MENU';
 const STORE_USER_MENU_KEY = 'USER_STORE_MENU_KEY';
 const ERROR_PAGE_ROUTE_NAME = 'error-exception';
 export const WATCH_SPACE_STICKY_LIST = 'WATCH_SPACE_STICKY_LIST'; /** 监听空间置顶列表数据事件key */
+const MONITOR_SIDE_NAV_COLORS = {
+  ...APP_NAV_COLORS,
+  'item-default-color': '#A1AEC7',
+  'item-default-icon-color': '#A1AEC7',
+  'item-child-icon-default-color': '#A1AEC7',
+};
 const currentLang = docCookies.getItem(LANGUAGE_COOKIE_KEY) || 'zhCN';
 let WIDTH_LIST = [100, 72, 86, 100, 100, 100, 72, 72];
 let SPACE_WIDTH = 0;
@@ -364,6 +370,15 @@ export default class App extends tsc<object> {
    */
   handleToggle(v: boolean) {
     this.menuToggle = v;
+  }
+  getNavGroupName(item: IRouteConfigItem) {
+    if (this.menuToggle) {
+      return this.$t(item.name);
+    }
+    if (this.$i18n.locale === 'enUS' && item.shortNameEn) {
+      return item.shortNameEn;
+    }
+    return this.$t(item.shortName || item.name);
   }
   handleHeaderMenuClick(_id: string, route: string) {
     if (this.$route.name !== route) {
@@ -781,10 +796,12 @@ export default class App extends tsc<object> {
         <bk-navigation
           class={{
             'bk-monitor-navigation': true,
+            'is-nav-open': this.menuToggle,
             'no-need-menu': !this.needMenu || this.isFullScreen || this.$route.name === 'share',
           }}
           default-open={this.menuToggle}
           head-height={this.isFullScreen ? 0 : 52}
+          hover-width={240}
           navigation-type='top-bottom'
           need-menu={!!this.menuList?.length && this.needMenu && !this.isFullScreen && this.$route.name !== 'share'}
           side-title={this.platformData.name}
@@ -875,21 +892,21 @@ export default class App extends tsc<object> {
                 <div class='biz-select'>
                   <BizSelect
                     bizList={this.bizIdList}
-                    isShrink={!this.menuToggle}
                     minWidth={380}
                     stickyList={this.spaceStickyList}
                     theme='dark'
+                    transfer={true}
                     value={+this.bizId}
+                    zIndex={4000}
                     onChange={this.handleBizChange}
                     onOpenSpaceManager={this.handleOpenSpace}
                   />
                 </div>
                 <bk-navigation-menu
-                  style={{ marginTop: this.headerNav === 'data' ? '8px' : '0px' }}
                   before-nav-change={this.handleBeforeNavChange}
                   default-active={this.routeId}
                   toggle-active={this.menuToggle}
-                  {...{ props: APP_NAV_COLORS }}
+                  {...{ props: MONITOR_SIDE_NAV_COLORS }}
                 >
                   {this.menuList
                     .filter(item => {
@@ -907,7 +924,7 @@ export default class App extends tsc<object> {
                       item?.children?.length ? (
                         <bk-navigation-menu-group
                           key={item.id}
-                          group-name={this.menuToggle ? this.$t(item.name) : this.$t(item.shortName)}
+                          group-name={this.getNavGroupName(item)}
                         >
                           {item.children
                             .filter(child => !child.hidden)

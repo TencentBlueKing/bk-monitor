@@ -208,7 +208,7 @@ export default class CommonDetail extends tsc<ICommonDetailProps, ICommonDetailE
       if (!this.maxWidth) {
         return (
           window.innerWidth -
-          (window.source_app === 'monitor' || window.__POWERED_BY_BK_WEWEB__ ? (this.toggleSet ? 260 : 60) : 0) -
+          (window.source_app === 'monitor' || window.__POWERED_BY_BK_WEWEB__ ? (this.toggleSet ? 240 : 60) : 0) -
           16
         );
       }
