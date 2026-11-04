@@ -35,7 +35,11 @@ import { CONDITIONS } from './condition-condition-tag';
 import ConditionCreatorSelector from './condition-creator-selector';
 import { EFieldType } from './typing';
 
-import type { IFilterItem, IGetValueFnParams } from '../../../../components/retrieval-filter/utils';
+import type {
+  IFilterItem,
+  IGetValueFnParams,
+  IWhereValueOptionsItem,
+} from '../../../../components/retrieval-filter/utils';
 import type { MetricDetailV2 } from '../../typings/metric';
 import type { AggCondition } from '../../typings/query-config';
 import type { IConditionOptionsItem, IVariablesItem } from '../type/query-config';
@@ -60,6 +64,8 @@ interface IProps {
   showLabel?: boolean;
   value?: AggCondition[];
   variables?: IVariablesItem[];
+  createVariableFn?: (onCreated: (name: string) => void) => void;
+  getValueFn?: (params: IGetValueFnParams) => Promise<IWhereValueOptionsItem>;
   onChange?: (val: AggCondition[]) => void;
   onCreateValueVariable?: (val: { name: string; related_tag: string }) => void;
   onCreateVariable?: (val: string) => void;
@@ -83,6 +89,12 @@ export default class ConditionCreator extends tsc<IProps> {
   @Prop({ default: () => [] }) allVariables: { name: string }[];
   /** 是否展示条件标签 */
   @Prop({ default: false, type: Boolean }) showConditionTag: boolean;
+  /* 维度值获取方法，外部注入后可对接自有接口，未注入时走监控默认实现 */
+  @Prop({ default: null, type: Function }) getValueFn: (
+    params: IGetValueFnParams
+  ) => Promise<IWhereValueOptionsItem>;
+  /* 由外部接管变量创建（如宿主自带变量面板），传入时不再展开内置的命名输入面板 */
+  @Prop({ default: null, type: Function }) createVariableFn: (onCreated: (name: string) => void) => void;
 
   cacheDimensionValues = new Map();
 
@@ -141,6 +153,36 @@ export default class ConditionCreator extends tsc<IProps> {
     ];
   }
 
+  get valueFn() {
+    return this.getValueFn ? this.externalGetValueFn : this.defaultGetValueFn;
+  }
+
+  searchOptions(search: string, list: { id: string; name: string }[]) {
+    if (!search) {
+      return list;
+    }
+    const searchLower = search.toLocaleLowerCase();
+    return list.filter(
+      item =>
+        item.name.toLocaleLowerCase().includes(searchLower) || item.id.toLocaleLowerCase().includes(searchLower)
+    );
+  }
+
+  /* 外部注入的取值函数只负责取候选值，维度值变量与搜索过滤仍由这里统一补上 */
+  externalGetValueFn(params: IGetValueFnParams): any {
+    return Promise.resolve(this.getValueFn(params)).then((res: any) => {
+      const allOptions = [
+        ...this.dimensionValueVariables.map(item => ({ name: item.name, id: item.name, isVariable: true })),
+        ...(res?.list || []),
+      ];
+      const filterList = this.searchOptions(params?.where?.[0]?.value?.[0], allOptions);
+      return {
+        count: filterList.length,
+        list: filterList,
+      };
+    });
+  }
+
   handleGetMethodList(type: 'number' | 'string') {
     if (type === 'number') {
       return NUMBER_CONDITION_METHOD_LIST;
@@ -173,18 +215,9 @@ export default class ConditionCreator extends tsc<IProps> {
     );
   }
 
-  getValueFn(params: IGetValueFnParams): any {
+  defaultGetValueFn(params: IGetValueFnParams): any {
     return new Promise(resolve => {
-      const searchList = (search: string, list) => {
-        if (!search) {
-          return list;
-        }
-        const searchLower = search.toLocaleLowerCase();
-        return list.filter(
-          item =>
-            item.name.toLocaleLowerCase().includes(searchLower) || item.id.toLocaleLowerCase().includes(searchLower)
-        );
-      };
+      const searchList = (search: string, list) => this.searchOptions(search, list);
       const searchValue = params?.where?.[0]?.value?.[0];
       const dimensionKey = params.fields[0];
       const list = this.cacheDimensionValues.get(dimensionKey);
@@ -227,9 +260,10 @@ export default class ConditionCreator extends tsc<IProps> {
         {this.showLabel && <div class='condition-label'>{this.$slots?.label || this.$t('过滤条件')}</div>}
         <ConditionCreatorSelector
           allVariables={this.allVariables}
+          createVariableFn={this.createVariableFn}
           dimensionValueVariables={this.dimensionValueVariables}
           fields={this.fields as IFilterField[]}
-          getValueFn={this.getValueFn}
+          getValueFn={this.valueFn}
           hasVariableOperate={this.hasVariableOperate}
           showConditionTag={this.showConditionTag}
           value={this.localValue}

@@ -30,6 +30,8 @@ import { resolve } from 'node:path';
 import { defineConfig } from 'vite';
 import { analyzer } from 'vite-bundle-analyzer';
 import { viteStaticCopy } from 'vite-plugin-static-copy';
+
+import { scopeVue2Css } from './plugin-scope-vue2-css';
 const outputDir = resolve(__dirname, '../monitor-vue2-components');
 export default defineConfig({
   define: {
@@ -64,7 +66,9 @@ export default defineConfig({
         // },
       ],
     }),
-    analyzer(),
+    // 供 vue3 宿主使用的作用域样式副本，避免包内 bkui-vue2 样式与宿主的 bkui-vue3 互相污染
+    scopeVue2Css({ outDir: outputDir }),
+    analyzer()
   ],
   build: {
     copyPublicDir: false,

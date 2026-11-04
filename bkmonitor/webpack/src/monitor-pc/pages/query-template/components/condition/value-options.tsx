@@ -41,6 +41,7 @@ import './value-options.scss';
 
 interface IProps {
   allVariables?: { name: string }[];
+  createVariableFn?: (onCreated: (name: string) => void) => void;
   fieldInfo?: IFieldItem;
   getValueFn?: TGetValueFn;
   hasVariableOperate?: boolean;
@@ -91,6 +92,8 @@ export default class ValueOptions extends tsc<IProps> {
   @Prop({ type: Array, default: () => [] }) variables: { name: string }[];
   /* 所有变量，用于校验变量名是否重复 */
   @Prop({ default: () => [] }) allVariables: { name: string }[];
+  /* 由外部接管变量创建（如宿主自带变量面板），传入时不再展开内置的命名输入面板 */
+  @Prop({ default: null, type: Function }) createVariableFn: (onCreated: (name: string) => void) => void;
 
   localOptions: IValue[] = [];
   loading = false;
@@ -323,6 +326,7 @@ export default class ValueOptions extends tsc<IProps> {
                 >
                   <AddVariableOption
                     allVariables={this.allVariables}
+                    createVariableFn={this.createVariableFn}
                     popDistance={13}
                     onAdd={this.handleAddVar}
                     onOpenChange={this.handleAddVariableOpenChange}
@@ -355,6 +359,7 @@ export default class ValueOptions extends tsc<IProps> {
               >
                 <AddVariableOption
                   allVariables={this.allVariables}
+                  createVariableFn={this.createVariableFn}
                   popDistance={13}
                   onAdd={this.handleAddVar}
                   onOpenChange={this.handleAddVariableOpenChange}
