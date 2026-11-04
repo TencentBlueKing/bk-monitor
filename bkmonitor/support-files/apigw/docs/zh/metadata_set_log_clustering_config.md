@@ -25,6 +25,8 @@ Databus 尚未引用聚类 Sink 时按日志链路完整下发（Databus.spec.si
 
 Pattern 资源由 metadata 自动注册，调用方不再提供 `pattern_store`。每个租户、索引集一张实体 ResultTable，复用已有 ResultTableConfig、ESStorageBindingConfig、ESStorage 与 StorageClusterRecord。不同距离档位共用该表；关闭、重开和模型更新不重新建表。Pattern 不新增 DataID 或 Databus，写入仅来自聚类算子。
 
+Pattern 资源名使用 `bklog_pattern_<索引集ID>`，不使用哈希；租户通过资源 tenant 隔离。建表、写入与查询统一使用 BKBase 完整结果表 ID，即 `<ResultTable.spec.bizId>_bklog_pattern_<索引集ID>`，业务前缀沿用现有租户与存储业务映射。
+
 Pattern 默认使用源日志的 ES 集群。采用固定物理索引，字段为 index_set_id、distance_threshold、signature、pattern、pattern_hash、task_id（string），generation、publish_revision（long）；前三个字段支持精确检索。时间字段的实际写入与最近命中刷新仍需 BKBase 联调确认，不由 metadata 伪造。
 
 源日志切存储时，Pattern 复用原实体表与固定物理名称，在目标集群登记或复用对应 Binding，并更新 Sink 引用。旧存储分段保留，不复制历史数据。`_pattern` 通过 origin_table_id 关联 Pattern 实体表，UnifyQuery 按 StorageClusterRecord 覆盖历史集群。路由发布失败由同一操作重试补发。Pattern 的保留清理策略不沿用普通日志按天删索引，本接口不删除旧 Pattern 索引。

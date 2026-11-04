@@ -1,7 +1,5 @@
 """聚类 Pattern 结果表注册及存储历史，复用 metadata 的实体表和资源配置。"""
 
-import hashlib
-
 from django.conf import settings
 from django.db import transaction
 from django.utils import timezone
@@ -30,8 +28,7 @@ def prepare_pattern_store(sink):
     from metadata import models
 
     tenant = sink.bk_tenant_id
-    digest = hashlib.sha256(f"{tenant}:{sink.binding['index_id']}".encode()).hexdigest()[:20]
-    name = f"bklog_pattern_{digest}"
+    name = f"bklog_pattern_{sink.binding['index_id']}"
     table_id = f"bklog.{name}"
     source = models.ESStorage.objects.get(bk_tenant_id=tenant, table_id=sink.table_id)
     cluster = models.ClusterInfo.objects.get(
@@ -72,6 +69,19 @@ def prepare_pattern_store(sink):
             name=name,
             defaults={"data_link_name": name, "bk_biz_id": sink.bk_biz_id, "table_id": table_id, "data_type": "log"},
         )
+        rt_config = rt.compose_config(
+            fields=[
+                {
+                    "name": field,
+                    "type": kind,
+                    "alias": field,
+                    "description": field,
+                    "is_dimension": field in PATTERN_KEYS,
+                    "index": index,
+                }
+                for index, (field, kind) in enumerate(PATTERN_FIELDS.items())
+            ]
+        )
         binding, _ = models.ESStorageBindingConfig.objects.update_or_create(
             bk_tenant_id=tenant,
             namespace=sink.namespace,
@@ -85,7 +95,8 @@ def prepare_pattern_store(sink):
             },
         )
         # 在不同集群使用同一个固定物理名称，历史路由可以复用原来的查询目标。
-        physical_name = name
+        # 与 BKBase ResultTable.result_table_id() 的业务前缀保持一致。
+        physical_name = f"{rt_config['spec']['bizId']}_{rt.name}"
         storage = models.ESStorage.objects.filter(bk_tenant_id=tenant, table_id=table_id).first()
         if storage is None:
             storage = models.ESStorage.create_table(
@@ -132,19 +143,6 @@ def prepare_pattern_store(sink):
         }
         sink.save(update_fields=["pattern_store"])
 
-    rt_config = rt.compose_config(
-        fields=[
-            {
-                "name": field,
-                "type": kind,
-                "alias": field,
-                "description": field,
-                "is_dimension": field in PATTERN_KEYS,
-                "index": index,
-            }
-            for index, (field, kind) in enumerate(PATTERN_FIELDS.items())
-        ]
-    )
     binding_config = binding.compose_config(
         storage_cluster_name=cluster.cluster_name,
         write_alias_format=None,

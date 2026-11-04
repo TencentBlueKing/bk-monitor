@@ -70,6 +70,9 @@ def test_register_fixed_pattern_once_per_index(log_datalink):
     assert prepare_pattern_store(sink) == first
     rt, binding = first
     assert rt["spec"]["dataType"] == "log"
+    assert rt["metadata"]["name"] == f"bklog_pattern_{BINDING['index_id']}"
+    expected_index = f"{rt['spec']['bizId']}_{rt['metadata']['name']}"
+    assert binding["metadata"]["annotations"]["physical_table_name"] == expected_index
     assert {field["name"]: field["type"] for field in rt["spec"]["fields"]} == PATTERN_FIELDS
     assert binding["spec"]["data"] == sink.pattern_store["result_table"]
     assert "write_alias" not in binding["spec"]
@@ -111,6 +114,19 @@ def test_switch_storage_keeps_fixed_name_and_all_history(log_datalink):
     assert records[1].enable_time == second_time
 
 
+@pytest.mark.parametrize("multi_tenant, expected_biz", [(False, 91), (True, 17)])
+def test_pattern_index_uses_bkbase_storage_business_id(log_datalink, settings, multi_tenant, expected_biz):
+    settings.ENABLE_MULTI_TENANT_MODE = multi_tenant
+    settings.DEFAULT_BKDATA_BIZ_ID = 91
+    sink = create_clustering_sink(bk_biz_id=17, binding={**BINDING, "index_id": "42"})
+    rt, binding = prepare_pattern_store(sink)
+    assert rt["metadata"]["name"] == "bklog_pattern_42"
+    assert rt["spec"]["bizId"] == expected_biz
+    expected_index = f"{expected_biz}_bklog_pattern_42"
+    assert binding["metadata"]["annotations"]["physical_table_name"] == expected_index
+    assert pattern_storage(sink).index_set == expected_index
+
+
 def test_publish_retry_preserves_history_and_routes(log_datalink, mocker):
     datalink, _ = log_datalink
     sink = create_clustering_sink()
@@ -141,7 +157,9 @@ def test_publish_retry_preserves_history_and_routes(log_datalink, mocker):
     routes, _ = SpaceTableIDRedis()._compose_log_table_id_detail(bk_tenant_id="system", table_id_list=[route])
     assert routes[route]["storage_id"] == 710102
     assert len(routes[route]["storage_cluster_records"]) == 2
-    assert {r["db"] for r in routes[route]["storage_cluster_records"]} == {storage.index_set}
+    expected_index = f"2_bklog_pattern_{BINDING['index_id']}"
+    assert routes[route]["db"] == expected_index
+    assert {r["db"] for r in routes[route]["storage_cluster_records"]} == {expected_index}
     assert models.StorageClusterRecord.objects.filter(table_id=storage.table_id).count() == 2
 
 
@@ -201,7 +219,8 @@ def test_same_index_in_different_tenants_gets_separate_pattern_table(log_datalin
     models.ESStorage.objects.create(bk_tenant_id="other", table_id=LOG_TABLE_ID, storage_cluster_id=710103)
     other = create_clustering_sink(bk_tenant_id="other", name="other-sink", data_link_name="other-link")
     configs = prepare_pattern_store(other)
-    assert other.pattern_store["result_table"]["name"] != first.pattern_store["result_table"]["name"]
+    assert other.pattern_store["result_table"]["name"] == first.pattern_store["result_table"]["name"]
+    assert pattern_storage(other).pk != pattern_storage(first).pk
     assert all(ref["tenant"] == "other" for ref in other.pattern_store.values())
     assert configs[1]["spec"]["storage"]["name"] == "other-es"
 
