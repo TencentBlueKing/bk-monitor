@@ -1,7 +1,8 @@
 from types import SimpleNamespace
 from unittest.mock import patch
 
-from django.test import TestCase
+from django.conf import settings
+from django.test import TestCase, override_settings
 
 from apps.log_databus.constants import DORIS_CLUSTER_TYPE, STORAGE_CLUSTER_TYPE
 from apps.log_databus.models import CollectorConfig
@@ -10,6 +11,8 @@ from apps.log_search.models import LogIndexSet, LogIndexSetData
 from apps.log_unifyquery.handler.async_export_handlers import UnifyQueryUnionAsyncExportHandlers
 
 
+# 字段查询链路上的缓存装饰器会直接访问缓存后端，单测不依赖外部 Redis
+@override_settings(CACHES={**settings.CACHES, "default": {"BACKEND": "django.core.cache.backends.locmem.LocMemCache"}})
 class UnionAsyncExportSortTests(TestCase):
     def setUp(self):
         self.index_set_ids = []
