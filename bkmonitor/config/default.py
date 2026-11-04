@@ -1944,6 +1944,11 @@ K8S_PLUGIN_COLLECT_CLUSTER_ID = ""
 # }
 TENCENT_CLOUD_METRIC_PLUGIN_CONFIG = {}
 TENCENT_CLOUD_METRIC_PLUGIN_ID = "qcloud_exporter"
+# 镜像核验后配置：精确 image 引用 -> {version: "v0.21.0" / "v0.22.4",
+# products: {"QCE/CVM": ["InstanceId"], ...}, templates: [已核验模板的SHA256]}。
+# products 中的列表表示自定义查询的必需维度；templates 防止误认任意历史模板。
+# 历史 tag 仅在已核验其不可变映射时登记；未知映射必须阻断，不能猜测最新版本。
+TENCENT_CLOUD_EXPORTER_CONTRACTS = {}
 
 # 启用监控目标缓存的业务ID列表
 ENABLED_TARGET_CACHE_BK_BIZ_IDS = []
