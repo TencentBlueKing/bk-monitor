@@ -1,8 +1,9 @@
-from datetime import datetime
+from datetime import datetime, timezone
 from types import SimpleNamespace
 from unittest.mock import Mock
 
 import pytest
+from django.contrib.auth.models import AnonymousUser
 from django.urls import resolve
 
 from bkmonitor.iam import ActionEnum
@@ -18,6 +19,7 @@ from monitor_web.scene_view.resources.host import GetHostProcessListResource
 from monitor_web.share.resources import (
     CreateShareTokenResource,
     DeleteShareTokenResource,
+    GetShareParamsResource,
     GetShareTokenListResource,
     UpdateShareTokenResource,
 )
@@ -27,6 +29,28 @@ def make_view(module, name, action):
     view_class = type(name, (), {})
     view_class.__module__ = module
     return SimpleNamespace(cls=view_class, actions={"post": action})
+
+
+def test_anonymous_user_can_load_readonly_share_params(mocker):
+    token = ApiAuthToken(
+        token="share-token",
+        type="event",
+        namespaces=["biz#2"],
+        expire_time=datetime(2099, 1, 1, tzinfo=timezone.utc),
+        params={"data": {"name": "alarm-center-detail"}},
+    )
+    request = SimpleNamespace(user=AnonymousUser(), token=None)
+    mocker.patch.object(ApiAuthToken.origin_objects, "get", return_value=token)
+    mocker.patch("monitor_web.share.resources.get_request_tenant_id", return_value="system")
+    mocker.patch("monitor_web.share.resources.get_request", return_value=request)
+    permission = mocker.patch("monitor_web.share.resources.Permission")
+
+    result = GetShareParamsResource().perform_request({"token": token.token})
+
+    assert result["has_permission"] is False
+    assert result["token"] == token.token
+    assert result["data"] == token.params["data"]
+    permission.assert_not_called()
 
 
 def make_host_token(scope):
