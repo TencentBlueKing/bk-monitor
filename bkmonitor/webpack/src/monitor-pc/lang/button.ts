@@ -573,7 +573,6 @@ export default {
   查看配置: 'View Configuration',
   去配置: 'Go to Configuration',
   '去配置 AI 设置': 'Go to AI Settings',
-  '已配置，立即分析': 'Configured, Analyze Now',
   立即分析: 'Analyze Now',
   修改配置: 'Modify Configuration',
   分析中···: 'Analyzing...',
