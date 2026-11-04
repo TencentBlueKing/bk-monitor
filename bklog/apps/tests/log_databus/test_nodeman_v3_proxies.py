@@ -14,10 +14,10 @@ from apps.log_databus.nodeman_v3.proxies import get_host_biz_proxies
 from apps.log_databus.views.collector_views import CollectorViewSet
 
 
-def host(host_id, area_id=3, **info):
+def host(host_id, area_id=3, biz_id=2, **info):
     return {
         "bk_host_id": host_id,
-        "info": {"bk_biz_id": 2, "bk_networkarea_id": area_id, **info},
+        "info": {"bk_biz_id": biz_id, "bk_networkarea_id": area_id, **info},
     }
 
 
@@ -28,12 +28,13 @@ class BizProxiesTest(SimpleTestCase):
         self.addCleanup(client_patch.stop)
         self.client = self.get_client.return_value
 
-    def test_queries_business_proxies_in_one_request(self):
+    def test_queries_shared_proxies_by_business_networkarea(self):
+        self.client.get_host_distribution_by_networkarea_id.return_value = {"0": 10, "3": 1, "7": 2}
         self.client.list_hosts.return_value = {
             "total": 3,
             "items": [
-                host(10, advertise_ip="127.0.0.1"),
-                host(11, area_id=7, advertise_ip="127.0.0.2"),
+                host(10, area_id=3, advertise_ip="127.0.0.1"),
+                host(11, area_id=7, biz_id=9, advertise_ip="127.0.0.2"),
                 host(14, area_id=0, advertise_ip="127.0.0.2"),
             ],
         }
@@ -43,14 +44,26 @@ class BizProxiesTest(SimpleTestCase):
             [{"bk_cloud_id": 3, "conn_ip": "127.0.0.1"}, {"bk_cloud_id": 7, "conn_ip": "127.0.0.2"}],
         )
         self.get_client.assert_called_once_with(2)
+        self.client.get_host_distribution_by_networkarea_id.assert_called_once_with(
+            {"exact_include_conditions": {"bk_biz_id": [2]}}
+        )
         self.client.list_hosts.assert_called_once_with(
             {
                 "page": {"offset": 0, "limit": 1000},
-                "exact_include_conditions": {"bk_biz_id": [2], "node_role": ["proxy"]},
+                "exact_include_conditions": {"bk_networkarea_id": [3, 7], "node_role": ["proxy"]},
             }
         )
 
+    def test_no_networkarea_returns_empty(self):
+        for data in ({}, {"0": 10}):
+            with self.subTest(data=data):
+                self.client.reset_mock()
+                self.client.get_host_distribution_by_networkarea_id.return_value = data
+                self.assertEqual(get_host_biz_proxies(2), [])
+                self.client.list_hosts.assert_not_called()
+
     def test_service_addresses_take_priority_and_ipv6_is_bracketed(self):
+        self.client.get_host_distribution_by_networkarea_id.return_value = {"3": 6}
         self.client.list_hosts.return_value = {
             "total": 6,
             "items": [
@@ -75,6 +88,7 @@ class BizProxiesTest(SimpleTestCase):
         )
 
     def test_empty_items_or_missing_area_returns_empty(self):
+        self.client.get_host_distribution_by_networkarea_id.return_value = {"3": 1}
         for items in (
             [],
             [host(10, area_id=0, advertise_ip="127.0.0.1")],
@@ -85,6 +99,7 @@ class BizProxiesTest(SimpleTestCase):
                 self.assertEqual(get_host_biz_proxies(2), [])
 
     def test_missing_items_is_treated_as_empty(self):
+        self.client.get_host_distribution_by_networkarea_id.return_value = {"3": 1}
         self.client.list_hosts.return_value = {}
         self.assertEqual(get_host_biz_proxies(2), [])
 

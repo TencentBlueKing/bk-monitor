@@ -37,12 +37,28 @@ def _report_ip(info: dict) -> str:
     return f"[{ip}]" if ":" in ip else ip
 
 
+def _networkarea_ids(client, bk_biz_id: int) -> list[int]:
+    """查询业务使用的非默认管控区域；Proxy 可能归属其他业务，不能按 Proxy 自身 biz 过滤。"""
+    data = client.get_host_distribution_by_networkarea_id({"exact_include_conditions": {"bk_biz_id": [bk_biz_id]}})
+    area_ids = []
+    for area_id in data:
+        area_id = int(area_id)
+        if area_id > 0:
+            area_ids.append(area_id)
+    return sorted(area_ids)
+
+
 def get_host_biz_proxies(bk_biz_id: int) -> list[dict]:
-    """按接口文档查询指定业务的 Proxy，转换为上报地址入口的兼容字段。"""
-    data = get_client(bk_biz_id).list_hosts(
+    """按 V2 biz_proxies 语义查询业务所用管控区域下的 Proxy，转换为上报地址入口的兼容字段。"""
+    client = get_client(bk_biz_id)
+    area_ids = _networkarea_ids(client, bk_biz_id)
+    if not area_ids:
+        return []
+
+    data = client.list_hosts(
         {
             "page": {"offset": 0, "limit": PAGE_LIMIT},
-            "exact_include_conditions": {"bk_biz_id": [bk_biz_id], "node_role": ["proxy"]},
+            "exact_include_conditions": {"bk_networkarea_id": area_ids, "node_role": ["proxy"]},
         }
     )
     proxies = []
