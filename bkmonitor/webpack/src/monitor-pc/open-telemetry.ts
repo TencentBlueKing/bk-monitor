@@ -28,6 +28,15 @@ import { BkOpenTelemetry } from '@blueking/open-telemetry';
 /** 机器人信息轮询接口：不采集、不计入页面活动窗口 */
 const ROBOT_INFO_URL = 'commons/fetch_robot_info/';
 
+/** 静态资源版本检查轮询（check-version.ts）：仅按 pathname 末尾完整文件名匹配，静态前缀与 query/hash 不影响判断 */
+const isStaticVersionUrl = (url: string): boolean => {
+  try {
+    return /\/static_version\.txt$/.test(new URL(url, window.location.href).pathname);
+  } catch {
+    return false;
+  }
+};
+
 /** hash / history 路由统一归一为低基数 path group */
 const getUrlTemplate = (url: string): string => {
   const parsed = new URL(url, window.location.href);
@@ -61,10 +70,10 @@ export const initOpenTelemetry = (): BkOpenTelemetry | undefined => {
       view: {
         getUrlTemplate,
         // 轮询类请求不延长 View Loading Time
-        excludedActivityUrls: [ROBOT_INFO_URL],
+        excludedActivityUrls: [ROBOT_INFO_URL, isStaticVersionUrl],
       },
       request: {
-        excludedUrls: [ROBOT_INFO_URL],
+        excludedUrls: [ROBOT_INFO_URL, isStaticVersionUrl],
         allowedTracingUrls: [url => new URL(url).origin === window.location.origin],
       },
       blankScreen: {
