@@ -10,7 +10,8 @@ Test strategy
   - Only external / network dependencies are mocked:
     * request context (get_request, get_request_username, auth_info)
     * feature toggle (FeatureToggleObject.toggle)
-    * CMDB host cache (CmdbHostCache.get)
+    * CMDB host cache (CmdbHostCache.get), patched at class level because
+      _deal_query_result calls it after the handler has been constructed
     * mapping nested-field check (MappingHandlers.is_nested_field)
   - SearchHandler constructor runs with pre_check_enable=False and sort_list
     to avoid mapping_handler / PreSearchHandlers dependencies.
@@ -114,6 +115,12 @@ def fake_hits(*, message="plain message", log="plain log"):
     }
 
 
+def empty_cmdb_host_info(*args, **kwargs):
+    """Return a fresh empty CMDB host info mapping for tests."""
+    return {}
+
+
+@patch("apps.utils.core.cache.cmdb_host.CmdbHostCache.get", empty_cmdb_host_info)
 @override_settings(
     ESQUERY_WHITE_LIST=["bk_log"],
     CACHES={
@@ -219,10 +226,6 @@ class TestSearchHandlerDesensitize(TestCase):
             patch(
                 "apps.log_search.handlers.search.mapping_handlers.MappingHandlers.is_nested_field",
                 return_value=False,
-            ),
-            patch(
-                "apps.utils.core.cache.cmdb_host.CmdbHostCache.get",
-                return_value={},
             ),
         ):
             return SearchHandler(
@@ -589,10 +592,6 @@ class TestSearchHandlerDesensitize(TestCase):
             patch(
                 "apps.log_search.handlers.search.mapping_handlers.MappingHandlers.is_nested_field",
                 return_value=False,
-            ),
-            patch(
-                "apps.utils.core.cache.cmdb_host.CmdbHostCache.get",
-                return_value={},
             ),
             patch(
                 "apps.log_search.handlers.search.search_handlers_esquery.SearchHandler.init_time_field",

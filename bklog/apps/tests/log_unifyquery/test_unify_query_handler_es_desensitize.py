@@ -7,6 +7,10 @@ through the UnifyQueryHandler._deal_query_result path.
 
 This is a separate file (not merged into test_unify_query_handler_desensitize.py)
 to keep the existing log-scenario tests untouched.
+
+CmdbHostCache.get is patched at class level: _deal_query_result calls it after
+the handler has been constructed, so a patch limited to _build_handler would
+not prevent a real Redis connection.
 """
 
 import copy
@@ -96,6 +100,12 @@ def fake_unify_result_record(record):
     return {"total": 1, "took": 10, "list": [base]}
 
 
+def empty_cmdb_host_info(*args, **kwargs):
+    """Return a fresh empty CMDB host info mapping for tests."""
+    return {}
+
+
+@patch("apps.utils.core.cache.cmdb_host.CmdbHostCache.get", empty_cmdb_host_info)
 class TestUnifyQueryHandlerEsDesensitize(TestCase):
     """UnifyQueryHandler desensitize with scenario_id='es'."""
 
@@ -178,10 +188,6 @@ class TestUnifyQueryHandlerEsDesensitize(TestCase):
             patch(
                 "apps.log_unifyquery.handler.base.FeatureToggleObject.toggle",
                 return_value=self.feature_toggle,
-            ),
-            patch(
-                "apps.utils.core.cache.cmdb_host.CmdbHostCache.get",
-                return_value={},
             ),
         ):
             return UnifyQueryHandler(p)
