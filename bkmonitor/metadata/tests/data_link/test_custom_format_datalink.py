@@ -686,8 +686,18 @@ def test_custom_format_datasource_can_link_multiple_result_tables(mocker, custom
     ) == {"custom_format.metric", "custom_format.second_metric"}
 
 
-def test_custom_format_influxdb_result_table_can_target_vm(mocker, custom_format_records):
+@pytest.mark.parametrize("with_historical_doris", [False, True])
+def test_custom_format_influxdb_result_table_can_target_vm(mocker, custom_format_records, with_historical_doris):
     _, result_table, _ = custom_format_records
+    if with_historical_doris:
+        models.DorisStorage.objects.create(
+            bk_tenant_id="system",
+            table_id=result_table.table_id,
+            storage_cluster_id=99991,
+            table_version=1,
+            bkbase_table_id="2_old_doris",
+            physical_tables={"main": "db.old_doris"},
+        )
     result_table.default_storage = models.ClusterInfo.TYPE_INFLUXDB
     result_table.save(update_fields=["default_storage"])
     models.ResultTableOption.objects.create(
@@ -705,8 +715,18 @@ def test_custom_format_influxdb_result_table_can_target_vm(mocker, custom_format
     apply_custom_format.assert_called_once_with(bk_tenant_id="system", table_id=result_table.table_id)
 
 
-def test_apply_custom_format_datalink_accepts_influxdb_vm_target(mocker, custom_format_records):
+@pytest.mark.parametrize("with_historical_doris", [False, True])
+def test_apply_custom_format_datalink_accepts_influxdb_vm_target(mocker, custom_format_records, with_historical_doris):
     data_source, result_table, data_link = custom_format_records
+    if with_historical_doris:
+        models.DorisStorage.objects.create(
+            bk_tenant_id="system",
+            table_id=result_table.table_id,
+            storage_cluster_id=99991,
+            table_version=1,
+            bkbase_table_id="2_old_doris",
+            physical_tables={"main": "db.old_doris"},
+        )
     result_table.default_storage = models.ClusterInfo.TYPE_INFLUXDB
     result_table.save(update_fields=["default_storage"])
     models.ResultTableOption.objects.create(

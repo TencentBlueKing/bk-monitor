@@ -199,6 +199,7 @@ class TestExistingComponentContextFromDatalink:
             data_link_name=data_link_name,
             namespace=namespace,
             bk_tenant_id=bk_tenant_id,
+            data_link_strategy="bk_standard_v2_time_series",
         )
 
         ctx = ExistingComponentContext.from_datalink(fake_datalink)  # type: ignore[arg-type]

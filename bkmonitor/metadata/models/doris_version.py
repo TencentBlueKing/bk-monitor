@@ -173,3 +173,27 @@ def versioned_storages(bk_tenant_id, table_ids):
     from metadata.models import DorisStorage
 
     return DorisStorage.objects.filter(bk_tenant_id=bk_tenant_id, table_id__in=table_ids, table_version__gt=0)
+
+
+def is_query_only_doris_table(result_table):
+    """只跳过 Doris 查询配置；历史 DorisStorage 不能否决 ES/VM 等写入目标。"""
+    from metadata.models import ClusterInfo, DorisStorage, ResultTableOption
+
+    if result_table.default_storage != ClusterInfo.TYPE_DORIS:
+        return False
+    for option in ResultTableOption.objects.filter(
+        bk_tenant_id=result_table.bk_tenant_id,
+        table_id=result_table.table_id,
+        name__in=[ResultTableOption.OPTION_V4_LOG_DATA_LINK, ResultTableOption.OPTION_CUSTOM_FORMAT_V4_DATA_LINK],
+    ):
+        value = option.get_value()
+        value = json.loads(value) if isinstance(value, str) else value
+        if value.get("es_storage_config") is not None or value.get("target_storage_type") in (
+            ClusterInfo.TYPE_ES,
+            ClusterInfo.TYPE_VM,
+        ):
+            return False
+    storage = DorisStorage.objects.filter(
+        bk_tenant_id=result_table.bk_tenant_id, table_id=result_table.table_id
+    ).first()
+    return storage is not None and not storage.manages_datalink()

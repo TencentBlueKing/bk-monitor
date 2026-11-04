@@ -543,11 +543,15 @@ def test_history_retention_does_not_preserve_unrelated_result_tables(version_rec
 
 
 @pytest.mark.parametrize("legacy_tenant", [None, ""])
-def test_status_reconcile_normalizes_legacy_storage_tenant(version_records, mocker, legacy_tenant):
+@pytest.mark.parametrize("other_strategy", [False, True])
+def test_status_reconcile_normalizes_legacy_storage_tenant(version_records, mocker, legacy_tenant, other_strategy):
     from metadata.task import bkbase
     from metadata.models.data_link.constants import DataLinkKind
 
     rt, _, storage, link, _ = version_records
+    if other_strategy:
+        link.data_link_strategy = DataLink.CUSTOM_FORMAT_VM
+        link.save(update_fields=["data_link_strategy"])
     models.DorisStorage.objects.filter(pk=storage.pk).update(bk_tenant_id=legacy_tenant)
     scope = dict(
         bk_tenant_id="system", namespace=link.namespace, data_link_name=link.pk, bk_biz_id=2, table_id=rt.table_id
@@ -570,4 +574,113 @@ def test_status_reconcile_normalizes_legacy_storage_tenant(version_records, mock
         ],
     )
     statuses, _, _, _ = bkbase._reconcile_data_link_components()
-    assert statuses[("system", link.pk)] == ["Ok"]
+    assert statuses[("system", link.pk)] == (["Failed", "Ok"] if other_strategy else ["Ok"])
+
+
+@pytest.mark.parametrize("entry", ["model", "task", "direct"])
+@pytest.mark.parametrize("default_storage", ["doris", "elasticsearch"])
+def test_dual_write_to_es_only_still_updates_pipeline(version_records, mocker, entry, default_storage):
+    from metadata.task.datalink import apply_log_datalink
+
+    rt, ds, storage, link, option = version_records
+    if link.data_link_strategy != DataLink.BK_LOG:
+        pytest.skip("双写只适用于日志链路")
+    models.ClusterInfo.objects.create(
+        bk_tenant_id="system",
+        cluster_id=99992,
+        cluster_name="compat_es",
+        cluster_type="elasticsearch",
+        domain_name="localhost",
+        port=9200,
+        is_default_cluster=False,
+    )
+    models.ESStorage.objects.create(bk_tenant_id="system", table_id=rt.table_id, storage_cluster_id=99992)
+    rt.default_storage = default_storage
+    rt.save(update_fields=["default_storage"])
+    models.ResultTableOption.objects.create(
+        bk_tenant_id="system",
+        table_id=rt.table_id,
+        name=models.ResultTableOption.OPTION_ENABLE_V4_LOG_DATA_LINK,
+        value="true",
+        value_type="bool",
+        creator="tester",
+    )
+    mocker.patch.object(models.ResultTable, "get_target_bk_biz_id", return_value=2)
+    mocker.patch.object(models.DataSource, "delete_consul_config")
+    apply = mocker.patch.object(DataLink, "apply_data_link_with_retry", return_value={})
+    option.value_type = models.ResultTableOption.TYPE_DICT
+    value = json.loads(option.value)
+    value["es_storage_config"] = {"unique_field_list": []}
+    option.value = json.dumps(value)
+    option.save()
+    # 先建立双写链路及共享 RT，再保留原 DorisStorage 和 Binding。
+    link.apply_data_link(bk_biz_id=2, data_source=ds, table_id=rt.table_id)
+    shared_name = storage.versioned_name
+    bus = models.DataBusConfig.objects.get(data_link_name=link.pk)
+    bus.consumer_group = "keep_existing_group"
+    bus.save(update_fields=["consumer_group"])
+    version = storage.table_version
+    history = list(models.StorageClusterRecord.objects.filter(table_id=rt.table_id).values())
+    value.pop("doris_storage_config")
+
+    for iteration in range(2):
+        value["es_storage_config"]["json_field_list"] = [] if iteration == 0 else ["body"]
+        value["clean_rules"][0]["output_id"] = "log" if iteration == 0 else "body"
+        option.value = json.dumps(value)
+        option.save()
+        if entry == "model":
+            rt.apply_datalink(delay=False)
+        elif entry == "task":
+            apply_log_datalink("system", rt.table_id)
+        else:
+            link.apply_data_link(bk_biz_id=2, data_source=ds, table_id=rt.table_id)
+        payload = apply.call_args.args[0]
+        bus_config = next(c for c in payload if c["kind"] == "Databus")
+        assert [sink["kind"] for sink in bus_config["spec"]["sinks"]] == ["ElasticSearchBinding"]
+        assert bus_config["spec"]["consumerGroup"] == "keep_existing_group"
+        es = next(c for c in payload if c["kind"] == "ElasticSearchBinding")
+        assert es["spec"]["json_field_list"] == value["es_storage_config"]["json_field_list"]
+        assert es["spec"]["data"]["name"] == shared_name
+        assert not any(c["kind"] == "DorisBinding" for c in payload)
+        assert value["clean_rules"][0]["output_id"] in json.dumps(bus_config["spec"]["transforms"])
+    assert apply.call_count == 3
+    storage.refresh_from_db()
+    assert storage.table_version == version
+    assert list(models.StorageClusterRecord.objects.filter(table_id=rt.table_id).values()) == history
+    assert models.DorisStorageBindingConfig.objects.filter(name=shared_name).exists()
+
+
+@pytest.mark.parametrize(
+    "strategy", [DataLink.CUSTOM_FORMAT_VM, DataLink.CUSTOM_FORMAT_ES, DataLink.BK_STANDARD_V2_TIME_SERIES]
+)
+def test_other_pipeline_components_ignore_historical_doris_version(version_records, strategy):
+    from metadata.models.data_link.component_reuse import ExistingComponentContext
+
+    rt, _, _, link, _ = version_records
+    link.data_link_strategy = strategy
+    link.save(update_fields=["data_link_strategy"])
+    current = models.ResultTableConfig.objects.create(
+        bk_tenant_id="system",
+        namespace=link.namespace,
+        data_link_name=link.pk,
+        bk_biz_id=2,
+        table_id=rt.table_id,
+        name="other_storage_rt",
+        bkbase_table_id="2_other_storage_rt",
+    )
+    context = ExistingComponentContext.from_datalink(link)
+    assert context.claim(models.ResultTableConfig, lambda component: True).pk == current.pk
+    assert current in link._get_absent_components_to_delete([], force_delete=True)
+    models.ClusterInfo.objects.create(
+        bk_tenant_id="system",
+        cluster_id=99992,
+        cluster_name="other_storage",
+        cluster_type=models.ClusterInfo.TYPE_ES
+        if strategy == DataLink.CUSTOM_FORMAT_ES
+        else models.ClusterInfo.TYPE_VM,
+        domain_name="localhost",
+        port=8428,
+        is_default_cluster=False,
+    )
+    link.sync_metadata(table_id=rt.table_id, storage_cluster_id=99992)
+    assert models.BkBaseResultTable.objects.get(data_link_name=link.pk).bkbase_rt_name == current.name

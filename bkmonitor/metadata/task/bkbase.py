@@ -1663,6 +1663,12 @@ def _reconcile_data_link_components() -> tuple[
     biz_id_by_link: dict[DataLinkStatusKey, int] = {}
     stats = DataLinkRefreshStats()
     discovery_tenant_ids = _get_data_link_discovery_tenant_ids()
+    versioned_link_keys = {
+        (_normalize_data_link_tenant_id(tenant), name)
+        for tenant, name in models.DataLink.objects.filter(
+            data_link_strategy__in=[models.DataLink.BK_LOG, models.DataLink.CUSTOM_FORMAT_DORIS]
+        ).values_list("bk_tenant_id", "data_link_name")
+    }
     doris_current_names = {
         (_normalize_data_link_tenant_id(tenant_id), table_id): f"bkm_doris_{storage_id}_v{version}"
         for tenant_id, table_id, storage_id, version in models.DorisStorage.objects.filter(table_version__gt=0)
@@ -1824,7 +1830,10 @@ def _reconcile_data_link_components() -> tuple[
             stats.updated_count += len(changed_components) - terminated_count
             stats.terminated_count += terminated_count
             for component in [*components, *created_components]:
-                if kind in (DataLinkKind.RESULTTABLE.value, DataLinkKind.DORISBINDING.value):
+                if (bk_tenant_id, component.data_link_name) in versioned_link_keys and kind in (
+                    DataLinkKind.RESULTTABLE.value,
+                    DataLinkKind.DORISBINDING.value,
+                ):
                     current_name = doris_current_names.get((bk_tenant_id, component.table_id))
                     if current_name and current_name != component.name:
                         continue

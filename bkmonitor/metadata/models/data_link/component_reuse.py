@@ -210,16 +210,18 @@ class ExistingComponentContext:
             )
         from metadata.models.doris_version import versioned_storages
 
-        tables = [component.table_id for component in components_by_kind[ResultTableConfig]]
-        current = {
-            storage.table_id: storage.versioned_name for storage in versioned_storages(datalink.bk_tenant_id, tables)
-        }
-        for kind in (ResultTableConfig, DorisStorageBindingConfig):
-            components_by_kind[kind] = [
-                component
-                for component in components_by_kind[kind]
-                if component.table_id not in current or component.name == current[component.table_id]
-            ]
+        if datalink.data_link_strategy in {"bk_log", "custom_format_doris"}:
+            tables = [component.table_id for component in components_by_kind[ResultTableConfig]]
+            current = {
+                storage.table_id: storage.versioned_name
+                for storage in versioned_storages(datalink.bk_tenant_id, tables)
+            }
+            for kind in (ResultTableConfig, DorisStorageBindingConfig):
+                components_by_kind[kind] = [
+                    component
+                    for component in components_by_kind[kind]
+                    if component.table_id not in current or component.name == current[component.table_id]
+                ]
         logger.info(
             "ExistingComponentContext.from_datalink: data_link_name=%s loaded=%s",
             datalink.data_link_name,

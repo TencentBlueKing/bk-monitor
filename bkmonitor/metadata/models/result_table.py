@@ -600,8 +600,9 @@ class ResultTable(models.Model):
         )
         from metadata.task.tasks import access_bkdata_vm
 
-        doris_storage = DorisStorage.objects.filter(bk_tenant_id=self.bk_tenant_id, table_id=self.table_id).first()
-        if doris_storage and not doris_storage.manages_datalink():
+        from metadata.models.doris_version import is_query_only_doris_table
+
+        if is_query_only_doris_table(self):
             return
 
         # 获取结果表配置项

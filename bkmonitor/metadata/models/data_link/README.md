@@ -515,3 +515,9 @@ Doris 写入配置，也不属于监控管理的写入表。此类表允许 phys
 不依赖表名后缀，也不因为 physical_tables 为空而主动创建资源。
 `create_storage_cluster_record=False` 严格表示不创建历史记录，也不初始化版本和物理表名；
 该入口供路由表/虚拟表注册查询配置使用，正常采集表沿用默认 True。
+
+Doris 写入资格仅约束 Doris 版本管理，不能作为整条链路的禁用条件。版本化双写切为 ES-only 时，
+仍更新原 Databus 的 sinks（移除 Doris sink），保留共享 RT、消费组及旧 DorisStorage/Binding/历史。
+后续 ES 字段和清洗配置可继续声明。默认存储不是 Doris 的链路沿用原入口；默认仍为 Doris 但
+已显式配置 ES/VM 写入目标的链路也不被查询表过滤拦截。Doris 版本化的组件复用、清理保护、
+RT 回填及状态汇总过滤仅作用于 bk_log/custom_format_doris，不影响独立 ES、VM 等其他策略。

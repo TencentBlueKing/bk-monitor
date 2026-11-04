@@ -2947,6 +2947,7 @@ class DataLink(models.Model):
         if self.data_link_strategy not in {self.BK_LOG, self.CUSTOM_FORMAT_DORIS}:
             return self._apply_data_link(*args, **kwargs)
         from metadata.models import ResultTable
+        from metadata.models.doris_version import is_query_only_doris_table
 
         compose_kwargs = {
             key: value for key, value in kwargs.items() if key not in {"cleanup_absent_components", "storage_type"}
@@ -2957,10 +2958,12 @@ class DataLink(models.Model):
             return self._apply_data_link(*args, **kwargs)
         # 先锁结果表，再读取是否由监控管理及当前版本，避免 v0 -> v1 时走旧声明路径。
         with transaction.atomic(using=DATABASE_CONNECTION_NAME):
-            ResultTable.objects.select_for_update().get(bk_tenant_id=self.bk_tenant_id, table_id=table_id)
-            storage = DorisStorage.objects.filter(bk_tenant_id=self.bk_tenant_id, table_id=table_id).first()
-            if storage and not storage.manages_datalink():
+            table_record = ResultTable.objects.select_for_update().get(
+                bk_tenant_id=self.bk_tenant_id, table_id=table_id
+            )
+            if is_query_only_doris_table(table_record):
                 return
+            storage = DorisStorage.objects.filter(bk_tenant_id=self.bk_tenant_id, table_id=table_id).first()
             if storage is None or not storage.table_version:
                 return self._apply_data_link(*args, **kwargs)
             database, table = storage.physical_tables["main"].split(".", 1)
@@ -3388,8 +3391,10 @@ class DataLink(models.Model):
         }
         from metadata.models.doris_version import versioned_storages
 
-        doris_history_table_ids = set(
-            versioned_storages(self.bk_tenant_id, self.table_ids).values_list("table_id", flat=True)
+        doris_history_table_ids = (
+            set(versioned_storages(self.bk_tenant_id, self.table_ids).values_list("table_id", flat=True))
+            if self.data_link_strategy in {self.BK_LOG, self.CUSTOM_FORMAT_DORIS}
+            else set()
         )
         components_to_delete: list[DataLinkResourceConfigBase] = []
         for component_class in ALL_DATA_LINK_COMPONENT_KINDS:
@@ -3535,7 +3540,11 @@ class DataLink(models.Model):
             )
         from metadata.models.doris_version import versioned_storages
 
-        doris_storage = versioned_storages(self.bk_tenant_id, [table_id]).first()
+        doris_storage = (
+            versioned_storages(self.bk_tenant_id, [table_id]).first()
+            if self.data_link_strategy in {self.BK_LOG, self.CUSTOM_FORMAT_DORIS}
+            else None
+        )
         if doris_storage:
             rt_queryset = rt_queryset.filter(name=doris_storage.versioned_name)
         rt_queryset = rt_queryset.order_by("-last_modify_time", "-id")
