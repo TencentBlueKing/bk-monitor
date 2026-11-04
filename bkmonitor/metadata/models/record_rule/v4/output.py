@@ -86,8 +86,8 @@ class RecordRuleV4OutputResources:
             if result_table.table_name_zh != table_name_zh:
                 result_table.table_name_zh = table_name_zh
                 update_fields.append("table_name_zh")
-            # data_label 为空时不主动清空已有 ResultTable，仅在用户显式配置有效值时刷新。
-            if rule.data_label and result_table.data_label != rule.data_label:
+            # 输出标签跟随规则声明，空字符串表示清空已有标签。
+            if result_table.data_label != rule.data_label:
                 result_table.data_label = rule.data_label
                 update_fields.append("data_label")
             if update_fields:
