@@ -38,6 +38,20 @@ HOST_SCOPE_VERSION = 1
 HOST_DYNAMIC_TIME_PATTERN = re.compile(r"^now(?:[-+]\d+(?:m|h|d|w|M|y|Y))?(?:/(?:m|h|d|w|M|y|Y|fy))?$")
 
 
+def get_shared_alert_id(data: dict) -> str | None:
+    if not isinstance(data, dict):
+        return None
+    if data.get("name") == "alarm-center-detail" and isinstance(data.get("params"), dict):
+        alert_id = data["params"].get("alarmId")
+    elif data.get("name") == "event-center":
+        alert_id = data.get("eventId")
+    else:
+        return None
+    if isinstance(alert_id, (str, int)) and not isinstance(alert_id, bool) and alert_id:
+        return str(alert_id)
+    return None
+
+
 def validate_host_share_scope(data: dict) -> dict:
     scope = data.get("scope") if isinstance(data, dict) else None
     if not isinstance(scope, dict):
