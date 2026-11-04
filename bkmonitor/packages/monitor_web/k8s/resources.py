@@ -23,6 +23,7 @@ from bkm_space.validate import validate_bk_biz_id
 from bkmonitor.models import BCSWorkload
 from core.drf_resource import Resource, resource
 from metadata import models
+from monitor_web.k8s.core.federation import NAMESPACED_RESOURCES, get_federated_resource_scope
 from monitor_web.k8s.core.filters import load_resource_filter
 from monitor_web.k8s.core.meta import K8sResourceMeta, load_resource_meta
 from monitor_web.k8s.scenario import get_all_metrics, get_metrics
@@ -65,35 +66,47 @@ class ListBCSCluster(Resource):
         return cluster_list
 
 
+class WorkloadSpaceSerializer(SpaceRelatedSerializer):
+    def validate(self, attrs):
+        # Keep the project space for federation access checks even when its associated business is used for counts.
+        attrs["space_biz_id"] = attrs["bk_biz_id"]
+        try:
+            attrs["bk_biz_id"] = validate_bk_biz_id(attrs["bk_biz_id"])
+        except NoRelatedResourceError:
+            pass
+        return attrs
+
+
 class WorkloadOverview(Resource):
-    class RequestSerializer(SpaceRelatedSerializer):
+    class RequestSerializer(WorkloadSpaceSerializer):
         bcs_cluster_id = serializers.CharField(required=True, label="集群id")
         namespace = serializers.CharField(required=False, label="命名空间")
         query_string = serializers.CharField(required=False, label="名字过滤")
 
-        def validate_bk_biz_id(self, bk_biz_id):
-            try:
-                bk_biz_id = validate_bk_biz_id(bk_biz_id)
-            except NoRelatedResourceError:
-                bk_biz_id = bk_biz_id
-            return bk_biz_id
-
     def perform_request(self, validated_request_data):
-        bk_biz_id = validated_request_data["bk_biz_id"]
-        bcs_cluster_id = validated_request_data["bcs_cluster_id"]
-
-        queryset = BCSWorkload.objects.filter(
-            bk_biz_id=bk_biz_id,
-            bcs_cluster_id=bcs_cluster_id,
+        scope = get_federated_resource_scope(
+            validated_request_data.get("space_biz_id", validated_request_data["bk_biz_id"]),
+            validated_request_data["bcs_cluster_id"],
+        )
+        queryset = self.get_queryset(validated_request_data, scope)
+        return self.count_workloads(
+            queryset, validated_request_data.get("namespace"), validated_request_data.get("query_string")
         )
 
+    @staticmethod
+    def get_queryset(params, scope):
+        if scope is not None:
+            return BCSWorkload.objects.filter(scope.resources)
+        return BCSWorkload.objects.filter(bk_biz_id=params["bk_biz_id"], bcs_cluster_id=params["bcs_cluster_id"])
+
+    @staticmethod
+    def count_workloads(queryset, namespace, query_string):
         # 如果前端传值则添加过滤
-        if validated_request_data.get("namespace"):
+        if namespace:
             # 支持多个ns传递， 默认半角逗号连接
-            ns_list = validated_request_data["namespace"].split(",")
-            queryset = queryset.filter(namespace__in=ns_list)
-        if validated_request_data.get("query_string"):
-            queryset = queryset.filter(name__icontains=validated_request_data["query_string"])
+            queryset = queryset.filter(namespace__in=namespace.split(","))
+        if query_string:
+            queryset = queryset.filter(name__icontains=query_string)
 
         # 统计 workload type 对应的 count
         """
@@ -114,19 +127,11 @@ class WorkloadOverview(Resource):
 
 
 class NamespaceWorkloadOverview(Resource):
-    class RequestSerializer(SpaceRelatedSerializer):
-        bk_biz_id = serializers.IntegerField(required=True, label="业务ID")
+    class RequestSerializer(WorkloadSpaceSerializer):
         bcs_cluster_id = serializers.CharField(required=True, label="集群id")
         query_string = serializers.CharField(required=False, label="名字过滤", default="", allow_blank=True)
         page_size = serializers.IntegerField(required=False, default=5, label="分页大小")
         page = serializers.IntegerField(required=False, default=1, label="页数")
-
-        def validate_bk_biz_id(self, bk_biz_id):
-            try:
-                bk_biz_id = validate_bk_biz_id(bk_biz_id)
-            except NoRelatedResourceError:
-                bk_biz_id = bk_biz_id
-            return bk_biz_id
 
     @classmethod
     def _get_workload_count(cls, workload_overview: list[list[int]]) -> int:
@@ -139,6 +144,7 @@ class NamespaceWorkloadOverview(Resource):
 
     def perform_request(self, validated_request_data):
         bk_biz_id: int = validated_request_data["bk_biz_id"]
+        space_biz_id: int = validated_request_data.get("space_biz_id", bk_biz_id)
         bcs_cluster_id: str = validated_request_data["bcs_cluster_id"]
         query_string: str = validated_request_data["query_string"]
 
@@ -146,7 +152,9 @@ class NamespaceWorkloadOverview(Resource):
         filter_dict: dict[str, list[str]] = {}
         page: int = validated_request_data["page"]
         page_size: int = validated_request_data["page_size"]
-        queryset: QuerySet[BCSWorkload] = BCSWorkload.objects.filter(bk_biz_id=bk_biz_id, bcs_cluster_id=bcs_cluster_id)
+        scope = get_federated_resource_scope(space_biz_id, bcs_cluster_id)
+        workload_queryset = WorkloadOverview.get_queryset(validated_request_data, scope)
+        queryset = workload_queryset
         if query_string:
             namespaces: list[str] = []
             queryset = queryset.filter(Q(namespace__icontains=query_string) | Q(name__icontains=query_string))
@@ -160,7 +168,7 @@ class NamespaceWorkloadOverview(Resource):
 
         namespace_page: dict[str, Any] = ListK8SResources().perform_request(
             {
-                "bk_biz_id": bk_biz_id,
+                "bk_biz_id": space_biz_id if scope is not None else bk_biz_id,
                 "bcs_cluster_id": bcs_cluster_id,
                 "resource_type": "namespace",
                 "scenario": "performance",
@@ -177,24 +185,15 @@ class NamespaceWorkloadOverview(Resource):
         namespace_page["workload_count"] = workload_count
 
         for namespace_info in namespace_page.get("items", []):
-            query_kwargs: dict[str, Any] = {
-                "bk_biz_id": bk_biz_id,
-                "bcs_cluster_id": bcs_cluster_id,
-                "namespace": namespace_info["namespace"],
-            }
-            workload_overview: list[list[int]] = WorkloadOverview().perform_request(
-                {
-                    **query_kwargs,
-                    "query_string": query_string,
-                }
-            )
+            namespace = namespace_info["namespace"]
+            workload_overview = WorkloadOverview.count_workloads(workload_queryset, namespace, query_string)
             namespace_workload_count: int = self._get_workload_count(workload_overview)
 
             query_from: str = "workload"
             if not namespace_workload_count and query_string:
                 query_from: str = "namespace"
                 # 获取不到说明关键字仅命中 Namespace，去掉关键字再请求一遍 Workload
-                workload_overview = WorkloadOverview().perform_request(query_kwargs)
+                workload_overview = WorkloadOverview.count_workloads(workload_queryset, namespace, "")
                 namespace_workload_count = self._get_workload_count(workload_overview)
 
             namespace_info["query_from"] = query_from
@@ -356,21 +355,24 @@ class GetResourceDetail(Resource):
 
         return resource_list
 
-    def add_pod_service_ingress_relation(self, items: list[dict], validated_request_data: dict):
+    def add_pod_service_ingress_relation(
+        self, items: list[dict], validated_request_data: dict, member_cluster_id: str | None = None
+    ):
         """
         为 items 添加 ingress/service 关联信息
         """
         bk_biz_id = validated_request_data["bk_biz_id"]
         pod = validated_request_data["pod_name"]
         namespace = validated_request_data["namespace"]
+        labels = {"namespace": namespace}
+        if member_cluster_id is not None:
+            labels["bcs_cluster_id"] = member_cluster_id
 
         value: list[str] = []
-        service_list: list[str] = self.get_pod_resource_relation(
-            bk_biz_id, {"namespace": namespace, "pod": pod}, "service"
-        )
+        service_list: list[str] = self.get_pod_resource_relation(bk_biz_id, {**labels, "pod": pod}, "service")
         for service in service_list:
             ingress_list: list[str] = self.get_pod_resource_relation(
-                bk_biz_id, {"namespace": namespace, "service": service}, "ingress"
+                bk_biz_id, {**labels, "service": service}, "ingress"
             )
             if not ingress_list:
                 value.append(f"-/{service}")
@@ -424,11 +426,35 @@ class GetResourceDetail(Resource):
         # 构建同名字典 -> {"field":validated_request_data["field"]}
         extra_request_arg = {key: validated_request_data[key] for key in resource_router[resource_type][1]}
 
+        member_cluster_id = None
+        if resource_type in NAMESPACED_RESOURCES:
+            scope = get_federated_resource_scope(bk_biz_id, bcs_cluster_id)
+            if scope is not None:
+                meta = load_resource_meta(resource_type, bk_biz_id, bcs_cluster_id)
+                fields = {
+                    "namespace": extra_request_arg["namespace"],
+                    "name": extra_request_arg[f"{resource_type}_name"],
+                }
+                if resource_type == "container":
+                    fields["pod_name"] = extra_request_arg["pod_name"]
+                if resource_type == "workload":
+                    fields["type"] = extra_request_arg["workload_type"]
+                members = list(
+                    meta.resource_class.objects.filter(scope.resources, **fields)
+                    .order_by("bcs_cluster_id")
+                    .values_list("bcs_cluster_id", flat=True)
+                    .distinct()[:2]
+                )
+                # A logical row can refer to multiple physical instances. Do not pick an arbitrary one.
+                if len(members) != 1:
+                    return []
+                member_cluster_id = members[0]
+
         # 调用对应的资源类型的接口，返回对应的接口数据
         items: list[dict] = resource_router[resource_type][0](
             **{
                 "bk_biz_id": bk_biz_id,
-                "bcs_cluster_id": bcs_cluster_id,
+                "bcs_cluster_id": member_cluster_id or bcs_cluster_id,
                 **extra_request_arg,
             }
         )
@@ -469,7 +495,7 @@ class GetResourceDetail(Resource):
             items = self.remove_items_with_keys(items, resource_ignore_keys[resource_type])
 
         if resource_type == "pod":
-            self.add_pod_service_ingress_relation(items, validated_request_data)
+            self.add_pod_service_ingress_relation(items, validated_request_data, member_cluster_id)
 
         # 获取 pod 关于 service 和 ingress 的联系
         for item in items:
@@ -544,6 +570,11 @@ class ListK8SResources(Resource):
 
         # 1. 基于resource_type 加载对应资源元信息
         resource_meta: K8sResourceMeta = load_resource_meta(resource_type, bk_biz_id, bcs_cluster_id)
+        scope = None
+        if resource_type in NAMESPACED_RESOURCES:
+            scope = get_federated_resource_scope(bk_biz_id, bcs_cluster_id)
+            if scope is not None:
+                resource_meta.federated_resource_filter = scope.resources
         # 2.0 基于filter_dict 加载 filter
         self.add_filter(resource_meta, filter_dict)
         if query_string:
@@ -607,13 +638,17 @@ class ListK8SResources(Resource):
 
         order_by = column if order_by == "asc" else f"-{column}"
 
-        history_resource_list = resource_meta.get_from_promql(
-            validated_request_data["start_time"],
-            validated_request_data["end_time"],
-            order_by,
-            page_count,
-            validated_request_data["method"],
-        )
+        history_resource_list = []
+        if scope is None or scope.history_namespaces:
+            if scope is not None:
+                resource_meta.federated_history_namespaces = scope.history_namespaces
+            history_resource_list = resource_meta.get_from_promql(
+                validated_request_data["start_time"],
+                validated_request_data["end_time"],
+                order_by,
+                page_count,
+                validated_request_data["method"],
+            )
         resource_id_set = set()
         for rs in history_resource_list:
             record = rs.to_meta_dict()
@@ -639,8 +674,11 @@ class ListK8SResources(Resource):
             # 基于需要返回的数量，进行分页
             # 3.1 promql上报数据包含了meta数据，需要去重
             for rs_dict in meta_resource_list:
-                if tuple(sorted(rs_dict.items())) not in resource_id_set:
+                resource_id = tuple(sorted(rs_dict.items()))
+                if resource_id not in resource_id_set:
                     resource_list.append(rs_dict)
+                    if resource_meta.federated_resource_filter is not None:
+                        resource_id_set.add(resource_id)
                     if len(resource_list) >= page_count:
                         break
         else:
@@ -715,6 +753,12 @@ class ResourceTrendResource(Resource):
 
         # 1. 基于resource_type 加载对应资源元信息
         resource_meta: K8sResourceMeta = load_resource_meta(resource_type, bk_biz_id, bcs_cluster_id)
+        if resource_type in NAMESPACED_RESOURCES:
+            scope = get_federated_resource_scope(bk_biz_id, bcs_cluster_id)
+            if scope is not None:
+                if not scope.history_namespaces:
+                    return []
+                resource_meta.federated_history_namespaces = scope.history_namespaces
         agg_method = validated_request_data["method"]
         resource_meta.set_agg_method(agg_method)
         resource_meta.set_agg_interval(start_time, end_time)

@@ -55,9 +55,15 @@ class FilterCollection:
 
     @cached_property
     def filter_queryset(self):
+        queryset = self.query_set
+        scope = self.meta.federated_resource_filter
+        if scope is not None:
+            queryset = queryset.filter(scope)
         for filter_obj in self.filters.values():
-            self.query_set = self.query_set.filter(**self.transform_filter_dict(filter_obj))
-        return self.query_set
+            if scope is not None and filter_obj.filter_uid == self.meta.cluster_filter.filter_uid:
+                continue
+            queryset = queryset.filter(**self.transform_filter_dict(filter_obj))
+        return queryset
 
     def transform_filter_dict(self, filter_obj) -> dict:
         """用于ORM的查询条件"""
@@ -96,6 +102,9 @@ class FilterCollection:
                 # return list(self.make_multi_workload_filter_string(workload_filters))
 
             where_string_list.append(filter_obj.filter_string())
+        if self.meta.federated_history_namespaces:
+            scope_filter = load_resource_filter("namespace", self.meta.federated_history_namespaces)
+            where_string_list.append(scope_filter.filter_string())
         return ",".join(where_string_list)
 
     def make_multi_workload_filter_string(self, workload_filters):
@@ -174,6 +183,8 @@ class K8sResourceMeta:
     """
 
     filter = None
+    federated_resource_filter = None
+    federated_history_namespaces = ()
     resource_field = ""
     resource_class = None
     column_mapping = {}
@@ -234,7 +245,8 @@ class K8sResourceMeta:
             return
         self.filter = FilterCollection(self)
         # 默认范围，集群
-        self.filter.add(load_resource_filter("bcs_cluster_id", self.bcs_cluster_id))
+        self.cluster_filter = load_resource_filter("bcs_cluster_id", self.bcs_cluster_id)
+        self.filter.add(self.cluster_filter)
 
         """
         针对共享集群进行判断, 如果是共享集群，则需要获取集群下的所有命名空间
@@ -1361,7 +1373,16 @@ class K8sNamespaceMeta(K8sResourceMeta, NetworkWithRelation):
     column_mapping = {}
 
     def get_from_meta(self):
-        return self.distinct(self.filter.filter_queryset)
+        queryset = self.filter.filter_queryset
+        if self.federated_resource_filter is not None:
+            namespaces = queryset.order_by("namespace").values_list("namespace", flat=True).distinct()
+            return NameSpaceQuerySet(
+                [
+                    self.resource_class(bk_biz_id=self.bk_biz_id, bcs_cluster_id=self.bcs_cluster_id, namespace=ns)
+                    for ns in namespaces
+                ]
+            )
+        return self.distinct(queryset)
 
     def retry_get_from_meta(self):
         # 根据filter 类型进行重新查询
