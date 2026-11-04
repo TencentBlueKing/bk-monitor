@@ -66,11 +66,6 @@ class LogClusteringResourceRefSerializer(serializers.Serializer):
     tenant = serializers.CharField(label="租户ID", required=False)
 
 
-class LogClusteringPatternStoreSerializer(serializers.Serializer):
-    result_table = LogClusteringResourceRefSerializer(label="Pattern 结果表")
-    es_binding = LogClusteringResourceRefSerializer(label="Pattern ES 存储绑定")
-
-
 class LogClusteringKafkaSerializer(serializers.Serializer):
     cluster_ref = serializers.CharField(label="BKFara Kafka 集群别名")
     input_topic = serializers.CharField(label="候选 Topic")
@@ -240,9 +235,13 @@ def is_databus_referencing_sink(databus_config: dict[str, Any] | None, sink: mod
 def apply_log_clustering_sink_only(
     datalink: models.DataLink, sink: models.LogClusteringSinkConfig, raw_sink: dict[str, str]
 ) -> None:
-    configs = datalink.merge_existing_component_configs([sink.compose_config(raw_sink=raw_sink)])
+    from metadata.models.data_link.log_clustering import prepare_clustering_stores, publish_clustering_routes
+
+    configs = prepare_clustering_stores(sink) + [sink.compose_config(raw_sink=raw_sink)]
+    configs = datalink.merge_existing_component_configs(configs)
     try:
         datalink.apply_data_link_with_retry(configs)
+        publish_clustering_routes(datalink)
     except RetryError as e:
         raise e.__cause__ if e.__cause__ else e
 
@@ -272,17 +271,15 @@ class SetLogClusteringConfigResource(Resource):
         table_id = serializers.CharField(label="监控结果表ID")
         binding = LogClusteringBindingSerializer(label="聚类绑定配置")
         kafka_resource = LogClusteringResourceRefSerializer(label="聚类 Kafka 资源引用")
-        pattern_store = LogClusteringPatternStoreSerializer(label="Pattern 存储")
         runtime_cluster = LogClusteringResourceRefSerializer(label="专用 Databus 集群")
         recovery_resource = LogClusteringResourceRefSerializer(label="结果关联存储资源")
+        result_mode = serializers.ChoiceField(choices=["update_original", "append"], required=False)
 
         def validate(self, attrs):
             references = [
                 ("kafka_resource", attrs["kafka_resource"], "Kafka"),
                 ("runtime_cluster", attrs["runtime_cluster"], "DatabusCluster"),
                 ("recovery_resource", attrs["recovery_resource"], "ElasticSearch"),
-                ("pattern_store.result_table", attrs["pattern_store"]["result_table"], "ResultTable"),
-                ("pattern_store.es_binding", attrs["pattern_store"]["es_binding"], "ElasticSearchBinding"),
             ]
             for field, ref, kind in references:
                 if ref["kind"] != kind:
@@ -299,7 +296,6 @@ class SetLogClusteringConfigResource(Resource):
         config_fields = {
             "binding": validated_request_data["binding"],
             "kafka_resource": validated_request_data["kafka_resource"],
-            "pattern_store": validated_request_data["pattern_store"],
             "runtime_cluster": validated_request_data["runtime_cluster"],
             "recovery_resource": validated_request_data["recovery_resource"],
         }
@@ -314,7 +310,8 @@ class SetLogClusteringConfigResource(Resource):
             with transaction.atomic(using=DATABASE_CONNECTION_NAME):
                 lock_log_clustering_datalink(datalink)
                 sink = get_log_clustering_sink(datalink, for_update=True)
-                if sink is None:
+                is_new_sink = sink is None
+                if is_new_sink:
                     sink = data_link_utils.create_resource_with_random_name(
                         models.LogClusteringSinkConfig,
                         DataLinkNameScene.LOG_CLUSTERING_SINK,
@@ -325,6 +322,12 @@ class SetLogClusteringConfigResource(Resource):
                         bk_biz_id=databus.bk_biz_id,
                         table_id=table_id,
                     )
+                requested_mode = validated_request_data.get("result_mode")
+                existing_mode = (sink.result or {}).get("mode", "update_original")
+                if not is_new_sink and requested_mode and requested_mode != existing_mode:
+                    raise ValidationError("首版不支持切换已有聚类结果写入模式")
+                if not sink.result:
+                    sink.result = {"mode": requested_mode or "update_original"}
                 for field, value in config_fields.items():
                     setattr(sink, field, value)
                 sink.attached = True
@@ -471,7 +474,9 @@ def get_log_clustering_query_targets(datalink: models.DataLink, source_table_id:
                 )
             if table["spec"].get("dataType") != "log":
                 raise ValidationError("Pattern result table must have log data type")
-            table_id = None
+            table_id = models.ResultTableConfig.objects.get(
+                bk_tenant_id=tenant, namespace=data["namespace"], name=data["name"]
+            ).table_id
             source_type = EsSourceType.ES.value
         else:
             table_id = models.ResultTableConfig.objects.get(

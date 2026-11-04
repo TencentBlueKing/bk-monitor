@@ -39,11 +39,8 @@ def get_quix_config() -> dict:
         "runtime_cluster": {"kind": "DatabusCluster", "namespace": "...", "name": "..."},
         "recovery_resource": {"kind": "ElasticSearch", "namespace": "...", "name": "..."},
         "state_index": "...",           # 结果关联上下文索引，首次开启时固定
-        "pattern_store": {
-            "result_table": {"kind": "ResultTable", "namespace": "...", "name": "..."},
-            "es_binding": {"kind": "ElasticSearchBinding", "namespace": "...", "name": "..."},
-        },
         "max_message_bytes": 1048576,     # 可选
+        "result_modes": {"42": "append"}, # 可选，按索引集选择独立表；仅首次开启读取
     }
     任务模板、Worker Profile 和 Kafka 绑定由 BKFara 解析；这里保留 BKBase 所需的资源引用。
     """
@@ -56,10 +53,6 @@ def get_quix_config() -> dict:
     for resource_key in ("kafka_resource", "runtime_cluster", "recovery_resource"):
         resource = config.get(resource_key) or {}
         missing.extend(f"{resource_key}.{key}" for key in REQUIRED_RESOURCE_KEYS if not resource.get(key))
-
-    for key in ("result_table", "es_binding"):
-        resource = (config.get("pattern_store") or {}).get(key) or {}
-        missing.extend(f"pattern_store.{key}.{field}" for field in REQUIRED_RESOURCE_KEYS if not resource.get(field))
 
     if missing:
         raise QuixClusteringConfigInvalidException(

@@ -109,6 +109,14 @@ class QuixClusteringHandler:
         # 先完成参数与环境配置校验，再落库并申请外部资源
         clustering_config = build_clustering_config(clustering_fields, filter_rules)
         quix_config = get_quix_config()
+        result_mode = (quix_config.get("result_modes") or {}).get(str(self.index_set_id), "update_original")
+        if runtime:
+            result_mode = (runtime.pending_config or runtime.active_config).get("result_mode", "update_original")
+        if result_mode not in ("update_original", "append"):
+            raise QuixClusteringParamsInvalidException(
+                QuixClusteringParamsInvalidException.MESSAGE.format(detail="无效的聚类结果写入模式")
+            )
+        clustering_config["result_mode"] = result_mode
 
         collector_config = CollectorConfig.objects.get(collector_config_id=self.index_set.collector_config_id)
         etl_config = collector_config.get_etl_config()
@@ -162,6 +170,8 @@ class QuixClusteringHandler:
             filter_rules = params.get("filter_rules", business_config.filter_rules or [])
             clustering_fields = params.get("clustering_fields") or runtime.active_config["input_mapping"]["log"]
             clustering_config = build_clustering_config(clustering_fields, filter_rules)
+            if "result_mode" in runtime.active_config:
+                clustering_config["result_mode"] = runtime.active_config["result_mode"]
             if clustering_config["input_mapping"] != runtime.active_config["input_mapping"]:
                 raise QuixClusteringParamsInvalidException(
                     QuixClusteringParamsInvalidException.MESSAGE.format(detail=_("首版不支持修改聚类字段"))

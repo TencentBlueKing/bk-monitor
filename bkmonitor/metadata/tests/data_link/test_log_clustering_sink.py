@@ -350,7 +350,8 @@ def test_compose_log_configs_with_detached_sink_restores_raw_sink(log_datalink):
 
     configs, _ = compose(*log_datalink)
 
-    assert configs == plain_configs
+    assert find_config(configs, "Databus") == find_config(plain_configs, "Databus")
+    assert not any(config["kind"] == "LogClusteringSink" for config in configs)
     assert LogClusteringSinkConfig.objects.filter(pk=sink.pk).exists()
 
 

@@ -60,6 +60,27 @@ class TestQuixClusteringHandler(TestCase):
         self.assertFalse(ClusteringConfig.objects.exists())
         mock_delay.assert_not_called()
 
+    def test_append_mode_is_saved_at_first_enable(self, mock_delay):
+        with patch(
+            "apps.log_clustering.handlers.quix.handler.get_quix_config",
+            return_value={**QUIX_CONFIG, "result_modes": {str(INDEX_SET_ID): "append"}},
+        ):
+            QuixClusteringHandler(self.index_set).enable({"clustering_fields": "log"})
+        runtime = LogClusteringRuntime.objects.get(index_set_id=INDEX_SET_ID)
+        self.assertEqual(runtime.pending_config["result_mode"], "append")
+
+    def test_invalid_result_mode_rejected_before_start(self, mock_delay):
+        with (
+            patch(
+                "apps.log_clustering.handlers.quix.handler.get_quix_config",
+                return_value={**QUIX_CONFIG, "result_modes": {str(INDEX_SET_ID): "invalid"}},
+            ),
+            self.assertRaises(QuixClusteringParamsInvalidException),
+        ):
+            QuixClusteringHandler(self.index_set).enable({"clustering_fields": "log"})
+        self.assertFalse(LogClusteringRuntime.objects.exists())
+        mock_delay.assert_not_called()
+
     def test_custom_field_alias_is_accepted(self, mock_delay):
         QuixClusteringHandler(self.index_set).enable({"clustering_fields": "content"})
         runtime = LogClusteringRuntime.objects.get(index_set_id=INDEX_SET_ID)

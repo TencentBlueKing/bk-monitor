@@ -287,7 +287,7 @@ class QuixClusteringOperationRunner:
                 kafka_resource=self.quix_config["kafka_resource"],
                 runtime_cluster=self.quix_config["runtime_cluster"],
                 recovery_resource=self.quix_config["recovery_resource"],
-                pattern_store=self.quix_config["pattern_store"],
+                result_mode=clustering_config.get("result_mode", "update_original"),
             ),
         )
         result = TransferApi.set_log_clustering_config(params.copy())
@@ -315,6 +315,7 @@ class QuixClusteringOperationRunner:
         # 每个 Data Label 关联独立的虚拟 RT；原表回写时也不能改写源日志 RT 的标签。
         routes = {
             clustered_label: {
+                "origin_table_id": result["table_id"],
                 "storage_type": result["storage_type"],
                 "source_type": result["source_type"],
                 "options": [
@@ -329,6 +330,7 @@ class QuixClusteringOperationRunner:
                 "query_alias_settings": [{"field_name": "log_signature", "query_alias": "signature"}],
             },
             pattern_label: {
+                "origin_table_id": pattern["table_id"],
                 "storage_type": pattern["storage_type"],
                 "source_type": pattern["source_type"],
                 "cluster_id": pattern["cluster_id"],

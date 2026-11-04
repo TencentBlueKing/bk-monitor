@@ -191,30 +191,38 @@ class QuixPatternHandler(PatternHandler):
         end = str(int(timezone.now().timestamp() * 1000))
         records = []
         for batch in self._chunk_values(signatures, 500):
-            fields = [
-                {"field_name": "index_set_id", "op": "eq", "value": [str(self._index_set_id)]},
-                {"field_name": "distance_threshold", "op": "eq", "value": [threshold]},
-                {"field_name": "signature", "op": "eq", "value": batch},
-            ]
-            result = UnifyQueryApi.query_ts_raw(
-                {
-                    "bk_biz_id": self._query["bk_biz_id"],
-                    "start_time": start,
-                    "end_time": end,
-                    "limit": len(batch),
-                    "metric_merge": "a",
-                    "query_list": [
-                        {
-                            "table_id": label,
-                            "data_source": settings.UNIFY_QUERY_DATA_SOURCE,
-                            "field_name": "signature",
-                            "reference_name": "a",
-                            "conditions": {"field_list": fields, "condition_list": ["and", "and"]},
-                            "keep_columns": ["signature", "pattern"],
-                        }
-                    ],
-                },
-                bk_tenant_id=self.runtime.bk_tenant_id,
-            )
-            records.extend(result["list"])
+            while batch:
+                fields = [
+                    {"field_name": "index_set_id", "op": "eq", "value": [str(self._index_set_id)]},
+                    {"field_name": "distance_threshold", "op": "eq", "value": [threshold]},
+                    {"field_name": "signature", "op": "eq", "value": batch},
+                ]
+                result = UnifyQueryApi.query_ts_raw(
+                    {
+                        "bk_biz_id": self._query["bk_biz_id"],
+                        "start_time": start,
+                        "end_time": end,
+                        "limit": len(batch),
+                        "metric_merge": "a",
+                        "query_list": [
+                            {
+                                "table_id": label,
+                                "data_source": settings.UNIFY_QUERY_DATA_SOURCE,
+                                "field_name": "signature",
+                                "reference_name": "a",
+                                "conditions": {"field_list": fields, "condition_list": ["and", "and"]},
+                                "keep_columns": ["signature", "pattern"],
+                            }
+                        ],
+                    },
+                    bk_tenant_id=self.runtime.bk_tenant_id,
+                )
+                hits = result["list"]
+                records.extend(hits)
+                found = {row["signature"] for row in hits}
+                missing = [signature for signature in batch if signature not in found]
+                # 跨历史集群的重复签名可能占满总条数，只补查被截断的签名。
+                if len(hits) < len(batch) or len(missing) == len(batch):
+                    break
+                batch = missing
         return records

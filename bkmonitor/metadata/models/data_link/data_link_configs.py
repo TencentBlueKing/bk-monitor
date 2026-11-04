@@ -436,7 +436,7 @@ class ESStorageBindingConfig(DataLinkResourceConfigBase):
     def compose_config(
         self,
         storage_cluster_name: str,
-        write_alias_format: str,
+        write_alias_format: str | None,
         unique_field_list: list[str],
         json_field_list: list[str] | None = None,
         rt_name: str | None = None,
@@ -479,12 +479,14 @@ class ESStorageBindingConfig(DataLinkResourceConfigBase):
                         "name": "{{storage_cluster_name}}"
                     },
                     "doc_type": "{{doc_type}}",
+                    {% if write_alias_format %}
                     "write_alias": {
                         "TimeBased": {
                             "format": "{{write_alias_format}}",
                             "timezone": {{timezone}}
                         }
                     },
+                    {% endif %}
                     "unique_field_list": {{unique_field_list}},
                     "json_field_list": {{json_field_list}},
                     "maintainers": {{maintainers}}
@@ -1371,6 +1373,7 @@ class LogClusteringSinkConfig(DataLinkResourceConfigBase):
     binding = models.JSONField(verbose_name="聚类绑定配置", default=dict)
     kafka_resource = models.JSONField(verbose_name="聚类Kafka资源引用", default=dict)
     pattern_store = models.JSONField(verbose_name="Pattern结果表与存储绑定", default=dict)
+    result = models.JSONField(verbose_name="聚类结果写入配置", default=dict)
     runtime_cluster = models.JSONField(verbose_name="聚类运行集群", default=dict)
     recovery_resource = models.JSONField(verbose_name="结果关联存储资源", default=dict)
     attached = models.BooleanField(verbose_name="是否被Databus引用", default=False)
@@ -1419,7 +1422,7 @@ class LogClusteringSinkConfig(DataLinkResourceConfigBase):
                     "pattern_store": {{pattern_store}},
                     "runtime_cluster": {{runtime_cluster}},
                     "recovery_resource": {{recovery_resource}},
-                    "result": {"mode": "update_original"},
+                    "result": {{result}},
                     "binding": {{binding}}
                 }
             }
@@ -1432,6 +1435,7 @@ class LogClusteringSinkConfig(DataLinkResourceConfigBase):
             "raw_sink": json.dumps(raw_sink),
             "kafka_resource": json.dumps(self.kafka_resource),
             "pattern_store": json.dumps(self.pattern_store),
+            "result": json.dumps(self.result or {"mode": "update_original"}),
             "runtime_cluster": json.dumps(self.runtime_cluster),
             "recovery_resource": json.dumps(self.recovery_resource),
             "binding": json.dumps(self.binding),

@@ -117,7 +117,17 @@ def bkbase(mocker):
             else state.get((kind, name))
         ),
     )
-    state["apply_log_datalink"] = mocker.patch("metadata.resources.log_clustering.apply_log_datalink")
+
+    def prepare(sink):
+        sink.pattern_store = copy.deepcopy(PATTERN_STORE)
+        sink.save(update_fields=["pattern_store"])
+        return []
+
+    mocker.patch("metadata.models.data_link.log_clustering.prepare_clustering_stores", side_effect=prepare)
+    mocker.patch("metadata.models.data_link.log_clustering.publish_clustering_routes")
+    state["apply_log_datalink"] = mocker.patch(
+        "metadata.resources.log_clustering.apply_log_datalink", side_effect=lambda **kwargs: prepare(get_sink())
+    )
     state["apply_data_link"] = mocker.patch("metadata.models.DataLink.apply_data_link_with_retry")
     return state
 
@@ -128,7 +138,6 @@ def build_params(**overrides) -> dict:
         "table_id": LOG_TABLE_ID,
         "binding": copy.deepcopy(BINDING),
         "kafka_resource": dict(KAFKA_RESOURCE),
-        "pattern_store": copy.deepcopy(PATTERN_STORE),
         "runtime_cluster": dict(RUNTIME_CLUSTER),
         "recovery_resource": dict(RECOVERY_RESOURCE),
     }
@@ -176,6 +185,14 @@ def attach_remotely(state: dict) -> None:
         "status": {"phase": "Ok"},
         "spec": {"data": PATTERN_STORE["result_table"], "storage": PATTERN_RESOURCE},
     }
+    models.ResultTableConfig.objects.create(
+        bk_tenant_id="system",
+        namespace="bklog",
+        name=PATTERN_STORE["result_table"]["name"],
+        table_id="bklog.pattern",
+        data_type="log",
+        bk_biz_id=2,
+    )
     state[("ResultTable", PATTERN_STORE["result_table"]["name"])] = {
         "metadata": {"tenant": "system"},
         "status": {"phase": "Ok"},
@@ -206,6 +223,23 @@ def test_first_set_creates_sink_and_applies_whole_datalink(clustering_datalink, 
     assert result["applied_scope"] == "datalink"
     assert result["sink"] == {"tenant": "system", "namespace": "bklog", "name": sink.name}
     assert result["databus"] == {"tenant": "system", "namespace": "bklog", "name": LOG_DATA_LINK_NAME}
+
+
+def test_result_mode_is_fixed_at_first_set(clustering_datalink, bkbase):
+    set_config(result_mode="append")
+    assert get_sink().result == {"mode": "append"}
+    set_config()
+    assert get_sink().result == {"mode": "append"}
+    with pytest.raises(ValidationError, match="不支持切换"):
+        set_config(result_mode="update_original")
+    assert get_sink().result == {"mode": "append"}
+
+
+def test_default_result_mode_cannot_be_changed_later(clustering_datalink, bkbase):
+    set_config()
+    with pytest.raises(ValidationError, match="不支持切换"):
+        set_config(result_mode="append")
+    assert get_sink().result == {"mode": "update_original"}
 
 
 def test_set_on_attached_sink_only_applies_sink(clustering_datalink, bkbase):
@@ -631,7 +665,7 @@ def test_pattern_label_resolves_to_binding_through_bulk_router(clustering_datali
         "query_index": PATTERN_INDEX,
         "source_type": "es",
         "need_add_time": False,
-        "table_id": None,
+        "table_id": "bklog.pattern",
     }
     label = f"bklog_index_set_{BINDING['index_id']}_pattern"
     route = f"{label}.__default__"
@@ -818,9 +852,7 @@ def test_pending_result_binding_waits_without_error(clustering_datalink, bkbase)
     assert "invalid alias" in error["message"]
 
 
-@pytest.mark.parametrize(
-    "field", ["kafka_resource", "runtime_cluster", "recovery_resource", "result_table", "es_binding"]
-)
+@pytest.mark.parametrize("field", ["kafka_resource", "runtime_cluster", "recovery_resource"])
 def test_resource_refs_reject_other_tenant(clustering_datalink, bkbase, field):
     params = build_params()
     ref = params["pattern_store"][field] if field in PATTERN_STORE else params[field]
