@@ -28,10 +28,16 @@ import { BkOpenTelemetry } from '@blueking/open-telemetry';
 /** 机器人信息轮询接口：不采集、不计入页面活动窗口 */
 const ROBOT_INFO_URL = 'commons/fetch_robot_info/';
 
-/** 静态资源版本检查轮询（check-version.ts）：仅按 pathname 末尾完整文件名匹配，静态前缀与 query/hash 不影响判断 */
-const isStaticVersionUrl = (url: string): boolean => {
+/**
+ * 按 pathname 末尾排除轮询请求。host、静态资源前缀、query、hash 不影响判断。
+ * 新增排除项时只追加路径，并同时作用于请求采集与页面活动窗口。
+ */
+const IGNORED_POLLING_PATHS = ['/static_version.txt', '/notice/announcements'];
+
+const isIgnoredPollingUrl = (url: string): boolean => {
   try {
-    return /\/static_version\.txt$/.test(new URL(url, window.location.href).pathname);
+    const pathname = new URL(url, window.location.href).pathname.replace(/\/+$/, '');
+    return IGNORED_POLLING_PATHS.some(path => pathname.endsWith(path));
   } catch {
     return false;
   }
@@ -70,10 +76,10 @@ export const initOpenTelemetry = (): BkOpenTelemetry | undefined => {
       view: {
         getUrlTemplate,
         // 轮询类请求不延长 View Loading Time
-        excludedActivityUrls: [ROBOT_INFO_URL, isStaticVersionUrl],
+        excludedActivityUrls: [ROBOT_INFO_URL, isIgnoredPollingUrl],
       },
       request: {
-        excludedUrls: [ROBOT_INFO_URL, isStaticVersionUrl],
+        excludedUrls: [ROBOT_INFO_URL, isIgnoredPollingUrl],
         allowedTracingUrls: [url => new URL(url).origin === window.location.origin],
       },
       blankScreen: {
