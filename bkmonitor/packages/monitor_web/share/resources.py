@@ -225,9 +225,10 @@ class GetShareParamsResource(Resource):
             if token_obj.is_expired():
                 raise TokenExpiredError
             bk_biz_id = [namespace[4:] for namespace in token_obj.namespaces if namespace.startswith("biz#")][0]
-            # 绕过token鉴权,获取该用户是否有相关权限
+            # 匿名访问走分享令牌的只读路径，仅对已登录用户检查业务权限。
             request = get_request(peaceful=True)
-            if request:
+            has_permission = False
+            if request and request.user.is_authenticated:
                 request.token = None
                 actions = ActionIdMap.get(token_obj.type, [])
                 has_permission = bool(actions)
@@ -240,9 +241,6 @@ class GetShareParamsResource(Resource):
                             token=token_obj.token,
                         )
                         break
-            else:
-                # request获取失败默认无权限，展示分享界面
-                has_permission = False
 
             return {
                 "has_permission": has_permission,
