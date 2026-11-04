@@ -35,6 +35,7 @@ import {
   traceWhereChangeFormatter,
   traceWhereFormatter,
 } from '../../components/retrieval-filter/utils';
+import { handleTransformToTimestamp } from '../../components/time-range/utils';
 import useUserConfig from '../../hooks/useUserConfig';
 import { updateTimezone } from '../../i18n/dayjs';
 import { useRumExploreStore } from '../../store/modules/rum-explore';
@@ -85,6 +86,12 @@ import './rum-explore.scss';
 /** 默认应用与置顶应用的用户配置 key */
 const RUM_EXPLORE_DEFAULT_APPLICATION = 'RUM_EXPLORE_DEFAULT_APPLICATION';
 const RUM_EXPLORE_APPLICATION_THUMBTACK = 'rum_explore_application_thumbtack';
+
+/** 行内微秒时间戳转秒；缺省 / null / 非法值返回 null，避免 NaN 或 0 流入详情上下文 */
+const microToUnixSeconds = (value: unknown): null | number => {
+  const num = Number(value);
+  return Number.isFinite(num) && num > 0 ? Math.floor(num / 1000000) : null;
+};
 
 export default defineComponent({
   name: 'RumExplore',
@@ -423,13 +430,16 @@ export default defineComponent({
      */
     function handleOpenDetail(row: IRumSpanRecord) {
       const isViewMode = store.mode === RumModeEnum.VIEW;
+      /** View 行常缺 end_time：end_time 回退 start_time，两者都缺再回退当前检索范围（秒），保证上下文时间始终为有限正数 */
+      const [queryStart, queryEnd] = handleTransformToTimestamp(store.timeRange);
+      const startSeconds = microToUnixSeconds(row?.start_time);
+      const endSeconds = microToUnixSeconds(row?.end_time) ?? startSeconds;
       detailContext.value = {
         app_name: store.appName,
         record_id: String(row?.[isViewMode ? VIEW_ID_FIELD : 'span_id'] ?? ''),
         span_type: isViewMode ? 'view' : String(row?.[SPAN_TYPE_FIELD] ?? ''),
-        /** 微秒转化为秒 */
-        start_time: Math.floor(row.start_time / 1000000),
-        end_time: Math.floor(row.end_time / 1000000),
+        start_time: startSeconds ?? queryStart,
+        end_time: endSeconds ?? queryEnd,
       };
       detailShow.value = true;
       /** 打开详情时收起 events 抽屉：两者都是行数据下钻视图，避免底部抽屉与详情侧弹叠放（上/下一条切换同样走这里，随切换收起） */
