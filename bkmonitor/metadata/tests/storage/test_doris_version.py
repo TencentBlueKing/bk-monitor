@@ -391,7 +391,8 @@ def test_route_tables_do_not_allocate_versions_or_apply(version_records, route_k
     assert not models.BkBaseResultTable.objects.filter(monitor_table_id=rt.table_id).exists()
 
 
-def test_route_storage_create_does_not_name_physical_table(version_records):
+@pytest.mark.parametrize("is_sync_db", [False, True])
+def test_route_storage_create_does_not_name_physical_table(version_records, is_sync_db):
     rt, _, storage, _, _ = version_records
     storage.delete()
     models.StorageClusterRecord.objects.filter(table_id=rt.table_id).delete()
@@ -400,7 +401,7 @@ def test_route_storage_create_does_not_name_physical_table(version_records):
         bk_tenant_id="system",
         storage_cluster_id=99991,
         source_type="log",
-        is_sync_db=False,
+        is_sync_db=is_sync_db,
         create_storage_cluster_record=False,
     )
     assert route.table_version == 0
@@ -511,3 +512,62 @@ def test_analysis_query_route_matches_external_bkbase_table(mocker):
     assert storage.table_version == 0 and storage.physical_tables == {}
     assert history.physical_tables == {} and history.bkbase_table_id == ""
     assert not models.BkBaseResultTable.objects.filter(monitor_table_id=table_id).exists()
+
+
+def test_apply_reads_version_after_result_table_lock(version_records, mocker):
+    rt, ds, storage, link, _ = version_records
+    models.DorisStorage.objects.filter(pk=storage.pk).update(table_version=0)
+    select_for_update = models.ResultTable.objects.select_for_update
+
+    def concurrent_version_commit(*args, **kwargs):
+        # 模拟任务等待 ResultTable 锁期间，另一个修改事务已提交 v1。
+        models.DorisStorage.objects.filter(pk=storage.pk).update(table_version=1)
+        return select_for_update(*args, **kwargs)
+
+    mocker.patch.object(models.ResultTable.objects, "select_for_update", side_effect=concurrent_version_commit)
+    apply = mocker.patch.object(DataLink, "apply_data_link_with_retry", return_value={})
+    link.apply_data_link(bk_biz_id=2, data_source=ds, table_id=rt.table_id)
+    binding = next(c for c in apply.call_args.args[0] if c["kind"] == "DorisBinding")
+    assert binding["metadata"]["name"] == storage.versioned_name
+
+
+def test_history_retention_does_not_preserve_unrelated_result_tables(version_records):
+    rt, _, storage, link, _ = version_records
+    scope = dict(bk_tenant_id="system", namespace=link.namespace, data_link_name=link.pk, bk_biz_id=2)
+    history = models.ResultTableConfig.objects.create(**scope, name="old_doris_version", table_id=rt.table_id)
+    unrelated = models.ResultTableConfig.objects.create(**scope, name="unrelated", table_id="2.other")
+    link.table_ids = [rt.table_id, "2.other"]
+    deletions = link._get_absent_components_to_delete([], force_delete=True)
+    assert unrelated in deletions
+    assert history not in deletions
+
+
+@pytest.mark.parametrize("legacy_tenant", [None, ""])
+def test_status_reconcile_normalizes_legacy_storage_tenant(version_records, mocker, legacy_tenant):
+    from metadata.task import bkbase
+    from metadata.models.data_link.constants import DataLinkKind
+
+    rt, _, storage, link, _ = version_records
+    models.DorisStorage.objects.filter(pk=storage.pk).update(bk_tenant_id=legacy_tenant)
+    scope = dict(
+        bk_tenant_id="system", namespace=link.namespace, data_link_name=link.pk, bk_biz_id=2, table_id=rt.table_id
+    )
+    models.ResultTableConfig.objects.create(**scope, name="old_version", status="Failed")
+    models.ResultTableConfig.objects.create(**scope, name=storage.versioned_name, status="Ok")
+    mocker.patch.object(bkbase, "COMPONENT_CLASS_MAP", {DataLinkKind.RESULTTABLE.value: models.ResultTableConfig})
+    mocker.patch.object(bkbase, "_get_data_link_discovery_tenant_ids", return_value=set())
+    mocker.patch.object(bkbase, "report_metadata_data_link_status_info")
+    mocker.patch.object(
+        bkbase.api.bkdata,
+        "list_data_link",
+        return_value=[
+            {
+                "metadata": {"name": name, "labels": {"bk_biz_id": "2"}},
+                "spec": {"bizId": 2, "dataType": "log"},
+                "status": {"phase": status},
+            }
+            for name, status in [("old_version", "Failed"), (storage.versioned_name, "Ok")]
+        ],
+    )
+    statuses, _, _, _ = bkbase._reconcile_data_link_components()
+    assert statuses[("system", link.pk)] == ["Ok"]

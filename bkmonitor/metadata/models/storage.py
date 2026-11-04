@@ -6451,7 +6451,7 @@ class DorisStorage(models.Model, StorageResultTable):
         return component_config
 
     def get_physical_table_name(self, doris_binding: dict[str, Any] | None = None) -> dict[str, str]:
-        """获取 Doris 物理库表名，优先使用 DorisBinding annotations.PhysicalTableName。"""
+        """获取物理库表名：优先非空 physical_table_name，兼容 PhysicalTableName，再回退 db/table。"""
         doris_binding = doris_binding or self.get_doris_binding_metadata()
         metadata = doris_binding.get("metadata") or {}
         annotations = metadata.get("annotations") or {}
@@ -6971,7 +6971,13 @@ class DorisStorage(models.Model, StorageResultTable):
                         enable_time=django_timezone.make_aware(datetime.datetime(1970, 1, 1)),
                         defaults={"is_current": True},
                     )
-                if is_sync_db and source_type == "log" and not origin_table_id and not bkbase_table_id:
+                if (
+                    create_storage_cluster_record
+                    and is_sync_db
+                    and source_type == "log"
+                    and not origin_table_id
+                    and not bkbase_table_id
+                ):
                     new_record.advance_table_version(operator="system")
                 logger.info("CreateDorisStorage: create Doris storage table[%s] success", new_record.table_id)
         except Exception as e:  # pylint: disable=broad-except

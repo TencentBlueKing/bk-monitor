@@ -513,3 +513,5 @@ Doris 写入配置，也不属于监控管理的写入表。此类表允许 phys
 例如 __analysis__ 分析查询表可以只关联已有 BKBase RT，source_type=bkdata、origin_table_id 为空，
 且没有监控 DataLink 关联。这不等同于需要修复物理表同步；判定依据是采集关联和写入配置，
 不依赖表名后缀，也不因为 physical_tables 为空而主动创建资源。
+`create_storage_cluster_record=False` 严格表示不创建历史记录，也不初始化版本和物理表名；
+该入口供路由表/虚拟表注册查询配置使用，正常采集表沿用默认 True。

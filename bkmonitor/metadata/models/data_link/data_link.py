@@ -2953,18 +2953,16 @@ class DataLink(models.Model):
         }
         arguments = inspect.signature(self._get_compose_method()).bind_partial(*args, **compose_kwargs).arguments
         table_id = arguments.get("table_id")
-        route_storage = DorisStorage.objects.filter(bk_tenant_id=self.bk_tenant_id, table_id=table_id).first()
-        if route_storage and not route_storage.manages_datalink():
-            return
-        storage_query = DorisStorage.objects.filter(
-            bk_tenant_id=self.bk_tenant_id, table_id=table_id, table_version__gt=0
-        )
-        if not storage_query.exists():
+        if table_id is None:
             return self._apply_data_link(*args, **kwargs)
-        # 串行声明与修改，旧任务执行时读取最新版本，不回放捕获的旧目标。
+        # 先锁结果表，再读取是否由监控管理及当前版本，避免 v0 -> v1 时走旧声明路径。
         with transaction.atomic(using=DATABASE_CONNECTION_NAME):
             ResultTable.objects.select_for_update().get(bk_tenant_id=self.bk_tenant_id, table_id=table_id)
-            storage = storage_query.get()
+            storage = DorisStorage.objects.filter(bk_tenant_id=self.bk_tenant_id, table_id=table_id).first()
+            if storage and not storage.manages_datalink():
+                return
+            if storage is None or not storage.table_version:
+                return self._apply_data_link(*args, **kwargs)
             database, table = storage.physical_tables["main"].split(".", 1)
             kwargs.update(
                 doris_rt_name=storage.versioned_name,
@@ -3390,11 +3388,11 @@ class DataLink(models.Model):
         }
         from metadata.models.doris_version import versioned_storages
 
-        keep_doris_history = versioned_storages(self.bk_tenant_id, self.table_ids).exists()
+        doris_history_table_ids = set(
+            versioned_storages(self.bk_tenant_id, self.table_ids).values_list("table_id", flat=True)
+        )
         components_to_delete: list[DataLinkResourceConfigBase] = []
         for component_class in ALL_DATA_LINK_COMPONENT_KINDS:
-            if keep_doris_history and component_class in (ResultTableConfig, DorisStorageBindingConfig):
-                continue
             policy = self._leftover_policy(component_class)
             if not force_delete and policy != "delete":
                 continue
@@ -3406,6 +3404,11 @@ class DataLink(models.Model):
                 data_link_name=self.data_link_name,
             )
             for component in components:
+                if (
+                    component_class in (ResultTableConfig, DorisStorageBindingConfig)
+                    and component.table_id in doris_history_table_ids
+                ):
+                    continue
                 identity = (
                     component.kind,
                     component.bk_tenant_id,

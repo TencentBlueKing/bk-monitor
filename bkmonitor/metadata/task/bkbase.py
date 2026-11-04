@@ -1664,8 +1664,10 @@ def _reconcile_data_link_components() -> tuple[
     stats = DataLinkRefreshStats()
     discovery_tenant_ids = _get_data_link_discovery_tenant_ids()
     doris_current_names = {
-        (storage.bk_tenant_id, storage.table_id): storage.versioned_name
-        for storage in models.DorisStorage.objects.filter(table_version__gt=0)
+        (_normalize_data_link_tenant_id(tenant_id), table_id): f"bkm_doris_{storage_id}_v{version}"
+        for tenant_id, table_id, storage_id, version in models.DorisStorage.objects.filter(table_version__gt=0)
+        .values_list("bk_tenant_id", "table_id", "id", "table_version")
+        .iterator(chunk_size=1000)
     }
 
     # ResultTable 必须先于依赖其 table_id 的 VM/SurrealDB/Doris Binding 落库。
@@ -1823,7 +1825,7 @@ def _reconcile_data_link_components() -> tuple[
             stats.terminated_count += terminated_count
             for component in [*components, *created_components]:
                 if kind in (DataLinkKind.RESULTTABLE.value, DataLinkKind.DORISBINDING.value):
-                    current_name = doris_current_names.get((component.bk_tenant_id, component.table_id))
+                    current_name = doris_current_names.get((bk_tenant_id, component.table_id))
                     if current_name and current_name != component.name:
                         continue
                 if component.data_link_name and kind != DataLinkKind.DATAID.value:
