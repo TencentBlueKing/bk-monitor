@@ -15,6 +15,7 @@ from bkmonitor.data_source.data_source import BkApmTraceDataSource
 from bkmonitor.iam.action import ActionEnum
 from bkmonitor.iam.resource import ResourceEnum
 from constants.apm import PreCalculateSpecificField
+from kernel_api.adapters import ApiRenderer
 from monitor_web.overview.search import ApmApplicationSearchItem, SearchItem, Searcher, TraceSearchItem
 from monitor_web.overview.views import SearchSerializer, SearchViewSet
 
@@ -891,10 +892,13 @@ def test_search_view_batch_streams_per_trace_top_k_and_checks_shared_app_once(
         assert current["items"][: len(previous["items"])] == previous["items"]
 
 
-@pytest.mark.parametrize("use_unify_query", [True, False])
+@pytest.mark.parametrize(
+    ("use_unify_query", "format_es_response"),
+    [(True, False), (False, False), (False, True)],
+)
 @pytest.mark.parametrize("trace_count", [1, 20])
 def test_precalc_batch_keeps_independent_limits_and_reuses_application_lookup(
-    use_unify_query: bool, trace_count: int
+    use_unify_query: bool, format_es_response: bool, trace_count: int
 ) -> None:
     trace_ids = [TRACE_ID, *[f"{index:032x}" for index in range(1, trace_count)]]
     apps = [_app(index) for index in range(1, 9)]
@@ -934,7 +938,8 @@ def test_precalc_batch_keeps_independent_limits_and_reuses_application_lookup(
         time_field = PreCalculateSpecificField.MIN_START_TIME
         assert {"range": {time_field: {"gte": (now - 7 * 86400) * 1000000}}} in filters
         assert {"range": {time_field: {"lt": now * 1000000}}} in filters
-        return {"aggregations": _aggregate(query_body["aggregations"], documents)}
+        response = {"aggregations": _aggregate(query_body["aggregations"], documents)}
+        return ApiRenderer().format_field(response, level=-1) if format_es_response else response
 
     def _query_uq(**params: Any) -> dict[str, Any]:
         assert params["bk_tenant_id"] == "tenant"
