@@ -1,0 +1,10 @@
+{
+  "id": "ui.retrieve-grep",
+  "component": "RetrieveGrepPanel",
+  "states": ["idle", "waiting", "loading", "success", "empty", "error"],
+  "transitions": [
+    { "from": "idle", "event": "SEARCHING", "to": "waiting" },
+    { "from": "waiting", "event": "SEARCH_DONE", "to": "loading" },
+    { "from": "loading", "event": "RESOLVE_WITH_RESULTS", "to": "success" }
+  ]
+}

@@ -1,0 +1,16 @@
+{
+  "id": "state.retrieve-toolbar",
+  "owner": "ToolbarController",
+  "readers": ["RetrieveToolbar", "RetrievePage"],
+  "writers": ["ToolbarController"],
+  "initial": "ready",
+  "cleanup": "stop auto-refresh timer on dispose",
+  "concurrency": "single writer",
+  "transitions": [
+    { "from": "ready", "event": "TOGGLE_FAVORITE", "to": "ready" },
+    { "from": "ready", "event": "CHANGE_TIME", "to": "ready" },
+    { "from": "ready", "event": "ENABLE_AUTO_REFRESH", "to": "refreshing" },
+    { "from": "refreshing", "event": "TICK", "to": "refreshing" },
+    { "from": "refreshing", "event": "DISABLE_AUTO_REFRESH", "to": "ready" }
+  ]
+}

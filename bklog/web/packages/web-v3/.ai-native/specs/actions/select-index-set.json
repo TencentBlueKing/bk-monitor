@@ -1,0 +1,10 @@
+{
+  "id": "action.select-index-set",
+  "title": "选择索引集",
+  "inputs": ["id"],
+  "preconditions": ["id exists in catalog"],
+  "permission": "retrieve.search",
+  "idempotent": true,
+  "sideEffects": ["bind retrieve workspace index set"],
+  "failure": "unknown id sets error"
+}

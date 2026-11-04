@@ -1,0 +1,10 @@
+{
+  "id": "action.toggle-field",
+  "title": "切换显示字段",
+  "inputs": ["name", "visible"],
+  "preconditions": ["field exists"],
+  "permission": "retrieve.search",
+  "idempotent": true,
+  "sideEffects": ["update visible table columns"],
+  "failure": "hiding the last field sets error"
+}

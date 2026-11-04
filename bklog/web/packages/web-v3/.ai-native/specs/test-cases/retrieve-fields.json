@@ -1,0 +1,8 @@
+{
+  "id": "test.retrieve-fields",
+  "feature": "feature.retrieve-fields",
+  "scenarios": [
+    { "id": "TC-001", "acceptance": "AC-001", "command": "node --test --experimental-strip-types src/features/retrieve/field-controller.test.mjs", "expect": "hide" },
+    { "id": "TC-002", "acceptance": "AC-002", "command": "node --test --experimental-strip-types src/features/retrieve/field-controller.test.mjs", "expect": "keep last" }
+  ]
+}

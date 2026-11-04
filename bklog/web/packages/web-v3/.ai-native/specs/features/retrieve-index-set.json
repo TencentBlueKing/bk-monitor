@@ -1,0 +1,17 @@
+{
+  "id": "feature.retrieve-index-set",
+  "version": "0.1.0",
+  "title": "索引集选择",
+  "status": "approved",
+  "goal": "按名称过滤并选择当前检索索引集。",
+  "inputs": [
+    { "name": "id", "type": "string", "required": true },
+    { "name": "filterQuery", "type": "string", "required": false }
+  ],
+  "rules": ["过滤去空白", "未知索引集进入 error 且不切换"],
+  "dependencies": ["state.retrieve-index-set", "ui.retrieve-index-set", "action.select-index-set"],
+  "acceptance": [
+    { "id": "AC-001", "given": "存在多个索引集", "when": "按名称过滤", "then": "只保留匹配项" },
+    { "id": "AC-002", "given": "目标不存在", "when": "选择", "then": "进入 error 且保持原选择" }
+  ]
+}

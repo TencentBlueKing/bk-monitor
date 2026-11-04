@@ -1,0 +1,15 @@
+{
+  "id": "data.favorite-item",
+  "version": "0.1.0",
+  "title": "检索收藏项",
+  "source": "favorite API, never infer missing fields as always-present",
+  "fields": [
+    { "name": "id", "type": "string", "required": true, "meaning": "收藏唯一标识" },
+    { "name": "name", "type": "string", "required": true, "meaning": "收藏名称" },
+    { "name": "keyword", "type": "string", "required": true, "meaning": "回填到检索框的关键字" },
+    { "name": "groupId", "type": "string", "required": true, "meaning": "分组 ID" },
+    { "name": "groupName", "type": "string", "required": true, "meaning": "分组名称" },
+    { "name": "visibleType", "type": "string", "required": true, "meaning": "private 或 public" },
+    { "name": "indexSetId", "type": "string", "required": true, "meaning": "所属索引集" }
+  ]
+}

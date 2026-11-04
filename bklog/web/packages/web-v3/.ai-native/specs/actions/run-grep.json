@@ -1,0 +1,10 @@
+{
+  "id": "action.run-grep",
+  "title": "执行 Grep",
+  "inputs": ["field", "pattern", "records", "isSearching"],
+  "preconditions": ["field is not empty unless staying idle"],
+  "permission": "retrieve.search",
+  "idempotent": true,
+  "sideEffects": ["filter current search records"],
+  "failure": "invalid regex sets error without throwing"
+}

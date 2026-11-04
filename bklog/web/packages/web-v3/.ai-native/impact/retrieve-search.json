@@ -1,0 +1,25 @@
+{
+  "id": "impact.retrieve-search",
+  "feature": "feature.retrieve-search",
+  "nodes": [
+    { "type": "feature", "id": "feature.retrieve-search" },
+    { "type": "state", "id": "state.retrieve-search" },
+    { "type": "data", "id": "data.log-record" },
+    { "type": "ui", "id": "ui.retrieve-search" },
+    { "type": "action", "id": "action.submit-search" },
+    { "type": "module", "id": "RetrieveSearchController" },
+    { "type": "file", "id": "src/features/retrieve/retrieve-search-controller.ts" },
+    { "type": "file", "id": "src/features/retrieve/retrieve-page.vue" },
+    { "type": "file", "id": "src/features/retrieve/retrieve-toolbar.vue" },
+    { "type": "test", "id": "test.retrieve-search" }
+  ],
+  "edges": [
+    ["feature.retrieve-search", "state.retrieve-search"],
+    ["feature.retrieve-search", "data.log-record"],
+    ["feature.retrieve-search", "ui.retrieve-search"],
+    ["state.retrieve-search", "RetrieveSearchController"],
+    ["RetrieveSearchController", "src/features/retrieve/retrieve-search-controller.ts"],
+    ["ui.retrieve-search", "src/features/retrieve/retrieve-page.vue"],
+    ["feature.retrieve-search", "test.retrieve-search"]
+  ]
+}

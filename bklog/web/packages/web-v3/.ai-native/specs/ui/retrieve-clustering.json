@@ -1,0 +1,21 @@
+{
+  "id": "ui.retrieve-clustering",
+  "component": "ClusteringPage",
+  "states": [
+    "idle",
+    "success",
+    "filtered"
+  ],
+  "transitions": [
+    {
+      "from": "idle",
+      "event": "GROUP",
+      "to": "success"
+    },
+    {
+      "from": "success",
+      "event": "FILTER",
+      "to": "filtered"
+    }
+  ]
+}

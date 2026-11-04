@@ -1,0 +1,18 @@
+{
+  "id": "test.retrieve-clustering",
+  "feature": "feature.retrieve-clustering",
+  "scenarios": [
+    {
+      "id": "TC-001",
+      "acceptance": "AC-001",
+      "command": "node --test --experimental-strip-types src/features/retrieve/clustering-controller.test.mjs",
+      "expect": "group"
+    },
+    {
+      "id": "TC-002",
+      "acceptance": "AC-002",
+      "command": "node --test --experimental-strip-types src/features/retrieve/clustering-controller.test.mjs",
+      "expect": "filter"
+    }
+  ]
+}

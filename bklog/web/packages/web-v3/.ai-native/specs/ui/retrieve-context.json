@@ -1,0 +1,22 @@
+{
+  "id": "ui.retrieve-context",
+  "component": "ContextPage",
+  "states": [
+    "idle",
+    "waiting",
+    "success",
+    "empty"
+  ],
+  "transitions": [
+    {
+      "from": "idle",
+      "event": "SEARCHING",
+      "to": "waiting"
+    },
+    {
+      "from": "idle",
+      "event": "OPEN_OK",
+      "to": "success"
+    }
+  ]
+}

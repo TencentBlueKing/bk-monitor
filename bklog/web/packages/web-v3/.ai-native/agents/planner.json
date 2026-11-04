@@ -1,0 +1,7 @@
+{
+  "id": "agent.planner",
+  "role": "planner",
+  "inputs": ["feature-contract", "impact-graph"],
+  "outputs": ["task-plan"],
+  "permissions": ["read"]
+}

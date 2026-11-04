@@ -1,0 +1,24 @@
+{
+  "id": "test.retrieve-toolbar",
+  "feature": "feature.retrieve-toolbar",
+  "scenarios": [
+    {
+      "id": "TC-201",
+      "acceptance": "AC-001",
+      "command": "node --test --experimental-strip-types src/features/retrieve/toolbar-controller.test.mjs",
+      "expect": "toggle flips favoriteShown"
+    },
+    {
+      "id": "TC-202",
+      "acceptance": "AC-002",
+      "command": "node --test --experimental-strip-types src/features/retrieve/toolbar-controller.test.mjs",
+      "expect": "time preset change asks search to reset page"
+    },
+    {
+      "id": "TC-203",
+      "acceptance": "AC-003",
+      "command": "node --test --experimental-strip-types src/features/retrieve/toolbar-controller.test.mjs",
+      "expect": "auto refresh keeps current page"
+    }
+  ]
+}

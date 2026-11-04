@@ -1,0 +1,10 @@
+{
+  "id": "action.apply-favorite",
+  "title": "应用检索收藏",
+  "inputs": ["favoriteId"],
+  "preconditions": ["favorite exists"],
+  "permission": "retrieve.favorite.apply",
+  "idempotent": true,
+  "sideEffects": ["select favorite", "return keyword for search submit"],
+  "failure": "keep current selection when favorite id is unknown"
+}

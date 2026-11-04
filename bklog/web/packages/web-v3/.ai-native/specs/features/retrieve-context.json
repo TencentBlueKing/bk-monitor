@@ -1,0 +1,43 @@
+{
+  "id": "feature.retrieve-context",
+  "version": "0.1.0",
+  "title": "上下文日志",
+  "status": "approved",
+  "goal": "围绕锚点行展开前后日志",
+  "inputs": [
+    {
+      "name": "name",
+      "type": "string",
+      "required": false
+    },
+    {
+      "name": "filterQuery",
+      "type": "string",
+      "required": false
+    }
+  ],
+  "rules": [
+    "不改 Vue2 / v1 代码",
+    "状态所有权在 Vue3 controller"
+  ],
+  "dependencies": [
+    "data.log-record",
+    "state.retrieve-context",
+    "ui.retrieve-context",
+    "action.open-context"
+  ],
+  "acceptance": [
+    {
+      "id": "AC-001",
+      "given": "存在业务数据",
+      "when": "执行该模块主操作",
+      "then": "按契约更新状态"
+    },
+    {
+      "id": "AC-002",
+      "given": "存在过滤或并发条件",
+      "when": "再次操作",
+      "then": "结果只反映当前条件"
+    }
+  ]
+}

@@ -1,0 +1,30 @@
+{
+  "id": "test.data-id-url",
+  "feature": "feature.data-id-url",
+  "scenarios": [
+    {
+      "id": "TC-001",
+      "acceptance": "AC-001",
+      "command": "node --test --experimental-strip-types src/shared/resource/resource-list-controller.test.mjs",
+      "expect": "filter"
+    },
+    {
+      "id": "TC-002",
+      "acceptance": "AC-002",
+      "command": "node --test --experimental-strip-types src/shared/resource/resource-list-controller.test.mjs",
+      "expect": "status"
+    },
+    {
+      "id": "TC-003",
+      "acceptance": "AC-003",
+      "command": "node --test --experimental-strip-types src/shared/resource/resource-list-controller.test.mjs",
+      "expect": "duplicate"
+    },
+    {
+      "id": "TC-004",
+      "acceptance": "AC-004",
+      "command": "node --test --experimental-strip-types src/shared/resource/resource-list-controller.test.mjs",
+      "expect": "remove"
+    }
+  ]
+}

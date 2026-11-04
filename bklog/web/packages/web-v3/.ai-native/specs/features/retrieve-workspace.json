@@ -1,0 +1,21 @@
+{
+  "id": "feature.retrieve-workspace",
+  "version": "0.1.0",
+  "title": "检索工作台",
+  "status": "approved",
+  "goal": "在同一检索页切换原始日志、聚类、Grep、图表，并绑定当前索引集。",
+  "inputs": [
+    { "name": "tab", "type": "string", "required": true },
+    { "name": "indexSetId", "type": "string", "required": true }
+  ],
+  "rules": [
+    "只允许 origin/clustering/grep/graph",
+    "索引集为空时进入 error",
+    "功能全部落在 packages/web-v3"
+  ],
+  "dependencies": ["state.retrieve-workspace", "ui.retrieve-workspace", "action.switch-retrieve-tab"],
+  "acceptance": [
+    { "id": "AC-001", "given": "当前在原始日志", "when": "切换到聚类或图表", "then": "工作台 tab 更新" },
+    { "id": "AC-002", "given": "索引集为空", "when": "设置索引集", "then": "进入 error" }
+  ]
+}
