@@ -3,8 +3,8 @@
   gap: 16px;
   align-items: center;
   justify-content: space-between;
-  min-height: 42px;
-  padding: 8px;
+  height: 42px;
+  padding: 0 8px;
   font-size: 12px;
   line-height: 20px;
   background: #fff;
@@ -24,8 +24,8 @@
     display: flex;
     flex: 1;
     align-items: center;
-    align-self: stretch;
     min-width: 0;
+    height: 100%;
   }
 
   .row-time {
@@ -45,8 +45,8 @@
   }
 
   .divider {
-    align-self: stretch;
     width: 1px;
+    height: 100%;
     background-color: #c1cde5;
   }
 
@@ -124,13 +124,6 @@
     .icon-monitor {
       font-size: 14px;
     }
-  }
-
-  .row-trace-links {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 4px 12px;
-    max-width: 360px;
   }
 
   .row-status-code {

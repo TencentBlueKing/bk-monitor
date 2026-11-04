@@ -85,8 +85,8 @@ export interface IRumTimelineSpanVM {
   /** 开始时间，HH:mm:ss */
   timeText: string;
   title: string;
-  /** origin_data.links 中关联的 Trace ID */
-  traceIds: string[];
+  /** 关联 Trace ID，origin_data.links 里没有时为空串 */
+  traceId: string;
 }
 
 /** 链路上下文顶部的 View 头部视图模型 */

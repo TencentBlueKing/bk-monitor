@@ -215,7 +215,7 @@ function buildSpanVM(node: IRumTimelineNode, ctx: IRumTimelineBuildCtx, level: n
               TIMELINE_STATUS_CODE_FALLBACK_COLOR),
           }
         : undefined,
-    traceIds: [...new Set<string>((origin.links ?? []).map(link => link.trace_id).filter(Boolean))],
+    traceId: origin.links?.[0]?.trace_id || '',
     isCurrent: node.span_id === ctx.currentSpanId,
     expandable,
     expanded: expandable && ctx.expandedNodes.has(node.span_id),
