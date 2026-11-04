@@ -6311,8 +6311,6 @@ class DorisStorage(models.Model, StorageResultTable):
     PRIMARY_TABLE_TYPE = "primary_table"  # 主键模型
     DUPLICATE_TABLE_TYPE = "duplicate_table"  # 明细模型
 
-    table_version = models.PositiveIntegerField("物理表版本", default=0)
-
     table_id = models.CharField("结果表ID", max_length=128)
     bk_tenant_id = models.CharField("租户ID", max_length=256, null=True, default="system")
     bkbase_table_id = models.CharField("bkbase表名", max_length=128, null=True)
@@ -6333,8 +6331,11 @@ class DorisStorage(models.Model, StorageResultTable):
         verbose_name_plural = "Doris存储表"
 
     @property
-    def versioned_name(self):
-        return f"bkm_doris_{self.pk}_v{self.table_version}"
+    def datalink_table_name(self):
+        """已保存的受管物理表名；第三方查询表不参与命名。"""
+        from metadata.models.doris_version import get_datalink_table_name
+
+        return get_datalink_table_name(self.pk, self.physical_tables)
 
     def manages_datalink(self):
         """虚拟表和无采集数据源的路由表只参与查询，不拥有写入链路。"""
@@ -6433,8 +6434,8 @@ class DorisStorage(models.Model, StorageResultTable):
         bindings = DorisStorageBindingConfig.objects.filter(
             bk_tenant_id=effective_storage.bk_tenant_id, table_id=effective_storage.table_id
         )
-        if effective_storage.table_version:
-            bindings = bindings.filter(name=effective_storage.versioned_name)
+        if effective_storage.datalink_table_name:
+            bindings = bindings.filter(name=effective_storage.datalink_table_name)
         binding_config = bindings.order_by("-last_modify_time").first()
         if not binding_config:
             raise ValueError(f"DorisStorageBindingConfig 不存在: table_id={effective_storage.table_id}")

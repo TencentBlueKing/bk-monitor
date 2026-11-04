@@ -458,66 +458,46 @@ Admin 使用现有 `admin.datalink.component_list`、`component_detail`、`compo
 - `metadata/models/data_link/utils.py`
 - `metadata/models/data_link/constants.py`
 
-### 普通 Doris 表版本化声明
+### 普通 Doris 表配置变更
 
-日志和自定义格式 Doris 链路由监控主动指定物理库表名。新建表从
-`bkm_doris_<DorisStorage.id>_v1` 开始，RT、DorisBinding 与物理表同名；
-数据库沿用现有生成规则，换表时保留原数据库。存量记录迁移后 `table_version=0`，
-不主动改名；第一次有代价变更才进入 `_v1` 序列。虚拟存储和 Profiling 专用链路不独立分配版本。
+改造仅涉及 DorisStorage 的配置/历史保存，以及 DataLink 的 Doris 配置更新；不增加数据库字段或迁移。
 
-`ResultTable.modify` 在现有行锁内比较修改前后的字段和 Doris option。
-分词新增/修改/清空、字段分组（search_zh/search_en/bloomfilter 等）、存储键、JSON 字段、
-已有字段类型、字段删除、表模型及分区参数变化会递增版本。普通字段新增、字段说明和无序集合
-重排不递增版本；storage_keys 的顺序具有意义。时间类型变化按字段类型处理，
-没有额外的精度参数，清洗时间格式变化不触发换表。
+DorisStorage 在已有 ResultTable 修改事务内比较字段、分词、索引、JSON、存储键及表模型/分区配置。
+有代价变更时生成新的物理表名，保存期望配置、BKBase RT、物理表及 StorageClusterRecord 后提交。
+新建表命名为 `bkm_doris_<storage_id>_v1`，换表时仅从已保存名称的后缀递增；存量未采用该命名的
+表首次换表使用 `_v1`。重试读取保存的名称，不再次递增、不重复增加历史。
 
-配置入口为两类链路共用的 `doris_storage_config`，增加以下可选项：
+两类链路共用 `doris_storage_config`：
 
-| 参数 | 首次创建默认行为 | 修改行为 |
-| --- | --- | --- |
-| table_type | primary_table；亦支持 primary_partition_table、duplicate_table | 换表 |
-| unique_partition_table | true | 换表 |
-| support_hour_partition | false；实际能力遵循 BKBase 表模型支持范围 | 换表 |
-| use_lowercase_field | false | 换表 |
-| alias、description | 不额外声明；description 支持空字符串 | 原地更新 |
+| 配置变化 | 行为 |
+| --- | --- |
+| tokenizers、search_zh/search_en/bloomfilter 等字段分组 | 换表 |
+| storage_keys 内容/顺序、json_fields、original_json_fields | 换表 |
+| table_type、unique_partition_table、support_hour_partition、use_lowercase_field | 换表 |
+| 删除字段、已有字段类型变化 | 换表 |
+| 普通新增字段、字段说明、无序集合仅重排 | 原地更新 |
+| expire_days、flush_timeout、alias、description | 原地更新 |
 
-新增可选参数以及 tokenizers 省略/null 时保留已有配置，tokenizers 显式 `{}` 表示清空。
-json_fields、original_json_fields 和 field_config_group 的空集合也是清空声明。
-保留期继续取 DorisStorage.expire_days；flush_timeout 原地更新。
-不开放 db/table 和 Profiling 的 is_profiling、sample/label 表名。
+新增可选配置及 tokenizers 省略/null 时沿用旧值，显式空集合清空。
+首次创建默认 primary_table、unique_partition_table=true、日分区；小时分区的适用模型遵循 BKBase。
+不增加独立时间精度字段，不开放用户物理表命名或 Profiling 专用配置。
 
-版本、BKBase RT、物理表名和 StorageClusterRecord 在本地事务中先保存，提交后按原流程
-一次 apply RT、Binding、Databus，不拆分建表/切换、不等待远端命名或就绪。
-DataLink 不增加目标配置字段，也不负责递增版本；任务执行时读取当前版本，失败重试反复声明
-同一组名称。普通修改、相同配置重提和重复 apply 不增加历史记录。
+DataLink 读取已保存的目标名称，按名称新建或更新 ResultTableConfig/DorisBinding，再更新 Databus 引用。
+名称未变则原地更新；名称变化则新增本地和远端资源。旧 RT/Binding、本来的 DataLink 关联以及库表历史
+全部保留，不改名覆盖、不解除关联、不清理。本次声明通过显式目标名称定位组件和回填 BKBase RT，
+不依赖更新时间排序；Doris 流程不进入公共复用候选池。公共复用、清理和状态汇总不增加版本特判。
 
-历史分段表示本地配置切换时间，不代表精确实际写入时间。apply 失败仍保留已提交版本、
-期望物理表和历史，旧物理资源不删除。ES/Doris 双写继续沿用 ES 写别名及消费组，
-ES 为默认存储时 Doris 的开放时间段不占用 is_current 标记。
-版本化历史路由分别使用每一版本的 BKBase RT，旧 Binding 状态不参与当前链路状态汇总。
+本地配置及组件引用提交后，独立执行远端配置合并与一次 apply。apply 失败会报错，但不回滚已提交
+配置和历史；下一次普通重试从数据库读取最新配置，不捕获上次失败的 payload。已有外层事务时，
+在外层提交后才启动本次声明。不增加 Redis 锁，不承诺并发 apply 的远端完成顺序；重试以最新配置收敛。
 
-**已知限制：** 本次不修改查询端。现有查询端按分段时间选择存储并默认保留前后 1 小时重叠；
-若下发失败或延迟超过该窗口，旧表仍在接收的数据可能不在查询候选范围内。保留历史表不等同于
-无限时长的失败期查询覆盖，后续单独处理。真实 Doris 建表、写入及查询验收也留待专项执行。
+ES-only 及 VM 等其他链路不受历史 DorisStorage 阻断。双写改为 ES-only 时保留共享 RT、Databus、
+消费组和旧 Doris 表，移除 Doris sink 后仍可更新 ES 配置。虚拟表、无采集关联的路由表及第三方纯
+查询表不分配新名称、不声明链路。第三方 `__analysis__` 类表可以只有 BKBase RT，physical_tables
+为空时继续走 bk_sql 查询，不按表名后缀做特殊排除。is_sync_db=False 或
+create_storage_cluster_record=False 的路由注册入口不初始化物理表或历史记录。
 
-部署前应用 `0283_dorisstorage_table_version` 迁移。迁移只新增默认 0 的版本字段。
-
-虚拟表/路由表不拥有采集链路：DorisStorage 存在 origin_table_id、ResultTable 设置
-is_virtual_table，或没有 DataSourceResultTable 采集关联时，跳过版本分配和声明。
-日志路由接口传入的 is_sync_db=False 不初始化版本或物理表，即使 source_type=log 且未传 BKBase 表名。
-ResultTable 入口、日志/自定义格式任务入口及直接 DataLink 声明入口均遵守该边界；
-查询路由仍按原流程更新，实体存储的版本和物理表不会因虚拟表更新而改变。
-第三方查询表即使存在数据源关联，若没有 log_v4_data_link/custom_format_v4_data_link 中的
-Doris 写入配置，也不属于监控管理的写入表。此类表允许 physical_tables 为空；查询路由继续
-使用 storage_type=bk_sql 和已记录的 bkbase_table_id，不探测或补造物理表名，不递增版本。
-例如 __analysis__ 分析查询表可以只关联已有 BKBase RT，source_type=bkdata、origin_table_id 为空，
-且没有监控 DataLink 关联。这不等同于需要修复物理表同步；判定依据是采集关联和写入配置，
-不依赖表名后缀，也不因为 physical_tables 为空而主动创建资源。
-`create_storage_cluster_record=False` 严格表示不创建历史记录，也不初始化版本和物理表名；
-该入口供路由表/虚拟表注册查询配置使用，正常采集表沿用默认 True。
-
-Doris 写入资格仅约束 Doris 版本管理，不能作为整条链路的禁用条件。版本化双写切为 ES-only 时，
-仍更新原 Databus 的 sinks（移除 Doris sink），保留共享 RT、消费组及旧 DorisStorage/Binding/历史。
-后续 ES 字段和清洗配置可继续声明。默认存储不是 Doris 的链路沿用原入口；默认仍为 Doris 但
-已显式配置 ES/VM 写入目标的链路也不被查询表过滤拦截。Doris 版本化的组件复用、清理保护、
-RT 回填及状态汇总过滤仅作用于 bk_log/custom_format_doris，不影响独立 ES、VM 等其他策略。
+历史查询直接使用每条记录的 bkbase_table_id，缺失时沿用当前 BKBase RT，不依赖版本号。
+历史分段表示本地配置切换时间，不代表精确实际写入时间。查询端仍按分段时间裁剪并默认保留
+前后 1 小时重叠；若下发失败或延迟超过窗口，旧表仍接收的数据可能漏出查询范围，后续单独处理。
+本次不部署、不做真实 Doris 验收。

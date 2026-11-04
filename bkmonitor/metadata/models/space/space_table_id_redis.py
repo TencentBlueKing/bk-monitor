@@ -640,7 +640,6 @@ class SpaceTableIDRedis:
                 "storage_cluster_id",
                 "bkbase_table_id",
                 "physical_tables",
-                "table_version",
                 "origin_table_id",
             )
         )
@@ -731,7 +730,6 @@ class SpaceTableIDRedis:
                 "storage_cluster_id",
                 "bkbase_table_id",
                 "physical_tables",
-                "table_version",
                 "origin_table_id",
             )
         }
@@ -860,9 +858,7 @@ class SpaceTableIDRedis:
                             "storage_type": "bk_sql",
                             "storage_name": cluster["cluster_name"],
                             "cluster_name": cluster["cluster_name"],
-                            "db": (record["bkbase_table_id"] or doris_db)
-                            if (target_doris.get("table_version") or origin_doris.get("table_version"))
-                            else doris_db,
+                            "db": record["bkbase_table_id"] or doris_db,
                             "measurement": models.ClusterInfo.TYPE_DORIS,
                             "enable_time": record["enable_timestamp"],
                             **{

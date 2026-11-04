@@ -2,6 +2,7 @@
 
 import datetime
 import json
+import re
 
 from django.db import transaction
 from django.utils import timezone
@@ -102,7 +103,7 @@ def advance_table_version(storage, operator):
     from metadata.models.data_link.data_link_configs import DorisStorageBindingConfig
 
     legacy_binding = None
-    if storage.table_version == 0:
+    if not storage.datalink_table_name:
         legacy_binding = (
             DorisStorageBindingConfig.objects.filter(bk_tenant_id=storage.bk_tenant_id, table_id=storage.table_id)
             .order_by("-last_modify_time")
@@ -138,10 +139,12 @@ def advance_table_version(storage, operator):
             record.bkbase_table_id = old_rt
         record.save(update_fields=["physical_tables", "bkbase_table_id"])
         records.update(is_current=False, disable_time=now)
-    storage.table_version += 1
-    storage.bkbase_table_id = f"{biz_id}_{storage.versioned_name}"
-    storage.physical_tables = {"main": f"{database}.{storage.versioned_name}"}
-    storage.save(update_fields=["table_version", "bkbase_table_id", "physical_tables"])
+    current_name = storage.datalink_table_name
+    version = int(current_name.rsplit("_v", 1)[1]) + 1 if current_name else 1
+    table_name = f"bkm_doris_{storage.pk}_v{version}"
+    storage.bkbase_table_id = f"{biz_id}_{table_name}"
+    storage.physical_tables = {"main": f"{database}.{table_name}"}
+    storage.save(update_fields=["bkbase_table_id", "physical_tables"])
     # 首次创建可直接补齐 create_table 已建立的空分段。
     current = records.first() if not old_physical else None
     if current is None:
@@ -169,10 +172,9 @@ def publish_doris_route(bk_tenant_id, table_id):
     SpaceTableIDRedis().push_table_id_detail(bk_tenant_id=bk_tenant_id, table_id_list=[table_id], is_publish=True)
 
 
-def versioned_storages(bk_tenant_id, table_ids):
-    from metadata.models import DorisStorage
-
-    return DorisStorage.objects.filter(bk_tenant_id=bk_tenant_id, table_id__in=table_ids, table_version__gt=0)
+def get_datalink_table_name(storage_id, physical_tables):
+    name = (physical_tables.get("main") or "").partition(".")[2]
+    return name if re.fullmatch(rf"bkm_doris_{storage_id}_v[1-9][0-9]*", name) else None
 
 
 def is_query_only_doris_table(result_table):

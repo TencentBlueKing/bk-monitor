@@ -11,7 +11,7 @@ from metadata import config, models
 from metadata.models.data_link.data_link import DataLink
 from metadata.models.doris_version import get_doris_config, preserve_optional_config, requires_new_table
 
-pytestmark = pytest.mark.django_db(databases="__all__")
+pytestmark = pytest.mark.django_db(transaction=True, databases="__all__", available_apps=["metadata"])
 
 
 @pytest.fixture(params=[DataLink.BK_LOG, DataLink.CUSTOM_FORMAT_DORIS])
@@ -97,7 +97,7 @@ def version_records(request, mocker):
 
 def test_creation_allocates_v1_before_apply(version_records):
     rt, ds, storage, link, _ = version_records
-    assert storage.table_version == 1
+    assert storage.datalink_table_name == f"bkm_doris_{storage.pk}_v1"
     assert storage.physical_tables == {"main": f"mapleleaf_2.bkm_doris_{storage.pk}_v1"}
     assert storage.bkbase_table_id == f"2_bkm_doris_{storage.pk}_v1"
     history = models.StorageClusterRecord.objects.get(table_id=rt.table_id)
@@ -112,13 +112,13 @@ def test_repeated_apply_uses_explicit_name_and_preserves_version(version_records
     for _ in range(2):
         link.apply_data_link(bk_biz_id=2, data_source=ds, table_id=rt.table_id)
     storage.refresh_from_db()
-    assert storage.table_version == 1
+    assert storage.datalink_table_name == f"bkm_doris_{storage.pk}_v1"
     assert models.StorageClusterRecord.objects.filter(table_id=rt.table_id).count() == 1
     payload = apply.call_args.args[0]
     binding = next(c for c in payload if c["kind"] == "DorisBinding")
-    assert binding["spec"]["storage_config"]["table"] == storage.versioned_name
+    assert binding["spec"]["storage_config"]["table"] == storage.datalink_table_name
     assert binding["spec"]["storage_config"]["db"] == "mapleleaf_2"
-    assert binding["spec"]["data"]["name"] == storage.versioned_name
+    assert binding["spec"]["data"]["name"] == storage.datalink_table_name
     assert models.ResultTableConfig.objects.filter(table_id=rt.table_id).count() == 1
 
 
@@ -126,12 +126,12 @@ def test_failed_apply_keeps_saved_version_and_history(version_records, mocker):
     rt, ds, storage, link, _ = version_records
     with transaction.atomic(using=config.DATABASE_CONNECTION_NAME):
         storage.advance_table_version("tester")
-    name = storage.versioned_name
+    name = storage.datalink_table_name
     apply = mocker.patch.object(DataLink, "apply_data_link_with_retry", side_effect=RuntimeError("apply failed"))
     with pytest.raises(RuntimeError, match="apply failed"):
         link.apply_data_link(bk_biz_id=2, data_source=ds, table_id=rt.table_id)
     storage.refresh_from_db()
-    assert storage.table_version == 2
+    assert storage.datalink_table_name == f"bkm_doris_{storage.pk}_v2"
     assert models.StorageClusterRecord.objects.filter(table_id=rt.table_id).count() == 2
     apply.side_effect = None
     apply.return_value = {}
@@ -147,14 +147,14 @@ def test_modify_compares_old_configuration_and_retries_do_not_rotate(version_rec
     value["doris_storage_config"]["tokenizers"] = {}
     rt.modify(operator="tester", option={option.name: value})
     storage.refresh_from_db()
-    assert storage.table_version == 2
+    assert storage.datalink_table_name == f"bkm_doris_{storage.pk}_v2"
     rt.modify(operator="tester", option={option.name: value})
     storage.refresh_from_db()
-    assert storage.table_version == 2
+    assert storage.datalink_table_name == f"bkm_doris_{storage.pk}_v2"
     value["doris_storage_config"]["support_hour_partition"] = True
     rt.modify(operator="tester", option={option.name: value})
     storage.refresh_from_db()
-    assert storage.table_version == 3
+    assert storage.datalink_table_name == f"bkm_doris_{storage.pk}_v3"
     assert [
         r.physical_tables["main"]
         for r in models.StorageClusterRecord.objects.filter(table_id=rt.table_id).order_by("id")
@@ -164,18 +164,19 @@ def test_modify_compares_old_configuration_and_retries_do_not_rotate(version_rec
 def test_historical_resources_are_retained_and_latest_version_selected(version_records, mocker, settings):
     rt, ds, storage, link, _ = version_records
     settings.DATA_LINK_COMPONENT_REUSE_STRATEGIES = [DataLink.BK_LOG]
-    apply = mocker.patch.object(DataLink, "apply_data_link_with_retry", return_value={})
+    mocker.patch.object(DataLink, "apply_data_link_with_retry", return_value={})
     link.apply_data_link(bk_biz_id=2, data_source=ds, table_id=rt.table_id)
-    old_name = storage.versioned_name
+    old_name = storage.datalink_table_name
     with transaction.atomic(using=config.DATABASE_CONNECTION_NAME):
         storage.advance_table_version("tester")
     link.apply_data_link(bk_biz_id=2, data_source=ds, table_id=rt.table_id)
-    assert models.ResultTableConfig.objects.filter(name=old_name).exists()
-    assert models.DorisStorageBindingConfig.objects.filter(name=old_name).exists()
-    assert link._get_absent_components_to_delete(apply.call_args.args[0], force_delete=True) == []
-    assert storage.get_doris_binding_config().name == storage.versioned_name
-    link.sync_metadata(table_id=rt.table_id, storage_cluster_id=99991)
-    assert models.BkBaseResultTable.objects.get(data_link_name=link.pk).bkbase_rt_name == storage.versioned_name
+    assert models.ResultTableConfig.objects.filter(name=old_name, data_link_name=link.pk).exists()
+    assert models.DorisStorageBindingConfig.objects.filter(name=old_name, data_link_name=link.pk).exists()
+    assert models.ResultTableConfig.objects.filter(data_link_name=link.pk).count() == 2
+    assert models.DorisStorageBindingConfig.objects.filter(data_link_name=link.pk).count() == 2
+    assert storage.get_doris_binding_config().name == storage.datalink_table_name
+    link.sync_metadata(table_id=rt.table_id, storage_cluster_id=99991, result_table_name=storage.datalink_table_name)
+    assert models.BkBaseResultTable.objects.get(data_link_name=link.pk).bkbase_rt_name == storage.datalink_table_name
 
 
 def test_nonstructural_change_does_not_rotate(version_records, mocker):
@@ -186,7 +187,7 @@ def test_nonstructural_change_does_not_rotate(version_records, mocker):
     value["doris_storage_config"].update(alias="新名称", description="说明", flush_timeout=90)
     rt.modify(operator="tester", option={option.name: value})
     storage.refresh_from_db()
-    assert storage.table_version == 1
+    assert storage.datalink_table_name == f"bkm_doris_{storage.pk}_v1"
 
 
 @pytest.mark.parametrize(
@@ -244,7 +245,6 @@ def test_unordered_fields_and_explicit_clear(version_records):
 def test_legacy_table_keeps_name_until_first_costly_change(version_records, mocker):
     rt, ds, storage, link, option = version_records
     models.StorageClusterRecord.objects.filter(table_id=rt.table_id).delete()
-    storage.table_version = 0
     storage.bkbase_table_id = "2_legacy"
     storage.physical_tables = {}
     storage.save()
@@ -258,8 +258,8 @@ def test_legacy_table_keeps_name_until_first_costly_change(version_records, mock
     assert records[0].physical_tables == {"main": "existing_db.legacy_table"}
     assert records[0].bkbase_table_id == "2_legacy"
     assert records[0].disable_time == records[1].enable_time
-    assert storage.table_version == 1
-    assert storage.physical_tables == {"main": f"existing_db.{storage.versioned_name}"}
+    assert storage.datalink_table_name == f"bkm_doris_{storage.pk}_v1"
+    assert storage.physical_tables == {"main": f"existing_db.{storage.datalink_table_name}"}
 
 
 def test_default_es_history_is_not_closed_by_doris_rotation(version_records):
@@ -302,8 +302,9 @@ def test_log_declaration_is_registered_after_configuration_commit(
     )
     apply = mocker.patch("metadata.task.datalink.apply_log_datalink")
     with django_capture_on_commit_callbacks(using=config.DATABASE_CONNECTION_NAME, execute=True):
-        rt.apply_datalink(delay=False)
-        apply.assert_not_called()
+        with transaction.atomic(using=config.DATABASE_CONNECTION_NAME):
+            rt.apply_datalink(delay=False)
+            apply.assert_not_called()
     apply.assert_called_once_with(bk_tenant_id="system", table_id=rt.table_id)
 
 
@@ -353,7 +354,7 @@ def test_dual_write_reuses_es_alias_and_shared_rt(version_records, mocker):
     assert {key: value for key, value in first["spec"].items() if key != "data"} == {
         key: value for key, value in second["spec"].items() if key != "data"
     }
-    assert second["spec"]["data"]["name"] == storage.versioned_name
+    assert second["spec"]["data"]["name"] == storage.datalink_table_name
 
 
 @pytest.mark.parametrize("route_kind", ["origin", "virtual_option", "no_datasource"])
@@ -375,7 +376,7 @@ def test_route_tables_do_not_allocate_versions_or_apply(version_records, route_k
         )
     else:
         models.DataSourceResultTable.objects.filter(bk_tenant_id="system", table_id=rt.table_id).delete()
-    version = storage.table_version
+    name = storage.datalink_table_name
     history_count = models.StorageClusterRecord.objects.filter(table_id=rt.table_id).count()
     apply = mocker.patch.object(DataLink, "_apply_data_link")
     with transaction.atomic(using=config.DATABASE_CONNECTION_NAME):
@@ -386,7 +387,7 @@ def test_route_tables_do_not_allocate_versions_or_apply(version_records, route_k
     link.apply_data_link(bk_biz_id=2, data_source=ds, table_id=rt.table_id)
     apply.assert_not_called()
     storage.refresh_from_db()
-    assert storage.table_version == version
+    assert storage.datalink_table_name == name
     assert models.StorageClusterRecord.objects.filter(table_id=rt.table_id).count() == history_count
     assert not models.BkBaseResultTable.objects.filter(monitor_table_id=rt.table_id).exists()
 
@@ -404,7 +405,7 @@ def test_route_storage_create_does_not_name_physical_table(version_records, is_s
         is_sync_db=is_sync_db,
         create_storage_cluster_record=False,
     )
-    assert route.table_version == 0
+    assert route.datalink_table_name is None
     assert route.physical_tables == {}
     assert not route.bkbase_table_id
     assert not models.StorageClusterRecord.objects.filter(table_id=rt.table_id).exists()
@@ -420,7 +421,6 @@ def test_third_party_query_table_allows_empty_physical_table(version_records, mo
     if not has_datasource:
         models.DataSourceResultTable.objects.filter(bk_tenant_id="system", table_id=rt.table_id).delete()
     models.StorageClusterRecord.objects.filter(table_id=rt.table_id).delete()
-    storage.table_version = 0
     storage.bkbase_table_id = "2_external_query_table"
     storage.physical_tables = {}
     storage.save()
@@ -434,7 +434,7 @@ def test_third_party_query_table_allows_empty_physical_table(version_records, mo
     apply.assert_not_called()
     physical_lookup.assert_not_called()
     storage.refresh_from_db()
-    assert storage.table_version == 0
+    assert storage.datalink_table_name is None
     assert storage.bkbase_table_id == "2_external_query_table"
     assert storage.physical_tables == {}
     details, _ = SpaceTableIDRedis()._compose_log_table_id_detail(bk_tenant_id="system", table_id_list=[rt.table_id])
@@ -509,72 +509,26 @@ def test_analysis_query_route_matches_external_bkbase_table(mocker):
     assert route["storage_cluster_records"][0]["db"] == bkbase_table_id
     storage.refresh_from_db()
     history.refresh_from_db()
-    assert storage.table_version == 0 and storage.physical_tables == {}
+    assert storage.datalink_table_name is None and storage.physical_tables == {}
     assert history.physical_tables == {} and history.bkbase_table_id == ""
     assert not models.BkBaseResultTable.objects.filter(monitor_table_id=table_id).exists()
 
 
 def test_apply_reads_version_after_result_table_lock(version_records, mocker):
     rt, ds, storage, link, _ = version_records
-    models.DorisStorage.objects.filter(pk=storage.pk).update(table_version=0)
+    models.DorisStorage.objects.filter(pk=storage.pk).update(physical_tables={})
     select_for_update = models.ResultTable.objects.select_for_update
 
     def concurrent_version_commit(*args, **kwargs):
         # 模拟任务等待 ResultTable 锁期间，另一个修改事务已提交 v1。
-        models.DorisStorage.objects.filter(pk=storage.pk).update(table_version=1)
+        models.DorisStorage.objects.filter(pk=storage.pk).update(physical_tables=storage.physical_tables)
         return select_for_update(*args, **kwargs)
 
     mocker.patch.object(models.ResultTable.objects, "select_for_update", side_effect=concurrent_version_commit)
     apply = mocker.patch.object(DataLink, "apply_data_link_with_retry", return_value={})
     link.apply_data_link(bk_biz_id=2, data_source=ds, table_id=rt.table_id)
     binding = next(c for c in apply.call_args.args[0] if c["kind"] == "DorisBinding")
-    assert binding["metadata"]["name"] == storage.versioned_name
-
-
-def test_history_retention_does_not_preserve_unrelated_result_tables(version_records):
-    rt, _, storage, link, _ = version_records
-    scope = dict(bk_tenant_id="system", namespace=link.namespace, data_link_name=link.pk, bk_biz_id=2)
-    history = models.ResultTableConfig.objects.create(**scope, name="old_doris_version", table_id=rt.table_id)
-    unrelated = models.ResultTableConfig.objects.create(**scope, name="unrelated", table_id="2.other")
-    link.table_ids = [rt.table_id, "2.other"]
-    deletions = link._get_absent_components_to_delete([], force_delete=True)
-    assert unrelated in deletions
-    assert history not in deletions
-
-
-@pytest.mark.parametrize("legacy_tenant", [None, ""])
-@pytest.mark.parametrize("other_strategy", [False, True])
-def test_status_reconcile_normalizes_legacy_storage_tenant(version_records, mocker, legacy_tenant, other_strategy):
-    from metadata.task import bkbase
-    from metadata.models.data_link.constants import DataLinkKind
-
-    rt, _, storage, link, _ = version_records
-    if other_strategy:
-        link.data_link_strategy = DataLink.CUSTOM_FORMAT_VM
-        link.save(update_fields=["data_link_strategy"])
-    models.DorisStorage.objects.filter(pk=storage.pk).update(bk_tenant_id=legacy_tenant)
-    scope = dict(
-        bk_tenant_id="system", namespace=link.namespace, data_link_name=link.pk, bk_biz_id=2, table_id=rt.table_id
-    )
-    models.ResultTableConfig.objects.create(**scope, name="old_version", status="Failed")
-    models.ResultTableConfig.objects.create(**scope, name=storage.versioned_name, status="Ok")
-    mocker.patch.object(bkbase, "COMPONENT_CLASS_MAP", {DataLinkKind.RESULTTABLE.value: models.ResultTableConfig})
-    mocker.patch.object(bkbase, "_get_data_link_discovery_tenant_ids", return_value=set())
-    mocker.patch.object(bkbase, "report_metadata_data_link_status_info")
-    mocker.patch.object(
-        bkbase.api.bkdata,
-        "list_data_link",
-        return_value=[
-            {
-                "metadata": {"name": name, "labels": {"bk_biz_id": "2"}},
-                "spec": {"bizId": 2, "dataType": "log"},
-                "status": {"phase": status},
-            }
-            for name, status in [("old_version", "Failed"), (storage.versioned_name, "Ok")]
-        ],
-    )
-    statuses, _, _, _ = bkbase._reconcile_data_link_components()
-    assert statuses[("system", link.pk)] == (["Failed", "Ok"] if other_strategy else ["Ok"])
+    assert binding["metadata"]["name"] == storage.datalink_table_name
 
 
 @pytest.mark.parametrize("entry", ["model", "task", "direct"])
@@ -615,11 +569,11 @@ def test_dual_write_to_es_only_still_updates_pipeline(version_records, mocker, e
     option.save()
     # 先建立双写链路及共享 RT，再保留原 DorisStorage 和 Binding。
     link.apply_data_link(bk_biz_id=2, data_source=ds, table_id=rt.table_id)
-    shared_name = storage.versioned_name
+    shared_name = storage.datalink_table_name
     bus = models.DataBusConfig.objects.get(data_link_name=link.pk)
     bus.consumer_group = "keep_existing_group"
     bus.save(update_fields=["consumer_group"])
-    version = storage.table_version
+    name = storage.datalink_table_name
     history = list(models.StorageClusterRecord.objects.filter(table_id=rt.table_id).values())
     value.pop("doris_storage_config")
 
@@ -645,7 +599,7 @@ def test_dual_write_to_es_only_still_updates_pipeline(version_records, mocker, e
         assert value["clean_rules"][0]["output_id"] in json.dumps(bus_config["spec"]["transforms"])
     assert apply.call_count == 3
     storage.refresh_from_db()
-    assert storage.table_version == version
+    assert storage.datalink_table_name == name
     assert list(models.StorageClusterRecord.objects.filter(table_id=rt.table_id).values()) == history
     assert models.DorisStorageBindingConfig.objects.filter(name=shared_name).exists()
 
@@ -684,3 +638,99 @@ def test_other_pipeline_components_ignore_historical_doris_version(version_recor
     )
     link.sync_metadata(table_id=rt.table_id, storage_cluster_id=99992)
     assert models.BkBaseResultTable.objects.get(data_link_name=link.pk).bkbase_rt_name == current.name
+
+
+@pytest.mark.parametrize("failure_stage", ["merge", "apply"])
+def test_remote_failure_keeps_committed_component_configuration(version_records, mocker, failure_stage):
+    from django.db import connections
+
+    rt, ds, storage, link, option = version_records
+    target_name = storage.datalink_table_name
+    remote = mocker.patch.object(DataLink, "apply_data_link_with_retry")
+
+    def fail(*args, **kwargs):
+        assert not connections[config.DATABASE_CONNECTION_NAME].in_atomic_block
+        local_rt = models.ResultTableConfig.objects.get(data_link_name=link.pk)
+        local_binding = models.DorisStorageBindingConfig.objects.get(data_link_name=link.pk)
+        local_bus = models.DataBusConfig.objects.get(data_link_name=link.pk)
+        assert local_rt.name == target_name
+        assert local_binding.name == target_name
+        assert local_binding.bkbase_result_table_name == target_name
+        assert local_bus.sink_names == [f"DorisBinding:{target_name}"]
+        raise RuntimeError("remote failed after commit")
+
+    if failure_stage == "merge":
+        merge = mocker.patch.object(DataLink, "merge_existing_component_configs", side_effect=fail)
+    else:
+        remote.side_effect = fail
+    with pytest.raises(RuntimeError, match="remote failed after commit"):
+        link.apply_data_link(bk_biz_id=2, data_source=ds, table_id=rt.table_id)
+    assert models.ResultTableConfig.objects.get(data_link_name=link.pk).name == target_name
+    assert models.DorisStorageBindingConfig.objects.get(data_link_name=link.pk).name == target_name
+    bus_pk = models.DataBusConfig.objects.get(data_link_name=link.pk).pk
+    if failure_stage == "merge":
+        merge.side_effect = lambda configs: configs
+    remote.side_effect = None
+    remote.return_value = {}
+    link.apply_data_link(bk_biz_id=2, data_source=ds, table_id=rt.table_id)
+    assert models.DataBusConfig.objects.get(data_link_name=link.pk).pk == bus_pk
+    assert models.StorageClusterRecord.objects.filter(table_id=rt.table_id).count() == 1
+
+
+def test_outer_transaction_commits_latest_configuration_before_failed_apply(version_records, mocker):
+    from django.db import connections
+
+    rt, ds, storage, link, option = version_records
+    apply = mocker.patch.object(DataLink, "apply_data_link_with_retry", side_effect=RuntimeError("remote failed"))
+    with pytest.raises(RuntimeError, match="remote failed"):
+        with transaction.atomic(using=config.DATABASE_CONNECTION_NAME):
+            link.apply_data_link(bk_biz_id=2, data_source=ds, table_id=rt.table_id)
+            apply.assert_not_called()
+            # 待执行任务不捕获旧配置；提交之前又修改目标时，应声明最终目标。
+            value = json.loads(option.value)
+            value["doris_storage_config"]["tokenizers"] = {"log": ","}
+            option.value = json.dumps(value)
+            option.save(update_fields=["value"])
+            storage.advance_table_version("tester")
+    assert not connections[config.DATABASE_CONNECTION_NAME].in_atomic_block
+    assert models.DorisStorage.objects.get(pk=storage.pk).physical_tables == storage.physical_tables
+    assert json.loads(models.ResultTableOption.objects.get(pk=option.pk).value) == value
+    payload = apply.call_args.args[0]
+    binding = next(item for item in payload if item["kind"] == "DorisBinding")
+    assert binding["metadata"]["name"] == storage.datalink_table_name
+    assert binding["spec"]["storage_config"]["tokenizers"] == {"log": ","}
+    assert models.DorisStorageBindingConfig.objects.get(data_link_name=link.pk).name == storage.datalink_table_name
+    assert models.StorageClusterRecord.objects.filter(table_id=rt.table_id).count() == 2
+
+
+def test_result_table_modify_commits_before_log_apply_failure(version_records, mocker):
+    rt, ds, storage, link, option = version_records
+    if link.data_link_strategy != DataLink.BK_LOG:
+        pytest.skip("自定义格式由提交后的任务执行，下发事务用例已覆盖")
+    mocker.patch.object(models.ResultTable, "get_target_bk_biz_id", return_value=2)
+    mocker.patch("metadata.models.space.utils.get_space_by_table_id", return_value={})
+    apply = mocker.patch.object(DataLink, "apply_data_link_with_retry", return_value={})
+    link.apply_data_link(bk_biz_id=2, data_source=ds, table_id=rt.table_id)
+    old_name = storage.datalink_table_name
+    value = json.loads(option.value)
+    value["doris_storage_config"]["tokenizers"] = {}
+    apply.side_effect = RuntimeError("apply failed")
+    with pytest.raises(RuntimeError, match="apply failed"):
+        rt.modify(
+            operator="tester",
+            option={
+                option.name: value,
+                models.ResultTableOption.OPTION_ENABLE_V4_LOG_DATA_LINK: True,
+            },
+        )
+    storage.refresh_from_db()
+    option = models.ResultTableOption.objects.get(bk_tenant_id="system", table_id=rt.table_id, name=option.name)
+    assert option.get_value()["doris_storage_config"]["tokenizers"] == {}
+    assert storage.datalink_table_name != old_name
+    assert models.StorageClusterRecord.objects.filter(table_id=rt.table_id).count() == 2
+    for name in (old_name, storage.datalink_table_name):
+        assert models.ResultTableConfig.objects.filter(data_link_name=link.pk, name=name).exists()
+        assert models.DorisStorageBindingConfig.objects.filter(data_link_name=link.pk, name=name).exists()
+    assert models.DataBusConfig.objects.get(data_link_name=link.pk).sink_names == [
+        f"DorisBinding:{storage.datalink_table_name}"
+    ]

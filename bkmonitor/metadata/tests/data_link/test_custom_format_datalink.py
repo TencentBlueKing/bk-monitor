@@ -694,7 +694,6 @@ def test_custom_format_influxdb_result_table_can_target_vm(mocker, custom_format
             bk_tenant_id="system",
             table_id=result_table.table_id,
             storage_cluster_id=99991,
-            table_version=1,
             bkbase_table_id="2_old_doris",
             physical_tables={"main": "db.old_doris"},
         )
@@ -723,7 +722,6 @@ def test_apply_custom_format_datalink_accepts_influxdb_vm_target(mocker, custom_
             bk_tenant_id="system",
             table_id=result_table.table_id,
             storage_cluster_id=99991,
-            table_version=1,
             bkbase_table_id="2_old_doris",
             physical_tables={"main": "db.old_doris"},
         )

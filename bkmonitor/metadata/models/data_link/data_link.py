@@ -17,7 +17,7 @@ from functools import partial
 from typing import TYPE_CHECKING, Any, Literal
 
 from django.conf import settings
-from django.db import models, transaction
+from django.db import connections, models, transaction
 from tenacity import RetryError, retry, stop_after_attempt, wait_exponential
 
 from constants.apm import normalize_app_name
@@ -1369,6 +1369,13 @@ class DataLink(models.Model):
                     if existing_context is not None
                     else None
                 )
+                if doris_rt_name:
+                    existing_binding = ESStorageBindingConfig.objects.filter(
+                        bk_tenant_id=self.bk_tenant_id,
+                        namespace=self.namespace,
+                        data_link_name=self.data_link_name,
+                        table_id=table_id,
+                    ).first()
                 binding_name = existing_binding.name if existing_binding is not None else self.data_link_name
                 binding, _ = ESStorageBindingConfig.objects.update_or_create(
                     bk_tenant_id=self.bk_tenant_id,
@@ -1470,6 +1477,12 @@ class DataLink(models.Model):
             existing_databus = (
                 existing_context.claim(DataBusConfig, lambda c: True) if existing_context is not None else None
             )
+            if doris_rt_name:
+                existing_databus = DataBusConfig.objects.filter(
+                    bk_tenant_id=self.bk_tenant_id,
+                    namespace=self.namespace,
+                    data_link_name=self.data_link_name,
+                ).first()
             databus_name = existing_databus.name if existing_databus is not None else self.data_link_name
             databus_data_id_name = (
                 existing_databus.data_id_name
@@ -2956,7 +2969,12 @@ class DataLink(models.Model):
         table_id = arguments.get("table_id")
         if table_id is None:
             return self._apply_data_link(*args, **kwargs)
-        # 先锁结果表，再读取是否由监控管理及当前版本，避免 v0 -> v1 时走旧声明路径。
+        if not DorisStorage.objects.filter(bk_tenant_id=self.bk_tenant_id, table_id=table_id).exists():
+            return self._apply_data_link(*args, **kwargs)
+        # 外层配置事务完成后再开始声明；只捕获调用参数，不捕获旧配置 payload。
+        if connections[DATABASE_CONNECTION_NAME].in_atomic_block:
+            transaction.on_commit(partial(self.apply_data_link, *args, **kwargs), using=DATABASE_CONNECTION_NAME)
+            return
         with transaction.atomic(using=DATABASE_CONNECTION_NAME):
             table_record = ResultTable.objects.select_for_update().get(
                 bk_tenant_id=self.bk_tenant_id, table_id=table_id
@@ -2964,18 +2982,20 @@ class DataLink(models.Model):
             if is_query_only_doris_table(table_record):
                 return
             storage = DorisStorage.objects.filter(bk_tenant_id=self.bk_tenant_id, table_id=table_id).first()
-            if storage is None or not storage.table_version:
-                return self._apply_data_link(*args, **kwargs)
-            database, table = storage.physical_tables["main"].split(".", 1)
-            kwargs.update(
-                doris_rt_name=storage.versioned_name,
-                doris_binding_name=storage.versioned_name,
-                doris_database=database,
-                doris_table=table,
-            )
-            return self._apply_data_link(*args, **kwargs)
+            if storage and storage.datalink_table_name:
+                database, table = storage.physical_tables["main"].split(".", 1)
+                kwargs.update(
+                    doris_rt_name=storage.datalink_table_name,
+                    doris_binding_name=storage.datalink_table_name,
+                    doris_database=database,
+                    doris_table=table,
+                )
+            submit = self._apply_data_link(*args, _prepare_only=True, **kwargs)
+        # 本地组件与目标引用已经提交，远端合并/下发失败不会撤销配置变更。
+        submit()
+        return kwargs.get("doris_rt_name")
 
-    def _apply_data_link(self, *args, **kwargs):
+    def _apply_data_link(self, *args, _prepare_only=False, **kwargs):
         """
         组装配置并下发数据链路
         声明BkBaseResultTable -> 组装链路资源配置 -> 调用API申请
@@ -3071,12 +3091,11 @@ class DataLink(models.Model):
                     ResultTable.objects.select_for_update().get(bk_tenant_id=self.bk_tenant_id, table_id=table_id)
                 if require_name_reuse:
                     type(self).objects.select_for_update().get(pk=self.pk)
+                # Doris 已提供明确目标身份，按名称新建/更新，不进入通用复用候选池。
                 existing_context = (
                     ExistingComponentContext.from_datalink(self)
-                    if require_name_reuse
-                    or enable_reuse
-                    or force_cleanup_absent_components
-                    or kwargs.get("doris_rt_name")
+                    if not kwargs.get("doris_rt_name")
+                    and (require_name_reuse or enable_reuse or force_cleanup_absent_components)
                     else None
                 )
                 configs: list[dict[str, Any]] = self.compose_configs(
@@ -3103,73 +3122,85 @@ class DataLink(models.Model):
             logger.error("apply_data_link: data_link_name->[%s] compose config error->[%s]", self.data_link_name, e)
             raise e
 
-        # 本地组件及引用已提交；后续合并远端配置或下发失败时，重试仍读取同一组资源名称。
-        configs = self.merge_existing_component_configs(configs)
-        if databus_prefer_cluster is not None:
-            for config in configs:
-                if config.get("kind") == DataLinkKind.DATABUS.value:
-                    # 配置优先；未配置时保留合并得到的远端 preferCluster。
-                    config["spec"]["preferCluster"] = dict(databus_prefer_cluster)
-        if data_source is None and self.bk_data_id:
-            from metadata.models.data_source import DataSource
+        def submit(configs=configs, data_source=data_source):
+            # 本地组件及引用已提交；后续合并远端配置或下发失败时，重试仍读取同一组资源名称。
+            configs = self.merge_existing_component_configs(configs)
+            if databus_prefer_cluster is not None:
+                for config in configs:
+                    if config.get("kind") == DataLinkKind.DATABUS.value:
+                        # 配置优先；未配置时保留合并得到的远端 preferCluster。
+                        config["spec"]["preferCluster"] = dict(databus_prefer_cluster)
+            if data_source is None and self.bk_data_id:
+                from metadata.models.data_source import DataSource
 
-            data_source = DataSource.objects.filter(
-                bk_tenant_id=self.bk_tenant_id,
-                bk_data_id=self.bk_data_id,
-            ).first()
-        if data_source is None:
-            logger.warning(
-                "apply_data_link: data_source missing, skip databus monitor labels, data_link_name->[%s]",
+                data_source = DataSource.objects.filter(
+                    bk_tenant_id=self.bk_tenant_id,
+                    bk_data_id=self.bk_data_id,
+                ).first()
+            if data_source is None:
+                logger.warning(
+                    "apply_data_link: data_source missing, skip databus monitor labels, data_link_name->[%s]",
+                    self.data_link_name,
+                )
+            else:
+                monitor_labels = compose_databus_monitor_labels(
+                    strategy=self.data_link_strategy,
+                    table=self._get_databus_monitor_label_table(),
+                    data_source=data_source,
+                )
+                self._inject_databus_monitor_labels(configs, monitor_labels)
+            if databus_option_labels:
+                for config in configs:
+                    if config.get("kind") == DataLinkKind.DATABUS.value:
+                        config["metadata"].setdefault("labels", {}).update(databus_option_labels)
+            # Doris 换表保留历史组件及其 DataLink 关联，只声明本次目标。
+            components_to_delete = (
+                []
+                if kwargs.get("doris_rt_name")
+                else self._get_absent_components_to_delete(
+                    configs,
+                    force_delete=force_cleanup_absent_components,
+                )
+            )
+
+            logger.info(
+                "apply_data_link: data_link_name->[%s],strategy->[%s] try to use configs->[%s] to apply",
                 self.data_link_name,
+                self.data_link_strategy,
+                configs,
             )
-        else:
-            monitor_labels = compose_databus_monitor_labels(
-                strategy=self.data_link_strategy,
-                table=self._get_databus_monitor_label_table(),
-                data_source=data_source,
+            try:
+                response = self.apply_data_link_with_retry(configs)
+            except RetryError as e:
+                logger.error(
+                    "apply_data_link: data_link_name->[%s] retry error->[%s]", self.data_link_name, e.__cause__
+                )
+                # 抛出底层错误原因，而非直接RetryError
+                raise e.__cause__ if e.__cause__ else e
+            except Exception as e:  # pylint: disable=broad-except
+                logger.error("apply_data_link: data_link_name->[%s] apply error->[%s]", self.data_link_name, e)
+                raise e
+
+            logger.info(
+                "apply_data_link: data_link_name->[%s],strategy->[%s] response->[%s]",
+                self.data_link_name,
+                self.data_link_strategy,
+                response,
             )
-            self._inject_databus_monitor_labels(configs, monitor_labels)
-        if databus_option_labels:
-            for config in configs:
-                if config.get("kind") == DataLinkKind.DATABUS.value:
-                    config["metadata"].setdefault("labels", {}).update(databus_option_labels)
-        components_to_delete = self._get_absent_components_to_delete(
-            configs,
-            force_delete=force_cleanup_absent_components,
-        )
+            self._cleanup_absent_components(components_to_delete)
+            # 仅在远端下发成功后解除停用状态，交由周期任务汇总组件状态。
+            BkBaseResultTable.objects.filter(
+                bk_tenant_id=self.bk_tenant_id,
+                data_link_name=self.data_link_name,
+                status=DataLinkResourceStatus.TERMINATING.value,
+            ).update(status=DataLinkResourceStatus.INITIALIZING.value)
+            if should_update_bkbase_rt_storage_type:
+                bkbase_rt_record.storage_type = storage_type
+                bkbase_rt_record.save(update_fields=["storage_type"])
 
-        logger.info(
-            "apply_data_link: data_link_name->[%s],strategy->[%s] try to use configs->[%s] to apply",
-            self.data_link_name,
-            self.data_link_strategy,
-            configs,
-        )
-        try:
-            response = self.apply_data_link_with_retry(configs)
-        except RetryError as e:
-            logger.error("apply_data_link: data_link_name->[%s] retry error->[%s]", self.data_link_name, e.__cause__)
-            # 抛出底层错误原因，而非直接RetryError
-            raise e.__cause__ if e.__cause__ else e
-        except Exception as e:  # pylint: disable=broad-except
-            logger.error("apply_data_link: data_link_name->[%s] apply error->[%s]", self.data_link_name, e)
-            raise e
-
-        logger.info(
-            "apply_data_link: data_link_name->[%s],strategy->[%s] response->[%s]",
-            self.data_link_name,
-            self.data_link_strategy,
-            response,
-        )
-        self._cleanup_absent_components(components_to_delete)
-        # 仅在远端下发成功后解除停用状态，交由周期任务汇总组件状态。
-        BkBaseResultTable.objects.filter(
-            bk_tenant_id=self.bk_tenant_id,
-            data_link_name=self.data_link_name,
-            status=DataLinkResourceStatus.TERMINATING.value,
-        ).update(status=DataLinkResourceStatus.INITIALIZING.value)
-        if should_update_bkbase_rt_storage_type:
-            bkbase_rt_record.storage_type = storage_type
-            bkbase_rt_record.save(update_fields=["storage_type"])
+        if _prepare_only:
+            return submit
+        return submit()
 
     @classmethod
     def _fill_missing_dict(cls, target: dict[str, Any], existing: dict[str, Any]) -> None:
@@ -3389,13 +3420,6 @@ class DataLink(models.Model):
             for config in configs
             if (identity := self._component_identity_from_config(config, self.bk_tenant_id)) is not None
         }
-        from metadata.models.doris_version import versioned_storages
-
-        doris_history_table_ids = (
-            set(versioned_storages(self.bk_tenant_id, self.table_ids).values_list("table_id", flat=True))
-            if self.data_link_strategy in {self.BK_LOG, self.CUSTOM_FORMAT_DORIS}
-            else set()
-        )
         components_to_delete: list[DataLinkResourceConfigBase] = []
         for component_class in ALL_DATA_LINK_COMPONENT_KINDS:
             policy = self._leftover_policy(component_class)
@@ -3409,11 +3433,6 @@ class DataLink(models.Model):
                 data_link_name=self.data_link_name,
             )
             for component in components:
-                if (
-                    component_class in (ResultTableConfig, DorisStorageBindingConfig)
-                    and component.table_id in doris_history_table_ids
-                ):
-                    continue
                 identity = (
                     component.kind,
                     component.bk_tenant_id,
@@ -3487,9 +3506,11 @@ class DataLink(models.Model):
         storage_cluster_name: str | None = None,
         storage_type: str | None = None,
         storage_cluster_id: int | None = None,
+        result_table_name: str | None = None,
     ):
         """
         从本次 apply 落库的 ResultTableConfig / DataBusConfig 读实名回填 BkBaseResultTable。
+        result_table_name 可显式指定本次声明的 RT，避免保留历史资源时按更新时间选错。
 
         集群定位支持两种方式（二选一，``storage_cluster_id`` 优先）：
         - 方式一：传 ``storage_cluster_id``，直接查 ``ClusterInfo`` 反查 ``cluster_type``。
@@ -3538,15 +3559,8 @@ class DataLink(models.Model):
             rt_queryset = rt_queryset.filter(
                 data_type="graph" if resolved_storage_type == ClusterInfo.TYPE_SURREALDB else "metric"
             )
-        from metadata.models.doris_version import versioned_storages
-
-        doris_storage = (
-            versioned_storages(self.bk_tenant_id, [table_id]).first()
-            if self.data_link_strategy in {self.BK_LOG, self.CUSTOM_FORMAT_DORIS}
-            else None
-        )
-        if doris_storage:
-            rt_queryset = rt_queryset.filter(name=doris_storage.versioned_name)
+        if result_table_name is not None:
+            rt_queryset = rt_queryset.filter(name=result_table_name)
         rt_queryset = rt_queryset.order_by("-last_modify_time", "-id")
         rt_count = rt_queryset.count()
         rt = rt_queryset.first()
