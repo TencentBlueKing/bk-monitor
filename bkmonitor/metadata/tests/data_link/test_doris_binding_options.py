@@ -75,3 +75,34 @@ def test_doris_tokenizers_from_option_to_binding(doris_binding, config_model, to
 def test_doris_tokenizers_reject_invalid_types(config_model, tokenizers):
     with pytest.raises(pydantic.ValidationError, match="tokenizers"):
         config_model(storage_keys=[], tokenizers=tokenizers)
+
+
+@pytest.mark.parametrize(
+    "config_model", [LogV4DataLinkOption.DorisStorageConfig, CustomFormatV4DataLinkOption.DorisStorageConfig]
+)
+def test_regular_doris_options_and_explicit_table_name(doris_binding, config_model):
+    option = config_model(
+        storage_keys=["time", "host"],
+        table_type="duplicate_table",
+        unique_partition_table=False,
+        support_hour_partition=True,
+        use_lowercase_field=True,
+        alias="日志表",
+        description='说明"\\',
+    )
+    content = doris_binding.compose_config(
+        storage_cluster_name="doris",
+        expires="7d",
+        database="logs",
+        table="bkm_doris_1_v2",
+        **option.model_dump(),
+    )
+    storage = content["spec"]["storage_config"]
+    assert storage["table"] == "bkm_doris_1_v2"
+    assert storage["db"] == "logs"
+    assert storage["table_type"] == "duplicate_table"
+    assert storage["unique_partition_table"] is False
+    assert storage["support_hour_partition"] is True
+    assert storage["use_lowercase_field"] is True
+    assert content["spec"]["alias"] == "日志表"
+    assert content["spec"]["description"] == '说明"\\'

@@ -674,6 +674,10 @@ class DataLink(models.Model):
         storage_cluster_name: str = "",
         inner_kafka_channel_name: str = "",
         consumer_group: str | None = None,
+        doris_rt_name: str | None = None,
+        doris_binding_name: str | None = None,
+        doris_database: str | None = None,
+        doris_table: str | None = None,
     ) -> list[dict[str, Any]]:
         """组装自定义格式的 VM、Elasticsearch 或 Doris 单目标链路。"""
         from metadata.models import ResultTableOption
@@ -706,7 +710,14 @@ class DataLink(models.Model):
             vm_whitelist = self._compose_custom_format_vm_whitelist(table_id)
         data_id_name = utils.get_registered_bkdata_data_id_name(data_source, namespace=self.namespace)
         clean_name = f"{self.data_link_name}_clean"
-        clean_consumer_group = consumer_group or f"bkmonitor_{self.data_link_name}_clean"
+        existing_clean = DataBusConfig.objects.filter(
+            bk_tenant_id=self.bk_tenant_id, namespace=self.namespace, name=clean_name
+        ).first()
+        clean_consumer_group = consumer_group or (
+            existing_clean.consumer_group
+            if existing_clean and existing_clean.consumer_group
+            else f"bkmonitor_{self.data_link_name}_clean"
+        )
         clean_transform = {
             "kind": "Clean",
             "rules": clean_rules,
@@ -719,7 +730,7 @@ class DataLink(models.Model):
                 bk_biz_id=bk_biz_id,
                 namespace=self.namespace,
                 data_link_name=self.data_link_name,
-                name=self.data_link_name,
+                name=doris_rt_name or self.data_link_name,
                 defaults={"table_id": table_id, "data_type": "log"},
             )
             configs: list[dict[str, Any]] = [result_table.compose_config(fields=fields)]
@@ -764,7 +775,7 @@ class DataLink(models.Model):
                     bk_biz_id=bk_biz_id,
                     namespace=self.namespace,
                     data_link_name=self.data_link_name,
-                    name=self.data_link_name,
+                    name=doris_binding_name or self.data_link_name,
                     defaults={
                         "table_id": table_id,
                         "bkbase_result_table_name": result_table.name,
@@ -779,6 +790,14 @@ class DataLink(models.Model):
                         json_fields=storage_option.json_fields,
                         field_config_group=storage_option.field_config_group,
                         tokenizers=storage_option.tokenizers,
+                        table_type=storage_option.table_type,
+                        unique_partition_table=storage_option.unique_partition_table,
+                        support_hour_partition=storage_option.support_hour_partition,
+                        use_lowercase_field=storage_option.use_lowercase_field,
+                        alias=storage_option.alias,
+                        description=storage_option.description,
+                        database=doris_database,
+                        table=doris_table,
                         original_json_fields=storage_option.original_json_fields,
                         expires=f"{storage.expire_days}d",
                         flush_timeout=storage_option.flush_timeout,
@@ -1284,6 +1303,10 @@ class DataLink(models.Model):
         table_id: str,
         existing_context: ExistingComponentContext | None = None,
         consumer_group: str | None = None,
+        doris_rt_name: str | None = None,
+        doris_binding_name: str | None = None,
+        doris_database: str | None = None,
+        doris_table: str | None = None,
     ) -> list[dict[str, Any]]:
         """生成日志链路配置
 
@@ -1322,7 +1345,7 @@ class DataLink(models.Model):
             existing_rt = (
                 existing_context.claim(ResultTableConfig, lambda c: True) if existing_context is not None else None
             )
-            rt_name = existing_rt.name if existing_rt is not None else self.data_link_name
+            rt_name = doris_rt_name or (existing_rt.name if existing_rt is not None else self.data_link_name)
 
             # 创建结果表配置
             result_table, _ = ResultTableConfig.objects.update_or_create(
@@ -1390,7 +1413,9 @@ class DataLink(models.Model):
                     if existing_context is not None
                     else None
                 )
-                binding_name = existing_binding.name if existing_binding is not None else self.data_link_name
+                binding_name = doris_binding_name or (
+                    existing_binding.name if existing_binding is not None else self.data_link_name
+                )
                 binding, _ = DorisStorageBindingConfig.objects.update_or_create(
                     bk_tenant_id=self.bk_tenant_id,
                     bk_biz_id=bk_biz_id,
@@ -1410,6 +1435,14 @@ class DataLink(models.Model):
                         json_fields=storage_option.json_fields,
                         field_config_group=storage_option.field_config_group,
                         tokenizers=storage_option.tokenizers,
+                        table_type=storage_option.table_type,
+                        unique_partition_table=storage_option.unique_partition_table,
+                        support_hour_partition=storage_option.support_hour_partition,
+                        use_lowercase_field=storage_option.use_lowercase_field,
+                        alias=storage_option.alias,
+                        description=storage_option.description,
+                        database=doris_database,
+                        table=doris_table,
                         original_json_fields=storage_option.original_json_fields,
                         expires=f"{doris_storage.expire_days}d",
                         flush_timeout=storage_option.flush_timeout,
@@ -2911,6 +2944,34 @@ class DataLink(models.Model):
             metadata["labels"].update(monitor_labels)
 
     def apply_data_link(self, *args, **kwargs):
+        if self.data_link_strategy not in {self.BK_LOG, self.CUSTOM_FORMAT_DORIS}:
+            return self._apply_data_link(*args, **kwargs)
+        from metadata.models import ResultTable
+
+        compose_kwargs = {
+            key: value for key, value in kwargs.items() if key not in {"cleanup_absent_components", "storage_type"}
+        }
+        arguments = inspect.signature(self._get_compose_method()).bind_partial(*args, **compose_kwargs).arguments
+        table_id = arguments.get("table_id")
+        storage_query = DorisStorage.objects.filter(
+            bk_tenant_id=self.bk_tenant_id, table_id=table_id, table_version__gt=0
+        )
+        if not storage_query.exists():
+            return self._apply_data_link(*args, **kwargs)
+        # 串行声明与修改，旧任务执行时读取最新版本，不回放捕获的旧目标。
+        with transaction.atomic(using=DATABASE_CONNECTION_NAME):
+            ResultTable.objects.select_for_update().get(bk_tenant_id=self.bk_tenant_id, table_id=table_id)
+            storage = storage_query.get()
+            database, table = storage.physical_tables["main"].split(".", 1)
+            kwargs.update(
+                doris_rt_name=storage.versioned_name,
+                doris_binding_name=storage.versioned_name,
+                doris_database=database,
+                doris_table=table,
+            )
+            return self._apply_data_link(*args, **kwargs)
+
+    def _apply_data_link(self, *args, **kwargs):
         """
         组装配置并下发数据链路
         声明BkBaseResultTable -> 组装链路资源配置 -> 调用API申请
@@ -3008,7 +3069,10 @@ class DataLink(models.Model):
                     type(self).objects.select_for_update().get(pk=self.pk)
                 existing_context = (
                     ExistingComponentContext.from_datalink(self)
-                    if require_name_reuse or enable_reuse or force_cleanup_absent_components
+                    if require_name_reuse
+                    or enable_reuse
+                    or force_cleanup_absent_components
+                    or kwargs.get("doris_rt_name")
                     else None
                 )
                 configs: list[dict[str, Any]] = self.compose_configs(
@@ -3321,8 +3385,13 @@ class DataLink(models.Model):
             for config in configs
             if (identity := self._component_identity_from_config(config, self.bk_tenant_id)) is not None
         }
+        from metadata.models.doris_version import versioned_storages
+
+        keep_doris_history = versioned_storages(self.bk_tenant_id, self.table_ids).exists()
         components_to_delete: list[DataLinkResourceConfigBase] = []
         for component_class in ALL_DATA_LINK_COMPONENT_KINDS:
+            if keep_doris_history and component_class in (ResultTableConfig, DorisStorageBindingConfig):
+                continue
             policy = self._leftover_policy(component_class)
             if not force_delete and policy != "delete":
                 continue
@@ -3458,6 +3527,11 @@ class DataLink(models.Model):
             rt_queryset = rt_queryset.filter(
                 data_type="graph" if resolved_storage_type == ClusterInfo.TYPE_SURREALDB else "metric"
             )
+        from metadata.models.doris_version import versioned_storages
+
+        doris_storage = versioned_storages(self.bk_tenant_id, [table_id]).first()
+        if doris_storage:
+            rt_queryset = rt_queryset.filter(name=doris_storage.versioned_name)
         rt_queryset = rt_queryset.order_by("-last_modify_time", "-id")
         rt_count = rt_queryset.count()
         rt = rt_queryset.first()

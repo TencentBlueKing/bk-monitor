@@ -1137,6 +1137,14 @@ class DorisStorageBindingConfig(DataLinkResourceConfigBase):
         flush_timeout: int | None,
         rt_name: str | None = None,
         tokenizers: dict[str, str] | None = None,
+        table_type: str | None = None,
+        unique_partition_table: bool | None = None,
+        support_hour_partition: bool | None = None,
+        use_lowercase_field: bool | None = None,
+        database: str | None = None,
+        table: str | None = None,
+        alias: str | None = None,
+        description: str | None = None,
     ) -> dict[str, Any]:
         """
         组装Doris存储绑定配置
@@ -1216,11 +1224,25 @@ class DorisStorageBindingConfig(DataLinkResourceConfigBase):
         if settings.ENABLE_MULTI_TENANT_MODE:
             render_params["tenant"] = self.bk_tenant_id
 
-        return utils.compose_config(
+        content = utils.compose_config(
             tpl=tpl,
             render_params=render_params,
             err_msg_prefix="compose doris storage binding config",
         )
+        for key, value in {
+            "db": database,
+            "table": table,
+            "table_type": table_type,
+            "unique_partition_table": unique_partition_table,
+            "support_hour_partition": support_hour_partition,
+            "use_lowercase_field": use_lowercase_field,
+        }.items():
+            if value is not None:
+                content["spec"]["storage_config"][key] = value
+        for key, value in {"alias": alias, "description": description}.items():
+            if value is not None:
+                content["spec"][key] = value
+        return content
 
 
 class SurrealDBBindingConfig(DataLinkResourceConfigBase):

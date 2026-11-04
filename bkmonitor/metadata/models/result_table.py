@@ -710,7 +710,19 @@ class ResultTable(models.Model):
         elif self.default_storage in [ClusterInfo.TYPE_ES, ClusterInfo.TYPE_DORIS]:
             # 日志 V4 数据链路
             if options and options.get(ResultTableOption.OPTION_ENABLE_V4_LOG_DATA_LINK, False):
-                apply_log_datalink(bk_tenant_id=self.bk_tenant_id, table_id=self.table_id)
+                log_option = options.get(ResultTableOption.OPTION_V4_LOG_DATA_LINK, {})
+                if isinstance(log_option, str):
+                    log_option = json.loads(log_option)
+                if log_option.get("doris_storage_config") is not None:
+                    # 先提交期望版本和历史；远端部分成功后重试仍声明同一个版本。
+                    on_commit(
+                        lambda tenant=self.bk_tenant_id, table=self.table_id: apply_log_datalink(
+                            bk_tenant_id=tenant, table_id=table
+                        ),
+                        using=config.DATABASE_CONNECTION_NAME,
+                    )
+                else:
+                    apply_log_datalink(bk_tenant_id=self.bk_tenant_id, table_id=self.table_id)
             # 事件组 V4 数据链路
             elif datasource.etl_config == EtlConfigs.BK_STANDARD_V2_EVENT.value:
                 apply_event_group_datalink(bk_tenant_id=self.bk_tenant_id, table_id=self.table_id)
@@ -1334,6 +1346,12 @@ class ResultTable(models.Model):
             self.bk_tenant_id,
         )
 
+        from metadata.models.doris_version import get_doris_config, preserve_optional_config, requires_new_table
+
+        old_doris_config = get_doris_config(self.table_id, self.bk_tenant_id)
+        if option is not None:
+            option = dict(option)
+            preserve_optional_config(option, old_doris_config)
         old_default_storage = self.default_storage
         old_is_enable = self.is_enable
         old_active_cluster_id = self._get_storage_cluster_id(old_default_storage)
@@ -1727,6 +1745,16 @@ class ResultTable(models.Model):
                 default_cluster_storage.storage_cluster_id,
                 switched,
             )
+
+        new_doris_config = get_doris_config(self.table_id, self.bk_tenant_id)
+        if (
+            old_doris_config is not None
+            and new_doris_config is not None
+            and requires_new_table(old_doris_config, new_doris_config)
+        ):
+            doris_storage = DorisStorage.objects.get(table_id=self.table_id, bk_tenant_id=self.bk_tenant_id)
+            if not doris_storage.origin_table_id:
+                doris_storage.advance_table_version(operator)
 
         # 异步执行时，需要在commit之后，以保证所有操作都提交
         try:
@@ -3106,6 +3134,12 @@ class LogV4DataLinkOption(pydantic.BaseModel):
         field_config_group: dict[str, Any] = pydantic.Field(description="字段配置组", default_factory=dict)
         tokenizers: dict[str, str] | None = pydantic.Field(description="字段自定义分词规则", default=None)
         flush_timeout: int | None = pydantic.Field(description="刷新超时时间(s)，默认为60秒", default=None)
+        table_type: Literal["primary_table", "primary_partition_table", "duplicate_table"] | None = None
+        unique_partition_table: bool | None = None
+        support_hour_partition: bool | None = None
+        use_lowercase_field: bool | None = None
+        alias: str | None = pydantic.Field(default=None, min_length=2, max_length=100)
+        description: str | None = pydantic.Field(default=None, max_length=256)
 
     class CleanRule(pydantic.BaseModel):
         """清洗规则"""

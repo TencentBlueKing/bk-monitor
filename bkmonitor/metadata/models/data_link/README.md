@@ -457,3 +457,47 @@ Admin 使用现有 `admin.datalink.component_list`、`component_detail`、`compo
 - `metadata/models/data_link/service.py`
 - `metadata/models/data_link/utils.py`
 - `metadata/models/data_link/constants.py`
+
+### 普通 Doris 表版本化声明
+
+日志和自定义格式 Doris 链路由监控主动指定物理库表名。新建表从
+`bkm_doris_<DorisStorage.id>_v1` 开始，RT、DorisBinding 与物理表同名；
+数据库沿用现有生成规则，换表时保留原数据库。存量记录迁移后 `table_version=0`，
+不主动改名；第一次有代价变更才进入 `_v1` 序列。虚拟存储和 Profiling 专用链路不独立分配版本。
+
+`ResultTable.modify` 在现有行锁内比较修改前后的字段和 Doris option。
+分词新增/修改/清空、字段分组（search_zh/search_en/bloomfilter 等）、存储键、JSON 字段、
+已有字段类型、字段删除、表模型及分区参数变化会递增版本。普通字段新增、字段说明和无序集合
+重排不递增版本；storage_keys 的顺序具有意义。时间类型变化按字段类型处理，
+没有额外的精度参数，清洗时间格式变化不触发换表。
+
+配置入口为两类链路共用的 `doris_storage_config`，增加以下可选项：
+
+| 参数 | 首次创建默认行为 | 修改行为 |
+| --- | --- | --- |
+| table_type | primary_table；亦支持 primary_partition_table、duplicate_table | 换表 |
+| unique_partition_table | true | 换表 |
+| support_hour_partition | false；实际能力遵循 BKBase 表模型支持范围 | 换表 |
+| use_lowercase_field | false | 换表 |
+| alias、description | 不额外声明；description 支持空字符串 | 原地更新 |
+
+新增可选参数以及 tokenizers 省略/null 时保留已有配置，tokenizers 显式 `{}` 表示清空。
+json_fields、original_json_fields 和 field_config_group 的空集合也是清空声明。
+保留期继续取 DorisStorage.expire_days；flush_timeout 原地更新。
+不开放 db/table 和 Profiling 的 is_profiling、sample/label 表名。
+
+版本、BKBase RT、物理表名和 StorageClusterRecord 在本地事务中先保存，提交后按原流程
+一次 apply RT、Binding、Databus，不拆分建表/切换、不等待远端命名或就绪。
+DataLink 不增加目标配置字段，也不负责递增版本；任务执行时读取当前版本，失败重试反复声明
+同一组名称。普通修改、相同配置重提和重复 apply 不增加历史记录。
+
+历史分段表示本地配置切换时间，不代表精确实际写入时间。apply 失败仍保留已提交版本、
+期望物理表和历史，旧物理资源不删除。ES/Doris 双写继续沿用 ES 写别名及消费组，
+ES 为默认存储时 Doris 的开放时间段不占用 is_current 标记。
+版本化历史路由分别使用每一版本的 BKBase RT，旧 Binding 状态不参与当前链路状态汇总。
+
+**已知限制：** 本次不修改查询端。现有查询端按分段时间选择存储并默认保留前后 1 小时重叠；
+若下发失败或延迟超过该窗口，旧表仍在接收的数据可能不在查询候选范围内。保留历史表不等同于
+无限时长的失败期查询覆盖，后续单独处理。真实 Doris 建表、写入及查询验收也留待专项执行。
+
+部署前应用 `0283_dorisstorage_table_version` 迁移。迁移只新增默认 0 的版本字段。

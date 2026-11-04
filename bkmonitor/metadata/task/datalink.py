@@ -614,10 +614,19 @@ def apply_log_datalink(bk_tenant_id: str, table_id: str):
             datalink.data_link_name,
         )
         es_binding_config.delete_config()
-    doris_binding_config = DorisStorageBindingConfig.objects.filter(
+    doris_bindings = DorisStorageBindingConfig.objects.filter(
         bk_tenant_id=bk_tenant_id, data_link_name=datalink.data_link_name
-    ).first()
-    if not datalink_config.doris_storage_config and doris_binding_config:
+    )
+    if doris_storage and doris_storage.table_version:
+        doris_bindings = doris_bindings.filter(name=doris_storage.versioned_name)
+    doris_binding_config = doris_bindings.first()
+    if (
+        not datalink_config.doris_storage_config
+        and doris_binding_config
+        and not (
+            DorisStorage.objects.filter(bk_tenant_id=bk_tenant_id, table_id=table_id, table_version__gt=0).exists()
+        )
+    ):
         logger.info(
             "apply_log_v4_datalink: tenant(%s) %s doris storage binding config delete, data_link_name->[%s]",
             bk_tenant_id,

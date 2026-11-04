@@ -6311,6 +6311,8 @@ class DorisStorage(models.Model, StorageResultTable):
     PRIMARY_TABLE_TYPE = "primary_table"  # 主键模型
     DUPLICATE_TABLE_TYPE = "duplicate_table"  # 明细模型
 
+    table_version = models.PositiveIntegerField("物理表版本", default=0)
+
     table_id = models.CharField("结果表ID", max_length=128)
     bk_tenant_id = models.CharField("租户ID", max_length=256, null=True, default="system")
     bkbase_table_id = models.CharField("bkbase表名", max_length=128, null=True)
@@ -6329,6 +6331,15 @@ class DorisStorage(models.Model, StorageResultTable):
     class Meta:
         verbose_name = "Doris存储表"
         verbose_name_plural = "Doris存储表"
+
+    @property
+    def versioned_name(self):
+        return f"bkm_doris_{self.pk}_v{self.table_version}"
+
+    def advance_table_version(self, operator):
+        from metadata.models.doris_version import advance_table_version
+
+        advance_table_version(self, operator)
 
     @classmethod
     def get_by_table_id(cls, bk_tenant_id: str, table_id: str) -> "DorisStorage":
@@ -6398,13 +6409,12 @@ class DorisStorage(models.Model, StorageResultTable):
         from metadata.models.data_link.data_link_configs import DorisStorageBindingConfig
 
         effective_storage = self.get_effective_storage()
-        binding_config = (
-            DorisStorageBindingConfig.objects.filter(
-                bk_tenant_id=effective_storage.bk_tenant_id, table_id=effective_storage.table_id
-            )
-            .order_by("-last_modify_time")
-            .first()
+        bindings = DorisStorageBindingConfig.objects.filter(
+            bk_tenant_id=effective_storage.bk_tenant_id, table_id=effective_storage.table_id
         )
+        if effective_storage.table_version:
+            bindings = bindings.filter(name=effective_storage.versioned_name)
+        binding_config = bindings.order_by("-last_modify_time").first()
         if not binding_config:
             raise ValueError(f"DorisStorageBindingConfig 不存在: table_id={effective_storage.table_id}")
         return binding_config
@@ -6424,8 +6434,9 @@ class DorisStorage(models.Model, StorageResultTable):
         doris_binding = doris_binding or self.get_doris_binding_metadata()
         metadata = doris_binding.get("metadata") or {}
         annotations = metadata.get("annotations") or {}
-        physical_table_name = annotations.get("PhysicalTableName")
-        source = "metadata.annotations.PhysicalTableName"
+        annotation_key = "physical_table_name" if annotations.get("physical_table_name") else "PhysicalTableName"
+        physical_table_name = annotations.get(annotation_key)
+        source = f"metadata.annotations.{annotation_key}"
 
         if physical_table_name:
             database, table = self._split_physical_table_name(physical_table_name)
@@ -6939,6 +6950,8 @@ class DorisStorage(models.Model, StorageResultTable):
                         enable_time=django_timezone.make_aware(datetime.datetime(1970, 1, 1)),
                         defaults={"is_current": True},
                     )
+                if source_type == "log" and not origin_table_id and not bkbase_table_id:
+                    new_record.advance_table_version(operator="system")
                 logger.info("CreateDorisStorage: create Doris storage table[%s] success", new_record.table_id)
         except Exception as e:  # pylint: disable=broad-except
             logger.error("CreateDorisStorage: create Doris storage table[%s] failed, error[%s]", table_id, e)
