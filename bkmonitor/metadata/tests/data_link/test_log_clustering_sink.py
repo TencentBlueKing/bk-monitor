@@ -28,6 +28,13 @@ from metadata.models.data_link.data_link_configs import (
 RAW_SINK = {"kind": "ElasticSearchBinding", "name": "bkm_raw_es_binding", "namespace": "bklog"}
 KAFKA_RESOURCE = {"kind": "Kafka", "name": "registered_clustering_kafka", "namespace": "bklog"}
 PATTERN_RESOURCE = {"kind": "ElasticSearch", "name": "registered_pattern_es", "namespace": "bklog"}
+RUNTIME_CLUSTER = {"kind": "DatabusCluster", "name": "quix-runtime", "namespace": "quix"}
+RECOVERY_RESOURCE = {"kind": "ElasticSearch", "name": "context-es", "namespace": "bklog"}
+PATTERN_STORE = {
+    "result_table": {"kind": "ResultTable", "name": "shared-patterns", "namespace": "bklog"},
+    "es_binding": {"kind": "ElasticSearchBinding", "name": "shared-patterns-es", "namespace": "bklog"},
+}
+PATTERN_INDEX = "physical-patterns"
 BINDING = {
     "task_id": "0f1d2c3b-4a59-4e6f-8a7b-9c0d1e2f3a4b",
     "index_id": "24466",
@@ -48,7 +55,6 @@ BINDING = {
     "log_filter": [{"key": "level", "method": "eq", "value": ["ERROR", "WARN"], "condition": ""}],
     "input_mapping": {"log": "log", "timestamp": "dtEventTimeStamp"},
     "distance_threshold": "0.5",
-    "pattern_index": "log-clustering-24466-pattern",
     "state_index": "log-clustering-24466-state",
     "max_message_bytes": 1048576,
 }
@@ -64,7 +70,9 @@ def build_sink(**overrides) -> LogClusteringSinkConfig:
         "table_id": "2_bklog.demo",
         "binding": BINDING,
         "kafka_resource": KAFKA_RESOURCE,
-        "pattern_resource": PATTERN_RESOURCE,
+        "pattern_store": PATTERN_STORE,
+        "runtime_cluster": RUNTIME_CLUSTER,
+        "recovery_resource": RECOVERY_RESOURCE,
     }
     fields.update(overrides)
     return LogClusteringSinkConfig(**fields)
@@ -81,10 +89,13 @@ def test_compose_config_outputs_raw_sink_and_clustering(default_biz):
         "kind": "LogClusteringSink",
         "metadata": {"name": "bkm_lcs_50010_abcdefghijkl", "namespace": "bklog", "labels": {"bk_biz_id": "2"}},
         "spec": {
-            "rawSink": RAW_SINK,
+            "raw_sink": RAW_SINK,
             "clustering": {
-                "kafkaResource": KAFKA_RESOURCE,
-                "patternResource": PATTERN_RESOURCE,
+                "kafka_resource": KAFKA_RESOURCE,
+                "pattern_store": PATTERN_STORE,
+                "runtime_cluster": RUNTIME_CLUSTER,
+                "recovery_resource": RECOVERY_RESOURCE,
+                "result": {"mode": "update_original"},
                 "binding": BINDING,
             },
         },
@@ -115,7 +126,9 @@ def test_reference_omits_tenant_in_single_tenant_mode():
     }
 
 
-@pytest.mark.parametrize("empty_field", ["binding", "kafka_resource", "pattern_resource"])
+@pytest.mark.parametrize(
+    "empty_field", ["binding", "kafka_resource", "pattern_store", "runtime_cluster", "recovery_resource"]
+)
 def test_compose_config_rejects_incomplete_sink(empty_field, default_biz):
     with pytest.raises(ValueError, match=empty_field):
         build_sink(**{empty_field: {}}).compose_config(RAW_SINK)
@@ -292,15 +305,16 @@ def test_compose_log_configs_with_attached_sink_only_replaces_databus_sinks(log_
     es_binding_ref = {"kind": "ElasticSearchBinding", "name": LOG_DATA_LINK_NAME, "namespace": "bklog"}
     clustering_config = find_config(configs, "LogClusteringSink")
     assert clustering_config["metadata"]["name"] == sink.name
-    assert clustering_config["spec"]["rawSink"] == es_binding_ref
+    assert clustering_config["spec"]["raw_sink"] == es_binding_ref
     assert clustering_config["spec"]["clustering"]["binding"] == BINDING
 
     databus_config = find_config(configs, "Databus")
     plain_databus_config = find_config(plain_configs, "Databus")
     assert databus_config["spec"]["sinks"] == [sink.reference]
-    assert {key: value for key, value in databus_config["spec"].items() if key != "sinks"} == {
-        key: value for key, value in plain_databus_config["spec"].items() if key != "sinks"
+    assert {key: value for key, value in databus_config["spec"].items() if key not in ("sinks", "preferCluster")} == {
+        key: value for key, value in plain_databus_config["spec"].items() if key not in ("sinks", "preferCluster")
     }
+    assert databus_config["spec"]["preferCluster"] == RUNTIME_CLUSTER
     assert databus_config["spec"]["consumerGroup"] == "raw_consumer_group"
     assert databus_config["metadata"] == plain_databus_config["metadata"]
 
@@ -406,3 +420,22 @@ def test_explicit_clustering_switch_overrides_remote_value(default_biz):
     remote["spec"]["clustering"]["enabled"] = False
 
     assert DataLink.merge_component_config(remote, generated)["spec"]["clustering"]["enabled"] is True
+
+
+@override_settings(ENABLE_MULTI_TENANT_MODE=False)
+@pytest.mark.django_db(databases="__all__")
+def test_attached_clustering_runtime_overrides_table_option(log_datalink):
+    datalink = models.DataLink.objects.get(data_link_name=LOG_DATA_LINK_NAME)
+    datalink.table_ids = [LOG_TABLE_ID]
+    models.ResultTableOption.create_option(
+        table_id=LOG_TABLE_ID,
+        bk_tenant_id="system",
+        name=models.ResultTableOption.OPTION_DATABUS_PREFER_CLUSTER,
+        value={"name": "ordinary-runtime"},
+        creator="system",
+    )
+    sink = create_clustering_sink()
+    assert datalink._get_databus_prefer_cluster() == RUNTIME_CLUSTER
+    sink.attached = False
+    sink.save()
+    assert datalink._get_databus_prefer_cluster()["name"] == "ordinary-runtime"

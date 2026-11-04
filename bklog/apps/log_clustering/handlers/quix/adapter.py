@@ -123,11 +123,6 @@ def build_clustering_config(clustering_fields: str, filter_rules: list[dict]) ->
     }
 
 
-def build_index_names(index_set_id: int) -> tuple[str, str]:
-    """Pattern 与恢复状态索引名，首次开启时生成并保存在运行绑定中，重试和重开沿用"""
-    return f"log-clustering-{index_set_id}-pattern", f"log-clustering-{index_set_id}-state"
-
-
 def build_binding(runtime: LogClusteringRuntime, clustering_config: dict, max_message_bytes: int = None) -> dict:
     """
     组装 LogClusteringSink.spec.clustering.binding
@@ -142,7 +137,6 @@ def build_binding(runtime: LogClusteringRuntime, clustering_config: dict, max_me
         "log_filter": clustering_config["log_filter"],
         "input_mapping": clustering_config["input_mapping"],
         "distance_threshold": clustering_config["distance_threshold"],
-        "pattern_index": runtime.pattern_index,
         "state_index": runtime.state_index,
     }
     if max_message_bytes:

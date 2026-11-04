@@ -41,7 +41,7 @@ from apps.log_clustering.handlers.quix.config import get_quix_config
 from apps.log_clustering.models import ClusteringConfig, LogClusteringOperation, LogClusteringRuntime
 from apps.log_search.constants import InnerTag
 from apps.log_search.handlers.index_set import BaseIndexSetHandler
-from apps.log_search.models import LogIndexSet, Scenario
+from apps.log_search.models import LogIndexSet
 from bkm_space.utils import parse_space_uid
 from apps.utils.log import logger
 
@@ -285,7 +285,9 @@ class QuixClusteringOperationRunner:
             lambda: self._metadata_params(
                 binding=build_binding(self.runtime, clustering_config, self.quix_config.get("max_message_bytes")),
                 kafka_resource=self.quix_config["kafka_resource"],
-                pattern_resource=self.quix_config["pattern_resource"],
+                runtime_cluster=self.quix_config["runtime_cluster"],
+                recovery_resource=self.quix_config["recovery_resource"],
+                pattern_store=self.quix_config["pattern_store"],
             ),
         )
         result = TransferApi.set_log_clustering_config(params.copy())
@@ -328,9 +330,9 @@ class QuixClusteringOperationRunner:
             },
             pattern_label: {
                 "storage_type": pattern["storage_type"],
-                "source_type": Scenario.ES,
+                "source_type": pattern["source_type"],
                 "cluster_id": pattern["cluster_id"],
-                "index_set": pattern["pattern_index"],
+                "index_set": pattern["query_index"],
             },
         }
         for label, table in routes.items():

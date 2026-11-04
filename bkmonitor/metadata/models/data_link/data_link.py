@@ -501,7 +501,7 @@ class DataLink(models.Model):
         BASE_EVENT_V1: [ResultTableConfig, ESStorageBindingConfig, DataBusConfig],
         SYSTEM_PROC_PERF: [ResultTableConfig, VMStorageBindingConfig, BasereportSinkConfig, DataBusConfig],
         SYSTEM_PROC_PORT: [ResultTableConfig, VMStorageBindingConfig, BasereportSinkConfig, DataBusConfig],
-        # 删除链路时逆序处理：Databus 先于引用它的聚类 Sink，聚类 Sink 先于其 rawSink 指向的存储绑定
+        # 删除链路时逆序处理：Databus 先于引用它的聚类 Sink，聚类 Sink 先于其 raw_sink 指向的存储绑定
         BK_LOG: [
             ResultTableConfig,
             ESStorageBindingConfig,
@@ -1437,7 +1437,7 @@ class DataLink(models.Model):
             if not bingding_configs:
                 raise ValueError("至少需要一个存储绑定配置")
 
-            # 已接入日志聚类时，Databus 改为引用聚类 Sink，原存储绑定作为其 rawSink
+            # 已接入日志聚类时，Databus 改为引用聚类 Sink，原存储绑定作为其 raw_sink
             clustering_sink = self._claim_attached_log_clustering_sink(databus_sinks, existing_context)
             if clustering_sink is not None:
                 bingding_configs.append(clustering_sink.compose_config(raw_sink=databus_sinks[0]))
@@ -1467,12 +1467,16 @@ class DataLink(models.Model):
             )
             databus.apply_consumer_group(consumer_group)
 
+            databus_config = databus.compose_log_config(sinks=databus_sinks, rules=clean_rules)
+            if clustering_sink is not None:
+                databus_config["spec"]["preferCluster"] = dict(clustering_sink.runtime_cluster)
+
             # 组装配置
             config_list.extend(
                 [
                     result_table.compose_config(fields=fields),
                     *bingding_configs,
-                    databus.compose_log_config(sinks=databus_sinks, rules=clean_rules),
+                    databus_config,
                 ]
             )
 
@@ -1483,7 +1487,7 @@ class DataLink(models.Model):
         databus_sinks: list[dict[str, Any]],
         existing_context: ExistingComponentContext | None,
     ) -> LogClusteringSinkConfig | None:
-        """获取当前日志链路已接入 Databus 的聚类 Sink，其 rawSink 即本次生成的唯一 ES 存储绑定。
+        """获取当前日志链路已接入 Databus 的聚类 Sink，其 raw_sink 即本次生成的唯一 ES 存储绑定。
 
         Args:
             databus_sinks: 本次 compose 生成的原始存储绑定引用。
@@ -2890,7 +2894,18 @@ class DataLink(models.Model):
         return labels
 
     def _get_databus_prefer_cluster(self) -> dict[str, str] | None:
-        """读取单表链路的优先集群；只需配置 name，其余字段默认沿用链路上下文。"""
+        """聚类链路使用已绑定的专用集群，否则读取原单表优先集群。"""
+        clustering_sink = LogClusteringSinkConfig.objects.filter(
+            bk_tenant_id=self.bk_tenant_id,
+            namespace=self.namespace,
+            data_link_name=self.data_link_name,
+            attached=True,
+        ).first()
+        if clustering_sink is not None:
+            if not clustering_sink.runtime_cluster:
+                raise ValueError(f"log clustering sink({clustering_sink.name}) missing runtime_cluster")
+            return dict(clustering_sink.runtime_cluster)
+
         from metadata.models import ResultTableOption
 
         table_ids = {table_id for table_id in self.table_ids if table_id}
@@ -3191,7 +3206,11 @@ class DataLink(models.Model):
         # 聚类结果的写入目标和运行集群由 Sink 配置决定，更新过滤条件时沿用。
         # 只合并 clustering 的顶层字段；本次声明的 binding 必须完整替换。
         if merged_config.get("kind") == DataLinkKind.LOGCLUSTERINGSINK.value:
-            cls._fill_missing_dict(merged_config["spec"]["clustering"], existing_config["spec"].get("clustering", {}))
+            existing_clustering = existing_config["spec"].get("clustering", {})
+            cls._fill_missing_dict(merged_config["spec"]["clustering"], existing_clustering)
+            # 首次接入默认回写；更新配置不切换已有结果写入模式。
+            if "result" in existing_clustering:
+                merged_config["spec"]["clustering"]["result"] = existing_clustering["result"]
 
         return merged_config
 
