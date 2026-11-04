@@ -24,6 +24,7 @@ from apm_web.llm.resources import (
     CalculateByRangeResource,
     ListFlowsResource,
     ListSpansResource,
+    ListToolCallsResource,
     ListTracesResource,
     TokenStatisticsResource,
     TimeSeriesResource,
@@ -1032,6 +1033,99 @@ class ListTracesResourceTestCase(TestCase):
             },
         }
         self.assertEqual(item_for([tool_response_span])["output"], "file contents")
+
+
+class ListToolCallsResourceTestCase(TestCase):
+    def test_returns_core_fields_and_preserves_parallel_calls_and_events(self):
+        event = {"name": "exception", "attributes": {"exception.message": "tool failed"}}
+        spans = [
+            {
+                "span_id": "tool-1",
+                "attributes": {"gen_ai.tool.call.id": "call-1", "gen_ai.tool.name": "search"},
+                "start_time": 1234567,
+                "elapsed_time": 0,
+                "status": {"code": 2, "message": "tool failed"},
+                "events": [event],
+            },
+            {
+                "span_id": "tool-2",
+                "attributes": {"gen_ai.tool.call.id": "call-1", "gen_ai.tool.name": "search"},
+                "start_time": 1234568,
+                "elapsed_time": 10,
+                "status": {"code": 0, "message": ""},
+            },
+            {"span_id": "tool-without-call-id"},
+        ]
+        application = mock.Mock()
+        query = mock.Mock()
+        query.query_trace_tool_calls.return_value = spans
+        with (
+            mock.patch("apm_web.llm.resources.Application.objects.get", return_value=application) as get_app,
+            mock.patch("apm_web.llm.resources.get_query", return_value=query) as get_query,
+        ):
+            result = ListToolCallsResource().request({"bk_biz_id": 11, "app_name": "demo", "trace_id": "trace-1"})
+
+        get_app.assert_called_once_with(bk_biz_id=11, app_name="demo")
+        get_query.assert_called_once_with(application.build_data_sources.return_value)
+        query.query_trace_tool_calls.assert_called_once_with("trace-1")
+        self.assertEqual(result["trace_id"], "trace-1")
+        self.assertEqual(result["total"], 3)
+        self.assertEqual(
+            result["tool_calls"][0],
+            {
+                "span_id": "tool-1",
+                "tool_call_id": "call-1",
+                "tool_name": "search",
+                "start_time": 1234567,
+                "elapsed_time": 0,
+                "status": {"code": 2, "message": "tool failed"},
+                "events": [event],
+            },
+        )
+        self.assertEqual(result["tool_calls"][1]["tool_call_id"], "call-1")
+        self.assertEqual(result["tool_calls"][1]["status"], {"code": 0, "message": ""})
+        self.assertEqual(result["tool_calls"][1]["events"], [])
+        self.assertIsNone(result["tool_calls"][2]["tool_call_id"])
+
+    def test_empty_trace_returns_empty_list(self):
+        query = mock.Mock()
+        query.query_trace_tool_calls.return_value = []
+        with (
+            mock.patch("apm_web.llm.resources.Application.objects.get"),
+            mock.patch("apm_web.llm.resources.get_query", return_value=query),
+        ):
+            result = ListToolCallsResource().request({"bk_biz_id": 11, "app_name": "demo", "trace_id": "trace-1"})
+        self.assertEqual(result, {"trace_id": "trace-1", "total": 0, "tool_calls": []})
+
+    def test_query_failures_are_not_reported_as_empty_trace(self):
+        query = mock.Mock()
+        query.query_trace_tool_calls.side_effect = RuntimeError("query failed")
+        with (
+            mock.patch("apm_web.llm.resources.Application.objects.get"),
+            mock.patch("apm_web.llm.resources.get_query", return_value=query),
+            self.assertRaisesRegex(RuntimeError, "query failed"),
+        ):
+            ListToolCallsResource().perform_request({"bk_biz_id": 11, "app_name": "demo", "trace_id": "trace-1"})
+
+    def test_trace_id_is_required_and_cannot_be_blank(self):
+        for values in ({}, {"trace_id": ""}, {"trace_id": "   "}):
+            with self.subTest(values=values):
+                serializer = ListToolCallsResource.RequestSerializer(
+                    data={"bk_biz_id": 11, "app_name": "demo", **values}
+                )
+                self.assertFalse(serializer.is_valid())
+                self.assertIn("trace_id", serializer.errors)
+        fields = ListToolCallsResource.RequestSerializer().fields
+        self.assertNotIn("limit", fields)
+        self.assertNotIn("offset", fields)
+
+    def test_route_uses_existing_application_permissions(self):
+        from apm_web.llm.views import LLMViewSet
+
+        route = next(route for route in LLMViewSet.resource_routes if route.endpoint == "list_tool_calls")
+        self.assertEqual(route.method, "POST")
+        self.assertIs(route.resource_class, ListToolCallsResource)
+        self.assertEqual(len(LLMViewSet().get_permissions()), 1)
 
 
 class ListSpansResourceTestCase(TestCase):
