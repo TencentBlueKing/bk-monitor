@@ -126,7 +126,7 @@ export default () => {
             directives: [
               {
                 name: 'bk-tooltips',
-                value: content,
+                value: { content, interactive: false },
               },
             ],
           }),
@@ -136,7 +136,11 @@ export default () => {
               directives: [
                 {
                   name: 'bk-tooltips',
-                  value: { allowHTML: false, content: isLackIndexFields ? unionContent : displayName },
+                  value: {
+                    allowHTML: false,
+                    content: isLackIndexFields ? unionContent : displayName,
+                    interactive: false,
+                  },
                 },
               ],
               class: { 'lack-index-filed': isLackIndexFields },
@@ -159,7 +163,7 @@ export default () => {
             directives: [
               {
                 name: 'bk-tooltips',
-                value: $t('将字段从表格中移除'),
+                value: { content: $t('将字段从表格中移除'), interactive: false },
               },
             ],
             on: {
