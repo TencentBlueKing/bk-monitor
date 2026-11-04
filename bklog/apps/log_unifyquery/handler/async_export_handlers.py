@@ -419,11 +419,12 @@ class UnifyQueryUnionAsyncExportHandlers:
         if self.search_dict.get("sort_list"):
             search_dict = {
                 "index_set_ids": self.index_set_ids,
+                "bk_biz_id": self.unify_query_handler.bk_biz_id,
                 "start_time": self.search_dict.get("start_time"),
                 "end_time": self.search_dict.get("end_time"),
             }
             search_handler = UnionSearchHandler(search_dict=search_dict)
-            fields_result = search_handler.union_search_fields(data=search_dict)
+            fields_result = search_handler.unifyquery_union_search_fields(data=search_dict)
             fields = fields_result["fields"]
             UnifyQueryHandler.check_sort_list(fields, self.search_dict["sort_list"])
 
