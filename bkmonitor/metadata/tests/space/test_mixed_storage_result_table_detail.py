@@ -316,6 +316,7 @@ def test_push_doris_current_with_es_history_exact_detail():
     detail = _push_and_get_detail(bk_tenant_id=TENANT_ID, table_id=table_id)
 
     assert detail == {
+        "options": {},
         "storage_type": "bk_sql",
         "storage_id": DORIS_CLUSTER_ID,
         "storage_name": "doris-prod",
@@ -1408,3 +1409,118 @@ def test_none_and_empty_table_id_list_keep_tenant_full_refresh_compatibility(tab
 def test_empty_tenant_is_rejected():
     with pytest.raises(ValueError, match="bk_tenant_id is required"):
         SpaceTableIDRedis().push_table_id_detail(bk_tenant_id="")
+
+
+@pytest.mark.django_db(databases="__all__")
+@override_settings(ENABLE_MULTI_TENANT_MODE=True)
+@pytest.mark.parametrize("virtual", [False, True])
+@pytest.mark.parametrize("physical_tables", [{}, {"main": "db.log_*"}, {"sample": "db.sample", "label": "db.label"}])
+def test_doris_route_appends_only_populated_physical_fields(virtual, physical_tables):
+    entity = "2_bklog.physical_entity"
+    table_id = "2_bklog.physical_virtual" if virtual else entity
+    _create_cluster(
+        bk_tenant_id=TENANT_ID,
+        cluster_id=DORIS_CLUSTER_ID,
+        cluster_type=models.ClusterInfo.TYPE_DORIS,
+        cluster_name="doris-physical",
+    )
+    for rt_id in {entity, table_id}:
+        _create_result_table(bk_tenant_id=TENANT_ID, table_id=rt_id, default_storage=models.ClusterInfo.TYPE_DORIS)
+        _create_doris_storage(
+            bk_tenant_id=TENANT_ID,
+            table_id=rt_id,
+            cluster_id=DORIS_CLUSTER_ID,
+            bkbase_table_id="current_rt" if rt_id == entity else "",
+            index_set="",
+            origin_table_id=entity if rt_id != entity else None,
+        )
+    models.DorisStorage.objects.filter(bk_tenant_id=TENANT_ID, table_id=entity).update(physical_tables=physical_tables)
+    for index, (bkbase_rt, tables) in enumerate(
+        [
+            ("old_rt", {"main": "db.old_*"}),
+            ("", {}),
+            ("", {"main": "db.only_physical"}),
+            ("rt_only", {}),
+        ]
+    ):
+        models.StorageClusterRecord.objects.create(
+            bk_tenant_id=TENANT_ID,
+            table_id=entity,
+            cluster_id=DORIS_CLUSTER_ID,
+            enable_time=DORIS_ENABLE_TIME + datetime.timedelta(days=index),
+            creator="system",
+            bkbase_table_id=bkbase_rt,
+            physical_tables=tables,
+        )
+    detail = _push_and_get_detail(bk_tenant_id=TENANT_ID, table_id=table_id)
+    assert detail["db"] == "current_rt"
+    if physical_tables:
+        assert detail["physical_tables"] == physical_tables
+    else:
+        assert "physical_tables" not in detail
+    rt_only, physical_only, empty, old = detail["storage_cluster_records"]
+    assert rt_only["bkbase_table_id"] == "rt_only"
+    assert "physical_tables" not in rt_only
+    assert physical_only["physical_tables"] == {"main": "db.only_physical"}
+    assert "bkbase_table_id" not in physical_only
+    assert "physical_tables" not in empty and "bkbase_table_id" not in empty
+    assert old["bkbase_table_id"] == "old_rt"
+    assert old["physical_tables"] == {"main": "db.old_*"}
+
+
+@pytest.mark.django_db(databases="__all__")
+@override_settings(ENABLE_MULTI_TENANT_MODE=True)
+def test_es_route_omits_new_fields_even_when_snapshot_has_values():
+    table_id = "2_bklog.es_without_physical_fields"
+    _create_cluster(
+        bk_tenant_id=TENANT_ID,
+        cluster_id=ES_CLUSTER_ID,
+        cluster_type=models.ClusterInfo.TYPE_ES,
+        cluster_name="es-physical",
+    )
+    _create_result_table(bk_tenant_id=TENANT_ID, table_id=table_id, default_storage=models.ClusterInfo.TYPE_ES)
+    _create_es_storage(bk_tenant_id=TENANT_ID, table_id=table_id, cluster_id=ES_CLUSTER_ID, index_set="es_index")
+    models.StorageClusterRecord.objects.create(
+        bk_tenant_id=TENANT_ID,
+        table_id=table_id,
+        cluster_id=ES_CLUSTER_ID,
+        enable_time=ES_ENABLE_TIME,
+        creator="system",
+        bkbase_table_id="ignored",
+        physical_tables={"main": "ignored"},
+    )
+    detail = _push_and_get_detail(bk_tenant_id=TENANT_ID, table_id=table_id)
+    for value in [detail, *detail["storage_cluster_records"]]:
+        assert "physical_tables" not in value
+        assert "bkbase_table_id" not in value
+
+    # 当前为 ES 时，混合历史中的 Doris 段仍按自身类型追加字段。
+    _create_cluster(
+        bk_tenant_id=TENANT_ID,
+        cluster_id=DORIS_CLUSTER_ID,
+        cluster_type=models.ClusterInfo.TYPE_DORIS,
+        cluster_name="doris-history",
+    )
+    _create_doris_storage(
+        bk_tenant_id=TENANT_ID,
+        table_id=table_id,
+        cluster_id=DORIS_CLUSTER_ID,
+        bkbase_table_id="doris_rt",
+        index_set="",
+    )
+    models.StorageClusterRecord.objects.create(
+        bk_tenant_id=TENANT_ID,
+        table_id=table_id,
+        cluster_id=DORIS_CLUSTER_ID,
+        enable_time=DORIS_ENABLE_TIME,
+        creator="system",
+        bkbase_table_id="old_doris_rt",
+        physical_tables={"main": "db.old_doris_*"},
+    )
+    detail = _push_and_get_detail(bk_tenant_id=TENANT_ID, table_id=table_id)
+    doris_history, es_history = detail["storage_cluster_records"]
+    assert doris_history["bkbase_table_id"] == "old_doris_rt"
+    assert doris_history["physical_tables"] == {"main": "db.old_doris_*"}
+    for value in (detail, es_history):
+        assert "physical_tables" not in value
+        assert "bkbase_table_id" not in value
