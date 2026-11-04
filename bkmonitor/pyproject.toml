@@ -92,7 +92,7 @@ dependencies = [
     "requests-toolbelt==1.0.0",
     "schema==0.7.7",
     "six==1.17.0",
-    "sqlparse==0.5.3",
+    "sqlparse==0.6.1",
     "supervisor==4.2.5",
     "typing-extensions==4.14.1",
     "ujson==5.7.0",
