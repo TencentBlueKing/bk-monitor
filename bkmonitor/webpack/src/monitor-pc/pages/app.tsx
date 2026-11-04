@@ -105,6 +105,7 @@ if (currentLang === 'en') {
 })
 export default class App extends tsc<object> {
   @Ref('navHeader') navHeaderRef: HTMLDivElement;
+  @Ref('headerList') headerListRef: HTMLDivElement;
   @Ref('headerDropdownMenu') headerDropdownMenuRef: { hide: () => void };
   @ProvideReactive('needMenu') needMenu = true;
   routeList = getRouteConfig();
@@ -121,6 +122,12 @@ export default class App extends tsc<object> {
   needBack = false;
   headerNav = 'home';
   headerNavChange = true;
+  headerIndicatorReady = false;
+  headerIndicatorStyle = {
+    left: '0px',
+    width: '0px',
+    opacity: 0,
+  };
   overseaGlobalList: IOverseasConfig[] = [];
   menuStore = '';
   hideNavCount = 0;
@@ -230,6 +237,14 @@ export default class App extends tsc<object> {
     this.checkAndUpdateBizId();
     this.handleSowNav();
     this.headerNav = this.navActive;
+    this.$nextTick(() => this.updateHeaderIndicator());
+  }
+
+  @Watch('headerNav')
+  @Watch('hideNavCount')
+  @Watch('globalSettingShow')
+  handleHeaderIndicatorWatch() {
+    this.$nextTick(() => this.updateHeaderIndicator());
   }
 
   created() {
@@ -315,6 +330,27 @@ export default class App extends tsc<object> {
       hideCount += 1;
     }
     this.hideNavCount = hideCount;
+    this.$nextTick(() => this.updateHeaderIndicator());
+  }
+  updateHeaderIndicator() {
+    const active = this.headerListRef?.querySelector?.('.header-list-item.item-active') as HTMLElement;
+    if (!active) {
+      this.headerIndicatorStyle = {
+        ...this.headerIndicatorStyle,
+        opacity: 0,
+      };
+      return;
+    }
+    this.headerIndicatorStyle = {
+      left: `${active.offsetLeft + 16}px`,
+      width: `${Math.max(active.offsetWidth - 32, 0)}px`,
+      opacity: 1,
+    };
+    if (!this.headerIndicatorReady) {
+      this.$nextTick(() => {
+        this.headerIndicatorReady = true;
+      });
+    }
   }
   /**
    * 接收空间uid
@@ -820,7 +856,14 @@ export default class App extends tsc<object> {
               class='bk-monitor-header'
               slot='header'
             >
-              <div class='header-list'>
+              <div
+                ref='headerList'
+                class='header-list'
+              >
+                <span
+                  class={['header-list-indicator', { 'is-ready': this.headerIndicatorReady }]}
+                  style={this.headerIndicatorStyle}
+                />
                 {process.env.APP !== 'external' && this.commonHeader()}
                 {this.routeList.map(
                   ({ id, route, name }, index) =>

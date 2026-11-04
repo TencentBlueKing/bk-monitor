@@ -77,10 +77,27 @@ $nav-motion: 0.3s cubic-bezier(0.4, 0, 0.2, 1);
     @include flex-align(center);
 
     .header-list {
+      position: relative;
       height: 100%;
       font-size: 14px;
       line-height: 22px;
       color: #a1aec7;
+
+      .header-list-indicator {
+        position: absolute;
+        bottom: 8px;
+        height: 4px;
+        pointer-events: none;
+        background: $primary-color;
+        border-radius: 6px;
+
+        &.is-ready {
+          transition:
+            left 0.45s cubic-bezier(0.22, 1, 0.36, 1),
+            width 0.4s cubic-bezier(0.22, 1, 0.36, 1),
+            opacity 0.2s ease;
+        }
+      }
       .header-list-item-block {
         width: 0;
         height: 100%;
@@ -118,17 +135,6 @@ $nav-motion: 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 
         &.item-active {
           color: #fff;
-
-          &::after {
-            position: absolute;
-            right: 16px;
-            bottom: 8px;
-            left: 16px;
-            height: 4px;
-            content: '';
-            background: $primary-color;
-            border-radius: 6px;
-          }
         }
       }
 
