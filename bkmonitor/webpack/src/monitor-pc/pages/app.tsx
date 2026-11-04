@@ -92,11 +92,11 @@ const MONITOR_SIDE_NAV_COLORS = {
   'item-child-icon-default-color': '#A1AEC7',
 };
 const currentLang = docCookies.getItem(LANGUAGE_COOKIE_KEY) || 'zhCN';
-let WIDTH_LIST = [100, 72, 86, 100, 100, 100, 72, 72];
-let SPACE_WIDTH = 0;
+const HEADER_NAV_GAP = 12;
+const HEADER_SEARCH_GAP = 24;
+let WIDTH_LIST = [72, 80, 94, 94, 94, 72, 72];
 if (currentLang === 'en') {
-  WIDTH_LIST = [118, 82, 120, 92, 88, 127, 126, 118];
-  SPACE_WIDTH = 263;
+  WIDTH_LIST = [80, 118, 90, 128, 86, 122, 122];
 }
 @Component({
   components: {
@@ -295,21 +295,26 @@ export default class App extends tsc<object> {
   }
   // 一级导航宽度变化时触发自动计算收缩
   handleNavHeaderResize() {
-    if (!(this.$refs.NavTools as any)?.$el) return;
-    /** 新版首页无需展示右侧的全站搜索框 */
-    const BASE_MIM_WIDTH = 772;
-    const minWidth = BASE_MIM_WIDTH + (this.$refs.NavTools as any).$el.clientWidth + 2;
-    if (this.navHeaderRef?.clientWidth >= minWidth + SPACE_WIDTH) {
+    const toolsEl = (this.$refs.NavTools as any)?.$el as HTMLElement;
+    if (!toolsEl || !this.navHeaderRef) return;
+    const itemCount = this.routeList.length;
+    const widths = WIDTH_LIST.slice(0, itemCount);
+    const allItemsWidth = widths.reduce((sum, itemWidth, index) => {
+      return sum + itemWidth + (index > 0 ? HEADER_NAV_GAP : 0);
+    }, 0);
+    const needWidth = allItemsWidth + toolsEl.clientWidth + HEADER_SEARCH_GAP;
+    const headerWidth = this.navHeaderRef.clientWidth;
+    if (headerWidth >= needWidth) {
       this.hideNavCount = 0;
       return;
     }
-    let width = minWidth + 1 + SPACE_WIDTH - this.navHeaderRef?.clientWidth + 60;
-    let index = 0;
-    while (width >= 0 && index < 8) {
-      width -= WIDTH_LIST[7 - index] + 10;
-      index += 1;
+    let overflow = needWidth - headerWidth;
+    let hideCount = 0;
+    for (let index = widths.length - 1; index >= 0 && overflow > 0; index--) {
+      overflow -= widths[index] + HEADER_NAV_GAP;
+      hideCount += 1;
     }
-    this.hideNavCount = index;
+    this.hideNavCount = hideCount;
   }
   /**
    * 接收空间uid

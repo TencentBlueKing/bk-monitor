@@ -39,12 +39,18 @@ $nav-motion: 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   color: $font-color-base;
 
   .bk-monitor-navigation {
-    .bk-navigation-title .title-desc {
-      margin-left: 0;
-      font-size: 16px;
-      font-weight: 500;
-      line-height: 24px;
-      color: #fff;
+    .bk-navigation-title {
+      flex: 0 0 230px !important;
+      width: 230px;
+      box-sizing: border-box;
+
+      .title-desc {
+        margin-left: 0;
+        font-size: 16px;
+        font-weight: 500;
+        line-height: 24px;
+        color: #fff;
+      }
     }
   }
 
@@ -66,6 +72,7 @@ $nav-motion: 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   &-header {
     flex: 1;
     height: 100%;
+    gap: 24px;
 
     @include flex-align(center);
 
@@ -720,13 +727,13 @@ $nav-motion: 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 
   .bk-navigation-wrapper .navigation-nav .nav-slider-footer {
     flex: 0 0 52px;
-    padding-left: 24px;
+    padding-left: 14px;
     transition: padding-left $nav-motion;
 
     .footer-icon {
-      width: 20px;
-      height: 20px;
-      border-radius: 0;
+      width: 32px;
+      height: 32px;
+      border-radius: 50%;
       color: #96a2b9;
 
       .footer-icon-svg {
@@ -869,17 +876,13 @@ $nav-motion: 0.3s cubic-bezier(0.4, 0, 0.2, 1);
     }
 
     .bk-navigation-wrapper .navigation-nav .nav-slider-footer {
-      padding-left: 20px;
+      padding-left: 14px;
     }
   }
 
   @media screen and (max-width: 1500px) {
     .bk-navigation-title {
-      flex: 0 0 162px !important;
-
-      .title-desc {
-        margin-left: 0;
-      }
+      flex: 0 0 230px !important;
     }
   }
 }
