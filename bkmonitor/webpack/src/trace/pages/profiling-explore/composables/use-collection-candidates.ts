@@ -25,40 +25,101 @@
  */
 import { type Ref, onScopeDispose, shallowRef, watch } from 'vue';
 
-import { getCollectionCandidates } from '../services/collection-history';
+import {
+  COLLECTION_CANDIDATE_MAX_LIMIT,
+  COLLECTION_CANDIDATE_PAGE_SIZE,
+  getCollectionCandidates,
+} from '../services/collection-history';
 
 import type { SelectionRange } from '../types';
 import type { CollectionCandidate, CollectionCandidateField } from '../types/collection-history';
 
-export function useCollectionCandidates(bizId: Ref<number>, range: Ref<SelectionRange>) {
+/**
+ * 筛选下拉的候选值：首屏取前 20 个，输入关键字时按 keyword 远程搜索，滚动到底部递增 limit 重查。
+ * 后端 topk 只按事件数返回前 N 个，不支持 offset，因此每次都用更大的 limit 全量替换。
+ */
+export function useCollectionCandidates(
+  bizId: Ref<number>,
+  range: Ref<null | SelectionRange>,
+  fields: CollectionCandidateField[]
+) {
   const candidates = shallowRef<Partial<Record<CollectionCandidateField, CollectionCandidate[]>>>({});
-  const candidateLoading = shallowRef(false);
-  // 任一候选接口失败即置位，具体提示与重试入口由使用方渲染
-  const candidateError = shallowRef(false);
+  const loading = shallowRef(false);
+  // 关键字搜索进行中，此时下拉整列表替换为骨架；滚动加载不参与，只追加数据
+  const searching = shallowRef(false);
+  // 返回数量达到请求的 limit 时说明可能还有更多候选
+  const hasMore = shallowRef(false);
+  const error = shallowRef(false);
+  // 当前关键字，用于区分「搜索结果为空」与「暂无数据」两种空态
+  const keyword = shallowRef('');
+  let limit = COLLECTION_CANDIDATE_PAGE_SIZE;
   let controller: AbortController;
 
-  async function loadCandidates() {
+  // 按当前关键字与 limit 重查一次；并发请求以最新的为准，旧请求直接中止
+  async function fetchCandidates() {
     controller?.abort();
+    const currentRange = range.value;
+    if (!currentRange) {
+      candidates.value = {};
+      hasMore.value = false;
+      // 时间范围失效时清掉进行中的请求状态，避免下拉一直停在加载中
+      loading.value = false;
+      error.value = false;
+      searching.value = false;
+      return;
+    }
     const current = new AbortController();
     controller = current;
-    candidates.value = {};
-    candidateError.value = false;
-    candidateLoading.value = false;
-    if (!range.value) return;
-    candidateLoading.value = true;
-    const fields: CollectionCandidateField[] = ['target', 'task_name', 'process_names', 'process_pids'];
+    loading.value = true;
+    error.value = false;
     const results = await Promise.allSettled(
-      fields.map(field => getCollectionCandidates(bizId.value, range.value, field, current.signal))
+      fields.map(field =>
+        getCollectionCandidates(bizId.value, currentRange, field, { keyword: keyword.value, limit }, current.signal)
+      )
     );
     if (current.signal.aborted) return;
     candidates.value = Object.fromEntries(
-      results.map((result, index) => [fields[index], result.status === 'fulfilled' ? result.value : []])
+      fields.map((field, index) => [field, results[index].status === 'fulfilled' ? results[index].value : []])
     );
-    candidateError.value = results.some(result => result.status === 'rejected');
-    candidateLoading.value = false;
+    error.value = results.some(result => result.status === 'rejected');
+    hasMore.value =
+      limit < COLLECTION_CANDIDATE_MAX_LIMIT &&
+      results.some(result => result.status === 'fulfilled' && result.value.length >= limit);
+    loading.value = false;
+    searching.value = false;
   }
 
-  watch([bizId, range], loadCandidates, { immediate: true });
+  // 关键字变化时回到第一页，期间下拉展示骨架；
+  // 关键字从有到无（手动清空或收起下拉）时保留已加载深度，重开下拉不丢滚动加载的候选
+  function search(value: string) {
+    const next = value || '';
+    if (next || !keyword.value) limit = COLLECTION_CANDIDATE_PAGE_SIZE;
+    keyword.value = next;
+    searching.value = true;
+    return fetchCandidates();
+  }
+
+  // 滚动到底部时扩大 limit 重查，没有更多候选或达到上限就不再请求
+  function loadMore() {
+    if (loading.value || !hasMore.value) return;
+    limit = Math.min(limit + COLLECTION_CANDIDATE_PAGE_SIZE, COLLECTION_CANDIDATE_MAX_LIMIT);
+    return fetchCandidates();
+  }
+
+  // 失败重试沿用当前关键字与 limit，不重置已加载的候选范围
+  function reload() {
+    return fetchCandidates();
+  }
+
+  // 业务或时间范围变化时清空关键字并完整回到首屏（先清 keyword 让 search 重置已加载深度）
+  watch(
+    [bizId, range],
+    () => {
+      keyword.value = '';
+      search('');
+    },
+    { immediate: true }
+  );
   onScopeDispose(() => controller?.abort());
-  return { candidates, candidateLoading, candidateError, loadCandidates };
+  return { candidates, loading, searching, hasMore, error, keyword, search, loadMore, reload };
 }

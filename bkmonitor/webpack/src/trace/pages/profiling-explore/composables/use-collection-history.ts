@@ -29,7 +29,6 @@ import { useI18n } from 'vue-i18n';
 
 import { COLLECTION_HISTORY_PAGE_SIZE, getCollectionHistory } from '../services/collection-history';
 import { executionRowKey } from '../utils/collection-history';
-import { useCollectionCandidates } from './use-collection-candidates';
 
 import type { SelectionRange } from '../types';
 import type { CollectionExecution, CollectionHistoryFilters, CollectionTaskColumn } from '../types/collection-history';
@@ -63,7 +62,6 @@ export function useCollectionHistory({
   const hasMore = shallowRef(false);
   // 自动补页是否继续：某页没有带来新行时暂停，避免后端重复返回同一页时空转
   const canAutoFill = shallowRef(true);
-  const candidateState = useCollectionCandidates(bizId, range);
   let controller: AbortController;
   let offset = 0;
   // 本次查询实际使用的绝对时间；翻页沿用首屏边界，避免相对时间跨页漂移
@@ -140,7 +138,6 @@ export function useCollectionHistory({
     error,
     hasMore,
     canAutoFill,
-    ...candidateState,
     refresh,
     loadMore,
   };

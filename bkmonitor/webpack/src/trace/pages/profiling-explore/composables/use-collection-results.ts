@@ -37,7 +37,6 @@ import {
   resultExecutionKey,
   resultRowKey,
 } from '../utils/collection-results';
-import { useCollectionCandidates } from './use-collection-candidates';
 
 import type { SelectionRange } from '../types';
 import type { CollectionExecutionColumn } from '../types/collection-history';
@@ -70,7 +69,6 @@ export function useCollectionResults({
   const pending = shallowRef<CollectionHostResult | null>(null);
   const busy = shallowRef(false);
   const actionError = shallowRef('');
-  const candidateState = useCollectionCandidates(bizId, range);
   let controller: AbortController;
   let actionController: AbortController;
   let offset = 0;
@@ -180,7 +178,6 @@ export function useCollectionResults({
     pending,
     busy,
     actionError,
-    ...candidateState,
     refresh,
     loadMore,
     requestRerun,
