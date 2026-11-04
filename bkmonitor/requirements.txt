@@ -81,7 +81,8 @@ arrow==0.6.0
 six==1.16.0
 requests==2.27.1
 requests_toolbelt==0.10.1
-sqlparse==0.4.2
+--find-links ./third_party/sqlparse
+sqlparse==0.4.2+bk1
 ujson==1.35
 schematics==2.0.1
 Pillow==8.4.0

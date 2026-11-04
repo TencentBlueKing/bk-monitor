@@ -39,6 +39,7 @@ WORKDIR /app
 
 # install python packages
 COPY ./requirements.txt /app
+COPY ./third_party/sqlparse/*.whl /app/third_party/sqlparse/
 # betterproto has dependency conflicts in dataclasses with opentelemetry-sdk when installing from requirements.txt
 RUN python -m venv venv \
 && /app/venv/bin/pip install --upgrade pip \

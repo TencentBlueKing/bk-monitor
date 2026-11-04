@@ -107,6 +107,23 @@ class TestInfluxdbDriver(object):
                 driver = influxdb.load_driver
                 driver(sql_tuple[0])
 
+    def test_legacy_where_field_alias(self, mocker):
+        mocked_rt = influxdb.ResultTable(
+            table_id="system.cpu_detail", schema_type="fixed", default_storage="influxdb"
+        )
+        for condition, expected in (
+            ("app_id IN ('sample')", "bk_app_code IN ('sample')"),
+            ("app_id REGEXP 'sample'", "app_id REGEXP 'sample'"),
+        ):
+            self.do_test_parse(
+                (
+                    "SELECT count(*) FROM system.cpu_detail WHERE " + condition,
+                    "SELECT count(*) FROM cpu_detail WHERE " + expected + " slimit 50000",
+                ),
+                mocked_rt,
+                gen_mocked_cluster_info("system", "cpu_detail"),
+            )
+
     def test_parse_sql_1(self, mocker):
         # input
         sql_tuple = (

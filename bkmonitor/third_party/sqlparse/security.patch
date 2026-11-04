@@ -1,0 +1,158 @@
+diff --git a/sqlparse/__init__.py b/sqlparse/__init__.py
+index 9cab9d2c2217eab8406ab9f116ae44d6c7cb8cf3..b8334983b0629c2506e921acac378377d15a4b95 100644
+--- a/sqlparse/__init__.py
++++ b/sqlparse/__init__.py
+@@ -16,7 +16,7 @@ from sqlparse import filters
+ from sqlparse import formatter
+
+
+-__version__ = '0.4.2'
++__version__ = '0.4.2+bk1'
+ __all__ = ['engine', 'filters', 'formatter', 'sql', 'tokens', 'cli']
+
+
+diff --git a/sqlparse/engine/filter_stack.py b/sqlparse/engine/filter_stack.py
+index 9665a224ab11ec60e04bab498b2c7a6f73299b77..3dd10e537246baff377b84e4c1ee4c9984184686 100644
+--- a/sqlparse/engine/filter_stack.py
++++ b/sqlparse/engine/filter_stack.py
+@@ -10,6 +10,7 @@
+ from sqlparse import lexer
+ from sqlparse.engine import grouping
+ from sqlparse.engine.statement_splitter import StatementSplitter
++from sqlparse.exceptions import SQLParseError
+
+
+ class FilterStack:
+@@ -23,22 +24,25 @@ class FilterStack:
+         self._grouping = True
+
+     def run(self, sql, encoding=None):
+-        stream = lexer.tokenize(sql, encoding)
+-        # Process token stream
+-        for filter_ in self.preprocess:
+-            stream = filter_.process(stream)
++        try:
++            stream = lexer.tokenize(sql, encoding)
++            # Process token stream
++            for filter_ in self.preprocess:
++                stream = filter_.process(stream)
+
+-        stream = StatementSplitter().process(stream)
++            stream = StatementSplitter().process(stream)
+
+-        # Output: Stream processed Statements
+-        for stmt in stream:
+-            if self._grouping:
+-                stmt = grouping.group(stmt)
++            # Output: Stream processed Statements
++            for stmt in stream:
++                if self._grouping:
++                    stmt = grouping.group(stmt)
+
+-            for filter_ in self.stmtprocess:
+-                filter_.process(stmt)
++                for filter_ in self.stmtprocess:
++                    filter_.process(stmt)
+
+-            for filter_ in self.postprocess:
+-                stmt = filter_.process(stmt)
++                for filter_ in self.postprocess:
++                    stmt = filter_.process(stmt)
+
+-            yield stmt
++                yield stmt
++        except RecursionError as err:
++            raise SQLParseError('Maximum recursion depth exceeded') from err
+diff --git a/sqlparse/engine/grouping.py b/sqlparse/engine/grouping.py
+index 175ae8e5f300ce0b4b1c5ddda5e3bf67f23a9785..93774362a4f427e0c49c3e160b966e3da1a50252 100644
+--- a/sqlparse/engine/grouping.py
++++ b/sqlparse/engine/grouping.py
+@@ -7,15 +7,22 @@
+
+ from sqlparse import sql
+ from sqlparse import tokens as T
++from sqlparse.exceptions import SQLParseError
+ from sqlparse.utils import recurse, imt
+
++MAX_GROUPING_DEPTH = 100
++MAX_GROUPING_TOKENS = 10000
++
+ T_NUMERICAL = (T.Number, T.Number.Integer, T.Number.Float)
+ T_STRING = (T.String, T.String.Single, T.String.Symbol)
+ T_NAME = (T.Name, T.Name.Placeholder)
+
+
+-def _group_matching(tlist, cls):
++def _group_matching(tlist, cls, depth=0):
+     """Groups Tokens that have beginning and end."""
++    if depth > MAX_GROUPING_DEPTH:
++        raise SQLParseError(
++            "Maximum grouping depth exceeded ({}).".format(MAX_GROUPING_DEPTH))
+     opens = []
+     tidx_offset = 0
+     for idx, token in enumerate(list(tlist)):
+@@ -31,10 +38,13 @@ def _group_matching(tlist, cls):
+             # Check inside previously grouped (i.e. parenthesis) if group
+             # of different type is inside (i.e., case). though ideally  should
+             # should check for all open/close tokens at once to avoid recursion
+-            _group_matching(token, cls)
++            _group_matching(token, cls, depth + len(opens) + 1)
+             continue
+
+         if token.match(*cls.M_OPEN):
++            if depth + len(opens) >= MAX_GROUPING_DEPTH:
++                raise SQLParseError(
++                    "Maximum grouping depth exceeded ({}).".format(MAX_GROUPING_DEPTH))
+             opens.append(tidx)
+
+         elif token.match(*cls.M_CLOSE):
+@@ -385,6 +395,10 @@ def group_values(tlist):
+
+
+ def group(stmt):
++    if len(stmt.tokens) > MAX_GROUPING_TOKENS:
++        raise SQLParseError(
++            "Maximum number of tokens exceeded ({}).".format(MAX_GROUPING_TOKENS))
++
+     for func in [
+         group_comments,
+
+diff --git a/sqlparse/keywords.py b/sqlparse/keywords.py
+index 68506282339fc368e47a28d06253695dc09cfd76..909464c631faa66482be4578f9b82523932322cb 100644
+--- a/sqlparse/keywords.py
++++ b/sqlparse/keywords.py
+@@ -66,9 +66,10 @@ SQL_REGEX = {
+         (r'(?![_A-ZÀ-Ü])-?(\d+(\.\d*)|\.\d+)(?![_A-ZÀ-Ü])',
+          tokens.Number.Float),
+         (r'(?![_A-ZÀ-Ü])-?\d+(?![_A-ZÀ-Ü])', tokens.Number.Integer),
+-        (r"'(''|\\\\|\\'|[^'])*'", tokens.String.Single),
++        # Keep escape alternatives disjoint to avoid exponential backtracking.
++        (r"'(?:''|\\[\\']|\\(?![\\'])|[^'\\])*'", tokens.String.Single),
+         # not a real string literal in ANSI SQL:
+-        (r'"(""|\\\\|\\"|[^"])*"', tokens.String.Symbol),
++        (r'"(?:""|\\[\\"]|\\(?![\\"])|[^"\\])*"', tokens.String.Symbol),
+         (r'(""|".*?[^\\]")', tokens.String.Symbol),
+         # sqlite names can be escaped with [square brackets]. left bracket
+         # cannot be preceded by word character or a right bracket --
+diff --git a/sqlparse/sql.py b/sqlparse/sql.py
+index 6a32c26a34c70ad0f406ffbe093c3a5823c8eb42..01cc323cad5f0f74d0ad2e60b3ef3d54fd2696e2 100644
+--- a/sqlparse/sql.py
++++ b/sqlparse/sql.py
+@@ -158,7 +158,7 @@ class TokenList(Token):
+     def __init__(self, tokens=None):
+         self.tokens = tokens or []
+         [setattr(token, 'parent', self) for token in self.tokens]
+-        super().__init__(None, str(self))
++        super().__init__(None, ''.join(token.value for token in self.tokens))
+         self.is_group = True
+
+     def __str__(self):
+@@ -322,7 +322,7 @@ class TokenList(Token):
+             grp = start
+             grp.tokens.extend(subtokens)
+             del self.tokens[start_idx + 1:end_idx]
+-            grp.value = str(start)
++            grp.value += ''.join(token.value for token in subtokens)
+         else:
+             subtokens = self.tokens[start_idx:end_idx]
+             grp = grp_cls(subtokens)
