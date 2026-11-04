@@ -113,16 +113,17 @@ export default class Log extends tsc<IProps> {
   }
 
   async handleUpdateValue(value, field: string) {
-    if (field === 'es_storage_cluster') {
-      const targetId = Number(value);
-      if (targetId === this.storageInfo?.es_storage_cluster) return true;
-      const targetCluster = this.clusterList.find(item => item.storage_cluster_id === targetId);
-      if (!targetCluster) return false;
-      if (!this.checkClusterValue(targetCluster)) return false;
-      const isConfirm = await this.confirmSwitchCluster(targetCluster);
-      if (!isConfirm) return false;
-    }
+    // 校验与二次确认也需在 try 内，异常时返回 false 以便 EditableFormItem 复位 loading
     try {
+      if (field === 'es_storage_cluster') {
+        const targetId = Number(value);
+        if (targetId === this.storageInfo?.es_storage_cluster) return true;
+        const targetCluster = this.clusterList.find(item => item.storage_cluster_id === targetId);
+        if (!targetCluster) return false;
+        if (!this.checkClusterValue(targetCluster)) return false;
+        const isConfirm = await this.confirmSwitchCluster(targetCluster);
+        if (!isConfirm) return false;
+      }
       // 更新基本信息
       const obj = {};
       for (const key in this.storageInfo) {
@@ -188,6 +189,13 @@ export default class Log extends tsc<IProps> {
    * @returns 是否确认切换
    */
   confirmSwitchCluster(targetCluster: ILogClusterItem): Promise<boolean> {
+    // 事件回调中无活动组件实例，JSX 使用的全局 h 会报错，需用实例的 $createElement 生成 VNode
+    const h = this.$createElement;
+    const renderItem = (label: string, value: string) =>
+      h('div', { class: 'switch-item' }, [
+        h('span', { class: 'switch-label' }, `${label}：`),
+        h('span', { class: 'switch-value' }, value),
+      ]);
     const sourceName = this.clusterOptions.find(item => item.id === this.storageInfo?.es_storage_cluster)?.name || '--';
     const targetName = targetCluster.storage_display_name || targetCluster.storage_cluster_name;
     return new Promise(resolve => {
@@ -197,25 +205,18 @@ export default class Log extends tsc<IProps> {
         extCls: 'log-switch-cluster-info',
         okText: this.$t('确认切换'),
         cancelText: this.$t('取消'),
-        subHeader: (
-          <div class='log-switch-cluster-content'>
-            <div class='switch-desc'>
-              {this.$t('切换生效后，新增数据将写入目标集群。历史数据仍可查询，并按切换后生效的保留时长自动清理。')}
-            </div>
-            <div class='switch-item'>
-              <span class='switch-label'>{this.$t('当前集群')}：</span>
-              <span class='switch-value'>{sourceName}</span>
-            </div>
-            <div class='switch-item'>
-              <span class='switch-label'>{this.$t('目标集群')}：</span>
-              <span class='switch-value'>{targetName}</span>
-            </div>
-            <div class='switch-item'>
-              <span class='switch-label'>{this.$t('生效保留天数')}：</span>
-              <span class='switch-value'>{`${this.storageInfo?.es_retention}${this.$t('天')}`}</span>
-            </div>
-          </div>
-        ),
+        subHeader: h('div', { class: 'log-switch-cluster-content' }, [
+          h(
+            'div',
+            { class: 'switch-desc' },
+            this.$t(
+              '切换生效后，新增数据将写入目标集群。历史数据仍可查询，并按切换后生效的保留时长自动清理。'
+            ) as string
+          ),
+          renderItem(this.$t('当前集群') as string, sourceName),
+          renderItem(this.$t('目标集群') as string, targetName),
+          renderItem(this.$t('生效保留天数') as string, `${this.storageInfo?.es_retention}${this.$t('天')}`),
+        ]),
         confirmFn: () => resolve(true),
         cancelFn: () => resolve(false),
       });
