@@ -2325,11 +2325,8 @@ def test_create_sub_federal_data_link(create_or_delete_records, mocker):
     assert BkBaseResultTable.objects.get(data_link_name=bkbase_data_name).monitor_table_id == sub_rt.table_id
     assert BkBaseResultTable.objects.get(data_link_name=bkbase_data_name).storage_type == models.ClusterInfo.TYPE_VM
     assert BkBaseResultTable.objects.get(data_link_name=bkbase_data_name).status == DataLinkResourceStatus.OK.value
-    assert BkBaseResultTable.objects.get(data_link_name=bkbase_data_name).bkbase_rt_name == bkbase_vmrt_name
-    assert (
-        BkBaseResultTable.objects.get(data_link_name=bkbase_data_name).bkbase_table_id
-        == f"{settings.DEFAULT_BKDATA_BIZ_ID}_{bkbase_vmrt_name}"
-    )
+    assert BkBaseResultTable.objects.get(data_link_name=bkbase_data_name).bkbase_rt_name is None
+    assert BkBaseResultTable.objects.get(data_link_name=bkbase_data_name).bkbase_table_id is None
 
     conditional_sink_ins = models.ConditionalSinkConfig.objects.get(data_link_name=bkbase_data_name)
     assert conditional_sink_ins.namespace == "bkmonitor"

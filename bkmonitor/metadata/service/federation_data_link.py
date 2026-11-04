@@ -248,6 +248,14 @@ def _get_subset_data_link(context: FederationMetricContext) -> DataLink | None:
         )
         if link.pk in related_names or context.table_id in link.table_ids or not link.table_ids
     ]
+    # 迁移后已回填来源和 RT 的链路优先；旧名称的空主记录可能仍保留 RT 映射。
+    explicit_candidates = [
+        link
+        for link in candidates
+        if link.bk_data_id == context.data_source.bk_data_id and context.table_id in link.table_ids
+    ]
+    if explicit_candidates:
+        candidates = explicit_candidates
     if len(candidates) > 1:
         raise FederationReconcileError(f"ambiguous federation subset links: tenant={tenant}, table={context.table_id}")
     return candidates[0] if candidates else None
