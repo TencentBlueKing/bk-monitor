@@ -33,7 +33,7 @@ import { useRoute } from 'vue-router/composables';
 import { InfoBox, Message } from 'bk-magic-vue';
 import { useOperation } from '../../hook/useOperation';
 import { useCollectList } from '../../hook/useCollectList';
-import { showMessage, visibleScopeSelectList } from '../../utils';
+import { showCollectSaveFailure, showMessage, showUnshownRequestError, visibleScopeSelectList } from '../../utils';
 import { deepClone, deepEqual, judgeNumber, MAX_INT_VALUE } from '@/common/util';
 import { resolveCleanTemplateDraft } from '@/views/manage-v2/utils/clean-template';
 import FieldList from '../business-comp/step3/field-list';
@@ -2353,6 +2353,7 @@ __ext_json.service.labels   ${t('动态对象字段')}`;
           await Promise.all(validatePromises);
         } catch {
           loading.value = false;
+          showMessage(t('请完善清洗字段配置'), 'error');
           failedCallback?.();
           return;
         }
@@ -2554,15 +2555,19 @@ __ext_json.service.labels   ${t('动态对象字段')}`;
                 if (isChangingExpandDepth.value && isNeedCreate) {
                   showMessage(t('配置未生效，创建新索引失败，请重试或联系管理员。'), 'error');
                   isChangingExpandDepth.value = false;
+                } else {
+                  showCollectSaveFailure(res, t('保存失败'));
                 }
                 callback?.(false);
               }
             })
-            .catch(() => {
+            .catch(err => {
               loading.value = false;
               if (isChangingExpandDepth.value && isNeedCreate) {
                 showMessage(t('配置未生效，创建新索引失败，请重试或联系管理员。'), 'error');
                 isChangingExpandDepth.value = false;
+              } else {
+                showUnshownRequestError(err, t('保存失败'));
               }
               callback?.(false);
             });
