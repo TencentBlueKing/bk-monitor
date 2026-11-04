@@ -123,8 +123,8 @@ def bkbase(mocker):
         sink.save(update_fields=["pattern_store"])
         return []
 
-    mocker.patch("metadata.models.data_link.log_clustering.prepare_pattern_store", side_effect=prepare)
-    mocker.patch("metadata.models.data_link.log_clustering.publish_pattern_routes")
+    mocker.patch("metadata.models.data_link.log_clustering.prepare_clustering_stores", side_effect=prepare)
+    mocker.patch("metadata.models.data_link.log_clustering.publish_clustering_routes")
     state["apply_log_datalink"] = mocker.patch(
         "metadata.resources.log_clustering.apply_log_datalink", side_effect=lambda **kwargs: prepare(get_sink())
     )
@@ -223,6 +223,23 @@ def test_first_set_creates_sink_and_applies_whole_datalink(clustering_datalink, 
     assert result["applied_scope"] == "datalink"
     assert result["sink"] == {"tenant": "system", "namespace": "bklog", "name": sink.name}
     assert result["databus"] == {"tenant": "system", "namespace": "bklog", "name": LOG_DATA_LINK_NAME}
+
+
+def test_result_mode_is_fixed_at_first_set(clustering_datalink, bkbase):
+    set_config(result_mode="append")
+    assert get_sink().result == {"mode": "append"}
+    set_config()
+    assert get_sink().result == {"mode": "append"}
+    with pytest.raises(ValidationError, match="不支持切换"):
+        set_config(result_mode="update_original")
+    assert get_sink().result == {"mode": "append"}
+
+
+def test_default_result_mode_cannot_be_changed_later(clustering_datalink, bkbase):
+    set_config()
+    with pytest.raises(ValidationError, match="不支持切换"):
+        set_config(result_mode="append")
+    assert get_sink().result == {"mode": "update_original"}
 
 
 def test_set_on_attached_sink_only_applies_sink(clustering_datalink, bkbase):

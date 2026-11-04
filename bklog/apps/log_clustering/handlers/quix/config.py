@@ -40,6 +40,7 @@ def get_quix_config() -> dict:
         "recovery_resource": {"kind": "ElasticSearch", "namespace": "...", "name": "..."},
         "state_index": "...",           # 结果关联上下文索引，首次开启时固定
         "max_message_bytes": 1048576,     # 可选
+        "result_modes": {"42": "append"}, # 可选，按索引集选择独立表；仅首次开启读取
     }
     任务模板、Worker Profile 和 Kafka 绑定由 BKFara 解析；这里保留 BKBase 所需的资源引用。
     """

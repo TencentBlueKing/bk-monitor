@@ -114,6 +114,16 @@ class TestQuixEnableRunner(TestCase):
     def run_operation(self):
         return QuixClusteringOperationRunner(self.operation.operation_id).run()
 
+    def test_append_mode_is_forwarded_from_saved_config_on_retry(self):
+        runtime = LogClusteringRuntime.objects.get(index_set_id=INDEX_SET_ID)
+        runtime.pending_config["result_mode"] = "append"
+        runtime.save()
+        runner = QuixClusteringOperationRunner(self.operation.operation_id)
+        runner._step_metadata_set()
+        self.assertEqual(self.transfer.set_log_clustering_config.call_args.args[0]["result_mode"], "append")
+        runner._step_metadata_set()
+        self.assertEqual(self.transfer.set_log_clustering_config.call_args.args[0]["result_mode"], "append")
+
     def create_clustering_config(self):
         ClusteringConfig.objects.create(
             index_set_id=INDEX_SET_ID,
@@ -176,6 +186,7 @@ class TestQuixEnableRunner(TestCase):
         self.assertNotIn("pattern_index", params["binding"])
         self.assertNotIn("pattern_resource", params)
         self.assertNotIn("pattern_store", params)
+        self.assertEqual(params["result_mode"], "update_original")
 
         self.assertEqual(operation.step, "confirm_adoption")
         runtime = LogClusteringRuntime.objects.get(index_set_id=INDEX_SET_ID)

@@ -3,7 +3,7 @@
 保存日志 V4 链路的聚类绑定，并下发 LogClusteringSink。
 
 Databus 尚未引用聚类 Sink 时按日志链路完整下发（Databus.spec.sinks 改为引用聚类 Sink，原存储绑定作为 raw_sink）；
-已引用时下发 Pattern ResultTable／ES Binding 和聚类 Sink，不重复下发 Databus，raw_sink 取本链路当前唯一的 ES 存储绑定，无法唯一确定时仍按日志链路完整下发。
+已引用时下发 Pattern、可选独立结果表的 ResultTable／ES Binding 和聚类 Sink，不重复下发 Databus，raw_sink 取本链路当前唯一的 ES 存储绑定，无法唯一确定时仍按日志链路完整下发。
 运行集群与远端 Databus.spec.preferCluster 不一致时也完整下发，使其与 clustering.runtime_cluster 一致。
 接口不等待 BKBase 排空，也不代表 Runtime 已采用新配置。
 
@@ -20,18 +20,29 @@ Databus 尚未引用聚类 Sink 时按日志链路完整下发（Databus.spec.si
 | kafka_resource    | dict   | 是  | 已登记的 Kafka 资源引用，kind 为 Kafka                                             |
 | runtime_cluster | dict | 是 | 已登记的 DatabusCluster 引用，同时用于 Databus.spec.preferCluster |
 | recovery_resource | dict | 是 | 已登记的 ElasticSearch 引用，用于结果关联上下文存储 |
+| result_mode | string | 否 | 首次开启选择 update_original（默认）或 append；已登记后不允许切换，省略时沿用 |
 
-环境资源引用包含 kind、namespace、name，可选 tenant；所有引用必须属于请求租户。首版下发 `clustering.result.mode=update_original`，默认回写原表，不新增独立结果表开关。资源字段使用 `raw_sink`、`kafka_resource`、`runtime_cluster`、`recovery_resource`、`pattern_store`。
+环境资源引用包含 kind、namespace、name，可选 tenant；所有引用必须属于请求租户。默认下发 `clustering.result.mode=update_original` 回写原表；后台可在首次开启选择 `append`，不提供界面开关。资源字段使用 `raw_sink`、`kafka_resource`、`runtime_cluster`、`recovery_resource`、`pattern_store`。
 
 Pattern 资源由 metadata 自动注册，调用方不再提供 `pattern_store`。每个租户、索引集一张实体 ResultTable，复用已有 ResultTableConfig、ESStorageBindingConfig、ESStorage 与 StorageClusterRecord。不同距离档位共用该表；关闭、重开和模型更新不重新建表。Pattern 不新增 DataID 或 Databus，写入仅来自聚类算子。
 
-Pattern 资源名使用 `bklog_pattern_<索引集ID>`，不使用哈希；租户通过资源 tenant 隔离。建表、写入与查询统一使用 BKBase 完整结果表 ID，即 `<ResultTable.spec.bizId>_bklog_pattern_<索引集ID>`，业务前缀沿用现有租户与存储业务映射。
+Pattern 资源名使用 `bklog_<索引集ID>_pattern`，不使用哈希；租户通过资源 tenant 隔离。建表、写入与查询统一使用 BKBase 完整结果表 ID，即 `<ResultTable.spec.bizId>_bklog_<索引集ID>_pattern`，业务前缀沿用现有租户与存储业务映射。
 
 Pattern 默认使用源日志的 ES 集群。采用固定物理索引，字段为 index_set_id、distance_threshold、signature、pattern、pattern_hash、task_id（string），generation、publish_revision（long）；前三个字段支持精确检索。时间字段的实际写入与最近命中刷新仍需 BKBase 联调确认，不由 metadata 伪造。
 
 源日志切存储时，Pattern 复用原实体表与固定物理名称，在目标集群登记或复用对应 Binding，并更新 Sink 引用。旧存储分段保留，不复制历史数据。`_pattern` 通过 origin_table_id 关联 Pattern 实体表，UnifyQuery 按 StorageClusterRecord 覆盖历史集群。路由发布失败由同一操作重试补发。Pattern 的保留清理策略不沿用普通日志按天删索引，本接口不删除旧 Pattern 索引。
 
 日志平台复用 `MINI_CLUSTERING_CONFIG.feature_config.bkbase_quix`，仅需配置 BKFara profile、kafka_resource、runtime_cluster、recovery_resource、state_index 及可选消息上限。state_index 首次开启保存，重试及重开沿用；恢复上下文存储与 Pattern 存储独立。
+
+#### 独立聚类结果表
+
+后台入口为 `MINI_CLUSTERING_CONFIG.feature_config.bkbase_quix.result_modes`，例如 `{"42": "append"}`（键为索引集 ID 字符串）。未配置的索引集默认回写。仅在首次开启时读取并保存到运行配置，后续过滤更新、操作重试和关闭重开沿用；修改环境配置不会改变已开启链路，不支持在线切换模式。
+
+`append` 时 metadata 自动注册 `bklog_<索引集ID>_clustered`，完整 BKBase 表 ID 为 `<存储业务ID>_bklog_<索引集ID>_clustered`。保留原日志字段，并追加 log_signature、log_cluster_distance_threshold、log_cluster_status（string）和 log_cluster_publish_revision（long）。结果表声明采用 BKBase 的 field_name、field_type、field_alias、is_dimension、field_index 字段格式。
+
+独立结果表复用源日志 ES 集群、字段分词配置、轮转和保留设置，由 metadata 现有 ESStorage 能力准备索引与日期写别名。写别名前缀为 `write_%Y%m%d_<完整BKBase表ID>`，查询使用对应的日期读别名；它不是 Pattern 的固定索引。原表继续保存原文，聚类完成后 BKBase 向独立表写入原文及聚类字段。`_clustered` 指向独立结果表，`_pattern` 仍单独指向 Pattern 表。
+
+源日志切存储时，两张表分别更新目标 Binding，并保留各自历史路由；索引准备失败不下发新引用，同一操作可以重试。该模式不新增数据源或 Databus。
 
 #### binding
 
@@ -109,7 +120,7 @@ max_message_bytes 用于候选 Kafka 消息的体积预算，不是原文日志�
 | 字段             | 类型     | 描述                                         |
 |----------------|--------|--------------------------------------------|
 | attached       | bool   | Databus 是否引用聚类 Sink                         |
-| applied_scope  | string | 本次下发范围：datalink（完整链路）或 sink_only（Pattern 资源与聚类 Sink，不含 Databus） |
+| applied_scope  | string | 本次下发范围：datalink（完整链路）或 sink_only（结果表资源与聚类 Sink，不含 Databus） |
 | sink           | dict   | 聚类 Sink 身份：tenant、namespace、name            |
 | databus        | dict   | Databus 身份：tenant、namespace、name            |
 

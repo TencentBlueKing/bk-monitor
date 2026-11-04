@@ -176,6 +176,8 @@ class TestQuixClusteringHandlerReopen(TestCase):
         self.index_set = LogIndexSet(index_set_id=INDEX_SET_ID, space_uid="bkcc__2")
 
     def test_reopen_from_stopped(self, mock_delay):
+        self.runtime.active_config["result_mode"] = "append"
+        self.runtime.save()
         LogClusteringRuntime.objects.filter(pk=self.runtime.pk).update(phase=ClusteringRuntimePhaseEnum.STOPPED.value)
 
         operation_id = QuixClusteringHandler(self.index_set).reopen()
@@ -183,6 +185,7 @@ class TestQuixClusteringHandlerReopen(TestCase):
         self.assertEqual(
             LogClusteringRuntime.objects.get(pk=self.runtime.pk).phase, ClusteringRuntimePhaseEnum.REOPENING.value
         )
+        self.assertEqual(LogClusteringRuntime.objects.get(pk=self.runtime.pk).active_config["result_mode"], "append")
         mock_delay.assert_called_once_with(operation_id)
 
     def test_stopped_reopen_requires_original_sink_and_task(self, mock_delay):

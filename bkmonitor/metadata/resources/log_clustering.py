@@ -235,13 +235,13 @@ def is_databus_referencing_sink(databus_config: dict[str, Any] | None, sink: mod
 def apply_log_clustering_sink_only(
     datalink: models.DataLink, sink: models.LogClusteringSinkConfig, raw_sink: dict[str, str]
 ) -> None:
-    from metadata.models.data_link.log_clustering import prepare_pattern_store, publish_pattern_routes
+    from metadata.models.data_link.log_clustering import prepare_clustering_stores, publish_clustering_routes
 
-    configs = prepare_pattern_store(sink) + [sink.compose_config(raw_sink=raw_sink)]
+    configs = prepare_clustering_stores(sink) + [sink.compose_config(raw_sink=raw_sink)]
     configs = datalink.merge_existing_component_configs(configs)
     try:
         datalink.apply_data_link_with_retry(configs)
-        publish_pattern_routes(datalink)
+        publish_clustering_routes(datalink)
     except RetryError as e:
         raise e.__cause__ if e.__cause__ else e
 
@@ -273,6 +273,7 @@ class SetLogClusteringConfigResource(Resource):
         kafka_resource = LogClusteringResourceRefSerializer(label="聚类 Kafka 资源引用")
         runtime_cluster = LogClusteringResourceRefSerializer(label="专用 Databus 集群")
         recovery_resource = LogClusteringResourceRefSerializer(label="结果关联存储资源")
+        result_mode = serializers.ChoiceField(choices=["update_original", "append"], required=False)
 
         def validate(self, attrs):
             references = [
@@ -309,7 +310,8 @@ class SetLogClusteringConfigResource(Resource):
             with transaction.atomic(using=DATABASE_CONNECTION_NAME):
                 lock_log_clustering_datalink(datalink)
                 sink = get_log_clustering_sink(datalink, for_update=True)
-                if sink is None:
+                is_new_sink = sink is None
+                if is_new_sink:
                     sink = data_link_utils.create_resource_with_random_name(
                         models.LogClusteringSinkConfig,
                         DataLinkNameScene.LOG_CLUSTERING_SINK,
@@ -320,6 +322,12 @@ class SetLogClusteringConfigResource(Resource):
                         bk_biz_id=databus.bk_biz_id,
                         table_id=table_id,
                     )
+                requested_mode = validated_request_data.get("result_mode")
+                existing_mode = (sink.result or {}).get("mode", "update_original")
+                if not is_new_sink and requested_mode and requested_mode != existing_mode:
+                    raise ValidationError("首版不支持切换已有聚类结果写入模式")
+                if not sink.result:
+                    sink.result = {"mode": requested_mode or "update_original"}
                 for field, value in config_fields.items():
                     setattr(sink, field, value)
                 sink.attached = True
