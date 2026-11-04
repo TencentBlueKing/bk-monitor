@@ -1,33 +1,89 @@
 .fav-list {
+  padding-top: 8px;
+
+  &.is-expend {
+    padding-bottom: 4px;
+    background-color: #1a2232;
+  }
+
+  &.is-leaving .monitor-collapse-wrap.animation {
+    transition: none;
+  }
+
   .fav-list-header {
     display: flex;
     align-items: center;
-    height: 40px;
-    padding: 0 22px;
-    color: #666d8e;
+    height: 36px;
+    padding: 0 16px;
+    font-size: 12px;
+    line-height: 20px;
+    color: #7f889b;
     cursor: pointer;
 
-    .icon-monitor {
-      margin-top: -2px;
+    .fav-list-title {
+      display: flex;
+      flex: 1;
+      align-items: center;
+      min-width: 0;
+    }
+
+    .fav-list-name {
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .fav-list-count {
+      flex: none;
+    }
+
+    .bk-icon {
+      display: flex;
+      flex: none;
+      align-items: center;
+      justify-content: center;
+      width: 18px;
+      height: 18px;
+      margin-left: 8px;
       font-size: 18px;
+      line-height: 18px;
       transition: transform .2s ease-in-out;
-      transform: rotate(-90deg);
 
       &.expend {
-        transform: rotate(0deg);
-
+        transform: rotate(90deg);
       }
     }
   }
 
   .fav-list-main {
+    max-height: 300px;
+    padding: 0 16px;
+    overflow-y: auto;
+    scrollbar-width: thin;
+    scrollbar-color: rgb(255 255 255 / 28%) transparent;
+
     .fav-item {
       display: flex;
       align-items: center;
-      height: 40px;
-      padding: 0 24px;
+      height: 36px;
+      padding: 0 10px;
+      margin-bottom: 4px;
+      overflow: hidden;
       font-size: 14px;
+      color: #c4c6cc;
       cursor: pointer;
+      border-radius: 4px;
+      transition:
+        height 0.2s cubic-bezier(0.22, 1, 0.36, 1),
+        margin-bottom 0.2s cubic-bezier(0.22, 1, 0.36, 1),
+        opacity 0.16s ease-out;
+
+      &.is-leaving {
+        height: 0;
+        margin-bottom: 0;
+        opacity: 0;
+        pointer-events: none;
+      }
 
       .icon-monitor {
         margin-right: 8px;
@@ -36,13 +92,14 @@
       }
 
       &:hover {
-        background-color: #394561;
+        color: #fff;
+        background-color: #39425c;
       }
 
       .fav-item-name {
         flex: 1;
         overflow: hidden;
-        line-height: 40px;
+        line-height: 20px;
         text-overflow: ellipsis;
         white-space: nowrap;
         // height: 100%;
@@ -51,12 +108,19 @@
       }
 
       &.checked {
-        background-color: #252f43;
+        color: #fff;
+        background-color: #3a84ff;
 
         .fav-item-name {
-          color: #3a84ff;
+          color: #fff;
         }
       }
     }
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .fav-list .fav-item {
+    transition: none;
   }
 }

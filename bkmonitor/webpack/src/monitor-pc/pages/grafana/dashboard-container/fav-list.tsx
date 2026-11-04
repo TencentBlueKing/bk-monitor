@@ -57,6 +57,15 @@ export default class FavList extends tsc<IProps, IEvents> {
 
   localChecked: string = null;
 
+  /** 正在播消失动画的收藏项，列表刷新前保持收起，失败再展开 */
+  leavingId: number | string = null;
+
+  leaveTimer = 0;
+
+  beforeDestroy() {
+    window.clearInterval(this.leaveTimer);
+  }
+
   @Watch('checked', { immediate: true })
   checkedChange(val: string) {
     this.localChecked = val;
@@ -69,6 +78,10 @@ export default class FavList extends tsc<IProps, IEvents> {
         this.$set(item, 'expend', true);
         return item;
       }) || [];
+    const ids = new Set(list?.flatMap(item => item.children?.map(child => child.id) || []) || []);
+    if (this.leavingId != null && !ids.has(this.leavingId)) {
+      this.leavingId = null;
+    }
   }
 
   handleExpend(item: IFavListItem) {
@@ -81,11 +94,94 @@ export default class FavList extends tsc<IProps, IEvents> {
     return item;
   }
   handleUnstarred(item: IFavListItem) {
+    if (this.leavingId != null) {
+      return;
+    }
+    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+      this.$emit('unstarred', item.id, item.name);
+      return;
+    }
+    this.leavingId = item.id;
+    this.$nextTick(() => this.playLeave(item));
+  }
+
+  /** 收藏项先收起，折叠容器的高度跟着内容走，不改公共 Collapse */
+  playLeave(item: IFavListItem) {
+    const row = this.$el.querySelector('.fav-item.is-leaving') as HTMLElement | null;
+    if (!row) {
+      this.leavingId = null;
+      this.$emit('unstarred', item.id, item.name);
+      return;
+    }
+    const wrap = row.closest('.monitor-collapse-wrap') as HTMLElement | null;
+    let stopped = false;
+    const syncHeight = () => {
+      this.syncCollapseHeight(wrap);
+    };
+    const finish = () => {
+      if (stopped) {
+        return;
+      }
+      stopped = true;
+      window.clearInterval(this.leaveTimer);
+      row.removeEventListener('transitionend', onEnd);
+      syncHeight();
+      this.requestUnstarred(item);
+    };
+    const onEnd = (evt: TransitionEvent) => {
+      if (evt.target !== row || evt.propertyName !== 'height') {
+        return;
+      }
+      finish();
+    };
+    row.addEventListener('transitionend', onEnd);
+    syncHeight();
+    this.leaveTimer = window.setInterval(syncHeight, 16);
+    window.setTimeout(finish, 280);
+  }
+
+  requestUnstarred(item: IFavListItem) {
+    const listener = this.$listeners.unstarred;
+    const handler = (Array.isArray(listener) ? listener[0] : listener) as
+      | ((id: number, name: string) => Promise<boolean> | boolean)
+      | undefined;
+    const result = handler?.(item.id as number, item.name);
+    if (result && typeof (result as Promise<boolean>).then === 'function') {
+      (result as Promise<boolean>).then(ok => {
+        if (ok === false) {
+          this.leavingId = null;
+          this.$nextTick(() => this.syncOpenHeight());
+        }
+      });
+      return;
+    }
     this.$emit('unstarred', item.id, item.name);
+  }
+
+  syncOpenHeight() {
+    const wrap = this.$el.querySelector('.fav-item')?.closest('.monitor-collapse-wrap') as HTMLElement | null;
+    this.syncCollapseHeight(wrap);
+  }
+
+  /** 公共 Collapse 把高度写死并自带 300ms 过渡。收藏删除期间改掉实例高度，让容器跟着当前内容 */
+  syncCollapseHeight(wrap: HTMLElement | null) {
+    const content = wrap?.querySelector('.monitor-collapse-content') as HTMLElement | null;
+    if (!wrap || !content) {
+      return;
+    }
+    const collapse = (wrap as HTMLElement & { __vue__?: { height: number } }).__vue__;
+    if (collapse) {
+      collapse.height = content.scrollHeight;
+    }
   }
   render() {
     return (
-      <div class='fav-list'>
+      <div
+        class={[
+          'fav-list',
+          { 'is-expend': this.list.some(item => item.expend), 'is-leaving': this.leavingId != null },
+        ]}
+      >
         {this.list.map((item, index) => (
           <div
             key={index}
@@ -95,19 +191,27 @@ export default class FavList extends tsc<IProps, IEvents> {
               class='fav-list-header'
               onClick={() => this.handleExpend(item)}
             >
-              <i class={['icon-monitor icon-mc-triangle-down', { expend: item.expend }]} />
-              <span>{item.name}</span>
+              <span class='fav-list-title'>
+                <span class='fav-list-name'>{item.name}</span>
+                {!item.expend && <span class='fav-list-count'>（{item.children?.length || 0}）</span>}
+              </span>
+              <i class={['bk-icon icon-angle-right', { expend: item.expend }]} />
             </div>
             <Collapse
               expand={item.expend}
-              maxHeight={300}
               needCloseButton={false}
             >
               <div class='fav-list-main'>
                 {item.children.map(child => (
                   <div
                     key={child.id}
-                    class={['fav-item', { checked: this.localChecked === child.uid }]}
+                    class={[
+                      'fav-item',
+                      {
+                        checked: this.localChecked === child.uid,
+                        'is-leaving': this.leavingId === child.id,
+                      },
+                    ]}
                   >
                     <i
                       class='icon-monitor icon-mc-collect'

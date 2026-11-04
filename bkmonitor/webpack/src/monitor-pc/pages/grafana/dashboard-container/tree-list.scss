@@ -1,19 +1,61 @@
 /* stylelint-disable declaration-no-important */
 .tree-list {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
   font-size: 14px;
 
-  .tree-list-item {
+  .tree-list {
+    position: relative;
+    gap: 0;
+    padding-top: 0;
+
+    &::before {
+      position: absolute;
+      top: 0;
+      bottom: 0;
+      left: calc(var(--tree-guide) - 0.5px);
+      z-index: 1;
+      width: 1px;
+      pointer-events: none;
+      content: '';
+      background-color: rgb(161 174 199 / 32%);
+    }
   }
 
   .list-item-row {
     display: flex;
     align-items: center;
-    height: 40px;
+    box-sizing: border-box;
+    height: 36px;
+    padding-right: 10px;
+    scroll-margin-top: 40px;
+    color: #a1aec7;
     cursor: pointer;
+    border-radius: 4px;
+
+    &.is-dir {
+      position: sticky;
+      top: 0;
+      z-index: 2;
+      background-color: #242b3b;
+
+      &::before {
+        position: absolute;
+        top: -4px;
+        right: -16px;
+        bottom: 0;
+        left: -16px;
+        z-index: -1;
+        pointer-events: none;
+        content: '';
+        background-color: #242b3b;
+      }
+    }
 
     &:hover {
       color: #fff;
-      background-color: #31394f;
+      background-color: #39425c;
 
       .list-item-icon {
         &::after {
@@ -23,17 +65,31 @@
     }
 
     .list-item-icon {
-      flex: 0 0 22px;
-      width: 22px;
-      height: 22px;
+      flex: 0 0 16px;
+      width: 16px;
+      height: 16px;
+      margin-right: 12px;
+      font-size: 16px;
     }
 
     .list-item-name {
       flex: 1;
-      flex-wrap: nowrap;
       overflow: hidden;
+      font-size: 14px;
+      line-height: 22px;
       text-overflow: ellipsis;
       white-space: nowrap;
+    }
+
+    &.is-leaf {
+      .list-item-icon {
+        display: none;
+      }
+
+      .list-item-name {
+        font-size: 13px;
+        line-height: 20px;
+      }
     }
 
     &.checked {
@@ -45,10 +101,25 @@
           background-color: #fff;
         }
       }
+
+      .icon-btn:has(.icon-mc-more) {
+        color: #fff;
+        background-color: transparent;
+
+        &.checked {
+          color: #fff;
+          background-color: transparent;
+        }
+
+        &:hover {
+          color: #3a84ff;
+          background-color: #fff;
+        }
+      }
     }
 
     &.edit {
-      background-color: #252f43;
+      background-color: #31394f;
 
       .bk-form-input {
         color: #fff;
@@ -68,8 +139,10 @@
 
     .rename-input {
       .bk-form-input {
-        background-color: #252f43 !important;
+        color: #f2f6fc;
+        background-color: #31394f !important;
         border: 0 !important;
+        border-radius: 4px;
       }
     }
   }
@@ -78,9 +151,9 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    width: 22px;
-    height: 22px;
-    font-size: 14px;
+    width: 16px;
+    height: 16px;
+    font-size: 16px;
 
     &.is-null {
       position: relative;
@@ -89,10 +162,10 @@
         position: absolute;
         top: 50%;
         left: 50%;
-        width: 5px;
-        height: 5px;
+        width: 4px;
+        height: 4px;
         content: '';
-        background-color: #394561;
+        background-color: #a1aec7;
         border-radius: 50%;
         transform: translate3d(-50%, -50%, 0);
       }
