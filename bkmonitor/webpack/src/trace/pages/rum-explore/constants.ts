@@ -34,7 +34,6 @@ import ResourceIcon from '../../static/img/rum-explore/span-type/resource.svg';
 import ViewIcon from '../../static/img/rum-explore/span-type/view.svg';
 import VitalIcon from '../../static/img/rum-explore/span-type/vital.svg';
 import WebsocketIcon from '../../static/img/rum-explore/span-type/websocket.svg';
-import { RumCardToneEnum } from './detail';
 
 import type { IRumColumnLayoutPreset, RumModeType } from './typings';
 
@@ -57,6 +56,19 @@ export const RumFieldDisplayEnum = {
   DATETIME: 'datetime',
   /** 耗时字段，按 duration 列渲染 */
   DURATION: 'duration',
+} as const;
+
+/**
+ * Web Vitals 指标评级，取值需与 view_config / record_detail 下发的 rating_config[].rating 对齐。
+ * 列表着色与详情评级展示共用同一协议枚举，统一收敛到 constants（详情侧通过 re-export 引用）。
+ */
+export const RumRatingEnum = {
+  /** 良好 */
+  GOOD: 'good',
+  /** 需改进 */
+  NEEDS_IMPROVEMENT: 'needs_improvement',
+  /** 差 */
+  POOR: 'poor',
 } as const;
 
 /**
@@ -195,6 +207,31 @@ export const SPAN_COLUMN_WIDTH_MAP: Record<string, number> = {
   'attributes.user.id': 133,
 };
 
+/** View 视角列宽（对齐设计稿），未列出的字段使用 DEFAULT_COLUMN_WIDTH */
+export const VIEW_COLUMN_WIDTH_MAP: Record<string, number> = {
+  start_time: 133,
+  'attributes.view.url_template': 116,
+  'attributes.view.loading_type': 140,
+  'web_vitals.fcp': 88,
+  'web_vitals.lcp': 88,
+  'web_vitals.cls': 88,
+  'web_vitals.inp': 88,
+  'web_vitals.ttfb': 88,
+  error_count: 88,
+  request_count: 88,
+  action_count: 88,
+  'resource.user_agent.name': 98,
+};
+
+/** View 视角的页面 ID 字段：表格行唯一键，同时是跨视角检索该页面的条件字段 */
+export const VIEW_ID_FIELD = 'attributes.view.id';
+
+/** View 视角的页面 URL 字段：链接列，点击打开 View 详情抽屉 */
+export const VIEW_URL_FIELD = 'attributes.view.url_template';
+
+/** View 视角的数量统计列：大于 0 时按红色链接展示，点击切到 Span 视角并按页面 ID 检索 */
+export const VIEW_COUNT_FIELDS = new Set(['error_count', 'request_count', 'action_count']);
+
 export const DEFAULT_COLUMN_WIDTH = 220;
 
 /** 表格列最小宽度 */
@@ -224,6 +261,11 @@ export const RUM_COLUMN_LAYOUT_PRESET: Partial<Record<RumModeType, IRumColumnLay
   [RumModeEnum.SPAN]: {
     widthMap: SPAN_COLUMN_WIDTH_MAP,
     leftFixedColumns: new Set(['span_name']),
+  },
+  [RumModeEnum.VIEW]: {
+    widthMap: VIEW_COLUMN_WIDTH_MAP,
+    /** 设计稿中 Web Vitals 列为 88px，小于全局默认最小列宽，需按视角下调 */
+    minWidth: 88,
   },
 };
 
@@ -259,14 +301,6 @@ export const RUM_OUTCOME_TYPE_MAP: Record<string, { icon: string; label: string 
   error: { icon: 'icon-monitor icon-mc-close-fill outcome-type-icon-error', label: window.i18n.t('失败') },
   timeout: { icon: 'icon-monitor icon-Long-Task outcome-type-icon-timeout', label: window.i18n.t('超时') },
   abort: { icon: 'icon-monitor icon-mc-minus-plus outcome-type-icon-abort', label: window.i18n.t('中止') },
-};
-
-export const OUTCOME_TYPE_TONE_MAP = {
-  success: RumCardToneEnum.SUCCESS,
-  warning: RumCardToneEnum.WARNING,
-  error: RumCardToneEnum.DANGER,
-  timeout: RumCardToneEnum.DANGER,
-  abort: RumCardToneEnum.DEFAULT,
 };
 
 /** attributes.http.response.status_code 列按状态码分组的展示配置 */

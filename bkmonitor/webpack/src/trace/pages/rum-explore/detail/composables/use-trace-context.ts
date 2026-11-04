@@ -27,8 +27,8 @@ import { computed, shallowRef, unref, watch } from 'vue';
 import type { MaybeRef } from 'vue';
 
 import { TIMELINE_REQUEST_RESOURCE_TYPES } from '../constants';
+import { RumTimelineFilterCategoryEnum } from '../constants';
 import { getViewTimeline } from '../services';
-import { RumTimelineFilterCategoryEnum } from '../typings';
 import { buildRecordMap, buildTimelineItems, buildViewVM, findSpanPath } from '../utils/timeline-transform';
 
 import type {

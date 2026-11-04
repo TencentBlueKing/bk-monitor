@@ -31,9 +31,13 @@ import { get } from '@vueuse/core';
 import { RumModeEnum } from '../../../constants';
 import { BaseScenario } from '../scenarios/base-scenario';
 import { SpanScenario } from '../scenarios/span-scenario';
+import { ViewScenario } from '../scenarios/view-scenario';
 
 import type { BaseTableColumn } from '../../../../trace-explore/components/trace-explore-table/typing';
 import type { RumModeType } from '../../../typings';
+
+/** 场景上下文：各场景回调的并集，新增场景时在此并入其私有回调，由调用方统一提供 */
+export type ScenarioContext = SpanScenario['context'] & ViewScenario['context'];
 
 export interface ScenarioRenderer {
   /** 当前场景实例 */
@@ -53,28 +57,20 @@ class SessionScenario extends BaseScenario {
   readonly rowKey = 'attributes.session.id';
 }
 
-class ViewScenario extends BaseScenario {
-  readonly privateClassName = 'view-table';
-  readonly rowKey = 'attributes.view.id';
-}
-
 /**
  * @function useScenarioRenderer 表格场景工厂渲染器 hook
  * @description 按检索模式选择场景渲染器实例，未注册的场景模式将显式抛错，
  *              负责将基础列（列展示元数据）注入场景产出的声明式渲染配置（renderType 等），
  *              实现「列展示」「场景配置」「渲染执行」三者分离
  * @param {MaybeRef<RumModeType>} mode 检索视角（由组件以 prop 显式传入，避免隐式依赖全局 store）
- * @param {SpanScenario['context']} context 场景上下文（包含 fieldMap）
+ * @param {ScenarioContext} context 场景上下文（包含 fieldMap）
  * @returns {ScenarioRenderer} 当前激活的场景渲染器相关属性
  */
-export const useScenarioRenderer = (
-  mode: MaybeRef<RumModeType>,
-  context: SpanScenario['context']
-): ScenarioRenderer => {
+export const useScenarioRenderer = (mode: MaybeRef<RumModeType>, context: ScenarioContext): ScenarioRenderer => {
   /** 场景渲染器实例缓存映射，由于是无状态类，所以用 Map 缓存场景实例，避免重复创建节省资源 */
   let scenarioInstanceMap = new Map<string, BaseScenario>();
   /** 场景渲染器类映射 */
-  const scenarioMap: Partial<Record<RumModeType, new (ctx: SpanScenario['context']) => BaseScenario>> = {
+  const scenarioMap: Partial<Record<RumModeType, new (ctx: ScenarioContext) => BaseScenario>> = {
     [RumModeEnum.SPAN]: SpanScenario,
     [RumModeEnum.SESSION]: SessionScenario,
     [RumModeEnum.VIEW]: ViewScenario,

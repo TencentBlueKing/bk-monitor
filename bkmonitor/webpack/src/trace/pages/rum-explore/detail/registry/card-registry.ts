@@ -24,8 +24,9 @@
  * IN THE SOFTWARE.
  */
 // import { OUTCOME_TYPE_TONE_MAP, RUM_OUTCOME_TYPE_MAP } from '../../constants';
+import { RumRatingEnum } from '../../constants';
 import { formatUnitValueParts } from '../../utils';
-import { RumCardToneEnum, RumRatingEnum, RumTimelineFilterCategoryEnum } from '../typings';
+import { RumCardToneEnum, RumTimelineFilterCategoryEnum } from '../constants';
 
 import type {
   IRumCardDescriptor,

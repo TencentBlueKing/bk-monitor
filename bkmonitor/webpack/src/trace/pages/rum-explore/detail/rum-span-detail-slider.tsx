@@ -43,8 +43,8 @@ import {
   useSpanDetail,
   useTraceContext,
 } from './composables';
+import { RumDetailTabEnum, RumTimelineFilterCategoryEnum } from './constants';
 import { searchTraceInfo } from './services';
-import { RumDetailTabEnum, RumTimelineFilterCategoryEnum } from './typings';
 import SliderHeader from '@/components/slider-header/slider-header';
 import TemporaryShareNew from '@/components/temporary-share/temporary-share-new';
 

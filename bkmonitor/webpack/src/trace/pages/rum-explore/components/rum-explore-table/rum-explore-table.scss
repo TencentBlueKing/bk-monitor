@@ -1,5 +1,6 @@
 /* stylelint-disable selector-class-pattern, no-descending-specificity */
 @use './theme/span-table-theme';
+@use './theme/view-table-theme';
 
 /* 布局容器：根类迁移到 CommonTable 后，wrapper 的布局职责独立保留 */
 .rum-explore-table-wrap {

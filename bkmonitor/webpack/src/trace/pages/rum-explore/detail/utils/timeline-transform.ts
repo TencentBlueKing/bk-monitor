@@ -40,8 +40,8 @@ import {
   TIMELINE_TAG_BG_ALPHA,
   VITAL_METRIC_META,
 } from '../constants';
+import { RumSectionTypeEnum } from '../constants';
 import { getTimelineSpanTypeConfig } from '../registry/timeline-span-registry';
-import { RumSectionTypeEnum } from '../typings';
 import { formatDuration } from '@/components/trace-view/utils/date';
 
 import type { IRumWaterfallData } from '../typings';

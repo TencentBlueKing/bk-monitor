@@ -146,7 +146,7 @@ export function useRumColumnConfig(opts: {
    * 固定列沿用展示列顺序，仅影响渲染，不改变 displayFields 的持久化顺序。
    */
   const baseColumns = computed<BaseTableColumn[]>(() => {
-    const { leftFixedColumns, widthMap } = get(layoutPreset) ?? {};
+    const { leftFixedColumns, minWidth, widthMap } = get(layoutPreset) ?? {};
     const columns: BaseTableColumn[] = displayFields.value
       .map(name => fieldMap.value.get(name))
       .filter(Boolean)
@@ -154,7 +154,7 @@ export function useRumColumnConfig(opts: {
         colKey: field.name,
         width: fieldsWidthConfig.value[field.name] ?? widthMap?.[field.name] ?? getDefaultColumnWidth(field),
         fixed: leftFixedColumns?.has(field.name) ? 'left' : undefined,
-        minWidth: DEFAULT_MIN_COLUMN_WIDTH,
+        minWidth: minWidth ?? DEFAULT_MIN_COLUMN_WIDTH,
         resizable: true,
         sorter: RUM_SORTABLE_FIELD_TYPES.has(field.type),
       }));

@@ -30,8 +30,8 @@ import dayjs from 'dayjs';
 
 import { useHoverInfo } from '../../composables/use-hover-info';
 import { CARD_TONE_COLOR } from '../../constants';
+import { RumCardToneEnum } from '../../constants';
 import { formatCount } from '../../registry/card-registry';
-import { RumCardToneEnum } from '../../typings';
 import HoverInfo from '../hover-info/hover-info';
 
 import type { IRumSparklinePoint, IRumSummaryCardGroupVM, IRumSummaryCardVM } from '../../typings';

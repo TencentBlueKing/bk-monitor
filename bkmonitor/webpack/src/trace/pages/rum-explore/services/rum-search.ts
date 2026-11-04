@@ -66,6 +66,7 @@ function normalizeField(raw: IRumRawField): IRumField {
     is_dimensions: !!raw.is_agg,
     can_displayed: !!raw.is_list,
     option_values: raw.option_values || [],
+    rating_config: raw.rating_config || [],
     supported_operations: raw.supported_operations || [],
     pinyinStr: pinyin.convertToPinyin(`${alias}(${raw.field_name})`, '').toLocaleLowerCase(),
   };

@@ -29,7 +29,7 @@ import type { PropType } from 'vue';
 import { Input, Radio } from 'bkui-vue';
 import { useI18n } from 'vue-i18n';
 
-import { RumTimelineFilterCategoryEnum } from '../../typings';
+import { RumTimelineFilterCategoryEnum } from '../../constants';
 
 import type { RumTimelineFilterCategoryType } from '../../typings';
 
