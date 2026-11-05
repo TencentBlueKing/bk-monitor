@@ -9,6 +9,8 @@ specific language governing permissions and limitations under the License.
 """
 
 from . import (
+    alarm_redis,
+    alarm_strategy,
     apm,
     apm_trace,
     api_auth_token,
@@ -49,6 +51,8 @@ from . import (
 )
 
 __all__ = [
+    "alarm_redis",
+    "alarm_strategy",
     "apm",
     "apm_trace",
     "api_auth_token",
