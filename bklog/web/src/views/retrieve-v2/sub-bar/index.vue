@@ -1,5 +1,5 @@
 <script setup>
-  import { computed, ref } from 'vue';
+  import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 
   import useStore from '@/hooks/use-store';
   import { ConditionOperator } from '@/store/condition-operator';
@@ -105,6 +105,61 @@
   /** 是否是监控组件 */
   const isMonitorComponent = window.__IS_MONITOR_COMPONENT__;
   const isMonitorTraceComponent = window.__IS_MONITOR_TRACE__;
+
+  const subbarRef = ref(null);
+  const indexSetMaxWidth = ref(600);
+  const indexSetMinWidth = computed(() => Math.min(400, indexSetMaxWidth.value));
+  let indexSetWidthObserver;
+  let indexSetWidthFrame;
+
+  const updateIndexSetWidth = () => {
+    if (indexSetWidthFrame !== undefined) return;
+    indexSetWidthFrame = requestAnimationFrame(() => {
+      indexSetWidthFrame = undefined;
+      const container = subbarRef.value;
+      const group = container?.querySelector('.box-biz-select');
+      if (isMonitorComponent || isSceneMode.value || !container?.clientWidth || !group) {
+        indexSetMaxWidth.value = 600;
+        return;
+      }
+
+      const history = group.querySelector('.retrieve-tab-item-title');
+      const right = container.querySelector('.box-right-option');
+      // 左侧控件和间距已计入 group.left；只扣除固定控件，避免当前收缩宽度影响恢复。
+      const availableWidth =
+        container.getBoundingClientRect().right -
+        group.getBoundingClientRect().left -
+        (history?.getBoundingClientRect().width ?? 0) -
+        (right?.getBoundingClientRect().width ?? 0);
+      indexSetMaxWidth.value = Math.min(600, Math.max(0, Math.floor(availableWidth)));
+    });
+  };
+
+  const observeIndexSetWidth = () => {
+    indexSetWidthObserver?.disconnect();
+    const container = subbarRef.value;
+    if (!indexSetWidthObserver || isMonitorComponent || isSceneMode.value || !container) {
+      indexSetMaxWidth.value = 600;
+      return;
+    }
+
+    indexSetWidthObserver.observe(container);
+    for (const selector of ['.retrieve-type-switch', '.retrieve-tab-item-title', '.box-right-option']) {
+      const element = container.querySelector(selector);
+      if (element) indexSetWidthObserver.observe(element);
+    }
+    updateIndexSetWidth();
+  };
+
+  onMounted(() => {
+    indexSetWidthObserver = new ResizeObserver(updateIndexSetWidth);
+    observeIndexSetWidth();
+  });
+  watch([isSceneMode, isSceneRetrieveEnabled, () => props.showFavorites], observeIndexSetWidth, { flush: 'post' });
+  onBeforeUnmount(() => {
+    indexSetWidthObserver?.disconnect();
+    if (indexSetWidthFrame !== undefined) cancelAnimationFrame(indexSetWidthFrame);
+  });
 
   // 如果不是采集下发和自定义上报则不展示
   const hasCollectorConfigId = computed(() => {
@@ -428,7 +483,10 @@
   }
 </script>
 <template>
-  <div class="subbar-container">
+  <div
+    ref="subbarRef"
+    class="subbar-container"
+  >
     <RetrieveTypeSwitch
       v-if="isSceneRetrieveEnabled"
       :style="{ margin: `0 ${retrieveType === RetrieveType.Normal ? 8 : 0}px 0 8px` }"
@@ -444,6 +502,8 @@
         :active-type="indexSetType"
         :index-set-list="indexSetList"
         :index-set-value="indexSetUid"
+        :max-width="indexSetMaxWidth"
+        :min-width="indexSetMinWidth"
         :space-uid="spaceUid"
         :text-dir="textDir"
         @auth-request="handleAuthRequest"
