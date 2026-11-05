@@ -79,7 +79,13 @@ import EmptyStatus from '@/components/empty-status/empty-status';
 import type { ConditionChangeEvent } from '../trace-explore/typing';
 import type { IRumEventsTarget } from './composables/use-rum-events-drawer';
 import type { IRumDetailContext } from './detail';
-import type { IRumApplication, IRumColumnLayoutPreset, IRumSpanRecord, RumModeType } from './typings';
+import type {
+  IRumApplication,
+  IRumColumnLayoutPreset,
+  IRumCountDrillDown,
+  IRumSpanRecord,
+  RumModeType,
+} from './typings';
 
 import './rum-explore.scss';
 
@@ -300,16 +306,14 @@ export default defineComponent({
     }
 
     /**
-     * @description View 数量统计列点击：切到 Span 视角并按页面 ID 检索；视角切换已清空原条件。
-     *              两个切换函数传 false 跳过提前查询，由 handleConditionChange 在条件就绪后触发一次检索。
-     * @param {{ colKey: string; row: IRumSpanRecord }} target 点击的列与行数据
+     * @description 数量列下钻统一编排：调用方已给出目标视角与条件，这里只负责切视角、重置类型筛选并应用条件。
+     *              handleConditionChange 内部触发一次检索与 URL 同步。
+     * @param {IRumCountDrillDown} options 目标视角与跳转后携带的检索条件
      */
-    function handleViewCountClick(target: { colKey: string; row: IRumSpanRecord }) {
-      const viewId = String(target.row?.[VIEW_ID_FIELD] ?? '');
-      if (!viewId) return;
-      handleModeChange(RumModeEnum.SPAN, false);
+    function handleCountDrillDown(options: IRumCountDrillDown) {
+      handleModeChange(options.targetMode, false);
       handleSpanTypeChange(ALL_SPAN_TYPE, false);
-      handleConditionChange({ key: VIEW_ID_FIELD, method: EMethod.eq, value: viewId }, false);
+      handleConditionChange(options.condition, false);
     }
 
     /**
@@ -339,9 +343,9 @@ export default defineComponent({
     function handleConditionChange(condition: ConditionChangeEvent, isFromDimensionFilterPanel = true) {
       const { key, method: operator, value } = condition;
       const field = viewConfigCtx.viewConfig.value.fields.find(item => item.name === key);
-      /** 范围值 */
+      /** 范围值；切视角时 viewConfig 可能异步清空，字段缺失按普通等值条件处理 */
       const isRangeValue =
-        (field.field_display_type === 'duration' && field.field_unit !== 'vital') || field.field_unit === 'bytes';
+        (field?.field_display_type === 'duration' && field?.field_unit !== 'vital') || field?.field_unit === 'bytes';
       const matched = value.match(/^(-?\d+)-(-?\d+)$/);
       if (queryCtx.filterMode.value === EMode.ui) {
         queryCtx.addCondition(
@@ -429,6 +433,8 @@ export default defineComponent({
      * View 视角的一行即一条 view span：记录 ID 取页面 ID、类型固定为 view（与 SPAN_TYPE_META 的 view 同源）。
      */
     function handleOpenDetail(row: IRumSpanRecord) {
+      /** session 专属详情本期未做，下期开放后移除该分支并接入 mode=session 的 record_detail */
+      if (store.mode === RumModeEnum.SESSION) return;
       const isViewMode = store.mode === RumModeEnum.VIEW;
       /** View 行常缺 end_time：end_time 回退 start_time，两者都缺再回退当前检索范围（秒），保证上下文时间始终为有限正数 */
       const [queryStart, queryEnd] = handleTransformToTimestamp(store.timeRange);
@@ -602,7 +608,7 @@ export default defineComponent({
       handleSortChange,
       handleSpanTypeChange,
       handleThumbtackChange,
-      handleViewCountClick,
+      handleCountDrillDown,
       handleCreateApp,
       tagValueDisplayFormatter,
       handlePreviousDetail,
@@ -791,12 +797,12 @@ export default defineComponent({
                                   onClearFilter={queryCtx.clearQuery}
                                   onColumnResizeChange={width => this.columnConfig.updateColumnResizeWidth(width)}
                                   onConditionChange={this.handleConditionChange}
+                                  onCountClick={this.handleCountDrillDown}
                                   onDisplayFieldChange={fields => this.columnConfig.updateDisplayFields(fields)}
                                   onEventsCellClick={this.handleEventsCellClick}
                                   onOpenDetail={this.handleOpenDetail}
                                   onScrollToEnd={tableCtx.handleScrollToEnd}
                                   onSortChange={this.handleSortChange}
-                                  onViewCountClick={this.handleViewCountClick}
                                 />
                               ),
                           }}

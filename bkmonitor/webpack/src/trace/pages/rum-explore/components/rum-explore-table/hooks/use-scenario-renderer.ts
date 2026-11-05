@@ -29,15 +29,16 @@ import { type ComputedRef, type MaybeRef, computed, onBeforeUnmount, onMounted, 
 import { get } from '@vueuse/core';
 
 import { RumModeEnum } from '../../../constants';
-import { BaseScenario } from '../scenarios/base-scenario';
+import { SessionScenario } from '../scenarios/session-scenario';
 import { SpanScenario } from '../scenarios/span-scenario';
 import { ViewScenario } from '../scenarios/view-scenario';
 
 import type { BaseTableColumn } from '../../../../trace-explore/components/trace-explore-table/typing';
 import type { RumModeType } from '../../../typings';
+import type { BaseScenario } from '../scenarios/base-scenario';
 
 /** 场景上下文：各场景回调的并集，新增场景时在此并入其私有回调，由调用方统一提供 */
-export type ScenarioContext = SpanScenario['context'] & ViewScenario['context'];
+export type ScenarioContext = SessionScenario['context'] & SpanScenario['context'] & ViewScenario['context'];
 
 export interface ScenarioRenderer {
   /** 当前场景实例 */
@@ -50,11 +51,6 @@ export interface ScenarioRenderer {
   defaultGetCellValue: (row: Record<string, unknown>, column: BaseTableColumn) => unknown;
   /** 转换列配置：将场景声明式配置注入基础列 */
   transformColumns: (baseColumns: BaseTableColumn[]) => BaseTableColumn[];
-}
-
-class SessionScenario extends BaseScenario {
-  readonly privateClassName = 'session-table';
-  readonly rowKey = 'attributes.session.id';
 }
 
 /**
