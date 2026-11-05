@@ -464,6 +464,9 @@ BK_IAM_APIGATEWAY_URL = resolve_iam_gateway_url(BK_COMPONENT_API_URL, os.getenv(
 # Both products share the BKLog environment contract (including string defaults).
 globals().update(load_iam_settings(component_api_url=BK_COMPONENT_API_URL))
 
+# IAM V4 权限中心前端地址；与 V3 的 BK_IAM_SAAS_HOST 独立配置，未配置时由代码回退 V3
+BK_IAM_V4_SAAS_HOST = os.getenv("BKAPP_IAM_V4_SAAS_HOST", "")
+
 BK_USER_HOST = os.getenv("BKAPP_BKUSER_HOST", BK_BKLOG_HOST.replace("bklog", "bkuser"))
 SHOW_PERSONAL_SETTINGS = os.getenv("BKAPP_SHOW_PERSONAL_SETTINGS", "on") == "on"
 

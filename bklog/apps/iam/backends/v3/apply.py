@@ -116,6 +116,15 @@ class V3ApplicationBuilder:
         self.system_id = system_id
         self.action_resolver = action_resolver
 
+    def get_permission_center_url(self) -> str:
+        """V3 权限中心前端地址，供导航入口使用。"""
+        return str(settings.BK_IAM_SAAS_HOST or "").strip().rstrip("/")
+
+    def get_apply_entry_url(self) -> str:
+        """无具体资源时的申请入口，V3 权限中心提供「加入用户组」页面。"""
+        host = self.get_permission_center_url()
+        return f"{host}/apply-join-user-group" if host else ""
+
     def get_apply_data(self, actions: list[Any], resources: list[Resource] | None = None) -> tuple[dict, str]:
         resources = resources or []
         action_to_resources_list = []

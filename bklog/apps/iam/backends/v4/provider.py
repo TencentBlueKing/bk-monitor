@@ -252,6 +252,14 @@ class V4PermissionProvider(PermissionProvider):
         decoded_ids = {self.codec.decode_resource_id(encoded_resource_type, resource_id) for resource_id in ids}
         return AuthorizedResourceScope.concrete(encoded_resource_type, decoded_ids, provider_name=self.name)
 
+    def get_permission_center_url(self) -> str:
+        """V4 权限中心前端地址；未配置时返回空，由门面决定回退策略。"""
+        return str(getattr(settings, "BK_IAM_V4_SAAS_HOST", "") or "").strip().rstrip("/")
+
+    def get_apply_entry_url(self) -> str:
+        """无具体资源时的申请入口，由 IAM 按当前系统实时生成。"""
+        return self.client.generate_perm_apply_url(permissions=[])
+
     def get_apply_data(
         self,
         actions: list[ActionDefinition | str],
