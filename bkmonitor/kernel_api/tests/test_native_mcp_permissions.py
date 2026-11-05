@@ -265,12 +265,13 @@ def test_log_serializer_errors_return_400_with_details(
     body = json.loads(response.content)
     assert response.status_code == body["code"] == 400
     assert body["result"] is False
-    assert body["message"] == "MCP request validation failed"
     detail = body["data"]["time_span"]
     if start_time == "invalid-timestamp":
         assert "must be valid integers" in str(detail)
     else:
         assert "split into batch queries" in str(detail) and "86400 seconds" in str(detail)
+    assert body["message"].startswith("MCP request validation failed: time_span: ")
+    assert str(detail[0]) in body["message"]
     validated_log_resource.query.assert_not_called()
     fields = next(r for r in audit_records(caplog) if r["phase"] == "execution")
     assert fields["decision"] == "aborted" and fields["error_type"] == "ValidationError"
@@ -3497,6 +3498,134 @@ def test_direct_gateway_without_native_fallback_still_checks_mcp(monkeypatch, di
     io.iam.is_allowed.assert_not_called()
     assert io.dispatch.call_count == int(allowed)
     assert request.unified_mcp_permission_checked is False
+    ordinary.assert_not_called()
+
+
+@pytest.mark.parametrize("native_enabled", [False, True])
+def test_direct_gateway_passes_platform_permission_error_through(monkeypatch, direct_gateway, io, native_enabled):
+    from core.errors.iam import PermissionDeniedError
+
+    denial = PermissionDeniedError(
+        context={"action_name": "MCP 日志查询"},
+        data={"apply_url": "https://iam.invalid/apply", "raw": "private-upstream"},
+        extra={"permission": {"system_id": "bk_monitorv3", "actions": [{"id": "using_log_mcp"}]}},
+    )
+    if native_enabled:
+        io.dispatch.side_effect = denial
+    else:
+        # 未启用原生权限时走 Permission.is_allowed_by_biz(raise_exception=True)，其拒绝异常不是 DRF 异常。
+        monkeypatch.setattr(settings, "MCP_NATIVE_PERMISSION_TOOLS", [])
+        io.monitor.iam_client.is_allowed.side_effect = denial
+    response, request, permission, ordinary = direct_gateway()
+
+    body = json.loads(response.content)
+    assert response.status_code == body["code"] == 403
+    assert body["message"] == "当前用户无 [MCP 日志查询] 权限"
+    assert body["data"] == {
+        "error_type": "PermissionDeniedError",
+        "error_code": 9900403,
+        "request_id": "gateway-request-test",
+        "apply_url": "https://iam.invalid/apply",
+        "permission": {"system_id": "bk_monitorv3", "actions": [{"id": "using_log_mcp"}]},
+    }
+    assert "private-upstream" not in response.content.decode()
+    assert io.dispatch.call_count == int(native_enabled)
+    ordinary.assert_not_called()
+
+
+@pytest.mark.parametrize("native_enabled", [False, True])
+@pytest.mark.parametrize(
+    "error,status",
+    [
+        ("bkapi", 500),
+        ("uq_syntax", 500),
+        ("uq_client_error", 400),
+        ("legacy_success_status", 500),
+        ("upstream_timeout", 504),
+        ("unexpected", 503),
+    ],
+)
+def test_direct_gateway_business_errors_keep_message_without_upstream_body(
+    monkeypatch, direct_gateway, io, native_enabled, error, status
+):
+    import requests
+
+    from core.errors import Error
+    from core.errors.api import BKAPIError
+
+    class LegacySuccessStatusError(Error):
+        status_code = 200
+        code = 3300999
+        message_tpl = "历史业务错误"
+
+    if not native_enabled:
+        monkeypatch.setattr(settings, "MCP_NATIVE_PERMISSION_TOOLS", [])
+        io.monitor.iam_client.is_allowed.side_effect = None
+        io.monitor.iam_client.is_allowed.return_value = True
+    uq_client_error = BKAPIError("unify-query", "http://private-uq/query/ts/raw", "parse [ee_metric] failed")
+    # query_uq 把 UQ 的 4xx 拒绝标记为调用方参数问题。
+    uq_client_error.status_code = 400
+    io.dispatch.side_effect = {
+        "bkapi": BKAPIError("bk_log", "/private/url/", {"code": 1, "message": "索引集不存在", "raw": "private"}),
+        # MCP 专用 UQ 读取器把上游非 200 响应截断为字符串后抛出 BKAPIError。
+        "uq_syntax": BKAPIError("unify-query", "http://private-uq/query/ts/raw", "query_string parse error"),
+        "uq_client_error": uq_client_error,
+        "legacy_success_status": LegacySuccessStatusError(),
+        "upstream_timeout": requests.Timeout("read timeout http://private-uq/query/ts/raw"),
+        "unexpected": RuntimeError("private-upstream"),
+    }[error]
+    response, _, _, ordinary = direct_gateway()
+
+    body = json.loads(response.content)
+    assert response.status_code == body["code"] == status
+    content = response.content.decode()
+    assert body["data"]["error_type"] == type(io.dispatch.side_effect).__name__
+    assert body["data"]["request_id"] == "gateway-request-test"
+    if error in {"unexpected", "upstream_timeout"}:
+        assert set(body["data"]) == {"error_type", "request_id"}
+        assert type(io.dispatch.side_effect).__name__ in body["message"]
+        assert "request_id=gateway-request-test" in body["message"]
+        assert not any(secret in content for secret in ("private-upstream", "private-uq"))
+    else:
+        assert set(body["data"]) == {"error_type", "error_code", "request_id"}
+        expected = {
+            "bkapi": "索引集不存在",
+            "uq_syntax": "query_string parse error",
+            "uq_client_error": "parse [ee_metric] failed",
+        }.get(error, "历史业务错误")
+        assert expected in body["message"]
+        assert not any(secret in content for secret in ('"raw"', "/private/url/", "private-uq"))
+    ordinary.assert_not_called()
+
+
+@pytest.mark.parametrize("native_enabled", [False, True])
+@pytest.mark.parametrize(
+    "detail,expected",
+    [
+        (
+            {"time_span": ["Query time span exceeds the limit. The limit is 86400 seconds."]},
+            "time_span: Query time span exceeds the limit. The limit is 86400 seconds.",
+        ),
+        (
+            {"reason": "result_too_large", "max_response_bytes": 1000, "message": "查询结果过大，请缩短时间范围"},
+            "查询结果过大，请缩短时间范围",
+        ),
+    ],
+)
+def test_direct_gateway_guard_errors_put_reason_in_message(
+    monkeypatch, direct_gateway, io, native_enabled, detail, expected
+):
+    if not native_enabled:
+        monkeypatch.setattr(settings, "MCP_NATIVE_PERMISSION_TOOLS", [])
+        io.monitor.iam_client.is_allowed.side_effect = None
+        io.monitor.iam_client.is_allowed.return_value = True
+    io.dispatch.side_effect = ValidationError(detail)
+    response, _, _, ordinary = direct_gateway()
+
+    body = json.loads(response.content)
+    assert response.status_code == body["code"] == 400
+    assert body["message"] == f"MCP request validation failed: {expected}"
+    assert body["data"] == json.loads(json.dumps(ValidationError(detail).detail))
     ordinary.assert_not_called()
 
 

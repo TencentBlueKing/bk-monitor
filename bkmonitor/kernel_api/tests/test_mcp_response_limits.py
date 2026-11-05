@@ -763,6 +763,17 @@ def test_uq_error_message_is_short_and_connection_is_closed(all_uq):
     assert response.raw.closed
 
 
+@pytest.mark.parametrize("status,expected", [(400, 400), (422, 400), (502, None)])
+def test_uq_client_errors_are_reported_as_invalid_params(all_uq, status, expected):
+    response = http_response(b"query_string parse error", status=status)
+    all_uq.transport.return_value = response
+    with pytest.raises(RuntimeError) as exc:
+        all_uq.call("query_raw", uq_params("query_raw"))
+    assert getattr(exc.value, "status_code", None) == expected
+    assert "query_string parse error" in str(exc.value)
+    assert response.raw.closed
+
+
 @pytest.mark.parametrize("compressed,oversized", [(False, False), (True, False), (False, True), (True, True)])
 def test_uq_reads_real_chunked_http_framing_without_network(all_uq, compressed, oversized):
     payload = {"list": [{"message": "x" * 2000 if oversized else "中文"}]}
