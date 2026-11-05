@@ -3784,15 +3784,11 @@ class ESStorage(models.Model, StorageResultTable):
         if self.update_index_v2() is False:
             return False
         # 2. 更新对应的别名<->索引绑定关系
-        alias_ready = self.create_or_update_aliases(
+        return self.create_or_update_aliases(
             ahead_time=ahead_time,
             is_moving_cluster=is_moving_cluster,
             strict=strict,
         )
-        # 3. 模板里的 hot include 不会回写已有索引，热窗口内没标签的索引在这里补
-        if alias_ready is not False:
-            self.backfill_hot_allocation_settings()
-        return alias_ready
 
     @retry(
         stop=stop_after_attempt(3),
@@ -4941,90 +4937,6 @@ class ESStorage(models.Model, StorageResultTable):
             }
 
         return filter_result
-
-    def _flattened_index_settings(self, raw_settings, index_name):
-        node = raw_settings.get(index_name, raw_settings) if isinstance(raw_settings, dict) else {}
-        settings_node = node.get("settings", {}) if isinstance(node, dict) else {}
-        flat = {}
-
-        def walk(prefix, value):
-            if isinstance(value, dict):
-                for key, item in value.items():
-                    walk(f"{prefix}.{key}" if prefix else key, item)
-                return
-            if prefix:
-                flat[prefix] = value
-
-        walk("", settings_node)
-        return flat
-
-    def _index_has_allocation_include(self, index_name):
-        try:
-            current = self.es_client.indices.get_settings(index=index_name, flat_settings=True)
-        except Exception as e:  # pylint: disable=broad-except
-            logger.exception(
-                "backfill_hot_allocation: table_id->[%s] read settings failed, index->[%s], error->[%s]",
-                self.table_id,
-                index_name,
-                e,
-            )
-            return True
-        flat = self._flattened_index_settings(current, index_name)
-        return any(
-            key.startswith("index.routing.allocation.include.") and flat.get(key) not in (None, "") for key in flat
-        )
-
-    def backfill_hot_allocation_settings(self):
-        """给热数据窗口内没有分配标签的已有索引补上模板中的 hot include。已有标签的不改。"""
-        try:
-            index_settings = json.loads(self.index_settings or "{}")
-        except (TypeError, ValueError):
-            logger.exception("backfill_hot_allocation: table_id->[%s] index_settings is invalid", self.table_id)
-            return []
-        if not isinstance(index_settings, dict):
-            return []
-        include_settings = {
-            key: value
-            for key, value in index_settings.items()
-            if str(key).startswith("index.routing.allocation.include.") and value not in (None, "")
-        }
-        if not include_settings or self.warm_phase_days <= 0:
-            return []
-
-        date_range = [
-            (self.now - datetime.timedelta(days=day)).strftime(self.date_format) for day in range(self.warm_phase_days)
-        ]
-        try:
-            alias_list = self.es_client.indices.get_alias(index=f"*{self.index_name}_*_*")
-        except Exception as e:  # pylint: disable=broad-except
-            logger.exception(
-                "backfill_hot_allocation: table_id->[%s] list index failed, error->[%s]", self.table_id, e
-            )
-            return []
-
-        updated = []
-        for index_name in alias_list or {}:
-            if not any(date in index_name for date in date_range):
-                continue
-            if self._index_has_allocation_include(index_name):
-                continue
-            try:
-                self.es_client.indices.put_settings(index=index_name, body=include_settings)
-            except Exception as e:  # pylint: disable=broad-except
-                logger.exception(
-                    "backfill_hot_allocation: table_id->[%s] put settings failed, index->[%s], error->[%s]",
-                    self.table_id,
-                    index_name,
-                    e,
-                )
-                continue
-            updated.append(index_name)
-        logger.info(
-            "backfill_hot_allocation: table_id->[%s] updated index_list->[%s]",
-            self.table_id,
-            updated,
-        )
-        return updated
 
     def reallocate_index(self):
         """
