@@ -43,6 +43,7 @@ if not settings.configured:
         BKAPP_DEPLOY_PLATFORM="bkte",
         RSA_PRIVATE_KEY="",
         TRANSLATE_SNMP_TRAP_DIMENSIONS=False,
+        SMS_NOTICE_TEMPLATE_MODE="legacy",
     )
     django.setup()
 
@@ -461,12 +462,32 @@ def dynamic():
             logger=logging.getLogger(__name__),
             locmem_cache=TTLCache(clock),
             redis_cache=redis,
+            kms=NS(enabled=lambda: False),
         )
         proxy = Lazy()
-        proxy._wrapped = cls(NS(MCP_MAX_RESPONSE_BYTES=5 * 1024 * 1024), db)
+        proxy._wrapped = cls(NS(MCP_MAX_RESPONSE_BYTES=5 * 1024 * 1024, RELATION_V1BETA3_BIZ_ID_WHITE_LIST=[]), db)
         return proxy
 
     return NS(clock=clock, store=store, db=db, worker=worker, field=field)
+
+
+def test_relation_route_uses_registered_dynamic_setting_and_existing_cache(dynamic, monkeypatch):
+    from api.unify_query.relation_routing import resolve_relation_query_path
+    from bkmonitor.define import global_config
+    from bkmonitor.utils import graph_relation
+
+    key = "RELATION_V1BETA3_BIZ_ID_WHITE_LIST"
+    assert global_config.ADVANCED_OPTIONS[key].default == []
+    assert key in global_config.GLOBAL_CONFIGS
+    proxy = dynamic.worker()
+    monkeypatch.setattr(graph_relation, "settings", proxy)
+    assert resolve_relation_query_path("/legacy", "/v1beta3", 2) == "/legacy"
+    proxy.RELATION_V1BETA3_BIZ_ID_WHITE_LIST = [2]
+    assert resolve_relation_query_path("/legacy", "/v1beta3", 2) == "/v1beta3"
+    dynamic.store[key] = []
+    assert resolve_relation_query_path("/legacy", "/v1beta3", 2) == "/v1beta3"
+    dynamic.clock[0] += proxy._wrapped.__cache_expires__
+    assert resolve_relation_query_path("/legacy", "/v1beta3", 2) == "/legacy"
 
 
 def test_global_settings_update_takes_effect_after_real_cache_expiry(dynamic, limits):
@@ -548,7 +569,7 @@ def all_uq(limits):
         side_effect=source(
             "api/unify_query/relation_routing.py",
             "resolve_relation_query_path",
-            is_graph_relation_v4_enabled=lambda bid: rollout[0],
+            is_relation_v1beta3_enabled=lambda bid: rollout[0],
         )
     )
     transport = Mock()
