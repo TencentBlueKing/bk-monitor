@@ -173,7 +173,7 @@ export default defineComponent({
         </div>
 
         {ruleList.value.length > 0 ? (
-          <div v-bkloading={{ isLoading: tableLoading.value }}>
+          <div v-loading={{ loading: tableLoading.value }}>
             <vue-draggable
               disabled={props.readonly}
               {...{

@@ -117,7 +117,7 @@
         @click="handleCloseFilterTitle(false)"
       >
         <span
-          v-bk-tooltips="{ content: value ? $t('收起') : $t('打开') }"
+          v-log-tooltip="{ content: value ? $t('收起') : $t('打开') }"
           :style="{ transform: value ? '' : 'rotate(180deg)' }"
           style="font-size: 14px"
           class="bklog-icon bklog-collapse"

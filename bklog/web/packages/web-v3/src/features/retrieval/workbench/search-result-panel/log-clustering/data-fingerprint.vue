@@ -91,7 +91,7 @@
       >
         <template #default="{ row }">
           <div class="fl-ac signature-box">
-            <span v-bk-overflow-tips>{{ row.signature }}</span>
+            <span v-log-overflow-tips>{{ row.signature }}</span>
             <div
               v-show="row.is_new_class"
               class="new-finger"
@@ -223,7 +223,7 @@
           class-name="symbol-column"
         >
           <template #default="{ row }">
-            <div v-bk-overflow-tips>
+            <div v-log-overflow-tips>
               <span class="monospace-text">{{ row.group[index] }}</span>
             </div>
           </template>
@@ -238,7 +238,7 @@
       >
         <template #default="{ row }">
           <div
-            v-bk-tooltips.top="{
+            v-log-tooltip.top="{
               content: row.owners.join(', '),
               delay: 300,
               disabled: !row.owners.length,
@@ -298,7 +298,7 @@
             <t-switch
               v-else
               v-model="row.strategy_enabled"
-              v-bk-tooltips="$t('暂无配置责任人，无法自动创建告警策略')"
+              v-log-tooltip="$t('暂无配置责任人，无法自动创建告警策略')"
               
               :disabled="true"
             ></t-switch>
@@ -865,11 +865,7 @@ import { MessagePlugin as TDesignMessage } from 'tdesign-vue-next';
               theme = this.isSelectAll ? 'warning' : 'error';
               message = this.isSelectAll ? this.$t('部分操作成功') : operators[0].operator_msg;
             }
-            this.$bkMessage({
-              theme,
-              message,
-              ellipsisLine: 0,
-            });
+            TDesignMessage(theme, { content: message });
             callback(result, operators[0].strategy_id);
           })
           .finally(() => {
@@ -1210,7 +1206,7 @@ import { MessagePlugin as TDesignMessage } from 'tdesign-vue-next';
       },
       renderAlertPolicyHeader(h, { column }) {
         const directive = {
-          name: 'bkTooltips',
+          name: 'log-tooltip',
           content: this.$t(
             '勾选后，基于聚类结果为责任人创建关键字告警。持续监测您的异常问题。通过开关可控制告警策略启停。',
           ),
@@ -1221,7 +1217,7 @@ import { MessagePlugin as TDesignMessage } from 'tdesign-vue-next';
             {column.label}{' '}
             <span
               class='bklog-icon bklog-help'
-              v-bk-tooltips={directive}
+              v-log-tooltip={directive}
             ></span>
           </p>
         );

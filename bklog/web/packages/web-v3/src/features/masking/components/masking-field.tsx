@@ -36,7 +36,8 @@ import { asDictionary } from '@/shared/utils/typed-record';
 import { Component, Emit, Prop, Ref } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
-import { bkDialog as Dialog, bkInput as Input, bkTable as Table, bkTableColumn as TableColumn, bkPopover as Popover, bkSideslider as Sideslider } from '@/platform/compat/tdesign/magic-controls';
+import { Dialog, Input, Table, Popup as Popover, Drawer as Sideslider } from 'tdesign-vue-next';
+const TableColumn = (_props: Record<string, unknown>, { slots }: { slots: { default?: () => unknown } }) => slots.default?.();
 import VueDraggable from 'vuedraggable';
 
 
@@ -790,7 +791,7 @@ export default class MaskingField extends tsc<IProps> {
           class: 'bklog-icon bklog-brush',
           directives: [
             {
-              name: 'bk-tooltips',
+              name: 'log-tooltip',
               value: this.$t('清空所有规则'),
             },
           ],
@@ -825,7 +826,7 @@ export default class MaskingField extends tsc<IProps> {
           class: 'bklog-icon bklog-info-fill',
           directives: [
             {
-              name: 'bk-tooltips',
+              name: 'log-tooltip',
               value: this.$t('脱敏预览会根据您的采样日志输出对应脱敏结果，多条采样会输出多条脱敏结果。'),
             },
           ],
@@ -1333,21 +1334,21 @@ export default class MaskingField extends tsc<IProps> {
               >
                 <i
                   class={['field-type-icon', this.getFieldIcon(item.field_type) || 'bklog-icon bklog-unkown']}
-                  v-bk-tooltips={{
+                  v-log-tooltip={{
                     content: fieldTypeMap[item.field_type]?.name,
                     disabled: !fieldTypeMap[item.field_type],
                   }}
                 />
                 <span
                   class='title-overflow'
-                  v-bk-overflow-tips={{ delay: 500 }}
+                  v-log-overflow-tips={{ delay: 500 }}
                 >
                   {item.field_name}
                 </span>
                 {item.field_alias && (
                   <span
                     class='nick-name title-overflow'
-                    v-bk-overflow-tips={{ delay: 500 }}
+                    v-log-overflow-tips={{ delay: 500 }}
                   >
                     {item.field_alias}
                   </span>
@@ -1422,7 +1423,7 @@ export default class MaskingField extends tsc<IProps> {
           {rItem?.disabled && (
             <i
               class='bk-icon icon-info-circle-shape'
-              v-bk-tooltips={{ content: this.$t('脱敏规则暂未匹配到有效日志，无法预览结果') }}
+              v-log-tooltip={{ content: this.$t('脱敏规则暂未匹配到有效日志，无法预览结果') }}
             />
           )}
           {getMaskingRuleEndState(fieldItem, rItem, rIndex)}
@@ -1499,14 +1500,14 @@ export default class MaskingField extends tsc<IProps> {
                   >
                     <span
                       class='old title-overflow'
-                      v-bk-overflow-tips={{ delay: 500 }}
+                      v-log-overflow-tips={{ delay: 500 }}
                     >
                       {pItem.origin}
                     </span>
                     <i class='bk-icon icon-arrows-right' />
                     <span
                       class='result title-overflow'
-                      v-bk-overflow-tips={{ delay: 500 }}
+                      v-log-overflow-tips={{ delay: 500 }}
                     >
                       {pItem.afterMasking}
                     </span>
@@ -1538,7 +1539,7 @@ export default class MaskingField extends tsc<IProps> {
             </i18n>
             <i
               class='bk-icon icon-info-circle-shape'
-              v-bk-tooltips={{
+              v-log-tooltip={{
                 content: this.$t('该字段为原文字段，为防止脱敏规则遗漏，系统已帮您自动同步其他脱敏结果'),
                 width: 260,
               }}
@@ -1567,14 +1568,14 @@ export default class MaskingField extends tsc<IProps> {
                     >
                       <span
                         class='old title-overflow'
-                        v-bk-overflow-tips={{ placement: 'top' }}
+                        v-log-overflow-tips={{ placement: 'top' }}
                       >
                         {pItem.origin}
                       </span>
                       <i class='bk-icon icon-arrows-right' />
                       <span
                         class='result title-overflow'
-                        v-bk-overflow-tips={{ placement: 'top' }}
+                        v-log-overflow-tips={{ placement: 'top' }}
                       >
                         {pItem.afterMasking}
                       </span>
@@ -1601,14 +1602,14 @@ export default class MaskingField extends tsc<IProps> {
       default: ({ row }: { row: FieldGroup }) => (
         <div
           class='masking-preview-box'
-          v-bkloading={{ isLoading: this.isPreviewLoading && !this.previewLoadingField }}
+          v-loading={{ loading: this.isPreviewLoading && !this.previewLoadingField }}
         >
           {row.fieldList.map((item: IFieldItem) => (
             <div
               key={`${item.field_type}-${item.field_name}`}
               style={this.getFieldItemStyle(item)}
               class='preview'
-              v-bkloading={{ isLoading: this.isPreviewLoading && this.previewLoadingField === (row as FieldGroup & { field_name?: string }).field_name }}
+              v-loading={{ loading: this.isPreviewLoading && this.previewLoadingField === (row as FieldGroup & { field_name?: string }).field_name }}
               onMouseenter={() => this.handleHoverRow(item.field_name)}
               onMouseleave={() => this.handleLeaveRow()}
             >
@@ -1670,7 +1671,7 @@ export default class MaskingField extends tsc<IProps> {
               ),
             }}
             extCls={`masking-field-table ${this.isShowFieldClass ? 'is-show-field-class' : ''}`}
-            v-bkloading={{ isLoading: this.tableLoading }}
+            v-loading={{ loading: this.tableLoading }}
             data={this.tableShowList}
             size='small'
           >
@@ -1767,7 +1768,7 @@ export default class MaskingField extends tsc<IProps> {
                             <span class='key'>{this.ruleDialogI18nMap[matchKey]} :</span>
                             <span
                               class='value title-overflow'
-                              v-bk-overflow-tips={{ delay: 500 }}
+                              v-log-overflow-tips={{ delay: 500 }}
                             >
                               {this.htmlDecode(matchValue)}
                             </span>

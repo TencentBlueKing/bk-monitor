@@ -27,7 +27,7 @@
 <template>
   <div
     ref="detailRef"
-    v-bkloading="{ isLoading: basicLoading }"
+    v-loading="{ loading: basicLoading }"
     :style="`padding-right: ${introWidth + 20}px;`"
     class="custom-report-detail-container access-manage-container"
   >

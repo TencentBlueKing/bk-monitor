@@ -26,10 +26,7 @@
 
 <template>
   <div class="empty-status-container">
-    <bk-exception
-      :scene="scene"
-      :type="emptyType"
-    >
+    <div class="empty-status-body">
       <div class="empty-text-content">
         <p
           v-if="showText"
@@ -66,7 +63,7 @@
           </span>
         </template>
       </div>
-    </bk-exception>
+    </div>
   </div>
 </template>
 
@@ -118,6 +115,15 @@
 <style lang="scss">
   .empty-status-container {
     padding: 20px 0;
+
+    .empty-status-body {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 100%;
+      min-height: 120px;
+      text-align: center;
+    }
 
     .exception-image {
       height: 180px;

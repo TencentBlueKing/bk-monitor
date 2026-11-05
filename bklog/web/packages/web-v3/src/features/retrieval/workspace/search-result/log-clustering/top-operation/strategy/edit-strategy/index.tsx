@@ -246,7 +246,7 @@ export default defineComponent({
       >
         <bk-form
           ref={strategyFromRef}
-          v-bkloading={{ isLoading: formLoading.value }}
+          v-loading={{ loading: formLoading.value }}
           form-type='vertical'
           {...{
             ...{

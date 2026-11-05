@@ -33,7 +33,7 @@ import type { LegacyFormInstance } from '@/shared/types/legacy-form';
 import { Component, PropSync, Prop, Emit, Ref } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
-import { bkSelect as Select, bkOption as Option, bkForm as Form, bkFormItem as FormItem, bkInput as Input } from '@/platform/compat/tdesign/magic-controls';
+import { Select, Option, Form, FormItem, Input } from 'tdesign-vue-next';
 
 
 import { xssFilter } from '../../../shared/lib/util';
@@ -242,7 +242,7 @@ export default class QueryStatement extends tsc<IProps> {
                     <span class='label-tag'>
                       <span
                         class='title-overflow'
-                        v-bk-overflow-tips
+                        v-log-overflow-tips
                       >
                         {xssFilter(item.name)}
                       </span>
@@ -255,7 +255,7 @@ export default class QueryStatement extends tsc<IProps> {
                   {this.isShowMoreNum(index) && (
                     <div
                       class='more-num'
-                      v-bk-tooltips={{
+                      v-log-tooltip={{
                         content: `${this.showLabelList
                           .slice(3)
                           .map(newItem => xssFilter(newItem.name))
@@ -282,7 +282,7 @@ export default class QueryStatement extends tsc<IProps> {
                         disabled: this.isDisabledAddNewTag,
                       },
                     ]}
-                    v-bk-tooltips={{
+                    v-log-tooltip={{
                       disabled: !this.isDisabledAddNewTag,
                       content: this.$t('停用状态下无法添加标签'),
                       delay: 300,

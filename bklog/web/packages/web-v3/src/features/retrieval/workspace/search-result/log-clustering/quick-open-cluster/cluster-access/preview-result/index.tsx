@@ -30,7 +30,6 @@ import { ServicesInstance } from '@/platform/services';
 import { defineComponent, ref, watch } from 'vue';
 import dayjs from 'dayjs';
 import useLocale from '@/shared/composables/use-locale';
-import * as echarts from 'echarts';
 
 import weekOfYear from 'dayjs/plugin/weekOfYear';
 import isLeapYear from 'dayjs/plugin/isLeapYear';
@@ -88,12 +87,14 @@ export default defineComponent({
 
     const initChart = () => {
       setTimeout(() => {
-        if (!chartRef.value) {
-          return;
-        }
-        chartInstance.value?.dispose();
-        chartInstance.value = echarts.init(chartRef.value);
-        updateChart(localBuckets.value);
+        void import('echarts').then(echarts => {
+          if (!chartRef.value) {
+            return;
+          }
+          chartInstance.value?.dispose();
+          chartInstance.value = echarts.init(chartRef.value);
+          updateChart(localBuckets.value);
+        });
       });
     };
 
@@ -287,7 +288,7 @@ export default defineComponent({
         {showPreViewContent.value && (
           <div class='preview-content'>
             <div class='item-title'>{t('最近 1 周日志趋势')}</div>
-            <div v-bkloading={{ isLoading: chartLoading.value }}>
+            <div v-loading={{ loading: chartLoading.value }}>
               <div
                 class='chart-main'
                 ref={chartRef}
@@ -297,7 +298,7 @@ export default defineComponent({
             <div
               class='log-demo-main'
               style={{ borderBottom: logDataList.value.length > 0 ? 'solid 1px #dcdee5' : 'none' }}
-              v-bkloading={{ isLoading: logLoading.value }}
+              v-loading={{ loading: logLoading.value }}
             >
               {logDataList.value.length > 0 ? (
                 logDataList.value.map((item, index) => (

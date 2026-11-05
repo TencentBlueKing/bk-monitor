@@ -86,7 +86,7 @@
               ></t-input>
               <template v-if="item.duplicateKey">
                 <i
-                  v-bk-tooltips.top="$t('自定义标签key与元数据key重复')"
+                  v-log-tooltip.top="$t('自定义标签key与元数据key重复')"
                   style="right: 8px"
                   class="bk-icon icon-exclamation-circle-shape tooltips-icon"
                 ></i>

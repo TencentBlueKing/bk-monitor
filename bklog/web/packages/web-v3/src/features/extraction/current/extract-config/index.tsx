@@ -283,7 +283,7 @@ export default defineComponent({
     return () => (
       <div
         class='extract-auth-manage'
-        v-bkloading={{ isLoading: isLoading.value }}
+        v-loading={{ loading: isLoading.value }}
         data-test-id='extractAuthManage_div_extractAuthManageBox'
       >
         {/* 新增按钮区域 */}
@@ -336,7 +336,7 @@ export default defineComponent({
             v-slots={{
               default: ({ row }: any) => (
                 <div class='table-ceil-container'>
-                  <span v-bk-overflow-tips>{row.strategy_name}</span>
+                  <span v-log-overflow-tips>{row.strategy_name}</span>
                 </div>
               ),
             }}
@@ -351,7 +351,7 @@ export default defineComponent({
             v-slots={{
               default: ({ row }: any) => (
                 <div class='table-ceil-container'>
-                  <span v-bk-overflow-tips>{row.modules.map((item: any) => item.bk_inst_name).join('; ')}</span>
+                  <span v-log-overflow-tips>{row.modules.map((item: any) => item.bk_inst_name).join('; ')}</span>
                 </div>
               ),
             }}
@@ -366,7 +366,7 @@ export default defineComponent({
             v-slots={{
               default: ({ row }: any) => (
                 <div class='table-ceil-container'>
-                  <span v-bk-overflow-tips>{row.visible_dir.join('; ')}</span>
+                  <span v-log-overflow-tips>{row.visible_dir.join('; ')}</span>
                 </div>
               ),
             }}
@@ -381,7 +381,7 @@ export default defineComponent({
             v-slots={{
               default: ({ row }: any) => (
                 <div class='table-ceil-container'>
-                  <span v-bk-overflow-tips>{row.file_type.join('; ')}</span>
+                  <span v-log-overflow-tips>{row.file_type.join('; ')}</span>
                 </div>
               ),
             }}
@@ -460,7 +460,7 @@ export default defineComponent({
                 {/* 侧边栏内容组件 */}
                 <ConfigSlider
                   ref={directoryRef}
-                  v-bkloading={{ isLoading: isSliderLoading.value }}
+                  v-loading={{ loading: isSliderLoading.value }}
                   allowCreate={allowCreate.value}
                   strategyData={strategyData.value}
                   userApi={userApi.value}

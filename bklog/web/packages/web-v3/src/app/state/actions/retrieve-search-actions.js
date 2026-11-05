@@ -417,7 +417,8 @@ export async function requestIndexSetQueryAction(
     }
   });
 
-  const searchUrl = isSceneRetrieve(state)
+  const isScene = isSceneRetrieve(state);
+  const searchUrl = isScene
     ? '/search/scene/search/'
     : !state.indexItem.isUnionIndex
       ? `/search/index_set/${state.indexId}/search/`
@@ -675,6 +676,7 @@ export async function requestIndexSetQueryAction(
           first_page: queryData.begin === 0 ? 1 : 0,
           action: 'request',
           trigger_source: 'retrieve_query',
+          retrieve_type: isScene ? 'scene' : 'normal',
         };
 
         reportRouteLog(

@@ -593,7 +593,7 @@ export default defineComponent({
             />
             <div
               class='tree-list'
-              v-bkloading={{ isLoading: treeLoading.value }}
+              v-loading={{ loading: treeLoading.value }}
             >
               {filteredTreeList.value.length > 0 ? (
                 <TreeComponent
@@ -644,7 +644,7 @@ export default defineComponent({
             </div>
             <div
               class='main-right-bot'
-              v-bkloading={{ isLoading: labelLoading.value }}
+              v-loading={{ loading: labelLoading.value }}
             >
               {t('未选择')}
               {matchSelectItemList.value.length > 0

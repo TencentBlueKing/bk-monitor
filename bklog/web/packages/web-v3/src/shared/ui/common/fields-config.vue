@@ -27,7 +27,7 @@
 <template>
   <div
     :id="id"
-    v-bkloading="{ isLoading }"
+    v-loading="{ loading: isLoading }"
     class="fields-config-tippy"
   >
     <!-- 字段显示设置 -->

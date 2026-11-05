@@ -860,7 +860,7 @@ export default defineComponent({
         <div
           ref={contentWrapperRef}
           class='content-wrapper'
-          v-bkloading={{ isLoading: isPanelLoading.value }}
+          v-loading={{ loading: isPanelLoading.value }}
         >
           {isEmptyState.value ? renderEmptyState() : renderContent()}
         </div>

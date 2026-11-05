@@ -25,5 +25,21 @@
  */
 
 // Primary Vue3 application. The baseline remains an explicit comparison build.
+import { createRequire } from 'node:module';
+import { dirname, resolve } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import application from './vite.application.config.mjs';
-export default { ...application, server: { ...application.server, port: 4175 } };
+
+const require = createRequire(import.meta.url);
+const { allowedHosts } = require(resolve(dirname(fileURLToPath(import.meta.url)), '../../dev-env.js'));
+
+export default {
+  ...application,
+  server: {
+    ...application.server,
+    host: '0.0.0.0',
+    port: 4175,
+    strictPort: true,
+    allowedHosts: allowedHosts(),
+  },
+};

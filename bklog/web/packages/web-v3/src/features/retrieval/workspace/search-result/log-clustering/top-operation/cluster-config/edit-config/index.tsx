@@ -32,7 +32,7 @@ import RuleConfigOperate from '@/features/cleaning/rule-config/index';
 import RuleTable from '@/features/cleaning/rule-table/index';
 import useLocale from '@/shared/composables/use-locale';
 import useStore from '@/shared/composables/use-store';
-import { bkNotify } from '@/platform/compat/tdesign/magic-controls';
+import { NotifyPlugin } from 'tdesign-vue-next';
 
 import RuleOperate from './rule-operate/index';
 
@@ -229,11 +229,10 @@ export default defineComponent({
               },
             })
             .then(() => {
-              bkNotify({
+              NotifyPlugin.info({
                 title: t('保存待生效'),
-                message: t('该保存需要10分钟生效, 请耐心等待'),
-                limitLine: 3,
-                offsetY: 80,
+                content: t('该保存需要10分钟生效, 请耐心等待'),
+                offset: [0, 80],
               });
               emit('close');
             })
@@ -261,7 +260,7 @@ export default defineComponent({
     return () => (
       <div
         class='setting-log-cluster'
-        v-bkloading={{ isLoading: globalLoading.value }}
+        v-loading={{ loading: globalLoading.value }}
       >
         <div class='setting-form-main'>
           <bk-form

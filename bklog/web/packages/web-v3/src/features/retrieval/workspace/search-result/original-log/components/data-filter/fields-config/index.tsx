@@ -28,7 +28,7 @@ import { Button as TButton } from 'tdesign-vue-next';
 
 import { computed, defineComponent, ref, watch } from 'vue';
 
-import { messageSuccess } from '@/shared/lib/bkmagic';
+import { messageSuccess } from '@/shared/lib/message';
 import useLocale from '@/shared/composables/use-locale';
 import useStore from '@/shared/composables/use-store';
 import VueDraggable from 'vuedraggable';

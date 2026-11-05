@@ -28,7 +28,7 @@ import { ServicesInstance } from '@/platform/services';
  */
 
 import { computed, defineComponent, onBeforeUnmount, ref, watch, nextTick, type PropType } from 'vue';
-import * as echarts from 'echarts';
+import type * as echarts from 'echarts';
 import dayjs from 'dayjs';
 import useStore from '@/shared/composables/use-store';
 import useLocale from '@/shared/composables/use-locale';
@@ -271,15 +271,27 @@ export default defineComponent({
     const trendChartRef = ref<HTMLElement | null>(null);
     const trendChartInstance = ref<echarts.ECharts | null>(null);
 
+    let echartsModule: typeof import('echarts') | null = null;
+    const loadEcharts = () =>
+      import('echarts').then(module => {
+        echartsModule = module;
+        return module;
+      });
+
     // 初始化 ECharts 图表
-    const initTrendChart = () => {
+    const initTrendChart = async () => {
       if (!trendChartRef.value) return;
+      const echarts = echartsModule ?? (await loadEcharts());
       trendChartInstance.value?.dispose();
       trendChartInstance.value = echarts.init(trendChartRef.value);
     };
 
     // 更新 ECharts 折线图
-    const updateTrendChart = () => {
+    const updateTrendChart = async () => {
+      const echarts = echartsModule ?? (await loadEcharts());
+      if (!trendChartInstance.value && trendChartRef.value) {
+        trendChartInstance.value = echarts.init(trendChartRef.value);
+      }
       if (!trendChartInstance.value || !trendData.value) return;
 
       const { overall = [], selected = [], interval } = trendData.value;
@@ -440,10 +452,12 @@ export default defineComponent({
     // 监听 trendData 变化，更新图表
     watch(trendData, () => {
       nextTick(() => {
-        if (!trendChartInstance.value) {
-          initTrendChart();
-        }
-        updateTrendChart();
+        void (async () => {
+          if (!trendChartInstance.value) {
+            await initTrendChart();
+          }
+          await updateTrendChart();
+        })();
       });
     });
 
@@ -791,7 +805,7 @@ export default defineComponent({
                   <TButton
                     theme='primary'
                     
-                    v-bk-tooltips={{
+                    v-log-tooltip={{
                       placement: 'top',
                       content: t('当前仅支持下载1w条数据'),
                       delay: 300,
@@ -841,7 +855,7 @@ export default defineComponent({
                                     e.stopPropagation();
                                     handleJumpToRetrieve(item);
                                   }}
-                                  v-bk-tooltips={{
+                                  v-log-tooltip={{
                                     placement: 'top',
                                     content: t('前往日志检索'),
                                     delay: 300,
@@ -849,7 +863,7 @@ export default defineComponent({
                                 />
                                 <span
                                   class='col-value-text'
-                                  v-bk-overflow-tips
+                                  v-log-overflow-tips
                                 >
                                   {item.value}
                                 </span>

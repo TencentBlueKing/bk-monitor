@@ -1,5 +1,5 @@
 
-import { Button as TButton } from 'tdesign-vue-next';
+import { Button as TButton, Drawer as TDrawer, Input as TInput, Option as TOption, Select as TSelect } from 'tdesign-vue-next';
 import { ServicesInstance } from '@/platform/services';
 import { includesValue } from '@/shared/utils/typed-record';
 import type { Canceler } from 'axios';
@@ -64,6 +64,7 @@ import TableComponent from '../../common-comp/table-component';
 import ClusterFilter from '@/features/retrieval/workbench/search-result-panel/log-clustering/components/finger-tools/cluster-filter.tsx';
 import '@/features/retrieval/workbench/search-result-panel/log-clustering/components/finger-tools/cluster-filter.scss';
 import BklogPopover from '@/shared/ui/bklog-popover/index';
+import RowMoreMenu from './row-more-menu';
 import './table-list-v2.scss';
 
 const CancelToken = axios.CancelToken;
@@ -444,6 +445,7 @@ export default defineComponent({
       storage_display_name: [],
     });
     const searchSelectValues = ref<ISearchSelectValue[]>([]);
+    const searchKeyword = ref('');
     const collectorSearchEnums = ref<ICollectorSearchEnums>({
       name: [],
       name_en: [],
@@ -921,7 +923,7 @@ export default defineComponent({
                   'tag-more-container tag-more-multi-line index-set-select-trigger tag-more-select-trigger',
                   { 'is-empty': isEmpty, 'is-open': isOpen },
                 ]}
-                v-bkloading={{ isLoading: isUpdating, size: 'mini' }}
+                v-loading={{ loading: isUpdating, size: 'small' }}
                 v-cursor={{ active: requestAuth }}
                 onClick={(event: MouseEvent) => {
                   if (requestAuth) {
@@ -1062,7 +1064,7 @@ export default defineComponent({
                 <span class='collection-name-content'>
                   <span
                     class='link collection-name-link'
-                    v-bk-overflow-tips
+                    v-log-overflow-tips
                     onClick={() => {
                       const isBkDataOrEs = includesValue(['bkdata', 'es'], row.log_access_type);
                       const type = isBkDataOrEs || row.storage_cluster_id !== -1 ? 'view' : 'edit';
@@ -1102,7 +1104,7 @@ export default defineComponent({
           cell: (h: unknown, { row }: { row: ITableRowData }) => (
             <span
               class='storage-usage-cell'
-              v-bk-overflow-tips
+              v-log-overflow-tips
             >
               {formatBytes(row.daily_usage)} / {formatBytes(row.total_usage)}
             </span>
@@ -1124,7 +1126,7 @@ export default defineComponent({
                   {row.storage_display_name ? (
                     <span
                       class='copyable-text storage-meta-text'
-                      v-bk-overflow-tips
+                      v-log-overflow-tips
                       onClick={() => handleCopy(row.storage_display_name, t('复制 {0} 成功', [t('存储集群')]))}
                     >
                       {row.storage_display_name}
@@ -1138,7 +1140,7 @@ export default defineComponent({
                   {retentionText ? (
                     <span
                       class='copyable-text storage-meta-text'
-                      v-bk-overflow-tips
+                      v-log-overflow-tips
                       onClick={() => handleCopy(retentionText, t('复制 {0} 成功', [t('过期时间')]))}
                     >
                       {retentionText}
@@ -1158,7 +1160,7 @@ export default defineComponent({
           cell: (h: unknown, { row }: { row: ITableRowData }) => (
             <span
               class='cell-overflow-text'
-              v-bk-overflow-tips
+              v-log-overflow-tips
             >
               {row.log_access_type_name || '--'}
             </span>
@@ -1212,7 +1214,7 @@ export default defineComponent({
                           'tag-more-container tag-more-multi-line tag-more-select-trigger tag-more-label-select-trigger is-disabled',
                           { 'is-empty': isEmpty },
                         ]}
-                        v-bk-tooltips={{
+                        v-log-tooltip={{
                           content: t('停用状态下无法添加标签'),
                           delay: 300,
                         }}
@@ -1265,7 +1267,7 @@ export default defineComponent({
             return (
               <span
                 class='cell-overflow-text copyable-text'
-                v-bk-overflow-tips
+                v-log-overflow-tips
                 onClick={() => handleCopy(row.bk_data_name, t('复制 {0} 成功', [t('存储名')]))}
               >
                 {row.bk_data_name}
@@ -1287,8 +1289,8 @@ export default defineComponent({
           filter: getColumnsFilter(IFilterValues.value.updated_by),
           cell: (h: unknown, { row }: { row: ITableRowData }) => (
             <div class='double-line-cell'>
-              <span v-bk-overflow-tips>{getName(row.updated_by)}</span>
-              <span v-bk-overflow-tips>{row.updated_at || '--'}</span>
+              <span v-log-overflow-tips>{getName(row.updated_by)}</span>
+              <span v-log-overflow-tips>{row.updated_at || '--'}</span>
             </div>
           ),
         },
@@ -1311,7 +1313,7 @@ export default defineComponent({
                     {row.is_related_space && (
                       <span
                         class='space-tag related'
-                        v-bk-tooltips={{
+                        v-log-tooltip={{
                           content: t('关联空间') + (row?.space_name ? `: ${row?.space_name}` : ''),
                         }}
                       >
@@ -1331,7 +1333,7 @@ export default defineComponent({
           cell: (h: unknown, { row }: { row: ITableRowData }) => (
             <span
               class='cell-overflow-text'
-              v-bk-overflow-tips
+              v-log-overflow-tips
             >
               {row.collector_scenario_name || '--'}
             </span>
@@ -1345,8 +1347,8 @@ export default defineComponent({
           filter: getColumnsFilter(IFilterValues.value.created_by),
           cell: (h: unknown, { row }: { row: ITableRowData }) => (
             <div class='double-line-cell'>
-              <span v-bk-overflow-tips>{getName(row.created_by)}</span>
-              <span v-bk-overflow-tips>{row.created_at || '--'}</span>
+              <span v-log-overflow-tips>{getName(row.created_by)}</span>
+              <span v-log-overflow-tips>{row.created_at || '--'}</span>
             </div>
           ),
         },
@@ -1403,27 +1405,17 @@ export default defineComponent({
                     {t('编辑')}
                   </span>
                 )}
-                {!isRelatedSpace && <span class='bk-icon icon-more more-btn table-more-btn' />}
-                <div
-                  style={{ display: 'none' }}
-                  class='row-menu-popover'
-                >
-                  <div class='row-menu-content'>
-                    {renderMenu(row).map(item => (
-                      <span
-                        key={item.key}
-                        v-cursor={{ active: !row.permission?.[editKey] }}
-                        class={{
-                          'menu-item': true,
-                          disabled: !getOperatorCanClick(row, item.key),
-                        }}
-                        onClick={() => handleMenuClick(item.key, row)}
-                      >
-                        {item.label}
-                      </span>
-                    ))}
-                  </div>
-                </div>
+                {!isRelatedSpace && (
+                  <RowMoreMenu
+                    key={`${row.log_access_type}-${getRowUniqueId(row)}`}
+                    items={renderMenu(row).map(item => ({
+                      ...item,
+                      disabled: !getOperatorCanClick(row, item.key),
+                    }))}
+                    hasPermission={!!row.permission?.[editKey]}
+                    onSelect={(key: string) => handleMenuClick(key, row)}
+                  />
+                )}
               </div>
             );
           },
@@ -1548,6 +1540,7 @@ export default defineComponent({
           is_related_space: effectiveSource,
         };
         tagSelect.value = ['all'];
+        searchKeyword.value = '';
         searchSelectValues.value = [];
         reloadList();
         getCollectorFieldEnums();
@@ -2400,7 +2393,15 @@ export default defineComponent({
         sourceSetting.value = '';
         updateSetting({ source: '' });
       }
+      searchKeyword.value = '';
       searchSelectValues.value = [];
+      reloadList();
+    };
+
+    const applySearchKeyword = (keyword: string) => {
+      const text = keyword.trim();
+      searchKeyword.value = keyword;
+      searchSelectValues.value = text ? [{ id: text, name: text }] : [];
       reloadList();
     };
 
@@ -2515,28 +2516,24 @@ export default defineComponent({
                   ),
                 }}
               >
-                <bk-select
+                <TSelect
                   class='sort-field-select'
                   clearable={false}
                   disabled={isLoading.value}
                   value={sortFieldDraft.value}
-                  onInput={(value: string) => {
-                    if (!isSyncingSortFieldDraft) {
-                      sortFieldDraft.value = value;
-                    }
-                  }}
+                  popupProps={{ attach: 'body' }}
                   onChange={(value: string) => handleToolbarSortFieldChange(value)}
                 >
                   {sortFieldOptions.map(item => (
-                    <bk-option
+                    <TOption
                       key={item.id}
-                      id={item.id}
-                      name={item.name}
+                      value={item.id}
+                      label={item.name}
                     />
                   ))}
-                </bk-select>
+                </TSelect>
               </BklogPopover>
-              <bk-select
+              <TSelect
                 class={{
                   'sort-direction-select': true,
                   'is-name-sort': sortConfig.value.sortBy === 'name',
@@ -2544,34 +2541,28 @@ export default defineComponent({
                 clearable={false}
                 disabled={isLoading.value}
                 value={sortConfig.value.descending ? 'desc' : 'asc'}
+                popupProps={{ attach: 'body' }}
                 onChange={(value: string) => handleToolbarSortChange(sortConfig.value.sortBy || 'name', value)}
               >
                 {sortDirectionOptions.value.map(item => (
-                  <bk-option
+                  <TOption
                     key={item.id}
-                    id={item.id}
-                    name={item.name}
+                    value={item.id}
+                    label={item.name}
                   />
                 ))}
-              </bk-select>
+              </TSelect>
             </div>
-            <bk-search-select
-              data={searchSelectData.value}
-              ext-cls='tool-search-select'
+            <TInput
+              class='tool-search-select'
               placeholder={t('搜索 数据 ID、采集名、数据名、存储集群、存储名')}
-              show-condition={false}
-              show-popover-tag-change={false}
-              values={searchSelectValues.value}
+              value={searchKeyword.value}
               clearable
-              onChange={(values: ISearchSelectValue[]) => {
-                searchSelectValues.value = values;
-                reloadList();
+              onChange={(value: string) => {
+                searchKeyword.value = value;
               }}
-              onClear={() => {
-                searchSelectValues.value = [];
-                reloadList();
-              }}
-              onSearch={reloadList}
+              onEnter={(value: string) => applySearchKeyword(value)}
+              onClear={() => applySearchKeyword('')}
             />
           </div>
         </div>
@@ -2603,21 +2594,22 @@ export default defineComponent({
             emptyType={emptyType.value}
           />
 
-          {/* 一键检测弹窗 */}
-          <bk-sideslider
-            width={800}
-            class='collection-report-detail'
-            before-close={() => {
-              isShowDetection.value = false;
-            }}
-            v-slots={{
-              header: () => <span class='title'>{t('一键检测')}</span>,
-              content: () => <div class='check-info'>{checkInfo.value}</div>,
-            }}
-            is-show={isShowDetection.value}
-            quick-close={true}
-            transfer
-          />
+          {isShowDetection.value ? (
+            <TDrawer
+              class='collection-report-detail'
+              visible={isShowDetection.value}
+              size='800px'
+              placement='right'
+              footer={false}
+              attach='body'
+              header={t('一键检测')}
+              onClose={() => {
+                isShowDetection.value = false;
+              }}
+            >
+              <div class='check-info'>{checkInfo.value}</div>
+            </TDrawer>
+          ) : null}
           {/* 停用 */}
           <CollectIssuedSlider
             isShow={showCollectIssuedSlider.value}

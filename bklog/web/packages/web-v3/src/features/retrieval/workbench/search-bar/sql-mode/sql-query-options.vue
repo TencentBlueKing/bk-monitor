@@ -660,7 +660,7 @@
       <!-- 搜索提示 -->
       <ul
         ref="refDropdownEl"
-        v-bkloading="{ isLoading: isRequesting, size: 'mini' }"
+        v-loading="{ loading: isRequesting, size: 'small' }"
         :class="['sql-query-options', { 'is-loading': isRequesting }]"
       >
         <!-- 字段列表 -->
@@ -677,7 +677,7 @@
                 <span class="bklog-icon bklog-field" />
               </div>
               <div
-                v-bk-overflow-tips="{ placement: 'right' }"
+                v-log-overflow-tips="{ placement: 'right' }"
                 class="item-text text-overflow-hidden"
               >
                 {{ fieldNameShow(item) }}
@@ -700,7 +700,7 @@
                 <span class="bklog-icon bklog-value" />
               </div>
               <div
-                v-bk-overflow-tips="{ placement: 'right' }"
+                v-log-overflow-tips="{ placement: 'right' }"
                 class="item-text text-overflow-hidden"
               >
                 {{ item }}
@@ -721,7 +721,7 @@
               </div>
               <div class="item-text">:</div>
               <div
-                v-bk-overflow-tips="{ placement: 'right' }"
+                v-log-overflow-tips="{ placement: 'right' }"
                 class="item-description text-overflow-hidden"
               >
                 <i18n path="{0}某一值">
@@ -739,7 +739,7 @@
               </div>
               <div class="item-text">:*</div>
               <div
-                v-bk-overflow-tips="{ placement: 'right' }"
+                v-log-overflow-tips="{ placement: 'right' }"
                 class="item-description text-overflow-hidden"
               >
                 <i18n path="{0}任意形式">
@@ -766,7 +766,7 @@
                 {{ item.operator }}
               </div>
               <div
-                v-bk-overflow-tips="{ placement: 'right' }"
+                v-log-overflow-tips="{ placement: 'right' }"
                 class="item-description text-overflow-hidden"
               >
                 <i18n path="{0}某一值">
@@ -789,7 +789,7 @@
               </div>
               <div class="item-text">AND</div>
               <div
-                v-bk-overflow-tips="{ placement: 'right' }"
+                v-log-overflow-tips="{ placement: 'right' }"
                 class="item-description text-overflow-hidden"
               >
                 <i18n path="需要{0}为真">
@@ -807,7 +807,7 @@
               </div>
               <div class="item-text">OR</div>
               <div
-                v-bk-overflow-tips="{ placement: 'right' }"
+                v-log-overflow-tips="{ placement: 'right' }"
                 class="item-description text-overflow-hidden"
               >
                 <i18n path="需要{0}为真">
@@ -825,7 +825,7 @@
               </div>
               <div class="item-text">AND NOT</div>
               <div
-                v-bk-overflow-tips="{ placement: 'right' }"
+                v-log-overflow-tips="{ placement: 'right' }"
                 class="item-description text-overflow-hidden"
               >
                 <i18n path="需要{0}为真">

@@ -153,7 +153,7 @@ export default defineComponent({
       default: ({ row }) => (
         <div
           class='overflow-hidden-text'
-          v-bk-overflow-tips
+          v-log-overflow-tips
         >
           {row.openid}
         </div>
@@ -165,7 +165,7 @@ export default defineComponent({
       default: ({ row }) => (
         <div
           class='overflow-hidden-text'
-          v-bk-overflow-tips
+          v-log-overflow-tips
         >
           {row.file_name}
         </div>
@@ -177,7 +177,7 @@ export default defineComponent({
       default: ({ row }) => (
         <div
           class='overflow-hidden-text'
-          v-bk-overflow-tips
+          v-log-overflow-tips
         >
           {row.file_path}
         </div>
@@ -189,7 +189,7 @@ export default defineComponent({
       default: ({ row }) => (
         <div
           class='overflow-hidden-text'
-          v-bk-overflow-tips
+          v-log-overflow-tips
         >
           {row.md5}
         </div>
@@ -232,7 +232,7 @@ export default defineComponent({
       default: ({ row }) => (
         <div
           class='overflow-hidden-text'
-          v-bk-overflow-tips
+          v-log-overflow-tips
         >
           {row.xid}
         </div>
@@ -244,7 +244,7 @@ export default defineComponent({
       default: ({ row }) => (
         <div
           class='overflow-hidden-text'
-          v-bk-overflow-tips
+          v-log-overflow-tips
         >
           {row.extend_info}
         </div>
@@ -256,7 +256,7 @@ export default defineComponent({
       default: ({ row }) => (
         <div
           class='overflow-hidden-text'
-          v-bk-overflow-tips
+          v-log-overflow-tips
         >
           {row.manufacturer}
         </div>
@@ -268,7 +268,7 @@ export default defineComponent({
       default: ({ row }) => (
         <div
           class='overflow-hidden-text'
-          v-bk-overflow-tips
+          v-log-overflow-tips
         >
           {row.model}
         </div>
@@ -280,7 +280,7 @@ export default defineComponent({
       default: ({ row }) => (
         <div
           class='overflow-hidden-text'
-          v-bk-overflow-tips
+          v-log-overflow-tips
         >
           {row.os_version}
         </div>
@@ -292,7 +292,7 @@ export default defineComponent({
       default: ({ row }) => (
         <div
           class='overflow-hidden-text'
-          v-bk-overflow-tips
+          v-log-overflow-tips
         >
           {row.os_sdk}
         </div>
@@ -304,7 +304,7 @@ export default defineComponent({
       default: ({ row }) => (
         <div
           class='overflow-hidden-text'
-          v-bk-overflow-tips
+          v-log-overflow-tips
         >
           {row.os_type}
         </div>
@@ -385,7 +385,7 @@ export default defineComponent({
         <div class='log-table-operate'>
           <span
             class='king-button'
-            v-bk-tooltips={{
+            v-log-tooltip={{
               content: t('请上传日志后检索'),
               disabled: row.status === FileUploadStatus.SUCCESS,
             }}
@@ -401,7 +401,7 @@ export default defineComponent({
           </span>
           <span
             class='king-button'
-            v-bk-tooltips={{
+            v-log-tooltip={{
               content: getUploadTooltipText(row.status),
               disabled: row.status !== FileUploadStatus.RUNNING && row.status !== FileUploadStatus.SUCCESS,
             }}
@@ -451,7 +451,7 @@ export default defineComponent({
           pagination={pagination.value}
           outer-border={false}
           ref={reportTableRef}
-          v-bkloading={{ isLoading: props.loading }}
+          v-loading={{ loading: props.loading }}
           onPage-change={handlePageChange}
           onPage-limit-change={handlePageLimitChange}
           onSort-change={handleSortChange}

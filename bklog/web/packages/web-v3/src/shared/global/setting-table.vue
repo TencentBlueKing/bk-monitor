@@ -1,6 +1,6 @@
 <template>
   <div
-    v-bkloading="{ isLoading: isExtracting }"
+    v-loading="{ loading: isExtracting }"
     class="field-table-container"
   >
     <div
@@ -61,7 +61,7 @@
               <template #default="props">
                 <div
                   v-if="!props.row.is_edit"
-                  v-bk-overflow-tips
+                  v-log-overflow-tips
                   class="field-name-overflow-tips"
                 >
                   <span
@@ -80,7 +80,7 @@
                   <!-- 如果为内置字段且有alias_name则优先展示alias_name -->
                   <div
                     v-if="aliasShow(props.row)"
-                    v-bk-tooltips.top="$t('字段名不支持快速修改')"
+                    v-log-tooltip.top="$t('字段名不支持快速修改')"
                     class="field-name"
                   >
                     <span
@@ -91,7 +91,7 @@
                   </div>
                   <div
                     v-else-if="props.row.is_built_in && props.row.alias_name"
-                    v-bk-tooltips.top="$t('字段名不支持快速修改')"
+                    v-log-tooltip.top="$t('字段名不支持快速修改')"
                     class="field-name"
                   >
                     {{ props.row.alias_name }}
@@ -124,7 +124,7 @@
                     ></t-input>
                     <template v-if="props.row.fieldErr">
                       <i
-                        v-bk-tooltips.top="props.row.fieldErr"
+                        v-log-tooltip.top="props.row.fieldErr"
                         style="right: 8px"
                         class="bk-icon icon-exclamation-circle-shape tooltips-icon"
                       >
@@ -144,7 +144,7 @@
                   ></t-input>
                   <template v-if="props.row.fieldErr">
                     <i
-                      v-bk-tooltips.top="props.row.fieldErr"
+                      v-log-tooltip.top="props.row.fieldErr"
                       style="right: 8px"
                       class="bk-icon icon-exclamation-circle-shape tooltips-icon"
                     >
@@ -164,10 +164,10 @@
               <template #default="props">
                 <div
                   v-if="!props.row.is_edit"
-                  v-bk-overflow-tips
+                  v-log-overflow-tips
                   class="overflow-tips"
                 >
-                  <span v-bk-tooltips.top="$t('字段类型不支持快速修改')">{{ props.row.field_type }}</span>
+                  <span v-log-tooltip.top="$t('字段类型不支持快速修改')">{{ props.row.field_type }}</span>
                 </div>
                 <bk-form-item
                   v-else
@@ -194,7 +194,7 @@
                   </bk-select>
                   <template v-if="props.row.typeErr">
                     <i
-                      v-bk-tooltips.top="$t('必填项')"
+                      v-log-tooltip.top="$t('必填项')"
                       style="right: 8px"
                       class="bk-icon icon-exclamation-circle-shape tooltips-icon"
                     ></i>
@@ -226,7 +226,7 @@
                   </div>
                   <div
                     v-else-if="props.row.is_built_in"
-                    v-bk-tooltips.top="$t('内置字段不支持快速修改')"
+                    v-log-tooltip.top="$t('内置字段不支持快速修改')"
                     style="width: 85%; margin-left: 15px"
                   >
                     {{ $t('不分词') }}
@@ -955,7 +955,7 @@
           {
             class: 'render-header',
           },
-          [h('span', { directives: [{ name: 'bk-overflow-tips' }], class: 'title-overflow' }, [this.$t('字段名')])],
+          [h('span', { directives: [{ name: 'log-overflow-tips' }], class: 'title-overflow' }, [this.$t('字段名')])],
         );
       },
       renderHeaderDataType(h) {
@@ -964,7 +964,7 @@
           {
             class: 'render-header',
           },
-          [h('span', { directives: [{ name: 'bk-overflow-tips' }], class: 'title-overflow' }, [this.$t('数据类型')])],
+          [h('span', { directives: [{ name: 'log-overflow-tips' }], class: 'title-overflow' }, [this.$t('数据类型')])],
         );
       },
       renderHeaderParticipleName(h) {
@@ -974,7 +974,7 @@
             class: 'render-header decoration-header-cell',
             directives: [
               {
-                name: 'bk-tooltips',
+                name: 'log-tooltip',
                 value: this.$t('选中分词,适用于分词检索,不能用于指标和维度'),
               },
             ],
@@ -984,7 +984,7 @@
               'span',
               {
                 class: 'render-Participle title-overflow',
-                directives: [{ name: 'bk-overflow-tips' }],
+                directives: [{ name: 'log-overflow-tips' }],
               },
               [this.$t('分词符')],
             ),

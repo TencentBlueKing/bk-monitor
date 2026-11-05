@@ -30,7 +30,6 @@ import { ServicesInstance } from '@/platform/services';
   import { ref, onMounted, defineExpose } from 'vue';
   import { useRoute } from "vue-router";
   
-  import * as monaco from 'monaco-editor';
   import useLocale from '@/shared/composables/use-locale';
   import PreviewSql from './common/PreviewSql.vue';
   
@@ -81,9 +80,11 @@ import { ServicesInstance } from '@/platform/services';
     emit('search-completed', res);
   }
   onMounted(() => {
-    // 在组件挂载后初始化 Monaco Editor
-    if (editorContainer.value) {
-      // editorContainer.value.style.height = "100%"; // 设置高度
+    void (async () => {
+      if (!editorContainer.value) {
+        return;
+      }
+      const monaco = await import('monaco-editor');
       editorInstance = monaco.editor.create(editorContainer.value, {
         value: `SELECT
     thedate,
@@ -100,7 +101,7 @@ LIMIT 2;`,
         language: 'sql',
         theme: 'vs-dark',
       });
-    }
+    })();
   });
   defineExpose({
     // resize,

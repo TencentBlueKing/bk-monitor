@@ -26,7 +26,6 @@ import { MessagePlugin as TDesignMessage } from 'tdesign-vue-next';
  * IN THE SOFTWARE.
  */
 
-import { bkMessage as Message } from '@/platform/compat/tdesign/magic-controls';
 import { t } from '@/shared/composables/use-locale';
 
 import './download-message.scss';
@@ -42,15 +41,10 @@ export const showDownloadFailure = (message: string) => {
 export const showBatchDownloadFailures = (failures: readonly DownloadFileFailure[]) => {
   if (!failures.length) return;
 
-  Message({
-    theme: 'error',
+  TDesignMessage.error({
+    content: `${t('批量下载：{n} 个文件下载失败', { n: failures.length })}\n${failures
+      .map(item => `${item.file_name}: ${item.message}`)
+      .join('\n')}`,
     zIndex: 9999,
-    extCls: 'client-log-batch-download-message',
-    actions: [{ id: 'assistant', disabled: true }],
-    message: {
-      title: String(t('批量下载：{n} 个文件下载失败', { n: failures.length })),
-      type: 'json',
-      details: failures,
-    },
   });
 };

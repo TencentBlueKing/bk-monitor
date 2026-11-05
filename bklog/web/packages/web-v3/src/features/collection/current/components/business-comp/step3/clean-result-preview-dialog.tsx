@@ -743,7 +743,7 @@ export default defineComponent({
           return (
             <div
               class={['status-cell', row.status === 'error' ? 'is-error' : 'is-success']}
-              v-bk-tooltips={row.status === 'error' ? buildStatusErrorTips() : false}
+              v-log-tooltip={row.status === 'error' ? buildStatusErrorTips() : false}
             >
               <span class='status-dot' />
               <span>{row.status === 'error' ? t('冲突') : t('成功')}</span>
@@ -792,7 +792,7 @@ export default defineComponent({
             {row.typeErr && (
               <i
                 class='bk-icon icon-exclamation-circle-shape type-error-icon'
-                v-bk-tooltips={{ content: t('字段类型不匹配'), placement: 'top' }}
+                v-log-tooltip={{ content: t('字段类型不匹配'), placement: 'top' }}
               />
             )}
           </div>
@@ -824,7 +824,7 @@ export default defineComponent({
             {row.empty && (
               <i
                 class='bk-icon icon-exclamation-circle-shape value-empty-icon'
-                v-bk-tooltips={{ content: t('未从样例中匹配到有效值'), placement: 'top' }}
+                v-log-tooltip={{ content: t('未从样例中匹配到有效值'), placement: 'top' }}
               />
             )}
           </div>
@@ -879,12 +879,12 @@ export default defineComponent({
       >
         <div
           class='clean-result-preview-dialog'
-          v-bkloading={{ isLoading: isDebugLoading.value, size: 'mini' }}
+          v-loading={{ loading: isDebugLoading.value, size: 'small' }}
         >
           {/* 调试样例 */}
           <div
             class='log-example-section'
-            v-bkloading={{ isLoading: props.logExampleLoading, size: 'mini' }}
+            v-loading={{ loading: props.logExampleLoading, size: 'small' }}
           >
             <div class='section-label'>
               <span class='section-label-text'>

@@ -171,7 +171,7 @@ export default defineComponent({
     return () => (
       <div
         class='v2-masking-operation'
-        v-bkloading={{ isLoading: loading.value }}
+        v-loading={{ loading: loading.value }}
       >
         <div class='masking-field-box'>
           {isCollectDataReady.value && (

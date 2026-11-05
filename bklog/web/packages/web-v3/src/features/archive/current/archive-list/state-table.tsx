@@ -139,7 +139,7 @@ export default defineComponent({
         <section>
           <bk-table
             class='state-table'
-            v-bkloading={{ isLoading: isTableLoading.value }}
+            v-loading={{ loading: isTableLoading.value }}
             data={dataList.value}
             outer-border={false}
           >
@@ -193,7 +193,7 @@ export default defineComponent({
           {dataList.value.length > 0 && (
             <div
               style='height: 40px'
-              v-bkloading={{ isLoading: true }}
+              v-loading={{ loading: true }}
               v-show={!isPageOver.value}
             />
           )}

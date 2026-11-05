@@ -26,7 +26,7 @@
 
 <template>
   <div
-    v-bkloading="{ isLoading: loading, zIndex: 0 }"
+    v-loading="{ loading: loading, zIndex: 0 }"
     class="chart-container"
   >
     <div class="chart-header">

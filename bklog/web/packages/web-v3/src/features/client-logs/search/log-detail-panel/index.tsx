@@ -797,7 +797,7 @@ export default defineComponent({
     const renderOriginalLogContent = () => (
       <div
         class='original-log-content'
-        v-bkloading={{ isLoading: isFileLoading.value || isLogLoading.value, color: '#212429' }}
+        v-loading={{ loading: isFileLoading.value || isLogLoading.value}}
       >
         {/* 左侧文件树 */}
         <div class={['file-tree-sidebar', { 'is-collapsed': isFileTreeCollapsed.value }]}>
@@ -872,7 +872,7 @@ export default defineComponent({
           {showScrollTop.value && (
             <span
               class='scroll-to-top-btn'
-              v-bk-tooltips={t('返回顶部')}
+              v-log-tooltip={t('返回顶部')}
               onClick={handleScrollToTop}
             >
               <i class='bklog-icon bklog-backtotop' />
@@ -948,7 +948,7 @@ export default defineComponent({
             {currentStatus.value === 'success' && (
               <div class='header-right'>
                 <span
-                  v-bk-tooltips={{
+                  v-log-tooltip={{
                     content: downloadTooltipContent(),
                     disabled: !isDownloadDisabled(),
                   }}

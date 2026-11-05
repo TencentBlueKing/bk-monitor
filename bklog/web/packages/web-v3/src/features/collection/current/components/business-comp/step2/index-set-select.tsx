@@ -24,7 +24,8 @@
  * IN THE SOFTWARE.
  */
 
-import { defineComponent, onMounted, ref, type PropType } from 'vue';
+import { Select as TSelect } from 'tdesign-vue-next';
+import { computed, defineComponent, onMounted, ref, type PropType } from 'vue';
 
 import useLocale from '@/shared/composables/use-locale';
 
@@ -34,6 +35,16 @@ import AddIndexSet from './add-index-set';
 import type { IListItemData } from '../../../type';
 
 import './index-set-select.scss';
+
+/** 选项 ID 保持 number。接口偶发返回数字字符串时还原为数字，不向父级提交字符串。 */
+export function toIndexSetIds(value: unknown): number[] {
+  const source = Array.isArray(value) ? value : [];
+  return source.flatMap((item) => {
+    if (typeof item === 'number' && Number.isFinite(item)) return [item];
+    if (typeof item === 'string' && /^\d+$/.test(item)) return [Number(item)];
+    return [];
+  });
+}
 
 export default defineComponent({
   name: 'IndexSetSelect',
@@ -54,12 +65,17 @@ export default defineComponent({
     const { t } = useLocale();
     const { indexGroupLoading, getIndexGroupList } = useOperation();
     const isAdd = ref(false);
-    const addIndexSetRef = ref();
+    const addIndexSetRef = ref<{ autoFocus?: () => void } | null>(null);
     const selectArr = ref<number[]>([]);
     const list = ref<IListItemData[]>([]);
-    /**
-     * 新增
-     */
+    const options = computed(() =>
+      (list.value || []).flatMap((option) => {
+        const value = toIndexSetIds([option.index_set_id])[0];
+        if (value === undefined) return [];
+        return [{ label: option.index_set_name ?? '', value }];
+      }),
+    );
+
     const handleAdd = () => {
       isAdd.value = true;
       setTimeout(() => {
@@ -69,7 +85,7 @@ export default defineComponent({
 
     const getData = () => {
       getIndexGroupList((data: { list: IListItemData[] }) => {
-        list.value = data.list;
+        list.value = data?.list || [];
       });
     };
     const handleCancel = () => {
@@ -79,17 +95,17 @@ export default defineComponent({
       handleCancel();
       getData();
     };
-    const handleSelect = (val: number[]) => {
-      selectArr.value = val;
+    const handleSelect = (val: unknown) => {
+      selectArr.value = toIndexSetIds(val);
       emit('select', selectArr.value);
     };
     onMounted(() => {
       getData();
     });
     return () => (
-      <bk-select
+      <TSelect
         v-slots={{
-          extension: () => (
+          panelBottomContent: () => (
             <div class='index-set-select-extension'>
               {isAdd.value ? (
                 <AddIndexSet
@@ -112,28 +128,17 @@ export default defineComponent({
           ),
         }}
         class='index-set-select-box'
-        ext-popover-cls='managev2-index-set-checkbox-popover'
+        filterable
         loading={indexGroupLoading.value}
-        value={props.value}
-        display-tag
         multiple
-        searchable
-        selected-style='checkbox'
-        onChange={(val: number[]) => handleSelect(val)}
-        onToggle={(isOpen: unknown) => {
-          if (!isOpen) {
-            isAdd.value = false;
-          }
+        options={options.value}
+        popupProps={{ overlayClassName: 'managev2-index-set-checkbox-popover' }}
+        value={toIndexSetIds(props.value)}
+        onChange={handleSelect}
+        onPopupVisibleChange={(visible: boolean) => {
+          if (!visible) isAdd.value = false;
         }}
-      >
-        {(list.value || []).map((option: IListItemData) => (
-          <bk-option
-            id={option.index_set_id}
-            key={option.index_set_id}
-            name={option.index_set_name}
-          />
-        ))}
-      </bk-select>
+      />
     );
   },
 });

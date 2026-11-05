@@ -26,7 +26,7 @@
 
 <template>
   <div
-    v-bkloading="{ isLoading }"
+    v-loading="{ loading: isLoading }"
     class="main-container"
     data-test-id="logExtraction_div_fromBox"
   >
@@ -68,7 +68,7 @@
       >
         <template #default="{ row }">
           <div class="table-ceil-container">
-            <span v-bk-overflow-tips>{{ getShowIpList(row) }}</span>
+            <span v-log-overflow-tips>{{ getShowIpList(row) }}</span>
           </div>
         </template>
       </bk-table-column>
@@ -80,7 +80,7 @@
       >
         <template #default="{ row }">
           <div class="table-ceil-container">
-            <span v-bk-overflow-tips>{{ row.file_path.join('; ') }}</span>
+            <span v-log-overflow-tips>{{ row.file_path.join('; ') }}</span>
           </div>
         </template>
       </bk-table-column>
@@ -99,7 +99,7 @@
       >
         <template #default="{ row }">
           <div class="table-ceil-container">
-            <span v-bk-overflow-tips>{{ row.remark || '--' }}</span>
+            <span v-log-overflow-tips>{{ row.remark || '--' }}</span>
           </div>
         </template>
       </bk-table-column>
@@ -135,7 +135,7 @@
             <span>{{ row.download_status_display }}</span>
             <span
               v-if="row.download_status === 'failed'"
-              v-bk-tooltips="{
+              v-log-tooltip="{
                 disabled: !row.task_process_info,
                 content: row.task_process_info,
               }"
@@ -158,7 +158,7 @@
               >{{ $t('详情') }}</span
             >
             <span
-              v-bk-tooltips.top="{
+              v-log-tooltip.top="{
                 content: row.message,
                 disabled: row.enable_clone,
                 delay: 500,
@@ -205,7 +205,7 @@
     >
       <template #content>
         <div
-          v-bkloading="{ isLoading: sideSlider.isLoading }"
+          v-loading="{ loading: sideSlider.isLoading }"
           class="task-detail-content"
         >
           <list-box

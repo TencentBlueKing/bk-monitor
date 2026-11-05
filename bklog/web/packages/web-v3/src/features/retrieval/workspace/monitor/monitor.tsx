@@ -183,7 +183,7 @@ export default defineComponent({
             'is-trace': isMonitorTraceComponent,
           },
         ]}
-        v-bkloading={{ isLoading: !isPreApiLoaded.value }}
+        v-loading={{ loading: !isPreApiLoaded.value }}
       >
         <V3Collection></V3Collection>
         {renderResultContent()}

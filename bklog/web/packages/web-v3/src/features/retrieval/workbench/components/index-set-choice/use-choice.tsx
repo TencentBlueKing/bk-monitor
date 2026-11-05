@@ -53,7 +53,7 @@ import { ServicesInstance } from '@/platform/services';
 
 import { computed, ref } from 'vue';
 
-import { messageError, messageSuccess } from '@/shared/lib/bkmagic';
+import { messageError, messageSuccess } from '@/shared/lib/message';
 
 
 export type IndexSetType = 'single' | 'union';

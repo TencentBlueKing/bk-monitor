@@ -41,13 +41,13 @@
                 </span>
                 <div
                   v-if="option.query_alias"
-                  v-bk-overflow-tips="{ placement: 'right' }"
+                  v-log-overflow-tips="{ placement: 'right' }"
                   class="display-container rtl-text"
                 >
                   <span class="field-alias">{{ option.query_alias || option.field_name }}</span>
                   <span class="field-name">({{ option.field_name }})</span>
                 </div>
-                <div v-else v-bk-overflow-tips="{ placement: 'right' }" class="display-container rtl-text">
+                <div v-else v-log-overflow-tips="{ placement: 'right' }" class="display-container rtl-text">
                   <span class="field-name">{{ option.field_name }}</span>
                 </div>
               </div>

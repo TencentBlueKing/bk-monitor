@@ -28,17 +28,26 @@
     padding: 0 10px;
 
     .custom-icon {
-      .bk-step-indicator {
+      width: 100%;
+
+      .t-steps-item__title {
+        font-size: 12px;
+      }
+
+      .t-steps-item__icon {
         background: #eaebf0;
         border: none;
       }
 
-      .bk-step.done .bk-step-indicator {
+      .t-steps-item--finish .t-steps-item__icon {
         background: #e1ecff;
+        color: #3a84ff;
       }
 
-      .bk-step.current .bk-step-indicator {
+      .t-steps-item--process .t-steps-item__icon {
         background: #3a84ff;
+        border-color: #3a84ff;
+        color: #fff;
       }
     }
   }

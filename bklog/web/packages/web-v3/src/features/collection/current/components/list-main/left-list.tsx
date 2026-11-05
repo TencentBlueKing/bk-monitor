@@ -25,6 +25,7 @@ import { ServicesInstance } from '@/platform/services';
  * IN THE SOFTWARE.
  */
 
+import { Input as TInput } from 'tdesign-vue-next';
 import { computed, defineComponent, nextTick, onBeforeUnmount, onMounted, ref, watch, type PropType } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 
@@ -233,10 +234,7 @@ export default defineComponent({
         return (filterDataList.value || []).map(item => renderBaseItem(item));
       }
       return (
-        <bk-exception
-          class='list-main-empty'
-          type={searchValue.value ? 'search-empty' : 'empty'}
-        >
+        <div class='list-main-empty'>
           <span>{searchValue.value ? t('搜索结果为空') : t('暂无索引集')}</span>
           {searchValue.value ? (
             <span
@@ -250,7 +248,7 @@ export default defineComponent({
           ) : (
             <p class='list-main-text'>{t('创建索引集可合并多采集项一同使用')}</p>
           )}
-        </bk-exception>
+        </div>
       );
     };
 
@@ -269,17 +267,19 @@ export default defineComponent({
             >
               +
             </span>
-            <bk-input
+            <TInput
               class='search-input'
               placeholder={t('搜索 索引集名称')}
-              right-icon='bk-icon icon-search'
               value={searchValue.value}
               clearable
               onClear={() => {
                 searchValue.value = '';
               }}
-              onInput={(val: string) => {
-                searchValue.value = val;
+              onChange={(val: string | number | undefined) => {
+                searchValue.value = val == null ? '' : String(val);
+              }}
+              v-slots={{
+                suffixIcon: () => <i class='bk-icon icon-search' />,
               }}
             />
           </div>

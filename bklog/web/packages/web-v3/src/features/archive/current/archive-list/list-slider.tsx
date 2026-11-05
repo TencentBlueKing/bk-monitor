@@ -366,7 +366,7 @@ export default defineComponent({
               <>
                 <div
                   class='archive-slider-content'
-                  v-bkloading={{ isLoading: sliderLoading.value }}
+                  v-loading={{ loading: sliderLoading.value }}
                 >
                   {/* 加载完成后渲染表单 */}
                   {!sliderLoading.value && (

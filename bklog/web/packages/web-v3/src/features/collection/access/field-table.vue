@@ -27,7 +27,7 @@
 
 <template>
   <div
-    v-bkloading="{ isLoading: isExtracting }"
+    v-loading="{ loading: isExtracting }"
     class="field-table-container"
   >
     <div
@@ -37,7 +37,7 @@
       <!-- <span class="field-method-link fr mr10" @click.stop="isReset = true">{{ 重置 }}</span> -->
       <div :class="{ 'table-setting': true, 'disabled-setting': isSettingDisable || isSetDisabled }">
         <div class="fr form-item-flex bk-form-item">
-          <!-- <label class="bk-label has-desc" v-bk-tooltips="$t('确认保留原始日志,会存储在log字段. 其他字段提取内容会进行追加')">
+          <!-- <label class="bk-label has-desc" v-log-tooltip="$t('确认保留原始日志,会存储在log字段. 其他字段提取内容会进行追加')">
             <span>{{ $t('保留原始日志') }}</span>
           </label> -->
           <div class="bk-form-content">
@@ -139,7 +139,7 @@
               <template #default="props">
                 <div
                   v-if="isPreviewMode || props.row.is_objectKey"
-                  v-bk-tooltips.top="props.row.field_name"
+                  v-log-tooltip.top="props.row.field_name"
                   class="overflow-tips-field-name"
                 >
                   <span
@@ -198,7 +198,7 @@
                   </template>
                   <template v-if="props.row.fieldErr && !props.row.btnShow">
                     <i
-                      v-bk-tooltips.top="props.row.fieldErr"
+                      v-log-tooltip.top="props.row.fieldErr"
                       style="right: 8px"
                       class="bk-icon icon-exclamation-circle-shape tooltips-icon"
                     >
@@ -215,7 +215,7 @@
                     "
                   >
                     <t-button
-                      v-bk-tooltips.top="
+                      v-log-tooltip.top="
                         {
                           width: props.row.width,
                           content: props.row.fieldAliasErr,
@@ -242,7 +242,7 @@
                 <div
                   v-if="isPreviewMode"
                   class="overflow-tips"
-                  v-bk-overflow-tips
+                  v-log-overflow-tips
                 >
                   <span>{{ props.row.description }}</span>
                 </div>
@@ -264,7 +264,7 @@
               <template #default="props">
                 <div
                   v-if="isPreviewMode"
-                  v-bk-overflow-tips
+                  v-log-overflow-tips
                   class="overflow-tips"
                 >
                   <span>{{ props.row.field_type }}</span>
@@ -317,7 +317,7 @@
                   </bk-select>
                   <template v-if="props.row.typeErr">
                     <i
-                      v-bk-tooltips.top="$t('必填项')"
+                      v-log-tooltip.top="$t('必填项')"
                       style="right: 8px"
                       class="bk-icon icon-exclamation-circle-shape tooltips-icon"
                     ></i>
@@ -448,7 +448,7 @@
                           style="width: 85%"
                         >
                           <div
-                            v-bk-tooltips="
+                            v-log-tooltip="
                               props.row.participleState === 'custom' ? props.row.tokenize_on_chars : '自然语言分词'
                             "
                             class="participle_content"
@@ -500,19 +500,19 @@
                   <!-- {{ props.row.is_delete ? $t('复原') : $t('隐藏') }} -->
                   <i
                     v-if="props.row.is_delete"
-                    v-bk-tooltips.top="$t('复原')"
+                    v-log-tooltip.top="$t('复原')"
                     class="bk-icon bklog-icon bklog-eye"
                   ></i>
                   <i
                     v-else
-                    v-bk-tooltips.top="$t('隐藏')"
+                    v-log-tooltip.top="$t('隐藏')"
                     class="bk-icon bklog-icon bklog-eye-slash"
                   ></i>
                 </span>
 
                 <i
                   v-if="props.row.is_add_in"
-                  v-bk-tooltips.top="$t('删除')"
+                  v-log-tooltip.top="$t('删除')"
                   class="bk-icon bklog-icon bklog-log-delete"
                   @click="deleteField(props.row)"
                 ></i>
@@ -537,7 +537,7 @@
         <div
           v-for="(row, index) in hideDeletedTable"
           :key="index"
-          v-bk-tooltips.top="{ content: row.value || $t('暂无数据'), allowHTML: false }"
+          v-log-tooltip.top="{ content: row.value || $t('暂无数据'), allowHTML: false }"
           :style="!isPreviewMode ? { height: '51px', 'line-height': '51px' } : ''"
           class="preview-item"
         >
@@ -548,7 +548,7 @@
         <div
           v-for="(row, index) in tableList"
           :key="index"
-          v-bk-tooltips.top="{ content: row.value || $t('暂无数据'), allowHTML: false }"
+          v-log-tooltip.top="{ content: row.value || $t('暂无数据'), allowHTML: false }"
           :style="!isPreviewMode ? { height: '51px', 'line-height': '51px' } : ''"
           class="preview-item"
         >
@@ -1132,7 +1132,7 @@
             class: 'render-header',
           },
           [
-            h('span', { directives: [{ name: 'bk-overflow-tips' }], class: 'title-overflow' }, [this.$t('字段说明')]),
+            h('span', { directives: [{ name: 'log-overflow-tips' }], class: 'title-overflow' }, [this.$t('字段说明')]),
             h('span', this.$t('(选填)')),
           ],
         );
@@ -1143,7 +1143,7 @@
           {
             directives: [
               {
-                name: 'bk-tooltips',
+                name: 'log-tooltip',
                 value: this.$t('选中分词,适用于分词检索,不能用于指标和维度'),
               },
             ],
@@ -1153,7 +1153,7 @@
               'span',
               {
                 class: 'render-Participle title-overflow',
-                directives: [{ name: 'bk-overflow-tips' }],
+                directives: [{ name: 'log-overflow-tips' }],
               },
               [this.$t('分词符')],
             ),

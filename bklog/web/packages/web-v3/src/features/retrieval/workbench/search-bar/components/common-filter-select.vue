@@ -17,6 +17,8 @@
   } from '../../../../../app/state/helper';
   import { operatorMapping, translateKeys } from '../utils/const-values';
   import { FulltextOperator, FulltextOperatorKey, withoutValueConditionList } from '../utils/const.common.ts';
+  import { Select as TSelect } from 'tdesign-vue-next';
+
   import bklogTagChoice from './bklog-tag-choice';
   import CommonFilterSetting from './common-filter-setting.vue';
 
@@ -193,37 +195,32 @@
         :class="['filter-select-wrap', { 'is-focus': focusIndex === index }]"
       >
         <div
-          v-bk-overflow-tips
+          v-log-overflow-tips
           class="title"
           @blur.capture="handleRowBlur"
           @focus.capture="e => handleRowFocus(index, e)"
         >
           {{ item?.query_alias || item?.field_name || '' }}
         </div>
-        <bk-select
+        <t-select
           v-model="commonFilterAddition[index].operator"
           class="operator-select"
-          :input-search="false"
-          :popover-min-width="100"
-          filterable
+          borderless
+          auto-width
+          :options="(item?.field_operator || []).map(child => ({ label: child.label, value: child.operator }))"
+          :popup-props="{ overlayInnerClassName: 'bklog-filter-operator-popup' }"
           @change="handleChange"
-          @blur.native.capture="handleRowBlur"
-          @focus.native.capture="e => handleRowFocus(index, e)"
+          @blur="handleRowBlur"
+          @focus="e => handleRowFocus(index, e)"
         >
-          <template #trigger>
+          <template #valueDisplay>
             <span
               class="operator-label"
               :data-operator="commonFilterAddition[index].operator"
               >{{ getOperatorLabel(commonFilterAddition[index]) }}</span
             >
           </template>
-          <bk-option
-            v-for="(child, childIndex) in item?.field_operator"
-            :id="child.operator"
-            :key="childIndex"
-            :name="child.label"
-          />
-        </bk-select>
+        </t-select>
         <template v-if="isShowConditonValueSetting(commonFilterAddition[index].operator)">
           <bklogTagChoice
             v-model="commonFilterAddition[index].value"
@@ -300,18 +297,22 @@
 
   .filter-select-wrap {
     display: flex;
+    flex: 0 0 auto;
     align-items: center;
+    width: fit-content;
     max-width: 560px;
     margin-right: 4px;
     margin-bottom: 4px;
     box-sizing: content-box;
 
     .title {
+      flex: 0 0 auto;
       max-width: 120px;
-      padding-left: 8px;
+      padding: 0 8px;
       overflow: hidden;
       font-size: 12px;
       color: #313238;
+      white-space: nowrap;
       text-overflow: ellipsis;
       border-top-left-radius: 3px;
       border-bottom-left-radius: 3px;
@@ -324,14 +325,40 @@
     }
 
     .operator-select {
+      flex: 0 0 auto;
+      width: auto;
+      height: 32px;
       border: none;
       border-top: 1px solid #dbdde1;
       border-bottom: 1px solid #dbdde1;
-      line-height: 32px;
-      height: 32px;
       border-left: none;
       border-right: none;
       border-radius: 0;
+      line-height: 32px;
+
+      :deep(.t-select-input),
+      :deep(.t-input__wrap),
+      :deep(.t-input) {
+        width: auto;
+        height: 32px;
+        min-height: 32px;
+        min-width: 0;
+        padding: 0;
+        background: transparent;
+        border: none;
+        border-radius: 0;
+        box-shadow: none;
+      }
+
+      :deep(.t-input__inner) {
+        height: 32px;
+        min-width: 0;
+      }
+
+      :deep(.t-input__suffix),
+      :deep(.t-input__prefix:empty) {
+        display: none;
+      }
 
       .operator-label {
         display: inline-block;

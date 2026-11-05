@@ -109,7 +109,7 @@ export default defineComponent({
                 >
                   <div
                     class='value-item'
-                    v-bk-overflow-tips
+                    v-log-overflow-tips
                   >
                     {item}
                   </div>
@@ -119,7 +119,7 @@ export default defineComponent({
               {props.data.values.length > 3 && (
                 <span
                   class='more-count'
-                  v-bk-tooltips={{
+                  v-log-tooltip={{
                     content: props.data.values.slice(3).join(','),
                   }}
                 >

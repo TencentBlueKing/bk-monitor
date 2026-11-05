@@ -1,5 +1,6 @@
 <script setup>
-  import { computed, ref, watch, onMounted, onUpdated } from 'vue';
+  import { computed, reactive, ref, watch, onMounted, onUpdated } from 'vue';
+  import { Popup as TPopup } from 'tdesign-vue-next';
 import { set } from "@/shared/lib/reactivity";
 
   import { getOperatorKey } from '@/shared/lib/util';
@@ -38,22 +39,6 @@ import { set } from "@/shared/lib/reactivity";
   const emit = defineEmits(['input', 'change', 'height-change', 'popup-change', 'text-to-query', "heightChange", "popupChange", "textToQuery"]);
   const store = useStore();
   const { t } = useLocale();
-  const popoverRefs = ref(new Map());
-  const morePopoverRefs = ref([]);
-
-  const setPopoverRef = (el, parentIndex, childIndex) => {
-    const key = `${parentIndex}-${childIndex}`;
-    if (el) {
-      popoverRefs.value.set(key, el);
-    } else {
-      popoverRefs.value.delete(key);
-    }
-  };
-  const setMorePopoverRef = (el, index) => {
-    if (el) {
-      morePopoverRefs.value[index] = el;
-    }
-  };
   const inputValueLength = ref(0);
 
   const language = jsCookie.get('blueking_language') || 'zh-cn';
@@ -519,9 +504,10 @@ import { set } from "@/shared/lib/reactivity";
   const handleIPChange = () => {
     emitChange(modelValue.value);
   };
-  const handlePopoverShow = (parentIndex, childIndex) => {
-    const popover = popoverRefs.value.get(`${parentIndex}-${childIndex}`);
-    popover?.showHandler();
+  const popoverVisible = reactive({});
+  const morePopoverVisible = reactive({});
+  const hidePopover = (parentIndex, childIndex) => {
+    popoverVisible[`${parentIndex}-${childIndex}`] = false;
   };
   const changeOptionShow = (item, child, parentIndex, childIndex) => {
     if (!item.hidden_values) {
@@ -537,8 +523,7 @@ import { set } from "@/shared/lib/reactivity";
     }
 
     emitChange(structuredClone(modelValue.value));
-    const popover = popoverRefs.value.get(`${parentIndex}-${childIndex}`);
-    popover?.hideHandler();
+    hidePopover(parentIndex, childIndex);
   };
   const onlyOptionShow = (item, child, parentIndex, childIndex) => {
     item.hidden_values.length = 0;
@@ -552,11 +537,7 @@ import { set } from "@/shared/lib/reactivity";
     });
 
     emitChange(structuredClone(modelValue.value));
-    const popover = popoverRefs.value.get(`${parentIndex}-${childIndex}`);
-    popover?.hideHandler();
-  };
-  const moreOption = index => {
-    morePopoverRefs.value[index].showHandler();
+    hidePopover(parentIndex, childIndex);
   };
 
   /**
@@ -638,14 +619,16 @@ import { set } from "@/shared/lib/reactivity";
             :key="childIndex"
           >
             <template v-if="item.showAll ? true : childIndex < 3">
-              <bk-popover
-                :ref="el => setPopoverRef(el, index, childIndex)"
+              <t-popup
+                :visible="popoverVisible[`${index}-${childIndex}`] === true"
+                attach="body"
+                overlay-inner-class-name="bklog-match-value-popup"
                 placement="bottom"
-                theme="light"
                 trigger="click"
+                @visible-change="visible => (popoverVisible[`${index}-${childIndex}`] = visible)"
               >
                 <span
-                  v-bk-tooltips="{
+                  v-log-tooltip="{
                     content: item.value,
                     disabled: item.value.length < 21,
                   }"
@@ -654,11 +637,11 @@ import { set } from "@/shared/lib/reactivity";
                     { 'has-ellipsis': item.value.length > 20 },
                     { 'delete-line': item.hidden_values?.includes(child) },
                   ]"
-                  @click.stop="() => handlePopoverShow(index, childIndex)"
+                  @click.stop
                 >
                   {{ formatDateTimeField(child, item.field_type) }}
                 </span>
-                <div slot="content">
+                <template #content>
                   <div
                     class="match-value-select"
                     @click="changeOptionShow(item, child, index, childIndex)"
@@ -671,8 +654,8 @@ import { set } from "@/shared/lib/reactivity";
                   >
                     {{ t('只看这个选项') }}
                   </div>
-                </div>
-              </bk-popover>
+                </template>
+              </t-popup>
               <span
                 v-if="childIndex < item.value.length - 1 && (childIndex < 2 || item.showAll)"
                 class="match-value-relation"
@@ -681,55 +664,59 @@ import { set } from "@/shared/lib/reactivity";
               </span>
             </template>
           </span>
-          <bk-popover
-            :ref="el => setMorePopoverRef(el, index)"
+          <t-popup
+            :visible="morePopoverVisible[index] === true"
+            attach="body"
+            overlay-inner-class-name="bklog-match-value-popup"
             placement="bottom"
-            theme="light"
             trigger="click"
+            @visible-change="visible => (morePopoverVisible[index] = visible)"
           >
             <span
               v-if="item.value.length > 3 && !item.showAll"
               style="color: #f59500"
               class="match-value-more"
-              @click.stop="moreOption(index)"
+              @click.stop
             >
               +{{ item.value.length - 3 }}
             </span>
-            <div slot="content">
+            <template #content>
               <div class="match-value-content">
-                <bk-popover
+                <t-popup
                   v-for="(child, childIndex) in item.value.slice(3)"
-                  :ref="el => setPopoverRef(el, index, childIndex + 3)"
                   :key="childIndex"
+                  :visible="popoverVisible[`${index}-${childIndex + 3}`] === true"
+                  attach="body"
+                  overlay-inner-class-name="bklog-match-value-popup"
                   placement="right"
-                  theme="light"
                   trigger="click"
-                  ext-cls="match-value-popover"
+                  @visible-change="visible => (popoverVisible[`${index}-${childIndex + 3}`] = visible)"
                 >
                   <div
                     class="match-value-child"
                     :class="[{ 'delete-line': item.hidden_values?.includes(child) }]"
+                    @click.stop
                   >
                     {{ child }}
                   </div>
-                  <div slot="content">
+                  <template #content>
                     <div
                       class="match-value-select"
-                      @click="changeOptionShow(item, child, index, childIndex)"
+                      @click="changeOptionShow(item, child, index, childIndex + 3)"
                     >
                       {{ getItemActionShowText(item, child) }}
                     </div>
                     <div
                       class="match-value-select"
-                      @click="onlyOptionShow(item, child, index, childIndex)"
+                      @click="onlyOptionShow(item, child, index, childIndex + 3)"
                     >
                       {{ t('只看这个选项') }}
                     </div>
-                  </div>
-                </bk-popover>
+                  </template>
+                </t-popup>
               </div>
-            </div>
-          </bk-popover>
+            </template>
+          </t-popup>
         </template>
         <template v-else>
           <span>{{ item.value }}</span>
@@ -798,6 +785,40 @@ import { set } from "@/shared/lib/reactivity";
 </template>
 <style lang="scss">
   @import './ui-input.scss';
+
+  .bklog-match-value-popup {
+    padding: 4px 0;
+    background: #fff;
+
+    .match-value-select,
+    .match-value-child {
+      display: flex;
+      align-items: center;
+      min-width: 108px;
+      padding: 0 12px;
+      font-size: 12px;
+      line-height: 32px;
+      color: #63656e;
+      cursor: pointer;
+      background: #fff;
+    }
+
+    .match-value-select:hover,
+    .match-value-child:hover {
+      color: #3a84ff;
+      background: #f5f7fa;
+    }
+
+    .match-value-content {
+      display: flex;
+      flex-direction: column;
+    }
+
+    .delete-line {
+      color: #979ba5;
+      text-decoration: line-through;
+    }
+  }
   @import 'tippy.js/dist/tippy.css';
 </style>
 <style lang="scss">

@@ -236,7 +236,7 @@ export default defineComponent({
           >
             <bk-select
               style='width: 100%'
-              v-bkloading={{ isLoading: indexSetLoading.value, size: 'small' }}
+              v-loading={{ loading: indexSetLoading.value, size: 'small' }}
               clearable={false}
               value={indexSetData.value.index_set_id}
               searchable

@@ -34,7 +34,7 @@ import axios from 'axios';
 import dayjs from 'dayjs';
 
 import store from '@/app/state/index';
-import * as echarts from 'echarts';
+import type * as echarts from 'echarts';
 
 import { formatNumberWithRegex } from '../../../../shared/lib/util';
 import { lineOrBarOptions, pillarChartOption } from '../../../charts/options/echart-options-config';
@@ -848,7 +848,7 @@ export default class FieldAnalysis extends Vue {
                   </TTooltip>
                   {/* <span
                     class='bklog-icon bklog-yibiaopan'
-                    v-bk-tooltips='查看仪表盘'
+                    v-log-tooltip='查看仪表盘'
                     style={{ marginLeft: '5px',cursor: 'pointer' }}
                   ></span> */}
                 </div>

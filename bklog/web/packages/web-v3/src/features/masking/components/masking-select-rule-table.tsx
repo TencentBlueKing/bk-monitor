@@ -33,7 +33,8 @@ import { asDictionary } from '@/shared/utils/typed-record';
 import { Component, Model, Emit, Prop, Watch, Ref } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
-import { bkTable as Table, bkTableColumn as TableColumn, bkInput as Input } from '@/platform/compat/tdesign/magic-controls';
+import { Table, Input } from 'tdesign-vue-next';
+const TableColumn = (_props: Record<string, unknown>, { slots }: { slots: { default?: () => unknown } }) => slots.default?.();
 
 
 import * as authorityMap from '../../../shared/lib/authority-map';
@@ -426,7 +427,7 @@ export default class MaskingSelectRuleTable extends tsc<IProps> {
         <div class='rule-name-box'>
           <span
             class='title-overflow'
-            v-bk-overflow-tips
+            v-log-overflow-tips
           >
             {row.rule_name}
           </span>
@@ -441,7 +442,7 @@ export default class MaskingSelectRuleTable extends tsc<IProps> {
         <div class='rule-name-box'>
           <span
             class='title-overflow'
-            v-bk-overflow-tips
+            v-log-overflow-tips
           >
             {this.getMatchMethodStr(row)}
           </span>
@@ -454,7 +455,7 @@ export default class MaskingSelectRuleTable extends tsc<IProps> {
         <div class='rule-name-box'>
           <span
             class='title-overflow'
-            v-bk-overflow-tips
+            v-log-overflow-tips
           >
             {this.getMatchContentStr(row)}
           </span>
@@ -467,7 +468,7 @@ export default class MaskingSelectRuleTable extends tsc<IProps> {
         <div class='rule-name-box'>
           <span
             class='title-overflow'
-            v-bk-overflow-tips
+            v-log-overflow-tips
           >
             {this.getMaskingRuleStr(row)}
           </span>
@@ -507,7 +508,7 @@ export default class MaskingSelectRuleTable extends tsc<IProps> {
             />
             <Button
               class='refresh-btn'
-              v-bk-tooltips={this.$t('刷新')}
+              v-log-tooltip={this.$t('刷新')}
               onClick={() => this.initTableList()}
             >
               <i class='icon bk-icon icon-right-turn-line' />
@@ -527,7 +528,7 @@ export default class MaskingSelectRuleTable extends tsc<IProps> {
             ),
           }}
           rowStyle={this.getShowRowStyle}
-          v-bkloading={{ isLoading: this.tableLoading }}
+          v-loading={{ loading: this.tableLoading }}
           data={this.tableShowList}
           headerBorder={false}
           maxHeight={this.tableMaxHeight}

@@ -101,9 +101,8 @@ export default defineComponent({
                   <div
                     ref={vm.scrollerRef}
                     class='dialog-log-markdown standalone-related-log-scroller'
-                    v-bkloading={{
-                      isLoading: vm.loading.value && !vm.isFilterEmpty.value,
-                      opacity: 0.6,
+                    v-loading={{
+                      loading: vm.loading.value && !vm.isFilterEmpty.value,
                     }}
                   >
                     {vm.error.value ? (

@@ -28,11 +28,9 @@ import { createMonitorApplication } from '@/platform/embedding/monitor-applicati
 
 
 import Vue from '@/platform/compat/vue-runtime.mjs';
-import { messageError, messageSuccess, messageInfo, messageWarn } from '@/shared/lib/bkmagic';
+import { messageError, messageSuccess, messageInfo, messageWarn } from '@/shared/lib/message';
 const feedback = {
-  $bkMessage: Vue.prototype.$bkMessage,
   $bkInfo: Vue.prototype.$bkInfo,
-  $bkNotify: Vue.prototype.$bkNotify,
   messageError, messageSuccess, messageInfo, messageWarn,
 };
 

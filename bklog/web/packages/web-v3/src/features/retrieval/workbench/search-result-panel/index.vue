@@ -216,7 +216,7 @@
       <div :class="['field-list-sticky', { 'is-show': isShowFieldStatistics, 'is-close': !isShowFieldStatistics }]">
         <FieldFilter
           v-show="isOriginShow"
-          v-bkloading="{ isLoading: isFilterLoading && isShowFieldStatistics }"
+          v-loading="{ loading: isFilterLoading && isShowFieldStatistics }"
           v-log-drag="{
             minWidth: 160,
             maxWidth: 500,

@@ -929,7 +929,7 @@ export default defineComponent({
     return () => (
       <div
         class='operation-step2-bk-data-collection'
-        v-bkloading={{ isLoading: loading.value }}
+        v-loading={{ loading: loading.value }}
       >
         {/* 卡片内容区域 */}
         {cardRender(cardConfig)}

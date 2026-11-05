@@ -267,7 +267,7 @@ export default class QueryStatement extends tsc<IProps> {
               </span>
               <div
                 class='new-link'
-                v-bk-tooltips={this.$t('新开标签页')}
+                v-log-tooltip={this.$t('新开标签页')}
                 onClick={e => {
                   e.stopPropagation();
                   this.handleMenuClick('is', true);
@@ -286,7 +286,7 @@ export default class QueryStatement extends tsc<IProps> {
               </span>
               <div
                 class='new-link'
-                v-bk-tooltips={this.$t('新开标签页')}
+                v-log-tooltip={this.$t('新开标签页')}
                 onClick={e => {
                   e.stopPropagation();
                   this.handleMenuClick('not', true);

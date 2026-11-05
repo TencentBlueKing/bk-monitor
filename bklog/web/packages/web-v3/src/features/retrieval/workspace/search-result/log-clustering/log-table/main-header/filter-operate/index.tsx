@@ -144,7 +144,7 @@ export default defineComponent({
             >
               <TCheckbox checked={localValue.value.includes(option.id)} />
               <span
-                v-bk-tooltips={{
+                v-log-tooltip={{
                   content: option.name,
                   placement: 'top',
                 }}

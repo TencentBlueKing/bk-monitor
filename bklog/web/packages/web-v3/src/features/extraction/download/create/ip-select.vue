@@ -35,7 +35,7 @@
     @value-change="handleValueChange"
   >
     <div
-      v-bkloading="{ isLoading }"
+      v-loading="{ loading: isLoading }"
       class="ip-select-container"
     >
       <div class="select-title">

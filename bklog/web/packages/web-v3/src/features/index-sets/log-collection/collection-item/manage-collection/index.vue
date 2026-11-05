@@ -26,7 +26,7 @@
 
 <template>
   <div
-    v-bkloading="{ isLoading: basicLoading }"
+    v-loading="{ loading: basicLoading }"
     class="access-manage-container"
   >
     <auth-container-page

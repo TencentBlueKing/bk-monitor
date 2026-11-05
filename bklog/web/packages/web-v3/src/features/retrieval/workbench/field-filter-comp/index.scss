@@ -110,12 +110,18 @@
       }
     }
 
-    .t-tree__item--hidden {
-      visibility: hidden;
+    .t-tree__item,
+    .t-tree__item--visible,
+    .t-tree__item--hidden,
+    .t-tree__item--enter-active,
+    .t-tree__item--leave-active {
+      max-height: none;
+      animation: none;
+      transition: none;
     }
 
-    .t-tree__item--visible {
-      max-height: none;
+    .t-tree__item--hidden {
+      display: none;
     }
 
     .t-tree__item::before {

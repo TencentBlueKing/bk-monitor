@@ -36,14 +36,12 @@
         >
           <span
             v-if="item.id !== 'all'"
-            v-bkloading="{
-              isLoading: isHaveRunning(item),
-              opacity: 1,
+            v-loading="{
+              loading: isHaveRunning(item),
               zIndex: 10,
               theme: 'primary',
               mode: 'spin',
-              size: 'small',
-            }"
+              size: 'small' }"
             :class="[
               item.id !== 'running' && 'circle nav-icon',
               isHaveRunning(item) && 'rotate-icon',
@@ -95,14 +93,12 @@
               <template #default="{ row }">
                 <div :class="row.status === 'running' ? 'rotate-div' : ''">
                   <span
-                    v-bkloading="{
-                      isLoading: row.status === 'running',
-                      opacity: 1,
+                    v-loading="{
+                      loading: row.status === 'running',
                       zIndex: 10,
                       theme: 'primary',
                       mode: 'spin',
-                      size: 'small',
-                    }"
+                      size: 'small' }"
                     :class="['circle', row.status === 'running' ? 'rotate-icon' : 'nav-icon', colorClass[row.status]]"
                   ></span>
                   <span>{{ statusNameList[row.status] }}</span>

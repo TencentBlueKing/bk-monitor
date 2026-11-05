@@ -218,7 +218,7 @@ export default defineComponent({
     return () => (
       <div
         class='extract-link-list-container'
-        v-bkloading={{ isLoading: isLoading.value }}
+        v-loading={{ loading: isLoading.value }}
         data-test-id='extractLinkList_div_extractLinkListBox'
       >
         {/* 新增按钮 */}
@@ -261,7 +261,7 @@ export default defineComponent({
             v-slots={{
               default: ({ row }: any) => (
                 <div class='table-ceil-container'>
-                  <span v-bk-overflow-tips>{row.name}</span>
+                  <span v-log-overflow-tips>{row.name}</span>
                 </div>
               ),
             }}

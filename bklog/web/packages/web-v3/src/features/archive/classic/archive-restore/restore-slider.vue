@@ -37,7 +37,7 @@
     >
       <template #content>
         <div
-          v-bkloading="{ isLoading: sliderLoading }"
+          v-loading="{ loading: sliderLoading }"
           class="restore-slider-content"
         >
           <bk-form

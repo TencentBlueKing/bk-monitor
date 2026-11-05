@@ -398,7 +398,7 @@ export default defineComponent({
             </div>
             <div
               class='popover-field-list-wrapper'
-              v-bkloading={{ isLoading: addListLoading.value && currentPage.value === 1 }}
+              v-loading={{ loading: addListLoading.value && currentPage.value === 1 }}
             >
               <div
                 ref={availableListRef}
@@ -450,7 +450,7 @@ export default defineComponent({
                         {item.is_related_space && (
                           <span
                             class='space-tag related'
-                            v-bk-tooltips={{
+                            v-log-tooltip={{
                               content: t('关联空间') + (item.space_name ? `: ${item.space_name}` : ''),
                               placements: ['right'],
                             }}

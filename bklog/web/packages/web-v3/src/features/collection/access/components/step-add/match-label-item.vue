@@ -101,7 +101,7 @@
         <div :class="['specify-box', { 'is-edit': showEdit }]">
           <div class="specify-container">
             <span
-              v-bk-overflow-tips
+              v-log-overflow-tips
               class="title-overflow"
               >{{ matchItem.key }}</span
             >
@@ -131,7 +131,7 @@
               {{ matchItem.operator }}
             </div>
             <span
-              v-bk-overflow-tips
+              v-log-overflow-tips
               class="title-overflow"
               >{{ matchItem.value || '-' }}</span
             >

@@ -1,16 +1,16 @@
 <template>
-  <bk-sideslider
-    :is-show.sync="localVisible"
-    :width="1000"
+  <t-drawer
+    v-if="localVisible"
+    v-model:visible="localVisible"
+    :footer="false"
+    :size="1000"
+    attach="body"
     class="bklog-full-row-viewer-sideslider"
-    quick-close
-    transfer
-    @animation-end="handleAnimationEnd"
+    placement="right"
+    @close="handleAnimationEnd"
   >
-    <div
-      slot="header"
-      class="full-row-sideslider-header"
-    >
+    <template #header>
+      <div class="full-row-sideslider-header">
       <span class="full-row-sideslider-title">{{ $t('查看全量日志') }}</span>
       <div class="full-row-sideslider-search-bar">
         <input
@@ -49,11 +49,9 @@
       >
         {{ $t('复制') }}
       </button>
-    </div>
-    <div
-      slot="content"
-      class="full-row-sideslider-body"
-    >
+      </div>
+    </template>
+    <div class="full-row-sideslider-body">
       <FullRowViewerContent
         ref="contentRef"
         :active="localVisible"
@@ -65,16 +63,19 @@
         @match-update="handleMatchUpdate"
       />
     </div>
-  </bk-sideslider>
+  </t-drawer>
 </template>
 
 <script>
+  import { Drawer as TDrawer } from 'tdesign-vue-next';
+
   import FullRowViewerContent from './full-row-viewer-content.vue';
 
   export default {
     name: 'FullRowViewer',
     components: {
       FullRowViewerContent,
+      TDrawer,
     },
     props: {
       visible: { type: Boolean, default: false },
@@ -162,7 +163,7 @@
 
 <style lang="scss">
   .bklog-full-row-viewer-sideslider {
-    .bk-sideslider-content {
+    .t-drawer__body {
       display: flex;
       flex-direction: column;
       height: calc(100vh - 60px);

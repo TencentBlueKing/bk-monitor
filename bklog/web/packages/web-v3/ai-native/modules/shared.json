@@ -3,7 +3,7 @@
   "id": "shared",
   "purpose": "跨域共享组件、hooks、样式与资源",
   "root": "src/shared",
-  "files": 297,
+  "files": 301,
   "entryPoints": [
     "shared/composables/log-query-compiler/detectors/index.ts",
     "shared/composables/log-query-compiler/index.ts",
@@ -43,7 +43,6 @@
     "tests/overlay-registry.test.mjs",
     "tests/worker-message.test.mjs"
   ],
-  "contractRoot": "../../migration-project/migration-contracts",
   "sourceMap": "ai-native/source-map.json",
   "acceptance": "NEEDS_REVIEW",
   "note": "Directory migration preserves source behavior; domain-wide acceptance remains in the existing ledger."

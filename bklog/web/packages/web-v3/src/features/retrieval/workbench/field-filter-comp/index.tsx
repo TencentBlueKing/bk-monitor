@@ -545,6 +545,7 @@ export default class FieldFilterComp extends tsc<FieldFilterCompProps> {
         key={field.field_name}
         class='big-tree'
         icon={false}
+        transition={false}
         data={[field]}
         expanded={defaultExpandedNodes}
         expandOnClickNode

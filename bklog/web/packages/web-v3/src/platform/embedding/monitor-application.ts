@@ -21,7 +21,7 @@ type HostRenderData = {
   [key: string]: unknown;
 };
 type HostCreateElement = (component: Component | string, data?: HostRenderData, children?: VNodeChild) => VNode;
-type MonitorFeedbackName = '$bkMessage' | '$bkInfo' | '$bkNotify' | 'messageError' | 'messageSuccess' | 'messageInfo' | 'messageWarn';
+type MonitorFeedbackName = '$bkInfo' | 'messageError' | 'messageSuccess' | 'messageInfo' | 'messageWarn';
 type MonitorFeedback = Pick<ApplicationInjections, MonitorFeedbackName>;
 interface HostApplicationOptions<Store, I18n> {
   render: (h: HostCreateElement) => VNode;
@@ -81,9 +81,7 @@ export function createMonitorApplication<Store, I18n extends { t: (...args: neve
     private feedback<Name extends MonitorFeedbackName>(name: Name): MonitorFeedback[Name] | undefined {
       return runtime.feedback?.[name] ?? this.vm?.[name] ?? this.app?.config.globalProperties[name];
     }
-    get $bkMessage() { return this.feedback('$bkMessage'); }
     get $bkInfo() { return this.feedback('$bkInfo'); }
-    get $bkNotify() { return this.feedback('$bkNotify'); }
     get messageError() { return this.feedback('messageError'); }
     get messageSuccess() { return this.feedback('messageSuccess'); }
     get messageInfo() { return this.feedback('messageInfo'); }

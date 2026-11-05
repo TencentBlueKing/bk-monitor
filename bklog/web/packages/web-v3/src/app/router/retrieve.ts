@@ -1,4 +1,7 @@
+import { defineAsyncComponent } from 'vue';
 import type { RouteRecordRaw } from 'vue-router';
+
+import RetrievePageSkeleton from '@/app/skeleton/retrieve-page-skeleton.vue';
 /*
  * Tencent is pleased to support the open source community by making
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
@@ -26,7 +29,12 @@ import type { RouteRecordRaw } from 'vue-router';
  */
 
 // 检索模块各组件异步声明（用于路由懒加载）
-const Retrieve = () => import(/* webpackChunkName: 'logRetrieve' */ '@/features/retrieval/retrieve-hub');
+const Retrieve = defineAsyncComponent({
+  loader: () => import(/* webpackChunkName: 'logRetrieve' */ '@/features/retrieval/retrieve-hub'),
+  loadingComponent: RetrievePageSkeleton,
+  delay: 0,
+  suspensible: false,
+});
 const ExternalAuth = () => import(/* webpackChunkName: 'externalAuth' */ '@/features/authorization/authorization-list');
 const ShareLink = () => import(/* webpackChunkName: 'share-link' */ '@/features/sharing/index.tsx');
 const DataIdUrl = () => import(/* webpackChunkName: 'data-id-url' */ '@/features/data-id/index.tsx');

@@ -1,5 +1,5 @@
 
-import { Button as TButton } from 'tdesign-vue-next';
+import { Button as TButton, Dialog as TDialog, Input as TInput } from 'tdesign-vue-next';
 import { includesValue } from '@/shared/utils/typed-record';
 /*
  * Tencent is pleased to support the open source community by making
@@ -533,15 +533,14 @@ export default defineComponent({
             class='menu-select-list'
           >
             {/* 搜索框 */}
-            <bk-input
+            <TInput
               ref={menuSearchInput}
               class='menu-select-search'
               clearable={false}
-              left-icon='bk-icon icon-search'
               placeholder={t('输入关键字')}
               value={keyword.value}
-              onChange={handleBizSearchDebounce}
-              onClear={() => handleBizSearchDebounce('')}
+              prefixIcon={() => <span class='bk-icon icon-search left-icon' />}
+              onChange={value => handleBizSearchDebounce(String(value ?? ''))}
             />
             {/* 空间列表 */}
             {showSpaceTypeIdList.value && (
@@ -636,7 +635,16 @@ export default defineComponent({
             </span>
           )}
           {/* 设置默认弹窗内容 */}
-          <bk-dialog
+          <TDialog
+            class='confirm-dialog__set-default'
+            visible={showDialog.value}
+            header={isSetBizIdDefault.value ? '是否将该业务设为默认业务？' : '是否取消默认业务？'}
+            width={480}
+            closeOnOverlayClick={false}
+            onClose={() => {
+              defaultSpace.value = null;
+              showDialog.value = false;
+            }}
             v-slots={{
               footer: () => (
                 <div>
@@ -660,16 +668,7 @@ export default defineComponent({
                 </div>
               ),
             }}
-            width={480}
-            ext-cls='confirm-dialog__set-default'
-            footer-position='center'
-            mask-close={false}
-            transfer={true}
-            value={showDialog.value}
           >
-            <div class='confirm-dialog__hd'>
-              {isSetBizIdDefault.value ? '是否将该业务设为默认业务？' : '是否取消默认业务？'}
-            </div>
             <div class='confirm-dialog__bd'>
               业务名称：<span class='confirm-dialog__bd-name'>{defaultSpace.value?.name || ''}</span>
             </div>
@@ -678,7 +677,7 @@ export default defineComponent({
                 ? '设为默认后，每次进入日志平台将会默认选中该业务'
                 : '取消默认业务后，每次进入日志平台将会默认选中最近使用的业务而非当前默认业务'}
             </div>
-          </bk-dialog>
+          </TDialog>
         </div>
         {/* 下拉框内容 */}
         {showBizList.value && dropdownContent()}

@@ -560,7 +560,7 @@ export default defineComponent({
         <div class='operating-area'>
           <div>
             <span
-              v-bk-tooltips={{
+              v-log-tooltip={{
                 content: t('请先勾选任务'),
                 disabled: selectedFileNames.value.length > 0,
               }}

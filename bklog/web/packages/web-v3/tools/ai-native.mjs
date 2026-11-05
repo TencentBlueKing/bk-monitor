@@ -1,10 +1,8 @@
-import { getBaselineRoot } from './source-baseline.mjs';
 /* Copyright (C) 2021 THL A29 Limited, a Tencent company.
  * 蓝鲸智云PaaS平台 (BlueKing PaaS), MIT License. */
 import { readFileSync, readdirSync, existsSync, writeFileSync } from 'node:fs';
 import { resolve, dirname, relative, extname, posix } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { createHash } from 'node:crypto';
 import { createRequire } from 'node:module';
 const require = createRequire(import.meta.url);
 const ts = require('typescript');
@@ -133,7 +131,6 @@ export function impacted(graph, changed) {
     for (const caller of reverse.get(queue[index]) || []) if (!seen.has(caller)) { seen.add(caller); queue.push(caller); }
   return [...seen].sort();
 }
-const digest = value => createHash('sha256').update(value).digest('hex');
 const edgeKey = edge => `${edge.from} -> ${edge.to}`;
 export function architectureViolations(graph, debt) {
   const allowed = new Set(debt.map(edgeKey));
@@ -178,13 +175,9 @@ export function check(graph) {
     const targetRoot = item.targetScope === 'package-test' ? packageRoot : sourceRoot;
     if (item.targetScope && item.targetScope !== 'package-test') errors.push(`unknown target scope ${item.targetScope}`);
     if (!existsSync(resolve(targetRoot, item.target))) errors.push(`missing migrated file ${item.target}`);
-    const baseline = resolve(getBaselineRoot(), item.source);
-    if (existsSync(baseline) && digest(readFileSync(baseline)) !== item.sourceSha256) errors.push(`baseline changed ${item.source}`);
   }
   for (const item of manifest.consolidated || []) {
     if (!item.reason || !targets.has(item.target)) errors.push(`untracked consolidation ${item.source}`);
-    const baseline = resolve(getBaselineRoot(), item.source);
-    if (existsSync(baseline) && digest(readFileSync(baseline)) !== item.sourceSha256) errors.push(`baseline changed ${item.source}`);
   }
   for (const file of graph.files.filter(file => /\.(?:[cm]?[jt]sx?|vue|scss|css)$/.test(file))) {
     const code = readFileSync(resolve(sourceRoot, file), 'utf8');
@@ -253,7 +246,7 @@ function main() {
     modules, files: (command === 'context' ? selected : affected).slice(0, limit), truncated: selected.length > limit,
     routeCount: routes.length, routes: routes.slice(0, limit).map(route => ({ name: route.name, path: route.path })),
     moduleDescriptors: readJson('modules.json').filter(item => modules.includes(item.id)).map(item => ({ id: item.id, descriptor: item.descriptor })),
-    contracts: '../../migration-project/migration-contracts', failureMemory: 'ai-native/failure-memory.json',
+    failureMemory: 'ai-native/failure-memory.json',
     commands: ['pnpm --ignore-workspace ai:check', 'pnpm --ignore-workspace test', 'pnpm --ignore-workspace build'],
     limitations: 'Conservative static graph; route reachability includes both version branches. Browser and dynamic paths still require verification.' }, null, 2));
 }

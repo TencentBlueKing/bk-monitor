@@ -43,7 +43,6 @@ import { BK_LOG_STORAGE } from '@/app/state/store.type.ts';
 import { isFeatureToggleOn } from '@/app/state/helper';
 import { Popup, MessagePlugin } from 'tdesign-vue-next';
 import 'tdesign-vue-next/es/popup/style/index.css';
-const bkMessage = ({ theme, message }: { theme: 'warning' | 'error' | 'success' | 'info'; message: string }) => MessagePlugin(theme, { content: message });
 import jsCookie from 'js-cookie';
 import { useRoute } from 'vue-router';
 
@@ -285,10 +284,7 @@ export default defineComponent({
           headers: { 'X-Bk-Tenant-Id': state.bk_tenant_id },
         })
           .catch(err => {
-            bkMessage({
-              message: err.message,
-              theme: 'error',
-            });
+            MessagePlugin.error({ content: err.message });
           })
           .finally(() => {
             location.reload();

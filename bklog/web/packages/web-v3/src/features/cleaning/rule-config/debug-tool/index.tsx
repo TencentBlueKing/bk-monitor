@@ -164,7 +164,7 @@ export default defineComponent({
     return () => (
       <div class='debug-input-box'>
         <div class='debug-title'>{t('原始日志')}</div>
-        <div v-bkloading={{ isLoading: logOriginalRequest.value }}>
+        <div v-loading={{ loading: logOriginalRequest.value }}>
           <bk-input
             class='log-original-main'
             disabled={logOriginalRequest.value}
@@ -192,7 +192,7 @@ export default defineComponent({
         <div class='debug-title'>{t('效果预览')}</div>
         <div
           class='effect-container'
-          v-bkloading={{ isLoading: debugRequest.value, size: 'mini' }}
+          v-loading={{ loading: debugRequest.value, size: 'small' }}
         >
           <text-highlight
             style='word-break: break-all'

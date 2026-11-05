@@ -27,7 +27,7 @@
 
 <template>
   <section
-    v-bkloading="{ isLoading: basicLoading }"
+    v-loading="{ loading: basicLoading }"
     :class="['access-wrapper', itsmTicketIsApplying && 'iframe-container']"
   >
     <auth-container-page
@@ -57,7 +57,7 @@
       </section>
       <section
         v-if="operateType"
-        v-bkloading="{ isLoading: containerLoading, zIndex: 10 }"
+        v-loading="{ loading: containerLoading, zIndex: 10 }"
         class="access-step-container"
       >
         <component

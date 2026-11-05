@@ -48,7 +48,7 @@
         <dt class="description-term">{{ $t('集群名称') }}</dt>
         <dd class="description-definition">
           <span
-            v-bk-tooltips.top="{
+            v-log-tooltip.top="{
               content: `${collectorData.storage_cluster_domain_name}:${collectorData.storage_cluster_port}`,
               disabled: !collectorData.storage_display_name,
             }"
@@ -71,7 +71,7 @@
         {{ $t('物理索引') }}
       </div>
       <bk-table
-        v-bkloading="{ isLoading: tableLoading1 }"
+        v-loading="{ loading: tableLoading1 }"
         :data="indexesData"
       >
         <bk-table-column

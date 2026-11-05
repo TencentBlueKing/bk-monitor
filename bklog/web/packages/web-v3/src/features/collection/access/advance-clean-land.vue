@@ -26,7 +26,7 @@
 
 <template>
   <div
-    v-bkloading="{ isLoading: loading }"
+    v-loading="{ loading: loading }"
     class="advance-clean-land"
   >
     <span class="bklog-icon bklog-shijian"></span>

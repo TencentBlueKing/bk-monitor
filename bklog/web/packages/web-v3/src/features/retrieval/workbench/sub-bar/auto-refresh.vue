@@ -104,7 +104,7 @@
     >
       <div
         slot="dropdown-trigger"
-        v-bk-tooltips="{ content: $t('自动刷新设置'), placement: 'bottom' }"
+        v-log-tooltip="{ content: $t('自动刷新设置'), placement: 'bottom' }"
         class="dropdown-trigger-text"
         :class="{ active: isDropdownShow }"
       >

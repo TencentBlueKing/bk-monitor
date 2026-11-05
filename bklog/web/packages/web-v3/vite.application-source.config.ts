@@ -52,6 +52,7 @@ const nativeConfig = mergeConfig(base, defineConfig({
    { find: /^bkui-vue\/lib\/icon$/, replacement: resolve(sourceRoot, 'platform/compat/tdesign/bkui-icons.ts') },
    { find: /^bkui-vue\/lib\/form$/, replacement: resolve(sourceRoot, 'platform/compat/tdesign/bkui-vue.ts') },
    { find: /^bkui-vue$/, replacement: resolve(sourceRoot, 'platform/compat/tdesign/bkui-vue.ts') },
+   { find: /^bk-magic-vue$/, replacement: resolve(sourceRoot, 'platform/compat/tdesign/magic-controls.ts') },
    { find: '@', replacement: sourceRoot },
    { find: /^path$/, replacement: require.resolve('path-browserify') },
    { find: /^vue$/, replacement: resolve(here, 'node_modules/vue/dist/vue.runtime.esm-bundler.js') },
@@ -60,9 +61,9 @@ const nativeConfig = mergeConfig(base, defineConfig({
  define: {
    'process.env.APP': JSON.stringify(app),
    'process.env.MONITOR_APP': JSON.stringify(app),
-   'process.env.devHost': JSON.stringify('appdev.woa.com'),
-   'process.env.devUrl': JSON.stringify('appdev.woa.com:4175'),
-   'process.env.devProxyUrl': JSON.stringify(''),
+   'process.env.devHost': JSON.stringify(process.env.BKLOG_DEV_HOST || 'localhost'),
+   'process.env.devUrl': JSON.stringify(process.env.BKLOG_DEV_URL || 'localhost:4175'),
+   'process.env.devProxyUrl': JSON.stringify(process.env.BKLOG_DEV_PROXY_URL || ''),
  },
  optimizeDeps: { noDiscovery: true, include: ['vue', 'vue-router', 'pinia'], esbuildOptions: { loader: { '.eot': 'dataurl', '.woff': 'dataurl', '.woff2': 'dataurl', '.ttf': 'dataurl', '.svg': 'dataurl' } } },
  server: { port: 4176, strictPort: true },
@@ -71,8 +72,10 @@ const nativeConfig = mergeConfig(base, defineConfig({
 
 // Source modules live under /api/*.js; they must not be sent to the backend proxy.
 const apiProxy = nativeConfig.server?.proxy?.['/api'];
-if (apiProxy && nativeConfig.server) {
+if (apiProxy && nativeConfig.server?.proxy) {
+  const { '/api': _removed, ...rest } = nativeConfig.server.proxy;
   nativeConfig.server.proxy = {
+    ...rest,
     '^/api/(?![^?]*\\.(?:[cm]?[jt]sx?)(?:\\?|$))': apiProxy,
     '/notice/': apiProxy,
   };

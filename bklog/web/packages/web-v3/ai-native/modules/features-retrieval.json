@@ -123,7 +123,6 @@
     "tests/dashboard-source.test.mjs",
     "tests/table-sort-source.test.mjs"
   ],
-  "contractRoot": "../../migration-project/migration-contracts",
   "sourceMap": "ai-native/source-map.json",
   "acceptance": "NEEDS_REVIEW",
   "note": "Directory migration preserves source behavior; domain-wide acceptance remains in the existing ledger."

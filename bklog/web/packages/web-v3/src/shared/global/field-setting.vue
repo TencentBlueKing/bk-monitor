@@ -5,7 +5,7 @@
       @click="handleOpenSidebar"
     >
       <span
-        v-bk-tooltips.top="t('索引配置')"
+        v-log-tooltip.top="t('索引配置')"
         class="bklog-icon bklog-setting"
       ></span>
       <span class="field-settin-text">{{ t('索引配置') }}</span>
@@ -34,7 +34,7 @@
       </template>
       <template #content>
         <div
-          v-bkloading="{ isLoading: sliderLoading }"
+          v-loading="{ loading: sliderLoading }"
           class="bklog-v3 field-slider-content"
         >
           <bk-form

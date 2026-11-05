@@ -1,5 +1,5 @@
 
-import { Button as TButton } from 'tdesign-vue-next';
+import { Button as TButton, Dialog as TDialog, Table as TTable, Textarea as TTextarea } from 'tdesign-vue-next';
 /*
  * Tencent is pleased to support the open source community by making
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
@@ -25,9 +25,9 @@ import { Button as TButton } from 'tdesign-vue-next';
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { defineComponent, ref, nextTick } from 'vue';
+import { computed, defineComponent, ref, nextTick } from 'vue';
 
-import { messageError } from '@/shared/lib/bkmagic';
+import { messageError } from '@/shared/lib/message';
 import useLocale from '@/shared/composables/use-locale';
 
 export default defineComponent({
@@ -36,8 +36,10 @@ export default defineComponent({
   setup(_, { emit }) {
     const showBtachDialog = ref(false);
     const textValue = ref('');
-    const splitResult = ref<((string))[]>([]);
-    const selectResult = ref([]);
+    const splitResult = ref<string[]>([]);
+    const selectResult = ref<string[]>([]);
+    const selectedRowKeys = ref<number[]>([]);
+    const tableData = computed(() => splitResult.value.map((text, index) => ({ id: index, text })));
     const { $t } = useLocale();
     const style = {
       color: '#3A84FF',
@@ -99,23 +101,30 @@ export default defineComponent({
     const handleClearBtnClick = () => {
       splitResult.value = [];
       textValue.value = '';
+      selectResult.value = [];
+      selectedRowKeys.value = [];
     };
     const handleConfirm = () => {
-      emit('value-change', selectResult.value);
-      showBtachDialog.value = false;
+      emit('value-change', [...selectResult.value]);
+      handleDialogValueChange(false);
     };
 
-    const handleSelect = (selectedRows: never[]) => {
-      selectResult.value = selectedRows;
+    const handleSelectChange = (keys: Array<string | number>, context: { selectedRowData?: Array<{ text: string }> }) => {
+      selectedRowKeys.value = keys.map(key => Number(key));
+      selectResult.value = (context.selectedRowData ?? []).map(row => row.text);
+    };
+    const openDialog = (event: MouseEvent) => {
+      event.stopPropagation();
+      handleDialogValueChange(true);
     };
     return () => (
       <span
         style={style}
-        onClick={() => (showBtachDialog.value = true)}
+        onClick={openDialog}
       >
         {$t('批量输入')}
         {/* 条件面板 tippy 在 appendToBody 时为 99999，弹窗需盖住该层 */}
-        <bk-dialog
+        <TDialog
           v-slots={{
             footer: () => (
               <div>
@@ -130,7 +139,7 @@ export default defineComponent({
                 </TButton>
                 <TButton
                   class='btn-cancel'
-                  onClick={() => (showBtachDialog.value = false)}
+                  onClick={() => handleDialogValueChange(false)}
                 >
                   取消
                 </TButton>
@@ -138,33 +147,32 @@ export default defineComponent({
             ),
           }}
           width='860px'
-          header-position='left'
-          mask-close={false}
-          title={$t('批量输入')}
-          value={showBtachDialog.value}
-          z-index={100000}
-          onValueChange={handleDialogValueChange}
+          attach='body'
+          closeOnOverlayClick={false}
+          header={$t('批量输入')}
+          mode='modal'
+          placement='center'
+          visible={showBtachDialog.value}
+          zIndex={100000}
+          onClose={() => handleDialogValueChange(false)}
         >
           <div style='display: flex; padding: 16px 0px;'>
             <div style='width: 400px; height: 358px;'>
               <div style='padding-bottom: 6px'>
                 解析文本<span style='color: #EA3636; padding-left: 2px;'>*</span>
               </div>
-              <div>
-                <bk-input
-                  placeholder='请使用，；｜换行等进行分隔'
-                  rows={16}
-                  type='textarea'
-                  value={textValue.value}
-                  onChange={handleInputTextChange}
-                />
-              </div>
+              <TTextarea
+                placeholder='请使用，；｜换行等进行分隔'
+                style={{ height: '280px' }}
+                value={textValue.value}
+                onChange={handleInputTextChange}
+              />
               <div style='margin-top: 16px;display: flex;justify-content: space-between;'>
                 <TButton
                   style='width: 280px;margin-right: 8px'
-                  
                   theme='primary'
-                  onClick={handleResolveBtnClick} variant={(true) ? 'outline' : 'base'}
+                  variant='outline'
+                  onClick={handleResolveBtnClick}
                 >
                   点击解析
                 </TButton>
@@ -173,27 +181,21 @@ export default defineComponent({
             </div>
             <div style='width: 460px; margin-left: 16px;'>
               <div style='padding-bottom: 6px'>选择解析结果</div>
-              <bk-table
-                data={splitResult.value}
-                empty-text={$t('请先在右侧输入并解析')}
-                max-height='316'
-                onSelect={handleSelect}
-                onselect-all={handleSelect}
-              >
-                <bk-table-column type='selection' />
-                <bk-table-column
-                  nativeCellSlot={true}
-                  v-slots={{
-                    default: ({ row }: import("@/shared/types/table-row-scope").TableRowScope<typeof splitResult.value>) => {
-                      return row;
-                    },
-                  }}
-                  label='解析结果'
-                />
-              </bk-table>
+              <TTable
+                columns={[
+                  { colKey: 'row-select', type: 'multiple', width: 46 },
+                  { colKey: 'text', title: '解析结果' },
+                ]}
+                data={tableData.value}
+                empty={$t('请先在右侧输入并解析')}
+                maxHeight={316}
+                rowKey='id'
+                selectedRowKeys={selectedRowKeys.value}
+                onSelectChange={handleSelectChange}
+              />
             </div>
           </div>
-        </bk-dialog>
+        </TDialog>
       </span>
     );
   },

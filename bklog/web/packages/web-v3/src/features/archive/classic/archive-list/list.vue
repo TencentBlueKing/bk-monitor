@@ -52,7 +52,7 @@
     </section>
     <section class="log-archive-table">
       <bk-table
-        v-bkloading="{ isLoading: isTableLoading }"
+        v-loading="{ loading: isTableLoading }"
         class="archive-table"
         :data="dataList"
         :limit-list="pagination.limitList"

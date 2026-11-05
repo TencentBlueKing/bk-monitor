@@ -26,13 +26,14 @@
 
 <template>
   <div class="no-authority">
-    <bk-dialog
-      v-model="showApplyDialog"
-      :close-icon="false"
-      :mask-close="false"
-      :ok-text="$t('申请')"
+    <t-dialog
+      v-if="showApplyDialog"
+      :visible="showApplyDialog"
+      :close-btn="false"
+      :close-on-overlay-click="false"
+      :confirm-btn="$t('申请')"
       :width="740"
-      @cancel="closeAuth"
+      @close="closeAuth"
       @confirm="confirmSourceApply"
     >
       <div class="apply-authority-dialog-container">
@@ -78,22 +79,26 @@
           ></bk-table-column>
         </bk-table>
       </div>
-    </bk-dialog>
+    </t-dialog>
 
-    <bk-dialog
-      v-model="showConfirmDialog"
-      :ok-text="$t('刷新')"
-      :title="$t('权限申请单已提交？')"
-      @cancel="closeAuth"
+    <t-dialog
+      v-if="showConfirmDialog"
+      :visible="showConfirmDialog"
+      :confirm-btn="$t('刷新')"
+      :header="$t('权限申请单已提交？')"
+      @close="closeAuth"
       @confirm="confirmHasApply"
     >
       {{ $t('请在权限中心填写权限申请单') }}
-    </bk-dialog>
+    </t-dialog>
   </div>
 </template>
 
 <script>
+  import { Dialog as TDialog } from 'tdesign-vue-next';
+
   export default {
+    components: { TDialog },
     data() {
       return {
         showApplyDialog: false,

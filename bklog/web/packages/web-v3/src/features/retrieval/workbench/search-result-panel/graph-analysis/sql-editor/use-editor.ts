@@ -28,10 +28,9 @@ import { computed, onBeforeUnmount, onMounted, shallowRef, type Ref } from 'vue'
 
 import useStore from '@/shared/composables/use-store';
 import { debounce } from 'lodash-es';
-import * as monaco from 'monaco-editor';
+import type * as Monaco from 'monaco-editor';
 
 import useResizeObserve from '../../../../../../shared/composables/use-resize-observe';
-import { setDorisFields } from './lang';
 
 export default ({
   refRootElement,
@@ -44,10 +43,12 @@ export default ({
 }) => {
   // Monaco owns a cyclic imperative object graph. Vue2 left class instances
   // untouched; retain that identity when upgrading to Vue3 reactivity.
-  const editorInstance = shallowRef<monaco.editor.IStandaloneCodeEditor>();
-  const listeners: monaco.IDisposable[] = [];
+  const editorInstance = shallowRef<Monaco.editor.IStandaloneCodeEditor>();
+  const listeners: Monaco.IDisposable[] = [];
   let resetLayoutTimer: ReturnType<typeof setTimeout> | undefined;
   let clearSuggestFields: (() => void) | undefined;
+  let monacoApi: typeof import('monaco-editor') | undefined;
+  let setDorisFields: typeof import('./lang').setDorisFields | undefined;
   const store = useStore();
   const fieldList = computed(() => store.getters.filteredFieldList);
 
@@ -62,8 +63,9 @@ export default ({
   });
 
   const initEditorInstance = () => {
+    const monaco = monacoApi;
     // 初始化编辑器
-    if (!refRootElement.value) return;
+    if (!refRootElement.value || !monaco) return;
     const editor = monaco.editor.create(refRootElement.value, {
       value: sqlContent.value,
       language: 'dorisSQL',
@@ -102,7 +104,7 @@ export default ({
         if (e.keyCode === monaco.KeyCode.Enter) {
           // 阻止默认回车行为
           e.preventDefault();
-          interface SuggestController extends monaco.editor.IEditorContribution {
+          interface SuggestController extends Monaco.editor.IEditorContribution {
             model?: { state: number };
           }
           const suggestWidget = editor.getContribution('editor.contrib.suggestController') as SuggestController;
@@ -146,7 +148,7 @@ export default ({
   };
 
   const setSuggestFields = () => {
-    clearSuggestFields = setDorisFields(() =>
+    clearSuggestFields = setDorisFields?.(() =>
       fieldList.value.map((field: { field_name: any; field_type: any; description: any }) => {
         return { name: field.field_name, type: field.field_type, description: field.description };
       }),
@@ -173,8 +175,13 @@ export default ({
   useResizeObserve(refRootElement, debounceLayout);
 
   onMounted(() => {
-    initEditorInstance();
-    setSuggestFields();
+    void (async () => {
+      const [monaco, lang] = await Promise.all([import('monaco-editor'), import('./lang')]);
+      monacoApi = monaco;
+      setDorisFields = lang.setDorisFields;
+      initEditorInstance();
+      setSuggestFields();
+    })();
   });
 
   onBeforeUnmount(() => {

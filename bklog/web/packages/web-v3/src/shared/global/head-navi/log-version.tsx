@@ -28,7 +28,7 @@ import { PropType, computed, defineComponent, onBeforeUnmount, ref, watch } from
 
 import useStore from '@/shared/composables/use-store';
 // 版本日志对话框（Composition API + TSX）
-import { bkDialog as BkDialog } from '@/platform/compat/tdesign/magic-controls';
+import { Dialog as TDialog } from 'tdesign-vue-next';
 
 import { axiosInstance } from '@/platform/http/index';
 
@@ -154,15 +154,15 @@ export default defineComponent({
     }
 
     return () => (
-      <BkDialog
+      <TDialog
         width='1105'
-        showFooter={false}
-        value={show.value}
-        {...{ onValueChange: handleValueChange }}
+        footer={false}
+        visible={show.value}
+        onVisibleChange={(visible: boolean) => handleValueChange(visible)}
       >
         <div
           class='bklog-v3-version'
-          v-bkloading={{ isLoading: loading.value }}
+          v-loading={{ loading: loading.value }}
         >
           <div class='bklog-v3-version-left'>
             <ul class='left-list'>
@@ -193,7 +193,7 @@ export default defineComponent({
             />
           </div>
         </div>
-      </BkDialog>
+      </TDialog>
     );
   },
 });

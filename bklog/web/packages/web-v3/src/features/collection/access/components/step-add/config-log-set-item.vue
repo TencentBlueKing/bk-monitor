@@ -306,7 +306,7 @@
       v-en-class="'en-span'"
       :class="['config-item', 'mt', showType === 'horizontal' && 'win-content']"
     >
-      <span v-bk-tooltips="$t('为减少传输和存储成本，可以过滤掉部分内容,更复杂的可在“清洗”功能中完成')">
+      <span v-log-tooltip="$t('为减少传输和存储成本，可以过滤掉部分内容,更复杂的可在“清洗”功能中完成')">
         <span class="filter-title">{{ $t('过滤内容') }}</span>
       </span>
       <div

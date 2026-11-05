@@ -26,7 +26,7 @@
 
 <template>
   <div
-    v-bkloading="{ isLoading: basicLoading }"
+    v-loading="{ loading: basicLoading }"
     class="basic-info-container"
   >
     <div>
@@ -265,7 +265,7 @@
         <div>
           <span>{{ $t('存储集群') }}</span>
           <span
-            v-bk-tooltips.top="{
+            v-log-tooltip.top="{
               content: `${collectorData.storage_cluster_domain_name}:${collectorData.storage_cluster_port}`,
               disabled: !collectorData.storage_display_name,
             }"

@@ -822,7 +822,7 @@ export default defineComponent({
                 <th style='min-width:300px'>{t('原始日志')}</th>
               </tr>
             </thead>
-            <tbody v-bkloading={{ isLoading: listLoading.value, opacity: 0.6 }}>
+            <tbody v-loading={{ loading: listLoading.value}}>
               {logList.value.length > 0 &&
                 logList.value.map((row, index) => (
                   <tr

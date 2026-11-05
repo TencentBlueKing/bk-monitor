@@ -344,6 +344,7 @@
     "features/collection/current/components/list-main/stop-type-dialog.scss",
     "features/collection/current/components/list-main/stop-type-dialog.tsx",
     "features/collection/current/components/list-main/table-list/index.tsx",
+    "features/collection/current/components/list-main/table-list/row-more-menu.tsx",
     "features/collection/current/components/list-main/table-list/table-list-v1.scss",
     "features/collection/current/components/list-main/table-list/table-list-v1.tsx",
     "features/collection/current/components/list-main/table-list/table-list-v2.scss",
@@ -356,6 +357,8 @@
     "features/collection/current/hook/useOperation.tsx",
     "features/collection/current/index.scss",
     "features/collection/current/index.tsx",
+    "features/collection/current/save-failure.test.mjs",
+    "features/collection/current/save-failure.ts",
     "features/collection/current/type.ts",
     "features/collection/current/utils.ts",
     "features/collection/filter-rule/config-rule/control-operate/index.scss",
@@ -983,11 +986,10 @@
     "platform/compat/tdesign/bkui-vue.ts",
     "platform/compat/tdesign/info-box-contract.ts",
     "platform/compat/tdesign/info-box.ts",
+    "platform/compat/tdesign/legacy-bk-controls.tsx",
     "platform/compat/tdesign/legacy-control-styles.ts",
     "platform/compat/tdesign/legacy-functional.ts",
     "platform/compat/tdesign/legacy-slot.ts",
-    "platform/compat/tdesign/loading-contract.ts",
-    "platform/compat/tdesign/loading.ts",
     "platform/compat/tdesign/magic-controls.ts",
     "platform/compat/tdesign/runtime-contract.ts",
     "platform/compat/tdesign/select-filter.ts",
@@ -1211,7 +1213,11 @@
     "shared/directives/en-class.ts",
     "shared/directives/en-style.ts",
     "shared/directives/index.ts",
+    "shared/directives/log-click-outside.ts",
     "shared/directives/log-drag.ts",
+    "shared/directives/log-overflow-tips.ts",
+    "shared/directives/log-popup.ts",
+    "shared/directives/log-tooltip.ts",
     "shared/global/ai-assitant/ai-assistant.scss",
     "shared/global/ai-assitant/ai-assitant-helper.ts",
     "shared/global/ai-assitant/ai-request.tsx",
@@ -1259,7 +1265,6 @@
     "shared/lib/api-error-toast.vue",
     "shared/lib/appload-import.ts",
     "shared/lib/authority-map.ts",
-    "shared/lib/bkmagic.ts",
     "shared/lib/bus.ts",
     "shared/lib/collector-api-error.parser.ts",
     "shared/lib/collector-api-error.ts",
@@ -1268,6 +1273,7 @@
     "shared/lib/embed-layout-query.ts",
     "shared/lib/field-resolver.ts",
     "shared/lib/jsonp.ts",
+    "shared/lib/message.ts",
     "shared/lib/preload-import.ts",
     "shared/lib/reactivity.ts",
     "shared/lib/selection-util.ts",
@@ -1401,17 +1407,12 @@
     },
     {
       "from": "app/bootstrap/configure-app.ts",
-      "to": "platform/compat/tdesign/loading.ts",
-      "kind": "module"
-    },
-    {
-      "from": "app/bootstrap/configure-app.ts",
       "to": "platform/i18n/translation.ts",
       "kind": "module"
     },
     {
       "from": "app/bootstrap/configure-app.ts",
-      "to": "platform/compat/tdesign/legacy-slot.ts",
+      "to": "platform/compat/tdesign/legacy-bk-controls.tsx",
       "kind": "module"
     },
     {
@@ -1891,7 +1892,7 @@
     },
     {
       "from": "app/entries/monitor-bootstrap.ts",
-      "to": "shared/lib/bkmagic.ts",
+      "to": "shared/lib/message.ts",
       "kind": "module"
     },
     {
@@ -3841,11 +3842,6 @@
     },
     {
       "from": "features/authorization/authorization-list.tsx",
-      "to": "platform/compat/tdesign/magic-controls.ts",
-      "kind": "module"
-    },
-    {
-      "from": "features/authorization/authorization-list.tsx",
       "to": "shared/lib/authority-map.ts",
       "kind": "module"
     },
@@ -4986,11 +4982,6 @@
     },
     {
       "from": "features/client-logs/management/download-message.ts",
-      "to": "platform/compat/tdesign/magic-controls.ts",
-      "kind": "module"
-    },
-    {
-      "from": "features/client-logs/management/download-message.ts",
       "to": "shared/composables/use-locale.ts",
       "kind": "module"
     },
@@ -5651,7 +5642,7 @@
     },
     {
       "from": "features/clusters/current/cluster-manage/es-slider.tsx",
-      "to": "shared/lib/bkmagic.ts",
+      "to": "shared/lib/message.ts",
       "kind": "module"
     },
     {
@@ -6092,11 +6083,6 @@
     {
       "from": "features/collection/access/components/index-import-modal/index.tsx",
       "to": "platform/services/index.ts",
-      "kind": "module"
-    },
-    {
-      "from": "features/collection/access/components/index-import-modal/index.tsx",
-      "to": "platform/compat/tdesign/magic-controls.ts",
       "kind": "module"
     },
     {
@@ -8521,11 +8507,6 @@
     },
     {
       "from": "features/collection/current/components/create-operation/step3-clean.tsx",
-      "to": "platform/compat/tdesign/magic-controls.ts",
-      "kind": "module"
-    },
-    {
-      "from": "features/collection/current/components/create-operation/step3-clean.tsx",
       "to": "platform/compat/tdesign/info-box.ts",
       "kind": "module"
     },
@@ -8771,6 +8752,11 @@
     },
     {
       "from": "features/collection/current/components/create-operation/step4-storage.tsx",
+      "to": "features/collection/current/save-failure.ts",
+      "kind": "module"
+    },
+    {
+      "from": "features/collection/current/components/create-operation/step4-storage.tsx",
       "to": "features/collection/current/utils.ts",
       "kind": "module"
     },
@@ -8967,6 +8953,11 @@
     {
       "from": "features/collection/current/components/list-main/table-list/index.tsx",
       "to": "features/collection/current/components/list-main/table-list/table-list-v2.tsx",
+      "kind": "module"
+    },
+    {
+      "from": "features/collection/current/components/list-main/table-list/row-more-menu.tsx",
+      "to": "shared/ui/bklog-popover/index.tsx",
       "kind": "module"
     },
     {
@@ -9256,6 +9247,11 @@
     },
     {
       "from": "features/collection/current/components/list-main/table-list/table-list-v2.tsx",
+      "to": "features/collection/current/components/list-main/table-list/row-more-menu.tsx",
+      "kind": "module"
+    },
+    {
+      "from": "features/collection/current/components/list-main/table-list/table-list-v2.tsx",
       "to": "features/collection/current/components/list-main/table-list/table-list-v2.scss",
       "kind": "module"
     },
@@ -9470,6 +9466,11 @@
       "kind": "module"
     },
     {
+      "from": "features/collection/current/save-failure.test.mjs",
+      "to": "features/collection/current/save-failure.ts",
+      "kind": "module"
+    },
+    {
       "from": "features/collection/current/utils.ts",
       "to": "shared/utils/typed-record.ts",
       "kind": "module"
@@ -9482,6 +9483,11 @@
     {
       "from": "features/collection/current/utils.ts",
       "to": "shared/lib/util.js",
+      "kind": "module"
+    },
+    {
+      "from": "features/collection/current/utils.ts",
+      "to": "features/collection/current/save-failure.ts",
       "kind": "module"
     },
     {
@@ -11631,11 +11637,6 @@
     },
     {
       "from": "features/index-sets/label-select/index.tsx",
-      "to": "platform/compat/tdesign/magic-controls.ts",
-      "kind": "module"
-    },
-    {
-      "from": "features/index-sets/label-select/index.tsx",
       "to": "shared/lib/util.js",
       "kind": "module"
     },
@@ -12051,11 +12052,6 @@
     },
     {
       "from": "features/index-sets/log-collection/collection-item/manage-collection/field-info.tsx",
-      "to": "platform/compat/tdesign/magic-controls.ts",
-      "kind": "module"
-    },
-    {
-      "from": "features/index-sets/log-collection/collection-item/manage-collection/field-info.tsx",
       "to": "shared/lib/util.js",
       "kind": "module"
     },
@@ -12281,11 +12277,6 @@
     },
     {
       "from": "features/masking/components/masking-add-rule.tsx",
-      "to": "platform/compat/tdesign/magic-controls.ts",
-      "kind": "module"
-    },
-    {
-      "from": "features/masking/components/masking-add-rule.tsx",
       "to": "features/masking/components/masking-add-rule.scss",
       "kind": "module"
     },
@@ -12326,11 +12317,6 @@
     },
     {
       "from": "features/masking/components/masking-field-input.tsx",
-      "to": "platform/compat/tdesign/magic-controls.ts",
-      "kind": "module"
-    },
-    {
-      "from": "features/masking/components/masking-field-input.tsx",
       "to": "features/collection/access/components/step-add/monaco-editor.vue",
       "kind": "module"
     },
@@ -12367,11 +12353,6 @@
     {
       "from": "features/masking/components/masking-field.tsx",
       "to": "shared/utils/typed-record.ts",
-      "kind": "module"
-    },
-    {
-      "from": "features/masking/components/masking-field.tsx",
-      "to": "platform/compat/tdesign/magic-controls.ts",
       "kind": "module"
     },
     {
@@ -12441,11 +12422,6 @@
     },
     {
       "from": "features/masking/components/masking-select-rule-table.tsx",
-      "to": "platform/compat/tdesign/magic-controls.ts",
-      "kind": "module"
-    },
-    {
-      "from": "features/masking/components/masking-select-rule-table.tsx",
       "to": "shared/lib/authority-map.ts",
       "kind": "module"
     },
@@ -12487,11 +12463,6 @@
     {
       "from": "features/masking/components/masking-setting.tsx",
       "to": "shared/utils/typed-record.ts",
-      "kind": "module"
-    },
-    {
-      "from": "features/masking/components/masking-setting.tsx",
-      "to": "platform/compat/tdesign/magic-controls.ts",
       "kind": "module"
     },
     {
@@ -12976,7 +12947,7 @@
     },
     {
       "from": "features/retrieval/workbench/components/batch-input/index.tsx",
-      "to": "shared/lib/bkmagic.ts",
+      "to": "shared/lib/message.ts",
       "kind": "module"
     },
     {
@@ -13121,7 +13092,7 @@
     },
     {
       "from": "features/retrieval/workbench/components/index-set-choice/use-choice.tsx",
-      "to": "shared/lib/bkmagic.ts",
+      "to": "shared/lib/message.ts",
       "kind": "module"
     },
     {
@@ -14006,11 +13977,6 @@
     },
     {
       "from": "features/retrieval/workbench/result-comp/TaskItem.tsx",
-      "to": "platform/compat/tdesign/magic-controls.ts",
-      "kind": "module"
-    },
-    {
-      "from": "features/retrieval/workbench/result-comp/TaskItem.tsx",
       "to": "shared/composables/use-locale.ts",
       "kind": "module"
     },
@@ -14022,11 +13988,6 @@
     {
       "from": "features/retrieval/workbench/result-comp/TaskItem.tsx",
       "to": "features/retrieval/workbench/result-comp/TaskItem.scss",
-      "kind": "module"
-    },
-    {
-      "from": "features/retrieval/workbench/result-comp/download/downloadProgress.ts",
-      "to": "features/retrieval/workbench/result-comp/download/constants.ts",
       "kind": "module"
     },
     {
@@ -15027,11 +14988,6 @@
     {
       "from": "features/retrieval/workbench/search-bar/ui-mode/ui-input-option.vue",
       "to": "shared/lib/util.js",
-      "kind": "module"
-    },
-    {
-      "from": "features/retrieval/workbench/search-bar/ui-mode/ui-input-option.vue",
-      "to": "platform/compat/tdesign/magic-controls.ts",
       "kind": "module"
     },
     {
@@ -17146,7 +17102,7 @@
     },
     {
       "from": "features/retrieval/workbench/sub-bar/share-link.tsx",
-      "to": "shared/lib/bkmagic.ts",
+      "to": "shared/lib/message.ts",
       "kind": "module"
     },
     {
@@ -18081,11 +18037,6 @@
     },
     {
       "from": "features/retrieval/workspace/monitor/trace.ts",
-      "to": "platform/compat/tdesign/magic-controls.ts",
-      "kind": "module"
-    },
-    {
-      "from": "features/retrieval/workspace/monitor/trace.ts",
       "to": "platform/i18n/i18n.ts",
       "kind": "module"
     },
@@ -18266,7 +18217,7 @@
     },
     {
       "from": "features/retrieval/workspace/search-bar/scene-filter/filter-panel.tsx",
-      "to": "shared/lib/bkmagic.ts",
+      "to": "shared/lib/message.ts",
       "kind": "module"
     },
     {
@@ -19331,11 +19282,6 @@
     },
     {
       "from": "features/retrieval/workspace/search-result/log-clustering/top-operation/cluster-config/edit-config/index.tsx",
-      "to": "platform/compat/tdesign/magic-controls.ts",
-      "kind": "module"
-    },
-    {
-      "from": "features/retrieval/workspace/search-result/log-clustering/top-operation/cluster-config/edit-config/index.tsx",
       "to": "features/retrieval/workspace/search-result/log-clustering/top-operation/cluster-config/edit-config/rule-operate/index.tsx",
       "kind": "module"
     },
@@ -19921,7 +19867,7 @@
     },
     {
       "from": "features/retrieval/workspace/search-result/original-log/components/data-filter/fields-config/index.tsx",
-      "to": "shared/lib/bkmagic.ts",
+      "to": "shared/lib/message.ts",
       "kind": "module"
     },
     {
@@ -20271,7 +20217,7 @@
     },
     {
       "from": "features/retrieval/workspace/search-result/original-log/standalone-tab/hooks/use-realtime-related-log.ts",
-      "to": "shared/lib/bkmagic.ts",
+      "to": "shared/lib/message.ts",
       "kind": "module"
     },
     {
@@ -20850,16 +20796,6 @@
       "kind": "module"
     },
     {
-      "from": "platform/compat/tdesign/loading.ts",
-      "to": "platform/compat/tdesign/loading-contract.ts",
-      "kind": "module"
-    },
-    {
-      "from": "platform/compat/tdesign/magic-controls.ts",
-      "to": "platform/compat/tdesign/loading.ts",
-      "kind": "module"
-    },
-    {
       "from": "platform/compat/tdesign/magic-controls.ts",
       "to": "shared/types/legacy-form.ts",
       "kind": "type"
@@ -20876,7 +20812,7 @@
     },
     {
       "from": "platform/http/index.js",
-      "to": "shared/lib/bkmagic.ts",
+      "to": "shared/lib/message.ts",
       "kind": "module"
     },
     {
@@ -22090,8 +22026,33 @@
       "kind": "module"
     },
     {
+      "from": "shared/directives/index.ts",
+      "to": "shared/directives/log-tooltip.ts",
+      "kind": "module"
+    },
+    {
+      "from": "shared/directives/index.ts",
+      "to": "shared/directives/log-overflow-tips.ts",
+      "kind": "module"
+    },
+    {
+      "from": "shared/directives/index.ts",
+      "to": "shared/directives/log-click-outside.ts",
+      "kind": "module"
+    },
+    {
       "from": "shared/directives/log-drag.ts",
       "to": "shared/lib/util.js",
+      "kind": "module"
+    },
+    {
+      "from": "shared/directives/log-overflow-tips.ts",
+      "to": "shared/directives/log-popup.ts",
+      "kind": "module"
+    },
+    {
+      "from": "shared/directives/log-tooltip.ts",
+      "to": "shared/directives/log-popup.ts",
       "kind": "module"
     },
     {
@@ -22426,11 +22387,6 @@
     },
     {
       "from": "shared/global/head-navi/log-version.tsx",
-      "to": "platform/compat/tdesign/magic-controls.ts",
-      "kind": "module"
-    },
-    {
-      "from": "shared/global/head-navi/log-version.tsx",
       "to": "platform/http/index.js",
       "kind": "module"
     },
@@ -22681,37 +22637,22 @@
     },
     {
       "from": "shared/lib/appload-import.ts",
-      "to": "platform/compat/vue-runtime.mjs",
+      "to": "shared/directives/log-click-outside.ts",
       "kind": "module"
     },
     {
       "from": "shared/lib/appload-import.ts",
-      "to": "platform/compat/tdesign/magic-controls.ts",
+      "to": "shared/directives/log-overflow-tips.ts",
       "kind": "module"
     },
     {
-      "from": "shared/lib/bkmagic.ts",
-      "to": "platform/compat/vue-runtime.mjs",
-      "kind": "module"
-    },
-    {
-      "from": "shared/lib/bkmagic.ts",
-      "to": "platform/compat/tdesign/magic-controls.ts",
+      "from": "shared/lib/appload-import.ts",
+      "to": "shared/directives/log-tooltip.ts",
       "kind": "module"
     },
     {
       "from": "shared/lib/collector-api-error.ts",
-      "to": "platform/compat/vue-runtime.mjs",
-      "kind": "module"
-    },
-    {
-      "from": "shared/lib/collector-api-error.ts",
-      "to": "shared/utils/typed-record.ts",
-      "kind": "module"
-    },
-    {
-      "from": "shared/lib/collector-api-error.ts",
-      "to": "shared/lib/bkmagic.ts",
+      "to": "shared/lib/message.ts",
       "kind": "module"
     },
     {
@@ -22732,36 +22673,6 @@
     {
       "from": "shared/lib/collector-api-error.ts",
       "to": "shared/lib/collector-api-error.parser.ts",
-      "kind": "module"
-    },
-    {
-      "from": "shared/lib/demand-import-lite.ts",
-      "to": "platform/compat/vue-runtime.mjs",
-      "kind": "module"
-    },
-    {
-      "from": "shared/lib/demand-import-lite.ts",
-      "to": "platform/compat/tdesign/magic-controls.ts",
-      "kind": "module"
-    },
-    {
-      "from": "shared/lib/demand-import.ts",
-      "to": "platform/compat/vue-runtime.mjs",
-      "kind": "module"
-    },
-    {
-      "from": "shared/lib/demand-import.ts",
-      "to": "platform/compat/tdesign/magic-controls.ts",
-      "kind": "module"
-    },
-    {
-      "from": "shared/lib/preload-import.ts",
-      "to": "platform/compat/vue-runtime.mjs",
-      "kind": "module"
-    },
-    {
-      "from": "shared/lib/preload-import.ts",
-      "to": "platform/compat/tdesign/magic-controls.ts",
       "kind": "module"
     },
     {

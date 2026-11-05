@@ -35,7 +35,7 @@
     ></auth-container-page>
     <div
       v-else
-      v-bkloading="{ isLoading: basicLoading }"
+      v-loading="{ loading: basicLoading }"
       class="step-field"
     >
       <t-alert data-v2-display="alert"
@@ -105,7 +105,7 @@
                 </div>
                 <div
                   v-else
-                  v-bk-overflow-tips
+                  v-log-overflow-tips
                   class="option-slot-container"
                 >
                   <span>{{ option.collector_config_name }}</span>
@@ -121,13 +121,13 @@
             <div class="origin-log-config">
               <t-radio-group v-model="formData.etl_params.retain_original_text">
                 <t-radio :value="true">
-                  <span v-bk-tooltips="$t('确认保留原始日志,会存储在log字段. 其他字段提取内容会进行追加')">{{
+                  <span v-log-tooltip="$t('确认保留原始日志,会存储在log字段. 其他字段提取内容会进行追加')">{{
                     $t('保留')
                   }}</span>
                 </t-radio>
                 <t-radio :value="false">
                   <span
-                    v-bk-tooltips="
+                    v-log-tooltip="
                       $t('不保留将丢弃原始日志，仅展示清洗后日志。请通过字段清洗，调试并输出您关心的日志。')
                     "
                   >
@@ -189,7 +189,7 @@
                   @click="openTemplateDialog(false)"
                 >
                   <i
-                    v-bk-tooltips.top="$t('隐藏')"
+                    v-log-tooltip.top="$t('隐藏')"
                     class="bk-icon bklog-icon bklog-app-store"
                   ></i>
                   {{ $t('应用模版') }}
@@ -200,7 +200,7 @@
                   @click="handleGotoLink('logExtract')"
                 >
                   <i
-                    v-bk-tooltips.top="$t('隐藏')"
+                    v-log-tooltip.top="$t('隐藏')"
                     class="bk-icon bklog-icon bklog-help"
                   ></i>
                   {{ $t('说明文档') }}
@@ -224,7 +224,7 @@
                 </div>
                 <template v-if="params.etl_config === 'bk_log_regexp'">
                   <span
-                    v-bk-tooltips="{ allowHtml: true, placement: 'right', content: '#reg-tip' }"
+                    v-log-tooltip="{ allowHtml: true, placement: 'right', content: '#reg-tip' }"
                     style="margin-left: 10px; color: #979ba5; cursor: pointer"
                     class="bklog-icon bklog-info-fill fl"
                   ></span>
@@ -271,7 +271,7 @@
             </div>
           </bk-form-item>
           <bk-form-item
-            v-bkloading="{ isLoading: logOriginalLoding }"
+            v-loading="{ loading: logOriginalLoding }"
             ext-cls="en-bk-form"
             :label="$t('日志样例')"
             :property="'log_original'"
@@ -388,10 +388,10 @@
             <div class="origin-log-config">
               <t-radio-group v-model="formData.log_reporting_time">
                 <t-radio :value="true">
-                  <span v-bk-tooltips="$t('平台上报日志的时间，默认选择该设置')">{{ $t('日志上报时间') }}</span>
+                  <span v-log-tooltip="$t('平台上报日志的时间，默认选择该设置')">{{ $t('日志上报时间') }}</span>
                 </t-radio>
                 <t-radio :value="false">
-                  <span v-bk-tooltips="$t('你可以自行指定日志展示时间，勾选前请提前清洗日志时间')">{{
+                  <span v-log-tooltip="$t('你可以自行指定日志展示时间，勾选前请提前清洗日志时间')">{{
                     $t('指定字段为日志时间')
                   }}</span>
                   <span style="font-size: 12px; color: #000"> (切换时间为纳秒，历史数据将无法查询，请谨慎切换) </span>
@@ -504,7 +504,7 @@
               <t-radio-group v-model="formData.etl_params.enable_retain_content">
                 <t-radio :value="true">
                   <span
-                    v-bk-tooltips="
+                    v-log-tooltip="
                       $t(
                         '日志存在多种格式时，可以保留不符合解析规则的日志，避免遗漏；未解析的日志可以通过 _prase.failure 进行过滤，为 true 时表示解析失败',
                       )
@@ -605,7 +605,7 @@
           </bk-form-item>
           <bk-form-item
             v-if="enableMetaData"
-            v-bkloading="{ isLoading: pathExampleLoading }"
+            v-loading="{ loading: pathExampleLoading }"
             ext-cls="en-bk-form"
             :label="$t('路径样例')"
           >
@@ -1523,7 +1523,7 @@ __ext_json.service.labels   ${this.$t('动态对象字段')}`;
                 {
                   directives: [
                     {
-                      name: 'bk-tooltips',
+                      name: 'log-tooltip',
                       value: this.$t('未部署基础计算平台，无法进行高级清洗'),
                     },
                   ],
@@ -1733,7 +1733,7 @@ __ext_json.service.labels   ${this.$t('动态对象字段')}`;
                   {
                     directives: [
                       {
-                        name: 'bk-tooltips',
+                        name: 'log-tooltip',
                         value: this.$t('当前采集项已配置基础清洗，无需重复配置'),
                       },
                     ],
@@ -2260,19 +2260,7 @@ __ext_json.service.labels   ${this.$t('动态对象字段')}`;
         createInput.select(); // 选择对象
         document.execCommand('Copy'); // 执行浏览器复制命令
         createInput.style.display = 'none';
-        const h = this.$createElement;
-        this.$bkMessage({
-          message: h(
-            'p',
-            {
-              style: {
-                textAlign: 'center',
-              },
-            },
-            this.$t('复制成功'),
-          ),
-          offsetY: 80,
-        });
+        TDesignMessage.success({ content: this.$t('复制成功'), offset: [0, 80] });
       },
       requestEtlPreview(type) {
         const { etl_config, etl_params } = this.params;

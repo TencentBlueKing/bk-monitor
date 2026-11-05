@@ -571,7 +571,7 @@ export default () => {
       })
       .catch(err => {
         // 任何异常（请求失败 / then 内同步代码抛错）都要确保 loading 能退出
-        // 否则 isPreApiLoaded 永远为 false，页面 v-bkloading 会一直转圈
+        // 否则 isPreApiLoaded 永远为 false，页面 v-loading 会一直转圈
         console.error('getIndexSetList failed:', err);
         isPreApiLoaded.value = true;
         RetrieveHelper.setSearchingValue(false);

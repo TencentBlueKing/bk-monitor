@@ -41,7 +41,7 @@ import {
 } from 'tdesign-vue-next';
 import { overlayRegistry } from '@/shared/global/overlay/overlay-registry';
 
-import { messageError } from '@/shared/lib/bkmagic';
+import { messageError } from '@/shared/lib/message';
 import { isFeatureToggleOn } from '@/shared/composables/use-feature-toggle';
 import useLocale from '@/shared/composables/use-locale';
 import useStore from '@/shared/composables/use-store';

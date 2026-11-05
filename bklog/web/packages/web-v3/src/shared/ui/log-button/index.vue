@@ -26,7 +26,7 @@
 
 <template>
   <section
-    v-bk-tooltips="tooltips"
+    v-log-tooltip="tooltips"
     class="log-button"
   >
     <t-button :variant="(text) ? 'text' : ('base')"

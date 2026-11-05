@@ -276,7 +276,7 @@ export default defineComponent({
               >
                 <span
                   class='task-checkbox-wrapper'
-                  v-bk-tooltips={{
+                  v-log-tooltip={{
                     content: getSelectionDisabledTooltip(item.process_status),
                     disabled: item.process_status === 'success',
                   }}
@@ -303,14 +303,14 @@ export default defineComponent({
                   <div class='task-title-row'>
                     <span
                       class='task-title'
-                      v-bk-overflow-tips
+                      v-log-overflow-tips
                     >
                       {item.file_name}
                     </span>
                     {item.openid && (
                       <span
                         class='task-id'
-                        v-bk-overflow-tips
+                        v-log-overflow-tips
                       >
                         {item.openid}
                       </span>

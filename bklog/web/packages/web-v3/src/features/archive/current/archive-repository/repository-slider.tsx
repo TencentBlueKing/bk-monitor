@@ -332,7 +332,7 @@ export default defineComponent({
           {option.permission?.[authorityMap.MANAGE_ES_SOURCE_AUTH] ? (
             <div
               class='option-slot-container'
-              v-bk-overflow-tips
+              v-log-overflow-tips
             >
               <span>{option.storage_display_name}</span>
             </div>
@@ -590,7 +590,7 @@ export default defineComponent({
               <>
                 <div
                   class='repository-slider-content'
-                  v-bkloading={{ isLoading: sliderLoading.value }}
+                  v-loading={{ loading: sliderLoading.value }}
                 >
                   {/* 加载完成后渲染表单 */}
                   {!sliderLoading.value && (

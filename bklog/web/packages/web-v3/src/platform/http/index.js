@@ -30,7 +30,7 @@
  */
 
 
-import { messageWarn } from '@/shared/lib/bkmagic';
+import { messageWarn } from '@/shared/lib/message';
 import { bus } from '@/shared/lib/bus';
 import { showCaughtApiError } from '@/shared/lib/collector-api-error';
 import { makeMessage, readBlobRespToJson } from '@/shared/lib/util';
@@ -292,7 +292,7 @@ function handleReject(error, config, reject) {
       response: error.response,
       status,
     };
-    // 弹出登录框不需要出 bkMessage 提示
+    // 弹出登录框不需要出 MessagePlugin 提示
     if (status === 401) {
       // 窗口登录，页面跳转交给平台返回302
       const handleLoginExpire = () => {
@@ -411,7 +411,7 @@ function initConfig(method, url, userConfig) {
     cancelWhenRouteChange: true,
     // 取消上次请求
     cancelPrevious: true,
-    // 接口报错是否弹bkMessage弹窗
+    // 接口报错是否弹出 MessagePlugin
     catchIsShowMessage: true,
   };
   return Object.assign(defaultConfig, copyUserConfig);

@@ -405,7 +405,7 @@
       <span class="fuzzy-match-title-wrap">
         <span class="fuzzy-match-title">{{ t('匹配模式') }}</span>
         <span
-          v-bk-tooltips="{ content: tooltipContent, placement: 'top', allowHTML: false }"
+          v-log-tooltip="{ content: tooltipContent, placement: 'top', allowHTML: false }"
           class="fuzzy-match-help"
           >?</span
         >

@@ -56,7 +56,7 @@ export default defineComponent({
     const renderBody = () => (
       <span
         class={['bklog-v3-btn-scroll-top', { 'show-box': showBox.value }]}
-        v-bk-tooltips={$t('返回顶部')}
+        v-log-tooltip={$t('返回顶部')}
         onClick={() => scrollTop()}
       >
         <i class='bklog-icon bklog-backtotop' />

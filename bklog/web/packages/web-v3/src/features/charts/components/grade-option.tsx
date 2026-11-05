@@ -44,8 +44,6 @@ import {
 } from 'tdesign-vue-next';
 import { toWorkerMessage } from '@/shared/lib/worker-message';
 import 'tdesign-vue-next/es/style/index.css';
-const bkMessage = ({ theme, message }) => MessagePlugin({ theme, content: message });
-
 import { parseTableRowData } from '../../../shared/lib/util';
 import { GradeFieldValueType, type GradeSetting } from '../../retrieval/core/interface';
 
@@ -246,10 +244,7 @@ export default defineComponent({
               return;
             }
 
-            bkMessage({
-              theme: 'error',
-              message: resp.message,
-            });
+            MessagePlugin.error({ content: resp.message });
           })
           .finally(() => {
             isLoading.value = false;

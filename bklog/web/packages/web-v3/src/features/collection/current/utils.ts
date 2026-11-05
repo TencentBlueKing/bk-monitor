@@ -1,6 +1,8 @@
+import { MessagePlugin } from 'tdesign-vue-next';
 import { asDictionary } from '@/shared/utils/typed-record';
 import { includesValue } from '@/shared/utils/typed-record';
 import { formatFileSize, random } from '@/shared/lib/util';
+import { getSaveFailureMessage, isRequestErrorAlreadyShown } from './save-failure';
 import type {
   CollectOperateType,
   ICollectListRowData,
@@ -315,7 +317,18 @@ export const MENU_LIST = [
  * @param theme 主题类型
  */
 export const showMessage = (message: string, theme: 'error' | 'success' | 'warning' = 'success'): void => {
-  window.mainComponent?.$bkMessage({ message, theme });
+  MessagePlugin[theme]({ content: message });
+};
+
+export const showCollectSaveFailure = (payload: unknown, fallback: string): void => {
+  showMessage(getSaveFailureMessage(payload, fallback), 'error');
+};
+
+export const showUnshownRequestError = (error: unknown, fallback: string): void => {
+  if (isRequestErrorAlreadyShown(error)) {
+    return;
+  }
+  showCollectSaveFailure(error, fallback);
 };
 
 // 常量定义

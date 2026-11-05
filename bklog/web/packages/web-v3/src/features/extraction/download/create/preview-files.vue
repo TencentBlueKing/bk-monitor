@@ -75,7 +75,7 @@
       />
     </div>
     <div
-      v-bkloading="{ isLoading, opacity: 0.7, zIndex: 0 }"
+      v-loading="{ loading: isLoading, zIndex: 0 }"
       class="flex-box"
     >
       <bk-table
@@ -106,7 +106,7 @@
             <div class="table-ceil-container">
               <span
                 v-if="row.size === '0'"
-                v-bk-overflow-tips
+                v-log-overflow-tips
                 class="download-url-text"
                 @click="getExplorerList(row)"
               >
@@ -114,7 +114,7 @@
               </span>
               <span
                 v-else
-                v-bk-overflow-tips
+                v-log-overflow-tips
                 >{{ row.path }}</span
               >
             </div>

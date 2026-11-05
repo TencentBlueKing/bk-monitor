@@ -5,11 +5,24 @@
     height: 36px;
     display: flex;
     align-items: center;
-    .bk-form {
+    .bk-form,
+    .t-form {
       width: 100%;
-      .bk-form-content {
+      .bk-form-content,
+      .t-form__controls,
+      .t-form__controls-content {
         margin-left: 0 !important;
       }
+      .t-form__item {
+        margin-bottom: 0;
+      }
+    }
+    .add-index-set-error {
+      margin-left: 8px;
+      color: #e71818;
+      font-size: 12px;
+      line-height: 20px;
+      white-space: nowrap;
     }
     .icon-btns {
       display: flex;

@@ -28,9 +28,14 @@ import { defineAsyncComponent, defineComponent } from 'vue';
 import { useRoute } from 'vue-router';
 import useStore from '@/shared/composables/use-store';
 import UnAuthorized from '@/features/authorization/denied/index';
-const RetrieveV3 = defineAsyncComponent(
-  () => import(/* webpackChunkName: 'logRetrieve-v3' */ '@/features/retrieval/workspace/index'),
-);
+import RetrievePageSkeleton from '@/app/skeleton/retrieve-page-skeleton.vue';
+
+const RetrieveV3 = defineAsyncComponent({
+  loader: () => import(/* webpackChunkName: 'logRetrieve-v3' */ '@/features/retrieval/workspace/index'),
+  loadingComponent: RetrievePageSkeleton,
+  delay: 0,
+  suspensible: false,
+});
 const RetrieveV1 = defineAsyncComponent(
   () => import(/* webpackChunkName: 'logRetrieve-v1' */ '@/features/retrieval/classic/container'),
 );

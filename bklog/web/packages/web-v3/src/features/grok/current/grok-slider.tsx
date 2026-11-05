@@ -319,7 +319,7 @@ export default defineComponent({
     const renderSubmitButton = () => {
       return (
         <span
-          v-bk-tooltips={{
+          v-log-tooltip={{
             placement: 'bottom',
             content: submitTooltip.value,
             disabled: canSubmit.value,

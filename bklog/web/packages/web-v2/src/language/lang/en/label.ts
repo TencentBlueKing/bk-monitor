@@ -388,6 +388,7 @@ export default {
   一键拉群: 'WeCom',
   创建集群: 'Create cluster',
   保存成功: 'Saved successful',
+  保存失败: 'Save failed',
   事件ID: 'Event ID',
   动态分组: 'Dynamic grouping',
   不能混用: 'Cannot be mixed',

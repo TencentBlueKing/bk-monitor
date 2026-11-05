@@ -783,7 +783,7 @@ export default defineComponent({
         return (
           <div
             class='index-set-inline-select-wrap'
-            v-bkloading={{ isLoading: isUpdating, size: 'mini' }}
+            v-loading={{ loading: isUpdating, size: 'small' }}
           >
             <bk-select
               ref={indexSetSelectRef}
@@ -930,7 +930,7 @@ export default defineComponent({
                     {row.is_related_space && (
                       <span
                         class='space-tag related'
-                        v-bk-tooltips={{
+                        v-log-tooltip={{
                           content: t('关联空间') + (row?.space_name ? `: ${row?.space_name}` : ''),
                         }}
                       >

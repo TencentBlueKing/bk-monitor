@@ -349,7 +349,7 @@
 </script>
 <template>
   <div
-    v-bkloading="{ isLoading: initLoading }"
+    v-loading="{ loading: initLoading }"
     :style="stickyStyle"
     :class="['retrieve-v2-index', { 'scroll-y': true, 'is-sticky-top': isStickyTop }]"
   >

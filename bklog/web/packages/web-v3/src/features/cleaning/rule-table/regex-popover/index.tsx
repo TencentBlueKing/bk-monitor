@@ -80,7 +80,7 @@ export default defineComponent({
                   </span>
                   <div
                     class='new-link'
-                    v-bk-tooltips={t('新开标签页')}
+                    v-log-tooltip={t('新开标签页')}
                     onClick={() => handleClick('show original', true)}
                   >
                     <log-icon type='jump' />

@@ -34,7 +34,7 @@
     @value-change="handleValueChange"
   >
     <div
-      v-bkloading="{ isLoading }"
+      v-loading="{ loading: isLoading }"
       class="module-select-container"
     >
       <t-radio-group

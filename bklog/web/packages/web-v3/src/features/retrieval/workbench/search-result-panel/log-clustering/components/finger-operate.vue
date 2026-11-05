@@ -26,7 +26,7 @@
 <template>
   <div class="fingerprint-setting fl-sb">
     <div
-      v-bk-tooltips="{ content: $t('请先新建新类告警策略'), disabled: strategyHaveSubmit }"
+      v-log-tooltip="{ content: $t('请先新建新类告警策略'), disabled: strategyHaveSubmit }"
       class="is-near24"
     >
       <t-checkbox
@@ -69,7 +69,7 @@
         <template #dropdown-trigger>
           <i
             v-if="isCurrentIndexSetIdCreateSubscription"
-            v-bk-tooltips.bottom-end="$t('已订阅当前页面')"
+            v-log-tooltip.bottom-end="$t('已订阅当前页面')"
             class="bk-icon icon-email btn-subscription"
             :class="{
               selected: isCurrentIndexSetIdCreateSubscription,
@@ -97,7 +97,7 @@
       </bk-dropdown-menu>
       <i
         v-if="!isCurrentIndexSetIdCreateSubscription"
-        v-bk-tooltips.bottom-end="$t('邮件订阅')"
+        v-log-tooltip.bottom-end="$t('邮件订阅')"
         class="bk-icon icon-email btn-subscription"
         @click="isShowQuickCreateSubscriptionDrawer = true"
       />
@@ -119,7 +119,7 @@
       placement="bottom-start"
     >
       <div
-        v-bk-tooltips="$t('更多')"
+        v-log-tooltip="$t('更多')"
         :class="{ 'operation-icon': true, 'disabled-icon': !clusterSwitch }"
         @click="handleClickGroupPopover"
       >
@@ -131,7 +131,7 @@
             <span>
               <span class="title">{{ $t('维度') }}</span>
               <i
-                v-bk-tooltips.top="$t('修改字段会影响当前聚类结果，请勿随意修改')"
+                v-log-tooltip.top="$t('修改字段会影响当前聚类结果，请勿随意修改')"
                 class="notice bklog-icon bklog-help"
               ></i>
             </span>
@@ -229,7 +229,7 @@
                       </t-input>
                       <div class="compared-select-icon">
                         <span
-                          v-bk-tooltips="$t('自定义输入格式: 如 1h 代表一小时 h小时')"
+                          v-log-tooltip="$t('自定义输入格式: 如 1h 代表一小时 h小时')"
                           class="top-end"
                         >
                           <i class="bklog-icon bklog-help"></i>

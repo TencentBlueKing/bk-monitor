@@ -302,7 +302,7 @@ export default defineComponent({
         <div class='sql-editor-tools'>
           <TButton
             class='sql-editor-query-button'
-            v-bk-tooltips={{ content: $t('查询'), theme: 'light' }}
+            v-log-tooltip={{ content: $t('查询'), theme: 'light' }}
             loading={isRequesting.value}
             size='small'
             theme='primary'
@@ -312,7 +312,7 @@ export default defineComponent({
           </TButton>
           <TButton
             class='sql-editor-view-button'
-            v-bk-tooltips={{ content: $t('中止'), theme: 'light' }}
+            v-log-tooltip={{ content: $t('中止'), theme: 'light' }}
             disabled={!isRequesting.value}
             size='small'
             onClick={handleStopBtnClick}
@@ -322,7 +322,7 @@ export default defineComponent({
 
           <BookmarkPop
             class='bklog-sqleditor-bookmark'
-            v-bk-tooltips={{ content: ($t('button-收藏') as string).replace('button-', ''), theme: 'light' }}
+            v-log-tooltip={{ content: ($t('button-收藏') as string).replace('button-', ''), theme: 'light' }}
             addition={requestAddition.value ?? []}
             extendParams={props.extendParams}
             searchMode='sqlChart'
@@ -340,7 +340,7 @@ export default defineComponent({
             <div class='fr header-tool-right'>
               <div
                 class='sqlFormat header-tool-right-icon'
-                v-bk-tooltips={{ content: $t('格式化') }}
+                v-log-tooltip={{ content: $t('格式化') }}
                 onClick={() => formatMonacoSqlCode()}
               >
                 <span class='bk-icon icon-script-file' />
@@ -348,7 +348,7 @@ export default defineComponent({
               {isFullscreen.value ? (
                 <div
                   class='header-tool-right-icon'
-                  v-bk-tooltips={{ content: $t('取消全屏') }}
+                  v-log-tooltip={{ content: $t('取消全屏') }}
                   onClick={handleFullscreenClick}
                 >
                   <span class='bk-icon icon-un-full-screen' />
@@ -356,7 +356,7 @@ export default defineComponent({
               ) : (
                 <div
                   class='header-tool-right-icon'
-                  v-bk-tooltips={{ content: $t('全屏') }}
+                  v-log-tooltip={{ content: $t('全屏') }}
                   onClick={handleFullscreenClick}
                 >
                   <span class='bk-icon icon-full-screen' />

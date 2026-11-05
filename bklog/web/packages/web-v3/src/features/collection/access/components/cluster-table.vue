@@ -44,7 +44,7 @@
     </div>
     <div
       v-show="isShowTable"
-      v-bkloading="{ isLoading: tableLoading }"
+      v-loading="{ loading: tableLoading }"
       class="cluster-main"
     >
       <template v-if="tableList.length">
@@ -63,7 +63,7 @@
             <template #default="{ row }">
               <t-radio :checked="clusterSelect === row.storage_cluster_id">
                 <div
-                  v-bk-overflow-tips
+                  v-log-overflow-tips
                   class="overflow-tips"
                 >
                   <span @click.stop>{{ row.storage_display_name }}</span>

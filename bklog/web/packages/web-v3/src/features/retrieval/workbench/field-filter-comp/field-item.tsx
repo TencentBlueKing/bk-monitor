@@ -439,9 +439,13 @@ class FieldItem extends tsc<FieldItemProps> {
                       <span class='bklog-icon bklog-arrow-right' />
                     </button>
                     <div class='distinct-num'>
-                      <span class='field-name'>{this.fieldItem?.field_name}</span>
+                      <TTooltip content={this.fieldItem?.field_name}>
+                        <span class='field-name'>{this.fieldItem?.field_name}</span>
+                      </TTooltip>
                       <div class='col-line' />
-                      <span class='distinct-count-label'>{this.$t('去重后字段统计')}</span>
+                      <TTooltip content={this.$t('去重后字段统计')}>
+                        <span class='distinct-count-label'>{this.$t('去重后字段统计')}</span>
+                      </TTooltip>
                       <span class='distinct-count-num'>{`(${this.distinctCount})`}</span>
                     </div>
                     <div class='fnBtn'>

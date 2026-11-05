@@ -168,7 +168,7 @@ export default defineComponent({
             <>
               <div
                 class='clean-template-sync-content'
-                v-bkloading={{ isLoading: isCollectorsLoading.value }}
+                v-loading={{ loading: isCollectorsLoading.value }}
               >
                 {!isConfirmed.value && (
                   <TAlert

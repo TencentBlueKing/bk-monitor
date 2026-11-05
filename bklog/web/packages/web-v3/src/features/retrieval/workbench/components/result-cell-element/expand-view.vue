@@ -56,7 +56,7 @@
         >
         </bk-input>
         <span
-          v-bk-tooltips="{ content: $t('复制') }"
+          v-log-tooltip="{ content: $t('复制') }"
           class="bklog-icon bklog-data-copy"
           @click="handleCopy"
         ></span>

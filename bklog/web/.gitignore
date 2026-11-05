@@ -54,6 +54,8 @@ jspm_packages/
 
 # dotenv environment variables file
 .env
+.env.local
+.env.*.local
 webpack-stats.json
 .stylelintcache
 webpack_cache/

@@ -420,6 +420,7 @@ export class TenantManager extends EventEmitter<TenantManagerEvent> {
         method: 'GET',
         headers,
         skipTraceparent: true,
+        skipSpaceUid: true,
       });
 
       // 处理响应结果
@@ -506,6 +507,7 @@ export class TenantManager extends EventEmitter<TenantManagerEvent> {
         method: 'GET',
         headers,
         skipTraceparent: true,
+        skipSpaceUid: true,
       });
 
       // response.data 直接就是 UserDisplayInfo 对象

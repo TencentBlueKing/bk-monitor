@@ -811,7 +811,7 @@ export default defineComponent({
                 (() => (
                   <div
                     class={['tag-more-add-btn', { disabled: isDisabledAddNewTag.value }]}
-                    v-bk-tooltips={{
+                    v-log-tooltip={{
                       disabled: !isDisabledAddNewTag.value,
                       content: t('停用状态下无法添加标签'),
                       delay: 300,

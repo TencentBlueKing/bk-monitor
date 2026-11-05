@@ -26,7 +26,7 @@
 
 <template>
   <div
-    v-bkloading="{ isLoading }"
+    v-loading="{ loading: isLoading }"
     class="extract-auth-manage"
     data-test-id="extractAuthManage_div_extractAuthManageBox"
   >
@@ -57,7 +57,7 @@
       >
         <template #default="{ row }">
           <div class="table-ceil-container">
-            <span v-bk-overflow-tips>{{ row.strategy_name }}</span>
+            <span v-log-overflow-tips>{{ row.strategy_name }}</span>
           </div>
         </template>
       </bk-table-column>
@@ -69,7 +69,7 @@
       >
         <template #default="{ row }">
           <div class="table-ceil-container">
-            <span v-bk-overflow-tips>{{ row.modules.map(item => item.bk_inst_name).join('; ') }}</span>
+            <span v-log-overflow-tips>{{ row.modules.map(item => item.bk_inst_name).join('; ') }}</span>
           </div>
         </template>
       </bk-table-column>
@@ -81,7 +81,7 @@
       >
         <template #default="{ row }">
           <div class="table-ceil-container">
-            <span v-bk-overflow-tips>{{ row.visible_dir.join('; ') }}</span>
+            <span v-log-overflow-tips>{{ row.visible_dir.join('; ') }}</span>
           </div>
         </template>
       </bk-table-column>
@@ -93,7 +93,7 @@
       >
         <template #default="{ row }">
           <div class="table-ceil-container">
-            <span v-bk-overflow-tips>{{ row.file_type.join('; ') }}</span>
+            <span v-log-overflow-tips>{{ row.file_type.join('; ') }}</span>
           </div>
         </template>
       </bk-table-column>
@@ -105,7 +105,7 @@
       >
         <template #default="{ row }">
           <div class="table-ceil-container">
-            <!-- <span v-bk-overflow-tips>{{ row.operator || '--' }}</span> -->
+            <!-- <span v-log-overflow-tips>{{ row.operator || '--' }}</span> -->
             <bk-user-display-name :user-id="row.operator"></bk-user-display-name>
           </div>
         </template>
@@ -170,7 +170,7 @@
       <template #content>
         <directory-manage
           ref="directoryRef"
-          v-bkloading="{ isLoading: isSliderLoading }"
+          v-loading="{ loading: isSliderLoading }"
           :allow-create="allowCreate"
           :strategy-data="strategyData"
           :user-api="userApi"

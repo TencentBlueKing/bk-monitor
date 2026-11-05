@@ -135,7 +135,7 @@ export default defineComponent({
             </div>
             <div
               class='device-id overflow-hidden-text'
-              v-bk-overflow-tips
+              v-log-overflow-tips
             >
               {userInfo?.xid || ''}
             </div>

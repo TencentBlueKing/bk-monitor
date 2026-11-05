@@ -38,11 +38,10 @@ import useLocale from '@/shared/composables/use-locale';
 import useStore from '@/shared/composables/use-store';
 import { isFeatureToggleOn } from '@/shared/composables/use-feature-toggle';
 import { LocationQueryValue, useRoute } from 'vue-router';
-import { bkMessage as Message } from '@/platform/compat/tdesign/magic-controls';
 import { bkInfoBox as InfoBox } from '@/platform/compat/tdesign/info-box';
 import { useOperation } from '../../hook/useOperation';
 import { useCollectList } from '../../hook/useCollectList';
-import { showMessage, visibleScopeSelectList } from '../../utils';
+import { showCollectSaveFailure, showMessage, showUnshownRequestError, visibleScopeSelectList } from '../../utils';
 import { deepClone, deepEqual, judgeNumber, MAX_INT_VALUE } from '@/shared/lib/util';
 import { resolveCleanTemplateDraft } from '@/features/management/manage-v2/utils/clean-template';
 import FieldList from '../business-comp/step3/field-list';
@@ -1119,7 +1118,7 @@ __ext_json.service.labels   ${t('动态对象字段')}`;
               {t('正则表达式')}
               <i
                 class='bk-icon icon-info-circle tips-icon'
-                v-bk-tooltips={{
+                v-log-tooltip={{
                   placement: 'right',
                   content: `${t(
                     '正则表达式(golang语法)需要匹配日志全文，如以下DEMO将从日志内容提取请求时间与内容',
@@ -1242,16 +1241,11 @@ __ext_json.service.labels   ${t('动态对象字段')}`;
               const failures = syncRes.data.filter((item: { status: string; }) => item.status !== 'SUCCESS');
               syncFailed = failures.length > 0;
               if (syncFailed) {
-                Message({
-                  theme: 'error',
+                TDesignMessage.error({
+                  content: `${t('{n} 个采集项同步失败', { n: failures.length })}\n${failures
+                    .map((item: { collector_config_name?: string; status?: string }) => item.collector_config_name || item.status || '')
+                    .join('\n')}`,
                   zIndex: 9999,
-                  extCls: 'clean-template-sync-message',
-                  actions: [{ id: 'assistant', disabled: true }],
-                  message: {
-                    title: t('{n} 个采集项同步失败', { n: failures.length }),
-                    type: 'json',
-                    details: failures,
-                  },
                 });
               }
             }
@@ -1465,7 +1459,7 @@ __ext_json.service.labels   ${t('动态对象字段')}`;
           ) : (
             <div
               class='option-slot-container'
-              v-bk-overflow-tips
+              v-log-overflow-tips
             >
               <span>{option.collector_config_name}</span>
               <span style='color: #979ba5'>（{`#${option.collector_config_id}`}）</span>
@@ -1506,7 +1500,7 @@ __ext_json.service.labels   ${t('动态对象字段')}`;
           <span class='label-title no-require'>{t('日志样例')}</span>
           <div
             class='form-box'
-            v-bkloading={{ isLoading: logOriginalLoading.value }}
+            v-loading={{ loading: logOriginalLoading.value }}
           >
             <div class='example-box mt-5'>
               <span
@@ -1801,7 +1795,7 @@ __ext_json.service.labels   ${t('动态对象字段')}`;
                 value={true}
               >
                 <span
-                  v-bk-tooltips={{
+                  v-log-tooltip={{
                     content: t('确认保留原始日志,会存储在log字段. 其他字段提取内容会进行追加'),
                     disabled: isTemplateBound.value,
                   }}
@@ -1814,7 +1808,7 @@ __ext_json.service.labels   ${t('动态对象字段')}`;
                 value={false}
               >
                 <span
-                  v-bk-tooltips={{
+                  v-log-tooltip={{
                     content: t('不保留将丢弃原始日志，仅展示清洗后日志。请通过字段清洗，调试并输出您关心的日志。'),
                     disabled: isTemplateBound.value,
                   }}
@@ -2034,7 +2028,7 @@ __ext_json.service.labels   ${t('动态对象字段')}`;
             <span class='label-title no-require'>{t('路径样例')}</span>
             <div
               class='form-box'
-              v-bkloading={{ isLoading: pathExampleLoading.value }}
+              v-loading={{ loading: pathExampleLoading.value }}
             >
               <div class='url-demo-box'>
                 <bk-input
@@ -2316,6 +2310,7 @@ __ext_json.service.labels   ${t('动态对象字段')}`;
           await Promise.all(validatePromises);
         } catch {
           loading.value = false;
+          showMessage(t('请完善清洗字段配置'), 'error');
           failedCallback?.();
           return;
         }
@@ -2516,15 +2511,19 @@ __ext_json.service.labels   ${t('动态对象字段')}`;
                 if (isChangingExpandDepth.value && isNeedCreate) {
                   showMessage(t('配置未生效，创建新索引失败，请重试或联系管理员。'), 'error');
                   isChangingExpandDepth.value = false;
+                } else {
+                  showCollectSaveFailure(res, t('保存失败'));
                 }
                 callback?.(false);
               }
             })
-            .catch(() => {
+            .catch(err => {
               loading.value = false;
               if (isChangingExpandDepth.value && isNeedCreate) {
                 showMessage(t('配置未生效，创建新索引失败，请重试或联系管理员。'), 'error');
                 isChangingExpandDepth.value = false;
+              } else {
+                showUnshownRequestError(err, t('保存失败'));
               }
               callback?.(false);
             });
@@ -2541,7 +2540,7 @@ __ext_json.service.labels   ${t('动态对象字段')}`;
     return () => (
       <div
         class='operation-step3-clean'
-        v-bkloading={{ isLoading: basicLoading.value }}
+        v-loading={{ loading: basicLoading.value }}
       >
         {cardRender(showCardConfig.value)}
         <CleanTemplateDialog

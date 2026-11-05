@@ -181,9 +181,11 @@
       .sort-direction-select {
         height: var(--sort-control-height);
 
-        .bk-select-name {
+        .bk-select-name,
+        .t-input {
           height: var(--sort-control-height);
           line-height: calc(var(--sort-control-height) - 2px);
+          border-radius: 0;
         }
       }
 
@@ -253,6 +255,10 @@
 
     .mr-6 {
       margin-right: 6px;
+    }
+
+    .row-more-menu {
+      display: inline-flex;
     }
 
     .more-btn {
@@ -543,6 +549,7 @@
       color: #4d4f56;
       font-size: 12px;
       padding: 6px 14px;
+      line-height: 1.4;
       cursor: pointer;
 
       &.disabled {

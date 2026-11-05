@@ -35,7 +35,7 @@
           {{ $t('名称') }}
           <span class="required">*</span>
           <span
-            v-bk-tooltips="{ width: 200, content: $t('不同类别的授权用户，通过用户组名区分，单业务下唯一') }"
+            v-log-tooltip="{ width: 200, content: $t('不同类别的授权用户，通过用户组名区分，单业务下唯一') }"
             class="bklog-icon bklog-info-fill"
           >
           </span>
@@ -54,7 +54,7 @@
           <span class="required">*</span>
           <span
             v-if="allowCreate"
-            v-bk-tooltips="{
+            v-log-tooltip="{
               width: 200,
               content: $t('多个QQ号粘贴请使用英文分号 “ ; ” 分隔 ，手动输入QQ号请键入 Enter 保存'),
             }"
@@ -62,7 +62,7 @@
           ></span>
           <span
             v-else
-            v-bk-tooltips="{
+            v-log-tooltip="{
               width: 200,
               content: $t('多个用户名粘贴请使用英文分号 “ ; ” 分隔 ，手动输入用户名请键入 Enter 保存'),
             }"
@@ -96,7 +96,7 @@
           {{ $t('授权目录') }}
           <span class="required">*</span>
           <span
-            v-bk-tooltips="{ width: 200, content: $t('目录以 / 结尾，windows 服务器以 /cygdrive/ 开头') }"
+            v-log-tooltip="{ width: 200, content: $t('目录以 / 结尾，windows 服务器以 /cygdrive/ 开头') }"
             class="bklog-icon bklog-info-fill"
           ></span>
         </div>
@@ -129,7 +129,7 @@
           {{ $t('文件后缀') }}
           <span class="required">*</span>
           <span
-            v-bk-tooltips="$t('请输入不带点号(.)的后缀名，匹配任意文件可填写星号(*)')"
+            v-log-tooltip="$t('请输入不带点号(.)的后缀名，匹配任意文件可填写星号(*)')"
             class="bklog-icon bklog-info-fill"
           ></span>
         </div>
@@ -207,7 +207,7 @@
           {{ $t('执行人') }}
           <span class="required">*</span>
           <span
-            v-bk-tooltips="{
+            v-log-tooltip="{
               width: 200,
               content: $t('全局设置，下载过程中需使用job传输，将以执行人身份进行，请确保执行人拥有业务权限'),
             }"

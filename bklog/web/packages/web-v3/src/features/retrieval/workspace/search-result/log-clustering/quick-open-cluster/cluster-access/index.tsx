@@ -258,7 +258,7 @@ export default defineComponent({
               </div>
               <div class='bottom-operate'>
                 <span
-                  v-bk-tooltips={{
+                  v-log-tooltip={{
                     placement: 'bottom',
                     content: !isPreviewed.value
                       ? t('请先完成预览，才可提交')

@@ -19,6 +19,25 @@
 }
 
 .cluster-select-filter-popover {
+  .cluster-filter-search {
+    width: calc(100% - 24px);
+    margin: 0 12px 8px;
+  }
+
+  .group-list {
+    max-height: 236px;
+    overflow: auto;
+  }
+
+  .group-item {
+    padding: 0 12px;
+    cursor: pointer;
+
+    &:hover {
+      background: #f4f6fa;
+    }
+  }
+
   .bk-option.is-selected {
     /* stylelint-disable-next-line declaration-no-important */
     background: none !important;

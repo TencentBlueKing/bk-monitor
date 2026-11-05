@@ -24,7 +24,6 @@
  * IN THE SOFTWARE.
  */
 
-import { DateRange, DateValue } from "@blueking/date-picker";
 import dayjs from 'dayjs';
 
 import i18n from '../../../platform/i18n/i18n';
@@ -36,12 +35,67 @@ export const CUSTOM_TIME_RANGE_REG = /^now(([-+])(\d+)([m|h|d|w|M|y|Y]))?(\/[m|h
 /** 日志检索最大时间跨度：半年（180 天） */
 export const MAX_SEARCH_TIME_RANGE = 180 * 24 * 60 * 60 * 1000;
 type TimestampsType = [number, number];
+type PickerEndpoint = dayjs.Dayjs | null;
+
+const DATE_UNIT_CLASS = 'mhdwMy';
+const baselineDateRegexp = new RegExp(
+  `(\\(.+\\)|now)([+-]?\\d*)([${DATE_UNIT_CLASS}]?)\\/?([${DATE_UNIT_CLASS}]?)`,
+);
+const timezoneOffsetRegexp = /(z|[+-]\d{2}:?\d{2})$/i;
+
+/**
+ * 与日期选择器 DateRange 相同的端点解析。
+ * 只保留时间计算，避免把选择器组件打进应用入口。
+ */
+const parsePickerEndpoint = (val: string | number, type: 'start' | 'end', timezone?: string): dayjs.Dayjs => {
+  const zone = timezone || dayjs.tz.guess();
+  const numeric = Number(val);
+  const value = Number.isNaN(numeric) ? val : numeric;
+  let date = dayjs(value as dayjs.ConfigType);
+  if (typeof value === 'number' || dayjs.isDayjs(value)) {
+    return dayjs.tz(date.valueOf(), zone);
+  }
+  if (date.isValid()) {
+    return timezoneOffsetRegexp.test(String(value)) ? dayjs.tz(date.valueOf(), zone) : date.tz(zone, true);
+  }
+
+  const matched = String(value).match(baselineDateRegexp) || [];
+  const baselineTimeStr = matched[1];
+  const num = matched[2];
+  const unit = matched[3];
+  const diffUnit = matched[4] as dayjs.OpUnitType | undefined;
+  const baselineTime = baselineTimeStr?.replace(/[()]/g, '');
+  let baselineDayjs = dayjs();
+  if (baselineTime && baselineTime !== 'now') {
+    baselineDayjs = dayjs(baselineTime);
+    if (baselineDayjs.isValid()) {
+      date = baselineDayjs.add(-1, 'ms').endOf('ms');
+    } else {
+      baselineDayjs = parsePickerEndpoint(baselineTime, 'start', zone);
+      if (baselineTimeStr === value && String(baselineTimeStr).includes('now')) {
+        date = baselineDayjs.add(-1, 'd').endOf('d');
+      }
+    }
+  }
+  if (num) {
+    date = baselineDayjs.add(Number(num), (unit || diffUnit || 'm') as dayjs.ManipulateType);
+  } else if (value === 'now') {
+    date = baselineDayjs;
+  }
+  if (diffUnit) {
+    const base = date.isValid() ? date : type === 'start' ? baselineDayjs.valueOf() : baselineDayjs;
+    return type === 'start'
+      ? dayjs.tz(dayjs(base).valueOf(), zone).startOf(diffUnit)
+      : dayjs.tz(dayjs(base).valueOf(), zone).endOf(diffUnit);
+  }
+  return dayjs.tz(date.valueOf(), zone);
+};
 
 /** 处理时间范围的对象 */
 export class TimeRange {
   /** 实例化的时间范围对象 */
   value: (dayjs.Dayjs | null)[] = [];
-  dateRange: DateRange | null = null;
+  dateRange: { startDate: PickerEndpoint; endDate: PickerEndpoint } | null = null;
   formatStr = 'YYYY-MM-DD HH:mm:ss';
   constructor(times: TimeRangeType, format: string) {
     this.formatStr = format ?? 'YYYY-MM-DD HH:mm:ss';
@@ -50,8 +104,12 @@ export class TimeRange {
 
   /** 初始化时间对象 */
   init(times: TimeRangeType) {
-    this.dateRange = new DateRange(times, this.formatStr, window.timezone);
-    this.value = [this.dateRange.startDate, this.dateRange.endDate];
+    const zone = window.timezone;
+    const [start, end] = times ?? [];
+    const startDate = start ? parsePickerEndpoint(start, 'start', zone) : null;
+    const endDate = end ? parsePickerEndpoint(end, 'end', zone) : null;
+    this.dateRange = { startDate, endDate };
+    this.value = [startDate, endDate];
   }
 
   /** 格式化时间范围 */
@@ -168,6 +226,9 @@ export const shortcuts = [
 export const DEFAULT_TIME_RANGE: TimeRangeType = ['now-1h', 'now'];
 
 /*  */
-export const getTimeDisplay = (timeRange: DateValue|undefined) => {
-  return new DateRange(timeRange, 'YYYY-MM-DD HH:mm:ss', window.timezone).toDisplayString();
+export const getTimeDisplay = (timeRange: TimeRangeType | undefined) => {
+  if (!timeRange?.length) {
+    return '';
+  }
+  return new TimeRange(timeRange, 'YYYY-MM-DD HH:mm:ss').format().join(' ~ ');
 };

@@ -59,7 +59,7 @@
       <div>
         <span>{{ $t('存储集群') }}</span>
         <span
-          v-bk-tooltips.top="{
+          v-log-tooltip.top="{
             content: `${collectorData.storage_cluster_domain_name}:${collectorData.storage_cluster_port}`,
             disabled: !collectorData.storage_display_name,
           }"
@@ -124,14 +124,14 @@
                       class="specify-box"
                     >
                       <div
-                        v-bk-overflow-tips
+                        v-log-overflow-tips
                         class="specify-container justify-bt"
                       >
                         <span>{{ matchItem.key }}</span>
                         <div class="operator">{{ matchItem.operator }}</div>
                       </div>
                       <div
-                        v-bk-overflow-tips
+                        v-log-overflow-tips
                         class="specify-container"
                       >
                         <span>{{ matchItem.value }}</span>
@@ -154,14 +154,14 @@
                       class="specify-box"
                     >
                       <div
-                        v-bk-overflow-tips
+                        v-log-overflow-tips
                         class="specify-container justify-bt"
                       >
                         <span>{{ matchItem.key }}</span>
                         <div class="operator">{{ matchItem.operator }}</div>
                       </div>
                       <div
-                        v-bk-overflow-tips
+                        v-log-overflow-tips
                         class="specify-container"
                       >
                         <span>{{ matchItem.value }}</span>
@@ -329,14 +329,14 @@
             >
               <div class="specify-box">
                 <div
-                  v-bk-overflow-tips
+                  v-log-overflow-tips
                   class="specify-container justify-bt"
                 >
                   <span>{{ extraItem.key }}</span>
                   <div class="operator">=</div>
                 </div>
                 <div
-                  v-bk-overflow-tips
+                  v-log-overflow-tips
                   class="specify-container"
                 >
                   <span>{{ extraItem.value }}</span>

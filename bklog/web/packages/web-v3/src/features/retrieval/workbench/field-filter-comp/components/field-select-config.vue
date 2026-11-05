@@ -116,7 +116,7 @@
       </template>
       <template #dropdown-content>
         <ul
-          v-bkloading="{ isLoading: isLoading, size: 'small' }"
+          v-loading="{ loading: isLoading, size: 'small' }"
           class="bk-dropdown-list"
         >
           <li

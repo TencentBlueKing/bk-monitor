@@ -340,7 +340,7 @@ export default defineComponent({
 
         {/* 主内容区域 */}
         <div
-          v-bkloading={{ isLoading: props.loading }}
+          v-loading={{ loading: props.loading }}
           class='host-detail-main'
         >
           {showList.value.length === 0 ? (
@@ -422,7 +422,7 @@ export default defineComponent({
                 </div>
                 <div
                   class='content-right-detail'
-                  v-bkloading={{ isLoading: itemLoading.value, color: '#2E2E2E', zIndex: 10 }}
+                  v-loading={{ loading: itemLoading.value, zIndex: 10 }}
                 >
                   <div
                     ref={logContentRef}

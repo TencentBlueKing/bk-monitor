@@ -47,7 +47,7 @@
 
       <div
         v-if="rulesList.length > 0"
-        v-bkloading="{ isLoading: tableLoading }"
+        v-loading="{ loading: tableLoading }"
       >
         <vue-draggable
           v-bind="dragOptions"
@@ -160,7 +160,7 @@
     </div>
     <!-- 原始日志 -->
     <div
-      v-bk-clickoutside="handleClickOutSide"
+      v-log-click-outside="handleClickOutSide"
       :class="{ 'debug-container': true, 'is-hidden': !isClickAlertIcon }"
     >
       <div
@@ -212,7 +212,7 @@
         <div class="mt18">
           <p style="height: 32px">{{ $t('效果预览') }}</p>
           <div
-            v-bkloading="{ isLoading: debugRequest, size: 'mini' }"
+            v-loading="{ loading: debugRequest, size: 'small' }"
             class="effect-container"
           >
             <text-highlight

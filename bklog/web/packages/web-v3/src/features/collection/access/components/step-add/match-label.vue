@@ -126,7 +126,7 @@
               </div>
               <div class="justify-sb">
                 <span
-                  v-bk-tooltips.light.click="{ allowHtml: true, content: '#content-copy-html' }"
+                  v-log-tooltip.light.click="{ allowHtml: true, content: '#content-copy-html' }"
                   @click.stop
                 >
                   {{ item.key }}
@@ -134,7 +134,7 @@
                 <span class="match-left">{{ getOperateShow(item.operator) }}</span>
               </div>
               <div class="justify-sb">
-                <span v-bk-overflow-tips>{{ item.value }}</span>
+                <span v-log-overflow-tips>{{ item.value }}</span>
                 <span v-if="item.customize">
                   <span
                     v-show="activeItemID === item.id"

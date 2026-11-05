@@ -27,34 +27,45 @@
 <template>
   <router-view v-if="isHeadless" :key="refreshKey" class="manage-content manage-content-headless"></router-view>
   <div v-else class="bk-log-navigation">
-    <aside
-      class="manage-sidebar"
-      :class="{ 'is-expanded': isExpand }"
-      @mouseenter="handleToggle(true)"
-      @mouseleave="handleToggle(false)"
-    >
-      <t-menu :value="activeManageNav.id || ''" :collapsed="!isExpand" :width="['216px', '60px']" theme="dark">
-        <template v-for="groupItem in menuList" :key="groupItem.id">
-          <t-menu-group
-            v-if="getGroupChildren(groupItem.children).length"
-            :title="isExpand ? groupItem.name : groupItem.keyword"
-          >
-            <template v-for="navItem in getGroupChildren(groupItem.children)" :key="navItem.id">
-              <a
-                v-if="shouldShowMenuItem(navItem.id)"
-                class="nav-item"
-                :href="getRouteHref(navItem.id)"
-                @click="handleMenuAnchorClick($event, navItem.id)"
-              >
-                <t-menu-item :value="navItem.id" :data-test-id="`navBox_nav_${navItem.id}`">
-                  <template #icon><i :class="getMenuIcon(navItem)"></i></template>
-                  <span>{{ navItem.name }}</span>
-                </t-menu-item>
-              </a>
-            </template>
-          </t-menu-group>
-        </template>
-      </t-menu>
+    <aside class="manage-sidebar" :class="{ 'is-fixed': isFixed }">
+      <div
+        class="manage-sidebar-slider"
+        :class="{ 'is-expanded': isExpand }"
+        @mouseenter="handleMouseEnter"
+        @mouseleave="handleMouseLeave"
+      >
+        <t-menu :value="activeManageNav.id || ''" :collapsed="!isExpand" :width="['260px', '60px']" theme="dark">
+          <template v-for="groupItem in menuList" :key="groupItem.id">
+            <t-menu-group
+              v-if="getGroupChildren(groupItem.children).length"
+              :title="isExpand ? groupItem.name : ''"
+            >
+              <template v-for="navItem in getGroupChildren(groupItem.children)" :key="navItem.id">
+                <a
+                  v-if="shouldShowMenuItem(navItem.id)"
+                  class="nav-item"
+                  :href="getRouteHref(navItem.id)"
+                  @click="handleMenuAnchorClick($event, navItem.id)"
+                >
+                  <t-menu-item :value="navItem.id" :data-test-id="`navBox_nav_${navItem.id}`">
+                    <template #icon><i :class="getMenuIcon(navItem)"></i></template>
+                    <span v-show="isExpand">{{ navItem.name }}</span>
+                  </t-menu-item>
+                </a>
+              </template>
+            </t-menu-group>
+          </template>
+        </t-menu>
+        <div class="nav-slider-footer">
+          <div class="footer-icon is-left" @click.stop="handleFix">
+            <span class="footer-icon-svg" :style="{ transform: isFixed ? 'rotate(180deg)' : 'rotate(0deg)' }">
+              <svg viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg">
+                <path d="M31,13.5l-4.77,4.77,9.54,9.55H4v6.36H35.76l-9.53,9.55L31,48.5,48.47,31Zm22.65,0v35H60v-35Z" />
+              </svg>
+            </span>
+          </div>
+        </div>
+      </div>
     </aside>
     <div class="navigation-content">
       <auth-container-page v-if="authPageInfo" :info="authPageInfo"></auth-container-page>
@@ -92,6 +103,8 @@ export default {
     return {
       navThemeColor: '#2c354d',
       isExpand: false,
+      isFixed: false,
+      hoverEnterTimer: null,
       refreshKey: '',
     };
   },
@@ -193,9 +206,12 @@ export default {
       });
     if (!this.isHeadless) {
       setTimeout(() => {
-        this.handleToggle(false);
+        if (!this.isFixed) this.handleToggle(false);
       }, 10);
     }
+  },
+  beforeUnmount() {
+    this.clearHoverTimer();
   },
   methods: {
     buildRefreshKey() {
@@ -227,6 +243,30 @@ export default {
           spaceUid: this.$store.state.spaceUid,
         },
       });
+    },
+    clearHoverTimer() {
+      if (this.hoverEnterTimer) {
+        clearTimeout(this.hoverEnterTimer);
+        this.hoverEnterTimer = null;
+      }
+    },
+    handleMouseEnter() {
+      if (this.isFixed) return;
+      this.clearHoverTimer();
+      this.hoverEnterTimer = setTimeout(() => {
+        this.isExpand = true;
+        this.hoverEnterTimer = null;
+      }, 100);
+    },
+    handleMouseLeave() {
+      if (this.isFixed) return;
+      this.clearHoverTimer();
+      this.isExpand = false;
+    },
+    handleFix() {
+      this.clearHoverTimer();
+      this.isFixed = !this.isFixed;
+      this.isExpand = this.isFixed;
     },
     handleToggle(data) {
       if (typeof data === 'boolean') {
@@ -344,25 +384,102 @@ export default {
 }
 
 .manage-sidebar {
+  position: relative;
+  z-index: 101;
   flex: 0 0 60px;
   width: 60px;
+  min-width: 0;
   height: 100%;
-  overflow: hidden auto;
+  overflow: visible;
+  transition: width 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+
+  &.is-fixed {
+    flex-basis: 260px;
+    width: 260px;
+  }
+}
+
+.manage-sidebar-slider {
+  display: flex;
+  flex-direction: column;
+  width: 60px;
+  height: 100%;
+  overflow: hidden;
   background: #2c354d;
+  transition: width 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 
   &.is-expanded {
-    flex-basis: 216px;
-    width: 216px;
+    width: 260px;
   }
+
   :deep(.t-default-menu) {
-    height: 100%;
+    flex: 1;
+    min-height: 0;
+    height: auto;
     --td-gray-color-13: #2c354d;
     --td-gray-color-10: #3b4660;
   }
+
   .nav-item {
     display: block;
     color: inherit;
     text-decoration: none;
+  }
+
+  &:not(.is-expanded) {
+    :deep(.t-menu__group-title) {
+      display: none;
+    }
+
+    :deep(.t-menu__item) {
+      justify-content: center;
+      overflow: hidden;
+      white-space: nowrap;
+    }
+
+    :deep(.t-menu__content) {
+      display: none;
+    }
+  }
+}
+
+.nav-slider-footer {
+  display: flex;
+  flex: 0 0 56px;
+  align-items: center;
+  justify-content: flex-start;
+  padding-left: 14px;
+
+  .footer-icon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 32px;
+    height: 32px;
+    color: #96a2b9;
+    border-radius: 100%;
+    cursor: pointer;
+
+    &:hover {
+      color: #d3d9e4;
+      background: linear-gradient(270deg, #253047, #263247);
+    }
+  }
+
+  .footer-icon-svg {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 16px;
+    height: 16px;
+    font-size: 16px;
+    transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+
+    svg {
+      width: 1em;
+      height: 1em;
+      fill: currentcolor;
+    }
   }
 }
 

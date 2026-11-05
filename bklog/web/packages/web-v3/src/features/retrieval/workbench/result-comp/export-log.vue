@@ -30,7 +30,7 @@
         :class="{ 'operation-icon': true, 'disabled-icon': !queueStatus }"
         @click="exportLog"
         data-test-id="fieldForm_div_exportData"
-        v-bk-tooltips="queueStatus ? $t('导出') : undefined">
+        v-log-tooltip="queueStatus ? $t('导出') : undefined">
         <span class="icon bklog-icon bklog-xiazai"></span>
       </div> -->
     <BklogPopover
@@ -86,8 +86,10 @@
     <export-history
       :index-set-list="indexSetList"
       :show-history-export="showHistoryExport"
+      :tracked-tasks="trackedTasks"
       @handle-close-dialog="handleCloseDialog"
       @refresh-current-tasks="fetchCurrentTasks(true)"
+      @sync-tracked-tasks="syncTrackedTasks"
     />
 
     <!-- 导出弹窗提示 -->
@@ -228,16 +230,10 @@ import {
   getExportTaskKey,
   submitExportWithSortConfirmation,
 } from './download/exportTask';
-import {
-  calculateProgress,
-  adjustGrowthAfterPoll,
-  calculateProgressPercent,
-} from '@/features/retrieval/workbench/result-comp/download/downloadProgress';
+import { calculateProgressPercent } from '@/features/retrieval/workbench/result-comp/download/downloadProgress';
 import {
   DOWNLOAD_DATA_DELAY,
   DOWNLOAD_POLLING_INTERVAL,
-  DOWNLOAD_PROGRESS_BASE_GROWTH,
-  DOWNLOAD_PROGRESS_UPDATE_INTERVAL,
   DOWNLOAD_RECENT_DAYS,
   MILLISECONDS_PER_DAY,
 } from '@/features/retrieval/workbench/result-comp/download/constants';
@@ -337,10 +333,10 @@ export default {
       modeHintMap: {},
       // queueStatus: true
       exportListData: [], // 当前索引集/采集项的下载任务
+      trackedTasks: {}, // 曾符合悬浮窗展示规则的任务，保留终态供历史分页同步
       exportPollingTimer: null, // 当前任务轮询定时器
       currentTaskCancelExecutor: null,
       isComponentUnmounted: false, // 组件是否已卸载
-      progressUpdateTimer: null, // 进度更新定时器
       popoverHoverTimer: null, // Popover 悬浮延迟隐藏定时器
       pendingTaskStatus: {}, // 进行中任务状态记录 { [engine:id]: status }
       failedTaskIds: [],
@@ -433,18 +429,7 @@ export default {
     },
     /** 需要显示的任务列表（下载中/未启动任务 + 失败任务） */
     displayTasks() {
-      const currentUser = this.$store.state.userMeta?.username || '';
-      return this.exportListData
-        .filter((row) => {
-          // 只显示当前用户的任务
-          if (row.export_created_by !== currentUser) return false;
-          const status = row.export_status;
-          if (status === 'failed') {
-            return this.failedTaskIds.includes(getExportTaskKey(row));
-          }
-          return POLLING_STATUS.includes(status);
-        })
-        .reverse();
+      return this.exportListData.filter((row) => this.shouldDisplayTask(row)).reverse();
     },
     /** 失败任务数量 */
     failedTaskCount() {
@@ -501,8 +486,6 @@ export default {
     // 清除轮询定时器和未完成的当前任务请求
     this.stopStatusPolling();
     this.cancelCurrentTaskRequest();
-    // 清除进度更新定时器
-    this.stopProgressUpdate();
     // 清除 Popover 悬浮定时器
     clearTimeout(this.popoverHoverTimer);
     // 清除失败任务定时器
@@ -510,6 +493,14 @@ export default {
   },
   methods: {
     getExportTaskKey,
+    shouldDisplayTask(task) {
+      const currentUser = this.$store.state.userMeta?.username || '';
+      if (task.export_created_by !== currentUser) return false;
+      if (task.export_status === 'failed') {
+        return this.failedTaskIds.includes(getExportTaskKey(task));
+      }
+      return POLLING_STATUS.includes(task.export_status);
+    },
     resetDownloadType() {
       if (this.isShardedAsyncExportEnabled) {
         this.downloadType = 'all';
@@ -544,8 +535,11 @@ export default {
      * 重置组件状态：清空进行中任务记录、失败任务定时器和记录，重新初始化数据
      */
     resetComponentState() {
+      this.stopStatusPolling();
       // 清空进行中任务状态记录
       this.pendingTaskStatus = {};
+      this.trackedTasks = {};
+      this.exportListData = [];
       // 清空失败任务定时器和记录
       this.clearFailedTaskTimer();
       this.failedTaskIds = [];
@@ -630,10 +624,6 @@ export default {
         })
         .catch((err) => {
           console.log(err);
-        })
-        .finally(() => {
-          this.isShowExportDialog = false;
-          this.selectFiledList = [];
         });
     },
     async openDownloadUrl() {
@@ -667,10 +657,6 @@ export default {
             ? `bk_log_search_${lightName.substring(2, lightName.length - 1)}.${this.documentType}`
             : `bk_log_search.${this.documentType}`;
           blobDownload(res.data, downloadName);
-        })
-        .finally(() => {
-          this.isShowExportDialog = false;
-          this.selectFiledList = [];
         });
     },
     async downloadAsync() {
@@ -710,7 +696,6 @@ export default {
       return submitExportWithSortConfirmation(this, downRequestUrl, requestConfig)
         .then((res) => {
           if (res?.result) {
-            this.isShowExportDialog = false;
             TDesignMessage('success', { content: exportMessageContent(this.$t(EXPORT_SUBMITTED_MESSAGE)) });
             this.fetchCurrentTasks(true);
           }
@@ -806,61 +791,12 @@ export default {
       return this.exportListData.some((item) => POLLING_STATUS.includes(item.export_status));
     },
     /**
-     * @desc: 初始化拉取中任务的增长修正量
-     * 为每个拉取中的任务设置 currentGrowth 和 progressPercent
-     */
-    initGrowthAdjustMap() {
-      this.exportListData.forEach((row) => {
-        if (row.export_status === 'download_log') {
-          // 初始增长量等于基础增长量
-          row.currentGrowth = DOWNLOAD_PROGRESS_BASE_GROWTH;
-          // 初始化进度百分比
-          row.progressPercent = calculateProgressPercent(row.exported_count || 0, row.export_total_count || 0);
-        }
-      });
-    },
-    /**
-     * @desc: 启动1秒进度更新定时器
-     */
-    startProgressUpdate() {
-      this.stopProgressUpdate();
-      this.progressUpdateTimer = setInterval(() => {
-        this.updateAllTaskProgress();
-      }, DOWNLOAD_PROGRESS_UPDATE_INTERVAL);
-    },
-    /**
-     * @desc: 停止1秒进度更新定时器
-     */
-    stopProgressUpdate() {
-      if (this.progressUpdateTimer) {
-        clearInterval(this.progressUpdateTimer);
-        this.progressUpdateTimer = null;
-      }
-    },
-    /**
      * @desc: 清除失败任务定时器
      */
     clearFailedTaskTimer() {
       if (this.failedTaskTimer) {
         clearTimeout(this.failedTaskTimer);
         this.failedTaskTimer = null;
-      }
-    },
-    /**
-     * @desc: 每秒更新当前下载中任务的进度
-     */
-    updateAllTaskProgress() {
-      let hasActiveTask = false;
-
-      this.exportListData.forEach((row) => {
-        if (POLLING_STATUS.includes(row.export_status)) {
-          hasActiveTask = true;
-          row.export_status === 'download_log' && calculateProgress(row);
-        }
-      });
-
-      if (!hasActiveTask) {
-        this.stopProgressUpdate();
       }
     },
     /**
@@ -919,30 +855,43 @@ export default {
         }
       });
     },
+    /** 外层仅登记符合悬浮窗规则的任务；已登记任务持续同步所有状态。 */
+    mergeTrackedTasks(data, registerTasks = false) {
+      const currentRowMap = new Map(this.exportListData.map((row) => [getExportTaskKey(row), row]));
+      const tasks = data
+        .filter((item) => registerTasks || this.trackedTasks[getExportTaskKey(item)])
+        .map((item) => {
+          const taskKey = getExportTaskKey(item);
+          const row = this.trackedTasks[taskKey] || currentRowMap.get(taskKey) || {};
+          Object.assign(row, item, {
+            progressPercent: calculateProgressPercent(item.exported_count || 0, item.export_total_count || 0),
+          });
+          if (this.trackedTasks[taskKey] || (registerTasks && this.shouldDisplayTask(row))) {
+            this.trackedTasks[taskKey] = row;
+          }
+          return row;
+        });
+      // 先同步两处展示所用的任务对象，再统一检测状态变化和提示。
+      this.handleTaskStatus(tasks);
+      return tasks;
+    },
+    syncTrackedTasks(data) {
+      this.mergeTrackedTasks(data);
+      if (!this.shouldContinuePolling()) {
+        this.stopStatusPolling();
+      }
+    },
     /**
      * @desc: 设置导出列表数据
      * @param { Array } data 数据
      * @param { Boolean } isPolling 该次请求是否是轮询
      */
     setExportListData(data, isPolling) {
-      if (isPolling) {
-        const currentRowMap = new Map(this.exportListData.map((row) => [getExportTaskKey(row), row]));
-        data.forEach((item) => {
-          const row = currentRowMap.get(getExportTaskKey(item));
-          if (!row) return;
-          if (row.export_status === 'download_log' && item.export_status === 'download_log') {
-            adjustGrowthAfterPoll(row, item.exported_count || 0, DOWNLOAD_PROGRESS_BASE_GROWTH);
-          } else {
-            Object.assign(row, { ...item });
-          }
-        });
-      } else {
-        this.exportListData = data;
+      const tasks = this.mergeTrackedTasks(data, true);
+      if (!isPolling || !this.exportListData.length) {
+        this.exportListData = tasks;
         if (this.shouldContinuePolling()) {
-          // 初始化进行中任务的增长修正量
-          this.initGrowthAdjustMap();
           this.startStatusPolling();
-          this.startProgressUpdate();
         }
       }
     },
@@ -970,7 +919,6 @@ export default {
       if (this.isUnionSearch && !this.unionIndexList.length) {
         this.exportListData = [];
         this.stopStatusPolling();
-        this.stopProgressUpdate();
         return;
       }
 
@@ -1003,15 +951,13 @@ export default {
           return;
         }
         if (res.result) {
-          this.handleTaskStatus(res.data.list);
           this.setExportListData(res.data.list, isPolling);
-        }
-        if (!this.shouldContinuePolling()) {
-          this.stopStatusPolling();
-          this.stopProgressUpdate();
+          if (!this.shouldContinuePolling()) {
+            this.stopStatusPolling();
+          }
         }
       } catch (error) {
-        if (axios.isCancel(error)) {
+        if (axios.isCancel(error) || this.currentTaskCancelExecutor !== cancelExecutor || this.isComponentUnmounted) {
           return;
         }
       } finally {

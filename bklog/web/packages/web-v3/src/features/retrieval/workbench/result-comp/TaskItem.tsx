@@ -27,7 +27,6 @@ import { Progress as TProgress } from 'tdesign-vue-next';
  */
 
 import { defineComponent } from 'vue';
-import { bkLink } from '@/platform/compat/tdesign/magic-controls';
 import { t } from '@/shared/composables/use-locale';
 import { formatNumber } from '@/features/retrieval/workbench/result-comp/download/downloadProgress';
 import './TaskItem.scss';
@@ -36,7 +35,6 @@ export default defineComponent({
   name: 'TaskItem',
   components: {
     TProgress,
-    bkLink,
   },
   props: {
     item: {

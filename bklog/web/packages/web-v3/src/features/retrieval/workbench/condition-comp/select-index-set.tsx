@@ -1005,7 +1005,7 @@ export default class SelectIndexSet extends tsc<{ popoverOptions?: object }> {
             <ul
               style={{ color: '#4D4F56' }}
               class='history-alone-list'
-              v-bkloading={{ isLoading: this.historyLoading }}
+              v-loading={{ loading: this.historyLoading }}
             >
               {this.aloneHistory.length ? (
                 this.aloneHistory.map(item => (
@@ -1033,7 +1033,7 @@ export default class SelectIndexSet extends tsc<{ popoverOptions?: object }> {
           ) : (
             <ul
               class='history-multiple-list'
-              v-bkloading={{ isLoading: this.historyLoading }}
+              v-loading={{ loading: this.historyLoading }}
             >
               {this.multipleHistory.length ? (
                 this.multipleHistory.map(item => (
@@ -1053,7 +1053,7 @@ export default class SelectIndexSet extends tsc<{ popoverOptions?: object }> {
                           key={setName}
                           class={['title-overflow', 'tag-item']}
                           
-                          v-bk-overflow-tips variant='light' data-v2-display='tag'
+                          v-log-overflow-tips variant='light' data-v2-display='tag'
                         >
                           {setName}
                         </TTag>
@@ -1199,7 +1199,7 @@ export default class SelectIndexSet extends tsc<{ popoverOptions?: object }> {
                   {item.isNotVal && <i class='not-val' />}
                   <span
                     class='title-overflow'
-                    v-bk-overflow-tips
+                    v-log-overflow-tips
                   >
                     {item.indexName}
                   </span>
@@ -1309,7 +1309,7 @@ export default class SelectIndexSet extends tsc<{ popoverOptions?: object }> {
         <span
           key={tag.tag_id}
           class={['tag-card title-overflow', `tag-card-${tag.color}`]}
-          v-bk-overflow-tips
+          v-log-overflow-tips
         >
           {tag.name}
         </span>
@@ -1333,7 +1333,7 @@ export default class SelectIndexSet extends tsc<{ popoverOptions?: object }> {
           { 'is-default-trigger': !(this.selectedItemList.length || this.selectedItem.index_set_name) },
         ]}
         v-model={this.selectTagCatchIDList}
-        v-bkloading={{ isLoading: this.basicLoading, size: 'mini', zIndex: 10 }}
+        v-loading={{ loading: this.basicLoading, size: 'small', zIndex: 10 }}
         v-slots={{
           trigger: () => triggerSlot(),
         }}

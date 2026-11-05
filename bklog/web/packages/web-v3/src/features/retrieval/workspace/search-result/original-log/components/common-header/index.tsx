@@ -69,7 +69,7 @@ export default defineComponent({
               <div class='title'>{t('日志路径')}： </div>
               <div
                 class='content title-overflow'
-                v-bk-overflow-tips
+                v-log-overflow-tips
               >
                 {props.paramsInfo.path || props.paramsInfo.logfile}
               </div>
@@ -78,7 +78,7 @@ export default defineComponent({
         ) : (
           <div
             class='subtitle-list-main title-overflow'
-            v-bk-tooltips={{
+            v-log-tooltip={{
               content: getTargetFieldsStr.value,
               placement: 'bottom',
             }}

@@ -2,6 +2,7 @@
  * Tencent is pleased to support the open source community by making
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
  */
+import { MessagePlugin } from 'tdesign-vue-next';
 import db from '../core/db';
 import { PAGE_INSTANCE_ID } from '../utils/page-instance';
 
@@ -9,22 +10,8 @@ const SUPPORT_NOTICE_KEY = '__bklog_storage_support_notice__';
 const ACTIVE_QUERY_TTL = 5 * 60 * 1000;
 const ACTIVE_QUERY_HEARTBEAT = 60 * 1000;
 
-const getMessageInstance = () => {
-  const mainComponent = (window as any).mainComponent;
-  return mainComponent?.$bkMessage || mainComponent?.$bkNotify || null;
-};
-
 const showWarning = (message: string) => {
-  const messageInstance = getMessageInstance();
-  if (typeof messageInstance === 'function') {
-    messageInstance({
-      theme: 'warning',
-      message,
-    });
-    return;
-  }
-
-  console.warn(message);
+  MessagePlugin.warning({ content: message });
 };
 
 class StorageHealthService {

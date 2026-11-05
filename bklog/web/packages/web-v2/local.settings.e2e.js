@@ -27,7 +27,13 @@
 /**
  * Isolated Webpack Dev settings for local Playwright e2e.
  * Loaded only when BKLOG_E2E_DEV=1. Does not read local.settings.js or .cookie.
+ * Proxy URL comes from AAFE_E2E_PROXY_TARGET or BKLOG_DEV_PROXY_URL.
  */
+const path = require('path');
+const { loadLocalEnv, devHost } = require('../../dev-env');
+
+loadLocalEnv(path.resolve(__dirname, '../../.env.local'));
+
 function loadLocalDevProxyUrl() {
   try {
     const localProxy = require('./local.settings.e2e.proxy');
@@ -43,14 +49,13 @@ const context = ['/apm', '/rest', '/fta', '/api', '/weixin', '/version_log', '/c
 const changeOrigin = true;
 const secure = false;
 const port = Number(process.env.AAFE_E2E_PORT || new URL(process.env.AAFE_E2E_DEV_URL || 'http://127.0.0.1:8011').port || 8011);
-const devProxyUrl = loadLocalDevProxyUrl() || process.env.AAFE_E2E_PROXY_TARGET || '';
+const devProxyUrl = loadLocalDevProxyUrl() || process.env.AAFE_E2E_PROXY_TARGET || process.env.BKLOG_DEV_PROXY_URL || '';
 const loginHost = `${devProxyUrl}/login`;
-const hostMatch = String(devProxyUrl).match(/\.([^.]+)\.com\/?/);
-const host = hostMatch ? `appdev.${hostMatch[1]}.com` : 'appdev.woa.com';
+const host = devHost();
 
 if (!devProxyUrl) {
   throw new Error(
-    'Missing e2e proxy URL. Create bklog/web/packages/web-v2/local.settings.e2e.proxy.js exporting { devProxyUrl: \'https://bklog.bkop.woa.com\' } (gitignored).',
+    'Missing e2e proxy URL. Set AAFE_E2E_PROXY_TARGET or BKLOG_DEV_PROXY_URL in bklog/web/.env.local, or export devProxyUrl from the gitignored local.settings.e2e.proxy.js.',
   );
 }
 

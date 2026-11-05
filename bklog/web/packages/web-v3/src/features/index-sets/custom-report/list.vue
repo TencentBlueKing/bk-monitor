@@ -61,7 +61,7 @@
         data-test-id="customContainer_table_container"
       >
         <bk-table
-          v-bkloading="{ isLoading: isRequest }"
+          v-loading="{ loading: isRequest }"
           class="custom-table"
           :data="collectList"
           :limit-list="pagination.limitList"
@@ -98,7 +98,7 @@
                 </span>
                 <span
                   v-if="props.row.is_desensitize"
-                  v-bk-tooltips.top="$t('已脱敏')"
+                  v-log-tooltip.top="$t('已脱敏')"
                   class="bk-icon bklog-icon bklog-masking"
                 >
                 </span>

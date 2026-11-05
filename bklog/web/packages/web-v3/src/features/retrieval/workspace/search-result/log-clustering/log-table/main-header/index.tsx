@@ -288,7 +288,7 @@ export default defineComponent({
                   >
                     <div
                       class='dynamic-column-header'
-                      v-bk-overflow-tips
+                      v-log-overflow-tips
                     >
                       {item}
                     </div>
@@ -326,7 +326,7 @@ export default defineComponent({
                     <span>{t('创建告警策略')}</span>
                     <span
                       class='tip-main'
-                      v-bk-tooltips={{
+                      v-log-tooltip={{
                         content: t(
                           '勾选后，基于聚类结果为责任人创建关键字告警。持续监测您的异常问题。通过开关可控制告警策略启停。',
                         ),

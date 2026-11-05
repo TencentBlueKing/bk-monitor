@@ -51,7 +51,7 @@
             <span>{{ $t('查询命中pattern的日志') }}</span>
           </span>
           <div
-            v-bk-tooltips="$t('新开标签页')"
+            v-log-tooltip="$t('新开标签页')"
             class="new-link"
             @click.stop="handleClick('show original', true)"
           >

@@ -24,7 +24,6 @@
   ],
   "mixinConsumers": [],
   "status": "in_progress",
-  "contract": "../../migration-project/migration-contracts/src-only-services-hooks-monitor.md",
   "baseline": {
     "standaloneJavascript": [
       "app/bootstrap/configure-app.js",
@@ -155,8 +154,7 @@
       "checkedAt": "2026-10-29T06:47:17.749Z",
       "testsPassed": 190,
       "strictTypeDiagnostics": 1271,
-      "status": "NOT_ACCEPTED",
-      "report": "../../migration-project/migration-contracts/full-business-acceptance-20261029.md"
+      "status": "NOT_ACCEPTED"
     }
   }
 }

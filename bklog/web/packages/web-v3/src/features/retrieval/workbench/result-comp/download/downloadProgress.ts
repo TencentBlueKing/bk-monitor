@@ -26,77 +26,11 @@
 
 /**
  * 日志下载进度计算工具
- * 采用「10 秒轮询真实数据 + 前端每 1 秒模拟增长」的方案
+ * 根据接口返回的真实条数计算进度
  */
-
-import {
-  DOWNLOAD_POLLING_INTERVAL,
-  DOWNLOAD_PROGRESS_BASE_GROWTH,
-  DOWNLOAD_PROGRESS_UPDATE_INTERVAL,
-} from './constants';
-
-/** 进度上限：模拟增长最多到 99% */
-const PROGRESS_CEILING = 0.99;
-
-/** 每个轮询周期内的模拟更新次数 */
-const PROGRESS_UPDATES_PER_POLL = DOWNLOAD_POLLING_INTERVAL / DOWNLOAD_PROGRESS_UPDATE_INTERVAL;
 
 /** 单位数组 */
 const UNITS = ['', 'K', 'M', 'G'];
-
-/**
- * 计算单任务进度，直接更新 task 上的 exported_count 和 progressPercent
- * 每秒增长量 = currentGrowth / 10
- * 注意：exported_count 不能超过 export_total_count * 0.99
- *
- * @param task - 带进度的任务对象（会被直接修改）
- */
-export function calculateProgress(task: any) {
-  if (!task.export_total_count || task.export_total_count <= 0) return;
-
-  // 每次更新增长量
-  const growthPerUpdate = Math.max(
-    (task.currentGrowth || DOWNLOAD_PROGRESS_BASE_GROWTH) / PROGRESS_UPDATES_PER_POLL,
-    0,
-  );
-  const maxExportedCount = Math.floor(task.export_total_count * PROGRESS_CEILING);
-
-  // 增长 exported_count，但不超过 99% 上限
-  task.exported_count = Math.min(Math.max(task.exported_count, 0) + growthPerUpdate, maxExportedCount);
-
-  // 同步计算百分比
-  task.progressPercent = calculateProgressPercent(task.exported_count, task.export_total_count);
-}
-
-/**
- * 轮询回来后修正增长量
- * 根据真实值与当前显示值的误差，修正下次增长量
- *
- * @param task - 带进度的任务对象（会被直接修改）
- * @param realExportedCount - 接口返回的真实已下载条数
- * @param baseGrowth - 基础增长量，默认 20000
- */
-export function adjustGrowthAfterPoll(
-  task: any,
-  realExportedCount: number,
-  baseGrowth = DOWNLOAD_PROGRESS_BASE_GROWTH,
-) {
-  // 计算误差：真实值 - 当前显示值
-  const error = realExportedCount - task.exported_count;
-
-  // 修正下次增长量 = 基础增长量 + 误差，确保不为负
-  const nextGrowth = Math.max(baseGrowth + error, 0);
-  task.currentGrowth = nextGrowth;
-
-  // 确保不超过 99% 上限
-  const maxExportedCount = Math.floor(task.export_total_count * PROGRESS_CEILING);
-  if (task.exported_count > maxExportedCount) {
-    task.exported_count = maxExportedCount;
-  }
-
-  // 同步计算百分比
-  task.progressPercent = calculateProgressPercent(task.exported_count, task.export_total_count);
-}
 
 /**
  * 计算百分比进度

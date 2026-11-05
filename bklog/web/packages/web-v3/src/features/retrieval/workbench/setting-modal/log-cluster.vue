@@ -27,7 +27,7 @@
 <template>
   <!-- 设置-日志聚类 -->
   <div
-    v-bkloading="{ isLoading: globalLoading }"
+    v-loading="{ loading: globalLoading }"
     class="setting-log-cluster"
   >
     <bk-form
@@ -60,7 +60,7 @@
             </bk-option>
           </bk-select>
           <span
-            v-bk-tooltips="{
+            v-log-tooltip="{
               content: $t('只能基于一个字段进行聚类，并且字段是为text的分词类型，默认为log字段'),
               placements: ['right'],
               delay: 300,
@@ -74,7 +74,7 @@
         <div class="setting-item">
           <div @click="handleChangeFinger">
             <span
-              v-bk-tooltips="$t('暂时未开放聚类关闭功能，如有关闭需求，可联系平台管理员')"
+              v-log-tooltip="$t('暂时未开放聚类关闭功能，如有关闭需求，可联系平台管理员')"
               class="top-middle"
               :disabled="!isShowFingerTips"
             >
@@ -114,7 +114,7 @@
             ></bk-input>
             <span style="margin-left: 8px">{{ $t('字节') }}</span>
             <span
-              v-bk-tooltips="{
+              v-log-tooltip="{
                 content: $t('聚类字段的最大长度，如果超过这个长度将直接丢弃，设置越大将消耗更多的资源'),
                 placements: ['right'],
                 delay: 300,

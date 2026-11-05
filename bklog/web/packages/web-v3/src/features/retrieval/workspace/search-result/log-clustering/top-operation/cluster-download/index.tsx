@@ -210,7 +210,7 @@ export default defineComponent({
           <log-icon
             type='download'
             common
-            v-bk-tooltips={{
+            v-log-tooltip={{
               content: isDisabled.value ? t('暂无数据') : t('聚类下载'),
               disabled: isDownloading.value,
             }}

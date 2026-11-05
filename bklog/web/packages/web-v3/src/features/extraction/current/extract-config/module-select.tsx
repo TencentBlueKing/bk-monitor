@@ -323,7 +323,7 @@ export default defineComponent({
       >
         <div
           class='module-select-container'
-          v-bkloading={{ isLoading: isLoading.value }}
+          v-loading={{ loading: isLoading.value }}
         >
           <TRadioGroup
             style='margin-bottom: 20px'

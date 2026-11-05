@@ -24,6 +24,7 @@
  * IN THE SOFTWARE.
  */
 
+import { Dialog as TDialog } from 'tdesign-vue-next';
 import { defineComponent, ref } from 'vue';
 
 import useLocale from '@/shared/composables/use-locale';
@@ -80,16 +81,17 @@ export default defineComponent({
       emit('cancel', !props.showDialog);
     };
 
-    return () => (
-      <bk-dialog
+    return () =>
+      props.showDialog ? (
+      <TDialog
         width={480}
-        class='stop-type-dialog'
-        header-position='left'
-        mask-close={false}
-        ok-text={props.isCustomReport ? t('确定') : t('下一步')}
-        title={t('请确认停用类型')}
-        value={props.showDialog}
+        dialogClassName='stop-type-dialog'
+        header={t('请确认停用类型')}
+        visible={props.showDialog}
+        closeOnOverlayClick={false}
+        confirmBtn={props.isCustomReport ? t('确定') : t('下一步')}
         onCancel={handleCancel}
+        onClose={handleCancel}
         onConfirm={handleSave}
       >
         <div class='stop-type-dialog-content'>
@@ -114,7 +116,7 @@ export default defineComponent({
             </div>
           ))}
         </div>
-      </bk-dialog>
-    );
+      </TDialog>
+    ) : null;
   },
 });

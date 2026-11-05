@@ -67,7 +67,7 @@
         />
       </div>
       <bk-table
-        v-bkloading="{ isLoading: tableLoading }"
+        v-loading="{ loading: tableLoading }"
         :data="tableData"
         :max-height="526"
         :pagination="pagination"
@@ -101,7 +101,7 @@
           <template #default="{ row }">
             <div class="table-ceil-container">
               <span
-                v-bk-overflow-tips
+                v-log-overflow-tips
                 class="table-view-span-detail"
                 >{{ row.query_string }}</span
               >

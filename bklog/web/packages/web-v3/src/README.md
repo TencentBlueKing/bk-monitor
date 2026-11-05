@@ -10,6 +10,6 @@
 - `platform/persistence`、`i18n`、`observability`：缓存/Worker、语言与监控协议。
 - `shared`：暂无法归属单一业务域的 UI、hooks、样式、资源和公共工具。现存跨域依赖记录于 `ai-native/boundary-debt.json`，新增依赖需评估，不能扩大耦合后直接更新基线。
 
-业务行为以原组件源码、现有契约测试和真实页面为准。契约位于 `../../migration-project/migration-contracts`（相对包目录）；来源对应关系见 `../ai-native/source-map.json`。
+业务行为以原组件源码、现有测试和真实页面为准。来源对应关系见 `../ai-native/source-map.json`。
 
 维护前先从包目录运行 `pnpm --ignore-workspace ai:context --module=retrieval --limit=30`；变更后运行 `ai:impact`、`ai:index`、`ai:check`、`test`、`build`，并验证相关页面。命令及限制见 `../ai-native/README.md`。

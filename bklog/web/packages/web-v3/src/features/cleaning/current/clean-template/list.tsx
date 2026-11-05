@@ -594,7 +594,7 @@ export default defineComponent({
             <button
               class='template-name'
               type='button'
-              v-bk-overflow-tips
+              v-log-overflow-tips
               onClick={() => handleOpenDetailSlider(row)}
             >
               {row.name}
@@ -602,7 +602,7 @@ export default defineComponent({
             {row.description && (
               <span
                 class='template-description'
-                v-bk-overflow-tips
+                v-log-overflow-tips
               >
                 {row.description}
               </span>
@@ -704,7 +704,7 @@ export default defineComponent({
               {t('编辑')}
             </TButton>
             <span
-              v-bk-tooltips={{
+              v-log-tooltip={{
                 content: t('该模板已同步至关联采集项，无需同步'),
                 disabled: row.status === 'DRAFT',
               }}

@@ -27,7 +27,7 @@
 <template>
   <section id="json-format">
     <bk-table
-      v-bkloading="{ isLoading: loading }"
+      v-loading="{ loading: loading }"
       :data="data"
       :empty-text="$t('暂无内容')"
       :size="size"
@@ -126,6 +126,7 @@
 </template>
 
 <script>
+  import { MessagePlugin } from 'tdesign-vue-next';
   import EmptyStatus from '@/shared/ui/empty-status/index';
   export default {
     components: {
@@ -200,19 +201,7 @@
         createInput.select(); // 选择对象
         document.execCommand('Copy'); // 执行浏览器复制命令
         createInput.style.display = 'none';
-        const h = this.$createElement;
-        this.$bkMessage({
-          message: h(
-            'p',
-            {
-              style: {
-                textAlign: 'center',
-              },
-            },
-            this.$t('复制成功'),
-          ),
-          offsetY: 80,
-        });
+        MessagePlugin.success({ content: this.$t('复制成功'), offset: [0, 80] });
       },
     },
   };

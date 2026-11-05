@@ -140,7 +140,7 @@ export default defineComponent({
         {/* 主内容区域，带加载状态 */}
         <div
           class='config-view-dialog-main'
-          v-bkloading={{ isLoading: loading.value }}
+          v-loading={{ loading: loading.value }}
         >
           {/* 有视图数据时渲染视图列表 */}
           {viewList.value.length > 0 ? (
@@ -155,7 +155,7 @@ export default defineComponent({
                 >
                   <div
                     class='match title-overflow'
-                    v-bk-overflow-tips
+                    v-log-overflow-tips
                   >
                     <span>{item.group}</span>
                   </div>
@@ -169,7 +169,7 @@ export default defineComponent({
                       <div
                         key={ind}
                         class='title-overflow'
-                        v-bk-overflow-tips
+                        v-log-overflow-tips
                       >
                         <span>{ele}</span>
                       </div>

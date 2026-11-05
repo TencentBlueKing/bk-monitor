@@ -23,7 +23,7 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { computed, defineAsyncComponent, defineComponent, nextTick, onMounted, ref, type Ref } from 'vue';
+import { computed, defineAsyncComponent, defineComponent, KeepAlive, nextTick, onMounted, ref, type Ref } from 'vue';
 import jsCookie from 'js-cookie';
 import { useRoute } from 'vue-router';
 
@@ -185,7 +185,20 @@ export default defineComponent({
      * 渲染路由视图
      */
     const renderRouterView = () => {
-      return <router-view class='manage-content' />;
+      return (
+        <router-view
+          v-slots={{
+            default: ({ Component }: { Component: unknown }) => {
+              const Page = Component as any;
+              return (
+                <KeepAlive include='RetrieveHub'>
+                  {Page ? <Page class='manage-content' /> : null}
+                </KeepAlive>
+              );
+            },
+          }}
+        />
+      );
     };
 
     /**

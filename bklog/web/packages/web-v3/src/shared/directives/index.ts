@@ -30,8 +30,14 @@ import cursor from './cursor';
 import EnClass from './en-class';
 import EnStyle from './en-style';
 import LogDrag from './log-drag';
+import logTooltip from './log-tooltip';
+import logOverflowTips from './log-overflow-tips';
+import logClickOutside from './log-click-outside';
 
 Vue.directive('cursor', cursor);
+Vue.directive('log-tooltip', logTooltip);
+Vue.directive('log-overflow-tips', logOverflowTips);
+Vue.directive('log-click-outside', logClickOutside);
 Vue.use(EnStyle);
 Vue.use(EnClass);
 Vue.use(LogDrag);

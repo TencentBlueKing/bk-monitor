@@ -1,5 +1,5 @@
 
-import { CheckboxGroup as TCheckboxGroup, Checkbox as TCheckbox, RadioGroup as TRadioGroup, Radio as TRadio } from 'tdesign-vue-next';
+import { CheckboxGroup as TCheckboxGroup, Checkbox as TCheckbox, RadioGroup as TRadioGroup, Radio as TRadio, Select as TSelect } from 'tdesign-vue-next';
 
 import { Button as TButton } from 'tdesign-vue-next';
 import { ServicesInstance } from '@/platform/services';
@@ -39,7 +39,9 @@ import { useRoute } from 'vue-router';
 import { useCollectList } from '../../hook/useCollectList'; // 收集列表相关功能
 import { useOperation } from '../../hook/useOperation'; // 操作相关功能
 import {
+  showCollectSaveFailure,
   showMessage,
+  showUnshownRequestError,
   TARGET_TYPES,
   collectTargetTarget,
   LOG_SPECIES_LIST,
@@ -851,17 +853,18 @@ export default defineComponent({
         {showClusterListKeys.includes(props.scenarioId) && (
           <div class='label-form-box'>
             <span class='label-title'>{t('集群选择')}</span>
-            <bk-select
+            <TSelect
               class='form-box'
               clearable={false}
               loading={linkListLoading.value}
               disabled={isUpdate.value}
-              searchable={true}
+              filterable
+              options={clusterList.value.map(item => ({ label: `${item.name} (${item.id})`, value: item.id }))}
               value={formData.value.bcs_cluster_id}
-              onSelected={(val: string|undefined) => {
+              onChange={(val: string | number | undefined) => {
+                if (typeof val !== 'string') return;
                 isConfigChange.value = true;
                 formData.value.bcs_cluster_id = val;
-                // 容器采集场景切换集群时清空 namespaces
                 if (props.scenarioId === 'container_file' || props.scenarioId === 'container_stdout') {
                   if (formData.value.configs) {
                     formData.value.configs = formData.value.configs.map(conf => ({
@@ -871,15 +874,7 @@ export default defineComponent({
                   }
                 }
               }}
-            >
-              {clusterList.value.map(item => (
-                <bk-option
-                  id={item.id}
-                  key={item.id}
-                  name={`${item.name} (${item.id})`}
-                />
-              ))}
-            </bk-select>
+            />
           </div>
         )}
         {props.scenarioId !== 'winevent' && (
@@ -970,7 +965,7 @@ export default defineComponent({
           <div class='label-form-box'>
             <span
               class='label-title no-require'
-              v-bk-tooltips={t('为减少传输和存储成本，可以过滤掉部分内容,更复杂的可在“清洗”功能中完成')}
+              v-log-tooltip={t('为减少传输和存储成本，可以过滤掉部分内容,更复杂的可在“清洗”功能中完成')}
             >
               {t('过滤内容')}
             </span>
@@ -1016,30 +1011,27 @@ export default defineComponent({
             </div>
             <div class='label-form-box'>
               <span class='label-title'>{t('字符集')}</span>
-              <bk-select
+              <TSelect
                 class='form-box'
                 clearable={false}
+                filterable
+                options={globalsData.value.data_encoding.map((option: { id: string; name: string }) => ({
+                  label: option.name,
+                  value: option.id,
+                }))}
                 value={formData.value.data_encoding}
-                searchable
-                onSelected={(val: string) => {
+                onChange={(val: string | number | undefined) => {
+                  if (typeof val !== 'string') return;
                   isConfigChange.value = true;
                   formData.value.data_encoding = val;
                 }}
-              >
-                {globalsData.value.data_encoding.map((option: { id: any; name: any; }) => (
-                  <bk-option
-                    id={option.id}
-                    key={option.id}
-                    name={option.name}
-                  />
-                ))}
-              </bk-select>
+              />
             </div>
             <div class='label-form-box'>
               <span class='label-title'>{t('采集范围')}</span>
               <span
                 class='form-box tail-files-radio-wrap'
-                v-bk-tooltips={{
+                v-log-tooltip={{
                   content: t('仅新创建采集项支持选择采集范围'),
                   placement: 'top',
                   disabled: !isUpdate.value,
@@ -1119,25 +1111,22 @@ export default defineComponent({
     const renderLinkConfig = () => (
       <div class='link-config label-form-box'>
         <span class='label-title'>{t('上报链路')}</span>
-        <bk-select
+        <TSelect
           class='form-box'
           clearable={false}
           disabled={isUpdate.value}
           loading={linkListLoading.value}
+          options={linkConfigurationList.value.map(item => ({
+            label: item.link_group_name,
+            value: item.data_link_id,
+          }))}
           value={formData.value.data_link_id}
-          onSelected={(val: string|undefined) => {
+          onChange={(val: string | number | undefined) => {
+            if (typeof val !== 'string') return;
             isConfigChange.value = true;
             formData.value.data_link_id = val;
           }}
-        >
-          {linkConfigurationList.value.map(item => (
-            <bk-option
-              id={item.data_link_id}
-              key={item.data_link_id}
-              name={item.link_group_name}
-            />
-          ))}
-        </bk-select>
+        />
       </div>
     );
     const cardConfig = [
@@ -1476,6 +1465,7 @@ export default defineComponent({
         })
         .then(res => {
           if (!res?.result) {
+            showCollectSaveFailure(res, t('保存失败'));
             callback?.(false);
             return;
           }
@@ -1497,6 +1487,7 @@ export default defineComponent({
         })
         .catch(err => {
           console.log('保存采集配置出错:', err);
+          showUnshownRequestError(err, t('保存失败'));
           callback?.(false);
         })
         .finally(() => {
@@ -1553,10 +1544,12 @@ export default defineComponent({
         .validate()
         .then(() => {
           if (props.scenarioId !== 'winevent' && !isLineRuleValid) {
+            showMessage(t('请完善段日志规则'), 'error');
             callback?.(false);
             return;
           }
           if (props.scenarioId === 'winevent' && isTargetNodesEmpty.value) {
+            showMessage(t('请选择采集目标'), 'error');
             callback?.(false);
             return;
           }
@@ -1583,11 +1576,25 @@ export default defineComponent({
           if (!isTargetNodesEmpty.value && isErr && isLogFilterErr && isConfigError && isMetadataValid) {
             setCollection({ action, callback });
           } else {
+            if (isTargetNodesEmpty.value) {
+              showMessage(t('请选择采集目标'), 'error');
+            } else if (!isErr) {
+              showMessage(t('请检查日志路径'), 'error');
+            } else if (!isLogFilterErr) {
+              showMessage(t('请检查日志过滤'), 'error');
+            } else if (!isConfigError) {
+              showMessage(t('请检查采集配置项'), 'error');
+            } else if (!isMetadataValid) {
+              showMessage(t('请检查设备元数据'), 'error');
+            } else {
+              showMessage(t('请完善采集配置'), 'error');
+            }
             callback?.(false);
           }
         })
         .catch(() => {
           loadingSave.value = false;
+          showMessage(t('请完善基础信息'), 'error');
           callback?.(false);
         });
     };
@@ -1600,7 +1607,7 @@ export default defineComponent({
     return () => (
       <div
         class='operation-step2-configuration'
-        v-bkloading={{ isLoading: loading.value }}
+        v-loading={{ loading: loading.value }}
       >
         {cardRender(cardConfig)}
         <LogIpSelector

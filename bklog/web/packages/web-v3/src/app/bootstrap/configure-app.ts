@@ -1,5 +1,6 @@
 import { ServicesInstance } from '@/platform/services';
-import { Button, Checkbox, CheckboxGroup, Radio, RadioButton, RadioGroup, Switch, Loading, Alert, Tag, Progress, Badge, Input } from 'tdesign-vue-next';
+import { Button, Checkbox, CheckboxGroup, Radio, RadioButton, RadioGroup, Switch, Loading, Alert, Tag, Progress, Badge, Input, LoadingPlugin, LoadingDirective } from 'tdesign-vue-next';
+import 'tdesign-vue-next/es/loading/style/index.css';
 /*
  * Tencent is pleased to support the open source community by making
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
@@ -33,9 +34,8 @@ import { useDocLinks } from '@/shared/composables/use-doc-links';
 import { renderHeader, xssFilter } from '../../shared/lib/util';
 import JsonFormatWrapper from '../../shared/global/json-format-wrapper.vue';
 import methods from '../../platform/plugins/methods';
-import { bkLoadingDirective } from '../../platform/compat/tdesign/loading';
 import SourceTranslation from '../../platform/i18n/translation';
-import { patchLegacyComponentSlots } from '../../platform/compat/tdesign/legacy-slot';
+import { installLegacyBkControls } from '../../platform/compat/tdesign/legacy-bk-controls';
 import { installHttp } from '@/platform/http';
 
 export function configureApp(app: import('vue').App) {
@@ -53,9 +53,10 @@ export function configureApp(app: import('vue').App) {
   app.component('TBadge', Badge);
   app.component('TInput', Input);
   app.config.globalProperties.$services = ServicesInstance;
-  patchLegacyComponentSlots(app.component('bk-table-column'));
+  installLegacyBkControls(app);
   app.component('i18n', SourceTranslation);
-  app.directive('bkloading', bkLoadingDirective);
+  app.use(LoadingPlugin);
+  app.directive('loading', LoadingDirective);
   app.config.globalProperties.$renderHeader = renderHeader;
   app.config.globalProperties.$xss = xssFilter;
   app.component('JsonFormatWrapper', JsonFormatWrapper);

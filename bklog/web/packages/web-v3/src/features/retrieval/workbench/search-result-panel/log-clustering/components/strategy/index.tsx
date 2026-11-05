@@ -387,7 +387,7 @@ export default class Strategy extends tsc<StrategyProps> {
         </div>
         <bk-form
           ref='strategyFrom'
-          v-bkloading={{ isLoading: this.formLoading }}
+          v-loading={{ loading: this.formLoading }}
           form-type='vertical'
           {...{
             ...{
@@ -537,7 +537,7 @@ export default class Strategy extends tsc<StrategyProps> {
         {strategyDialog()}
         <div class='new-built-container'>
           <div
-            v-bk-tooltips={{
+            v-log-tooltip={{
               content: this.$t('聚类告警已开启，请点击右侧入口编辑策略'),
               disabled: !this.addBtnIsDisabled,
             }}

@@ -50,7 +50,7 @@
         >
         </bk-input>
         <div
-          v-bk-tooltips="$t('同步计算平台的结果')"
+          v-log-tooltip="$t('同步计算平台的结果')"
           class="operation-icon"
           @click="handleSync"
         >
@@ -68,7 +68,7 @@
     <section class="log-clean-list">
       <bk-table
         ref="cleanTable"
-        v-bkloading="{ isLoading: isTableLoading }"
+        v-loading="{ loading: isTableLoading }"
         class="clean-table"
         :data="cleanList"
         :limit-list="pagination.limitList"

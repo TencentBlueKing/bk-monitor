@@ -26,7 +26,7 @@
 
 <template>
   <div
-    v-bkloading="{ isLoading: loading }"
+    v-loading="{ loading: loading }"
     class="clean-template-container"
   >
     <article class="article">

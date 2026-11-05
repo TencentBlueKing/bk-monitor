@@ -33,7 +33,8 @@ import { asDictionary } from '@/shared/utils/typed-record';
 import { Component, Prop } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
-import { bkTable as Table, bkTableColumn as TableColumn, bkPopover as Popover } from '@/platform/compat/tdesign/magic-controls';
+import { Table, Popup as Popover } from 'tdesign-vue-next';
+const TableColumn = (_props: Record<string, unknown>, { slots }: { slots: { default?: () => unknown } }) => slots.default?.();
 
 
 import { getFlatObjValues } from '../../../../../shared/lib/util';
@@ -430,7 +431,7 @@ export default class FieldInfo extends tsc<IProps> {
             )}
             {row.field_time_format ? (
               <TTag
-                v-bk-tooltips={this.getTimeZoneName(row.field_time_zone)}
+                v-log-tooltip={this.getTimeZoneName(row.field_time_zone)}
                 style={{borderRadius: '6px'}}
                 theme={"success"} variant='light' data-v2-display='tag'
               >
@@ -471,11 +472,11 @@ export default class FieldInfo extends tsc<IProps> {
                             class='preview-result'
                           >
                             {/* 脱敏权限未实现 先不展示脱敏前的结果 */}
-                            {/* <span class="old title-overflow" v-bk-overflow-tips>{item.origin}</span>
+                            {/* <span class="old title-overflow" v-log-overflow-tips>{item.origin}</span>
                       <i class="bk-icon icon-arrows-right"></i> */}
                             <span
                               class='result title-overflow'
-                              v-bk-overflow-tips
+                              v-log-overflow-tips
                             >
                               {item.afterMasking}
                             </span>
@@ -537,7 +538,7 @@ export default class FieldInfo extends tsc<IProps> {
         )}
 
         <Table
-          v-bkloading={{ isLoading: this.tableLoading }}
+          v-loading={{ loading: this.tableLoading }}
           data={this.tableShowList}
           pagination={this.pagination}
           size='small'

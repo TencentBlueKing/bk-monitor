@@ -146,9 +146,8 @@ export default defineComponent({
               <div class='time-str'>
                 <i
                   class='rotate-icon'
-                  v-bkloading={{
-                    isLoading: true,
-                    opacity: 1,
+                  v-loading={{
+                    loading: true,
                     zIndex: 10,
                     theme: 'primary',
                     mode: 'spin',

@@ -1,13 +1,11 @@
 <template>
-  <bk-popover
-    ref="fieldsSettingPopperRef"
+  <t-popup
     class="common-filter-popper"
-    :on-show="handlePopoverShow"
-    :tippy-options="tippyOptions"
-    animation="slide-toggle"
-    placement="bottom"
-    theme="light bk-select-dropdown"
+    :visible="popoverVisible"
+    placement="bottom-left"
     trigger="click"
+    :overlay-inner-style="{ padding: '0', background: '#fff', width: '682px', overflow: 'hidden' }"
+    @visible-change="handleVisibleChange"
   >
     <slot name="trigger">
       <div class="operation-icon">
@@ -16,6 +14,7 @@
       </div>
     </slot>
     <template #content>
+      <div class="bklog-filter-setting-panel">
       <div
         class="bklog-common-field-filter fields-container"
         :class="{ 'is-start-text-ellipsis': isStartTextEllipsis }"
@@ -31,14 +30,17 @@
               >
             </div>
             <div class="common-filter-search">
-              <bk-input
+              <t-input
                 ref="commonFilterSearchInputRef"
                 v-model="searchKeyword"
-                :clearable="true"
+                clearable
+                borderless
                 :placeholder="$t('请输入关键字')"
-                behavior="simplicity"
-                left-icon="bk-icon icon-search"
-              ></bk-input>
+              >
+                <template #prefix-icon>
+                  <span class="bk-icon icon-search left-icon"></span>
+                </template>
+              </t-input>
             </div>
             <template>
               <ul
@@ -61,7 +63,7 @@
                   >
                   </span>
                   <div
-                    v-bk-overflow-tips="{ content: `${item.query_alias || item.field_name}(${item.field_name})` }"
+                    v-log-overflow-tips="{ content: `${item.query_alias || item.field_name}(${item.field_name})` }"
                     class="display-container rtl-text"
                     :dir="textDir"
                   >
@@ -93,7 +95,7 @@
               <span>{{ $t('常驻筛选') + '(' + shadowVisible.length + ')' }}</span>
               <!-- <span
                 class="icon bklog-icon bklog-info-fill"
-                v-bk-tooltips="$t('支持拖拽更改顺序，从上向下对应列表列从左到右顺序')"
+                v-log-tooltip="$t('支持拖拽更改顺序，从上向下对应列表列从左到右顺序')"
               ></span> -->
               <span
                 class="clear-all text-action"
@@ -102,16 +104,16 @@
               >
             </div>
             <vue-draggable
-              v-bind="dragOptions"
               v-model="shadowVisible"
               class="select-list permanent-list"
+              item-key="field_name"
+              tag="ul"
+              handle=".bklog-ketuodong"
+              ghost-class="sortable-ghost-class"
+              :animation="150"
             >
-              <transition-group>
-                <li
-                  v-for="(item, index) in shadowVisible"
-                  :key="item.field_name"
-                  class="select-item"
-                >
+              <template #item="{ element: item, index }">
+                <li class="select-item">
                   <span class="icon bklog-icon bklog-ketuodong"></span>
                   <span
                     :style="{
@@ -122,7 +124,7 @@
                   >
                   </span>
                   <div
-                    v-bk-overflow-tips="{ content: `${item.query_alias || item.field_name}(${item.field_name})` }"
+                    v-log-overflow-tips="{ content: `${item.query_alias || item.field_name}(${item.field_name})` }"
                     class="display-container rtl-text"
                   >
                     <span class="field-alias">{{ item.query_alias || item.field_name }}</span>
@@ -133,7 +135,7 @@
                     @click="deleteField(item, index)"
                   ></span>
                 </li>
-              </transition-group>
+              </template>
             </vue-draggable>
           </div>
         </div>
@@ -156,8 +158,9 @@
           {{ $t('取消') }}
         </t-button>
       </div>
+      </div>
     </template>
-  </bk-popover>
+  </t-popup>
 </template>
 <script setup>
   import { ref, computed, nextTick } from 'vue';
@@ -165,7 +168,8 @@
   import { getRegExp } from '@/shared/lib/util';
   import useLocale from '@/shared/composables/use-locale';
   import useStore from '@/shared/composables/use-store';
-  import VueDraggable from 'vuedraggable';
+  import { Input as TInput, Popup as TPopup } from 'tdesign-vue-next';
+  import VueDraggable from 'vuedraggable-vue3';
 
   import { excludesFields } from '../utils/const.common.ts';
   import { BK_LOG_STORAGE } from '@/app/state/store.type.ts';
@@ -173,9 +177,7 @@
   const store = useStore();
   const { $t } = useLocale();
   const searchKeyword = ref('');
-  const tippyOptions = {
-    offset: '0, 4',
-  };
+  const popoverVisible = ref(false);
   const isStartTextEllipsis = computed(() => store.state.storage[BK_LOG_STORAGE.TEXT_ELLIPSIS_DIR] === 'start');
 
   // 定义响应式数据
@@ -216,13 +218,6 @@
 
   const shadowVisible = ref([]);
 
-  const dragOptions = ref({
-    animation: 150,
-    tag: 'ul',
-    handle: '.bklog-ketuodong',
-    'ghost-class': 'sortable-ghost-class',
-  });
-
   // 计算属性
   const toSelectLength = computed(() => {
     return shadowTotal.value.length;
@@ -254,14 +249,17 @@
     });
   };
 
-  const confirmModifyFields = async () => {
-    handleCreateRequest();
-    fieldsSettingPopperRef?.value.instance.hide();
+  const hidePopover = () => {
+    popoverVisible.value = false;
   };
 
-  const fieldsSettingPopperRef = ref('');
+  const confirmModifyFields = async () => {
+    handleCreateRequest();
+    hidePopover();
+  };
+
   const cancelModifyFields = () => {
-    fieldsSettingPopperRef?.value.instance.hide();
+    hidePopover();
   };
 
   const addField = fieldInfo => {
@@ -296,10 +294,21 @@
       commonFilterSearchInputRef.value?.focus();
     });
   };
+  const handleVisibleChange = visible => {
+    popoverVisible.value = visible;
+    if (visible) {
+      handlePopoverShow();
+    }
+  };
 </script>
 
 <style lang="scss">
   @import '../../../../../shared/styles/mixins/scroller';
+
+  .bklog-filter-setting-panel {
+    width: 682px;
+    background: #fff;
+  }
 
   .bklog-common-field-filter {
     .fields-list-container {
@@ -352,11 +361,21 @@
           height: 32px;
           padding: 0 8px;
           margin-top: 5px;
+          overflow: hidden;
+          box-sizing: border-box;
 
-          .t-input__wrap {
-            .left-icon {
-              color: #979ba5;
-            }
+          .t-input__wrap,
+          .t-input {
+            height: 32px;
+            background: transparent;
+            border: 0;
+            border-bottom: 1px solid #eaebf0;
+            border-radius: 0;
+            box-shadow: none;
+          }
+
+          .left-icon {
+            color: #979ba5;
           }
         }
 

@@ -147,7 +147,7 @@ export default defineComponent({
         <div
           class='overflow-hidden-text'
           data-resource-id={row.id}
-          v-bk-overflow-tips
+          v-log-overflow-tips
         >
           {row.name}
         </div>
@@ -172,7 +172,7 @@ export default defineComponent({
       default: ({ row }: { row: IGrokItem }) => (
         <div
           class='overflow-hidden-text'
-          v-bk-overflow-tips
+          v-log-overflow-tips
         >
           {row.sample || '--'}
         </div>
@@ -184,7 +184,7 @@ export default defineComponent({
       default: ({ row }: { row: IGrokItem }) => (
         <div
           class='overflow-hidden-text'
-          v-bk-overflow-tips
+          v-log-overflow-tips
         >
           {row.pattern}
         </div>
@@ -196,7 +196,7 @@ export default defineComponent({
       default: ({ row }: { row: IGrokItem }) => (
         <div
           class='overflow-hidden-text'
-          v-bk-overflow-tips
+          v-log-overflow-tips
         >
           {row.description || '--'}
         </div>
@@ -216,7 +216,7 @@ export default defineComponent({
           <div class='grok-table-operate'>
             <span
               class='king-button'
-              v-bk-tooltips={{
+              v-log-tooltip={{
                 content: t('内置Grok模式不可编辑'),
                 disabled: !builtin,
               }}
@@ -231,7 +231,7 @@ export default defineComponent({
             </span>
             <span
               class='king-button'
-              v-bk-tooltips={{
+              v-log-tooltip={{
                 content: t('内置Grok模式不可删除'),
                 disabled: !builtin,
               }}

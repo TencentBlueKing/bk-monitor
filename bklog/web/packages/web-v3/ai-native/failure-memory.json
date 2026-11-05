@@ -1,14 +1,453 @@
 {
-  "schemaVersion": 1,
+  "schemaVersion": 2,
+  "description": "结构化失败记忆库。每条记录必须来自已确认的缺陷（源码/文档/浏览器证据），禁止记录推测。ruleId 供 migration-engine 规则与 context-pack 检索引用。",
   "records": [
     {
-      "id": "relocation-css-path-001",
+      "id": "FM-CSS-GLOB-REWRITE",
       "status": "RESOLVED",
+      "ruleId": "process/no-broad-path-rewrite",
       "symptom": "Sass asset ENOENT: shared/assets/shared/assets",
-      "cause": "Global glob-prefix replacement also changed already relocated Sass paths",
-      "fix": "Restrict glob rewrite to classify-card; remove duplicate prefix in two styles",
-      "verification": "Production build passed in 33.55s before composition extraction",
-      "prevention": "Static path graph and production build; never broad replace asset paths without resolution"
+      "rootCause": "全局 glob 前缀替换误改已搬迁的 Sass 路径",
+      "fixPattern": "限定重写范围，逐路径核对，禁止无解析的批量路径替换",
+      "scope": [
+        "shared/assets",
+        "shared/styles"
+      ],
+      "tags": [
+        "build",
+        "scss"
+      ],
+      "regressionTest": "生产构建通过",
+      "evidence": [
+        "packages/web-v3/ai-native/failure-memory.json@v1"
+      ]
+    },
+    {
+      "id": "FM-TD-FORM-VALIDATE",
+      "status": "RESOLVED",
+      "ruleId": "tdesign-adapt/form-validate-strict-true",
+      "symptom": "校验失败的表单仍继续提交/写入",
+      "rootCause": "bk-magic Form.validate 失败时 reject，TDesign 返回错误对象；仅等待 Promise 会把失败当成功",
+      "fixPattern": "TDesign Form.validate() 结果必须严格 === true 才视为通过",
+      "scope": [
+        "features/collection",
+        "features/retrieval/workbench/collect",
+        "features/retrieval/workbench/search-bar"
+      ],
+      "tags": [
+        "tdesign",
+        "form",
+        "validate"
+      ],
+      "regressionTest": "tests/collection-index-set-native.test.mjs"
+    },
+    {
+      "id": "FM-TD-INPUT-VALUE-CALLBACK",
+      "status": "RESOLVED",
+      "ruleId": "tdesign-adapt/input-value-callback",
+      "symptom": "输入内容被写成 [object InputEvent]",
+      "rootCause": "原生 input 事件对象传入旧 onInput 字符串回调",
+      "fixPattern": "TDesign Input/Textarea 使用 onChange(value) 值回调，不直接透传事件",
+      "scope": [
+        "features/collection"
+      ],
+      "tags": [
+        "tdesign",
+        "input",
+        "textarea"
+      ],
+      "regressionTest": "tests/collection-base-multiline-native.test.mjs"
+    },
+    {
+      "id": "FM-TD-TEXTAREA-STYLE-OBJECT",
+      "status": "RESOLVED",
+      "ruleId": "tdesign-adapt/textarea-style-object",
+      "symptom": "TTextarea 设置 style='height: 280px' 后高度仍塌缩为 56px",
+      "rootCause": "TDesign textarea 只从对象形式的 attrs.style.height 读取高度，字符串 style 不参与高度计算",
+      "fixPattern": "TTextarea 高度用 style={{ height: '280px' }} 对象写法",
+      "scope": [
+        "features/retrieval/workbench/components/batch-input"
+      ],
+      "tags": [
+        "tdesign",
+        "textarea",
+        "style"
+      ],
+      "regressionTest": "浏览器实测 textarea 高度 280px（scenario RET-BATCH-INPUT）"
+    },
+    {
+      "id": "FM-TD-DIALOG-VISIBLE-ATTACH",
+      "status": "RESOLVED",
+      "ruleId": "tdesign-adapt/dialog-visible-attach",
+      "symptom": "点击入口后弹窗不可见或弹层被条件面板裁剪/无遮罩",
+      "rootCause": "bk-dialog 的 value/on-value-change/title/z-index/mask-close 不被 TDesign Dialog 识别；TDialog 未 portal 时挂载在原 span 内",
+      "fixPattern": "TDialog 使用 visible + header + attach='body' + zIndex（高于 tippy 99999，取 100000）+ closeOnOverlayClick={false}；开关必须同时 emit show-change 驱动外层 tippy hideOnClick",
+      "scope": [
+        "features/retrieval/workbench/components/batch-input",
+        "features/retrieval/workbench/search-bar"
+      ],
+      "tags": [
+        "tdesign",
+        "dialog",
+        "popup",
+        "z-index"
+      ],
+      "regressionTest": "scenario RET-BATCH-INPUT（双端浏览器验证）"
+    },
+    {
+      "id": "FM-TD-POPUP-CONTROLLED-VISIBLE",
+      "status": "RESOLVED",
+      "ruleId": "tdesign-adapt/popup-controlled-visible",
+      "symptom": "弹层打开时初始化逻辑（如 setDefaultFilterList）未执行，内容为空或两列重叠",
+      "rootCause": "TDesign Popup 不触发 bk-popover 的 on-show；弹层内容无显式宽度根节点",
+      "fixPattern": "受控 visible + @visible-change 触发初始化；内容包一层显式宽度/背景根节点",
+      "scope": [
+        "features/retrieval/workbench/search-bar/components/common-filter-setting.vue"
+      ],
+      "tags": [
+        "tdesign",
+        "popup",
+        "popover"
+      ],
+      "regressionTest": "浏览器实测面板 682px 双列布局"
+    },
+    {
+      "id": "FM-TD-SELECT-WIDTH-100",
+      "status": "RESOLVED",
+      "ruleId": "tdesign-adapt/select-width-auto-in-flex",
+      "symptom": "常驻筛选两个字段渲染成三个组件的样子，操作符下拉占满整行",
+      "rootCause": ".t-select__wrap/.t-select-input 默认 width:100%，在 flex chip 内把值输入挤出",
+      "fixPattern": "scoped 覆盖 width:auto（wrap/input__wrap/input）并隐藏不需要的 suffix；auto-width 属性不能覆盖该 100% 规则",
+      "scope": [
+        "features/retrieval/workbench/search-bar/components/common-filter-select.vue"
+      ],
+      "tags": [
+        "tdesign",
+        "select",
+        "css",
+        "visual"
+      ],
+      "regressionTest": "浏览器实测操作符宽度 ~19px 与 V2 对齐"
+    },
+    {
+      "id": "FM-TD-TREE-TRANSITION-JUMP",
+      "status": "RESOLVED",
+      "ruleId": "tdesign-adapt/tree-disable-transition",
+      "symptom": "字段树展开/收起时高度先缩后涨，纵向滚动跳动",
+      "rootCause": "TTree 默认 t-tree--transition 通过 max-height 动画展开，懒加载子节点导致高度重算",
+      "fixPattern": "TTree 显式 transition={false}，CSS 兜底清除 enter/leave 类动画",
+      "scope": [
+        "features/retrieval/workbench/field-filter-comp"
+      ],
+      "tags": [
+        "tdesign",
+        "tree",
+        "animation",
+        "visual"
+      ],
+      "regressionTest": "浏览器实测展开无 max-height 动画"
+    },
+    {
+      "id": "FM-FLEX-TITLE-SQUEEZED",
+      "status": "RESOLVED",
+      "ruleId": "visual/flex-title-min-width",
+      "symptom": "常驻筛选字段名（如 __ext.container_id）显示丢失，宽度仅 9px",
+      "rootCause": "flex item 带 overflow:hidden 时 min-width 解析为 0，文本被压缩",
+      "fixPattern": "字段名容器 flex:0 0 auto + white-space:nowrap + max-width（对齐 V2 120px）+ ellipsis",
+      "scope": [
+        "features/retrieval/workbench/search-bar/components/common-filter-select.vue"
+      ],
+      "tags": [
+        "css",
+        "flex",
+        "visual"
+      ],
+      "regressionTest": "浏览器实测字段名宽度 118/120px"
+    },
+    {
+      "id": "FM-RECYCLE-SCROLLER-VUE2",
+      "status": "RESOLVED",
+      "ruleId": "vue2-compat/no-vue-virtual-scroller",
+      "symptom": "Space 下拉列表类型分组在渲染但列表项为空",
+      "rootCause": "vue-virtual-scroller@1 只支持 Vue 2。Vue 3 应使用 2.x",
+      "fixPattern": "依赖改为 vue-virtual-scroller@2，用 RecycleScroller 的 items、itemSize、keyField 和默认插槽",
+      "scope": [
+        "shared/global/bk-space-choice"
+      ],
+      "tags": [
+        "virtual-scroll",
+        "vue2-only",
+        "space-choice"
+      ],
+      "regressionTest": "浏览器实测 ~13 万条列表窗口渲染 24 节点"
+    },
+    {
+      "id": "FM-VUEDRAGGABLE4-ITEM-SLOT",
+      "status": "RESOLVED",
+      "ruleId": "vue2-compat/vuedraggable4-item-slot",
+      "symptom": "拖拽列表不渲染或不响应拖拽",
+      "rootCause": "vuedraggable 2.x 为 Vue2 版；Vue3 需 vuedraggable@4（alias vuedraggable-vue3），且必须 item-key + #item={ element, index } 插槽",
+      "fixPattern": "替换 import 来源为 vuedraggable-vue3，补 item-key 与 #item 插槽",
+      "scope": [
+        "features/retrieval/workbench/search-bar/components/common-filter-setting.vue",
+        "features/retrieval"
+      ],
+      "tags": [
+        "drag",
+        "vue2-only"
+      ],
+      "regressionTest": "浏览器实测设置筛选弹层候选/常驻两列渲染"
+    },
+    {
+      "id": "FM-BK-EXCEPTION-NO-ILLUSTRATION",
+      "status": "RESOLVED",
+      "ruleId": "tdesign-adapt/exception-no-illustration",
+      "symptom": "bk-exception type=search-empty 无插画，空状态只剩文字或空白",
+      "rootCause": "bk-exception 是 TDesign Empty 的无映射代理，type/scene 不产生 bk-magic 插画",
+      "fixPattern": "空状态用内联 SVG + 文案自建，或复用已冻结词条；检索结果 empty 与 search-empty 走同一引导模板",
+      "scope": [
+        "features/retrieval/workbench/search-result-chart",
+        "features/retrieval/workbench/search-result-panel/log-result"
+      ],
+      "tags": [
+        "tdesign",
+        "empty",
+        "visual"
+      ],
+      "regressionTest": "代码路径审查（实时索引有数据，空态未上屏）"
+    },
+    {
+      "id": "FM-DATE-PICKER-RUNTIME-BOUNDARY",
+      "status": "RESOLVED",
+      "ruleId": "business-fidelity/date-picker-runtime-boundary",
+      "symptom": "时间弹层空白、嵌套选择器交互失效",
+      "rootCause": "@blueking/date-picker 被放到另一 Vue 运行时渲染，tippy 移动懒加载节点后脱离；SDK 的 Tab/Select API（active/update:active、Option.id/name、hidePopover）与 TDesign 不等价",
+      "fixPattern": "date-picker 必须使用其 Vue3 发行入口在同一运行时渲染；嵌套弹层以 .__bk-date-picker-popper__ 判定归属，禁止直接 mount 到 body",
+      "scope": [
+        "platform/sdk/date-picker",
+        "features/retrieval/workbench"
+      ],
+      "tags": [
+        "date-picker",
+        "third-party",
+        "runtime"
+      ],
+      "regressionTest": "R02 验收记录（245 项测试）"
+    },
+    {
+      "id": "FM-ORGANIZE-SCRIPT-STRING-REWRITE",
+      "status": "RESOLVED",
+      "ruleId": "process/no-organize-vue3-source",
+      "symptom": "业务字符串字面量被改成 ./index、../index，对象字段识别等功能受损",
+      "rootCause": "migration-engine/organize-vue3-source.py 对全部引号字符串执行路径重写，未区分模块引用与业务数据",
+      "fixPattern": "该脚本为已归档一次性工具，禁止在当前源码重跑；已恢复 12 个文件 21 处字面量",
+      "scope": [
+        "shared/global/head-navi",
+        "shared/global/json-view",
+        "features/collection/access/step-field.vue",
+        "features/charts/value-formats-package"
+      ],
+      "tags": [
+        "process",
+        "data-loss"
+      ],
+      "regressionTest": "逐处 V2 源码核对记录"
+    },
+    {
+      "id": "FM-VMODEL-COMPAT-REWRITE",
+      "status": "RESOLVED",
+      "ruleId": "vue2-compat/vmodel-compat-flag",
+      "symptom": "弹窗入口点击后无有效管理界面",
+      "rootCause": "Vue2 兼容模式把 Vue3 modelValue 改写为 value，子组件收不到",
+      "fixPattern": "组件明确关闭 COMPONENT_V_MODEL 兼容，保持父组件原 close 事件契约",
+      "scope": [
+        "features/retrieval/workbench/collect/favorite-manage-dialog.vue"
+      ],
+      "tags": [
+        "vue-compat",
+        "modelValue"
+      ],
+      "regressionTest": "收藏管理批次测试 325 项"
+    },
+    {
+      "id": "FM-BK-TABLE-EXPLICIT-COLUMNS",
+      "status": "RESOLVED",
+      "ruleId": "tdesign-adapt/table-explicit-columns",
+      "symptom": "表格列、复选、筛选、排序或编辑行为丢失",
+      "rootCause": "bk-table 隐式列与事件机制在 TDesign 需显式 columns/selectedRowKeys/onSelectChange 映射；bk-table-column 为 passthrough 不生效",
+      "fixPattern": "列定义显式数组化（含 type:'multiple' 选择列、rowKey），事件逐个映射，禁止只换标签名",
+      "scope": [
+        "features/retrieval/workbench/collect",
+        "features/retrieval/workbench/components/batch-input",
+        "features/management"
+      ],
+      "tags": [
+        "tdesign",
+        "table"
+      ],
+      "regressionTest": "导出历史六列表格对照 + scenario RET-BATCH-INPUT 勾选回填"
+    },
+    {
+      "id": "FM-POPOVER-DOM-MOVE",
+      "status": "RESOLVED",
+      "ruleId": "vue2-compat/no-manual-dom-move",
+      "symptom": "历史查询面板弹层失效/节点脱离",
+      "rootCause": "旧 $bkPopover 手动移动隐藏 DOM，Vue3 下组件树与 DOM 脱节",
+      "fixPattern": "Vue 持有完整组件树，用 TDesign Popup/Input/Tooltip 声明式渲染，删除手动节点移动",
+      "scope": [
+        "features/retrieval/workbench/sub-bar/query-history.vue"
+      ],
+      "tags": [
+        "popup",
+        "vue-compat"
+      ],
+      "regressionTest": "查询历史批次测试 252 项 + 浏览器对照"
+    },
+    {
+      "id": "FM-DUAL-CHAIN-ACCEPTANCE",
+      "status": "OPEN",
+      "ruleId": "process/dual-chain-separate-acceptance",
+      "symptom": "一条组件链验收被当作另一条通过，或 retrieve-v3 命名被误判为 Vue3 组件",
+      "rootCause": "V2 存在兼容采集/当前采集双过滤链，V2 内部也有 retrieve-v3 命名的 Vue2 组件",
+      "fixPattern": "双链各自建契约各自验收；组件版本以源码事实为准不以目录名推断",
+      "scope": [
+        "features/collection",
+        "features/retrieval"
+      ],
+      "tags": [
+        "process",
+        "acceptance"
+      ],
+      "regressionTest": "双链各自 validate() 契约测试"
+    },
+    {
+      "id": "FM-INDEX-SET-ID-NUMBER",
+      "status": "RESOLVED",
+      "ruleId": "business-fidelity/index-set-id-number",
+      "symptom": "索引集数组混入字符串 ID 导致查询或权限判断异常",
+      "rootCause": "Select 值回调产出字符串，V2 业务约定索引集 ID 为 number",
+      "fixPattern": "统一经 toIndexSetIds 归一：数字字符串还原为 number，非数字剔除",
+      "scope": [
+        "features/collection/current/components/business-comp/step2"
+      ],
+      "tags": [
+        "business",
+        "type"
+      ],
+      "regressionTest": "tests/collection-index-set-native.test.mjs"
+    },
+    {
+      "id": "FM-HTTP-ERROR-CONTRACT",
+      "status": "RESOLVED",
+      "ruleId": "business-fidelity/http-error-contract",
+      "symptom": "业务错误提示重复或吞掉异常",
+      "rootCause": "请求层 originalResponse/globalError/catchIsShowMessage 契约：业务错误先全局 toast 再以字符串 reject",
+      "fixPattern": "不改错误契约；成功路径注意 loading 中内部 cancel emit 为 no-op（与 V2 一致），父级在 submit 关闭",
+      "scope": [
+        "platform/http",
+        "features/collection"
+      ],
+      "tags": [
+        "http",
+        "business"
+      ],
+      "regressionTest": "tests/collection-index-set-native.test.mjs"
+    },
+    {
+      "id": "FM-V2-SOURCE-IS-TRUTH",
+      "status": "OPEN",
+      "ruleId": "process/v2-source-first",
+      "symptom": "以 V3 既有实现为依据继续改，放大偏差",
+      "rootCause": "V3 原型/兼容实现未经验证，不能作为功能基线",
+      "fixPattern": "一切行为以 packages/web-v2 源码与真实运行为准；V3 现状只作差异输入",
+      "scope": [
+        "*"
+      ],
+      "tags": [
+        "process"
+      ],
+      "regressionTest": "每任务 inputs 必须含 V2 源文件"
+    },
+    {
+      "id": "FM-EVIDENCE-DISCIPLINE",
+      "status": "OPEN",
+      "ruleId": "process/evidence-before-acceptance",
+      "symptom": "无浏览器证据即将 businessAccepted/visualAccepted 置真",
+      "rootCause": "文字总结代替运行证据",
+      "fixPattern": "验收证据只能来自 scenario-runner 输出或人工浏览器对照记录；缺证据保持 PENDING",
+      "scope": [
+        "*"
+      ],
+      "tags": [
+        "process",
+        "acceptance"
+      ],
+      "regressionTest": "task-ledger ACCEPTED 门禁校验"
+    },
+    {
+      "id": "FM-HMR-STALE-RELOAD",
+      "status": "RESOLVED",
+      "ruleId": "process/hard-reload-after-hmr",
+      "symptom": "修复已保存但页面行为未变",
+      "rootCause": "Vite HMR 对深依赖链未生效；hash-only 导航不重载模块",
+      "fixPattern": "硬刷新（query 在 hash 前，如 /?r=N#/retrieve/...）后再判定修复无效",
+      "scope": [
+        "*"
+      ],
+      "tags": [
+        "process",
+        "devtools"
+      ],
+      "regressionTest": "人工浏览器验证流程"
+    },
+    {
+      "id": "FM-CDP-COORD-SCALE",
+      "status": "RESOLVED",
+      "ruleId": "process/prefer-element-click",
+      "symptom": "按截图坐标点击命不中目标元素",
+      "rootCause": "IDE 浏览器截图像素与视口 CSS 像素存在缩放",
+      "fixPattern": "优先 snapshot ref 或 Runtime.evaluate element.click()；坐标点击前先用 bounding box 校准",
+      "scope": [
+        "*"
+      ],
+      "tags": [
+        "process",
+        "browser-automation"
+      ],
+      "regressionTest": "scenario-runner 一律使用选择器点击"
+    },
+    {
+      "id": "FM-TD-TABS-PROXY-EMPTY",
+      "status": "RESOLVED",
+      "ruleId": "tdesign-adapt/tabs-use-native-panel",
+      "symptom": "bk-tab 外壳可见，面板内容为空（.t-tabs__content 只有注释节点）",
+      "rootCause": "TDesign Tabs 只收集子组件 type.name === TTabPanel；legacyControl 代理后的 BkTabPanel 不会被识别",
+      "fixPattern": "含面板内容的 bk-tab 改为 t-tabs/t-tab-panel，:value + @change 写回 active；不要依赖 bk-tab 代理渲染面板",
+      "scope": [
+        "features/retrieval/workbench/sub-bar/warning-setting.vue"
+      ],
+      "tags": [
+        "tdesign",
+        "tabs"
+      ],
+      "regressionTest": "migration-contracts/scenarios/retrieve/warning-setting.yaml"
+    },
+    {
+      "id": "FM-TD-TABLE-PAGINATION-CHROME",
+      "status": "RESOLVED",
+      "ruleId": "tdesign-adapt/table-pagination-compact",
+      "symptom": "空表分页条比 V2 更高，带总条数、每页条数和跳页",
+      "rootCause": "TDesign Table 默认分页主题包含 totalContent/pageSize/jumper，bk-table 默认为紧凑页码",
+      "fixPattern": "pagination 使用 theme simple、size small，并关闭 showPageSize、showJumper、totalContent",
+      "scope": [
+        "features/retrieval/workbench/sub-bar/warning-setting.vue"
+      ],
+      "tags": [
+        "tdesign",
+        "table",
+        "visual"
+      ],
+      "regressionTest": "migration-contracts/scenarios/retrieve/warning-setting.yaml"
     }
   ]
 }

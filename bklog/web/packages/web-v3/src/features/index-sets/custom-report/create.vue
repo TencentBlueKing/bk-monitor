@@ -27,7 +27,7 @@
 <template>
   <div
     ref="addNewCustomBoxRef"
-    v-bkloading="{ isLoading: containerLoading }"
+    v-loading="{ loading: containerLoading }"
     :style="`padding-right: ${introWidth + 20}px;`"
     class="custom-create-container"
     data-test-id="custom_div_addNewCustomBox"
@@ -129,7 +129,7 @@
                 >{{ formData.collector_config_name_en }}</span
               >
             </div>
-            <span v-bk-tooltips.top="$t('自动转换成正确的数据名格式')">
+            <span v-log-tooltip.top="$t('自动转换成正确的数据名格式')">
               <t-button :variant="(true) ? 'text' : ('base')"
                 v-if="!isTextValid"
                 

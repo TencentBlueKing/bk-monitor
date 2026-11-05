@@ -464,8 +464,8 @@ export default defineComponent({
                             <div
                               class='match-list-main'
                               style={{ display: isMatchListShown.value ? 'block' : 'none' }}
-                              v-bkloading={{
-                                isLoading: isRequesting.value,
+                              v-loading={{
+                                loading: isRequesting.value,
                                 size: 'small',
                               }}
                             >
@@ -474,7 +474,7 @@ export default defineComponent({
                                   <div
                                     key={item}
                                     class='match-item'
-                                    v-bk-overflow-tips
+                                    v-log-overflow-tips
                                     onClick={e => handleChooseMatchItem(e, item)}
                                   >
                                     {item}

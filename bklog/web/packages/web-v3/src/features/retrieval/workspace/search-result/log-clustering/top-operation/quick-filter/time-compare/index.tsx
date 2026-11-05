@@ -199,7 +199,7 @@ export default defineComponent({
                                   <div class='compared-select-icon'>
                                     <span
                                       class='top-end'
-                                      v-bk-tooltips={t('自定义输入格式: 如 1h 代表一小时 h小时')}
+                                      v-log-tooltip={t('自定义输入格式: 如 1h 代表一小时 h小时')}
                                     >
                                       <i class='bklog-icon bklog-help'></i>
                                     </span>

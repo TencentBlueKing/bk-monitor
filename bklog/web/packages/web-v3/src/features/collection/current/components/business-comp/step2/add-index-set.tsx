@@ -1,7 +1,3 @@
-
-import { Button as TButton } from 'tdesign-vue-next';
-import type { ServiceOperation } from '@/platform/services/runtime/service-client';
-import { ServicesInstance } from '@/platform/services';
 /*
  * Tencent is pleased to support the open source community by making
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
@@ -28,6 +24,11 @@ import { ServicesInstance } from '@/platform/services';
  * IN THE SOFTWARE.
  */
 
+import { Button as TButton, Form as TForm, FormItem as TFormItem, Input as TInput } from 'tdesign-vue-next';
+import type { FormInstanceFunctions, FormRules } from 'tdesign-vue-next';
+import type { ServiceOperation } from '@/platform/services/runtime/service-client';
+import { ServicesInstance } from '@/platform/services';
+
 import { defineComponent, type PropType, ref, nextTick, computed, onMounted } from 'vue';
 
 import useLocale from '@/shared/composables/use-locale';
@@ -35,10 +36,14 @@ import useStore from '@/shared/composables/use-store';
 
 import { showMessage } from '../../../utils';
 
-
 import type { IListItemData } from '../../../type';
 
 import './add-index-set.scss';
+
+interface IndexGroupResponse {
+  result?: boolean;
+  message?: string;
+}
 
 /** 日志采集 - 新建/修改索引集 */
 export default defineComponent({
@@ -60,10 +65,11 @@ export default defineComponent({
   setup(props, { emit, expose }) {
     const { t } = useLocale();
     const store = useStore();
-    const inputRef = ref();
-    const editFormRef = ref();
+    const inputRef = ref<{ focus?: () => void } | null>(null);
+    const editFormRef = ref<FormInstanceFunctions | null>(null);
     const loading = ref(false);
-    const editFormRules = {
+    const submitError = ref('');
+    const editFormRules: FormRules<IListItemData> = {
       index_set_name: [
         {
           required: true,
@@ -86,37 +92,48 @@ export default defineComponent({
     onMounted(() => {
       editData.value = { ...props.data };
     });
-    /**
-     *
-     * @param config
-     */
-    const handleRequest = async (config: { method: ServiceOperation; params?: any; data?: any; message: string }) => {
+
+    const failureMessage = (error: unknown) => {
+      if (typeof error === 'string' && error) return error;
+      if (error instanceof Error && error.message) return error.message;
+      if (error && typeof error === 'object' && 'message' in error && typeof error.message === 'string') {
+        return error.message;
+      }
+      return t('操作失败');
+    };
+
+    const handleRequest = async (config: { method: ServiceOperation; params?: unknown; data?: unknown; message: string }) => {
       loading.value = true;
+      submitError.value = '';
       try {
         const res = await config.method({
           params: config.params,
           data: config.data,
-        });
+        }) as IndexGroupResponse;
 
         if (res.result) {
           showMessage(config.message);
           emit('submit', editData.value);
           handleEditGroupCancel();
+          return;
         }
+        submitError.value = res.message || t('操作失败');
+        showMessage(submitError.value, 'error');
+      } catch (error) {
+        submitError.value = failureMessage(error);
+        console.log('操作失败:', error);
       } finally {
         loading.value = false;
       }
     };
 
-    /**
-     * 编辑索引集提交
-     */
     const handleEditGroupSubmit = async () => {
       if (loading.value) {
         return;
       }
       try {
-        await editFormRef.value?.validate();
+        const valid = await editFormRef.value?.validate();
+        if (valid !== true) return;
         const { index_set_id, index_set_name } = editData.value;
         const method = props.isAdd ? ServicesInstance.collect.addIndexGroup : ServicesInstance.collect.updateIndexGroup;
         const message = props.isAdd ? t('新增成功') : t('更新成功');
@@ -128,6 +145,7 @@ export default defineComponent({
 
         await handleRequest(config);
       } catch (error) {
+        submitError.value = failureMessage(error);
         console.log('操作失败:', error);
       }
     };
@@ -140,13 +158,12 @@ export default defineComponent({
     };
     const autoFocus = () => {
       nextTick(() => {
-        inputRef.value?.$refs.input?.focus?.();
+        inputRef.value?.focus?.();
       });
     };
     expose({ autoFocus });
 
     const renderButtons = () => {
-      /** 按钮模式 */
       if (props.isFrom) {
         return (
           <div class='add-btns'>
@@ -169,7 +186,6 @@ export default defineComponent({
           </div>
         );
       }
-      /** icon 模式 */
       return (
         <span
           class={{
@@ -189,49 +205,46 @@ export default defineComponent({
       );
     };
 
-    // 新增/修改索引集名称
     const renderAddIndexSet = () => (
       <div class={props.isFrom ? 'popover-add-index-set' : 'add-index-set-input-main'}>
         {props.isFrom && <div class='title'>{props.isAdd ? t('新建索引集') : t('重命名')}</div>}
-        <bk-form
+        <TForm
           ref={editFormRef}
           class='add-index-set-form'
-          form-type='vertical'
-          {...{
-            ...{
-              model: editData.value,
-              rules: editFormRules,
-            },
-          }}
+          data={editData.value}
+          labelAlign={props.isFrom ? 'top' : 'left'}
+          labelWidth={props.isFrom ? undefined : 0}
+          rules={editFormRules}
         >
-          <bk-form-item
+          <TFormItem
             label={props.isFrom ? t('索引集名称') : ''}
-            property='index_set_name'
-            required
+            name='index_set_name'
+            requiredMark={props.isFrom}
           >
-            <bk-input
+            <TInput
               ref={inputRef}
               maxlength={50}
               placeholder={props.isFrom ? t('请输入') : t('请输入索引集名称')}
               value={editData.value.index_set_name}
               clearable
-              onInput={(val: string|undefined) => {
-                editData.value.index_set_name = val;
+              onChange={(val: string | number | undefined) => {
+                editData.value.index_set_name = val == null ? '' : String(val);
+                submitError.value = '';
               }}
               onEnter={() => {
                 handleEditGroupSubmit();
               }}
-              onKeydown={(_: unknown, event: { keyCode: number; key: string; stopPropagation: () => void; preventDefault: () => void; }) => {
-                // 在 keydown 阶段阻止事件传播
-                if (event.keyCode === 13 || event.key === 'Enter') {
+              onKeydown={(_value: string | number, context: { e?: KeyboardEvent }) => {
+                const event = context?.e;
+                if (event && (event.keyCode === 13 || event.key === 'Enter')) {
                   event.stopPropagation();
                   event.preventDefault();
-                  return false;
                 }
               }}
             />
-          </bk-form-item>
-        </bk-form>
+          </TFormItem>
+        </TForm>
+        {submitError.value ? <div class='add-index-set-error'>{submitError.value}</div> : null}
         {renderButtons()}
       </div>
     );

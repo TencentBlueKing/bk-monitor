@@ -150,7 +150,7 @@ export default class SelectIndexSetInput extends tsc<{ selectedItemList: IndexSe
           <div>
             <div
               class='bk-select-name'
-              v-bk-overflow-tips={{ placement: 'right' }}
+              v-log-overflow-tips={{ placement: 'right' }}
             >
               <span style={{ color: '#313238', fontSize: '14px' }}>{(this.selectedItem as any).indexName}</span>
               <span style='color: #757880;'>{(this.selectedItem as any).lightenName}</span>
@@ -183,7 +183,7 @@ export default class SelectIndexSetInput extends tsc<{ selectedItemList: IndexSe
                 {this.isShowNotVal(item) && <i class='not-val' />}
                 <span
                   class='title-overflow'
-                  v-bk-overflow-tips={{
+                  v-log-overflow-tips={{
                     content: `${item.indexName}${item.lightenName}`,
                   }}
                 >{`${item.indexName}${item.lightenName}`}</span>

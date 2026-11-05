@@ -5,7 +5,7 @@
     @click="isShowList"
   >
     <span
-      v-bk-tooltips.top="$t('告警')"
+      v-log-tooltip.top="$t('告警')"
       :style="{ color: badgeCount !== 0 ? 'red' : '' }"
       :class="`bklog-icon bklog-${badgeCount !== 0 ? 'gaojing-filled' : 'gaojing-line'}`"
     ></span>
@@ -22,14 +22,13 @@
         ref="refWarningSettingElement"
         class="bklog-warning-wrapper"
       >
-        <bk-tab
+        <t-tabs
           style="width: 580px; background-color: #fff"
-          :active.sync="active"
-          :active-bar="activeBar"
-          type="card"
-          @tab-change="handleTabChange"
+          :value="active"
+          theme="card"
+          @change="handleTabChange"
         >
-          <template #setting>
+          <template #action>
             <div style="display: flex; align-items: center; justify-content: center; background-color: #f0f1f5">
               <div
                 v-if="active === 'mission'"
@@ -70,11 +69,11 @@
             </div>
           </template>
 
-          <bk-tab-panel
+          <t-tab-panel
             v-for="item in panels"
             :key="item.name"
             :label="item.label"
-            :name="item.name"
+            :value="item.name"
           >
             <template #label>
               <span class="panel-name">{{ $t(item.label) }}（{{ item.count }}）</span>
@@ -91,140 +90,102 @@
                 >{{ alertText }}</span
               >
             </bk-alert> -->
-            <bk-table
+            <t-table
               v-if="active === 'mission'"
               :key="tableKey"
-              v-bkloading="{ isLoading: loading }"
+              v-loading="{ loading: loading }"
+              :columns="missionColumns"
               :data="recordListshow"
-              :empty-text="$t('暂无内容')"
-              :max-height="200"
-              :min-height="120"
-              :outer-border="false"
-              :row-border="false"
-              :stripe="true"
+              :empty="$t('暂无内容')"
+              :pagination="{
+                theme: 'simple',
+                size: 'small',
+                showPageSize: false,
+                showJumper: false,
+                totalContent: false,
+                total: recordListshow.length,
+              }"
+              row-key="alert_id"
+              stripe
               @sort-change="handleSortChange"
             >
-              <bk-table-column
-                native-cell-slot
-                :label="$t('告警名称')"
-                :min-width="120"
-              >
-                <template #default="{ row }">
-                  <div
-                    v-bk-overflow-tips="row.alert_name"
-                    class="bklog-table-col-alert-name"
-                    :style="{
-                      color: '#3a84ff',
-                      cursor: 'pointer',
-                      '--severity-color': getLevelColor(row.severity),
-                    }"
-                    @click="handleViewWarningDetail(row)"
-                  >
-                    <span class="severity-level"></span>{{ row.alert_name }}
-                  </div>
-                </template>
-              </bk-table-column>
-              <bk-table-column
-                native-cell-slot
-                :label="$t('首次发生时间')"
-                min-width="140"
-                sortable="true"
-              >
-                <template #default="{ row }">
-                  <div>
-                    {{ formatDate(row.first_anomaly_time, true) }}
-                  </div>
-                </template>
-              </bk-table-column>
-              <bk-table-column
-                :label="$t('持续时间')"
-                align="right"
-                prop="duration"
-              >
-              </bk-table-column>
-              <bk-table-column
-                native-cell-slot
-                :label="$t('状态')"
-                min-width="90"
-              >
-                <template #default="{ row }">
-                  <div>
-                    <span
-                      :style="{ color: getColor(row.status), fontSize: '14px' }"
-                      :class="getClass(row.status)"
-                    />
-                    {{ STATUS_NAME_MAP[row.status] }}
-                  </div>
-                </template>
-              </bk-table-column>
-              <!-- <bk-table-column
-                :label="$t('告警级别')"
-                min-width="90"
-              >
-                <template #default="{ row }">
-                  <div :style="{ color: getLevelColor(row.severity), fontSize: '14px' }">
-                    <span :class="getLevelClass(row.severity)" />
-                    {{ LEVEL_NAME_MAP[row.severity] }}
-                  </div>
-                </template>
-              </bk-table-column> -->
-              <bk-table-column
-                native-cell-slot
-                :label="$t('操作')"
-              >
-                <template #default="{ row }">
-                  <div
-                    style="color: #3a84ff; cursor: pointer"
-                    @click="() => handleViewLogInfo(row)"
-                  >
-                    {{ $t('查看日志') }}
-                  </div>
-                </template>
-              </bk-table-column>
-            </bk-table>
-            <bk-table
+              <template #alert_name="{ row }">
+                <div
+                  v-log-overflow-tips="row.alert_name"
+                  class="bklog-table-col-alert-name"
+                  :style="{
+                    color: '#3a84ff',
+                    cursor: 'pointer',
+                    '--severity-color': getLevelColor(row.severity),
+                  }"
+                  @click="handleViewWarningDetail(row)"
+                >
+                  <span class="severity-level"></span>{{ row.alert_name }}
+                </div>
+              </template>
+              <template #first_anomaly_time="{ row }">
+                <div>
+                  {{ formatDate(row.first_anomaly_time, true) }}
+                </div>
+              </template>
+              <template #status="{ row }">
+                <div>
+                  <span
+                    :style="{ color: getColor(row.status), fontSize: '14px' }"
+                    :class="getClass(row.status)"
+                  />
+                  {{ STATUS_NAME_MAP[row.status] }}
+                </div>
+              </template>
+              <template #operation="{ row }">
+                <div
+                  style="color: #3a84ff; cursor: pointer"
+                  @click="() => handleViewLogInfo(row)"
+                >
+                  {{ $t('查看日志') }}
+                </div>
+              </template>
+            </t-table>
+            <t-table
               v-if="active === 'config'"
               :key="tableKey"
-              v-bkloading="{ isLoading: loading }"
-              :border="false"
+              v-loading="{ loading: loading }"
+              :columns="configColumns"
               :data="strategyList"
-              :empty-text="$t('暂无内容')"
-              :max-height="200"
-              :outer-border="false"
-              :row-border="false"
-              :stripe="true"
+              :empty="$t('暂无内容')"
+              :pagination="{
+                theme: 'simple',
+                size: 'small',
+                showPageSize: false,
+                showJumper: false,
+                totalContent: false,
+                total: strategyList.length,
+              }"
+              row-key="name"
+              stripe
             >
-              <bk-table-column
-                native-cell-slot
-                :label="$t('策略')"
-              >
-                <template #default="{ row }">
-                  <div
-                    style="color: #3a84ff; cursor: pointer"
-                    @click="handleStrategyInfoClick(row)"
-                  >
-                    {{ t(row.name) }}
-                  </div>
-                </template>
-              </bk-table-column>
-              <bk-table-column
-                :label="$t('监控项')"
-                prop="query_string"
-              ></bk-table-column>
-              <bk-table-column
-                :label="$t('最近告警时间')"
-                prop="latest_time_format"
-              >
-              </bk-table-column>
-            </bk-table>
-          </bk-tab-panel>
-        </bk-tab>
+              <template #name="{ row }">
+                <div
+                  style="color: #3a84ff; cursor: pointer"
+                  @click="handleStrategyInfoClick(row)"
+                >
+                  {{ t(row.name) }}
+                </div>
+              </template>
+            </t-table>
+          </t-tab-panel>
+        </t-tabs>
       </div>
     </div>
   </div>
 </template>
 <script setup lang="ts">
-import { MessagePlugin as TDesignMessage } from 'tdesign-vue-next';
+import {
+  MessagePlugin as TDesignMessage,
+  Table as TTable,
+  Tabs as TTabs,
+  TabPanel as TTabPanel,
+} from 'tdesign-vue-next';
 import { ServicesInstance } from '@/platform/services';
 import { asDictionary } from '@/shared/utils/typed-record';
 
@@ -286,10 +247,6 @@ import { asDictionary } from '@/shared/utils/typed-record';
   // 本人待处理数量
   const ownPendingCount = ref(0);
 
-  const activeBar = {
-    position: 'top',
-    height: '6px',
-  };
   const loading = ref(false);
   const filterOwner = ref(true);
   const active = ref('mission');
@@ -370,19 +327,36 @@ import { asDictionary } from '@/shared/utils/typed-record';
   const getLevelColor = (severity: number) => LEVEL_COLOR_MAP[severity] || LEVEL_COLOR_MAP.DEFAULT;
   // const getLevelClass = (severity: number) => LEVEL_CLASS_MAP[severity] || LEVEL_CLASS_MAP.DEFAULT;
 
-  const handleTabChange = () => {
+  const handleTabChange = (value: string | number) => {
+    active.value = value as string;
     tableKey.value += 1;
   };
 
-  const handleSortChange = ({ column }: { column: unknown }) => {
-    if (!column.order) {
+  // TDesign 列定义（替换 bk-table-column 隐式列；单元格经同名插槽渲染）
+  const missionColumns = computed(() => [
+    { colKey: 'alert_name', title: t('告警名称'), minWidth: 120 },
+    { colKey: 'first_anomaly_time', title: t('首次发生时间'), minWidth: 140, sorter: true },
+    { colKey: 'duration', title: t('持续时间'), align: 'right' },
+    { colKey: 'status', title: t('状态'), minWidth: 90 },
+    { colKey: 'operation', title: t('操作') },
+  ]);
+  const configColumns = computed(() => [
+    { colKey: 'name', title: t('策略') },
+    { colKey: 'query_string', title: t('监控项') },
+    { colKey: 'latest_time_format', title: t('最近告警时间') },
+  ]);
+
+  // TDesign sort-change 归一为 V2 的 order 语义，保持原排序行为不变
+  const handleSortChange = (sortInfo: { colKey?: string; descending?: boolean } | null) => {
+    const order = sortInfo == null || sortInfo.descending === undefined ? null : sortInfo.descending ? 'descending' : 'ascending';
+    if (!order) {
       recordList.value = originRecordList.value;
     }
     // 对数组进行排序
     recordList.value.sort((a, b) => {
       // 将字符串转换为 Date 对象
       // 返回比较结果
-      return column.order === 'ascending'
+      return order === 'ascending'
         ? a.first_anomaly_time - b.first_anomaly_time
         : b.first_anomaly_time - a.first_anomaly_time;
     });
@@ -777,25 +751,26 @@ import { asDictionary } from '@/shared/utils/typed-record';
         }
       }
 
-      .bk-table-header-wrapper {
+      .t-table {
         th,
-        .cell {
-          height: 32px;
-        }
-      }
-
-      .bk-table-body-wrapper {
         td {
           height: 32px;
+        }
+
+        td {
           border-bottom: none;
         }
 
-        .bk-table-empty-text {
+        .t-table__empty {
           padding: 20px 0;
         }
 
-        .bk-table-row-striped td {
-          background-color: #fafbfd;
+        &.t-table--striped > .t-table__content > table > tbody > tr {
+          background-color: transparent;
+
+          &:nth-of-type(odd) {
+            background-color: #fafbfd;
+          }
         }
       }
     }

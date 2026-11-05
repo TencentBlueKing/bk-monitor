@@ -659,18 +659,27 @@ export default defineComponent({
         {/* 图表部分：loading/polling 不展示空态；empty 为唯一空态终态 */}
         <div
           class='echart-wrapper'
-          v-bkloading={{ isLoading: trendStatus.value === 'loading', size: 'mini' }}
+          v-loading={{ loading: trendStatus.value === 'loading', size: 'small' }}
           v-show={!isFold.value}
         >
           {showEmpty.value ? (
-            <bk-exception
+            <div
               style={{ height: `${dynamicHeight.value}px` }}
-              class='exception-wrap-item exception-part trend-chart-empty'
-              scene='part'
-              type='search-empty'
+              class='trend-chart-empty'
             >
+              <svg
+                width='64'
+                height='48'
+                viewBox='0 0 64 48'
+                aria-hidden='true'
+              >
+                <rect x='8' y='6' width='28' height='34' rx='2' fill='#f5f7fa' stroke='#dcdee5' />
+                <path d='M14 16h16M14 22h12M14 28h14' stroke='#c4c6cc' stroke-linecap='round' />
+                <circle cx='42' cy='30' r='8' fill='none' stroke='#979ba5' stroke-width='2' />
+                <path d='M48 36l6 6' stroke='#979ba5' stroke-width='2' stroke-linecap='round' />
+              </svg>
               <span>检索无数据</span>
-            </bk-exception>
+            </div>
           ) : (
             <div
               ref={trendChartCanvas}

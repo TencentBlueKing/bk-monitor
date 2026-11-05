@@ -31,7 +31,7 @@
         <div>{{ $t('编辑器') }}</div>
         <div class="right-container">
           <slot name="right"></slot>
-          <span v-bk-tooltips="{ distance: 20, content: $t('全屏'), delay: 300 }">
+          <span v-log-tooltip="{ distance: 20, content: $t('全屏'), delay: 300 }">
             <span
               v-if="!isFull"
               class="bk-icon icon-full-screen"
@@ -94,6 +94,7 @@
   </div>
 </template>
 <script>
+  import { MessagePlugin } from 'tdesign-vue-next';
   import * as monaco from 'monaco-editor';
   const PLACEHOLDER_SELECTOR = '.monaco-placeholder';
 
@@ -363,10 +364,9 @@
             this.editor.layout();
           });
         } else {
-          this.$bkMessage({
-            showClose: true,
-            message: `${this.$t('此浏览器不支持全屏操作')}, ${this.$t('请使用chrome浏览器')}`,
-            theme: 'warning',
+          MessagePlugin.warning({
+            closeBtn: true,
+            content: `${this.$t('此浏览器不支持全屏操作')}, ${this.$t('请使用chrome浏览器')}`,
           });
         }
       },

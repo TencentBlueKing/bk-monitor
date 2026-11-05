@@ -283,7 +283,7 @@ export default class QuickOpenCluster extends tsc<IProps> {
                 ))}
               </bk-select>
               <span
-                v-bk-tooltips={{
+                v-log-tooltip={{
                   content: $i18n.t('只能基于一个字段进行聚类，并且字段是为text的分词类型，默认为log字段'),
                   placements: ['right'],
                 }}

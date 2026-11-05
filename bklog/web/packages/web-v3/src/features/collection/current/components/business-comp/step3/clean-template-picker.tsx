@@ -226,7 +226,7 @@ export default defineComponent({
     return () => (
       <div
         class='clean-template-picker'
-        v-bkloading={{ isLoading: loading.value && currentPage.value === 1, size: 'mini' }}
+        v-loading={{ loading: loading.value && currentPage.value === 1, size: 'small' }}
       >
         {props.showCleanTypeTabs && (
           <div class='clean-type-tabs'>

@@ -122,7 +122,7 @@
                   <DataSetFieldItem
                     v-for="row in filteredFields"
                     :key="row.name"
-                    v-bk-tooltips="{
+                    v-log-tooltip="{
                       content: $t('已经存该字段，不可重复添加！'),
                       disabled: !isDisabled(row) || isActive(row),
                       placement: 'right',

@@ -32,8 +32,6 @@ import useStore from '@/shared/composables/use-store';
 import { Popup, Checkbox, InputNumber, Button, MessagePlugin } from 'tdesign-vue-next';
 import { toWorkerMessage } from '@/shared/lib/worker-message';
 import 'tdesign-vue-next/es/style/index.css';
-const bkMessage = ({ theme, message }) => MessagePlugin({ theme, content: message });
-
 import { BK_LOG_STORAGE } from '../../../../../app/state/store.type.ts';
 
 import BkLogPopover from '@/shared/ui/bklog-popover/index';
@@ -107,7 +105,7 @@ export default defineComponent({
     const handleConfirm = async () => {
       const updateSortList = tableSortRef.value?.shadowSort;
       if (!updateSortList?.length) {
-        bkMessage({ theme: 'warning', message: $t('至少需要配置一个排序字段') });
+        MessagePlugin.warning({ content: $t('至少需要配置一个排序字段') });
         return;
       }
       const oldSortList = userSortFields.value;
@@ -185,7 +183,7 @@ export default defineComponent({
             <div
               class='sort-time'
               onClick={() => handleShowLogTimeChange()}
-              v-bk-tooltips={{
+              v-log-tooltip={{
                 content:
                   sortStatus.value === 'desc'
                     ? $t('当前降序(点击切换)')
@@ -250,7 +248,7 @@ export default defineComponent({
             >
               <div
                 class='sort-setting'
-                v-bk-tooltips={{ content: `${$t('设置排序字段')}`, placement: 'top' }}
+                v-log-tooltip={{ content: `${$t('设置排序字段')}`, placement: 'top' }}
               >
                 <span class='icon bklog-icon bklog-shezhi sort-setting-icon' />
               </div>
@@ -277,7 +275,7 @@ export default defineComponent({
           <span class='switch-label'>{$t('换行')}</span>
         </Checkbox>
 
-        {isUnionSearch.value && (
+        {isUnionSearch.value && !isSceneMode.value && (
           <Checkbox
             style='margin: 0 12px 0 0'
             class='bklog-option-item'

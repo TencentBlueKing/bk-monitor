@@ -93,7 +93,7 @@ export default defineComponent({
             default: ({ row }: { row: LogItem }) => (
               <span
                 class='selected-task-name'
-                v-bk-overflow-tips={{
+                v-log-overflow-tips={{
                   appendTo: getOverflowTipsContainer,
                 }}
               >

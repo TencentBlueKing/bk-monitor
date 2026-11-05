@@ -55,7 +55,7 @@ export default defineComponent({
         />
         <span
           class='grok-mode-label'
-          v-bk-tooltips={t('当检测到 %{PATTERN} 就按 Grok 处理，否则按传统正则')}
+          v-log-tooltip={t('当检测到 %{PATTERN} 就按 Grok 处理，否则按传统正则')}
         >
           {t('Grok 模式')}
         </span>

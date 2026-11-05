@@ -104,7 +104,7 @@ export default defineComponent({
                     <log-icon
                       type='email'
                       common
-                      v-bk-tooltips={t('已订阅当前页面')}
+                      v-log-tooltip={t('已订阅当前页面')}
                       class={{ 'is-subscribed': isCurrentIndexSetIdCreateSubscription.value }}
                     />
                   </div>
@@ -149,7 +149,7 @@ export default defineComponent({
             <log-icon
               common
               type='email'
-              v-bk-tooltips={t('邮件订阅')}
+              v-log-tooltip={t('邮件订阅')}
             />
           </div>
         )}

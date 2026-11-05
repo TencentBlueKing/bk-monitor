@@ -55,7 +55,7 @@
           <div class="field-label">
             <span
               v-if="hiddenFieldsSet.has(field.field_name)"
-              v-bk-tooltips="{ content: $t('展示') }"
+              v-log-tooltip="{ content: $t('展示') }"
               class="field-eye-icon bklog-icon bklog-eye-slash"
               @click="
                 e => {
@@ -66,7 +66,7 @@
             ></span>
             <span
               v-else
-              v-bk-tooltips="{ content: $t('隐藏') }"
+              v-log-tooltip="{ content: $t('隐藏') }"
               class="field-eye-icon bklog-icon bklog-eye"
               @click="
                 e => {
@@ -76,7 +76,7 @@
               "
             ></span>
             <span
-              v-bk-tooltips="{ content: $t('复制') }"
+              v-log-tooltip="{ content: $t('复制') }"
               class="field-copy-icon bklog-icon bklog-data-copy"
               @click="
                 e => {
@@ -86,7 +86,7 @@
               "
             ></span>
             <span
-              v-bk-tooltips="fieldTypePopover(field.field_name)"
+              v-log-tooltip="fieldTypePopover(field.field_name)"
               :style="{
                 backgroundColor: getFieldIconColor(field.field_type),
                 color: getFieldIconTextColor(field.field_type),

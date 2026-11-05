@@ -36,7 +36,7 @@
     @cancel="handelCancelDialog"
   >
     <div
-      v-bkloading="{ isLoading: treeLoading, zIndex: 10 }"
+      v-loading="{ loading: treeLoading, zIndex: 10 }"
       class="log-target-container"
     >
       <div
@@ -67,7 +67,7 @@
             <div>
               <div class="item-slot">
                 <span
-                  v-bk-overflow-tips
+                  v-log-overflow-tips
                   class="item-name"
                   >{{ data.name }}</span
                 >
@@ -93,7 +93,7 @@
         ></div>
       </div>
       <div
-        v-bkloading="{ isLoading: labelLoading, zIndex: 10 }"
+        v-loading="{ loading: labelLoading, zIndex: 10 }"
         class="label-operate"
       >
         <div

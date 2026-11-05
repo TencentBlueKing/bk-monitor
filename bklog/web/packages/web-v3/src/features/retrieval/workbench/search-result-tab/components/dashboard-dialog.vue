@@ -7,7 +7,6 @@
   import { Dialog, Form, FormItem, Input, Select, Option, Button, MessagePlugin } from 'tdesign-vue-next';
   import { filterWithPinyin } from '@/platform/compat/tdesign/select-filter';
   import 'tdesign-vue-next/es/style/index.css';
-  const bkMessage = ({ theme, message }) => MessagePlugin({ theme, content: message });
   import useLocale from '@/shared/composables/use-locale';
   const { t } = useLocale();
   const store = useStore();
@@ -188,9 +187,9 @@
             dashboards: [],
           });
           formData.value.directory = `folder_${res.data.id}`;
-          bkMessage({
+          MessagePlugin({
             theme: 'success',
-            message: t('目录创建成功'),
+            content: t('目录创建成功'),
           });
         }
       } else {
@@ -229,17 +228,17 @@
             }
           }
 
-          bkMessage({
+          MessagePlugin({
             theme: 'success',
-            message: t('仪表盘创建成功'),
+            content: t('仪表盘创建成功'),
           });
         }
       }
     } catch (error) {
       console.error(`${isDirectory ? '创建目录' : '创建仪表盘'}失败:`, error);
-      bkMessage({
+      MessagePlugin({
         theme: 'error',
-        message: `${isDirectory ? t('创建目录') : t('创建仪表盘')}失败: ${error.message || ''}`,
+        content: `${isDirectory ? t('创建目录') : t('创建仪表盘')}失败: ${error.message || ''}`,
       });
     } finally {
       // 重置所有状态
@@ -330,17 +329,17 @@
         },
       });
       if (result.result) {
-        bkMessage({
+        MessagePlugin({
           theme: 'success',
-          message: '添加到仪表盘保存成功',
+          content: '添加到仪表盘保存成功',
         });
         handleClose();
         const url = `${window.MONITOR_URL}/?bizId=${store.state.bkBizId}#${result.data[0]?.url}`;
         window.open(url, '_blank', 'noopener,noreferrer');
       } else {
-        bkMessage({
+        MessagePlugin({
           theme: 'error',
-          message: `${result.message || '添加到仪表盘保存失败'}`,
+          content: `${result.message || '添加到仪表盘保存失败'}`,
         });
       }
     } catch (error) {
@@ -363,7 +362,7 @@
   >
     <Form
       ref="formRef"
-      v-bkloading="{ isLoading: basicLoading, zIndex: 10 }"
+      v-loading="{ loading: basicLoading, zIndex: 10 }"
       :data="formData"
       :label-width="100"
       label-align="top"

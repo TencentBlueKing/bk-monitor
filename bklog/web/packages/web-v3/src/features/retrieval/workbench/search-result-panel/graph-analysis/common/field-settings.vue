@@ -168,7 +168,7 @@
           </div>
           <div
             v-else
-            v-bk-tooltips="{ content: $t('至少需要一个字段'), placements: ['top-start'] }"
+            v-log-tooltip="{ content: $t('至少需要一个字段'), placements: ['top-start'] }"
           >
             {{ option }}
           </div>

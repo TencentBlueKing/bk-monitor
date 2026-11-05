@@ -26,6 +26,7 @@ import { asDictionary } from '@/shared/utils/typed-record';
  * IN THE SOFTWARE.
  */
 
+import { Steps as TSteps, StepItem as TStepItem } from 'tdesign-vue-next';
 import { defineComponent, onBeforeUnmount, onMounted, ref, computed, watch } from 'vue';
 
 import useLocale from '@/shared/composables/use-locale';
@@ -398,14 +399,24 @@ export default defineComponent({
                 style={{ width: `${currentStep.value.length * 200}px` }}
                 class='step-main'
               >
-                <bk-steps
-                  ext-cls='custom-icon'
-                  cur-step={step.value}
-                  line-type={'solid'}
-                  before-change={handleStepChange}
-                  controllable={isStepsControllable.value}
-                  steps={currentStep.value}
-                />
+                <TSteps
+                  class='custom-icon'
+                  current={step.value}
+                  readonly={!isStepsControllable.value}
+                  separator='line'
+                  theme='default'
+                  onChange={(current: string | number) => {
+                    void handleStepChange(Number(current));
+                  }}
+                >
+                  {currentStep.value.map(item => (
+                    <TStepItem
+                      key={item.icon}
+                      title={item.title}
+                      value={item.icon}
+                    />
+                  ))}
+                </TSteps>
               </div>
               <span
                 class='step-tips'

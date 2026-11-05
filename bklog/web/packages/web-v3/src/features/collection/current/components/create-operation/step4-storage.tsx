@@ -41,7 +41,8 @@ import ClusterTypeTabs from '../../../../clusters/current/cluster-manage/cluster
 import { CLUSTER_TYPES, ClusterType, useClusterType } from '../../../../clusters/current/cluster-manage/use-cluster-type';
 import { useOperation } from '../../hook/useOperation';
 import { showClusterSelectError } from '@/shared/lib/collector-api-error';
-import { showMessage } from '../../utils';
+import { getFormValidateMessage } from '../../save-failure';
+import { showCollectSaveFailure, showMessage, showUnshownRequestError } from '../../utils';
 import ClusterTable from '../business-comp/step4/cluster-table';
 import { deepEqual } from '@/shared/lib/util';
 
@@ -503,7 +504,7 @@ export default defineComponent({
     const renderCluster = () => (
       <div
         class='cluster-box'
-        v-bkloading={{ isLoading: loading.value }}
+        v-loading={{ loading: loading.value }}
       >
         <ClusterTypeTabs
           activeTab={activeTab.value}
@@ -707,6 +708,7 @@ export default defineComponent({
         })
         .then(res => {
           if (!res?.result) {
+            showCollectSaveFailure(res, t('保存失败'));
             callback?.(false);
             return;
           }
@@ -718,7 +720,8 @@ export default defineComponent({
             emit('cancel');
           }
         })
-        .catch(() => {
+        .catch(err => {
+          showUnshownRequestError(err, t('保存失败'));
           callback?.(false);
         })
         .finally(() => {
@@ -790,10 +793,12 @@ export default defineComponent({
               store.commit('collect/updateCurCollect', { ...formData.value, ...data, ...res.data });
             }
           } else {
+            showCollectSaveFailure(res, t('保存失败'));
             callback?.(false);
           }
         })
-        .catch(() => {
+        .catch(err => {
+          showUnshownRequestError(err, t('保存失败'));
           callback?.(false);
         })
         .finally(() => {
@@ -815,7 +820,8 @@ export default defineComponent({
       // 表单校验
       try {
         await storageFormRef.value?.validate();
-      } catch {
+      } catch (err) {
+        showMessage(getFormValidateMessage(err, t('请完善存储配置')), 'error');
         callback?.(false);
         return;
       }

@@ -96,7 +96,7 @@
                 >{{ formData.collector_config_name_en }}</span
               >
             </div>
-            <span v-bk-tooltips.top="$t('自动转换成正确的数据名格式')">
+            <span v-log-tooltip.top="$t('自动转换成正确的数据名格式')">
               <t-button :variant="(true) ? 'text' : ('base')"
                 v-if="!isTextValid"
                 
@@ -133,7 +133,7 @@
           >
             <span>{{ $t('Yaml模式') }}</span>
             <div
-              v-bk-tooltips.top="{ content: $t('请先选择集群'), delay: 500 }"
+              v-log-tooltip.top="{ content: $t('请先选择集群'), delay: 500 }"
               :disabled="!!formData.bcs_cluster_id"
             >
               <t-switch

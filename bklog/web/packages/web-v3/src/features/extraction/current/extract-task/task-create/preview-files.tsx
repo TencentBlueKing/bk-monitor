@@ -459,7 +459,7 @@ export default defineComponent({
                 <span class='required'>*</span>
                 <span
                   class='bklog-icon bklog-info-fill'
-                  v-bk-tooltips={`${t('以')}/${t('结尾查询指定目录下内容，否则默认查询该目录及其子目录下所有文件')}`}
+                  v-log-tooltip={`${t('以')}/${t('结尾查询指定目录下内容，否则默认查询该目录及其子目录下所有文件')}`}
                 />
               </div>
               <FilesInput
@@ -523,7 +523,7 @@ export default defineComponent({
           </div>
           <div
             class='preview-table-container'
-            v-bkloading={{ isLoading: isLoading.value, opacity: 0.7, zIndex: 0 }}
+            v-loading={{ loading: isLoading.value, zIndex: 0 }}
           >
             <bk-table
               ref={previewTableRef}
@@ -577,7 +577,7 @@ export default defineComponent({
                     isDirectory(row) ? (
                       <span
                         class='file-name-text download-url-text'
-                        v-bk-overflow-tips
+                        v-log-overflow-tips
                         onClick={() => getExplorerList(row)}
                       >
                         {row.path}
@@ -585,7 +585,7 @@ export default defineComponent({
                     ) : (
                       <span
                         class='file-name-text'
-                        v-bk-overflow-tips
+                        v-log-overflow-tips
                       >
                         {row.path}
                       </span>
@@ -682,13 +682,13 @@ export default defineComponent({
                   <div class='selected-file-info'>
                     <div
                       class='selected-file-path'
-                      v-bk-overflow-tips
+                      v-log-overflow-tips
                     >
                       {file.path}
                     </div>
                     <div
                       class='selected-file-ip'
-                      v-bk-overflow-tips
+                      v-log-overflow-tips
                     >
                       {file.ip || '--'}
                     </div>

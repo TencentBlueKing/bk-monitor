@@ -295,7 +295,7 @@ export default defineComponent({
           <bk-table
             ref={archiveTable}
             class='archive-table'
-            v-bkloading={{ isLoading: isTableLoading.value }}
+            v-loading={{ loading: isTableLoading.value }}
             v-slots={{
               empty: () => (
                 <div>

@@ -201,7 +201,7 @@ export default class ClusterPopover extends tsc<ClusterPopoverProps> {
               </span>
               <div
                 class='new-link'
-                v-bk-tooltips={this.$t('新开标签页')}
+                v-log-tooltip={this.$t('新开标签页')}
                 onClick={e => {
                   e.stopPropagation();
                   this.handleClick('show original', true);

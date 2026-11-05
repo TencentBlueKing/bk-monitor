@@ -31,7 +31,7 @@ import { ServicesInstance } from '@/platform/services';
 
 import { Component, Prop, Emit, Vue } from 'vue-property-decorator';
 
-import { bkTab as Tab, bkTabPanel as TabPanel } from '@/platform/compat/tdesign/magic-controls';
+import { Tabs as Tab, TabPanel } from 'tdesign-vue-next';
 
 
 import MonacoEditor from '../../collection/access/components/step-add/monaco-editor.vue';
@@ -318,7 +318,7 @@ class MaskingFieldInput extends Vue {
             <div>
               <div
                 class='json-editor'
-                v-bkloading={{ isLoading: this.inputLoading }}
+                v-loading={{ loading: this.inputLoading }}
               >
                 <MonacoEditor
                   height={this.collectHeight}

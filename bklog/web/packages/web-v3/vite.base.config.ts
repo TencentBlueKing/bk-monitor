@@ -34,15 +34,25 @@ import { defineConfig } from 'vite';
 
 const require = createRequire(import.meta.url);
 const webRoot = resolve(dirname(fileURLToPath(import.meta.url)), '../..');
+const { loadLocalEnv, devProxyUrl, allowedHosts } = require(resolve(webRoot, 'dev-env.js'));
 const settingsFile = resolve(webRoot, 'packages/web-v2/local.settings.js');
+loadLocalEnv(resolve(webRoot, '.env.local'));
 
 function loadLocalSettings() {
-  if (!existsSync(settingsFile) || !existsSync(resolve(webRoot, '.cookie'))) return {};
+  const cookieFile = resolve(webRoot, '.cookie');
+  if (!existsSync(settingsFile)) {
+    console.warn('[web-v3] 未找到 packages/web-v2/local.settings.js，/api 不会带登录头。');
+    return {};
+  }
+  if (!existsSync(cookieFile)) {
+    console.warn('[web-v3] 未找到 bklog/web/.cookie，/api 代理不会带登录头。登录 Cookie 放在该文件，不要写入仓库。');
+  }
   const previous = process.cwd();
   try {
     process.chdir(webRoot);
     return require(settingsFile);
-  } catch {
+  } catch (error) {
+    console.warn(`[web-v3] 读取 local.settings.js 失败，/api 代理不会带登录头：${error instanceof Error ? error.message : error}`);
     return {};
   } finally {
     process.chdir(previous);
@@ -50,22 +60,29 @@ function loadLocalSettings() {
 }
 
 const localSettings = loadLocalSettings();
-const proxyTarget = localSettings.devProxyUrl || 'https://bklog.woa.com';
-const proxyHeaders = localSettings.proxy?.[0]?.headers;
+const proxyRule = localSettings.proxy?.[0] ?? {};
+const proxyTarget = proxyRule.target || localSettings.devProxyUrl || devProxyUrl();
+const proxyHeaders = proxyRule.headers;
+const proxyContexts = Array.isArray(proxyRule.context) && proxyRule.context.length ? proxyRule.context : ['/api'];
+const proxy = Object.fromEntries(
+  proxyContexts.map((context: string) => [
+    context,
+    {
+      target: proxyTarget,
+      changeOrigin: proxyRule.changeOrigin !== false,
+      secure: proxyRule.secure === true,
+      headers: proxyHeaders,
+    },
+  ]),
+);
+console.info(`[web-v3] /api 代理目标${proxyTarget ? '已配置' : '未配置'}，登录头${proxyHeaders?.Cookie ? '已从 .cookie 加载' : '缺失'}`);
 
 export default defineConfig({
   plugins: [vue()],
   server: {
     host: '0.0.0.0',
     port: 4173,
-    allowedHosts: ['appdev.woa.com', 'localhost', '127.0.0.1'],
-    proxy: {
-      '/api': {
-        target: proxyTarget,
-        changeOrigin: true,
-        secure: false,
-        headers: proxyHeaders,
-      },
-    },
+    allowedHosts: allowedHosts(),
+    proxy,
   },
 });

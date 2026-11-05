@@ -42,6 +42,7 @@ export default () => {
     () => store.state.globals.fieldTypeMap,
   );
   const isUnionSearch = computed(() => store.getters.isUnionSearch);
+  const isSceneMode = computed(() => store.getters.isSceneMode);
   const unionIndexItemList = computed(() => store.getters.unionIndexItemList);
   const visibleFields = computed(() => store.getters.visibleFields);
   const isNotVisibleFieldsShow = computed(() => store.state.isNotVisibleFieldsShow);
@@ -74,7 +75,7 @@ export default () => {
       const content = fieldTypeMap.value[fieldType]?.name;
       let unionContent = '';
       // 联合查询判断字段来源 若indexSetIDs缺少已检索的索引集内容 则增加字段来源判断
-      if (isUnionSearch.value) {
+      if (isUnionSearch.value && !isSceneMode.value) {
         const indexSetIDs = field.index_set_ids?.map((item: unknown) => String(item)) || [];
         const isDifferentFields = indexSetIDs.length !== unionIndexItemList.value.length;
         if (isDifferentFields && !isUnionSource) {
@@ -121,7 +122,7 @@ export default () => {
         [
           h(
             Tooltip,
-            { content },
+            { content, destroyOnClose: true, overlayInnerStyle: { pointerEvents: 'none' } },
             {
               default: () =>
                 h('span', {
@@ -132,7 +133,11 @@ export default () => {
           ),
           h(
             Tooltip,
-            { content: isLackIndexFields ? unionContent : displayName },
+            {
+              content: isLackIndexFields ? unionContent : displayName,
+              destroyOnClose: true,
+              overlayInnerStyle: { pointerEvents: 'none' },
+            },
             {
               default: () => h('span', { class: { 'lack-index-filed': isLackIndexFields } }, [displayName]),
             },
@@ -150,7 +155,7 @@ export default () => {
             : '',
           h(
             Tooltip,
-            { content: $t('将字段从表格中移除') },
+            { content: $t('将字段从表格中移除'), destroyOnClose: true, overlayInnerStyle: { pointerEvents: 'none' } },
             {
               default: () =>
                 h('i', {

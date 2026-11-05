@@ -23,14 +23,13 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { defineComponent, ref, computed } from 'vue';
+import { defineComponent, ref, computed, watch, nextTick } from 'vue';
 import { RecycleScroller } from 'vue-virtual-scroller';
 
 import useStore from '../../composables/use-store';
 import { SPACE_TYPE_MAP } from '../../../app/state/constant';
 
 import './list.scss';
-import 'vue-virtual-scroller/dist/vue-virtual-scroller.css';
 
 export enum ETagsType {
   BCS = 'bcs',
@@ -64,6 +63,7 @@ export type ThemeType = 'dark' | 'light';
 
 // 骨架屏行数，按列表可视高度 240px / 行高 32px 铺满
 const SKELETON_ROW_COUNT = 7;
+const ITEM_HEIGHT = 32;
 
 // const DEFAULT_BIZ_ID = 'DEFAULT_BIZ_ID';
 
@@ -108,6 +108,7 @@ export default defineComponent({
   emits: ['handleClickOutSide', 'handleClickMenuItem', 'openDialog'],
   setup(props, { emit }) {
     const store = useStore();
+    const scrollerRef = ref<{ scrollToItem?: (index: number) => void } | null>(null);
     const defaultSpace = ref<IListItem | null>(null); // 当前弹窗中选中的业务
     const isSetBizIdDefault = ref(true); // 设为默认or取消默认
     const defaultBizId = computed(() => store.getters.defaultBizId); // 当前默认业务ID
@@ -141,6 +142,30 @@ export default defineComponent({
       return selectableIndex === props.selectedIndex;
     };
 
+    const scrollerItems = computed(() =>
+      props.list.map((item, index) => ({
+        ...item,
+        rowKey: `${index}-${item.space_uid || item.id || item.name}`,
+      })),
+    );
+
+    watch(
+      () => props.selectedIndex,
+      index => {
+        if (index < 0) {
+          return;
+        }
+        const selected = props.selectableItems[index];
+        const listIndex = props.list.findIndex(
+          item => item.id === selected?.id && item.space_uid === selected?.space_uid,
+        );
+        if (listIndex < 0) {
+          return;
+        }
+        nextTick(() => scrollerRef.value?.scrollToItem?.(listIndex));
+      },
+    );
+
     // 空间列表加载中的骨架占位，避免只渲染首屏预加载的单个空间造成误解
     const renderSkeleton = () => (
       <div class='list-skeleton'>
@@ -161,90 +186,80 @@ export default defineComponent({
         {props.loading ? (
           renderSkeleton()
         ) : props.list.length > 0 ? (
-          // 滚动加载
           <RecycleScroller
-            class={['list-scroller']}
+            ref={scrollerRef}
+            class='list-scroller'
+            items={scrollerItems.value}
+            itemSize={ITEM_HEIGHT}
+            keyField='rowKey'
             v-slots={{
-              default: ({ item, index }: { item: IListItem; index: number }) => (
+              default: ({ item, index }: { item: IListItem & { rowKey: string }; index: number }) => (
+              <div
+                key={item.rowKey}
+                class={['list-group', props.theme]}
+              >
                 <div
-                  key={item.id || item.name + index}
-                  class={['list-group', props.theme]}
+                  data-id={item.id}
+                  data-space-uid={item.space_uid}
+                  class={[
+                    item.type === 'group-title' ? 'list-group-title' : 'list-item',
+                    props.theme,
+                    { checked: item.space_uid === props.checked },
+                    { 'keyboard-selected': isKeyboardSelected(item) },
+                    props.commonList.length > 0 && index === props.commonList.length ? 'last-common-item' : '',
+                  ]}
+                  onClick={() => handleSelected(item)}
                 >
-                  <div
-                    key={item.id || index}
-                    data-id={item.id}
-                    data-space-uid={item.space_uid}
-                    class={[
-                      item.type === 'group-title' ? 'list-group-title' : 'list-item',
-                      props.theme,
-                      { checked: item.space_uid === props.checked },
-                      { 'keyboard-selected': isKeyboardSelected(item) },
-                      props.commonList.length > 0 && index === props.commonList.length ? 'last-common-item' : '',
-                    ]}
-                    onClick={() => handleSelected(item)}
-                  >
-                    <span class='list-item-left'>
-                      <span class='list-item-name'>{item.name}</span>
-                      <span class={['list-item-id', props.theme]}>
-                        {/* 显示业务ID或空间ID */}
-                        {item.type !== 'group-title' ? `(#${item.space_id})` : ''}
-                      </span>
-                      {/* 如果当前业务是默认业务，显示“默认”标签 */}
-                      {props.canSetDefaultSpace && defaultBizId.value && Number(defaultBizId.value) === item.id && (
-                        <span class='item-default-icon'>
-                          <span class='item-default-text'>默认</span>
-                        </span>
-                      )}
+                  <span class='list-item-left'>
+                    <span class='list-item-name'>{item.name}</span>
+                    <span class={['list-item-id', props.theme]}>
+                      {item.type !== 'group-title' ? `(#${item.space_id})` : ''}
                     </span>
-                    {/* 显示标签 */}
-                    {!item.is_hidden_tag && (
-                      <span class='list-item-right'>
-                        {item.tags?.map?.(tag => (
-                          <span
-                            key={tag.id}
-                            style={{ ...SPACE_TYPE_MAP[tag.id]?.[props.theme] }}
-                            class='list-item-tag'
-                          >
-                            {SPACE_TYPE_MAP[tag.id]?.name}
-                          </span>
-                        ))}
+                    {props.canSetDefaultSpace && defaultBizId.value && Number(defaultBizId.value) === item.id && (
+                      <span class='item-default-icon'>
+                        <span class='item-default-text'>默认</span>
                       </span>
                     )}
-                    {/* 设为默认/取消默认按钮 */}
-                    {props.canSetDefaultSpace && (
-                      <div class='set-default-button'>
-                        {defaultBizId.value && Number(defaultBizId.value) === Number(item.id) ? (
-                          <div
-                            class={`btn-style-${props.theme} remove`}
-                            onClick={e => handleDefaultBizIdDialog(e as MouseEvent, item, false)}
-                          >
-                            取消默认
-                          </div>
-                        ) : (
-                          <div
-                            class={`btn-style-${props.theme}`}
-                            onClick={e => handleDefaultBizIdDialog(e as MouseEvent, item, true)}
-                          >
-                            设为默认
-                          </div>
-                        )}
-                      </div>
-                    )}
-                  </div>
+                  </span>
+                  {!item.is_hidden_tag && (
+                    <span class='list-item-right'>
+                      {item.tags?.map?.(tag => (
+                        <span
+                          key={tag.id}
+                          style={{ ...SPACE_TYPE_MAP[tag.id]?.[props.theme] }}
+                          class='list-item-tag'
+                        >
+                          {SPACE_TYPE_MAP[tag.id]?.name}
+                        </span>
+                      ))}
+                    </span>
+                  )}
+                  {props.canSetDefaultSpace && item.type !== 'group-title' && (
+                    <div class='set-default-button'>
+                      {defaultBizId.value && Number(defaultBizId.value) === Number(item.id) ? (
+                        <div
+                          class={`btn-style-${props.theme} remove`}
+                          onClick={e => handleDefaultBizIdDialog(e as MouseEvent, item, false)}
+                        >
+                          取消默认
+                        </div>
+                      ) : (
+                        <div
+                          class={`btn-style-${props.theme}`}
+                          onClick={e => handleDefaultBizIdDialog(e as MouseEvent, item, true)}
+                        >
+                          设为默认
+                        </div>
+                      )}
+                    </div>
+                  )}
                 </div>
+              </div>
               ),
             }}
-            buffer={200} /* 提前加载200px以外的内容 */
-            itemSize={32}
-            items={Array.isArray(props.list) ? props.list : []}
           />
         ) : (
-          // 无数据时显示异常提示
-          <bk-exception
-            style='height: 300px;  display: flex; justify-content: center; align-items: center;'
-            scene='part'
-            type='search-empty'
-          />
+          <div class='list-empty'>无匹配结果</div>
         )}
       </div>
     );

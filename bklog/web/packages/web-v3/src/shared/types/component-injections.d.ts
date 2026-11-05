@@ -2,7 +2,6 @@
  * 蓝鲸智云PaaS平台 (BlueKing PaaS), MIT License. */
 import type store from '@/app/state';
 import type { Instance as PopoverInstance, Props as PopoverProps } from 'tippy.js';
-import type { VNode } from 'vue';
 import type { HttpClient } from '@/platform/http/types';
 import type i18n from '@/platform/i18n/i18n';
 import type useSourceRouter from '@/shared/composables/use-router';
@@ -11,15 +10,12 @@ import type { renderHeader, xssFilter } from '@/shared/lib/util';
 import type { createInfoService } from '@/platform/compat/tdesign/info-box-contract';
 
 export interface ApplicationInjections {
-  $bkNotify: typeof import('@/platform/compat/tdesign/magic-controls').bkNotify;
-  $bkLoading: ((options?: { opacity?: number; title?: string; [key: string]: unknown }) => void) & { hide: () => void };
-  messageError: typeof import('@/shared/lib/bkmagic').messageError;
-  messageSuccess: typeof import('@/shared/lib/bkmagic').messageSuccess;
-  messageInfo: typeof import('@/shared/lib/bkmagic').messageInfo;
-  messageWarn: typeof import('@/shared/lib/bkmagic').messageWarn;
+  messageError: typeof import('@/shared/lib/message').messageError;
+  messageSuccess: typeof import('@/shared/lib/message').messageSuccess;
+  messageInfo: typeof import('@/shared/lib/message').messageInfo;
+  messageWarn: typeof import('@/shared/lib/message').messageWarn;
   $services: import('@/platform/services').ApplicationServices;
   $bkPopover: (target: Element | EventTarget | string | null, options?: Partial<PopoverProps> & { [key: string]: unknown }) => PopoverInstance;
-  $bkMessage: (options: string | { message: string | VNode; theme?: string; delay?: number; [key: string]: unknown }) => { close(): void };
   $store: typeof store;
   $http: HttpClient;
   $t: typeof i18n.t;

@@ -42,7 +42,7 @@
         <!-- 当采集下发 -->
         <div
           v-if="!isFinishStep"
-          v-bkloading="{ isLoading: loading | (hasRunning && !tableList.length) }"
+          v-loading="{ loading: loading | (hasRunning && !tableList.length) }"
           class="step-issued-wrapper"
           data-test-id="addNewCollectionItem_div_collectionDistribution"
         >
@@ -174,7 +174,7 @@
                       <template #default>
                         <div class="cluster-table-wrapper">
                           <bk-table
-                            v-bkloading="{ isLoading: loading }"
+                            v-loading="{ loading: loading }"
                             class="cluster-table"
                             :cell-class-name="tableRowClassName"
                             :data="cluster.child"
@@ -238,7 +238,7 @@
                 </bk-exception>
                 <div
                   v-if="tableList.length"
-                  v-bkloading="{ isLoading: detail.loading }"
+                  v-loading="{ loading: detail.loading }"
                   class="detail-wrap"
                 >
                   <div class="detail-header">

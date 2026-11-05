@@ -1,7 +1,7 @@
 import { ServicesInstance } from '@/platform/services';
 import { nextTick, onBeforeUnmount, ref, type Ref } from 'vue';
 
-import { messageSuccess } from '@/shared/lib/bkmagic';
+import { messageSuccess } from '@/shared/lib/message';
 import useStore from '@/shared/composables/use-store';
 
 import { advanceRealtimeCursor, buildRealtimeTailRequest, createRealtimeCursor } from './realtime-cursor';

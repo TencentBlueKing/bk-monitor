@@ -792,7 +792,7 @@ export default defineComponent({
     const getFixedColumnsWidth = () => {
       const expandColumnWidth = 36;
       const rowIndexColumnWidth = tableShowRowIndex.value ? 50 : 0;
-      const sourceColumnWidth = isShowSourceField.value && indexSetType.value ? 230 : 0;
+      const sourceColumnWidth = isShowSourceField.value && indexSetType.value && !isSceneMode.value ? 230 : 0;
       const collectorColumnWidth = isShowCollectorField.value && isSceneMode.value ? 230 : 0;
 
       return expandColumnWidth + rowIndexColumnWidth + sourceColumnWidth + collectorColumnWidth;
@@ -944,7 +944,7 @@ export default defineComponent({
         align: 'left',
         resize: false,
         fixed: 'left',
-        disabled: !(isShowSourceField.value && indexSetType.value),
+        disabled: !(isShowSourceField.value && indexSetType.value && !isSceneMode.value),
         renderBodyCell: ({ row }: { row: ResultRow }) => {
           const indeSetName =
             unionIndexItemList.value.find((item: { index_set_id: string; }) => item.index_set_id === String(row.__index_set_id__))?.index_set_name ??
@@ -1085,7 +1085,7 @@ export default defineComponent({
       if (!sortFieldsList.length) {
         sortFieldsList = getFallbackRenderFields(filteredFields);
       }
-      if (isUnionSearch.value && indexSetOperatorConfig.value?.isShowSourceField) {
+      if (isUnionSearch.value && !isSceneMode.value && indexSetOperatorConfig.value?.isShowSourceField) {
         sortFieldsList.unshift(LOG_SOURCE_F());
       }
       if (isSceneMode.value && isShowCollectorField.value) {
@@ -2481,7 +2481,7 @@ type?: undefined; class?: undefined;
         {renderLoader()}
         {renderScrollTop()}
         {renderDelineatePopContent()}
-        {renderFullRowViewer()}
+        {fullRowViewerState.visible ? renderFullRowViewer() : null}
         <div class='resize-guide-line' />
       </div>
     );

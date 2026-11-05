@@ -67,7 +67,7 @@
             class="error-tips-container"
           >
             <span
-              v-bk-tooltips="{ width: 440, content: indexErrorText }"
+              v-log-tooltip="{ width: 440, content: indexErrorText }"
               class="bklog-icon bklog-info-fill"
             ></span>
           </div>
@@ -82,7 +82,7 @@
             {{ $t('成功匹配 {x} 条索引', { x: matchedTableIds.length }) }}
           </div>
           <bk-table
-            v-bkloading="{ isLoading: tableLoading }"
+            v-loading="{ loading: tableLoading }"
             :data="matchedTableIds"
             max-height="400"
           >

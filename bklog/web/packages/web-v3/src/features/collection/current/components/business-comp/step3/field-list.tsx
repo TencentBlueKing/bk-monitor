@@ -432,7 +432,7 @@ export default defineComponent({
           <div
             class='word-breaker bg-gray'
             title={displayValue}
-            v-bkloading={{ isLoading: props.refresh, size: 'mini' }}
+            v-loading={{ loading: props.refresh, size: 'small' }}
           >
             {displayValue}
           </div>
@@ -1006,7 +1006,7 @@ export default defineComponent({
         return (
           <div
             class='overflow-tips-field-name'
-            v-bk-tooltips={{ content: row.field_name, placement: 'top' }}
+            v-log-tooltip={{ content: row.field_name, placement: 'top' }}
           >
             {row.is_objectKey && <span class='ext-btn bklog-icon bklog-subnode' />}
             <span>{row.field_name}</span>
@@ -1119,7 +1119,7 @@ export default defineComponent({
             <i
               style='right: 8px'
               class='bk-icon icon-exclamation-circle-shape tooltips-icon'
-              v-bk-tooltips={{ content: row.fieldErr, placement: 'top' }}
+              v-log-tooltip={{ content: row.fieldErr, placement: 'top' }}
             />
           )}
           {props.selectEtlConfig === 'bk_log_json' && row.fieldAliasErr && !row.alias_name && !row.alias_name_show && (
@@ -1127,7 +1127,7 @@ export default defineComponent({
               class='tooltips-btn'
               disabled={props.isTemplateSource}
               onClick={() => handlePopoverRename(row)}
-              v-bk-tooltips={{
+              v-log-tooltip={{
                 width: row.width,
                 content: row.fieldAliasErr || t('点击重命名'),
                 placement: 'top',
@@ -1196,7 +1196,7 @@ export default defineComponent({
             {row.typeErr && (
               <i
                 class='bk-icon icon-exclamation-circle-shape tooltips-icon type-error-icon'
-                v-bk-tooltips={{ content: t('必填项'), placement: 'top' }}
+                v-log-tooltip={{ content: t('必填项'), placement: 'top' }}
               />
             )}
           </div>
@@ -1226,7 +1226,7 @@ export default defineComponent({
                   [`bklog-icon bklog-${row.is_delete ? 'visible' : 'invisible'} icons`]: true,
                   'is-disabled': props.isTemplateSource,
                 }}
-                v-bk-tooltips={{
+                v-log-tooltip={{
                   content: row.is_delete ? t('复原') : t('隐藏'),
                   disabled: props.isTemplateSource,
                 }}
@@ -1239,7 +1239,7 @@ export default defineComponent({
                   'bklog-icon bklog-log-delete icons del-icon': true,
                   'is-disabled': props.isTemplateSource,
                 }}
-                v-bk-tooltips={{ content: t('删除'), disabled: props.isTemplateSource }}
+                v-log-tooltip={{ content: t('删除'), disabled: props.isTemplateSource }}
                 onClick={() => !props.isTemplateSource && deleteField(row)}
               />
             )}

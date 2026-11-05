@@ -133,7 +133,7 @@ export default defineComponent({
           </div>
           <div
             class='preview-main'
-            v-bkloading={{ isLoading: previewLoading.value }}
+            v-loading={{ loading: previewLoading.value }}
           >
             <text-highlight
               style='word-break: break-all'

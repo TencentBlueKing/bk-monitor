@@ -517,7 +517,7 @@ export default defineComponent({
               <div class='item-content-title'>{t('采集范围')}</div>
               <span
                 class='tail-files-radio-wrap'
-                v-bk-tooltips={{
+                v-log-tooltip={{
                   content: t('仅新创建采集项支持选择采集范围'),
                   placement: 'top',
                   disabled: !props.isEdit,

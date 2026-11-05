@@ -72,7 +72,7 @@
         <div class="description-row">
           <dt class="description-term">{{ $t('索引集名称') }}</dt>
           <dd
-            v-bk-overflow-tips
+            v-log-overflow-tips
             class="description-definition"
           >
             {{ indexSetData.index_set_name || '--' }}
@@ -80,7 +80,7 @@
           <dt class="description-term">{{ $t('所属集群') }}</dt>
           <dd class="description-definition">
             <span
-              v-bk-tooltips.top="{
+              v-log-tooltip.top="{
                 content: `${indexSetData.storage_cluster_domain_name}:${indexSetData.storage_cluster_port}`,
                 disabled: !(indexSetData.storage_display_name || indexSetData.storage_cluster_name),
               }"
@@ -91,7 +91,7 @@
         <div class="description-row">
           <dt class="description-term">{{ $t('数据分类') }}</dt>
           <dd
-            v-bk-overflow-tips
+            v-log-overflow-tips
             class="description-definition"
           >
             {{ categoryMap[indexSetData.category_id] || '--' }}
@@ -104,7 +104,7 @@
         <div class="description-row">
           <dt class="description-term">{{ $t('数据源') }}</dt>
           <dd
-            v-bk-overflow-tips
+            v-log-overflow-tips
             class="description-definition"
           >
             {{ scenarioMap[indexSetData.scenario_id] || '--' }}
@@ -122,7 +122,7 @@
         {{ $t('采集项') }}
       </div>
       <bk-table
-        v-bkloading="{ isLoading: tableLoading1 }"
+        v-loading="{ loading: tableLoading1 }"
         :data="pagedIndexesList"
         :max-height="526"
         :pagination="indexesPagination"
@@ -199,7 +199,7 @@
         {{ $t('操作记录') }}
       </div>
       <bk-table
-        v-bkloading="{ isLoading: tableLoading2 }"
+        v-loading="{ loading: tableLoading2 }"
         class="king-table"
         :data="recordsData"
         :max-height="526"

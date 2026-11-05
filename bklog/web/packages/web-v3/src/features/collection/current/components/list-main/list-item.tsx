@@ -270,7 +270,7 @@ export default defineComponent({
                 'operation-item': true,
                 disabled: isCanDel || isProcessing.value,
               }}
-              v-bk-tooltips={{
+              v-log-tooltip={{
                 content: t('当前索引集在 仪表盘/告警策略 中有使用无法删除'),
                 placements: ['right'],
                 width: 240,

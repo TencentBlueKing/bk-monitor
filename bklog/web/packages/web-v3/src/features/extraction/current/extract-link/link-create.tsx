@@ -1,7 +1,7 @@
 
 import { RadioGroup as TRadioGroup, Radio as TRadio } from 'tdesign-vue-next';
 
-import { Button as TButton } from 'tdesign-vue-next';
+import { Button as TButton, MessagePlugin } from 'tdesign-vue-next';
 import { ServicesInstance } from '@/platform/services';
 /*
  * Tencent is pleased to support the open source community by making
@@ -193,12 +193,12 @@ export default defineComponent({
             params: { link_id: linkId },
             data: requestData,
           });
-          (window as any)?.bkMessage?.success?.(t('保存成功'));
+          MessagePlugin.success(t('保存成功'));
         } else {
           await ServicesInstance.extractManage.createLogExtractLink({
             data: requestData,
           });
-          (window as any)?.bkMessage?.success?.(t('创建成功'));
+          MessagePlugin.success(t('创建成功'));
         }
         isSubmit.value = true;
         router.push({ name: 'extract-link-list', query: { spaceUid: store.state.spaceUid } });
@@ -240,7 +240,7 @@ export default defineComponent({
     return () => (
       <div
         class='extract-link-create-container'
-        v-bkloading={{ isLoading: basicLoading.value }}
+        v-loading={{ loading: basicLoading.value }}
         data-test-id='extractLinkCreate_div_extractLinkCreateBox'
       >
         {/* 基础信息 */}

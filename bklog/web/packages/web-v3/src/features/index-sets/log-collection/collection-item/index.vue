@@ -56,7 +56,7 @@
     <section class="collect-list">
       <bk-table
         ref="collectTable"
-        v-bkloading="{ isLoading: isTableLoading }"
+        v-loading="{ loading: isTableLoading }"
         class="collect-table"
         :data="collectShowList"
         :empty-text="$t('暂无内容')"
@@ -100,7 +100,7 @@
             </span>
             <span
               v-if="props.row.is_desensitize"
-              v-bk-tooltips.top="$t('已脱敏')"
+              v-log-tooltip.top="$t('已脱敏')"
               class="bk-icon bklog-icon bklog-masking"
             >
             </span>
@@ -366,7 +366,7 @@
               <!-- 检索 -->
               <!-- 启用状态下 且存在 index_set_id 才能检索 -->
               <span
-                v-bk-tooltips.top="{
+                v-log-tooltip.top="{
                   content: getDisabledTipsMessage(props.row, 'search'),
                   disabled: getOperatorCanClick(props.row, 'search'),
                   delay: 500,
@@ -385,7 +385,7 @@
               </span>
               <!-- 编辑 -->
               <span
-                v-bk-tooltips.top="{
+                v-log-tooltip.top="{
                   content: getDisabledTipsMessage(props.row, 'edit'),
                   disabled: getOperatorCanClick(props.row, 'edit'),
                   delay: 500,
@@ -407,7 +407,7 @@
 
               <!-- 清洗 -->
               <span
-                v-bk-tooltips.top="{
+                v-log-tooltip.top="{
                   content: getDisabledTipsMessage(props.row, 'clean'),
                   disabled: getOperatorCanClick(props.row, 'clean'),
                   delay: 500,
@@ -445,7 +445,7 @@
                     <!-- 查看详情 -->
                     <li>
                       <a
-                        v-bk-tooltips.top="{
+                        v-log-tooltip.top="{
                           content: getDisabledTipsMessage(props.row, 'view'),
                           disabled: getOperatorCanClick(props.row, 'view'),
                           delay: 500,
@@ -462,7 +462,7 @@
                     </li>
                     <li v-if="isShowMaskingTemplate">
                       <a
-                        v-bk-tooltips.top="{
+                        v-log-tooltip.top="{
                           content: getDisabledTipsMessage(props.row, 'masking'),
                           disabled: getOperatorCanClick(props.row, 'masking'),
                           delay: 500,
@@ -477,7 +477,7 @@
                     <!-- 存储设置 -->
                     <li>
                       <a
-                        v-bk-tooltips.top="{
+                        v-log-tooltip.top="{
                           content: getDisabledTipsMessage(props.row, 'storage'),
                           disabled: getOperatorCanClick(props.row, 'storage'),
                           delay: 500,
@@ -494,7 +494,7 @@
                     <!-- 克隆 -->
                     <li>
                       <a
-                        v-bk-tooltips.top="{
+                        v-log-tooltip.top="{
                           content: getDisabledTipsMessage(props.row, 'clone'),
                           disabled: getOperatorCanClick(props.row, 'clone'),
                           delay: 500,
@@ -511,7 +511,7 @@
                     </li>
                     <li v-if="props.row.is_active">
                       <a
-                        v-bk-tooltips.top="{
+                        v-log-tooltip.top="{
                           content: getDisabledTipsMessage(props.row, 'stop'),
                           disabled: getOperatorCanClick(props.row, 'stop'),
                           delay: 500,
@@ -528,7 +528,7 @@
                     </li>
                     <li v-else>
                       <a
-                        v-bk-tooltips.top="{
+                        v-log-tooltip.top="{
                           content: getDisabledTipsMessage(props.row, 'start'),
                           disabled: getOperatorCanClick(props.row, 'start'),
                           delay: 500,
@@ -545,7 +545,7 @@
                     </li>
                     <li>
                       <a
-                        v-bk-tooltips.top="{
+                        v-log-tooltip.top="{
                           content: getDisabledTipsMessage(props.row, 'delete'),
                           disabled: getOperatorCanClick(props.row, 'delete'),
                           delay: 500,
@@ -562,7 +562,7 @@
                     </li>
                     <li v-if="enableCheckCollector">
                       <a
-                        v-bk-tooltips.top="{
+                        v-log-tooltip.top="{
                           content: getDisabledTipsMessage(props.row, 'report'),
                           disabled: getOperatorCanClick(props.row, 'report'),
                           delay: 500,

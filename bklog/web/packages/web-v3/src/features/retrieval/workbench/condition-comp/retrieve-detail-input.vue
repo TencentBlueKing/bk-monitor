@@ -26,7 +26,7 @@
 
 <template>
   <div
-    v-bk-clickoutside="handleClickOutside"
+    v-log-click-outside="handleClickOutside"
     class="retrieve-detail-input"
   >
     <monaco-detail-input
@@ -84,12 +84,12 @@
             <span class="bklog-icon bklog-field"></span>
           </div>
           <div
-            v-bk-overflow-tips="{ placement: 'right' }"
+            v-log-overflow-tips="{ placement: 'right' }"
             class="item-text text-overflow-hidden"
           >
             {{ item }}
           </div>
-          <!-- <div v-bk-overflow-tips="{ placement: 'right' }" class="item-description text-overflow-hidden">
+          <!-- <div v-log-overflow-tips="{ placement: 'right' }" class="item-description text-overflow-hidden">
               <i18n path="筛选包含{0}的结果">
                 <span class="item-callout">{{ item }}</span>
               </i18n>
@@ -108,7 +108,7 @@
             <span class="bklog-icon bklog-value"></span>
           </div>
           <div
-            v-bk-overflow-tips="{ placement: 'right' }"
+            v-log-overflow-tips="{ placement: 'right' }"
             class="item-text text-overflow-hidden"
           >
             {{ item }}
@@ -126,7 +126,7 @@
           </div>
           <div class="item-text">:</div>
           <div
-            v-bk-overflow-tips="{ placement: 'right' }"
+            v-log-overflow-tips="{ placement: 'right' }"
             class="item-description text-overflow-hidden"
           >
             <i18n path="{0}某一值">
@@ -143,7 +143,7 @@
           </div>
           <div class="item-text">:*</div>
           <div
-            v-bk-overflow-tips="{ placement: 'right' }"
+            v-log-overflow-tips="{ placement: 'right' }"
             class="item-description text-overflow-hidden"
           >
             <i18n path="{0}任意形式">
@@ -164,7 +164,7 @@
               </div>
               <div class="item-text">{{ item.operator }}</div>
               <div
-                v-bk-overflow-tips="{ placement: 'right' }"
+                v-log-overflow-tips="{ placement: 'right' }"
                 class="item-description text-overflow-hidden"
               >
                 <i18n path="{0}某一值">
@@ -186,7 +186,7 @@
           </div>
           <div class="item-text">AND</div>
           <div
-            v-bk-overflow-tips="{ placement: 'right' }"
+            v-log-overflow-tips="{ placement: 'right' }"
             class="item-description text-overflow-hidden"
           >
             <i18n path="需要{0}为真">
@@ -203,7 +203,7 @@
           </div>
           <div class="item-text">OR</div>
           <div
-            v-bk-overflow-tips="{ placement: 'right' }"
+            v-log-overflow-tips="{ placement: 'right' }"
             class="item-description text-overflow-hidden"
           >
             <i18n path="需要{0}为真">

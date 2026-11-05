@@ -88,7 +88,7 @@
                 class="select-item"
                 @click="addField(item)"
               >
-                <span v-bk-overflow-tips class="field-name">{{ getFiledDisplay(item) }}</span>
+                <span v-log-overflow-tips class="field-name">{{ getFiledDisplay(item) }}</span>
                 <span class="icon bklog-icon bklog-filled-right-arrow"></span>
               </li>
             </ul>
@@ -103,7 +103,7 @@
               <!-- 已选项列表 -->
               <span>{{ $t('已选项列表') + '(' + shadowVisible.length + ')' }}</span>
               <span
-                v-bk-tooltips="$t('支持拖拽更改顺序，从上向下对应列表列从左到右顺序')"
+                v-log-tooltip="$t('支持拖拽更改顺序，从上向下对应列表列从左到右顺序')"
                 class="icon bklog-icon bklog-info-fill"
               ></span>
               <span class="clear-all text-action" @click="deleteAllField">{{ $t('取消') }}</span>
@@ -112,7 +112,7 @@
               <transition-group>
                 <li v-for="(item, index) in shadowVisible" :key="item" class="select-item">
                   <span class="icon bklog-icon bklog-drag-dots"></span>
-                  <span v-bk-overflow-tips class="field-name">{{ getFiledDisplayByFieldName(item) }}</span>
+                  <span v-log-overflow-tips class="field-name">{{ getFiledDisplayByFieldName(item) }}</span>
                   <span class="bk-icon icon-close-circle-shape delete" @click="deleteField(item, index)"></span>
                 </li>
               </transition-group>
@@ -124,7 +124,7 @@
               <!-- 已选项列表 -->
               <span>{{ $t('已选项列表') + '(' + shadowSort.length + ')' }}</span>
               <span
-                v-bk-tooltips="$t('支持拖拽更改顺序，排在上面的拥有更高的排序权重')"
+                v-log-tooltip="$t('支持拖拽更改顺序，排在上面的拥有更高的排序权重')"
                 class="icon bklog-icon bklog-info-fill"
               ></span>
               <span class="clear-all text-action" @click="deleteAllField">{{ $t('取消') }}</span>
@@ -133,7 +133,7 @@
               <transition-group>
                 <li v-for="(item, index) in shadowSort" :key="item[0]" class="select-item">
                   <span class="icon bklog-icon bklog-drag-dots"></span>
-                  <span v-bk-overflow-tips :style="`width: calc(100% - ${fieldWidth}px);`" class="field-name">{{
+                  <span v-log-overflow-tips :style="`width: calc(100% - ${fieldWidth}px);`" class="field-name">{{
                     getFiledDisplayByFieldName(item[0])
                   }}</span>
                   <span :class="`bk-icon status ${filterStatusIcon(item[1])}`"></span>

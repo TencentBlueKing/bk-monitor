@@ -26,7 +26,7 @@
 
 <template>
   <div
-    v-bkloading="{ isLoading }"
+    v-loading="{ loading: isLoading }"
     class="log-extract-container"
   >
     <router-view></router-view>

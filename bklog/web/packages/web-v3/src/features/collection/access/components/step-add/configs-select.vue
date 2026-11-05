@@ -30,7 +30,7 @@
       v-for="(conItem, conIndex) of formData.configs"
       :key="conIndex"
       v-en-style="'width: 900px;'"
-      v-bkloading="{ isLoading: nameSpaceRequest, zIndex: 10 }"
+      v-loading="{ loading: nameSpaceRequest, zIndex: 10 }"
       class="config-box"
     >
       <div class="config-title">
@@ -67,7 +67,7 @@
               </span>
             </div>
             <div
-              v-bk-tooltips.top="{ content: $t('请先选择集群'), delay: 500 }"
+              v-log-tooltip.top="{ content: $t('请先选择集群'), delay: 500 }"
               :class="['preview', !formData.bcs_cluster_id && 'disable']"
               :disabled="!!formData.bcs_cluster_id"
               @click="handelShowDialog(conIndex, 'view')"
@@ -89,7 +89,7 @@
               </span>
             </div>
             <div
-              v-bk-tooltips.top="{ content: $t('请先选择集群'), delay: 500 }"
+              v-log-tooltip.top="{ content: $t('请先选择集群'), delay: 500 }"
               class="operator-box"
               :disabled="!!formData.bcs_cluster_id"
             >
@@ -211,7 +211,7 @@
             <template #dropdown-trigger>
               <div>
                 <div
-                  v-bk-tooltips.top="{ content: $t('请先选择集群'), delay: 500 }"
+                  v-log-tooltip.top="{ content: $t('请先选择集群'), delay: 500 }"
                   :disabled="!!formData.bcs_cluster_id"
                 >
                   <t-button :variant="(true) ? 'outline' : 'base'"

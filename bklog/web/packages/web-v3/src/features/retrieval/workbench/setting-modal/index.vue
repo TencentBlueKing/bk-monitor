@@ -83,7 +83,7 @@
               <p>
                 <span>{{ $t('索引集') }}：</span>
                 <span
-                  v-bk-overflow-tips
+                  v-log-overflow-tips
                   class="title-overflow"
                 >
                   {{ indexSetItem.index_set_name }}
@@ -92,7 +92,7 @@
               <p>
                 <span>{{ $t('索引') }}：</span>
                 <span
-                  v-bk-overflow-tips
+                  v-log-overflow-tips
                   class="title-overflow"
                 >
                   {{ showResultTableID }}
@@ -101,7 +101,7 @@
               <p>
                 <span>{{ $t('来源') }}：</span>
                 <span
-                  v-bk-overflow-tips
+                  v-log-overflow-tips
                   class="title-overflow"
                 >
                   {{ indexSetItem.scenario_name }}

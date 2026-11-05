@@ -2,8 +2,8 @@
   "status": "IN_PROGRESS",
   "date": "2026-11-02",
   "reference": {
-    "v2Origin": "http://appdev.woa.com:8001",
-    "v3Origin": "http://appdev.woa.com:4175",
+    "v2Origin": "http://127.0.0.1:8001",
+    "v3Origin": "http://127.0.0.1:4175",
     "hash": "#/retrieve/16176?spaceUid=bkcc__5000140&bizId=5000140&search_mode=ui&keyword=&addition=%5B%5D&pid=%5B%22%23%22%5D&h_12=10174228&f_11=20680",
     "observations": [
       "V2 and V3 both normalize empty addition away after query; other query parameters match.",
@@ -64,7 +64,6 @@
     }
   },
   "browserEvidence": {
-    "directory": "migration-project/evidence/20261102-native-tdesign",
     "screenshots": [
       "native-controls-offline.jpg",
       "retrieve-16176-native-toolbar.jpg"

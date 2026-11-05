@@ -12,15 +12,16 @@
   .nav-left {
     display: flex;
     align-items: center;
-    min-width: max-content;
-    max-width: 180px;
+    max-width: 480px;
     height: 100%;
     padding-left: 16px;
-    margin-right: 315px;
+    margin-right: 8px;
+    overflow: hidden;
     font-size: 18px;
 
     .log-logo-container {
       display: flex;
+      flex-shrink: 0;
       align-items: center;
       height: 100%;
       color: #96a2b9;
@@ -47,8 +48,18 @@
 
     .head-navi-left {
       &.biz-menu-select {
+        flex: 1 1 auto;
+        min-width: 0;
+        max-width: 280px;
+
         .menu-select {
+          min-width: 0;
+          max-width: 100%;
           background-color: #182132;
+        }
+
+        .menu-select-name {
+          min-width: 0;
         }
 
         .menu-select-list {

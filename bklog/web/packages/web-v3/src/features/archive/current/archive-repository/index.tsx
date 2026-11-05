@@ -311,7 +311,7 @@ export default defineComponent({
           <bk-table
             ref={repositoryTable}
             class='repository-table'
-            v-bkloading={{ isLoading: isTableLoading.value }}
+            v-loading={{ loading: isTableLoading.value }}
             v-slots={{
               empty: () => (
                 <div>

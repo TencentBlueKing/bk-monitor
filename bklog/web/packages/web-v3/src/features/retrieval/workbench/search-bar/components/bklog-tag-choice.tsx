@@ -1170,7 +1170,7 @@ export default defineComponent({
         <div
           key='bklog-choice-value'
           class='bklog-choice-value-container'
-          v-bkloading={{ isLoading: props.loading, size: 'small' }}
+          v-loading={{ loading: props.loading, size: 'small' }}
         >
           {renderOptionList()}
         </div>,

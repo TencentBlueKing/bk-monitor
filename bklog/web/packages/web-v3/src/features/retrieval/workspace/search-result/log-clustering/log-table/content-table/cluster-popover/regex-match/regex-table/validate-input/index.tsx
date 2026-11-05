@@ -202,7 +202,7 @@ export default defineComponent({
         {errorMessage.value && !props.disabled && (
           <log-icon
             class='error-icon'
-            v-bk-tooltips={errorMessage.value}
+            v-log-tooltip={errorMessage.value}
             type='circle-alert-filled'
           />
         )}

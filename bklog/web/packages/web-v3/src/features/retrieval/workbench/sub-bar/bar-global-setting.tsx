@@ -282,7 +282,7 @@ export default defineComponent({
         >
           <i
             class='bklog-icon bklog-setting-line'
-            v-bk-tooltips={t('全局设置')}
+            v-log-tooltip={t('全局设置')}
           />
           <span class='trigger-label'>{t('全局设置')}</span>
         </div>

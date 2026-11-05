@@ -80,17 +80,8 @@ const fadeOutBootstrapLoading = () => {
     appRoot.classList.add('bklog-bootstrap-app-enter');
   }
 
-  if (!loading) {
-    return;
-  }
-
-  window.setTimeout(() => {
-    loading.classList.add('is-leaving');
-  }, 60);
-
-  window.setTimeout(() => {
-    loading.parentNode?.removeChild(loading);
-  }, 520);
+  // 首屏已提交（路由骨架或检索内容）后再撤掉 HTML 骨架，避免盖住已渲染的页面。
+  loading?.remove();
 };
 
 // import { localSettings } from './local.po';
@@ -245,8 +236,6 @@ const mountedVueInstance = () => {
         },
         mounted() {
           fadeOutBootstrapLoading();
-          // 对于手动输入URL，直接刷新页面重置所有参数和状态
-          window.addEventListener('hashchange', this.reset);
           if (!isHeadlessRoute()) {
             getAllSpaceList(http, store);
             const requestUserGuide = () => {
@@ -260,14 +249,6 @@ const mountedVueInstance = () => {
               window.setTimeout(requestUserGuide, 1200);
             }
           }
-        },
-        beforeUnmount() {
-          window.removeEventListener('hashchange', this.reset);
-        },
-        methods: {
-          reset() {
-            window.location.reload();
-          },
         },
         render() {
           return h(App);

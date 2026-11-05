@@ -35,7 +35,7 @@
       <template #right>
         <div class="load">
           <span
-            v-bk-tooltips="{ distance: 20, content: $t('上传'), delay: 300 }"
+            v-log-tooltip="{ distance: 20, content: $t('上传'), delay: 300 }"
             class="load-tips"
           >
             <span
@@ -44,7 +44,7 @@
             ></span>
           </span>
           <span
-            v-bk-tooltips="{ distance: 20, content: $t('下载'), delay: 300 }"
+            v-log-tooltip="{ distance: 20, content: $t('下载'), delay: 300 }"
             class="load-tips"
           >
             <span

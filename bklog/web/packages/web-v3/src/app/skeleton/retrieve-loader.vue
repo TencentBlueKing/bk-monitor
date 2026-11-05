@@ -25,35 +25,29 @@
 -->
 
 <template>
-  <bk-table
+  <div
     v-if="columnField.length"
     class="skeleton-table"
-    :data="renderList"
-    :show-header="false"
   >
-    <bk-table-column width="30"></bk-table-column>
-    <template>
-      <bk-table-column
-        native-cell-slot
+    <div
+      v-for="(_, rowIndex) in renderList"
+      :key="rowIndex"
+      class="skeleton-row"
+    >
+      <div class="skeleton-gutter"></div>
+      <div
         v-for="(field, index) in columnField"
-        :key="index"
-        :min-width="!isLoading || isOriginalField ? field.minWidth : 0"
-        :width="!isLoading || isOriginalField ? field.width : 'auto'"
+        :key="`${rowIndex}-${index}`"
+        class="skeleton-cell"
+        :style="cellStyle(field)"
       >
-        <!-- eslint-disable-next-line vue/no-unused-vars -->
-        <template #default="props">
-          <div
-            :style="`width:${getRandom()}%`"
-            class="cell-bar"
-          ></div>
-        </template>
-      </bk-table-column>
-    </template>
-    <bk-table-column
-      v-if="!isLoading"
-      width="84"
-    ></bk-table-column>
-  </bk-table>
+        <div
+          class="cell-bar"
+          :style="{ width: `${barWidth(rowIndex, index)}%` }"
+        ></div>
+      </div>
+    </div>
+  </div>
 </template>
 
 <script>
@@ -128,9 +122,15 @@
       }
     },
     methods: {
-      getRandom() {
-        // 骨架占位随机长度
-        return Math.floor(Math.random() * (20 - 100) + 100);
+      barWidth(rowIndex, columnIndex) {
+        return 45 + ((rowIndex * 17 + columnIndex * 29) % 50);
+      },
+      cellStyle(field) {
+        const width = Number(field?.width);
+        if (width > 0) {
+          return { flex: `0 0 ${width}px`, width: `${width}px` };
+        }
+        return { flex: '1 1 0', minWidth: '80px' };
       },
       handleScroll() {
         if (this.throttle || this.isLoading) {
@@ -153,24 +153,31 @@
 
 <style lang="scss">
   .skeleton-table {
-    &:before {
-      z-index: -1;
+    width: 100%;
+    background: #fff;
+
+    .skeleton-row {
+      display: flex;
+      align-items: center;
+      height: 42px;
+      border-bottom: 1px solid #f0f1f5;
     }
 
-    .cell {
-      width: 100%;
-      padding-top: 14px;
+    .skeleton-gutter {
+      flex: 0 0 30px;
+      width: 30px;
+    }
+
+    .skeleton-cell {
+      box-sizing: border-box;
+      padding: 0 16px;
+      overflow: hidden;
     }
 
     .cell-bar {
-      position: relative;
       height: 12px;
       background-color: #e9e9e9;
-    }
-
-    :deep(.bk-table-empty-text) {
-      width: 100%;
-      padding: 0;
+      border-radius: 2px;
     }
   }
 </style>

@@ -96,6 +96,9 @@ export default defineComponent({
     };
 
     // 初始化数据，避免后台造的数据为空数组
+    if (!Array.isArray(manageStrategyData.value.modules)) {
+      manageStrategyData.value.modules = [];
+    }
     if (!manageStrategyData.value.visible_dir?.length) {
       manageStrategyData.value.visible_dir = [{ id: uniqueId('dir_'), value: '' }];
     } else {
@@ -292,7 +295,7 @@ export default defineComponent({
               <span class='required'> * </span>
               <span
                 class='bklog-icon bklog-info-fill'
-                v-bk-tooltips={{ width: 200, content: t('不同类别的授权用户，通过用户组名区分，单业务下唯一') }}
+                v-log-tooltip={{ width: 200, content: t('不同类别的授权用户，通过用户组名区分，单业务下唯一') }}
               />
             </div>
             <div class='content'>
@@ -314,7 +317,7 @@ export default defineComponent({
               <span class='required'> * </span>
               <span
                 class='bklog-icon bklog-info-fill'
-                v-bk-tooltips={{
+                v-log-tooltip={{
                   width: 200,
                   content: props.allowCreate
                     ? t('多个QQ号粘贴请使用英文分号 " ; " 分隔 ，手动输入QQ号请键入 Enter 保存')
@@ -340,7 +343,7 @@ export default defineComponent({
               <span class='required'> * </span>
               <span
                 class='bklog-icon bklog-info-fill'
-                v-bk-tooltips={{ width: 200, content: t('目录以 / 结尾，windows 服务器以 /cygdrive/ 开头') }}
+                v-log-tooltip={{ width: 200, content: t('目录以 / 结尾，windows 服务器以 /cygdrive/ 开头') }}
               />
             </div>
             <div class='content'>{renderVisibleDirList()}</div>
@@ -353,7 +356,7 @@ export default defineComponent({
               <span class='required'> * </span>
               <span
                 class='bklog-icon bklog-info-fill'
-                v-bk-tooltips={t('请输入不带点号(.)的后缀名，匹配任意文件可填写星号(*)')}
+                v-log-tooltip={t('请输入不带点号(.)的后缀名，匹配任意文件可填写星号(*)')}
               />
             </div>
             <div class='content'>{renderFileTypeList()}</div>
@@ -377,8 +380,8 @@ export default defineComponent({
                 </TButton>
                 <div class='select-text'>
                   <i18n path='已选择{0}个节点'>
-                    <span class={manageStrategyData.value.modules.length ? 'primary' : 'error'}>
-                      {` ${manageStrategyData.value.modules.length} `}
+                    <span class={(manageStrategyData.value.modules || []).length ? 'primary' : 'error'}>
+                      {` ${(manageStrategyData.value.modules || []).length} `}
                     </span>
                   </i18n>
                 </div>
@@ -400,7 +403,7 @@ export default defineComponent({
               <span class='required'> * </span>
               <span
                 class='bklog-icon bklog-info-fill'
-                v-bk-tooltips={{
+                v-log-tooltip={{
                   width: 200,
                   content: t('全局设置，下载过程中需使用job传输，将以执行人身份进行，请确保执行人拥有业务权限'),
                 }}

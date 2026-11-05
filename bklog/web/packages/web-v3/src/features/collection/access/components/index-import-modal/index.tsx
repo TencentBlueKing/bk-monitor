@@ -32,7 +32,7 @@ import { ServicesInstance } from '@/platform/services';
 import { Component, ModelSync, Watch, Emit } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
-import { bkDialog as Dialog, bkTable as Table } from '@/platform/compat/tdesign/magic-controls';
+import { Dialog, Table } from 'tdesign-vue-next';
 
 import './index.scss';
 
@@ -250,7 +250,7 @@ export default class IndexImportModal extends tsc<IProps> {
       default: ({ row, column }) => (
         <div
           class='title-overflow'
-          v-bk-overflow-tips
+          v-log-overflow-tips
         >
           <span>{row[column.property] || '--'}</span>
         </div>
@@ -284,7 +284,7 @@ export default class IndexImportModal extends tsc<IProps> {
       >
         <div
           class='content'
-          v-bkloading={{ isLoading: this.submitLoading }}
+          v-loading={{ loading: this.submitLoading }}
         >
           <bk-form
             form-type='vertical'
@@ -314,7 +314,7 @@ export default class IndexImportModal extends tsc<IProps> {
             </bk-form-item>
             <bk-form-item label={this.$t('请选择目标索引集')}>
               <bk-table
-                v-bkloading={{ isLoading: this.isTableLoading }}
+                v-loading={{ loading: this.isTableLoading }}
                 data={this.collectShowList}
                 limit-list={this.pagination.limitList}
                 pagination={this.pagination}

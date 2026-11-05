@@ -53,7 +53,7 @@
             <span>{{ $t('已选字段') + '(' + shadowVisible.length + ')' }}</span>
             <!-- <span
                 class="icon bklog-icon bklog-info-fill"
-                v-bk-tooltips="$t('支持拖拽更改顺序，从上向下对应列表列从左到右顺序')"
+                v-log-tooltip="$t('支持拖拽更改顺序，从上向下对应列表列从左到右顺序')"
               ></span> -->
             <span class="clear-all text-action" @click="deleteAllField">{{ $t('清空') }}</span>
           </div>

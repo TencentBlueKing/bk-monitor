@@ -73,7 +73,7 @@ export default defineComponent({
               <div class='item-main'>
                 <div
                   class='item-title'
-                  v-bk-overflow-tips
+                  v-log-overflow-tips
                 >
                   {item.index_set_name}
                 </div>

@@ -163,7 +163,7 @@ export default defineComponent({
             <TRadio checked={isSelected(row)}>
               <div
                 class='overflow-tips'
-                v-bk-overflow-tips
+                v-log-overflow-tips
               >
                 <span class='cluster-name'>{row.storage_display_name}</span>
               </div>

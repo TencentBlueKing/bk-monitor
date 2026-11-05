@@ -1,5 +1,5 @@
 
-import { Switch as TSwitch, Checkbox as TCheckbox } from 'tdesign-vue-next';
+import { Input as TInput, Select as TSelect, Switch as TSwitch, Tooltip as TTooltip } from 'tdesign-vue-next';
 import { ServicesInstance } from '@/platform/services';
 /*
  * Tencent is pleased to support the open source community by making
@@ -264,8 +264,8 @@ export default defineComponent({
      * 下拉框选择的时候
      * @param value
      */
-    const handleSelect = (value: string[]) => {
-      selectValue.value = value;
+    const handleSelect = (value: unknown) => {
+      selectValue.value = Array.isArray(value) ? value.filter((item): item is string => typeof item === 'string') : [];
       emitExtraLabels();
     };
 
@@ -328,23 +328,22 @@ export default defineComponent({
     const renderInputItem = (item: IExtraLabel, index: number) => (
       <div class='device-metadata-input-item'>
         <div class='item-left'>
-          <bk-input
+          <TInput
             class={{ 'extra-error': item.key === '' && isExtraError.value }}
             value={item.key}
-            onInput={(val: string) => handleExtraLabelChange(index, 'key', val)}
+            onChange={(val: string | number | undefined) => handleExtraLabelChange(index, 'key', val == null ? '' : String(val))}
           />
           {item.duplicateKey && (
-            <i
-              class='bk-icon icon-exclamation-circle-shape tooltips-icon'
-              v-bk-tooltips={{ content: t('自定义标签key与元数据key重复'), placement: 'top' }}
-            />
+            <TTooltip content={t('自定义标签key与元数据key重复')} placement='top'>
+              <i class='bk-icon icon-exclamation-circle-shape tooltips-icon' />
+            </TTooltip>
           )}
         </div>
         <span class='symbol'>=</span>
-        <bk-input
+        <TInput
           class={{ 'extra-error': item.value === '' && isExtraError.value }}
           value={item.value}
-          onInput={(val: string) => handleExtraLabelChange(index, 'value', val)}
+          onChange={(val: string | number | undefined) => handleExtraLabelChange(index, 'value', val == null ? '' : String(val))}
         />
         <span
           class='bk-icon icon-plus-circle-shape icons'
@@ -369,28 +368,16 @@ export default defineComponent({
         </div>
         {switcherValue.value && (
           <div class='device-metadata-input-container'>
-            <bk-select
-              value={selectValue.value}
-              display-tag
+            <TSelect
+              filterable
               multiple
-              searchable
-              onSelected={handleSelect}
-            >
-              {groupList.value.map(item => (
-                <bk-option
-                  id={item.field}
-                  key={item.field}
-                  class='device-metadata-option'
-                  name={`${item.field}(${item.name})`}
-                >
-                  <TCheckbox
-                    class='mr-5'
-                    checked={selectValue.value.includes(item.field)}
-                  />
-                  {`${item.field}(${item.name})`}
-                </bk-option>
-              ))}
-            </bk-select>
+              options={groupList.value.map(item => ({
+                label: `${item.field}(${item.name})`,
+                value: item.field,
+              }))}
+              value={selectValue.value}
+              onChange={handleSelect}
+            />
             <div class='device-metadata-tips-box'>
               <span
                 class='form-link'

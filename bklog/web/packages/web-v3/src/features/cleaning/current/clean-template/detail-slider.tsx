@@ -344,7 +344,7 @@ export default defineComponent({
               <>
                 <div
                   class='clean-template-detail-content'
-                  v-bkloading={{ isLoading: isLoading.value || isCollectorsLoading.value }}
+                  v-loading={{ loading: isLoading.value || isCollectorsLoading.value }}
                 >
                   <header class='detail-summary'>
                     <div class='detail-summary-main'>

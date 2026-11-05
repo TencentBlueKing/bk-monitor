@@ -472,7 +472,7 @@ export default class LogFilter extends tsc<LogFilterProps> {
                   <bk-input
                     input-style={inputLogStyle}
                     v-model={this.logOriginal}
-                    v-bkloading={{ isLoading: this.logOriginalLoading }}
+                    v-loading={{ loading: this.logOriginalLoading }}
                     placeholder={this.$t('请输入日志样例')}
                     rows={3}
                     type='textarea'

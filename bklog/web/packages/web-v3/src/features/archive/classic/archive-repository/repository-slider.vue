@@ -40,7 +40,7 @@
     >
       <template #content>
         <div
-          v-bkloading="{ isLoading: sliderLoading }"
+          v-loading="{ loading: sliderLoading }"
           class="repository-slider-content"
         >
           <bk-form
@@ -88,7 +88,7 @@
                   </div>
                   <div
                     v-else
-                    v-bk-overflow-tips
+                    v-log-overflow-tips
                     class="option-slot-container"
                   >
                     <span>{{ option.storage_display_name }}</span>

@@ -36,7 +36,8 @@ import TextHighlight from '@/shared/ui/text-highlight';
 import { Component, Model, Emit, Prop, Ref, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
-import { bkSideslider as Sideslider, bkForm as Form, bkFormItem as FormItem, bkInput as Input, bkCollapse as Collapse, bkCollapseItem as CollapseItem, bkTable as Table, bkTableColumn as TableColumn, bkDialog as Dialog, bkTagInput as TagInput } from '@/platform/compat/tdesign/magic-controls';
+import { Drawer as Sideslider, Form, FormItem, Input, Collapse, CollapsePanel as CollapseItem, Table, Dialog, TagInput } from 'tdesign-vue-next';
+const TableColumn = (_props: Record<string, unknown>, { slots }: { slots: { default?: () => unknown } }) => slots.default?.();
 
 
 
@@ -505,7 +506,7 @@ export default class MaskingAddRule extends tsc<IProps> {
           content: () => (
             <div
               class='masking-rule-slider'
-              v-bkloading={{ isLoading: this.formLoading }}
+              v-loading={{ loading: this.formLoading }}
             >
               <Form
                 ref='submitForm'
@@ -561,7 +562,7 @@ export default class MaskingAddRule extends tsc<IProps> {
                   >
                     <i
                       class='bklog-icon bklog-info-fill'
-                      v-bk-tooltips={{ content: this.$t('字段名与表达式至少填写 1 个') }}
+                      v-log-tooltip={{ content: this.$t('字段名与表达式至少填写 1 个') }}
                     />
                   </div>
                 </FormItem>
@@ -596,7 +597,7 @@ export default class MaskingAddRule extends tsc<IProps> {
                     >
                       <i
                         class='bklog-icon bklog-info-fill'
-                        v-bk-tooltips={{
+                        v-log-tooltip={{
                           allowHtml: true,
                           content: '#rule-tips',
                         }}
@@ -681,7 +682,7 @@ export default class MaskingAddRule extends tsc<IProps> {
                           </div>
                         </div>
                         <span
-                          v-bk-tooltips={{
+                          v-log-tooltip={{
                             disabled: !this.isCanClickDebugBtn,
                             placement: 'right',
                             content: this.$t('正则表达式，脱敏算子，原始日志都填写后才可点击预览。'),
@@ -701,7 +702,7 @@ export default class MaskingAddRule extends tsc<IProps> {
                           <span class='debug-title'>{this.$t('脱敏结果')}</span>
                           <div
                             class='effect-log'
-                            v-bkloading={{ isLoading: this.debugRequesting, size: 'mini' }}
+                            v-loading={{ loading: this.debugRequesting, size: 'small' }}
                           >
                             <TextHighlight
                               style='word-break: break-all; white-space:pre-line;'

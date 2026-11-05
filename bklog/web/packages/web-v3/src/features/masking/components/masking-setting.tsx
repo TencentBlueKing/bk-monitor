@@ -35,7 +35,9 @@ import { asDictionary } from '@/shared/utils/typed-record';
 import { Component, Prop } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
-import { bkInput as Input, bkTable as Table, bkTableColumn as TableColumn, bkTableSettingContent as TableSettingContent, bkDialog as Dialog } from '@/platform/compat/tdesign/magic-controls';
+import { Input, Table, Dialog } from 'tdesign-vue-next';
+const TableColumn = (_props: Record<string, unknown>, { slots }: { slots: { default?: () => unknown } }) => slots.default?.();
+const TableSettingContent = TableColumn;
 
 
 import * as authorityMap from '../../../shared/lib/authority-map';
@@ -592,7 +594,7 @@ export default class MaskingSetting extends tsc<IProps> {
         <div class='rule-name-box'>
           <span
             class='title-overflow'
-            v-bk-overflow-tips
+            v-log-overflow-tips
           >
             {row.ruleName}
           </span>
@@ -606,7 +608,7 @@ export default class MaskingSetting extends tsc<IProps> {
       default: ({ row }: { row: MaskingRuleRow }) => (
         <div
           class='title-overflow'
-          v-bk-overflow-tips={{
+          v-log-overflow-tips={{
             content: row.matchFields.join(' , '),
           }}
         >
@@ -623,7 +625,7 @@ export default class MaskingSetting extends tsc<IProps> {
       default: ({ row }: { row: MaskingRuleRow }) => (
         <div
           class='title-overflow'
-          v-bk-overflow-tips
+          v-log-overflow-tips
         >
           <span>{row.matchPattern || '-'}</span>
         </div>
@@ -634,7 +636,7 @@ export default class MaskingSetting extends tsc<IProps> {
       default: ({ row }: { row: MaskingRuleRow }) => (
         <div
           class='title-overflow'
-          v-bk-overflow-tips
+          v-log-overflow-tips
         >
           <span>{`${this.operatorMap[row.operator]} | `}</span>
           {row.operator === 'text_replace' ? (
@@ -711,7 +713,7 @@ export default class MaskingSetting extends tsc<IProps> {
       <Table
         rowStyle={this.getShowRowStyle}
         extCls='access-table'
-        v-bkloading={{ isLoading: this.accessTableLoading }}
+        v-loading={{ loading: this.accessTableLoading }}
         border={false}
         colBorder={false}
         data={this.stopOrStartAccessValue.accessInfo}
@@ -786,7 +788,7 @@ export default class MaskingSetting extends tsc<IProps> {
               </div>
             ),
           }}
-          v-bkloading={{ isLoading: this.tableLoading }}
+          v-loading={{ loading: this.tableLoading }}
           data={this.tableShowList}
           pagination={this.pagination}
           renderDirective='if'
@@ -861,7 +863,7 @@ export default class MaskingSetting extends tsc<IProps> {
                   <span
                     key={row}
                     class='overflow-tips'
-                    v-bk-overflow-tips
+                    v-log-overflow-tips
                   >
                     {row.updatedBy}
                   </span>,
@@ -885,7 +887,7 @@ export default class MaskingSetting extends tsc<IProps> {
                   <span
                     key={row}
                     class='overflow-tips'
-                    v-bk-overflow-tips
+                    v-log-overflow-tips
                   >
                     {row.updatedAt}
                   </span>,

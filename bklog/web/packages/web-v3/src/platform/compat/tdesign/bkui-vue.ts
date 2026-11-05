@@ -24,6 +24,10 @@
  * IN THE SOFTWARE.
  */
 
+/**
+ * 仅供 NPM 包 @blueking/date-picker 解析 `bkui-vue` 导入。
+ * 项目源码不要引用这个文件，也不要使用 bkui-vue 的组件名。
+ */
 import tippy from 'tippy.js';
 import { defineComponent, h, ref, Fragment, isVNode, type VNode, type Directive } from 'vue';
 import {
@@ -328,31 +332,19 @@ export function $bkPopover(target: Element, options: { content?: string } = {}) 
 
 const clickoutsideDirective: Directive = {
   mounted(el, binding) {
-    const host = el as HTMLElement & { _bkClickoutside?: (event: MouseEvent) => void };
-    host._bkClickoutside = (event) => {
+    const host = el as HTMLElement & { _datePickerClickOutside?: (event: MouseEvent) => void };
+    host._datePickerClickOutside = (event) => {
       if (event.target instanceof Node && !host.contains(event.target) && typeof binding.value === 'function')
         binding.value(event);
     };
-    document.addEventListener('mousedown', host._bkClickoutside);
+    document.addEventListener('mousedown', host._datePickerClickOutside);
   },
   unmounted(el) {
-    const host = el as HTMLElement & { _bkClickoutside?: (event: MouseEvent) => void };
-    if (host._bkClickoutside) document.removeEventListener('mousedown', host._bkClickoutside);
-  },
-};
-
-const tooltipDirective: Directive = {
-  mounted(el, binding) {
-    const content = typeof binding.value === 'string' ? binding.value : String(binding.value?.content ?? '');
-    if (!content) return;
-    (el as HTMLElement & { _bkTippy?: ReturnType<typeof tippy> })._bkTippy = tippy(el, { content, placement: 'top' });
-  },
-  unmounted(el) {
-    (el as HTMLElement & { _bkTippy?: { destroy: () => void } })._bkTippy?.destroy();
+    const host = el as HTMLElement & { _datePickerClickOutside?: (event: MouseEvent) => void };
+    if (host._datePickerClickOutside) document.removeEventListener('mousedown', host._datePickerClickOutside);
   },
 };
 
 export const clickoutside = clickoutsideDirective;
-export const bkTooltips = tooltipDirective;
 
 export function provideGlobalConfig(_config?: { prefix?: string }) {}

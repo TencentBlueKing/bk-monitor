@@ -236,7 +236,7 @@
                         <t-tag variant="light" data-v2-display="tag"
                           v-for="(tag, index) in visibleList"
                           :key="tag.id"
-                          v-bk-tooltips="inUseProjectPopover(tag.is_use)"
+                          v-log-tooltip="inUseProjectPopover(tag.is_use)"
                           :class="`tag-icon ${tag.is_use ? 'is-active' : 'is-normal'}`"
                           :closable="!tag.is_use"
                           @close="({e}) => handleDeleteTag(index)"

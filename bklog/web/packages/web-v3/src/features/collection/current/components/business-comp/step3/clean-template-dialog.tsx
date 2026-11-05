@@ -120,7 +120,7 @@ export default defineComponent({
       default: ({ row }: { row: CleanTemplateField }) => (
         <div
           class='field-name-cell'
-          v-bk-overflow-tips={row.field_name}
+          v-log-overflow-tips={row.field_name}
         >
           {row.field_name}
         </div>
@@ -149,7 +149,7 @@ export default defineComponent({
       default: ({ row }: { row: CleanTemplateField }) => (
         <div
           class='value-cell'
-          v-bk-overflow-tips={formatDisplayValue(row.value)}
+          v-log-overflow-tips={formatDisplayValue(row.value)}
         >
           {formatDisplayValue(row.value)}
         </div>

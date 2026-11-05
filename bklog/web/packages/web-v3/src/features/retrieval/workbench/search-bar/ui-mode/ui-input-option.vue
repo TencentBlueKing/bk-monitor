@@ -9,7 +9,7 @@
     getOsCommandLabel,
     getRegExp,
   } from '@/shared/lib/util';
-  import { bkIcon } from '@/platform/compat/tdesign/magic-controls';
+  import { Icon } from 'tdesign-vue-next';
   import useLocale from '@/shared/composables/use-locale';
   import useStore from '@/shared/composables/use-store';
   import imgEnterKey from '@/shared/assets/images/icons/enter-key.svg';
@@ -1493,7 +1493,7 @@
                 <span class="operator-content">
                   {{ getOperatorLable(activeOperator.label) }}
                 </span>
-                <bkIcon :type="isArrowDown ? 'angle-down' : 'angle-up'" />
+                <Icon :name="isArrowDown ? 'chevron-down' : 'chevron-up'" />
               </div>
               <div style="display: none">
                 <div
@@ -1641,7 +1641,7 @@
                     </li>
                     <li
                       v-show="isRequesting || activeItemMatchList.length === 0"
-                      v-bkloading="{ isLoading: isRequesting, size: 'small' }"
+                      v-loading="{ loading: isRequesting, size: 'small' }"
                       style="min-height: 32px"
                     >
                       {{ t('暂无数据') }}

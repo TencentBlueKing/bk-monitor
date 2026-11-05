@@ -1,9 +1,7 @@
-.stop-type-dialog {
+.stop-type-dialog-content {
   width: 100%;
-  height: 100%;
-  .stop-type-dialog-content {
-    width: 100%;
-    .type-item {
+
+  .type-item {
       width: 432px;
       height: 64px;
       background: #FFFFFF;
@@ -67,4 +65,3 @@
       }
     }
   }
-}

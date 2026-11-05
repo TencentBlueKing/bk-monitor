@@ -505,7 +505,7 @@ export default defineComponent({
             </div>
             <div
               class='group-value-display'
-              v-bk-overflow-tips={{
+              v-log-overflow-tips={{
                 content: row.groupKey,
               }}
             >
@@ -513,7 +513,7 @@ export default defineComponent({
             </div>
             <div
               class='add-search'
-              v-bk-tooltips={t('添加为检索条件')}
+              v-log-tooltip={t('添加为检索条件')}
               onClick={e => handleAddSearch(e, row)}
             >
               <log-icon type='sousuo-' />
@@ -571,7 +571,7 @@ export default defineComponent({
             <div class='signature-box'>
               <div
                 class='signature'
-                v-bk-overflow-tips
+                v-log-overflow-tips
               >
                 {row.data?.signature}
               </div>
@@ -637,7 +637,7 @@ export default defineComponent({
               <td>
                 <div
                   class='dynamic-column'
-                  v-bk-overflow-tips
+                  v-log-overflow-tips
                 >
                   {row.data?.group?.[index] || '--'}
                 </div>
@@ -687,7 +687,7 @@ export default defineComponent({
             <div
               style={{ padding: isExternal && '5px 0' }}
               class='principal-main'
-              v-bk-tooltips={{
+              v-log-tooltip={{
                 placement: 'top',
                 content: getOwners(row.data).join(', '),
                 delay: 300,
@@ -767,7 +767,7 @@ export default defineComponent({
                   </div>
                 ) : (
                   <TSwitch
-                    v-bk-tooltips={t('暂无配置责任人，无法自动创建告警策略')}
+                    v-log-tooltip={t('暂无配置责任人，无法自动创建告警策略')}
                     
                     value={row.data?.strategy_enabled}
                     disabled

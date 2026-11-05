@@ -617,7 +617,7 @@ export default defineComponent({
           </div>
           <div
             class='operator-box'
-            v-bk-tooltips={{ ...chooseClusterTips.value, disabled: !!props.bcsClusterId }}
+            v-log-tooltip={{ ...chooseClusterTips.value, disabled: !!props.bcsClusterId }}
           >
             <bk-select
               class='operate-select'
@@ -784,7 +784,7 @@ export default defineComponent({
           </span>
           <span
             class={['preview', !props.bcsClusterId && 'disable'].join(' ')}
-            v-bk-tooltips={{ ...chooseClusterTips.value, disabled: !!props.bcsClusterId }}
+            v-log-tooltip={{ ...chooseClusterTips.value, disabled: !!props.bcsClusterId }}
             onClick={() => {
               isShowConfigView.value = true;
             }}
@@ -838,7 +838,7 @@ export default defineComponent({
         <div
           class='add-btn-box'
           style={{ display: isShowAddScopeButton.value ? 'block' : 'none' }}
-          v-bk-tooltips={{ ...chooseClusterTips.value, disabled: !!props.bcsClusterId }}
+          v-log-tooltip={{ ...chooseClusterTips.value, disabled: !!props.bcsClusterId }}
         >
           <div
             ref={rootRef}

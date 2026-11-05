@@ -52,7 +52,7 @@
     </section>
     <section class="log-restore-table">
       <bk-table
-        v-bkloading="{ isLoading: isTableLoading }"
+        v-loading="{ loading: isTableLoading }"
         class="restore-table"
         :data="dataList"
         :limit-list="pagination.limitList"

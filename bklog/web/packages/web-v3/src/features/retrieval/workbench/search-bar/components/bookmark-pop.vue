@@ -493,7 +493,7 @@
     </span>
     <span
       v-else-if="activeFavorite"
-      v-bk-tooltips="$t('收藏当前查询')"
+      v-log-tooltip="$t('收藏当前查询')"
       :style="{
         color: popoverShow ? '#3a84ff' : '',
       }"
@@ -509,7 +509,7 @@
     >
       <template #default>
         <div
-          v-bk-tooltips="$t('收藏')"
+          v-log-tooltip="$t('收藏')"
           style="font-size: 18px"
           class="icon bklog-icon bklog-save"
         ></div>
@@ -518,7 +518,7 @@
         <ul class="bk-dropdown-list">
           <li>
             <a
-              v-bk-tooltips="{ disabled: !matchSQLStr, content: $t('当前检索已收藏'), placement: 'left' }"
+              v-log-tooltip="{ disabled: !matchSQLStr, content: $t('当前检索已收藏'), placement: 'left' }"
               :class="matchSQLStr ? 'disabled' : ''"
               href="javascript:;"
               @click.stop="saveCurrentFavorite"

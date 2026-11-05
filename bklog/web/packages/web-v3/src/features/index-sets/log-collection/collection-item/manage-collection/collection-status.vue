@@ -27,7 +27,7 @@
 
 <template>
   <div
-    v-bkloading="{ isLoading: basicLoading }"
+    v-loading="{ loading: basicLoading }"
     class="collection-status-container"
   >
     <!-- 容器日志状态页 -->
@@ -52,7 +52,7 @@
           </div>
           <div>
             <span>{{ $t('每15分钟按照CMDB最新拓扑自动部署或取消采集') }}</span>
-            <!-- <span class="bk-icon icon-question-circle" v-bk-tooltips="$t('每15分钟按照CMDB最新拓扑自动部署或取消采集')"></span> -->
+            <!-- <span class="bk-icon icon-question-circle" v-log-tooltip="$t('每15分钟按照CMDB最新拓扑自动部署或取消采集')"></span> -->
             <t-button
               class="mr10"
               :disabled="!collectProject"
@@ -99,7 +99,7 @@
           </div>
           <div class="table-calc">
             <bk-table
-              v-bkloading="{ isLoading: reloadTable }"
+              v-loading="{ loading: reloadTable }"
               :data="clickSec.data[i]"
               :empty-text="$t('暂无内容')"
               size="small"
@@ -200,7 +200,7 @@
         <template v-if="renderTableList.length">
           <div
             v-show="!isPageOver && !reloadTable"
-            v-bkloading="{ isLoading: true }"
+            v-loading="{ loading: true }"
             style="height: 40px"
           ></div>
         </template>
@@ -218,7 +218,7 @@
           <!-- eslint-disable-next-line vue/no-v-html -->
           <template #content>
             <div
-              v-bkloading="{ isLoading: detail.loading }"
+              v-loading="{ loading: detail.loading }"
               class="p20 detail-content"
               v-html="$xss(detail.content)"
             ></div>

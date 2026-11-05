@@ -83,7 +83,7 @@ export default defineComponent({
         );
       }
 
-      if (props.type === 'search-empty') {
+      if (props.type === 'search-empty' || props.type === 'empty') {
         return (
           <div class='bklog-empty-data'>
             <h1>{$t('检索无数据')}</h1>

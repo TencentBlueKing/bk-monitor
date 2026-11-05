@@ -59,7 +59,7 @@
       <template #suffix><i :class="'bk-icon icon-search'" /></template></t-input>
     </div>
     <bk-table
-      v-bkloading="{ isLoading: isTableLoading }"
+      v-loading="{ loading: isTableLoading }"
       :data="indexSetList"
       :empty-text="$t('暂无内容')"
       :pagination="pagination"
@@ -80,7 +80,7 @@
             </bk-button> -->
           <div class="index-set-name-box">
             <span
-              v-bk-overflow-tips
+              v-log-overflow-tips
               v-cursor="{ active: !(row.permission && row.permission[authorityMap.MANAGE_INDICES_AUTH]) }"
               class="indexSet-name"
               @click="manageIndexSet('manage', row)"
@@ -89,7 +89,7 @@
             </span>
             <span
               v-if="row.is_desensitize"
-              v-bk-tooltips.top="$t('已脱敏')"
+              v-log-tooltip.top="$t('已脱敏')"
               class="bk-icon bklog-icon bklog-masking"
             >
             </span>
@@ -209,7 +209,7 @@
             @click="manageIndexSet('edit', props.row)"
           >
             <span
-              v-bk-tooltips.top="{
+              v-log-tooltip.top="{
                 content: `${$t('内置索引集')}, ${$t('不可编辑')}`,
                 disabled: props.row.is_editable,
               }"

@@ -40,6 +40,7 @@ import V3Toolbar from './toolbar/index';
 import useAppInit from './use-app-init';
 import { resolveSceneEmptyView } from './scene-empty-view';
 import RetrieveHelper, { RetrieveEvent } from '@/features/retrieval/retrieve-helper';
+import RetrievePageSkeleton from '@/app/skeleton/retrieve-page-skeleton.vue';
 
 import './global-en.scss';
 import './index.scss';
@@ -169,7 +170,7 @@ export default defineComponent({
     const renderSceneEmptyTip = () => (
       <div
         class='scene-empty-tip'
-        v-bkloading={{ isLoading: sceneEmptyView.value.sceneEmptyTipLoading }}
+        v-loading={{ loading: sceneEmptyView.value.sceneEmptyTipLoading }}
       >
         <bk-exception
           class='exception-wrap-item'
@@ -193,7 +194,7 @@ export default defineComponent({
     const renderFieldEmptyTip = () => (
       <div
         class='scene-empty-tip'
-        v-bkloading={{ isLoading: isSceneLoading.value }}
+        v-loading={{ loading: isSceneLoading.value }}
       >
         <bk-exception
           class='exception-wrap-item'
@@ -235,7 +236,7 @@ export default defineComponent({
         ];
       }
 
-      return <div style={{ minHeight: '50vh', width: '100%' }}></div>;
+      return <RetrievePageSkeleton />;
     };
 
     /**
@@ -251,7 +252,7 @@ export default defineComponent({
           { 'is-sticky-top': isSearchContextStickyTop.value, 'is-sticky-top-result': isSearchResultStickyTop.value },
           { 'is-scene-mode': isSceneMode.value },
         ]}
-        v-bkloading={{ isLoading: !isPreApiLoaded.value }}
+        v-loading={{ loading: !isPreApiLoaded.value }}
       >
         <V3Collection></V3Collection>
         <div

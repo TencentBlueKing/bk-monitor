@@ -154,7 +154,7 @@ export default defineComponent({
         <div class='auto-refresh-sub-bar'>
           <div
             class='dropdown-trigger-text'
-            v-bk-tooltips={{ content: t('自动刷新设置'), placement: 'bottom' }}
+            v-log-tooltip={{ content: t('自动刷新设置'), placement: 'bottom' }}
           >
             <i class='bklog-icon bklog-auto-refresh' />
             <span>{datasource.value.find(item => item.value === selectedValue.value)?.value || 'off'}</span>

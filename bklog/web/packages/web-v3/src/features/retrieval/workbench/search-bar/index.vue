@@ -2,7 +2,7 @@
 import { MessagePlugin as TDesignMessage } from 'tdesign-vue-next';
 import { ServicesInstance } from '@/platform/services';
 
-  import { computed, nextTick, ref, watch } from 'vue';
+  import { computed, defineAsyncComponent, nextTick, ref, watch } from 'vue';
 
   import PopInstanceUtil from '@/shared/global/pop-instance-util';
   import useLocale from '@/shared/composables/use-locale';
@@ -34,10 +34,11 @@ import { ServicesInstance } from '@/platform/services';
   import RetrieveHelper, { RetrieveEvent } from '@/features/retrieval/retrieve-helper';
   import CommonFilterSelect from './components/common-filter-select.vue';
   import AiParseResultBanner from './components/ai-parse-result-banner';
-  import SqlQuery from './sql-mode/sql-query';
   import UiInput from './ui-mode/ui-input';
   import { withoutValueConditionList } from './utils/const.common.ts';
   import { resolveUiToSqlConvertOutcome, shouldConvertUiToSqlOnModeSwitch } from './utils/ui-to-sql-mode';
+
+  const SqlQuery = defineAsyncComponent(() => import('./sql-mode/sql-query.vue'));
 
   const props = defineProps({
     // activeFavorite: {
@@ -812,14 +813,12 @@ import { ServicesInstance } from '@/platform/services';
   >
     <div class="search-bar-row">
       <div
-        v-bkloading="{
-          isLoading: isAiLoading,
-          opacity: 0.2,
+        v-loading="{
+          loading: isAiLoading,
           theme: 'colorful',
-          size: 'mini',
-          title: $t('AI 解析中...'),
-          extCls: 'v3-search-ai-loading',
-        }"
+          size: 'small',
+          text: $t('AI 解析中...'),
+          extCls: 'v3-search-ai-loading' }"
         :class="[
           'search-bar-container',
           {
@@ -834,7 +833,7 @@ import { ServicesInstance } from '@/platform/services';
         >
           <span class="mode-text">{{ queryText }}</span>
           <span
-            v-bk-tooltips.top="queryText"
+            v-log-tooltip.top="queryText"
             :class="computedIconClass"
           />
           <span class="bklog-icon bklog-qiehuan-2" />
@@ -923,19 +922,19 @@ import { ServicesInstance } from '@/platform/services';
             </div>
             <div
               v-if="showCopy"
-              v-bk-tooltips="$t('复制当前查询')"
+              v-log-tooltip="$t('复制当前查询')"
               :class="['bklog-icon bklog-copy-4', , { disabled: isInputLoading || !isCopyBtnActive }]"
               @click="handleCopyQueryValue"
             />
             <div
               v-if="showClear"
-              v-bk-tooltips="$t('清理当前查询')"
+              v-log-tooltip="$t('清理当前查询')"
               :class="['bklog-icon bklog-qingkong', { disabled: isInputLoading || !isCopyBtnActive }]"
               @click="handleClearBtnClick"
             />
             <div
               v-if="showQuerySetting"
-              v-bk-tooltips="$t('常用查询设置')"
+              v-log-tooltip="$t('常用查询设置')"
               :class="['bklog-icon bklog-setting', { disabled: isInputLoading, 'is-focused': isFilterSecFocused }]"
               @click="handleFilterSecClick"
             />
@@ -960,7 +959,7 @@ import { ServicesInstance } from '@/platform/services';
         ></div>
       </div>
       <div
-        v-bk-tooltips="{
+        v-log-tooltip="{
           content: $t('请先通过过滤缩小范围'),
           disabled: !isQueryBtnDisabled,
         }"

@@ -26,12 +26,14 @@
 import { onBeforeUnmount, onMounted, type Ref } from 'vue';
 
 import { formatDate } from '@/shared/lib/util';
-import * as Echarts from 'echarts';
+import type * as Echarts from 'echarts';
 
 import { lineOrBarOptions, pieOptions } from './chart-config-def';
 export default ({ target, type }: { target: Ref<any>; type: string }) => {
   let chartInstance: Echarts.ECharts | null = null;
   let options: any = {};
+  let echartsLoader: Promise<typeof import('echarts')> | null = null;
+  const loadEcharts = () => (echartsLoader ??= import('echarts'));
 
   type DataItem = Record<string, any>;
 
@@ -272,11 +274,16 @@ export default ({ target, type }: { target: Ref<any>; type: string }) => {
     options = optionMap[t as keyof typeof optionMap]?.() ?? getLineBarChartOption();
   };
 
-  const initChartInstance = () => {
-    if (target.value?.$el) {
-      chartInstance = Echarts.init(target.value?.$el);
-      setDefaultOption(type);
+  const initChartInstance = async () => {
+    if (chartInstance || !target.value?.$el) {
+      return;
     }
+    const echarts = await loadEcharts();
+    if (chartInstance || !target.value?.$el) {
+      return;
+    }
+    chartInstance = echarts.init(target.value.$el);
+    setDefaultOption(type);
   };
 
   const formatTimeDimensionResultData = (
@@ -351,19 +358,25 @@ export default ({ target, type }: { target: Ref<any>; type: string }) => {
     data?: any,
     newType?: string,
   ) => {
-    chartInstance?.clear();
     if (!chartInstance) {
-      initChartInstance();
+      void initChartInstance().then(() => {
+        if (!chartInstance) {
+          return;
+        }
+        chartInstance.clear();
+        setDefaultOption(newType);
+        updateChartOptions(xFields, yFields, dimensions, data, newType);
+      });
+      return;
     }
 
-    if (chartInstance) {
-      setDefaultOption(newType);
-      updateChartOptions(xFields, yFields, dimensions, data, newType);
-    }
+    chartInstance.clear();
+    setDefaultOption(newType);
+    updateChartOptions(xFields, yFields, dimensions, data, newType);
   };
 
   onMounted(() => {
-    initChartInstance();
+    void initChartInstance();
   });
 
   const destroyInstance = () => {

@@ -33,7 +33,8 @@ import { Component } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
 import BizMenuSelect from '@/shared/global/bk-space-choice/index';
-import { bkSelect as Select, bkOption as Option, bkInput as Input, bkTable as Table, bkTableColumn as TableColumn } from '@/platform/compat/tdesign/magic-controls';
+import { Select, Option, Input, Table } from 'tdesign-vue-next';
+const TableColumn = (_props: Record<string, unknown>, { slots }: { slots: { default?: () => unknown } }) => slots.default?.();
 import dayjs from 'dayjs';
 
 
@@ -756,7 +757,7 @@ export default class AuthorizationList extends tsc<object> {
           }}
           v-slots={{
             default: ({ row }) => (
-              <div v-bk-overflow-tips={{ content: row.authorized_users?.join(',') }}>
+              <div v-log-overflow-tips={{ content: row.authorized_users?.join(',') }}>
                 {row.authorized_users?.map((item: string|number|symbol|undefined) => (
                   <Tag
                     key={item}
@@ -788,7 +789,7 @@ export default class AuthorizationList extends tsc<object> {
 
               if (column.prop === 'resources') {
                 return (
-                  <div v-bkloading={{ isLoading: this.resourcesLoading }}>
+                  <div v-loading={{ loading: this.resourcesLoading }}>
                     {row.resources?.map((id: string|number|symbol|undefined, ind: number) =>
                       ind < 3 || row.isExpand ? (
                         <div
@@ -813,7 +814,7 @@ export default class AuthorizationList extends tsc<object> {
                 );
               }
               return (
-                <div v-bkloading={{ isLoading: this.resourcesLoading }}>
+                <div v-loading={{ loading: this.resourcesLoading }}>
                   <div>{resourceList.find((item: { uid: any; }) => item.uid === row.resource_id)?.text}</div>
                 </div>
               );
@@ -1008,7 +1009,7 @@ export default class AuthorizationList extends tsc<object> {
                 {this.hasCMDBRole && (
                   <i
                     class='bk-icon icon-edit-line'
-                    v-bk-tooltips={{
+                    v-log-tooltip={{
                       content: this.$t('变更授权人'),
                       placements: ['top'],
                     }}
@@ -1104,7 +1105,7 @@ export default class AuthorizationList extends tsc<object> {
                 }}
                 ref='authTable'
                 key={this.angleType}
-                v-bkloading={{ isLoading: this.loading }}
+                v-loading={{ loading: this.loading }}
                 data={this.listData}
                 maxHeight={600}
                 pagination={this.tablePagination}

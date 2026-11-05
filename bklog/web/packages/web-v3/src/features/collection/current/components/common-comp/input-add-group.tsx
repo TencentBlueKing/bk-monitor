@@ -24,6 +24,7 @@
  * IN THE SOFTWARE.
  */
 
+import { Input as TInput } from 'tdesign-vue-next';
 import { defineComponent, type PropType, ref } from 'vue';
 
 import './input-add-group.scss';
@@ -124,10 +125,10 @@ export default defineComponent({
       const isError = errorIndexes.value.includes(index);
       return (
         <div class='input-add-group-item'>
-          <bk-input
+          <TInput
             value={item.value}
             class={isError ? 'input-error' : ''}
-            onInput={(val: string) => handleChange(index, val)}
+            onChange={(val: string | number | undefined) => handleChange(index, val == null ? '' : String(val))}
           />
           <span
             class='bk-icon icon-plus-circle-shape icons'

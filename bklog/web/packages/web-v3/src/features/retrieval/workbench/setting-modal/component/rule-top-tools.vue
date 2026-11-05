@@ -236,7 +236,7 @@
         >
           <bk-select
             v-model="indexSetData.index_set_id"
-            v-bkloading="{ isLoading: indexSetLoading, size: 'small' }"
+            v-loading="{ loading: indexSetLoading, size: 'small' }"
             :clearable="false"
             searchable
           >

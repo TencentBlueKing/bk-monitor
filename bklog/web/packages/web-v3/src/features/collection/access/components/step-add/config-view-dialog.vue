@@ -37,7 +37,7 @@
     @cancel="handelCancelDialog"
   >
     <div
-      v-bkloading="{ isLoading: loading }"
+      v-loading="{ loading: loading }"
       class="view-main"
     >
       <template v-if="viewList.length">
@@ -51,7 +51,7 @@
             @click="handleClickTitle(vIndex, vItem.isShowTarget)"
           >
             <div
-              v-bk-overflow-tips
+              v-log-overflow-tips
               class="match title-overflow"
             >
               <span>{{ vItem.group }}</span>
@@ -70,7 +70,7 @@
             <div
               v-for="(item, iIndex) in vItem.items"
               :key="iIndex"
-              v-bk-overflow-tips
+              v-log-overflow-tips
               class="title-overflow"
             >
               <span>{{ item }}</span>

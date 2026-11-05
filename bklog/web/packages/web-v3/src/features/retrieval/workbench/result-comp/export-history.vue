@@ -200,17 +200,10 @@ import {
   submitExportWithSortConfirmation,
   getExportTaskKey,
 } from './download/exportTask';
-import {
-  adjustGrowthAfterPoll,
-  calculateProgress,
-  calculateProgressPercent,
-  formatNumber,
-} from '@/features/retrieval/workbench/result-comp/download/downloadProgress';
+import { calculateProgressPercent, formatNumber } from '@/features/retrieval/workbench/result-comp/download/downloadProgress';
 import {
   DOWNLOAD_DATA_DELAY,
   DOWNLOAD_POLLING_INTERVAL,
-  DOWNLOAD_PROGRESS_BASE_GROWTH,
-  DOWNLOAD_PROGRESS_UPDATE_INTERVAL,
   DOWNLOAD_RECENT_DAYS,
   MILLISECONDS_PER_DAY,
 } from '@/features/retrieval/workbench/result-comp/download/constants';
@@ -219,7 +212,7 @@ const HISTORY_PAGE_SIZE = 10;
 
 export default {
   components: { TDialog, TTable, TPopup, TDateRangePicker, TTooltip, BklogLoading },
-  emits: ['refresh-current-tasks', 'refreshCurrentTasks', 'handle-close-dialog', 'handleCloseDialog'],
+  emits: ['refresh-current-tasks', 'refreshCurrentTasks', 'handle-close-dialog', 'handleCloseDialog', 'sync-tracked-tasks', 'syncTrackedTasks'],
 
   props: {
     showHistoryExport: {
@@ -229,6 +222,10 @@ export default {
     indexSetList: {
       type: Array,
       required: true,
+    },
+    trackedTasks: {
+      type: Object,
+      default: () => ({}),
     },
   },
   data() {
@@ -240,7 +237,6 @@ export default {
       dateRange: [], // 日期范围
       historyDateFocused: false,
       historyPollingTimer: null,
-      progressUpdateTimer: null,
       historyCancelExecutor: null,
       pagination: {
         current: 1,
@@ -340,7 +336,10 @@ export default {
       ];
     },
     historyTableRows() {
-      return this.exportList.map((row) => ({ ...row, __taskKey: this.getExportTaskKey(row) }));
+      return this.exportList.map((row) => {
+        const source = this.trackedTasks[this.getExportTaskKey(row)] || row;
+        return { ...source, __taskKey: this.getExportTaskKey(source) };
+      });
     },
     nativePagination() {
       return {
@@ -625,7 +624,6 @@ export default {
     resetHistoryState(resetDateRange = true) {
       this.cancelHistoryRequest();
       this.stopHistoryPolling();
-      this.stopProgressUpdate();
       this.exportList = [];
       this.tableLoading = false;
       this.isSearchAll = false;
@@ -659,36 +657,9 @@ export default {
         this.historyPollingTimer = null;
       }
     },
-    startProgressUpdate() {
-      if (this.progressUpdateTimer) {
-        return;
-      }
-      this.progressUpdateTimer = setInterval(() => {
-        const hasDownloadingTask = this.exportList.some((row) => row.export_status === 'download_log');
-        if (!hasDownloadingTask) {
-          this.stopProgressUpdate();
-          return;
-        }
-        this.exportList.forEach((row) => {
-          if (row.export_status === 'download_log') {
-            calculateProgress(row);
-          }
-        });
-      }, DOWNLOAD_PROGRESS_UPDATE_INTERVAL);
-    },
-    stopProgressUpdate() {
-      if (this.progressUpdateTimer) {
-        clearInterval(this.progressUpdateTimer);
-        this.progressUpdateTimer = null;
-      }
-    },
     createProgressRow(row) {
-      if (row.export_status !== 'download_log') {
-        return { ...row };
-      }
       return {
         ...row,
-        currentGrowth: DOWNLOAD_PROGRESS_BASE_GROWTH,
         progressPercent: calculateProgressPercent(row.exported_count || 0, row.export_total_count || 0),
       };
     },
@@ -696,25 +667,13 @@ export default {
       const currentRowMap = new Map(this.exportList.map((row) => [getExportTaskKey(row), row]));
       this.exportList = data.map((item) => {
         const currentRow = currentRowMap.get(getExportTaskKey(item));
+        const progressRow = this.createProgressRow(item);
         if (!currentRow) {
-          return this.createProgressRow(item);
+          return progressRow;
         }
-        if (currentRow.export_status === 'download_log' && item.export_status === 'download_log') {
-          const displayedCount = currentRow.exported_count || 0;
-          Object.assign(currentRow, item);
-          currentRow.exported_count = displayedCount;
-          adjustGrowthAfterPoll(currentRow, item.exported_count || 0, DOWNLOAD_PROGRESS_BASE_GROWTH);
-          return currentRow;
-        }
-        Object.assign(currentRow, item);
+        Object.assign(currentRow, progressRow);
         return currentRow;
       });
-
-      if (this.exportList.some((row) => row.export_status === 'download_log')) {
-        this.startProgressUpdate();
-      } else {
-        this.stopProgressUpdate();
-      }
     },
     async fetchHistoryList(isReset = false, isPolling = false) {
       if (!this.isShowDialog) {
@@ -726,7 +685,6 @@ export default {
       this.cancelHistoryRequest();
       if (!isPolling) {
         this.tableLoading = true;
-        this.stopProgressUpdate();
       }
 
       if (this.isUnionSearch && !this.unionIndexList.length) {
@@ -778,6 +736,10 @@ export default {
         if (res.result) {
           this.pagination.count = res.data.total || 0;
           this.setExportListData(res.data.list);
+          const trackedTasks = res.data.list.filter((item) => this.trackedTasks[getExportTaskKey(item)]);
+          if (trackedTasks.length) {
+            this.$emit('sync-tracked-tasks', trackedTasks);
+          }
         }
       } catch (error) {
         if (axios.isCancel(error)) {
@@ -787,9 +749,6 @@ export default {
         if (this.historyCancelExecutor === cancelExecutor) {
           this.historyCancelExecutor = null;
           this.tableLoading = false;
-          if (this.exportList.some((row) => row.export_status === 'download_log')) {
-            this.startProgressUpdate();
-          }
         }
       }
     },

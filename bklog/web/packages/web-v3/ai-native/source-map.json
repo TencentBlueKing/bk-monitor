@@ -2,7 +2,7 @@
   "schemaVersion": 1,
   "sourceRoot": "src-native",
   "targetRoot": "src",
-  "sourceCount": 1315,
+  "sourceCount": 1308,
   "files": [
     {
       "source": "adapters/tdesign/info-box-contract.js",
@@ -38,20 +38,6 @@
       "sourceSha256": "f46d120327509fb25a4e59a9997992fc04c1698cf0dc3ba53a83300b11227f2f",
       "targetSha256": "f46d120327509fb25a4e59a9997992fc04c1698cf0dc3ba53a83300b11227f2f",
       "previousTarget": "platform/compat/tdesign/legacy-slot.js"
-    },
-    {
-      "source": "adapters/tdesign/loading-contract.js",
-      "target": "platform/compat/tdesign/loading-contract.ts",
-      "sourceSha256": "2493837278a809becfc8ef7a8504ce1fd033fa188bb187cac77ff7788450e2f6",
-      "targetSha256": "2493837278a809becfc8ef7a8504ce1fd033fa188bb187cac77ff7788450e2f6",
-      "previousTarget": "platform/compat/tdesign/loading-contract.js"
-    },
-    {
-      "source": "adapters/tdesign/loading.js",
-      "target": "platform/compat/tdesign/loading.ts",
-      "sourceSha256": "75800775b055aeeb69b9a7632b1af480c2c0f8bcab184af8ca5db558cfc0ad5c",
-      "targetSha256": "75800775b055aeeb69b9a7632b1af480c2c0f8bcab184af8ca5db558cfc0ad5c",
-      "previousTarget": "platform/compat/tdesign/loading.js"
     },
     {
       "source": "adapters/tdesign/runtime-contract.js",
@@ -167,13 +153,6 @@
       "previousTarget": "shared/lib/authority-map.js"
     },
     {
-      "source": "common/bkmagic.js",
-      "target": "shared/lib/bkmagic.ts",
-      "sourceSha256": "e7a9e2c89474634d52617cc6ab92f71737c30c5758a7aafbb4e9433c76050ebd",
-      "targetSha256": "e7a9e2c89474634d52617cc6ab92f71737c30c5758a7aafbb4e9433c76050ebd",
-      "previousTarget": "shared/lib/bkmagic.js"
-    },
-    {
       "source": "common/bus.js",
       "target": "shared/lib/bus.ts",
       "sourceSha256": "b0fb0fa15dc941bef054eb6847ec7c2df465f15a933e010563513e0aeafa83fe",
@@ -193,14 +172,6 @@
       "sourceSha256": "58608b25551dca901d8fa0372770a7c20bfc4ed1954e5502bcbcdddd43edb430",
       "targetSha256": "58608b25551dca901d8fa0372770a7c20bfc4ed1954e5502bcbcdddd43edb430",
       "previousTarget": "shared/lib/collector-api-error.parser.js"
-    },
-    {
-      "source": "common/collector-api-error.parser.test.cjs",
-      "target": "tests/collector-api-error-parser.test.mjs",
-      "sourceSha256": "f54b308720700a80a3d4a4b8c5348112e5131af19afbf9c8df567fa7720d38a8",
-      "targetSha256": "f54b308720700a80a3d4a4b8c5348112e5131af19afbf9c8df567fa7720d38a8",
-      "previousTarget": "shared/lib/collector-api-error.parser.test.cjs",
-      "targetScope": "package-test"
     },
     {
       "source": "common/demand-import-lite.js",
@@ -1195,14 +1166,6 @@
       "target": "shared/global/overlay/overlay-registry.js",
       "sourceSha256": "8e8d2054374508492a1447d2df51384d0d765d05210f1819fc3b1d5ab329934c",
       "targetSha256": "8e8d2054374508492a1447d2df51384d0d765d05210f1819fc3b1d5ab329934c"
-    },
-    {
-      "source": "global/overlay/overlay-registry.test.cjs",
-      "target": "tests/overlay-registry-complete.test.mjs",
-      "sourceSha256": "515058dd2300ae12f40dd1d601002fe2af8853db800a303fd9223e8bbc0d9133",
-      "targetSha256": "515058dd2300ae12f40dd1d601002fe2af8853db800a303fd9223e8bbc0d9133",
-      "previousTarget": "shared/global/overlay/overlay-registry.test.cjs",
-      "targetScope": "package-test"
     },
     {
       "source": "global/overlay/overlay-types.ts",
@@ -5633,14 +5596,6 @@
       "previousTarget": "features/retrieval/workbench/field-filter-comp/object-field-tree-meta.js"
     },
     {
-      "source": "views/retrieve-v2/field-filter-comp/object-field-tree-meta.test.cjs",
-      "target": "tests/object-field-tree-meta.test.mjs",
-      "sourceSha256": "768a5074330172453334d58ab11d6b8fd860613455dfc2de838b64c89a95213b",
-      "targetSha256": "768a5074330172453334d58ab11d6b8fd860613455dfc2de838b64c89a95213b",
-      "previousTarget": "features/retrieval/workbench/field-filter-comp/object-field-tree-meta.test.cjs",
-      "targetScope": "package-test"
-    },
-    {
       "source": "views/retrieve-v2/field-filter-comp/update/field-alias.vue",
       "target": "features/retrieval/workbench/field-filter-comp/update/field-alias.vue",
       "sourceSha256": "29755374f3789e867b014cbcefb6db447303bbf3338903401203d86980b9ba82",
@@ -6735,14 +6690,6 @@
       "sourceSha256": "843464b11e222b31f54f51dcc0c8159e43b4a18c2bc3b1c5b4f231519deb096d",
       "targetSha256": "843464b11e222b31f54f51dcc0c8159e43b4a18c2bc3b1c5b4f231519deb096d",
       "previousTarget": "features/retrieval/workspace/favorite/components/collect-list/collect-list-menu-hover.js"
-    },
-    {
-      "source": "views/retrieve-v3/favorite/components/collect-list/collect-list-menu-hover.test.cjs",
-      "target": "tests/favorite-menu-hover.test.mjs",
-      "sourceSha256": "5e04fea02c2ddbf2542675af4b33bf12f09b3270208840946ef8951f906f8667",
-      "targetSha256": "5e04fea02c2ddbf2542675af4b33bf12f09b3270208840946ef8951f906f8667",
-      "previousTarget": "features/retrieval/workspace/favorite/components/collect-list/collect-list-menu-hover.test.cjs",
-      "targetScope": "package-test"
     },
     {
       "source": "views/retrieve-v3/favorite/components/collect-list/collect-list.scss",

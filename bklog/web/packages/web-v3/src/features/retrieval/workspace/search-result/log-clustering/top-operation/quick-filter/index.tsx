@@ -130,7 +130,7 @@ export default defineComponent({
     return () => (
       <div class='fingerprint-setting'>
         <div
-          v-bk-tooltips={{
+          v-log-tooltip={{
             content: t('请先新建新类告警策略'),
             disabled: props.strategyHaveSubmit,
           }}

@@ -393,7 +393,7 @@ export default defineComponent({
     return () => (
       <div
         class='extract-task-list-container'
-        v-bkloading={{ isLoading: isLoading.value }}
+        v-loading={{ loading: isLoading.value }}
         data-test-id='logExtraction_div_fromBox'
       >
         {/* 新建和搜索框 */}
@@ -563,7 +563,7 @@ export default defineComponent({
                     {row.download_status === 'failed' && (
                       <span
                         class='task-status-info bklog-icon bklog-info-fill'
-                        v-bk-tooltips={{
+                        v-log-tooltip={{
                           disabled: !row.task_process_info,
                           content: row.task_process_info,
                         }}
@@ -592,7 +592,7 @@ export default defineComponent({
                     </span>
                     <span
                       class={['task-operation', !row.enable_clone && 'cannot-click']}
-                      v-bk-tooltips={{
+                      v-log-tooltip={{
                         content: row.message,
                         disabled: row.enable_clone,
                         delay: 300,
@@ -634,7 +634,7 @@ export default defineComponent({
               <>
                 <div
                   class='extract-task-detail-content'
-                  v-bkloading={{ isLoading: sideSlider.value.isLoading }}
+                  v-loading={{ loading: sideSlider.value.isLoading }}
                 >
                   <ListBox
                     icon='bklog-icon bklog-info-fill'

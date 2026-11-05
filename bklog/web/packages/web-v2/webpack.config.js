@@ -40,9 +40,22 @@ function isE2eDevSettings() {
   return ['1', 'true', 'yes'].includes(String(process.env.BKLOG_E2E_DEV || '').toLowerCase());
 }
 
+function loadDevSettings() {
+  const settingsPath = path.resolve(__dirname, './local.settings.js');
+  if (!fs.existsSync(settingsPath)) {
+    console.warn('[web-v2] 未找到 packages/web-v2/local.settings.js，/api 不会代理。登录 Cookie 放在 bklog/web/.cookie。');
+    return null;
+  }
+  try {
+    return require(settingsPath);
+  } catch (error) {
+    throw new Error(`加载 ${settingsPath} 失败: ${error.message}`);
+  }
+}
+
 let devConfig = {
   port: devPort,
-  proxy: [{}],
+  proxy: [],
   cache: null,
 };
 const logPluginConfig = {
@@ -106,9 +119,11 @@ if (isE2eDevSettings()) {
     throw new Error('BKLOG_E2E_DEV is set but local.settings.e2e.js is missing');
   }
   devConfig = Object.assign({}, devConfig, require(e2eSettingsPath));
-} else if (fs.existsSync(path.resolve(__dirname, './local.settings.js'))) {
-  const localConfig = require('./local.settings');
-  devConfig = Object.assign({}, devConfig, localConfig);
+} else {
+  const localConfig = loadDevSettings();
+  if (localConfig) {
+    devConfig = Object.assign({}, devConfig, localConfig);
+  }
 }
 module.exports = (baseConfig, { app, mobile, production, fta, log: _log, email = false }) => {
   const isMonitorRetrieveBuild = ['apm', 'trace'].includes(process.env.MONITOR_APP) && production; // 判断是否监控检索构建

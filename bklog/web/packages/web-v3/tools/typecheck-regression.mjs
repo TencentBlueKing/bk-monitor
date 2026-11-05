@@ -1,36 +1,43 @@
-import { getBaselineRoot } from './source-baseline.mjs';
 /* Copyright (C) 2021 THL A29 Limited, a Tencent company.
  * 蓝鲸智云PaaS平台 (BlueKing PaaS), MIT License. */
-import { readFileSync, writeFileSync, unlinkSync } from 'node:fs';
+import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { resolve, relative } from 'node:path';
 import { spawnSync } from 'node:child_process';
 const root = fileURLToPath(new URL('../', import.meta.url));
-const temporaryConfig = resolve(root, '.typecheck-baseline.generated.json');
-const mapping = new Map(JSON.parse(readFileSync(resolve(root, 'ai-native/source-map.json'))).files.map(file => [file.target, file.source]));
-function run(config, target) {
-  const result = spawnSync(process.execPath, [resolve(root, 'node_modules/vue-tsc/bin/vue-tsc.js'), '--noEmit', '-p', config],
+const status = JSON.parse(readFileSync(resolve(root, 'ai-native/typecheck-status.json'), 'utf8'));
+function run(config) {
+  const result = spawnSync(process.execPath, [resolve(root, 'node_modules/vue-tsc/bin/vue-tsc.js'), '--noEmit', '--pretty', 'false', '-p', config],
     { cwd: root, encoding: 'utf8', maxBuffer: 32 * 1024 * 1024 });
   if (result.error) throw result.error;
-  const counts = new Map();
+  const byFile = new Map();
+  const byCode = new Map();
+  let total = 0;
   const output = `${result.stdout}\n${result.stderr}`;
   for (const match of output.matchAll(/^([^\n(]+)\(\d+,\d+\): error (TS\d+):/gm)) {
-    const file = relative(target ? resolve(root, 'src') : getBaselineRoot(), resolve(root, match[1]));
-    if (file.startsWith('..')) continue;
-    const key = `${target ? mapping.get(file) || file : file}:${match[2]}`;
-    counts.set(key, (counts.get(key) || 0) + 1);
+    const file = relative(root, resolve(root, match[1])).split('\\').join('/');
+    if (!file.startsWith('src/')) continue;
+    byFile.set(file, (byFile.get(file) || 0) + 1);
+    byCode.set(match[2], (byCode.get(match[2]) || 0) + 1);
+    total += 1;
   }
-  if (result.status !== 0 && !counts.size) throw new Error(`Typecheck did not produce comparable source diagnostics: ${output.slice(0, 800)}`);
-  return counts;
+  if (result.status !== 0 && !total) throw new Error(`Typecheck did not produce comparable source diagnostics: ${output.slice(0, 800)}`);
+  return { byFile, byCode, total };
 }
-try {
-  writeFileSync(temporaryConfig, JSON.stringify({ extends: './tsconfig.json', compilerOptions: { paths: { '@/*': [getBaselineRoot() + '/*'] } },
-    include: ['**/*.ts', '**/*.tsx', '**/*.vue'].map(pattern => resolve(getBaselineRoot(), pattern)), exclude: [] }));
-  const baseline = run(temporaryConfig, false), current = run('tsconfig.json', true);
-  const added = [...current].filter(([key, count]) => count > (baseline.get(key) || 0)).map(([key, count]) => ({ key, count: count - (baseline.get(key) || 0) }));
-  const total = counts => [...counts.values()].reduce((sum, count) => sum + count, 0);
-  console.log(JSON.stringify({ status: added.length ? 'FAILED_REGRESSION' : 'PASSED_NO_ADDITIONAL_DIAGNOSTICS',
-    baselineErrors: total(baseline), targetErrors: total(current), added,
-    limitation: 'Comparison by source-origin file and diagnostic code; existing strict typecheck debt remains failing.' }, null, 2));
-  process.exitCode = added.length ? 1 : 0;
-} finally { unlinkSync(temporaryConfig); }
+const current = run('tsconfig.json');
+const added = [];
+const allowedFiles = status.countsByFile || {};
+const allowedCodes = status.countsByCode || {};
+if (current.total > (status.diagnostics || 0)) added.push({ kind: 'total', count: current.total - status.diagnostics });
+for (const [file, count] of current.byFile) {
+  const allowed = allowedFiles[file] || 0;
+  if (count > allowed) added.push({ file, count: count - allowed });
+}
+for (const [code, count] of current.byCode) {
+  const allowed = allowedCodes[code] || 0;
+  if (count > allowed) added.push({ code, count: count - allowed });
+}
+console.log(JSON.stringify({ status: added.length ? 'FAILED_REGRESSION' : 'PASSED_NO_ADDITIONAL_DIAGNOSTICS',
+  baselineErrors: status.diagnostics, targetErrors: current.total, added,
+  limitation: 'Comparison against ai-native/typecheck-status.json by file and diagnostic code. Existing strict typecheck debt remains failing. Historical source archive is retired.' }, null, 2));
+process.exitCode = added.length ? 1 : 0;

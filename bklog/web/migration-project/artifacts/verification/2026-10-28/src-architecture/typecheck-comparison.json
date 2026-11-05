@@ -1,9 +1,0 @@
-{
-  "status": "FAILED_EXISTING_DEBT",
-  "baselineErrors": 4934,
-  "targetErrors": 4934,
-  "comparison": "counts by source-origin file and TypeScript diagnostic code under identical strict compiler options",
-  "added": [],
-  "removed": [],
-  "note": "Does not prove semantic equivalence of every error message; neither baseline nor target passes strict typecheck."
-}

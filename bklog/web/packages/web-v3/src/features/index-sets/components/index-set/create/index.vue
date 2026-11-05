@@ -26,7 +26,7 @@
 
 <template>
   <div
-    v-bkloading="{ isLoading: basicLoading }"
+    v-loading="{ loading: basicLoading }"
     class="create-index-container"
     data-test-id="logIndexSetBox_div_newlogIndexSetBox"
   >
@@ -97,7 +97,7 @@
             <div class="collection-select">
               <bk-select
                 v-model="formData.storage_cluster_id"
-                v-bk-tooltips.top="{
+                v-log-tooltip.top="{
                   content: $t('不能跨集群添加多个索引，切换集群请先清空索引'),
                   delay: 300,
                   disabled: !formData.indexes.length,
@@ -148,7 +148,7 @@
                   @close="({e}) => removeCollection(index, item.result_table_id)"
                 >
                   <span
-                    v-bk-overflow-tips
+                    v-log-overflow-tips
                     style="max-width: 360px"
                     class="title-overflow"
                   >
@@ -174,7 +174,7 @@
               class="selected-collection"
             >
               <bk-table
-                v-bkloading="{ isLoading: tableLoading }"
+                v-loading="{ loading: tableLoading }"
                 :data="collectionTableData"
                 max-height="400"
               >
@@ -186,7 +186,7 @@
                 >
                   <template #default="props">
                     <span
-                      v-bk-overflow-tips
+                      v-log-overflow-tips
                       class="title-overflow"
                       >{{ props.row.field_name }}</span
                     >
@@ -200,7 +200,7 @@
                 >
                   <template #default="props">
                     <span
-                      v-bk-overflow-tips
+                      v-log-overflow-tips
                       class="title-overflow"
                       >{{ props.row.field_type }}</span
                     >
@@ -224,7 +224,7 @@
               class="selected-collection"
             >
               <bk-table
-                v-bkloading="{ isLoading: tableLoading }"
+                v-loading="{ loading: tableLoading }"
                 :data="currentMatchedTableIds"
                 max-height="400"
               >
@@ -267,7 +267,7 @@
         <div class="collection-form">
           <div class="collection-label not-required">
             <span
-              v-bk-tooltips="$t('用于标识日志文件来源及唯一性')"
+              v-log-tooltip="$t('用于标识日志文件来源及唯一性')"
               class="dotted-line"
             >
               {{ $t('目标字段') }}
@@ -295,7 +295,7 @@
         <div class="collection-form">
           <div class="collection-label not-required">
             <span
-              v-bk-tooltips="$t('用于控制日志排序的字段')"
+              v-log-tooltip="$t('用于控制日志排序的字段')"
               class="dotted-line"
             >
               {{ $t('排序字段') }}

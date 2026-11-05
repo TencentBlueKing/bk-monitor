@@ -12,6 +12,15 @@
     background-color: $bg-dark;
   }
 
+  .list-empty {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    height: 240px;
+    font-size: 12px;
+    color: #66768e;
+  }
+
   .list-scroller {
     height: 240px;
     overflow-y: auto;

@@ -75,7 +75,7 @@ export default defineComponent({
             'log-extract-list-page': route.name === 'extract-home',
           },
         ]}
-        v-bkloading={{ isLoading: isLoading.value }}
+        v-loading={{ loading: isLoading.value }}
       >
         <router-view />
       </div>

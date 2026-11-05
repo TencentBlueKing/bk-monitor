@@ -35,7 +35,7 @@
     header-position="left"
   >
     <div
-      v-bkloading="{ isLoading: basicLoading }"
+      v-loading="{ loading: basicLoading }"
       class="slot-container"
     >
       <bk-form
@@ -116,7 +116,7 @@
         </bk-form-item>
         <bk-form-item label="">
           <bk-table
-            v-bkloading="{ isLoading: tableLoading }"
+            v-loading="{ loading: tableLoading }"
             :data="tableData"
             max-height="400"
             ext-cls="table-container-collection"
@@ -129,7 +129,7 @@
             >
               <template #default="props">
                 <span
-                  v-bk-overflow-tips
+                  v-log-overflow-tips
                   class="overflow-tips"
                   >{{ props.row.field_name }}</span
                 >
@@ -143,7 +143,7 @@
             >
               <template #default="props">
                 <span
-                  v-bk-overflow-tips
+                  v-log-overflow-tips
                   class="overflow-tips"
                   >{{ props.row.field_type }}</span
                 >

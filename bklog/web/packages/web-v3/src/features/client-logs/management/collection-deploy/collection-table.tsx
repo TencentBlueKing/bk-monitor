@@ -325,7 +325,7 @@ export default defineComponent({
         <div class='log-table-operate'>
           <span
             class='king-button'
-            v-bk-tooltips={{
+            v-log-tooltip={{
               content: t('任务未处理完成'),
               disabled: row.process_status === 'success',
             }}
@@ -349,7 +349,7 @@ export default defineComponent({
           </TButton>
           <span
             class='king-button'
-            v-bk-tooltips={{
+            v-log-tooltip={{
               content: t('暂无下载链接，请在任务完成后点击下载'),
               disabled: row.status === TaskStatus.COMPLETED,
             }}

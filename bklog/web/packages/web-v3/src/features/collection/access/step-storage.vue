@@ -26,7 +26,7 @@
 
 <template>
   <div
-    v-bkloading="{ isLoading: basicLoading }"
+    v-loading="{ loading: basicLoading }"
     class="step-storage"
   >
     <bk-form
@@ -253,7 +253,7 @@
             </bk-input>
             <div class="unit-container">G</div>
             <span
-              v-bk-tooltips.right="$t('基于单台最大的日志存储量粗略评估')"
+              v-log-tooltip.right="$t('基于单台最大的日志存储量粗略评估')"
               class="right"
             >
               <i class="bk-icon icon-info"></i>

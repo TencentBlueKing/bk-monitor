@@ -35,7 +35,7 @@ import { asDictionary } from '@/shared/utils/typed-record';
 import { computed, defineComponent, Ref, ref } from 'vue';
 
 
-import { messageError } from '@/shared/lib/bkmagic';
+import { messageError } from '@/shared/lib/message';
 import { copyMessage } from '@/shared/lib/util';
 import BklogPopover from '@/shared/ui/bklog-popover/index';
 import { TimeRangeType } from '@/shared/ui/time-range/time-range';
@@ -336,7 +336,7 @@ export default defineComponent({
         >
           <span
             class='bklog-icon bklog-share'
-            v-bk-tooltips={t('分享')}
+            v-log-tooltip={t('分享')}
           ></span>
           <span
             style='margin-left: 6px;'

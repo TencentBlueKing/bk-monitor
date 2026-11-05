@@ -199,7 +199,7 @@ export default defineComponent({
               >
                 <span
                   class='collector-name-text'
-                  v-bk-overflow-tips
+                  v-log-overflow-tips
                 >
                   {row.collector_config_name || '--'}
                 </span>
@@ -238,7 +238,7 @@ export default defineComponent({
                 >
                   <span
                     class='sync-status-text'
-                    v-bk-overflow-tips
+                    v-log-overflow-tips
                   >
                     {getSyncStatusText(row)}
                   </span>
