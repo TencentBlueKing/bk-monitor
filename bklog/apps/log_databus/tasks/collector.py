@@ -62,6 +62,7 @@ from apps.log_search.constants import CustomTypeEnum
 from apps.log_search.models import LogIndexSet
 from apps.utils.bcs import Bcs
 from apps.utils import md5_sum
+from apps.utils.local import del_local_param, set_local_param
 from apps.utils.log import logger
 from apps.utils.task import high_priority_task
 
@@ -626,6 +627,19 @@ def switch_bcs_collector_storage(bk_biz_id, bcs_cluster_id, storage_cluster_id, 
             logger.exception(f"switch collector->[{collector.collector_config_id}] storage cluster error: {e}")
 
 
+def _space_tenant_id(bk_biz_id):
+    """从空间记录取租户，不回落到应用默认租户。"""
+    from apps.log_search.models import Space
+
+    return (
+        Space.objects.filter(bk_biz_id=bk_biz_id)
+        .exclude(bk_tenant_id__isnull=True)
+        .exclude(bk_tenant_id="")
+        .values_list("bk_tenant_id", flat=True)
+        .first()
+    )
+
+
 @high_priority_task(ignore_result=True)
 def update_collector_storage_config(storage_cluster_id):
     """
@@ -637,40 +651,53 @@ def update_collector_storage_config(storage_cluster_id):
     )
     collectors = CollectorConfig.objects.filter(index_set_id__in=index_set_ids, is_active=True)
     for collector in collectors:
+        tenant_id = _space_tenant_id(collector.bk_biz_id)
+        if not tenant_id:
+            logger.error(
+                "[update_collector_storage_config] executed failed, collector_config_id->%s, "
+                "reason: space tenant is empty",
+                collector.collector_config_id,
+            )
+            continue
+        # 后续查集群和改结果表都走这条租户，不能用应用默认租户
+        set_local_param("bk_tenant_id", tenant_id)
         try:
-            handler = CollectorHandler.get_instance(collector.collector_config_id)
-            collect_config = handler.retrieve()
-            clean_stash = handler.get_clean_stash()
-            etl_params = clean_stash["etl_params"] if clean_stash else collect_config["etl_params"]
-            etl_fields = (
-                clean_stash["etl_fields"]
-                if clean_stash
-                else [field for field in collect_config["fields"] if not field["is_built_in"]]
-            )
+            try:
+                handler = CollectorHandler.get_instance(collector.collector_config_id)
+                collect_config = handler.retrieve()
+                clean_stash = handler.get_clean_stash()
+                etl_params = clean_stash["etl_params"] if clean_stash else collect_config["etl_params"]
+                etl_fields = (
+                    clean_stash["etl_fields"]
+                    if clean_stash
+                    else [field for field in collect_config["fields"] if not field["is_built_in"]]
+                )
 
-            etl_params = {
-                "table_id": collector.collector_config_name_en,
-                "storage_cluster_id": storage_cluster_id,
-                "retention": collect_config["retention"],
-                "allocation_min_days": collect_config["retention"],
-                "storage_replies": collect_config["storage_replies"],
-                "es_shards": collect_config["storage_shards_nums"],
-                "etl_params": etl_params,
-                "etl_config": collect_config["etl_config"],
-                "fields": etl_fields,
-            }
-            etl_handler = EtlHandler.get_instance(collector.collector_config_id)
-            etl_handler.update_or_create(**etl_params)
-            logger.info(
-                "[update_collector_storage_config] executed successfully, collector_config_id->%s",
-                collector.collector_config_id,
-            )
-        except Exception as e:  # pylint: disable=broad-except
-            logger.exception(
-                "[update_collector_storage_config] executed failed, collector_config_id->%s, reason: %s",
-                collector.collector_config_id,
-                e,
-            )
+                etl_params = {
+                    "table_id": collector.collector_config_name_en,
+                    "storage_cluster_id": storage_cluster_id,
+                    "retention": collect_config["retention"],
+                    "allocation_min_days": collect_config.get("allocation_min_days") or 0,
+                    "storage_replies": collect_config["storage_replies"],
+                    "es_shards": collect_config["storage_shards_nums"],
+                    "etl_params": etl_params,
+                    "etl_config": collect_config["etl_config"],
+                    "fields": etl_fields,
+                }
+                etl_handler = EtlHandler.get_instance(collector.collector_config_id)
+                etl_handler.update_or_create(**etl_params)
+                logger.info(
+                    "[update_collector_storage_config] executed successfully, collector_config_id->%s",
+                    collector.collector_config_id,
+                )
+            except Exception as e:  # pylint: disable=broad-except
+                logger.exception(
+                    "[update_collector_storage_config] executed failed, collector_config_id->%s, reason: %s",
+                    collector.collector_config_id,
+                    e,
+                )
+        finally:
+            del_local_param("bk_tenant_id")
 
 
 @high_priority_task(ignore_result=True)
