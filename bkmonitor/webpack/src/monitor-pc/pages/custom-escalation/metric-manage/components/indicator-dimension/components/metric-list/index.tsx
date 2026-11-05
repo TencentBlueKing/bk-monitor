@@ -34,7 +34,16 @@ import EmptyStatus from '../../../../../../../components/empty-status/empty-stat
 import { METHOD_LIST } from '../../../../../../../constant/constant';
 import ColumnCheck from '../../../../../../performance/column-check/column-check.vue';
 import { type IGroupListItem, type RequestHandlerMap, DEFAULT_HEIGHT_OFFSET, NULL_LABEL } from '../../../../type';
+import {
+  type MetricTypeValue,
+  METRIC_TYPE_ALL,
+  enrichAndCollapseMetricTypeList,
+  ensureDemoMetricFamilyIfNeeded,
+  getMetricTypeSourceLabel,
+  parseMetricFamilyName,
+} from '../../../../metric-type';
 import { matchRuleFn } from '../../../../utils';
+import MetricTypeTag from '../../../metric-type-tag';
 import BatchEdit from './components/batch-edit';
 import MetricDetail from './components/metric-detail';
 
@@ -46,7 +55,15 @@ import './index.scss';
 import '@blueking/search-select-v3/vue2/vue2.css';
 
 /** 指标项类型定义，在基础字段数据基础上增加错误信息、新增标记和选中状态 */
-export type IMetricItem = ICustomTsFields['list'][number] & { error?: string; isNew?: boolean; selection: boolean };
+export type IMetricItem = ICustomTsFields['list'][number] & {
+  error?: string;
+  isNew?: boolean;
+  selection: boolean;
+  expandable?: boolean;
+  __expanded?: boolean;
+  __family_member_rows?: IMetricItem[];
+  __is_family_child?: boolean;
+};
 
 /** 组件事件接口 */
 interface IEmits {
@@ -74,6 +91,8 @@ interface IProps {
   metricGroupsMap: Map<string, IMetricGroupMapItem>;
   /** 当前选中的分组信息 */
   selectedGroupInfo: { id: number; name: string };
+  /** 当前选中的指标类型（与分组 AND） */
+  selectedMetricType: MetricTypeValue | typeof METRIC_TYPE_ALL;
   /** 单位列表 */
   unitList: IUnitItem[];
   /** 时间序列分组 ID */
@@ -87,6 +106,7 @@ interface IProps {
 @Component
 export default class MetricList extends tsc<IProps, IEmits> {
   @Prop({ default: () => {} }) selectedGroupInfo: IProps['selectedGroupInfo'];
+  @Prop({ default: METRIC_TYPE_ALL }) selectedMetricType: IProps['selectedMetricType'];
   @Prop({ default: () => [] }) unitList: IProps['unitList'];
   @Prop({ default: () => [] }) groupSelectList: IProps['groupSelectList'];
   @Prop({ default: () => [] }) dimensionTable: IProps['dimensionTable'];
@@ -274,6 +294,14 @@ export default class MetricList extends tsc<IProps, IEmits> {
     this.handleGetCustomTsFields();
   }
 
+  /** 监听指标类型筛选变化（与分组 AND） */
+  @Watch('selectedMetricType')
+  handleSelectedMetricTypeChange() {
+    this.tableInstance.page = 1;
+    this.selectedMetricMap = {};
+    this.handleGetCustomTsFields();
+  }
+
   /** 监听指标数据变化，当数据为空时关闭详情面板 */
   @Watch('metricData', { immediate: true, deep: true })
   handleMetricDataChange() {
@@ -294,8 +322,20 @@ export default class MetricList extends tsc<IProps, IEmits> {
       name: {
         checked: true,
         disable: false,
-        name: this.$t('名称'),
+        name: this.$t('指标/指标族'),
         id: 'name',
+      },
+      metricType: {
+        checked: true,
+        disable: false,
+        name: this.$t('类型'),
+        id: 'metric_type',
+      },
+      typeSource: {
+        checked: true,
+        disable: false,
+        name: this.$t('类型来源'),
+        id: 'type_source',
       },
       alias: {
         checked: true,
@@ -392,11 +432,20 @@ export default class MetricList extends tsc<IProps, IEmits> {
     this.requestHandlerMap
       .getCustomTsFields(params)
       .then(data => {
-        this.metricTable = data.list.map(item => ({
-          ...item,
-          selection: false,
-        }));
-        this.tableInstance.total = data.total;
+        // 后端字段缺失时 Mock 类型元数据，并将 Histogram/Summary 按指标族收敛
+        let list = ensureDemoMetricFamilyIfNeeded(
+          enrichAndCollapseMetricTypeList(
+            data.list.map(item => ({
+              ...item,
+              selection: false,
+            }))
+          ) as IMetricItem[]
+        );
+        if (this.selectedMetricType !== METRIC_TYPE_ALL) {
+          list = list.filter(item => item.metric_type === this.selectedMetricType);
+        }
+        this.metricTable = list;
+        this.tableInstance.total = this.selectedMetricType !== METRIC_TYPE_ALL ? list.length : data.total;
         this.$nextTick(() => {
           this.updateAllSelection();
         });
@@ -418,6 +467,56 @@ export default class MetricList extends tsc<IProps, IEmits> {
   }
 
   /**
+   * 展开/收起指标族真实成员（不生成不存在的成员）
+   */
+  toggleFamilyExpand(row: IMetricItem, index: number) {
+    const expanded = !row.__expanded;
+    this.$set(row, '__expanded', expanded);
+    if (expanded) {
+      const memberRows = row.__family_member_rows || [];
+      const children = memberRows.map(item => ({
+        ...item,
+        selection: false,
+        __is_family_child: true,
+        is_family_parent: false,
+        expandable: false,
+        // 共享成员列表，便于分组联动更新
+        __family_member_rows: memberRows,
+      }));
+      this.metricTable.splice(index + 1, 0, ...children);
+    } else {
+      let removeCount = 0;
+      for (let i = index + 1; i < this.metricTable.length; i++) {
+        if (this.metricTable[i].__is_family_child) removeCount += 1;
+        else break;
+      }
+      if (removeCount) this.metricTable.splice(index + 1, removeCount);
+    }
+  }
+
+  /**
+   * 存量人工确认与自动识别冲突时的专门处理入口
+   */
+  handleTypeConflict(row: IMetricItem) {
+    this.$bkInfo({
+      title: this.$t('类型冲突处理'),
+      subTitle: this.$t('指标「{0}」的人工确认类型与自动识别结果冲突，请确认以哪一侧为准。', [row.name]),
+      okText: this.$t('保留人工确认'),
+      cancelText: this.$t('采用上报识别'),
+      confirmFn: () => {
+        this.$set(row, 'type_conflict', false);
+        this.$set(row, 'type_source', 'manual');
+        this.$bkMessage({ theme: 'success', message: this.$t('已保留人工确认类型') });
+      },
+      cancelFn: () => {
+        this.$set(row, 'type_conflict', false);
+        this.$set(row, 'type_source', 'reported');
+        this.$bkMessage({ theme: 'success', message: this.$t('已采用上报识别类型') });
+      },
+    });
+  }
+
+  /**
    * 显示指标详情侧边栏
    * @param props 表格行属性对象，包含$index等
    */
@@ -430,15 +529,12 @@ export default class MetricList extends tsc<IProps, IEmits> {
   }
 
   /**
-   * 处理分组选择切换
+   * 处理分组选择切换（指标族与子指标分组必须一致，联动保存）
    * @param id 选中的分组ID
    * @param row 当前指标行数据
    */
   handleGroupSelectToggle(id: number, row: IMetricItem) {
     const name = this.groupSelectList.find(item => item.id === id)?.name;
-    if (name === row.scope_name) {
-      return;
-    }
     let infoObj = {
       id,
       name,
@@ -447,7 +543,75 @@ export default class MetricList extends tsc<IProps, IEmits> {
       // 未分组
       infoObj = this.defaultGroupInfo;
     }
+    if (infoObj.name === row.scope_name && infoObj.id === row.scope_id) {
+      return;
+    }
+    if (row.is_family_parent || row.__is_family_child) {
+      this.updateFamilyScope(infoObj, row);
+      return;
+    }
     this.updateCustomFields('scope', infoObj, row, true);
+  }
+
+  /**
+   * 获取指标族联动更新目标（真实子指标列表）
+   */
+  getFamilyScopeTargets(metricInfo: IMetricItem): IMetricItem[] {
+    const members = metricInfo.__family_member_rows;
+    if ((metricInfo.is_family_parent || metricInfo.__is_family_child) && members?.length) {
+      return members;
+    }
+    return [metricInfo];
+  }
+
+  /**
+   * 指标族分组联动更新：父级与子指标必须同组，批量保存后刷新
+   */
+  async updateFamilyScope(scopeInfo: { id: number; name: string }, metricInfo: IMetricItem) {
+    const targets = this.getFamilyScopeTargets(metricInfo);
+    try {
+      const update_fields = targets.map(item => ({
+        type: 'metric',
+        name: item.name,
+        id: item.id,
+        scope: scopeInfo,
+        config: item.config,
+      }));
+      const params = {
+        time_series_group_id: this.timeSeriesGroupId,
+        update_fields,
+      };
+      if (this.isAPM) {
+        delete params.time_series_group_id;
+        Object.assign(params, {
+          app_name: this.appName,
+          service_name: this.serviceName,
+        });
+      }
+      await this.requestHandlerMap.modifyCustomTsFields(params);
+      for (const item of targets) {
+        item.scope_id = scopeInfo.id;
+        item.scope_name = scopeInfo.name;
+      }
+      // 同步表格中已展开的父/子行展示
+      for (const row of this.metricTable) {
+        if (row === metricInfo || row.__family_member_rows === metricInfo.__family_member_rows) {
+          row.scope_id = scopeInfo.id;
+          row.scope_name = scopeInfo.name;
+        }
+        if (row.__is_family_child && targets.some(item => item.id === row.id)) {
+          row.scope_id = scopeInfo.id;
+          row.scope_name = scopeInfo.name;
+        }
+      }
+      this.$bkMessage({
+        theme: 'success',
+        message: this.$t('指标组和其下方的子指标分组必须一致，均保存成功'),
+      });
+      this.$emit('refresh');
+    } catch (error) {
+      console.error('Update family scope failed:', error);
+    }
   }
 
   /**
@@ -534,46 +698,95 @@ export default class MetricList extends tsc<IProps, IEmits> {
 
   /** 获取表格组件，包含所有列的定义和插槽 */
   getTableComponent() {
-    /* 名称 */
+    /* 指标/指标族 */
     const nameSlot = {
       default: props => (
         <div
-          class='name'
-          v-bk-overflow-tips
+          class={['name', 'metric-name-cell', { 'is-family-child': props.row.__is_family_child }]}
+          v-bk-overflow-tips={{
+            content: props.row.name || '--',
+          }}
           onClick={(e: MouseEvent) => {
             e.stopPropagation();
+            // 聚合父指标仅支持查看；真实子指标和普通指标可编辑详情
             this.showMetricDetail(props);
           }}
         >
-          {props.row.name || '--'}
+          {props.row.expandable ? (
+            <i
+              class={[
+                'icon-monitor',
+                'icon-mc-arrow-right',
+                'family-expand-icon',
+                { 'is-expanded': props.row.__expanded },
+              ]}
+              onClick={(e: MouseEvent) => {
+                e.stopPropagation();
+                this.toggleFamilyExpand(props.row, props.$index);
+              }}
+            />
+          ) : (
+            <span class='family-expand-placeholder' />
+          )}
+          <span class='metric-name-text'>
+            {props.row.__is_family_child
+              ? parseMetricFamilyName(props.row.name)?.suffix || props.row.name
+              : props.row.name || '--'}
+          </span>
+        </div>
+      ),
+    };
+    const typeSlot = {
+      default: ({ row }) => <MetricTypeTag type={row.metric_type || 'unclassified'} size='small' />,
+    };
+    const typeSourceSlot = {
+      default: ({ row }) => (
+        <div class='type-source-cell'>
+          <span>{getMetricTypeSourceLabel(row.type_source)}</span>
+          {row.type_conflict && (
+            <bk-button
+              class='type-conflict-btn'
+              text
+              theme='primary'
+              onClick={(e: MouseEvent) => {
+                e.stopPropagation();
+                this.handleTypeConflict(row);
+              }}
+            >
+              {this.$t('处理')}
+            </bk-button>
+          )}
         </div>
       ),
     };
     /* 别名 */
     const aliasSlot = {
-      default: props => (
-        <div
-          class='description-content'
-          onClick={() => this.handleDescFocus(props)}
-        >
-          <bk-input
-            ext-cls='description-input'
-            readonly={this.editingIndex !== props.$index}
-            value={props.row.config.alias}
-            show-overflow-tooltips
-            onBlur={() => {
-              this.editingIndex = -1;
-              this.handleEditDescription(props.row);
-            }}
-            onChange={v => {
-              this.copyAlias = v;
-            }}
-            onEnter={() => {
-              this.handleEditDescription(props.row);
-            }}
-          />
-        </div>
-      ),
+      default: props =>
+        props.row.is_family_parent ? (
+          <div class='description-content is-readonly'>--</div>
+        ) : (
+          <div
+            class='description-content'
+            onClick={() => this.handleDescFocus(props)}
+          >
+            <bk-input
+              ext-cls='description-input'
+              readonly={this.editingIndex !== props.$index}
+              value={props.row.config.alias}
+              show-overflow-tooltips
+              onBlur={() => {
+                this.editingIndex = -1;
+                this.handleEditDescription(props.row);
+              }}
+              onChange={v => {
+                this.copyAlias = v;
+              }}
+              onEnter={() => {
+                this.handleEditDescription(props.row);
+              }}
+            />
+          </div>
+        ),
     };
     /* 分组 */
     const groupSlot = {
@@ -600,7 +813,7 @@ export default class MetricList extends tsc<IProps, IEmits> {
       ),
     };
 
-    const { name, group, alias, hidden } = this.fieldSettingData;
+    const { name, group, alias, hidden, metricType, typeSource } = this.fieldSettingData;
     return (
       <div
         ref='tableBoxRef'
@@ -632,8 +845,13 @@ export default class MetricList extends tsc<IProps, IEmits> {
               default: ({ row }) => (
                 <bk-checkbox
                   v-model={row.selection}
-                  v-bk-tooltips={{ content: this.$t('该指标已预设分组，暂不支持页面修改。'), disabled: row.movable }}
-                  disabled={!row.movable}
+                  v-bk-tooltips={{
+                    content: row.is_family_parent
+                      ? this.$t('聚合父指标不可选择')
+                      : this.$t('该指标已预设分组，暂不支持页面修改。'),
+                    disabled: row.movable && !row.is_family_parent,
+                  }}
+                  disabled={!row.movable || row.is_family_parent}
                   onChange={() => this.handleRowCheck(row)}
                 />
               ),
@@ -647,10 +865,28 @@ export default class MetricList extends tsc<IProps, IEmits> {
             <bk-table-column
               key='name'
               fixed='left'
-              label={this.$t('名称')}
-              minWidth='150'
+              label={this.$t('指标/指标族')}
+              minWidth='180'
               prop='name'
               scopedSlots={nameSlot}
+            />
+          )}
+          {metricType?.checked && (
+            <bk-table-column
+              key='metric_type'
+              label={this.$t('类型')}
+              minWidth='130'
+              prop='metric_type'
+              scopedSlots={typeSlot}
+            />
+          )}
+          {typeSource?.checked && (
+            <bk-table-column
+              key='type_source'
+              label={this.$t('类型来源')}
+              minWidth='120'
+              prop='type_source'
+              scopedSlots={typeSourceSlot}
             />
           )}
           {alias.checked && (
@@ -772,7 +1008,7 @@ export default class MetricList extends tsc<IProps, IEmits> {
   handleCheckChange({ value }) {
     const isCheckAll = value === 2;
     for (const item of this.metricTable) {
-      if (!item.movable) {
+      if (!item.movable || item.is_family_parent) {
         continue;
       }
       if (isCheckAll) {
@@ -790,7 +1026,7 @@ export default class MetricList extends tsc<IProps, IEmits> {
    */
   updateAllSelection(): void {
     for (const item of this.metricTable) {
-      if (!item.movable) {
+      if (!item.movable || item.is_family_parent) {
         continue;
       }
       item.selection = !!this.selectedMetricMap[item.id];
@@ -965,7 +1201,7 @@ export default class MetricList extends tsc<IProps, IEmits> {
       <bk-select
         key={row.name}
         clearable={false}
-        disabled={!row.movable}
+        disabled={!row.movable && !row.is_family_parent}
         value={row.scope_id}
         displayTag
         searchable

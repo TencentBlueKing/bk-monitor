@@ -52,9 +52,9 @@ export type ICustomTsFields = ServiceReturnType<typeof getCustomTsFields>;
 export default class CustomEscalationDetailNew extends tsc<any, any> {
   loading = false; // 加载状态
   copyIsPlatform = false; // 是否为平台指标、事件
-  helpPanelStorageKey = '__custom_escalation_help_panel__';
-  // 是否显示右侧帮助栏（默认显示，除非明确设置为 'false'）
-  isShowHelpPanel = (localStorage.getItem(this.helpPanelStorageKey) ?? 'true') === 'true';
+  helpPanelStorageKey = '__custom_escalation_help_panel_v2__';
+  // 是否显示右侧帮助栏（默认收起）
+  isShowHelpPanel = (localStorage.getItem(this.helpPanelStorageKey) ?? 'false') === 'true';
 
   // 详情数据
   detailData: ICustomTimeSeriesDetail = {

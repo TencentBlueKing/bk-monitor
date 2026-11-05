@@ -33,7 +33,12 @@ import CycleInput from 'monitor-pc/components/cycle-input/cycle-input';
 import { METHOD_LIST } from '../../../../../../../../../constant/constant';
 import FunctionSelect from '../../../../../../../../strategy-config/strategy-config-set-new/monitor-data/function-select';
 import { type IGroupListItem, type RequestHandlerMap, DEFAULT_HEIGHT_OFFSET, NULL_LABEL } from '../../../../../../type';
+import {
+  type MetricTemporality,
+  METRIC_TEMPORALITY_OPTIONS,
+} from '../../../../../../metric-type';
 import { matchRuleFn } from '../../../../../../utils';
+import MetricTypeTag from '../../../../../metric-type-tag';
 
 import type { ICustomTsFields, IGroupingRule, IUnitItem } from '../../../../../../../service';
 
@@ -88,6 +93,8 @@ export default class MetricDetail extends tsc<IProps, any> {
   @Ref() readonly metricTableHeader!: HTMLInputElement;
   /** 单位选择器引用 */
   @Ref() readonly unitSelectInput!: HTMLInputElement;
+  /** 时序性选择器引用 */
+  @Ref() readonly temporalitySelectInput!: any;
 
   /** 是否正在编辑别名 */
   canEditName = false;
@@ -97,14 +104,35 @@ export default class MetricDetail extends tsc<IProps, any> {
   canEditAgg = false;
   /** 是否正在编辑单位 */
   canEditUnit = false;
+  /** 是否正在编辑时序性 */
+  canEditTemporality = false;
   /** 汇聚方法备份值，用于编辑时临时存储 */
   copyAggregation = '';
   /** 单位备份值，用于编辑时临时存储 */
   copyUnit = '';
+  /** 时序性备份值，用于编辑时临时存储 */
+  copyTemporality: MetricTemporality = 'cumulative';
   /** ResizeObserver 实例，用于监听元素尺寸变化 */
   resizeObserver = null;
   /** 表格头部高度 */
   rectHeight = 32;
+
+  /** 时序性展示文案 */
+  get temporalityLabel() {
+    return (
+      METRIC_TEMPORALITY_OPTIONS.find(item => item.id === (this.metricData.temporality || 'cumulative'))?.name || '--'
+    );
+  }
+
+  /** 是否为指标族子指标（子指标无时序性） */
+  get isFamilyChild() {
+    return Boolean((this.metricData as any).__is_family_child);
+  }
+
+  /** 是否展示时序性：普通指标与指标族有，子指标无 */
+  get showTemporality() {
+    return !this.isFamilyChild;
+  }
 
   /** 获取去重后的维度选择列表 */
   get dimensionSelectList() {
@@ -128,17 +156,33 @@ export default class MetricDetail extends tsc<IProps, any> {
   }
 
   /**
-   * 处理分组选择切换
+   * 处理分组选择切换（指标族与子指标分组必须一致，联动保存）
    * @param id 分组ID
    * @param row 指标项数据
    */
   handleGroupSelectToggle(id: number, row: IMetricItem) {
+    let infoObj = {
+      id,
+      name: this.groupSelectList.find(item => item.id === id)?.name,
+    };
     if (!id) {
-      this.updateCustomFields('scope', this.defaultGroupInfo, row);
+      infoObj = this.defaultGroupInfo;
+    }
+    if (infoObj.name === row.scope_name && infoObj.id === row.scope_id) {
       return;
     }
-    const name = this.groupSelectList.find(item => item.id === id)?.name;
-    this.updateCustomFields('scope', { id, name }, row);
+    this.updateCustomFields('scope', infoObj, row);
+  }
+
+  /**
+   * 获取需要联动更新分组的指标列表（指标族父级及其子指标）
+   */
+  getFamilyScopeTargets(metricInfo: IMetricItem): IMetricItem[] {
+    const members = (metricInfo as any).__family_member_rows as IMetricItem[] | undefined;
+    if ((metricInfo.is_family_parent || (metricInfo as any).__is_family_child) && members?.length) {
+      return members;
+    }
+    return [metricInfo];
   }
 
   /**
@@ -186,27 +230,31 @@ export default class MetricDetail extends tsc<IProps, any> {
    * @param k 字段名
    * @param v 字段值
    * @param metricInfo 指标信息
-   * @param showMsg 是否显示成功消息
    */
   async updateCustomFields(k: string, v: any, metricInfo: IMetricItem) {
-    const updateField = {
+    const isFamilyScope =
+      k === 'scope' &&
+      (metricInfo.is_family_parent || (metricInfo as any).__is_family_child) &&
+      (metricInfo as any).__family_member_rows?.length;
+    const targets = isFamilyScope ? this.getFamilyScopeTargets(metricInfo) : [metricInfo];
+    const update_fields = targets.map(item => ({
       type: 'metric',
-      name: metricInfo.name,
-      id: metricInfo.id,
-      scope: {
-        id: metricInfo.scope_id,
-        name: metricInfo.scope_name,
-      },
-      config: metricInfo.config,
-      dimensions: metricInfo.dimensions,
-    };
-    if (k === 'scope') {
-      updateField.scope = v;
-    }
+      name: item.name,
+      id: item.id,
+      scope:
+        k === 'scope'
+          ? v
+          : {
+              id: item.scope_id,
+              name: item.scope_name,
+            },
+      config: item === metricInfo ? metricInfo.config : item.config,
+      dimensions: item === metricInfo ? metricInfo.dimensions : item.dimensions,
+    }));
     try {
       const params = {
         time_series_group_id: this.timeSeriesGroupId,
-        update_fields: [updateField],
+        update_fields,
       };
       if (this.isAPM) {
         delete params.time_series_group_id;
@@ -216,7 +264,20 @@ export default class MetricDetail extends tsc<IProps, any> {
         });
       }
       await this.requestHandlerMap.modifyCustomTsFields(params);
-      this.$bkMessage({ theme: 'success', message: this.$t('变更成功') });
+      if (isFamilyScope) {
+        for (const item of targets) {
+          item.scope_id = v.id;
+          item.scope_name = v.name;
+        }
+        metricInfo.scope_id = v.id;
+        metricInfo.scope_name = v.name;
+        this.$bkMessage({
+          theme: 'success',
+          message: this.$t('指标组和其下方的子指标分组必须一致，均保存成功'),
+        });
+      } else {
+        this.$bkMessage({ theme: 'success', message: this.$t('变更成功') });
+      }
       if (k === 'scope') {
         this.$emit('refresh');
         this.$emit('close');
@@ -344,6 +405,32 @@ export default class MetricDetail extends tsc<IProps, any> {
     metricInfo.config.hidden = !metricInfo.config.hidden;
     this.updateCustomFields('hidden', !v, metricInfo);
   }
+
+  /** 显示时序性编辑下拉 */
+  handleShowEditTemporality() {
+    this.copyTemporality = (this.metricData.temporality || 'cumulative') as MetricTemporality;
+    this.canEditTemporality = true;
+    this.$nextTick(() => {
+      this.temporalitySelectInput?.getPopoverInstance?.()?.show?.();
+    });
+  }
+
+  /**
+   * 编辑时序性（下拉收起时保存）
+   * @param isShow 下拉是否展开
+   */
+  handleEditTemporality(isShow: boolean) {
+    if (isShow) return;
+    this.canEditTemporality = false;
+    if (this.copyTemporality === (this.metricData.temporality || 'cumulative')) return;
+    this.handleTemporalityChange(this.copyTemporality);
+  }
+
+  /** 切换时序性（Mock：本地更新；后端就绪后写入 config/字段） */
+  handleTemporalityChange(v: MetricTemporality) {
+    this.$set(this.metricData, 'temporality', v);
+    this.$bkMessage({ theme: 'success', message: this.$t('时序性已更新') });
+  }
   /** 切换状态 */
   // handleClickDisabled(metricInfo) {
   //   metricInfo.disabled = !metricInfo.disabled;
@@ -360,7 +447,7 @@ export default class MetricDetail extends tsc<IProps, any> {
       <bk-select
         key={row.name}
         clearable={false}
-        disabled={!row.movable}
+        disabled={!row.movable && !row.is_family_parent}
         value={row.scope_id}
         displayTag
         searchable
@@ -481,7 +568,9 @@ export default class MetricDetail extends tsc<IProps, any> {
             {this.renderInfoItem({ label: '名称', value: this.metricData.name }, true)}
             <div class='info-item'>
               <span class='info-label'>{this.$t('别名')}：</span>
-              {!this.canEditName ? (
+              {this.metricData.is_family_parent ? (
+                <div class='info-content readonly'>--</div>
+              ) : !this.canEditName ? (
                 <div
                   class='info-content info-text'
                   v-bk-overflow-tips
@@ -524,7 +613,7 @@ export default class MetricDetail extends tsc<IProps, any> {
 
             <div class='info-item'>
               <span class='info-label'>{this.$t('单位')}：</span>
-              {!this.canEditUnit ? (
+              {!this.canEditUnit && !this.metricData.is_family_parent ? (
                 <div
                   class='info-content'
                   onClick={() => this.handleShowEditUnit(this.metricData.config.unit)}
@@ -532,43 +621,85 @@ export default class MetricDetail extends tsc<IProps, any> {
                   {this.metricData.config.unit || '--'}
                 </div>
               ) : (
-                <bk-select
-                  ref='unitSelectInput'
-                  ext-cls='unit-content unit-ext'
-                  v-model={this.copyUnit}
-                  clearable={false}
-                  allow-create
-                  searchable
-                  onToggle={(v: boolean) => this.handleEditUnit(v, this.metricData)}
-                >
-                  {this.unitList.map((group, index) => (
-                    <bk-option-group
-                      key={index}
-                      name={group.name}
-                    >
-                      {group.formats.map(option => (
-                        <bk-option
-                          id={option.id}
-                          key={option.id}
-                          name={option.name}
-                        />
-                      ))}
-                    </bk-option-group>
-                  ))}
-                </bk-select>
+                this.canEditUnit ? (
+                  <bk-select
+                    ref='unitSelectInput'
+                    ext-cls='unit-content unit-ext'
+                    v-model={this.copyUnit}
+                    clearable={false}
+                    allow-create
+                    searchable
+                    onToggle={(v: boolean) => this.handleEditUnit(v, this.metricData)}
+                  >
+                    {this.unitList.map((group, index) => (
+                      <bk-option-group
+                        key={index}
+                        name={group.name}
+                      >
+                        {group.formats.map(option => (
+                          <bk-option
+                            id={option.id}
+                            key={option.id}
+                            name={option.name}
+                          />
+                        ))}
+                      </bk-option-group>
+                    ))}
+                  </bk-select>
+                ) : (
+                  <div class='info-content readonly'>{this.metricData.config.unit || '--'}</div>
+                )
               )}
             </div>
+            <div class='info-item'>
+              <span class='info-label'>{this.$t('类型')}：</span>
+              <div class='info-content type-meta-content readonly'>
+                <MetricTypeTag type={this.metricData.metric_type || 'unclassified'} />
+                <span class='type-source-desc'>
+                  {this.metricData.type_source === 'manual' ? this.$t('人工确认') : this.$t('自动识别')}
+                </span>
+              </div>
+            </div>
+            {this.showTemporality && (
+              <div class='info-item'>
+                <span class='info-label'>{this.$t('时序性')}：</span>
+                {!this.canEditTemporality ? (
+                  <div
+                    class='info-content'
+                    onClick={this.handleShowEditTemporality}
+                  >
+                    {this.temporalityLabel}
+                  </div>
+                ) : (
+                  <bk-select
+                    ref='temporalitySelectInput'
+                    ext-cls='unit-content'
+                    v-model={this.copyTemporality}
+                    clearable={false}
+                    onToggle={(v: boolean) => this.handleEditTemporality(v)}
+                  >
+                    {METRIC_TEMPORALITY_OPTIONS.map(item => (
+                      <bk-option
+                        id={item.id}
+                        key={item.id}
+                        name={item.name}
+                      />
+                    ))}
+                  </bk-select>
+                )}
+              </div>
+            )}
             {/* 汇聚方法 */}
             <div class='info-item'>
               <span class='info-label'>{this.$t('汇聚方法')}：</span>
-              {!this.canEditAgg ? (
+              {!this.canEditAgg && !this.metricData.is_family_parent ? (
                 <div
                   class='info-content'
                   onClick={() => this.handleShowEditAgg(this.metricData.config.aggregate_method)}
                 >
                   {this.metricData.config.aggregate_method || '--'}
                 </div>
-              ) : (
+              ) : this.canEditAgg ? (
                 <bk-select
                   ref='aggConditionInput'
                   ext-cls='unit-content'
@@ -584,6 +715,8 @@ export default class MetricDetail extends tsc<IProps, any> {
                     />
                   ))}
                 </bk-select>
+              ) : (
+                <div class='info-content readonly'>{this.metricData.config.aggregate_method || '--'}</div>
               )}
             </div>
 
