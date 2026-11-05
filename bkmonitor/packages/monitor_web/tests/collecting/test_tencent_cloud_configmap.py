@@ -7,7 +7,7 @@ import yaml
 
 from core.errors.collecting import CollectConfigVersionChanged, LegacyConversionFailed
 from monitor_web.collecting.resources import tencent_cloud as api
-from monitor_web.collecting.tencent_cloud import effective_config, validate_files
+from monitor_web.collecting.tencent_cloud import effective_config, render_config, validate_files
 
 
 CONTRACT = {"version": "v0.21.0", "products": {"QCE/CVM": ["InstanceId"], "QCE/COS": ["appid", "bucket"]}}
@@ -365,3 +365,59 @@ def test_endpoint_registration():
     route = next(r for r in CollectingConfigViewSet.resource_routes if r.endpoint == "validate_tencent_cloud_configmap")
     assert route.method == "POST"
     assert route.resource_class is api.ValidateTencentCloudConfigmapResource
+
+
+@pytest.mark.parametrize("escape", [r"\uD800", r"\uDFFF"])
+@pytest.mark.parametrize("layer", ["outer", "inner"])
+def test_escaped_surrogate_is_a_file_error_and_batch_continues(config, escape, layer):
+    bad = upload(config)
+    if layer == "outer":
+        bad["content"] = f'apiVersion: v1\nkind: ConfigMap\ndata:\n  qcloud.yml: "{escape}"\n'
+    else:
+        outer = yaml.safe_load(bad["content"])
+        outer["data"]["qcloud.yml"] += f'filename: "private-marker-{escape}"\n'
+        bad["content"] = yaml.safe_dump(outer)
+    good = upload(config, uid="e6cc3fa6-302f-4fdd-966c-306547b48340")
+    # 原始上传内容可编码；错误只在 YAML 解码转义序列后出现。
+    bad["content"].encode("utf-8")
+    result = validate_files([bad, good], {"period": 60, "timeout": 60}, CONTRACT)
+    assert not result["valid"]
+    assert result["files"][0]["preview"] is None
+    assert result["files"][0]["errors"] == [
+        {
+            "code": "FILE_ENCODING_INVALID",
+            "path": "content" if layer == "outer" else "qcloud.yml",
+            "message": "YAML 文本必须是有效 UTF-8 字符串",
+        }
+    ]
+    assert "private-marker" not in str(result)
+    assert result["files"][1]["valid"]
+    assert result["files"][1]["preview"] is not None
+
+
+def test_credential_alias_does_not_change_other_fields(config):
+    config["credential"] = {"region": "ap-guangzhou"}
+    config["tag_key_replace"] = config["credential"]
+    config["products"][0]["tag_key_replace"] = config["credential"]
+    original = deepcopy(config)
+    file = upload(config)
+    assert "&id001" in yaml.safe_load(file["content"])["data"]["qcloud.yml"]
+    effective = effective_config(config, {"period": 60, "timeout": 60}, CONTRACT)
+    result = validate_files([file], {"period": 60, "timeout": 60}, CONTRACT)
+    assert result["valid"]
+    preview = result["files"][0]["preview"]["qcloud_yaml"]
+    tree = yaml.safe_load(preview)
+    expected = deepcopy(original)
+    expected["credential"] = {**expected["credential"], "access_key": "", "secret_key": ""}
+    assert tree == effective == expected
+    assert config == original
+    assert "# 凭据由平台通过 Secret 注入，无需在配置文件中填写" in preview
+
+
+def test_preview_comment_preserves_anchored_mapping(config):
+    config["credential"] = {"region": "ap-guangzhou", "access_key": "", "secret_key": ""}
+    config["tag_key_replace"] = config["credential"]
+    preview = render_config(config)
+    assert preview.startswith("credential: &")
+    assert preview.splitlines()[1] == "  # 凭据由平台通过 Secret 注入，无需在配置文件中填写"
+    assert yaml.safe_load(preview) == config

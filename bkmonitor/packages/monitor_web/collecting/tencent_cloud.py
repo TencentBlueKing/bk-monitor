@@ -27,6 +27,15 @@ class ConfigError(ValueError):
 
 
 class ConfigLoader(yaml.SafeLoader):
+    def construct_scalar(self, node):
+        value = super().construct_scalar(node)
+        # 上传原文可编码不代表 YAML 解码转义后的字符串仍是合法 UTF-8。
+        try:
+            value.encode("utf-8")
+        except UnicodeError:
+            raise ConfigError("FILE_ENCODING_INVALID", "", "YAML 文本必须是有效 UTF-8 字符串") from None
+        return value
+
     def construct_mapping(self, node, deep=False):
         result = {}
         for key_node, value_node in node.value:
@@ -202,6 +211,8 @@ def effective_config(config, collector, contract):
     if not 0 < budget < timeout <= period:
         raise ConfigError("TIMEOUT_INVALID", "collector", "应满足 exporter 实际预算 < 采集超时 ≤ 采集周期")
     result = deepcopy(config)
+    # deepcopy 保留 YAML 别名共享关系；凭据修改必须与其他字段隔离。
+    result["credential"] = dict(result["credential"])
     result["credential"]["access_key"] = ""
     result["credential"]["secret_key"] = ""
     return result
@@ -210,7 +221,9 @@ def effective_config(config, collector, contract):
 def render_config(config):
     ordered = {"credential": config["credential"], **config}
     text = yaml.safe_dump(ordered, allow_unicode=True, sort_keys=False)
-    return text.replace("credential:\n", "credential:\n  # 凭据由平台通过 Secret 注入，无需在配置文件中填写\n", 1)
+    # credential 固定排在首行，行尾可能携带 YAML 锚点。
+    header, body = text.split("\n", 1)
+    return f"{header}\n  # 凭据由平台通过 Secret 注入，无需在配置文件中填写\n{body}"
 
 
 def validate_files(files, collector, contract):
