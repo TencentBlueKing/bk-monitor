@@ -54,7 +54,11 @@ from apps.utils.task import high_priority_task
 
 @high_priority_task(ignore_result=True)
 def async_create_bkdata_data_id(collector_config_id: int, platform_username: str = None):
-    create_bkdata_data_id(CollectorConfig.objects.get(collector_config_id=collector_config_id), platform_username)
+    collector_config = CollectorConfig.objects.get(collector_config_id=collector_config_id)
+    # V4 业务不自动注册 V3 Data ID，聚类仍可直接调用同步函数按需注册。
+    if FeatureToggleObject.switch("log_v4_data_link", collector_config.get_bk_biz_id()):
+        return
+    create_bkdata_data_id(collector_config, platform_username)
 
 
 def create_bkdata_data_id(collector_config: CollectorConfig, platform_username: str = None, raise_exception=False):
@@ -193,6 +197,8 @@ def review_bkdata_data_id():
         return
     collector_configs = CollectorConfig.objects.filter(bkdata_data_id__isnull=True)
     for collector_config in collector_configs:
+        if FeatureToggleObject.switch("log_v4_data_link", collector_config.get_bk_biz_id()):
+            continue
         if collector_config.bkdata_data_id_sync_times >= MAX_CREATE_BKDATA_DATA_ID_FAIL_COUNT:
             logger.error(
                 f"{collector_config.collector_config_name} Creating bkdata_data_id exceeded the maximum number of retries: {MAX_CREATE_BKDATA_DATA_ID_FAIL_COUNT}"
