@@ -36,6 +36,7 @@ import EditableFormItem from '../../../../components/editable-form-item/editable
 import PanelItem from '../../../../components/panel-item/panel-item';
 import * as authorityMap from '../../../home/authority-map';
 import StorageInfoSkeleton from '../skeleton/storage-info-skeleton';
+import { confirmSwitchStorageCluster } from './confirm-switch-storage-cluster';
 
 import type {
   ClusterOption,
@@ -272,41 +273,12 @@ export default class Trace extends tsc<IProps, IEvent> {
    * @returns { Boolean } 是否确认
    */
   handleCheckCluster(targetClusterId: number) {
-    const h = this.$createElement;
     const current = this.currentCluster;
     const target = this.clusterList.find(item => item.storage_cluster_id === targetClusterId);
-    const currentName = current?.storage_display_name || current?.storage_cluster_name || '--';
-    const targetName = target?.storage_display_name || target?.storage_cluster_name || '--';
-    const retention = target?.setup_config?.retention_days_max ?? '--';
-
-    return new Promise(resolve => {
-      this.$bkInfo({
-        title: this.$t('确认切换存储集群？'),
-        width: 600,
-        okText: this.$t('确认切换'),
-        cancelText: this.$t('取消'),
-        subHeader: h(
-          'div',
-          { class: 'cluster-switch-dialog-body' },
-          [
-            h('div', { class: 'cluster-switch-row' }, [
-              h('span', { class: 'cluster-switch-label' }, `${this.$t('当前集群')}：`),
-              h('span', { class: 'cluster-switch-value' }, currentName),
-              h('span', { class: 'cluster-switch-arrow' }, '\u2192'),
-              h('span', { class: 'cluster-switch-label' }, `${this.$t('目标集群')}：`),
-              h('span', { class: 'cluster-switch-value cluster-switch-value-target' }, targetName),
-            ]),
-            h('div', { class: 'cluster-switch-retention' },
-              `${this.$t('切换后保留天数：{days} 天', { days: retention })}`,
-            ),
-            h('div', { class: 'cluster-switch-desc' },
-              `${this.$t('切换生效后，新增数据将写入目标集群。历史数据仍可查询，并按切换后生效的保留时长自动清理。')}`,
-            ),
-          ]
-        ),
-        confirmFn: () => resolve(true),
-        cancelFn: () => resolve(false),
-      });
+    return confirmSwitchStorageCluster(this, {
+      currentName: current?.storage_display_name || current?.storage_cluster_name || '--',
+      targetName: target?.storage_display_name || target?.storage_cluster_name || '--',
+      retentionDays: target?.setup_config?.retention_days_max ?? '--',
     });
   }
   render() {
