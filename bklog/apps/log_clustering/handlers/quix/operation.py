@@ -26,6 +26,7 @@ from django.utils import timezone
 from django.utils.functional import cached_property
 
 from apps.api import BkFaraApi, TransferApi
+from apps.exceptions import ApiRequestError
 from apps.log_clustering.constants import (
     ClusteringOperationStatusEnum,
     ClusteringOperationTypeEnum,
@@ -74,11 +75,49 @@ def runtime_adoption_confirmed(status: dict) -> bool:
 def is_worker_ready(clustering: dict) -> bool:
     """所有目标 Worker 已加载目标模型；成员列表包含历史实例，不能按条数判断"""
     target_model_ref = clustering.get("target_model_ref")
-    return (
-        clustering.get("state") == "RUNNING"
-        and bool(target_model_ref)
-        and clustering.get("all_ready_model_ref") == target_model_ref
-    )
+    if (
+        not target_model_ref
+        or clustering.get("state") != "RUNNING"
+        or clustering.get("all_ready_model_ref") != target_model_ref
+    ):
+        return False
+
+    # 与 BKFara controller 的 90 秒报告窗口一致；同一 Pod 重启进程后只认最新报告。
+    now = datetime.datetime.now(datetime.timezone.utc)
+    latest = {}
+    for member in clustering.get("members") or []:
+        pod = member.get("pod_uid")
+        if not pod or not member.get("observed_at"):
+            continue
+        observed = datetime.datetime.fromisoformat(member["observed_at"].replace("Z", "+00:00"))
+        if observed.tzinfo is None or not 0 <= (now - observed).total_seconds() <= 90:
+            continue
+        if pod not in latest or observed >= latest[pod][0]:
+            latest[pod] = (observed, member)
+
+    desired = (clustering.get("autoscaling") or {}).get("desired_replicas")
+    if desired is not None and len(latest) != desired:
+        return False
+    count = (clustering.get("kafka") or {}).get("partitions")
+    if type(count) is not int or count <= 0:
+        return False
+    assigned = []
+    for _, member in latest.values():
+        report = member.get("report") or {}
+        if (
+            member.get("load_status") != "LOADED"
+            or member.get("actual_model_ref") != target_model_ref
+            or report.get("last_error")
+            or not report.get("partitions")
+        ):
+            return False
+        assigned.extend(part["partition"] for part in report["partitions"])
+    # 固定副本的查询可能没有 desired_replicas；用 Controller 的模型确认和全分区覆盖核对。
+    return sorted(assigned) == list(range(count))
+
+
+class ModelParameterRejected(Exception):
+    """本次 PATCH 已明确拒绝，可结束操作并接受下一次修改。"""
 
 
 class QuixClusteringOperationRunner:
@@ -154,6 +193,12 @@ class QuixClusteringOperationRunner:
             self.operation.save(update_fields=["step", "updated_at", "updated_by"])
             try:
                 done = getattr(self, f"_step_{step}")()
+            except ModelParameterRejected as e:
+                with transaction.atomic():
+                    self._save_runtime(phase=ClusteringRuntimePhaseEnum.RUNNING.value, pending_config=None)
+                    self.operation.finished_at = timezone.now()
+                    self._fail(step, str(e), status=ClusteringOperationStatusEnum.CANCELED.value)
+                return None
             except Exception as e:  # pylint: disable=broad-except
                 return self._handle_error(step, e)
             if not done:
@@ -226,12 +271,20 @@ class QuixClusteringOperationRunner:
         self.operation.save(update_fields=["retry_count", "last_error", "updated_at", "updated_by"])
         return self._schedule(min(POLL_INTERVAL_SECONDS * 2**self.operation.retry_count, MAX_RETRY_DELAY_SECONDS))
 
-    def _fail(self, step: str, message: str) -> None:
-        self.operation.status = ClusteringOperationStatusEnum.FAILED.value
+    def _fail(self, step: str, message: str, status=ClusteringOperationStatusEnum.FAILED.value) -> None:
+        self.operation.status = status
         self.operation.last_error = message
         self.operation.next_retry_at = None
         self.operation.save(
-            update_fields=["status", "last_error", "retry_count", "next_retry_at", "updated_at", "updated_by"]
+            update_fields=[
+                "status",
+                "last_error",
+                "retry_count",
+                "next_retry_at",
+                "finished_at",
+                "updated_at",
+                "updated_by",
+            ]
         )
         self.operation.record_step(step, ClusteringOperationStatusEnum.FAILED.value, message)
         return None
@@ -378,9 +431,19 @@ class QuixClusteringOperationRunner:
 
         # 固定版本和请求体；超时重试沿用幂等键，不创建任务或重置已有模型。
         payload = self.operation.get_request_payload("update_model_parameters", build_payload)
-        BkFaraApi.update_task_parameters(
-            {**payload, "Idempotency-Key": self.operation.get_idempotency_key("update_model_parameters")}
-        )
+        try:
+            BkFaraApi.update_task_parameters(
+                {**payload, "Idempotency-Key": self.operation.get_idempotency_key("update_model_parameters")}
+            )
+        except ApiRequestError as exc:
+            if exc.http_status == 409:
+                current = BkFaraApi.get_task_parameters({"task_id": self.runtime.bkfara_task_id})
+                actual = (current.get("training") or {}).get("parameters") or {}
+                if all(actual.get(key) == value for key, value in payload["training"]["parameters"].items()):
+                    return True
+            elif exc.http_status != 422:
+                raise
+            raise ModelParameterRejected(str(exc)) from exc
         return True
 
     def _step_confirm_model_parameters(self) -> bool:
@@ -394,7 +457,9 @@ class QuixClusteringOperationRunner:
         # 这里只确认任务配置已提交。已有模型的增量训练及 Worker 采用由 BKFara 负责，
         # 不能把历史 adoptions 或当前 Worker READY 当成新参数训练完成的证明。
         with transaction.atomic():
-            business_fields = self.operation.request_snapshot.get("business_fields")
+            business_fields = dict(self.operation.request_snapshot.get("business_fields") or {})
+            if self.operation.operation_type == ClusteringOperationTypeEnum.UPDATE.value:
+                business_fields["filter_rules"] = self.operation.request_snapshot["filter_rules"]
             if business_fields:
                 ClusteringConfig.objects.filter(index_set_id=self.runtime.index_set_id).update(**business_fields)
             self._save_runtime(control_version=current["control_version"])

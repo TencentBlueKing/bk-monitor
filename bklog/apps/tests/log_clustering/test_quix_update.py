@@ -2,6 +2,7 @@ from unittest.mock import MagicMock, Mock, patch
 
 from django.test import TestCase
 
+from apps.exceptions import ApiRequestError
 from apps.log_clustering.constants import (
     ClusteringOperationStatusEnum,
     ClusteringOperationTypeEnum,
@@ -130,7 +131,11 @@ class TestQuixUpdateRunner(TestCase):
         self.operation.operation_type = (
             ClusteringOperationTypeEnum.UPDATE.value if mixed else ClusteringOperationTypeEnum.UPDATE_MODEL.value
         )
-        self.operation.request_snapshot = {"update_model": True, "model_parameters": self.parameters}
+        self.operation.request_snapshot = {
+            "update_model": True,
+            "model_parameters": self.parameters,
+            "filter_rules": WARN_RULES,
+        }
         self.operation.save()
         if not mixed:
             LogClusteringRuntime.objects.filter(index_set_id=INDEX_SET_ID).update(pending_config=None)
@@ -202,6 +207,18 @@ class TestQuixUpdateRunner(TestCase):
         )
         self.assertEqual(self.transfer.mock_calls, [])
 
+    def test_version_conflict_reads_back_matching_target(self):
+        self.prepare_model_update()
+        failure = ApiRequestError("CONTROL_VERSION_CONFLICT")
+        failure.http_status = 409
+        self.bkfara.update_task_parameters.side_effect = failure
+        saved = {"control_version": 5, "training": {"parameters": self.parameters}}
+        self.bkfara.get_task_parameters.side_effect = [{"control_version": 4}, saved, saved]
+        self.assertIsNone(self.run_operation())
+        self.operation.refresh_from_db()
+        self.assertEqual(self.operation.status, "success")
+        self.bkfara.update_task_parameters.assert_called_once()
+
     def test_mixed_update_applies_filter_only_after_model_config_confirmed(self):
         self.prepare_model_update(mixed=True)
         self.bkfara.get_task_parameters.side_effect = [{"control_version": 4}, {"control_version": 4, "training": {}}]
@@ -222,6 +239,25 @@ class TestQuixClusteringHandlerUpdate(TestCase):
     def setUp(self):
         self.runtime = create_running_runtime()
         self.index_set = LogIndexSet(index_set_id=INDEX_SET_ID, space_uid="bkcc__2")
+
+    @patch("apps.log_clustering.handlers.quix.operation.BkFaraApi")
+    def test_rejected_mixed_update_releases_index_for_correction_and_close(self, bkfara, mock_delay):
+        handler = QuixClusteringHandler(self.index_set)
+        bkfara.get_task_parameters.return_value = {"control_version": 4, "training": {"parameters": {}}}
+        for http_status in (409, 422):
+            operation_id = handler.update({"filter_rules": WARN_RULES, "max_log_length": 2000})
+            error = ApiRequestError("parameters rejected")
+            error.http_status = http_status
+            bkfara.update_task_parameters.side_effect = error
+            self.assertIsNone(QuixClusteringOperationRunner(operation_id).run())
+            operation = LogClusteringOperation.objects.get(operation_id=operation_id)
+            self.assertEqual(operation.status, "canceled")
+            self.assertIn("parameters rejected", operation.last_error)
+            config = ClusteringConfig.objects.get(index_set_id=INDEX_SET_ID)
+            self.assertEqual((config.filter_rules, config.max_log_length), (ERROR_RULES, 1000))
+            self.runtime.refresh_from_db()
+            self.assertEqual((self.runtime.phase, self.runtime.pending_config), ("running", None))
+        self.assertTrue(handler.disable())
 
     def test_storage_switch_requires_stopped_runtime(self, mock_delay):
         from apps.log_databus.handlers.etl.transfer import TransferEtlHandler

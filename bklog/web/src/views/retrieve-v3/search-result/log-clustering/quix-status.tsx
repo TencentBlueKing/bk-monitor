@@ -55,7 +55,8 @@ export default defineComponent({
     const { t } = useLocale();
     return () => {
       const { phase, operation, bkfara } = props.status;
-      const failed = operation?.status === 'failed';
+      const retryable = operation?.status === 'failed';
+      const failed = retryable || (operation?.status === 'canceled' && !!operation.last_error);
       const canClose =
         phase === 'running' ||
         ((failed || operation?.status === 'awaiting_receipt') && phase !== 'disabling' && phase !== 'stopped');
@@ -82,7 +83,7 @@ export default defineComponent({
           )}
           {!window.IS_EXTERNAL && (
             <span class='quix-actions'>
-              {failed && (
+              {retryable && (
                 <bk-button
                   text
                   disabled={props.busy}

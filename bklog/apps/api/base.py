@@ -324,6 +324,7 @@ class DataAPI:
             return response.data
         except DataAPIException as e:
             error = ApiRequestError(e.error_message, request_id)
+            error.http_status = e.response.status_code if e.response is not None else None
             error.request_id = request_id
             raise error
 

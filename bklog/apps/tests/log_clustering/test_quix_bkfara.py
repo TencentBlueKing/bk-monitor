@@ -150,6 +150,7 @@ class TestBkFaraApi(SimpleTestCase):
                 self.request.return_value = response(status, {"code": code})
                 with self.assertRaises(ApiRequestError) as ctx:
                     self.api.update_task_parameters({"task_id": TASK_ID, "Idempotency-Key": "op-model"})
+                self.assertEqual(ctx.exception.http_status, status)
                 self.assertIn(str(status), str(ctx.exception))
                 self.assertIn(code, str(ctx.exception))
 

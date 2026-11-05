@@ -227,12 +227,11 @@ class QuixClusteringHandler:
                     runtime.pending_config = clustering_config if filter_changed else None
                     runtime.phase = ClusteringRuntimePhaseEnum.UPDATING.value
                     runtime.save(update_fields=["pending_config", "phase", "updated_at", "updated_by"])
-            if operation and operation.request_snapshot.get("update_model"):
-                # 模型相关的页面配置随 BKFara 回读一起保存，失败后仍以最后确认值判断变化。
-                business_fields = {}
-            ClusteringConfig.objects.filter(index_set_id=self.index_set_id).update(
-                filter_rules=filter_rules, **business_fields
-            )
+            # 混合更新先等模型参数被接受，再保存页面规则。
+            if not (operation and operation.request_snapshot.get("update_model")):
+                ClusteringConfig.objects.filter(index_set_id=self.index_set_id).update(
+                    filter_rules=filter_rules, **business_fields
+                )
         if not operation:
             return None
         if operation.status == ClusteringOperationStatusEnum.PENDING.value:
@@ -488,7 +487,10 @@ class QuixClusteringHandler:
         if all(step in finished for step in steps):
             return {"status": status_code.SUCCESS, "message": _("步骤完成")}
         if operation.step in steps:
-            if operation.status == ClusteringOperationStatusEnum.FAILED.value:
+            if operation.status in (
+                ClusteringOperationStatusEnum.FAILED.value,
+                ClusteringOperationStatusEnum.CANCELED.value,
+            ):
                 return {"status": status_code.FAILED, "message": operation.last_error}
             if operation.status == ClusteringOperationStatusEnum.AWAITING_RECEIPT.value:
                 return {"status": status_code.RUNNING, "message": _("配置已下发，待采用确认")}
