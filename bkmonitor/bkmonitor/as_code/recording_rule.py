@@ -6,11 +6,14 @@ from collections import defaultdict
 from typing import Any
 
 import yaml
+from django.conf import settings
 from django.db import transaction
 from rest_framework.exceptions import ValidationError
 
 from bkmonitor.utils.request import get_request_tenant_id, get_request_username
 from bkm_space.utils import bk_biz_id_to_space_uid
+from config.celery.app import SchedulerCelery
+from config.tools.rabbitmq import build_amqp_url, get_rabbitmq_settings
 from metadata import config as metadata_config
 from metadata.models import Space
 from metadata.models.record_rule.v4.as_code import build_export_entries, dump_rule, parse_config, parse_group
@@ -98,11 +101,11 @@ def save_declaration(
     return rule
 
 
-def execute_rule(rule: RecordRuleV4, *, source: str = "api") -> dict[str, Any]:
+def execute_rule(rule: RecordRuleV4, *, source: str = "api", operator: str | None = None) -> dict[str, Any]:
     """执行失败仍保留声明，把执行结果与配置保存结果分开返回。"""
     try:
         succeeded = RecordRuleV4Operator(
-            rule, source=source, operator=get_request_username(default=source)
+            rule, source=source, operator=operator if operator is not None else get_request_username(default=source)
         ).execute_declaration(auto_apply=True)
     except Exception as error:
         logger.exception("RecordingRule execute failed, id: %s", rule.pk)
@@ -124,12 +127,14 @@ def execute_rule(rule: RecordRuleV4, *, source: str = "api") -> dict[str, Any]:
     return {"succeeded": False, "error": error or "解析或下发失败"}
 
 
-def soft_delete_rule(rule: RecordRuleV4, *, source: str = "api") -> dict[str, Any]:
+def soft_delete_rule(rule: RecordRuleV4, *, source: str = "api", execute: bool = True) -> dict[str, Any]:
     with transaction.atomic(using=metadata_config.DATABASE_CONNECTION_NAME):
         rule.is_deleted = True
         rule.save(update_fields=["is_deleted", "updated_at"])
         RecordRuleV4Operator(rule, source=source, operator=get_request_username(default=source)).delete_declaration()
     # 调度器不按 is_deleted 过滤，外部删除失败后仍能继续重试。
+    if not execute:
+        return {"succeeded": True, "error": ""}
     return execute_rule(rule, source=source)
 
 
@@ -180,8 +185,11 @@ def prepare_import(
 def import_recording_rules(space: Space, app: str, records: list[dict], *, incremental: bool) -> dict[str, str]:
     errors = {}
     saved_ids = []
+    changed_ids = []
+    change_fields = ("current_spec_id", "description", "data_label", "desired_status", "auto_refresh")
     for record in records:
         try:
+            previous = tuple(getattr(record["rule"], field) for field in change_fields) if record["rule"] else None
             rule = save_declaration(
                 space,
                 record["declaration"],
@@ -191,23 +199,42 @@ def import_recording_rules(space: Space, app: str, records: list[dict], *, incre
                 path=record["path"],
             )
             saved_ids.append(rule.pk)
-            result = execute_rule(rule, source="as_code")
-            if not result["succeeded"]:
-                errors[record["key"]] = f"规则 {rule.pk} 已保存，下发失败: {result['error']}"
+            if previous != tuple(getattr(rule, field) for field in change_fields):
+                changed_ids.append(rule.pk)
         except Exception as error:
             logger.exception("RecordingRule import failed, path: %s", record["key"])
             errors[record["key"]] = str(error)
-    if errors or incremental:
-        return errors
-    for rule in active_rules(space).filter(app=app).exclude(pk__in=saved_ids):
-        key = f"recording_rule/{rule.path}:{rule.name}"
-        try:
-            result = soft_delete_rule(rule, source="as_code")
-            if not result["succeeded"]:
-                errors[key] = f"规则 {rule.pk} 已软删除，Flow 删除失败: {result['error']}"
-        except Exception as error:
-            logger.exception("RecordingRule cleanup failed, id: %s", rule.pk)
-            errors[key] = f"规则 {rule.pk} 删除失败: {error}"
+    if not errors and not incremental:
+        for rule in active_rules(space).filter(app=app).exclude(pk__in=saved_ids):
+            key = f"recording_rule/{rule.path}:{rule.name}"
+            try:
+                soft_delete_rule(rule, source="as_code", execute=False)
+                changed_ids.append(rule.pk)
+            except Exception as error:
+                logger.exception("RecordingRule cleanup failed, id: %s", rule.pk)
+                errors[key] = f"规则 {rule.pk} 删除失败: {error}"
+
+    if changed_ids:
+        operator = get_request_username(default="as_code")
+
+        def enqueue():
+            try:
+                # Web 入口不加载依赖 Worker 配置的任务模块，使用后台 broker 按名称投递。
+                host, port, vhost, user, password, _ = get_rabbitmq_settings(settings.BACKEND_APP_CODE, backend=True)
+                broker_url = build_amqp_url(user, password, host, port, vhost)
+                with SchedulerCelery("as_code_recording_rule", broker=broker_url, set_as_current=False) as task_app:
+                    task_app.send_task(
+                        "metadata.task.tasks.sync_as_code_recording_rules",
+                        kwargs={"rule_ids": changed_ids, "operator": operator},
+                        queue="celery_metadata_task_worker",
+                        serializer="pickle",
+                        ignore_result=True,
+                    )
+            except Exception as error:
+                logger.exception("RecordingRule task enqueue failed, ids: %s", changed_ids)
+                errors["recording_rule"] = f"规则声明已保存，异步任务投递失败: {error}"
+
+        transaction.on_commit(enqueue, using=metadata_config.DATABASE_CONNECTION_NAME)
     return errors
 
 
