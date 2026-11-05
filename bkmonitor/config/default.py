@@ -1332,6 +1332,8 @@ ENABLE_NODEMAN_V3 = os.getenv("BKAPP_ENABLE_NODEMAN_V3", "false").lower() == "tr
 BKNODEMAN_V3_API_BASE_URL = os.getenv("BKAPP_BKNODEMAN_V3_API_BASE_URL", "")
 # bk-collector 子配置（APM 平台/应用、自定义上报、自定义日志、PingServer）改走节点管理 V3 部署策略下发。
 # 仅用于 bk-collector 以 V3 插件包手动安装的环境；关闭时保持 V2 订阅下发，两条链路不能在同一环境同时启用。
+# 开启后下发链路（目标主机查询、部署策略）全部走 V3，不再调用节点管理 V2 接口；
+# 部署时应与 ENABLE_NODEMAN_V3 同时开启，主机查询在任一开关开启时都走 V3。
 ENABLE_BK_COLLECTOR_NODEMAN_V3 = os.getenv("BKAPP_ENABLE_BK_COLLECTOR_NODEMAN_V3", "false").lower() == "true"
 BKSOPS_API_BASE_URL = os.getenv("BKAPP_BKSOPS_API_BASE_URL", "")
 BKDOCS_API_BASE_URL = os.getenv("BKAPP_BKDOCS_API_BASE_URL", "")

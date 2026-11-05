@@ -9,14 +9,18 @@ specific language governing permissions and limitations under the License.
 """
 
 from contextlib import ExitStack
+from types import SimpleNamespace
 from unittest import mock
 
 import pytest
 from django.test import override_settings
 
+from apm.core.application_config import ApplicationConfig
+from apm.core.platform_config import PlatformConfig
+from bkmonitor.utils import nodeman
 from core.drf_resource import api
 from metadata.models.bk_collector import BkCollectorDeployPolicy, BkCollectorDeployScene
-from metadata.models.custom_report.subscription_config import CustomReportSubscription
+from metadata.models.custom_report.subscription_config import CustomReportSubscription, LogSubscriptionConfig
 from metadata.models.ping_server import PingServerSubscriptionConfig
 
 pytestmark = pytest.mark.django_db(databases="__all__")
@@ -243,3 +247,52 @@ def test_custom_report_task_skips_v2_version_gate(nodeman_v3):
 
     plugin_info.assert_not_called()
     refresh.assert_called_once_with(bk_tenant_id=TENANT, bk_biz_id=None)
+
+
+def test_host_queries_follow_collector_switch(nodeman_v3):
+    with override_settings(ENABLE_NODEMAN_V3=False, ENABLE_BK_COLLECTOR_NODEMAN_V3=True):
+        assert nodeman.get_host_queries() is nodeman._v3_hosts
+    with override_settings(ENABLE_NODEMAN_V3=False, ENABLE_BK_COLLECTOR_NODEMAN_V3=False):
+        assert nodeman.get_host_queries() is nodeman._v2_hosts
+
+
+class _V2NodeManCalled(BaseException):
+    """继承 BaseException，避免被业务代码里的 except Exception 吞掉"""
+
+
+class _ForbiddenV2NodeMan:
+    def __getattr__(self, name):
+        raise _V2NodeManCalled(f"api.node_man.{name} (NodeMan V2) must not be used when bk-collector V3 is enabled")
+
+
+def test_v3_delivery_never_touches_v2_nodeman_api(nodeman_v3):
+    """开启 V3 后，五个下发场景都不能再访问节点管理 V2 接口（含查询类接口）"""
+    with mock.patch.object(api, "node_man", new=_ForbiddenV2NodeMan()):
+        PlatformConfig.deploy_to_nodeman(TENANT, {"token": "x"}, [101])
+
+        application = ApplicationConfig.__new__(ApplicationConfig)
+        application._application = SimpleNamespace(bk_biz_id=2, app_name="app")
+        application.deploy(TENANT, {"token": "x"}, [101])
+
+        CustomReportSubscription.create_subscription(
+            bk_tenant_id=TENANT, bk_biz_id=2, data_id_configs=[({"bk_data_id": 1001}, "json")], bk_host_ids=[101]
+        )
+        LogSubscriptionConfig.deploy(
+            TENANT, SimpleNamespace(bk_biz_id=2, log_group_name="log_group"), {"log_data_id": 1}, [101]
+        )
+        PingServerSubscriptionConfig.create_subscription(
+            TENANT,
+            0,
+            {101: [{"target_ip": "127.0.0.1", "target_cloud_id": 0}]},
+            [{"bk_host_id": 101, "bk_biz_id": 2, "ip": "127.0.0.1", "ipv6": ""}],
+            "bk-collector",
+        )
+
+    scenes = set(BkCollectorDeployPolicy.objects.values_list("scene", flat=True))
+    assert scenes == {
+        BkCollectorDeployScene.APM_PLATFORM,
+        BkCollectorDeployScene.APM_APPLICATION,
+        BkCollectorDeployScene.CUSTOM_REPORT,
+        BkCollectorDeployScene.CUSTOM_LOG,
+        BkCollectorDeployScene.PING_SERVER,
+    }
