@@ -155,6 +155,8 @@ def test_inner_yaml(config, inner, code):
         '!!int ""',
         "!!timestamp private-marker",
         "!unknown private-marker",
+        "!!map []",
+        '!!map ""',
         "!!python/object/apply:builtins.input [private-marker]",
     ],
 )
@@ -455,3 +457,40 @@ def test_preview_comment_preserves_anchored_mapping(config):
     assert preview.startswith("credential: &")
     assert preview.splitlines()[1] == "  # 凭据由平台通过 Secret 注入，无需在配置文件中填写"
     assert yaml.safe_load(preview) == config
+
+
+def test_repeated_product_and_dimension_aliases_are_validated_once(config, mocker):
+    from monitor_web.collecting import tencent_cloud
+
+    dimension = {"InstanceId": "sample", **{f"k{i}": "v" for i in range(256)}}
+    product = {"namespace": "QCE/CVM", "all_metrics": True, "custom_query_dimensions": [dimension] * 256}
+    config["products"] = [product] * 256
+    validate_map = mocker.spy(tencent_cloud, "string_map")
+    result = validate_files([upload(config)], {"timeout": 60, "period": 60}, CONTRACT)
+    assert result["valid"]
+    assert validate_map.call_count == 1
+    assert result["files"][0]["summary"]["products"] == ["QCE/CVM"] * 256
+    products = yaml.safe_load(result["files"][0]["preview"]["qcloud_yaml"])["products"]
+    assert len(products) == 256
+    assert len(products[-1]["custom_query_dimensions"]) == 256
+    assert products[-1]["custom_query_dimensions"][-1] == dimension
+
+
+def test_shared_dimensions_are_checked_again_for_another_namespace(config):
+    dimensions = [{"InstanceId": "sample"}]
+    first = {"namespace": "QCE/CVM", "custom_query_dimensions": dimensions}
+    config["products"] = [first, first, {**first, "namespace": "QCE/COS"}]
+    result = validate_files([upload(config)], {"timeout": 60, "period": 60}, CONTRACT)
+    assert not result["valid"]
+    error = result["files"][0]["errors"][0]
+    assert error["code"] == "QCLOUD_CONFIG_INVALID"
+    assert error["path"] == "qcloud.yml.products[2].custom_query_dimensions"
+
+
+def test_checked_dimension_list_cannot_be_used_as_a_dimension_map(config):
+    dimensions = [{"InstanceId": "sample"}]
+    first = {"namespace": "QCE/CVM", "custom_query_dimensions": dimensions}
+    config["products"] = [first, {**first, "custom_query_dimensions": [dimensions]}]
+    result = validate_files([upload(config)], {"timeout": 60, "period": 60}, CONTRACT)
+    assert not result["valid"]
+    assert result["files"][0]["errors"][0]["path"] == "qcloud.yml.products[1].custom_query_dimensions"

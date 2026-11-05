@@ -10,6 +10,7 @@ specific language governing permissions and limitations under the License.
 
 """腾讯云 ConfigMap 的纯静态处理。不得在此调用云 API 或修改部署状态。"""
 
+from collections import defaultdict
 from copy import deepcopy
 from hashlib import sha256
 from math import isfinite
@@ -37,6 +38,8 @@ class ConfigLoader(yaml.SafeLoader):
         return value
 
     def construct_mapping(self, node, deep=False):
+        if not isinstance(node, yaml.MappingNode):
+            raise ConfigError("YAML_INVALID", "", "YAML 格式无效")
         result = {}
         for key_node, value_node in node.value:
             key = self.construct_object(key_node, deep=deep)
@@ -111,7 +114,7 @@ PRODUCT_FIELDS = {
     ),
     **dict.fromkeys(("instance_filters", "tag_key_replace"), string_map),
     "req_params": lambda v: isinstance(v, str),
-    "custom_query_dimensions": lambda v: isinstance(v, list) and all(string_map(item) and item for item in v),
+    "custom_query_dimensions": lambda v: isinstance(v, list),
     "extra_period_seconds": lambda v: isinstance(v, list) and all(integer(item) for item in v),
     **dict.fromkeys(
         (
@@ -156,13 +159,45 @@ CREDENTIAL_FIELDS = {
 }
 
 
-def check_fields(value, fields, path):
+def unique_entries(items):
+    """仅去重校验工作，保留首次出现的位置，配置和预览仍保留所有条目。"""
+    seen = set()
+    for index, item in enumerate(items):
+        if id(item) not in seen:
+            seen.add(id(item))
+            yield index, item
+
+
+def check_fields(value, fields, path, checked):
     if not isinstance(value, dict) or value.keys() - fields.keys():
         raise ConfigError("QCLOUD_CONFIG_INVALID", path, "配置包含未知字段或对象结构无效")
     for key, item in value.items():
-        if not fields[key](item):
+        rule = fields[key]
+        cache_key = (id(item), rule)
+        if cache_key in checked:
+            continue
+        if not rule(item):
             code = "TIMEOUT_INVALID" if key == "collect_timeout" else "QCLOUD_CONFIG_INVALID"
             raise ConfigError(code, f"{path}.{key}", "字段类型无效")
+        if isinstance(item, dict | list):
+            checked.add(cache_key)
+
+
+def check_dimensions(dimensions, required, path, checked):
+    # 调用方按 namespace 分开缓存，同一别名仍需满足各自产品的必需维度。
+    if id(dimensions) in checked:
+        return
+    for item in dimensions:
+        if not isinstance(item, dict) or not item:
+            raise ConfigError("QCLOUD_CONFIG_INVALID", path, "查询维度必须是非空字符串映射")
+        if id(item) in checked:
+            continue
+        if not string_map(item):
+            raise ConfigError("QCLOUD_CONFIG_INVALID", path, "查询维度必须是非空字符串映射")
+        if any(key not in item for key in required):
+            raise ConfigError("QCLOUD_CONFIG_INVALID", path, "缺少产品查询维度")
+        checked.add(id(item))
+    checked.add(id(dimensions))
 
 
 def effective_config(config, collector, contract):
@@ -173,9 +208,11 @@ def effective_config(config, collector, contract):
         fields.pop("project_label")
         fields.pop("tag_filters")
         product_fields.pop("project_label")
-    check_fields(config, fields, "qcloud.yml")
+    checked = set()
+    checked_dimensions = defaultdict(set)
+    check_fields(config, fields, "qcloud.yml", checked)
     credential = config.get("credential")
-    check_fields(credential, CREDENTIAL_FIELDS, "qcloud.yml.credential")
+    check_fields(credential, CREDENTIAL_FIELDS, "qcloud.yml.credential", checked)
     for key in ("access_key", "secret_key", "token"):
         if credential.get(key, "") != "":
             raise ConfigError("CREDENTIAL_IN_CONFIGMAP", f"qcloud.yml.credential.{key}", "凭据必须由平台注入")
@@ -183,26 +220,30 @@ def effective_config(config, collector, contract):
         raise ConfigError("QCLOUD_CONFIG_INVALID", "qcloud.yml.credential.region", "必须指定地域")
     if not config.get("products"):
         raise ConfigError("QCLOUD_CONFIG_INVALID", "qcloud.yml.products", "至少配置一个产品")
-    for index, product in enumerate(config["products"]):
+    for index, product in unique_entries(config["products"]):
         path = f"qcloud.yml.products[{index}]"
-        check_fields(product, product_fields, path)
+        check_fields(product, product_fields, path, checked)
         namespace = product.get("namespace")
         if namespace == "QCE/ETCD" or namespace not in contract["products"]:
             raise ConfigError("PRODUCT_NOT_SUPPORTED", f"{path}.namespace", "源镜像契约不支持该产品")
-        dimensions = product.get("custom_query_dimensions", [])
-        required = contract["products"][namespace]
-        if required and any(not set(required).issubset(item) for item in dimensions):
-            raise ConfigError("QCLOUD_CONFIG_INVALID", f"{path}.custom_query_dimensions", "缺少产品查询维度")
-    for index, metric in enumerate(config.get("metrics", [])):
+        if "custom_query_dimensions" in product:
+            check_dimensions(
+                product["custom_query_dimensions"],
+                contract["products"][namespace],
+                f"{path}.custom_query_dimensions",
+                checked_dimensions[namespace],
+            )
+    for index, metric in unique_entries(config.get("metrics", [])):
         path = f"qcloud.yml.metrics[{index}]"
-        check_fields(metric, METRIC_FIELDS, path)
+        check_fields(metric, METRIC_FIELDS, path, checked)
         if metric.get("tc_namespace") not in contract["products"] or metric.get("tc_namespace") == "QCE/ETCD":
             raise ConfigError("PRODUCT_NOT_SUPPORTED", f"{path}.tc_namespace", "源镜像契约不支持该产品")
-    for index, tag_filter in enumerate(config.get("tag_filters", [])):
+    for index, tag_filter in unique_entries(config.get("tag_filters", [])):
         check_fields(
             tag_filter,
             {"tag_key": lambda v: isinstance(v, str), "tag_value": string_list},
             f"qcloud.yml.tag_filters[{index}]",
+            checked,
         )
     raw_timeout = config.get("collect_timeout", 60)
     timeout, period = collector.get("timeout"), collector.get("period")
