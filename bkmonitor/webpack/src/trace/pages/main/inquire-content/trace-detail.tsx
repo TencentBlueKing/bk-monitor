@@ -145,6 +145,20 @@ interface ITabItem {
 
 const TOOLS_ROW_HEIGHT = 90; // 工具栏高度 90 第三期功能不显示 暂时改为 58
 const VIEW_CONTAINER_MIN_HEIGHT = 620; // 详情面板最小高度
+/** 自身需要使用左右方向键的元素，焦点在其中时不触发搜索结果切换 */
+const ARROW_KEY_OWNER_SELECTOR = [
+  'input',
+  'textarea',
+  'select',
+  '[contenteditable]:not([contenteditable="false"])',
+  '[role="combobox"]',
+  '[role="listbox"]',
+  '[role="menu"]',
+  '[role="radiogroup"]',
+  '[role="slider"]',
+  '[role="spinbutton"]',
+  '[role="tablist"]',
+].join(',');
 
 export default defineComponent({
   name: 'TraceDetail',
@@ -506,6 +520,33 @@ export default defineComponent({
     const prevResult = () => {
       const comps = curViewElem.value;
       comps?.prevResult();
+    };
+    /**
+     * 详情内左右方向键切换搜索结果，复用搜索栏左右按钮的处理逻辑
+     * 仅监听当前详情容器（焦点在容器内才响应），避免多个详情实例同时响应
+     */
+    const handleResultNavigateKeydown = (e: KeyboardEvent) => {
+      if (e.key !== 'ArrowLeft' && e.key !== 'ArrowRight') return;
+      if (e.defaultPrevented || e.isComposing || e.altKey || e.ctrlKey || e.metaKey || e.shiftKey) return;
+      if ((e.target as HTMLElement)?.closest?.(ARROW_KEY_OWNER_SELECTOR)) return;
+      const searchBar = searchBarElem.value;
+      if (!searchBar?.canNavigate()) return;
+      e.preventDefault();
+      // 长按产生的重复事件不再推进，保证一次按键只切换一条
+      if (e.repeat) return;
+      if (e.key === 'ArrowLeft') {
+        searchBar.handlePrevResult();
+      } else {
+        searchBar.handleNextResult();
+      }
+    };
+    /** 点击详情内容时若焦点不在详情内（如被拖拽等阻止了默认聚焦），将焦点落回详情容器以便响应方向键 */
+    const handleDetailClick = () => {
+      const container = (traceDetailElem.value as any)?.$el as HTMLElement;
+      if (!container?.focus) return;
+      const activeElement = (container.getRootNode() as Document | ShadowRoot).activeElement;
+      if (activeElement && container.contains(activeElement)) return;
+      container.focus({ preventScroll: true });
     };
     // 清空搜索
     const clearSearch = () => {
@@ -969,6 +1010,8 @@ export default defineComponent({
       clearSearch,
       nextResult,
       prevResult,
+      handleResultNavigateKeydown,
+      handleDetailClick,
       traceData,
       traceTree,
       enabledTimeAlignment,
@@ -1040,6 +1083,10 @@ export default defineComponent({
         class={`trace-detail-wrapper is-fix ${this.isInTable ? 'is-table-detail' : ''} ${this.isSticky ? 'is-sticky' : ''}`}
         loading={this.pageLoading}
         zIndex={99999}
+        // Loading 未声明 tabindex，以 attrs 透传到根节点，使详情容器可聚焦以响应方向键
+        {...({ tabindex: -1 } as any)}
+        onClick={this.handleDetailClick}
+        onKeydown={this.handleResultNavigateKeydown}
       >
         {/* {this.isInTable && (
           <div
