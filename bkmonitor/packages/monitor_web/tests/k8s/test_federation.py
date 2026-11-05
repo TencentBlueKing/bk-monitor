@@ -9,13 +9,21 @@ See the License for the specific language governing permissions and limitations 
 """
 
 import json
+from datetime import timedelta
 from unittest.mock import patch
 
+from django.contrib.auth.models import AnonymousUser
 from django.test import TestCase
+from django.urls import resolve
 from django.utils import timezone
+from rest_framework.test import APIRequestFactory, force_authenticate
 
-from bkmonitor.models import BCSCluster, BCSPod, BCSService, BCSWorkload
+from api.kubernetes.default import GetClusterInfoFromBcsSpaceResource
+from bkmonitor.middlewares.authentication import ApiTokenAuthenticationMiddleware
+from bkmonitor.models import ApiAuthToken, BCSCluster, BCSPod, BCSService, BCSWorkload
+from bkmonitor.utils.common_utils import fetch_biz_id_from_request
 from bkmonitor.utils.kubernetes import BcsClusterType
+from bkmonitor.utils.local import local
 from metadata.models import BcsFederalClusterInfo
 from monitor_web.k8s.core.federation import get_federated_resource_scope
 from monitor_web.k8s.core.filters import load_resource_filter
@@ -27,6 +35,7 @@ from monitor_web.k8s.resources import (
     ResourceTrendResource,
     WorkloadOverview,
 )
+from monitor_web.k8s.views import ResourcesViewSet
 
 
 class TestFederatedResources(TestCase):
@@ -462,24 +471,227 @@ class TestFederatedResources(TestCase):
                     (page_biz, {"namespace": "foreign", "bcs_cluster_id": self.proxy, "pod": "foreign-app"}, "service"),
                 )
 
-    def test_federated_detail_preserves_scene_validation_with_proxy_identity(self):
+    def shared_detail(
+        self,
+        params,
+        *,
+        namespace="alpha",
+        name="alpha-app",
+        scene_type="detail",
+        dashboard_id="workload",
+        cluster_id=None,
+        format_suffix=False,
+        **token_overrides,
+    ):
+        query = {
+            "sceneId": "kubernetes",
+            "sceneType": scene_type,
+            "dashboardId": dashboard_id if scene_type == "detail" else "performance",
+            "filter-bcs_cluster_id": cluster_id or self.proxy,
+        }
+        if scene_type == "detail":
+            query.update(
+                {
+                    "filter-namespace": namespace,
+                    f"filter-{dashboard_id}_name": name,
+                }
+            )
+            if dashboard_id == "workload":
+                query["filter-workload_type"] = "Deployment"
+        token = ApiAuthToken(
+            token="isolated-workload-detail",
+            type="kubernetes",
+            namespaces=["biz#2"],
+            bk_tenant_id="system",
+            params={
+                "lock_search": False,
+                "start_time": 1,
+                "end_time": 60,
+                "default_time_range": ["now-1h", "now"],
+                "data": {"name": "k8s", "path": "/k8s", "query": query},
+            },
+            **token_overrides,
+        )
+        user = AnonymousUser()
+        user.tenant_id = "system"
+        ResourcesViewSet.generate_endpoint()
+        path = "/resources/get_resource_detail.json" if format_suffix else "/resources/get_resource_detail/"
+        match = resolve(path, urlconf="monitor_web.k8s.urls")
+        view = match.func
+        request = APIRequestFactory().get(f"/rest/v2/k8s{path}", params)
+        request.resolver_match = match
+        request.biz_id = fetch_biz_id_from_request(request, {})
+        request.user = user
+        request.META["HTTP_AUTHORIZATION"] = f"Bearer {token.token}"
+        force_authenticate(request, user=user)
+        previous_request = getattr(local, "current_request", None)
+        local.current_request = request
+        try:
+            with (
+                patch.object(ApiAuthToken.objects, "get", return_value=token),
+                patch.object(GetClusterInfoFromBcsSpaceResource, "request", return_value={}),
+                patch("bkmonitor.iam.drf.is_biz_in_tenant", return_value=True),
+                patch("bkmonitor.iam.drf.Permission") as permission,
+            ):
+                permission.return_value._is_allowed_request.return_value = False
+                denied = ApiTokenAuthenticationMiddleware(lambda _: None).api_token_auth(request, view)
+                return denied if denied is not None else view(request, **match.kwargs)
+        finally:
+            local.current_request = previous_request
+
+    def test_federated_detail_checks_real_share_target_before_expanding_members(self):
+        params = {
+            "bk_biz_id": 2,
+            "bcs_cluster_id": self.proxy,
+            "resource_type": "workload",
+            "namespace": "alpha",
+            "workload_name": "alpha-app",
+            "workload_type": "Deployment",
+            "supports_federated_charts": True,
+        }
+        changes = [
+            {"namespace": "foreign", "workload_name": "foreign-app"},
+            {"workload_name": "other-app"},
+            {"bcs_cluster_id": self.member_a},
+            {"workload_type": "StatefulSet"},
+            {"resource_type": "pod", "pod_name": "unshared-pod"},
+        ]
+        for change in changes:
+            with self.subTest(change=change), patch("monitor_web.k8s.resources.get_federated_resource_scope") as scope:
+                data = {**params, **change}
+                if change.get("resource_type") == "pod":
+                    data.pop("workload_name")
+                    data.pop("workload_type")
+                response = self.shared_detail(data)
+                self.assertEqual(response.status_code, 403)
+                scope.assert_not_called()
+
+        for namespace, name, member in (
+            ("alpha", "alpha-app", self.member_a),
+            ("foreign", "foreign-app", self.foreign),
+        ):
+            with self.subTest(namespace=namespace):
+                response = self.shared_detail(
+                    {**params, "namespace": namespace, "workload_name": name}, namespace=namespace, name=name
+                )
+                self.assertEqual(response.status_code, 200)
+                values = {item["key"]: item["value"] for item in response.data}
+                self.assertEqual(values["bcs_cluster_id"], member)
+                self.assertEqual(values["name"], name)
+
+    def test_formatted_detail_route_keeps_share_resource_type_scope(self):
         params = {
             "bk_biz_id": 2,
             "bcs_cluster_id": self.proxy,
             "resource_type": "pod",
-            "namespace": "foreign",
-            "pod_name": "foreign-app",
+            "namespace": "alpha",
+            "pod_name": "alpha-app",
             "supports_federated_charts": True,
         }
-        with (
-            patch(
-                "monitor_web.scene_view.resources.kubernetes.GetKubernetesPod.validate_request_data",
-                side_effect=ValueError("share denied"),
-            ) as validate,
-            patch.object(BCSPod, "render") as render,
-        ):
-            with self.assertRaisesMessage(ValueError, "share denied"):
-                GetResourceDetail()(params)
-            self.assertEqual(validate.call_args.args[0]["bcs_cluster_id"], self.proxy)
-            self.assertEqual(validate.call_args.args[0]["bk_biz_id"], 2)
-            render.assert_not_called()
+        with patch("monitor_web.k8s.resources.get_federated_resource_scope") as scope:
+            self.assertEqual(self.shared_detail(params, format_suffix=True).status_code, 403)
+            scope.assert_not_called()
+        with patch.object(GetResourceDetail, "get_pod_resource_relation", return_value=[]):
+            response = self.shared_detail(params, dashboard_id="pod", format_suffix=True)
+        self.assertEqual(response.status_code, 200)
+        self.assertTrue(response.data)
+
+    def test_overview_share_and_token_middleware_keep_their_existing_scope(self):
+        params = {
+            "bk_biz_id": 2,
+            "bcs_cluster_id": self.proxy,
+            "resource_type": "workload",
+            "namespace": "foreign",
+            "workload_name": "foreign-app",
+            "workload_type": "Deployment",
+            "supports_federated_charts": True,
+        }
+        response = self.shared_detail(params, scene_type="overview")
+        self.assertEqual(response.status_code, 200)
+        self.assertTrue(response.data)
+        with patch("monitor_web.k8s.resources.get_federated_resource_scope") as scope:
+            self.assertEqual(self.shared_detail({**params, "bk_biz_id": 3}).status_code, 403)
+            self.assertEqual(
+                self.shared_detail(params, expire_time=timezone.now() - timedelta(seconds=1)).status_code, 403
+            )
+            scope.assert_not_called()
+
+    def test_ordinary_pod_share_keeps_inner_scene_authorization(self):
+        for supports_federated_charts in (False, True):
+            with (
+                self.subTest(supports_federated_charts=supports_federated_charts),
+                patch.object(GetResourceDetail, "get_pod_resource_relation", return_value=[]),
+            ):
+                response = self.shared_detail(
+                    {
+                        "bk_biz_id": 2,
+                        "bcs_cluster_id": self.member_a,
+                        "resource_type": "pod",
+                        "namespace": "alpha",
+                        "pod_name": "alpha-app",
+                        "supports_federated_charts": supports_federated_charts,
+                    },
+                    dashboard_id="pod",
+                    cluster_id=self.member_a,
+                )
+                self.assertEqual(response.status_code, 200)
+                values = {item["key"]: item["value"] for item in response.data}
+                self.assertEqual(values["name"], "alpha-app")
+                self.assertEqual(values["bcs_cluster_id"], self.member_a)
+
+    def test_namespaced_trends_preserve_service_ingress_and_container_identity(self):
+        column = "nw_container_network_receive_bytes_total"
+        for resource_type in ("service", "ingress", "container"):
+            with self.subTest(resource_type=resource_type):
+                field = "container_name" if resource_type == "container" else resource_type
+                series = [
+                    {
+                        "dimensions": {"namespace": namespace, field: "api", "pod_name": "app"},
+                        "datapoints": [[value, 60]],
+                    }
+                    for namespace, value in (("alpha", 3), ("beta", 9))
+                ]
+                name = "app:api" if resource_type == "container" else "api"
+                requested = [f"alpha|{name}", f"beta|{name}", "api"]
+                params = {
+                    "bk_biz_id": 2,
+                    "bcs_cluster_id": self.proxy,
+                    "resource_type": resource_type,
+                    "resource_list": requested,
+                    "scenario": "network",
+                    "column": column,
+                    "method": "sum",
+                    "start_time": 1,
+                    "end_time": 60,
+                    "filter_dict": {},
+                }
+                with patch.object(ResourceTrendResource, "get_series_with_promql", return_value=series) as query:
+                    trends = ResourceTrendResource()(params)
+                self.assertEqual(
+                    {item["resource_name"]: item[column]["datapoints"] for item in trends},
+                    {f"alpha|{name}": [[3, 60]], f"beta|{name}": [[9, 60]]},
+                )
+                self.assertIn('namespace="alpha"', query.call_args.args[0])
+                self.assertIn('namespace="beta"', query.call_args.args[0])
+                with patch.object(ResourceTrendResource, "get_series_with_promql", return_value=series[:1]):
+                    legacy = ResourceTrendResource()({**params, "resource_list": ["api"]})
+                self.assertEqual(legacy[0]["resource_name"], name)
+
+    def test_history_identity_keeps_namespace_for_all_named_federated_resources(self):
+        dimensions = {
+            "pod_name": "app",
+            "container_name": "api",
+            "service": "api",
+            "ingress": "api",
+            "workload_kind": "Deployment",
+            "workload_name": "api",
+        }
+        for resource_type in ("pod", "container", "service", "ingress", "workload"):
+            with self.subTest(resource_type=resource_type):
+                meta = load_resource_meta(resource_type, 2, self.proxy)
+                meta.federated_resource_filter = get_federated_resource_scope(2, self.proxy)
+                identities = {
+                    meta.get_resource_name({"dimensions": {**dimensions, "namespace": namespace}})
+                    for namespace in ("alpha", "beta")
+                }
+                self.assertEqual(len(identities), 2)

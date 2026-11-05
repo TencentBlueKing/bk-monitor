@@ -23,6 +23,7 @@ from apm_web.utils import get_interval_number
 from bkm_space.errors import NoRelatedResourceError
 from bkm_space.validate import validate_bk_biz_id
 from bkmonitor.models import BCSWorkload
+from bkmonitor.share.api_auth_resource import ApiAuthResource
 from bkmonitor.utils.kubernetes import validate_k8s_namespace
 from core.drf_resource import Resource, resource
 from metadata import models
@@ -272,7 +273,7 @@ class MetricGraphQueryConfig(Resource):
         pass
 
 
-class GetResourceDetail(Resource):
+class GetResourceDetail(ApiAuthResource):
     class RequestSerializer(SpaceRelatedSerializer):
         # 公共参数
         bcs_cluster_id: str = serializers.CharField(required=True)
@@ -467,8 +468,6 @@ class GetResourceDetail(Resource):
         if resource_type in NAMESPACED_RESOURCES and validated_request_data.get("supports_federated_charts"):
             scope = get_federated_resource_scope(bk_biz_id, bcs_cluster_id)
             if scope is not None:
-                # Retain the scene's serializer and share checks against the requested proxy.
-                detail_resource.validate_request_data(detail_params)
                 meta = load_resource_meta(resource_type, bk_biz_id, bcs_cluster_id)
                 fields = {
                     "namespace": extra_request_arg["namespace"],
@@ -814,8 +813,8 @@ class ResourceTrendResource(Resource):
                 promql_list.append(getattr(resource_meta, f"meta_prom_with_{column}"))
                 [resource_meta.filter.remove(filter_obj) for filter_obj in tmp_filter_chain]
             promql = " or ".join(promql_list)
-        elif resource_type == "pod":
-            promql = self.build_pod_trend_query(resource_meta, column, resource_list)
+        elif resource_type in {"pod", "service", "ingress", "container"}:
+            promql = self.build_namespaced_trend_query(resource_meta, resource_type, column, resource_list)
         else:
             if resource_type != "cluster":
                 resource_meta.filter.add(load_resource_filter(resource_type, resource_list))
@@ -830,8 +829,8 @@ class ResourceTrendResource(Resource):
                     if point[0] is not None:
                         max_data_point = max(max_data_point, point[1])
 
-        if resource_type == "pod":
-            named_series = self.iter_pod_trend_series(series, resource_list)
+        if resource_type in {"pod", "service", "ingress", "container"}:
+            named_series = self.iter_namespaced_trend_series(series, resource_list, resource_meta)
         else:
             named_series = ((resource_meta.get_resource_name(line), line) for line in series)
         for resource_name, line in named_series:
@@ -851,53 +850,65 @@ class ResourceTrendResource(Resource):
         return [{"resource_name": name, column: info} for name, info in series_map.items()]
 
     @staticmethod
-    def build_pod_trend_query(resource_meta: K8sResourceMeta, column: str, resource_list: list[str]) -> str:
-        pods_by_namespace = defaultdict(list)
+    def build_namespaced_trend_query(
+        resource_meta: K8sResourceMeta, resource_type: str, column: str, resource_list: list[str]
+    ) -> str:
+        resources_by_namespace = defaultdict(list)
         for key in resource_list:
-            namespace, separator, pod_name = str(key).partition("|")
+            namespace, separator, resource_name = str(key).partition("|")
             if separator:
                 try:
                     validate_k8s_namespace(namespace)
                 except ValueError as exc:
                     raise serializers.ValidationError({"resource_list": str(exc)}) from exc
             else:
-                namespace, pod_name = None, namespace
-            if len(pod_name) > 253 or not re.fullmatch(r"[a-z0-9](?:[a-z0-9.-]*[a-z0-9])?", pod_name):
-                raise serializers.ValidationError({"resource_list": "Invalid Kubernetes Pod name."})
-            pods_by_namespace[namespace].append(pod_name)
+                namespace, resource_name = None, namespace
+            pod_name = None
+            if resource_type == "container" and separator:
+                pod_name, pod_separator, resource_name = resource_name.partition(":")
+                if not pod_separator:
+                    raise serializers.ValidationError({"resource_list": "A qualified container must include its Pod."})
+            for name in [resource_name] + ([pod_name] if pod_name is not None else []):
+                if len(name) > 253 or not re.fullmatch(r"[a-z0-9](?:[a-z0-9.-]*[a-z0-9])?", name):
+                    raise serializers.ValidationError({"resource_list": "Invalid Kubernetes resource name."})
+            resources_by_namespace[(namespace, pod_name)].append(resource_name)
 
         # Keep the selected namespace and authorization filters on every branch.
         base_filters = resource_meta.filter.filters
         promql = []
         try:
-            for namespace, pod_names in pods_by_namespace.items():
+            for (namespace, pod_name), resource_names in resources_by_namespace.items():
                 resource_meta.filter.filters = base_filters.copy()
                 if namespace is not None:
                     resource_meta.filter.add(load_resource_filter("namespace", namespace))
-                resource_meta.filter.add(load_resource_filter("pod", pod_names))
+                if pod_name is not None:
+                    resource_meta.filter.add(load_resource_filter("pod", pod_name))
+                resource_meta.filter.add(load_resource_filter(resource_type, resource_names))
                 promql.append(f"({getattr(resource_meta, f'meta_prom_with_{column}')})")
         finally:
             resource_meta.filter.filters = base_filters
         return " or ".join(promql)
 
     @staticmethod
-    def iter_pod_trend_series(series, resource_list):
+    def iter_namespaced_trend_series(series, resource_list, resource_meta):
         requested = set(resource_list)
         namespaces_by_legacy_name = defaultdict(set)
         for line in series:
             dimensions = line["dimensions"]
-            pod_name = dimensions["pod_name"]
-            if pod_name in requested:
-                namespaces_by_legacy_name[pod_name].add(dimensions.get("namespace"))
+            resource_name = resource_meta.get_resource_name(line)
+            if resource_name in requested or (
+                resource_meta.resource_field == "container_name" and dimensions["container_name"] in requested
+            ):
+                namespaces_by_legacy_name[resource_name].add(dimensions.get("namespace"))
 
         for line in series:
             dimensions = line["dimensions"]
-            pod_name = dimensions["pod_name"]
-            qualified_name = f"{dimensions.get('namespace')}|{pod_name}"
+            resource_name = resource_meta.get_resource_name(line)
+            qualified_name = f"{dimensions.get('namespace')}|{resource_name}"
             if qualified_name in requested:
                 yield qualified_name, line
-            if len(namespaces_by_legacy_name.get(pod_name, ())) == 1:
-                yield pod_name, line
+            if len(namespaces_by_legacy_name.get(resource_name, ())) == 1:
+                yield resource_name, line
 
     def get_series_with_promql(self, promql: str, start_time: int, end_time: int, bk_biz_id: int) -> list[dict]:
         interval = get_interval_number(start_time, end_time, interval=60)

@@ -112,7 +112,7 @@ export type K8sTableColumnResourceKey = GetK8sColumnEnumValueType<
   keyof Omit<typeof K8sTableColumnKeysEnum, K8sTableMetricKeys>
 >;
 
-export type K8sTableGroupByEvent = DrillDownEvent & { filterById: string };
+export type K8sTableGroupByEvent = DrillDownEvent & { filterById: string; scopeFilters?: Record<string, string[]> };
 
 /** k8s table行数据数据类型 */
 export type K8sTableRow = Partial<Record<K8sTableColumnResourceKey, string>> &
@@ -746,9 +746,14 @@ export default class K8sTableNew extends tsc<K8sTableNewProps, K8sTableNewEvent>
 
   getResourceId(key: K8sTableColumnKeysEnum, data: Record<K8sTableColumnKeysEnum, string>) {
     if (key === K8sTableColumnKeysEnum.CONTAINER) {
-      return `${data[K8sTableColumnKeysEnum.POD]}:${data[K8sTableColumnKeysEnum.CONTAINER]}`;
+      const container = `${data[K8sTableColumnKeysEnum.POD]}:${data[K8sTableColumnKeysEnum.CONTAINER]}`;
+      return data.namespace ? `${data.namespace}|${container}` : container;
     }
-    if (key === K8sTableColumnKeysEnum.WORKLOAD || (key === K8sTableColumnKeysEnum.POD && data.namespace)) {
+    if (
+      key === K8sTableColumnKeysEnum.WORKLOAD ||
+      ([K8sTableColumnKeysEnum.POD, K8sTableColumnKeysEnum.SERVICE, K8sTableColumnKeysEnum.INGRESS].includes(key) &&
+        data.namespace)
+    ) {
       return `${data[K8sTableColumnKeysEnum.NAMESPACE]}|${data[key]}`;
     }
     return data[key];
@@ -842,25 +847,30 @@ export default class K8sTableNew extends tsc<K8sTableNewProps, K8sTableNewEvent>
       this.abortControllerQueue.add(controller);
       const { timeRange, ...filterCommonParams } = this.filterCommonParams;
       const formatTimeRange = handleTransformToTimestamp(timeRange);
-      resourceTrend(
-        {
-          ...filterCommonParams,
-          start_time: formatTimeRange[0],
-          end_time: formatTimeRange[1],
-          column: field,
-          method: this.metricsForConvergeMap[field] || K8sConvergeTypeEnum.SUM,
-          resource_type: resourceType,
-          resource_list: Array.from(
-            new Set(
-              Array.from(ids).map((id: string) =>
-                resourceType === K8sTableColumnKeysEnum.CONTAINER ? id.split(':')?.[1] || id : id
-              )
+      const params = {
+        ...filterCommonParams,
+        start_time: formatTimeRange[0],
+        end_time: formatTimeRange[1],
+        column: field,
+        method: this.metricsForConvergeMap[field] || K8sConvergeTypeEnum.SUM,
+        resource_type: resourceType,
+        resource_list: Array.from(
+          new Set(
+            Array.from(ids).map((id: string) =>
+              resourceType === K8sTableColumnKeysEnum.CONTAINER && !id.includes('|') ? id.split(':')?.[1] || id : id
             )
-          ),
-        },
-        { signal: controller.signal, needMessage: false }
-      )
-        .then(tableAsyncData => {
+          )
+        ),
+      };
+      resourceTrend(params, { signal: controller.signal, needMessage: false })
+        .then(async tableAsyncData => {
+          if (controller.signal.aborted || requestId !== this.requestId || this.disposed) return;
+          tableAsyncData = await this.loadLegacyResourceTrends(
+            tableAsyncData,
+            Array.from(ids),
+            params,
+            controller.signal
+          );
           if (controller.signal.aborted || requestId !== this.requestId || this.disposed) return;
           this.renderTableBatchByBatch(field, tableAsyncData, indexForId);
         })
@@ -874,6 +884,55 @@ export default class K8sTableNew extends tsc<K8sTableNewProps, K8sTableNewEvent>
           if (this.metricControllers.get(field) === controller) this.metricControllers.delete(field);
         });
     }
+  }
+
+  /** 旧后端不识别复合标识时，在独立 Namespace/Pod 请求内恢复资源身份。 */
+  async loadLegacyResourceTrends(
+    data,
+    ids: string[],
+    params: {
+      [key: string]: unknown;
+      filter_dict?: Record<string, string[]>;
+      resource_type: K8sTableColumnResourceKey;
+    },
+    signal: AbortSignal
+  ) {
+    const returned = new Set(data.map(item => item.resource_name));
+    const groups = new Map<string, { ids: Map<string, string>; namespace: string; pod?: string }>();
+    if (params.resource_type === K8sTableColumnKeysEnum.WORKLOAD) return data;
+    for (const id of ids) {
+      if (!id.includes('|') || returned.has(id)) continue;
+      const [namespace, resource] = id.split('|');
+      const pod = params.resource_type === K8sTableColumnKeysEnum.CONTAINER ? resource.split(':')[0] : undefined;
+      const key = JSON.stringify([namespace, pod]);
+      if (!groups.has(key)) groups.set(key, { namespace, pod, ids: new Map() });
+      groups.get(key).ids.set(resource, id);
+    }
+    const fallback = await Promise.all(
+      Array.from(groups.values()).map(async group => {
+        if (signal.aborted) return [];
+        try {
+          const result = await resourceTrend(
+            {
+              ...params,
+              filter_dict: {
+                ...params.filter_dict,
+                namespace: [group.namespace],
+                ...(group.pod ? { pod: [group.pod] } : {}),
+              },
+              resource_list: Array.from(group.ids.keys()).map(id => (group.pod ? id.split(':')[1] : id)),
+            },
+            { signal, needMessage: false }
+          );
+          return result
+            .filter(item => group.ids.has(item.resource_name))
+            .map(item => ({ ...item, resource_name: group.ids.get(item.resource_name) }));
+        } catch {
+          return [];
+        }
+      })
+    );
+    return [...data, ...fallback.flat()];
   }
 
   /**

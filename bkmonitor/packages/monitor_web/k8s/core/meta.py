@@ -374,7 +374,16 @@ class K8sResourceMeta:
 
     def get_resource_name(self, series):
         meta_field_list = [series["dimensions"][field] for field in self.resource_field_list]
-        return ":".join(meta_field_list)
+        resource_name = ":".join(meta_field_list)
+        if self.federated_resource_filter is not None and self.resource_field in {
+            "pod_name",
+            "container_name",
+            "workload_name",
+            "service",
+            "ingress",
+        }:
+            return f"{series['dimensions']['namespace']}|{resource_name}"
+        return resource_name
 
     def clean_resource_obj(self, obj, series):
         dimensions = series["dimensions"]
@@ -578,12 +587,6 @@ class K8sPodMeta(K8sResourceMeta, NetworkWithRelation):
         # A federation lists a logical Pod once even when multiple members contain it.
         pod_ids = queryset.order_by().values("namespace", "name").annotate(first_id=Min("pk")).values("first_id")
         return queryset.filter(pk__in=pod_ids)
-
-    def get_resource_name(self, series):
-        pod_name = super().get_resource_name(series)
-        if self.federated_resource_filter is not None:
-            return f"{series['dimensions']['namespace']}|{pod_name}"
-        return pod_name
 
     def nw_tpl_prom_with_rate(self, metric_name, exclude=""):
         metric_name = self.clean_metric_name(metric_name)

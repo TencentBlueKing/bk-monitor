@@ -745,6 +745,12 @@ class KubernetesApiAuthChecker(BaseApiAuthChecker):
             raise InvalidParamsError({"key": "query_configs.where"})
 
     def params_check(self, request_data):
+        if "resource_type" in request_data and self.scene_params["type"] == "detail":
+            resource_type = request_data.get("resource_type")
+            if resource_type != self.scene_params["id"]:
+                raise ParamsPermissionDeniedError(
+                    {"key": "resource_type", "error_params": resource_type, "correct_params": self.scene_params["id"]}
+                )
         # 通用参数校验
         for path in self.query_paths:
             # 不校验场景参数的接口，存在冲突参数名
