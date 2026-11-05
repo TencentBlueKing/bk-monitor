@@ -113,12 +113,19 @@ class ServiceDiscover(Discover):
             service_names,
             TopoNode.get_empty_extra_data(),
         )
-        TopoNode.touch_heartbeat(
+        heartbeat_success: bool = TopoNode.touch_heartbeat(
             self.bk_biz_id,
             self.app_name,
             TelemetryDataType.PROFILING.value,
             {name: int(check_time.timestamp()) for name in service_names},
             int(time.time()),
+        )
+        logger.info(
+            "[ProfileServiceDiscover] bk_biz_id=%s app_name=%s services=%s heartbeat_success=%s",
+            self.bk_biz_id,
+            self.app_name,
+            len(service_names),
+            heartbeat_success,
         )
 
     def _upsert(self, instances, check_time):
