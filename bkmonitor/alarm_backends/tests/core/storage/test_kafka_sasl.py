@@ -206,27 +206,53 @@ class TestSaslKafkaConsumer:
         # 只拉一次全量 metadata，且从不按 topic 查询
         confluent.list_topics.assert_called_once_with(timeout=30)
 
-    def test_seek_reassigns_with_offset(self, confluent):
+    @staticmethod
+    def _offsets(call):
+        return {(tp.topic, tp.partition): tp.offset for tp in call.args[0]}
+
+    def test_assign_only_changes_added_and_removed_partitions(self, confluent):
+        confluent.consume.return_value = []
+        consumer = SaslKafkaConsumer("auth.kafka.example:9092", SASL_CONFIG, group_id="group")
+        consumer.assign([TopicPartition("events", 0), TopicPartition("events", 1)])
+        consumer.poll(500)
+        confluent.reset_mock()
+        consumer.assign([TopicPartition("events", 1), TopicPartition("events", 2)])
+        assert consumer.assignment() == {TopicPartition("events", 1), TopicPartition("events", 2)}
+        confluent.assign.assert_not_called()
+        assert set(self._offsets(confluent.incremental_unassign.call_args)) == {("events", 0)}
+        assert set(self._offsets(confluent.incremental_assign.call_args)) == {("events", 2)}
+        # 分区未变化时不触碰 assignment
+        confluent.reset_mock()
+        consumer.assign([TopicPartition("events", 2), TopicPartition("events", 1)])
+        confluent.incremental_assign.assert_not_called()
+        confluent.incremental_unassign.assert_not_called()
+
+    def test_seek_before_fetching_reassigns_only_that_partition(self, confluent):
         consumer = SaslKafkaConsumer("auth.kafka.example:9092", SASL_CONFIG)
         consumer.assign([TopicPartition("events", 0), TopicPartition("events", 1)])
-        assert consumer.assignment() == {TopicPartition("events", 0), TopicPartition("events", 1)}
+        confluent.reset_mock()
         consumer.seek(TopicPartition("events", 0), 123)
-        assigned = {(tp.topic, tp.partition): tp.offset for tp in confluent.assign.call_args.args[0]}
-        assert assigned[("events", 0)] == 123
-        assert assigned[("events", 1)] < 0
+        assert self._offsets(confluent.incremental_unassign.call_args) == {("events", 0): mock.ANY}
+        assert self._offsets(confluent.incremental_assign.call_args) == {("events", 0): 123}
+        confluent.seek.assert_not_called()
         with pytest.raises(ValueError):
             consumer.seek(TopicPartition("other", 0), 1)
 
-    def test_seek_after_fetching_does_not_reassign(self, confluent):
+    def test_seek_after_fetching_uses_consumer_seek(self, confluent):
         confluent.consume.return_value = []
         consumer = SaslKafkaConsumer("auth.kafka.example:9092", SASL_CONFIG)
         consumer.assign([TopicPartition("events", 0), TopicPartition("events", 1)])
         consumer.poll(500)
-        assign_calls = confluent.assign.call_count
+        # 拉取开始后新增的分区仍未开始拉取
+        consumer.assign([TopicPartition("events", 0), TopicPartition("events", 1), TopicPartition("events", 2)])
+        confluent.reset_mock()
         consumer.seek(TopicPartition("events", 1), 50)
-        assert confluent.assign.call_count == assign_calls
         sought = confluent.seek.call_args.args[0]
         assert (sought.topic, sought.partition, sought.offset) == ("events", 1, 50)
+        confluent.incremental_assign.assert_not_called()
+        consumer.seek(TopicPartition("events", 2), 7)
+        confluent.seek.assert_called_once()
+        assert self._offsets(confluent.incremental_assign.call_args) == {("events", 2): 7}
 
     def test_poll_returns_kafka_python_records_and_skips_errors(self, confluent):
         message = mock.Mock()

@@ -128,8 +128,7 @@ class SaslKafkaConsumer:
         self._consumer = Consumer(conf)
         self._metadata = None
         self._partitions: set[TopicPartition] = set()
-        self._start_offsets: dict[TopicPartition, int] = {}
-        self._fetching = False
+        self._fetching_partitions: set[TopicPartition] = set()
         self._commit_enabled = bool(group_id)
         self._next_commit_at = time.monotonic() + AUTO_COMMIT_INTERVAL_SECONDS
         self._error_logged_at: dict[str, float] = {}
@@ -151,34 +150,31 @@ class SaslKafkaConsumer:
         return set(self._partitions)
 
     def assign(self, partitions):
-        self._partitions = {TopicPartition(tp.topic, tp.partition) for tp in partitions}
-        self._start_offsets = {}
-        self._fetching = False
-        self._apply_assignment()
+        # 全量 assign 会让存量分区重新读取 group offset；对齐 kafka-python，只增删变化的分区
+        partitions = {TopicPartition(tp.topic, tp.partition) for tp in partitions}
+        removed = self._partitions - partitions
+        added = partitions - self._partitions
+        if removed:
+            self._consumer.incremental_unassign([ConfluentTopicPartition(tp.topic, tp.partition) for tp in removed])
+        if added:
+            self._consumer.incremental_assign([ConfluentTopicPartition(tp.topic, tp.partition) for tp in added])
+        self._partitions = partitions
+        self._fetching_partitions &= partitions
 
     def seek(self, partition, offset):
         if partition not in self._partitions:
             raise ValueError(f"partition {partition} is not assigned")
-        if self._fetching:
+        if partition in self._fetching_partitions:
             self._consumer.seek(ConfluentTopicPartition(partition.topic, partition.partition, offset))
             return
-        # confluent-kafka 不允许对尚未开始拉取的分区 seek，改为带起始 offset 重新 assign
-        self._start_offsets[partition] = offset
-        self._apply_assignment()
-
-    def _apply_assignment(self):
-        assignment = []
-        for tp in self._partitions:
-            if tp in self._start_offsets:
-                assignment.append(ConfluentTopicPartition(tp.topic, tp.partition, self._start_offsets[tp]))
-            else:
-                assignment.append(ConfluentTopicPartition(tp.topic, tp.partition))
-        self._consumer.assign(assignment)
+        # confluent-kafka 不允许对尚未开始拉取的分区 seek，改为带起始 offset 重新分配该分区
+        self._consumer.incremental_unassign([ConfluentTopicPartition(partition.topic, partition.partition)])
+        self._consumer.incremental_assign([ConfluentTopicPartition(partition.topic, partition.partition, offset)])
 
     def poll(self, timeout_ms=0, max_records=None):
         self._commit_if_due()
         messages = self._consumer.consume(num_messages=max_records or 500, timeout=timeout_ms / 1000)
-        self._fetching = bool(self._partitions)
+        self._fetching_partitions = set(self._partitions)
         records = {}
         for message in messages:
             if message.error():
