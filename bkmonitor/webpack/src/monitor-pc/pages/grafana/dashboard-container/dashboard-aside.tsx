@@ -382,11 +382,13 @@ export default class DashboardAside extends tsc<IProps, IEvents> {
     const res = await unstarDashboard({ dashboard_id: id })
       .then(() => true)
       .catch(() => false);
-    if (res) {
-      this.$bkMessage({ message: `${this.$t('取消收藏成功')}：${name}`, theme: 'success' });
-      this.handleFetchGrafanaTree();
-      this.handleFetchFavGrafana();
+    if (!res) {
+      return false;
     }
+    this.$bkMessage({ message: `${this.$t('取消收藏成功')}：${name}`, theme: 'success' });
+    await Promise.all([this.handleFetchGrafanaTree(), this.handleFetchFavGrafana()]).catch(() => undefined);
+    const stillThere = this.favList.some(group => group.children?.some(child => child.id === id));
+    return !stillThere;
   }
 
   @Debounce(300)
@@ -774,7 +776,9 @@ export default class DashboardAside extends tsc<IProps, IEvents> {
               minWidth={380}
               stickyList={this.spaceStickyList}
               theme={'dark'}
+              transfer={true}
               value={+this.bizId}
+              zIndex={4000}
               onChange={this.handleBizChange}
               onOpenSpaceManager={this.handleOpenSpace}
             />
@@ -841,29 +845,30 @@ export default class DashboardAside extends tsc<IProps, IEvents> {
           {this.keywork ? (
             <div class='search-list'>
               {this.searchResList.length ? (
-                this.searchResList.map(item => (
-                  <div
-                    key={item.uid}
-                    class={`search-item ${this.checked === item.uid ? 'is-active' : ''}`}
-                    onClick={() => this.handleSelectedGrafana(item)}
-                  >
-                    <span class='search-icon' />
-                    <span class='search-content'>
-                      {splitHighlightFragments(item.title, this.keywork).map(fragment =>
-                        fragment.highlight ? (
-                          <span
-                            key={fragment.start}
-                            class='highlight'
-                          >
-                            {fragment.text}
-                          </span>
-                        ) : (
-                          fragment.text
-                        )
-                      )}
-                    </span>
-                  </div>
-                ))
+                <div class='search-list-main'>
+                  {this.searchResList.map(item => (
+                    <div
+                      key={item.uid}
+                      class={`search-item ${this.checked === item.uid ? 'is-active' : ''}`}
+                      onClick={() => this.handleSelectedGrafana(item)}
+                    >
+                      <span class='search-content'>
+                        {splitHighlightFragments(item.title, this.keywork).map(fragment =>
+                          fragment.highlight ? (
+                            <span
+                              key={fragment.start}
+                              class='highlight'
+                            >
+                              {fragment.text}
+                            </span>
+                          ) : (
+                            fragment.text
+                          )
+                        )}
+                      </span>
+                    </div>
+                  ))}
+                </div>
               ) : (
                 <EmptyStatus
                   type={this.emptyStatusType}

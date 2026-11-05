@@ -54,8 +54,8 @@ interface IProps {
 })
 export default class TreeList extends tsc<IProps, IEvents> {
   @Prop({ type: Array, default: () => [] }) list: TreeMenuItem[];
-  /** 层级缩进量 */
-  @Prop({ type: Number, default: 16 }) indent: number;
+  /** 每深一层的缩进，与菜单图标 16px + 间距 12px 对齐 */
+  @Prop({ type: Number, default: 28 }) indent: number;
   /** 选中的id */
   @Prop({ type: String }) checked: string;
   /** 是否需要增加功能 */
@@ -174,10 +174,27 @@ export default class TreeList extends tsc<IProps, IEvents> {
     });
   }
 
-  /** 当前缩进量 */
-  get indentPadding() {
-    const [item] = this.list;
-    return `${(item.level + 1) * this.indent}px`;
+  /** 子级竖线对齐父目录图标中心 */
+  get guideStyle() {
+    const level = this.list[0]?.level ?? 0;
+    if (level <= 0) return undefined;
+    const parentPadding = 10 + (level - 1) * this.indent;
+    return { '--tree-guide': `${parentPadding + 8}px` };
+  }
+
+  /** 仪表盘文字与所在目录文字对齐，选中条留在引导线右侧 */
+  rowStyle(item: TreeMenuItem) {
+    const level = item.level || 0;
+    if (item.isDashboard && level > 0) {
+      const parentPadding = 10 + (level - 1) * this.indent;
+      return {
+        'margin-left': `${parentPadding + 18}px`,
+        'padding-left': '10px',
+      };
+    }
+    return {
+      'padding-left': `${10 + level * this.indent}px`,
+    };
   }
 
   /** 点击项 */
@@ -273,7 +290,10 @@ export default class TreeList extends tsc<IProps, IEvents> {
   }
   render() {
     return (
-      <div class='tree-list'>
+      <div
+        style={this.guideStyle}
+        class='tree-list'
+      >
         {this.list.map(item => (
           <div
             id={item.uid}
@@ -281,10 +301,12 @@ export default class TreeList extends tsc<IProps, IEvents> {
             class='tree-list-item'
           >
             <div
-              style={{ 'padding-left': this.indentPadding }}
+              style={this.rowStyle(item)}
               class={[
                 'list-item-row',
                 {
+                  'is-dir': item.isFolder,
+                  'is-leaf': item.isDashboard && item.level > 0,
                   checked: item.uid === this.checked,
                   edit: item.edit,
                   disabled: !item.hasPermission,
@@ -372,6 +394,7 @@ export default class TreeList extends tsc<IProps, IEvents> {
               >
                 <TreeList
                   checked={this.checked}
+                  indent={this.indent}
                   list={item.children}
                   needAdd={this.needAdd}
                   onMore={this.handleEmitMore}

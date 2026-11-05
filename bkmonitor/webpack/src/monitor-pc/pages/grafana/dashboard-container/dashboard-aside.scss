@@ -6,6 +6,11 @@ $aside-bg: #242b3b;
   color: #96a2b9;
   background-color: $aside-bg;
 
+  /* 公共折叠展开后会打开内部滚动。侧栏只滚外层列表，避免空滚动条，也不改公共组件 */
+  .monitor-collapse-wrap.is-overflow {
+    overflow: hidden;
+  }
+
   .grafana-aside-main {
     display: flex;
     flex-direction: column;
@@ -13,11 +18,13 @@ $aside-bg: #242b3b;
   }
 
   .grafana-biz {
+    position: relative;
     display: flex;
     flex: 0 0 52px;
     align-items: center;
     height: 52px;
-    padding: 0 4px 0 0;
+    padding: 10px 16px;
+    box-sizing: border-box;
 
     &::after {
       position: absolute;
@@ -31,36 +38,87 @@ $aside-bg: #242b3b;
       box-shadow: 0 1px 0 0 rgb(255 255 255 / 10%);
     }
 
-    .biz-select-target-main {
-      padding-left: 8px;
-      margin-left: 12px !important;
-      background-color: #404663 !important;
+    .biz-select-wrap,
+    .bk-tooltip,
+    .bk-tooltip-ref {
+      width: 100%;
     }
 
-    .biz-select-wrap {
-      flex: 1;
-      max-width: 100%;
+    .biz-select-wrap.dark .biz-select-target {
+      width: 100%;
+      min-width: 0;
+      height: 34px;
+    }
+
+    .biz-select-wrap.dark .biz-select-target-main {
+      width: 100%;
+      height: 34px;
+      padding: 0 8px;
+      margin: 0;
+      overflow: hidden;
+      background-color: #31394f;
+      border: 0;
+      border-radius: 4px;
+
+      &:hover {
+        background-color: #39425c;
+      }
+
+      &.is-focus {
+        box-shadow: inset 0 0 0 1px #3974ff;
+      }
+
+      .biz-name-first-code {
+        width: 20px;
+        height: 20px;
+        margin-right: 10px;
+        font-size: 12px;
+        font-weight: 500;
+        border-radius: 2px;
+      }
+
+      .biz-name-text {
+        height: 22px;
+        font-size: 13px;
+        font-weight: 500;
+        line-height: 22px;
+        color: #f2f6fc;
+
+        .biz-name-text-id {
+          margin-left: 4px;
+          font-weight: 400;
+          color: #8f9fbd;
+        }
+      }
+
+      .icon-mc-triangle-down,
+      .icon-arrow-down {
+        width: 18px;
+        height: 18px;
+        font-size: 18px;
+        line-height: 18px;
+        color: #96a2b9;
+      }
     }
   }
 
   .grafana-fav {
-    min-height: 40px;
-    background-color: #253043;
+    min-height: 36px;
   }
 
   .grafana-handle {
-    margin-top: 8px;
+    padding-top: 8px;
 
     .bk-form-input {
-      color: #fff;
+      color: #f2f6fc;
     }
 
     .grafana-handle-bar {
       display: flex;
       flex-wrap: nowrap;
       align-items: center;
-      height: 40px;
-      padding: 0 12px 0 22px;
+      height: 36px;
+      padding: 0 16px;
 
       .no-wrap {
         flex-wrap: nowrap;
@@ -74,103 +132,112 @@ $aside-bg: #242b3b;
         flex: 1;
         align-items: center;
         height: 100%;
-        color: #666d8e;
+        font-size: 12px;
+        line-height: 20px;
+        color: #7f889b;
       }
 
       .search-icon {
-        margin-right: 15px;
+        margin-right: 4px;
         font-size: 14px !important;
       }
 
       .add-icon {
-        font-size: 20px !important;
+        margin-right: 4px;
+        font-size: 14px !important;
       }
     }
 
     .grafana-handle-main {
-      padding: 0 12px;
+      padding: 0 16px 8px;
 
       .bk-form-input {
-        background-color: #252f43 !important;
+        height: 32px;
+        color: #f2f6fc;
+        background-color: #31394f !important;
         border: 0 !important;
+        border-radius: 4px;
+
+        &::placeholder,
+        &:focus::placeholder {
+          color: #929bb2 !important;
+        }
       }
     }
+  }
+
+  .grafana-list,
+  .search-list {
+    scrollbar-width: thin;
+    scrollbar-color: rgb(255 255 255 / 28%) transparent;
   }
 
   .grafana-list {
     flex: 1;
-    padding-top: 5px;
+    padding: 4px 16px 12px;
     overflow-y: auto;
-
-    &::-webkit-scrollbar-thumb {
-      background: #363f56;
-      border-radius: 20px;
-      box-shadow: inset 0 0 6px rgb(204 204 204 / 30%);
-    }
+    overflow-anchor: none;
+    /* 吸顶目录 36px，再加列表顶部 4px 内边距 */
+    scroll-padding-top: 40px;
   }
 
   .search-list {
+    display: flex;
     flex: 1;
-    padding: 12px;
-    overflow: auto;
+    flex-direction: column;
+    padding: 4px 16px 12px;
+    overflow-y: auto;
+
+    .search-list-main {
+      position: relative;
+      flex-shrink: 0;
+
+      &::before {
+        position: absolute;
+        top: 0;
+        bottom: 0;
+        left: 17.5px;
+        width: 1px;
+        pointer-events: none;
+        content: '';
+        background-color: rgb(161 174 199 / 32%);
+      }
+    }
 
     .search-item {
       display: flex;
+      flex-shrink: 0;
       align-items: center;
-      height: 40px;
+      box-sizing: border-box;
+      height: 36px;
       padding: 0 10px;
+      margin-left: 28px;
       overflow: hidden;
-      text-overflow: ellipsis;
-      white-space: nowrap;
+      font-size: 13px;
+      line-height: 20px;
+      color: #a1aec7;
       cursor: pointer;
+      border-radius: 4px;
 
       &:hover {
         color: #fff;
-        background-color: #394561;
-
-        .search-icon {
-          &::after {
-            background-color: #fff;
-          }
-        }
-
-        .search-content {
-          flex: 1;
-          overflow: hidden;
-          text-overflow: ellipsis;
-          white-space: nowrap;
-        }
+        background-color: #39425c;
       }
 
       &.is-active {
         color: #fff !important;
-        background-color: #394561 !important;
+        background-color: #3a84ff !important;
 
-        .search-icon {
-          &::after {
-            background-color: #fff;
-          }
+        .highlight {
+          color: #fff;
         }
       }
 
-      .search-icon {
-        position: relative;
-        display: inline-block;
-        flex: 0 0 22px;
-        width: 22px;
-        height: 22px;
-
-        &::after {
-          position: absolute;
-          top: 50%;
-          left: 50%;
-          width: 6px;
-          height: 6px;
-          content: '';
-          background-color: #3e4655;
-          border-radius: 50%;
-          transform: translate3d(-50%, -50%, 0);
-        }
+      .search-content {
+        flex: 1;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
       }
 
       .highlight {
@@ -186,6 +253,7 @@ $aside-bg: #242b3b;
 
       .exception-image {
         height: 135px;
+        content: url('./search-empty-dark.svg');
       }
     }
   }
@@ -193,43 +261,31 @@ $aside-bg: #242b3b;
   .garfana-link {
     display: flex;
     align-items: center;
+    justify-content: space-around;
     height: 52px;
-    box-shadow: 0 -1px 0 0 #3d465b;
+    padding: 0 12px;
+    box-shadow: inset 0 1px 0 rgb(255 255 255 / 8%);
 
     .link-item {
       display: flex;
-      flex: 1;
+      flex: 0 0 32px;
       align-items: center;
       justify-content: center;
-      height: 100%;
-      font-size: 18px;
+      width: 32px;
+      height: 32px;
+      font-size: 16px;
+      color: #96a2b9;
       cursor: pointer;
+      border-radius: 50%;
 
       &:hover {
-        background-color: #394561;
+        color: #fff;
+        background-color: #3a4561;
       }
 
       &.is-active {
-        color: white !important;
+        color: #fff !important;
         background-color: #3a84ff !important;
-
-        &::after {
-          display: none !important;
-        }
-      }
-
-      &:not(:last-child) {
-        position: relative;
-
-        &::after {
-          position: absolute;
-          top: 50%;
-          right: 0;
-          height: 12px;
-          content: '';
-          border-right: 1px solid #3d465b;
-          transform: translateY(-50%);
-        }
       }
     }
   }

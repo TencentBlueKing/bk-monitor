@@ -1490,10 +1490,10 @@ export default {
 
   .nav-on {
     :deep(.monitor-dialog.full-screen) {
-      left: 260px;
+      left: 240px;
 
       /* stylelint-disable-next-line declaration-no-important */
-      width: calc(100% - 260px) !important;
+      width: calc(100% - 240px) !important;
       min-width: auto;
     }
   }

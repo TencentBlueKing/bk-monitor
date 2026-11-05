@@ -114,16 +114,19 @@
       }
     }
   }
+}
+
+.biz-list-wrap {
+  background-color: #fff;
+  border-radius: 2px;
 
   .space-type-list {
     position: relative;
     display: flex;
     align-items: center;
-    padding: 8px 0 4px 0;
-    margin: 0 12px;
-    // flex-wrap: wrap;
+    padding: 4px 0 8px 0;
+    margin: 0 12px 8px;
     overflow-y: auto;
-    // border-bottom: 1px solid #434e68;
     border-bottom: 1px solid #2c354d;
 
     -ms-overflow-style: none; /* IE 和 Edge */
@@ -153,7 +156,7 @@
     .pre-btn,
     .next-btn {
       position: absolute;
-      top: 7px;
+      top: 3px;
       display: none;
       width: 16px;
       height: 24px;
@@ -206,7 +209,7 @@
 
     &.show-btn {
       .space-type-list {
-        padding: 8px 16px 4px 16px;
+        padding: 4px 16px 8px 16px;
       }
 
       .pre-btn,
@@ -217,17 +220,13 @@
       }
     }
   }
-}
-
-.biz-list-wrap {
-  background-color: #fff;
-  border-radius: 2px;
 
   &.dark {
     // background-color: #39455f;
     border: 0;
-    border-radius: 2px;
+    border-radius: 4px;
     box-shadow: 0px 2px 6px 0px rgba(0, 0, 0, 0.2);
+    overflow: hidden;
 
     .biz-list-mian {
       .biz-search {
@@ -266,6 +265,25 @@
         color: #acb2c6;
       }
     }
+
+    .biz-list {
+      scrollbar-width: thin;
+      scrollbar-color: #4b5670 #192133;
+
+      &::-webkit-scrollbar {
+        width: 4px;
+      }
+
+      &::-webkit-scrollbar-track {
+        background: #192133;
+      }
+
+      &::-webkit-scrollbar-thumb {
+        background: #4b5670;
+        border-radius: 20px;
+        box-shadow: none;
+      }
+    }
   }
 
   &.light {
@@ -276,7 +294,7 @@
 
   .biz-list-mian {
     .biz-search-wrap {
-      padding: 0 12px;
+      padding: 4px 12px 8px;
     }
 
     .biz-search {
@@ -298,7 +316,7 @@
 
     .biz-list {
       max-height: 300px;
-      // padding: 4px 0;
+      padding-bottom: 8px;
       overflow-y: auto;
     }
   }
@@ -346,7 +364,9 @@
 
   .tippy-tooltip {
     &.list-dark-theme {
-      border-radius: 2px;
+      overflow: hidden;
+      border: 1px solid #323c53;
+      border-radius: 4px;
       box-shadow: 0px 2px 6px 0px rgba(0, 0, 0, 0.2);
 
       .tippy-content {

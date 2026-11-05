@@ -85,12 +85,21 @@ const OVERSEAS_SITES_MENU = 'OVERSEAS_SITES_MENU';
 const STORE_USER_MENU_KEY = 'USER_STORE_MENU_KEY';
 const ERROR_PAGE_ROUTE_NAME = 'error-exception';
 export const WATCH_SPACE_STICKY_LIST = 'WATCH_SPACE_STICKY_LIST'; /** 监听空间置顶列表数据事件key */
+const MONITOR_SIDE_NAV_COLORS = {
+  ...APP_NAV_COLORS,
+  'item-default-color': '#A1AEC7',
+  'item-default-icon-color': '#A1AEC7',
+  'item-child-icon-default-color': '#A1AEC7',
+};
 const currentLang = docCookies.getItem(LANGUAGE_COOKIE_KEY) || 'zhCN';
-let WIDTH_LIST = [100, 72, 86, 100, 100, 100, 72, 72];
-let SPACE_WIDTH = 0;
+const HEADER_NAV_GAP = 12;
+const HEADER_SEARCH_GAP = 24;
+/** 与 .header-more 一致。bk-dropdown-menu 是 inline-block，外壳宽度等于触发器 */
+const HEADER_MORE_WIDTH = 32;
+let WIDTH_LIST = [72, 80, 94, 94, 94, 72, 72];
 if (currentLang === 'en') {
-  WIDTH_LIST = [118, 82, 120, 92, 88, 127, 126, 118];
-  SPACE_WIDTH = 263;
+  // 顺序与 getRouteConfig 一致：Home / Dashboards / Explore / Alarms / Observations / Management / Integrations
+  WIDTH_LIST = [80, 118, 90, 86, 128, 122, 122];
 }
 @Component({
   components: {
@@ -99,6 +108,7 @@ if (currentLang === 'en') {
 })
 export default class App extends tsc<object> {
   @Ref('navHeader') navHeaderRef: HTMLDivElement;
+  @Ref('headerList') headerListRef: HTMLDivElement;
   @Ref('headerDropdownMenu') headerDropdownMenuRef: { hide: () => void };
   @ProvideReactive('needMenu') needMenu = true;
   routeList = getRouteConfig();
@@ -115,6 +125,12 @@ export default class App extends tsc<object> {
   needBack = false;
   headerNav = 'home';
   headerNavChange = true;
+  headerIndicatorReady = false;
+  headerIndicatorStyle = {
+    left: '0px',
+    width: '0px',
+    opacity: 0,
+  };
   overseaGlobalList: IOverseasConfig[] = [];
   menuStore = '';
   hideNavCount = 0;
@@ -224,6 +240,14 @@ export default class App extends tsc<object> {
     this.checkAndUpdateBizId();
     this.handleSowNav();
     this.headerNav = this.navActive;
+    this.$nextTick(() => this.updateHeaderIndicator());
+  }
+
+  @Watch('headerNav')
+  @Watch('hideNavCount')
+  @Watch('globalSettingShow')
+  handleHeaderIndicatorWatch() {
+    this.$nextTick(() => this.updateHeaderIndicator());
   }
 
   created() {
@@ -289,21 +313,48 @@ export default class App extends tsc<object> {
   }
   // 一级导航宽度变化时触发自动计算收缩
   handleNavHeaderResize() {
-    if (!(this.$refs.NavTools as any)?.$el) return;
-    /** 新版首页无需展示右侧的全站搜索框 */
-    const BASE_MIM_WIDTH = 772;
-    const minWidth = BASE_MIM_WIDTH + (this.$refs.NavTools as any).$el.clientWidth + 2;
-    if (this.navHeaderRef?.clientWidth >= minWidth + SPACE_WIDTH) {
+    const toolsEl = (this.$refs.NavTools as any)?.$el as HTMLElement;
+    if (!toolsEl || !this.navHeaderRef) return;
+    const itemCount = this.routeList.length;
+    const widths = WIDTH_LIST.slice(0, itemCount);
+    const allItemsWidth = widths.reduce((sum, itemWidth, index) => {
+      return sum + itemWidth + (index > 0 ? HEADER_NAV_GAP : 0);
+    }, 0);
+    const needWidth = allItemsWidth + toolsEl.clientWidth + HEADER_SEARCH_GAP;
+    const headerWidth = this.navHeaderRef.clientWidth;
+    if (headerWidth >= needWidth) {
       this.hideNavCount = 0;
       return;
     }
-    let width = minWidth + 1 + SPACE_WIDTH - this.navHeaderRef?.clientWidth + 60;
-    let index = 0;
-    while (width >= 0 && index < 8) {
-      width -= WIDTH_LIST[7 - index] + 10;
-      index += 1;
+    // 「更多」只出现在收起后：32px 按钮，前面还有 header-list 的 12px gap
+    let overflow = needWidth - headerWidth + HEADER_MORE_WIDTH + HEADER_NAV_GAP;
+    let hideCount = 0;
+    for (let index = widths.length - 1; index >= 0 && overflow > 0; index--) {
+      overflow -= widths[index] + HEADER_NAV_GAP;
+      hideCount += 1;
     }
-    this.hideNavCount = index;
+    this.hideNavCount = hideCount;
+    this.$nextTick(() => this.updateHeaderIndicator());
+  }
+  updateHeaderIndicator() {
+    const active = this.headerListRef?.querySelector?.('.header-list-item.item-active') as HTMLElement;
+    if (!active) {
+      this.headerIndicatorStyle = {
+        ...this.headerIndicatorStyle,
+        opacity: 0,
+      };
+      return;
+    }
+    this.headerIndicatorStyle = {
+      left: `${active.offsetLeft + 16}px`,
+      width: `${Math.max(active.offsetWidth - 32, 0)}px`,
+      opacity: 1,
+    };
+    if (!this.headerIndicatorReady) {
+      this.$nextTick(() => {
+        this.headerIndicatorReady = true;
+      });
+    }
   }
   /**
    * 接收空间uid
@@ -364,6 +415,15 @@ export default class App extends tsc<object> {
    */
   handleToggle(v: boolean) {
     this.menuToggle = v;
+  }
+  getNavGroupName(item: IRouteConfigItem) {
+    if (this.menuToggle) {
+      return this.$t(item.name);
+    }
+    if (this.$i18n.locale === 'enUS' && item.shortNameEn) {
+      return item.shortNameEn;
+    }
+    return this.$t(item.shortName || item.name);
   }
   handleHeaderMenuClick(_id: string, route: string) {
     if (this.$route.name !== route) {
@@ -781,10 +841,12 @@ export default class App extends tsc<object> {
         <bk-navigation
           class={{
             'bk-monitor-navigation': true,
+            'is-nav-open': this.menuToggle,
             'no-need-menu': !this.needMenu || this.isFullScreen || this.$route.name === 'share',
           }}
           default-open={this.menuToggle}
           head-height={this.isFullScreen ? 0 : 52}
+          hover-width={240}
           navigation-type='top-bottom'
           need-menu={!!this.menuList?.length && this.needMenu && !this.isFullScreen && this.$route.name !== 'share'}
           side-title={this.platformData.name}
@@ -798,7 +860,14 @@ export default class App extends tsc<object> {
               class='bk-monitor-header'
               slot='header'
             >
-              <div class='header-list'>
+              <div
+                ref='headerList'
+                class='header-list'
+              >
+                <span
+                  class={['header-list-indicator', { 'is-ready': this.headerIndicatorReady }]}
+                  style={this.headerIndicatorStyle}
+                />
                 {process.env.APP !== 'external' && this.commonHeader()}
                 {this.routeList.map(
                   ({ id, route, name }, index) =>
@@ -875,21 +944,21 @@ export default class App extends tsc<object> {
                 <div class='biz-select'>
                   <BizSelect
                     bizList={this.bizIdList}
-                    isShrink={!this.menuToggle}
                     minWidth={380}
                     stickyList={this.spaceStickyList}
                     theme='dark'
+                    transfer={true}
                     value={+this.bizId}
+                    zIndex={4000}
                     onChange={this.handleBizChange}
                     onOpenSpaceManager={this.handleOpenSpace}
                   />
                 </div>
                 <bk-navigation-menu
-                  style={{ marginTop: this.headerNav === 'data' ? '8px' : '0px' }}
                   before-nav-change={this.handleBeforeNavChange}
                   default-active={this.routeId}
                   toggle-active={this.menuToggle}
-                  {...{ props: APP_NAV_COLORS }}
+                  {...{ props: MONITOR_SIDE_NAV_COLORS }}
                 >
                   {this.menuList
                     .filter(item => {
@@ -907,7 +976,7 @@ export default class App extends tsc<object> {
                       item?.children?.length ? (
                         <bk-navigation-menu-group
                           key={item.id}
-                          group-name={this.menuToggle ? this.$t(item.name) : this.$t(item.shortName)}
+                          group-name={this.getNavGroupName(item)}
                         >
                           {item.children
                             .filter(child => !child.hidden)
