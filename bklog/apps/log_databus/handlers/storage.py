@@ -1712,17 +1712,12 @@ class StorageHandler:
 
         return number
 
-    def get_cluster_info_by_id(self, bk_tenant_id: str = ""):
+    def get_cluster_info_by_id(self):
         """
         根据集群ID查询集群信息，密码返回
-        :param bk_tenant_id: 集群所属租户。后台任务没有请求上下文时必须显式传入，否则会按应用默认租户查空
         :return:
         """
-        from apps.utils.local import get_local_param
-
-        tenant_id = bk_tenant_id or get_local_param("bk_tenant_id") or ""
-        request_kwargs = {"bk_tenant_id": tenant_id} if tenant_id else {}
-        cluster_info = TransferApi.get_cluster_info({"cluster_id": self.cluster_id}, **request_kwargs)
+        cluster_info = TransferApi.get_cluster_info({"cluster_id": self.cluster_id})
         if not cluster_info:
             raise StorageNotExistException()
         return cluster_info[0]
