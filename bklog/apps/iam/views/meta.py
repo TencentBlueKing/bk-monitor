@@ -196,38 +196,6 @@ class MetaViewSet(APIViewSet):
         return Response({"apply_data": apply_data, "apply_url": apply_url})
 
     @action(methods=["GET"], detail=False)
-    def get_permission_center_url(self, request, *args, **kwargs):
-        """
-        @api {get} /iam/meta/get_permission_center_url/ 04_获取权限中心地址
-        @apiName get_permission_center_url
-        @apiGroup 99_IAM
-        @apiSuccessExample {json} 成功返回:
-        {
-            "message": "",
-            "code": 0,
-            "data": {"url": "https://iam.example.test/"},
-            "result": true
-        }
-        """
-        return Response({"url": Permission().get_permission_center_url()})
-
-    @action(methods=["GET"], detail=False)
-    def get_apply_entry_url(self, request, *args, **kwargs):
-        """
-        @api {get} /iam/meta/get_apply_entry_url/ 05_获取权限申请入口地址
-        @apiName get_apply_entry_url
-        @apiGroup 99_IAM
-        @apiSuccessExample {json} 成功返回:
-        {
-            "message": "",
-            "code": 0,
-            "data": {"url": "https://iam.example.test/apply"},
-            "result": true
-        }
-        """
-        return Response({"url": Permission().get_apply_entry_url()})
-
-    @action(methods=["GET"], detail=False)
     def test(self, request, *args, **kwargs):
         client = Permission("xxx")
         client.is_allowed(ActionEnum.VIEW_BUSINESS, [ResourceEnum.BUSINESS.create_instance(2)], raise_exception=True)

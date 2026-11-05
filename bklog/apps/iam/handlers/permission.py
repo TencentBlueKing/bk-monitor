@@ -307,56 +307,6 @@ class Permission:
             )
             return {}, ""
 
-    # ================================================================
-    # 无资源权限入口 —— 权限中心首页与权限申请页
-    # ================================================================
-
-    def get_permission_center_url(self) -> str:
-        """当前模式下权限中心前端地址；V4 未配置专属地址时回退 V3。"""
-        if not self._is_current_v4():
-            return self._v3_application_provider().get_permission_center_url()
-
-        v4_url = self._v4_application_provider().get_permission_center_url()
-        if v4_url:
-            return v4_url
-        logger.warning("IAM V4 permission center url is unavailable; fallback to the V3 permission center url")
-        return self._v3_application_provider().get_permission_center_url()
-
-    def get_apply_entry_url(self) -> str:
-        """当前模式下的申请入口；V4 生成失败时回退 V3，避免入口不可用。"""
-        if not self._is_current_v4():
-            return self._v3_application_provider().get_apply_entry_url()
-
-        try:
-            v4_url = self._v4_application_provider().get_apply_entry_url()
-        except Exception as error:  # pylint: disable=broad-except
-            # 申请入口是旁路能力，失败不阻断页面，回退到 V3 地址
-            logger.error("[IAM Apply] v4 apply entry generation failed: %s", error)
-            return self._v3_application_provider().get_apply_entry_url()
-        return v4_url or self._v3_application_provider().get_apply_entry_url()
-
-    def _is_current_v4(self) -> bool:
-        try:
-            mode = self.mode_router.mode_provider.get_mode()
-        except (InvalidAuthModeError, ValueError):
-            logger.warning("[IAM Apply] failed to resolve IAM permission mode; fallback to the V3 entry")
-            return False
-        if mode is AuthMode.UNION:
-            return self.mode_router.stack.current is AuthMode.V4
-        return mode is AuthMode.V4
-
-    def _v3_application_provider(self) -> PermissionApplicationProvider:
-        provider = self.provider_bundles[AuthMode.V3].application
-        if provider is None:
-            raise IAMDependencyError("V3 permission application provider is not configured")
-        return provider
-
-    def _v4_application_provider(self) -> PermissionApplicationProvider:
-        provider = self.provider_bundles[AuthMode.V4].application
-        if provider is None:
-            raise IAMDependencyError("V4 permission application provider is not configured")
-        return provider
-
     def _call_application_provider(
         self,
         application: ApplicationResolution,

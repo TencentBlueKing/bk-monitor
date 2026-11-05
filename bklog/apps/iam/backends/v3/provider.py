@@ -108,12 +108,6 @@ class V3PermissionProvider(PermissionProvider):
         metrics.observe_provider_latency(self.name, metrics.AUTH_API_SPACE_SCOPE, start_at, ok=scope.ok)
         return scope
 
-    def get_permission_center_url(self) -> str:
-        return self.application_builder.get_permission_center_url()
-
-    def get_apply_entry_url(self) -> str:
-        return self.application_builder.get_apply_entry_url()
-
     def get_apply_data(
         self,
         actions: list[Any],

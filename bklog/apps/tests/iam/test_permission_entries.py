@@ -1,108 +1,75 @@
 from unittest.mock import Mock, patch
 
 from django.test import SimpleTestCase, override_settings
-from django.urls import resolve
 
-from apps.iam.backends.v4.provider import V4PermissionProvider
-from apps.iam.handlers.permission import Permission
-from apps.iam.views.meta import MetaViewSet
+from apps.utils.context_processors import _current_iam_mode, _resolve_iam_urls, mysetting
 from iam_engine.core.config import AuthMode
-from iam_engine.core.exceptions import InvalidAuthModeError
 
 V3_SAAS_HOST = "https://iam-v3.example.test/saas"
 V4_SAAS_HOST = "https://iam-v4.example.test"
-V4_APPLY_URL = f"{V4_SAAS_HOST}/permission/apply?cache_id=example"
 
 
 @override_settings(
-    BK_IAM_SYSTEM_ID="bk_log_search",
-    BK_APP_TENANT_ID="default",
     BK_IAM_SAAS_HOST=V3_SAAS_HOST,
     BK_IAM_V4_SAAS_HOST=V4_SAAS_HOST,
+    BK_IAM_V4_APPLY_PATH="/permission/apply",
 )
-class PermissionEntryUrlTest(SimpleTestCase):
-    def setUp(self):
-        self.mode_provider = Mock(get_mode=Mock(return_value=AuthMode.V3))
-        self.v4_provider = Mock()
-        self.v4_provider.get_permission_center_url.return_value = V4_SAAS_HOST
-        self.v4_provider.get_apply_entry_url.return_value = V4_APPLY_URL
-
-        patchers = [
-            patch.object(Permission, "get_iam_client", return_value=Mock()),
-            patch("apps.iam.handlers.permission.get_mode_provider", return_value=self.mode_provider),
-            patch.object(Permission, "get_v4_provider", return_value=self.v4_provider),
-            patch.object(Permission, "get_v4_authorization_writer", return_value=None),
-        ]
-        for patcher in patchers:
-            patcher.start()
-            self.addCleanup(patcher.stop)
-
-    def _make_permission(self) -> Permission:
-        return Permission(username="admin", bk_tenant_id="tenant-1")
-
-    def test_v3_mode_returns_v3_urls(self):
-        permission = self._make_permission()
-
-        self.assertEqual(permission.get_permission_center_url(), V3_SAAS_HOST)
-        self.assertEqual(permission.get_apply_entry_url(), f"{V3_SAAS_HOST}/apply-join-user-group")
-        self.v4_provider.get_apply_entry_url.assert_not_called()
-
-    def test_v4_mode_returns_v4_urls(self):
-        self.mode_provider.get_mode.return_value = AuthMode.V4
-        permission = self._make_permission()
-
-        self.assertEqual(permission.get_permission_center_url(), V4_SAAS_HOST)
-        self.assertEqual(permission.get_apply_entry_url(), V4_APPLY_URL)
-
-    def test_union_mode_uses_current_v4(self):
-        self.mode_provider.get_mode.return_value = AuthMode.UNION
-        permission = self._make_permission()
-
-        self.assertEqual(permission.get_permission_center_url(), V4_SAAS_HOST)
-        self.assertEqual(permission.get_apply_entry_url(), V4_APPLY_URL)
-
-    def test_v4_mode_falls_back_to_v3_when_center_url_missing(self):
-        self.mode_provider.get_mode.return_value = AuthMode.V4
-        self.v4_provider.get_permission_center_url.return_value = ""
-        permission = self._make_permission()
-
-        self.assertEqual(permission.get_permission_center_url(), V3_SAAS_HOST)
-
-    def test_v4_apply_entry_failure_falls_back_to_v3(self):
-        self.mode_provider.get_mode.return_value = AuthMode.V4
-        self.v4_provider.get_apply_entry_url.side_effect = RuntimeError("iam unavailable")
-        permission = self._make_permission()
-
-        self.assertEqual(permission.get_apply_entry_url(), f"{V3_SAAS_HOST}/apply-join-user-group")
-
-    def test_invalid_mode_falls_back_to_v3(self):
-        self.mode_provider.get_mode.side_effect = InvalidAuthModeError("bad-mode", "unsupported mode")
-        permission = self._make_permission()
-
-        self.assertEqual(permission.get_permission_center_url(), V3_SAAS_HOST)
-        self.assertEqual(permission.get_apply_entry_url(), f"{V3_SAAS_HOST}/apply-join-user-group")
-
-    def test_meta_entry_routes_are_registered(self):
-        paths = (
-            "/api/v1/iam/meta/get_permission_center_url/",
-            "/api/v1/iam/meta/get_apply_entry_url/",
+class IAMEntryUrlTest(SimpleTestCase):
+    def test_v3_returns_v3_center_and_apply_url(self):
+        self.assertEqual(
+            _resolve_iam_urls(AuthMode.V3),
+            (V3_SAAS_HOST, f"{V3_SAAS_HOST}/apply-join-user-group"),
         )
-        for path in paths:
-            self.assertIs(resolve(path).func.cls, MetaViewSet)
 
-
-class V4PermissionCenterUrlTest(SimpleTestCase):
-    @staticmethod
-    def _make_provider() -> V4PermissionProvider:
-        client = Mock()
-        client.options.batch_chunk_size = 100
-        client.options.batch_max_workers = 4
-        return V4PermissionProvider(client)
-
-    @override_settings(BK_IAM_V4_SAAS_HOST="https://iam-v4.example.test/")
-    def test_strips_trailing_slash(self):
-        self.assertEqual(self._make_provider().get_permission_center_url(), "https://iam-v4.example.test")
+    def test_v4_returns_v4_center_and_apply_url(self):
+        self.assertEqual(
+            _resolve_iam_urls(AuthMode.V4),
+            (V4_SAAS_HOST, f"{V4_SAAS_HOST}/permission/apply"),
+        )
 
     @override_settings(BK_IAM_V4_SAAS_HOST="")
-    def test_returns_empty_when_not_configured(self):
-        self.assertEqual(self._make_provider().get_permission_center_url(), "")
+    def test_v4_falls_back_to_v3_when_center_url_missing(self):
+        self.assertEqual(
+            _resolve_iam_urls(AuthMode.V4),
+            (V3_SAAS_HOST, f"{V3_SAAS_HOST}/apply-join-user-group"),
+        )
+
+    @override_settings(BK_IAM_V4_APPLY_PATH="")
+    def test_v4_uses_default_apply_path(self):
+        self.assertEqual(
+            _resolve_iam_urls(AuthMode.V4),
+            (V4_SAAS_HOST, f"{V4_SAAS_HOST}/permission/apply"),
+        )
+
+    @override_settings(BK_IAM_SAAS_HOST=f"{V3_SAAS_HOST}/", BK_IAM_V4_SAAS_HOST=f"{V4_SAAS_HOST}/")
+    def test_trailing_slash_is_stripped(self):
+        self.assertEqual(
+            _resolve_iam_urls(AuthMode.V3),
+            (V3_SAAS_HOST, f"{V3_SAAS_HOST}/apply-join-user-group"),
+        )
+        self.assertEqual(
+            _resolve_iam_urls(AuthMode.V4),
+            (V4_SAAS_HOST, f"{V4_SAAS_HOST}/permission/apply"),
+        )
+
+    def test_union_mode_resolves_to_current_v4(self):
+        provider = Mock()
+        provider.get_mode.return_value = AuthMode.UNION
+        with patch("apps.iam.mode.get_mode_provider", return_value=provider):
+            self.assertIs(_current_iam_mode(), AuthMode.V4)
+
+    def test_mode_resolution_failure_falls_back_to_v3(self):
+        with patch("apps.iam.mode.get_mode_provider", side_effect=RuntimeError("toggle unavailable")):
+            self.assertIs(_current_iam_mode(), AuthMode.V3)
+
+    def test_context_exposes_iam_urls(self):
+        request = Mock()
+        request.headers = {"Is-External": "false"}
+        request.get_full_path.return_value = "/"
+        provider = Mock()
+        provider.get_mode.return_value = AuthMode.V4
+        with patch("apps.iam.mode.get_mode_provider", return_value=provider):
+            context = mysetting(request)
+
+        self.assertEqual(context["BK_IAM_URL"], V4_SAAS_HOST)
+        self.assertEqual(context["BK_IAM_APPLY_URL"], f"{V4_SAAS_HOST}/permission/apply")

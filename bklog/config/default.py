@@ -429,6 +429,8 @@ BK_BKLOG_HOST = os.environ.get("BK_BKLOG_HOST", f"{BK_PAAS_HOST}/o/bk_log_search
 
 # 权限中心 SaaS host（V4）：未显式配置时按 SaaS 域名规则由 bklog 替换为 iam
 BK_IAM_V4_SAAS_HOST = os.environ.get("BK_IAM_V4_SAAS_HOST") or os.getenv("BK_BKLOG_HOST", "").replace("bklog", "iam")
+# V4 权限中心申请页路径，与 V3 不同
+BK_IAM_V4_APPLY_PATH = os.getenv("BK_IAM_V4_APPLY_PATH", "/permission/apply")
 
 # API访问地址，APIGW 需要用到
 BK_BKLOG_API_HOST = os.getenv("BKAPP_BKLOG_API_HOST", "http://bk-log-search-api")
