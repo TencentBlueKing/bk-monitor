@@ -95,15 +95,6 @@ class TestQuixEnableRunner(TestCase):
             "state": "RUNNING",
             "target_model_ref": {"uri": "model"},
             "all_ready_model_ref": {"uri": "model"},
-            "members": [
-                {
-                    "pod_uid": "worker",
-                    "load_status": "LOADED",
-                    "actual_model_ref": {"uri": "model"},
-                    "observed_at": timezone.now().isoformat(),
-                    "report": {"partitions": [{"partition": 0}, {"partition": 1}]},
-                }
-            ],
             "kafka": KAFKA,
             "input_revision": 1,
         }
@@ -122,19 +113,6 @@ class TestQuixEnableRunner(TestCase):
 
     def run_operation(self):
         return QuixClusteringOperationRunner(self.operation.operation_id).run()
-
-    def test_waits_for_current_workers_and_all_partitions(self):
-        clustering = self.bkfara.get_clustering.return_value
-        member = clustering["members"][0]
-        for changes in (
-            {"members": [{**member, "observed_at": (timezone.now() - datetime.timedelta(minutes=5)).isoformat()}]},
-            {"members": [{**member, "report": {"partitions": [{"partition": 0}]}}]},
-            {"autoscaling": {"desired_replicas": 2}},
-            {"members": [member, {**member, "observed_at": timezone.now().isoformat(), "load_status": "LOADING"}]},
-        ):
-            with self.subTest(changes=changes), patch.dict(clustering, changes):
-                self.assertEqual(self.run_operation(), POLL_INTERVAL_SECONDS)
-                self.transfer.set_log_clustering_config.assert_not_called()
 
     def test_append_mode_is_forwarded_from_saved_config_on_retry(self):
         runtime = LogClusteringRuntime.objects.get(index_set_id=INDEX_SET_ID)

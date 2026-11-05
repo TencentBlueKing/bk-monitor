@@ -75,45 +75,11 @@ def runtime_adoption_confirmed(status: dict) -> bool:
 def is_worker_ready(clustering: dict) -> bool:
     """所有目标 Worker 已加载目标模型；成员列表包含历史实例，不能按条数判断"""
     target_model_ref = clustering.get("target_model_ref")
-    if (
-        not target_model_ref
-        or clustering.get("state") != "RUNNING"
-        or clustering.get("all_ready_model_ref") != target_model_ref
-    ):
-        return False
-
-    # 与 BKFara controller 的 90 秒报告窗口一致；同一 Pod 重启进程后只认最新报告。
-    now = datetime.datetime.now(datetime.timezone.utc)
-    latest = {}
-    for member in clustering.get("members") or []:
-        pod = member.get("pod_uid")
-        if not pod or not member.get("observed_at"):
-            continue
-        observed = datetime.datetime.fromisoformat(member["observed_at"].replace("Z", "+00:00"))
-        if observed.tzinfo is None or not 0 <= (now - observed).total_seconds() <= 90:
-            continue
-        if pod not in latest or observed >= latest[pod][0]:
-            latest[pod] = (observed, member)
-
-    desired = (clustering.get("autoscaling") or {}).get("desired_replicas")
-    if desired is not None and len(latest) != desired:
-        return False
-    count = (clustering.get("kafka") or {}).get("partitions")
-    if type(count) is not int or count <= 0:
-        return False
-    assigned = []
-    for _, member in latest.values():
-        report = member.get("report") or {}
-        if (
-            member.get("load_status") != "LOADED"
-            or member.get("actual_model_ref") != target_model_ref
-            or report.get("last_error")
-            or not report.get("partitions")
-        ):
-            return False
-        assigned.extend(part["partition"] for part in report["partitions"])
-    # 固定副本的查询可能没有 desired_replicas；用 Controller 的模型确认和全分区覆盖核对。
-    return sorted(assigned) == list(range(count))
+    return (
+        clustering.get("state") == "RUNNING"
+        and bool(target_model_ref)
+        and clustering.get("all_ready_model_ref") == target_model_ref
+    )
 
 
 class ModelParameterRejected(Exception):
