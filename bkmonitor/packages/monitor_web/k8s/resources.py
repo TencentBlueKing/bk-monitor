@@ -83,7 +83,16 @@ class WorkloadSpaceSerializer(SpaceRelatedSerializer):
         return attrs
 
 
-class WorkloadOverview(Resource):
+class K8sOverviewResource(ApiAuthResource):
+    """General resource enumeration belongs to overview shares, not detail shares."""
+
+    def get_api_auth_request_data(self, request_data, validated_request_data):
+        params = request_data.copy()
+        params["type"] = "overview"
+        return params
+
+
+class WorkloadOverview(K8sOverviewResource):
     class RequestSerializer(WorkloadSpaceSerializer):
         bcs_cluster_id = serializers.CharField(required=True, label="集群id")
         namespace = serializers.CharField(required=False, label="命名空间")
@@ -134,7 +143,7 @@ class WorkloadOverview(Resource):
         return [[key, value] for key, value in kind_map.items()]
 
 
-class NamespaceWorkloadOverview(Resource):
+class NamespaceWorkloadOverview(K8sOverviewResource):
     class RequestSerializer(WorkloadSpaceSerializer):
         bcs_cluster_id = serializers.CharField(required=True, label="集群id")
         query_string = serializers.CharField(required=False, label="名字过滤", default="", allow_blank=True)
@@ -557,7 +566,7 @@ class FilterDictSerializer(SpaceRelatedSerializer):
         return value
 
 
-class ListK8SResources(Resource):
+class ListK8SResources(K8sOverviewResource):
     """获取K8s资源列表"""
 
     class RequestSerializer(FilterDictSerializer):

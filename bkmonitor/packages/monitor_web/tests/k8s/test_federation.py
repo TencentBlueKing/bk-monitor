@@ -20,7 +20,7 @@ from rest_framework.test import APIRequestFactory, force_authenticate
 
 from api.kubernetes.default import GetClusterInfoFromBcsSpaceResource
 from bkmonitor.middlewares.authentication import ApiTokenAuthenticationMiddleware
-from bkmonitor.models import ApiAuthToken, BCSCluster, BCSPod, BCSService, BCSWorkload
+from bkmonitor.models import ApiAuthToken, BCSCluster, BCSIngress, BCSPod, BCSService, BCSWorkload
 from bkmonitor.utils.common_utils import fetch_biz_id_from_request
 from bkmonitor.utils.kubernetes import BcsClusterType
 from bkmonitor.utils.local import local
@@ -120,6 +120,37 @@ class TestFederatedResources(TestCase):
                 **overrides,
             }
         )
+
+    def test_service_and_ingress_deduplicate_before_counting_and_paging(self):
+        for resource_type, model in (("service", BCSService), ("ingress", BCSIngress)):
+            with self.subTest(resource_type=resource_type):
+                for cluster, namespace in (
+                    (self.member_a, "shared"),
+                    (self.member_b, "shared"),
+                    (self.member_a, "alpha"),
+                ):
+                    model.objects.create(
+                        bk_biz_id=2,
+                        bcs_cluster_id=cluster,
+                        namespace=namespace,
+                        name="api",
+                        created_at=timezone.now(),
+                        last_synced_at=timezone.now(),
+                    )
+                shared = self.list_resources(resource_type, filter_dict={"namespace": ["shared"]})
+                self.assertEqual(shared, {"count": 1, "items": [{resource_type: "api", "namespace": "shared"}]})
+                pages = [
+                    self.list_resources(resource_type, page_type="traditional", page_size=1, page=page)
+                    for page in (1, 2)
+                ]
+                self.assertEqual([page["count"] for page in pages], [2, 2])
+                self.assertEqual({page["items"][0]["namespace"] for page in pages}, {"alpha", "shared"})
+                scrolling = self.list_resources(resource_type, page_size=1, page=2)
+                self.assertEqual(scrolling["count"], 2)
+                self.assertEqual(len(scrolling["items"]), 2)
+                ordinary = self.list_resources(resource_type, bcs_cluster_id=self.member_a)
+                self.assertEqual(ordinary["count"], 2)
+                self.assertEqual(self.list_resources(resource_type, supports_federated_charts=False)["count"], 0)
 
     def test_lists_and_counts_use_the_same_cluster_namespace_pairs(self):
         namespaces = self.list_resources("namespace")
@@ -471,7 +502,7 @@ class TestFederatedResources(TestCase):
                     (page_biz, {"namespace": "foreign", "bcs_cluster_id": self.proxy, "pod": "foreign-app"}, "service"),
                 )
 
-    def shared_detail(
+    def shared_resource_request(
         self,
         params,
         *,
@@ -481,6 +512,8 @@ class TestFederatedResources(TestCase):
         dashboard_id="workload",
         cluster_id=None,
         format_suffix=False,
+        endpoint="get_resource_detail",
+        method="get",
         **token_overrides,
     ):
         query = {
@@ -515,10 +548,13 @@ class TestFederatedResources(TestCase):
         user = AnonymousUser()
         user.tenant_id = "system"
         ResourcesViewSet.generate_endpoint()
-        path = "/resources/get_resource_detail.json" if format_suffix else "/resources/get_resource_detail/"
+        path = f"/resources/{endpoint}.json" if format_suffix else f"/resources/{endpoint}/"
         match = resolve(path, urlconf="monitor_web.k8s.urls")
         view = match.func
-        request = APIRequestFactory().get(f"/rest/v2/k8s{path}", params)
+        factory = APIRequestFactory()
+        request = getattr(factory, method)(
+            f"/rest/v2/k8s{path}", params, **({"format": "json"} if method == "post" else {})
+        )
         request.resolver_match = match
         request.biz_id = fetch_biz_id_from_request(request, {})
         request.user = user
@@ -562,7 +598,7 @@ class TestFederatedResources(TestCase):
                 if change.get("resource_type") == "pod":
                     data.pop("workload_name")
                     data.pop("workload_type")
-                response = self.shared_detail(data)
+                response = self.shared_resource_request(data)
                 self.assertEqual(response.status_code, 403)
                 scope.assert_not_called()
 
@@ -571,7 +607,7 @@ class TestFederatedResources(TestCase):
             ("foreign", "foreign-app", self.foreign),
         ):
             with self.subTest(namespace=namespace):
-                response = self.shared_detail(
+                response = self.shared_resource_request(
                     {**params, "namespace": namespace, "workload_name": name}, namespace=namespace, name=name
                 )
                 self.assertEqual(response.status_code, 200)
@@ -589,10 +625,10 @@ class TestFederatedResources(TestCase):
             "supports_federated_charts": True,
         }
         with patch("monitor_web.k8s.resources.get_federated_resource_scope") as scope:
-            self.assertEqual(self.shared_detail(params, format_suffix=True).status_code, 403)
+            self.assertEqual(self.shared_resource_request(params, format_suffix=True).status_code, 403)
             scope.assert_not_called()
         with patch.object(GetResourceDetail, "get_pod_resource_relation", return_value=[]):
-            response = self.shared_detail(params, dashboard_id="pod", format_suffix=True)
+            response = self.shared_resource_request(params, dashboard_id="pod", format_suffix=True)
         self.assertEqual(response.status_code, 200)
         self.assertTrue(response.data)
 
@@ -606,13 +642,13 @@ class TestFederatedResources(TestCase):
             "workload_type": "Deployment",
             "supports_federated_charts": True,
         }
-        response = self.shared_detail(params, scene_type="overview")
+        response = self.shared_resource_request(params, scene_type="overview")
         self.assertEqual(response.status_code, 200)
         self.assertTrue(response.data)
         with patch("monitor_web.k8s.resources.get_federated_resource_scope") as scope:
-            self.assertEqual(self.shared_detail({**params, "bk_biz_id": 3}).status_code, 403)
+            self.assertEqual(self.shared_resource_request({**params, "bk_biz_id": 3}).status_code, 403)
             self.assertEqual(
-                self.shared_detail(params, expire_time=timezone.now() - timedelta(seconds=1)).status_code, 403
+                self.shared_resource_request(params, expire_time=timezone.now() - timedelta(seconds=1)).status_code, 403
             )
             scope.assert_not_called()
 
@@ -622,7 +658,7 @@ class TestFederatedResources(TestCase):
                 self.subTest(supports_federated_charts=supports_federated_charts),
                 patch.object(GetResourceDetail, "get_pod_resource_relation", return_value=[]),
             ):
-                response = self.shared_detail(
+                response = self.shared_resource_request(
                     {
                         "bk_biz_id": 2,
                         "bcs_cluster_id": self.member_a,
@@ -638,6 +674,110 @@ class TestFederatedResources(TestCase):
                 values = {item["key"]: item["value"] for item in response.data}
                 self.assertEqual(values["name"], "alpha-app")
                 self.assertEqual(values["bcs_cluster_id"], self.member_a)
+
+    def test_detail_share_cannot_enumerate_resources_through_overview_endpoints(self):
+        params = {
+            "bk_biz_id": 2,
+            "bcs_cluster_id": self.proxy,
+            "resource_type": "workload",
+            "scenario": "performance",
+            "start_time": 1,
+            "end_time": 60,
+            "filter_dict": {"namespace": ["foreign"]},
+        }
+        for endpoint, method in (
+            ("list_resources", "post"),
+            ("workload_overview", "get"),
+            ("namespace_workload_overview", "post"),
+        ):
+            for format_suffix in (False, True):
+                for supports_federated_charts in (False, True):
+                    with (
+                        self.subTest(
+                            endpoint=endpoint, format_suffix=format_suffix, supports=supports_federated_charts
+                        ),
+                        patch("monitor_web.k8s.resources.get_federated_resource_scope") as scope,
+                    ):
+                        response = self.shared_resource_request(
+                            {**params, "supports_federated_charts": supports_federated_charts},
+                            endpoint=endpoint,
+                            method=method,
+                            format_suffix=format_suffix,
+                        )
+                        self.assertEqual(response.status_code, 403)
+                        scope.assert_not_called()
+        for filters in ({}, {"namespace": ["alpha"], "workload": ["Deployment:alpha-app"]}):
+            for with_history in (False, True):
+                with (
+                    self.subTest(filters=filters, with_history=with_history),
+                    patch("monitor_web.k8s.resources.get_federated_resource_scope") as scope,
+                ):
+                    response = self.shared_resource_request(
+                        {
+                            **params,
+                            "filter_dict": filters,
+                            "with_history": with_history,
+                            "supports_federated_charts": True,
+                        },
+                        endpoint="list_resources",
+                        method="post",
+                    )
+                    self.assertEqual(response.status_code, 403)
+                    scope.assert_not_called()
+        for declared_type in ("detail", "overview"):
+            with (
+                self.subTest(declared_type=declared_type),
+                patch("monitor_web.k8s.resources.get_federated_resource_scope") as scope,
+            ):
+                response = self.shared_resource_request(
+                    {**params, "type": declared_type, "supports_federated_charts": True},
+                    endpoint="list_resources",
+                    method="post",
+                )
+                self.assertEqual(response.status_code, 403)
+                scope.assert_not_called()
+
+    def test_overview_share_preserves_resource_enumeration_and_proxy_scope(self):
+        params = {
+            "bk_biz_id": 2,
+            "resource_type": "workload",
+            "scenario": "performance",
+            "start_time": 1,
+            "end_time": 60,
+            "type": "detail",
+        }
+        for cluster, namespace, workload in (
+            (self.proxy, "foreign", "foreign-app"),
+            (self.member_a, "alpha", "alpha-app"),
+        ):
+            for endpoint, method in (
+                ("list_resources", "post"),
+                ("workload_overview", "get"),
+                ("namespace_workload_overview", "post"),
+            ):
+                with self.subTest(cluster=cluster, endpoint=endpoint):
+                    response = self.shared_resource_request(
+                        {
+                            **params,
+                            "bcs_cluster_id": cluster,
+                            "filter_dict": {"namespace": [namespace]},
+                            "namespace": namespace,
+                            "query_string": workload,
+                            "supports_federated_charts": True,
+                        },
+                        scene_type="overview",
+                        cluster_id=cluster,
+                        endpoint=endpoint,
+                        method=method,
+                    )
+                    self.assertEqual(response.status_code, 200)
+                    if endpoint == "list_resources":
+                        self.assertEqual(response.data, {"count": 1, "items": [{"workload": f"Deployment:{workload}"}]})
+                    elif endpoint == "workload_overview":
+                        self.assertEqual(dict(response.data)["Deployment"], 1)
+                    else:
+                        self.assertEqual(response.data["workload_count"], 1)
+                        self.assertEqual(response.data["items"][0]["namespace"], namespace)
 
     def test_namespaced_trends_preserve_service_ingress_and_container_identity(self):
         column = "nw_container_network_receive_bytes_total"

@@ -276,10 +276,12 @@ class K8sResourceMeta:
     def retry_get_from_meta(self):
         return []
 
-    @classmethod
-    def distinct(cls, queryset):
-        # pod不需要去重，因为不会重名，workload，container 在不同ns下会重名，因此需要去重
-        return queryset
+    def distinct(self, queryset):
+        if self.federated_resource_filter is None:
+            return queryset
+        # The proxy lists one logical resource even when several members contain it.
+        resource_ids = queryset.order_by().values("namespace", "name").annotate(first_id=Min("pk")).values("first_id")
+        return queryset.filter(pk__in=resource_ids)
 
     def get_from_promql(self, start_time, end_time, order_by="", page_size=20, method="sum"):
         """
@@ -580,13 +582,6 @@ class K8sPodMeta(K8sResourceMeta, NetworkWithRelation):
     resource_class = BCSPod
     column_mapping = {"workload_kind": "workload_type", "pod_name": "name"}
     only_fields = ["name", "namespace", "workload_type", "workload_name", "bk_biz_id", "bcs_cluster_id"]
-
-    def distinct(self, queryset):
-        if self.federated_resource_filter is None:
-            return queryset
-        # A federation lists a logical Pod once even when multiple members contain it.
-        pod_ids = queryset.order_by().values("namespace", "name").annotate(first_id=Min("pk")).values("first_id")
-        return queryset.filter(pk__in=pod_ids)
 
     def nw_tpl_prom_with_rate(self, metric_name, exclude=""):
         metric_name = self.clean_metric_name(metric_name)
