@@ -382,12 +382,13 @@ export default class DashboardAside extends tsc<IProps, IEvents> {
     const res = await unstarDashboard({ dashboard_id: id })
       .then(() => true)
       .catch(() => false);
-    if (res) {
-      this.$bkMessage({ message: `${this.$t('取消收藏成功')}：${name}`, theme: 'success' });
-      this.handleFetchGrafanaTree();
-      this.handleFetchFavGrafana();
+    if (!res) {
+      return false;
     }
-    return res;
+    this.$bkMessage({ message: `${this.$t('取消收藏成功')}：${name}`, theme: 'success' });
+    await Promise.all([this.handleFetchGrafanaTree(), this.handleFetchFavGrafana()]).catch(() => undefined);
+    const stillThere = this.favList.some(group => group.children?.some(child => child.id === id));
+    return !stillThere;
   }
 
   @Debounce(300)

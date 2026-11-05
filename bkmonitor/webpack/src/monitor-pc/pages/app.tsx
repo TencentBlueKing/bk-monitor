@@ -94,9 +94,12 @@ const MONITOR_SIDE_NAV_COLORS = {
 const currentLang = docCookies.getItem(LANGUAGE_COOKIE_KEY) || 'zhCN';
 const HEADER_NAV_GAP = 12;
 const HEADER_SEARCH_GAP = 24;
+/** 与 .header-more 一致。bk-dropdown-menu 是 inline-block，外壳宽度等于触发器 */
+const HEADER_MORE_WIDTH = 32;
 let WIDTH_LIST = [72, 80, 94, 94, 94, 72, 72];
 if (currentLang === 'en') {
-  WIDTH_LIST = [80, 118, 90, 128, 86, 122, 122];
+  // 顺序与 getRouteConfig 一致：Home / Dashboards / Explore / Alarms / Observations / Management / Integrations
+  WIDTH_LIST = [80, 118, 90, 86, 128, 122, 122];
 }
 @Component({
   components: {
@@ -323,7 +326,8 @@ export default class App extends tsc<object> {
       this.hideNavCount = 0;
       return;
     }
-    let overflow = needWidth - headerWidth;
+    // 「更多」只出现在收起后：32px 按钮，前面还有 header-list 的 12px gap
+    let overflow = needWidth - headerWidth + HEADER_MORE_WIDTH + HEADER_NAV_GAP;
     let hideCount = 0;
     for (let index = widths.length - 1; index >= 0 && overflow > 0; index--) {
       overflow -= widths[index] + HEADER_NAV_GAP;

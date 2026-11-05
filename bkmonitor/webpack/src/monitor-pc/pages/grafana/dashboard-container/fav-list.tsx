@@ -147,15 +147,33 @@ export default class FavList extends tsc<IProps, IEvents> {
       | undefined;
     const result = handler?.(item.id as number, item.name);
     if (result && typeof (result as Promise<boolean>).then === 'function') {
-      (result as Promise<boolean>).then(ok => {
-        if (ok === false) {
-          this.leavingId = null;
-          this.$nextTick(() => this.syncOpenHeight());
-        }
-      });
+      (result as Promise<boolean>)
+        .then(ok => {
+          if (ok !== true) {
+            this.restoreLeavingItem();
+          }
+        })
+        .catch(() => {
+          this.restoreLeavingItem();
+        });
       return;
     }
     this.$emit('unstarred', item.id, item.name);
+  }
+
+  /** 列表仍保留该项时收回收起态。先关掉行过渡再量高，避免把折叠高度锁在 0 */
+  restoreLeavingItem() {
+    const row = this.$el?.querySelector('.fav-item.is-leaving') as HTMLElement | null;
+    if (row) {
+      row.style.transition = 'none';
+    }
+    this.leavingId = null;
+    this.$nextTick(() => {
+      this.syncOpenHeight();
+      if (row?.isConnected) {
+        row.style.transition = '';
+      }
+    });
   }
 
   syncOpenHeight() {
