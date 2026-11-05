@@ -25,6 +25,7 @@ from constants.common import DEFAULT_TENANT_ID
 from core.drf_resource import api
 from core.prometheus import metrics
 from metadata import models
+from metadata.models.bk_collector import BkCollectorDeployPolicy, BkCollectorDeployScene
 from metadata.models.ping_server import PingServerSubscriptionConfig
 from metadata.tools.constants import TASK_FINISHED_SUCCESS, TASK_STARTED
 
@@ -341,6 +342,13 @@ def _create_multi_tenant_ping_subscription(
             bk_tenant_id=bk_tenant_id, bk_cloud_id=bk_cloud_id, plugin_name=plugin_name
         ).values_list("bk_biz_id", flat=True)
     )
+    if plugin_name == BkCollectorDeployPolicy.PLUGIN_NAME and BkCollectorDeployPolicy.is_enabled():
+        # V3 部署策略不写订阅表，已下发的业务从策略绑定表获取，保证下线业务的配置会被回收
+        existing_biz_ids |= set(
+            BkCollectorDeployPolicy.objects.filter(
+                bk_tenant_id=bk_tenant_id, scene=BkCollectorDeployScene.PING_SERVER, bk_cloud_id=bk_cloud_id
+            ).values_list("bk_biz_id", flat=True)
+        )
 
     data_id_cache: dict[int, int | None] = {}
     for target_bk_biz_id in set(biz_items) | existing_biz_ids:

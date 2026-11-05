@@ -107,3 +107,45 @@ class InstallPluginResource(NodeManV3Resource):
             version = serializers.CharField()
 
         plugin = PluginSerializer(many=True, allow_empty=False)
+
+
+class CreateDeployPolicyResource(NodeManV3Resource):
+    """创建部署策略，返回 deploy_policy_id。"""
+
+    action = "api/v3/deploy_policy/create"
+
+    class RequestSerializer(serializers.Serializer):
+        name = serializers.CharField()
+        description = serializers.CharField(allow_blank=True, default="")
+        enabled = serializers.BooleanField(default=True)
+        specs = serializers.ListField(child=serializers.DictField(), allow_empty=False)
+        scopes = serializers.ListField(child=serializers.DictField(), allow_empty=True)
+
+
+class UpdateDeployPolicyResource(NodeManV3Resource):
+    """按 fields 指定的字段更新部署策略。"""
+
+    action = "api/v3/deploy_policy/update"
+
+    class RequestSerializer(serializers.Serializer):
+        deploy_policies = serializers.ListField(child=serializers.DictField(), allow_empty=False)
+        fields = serializers.DictField()
+
+
+class ExecuteDeployPolicyResource(NodeManV3Resource):
+    """执行部署策略，返回父 workflow_id；只表示已派发，不代表已收敛。"""
+
+    action = "api/v3/deploy_policy/execute"
+
+    class RequestSerializer(serializers.Serializer):
+        deploy_policy_id = serializers.IntegerField()
+
+
+class ListDeployPoliciesResource(NodeManV3Resource):
+    """分页查询部署策略。"""
+
+    action = "api/v3/deploy_policy/list"
+
+    class RequestSerializer(serializers.Serializer):
+        page = serializers.DictField()
+        exact_include_conditions = serializers.DictField()
