@@ -85,10 +85,13 @@ export abstract class K8sBasePromqlGenerator {
    * @method createCommonPromqlMethod
    * @description 创建通用的Promql方法
    * @param {K8sBasePromqlGeneratorContext} context 生成器上下文
+   * @param {boolean} usePod 是否使用网络指标的 pod 标签
    * @returns {string} 通用的Promql方法
    */
-  static createCommonPromqlMethod(context: K8sBasePromqlGeneratorContext): string {
+  static createCommonPromqlMethod(context: K8sBasePromqlGeneratorContext, usePod = false): string {
     if (context.groupByField === K8sTableColumnKeysEnum.CLUSTER) return '$method by(bcs_cluster_id)';
+    if (context.groupByField === K8sTableColumnKeysEnum.POD)
+      return `$method by(namespace,${usePod ? 'pod' : 'pod_name'})`;
     if (context.groupByField === K8sTableColumnKeysEnum.CONTAINER) return '$method by(pod_name,container_name)';
     if (context.groupByField === K8sTableColumnKeysEnum.INGRESS) return '$method by(ingress,namespace)';
     if (context.groupByField === K8sTableColumnKeysEnum.SERVICE) return '$method by(service,namespace)';

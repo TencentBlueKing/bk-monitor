@@ -99,6 +99,7 @@ class K8SCustomChart extends CommonSimpleChart {
   @Inject({ from: 'handleChartDataZoom', default: () => null }) readonly handleChartDataZoom: (value: any) => void;
   @Inject({ from: 'handleRestoreEvent', default: () => null }) readonly handleRestoreEvent: () => void;
   @Inject({ from: 'onShowDetail', default: () => null }) readonly onShowDetail: (
+    name: string,
     dimensions: Record<string, string>
   ) => void;
   @InjectReactive({ from: 'showRestore', default: false }) readonly showRestoreInject: boolean;
@@ -1157,7 +1158,7 @@ class K8SCustomChart extends CommonSimpleChart {
                             item.show && !this.isSpecialSeries(item.name) && canShowDetail ? 'can-show-detail' : '',
                           ]}
                           v-bk-overflow-tips={{ placement: 'top', offset: '100, 0' }}
-                          onClick={() => canShowDetail && this.onShowDetail(item.name)}
+                          onClick={() => canShowDetail && this.onShowDetail(item.name, item.dimensions)}
                         >
                           {item.name}
                         </span>

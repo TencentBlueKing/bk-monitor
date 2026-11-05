@@ -25,6 +25,7 @@ from bkmonitor.models import BCSWorkload
 from bkmonitor.utils.kubernetes import validate_k8s_namespace
 from core.drf_resource import Resource, resource
 from metadata import models
+from monitor_web.k8s.chart import GraphK8sClusterQueryResource, GraphK8sQueryResource
 from monitor_web.k8s.core.federation import NAMESPACED_RESOURCES, get_federated_resource_scope
 from monitor_web.k8s.core.filters import load_resource_filter
 from monitor_web.k8s.core.meta import K8sResourceMeta, load_resource_meta
@@ -806,7 +807,14 @@ class ResourceTrendResource(Resource):
             # 不用topk 因为有resource_list
             promql = getattr(resource_meta, f"meta_prom_with_{column}")
 
-        series = self.get_series_with_promql(promql, start_time, end_time, bk_biz_id)
+        series = self.get_series_with_promql(
+            promql,
+            start_time,
+            end_time,
+            bk_biz_id,
+            bcs_cluster_id,
+            resource_type,
+        )
         max_data_point = 0
         for line in series:
             if line["datapoints"]:
@@ -883,10 +891,13 @@ class ResourceTrendResource(Resource):
             if len(namespaces_by_legacy_name.get(pod_name, ())) == 1:
                 yield pod_name, line
 
-    def get_series_with_promql(self, promql: str, start_time: int, end_time: int, bk_biz_id: int) -> list[dict]:
+    def get_series_with_promql(
+        self, promql: str, start_time: int, end_time: int, bk_biz_id: int, bcs_cluster_id: str, resource_type: str
+    ) -> list[dict]:
         interval = get_interval_number(start_time, end_time, interval=60)
         query_params = {
             "bk_biz_id": bk_biz_id,
+            "bcs_cluster_id": bcs_cluster_id,
             "query_configs": [
                 {
                     "data_source_label": "prometheus",
@@ -904,5 +915,8 @@ class ResourceTrendResource(Resource):
             "slimit": 10001,
             "down_sample_range": "",
         }
-        series = resource.grafana.graph_unify_query(query_params)["series"]
+        graph_query = (
+            GraphK8sQueryResource() if resource_type in NAMESPACED_RESOURCES else GraphK8sClusterQueryResource()
+        )
+        series = graph_query(query_params)["series"]
         return series

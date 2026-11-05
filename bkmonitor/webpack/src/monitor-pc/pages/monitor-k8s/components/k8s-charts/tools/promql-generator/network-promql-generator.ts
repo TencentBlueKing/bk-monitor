@@ -72,7 +72,7 @@ export class K8sNetworkPromqlGenerator extends K8sBasePromqlGenerator {
       case 'nw_container_network_receive_errors_total': // 网络入丢包量
       case 'nw_container_network_transmit_errors_total': // 网络出丢包量
         if (filterLevelField === K8sTableColumnKeysEnum.INGRESS) {
-          return `${K8sBasePromqlGenerator.createCommonPromqlMethod(context)} ((count by (bcs_cluster_id, namespace, ingress, service, pod)
+          return `${K8sBasePromqlGenerator.createCommonPromqlMethod(context, true)} ((count by (bcs_cluster_id, namespace, ingress, service, pod)
             (ingress_with_service_relation{${K8sBasePromqlGenerator.createCommonPromqlContent(context, false, false, true)}}) * 0 + 1)
             * on (namespace, service) group_left(pod)
             (count by (service, namespace, pod) (pod_with_service_relation))
@@ -82,17 +82,17 @@ export class K8sNetworkPromqlGenerator extends K8sBasePromqlGenerator {
             rate(${formatterMetric}{${K8sBasePromqlGenerator.createCommonPromqlContent(context, true, false)}}[$interval])[$interval:] $time_shift)))`;
         }
         if (filterLevelField === K8sTableColumnKeysEnum.SERVICE) {
-          return `${K8sBasePromqlGenerator.createCommonPromqlMethod(context)} ((count by (service, namespace, pod) (pod_with_service_relation{${K8sBasePromqlGenerator.createCommonPromqlContent(context, false, false, true)}}) * 0 + 1) * on (namespace, pod) group_left()
+          return `${K8sBasePromqlGenerator.createCommonPromqlMethod(context, true)} ((count by (service, namespace, pod) (pod_with_service_relation{${K8sBasePromqlGenerator.createCommonPromqlContent(context, false, false, true)}}) * 0 + 1) * on (namespace, pod) group_left()
             sum by (namespace, pod)
             (last_over_time(
             rate(${formatterMetric}{${K8sBasePromqlGenerator.createCommonPromqlContent(context, true, false)}}[$interval])[$interval:] $time_shift)))`;
         }
         if (filterLevelField === K8sTableColumnKeysEnum.NAMESPACE) {
-          return `${K8sBasePromqlGenerator.createCommonPromqlMethod(context)} (
+          return `${K8sBasePromqlGenerator.createCommonPromqlMethod(context, true)} (
             (last_over_time(
             rate(${formatterMetric}{${K8sBasePromqlGenerator.createCommonPromqlContent(context, false, false, true)}}[$interval])[$interval:] $time_shift)))`;
         }
-        return `${K8sBasePromqlGenerator.createCommonPromqlMethod(context)} (
+        return `${K8sBasePromqlGenerator.createCommonPromqlMethod(context, true)} (
           sum by (namespace, pod)
           (last_over_time(
           rate(${formatterMetric}{${K8sBasePromqlGenerator.createCommonPromqlContent(context, false, false, true)}}[$interval])[$interval:] $time_shift)))`;
@@ -114,7 +114,7 @@ export class K8sNetworkPromqlGenerator extends K8sBasePromqlGenerator {
           : 'container_network_transmit_packets_total';
 
         if (filterLevelField === K8sTableColumnKeysEnum.INGRESS) {
-          return `${K8sBasePromqlGenerator.createCommonPromqlMethod(context)} (
+          return `${K8sBasePromqlGenerator.createCommonPromqlMethod(context, true)} (
               (
                 count by (bcs_cluster_id, namespace, ingress, pod)
                 (ingress_with_service_relation{${K8sBasePromqlGenerator.createCommonPromqlContent(context, false, false, true)}}) * 0 + 1)
@@ -139,7 +139,7 @@ export class K8sNetworkPromqlGenerator extends K8sBasePromqlGenerator {
           )`;
         }
         if (filterLevelField === K8sTableColumnKeysEnum.SERVICE) {
-          return `${K8sBasePromqlGenerator.createCommonPromqlMethod(context)} (
+          return `${K8sBasePromqlGenerator.createCommonPromqlMethod(context, true)} (
             (
               count by (service, namespace, pod) (pod_with_service_relation{${K8sBasePromqlGenerator.createCommonPromqlContent(context, false, false, true)}}) * 0 + 1) * on (namespace, pod) group_left()
               sum by (namespace, pod)
@@ -156,7 +156,7 @@ export class K8sNetworkPromqlGenerator extends K8sBasePromqlGenerator {
           )`;
         }
         if (filterLevelField === K8sTableColumnKeysEnum.NAMESPACE) {
-          return `${K8sBasePromqlGenerator.createCommonPromqlMethod(context)} (
+          return `${K8sBasePromqlGenerator.createCommonPromqlMethod(context, true)} (
             (
               last_over_time(
               rate(${errorMetric}{${K8sBasePromqlGenerator.createCommonPromqlContent(context, false, false, true)}}[$interval])[$interval:] $time_shift)
@@ -168,7 +168,7 @@ export class K8sNetworkPromqlGenerator extends K8sBasePromqlGenerator {
             )
           )`;
         }
-        return `${K8sBasePromqlGenerator.createCommonPromqlMethod(context)} (
+        return `${K8sBasePromqlGenerator.createCommonPromqlMethod(context, true)} (
           (
             sum by (namespace, pod)
             (last_over_time(

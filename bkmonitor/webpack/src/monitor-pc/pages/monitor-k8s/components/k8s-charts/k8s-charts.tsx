@@ -195,7 +195,7 @@ export default class K8SCharts extends tsc<
   }
 
   @Provide('onShowDetail')
-  handleShowDetail(field: string) {
+  handleShowDetail(field: string, dimensions: Record<string, string> = {}) {
     if (this.groupByField === K8sTableColumnKeysEnum.CLUSTER && this.canGroupByCluster) {
       this.sideDetail = {
         cluster: this.filterCommonParams?.bcs_cluster_id,
@@ -209,7 +209,11 @@ export default class K8SCharts extends tsc<
         dimension = dimension.split('-')?.slice(1).join('-');
       }
       let item: Partial<Record<K8sTableColumnKeysEnum, string>>;
-      if (this.groupByField === K8sTableColumnKeysEnum.CONTAINER) {
+      if (this.groupByField === K8sTableColumnKeysEnum.POD) {
+        const pod = dimensions.pod_name || dimensions.pod;
+        if (!dimensions.namespace || !pod) return;
+        item = Array.from(this.resourceList).find(item => item.namespace === dimensions.namespace && item.pod === pod);
+      } else if (this.groupByField === K8sTableColumnKeysEnum.CONTAINER) {
         const [container, pod] = dimension.split(':');
         item = Array.from(this.resourceList).find(
           item => item[K8sTableColumnKeysEnum.POD] === pod && item[K8sTableColumnKeysEnum.CONTAINER] === container

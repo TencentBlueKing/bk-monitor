@@ -8,6 +8,7 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 See the License for the specific language governing permissions and limitations under the License.
 """
 
+import json
 from unittest.mock import patch
 
 from django.test import TestCase
@@ -17,7 +18,8 @@ from bkmonitor.models import BCSCluster, BCSPod, BCSWorkload
 from bkmonitor.utils.kubernetes import BcsClusterType
 from metadata.models import BcsFederalClusterInfo
 from monitor_web.k8s.core.federation import get_federated_resource_scope
-from monitor_web.k8s.core.meta import K8sPodMeta
+from monitor_web.k8s.core.filters import load_resource_filter
+from monitor_web.k8s.core.meta import K8sPodMeta, load_resource_meta
 from monitor_web.k8s.resources import (
     GetResourceDetail,
     ListK8SResources,
@@ -131,6 +133,87 @@ class TestFederatedResources(TestCase):
     def test_pod_options_deduplicate_before_pagination(self):
         pods = self.list_resources("pod", filter_dict={"namespace": ["shared"]}, page_size=1)
         self.assertEqual(pods, {"count": 1, "items": [{"pod": "shared-app", "namespace": "shared"}]})
+
+    def test_history_and_trend_keep_server_scope_separate_from_filter_values(self):
+        metric = "container_memory_working_set_bytes"
+        injected_namespace = (
+            'alpha"}) or count by (namespace,pod_name) ('
+            + metric
+            + '{namespace="foreign"}) or count by (namespace,pod_name) ('
+            + metric
+            + '{namespace="alpha'
+        )
+        expected_match = f'{{bcs_cluster_id="{self.proxy}",namespace=~"^(alpha|beta|shared)$"}}'
+        with (
+            patch("monitor_web.grafana.resources.unify_query.GraphUnifyQueryResource.get_metric_info", return_value=[]),
+            patch("monitor_web.grafana.resources.unify_query.safe_push_to_gateway"),
+            patch(
+                "api.unify_query.default.QueryDataByPromqlResource.perform_request", return_value={"series": []}
+            ) as query,
+        ):
+            self.list_resources(
+                "pod",
+                with_history=True,
+                method="count",
+                column=metric,
+                filter_dict={"namespace": [injected_namespace]},
+            )
+            history_config = query.call_args.args[0]
+            ResourceTrendResource()(
+                {
+                    "bk_biz_id": 2,
+                    "bcs_cluster_id": self.proxy,
+                    "resource_type": "pod",
+                    "resource_list": ["alpha|app"],
+                    "column": metric,
+                    "method": "count",
+                    "start_time": 1,
+                    "end_time": 60,
+                    "filter_dict": {"namespace": [injected_namespace]},
+                }
+            )
+            trend_config = query.call_args.args[0]
+        for config in (history_config, trend_config):
+            self.assertEqual(config["match"], expected_match)
+            self.assertIs(config["is_verify_dimensions"], False)
+            self.assertIn(f"namespace={json.dumps(injected_namespace)}", config["promql"])
+
+    def test_filter_values_cannot_end_promql_string_literals(self):
+        payload = 'value/资源"} or outside{label="\\\n'
+        for resource_type in ("namespace", "pod", "container", "node", "service", "ingress", "workload"):
+            for fuzzy in (False, True):
+                with self.subTest(resource_type=resource_type, fuzzy=fuzzy):
+                    text = load_resource_filter(resource_type, payload, fuzzy=fuzzy).filter_string()
+                    literal = text.split("=", 1)[1].lstrip("~")
+                    self.assertNotIn(r"\/", literal)
+                    expected = payload.strip() if resource_type == "workload" else payload
+                    if fuzzy and resource_type != "workload":
+                        expected = f"({expected})"
+                    self.assertEqual(json.loads(literal), expected)
+        text = load_resource_filter("namespace", [payload, "valid"]).filter_string()
+        self.assertTrue(json.loads(text.split("=~", 1)[1]).startswith("^("))
+
+    def test_node_and_cluster_queries_keep_their_namespace_free_scope(self):
+        for resource_type in ("node", "cluster"):
+            with (
+                self.subTest(resource_type=resource_type),
+                patch(
+                    "monitor_web.grafana.resources.unify_query.GraphUnifyQueryResource.perform_request",
+                    return_value={"series": []},
+                ) as query,
+                patch("monitor_web.k8s.chart.get_federated_resource_scope") as namespace_scope,
+            ):
+                meta = load_resource_meta(resource_type, 2, self.proxy)
+                meta.get_from_promql(1, 60, order_by="node_cpu_seconds_total")
+                ResourceTrendResource().get_series_with_promql(
+                    "node_cpu_seconds_total", 1, 60, 2, self.proxy, resource_type
+                )
+                self.assertEqual(query.call_count, 2)
+                namespace_scope.assert_not_called()
+                for call in query.call_args_list:
+                    self.assertEqual(
+                        call.args[0]["query_configs"][0]["required_promql_match"], f'{{bcs_cluster_id="{self.proxy}"}}'
+                    )
 
     def test_workload_tree_total_matches_namespace_counts(self):
         now = timezone.now()

@@ -12,15 +12,15 @@ from bkmonitor.iam import ActionEnum
 from bkmonitor.iam.drf import BusinessActionPermission
 from core.drf_resource import resource
 from core.drf_resource.viewsets import ResourceRoute, ResourceViewSet
-from monitor_web.grafana.permissions import GrafanaReadPermission
 from monitor_web.k8s.chart import GraphK8sQueryResource
+from monitor_web.k8s.permissions import K8sGraphReadPermission
 
 
 class ResourcesViewSet(ResourceViewSet):
     def get_permissions(self):
         if self.action == "graph_query":
             return [
-                GrafanaReadPermission(
+                K8sGraphReadPermission(
                     BusinessActionPermission(
                         [
                             ActionEnum.VIEW_HOST,

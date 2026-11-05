@@ -26,7 +26,8 @@ from bkmonitor.models import (
     BCSWorkload,
 )
 from bkmonitor.utils.time_tools import hms_string
-from core.drf_resource import api, resource
+from core.drf_resource import api
+from monitor_web.k8s.chart import GraphK8sClusterQueryResource, GraphK8sQueryResource
 from monitor_web.k8s.core.filters import load_resource_filter
 from monitor_web.k8s.core.gpu_compat import gpu_or
 
@@ -294,6 +295,7 @@ class K8sResourceMeta:
         self.set_agg_interval(start_time, end_time)
         query_params = {
             "bk_biz_id": self.bk_biz_id,
+            "bcs_cluster_id": self.bcs_cluster_id,
             "query_configs": [
                 {
                     "data_source_label": "prometheus",
@@ -312,7 +314,12 @@ class K8sResourceMeta:
             "down_sample_range": "",
         }
 
-        series: list[dict[str, Any]] = resource.grafana.graph_unify_query(query_params)["series"]
+        graph_query = (
+            GraphK8sClusterQueryResource()
+            if isinstance(self, K8sNodeMeta | K8sClusterMeta)
+            else GraphK8sQueryResource()
+        )
+        series: list[dict[str, Any]] = graph_query(query_params)["series"]
 
         # 找到有值数据点的最大时间戳。
         latest_point_time: int | None = max(

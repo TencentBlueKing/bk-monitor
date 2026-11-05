@@ -21,13 +21,14 @@ class TestFederatedChart(SimpleTestCase):
         grafana = GrafanaViewSet()
         grafana.action = "time_series/unify_query"
         actual, expected = k8s.get_permissions()[0], grafana.get_permissions()[0]
-        self.assertIs(type(actual), type(expected))
+        self.assertIsInstance(actual, type(expected))
         self.assertEqual(actual.permission.actions, expected.permission.actions)
 
     def graph_params(self):
         return {
             "bk_biz_id": 2,
             "bcs_cluster_id": self.cluster_id,
+            "namespace_scoped": False,
             "start_time": 60,
             "end_time": 120,
             "expression": "A",
