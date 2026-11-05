@@ -152,6 +152,50 @@ class TestFederatedResources(TestCase):
                 self.assertEqual(ordinary["count"], 2)
                 self.assertEqual(self.list_resources(resource_type, supports_federated_charts=False)["count"], 0)
 
+    def test_network_relation_filters_preserve_empty_metadata_fallback(self):
+        for cluster in (self.proxy, self.member_a):
+            for resource_type, relation in (("service", "ingress"), ("ingress", "service"), ("pod", "ingress")):
+                with self.subTest(cluster=cluster, resource_type=resource_type):
+                    result = self.list_resources(
+                        resource_type,
+                        bcs_cluster_id=cluster,
+                        scenario="network",
+                        filter_dict={"namespace": ["alpha"], relation: ["gateway"]},
+                    )
+                    self.assertEqual(result, {"count": 0, "items": []})
+
+    def test_network_relation_metadata_fallback_preserves_historical_resources(self):
+        for cluster in (self.proxy, self.member_a):
+            for resource_type, field, relation in (
+                ("service", "service", "ingress"),
+                ("ingress", "ingress", "service"),
+                ("pod", "pod_name", "ingress"),
+            ):
+                for has_history in (False, True):
+                    series = (
+                        [{"dimensions": {"namespace": "alpha", field: "api"}, "datapoints": [[3, 60000]]}]
+                        if has_history
+                        else []
+                    )
+                    with (
+                        self.subTest(cluster=cluster, resource_type=resource_type, has_history=has_history),
+                        patch(
+                            "monitor_web.grafana.resources.unify_query.GraphUnifyQueryResource.perform_request",
+                            return_value={"series": series},
+                        ) as query,
+                    ):
+                        result = self.list_resources(
+                            resource_type,
+                            bcs_cluster_id=cluster,
+                            scenario="network",
+                            column="nw_container_network_receive_bytes_total",
+                            with_history=True,
+                            filter_dict={"namespace": ["alpha"], relation: ["gateway"]},
+                        )
+                        query.assert_called_once()
+                        expected = [{"namespace": "alpha", resource_type: "api"}] if has_history else []
+                        self.assertEqual(result, {"count": len(expected), "items": expected})
+
     def test_lists_and_counts_use_the_same_cluster_namespace_pairs(self):
         namespaces = self.list_resources("namespace")
         self.assertEqual([item["namespace"] for item in namespaces["items"]], ["alpha", "beta", "foreign", "shared"])

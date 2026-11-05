@@ -9,15 +9,17 @@ const federationAwareRequest = (method, url) => {
 export const listBcsCluster = request('GET', 'rest/v2/k8s/resources/list_bcs_cluster/');
 export const scenarioMetricList = request('GET', 'rest/v2/k8s/resources/scenario_metric_list/');
 export const listK8sResources = federationAwareRequest('POST', 'rest/v2/k8s/resources/list_resources/');
+export const listK8sResourcesWithoutFederatedCharts = request('POST', 'rest/v2/k8s/resources/list_resources/');
 export const getResourceDetail = federationAwareRequest('GET', 'rest/v2/k8s/resources/get_resource_detail/');
 export const workloadOverview = federationAwareRequest('GET', 'rest/v2/k8s/resources/workload_overview/');
 export const resourceTrend = request('POST', 'rest/v2/k8s/resources/resource_trend/');
-export const namespaceWorkloadOverview = federationAwareRequest('POST', 'rest/v2/k8s/resources/namespace_workload_overview/');
+export const namespaceWorkloadOverview = request('POST', 'rest/v2/k8s/resources/namespace_workload_overview/');
 
 export default {
   listBcsCluster,
   scenarioMetricList,
   listK8sResources,
+  listK8sResourcesWithoutFederatedCharts,
   getResourceDetail,
   workloadOverview,
   resourceTrend,

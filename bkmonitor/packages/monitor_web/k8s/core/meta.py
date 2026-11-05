@@ -277,7 +277,7 @@ class K8sResourceMeta:
         return []
 
     def distinct(self, queryset):
-        if self.federated_resource_filter is None:
+        if self.federated_resource_filter is None or isinstance(queryset, list):
             return queryset
         # The proxy lists one logical resource even when several members contain it.
         resource_ids = queryset.order_by().values("namespace", "name").annotate(first_id=Min("pk")).values("first_id")

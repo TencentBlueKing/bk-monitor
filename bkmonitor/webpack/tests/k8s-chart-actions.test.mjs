@@ -239,16 +239,74 @@ test('resource APIs advertise namespace-aware chart identity without changing in
   });
   const params = { bcs_cluster_id: 'BCS-K8S-PROXY' };
   const options = { signal: new AbortController().signal };
-  for (const name of ['listK8sResources', 'getResourceDetail', 'workloadOverview', 'namespaceWorkloadOverview']) {
+  for (const name of ['listK8sResources', 'getResourceDetail', 'workloadOverview']) {
     await api[name](params, options);
   }
-  assert.equal(calls.length, 4);
+  assert.equal(calls.length, 3);
   for (const call of calls) {
     assert.equal(call.params.supports_federated_charts, true);
     assert.equal(call.params.bcs_cluster_id, params.bcs_cluster_id);
     assert.equal(call.options, options);
   }
   assert.equal(params.supports_federated_charts, undefined);
+  calls.length = 0;
+  for (const name of ['listK8sResourcesWithoutFederatedCharts', 'namespaceWorkloadOverview']) {
+    await api[name](params, options);
+    assert.equal(api.default[name], api[name]);
+  }
+  assert.equal(calls.length, 2);
+  for (const call of calls) {
+    assert.equal(call.params, params);
+    assert.equal(call.options, options);
+    assert.equal(call.params.supports_federated_charts, undefined);
+  }
+});
+
+test('APM association selectors preserve the original resource scope for both cluster types', async () => {
+  for (const cluster of ['BCS-K8S-PROXY', 'BCS-K8S-ORDINARY']) {
+    const calls = [];
+    const api = loadModule('src/monitor-api/modules/k8s.js', {
+      '../base': {
+        request: (method, url) => async params => {
+          calls.push({ method, url, params });
+          return url.endsWith('/namespace_workload_overview/')
+            ? {
+                count: 1,
+                workload_count: 1,
+                items: [{ namespace: 'alpha', workload_count: 1, workload_overview: [['Deployment', 1]] }],
+              }
+            : { count: 1, items: [{ workload: 'Deployment:api' }] };
+        },
+      },
+    });
+    const panel = Object.assign(
+      Object.create(
+        methods(
+          'src/apm/pages/service/service-config/components/relation-select-panel.tsx',
+          ['getNamespaceWorkloadOverview', 'getListResources'],
+          { ...api, QueryFromType: { Workload: 'workload' } }
+        )
+      ),
+      { searchVal: '' }
+    );
+    const overview = await panel.getNamespaceWorkloadOverview({ bcs_cluster_id: cluster, page: 1 });
+    const workload = overview.items[0].children[0];
+    const resources = await panel.getListResources({
+      bcs_cluster_id: cluster,
+      namespace: 'alpha',
+      workloadType: 'Deployment',
+      page: 1,
+      parentData: workload,
+    });
+    assert.equal(resources.items[0].id, `${cluster}/alpha/Deployment/api`);
+    assert.equal(calls.length, 2);
+    for (const call of calls) {
+      assert.equal(call.params.bcs_cluster_id, cluster);
+      assert.equal(call.params.supports_federated_charts, undefined);
+    }
+    assert.equal(calls[1].params.filter_dict.namespace, 'alpha');
+    assert.equal(calls[1].params.filter_dict.workload, 'Deployment:');
+  }
 });
 
 test('existing readonly and strategy-page restrictions remain in the shared chart header', () => {
