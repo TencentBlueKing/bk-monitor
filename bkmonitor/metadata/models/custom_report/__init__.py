@@ -10,6 +10,7 @@ specific language governing permissions and limitations under the License.
 
 from .event import Event, EventGroup
 from .log import LogGroup
+from .metric_report import TimeSeriesMetricOverride, TimeSeriesReportScope, TimeSeriesReportValue
 from .subscription_config import (
     CustomReportSubscription,
     LogSubscriptionConfig,
@@ -21,6 +22,9 @@ __all__ = [
     "EventGroup",
     "TimeSeriesScope",
     "TimeSeriesMetric",
+    "TimeSeriesMetricOverride",
+    "TimeSeriesReportScope",
+    "TimeSeriesReportValue",
     "TimeSeriesGroup",
     "TimeSeriesTag",
     "CustomReportSubscription",
