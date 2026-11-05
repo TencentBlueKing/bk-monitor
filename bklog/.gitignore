@@ -32,6 +32,9 @@ eggs/
 .eggs/
 lib/
 lib64/
+# 上面的 lib/ 是 Python 打包目录。前端源码目录同名，必须重新纳入版本库。
+!web/packages/web-v3/src/shared/lib/
+!web/packages/web-v3/src/shared/lib/**
 sdist/
 var/
 wheels/
