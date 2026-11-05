@@ -1362,6 +1362,12 @@ class UnifyQueryHandler:
         )
         cls.check_sort_list(mapping_handler.final_fields, sort_list)
 
+    @staticmethod
+    def _strip_internal_field_keys(field_result: list[dict]) -> None:
+        """剔除仅供内部判定使用的字段键，避免进入接口响应与字段快照。"""
+        for field in field_result:
+            field.pop("origin_field_type", None)
+
     def fields(self, scope="default"):
         index_info = self.index_info_list[0]
         index_set_id = index_info["index_set_id"]
@@ -1412,6 +1418,7 @@ class UnifyQueryHandler:
 
         if is_union_search:
             result_dict["config"].append(self.analyze_fields(field_result))
+            self._strip_internal_field_keys(field_result)
             return result_dict
 
         for _fields_config in [
@@ -1431,6 +1438,7 @@ class UnifyQueryHandler:
             index_set_id=index_set_id, username=self.request_username, scope=scope
         )
         result_dict["config_id"] = config_obj.id if config_obj else ""
+        self._strip_internal_field_keys(field_result)
 
         return result_dict
 
