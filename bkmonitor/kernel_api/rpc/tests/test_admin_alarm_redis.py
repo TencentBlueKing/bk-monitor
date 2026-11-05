@@ -293,3 +293,91 @@ def test_route_metadata_includes_machine_readable_parameters():
     assert details["params_schema"]["required"] == ["node_id"]
     assert details["params_schema"]["additionalProperties"] is False
     assert "command" not in details["params_schema"]["properties"]
+
+
+@pytest.mark.parametrize(
+    "filters",
+    [
+        {"strategy_id": [1, 2], "bk_biz_id": [2, -7], "scenario": ["os", "host_process"], "is_enabled": [False]},
+        {"strategy_id": 1, "bk_biz_id": 2, "scenario": "os", "is_enabled": False},
+    ],
+)
+def test_strategy_list_combines_multi_value_filters(monkeypatch, filters):
+    query = Mock()
+    query.filter.return_value = query
+    query.order_by.return_value = query
+    monkeypatch.setattr(alarm_strategy, "strategy_queryset", lambda params: query)
+    monkeypatch.setattr(alarm_strategy, "paginate_queryset", lambda *args, **kwargs: ([], 0))
+    result = alarm_strategy.list_strategies(filters)
+    for key, value in filters.items():
+        field = "id" if key == "strategy_id" else key
+        query.filter.assert_any_call(**{field + "__in": value if isinstance(value, list) else [value]})
+    assert result["data"]["items"] == []
+
+
+def test_strategy_empty_lists_do_not_filter_and_detail_still_requires_scalar(monkeypatch):
+    query = Mock()
+    query.order_by.return_value = query
+    monkeypatch.setattr(alarm_strategy, "strategy_queryset", lambda params: query)
+    monkeypatch.setattr(alarm_strategy, "paginate_queryset", lambda *args, **kwargs: ([], 0))
+    alarm_strategy.list_strategies({"strategy_id": [], "bk_biz_id": [], "scenario": []})
+    query.filter.assert_not_called()
+    with pytest.raises(Exception):
+        alarm_strategy.validate({"strategy_id": [1, 2]}, "detail")
+
+
+def test_strategy_multiple_names_are_or_conditions(monkeypatch):
+    query = Mock()
+    query.filter.return_value = query
+    query.order_by.return_value = query
+    monkeypatch.setattr(alarm_strategy, "strategy_queryset", lambda params: query)
+    monkeypatch.setattr(alarm_strategy, "paginate_queryset", lambda *args, **kwargs: ([], 0))
+    alarm_strategy.list_strategies({"name": ["CPU", "内存"]})
+    condition = query.filter.call_args.args[0]
+    assert condition.connector == "OR"
+    assert condition.children == [("name__icontains", "CPU"), ("name__icontains", "内存")]
+
+
+def test_native_slowlog_with_binary_arguments_never_decodes_payload(monkeypatch, native_redis):
+    native_redis.config_set("slowlog-log-slower-than", 0)
+    native_redis.set("binary-key", b"\xff\xd7\x00compressed-data")
+    monkeypatch.setattr(service, "target", lambda params: (native_redis, {}, ""))
+    result = alarm_redis.execute("node_slowlog", {"node_id": 1})["data"]
+    assert any(row["command"].lower() == "set" and row["argument_count"] == 2 for row in result["items"])
+    assert "compressed-data" not in str(result)
+
+
+@pytest.mark.parametrize("operation", ["key_status", "key_read"])
+def test_batch_keys_reuse_original_operations_and_keep_partial_failures(monkeypatch, redis, operation):
+    redis.set("first", "hello")
+    redis.rpush("second", "a", "b", "c")
+    target = Mock(return_value=(redis, {}, ""))
+    monkeypatch.setattr(service, "target", target)
+    original = service.key_status
+
+    def status(client, key, source):
+        if key == "broken":
+            raise RuntimeError("read denied")
+        return original(client, key, source)
+
+    monkeypatch.setattr(service, "key_status", status)
+    data = alarm_redis.execute(
+        operation,
+        {"node_id": 1, "keys": ["first", "broken", "second", "missing"], "page_size": 2}
+        if operation == "key_read"
+        else {"node_id": 1, "keys": ["first", "broken", "second", "missing"]},
+    )["data"]
+    target.assert_called_once()
+    assert [item["key"] for item in data["items"]] == ["first", "broken", "second", "missing"]
+    assert data["items"][1]["error"] == "read denied"
+    assert data["items"][3]["exists"] is False
+    if operation == "key_read":
+        assert data["items"][0]["value"] == "hello"
+        assert data["items"][2]["value"] == ["a", "b"]
+        assert data["items"][2]["next_cursor"] == "2"
+
+
+@pytest.mark.parametrize("keys", [[], ["a"] * 21])
+def test_batch_key_http_limits(keys):
+    with pytest.raises(Exception):
+        alarm_redis.execute("key_read", {"node_id": 1, "keys": keys})

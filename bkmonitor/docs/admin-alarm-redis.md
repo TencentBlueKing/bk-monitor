@@ -14,3 +14,12 @@ INFO返回实例级快照，commandstats按命令名组织，errorstats/latencys
 列表默认20、最大100；SCAN默认COUNT100，保留原始游标，不将空批次视为结束。string/hash/list/set/zset内容分批读取，超过1MiB省略并标记。状态TTL -1/-2保留原值，Redis连接或类型错误不伪装成不存在。
 
 对应 Admin 页面、完整参数和响应 JSON Schema、权限与前端30秒采样规则见 bkmonitor-admin 的 `docs/resources/alarm-redis.md` 和 `src/features/alarm-redis/schemas.ts`。本地协议测试使用隔离 Redis，不代表部署环境或 Sentinel 联调通过。
+
+
+## 列表过滤和批量 Key 兼容扩展
+
+`alarm_strategy.list` 的 strategy_id/bk_biz_id/name/source/scenario/is_enabled 支持单值或数组，字段内 OR、字段间 AND，空数组不筛选；name 按任一名称模糊匹配。详情/redis_keys 的 strategy_id 仍为单值。注册 Schema 与示例同步提供数组形式。
+
+原 `alarm_redis.key_status/key_read` 增加 keys 数组，1–20 个完整Key，与 key/template_id 互斥；共用节点/策略/backend及读取cursor/page_size。单Key响应不变，批量返回 items，顺序保持且每Key独立error、next_cursor、内容上限，不提供事务快照。节点连接失败为请求级错误，单Key读取失败不终止整批。没有新增RPC操作。
+
+SLOWLOG通过redis-py NEVER_DECODE按原始字节读取，仅提取命令名和参数数量，避免二进制参数在协议层UTF-8解码失败，不返回原始参数。测试覆盖隔离Redis的实际二进制慢查询、批量部分失败和游标、列表组合及旧单值兼容。

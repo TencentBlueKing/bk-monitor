@@ -40,6 +40,15 @@ class StrategyParams(serializers.Serializer):
     page_size = serializers.IntegerField(min_value=1, max_value=100, default=20)
 
 
+class StrategyListParams(StrategyParams):
+    strategy_id = serializers.ListField(child=serializers.IntegerField(min_value=1), required=False)
+    bk_biz_id = serializers.ListField(child=serializers.IntegerField(), required=False)
+    name = serializers.ListField(child=serializers.CharField(allow_blank=True), required=False)
+    source = serializers.ListField(child=serializers.CharField(allow_blank=True), required=False)
+    scenario = serializers.ListField(child=serializers.CharField(allow_blank=True), required=False)
+    is_enabled = serializers.ListField(child=serializers.BooleanField(), required=False)
+
+
 def validate(params, operation="list"):
     allowed = (
         set(INPUT_PROPERTIES)
@@ -51,7 +60,11 @@ def validate(params, operation="list"):
     unexpected = set(params) - allowed
     if unexpected:
         raise CustomException(message="不支持的请求参数：" + ", ".join(sorted(unexpected)))
-    serializer = StrategyParams(data=params)
+    if operation == "list":
+        params = {
+            key: value if isinstance(value, list) else [value] for key, value in params.items() if key in LIST_FILTERS
+        } | {key: value for key, value in params.items() if key not in LIST_FILTERS}
+    serializer = (StrategyListParams if operation == "list" else StrategyParams)(data=params)
     serializer.is_valid(raise_exception=True)
     return serializer.validated_data
 
@@ -75,13 +88,17 @@ def scoped_strategy(params, strategy_id):
 def list_strategies(params):
     p = validate(params)
     query = strategy_queryset(p)
-    if p.get("strategy_id"):
-        query = query.filter(id=p["strategy_id"])
-    for name in ("bk_biz_id", "source", "scenario", "is_enabled"):
-        if name in p and p[name] != "":
-            query = query.filter(**{name: p[name]})
-    if p.get("name"):
-        query = query.filter(Q(name__icontains=p["name"]))
+    for name in ("strategy_id", "bk_biz_id", "source", "scenario", "is_enabled"):
+        values = [value for value in p.get(name, []) if value != ""]
+        if values:
+            field = "id" if name == "strategy_id" else name
+            query = query.filter(**{field + "__in": values})
+    names = [name for name in p.get("name", []) if name]
+    if names:
+        condition = Q()
+        for name in names:
+            condition |= Q(name__icontains=name)
+        query = query.filter(condition)
     rows, total = paginate_queryset(query.order_by("-id"), page=p["page"], page_size=p["page_size"])
     return response(
         "alarm_strategy.list",
@@ -164,6 +181,12 @@ INPUT_PROPERTIES = {
     "page": {"type": "integer", "minimum": 1, "default": 1},
     "page_size": {"type": "integer", "minimum": 1, "maximum": 100, "default": 20},
 }
+LIST_FILTERS = ("strategy_id", "bk_biz_id", "name", "source", "scenario", "is_enabled")
+LIST_INPUT_PROPERTIES = {
+    name: {"anyOf": [schema, {"type": "array", "items": schema}]} if name in LIST_FILTERS else schema
+    for name, schema in INPUT_PROPERTIES.items()
+}
+
 for operation, handler, summary in [
     ("list", list_strategies, "分页查询告警策略"),
     ("detail", detail, "查询告警策略配置"),
@@ -180,12 +203,22 @@ for operation, handler, summary in [
         func_name="admin.alarm_strategy." + operation,
         handler=handler,
         summary=summary,
-        description=summary + "；省略租户时查询当前环境全部租户。",
+        description=summary
+        + "；省略租户时查询当前环境全部租户。"
+        + (
+            "过滤字段支持单值或列表，字段内 OR、字段间 AND，空列表不筛选；name 按任一名称模糊匹配。"
+            if operation == "list"
+            else ""
+        ),
         params_schema={
             "type": "object",
-            "properties": {name: INPUT_PROPERTIES[name] for name in fields},
+            "properties": {
+                name: (LIST_INPUT_PROPERTIES if operation == "list" else INPUT_PROPERTIES)[name] for name in fields
+            },
             "required": [] if operation == "list" else ["strategy_id"],
             "additionalProperties": False,
         },
-        example_params={} if operation == "list" else {"strategy_id": 1},
+        example_params={"strategy_id": [1, 2], "bk_biz_id": [2, 3], "scenario": ["os", "host_process"]}
+        if operation == "list"
+        else {"strategy_id": 1},
     )

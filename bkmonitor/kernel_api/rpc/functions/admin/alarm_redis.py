@@ -3,6 +3,7 @@
 import time
 
 from rest_framework import serializers
+from redis.client import NEVER_DECODE
 
 from bkmonitor.models import CacheNode
 from kernel_api.rpc import KernelRPCRegistry
@@ -17,6 +18,9 @@ class Params(serializers.Serializer):
     strategy_id = serializers.IntegerField(min_value=1, required=False)
     backend = serializers.ChoiceField(choices=service.BACKENDS, default="service")
     key = serializers.CharField(max_length=4096, required=False)
+    keys = serializers.ListField(
+        child=serializers.CharField(max_length=4096), min_length=1, max_length=20, required=False
+    )
     pattern = serializers.CharField(max_length=4096, default="*")
     template_id = serializers.CharField(required=False)
     key_params = serializers.DictField(child=serializers.CharField(), default=dict)
@@ -130,7 +134,8 @@ def execute(operation, params):
                 warnings.append({"code": "CLIENTS_TRUNCATED", "message": "仅展示前 1000 个客户端"})
         else:
             # 分开传递命令名，保留原始参数数组；redis-py 的 slowlog_get 会把参数拼成文本。
-            rows = client.execute_command("SLOWLOG", "GET", p["limit"])
+            # 慢查询参数可能是压缩/二进制内容，在协议层禁止自动 UTF-8 解码；仅解码命令名。
+            rows = client.execute_command("SLOWLOG", "GET", p["limit"], **{NEVER_DECODE: True})
             items = []
             for row in rows:
                 arguments = row[3]
@@ -147,6 +152,33 @@ def execute(operation, params):
                     }
                 )
             data = page(items, p)
+    elif operation in ("key_status", "key_read") and "keys" in p:
+        if p.get("key") or p.get("template_id"):
+            service.fail("keys 不可与 key 或 template_id 同时使用", "INVALID_PARAMS")
+        items = []
+        # 同一请求复用目标连接；每个 Key 单独返回错误，保留顺序及其独立游标。
+        client, source, _ = service.target(p)
+        for redis_key in p["keys"]:
+            try:
+                item = (
+                    service.key_status(client, redis_key, source)
+                    if operation == "key_status"
+                    else service.key_read(client, redis_key, source, p)
+                )
+            except Exception as error:
+                item = {
+                    "key": redis_key,
+                    "exists": None,
+                    "type": None,
+                    "ttl": None,
+                    "length": None,
+                    "source": source,
+                    "error": str(error),
+                }
+                if operation == "key_read":
+                    item.update(value=None, next_cursor="0", content_omitted=False, content_omitted_reason=None)
+            items.append(item)
+        data = {"items": items}
     else:
         if operation != "key_scan" and not p.get("key") and not p.get("template_id"):
             service.fail("请提供 key 或 template_id", "INVALID_PARAMS")
@@ -178,6 +210,12 @@ INPUT_PROPERTIES = {
     "strategy_id": {"type": "integer", "minimum": 1},
     "backend": {"type": "string", "enum": list(service.BACKENDS)},
     "key": {"type": "string", "minLength": 1, "maxLength": 4096},
+    "keys": {
+        "type": "array",
+        "minItems": 1,
+        "maxItems": 20,
+        "items": {"type": "string", "minLength": 1, "maxLength": 4096},
+    },
     "pattern": {"type": "string", "maxLength": 4096, "default": "*"},
     "template_id": {"type": "string"},
     "key_params": {"type": "object", "additionalProperties": {"type": ["string", "number"]}},
@@ -200,8 +238,8 @@ OPERATION_FIELDS = {
     "node_clients": (*PAGING_FIELDS, "node_id"),
     "node_slowlog": (*PAGING_FIELDS, "node_id", "limit"),
     "key_scan": (*TARGET_FIELDS, "pattern", "cursor", "count"),
-    "key_status": TARGET_FIELDS,
-    "key_read": (*TARGET_FIELDS, "cursor", "page_size"),
+    "key_status": (*TARGET_FIELDS, "keys"),
+    "key_read": (*TARGET_FIELDS, "keys", "cursor", "page_size"),
 }
 for name in OPERATIONS:
     required = (
@@ -215,12 +253,23 @@ for name in OPERATIONS:
         func_name="admin.alarm_redis." + name,
         handler=lambda params, operation=name: execute(operation, params),
         summary="告警 Redis " + name,
-        description="只读查询全部已配置告警节点；不接受任意地址，不初始化默认节点。",
+        description="只读查询全部已配置告警节点；不接受任意地址，不初始化默认节点。"
+        + (
+            "可用 keys 批量查询同一目标的 1–20 个完整 Key，返回 items 逐项结果；单 Key 响应不变。"
+            if name in {"key_status", "key_read"}
+            else ""
+        ),
         params_schema={
             "type": "object",
             "properties": {field: INPUT_PROPERTIES[field] for field in OPERATION_FIELDS[name]},
             "required": required,
             "additionalProperties": False,
         },
-        example_params={"node_id": 1} if "node_id" in required else {"router_id": 1} if "router_id" in required else {},
+        example_params={"node_id": 1, "keys": ["key-a", "key-b"]}
+        if name in {"key_status", "key_read"}
+        else {"node_id": 1}
+        if "node_id" in required
+        else {"router_id": 1}
+        if "router_id" in required
+        else {},
     )
