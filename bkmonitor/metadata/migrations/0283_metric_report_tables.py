@@ -8,7 +8,7 @@ class Migration(migrations.Migration):
     atomic = False
 
     dependencies = [
-        ("metadata", "0282_doris_physical_tables"),
+        ("metadata", "0281_databusconfig_options"),
     ]
 
     # 每张表的约束与索引合并建表，部分成功后可以重跑。
