@@ -2,8 +2,10 @@ from unittest.mock import Mock, patch
 
 from django.test import SimpleTestCase, override_settings
 
-from apps.utils.context_processors import _current_iam_mode, _resolve_iam_urls, mysetting
+from apps.iam.mode import get_effective_mode
+from apps.utils.context_processors import _resolve_iam_urls, mysetting
 from iam_engine.core.config import AuthMode
+from iam_engine.core.exceptions import InvalidAuthModeError
 
 V3_SAAS_HOST = "https://iam-v3.example.test/saas"
 V4_SAAS_HOST = "https://iam-v4.example.test"
@@ -56,19 +58,19 @@ class IAMEntryUrlTest(SimpleTestCase):
         provider = Mock()
         provider.get_mode.return_value = AuthMode.UNION
         with patch("apps.iam.mode.get_mode_provider", return_value=provider):
-            self.assertIs(_current_iam_mode(), AuthMode.V4)
+            self.assertIs(get_effective_mode(), AuthMode.V4)
 
     def test_mode_resolution_failure_falls_back_to_v3(self):
-        with patch("apps.iam.mode.get_mode_provider", side_effect=RuntimeError("toggle unavailable")):
-            self.assertIs(_current_iam_mode(), AuthMode.V3)
+        provider = Mock()
+        provider.get_mode.side_effect = InvalidAuthModeError("bad-mode", "unsupported mode")
+        with patch("apps.iam.mode.get_mode_provider", return_value=provider):
+            self.assertIs(get_effective_mode(), AuthMode.V3)
 
     def test_context_exposes_iam_urls(self):
         request = Mock()
         request.headers = {"Is-External": "false"}
         request.get_full_path.return_value = "/"
-        provider = Mock()
-        provider.get_mode.return_value = AuthMode.V4
-        with patch("apps.iam.mode.get_mode_provider", return_value=provider):
+        with patch("apps.iam.mode.get_effective_mode", return_value=AuthMode.V4):
             context = mysetting(request)
 
         self.assertEqual(context["BK_IAM_URL"], V4_SAAS_HOST)

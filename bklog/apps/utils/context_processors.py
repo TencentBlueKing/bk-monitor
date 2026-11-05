@@ -40,19 +40,6 @@ def _get_guide_url(request, configured_url, doc_path):
     return f"{doc_url}/{doc_path}" if doc_url else ""
 
 
-def _current_iam_mode():
-    """当前生效的 IAM 协议版本；union 取拓扑 current，解析失败按 V3 处理。"""
-    from apps.iam.mode import get_mode_provider
-    from iam_engine.core.config import AuthMode, DEFAULT_DUAL_STACK
-
-    try:
-        mode = get_mode_provider().get_mode()
-    except Exception:  # pylint: disable=broad-except
-        # 页面渲染不应因权限模式配置不可读而失败
-        return AuthMode.V3
-    return DEFAULT_DUAL_STACK.current if mode is AuthMode.UNION else mode
-
-
 def _resolve_iam_urls(mode):
     """按 IAM 模式返回权限中心地址与申请入口地址，V4 地址缺失时回退 V3。"""
     from iam_engine.core.config import AuthMode
@@ -68,7 +55,9 @@ def _resolve_iam_urls(mode):
 
 
 def mysetting(request):
-    iam_url, iam_apply_url = _resolve_iam_urls(_current_iam_mode())
+    from apps.iam.mode import get_effective_mode
+
+    iam_url, iam_apply_url = _resolve_iam_urls(get_effective_mode())
     bk_login_url_prefix = settings.PAAS_API_HOST if settings.DEPLOY_MODE == "kubernetes" else settings.BK_PAAS_HOST
     if settings.DEFAULT_HTTPS_HOST and settings.BK_COMPONENT_API_URL:
         bk_component_api_url_netloc = urlparse(settings.BK_COMPONENT_API_URL).netloc
