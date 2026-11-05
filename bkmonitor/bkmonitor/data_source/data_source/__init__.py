@@ -821,6 +821,7 @@ class PrometheusTimeSeriesDataSource(DataSource):
         filter_dict: dict = None,
         alias: str = "",
         query_output_config: dict = None,
+        required_promql_match: str = "",
         *args,
         **kwargs,
     ):
@@ -829,6 +830,7 @@ class PrometheusTimeSeriesDataSource(DataSource):
         self.interval = interval
         self.alias = alias
         self.filter_dict = filter_dict or {}
+        self.required_promql_match = required_promql_match
         # 命名输出配置（expression 已翻译为完整 PromQL），透传给 /query/ts/promql
         self.query_output_config = query_output_config
         # 命名输出查询是否部分失败，由 UnifyQuery 汇总到顶层 is_partial
@@ -865,6 +867,8 @@ class PrometheusTimeSeriesDataSource(DataSource):
         end_time = time_interval_align(end_time // 1000, self.interval)
 
         match = self.filter_dict_to_promql_match(self.filter_dict)
+        if self.required_promql_match:
+            match = f"{self.required_promql_match[:-1]},{match[1:]}" if match else self.required_promql_match
         params = dict(
             bk_biz_ids=[self.bk_biz_id],
             promql=self.promql,

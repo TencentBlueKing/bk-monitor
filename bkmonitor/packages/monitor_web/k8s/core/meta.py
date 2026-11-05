@@ -10,7 +10,7 @@ specific language governing permissions and limitations under the License.
 
 from typing import Any
 
-from django.db.models import F, Max, Value
+from django.db.models import F, Max, Min, Value
 from django.db.models.functions import Concat
 from django.utils.functional import cached_property
 
@@ -575,6 +575,19 @@ class K8sPodMeta(K8sResourceMeta, NetworkWithRelation):
     resource_class = BCSPod
     column_mapping = {"workload_kind": "workload_type", "pod_name": "name"}
     only_fields = ["name", "namespace", "workload_type", "workload_name", "bk_biz_id", "bcs_cluster_id"]
+
+    def distinct(self, queryset):
+        if self.federated_resource_filter is None:
+            return queryset
+        # A federation lists a logical Pod once even when multiple members contain it.
+        pod_ids = queryset.order_by().values("namespace", "name").annotate(first_id=Min("pk")).values("first_id")
+        return queryset.filter(pk__in=pod_ids)
+
+    def get_resource_name(self, series):
+        pod_name = super().get_resource_name(series)
+        if self.federated_history_namespaces:
+            return f"{series['dimensions']['namespace']}|{pod_name}"
+        return pod_name
 
     def nw_tpl_prom_with_rate(self, metric_name, exclude=""):
         metric_name = self.clean_metric_name(metric_name)

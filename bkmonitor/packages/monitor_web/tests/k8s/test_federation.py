@@ -18,7 +18,13 @@ from bkmonitor.utils.kubernetes import BcsClusterType
 from metadata.models import BcsFederalClusterInfo
 from monitor_web.k8s.core.federation import get_federated_resource_scope
 from monitor_web.k8s.core.meta import K8sPodMeta
-from monitor_web.k8s.resources import GetResourceDetail, ListK8SResources, NamespaceWorkloadOverview, WorkloadOverview
+from monitor_web.k8s.resources import (
+    GetResourceDetail,
+    ListK8SResources,
+    NamespaceWorkloadOverview,
+    ResourceTrendResource,
+    WorkloadOverview,
+)
 
 
 class TestFederatedResources(TestCase):
@@ -93,6 +99,7 @@ class TestFederatedResources(TestCase):
                 "end_time": 60,
                 "filter_dict": {},
                 "page_size": 20,
+                "supports_federated_charts": True,
                 **overrides,
             }
         )
@@ -106,7 +113,9 @@ class TestFederatedResources(TestCase):
             {item["workload"] for item in workloads["items"]},
             {"Deployment:alpha-app", "Deployment:beta-app", "Deployment:shared-app"},
         )
-        counts = dict(WorkloadOverview()({"bk_biz_id": 2, "bcs_cluster_id": self.proxy}))
+        counts = dict(
+            WorkloadOverview()({"bk_biz_id": 2, "bcs_cluster_id": self.proxy, "supports_federated_charts": True})
+        )
         self.assertEqual(counts["Deployment"], workloads["count"])
         pods = self.list_resources("pod", filter_dict={"namespace": ["alpha"]})
         self.assertEqual(pods, {"count": 1, "items": [{"pod": "alpha-app", "namespace": "alpha"}]})
@@ -115,6 +124,72 @@ class TestFederatedResources(TestCase):
         self.assertIsNone(get_federated_resource_scope(2, self.standalone))
         pods = self.list_resources("pod", bcs_cluster_id=self.standalone)
         self.assertEqual([item["pod"] for item in pods["items"]], ["ordinary-app"])
+
+    def test_legacy_chart_client_does_not_get_expanded_resources(self):
+        self.assertEqual(self.list_resources("pod", supports_federated_charts=False), {"count": 0, "items": []})
+
+    def test_pod_options_deduplicate_before_pagination(self):
+        pods = self.list_resources("pod", filter_dict={"namespace": ["shared"]}, page_size=1)
+        self.assertEqual(pods, {"count": 1, "items": [{"pod": "shared-app", "namespace": "shared"}]})
+
+    def test_workload_tree_total_matches_namespace_counts(self):
+        now = timezone.now()
+        for cluster, namespace, name in (
+            (self.member_b, "beta", "alpha-app"),
+            (self.member_a, "alpha", "another-app"),
+        ):
+            BCSWorkload.objects.create(
+                bk_biz_id=2,
+                bcs_cluster_id=cluster,
+                namespace=namespace,
+                name=name,
+                type="Deployment",
+                created_at=now,
+                last_synced_at=now,
+                pod_count=1,
+            )
+
+        overview = NamespaceWorkloadOverview()
+        for query, expected in (("", 5), ("alpha", 2), ("beta", 1)):
+            with self.subTest(query=query):
+                result = overview(
+                    {
+                        "bk_biz_id": 2,
+                        "bcs_cluster_id": self.proxy,
+                        "query_string": query,
+                        "supports_federated_charts": True,
+                    }
+                )
+                self.assertEqual(result["workload_count"], expected)
+                self.assertEqual(sum(item["workload_count"] for item in result["items"]), expected)
+
+    def test_pod_trends_keep_namespaces_separate_and_preserve_unique_legacy_keys(self):
+        column = "container_cpu_usage_seconds_total"
+        series = [
+            {"dimensions": {"namespace": namespace, "pod_name": pod}, "datapoints": [[value, 60]]}
+            for namespace, pod, value in (("alpha", "app", 1), ("beta", "app", 2), ("alpha", "legacy", 3))
+        ]
+        with patch.object(ResourceTrendResource, "get_series_with_promql", return_value=series) as query:
+            trends = ResourceTrendResource()(
+                {
+                    "bk_biz_id": 2,
+                    "bcs_cluster_id": self.proxy,
+                    "resource_type": "pod",
+                    "resource_list": ["alpha|app", "beta|app", "app", "legacy"],
+                    "column": column,
+                    "method": "sum",
+                    "start_time": 1,
+                    "end_time": 60,
+                    "filter_dict": {},
+                }
+            )
+        promql = query.call_args.args[0]
+        self.assertIn('namespace="alpha",pod_name="app"', promql)
+        self.assertIn('namespace="beta",pod_name="app"', promql)
+        self.assertEqual(
+            {item["resource_name"]: item[column]["datapoints"] for item in trends},
+            {"alpha|app": [[1, 60]], "beta|app": [[2, 60]], "legacy": [[3, 60]]},
+        )
 
     def test_project_scope_limits_lists_counts_and_proxy_history(self):
         space_clusters = {
@@ -128,7 +203,9 @@ class TestFederatedResources(TestCase):
         ):
             pods = self.list_resources("pod", bk_biz_id=-10, filter_dict={"namespace": ["beta"]})
             self.assertEqual(pods, {"count": 0, "items": []})
-            namespace_overview = NamespaceWorkloadOverview()({"bk_biz_id": -10, "bcs_cluster_id": self.proxy})
+            namespace_overview = NamespaceWorkloadOverview()(
+                {"bk_biz_id": -10, "bcs_cluster_id": self.proxy, "supports_federated_charts": True}
+            )
             self.assertEqual([item["namespace"] for item in namespace_overview["items"]], ["alpha", "shared"])
             self.assertEqual(namespace_overview["workload_count"], 2)
 
@@ -146,7 +223,12 @@ class TestFederatedResources(TestCase):
             query_history.assert_not_called()
 
     def test_detail_uses_a_unique_permitted_physical_instance(self):
-        params = {"bk_biz_id": 2, "bcs_cluster_id": self.proxy, "resource_type": "workload"}
+        params = {
+            "bk_biz_id": 2,
+            "bcs_cluster_id": self.proxy,
+            "resource_type": "workload",
+            "supports_federated_charts": True,
+        }
         with patch("monitor_web.scene_view.resources.kubernetes.GetKubernetesWorkload.perform_request") as detail:
             detail.return_value = []
             get_detail = GetResourceDetail()

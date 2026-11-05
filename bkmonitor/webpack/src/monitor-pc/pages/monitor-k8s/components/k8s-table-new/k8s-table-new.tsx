@@ -334,7 +334,12 @@ export default class K8sTableNew extends tsc<K8sTableNewProps, K8sTableNewEvent>
 
   /** table视图数据（由于后端返回全量数据，分页功能需前端自己处理） */
   get tableViewData() {
-    if (this.showSkeleton) return Array.from({ length: 6 }, () => ({}) as K8sTableRow);
+    if (this.showSkeleton) {
+      return Array.from({ length: 6 }, () => {
+        const skeletonRow: Partial<K8sTableRow> = {};
+        return skeletonRow as K8sTableRow;
+      });
+    }
     if (enabledFrontendLimit) {
       /** 接口返回全量数据时执行方案 */
       const { page, pageSize } = this.pagination;
@@ -748,7 +753,7 @@ export default class K8sTableNew extends tsc<K8sTableNewProps, K8sTableNewEvent>
     if (key === K8sTableColumnKeysEnum.CONTAINER) {
       return `${data[K8sTableColumnKeysEnum.POD]}:${data[K8sTableColumnKeysEnum.CONTAINER]}`;
     }
-    if (key === K8sTableColumnKeysEnum.WORKLOAD) {
+    if (key === K8sTableColumnKeysEnum.WORKLOAD || (key === K8sTableColumnKeysEnum.POD && data.namespace)) {
       return `${data[K8sTableColumnKeysEnum.NAMESPACE]}|${data[key]}`;
     }
     return data[key];
@@ -1089,7 +1094,7 @@ export default class K8sTableNew extends tsc<K8sTableNewProps, K8sTableNewEvent>
    * @param {K8sTableColumn} column
    */
   resourcesTextFormatter(column: K8sTableColumn<K8sTableColumnResourceKey>) {
-    return (row: K8sTableRow, tableInsideColumn, cellValue, index: number) => {
+    return (row: K8sTableRow, _tableInsideColumn, _cellValue, index: number) => {
       if (this.showSkeleton)
         return (
           <span

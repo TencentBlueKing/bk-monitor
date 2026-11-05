@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2025 Tencent. All rights reserved.
@@ -8,14 +7,30 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
+
 from bkmonitor.iam import ActionEnum
 from bkmonitor.iam.drf import BusinessActionPermission
 from core.drf_resource import resource
 from core.drf_resource.viewsets import ResourceRoute, ResourceViewSet
+from monitor_web.grafana.permissions import GrafanaReadPermission
+from monitor_web.k8s.chart import GraphK8sQueryResource
 
 
 class ResourcesViewSet(ResourceViewSet):
     def get_permissions(self):
+        if self.action == "graph_query":
+            return [
+                GrafanaReadPermission(
+                    BusinessActionPermission(
+                        [
+                            ActionEnum.VIEW_HOST,
+                            ActionEnum.VIEW_COLLECTION,
+                            ActionEnum.EXPLORE_METRIC,
+                            ActionEnum.VIEW_RULE,
+                        ]
+                    )
+                )
+            ]
         return [BusinessActionPermission([ActionEnum.VIEW_BUSINESS])]
 
     resource_routes = [
@@ -31,6 +46,7 @@ class ResourcesViewSet(ResourceViewSet):
         ResourceRoute("GET", resource.k8s.workload_overview, endpoint="workload_overview"),
         # 获取资源性能趋势
         ResourceRoute("POST", resource.k8s.resource_trend, endpoint="resource_trend"),
+        ResourceRoute("POST", GraphK8sQueryResource, endpoint="graph_query"),
         # 获取 Namespace Workload 总览
         ResourceRoute("POST", resource.k8s.namespace_workload_overview, endpoint="namespace_workload_overview"),
     ]

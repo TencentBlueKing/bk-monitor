@@ -305,12 +305,13 @@ export default class K8SCharts extends tsc<
                 },
                 unit: this.method === 'count' ? '' : panel.unit || K8SPerformanceMetricUnitMap[panel.id] || '',
               },
-              targets: this.k8sChartTargetsCreateTool.createTargetsPanelList(
-                this.scene,
-                panel.id,
-                targetCreateContext,
-                needAuxiliaryLine
-              ),
+              targets: this.k8sChartTargetsCreateTool
+                .createTargetsPanelList(this.scene, panel.id, targetCreateContext, needAuxiliaryLine)
+                .map(target => ({
+                  ...target,
+                  api: 'k8s.graphQuery',
+                  data: { ...target.data, bcs_cluster_id: targetCreateContext.bcs_cluster_id },
+                })),
             })),
         });
       }
