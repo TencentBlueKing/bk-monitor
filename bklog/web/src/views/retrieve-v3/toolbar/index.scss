@@ -3,6 +3,7 @@
   display: flex;
   align-items: center;
   justify-items: center;
+  max-width: calc(100vw - var(--left-collection-width, 0px));
   background-color: #ffff;
 
   .collection-box {
