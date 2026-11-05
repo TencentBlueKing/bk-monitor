@@ -14,7 +14,6 @@ V4_SAAS_HOST = "https://iam-v4.example.test"
 @override_settings(
     BK_IAM_SAAS_HOST=V3_SAAS_HOST,
     BK_IAM_V4_SAAS_HOST=V4_SAAS_HOST,
-    BK_IAM_V4_APPLY_PATH="/permission/apply",
 )
 class IAMEntryUrlTest(SimpleTestCase):
     def test_v3_returns_v3_center_and_apply_url(self):
@@ -34,13 +33,6 @@ class IAMEntryUrlTest(SimpleTestCase):
         self.assertEqual(
             _resolve_iam_urls(AuthMode.V4),
             (V3_SAAS_HOST, f"{V3_SAAS_HOST}/apply-join-user-group"),
-        )
-
-    @override_settings(BK_IAM_V4_APPLY_PATH="")
-    def test_v4_uses_default_apply_path(self):
-        self.assertEqual(
-            _resolve_iam_urls(AuthMode.V4),
-            (V4_SAAS_HOST, f"{V4_SAAS_HOST}/permission/apply"),
         )
 
     @override_settings(BK_IAM_SAAS_HOST=f"{V3_SAAS_HOST}/", BK_IAM_V4_SAAS_HOST=f"{V4_SAAS_HOST}/")

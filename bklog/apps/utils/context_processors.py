@@ -47,8 +47,7 @@ def _resolve_iam_urls(mode):
     if mode is AuthMode.V4:
         host = str(getattr(settings, "BK_IAM_V4_SAAS_HOST", "") or "").strip().rstrip("/")
         if host:
-            path = str(getattr(settings, "BK_IAM_V4_APPLY_PATH", "") or "").strip() or "/permission/apply"
-            return host, f"{host}/{path.lstrip('/')}"
+            return host, f"{host}/permission/apply"
 
     host = str(settings.BK_IAM_SAAS_HOST or "").strip().rstrip("/")
     return host, f"{host}/apply-join-user-group" if host else ""
