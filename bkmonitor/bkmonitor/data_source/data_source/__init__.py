@@ -2190,6 +2190,11 @@ class LogSearchTimeSeriesDataSource(BaseBkMonitorLogDataSource):
 
         return settings.LOG_UNIFY_QUERY_BLACK_BIZ_LIST_ENV
 
+    @classmethod
+    def is_unify_query_black_biz(cls, bk_biz_id: int | None) -> bool:
+        black_list: list[str | int] = cls._fetch_black_list()
+        return bk_biz_id in black_list or str(bk_biz_id) in black_list
+
     def _get_unify_query_string(self) -> str:
         # 背景：没有切换 UnifyQuery 的场景直调日志平台 API，此处对其日志平台对 query_string 的处理逻辑。
         # Ref：https://github.com/TencentBlueKing/bk-monitor/blob/master/bklog/apps/log_esquery/esquery/builder/query_string_builder.py#L46
@@ -2210,8 +2215,7 @@ class LogSearchTimeSeriesDataSource(BaseBkMonitorLogDataSource):
             return True
 
         # 黑名单机制，命中的业务不使用 unify-query 查询，其他业务默认使用。
-        black_list: list[str | int] = self._fetch_black_list()
-        return bk_biz_id not in black_list and str(bk_biz_id) not in black_list
+        return not self.is_unify_query_black_biz(bk_biz_id)
 
     @classmethod
     def _get_datasource(cls) -> str:
