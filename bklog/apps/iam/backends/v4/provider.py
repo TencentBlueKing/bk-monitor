@@ -253,13 +253,8 @@ class V4PermissionProvider(PermissionProvider):
         return AuthorizedResourceScope.concrete(encoded_resource_type, decoded_ids, provider_name=self.name)
 
     def get_permission_center_url(self) -> str:
-        """V4 权限中心前端地址：显式配置优先，否则按 bklog→iam 规则由 SaaS 域名推导。"""
-        configured = str(getattr(settings, "BK_IAM_V4_SAAS_HOST", "") or "").strip()
-        if configured:
-            return configured.rstrip("/")
-
-        saas_host = str(getattr(settings, "BK_BKLOG_HOST", "") or "").strip().rstrip("/")
-        return saas_host.replace("bklog", "iam") if "bklog" in saas_host else ""
+        """V4 权限中心前端地址；未配置时 settings 已按 bklog→iam 规则兜底推导。"""
+        return str(getattr(settings, "BK_IAM_V4_SAAS_HOST", "") or "").strip().rstrip("/")
 
     def get_apply_entry_url(self) -> str:
         """无具体资源时的申请入口，由 IAM 按当前系统实时生成。"""
