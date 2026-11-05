@@ -19,7 +19,7 @@ We undertake not to change the open source license (MIT license) applicable to t
 the project delivered to anyone in the future.
 """
 
-from unittest.mock import Mock, call, patch
+from unittest.mock import Mock, patch
 
 from django.test import SimpleTestCase
 
@@ -67,34 +67,6 @@ class TestBkdataAutoSync(SimpleTestCase):
                 collector.save.assert_not_called()
                 self.assertIsNone(collector.bkdata_data_id)
                 self.assertEqual(collector.bkdata_data_id_sync_times, 2)
-
-    @patch.object(FeatureToggleObject, "toggle")
-    @patch.object(bkdata, "create_bkdata_data_id")
-    @patch.object(CollectorConfig, "objects")
-    def test_review_skips_v4_without_changing_retry_state(self, filter_collectors, create_data_id, get_toggle):
-        get_toggle.side_effect = self.toggle
-        v4 = self.collector(1)
-        legacy = self.collector(2)
-        failed = self.collector(3)
-        exhausted = self.collector(4)
-        exhausted.bkdata_data_id_sync_times = 3
-        filter_collectors.filter.return_value = [v4, legacy, failed, exhausted]
-        create_data_id.side_effect = [None, RuntimeError("test sync failure")]
-
-        bkdata.review_bkdata_data_id()
-
-        filter_collectors.filter.assert_called_once_with(bkdata_data_id__isnull=True)
-        self.assertEqual(
-            create_data_id.call_args_list, [call(legacy, raise_exception=True), call(failed, raise_exception=True)]
-        )
-        v4.save.assert_not_called()
-        self.assertIsNone(v4.bkdata_data_id)
-        self.assertEqual(v4.bkdata_data_id_sync_times, 2)
-        self.assertEqual(legacy.bkdata_data_id_sync_times, 0)
-        self.assertEqual(failed.bkdata_data_id_sync_times, 3)
-        legacy.save.assert_called_once()
-        failed.save.assert_called_once()
-        exhausted.save.assert_not_called()
 
     @patch.object(FeatureToggleObject, "toggle")
     @patch.object(bkdata.Space, "get_tenant_id", return_value="test_tenant")

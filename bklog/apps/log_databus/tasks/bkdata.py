@@ -41,7 +41,6 @@ from apps.log_databus.constants import (
     BKDATA_DATA_SOURCE_TAGS,
     BKDATA_PERMISSION,
     BKDATA_TAGS,
-    MAX_CREATE_BKDATA_DATA_ID_FAIL_COUNT,
     META_DATA_ENCODING,
 )
 from apps.log_databus.models import CollectorConfig
@@ -185,35 +184,6 @@ def create_bkdata_data_id(collector_config: CollectorConfig, platform_username: 
         logger.error(
             f"sync data_id:{collector_config.bkdata_data_id} to bkdata failed, collector_config_id: {collector_config.collector_config_id}, err: {e}"
         )
-
-
-@periodic_task(run_every=crontab(minute="30", hour="3"))
-def review_bkdata_data_id():
-    """
-    检测采集项bkdata_id: 处理未同步到数据平台的data_id
-    """
-    toggle_switch = FeatureToggleObject.switch(name=FEATURE_BKDATA_DATAID)
-    if not toggle_switch:
-        return
-    collector_configs = CollectorConfig.objects.filter(bkdata_data_id__isnull=True)
-    for collector_config in collector_configs:
-        if FeatureToggleObject.switch("log_v4_data_link", collector_config.get_bk_biz_id()):
-            continue
-        if collector_config.bkdata_data_id_sync_times >= MAX_CREATE_BKDATA_DATA_ID_FAIL_COUNT:
-            logger.error(
-                f"{collector_config.collector_config_name} Creating bkdata_data_id exceeded the maximum number of retries: {MAX_CREATE_BKDATA_DATA_ID_FAIL_COUNT}"
-            )
-            continue
-
-        try:
-            create_bkdata_data_id(collector_config, raise_exception=True)
-        except Exception as e:  # pylint: disable=broad-except
-            logger.error(f"{collector_config.collector_config_name} create bkdata data_id failed: {e}")
-            collector_config.bkdata_data_id_sync_times += 1
-        else:
-            collector_config.bkdata_data_id_sync_times = 0
-
-        collector_config.save()
 
 
 @periodic_task(run_every=crontab(minute="*/30"))
