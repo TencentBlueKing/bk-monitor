@@ -9,7 +9,6 @@ See the License for the specific language governing permissions and limitations 
 """
 
 from collections import defaultdict
-from dataclasses import dataclass
 
 from django.db.models import Q
 
@@ -22,13 +21,7 @@ from metadata.models import BcsFederalClusterInfo
 NAMESPACED_RESOURCES = frozenset({"namespace", "workload", "pod", "container", "ingress", "service"})
 
 
-@dataclass(frozen=True)
-class FederatedResourceScope:
-    resources: Q
-    history_namespaces: tuple[str, ...] = ()
-
-
-def get_federated_resource_scope(bk_biz_id: int, bcs_cluster_id: str) -> FederatedResourceScope | None:
+def get_federated_resource_scope(bk_biz_id: int, bcs_cluster_id: str) -> Q | None:
     """Return a resource scope for a federation proxy, or None for an ordinary cluster."""
     tenant_id = bk_biz_id_to_bk_tenant_id(bk_biz_id)
     members = dict(
@@ -39,47 +32,39 @@ def get_federated_resource_scope(bk_biz_id: int, bcs_cluster_id: str) -> Federat
     if not members:
         return None
 
-    clusters = BCSCluster.objects.filter(bk_tenant_id=tenant_id, bcs_cluster_id__in=[bcs_cluster_id, *members])
+    clusters = dict(
+        BCSCluster.objects.filter(bk_tenant_id=tenant_id, bcs_cluster_id__in=[bcs_cluster_id, *members]).values_list(
+            "bcs_cluster_id", "bk_biz_id"
+        )
+    )
     scope = Q(pk__in=[])
-    space_clusters = None
+    if bcs_cluster_id not in clusters:
+        return scope
+
+    authorized_namespaces = None
     if bk_biz_id < 0:
         space_clusters = api.kubernetes.get_cluster_info_from_bcs_space(bk_biz_id=bk_biz_id)
         if bcs_cluster_id not in space_clusters:
-            return FederatedResourceScope(scope)
-    elif bk_biz_id > 0:
-        clusters = clusters.filter(bk_biz_id=bk_biz_id)
-    else:
-        return FederatedResourceScope(scope)
+            return scope
+        proxy = space_clusters[bcs_cluster_id]
+        if proxy["cluster_type"] == BcsClusterType.SHARED:
+            authorized_namespaces = set(proxy["namespace_list"])
+    elif bk_biz_id <= 0 or clusters[bcs_cluster_id] != bk_biz_id:
+        return scope
 
-    visible_clusters = dict(clusters.values_list("bcs_cluster_id", "bk_biz_id"))
-    if bcs_cluster_id not in visible_clusters:
-        return FederatedResourceScope(scope)
-
+    # Access is granted through the proxy. A member need not be directly accessible
+    # in this business or project; its owner is used only to locate physical rows.
     # Members with identical effective namespace lists can share one SQL predicate.
     members_by_namespaces = defaultdict(list)
-    visible_namespaces = set()
-    hidden_namespaces = set()
     for member_id, namespaces in members.items():
-        member_namespaces = {namespace for namespace in namespaces or () if namespace}
-        if member_id not in visible_clusters:
-            hidden_namespaces.update(member_namespaces)
+        if member_id not in clusters:
             continue
-        namespaces = member_namespaces.copy()
-        if space_clusters is not None:
-            if member_id not in space_clusters:
-                hidden_namespaces.update(member_namespaces)
-                continue
-            for cluster_id in (bcs_cluster_id, member_id):
-                cluster = space_clusters[cluster_id]
-                if cluster["cluster_type"] == BcsClusterType.SHARED:
-                    namespaces.intersection_update(cluster["namespace_list"])
+        namespaces = {namespace for namespace in namespaces or () if namespace}
+        if authorized_namespaces is not None:
+            namespaces.intersection_update(authorized_namespaces)
         if namespaces:
-            members_by_namespaces[(visible_clusters[member_id], tuple(sorted(namespaces)))].append(member_id)
-        visible_namespaces.update(namespaces)
-        hidden_namespaces.update(member_namespaces - namespaces)
+            members_by_namespaces[(clusters[member_id], tuple(sorted(namespaces)))].append(member_id)
 
     for (owner_biz_id, namespaces), member_ids in members_by_namespaces.items():
         scope |= Q(bk_biz_id=owner_biz_id, bcs_cluster_id__in=member_ids, namespace__in=namespaces)
-    # Proxy metrics no longer carry the original cluster ID. Include history only
-    # when all members contributing to a namespace are visible in this space.
-    return FederatedResourceScope(scope, tuple(sorted(visible_namespaces - hidden_namespaces)))
+    return scope

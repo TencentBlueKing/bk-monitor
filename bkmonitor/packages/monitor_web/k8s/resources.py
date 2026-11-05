@@ -8,6 +8,7 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 
+import json
 import re
 import time
 from collections import OrderedDict, defaultdict
@@ -25,7 +26,6 @@ from bkmonitor.models import BCSWorkload
 from bkmonitor.utils.kubernetes import validate_k8s_namespace
 from core.drf_resource import Resource, resource
 from metadata import models
-from monitor_web.k8s.chart import GraphK8sClusterQueryResource, GraphK8sQueryResource
 from monitor_web.k8s.core.federation import NAMESPACED_RESOURCES, get_federated_resource_scope
 from monitor_web.k8s.core.filters import load_resource_filter
 from monitor_web.k8s.core.meta import K8sResourceMeta, load_resource_meta
@@ -37,6 +37,7 @@ SCENARIO_CHOICES = ["performance", "network", "capacity", "tke_gpu"]
 class SpaceRelatedSerializer(serializers.Serializer):
     # 忽略业务id关联, 容器场景只依赖集群id进行数据路由即可。
     bk_biz_id = serializers.IntegerField(required=True, label="业务ID")
+    # Older chart clients cannot distinguish the expanded list's Namespace + Pod identities.
     supports_federated_charts = serializers.BooleanField(default=False)
 
     # def validate_bk_biz_id(self, bk_biz_id):
@@ -102,7 +103,7 @@ class WorkloadOverview(Resource):
     @staticmethod
     def get_queryset(params, scope):
         if scope is not None:
-            return BCSWorkload.objects.filter(scope.resources)
+            return BCSWorkload.objects.filter(scope)
         return BCSWorkload.objects.filter(bk_biz_id=params["bk_biz_id"], bcs_cluster_id=params["bcs_cluster_id"])
 
     @staticmethod
@@ -333,7 +334,7 @@ class GetResourceDetail(Resource):
         """
         通过 promql 查询 pod 与 service 以及 service 与 ingress 的关联关系
         """
-        labels = ",".join([f'{key}="{value}"' for key, value in fields.items()])
+        labels = ",".join(f"{key}={json.dumps(value)}" for key, value in fields.items())
         if resource_type == "service":
             promql = f"""count by (namespace, service, pod)
             (pod_with_service_relation{{{labels}}})
@@ -371,7 +372,7 @@ class GetResourceDetail(Resource):
         return resource_list
 
     def add_pod_service_ingress_relation(
-        self, items: list[dict], validated_request_data: dict, member_cluster_id: str | None = None
+        self, items: list[dict], validated_request_data: dict, proxy_cluster_id: str | None = None
     ):
         """
         为 items 添加 ingress/service 关联信息
@@ -380,8 +381,8 @@ class GetResourceDetail(Resource):
         pod = validated_request_data["pod_name"]
         namespace = validated_request_data["namespace"]
         labels = {"namespace": namespace}
-        if member_cluster_id is not None:
-            labels["bcs_cluster_id"] = member_cluster_id
+        if proxy_cluster_id is not None:
+            labels["bcs_cluster_id"] = proxy_cluster_id
 
         value: list[str] = []
         service_list: list[str] = self.get_pod_resource_relation(bk_biz_id, {**labels, "pod": pod}, "service")
@@ -409,6 +410,25 @@ class GetResourceDetail(Resource):
         """
         key_set = set(keys)
         return [item for item in items if "key" in item and item["key"] not in key_set]
+
+    @staticmethod
+    def merge_federated_details(member_details: list[tuple[str, list[dict]]]) -> list[dict]:
+        fields = defaultdict(list)
+        for cluster_id, items in member_details:
+            for item in items:
+                fields[item["key"]].append((cluster_id, item))
+
+        result = []
+        for key, values in fields.items():
+            first = values[0][1]
+            if len(values) == len(member_details) and all(item == first for _, item in values):
+                result.append(first)
+            else:
+                result.extend(
+                    {**item, "key": f"{key}|{cluster_id}", "name": f"{item['name']} ({cluster_id})"}
+                    for cluster_id, item in values
+                )
+        return result
 
     def perform_request(self, validated_request_data):
         bk_biz_id = validated_request_data["bk_biz_id"]
@@ -441,10 +461,14 @@ class GetResourceDetail(Resource):
         # 构建同名字典 -> {"field":validated_request_data["field"]}
         extra_request_arg = {key: validated_request_data[key] for key in resource_router[resource_type][1]}
 
-        member_cluster_id = None
+        detail_resource = resource_router[resource_type][0]
+        detail_params = {"bk_biz_id": bk_biz_id, "bcs_cluster_id": bcs_cluster_id, **extra_request_arg}
+        scope = None
         if resource_type in NAMESPACED_RESOURCES and validated_request_data.get("supports_federated_charts"):
             scope = get_federated_resource_scope(bk_biz_id, bcs_cluster_id)
             if scope is not None:
+                # Retain the scene's serializer and share checks against the requested proxy.
+                detail_resource.validate_request_data(detail_params)
                 meta = load_resource_meta(resource_type, bk_biz_id, bcs_cluster_id)
                 fields = {
                     "namespace": extra_request_arg["namespace"],
@@ -454,25 +478,16 @@ class GetResourceDetail(Resource):
                     fields["pod_name"] = extra_request_arg["pod_name"]
                 if resource_type == "workload":
                     fields["type"] = extra_request_arg["workload_type"]
-                members = list(
-                    meta.resource_class.objects.filter(scope.resources, **fields)
-                    .order_by("bcs_cluster_id")
-                    .values_list("bcs_cluster_id", flat=True)
-                    .distinct()[:2]
-                )
-                # A logical row can refer to multiple physical instances. Do not pick an arbitrary one.
-                if len(members) != 1:
+                members = list(meta.resource_class.objects.filter(scope, **fields).order_by("bcs_cluster_id"))
+                if not members:
                     return []
-                member_cluster_id = members[0]
-
-        # 调用对应的资源类型的接口，返回对应的接口数据
-        items: list[dict] = resource_router[resource_type][0](
-            **{
-                "bk_biz_id": bk_biz_id,
-                "bcs_cluster_id": member_cluster_id or bcs_cluster_id,
-                **extra_request_arg,
-            }
-        )
+                member_details = []
+                for item in members:
+                    if resource_type == "service":
+                        detail_resource.refresh_monitor_status(item)
+                    member_details.append((item.bcs_cluster_id, item.render(bk_biz_id, "detail")))
+        if scope is None:
+            member_details = [(bcs_cluster_id, detail_resource(detail_params))]
 
         resource_ignore_keys: dict[str, list[str]] = {
             "pod": [
@@ -506,15 +521,23 @@ class GetResourceDetail(Resource):
                 "disk_usage_ratio",  # 磁盘使用率
             ],
         }
-        if resource_ignore_keys.get(resource_type):
-            items = self.remove_items_with_keys(items, resource_ignore_keys[resource_type])
+        normalized_details = []
+        for cluster_id, items in member_details:
+            if resource_ignore_keys.get(resource_type):
+                items = self.remove_items_with_keys(items, resource_ignore_keys[resource_type])
+            for item in items:
+                self.link_to_string(item)
+            normalized_details.append((cluster_id, items))
+        items = (
+            self.merge_federated_details(normalized_details)
+            if len(normalized_details) > 1
+            else normalized_details[0][1]
+        )
 
         if resource_type == "pod":
-            self.add_pod_service_ingress_relation(items, validated_request_data, member_cluster_id)
-
-        # 获取 pod 关于 service 和 ingress 的联系
-        for item in items:
-            self.link_to_string(item)
+            self.add_pod_service_ingress_relation(
+                items, validated_request_data, bcs_cluster_id if scope is not None else None
+            )
 
         return items
 
@@ -589,7 +612,7 @@ class ListK8SResources(Resource):
         if resource_type in NAMESPACED_RESOURCES and validated_request_data.get("supports_federated_charts"):
             scope = get_federated_resource_scope(bk_biz_id, bcs_cluster_id)
             if scope is not None:
-                resource_meta.federated_resource_filter = scope.resources
+                resource_meta.federated_resource_filter = scope
         # 2.0 基于filter_dict 加载 filter
         self.add_filter(resource_meta, filter_dict)
         if query_string:
@@ -653,17 +676,15 @@ class ListK8SResources(Resource):
 
         order_by = column if order_by == "asc" else f"-{column}"
 
-        history_resource_list = []
-        if scope is None or scope.history_namespaces:
-            if scope is not None:
-                resource_meta.federated_history_namespaces = scope.history_namespaces
-            history_resource_list = resource_meta.get_from_promql(
-                validated_request_data["start_time"],
-                validated_request_data["end_time"],
-                order_by,
-                page_count,
-                validated_request_data["method"],
-            )
+        # Historical metrics use the proxy result table's existing space authorization.
+        # Current membership only controls which physical metadata rows are expanded.
+        history_resource_list = resource_meta.get_from_promql(
+            validated_request_data["start_time"],
+            validated_request_data["end_time"],
+            order_by,
+            page_count,
+            validated_request_data["method"],
+        )
         resource_id_set = set()
         for rs in history_resource_list:
             record = rs.to_meta_dict()
@@ -768,12 +789,6 @@ class ResourceTrendResource(Resource):
 
         # 1. 基于resource_type 加载对应资源元信息
         resource_meta: K8sResourceMeta = load_resource_meta(resource_type, bk_biz_id, bcs_cluster_id)
-        if resource_type in NAMESPACED_RESOURCES:
-            scope = get_federated_resource_scope(bk_biz_id, bcs_cluster_id)
-            if scope is not None:
-                if not scope.history_namespaces:
-                    return []
-                resource_meta.federated_history_namespaces = scope.history_namespaces
         agg_method = validated_request_data["method"]
         resource_meta.set_agg_method(agg_method)
         resource_meta.set_agg_interval(start_time, end_time)
@@ -807,14 +822,7 @@ class ResourceTrendResource(Resource):
             # 不用topk 因为有resource_list
             promql = getattr(resource_meta, f"meta_prom_with_{column}")
 
-        series = self.get_series_with_promql(
-            promql,
-            start_time,
-            end_time,
-            bk_biz_id,
-            bcs_cluster_id,
-            resource_type,
-        )
+        series = self.get_series_with_promql(promql, start_time, end_time, bk_biz_id)
         max_data_point = 0
         for line in series:
             if line["datapoints"]:
@@ -891,13 +899,10 @@ class ResourceTrendResource(Resource):
             if len(namespaces_by_legacy_name.get(pod_name, ())) == 1:
                 yield pod_name, line
 
-    def get_series_with_promql(
-        self, promql: str, start_time: int, end_time: int, bk_biz_id: int, bcs_cluster_id: str, resource_type: str
-    ) -> list[dict]:
+    def get_series_with_promql(self, promql: str, start_time: int, end_time: int, bk_biz_id: int) -> list[dict]:
         interval = get_interval_number(start_time, end_time, interval=60)
         query_params = {
             "bk_biz_id": bk_biz_id,
-            "bcs_cluster_id": bcs_cluster_id,
             "query_configs": [
                 {
                     "data_source_label": "prometheus",
@@ -915,8 +920,5 @@ class ResourceTrendResource(Resource):
             "slimit": 10001,
             "down_sample_range": "",
         }
-        graph_query = (
-            GraphK8sQueryResource() if resource_type in NAMESPACED_RESOURCES else GraphK8sClusterQueryResource()
-        )
-        series = graph_query(query_params)["series"]
+        series = resource.grafana.graph_unify_query(query_params)["series"]
         return series

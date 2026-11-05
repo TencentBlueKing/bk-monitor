@@ -26,8 +26,7 @@ from bkmonitor.models import (
     BCSWorkload,
 )
 from bkmonitor.utils.time_tools import hms_string
-from core.drf_resource import api
-from monitor_web.k8s.chart import GraphK8sClusterQueryResource, GraphK8sQueryResource
+from core.drf_resource import api, resource
 from monitor_web.k8s.core.filters import load_resource_filter
 from monitor_web.k8s.core.gpu_compat import gpu_or
 
@@ -103,9 +102,6 @@ class FilterCollection:
                 # return list(self.make_multi_workload_filter_string(workload_filters))
 
             where_string_list.append(filter_obj.filter_string())
-        if self.meta.federated_history_namespaces:
-            scope_filter = load_resource_filter("namespace", self.meta.federated_history_namespaces)
-            where_string_list.append(scope_filter.filter_string())
         return ",".join(where_string_list)
 
     def make_multi_workload_filter_string(self, workload_filters):
@@ -185,7 +181,6 @@ class K8sResourceMeta:
 
     filter = None
     federated_resource_filter = None
-    federated_history_namespaces = ()
     resource_field = ""
     resource_class = None
     column_mapping = {}
@@ -295,7 +290,6 @@ class K8sResourceMeta:
         self.set_agg_interval(start_time, end_time)
         query_params = {
             "bk_biz_id": self.bk_biz_id,
-            "bcs_cluster_id": self.bcs_cluster_id,
             "query_configs": [
                 {
                     "data_source_label": "prometheus",
@@ -314,12 +308,7 @@ class K8sResourceMeta:
             "down_sample_range": "",
         }
 
-        graph_query = (
-            GraphK8sClusterQueryResource()
-            if isinstance(self, K8sNodeMeta | K8sClusterMeta)
-            else GraphK8sQueryResource()
-        )
-        series: list[dict[str, Any]] = graph_query(query_params)["series"]
+        series: list[dict[str, Any]] = resource.grafana.graph_unify_query(query_params)["series"]
 
         # 找到有值数据点的最大时间戳。
         latest_point_time: int | None = max(
@@ -592,7 +581,7 @@ class K8sPodMeta(K8sResourceMeta, NetworkWithRelation):
 
     def get_resource_name(self, series):
         pod_name = super().get_resource_name(series)
-        if self.federated_history_namespaces:
+        if self.federated_resource_filter is not None:
             return f"{series['dimensions']['namespace']}|{pod_name}"
         return pod_name
 

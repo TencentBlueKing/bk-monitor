@@ -110,7 +110,6 @@ class K8SCustomChart extends CommonSimpleChart {
   dataLoading = true;
   chartDataLoaded = false;
   chartLoadError = false;
-  allowQueryActions = false;
   disposed = false;
   metrics = [];
   options = {};
@@ -146,17 +145,7 @@ class K8SCustomChart extends CommonSimpleChart {
   }
 
   get menuList() {
-    return this.canReuseQuery
-      ? ['save', 'more', 'explore', 'area', 'drill-down', 'strategy', 'relate-alert']
-      : ['more', 'area', 'drill-down'];
-  }
-
-  get canReuseQuery() {
-    return this.allowQueryActions || !this.hasScopedQuery;
-  }
-
-  get hasScopedQuery() {
-    return this.panel.targets.some(item => item.api === 'k8s.graphQuery');
+    return ['save', 'more', 'explore', 'area', 'drill-down', 'strategy', 'relate-alert'];
   }
 
   @Watch('showRestoreInject', { immediate: true })
@@ -167,7 +156,6 @@ class K8SCustomChart extends CommonSimpleChart {
   @Watch('panel')
   panelChange(val, old) {
     if (isShadowEqual(val, old)) return;
-    this.allowQueryActions = false;
     this.getPanelData();
   }
 
@@ -185,19 +173,19 @@ class K8SCustomChart extends CommonSimpleChart {
   beforeDestroy() {
     this.disposed = true;
     this.dataRequestId++;
-    if (this.k8sLoadingSkeleton)
+    if (this.k8sLoadingSkeleton) {
       this.cancelTokens.forEach(cancel => {
         cancel?.();
       });
+    }
   }
 
   isCurrentDataRequest(requestId: number) {
-    return (!this.k8sLoadingSkeleton && !this.hasScopedQuery) || (!this.disposed && requestId === this.dataRequestId);
+    return !this.k8sLoadingSkeleton || (!this.disposed && requestId === this.dataRequestId);
   }
 
   getPanelData(start_time?: string, end_time?: string) {
-    if ((this.k8sLoadingSkeleton || this.hasScopedQuery) && this.disposed) return;
-    this.allowQueryActions = false;
+    if (this.k8sLoadingSkeleton && this.disposed) return;
     const requestId = ++this.dataRequestId;
     if (this.k8sLoadingSkeleton) {
       this.dataLoading = true;
@@ -246,7 +234,6 @@ class K8SCustomChart extends CommonSimpleChart {
           });
         }
         const promiseList = [];
-        let canReuseQueries = true;
         const timeShiftList = ['', ...this.timeOffset];
         const down_sample_range =
           this.downSampleRangeComputed(
@@ -263,7 +250,6 @@ class K8SCustomChart extends CommonSimpleChart {
           const list = this.panel.targets
             .filter(item => (timeShiftList.length > 1 ? !item.request_or_limit : true))
             .map(item => {
-              const scoped = item.api === 'k8s.graphQuery';
               const newParams = structuredClone({
                 ...variablesService.transformVariables(
                   item.data,
@@ -287,7 +273,6 @@ class K8SCustomChart extends CommonSimpleChart {
                 })
                 .then(res => {
                   if (!this.isCurrentDataRequest(requestId)) return;
-                  if (scoped && res.federated_scope !== false) canReuseQueries = false;
                   res.metrics && metrics.push(...res.metrics);
                   // if (res.series?.length > 1) {
                   //   res.series = res.series.slice(0, 1);
@@ -318,16 +303,18 @@ class K8SCustomChart extends CommonSimpleChart {
                         };
                       })
                     );
-                  // 派生页面无法携带服务端联邦范围。
-                  if (!scoped || res.federated_scope === false) {
-                    this.panel.setRawQueryConfigs(item, res.query_config || newParams);
-                  }
+                  // 用于获取原始query_config
+                  this.panel.setRawQueryConfigs(
+                    item,
+                    res.query_config || {
+                      ...newParams,
+                    }
+                  );
                   this.clearErrorMsg();
                   return true;
                 })
                 .catch(error => {
                   if (!this.isCurrentDataRequest(requestId)) return;
-                  if (scoped) canReuseQueries = false;
                   this.handleErrorMsgChange(error.msg || error.message);
                 });
             });
@@ -335,7 +322,6 @@ class K8SCustomChart extends CommonSimpleChart {
         }
         const results = await Promise.all(promiseList).catch(() => []);
         if (!this.isCurrentDataRequest(requestId)) return;
-        this.allowQueryActions = results.length > 0 && canReuseQueries;
         if (this.k8sLoadingSkeleton && results.length && results.every(result => result !== true)) {
           throw new Error(String(window.i18n.t('出错了')));
         }
@@ -880,8 +866,6 @@ class K8SCustomChart extends CommonSimpleChart {
    * @return {*}
    */
   handleMenuToolsSelect(menuItem: IMenuItem) {
-    if (!this.canReuseQuery && ['save', 'fullscreen', 'explore', 'strategy', 'relate-alert'].includes(menuItem.id))
-      return;
     switch (menuItem.id) {
       case 'save': // 保存到仪表盘
         this.handleCollectChart();
@@ -994,7 +978,6 @@ class K8SCustomChart extends CommonSimpleChart {
    * @return {*}
    */
   handleAllMetricClick() {
-    if (!this.canReuseQuery) return;
     const configs = this.panel.toStrategy(null);
     if (configs) {
       this.handleAddStrategy(this.panel, null, {});
@@ -1008,7 +991,6 @@ class K8SCustomChart extends CommonSimpleChart {
    * @return {*}
    */
   handleMetricClick(metric: IExtendMetricData) {
-    if (!this.canReuseQuery) return;
     const configs = this.panel.toStrategy(metric);
     if (configs) {
       this.handleAddStrategy(this.panel, metric, {});
@@ -1017,7 +999,6 @@ class K8SCustomChart extends CommonSimpleChart {
   }
   /** 处理点击左侧响铃图标 跳转策略的逻辑 */ /** 处理点击左侧响铃图标 跳转策略的逻辑 */
   handleAlarmClick(alarmStatus: ITitleAlarm) {
-    if (!this.canReuseQuery) return;
     const metricIds = this.metrics.map(item => item.metric_id);
     switch (alarmStatus.status) {
       case 0:

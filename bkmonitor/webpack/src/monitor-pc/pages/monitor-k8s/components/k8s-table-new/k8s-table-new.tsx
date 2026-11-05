@@ -334,12 +334,7 @@ export default class K8sTableNew extends tsc<K8sTableNewProps, K8sTableNewEvent>
 
   /** table视图数据（由于后端返回全量数据，分页功能需前端自己处理） */
   get tableViewData() {
-    if (this.showSkeleton) {
-      return Array.from({ length: 6 }, () => {
-        const skeletonRow: Partial<K8sTableRow> = {};
-        return skeletonRow as K8sTableRow;
-      });
-    }
+    if (this.showSkeleton) return Array.from({ length: 6 }, () => ({})) as K8sTableRow[];
     if (enabledFrontendLimit) {
       /** 接口返回全量数据时执行方案 */
       const { page, pageSize } = this.pagination;

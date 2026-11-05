@@ -544,32 +544,6 @@ test('filter searches isolate mutable option models and old completion cannot cl
 });
 
 const graphFile = 'src/monitor-ui/chart-plugins/plugins/k8s-custom-graph/k8s-custom-graph.tsx';
-test('scoped chart rejects stale responses and does not reuse raw queries in chart actions', () => {
-  const proto = methods(graphFile, [
-    'hasScopedQuery',
-    'canReuseQuery',
-    'isCurrentDataRequest',
-    'handleMenuToolsSelect',
-    'handleAllMetricClick',
-    'handleMetricClick',
-    'handleAlarmClick',
-  ]);
-  const graph = Object.assign(Object.create(proto), {
-    panel: { targets: [{ api: 'k8s.graphQuery' }] },
-    dataRequestId: 2,
-    k8sLoadingSkeleton: false,
-    allowQueryActions: false,
-  });
-  assert.equal(graph.isCurrentDataRequest(1), false);
-  assert.equal(graph.canReuseQuery, false);
-  graph.handleMenuToolsSelect({ id: 'fullscreen' });
-  graph.handleAllMetricClick();
-  graph.handleMetricClick({});
-  graph.handleAlarmClick({ status: 0 });
-  graph.panel.targets[0].api = 'grafana.graphUnifyQuery';
-  assert.equal(graph.canReuseQuery, true);
-});
-
 function graph() {
   const requests = [];
   const errors = [];
@@ -1050,9 +1024,7 @@ test('APM empty targets settle as empty in all tabs without invalid target acces
   const pending = subject.initialize();
   targets[0].resolve({ target_list: [] });
   metrics[0].resolve([]);
-  configs.forEach(request => {
-    request.resolve(null);
-  });
+  configs.forEach(request => request.resolve(null));
   await pending;
   assert.equal(subject.initializationError, false);
   assert.equal(subject.initializing, false);
@@ -1074,9 +1046,7 @@ test('APM initialization failure exposes retry and successful retry releases ske
   const retry = subject.initialize();
   targets[1].resolve({ target_list: apmTargets });
   metrics[1].resolve([]);
-  configs.slice(2).forEach(request => {
-    request.resolve(null);
-  });
+  configs.slice(2).forEach(request => request.resolve(null));
   await retry;
   assert.equal(subject.initializationError, false);
   assert.equal(subject.cluster, 'a');
@@ -1091,9 +1061,7 @@ test('APM service changes and unmount prevent stale initialization from publishi
   assert.equal(targets[0].signal.aborted, true);
   targets[0].resolve({ target_list: apmTargets });
   metrics[0].resolve([]);
-  configs.slice(0, 2).forEach(request => {
-    request.resolve(null);
-  });
+  configs.slice(0, 2).forEach(request => request.resolve(null));
   await first;
   assert.equal(subject.initializing, true);
   assert.equal(subject.cluster, '');
@@ -1101,9 +1069,7 @@ test('APM service changes and unmount prevent stale initialization from publishi
   subject.beforeDestroy();
   targets[1].resolve({ target_list: apmTargets });
   metrics[1].resolve([]);
-  configs.slice(2).forEach(request => {
-    request.resolve(null);
-  });
+  configs.slice(2).forEach(request => request.resolve(null));
   await next;
   assert.equal(targets[1].signal.aborted, true);
   assert.equal(subject.cluster, '');

@@ -33,7 +33,7 @@ import {
   listAlertFeedback,
 } from 'monitor-api/modules/alert_v2';
 import { scenarioMetricList } from 'monitor-api/modules/k8s';
-import { listK8sResourcesWithoutFederatedCharts } from 'monitor-api/modules/k8s';
+import { listK8sResources } from 'monitor-api/modules/k8s';
 import { getSceneView } from 'monitor-api/modules/scene_view';
 import { BookMarkModel } from 'monitor-ui/chart-plugins/typings';
 
@@ -202,7 +202,7 @@ export const fetchWorkloadPodList = async (
   options?: RequestOptions
 ): Promise<AlertK8sTargetItem[]> => {
   const { bk_biz_id, bcs_cluster_id, scenario, filter_dict, start_time, end_time, page_size = 10 } = params;
-  return listK8sResourcesWithoutFederatedCharts(
+  return listK8sResources(
     {
       bk_biz_id,
       bcs_cluster_id,
