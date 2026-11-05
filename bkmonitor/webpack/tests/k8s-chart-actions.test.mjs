@@ -309,6 +309,48 @@ test('APM association selectors preserve the original resource scope for both cl
   }
 });
 
+test('alert workload pod requests preserve the original scope and request options', async () => {
+  const calls = [];
+  const items = [{ namespace: 'alpha', pod: 'api' }];
+  const api = loadModule('src/monitor-api/modules/k8s.js', {
+    '../base': {
+      request: (method, url) => async (params, options) => {
+        calls.push({ method, url, params, options });
+        return { items };
+      },
+    },
+  });
+  const { fetchWorkloadPodList } = loadModule('src/trace/pages/alarm-center/services/alarm-detail.ts', {
+    'monitor-api/modules/k8s': api,
+    'monitor-api/modules/alert_v2': {},
+    'monitor-api/modules/scene_view': {},
+    'monitor-ui/chart-plugins/typings': {},
+    '../typings/action-detail': {},
+    '../typings/detail': {},
+  });
+  for (const cluster of ['BCS-K8S-PROXY', 'BCS-K8S-ORDINARY']) {
+    const options = { signal: new AbortController().signal };
+    const result = await fetchWorkloadPodList(
+      {
+        bcs_cluster_id: cluster,
+        scenario: 'performance',
+        filter_dict: { namespace: ['alpha'], workload: ['Deployment:api'] },
+        start_time: 1,
+        end_time: 2,
+      },
+      options
+    );
+    assert.equal(result, items);
+    const call = calls.at(-1);
+    assert.equal(call.params.supports_federated_charts, undefined);
+    assert.equal(call.params.bcs_cluster_id, cluster);
+    assert.equal(call.params.filter_dict.namespace[0], 'alpha');
+    assert.equal(call.params.resource_type, 'pod');
+    assert.equal(call.params.with_history, true);
+    assert.equal(call.options, options);
+  }
+});
+
 test('existing readonly and strategy-page restrictions remain in the shared chart header', () => {
   const proto = methods('src/monitor-ui/chart-plugins/components/chart-title/chart-title.tsx', [
     'showMetricAlarm',
