@@ -3500,6 +3500,86 @@ def test_direct_gateway_without_native_fallback_still_checks_mcp(monkeypatch, di
     ordinary.assert_not_called()
 
 
+@pytest.mark.parametrize("native_enabled", [False, True])
+def test_direct_gateway_passes_platform_permission_error_through(monkeypatch, direct_gateway, io, native_enabled):
+    from core.errors.iam import PermissionDeniedError
+
+    denial = PermissionDeniedError(
+        context={"action_name": "MCP 日志查询"},
+        data={"apply_url": "https://iam.invalid/apply", "raw": "private-upstream"},
+        extra={"permission": {"system_id": "bk_monitorv3", "actions": [{"id": "using_log_mcp"}]}},
+    )
+    if native_enabled:
+        io.dispatch.side_effect = denial
+    else:
+        # 未启用原生权限时走 Permission.is_allowed_by_biz(raise_exception=True)，其拒绝异常不是 DRF 异常。
+        monkeypatch.setattr(settings, "MCP_NATIVE_PERMISSION_TOOLS", [])
+        io.monitor.iam_client.is_allowed.side_effect = denial
+    response, request, permission, ordinary = direct_gateway()
+
+    body = json.loads(response.content)
+    assert response.status_code == body["code"] == 403
+    assert body["message"] == "当前用户无 [MCP 日志查询] 权限"
+    assert body["data"] == {
+        "error_type": "PermissionDeniedError",
+        "error_code": 9900403,
+        "apply_url": "https://iam.invalid/apply",
+        "permission": {"system_id": "bk_monitorv3", "actions": [{"id": "using_log_mcp"}]},
+    }
+    assert "private-upstream" not in response.content.decode()
+    assert io.dispatch.call_count == int(native_enabled)
+    ordinary.assert_not_called()
+
+
+@pytest.mark.parametrize("native_enabled", [False, True])
+@pytest.mark.parametrize(
+    "error,status",
+    [
+        ("bkapi", 500),
+        ("uq_syntax", 500),
+        ("legacy_success_status", 500),
+        ("unexpected", 503),
+    ],
+)
+def test_direct_gateway_business_errors_keep_message_without_upstream_body(
+    monkeypatch, direct_gateway, io, native_enabled, error, status
+):
+    from core.errors import Error
+    from core.errors.api import BKAPIError
+
+    class LegacySuccessStatusError(Error):
+        status_code = 200
+        code = 3300999
+        message_tpl = "历史业务错误"
+
+    if not native_enabled:
+        monkeypatch.setattr(settings, "MCP_NATIVE_PERMISSION_TOOLS", [])
+        io.monitor.iam_client.is_allowed.side_effect = None
+        io.monitor.iam_client.is_allowed.return_value = True
+    io.dispatch.side_effect = {
+        "bkapi": BKAPIError("bk_log", "/private/url/", {"code": 1, "message": "索引集不存在", "raw": "private"}),
+        # MCP 专用 UQ 读取器把上游非 200 响应截断为字符串后抛出 BKAPIError。
+        "uq_syntax": BKAPIError("unify-query", "http://private-uq/query/ts/raw", "query_string parse error"),
+        "legacy_success_status": LegacySuccessStatusError(),
+        "unexpected": RuntimeError("private-upstream"),
+    }[error]
+    response, _, _, ordinary = direct_gateway()
+
+    body = json.loads(response.content)
+    assert response.status_code == body["code"] == status
+    if error == "unexpected":
+        assert body["message"] == "MCP request failed; no data returned"
+        assert "private-upstream" not in response.content.decode()
+    else:
+        assert body["data"]["error_type"] == type(io.dispatch.side_effect).__name__
+        assert set(body["data"]) == {"error_type", "error_code"}
+        expected = {"bkapi": "索引集不存在", "uq_syntax": "query_string parse error"}.get(error, "历史业务错误")
+        assert expected in body["message"]
+        content = response.content.decode()
+        assert not any(secret in content for secret in ('"raw"', "/private/url/", "private-uq"))
+    ordinary.assert_not_called()
+
+
 def test_unregistered_route_keeps_ordinary_branch(direct_gateway, io):
     response, _, _, ordinary = direct_gateway(path="/api/v4/unrelated/read/")
     assert response is None

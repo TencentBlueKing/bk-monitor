@@ -392,6 +392,8 @@ class AuthenticationMiddleware(MiddlewareMixin):
         from rest_framework.response import Response
 
         from bkmonitor.views.renderers import MonitorJSONRenderer
+        from core.errors import Error
+        from core.errors.api import BKAPIError
         from kernel_api.adapters import ApiRenderer
         from kernel_api.unified_mcp.permissions import _principal, execute_native_tool
 
@@ -436,6 +438,30 @@ class AuthenticationMiddleware(MiddlewareMixin):
                     "data": exc.detail,
                 },
                 status=exc.status_code,
+            )
+        except Error as exc:
+            # 平台业务异常（如旧权限链路的 PermissionDeniedError）自带面向用户的消息和状态码，
+            # 必须原样透传，不能被兜底分支吞成无原因的 503。
+            # 部分历史异常沿用 200/204 + result=False 的 Web 约定，MCP 上必须仍是失败状态码。
+            status_code = exc.status_code if exc.status_code >= 400 else 500
+            error_type = type(exc).__name__
+            status = "permission_denied" if status_code == 403 else "error"
+            data = {"error_type": error_type, "error_code": exc.code}
+            # 只透传自有结构化字段；BKAPIError 等会把上游原始响应放进 data，不能整体返回。
+            for source, keys in (
+                (getattr(exc, "data", None), ("error_code", "next_actions", "apply_url")),
+                (getattr(exc, "extra", None), ("permission",)),
+            ):
+                if isinstance(source, dict):
+                    data.update({key: source[key] for key in keys if key in source})
+            message = str(exc.message)
+            if isinstance(exc, BKAPIError):
+                # 上游接口错误只保留“系统 + 上游消息”，去掉消息模板中的内部请求 URL。
+                details = exc.error_details or {}
+                message = f"{details.get('overview') or ''}{details.get('detail') or ''}" or message
+            return JsonResponse(
+                {"result": False, "code": status_code, "message": message, "data": data},
+                status=status_code,
             )
         except Exception as exc:
             error_type = type(exc).__name__
