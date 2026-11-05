@@ -100,6 +100,7 @@ class QuixClusteringOperationRunner:
         # 本次业务收尾完成且 Databus 恢复原存储配置后，才向 BKFara 提交最终完成确认
         ClusteringOperationTypeEnum.DISABLE.value: [
             "disable_clustering",
+            "clear_local_clustering",
             "confirm_closed",
             "detach",
             "wait_detached",
@@ -424,8 +425,10 @@ class QuixClusteringOperationRunner:
     def _step_disable_clustering(self) -> bool:
         # sink 在 metadata 写入确认后才保存，且解绑不清空。因此只有从未绑定的任务才能跳过。
         # 本地 attached 是目标状态，不能用于判定 Runtime 是否已解绑。
-        if self.runtime.sink:
-            self._operate_metadata("disable")
+        return self._operate_metadata("disable") if self.runtime.sink else True
+
+    @transaction.atomic
+    def _step_clear_local_clustering(self) -> bool:
         ClusteringConfig.objects.filter(index_set_id=self.runtime.index_set_id).update(access_finished=False)
         LogIndexSet.delete_tag_by_name(self.runtime.index_set_id, InnerTag.CLUSTERING.value)
         return True

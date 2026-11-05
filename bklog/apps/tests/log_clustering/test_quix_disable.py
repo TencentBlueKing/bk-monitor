@@ -130,6 +130,27 @@ class TestQuixDisableRunner(TestCase):
         self.assertEqual(handler.get_access_status()["quix"]["phase"], "disabling")
         self.delete_tag.assert_not_called()
 
+    @patch("apps.log_clustering.handlers.quix.handler.QuixClusteringHandler._get_bkfara_clustering", return_value={})
+    def test_accepted_disable_survives_local_cleanup_failure(self, get_clustering):
+        self.delete_tag.side_effect = [RuntimeError("tag write failed"), None]
+        self.assertGreater(self.run_operation(), 0)
+
+        handler = QuixClusteringHandler(LogIndexSet(index_set_id=INDEX_SET_ID, space_uid="bkcc__2"))
+        status = handler.get_access_status()
+        self.assertEqual(status["quix"]["phase"], "stopped")
+        self.assertEqual(status["flow_run"]["status"], "SUCCESS")
+        self.transfer.get_log_clustering_status.assert_not_called()
+        self.bkfara.stop_clustering.assert_not_called()
+
+        self.assertIsNone(self.run_operation())
+        self.assertEqual(self.delete_tag.call_count, 2)
+        self.assertEqual(
+            [call.args[0]["action"] for call in self.transfer.operate_log_clustering.call_args_list],
+            ["disable", "detach"],
+        )
+        self.operation.refresh_from_db()
+        self.assertEqual(self.operation.status, "success")
+
     def test_reopen_cannot_overtake_inflight_detach(self):
         self.transfer.get_log_clustering_status.side_effect = [CLOSED, {**DETACHED, "sink_referenced": True}]
         self.assertEqual(self.run_operation(), POLL_INTERVAL_SECONDS)
