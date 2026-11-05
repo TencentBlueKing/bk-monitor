@@ -25,6 +25,7 @@
  */
 import { computed, defineComponent, PropType, ref } from 'vue';
 
+import ClusteringLoader from '@/app/skeleton/clustering-loader.vue';
 import useIntersectionObserver from '@/shared/composables/use-intersection-observer';
 import useLocale from '@/shared/composables/use-locale';
 
@@ -92,6 +93,18 @@ export default defineComponent({
     };
 
     const getResultRender = () => {
+      if (props.grepRequestResult.is_loading && props.grepRequestResult.list.length === 0) {
+        return (
+          <div class='grep-cli-result-skeleton'>
+            <ClusteringLoader
+              width-list={[60, '']}
+              loader-len={14}
+              is-loading
+            />
+          </div>
+        );
+      }
+
       if (props.grepRequestResult.list.length === 0 || !props.fieldName) {
         return (
           <bk-exception

@@ -485,9 +485,9 @@ export default class UseJsonFormatter {
     resolvedFieldName: string,
     selectedValue: string,
   ) {
-    // 复制必须原样返回：KEY 分支会把非 not 一律改成 contains，导致「复制」误触发「添加到本次检索」
-    if (val === 'copy') {
-      return 'copy';
+    // KEY 分支会把非 not 一律改成 contains。复制、高亮、关联 Trace 不是检索条件，必须原样返回。
+    if (val === 'copy' || val === 'highlight' || val === 'trace-view') {
+      return val;
     }
 
     if (ctx.segmentRole === 'key') {

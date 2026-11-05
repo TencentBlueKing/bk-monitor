@@ -33,6 +33,7 @@ import { Component as tsc } from 'vue-tsx-support';
 import { BK_LOG_STORAGE, SEARCH_MODE_DIC } from '@/app/state/store.type.ts';
 import { debounce, isElement, isEqual, throttle } from 'lodash-es';
 
+import ClusteringLoader from '@/app/skeleton/clustering-loader.vue';
 import SqlPanel from './SqlPanel.vue';
 import GraphChart from './chart/index.tsx';
 import FieldSettings from './common/field-settings.vue';
@@ -67,6 +68,7 @@ export enum GraphCategory {
 }
 @Component({
   components: {
+    ClusteringLoader,
     GraphDragTool,
     DashboardDialog,
     TagInput,
@@ -537,6 +539,21 @@ export default class GraphAnalysisIndex extends tsc<IProps> {
   }
 
   getExceptionRender() {
+    if (this.isRequesting) {
+      return (
+        <div
+          style={this.exceptionStyle}
+          class='bklog-chart-skeleton'
+        >
+          <ClusteringLoader
+            width-list={[120, 120, '']}
+            loader-len={10}
+            is-loading
+          />
+        </div>
+      );
+    }
+
     const { showException, message, showQuery, tips = '' } = this.getExceptionMessage();
     if (showException) {
       return (

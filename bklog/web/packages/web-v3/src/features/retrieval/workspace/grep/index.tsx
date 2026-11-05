@@ -26,7 +26,7 @@ import { ServicesInstance } from '@/platform/services';
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { defineComponent, onBeforeUnmount, onMounted, ref } from 'vue';
+import { defineComponent, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 
 import { readBlobRespToJson } from '@/shared/lib/util';
 import { moduleLargeDataCacheService } from '@/platform/persistence/index';
@@ -131,8 +131,11 @@ export default defineComponent({
       grepRequestResult.value.cached_count = 0;
     };
 
-    const resetGrepRequestResult = () => {
+    const resetGrepRequestResult = (loading = true) => {
       clearGrepCache();
+      grepRequestResult.value.is_loading = loading;
+      grepRequestResult.value.is_error = false;
+      grepRequestResult.value.exception_msg = '';
       grepRequestResult.value.has_more = true;
       grepRequestResult.value.list.splice(0, grepRequestResult.value.list.length);
       grepRequestResult.value.offset = 0;
@@ -280,7 +283,7 @@ export default defineComponent({
     // 处理grep enter
     const handleGrepEnter = (value: string) => {
       grepQuery.value = value;
-      resetGrepRequestResult();
+      resetGrepRequestResult(Boolean(field.value));
       router.replace({
         params: route.params,
         query: {
@@ -385,17 +388,30 @@ export default defineComponent({
       initGetGrepResultTotal();
     };
 
+    watch(
+      () => store.getters.rawFieldList.length,
+      length => {
+        if (!field.value && length > 0) {
+          setDefaultFieldValue();
+          if (field.value) {
+            resetGrepRequestResult(true);
+            reloadGrepDataAndTotal();
+          }
+        }
+      },
+    );
+
     onMounted(() => {
       RetrieveHelper.setMarkInstance();
 
-      resetGrepRequestResult();
+      resetGrepRequestResult(true);
       setDefaultFieldValue();
       // 从图表分析等 Tab 切入时不会触发 SEARCHING_CHANGE，需在挂载时主动拉数；
       // 主检索进行中则等待 SEARCHING_CHANGE(false)，避免重复请求。
       const mountAction = resolveGrepMountAction(RetrieveHelper.isSearching, field.value);
       if (mountAction === 'reload') {
         reloadGrepDataAndTotal();
-      } else if (mountAction === 'idle') {
+      } else if (mountAction === 'idle' && !store.state.indexFieldInfo.is_loading) {
         grepRequestResult.value.is_loading = false;
       }
     });
@@ -403,7 +419,7 @@ export default defineComponent({
     onBeforeUnmount(() => {
       RequestPool.execCanceToken('requestIndexSetGrepQueryToken');
       requestGrepList.cancel?.();
-      resetGrepRequestResult();
+      resetGrepRequestResult(false);
       moduleLargeDataCacheService.clearMemory(grepRequestResult.value.cache_scope);
       RetrieveHelper.destroyMarkInstance();
     });
@@ -420,6 +436,7 @@ export default defineComponent({
           onSearchChange={handleSearchUpdate}
         />
         <GrepCliTotal
+          loading={grepRequestResult.value.is_loading}
           total={searchListTotal.value}
           text={'- 共检索出{total}条结果 -'}
         />

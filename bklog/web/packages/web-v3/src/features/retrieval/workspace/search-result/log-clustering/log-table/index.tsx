@@ -137,7 +137,7 @@ export default defineComponent({
     const tablesRef = ref<any>(null);
     const mainHeaderRef = ref<any>();
     // const aiAssitantRef = ref<any>(null);
-    const tableLoading = ref(false);
+    const tableLoading = ref(true);
     const widthList = ref<Record<string, string>>({});
     const filterSortMap = ref(initFilterSortMap());
     const displayType = ref('group');

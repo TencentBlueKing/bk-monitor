@@ -14,22 +14,29 @@ import {
   CheckboxGroup,
   Collapse,
   CollapsePanel,
+  DatePicker,
   Dialog,
   Drawer,
   Empty,
   Form,
   FormItem,
   Input,
+  Pagination,
+  Popconfirm,
   Popup,
   Radio,
   RadioGroup,
   Select,
+  Slider,
   Steps,
   StepItem,
   Switch,
+  TabPanel,
   Table,
+  Tabs,
   TagInput,
   Textarea,
+  TimePicker,
 } from 'tdesign-vue-next';
 
 const mode3 = { compatConfig: { MODE: 3 } };
@@ -764,6 +771,240 @@ const BkException = defineComponent({
   },
 });
 
+const BkSlider = defineComponent({
+  name: 'bk-slider',
+  ...mode3,
+  props: {
+    value: { type: Number, default: undefined },
+    modelValue: { type: Number, default: undefined },
+    maxValue: { type: Number, default: 100 },
+    minValue: { type: Number, default: 0 },
+    step: { type: Number, default: 1 },
+    disabled: { type: Boolean, default: false },
+  },
+  emits: ['update:modelValue', 'change', 'input'],
+  setup(props, { attrs, slots, emit }) {
+    return () =>
+      h(
+        'div',
+        { ...attrs, style: [{ display: 'flex', alignItems: 'center', width: '100%' }, attrs.style] },
+        [
+          slots.start?.(),
+          h(Slider, {
+            value: Number(modelValue(props) ?? props.minValue),
+            max: props.maxValue,
+            min: props.minValue,
+            step: props.step,
+            disabled: props.disabled,
+            style: { flex: 1 },
+            onChange: (value: number | number[]) => {
+              const next = Array.isArray(value) ? value[0] : value;
+              emit('update:modelValue', next);
+              emit('input', next);
+              emit('change', next);
+            },
+          }),
+          slots.end?.(),
+        ],
+      );
+  },
+});
+
+const BkDropdownMenu = defineComponent({
+  name: 'bk-dropdown-menu',
+  ...mode3,
+  props: {
+    trigger: { type: String, default: 'hover' },
+    align: { type: String, default: 'left' },
+    disabled: { type: Boolean, default: false },
+  },
+  setup(props, { attrs, slots }) {
+    const placement = props.align === 'right' ? 'bottom-right' : 'bottom-left';
+    return () =>
+      h(
+        Popup,
+        {
+          ...attrs,
+          trigger: props.trigger === 'click' ? 'click' : 'hover',
+          placement,
+          disabled: props.disabled,
+          content: () => slots['dropdown-content']?.(),
+        },
+        { default: () => slots['dropdown-trigger']?.() || slots.default?.() },
+      );
+  },
+});
+
+const BkPopconfirm = defineComponent({
+  name: 'bk-popconfirm',
+  ...mode3,
+  props: {
+    title: { type: String, default: '' },
+    content: { type: String, default: '' },
+    confirmText: { type: String, default: '确定' },
+    cancelText: { type: String, default: '取消' },
+    placement: { type: String, default: 'top' },
+    trigger: { type: String, default: 'click' },
+  },
+  emits: ['confirm', 'cancel'],
+  setup(props, { attrs, slots, emit }) {
+    return () =>
+      h(
+        Popconfirm,
+        {
+          ...attrs,
+          content: props.title || props.content,
+          confirmBtn: props.confirmText,
+          cancelBtn: props.cancelText,
+          placement: props.placement,
+          trigger: props.trigger,
+          onConfirm: () => emit('confirm'),
+          onCancel: () => emit('cancel'),
+        },
+        slots,
+      );
+  },
+});
+
+const BkPagination = defineComponent({
+  name: 'bk-pagination',
+  ...mode3,
+  props: {
+    count: { type: Number, default: 0 },
+    current: { type: Number, default: 1 },
+    limit: { type: Number, default: 10 },
+    limitList: { type: Array, default: () => [10, 20, 50, 100] },
+    size: { type: String, default: 'small' },
+    small: { type: Boolean, default: false },
+  },
+  emits: ['change', 'limit-change'],
+  setup(props, { attrs, emit }) {
+    return () =>
+      h(Pagination, {
+        ...attrs,
+        total: props.count,
+        current: props.current,
+        pageSize: props.limit,
+        pageSizeOptions: props.limitList as number[],
+        size: props.small || props.size === 'small' ? 'small' : 'medium',
+        onCurrentChange: (page: number) => emit('change', page),
+        onPageSizeChange: (size: number) => emit('limit-change', size),
+      });
+  },
+});
+
+const BkDatePicker = defineComponent({
+  name: 'bk-date-picker',
+  ...mode3,
+  props: {
+    value: { type: [String, Number, Date, Array], default: undefined },
+    modelValue: { type: [String, Number, Date, Array], default: undefined },
+    type: { type: String, default: 'date' },
+    placeholder: { type: String, default: '' },
+    clearable: { type: Boolean, default: true },
+    disabled: { type: Boolean, default: false },
+  },
+  emits: ['update:modelValue', 'change', 'input'],
+  setup(props, { attrs, emit }) {
+    return () =>
+      h(DatePicker, {
+        ...attrs,
+        value: modelValue(props) as string,
+        enableTimePicker: props.type === 'datetime',
+        placeholder: props.placeholder,
+        clearable: props.clearable,
+        disabled: props.disabled,
+        onChange: (value: unknown) => {
+          emit('update:modelValue', value);
+          emit('input', value);
+          emit('change', value);
+        },
+      });
+  },
+});
+
+const BkTimePicker = defineComponent({
+  name: 'bk-time-picker',
+  ...mode3,
+  props: {
+    value: { type: String, default: undefined },
+    modelValue: { type: String, default: undefined },
+    placeholder: { type: String, default: '' },
+    clearable: { type: Boolean, default: true },
+    disabled: { type: Boolean, default: false },
+  },
+  emits: ['update:modelValue', 'change', 'input'],
+  setup(props, { attrs, emit }) {
+    return () =>
+      h(TimePicker, {
+        ...attrs,
+        value: (modelValue(props) as string) || '',
+        placeholder: props.placeholder,
+        clearable: props.clearable,
+        disabled: props.disabled,
+        onChange: (value: string) => {
+          emit('update:modelValue', value);
+          emit('input', value);
+          emit('change', value);
+        },
+      });
+  },
+});
+
+const BkTabPanel = defineComponent({
+  name: 'bk-tab-panel',
+  ...mode3,
+  setup() {
+    return () => null;
+  },
+});
+
+const BkTab = defineComponent({
+  name: 'bk-tab',
+  ...mode3,
+  props: {
+    active: { type: [String, Number], default: undefined },
+    type: { type: String, default: 'normal' },
+  },
+  emits: ['update:active', 'tab-change', 'tabChange'],
+  setup(props, { attrs, slots, emit }) {
+    return () => {
+      const children = flattenNodes(slots.default?.());
+      const panels = children.filter(node => componentName(node) === 'bk-tab-panel');
+      const rest = children.filter(node => componentName(node) !== 'bk-tab-panel');
+      return h('div', attrs, [
+        h(
+          Tabs,
+          {
+            value: props.active,
+            theme: props.type === 'card' ? 'card' : 'normal',
+            onChange: (value: string | number) => {
+              emit('update:active', value);
+              emit('tab-change', value);
+              emit('tabChange', value);
+            },
+          },
+          () =>
+            panels.map(panel => {
+              const value = attr(panel.props, 'name') as string | number;
+              const labelText = attr(panel.props, 'label') as string;
+              const panelSlots = panel.children as { label?: () => unknown; default?: () => unknown } | null;
+              return h(
+                TabPanel,
+                { key: String(value), value, label: panelSlots?.label ? undefined : labelText },
+                {
+                  label: panelSlots?.label,
+                  default: panelSlots?.default,
+                },
+              );
+            }),
+        ),
+        ...rest,
+      ]);
+    };
+  },
+});
+
 const passthrough = (name: string, component: unknown) => defineComponent({
   name,
   ...mode3,
@@ -795,6 +1036,15 @@ export function installLegacyBkControls(app: App) {
     'bk-radio': passthrough('bk-radio', Radio),
     'bk-radio-group': passthrough('bk-radio-group', RadioGroup),
     'bk-switch': BkSwitch,
+    'bk-switcher': BkSwitch,
+    'bk-slider': BkSlider,
+    'bk-dropdown-menu': BkDropdownMenu,
+    'bk-popconfirm': BkPopconfirm,
+    'bk-pagination': BkPagination,
+    'bk-date-picker': BkDatePicker,
+    'bk-time-picker': BkTimePicker,
+    'bk-tab': BkTab,
+    'bk-tab-panel': BkTabPanel,
     'bk-tag-input': BkTagInput,
     'bk-popover': BkPopover,
     'bk-alert': BkAlert,

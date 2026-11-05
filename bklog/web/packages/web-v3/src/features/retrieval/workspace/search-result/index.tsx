@@ -24,12 +24,14 @@
  * IN THE SOFTWARE.
  */
 
-import { computed, defineAsyncComponent, type ComputedRef, defineComponent, onBeforeUnmount } from 'vue';
+import { computed, defineAsyncComponent, type ComputedRef, defineComponent, KeepAlive, onBeforeUnmount, ref, watch } from 'vue';
 
 import { debounce } from 'lodash-es';
 import { useRoute, useRouter } from 'vue-router';
 
+import ClusteringLoader from '@/app/skeleton/clustering-loader.vue';
 import SearchResultPanel from '../../workbench/search-result-panel/index.vue';
+import SearchResultTab from '../../workbench/search-result-tab/index.vue';
 import RetrieveHelper, { RetrieveEvent } from '../../retrieve-helper';
 import { RouteQueryTab } from '../index.type.tsx';
 import useStore from '@/shared/composables/use-store';
@@ -37,22 +39,42 @@ import useRetrieveEvent from '@/shared/composables/use-retrieve-event';
 
 import './index.scss';
 
+const ResultPanelSkeleton = defineComponent({
+  name: 'ResultPanelSkeleton',
+  setup() {
+    return () => (
+      <div class='v3-result-panel-skeleton'>
+        <ClusteringLoader
+          width-list={[160, 120, 120, '']}
+          loader-len={16}
+          is-loading
+        />
+      </div>
+    );
+  },
+});
+
 // #if MONITOR_APP !== 'apm' && MONITOR_APP !== 'trace'
-const GraphAnalysis = defineAsyncComponent(
-  () =>
+const GraphAnalysis = defineAsyncComponent({
+  loader: () =>
     import(/* webpackChunkName: 'retrieve-graph-analysis' */ '../../workbench/search-result-panel/graph-analysis/index'),
-);
-const SearchResultTab = defineAsyncComponent(
-  () => import(/* webpackChunkName: 'retrieve-result-tab' */ '../../workbench/search-result-tab/index.vue'),
-);
+  loadingComponent: ResultPanelSkeleton,
+  delay: 0,
+});
 // #else
 // #code const GraphAnalysis = () => null
 // #code const SearchResultTab = () => null;
 // #endif
-const Grep = defineAsyncComponent(() => import(/* webpackChunkName: 'retrieve-grep' */ '../grep/index'));
-const LogClustering = defineAsyncComponent(
-  () => import(/* webpackChunkName: 'retrieve-log-clustering' */ './log-clustering/index'),
-);
+const Grep = defineAsyncComponent({
+  loader: () => import(/* webpackChunkName: 'retrieve-grep' */ '../grep/index'),
+  loadingComponent: ResultPanelSkeleton,
+  delay: 0,
+});
+const LogClustering = defineAsyncComponent({
+  loader: () => import(/* webpackChunkName: 'retrieve-log-clustering' */ './log-clustering/index'),
+  loadingComponent: ResultPanelSkeleton,
+  delay: 0,
+});
 
 export default defineComponent({
   name: 'V3ResultContainer',
@@ -72,11 +94,18 @@ export default defineComponent({
         },
       });
     }, 60);
-    const activeTab = computed(() => route.query.tab ?? 'origin') as ComputedRef<string>;
+    const activeTab = ref((route.query.tab as string) ?? 'origin');
+    watch(
+      () => route.query.tab,
+      value => {
+        activeTab.value = (value as string) ?? 'origin';
+      },
+    );
 
     let trendSearchTimer: ReturnType<typeof setTimeout> | null = null;
 
     const handleTabChange = (tab: string, triggerTrend = false) => {
+      activeTab.value = tab;
       debounceUpdateTabValue(tab);
 
       if (triggerTrend) {
@@ -106,26 +135,18 @@ export default defineComponent({
       }
     });
 
-    const renderTabContent = () => {
-      if (activeTab.value === RouteQueryTab.GRAPH_ANALYSIS || activeTab.value === RouteQueryTab.GRAPH_ANALYSIS_LEGACY) {
-        return <GraphAnalysis></GraphAnalysis>;
-      }
-
-      if (activeTab.value === RouteQueryTab.GREP) {
-        return <Grep></Grep>;
-      }
-
-      if (activeTab.value === RouteQueryTab.CLUSTERING) {
-        return <LogClustering />;
-      }
-
-      return (
-        <SearchResultPanel
-          activeTab={activeTab.value}
-          onUpdate:active-tab={handleTabChange}
-        ></SearchResultPanel>
-      );
-    };
+    const isGraphAnalysis = computed(
+      () => activeTab.value === RouteQueryTab.GRAPH_ANALYSIS || activeTab.value === RouteQueryTab.GRAPH_ANALYSIS_LEGACY,
+    );
+    const isGrep = computed(() => activeTab.value === RouteQueryTab.GREP);
+    const isClustering = computed(() => activeTab.value === RouteQueryTab.CLUSTERING);
+    const isOrigin = computed(() => !isGraphAnalysis.value && !isGrep.value && !isClustering.value);
+    const visitedTabs = ref<Record<string, boolean>>({
+      [activeTab.value]: true,
+    });
+    watch(activeTab, value => {
+      visitedTabs.value[value] = true;
+    });
 
     return () => (
       <div class='v3-bklog-body'>
@@ -133,7 +154,41 @@ export default defineComponent({
           value={activeTab.value}
           onInput={handleTabChange}
         ></SearchResultTab>
-        {renderTabContent()}
+        <div class='v3-result-tab-content'>
+          <div
+            v-show={isOrigin.value}
+            class={{ 'v3-tab-pane-active': isOrigin.value }}
+          >
+            <SearchResultPanel
+              activeTab={activeTab.value}
+              onUpdate:active-tab={handleTabChange}
+            ></SearchResultPanel>
+          </div>
+          {(isGraphAnalysis.value || visitedTabs.value[RouteQueryTab.GRAPH_ANALYSIS] || visitedTabs.value[RouteQueryTab.GRAPH_ANALYSIS_LEGACY]) && (
+            <div
+              v-show={isGraphAnalysis.value}
+              class={{ 'v3-tab-pane-active': isGraphAnalysis.value }}
+            >
+              <GraphAnalysis></GraphAnalysis>
+            </div>
+          )}
+          {(isGrep.value || visitedTabs.value[RouteQueryTab.GREP]) && (
+            <div
+              v-show={isGrep.value}
+              class={{ 'v3-tab-pane-active': isGrep.value }}
+            >
+              <Grep></Grep>
+            </div>
+          )}
+          {(isClustering.value || visitedTabs.value[RouteQueryTab.CLUSTERING]) && (
+            <div
+              v-show={isClustering.value}
+              class={{ 'v3-tab-pane-active': isClustering.value }}
+            >
+              <LogClustering />
+            </div>
+          )}
+        </div>
       </div>
     );
   },
