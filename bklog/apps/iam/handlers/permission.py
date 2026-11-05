@@ -319,7 +319,7 @@ class Permission:
         v4_url = self._v4_application_provider().get_permission_center_url()
         if v4_url:
             return v4_url
-        logger.warning("BK_IAM_V4_SAAS_HOST is not configured; fallback to the V3 permission center url")
+        logger.warning("IAM V4 permission center url is unavailable; fallback to the V3 permission center url")
         return self._v3_application_provider().get_permission_center_url()
 
     def get_apply_entry_url(self) -> str:

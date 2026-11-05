@@ -3,6 +3,7 @@ from unittest.mock import Mock, patch
 from django.test import SimpleTestCase, override_settings
 from django.urls import resolve
 
+from apps.iam.backends.v4.provider import V4PermissionProvider
 from apps.iam.handlers.permission import Permission
 from apps.iam.views.meta import MetaViewSet
 from iam_engine.core.config import AuthMode
@@ -88,3 +89,27 @@ class PermissionEntryUrlTest(SimpleTestCase):
         )
         for path in paths:
             self.assertIs(resolve(path).func.cls, MetaViewSet)
+
+
+class V4PermissionCenterUrlTest(SimpleTestCase):
+    @staticmethod
+    def _make_provider() -> V4PermissionProvider:
+        client = Mock()
+        client.options.batch_chunk_size = 100
+        client.options.batch_max_workers = 4
+        return V4PermissionProvider(client)
+
+    @override_settings(BK_IAM_V4_SAAS_HOST="", BK_BKLOG_HOST="https://bklog.example.test")
+    def test_derives_from_bklog_host_when_not_configured(self):
+        self.assertEqual(self._make_provider().get_permission_center_url(), "https://iam.example.test")
+
+    @override_settings(
+        BK_IAM_V4_SAAS_HOST="https://iam-v4.example.test/",
+        BK_BKLOG_HOST="https://bklog.example.test",
+    )
+    def test_explicit_config_wins_and_strips_trailing_slash(self):
+        self.assertEqual(self._make_provider().get_permission_center_url(), "https://iam-v4.example.test")
+
+    @override_settings(BK_IAM_V4_SAAS_HOST="", BK_BKLOG_HOST="https://paas.example.test/o/bk_log_search/")
+    def test_returns_empty_when_host_not_derivable(self):
+        self.assertEqual(self._make_provider().get_permission_center_url(), "")
