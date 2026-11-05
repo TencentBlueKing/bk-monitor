@@ -603,10 +603,12 @@ class GetLogClusteringStatusResource(Resource):
             message = ((sink_resource or {}).get("status") or {}).get("message")
             if not message:
                 return None
-            progress = json.loads(message)
-            if not isinstance(progress, dict):
-                raise ValueError("LogClusteringSink status.message must contain a JSON object")
-            return progress
+            # 新版 message 可为普通状态文本；只有后台收尾会消费旧版 JSON 回执。
+            try:
+                progress = json.loads(message)
+            except (ValueError, TypeError):
+                return None
+            return progress if isinstance(progress, dict) else None
 
         clustering_status = fetch("clustering_status", read_clustering_status)
 

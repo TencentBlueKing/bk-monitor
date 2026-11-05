@@ -41,7 +41,7 @@ export default {
   不以指定值开头: 'Does not start with',
   以指定值结尾: 'Ends with',
   不以指定值结尾: 'Does not end with',
-  '等待 BKBase 确认聚类已关闭': 'Waiting for BKBase to confirm clustering is closed',
+  等待后台资源收尾: 'Waiting for background cleanup',
   '历史聚类结果仍可查询；资源释放状态需单独确认。':
     'Historical results are available. Resource release is confirmed separately.',
   待处理结果数: 'Pending results',

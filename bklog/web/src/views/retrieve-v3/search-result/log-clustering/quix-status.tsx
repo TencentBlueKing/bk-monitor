@@ -65,10 +65,10 @@ export default defineComponent({
           class='quix-status'
           aria-live='polite'
         >
-          <strong>{t(failed ? failureText[operation.operation_type] : phaseText[phase])}</strong>
+          <strong>{t(failed && phase !== 'stopped' ? failureText[operation.operation_type] : phaseText[phase])}</strong>
           {operation?.status === 'awaiting_receipt' && (
             <span>
-              {t(operation.operation_type === 'disable' ? '等待 BKBase 确认聚类已关闭' : '配置已下发，等待采用确认')}
+              {t(operation.operation_type === 'disable' ? '等待后台资源收尾' : '配置已下发，等待采用确认')}
             </span>
           )}
           {operation?.last_error && (failed || operation.status === 'running') && <span>{operation.last_error}</span>}

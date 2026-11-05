@@ -228,7 +228,7 @@ class TestQuixClusteringHandler(TestCase):
 
     def test_access_status_maps_enable_steps(self, mock_delay):
         operation = create_enable_operation()
-        for step in ("create_task", "wait_task_ready", "wait_worker_ready"):
+        for step in ("create_task", "read_binding"):
             operation.record_step(step, ClusteringOperationStatusEnum.SUCCESS.value)
         operation.step = "metadata_set"
         operation.status = ClusteringOperationStatusEnum.FAILED.value
@@ -246,10 +246,10 @@ class TestQuixClusteringHandler(TestCase):
 
     def test_access_status_shows_awaiting_receipt_as_unfinished(self, mock_delay):
         operation = create_enable_operation()
-        for step in ("create_task", "wait_task_ready", "wait_worker_ready", "metadata_set"):
+        for step in ("create_task", "read_binding", "metadata_set"):
             operation.record_step(step, ClusteringOperationStatusEnum.SUCCESS.value)
         operation.record_step("wait_adoption", ClusteringOperationStatusEnum.SUCCESS.value)
-        operation.step = "confirm_adoption"
+        operation.step = "register_query_routes"
         operation.status = ClusteringOperationStatusEnum.AWAITING_RECEIPT.value
         operation.save()
 

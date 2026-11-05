@@ -595,7 +595,7 @@ def test_status_without_progress_does_not_claim_completion(status, clustering_da
 
 
 @pytest.mark.parametrize("message", ["not json", "[]", "null", "true"])
-def test_invalid_progress_reports_error_and_preserves_other_status(message, clustering_datalink, bkbase):
+def test_non_progress_message_preserves_link_status(message, clustering_datalink, bkbase):
     set_config()
     attach_remotely(bkbase)
     bkbase["remote_sink"]["status"]["message"] = message
@@ -605,8 +605,7 @@ def test_invalid_progress_reports_error_and_preserves_other_status(message, clus
     assert result["clustering_status"] is None
     assert result["sink_resource"] == bkbase["remote_sink"]
     assert result["sink_referenced"] is True
-    assert len(result["errors"]) == 1
-    assert result["errors"][0]["source"] == "clustering_status"
+    assert result["errors"] == []
 
 
 def test_status_keeps_databus_when_sink_query_fails(clustering_datalink, bkbase, mocker):

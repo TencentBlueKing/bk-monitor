@@ -91,6 +91,55 @@ class TestQuixDisableRunner(TestCase):
         self.assertEqual(runtime.candidate_boundary, BOUNDARY)
         self.assertEqual(runtime.phase, "stopped")
 
+    @patch("apps.log_clustering.handlers.quix.handler.QuixClusteringHandler._get_bkfara_clustering", return_value={})
+    @patch("apps.log_clustering.handlers.quix.operation.LogIndexSet.set_tag")
+    @patch("apps.log_clustering.tasks.quix.run_quix_clustering_operation.delay")
+    def test_reopen_while_cleanup_waits_cancels_old_stop(self, delay, set_tag, get_clustering):
+        handler = QuixClusteringHandler(LogIndexSet(index_set_id=INDEX_SET_ID, space_uid="bkcc__2"))
+        self.transfer.get_log_clustering_status.side_effect = None
+        self.transfer.get_log_clustering_status.return_value = {"configured": True}
+        self.assertEqual(self.run_operation(), RECEIPT_POLL_INTERVAL_SECONDS)
+        status = handler.get_access_status()
+        self.assertEqual(status["flow_run"]["status"], "SUCCESS")
+        self.assertEqual((status["quix"]["phase"], status["quix"]["can_reopen"]), ("stopped", True))
+        with self.captureOnCommitCallbacks(execute=True):
+            reopen = handler.reopen()
+        delay.assert_called_once_with(reopen)
+        self.assertIsNone(self.run_operation())  # 已经排队的旧收尾任务
+        self.bkfara.stop_clustering.assert_not_called()
+        binding = {"input_topic": "original"}
+        LogClusteringRuntime.objects.filter(index_set_id=INDEX_SET_ID).update(kafka_binding=binding, input_revision=1)
+        self.bkfara.get_clustering.return_value = {"kafka": binding, "input_revision": 1, "state": "RUNNING"}
+        self.transfer.get_log_clustering_status.return_value = {
+            "sink_referenced": True,
+            "sink_resource": {"status": {"phase": "Ok"}},
+            "databus_resource": {"status": {"phase": "Ok"}},
+        }
+        self.assertIsNone(QuixClusteringOperationRunner(reopen).run())
+        self.bkfara.restart_clustering.assert_not_called()
+        self.assertEqual(
+            [c.args[0]["action"] for c in self.transfer.operate_log_clustering.call_args_list],
+            ["disable", "enable", "attach"],
+        )
+
+    @patch("apps.log_clustering.handlers.quix.handler.QuixClusteringHandler._get_bkfara_clustering", return_value={})
+    def test_disable_timeout_does_not_report_stopped(self, get_clustering):
+        self.transfer.operate_log_clustering.side_effect = TimeoutError("unknown apply result")
+        self.assertGreater(self.run_operation(), 0)
+        handler = QuixClusteringHandler(LogIndexSet(index_set_id=INDEX_SET_ID, space_uid="bkcc__2"))
+        self.assertEqual(handler.get_access_status()["quix"]["phase"], "disabling")
+        self.delete_tag.assert_not_called()
+
+    def test_reopen_cannot_overtake_inflight_detach(self):
+        self.transfer.get_log_clustering_status.side_effect = [CLOSED, {**DETACHED, "sink_referenced": True}]
+        self.assertEqual(self.run_operation(), POLL_INTERVAL_SECONDS)
+        handler = QuixClusteringHandler(LogIndexSet(index_set_id=INDEX_SET_ID, space_uid="bkcc__2"))
+        with self.assertRaises(QuixClusteringParamsInvalidException):
+            handler.reopen()
+        self.operation.refresh_from_db()
+        self.assertEqual(self.operation.step, "wait_detached")
+        self.bkfara.restart_clustering.assert_not_called()
+
     def test_bound_stop_waits_for_raw_binding_then_resumes_without_reapplying(self):
         self.transfer.get_log_clustering_status.side_effect = [
             CLOSED,
@@ -110,7 +159,7 @@ class TestQuixDisableRunner(TestCase):
     def test_bound_stop_requires_matching_stopped_response(self):
         self.bkfara.stop_clustering.return_value = {"state": "STOPPED", "stop_boundary": {"0": 0}}
         self.assertEqual(self.run_operation(), POLL_INTERVAL_SECONDS)
-        self.delete_tag.assert_not_called()
+        self.delete_tag.assert_called_once()
         self.bkfara.stop_clustering.return_value = {"state": "STOPPED", "stop_boundary": BOUNDARY}
         self.assertIsNone(self.run_operation())
         first, second = self.bkfara.stop_clustering.call_args_list
