@@ -15,7 +15,7 @@ from apps.log_clustering.exceptions import (
 )
 from apps.log_clustering.handlers.clustering_config import ClusteringConfigHandler
 from apps.log_clustering.handlers.quix.handler import QuixClusteringHandler
-from apps.log_clustering.handlers.quix.operation import RECEIPT_POLL_INTERVAL_SECONDS, QuixClusteringOperationRunner
+from apps.log_clustering.handlers.quix.operation import POLL_INTERVAL_SECONDS, QuixClusteringOperationRunner
 from apps.log_clustering.models import ClusteringConfig, LogClusteringOperation, LogClusteringRuntime
 from apps.log_search.models import LogIndexSet
 from apps.tests.log_clustering.test_quix_operation import INDEX_SET_ID, KAFKA, QUIX_CONFIG
@@ -23,6 +23,7 @@ from apps.tests.log_clustering.test_quix_update import create_running_runtime
 
 ADOPTED = {
     "sink_referenced": True,
+    "databus_resource": {"status": {"phase": "Ok"}},
     "sink_resource": {"spec": {"clustering": {"enabled": True}}, "status": {"phase": "Ok"}},
     "clustering_status": {
         "requested_epoch": "20",
@@ -72,19 +73,11 @@ class TestQuixReopenRunner(TestCase):
     def run_operation(self):
         return QuixClusteringOperationRunner(self.operation.operation_id).run()
 
-    def test_reopen_stops_at_awaiting_receipt(self):
+    def test_reopen_completes_without_runtime_receipt(self):
         self.transfer.get_log_clustering_status.return_value = {**ADOPTED, "clustering_status": {}}
-
-        self.assertEqual(self.run_operation(), RECEIPT_POLL_INTERVAL_SECONDS)
-
-        self.assertEqual(
-            LogClusteringOperation.objects.get(pk=self.operation.pk).status,
-            ClusteringOperationStatusEnum.AWAITING_RECEIPT.value,
-        )
-        self.assertEqual(
-            LogClusteringRuntime.objects.get(index_set_id=INDEX_SET_ID).phase,
-            ClusteringRuntimePhaseEnum.REOPENING.value,
-        )
+        self.assertIsNone(self.run_operation())
+        self.operation.refresh_from_db()
+        self.assertEqual(self.operation.status, "success")
 
     def test_changed_input_topic_blocks_enable_while_worker_is_not_ready(self):
         self.bkfara.get_clustering.return_value["kafka"] = {**KAFKA, "input_topic": "changed-topic"}
@@ -126,16 +119,13 @@ class TestQuixReopenRunner(TestCase):
         self.assertTrue(ClusteringConfig.objects.get(index_set_id=INDEX_SET_ID).access_finished)
 
     def test_stale_receipts_do_not_finish_or_repeat_provider_writes(self):
-        progress = ADOPTED["clustering_status"]
         self.transfer.get_log_clustering_status.side_effect = [
-            {**ADOPTED, "clustering_status": {**progress, "applied_epoch": "19"}},
-            {**ADOPTED, "clustering_status": {**progress, "phase": "STOPPED"}},
-            {**ADOPTED, "sink_resource": {"spec": {"clustering": {"enabled": False}}, "status": {"phase": "Ok"}}},
+            {**ADOPTED, "databus_resource": {"status": {"phase": "Pending"}}},
             {**ADOPTED, "sink_referenced": False},
             ADOPTED,
         ]
-        for _ in range(4):
-            self.assertEqual(self.run_operation(), RECEIPT_POLL_INTERVAL_SECONDS)
+        for _ in range(2):
+            self.assertEqual(self.run_operation(), POLL_INTERVAL_SECONDS)
             runtime = LogClusteringRuntime.objects.get(index_set_id=INDEX_SET_ID)
             self.assertEqual((runtime.phase, runtime.candidate_boundary), ("reopening", {"0": 10}))
         self.assertIsNone(self.run_operation())
@@ -180,7 +170,8 @@ class TestQuixClusteringHandlerReopen(TestCase):
         self.runtime.save()
         LogClusteringRuntime.objects.filter(pk=self.runtime.pk).update(phase=ClusteringRuntimePhaseEnum.STOPPED.value)
 
-        operation_id = QuixClusteringHandler(self.index_set).reopen()
+        with self.captureOnCommitCallbacks(execute=True):
+            operation_id = QuixClusteringHandler(self.index_set).reopen()
 
         self.assertEqual(
             LogClusteringRuntime.objects.get(pk=self.runtime.pk).phase, ClusteringRuntimePhaseEnum.REOPENING.value

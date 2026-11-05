@@ -4,9 +4,9 @@
 
 返回本地保存的绑定，并原样透传 BKBase 回读的聚类 Sink、Databus 资源。聚类进度从 LogClusteringSink 的 `status.message` JSON 对象解析，不请求专用 Databus 状态接口。
 sink_referenced、raw_sink_referenced 只说明远端 Databus 配置的引用情况，不代表 Runtime 已实际采用。
-远端查询失败或进度 JSON 格式不正确时，不影响其他字段返回，错误记录在 errors 中。
+远端查询错误记录在 errors 中。普通文本状态消息保留在资源中，clustering_status 返回 null。
 
-资源不存在、status 缺失或 message 为空时，clustering_status 为 null，表示暂无进度，不能视为已完成。解析结果保留 BKBase 返回的全部字段，包括 configuration_applied、clustering_closed 等；调用方应结合本次目标 spec 和请求／采用代次判断进度。资源 phase=Ok 或 Databus 引用存在均不代表本次配置已实际采用。业务开关以 sink_resource.spec.clustering.enabled 回读，本地 attached 仅表示目标引用状态。
+资源不存在、status 缺失或 message 为空时，clustering_status 为 null，表示暂无进度，不能视为已完成。解析结果保留 BKBase 返回的全部字段，包括 configuration_applied、clustering_closed 等；旧版回执供后台收尾核对。产品开启、更新和重开在 Databus 引用目标 Sink 且两者 phase 均为 Ok 时确认链路就绪。资源 phase=Ok 或 Databus 引用存在均不代表本次配置已实际采用。业务开关以 sink_resource.spec.clustering.enabled 回读，本地 attached 仅表示目标引用状态。
 
 ### 请求参数
 

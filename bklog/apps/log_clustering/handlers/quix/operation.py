@@ -26,6 +26,7 @@ from django.utils import timezone
 from django.utils.functional import cached_property
 
 from apps.api import BkFaraApi, TransferApi
+from apps.exceptions import ApiRequestError
 from apps.log_clustering.constants import (
     ClusteringOperationStatusEnum,
     ClusteringOperationTypeEnum,
@@ -60,25 +61,16 @@ NON_RETRYABLE_EXCEPTIONS = (
 )
 
 
-def runtime_adoption_confirmed(status: dict) -> bool:
-    """读取 BKBase 回执；资源存在或 phase=Ok 本身不能代表配置已采用。"""
-    sink_phase = ((status.get("sink_resource") or {}).get("status") or {}).get("phase")
+def link_is_ready(status: dict) -> bool:
     return (
-        not status.get("errors")
-        and bool(status.get("sink_referenced"))
-        and sink_phase == "Ok"
-        and (status.get("clustering_status") or {}).get("configuration_applied") is True
+        bool(status.get("sink_referenced"))
+        and ((status.get("sink_resource") or {}).get("status") or {}).get("phase") == "Ok"
+        and ((status.get("databus_resource") or {}).get("status") or {}).get("phase") == "Ok"
     )
 
 
-def is_worker_ready(clustering: dict) -> bool:
-    """所有目标 Worker 已加载目标模型；成员列表包含历史实例，不能按条数判断"""
-    target_model_ref = clustering.get("target_model_ref")
-    return (
-        clustering.get("state") == "RUNNING"
-        and bool(target_model_ref)
-        and clustering.get("all_ready_model_ref") == target_model_ref
-    )
+class ModelParameterRejected(Exception):
+    """本次 PATCH 已明确拒绝，可结束操作并接受下一次修改。"""
 
 
 class QuixClusteringOperationRunner:
@@ -90,11 +82,8 @@ class QuixClusteringOperationRunner:
     STEPS = {
         ClusteringOperationTypeEnum.ENABLE.value: [
             "create_task",
-            "wait_task_ready",
-            "wait_worker_ready",
+            "read_binding",
             "metadata_set",
-            "wait_adoption",
-            "confirm_adoption",
             "register_query_routes",
         ],
         # 同时修改模型和过滤时，先由 BKFara 接受模型参数，再下发过滤配置。
@@ -102,8 +91,6 @@ class QuixClusteringOperationRunner:
             "update_model_parameters",
             "confirm_model_parameters",
             "metadata_set",
-            "wait_adoption",
-            "confirm_adoption",
             "register_query_routes",
         ],
         ClusteringOperationTypeEnum.UPDATE_MODEL.value: [
@@ -113,6 +100,7 @@ class QuixClusteringOperationRunner:
         # 本次业务收尾完成且 Databus 恢复原存储配置后，才向 BKFara 提交最终完成确认
         ClusteringOperationTypeEnum.DISABLE.value: [
             "disable_clustering",
+            "clear_local_clustering",
             "confirm_closed",
             "detach",
             "wait_detached",
@@ -124,10 +112,9 @@ class QuixClusteringOperationRunner:
             "check_reopen_binding",
             "enable_clustering",
             "attach",
-            "confirm_reopen",
+            "wait_link",
         ],
     }
-    RECEIPT_STEPS = {"confirm_adoption", "confirm_closed", "confirm_reopen"}
 
     def __init__(self, operation_id: str):
         self.operation = LogClusteringOperation.objects.get(operation_id=operation_id)
@@ -154,10 +141,16 @@ class QuixClusteringOperationRunner:
             self.operation.save(update_fields=["step", "updated_at", "updated_by"])
             try:
                 done = getattr(self, f"_step_{step}")()
+            except ModelParameterRejected as e:
+                with transaction.atomic():
+                    self._save_runtime(phase=ClusteringRuntimePhaseEnum.RUNNING.value, pending_config=None)
+                    self.operation.finished_at = timezone.now()
+                    self._fail(step, str(e), status=ClusteringOperationStatusEnum.CANCELED.value)
+                return None
             except Exception as e:  # pylint: disable=broad-except
                 return self._handle_error(step, e)
             if not done:
-                return self._await_receipt(step) if step in self.RECEIPT_STEPS else self._wait(step)
+                return self._await_receipt(step) if step == "confirm_closed" else self._wait(step)
             self.operation.retry_count = 0
             if self.operation.status == ClusteringOperationStatusEnum.AWAITING_RECEIPT.value:
                 self.operation.status = ClusteringOperationStatusEnum.RUNNING.value
@@ -206,6 +199,7 @@ class QuixClusteringOperationRunner:
                 return datetime.datetime.strptime(item["time"], STEP_TIME_FORMAT).replace(tzinfo=datetime.timezone.utc)
         return None
 
+    @transaction.atomic
     def _await_receipt(self, step: str) -> int:
         self.operation.status = ClusteringOperationStatusEnum.AWAITING_RECEIPT.value
         self.operation.save(update_fields=["status", "updated_at", "updated_by"])
@@ -226,12 +220,20 @@ class QuixClusteringOperationRunner:
         self.operation.save(update_fields=["retry_count", "last_error", "updated_at", "updated_by"])
         return self._schedule(min(POLL_INTERVAL_SECONDS * 2**self.operation.retry_count, MAX_RETRY_DELAY_SECONDS))
 
-    def _fail(self, step: str, message: str) -> None:
-        self.operation.status = ClusteringOperationStatusEnum.FAILED.value
+    def _fail(self, step: str, message: str, status=ClusteringOperationStatusEnum.FAILED.value) -> None:
+        self.operation.status = status
         self.operation.last_error = message
         self.operation.next_retry_at = None
         self.operation.save(
-            update_fields=["status", "last_error", "retry_count", "next_retry_at", "updated_at", "updated_by"]
+            update_fields=[
+                "status",
+                "last_error",
+                "retry_count",
+                "next_retry_at",
+                "finished_at",
+                "updated_at",
+                "updated_by",
+            ]
         )
         self.operation.record_step(step, ClusteringOperationStatusEnum.FAILED.value, message)
         return None
@@ -264,18 +266,25 @@ class QuixClusteringOperationRunner:
         self._save_runtime(bkfara_task_id=result["task_id"])
         return True
 
-    def _step_wait_task_ready(self) -> bool:
+    def _step_read_binding(self) -> bool:
+        if (
+            self.runtime.kafka_binding
+            and self.runtime.input_revision is not None
+            and self.runtime.generation is not None
+        ):
+            return True
         task = BkFaraApi.get_task({"task_id": self.runtime.bkfara_task_id})
-        if task.get("status") != "READY" or not task.get("trained_model_ref"):
+        if task.get("current_generation") is None:
             return False
-        self._save_runtime(control_version=task["control_version"], generation=task["current_generation"])
-        return True
-
-    def _step_wait_worker_ready(self) -> bool:
         clustering = BkFaraApi.get_clustering({"task_id": self.runtime.bkfara_task_id})
-        if not is_worker_ready(clustering):
+        if not clustering.get("kafka") or clustering.get("input_revision") is None:
             return False
-        self._save_runtime(kafka_binding=clustering["kafka"], input_revision=clustering["input_revision"])
+        self._save_runtime(
+            control_version=task["control_version"],
+            generation=task["current_generation"],
+            kafka_binding=clustering["kafka"],
+            input_revision=clustering["input_revision"],
+        )
         return True
 
     def _step_metadata_set(self) -> bool:
@@ -302,7 +311,7 @@ class QuixClusteringOperationRunner:
             if any(error.get("retryable") is False for error in errors):
                 raise QuixClusteringParamsInvalidException(message)
             raise RuntimeError(message)
-        if not runtime_adoption_confirmed(status):
+        if not link_is_ready(status):
             return False
         targets = status["query_targets"]
         if targets is None:
@@ -348,16 +357,6 @@ class QuixClusteringOperationRunner:
             )
         return True
 
-    def _step_wait_adoption(self) -> bool:
-        # 配置层就绪：Databus 引用聚类 Sink 且资源就绪；任一远端状态查询失败都视为未就绪
-        status = TransferApi.get_log_clustering_status(self._metadata_params())
-        sink_phase = ((status.get("sink_resource") or {}).get("status") or {}).get("phase")
-        return not status.get("errors") and bool(status.get("sink_referenced")) and sink_phase == "Ok"
-
-    def _step_confirm_adoption(self) -> bool:
-        status = TransferApi.get_log_clustering_status(self._metadata_params())
-        return not status.get("errors") and runtime_adoption_confirmed(status)
-
     def _promote_pending_config(self, **fields):
         # 待生效配置已提升过时不能再次提升，否则会把空配置写入生效配置
         if self.runtime.pending_config is not None:
@@ -378,9 +377,19 @@ class QuixClusteringOperationRunner:
 
         # 固定版本和请求体；超时重试沿用幂等键，不创建任务或重置已有模型。
         payload = self.operation.get_request_payload("update_model_parameters", build_payload)
-        BkFaraApi.update_task_parameters(
-            {**payload, "Idempotency-Key": self.operation.get_idempotency_key("update_model_parameters")}
-        )
+        try:
+            BkFaraApi.update_task_parameters(
+                {**payload, "Idempotency-Key": self.operation.get_idempotency_key("update_model_parameters")}
+            )
+        except ApiRequestError as exc:
+            if exc.http_status == 409:
+                current = BkFaraApi.get_task_parameters({"task_id": self.runtime.bkfara_task_id})
+                actual = (current.get("training") or {}).get("parameters") or {}
+                if all(actual.get(key) == value for key, value in payload["training"]["parameters"].items()):
+                    return True
+            elif exc.http_status != 422:
+                raise
+            raise ModelParameterRejected(str(exc)) from exc
         return True
 
     def _step_confirm_model_parameters(self) -> bool:
@@ -394,13 +403,16 @@ class QuixClusteringOperationRunner:
         # 这里只确认任务配置已提交。已有模型的增量训练及 Worker 采用由 BKFara 负责，
         # 不能把历史 adoptions 或当前 Worker READY 当成新参数训练完成的证明。
         with transaction.atomic():
-            business_fields = self.operation.request_snapshot.get("business_fields")
+            business_fields = dict(self.operation.request_snapshot.get("business_fields") or {})
             if business_fields:
                 ClusteringConfig.objects.filter(index_set_id=self.runtime.index_set_id).update(**business_fields)
             self._save_runtime(control_version=current["control_version"])
         return True
 
     def _finish_update(self):
+        ClusteringConfig.objects.filter(index_set_id=self.runtime.index_set_id).update(
+            filter_rules=self.operation.request_snapshot["filter_rules"]
+        )
         self._promote_pending_config(phase=ClusteringRuntimePhaseEnum.RUNNING.value)
 
     def _finish_update_model(self):
@@ -414,6 +426,12 @@ class QuixClusteringOperationRunner:
         # sink 在 metadata 写入确认后才保存，且解绑不清空。因此只有从未绑定的任务才能跳过。
         # 本地 attached 是目标状态，不能用于判定 Runtime 是否已解绑。
         return self._operate_metadata("disable") if self.runtime.sink else True
+
+    @transaction.atomic
+    def _step_clear_local_clustering(self) -> bool:
+        ClusteringConfig.objects.filter(index_set_id=self.runtime.index_set_id).update(access_finished=False)
+        LogIndexSet.delete_tag_by_name(self.runtime.index_set_id, InnerTag.CLUSTERING.value)
+        return True
 
     def _step_confirm_closed(self) -> bool:
         if not self.runtime.sink:
@@ -484,6 +502,9 @@ class QuixClusteringOperationRunner:
         return result.get("state") == "STOPPED" and result.get("stop_boundary") == payload["boundary"]
 
     def _step_restart(self) -> bool:
+        if self.operation.request_snapshot.get("worker_kept_running"):
+            return True
+
         def build_payload():
             task = BkFaraApi.get_task({"task_id": self.runtime.bkfara_task_id})
             return {"task_id": self.runtime.bkfara_task_id, "expected_control_version": task["control_version"]}
@@ -514,17 +535,9 @@ class QuixClusteringOperationRunner:
     def _step_attach(self) -> bool:
         return self._operate_metadata("attach")
 
-    def _step_confirm_reopen(self) -> bool:
+    def _step_wait_link(self) -> bool:
         status = TransferApi.get_log_clustering_status(self._metadata_params())
-        resource = status.get("sink_resource") or {}
-        progress = status.get("clustering_status") or {}
-        return (
-            runtime_adoption_confirmed(status)
-            and (resource.get("spec") or {}).get("clustering", {}).get("enabled") is True
-            and bool(progress.get("requested_epoch"))
-            and progress.get("applied_epoch") == progress["requested_epoch"]
-            and progress.get("phase") == "RUNNING"
-        )
+        return not status.get("errors") and link_is_ready(status)
 
     def _finish_reopen(self):
         self._save_runtime(phase=ClusteringRuntimePhaseEnum.RUNNING.value, candidate_boundary=None)
@@ -533,8 +546,6 @@ class QuixClusteringOperationRunner:
 
     def _finish_disable(self):
         self._save_runtime(phase=ClusteringRuntimePhaseEnum.STOPPED.value)
-        ClusteringConfig.objects.filter(index_set_id=self.runtime.index_set_id).update(access_finished=False)
-        LogIndexSet.delete_tag_by_name(self.runtime.index_set_id, InnerTag.CLUSTERING.value)
 
     def _finish_enable(self):
         self._promote_pending_config(phase=ClusteringRuntimePhaseEnum.RUNNING.value)

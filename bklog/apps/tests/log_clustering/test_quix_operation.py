@@ -14,7 +14,6 @@ from apps.log_clustering.exceptions import QuixClusteringConfigInvalidException
 from apps.log_clustering.handlers.quix.adapter import build_clustering_config
 from apps.log_clustering.handlers.quix.operation import (
     POLL_INTERVAL_SECONDS,
-    RECEIPT_POLL_INTERVAL_SECONDS,
     WAIT_TIMEOUT_SECONDS,
     QuixClusteringOperationRunner,
 )
@@ -39,6 +38,7 @@ SET_RESULT = {
 }
 ADOPTED_STATUS = {
     "sink_referenced": True,
+    "databus_resource": {"status": {"phase": "Ok"}},
     "sink_resource": {"status": {"phase": "Ok"}},
     "errors": [],
     "query_targets": {
@@ -137,12 +137,6 @@ class TestQuixEnableRunner(TestCase):
             access_finished=False,
         )
 
-    def confirm_receipt(self, confirmed=True):
-        self.transfer.get_log_clustering_status.return_value = {
-            **ADOPTED_STATUS,
-            "clustering_status": {"configuration_applied": confirmed},
-        }
-
     def test_canceled_operation_is_not_restarted_by_stale_runner(self):
         runner = QuixClusteringOperationRunner(self.operation.operation_id)
         LogClusteringOperation.objects.filter(pk=self.operation.pk).update(
@@ -157,60 +151,23 @@ class TestQuixEnableRunner(TestCase):
             ClusteringOperationStatusEnum.CANCELED.value,
         )
 
-    def test_receipt_poll_is_running_until_external_request_finishes(self):
-        self.run_operation()
-        observed_statuses = []
+    def test_binding_available_before_workers_ready(self):
+        self.bkfara.get_task.return_value.update(status="TRAINING", trained_model_ref=None)
+        self.bkfara.get_clustering.return_value.update(state="STARTING", all_ready_model_ref=None)
+        self.assertIsNone(self.run_operation())
+        self.transfer.set_log_clustering_config.assert_called_once()
+        self.assertEqual(LogClusteringRuntime.objects.get(index_set_id=INDEX_SET_ID).phase, "running")
 
-        def get_status(params):
-            observed_statuses.append(LogClusteringOperation.objects.get(pk=self.operation.pk).status)
-            return ADOPTED_STATUS
-
-        self.transfer.get_log_clustering_status.side_effect = get_status
-        self.assertEqual(self.run_operation(), RECEIPT_POLL_INTERVAL_SECONDS)
-        self.assertEqual(observed_statuses, [ClusteringOperationStatusEnum.RUNNING.value])
-        self.assertEqual(
-            LogClusteringOperation.objects.get(pk=self.operation.pk).status,
-            ClusteringOperationStatusEnum.AWAITING_RECEIPT.value,
-        )
-
-    def test_enable_stops_at_awaiting_receipt_without_claiming_running(self):
-        self.create_clustering_config()
-
-        self.assertEqual(self.run_operation(), RECEIPT_POLL_INTERVAL_SECONDS)
-
-        operation = LogClusteringOperation.objects.get(pk=self.operation.pk)
-        self.assertEqual(operation.status, ClusteringOperationStatusEnum.AWAITING_RECEIPT.value)
-        params = self.transfer.set_log_clustering_config.call_args.args[0]
-        for field in ("kafka_resource", "runtime_cluster", "recovery_resource"):
-            self.assertEqual(params[field], QUIX_CONFIG[field])
-        self.assertNotIn("pattern_index", params["binding"])
-        self.assertNotIn("pattern_resource", params)
-        self.assertNotIn("pattern_store", params)
-        self.assertEqual(params["result_mode"], "update_original")
-
-        self.assertEqual(operation.step, "confirm_adoption")
-        runtime = LogClusteringRuntime.objects.get(index_set_id=INDEX_SET_ID)
-        self.assertEqual(runtime.phase, ClusteringRuntimePhaseEnum.ENABLING.value)
-        self.assertIsNotNone(runtime.pending_config)
-        self.assertFalse(ClusteringConfig.objects.get(index_set_id=INDEX_SET_ID).access_finished)
-
-        # 回执到位前不按等待超时判失败
-        operation.steps[-1]["time"] = "2000-01-01 00:00:00"
-        operation.save()
-        self.assertEqual(self.run_operation(), RECEIPT_POLL_INTERVAL_SECONDS)
-        self.assertEqual(
-            LogClusteringOperation.objects.get(pk=self.operation.pk).status,
-            ClusteringOperationStatusEnum.AWAITING_RECEIPT.value,
-        )
+    def test_missing_input_revision_waits_without_submitting(self):
+        self.bkfara.get_clustering.return_value["input_revision"] = None
+        self.assertEqual(self.run_operation(), POLL_INTERVAL_SECONDS)
+        self.transfer.set_log_clustering_config.assert_not_called()
 
     def test_register_routes_records_metadata_errors_and_only_waits_when_pending(self):
-        self.confirm_receipt()
         ready = self.transfer.get_log_clustering_status.return_value
         transient = {"source": "sink_resource", "message": "gateway unavailable"}
         invalid = {"source": "query_targets", "message": "binding timezone mismatch", "retryable": False}
         self.transfer.get_log_clustering_status.side_effect = [
-            ready,
-            ready,
             {**ready, "query_targets": None},
             {**ready, "errors": [transient]},
             {**ready, "errors": [invalid]},
@@ -234,7 +191,6 @@ class TestQuixEnableRunner(TestCase):
         self.transfer.bulk_create_or_update_log_router.assert_not_called()
 
     def test_pattern_registration_retries_bulk_route_without_reapplying_binding(self):
-        self.confirm_receipt()
         self.transfer.bulk_create_or_update_log_router.side_effect = [
             None,
             ApiRequestError("publish failed"),
@@ -287,10 +243,9 @@ class TestQuixEnableRunner(TestCase):
         self.assertEqual(table["query_alias_settings"], [{"field_name": "log_signature", "query_alias": "signature"}])
         self.assertEqual(pattern["table_info"][0]["index_set"], targets["pattern"]["query_index"])
 
-    def test_enable_runs_through_and_activates_config_after_receipt(self):
+    def test_enable_activates_config_after_route_registration(self):
         self.create_clustering_config()
         self.run_operation()
-        self.confirm_receipt()
 
         self.assertIsNone(self.run_operation())
 
@@ -318,14 +273,14 @@ class TestQuixEnableRunner(TestCase):
 
         self.assertEqual(self.run_operation(), POLL_INTERVAL_SECONDS)
         operation = LogClusteringOperation.objects.get(pk=self.operation.pk)
-        self.assertEqual(operation.step, "wait_task_ready")
+        self.assertEqual(operation.step, "read_binding")
         self.assertIsNotNone(operation.next_retry_at)
 
         self.run_operation()
 
         self.bkfara.create_task.assert_called_once()
         operation.refresh_from_db()
-        self.assertEqual([item["step"] for item in operation.steps], ["create_task", "wait_task_ready"])
+        self.assertEqual([item["step"] for item in operation.steps], ["create_task", "read_binding"])
 
     def test_wait_timeout_fails_operation(self):
         self.bkfara.get_task.return_value = {"status": "TRAINING"}
@@ -373,19 +328,13 @@ class TestQuixEnableRunner(TestCase):
         self.assertEqual(request["profile"], QUIX_CONFIG["profile"])
         self.assertNotIn("kafka", request)
 
-    def test_receipt_with_errors_or_detached_sink_cannot_finish(self):
-        self.run_operation()
-        for changes in (
-            {"errors": ["unavailable"]},
-            {"sink_referenced": False},
-            {"sink_resource": {"status": {"phase": "Pending"}}},
-        ):
-            self.transfer.get_log_clustering_status.return_value = {
-                **ADOPTED_STATUS,
-                "clustering_status": {"configuration_applied": True},
-                **changes,
-            }
-            self.assertEqual(self.run_operation(), RECEIPT_POLL_INTERVAL_SECONDS)
+    def test_pending_databus_does_not_publish_routes(self):
+        self.transfer.get_log_clustering_status.return_value = {
+            **ADOPTED_STATUS,
+            "databus_resource": {"status": {"phase": "Pending"}},
+        }
+        self.assertEqual(self.run_operation(), POLL_INTERVAL_SECONDS)
+        self.transfer.bulk_create_or_update_log_router.assert_not_called()
 
     def test_adoption_waits_until_databus_references_sink(self):
         self.transfer.get_log_clustering_status.return_value = {**ADOPTED_STATUS, "sink_referenced": False}
@@ -399,11 +348,11 @@ class TestQuixEnableRunner(TestCase):
     def test_adoption_waits_when_remote_status_query_failed(self):
         self.transfer.get_log_clustering_status.return_value = {
             **ADOPTED_STATUS,
-            "errors": [{"source": "clustering_status", "message": "timeout"}],
+            "errors": [{"source": "databus_resource", "message": "timeout"}],
         }
 
-        self.assertEqual(self.run_operation(), POLL_INTERVAL_SECONDS)
-        self.assertEqual(LogClusteringOperation.objects.get(pk=self.operation.pk).step, "wait_adoption")
+        self.assertGreater(self.run_operation(), POLL_INTERVAL_SECONDS)
+        self.assertEqual(LogClusteringOperation.objects.get(pk=self.operation.pk).step, "register_query_routes")
 
     def test_resumed_wait_after_timeout_restarts_wait_clock(self):
         self.bkfara.get_task.return_value = {"status": "TRAINING"}
@@ -438,7 +387,6 @@ class TestQuixEnableRunner(TestCase):
 
     def test_finish_is_atomic_with_operation_success(self):
         self.create_clustering_config()
-        self.confirm_receipt()
 
         with patch(
             "apps.log_clustering.handlers.quix.operation.LogIndexSet.set_tag", Mock(side_effect=RuntimeError("down"))
@@ -455,7 +403,6 @@ class TestQuixEnableRunner(TestCase):
 
     def test_finish_rerun_does_not_promote_cleared_pending_config(self):
         self.create_clustering_config()
-        self.confirm_receipt()
         self.run_operation()
         runtime = LogClusteringRuntime.objects.get(index_set_id=INDEX_SET_ID)
         active_config = runtime.active_config

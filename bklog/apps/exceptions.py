@@ -130,6 +130,8 @@ class PermissionError(BaseException):
 
 
 class ApiRequestError(ApiError):
+    http_status: int | None = None
+
     # 属于严重的场景，一般为第三方服务挂了，ESB调用超时
     MESSAGE = _("服务不稳定，请检查组件健康状况")
     ERROR_CODE = "015"

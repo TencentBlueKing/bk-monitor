@@ -9,7 +9,7 @@
 
 `disable/enable` 复用已有资源，不创建资源、不修改模型或过滤规则、不重下发 Databus。远端聚类资源不存在时返回错误。`enabled` 由远端资源回读，普通配置合并保留该值，不新增本地状态副本。
 
-业务关闭顺序：`disable` → 回读并确认本次 `clustering_closed` → `detach` → 确认实际解绑 → 停止 BKFara 任务。业务重开由调用方先准备好 BKFara Worker，再 `enable`、`attach`。调用方负责分步编排；本接口不轮询或代替调用方判定完成。
+BKBase 成功受理 disable（enabled=false）即为产品停用。后台在取得真实关闭边界后 detach，确认原存储绑定并停止 BKFara；等待边界期间重开可沿用尚在运行的原任务。完整关闭后的重开先 restart，再核对原 Kafka 绑定与 input_revision，执行 enable、attach 并查询链路状态。
 
 动作成功只表示本次下发成功，不代表实际收尾、采用或解绑已完成；通过 `get_log_clustering_status` 回读。过滤更新直接使用 `set_log_clustering_config`，不执行这些业务关闭动作。旧 `drain/finish/resume` 动作不再支持。
 

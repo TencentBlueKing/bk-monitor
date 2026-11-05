@@ -2,6 +2,7 @@ from unittest.mock import MagicMock, Mock, patch
 
 from django.test import TestCase
 
+from apps.exceptions import ApiRequestError
 from apps.log_clustering.constants import (
     ClusteringOperationStatusEnum,
     ClusteringOperationTypeEnum,
@@ -12,7 +13,6 @@ from apps.log_clustering.handlers.quix.adapter import build_clustering_config
 from apps.log_clustering.handlers.quix.handler import QuixClusteringHandler
 from apps.log_clustering.handlers.quix.operation import (
     POLL_INTERVAL_SECONDS,
-    RECEIPT_POLL_INTERVAL_SECONDS,
     QuixClusteringOperationRunner,
 )
 from apps.log_clustering.models import ClusteringConfig, LogClusteringOperation, LogClusteringRuntime
@@ -86,14 +86,14 @@ class TestQuixUpdateRunner(TestCase):
     def run_operation(self):
         return QuixClusteringOperationRunner(self.operation.operation_id).run()
 
-    def test_update_stops_at_awaiting_receipt_without_promoting_rules(self):
-        self.transfer.get_log_clustering_status.return_value = {**ADOPTED, "clustering_status": {}}
+    def test_update_waits_for_link_without_promoting_rules(self):
+        self.transfer.get_log_clustering_status.return_value = {**ADOPTED, "sink_referenced": False}
 
-        self.assertEqual(self.run_operation(), RECEIPT_POLL_INTERVAL_SECONDS)
+        self.assertEqual(self.run_operation(), POLL_INTERVAL_SECONDS)
 
         self.assertEqual(
             LogClusteringOperation.objects.get(pk=self.operation.pk).status,
-            ClusteringOperationStatusEnum.AWAITING_RECEIPT.value,
+            ClusteringOperationStatusEnum.RUNNING.value,
         )
         runtime = LogClusteringRuntime.objects.get(index_set_id=INDEX_SET_ID)
         self.assertEqual(runtime.phase, ClusteringRuntimePhaseEnum.UPDATING.value)
@@ -110,17 +110,18 @@ class TestQuixUpdateRunner(TestCase):
         self.assertEqual(runtime.phase, ClusteringRuntimePhaseEnum.RUNNING.value)
         self.assertEqual(runtime.active_config["log_filter"][0]["value"], ["WARN"])
         self.assertIsNone(runtime.pending_config)
+        self.assertEqual(ClusteringConfig.objects.get(index_set_id=INDEX_SET_ID).filter_rules, WARN_RULES)
 
     def test_resource_not_ready_does_not_promote_filter(self):
-        self.transfer.get_log_clustering_status.return_value = {"errors": ["not ready"]}
+        self.transfer.get_log_clustering_status.return_value = {"sink_referenced": False}
         self.assertEqual(self.run_operation(), POLL_INTERVAL_SECONDS)
         runtime = LogClusteringRuntime.objects.get(index_set_id=INDEX_SET_ID)
         self.assertEqual(runtime.active_config["log_filter"][0]["value"], ["ERROR"])
         self.transfer.operate_log_clustering.assert_not_called()
 
     def test_receipt_retry_does_not_repeat_config_write(self):
-        self.transfer.get_log_clustering_status.return_value = {**ADOPTED, "clustering_status": {}}
-        self.assertEqual(self.run_operation(), RECEIPT_POLL_INTERVAL_SECONDS)
+        self.transfer.get_log_clustering_status.return_value = {**ADOPTED, "sink_referenced": False}
+        self.assertEqual(self.run_operation(), POLL_INTERVAL_SECONDS)
         self.transfer.get_log_clustering_status.return_value = ADOPTED
         self.assertIsNone(self.run_operation())
         self.transfer.set_log_clustering_config.assert_called_once()
@@ -130,7 +131,11 @@ class TestQuixUpdateRunner(TestCase):
         self.operation.operation_type = (
             ClusteringOperationTypeEnum.UPDATE.value if mixed else ClusteringOperationTypeEnum.UPDATE_MODEL.value
         )
-        self.operation.request_snapshot = {"update_model": True, "model_parameters": self.parameters}
+        self.operation.request_snapshot = {
+            "update_model": True,
+            "model_parameters": self.parameters,
+            "filter_rules": WARN_RULES,
+        }
         self.operation.save()
         if not mixed:
             LogClusteringRuntime.objects.filter(index_set_id=INDEX_SET_ID).update(pending_config=None)
@@ -202,6 +207,18 @@ class TestQuixUpdateRunner(TestCase):
         )
         self.assertEqual(self.transfer.mock_calls, [])
 
+    def test_version_conflict_reads_back_matching_target(self):
+        self.prepare_model_update()
+        failure = ApiRequestError("CONTROL_VERSION_CONFLICT")
+        failure.http_status = 409
+        self.bkfara.update_task_parameters.side_effect = failure
+        saved = {"control_version": 5, "training": {"parameters": self.parameters}}
+        self.bkfara.get_task_parameters.side_effect = [{"control_version": 4}, saved, saved]
+        self.assertIsNone(self.run_operation())
+        self.operation.refresh_from_db()
+        self.assertEqual(self.operation.status, "success")
+        self.bkfara.update_task_parameters.assert_called_once()
+
     def test_mixed_update_applies_filter_only_after_model_config_confirmed(self):
         self.prepare_model_update(mixed=True)
         self.bkfara.get_task_parameters.side_effect = [{"control_version": 4}, {"control_version": 4, "training": {}}]
@@ -222,6 +239,25 @@ class TestQuixClusteringHandlerUpdate(TestCase):
     def setUp(self):
         self.runtime = create_running_runtime()
         self.index_set = LogIndexSet(index_set_id=INDEX_SET_ID, space_uid="bkcc__2")
+
+    @patch("apps.log_clustering.handlers.quix.operation.BkFaraApi")
+    def test_rejected_mixed_update_releases_index_for_correction_and_close(self, bkfara, mock_delay):
+        handler = QuixClusteringHandler(self.index_set)
+        bkfara.get_task_parameters.return_value = {"control_version": 4, "training": {"parameters": {}}}
+        for http_status in (409, 422):
+            operation_id = handler.update({"filter_rules": WARN_RULES, "max_log_length": 2000})
+            error = ApiRequestError("parameters rejected")
+            error.http_status = http_status
+            bkfara.update_task_parameters.side_effect = error
+            self.assertIsNone(QuixClusteringOperationRunner(operation_id).run())
+            operation = LogClusteringOperation.objects.get(operation_id=operation_id)
+            self.assertEqual(operation.status, "canceled")
+            self.assertIn("parameters rejected", operation.last_error)
+            config = ClusteringConfig.objects.get(index_set_id=INDEX_SET_ID)
+            self.assertEqual((config.filter_rules, config.max_log_length), (ERROR_RULES, 1000))
+            self.runtime.refresh_from_db()
+            self.assertEqual((self.runtime.phase, self.runtime.pending_config), ("running", None))
+        self.assertTrue(handler.disable())
 
     def test_storage_switch_requires_stopped_runtime(self, mock_delay):
         from apps.log_databus.handlers.etl.transfer import TransferEtlHandler
@@ -274,7 +310,7 @@ class TestQuixClusteringHandlerUpdate(TestCase):
         self.assertEqual(runtime.pending_config["result_mode"], "append")
         self.assertEqual(runtime.active_config["log_filter"][0]["value"], ["ERROR"])
         clustering_config = ClusteringConfig.objects.get(index_set_id=INDEX_SET_ID)
-        self.assertEqual((clustering_config.filter_rules, clustering_config.regex_template_id), (WARN_RULES, 3))
+        self.assertEqual((clustering_config.filter_rules, clustering_config.regex_template_id), (ERROR_RULES, 3))
         mock_delay.assert_called_once_with(operation_id)
 
     def test_update_rolls_back_operation_when_pending_config_save_fails(self, mock_delay):
@@ -437,7 +473,7 @@ class TestQuixClusteringHandlerUpdate(TestCase):
 
         self.runtime.refresh_from_db()
         self.assertEqual(self.runtime.pending_config["log_filter"][0]["value"], ["WARN"])
-        self.assertEqual(ClusteringConfig.objects.get(index_set_id=INDEX_SET_ID).filter_rules, WARN_RULES)
+        self.assertEqual(ClusteringConfig.objects.get(index_set_id=INDEX_SET_ID).filter_rules, ERROR_RULES)
         self.assertEqual(
             list(
                 LogClusteringOperation.objects.filter(
@@ -508,10 +544,10 @@ class TestQuixClusteringHandlerUpdate(TestCase):
     def test_access_status_reports_progress_of_update(self, mock_delay):
         operation_id = QuixClusteringHandler(self.index_set).update({"filter_rules": WARN_RULES})
         LogClusteringOperation.objects.filter(operation_id=operation_id).update(
-            status=ClusteringOperationStatusEnum.RUNNING.value, step="confirm_adoption"
+            status=ClusteringOperationStatusEnum.RUNNING.value, step="register_query_routes"
         )
 
         status = QuixClusteringHandler(self.index_set).get_access_status()
 
         self.assertEqual(status["flow_create"]["status"], "SUCCESS")
-        self.assertEqual(status["flow_run"], {"status": "RUNNING", "message": "confirm_adoption"})
+        self.assertEqual(status["flow_run"], {"status": "RUNNING", "message": "register_query_routes"})

@@ -71,8 +71,8 @@ UNBOUND_RESET_FIELDS = {
 
 # 开启流程中各步骤对应到现有接入状态的三段展示
 ACCESS_STATUS_STEPS = {
-    "flow_create": ("create_task", "wait_task_ready", "wait_worker_ready"),
-    "flow_run": ("metadata_set", "wait_adoption", "confirm_adoption", "register_query_routes", "finish"),
+    "flow_create": ("create_task", "read_binding"),
+    "flow_run": ("metadata_set", "register_query_routes", "finish"),
 }
 
 
@@ -227,12 +227,10 @@ class QuixClusteringHandler:
                     runtime.pending_config = clustering_config if filter_changed else None
                     runtime.phase = ClusteringRuntimePhaseEnum.UPDATING.value
                     runtime.save(update_fields=["pending_config", "phase", "updated_at", "updated_by"])
-            if operation and operation.request_snapshot.get("update_model"):
-                # 模型相关的页面配置随 BKFara 回读一起保存，失败后仍以最后确认值判断变化。
-                business_fields = {}
-            ClusteringConfig.objects.filter(index_set_id=self.index_set_id).update(
-                filter_rules=filter_rules, **business_fields
-            )
+            if not operation:
+                business_fields["filter_rules"] = filter_rules
+            if business_fields and not (operation and operation.request_snapshot.get("update_model")):
+                ClusteringConfig.objects.filter(index_set_id=self.index_set_id).update(**business_fields)
         if not operation:
             return None
         if operation.status == ClusteringOperationStatusEnum.PENDING.value:
@@ -266,11 +264,12 @@ class QuixClusteringHandler:
         run_quix_clustering_operation.delay(operation.operation_id)
         return operation.operation_id
 
+    @transaction.atomic
     def reopen(self) -> str:
         """重开已关闭的聚类，复用原任务和绑定；返回操作ID"""
         from apps.log_clustering.tasks.quix import run_quix_clustering_operation
 
-        runtime = LogClusteringRuntime.objects.get(index_set_id=self.index_set_id)
+        runtime = LogClusteringRuntime.objects.select_for_update().get(index_set_id=self.index_set_id)
         if not runtime.sink or not runtime.bkfara_task_id:
             detail = (
                 _("未建立聚类 Sink 绑定，请通过开启入口接入聚类")
@@ -284,15 +283,39 @@ class QuixClusteringHandler:
         if runtime.phase == ClusteringRuntimePhaseEnum.REOPENING.value:
             operation = self._resume_failed_operation(ClusteringOperationTypeEnum.REOPEN.value)
         if not operation:
+            warm = False
+            if runtime.phase == ClusteringRuntimePhaseEnum.DISABLING.value:
+                cleanup = (
+                    LogClusteringOperation.objects.select_for_update().filter(index_set_id=self.index_set_id).last()
+                )
+                if not self._can_resume_before_detach(cleanup):
+                    raise QuixClusteringParamsInvalidException(_("聚类后台收尾正在执行，请稍后重开"))
+                # 仅接替在等待关闭边界的操作。锁内取消后，已排队的旧任务无法再领取执行。
+                cleanup.status = ClusteringOperationStatusEnum.CANCELED.value
+                cleanup.finished_at = timezone.now()
+                cleanup.save(update_fields=["status", "finished_at", "updated_at", "updated_by"])
+                warm = True
             runtime, operation = LogClusteringRuntime.start_operation(
                 self.index_set_id,
                 ClusteringOperationTypeEnum.REOPEN.value,
-                {},
-                allowed_phases=(ClusteringRuntimePhaseEnum.STOPPED.value,),
+                {"worker_kept_running": True} if warm else {},
+                allowed_phases=(
+                    ClusteringRuntimePhaseEnum.DISABLING.value if warm else ClusteringRuntimePhaseEnum.STOPPED.value,
+                ),
                 updates={"phase": ClusteringRuntimePhaseEnum.REOPENING.value},
             )
-        run_quix_clustering_operation.delay(operation.operation_id)
+        transaction.on_commit(lambda: run_quix_clustering_operation.delay(operation.operation_id))
         return operation.operation_id
+
+    @staticmethod
+    def _can_resume_before_detach(operation):
+        return (
+            operation is not None
+            and operation.operation_type == ClusteringOperationTypeEnum.DISABLE.value
+            and operation.step == "confirm_closed"
+            and operation.status
+            in (ClusteringOperationStatusEnum.AWAITING_RECEIPT.value, ClusteringOperationStatusEnum.FAILED.value)
+        )
 
     def _supersede_unfinished_operation(self) -> dict:
         """
@@ -348,6 +371,10 @@ class QuixClusteringHandler:
             )
             if applied:
                 updates["active_config"] = runtime.pending_config
+                if operation.operation_type == ClusteringOperationTypeEnum.UPDATE.value:
+                    ClusteringConfig.objects.filter(index_set_id=self.index_set_id).update(
+                        filter_rules=operation.request_snapshot["filter_rules"]
+                    )
             if applied or operation.operation_type == ClusteringOperationTypeEnum.UPDATE.value:
                 updates["pending_config"] = None
 
@@ -371,10 +398,23 @@ class QuixClusteringHandler:
             if result["access_finished"]
             else {"status": status_code.PENDING, "message": _("等待执行")}
         )
+        phase = runtime.phase
+        can_reopen = bool(runtime.sink and runtime.bkfara_task_id)
+        if (
+            phase == ClusteringRuntimePhaseEnum.DISABLING.value
+            and operation
+            and any(
+                step["step"] == "disable_clustering" and step["status"] == ClusteringOperationStatusEnum.SUCCESS.value
+                for step in operation.steps
+            )
+        ):
+            phase = ClusteringRuntimePhaseEnum.STOPPED.value
+            result["flow_run"] = {"status": status_code.SUCCESS, "message": _("聚类已停用")}
+            can_reopen = can_reopen and self._can_resume_before_detach(operation)
         result["quix"] = {
-            "phase": runtime.phase,
+            "phase": phase,
             "distance_threshold": runtime.active_config.get("distance_threshold"),
-            "can_reopen": bool(runtime.sink and runtime.bkfara_task_id),
+            "can_reopen": can_reopen,
             "operation": self._format_operation(operation),
             "bkfara": self._get_bkfara_clustering(runtime),
         }
@@ -488,7 +528,10 @@ class QuixClusteringHandler:
         if all(step in finished for step in steps):
             return {"status": status_code.SUCCESS, "message": _("步骤完成")}
         if operation.step in steps:
-            if operation.status == ClusteringOperationStatusEnum.FAILED.value:
+            if operation.status in (
+                ClusteringOperationStatusEnum.FAILED.value,
+                ClusteringOperationStatusEnum.CANCELED.value,
+            ):
                 return {"status": status_code.FAILED, "message": operation.last_error}
             if operation.status == ClusteringOperationStatusEnum.AWAITING_RECEIPT.value:
                 return {"status": status_code.RUNNING, "message": _("配置已下发，待采用确认")}
