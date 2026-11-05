@@ -64,7 +64,8 @@ def load_yaml(content, path, outer=False):
         if not exc.detail["path"]:
             exc.detail["path"] = path
         raise
-    except (yaml.YAMLError, ValueError, TypeError, RecursionError):
+    except (yaml.YAMLError, ValueError, TypeError, LookupError, AttributeError, OverflowError, RecursionError):
+        # SafeLoader 构造显式类型时也会抛出 Python 原生异常，异常文本可能包含上传内容。
         raise ConfigError("YAML_INVALID", path, "YAML 格式无效") from None
 
 

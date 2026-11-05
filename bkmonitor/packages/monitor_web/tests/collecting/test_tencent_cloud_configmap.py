@@ -147,6 +147,40 @@ def test_inner_yaml(config, inner, code):
     assert result["files"][0]["errors"][0]["code"] == code
 
 
+@pytest.mark.parametrize("layer", ["outer", "inner"])
+@pytest.mark.parametrize(
+    "tagged_value",
+    [
+        "!!bool private-marker",
+        '!!int ""',
+        "!!timestamp private-marker",
+        "!unknown private-marker",
+        "!!python/object/apply:builtins.input [private-marker]",
+    ],
+)
+def test_invalid_yaml_tag_is_isolated_to_file(config, layer, tagged_value, mocker):
+    injected_call = mocker.patch("builtins.input")
+    bad = upload(config)
+    if layer == "outer":
+        bad["content"] += f"extra: {tagged_value}\n"
+    else:
+        outer = yaml.safe_load(bad["content"])
+        outer["data"]["qcloud.yml"] += f"extra: {tagged_value}\n"
+        bad["content"] = yaml.safe_dump(outer)
+    good = upload(config, uid="e6cc3fa6-302f-4fdd-966c-306547b48340")
+    result = validate_files([bad, good], {"period": 60, "timeout": 60}, CONTRACT)
+    failed, success = result["files"]
+    assert not result["valid"] and not failed["valid"]
+    assert failed["preview"] is None
+    assert failed["errors"] == [
+        {"code": "YAML_INVALID", "path": "content" if layer == "outer" else "qcloud.yml", "message": "YAML 格式无效"}
+    ]
+    assert "private-marker" not in str(result)
+    injected_call.assert_not_called()
+    assert success["valid"]
+    assert yaml.safe_load(success["preview"]["qcloud_yaml"])["products"] == config["products"]
+
+
 def test_dedup_is_full_text_and_uid(config):
     first = upload(config)
     second = upload(config, uid="e6cc3fa6-302f-4fdd-966c-306547b48340", filename="other.yml")
