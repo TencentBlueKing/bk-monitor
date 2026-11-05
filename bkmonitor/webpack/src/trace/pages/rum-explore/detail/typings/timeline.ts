@@ -23,6 +23,7 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
+import type { IRumTraceInfo } from '../services';
 import type { IRumDetailOverview, IRumDetailSection, IRumHoverInfo } from './detail';
 import type { IRumWaterfallVM } from './view-model';
 
@@ -85,8 +86,8 @@ export interface IRumTimelineSpanVM {
   /** 开始时间，HH:mm:ss */
   timeText: string;
   title: string;
-  /** 关联 Trace ID，origin_data.links 里没有时为空串 */
-  traceId: string;
+  /** 关联 Trace，仅 links 里有值且检索到对应 Trace 时存在 */
+  trace?: IRumTraceInfo;
 }
 
 /** 链路上下文顶部的 View 头部视图模型 */
