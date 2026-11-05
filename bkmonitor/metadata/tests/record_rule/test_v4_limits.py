@@ -184,12 +184,12 @@ def test_over_limit_update_preserves_previous_applied_flow(public_context, setti
 
 
 def test_ascode_limit_failure_is_async_and_does_not_block_cleanup(public_context, settings, mocker):
-    send_task = mocker.patch.object(recording_rule, "SchedulerCelery").return_value.__enter__.return_value.send_task
+    send_task = mocker.patch.object(recording_rule.api.metadata, "sync_as_code_recording_rules")
     with TestCase.captureOnCommitCallbacks(using=config.DATABASE_CONNECTION_NAME, execute=True):
         assert not parse.import_code_config(
             2, "limits-app", {"recording_rule/cpu.yaml": yaml.safe_dump({"groups": [config_with_rules(1, "old")]})}
         )
-    sync_as_code_recording_rules(**send_task.call_args.kwargs["kwargs"])
+    sync_as_code_recording_rules(**send_task.call_args.kwargs)
     settings.RECORD_RULE_V4_CONFIG = {"max_sources": 20, "max_rules": 1}
     public_context.apply_data_link.reset_mock()
     with TestCase.captureOnCommitCallbacks(using=config.DATABASE_CONNECTION_NAME, execute=True):
@@ -202,7 +202,7 @@ def test_ascode_limit_failure_is_async_and_does_not_block_cleanup(public_context
     assert models.RecordRuleV4.objects.get(name="old").is_deleted
     public_context.delete_data_link.assert_not_called()
     public_context.apply_data_link.assert_not_called()
-    sync_as_code_recording_rules(**send_task.call_args.kwargs["kwargs"])
+    sync_as_code_recording_rules(**send_task.call_args.kwargs)
     rule = models.RecordRuleV4.objects.get(name="cpu")
     assert rule.current_spec is not None and rule.get_latest_resolved() is not None
     assert rule.applied_resolved_id is None

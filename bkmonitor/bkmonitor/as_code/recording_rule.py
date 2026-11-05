@@ -6,14 +6,12 @@ from collections import defaultdict
 from typing import Any
 
 import yaml
-from django.conf import settings
 from django.db import transaction
 from rest_framework.exceptions import ValidationError
 
 from bkmonitor.utils.request import get_request_tenant_id, get_request_username
 from bkm_space.utils import bk_biz_id_to_space_uid
-from config.celery.app import SchedulerCelery
-from config.tools.rabbitmq import build_amqp_url, get_rabbitmq_settings
+from core.drf_resource import api
 from metadata import config as metadata_config
 from metadata.models import Space
 from metadata.models.record_rule.v4.as_code import build_export_entries, dump_rule, parse_config, parse_group
@@ -73,9 +71,12 @@ def save_declaration(
     source: str = "api",
     app: str | None = None,
     path: str = "",
-) -> RecordRuleV4:
+) -> tuple[RecordRuleV4, bool]:
+    """保存声明，并在同一行锁内判定是否需要异步执行。"""
     fields = {key: value for key, value in declaration.items() if key != "source_path"}
     operator = get_request_username(default=source)
+    change_fields = ("current_spec_id", "description", "data_label", "desired_status", "auto_refresh")
+    previous = None
     with transaction.atomic(using=metadata_config.DATABASE_CONNECTION_NAME):
         if rule is None:
             rule = RecordRuleV4Operator.declare(
@@ -91,6 +92,7 @@ def save_declaration(
                 rule = active_rules(space).select_related(None).select_for_update().get(pk=rule.pk)
             except RecordRuleV4.DoesNotExist as error:
                 raise ValidationError("RecordingRule 不存在") from error
+            previous = tuple(getattr(rule, field) for field in change_fields)
             if fields.pop("name") != rule.name:
                 raise ValidationError("规则组名称不可修改")
             rule = RecordRuleV4Operator(rule, source=source, operator=operator).update_declaration(**fields)
@@ -98,7 +100,8 @@ def save_declaration(
             rule.app = app
             rule.path = path
             rule.save(update_fields=["app", "path", "updated_at"])
-    return rule
+        changed = previous != tuple(getattr(rule, field) for field in change_fields)
+    return rule, changed
 
 
 def execute_rule(rule: RecordRuleV4, *, source: str = "api", operator: str | None = None) -> dict[str, Any]:
@@ -186,11 +189,9 @@ def import_recording_rules(space: Space, app: str, records: list[dict], *, incre
     errors = {}
     saved_ids = []
     changed_ids = []
-    change_fields = ("current_spec_id", "description", "data_label", "desired_status", "auto_refresh")
     for record in records:
         try:
-            previous = tuple(getattr(record["rule"], field) for field in change_fields) if record["rule"] else None
-            rule = save_declaration(
+            rule, changed = save_declaration(
                 space,
                 record["declaration"],
                 rule=record["rule"],
@@ -199,7 +200,7 @@ def import_recording_rules(space: Space, app: str, records: list[dict], *, incre
                 path=record["path"],
             )
             saved_ids.append(rule.pk)
-            if previous != tuple(getattr(rule, field) for field in change_fields):
+            if changed:
                 changed_ids.append(rule.pk)
         except Exception as error:
             logger.exception("RecordingRule import failed, path: %s", record["key"])
@@ -219,22 +220,16 @@ def import_recording_rules(space: Space, app: str, records: list[dict], *, incre
 
         def enqueue():
             try:
-                # Web 入口不加载依赖 Worker 配置的任务模块，使用后台 broker 按名称投递。
-                host, port, vhost, user, password, _ = get_rabbitmq_settings(settings.BACKEND_APP_CODE, backend=True)
-                broker_url = build_amqp_url(user, password, host, port, vhost)
-                with SchedulerCelery("as_code_recording_rule", broker=broker_url, set_as_current=False) as task_app:
-                    task_app.send_task(
-                        "metadata.task.tasks.sync_as_code_recording_rules",
-                        kwargs={"rule_ids": changed_ids, "operator": operator},
-                        queue="celery_metadata_task_worker",
-                        serializer="pickle",
-                        ignore_result=True,
-                    )
+                api.metadata.sync_as_code_recording_rules(rule_ids=changed_ids, operator=operator)
             except Exception as error:
                 logger.exception("RecordingRule task enqueue failed, ids: %s", changed_ids)
-                errors["recording_rule"] = f"规则声明已保存，异步任务投递失败: {error}"
+                return f"规则声明已保存，异步任务投递失败: {error}"
 
-        transaction.on_commit(enqueue, using=metadata_config.DATABASE_CONNECTION_NAME)
+        if transaction.get_connection(metadata_config.DATABASE_CONNECTION_NAME).in_atomic_block:
+            # 外层事务提交后才能投递；回调失败仅记录日志，不修改已经返回的 errors。
+            transaction.on_commit(enqueue, using=metadata_config.DATABASE_CONNECTION_NAME)
+        elif error := enqueue():
+            errors["recording_rule"] = error
     return errors
 
 

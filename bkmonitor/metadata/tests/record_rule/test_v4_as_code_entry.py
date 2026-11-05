@@ -4,16 +4,21 @@ from pathlib import Path
 
 import pytest
 import yaml
-from celery import current_app
 from django.core.files.storage import FileSystemStorage
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.db import transaction
 from django.test import TestCase
+from django.urls import include, path, resolve
+from rest_framework.test import APIRequestFactory
 
+from api.metadata.default import SyncAsCodeRecordingRulesResource as SyncAsCodeRecordingRulesAPI
 from bkmonitor.as_code import parse, recording_rule
-from config.celery.app import SchedulerCelery
+from core.drf_resource.routers import ResourceRouter
+from kernel_api.views.v3 import meta as meta_views
 from metadata import config as metadata_config
 from metadata.models.record_rule.v4.models import RecordRuleV4
+from metadata.models.record_rule.v4.operator import RecordRuleV4Operator
+from metadata.resources.resources import SyncAsCodeRecordingRulesResource
 from metadata.task.tasks import sync_as_code_recording_rules
 from metadata.tests.record_rule.test_v4_operator import external_api as _external_api, v4_base_data as _v4_base_data
 from metadata.tests.record_rule.test_v4_public_api import group, public_context as _public_context
@@ -28,20 +33,13 @@ pytestmark = pytest.mark.django_db(databases="__all__")
 
 @pytest.fixture(autouse=True)
 def queued_task(mocker):
-    task_app = mocker.patch.object(recording_rule, "SchedulerCelery").return_value.__enter__.return_value
-    return task_app.send_task
+    return mocker.patch.object(recording_rule.api.metadata, "sync_as_code_recording_rules")
 
 
 def assert_queued_rules(queued_task, rule_ids, *, once=True):
     if once:
         assert queued_task.call_count == 1
-    queued_task.assert_called_with(
-        sync_as_code_recording_rules.name,
-        kwargs={"rule_ids": rule_ids, "operator": "alice"},
-        queue="celery_metadata_task_worker",
-        serializer="pickle",
-        ignore_result=True,
-    )
+    queued_task.assert_called_with(rule_ids=rule_ids, operator="alice")
 
 
 def import_groups(*names, app="test-app", path="cpu.yaml", incremental=False, overwrite=False):
@@ -69,7 +67,7 @@ def test_multigroup_import_queues_once_and_moving_file_keeps_ids(public_context,
     assert all(rule.applied_resolved_id is None for rule in rules.values())
     assert_queued_rules(queued_task, [rules["cpu"].pk, rules["disk"].pk])
     assert all(rule.app == "test-app" and rule.path == "cpu.yaml" for rule in rules.values())
-    sync_as_code_recording_rules(**queued_task.call_args.kwargs["kwargs"])
+    sync_as_code_recording_rules(**queued_task.call_args.kwargs)
     assert public_context.apply_data_link.call_count == 2
     assert all(rule.applied_resolved_id for rule in RecordRuleV4.objects.all())
     queued_task.reset_mock()
@@ -85,7 +83,7 @@ def test_multigroup_import_queues_once_and_moving_file_keeps_ids(public_context,
 
 def test_full_import_soft_deletes_only_current_scope_and_app(public_context, queued_task):
     assert not import_groups("cpu", "removed")
-    sync_as_code_recording_rules(**queued_task.call_args.kwargs["kwargs"])
+    sync_as_code_recording_rules(**queued_task.call_args.kwargs)
     removed = RecordRuleV4.objects.get(name="removed")
     assert not import_groups("other", app="other-app")
     other = RecordRuleV4.objects.get(name="other")
@@ -98,7 +96,7 @@ def test_full_import_soft_deletes_only_current_scope_and_app(public_context, que
     assert removed.is_deleted and removed.desired_status == "deleted" and removed.deleted_at is None
     public_context.delete_data_link.assert_not_called()
     assert_queued_rules(queued_task, [removed.pk], once=False)
-    sync_as_code_recording_rules(**queued_task.call_args.kwargs["kwargs"])
+    sync_as_code_recording_rules(**queued_task.call_args.kwargs)
     removed.refresh_from_db()
     assert removed.deleted_at is not None
     assert removed.specs.exists() and removed.resolved.exists()
@@ -189,13 +187,13 @@ def test_yaml_error_is_reported_by_file(public_context, queued_task):
 
 def test_async_apply_failure_keeps_declaration_and_does_not_block_cleanup(public_context, queued_task):
     assert not import_groups("old")
-    sync_as_code_recording_rules(**queued_task.call_args.kwargs["kwargs"])
+    sync_as_code_recording_rules(**queued_task.call_args.kwargs)
     public_context.apply_data_link.side_effect = RuntimeError("apply failed")
     assert not import_groups("new")
     new_rule = RecordRuleV4.objects.get(name="new")
     old_rule = RecordRuleV4.objects.get(name="old")
     assert old_rule.is_deleted and old_rule.deleted_at is None
-    sync_as_code_recording_rules(**queued_task.call_args.kwargs["kwargs"])
+    sync_as_code_recording_rules(**queued_task.call_args.kwargs)
     new_rule.refresh_from_db()
     old_rule.refresh_from_db()
     assert new_rule.applied_resolved_id is None
@@ -279,7 +277,7 @@ def test_import_resource_success_does_not_wait_for_execution(public_context, que
         )
     assert result["result"] and not result["errors"]
     public_context.apply_data_link.assert_not_called()
-    sync_as_code_recording_rules(**queued_task.call_args.kwargs["kwargs"])
+    sync_as_code_recording_rules(**queued_task.call_args.kwargs)
     assert RecordRuleV4.objects.get().status == "failed"
     assert result["result"]
 
@@ -360,23 +358,6 @@ def test_task_is_deferred_until_metadata_commit(public_context, queued_task):
     assert_queued_rules(queued_task, [RecordRuleV4.objects.get().pk])
 
 
-def test_enqueue_uses_backend_client_without_switching_current_app(public_context, settings, mocker):
-    settings.APP_CODE = "saas"
-    settings.BACKEND_APP_CODE = "backend"
-    previous_app = current_app._get_current_object()
-    mocker.patch.object(recording_rule, "SchedulerCelery", SchedulerCelery)
-    constructor = mocker.spy(recording_rule, "SchedulerCelery")
-    send_task = mocker.patch.object(SchedulerCelery, "send_task")
-    rabbitmq = mocker.patch.object(
-        recording_rule, "get_rabbitmq_settings", return_value=("localhost", 5672, "backend", "worker", "p@ss", "")
-    )
-    assert not import_groups("cpu")
-    rabbitmq.assert_called_once_with("backend", backend=True)
-    assert constructor.spy_return.conf.broker_url == "amqp://worker:p%40ss@localhost:5672/backend"
-    assert_queued_rules(send_task, [RecordRuleV4.objects.get().pk])
-    assert current_app._get_current_object() is previous_app
-
-
 def test_rollback_does_not_enqueue_task(public_context, queued_task):
     with TestCase.captureOnCommitCallbacks(using=metadata_config.DATABASE_CONNECTION_NAME, execute=True) as callbacks:
         with pytest.raises(RuntimeError, match="rollback"):
@@ -393,7 +374,7 @@ def test_rollback_does_not_enqueue_task(public_context, queued_task):
 def test_async_parse_failure_continues_with_other_rules(public_context, queued_task):
     assert not import_groups("bad", "good")
     public_context.check_promql.side_effect = [RuntimeError("parse failed"), public_context.check_promql.return_value]
-    sync_as_code_recording_rules(**queued_task.call_args.kwargs["kwargs"])
+    sync_as_code_recording_rules(**queued_task.call_args.kwargs)
     failed = RecordRuleV4.objects.get(name="bad")
     succeeded = RecordRuleV4.objects.get(name="good")
     assert failed.status == "failed" and failed.applied_resolved_id is None
@@ -405,7 +386,7 @@ def test_async_parse_failure_continues_with_other_rules(public_context, queued_t
 def test_async_apply_failure_continues_with_other_rules(public_context, queued_task):
     assert not import_groups("bad", "good")
     public_context.apply_data_link.side_effect = [RuntimeError("apply failed"), {}]
-    sync_as_code_recording_rules(**queued_task.call_args.kwargs["kwargs"])
+    sync_as_code_recording_rules(**queued_task.call_args.kwargs)
     assert RecordRuleV4.objects.get(name="bad").status == "failed"
     assert RecordRuleV4.objects.get(name="good").applied_resolved_id is not None
     assert public_context.apply_data_link.call_count == 2
@@ -413,7 +394,7 @@ def test_async_apply_failure_continues_with_other_rules(public_context, queued_t
 
 def test_task_executes_latest_declaration_with_submitting_user(public_context, queued_task):
     assert not import_groups("cpu")
-    pending = queued_task.call_args.kwargs["kwargs"]
+    pending = queued_task.call_args.kwargs
     value = group()
     value["rules"][0]["expr"] = "sum(system_cpu_usage)"
     recording_rule.save_declaration(
@@ -503,3 +484,92 @@ def test_archive_merges_normalized_folders_and_restores_all_groups(
     restored = RecordRuleV4.objects.filter(app="restored-app", is_deleted=False)
     assert set(restored.values_list("name", flat=True)) == {"cpu", "disk"}
     assert {rule.name: recording_rule.dump_rule(rule) for rule in restored} == expected
+
+
+@pytest.mark.parametrize(
+    "concurrent_change",
+    [
+        {"desired_status": "stopped"},
+        {"description": "changed after prepare"},
+        {"data_label": "changed_after_prepare"},
+        {"auto_refresh": True},
+    ],
+)
+def test_import_detects_changes_against_locked_rule(public_context, queued_task, concurrent_change):
+    assert not import_groups("cpu")
+    rule = RecordRuleV4.objects.get()
+    space, records, errors = recording_rule.prepare_import(
+        2, "test-app", {"cpu.yaml": {"groups": [group()]}}, overwrite=False
+    )
+    assert not errors
+    RecordRuleV4Operator(rule, source="api", operator="bob").update_declaration(**concurrent_change)
+    queued_task.reset_mock()
+    with TestCase.captureOnCommitCallbacks(using=metadata_config.DATABASE_CONNECTION_NAME, execute=True):
+        assert not recording_rule.import_recording_rules(space, "test-app", records, incremental=True)
+    rule.refresh_from_db()
+    assert rule.current_spec_id == records[0]["rule"].current_spec_id
+    assert rule.desired_status == "running" and not rule.auto_refresh
+    assert_queued_rules(queued_task, [rule.pk])
+
+
+def test_import_does_not_enqueue_change_already_saved_after_prepare(public_context, queued_task):
+    assert not import_groups("cpu")
+    rule = RecordRuleV4.objects.get()
+    value = group()
+    value["bkmonitor"]["desired_status"] = "stopped"
+    space, records, errors = recording_rule.prepare_import(
+        2, "test-app", {"cpu.yaml": {"groups": [value]}}, overwrite=False
+    )
+    assert not errors
+    RecordRuleV4Operator(rule, source="api", operator="bob").update_declaration(desired_status="stopped")
+    queued_task.reset_mock()
+    with TestCase.captureOnCommitCallbacks(using=metadata_config.DATABASE_CONNECTION_NAME, execute=True):
+        assert not recording_rule.import_recording_rules(space, "test-app", records, incremental=True)
+    queued_task.assert_not_called()
+
+
+def test_deferred_enqueue_failure_does_not_change_response(public_context, queued_task, mocker):
+    mocker.patch.object(resources, "send_frontend_report_event")
+    log_error = mocker.spy(recording_rule.logger, "exception")
+    queued_task.side_effect = RuntimeError("metadata API unavailable")
+    with TestCase.captureOnCommitCallbacks(using=metadata_config.DATABASE_CONNECTION_NAME, execute=True):
+        with transaction.atomic(using=metadata_config.DATABASE_CONNECTION_NAME):
+            result = resources.ImportConfigResource().request(
+                bk_biz_id=2,
+                incremental=True,
+                configs={"recording_rule/cpu.yaml": yaml.safe_dump({"groups": [group()]})},
+            )
+            assert result["result"] and result["errors"] == {}
+            queued_task.assert_not_called()
+    assert result["result"] and result["errors"] == {}
+    log_error.assert_called_once_with("RecordingRule task enqueue failed, ids: %s", [RecordRuleV4.objects.get().pk])
+
+
+def test_metadata_gateway_is_private_and_http_queues_task(public_context, mocker):
+    delay = mocker.patch.object(sync_as_code_recording_rules, "delay")
+    root = Path(__file__).resolve().parents[3]
+    definition = yaml.safe_load((root / "support-files/apigw/resources/internal/app/metadata.yaml").read_text())
+    gateway = definition["paths"][SyncAsCodeRecordingRulesAPI.action]["post"]["x-bk-apigateway-resource"]
+    assert gateway["isPublic"] is False
+    assert gateway["authConfig"] == {
+        "appVerifiedRequired": True,
+        "userVerifiedRequired": False,
+        "resourcePermissionRequired": True,
+    }
+    assert SyncAsCodeRecordingRulesAPI.method == "POST"
+    router = ResourceRouter()
+    router.register_module(meta_views)
+    match = resolve(gateway["backend"]["path"], urlconf=(path("api/v3/meta/", include(router.urls)),))
+    assert match.func.cls is meta_views.SyncAsCodeRecordingRulesViewSet
+    request = APIRequestFactory().post(match.route, {"rule_ids": [1, 2], "operator": "alice"}, format="json")
+    response = match.func(request)
+    assert response.status_code == 200
+    delay.assert_called_once_with(rule_ids=[1, 2], operator="alice")
+    public_context.check_promql.assert_not_called()
+    public_context.apply_data_link.assert_not_called()
+
+
+def test_metadata_api_reports_broker_failure(public_context, mocker):
+    mocker.patch.object(sync_as_code_recording_rules, "delay", side_effect=RuntimeError("broker unavailable"))
+    with pytest.raises(Exception, match="broker unavailable"):
+        SyncAsCodeRecordingRulesResource().request(rule_ids=[1], operator="alice")
