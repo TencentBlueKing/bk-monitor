@@ -27,14 +27,10 @@ def refresh_influxdb_info():
         print(message)
         return True
 
-    # 2. 读取所有的influxdb相关环境变量
-    try:
-        influxdb_ip_list = env.get_env_list("BK_INFLUXDB_BKMONITORV3_IP") or env.get_env_list("INFLUXDB_BKMONITORV3_IP")
-        influxdb_port = os.getenv("BK_MONITOR_INFLUXDB_PORT") or os.environ["INFLUXDB_BKMONITORV3_PORT"]
-        influxdb_username = os.getenv("BK_MONITOR_INFLUXDB_USER") or os.getenv("INFLUXDB_BKMONITORV3_USER", "")
-        influxdb_password = os.getenv("BK_MONITOR_INFLUXDB_PASSWORD") or os.getenv("INFLUXDB_BKMONITORV3_PASS", "")
-    except KeyError as error:
-        message = f"failed to get environ->[{error}] maybe something go wrong on init?"
+    # 2. 读取所有的influxdb相关配置
+    influxdb_ip_list, influxdb_port, influxdb_username, influxdb_password = env.get_influxdb_init_settings()
+    if influxdb_port is None:
+        message = "failed to get environ->['INFLUXDB_BKMONITORV3_PORT'] maybe something go wrong on init?"
 
         print(message)
         return False
@@ -93,18 +89,16 @@ def refresh_es7_config(bk_tenant_id: str):
     """刷新ES7的配置信息"""
 
     # 0. 判断是否存在ES7的信息，如果不存在，则直接退出，不做刷新
-    if os.environ.get("BK_MONITOR_ES7_HOST", None) is None:
+    es_host, es_port, es_username, es_password = env.get_backend_es7_init_settings()
+    if es_host is None:
         message = "cannot found ES7 info nothing will insert."
         print(message)
         return True
 
-    try:
-        es_host = os.environ["BK_MONITOR_ES7_HOST"]
-        es_port = os.environ["BK_MONITOR_ES7_REST_PORT"]
-        es_username = os.environ.get("BK_MONITOR_ES7_USER", "")
-        es_password = os.environ.get("BK_MONITOR_ES7_PASSWORD", "")
-    except KeyError as error:
-        message = f"failed to get environ->[{error}] for ES7 cluster maybe something go wrong on init?"
+    if es_port is None:
+        message = (
+            "failed to get environ->['BK_MONITOR_ES7_REST_PORT'] for ES7 cluster maybe something go wrong on init?"
+        )
         print(message)
         return False
 

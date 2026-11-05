@@ -258,8 +258,8 @@ class ViewLoadingType(CachedEnum):
         return {
             self.INITIAL_LOAD: _("初始加载"),
             self.ROUTE_CHANGE: _("路由切换"),
-            self.SESSION_RENEWAL: _("会话续期后重建"),
-            self.BF_CACHE: _("前进后退缓存恢复"),
+            self.SESSION_RENEWAL: _("续期重建"),
+            self.BF_CACHE: _("缓存恢复"),
         }.get(self, self.value)
 
     @classmethod

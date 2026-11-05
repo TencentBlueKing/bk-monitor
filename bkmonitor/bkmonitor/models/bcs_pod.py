@@ -261,36 +261,40 @@ class BCSPod(BCSBase, BCSBaseResources):
         bk_tenant_id: str = params["bk_tenant_id"]
 
         for p in api.kubernetes.fetch_k8s_pod_list_by_cluster(bk_tenant_id=bk_tenant_id, bcs_cluster_id=bcs_cluster_id):
-            bcs_cluster_id = p.get("bcs_cluster_id")
-            bcs_pod = BCSPod()
-            bcs_pod.bk_biz_id = bk_biz_id
-            bcs_pod.bcs_cluster_id = bcs_cluster_id
-            bcs_pod.name = p.get("name")
-            bcs_pod.namespace = p.get("namespace")
-            bcs_pod.node_name = p.get("node_name")
-            bcs_pod.node_ip = p.get("node_ip")
-            bcs_pod.workload_type = p.get("workload_type")
-            bcs_pod.workload_name = p.get("workload_name")
-            bcs_pod.total_container_count = p.get("total_container_count")
-            bcs_pod.ready_container_count = p.get("ready_container_count")
-            bcs_pod.pod_ip = p.get("pod_ip", "")
-            bcs_pod.images = ",".join(p.get("image_id_list", []))
-            bcs_pod.restarts = p.get("restarts")
+            yield BCSPod.from_api_item(p, bk_biz_id)
 
-            bcs_pod.resource_requests_cpu = force_float(p.get("requests_cpu", 0))
-            bcs_pod.resource_requests_memory = p.get("requests_memory")
-            bcs_pod.resource_limits_cpu = force_float(p.get("limits_cpu", 0))
-            bcs_pod.resource_limits_memory = p.get("limits_memory")
+    @staticmethod
+    def from_api_item(p, bk_biz_id):
+        bcs_cluster_id = p.get("bcs_cluster_id")
+        bcs_pod = BCSPod()
+        bcs_pod.bk_biz_id = bk_biz_id
+        bcs_pod.bcs_cluster_id = bcs_cluster_id
+        bcs_pod.name = p.get("name")
+        bcs_pod.namespace = p.get("namespace")
+        bcs_pod.node_name = p.get("node_name")
+        bcs_pod.node_ip = p.get("node_ip")
+        bcs_pod.workload_type = p.get("workload_type")
+        bcs_pod.workload_name = p.get("workload_name")
+        bcs_pod.total_container_count = p.get("total_container_count")
+        bcs_pod.ready_container_count = p.get("ready_container_count")
+        bcs_pod.pod_ip = p.get("pod_ip", "")
+        bcs_pod.images = ",".join(p.get("image_id_list", []))
+        bcs_pod.restarts = p.get("restarts")
 
-            bcs_pod.created_at = p.get("created_at")
-            bcs_pod.status = p.get("status")
-            bcs_pod.last_synced_at = timezone.now()
-            bcs_pod.deleted_at = None
+        bcs_pod.resource_requests_cpu = force_float(p.get("requests_cpu", 0))
+        bcs_pod.resource_requests_memory = p.get("requests_memory")
+        bcs_pod.resource_limits_cpu = force_float(p.get("limits_cpu", 0))
+        bcs_pod.resource_limits_memory = p.get("limits_memory")
 
-            # 唯一键
-            bcs_pod.unique_hash = bcs_pod.get_unique_hash()
-            bcs_pod.api_labels = p.get("labels", {})
-            yield bcs_pod
+        bcs_pod.created_at = p.get("created_at")
+        bcs_pod.status = p.get("status")
+        bcs_pod.last_synced_at = timezone.now()
+        bcs_pod.deleted_at = None
+
+        # 唯一键
+        bcs_pod.unique_hash = bcs_pod.get_unique_hash()
+        bcs_pod.api_labels = p.get("labels", {})
+        return bcs_pod
 
     def render_workload(self, bk_biz_id, render_type="list"):
         return f"{self.workload_type}:{self.workload_name}"

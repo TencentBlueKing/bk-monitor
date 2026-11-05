@@ -9,10 +9,12 @@ specific language governing permissions and limitations under the License.
 """
 
 import json
+from types import SimpleNamespace
 from unittest.mock import Mock, patch
 
 import requests
-from django.test import SimpleTestCase
+from bkoauth.exceptions import TokenNotExist
+from django.test import SimpleTestCase, override_settings
 from django.utils import translation
 
 from api.devops.default import (
@@ -28,9 +30,11 @@ from api.aidev.default import (
 )
 from bkmonitor.iam import ActionEnum
 from bkmonitor.iam.drf import BusinessActionPermission
+from bkmonitor.models import IssueSourceAnalysisConfig
 from bkmonitor.utils.cache import CacheType
 from core.drf_resource import api
 from core.errors.api import BKAPIError
+from core.errors.issue import SourceAnalysisExecutionCredentialUnavailableError
 from core.errors.issue import SourceAnalysisUpstreamUnavailableError
 from fta_web.issue.resources import (
     ListSourceAnalysisBkciProjectsResource,
@@ -44,6 +48,38 @@ from fta_web.issue.views import SourceAnalysisOptionsViewSet
 
 
 class TestDevopsUserResources(SimpleTestCase):
+    def test_candidate_requests_use_current_login_credentials_for_both_backends(self):
+        for resource_class, params, body in (
+            (ListUserProjectResource, {}, {"result": True, "code": 0, "data": []}),
+            (ListUserRepositoryResource, {"project_id": "project-a"}, {"status": 0, "data": {"records": []}}),
+        ):
+            for cookie_name in ("bk_ticket", "bk_token"):
+                with self.subTest(resource=resource_class.__name__, backend=cookie_name):
+                    request = SimpleNamespace(COOKIES={cookie_name: "editor-credential"}, external_user=False)
+                    resource = resource_class()
+                    resource.bk_tenant_id = "system"
+                    response = Mock()
+                    response.json.return_value = body
+                    with (
+                        override_settings(BK_CI_URL="https://ci.example.com", BKCI_APP_CODE="", BKCI_APP_SECRET=""),
+                        patch("api.devops.default.get_request", return_value=request),
+                        patch("core.drf_resource.contrib.api.get_request", return_value=request),
+                        patch("core.drf_resource.contrib.api.make_userinfo", return_value={"bk_username": "editor-b"}),
+                        patch(
+                            "core.drf_resource.contrib.api.get_bk_login_ticket",
+                            return_value={cookie_name: "editor-credential"},
+                        ) as login_credential,
+                        patch.object(resource.session, "get", return_value=response) as send,
+                        patch.object(resource, "report_api_request_count_metric"),
+                    ):
+                        resource.request(params)
+                    login_credential.assert_called_once_with(request)
+                    authorization = json.loads(send.call_args.kwargs["headers"]["x-bkapi-authorization"])
+                    self.assertEqual(authorization[cookie_name], "editor-credential")
+                    self.assertEqual(authorization["bk_username"], "editor-b")
+                    self.assertNotIn("editor-credential", str(send.call_args.kwargs["params"]))
+                    self.assertNotIn("bk_username", send.call_args.kwargs["params"])
+
     def test_actions_follow_devops_gateway_contract(self):
         self.assertEqual(ListUserProjectResource.action, "/v4/apigw-user/projects/project_list")
         self.assertEqual(
@@ -124,6 +160,74 @@ class TestDevopsUserResources(SimpleTestCase):
 
 
 class TestAidevResources(SimpleTestCase):
+    @override_settings(AIDEV_ACCESS_TOKEN="")
+    def test_explicit_execution_user_never_uses_editors_login(self):
+        resource = ListAgentsResource()
+        resource.bk_username = "repository-owner"
+        with (
+            patch("api.aidev.default.get_request", return_value=object()),
+            patch("api.aidev.default.get_request_username", return_value="rule-editor"),
+            patch("api.aidev.default.oauth_client.get_access_token") as prepare,
+            patch(
+                "api.aidev.default.oauth_client.get_access_token_by_user",
+                return_value=SimpleNamespace(access_token="owner-token"),
+            ) as recover,
+            patch.object(APIResource, "get_headers", side_effect=AssertionError("must not use editor credentials")),
+        ):
+            headers = resource.get_headers()
+        self.assertEqual(json.loads(headers["x-bkapi-authorization"]), {"access_token": "owner-token"})
+        recover.assert_called_once_with("repository-owner")
+        prepare.assert_not_called()
+
+    @override_settings(AIDEV_ACCESS_TOKEN="")
+    def test_execution_user_can_prepare_own_token_for_selector(self):
+        resource = ListSkillsResource()
+        resource.bk_username = "repository-owner"
+        request = object()
+        with (
+            patch("api.aidev.default.get_request", return_value=request),
+            patch("api.aidev.default.get_request_username", return_value="repository-owner"),
+            patch("api.aidev.default.oauth_client.get_access_token") as prepare,
+            patch(
+                "api.aidev.default.oauth_client.get_access_token_by_user",
+                return_value=SimpleNamespace(access_token="persisted-owner-token"),
+            ),
+        ):
+            headers = resource.get_headers()
+        prepare.assert_called_once_with(request)
+        self.assertEqual(json.loads(headers["x-bkapi-authorization"]), {"access_token": "persisted-owner-token"})
+
+    @override_settings(AIDEV_ACCESS_TOKEN="")
+    def test_missing_owner_token_never_falls_back_to_editor(self):
+        resource = ListAgentsResource()
+        resource.bk_username = "repository-owner"
+        with (
+            patch("api.aidev.default.get_request", return_value=None),
+            patch("api.aidev.default.oauth_client.get_access_token_by_user", side_effect=TokenNotExist("missing")),
+            patch.object(APIResource, "get_headers") as base_headers,
+            self.assertRaises(TokenNotExist),
+        ):
+            resource.get_headers()
+        base_headers.assert_not_called()
+
+    @override_settings(AIDEV_ACCESS_TOKEN="")
+    def test_execution_user_is_not_sent_as_an_aidev_query_parameter(self):
+        resource = ListAgentsResource()
+        response = Mock()
+        response.json.return_value = {"result": True, "code": 0, "data": []}
+        with (
+            patch("api.aidev.default.get_request", return_value=None),
+            patch(
+                "api.aidev.default.oauth_client.get_access_token_by_user",
+                return_value=SimpleNamespace(access_token="owner-token"),
+            ),
+            patch.object(resource.session, "get", return_value=response) as send,
+            patch.object(resource, "report_api_request_count_metric"),
+        ):
+            resource.request({"bk_username": "repository-owner", "page": 1})
+        self.assertNotIn("bk_username", send.call_args.kwargs["params"])
+        self.assertNotIn("owner-token", str(send.call_args.kwargs["params"]))
+
     def test_actions_follow_aidev_private_gateway_contract(self):
         self.assertEqual(ListAgentsResource.action, "/openapi/aidev/private/v1/agents/")
         self.assertEqual(ListSpacesResource.action, "/openapi/aidev/private/v1/spaces/")
@@ -190,8 +294,13 @@ class TestAidevResources(SimpleTestCase):
             with self.subTest(resource=resource_class.__name__):
                 resource = resource_class()
                 resource.bk_tenant_id = "tenant-a"
+                resource.bk_username = "repository-owner"
                 with (
                     patch.object(APIResource, "get_headers", side_effect=AssertionError("must not read login state")),
+                    patch(
+                        "api.aidev.default.oauth_client.get_access_token_by_user",
+                        side_effect=AssertionError("fixed token must take priority"),
+                    ),
                     translation.override("en"),
                 ):
                     headers = resource.get_headers()
@@ -262,6 +371,63 @@ class TestAidevResources(SimpleTestCase):
 
 
 class TestSourceAnalysisOptionsResources(SimpleTestCase):
+    def setUp(self):
+        self.enterContext(override_settings(AIDEV_ACCESS_TOKEN=""))
+        self.config_query = self.enterContext(patch.object(IssueSourceAnalysisConfig.objects, "filter"))
+        self.config_query.return_value.first.return_value = SimpleNamespace(update_user="owner-a")
+
+    def test_devops_candidates_do_not_inherit_repository_owner(self):
+        for resource_class, params, api_name, response, expected_params in (
+            (ListSourceAnalysisBkciProjectsResource, {}, "list_user_project", [], {}),
+            (
+                ListSourceAnalysisBkciRepositoriesResource,
+                {"bkci_project_id": "project-b"},
+                "list_user_repository",
+                {"records": []},
+                {"project_id": "project-b"},
+            ),
+        ):
+            with (
+                self.subTest(resource=resource_class.__name__),
+                patch.object(api.devops, api_name, return_value=response) as query,
+            ):
+                resource_class().perform_request({"bk_biz_id": 2, **params})
+                query.assert_called_once_with(**expected_params)
+        self.config_query.assert_not_called()
+
+    def test_selector_uses_config_owner_in_cache_and_request(self):
+        with patch.object(SourceAnalysisBaseResource, "query_visible_aidev_items", return_value=[]) as query:
+            ListSourceAnalysisAgentsResource().perform_request({"bk_biz_id": 2, "bk_username": "untrusted-editor"})
+            self.config_query.return_value.first.return_value = SimpleNamespace(update_user="owner-b")
+            ListSourceAnalysisAgentsResource().perform_request({"bk_biz_id": 2})
+        self.assertEqual(
+            [call.args for call in query.call_args_list],
+            [("agents", "agent_code", "owner-a"), ("agents", "agent_code", "owner-b")],
+        )
+
+    @override_settings(AIDEV_ACCESS_TOKEN="configured-cross-environment-token")
+    def test_fixed_token_does_not_require_a_local_config_owner(self):
+        with patch.object(SourceAnalysisBaseResource, "query_visible_aidev_items", return_value=[]) as query:
+            ListSourceAnalysisAgentsResource().perform_request({"bk_biz_id": 2})
+        query.assert_called_once_with("agents", "agent_code", "")
+        self.config_query.assert_not_called()
+
+    def test_selector_rejects_missing_config_owner_instead_of_using_editor(self):
+        for config in (None, SimpleNamespace(update_user=""), SimpleNamespace(update_user="unknown")):
+            with self.subTest(config=config):
+                self.config_query.return_value.first.return_value = config
+                with patch.object(api.aidev, "list_agents") as list_agents:
+                    with self.assertRaises(SourceAnalysisExecutionCredentialUnavailableError):
+                        ListSourceAnalysisAgentsResource().perform_request({"bk_biz_id": 2})
+                list_agents.assert_not_called()
+
+    def test_selector_explains_missing_execution_credentials(self):
+        with patch.object(
+            SourceAnalysisBaseResource, "query_visible_aidev_items", side_effect=TokenNotExist("missing")
+        ):
+            with self.assertRaises(SourceAnalysisExecutionCredentialUnavailableError):
+                ListSourceAnalysisSkillsResource().perform_request({"bk_biz_id": 2})
+
     def test_projects_are_normalized(self):
         with patch.object(
             api.devops,
@@ -429,8 +595,8 @@ class TestSourceAnalysisOptionsResources(SimpleTestCase):
                     actual = resource_class().perform_request({"bk_biz_id": 2})
                 self.assertEqual(actual, expected)
                 # 接口不分页，BKM 按安全分页大小遍历上游，不再把页码和关键词透给 AIDEV
-                list_resources.assert_called_once_with(space_id="all", page=1, page_size=200)
-                list_spaces.assert_called_once_with()
+                list_resources.assert_called_once_with(space_id="all", page=1, page_size=200, bk_username="owner-a")
+                list_spaces.assert_called_once_with(bk_username="owner-a")
 
     def test_aidev_options_traverse_all_upstream_pages(self):
         """规则只存英文编码，前端要用编码回填名称，因此选项接口必须一次返回全量而不是首页。"""
@@ -461,7 +627,7 @@ class TestSourceAnalysisOptionsResources(SimpleTestCase):
         self.assertEqual(len(result["list"]), 201)
         self.assertEqual(result["list"][-1]["id"], "agent-200")
         self.assertEqual(list_agents.call_count, 2)
-        list_agents.assert_any_call(space_id="all", page=2, page_size=200)
+        list_agents.assert_any_call(space_id="all", page=2, page_size=200, bk_username="owner-a")
 
     def test_aidev_options_dedupe_items_repeated_across_pages(self):
         """上游翻页期间数据变动可能让同一资源出现在两页，选项列表不能出现重复项。"""
@@ -539,7 +705,7 @@ class TestSourceAnalysisOptionsResources(SimpleTestCase):
                 ) as query_items:
                     resource_class().perform_request({"bk_biz_id": 2})
                 expected_id_field = "agent_code" if resource_type == "agents" else "skill_code"
-                query_items.assert_called_once_with(resource_type, expected_id_field)
+                query_items.assert_called_once_with(resource_type, expected_id_field, "owner-a")
 
     def test_aidev_cached_entry_reaches_matching_upstream_api(self):
         """资源类型到上游接口的映射不能串：Agent 缓存条目不能由 Skill 列表填充。"""
@@ -575,7 +741,7 @@ class TestSourceAnalysisOptionsResources(SimpleTestCase):
             result = ListSourceAnalysisAgentsResource().perform_request({"bk_biz_id": 2})
 
         self.assertEqual(result, {"total": 0, "list": []})
-        list_agents.assert_called_once_with(space_id="all", page=1, page_size=200)
+        list_agents.assert_called_once_with(space_id="all", page=1, page_size=200, bk_username="owner-a")
         list_spaces.assert_not_called()
 
     def test_knowledge_base_options_are_aggregated_by_visible_space(self):

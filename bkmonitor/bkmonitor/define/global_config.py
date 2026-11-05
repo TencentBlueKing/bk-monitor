@@ -35,6 +35,10 @@ ADVANCED_OPTIONS = OrderedDict(
         ("QOS_DROP_ACTION_WINDOW", slz.IntegerField(label="处理动作流控窗口大小(秒)", default=60)),
         ("QOS_ALERT_THRESHOLD", slz.IntegerField(label="告警生成流控丢弃阈值", default=100)),
         ("QOS_ALERT_WINDOW", slz.IntegerField(label="告警生成流控窗口大小(秒)", default=60)),
+        (
+            "ALERT_NOTICE_WAY_BY_RECORDS",
+            slz.BooleanField(label="告警列表通知类型按通知记录统计", default=False),
+        ),
         ("SAAS_APP_CODE", slz.CharField(label="SAAS 应用码", default=settings.APP_CODE)),
         ("SAAS_SECRET_KEY", slz.CharField(label="SAAS 应用密钥", default=settings.SECRET_KEY)),
         (
@@ -812,6 +816,14 @@ STANDARD_CONFIGS = OrderedDict(
         ("FTA_ES_RETENTION", slz.IntegerField(label=_("自愈ES数据保留时间"), default=365)),
         ("DOUBLE_CHECK_SUM_STRATEGY_IDS", slz.ListField(label=_("适用 SUM 聚合方法二次确认的策略ID列表"), default=[])),
         ("SMS_CONTENT_LENGTH", slz.IntegerField(label=_("发送短信内容最大长度（0表示不限制）"), default=0)),
+        (
+            "SMS_NOTICE_TEMPLATE_MODE",
+            slz.ChoiceField(
+                label=_("短信文案模式"),
+                choices=[("legacy", _("原文案")), ("standard", _("标准文案"))],
+                default=settings.SMS_NOTICE_TEMPLATE_MODE,
+            ),
+        ),
         ("IS_ACCESS_BK_DATA", slz.BooleanField(label=_("是否开启与计算平台的功能对接"), default=False)),
         (
             "IS_MIGRATE_AIOPS_STRATEGY",
@@ -884,6 +896,8 @@ STANDARD_CONFIGS = OrderedDict(
         ("RUM_FUNC_INTRODUCTION_URL", slz.CharField(label=_("RUM产品白皮书"), default="", allow_blank=True)),
         # RUM新版灰度配置
         ("RUM_BIZ_LIST", slz.ListField(label=_("RUM 新版灰度配置"), default=[])),
+        # Profiling 主动采集灰度配置
+        ("ACTIVE_PROFILING_BIZ_LIST", slz.ListField(label=_("Profiling 主动采集灰度配置"), default=[])),
         # LLM 观测灰度业务列表
         ("LLM_BIZ_LIST", slz.ListField(label=_("LLM 观测灰度业务列表"), default=[])),
     ]

@@ -33,7 +33,7 @@ jobs:
     - name: Setup Node.js environment
       uses: actions/setup-node@v2.2.0
       with:
-        node-version: 18.18.0
+        node-version: 26.12.1
     - name: Run build web
       run: |
         cd web

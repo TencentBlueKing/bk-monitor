@@ -707,14 +707,16 @@ export default defineComponent({
                         <RumExploreView
                           ref='rumExploreViewRef'
                           v-slots={{
-                            affixedTop: () => (
-                              <RumSpanTypeFilter
-                                list={spanTypeCtx.chipList.value}
-                                loading={this.configLoading}
-                                value={spanTypeCtx.activeSpanType.value}
-                                onChange={this.handleSpanTypeChange}
-                              />
-                            ),
+                            affixedTop: this.isSpanMode
+                              ? () => (
+                                  <RumSpanTypeFilter
+                                    list={spanTypeCtx.chipList.value}
+                                    loading={this.configLoading}
+                                    value={spanTypeCtx.activeSpanType.value}
+                                    onChange={this.handleSpanTypeChange}
+                                  />
+                                )
+                              : undefined,
                             default: () =>
                               this.configLoading ? (
                                 <RumExploreSkeleton kind='table' />
@@ -788,6 +790,7 @@ export default defineComponent({
             fields={this.columnConfig.displayableFields.value}
             isShow={eventsDrawerCtx.show.value}
             row={eventsRow}
+            onConditionChange={this.handleConditionChange}
             onUpdate:isShow={(value: boolean) => {
               /* 关闭统一走 closeDrawer：主表激活单元格高亮随抽屉关闭清除，激活行高亮保留（不随关闭清空） */
               if (value) {

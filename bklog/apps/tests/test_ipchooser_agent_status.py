@@ -1,6 +1,8 @@
+import json
 from unittest.mock import patch
 
 from django.test import SimpleTestCase, override_settings
+from rest_framework.renderers import JSONRenderer
 
 from apps.feature_toggle.handlers.toggle import Toggle
 from apps.log_databus.models import CollectorConfig
@@ -17,6 +19,12 @@ class FillAgentStatusTest(SimpleTestCase):
             {"bk_host_id": 2, "bk_host_innerip": "127.0.0.2"},
             {"bk_host_id": 3, "bk_host_innerip": "127.0.0.3"},
         ]
+
+    def _assert_agent_statuses(self, hosts, expected):
+        statuses = [host["status"] for host in hosts]
+        self.assertEqual(statuses, expected)
+        for status in statuses:
+            self.assertIs(type(status), int)
 
     @patch("bkm_ipchooser.handlers.topo_handler.is_nodeman_v3_admitted", return_value=False)
     @patch("bkm_ipchooser.handlers.topo_handler.BaseHandler.get_meta_data", return_value={})
@@ -39,11 +47,36 @@ class FillAgentStatusTest(SimpleTestCase):
 
         result = TopoHandler.fill_agent_status(self.hosts, 2)
 
-        self.assertTrue(result[0]["status"])
-        self.assertFalse(result[1]["status"])
-        # 公共查询未返回的主机在 IP 选择器侧仍为不在线
-        self.assertFalse(result[2]["status"])
+        self._assert_agent_statuses(result, [1, 0, 0])
+        self.assertEqual(
+            TopoHandler.count_agent_status(result),
+            {"agent_statistics": {"total_count": 3, "alive_count": 1, "not_alive_count": 2}},
+        )
         mock_get_agent_status.assert_called_once_with(2, [1, 2, 3])
+
+    def test_query_hosts_serializes_agent_status_as_integers(self):
+        hosts = [{**host, "bk_cloud_id": 0} for host in self.hosts]
+        with (
+            patch("bkm_ipchooser.handlers.topo_handler.is_nodeman_v3_admitted", return_value=True),
+            patch("bkm_ipchooser.handlers.topo_handler.get_agent_status", return_value={1: True, 2: False}),
+            patch("bkm_ipchooser.handlers.topo_handler.get_pagination_data", return_value={"count": 3, "info": hosts}),
+            patch("bkm_ipchooser.handlers.base.resource.ResourceQueryHelper.fetch_biz_list", return_value=[]),
+            patch("bkm_ipchooser.handlers.base.BkApi.search_cloud_area", return_value={"info": []}),
+        ):
+            result = TopoHandler.query_hosts(
+                scope_list=[{"bk_biz_id": 2}],
+                readable_node_list=[{"object_id": "module", "instance_id": 1}],
+                conditions=[],
+                start=0,
+                page_size=20,
+            )
+
+        response = json.loads(JSONRenderer().render(result))
+
+        self.assertEqual(response["total"], 3)
+        self.assertEqual([host["alive"] for host in response["data"]], [1, 0, 0])
+        for host in response["data"]:
+            self.assertIs(type(host["alive"]), int)
 
     @patch("bkm_ipchooser.handlers.topo_handler.is_nodeman_v3_admitted", return_value=True)
     @patch("bkm_ipchooser.handlers.topo_handler.get_agent_status")
@@ -53,7 +86,7 @@ class FillAgentStatusTest(SimpleTestCase):
         result = TopoHandler.fill_agent_status(self.hosts, 2)
 
         self.assertEqual(len(result), 3)
-        self.assertTrue(all(host["status"] is False for host in result))
+        self._assert_agent_statuses(result, [0, 0, 0])
 
     @patch("bkm_ipchooser.handlers.topo_handler.is_nodeman_v3_admitted", return_value=True)
     @patch("apps.log_databus.nodeman_v3.agent_status.get_client")
@@ -67,9 +100,7 @@ class FillAgentStatusTest(SimpleTestCase):
 
         result = TopoHandler.fill_agent_status(self.hosts, 2)
 
-        self.assertTrue(result[0]["status"])
-        self.assertFalse(result[1]["status"])
-        self.assertFalse(result[2]["status"])
+        self._assert_agent_statuses(result, [1, 0, 0])
 
     @patch("bkm_ipchooser.handlers.topo_handler.is_nodeman_v3_admitted", return_value=True)
     @patch("apps.log_databus.nodeman_v3.agent_status.get_client")
@@ -86,9 +117,7 @@ class FillAgentStatusTest(SimpleTestCase):
 
         result = TopoHandler.fill_agent_status(self.hosts, 2)
 
-        self.assertFalse(result[0]["status"])
-        self.assertTrue(result[1]["status"])
-        self.assertFalse(result[2]["status"])
+        self._assert_agent_statuses(result, [0, 1, 0])
 
     @override_settings(ENABLE_NODEMAN_V3=True)
     def test_non_bkcc_space_admission_matches_collector_and_query_uses_related_biz(self):
@@ -110,9 +139,7 @@ class FillAgentStatusTest(SimpleTestCase):
             self.assertTrue(should_use_nodeman_v3(config))
             result = TopoHandler.fill_agent_status(self.hosts, -99)
 
-        self.assertTrue(result[0].get("status"))
-        self.assertFalse(result[1].get("status"))
-        self.assertFalse(result[2].get("status"))
+        self._assert_agent_statuses(result, [1, 0, 0])
         mock_get_client.assert_called_once_with(2)
         payload = mock_get_client.return_value.list_hosts.call_args.args[0]
         self.assertEqual(payload["exact_include_conditions"]["bk_biz_id"], [2])

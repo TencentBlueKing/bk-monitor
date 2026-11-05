@@ -65,6 +65,7 @@ RESULT_TABLE_SUMMARY_FIELDS = [
 ]
 CLUSTER_SUMMARY_FIELDS = ["cluster_id", "cluster_name", "display_name", "cluster_type"]
 DORIS_STORAGE_FIELDS = [
+    "physical_tables",
     "table_id",
     "bk_tenant_id",
     "bkbase_table_id",

@@ -56,6 +56,7 @@ const buildRequestConfig = (
   appendHeaders?: Record<string, string>,
   signal?: AbortSignal,
   skipTraceparent?: boolean,
+  skipSpaceUid?: boolean,
 ) => {
   // URL 处理（对应 axios 拦截器中的 URL 检查）
   // 如果URL是外部API（如 /api/bk-user-web），直接使用，不拼接 baseURL
@@ -89,7 +90,7 @@ const buildRequestConfig = (
   }
 
   // 平台级索引集的所有检索子接口都需要请求空间，统一通过 header 传递
-  if (store.state.spaceUid) {
+  if (store.state.spaceUid && !skipSpaceUid) {
     headers['X-Bk-Space-Uid'] = store.state.spaceUid;
   }
 
@@ -119,6 +120,7 @@ const buildRequestConfig = (
  * @param args.method 请求方法
  * @param args.headers 请求头
  * @param args.signal AbortSignal 用于取消请求
+ * @param args.skipSpaceUid 是否跳过自动注入空间id
  * @returns {Promise<Response>}
  */
 export const request = (args: {
@@ -128,9 +130,18 @@ export const request = (args: {
   headers?: Record<string, string>;
   signal?: AbortSignal;
   skipTraceparent?: boolean;
+  skipSpaceUid?: boolean;
 }) => {
-  const { url, params = {}, method = 'POST', headers = {}, signal, skipTraceparent } = args;
-  const { url: fullUrl, config } = buildRequestConfig(url, params, method, headers, signal, skipTraceparent);
+  const { url, params = {}, method = 'POST', headers = {}, signal, skipTraceparent, skipSpaceUid = false } = args;
+  const { url: fullUrl, config } = buildRequestConfig(
+    url,
+    params,
+    method,
+    headers,
+    signal,
+    skipTraceparent,
+    skipSpaceUid,
+  );
   return fetch(fullUrl, config);
 };
 

@@ -570,4 +570,6 @@ export default {
   请输入优先级: 'Please enter the priority',
   '优先级需在1-10000之间': 'The priority must be between 1 and 10000',
   '正在拉取来源构建、提交历史与 Blame 信息': 'Pulling source build, commit history, and blame information',
+  '重新分析将基于最新告警重新触发 AI 源码分析，是否继续？':
+    'Re-analysis will trigger AI source code analysis based on the latest alerts. Do you want to continue?',
 };

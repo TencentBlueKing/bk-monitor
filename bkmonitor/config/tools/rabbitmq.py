@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2025 Tencent. All rights reserved.
@@ -10,8 +9,15 @@ specific language governing permissions and limitations under the License.
 """
 
 import os
+from urllib.parse import quote
 
+from config import kms
 from config.tools.environment import PAAS_VERSION
+
+
+def build_amqp_url(user, password, host, port, vhost) -> str:
+    """AMQP Broker URL，账号密码按 URL 编码（含 `/`、`@`、`:` 等字符）"""
+    return f"amqp://{quote(user, safe='')}:{quote(password, safe='')}@{host}:{port}/{quote(vhost, safe='')}"
 
 
 def get_rabbitmq_settings(app_code: str, backend=False):
@@ -39,9 +45,13 @@ def get_rabbitmq_settings(app_code: str, backend=False):
         user = os.getenv("RABBITMQ_USER", "guest")
         password = os.getenv("RABBITMQ_PASSWORD", "guest")
 
-    broker_url = "amqp://{user}:{password}@{host}:{port}/{vhost}".format(
-        user=user, password=password, host=host, port=port, vhost=vhost
-    )
+    if kms.enabled():
+        alias = "backend" if backend else "saas"
+        user = kms.value("rabbitmq", alias, "username")
+        password = kms.value("rabbitmq", alias, "password")
+        broker_url = build_amqp_url(user, password, host, port, vhost)
+    else:
+        broker_url = f"amqp://{user}:{password}@{host}:{port}/{vhost}"
     return host, port, vhost, user, password, broker_url
 
 

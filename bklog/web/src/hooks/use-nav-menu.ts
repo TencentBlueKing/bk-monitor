@@ -164,7 +164,6 @@ export function useNavMenu(options: {
 
     // 首次加载应用路由触发上报还未获取到 spaceUid ，需手动执行上报
     if (store.state.isAppFirstLoad && newSpaceUid) {
-      store.state.isAppFirstLoad = false;
       const { name, meta } = route as any;
       reportLogStore.reportRouteLog({
         route_id: name,

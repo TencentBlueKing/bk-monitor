@@ -50,16 +50,15 @@ from apps.log_clustering.models import ClusteringConfig, ClusteringSubscription
 from apps.log_clustering.serializers import PatternSearchSerlaizer
 from apps.log_clustering.utils.wechat_robot import WeChatRobot
 from apps.log_search.exceptions import IndexSetDoseNotExistException
-from apps.log_search.handlers.search.search_handlers_esquery import (
-    SearchHandler as SearchHandlerEsquery,
-)
 from apps.log_search.models import LogIndexSet, Space
 from apps.log_search.serializers import SearchAttrSerializer
+from apps.log_unifyquery.handler.base import UnifyQueryHandler
 from apps.utils.drf import custom_params_valid
 from apps.utils.local import set_local_param
 from apps.utils.log import logger
 from apps.utils.task import high_priority_task
 from bkm_space import api
+from bkm_space.utils import space_uid_to_bk_biz_id
 
 
 def validate_end_time(freq: dict, end_time: datetime):
@@ -175,8 +174,9 @@ def query_logs(
         "size": 1,
     }
     params = custom_params_valid(SearchAttrSerializer, params)
+    params.update({"index_set_ids": [config.index_set_id], "bk_biz_id": space_uid_to_bk_biz_id(config.space_uid)})
     logger.info(f"{log_prefix} Query signature log params: {params}")
-    result = SearchHandlerEsquery(config.index_set_id, params).search()
+    result = UnifyQueryHandler(params).search()
     logger.info(f"{log_prefix} Query signature log result: {result}")
     if not result.get("list", []):
         return {}

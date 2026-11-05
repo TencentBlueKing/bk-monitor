@@ -982,6 +982,133 @@ class TestSourceAnalysisOrchestration(TestCase):
         )
 
     @patch("fta_web.issue.resources.api.bk_incident.get_source_analysis_task")
+    def test_failed_node_summary_is_persisted_and_returned_in_both_views(self, get_task):
+        execution = self.create_execution(bkfara_task_id="task-1", status=SourceAnalysisStatus.RUNNING)
+        get_task.return_value = {
+            "status": "failed",
+            "terminal": True,
+            "error": {
+                "code": "DEVOPS_BUILD_FAILED",
+                "message": "DevOps pipeline execution failed",
+                "retryable": False,
+                "details": {
+                    "failed_tasks": [
+                        {
+                            "task_id": "task-1",
+                            "task_name": "Input validation",
+                            "error_message": "Task failed\n\nValueError: missing parameter",
+                        }
+                    ],
+                    "error_info_list": [{"taskId": "task-1", "errorCode": 2199002}],
+                },
+            },
+        }
+
+        SourceAnalysisExecutionBaseResource.advance_bkfara_task(execution.analysis_id)
+
+        execution.refresh_from_db()
+        self.assertEqual(execution.status, SourceAnalysisStatus.FAILED)
+        self.assertEqual(execution.failure_code, "DEVOPS_BUILD_FAILED")
+        self.assertFalse(execution.failure_retryable)
+        expected = (
+            "DevOps pipeline execution failed | Input validation [2199002]: Task failed ValueError: missing parameter"
+        )
+        self.assertEqual(execution.failure_message, expected)
+        latest = SourceAnalysisExecutionBaseResource.serialize_execution(execution)
+        overview = SourceAnalysisExecutionBaseResource.build_source_analysis_overview({"latest": latest})
+        self.assertEqual(latest["failure"]["message"], expected)
+        self.assertEqual(overview["latest"]["failure"]["message"], expected)
+
+    @patch("fta_web.issue.resources.api.bk_incident.get_source_analysis_task")
+    def test_malformed_node_html_does_not_block_failed_terminal_state(self, get_task):
+        execution = self.create_execution(bkfara_task_id="task-1", status=SourceAnalysisStatus.RUNNING)
+        get_task.return_value = {
+            "status": "failed",
+            "terminal": True,
+            "error": {
+                "code": "DEVOPS_BUILD_FAILED",
+                "message": "pipeline failed",
+                "retryable": False,
+                "details": {
+                    "failed_tasks": [
+                        {"task_id": "task-1", "task_name": "Validation", "error_message": "<" * 60 + "a>" * 60}
+                    ]
+                },
+            },
+        }
+
+        self.assertIsNone(SourceAnalysisExecutionBaseResource.advance_bkfara_task(execution.analysis_id))
+
+        execution.refresh_from_db()
+        self.assertEqual(execution.status, SourceAnalysisStatus.FAILED)
+        self.assertIsNone(execution.active_key)
+        self.assertIsNotNone(execution.finished_at)
+        self.assertEqual(execution.failure_message, "pipeline failed | Validation")
+        self.assertEqual(execution.failure_code, "DEVOPS_BUILD_FAILED")
+
+    @patch("fta_web.issue.resources.api.bk_incident.get_source_analysis_task")
+    def test_invalid_html_marked_section_does_not_block_failed_terminal_state(self, get_task):
+        execution = self.create_execution(bkfara_task_id="task-1", status=SourceAnalysisStatus.RUNNING)
+        get_task.return_value = {
+            "status": "failed",
+            "terminal": True,
+            "error": {
+                "code": "DEVOPS_BUILD_FAILED",
+                "message": "pipeline failed",
+                "retryable": False,
+                "details": {
+                    "failed_tasks": [
+                        {
+                            "task_id": "task-1",
+                            "task_name": "Validation",
+                            "error_message": "unexpected response: <![foo]>",
+                        }
+                    ]
+                },
+            },
+        }
+
+        self.assertIsNone(SourceAnalysisExecutionBaseResource.advance_bkfara_task(execution.analysis_id))
+
+        execution.refresh_from_db()
+        self.assertEqual(execution.status, SourceAnalysisStatus.FAILED)
+        self.assertIsNone(execution.active_key)
+        self.assertIsNotNone(execution.finished_at)
+        self.assertEqual(execution.failure_message, "pipeline failed | Validation")
+        self.assertEqual(execution.failure_code, "DEVOPS_BUILD_FAILED")
+
+    @patch("fta_web.issue.resources.api.bk_incident.get_source_analysis_task")
+    def test_escaped_credentials_are_not_persisted_in_failed_summary(self, get_task):
+        execution = self.create_execution(bkfara_task_id="task-1", status=SourceAnalysisStatus.RUNNING)
+        get_task.return_value = {
+            "status": "failed",
+            "terminal": True,
+            "error": {
+                "code": "DEVOPS_BUILD_FAILED",
+                "message": "pipeline failed",
+                "details": {
+                    "failed_tasks": [
+                        {"task_name": "Validation", "error_message": json.dumps({"password": 'prefix"private-tail'})}
+                    ],
+                    "error_info_list": [
+                        {"taskName": "Checkout", "errorMsg": json.dumps(json.dumps({"access_token": "private-tail"}))}
+                    ],
+                },
+            },
+        }
+
+        self.assertIsNone(SourceAnalysisExecutionBaseResource.advance_bkfara_task(execution.analysis_id))
+
+        execution.refresh_from_db()
+        self.assertEqual(execution.status, SourceAnalysisStatus.FAILED)
+        self.assertNotIn("private-tail", execution.failure_message)
+        self.assertIn("******", execution.failure_message)
+        latest = SourceAnalysisExecutionBaseResource.serialize_execution(execution)
+        overview = SourceAnalysisExecutionBaseResource.build_source_analysis_overview({"latest": latest})
+        self.assertNotIn("private-tail", latest["failure"]["message"])
+        self.assertNotIn("private-tail", overview["latest"]["failure"]["message"])
+
+    @patch("fta_web.issue.resources.api.bk_incident.get_source_analysis_task")
     def test_remote_failure_does_not_persist_incomplete_execution_reference(self, get_task):
         execution = self.create_execution(bkfara_task_id="task-1", status=SourceAnalysisStatus.RUNNING)
         get_task.return_value = {
@@ -1123,6 +1250,82 @@ class TestSourceAnalysisOrchestration(TestCase):
         get_access_token_by_user.assert_called_once_with(execution.run_as_user)
         advance.assert_called_once_with(execution.analysis_id)
         apply_async.assert_called_once_with(args=(execution.analysis_id,), countdown=3)
+
+    def test_owner_trigger_prepares_and_reads_back_credentials_before_dispatch(self):
+        execution = self.create_execution(run_as_user="repository-owner")
+        request = object()
+        persisted = {}
+
+        def prepare(_request):
+            self.assertIs(_request, request)
+            persisted["repository-owner"] = SimpleNamespace(access_token="persisted-owner-token")
+            return persisted["repository-owner"]
+
+        with (
+            patch("fta_web.issue.resources.get_request", return_value=request),
+            patch("fta_web.issue.resources.get_request_username", return_value="repository-owner"),
+            patch.object(oauth_client, "get_access_token", side_effect=prepare) as prepare_token,
+            patch.object(
+                oauth_client, "get_access_token_by_user", side_effect=lambda username: persisted[username]
+            ) as recover,
+            patch.object(SourceAnalysisExecutionBaseResource, "advance_bkfara_task", return_value=None) as advance,
+        ):
+            SourceAnalysisExecutionBaseResource.dispatch_execution(execution)
+        prepare_token.assert_called_once_with(request)
+        recover.assert_called_once_with("repository-owner")
+        advance.assert_called_once_with(execution.analysis_id)
+        execution.refresh_from_db()
+        self.assertEqual(execution.run_as_user, "repository-owner")
+        self.assertEqual(execution.status, SourceAnalysisStatus.PENDING)
+
+    def test_editor_trigger_and_celery_never_prepare_their_own_credentials(self):
+        execution = self.create_execution(run_as_user="repository-owner")
+        for request in (object(), None):
+            with self.subTest(has_request=request is not None):
+                with (
+                    patch("fta_web.issue.resources.get_request", return_value=request),
+                    patch("fta_web.issue.resources.get_request_username", return_value="rule-editor"),
+                    patch.object(oauth_client, "get_access_token") as prepare,
+                    patch.object(
+                        oauth_client,
+                        "get_access_token_by_user",
+                        return_value=SimpleNamespace(access_token="owner-token"),
+                    ) as recover,
+                    patch.object(SourceAnalysisExecutionBaseResource, "advance_bkfara_task", return_value=None),
+                ):
+                    SourceAnalysisExecutionBaseResource.dispatch_execution(execution)
+                    prepare.assert_not_called()
+                    recover.assert_called_once_with("repository-owner")
+
+    def test_owner_credential_preparation_failure_does_not_dispatch(self):
+        execution = self.create_execution(run_as_user="repository-owner")
+        with (
+            patch("fta_web.issue.resources.get_request", return_value=object()),
+            patch("fta_web.issue.resources.get_request_username", return_value="repository-owner"),
+            patch.object(oauth_client, "get_access_token", side_effect=TokenException("login expired")),
+            patch.object(oauth_client, "get_access_token_by_user") as recover,
+            patch.object(SourceAnalysisExecutionBaseResource, "advance_bkfara_task") as advance,
+        ):
+            SourceAnalysisExecutionBaseResource.dispatch_execution(execution)
+        advance.assert_not_called()
+        recover.assert_not_called()
+        execution.refresh_from_db()
+        self.assertEqual(execution.failure_code, "USER_ACCESS_TOKEN_UNAVAILABLE")
+        self.assertEqual(execution.run_as_user, "repository-owner")
+
+    def test_owner_token_must_be_readable_from_persistence_before_dispatch(self):
+        execution = self.create_execution(run_as_user="repository-owner")
+        with (
+            patch("fta_web.issue.resources.get_request", return_value=object()),
+            patch("fta_web.issue.resources.get_request_username", return_value="repository-owner"),
+            patch.object(oauth_client, "get_access_token", return_value=SimpleNamespace(access_token="web-only-token")),
+            patch.object(oauth_client, "get_access_token_by_user", side_effect=TokenNotExist("not persisted")),
+            patch.object(SourceAnalysisExecutionBaseResource, "advance_bkfara_task") as advance,
+        ):
+            SourceAnalysisExecutionBaseResource.dispatch_execution(execution)
+        advance.assert_not_called()
+        execution.refresh_from_db()
+        self.assertEqual(execution.failure_code, "USER_ACCESS_TOKEN_UNAVAILABLE")
 
     def test_persisted_rule_configurer_token_is_recovered_by_celery_trigger(self):
         execution = self.create_execution(bkfara_provision_id=None)

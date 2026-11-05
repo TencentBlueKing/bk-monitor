@@ -138,6 +138,7 @@ export default {
   '已选择 {0} 个 Issue': '{0} Issues selected',
   '当前已选 {0} 项': '{0} items selected',
   '已选择 {n} 个主机': 'Selected {n} hosts',
+  '采集器正常 {n} / {total}': 'Healthy collectors {n} / {total}',
   '已选择 {n} 个动态分组': 'Selected {n} dynamic groups',
   '已选择{count}条': 'Selected {count} Items',
   '当前已选择{0}条数据': 'Currently selected {0} pieces of data',
@@ -499,7 +500,11 @@ export default {
   '当前已有配置正在编辑，请先保存或取消': 'A configuration is currently being edited; please save or cancel first.',
   '项目和代码库配置尚未保存，是否保存并继续？':
     'The project and repository configuration is not saved. Save and continue?',
-  '保存项目和代码库会同步更新已有规则。': 'Saving the project and repository will also update existing rules.',
+  '保存仓库配置会同步更新所有规则，并使用保存人的身份执行。':
+    'Saving the repository configuration updates all rules to run as the user saving it.',
+  保存仓库配置: 'Save Repository Configuration',
+  '仓库配置缺少执行人，是否使用当前用户初始化？':
+    'The repository configuration has no execution user. Initialize it with the current user?',
   保存并继续: 'Save and continue',
   保存并应用为全局: 'Save and Apply Globally',
   批量编辑: 'Batch Edit',
@@ -599,7 +604,6 @@ export default {
   '查询链路上下文失败，请稍后重试': 'Failed to query trace context, please try again later',
   暂无链路上下文数据: 'No trace context data',
   '未找到关联 Trace': 'Associated Trace not found',
-  会话: 'Conversation',
   用户输入: 'User input',
   最终输出: 'Final output',
   关系: 'Relation',
@@ -612,5 +616,4 @@ export default {
   '查看 Span 详情': 'View Span details',
   '当前 Trace 无会话 ID': 'Current Trace has no session ID',
   本快照未提供事件数据: 'This snapshot does not contain event data',
-  事件数量: 'Event count',
 };

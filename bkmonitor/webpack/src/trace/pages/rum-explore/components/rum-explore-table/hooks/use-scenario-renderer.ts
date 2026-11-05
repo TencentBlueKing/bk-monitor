@@ -29,11 +29,11 @@ import { type ComputedRef, type MaybeRef, computed, onBeforeUnmount, onMounted, 
 import { get } from '@vueuse/core';
 
 import { RumModeEnum } from '../../../constants';
+import { BaseScenario } from '../scenarios/base-scenario';
 import { SpanScenario } from '../scenarios/span-scenario';
 
 import type { BaseTableColumn } from '../../../../trace-explore/components/trace-explore-table/typing';
 import type { RumModeType } from '../../../typings';
-import type { BaseScenario } from '../scenarios/base-scenario';
 
 export interface ScenarioRenderer {
   /** 当前场景实例 */
@@ -48,9 +48,19 @@ export interface ScenarioRenderer {
   transformColumns: (baseColumns: BaseTableColumn[]) => BaseTableColumn[];
 }
 
+class SessionScenario extends BaseScenario {
+  readonly privateClassName = 'session-table';
+  readonly rowKey = 'attributes.session.id';
+}
+
+class ViewScenario extends BaseScenario {
+  readonly privateClassName = 'view-table';
+  readonly rowKey = 'attributes.view.id';
+}
+
 /**
  * @function useScenarioRenderer 表格场景工厂渲染器 hook
- * @description 按检索模式选择场景渲染器实例（session / view 场景待实现），未注册的场景模式将显式抛错，
+ * @description 按检索模式选择场景渲染器实例，未注册的场景模式将显式抛错，
  *              负责将基础列（列展示元数据）注入场景产出的声明式渲染配置（renderType 等），
  *              实现「列展示」「场景配置」「渲染执行」三者分离
  * @param {MaybeRef<RumModeType>} mode 检索视角（由组件以 prop 显式传入，避免隐式依赖全局 store）
@@ -66,6 +76,8 @@ export const useScenarioRenderer = (
   /** 场景渲染器类映射 */
   const scenarioMap: Partial<Record<RumModeType, new (ctx: SpanScenario['context']) => BaseScenario>> = {
     [RumModeEnum.SPAN]: SpanScenario,
+    [RumModeEnum.SESSION]: SessionScenario,
+    [RumModeEnum.VIEW]: ViewScenario,
   };
   /** 当前激活的场景渲染器实例 */
   const currentScenario = computed<BaseScenario>(() => {

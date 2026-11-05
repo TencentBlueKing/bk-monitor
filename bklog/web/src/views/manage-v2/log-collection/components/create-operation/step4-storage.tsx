@@ -35,7 +35,8 @@ import ClusterTypeTabs from '../../../es-cluster/cluster-manage/cluster-type-tab
 import { CLUSTER_TYPES, ClusterType, useClusterType } from '../../../es-cluster/cluster-manage/use-cluster-type';
 import { useOperation } from '../../hook/useOperation';
 import { showClusterSelectError } from '@/common/collector-api-error';
-import { showMessage } from '../../utils';
+import { getFormValidateMessage } from '../../save-failure';
+import { showCollectSaveFailure, showMessage, showUnshownRequestError } from '../../utils';
 import ClusterTable from '../business-comp/step4/cluster-table';
 import { deepEqual } from '@/common/util';
 import $http from '@/api';
@@ -688,6 +689,7 @@ export default defineComponent({
         })
         .then(res => {
           if (!res?.result) {
+            showCollectSaveFailure(res, t('保存失败'));
             callback?.(false);
             return;
           }
@@ -699,7 +701,8 @@ export default defineComponent({
             emit('cancel');
           }
         })
-        .catch(() => {
+        .catch(err => {
+          showUnshownRequestError(err, t('保存失败'));
           callback?.(false);
         })
         .finally(() => {
@@ -772,10 +775,12 @@ export default defineComponent({
               store.commit('collect/updateCurCollect', { ...formData.value, ...data, ...res.data });
             }
           } else {
+            showCollectSaveFailure(res, t('保存失败'));
             callback?.(false);
           }
         })
-        .catch(() => {
+        .catch(err => {
+          showUnshownRequestError(err, t('保存失败'));
           callback?.(false);
         })
         .finally(() => {
@@ -797,7 +802,8 @@ export default defineComponent({
       // 表单校验
       try {
         await storageFormRef.value?.validate();
-      } catch {
+      } catch (err) {
+        showMessage(getFormValidateMessage(err, t('请完善存储配置')), 'error');
         callback?.(false);
         return;
       }

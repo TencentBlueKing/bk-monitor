@@ -23,6 +23,8 @@ from django.template.loader import get_template
 from django.utils.translation import gettext as _
 
 from bkmonitor.models import GlobalConfig
+from bkmonitor.utils.sms import get_sms_template_mode, render_standard_sms, standard_sms_template_kind
+from bkmonitor.utils.sms_context import standard_sms_values
 from bkmonitor.utils.template import AlarmNoticeTemplate, AlarmOperateNoticeTemplate
 from bkmonitor.utils.text import (
     cut_line_str_by_max_bytes,
@@ -100,6 +102,7 @@ class BaseSender:
         content_template_path="",
         notice_type=NoticeType.ALERT_NOTICE,
         bk_tenant_id=None,
+        sms_template_mode=None,
     ):
         """
         :param context: EventContext or dict
@@ -108,6 +111,12 @@ class BaseSender:
         """
         self.context = context
         self.bk_tenant_id = bk_tenant_id
+        self._sms_render_error = None
+        sms_kind = standard_sms_template_kind(content_template_path)
+        self.sms_template_mode = "legacy"
+        if sms_kind and self._get_notice_channel(context) != NoticeChannel.BK_CHAT:
+            self.sms_template_mode = sms_template_mode if sms_template_mode is not None else get_sms_template_mode()
+        self._sms_standard_body = self.sms_template_mode == "standard"
         try:
             self.bk_biz_id = int(self.context.get("target").business.bk_biz_id)
         except Exception as error:
@@ -148,15 +157,22 @@ class BaseSender:
             logger.exception("failed to render notice title, fallback to default title: %s", e)
             self.title = context_dict.get("notice_title") or _("蓝鲸监控")
         try:
-            self.content = content_template.render(context_dict)
+            if self._sms_standard_body:
+                self.content = render_standard_sms(sms_kind, standard_sms_values(sms_kind, context_dict))
+            else:
+                self.content = content_template.render(context_dict)
         except Exception as e:
             logger.exception(e)
             self.content = str(e)
+            if self._sms_standard_body:
+                self._sms_render_error = self.content
             return
         self.msg_type = "markdown" if self.notice_way in settings.MD_SUPPORTED_NOTICE_WAYS else "text"
         self.handle_content_length(content_template, context_dict)
 
     def handle_content_length(self, content_template, context_dict):
+        if self._sms_standard_body:
+            return
         content_limit = self.get_content_limit(self.notice_way)
         # 渲染后的总提长度: self.content（这里做了特殊字符的replace, 一个特殊字符占1个长度)
         content_length = get_content_length(self.content, self.encoding)
@@ -366,12 +382,12 @@ class BaseSender:
             # 需要判断真正通知的方式是否与默认的一致，不一致的话要重置msg_type
             self.msg_type = "markdown" if notice_way in settings.MD_SUPPORTED_NOTICE_WAYS else "text"
             self.encoding = None if notice_way in self.NoEncoding else self.Utf8Encoding
-        if isinstance(self.content, Exception):
+        if self._sms_render_error is not None or isinstance(self.content, Exception):
             return {
                 notice_receiver: {"message": str(self.content), "result": False} for notice_receiver in notice_receivers
             }
 
-        if not self._is_wxwork_layouts_enabled:
+        if not self._is_wxwork_layouts_enabled and not (notice_way == NoticeWay.SMS and self._sms_standard_body):
             # 模块化消息推送，由 _format_layouts 进行长度限制，无需限制整体长度。
             self.content = self.get_notice_content(notice_way, self.content)
         method = getattr(self, "send_{}".format(notice_way.replace("-", "_")), None)
@@ -533,7 +549,8 @@ class Sender(BaseSender):
             f"{self._blocked_notice_log_prefix}send.sms({','.join(notice_receivers)}): "
             f"\ncontent: {self.content} \naction_plugin {action_plugin}"
         )
-        self.content = self.get_notice_content(NoticeWay.SMS, self.content)
+        if not self._sms_standard_body:
+            self.content = self.get_notice_content(NoticeWay.SMS, self.content)
         retry_params = {
             "api_module": "api.cmsi.default",
             "resource": "SendSms",
@@ -879,8 +896,14 @@ class Sender(BaseSender):
 
 
 class NoneTemplateSender(Sender):
-    def __init__(self, title="", content="", context=None):
+    def __init__(self, title="", content="", context=None, bk_tenant_id=None, sms_template_mode=None):
         self.context = context or {}
+        self.bk_tenant_id = bk_tenant_id
+        self._sms_render_error = None
+        self.mentioned_users = self.context.get("mentioned_users")
+        self._is_wxwork_layouts_enabled = False
+        self.sms_template_mode = sms_template_mode or "legacy"
+        self._sms_standard_body = self.sms_template_mode == "standard"
         self.title = title
         self.content = content
         self.msg_type = "text"

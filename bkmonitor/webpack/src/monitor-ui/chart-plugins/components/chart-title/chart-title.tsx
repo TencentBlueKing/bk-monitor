@@ -370,7 +370,7 @@ export default class ChartTitle extends tsc<
 
   render() {
     return (
-      <div class='title-wrapper'>
+      <div class={['title-wrapper', { 'menu-show': this.showMenu }]}>
         <div
           ref='chartTitle'
           class='chart-title'

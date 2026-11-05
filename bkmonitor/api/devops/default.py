@@ -73,6 +73,8 @@ class ListUserProjectResource(DevopsBaseResource):
 
     action = "/v4/apigw-user/projects/project_list"
     method = "GET"
+    # 不预先注入用户名，保留框架从当前请求提取 bk_ticket / bk_token 的路径。
+    INSERT_BK_USERNAME_TO_REQUEST_DATA = False
 
     def request(self, request_data=None, **kwargs):
         if not settings.BK_CI_URL:
@@ -136,6 +138,7 @@ class ListUserRepositoryResource(DevopsBaseResource):
     action = "/v4/apigw-user/repositories/projects/{project_id}/repository_info_list"
     method = "GET"
     IS_STANDARD_FORMAT = False
+    INSERT_BK_USERNAME_TO_REQUEST_DATA = False
 
     class RequestSerializer(serializers.Serializer):
         project_id = serializers.CharField(label="蓝盾项目 ID", max_length=128)

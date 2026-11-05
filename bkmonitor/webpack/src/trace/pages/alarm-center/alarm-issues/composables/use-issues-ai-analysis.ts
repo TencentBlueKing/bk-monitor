@@ -57,6 +57,8 @@ export const useIssuesAiAnalysis = createGlobalState(() => {
   });
   const sourceAnalysisScene = shallowRef<'overview' | 'view'>('overview');
   const sourceAnalysisIsPending = computed(() => loopStatus.includes(sourceAnalysisData.value?.latest?.status));
+  /** 未匹配到可用源码分析规则时的引导弹窗 */
+  const sourceAnalysisNotConfiguredShow = shallowRef(false);
   let timer = null;
 
   const overviewRequest = useRequestAbort(getIssueAiAnalysisOverview);
@@ -74,6 +76,27 @@ export const useIssuesAiAnalysis = createGlobalState(() => {
     sourceAnalysisData.value = null;
     loading.sourceAnalysis = false;
     loading.retryAnalysis = false;
+    sourceAnalysisNotConfiguredShow.value = false;
+  };
+
+  // biome-ignore lint/suspicious/noExplicitAny: 接口错误结构未统一，按需读取 code/data/message
+  type AnalysisError = any;
+
+  /** 是否未匹配到可用的源码分析规则 */
+  const isNotConfiguredError = (err: AnalysisError) =>
+    err?.code === 3327013 && err?.data?.reason === 'source_analysis_not_configured';
+
+  /** 提取接口错误提示文案 */
+  const getErrorMessage = (err: AnalysisError, fallback: string) => {
+    const error = err?.data ?? err;
+    const details = error?.error_details || (typeof error?.message === 'object' ? error.message : null);
+    return (
+      (details?.popup_message && details) ||
+      details?.overview ||
+      (typeof error?.message === 'string' && error.message) ||
+      (typeof error === 'string' && error) ||
+      fallback
+    );
   };
 
   const getContext = ({ bk_biz_id, issue_id }: AIAnalysisBaseParams) => {
@@ -145,13 +168,23 @@ export const useIssuesAiAnalysis = createGlobalState(() => {
     const context = getContext(params);
     if (loading.retryAnalysis) return;
     loading.retryAnalysis = true;
-    const data = await startIssueSourceAnalysis(params).finally(() => {
+    try {
+      // 未匹配规则的场景需要展示引导弹窗，关闭请求层默认错误提示
+      const data = await startIssueSourceAnalysis(params, { needMessage: false });
+      if (activeContext !== context) return;
+      sourceAnalysisData.value = data;
+      if (sourceAnalysisIsPending.value) {
+        await getSourceAnalysisData(params);
+      }
+    } catch (err) {
+      if (activeContext !== context) return;
+      if (isNotConfiguredError(err)) {
+        sourceAnalysisNotConfiguredShow.value = true;
+        return;
+      }
+      bkUiMessage({ theme: 'error', message: getErrorMessage(err, t('分析失败，请稍后重试')) });
+    } finally {
       if (activeContext === context) loading.retryAnalysis = false;
-    });
-    if (activeContext !== context) return;
-    sourceAnalysisData.value = data;
-    if (sourceAnalysisIsPending.value) {
-      await getSourceAnalysisData(params);
     }
   };
 
@@ -181,17 +214,11 @@ export const useIssuesAiAnalysis = createGlobalState(() => {
       }
     } catch (err) {
       if (activeContext !== context) return;
-      const error = err?.data ?? err;
-      const details = error?.error_details || (typeof error?.message === 'object' ? error.message : null);
-      bkUiMessage({
-        theme: 'error',
-        message:
-          (details?.popup_message && details) ||
-          details?.overview ||
-          (typeof error?.message === 'string' && error.message) ||
-          (typeof error === 'string' && error) ||
-          t('重新分析失败，请稍后重试'),
-      });
+      if (isNotConfiguredError(err)) {
+        sourceAnalysisNotConfiguredShow.value = true;
+        return;
+      }
+      bkUiMessage({ theme: 'error', message: getErrorMessage(err, t('重新分析失败，请稍后重试')) });
     } finally {
       if (activeContext === context) loading.retryAnalysis = false;
     }
@@ -202,6 +229,7 @@ export const useIssuesAiAnalysis = createGlobalState(() => {
     sourceAnalysisScene,
     sourceAnalysisData,
     sourceAnalysisIsPending,
+    sourceAnalysisNotConfiguredShow,
     getSourceAnalysisData,
     handleToSetting,
     handleStartAnalysis,

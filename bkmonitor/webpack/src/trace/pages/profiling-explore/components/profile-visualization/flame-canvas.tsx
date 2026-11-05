@@ -73,7 +73,7 @@ export default defineComponent({
       return layout.value.frames.find(frame => frame.node === node)?.key || 0;
     });
     const focus = computed(() => layout.value.frames[focusKey.value] || layout.value.frames[0]);
-    const contentHeight = computed(() => Math.max(460, layout.value.rows.length * ROW_HEIGHT));
+    const contentHeight = computed(() => layout.value.rows.length * ROW_HEIGHT);
     let observer: ResizeObserver;
     let raf = 0;
 
@@ -275,6 +275,7 @@ export default defineComponent({
         {!!this.focusKey && (
           <div class='flame-focus'>
             <Button
+              v-tippy={this.t('恢复完整火焰图')}
               theme='primary'
               text
               onClick={this.reset}
@@ -292,7 +293,10 @@ export default defineComponent({
             this.scheduleRender();
           }}
         >
-          <div style={{ height: `${this.contentHeight}px` }}>
+          <div
+            style={{ height: `${this.contentHeight}px` }}
+            class='flame-scroll-content'
+          >
             <canvas
               ref='canvas'
               aria-label={this.t('火焰图')}
@@ -327,15 +331,24 @@ export default defineComponent({
             this.menu = null;
           }}
         >
-          <Button onClick={() => this.menuAction('copy')}>
+          <Button
+            v-tippy={this.t('复制当前函数的完整名称')}
+            onClick={() => this.menuAction('copy')}
+          >
             <i class='icon-monitor icon-mc-copy' />
             {this.t('复制函数名')}
           </Button>
-          <Button onClick={() => this.menuAction('highlight')}>
+          <Button
+            v-tippy={this.t('搜索并高亮相同名称的函数')}
+            onClick={() => this.menuAction('highlight')}
+          >
             <i class='icon-monitor icon-mc-search' />
             {this.t('高亮相似堆栈')}
           </Button>
-          <Button onClick={() => this.menuAction('reset')}>
+          <Button
+            v-tippy={this.t('清除高亮并恢复完整火焰图')}
+            onClick={() => this.menuAction('reset')}
+          >
             <i class='icon-monitor icon-shuaxin' />
             {this.t('重置视图')}
           </Button>

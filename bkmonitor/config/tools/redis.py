@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2025 Tencent. All rights reserved.
@@ -9,11 +8,11 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 
-
 import os
 
 __all__ = ["get_redis_settings"]
 
+from config import kms
 from config.tools.environment import ENVIRONMENT, PAAS_VERSION, ROLE
 
 
@@ -57,11 +56,15 @@ def get_redis_settings():
                 port = int(port or 6379)
 
         password = os.environ.get("BK_MONITOR_REDIS_PASSWORD", password)
+        if kms.enabled():
+            password = kms.value("redis", "monitor", "password")
     else:
         cache_backend_type = "RedisCache"
 
     master_name = os.environ.get("BK_MONITOR_REDIS_SENTINEL_MASTER_NAME", "mymaster")
     sentinel_password = os.environ.get("BK_MONITOR_REDIS_SENTINEL_PASSWORD", "")
+    if kms.enabled():
+        sentinel_password = kms.value("redis_sentinel", "monitor", "password")
     return cache_backend_type, host, port, password, master_name, sentinel_password
 
 
@@ -81,4 +84,12 @@ def get_cache_redis_settings(redis_type: str):
     password = os.environ.get("BK_MONITOR_REDIS_PASSWORD", None)
     master_name = os.environ.get("BK_MONITOR_REDIS_SENTINEL_MASTER_NAME", "")
     sentinel_password = os.environ.get("BK_MONITOR_REDIS_SENTINEL_PASSWORD", None)
+    if kms.enabled():
+        # The chart renders the sentinel password variable only in sentinel mode; keep None otherwise.
+        password = kms.value("redis", "monitor", "password")
+        sentinel_password = (
+            kms.value("redis_sentinel", "monitor", "password")
+            if os.environ.get("BK_MONITOR_REDIS_MODE") == "sentinel"
+            else None
+        )
     return host, port, password, master_name, sentinel_password

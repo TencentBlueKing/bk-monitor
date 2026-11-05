@@ -13,7 +13,7 @@ from metadata import models
 from metadata.models.data_link import DataLink
 from metadata.config import DATABASE_CONNECTION_NAME
 from metadata.models.data_link import utils as data_link_utils
-from metadata.models.data_link.constants import DataLinkNameScene
+from metadata.models.data_link.constants import DataLinkNameScene, DataLinkResourceStatus
 from metadata.models.space.constants import SpaceTypes
 from metadata.models.vm.constants import ACCESS_DATA_LINK_FAILURE_STATUS, ACCESS_DATA_LINK_SUCCESS_STATUS
 from metadata.models.vm.utils import (
@@ -248,6 +248,14 @@ def _get_subset_data_link(context: FederationMetricContext) -> DataLink | None:
         )
         if link.pk in related_names or context.table_id in link.table_ids or not link.table_ids
     ]
+    # 迁移后已回填来源和 RT 的链路优先；旧名称的空主记录可能仍保留 RT 映射。
+    explicit_candidates = [
+        link
+        for link in candidates
+        if link.bk_data_id == context.data_source.bk_data_id and context.table_id in link.table_ids
+    ]
+    if explicit_candidates:
+        candidates = explicit_candidates
     if len(candidates) > 1:
         raise FederationReconcileError(f"ambiguous federation subset links: tenant={tenant}, table={context.table_id}")
     return candidates[0] if candidates else None
@@ -312,7 +320,7 @@ def ensure_federal_subset_data_link(bk_tenant_id: str, sub_cluster_id: str) -> N
 
 def delete_federal_subset_data_link(bk_tenant_id: str, sub_cluster_id: str) -> None:
     context = _get_metric_context(bk_tenant_id=bk_tenant_id, cluster_id=sub_cluster_id)
-    # 创建和删除使用同一套关联查询；Subset 的删除策略只清理自身路由组件，保留共享 RT/Binding。
+    # 创建和删除使用同一套关联查询；仅清理 Databus，保留链路、路由组件及共享 RT/Binding。
     with transaction.atomic(using=DATABASE_CONNECTION_NAME):
         models.ResultTable.objects.select_for_update().get(bk_tenant_id=bk_tenant_id, table_id=context.table_id)
         data_link = _get_subset_data_link(context)
@@ -323,7 +331,7 @@ def delete_federal_subset_data_link(bk_tenant_id: str, sub_cluster_id: str) -> N
         models.BkBaseResultTable.objects.filter(
             bk_tenant_id=bk_tenant_id,
             data_link_name=data_link_name,
-        ).delete()
+        ).update(status=DataLinkResourceStatus.TERMINATING.value)
     logger.info(
         "delete_federal_subset_data_link: tenant->[%s],sub_cluster_id->[%s],data_link_name->[%s]",
         bk_tenant_id,

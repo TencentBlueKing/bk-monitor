@@ -51,6 +51,7 @@ export default {
   时间: 'Time',
   事件时间: 'Event Time',
   过期时间: 'Expire Time',
+  过期天数: 'Expiration Days',
   副本数: 'Replicas',
   分片数: 'Shards',
   索引切分大小: 'Split Size',

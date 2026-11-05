@@ -14,6 +14,7 @@ from semconv.constants import SpanKind, SpanStatusCode
 from semconv.rum.constants import (
     RumSpanType,
     SdkLanguage,
+    ViewLoadingType,
     VitalMetric,
     OutcomeType,
     NetworkStatus,
@@ -250,6 +251,7 @@ class TestSpanSpec:
             ("attributes.span_type", RumSpanType),
             ("kind", SpanKind),
             ("status.code", SpanStatusCode),
+            ("attributes.view.loading_type", ViewLoadingType),
             ("attributes.vital.metric", VitalMetric),
             ("attributes.network.status", NetworkStatus),
             ("attributes.network.connection.type", NetworkConnectionType),
@@ -260,6 +262,16 @@ class TestSpanSpec:
     def test_enum_option_values(self, path: str, expected):
         """枚举字段携带正确的 option_values 类型。"""
         assert SpanSpec.from_field(path).option_values is expected
+
+    def test_view_loading_type_choices(self):
+        """页面加载类型枚举展示名称与设计规范对齐。"""
+        choices: list[tuple[str, str]] = [(value, str(label)) for value, label in ViewLoadingType.choices()]
+        assert choices == [
+            ("initial_load", "初始加载"),
+            ("route_change", "路由切换"),
+            ("session_renewal", "续期重建"),
+            ("bf_cache", "缓存恢复"),
+        ]
 
     # ------------------------------------------------------------------
     # 时间字段的单位与展示类型

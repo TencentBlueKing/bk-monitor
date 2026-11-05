@@ -23,6 +23,10 @@
     .search-item {
       padding-right: 24px;
       margin-bottom: 6px;
+
+      .search-item-value {
+        width: 100%;
+      }
     }
 
     .search-item-label {
@@ -72,10 +76,4 @@
       margin-right: 8px;
     }
   }
-}
-
-.select-loading {
-  display: inline-block;
-  width: 100%;
-  text-align: center;
 }

@@ -168,6 +168,7 @@ class InjectSpaceApi(space_api.AbstractSpaceApi):
                        s.space_type_id,
                        s.space_id,
                        s.space_name,
+                       s.status,
                        s.space_code,
                        s.time_zone,
                        s.language,

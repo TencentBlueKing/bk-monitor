@@ -6110,6 +6110,8 @@ class StorageClusterRecord(models.Model):
 
     table_id = models.CharField(max_length=128, db_index=True, verbose_name="采集项结果表名")
     bk_tenant_id = models.CharField("租户ID", max_length=256, null=True, default="system")
+    bkbase_table_id = models.CharField("BKBase结果表ID", max_length=255, default="", blank=True)
+    physical_tables = models.JSONField("物理表用途映射", default=dict)
     cluster_id = models.BigIntegerField(db_index=True, verbose_name="存储集群ID")
     is_deleted = models.BooleanField(default=False, verbose_name="是否删除/停用")
     is_current = models.BooleanField(default=False, verbose_name="是否是当前最新存储集群")
@@ -6313,6 +6315,7 @@ class DorisStorage(models.Model, StorageResultTable):
     bk_tenant_id = models.CharField("租户ID", max_length=256, null=True, default="system")
     bkbase_table_id = models.CharField("bkbase表名", max_length=128, null=True)
     origin_table_id = models.CharField("原始结果表名", max_length=128, blank=True, null=True)
+    physical_tables = models.JSONField("物理表用途映射", default=dict)
     source_type = models.CharField("数据源类型", max_length=32, default="log")
 
     index_set = models.TextField("索引集", blank=True, null=True)

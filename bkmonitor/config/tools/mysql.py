@@ -10,6 +10,7 @@ specific language governing permissions and limitations under the License.
 
 import os
 
+from config import kms
 from config.tools.environment import PAAS_VERSION
 
 
@@ -25,6 +26,10 @@ def get_saas_mysql_settings():
     port = os.getenv("BKAPP_SAAS_DB_PORT") or os.getenv("BK_PAAS_MYSQL_PORT") or port
     user = os.getenv("BKAPP_SAAS_DB_USER") or os.getenv("BK_PAAS_MYSQL_USER") or user
     password = os.getenv("BKAPP_SAAS_DB_PASSWORD") or os.getenv("BK_PAAS_MYSQL_PASSWORD") or password
+
+    if kms.enabled():
+        user = kms.value("mysql", "saas", "username")
+        password = kms.value("mysql", "saas", "password")
 
     return name, host, port, user, password
 
@@ -65,6 +70,10 @@ def get_backend_mysql_settings():
         or os.getenv("BK_PAAS_MYSQL_PASSWORD")
         or password
     )
+
+    if kms.enabled():
+        user = kms.value("mysql", "backend", "username")
+        password = kms.value("mysql", "backend", "password")
 
     return name, host, port, user, password
 

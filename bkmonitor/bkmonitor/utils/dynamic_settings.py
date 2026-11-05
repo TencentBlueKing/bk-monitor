@@ -16,6 +16,7 @@ from django.core.cache import caches
 from django.utils.functional import empty
 
 from bkmonitor.utils.cache import InstanceCache
+from config import kms
 
 
 locmem_cache = None
@@ -52,6 +53,8 @@ class DynamicSettings:
         from bkmonitor.define import global_config
 
         self.__name_list__ = set(global_config.GLOBAL_CONFIGS)
+        if kms.enabled():
+            self.__name_list__.difference_update(("SAAS_APP_CODE", "SAAS_SECRET_KEY"))
         self.has_redis_cache = redis_cache is not None
 
     @property

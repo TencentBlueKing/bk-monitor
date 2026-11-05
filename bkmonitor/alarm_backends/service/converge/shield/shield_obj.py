@@ -10,8 +10,11 @@ specific language governing permissions and limitations under the License.
 
 import copy
 import logging
+from datetime import datetime
 
 import arrow
+from django.conf import settings
+from django.utils import timezone
 from django.utils.translation import gettext as _
 
 from alarm_backends.core.cache.cmdb.dynamic_group import DynamicGroupManager
@@ -19,6 +22,7 @@ from alarm_backends.core.cache.key import NOTICE_SHIELD_KEY_LOCK
 from alarm_backends.core.context.utils import get_business_roles
 from alarm_backends.core.control.strategy import Strategy
 from alarm_backends.service.converge.shield.display_manager import DisplayManager
+from alarm_backends.service.converge.shield.window import business_timezone, matching_window
 from alarm_backends.service.converge.shield_conditions import (
     DIMENSION_CONDITION_CLASSES,
     PROMQL_EXPRESSION_DIMENSION,
@@ -31,8 +35,9 @@ from bkmonitor.utils.range import (
     load_field_instance,
 )
 from bkmonitor.utils.range.conditions import AndCondition, Condition, EqualCondition, OrCondition
-from bkmonitor.utils.range.period import TimeMatch, TimeMatchBySingle
+from bkmonitor.utils.range.period import TimeMatch, TimeMatchByMonth, TimeMatchBySingle, TimeMatchByWeek
 from bkmonitor.utils.send import Sender
+from bkmonitor.utils.sms import format_sms_time, get_sms_template_mode
 from bkmonitor.utils.tenant import bk_biz_id_to_bk_tenant_id
 from constants.shield import ScopeType, ShieldCategory
 from core.errors.alarm_backends import StrategyNotFound
@@ -293,6 +298,7 @@ class ShieldObj:
         begin_time = self.get_now_datetime()
         end_time = begin_time.replace(minutes=notice_time)
         is_time_match = self.time_check.is_match(end_time)
+        self._sms_start_notice_probe = end_time
 
         if not is_time_match:
             # 未到发送时间，忽略
@@ -319,6 +325,7 @@ class ShieldObj:
         begin_time = self.get_now_datetime()
         end_time = begin_time.replace(minutes=notice_time + 1)
         is_time_match = not self.time_check.is_match(end_time)
+        self._sms_end_notice_probe = end_time.replace(minutes=-1)
 
         if not is_time_match:
             # 未到发送时间，忽略
@@ -364,7 +371,9 @@ class ShieldObj:
             return {}
 
         # 获取通知模板上下文
-        context = self.get_notice_context(notice_type)
+        notice_ways = self.config["notice_config"]["notice_way"]
+        sms_template_mode = get_sms_template_mode() if "sms" in notice_ways else "legacy"
+        context = self.get_notice_context(notice_type, include_standard_sms=sms_template_mode == "standard")
 
         all_notice_result = {}
 
@@ -374,6 +383,7 @@ class ShieldObj:
                 title_template_path=f"notice/shield/{notice_way}_title.jinja",
                 content_template_path=f"notice/shield/{notice_way}_content.jinja",
                 context=context,
+                sms_template_mode=sms_template_mode,
             )
             logger.debug(
                 "[屏蔽通知] shield({}) 通知方式：{}, 内容：{}".format(self.config["id"], notice_way, sender.content)
@@ -405,7 +415,7 @@ class ShieldObj:
 
         return actual_receivers
 
-    def get_notice_context(self, notice_type):
+    def get_notice_context(self, notice_type, include_standard_sms=False):
         """
         获取屏蔽通知上下文
         :param notice_type:
@@ -428,8 +438,38 @@ class ShieldObj:
             "shield_content": self.display_manager.get_shield_content(self.config),
             "description": self.config["description"],
         }
+        if include_standard_sms:
+            try:
+                context["sms_event_time_formatted"] = format_sms_time(
+                    self._get_sms_notice_boundary(notice_type),
+                    tz=business_timezone(self.config["bk_biz_id"]),
+                    language=settings.DEFAULT_LOCALE,
+                )
+            except Exception:
+                logger.warning("failed to resolve shield SMS event time", exc_info=True)
+                context["sms_event_time_formatted"] = format_sms_time(None, language=settings.DEFAULT_LOCALE)
 
         return context
+
+    def _get_sms_notice_boundary(self, notice_type):
+        """Resolve the window from the probe used by the existing notice decision."""
+        probe = getattr(self, f"_sms_{notice_type}_notice_probe", None)
+        if probe is None or not self.time_check.is_match(probe):
+            return None
+
+        if self.config.get("end_policy") != "close" and isinstance(
+            self.time_check, (TimeMatchByWeek, TimeMatchByMonth)
+        ):
+            system_offset = datetime.fromtimestamp(probe.timestamp).astimezone().utcoffset()
+            current_offset = timezone.localtime(probe.datetime).utcoffset()
+            if system_offset != current_offset:
+                # The matcher combines the system calendar with Django's current wall clock.
+                return None
+
+        window = matching_window(self.time_check, probe)
+        if window is None:
+            return None
+        return window[0 if notice_type == "start" else 1]
 
 
 class AlertShieldObj(ShieldObj):

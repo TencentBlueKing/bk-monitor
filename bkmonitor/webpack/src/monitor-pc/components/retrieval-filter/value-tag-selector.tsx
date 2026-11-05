@@ -438,16 +438,21 @@ export default class ValueTagSelector extends tsc<IProps> {
       }
 
       return this.localValue.length
-        ? this.localValue.map((item, index) => [
-            <ValueTagInput
-              key={item.id}
-              class={{ 'is-error': this.isTypeInteger ? !isNumeric(item.id) : false }}
-              value={item.id}
-              onChange={v => this.handleTagUpdate(v, index)}
-              onDelete={() => this.handleDelete(index)}
-            />,
-            this.activeIndex === index && inputRender(`${item.id}_input`),
-          ])
+        ? this.localValue.map((item, index) => {
+            /* 空值（如「- 空 -」）以 name 展示且不可编辑，避免 tag 空白或被编辑成字面量 */
+            const isEmptyValueTag = item.id === '' && !!item.name;
+            return [
+              <ValueTagInput
+                key={item.id}
+                class={{ 'is-error': this.isTypeInteger ? !isNumeric(item.id) : false }}
+                hasEdit={!isEmptyValueTag}
+                value={isEmptyValueTag ? item.name : item.id}
+                onChange={v => this.handleTagUpdate(v, index)}
+                onDelete={() => this.handleDelete(index)}
+              />,
+              this.activeIndex === index && inputRender(`${item.id}_input`),
+            ];
+          })
         : inputRender('input');
     };
     return (
