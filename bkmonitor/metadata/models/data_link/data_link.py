@@ -544,6 +544,7 @@ class DataLink(models.Model):
         (BCS_FEDERAL_SUBSET_TIME_SERIES, VMStorageBindingConfig): "keep",
         (CUSTOM_FORMAT_DORIS, ResultTableConfig): "keep",
         (CUSTOM_FORMAT_DORIS, DorisStorageBindingConfig): "keep",
+        (BK_LOG, ResultTableConfig): "keep",
         (BK_LOG, ESStorageBindingConfig): "keep",
         (BK_LOG, DorisStorageBindingConfig): "keep",
         (GRAPH_RELATION_TIME_SERIES, ResultTableConfig): "delete",
@@ -668,28 +669,6 @@ class DataLink(models.Model):
             for index, (field_name, field_type) in enumerate(CUSTOM_FORMAT_VM_INTERMEDIATE_FIELDS)
         ]
 
-    def _claim_historical_doris_components(self, storage, context):
-        """历史配置仍属于本链路；按历史 BKBase RT 实名保留，当前版本由 compose 单独认领。"""
-        from metadata.models import StorageClusterRecord
-
-        historical_ids = set(
-            StorageClusterRecord.objects.filter(
-                bk_tenant_id=self.bk_tenant_id, table_id=storage.table_id, is_deleted=False
-            )
-            .exclude(bkbase_table_id=storage.bkbase_table_id)
-            .exclude(bkbase_table_id="")
-            .values_list("bkbase_table_id", flat=True)
-        )
-        for kind, components in context.leftover().items():
-            if kind not in (ResultTableConfig, DorisStorageBindingConfig):
-                continue
-            for component in list(components):
-                if component.table_id != storage.table_id:
-                    continue
-                rt_name = component.name if kind is ResultTableConfig else component.bkbase_result_table_name
-                if f"{component.datalink_biz_ids.data_biz_id}_{rt_name}" in historical_ids:
-                    context.claim(kind, lambda entry, name=component.name: entry.name == name)
-
     def compose_custom_format_configs(
         self,
         bk_biz_id: int,
@@ -698,7 +677,6 @@ class DataLink(models.Model):
         storage_cluster_name: str = "",
         inner_kafka_channel_name: str = "",
         consumer_group: str | None = None,
-        existing_context: ExistingComponentContext | None = None,
     ) -> list[dict[str, Any]]:
         """组装自定义格式的 VM、Elasticsearch 或 Doris 单目标链路。"""
         from metadata.models import ResultTableOption
@@ -740,15 +718,6 @@ class DataLink(models.Model):
             if storage is None:
                 raise ValueError(f"自定义格式 ResultTable({table_id}) 缺少 DorisStorage")
             doris_name = storage.datalink_table_name
-            if existing_context is not None:
-                if doris_name:
-                    self._claim_historical_doris_components(storage, existing_context)
-                for kind in (ResultTableConfig, DorisStorageBindingConfig):
-                    existing_context.claim(
-                        kind,
-                        lambda item: item.table_id == table_id and item.name == (doris_name or self.data_link_name),
-                    )
-                existing_context.claim(DataBusConfig, lambda item: item.name == clean_name)
             if doris_name:
                 doris_database, doris_table = storage.physical_tables["main"].split(".", 1)
                 if not consumer_group:
@@ -1381,13 +1350,9 @@ class DataLink(models.Model):
             doris_database = doris_table = None
             if doris_name:
                 doris_database, doris_table = doris_storage.physical_tables["main"].split(".", 1)
-                if existing_context is not None:
-                    self._claim_historical_doris_components(doris_storage, existing_context)
             existing_rt = (
-                existing_context.claim(
-                    ResultTableConfig, lambda c: not doris_name or (c.table_id == table_id and c.name == doris_name)
-                )
-                if existing_context is not None
+                existing_context.claim(ResultTableConfig, lambda c: True)
+                if existing_context is not None and not doris_name
                 else None
             )
             rt_name = doris_name or (existing_rt.name if existing_rt is not None else self.data_link_name)
@@ -1461,11 +1426,8 @@ class DataLink(models.Model):
             if doris_storage and datalink_option.doris_storage_config:
                 storage_option = datalink_option.doris_storage_config
                 existing_binding = (
-                    existing_context.claim(
-                        DorisStorageBindingConfig,
-                        lambda c: not doris_name or (c.table_id == table_id and c.name == doris_name),
-                    )
-                    if existing_context is not None
+                    existing_context.claim(DorisStorageBindingConfig, lambda c: True)
+                    if existing_context is not None and not doris_name
                     else None
                 )
                 binding_name = doris_name or (

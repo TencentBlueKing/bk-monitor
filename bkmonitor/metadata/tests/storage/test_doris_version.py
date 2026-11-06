@@ -221,6 +221,14 @@ def test_historical_resources_are_retained_and_latest_version_selected(version_r
     assert models.DorisStorageBindingConfig.objects.filter(name=old_name, data_link_name=link.pk).exists()
     assert models.ResultTableConfig.objects.filter(data_link_name=link.pk).count() == 2
     assert models.DorisStorageBindingConfig.objects.filter(data_link_name=link.pk).count() == 2
+    assert link._leftover_policy(models.ResultTableConfig) == "keep"
+    assert not link._get_absent_components_to_delete(
+        [
+            {"kind": models.DataBusConfig.kind, "metadata": {"name": bus.name, "namespace": link.namespace}}
+            for bus in models.DataBusConfig.objects.filter(data_link_name=link.pk)
+        ],
+        force_delete=True,
+    )
     assert storage.get_doris_binding_config().name == storage.datalink_table_name
     link.sync_metadata(table_id=rt.table_id, storage_cluster_id=99991)
     assert models.BkBaseResultTable.objects.get(data_link_name=link.pk).bkbase_rt_name == storage.datalink_table_name

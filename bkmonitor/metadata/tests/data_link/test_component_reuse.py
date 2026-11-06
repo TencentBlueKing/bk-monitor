@@ -46,17 +46,19 @@ def _pool_with(overrides: dict | None = None):
 
 
 class TestReuseLeftoverPolicy:
-    def test_bk_log_keeps_storage_bindings_but_other_components_remain_strict(self):
-        """ES / Doris 切换允许保留历史绑定，但不能放宽 RT、DataBus 等组件校验。"""
+    def test_bk_log_keeps_result_tables_and_storage_bindings_but_databus_remains_strict(self):
+        """ES 和 Doris 日志链路均保留旧 RT 和存储绑定，Databus 继续走既有校验。"""
         datalink = DataLink(data_link_name="bk_log_demo", data_link_strategy=DataLink.BK_LOG)
         es_binding = SimpleNamespace(name="legacy_es_binding")
         doris_binding = SimpleNamespace(name="legacy_doris_binding")
-        result_table = SimpleNamespace(name="unexpected_result_table")
+        result_table = SimpleNamespace(name="legacy_result_table")
+        databus = SimpleNamespace(name="unexpected_databus")
 
         storage_only_ctx = ExistingComponentContext(
             data_link_name=datalink.data_link_name,
             components_by_kind=_pool_with(
                 {
+                    ResultTableConfig: [result_table],
                     ESStorageBindingConfig: [es_binding],
                     DorisStorageBindingConfig: [doris_binding],
                 }
@@ -69,6 +71,7 @@ class TestReuseLeftoverPolicy:
             components_by_kind=_pool_with(
                 {
                     ResultTableConfig: [result_table],
+                    DataBusConfig: [databus],
                     ESStorageBindingConfig: [es_binding],
                     DorisStorageBindingConfig: [doris_binding],
                 }
@@ -79,9 +82,9 @@ class TestReuseLeftoverPolicy:
 
         assert datalink._leftover_policy(ESStorageBindingConfig) == "keep"
         assert datalink._leftover_policy(DorisStorageBindingConfig) == "keep"
-        assert datalink._leftover_policy(ResultTableConfig) == "strict"
+        assert datalink._leftover_policy(ResultTableConfig) == "keep"
         assert datalink._leftover_policy(DataBusConfig) == "strict"
-        assert exc_info.value.violations == {ResultTableConfig: [result_table]}
+        assert exc_info.value.violations == {DataBusConfig: [databus]}
 
 
 class TestExistingComponentContextClaim:

@@ -486,7 +486,7 @@ DorisStorage 在已有 ResultTable 修改事务内比较字段、分词、索引
 DataLink 读取已保存的目标名称，按名称新建或更新 ResultTableConfig/DorisBinding，再更新 Databus 引用。
 名称未变则原地更新；名称变化则新增本地和远端资源。旧 RT/Binding、本来的 DataLink 关联以及库表历史
 全部保留，不改名覆盖、不解除关联、不清理。本次声明通过显式目标名称定位组件和回填 BKBase RT，
-启用复用时，compose 按历史记录中的 BKBase RT 名称认领旧组件。自定义格式 Doris 的清理策略保留 RT 和 DorisBinding。
+日志链路统一通过 keep 策略保留旧 RT、ESBinding 和 DorisBinding。自定义格式 Doris 保留旧 RT 和 DorisBinding。各链路由 compose 选择当前写入目标。
 
 ES 和 Doris 的 V4 日志链路统一在配置事务提交后同步调用 `apply_log_datalink`。外层事务回滚时取消回调。
 纯 ES 下发失败时，本地 RT 配置已经提交，调用方可以重试链路下发。
