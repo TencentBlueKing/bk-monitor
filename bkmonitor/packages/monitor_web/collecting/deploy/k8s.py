@@ -104,6 +104,11 @@ spec:
 """
 
 
+def collector_release_name(config_id, bk_env):
+    name = f"bk-monitor-collector-{config_id}"
+    return f"{name}-{bk_env}" if bk_env else name
+
+
 class K8sInstaller(BaseInstaller):
     """
     k8s安装器
@@ -352,16 +357,14 @@ class K8sInstaller(BaseInstaller):
         plugin_id = self.collect_config.plugin.plugin_id.replace("_", "-")
         bk_env: str = settings.BCS_CLUSTER_BK_ENV_LABEL
         if bk_env:
-            release_name = f"bk-monitor-collector-{self.collect_config.id}-{bk_env}"
             plugin_release_name = f"bk-monitor-plugin-{plugin_id}-{bk_env}"
         else:
-            release_name = f"bk-monitor-collector-{self.collect_config.id}"
             plugin_release_name = f"bk-monitor-plugin-{plugin_id}"
 
         return {
             "bk_biz_id": self.collect_config.bk_biz_id,
             "bk_env": bk_env,
-            "release_name": release_name,
+            "release_name": collector_release_name(self.collect_config.id, bk_env),
             "plugin_release_name": plugin_release_name,
             "cluster_id": cluster_id,
             "namespace": namespace,

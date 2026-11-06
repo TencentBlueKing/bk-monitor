@@ -8,9 +8,7 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 
-import re
 from copy import deepcopy
-from hashlib import sha256
 from textwrap import indent
 from uuid import NAMESPACE_URL, uuid5
 
@@ -28,8 +26,15 @@ from core.errors.collecting import (
     LegacyConversionFailed,
 )
 from monitor_web.collecting.deploy.k8s import K8sInstaller
+from monitor_web.collecting.deploy.tencent_cloud import freeze_runtime, validated_files
 from monitor_web.collecting.params import stored_detail
-from monitor_web.collecting.tencent_cloud import ConfigLoader, load_yaml, validate_files
+from monitor_web.collecting.tencent_cloud import (
+    ConfigLoader,
+    load_yaml,
+    resolve_contract,
+    file_contains_credential,
+    validate_files,
+)
 from monitor_web.models import CollectConfigMeta
 
 
@@ -65,48 +70,6 @@ class CollectorSerializer(StrictSerializer):
 class ParamsSerializer(StrictSerializer):
     collector = CollectorSerializer()
     plugin = ConfigMapPluginSerializer()
-
-
-def resolve_contract(collector_json, runtime=None):
-    """只读识别已登记镜像。历史模板只接受唯一的静态 image，不执行用户输入或模板。"""
-    if runtime is not None:
-        if not isinstance(runtime, dict):
-            raise LegacyConversionFailed()
-        image = runtime.get("image")
-    else:
-        template = collector_json.get("template", "")
-        if not isinstance(template, str):
-            raise LegacyConversionFailed()
-        candidates = re.findall(r"^\s*image:\s*([^\n]+)$", template, re.MULTILINE)
-        if len(candidates) != 1 or "{{" in candidates[0] or "{%" in candidates[0]:
-            raise LegacyConversionFailed()
-        try:
-            image = yaml.safe_load(candidates[0])
-        except yaml.YAMLError:
-            raise LegacyConversionFailed() from None
-    if not isinstance(image, str):
-        raise LegacyConversionFailed()
-    contract = settings.TENCENT_CLOUD_EXPORTER_CONTRACTS.get(image)
-    if (
-        not isinstance(contract, dict)
-        or contract.get("version") not in ("v0.21.0", "v0.22.4")
-        or not isinstance(contract.get("products"), dict)
-        or not contract["products"]
-    ):
-        raise LegacyConversionFailed()
-    if any(
-        not isinstance(namespace, str)
-        or not isinstance(dimensions, list)
-        or any(not isinstance(dimension, str) for dimension in dimensions)
-        for namespace, dimensions in contract["products"].items()
-    ):
-        raise LegacyConversionFailed()
-    if runtime is None and sha256(template.encode("utf-8")).hexdigest() not in contract.get("templates", []):
-        # 不能只凭模板中某一行出现已知镜像，就将任意历史模板认作已核验契约。
-        raise LegacyConversionFailed()
-    if runtime is not None and runtime.get("contract") != f"qcloud-exporter-{contract['version']}":
-        raise LegacyConversionFailed()
-    return deepcopy(contract)
 
 
 def is_tencent_cloud_config(config):
@@ -176,6 +139,48 @@ def prepare_edit_params(config_meta: CollectConfigMeta, params: dict) -> None:
         if not isinstance(value, str) or not value:
             raise CollectConfigParamsError(msg=f"{field} 必须填写")
         plugin[field] = value
+
+
+def prepare_configmap_snapshot(params, source_config=None):
+    """生成供安装器使用的版本参数；调用方负责源版本并发校验与持久化。"""
+    if not isinstance(params, dict) or set(params) != {"collector", "plugin"}:
+        raise CollectConfigParamsError(msg="不支持的部署参数")
+    plugin = params["plugin"]
+    if not isinstance(plugin, dict) or plugin.keys() - {"config_mode", "configmaps", "access_key", "secret_key"}:
+        raise CollectConfigParamsError(msg="不支持的插件参数")
+    if plugin.get("config_mode") != "configmap" or not isinstance(plugin.get("configmaps"), list):
+        raise CollectConfigParamsError(msg="必须提交 ConfigMap 文件列表")
+    collector = params["collector"]
+    if not isinstance(collector, dict) or collector.keys() - CollectorSerializer().fields.keys():
+        raise CollectConfigParamsError(msg="不支持的采集器参数")
+    if any(
+        not isinstance(file, dict)
+        or set(file) != {"uid", "filename", "content"}
+        or any(not isinstance(value, str) for value in file.values())
+        for file in plugin["configmaps"]
+    ):
+        raise CollectConfigParamsError(msg="ConfigMap 参数格式错误")
+
+    snapshot = deepcopy(params)
+    if source_config is not None:
+        if not is_tencent_cloud_config(source_config):
+            raise CollectConfigParamsError(msg="源配置必须属于腾讯云指标采集")
+        previous = configmap_projection(source_config)
+        snapshot["collector"] = {**previous["collector"], **snapshot["collector"]}
+    for key in ("access_key", "secret_key"):
+        value = plugin.get(key, True)
+        if value is True and source_config is not None:
+            source = source_config.deployment_config
+            if is_legacy_snapshot(source.params):
+                value = source_credential(source, "secret_id" if key == "access_key" else key)
+            else:
+                value = source.params["plugin"].get(key)
+        if not isinstance(value, str) or not value:
+            raise CollectConfigParamsError(msg=f"{key} 必须填写")
+        snapshot["plugin"][key] = value
+    snapshot["runtime"] = freeze_runtime(source_config)
+    validated_files(snapshot)
+    return snapshot
 
 
 def configmap_form():
@@ -269,10 +274,7 @@ def configmap_projection(config):
             raise conversion_failed(errors[0]["path"])
         for file, validated_file in zip(files, validated["files"]):
             preview = validated_file["preview"]
-            if any(
-                value and any(value in text for text in (file["filename"], file["content"], preview["qcloud_yaml"]))
-                for value in (access_key, secret_key)
-            ):
+            if file_contains_credential(file, preview, (access_key, secret_key)):
                 raise conversion_failed("configmaps.content")
             file["preview"] = preview
         return {

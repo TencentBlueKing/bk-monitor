@@ -1948,6 +1948,8 @@ TENCENT_CLOUD_METRIC_PLUGIN_ID = "qcloud_exporter"
 # products: {"QCE/CVM": ["InstanceId"], ...}, templates: [已核验模板的SHA256]}。
 # products 中的列表表示自定义查询的必需维度；templates 防止误认任意历史模板。
 # 历史 tag 仅在已核验其不可变映射时登记；未知映射必须阻断，不能猜测最新版本。
+# 部署需同时登记固定 repo@sha256 条目。tag 条目通过 digest（sha256:...）指向同仓库摘要；
+# 两者必须对应同一版本和产品契约。新建模板条目另提供 resources，存量从源部署渲染取值。
 TENCENT_CLOUD_EXPORTER_CONTRACTS = {}
 
 # 启用监控目标缓存的业务ID列表
