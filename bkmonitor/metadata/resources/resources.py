@@ -606,6 +606,19 @@ class IsDataLabelExistResource(Resource):
         return qs.exists()
 
 
+class SyncAsCodeRecordingRulesResource(Resource):
+    """投递已保存的 AsCode 预计算声明，不在请求内解析或下发。"""
+
+    class RequestSerializer(serializers.Serializer):
+        rule_ids = serializers.ListField(child=serializers.IntegerField(min_value=1), allow_empty=False)
+        operator = serializers.CharField()
+
+    def perform_request(self, validated_request_data):
+        from metadata.task.tasks import sync_as_code_recording_rules
+
+        sync_as_code_recording_rules.delay(**validated_request_data)
+
+
 class CreateDownSampleDataFlowResource(Resource):
     """
     创建统计节点（按指定的降采样频率）
