@@ -21,7 +21,6 @@ def modify_rt(rt, **request):
 @pytest.fixture(params=[DataLink.BK_LOG, DataLink.CUSTOM_FORMAT_DORIS])
 def version_records(request, mocker):
     mocker.patch("bkmonitor.utils.tenant.get_tenant_default_biz_id", return_value=2)
-    mocker.patch("metadata.models.doris_version.publish_doris_route")
     mocker.patch("metadata.models.data_link.data_link.utils.get_registered_bkdata_data_id_name", return_value="source")
     mocker.patch("metadata.models.data_link.data_link.compose_databus_monitor_labels", return_value={})
     mocker.patch.object(DataLink, "_get_databus_monitor_label_table", return_value=None)

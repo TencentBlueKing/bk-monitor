@@ -6170,20 +6170,6 @@ class StorageClusterRecord(models.Model):
         target_current_records = [
             record for record in current_records if record.cluster_id == target_cluster_id and not record.is_deleted
         ]
-        # Doris 同次换表和切集群时，update_storage 已经建立目标物理表的 current 分段。
-        if force_new_segment and target_current_records and target_storage_type == ClusterInfo.TYPE_DORIS:
-            target = target_current_records[-1]
-            if (
-                target.physical_tables
-                and DorisStorage.objects.filter(
-                    table_id=table_id,
-                    bk_tenant_id=bk_tenant_id,
-                    storage_cluster_id=target_cluster_id,
-                    bkbase_table_id=target.bkbase_table_id,
-                    physical_tables=target.physical_tables,
-                ).exists()
-            ):
-                force_new_segment = False
         if target_current_records and not force_new_segment:
             # 同集群重复修改时保留最新 target current，并顺手关闭旧版本遗留的其他 current。
             current_record = target_current_records[-1]
@@ -6347,9 +6333,8 @@ class DorisStorage(models.Model, StorageResultTable):
     @property
     def datalink_table_name(self):
         """已保存的受管物理表名；第三方查询表不参与命名。"""
-        from metadata.models.doris_version import get_datalink_table_name
-
-        return get_datalink_table_name(self.pk, self.physical_tables)
+        name = (self.physical_tables.get("main") or "").partition(".")[2]
+        return name if re.fullmatch(rf"bkm_doris_{self.pk}_v[1-9][0-9]*", name) else None
 
     TABLE_DEFAULTS = {
         "table_type": "primary_table",
@@ -6405,38 +6390,19 @@ class DorisStorage(models.Model, StorageResultTable):
         )
         return self._write_config({item.name: item.get_value() for item in records})
 
-    def update_storage(self, *, target_default_storage=None, old_fields=None, option=None, operator="system", **kwargs):
+    def table_version_config(self, include_fields):
+        """读取参与本次换表比较的写入配置，只有替换字段时才读字段。"""
         from metadata.models.data_link.utils import generate_result_table_field_list
-        from metadata.models.doris_version import advance_table_version
-        from metadata.models.result_table import ResultTableOption
 
-        old_cluster_id = self.storage_cluster_id
-        updated = super().update_storage(**kwargs)
-        if old_fields is None and option is None:
-            return updated
-
-        if option is not None:
-            target = self._write_config(option)
-            if target is None or option.get(ResultTableOption.OPTION_IS_VIRTUAL_TABLE):
-                return updated
         if not self._owns_write_table():
-            return updated
-        before = self._saved_write_config()
-        if before is None:
-            return updated
-
-        # RT 字段已更新，option 仍是旧值。仅在本次替换字段时读取新物理字段。
-        after_fields = (
-            generate_result_table_field_list(self.table_id, self.bk_tenant_id) if old_fields is not None else []
-        )
-        if self.requires_new_table(
-            {"fields": old_fields or [], "storage_config": before},
-            {"fields": after_fields, "storage_config": before if option is None else target},
-        ):
-            advance_table_version(
-                self, operator, target_default_storage=target_default_storage, old_cluster_id=old_cluster_id
-            )
-        return updated
+            return None
+        storage_config = self._saved_write_config()
+        if storage_config is None:
+            return None
+        return {
+            "storage_config": storage_config,
+            "fields": generate_result_table_field_list(self.table_id, self.bk_tenant_id) if include_fields else [],
+        }
 
     def _owns_write_table(self):
         """虚拟表和无采集数据源的路由表只参与查询，不拥有写入链路。"""
@@ -6453,11 +6419,88 @@ class DorisStorage(models.Model, StorageResultTable):
             return False
         return DataSourceResultTable.objects.filter(bk_tenant_id=self.bk_tenant_id, table_id=self.table_id).exists()
 
+    def rotate_table_if_changed(self, table, previous, include_fields, operator):
+        # modify 已保存本轮字段、option 和存储集群，旧实例保留上次的集群 ID。
+        storage = type(self).objects.filter(pk=self.pk).first()
+        if storage is None:
+            return False
+        current = storage.table_version_config(include_fields)
+        if current is None or not self.requires_new_table(previous, current):
+            return False
+        storage._create_next_physical_table(table, operator, self.storage_cluster_id)
+        return True
+
     def advance_table_version(self, operator):
-        from metadata.models.doris_version import advance_table_version
+        from metadata.models import ResultTable
 
         if self._owns_write_table() and self._saved_write_config() is not None:
-            advance_table_version(self, operator)
+            table = ResultTable.objects.get(table_id=self.table_id, bk_tenant_id=self.bk_tenant_id)
+            self._create_next_physical_table(table, operator, self.storage_cluster_id)
+
+    def _create_next_physical_table(self, table, operator, old_cluster_id):
+        from bkmonitor.utils.tenant import get_tenant_datalink_biz_id
+        from metadata.models.data_link.data_link_configs import DorisStorageBindingConfig
+
+        old_physical = dict(self.physical_tables)
+        old_rt = self.bkbase_table_id or ""
+        # 未纳管存量表只在首次换表前读取实际名称，不等待新表创建。
+        legacy_binding = None
+        if not self.datalink_table_name:
+            legacy_binding = (
+                DorisStorageBindingConfig.objects.filter(bk_tenant_id=self.bk_tenant_id, table_id=self.table_id)
+                .order_by("-last_modify_time")
+                .first()
+            )
+        if not old_physical and (old_rt or legacy_binding):
+            old_physical = {"main": self.get_physical_table_name()["physical_table_name"]}
+        if not old_rt and legacy_binding:
+            old_rt = f"{legacy_binding.datalink_biz_ids.data_biz_id}_{legacy_binding.bkbase_result_table_name}"
+        biz_id = get_tenant_datalink_biz_id(bk_tenant_id=self.bk_tenant_id, bk_biz_id=table.bk_biz_id).data_biz_id
+        database = old_physical["main"].split(".", 1)[0] if old_physical else f"mapleleaf_{biz_id}"
+        records = StorageClusterRecord.objects.filter(
+            table_id=self.table_id,
+            bk_tenant_id=self.bk_tenant_id,
+            cluster_id=old_cluster_id,
+            is_deleted=False,
+            disable_time__isnull=True,
+        )
+        now = django_timezone.now()
+        if old_physical:
+            record = records.order_by("-id").first()
+            if record is None:
+                record = StorageClusterRecord.objects.create(
+                    table_id=self.table_id,
+                    bk_tenant_id=self.bk_tenant_id,
+                    cluster_id=old_cluster_id,
+                    creator=operator,
+                    enable_time=django_timezone.make_aware(datetime.datetime(1970, 1, 1)),
+                )
+            if not record.physical_tables:
+                record.physical_tables = old_physical
+            if not record.bkbase_table_id:
+                record.bkbase_table_id = old_rt
+            record.save(update_fields=["physical_tables", "bkbase_table_id"])
+            records.update(is_current=False, disable_time=now)
+        current_name = self.datalink_table_name
+        version = int(current_name.rsplit("_v", 1)[1]) + 1 if current_name else 1
+        table_name = f"bkm_doris_{self.pk}_v{version}"
+        self.bkbase_table_id = f"{biz_id}_{table_name}"
+        self.physical_tables = {"main": f"{database}.{table_name}"}
+        self.save(update_fields=["bkbase_table_id", "physical_tables"])
+        # 首次创建可直接补齐 create_table 已建立的空分段。
+        current = records.first() if not old_physical and old_cluster_id == self.storage_cluster_id else None
+        if current is None:
+            current = StorageClusterRecord(
+                table_id=self.table_id,
+                bk_tenant_id=self.bk_tenant_id,
+                cluster_id=self.storage_cluster_id,
+                creator=operator,
+                enable_time=now,
+            )
+        current.is_current = table.default_storage == self.STORAGE_TYPE
+        current.bkbase_table_id = self.bkbase_table_id
+        current.physical_tables = dict(self.physical_tables)
+        current.save()
 
     @classmethod
     def get_by_table_id(cls, bk_tenant_id: str, table_id: str) -> "DorisStorage":

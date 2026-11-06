@@ -473,39 +473,8 @@ class ModifyResultTableResource(Resource):
     ) -> models.ResultTable:
         """修改结果表信息"""
         try:
-            external = validated_request_data.get("external_storage") or {}
-            if models.ClusterInfo.TYPE_DORIS in external:
-                from metadata.models.data_link.utils import generate_result_table_field_list
-
-                with transaction.atomic(using=config.DATABASE_CONNECTION_NAME):
-                    result_table = (
-                        models.ResultTable.objects.using(config.DATABASE_CONNECTION_NAME)
-                        .select_for_update()
-                        .get(table_id=table_id, bk_tenant_id=bk_tenant_id)
-                    )
-                    old_fields = None
-                    if (
-                        result_table.schema_type == result_table.SCHEMA_TYPE_FREE
-                        and validated_request_data.get("field_list") is not None
-                    ):
-                        old_fields = generate_result_table_field_list(table_id, bk_tenant_id)
-                    doris = dict(
-                        external[models.ClusterInfo.TYPE_DORIS],
-                        old_fields=old_fields,
-                        option=validated_request_data.get("option"),
-                        operator=validated_request_data["operator"],
-                        target_default_storage=validated_request_data.get("default_storage")
-                        or result_table.default_storage,
-                    )
-                    result_table.modify(
-                        **{
-                            **validated_request_data,
-                            "external_storage": {**external, models.ClusterInfo.TYPE_DORIS: doris},
-                        }
-                    )
-            else:
-                result_table = models.ResultTable.objects.get(table_id=table_id, bk_tenant_id=bk_tenant_id)
-                result_table.modify(**validated_request_data)
+            result_table = models.ResultTable.objects.get(table_id=table_id, bk_tenant_id=bk_tenant_id)
+            result_table.modify(**validated_request_data)
         except RetryError as e:
             logger.error(
                 "ModifyResultTableResource: modify table failed,table_id->[%s],error->[%s]", table_id, e.__cause__

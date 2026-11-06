@@ -1390,8 +1390,16 @@ class ResultTable(models.Model):
 
             self.default_storage = default_storage
 
+        # 在现有 RT 行锁内保留覆盖前的 Doris 配置，供存储更新完成后比较。
+        old_doris_config = None
+        replaces_fields = self.schema_type == self.SCHEMA_TYPE_FREE and field_list is not None
+        if external_storage and ClusterInfo.TYPE_DORIS in external_storage and (replaces_fields or option is not None):
+            doris_storage = DorisStorage.objects.filter(table_id=self.table_id, bk_tenant_id=self.bk_tenant_id).first()
+            if doris_storage is not None:
+                old_doris_config = doris_storage.table_version_config(replaces_fields)
+
         # 3. 更新结果表字段配置
-        if self.schema_type == self.SCHEMA_TYPE_FREE and field_list is not None:
+        if replaces_fields:
             # 只有是自动字段的结果表，才可以对字段进行修改
             # 需要将字段都先清理后，然后再重新建立该结果表的字段，ETL可以按照新的字段方案进行入库存储
             result_table_field_ids = ResultTableField.objects.filter(
@@ -1707,6 +1715,10 @@ class ResultTable(models.Model):
                 if prepared is False:
                     raise RuntimeError(_("结果表[{}]的ES索引或写别名未准备完成").format(self.table_id))
 
+        doris_rotated = old_doris_config is not None and doris_storage.rotate_table_if_changed(
+            self, old_doris_config, replaces_fields, operator
+        )
+
         # 使用同一个时间点关闭所有旧 current，再创建唯一的新 current；重复修改同集群时幂等。
         if default_cluster_storage is not None and self.is_enable:
             switch_time = django_timezone.now()
@@ -1718,8 +1730,11 @@ class ResultTable(models.Model):
                 switch_time=switch_time,
                 creator=operator,
                 force_new_segment=(
-                    old_default_storage != self.default_storage
-                    or old_active_cluster_id != default_cluster_storage.storage_cluster_id
+                    (
+                        old_default_storage != self.default_storage
+                        or old_active_cluster_id != default_cluster_storage.storage_cluster_id
+                    )
+                    and not (self.default_storage == ClusterInfo.TYPE_DORIS and doris_rotated)
                 ),
             )
             switched = switch_result[1]
