@@ -23,8 +23,14 @@ from kubernetes import client as k8s_client
 from kubernetes import dynamic as k8s_dynamic
 
 from bkmonitor.utils.template import jinja_render
+from constants.common import DEFAULT_TENANT_ID
 from core.errors.collecting import CollectConfigParamsError, LegacyConversionFailed
-from monitor_web.collecting.deploy.k8s import DATA_ID_TEMPLATE, SERVICE_MONITOR_TEMPLATE, K8sInstaller
+from monitor_web.collecting.deploy.k8s import (
+    DATA_ID_TEMPLATE,
+    SERVICE_MONITOR_TEMPLATE,
+    K8sInstaller,
+    collector_release_name,
+)
 from monitor_web.collecting.tencent_cloud import (
     ConfigLoader,
     file_contains_credential,
@@ -117,18 +123,31 @@ def validated_files(params):
     return result["files"]
 
 
+def resource_name(name):
+    """保留旧命名的可读前缀；仅在超长或不符合 Service 名称约束时缩短。"""
+    if len(name) <= 63 and re.fullmatch(r"[a-z][a-z0-9-]*[a-z0-9]", name):
+        return name
+    prefix = re.sub(r"[^a-z0-9-]", "-", name.lower())[:46].rstrip("-")
+    return f"{prefix}-{sha256(name.encode()).hexdigest()[:16]}"
+
+
 def render_resources(config, params, cluster_id, namespace):
-    if not config.id or not config.data_id:
+    numeric_data_id = config.data_id
+    if not config.id or not numeric_data_id:
         raise CollectConfigParamsError(msg="部署前需要有效的采集配置 ID 和 DataID")
     files = validated_files(params)
     env = settings.BCS_CLUSTER_BK_ENV_LABEL or ""
-    # 同一 namespace 可承载不同环境/租户；名称保持 DNS 长度约束。
-    identity = json.dumps([config.bk_tenant_id, env, config.id]).encode()
-    name = "qc-" + sha256(identity).hexdigest()[:20]
+    release = collector_release_name(config.id, env)
+    if config.bk_tenant_id != DEFAULT_TENANT_ID:
+        # 同一个公共 namespace 下仍需区分不同租户的同号配置。
+        release += "-t" + sha256(config.bk_tenant_id.encode()).hexdigest()[:16]
+    instance = resource_name(release)
+    name = resource_name(f"{release}-qcloud-exporter")
     labels = {
         LABEL + "name": APP,
         LABEL + "managed-by": "bk-monitor",
-        LABEL + "instance": name,
+        LABEL + "instance": instance,
+        LABEL + "plugin-id": config.plugin_id,
         LABEL + "bk-env": env,
         LABEL + "collect-config-id": str(config.id),
     }
@@ -151,7 +170,7 @@ def render_resources(config, params, cluster_id, namespace):
     workloads = []
     for file in files:
         uid = UUID(file["uid"])
-        file_name = f"{name}-{uid.hex}"
+        file_name = resource_name(f"{release}-qcloud-exporter-{uid.hex}")
         selector = {**labels, LABEL + "file-uid": str(uid)}
         content = file["preview"]["qcloud_yaml"]
         dependencies.append(resource("v1", "ConfigMap", file_name, selector, data={"qcloud.yml": content}))
@@ -208,7 +227,7 @@ def render_resources(config, params, cluster_id, namespace):
         "cluster_id": cluster_id,
         "bk_biz_id": config.bk_biz_id,
         "collect": params["collector"],
-        "plugin": {"id": config.plugin_id, "data_id": config.data_id},
+        "plugin": {"id": config.plugin_id, "data_id": numeric_data_id},
     }
     data_id = yaml.safe_load(jinja_render(DATA_ID_TEMPLATE, context))
     monitor = yaml.safe_load(jinja_render(SERVICE_MONITOR_TEMPLATE, context))
@@ -216,6 +235,7 @@ def render_resources(config, params, cluster_id, namespace):
         obj["metadata"]["namespace"] = namespace
         obj["metadata"]["labels"].update(labels)
     monitor["spec"]["selector"]["matchLabels"] = labels
+    monitor["spec"]["namespaceSelector"]["any"] = False
     return [*dependencies, data_id, *workloads, monitor]
 
 

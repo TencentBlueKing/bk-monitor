@@ -2,6 +2,7 @@
 
 import base64
 import json
+import re
 from collections import Counter
 from copy import deepcopy
 from hashlib import sha256
@@ -190,11 +191,26 @@ def test_resources_and_routing(legacy, candidate):
         "access_key": "fixture-access-A",
         "secret_key": "fixture-secret-A",
     }
+    release = f"bk-monitor-collector-{legacy.id}-test"
+    assert secret["metadata"]["name"] == monitor["metadata"]["name"] == f"{release}-qcloud-exporter"
+    for manifest in manifests:
+        labels = manifest["metadata"]["labels"]
+        assert labels[deploy.LABEL + "instance"] == release
+        assert labels[deploy.LABEL + "plugin-id"] == legacy.plugin_id
+        assert labels[deploy.LABEL + "collect-config-id"] == str(legacy.id)
+        assert labels[deploy.LABEL + "bk-env"] == "test"
+        assert labels[deploy.LABEL + "managed-by"] == "bk-monitor"
     rows = {(m["kind"], m["metadata"]["name"]): m for m in manifests}
     legacy.deployment_config.params = snapshot
     files = configmap_projection(legacy)["plugin"]["configmaps"]
     for file in files:
-        name = secret["metadata"]["name"] + "-" + UUID(file["uid"]).hex
+        name = next(
+            m["metadata"]["name"]
+            for m in manifests
+            if m["kind"] == "Service" and m["metadata"]["labels"][deploy.LABEL + "file-uid"] == file["uid"]
+        )
+        assert name.startswith(f"{release}-qcloud-exporter-")
+        assert len(name) <= 63
         doc = rows["ConfigMap", name]
         assert doc["data"] == {"qcloud.yml": file["preview"]["qcloud_yaml"]}
         creds = yaml.safe_load(doc["data"]["qcloud.yml"])["credential"]
@@ -226,6 +242,61 @@ def test_resources_and_routing(legacy, candidate):
     others = resources(other, snapshot)
     assert {m["metadata"]["name"] for m in others}.isdisjoint(m["metadata"]["name"] for m in manifests)
     assert not monitor["spec"]["selector"]["matchLabels"].items() <= others[-1]["metadata"]["labels"].items()
+
+
+@pytest.mark.parametrize("env", ["", "long-env-" * 6 + "a"])
+def test_names_keep_legacy_identity_and_remain_distinct(legacy, candidate, settings, env):
+    snapshot = prepare_configmap_snapshot(candidate, legacy)
+    settings.BCS_CLUSTER_BK_ENV_LABEL = env
+    old = deploy.K8sInstaller(legacy)._get_context(legacy.deployment_config)
+    assert old["release_name"] == f"bk-monitor-collector-{legacy.id}" + (f"-{env}" if env else "")
+
+    manifests = resources(legacy, snapshot)
+    names = {obj["metadata"]["name"] for obj in manifests}
+    assert len(names) == 3  # 配置本身和两个文件
+    assert all(re.fullmatch(r"[a-z][a-z0-9-]{0,61}[a-z0-9]", name) for name in names)
+    assert old["plugin_release_name"] not in names
+    if not env:
+        assert manifests[0]["metadata"]["labels"][deploy.LABEL + "instance"] == old["release_name"]
+    legacy.bk_tenant_id = "another-tenant"
+    others = resources(legacy, snapshot)
+    assert names.isdisjoint(obj["metadata"]["name"] for obj in others)
+    assert manifests[-1]["spec"]["selector"] != others[-1]["spec"]["selector"]
+
+
+@pytest.mark.parametrize("value", [123, None])
+def test_data_id_uses_single_lookup_before_writes(legacy, candidate, value, mocker):
+    snapshot = prepare_configmap_snapshot(candidate, legacy)
+
+    class Config(SimpleNamespace):
+        data_id = mocker.PropertyMock(side_effect=[value])
+
+    config = Config(**{k: v for k, v in vars(legacy).items() if k != "data_id"})
+    connection = mocker.patch.object(deploy.k8s_client, "ApiClient")
+    if value is None:
+        with pytest.raises(CollectConfigParamsError, match="DataID"):
+            deploy.deploy_snapshot(config, SimpleNamespace(params=snapshot))
+        connection.assert_not_called()
+    else:
+        route = next(obj for obj in resources(config, snapshot) if obj["kind"] == "DataID")
+        assert route["spec"]["dataID"] == value
+    vars(Config)["data_id"].assert_called_once_with()
+
+
+def test_repair_cross_namespace_scraping(legacy, candidate):
+    monitor = resources(legacy, prepare_configmap_snapshot(candidate, legacy))[-1]
+    current = deepcopy(monitor)
+    current["metadata"]["resourceVersion"] = "7"
+    current["spec"]["namespaceSelector"]["any"] = True
+    client = Mock()
+    api = client.resources.get.return_value
+    api.get.return_value.to_dict.return_value = current
+    deploy.apply_resource(client, monitor)
+    desired = api.patch.call_args.kwargs["body"]["spec"]["namespaceSelector"]
+    assert desired == {"matchNames": ["monitoring"], "any": False}
+    current["spec"]["namespaceSelector"] = desired
+    deploy.apply_resource(client, monitor)
+    api.patch.assert_called_once()
 
 
 @pytest.mark.parametrize(
