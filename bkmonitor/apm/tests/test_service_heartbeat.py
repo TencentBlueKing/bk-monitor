@@ -1,3 +1,5 @@
+import logging
+from collections.abc import Callable, Iterator
 from types import SimpleNamespace
 from typing import Any
 from unittest import mock
@@ -30,6 +32,20 @@ def make_node(name: str = "demo", **kwargs: Any) -> TopoNode:
 
 def datasource() -> SimpleNamespace:
     return SimpleNamespace(bk_biz_id=2, app_name="app", result_table_id="2_apm.app", retention=7, index_set_id=123)
+
+
+@pytest.fixture
+def heartbeat_lock_wait_timeout() -> Iterator[None]:
+    """为错误注入用例固定原生等待预算，兼容 SQLite 和 MySQL 测试库。"""
+    connection = connections[router.db_for_write(TopoNode)]
+
+    def query_timeout(execute: Callable[..., Any], sql: str, params: Any, many: bool, context: dict[str, Any]) -> Any:
+        if sql == "SELECT @@SESSION.innodb_lock_wait_timeout":
+            return execute("SELECT 50", params, many, context)
+        return execute(sql, params, many, context)
+
+    with connection.execute_wrapper(query_timeout):
+        yield
 
 
 def test_heartbeat_monotonic_and_preserves_unrequested_fields() -> None:
@@ -471,6 +487,183 @@ def test_database_lock_failure_rolls_back_but_other_errors_propagate(error_code:
     node.refresh_from_db()
     assert node.heartbeat == {"trace": {"last_data_at": 80, "checked_at": 90}}
     assert node.source == ["metric"]
+
+
+@pytest.mark.django_db(databases="__all__", transaction=True)
+@pytest.mark.usefixtures("heartbeat_lock_wait_timeout")
+@pytest.mark.parametrize("error_code", [1205, 1213])
+def test_heartbeat_retries_rolled_back_observation_and_reloads_latest_values(error_code: int) -> None:
+    node = make_node("service-a", source=["metric"], heartbeat={"metric": {"last_data_at": 80, "checked_at": 90}})
+    updated_at = node.updated_at
+    database = router.db_for_write(TopoNode)
+    bulk_update = QuerySet.bulk_update
+    attempts = []
+    observed = {"service-a": 100}
+
+    def write_then_fail(queryset: QuerySet, *args: Any, **kwargs: Any) -> None:
+        attempts.append(1)
+        bulk_update(queryset, *args, **kwargs)
+        if len(attempts) < 3:
+            raise OperationalError(error_code, "lock conflict")
+
+    def concurrent_update(delay: float) -> None:
+        assert not connections[database].in_atomic_block
+        node.refresh_from_db()
+        # 前两次写入都已回滚，重试不能沿用失败事务中的 Python 对象。
+        assert "trace" not in node.heartbeat
+        TopoNode.objects.filter(pk=node.pk).update(
+            heartbeat={
+                "metric": {"last_data_at": 200, "checked_at": 210},
+                "log": {"last_data_at": 300, "checked_at": 310},
+            }
+        )
+
+    with (
+        mock.patch.object(QuerySet, "bulk_update", write_then_fail),
+        mock.patch("apm.models.topo.time") as clock,
+    ):
+        # 前两次冲突各耗时约 50 秒，仍应保留第三次重放原观测的机会。
+        clock.monotonic.side_effect = [0, 50, 50.1, 100.1, 100.3]
+        clock.sleep.side_effect = concurrent_update
+        assert TopoNode.touch_heartbeat(2, "app", "trace", observed, 110)
+    node.refresh_from_db()
+    assert node.heartbeat == {
+        "metric": {"last_data_at": 200, "checked_at": 210},
+        "log": {"last_data_at": 300, "checked_at": 310},
+        "trace": {"last_data_at": 100, "checked_at": 110},
+    }
+    assert node.source == ["metric", "trace"]
+    assert node.updated_at == updated_at
+    assert observed == {"service-a": 100}
+    assert len(attempts) == 3
+    assert clock.sleep.call_args_list == [mock.call(0.1), mock.call(0.2)]
+
+
+@pytest.mark.django_db(databases="__all__", transaction=True)
+@pytest.mark.usefixtures("heartbeat_lock_wait_timeout")
+@pytest.mark.parametrize("error_code", [1205, 1213])
+def test_heartbeat_exhausted_retries_keep_persisted_values(error_code: int) -> None:
+    previous = {"metric": {"last_data_at": 80, "checked_at": 90}}
+    node = make_node("service-a", source=["metric"], heartbeat=previous)
+    bulk_update = QuerySet.bulk_update
+
+    def fail_after_write(queryset: QuerySet, *args: Any, **kwargs: Any) -> None:
+        bulk_update(queryset, *args, **kwargs)
+        raise OperationalError(error_code, "persistent lock conflict")
+
+    with (
+        mock.patch.object(QuerySet, "bulk_update", autospec=True, side_effect=fail_after_write) as write,
+        mock.patch("apm.models.topo.time.sleep") as sleep,
+    ):
+        assert TopoNode.touch_heartbeat(2, "app", "trace", {"service-a": 100}, 110) is False
+    node.refresh_from_db()
+    assert node.heartbeat == previous
+    assert node.source == ["metric"]
+    assert write.call_count == 3
+    assert sleep.call_count == 2
+
+
+@pytest.mark.django_db(databases="__all__", transaction=True)
+@pytest.mark.usefixtures("heartbeat_lock_wait_timeout")
+@pytest.mark.parametrize("elapsed", [150.25, 151.0])
+def test_heartbeat_does_not_retry_without_time_for_backoff(elapsed: float) -> None:
+    node = make_node("service-a")
+    with (
+        mock.patch.object(QuerySet, "bulk_update", side_effect=OperationalError(1205, "lock timeout")) as write,
+        mock.patch("apm.models.topo.time") as clock,
+    ):
+        clock.monotonic.side_effect = [0, elapsed]
+        assert TopoNode.touch_heartbeat(2, "app", "log", {"service-a": 100}, 110) is False
+    assert write.call_count == 1
+    clock.sleep.assert_not_called()
+    node.refresh_from_db()
+    assert node.heartbeat == {}
+
+
+@pytest.mark.django_db(databases="__all__", transaction=True)
+@pytest.mark.usefixtures("heartbeat_lock_wait_timeout")
+def test_heartbeat_does_not_start_retry_after_backoff_exceeds_budget() -> None:
+    make_node("service-a")
+    with (
+        mock.patch.object(QuerySet, "bulk_update", side_effect=OperationalError(1213, "deadlock")) as write,
+        mock.patch("apm.models.topo.time") as clock,
+    ):
+        clock.monotonic.side_effect = [0, 150.15, 150.35]
+        assert TopoNode.touch_heartbeat(2, "app", "log", {"service-a": 100}, 110) is False
+    assert write.call_count == 1
+    clock.sleep.assert_called_once()
+
+
+@pytest.mark.django_db(databases="__all__", transaction=True)
+@pytest.mark.parametrize("error", [OperationalError(2006, "connection lost"), OperationalError()])
+def test_heartbeat_does_not_retry_other_database_errors(error: OperationalError) -> None:
+    node = make_node("service-a")
+    with (
+        mock.patch.object(QuerySet, "bulk_update", side_effect=error) as write,
+        mock.patch("apm.models.topo.time.sleep") as sleep,
+        pytest.raises(OperationalError) as raised,
+    ):
+        TopoNode.touch_heartbeat(2, "app", "trace", {"service-a": 100}, 110)
+    assert raised.value is error
+    assert write.call_count == 1
+    sleep.assert_not_called()
+    node.refresh_from_db()
+    assert node.heartbeat == {}
+
+
+def test_log_discover_logs_heartbeat_failure(caplog: pytest.LogCaptureFixture) -> None:
+    caplog.set_level(logging.INFO, logger="apm")
+    with (
+        mock.patch(
+            "bkmonitor.data_source.unify_query.builder.QueryHelper.query", return_value=log_response("service-a")
+        ),
+        mock.patch.object(TopoNode, "get_empty_extra_data", return_value={"kind": "service"}),
+        mock.patch.object(TopoNode, "touch_heartbeat", return_value=False) as touch,
+    ):
+        assert LogServiceDiscover(datasource()).discover(100, 200) is None
+    assert touch.call_args.args[3] == {"service-a": 1791877020}
+    assert "[LogServiceDiscover] bk_biz_id=2 app_name=app services=1 heartbeat_success=False" in caplog.text
+
+
+def test_metric_heartbeat_failure_does_not_skip_trace_heartbeat(caplog: pytest.LogCaptureFixture) -> None:
+    caplog.set_level(logging.INFO)
+    discover = MetricServiceDiscover(datasource())
+    with (
+        mock.patch.object(
+            discover,
+            "query_dimensions",
+            return_value=[{"service_name": "service-a", "peer_service": "service-b", "last_data_at": 100}],
+        ),
+        mock.patch("apm.core.discover.metric.service.time.time", return_value=210),
+        mock.patch.object(TopoNode, "touch_heartbeat", side_effect=[False, True]) as touch,
+    ):
+        assert discover.discover_heartbeat(100, 200) is None
+    assert touch.call_args_list == [
+        mock.call(2, "app", "metric", {"service-a": 100, "http:service-b": 100}, 210),
+        mock.call(2, "app", "trace", {"http:service-b": 100}, 210),
+    ]
+    assert "window_start=100 window_end=200" in caplog.text
+    assert "metric_heartbeat_success=False trace_heartbeat_success=True" in caplog.text
+
+
+def test_profile_discover_logs_heartbeat_failure(caplog: pytest.LogCaptureFixture) -> None:
+    caplog.set_level(logging.INFO, logger="apm")
+    builder = profile_builder(
+        [
+            [{"service_name": "service-a", "type": "cpu", "sample_type": "cpu", "count": 1}],
+            [{"period": 10_000_000, "period_type": "cpu/nanoseconds", "type": "cpu", "value": 100}],
+            [{"service_name": "service-a", "count": 1}],
+        ]
+    )
+    discover = ProfileServiceDiscover(datasource())
+    with (
+        mock.patch.object(discover, "get_builder", return_value=builder),
+        mock.patch.object(discover, "clear_expired"),
+        mock.patch.object(TopoNode, "touch_heartbeat", return_value=False) as touch,
+    ):
+        assert discover.discover(100000, 200000) is None
+    assert set(touch.call_args.args[3]) == {"service-a"}
+    assert "[ProfileServiceDiscover] bk_biz_id=2 app_name=app services=1 heartbeat_success=False" in caplog.text
 
 
 def test_empty_profile_result_keeps_heartbeat_unchanged() -> None:
