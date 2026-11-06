@@ -109,6 +109,15 @@ def collector_release_name(config_id, bk_env):
     return f"{name}-{bk_env}" if bk_env else name
 
 
+def resource_identity(manifest):
+    return manifest["apiVersion"], manifest["kind"], manifest["metadata"]["name"]
+
+
+def stale_resources(previous, desired):
+    """仅清理旧清单中未被本次部署继续使用的对象。"""
+    return (obj for obj in previous if obj and resource_identity(obj) not in desired)
+
+
 class K8sInstaller(BaseInstaller):
     """
     k8s安装器
@@ -272,7 +281,7 @@ class K8sInstaller(BaseInstaller):
             for config in yaml.safe_load_all(self._render_yaml(target_version, context)):
                 if not config:
                     continue
-                resources.add((config["apiVersion"], config["kind"], config["metadata"]["name"]))
+                resources.add(resource_identity(config))
                 self._create_or_update_dynamic_resource(client, config, context)
 
             # 清理旧版本的资源
@@ -280,10 +289,8 @@ class K8sInstaller(BaseInstaller):
                 return
 
             last_context = self._get_context(target_version.last_version)
-            for config in yaml.safe_load_all(self._render_yaml(target_version.last_version, last_context)):
-                if not config or (config["apiVersion"], config["kind"], config["metadata"]["name"]) in resources:
-                    continue
-
+            previous = yaml.safe_load_all(self._render_yaml(target_version.last_version, last_context))
+            for config in stale_resources(previous, resources):
                 # 如果资源在新版本中不存在，则删除
                 resource_client = client.resources.get(api_version=config["apiVersion"], kind=config["kind"])
                 try:
@@ -383,10 +390,7 @@ class K8sInstaller(BaseInstaller):
             },
         }
 
-    def install(self, install_config: dict, operation: str | None = None) -> dict:
-        """
-        安装采集配置
-        """
+    def record_install(self, install_config, operation):
         # 创建新的部署记录
         deployment_config_params = {
             "plugin_version": self.plugin.packaged_release_version,
@@ -412,6 +416,10 @@ class K8sInstaller(BaseInstaller):
             new_version.config_meta_id = self.collect_config.pk
             new_version.save()
 
+        return new_version
+
+    def install(self, install_config: dict, operation: str | None = None) -> dict:
+        new_version = self.record_install(install_config, operation)
         try:
             self._deploy(new_version)
         except k8s_client.exceptions.ApiException as e:
@@ -635,6 +643,9 @@ class K8sInstaller(BaseInstaller):
                     if status != "SUCCESS":
                         break
 
+        return self._status_result(status, log)
+
+    def _status_result(self, status, log):
         return [
             {
                 "child": [

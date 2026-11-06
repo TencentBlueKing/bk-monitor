@@ -100,3 +100,9 @@ class LegacyConversionFailed(CollectingError):
     code = 3311015
     name = _("历史采集配置无法转换")
     message_tpl = _("LEGACY_CONVERSION_FAILED：无法确认源镜像契约")
+
+
+class CollectConfigDeployError(CollectingError):
+    code = 3311016
+    name = _("采集配置部署失败")
+    message_tpl = _("采集配置部署失败：{msg}")

@@ -15,6 +15,7 @@ import yaml
 from kubernetes.client.exceptions import ApiException
 
 from core.errors.collecting import CollectConfigParamsError, LegacyConversionFailed
+from monitor_web.collecting.deploy import qcloud_lifecycle as lifecycle
 from monitor_web.collecting.deploy import tencent_cloud as deploy
 from monitor_web.collecting.resources.tencent_cloud import configmap_projection, prepare_configmap_snapshot
 
@@ -275,7 +276,7 @@ def test_data_id_uses_single_lookup_before_writes(legacy, candidate, value, mock
     connection = mocker.patch.object(deploy.k8s_client, "ApiClient")
     if value is None:
         with pytest.raises(CollectConfigParamsError, match="DataID"):
-            deploy.deploy_snapshot(config, SimpleNamespace(params=snapshot))
+            lifecycle.TencentCloudInstaller(config).reconcile(SimpleNamespace(params=snapshot, last_version=None))
         connection.assert_not_called()
     else:
         route = next(obj for obj in resources(config, snapshot) if obj["kind"] == "DataID")
@@ -385,9 +386,10 @@ def test_repair_selector_drift(legacy, candidate, kind):
 def test_deploy_preflights_all_files_before_writes(legacy, candidate, mocker):
     snapshot = prepare_configmap_snapshot(candidate, legacy)
     connection = mocker.patch.object(deploy.k8s_client, "ApiClient")
-    mocker.patch.object(deploy.k8s_dynamic, "DynamicClient")
-    apply = mocker.patch.object(deploy, "apply_resource")
-    deploy.deploy_snapshot(legacy, SimpleNamespace(params=snapshot))
+    mocker.patch.object(lifecycle.TencentCloudInstaller, "inventory", return_value=[])
+    mocker.patch.object(lifecycle.dynamic, "DynamicClient")
+    apply = mocker.patch.object(lifecycle, "apply_resource")
+    lifecycle.TencentCloudInstaller(legacy).reconcile(SimpleNamespace(params=snapshot, last_version=None))
     assert [c.args[1]["kind"] for c in apply.call_args_list] == [
         "Secret",
         "ConfigMap",
@@ -403,6 +405,6 @@ def test_deploy_preflights_all_files_before_writes(legacy, candidate, mocker):
     connection.reset_mock()
     snapshot["plugin"]["configmaps"][1]["content"] = "invalid"
     with pytest.raises(CollectConfigParamsError):
-        deploy.deploy_snapshot(legacy, SimpleNamespace(params=snapshot))
+        lifecycle.TencentCloudInstaller(legacy).reconcile(SimpleNamespace(params=snapshot, last_version=None))
     connection.assert_not_called()
     apply.assert_not_called()

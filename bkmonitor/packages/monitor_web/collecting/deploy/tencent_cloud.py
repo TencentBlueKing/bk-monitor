@@ -20,7 +20,6 @@ from django.conf import settings
 from django.utils.crypto import salted_hmac
 from jinja2 import TemplateError
 from kubernetes import client as k8s_client
-from kubernetes import dynamic as k8s_dynamic
 
 from bkmonitor.utils.template import jinja_render
 from constants.common import DEFAULT_TENANT_ID
@@ -59,12 +58,12 @@ def runtime_contract(runtime):
     return contract
 
 
-def freeze_runtime(config=None):
+def freeze_runtime(config=None, source=None):
     """首次编辑从原插件部署模板提取实际规格，新建使用平台登记的规格。"""
     if config is None:
         definition = settings.TENCENT_CLOUD_METRIC_PLUGIN_CONFIG.get("collector_json", {})
     else:
-        source = config.deployment_config
+        source = source or config.deployment_config
         if "runtime" in source.params:
             runtime = deepcopy(source.params["runtime"])
             runtime_contract(runtime)
@@ -116,7 +115,10 @@ def validated_files(params):
     result = validate_files(plugin["configmaps"], params["collector"], contract)
     if not result["valid"]:
         errors = result["errors"] or next(row["errors"] for row in result["files"] if row["errors"])
-        raise CollectConfigParamsError(msg=f"{errors[0]['code']} ({errors[0]['path']})")
+        raise CollectConfigParamsError(
+            msg=f"{errors[0]['code']} ({errors[0]['path']})",
+            data={**result, "files": [{k: row[k] for k in ("uid", "valid", "errors")} for row in result["files"]]},
+        )
     for file, row in zip(plugin["configmaps"], result["files"]):
         if file_contains_credential(file, row["preview"], (plugin["access_key"], plugin["secret_key"])):
             raise CollectConfigParamsError(msg="配置文件包含页面凭据")
@@ -131,26 +133,42 @@ def resource_name(name):
     return f"{prefix}-{sha256(name.encode()).hexdigest()[:16]}"
 
 
+def release_name(config):
+    env = settings.BCS_CLUSTER_BK_ENV_LABEL or ""
+    release = collector_release_name(config.id, env)
+    if config.bk_tenant_id != DEFAULT_TENANT_ID:
+        # 同一个公共 namespace 下仍需区分不同租户的同号配置。
+        release += "-t" + sha256(config.bk_tenant_id.encode()).hexdigest()[:16]
+    return release
+
+
+def ownership_labels(config):
+    return {
+        LABEL + "name": APP,
+        LABEL + "managed-by": "bk-monitor",
+        LABEL + "instance": resource_name(release_name(config)),
+        LABEL + "plugin-id": config.plugin_id,
+        LABEL + "bk-env": settings.BCS_CLUSTER_BK_ENV_LABEL or "",
+        LABEL + "collect-config-id": str(config.id),
+    }
+
+
+def file_resources(config, files, labels):
+    release = release_name(config)
+    for file in files:
+        uid = UUID(file["uid"])
+        yield file, resource_name(f"{release}-qcloud-exporter-{uid.hex}"), {**labels, LABEL + "file-uid": str(uid)}
+
+
 def render_resources(config, params, cluster_id, namespace):
     numeric_data_id = config.data_id
     if not config.id or not numeric_data_id:
         raise CollectConfigParamsError(msg="部署前需要有效的采集配置 ID 和 DataID")
     files = validated_files(params)
     env = settings.BCS_CLUSTER_BK_ENV_LABEL or ""
-    release = collector_release_name(config.id, env)
-    if config.bk_tenant_id != DEFAULT_TENANT_ID:
-        # 同一个公共 namespace 下仍需区分不同租户的同号配置。
-        release += "-t" + sha256(config.bk_tenant_id.encode()).hexdigest()[:16]
-    instance = resource_name(release)
+    release = release_name(config)
     name = resource_name(f"{release}-qcloud-exporter")
-    labels = {
-        LABEL + "name": APP,
-        LABEL + "managed-by": "bk-monitor",
-        LABEL + "instance": instance,
-        LABEL + "plugin-id": config.plugin_id,
-        LABEL + "bk-env": env,
-        LABEL + "collect-config-id": str(config.id),
-    }
+    labels = ownership_labels(config)
 
     def resource(api, kind, resource_name, owner, **fields):
         return {
@@ -168,10 +186,7 @@ def render_resources(config, params, cluster_id, namespace):
     ).hexdigest()
     dependencies = [secret]
     workloads = []
-    for file in files:
-        uid = UUID(file["uid"])
-        file_name = resource_name(f"{release}-qcloud-exporter-{uid.hex}")
-        selector = {**labels, LABEL + "file-uid": str(uid)}
+    for file, file_name, selector in file_resources(config, files, labels):
         content = file["preview"]["qcloud_yaml"]
         dependencies.append(resource("v1", "ConfigMap", file_name, selector, data={"qcloud.yml": content}))
         port = {"name": "http", "port": 9123, "targetPort": "http"}
@@ -291,14 +306,3 @@ def apply_resource(client, manifest):
     except k8s_client.exceptions.ApiException as error:
         # Kubernetes 的错误 body 可能含 Secret 或用户配置，只上报资源身份和状态码。
         raise CollectConfigParamsError(msg=f"{kind}/{name} 资源更新失败（HTTP {error.status}）") from None
-
-
-def deploy_snapshot(config, version):
-    """内部部署能力，PR4 在保存与生命周期校验完成后接入。公共 namespace 由平台提供。"""
-    installer = K8sInstaller(config)
-    cluster_id, namespace = installer._get_default_cluster()
-    manifests = render_resources(config, version.params, cluster_id, namespace)
-    with k8s_client.ApiClient(installer._get_k8s_config(cluster_id)) as api:
-        client = k8s_dynamic.DynamicClient(api)
-        for manifest in manifests:
-            apply_resource(client, manifest)

@@ -10,10 +10,11 @@ specific language governing permissions and limitations under the License.
 
 from copy import deepcopy
 from textwrap import indent
-from uuid import NAMESPACE_URL, uuid5
+from uuid import NAMESPACE_URL, uuid4, uuid5
 
 import yaml
 from django.conf import settings
+from django.db import transaction
 from jinja2 import TemplateError
 from rest_framework import serializers
 
@@ -25,14 +26,18 @@ from core.errors.collecting import (
     CollectConfigVersionChanged,
     LegacyConversionFailed,
 )
+from monitor_web.collecting.constant import OperationResult, OperationType
+from monitor_web.collecting.deploy import get_collect_installer
 from monitor_web.collecting.deploy.k8s import K8sInstaller
 from monitor_web.collecting.deploy.tencent_cloud import freeze_runtime, validated_files
 from monitor_web.collecting.params import stored_detail
 from monitor_web.collecting.tencent_cloud import (
     ConfigLoader,
+    configmap_form,
     load_yaml,
     resolve_contract,
     file_contains_credential,
+    is_qcloud_plugin,
     validate_files,
 )
 from monitor_web.models import CollectConfigMeta
@@ -73,10 +78,8 @@ class ParamsSerializer(StrictSerializer):
 
 
 def is_tencent_cloud_config(config):
-    base = settings.TENCENT_CLOUD_METRIC_PLUGIN_ID
-    return config.collect_type == CollectConfigMeta.CollectType.K8S and config.plugin_id in (
-        base,
-        f"{base}_{config.bk_biz_id}",
+    return config.collect_type == CollectConfigMeta.CollectType.K8S and is_qcloud_plugin(
+        config.plugin_id, config.bk_biz_id
     )
 
 
@@ -91,7 +94,7 @@ def source_credential(source, key):
 
 
 def form_detail(config, params_format):
-    if params_format == "configmap":
+    if params_format == "configmap" or "runtime" in config.deployment_config.params:
         params = configmap_projection(config)
         info = config.deployment_config.plugin_version.get_plugin_version_detail()
         info.update(config_mode="configmap", config_json=configmap_form(), collector_json={})
@@ -183,35 +186,106 @@ def prepare_configmap_snapshot(params, source_config=None):
     return snapshot
 
 
-def configmap_form():
-    return [
-        {
-            "name": "access_key",
-            "description": "Secret ID",
-            "mode": "plugin",
-            "type": "password",
-            "required": True,
-            "default": "",
-        },
-        {
-            "name": "secret_key",
-            "description": "Secret Key",
-            "mode": "plugin",
-            "type": "password",
-            "required": True,
-            "default": "",
-        },
-        {
-            "name": "configmaps",
-            "description": "ConfigMap",
-            "mode": "plugin",
-            "type": "file",
-            "multiple": True,
-            "accept": ".yaml,.yml",
-            "required": True,
-            "default": [],
-        },
-    ]
+def uses_configmap_request(data, config):
+    plugin = data["params"].get("plugin")
+    requested = isinstance(plugin, dict) and plugin.get("config_mode") == "configmap"
+    if config is not None and not is_tencent_cloud_config(config):
+        return False
+    if config is None and data.get("collect_type") != CollectConfigMeta.CollectType.K8S:
+        return False
+    if not requested and (config is None or "runtime" not in config.deployment_config.params):
+        if config is None and ("runtime" in data["params"] or isinstance(plugin, dict) and "config_mode" in plugin):
+            raise CollectConfigParamsError(msg="不支持客户端指定的运行参数")
+        return False
+    if not requested and config is not None:
+        configmap_projection(config)
+    if not requested or (config is not None and "deployment_id" not in data):
+        raise CollectConfigParamsError(msg="ConfigMap 编辑需提交 config_mode 和源 deployment_id")
+    return True
+
+
+def save_configmap(data, config, get_plugin=None):
+    """保存和升级共用快照校验、版本临界区和部署路径。"""
+    upgrading = get_plugin is None
+    if not upgrading:
+        if (
+            not is_qcloud_plugin(data["plugin_id"], data["bk_biz_id"])
+            or data["collect_type"] != CollectConfigMeta.CollectType.K8S
+        ):
+            raise CollectConfigParamsError(msg="腾讯云采集插件不匹配")
+        if data["target_node_type"] != "CLUSTER" or data["target_object_type"] != "CLUSTER" or data["target_nodes"]:
+            raise CollectConfigParamsError(msg="腾讯云采集使用平台集群")
+    with transaction.atomic():
+        if config is None:
+            if "deployment_id" in data:
+                raise CollectConfigVersionChanged()
+            # 创建业务插件有写入，先完成新建契约全量校验。
+            snapshot = prepare_configmap_snapshot(data["params"])
+            plugin = get_plugin(data)
+            config = CollectConfigMeta(
+                bk_tenant_id=get_request_tenant_id(),
+                bk_biz_id=data["bk_biz_id"],
+                collect_type=data["collect_type"],
+                plugin_id=plugin.plugin_id,
+                label=data["label"],
+                target_object_type=data["target_object_type"],
+                name=data["name"],
+            )
+            installer = get_collect_installer(config)
+            recover = False
+            operation = OperationType.CREATE
+        else:
+            installer = get_collect_installer(config)
+            installer.lock_current()
+            config = installer.collect_config
+            if config.deployment_config_id != data.get("deployment_id"):
+                raise CollectConfigVersionChanged()
+            snapshot = prepare_configmap_snapshot(data["params"], config)
+            legacy = is_legacy_snapshot(config.deployment_config.params)
+            if legacy:
+                installer.legacy_manifests(config.deployment_config, installer._get_default_cluster()[1])
+            recover = legacy or config.operation_result != OperationResult.SUCCESS
+            operation = OperationType.UPGRADE if upgrading else data["operation"]
+            if not upgrading:
+                config.name = data["name"]
+        version = installer.record_install({"params": snapshot}, operation)
+    # 先保留可重试的版本身份，再对最新版本执行外部操作。
+    installer.apply_current(operation, recover)
+    return config, {"id": config.pk, "deployment_id": version.pk, "can_rollback": bool(version.parent_id)}
+
+
+def clone_snapshot(config):
+    """克隆只准备停用的新配置；新建契约与文件 UID 独立，须补齐凭据才能部署。"""
+    projected = configmap_projection(config)
+    projected["runtime"] = freeze_runtime()
+    plugin = projected["plugin"]
+    plugin.update(access_key="", secret_key="")
+    for row in plugin["configmaps"]:
+        row.pop("preview")
+        row["uid"] = str(uuid4())
+    contract = resolve_contract({}, projected["runtime"])
+    result = validate_files(plugin["configmaps"], projected["collector"], contract)
+    if not result["valid"]:
+        raise CollectConfigParamsError(msg="克隆文件不兼容新建镜像契约")
+    return projected
+
+
+def clone_config(source, name):
+    snapshot = clone_snapshot(source)
+    clone = CollectConfigMeta(
+        name=name,
+        bk_tenant_id=source.bk_tenant_id,
+        bk_biz_id=source.bk_biz_id,
+        plugin_id=source.plugin_id,
+        collect_type=source.collect_type,
+        target_object_type=source.target_object_type,
+        label=source.label,
+        cache_data={},
+    )
+    installer = get_collect_installer(clone)
+    installer.record_install({"params": snapshot}, OperationType.STOP)
+    clone.operation_result = OperationResult.SUCCESS
+    clone.save(update_fields=["operation_result"])
 
 
 def conversion_failed(path):
