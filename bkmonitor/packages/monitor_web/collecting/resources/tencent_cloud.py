@@ -117,6 +117,16 @@ def is_tencent_cloud_config(config):
     )
 
 
+def is_legacy_snapshot(params):
+    plugin = params.get("plugin")
+    return isinstance(plugin, dict) and "config_mode" not in plugin and "runtime" not in params
+
+
+def source_credential(source, key):
+    defaults = source.plugin_version.config.collector_json.get("values") or {}
+    return source.params.get("plugin", {}).get(key, defaults.get(key))
+
+
 def form_detail(config, params_format):
     if params_format == "configmap":
         params = configmap_projection(config)
@@ -127,11 +137,12 @@ def form_detail(config, params_format):
     params, info = stored_detail(config)
     credential_fields = ("secret_id", "access_key", "secret_key")
     source = config.deployment_config
-    defaults = source.plugin_version.config.collector_json.get("values") or {}
-    stored = source.params.get("plugin", {})
+    plugin = params.setdefault("plugin", {})
+    fields = ("secret_id", "secret_key") if is_legacy_snapshot(source.params) else ("access_key", "secret_key")
     for key in credential_fields:
-        if key in stored or key in defaults:
-            params.setdefault("plugin", {})[key] = bool(stored.get(key, defaults.get(key)))
+        if key in fields or key in plugin:
+            value = source_credential(source, key)
+            plugin[key] = isinstance(value, str) and bool(value)
 
     # stored 视图沿用旧表单结构，插件元数据里的凭据默认值也不能随详情返回。
     collector = info["collector_json"]
@@ -147,19 +158,21 @@ def form_detail(config, params_format):
 
 def prepare_edit_params(config_meta: CollectConfigMeta, params: dict) -> None:
     source = config_meta.deployment_config
-    stored = source.params.get("plugin", {})
-    if "config_mode" in stored:
+    if not is_legacy_snapshot(source.params):
+        # 使用与详情相同的契约、文件和结构校验；残缺的快照不能进入新版分支。
+        configmap_projection(config_meta)
         return
     plugin = params.setdefault("plugin", {})
     if not isinstance(plugin, dict):
         raise CollectConfigParamsError(msg="plugin 必须为对象")
 
-    # 历史安装器以部署参数覆盖源模板默认值；仅省略字段或 true 占位时沿用该值。
-    defaults = source.plugin_version.config.collector_json.get("values") or {}
+    if "config_mode" in plugin or "runtime" in params:
+        raise CollectConfigParamsError(msg="旧表单不支持提交 config_mode 或 runtime")
+
     for field in ("secret_id", "secret_key"):
         value = plugin.get(field, True)
         if value is True:
-            value = stored.get(field, defaults.get(field))
+            value = source_credential(source, field)
         if not isinstance(value, str) or not value:
             raise CollectConfigParamsError(msg=f"{field} 必须填写")
         plugin[field] = value
@@ -239,13 +252,13 @@ def configmap_projection(config):
         plugin = params["plugin"]
         contract = resolve_contract(source.plugin_version.config.collector_json, params.get("runtime"))
         collector = {"period": 60, "timeout": 60, **deepcopy(params.get("collector", {}))}
-        if "config_mode" not in plugin and "runtime" not in params:
+        if is_legacy_snapshot(params):
             files, access_key, secret_key = legacy_configmap(config)
         elif plugin.get("config_mode") == "configmap" and params.get("runtime"):
-            if plugin.keys() - {"config_mode", "configmaps", "access_key", "secret_key"}:
+            if plugin.keys() != {"config_mode", "configmaps", "access_key", "secret_key"}:
                 raise conversion_failed("params.plugin")
             files = [{key: row[key] for key in ("uid", "filename", "content")} for row in plugin["configmaps"]]
-            access_key, secret_key = plugin.get("access_key", ""), plugin.get("secret_key", "")
+            access_key, secret_key = plugin["access_key"], plugin["secret_key"]
             if not isinstance(access_key, str) or not isinstance(secret_key, str):
                 raise conversion_failed("params.plugin")
         else:

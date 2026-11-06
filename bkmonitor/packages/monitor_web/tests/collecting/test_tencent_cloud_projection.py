@@ -10,7 +10,7 @@ import yaml
 
 from core.errors.collecting import CollectConfigParamsError, LegacyConversionFailed
 from monitor_web.collecting.resources import backend, frontend
-from monitor_web.collecting.resources.tencent_cloud import K8sInstaller, configmap_projection
+from monitor_web.collecting.resources.tencent_cloud import K8sInstaller, configmap_projection, prepare_edit_params
 
 IMAGE = "example.com/exporter:test"
 TEMPLATE = """apiVersion: v1
@@ -247,13 +247,77 @@ def test_stored_edit_requires_both_credentials(config, stored_edit, upgrade, fie
     assert config.deployment_config.params == source
 
 
-def test_client_mode_cannot_bypass_legacy_validation(stored_edit):
+@pytest.mark.parametrize("operation", ["save", "upgrade"])
+@pytest.mark.parametrize("marker", ["config_mode", "runtime"])
+def test_repeated_edits_cannot_change_legacy_mode(config, stored_edit, upgrade, operation, marker):
     data, save, installer = stored_edit
-    data["params"]["plugin"].update(config_mode="configmap", secret_key="")
+    handler = save if operation == "save" else upgrade
+    data["realtime"] = False
+    original = deepcopy(config.deployment_config.params)
+
+    first = deepcopy(data)
+    if marker == "config_mode":
+        first["params"]["plugin"][marker] = "configmap"
+    else:
+        first["params"][marker] = {"image": IMAGE, "contract": "qcloud-exporter-v0.21.0"}
+    with pytest.raises(CollectConfigParamsError, match=marker):
+        handler.perform_request(first)
+    second = deepcopy(data)
+    second["params"]["plugin"]["secret_key"] = ""
     with pytest.raises(CollectConfigParamsError, match="secret_key"):
-        save.perform_request(data)
+        handler.perform_request(second)
+    assert config.deployment_config.params == original
     save.get_collector_plugin.assert_not_called()
     installer.install.assert_not_called()
+    installer.upgrade.assert_not_called()
+
+
+@pytest.mark.parametrize("broken", ["mode-only", "runtime-only", "unknown-contract", "missing-files", "missing-key"])
+def test_malformed_source_cannot_skip_save_or_upgrade(config, stored_edit, upgrade, broken):
+    data, save, installer = stored_edit
+    source = config.deployment_config
+    runtime = {"image": IMAGE, "contract": "qcloud-exporter-v0.21.0"}
+    if broken == "mode-only":
+        source.params["plugin"]["config_mode"] = "configmap"
+    elif broken == "runtime-only":
+        source.params["runtime"] = runtime
+    else:
+        projected = configmap_projection(config)
+        projected["plugin"].update(access_key="sample-access", secret_key="sample-secret")
+        projected["runtime"] = runtime
+        source.params = projected
+        if broken == "unknown-contract":
+            runtime["contract"] = "unknown"
+        else:
+            del projected["plugin"]["configmaps" if broken == "missing-files" else "secret_key"]
+
+    for handler in (save, upgrade):
+        with pytest.raises(LegacyConversionFailed):
+            handler.perform_request({**deepcopy(data), "realtime": False})
+    save.get_collector_plugin.assert_not_called()
+    installer.install.assert_not_called()
+    installer.upgrade.assert_not_called()
+
+
+@pytest.mark.parametrize("field", ["secret_id", "secret_key"])
+def test_schema_default_alone_is_not_a_deployed_credential(config, stored_edit, upgrade, field):
+    data, save, installer = stored_edit
+    source = config.deployment_config
+    del source.params["plugin"][field]
+    definition = next(f for f in source.plugin_version.config.config_json if f["name"] == field)
+    definition["default"] = "schema-only-default"
+    stored = detail(params_format="stored")
+    assert stored["params"]["plugin"][field] is False
+    assert "schema-only-default" not in str(stored)
+    for handler in (save, upgrade):
+        params = deepcopy(stored["params"])
+        params["plugin"][field] = True
+        with pytest.raises(CollectConfigParamsError, match=field):
+            handler.perform_request({**data, "params": params, "realtime": False})
+    assert definition["default"] == "schema-only-default"
+    save.get_collector_plugin.assert_not_called()
+    installer.install.assert_not_called()
+    installer.upgrade.assert_not_called()
 
 
 def test_other_plugin_uses_declared_field_types(config, stored_edit, upgrade):
@@ -311,6 +375,9 @@ def test_new_format_uses_uploaded_content_and_recomputes_preview(config):
     params["plugin"].update(access_key="", secret_key="sample-secret")
     params["runtime"] = {"contract": "qcloud-exporter-v0.21.0", "image": IMAGE}
     config.deployment_config.params = params
+    candidate = {"plugin": {"config_mode": "configmap"}}
+    prepare_edit_params(config, candidate)
+    assert candidate == {"plugin": {"config_mode": "configmap"}}
     projected = configmap_projection(config)
     result = projected["plugin"]["configmaps"][0]
     assert result["content"] == f["content"] and result["uid"] == f["uid"]
