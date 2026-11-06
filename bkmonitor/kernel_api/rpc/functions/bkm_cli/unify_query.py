@@ -405,6 +405,10 @@ def _call_query_relation_range(params: dict[str, Any]) -> Any:
     return api.unify_query.query_multi_resource_range(**params)
 
 
+def _call_query_relation_range_v1beta3(params: dict[str, Any]) -> Any:
+    return api.unify_query.query_multi_resource_range_v1_beta3(**params)
+
+
 OPERATIONS = {
     spec.id: spec
     for spec in (
@@ -566,6 +570,26 @@ OPERATIONS = {
             scope_style="bk_biz_ids",
             time_range_style="query_list",
         ),
+        UQOperationSpec(
+            id="query_relation_range_v1beta3",
+            summary="直接查询 UQ Relation v1beta3 有界时间范围内的资源关联关系",
+            handler=_call_query_relation_range_v1beta3,
+            params_schema=_relation_schema(ranged=True, v1beta3=True),
+            example_params={
+                "query_list": [
+                    {
+                        "start_time": 1725062400,
+                        "end_time": 1725066000,
+                        "step": "60s",
+                        "target_type": "pod",
+                        "source_type": "service",
+                        "source_info": {"service_name": "api"},
+                    }
+                ]
+            },
+            scope_style="bk_biz_ids",
+            time_range_style="query_list",
+        ),
     )
 }
 
@@ -684,7 +708,7 @@ def _guard_params(spec: UQOperationSpec, params: dict[str, Any]) -> dict[str, An
             raise ValueError("query_list 必须是非空数组")
         if len(query_list) > MAX_QUERY_REFS:
             raise ValueError(f"query_list 最多允许 {MAX_QUERY_REFS} 项")
-        if spec.id == "query_relation_v1beta3":
+        if spec.id in {"query_relation_v1beta3", "query_relation_range_v1beta3"}:
             item_schema = spec.params_schema["properties"]["query_list"]["items"]
             for index, query in enumerate(query_list):
                 if not isinstance(query, dict):
