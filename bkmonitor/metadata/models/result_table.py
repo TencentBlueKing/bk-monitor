@@ -600,11 +600,6 @@ class ResultTable(models.Model):
         )
         from metadata.task.tasks import access_bkdata_vm
 
-        from metadata.models.doris_version import is_query_only_doris_table
-
-        if is_query_only_doris_table(self):
-            return
-
         # 获取结果表配置项
         options = {
             option.name: option.get_value()

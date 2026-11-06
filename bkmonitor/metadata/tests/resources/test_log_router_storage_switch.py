@@ -607,7 +607,9 @@ def test_create_direct_es_route_without_origin_table(route_storage_records):
 
 
 @pytest.mark.django_db(databases="__all__")
-def test_direct_route_can_switch_storage_without_origin_table(route_storage_records):
+def test_direct_route_can_switch_storage_without_origin_table(route_storage_records, mocker):
+    apply = mocker.patch.object(models.ResultTable, "apply_datalink")
+    allocate = mocker.patch.object(models.DorisStorage, "advance_table_version")
     table_id = "99101_bklog.direct_switch"
     CreateOrUpdateLogRouter().request(
         bk_tenant_id=TENANT_ID,
@@ -634,6 +636,10 @@ def test_direct_route_can_switch_storage_without_origin_table(route_storage_reco
     assert doris_storage.origin_table_id in (None, "")
     assert doris_storage.storage_cluster_id == DORIS_CLUSTER_ID
     assert not models.StorageClusterRecord.objects.filter(bk_tenant_id=TENANT_ID, table_id=table_id).exists()
+    assert doris_storage.bkbase_table_id == "99101_bklog_direct_switch"
+    assert doris_storage.physical_tables == {}
+    apply.assert_not_called()
+    allocate.assert_not_called()
 
 
 @pytest.mark.django_db(databases="__all__")

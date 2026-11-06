@@ -2960,7 +2960,6 @@ class DataLink(models.Model):
         if self.data_link_strategy not in {self.BK_LOG, self.CUSTOM_FORMAT_DORIS}:
             return self._apply_data_link(*args, **kwargs)
         from metadata.models import ResultTable
-        from metadata.models.doris_version import is_query_only_doris_table
 
         compose_kwargs = {
             key: value for key, value in kwargs.items() if key not in {"cleanup_absent_components", "storage_type"}
@@ -2976,11 +2975,7 @@ class DataLink(models.Model):
             transaction.on_commit(partial(self.apply_data_link, *args, **kwargs), using=DATABASE_CONNECTION_NAME)
             return
         with transaction.atomic(using=DATABASE_CONNECTION_NAME):
-            table_record = ResultTable.objects.select_for_update().get(
-                bk_tenant_id=self.bk_tenant_id, table_id=table_id
-            )
-            if is_query_only_doris_table(table_record):
-                return
+            ResultTable.objects.select_for_update().get(bk_tenant_id=self.bk_tenant_id, table_id=table_id)
             storage = DorisStorage.objects.filter(bk_tenant_id=self.bk_tenant_id, table_id=table_id).first()
             if storage and storage.datalink_table_name:
                 database, table = storage.physical_tables["main"].split(".", 1)

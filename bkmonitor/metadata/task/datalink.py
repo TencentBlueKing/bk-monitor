@@ -97,11 +97,7 @@ def _resolve_custom_format_vm_dependencies(rt: ResultTable) -> tuple[ClusterInfo
 @app.task(ignore_result=True, queue="celery_metadata_task_worker")
 def apply_custom_format_datalink(bk_tenant_id: str, table_id: str) -> None:
     """按 ResultTable Option 创建或更新一条自定义格式单目标 DataLink。"""
-    from metadata.models.doris_version import is_query_only_doris_table
-
     rt = ResultTable.objects.get(bk_tenant_id=bk_tenant_id, table_id=table_id)
-    if is_query_only_doris_table(rt):
-        return
     relations = list(
         DataSourceResultTable.objects.filter(bk_tenant_id=bk_tenant_id, table_id=table_id).values_list(
             "bk_data_id", flat=True
@@ -463,11 +459,7 @@ def apply_log_datalink(bk_tenant_id: str, table_id: str):
     logger.info("apply_log_datalink: tenant(%s) %s start", bk_tenant_id, table_id)
 
     # 获取结果表和数据源信息
-    from metadata.models.doris_version import is_query_only_doris_table
-
     rt = ResultTable.objects.get(bk_tenant_id=bk_tenant_id, table_id=table_id)
-    if is_query_only_doris_table(rt):
-        return
     dsrt = DataSourceResultTable.objects.filter(bk_tenant_id=bk_tenant_id, table_id=table_id).last()
     if not dsrt:
         raise ValueError(f"apply_log_v4_datalink: tenant({bk_tenant_id}) {table_id} related datasource not found")

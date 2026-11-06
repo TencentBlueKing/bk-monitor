@@ -358,10 +358,8 @@ def test_dual_write_reuses_es_alias_and_shared_rt(version_records, mocker):
 
 
 @pytest.mark.parametrize("route_kind", ["origin", "virtual_option", "no_datasource"])
-def test_route_tables_do_not_allocate_versions_or_apply(version_records, route_kind, mocker):
-    from metadata.task.datalink import apply_custom_format_datalink, apply_log_datalink
-
-    rt, ds, storage, link, _ = version_records
+def test_route_tables_do_not_allocate_versions(version_records, route_kind):
+    rt, _, storage, _, _ = version_records
     if route_kind == "origin":
         storage.origin_table_id = "entity.table"
         storage.save(update_fields=["origin_table_id"])
@@ -378,14 +376,8 @@ def test_route_tables_do_not_allocate_versions_or_apply(version_records, route_k
         models.DataSourceResultTable.objects.filter(bk_tenant_id="system", table_id=rt.table_id).delete()
     name = storage.datalink_table_name
     history_count = models.StorageClusterRecord.objects.filter(table_id=rt.table_id).count()
-    apply = mocker.patch.object(DataLink, "_apply_data_link")
     with transaction.atomic(using=config.DATABASE_CONNECTION_NAME):
         storage.advance_table_version("tester")
-    rt.apply_datalink()
-    apply_log_datalink("system", rt.table_id)
-    apply_custom_format_datalink("system", rt.table_id)
-    link.apply_data_link(bk_biz_id=2, data_source=ds, table_id=rt.table_id)
-    apply.assert_not_called()
     storage.refresh_from_db()
     assert storage.datalink_table_name == name
     assert models.StorageClusterRecord.objects.filter(table_id=rt.table_id).count() == history_count
@@ -414,9 +406,8 @@ def test_route_storage_create_does_not_name_physical_table(version_records, is_s
 @pytest.mark.parametrize("has_datasource", [False, True])
 def test_third_party_query_table_allows_empty_physical_table(version_records, mocker, has_datasource):
     from metadata.models.space.space_table_id_redis import SpaceTableIDRedis
-    from metadata.task.datalink import apply_custom_format_datalink, apply_log_datalink
 
-    rt, ds, storage, link, option = version_records
+    rt, _, storage, _, option = version_records
     option.delete()  # 第三方表只有查询信息，不声明监控侧清洗和 Doris 写入配置。
     if not has_datasource:
         models.DataSourceResultTable.objects.filter(bk_tenant_id="system", table_id=rt.table_id).delete()
@@ -425,13 +416,7 @@ def test_third_party_query_table_allows_empty_physical_table(version_records, mo
     storage.physical_tables = {}
     storage.save()
     physical_lookup = mocker.patch.object(models.DorisStorage, "get_physical_table_name")
-    apply = mocker.patch.object(DataLink, "_apply_data_link")
     storage.advance_table_version("tester")
-    rt.apply_datalink()
-    apply_log_datalink("system", rt.table_id)
-    apply_custom_format_datalink("system", rt.table_id)
-    link.apply_data_link(bk_biz_id=2, data_source=ds, table_id=rt.table_id)
-    apply.assert_not_called()
     physical_lookup.assert_not_called()
     storage.refresh_from_db()
     assert storage.datalink_table_name is None
@@ -459,7 +444,7 @@ def test_analysis_query_route_matches_external_bkbase_table(mocker):
         port=9030,
         is_default_cluster=False,
     )
-    rt = models.ResultTable.objects.create(
+    models.ResultTable.objects.create(
         bk_tenant_id="system",
         table_id=table_id,
         table_name_zh=table_id,
@@ -499,7 +484,6 @@ def test_analysis_query_route_matches_external_bkbase_table(mocker):
     )
     lookup = mocker.patch.object(models.DorisStorage, "get_physical_table_name")
     storage.advance_table_version("tester")
-    rt.apply_datalink()
     lookup.assert_not_called()
     details, _ = SpaceTableIDRedis()._compose_log_table_id_detail(bk_tenant_id="system", table_id_list=[table_id])
     route = details[table_id]
