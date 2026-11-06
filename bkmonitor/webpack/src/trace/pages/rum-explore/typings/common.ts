@@ -25,6 +25,7 @@
  */
 import { RumModeEnum } from '../constants';
 
+import type { ConditionChangeEvent } from '../../trace-explore/typing';
 import type { RumModeType } from './enum';
 
 export const RUM_MODE_LIST: RumModeType[] = [RumModeEnum.SESSION, RumModeEnum.VIEW, RumModeEnum.SPAN];
@@ -59,6 +60,12 @@ export interface IRumCommonParams {
   filters: IRumFilter[];
   mode: RumModeType;
   query_string: string;
+}
+
+/** 数量列下钻事件：调用方构造目标视角与跳转后携带的检索条件 */
+export interface IRumCountDrillDown {
+  condition: ConditionChangeEvent;
+  targetMode: RumModeType;
 }
 
 /** 后端约定的过滤条件结构，见接口协议 1.1 Filter */

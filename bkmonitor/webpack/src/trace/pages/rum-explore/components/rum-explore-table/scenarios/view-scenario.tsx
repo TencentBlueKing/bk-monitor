@@ -25,6 +25,7 @@
  */
 import { get } from '@vueuse/core';
 
+import { EMethod } from '../../../../../components/retrieval-filter/typing';
 import { formatDuration } from '../../../../../components/trace-view/utils/date';
 import { ENABLED_TABLE_CONDITION_MENU_CLASS_NAME } from '../../../../trace-explore/components/trace-explore-table/constants';
 import {
@@ -32,13 +33,16 @@ import {
   type TableCellRenderContext,
   ExploreTableColumnTypeEnum,
 } from '../../../../trace-explore/components/trace-explore-table/typing';
-import { RumRatingEnum, VIEW_COUNT_FIELDS, VIEW_ID_FIELD, VIEW_URL_FIELD } from '../../../constants';
+import { RumModeEnum, RumRatingEnum, VIEW_COUNT_FIELDS, VIEW_ID_FIELD, VIEW_URL_FIELD } from '../../../constants';
 import { BaseScenario } from './base-scenario';
 
-import type { IRumFieldRatingConfig, IRumSpanRecord } from '../../../typings';
+import type { IRumCountDrillDown, IRumFieldRatingConfig, IRumSpanRecord } from '../../../typings';
 import type { SlotReturnValue } from 'tdesign-vue-next';
 
-/** 后端 rating_config[].rating → 列表评级样式类（协议值统一取共享层 RumRatingEnum） */
+/**
+ * 后端 rating_config[].rating → 列表评级样式类（协议值统一取共享层 RumRatingEnum，
+ * 样式见 theme/view-table-theme.scss）；未命中的评级不追加着色类。
+ */
 const RATING_CLASS_MAP: Record<string, string> = {
   [RumRatingEnum.GOOD]: 'is-good',
   [RumRatingEnum.NEEDS_IMPROVEMENT]: 'is-needs-improvement',
@@ -68,13 +72,13 @@ export class ViewScenario extends BaseScenario {
         this.context.onOpenDetail(row);
       },
     },
-    /** 数量统计列（错误 / API 请求 / 动作数量）：右对齐，点击切到 Span 视角检索该页面 */
+    /** 数量统计列（错误 / API 请求 / 动作数量）：右对齐，点击回传已解析的下钻参数 */
     ...Object.fromEntries(
       [...VIEW_COUNT_FIELDS].map(field => [
         field,
         {
           align: 'right',
-          cellRenderer: (row, column, renderCtx) => this.renderCountCell(row, column, renderCtx),
+          cellRenderer: (row, column, renderCtx) => this.renderViewCountCell(row, column, renderCtx),
         },
       ])
     ),
@@ -82,10 +86,10 @@ export class ViewScenario extends BaseScenario {
 
   constructor(
     protected readonly context: {
+      /** 点击数量统计列：回传已解析的目标视角与检索条件 */
+      onCountClick: (payload: IRumCountDrillDown) => void;
       /** 点击页面 URL：打开该行的详情抽屉 */
       onOpenDetail: (row: Record<string, unknown>) => void;
-      /** 点击数量统计列：切到 Span 视角并按该行页面 ID 检索 */
-      onViewCountClick: (row: IRumSpanRecord, colKey: string) => void;
     } & BaseScenario['context']
   ) {
     super(context);
@@ -98,10 +102,11 @@ export class ViewScenario extends BaseScenario {
    *              指标名与阈值均不硬编码，后端新增指标或调整阈值时前端无需改动；
    *              未下发 rating_config 的字段回落基类的时间 / 耗时 / 单位格式化。
    *              view_config 刷新会重建列配置，这里捕获的阈值随之更新。
-   * @param {string} colKey 列键
-   * @returns 声明式列配置
+   * @param {string} colKey 列键，用于查该字段的 rating_config
+   * @returns {Partial<BaseTableColumn>} 声明式列配置：命中评级阈值时返回自定义 cellRenderer，否则回落基类推导
    */
   protected buildBaseline(colKey: string): Partial<BaseTableColumn> {
+    /** 该列的评级阈值配置（按上界升序）；未下发或为空时回落基类推导 */
     const configs = get(this.context.fieldMap).get(colKey)?.rating_config;
     if (configs?.length) {
       return {
@@ -114,11 +119,11 @@ export class ViewScenario extends BaseScenario {
   /**
    * @description 评级字段单元格渲染：数值按字段单位格式化（毫秒耗时 / 无量纲分数原样），
    *              按 view_config 下发的 rating_config 命中评级着色（配色见 theme/view-table-theme.scss）
-   * @param {IRumSpanRecord} row 当前行数据
-   * @param {BaseTableColumn} column 当前列配置项
-   * @param {TableCellRenderContext} renderCtx 列渲染上下文
-   * @param {IRumFieldRatingConfig[]} configs 该字段的评级阈值配置
-   * @returns {SlotReturnValue} 渲染dom
+   * @param {IRumSpanRecord} row 当前行数据，指标值取 row[column.colKey]
+   * @param {BaseTableColumn} column 当前列配置项，colKey 用于取原始值与字段单位
+   * @param {TableCellRenderContext} renderCtx 列渲染上下文：内置 TEXT 渲染器、省略类名与行 rowId
+   * @param {IRumFieldRatingConfig[]} configs 该字段的评级阈值配置（按上界升序，由 buildBaseline 捕获）
+   * @returns {SlotReturnValue | undefined} 单元格渲染节点；空值 / 脏数据委托内置 TEXT 渲染器时可能无返回值
    */
   private renderRatingCell(
     row: IRumSpanRecord,
@@ -134,6 +139,7 @@ export class ViewScenario extends BaseScenario {
     const num = Number(value);
     /** 单位为空的指标（CLS）是 0~1 的无量纲分数，原样展示，不能拼时间单位 */
     const unit = get(this.context.fieldMap).get(column.colKey)?.field_unit;
+    /** formatDuration 入参依次为指标值、分隔符（空）、小数精度 2、原始值单位 ms */
     const text = unit ? formatDuration(num, '', 2, 'ms') : String(value);
     /**
      * DOM 与内置 TEXT 列渲染器（textColumnFormatter）保持一致：explore-col 容器 + 省略容器 + explore-col-text 文本节点，
@@ -171,33 +177,51 @@ export class ViewScenario extends BaseScenario {
   }
 
   /**
-   * @description 数量统计单元格渲染：0 走灰色文本（无数据可下钻），大于 0 走红色下划线链接，点击切到 Span 视角检索该页面
-   * @param {IRumSpanRecord} row 当前行数据
-   * @param {BaseTableColumn} column 当前列配置项
-   * @param {TableCellRenderContext} renderCtx 列渲染上下文
-   * @returns {SlotReturnValue} 渲染dom
+   * @description View 数量列下钻参数：切到 Span 视角，按该行页面 ID 等值检索。
+   *              列不属于 VIEW_COUNT_FIELDS 或页面 ID 为空时返回 null，调用方据此跳过跳转。
+   * @param {IRumSpanRecord} row 当前行数据，页面 ID 取自 VIEW_ID_FIELD
+   * @param {string} colKey 数量列列名，仅 VIEW_COUNT_FIELDS 中的列允许下钻
+   * @returns {IRumCountDrillDown | null} 下钻参数；不可下钻时为 null
    */
-  private renderCountCell(row: IRumSpanRecord, column: BaseTableColumn, renderCtx: TableCellRenderContext) {
+  private resolveViewCountDrillDown(row: IRumSpanRecord, colKey: string): IRumCountDrillDown | null {
+    if (!VIEW_COUNT_FIELDS.has(colKey)) return null;
+    const viewId = String(row?.[VIEW_ID_FIELD] ?? '');
+    if (!viewId) return null;
+    return {
+      condition: { key: VIEW_ID_FIELD, method: EMethod.eq, value: viewId },
+      targetMode: RumModeEnum.SPAN,
+    };
+  }
+
+  /**
+   * @description View 数量统计单元格渲染：0 灰色不可点，大于 0 红色下划线链接，点击按页面 ID 下钻。
+   *              DOM 层级与普通文本列一致，非有限数值按 0 处理；文本节点复用 CLICK 列选择器以支持右键条件菜单。
+   * @param {IRumSpanRecord} row 当前行数据，数量取 row[column.colKey]
+   * @param {BaseTableColumn} column 当前列配置，colKey 同时决定取值与下钻合法性
+   * @param {TableCellRenderContext} renderCtx 列渲染上下文，提供省略类名计算与行 rowId
+   * @returns {SlotReturnValue} 单元格渲染节点
+   */
+  private renderViewCountCell(
+    row: IRumSpanRecord,
+    column: BaseTableColumn,
+    renderCtx: TableCellRenderContext
+  ): SlotReturnValue {
     const value = Number(row?.[column.colKey]);
     const count = Number.isFinite(value) ? value : 0;
     const isLink = Boolean(count);
-    /**
-     * DOM 与评级列 / 内置 TEXT 列渲染器保持一致：explore-col 容器 + 省略容器 + 文本节点；
-     * 零值与可下钻值仅类名、点击行为不同，保证单元格内边距、垂直居中与溢出表现一致。
-     * 数量列右对齐由 view-count-col 主题类处理（explore-col 为 flex 容器，不继承 td 的 text-align）。
-     */
     return (
       <div class='explore-col explore-text-col view-count-col'>
         <div class={renderCtx.isEnabledCellEllipsis(column)}>
           <span
-            class={`view-count-value explore-col-text ${isLink ? 'is-link' : 'is-zero'}`}
+            class={`view-count-value explore-col-text explore-click-text ${isLink ? 'is-link' : 'is-zero'}`}
             data-col-id={column.colKey}
             data-row-id={renderCtx.getRowId(row)}
             onClick={
               isLink
                 ? (e: MouseEvent) => {
                     e.stopPropagation();
-                    this.context.onViewCountClick(row, column.colKey);
+                    const payload = this.resolveViewCountDrillDown(row, column.colKey);
+                    if (payload) this.context.onCountClick(payload);
                   }
                 : undefined
             }

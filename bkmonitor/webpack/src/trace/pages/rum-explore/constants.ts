@@ -40,7 +40,7 @@ import type { IRumColumnLayoutPreset, RumModeType } from './typings';
 /** Span 调用类型（kind）列展示配置：与 trace 检索 kind 列同源，RUM 侧统一从此处引入 */
 export { SPAN_KIND_MAPS } from '../trace-explore/components/trace-explore-table/constants';
 
-/** 检索视角，取值需与检索接口的 mode 字段对齐（当前仅 span 有实现） */
+/** 检索视角，取值需与检索接口的 mode 字段对齐 */
 export const RumModeEnum = {
   /** 会话视角 */
   SESSION: 'session',
@@ -223,6 +223,20 @@ export const VIEW_COLUMN_WIDTH_MAP: Record<string, number> = {
   'resource.user_agent.name': 98,
 };
 
+/** Session 视角列宽（按字段 key 对齐设计稿，不依赖后端默认列顺序） */
+export const SESSION_COLUMN_WIDTH_MAP: Record<string, number> = {
+  'attributes.session.id': 149,
+  'attributes.user.id': 100,
+  'resource.user_agent.name': 176,
+  'resource.user_agent.os.name': 124,
+  enter_url_template: 156,
+  start_time: 140,
+  duration: 110,
+  view_count: 100,
+  action_count: 110,
+  error_count: 109,
+};
+
 /** View 视角的页面 ID 字段：表格行唯一键，同时是跨视角检索该页面的条件字段 */
 export const VIEW_ID_FIELD = 'attributes.view.id';
 
@@ -231,6 +245,16 @@ export const VIEW_URL_FIELD = 'attributes.view.url_template';
 
 /** View 视角的数量统计列：大于 0 时按红色链接展示，点击切到 Span 视角并按页面 ID 检索 */
 export const VIEW_COUNT_FIELDS = new Set(['error_count', 'request_count', 'action_count']);
+
+/** Session 视角的行唯一键，同时是跨视角检索该会话的条件字段 */
+export const SESSION_ID_FIELD = 'attributes.session.id';
+
+/** Session 视角数量统计列 → 下钻目标视角；下钻条件统一带当前会话 ID */
+export const SESSION_COUNT_FIELDS: Record<string, RumModeType> = {
+  view_count: RumModeEnum.VIEW,
+  action_count: RumModeEnum.SPAN,
+  error_count: RumModeEnum.SPAN,
+};
 
 export const DEFAULT_COLUMN_WIDTH = 220;
 
@@ -258,6 +282,10 @@ export const RUM_FIELD_DEFAULT_COLUMN_WIDTH = {
  * 新增视角只需在此登记一条，无需改动 useRumColumnConfig。
  */
 export const RUM_COLUMN_LAYOUT_PRESET: Partial<Record<RumModeType, IRumColumnLayoutPreset>> = {
+  [RumModeEnum.SESSION]: {
+    widthMap: SESSION_COLUMN_WIDTH_MAP,
+    minWidth: DEFAULT_MIN_COLUMN_WIDTH,
+  },
   [RumModeEnum.SPAN]: {
     widthMap: SPAN_COLUMN_WIDTH_MAP,
     leftFixedColumns: new Set(['span_name']),
