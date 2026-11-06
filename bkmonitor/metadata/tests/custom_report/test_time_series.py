@@ -252,3 +252,22 @@ def test_bulk_refresh_rt_fields_with_tag_list(create_and_delete_records):
         "service": "Service",
         "instance": "Instance",
     }
+
+
+def test_get_metric_from_bkdata_uses_group_tenant(mocker):
+    for tenant in ("tenant_a", "tenant_b"):
+        models.AccessVMRecord.objects.create(
+            bk_tenant_id=tenant,
+            result_table_id=DEFAULT_TABLE_ID,
+            bk_base_data_id=1,
+            vm_result_table_id=f"{tenant}_rt",
+        )
+
+    query = mocker.patch(
+        "metadata.models.custom_report.time_series.api.bkdata.query_metric_and_dimension", return_value=[]
+    )
+    group = models.TimeSeriesGroup(bk_tenant_id="tenant_b", table_id=DEFAULT_TABLE_ID)
+    group.get_metric_from_bkdata()
+
+    assert query.call_args.kwargs["bk_tenant_id"] == "tenant_b"
+    assert query.call_args.kwargs["result_table_id"] == "tenant_b_rt"
