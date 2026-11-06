@@ -33,6 +33,8 @@ def bkfara_after_request(response):
 class _BkFaraDataAPI(DataAPI):
     HTTP_SUCCESS_STATUS_CODES = (200, 201, 202)
     EXCLUDE_URL_KEYS = True
+    VERIFY_TLS = True
+    SEND_TENANT_HEADER = False
 
 
 class _BkFaraApi:
@@ -101,7 +103,7 @@ class _BkFaraApi:
         )
         self.stop_clustering = _BkFaraDataAPI(
             method="POST",
-            url=bkfara_api_url + "/internal/ct/v1/clustering/tasks/{task_id}/stop",
+            url=bkfara_api_url + "/ct/v1/tasks/{task_id}/clustering/stop",
             module=self.MODULE,
             description="关闭聚类业务",
             url_keys=["task_id"],
@@ -111,7 +113,7 @@ class _BkFaraApi:
         )
         self.restart_clustering = _BkFaraDataAPI(
             method="POST",
-            url=bkfara_api_url + "/internal/ct/v1/clustering/tasks/{task_id}/restart",
+            url=bkfara_api_url + "/ct/v1/tasks/{task_id}/clustering/restart",
             module=self.MODULE,
             description="重新开启聚类业务",
             url_keys=["task_id"],
