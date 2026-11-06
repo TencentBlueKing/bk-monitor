@@ -144,22 +144,50 @@ def test_modify_compares_old_configuration_and_retries_do_not_rotate(version_rec
     mocker.patch("metadata.models.space.utils.get_space_by_table_id", return_value={})
     value = json.loads(option.value)
     del value["doris_storage_config"]["tokenizers"]
-    rt.modify(operator="tester", option={option.name: value})
+    rt.modify(
+        operator="tester",
+        external_storage={"doris": {"storage_cluster_id": storage.storage_cluster_id}},
+        option={option.name: value},
+    )
     saved = models.ResultTableOption.objects.get(table_id=rt.table_id, name=option.name, bk_tenant_id=rt.bk_tenant_id)
     assert "tokenizers" not in saved.get_value()["doris_storage_config"]
     storage.refresh_from_db()
     assert storage.datalink_table_name == f"bkm_doris_{storage.pk}_v2"
-    rt.modify(operator="tester", option={option.name: value})
+    rt.modify(
+        operator="tester",
+        external_storage={"doris": {"storage_cluster_id": storage.storage_cluster_id}},
+        option={option.name: value},
+    )
     storage.refresh_from_db()
     assert storage.datalink_table_name == f"bkm_doris_{storage.pk}_v2"
     value["doris_storage_config"]["support_hour_partition"] = True
-    rt.modify(operator="tester", option={option.name: value})
+    rt.modify(
+        operator="tester",
+        external_storage={"doris": {"storage_cluster_id": storage.storage_cluster_id}},
+        option={option.name: value},
+    )
     storage.refresh_from_db()
     assert storage.datalink_table_name == f"bkm_doris_{storage.pk}_v3"
     assert [
         r.physical_tables["main"]
         for r in models.StorageClusterRecord.objects.filter(table_id=rt.table_id).order_by("id")
     ] == [f"mapleleaf_2.bkm_doris_{storage.pk}_v{v}" for v in (1, 2, 3)]
+
+
+def test_option_only_modify_without_external_doris_skips_storage(version_records, mocker):
+    rt, _, storage, _, option = version_records
+    mocker.patch.object(models.ResultTable, "apply_datalink")
+    mocker.patch("metadata.models.space.utils.get_space_by_table_id", return_value={})
+    update = mocker.spy(models.DorisStorage, "update_storage")
+    value = json.loads(option.value)
+    del value["doris_storage_config"]["tokenizers"]
+    rt.modify(operator="tester", option={option.name: value})
+    update.assert_not_called()
+    storage.refresh_from_db()
+    assert storage.datalink_table_name == f"bkm_doris_{storage.pk}_v1"
+    assert models.StorageClusterRecord.objects.filter(table_id=rt.table_id).count() == 1
+    saved = models.ResultTableOption.objects.get(table_id=rt.table_id, name=option.name, bk_tenant_id=rt.bk_tenant_id)
+    assert saved.get_value() == value
 
 
 def test_historical_resources_are_retained_and_latest_version_selected(version_records, mocker, settings):
@@ -186,7 +214,11 @@ def test_nonstructural_change_does_not_rotate(version_records, mocker):
     mocker.patch("metadata.models.space.utils.get_space_by_table_id", return_value={})
     value = json.loads(option.value)
     value["doris_storage_config"].update(alias="新名称", description="说明", flush_timeout=90)
-    rt.modify(operator="tester", option={option.name: value})
+    rt.modify(
+        operator="tester",
+        external_storage={"doris": {"storage_cluster_id": storage.storage_cluster_id}},
+        option={option.name: value},
+    )
     storage.refresh_from_db()
     assert storage.datalink_table_name == f"bkm_doris_{storage.pk}_v1"
 
@@ -700,6 +732,7 @@ def test_result_table_modify_commits_before_log_apply_failure(version_records, m
     with pytest.raises(RuntimeError, match="apply failed"):
         rt.modify(
             operator="tester",
+            external_storage={"doris": {"storage_cluster_id": storage.storage_cluster_id}},
             option={
                 option.name: value,
                 models.ResultTableOption.OPTION_ENABLE_V4_LOG_DATA_LINK: True,
@@ -741,7 +774,7 @@ def test_es_only_log_apply_follows_outer_commit(version_records, mocker, rollbac
     original["es_storage_config"] = {"unique_field_list": []}
     option.value = json.dumps(original)
     option.save(update_fields=["value"])
-    snapshot = mocker.spy(models.DorisStorage, "_table_config")
+    snapshot = mocker.spy(models.DorisStorage, "update_storage")
     saved_write_config = mocker.spy(models.DorisStorage, "_saved_write_config")
     updated = dict(original, es_storage_config={"unique_field_list": ["host"]})
     mocker.patch("metadata.models.space.utils.get_space_by_table_id", return_value={})
@@ -769,7 +802,8 @@ def test_es_only_log_apply_follows_outer_commit(version_records, mocker, rollbac
 
 @pytest.mark.parametrize("version_records", [DataLink.BK_LOG], indirect=True)
 @pytest.mark.parametrize("writes_doris", [False, True], ids=["es_only_with_doris_history", "dual_write"])
-def test_es_default_field_only_update(version_records, mocker, writes_doris):
+@pytest.mark.parametrize("external_doris", [False, True])
+def test_es_default_field_only_update(version_records, mocker, writes_doris, external_doris):
     rt, _, storage, _, option = version_records
     rt.default_storage = models.ClusterInfo.TYPE_ES
     rt.schema_type = rt.SCHEMA_TYPE_FREE
@@ -783,12 +817,12 @@ def test_es_default_field_only_update(version_records, mocker, writes_doris):
     option.save(update_fields=["value"])
     mocker.patch.object(models.ResultTable, "_get_and_validate_default_cluster_storage")
     mocker.patch("metadata.models.space.utils.get_space_by_table_id", return_value={})
-    snapshot = mocker.spy(models.DorisStorage, "_table_config")
-    rt.modify(operator="tester", field_list=[])
+    snapshot = mocker.spy(models.DorisStorage, "update_storage")
+    rt.modify(operator="tester", field_list=[], external_storage={"doris": {}} if external_doris else None)
     storage.refresh_from_db()
-    version = 2 if writes_doris else 1
+    version = 2 if writes_doris and external_doris else 1
     assert storage.datalink_table_name == f"bkm_doris_{storage.pk}_v{version}"
-    if not writes_doris:
+    if not external_doris:
         snapshot.assert_not_called()
 
 
@@ -799,6 +833,30 @@ def test_vm_field_update_skips_doris_configuration(version_records, mocker):
     rt.is_enable = False
     rt.save()
     mocker.patch("metadata.models.space.utils.get_space_by_table_id", return_value={})
-    prepare = mocker.spy(models.DorisStorage, "prepare_table_update")
+    prepare = mocker.spy(models.DorisStorage, "update_storage")
     rt.modify(operator="tester", field_list=[], option={})
     prepare.assert_not_called()
+
+
+def test_cluster_and_schema_change_share_one_history_segment(version_records, mocker):
+    rt, _, storage, _, option = version_records
+    mocker.patch.object(models.ResultTable, "apply_datalink")
+    mocker.patch("metadata.models.space.utils.get_space_by_table_id", return_value={})
+    models.ClusterInfo.objects.create(
+        bk_tenant_id="system",
+        cluster_id=99992,
+        cluster_name="other_doris",
+        cluster_type="doris",
+        domain_name="localhost",
+        port=9030,
+        is_default_cluster=False,
+    )
+    value = json.loads(option.value)
+    del value["doris_storage_config"]["tokenizers"]
+    rt.modify(operator="tester", external_storage={"doris": {"storage_cluster_id": 99992}}, option={option.name: value})
+    records = list(models.StorageClusterRecord.objects.filter(table_id=rt.table_id).order_by("id"))
+    assert [(r.cluster_id, r.is_current, r.bkbase_table_id) for r in records] == [
+        (99991, False, f"2_bkm_doris_{storage.pk}_v1"),
+        (99992, True, f"2_bkm_doris_{storage.pk}_v2"),
+    ]
+    assert records[0].disable_time == records[1].enable_time

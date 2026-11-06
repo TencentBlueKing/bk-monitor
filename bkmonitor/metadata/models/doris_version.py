@@ -9,12 +9,15 @@ from django.utils import timezone
 from metadata import config
 
 
-def advance_table_version(storage, operator):
+def advance_table_version(storage, operator, *, table=None, old_cluster_id=None):
     """调用者持有 ResultTable 行锁；保存物理表、版本和配置时间段后才允许 apply。"""
     from bkmonitor.utils.tenant import get_tenant_datalink_biz_id
     from metadata.models import ResultTable, StorageClusterRecord
 
-    table = ResultTable.objects.get(table_id=storage.table_id, bk_tenant_id=storage.bk_tenant_id)
+    if table is None:
+        table = ResultTable.objects.get(table_id=storage.table_id, bk_tenant_id=storage.bk_tenant_id)
+    if old_cluster_id is None:
+        old_cluster_id = storage.storage_cluster_id
     old_physical = dict(storage.physical_tables)
     old_rt = storage.bkbase_table_id or ""
     # 未纳管存量表只在首次换表前读取实际名称，不等待新表创建。
@@ -36,7 +39,7 @@ def advance_table_version(storage, operator):
     records = StorageClusterRecord.objects.select_for_update().filter(
         table_id=storage.table_id,
         bk_tenant_id=storage.bk_tenant_id,
-        cluster_id=storage.storage_cluster_id,
+        cluster_id=old_cluster_id,
         is_deleted=False,
         disable_time__isnull=True,
     )
@@ -47,7 +50,7 @@ def advance_table_version(storage, operator):
             record = StorageClusterRecord.objects.create(
                 table_id=storage.table_id,
                 bk_tenant_id=storage.bk_tenant_id,
-                cluster_id=storage.storage_cluster_id,
+                cluster_id=old_cluster_id,
                 creator=operator,
                 enable_time=timezone.make_aware(datetime.datetime(1970, 1, 1)),
             )
@@ -64,7 +67,7 @@ def advance_table_version(storage, operator):
     storage.physical_tables = {"main": f"{database}.{table_name}"}
     storage.save(update_fields=["bkbase_table_id", "physical_tables"])
     # 首次创建可直接补齐 create_table 已建立的空分段。
-    current = records.first() if not old_physical else None
+    current = records.first() if not old_physical and old_cluster_id == storage.storage_cluster_id else None
     if current is None:
         current = StorageClusterRecord(
             table_id=storage.table_id,

@@ -6391,35 +6391,36 @@ class DorisStorage(models.Model, StorageResultTable):
         )
         return self._write_config({item.name: item.get_value() for item in records})
 
-    @classmethod
-    def prepare_table_update(cls, rt, options, *, replacing):
-        """只为已有 Doris 写入保存变更前的配置，以便字段和 option 全量替换后比较。"""
-        target_config = cls._write_config(options)
-        if target_config is None:
-            return None
-        storage = cls.objects.filter(table_id=rt.table_id, bk_tenant_id=rt.bk_tenant_id).first()
-        if storage is None or not storage._owns_write_table():
-            return None
-        old_config = storage._saved_write_config() if replacing else target_config
-        if old_config is None:
-            return None
-        return storage, storage._table_config(old_config), target_config
-
-    def _table_config(self, storage_config):
+    def update_storage(self, *, result_table=None, old_fields=None, option=None, operator="system", **kwargs):
         from metadata.models.data_link.utils import generate_result_table_field_list
-
-        return {
-            "storage_config": storage_config,
-            "fields": generate_result_table_field_list(self.table_id, self.bk_tenant_id),
-        }
-
-    def update_table_version(self, old_config, target_config, operator):
         from metadata.models.doris_version import advance_table_version
+        from metadata.models.result_table import ResultTableOption
 
-        if self.requires_new_table(old_config, self._table_config(target_config)):
-            self.refresh_from_db()
-            if self._owns_write_table():
-                advance_table_version(self, operator)
+        old_cluster_id = self.storage_cluster_id
+        updated = super().update_storage(**kwargs)
+        if old_fields is None and option is None:
+            return updated
+
+        if option is not None:
+            target = self._write_config(option)
+            if target is None or option.get(ResultTableOption.OPTION_IS_VIRTUAL_TABLE):
+                return updated
+        if not self._owns_write_table():
+            return updated
+        before = self._saved_write_config()
+        if before is None:
+            return updated
+
+        # RT 字段已更新，option 仍是旧值。仅在本次替换字段时读取新物理字段。
+        after_fields = (
+            generate_result_table_field_list(self.table_id, self.bk_tenant_id) if old_fields is not None else []
+        )
+        if self.requires_new_table(
+            {"fields": old_fields or [], "storage_config": before},
+            {"fields": after_fields, "storage_config": before if option is None else target},
+        ):
+            advance_table_version(self, operator, table=result_table, old_cluster_id=old_cluster_id)
+        return updated
 
     def _owns_write_table(self):
         """虚拟表和无采集数据源的路由表只参与查询，不拥有写入链路。"""
