@@ -32,7 +32,7 @@ export interface IRumTraceInfo {
 }
 
 /** 单次批量检索的 trace_id 数量上限，避免 query 过长 */
-const TRACE_SEARCH_BATCH_SIZE = 50;
+const TRACE_SEARCH_BATCH_SIZE = 20;
 
 /**
  * @description 按 trace_id 全局检索 Trace 所属的 APM 应用
@@ -66,10 +66,15 @@ export async function searchTraceInfoMap(
   await Promise.all(
     batches.map(async batch => {
       const res = await fetchEventStream(buildSearchUrl(batch.join(','), bizId));
-      const items: IRumTraceInfo[] = res[0]?.items ?? [];
+      const items: IRumTraceInfo[] = [];
+      for (const event of res) {
+        if (event?.type === 'trace') items.push(...(event.items ?? []));
+      }
       for (const item of items) {
-        /** 检索接口为模糊匹配，只保留本次请求的 trace_id */
-        if (idSet.has(item.trace_id)) result.set(item.trace_id, item);
+        // 累计快照里同一 trace_id 只保留最早命中的应用
+        if (item?.trace_id && idSet.has(item.trace_id) && !result.has(item.trace_id)) {
+          result.set(item.trace_id, item);
+        }
       }
     })
   );
