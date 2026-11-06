@@ -1041,9 +1041,23 @@ def _prepare_partial_space_data_sources(directory_path: str | Path, bk_biz_ids: 
                     "space_type_id": fields["space_type_id"],
                     "space_id": fields["space_id"],
                 }
-                if lookup["space_type_id"] == "bkci" and not Space.objects.filter(**lookup).exists():
-                    lookup["space_id"] = f"{fields['bk_tenant_id']}-{fields['space_id']}"
-                fields["space_id"] = Space.objects.get(**lookup).space_id
+                space_ids = [fields["space_id"]]
+                if lookup["space_type_id"] == "bkci":
+                    space_ids.append(f"{fields['bk_tenant_id']}-{fields['space_id']}")
+                for space_id in space_ids:
+                    lookup["space_id"] = space_id
+                    try:
+                        target_space = Space.objects.get(**lookup)
+                    except Space.DoesNotExist:
+                        continue
+                    break
+                else:
+                    raise ValueError(
+                        f"目标环境租户 {fields['bk_tenant_id']} 下未找到空间 "
+                        f"{fields['space_type_id']}（尝试空间 ID: {', '.join(space_ids)}），"
+                        "请先同步目标空间后再执行局部导入。"
+                    )
+                fields["space_id"] = target_space.space_id
                 # 关联表的自增主键不跨环境复用，避免覆盖目标环境的其他关联。
                 record["pk"] = None
                 changed = True

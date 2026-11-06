@@ -117,12 +117,15 @@ def test_partial_import_resolves_target_spaces_without_reusing_relation_pks(
     def space_key(lookup):
         return lookup["bk_tenant_id"], lookup["space_type_id"], lookup["space_id"]
 
-    monkeypatch.setattr(
-        partial.Space.objects,
-        "filter",
-        lambda **lookup: SimpleNamespace(exists=lambda: space_key(lookup) in target_spaces),
-    )
-    monkeypatch.setattr(partial.Space.objects, "get", lambda **lookup: target_spaces[space_key(lookup)])
+    def get_space(**lookup):
+        try:
+            return target_spaces[space_key(lookup)]
+        except KeyError:
+            raise partial.Space.DoesNotExist from None
+
+    get_space_mock = Mock(side_effect=get_space)
+    monkeypatch.setattr(partial.Space.objects, "filter", Mock(side_effect=AssertionError("unexpected exists query")))
+    monkeypatch.setattr(partial.Space.objects, "get", get_space_mock)
     monkeypatch.setattr(partial, "precheck_partial_import_directory", lambda **kwargs: {"result": True})
     imported_records = []
 
@@ -140,6 +143,52 @@ def test_partial_import_resolves_target_spaces_without_reusing_relation_pks(
     assert imported_records[1]["pk"] is None
     assert imported_records[1]["fields"]["space_id"] == "18824"
     assert imported_records[2] == records[2]
+    expected_space_ids = [source_space_id]
+    if source_space_id != target_space_id:
+        expected_space_ids.append(target_space_id)
+    assert [call.kwargs["space_id"] for call in get_space_mock.call_args_list] == [*expected_space_ids, "18824"]
+
+
+@pytest.mark.parametrize("space_type,space_id", [("bkcc", "18824"), ("bkci", "gos-backend")])
+def test_partial_import_missing_target_space_reports_sync_guidance_without_importing(
+    monkeypatch, tmp_path, space_type, space_id
+):
+    records = [
+        {
+            "model": "metadata.spacedatasource",
+            "pk": 100,
+            "fields": {
+                "bk_tenant_id": "tencent",
+                "space_type_id": space_type,
+                "space_id": space_id,
+                "bk_data_id": 533326,
+            },
+        }
+    ]
+    fixture_path = tmp_path / "relations.json"
+    fixture_path.write_text(json.dumps(records))
+    (tmp_path / "manifest.json").write_text(
+        json.dumps({"bk_biz_ids": [18824], "biz_files": {"18824": [fixture_path.name]}})
+    )
+    get_space = Mock(side_effect=partial.Space.DoesNotExist)
+    monkeypatch.setattr(partial.Space.objects, "get", get_space)
+    monkeypatch.setattr(partial, "precheck_partial_import_directory", lambda **kwargs: {"result": True})
+    import_biz_data = Mock()
+    monkeypatch.setattr(partial, "import_biz_data_from_directory", import_biz_data)
+
+    with pytest.raises(ValueError, match="请先同步目标空间") as error:
+        partial.import_partial_data_from_directory(tmp_path, atomic=False)
+
+    assert "tencent" in str(error.value)
+    assert space_type in str(error.value)
+    assert space_id in str(error.value)
+    expected_space_ids = [space_id]
+    if space_type == "bkci":
+        expected_space_ids.append(f"tencent-{space_id}")
+        assert f"tencent-{space_id}" in str(error.value)
+    assert [call.kwargs["space_id"] for call in get_space.call_args_list] == expected_space_ids
+    import_biz_data.assert_not_called()
+    assert json.loads(fixture_path.read_text()) == records
 
 
 def test_partial_rebuild_publishes_only_affected_spaces_and_table_details(monkeypatch):
