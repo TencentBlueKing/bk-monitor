@@ -597,7 +597,7 @@ class TestMixedStorageFieldsEndpoint(MixedStorageFixtureMixin, TestCase):
             )
         )
 
-    @override_settings(MIDDLEWARE=(OVERRIDE_MIDDLEWARE,))
+    @override_settings(MIDDLEWARE=(OVERRIDE_MIDDLEWARE,), IGNORE_IAM_PERMISSION=True)
     @FakeRedis("apps.utils.cache.cache")
     def test_fields_endpoint_realtime_branch_returns_es_types(self):
         """实时字段接口返回规范化类型与空操作符，能力位与修复前基线一致。"""
