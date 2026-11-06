@@ -26,6 +26,11 @@
 
 // 反馈 弹窗 相关的词条
 export default {
+  '缺少故障 ID，请从故障列表重新打开详情。': 'The incident ID is missing. Please reopen the details from the incident list.',
+  '未找到故障 {id} 对应的监控文档，可能已被抑制或尚未同步。请返回列表查看分析记录。':
+    'No monitoring document was found for incident {id}. It may have been suppressed or not yet synchronized. Return to the list to view the analysis record.',
+  '故障 {id} 的详情地址解析失败，请稍后刷新重试。':
+    'Failed to resolve the details URL for incident {id}. Please refresh to retry later.',
   // Messages :  Success |  Warning  | Error |  Info
   // 规范： 动词-主体-结果  如 新建应用成功 New application successful
   // 规范： 仅首字母大写
