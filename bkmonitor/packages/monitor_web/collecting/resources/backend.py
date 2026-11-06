@@ -1054,6 +1054,14 @@ class SaveCollectConfigResource(Resource):
             return attrs
 
     def perform_request(self, data):
+        collect_config = None
+        if data.get("id"):
+            try:
+                collect_config = CollectConfigMeta.objects.get(bk_biz_id=data["bk_biz_id"], id=data["id"])
+            except CollectConfigMeta.DoesNotExist:
+                raise CollectConfigNotExist({"msg": data["id"]})
+            self.merge_legacy_qcloud_credentials(data, collect_config)
+
         try:
             collector_plugin = self.get_collector_plugin(data)
         except CollectorPluginMeta.DoesNotExist:
@@ -1063,12 +1071,7 @@ class SaveCollectConfigResource(Resource):
         data["params"]["target_object_type"] = data["target_object_type"]
         data["params"]["collector"]["metric_relabel_configs"] = data.pop("metric_relabel_configs")
 
-        # 获取或新建采集配置
-        if data.get("id"):
-            try:
-                collect_config = CollectConfigMeta.objects.get(bk_biz_id=data["bk_biz_id"], id=data["id"])
-            except CollectConfigMeta.DoesNotExist:
-                raise CollectConfigNotExist({"msg": data["id"]})
+        if collect_config is not None:
             # 密码字段处理
             self.update_password_inplace(data, collect_config)
             collect_config.name = data["name"]
@@ -1110,15 +1113,32 @@ class SaveCollectConfigResource(Resource):
         return result
 
     @staticmethod
+    def merge_legacy_qcloud_credentials(data: dict, config_meta: CollectConfigMeta) -> None:
+        if not is_tencent_cloud_config(config_meta):
+            return
+        source = config_meta.deployment_config
+        stored = source.params.get("plugin", {})
+        plugin = data["params"].setdefault("plugin", {})
+        if not isinstance(plugin, dict):
+            raise CollectConfigParamsError(msg="plugin 必须为对象")
+        if "config_mode" in stored or "config_mode" in plugin:
+            return
+
+        # 历史安装器以部署参数覆盖源模板默认值；仅省略字段或 true 占位时沿用该值。
+        defaults = source.plugin_version.config.collector_json.get("values") or {}
+        for field in ("secret_id", "secret_key"):
+            value = plugin.get(field, True)
+            if value is True:
+                value = stored.get(field, defaults.get(field))
+            if not isinstance(value, str) or not value:
+                raise CollectConfigParamsError(msg=f"{field} 必须填写")
+            plugin[field] = value
+
+    @staticmethod
     def update_password_inplace(data: dict, config_meta: "CollectConfigMeta") -> None:
         """将密码参数的值替换为实际值。"""
         config_params = config_meta.plugin.current_version.config.config_json
         deployment_params = config_meta.deployment_config.params
-
-        # 腾讯云旧表单把 secret_id 定义为文本，stored 详情仍会将其脱敏为布尔占位。
-        plugin_params = data["params"].get("plugin", {})
-        if isinstance(plugin_params.get("secret_id"), bool) and is_tencent_cloud_config(config_meta):
-            plugin_params["secret_id"] = deployment_params.get("plugin", {}).get("secret_id", "")
 
         for param in config_params:
             if param["type"] not in ["password", "encrypt"]:
@@ -1255,6 +1275,7 @@ class UpgradeCollectPluginResource(Resource):
             collect_config = CollectConfigMeta.objects.select_related("deployment_config").get(
                 pk=data["id"], bk_biz_id=data["bk_biz_id"]
             )
+            SaveCollectConfigResource.merge_legacy_qcloud_credentials(data, collect_config)
             SaveCollectConfigResource.update_password_inplace(data, collect_config)
         except CollectConfigMeta.DoesNotExist:
             raise CollectConfigNotExist({"msg": data["id"]})

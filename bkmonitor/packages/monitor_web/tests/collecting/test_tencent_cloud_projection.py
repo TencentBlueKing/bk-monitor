@@ -8,7 +8,7 @@ from unittest.mock import Mock
 import pytest
 import yaml
 
-from core.errors.collecting import LegacyConversionFailed
+from core.errors.collecting import CollectConfigParamsError, LegacyConversionFailed
 from monitor_web.collecting.resources import backend, frontend
 from monitor_web.collecting.resources.tencent_cloud import K8sInstaller, configmap_projection
 
@@ -164,20 +164,12 @@ def test_edit_and_display(config, mocker):
     assert before == (source.params, source.plugin_version.config)
 
 
-@pytest.mark.parametrize(
-    ("original", "replacement"), [("sample-access", None), ("", None), ("sample-access", "updated-access")]
-)
-def test_stored_credentials_roundtrip_on_save(config, mocker, original, replacement):
-    source_plugin = config.deployment_config.params["plugin"]
-    source_plugin["secret_id"] = original
+@pytest.fixture
+def stored_edit(config, mocker):
     config.plugin.current_version = config.deployment_config.plugin_version
     stored = detail(params_format="stored")
-    plugin = stored["params"]["plugin"]
-    assert plugin["secret_id"] is bool(original)
-    assert plugin["secret_key"] is True
-    if replacement is not None:
-        plugin["secret_id"] = replacement
-
+    assert stored["params"]["plugin"]["secret_id"] is True
+    assert stored["params"]["plugin"]["secret_key"] is True
     save = backend.SaveCollectConfigResource()
     mocker.patch.object(save, "get_collector_plugin", return_value=config.plugin)
     mocker.patch.object(backend.CollectConfigMeta.objects, "get", return_value=config)
@@ -186,11 +178,60 @@ def test_stored_credentials_roundtrip_on_save(config, mocker, original, replacem
     mocker.patch.object(backend, "DatalinkDefaultAlarmStrategyLoader")
     mocker.patch.object(backend, "get_global_user", return_value="tester")
     data = {key: stored[key] for key in ("id", "bk_biz_id", "name", "target_object_type", "target_node_type", "params")}
-    save.perform_request({**data, "operation": "EDIT", "metric_relabel_configs": []})
+    data.update(operation="EDIT", metric_relabel_configs=[])
+    return data, save, installer
 
+
+@pytest.mark.parametrize(
+    "credentials",
+    [
+        {},
+        {"secret_id": True, "secret_key": True},
+        {"secret_id": "updated-id"},
+        {"secret_key": "updated-key"},
+        {"secret_id": True, "secret_key": "updated-key"},
+        {"secret_id": "updated-id", "secret_key": True},
+        {"secret_id": "updated-id", "secret_key": "updated-key"},
+    ],
+)
+def test_stored_credentials_roundtrip_on_save(config, stored_edit, credentials):
+    data, save, installer = stored_edit
+    source = deepcopy(config.deployment_config.params)
+    plugin = data["params"]["plugin"]
+    del plugin["secret_id"], plugin["secret_key"]
+    plugin.update(credentials)
+    save.perform_request(data)
     installed = installer.install.call_args.args[0]["params"]["plugin"]
-    assert installed == {**source_plugin, "secret_id": original if replacement is None else replacement}
-    assert source_plugin["secret_id"] == original
+    assert installed == {**source["plugin"], **{k: v for k, v in credentials.items() if v is not True}}
+    assert config.deployment_config.params == source
+
+
+@pytest.mark.parametrize("field", ["secret_id", "secret_key"])
+@pytest.mark.parametrize("missing_original", [False, True])
+def test_stored_edit_requires_both_credentials(config, stored_edit, field, missing_original):
+    data, save, installer = stored_edit
+    if missing_original:
+        config.deployment_config.params["plugin"].pop(field)
+        data["params"]["plugin"].pop(field)
+    else:
+        data["params"]["plugin"][field] = ""
+    source = deepcopy(config.deployment_config.params)
+    with pytest.raises(CollectConfigParamsError, match=field):
+        save.perform_request(data)
+    save.get_collector_plugin.assert_not_called()
+    installer.install.assert_not_called()
+    assert config.deployment_config.params == source
+
+
+def test_omitted_old_credential_uses_deployed_template_default(config, stored_edit):
+    data, save, installer = stored_edit
+    source = config.deployment_config
+    del source.params["plugin"]["secret_id"]
+    source.plugin_version.config.collector_json["values"]["secret_id"] = "template-id"
+    del data["params"]["plugin"]["secret_id"]
+    save.perform_request(data)
+    assert installer.install.call_args.args[0]["params"]["plugin"]["secret_id"] == "template-id"
+    assert "secret_id" not in source.params["plugin"]
 
 
 def test_new_format_uses_uploaded_content_and_recomputes_preview(config):
