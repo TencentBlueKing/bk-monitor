@@ -193,7 +193,7 @@ def apply_custom_format_datalink(bk_tenant_id: str, table_id: str) -> None:
                 raise ValueError(f"自定义格式 ResultTable({table_id}) 缺少 DorisStorage")
             storage_cluster_id = storage.storage_cluster_id
 
-        declared_rt_name = datalink.apply_data_link(
+        datalink.apply_data_link(
             bk_biz_id=target_bk_biz_id,
             data_source=data_source,
             table_id=table_id,
@@ -202,11 +202,7 @@ def apply_custom_format_datalink(bk_tenant_id: str, table_id: str) -> None:
             storage_type=option.target_storage_type,
             cleanup_absent_components=True,
         )
-        datalink.sync_metadata(
-            table_id=table_id,
-            storage_cluster_id=storage_cluster_id,
-            result_table_name=declared_rt_name,
-        )
+        datalink.sync_metadata(table_id=table_id, storage_cluster_id=storage_cluster_id)
     except Exception:
         BkBaseResultTable.objects.update_or_create(
             bk_tenant_id=bk_tenant_id,
@@ -582,9 +578,7 @@ def apply_log_datalink(bk_tenant_id: str, table_id: str):
         bkbase_rt.status = DataLinkResourceStatus.CREATING.value
         bkbase_rt.save()
 
-    declared_rt_name = datalink.apply_data_link(
-        bk_biz_id=rt.bk_biz_id, data_source=ds, table_id=table_id, consumer_group=consumer_group
-    )
+    datalink.apply_data_link(bk_biz_id=rt.bk_biz_id, data_source=ds, table_id=table_id, consumer_group=consumer_group)
 
     # 回填 BkBaseResultTable 的 bkbase_rt_name / bkbase_table_id / bkbase_data_name 等。
     # 当 ES / Doris 两种存储同时存在时，按 ResultTable.default_storage 选择记录的存储类型；
@@ -600,11 +594,7 @@ def apply_log_datalink(bk_tenant_id: str, table_id: str):
     elif doris_storage is not None:
         sync_storage_cluster_id = doris_storage.storage_cluster_id
     if sync_storage_cluster_id is not None:
-        datalink.sync_metadata(
-            table_id=table_id,
-            storage_cluster_id=sync_storage_cluster_id,
-            result_table_name=declared_rt_name,
-        )
+        datalink.sync_metadata(table_id=table_id, storage_cluster_id=sync_storage_cluster_id)
     else:
         logger.warning(
             "apply_log_v4_datalink: tenant(%s) %s no storage cluster found, skip sync_metadata",

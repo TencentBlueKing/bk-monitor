@@ -1391,12 +1391,7 @@ class ResultTable(models.Model):
             self.default_storage = default_storage
 
         # 3. 更新结果表字段配置
-        old_doris_fields = None
         if self.schema_type == self.SCHEMA_TYPE_FREE and field_list is not None:
-            if external_storage and ClusterInfo.TYPE_DORIS in external_storage:
-                from metadata.models.data_link.utils import generate_result_table_field_list
-
-                old_doris_fields = generate_result_table_field_list(self.table_id, self.bk_tenant_id)
             # 只有是自动字段的结果表，才可以对字段进行修改
             # 需要将字段都先清理后，然后再重新建立该结果表的字段，ETL可以按照新的字段方案进行入库存储
             result_table_field_ids = ResultTableField.objects.filter(
@@ -1491,7 +1486,6 @@ class ResultTable(models.Model):
         # 5. 判断是否有额外的存储需要创建
         # 由于空字典不可以作为默认值，因此此处需要做一个兼容处理
         external_storage = {} if external_storage is None else external_storage
-        doris_rotated = False
         for ex_storage_type, ex_storage_config in list(external_storage.items()):
             try:
                 ex_storage = self.REAL_STORAGE_DICT[ex_storage_type]
@@ -1514,19 +1508,7 @@ class ResultTable(models.Model):
                     ex_storage_type,
                 )
                 storage = storage_query.get()
-                if ex_storage_type == ClusterInfo.TYPE_DORIS:
-                    old_name = storage.datalink_table_name
-                    storage.update_storage(
-                        result_table=self,
-                        old_fields=old_doris_fields,
-                        option=option,
-                        operator=operator,
-                        **ex_storage_config,
-                    )
-                    # 默认 Doris 已随换表建立 current；同时切集群时避免重复建段。
-                    doris_rotated = old_name != storage.datalink_table_name
-                else:
-                    storage.update_storage(**ex_storage_config)
+                storage.update_storage(**ex_storage_config)
                 logger.info("table->[%s] upgrade storage->[%s] config success.", self.table_id, ex_storage_type)
                 continue
 
@@ -1736,11 +1718,8 @@ class ResultTable(models.Model):
                 switch_time=switch_time,
                 creator=operator,
                 force_new_segment=(
-                    (
-                        old_default_storage != self.default_storage
-                        or old_active_cluster_id != default_cluster_storage.storage_cluster_id
-                    )
-                    and not (self.default_storage == ClusterInfo.TYPE_DORIS and doris_rotated)
+                    old_default_storage != self.default_storage
+                    or old_active_cluster_id != default_cluster_storage.storage_cluster_id
                 ),
             )
             switched = switch_result[1]

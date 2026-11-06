@@ -6170,6 +6170,20 @@ class StorageClusterRecord(models.Model):
         target_current_records = [
             record for record in current_records if record.cluster_id == target_cluster_id and not record.is_deleted
         ]
+        # Doris 同次换表和切集群时，update_storage 已经建立目标物理表的 current 分段。
+        if force_new_segment and target_current_records and target_storage_type == ClusterInfo.TYPE_DORIS:
+            target = target_current_records[-1]
+            if (
+                target.physical_tables
+                and DorisStorage.objects.filter(
+                    table_id=table_id,
+                    bk_tenant_id=bk_tenant_id,
+                    storage_cluster_id=target_cluster_id,
+                    bkbase_table_id=target.bkbase_table_id,
+                    physical_tables=target.physical_tables,
+                ).exists()
+            ):
+                force_new_segment = False
         if target_current_records and not force_new_segment:
             # 同集群重复修改时保留最新 target current，并顺手关闭旧版本遗留的其他 current。
             current_record = target_current_records[-1]
@@ -6391,7 +6405,7 @@ class DorisStorage(models.Model, StorageResultTable):
         )
         return self._write_config({item.name: item.get_value() for item in records})
 
-    def update_storage(self, *, result_table=None, old_fields=None, option=None, operator="system", **kwargs):
+    def update_storage(self, *, target_default_storage=None, old_fields=None, option=None, operator="system", **kwargs):
         from metadata.models.data_link.utils import generate_result_table_field_list
         from metadata.models.doris_version import advance_table_version
         from metadata.models.result_table import ResultTableOption
@@ -6419,7 +6433,9 @@ class DorisStorage(models.Model, StorageResultTable):
             {"fields": old_fields or [], "storage_config": before},
             {"fields": after_fields, "storage_config": before if option is None else target},
         ):
-            advance_table_version(self, operator, table=result_table, old_cluster_id=old_cluster_id)
+            advance_table_version(
+                self, operator, target_default_storage=target_default_storage, old_cluster_id=old_cluster_id
+            )
         return updated
 
     def _owns_write_table(self):

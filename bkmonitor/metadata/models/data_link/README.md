@@ -486,14 +486,13 @@ DorisStorage 在已有 ResultTable 修改事务内比较字段、分词、索引
 DataLink 读取已保存的目标名称，按名称新建或更新 ResultTableConfig/DorisBinding，再更新 Databus 引用。
 名称未变则原地更新；名称变化则新增本地和远端资源。旧 RT/Binding、本来的 DataLink 关联以及库表历史
 全部保留，不改名覆盖、不解除关联、不清理。本次声明通过显式目标名称定位组件和回填 BKBase RT，
-不依赖更新时间排序；Doris 流程不进入公共复用候选池。公共复用、清理和状态汇总不增加版本特判。
+启用复用时，compose 按历史记录中的 BKBase RT 名称认领旧组件。自定义格式 Doris 的清理策略保留 RT 和 DorisBinding。
 
 ES 和 Doris 的 V4 日志链路统一在配置事务提交后同步调用 `apply_log_datalink`。外层事务回滚时取消回调。
 纯 ES 下发失败时，本地 RT 配置已经提交，调用方可以重试链路下发。
 
 本地配置及组件引用提交后，独立执行远端配置合并与一次 apply。apply 失败会报错，但不回滚已提交
-配置和历史；下一次普通重试从数据库读取最新配置，不捕获上次失败的 payload。已有外层事务时，
-在外层提交后才启动本次声明。不增加 Redis 锁，不承诺并发 apply 的远端完成顺序；重试以最新配置收敛。
+配置和历史；下一次普通重试从数据库读取最新配置，不捕获上次失败的 payload。日志 RT 配置修改统一在外层事务提交后启动声明。不增加 Redis 锁，不承诺并发 apply 的远端完成顺序；重试以最新配置收敛。
 
 ES-only 及 VM 等其他链路不受历史 DorisStorage 阻断。双写改为 ES-only 时保留共享 RT、Databus、
 消费组和旧 Doris 表，移除 Doris sink 后仍可更新 ES 配置。虚拟表、无采集关联的路由表及第三方纯

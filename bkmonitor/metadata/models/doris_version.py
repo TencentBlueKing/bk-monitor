@@ -9,13 +9,12 @@ from django.utils import timezone
 from metadata import config
 
 
-def advance_table_version(storage, operator, *, table=None, old_cluster_id=None):
+def advance_table_version(storage, operator, *, target_default_storage=None, old_cluster_id=None):
     """调用者持有 ResultTable 行锁；保存物理表、版本和配置时间段后才允许 apply。"""
     from bkmonitor.utils.tenant import get_tenant_datalink_biz_id
     from metadata.models import ResultTable, StorageClusterRecord
 
-    if table is None:
-        table = ResultTable.objects.get(table_id=storage.table_id, bk_tenant_id=storage.bk_tenant_id)
+    table = ResultTable.objects.get(table_id=storage.table_id, bk_tenant_id=storage.bk_tenant_id)
     if old_cluster_id is None:
         old_cluster_id = storage.storage_cluster_id
     old_physical = dict(storage.physical_tables)
@@ -76,7 +75,7 @@ def advance_table_version(storage, operator, *, table=None, old_cluster_id=None)
             creator=operator,
             enable_time=now,
         )
-    current.is_current = table.default_storage == "doris"
+    current.is_current = (target_default_storage or table.default_storage) == "doris"
     current.bkbase_table_id = storage.bkbase_table_id
     current.physical_tables = dict(storage.physical_tables)
     current.save()
