@@ -338,6 +338,48 @@ def validate_files(files, collector, contract):
     return result
 
 
+def configmap_form():
+    return [
+        {
+            "name": "access_key",
+            "description": "Secret ID",
+            "mode": "plugin",
+            "type": "password",
+            "required": True,
+            "default": "",
+        },
+        {
+            "name": "secret_key",
+            "description": "Secret Key",
+            "mode": "plugin",
+            "type": "password",
+            "required": True,
+            "default": "",
+        },
+        {
+            "name": "configmaps",
+            "description": "ConfigMap",
+            "mode": "plugin",
+            "type": "file",
+            "multiple": True,
+            "accept": ".yaml,.yml",
+            "required": True,
+            "default": [],
+        },
+    ]
+
+
+def new_form_definition(detail):
+    if settings.TENCENT_CLOUD_EXPORTER_CONTRACTS:
+        detail.update(config_mode="configmap", collector_json={}, config_json=configmap_form())
+    return detail
+
+
+def is_qcloud_plugin(plugin_id, biz_id):
+    base = settings.TENCENT_CLOUD_METRIC_PLUGIN_ID
+    return plugin_id == base or plugin_id == f"{base}_{biz_id}"
+
+
 def template_image(template):
     if not isinstance(template, str):
         raise LegacyConversionFailed()

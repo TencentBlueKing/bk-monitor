@@ -171,9 +171,16 @@ class CollectConfigListResource(Resource):
                 "total_instance_count": total_count,
             }
             if collect_config.cache_data != cache_data or collect_config.operation_result != operation_result:
-                collect_config.cache_data = cache_data
-                collect_config.operation_result = operation_result
-                updated_configs.append(collect_config)
+                # 资源观察发生在事务外。切换部署版本或操作后，丢弃上一轮的状态。
+                changed = CollectConfigMeta.objects.filter(
+                    pk=collect_config.pk,
+                    deployment_config_id=collect_config.deployment_config_id,
+                    last_operation=collect_config.last_operation,
+                    operation_result=collect_config.operation_result,
+                ).update(cache_data=cache_data, operation_result=operation_result)
+                if changed:
+                    collect_config.cache_data = cache_data
+                    collect_config.operation_result = operation_result
 
         CollectConfigMeta.objects.bulk_update(updated_configs, ["cache_data", "operation_result"])
 
@@ -703,13 +710,20 @@ class CloneCollectConfigResource(Resource):
 
         try:
             collect_config = CollectConfigMeta.objects.select_related("deployment_config").get(
-                id=data["id"], bk_biz_id=data["bk_biz_id"]
+                id=data["id"], bk_biz_id=data["bk_biz_id"], bk_tenant_id=get_request_tenant_id()
             )
         except CollectConfigMeta.DoesNotExist:
             raise CollectConfigNotExist({"msg": data["id"]})
 
         with transaction.atomic():
-            # 克隆部署配置
+            new_name = name = collect_config.name + "_copy"
+            i = 1
+            while CollectConfigMeta.objects.filter(bk_biz_id=data["bk_biz_id"], name=new_name).exists():
+                new_name = f"{name}({i})"
+                i += 1
+            if tencent_cloud.is_tencent_cloud_config(collect_config):
+                tencent_cloud.clone_config(collect_config, new_name)
+                return
             deployment_config = copy(collect_config.deployment_config)
             deployment_config.id = None
             # 克隆任务不克隆目标节点
@@ -720,12 +734,6 @@ class CloneCollectConfigResource(Resource):
             collect_config.id = None
             collect_config.deployment_config = deployment_config
 
-            #  判断重名
-            new_name = name = collect_config.name + "_copy"
-            i = 1
-            while CollectConfigMeta.objects.filter(bk_biz_id=data["bk_biz_id"], name=new_name):
-                new_name = f"{name}({i})"
-                i += 1
             collect_config.name = new_name
 
             # 清除目标节点统计
@@ -926,6 +934,7 @@ class SaveCollectConfigResource(Resource):
             target_label = serializers.CharField(required=False, label="目标标签")
             replacement = serializers.CharField(required=False, label="替换内容")
 
+        deployment_id = serializers.IntegerField(required=False, min_value=1)
         id = serializers.IntegerField(required=False, label="采集配置ID")
         name = serializers.CharField(required=True, label="采集配置名称")
         bk_biz_id = serializers.IntegerField(required=True, label="业务ID")
@@ -1033,9 +1042,15 @@ class SaveCollectConfigResource(Resource):
         collect_config = None
         if data.get("id"):
             try:
-                collect_config = CollectConfigMeta.objects.get(bk_biz_id=data["bk_biz_id"], id=data["id"])
+                collect_config = CollectConfigMeta.objects.get(
+                    bk_tenant_id=get_request_tenant_id(), bk_biz_id=data["bk_biz_id"], id=data["id"]
+                )
             except CollectConfigMeta.DoesNotExist:
                 raise CollectConfigNotExist({"msg": data["id"]})
+        if tencent_cloud.uses_configmap_request(data, collect_config):
+            config, result = tencent_cloud.save_configmap(data, collect_config, self.get_collector_plugin)
+            return self.after_save(config, config.plugin, result)
+        if collect_config is not None:
             prepare_edit_params(collect_config, data["params"])
 
         try:
@@ -1077,6 +1092,9 @@ class SaveCollectConfigResource(Resource):
                 self.roll_back_result_table(collector_plugin)
             raise err
 
+        return self.after_save(collect_config, collector_plugin, result)
+
+    def after_save(self, collect_config, collector_plugin, result):
         # 添加完成采集配置，主动更新指标缓存表
         self.update_metric_cache(collector_plugin)
 
@@ -1191,6 +1209,7 @@ class UpgradeCollectPluginResource(Resource):
 
     class RequestSerializer(serializers.Serializer):
         bk_biz_id = serializers.IntegerField(label="业务ID")
+        deployment_id = serializers.IntegerField(required=False, min_value=1)
         id = serializers.IntegerField(required=True, label="采集配置id")
         params = serializers.DictField(required=True, label="采集配置参数")
         realtime = serializers.BooleanField(required=False, default=False, label=_("是否实时刷新缓存"))
@@ -1205,16 +1224,17 @@ class UpgradeCollectPluginResource(Resource):
 
         try:
             collect_config = CollectConfigMeta.objects.select_related("deployment_config").get(
-                pk=data["id"], bk_biz_id=data["bk_biz_id"]
+                pk=data["id"], bk_biz_id=data["bk_biz_id"], bk_tenant_id=get_request_tenant_id()
             )
-            prepare_edit_params(collect_config, data["params"])
-            update_password_inplace(data, collect_config)
         except CollectConfigMeta.DoesNotExist:
             raise CollectConfigNotExist({"msg": data["id"]})
-
-        # 安装器执行升级操作
-        installer = get_collect_installer(collect_config)
-        result = installer.upgrade(data["params"])
+        if tencent_cloud.uses_configmap_request(data, collect_config):
+            _, result = tencent_cloud.save_configmap(data, collect_config)
+        else:
+            installer = get_collect_installer(collect_config)
+            prepare_edit_params(collect_config, data["params"])
+            update_password_inplace(data, collect_config)
+            result = installer.upgrade(data["params"])
 
         # 升级采集配置，主动更新指标缓存表
         result_table_id_list = [
