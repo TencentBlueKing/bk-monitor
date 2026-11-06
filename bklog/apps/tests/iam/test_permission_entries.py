@@ -28,13 +28,6 @@ class IAMEntryUrlTest(SimpleTestCase):
             (V4_SAAS_HOST, f"{V4_SAAS_HOST}/permission/apply"),
         )
 
-    @override_settings(BK_IAM_V4_SAAS_HOST="")
-    def test_v4_falls_back_to_v3_when_center_url_missing(self):
-        self.assertEqual(
-            _resolve_iam_urls(AuthMode.V4),
-            (V3_SAAS_HOST, f"{V3_SAAS_HOST}/apply-join-user-group"),
-        )
-
     @override_settings(BK_IAM_SAAS_HOST=f"{V3_SAAS_HOST}/", BK_IAM_V4_SAAS_HOST=f"{V4_SAAS_HOST}/")
     def test_trailing_slash_is_stripped(self):
         self.assertEqual(
@@ -62,7 +55,7 @@ class IAMEntryUrlTest(SimpleTestCase):
         request = Mock()
         request.headers = {"Is-External": "false"}
         request.get_full_path.return_value = "/"
-        with patch("apps.iam.mode.get_effective_mode", return_value=AuthMode.V4):
+        with patch("apps.utils.context_processors.get_effective_mode", return_value=AuthMode.V4):
             context = mysetting(request)
 
         self.assertEqual(context["BK_IAM_URL"], V4_SAAS_HOST)

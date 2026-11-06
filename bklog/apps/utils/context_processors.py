@@ -32,6 +32,9 @@ from django.conf import settings  # noqa
 from django.utils import translation  # noqa
 from django.utils.translation import gettext_lazy as _  # noqa
 
+from apps.iam.mode import get_effective_mode
+from iam_engine.core.config import AuthMode
+
 
 def _get_guide_url(request, configured_url, doc_path):
     if request.headers.get("Is-External", "false") == "false" and configured_url:
@@ -41,21 +44,16 @@ def _get_guide_url(request, configured_url, doc_path):
 
 
 def _resolve_iam_urls(mode):
-    """按 IAM 模式返回权限中心地址与申请入口地址，V4 地址缺失时回退 V3。"""
-    from iam_engine.core.config import AuthMode
-
+    """按 IAM 模式返回权限中心地址与申请入口地址。"""
     if mode is AuthMode.V4:
-        host = str(getattr(settings, "BK_IAM_V4_SAAS_HOST", "") or "").strip().rstrip("/")
-        if host:
-            return host, f"{host}/permission/apply"
+        host = settings.BK_IAM_V4_SAAS_HOST.rstrip("/")
+        return host, f"{host}/permission/apply"
 
-    host = str(settings.BK_IAM_SAAS_HOST or "").strip().rstrip("/")
-    return host, f"{host}/apply-join-user-group" if host else ""
+    host = settings.BK_IAM_SAAS_HOST.rstrip("/")
+    return host, f"{host}/apply-join-user-group"
 
 
 def mysetting(request):
-    from apps.iam.mode import get_effective_mode
-
     iam_url, iam_apply_url = _resolve_iam_urls(get_effective_mode())
     bk_login_url_prefix = settings.PAAS_API_HOST if settings.DEPLOY_MODE == "kubernetes" else settings.BK_PAAS_HOST
     if settings.DEFAULT_HTTPS_HOST and settings.BK_COMPONENT_API_URL:
