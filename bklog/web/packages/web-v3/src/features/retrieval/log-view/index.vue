@@ -335,7 +335,7 @@
 </script>
 
 <style lang="scss">
-  @import '../../../shared/styles/mixins/clearfix';
+  @use '../../../shared/styles/mixins/clearfix' as *;
 
   .log-view {
     min-height: 100%;

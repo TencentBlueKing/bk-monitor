@@ -93,7 +93,7 @@
   </div>
 </template>
 <script setup lang="ts">
-import { ref, computed, watch, defineProps, defineExpose, type PropType } from 'vue';
+import { ref, computed, watch, type PropType } from 'vue';
 
 import { getRegExp } from '@/shared/lib/util';
 import useLocale from '@/shared/composables/use-locale';
@@ -229,7 +229,7 @@ defineExpose({ shadowVisible });
 </script>
 
 <style lang="scss">
-@import '../../../../../shared/styles/mixins/scroller';
+@use '../../../../../shared/styles/mixins/scroller' as *;
 
 .bklog-common-field-filter {
   .fields-list-container {

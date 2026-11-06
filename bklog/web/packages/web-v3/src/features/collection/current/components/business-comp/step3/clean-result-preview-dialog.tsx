@@ -1,13 +1,4 @@
-
-import { Input as TInput } from 'tdesign-vue-next';
-
-import { Alert as TAlert } from 'tdesign-vue-next';
-
-import { Switch as TSwitch } from 'tdesign-vue-next';
-
-import { Button as TButton } from 'tdesign-vue-next';
-import { ServicesInstance } from '@/platform/services';
-﻿/*
+/*
  * Tencent is pleased to support the open source community by making
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
  *
@@ -33,19 +24,28 @@ import { ServicesInstance } from '@/platform/services';
  * IN THE SOFTWARE.
  */
 
+import { Input as TInput } from 'tdesign-vue-next';
+import { Alert as TAlert } from 'tdesign-vue-next';
+import { Switch as TSwitch } from 'tdesign-vue-next';
+import { Button as TButton } from 'tdesign-vue-next';
+import { ServicesInstance } from '@/platform/services';
 import { defineComponent, ref, computed, watch, onBeforeUnmount, onMounted, nextTick } from 'vue';
-
 import useLocale from '@/shared/composables/use-locale';
 import useStore from '@/shared/composables/use-store';
 import { isFieldTypeDisabled, judgeNumber } from '@/shared/lib/util';
-
 import tippy, { type Instance } from 'tippy.js';
 import TableComponent from '../../common-comp/table-component';
 import InfoTips from '../../common-comp/info-tips';
-
 import './clean-result-preview-dialog.scss';
 
+﻿/*
+
+
+
+
+
 /** 模板字段项（来自选择模板的 etl_fields） */
+
 type TemplateFieldItem = {
   field_name: string;
   field_type: string;

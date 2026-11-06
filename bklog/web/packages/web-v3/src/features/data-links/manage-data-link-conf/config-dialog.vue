@@ -340,5 +340,5 @@
 </style>
 
 <style lang="scss">
-  @import '@/shared/styles/space-tag-option';
+@use '@/shared/styles/space-tag-option' as *;
 </style>

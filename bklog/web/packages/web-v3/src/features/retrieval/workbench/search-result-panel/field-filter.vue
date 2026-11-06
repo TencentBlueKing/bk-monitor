@@ -32,18 +32,22 @@
 
   const sourceFields = computed(() => store.getters.filteredFieldList ?? []);
   // 千级字段进 store 后先让 search XHR 出去，下一帧再把列表交给左侧面板，避免首屏 flush 挡住检索。
+  // 帧回调只读最新快照：取消已排队的帧会把后续字段更新丢掉，左侧列表就一直空着。
   const deferredFields = ref([]);
   let fieldPaintFrame = 0;
+  let pendingFields = [];
+  const flushDeferredFields = () => {
+    fieldPaintFrame = 0;
+    deferredFields.value = pendingFields;
+  };
   watch(
     sourceFields,
     fields => {
+      pendingFields = Array.isArray(fields) ? fields : [];
       if (fieldPaintFrame) {
-        cancelAnimationFrame(fieldPaintFrame);
+        return;
       }
-      fieldPaintFrame = requestAnimationFrame(() => {
-        fieldPaintFrame = 0;
-        deferredFields.value = fields;
-      });
+      fieldPaintFrame = requestAnimationFrame(flushDeferredFields);
     },
     { immediate: true },
   );
@@ -58,7 +62,7 @@
   const fieldAliasMap = computed(() => {
     const fieldAliasMap = {};
     totalFields.value.forEach(item => {
-      if (item?.is_virtual_alias_field) {
+      if (!item?.field_name || item.is_virtual_alias_field) {
         return;
       }
       fieldAliasMap[item.field_name] = item.query_alias || item.field_name;
@@ -141,5 +145,5 @@
 </template>
 
 <style lang="scss">
-  @import './field-filter.scss';
+  @use './field-filter.scss' as *;
 </style>

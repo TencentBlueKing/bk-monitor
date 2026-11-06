@@ -608,7 +608,7 @@ import { set } from "@/shared/lib/reactivity";
             <IPSelector
               v-model="item.value[0]"
               :bk-biz-id="bkBizId"
-              :is-show.sync="showIpSelector"
+              v-model:is-show="showIpSelector"
               @change="handleIPChange"
             />
           </span>
@@ -784,8 +784,7 @@ import { set } from "@/shared/lib/reactivity";
   </ul>
 </template>
 <style lang="scss">
-  @import './ui-input.scss';
-
+@use './ui-input.scss' as *;
   .bklog-match-value-popup {
     padding: 4px 0;
     background: #fff;
@@ -819,8 +818,7 @@ import { set } from "@/shared/lib/reactivity";
       text-decoration: line-through;
     }
   }
-  @import 'tippy.js/dist/tippy.css';
-</style>
+  @import 'tippy.js/dist/tippy.css';</style>
 <style lang="scss">
   [data-tippy-root] .tippy-box {
     &[data-theme='log-light'] {

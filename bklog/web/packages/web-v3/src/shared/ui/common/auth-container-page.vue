@@ -126,8 +126,7 @@
 </script>
 
 <style lang="scss" scoped>
-  @import '@/shared/styles/mixins/flex.scss';
-
+@use '@/shared/styles/mixins/flex.scss' as *;
   .flex-jsb {
     align-items: center;
 

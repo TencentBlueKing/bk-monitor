@@ -1,5 +1,5 @@
-@import '@/shared/styles/mixins/overflow-tips.scss';
-@import '@/shared/styles/mixins/flex.scss';
+@use '@/shared/styles/mixins/overflow-tips.scss' as *;
+@use '@/shared/styles/mixins/flex.scss' as *;
 
 .filed-item {
   padding: 0px 12px 0px 0px;

@@ -99,12 +99,19 @@
         }
       }
       .bk-button-group {
+        display: inline-flex;
         .t-button {
           width: 120px;
           font-size: 12px;
+          background: #fff;
+          border-color: #c4c6cc;
           color: #4d4f56;
           cursor: pointer;
           &.is-selected {
+            position: relative;
+            z-index: 1;
+            background: #fff;
+            border-color: #3a84ff;
             color: #3a84ff;
           }
         }

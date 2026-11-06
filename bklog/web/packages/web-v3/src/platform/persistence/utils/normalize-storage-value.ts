@@ -66,3 +66,12 @@ export const normalizeStorageValue = <T = any>(value: T): T => {
 
   return (changed ? output : value) as T;
 };
+
+/** IndexedDB 只能写入可克隆数据。Vue 响应式对象和函数先收成纯 JSON。 */
+export const cloneForIndexedDb = <T = any>(value: T): T => {
+  try {
+    return JSON.parse(JSON.stringify(normalizeStorageValue(value))) as T;
+  } catch {
+    return normalizeStorageValue(value);
+  }
+};

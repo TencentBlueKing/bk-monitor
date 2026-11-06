@@ -1,8 +1,3 @@
-
-import { Alert as Alert, Tag as Tag } from 'tdesign-vue-next';
-
-import { MessagePlugin as TDesignMessage, Button as TButton, Button as Button } from 'tdesign-vue-next';
-import { ServicesInstance } from '@/platform/services';
 /*
  * Tencent is pleased to support the open source community by making
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
@@ -29,14 +24,17 @@ import { ServicesInstance } from '@/platform/services';
  * IN THE SOFTWARE.
  */
 
+import { Alert as Alert, Tag as Tag } from 'tdesign-vue-next';
+
+import { MessagePlugin as TDesignMessage, Button as TButton, Button as Button } from 'tdesign-vue-next';
+import { ServicesInstance } from '@/platform/services';
+
 import { Component } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
 import BizMenuSelect from '@/shared/global/bk-space-choice/index';
 import { Select, Option, Input, Table } from 'tdesign-vue-next';
-const TableColumn = (_props: Record<string, unknown>, { slots }: { slots: { default?: () => unknown } }) => slots.default?.();
 import dayjs from 'dayjs';
-
 
 import * as authorityMap from '../../shared/lib/authority-map';
 import { Debounce } from '../../shared/lib/util';
@@ -44,6 +42,8 @@ import EmptyStatus from '../../shared/ui/empty-status/index.vue';
 import AuthorizationDialog from './authorization-dialog';
 
 import './authorization-list.scss';
+
+const TableColumn = (_props: Record<string, unknown>, { slots }: { slots: { default?: () => unknown } }) => slots.default?.();
 
 const { $i18n } = window.mainComponent;
 

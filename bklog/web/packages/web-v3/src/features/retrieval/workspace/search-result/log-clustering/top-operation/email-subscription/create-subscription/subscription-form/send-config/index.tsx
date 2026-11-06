@@ -1,11 +1,3 @@
-
-import { Input as TInput } from 'tdesign-vue-next';
-
-import { RadioGroup as TRadioGroup, RadioButton as TRadioButton, Checkbox as TCheckbox, Radio as TRadio } from 'tdesign-vue-next';
-
-import { MessagePlugin as TDesignMessage } from 'tdesign-vue-next';
-import { ServicesInstance } from '@/platform/services';
-import { asDictionary } from '@/shared/utils/typed-record';
 /*
  * Tencent is pleased to support the open source community by making
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
@@ -31,6 +23,14 @@ import { asDictionary } from '@/shared/utils/typed-record';
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
+
+import { Input as TInput } from 'tdesign-vue-next';
+
+import { RadioGroup as TRadioGroup, RadioButton as TRadioButton, Checkbox as TCheckbox, Radio as TRadio } from 'tdesign-vue-next';
+
+import { MessagePlugin as TDesignMessage } from 'tdesign-vue-next';
+import { ServicesInstance } from '@/platform/services';
+import { asDictionary } from '@/shared/utils/typed-record';
 import BkUserSelector from '@blueking/user-selector';
 import { defineComponent, ref, onMounted, nextTick, watch } from 'vue';
 

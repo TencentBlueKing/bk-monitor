@@ -15,5 +15,7 @@ import Vue from 'vue';
 import { Button, Drawer, Empty, Popup, TabPanel, Table, Tabs, Tag } from 'tdesign-vue-next';
 
 for (const component of [Button, Drawer, Empty, Popup, TabPanel, Table, Tabs, Tag]) {
+  const name = (component as { name?: string }).name;
+  if (name && typeof Vue.component === 'function' && Vue.component(name)) continue;
   Vue.use(component);
 }

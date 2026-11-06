@@ -25,7 +25,7 @@
 -->
 
 <script setup>
-  import { computed, ref, watch, defineProps, provide } from 'vue';
+  import { computed, ref, watch, provide } from 'vue';
 
   import * as authorityMap from '@/shared/lib/authority-map';
   import { handleTransformToTimestamp } from '@/shared/ui/time-range/utils';
@@ -378,13 +378,13 @@
           }"
           class="result-row"
         >
-          <SearchResultPanel :active-tab.sync="activeTab"></SearchResultPanel>
+          <SearchResultPanel v-model:active-tab="activeTab"></SearchResultPanel>
         </div>
       </div>
     </div>
   </div>
 </template>
 <style lang="scss">
-  @import './monitor.scss';
-  @import '../segment-pop.scss';
+@use './monitor.scss' as *;
+  @use '../../workspace/segment-pop.scss' as *;
 </style>

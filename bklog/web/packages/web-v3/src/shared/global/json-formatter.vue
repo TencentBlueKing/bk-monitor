@@ -1154,7 +1154,7 @@
   /* 展开态需要覆盖既有 !important，且本段选择器顺序早于后续规则 */
 
   /* stylelint-disable no-descending-specificity, declaration-no-important */
-  @import './json-view/index.scss';
+  @use './json-view/index.scss' as *;
 
   .bklog-json-formatter-root {
     position: relative;

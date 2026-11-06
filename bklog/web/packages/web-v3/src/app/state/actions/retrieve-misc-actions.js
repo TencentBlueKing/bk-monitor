@@ -1,8 +1,9 @@
-import { ServicesInstance } from '@/platform/services';
 /*
  * Tencent is pleased to support the open source community by making
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
  */
+
+import { ServicesInstance } from '@/platform/services';
 import axios from 'axios';
 
 

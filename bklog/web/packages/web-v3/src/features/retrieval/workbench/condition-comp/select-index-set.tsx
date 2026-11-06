@@ -1,12 +1,3 @@
-
-import { Tag as TTag } from 'tdesign-vue-next';
-
-import { Checkbox as TCheckbox } from 'tdesign-vue-next';
-
-import { Button as TButton } from 'tdesign-vue-next';
-import { ServicesInstance } from '@/platform/services';
-import type { IndexSetOption, IndexSetTag } from '@/app/state/retrieval-state.type';
-import type { Instance, Props } from 'tippy.js';
 /*
  * Tencent is pleased to support the open source community by making
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
@@ -32,6 +23,15 @@ import type { Instance, Props } from 'tippy.js';
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
+
+import { Tag as TTag } from 'tdesign-vue-next';
+
+import { Checkbox as TCheckbox } from 'tdesign-vue-next';
+
+import { Button as TButton } from 'tdesign-vue-next';
+import { ServicesInstance } from '@/platform/services';
+import type { IndexSetOption, IndexSetTag } from '@/app/state/retrieval-state.type';
+import type { Instance, Props } from 'tippy.js';
 
 import { Component, Emit, Prop, Ref, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';

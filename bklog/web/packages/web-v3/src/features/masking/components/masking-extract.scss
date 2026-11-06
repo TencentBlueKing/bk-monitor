@@ -1,5 +1,4 @@
-@import '../../../shared/styles/mixins/flex.scss';
-
+@use '../../../shared/styles/mixins/flex.scss' as *;
 .masking-extract-slider {
   height: calc(100vh - 60px);
   padding: 20px 40px 68px;

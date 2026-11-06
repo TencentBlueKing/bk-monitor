@@ -1,5 +1,4 @@
-@import './conf.scss';
-
+@use './conf.scss' as *;
 .tab-only-compact {
   padding: 0;
   margin: 0;

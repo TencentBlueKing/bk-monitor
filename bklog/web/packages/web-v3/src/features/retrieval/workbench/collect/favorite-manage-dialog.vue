@@ -246,7 +246,7 @@ import type {
 import type { FavoriteRecord, FavoriteGroup, FavoriteGroupId, FavoriteResponse } from './favorite.types';
 import { ServicesInstance } from '@/platform/services';
 
-import { defineProps, defineEmits, computed, ref, nextTick, watch, h, onBeforeUnmount } from 'vue';
+import { computed, ref, nextTick, watch, h, onBeforeUnmount } from 'vue';
 import { useDialogVisible } from '@/shared/global/overlay/index';
 
 import useStore from '@/shared/composables/use-store';

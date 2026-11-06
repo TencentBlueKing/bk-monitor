@@ -1,4 +1,3 @@
-import { ServicesInstance } from '@/platform/services';
 /*
  * Tencent is pleased to support the open source community by making
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
@@ -25,11 +24,13 @@ import { ServicesInstance } from '@/platform/services';
  * IN THE SOFTWARE.
  */
 
+import { ServicesInstance } from '@/platform/services';
+
 import './public-path';
 import '../../platform/compat/tdesign/legacy-control-styles';
 import { initOpenTelemetry } from '../../platform/observability/open-telemetry';
 
-import { createApp, h } from 'vue';
+import { createApp, h, nextTick } from 'vue';
 import { configureApp } from './configure-app';
 
 import i18n from '@/platform/i18n/i18n';
@@ -42,6 +43,12 @@ import '../../shared/lib/preload-import.ts';
 
 import '../../shared/directives/index';
 import preload, { getAllSpaceList, getExternalMenuListBySpace, requestUserGuideData } from './preload';
+import {
+  isBootstrapShellReleased,
+  markTopMenuSettled,
+  releaseBootstrapNavWhenReady,
+  releaseBootstrapShell,
+} from './shell-gate';
 import getRouter from '../router/index';
 import store from '../state/index';
 import { performanceMonitorService } from '../../platform/persistence/index';
@@ -70,18 +77,6 @@ const createBootstrapMenuList = () => {
   });
 
   return DEFAULT_MENU_LISTS.map(normalizeMenu);
-};
-
-const fadeOutBootstrapLoading = () => {
-  const loading = document.querySelector('.bklog-bootstrap-loading');
-  const appRoot = document.getElementById('app');
-
-  if (appRoot) {
-    appRoot.classList.add('bklog-bootstrap-app-enter');
-  }
-
-  // 首屏已提交（路由骨架或检索内容）后再撤掉 HTML 骨架，避免盖住已渲染的页面。
-  loading?.remove();
 };
 
 // import { localSettings } from './local.po';
@@ -136,7 +131,10 @@ const mountedVueInstance = () => {
     performanceMonitorService.init(router);
 
     if (!store.state.topMenu?.length) {
-      store.commit('updateState', { topMenu: createBootstrapMenuList() });
+      const bootstrapMenu = createBootstrapMenuList();
+      store.commit('updateState', { topMenu: bootstrapMenu, menuList: bootstrapMenu });
+    } else if (!store.state.menuList?.length) {
+      store.commit('updateState', { menuList: store.state.topMenu });
     }
 
     const patchLogCollectionMenu = (menuList = []) => {
@@ -164,24 +162,26 @@ const mountedVueInstance = () => {
         });
     };
 
-    const refreshMenuList = () => {
-      store
-        .dispatch('requestMenuList', spaceUid)
-        .then((menuList = []) => {
-          patchLogCollectionMenu(menuList);
-          store.commit('updateState', { topMenu: structuredClone(menuList) });
-        })
-        .catch(e => {
-          console.error('获取菜单列表失败', e);
-        })
-        .finally(() => {});
-    };
-
-    if (window.requestIdleCallback) {
-      window.requestIdleCallback(refreshMenuList, { timeout: 1500 });
-    } else {
-      window.setTimeout(refreshMenuList, 300);
-    }
+    const menuSignature = (list = []) => list.map(item => `${item?.id}:${item?.name}`).join('|');
+    store
+      .dispatch('requestMenuList', spaceUid)
+      .then((menuList = []) => {
+        if (isBootstrapShellReleased()) {
+          return;
+        }
+        patchLogCollectionMenu(menuList);
+        const nextMenu = structuredClone(menuList);
+        if (menuSignature(nextMenu) !== menuSignature(store.state.topMenu)) {
+          store.commit('updateState', { topMenu: nextMenu });
+        }
+      })
+      .catch(e => {
+        console.error('获取菜单列表失败', e);
+      })
+      .finally(() => {
+        markTopMenuSettled();
+        nextTick(() => releaseBootstrapNavWhenReady());
+      });
 
     (() => {
       const app = createApp({
@@ -235,7 +235,9 @@ const mountedVueInstance = () => {
           // }
         },
         mounted() {
-          fadeOutBootstrapLoading();
+          if (document.querySelector('.bklog-bootstrap-loading')) {
+            window.setTimeout(releaseBootstrapShell, 12000);
+          }
           if (!isHeadlessRoute()) {
             getAllSpaceList(http, store);
             const requestUserGuide = () => {

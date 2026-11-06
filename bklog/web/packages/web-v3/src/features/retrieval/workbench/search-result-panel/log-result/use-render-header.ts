@@ -1,5 +1,3 @@
-import { includesValue } from '@/shared/utils/typed-record';
-import { asDictionary } from '@/shared/utils/typed-record';
 /*
  * Tencent is pleased to support the open source community by making
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
@@ -25,6 +23,9 @@ import { asDictionary } from '@/shared/utils/typed-record';
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
+
+import { includesValue } from '@/shared/utils/typed-record';
+import { asDictionary } from '@/shared/utils/typed-record';
 import { h, computed } from 'vue';
 import { Tooltip } from 'tdesign-vue-next';
 import type { FieldInfoItem } from '@/app/state/store.type';

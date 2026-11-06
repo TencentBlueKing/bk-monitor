@@ -105,7 +105,7 @@ const getClass = (mode?: string) => (mode === 'ui' ? 'bklog-ui1' : mode === 'sql
 const formatTime = (value: string) => dayjs(value).format('YYYY-MM-DD HH:mm:ssZZ');
 </script>
 <style lang="scss">
-@import './query-history.scss';
+@use './query-history.scss' as *;
 .query-history-content .search-input .t-input {
   border-color: transparent transparent #3a84ff;
   box-shadow: none;

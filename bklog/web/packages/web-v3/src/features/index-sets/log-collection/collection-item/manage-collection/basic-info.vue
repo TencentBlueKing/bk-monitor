@@ -559,9 +559,8 @@
 </script>
 
 <style lang="scss" scoped>
-  @import '@/shared/styles/basic.scss';
-  @import '@/shared/styles/mixins/flex.scss';
-
+@use '@/shared/styles/basic.scss' as *;
+  @use '@/shared/styles/mixins/flex.scss' as *;
   /* stylelint-disable no-descending-specificity */
   .basic-info-container {
     display: flex;

@@ -1,6 +1,5 @@
-@import '../../../shared/styles/mixins/flex.scss';
-@import '../../../shared/styles/mixins/scroller.scss';
-
+@use '../../../shared/styles/mixins/flex.scss' as *;
+@use '../../../shared/styles/mixins/scroller.scss' as *;
 %preview-box {
   .preview {
     flex-direction: column;

@@ -1600,7 +1600,7 @@
                       @compositionend="handleCompositionEnd"
                     />
                   </template>
-                  <template>
+                  <template v-else>
                     <span
                       class="tag-item-text"
                       @click.stop="handleConditonValueTagItemClick"
@@ -1737,5 +1737,5 @@
   </div>
 </template>
 <style scoped lang="scss">
-  @import './ui-input-option.scss';
+  @use './ui-input-option.scss' as *;
 </style>

@@ -608,9 +608,8 @@
 </script>
 
 <style lang="scss" scoped>
-  @import '@/shared/styles/mixins/flex.scss';
-  @import '@/shared/styles/basic.scss';
-
+@use '@/shared/styles/mixins/flex.scss' as *;
+  @use '@/shared/styles/basic.scss' as *;
   /* stylelint-disable no-descending-specificity */
   .basic-info-container {
     display: flex;

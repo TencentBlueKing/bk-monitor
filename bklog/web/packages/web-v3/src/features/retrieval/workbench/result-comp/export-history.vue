@@ -778,8 +778,8 @@ export default {
 </script>
 
 <style lang="scss" scoped>
-@import '@/shared/styles/mixins/flex.scss';
-@import '@/shared/styles/conf';
+@use '@/shared/styles/mixins/flex.scss' as *;
+@use '@/shared/styles/conf' as *;
 
 .table-title {
   font-size: 16px;

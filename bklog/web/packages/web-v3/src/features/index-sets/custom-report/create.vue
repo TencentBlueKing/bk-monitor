@@ -888,11 +888,10 @@ import { ServicesInstance } from '@/platform/services';
 </script>
 
 <style lang="scss">
-  @import '@/shared/styles/mixins/clearfix';
-  @import '@/shared/styles/mixins/flex';
-  @import '@/shared/styles/mixins/scroller';
-  @import '@/shared/styles/storage';
-
+@use '@/shared/styles/mixins/clearfix' as *;
+  @use '@/shared/styles/mixins/flex' as *;
+  @use '@/shared/styles/mixins/scroller' as *;
+  @use '@/shared/styles/storage' as *;
   .custom-create-container {
     padding: 0 24px;
 

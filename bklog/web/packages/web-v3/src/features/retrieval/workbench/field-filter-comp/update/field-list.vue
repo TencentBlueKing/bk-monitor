@@ -34,6 +34,13 @@ import { Popup as TPopup, Input as TInput } from 'tdesign-vue-next';
 import type { Props as TippyProps } from 'tippy.js';
 import BklogLoading from '@/shared/ui/loading';
 import type { SortPair } from '../../result-comp/update/field-settings.types';
+import useLocale from '@/shared/composables/use-locale';
+import useStore from '@/shared/composables/use-store';
+import { useRoute } from 'vue-router';
+
+import FieldsSetting from '../../result-comp/update/fields-setting.vue';
+import BkLogPopover from '@/shared/ui/bklog-popover/index';
+import RetrieveHelper, { RetrieveEvent } from '@/features/retrieval/retrieve-helper';
 
 interface FieldConfig {
   name: string;
@@ -45,13 +52,6 @@ interface SettingPopover {
   show: (target?: HTMLElement) => void;
   hide: () => void;
 }
-import useLocale from '@/shared/composables/use-locale';
-import useStore from '@/shared/composables/use-store';
-import { useRoute } from 'vue-router';
-
-import FieldsSetting from '../../result-comp/update/fields-setting.vue';
-import BkLogPopover from '@/shared/ui/bklog-popover/index';
-import RetrieveHelper, { RetrieveEvent } from '@/features/retrieval/retrieve-helper';
 
 const store = useStore();
 const route = useRoute();
@@ -304,5 +304,5 @@ defineExpose({
   </div>
 </template>
 <style lang="scss">
-@import './field-list.scss';
+@use './field-list.scss' as *;
 </style>

@@ -335,7 +335,7 @@
               :key="bkBizId"
               :height="670"
               :original-value="ipSelectorOriginalValue"
-              :show-dialog.sync="showIpSelectorDialog"
+              v-model:show-dialog="showIpSelectorDialog"
               :show-view-diff="isUpdate"
               :value="selectorNodes"
               :panel-list="ipSelectorPanelList"
@@ -1854,8 +1854,7 @@ import { ServicesInstance } from '@/platform/services';
 </script>
 
 <style lang="scss">
-  @import '@/shared/styles/mixins/flex.scss';
-
+@use '@/shared/styles/mixins/flex.scss' as *;
   /* stylelint-disable no-descending-specificity */
   .add-collection-container {
     min-width: 950px;

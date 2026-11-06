@@ -24,7 +24,7 @@
  * IN THE SOFTWARE.
  */
 
-import { computed, defineComponent, onMounted, ref } from 'vue';
+import { computed, defineComponent, KeepAlive, onMounted, ref } from 'vue';
 
 import { throttle } from 'lodash-es';
 
@@ -42,7 +42,7 @@ export default defineComponent({
 
   setup(_, { emit }) {
     const isShow = ref(RetrieveHelper.isFavoriteShown);
-    const collectWidth = ref(240);
+    const collectWidth = ref(RetrieveHelper.favoriteWidth > 0 ? RetrieveHelper.favoriteWidth : 240);
 
     // 使用节流优化性能
     const handleShownChange = throttle((val: boolean) => {
@@ -80,7 +80,7 @@ export default defineComponent({
     }));
 
     return () => (
-      <keep-alive>
+      <KeepAlive>
         <DragContainer
           style={favoriteStyle.value}
           width={collectWidth.value}
@@ -96,7 +96,7 @@ export default defineComponent({
             onShowChange={handleUpdateIsShow}
           />
         </DragContainer>
-      </keep-alive>
+      </KeepAlive>
     );
   },
 });

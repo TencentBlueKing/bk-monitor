@@ -1,12 +1,3 @@
-
-import { Tag as Tag } from 'tdesign-vue-next';
-
-import { Switch as Switcher } from 'tdesign-vue-next';
-
-import { Button as Button } from 'tdesign-vue-next';
-import { ServicesInstance } from '@/platform/services';
-import type { CreateElement } from '@legacy-vue';
-import { asDictionary } from '@/shared/utils/typed-record';
 /*
  * Tencent is pleased to support the open source community by making
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
@@ -33,11 +24,19 @@ import { asDictionary } from '@/shared/utils/typed-record';
  * IN THE SOFTWARE.
  */
 
+import { Tag as Tag } from 'tdesign-vue-next';
+
+import { Switch as Switcher } from 'tdesign-vue-next';
+
+import { Button as Button } from 'tdesign-vue-next';
+import { ServicesInstance } from '@/platform/services';
+import type { CreateElement } from '@legacy-vue';
+import { asDictionary } from '@/shared/utils/typed-record';
+
 import { Component, Emit, Prop, Ref } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
 import { Dialog, Input, Table, Popup as Popover, Drawer as Sideslider } from 'tdesign-vue-next';
-const TableColumn = (_props: Record<string, unknown>, { slots }: { slots: { default?: () => unknown } }) => slots.default?.();
 import VueDraggable from 'vuedraggable';
 
 
@@ -48,6 +47,8 @@ import MaskingFieldInput from './masking-field-input';
 import MaskingSelectRuleTable from './masking-select-rule-table';
 
 import './masking-field.scss';
+
+const TableColumn = (_props: Record<string, unknown>, { slots }: { slots: { default?: () => unknown } }) => slots.default?.();
 
 interface IProps {
   value: boolean;

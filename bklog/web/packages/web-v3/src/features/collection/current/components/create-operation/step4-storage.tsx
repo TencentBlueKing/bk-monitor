@@ -1,9 +1,3 @@
-
-import { Button as TButton } from 'tdesign-vue-next';
-import { ServicesInstance } from '@/platform/services';
-import type { IClusterItem } from '../business-comp/step4/cluster-table';
-import type { IFormData } from '../../type';
-import type { CleanFormState } from './clean-form.type';
 /*
  * Tencent is pleased to support the open source community by making
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
@@ -29,6 +23,12 @@ import type { CleanFormState } from './clean-form.type';
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
+
+import { Button as TButton } from 'tdesign-vue-next';
+import { ServicesInstance } from '@/platform/services';
+import type { IClusterItem } from '../business-comp/step4/cluster-table';
+import type { IFormData } from '../../type';
+import type { CleanFormState } from './clean-form.type';
 
 import { computed, defineComponent, onMounted, ref } from 'vue';
 

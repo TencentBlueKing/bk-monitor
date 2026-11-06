@@ -75,25 +75,28 @@
   </div>
 </template>
 
-<script>import { ServicesInstance } from '@/platform/services';
+<script>
+  import { defineAsyncComponent } from 'vue';
+
+  import { ServicesInstance } from '@/platform/services';
 
   import BasicTab from '@/shared/ui/basic-tab/index';
   import AuthContainerPage from '@/shared/ui/common/auth-container-page';
   import * as authorityMap from '../../../../../shared/lib/authority-map';
 
-  const BasicInfo = () => import(/* webpackChunkName: 'manage-collection-basic-info' */ './basic-info');
-  const CollectionStatus = () => import(/* webpackChunkName: 'manage-collection-status' */ './collection-status');
-  const DataStorage = () => import(/* webpackChunkName: 'manage-collection-data-storage' */ './data-storage');
-  const DataStatus = () => import(/* webpackChunkName: 'manage-collection-data-status' */ './data-status/index');
-  const FieldInfo = () => import(/* webpackChunkName: 'manage-collection-field-info' */ './field-info.tsx');
-  const UsageDetails = () =>
+  const BasicInfo = defineAsyncComponent(() => import(/* webpackChunkName: 'manage-collection-basic-info' */ './basic-info'));
+  const CollectionStatus = defineAsyncComponent(() => import(/* webpackChunkName: 'manage-collection-status' */ './collection-status'));
+  const DataStorage = defineAsyncComponent(() => import(/* webpackChunkName: 'manage-collection-data-storage' */ './data-storage'));
+  const DataStatus = defineAsyncComponent(() => import(/* webpackChunkName: 'manage-collection-data-status' */ './data-status/index'));
+  const FieldInfo = defineAsyncComponent(() => import(/* webpackChunkName: 'manage-collection-field-info' */ './field-info.tsx'));
+  const UsageDetails = defineAsyncComponent(() =>
     import(
       /* webpackChunkName: 'manage-collection-usage-details' */ '@/features/index-sets/components/usage-details/index'
-    );
-  const IndexSetBasicInfo = () =>
+    ));
+  const IndexSetBasicInfo = defineAsyncComponent(() =>
     import(
       /* webpackChunkName: 'manage-index-set-basic-info' */ '@/features/index-sets/components/index-set/manage/basic-info'
-    );
+    ));
 
   export default {
     name: 'CollectionItem',

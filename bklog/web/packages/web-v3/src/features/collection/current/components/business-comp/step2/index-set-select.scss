@@ -1,5 +1,4 @@
-@import './index-set-option';
-
+@use './index-set-option' as *;
 .index-set-select-box {
     width: 100%;
 }

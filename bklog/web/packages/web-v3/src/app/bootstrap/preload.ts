@@ -1,5 +1,3 @@
-import { ServicesInstance } from '@/platform/services';
-import type { ApplicationStore } from '@/app/state/application-store.type';
 /*
  * Tencent is pleased to support the open source community by making
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
@@ -25,6 +23,9 @@ import type { ApplicationStore } from '@/app/state/application-store.type';
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
+
+import { ServicesInstance } from '@/platform/services';
+import type { ApplicationStore } from '@/app/state/application-store.type';
 import { VIEW_BUSINESS } from '../../shared/lib/authority-map';
 import '../../platform/compat/polyfill';
 import { SET_APP_STATE } from '../state/index';
@@ -34,9 +35,11 @@ import BkUserDisplayName from '@blueking/bk-user-display-name';
 import { tenantManager } from '../../features/retrieval/core/tenant-manager';
 import { updateBuiltInInitHiddenList } from '../../shared/constants/index';
 import { HttpClient } from '@/platform/http/types/index.ts';
+
 window.__VUE_PROD_HYDRATION_MISMATCH_DETAILS__ = false;
 
 /** 外部版根据空间授权权限显示菜单 */
+
 export const getExternalMenuListBySpace = (space: { external_permission: any; }) => {
   const list: string[] = [];
   for (const permission of space?.external_permission || []) {

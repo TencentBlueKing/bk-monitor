@@ -1,4 +1,4 @@
-@import '@/shared/styles/mixins/flex.scss';
+@use '@/shared/styles/mixins/flex.scss' as *;
 
 .retrieve-tab-item-title {
   font-size: 12px;
@@ -156,7 +156,7 @@
   .not-history {
     @include flex-center;
   }
-}@import '@/shared/styles/mixins/flex.scss';
+}
 
 .retrieve-tab-item-title {
   font-size: 12px;

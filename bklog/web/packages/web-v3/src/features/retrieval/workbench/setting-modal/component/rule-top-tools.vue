@@ -81,7 +81,7 @@
       </div>
       <div class="table-operate">
         <bk-dropdown-menu>
-          <template slot="dropdown-trigger">
+          <template #dropdown-trigger>
             <t-button
               style="min-width: 48px"
               class="btn-hover"

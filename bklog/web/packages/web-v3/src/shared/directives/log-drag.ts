@@ -119,7 +119,7 @@ const dragMouseDown = (evt: MouseEvent) => {
 };
 
 const logDrag: DirectiveOptions = {
-  inserted(el: IDragHtmlElement, bind: DirectiveBinding) {
+  mounted(el: IDragHtmlElement, bind: DirectiveBinding) {
     const key = random(8);
     // 设置父元素样式
     el.style.cssText = `
@@ -154,29 +154,45 @@ const logDrag: DirectiveOptions = {
     };
   },
 
-  update(el: IDragHtmlElement, bind: DirectiveBinding) {
+  updated(el: IDragHtmlElement, bind: DirectiveBinding) {
+    // 组件根节点被替换时，updated 会打在还没 mounted 的元素上。
+    // 这时没有 _bk_log_drag，直接读会中断父级 FieldFilter / 结果面板的更新。
+    if (!el._bk_log_drag) {
+      logDrag.mounted(el, bind);
+    }
+    if (!el._bk_log_drag) {
+      return;
+    }
     el._bk_log_drag.value = bind.value;
     const { defaultWidth, maxWidth, minWidth, isShow, onWidthChange } = getBindValue(bind.value as IBindValue);
     const curInsertedEl = insertedElMap[el._bk_log_drag.dragKey];
+    if (!curInsertedEl) {
+      return;
+    }
     const isHidden = curInsertedEl.getAttribute('is-hidden');
     // 展开默认宽度
     if (defaultWidth <= maxWidth && defaultWidth >= minWidth && isShow && isHidden === 'true') {
       curInsertedEl.style.width = `${defaultWidth}px`;
       curInsertedEl.setAttribute('is-hidden', 'false');
-      el._bk_log_drag.el.style.left = `${insertedEl.getBoundingClientRect().width - 10}px`;
+      const host = insertedEl || curInsertedEl;
+      el._bk_log_drag.el.style.left = `${host.getBoundingClientRect().width - 10}px`;
       onWidthChange?.(defaultWidth);
     }
-    if (!isShow) {
+    if (!isShow && isHidden !== 'true') {
       curInsertedEl.setAttribute('is-hidden', 'true');
       onWidthChange?.(defaultWidth);
     }
   },
 
-  unbind(el: IDragHtmlElement) {
-    const { dragKey } = el._bk_log_drag;
-    // 移除事件和删除DOM
-    el._bk_log_drag.el.removeEventListener('mousedown', dragMouseDown);
-    el.removeChild(el._bk_log_drag.el);
+  unmounted(el: IDragHtmlElement) {
+    if (!el._bk_log_drag) {
+      return;
+    }
+    const { dragKey, el: dragEle } = el._bk_log_drag;
+    dragEle.removeEventListener('mousedown', dragMouseDown);
+    if (dragEle.parentNode === el) {
+      el.removeChild(dragEle);
+    }
     insertedEl = null;
     delete insertedElMap[dragKey];
     el._bk_log_drag = undefined;

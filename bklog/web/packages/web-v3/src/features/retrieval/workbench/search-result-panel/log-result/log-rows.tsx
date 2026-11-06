@@ -1866,6 +1866,35 @@ type?: undefined; class?: undefined;
       return shouldEnterFirstPageSkeleton.value || isFieldLoadingForFirstPage.value || isFirstPageLayoutPending.value;
     });
 
+    let sawQueryLoading = false;
+    const markResultShellReady = () => {
+      if (
+        sawQueryLoading &&
+        !shouldShowFirstPageSkeleton.value &&
+        !indexSetQueryResult.value.is_loading &&
+        !indexFieldInfo.value.is_loading
+      ) {
+        store.commit('retrieve/updateResultShellReady', true);
+      }
+    };
+    watch(
+      () => indexSetQueryResult.value.is_loading,
+      loading => {
+        const result = indexSetQueryResult.value;
+        if (loading && !result.is_pagination_loading) {
+          sawQueryLoading = true;
+          store.commit('retrieve/updateResultShellReady', false);
+        } else if (result.is_error || result.took > 0 || result.total > 0 || (result.row_keys?.length ?? 0) > 0) {
+          sawQueryLoading = true;
+        }
+        markResultShellReady();
+      },
+      { immediate: true },
+    );
+    watch(shouldShowFirstPageSkeleton, () => {
+      markResultShellReady();
+    });
+
     /** 骨架展示期间屏蔽表头与真实行渲染 */
     const shouldBlockTableRender = computed(() => {
       return shouldShowFirstPageSkeleton.value;

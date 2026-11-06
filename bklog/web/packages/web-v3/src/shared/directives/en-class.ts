@@ -32,7 +32,7 @@ import type { DirectiveBinding } from 'vue/types/options';
 export default class EnStyleDirective {
   public static install(Vue: VueConstructor) {
     Vue.directive('enClass', {
-      bind(el: HTMLDivElement, binding: DirectiveBinding) {
+      beforeMount(el: HTMLDivElement, binding: DirectiveBinding) {
         if (
           (typeof binding.value === 'string' && el?.classList.contains(binding.value)) ||
           jsCookie.get('blueking_language') !== 'en'

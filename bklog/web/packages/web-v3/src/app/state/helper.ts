@@ -1,4 +1,3 @@
-import type { ApplicationState } from './application-store.type';
 /*
  * Tencent is pleased to support the open source community by making
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
@@ -24,6 +23,8 @@ import type { ApplicationState } from './application-store.type';
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
+
+import type { ApplicationState } from './application-store.type';
 import { BK_LOG_STORAGE, ConsitionItem } from './store.type.ts';
 import { getDefaultOp, REVERSE_OPERATOR_MAP, getOperatorRequestParam } from '@/app/state/scene-filter-config';
 import { isFeatureToggleOn } from '@/shared/composables/use-feature-toggle';

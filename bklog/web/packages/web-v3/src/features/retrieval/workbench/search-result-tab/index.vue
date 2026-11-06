@@ -4,7 +4,7 @@
   import { getFeatureToggleStatus, isFeatureToggleOn } from '@/shared/composables/use-feature-toggle';
   import useLocale from '@/shared/composables/use-locale';
   import useStore from '@/shared/composables/use-store';
-  import { computed, defineEmits, defineProps, onMounted, ref, watch } from 'vue';
+  import { computed, onMounted, ref, watch } from 'vue';
   import { useRoute } from "vue-router";
   import DashboardDialog from './components/dashboard-dialog.vue';
 
@@ -227,5 +227,5 @@
   </div>
 </template>
 <style lang="scss">
-  @import './index.scss';
+@use './index.scss' as *;
 </style>

@@ -1,7 +1,3 @@
-
-import { Loading as TLoading } from 'tdesign-vue-next';
-import { ServicesInstance } from '@/platform/services';
-import type { ServiceOperation } from '@/platform/services/runtime/service-client';
 /*
  * Tencent is pleased to support the open source community by making
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
@@ -27,6 +23,10 @@ import type { ServiceOperation } from '@/platform/services/runtime/service-clien
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
+
+import { Loading as TLoading } from 'tdesign-vue-next';
+import { ServicesInstance } from '@/platform/services';
+import type { ServiceOperation } from '@/platform/services/runtime/service-client';
 
 import { computed, defineComponent, inject, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import { Select, Option } from 'tdesign-vue-next';
@@ -424,8 +424,20 @@ export default defineComponent({
         requestConfig.params = { index_set_id: indexId };
       }
 
-      return urlStr(requestConfig, {
-        signal: controller.signal,
+      let timer: ReturnType<typeof setTimeout> | undefined;
+      const timeout = new Promise((_, reject) => {
+        timer = setTimeout(() => {
+          controller.abort();
+          reject(new Error('trend-timeout'));
+        }, 20000);
+      });
+      return Promise.race([
+        urlStr(requestConfig, {
+          signal: controller.signal,
+        }),
+        timeout,
+      ]).finally(() => {
+        if (timer) clearTimeout(timer);
       });
     };
 
@@ -453,6 +465,7 @@ export default defineComponent({
     const loadTrendData = () => {
       // 场景化检索模式下，过滤条件为空时不加载趋势图
       if (store.getters.isSceneMode && store.getters.isSceneFilterEmpty) {
+        setTrendStatus('empty');
         markTrendReady();
         return;
       }
@@ -478,7 +491,16 @@ export default defineComponent({
 
         try {
           // 1. 先请求总数（stream 检索 meta 可能已写入 indexSetQueryResult.total）
-          await store.dispatch('requestSearchTotal').catch(() => ({ result: false }));
+          let totalTimer: ReturnType<typeof setTimeout> | undefined;
+          const totalTimeout = new Promise(resolve => {
+            totalTimer = setTimeout(() => resolve({ result: false, timeout: true }), 20000);
+          });
+          await Promise.race([
+            store.dispatch('requestSearchTotal').catch(() => ({ result: false })),
+            totalTimeout,
+          ]).finally(() => {
+            if (totalTimer) clearTimeout(totalTimer);
+          });
           if (!isCurrentTrendLoad(seq)) {
             return;
           }

@@ -179,7 +179,7 @@
         min-width="350"
       >
         <!-- eslint-disable-next-line -->
-        <template slot-scope="{ row, $index }">
+        <template #default="{ row, $index }">
           <div class="pattern">
             <div :class="['pattern-content', { 'is-limit': getLimitState($index) }]">
               <cluster-event-popover @event-click="(option, isLink) => handleMenuClick(option, row, isLink)">
@@ -1297,8 +1297,7 @@ import { MessagePlugin as TDesignMessage } from 'tdesign-vue-next';
 </script>
 
 <style lang="scss" scoped>
-  @import '@/shared/styles/mixins/flex.scss';
-
+@use '@/shared/styles/mixins/flex.scss' as *;
   /* stylelint-disable no-descending-specificity */
   .finger-container {
     position: relative;

@@ -29,16 +29,27 @@ import Component from 'vue-class-component';
 import { Component as tsc } from 'vue-tsx-support';
 
 import './log-basic-tab.scss';
-@Component
-export default class LogTab extends tsc<object> {
+@Component({
+  props: {
+    active: { type: [String, Number], default: undefined },
+    type: { type: String, default: 'border-card' },
+  },
+  emits: ['update:active'],
+})
+export default class LogTab extends tsc<{ active?: string | number; type?: string }> {
   render() {
+    const { active, type } = this.$props as { active?: string | number; type?: string };
     return (
       <bk-tab
+        active={active}
         class='custom-tab'
-        props={this.$attrs}
         tab-position='top'
-        type='unborder-card'
-        on={this.$listeners}
+        type={type}
+        {...{
+          'onUpdate:active': (value: string | number) => {
+            this.$emit('update:active', value);
+          },
+        }}
       >
         {this.$slots.default}
         {this.$slots.setting && <template slot='setting'>{this.$slots.setting}</template>}

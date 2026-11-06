@@ -221,9 +221,8 @@ import { ServicesInstance } from '@/platform/services';
 </script>
 
 <style lang="scss">
-  @import '@/shared/styles/mixins/flex';
-  @import '@/shared/styles/mixins/scroller';
-
+@use '@/shared/styles/mixins/flex' as *;
+  @use '@/shared/styles/mixins/scroller' as *;
   .illustrate-panel {
     width: 100%;
     height: 100%;

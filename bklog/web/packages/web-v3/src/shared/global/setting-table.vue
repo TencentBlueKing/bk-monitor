@@ -50,7 +50,6 @@
           col-border
           :expand-row-keys="expandRowKeys"
         >
-          <template>
             <!-- 字段名 -->
             <bk-table-column
               native-cell-slot
@@ -389,7 +388,6 @@
             >
               {{ $t('暂无数据') }}
             </div>
-          </template>
         </bk-table>
       </bk-form>
     </div>
@@ -1087,8 +1085,8 @@
   };
 </script>
 <style lang="scss" scoped>
-  @import '@/shared/styles/mixins/clearfix';
-  @import '@/shared/styles/mixins/overflow-tips.scss';
+  @use '@/shared/styles/mixins/clearfix' as *;
+  @use '@/shared/styles/mixins/overflow-tips.scss' as *;
 
   /* stylelint-disable no-descending-specificity */
   .field-table-container {

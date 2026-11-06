@@ -673,5 +673,5 @@
   </Popup>
 </template>
 <style lang="scss">
-  @import './bookmark-pop.scss';
+@use './bookmark-pop.scss' as *;
 </style>

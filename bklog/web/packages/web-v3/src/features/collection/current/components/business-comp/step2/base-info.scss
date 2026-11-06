@@ -1,5 +1,4 @@
-@import '@/shared/styles/mixins/scroller';
-
+@use '@/shared/styles/mixins/scroller' as *;
 .base-info {
     display: flex;
     justify-content: space-between;

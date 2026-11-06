@@ -1,8 +1,3 @@
-import { Tag as TTag } from 'tdesign-vue-next';
-
-import { MessagePlugin as TDesignMessage, Button as TButton } from 'tdesign-vue-next';
-import { Popup as TPopup, Drawer as TDrawer, Tooltip as TTooltip } from 'tdesign-vue-next';
-import type { PopupInstanceFunctions, PopupVisibleChangeContext } from 'tdesign-vue-next';
 /*
  * Tencent is pleased to support the open source community by making
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
@@ -28,6 +23,12 @@ import type { PopupInstanceFunctions, PopupVisibleChangeContext } from 'tdesign-
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
+
+import { Tag as TTag } from 'tdesign-vue-next';
+
+import { MessagePlugin as TDesignMessage, Button as TButton } from 'tdesign-vue-next';
+import { Popup as TPopup, Drawer as TDrawer, Tooltip as TTooltip } from 'tdesign-vue-next';
+import type { PopupInstanceFunctions, PopupVisibleChangeContext } from 'tdesign-vue-next';
 
 import { Component, Emit, Prop, Ref, Watch } from 'vue-property-decorator';
 import type { ApplicationInjections } from '@/shared/types/component-injections';
@@ -163,11 +164,12 @@ class FieldItem extends tsc<FieldItemProps> {
   }
 
   get computedFieldName() {
-    let name = this.$store.state.storage[BK_LOG_STORAGE.SHOW_FIELD_ALIAS]
-      ? this.fieldItem.query_alias || this.fieldItem.field_name
-      : this.fieldItem.field_name;
+    const rawName = this.$store.state.storage[BK_LOG_STORAGE.SHOW_FIELD_ALIAS]
+      ? this.fieldItem?.query_alias || this.fieldItem?.field_name
+      : this.fieldItem?.field_name;
+    let name = rawName == null ? '' : String(rawName);
 
-    if (this.isFieldObject) {
+    if (this.isFieldObject && name) {
       const parts = name.split('.');
       name = parts.at(-1) || parts[0];
     }

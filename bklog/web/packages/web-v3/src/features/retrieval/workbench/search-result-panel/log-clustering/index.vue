@@ -738,8 +738,7 @@
 </script>
 
 <style lang="scss">
-  @import '@/shared/styles/mixins/flex.scss';
-
+@use '@/shared/styles/mixins/flex.scss' as *;
   .log-cluster-table-container-main {
     height: 100%;
   }

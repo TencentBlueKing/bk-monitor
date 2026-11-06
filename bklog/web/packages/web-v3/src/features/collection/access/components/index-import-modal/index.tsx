@@ -1,8 +1,3 @@
-
-import { Checkbox as TCheckbox, CheckboxGroup as TCheckboxGroup } from 'tdesign-vue-next';
-
-import { MessagePlugin as TDesignMessage } from 'tdesign-vue-next';
-import { ServicesInstance } from '@/platform/services';
 /*
  * Tencent is pleased to support the open source community by making
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
@@ -28,6 +23,11 @@ import { ServicesInstance } from '@/platform/services';
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
+
+import { Checkbox as TCheckbox, CheckboxGroup as TCheckboxGroup } from 'tdesign-vue-next';
+
+import { MessagePlugin as TDesignMessage } from 'tdesign-vue-next';
+import { ServicesInstance } from '@/platform/services';
 
 import { Component, ModelSync, Watch, Emit } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';

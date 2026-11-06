@@ -44,6 +44,7 @@ emits: ['change', 'menu-change', "menuChange"],
 computed: {},
 methods: {},
 render() {
+    if (!this.value) return null;
     return (
       <Dialog
         style='z-index: 1000;'
@@ -54,6 +55,7 @@ render() {
         draggable={false}
         destroyOnClose={true}
         footer={false}
+        lazy
         showOverlay={false}
         visible={this.value}
       >

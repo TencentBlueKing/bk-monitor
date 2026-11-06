@@ -135,9 +135,8 @@
 </script>
 
 <style lang="scss">
-  @import '@/shared/styles/mixins/flex';
-  @import '@/shared/styles/mixins/scroller';
-
+@use '@/shared/styles/mixins/flex' as *;
+  @use '@/shared/styles/mixins/scroller' as *;
   .intro-panel {
     position: relative;
     width: 100%;

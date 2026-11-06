@@ -1,6 +1,5 @@
-@import '@/shared/styles/mixins/ellipsis.scss';
-@import '@/shared/styles/mixins/flex.scss';
-
+@use '@/shared/styles/mixins/ellipsis.scss' as *;
+@use '@/shared/styles/mixins/flex.scss' as *;
 .authority {
   max-height: 32px;
   padding: 7px 10px;

@@ -1,12 +1,3 @@
-
-import { Alert as TAlert } from 'tdesign-vue-next';
-
-import { Switch as TSwitch, RadioGroup as TRadioGroup, Radio as TRadio, RadioButton as TRadioButton, Checkbox as TCheckbox } from 'tdesign-vue-next';
-
-import { MessagePlugin as TDesignMessage, Button as TButton } from 'tdesign-vue-next';
-import { ServicesInstance } from '@/platform/services';
-import type { LegacyFormInstance } from '@/shared/types/legacy-form';
-import { asDictionary } from '@/shared/utils/typed-record';
 /*
  * Tencent is pleased to support the open source community by making
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
@@ -32,6 +23,15 @@ import { asDictionary } from '@/shared/utils/typed-record';
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
+
+import { Alert as TAlert } from 'tdesign-vue-next';
+
+import { Switch as TSwitch, RadioGroup as TRadioGroup, Radio as TRadio, RadioButton as TRadioButton, Checkbox as TCheckbox } from 'tdesign-vue-next';
+
+import { MessagePlugin as TDesignMessage, Button as TButton } from 'tdesign-vue-next';
+import { ServicesInstance } from '@/platform/services';
+import type { LegacyFormInstance } from '@/shared/types/legacy-form';
+import { asDictionary } from '@/shared/utils/typed-record';
 import { Component, Prop, Watch } from 'vue-property-decorator';
 import { Component as tsc, ofType } from 'vue-tsx-support';
 

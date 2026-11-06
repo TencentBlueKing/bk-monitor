@@ -1,13 +1,3 @@
-
-import { Alert as TAlert } from 'tdesign-vue-next';
-
-import { Switch as TSwitch } from 'tdesign-vue-next';
-
-import { MessagePlugin as TDesignMessage, Button as TButton } from 'tdesign-vue-next';
-import { ServicesInstance } from '@/platform/services';
-import nativeAsset0 from '@/shared/assets/images/hdfs.png';
-import nativeAsset1 from '@/shared/assets/images/fs.png';
-import nativeAsset2 from '@/shared/assets/images/cos.png';
 /*
  * Tencent is pleased to support the open source community by making
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
@@ -33,6 +23,16 @@ import nativeAsset2 from '@/shared/assets/images/cos.png';
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
+
+import { Alert as TAlert } from 'tdesign-vue-next';
+
+import { Switch as TSwitch } from 'tdesign-vue-next';
+
+import { MessagePlugin as TDesignMessage, Button as TButton } from 'tdesign-vue-next';
+import { ServicesInstance } from '@/platform/services';
+import nativeAsset0 from '@/shared/assets/images/hdfs.png';
+import nativeAsset1 from '@/shared/assets/images/fs.png';
+import nativeAsset2 from '@/shared/assets/images/cos.png';
 
 import { defineComponent, ref, reactive, computed, watch } from 'vue';
 

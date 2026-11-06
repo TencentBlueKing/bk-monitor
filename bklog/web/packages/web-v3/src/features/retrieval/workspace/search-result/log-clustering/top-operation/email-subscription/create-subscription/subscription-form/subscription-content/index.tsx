@@ -1,9 +1,3 @@
-
-import { Checkbox as TCheckbox } from 'tdesign-vue-next';
-
-import { Button as TButton } from 'tdesign-vue-next';
-import { ServicesInstance } from '@/platform/services';
-import { asDictionary } from '@/shared/utils/typed-record';
 /*
  * Tencent is pleased to support the open source community by making
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
@@ -29,6 +23,12 @@ import { asDictionary } from '@/shared/utils/typed-record';
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
+
+import { Checkbox as TCheckbox } from 'tdesign-vue-next';
+
+import { Button as TButton } from 'tdesign-vue-next';
+import { ServicesInstance } from '@/platform/services';
+import { asDictionary } from '@/shared/utils/typed-record';
 import { useRoute } from 'vue-router';
 import { defineComponent, ref, computed, onMounted, watch } from 'vue';
 import useLocale from '@/shared/composables/use-locale';

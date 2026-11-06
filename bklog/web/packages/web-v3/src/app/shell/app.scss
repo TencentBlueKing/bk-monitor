@@ -1,9 +1,13 @@
+@use '../../shared/styles/reset.scss' as *;
+@use '../../shared/styles/app.scss' as *;
+@use '../../shared/styles/animation.scss' as *;
+@use '../../shared/styles/mixins/clearfix.scss' as *;
+@use '../../shared/styles/mixins/scroller.scss' as *;
 @import '../../shared/assets/resources/vendor/bk-icon/iconfont.css';
-@import '../../shared/styles/reset.scss';
-@import '../../shared/styles/app.scss';
-@import '../../shared/styles/animation.scss';
-@import '../../shared/styles/mixins/clearfix.scss';
-@import '../../shared/styles/mixins/scroller.scss';
+
+
+
+
 
 #app {
   min-width: 1280px;

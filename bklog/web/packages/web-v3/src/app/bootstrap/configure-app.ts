@@ -1,6 +1,3 @@
-import { ServicesInstance } from '@/platform/services';
-import { Button, Checkbox, CheckboxGroup, Radio, RadioButton, RadioGroup, Switch, Loading, Alert, Tag, Progress, Badge, Input, LoadingPlugin, LoadingDirective } from 'tdesign-vue-next';
-import 'tdesign-vue-next/es/loading/style/index.css';
 /*
  * Tencent is pleased to support the open source community by making
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
@@ -27,6 +24,10 @@ import 'tdesign-vue-next/es/loading/style/index.css';
  * IN THE SOFTWARE.
  */
 
+import { ServicesInstance } from '@/platform/services';
+import { Button, Checkbox, CheckboxGroup, Radio, RadioButton, RadioGroup, Switch, Loading, Alert, Tag, Progress, Badge, Input, Dialog, LoadingPlugin, LoadingDirective } from 'tdesign-vue-next';
+import 'tdesign-vue-next/es/loading/style/index.css';
+
 import VueVirtualScroller from 'vue-virtual-scroller';
 import LogButton from '@/shared/ui/log-button/index.vue';
 import LogIcon from '@/shared/ui/log-icon/index';
@@ -37,26 +38,40 @@ import methods from '../../platform/plugins/methods';
 import SourceTranslation from '../../platform/i18n/translation';
 import { installLegacyBkControls } from '../../platform/compat/tdesign/legacy-bk-controls';
 import { installHttp } from '@/platform/http';
+import { bkInfoBox } from '@/platform/compat/tdesign/info-box';
+import { messageError, messageInfo, messageSuccess, messageWarn } from '@/shared/lib/message';
+
+const registerComponent = (app: import('vue').App, name: string, component: import('vue').Component) => {
+  if (!app.component(name)) app.component(name, component);
+};
 
 export function configureApp(app: import('vue').App) {
-  app.component('TButton', Button);
-  app.component('TCheckbox', Checkbox);
-  app.component('TCheckboxGroup', CheckboxGroup);
-  app.component('TRadio', Radio);
-  app.component('TRadioButton', RadioButton);
-  app.component('TRadioGroup', RadioGroup);
-  app.component('TSwitch', Switch);
-  app.component('TLoading', Loading);
-  app.component('TAlert', Alert);
-  app.component('TTag', Tag);
-  app.component('TProgress', Progress);
-  app.component('TBadge', Badge);
-  app.component('TInput', Input);
+  // 运行时模板沿用现有空白保留策略，避免 CONFIG_WHITESPACE 在每次编译时告警。
+  app.config.compilerOptions.whitespace = 'preserve';
+  registerComponent(app, 'TButton', Button);
+  registerComponent(app, 'TCheckbox', Checkbox);
+  registerComponent(app, 'TCheckboxGroup', CheckboxGroup);
+  registerComponent(app, 'TRadio', Radio);
+  registerComponent(app, 'TRadioButton', RadioButton);
+  registerComponent(app, 'TRadioGroup', RadioGroup);
+  registerComponent(app, 'TSwitch', Switch);
+  registerComponent(app, 'TLoading', Loading);
+  registerComponent(app, 'TAlert', Alert);
+  registerComponent(app, 'TTag', Tag);
+  registerComponent(app, 'TProgress', Progress);
+  registerComponent(app, 'TBadge', Badge);
+  registerComponent(app, 'TInput', Input);
+  registerComponent(app, 'TDialog', Dialog);
   app.config.globalProperties.$services = ServicesInstance;
   installLegacyBkControls(app);
   app.component('i18n', SourceTranslation);
   app.use(LoadingPlugin);
-  app.directive('loading', LoadingDirective);
+  if (!app.directive('loading')) app.directive('loading', LoadingDirective);
+  app.config.globalProperties.$bkInfo = bkInfoBox;
+  app.config.globalProperties.messageError = messageError;
+  app.config.globalProperties.messageSuccess = messageSuccess;
+  app.config.globalProperties.messageInfo = messageInfo;
+  app.config.globalProperties.messageWarn = messageWarn;
   app.config.globalProperties.$renderHeader = renderHeader;
   app.config.globalProperties.$xss = xssFilter;
   app.component('JsonFormatWrapper', JsonFormatWrapper);

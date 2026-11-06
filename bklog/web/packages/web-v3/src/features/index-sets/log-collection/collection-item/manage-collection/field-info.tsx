@@ -1,9 +1,3 @@
-
-import { Tag as TTag } from 'tdesign-vue-next';
-
-import { Button as Button } from 'tdesign-vue-next';
-import { ServicesInstance } from '@/platform/services';
-import { asDictionary } from '@/shared/utils/typed-record';
 /*
  * Tencent is pleased to support the open source community by making
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
@@ -30,16 +24,22 @@ import { asDictionary } from '@/shared/utils/typed-record';
  * IN THE SOFTWARE.
  */
 
+import { Tag as TTag } from 'tdesign-vue-next';
+
+import { Button as Button } from 'tdesign-vue-next';
+import { ServicesInstance } from '@/platform/services';
+import { asDictionary } from '@/shared/utils/typed-record';
+
 import { Component, Prop } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
 import { Table, Popup as Popover } from 'tdesign-vue-next';
-const TableColumn = (_props: Record<string, unknown>, { slots }: { slots: { default?: () => unknown } }) => slots.default?.();
-
 
 import { getFlatObjValues } from '../../../../../shared/lib/util';
 
 import './field-info.scss';
+
+const TableColumn = (_props: Record<string, unknown>, { slots }: { slots: { default?: () => unknown } }) => slots.default?.();
 
 interface MaskingRule {
   rule_id: number;

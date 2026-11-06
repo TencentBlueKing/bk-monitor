@@ -660,7 +660,7 @@ export default {
 </script>
 
 <style lang="scss" scoped>
-@import '../../../../../shared/styles/mixins/scroller';
+@use '../../../../../shared/styles/mixins/scroller' as *;
 
 .update-fields-setting {
   position: relative;

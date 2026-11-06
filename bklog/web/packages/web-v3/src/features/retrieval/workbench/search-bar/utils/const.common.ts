@@ -1,7 +1,3 @@
-import type { ConsitionItem } from '@/app/state/store.type';
-
-import type { QueryField } from '@/app/state/retrieval-state.type';
-export type { QueryField, QueryFieldOperator } from '@/app/state/retrieval-state.type';
 /*
  * Tencent is pleased to support the open source community by making
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
@@ -27,6 +23,11 @@ export type { QueryField, QueryFieldOperator } from '@/app/state/retrieval-state
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
+
+import type { ConsitionItem } from '@/app/state/store.type';
+
+import type { QueryField } from '@/app/state/retrieval-state.type';
+export type { QueryField, QueryFieldOperator } from '@/app/state/retrieval-state.type';
 
 /**
  * 全文检索操作符

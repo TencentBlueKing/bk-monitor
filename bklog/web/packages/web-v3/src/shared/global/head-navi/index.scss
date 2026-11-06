@@ -1,7 +1,6 @@
-@import '../../styles/mixins/clearfix';
-@import '../../styles/conf';
-@import '../../styles/mixins/flex';
-
+@use '../../styles/mixins/clearfix' as *;
+@use '../../styles/conf' as *;
+@use '../../styles/mixins/flex' as *;
 .log-search-nav {
   height: 52px;
   color: #fff;

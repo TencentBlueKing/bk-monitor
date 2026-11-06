@@ -152,27 +152,25 @@
           </div>
         </li>
         <template v-if="showOperator">
-          <template>
-            <li
-              v-for="(item, key) in operatorSelectList"
-              :key="key"
-              class="list-item continue-list-item"
-              @click="handleClickColon(item.operator)"
+          <li
+            v-for="(item, key) in operatorSelectList"
+            :key="key"
+            class="list-item continue-list-item"
+            @click="handleClickColon(item.operator)"
+          >
+            <div class="item-type-icon">
+              <span class="bklog-icon bklog-equal"></span>
+            </div>
+            <div class="item-text">{{ item.operator }}</div>
+            <div
+              v-log-overflow-tips="{ placement: 'right' }"
+              class="item-description text-overflow-hidden"
             >
-              <div class="item-type-icon">
-                <span class="bklog-icon bklog-equal"></span>
-              </div>
-              <div class="item-text">{{ item.operator }}</div>
-              <div
-                v-log-overflow-tips="{ placement: 'right' }"
-                class="item-description text-overflow-hidden"
-              >
-                <i18n path="{0}某一值">
-                  <span class="item-callout">{{ item.label }}</span>
-                </i18n>
-              </div>
-            </li>
-          </template>
+              <i18n path="{0}某一值">
+                <span class="item-callout">{{ item.label }}</span>
+              </i18n>
+            </div>
+          </li>
         </template>
       </template>
       <!-- AND OR -->
@@ -698,7 +696,7 @@
 </script>
 
 <style lang="scss" scoped>
-  @import '../../../../shared/styles/mixins/scroller';
+  @use '../../../../shared/styles/mixins/scroller' as *;
 
   .retrieve-detail-input {
     position: relative;

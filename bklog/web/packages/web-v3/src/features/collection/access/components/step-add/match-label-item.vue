@@ -396,8 +396,7 @@
   };
 </script>
 <style lang="scss" scoped>
-  @import '@/shared/styles/mixins/flex.scss';
-
+@use '@/shared/styles/mixins/flex.scss' as *;
   /* stylelint-disable no-descending-specificity */
   .match-container {
     width: 100%;

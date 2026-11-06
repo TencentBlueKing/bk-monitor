@@ -1,4 +1,3 @@
-import { ServicesInstance } from '@/platform/services';
 /*
  * Tencent is pleased to support the open source community by making
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
@@ -25,10 +24,12 @@ import { ServicesInstance } from '@/platform/services';
  * IN THE SOFTWARE.
  */
 
+import { ServicesInstance } from '@/platform/services';
+
 import { Component, Prop } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
-import create from '@blueking/ip-selector/dist/vue3.x';
+import create from './bk-ip-selector-vue3';
 
 
 

@@ -1,7 +1,9 @@
+@use '../index.scss' as *;
+@use '../segment-pop.scss' as *;
+@use '../../../../shared/styles/theme/theme-light.scss' as *;
 /* stylelint-disable declaration-no-important */
-@import '../index.scss';
-@import '../segment-pop.scss';
-@import '../../../../shared/styles/theme/theme-light.scss';
+
+
 
 // 以下是监控页面样式
 

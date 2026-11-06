@@ -263,12 +263,12 @@
     </div>
     <config-view-dialog
       :is-node="isNode"
-      :is-show-dialog.sync="isShowViewDialog"
+      v-model:is-show-dialog="isShowViewDialog"
       :view-query-params="viewQueryParams"
     />
     <label-target-dialog
       :cluster-list="clusterList"
-      :is-show-dialog.sync="isShowLabelTargetDialog"
+      v-model:is-show-dialog="isShowLabelTargetDialog"
       :label-params="currentSelector"
       @config-label-change="val => handelFormChange(val, 'dialogChange')"
     />
@@ -614,8 +614,7 @@
   };
 </script>
 <style lang="scss" scoped>
-  @import '@/shared/styles/mixins/flex.scss';
-
+@use '@/shared/styles/mixins/flex.scss' as *;
   .config-box {
     width: 730px;
     margin-bottom: 20px;

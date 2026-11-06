@@ -1,6 +1,3 @@
-
-import { Tag as TTag } from 'tdesign-vue-next';
-import { includesValue } from '@/shared/utils/typed-record';
 /*
  * Tencent is pleased to support the open source community by making
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
@@ -26,6 +23,9 @@ import { includesValue } from '@/shared/utils/typed-record';
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
+
+import { Tag as TTag } from 'tdesign-vue-next';
+import { includesValue } from '@/shared/utils/typed-record';
 
 import { computed, defineComponent, ref } from 'vue';
 import Stratege from './strategy/index';

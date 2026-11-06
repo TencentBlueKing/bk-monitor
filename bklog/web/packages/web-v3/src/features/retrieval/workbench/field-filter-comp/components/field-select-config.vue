@@ -145,5 +145,5 @@
   </div>
 </template>
 <style lang="scss">
-  @import './field-select-config.scss';
+@use './field-select-config.scss' as *;
 </style>

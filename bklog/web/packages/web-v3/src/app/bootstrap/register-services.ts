@@ -1,4 +1,3 @@
-import { installServiceModules } from '@/platform/services';
 /*
  * Tencent is pleased to support the open source community by making
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
@@ -25,7 +24,9 @@ import { installServiceModules } from '@/platform/services';
  * IN THE SOFTWARE.
  */
 
+import { installServiceModules } from '@/platform/services';
 import serviceDefinitions from './service-definitions.ts';
 import { registerServiceDefinitions } from '@/platform/http/service-registry.ts';
+
 registerServiceDefinitions(serviceDefinitions);
 installServiceModules(serviceDefinitions);

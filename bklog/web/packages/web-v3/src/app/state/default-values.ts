@@ -1,5 +1,3 @@
-import type { ConsitionItem } from './store.type';
-import type { QueryResultState, FieldConfigurationState, IndexSetOption } from './retrieval-state.type';
 /*
  * Tencent is pleased to support the open source community by making
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
@@ -25,6 +23,9 @@ import type { QueryResultState, FieldConfigurationState, IndexSetOption } from '
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
+
+import type { ConsitionItem } from './store.type';
+import type { QueryResultState, FieldConfigurationState, IndexSetOption } from './retrieval-state.type';
 import { createMemoryHistory, createRouter, RouteLocationNormalizedLoadedGeneric } from 'vue-router';
 
 import { handleTransformToTimestamp } from '@/shared/ui/time-range/utils';
@@ -132,6 +133,9 @@ const getUrlArgs = (_route?: Pick<RouteLocationNormalizedLoadedGeneric, 'query' 
           name: 'retrieve',
           path: '/retrieve/:indexId?',
           children: [],
+        },
+        {
+          path: '/:pathMatch(.*)*',
         },
       ],
     });

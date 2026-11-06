@@ -188,7 +188,7 @@
           <!-- <log-ip-selector
             mode="dialog"
             :height="670"
-            :show-dialog.sync="showSelectDialog"
+            v-model:show-dialog="showSelectDialog"
             :value="{}"
             :panel-list="['dynamicTopo']"
             @change="handleConfirmSelect"

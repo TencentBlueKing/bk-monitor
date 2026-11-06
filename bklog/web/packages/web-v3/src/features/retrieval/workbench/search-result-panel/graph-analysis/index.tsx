@@ -1,6 +1,3 @@
-
-import { Button as TButton } from 'tdesign-vue-next';
-import { includesValue } from '@/shared/utils/typed-record';
 /*
  * Tencent is pleased to support the open source community by making
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
@@ -27,12 +24,12 @@ import { includesValue } from '@/shared/utils/typed-record';
  * IN THE SOFTWARE.
  */
 
+import { Button as TButton } from 'tdesign-vue-next';
+import { includesValue } from '@/shared/utils/typed-record';
 import { Component, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
-
 import { BK_LOG_STORAGE, SEARCH_MODE_DIC } from '@/app/state/store.type.ts';
 import { debounce, isElement, isEqual, throttle } from 'lodash-es';
-
 import ClusteringLoader from '@/app/skeleton/clustering-loader.vue';
 import SqlPanel from './SqlPanel.vue';
 import GraphChart from './chart/index.tsx';
@@ -42,7 +39,6 @@ import GraphDragTool from './drag-tool/index.vue';
 import StyleImages from './images/index';
 import SqlEditor from './sql-editor/index.tsx';
 import TagInput from './tagInput.vue';
-
 import './index.scss';
 
 // The existing class decorator needs explicit registration for native Vue3 hooks.

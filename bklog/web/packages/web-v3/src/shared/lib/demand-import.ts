@@ -105,5 +105,7 @@ for (const component of [
   Tree,
   Upload,
 ]) {
+  const name = (component as { name?: string }).name;
+  if (name && typeof Vue.component === 'function' && Vue.component(name)) continue;
   Vue.use(component);
 }

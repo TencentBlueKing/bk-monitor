@@ -1035,10 +1035,9 @@ import { ServicesInstance } from '@/platform/services';
 </script>
 
 <style lang="scss">
-  @import '@/shared/styles/mixins/clearfix';
-  @import '@/shared/styles/storage.scss';
-  @import '@/shared/styles/mixins/flex.scss';
-
+@use '@/shared/styles/mixins/clearfix' as *;
+  @use '@/shared/styles/storage.scss' as *;
+  @use '@/shared/styles/mixins/flex.scss' as *;
   /* stylelint-disable no-descending-specificity */
   .step-storage {
     position: relative;

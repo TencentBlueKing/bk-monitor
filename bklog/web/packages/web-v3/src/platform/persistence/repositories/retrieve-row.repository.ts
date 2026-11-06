@@ -382,18 +382,24 @@ export class RetrieveRowRepository {
 
   async gc(now = Date.now(), options: { excludeQueryKeys?: string[] } = {}) {
     const excludeQueryKeySet = new Set(options.excludeQueryKeys?.filter((item): item is NonNullable<typeof item> => Boolean(item)) ?? []);
+    if (!db.isOpen()) {
+      await db.open().catch(() => undefined);
+      if (!db.isOpen()) return;
+    }
     if (!excludeQueryKeySet.size) {
       await this.table.where('expireAt').below(now).delete();
       return;
     }
 
-    await db.transaction('rw', this.table, async () => {
-      const expiredRows = await this.table.where('expireAt').below(now).toArray();
-      const deleteKeys = expiredRows.filter(row => !excludeQueryKeySet.has(row.queryKey)).map(row => row.key);
-      if (deleteKeys.length) {
-        await this.table.bulkDelete(deleteKeys);
-      }
+    // 只收集 key，按批删除。整行 toArray 会把日志正文读进内存，坏记录或未打开的库会让这次清理直接抛 DexieError。
+    const deleteKeys: string[] = [];
+    await this.table.where('expireAt').below(now).each(row => {
+      if (row?.key && !excludeQueryKeySet.has(row.queryKey)) deleteKeys.push(row.key);
     });
+    const chunkSize = 500;
+    for (let index = 0; index < deleteKeys.length; index += chunkSize) {
+      await this.table.bulkDelete(deleteKeys.slice(index, index + chunkSize));
+    }
   }
 
   async getEntitiesByQuery(queryKey: string, offset = 0, limit?: number) {

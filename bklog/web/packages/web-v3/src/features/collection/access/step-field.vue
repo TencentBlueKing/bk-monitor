@@ -2980,9 +2980,8 @@ __ext_json.service.labels   ${this.$t('动态对象字段')}`;
 </script>
 
 <style lang="scss">
-  @import '@/shared/styles/mixins/clearfix';
-  @import '@/shared/styles/space-tag-option';
-
+@use '@/shared/styles/mixins/clearfix' as *;
+  @use '@/shared/styles/space-tag-option' as *;
   /* stylelint-disable no-descending-specificity */
   .step-field-container {
     min-width: 950px;

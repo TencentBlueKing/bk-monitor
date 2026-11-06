@@ -1,4 +1,4 @@
-@import '@/shared/styles/mixins/scroller';
+@use '@/shared/styles/mixins/scroller' as *;
 .multiline-reg-dialog-box {
   .multiline-reg-dialog-content {
     .t-form__label {

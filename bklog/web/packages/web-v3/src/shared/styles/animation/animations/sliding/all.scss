@@ -1,8 +1,8 @@
-@import 'slide-down';
-@import 'slide-left';
-@import 'slide-right';
-@import 'slide-up';
-
+@use '../../make-transitions' as *;
+@use 'slide-down' as *;
+@use 'slide-left' as *;
+@use 'slide-right' as *;
+@use 'slide-up' as *;
 $slides: Down, Left, Right, Up;
 
 @include make-transitions('slide', $slides);

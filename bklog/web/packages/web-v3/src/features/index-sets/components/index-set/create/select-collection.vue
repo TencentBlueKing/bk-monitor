@@ -413,8 +413,7 @@
 </script>
 
 <style scoped lang="scss">
-  @import '@/shared/styles/mixins/overflow-tips.scss';
-
+@use '@/shared/styles/mixins/overflow-tips.scss' as *;
   .slot-container {
     min-height: 363px;
     padding-right: 40px;

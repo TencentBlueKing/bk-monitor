@@ -27,7 +27,7 @@
 import { MessagePlugin as TDesignMessage } from 'tdesign-vue-next';
 import { ServicesInstance } from '@/platform/services';
 
-  import { ref, onMounted, defineExpose } from 'vue';
+  import { ref, onMounted } from 'vue';
   import { useRoute } from "vue-router";
   
   import useLocale from '@/shared/composables/use-locale';

@@ -1,9 +1,3 @@
-
-import { Checkbox as Checkbox } from 'tdesign-vue-next';
-
-import { Button as Button } from 'tdesign-vue-next';
-import { ServicesInstance } from '@/platform/services';
-import { asDictionary } from '@/shared/utils/typed-record';
 /*
  * Tencent is pleased to support the open source community by making
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
@@ -30,12 +24,16 @@ import { asDictionary } from '@/shared/utils/typed-record';
  * IN THE SOFTWARE.
  */
 
+import { Checkbox as Checkbox } from 'tdesign-vue-next';
+
+import { Button as Button } from 'tdesign-vue-next';
+import { ServicesInstance } from '@/platform/services';
+import { asDictionary } from '@/shared/utils/typed-record';
+
 import { Component, Model, Emit, Prop, Watch, Ref } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
 import { Table, Input } from 'tdesign-vue-next';
-const TableColumn = (_props: Record<string, unknown>, { slots }: { slots: { default?: () => unknown } }) => slots.default?.();
-
 
 import * as authorityMap from '../../../shared/lib/authority-map';
 import fingerSelectColumn from '../../retrieval/classic/result-table-panel/log-clustering/components/finger-select-column.vue';
@@ -43,6 +41,8 @@ import EmptyStatus from '../../../shared/ui/empty-status/index.vue';
 import MaskingAddRule from './masking-add-rule';
 
 import './masking-select-rule-table.scss';
+
+const TableColumn = (_props: Record<string, unknown>, { slots }: { slots: { default?: () => unknown } }) => slots.default?.();
 
 interface IProps {
   value: boolean;

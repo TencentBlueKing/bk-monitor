@@ -1,10 +1,3 @@
-
-import { Checkbox as Checkbox, RadioGroup as RadioGroup, Radio as Radio } from 'tdesign-vue-next';
-
-import { Button as Button } from 'tdesign-vue-next';
-import { ServicesInstance } from '@/platform/services';
-import type { LegacyFormInstance } from '@/shared/types/legacy-form';
-import { asDictionary } from '@/shared/utils/typed-record';
 /*
  * Tencent is pleased to support the open source community by making
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
@@ -31,17 +24,23 @@ import { asDictionary } from '@/shared/utils/typed-record';
  * IN THE SOFTWARE.
  */
 
+import { Checkbox as Checkbox, RadioGroup as RadioGroup, Radio as Radio } from 'tdesign-vue-next';
+
+import { Button as Button } from 'tdesign-vue-next';
+import { ServicesInstance } from '@/platform/services';
+import type { LegacyFormInstance } from '@/shared/types/legacy-form';
+import { asDictionary } from '@/shared/utils/typed-record';
+
 import TextHighlight from '@/shared/ui/text-highlight';
 
 import { Component, Model, Emit, Prop, Ref, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
 import { Drawer as Sideslider, Form, FormItem, Input, Collapse, CollapsePanel as CollapseItem, Table, Dialog, TagInput } from 'tdesign-vue-next';
-const TableColumn = (_props: Record<string, unknown>, { slots }: { slots: { default?: () => unknown } }) => slots.default?.();
-
-
 
 import './masking-add-rule.scss';
+
+const TableColumn = (_props: Record<string, unknown>, { slots }: { slots: { default?: () => unknown } }) => slots.default?.();
 
 interface IProps {
   value: boolean;
@@ -463,6 +462,7 @@ export default class MaskingAddRule extends tsc<IProps> {
   render() {
     const accessTableSlot = () => (
       <Table
+        rowKey='scenario_id'
         rowStyle={this.getShowRowStyle}
         extCls='access-table'
         border={false}

@@ -848,9 +848,8 @@
 </script>
 
 <style scoped lang="scss">
-  @import '@/shared/styles/mixins/overflow-tips.scss';
-  @import '@/shared/styles/mixins/flex.scss';
-
+@use '@/shared/styles/mixins/overflow-tips.scss' as *;
+  @use '@/shared/styles/mixins/flex.scss' as *;
   .sort-box {
     display: inline-flex;
     align-items: center;

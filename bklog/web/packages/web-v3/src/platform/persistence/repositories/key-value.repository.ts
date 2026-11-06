@@ -4,7 +4,7 @@
  */
 import db, { type KeyValueEntity } from '../core/db';
 import { storageHealthService } from '../services/storage-health.service.ts';
-import { normalizeStorageValue } from '../utils/normalize-storage-value';
+import { cloneForIndexedDb } from '../utils/normalize-storage-value';
 
 const DEFAULT_TTL = 7 * 24 * 60 * 60 * 1000;
 
@@ -15,7 +15,7 @@ export class KeyValueRepository {
     try {
       await db.keyValues.put({
         key,
-        value: normalizeStorageValue(value),
+        value: cloneForIndexedDb(value),
         updatedAt: now,
         expireAt: now + ttl,
       });

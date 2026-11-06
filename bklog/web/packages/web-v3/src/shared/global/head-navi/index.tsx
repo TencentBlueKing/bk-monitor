@@ -1,4 +1,3 @@
-import { includesValue } from '@/shared/utils/typed-record';
 /*
  * Tencent is pleased to support the open source community by making
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
@@ -25,15 +24,12 @@ import { includesValue } from '@/shared/utils/typed-record';
  * IN THE SOFTWARE.
  */
 
-// 顶部导航（TSX重构版）：复用 use-nav-menu 的业务与路由逻辑，保持与 head-nav.vue 一致的交互与样式
+import { includesValue } from '@/shared/utils/typed-record';
 import { computed, defineComponent, h, onBeforeUnmount, onMounted, reactive, ref } from 'vue';
-
 import { useJSONP } from '@/shared/lib/jsonp';
-// 全局弹窗（受控组件：value/onChange），用于“我申请的 / 我的订阅”内嵌页面
 import GlobalDialog from '@/features/preferences/dialog/index';
 import BizMenuSelect from '@/shared/global/bk-space-choice/index';
 import useLocale from '@/shared/composables/use-locale';
-// 统一的导航/空间切换逻辑，避免重复代码
 import { useNavMenu } from '@/shared/composables/use-nav-menu';
 import useRouter from '@/shared/composables/use-router';
 import useStore from '@/shared/composables/use-store';
@@ -45,17 +41,21 @@ import { Popup, MessagePlugin } from 'tdesign-vue-next';
 import 'tdesign-vue-next/es/popup/style/index.css';
 import jsCookie from 'js-cookie';
 import { useRoute } from 'vue-router';
-
 import BkLoginUserinfo from '@blueking/login-userinfo';
-Object.assign(BkLoginUserinfo, { compatConfig: { MODE: 3 } });
 import '@blueking/login-userinfo/vue3/vue3.css';
-
-import { MENU_LISTS } from './complete-menu';
 import LogVersion from './log-version';
-
 import './index.scss';
 import { requestJson } from '@/platform/request/index';
 import { join } from '../utils/path';
+
+// 顶部导航（TSX重构版）：复用 use-nav-menu 的业务与路由逻辑，保持与 head-nav.vue 一致的交互与样式
+
+// 全局弹窗（受控组件：value/onChange），用于“我申请的 / 我的订阅”内嵌页面
+// 统一的导航/空间切换逻辑，避免重复代码
+
+Object.assign(BkLoginUserinfo, { compatConfig: { MODE: 3 } });
+
+
 
 export default defineComponent({
   name: 'HeaderNavTsx',
@@ -71,11 +71,7 @@ export default defineComponent({
     const store = useStore();
     const router = useRouter();
     const route = useRoute();
-
-    // 初始化菜单配置（使用与 .vue 版一致的静态菜单）
-    onMounted(() => {
-      store.commit('updateState', { menuList: MENU_LISTS });
-    });
+    const userMeta = store.state.userMeta || {};
 
     const activeTopMenu = computed<Partial<import('@/app/state/menu-config').MenuConfigItem>>(() => {
       const matchedList = route.matched;
@@ -103,15 +99,15 @@ export default defineComponent({
     // 组件本地状态：仅保存视图 UI 状态，业务状态统一走 store
     const state = reactive({
       isFirstLoad: true,
-      username: '',
-      bk_tenant_id: null as string | null,
-      timezone: 'Asia/Shanghai',
-      usernameRequested: false,
+      username: userMeta.username || '',
+      bk_tenant_id: userMeta.bk_tenant_id || null,
+      timezone: userMeta.time_zone || 'Asia/Shanghai',
+      usernameRequested: !!userMeta.username,
       isShowLanguageDropdown: false,
       isShowGlobalDropdown: false,
       isShowHelpDropdown: false,
       showLogVersion: false,
-      language: 'zh-cn',
+      language: jsCookie.get('blueking_language') || 'zh-cn',
       showGlobalDialog: false,
       globalDialogTitle: '',
       targetSrc: '',

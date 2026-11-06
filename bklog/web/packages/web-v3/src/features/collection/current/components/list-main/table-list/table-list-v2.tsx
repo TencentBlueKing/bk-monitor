@@ -1,8 +1,3 @@
-
-import { Button as TButton, Drawer as TDrawer, Input as TInput, Option as TOption, Select as TSelect } from 'tdesign-vue-next';
-import { ServicesInstance } from '@/platform/services';
-import { includesValue } from '@/shared/utils/typed-record';
-import type { Canceler } from 'axios';
 /*
  * Tencent is pleased to support the open source community by making
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
@@ -28,6 +23,11 @@ import type { Canceler } from 'axios';
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
+
+import { Button as TButton, Drawer as TDrawer, Input as TInput, Option as TOption, Select as TSelect } from 'tdesign-vue-next';
+import { ServicesInstance } from '@/platform/services';
+import { includesValue } from '@/shared/utils/typed-record';
+import type { Canceler } from 'axios';
 
 import { defineComponent, onBeforeUnmount, onMounted, ref, nextTick, watch, computed, type PropType } from 'vue';
 import { useRouter, useRoute } from 'vue-router';

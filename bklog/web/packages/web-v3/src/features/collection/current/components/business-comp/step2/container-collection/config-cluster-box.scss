@@ -50,6 +50,7 @@
             display: flex;
             .operate-select {
                 width: 32px;
+                flex: none;
                 border-radius: 2px 0 0 2px;
                 border-right: none;
                 background: #FAFBFD;
@@ -60,13 +61,28 @@
                     padding: 0 6px;
                     text-align: center;
                 }
-                .icon-angle-down {
+                .icon-angle-down,
+                .t-input__suffix,
+                .t-fake-arrow {
                     display: none;
+                }
+                .t-input {
+                    height: 32px;
+                    border-radius: 2px 0 0 2px;
+                    background: #FAFBFD;
+                }
+                .t-input__inner {
+                    padding: 0;
+                    text-align: center;
                 }
             }
             .space-select {
                 flex: 1;
                 border-radius: 0 2px 2px 0;
+                .t-input {
+                    min-height: 32px;
+                    border-radius: 0 2px 2px 0;
+                }
             }
             .container-input {
                 flex: 1;

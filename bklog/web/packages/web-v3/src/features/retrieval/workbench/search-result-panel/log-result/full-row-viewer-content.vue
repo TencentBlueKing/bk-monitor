@@ -1156,20 +1156,20 @@ import { MessagePlugin as TDesignMessage } from 'tdesign-vue-next';
     transform: translate(-50%, -50%);
   }
 
-  ::v-deep .full-row-origin-mark {
+  :deep(.full-row-origin-mark) {
     padding: 0 1px;
     color: inherit;
     background: #fff3b8;
     border-radius: 2px;
   }
 
-  ::v-deep .page-highlight {
+  :deep(.page-highlight) {
     padding: 0 1px;
     color: inherit;
     border-radius: 2px;
   }
 
-  ::v-deep .full-row-search-mark {
+  :deep(.full-row-search-mark) {
     padding: 0 1px;
     color: inherit;
     background: #ffe8cc;
@@ -1181,8 +1181,8 @@ import { MessagePlugin as TDesignMessage } from 'tdesign-vue-next';
     }
   }
 
-  ::v-deep .result-highlight.page-highlight,
-  ::v-deep .full-row-origin-mark.page-highlight {
+  :deep(.result-highlight.page-highlight),
+  :deep(.full-row-origin-mark.page-highlight) {
     box-shadow: inset 0 -2px 0 rgb(255 128 0 / 70%);
   }
 </style>

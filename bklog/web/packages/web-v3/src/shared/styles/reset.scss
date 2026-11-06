@@ -1,5 +1,4 @@
-@import './mixins/scroller.scss';
-
+@use './mixins/scroller.scss' as *;
 // 浏览器重置样式
 * {
   box-sizing: border-box;

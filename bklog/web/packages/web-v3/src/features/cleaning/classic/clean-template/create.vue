@@ -78,8 +78,7 @@
 </script>
 
 <style lang="scss" scoped>
-  @import '@/shared/styles/mixins/scroller';
-
+@use '@/shared/styles/mixins/scroller' as *;
   .clean-template-container {
     height: 100%;
     padding: 20px 24px;

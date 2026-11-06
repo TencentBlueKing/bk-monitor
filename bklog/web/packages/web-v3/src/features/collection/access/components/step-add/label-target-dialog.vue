@@ -504,8 +504,7 @@
   };
 </script>
 <style lang="scss">
-  @import '@/shared/styles/mixins/flex.scss';
-
+@use '@/shared/styles/mixins/flex.scss' as *;
   /* stylelint-disable no-descending-specificity */
   .log-target-container {
     display: flex;

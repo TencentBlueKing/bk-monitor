@@ -331,10 +331,9 @@
 </script>
 
 <style lang="scss">
-  @import '@/shared/styles/mixins/clearfix';
-  @import '@/shared/styles/conf';
-  @import '@/shared/styles/devops-common.scss';
-
+@use '@/shared/styles/mixins/clearfix' as *;
+  @use '@/shared/styles/conf' as *;
+  @use '@/shared/styles/devops-common.scss' as *;
   .clean-template-container {
     padding: 20px 24px;
 

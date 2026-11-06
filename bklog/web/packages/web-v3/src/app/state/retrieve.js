@@ -1,4 +1,3 @@
-import { ServicesInstance } from '@/platform/services';
 /*
  * Tencent is pleased to support the open source community by making
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
@@ -24,6 +23,8 @@ import { ServicesInstance } from '@/platform/services';
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
+
+import { ServicesInstance } from '@/platform/services';
 
 
 import { transformSceneConfigs } from '@/app/state/scene-filter-config';
@@ -93,6 +94,10 @@ export default {
     flatIndexSetList: /** @type {import('./retrieval-state.type').IndexSetOption[]} */ ([]),
     isIndexSetLoading: false,
     isTrendDataLoading: false,
+    /** 首屏趋势图仍在占位。结果面板挂载后会改写。 */
+    trendShellPending: true,
+    /** 首屏日志已离开行骨架，可以和趋势图一起揭开。 */
+    resultShellReady: false,
     isTotalCountLoaded: false,
     trendDataCount: 0,
     catchFieldCustomConfig: /** @type {import('./retrieval-state.type').RetrieveCustomConfig} */ ({
@@ -120,6 +125,12 @@ export default {
     },
     updateTrendDataLoading(state, payload) {
       state.isTrendDataLoading = payload;
+    },
+    updateTrendShellPending(state, payload) {
+      state.trendShellPending = !!payload;
+    },
+    updateResultShellReady(state, payload) {
+      state.resultShellReady = !!payload;
     },
     updateTotalCountLoaded(state, payload) {
       state.isTotalCountLoaded = payload;

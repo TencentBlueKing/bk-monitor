@@ -1,5 +1,4 @@
-@import './global.scss';
-
+@use './global.scss' as *;
 .create-operation-main {
   .block {
     display: block;

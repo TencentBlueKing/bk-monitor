@@ -463,8 +463,7 @@
 </style>
 
 <style lang="scss">
-  @import 'tippy.js/dist/tippy.css';
-</style>
+  @import 'tippy.js/dist/tippy.css';</style>
 <style lang="scss">
   [data-tippy-root] .tippy-box {
     &[data-theme^='log-light'] {

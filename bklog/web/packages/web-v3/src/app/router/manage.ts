@@ -1,5 +1,3 @@
-import type { AsyncComponentLoader } from 'vue';
-import type { RouteRecordRaw } from 'vue-router';
 /*
  * Tencent is pleased to support the open source community by making
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
@@ -25,6 +23,9 @@ import type { RouteRecordRaw } from 'vue-router';
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
+
+import type { AsyncComponentLoader } from 'vue';
+import type { RouteRecordRaw } from 'vue-router';
 
 import { createVersionedAsyncView, createManageAsyncView } from './async-view';
 

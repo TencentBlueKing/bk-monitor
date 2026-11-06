@@ -42,8 +42,7 @@
                 </template>
               </t-input>
             </div>
-            <template>
-              <ul
+            <ul
                 v-if="shadowTotal.length"
                 class="select-list"
               >
@@ -85,7 +84,6 @@
               >
                 搜索为空
               </bk-exception>
-            </template>
           </div>
           <div class="sort-icon">
             <span class="icon bklog-icon bklog-double-arrow"></span>
@@ -303,7 +301,7 @@
 </script>
 
 <style lang="scss">
-  @import '../../../../../shared/styles/mixins/scroller';
+  @use '../../../../../shared/styles/mixins/scroller' as *;
 
   .bklog-filter-setting-panel {
     width: 682px;

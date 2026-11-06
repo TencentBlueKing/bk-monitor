@@ -616,12 +616,23 @@ const BkCollapseItem = defineComponent({
   props: {
     name: { type: [String, Number], default: '' },
     title: { type: String, default: '' },
+    hideArrow: { type: Boolean, default: false },
   },
-  setup(props, { slots }) {
-    return () => h(CollapsePanel, { value: props.name, header: slots.title ? undefined : props.title }, {
-      header: slots.title,
-      default: slots.default || slots.content,
-    });
+  setup(props, { attrs, slots }) {
+    return () => {
+      // bk-magic：默认插槽是标题，content 插槽是面板内容。
+      const header = slots.title || (slots.content ? slots.default : undefined);
+      const body = slots.content || slots.default;
+      return h(CollapsePanel, {
+        ...attrs,
+        value: props.name,
+        header: header ? undefined : props.title,
+        expandIcon: props.hideArrow ? false : undefined,
+      }, {
+        header,
+        default: body,
+      });
+    };
   },
 });
 

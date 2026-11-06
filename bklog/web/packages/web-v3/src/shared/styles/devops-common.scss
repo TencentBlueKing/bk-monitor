@@ -1,8 +1,8 @@
+@use './conf' as *;
 /**
  *  devops相关页面公用样式
  */
 
-@import './conf';
 
 %clearfix {
   &:before,

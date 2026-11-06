@@ -34,6 +34,7 @@ import useStore from '../../shared/composables/use-store';
 import { join } from '@/shared/global/utils/path';
 
 import LocaleProvider from '@/platform/i18n/locale-provider';
+import HeadNav from '@/shared/global/head-navi/index';
 import './app.scss';
 
 import(/* webpackChunkName: 'appload-import' */ '../../shared/lib/appload-import');
@@ -49,8 +50,6 @@ const AuthDialog = defineAsyncComponent(
 const GlobalSettingDialog = defineAsyncComponent(
   () => import(/* webpackChunkName: 'global-setting-dialog' */ '@/features/preferences/index'),
 );
-const HeadNav = defineAsyncComponent(() => import(/* webpackChunkName: 'head-nav' */ '@/shared/global/head-navi/index'));
-
 const isHeadlessEntry = () =>
   new URLSearchParams(window.location.hash.split('?')[1] || window.location.search).get('hl') === '1';
 if (isHeadlessEntry()) {
@@ -223,7 +222,7 @@ export default defineComponent({
      * 渲染全局设置弹窗
      */
     const renderGlobalSettingDialog = () => {
-      if (isHeadless.value) {
+      if (isHeadless.value || !isShowGlobalDialog.value) {
         return null;
       }
       return (

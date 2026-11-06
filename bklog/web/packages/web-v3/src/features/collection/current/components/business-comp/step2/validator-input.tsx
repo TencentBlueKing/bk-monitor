@@ -1,4 +1,3 @@
-import SampleColumnSelect from '@/features/collection/shared/sample-column-select';
 /*
  * Tencent is pleased to support the open source community by making
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
@@ -24,6 +23,8 @@ import SampleColumnSelect from '@/features/collection/shared/sample-column-selec
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
+
+import SampleColumnSelect from '@/features/collection/shared/sample-column-select';
 
 import { defineComponent, ref, reactive, computed, watch, nextTick, type PropType } from 'vue';
 import { Form as TForm, FormItem as TFormItem, Input as TInput, InputNumber as TInputNumber } from 'tdesign-vue-next';

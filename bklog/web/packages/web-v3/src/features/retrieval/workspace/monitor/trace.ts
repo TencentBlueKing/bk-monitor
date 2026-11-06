@@ -1,9 +1,3 @@
-
-import { Alert as TAlert, Badge as TBadge, Progress as TProgress, Tag as TTag } from 'tdesign-vue-next';
-
-import { Checkbox as TCheckbox, CheckboxGroup as TCheckboxGroup, Radio as TRadio, RadioButton as TRadioButton, RadioGroup as TRadioGroup, Switch as TSwitch, Loading as TLoading } from 'tdesign-vue-next';
-
-import { Button as TButton } from 'tdesign-vue-next';
 /*
  * Tencent is pleased to support the open source community by making
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
@@ -29,13 +23,15 @@ import { Button as TButton } from 'tdesign-vue-next';
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import Vue from '@/platform/compat/vue-runtime.mjs';
 
+import { Alert as TAlert, Badge as TBadge, Progress as TProgress, Tag as TTag } from 'tdesign-vue-next';
+import { Checkbox as TCheckbox, CheckboxGroup as TCheckboxGroup, Radio as TRadio, RadioButton as TRadioButton, RadioGroup as TRadioGroup, Switch as TSwitch, Loading as TLoading } from 'tdesign-vue-next';
+import { Button as TButton } from 'tdesign-vue-next';
+import Vue from '@/platform/compat/vue-runtime.mjs';
 import i18n from '@/platform/i18n/i18n';
 import JsonFormatWrapper from '@/shared/global/json-format-wrapper.vue';
 import useStore from '@/shared/composables/use-store';
 import { performanceMonitorService } from '@/platform/persistence/index';
-
 import MonitorTraceLog from './monitor';
 
 if (!window.mainComponent?.$t) {

@@ -1,14 +1,3 @@
-import {
-  Button as TButton,
-  Dialog as TDialog,
-  Form as TForm,
-  FormItem as TFormItem,
-  Input as TInput,
-  Textarea as TTextarea,
-} from 'tdesign-vue-next';
-import type { FormInstanceFunctions, FormRule } from 'tdesign-vue-next';
-import SourceTranslation from '@/platform/i18n/translation';
-import { ServicesInstance } from '@/platform/services';
 /*
  * Tencent is pleased to support the open source community by making
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
@@ -34,6 +23,18 @@ import { ServicesInstance } from '@/platform/services';
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
+
+import {
+  Button as TButton,
+  Dialog as TDialog,
+  Form as TForm,
+  FormItem as TFormItem,
+  Input as TInput,
+  Textarea as TTextarea,
+} from 'tdesign-vue-next';
+import type { FormInstanceFunctions, FormRule } from 'tdesign-vue-next';
+import SourceTranslation from '@/platform/i18n/translation';
+import { ServicesInstance } from '@/platform/services';
 
 import { computed, defineComponent, ref, watch } from 'vue';
 

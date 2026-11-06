@@ -34,10 +34,15 @@ import logTooltip from './log-tooltip';
 import logOverflowTips from './log-overflow-tips';
 import logClickOutside from './log-click-outside';
 
-Vue.directive('cursor', cursor);
-Vue.directive('log-tooltip', logTooltip);
-Vue.directive('log-overflow-tips', logOverflowTips);
-Vue.directive('log-click-outside', logClickOutside);
+const registerDirective = (name: string, directive: Parameters<typeof Vue.directive>[1]) => {
+  if (!Vue.directive(name)) Vue.directive(name, directive);
+};
+
+registerDirective('cursor', cursor);
+registerDirective('log-tooltip', logTooltip);
+registerDirective('log-overflow-tips', logOverflowTips);
+registerDirective('overflow-tips', logOverflowTips);
+registerDirective('log-click-outside', logClickOutside);
 Vue.use(EnStyle);
 Vue.use(EnClass);
 Vue.use(LogDrag);

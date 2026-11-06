@@ -789,12 +789,11 @@ import { ServicesInstance } from '@/platform/services';
 </script>
 
 <style scoped lang="scss">
-  @import '@/shared/styles/mixins/scroller.scss';
-  @import '@/shared/styles/mixins/clearfix';
-  @import '@/shared/styles/conf';
-  @import '@/shared/styles/mixins/overflow-tips.scss';
-  @import '@/shared/styles/mixins/flex.scss';
-
+@use '@/shared/styles/mixins/scroller.scss' as *;
+  @use '@/shared/styles/mixins/clearfix' as *;
+  @use '@/shared/styles/conf' as *;
+  @use '@/shared/styles/mixins/overflow-tips.scss' as *;
+  @use '@/shared/styles/mixins/flex.scss' as *;
   /* stylelint-disable no-descending-specificity */
   .step-issued-wrapper {
     position: relative;

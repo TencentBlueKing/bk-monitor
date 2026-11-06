@@ -1,5 +1,5 @@
-@import '../../collection/current/components/create-operation/global.scss';
-@import '@/shared/styles/space-tag-option';
+@use '../../collection/current/components/create-operation/global.scss' as *;
+@use '@/shared/styles/space-tag-option' as *;
 .v2-create-clean-main {
     width: 100%;
     height: 100%;

@@ -1,5 +1,4 @@
-@import '../../business-comp/step2/index-set-option';
-
+@use '../../business-comp/step2/index-set-option' as *;
 .v2-log-collection-table {
   width: 100%;
   height: 100%;

@@ -10,6 +10,11 @@
   import RetrieveHelper, { RetrieveEvent } from '../../retrieve-helper';
   import NoIndexSet from '../result-comp/no-index-set';
   import LogResult from './log-result/index';
+  // #if MONITOR_APP !== 'trace'
+  import FieldFilter from './field-filter.vue';
+  // #else
+  // #code const FieldFilter = () => null;
+  // #endif
 
   const DEFAULT_FIELDS_WIDTH = 200;
 
@@ -24,14 +29,6 @@
   );
   // #else
   // #code const SearchResultChart = () => null;
-  // #endif
-
-  // #if MONITOR_APP !== 'trace'
-  const FieldFilter = defineAsyncComponent(
-    () => import(/* webpackChunkName: 'retrieve-field-filter' */ './field-filter'),
-  );
-  // #else
-  // #code const FieldFilter = () => null;
   // #endif
 
   // #if MONITOR_APP !== 'trace' && MONITOR_APP !== 'apm'
@@ -103,14 +100,36 @@
   watch(trendContextKey, (value, oldValue) => {
     if (oldValue !== undefined && value !== oldValue) {
       setTrendChartPending();
+      RetrieveHelper.fire(RetrieveEvent.TREND_GRAPH_SEARCH);
     }
   });
+
+  watch(
+    () => store.state.retrieve.isTrendDataLoading,
+    loading => {
+      if (loading === false) {
+        isTrendChartPending.value = false;
+      }
+    },
+  );
+  watch(
+    [isTrendChartPending, shouldRenderTrendChart],
+    () => {
+      store.commit('retrieve/updateTrendShellPending', isTrendChartPending.value || !shouldRenderTrendChart.value);
+    },
+    { immediate: true },
+  );
 
   RetrieveHelper.on(RetrieveEvent.TREND_GRAPH_PENDING, setTrendChartPending);
 
   onMounted(() => {
     RetrieveHelper.setTrendGraphHeight(heightNum.value);
     scheduleRenderTrendChart();
+    window.setTimeout(() => {
+      if (isTrendChartPending.value) {
+        isTrendChartPending.value = false;
+      }
+    }, 8000);
   });
 
   onBeforeUnmount(() => {
@@ -225,7 +244,7 @@
             theme: 'dotted',
             placement: 'left',
             isShow: isShowFieldStatistics,
-            onHidden: () => (isShowFieldStatistics = false),
+            onHidden: () => handleFieldsShowChange(false),
             onWidthChange: handleFilterWidthChange,
           }"
           :class="{ 'filet-hidden': !isShowFieldStatistics }"
@@ -304,5 +323,5 @@
 </template>
 
 <style lang="scss">
-  @import './index.scss';
+@use './index.scss' as *;
 </style>

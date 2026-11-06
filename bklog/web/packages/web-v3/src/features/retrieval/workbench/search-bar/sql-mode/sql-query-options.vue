@@ -844,8 +844,7 @@
   </div>
 </template>
 <style lang="scss" scoped>
-  @import './sql-query-options.scss';
-
+@use './sql-query-options.scss' as *;
   div.sql-query-container {
     position: relative;
     display: flex;

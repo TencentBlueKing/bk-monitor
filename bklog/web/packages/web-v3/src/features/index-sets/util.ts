@@ -1,5 +1,3 @@
-interface StorageUsage { index_set_id?: string | number; daily_usage?: number; total_usage?: number }
-import { ServicesInstance } from '@/platform/services';
 /*
  * Tencent is pleased to support the open source community by making
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
@@ -26,7 +24,10 @@ import { ServicesInstance } from '@/platform/services';
  * IN THE SOFTWARE.
  */
 
+import { ServicesInstance } from '@/platform/services';
 import { formatFileSize } from '@/shared/lib/util';
+
+interface StorageUsage { index_set_id?: string | number; daily_usage?: number; total_usage?: number }
 
 
 /**

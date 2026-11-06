@@ -485,7 +485,7 @@ import { MessagePlugin as TDesignMessage } from 'tdesign-vue-next';
         v-if="!isExternal && !isSceneMode"
         class="more-setting"
       >
-        <MoreSetting :is-show-cluster-setting.sync="isShowClusterSetting" />
+        <MoreSetting v-model:is-show-cluster-setting="isShowClusterSetting" />
       </div>
       <VersionSwitch
         v-if="!isSceneMode"
@@ -496,8 +496,7 @@ import { MessagePlugin as TDesignMessage } from 'tdesign-vue-next';
   </div>
 </template>
 <style lang="scss">
-  @import './index.scss';
-
+@use './index.scss' as *;
   .box-right-option {
     .more-setting {
       height: 100%;

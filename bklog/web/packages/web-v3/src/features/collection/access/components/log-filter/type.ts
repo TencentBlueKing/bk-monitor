@@ -1,4 +1,3 @@
-import { asDictionary } from '@/shared/utils/typed-record';
 /*
  * Tencent is pleased to support the open source community by making BK-LOG 蓝鲸日志平台 available.
  * Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
@@ -20,6 +19,8 @@ import { asDictionary } from '@/shared/utils/typed-record';
  * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
  * SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE
  */
+
+import { asDictionary } from '@/shared/utils/typed-record';
 
 export interface ISelectItem {
   id: string;

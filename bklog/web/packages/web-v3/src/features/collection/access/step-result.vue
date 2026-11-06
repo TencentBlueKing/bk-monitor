@@ -165,8 +165,7 @@
 </script>
 
 <style lang="scss">
-  @import '@/shared/styles/conf';
-
+@use '@/shared/styles/conf' as *;
   .step-result-wrapper {
     position: relative;
     padding-top: 105px;

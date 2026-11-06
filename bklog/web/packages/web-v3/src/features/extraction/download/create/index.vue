@@ -63,7 +63,7 @@
           :height="670"
           :original-value="ipSelectorOriginalValue"
           :panel-list="['staticTopo']"
-          :show-dialog.sync="showSelectDialog"
+          v-model:show-dialog="showSelectDialog"
           :show-view-diff="isClone"
           :value="selectorNodes"
           mode="dialog"

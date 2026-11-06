@@ -1,5 +1,4 @@
-@import '../../styles/theme/index.scss';
-
+@use '../../styles/theme/mixin.scss' as *;
 .biz-list-wrap {
   $bg-dark: #192133;
   $color-dark: #c3d0e7;

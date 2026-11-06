@@ -1,8 +1,3 @@
-
-import { CheckboxGroup as TCheckboxGroup, Checkbox as TCheckbox, RadioGroup as TRadioGroup, Radio as TRadio, Select as TSelect } from 'tdesign-vue-next';
-
-import { Button as TButton } from 'tdesign-vue-next';
-import { ServicesInstance } from '@/platform/services';
 /*
  * Tencent is pleased to support the open source community by making
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
@@ -28,6 +23,11 @@ import { ServicesInstance } from '@/platform/services';
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
+
+import { CheckboxGroup as TCheckboxGroup, Checkbox as TCheckbox, RadioGroup as TRadioGroup, Radio as TRadio, Select as TSelect } from 'tdesign-vue-next';
+
+import { Button as TButton } from 'tdesign-vue-next';
+import { ServicesInstance } from '@/platform/services';
 
 import { computed, defineComponent, onMounted, ref, onBeforeMount, nextTick } from 'vue';
 
@@ -886,6 +886,8 @@ export default defineComponent({
                   <TButton
                     key={item.value}
                     class={{ 'is-selected': logType.value === item.value }}
+                    theme='default'
+                    variant='outline'
                     onClick={() => handleLogType(item)}
                   >
                     {item.text}
@@ -1631,6 +1633,8 @@ export default defineComponent({
           {!isCloneOrUpdate.value && (
             <TButton
               class='mr-8'
+              theme='default'
+              variant='outline'
               onClick={() => {
                 emit('prev');
               }}
@@ -1657,6 +1661,8 @@ export default defineComponent({
             </TButton>
           )}
           <TButton
+            theme='default'
+            variant='outline'
             onClick={() => {
               emit('cancel');
             }}

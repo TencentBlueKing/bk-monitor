@@ -1,5 +1,4 @@
-@import '@/shared/styles/mixins/scroller';
-
+@use '@/shared/styles/mixins/scroller' as *;
 .extract-link-create-container {
   height: 100%;
   padding: 20px 24px;

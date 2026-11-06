@@ -1,5 +1,3 @@
-
-import { Button as TButton, Dialog as TDialog, Table as TTable, Textarea as TTextarea } from 'tdesign-vue-next';
 /*
  * Tencent is pleased to support the open source community by making
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
@@ -25,6 +23,8 @@ import { Button as TButton, Dialog as TDialog, Table as TTable, Textarea as TTex
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
+
+import { Button as TButton, Dialog as TDialog, Table as TTable, Textarea as TTextarea } from 'tdesign-vue-next';
 import { computed, defineComponent, ref, nextTick } from 'vue';
 
 import { messageError } from '@/shared/lib/message';

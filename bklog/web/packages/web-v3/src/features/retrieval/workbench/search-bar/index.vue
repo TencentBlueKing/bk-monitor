@@ -991,7 +991,7 @@ import { ServicesInstance } from '@/platform/services';
   </div>
 </template>
 <style scoped lang="scss">
-  @import './index.scss';
+@use './index.scss' as *;
 </style>
 <style lang="scss">
   .bklog-sql-input-loading {

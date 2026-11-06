@@ -1,7 +1,3 @@
-import { defineAsyncComponent } from 'vue';
-import type { RouteRecordRaw } from 'vue-router';
-
-import RetrievePageSkeleton from '@/app/skeleton/retrieve-page-skeleton.vue';
 /*
  * Tencent is pleased to support the open source community by making
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
@@ -28,12 +24,78 @@ import RetrievePageSkeleton from '@/app/skeleton/retrieve-page-skeleton.vue';
  * IN THE SOFTWARE.
  */
 
+import { defineAsyncComponent, defineComponent, h, nextTick, onBeforeUnmount, ref, Suspense } from 'vue';
+import type { RouteRecordRaw } from 'vue-router';
+
+import {
+  bindRetrieveShellSettle,
+  releaseBootstrapShell,
+  unbindRetrieveShellSettle,
+  whenTopMenuSettled,
+} from '@/app/bootstrap/shell-gate';
+import RetrievePageSkeleton from '@/app/skeleton/retrieve-page-skeleton.vue';
+import { BK_LOG_STORAGE } from '@/app/state/store.type.ts';
+import RetrieveHelper from '@/features/retrieval/retrieve-helper';
+import useStore from '@/shared/composables/use-store';
+
 // 检索模块各组件异步声明（用于路由懒加载）
-const Retrieve = defineAsyncComponent({
+const RetrieveView = defineAsyncComponent({
   loader: () => import(/* webpackChunkName: 'logRetrieve' */ '@/features/retrieval/retrieve-hub'),
-  loadingComponent: RetrievePageSkeleton,
-  delay: 0,
-  suspensible: false,
+  suspensible: true,
+});
+const Retrieve = defineComponent({
+  name: 'RetrieveRoute',
+  setup() {
+    const shellReady = ref(false);
+    let contentReady = false;
+    let menuReady = false;
+    const revealShell = () => {
+      if (shellReady.value || !contentReady || !menuReady) {
+        return;
+      }
+      shellReady.value = true;
+      nextTick(() => releaseBootstrapShell());
+    };
+    const markContentReady = () => {
+      contentReady = true;
+      revealShell();
+    };
+    bindRetrieveShellSettle(markContentReady);
+    onBeforeUnmount(() => unbindRetrieveShellSettle(markContentReady));
+    whenTopMenuSettled(() => {
+      menuReady = true;
+      revealShell();
+    });
+    window.setTimeout(() => {
+      menuReady = true;
+      revealShell();
+    }, 8000);
+    const store = useStore();
+    const fieldSetting = store.state.storage?.[BK_LOG_STORAGE.FIELD_SETTING] ?? {};
+    const fieldWidth = fieldSetting.show === false ? 0 : Number(fieldSetting.width) || 200;
+    const trendHeight = store.state.storage?.[BK_LOG_STORAGE.TREND_CHART_IS_FOLD] ? 40 : 170;
+    const railWidth = RetrieveHelper.isFavoriteShown
+      ? RetrieveHelper.favoriteWidth > 0
+        ? RetrieveHelper.favoriteWidth
+        : 240
+      : 0;
+
+    return () =>
+      h('div', { class: 'retrieve-route-host' }, [
+        h(Suspense, null, {
+          default: () => h(RetrieveView),
+          fallback: () => null,
+        }),
+        shellReady.value
+          ? null
+          : h(RetrievePageSkeleton, {
+              cover: true,
+              fieldWidth,
+              railWidth,
+              trendHeight,
+            }),
+      ]);
+  },
 });
 const ExternalAuth = () => import(/* webpackChunkName: 'externalAuth' */ '@/features/authorization/authorization-list');
 const ShareLink = () => import(/* webpackChunkName: 'share-link' */ '@/features/sharing/index.tsx');

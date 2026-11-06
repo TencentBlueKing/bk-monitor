@@ -367,8 +367,7 @@
 </script>
 
 <style lang="scss" scoped>
-  @import '@/shared/styles/mixins/flex.scss';
-
+@use '@/shared/styles/mixins/flex.scss' as *;
   .original-log-panel {
     .original-log-panel-tools {
       position: sticky;

@@ -1,4 +1,3 @@
-import SampleColumnSelect from '@/features/collection/shared/sample-column-select';
 /*
  * Tencent is pleased to support the open source community by making BK-LOG 蓝鲸日志平台 available.
  * Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
@@ -20,6 +19,8 @@ import SampleColumnSelect from '@/features/collection/shared/sample-column-selec
  * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
  * SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE
  */
+
+import SampleColumnSelect from '@/features/collection/shared/sample-column-select';
 
 import { computed, defineComponent, nextTick, reactive, ref, watch, type PropType } from 'vue';
 import { Form, FormItem, Input, InputNumber } from 'tdesign-vue-next';

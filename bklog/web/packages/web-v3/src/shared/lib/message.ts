@@ -25,7 +25,6 @@
  */
 
 /** 消息提示直接调用 TDesign MessagePlugin。 */
-import Vue from 'vue';
 import { MessagePlugin } from 'tdesign-vue-next';
 
 type MessageContent = Parameters<typeof MessagePlugin>[0] extends infer T ? T extends { content?: infer C } ? C : string : string;
@@ -37,8 +36,3 @@ export const messageError = (message: MessageContent, delay = 3000, _ellipsisLin
 export const messageSuccess = (message: MessageContent, delay = 3000, _ellipsisLine = 0) => show('success', message, delay);
 export const messageInfo = (message: MessageContent, delay = 3000, _ellipsisLine = 0) => show('info', message, delay);
 export const messageWarn = (message: MessageContent, delay = 3000, _ellipsisLine = 0) => show('warning', message, delay);
-
-Vue.prototype.messageError = messageError;
-Vue.prototype.messageSuccess = messageSuccess;
-Vue.prototype.messageInfo = messageInfo;
-Vue.prototype.messageWarn = messageWarn;

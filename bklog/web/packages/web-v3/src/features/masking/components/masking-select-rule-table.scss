@@ -1,5 +1,4 @@
-@import '../../../shared/styles/mixins/flex.scss';
-
+@use '../../../shared/styles/mixins/flex.scss' as *;
 .masking-select-rule-table {
   width: 100%;
 

@@ -1,7 +1,3 @@
-
-import { MessagePlugin as TDesignMessage, Button as Button } from 'tdesign-vue-next';
-import { ServicesInstance } from '@/platform/services';
-import { includesValue } from '@/shared/utils/typed-record';
 /*
  * Tencent is pleased to support the open source community by making
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
@@ -27,6 +23,10 @@ import { includesValue } from '@/shared/utils/typed-record';
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
+
+import { MessagePlugin as TDesignMessage, Button as Button } from 'tdesign-vue-next';
+import { ServicesInstance } from '@/platform/services';
+import { includesValue } from '@/shared/utils/typed-record';
 
 import { Component, Ref } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';

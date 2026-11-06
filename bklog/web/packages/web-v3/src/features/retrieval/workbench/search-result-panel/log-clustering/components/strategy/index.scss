@@ -1,5 +1,4 @@
-@import '@/shared/styles/mixins/flex.scss';
-
+@use '@/shared/styles/mixins/flex.scss' as *;
 .strategy-container {
   height: 26px;
   margin-right: 12px;

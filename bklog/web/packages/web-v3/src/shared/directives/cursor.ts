@@ -69,16 +69,16 @@ function destroy(el: { element: { remove: () => void; }|null; removeEventListene
 }
 
 export default {
-  bind(el: { mouseEnterHandler: () => void; element: HTMLDivElement|null; addEventListener: (arg0: string,arg1: any) => void; mouseMoveHandler: (event: any) => void; mouseLeaveHandler: () => void; removeEventListener: (arg0: string,arg1: any) => void; }, binding: { value: any; }) {
+  beforeMount(el: { mouseEnterHandler: () => void; element: HTMLDivElement|null; addEventListener: (arg0: string,arg1: any) => void; mouseMoveHandler: (event: any) => void; mouseLeaveHandler: () => void; removeEventListener: (arg0: string,arg1: any) => void; }, binding: { value: any; }) {
     binding.value = { ...DEFAULT_OPTIONS, ...binding.value };
     init(el, binding);
   },
-  update(el: { element: HTMLDivElement|{ remove: () => void; }|null; removeEventListener: ((arg0: string,arg1: any) => void)|((arg0: string,arg1: any) => void); mouseEnterHandler: any; mouseMoveHandler: any; mouseLeaveHandler: any; addEventListener?: (arg0: string,arg1: any) => void; }, binding: { value: any; }) {
+  updated(el: { element: HTMLDivElement|{ remove: () => void; }|null; removeEventListener: ((arg0: string,arg1: any) => void)|((arg0: string,arg1: any) => void); mouseEnterHandler: any; mouseMoveHandler: any; mouseLeaveHandler: any; addEventListener?: (arg0: string,arg1: any) => void; }, binding: { value: any; }) {
     binding.value = { ...DEFAULT_OPTIONS, ...binding.value };
     destroy(el);
     init(el, binding);
   },
-  unbind(el: { element: { remove: () => void; }|null; removeEventListener: (arg0: string,arg1: any) => void; mouseEnterHandler: any; mouseMoveHandler: any; mouseLeaveHandler: any; }) {
+  unmounted(el: { element: { remove: () => void; }|null; removeEventListener: (arg0: string,arg1: any) => void; mouseEnterHandler: any; mouseMoveHandler: any; mouseLeaveHandler: any; }) {
     destroy(el);
   },
 };

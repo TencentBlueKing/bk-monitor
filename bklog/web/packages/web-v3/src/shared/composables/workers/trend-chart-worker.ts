@@ -1,4 +1,3 @@
-import { asDictionary } from '@/shared/utils/typed-record';
 /*
  * Tencent is pleased to support the open source community by making
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
@@ -7,6 +6,8 @@ import { asDictionary } from '@/shared/utils/typed-record';
  *
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) is licensed under the MIT License.
  */
+
+import { asDictionary } from '@/shared/utils/typed-record';
 
 /**
  * 趋势图数据处理 Worker

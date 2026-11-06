@@ -305,8 +305,7 @@
   };
 </script>
 <style lang="scss">
-  @import '@/shared/styles/mixins/flex.scss';
-
+@use '@/shared/styles/mixins/flex.scss' as *;
   .container-status-container {
     .nav-section {
       @include flex-justify(space-between);

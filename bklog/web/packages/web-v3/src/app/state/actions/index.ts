@@ -1,10 +1,10 @@
-import type { StateActionContext } from '@/platform/state/contracts';
-import type { ApplicationState } from '../application-store.type';
-type Context = StateActionContext<ApplicationState, ApplicationState>;
 /*
  * Tencent is pleased to support the open source community by making
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
  */
+
+import type { StateActionContext } from '@/platform/state/contracts';
+import type { ApplicationState } from '../application-store.type';
 import { requestIndexSetFieldInfoAction, requestIndexSetQueryAction } from './retrieve-search-actions.js';
 import {
   checkAllowedAction,
@@ -23,6 +23,8 @@ import {
   userFieldConfigChangeAction,
 } from './retrieve-misc-actions.js';
 import { setQueryConditionAction } from './query-condition-actions.js';
+
+type Context = StateActionContext<ApplicationState, ApplicationState>;
 
 const actions = {
   /**

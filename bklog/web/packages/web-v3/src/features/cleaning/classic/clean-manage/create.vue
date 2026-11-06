@@ -118,8 +118,7 @@
 </script>
 
 <style lang="scss" scoped>
-  @import '@/shared/styles/mixins/scroller';
-
+@use '@/shared/styles/mixins/scroller' as *;
   .log-clean-create-container {
     height: 100%;
     padding: 20px 24px;

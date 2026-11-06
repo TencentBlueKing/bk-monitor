@@ -130,5 +130,5 @@
   </div>
 </template>
 <style lang="scss" scoped>
-  @import './auto-refresh.scss';
+@use './auto-refresh.scss' as *;
 </style>

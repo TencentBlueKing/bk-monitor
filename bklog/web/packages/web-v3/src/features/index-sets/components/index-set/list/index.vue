@@ -594,9 +594,8 @@
 </script>
 
 <style lang="scss" scoped>
-  @import '../../../../../shared/styles/mixins/clearfix';
-  @import '../../../../../shared/styles/conf';
-
+@use '../../../../../shared/styles/mixins/clearfix' as *;
+  @use '../../../../../shared/styles/conf' as *;
   /* stylelint-disable no-descending-specificity */
   .index-set-container {
     padding: 20px 24px;

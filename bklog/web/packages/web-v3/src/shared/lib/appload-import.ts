@@ -29,8 +29,13 @@ import logClickOutside from '@/shared/directives/log-click-outside';
 import logOverflowTips from '@/shared/directives/log-overflow-tips';
 import logTooltip from '@/shared/directives/log-tooltip';
 
-Vue.directive('log-click-outside', logClickOutside);
-Vue.directive('log-tooltip', logTooltip);
-Vue.directive('log-overflow-tips', logOverflowTips);
+const registerDirective = (name: string, directive: Parameters<typeof Vue.directive>[1]) => {
+  if (!Vue.directive(name)) Vue.directive(name, directive);
+};
+
+registerDirective('log-click-outside', logClickOutside);
+registerDirective('log-tooltip', logTooltip);
+registerDirective('log-overflow-tips', logOverflowTips);
+registerDirective('overflow-tips', logOverflowTips);
 Vue.use(LoadingPlugin);
-Vue.directive('loading', LoadingDirective);
+registerDirective('loading', LoadingDirective);

@@ -1,9 +1,3 @@
-
-import { Tag as Tag } from 'tdesign-vue-next';
-
-import { MessagePlugin as TDesignMessage } from 'tdesign-vue-next';
-import { ServicesInstance } from '@/platform/services';
-import type { LegacyFormInstance } from '@/shared/types/legacy-form';
 /*
  * Tencent is pleased to support the open source community by making
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
@@ -29,6 +23,12 @@ import type { LegacyFormInstance } from '@/shared/types/legacy-form';
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
+
+import { Tag as Tag } from 'tdesign-vue-next';
+
+import { MessagePlugin as TDesignMessage } from 'tdesign-vue-next';
+import { ServicesInstance } from '@/platform/services';
+import type { LegacyFormInstance } from '@/shared/types/legacy-form';
 
 import { Component, PropSync, Prop, Emit, Ref } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';

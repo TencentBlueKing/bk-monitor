@@ -412,8 +412,7 @@
   };
 </script>
 <style lang="scss" scoped>
-  @import '@/shared/styles/mixins/flex.scss';
-
+@use '@/shared/styles/mixins/flex.scss' as *;
   .customize-box {
     display: flex;
     align-items: center;

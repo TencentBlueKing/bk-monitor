@@ -98,7 +98,7 @@
           </div>
           <multiline-reg-dialog
             :old-pattern.sync="subFormData.params.multiline_pattern"
-            :show-dialog.sync="showRegDialog"
+            v-model:show-dialog="showRegDialog"
           >
           </multiline-reg-dialog>
         </div>
@@ -743,8 +743,7 @@
   };
 </script>
 <style lang="scss" scoped>
-  @import '@/shared/styles/mixins/flex.scss';
-
+@use '@/shared/styles/mixins/flex.scss' as *;
   .filter-content {
     position: relative;
     left: 115px;

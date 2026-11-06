@@ -1,5 +1,4 @@
-@import '@/shared/styles/mixins/flex.scss';
-
+@use '@/shared/styles/mixins/flex.scss' as *;
 .markdown-control {
   align-items: center;
   width: 100%;

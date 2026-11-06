@@ -1,13 +1,3 @@
-import nativeAsset0 from './chart-bar-active.png';
-import nativeAsset1 from './chart-bar-def.png';
-import nativeAsset2 from './chart-line-active.png';
-import nativeAsset3 from './chart-line-def.png';
-import nativeAsset4 from './chart-line-bar-active.png';
-import nativeAsset5 from './chart-line-bar-def.png';
-import nativeAsset6 from './chart-pie-active.png';
-import nativeAsset7 from './chart-pie-def.png';
-import nativeAsset8 from './chart-table-active.png';
-import nativeAsset9 from './chart-table-def.png';
 /*
  * Tencent is pleased to support the open source community by making
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
@@ -33,6 +23,17 @@ import nativeAsset9 from './chart-table-def.png';
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
+
+import nativeAsset0 from './chart-bar-active.png';
+import nativeAsset1 from './chart-bar-def.png';
+import nativeAsset2 from './chart-line-active.png';
+import nativeAsset3 from './chart-line-def.png';
+import nativeAsset4 from './chart-line-bar-active.png';
+import nativeAsset5 from './chart-line-bar-def.png';
+import nativeAsset6 from './chart-pie-active.png';
+import nativeAsset7 from './chart-pie-def.png';
+import nativeAsset8 from './chart-table-active.png';
+import nativeAsset9 from './chart-table-def.png';
 export default {
   chartBarActive: nativeAsset0,
   chartBarDef: nativeAsset1,

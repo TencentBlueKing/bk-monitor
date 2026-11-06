@@ -1,9 +1,10 @@
-import type { StateGetterDefinitions } from '@/platform/state/contracts';
-import type { ApplicationState } from '../application-store.type';
 /*
  * Tencent is pleased to support the open source community by making
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
  */
+
+import type { StateGetterDefinitions } from '@/platform/state/contracts';
+import type { ApplicationState } from '../application-store.type';
 import { storeCacheService } from '@/platform/persistence/index';
 
 import { isFeatureToggleOn, isSceneFilterValuesEmpty, isSceneRetrieve } from '../helper.ts';

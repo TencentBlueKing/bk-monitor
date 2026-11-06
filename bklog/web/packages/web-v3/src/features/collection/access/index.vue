@@ -429,9 +429,8 @@
 </script>
 
 <style lang="scss">
-  @import '@/shared/styles/mixins/clearfix';
-  @import '@/shared/styles/conf';
-
+@use '@/shared/styles/mixins/clearfix' as *;
+  @use '@/shared/styles/conf' as *;
   .access-wrapper {
     padding: 20px 24px;
   }

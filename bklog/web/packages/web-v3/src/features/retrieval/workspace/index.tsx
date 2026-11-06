@@ -24,7 +24,7 @@
  * IN THE SOFTWARE.
  */
 
-import { computed, defineComponent, nextTick, ref, watch } from 'vue';
+import { computed, defineComponent, nextTick, onBeforeUnmount, ref, watch } from 'vue';
 
 import useLocale from '@/shared/composables/use-locale';
 import useStore from '@/shared/composables/use-store';
@@ -39,8 +39,8 @@ import V3SearchResult from './search-result/index';
 import V3Toolbar from './toolbar/index';
 import useAppInit from './use-app-init';
 import { resolveSceneEmptyView } from './scene-empty-view';
+import { requestRetrieveShellSettle } from '@/app/bootstrap/shell-gate';
 import RetrieveHelper, { RetrieveEvent } from '@/features/retrieval/retrieve-helper';
-import RetrievePageSkeleton from '@/app/skeleton/retrieve-page-skeleton.vue';
 
 import './global-en.scss';
 import './index.scss';
@@ -56,6 +56,43 @@ export default defineComponent({
 
     const { isSearchContextStickyTop, isSearchResultStickyTop, stickyStyle, contentStyle, isPreApiLoaded } =
       useAppInit();
+    let shellSettled = false;
+    const releaseRetrieveShell = () => {
+      if (shellSettled) {
+        return;
+      }
+      shellSettled = true;
+      requestRetrieveShellSettle();
+    };
+    // 每次进入检索页重新等这一轮字段、日志和趋势图，避免沿用上一次的完成标记把骨架提前揭掉。
+    store.commit('retrieve/updateResultShellReady', false);
+    store.commit('retrieve/updateTrendShellPending', true);
+    const sawFieldLoad = ref(false);
+    const sawSearchLoad = ref(false);
+    watch(
+      () => store.state.indexFieldInfo.is_loading,
+      loading => {
+        if (loading) {
+          sawFieldLoad.value = true;
+        }
+      },
+      { immediate: true },
+    );
+    watch(
+      () => store.state.indexSetQueryResult.is_loading,
+      loading => {
+        const result = store.state.indexSetQueryResult;
+        if (
+          (loading && !result.is_pagination_loading) ||
+          result.is_error ||
+          result.took > 0 ||
+          result.total > 0
+        ) {
+          sawSearchLoad.value = true;
+        }
+      },
+      { immediate: true },
+    );
 
     const isStartTextEllipsis = computed(() => store.state.storage[BK_LOG_STORAGE.TEXT_ELLIPSIS_DIR] === 'start');
     const isSceneMode = computed(() => store.getters.isSceneMode);
@@ -216,6 +253,45 @@ export default defineComponent({
       </div>
     );
 
+    const retrieveShellReady = computed(() => {
+      if (!isPreApiLoaded.value) {
+        return false;
+      }
+      if (!store.state.retrieve.flatIndexSetList.length) {
+        return true;
+      }
+      if (hideSearchResult.value && !isSceneLoading.value) {
+        return true;
+      }
+      const fieldsReady =
+        !store.state.indexFieldInfo.is_loading &&
+        (sawFieldLoad.value || store.getters.rawFieldList.length > 0);
+      return (
+        fieldsReady &&
+        sawSearchLoad.value &&
+        !store.state.indexSetQueryResult.is_loading &&
+        store.state.retrieve.resultShellReady &&
+        !store.state.retrieve.trendShellPending
+      );
+    });
+    watch(retrieveShellReady, ready => {
+      if (ready) {
+        releaseRetrieveShell();
+      }
+    }, { immediate: true });
+    let shellBackstop = 0;
+    watch(isPreApiLoaded, loaded => {
+      if (!loaded || shellBackstop) {
+        return;
+      }
+      shellBackstop = window.setTimeout(releaseRetrieveShell, 10000);
+    }, { immediate: true });
+    onBeforeUnmount(() => {
+      if (shellBackstop) {
+        window.clearTimeout(shellBackstop);
+      }
+    });
+
     const renderResultContent = () => {
       if (isPreApiLoaded.value) {
         // 场景化模式下渲染逻辑：
@@ -236,7 +312,7 @@ export default defineComponent({
         ];
       }
 
-      return <RetrievePageSkeleton />;
+      return null;
     };
 
     /**
@@ -252,7 +328,6 @@ export default defineComponent({
           { 'is-sticky-top': isSearchContextStickyTop.value, 'is-sticky-top-result': isSearchResultStickyTop.value },
           { 'is-scene-mode': isSceneMode.value },
         ]}
-        v-loading={{ loading: !isPreApiLoaded.value }}
       >
         <V3Collection></V3Collection>
         <div

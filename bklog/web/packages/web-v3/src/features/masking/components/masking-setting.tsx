@@ -1,11 +1,3 @@
-
-import { Alert as Alert, Tag as Tag } from 'tdesign-vue-next';
-
-import { Switch as Switcher } from 'tdesign-vue-next';
-
-import { MessagePlugin as TDesignMessage, Button as Button } from 'tdesign-vue-next';
-import { ServicesInstance } from '@/platform/services';
-import { asDictionary } from '@/shared/utils/typed-record';
 /*
  * Tencent is pleased to support the open source community by making
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
@@ -32,13 +24,18 @@ import { asDictionary } from '@/shared/utils/typed-record';
  * IN THE SOFTWARE.
  */
 
+import { Alert as Alert, Tag as Tag } from 'tdesign-vue-next';
+
+import { Switch as Switcher } from 'tdesign-vue-next';
+
+import { MessagePlugin as TDesignMessage, Button as Button } from 'tdesign-vue-next';
+import { ServicesInstance } from '@/platform/services';
+import { asDictionary } from '@/shared/utils/typed-record';
+
 import { Component, Prop } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
 import { Input, Table, Dialog } from 'tdesign-vue-next';
-const TableColumn = (_props: Record<string, unknown>, { slots }: { slots: { default?: () => unknown } }) => slots.default?.();
-const TableSettingContent = TableColumn;
-
 
 import * as authorityMap from '../../../shared/lib/authority-map';
 import i18n from '../../../platform/i18n/i18n';
@@ -47,6 +44,9 @@ import MaskingAddRule from './masking-add-rule';
 
 import './masking-setting.scss';
 import useUtils from '@/shared/composables/use-utils';
+
+const TableColumn = (_props: Record<string, unknown>, { slots }: { slots: { default?: () => unknown } }) => slots.default?.();
+const TableSettingContent = TableColumn;
 
 interface MaskingRuleRow {
   id: number; ruleName: string; matchFields: string[]; matchPattern: string;
@@ -711,6 +711,7 @@ export default class MaskingSetting extends tsc<IProps> {
 
     const accessTableSlot = () => (
       <Table
+        rowKey='scenario_id'
         rowStyle={this.getShowRowStyle}
         extCls='access-table'
         v-loading={{ loading: this.accessTableLoading }}
@@ -778,6 +779,7 @@ export default class MaskingSetting extends tsc<IProps> {
         </div>
 
         <Table
+          rowKey='id'
           v-slots={{
             empty: () => (
               <div>

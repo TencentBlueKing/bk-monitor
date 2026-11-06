@@ -634,11 +634,10 @@
 </script>
 
 <style lang="scss">
-  @import '@/shared/styles/mixins/clearfix';
-  @import '@/shared/styles/conf';
-  @import '@/shared/styles/devops-common.scss';
-  @import '@/shared/styles/mixins/cursor.scss';
-
+@use '@/shared/styles/mixins/clearfix' as *;
+  @use '@/shared/styles/conf' as *;
+  @use '@/shared/styles/devops-common.scss' as *;
+  @use '@/shared/styles/mixins/cursor.scss' as *;
   .custom-item-container {
     padding: 20px 24px;
 

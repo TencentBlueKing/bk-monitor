@@ -1,4 +1,3 @@
-import type { IndexSetOption } from '@/app/state/retrieval-state.type';
 /*
  * Tencent is pleased to support the open source community by making
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
@@ -24,6 +23,8 @@ import type { IndexSetOption } from '@/app/state/retrieval-state.type';
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
+
+import type { IndexSetOption } from '@/app/state/retrieval-state.type';
 
 import { Component, Prop, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';

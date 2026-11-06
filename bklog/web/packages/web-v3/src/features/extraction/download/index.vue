@@ -89,8 +89,7 @@
 </script>
 
 <style lang="scss" scoped>
-  @import '../../../shared/styles/mixins/scroller';
-
+@use '../../../shared/styles/mixins/scroller' as *;
   .log-extract-container {
     padding: 0 24px 20px;
     font-size: 14px;

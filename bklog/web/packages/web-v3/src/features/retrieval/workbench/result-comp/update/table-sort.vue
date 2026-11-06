@@ -88,7 +88,7 @@
   </div>
 </template>
 <script setup lang="ts">
-import { computed, ref, defineExpose, watch, type PropType } from 'vue';
+import { computed, ref, watch, type PropType } from 'vue';
 import useLocale from '@/shared/composables/use-locale';
 import useStore from '@/shared/composables/use-store';
 import VueDraggable from 'vuedraggable-vue3';

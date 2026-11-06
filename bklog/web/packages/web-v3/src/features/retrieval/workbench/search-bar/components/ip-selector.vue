@@ -98,7 +98,7 @@
     <LogIpSelector
       :key="bkBizId"
       :height="670"
-      :show-dialog.sync="localIsShow"
+      v-model:show-dialog="localIsShow"
       :value="value"
       mode="dialog"
       @change="handleIpSelectorValueChange"

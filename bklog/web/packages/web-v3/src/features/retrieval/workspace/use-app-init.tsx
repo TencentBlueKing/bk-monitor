@@ -1,5 +1,3 @@
-import { ServicesInstance } from '@/platform/services';
-import type { IndexSetOption } from '@/app/state/retrieval-state.type';
 /*
  * Tencent is pleased to support the open source community by making
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
@@ -25,6 +23,9 @@ import type { IndexSetOption } from '@/app/state/retrieval-state.type';
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
+
+import { ServicesInstance } from '@/platform/services';
+import type { IndexSetOption } from '@/app/state/retrieval-state.type';
 import { computed, onMounted, onUnmounted, ref, watch } from 'vue';
 
 import { VIEW_BUSINESS } from '@/shared/lib/authority-map';
@@ -62,11 +63,11 @@ export default () => {
   const store = useStore();
   const router = useRouter();
   const route = useRoute();
-  const searchBarHeight = ref(0);
+  const searchBarHeight = ref(52);
   const isPreApiLoaded = ref(false);
   const favoriteWidth = ref(RetrieveHelper.favoriteWidth);
   const isFavoriteShown = ref(RetrieveHelper.isFavoriteShown);
-  const trendGraphHeight = ref(0);
+  const trendGraphHeight = ref(store.state.storage[BK_LOG_STORAGE.TREND_CHART_IS_FOLD] ? 40 : 170);
   // 场景筛选面板高度，用于判断吸顶状态
   const sceneFilterPanelHeight = ref(0);
 

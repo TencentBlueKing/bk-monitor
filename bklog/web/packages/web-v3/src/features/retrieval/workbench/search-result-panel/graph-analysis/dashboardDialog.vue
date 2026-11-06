@@ -24,7 +24,7 @@
 * IN THE SOFTWARE.
 -->
 <script setup>
-  import { ref, defineExpose } from 'vue';
+  import { ref } from 'vue';
   const isShow = ref(false);
   const checkValue = ref(false);
   const inputValue = ref('');

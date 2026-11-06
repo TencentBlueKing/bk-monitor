@@ -1,7 +1,6 @@
-@import '@/shared/styles/mixins/flex.scss';
-@import '@/shared/styles/mixins/scroller.scss';
-@import '@/shared/styles/space-tag-option';
-
+@use '@/shared/styles/mixins/flex.scss' as *;
+@use '@/shared/styles/mixins/scroller.scss' as *;
+@use '@/shared/styles/space-tag-option' as *;
 .es-king-slider-content {
   min-height: 394px;
   overflow-y: auto;

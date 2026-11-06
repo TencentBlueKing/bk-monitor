@@ -1,4 +1,3 @@
-import type { RouteRecordRaw } from 'vue-router';
 /*
  * Tencent is pleased to support the open source community by making
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
@@ -24,6 +23,8 @@ import type { RouteRecordRaw } from 'vue-router';
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
+
+import type { RouteRecordRaw } from 'vue-router';
 
 // 嵌套路由视图组件声明（用于实现多层嵌套路由结构时，多级 children 路由的占位）
 const DashboardTempView = () => import(/* webpackChunkName: 'dashboard' */ '@/features/dashboards/index');

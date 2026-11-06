@@ -68,6 +68,9 @@ getContentPanel(activeMenu: string) {
     }
   }},
 render() {
+    // 关闭时不要挂 Dialog / MaskingSetting。TDesign Dialog 在 visible=false 时仍会创建内容，
+    // 父级每次更新都会让这个异步组件再跑一遍，从而抛出 component update。
+    if (!this.value) return null;
     return (
       <Dialog
         width='100%'

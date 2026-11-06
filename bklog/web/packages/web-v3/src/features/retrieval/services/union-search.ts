@@ -1,4 +1,3 @@
-import { defineEndpoint } from '@/platform/services/runtime/service-client';
 /*
  * Tencent is pleased to support the open source community by making
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
@@ -24,6 +23,8 @@ import { defineEndpoint } from '@/platform/services/runtime/service-client';
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
+
+import { defineEndpoint } from '@/platform/services/runtime/service-client';
 
 /** 联合检索 */
 const unionSearch = defineEndpoint({

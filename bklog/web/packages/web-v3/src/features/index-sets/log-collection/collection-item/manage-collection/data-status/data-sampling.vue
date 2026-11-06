@@ -208,9 +208,8 @@
 </script>
 
 <style scoped lang="scss">
-  @import '../../../../../../shared/styles/mixins/clearfix';
-  @import '../../../../../../shared/styles/conf';
-
+@use '../../../../../../shared/styles/mixins/clearfix' as *;
+  @use '../../../../../../shared/styles/conf' as *;
   #json-format {
     .option-text {
       margin-right: 6px;

@@ -29,7 +29,6 @@ const toOverlayColor = (color: string, opacity: number) => {
 
 export default defineComponent({
   name: 'BklogLoading',
-  inheritAttrs: false,
   props: {
     color: {
       type: String,

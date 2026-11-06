@@ -23,11 +23,6 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import Vue from 'vue';
-
-import { Dialog, Button } from 'tdesign-vue-next';
 import { bkInfoBox as bkInfoBox } from '@/platform/compat/tdesign/info-box';
 
-Vue.prototype.$bkInfo = bkInfoBox;
-Vue.component('TButton', Button);
-Vue.component('TDialog', Dialog);
+export { bkInfoBox };

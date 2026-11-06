@@ -38,6 +38,12 @@ import {
 import type { BaseTableCol } from 'tdesign-vue-next';
 import BklogLoading from '@/shared/ui/loading';
 import { toWorkerMessage } from '@/shared/lib/worker-message';
+import useLocale from '@/shared/composables/use-locale';
+import useStore from '@/shared/composables/use-store';
+import { useRoute } from 'vue-router';
+
+import { RetrieveEvent } from '@/features/retrieval/retrieve-helper';
+import useRetrieveEvent from '@/shared/composables/use-retrieve-event';
 
 interface AliasField {
   field_name: string;
@@ -56,12 +62,6 @@ interface AliasSetting {
   query_alias?: string;
   path_type: string;
 }
-import useLocale from '@/shared/composables/use-locale';
-import useStore from '@/shared/composables/use-store';
-import { useRoute } from 'vue-router';
-
-import { RetrieveEvent } from '@/features/retrieval/retrieve-helper';
-import useRetrieveEvent from '@/shared/composables/use-retrieve-event';
 
 const store = useStore();
 const route = useRoute();

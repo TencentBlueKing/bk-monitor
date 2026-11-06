@@ -502,5 +502,5 @@
 </template>
 
 <style lang="scss" scoped>
-  @import './dashboard-dialog.scss';
+@use './dashboard-dialog.scss' as *;
 </style>

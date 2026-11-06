@@ -1341,9 +1341,8 @@ import { ServicesInstance } from '@/platform/services';
 </script>
 
 <style lang="scss" scoped>
-  @import '@/shared/styles/mixins/flex.scss';
-  @import '@/shared/styles/mixins/scroller.scss';
-
+@use '@/shared/styles/mixins/flex.scss' as *;
+  @use '@/shared/styles/mixins/scroller.scss' as *;
   .king-slider-content {
     min-height: 394px;
     overflow-y: auto;
@@ -1613,8 +1612,7 @@ import { ServicesInstance } from '@/platform/services';
 </style>
 
 <style lang="scss">
-  @import '@/shared/styles/space-tag-option';
-
+@use '@/shared/styles/space-tag-option' as *;
   .tippy-tooltip {
     padding: 0.3rem 0.6rem;
   }

@@ -82,6 +82,7 @@
 <script>
 import { Menu as TMenu, MenuGroup as TMenuGroup, MenuItem as TMenuItem } from 'tdesign-vue-next';
 import SubNav from '@/features/navigation/manage-nav';
+import AuthContainerPage from '@/shared/ui/common/auth-container-page.vue';
 import { mapState } from '@/app/state/map-helpers';
 import { isFeatureToggleOn } from '@/app/state/helper';
 
@@ -89,6 +90,7 @@ export default {
   name: 'ManageIndex',
   components: {
     SubNav,
+    AuthContainerPage,
     TMenu,
     TMenuGroup,
     TMenuItem,
@@ -373,8 +375,7 @@ export default {
 </script>
 
 <style lang="scss" scoped>
-@import '../../../shared/styles/mixins/scroller.scss';
-
+@use '../../../shared/styles/mixins/scroller.scss' as *;
 .bk-log-navigation {
   display: flex;
   width: 100%;

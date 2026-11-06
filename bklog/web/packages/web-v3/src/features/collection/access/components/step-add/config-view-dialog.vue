@@ -151,8 +151,7 @@
   };
 </script>
 <style lang="scss" scoped>
-  @import '@/shared/styles/mixins/flex.scss';
-
+@use '@/shared/styles/mixins/flex.scss' as *;
   .view-main {
     min-height: 200px;
     max-height: 600px;

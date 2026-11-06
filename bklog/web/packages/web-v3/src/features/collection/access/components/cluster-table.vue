@@ -291,9 +291,8 @@
   };
 </script>
 <style lang="scss" scoped>
-  @import '@/shared/styles/mixins/flex.scss';
-  @import '@/shared/styles/mixins/overflow-tips.scss';
-
+@use '@/shared/styles/mixins/flex.scss' as *;
+  @use '@/shared/styles/mixins/overflow-tips.scss' as *;
   .cluster-container {
     min-width: 900px;
     line-height: 14px;
