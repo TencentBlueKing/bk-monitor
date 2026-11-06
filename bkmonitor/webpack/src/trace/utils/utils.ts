@@ -373,9 +373,15 @@ const parseEventStreamData = <T>(eventString: string): null | T => {
 /**
  * 请求 eventStream(SSE) 接口，收集并返回流中所有 data 事件解析后的数据
  * @param url 接口地址
+ * @param onData 每解析完一帧 data 事件时回调，用于边收边渲染
+ * @param signal 中断信号，调用方切换上下文时可主动终止在途请求
  * @returns 流中所有 data 事件的数据列表，请求失败时返回空数组
  */
-export const fetchEventStream = async <T = any>(url: string): Promise<T[]> => {
+export const fetchEventStream = async <T = any>(
+  url: string,
+  onData?: (data: T) => void,
+  signal?: AbortSignal
+): Promise<T[]> => {
   const result: T[] = [];
   try {
     const traceparent = `00-${random(32, 'abcdef0123456789')}-${random(16, 'abcdef0123456789')}-01`;
@@ -384,6 +390,7 @@ export const fetchEventStream = async <T = any>(url: string): Promise<T[]> => {
       headers: {
         traceparent,
       },
+      signal,
     });
     const reader = response.body.getReader();
     const decoder = new TextDecoder('utf-8');
@@ -402,12 +409,16 @@ export const fetchEventStream = async <T = any>(url: string): Promise<T[]> => {
         const parsedData = parseEventStreamData<T>(eventString);
         if (parsedData !== null) {
           result.push(parsedData);
+          onData?.(parsedData);
         }
         boundary = buffer.indexOf('\n\n');
       }
     }
   } catch (error) {
-    console.error('Error fetching event stream:', error);
+    /** 调用方主动中断导致的终止不算异常 */
+    if ((error as Error)?.name !== 'AbortError') {
+      console.error('Error fetching event stream:', error);
+    }
   }
   return result;
 };
