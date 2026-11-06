@@ -1954,6 +1954,9 @@ RUM_BIZ_LIST = []
 # Profiling 主动采集灰度列表，关闭灰度: [0] 或删除该配置
 ACTIVE_PROFILING_BIZ_LIST = []
 
+# Profiling 主动采集下发的 bkmonitorbeat 插件版本
+ACTIVE_PROFILING_PLUGIN_VERSION = "latest"
+
 # LLM 观测灰度业务列表，关闭灰度: [0] 或删除该配置
 LLM_BIZ_LIST = []
 

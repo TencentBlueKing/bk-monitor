@@ -898,6 +898,8 @@ STANDARD_CONFIGS = OrderedDict(
         ("RUM_BIZ_LIST", slz.ListField(label=_("RUM 新版灰度配置"), default=[])),
         # Profiling 主动采集灰度配置
         ("ACTIVE_PROFILING_BIZ_LIST", slz.ListField(label=_("Profiling 主动采集灰度配置"), default=[])),
+        # Profiling 主动采集下发的 bkmonitorbeat 插件版本
+        ("ACTIVE_PROFILING_PLUGIN_VERSION", slz.CharField(label=_("Profiling 主动采集插件版本"), default="latest")),
         # LLM 观测灰度业务列表
         ("LLM_BIZ_LIST", slz.ListField(label=_("LLM 观测灰度业务列表"), default=[])),
     ]
