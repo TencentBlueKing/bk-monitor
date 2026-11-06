@@ -28,6 +28,7 @@ from core.errors.collecting import (
     LegacyConversionFailed,
 )
 from monitor_web.collecting.deploy.k8s import K8sInstaller
+from monitor_web.collecting.params import stored_detail
 from monitor_web.collecting.tencent_cloud import ConfigLoader, load_yaml, validate_files
 from monitor_web.models import CollectConfigMeta
 
@@ -114,6 +115,54 @@ def is_tencent_cloud_config(config):
         base,
         f"{base}_{config.bk_biz_id}",
     )
+
+
+def form_detail(config, params_format):
+    if params_format == "configmap":
+        params = configmap_projection(config)
+        info = config.deployment_config.plugin_version.get_plugin_version_detail()
+        info.update(config_mode="configmap", config_json=configmap_form(), collector_json={})
+        return params, info
+
+    params, info = stored_detail(config)
+    credential_fields = ("secret_id", "access_key", "secret_key")
+    source = config.deployment_config
+    defaults = source.plugin_version.config.collector_json.get("values") or {}
+    stored = source.params.get("plugin", {})
+    for key in credential_fields:
+        if key in stored or key in defaults:
+            params.setdefault("plugin", {})[key] = bool(stored.get(key, defaults.get(key)))
+
+    # stored 视图沿用旧表单结构，插件元数据里的凭据默认值也不能随详情返回。
+    collector = info["collector_json"]
+    if collector.get("values"):
+        values = {key: "" if key in credential_fields else value for key, value in collector["values"].items()}
+        info["collector_json"] = {**collector, "values": values}
+    info["config_json"] = [
+        {**field, "default": ""} if field.get("key", field["name"]) in credential_fields else field
+        for field in info["config_json"]
+    ]
+    return params, info
+
+
+def prepare_edit_params(config_meta: CollectConfigMeta, params: dict) -> None:
+    source = config_meta.deployment_config
+    stored = source.params.get("plugin", {})
+    if "config_mode" in stored:
+        return
+    plugin = params.setdefault("plugin", {})
+    if not isinstance(plugin, dict):
+        raise CollectConfigParamsError(msg="plugin 必须为对象")
+
+    # 历史安装器以部署参数覆盖源模板默认值；仅省略字段或 true 占位时沿用该值。
+    defaults = source.plugin_version.config.collector_json.get("values") or {}
+    for field in ("secret_id", "secret_key"):
+        value = plugin.get(field, True)
+        if value is True:
+            value = stored.get(field, defaults.get(field))
+        if not isinstance(value, str) or not value:
+            raise CollectConfigParamsError(msg=f"{field} 必须填写")
+        plugin[field] = value
 
 
 def configmap_form():

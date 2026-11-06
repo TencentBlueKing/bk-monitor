@@ -62,7 +62,7 @@ def sample_config(template, defaults, params):
         "plugin_id": "qcloud_exporter_2",
         "plugin_display_name": "Sample",
         "metric_json": [],
-        "config_json": fields,
+        "config_json": definition.config_json,
         "collector_json": definition.collector_json,
     }
     deployment = SimpleNamespace(
@@ -182,6 +182,13 @@ def stored_edit(config, mocker):
     return data, save, installer
 
 
+@pytest.fixture
+def upgrade(config, mocker):
+    config.plugin.current_version.info = SimpleNamespace(metric_json=[])
+    mocker.patch.object(backend.append_metric_list_cache, "delay")
+    return backend.UpgradeCollectPluginResource()
+
+
 @pytest.mark.parametrize(
     "credentials",
     [
@@ -194,21 +201,29 @@ def stored_edit(config, mocker):
         {"secret_id": "updated-id", "secret_key": "updated-key"},
     ],
 )
-def test_stored_credentials_roundtrip_on_save(config, stored_edit, credentials):
+def test_stored_credentials_roundtrip_on_save_and_upgrade(config, stored_edit, upgrade, credentials):
     data, save, installer = stored_edit
     source = deepcopy(config.deployment_config.params)
     plugin = data["params"]["plugin"]
     del plugin["secret_id"], plugin["secret_key"]
     plugin.update(credentials)
+    upgrade_data = {
+        "id": config.id,
+        "bk_biz_id": config.bk_biz_id,
+        "params": deepcopy(data["params"]),
+        "realtime": False,
+    }
     save.perform_request(data)
-    installed = installer.install.call_args.args[0]["params"]["plugin"]
-    assert installed == {**source["plugin"], **{k: v for k, v in credentials.items() if v is not True}}
+    upgrade.perform_request(upgrade_data)
+    expected = {**source["plugin"], **{k: v for k, v in credentials.items() if v is not True}}
+    assert installer.install.call_args.args[0]["params"]["plugin"] == expected
+    assert installer.upgrade.call_args.args[0]["plugin"] == expected
     assert config.deployment_config.params == source
 
 
 @pytest.mark.parametrize("field", ["secret_id", "secret_key"])
 @pytest.mark.parametrize("missing_original", [False, True])
-def test_stored_edit_requires_both_credentials(config, stored_edit, field, missing_original):
+def test_stored_edit_requires_both_credentials(config, stored_edit, upgrade, field, missing_original):
     data, save, installer = stored_edit
     if missing_original:
         config.deployment_config.params["plugin"].pop(field)
@@ -216,11 +231,58 @@ def test_stored_edit_requires_both_credentials(config, stored_edit, field, missi
     else:
         data["params"]["plugin"][field] = ""
     source = deepcopy(config.deployment_config.params)
+    upgrade_data = {
+        "id": config.id,
+        "bk_biz_id": config.bk_biz_id,
+        "params": deepcopy(data["params"]),
+        "realtime": False,
+    }
     with pytest.raises(CollectConfigParamsError, match=field):
         save.perform_request(data)
+    with pytest.raises(CollectConfigParamsError, match=field):
+        upgrade.perform_request(upgrade_data)
+    installer.upgrade.assert_not_called()
     save.get_collector_plugin.assert_not_called()
     installer.install.assert_not_called()
     assert config.deployment_config.params == source
+
+
+def test_client_mode_cannot_bypass_legacy_validation(stored_edit):
+    data, save, installer = stored_edit
+    data["params"]["plugin"].update(config_mode="configmap", secret_key="")
+    with pytest.raises(CollectConfigParamsError, match="secret_key"):
+        save.perform_request(data)
+    save.get_collector_plugin.assert_not_called()
+    installer.install.assert_not_called()
+
+
+def test_other_plugin_uses_declared_field_types(config, stored_edit, upgrade):
+    data, save, installer = stored_edit
+    config.plugin_id = config.plugin.plugin_id = "other_exporter"
+    config.collect_type = "Exporter"
+    version = config.deployment_config.plugin_version
+    version.config.config_json = [
+        {"name": "secret_id", "type": "text", "mode": "opt_cmd", "default": ""},
+        {"name": "password", "type": "password", "mode": "opt_cmd", "default": ""},
+    ]
+    config.deployment_config.params["plugin"] = {"secret_id": "ordinary-text", "password": "sample-password"}
+    result = detail(params_format="configmap")
+    assert result["params"]["plugin"] == {"secret_id": "ordinary-text", "password": True}
+    assert result["plugin_info"]["config_json"] == version.config.config_json
+    assert "config_mode" not in result["plugin_info"]
+    data["params"] = result["params"]
+    data["params"]["plugin"]["secret_id"] = ""
+    upgrade_data = {
+        "id": config.id,
+        "bk_biz_id": config.bk_biz_id,
+        "params": deepcopy(data["params"]),
+        "realtime": False,
+    }
+    save.perform_request(data)
+    upgrade.perform_request(upgrade_data)
+    expected = {"secret_id": "", "password": "sample-password"}
+    assert installer.install.call_args.args[0]["params"]["plugin"] == expected
+    assert installer.upgrade.call_args.args[0]["plugin"] == expected
 
 
 def test_omitted_old_credential_uses_deployed_template_default(config, stored_edit):
@@ -228,6 +290,13 @@ def test_omitted_old_credential_uses_deployed_template_default(config, stored_ed
     source = config.deployment_config
     del source.params["plugin"]["secret_id"]
     source.plugin_version.config.collector_json["values"]["secret_id"] = "template-id"
+    field = next(item for item in source.plugin_version.config.config_json if item["name"] == "secret_id")
+    field["default"] = "form-default"
+    stored = detail(params_format="stored")
+    assert stored["params"]["plugin"]["secret_id"] is True
+    assert "template-id" not in str(stored) and "form-default" not in str(stored)
+    assert field["default"] == "form-default"
+    data["params"] = stored["params"]
     del data["params"]["plugin"]["secret_id"]
     save.perform_request(data)
     assert installer.install.call_args.args[0]["params"]["plugin"]["secret_id"] == "template-id"
