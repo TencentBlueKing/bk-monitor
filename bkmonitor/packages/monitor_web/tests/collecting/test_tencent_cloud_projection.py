@@ -8,9 +8,9 @@ from unittest.mock import Mock
 import pytest
 import yaml
 
-from core.errors.collecting import LegacyConversionFailed
+from core.errors.collecting import CollectConfigParamsError, LegacyConversionFailed
 from monitor_web.collecting.resources import backend, frontend
-from monitor_web.collecting.resources.tencent_cloud import K8sInstaller, configmap_projection
+from monitor_web.collecting.resources.tencent_cloud import K8sInstaller, configmap_projection, prepare_edit_params
 
 IMAGE = "example.com/exporter:test"
 TEMPLATE = """apiVersion: v1
@@ -62,7 +62,7 @@ def sample_config(template, defaults, params):
         "plugin_id": "qcloud_exporter_2",
         "plugin_display_name": "Sample",
         "metric_json": [],
-        "config_json": fields,
+        "config_json": definition.config_json,
         "collector_json": definition.collector_json,
     }
     deployment = SimpleNamespace(
@@ -164,20 +164,12 @@ def test_edit_and_display(config, mocker):
     assert before == (source.params, source.plugin_version.config)
 
 
-@pytest.mark.parametrize(
-    ("original", "replacement"), [("sample-access", None), ("", None), ("sample-access", "updated-access")]
-)
-def test_stored_credentials_roundtrip_on_save(config, mocker, original, replacement):
-    source_plugin = config.deployment_config.params["plugin"]
-    source_plugin["secret_id"] = original
+@pytest.fixture
+def stored_edit(config, mocker):
     config.plugin.current_version = config.deployment_config.plugin_version
     stored = detail(params_format="stored")
-    plugin = stored["params"]["plugin"]
-    assert plugin["secret_id"] is bool(original)
-    assert plugin["secret_key"] is True
-    if replacement is not None:
-        plugin["secret_id"] = replacement
-
+    assert stored["params"]["plugin"]["secret_id"] is True
+    assert stored["params"]["plugin"]["secret_key"] is True
     save = backend.SaveCollectConfigResource()
     mocker.patch.object(save, "get_collector_plugin", return_value=config.plugin)
     mocker.patch.object(backend.CollectConfigMeta.objects, "get", return_value=config)
@@ -186,11 +178,193 @@ def test_stored_credentials_roundtrip_on_save(config, mocker, original, replacem
     mocker.patch.object(backend, "DatalinkDefaultAlarmStrategyLoader")
     mocker.patch.object(backend, "get_global_user", return_value="tester")
     data = {key: stored[key] for key in ("id", "bk_biz_id", "name", "target_object_type", "target_node_type", "params")}
-    save.perform_request({**data, "operation": "EDIT", "metric_relabel_configs": []})
+    data.update(operation="EDIT", metric_relabel_configs=[])
+    return data, save, installer
 
-    installed = installer.install.call_args.args[0]["params"]["plugin"]
-    assert installed == {**source_plugin, "secret_id": original if replacement is None else replacement}
-    assert source_plugin["secret_id"] == original
+
+@pytest.fixture
+def upgrade(config, mocker):
+    config.plugin.current_version.info = SimpleNamespace(metric_json=[])
+    mocker.patch.object(backend.append_metric_list_cache, "delay")
+    return backend.UpgradeCollectPluginResource()
+
+
+@pytest.mark.parametrize(
+    "credentials",
+    [
+        {},
+        {"secret_id": True, "secret_key": True},
+        {"secret_id": "updated-id"},
+        {"secret_key": "updated-key"},
+        {"secret_id": True, "secret_key": "updated-key"},
+        {"secret_id": "updated-id", "secret_key": True},
+        {"secret_id": "updated-id", "secret_key": "updated-key"},
+    ],
+)
+def test_stored_credentials_roundtrip_on_save_and_upgrade(config, stored_edit, upgrade, credentials):
+    data, save, installer = stored_edit
+    source = deepcopy(config.deployment_config.params)
+    plugin = data["params"]["plugin"]
+    del plugin["secret_id"], plugin["secret_key"]
+    plugin.update(credentials)
+    upgrade_data = {
+        "id": config.id,
+        "bk_biz_id": config.bk_biz_id,
+        "params": deepcopy(data["params"]),
+        "realtime": False,
+    }
+    save.perform_request(data)
+    upgrade.perform_request(upgrade_data)
+    expected = {**source["plugin"], **{k: v for k, v in credentials.items() if v is not True}}
+    assert installer.install.call_args.args[0]["params"]["plugin"] == expected
+    assert installer.upgrade.call_args.args[0]["plugin"] == expected
+    assert config.deployment_config.params == source
+
+
+@pytest.mark.parametrize("field", ["secret_id", "secret_key"])
+@pytest.mark.parametrize("missing_original", [False, True])
+def test_stored_edit_requires_both_credentials(config, stored_edit, upgrade, field, missing_original):
+    data, save, installer = stored_edit
+    if missing_original:
+        config.deployment_config.params["plugin"].pop(field)
+        data["params"]["plugin"].pop(field)
+    else:
+        data["params"]["plugin"][field] = ""
+    source = deepcopy(config.deployment_config.params)
+    upgrade_data = {
+        "id": config.id,
+        "bk_biz_id": config.bk_biz_id,
+        "params": deepcopy(data["params"]),
+        "realtime": False,
+    }
+    with pytest.raises(CollectConfigParamsError, match=field):
+        save.perform_request(data)
+    with pytest.raises(CollectConfigParamsError, match=field):
+        upgrade.perform_request(upgrade_data)
+    installer.upgrade.assert_not_called()
+    save.get_collector_plugin.assert_not_called()
+    installer.install.assert_not_called()
+    assert config.deployment_config.params == source
+
+
+@pytest.mark.parametrize("operation", ["save", "upgrade"])
+@pytest.mark.parametrize("marker", ["config_mode", "runtime"])
+def test_repeated_edits_cannot_change_legacy_mode(config, stored_edit, upgrade, operation, marker):
+    data, save, installer = stored_edit
+    handler = save if operation == "save" else upgrade
+    data["realtime"] = False
+    original = deepcopy(config.deployment_config.params)
+
+    first = deepcopy(data)
+    if marker == "config_mode":
+        first["params"]["plugin"][marker] = "configmap"
+    else:
+        first["params"][marker] = {"image": IMAGE, "contract": "qcloud-exporter-v0.21.0"}
+    with pytest.raises(CollectConfigParamsError, match=marker):
+        handler.perform_request(first)
+    second = deepcopy(data)
+    second["params"]["plugin"]["secret_key"] = ""
+    with pytest.raises(CollectConfigParamsError, match="secret_key"):
+        handler.perform_request(second)
+    assert config.deployment_config.params == original
+    save.get_collector_plugin.assert_not_called()
+    installer.install.assert_not_called()
+    installer.upgrade.assert_not_called()
+
+
+@pytest.mark.parametrize("broken", ["mode-only", "runtime-only", "unknown-contract", "missing-files", "missing-key"])
+def test_malformed_source_cannot_skip_save_or_upgrade(config, stored_edit, upgrade, broken):
+    data, save, installer = stored_edit
+    source = config.deployment_config
+    runtime = {"image": IMAGE, "contract": "qcloud-exporter-v0.21.0"}
+    if broken == "mode-only":
+        source.params["plugin"]["config_mode"] = "configmap"
+    elif broken == "runtime-only":
+        source.params["runtime"] = runtime
+    else:
+        projected = configmap_projection(config)
+        projected["plugin"].update(access_key="sample-access", secret_key="sample-secret")
+        projected["runtime"] = runtime
+        source.params = projected
+        if broken == "unknown-contract":
+            runtime["contract"] = "unknown"
+        else:
+            del projected["plugin"]["configmaps" if broken == "missing-files" else "secret_key"]
+
+    for handler in (save, upgrade):
+        with pytest.raises(LegacyConversionFailed):
+            handler.perform_request({**deepcopy(data), "realtime": False})
+    save.get_collector_plugin.assert_not_called()
+    installer.install.assert_not_called()
+    installer.upgrade.assert_not_called()
+
+
+@pytest.mark.parametrize("field", ["secret_id", "secret_key"])
+def test_schema_default_alone_is_not_a_deployed_credential(config, stored_edit, upgrade, field):
+    data, save, installer = stored_edit
+    source = config.deployment_config
+    del source.params["plugin"][field]
+    definition = next(f for f in source.plugin_version.config.config_json if f["name"] == field)
+    definition["default"] = "schema-only-default"
+    stored = detail(params_format="stored")
+    assert stored["params"]["plugin"][field] is False
+    assert "schema-only-default" not in str(stored)
+    for handler in (save, upgrade):
+        params = deepcopy(stored["params"])
+        params["plugin"][field] = True
+        with pytest.raises(CollectConfigParamsError, match=field):
+            handler.perform_request({**data, "params": params, "realtime": False})
+    assert definition["default"] == "schema-only-default"
+    save.get_collector_plugin.assert_not_called()
+    installer.install.assert_not_called()
+    installer.upgrade.assert_not_called()
+
+
+def test_other_plugin_uses_declared_field_types(config, stored_edit, upgrade):
+    data, save, installer = stored_edit
+    config.plugin_id = config.plugin.plugin_id = "other_exporter"
+    config.collect_type = "Exporter"
+    version = config.deployment_config.plugin_version
+    version.config.config_json = [
+        {"name": "secret_id", "type": "text", "mode": "opt_cmd", "default": ""},
+        {"name": "password", "type": "password", "mode": "opt_cmd", "default": ""},
+    ]
+    config.deployment_config.params["plugin"] = {"secret_id": "ordinary-text", "password": "sample-password"}
+    result = detail(params_format="configmap")
+    assert result["params"]["plugin"] == {"secret_id": "ordinary-text", "password": True}
+    assert result["plugin_info"]["config_json"] == version.config.config_json
+    assert "config_mode" not in result["plugin_info"]
+    data["params"] = result["params"]
+    data["params"]["plugin"]["secret_id"] = ""
+    upgrade_data = {
+        "id": config.id,
+        "bk_biz_id": config.bk_biz_id,
+        "params": deepcopy(data["params"]),
+        "realtime": False,
+    }
+    save.perform_request(data)
+    upgrade.perform_request(upgrade_data)
+    expected = {"secret_id": "", "password": "sample-password"}
+    assert installer.install.call_args.args[0]["params"]["plugin"] == expected
+    assert installer.upgrade.call_args.args[0]["plugin"] == expected
+
+
+def test_omitted_old_credential_uses_deployed_template_default(config, stored_edit):
+    data, save, installer = stored_edit
+    source = config.deployment_config
+    del source.params["plugin"]["secret_id"]
+    source.plugin_version.config.collector_json["values"]["secret_id"] = "template-id"
+    field = next(item for item in source.plugin_version.config.config_json if item["name"] == "secret_id")
+    field["default"] = "form-default"
+    stored = detail(params_format="stored")
+    assert stored["params"]["plugin"]["secret_id"] is True
+    assert "template-id" not in str(stored) and "form-default" not in str(stored)
+    assert field["default"] == "form-default"
+    data["params"] = stored["params"]
+    del data["params"]["plugin"]["secret_id"]
+    save.perform_request(data)
+    assert installer.install.call_args.args[0]["params"]["plugin"]["secret_id"] == "template-id"
+    assert "secret_id" not in source.params["plugin"]
 
 
 def test_new_format_uses_uploaded_content_and_recomputes_preview(config):
@@ -201,6 +375,9 @@ def test_new_format_uses_uploaded_content_and_recomputes_preview(config):
     params["plugin"].update(access_key="", secret_key="sample-secret")
     params["runtime"] = {"contract": "qcloud-exporter-v0.21.0", "image": IMAGE}
     config.deployment_config.params = params
+    candidate = {"plugin": {"config_mode": "configmap"}}
+    prepare_edit_params(config, candidate)
+    assert candidate == {"plugin": {"config_mode": "configmap"}}
     projected = configmap_projection(config)
     result = projected["plugin"]["configmaps"][0]
     assert result["content"] == f["content"] and result["uid"] == f["uid"]

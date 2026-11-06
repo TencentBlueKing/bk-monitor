@@ -28,6 +28,7 @@ from core.errors.collecting import (
     LegacyConversionFailed,
 )
 from monitor_web.collecting.deploy.k8s import K8sInstaller
+from monitor_web.collecting.params import stored_detail
 from monitor_web.collecting.tencent_cloud import ConfigLoader, load_yaml, validate_files
 from monitor_web.models import CollectConfigMeta
 
@@ -116,6 +117,67 @@ def is_tencent_cloud_config(config):
     )
 
 
+def is_legacy_snapshot(params):
+    plugin = params.get("plugin")
+    return isinstance(plugin, dict) and "config_mode" not in plugin and "runtime" not in params
+
+
+def source_credential(source, key):
+    defaults = source.plugin_version.config.collector_json.get("values") or {}
+    return source.params.get("plugin", {}).get(key, defaults.get(key))
+
+
+def form_detail(config, params_format):
+    if params_format == "configmap":
+        params = configmap_projection(config)
+        info = config.deployment_config.plugin_version.get_plugin_version_detail()
+        info.update(config_mode="configmap", config_json=configmap_form(), collector_json={})
+        return params, info
+
+    params, info = stored_detail(config)
+    credential_fields = ("secret_id", "access_key", "secret_key")
+    source = config.deployment_config
+    plugin = params.setdefault("plugin", {})
+    fields = ("secret_id", "secret_key") if is_legacy_snapshot(source.params) else ("access_key", "secret_key")
+    for key in credential_fields:
+        if key in fields or key in plugin:
+            value = source_credential(source, key)
+            plugin[key] = isinstance(value, str) and bool(value)
+
+    # stored 视图沿用旧表单结构，插件元数据里的凭据默认值也不能随详情返回。
+    collector = info["collector_json"]
+    if collector.get("values"):
+        values = {key: "" if key in credential_fields else value for key, value in collector["values"].items()}
+        info["collector_json"] = {**collector, "values": values}
+    info["config_json"] = [
+        {**field, "default": ""} if field.get("key", field["name"]) in credential_fields else field
+        for field in info["config_json"]
+    ]
+    return params, info
+
+
+def prepare_edit_params(config_meta: CollectConfigMeta, params: dict) -> None:
+    source = config_meta.deployment_config
+    if not is_legacy_snapshot(source.params):
+        # 使用与详情相同的契约、文件和结构校验；残缺的快照不能进入新版分支。
+        configmap_projection(config_meta)
+        return
+    plugin = params.setdefault("plugin", {})
+    if not isinstance(plugin, dict):
+        raise CollectConfigParamsError(msg="plugin 必须为对象")
+
+    if "config_mode" in plugin or "runtime" in params:
+        raise CollectConfigParamsError(msg="旧表单不支持提交 config_mode 或 runtime")
+
+    for field in ("secret_id", "secret_key"):
+        value = plugin.get(field, True)
+        if value is True:
+            value = source_credential(source, field)
+        if not isinstance(value, str) or not value:
+            raise CollectConfigParamsError(msg=f"{field} 必须填写")
+        plugin[field] = value
+
+
 def configmap_form():
     return [
         {
@@ -190,13 +252,13 @@ def configmap_projection(config):
         plugin = params["plugin"]
         contract = resolve_contract(source.plugin_version.config.collector_json, params.get("runtime"))
         collector = {"period": 60, "timeout": 60, **deepcopy(params.get("collector", {}))}
-        if "config_mode" not in plugin and "runtime" not in params:
+        if is_legacy_snapshot(params):
             files, access_key, secret_key = legacy_configmap(config)
         elif plugin.get("config_mode") == "configmap" and params.get("runtime"):
-            if plugin.keys() - {"config_mode", "configmaps", "access_key", "secret_key"}:
+            if plugin.keys() != {"config_mode", "configmaps", "access_key", "secret_key"}:
                 raise conversion_failed("params.plugin")
             files = [{key: row[key] for key in ("uid", "filename", "content")} for row in plugin["configmaps"]]
-            access_key, secret_key = plugin.get("access_key", ""), plugin.get("secret_key", "")
+            access_key, secret_key = plugin["access_key"], plugin["secret_key"]
             if not isinstance(access_key, str) or not isinstance(secret_key, str):
                 raise conversion_failed("params.plugin")
         else:

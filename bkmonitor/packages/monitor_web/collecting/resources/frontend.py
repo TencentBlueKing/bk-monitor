@@ -70,7 +70,12 @@ class FrontendCollectConfigDetailResource(Resource):
         for item in config_json:
             mode = "collector" if item["mode"] == "collector" else "plugin"
             value = config_detail["params"][mode].get(item["name"], item["default"])
-            if item["name"] == "configmaps" and config_detail["plugin_info"].get("config_mode") == "configmap":
+            if (
+                item["type"] == "file"
+                and item.get("multiple") is True
+                and isinstance(value, list)
+                and all(isinstance(row, dict) and "uid" in row and "filename" in row for row in value)
+            ):
                 value = [{key: row[key] for key in ("uid", "filename")} for row in value]
             runtime_params.append(
                 {
