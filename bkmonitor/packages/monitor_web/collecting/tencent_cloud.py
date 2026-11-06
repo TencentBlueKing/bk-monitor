@@ -10,6 +10,7 @@ specific language governing permissions and limitations under the License.
 
 """腾讯云 ConfigMap 的纯静态处理。不得在此调用云 API 或修改部署状态。"""
 
+import re
 from collections import defaultdict
 from copy import deepcopy
 from hashlib import sha256
@@ -17,6 +18,9 @@ from math import isfinite
 from uuid import UUID
 
 import yaml
+from django.conf import settings
+
+from core.errors.collecting import LegacyConversionFailed
 
 
 class ConfigError(ValueError):
@@ -332,3 +336,56 @@ def validate_files(files, collector, contract):
             item["errors"].append(exc.detail)
     result["valid"] = not result["errors"] and all(item["valid"] for item in result["files"])
     return result
+
+
+def template_image(template):
+    if not isinstance(template, str):
+        raise LegacyConversionFailed()
+    candidates = re.findall(r"^\s*image:\s*([^\n]+)$", template, re.MULTILINE)
+    if len(candidates) != 1 or "{{" in candidates[0] or "{%" in candidates[0]:
+        raise LegacyConversionFailed()
+    try:
+        return yaml.safe_load(candidates[0])
+    except yaml.YAMLError:
+        raise LegacyConversionFailed() from None
+
+
+def resolve_contract(collector_json, runtime=None):
+    """只读识别已登记镜像。历史模板只接受唯一的静态 image，不执行用户输入或模板。"""
+    if runtime is not None:
+        if not isinstance(runtime, dict):
+            raise LegacyConversionFailed()
+        image = runtime.get("image")
+    else:
+        template = collector_json.get("template", "")
+        image = template_image(template)
+    if not isinstance(image, str):
+        raise LegacyConversionFailed()
+    contract = settings.TENCENT_CLOUD_EXPORTER_CONTRACTS.get(image)
+    if (
+        not isinstance(contract, dict)
+        or contract.get("version") not in ("v0.21.0", "v0.22.4")
+        or not isinstance(contract.get("products"), dict)
+        or not contract["products"]
+    ):
+        raise LegacyConversionFailed()
+    if any(
+        not isinstance(namespace, str)
+        or not isinstance(dimensions, list)
+        or any(not isinstance(dimension, str) for dimension in dimensions)
+        for namespace, dimensions in contract["products"].items()
+    ):
+        raise LegacyConversionFailed()
+    if runtime is None and sha256(template.encode("utf-8")).hexdigest() not in contract.get("templates", []):
+        # 不能只凭模板中某一行出现已知镜像，就将任意历史模板认作已核验契约。
+        raise LegacyConversionFailed()
+    if runtime is not None and runtime.get("contract") != f"qcloud-exporter-{contract['version']}":
+        raise LegacyConversionFailed()
+    return deepcopy(contract)
+
+
+def file_contains_credential(file, preview, credentials):
+    return any(
+        value and any(value in text for text in (file["filename"], file["content"], preview["qcloud_yaml"]))
+        for value in credentials
+    )
