@@ -9,7 +9,7 @@ specific language governing permissions and limitations under the License.
 """
 
 import logging
-from copy import copy
+from copy import copy, deepcopy
 from typing import Any
 
 from django.conf import settings
@@ -43,6 +43,7 @@ from monitor_web.collecting.constant import (
     TaskStatus,
 )
 from monitor_web.collecting.deploy import fetch_collection_statistics, get_collect_installer
+from monitor_web.collecting.resources.tencent_cloud import configmap_form, configmap_projection, is_tencent_cloud_config
 from monitor_web.models import CollectConfigMeta, CollectorPluginMeta, DeploymentConfigVersion, PluginVersionHistory
 from monitor_web.plugin.constant import PluginType
 from monitor_web.plugin.manager import PluginManagerFactory
@@ -452,6 +453,7 @@ class CollectConfigDetailResource(Resource):
     class RequestSerializer(serializers.Serializer):
         bk_biz_id = serializers.IntegerField(label="业务ID")
         id = serializers.IntegerField(label="采集配置ID")
+        params_format = serializers.ChoiceField(choices=("stored", "configmap"), default="stored")
         resolve_target = serializers.BooleanField(label="是否解析采集目标", default=True)
         with_agent_status = serializers.BooleanField(label="是否查询Agent状态", default=True)
 
@@ -463,21 +465,30 @@ class CollectConfigDetailResource(Resource):
         @return:
         """
         config_json = collect_config_meta.deployment_config.plugin_version.config.config_json
-        params = collect_config_meta.deployment_config.params
+        params = deepcopy(collect_config_meta.deployment_config.params)
         for item in config_json:
-            if item["mode"] != "collector":
-                item["mode"] = "plugin"
-            value = params.get(item["mode"], {}).get(item.get("key", item["name"])) or item["default"]
+            mode = "collector" if item["mode"] == "collector" else "plugin"
+            value = params.get(mode, {}).get(item.get("key", item["name"])) or item["default"]
             # 获取敏感信息时采用bool值表示用户是否设置密码
             if item["type"] in ["password", "encrypt"]:
-                params[item["mode"]][item["name"]] = bool(value)
+                params[mode][item["name"]] = bool(value)
+                if item.get("key") in params[mode]:
+                    params[mode][item["key"]] = bool(value)
+        if is_tencent_cloud_config(collect_config_meta):
+            plugin = params.get("plugin", {})
+            for key in ("secret_id", "access_key", "secret_key"):
+                if key in plugin:
+                    plugin[key] = bool(plugin[key])
+        return params
 
     def perform_request(self, validated_request_data):
         bk_biz_id = validated_request_data["bk_biz_id"]
         config_id = validated_request_data["id"]
+        projected = validated_request_data.get("params_format") == "configmap"
+        scope = {"bk_tenant_id": get_request_tenant_id()} if projected else {}
         try:
             collect_config_meta = CollectConfigMeta.objects.select_related("deployment_config").get(
-                id=config_id, bk_biz_id=bk_biz_id
+                id=config_id, bk_biz_id=bk_biz_id, **scope
             )
         except CollectConfigMeta.DoesNotExist:
             raise CollectConfigNotExist({"msg": config_id})
@@ -503,7 +514,8 @@ class CollectConfigDetailResource(Resource):
                 and collect_config_meta.deployment_config.target_node_type == TargetNodeType.TOPO
             ):
                 node_list = []
-                for item in collect_config_meta.deployment_config.target_nodes:
+                for target in collect_config_meta.deployment_config.target_nodes:
+                    item = dict(target)
                     item.update({"bk_biz_id": collect_config_meta.bk_biz_id})
                     node_list.append(item)
                 target_result = resource.commons.get_host_instance_by_node(
@@ -531,7 +543,8 @@ class CollectConfigDetailResource(Resource):
                         )
                     ).get("children", [])
                 }
-                for item in collect_config_meta.deployment_config.target_nodes:
+                for target in collect_config_meta.deployment_config.target_nodes:
+                    item = dict(target)
                     item.update({"bk_biz_id": collect_config_meta.bk_biz_id})
                     item.update({"bk_inst_name": templates.get(item["bk_inst_id"])})
                     target_result.append(item)
@@ -551,7 +564,8 @@ class CollectConfigDetailResource(Resource):
 
             else:
                 node_list = []
-                for item in collect_config_meta.deployment_config.target_nodes:
+                for target in collect_config_meta.deployment_config.target_nodes:
+                    item = dict(target)
                     item.update({"bk_biz_id": collect_config_meta.bk_biz_id})
                     node_list.append(item)
                 target_result = resource.commons.get_service_instance_by_node(
@@ -561,10 +575,18 @@ class CollectConfigDetailResource(Resource):
                         "with_agent_status": validated_request_data["with_agent_status"],
                     }
                 )
-        config_version = collect_config_meta.deployment_config.plugin_version.config_version
-        release_version = collect_config_meta.plugin.get_release_ver_by_config_ver(config_version)
-        # 密码转为非明文
-        self.password_convert(collect_config_meta)
+        source = collect_config_meta.deployment_config
+        if projected and is_tencent_cloud_config(collect_config_meta):
+            params = configmap_projection(collect_config_meta)
+            plugin_info = source.plugin_version.get_plugin_version_detail()
+            # 历史部署模板和默认值可能含凭据；编辑表单只返回新的字段定义。
+            plugin_info.update(config_mode="configmap", config_json=configmap_form(), collector_json={})
+        else:
+            release_version = collect_config_meta.plugin.get_release_ver_by_config_ver(
+                source.plugin_version.config_version
+            )
+            params = self.password_convert(collect_config_meta)
+            plugin_info = release_version.get_plugin_version_detail()
         result = {
             "id": collect_config_meta.id,
             "deployment_id": collect_config_meta.deployment_config_id,
@@ -575,9 +597,9 @@ class CollectConfigDetailResource(Resource):
             "target_object_type": collect_config_meta.target_object_type,
             "target_node_type": collect_config_meta.deployment_config.target_node_type,
             "target_nodes": collect_config_meta.deployment_config.target_nodes,
-            "params": collect_config_meta.deployment_config.params,
+            "params": params,
             "remote_collecting_host": collect_config_meta.deployment_config.remote_collecting_host,
-            "plugin_info": release_version.get_plugin_version_detail(),
+            "plugin_info": plugin_info,
             "target": target_result,
             "subscription_id": collect_config_meta.deployment_config.subscription_id,
             "label_info": collect_config_meta.label_info,

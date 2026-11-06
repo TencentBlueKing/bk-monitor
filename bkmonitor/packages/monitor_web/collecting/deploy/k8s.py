@@ -11,6 +11,7 @@ specific language governing permissions and limitations under the License.
 import hashlib
 import json
 import logging
+from copy import deepcopy
 from typing import Any
 from urllib.parse import urljoin
 
@@ -312,6 +313,11 @@ class K8sInstaller(BaseInstaller):
                     if e.status != 404:
                         raise e
 
+    def render_snapshot(self, target_version):
+        """按历史安装器的相同上下文和模板渲染，不访问集群。"""
+        context = self._get_context(target_version)
+        return context["values"], self._render_yaml(target_version, context)
+
     def _get_context(self, target_version: DeploymentConfigVersion) -> dict[str, Any]:
         """
         获取上下文配置
@@ -322,10 +328,10 @@ class K8sInstaller(BaseInstaller):
         collect_params: dict[str, Any] = target_version.params
 
         # 获取插件默认配置
-        values: dict[str, Any] = collector_json.get("values") or {}
+        values: dict[str, Any] = deepcopy(collector_json.get("values") or {})
 
         # 将采集配置参数合并到values中
-        for key, value in collect_params.get("plugin", {}).items():
+        for key, value in deepcopy(collect_params.get("plugin", {})).items():
             keys: list[str] = key.split(".")
 
             sub_value = values

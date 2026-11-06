@@ -11,9 +11,12 @@ specific language governing permissions and limitations under the License.
 import re
 from copy import deepcopy
 from hashlib import sha256
+from textwrap import indent
+from uuid import NAMESPACE_URL, uuid5
 
 import yaml
 from django.conf import settings
+from jinja2 import TemplateError
 from rest_framework import serializers
 
 from bkmonitor.utils.request import get_request_tenant_id
@@ -24,7 +27,8 @@ from core.errors.collecting import (
     CollectConfigVersionChanged,
     LegacyConversionFailed,
 )
-from monitor_web.collecting.tencent_cloud import validate_files
+from monitor_web.collecting.deploy.k8s import K8sInstaller
+from monitor_web.collecting.tencent_cloud import ConfigLoader, load_yaml, validate_files
 from monitor_web.models import CollectConfigMeta
 
 
@@ -102,6 +106,133 @@ def resolve_contract(collector_json, runtime=None):
     if runtime is not None and runtime.get("contract") != f"qcloud-exporter-{contract['version']}":
         raise LegacyConversionFailed()
     return deepcopy(contract)
+
+
+def is_tencent_cloud_config(config):
+    base = settings.TENCENT_CLOUD_METRIC_PLUGIN_ID
+    return config.collect_type == CollectConfigMeta.CollectType.K8S and config.plugin_id in (
+        base,
+        f"{base}_{config.bk_biz_id}",
+    )
+
+
+def configmap_form():
+    return [
+        {
+            "name": "access_key",
+            "description": "Secret ID",
+            "mode": "plugin",
+            "type": "password",
+            "required": True,
+            "default": "",
+        },
+        {
+            "name": "secret_key",
+            "description": "Secret Key",
+            "mode": "plugin",
+            "type": "password",
+            "required": True,
+            "default": "",
+        },
+        {
+            "name": "configmaps",
+            "description": "ConfigMap",
+            "mode": "plugin",
+            "type": "file",
+            "multiple": True,
+            "accept": ".yaml,.yml",
+            "required": True,
+            "default": [],
+        },
+    ]
+
+
+def conversion_failed(path):
+    # 路径只能来自本模块或静态校验器，不拼接源值、模板和解析异常。
+    return LegacyConversionFailed(context="LEGACY_CONVERSION_FAILED：历史采集配置无法无损回填", data={"path": path})
+
+
+def legacy_configmap(config):
+    source = config.deployment_config
+    definition = source.plugin_version.config
+    plugin = source.params["plugin"]
+    known = {item.get("key", item["name"]) for item in definition.config_json if item.get("mode") != "collector"}
+    if plugin.keys() - known:
+        raise conversion_failed("params.plugin")
+    values, manifests = K8sInstaller(config).render_snapshot(source)
+    maps = [
+        doc
+        for doc in yaml.load_all(manifests, Loader=ConfigLoader)
+        if isinstance(doc, dict) and doc.get("kind") == "ConfigMap"
+    ]
+    if len(maps) != 1 or set(maps[0].get("data", {})) != {"config.yml"}:
+        raise conversion_failed("config.yml")
+    tree = load_yaml(maps[0]["data"]["config.yml"], "config.yml")
+    credential = tree["credential"]
+    if not isinstance(credential, dict):
+        raise conversion_failed("config.yml.credential")
+    access_key, secret_key = values.get("secret_id", ""), values.get("secret_key", "")
+    for field, expected in (("access_key", access_key), ("secret_key", secret_key)):
+        if not isinstance(expected, str) or credential.get(field, "") != expected:
+            raise conversion_failed("config.yml.credential")
+    tree["credential"] = {**credential, "access_key": "", "secret_key": ""}
+    inner = yaml.safe_dump(tree, allow_unicode=True, sort_keys=False)
+    uid = uuid5(NAMESPACE_URL, f"qcloud/{config.bk_tenant_id}/{config.bk_biz_id}/{config.id}/{source.id}/config.yml")
+    header = "apiVersion: v1\nkind: ConfigMap\nmetadata:\n  name: qcloud-exporter\ndata:\n  qcloud.yml: |\n"
+    file = {"uid": str(uid), "filename": "legacy.yaml", "content": header + indent(inner, "    ")}
+    return [file], access_key, secret_key
+
+
+def configmap_projection(config):
+    source = config.deployment_config
+    params = source.params
+    try:
+        plugin = params["plugin"]
+        contract = resolve_contract(source.plugin_version.config.collector_json, params.get("runtime"))
+        collector = {"period": 60, "timeout": 60, **deepcopy(params.get("collector", {}))}
+        if "config_mode" not in plugin and "runtime" not in params:
+            files, access_key, secret_key = legacy_configmap(config)
+        elif plugin.get("config_mode") == "configmap" and params.get("runtime"):
+            if plugin.keys() - {"config_mode", "configmaps", "access_key", "secret_key"}:
+                raise conversion_failed("params.plugin")
+            files = [{key: row[key] for key in ("uid", "filename", "content")} for row in plugin["configmaps"]]
+            access_key, secret_key = plugin.get("access_key", ""), plugin.get("secret_key", "")
+            if not isinstance(access_key, str) or not isinstance(secret_key, str):
+                raise conversion_failed("params.plugin")
+        else:
+            raise conversion_failed("params.plugin.config_mode")
+        validated = validate_files(files, collector, contract)
+        if not validated["valid"]:
+            errors = validated["errors"] or next(row["errors"] for row in validated["files"] if row["errors"])
+            raise conversion_failed(errors[0]["path"])
+        for file, validated_file in zip(files, validated["files"]):
+            preview = validated_file["preview"]
+            if any(
+                value and any(value in text for text in (file["filename"], file["content"], preview["qcloud_yaml"]))
+                for value in (access_key, secret_key)
+            ):
+                raise conversion_failed("configmaps.content")
+            file["preview"] = preview
+        return {
+            "collector": collector,
+            "plugin": {
+                "config_mode": "configmap",
+                "access_key": bool(access_key),
+                "secret_key": bool(secret_key),
+                "configmaps": files,
+            },
+        }
+    except (
+        yaml.YAMLError,
+        TemplateError,
+        LookupError,
+        TypeError,
+        ValueError,
+        AttributeError,
+        OverflowError,
+        RecursionError,
+    ):
+        raise conversion_failed("params.plugin") from None
 
 
 class ValidateTencentCloudConfigmapResource(Resource):

@@ -32,11 +32,15 @@ class FrontendCollectConfigDetailResource(Resource):
     class RequestSerializer(serializers.Serializer):
         bk_biz_id = serializers.IntegerField(label="业务ID")
         id = serializers.IntegerField(label="采集配置ID")
+        params_format = serializers.ChoiceField(choices=("stored", "configmap"), default="stored")
         with_target_info = serializers.BooleanField(label="是否返回采集目标配置", default=True)
 
     def perform_request(self, params):
         config_detail = resource.collecting.collect_config_detail(
-            id=params["id"], bk_biz_id=params["bk_biz_id"], resolve_target=False
+            id=params["id"],
+            bk_biz_id=params["bk_biz_id"],
+            resolve_target=False,
+            **({"params_format": "configmap"} if params.get("params_format") == "configmap" else {}),
         )
 
         # 基本信息
@@ -64,12 +68,14 @@ class FrontendCollectConfigDetailResource(Resource):
                     config_json.extend(config_json.pop(key).pop("auth_json"))
                     break
         for item in config_json:
-            if item["mode"] != "collector":
-                item["mode"] = "plugin"
+            mode = "collector" if item["mode"] == "collector" else "plugin"
+            value = config_detail["params"][mode].get(item["name"], item["default"])
+            if item["name"] == "configmaps" and config_detail["plugin_info"].get("config_mode") == "configmap":
+                value = [{key: row[key] for key in ("uid", "filename")} for row in value]
             runtime_params.append(
                 {
                     "name": item["description"] or item["name"],
-                    "value": config_detail["params"][item["mode"]].get(item["name"], item["default"]),
+                    "value": value,
                     "type": item["type"],
                 }
             )
