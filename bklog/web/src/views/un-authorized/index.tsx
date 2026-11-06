@@ -71,8 +71,9 @@ export default defineComponent({
     };
 
     const handleApplyPermission = () => {
-      const url = (window as any).BK_IAM_URL;
-      url && window.open(join(url, '/apply-join-user-group'));
+      const iamUrl = (window as any).BK_IAM_URL;
+      const url = (window as any).BK_IAM_APPLY_URL || (iamUrl && join(iamUrl, '/apply-join-user-group'));
+      url && window.open(url);
     };
 
     const handleCreateCollection = () => {
