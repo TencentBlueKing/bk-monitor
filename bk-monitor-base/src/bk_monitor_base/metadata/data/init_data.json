@@ -1,0 +1,6836 @@
+{
+  "result_table_list": [
+    {
+      "table_id": "system.cpu_summary",
+      "table_name_zh": "CPU",
+      "is_custom_table": false,
+      "schema_type": "fixed",
+      "default_storage": "influxdb",
+      "bk_biz_id": 0,
+      "label": "os",
+      "field_list": [
+        {
+          "field_name": "ip",
+          "field_type": "string",
+          "description": "采集器IP",
+          "unit": "",
+          "tag": "dimension"
+        },
+        {
+          "field_name": "hostname",
+          "field_type": "string",
+          "description": "主机名",
+          "unit": "",
+          "tag": "dimension"
+        },
+        {
+          "field_name": "device_name",
+          "field_type": "string",
+          "description": "设备名",
+          "unit": "",
+          "tag": "dimension"
+        },
+        {
+          "field_name": "usage",
+          "field_type": "double",
+          "description": "CPU使用率",
+          "unit": "percent",
+          "tag": "metric"
+        },
+        {
+          "field_name": "idle",
+          "field_type": "double",
+          "description": "CPU空闲率",
+          "unit": "percentunit",
+          "tag": "metric"
+        },
+        {
+          "field_name": "iowait",
+          "field_type": "double",
+          "description": "CPU等待IO的时间占比",
+          "unit": "percentunit",
+          "tag": "metric"
+        },
+        {
+          "field_name": "stolen",
+          "field_type": "double",
+          "description": "CPU分配给虚拟机的时间占比",
+          "unit": "percentunit",
+          "tag": "metric"
+        },
+        {
+          "field_name": "system",
+          "field_type": "double",
+          "description": "CPU系统程序使用占比",
+          "unit": "percentunit",
+          "tag": "metric"
+        },
+        {
+          "field_name": "user",
+          "field_type": "double",
+          "description": "CPU用户程序使用占比",
+          "unit": "percentunit",
+          "tag": "metric"
+        },
+        {
+          "field_name": "bk_biz_id",
+          "field_type": "int",
+          "description": "业务ID",
+          "unit": "",
+          "tag": "dimension"
+        },
+        {
+          "field_name": "bk_supplier_id",
+          "field_type": "int",
+          "description": "开发商ID",
+          "unit": "",
+          "tag": "dimension"
+        },
+        {
+          "field_name": "bk_cloud_id",
+          "field_type": "int",
+          "description": "采集器云区域ID",
+          "unit": "",
+          "tag": "dimension"
+        },
+        {
+          "field_name": "time",
+          "field_type": "timestamp",
+          "description": "数据上报时间",
+          "unit": "",
+          "tag": "timestamp"
+        },
+        {
+          "field_name": "bk_cmdb_level",
+          "field_type": "string",
+          "description": "CMDB层级信息",
+          "unit": "",
+          "tag": "dimension"
+        },
+        {
+          "field_name": "bk_target_ip",
+          "field_type": "string",
+          "description": "目标IP",
+          "unit": "",
+          "tag": "dimension"
+        },
+        {
+          "field_name": "bk_target_cloud_id",
+          "field_type": "string",
+          "description": "云区域ID",
+          "unit": "",
+          "tag": "dimension"
+        },
+        {
+          "field_name": "nice",
+          "field_type": "double",
+          "description": "低优先级程序在用户态执行的CPU占比",
+          "unit": "percentunit",
+          "tag": "metric"
+        },
+        {
+          "field_name": "interrupt",
+          "field_type": "double",
+          "description": "硬件中断数的CPU占比",
+          "unit": "percentunit",
+          "tag": "metric"
+        },
+        {
+          "field_name": "softirq",
+          "field_type": "double",
+          "description": "软件中断数的CPU占比",
+          "unit": "percentunit",
+          "tag": "metric"
+        },
+        {
+          "field_name": "guest",
+          "field_type": "double",
+          "description": "内核在虚拟机上运行的CPU占比",
+          "unit": "percentunit",
+          "tag": "metric"
+        },
+        {
+          "field_name": "bk_agent_id",
+          "field_type": "string",
+          "description": "Agent ID",
+          "unit": "",
+          "tag": "dimension"
+        },
+        {
+          "field_name": "bk_host_id",
+          "field_type": "string",
+          "description": "采集主机ID",
+          "unit": "",
+          "tag": "dimension"
+        },
+        {
+          "field_name": "bk_target_host_id",
+          "field_type": "string",
+          "description": "目标主机ID",
+          "unit": "",
+          "tag": "dimension"
+        }
+      ],
+      "bk_data_id": 1001
+    },
+    {
+      "table_id": "system.io",
+      "table_name_zh": "磁盘I/O",
+      "is_custom_table": false,
+      "schema_type": "fixed",
+      "default_storage": "influxdb",
+      "bk_biz_id": 0,
+      "label": "os",
+      "field_list": [
+        {
+          "field_name": "ip",
+          "field_type": "string",
+          "description": "采集器IP",
+          "unit": "",
+          "tag": "dimension"
+        },
+        {
+          "field_name": "hostname",
+          "field_type": "string",
+          "description": "主机名",
+          "unit": "",
+          "tag": "dimension"
+        },
+        {
+          "field_name": "device_name",
+          "field_type": "string",
+          "description": "设备名",
+          "unit": "",
+          "tag": "dimension"
+        },
+        {
+          "field_name": "await",
+          "field_type": "double",
+          "description": "I/O平均等待时长",
+          "unit": "ms",
+          "tag": "metric"
+        },
+        {
+          "field_name": "svctm",
+          "field_type": "double",
+          "description": "I/O平均服务时长",
+          "unit": "ms",
+          "tag": "metric"
+        },
+        {
+          "field_name": "r_s",
+          "field_type": "double",
+          "description": "I/O读次数",
+          "unit": "rps",
+          "tag": "metric"
+        },
+        {
+          "field_name": "rkb_s",
+          "field_type": "double",
+          "description": "I/O读速率",
+          "unit": "KBs",
+          "tag": "metric"
+        },
+        {
+          "field_name": "w_s",
+          "field_type": "double",
+          "description": "I/O写次数",
+          "unit": "wps",
+          "tag": "metric"
+        },
+        {
+          "field_name": "wkb_s",
+          "field_type": "double",
+          "description": "I/O写速率",
+          "unit": "KBs",
+          "tag": "metric"
+        },
+        {
+          "field_name": "util",
+          "field_type": "double",
+          "description": "I/O使用率",
+          "unit": "percentunit",
+          "tag": "metric"
+        },
+        {
+          "field_name": "avgrq_sz",
+          "field_type": "double",
+          "description": "设备每次I/O平均数据大小",
+          "unit": "Sectors/IORequest",
+          "tag": "metric"
+        },
+        {
+          "field_name": "avgqu_sz",
+          "field_type": "double",
+          "description": "平均I/O队列长度",
+          "unit": "Sectors",
+          "tag": "metric"
+        },
+        {
+          "field_name": "bk_biz_id",
+          "field_type": "int",
+          "description": "业务ID",
+          "unit": "",
+          "tag": "dimension"
+        },
+        {
+          "field_name": "bk_supplier_id",
+          "field_type": "int",
+          "description": "开发商ID",
+          "unit": "",
+          "tag": "dimension"
+        },
+        {
+          "field_name": "bk_cloud_id",
+          "field_type": "int",
+          "description": "采集器云区域ID",
+          "unit": "",
+          "tag": "dimension"
+        },
+        {
+          "field_name": "time",
+          "field_type": "timestamp",
+          "description": "数据上报时间",
+          "unit": "",
+          "tag": "timestamp"
+        },
+        {
+          "field_name": "bk_cmdb_level",
+          "field_type": "string",
+          "description": "CMDB层级信息",
+          "unit": "",
+          "tag": "dimension"
+        },
+        {
+          "field_name": "bk_target_ip",
+          "field_type": "string",
+          "description": "目标IP",
+          "unit": "",
+          "tag": "dimension"
+        },
+        {
+          "field_name": "bk_target_cloud_id",
+          "field_type": "string",
+          "description": "云区域ID",
+          "unit": "",
+          "tag": "dimension"
+        },
+        {
+          "field_name": "bk_agent_id",
+          "field_type": "string",
+          "description": "Agent ID",
+          "unit": "",
+          "tag": "dimension"
+        },
+        {
+          "field_name": "bk_host_id",
+          "field_type": "string",
+          "description": "采集主机ID",
+          "unit": "",
+          "tag": "dimension"
+        },
+        {
+          "field_name": "bk_target_host_id",
+          "field_type": "string",
+          "description": "目标主机ID",
+          "unit": "",
+          "tag": "dimension"
+        }
+      ],
+      "bk_data_id": 1001
+    },
+    {
+      "table_id": "system.env",
+      "table_name_zh": "系统环境",
+      "is_custom_table": false,
+      "schema_type": "fixed",
+      "default_storage": "influxdb",
+      "bk_biz_id": 0,
+      "label": "os",
+      "field_list": [
+        {
+          "field_name": "ip",
+          "field_type": "string",
+          "description": "采集器IP",
+          "unit": "",
+          "tag": "dimension"
+        },
+        {
+          "field_name": "hostname",
+          "field_type": "string",
+          "description": "主机名",
+          "unit": "",
+          "tag": "dimension"
+        },
+        {
+          "field_name": "city",
+          "field_type": "string",
+          "description": "时区城市",
+          "unit": "",
+          "tag": "dimension"
+        },
+        {
+          "field_name": "uptime",
+          "field_type": "int",
+          "description": "系统启动时间",
+          "unit": "s",
+          "tag": "metric"
+        },
+        {
+          "field_name": "procs",
+          "field_type": "int",
+          "description": "系统总进程数",
+          "unit": "short",
+          "tag": "metric"
+        },
+        {
+          "field_name": "timezone",
+          "field_type": "int",
+          "description": "机器时区",
+          "unit": "",
+          "tag": "dimension"
+        },
+        {
+          "field_name": "bk_biz_id",
+          "field_type": "int",
+          "description": "业务ID",
+          "unit": "",
+          "tag": "dimension"
+        },
+        {
+          "field_name": "bk_supplier_id",
+          "field_type": "int",
+          "description": "开发商ID",
+          "unit": "",
+          "tag": "dimension"
+        },
+        {
+          "field_name": "bk_cloud_id",
+          "field_type": "int",
+          "description": "采集器云区域ID",
+          "unit": "",
+          "tag": "dimension"
+        },
+        {
+          "field_name": "time",
+          "field_type": "timestamp",
+          "description": "数据上报时间",
+          "unit": "",
+          "tag": "timestamp"
+        },
+        {
+          "field_name": "bk_cmdb_level",
+          "field_type": "string",
+          "description": "CMDB层级信息",
+          "unit": "",
+          "tag": "dimension"
+        },
+        {
+          "field_name": "bk_target_ip",
+          "field_type": "string",
+          "description": "目标IP",
+          "unit": "",
+          "tag": "dimension"
+        },
+        {
+          "field_name": "bk_target_cloud_id",
+          "field_type": "string",
+          "description": "云区域ID",
+          "unit": "",
+          "tag": "dimension"
+        },
+        {
+          "field_name": "maxfiles",
+          "field_type": "int",
+          "description": "最大文件描述符",
+          "unit": "short",
+          "tag": "metric"
+        },
+        {
+          "field_name": "login_user",
+          "field_type": "int",
+          "description": "登录的用户数",
+          "unit": "short",
+          "tag": "metric"
+        },
+        {
+          "field_name": "proc_running_current",
+          "field_type": "int",
+          "description": "正在运行的进程总个数",
+          "unit": "short",
+          "tag": "metric"
+        },
+        {
+          "field_name": "procs_blocked_current",
+          "field_type": "int",
+          "description": "处于等待I/O完成的进程个数",
+          "unit": "short",
+          "tag": "metric"
+        },
+        {
+          "field_name": "procs_processes_total",
+          "field_type": "int",
+          "description": "系统启动后所创建过的进程数量",
+          "unit": "short",
+          "tag": "metric"
+        },
+        {
+          "field_name": "procs_ctxt_total",
+          "field_type": "int",
+          "description": "系统上下文切换次数",
+          "unit": "short",
+          "tag": "metric"
+        },
+        {
+          "field_name": "bk_agent_id",
+          "field_type": "string",
+          "description": "Agent ID",
+          "unit": "",
+          "tag": "dimension"
+        },
+        {
+          "field_name": "bk_host_id",
+          "field_type": "string",
+          "description": "采集主机ID",
+          "unit": "",
+          "tag": "dimension"
+        },
+        {
+          "field_name": "bk_target_host_id",
+          "field_type": "string",
+          "description": "目标主机ID",
+          "unit": "",
+          "tag": "dimension"
+        }
+      ],
+      "bk_data_id": 1001
+    },
+    {
+      "table_id": "system.cpu_detail",
+      "table_name_zh": "单核CPU",
+      "is_custom_table": false,
+      "schema_type": "fixed",
+      "default_storage": "influxdb",
+      "bk_biz_id": 0,
+      "label": "os",
+      "field_list": [
+        {
+          "field_name": "ip",
+          "field_type": "string",
+          "description": "采集器IP",
+          "unit": "",
+          "tag": "dimension"
+        },
+        {
+          "field_name": "hostname",
+          "field_type": "string",
+          "description": "主机名",
+          "unit": "",
+          "tag": "dimension"
+        },
+        {
+          "field_name": "device_name",
+          "field_type": "string",
+          "description": "设备名",
+          "unit": "",
+          "tag": "dimension"
+        },
+        {
+          "field_name": "usage",
+          "field_type": "double",
+          "description": "CPU单核使用率",
+          "unit": "percent",
+          "tag": "metric"
+        },
+        {
+          "field_name": "idle",
+          "field_type": "double",
+          "description": "CPU单核空闲率",
+          "unit": "percentunit",
+          "tag": "metric"
+        },
+        {
+          "field_name": "iowait",
+          "field_type": "double",
+          "description": "CPU单核等待IO的时间占比",
+          "unit": "percentunit",
+          "tag": "metric"
+        },
+        {
+          "field_name": "stolen",
+          "field_type": "double",
+          "description": "CPU单核分配给虚拟机的时间占比",
+          "unit": "percentunit",
+          "tag": "metric"
+        },
+        {
+          "field_name": "system",
+          "field_type": "double",
+          "description": "CPU单核系统程序使用占比",
+          "unit": "percentunit",
+          "tag": "metric"
+        },
+        {
+          "field_name": "user",
+          "field_type": "double",
+          "description": "CPU单核用户程序使用占比",
+          "unit": "percentunit",
+          "tag": "metric"
+        },
+        {
+          "field_name": "bk_biz_id",
+          "field_type": "int",
+          "description": "业务ID",
+          "unit": "",
+          "tag": "dimension"
+        },
+        {
+          "field_name": "bk_supplier_id",
+          "field_type": "int",
+          "description": "开发商ID",
+          "unit": "",
+          "tag": "dimension"
+        },
+        {
+          "field_name": "bk_cloud_id",
+          "field_type": "int",
+          "description": "采集器云区域ID",
+          "unit": "",
+          "tag": "dimension"
+        },
+        {
+          "field_name": "time",
+          "field_type": "timestamp",
+          "description": "数据上报时间",
+          "unit": "",
+          "tag": "timestamp"
+        },
+        {
+          "field_name": "bk_cmdb_level",
+          "field_type": "string",
+          "description": "CMDB层级信息",
+          "unit": "",
+          "tag": "dimension"
+        },
+        {
+          "field_name": "bk_target_ip",
+          "field_type": "string",
+          "description": "目标IP",
+          "unit": "",
+          "tag": "dimension"
+        },
+        {
+          "field_name": "bk_target_cloud_id",
+          "field_type": "string",
+          "description": "云区域ID",
+          "unit": "",
+          "tag": "dimension"
+        },
+        {
+          "field_name": "nice",
+          "field_type": "double",
+          "description": "低优先级程序在用户态执行的CPU占比",
+          "unit": "percentunit",
+          "tag": "metric"
+        },
+        {
+          "field_name": "interrupt",
+          "field_type": "double",
+          "description": "硬件中断数的CPU占比",
+          "unit": "percentunit",
+          "tag": "metric"
+        },
+        {
+          "field_name": "softirq",
+          "field_type": "double",
+          "description": "软件中断数的CPU占比",
+          "unit": "percentunit",
+          "tag": "metric"
+        },
+        {
+          "field_name": "guest",
+          "field_type": "double",
+          "description": "内核在虚拟机上运行的CPU占比",
+          "unit": "percentunit",
+          "tag": "metric"
+        },
+        {
+          "field_name": "bk_agent_id",
+          "field_type": "string",
+          "description": "Agent ID",
+          "unit": "",
+          "tag": "dimension"
+        },
+        {
+          "field_name": "bk_host_id",
+          "field_type": "string",
+          "description": "采集主机ID",
+          "unit": "",
+          "tag": "dimension"
+        },
+        {
+          "field_name": "bk_target_host_id",
+          "field_type": "string",
+          "description": "目标主机ID",
+          "unit": "",
+          "tag": "dimension"
+        }
+      ],
+      "bk_data_id": 1001
+    },
+    {
+      "table_id": "system.mem",
+      "table_name_zh": "内存",
+      "is_custom_table": false,
+      "schema_type": "fixed",
+      "default_storage": "influxdb",
+      "bk_biz_id": 0,
+      "label": "os",
+      "field_list": [
+        {
+          "field_name": "ip",
+          "field_type": "string",
+          "description": "采集器IP",
+          "unit": "",
+          "tag": "dimension"
+        },
+        {
+          "field_name": "hostname",
+          "field_type": "string",
+          "description": "主机名",
+          "unit": "",
+          "tag": "dimension"
+        },
+        {
+          "field_name": "buffer",
+          "field_type": "int",
+          "description": "内存buffered大小",
+          "unit": "bytes",
+          "tag": "metric"
+        },
+        {
+          "field_name": "cached",
+          "field_type": "int",
+          "description": "内存cached大小",
+          "unit": "bytes",
+          "tag": "metric"
+        },
+        {
+          "field_name": "free",
+          "field_type": "int",
+          "description": "物理内存空闲量",
+          "unit": "bytes",
+          "tag": "metric"
+        },
+        {
+          "field_name": "total",
+          "field_type": "int",
+          "description": "物理内存总大小",
+          "unit": "bytes",
+          "tag": "metric"
+        },
+        {
+          "field_name": "usable",
+          "field_type": "int",
+          "description": "应用程序内存可用量",
+          "unit": "bytes",
+          "tag": "metric"
+        },
+        {
+          "field_name": "pct_usable",
+          "field_type": "double",
+          "description": "应用程序内存可用率",
+          "unit": "percent",
+          "tag": "metric"
+        },
+        {
+          "field_name": "used",
+          "field_type": "int",
+          "description": "应用程序内存使用量",
+          "unit": "bytes",
+          "tag": "metric"
+        },
+        {
+          "field_name": "pct_used",
+          "field_type": "double",
+          "description": "应用程序内存使用占比",
+          "unit": "percent",
+          "tag": "metric"
+        },
+        {
+          "field_name": "psc_used",
+          "field_type": "int",
+          "description": "物理内存已用量",
+          "unit": "bytes",
+          "tag": "metric"
+        },
+        {
+          "field_name": "psc_pct_used",
+          "field_type": "double",
+          "description": "物理内存已用占比",
+          "unit": "percent",
+          "tag": "metric"
+        },
+        {
+          "field_name": "bk_biz_id",
+          "field_type": "int",
+          "description": "业务ID",
+          "unit": "",
+          "tag": "dimension"
+        },
+        {
+          "field_name": "bk_supplier_id",
+          "field_type": "int",
+          "description": "开发商ID",
+          "unit": "",
+          "tag": "dimension"
+        },
+        {
+          "field_name": "bk_cloud_id",
+          "field_type": "int",
+          "description": "采集器云区域ID",
+          "unit": "",
+          "tag": "dimension"
+        },
+        {
+          "field_name": "time",
+          "field_type": "timestamp",
+          "description": "数据上报时间",
+          "unit": "",
+          "tag": "timestamp"
+        },
+        {
+          "field_name": "bk_cmdb_level",
+          "field_type": "string",
+          "description": "CMDB层级信息",
+          "unit": "",
+          "tag": "dimension"
+        },
+        {
+          "field_name": "bk_target_ip",
+          "field_type": "string",
+          "description": "目标IP",
+          "unit": "",
+          "tag": "dimension"
+        },
+        {
+          "field_name": "bk_target_cloud_id",
+          "field_type": "string",
+          "description": "云区域ID",
+          "unit": "",
+          "tag": "dimension"
+        },
+        {
+          "field_name": "shared",
+          "field_type": "int",
+          "description": "共享内存使用量",
+          "unit": "decbytes",
+          "tag": "metric"
+        },
+        {
+          "field_name": "bk_agent_id",
+          "field_type": "string",
+          "description": "Agent ID",
+          "unit": "",
+          "tag": "dimension"
+        },
+        {
+          "field_name": "bk_host_id",
+          "field_type": "string",
+          "description": "采集主机ID",
+          "unit": "",
+          "tag": "dimension"
+        },
+        {
+          "field_name": "bk_target_host_id",
+          "field_type": "string",
+          "description": "目标主机ID",
+          "unit": "",
+          "tag": "dimension"
+        }
+      ],
+      "bk_data_id": 1001
+    },
+    {
+      "table_id": "system.netstat",
+      "table_name_zh": "连接状态",
+      "is_custom_table": false,
+      "schema_type": "fixed",
+      "default_storage": "influxdb",
+      "bk_biz_id": 0,
+      "label": "os",
+      "field_list": [
+        {
+          "field_name": "cur_tcp_closewait",
+          "field_type": "int",
+          "description": "closewait连接数",
+          "unit": "short",
+          "tag": "metric"
+        },
+        {
+          "field_name": "cur_tcp_timewait",
+          "field_type": "int",
+          "description": "timewait连接数",
+          "unit": "short",
+          "tag": "metric"
+        },
+        {
+          "field_name": "ip",
+          "field_type": "string",
+          "description": "采集器IP",
+          "unit": "",
+          "tag": "dimension"
+        },
+        {
+          "field_name": "hostname",
+          "field_type": "string",
+          "description": "主机名",
+          "unit": "",
+          "tag": "dimension"
+        },
+        {
+          "field_name": "cur_tcp_closed",
+          "field_type": "int",
+          "description": "closed连接数",
+          "unit": "short",
+          "tag": "metric"
+        },
+        {
+          "field_name": "cur_tcp_closing",
+          "field_type": "int",
+          "description": "closing连接数",
+          "unit": "short",
+          "tag": "metric"
+        },
+        {
+          "field_name": "cur_tcp_estab",
+          "field_type": "int",
+          "description": "estab连接数",
+          "unit": "short",
+          "tag": "metric"
+        },
+        {
+          "field_name": "cur_tcp_finwait1",
+          "field_type": "int",
+          "description": "finwait1连接数",
+          "unit": "short",
+          "tag": "metric"
+        },
+        {
+          "field_name": "cur_tcp_finwait2",
+          "field_type": "int",
+          "description": "finwait2连接数",
+          "unit": "short",
+          "tag": "metric"
+        },
+        {
+          "field_name": "cur_tcp_lastack",
+          "field_type": "int",
+          "description": "lastack连接数",
+          "unit": "short",
+          "tag": "metric"
+        },
+        {
+          "field_name": "cur_tcp_listen",
+          "field_type": "int",
+          "description": "listen连接数",
+          "unit": "short",
+          "tag": "metric"
+        },
+        {
+          "field_name": "cur_tcp_syn_recv",
+          "field_type": "int",
+          "description": "synrecv连接数",
+          "unit": "short",
+          "tag": "metric"
+        },
+        {
+          "field_name": "cur_tcp_syn_sent",
+          "field_type": "int",
+          "description": "synsent连接数",
+          "unit": "short",
+          "tag": "metric"
+        },
+        {
+          "field_name": "cur_udp_indatagrams",
+          "field_type": "int",
+          "description": "udp接收包量",
+          "unit": "short",
+          "tag": "metric"
+        },
+        {
+          "field_name": "cur_udp_outdatagrams",
+          "field_type": "int",
+          "description": "udp发送包量",
+          "unit": "short",
+          "tag": "metric"
+        },
+        {
+          "field_name": "bk_biz_id",
+          "field_type": "int",
+          "description": "业务ID",
+          "unit": "",
+          "tag": "dimension"
+        },
+        {
+          "field_name": "bk_supplier_id",
+          "field_type": "int",
+          "description": "开发商ID",
+          "unit": "",
+          "tag": "dimension"
+        },
+        {
+          "field_name": "bk_cloud_id",
+          "field_type": "int",
+          "description": "采集器云区域ID",
+          "unit": "",
+          "tag": "dimension"
+        },
+        {
+          "field_name": "time",
+          "field_type": "timestamp",
+          "description": "数据上报时间",
+          "unit": "",
+          "tag": "timestamp"
+        },
+        {
+          "field_name": "bk_cmdb_level",
+          "field_type": "string",
+          "description": "CMDB层级信息",
+          "unit": "",
+          "tag": "dimension"
+        },
+        {
+          "field_name": "bk_target_ip",
+          "field_type": "string",
+          "description": "目标IP",
+          "unit": "",
+          "tag": "dimension"
+        },
+        {
+          "field_name": "bk_target_cloud_id",
+          "field_type": "string",
+          "description": "云区域ID",
+          "unit": "",
+          "tag": "dimension"
+        },
+        {
+          "field_name": "bk_agent_id",
+          "field_type": "string",
+          "description": "Agent ID",
+          "unit": "",
+          "tag": "dimension"
+        },
+        {
+          "field_name": "bk_host_id",
+          "field_type": "string",
+          "description": "采集主机ID",
+          "unit": "",
+          "tag": "dimension"
+        },
+        {
+          "field_name": "bk_target_host_id",
+          "field_type": "string",
+          "description": "目标主机ID",
+          "unit": "",
+          "tag": "dimension"
+        }
+      ],
+      "bk_data_id": 1001
+    },
+    {
+      "table_id": "system.disk",
+      "table_name_zh": "磁盘",
+      "is_custom_table": false,
+      "schema_type": "fixed",
+      "default_storage": "influxdb",
+      "bk_biz_id": 0,
+      "label": "os",
+      "field_list": [
+        {
+          "field_name": "ip",
+          "field_type": "string",
+          "description": "采集器IP",
+          "unit": "",
+          "tag": "dimension"
+        },
+        {
+          "field_name": "hostname",
+          "field_type": "string",
+          "description": "主机名",
+          "unit": "",
+          "tag": "dimension"
+        },
+        {
+          "field_name": "device_name",
+          "field_type": "string",
+          "description": "设备名",
+          "unit": "",
+          "tag": "dimension"
+        },
+        {
+          "field_name": "free",
+          "field_type": "int",
+          "description": "磁盘可用空间大小",
+          "unit": "bytes",
+          "tag": "metric"
+        },
+        {
+          "field_name": "total",
+          "field_type": "int",
+          "description": "磁盘总空间大小",
+          "unit": "bytes",
+          "tag": "metric"
+        },
+        {
+          "field_name": "used",
+          "field_type": "int",
+          "description": "磁盘已用空间大小",
+          "unit": "bytes",
+          "tag": "metric"
+        },
+        {
+          "field_name": "in_use",
+          "field_type": "double",
+          "description": "磁盘空间使用率",
+          "unit": "percent",
+          "tag": "metric"
+        },
+        {
+          "field_name": "bk_biz_id",
+          "field_type": "int",
+          "description": "业务ID",
+          "unit": "",
+          "tag": "dimension"
+        },
+        {
+          "field_name": "bk_supplier_id",
+          "field_type": "int",
+          "description": "开发商ID",
+          "unit": "",
+          "tag": "dimension"
+        },
+        {
+          "field_name": "bk_cloud_id",
+          "field_type": "int",
+          "description": "采集器云区域ID",
+          "unit": "",
+          "tag": "dimension"
+        },
+        {
+          "field_name": "time",
+          "field_type": "timestamp",
+          "description": "数据上报时间",
+          "unit": "",
+          "tag": "timestamp"
+        },
+        {
+          "field_name": "device_type",
+          "field_type": "string",
+          "description": "设备类型",
+          "unit": "",
+          "tag": "dimension"
+        },
+        {
+          "field_name": "mount_point",
+          "field_type": "string",
+          "description": "挂载点",
+          "unit": "",
+          "tag": "dimension"
+        },
+        {
+          "field_name": "bk_cmdb_level",
+          "field_type": "string",
+          "description": "CMDB层级信息",
+          "unit": "",
+          "tag": "dimension"
+        },
+        {
+          "field_name": "bk_target_ip",
+          "field_type": "string",
+          "description": "目标IP",
+          "unit": "",
+          "tag": "dimension"
+        },
+        {
+          "field_name": "bk_target_cloud_id",
+          "field_type": "string",
+          "description": "云区域ID",
+          "unit": "",
+          "tag": "dimension"
+        },
+        {
+          "field_name": "bk_agent_id",
+          "field_type": "string",
+          "description": "Agent ID",
+          "unit": "",
+          "tag": "dimension"
+        },
+        {
+          "field_name": "bk_host_id",
+          "field_type": "string",
+          "description": "采集主机ID",
+          "unit": "",
+          "tag": "dimension"
+        },
+        {
+          "field_name": "bk_target_host_id",
+          "field_type": "string",
+          "description": "目标主机ID",
+          "unit": "",
+          "tag": "dimension"
+        }
+      ],
+      "bk_data_id": 1001
+    },
+    {
+      "table_id": "system.net",
+      "table_name_zh": "网络",
+      "is_custom_table": false,
+      "schema_type": "fixed",
+      "default_storage": "influxdb",
+      "bk_biz_id": 0,
+      "label": "os",
+      "field_list": [
+        {
+          "field_name": "speed_packets_recv",
+          "field_type": "int",
+          "description": "网卡入包量",
+          "unit": "pps",
+          "tag": "metric"
+        },
+        {
+          "field_name": "speed_packets_sent",
+          "field_type": "int",
+          "description": "网卡出包量",
+          "unit": "pps",
+          "tag": "metric"
+        },
+        {
+          "field_name": "ip",
+          "field_type": "string",
+          "description": "采集器IP",
+          "unit": "",
+          "tag": "dimension"
+        },
+        {
+          "field_name": "hostname",
+          "field_type": "string",
+          "description": "主机名",
+          "unit": "",
+          "tag": "dimension"
+        },
+        {
+          "field_name": "device_name",
+          "field_type": "string",
+          "description": "设备名",
+          "unit": "",
+          "tag": "dimension"
+        },
+        {
+          "field_name": "speed_recv",
+          "field_type": "int",
+          "description": "网卡入流量",
+          "unit": "Bps",
+          "tag": "metric"
+        },
+        {
+          "field_name": "speed_sent",
+          "field_type": "int",
+          "description": "网卡出流量",
+          "unit": "Bps",
+          "tag": "metric"
+        },
+        {
+          "field_name": "bk_biz_id",
+          "field_type": "int",
+          "description": "业务ID",
+          "unit": "",
+          "tag": "dimension"
+        },
+        {
+          "field_name": "bk_supplier_id",
+          "field_type": "int",
+          "description": "开发商ID",
+          "unit": "",
+          "tag": "dimension"
+        },
+        {
+          "field_name": "bk_cloud_id",
+          "field_type": "int",
+          "description": "采集器云区域ID",
+          "unit": "",
+          "tag": "dimension"
+        },
+        {
+          "field_name": "time",
+          "field_type": "timestamp",
+          "description": "数据上报时间",
+          "unit": "",
+          "tag": "timestamp"
+        },
+        {
+          "field_name": "bk_cmdb_level",
+          "field_type": "string",
+          "description": "CMDB层级信息",
+          "unit": "",
+          "tag": "dimension"
+        },
+        {
+          "field_name": "bk_target_ip",
+          "field_type": "string",
+          "description": "目标IP",
+          "unit": "",
+          "tag": "dimension"
+        },
+        {
+          "field_name": "bk_target_cloud_id",
+          "field_type": "string",
+          "description": "云区域ID",
+          "unit": "",
+          "tag": "dimension"
+        },
+        {
+          "field_name": "speed_recv_bit",
+          "field_type": "float",
+          "description": "网卡入流量比特速率",
+          "unit": "bps",
+          "tag": "metric"
+        },
+        {
+          "field_name": "speed_sent_bit",
+          "field_type": "float",
+          "description": "网卡出流量比特速率",
+          "unit": "bps",
+          "tag": "metric"
+        },
+        {
+          "field_name": "errors",
+          "field_type": "int",
+          "description": "网卡错误包",
+          "unit": "short",
+          "tag": "metric"
+        },
+        {
+          "field_name": "dropped",
+          "field_type": "int",
+          "description": "网卡丢弃包",
+          "unit": "short",
+          "tag": "metric"
+        },
+        {
+          "field_name": "overruns",
+          "field_type": "int",
+          "description": "网卡物理层丢弃",
+          "unit": "short",
+          "tag": "metric"
+        },
+        {
+          "field_name": "carrier",
+          "field_type": "int",
+          "description": "设备驱动程序检测到的载波丢失数",
+          "unit": "short",
+          "tag": "metric"
+        },
+        {
+          "field_name": "collisions",
+          "field_type": "int",
+          "description": "网卡冲突包",
+          "unit": "short",
+          "tag": "metric"
+        },
+        {
+          "field_name": "bk_agent_id",
+          "field_type": "string",
+          "description": "Agent ID",
+          "unit": "",
+          "tag": "dimension"
+        },
+        {
+          "field_name": "bk_host_id",
+          "field_type": "string",
+          "description": "采集主机ID",
+          "unit": "",
+          "tag": "dimension"
+        },
+        {
+          "field_name": "bk_target_host_id",
+          "field_type": "string",
+          "description": "目标主机ID",
+          "unit": "",
+          "tag": "dimension"
+        }
+      ],
+      "bk_data_id": 1001
+    },
+    {
+      "table_id": "system.proc",
+      "table_name_zh": "进程",
+      "is_custom_table": false,
+      "schema_type": "fixed",
+      "default_storage": "influxdb",
+      "bk_biz_id": 0,
+      "label": "host_process",
+      "field_list": [
+        {
+          "field_name": "ip",
+          "field_type": "string",
+          "description": "采集器IP",
+          "unit": "",
+          "tag": "dimension"
+        },
+        {
+          "field_name": "hostname",
+          "field_type": "string",
+          "description": "主机名",
+          "unit": "",
+          "tag": "dimension"
+        },
+        {
+          "field_name": "proc_name",
+          "field_type": "string",
+          "description": "进程二进制文件名称",
+          "unit": "",
+          "tag": "dimension"
+        },
+        {
+          "field_name": "display_name",
+          "field_type": "string",
+          "description": "进程显示名称",
+          "unit": "",
+          "tag": "dimension"
+        },
+        {
+          "field_name": "param_regex",
+          "field_type": "string",
+          "description": "进程匹配参数正则",
+          "unit": "",
+          "tag": "dimension"
+        },
+        {
+          "field_name": "pid",
+          "field_type": "int",
+          "description": "进程id",
+          "unit": "",
+          "tag": "dimension"
+        },
+        {
+          "field_name": "pgid",
+          "field_type": "int",
+          "description": "进程组id",
+          "unit": "",
+          "tag": "dimension"
+        },
+        {
+          "field_name": "ppid",
+          "field_type": "int",
+          "description": "父进程ID",
+          "unit": "",
+          "tag": "dimension"
+        },
+        {
+          "field_name": "state",
+          "field_type": "string",
+          "description": "进程状态",
+          "unit": "",
+          "tag": "dimension"
+        },
+        {
+          "field_name": "username",
+          "field_type": "string",
+          "description": "进程用户名",
+          "unit": "",
+          "tag": "dimension"
+        },
+        {
+          "field_name": "cpu_usage_pct",
+          "field_type": "double",
+          "description": "进程CPU使用率",
+          "unit": "percentunit",
+          "tag": "metric"
+        },
+        {
+          "field_name": "mem_usage_pct",
+          "field_type": "double",
+          "description": "进程内存使用率",
+          "unit": "percentunit",
+          "tag": "metric"
+        },
+        {
+          "field_name": "fd_num",
+          "field_type": "int",
+          "description": "进程文件句柄数",
+          "unit": "short",
+          "tag": "metric"
+        },
+        {
+          "field_name": "mem_res",
+          "field_type": "int",
+          "description": "进程使用物理内存",
+          "unit": "bytes",
+          "tag": "metric"
+        },
+        {
+          "field_name": "mem_virt",
+          "field_type": "int",
+          "description": "进程使用虚拟内存",
+          "unit": "bytes",
+          "tag": "metric"
+        },
+        {
+          "field_name": "bk_biz_id",
+          "field_type": "int",
+          "description": "业务ID",
+          "unit": "",
+          "tag": "dimension"
+        },
+        {
+          "field_name": "bk_supplier_id",
+          "field_type": "int",
+          "description": "开发商ID",
+          "unit": "",
+          "tag": "dimension"
+        },
+        {
+          "field_name": "bk_cloud_id",
+          "field_type": "int",
+          "description": "采集器云区域ID",
+          "unit": "",
+          "tag": "dimension"
+        },
+        {
+          "field_name": "time",
+          "field_type": "timestamp",
+          "description": "数据上报时间",
+          "unit": "",
+          "tag": "timestamp"
+        },
+        {
+          "field_name": "bk_cmdb_level",
+          "field_type": "string",
+          "description": "CMDB层级信息",
+          "unit": "",
+          "tag": "dimension"
+        },
+        {
+          "field_name": "bk_target_ip",
+          "field_type": "string",
+          "description": "目标IP",
+          "unit": "",
+          "tag": "dimension"
+        },
+        {
+          "field_name": "bk_target_cloud_id",
+          "field_type": "string",
+          "description": "云区域ID",
+          "unit": "",
+          "tag": "dimension"
+        },
+        {
+          "field_name": "uptime",
+          "field_type": "int",
+          "description": "进程运行时间",
+          "unit": "s",
+          "tag": "metric"
+        },
+        {
+          "field_name": "port",
+          "field_type": "string",
+          "description": "进程监听端口",
+          "unit": "",
+          "tag": "dimension"
+        },
+        {
+          "field_name": "cpu_user",
+          "field_type": "double",
+          "description": "进程占用用户态时间",
+          "unit": "s",
+          "tag": "metric"
+        },
+        {
+          "field_name": "cpu_system",
+          "field_type": "double",
+          "description": "进程占用系统态时间",
+          "unit": "s",
+          "tag": "metric"
+        },
+        {
+          "field_name": "cpu_total_ticks",
+          "field_type": "double",
+          "description": "整体占用时间",
+          "unit": "s",
+          "tag": "metric"
+        },
+        {
+          "field_name": "fd_limit_soft",
+          "field_type": "double",
+          "description": "fd_limit_soft",
+          "unit": "short",
+          "tag": "metric"
+        },
+        {
+          "field_name": "fd_limit_hard",
+          "field_type": "double",
+          "description": "fd_limit_hard",
+          "unit": "short",
+          "tag": "metric"
+        },
+        {
+          "field_name": "io_read_bytes",
+          "field_type": "double",
+          "description": "进程io累计读",
+          "unit": "bytes",
+          "tag": "metric"
+        },
+        {
+          "field_name": "io_write_bytes",
+          "field_type": "double",
+          "description": "进程io累计写",
+          "unit": "bytes",
+          "tag": "metric"
+        },
+        {
+          "field_name": "io_read_speed",
+          "field_type": "double",
+          "description": "进程io读速率",
+          "unit": "Bps",
+          "tag": "metric"
+        },
+        {
+          "field_name": "io_write_speed",
+          "field_type": "double",
+          "description": "进程io写速率",
+          "unit": "Bps",
+          "tag": "metric"
+        },
+        {
+          "field_name": "bk_agent_id",
+          "field_type": "string",
+          "description": "Agent ID",
+          "unit": "",
+          "tag": "dimension"
+        },
+        {
+          "field_name": "bk_host_id",
+          "field_type": "string",
+          "description": "采集主机ID",
+          "unit": "",
+          "tag": "dimension"
+        },
+        {
+          "field_name": "bk_target_host_id",
+          "field_type": "string",
+          "description": "目标主机ID",
+          "unit": "",
+          "tag": "dimension"
+        }
+      ],
+      "bk_data_id": 1007
+    },
+    {
+      "table_id": "system.inode",
+      "table_name_zh": "文件句柄",
+      "is_custom_table": false,
+      "schema_type": "fixed",
+      "default_storage": "influxdb",
+      "bk_biz_id": 0,
+      "label": "os",
+      "field_list": [
+        {
+          "field_name": "ip",
+          "field_type": "string",
+          "description": "采集器IP",
+          "unit": "",
+          "tag": "dimension"
+        },
+        {
+          "field_name": "hostname",
+          "field_type": "string",
+          "description": "主机名",
+          "unit": "",
+          "tag": "dimension"
+        },
+        {
+          "field_name": "device_name",
+          "field_type": "string",
+          "description": "设备名",
+          "unit": "",
+          "tag": "dimension"
+        },
+        {
+          "field_name": "free",
+          "field_type": "int",
+          "description": "可用inode数量",
+          "unit": "short",
+          "tag": "metric"
+        },
+        {
+          "field_name": "total",
+          "field_type": "int",
+          "description": "总inode数量",
+          "unit": "short",
+          "tag": "metric"
+        },
+        {
+          "field_name": "used",
+          "field_type": "int",
+          "description": "已用inode数量",
+          "unit": "short",
+          "tag": "metric"
+        },
+        {
+          "field_name": "in_use",
+          "field_type": "double",
+          "description": "已用inode占比",
+          "unit": "percent",
+          "tag": "metric"
+        },
+        {
+          "field_name": "bk_biz_id",
+          "field_type": "int",
+          "description": "业务ID",
+          "unit": "",
+          "tag": "dimension"
+        },
+        {
+          "field_name": "bk_supplier_id",
+          "field_type": "int",
+          "description": "开发商ID",
+          "unit": "",
+          "tag": "dimension"
+        },
+        {
+          "field_name": "bk_cloud_id",
+          "field_type": "int",
+          "description": "采集器云区域ID",
+          "unit": "",
+          "tag": "dimension"
+        },
+        {
+          "field_name": "time",
+          "field_type": "timestamp",
+          "description": "数据上报时间",
+          "unit": "",
+          "tag": "timestamp"
+        },
+        {
+          "field_name": "bk_cmdb_level",
+          "field_type": "string",
+          "description": "CMDB层级信息",
+          "unit": "",
+          "tag": "dimension"
+        },
+        {
+          "field_name": "bk_target_ip",
+          "field_type": "string",
+          "description": "目标IP",
+          "unit": "",
+          "tag": "dimension"
+        },
+        {
+          "field_name": "bk_target_cloud_id",
+          "field_type": "string",
+          "description": "云区域ID",
+          "unit": "",
+          "tag": "dimension"
+        },
+        {
+          "field_name": "bk_agent_id",
+          "field_type": "string",
+          "description": "Agent ID",
+          "unit": "",
+          "tag": "dimension"
+        },
+        {
+          "field_name": "bk_host_id",
+          "field_type": "string",
+          "description": "采集主机ID",
+          "unit": "",
+          "tag": "dimension"
+        },
+        {
+          "field_name": "bk_target_host_id",
+          "field_type": "string",
+          "description": "目标主机ID",
+          "unit": "",
+          "tag": "dimension"
+        }
+      ],
+      "bk_data_id": 1001
+    },
+    {
+      "table_id": "system.swap",
+      "table_name_zh": "交换分区",
+      "is_custom_table": false,
+      "schema_type": "fixed",
+      "default_storage": "influxdb",
+      "bk_biz_id": 0,
+      "label": "os",
+      "field_list": [
+        {
+          "field_name": "ip",
+          "field_type": "string",
+          "description": "采集器IP",
+          "unit": "",
+          "tag": "dimension"
+        },
+        {
+          "field_name": "hostname",
+          "field_type": "string",
+          "description": "主机名",
+          "unit": "",
+          "tag": "dimension"
+        },
+        {
+          "field_name": "free",
+          "field_type": "int",
+          "description": "SWAP空闲量",
+          "unit": "bytes",
+          "tag": "metric"
+        },
+        {
+          "field_name": "total",
+          "field_type": "int",
+          "description": "SWAP总量",
+          "unit": "bytes",
+          "tag": "metric"
+        },
+        {
+          "field_name": "used",
+          "field_type": "int",
+          "description": "SWAP已用量",
+          "unit": "bytes",
+          "tag": "metric"
+        },
+        {
+          "field_name": "pct_used",
+          "field_type": "double",
+          "description": "SWAP已用占比",
+          "unit": "percent",
+          "tag": "metric"
+        },
+        {
+          "field_name": "bk_biz_id",
+          "field_type": "int",
+          "description": "业务ID",
+          "unit": "",
+          "tag": "dimension"
+        },
+        {
+          "field_name": "bk_supplier_id",
+          "field_type": "int",
+          "description": "开发商ID",
+          "unit": "",
+          "tag": "dimension"
+        },
+        {
+          "field_name": "bk_cloud_id",
+          "field_type": "int",
+          "description": "采集器云区域ID",
+          "unit": "",
+          "tag": "dimension"
+        },
+        {
+          "field_name": "time",
+          "field_type": "timestamp",
+          "description": "数据上报时间",
+          "unit": "",
+          "tag": "timestamp"
+        },
+        {
+          "field_name": "bk_cmdb_level",
+          "field_type": "string",
+          "description": "CMDB层级信息",
+          "unit": "",
+          "tag": "dimension"
+        },
+        {
+          "field_name": "bk_target_ip",
+          "field_type": "string",
+          "description": "目标IP",
+          "unit": "",
+          "tag": "dimension"
+        },
+        {
+          "field_name": "bk_target_cloud_id",
+          "field_type": "string",
+          "description": "云区域ID",
+          "unit": "",
+          "tag": "dimension"
+        },
+        {
+          "field_name": "swap_in",
+          "field_type": "float",
+          "description": "swap从硬盘到内存",
+          "unit": "KBs",
+          "tag": "metric"
+        },
+        {
+          "field_name": "swap_out",
+          "field_type": "float",
+          "description": "swap从内存到硬盘",
+          "unit": "KBs",
+          "tag": "metric"
+        },
+        {
+          "field_name": "bk_agent_id",
+          "field_type": "string",
+          "description": "Agent ID",
+          "unit": "",
+          "tag": "dimension"
+        },
+        {
+          "field_name": "bk_host_id",
+          "field_type": "string",
+          "description": "采集主机ID",
+          "unit": "",
+          "tag": "dimension"
+        },
+        {
+          "field_name": "bk_target_host_id",
+          "field_type": "string",
+          "description": "目标主机ID",
+          "unit": "",
+          "tag": "dimension"
+        }
+      ],
+      "bk_data_id": 1001
+    },
+    {
+      "table_id": "system.proc_port",
+      "table_name_zh": "进程端口",
+      "is_custom_table": false,
+      "schema_type": "fixed",
+      "default_storage": "influxdb",
+      "bk_biz_id": 0,
+      "label": "host_process",
+      "field_list": [
+        {
+          "field_name": "ip",
+          "field_type": "string",
+          "description": "采集器IP",
+          "unit": "",
+          "tag": "dimension"
+        },
+        {
+          "field_name": "hostname",
+          "field_type": "string",
+          "description": "主机名",
+          "unit": "",
+          "tag": "dimension"
+        },
+        {
+          "field_name": "proc_name",
+          "field_type": "string",
+          "description": "进程二进制文件名称",
+          "unit": "",
+          "tag": "dimension"
+        },
+        {
+          "field_name": "display_name",
+          "field_type": "string",
+          "description": "进程显示名称",
+          "unit": "",
+          "tag": "dimension"
+        },
+        {
+          "field_name": "param_regex",
+          "field_type": "string",
+          "description": "进程匹配参数正则",
+          "unit": "",
+          "tag": "dimension"
+        },
+        {
+          "field_name": "listen",
+          "field_type": "string",
+          "description": "监听中的端口",
+          "unit": "",
+          "tag": "dimension"
+        },
+        {
+          "field_name": "nonlisten",
+          "field_type": "string",
+          "description": "未监听的端口",
+          "unit": "",
+          "tag": "dimension"
+        },
+        {
+          "field_name": "not_accurate_listen",
+          "field_type": "string",
+          "description": "监听IP不匹配的端口",
+          "unit": "",
+          "tag": "dimension"
+        },
+        {
+          "field_name": "bind_ip",
+          "field_type": "string",
+          "description": "绑定的IP地址",
+          "unit": "",
+          "tag": "dimension"
+        },
+        {
+          "field_name": "protocol",
+          "field_type": "string",
+          "description": "协议",
+          "unit": "",
+          "tag": "dimension"
+        },
+        {
+          "field_name": "proc_exists",
+          "field_type": "int",
+          "description": "进程存活状态",
+          "unit": "none",
+          "tag": "metric"
+        },
+        {
+          "field_name": "port_health",
+          "field_type": "int",
+          "description": "进程端口状态",
+          "unit": "none",
+          "tag": "metric"
+        },
+        {
+          "field_name": "bk_biz_id",
+          "field_type": "int",
+          "description": "业务ID",
+          "unit": "",
+          "tag": "dimension"
+        },
+        {
+          "field_name": "bk_supplier_id",
+          "field_type": "int",
+          "description": "开发商ID",
+          "unit": "",
+          "tag": "dimension"
+        },
+        {
+          "field_name": "bk_cloud_id",
+          "field_type": "int",
+          "description": "采集器云区域ID",
+          "unit": "",
+          "tag": "dimension"
+        },
+        {
+          "field_name": "time",
+          "field_type": "timestamp",
+          "description": "数据上报时间",
+          "unit": "",
+          "tag": "timestamp"
+        },
+        {
+          "field_name": "bk_cmdb_level",
+          "field_type": "string",
+          "description": "CMDB层级信息",
+          "unit": "",
+          "tag": "dimension"
+        },
+        {
+          "field_name": "bk_target_ip",
+          "field_type": "string",
+          "description": "目标IP",
+          "unit": "",
+          "tag": "dimension"
+        },
+        {
+          "field_name": "bk_target_cloud_id",
+          "field_type": "string",
+          "description": "云区域ID",
+          "unit": "",
+          "tag": "dimension"
+        },
+        {
+          "field_name": "bk_agent_id",
+          "field_type": "string",
+          "description": "Agent ID",
+          "unit": "",
+          "tag": "dimension"
+        },
+        {
+          "field_name": "bk_host_id",
+          "field_type": "string",
+          "description": "采集主机ID",
+          "unit": "",
+          "tag": "dimension"
+        },
+        {
+          "field_name": "bk_target_host_id",
+          "field_type": "string",
+          "description": "目标主机ID",
+          "unit": "",
+          "tag": "dimension"
+        }
+      ],
+      "bk_data_id": 1013
+    },
+    {
+      "table_id": "apache.net",
+      "table_name_zh": "apache.net",
+      "is_custom_table": false,
+      "schema_type": "fixed",
+      "default_storage": "influxdb",
+      "bk_biz_id": 0,
+      "label": "component",
+      "field_list": [
+        {
+          "field_name": "ip",
+          "field_type": "string",
+          "description": "采集器IP",
+          "unit": "",
+          "tag": "dimension"
+        },
+        {
+          "field_name": "hostname",
+          "field_type": "string",
+          "description": "主机名",
+          "unit": "",
+          "tag": "dimension"
+        },
+        {
+          "field_name": "total_accesses_min",
+          "field_type": "int",
+          "description": "请求数",
+          "unit": "次",
+          "tag": "metric"
+        },
+        {
+          "field_name": "total_accesses",
+          "field_type": "int",
+          "description": "总请求数",
+          "unit": "次",
+          "tag": "metric"
+        },
+        {
+          "field_name": "total_kbytes_min",
+          "field_type": "int",
+          "description": "传输字节量",
+          "unit": "Kb",
+          "tag": "metric"
+        },
+        {
+          "field_name": "total_kbytes",
+          "field_type": "int",
+          "description": "总字节量",
+          "unit": "Kb",
+          "tag": "metric"
+        },
+        {
+          "field_name": "bytes_per_req",
+          "field_type": "double",
+          "description": "单个请求处理量",
+          "unit": "bytes/req",
+          "tag": "metric"
+        },
+        {
+          "field_name": "req_per_sec",
+          "field_type": "double",
+          "description": "请求速率",
+          "unit": "次/s",
+          "tag": "metric"
+        },
+        {
+          "field_name": "bytes_per_sec",
+          "field_type": "double",
+          "description": "传输速率",
+          "unit": "bytes/s",
+          "tag": "metric"
+        },
+        {
+          "field_name": "instance_id",
+          "field_type": "string",
+          "description": "instance_id",
+          "unit": "",
+          "tag": "dimension"
+        },
+        {
+          "field_name": "bk_biz_id",
+          "field_type": "int",
+          "description": "业务ID",
+          "unit": "",
+          "tag": "dimension"
+        },
+        {
+          "field_name": "bk_supplier_id",
+          "field_type": "int",
+          "description": "开发商ID",
+          "unit": "",
+          "tag": "dimension"
+        },
+        {
+          "field_name": "bk_cloud_id",
+          "field_type": "int",
+          "description": "采集器云区域ID",
+          "unit": "",
+          "tag": "dimension"
+        },
+        {
+          "field_name": "time",
+          "field_type": "timestamp",
+          "description": "数据上报时间",
+          "unit": "",
+          "tag": "timestamp"
+        },
+        {
+          "field_name": "bk_cmdb_level",
+          "field_type": "string",
+          "description": "CMDB层级信息",
+          "unit": "",
+          "tag": "dimension"
+        },
+        {
+          "field_name": "bk_agent_id",
+          "field_type": "string",
+          "description": "Agent ID",
+          "unit": "",
+          "tag": "dimension"
+        },
+        {
+          "field_name": "bk_host_id",
+          "field_type": "string",
+          "description": "采集主机ID",
+          "unit": "",
+          "tag": "dimension"
+        },
+        {
+          "field_name": "bk_target_host_id",
+          "field_type": "string",
+          "description": "目标主机ID",
+          "unit": "",
+          "tag": "dimension"
+        }
+      ],
+      "bk_data_id": 1004
+    },
+    {
+      "table_id": "apache.performance",
+      "table_name_zh": "apache.performance",
+      "is_custom_table": false,
+      "schema_type": "fixed",
+      "default_storage": "influxdb",
+      "bk_biz_id": 0,
+      "label": "component",
+      "field_list": [
+        {
+          "field_name": "ip",
+          "field_type": "string",
+          "description": "采集器IP",
+          "unit": "",
+          "tag": "dimension"
+        },
+        {
+          "field_name": "hostname",
+          "field_type": "string",
+          "description": "主机名",
+          "unit": "",
+          "tag": "dimension"
+        },
+        {
+          "field_name": "cpu_load",
+          "field_type": "double",
+          "description": "CPU负载",
+          "unit": "",
+          "tag": "metric"
+        },
+        {
+          "field_name": "closing",
+          "field_type": "int",
+          "description": "Closing的worker数",
+          "unit": "个",
+          "tag": "metric"
+        },
+        {
+          "field_name": "waiting",
+          "field_type": "int",
+          "description": "waiting的workder数",
+          "unit": "个",
+          "tag": "metric"
+        },
+        {
+          "field_name": "dns_lookup",
+          "field_type": "int",
+          "description": "DNS_lookup的worker数",
+          "unit": "个",
+          "tag": "metric"
+        },
+        {
+          "field_name": "gracefully_finishing",
+          "field_type": "int",
+          "description": "finishing状态的worker数",
+          "unit": "个",
+          "tag": "metric"
+        },
+        {
+          "field_name": "idle_cleanup",
+          "field_type": "int",
+          "description": "idle_cleanup的worker数",
+          "unit": "个",
+          "tag": "metric"
+        },
+        {
+          "field_name": "keepalive",
+          "field_type": "int",
+          "description": "keepalive的worker数",
+          "unit": "个",
+          "tag": "metric"
+        },
+        {
+          "field_name": "logging",
+          "field_type": "int",
+          "description": "Logging的worker数",
+          "unit": "个",
+          "tag": "metric"
+        },
+        {
+          "field_name": "open_slot",
+          "field_type": "int",
+          "description": "open_slot的worker数",
+          "unit": "个",
+          "tag": "metric"
+        },
+        {
+          "field_name": "reading_request",
+          "field_type": "int",
+          "description": "捕获请求连接的worker数",
+          "unit": "个",
+          "tag": "metric"
+        },
+        {
+          "field_name": "sending_reply",
+          "field_type": "int",
+          "description": "发送回复中的worker数",
+          "unit": "个",
+          "tag": "metric"
+        },
+        {
+          "field_name": "starting_up",
+          "field_type": "int",
+          "description": "启动中的worker数",
+          "unit": "个",
+          "tag": "metric"
+        },
+        {
+          "field_name": "total_worker",
+          "field_type": "int",
+          "description": "总的worker数",
+          "unit": "个",
+          "tag": "metric"
+        },
+        {
+          "field_name": "instance_id",
+          "field_type": "string",
+          "description": "instance_id",
+          "unit": "",
+          "tag": "dimension"
+        },
+        {
+          "field_name": "bk_biz_id",
+          "field_type": "int",
+          "description": "业务ID",
+          "unit": "",
+          "tag": "dimension"
+        },
+        {
+          "field_name": "bk_supplier_id",
+          "field_type": "int",
+          "description": "开发商ID",
+          "unit": "",
+          "tag": "dimension"
+        },
+        {
+          "field_name": "bk_cloud_id",
+          "field_type": "int",
+          "description": "采集器云区域ID",
+          "unit": "",
+          "tag": "dimension"
+        },
+        {
+          "field_name": "time",
+          "field_type": "timestamp",
+          "description": "数据上报时间",
+          "unit": "",
+          "tag": "timestamp"
+        },
+        {
+          "field_name": "bk_cmdb_level",
+          "field_type": "string",
+          "description": "CMDB层级信息",
+          "unit": "",
+          "tag": "dimension"
+        },
+        {
+          "field_name": "bk_agent_id",
+          "field_type": "string",
+          "description": "Agent ID",
+          "unit": "",
+          "tag": "dimension"
+        },
+        {
+          "field_name": "bk_host_id",
+          "field_type": "string",
+          "description": "采集主机ID",
+          "unit": "",
+          "tag": "dimension"
+        },
+        {
+          "field_name": "bk_target_host_id",
+          "field_type": "string",
+          "description": "目标主机ID",
+          "unit": "",
+          "tag": "dimension"
+        }
+      ],
+      "bk_data_id": 1004
+    },
+    {
+      "table_id": "mysql.innodb",
+      "table_name_zh": "mysql.innodb",
+      "is_custom_table": false,
+      "schema_type": "fixed",
+      "default_storage": "influxdb",
+      "bk_biz_id": 0,
+      "label": "component",
+      "field_list": [
+        {
+          "field_name": "ip",
+          "field_type": "string",
+          "description": "采集器IP",
+          "unit": "",
+          "tag": "dimension"
+        },
+        {
+          "field_name": "hostname",
+          "field_type": "string",
+          "description": "主机名",
+          "unit": "",
+          "tag": "dimension"
+        },
+        {
+          "field_name": "instance_id",
+          "field_type": "string",
+          "description": "instance_id",
+          "unit": "",
+          "tag": "dimension"
+        },
+        {
+          "field_name": "buffer_pool_free",
+          "field_type": "int",
+          "description": "缓存池可用页数",
+          "unit": "page",
+          "tag": "metric"
+        },
+        {
+          "field_name": "buffer_pool_total",
+          "field_type": "int",
+          "description": "缓冲池总页数",
+          "unit": "page",
+          "tag": "metric"
+        },
+        {
+          "field_name": "data_reads_cnt",
+          "field_type": "int",
+          "description": "读数据次数",
+          "unit": "次/min",
+          "tag": "metric"
+        },
+        {
+          "field_name": "data_writes_cnt",
+          "field_type": "int",
+          "description": "写数据次数",
+          "unit": "次/min",
+          "tag": "metric"
+        },
+        {
+          "field_name": "log_write_req_cnt",
+          "field_type": "int",
+          "description": "写日志请求数",
+          "unit": "次/min",
+          "tag": "metric"
+        },
+        {
+          "field_name": "pg_created_cnt",
+          "field_type": "int",
+          "description": "每分钟创建的页数",
+          "unit": "页/min",
+          "tag": "metric"
+        },
+        {
+          "field_name": "pg_write_cnt",
+          "field_type": "int",
+          "description": "每分钟写页数",
+          "unit": "页/min",
+          "tag": "metric"
+        },
+        {
+          "field_name": "rows_read_cnt",
+          "field_type": "int",
+          "description": "每分钟读行数",
+          "unit": "行/min",
+          "tag": "metric"
+        },
+        {
+          "field_name": "rows_insert_cnt",
+          "field_type": "int",
+          "description": "每分钟写行数",
+          "unit": "行/min",
+          "tag": "metric"
+        },
+        {
+          "field_name": "rows_del_cnt",
+          "field_type": "int",
+          "description": "每分钟删行数",
+          "unit": "行/min",
+          "tag": "metric"
+        },
+        {
+          "field_name": "rows_update_cnt",
+          "field_type": "int",
+          "description": "每分钟更新行数",
+          "unit": "行/min",
+          "tag": "metric"
+        },
+        {
+          "field_name": "rows_locks_wait",
+          "field_type": "int",
+          "description": "等待行锁次数",
+          "unit": "次",
+          "tag": "metric"
+        },
+        {
+          "field_name": "buffer_pool_used",
+          "field_type": "int",
+          "description": "缓冲池使用量",
+          "unit": "page",
+          "tag": "metric"
+        },
+        {
+          "field_name": "buffer_pool_util",
+          "field_type": "double",
+          "description": "缓冲池使用率",
+          "unit": "page",
+          "tag": "metric"
+        },
+        {
+          "field_name": "bk_biz_id",
+          "field_type": "int",
+          "description": "业务ID",
+          "unit": "",
+          "tag": "dimension"
+        },
+        {
+          "field_name": "bk_supplier_id",
+          "field_type": "int",
+          "description": "开发商ID",
+          "unit": "",
+          "tag": "dimension"
+        },
+        {
+          "field_name": "bk_cloud_id",
+          "field_type": "int",
+          "description": "采集器云区域ID",
+          "unit": "",
+          "tag": "dimension"
+        },
+        {
+          "field_name": "time",
+          "field_type": "timestamp",
+          "description": "数据上报时间",
+          "unit": "",
+          "tag": "timestamp"
+        },
+        {
+          "field_name": "pg_read_cnt",
+          "field_type": "float",
+          "description": "每分钟读页数",
+          "unit": "页/min",
+          "tag": "metric"
+        },
+        {
+          "field_name": "bk_cmdb_level",
+          "field_type": "string",
+          "description": "CMDB层级信息",
+          "unit": "",
+          "tag": "dimension"
+        },
+        {
+          "field_name": "bk_agent_id",
+          "field_type": "string",
+          "description": "Agent ID",
+          "unit": "",
+          "tag": "dimension"
+        },
+        {
+          "field_name": "bk_host_id",
+          "field_type": "string",
+          "description": "采集主机ID",
+          "unit": "",
+          "tag": "dimension"
+        },
+        {
+          "field_name": "bk_target_host_id",
+          "field_type": "string",
+          "description": "目标主机ID",
+          "unit": "",
+          "tag": "dimension"
+        }
+      ],
+      "bk_data_id": 1002
+    },
+    {
+      "table_id": "mysql.net",
+      "table_name_zh": "mysql.net",
+      "is_custom_table": false,
+      "schema_type": "fixed",
+      "default_storage": "influxdb",
+      "bk_biz_id": 0,
+      "label": "component",
+      "field_list": [
+        {
+          "field_name": "ip",
+          "field_type": "string",
+          "description": "采集器IP",
+          "unit": "",
+          "tag": "dimension"
+        },
+        {
+          "field_name": "hostname",
+          "field_type": "string",
+          "description": "主机名",
+          "unit": "",
+          "tag": "dimension"
+        },
+        {
+          "field_name": "instance_id",
+          "field_type": "string",
+          "description": "instance_id",
+          "unit": "",
+          "tag": "dimension"
+        },
+        {
+          "field_name": "max_used_conns",
+          "field_type": "int",
+          "description": "最大连接数",
+          "unit": "条",
+          "tag": "metric"
+        },
+        {
+          "field_name": "thread_connected",
+          "field_type": "int",
+          "description": "当前连接数",
+          "unit": "条",
+          "tag": "metric"
+        },
+        {
+          "field_name": "thread_created",
+          "field_type": "int",
+          "description": "已创建线程数",
+          "unit": "条",
+          "tag": "metric"
+        },
+        {
+          "field_name": "thread_running",
+          "field_type": "int",
+          "description": "活动的线程数",
+          "unit": "条",
+          "tag": "metric"
+        },
+        {
+          "field_name": "thread_cached",
+          "field_type": "int",
+          "description": "缓存的线程数",
+          "unit": "条",
+          "tag": "metric"
+        },
+        {
+          "field_name": "connections",
+          "field_type": "int",
+          "description": "累计尝试连接数",
+          "unit": "条",
+          "tag": "metric"
+        },
+        {
+          "field_name": "bk_biz_id",
+          "field_type": "int",
+          "description": "业务ID",
+          "unit": "",
+          "tag": "dimension"
+        },
+        {
+          "field_name": "bk_supplier_id",
+          "field_type": "int",
+          "description": "开发商ID",
+          "unit": "",
+          "tag": "dimension"
+        },
+        {
+          "field_name": "bk_cloud_id",
+          "field_type": "int",
+          "description": "采集器云区域ID",
+          "unit": "",
+          "tag": "dimension"
+        },
+        {
+          "field_name": "time",
+          "field_type": "timestamp",
+          "description": "数据上报时间",
+          "unit": "",
+          "tag": "timestamp"
+        },
+        {
+          "field_name": "bk_cmdb_level",
+          "field_type": "string",
+          "description": "CMDB层级信息",
+          "unit": "",
+          "tag": "dimension"
+        },
+        {
+          "field_name": "bk_agent_id",
+          "field_type": "string",
+          "description": "Agent ID",
+          "unit": "",
+          "tag": "dimension"
+        },
+        {
+          "field_name": "bk_host_id",
+          "field_type": "string",
+          "description": "采集主机ID",
+          "unit": "",
+          "tag": "dimension"
+        },
+        {
+          "field_name": "bk_target_host_id",
+          "field_type": "string",
+          "description": "目标主机ID",
+          "unit": "",
+          "tag": "dimension"
+        }
+      ],
+      "bk_data_id": 1002
+    },
+    {
+      "table_id": "mysql.performance",
+      "table_name_zh": "mysql.performance",
+      "is_custom_table": false,
+      "schema_type": "fixed",
+      "default_storage": "influxdb",
+      "bk_biz_id": 0,
+      "label": "component",
+      "field_list": [
+        {
+          "field_name": "ip",
+          "field_type": "string",
+          "description": "采集器IP",
+          "unit": "",
+          "tag": "dimension"
+        },
+        {
+          "field_name": "hostname",
+          "field_type": "string",
+          "description": "主机名",
+          "unit": "",
+          "tag": "dimension"
+        },
+        {
+          "field_name": "instance_id",
+          "field_type": "string",
+          "description": "instance_id",
+          "unit": "",
+          "tag": "dimension"
+        },
+        {
+          "field_name": "open_files",
+          "field_type": "int",
+          "description": "打开文件数",
+          "unit": "个",
+          "tag": "metric"
+        },
+        {
+          "field_name": "open_tbs",
+          "field_type": "int",
+          "description": "打开的表数量",
+          "unit": "个",
+          "tag": "metric"
+        },
+        {
+          "field_name": "qcache_hits_cnt",
+          "field_type": "int",
+          "description": "查询缓存命中数",
+          "unit": "次/min",
+          "tag": "metric"
+        },
+        {
+          "field_name": "qcache_insert_cnt",
+          "field_type": "int",
+          "description": "",
+          "unit": "",
+          "tag": "metric"
+        },
+        {
+          "field_name": "not_cached_cnt",
+          "field_type": "int",
+          "description": "查询缓存命中数",
+          "unit": "次/min",
+          "tag": "metric"
+        },
+        {
+          "field_name": "queries_cnt",
+          "field_type": "int",
+          "description": "查询次数",
+          "unit": "次/min",
+          "tag": "metric"
+        },
+        {
+          "field_name": "questions_cnt",
+          "field_type": "int",
+          "description": "执行语句次数",
+          "unit": "次/min",
+          "tag": "metric"
+        },
+        {
+          "field_name": "slow_queries_cnt",
+          "field_type": "int",
+          "description": "慢查询次数",
+          "unit": "次/min",
+          "tag": "metric"
+        },
+        {
+          "field_name": "cmd_del",
+          "field_type": "int",
+          "description": "执行删除的次数",
+          "unit": "次/min",
+          "tag": "metric"
+        },
+        {
+          "field_name": "cmd_del_multi",
+          "field_type": "int",
+          "description": "删除多条语句的次数",
+          "unit": "次/min",
+          "tag": "metric"
+        },
+        {
+          "field_name": "cmd_insert",
+          "field_type": "int",
+          "description": "插入语句次数",
+          "unit": "次/min",
+          "tag": "metric"
+        },
+        {
+          "field_name": "cmd_insert_select",
+          "field_type": "int",
+          "description": "插入并查询语句次数",
+          "unit": "次/min",
+          "tag": "metric"
+        },
+        {
+          "field_name": "cmd_replace_select",
+          "field_type": "int",
+          "description": "替代并查询语句次数",
+          "unit": "次/min",
+          "tag": "metric"
+        },
+        {
+          "field_name": "cmd_select",
+          "field_type": "int",
+          "description": "查询语句次数",
+          "unit": "次/min",
+          "tag": "metric"
+        },
+        {
+          "field_name": "cmd_update",
+          "field_type": "int",
+          "description": "更新语句次数",
+          "unit": "次/min",
+          "tag": "metric"
+        },
+        {
+          "field_name": "cmd_update_multi",
+          "field_type": "int",
+          "description": "更新多条语句次数",
+          "unit": "次/min",
+          "tag": "metric"
+        },
+        {
+          "field_name": "cmd_lock_tbs",
+          "field_type": "int",
+          "description": "锁表语句次数",
+          "unit": "次/min",
+          "tag": "metric"
+        },
+        {
+          "field_name": "cmd_dro_db",
+          "field_type": "int",
+          "description": "删库语句次数",
+          "unit": "次/min",
+          "tag": "metric"
+        },
+        {
+          "field_name": "cmd_dro_tb",
+          "field_type": "int",
+          "description": "删表语句次数",
+          "unit": "次/min",
+          "tag": "metric"
+        },
+        {
+          "field_name": "cmd_create_db",
+          "field_type": "int",
+          "description": "建库语句次数",
+          "unit": "次/min",
+          "tag": "metric"
+        },
+        {
+          "field_name": "cmd_create_tb",
+          "field_type": "int",
+          "description": "建表语句次数",
+          "unit": "次/min",
+          "tag": "metric"
+        },
+        {
+          "field_name": "bk_biz_id",
+          "field_type": "int",
+          "description": "业务ID",
+          "unit": "",
+          "tag": "dimension"
+        },
+        {
+          "field_name": "bk_supplier_id",
+          "field_type": "int",
+          "description": "开发商ID",
+          "unit": "",
+          "tag": "dimension"
+        },
+        {
+          "field_name": "bk_cloud_id",
+          "field_type": "int",
+          "description": "采集器云区域ID",
+          "unit": "",
+          "tag": "dimension"
+        },
+        {
+          "field_name": "time",
+          "field_type": "timestamp",
+          "description": "数据上报时间",
+          "unit": "",
+          "tag": "timestamp"
+        },
+        {
+          "field_name": "bk_cmdb_level",
+          "field_type": "string",
+          "description": "CMDB层级信息",
+          "unit": "",
+          "tag": "dimension"
+        },
+        {
+          "field_name": "bk_agent_id",
+          "field_type": "string",
+          "description": "Agent ID",
+          "unit": "",
+          "tag": "dimension"
+        },
+        {
+          "field_name": "bk_host_id",
+          "field_type": "string",
+          "description": "采集主机ID",
+          "unit": "",
+          "tag": "dimension"
+        },
+        {
+          "field_name": "bk_target_host_id",
+          "field_type": "string",
+          "description": "目标主机ID",
+          "unit": "",
+          "tag": "dimension"
+        }
+      ],
+      "bk_data_id": 1002
+    },
+    {
+      "table_id": "mysql.rep",
+      "table_name_zh": "mysql.rep",
+      "is_custom_table": false,
+      "schema_type": "fixed",
+      "default_storage": "influxdb",
+      "bk_biz_id": 0,
+      "label": "component",
+      "field_list": [
+        {
+          "field_name": "ip",
+          "field_type": "string",
+          "description": "采集器IP",
+          "unit": "",
+          "tag": "dimension"
+        },
+        {
+          "field_name": "hostname",
+          "field_type": "string",
+          "description": "主机名",
+          "unit": "",
+          "tag": "dimension"
+        },
+        {
+          "field_name": "instance_id",
+          "field_type": "string",
+          "description": "instance_id",
+          "unit": "",
+          "tag": "dimension"
+        },
+        {
+          "field_name": "slave_running",
+          "field_type": "string",
+          "description": "",
+          "unit": "",
+          "tag": "metric"
+        },
+        {
+          "field_name": "slave_heartbeat",
+          "field_type": "double",
+          "description": "从机的心跳间隔时长",
+          "unit": "秒",
+          "tag": "metric"
+        },
+        {
+          "field_name": "retried_transactions",
+          "field_type": "int",
+          "description": "从机重试事务次数",
+          "unit": "次",
+          "tag": "metric"
+        },
+        {
+          "field_name": "bk_biz_id",
+          "field_type": "int",
+          "description": "业务ID",
+          "unit": "",
+          "tag": "dimension"
+        },
+        {
+          "field_name": "bk_supplier_id",
+          "field_type": "int",
+          "description": "开发商ID",
+          "unit": "",
+          "tag": "dimension"
+        },
+        {
+          "field_name": "bk_cloud_id",
+          "field_type": "int",
+          "description": "采集器云区域ID",
+          "unit": "",
+          "tag": "dimension"
+        },
+        {
+          "field_name": "time",
+          "field_type": "timestamp",
+          "description": "数据上报时间",
+          "unit": "",
+          "tag": "timestamp"
+        },
+        {
+          "field_name": "bk_cmdb_level",
+          "field_type": "string",
+          "description": "CMDB层级信息",
+          "unit": "",
+          "tag": "dimension"
+        },
+        {
+          "field_name": "bk_agent_id",
+          "field_type": "string",
+          "description": "Agent ID",
+          "unit": "",
+          "tag": "dimension"
+        },
+        {
+          "field_name": "bk_host_id",
+          "field_type": "string",
+          "description": "采集主机ID",
+          "unit": "",
+          "tag": "dimension"
+        },
+        {
+          "field_name": "bk_target_host_id",
+          "field_type": "string",
+          "description": "目标主机ID",
+          "unit": "",
+          "tag": "dimension"
+        }
+      ],
+      "bk_data_id": 1002
+    },
+    {
+      "table_id": "nginx.net",
+      "table_name_zh": "nginx.net",
+      "is_custom_table": false,
+      "schema_type": "fixed",
+      "default_storage": "influxdb",
+      "bk_biz_id": 0,
+      "label": "component",
+      "field_list": [
+        {
+          "field_name": "ip",
+          "field_type": "string",
+          "description": "采集器IP",
+          "unit": "",
+          "tag": "dimension"
+        },
+        {
+          "field_name": "hostname",
+          "field_type": "string",
+          "description": "主机名",
+          "unit": "",
+          "tag": "dimension"
+        },
+        {
+          "field_name": "instance_id",
+          "field_type": "string",
+          "description": "instance_id",
+          "unit": "",
+          "tag": "dimension"
+        },
+        {
+          "field_name": "active",
+          "field_type": "int",
+          "description": "active状态的连接数",
+          "unit": "个",
+          "tag": "metric"
+        },
+        {
+          "field_name": "accepts",
+          "field_type": "int",
+          "description": "accepts状态的连接数",
+          "unit": "个",
+          "tag": "metric"
+        },
+        {
+          "field_name": "handled",
+          "field_type": "int",
+          "description": "handled状态的连接数",
+          "unit": "个",
+          "tag": "metric"
+        },
+        {
+          "field_name": "requests",
+          "field_type": "int",
+          "description": "客户端请求数",
+          "unit": "个",
+          "tag": "metric"
+        },
+        {
+          "field_name": "dropped",
+          "field_type": "int",
+          "description": "丢弃的连接数",
+          "unit": "个",
+          "tag": "metric"
+        },
+        {
+          "field_name": "writing",
+          "field_type": "int",
+          "description": "回写客户端的连接数",
+          "unit": "个",
+          "tag": "metric"
+        },
+        {
+          "field_name": "reading",
+          "field_type": "int",
+          "description": "读取客户端请求的连接数",
+          "unit": "个",
+          "tag": "metric"
+        },
+        {
+          "field_name": "waiting",
+          "field_type": "int",
+          "description": "等待中的连接数",
+          "unit": "个",
+          "tag": "metric"
+        },
+        {
+          "field_name": "http_hostname",
+          "field_type": "string",
+          "description": "",
+          "unit": "",
+          "tag": "metric"
+        },
+        {
+          "field_name": "req_per_min",
+          "field_type": "int",
+          "description": "每分钟客户端请求数",
+          "unit": "个",
+          "tag": "metric"
+        },
+        {
+          "field_name": "bk_biz_id",
+          "field_type": "int",
+          "description": "业务ID",
+          "unit": "",
+          "tag": "dimension"
+        },
+        {
+          "field_name": "bk_supplier_id",
+          "field_type": "int",
+          "description": "开发商ID",
+          "unit": "",
+          "tag": "dimension"
+        },
+        {
+          "field_name": "bk_cloud_id",
+          "field_type": "int",
+          "description": "采集器云区域ID",
+          "unit": "",
+          "tag": "dimension"
+        },
+        {
+          "field_name": "time",
+          "field_type": "timestamp",
+          "description": "数据上报时间",
+          "unit": "",
+          "tag": "timestamp"
+        },
+        {
+          "field_name": "bk_cmdb_level",
+          "field_type": "string",
+          "description": "CMDB层级信息",
+          "unit": "",
+          "tag": "dimension"
+        },
+        {
+          "field_name": "bk_agent_id",
+          "field_type": "string",
+          "description": "Agent ID",
+          "unit": "",
+          "tag": "dimension"
+        },
+        {
+          "field_name": "bk_host_id",
+          "field_type": "string",
+          "description": "采集主机ID",
+          "unit": "",
+          "tag": "dimension"
+        },
+        {
+          "field_name": "bk_target_host_id",
+          "field_type": "string",
+          "description": "目标主机ID",
+          "unit": "",
+          "tag": "dimension"
+        }
+      ],
+      "bk_data_id": 1005
+    },
+    {
+      "table_id": "tomcat.cache",
+      "table_name_zh": "tomcat.cache",
+      "is_custom_table": false,
+      "schema_type": "fixed",
+      "default_storage": "influxdb",
+      "bk_biz_id": 0,
+      "label": "component",
+      "field_list": [
+        {
+          "field_name": "ip",
+          "field_type": "string",
+          "description": "采集器IP",
+          "unit": "",
+          "tag": "dimension"
+        },
+        {
+          "field_name": "hostname",
+          "field_type": "string",
+          "description": "主机名",
+          "unit": "",
+          "tag": "dimension"
+        },
+        {
+          "field_name": "instance_id",
+          "field_type": "string",
+          "description": "instance_id",
+          "unit": "",
+          "tag": "dimension"
+        },
+        {
+          "field_name": "access",
+          "field_type": "int",
+          "description": "每分钟缓存访问次数",
+          "unit": "次/min",
+          "tag": "metric"
+        },
+        {
+          "field_name": "hit",
+          "field_type": "int",
+          "description": "每分钟缓存命中次数",
+          "unit": "次/min",
+          "tag": "metric"
+        },
+        {
+          "field_name": "type",
+          "field_type": "string",
+          "description": "",
+          "unit": "",
+          "tag": "metric"
+        },
+        {
+          "field_name": "bk_biz_id",
+          "field_type": "int",
+          "description": "业务ID",
+          "unit": "",
+          "tag": "dimension"
+        },
+        {
+          "field_name": "bk_supplier_id",
+          "field_type": "int",
+          "description": "开发商ID",
+          "unit": "",
+          "tag": "dimension"
+        },
+        {
+          "field_name": "bk_cloud_id",
+          "field_type": "int",
+          "description": "采集器云区域ID",
+          "unit": "",
+          "tag": "dimension"
+        },
+        {
+          "field_name": "time",
+          "field_type": "timestamp",
+          "description": "数据上报时间",
+          "unit": "",
+          "tag": "timestamp"
+        },
+        {
+          "field_name": "bk_cmdb_level",
+          "field_type": "string",
+          "description": "CMDB层级信息",
+          "unit": "",
+          "tag": "dimension"
+        },
+        {
+          "field_name": "bk_agent_id",
+          "field_type": "string",
+          "description": "Agent ID",
+          "unit": "",
+          "tag": "dimension"
+        },
+        {
+          "field_name": "bk_host_id",
+          "field_type": "string",
+          "description": "采集主机ID",
+          "unit": "",
+          "tag": "dimension"
+        },
+        {
+          "field_name": "bk_target_host_id",
+          "field_type": "string",
+          "description": "目标主机ID",
+          "unit": "",
+          "tag": "dimension"
+        }
+      ],
+      "bk_data_id": 1006
+    },
+    {
+      "table_id": "tomcat.thread",
+      "table_name_zh": "tomcat.thread",
+      "is_custom_table": false,
+      "schema_type": "fixed",
+      "default_storage": "influxdb",
+      "bk_biz_id": 0,
+      "label": "component",
+      "field_list": [
+        {
+          "field_name": "ip",
+          "field_type": "string",
+          "description": "采集器IP",
+          "unit": "",
+          "tag": "dimension"
+        },
+        {
+          "field_name": "hostname",
+          "field_type": "string",
+          "description": "主机名",
+          "unit": "",
+          "tag": "dimension"
+        },
+        {
+          "field_name": "instance_id",
+          "field_type": "string",
+          "description": "instance_id",
+          "unit": "",
+          "tag": "dimension"
+        },
+        {
+          "field_name": "cur_busy",
+          "field_type": "int",
+          "description": "使用中的线程数",
+          "unit": "个",
+          "tag": "metric"
+        },
+        {
+          "field_name": "total",
+          "field_type": "int",
+          "description": "当前线程总数",
+          "unit": "个",
+          "tag": "metric"
+        },
+        {
+          "field_name": "max",
+          "field_type": "int",
+          "description": "线程池上限值",
+          "unit": "个",
+          "tag": "metric"
+        },
+        {
+          "field_name": "name",
+          "field_type": "string",
+          "description": "",
+          "unit": "",
+          "tag": "metric"
+        },
+        {
+          "field_name": "bk_biz_id",
+          "field_type": "int",
+          "description": "业务ID",
+          "unit": "",
+          "tag": "dimension"
+        },
+        {
+          "field_name": "bk_supplier_id",
+          "field_type": "int",
+          "description": "开发商ID",
+          "unit": "",
+          "tag": "dimension"
+        },
+        {
+          "field_name": "bk_cloud_id",
+          "field_type": "int",
+          "description": "采集器云区域ID",
+          "unit": "",
+          "tag": "dimension"
+        },
+        {
+          "field_name": "time",
+          "field_type": "timestamp",
+          "description": "数据上报时间",
+          "unit": "",
+          "tag": "timestamp"
+        },
+        {
+          "field_name": "bk_cmdb_level",
+          "field_type": "string",
+          "description": "CMDB层级信息",
+          "unit": "",
+          "tag": "dimension"
+        },
+        {
+          "field_name": "bk_agent_id",
+          "field_type": "string",
+          "description": "Agent ID",
+          "unit": "",
+          "tag": "dimension"
+        },
+        {
+          "field_name": "bk_host_id",
+          "field_type": "string",
+          "description": "采集主机ID",
+          "unit": "",
+          "tag": "dimension"
+        },
+        {
+          "field_name": "bk_target_host_id",
+          "field_type": "string",
+          "description": "目标主机ID",
+          "unit": "",
+          "tag": "dimension"
+        }
+      ],
+      "bk_data_id": 1006
+    },
+    {
+      "table_id": "tomcat.jsp",
+      "table_name_zh": "tomcat.jsp",
+      "is_custom_table": false,
+      "schema_type": "fixed",
+      "default_storage": "influxdb",
+      "bk_biz_id": 0,
+      "label": "component",
+      "field_list": [
+        {
+          "field_name": "ip",
+          "field_type": "string",
+          "description": "采集器IP",
+          "unit": "",
+          "tag": "dimension"
+        },
+        {
+          "field_name": "hostname",
+          "field_type": "string",
+          "description": "主机名",
+          "unit": "",
+          "tag": "dimension"
+        },
+        {
+          "field_name": "instance_id",
+          "field_type": "string",
+          "description": "instance_id",
+          "unit": "",
+          "tag": "dimension"
+        },
+        {
+          "field_name": "count",
+          "field_type": "int",
+          "description": "已加载的JSP数",
+          "unit": "个",
+          "tag": "metric"
+        },
+        {
+          "field_name": "reload_count",
+          "field_type": "int",
+          "description": "重新加载的JSP数",
+          "unit": "个",
+          "tag": "metric"
+        },
+        {
+          "field_name": "web_module",
+          "field_type": "string",
+          "description": "",
+          "unit": "",
+          "tag": "metric"
+        },
+        {
+          "field_name": "bk_biz_id",
+          "field_type": "int",
+          "description": "业务ID",
+          "unit": "",
+          "tag": "dimension"
+        },
+        {
+          "field_name": "bk_supplier_id",
+          "field_type": "int",
+          "description": "开发商ID",
+          "unit": "",
+          "tag": "dimension"
+        },
+        {
+          "field_name": "bk_cloud_id",
+          "field_type": "int",
+          "description": "采集器云区域ID",
+          "unit": "",
+          "tag": "dimension"
+        },
+        {
+          "field_name": "time",
+          "field_type": "timestamp",
+          "description": "数据上报时间",
+          "unit": "",
+          "tag": "timestamp"
+        },
+        {
+          "field_name": "bk_cmdb_level",
+          "field_type": "string",
+          "description": "CMDB层级信息",
+          "unit": "",
+          "tag": "dimension"
+        },
+        {
+          "field_name": "bk_agent_id",
+          "field_type": "string",
+          "description": "Agent ID",
+          "unit": "",
+          "tag": "dimension"
+        },
+        {
+          "field_name": "bk_host_id",
+          "field_type": "string",
+          "description": "采集主机ID",
+          "unit": "",
+          "tag": "dimension"
+        },
+        {
+          "field_name": "bk_target_host_id",
+          "field_type": "string",
+          "description": "目标主机ID",
+          "unit": "",
+          "tag": "dimension"
+        }
+      ],
+      "bk_data_id": 1006
+    },
+    {
+      "table_id": "tomcat.net",
+      "table_name_zh": "tomcat.net",
+      "is_custom_table": false,
+      "schema_type": "fixed",
+      "default_storage": "influxdb",
+      "bk_biz_id": 0,
+      "label": "component",
+      "field_list": [
+        {
+          "field_name": "ip",
+          "field_type": "string",
+          "description": "采集器IP",
+          "unit": "",
+          "tag": "dimension"
+        },
+        {
+          "field_name": "hostname",
+          "field_type": "string",
+          "description": "主机名",
+          "unit": "",
+          "tag": "dimension"
+        },
+        {
+          "field_name": "instance_id",
+          "field_type": "string",
+          "description": "instance_id",
+          "unit": "",
+          "tag": "dimension"
+        },
+        {
+          "field_name": "bytes_rcv",
+          "field_type": "int",
+          "description": "每分钟接收的字节数",
+          "unit": "bytes/min",
+          "tag": "metric"
+        },
+        {
+          "field_name": "bytes_sent",
+          "field_type": "int",
+          "description": "每分钟发送的字节数",
+          "unit": "bytes/min",
+          "tag": "metric"
+        },
+        {
+          "field_name": "req_cnt",
+          "field_type": "int",
+          "description": "每分钟请求量",
+          "unit": "个",
+          "tag": "metric"
+        },
+        {
+          "field_name": "err_cnt",
+          "field_type": "int",
+          "description": "每分钟错误请求量",
+          "unit": "个",
+          "tag": "metric"
+        },
+        {
+          "field_name": "max_time",
+          "field_type": "int",
+          "description": "最大请求处理时长",
+          "unit": "ms",
+          "tag": "metric"
+        },
+        {
+          "field_name": "processing_time",
+          "field_type": "int",
+          "description": "每分钟请求处理总时长",
+          "unit": "ms/min",
+          "tag": "metric"
+        },
+        {
+          "field_name": "name",
+          "field_type": "string",
+          "description": "",
+          "unit": "",
+          "tag": "metric"
+        },
+        {
+          "field_name": "bk_biz_id",
+          "field_type": "int",
+          "description": "业务ID",
+          "unit": "",
+          "tag": "dimension"
+        },
+        {
+          "field_name": "bk_supplier_id",
+          "field_type": "int",
+          "description": "开发商ID",
+          "unit": "",
+          "tag": "dimension"
+        },
+        {
+          "field_name": "bk_cloud_id",
+          "field_type": "int",
+          "description": "采集器云区域ID",
+          "unit": "",
+          "tag": "dimension"
+        },
+        {
+          "field_name": "time",
+          "field_type": "timestamp",
+          "description": "数据上报时间",
+          "unit": "",
+          "tag": "timestamp"
+        },
+        {
+          "field_name": "bk_cmdb_level",
+          "field_type": "string",
+          "description": "CMDB层级信息",
+          "unit": "",
+          "tag": "dimension"
+        },
+        {
+          "field_name": "bk_agent_id",
+          "field_type": "string",
+          "description": "Agent ID",
+          "unit": "",
+          "tag": "dimension"
+        },
+        {
+          "field_name": "bk_host_id",
+          "field_type": "string",
+          "description": "采集主机ID",
+          "unit": "",
+          "tag": "dimension"
+        },
+        {
+          "field_name": "bk_target_host_id",
+          "field_type": "string",
+          "description": "目标主机ID",
+          "unit": "",
+          "tag": "dimension"
+        }
+      ],
+      "bk_data_id": 1006
+    },
+    {
+      "table_id": "tomcat.servlet",
+      "table_name_zh": "tomcat.servlet",
+      "is_custom_table": false,
+      "schema_type": "fixed",
+      "default_storage": "influxdb",
+      "bk_biz_id": 0,
+      "label": "component",
+      "field_list": [
+        {
+          "field_name": "ip",
+          "field_type": "string",
+          "description": "采集器IP",
+          "unit": "",
+          "tag": "dimension"
+        },
+        {
+          "field_name": "hostname",
+          "field_type": "string",
+          "description": "主机名",
+          "unit": "",
+          "tag": "dimension"
+        },
+        {
+          "field_name": "instance_id",
+          "field_type": "string",
+          "description": "instance_id",
+          "unit": "",
+          "tag": "dimension"
+        },
+        {
+          "field_name": "err",
+          "field_type": "int",
+          "description": "每分钟接收错误请求数",
+          "unit": "个/min",
+          "tag": "metric"
+        },
+        {
+          "field_name": "processing_time",
+          "field_type": "int",
+          "description": "每分钟请求处理总时长",
+          "unit": "ms/min",
+          "tag": "metric"
+        },
+        {
+          "field_name": "req",
+          "field_type": "int",
+          "description": "每分钟servlet总请求量",
+          "unit": "个/min",
+          "tag": "metric"
+        },
+        {
+          "field_name": "web_module",
+          "field_type": "string",
+          "description": "",
+          "unit": "",
+          "tag": "metric"
+        },
+        {
+          "field_name": "bk_biz_id",
+          "field_type": "int",
+          "description": "业务ID",
+          "unit": "",
+          "tag": "dimension"
+        },
+        {
+          "field_name": "bk_supplier_id",
+          "field_type": "int",
+          "description": "开发商ID",
+          "unit": "",
+          "tag": "dimension"
+        },
+        {
+          "field_name": "bk_cloud_id",
+          "field_type": "int",
+          "description": "采集器云区域ID",
+          "unit": "",
+          "tag": "dimension"
+        },
+        {
+          "field_name": "time",
+          "field_type": "timestamp",
+          "description": "数据上报时间",
+          "unit": "",
+          "tag": "timestamp"
+        },
+        {
+          "field_name": "bk_cmdb_level",
+          "field_type": "string",
+          "description": "CMDB层级信息",
+          "unit": "",
+          "tag": "dimension"
+        },
+        {
+          "field_name": "bk_agent_id",
+          "field_type": "string",
+          "description": "Agent ID",
+          "unit": "",
+          "tag": "dimension"
+        },
+        {
+          "field_name": "bk_host_id",
+          "field_type": "string",
+          "description": "采集主机ID",
+          "unit": "",
+          "tag": "dimension"
+        },
+        {
+          "field_name": "bk_target_host_id",
+          "field_type": "string",
+          "description": "目标主机ID",
+          "unit": "",
+          "tag": "dimension"
+        }
+      ],
+      "bk_data_id": 1006
+    },
+    {
+      "table_id": "redis.client",
+      "table_name_zh": "redis.client",
+      "is_custom_table": false,
+      "schema_type": "fixed",
+      "default_storage": "influxdb",
+      "bk_biz_id": 0,
+      "label": "component",
+      "field_list": [
+        {
+          "field_name": "ip",
+          "field_type": "string",
+          "description": "采集器IP",
+          "unit": "",
+          "tag": "dimension"
+        },
+        {
+          "field_name": "hostname",
+          "field_type": "string",
+          "description": "主机名",
+          "unit": "",
+          "tag": "dimension"
+        },
+        {
+          "field_name": "instance_id",
+          "field_type": "string",
+          "description": "instance_id",
+          "unit": "",
+          "tag": "dimension"
+        },
+        {
+          "field_name": "connections",
+          "field_type": "int",
+          "description": "已连接客户端的数量",
+          "unit": "个",
+          "tag": "metric"
+        },
+        {
+          "field_name": "longest_output_list",
+          "field_type": "int",
+          "description": "Redis客户端最大输出列表",
+          "unit": "",
+          "tag": "metric"
+        },
+        {
+          "field_name": "biggest_input_buf",
+          "field_type": "int",
+          "description": "客户端最大输入缓存",
+          "unit": "",
+          "tag": "metric"
+        },
+        {
+          "field_name": "blocked",
+          "field_type": "int",
+          "description": "被阻塞的客户端数",
+          "unit": "个",
+          "tag": "metric"
+        },
+        {
+          "field_name": "bk_biz_id",
+          "field_type": "int",
+          "description": "业务ID",
+          "unit": "",
+          "tag": "dimension"
+        },
+        {
+          "field_name": "bk_supplier_id",
+          "field_type": "int",
+          "description": "开发商ID",
+          "unit": "",
+          "tag": "dimension"
+        },
+        {
+          "field_name": "bk_cloud_id",
+          "field_type": "int",
+          "description": "采集器云区域ID",
+          "unit": "",
+          "tag": "dimension"
+        },
+        {
+          "field_name": "time",
+          "field_type": "timestamp",
+          "description": "数据上报时间",
+          "unit": "",
+          "tag": "timestamp"
+        },
+        {
+          "field_name": "bk_cmdb_level",
+          "field_type": "string",
+          "description": "CMDB层级信息",
+          "unit": "",
+          "tag": "dimension"
+        },
+        {
+          "field_name": "bk_agent_id",
+          "field_type": "string",
+          "description": "Agent ID",
+          "unit": "",
+          "tag": "dimension"
+        },
+        {
+          "field_name": "bk_host_id",
+          "field_type": "string",
+          "description": "采集主机ID",
+          "unit": "",
+          "tag": "dimension"
+        },
+        {
+          "field_name": "bk_target_host_id",
+          "field_type": "string",
+          "description": "目标主机ID",
+          "unit": "",
+          "tag": "dimension"
+        }
+      ],
+      "bk_data_id": 1003
+    },
+    {
+      "table_id": "redis.repl",
+      "table_name_zh": "redis.repl",
+      "is_custom_table": false,
+      "schema_type": "fixed",
+      "default_storage": "influxdb",
+      "bk_biz_id": 0,
+      "label": "component",
+      "field_list": [
+        {
+          "field_name": "ip",
+          "field_type": "string",
+          "description": "采集器IP",
+          "unit": "",
+          "tag": "dimension"
+        },
+        {
+          "field_name": "hostname",
+          "field_type": "string",
+          "description": "主机名",
+          "unit": "",
+          "tag": "dimension"
+        },
+        {
+          "field_name": "instance_id",
+          "field_type": "string",
+          "description": "instance_id",
+          "unit": "",
+          "tag": "dimension"
+        },
+        {
+          "field_name": "connected_slaves",
+          "field_type": "int",
+          "description": "已连接slave实例数",
+          "unit": "个",
+          "tag": "metric"
+        },
+        {
+          "field_name": "master_offset",
+          "field_type": "int",
+          "description": "master的偏移量",
+          "unit": "",
+          "tag": "metric"
+        },
+        {
+          "field_name": "backlog_histlen",
+          "field_type": "int",
+          "description": "囤积的数据量",
+          "unit": "Bytes",
+          "tag": "metric"
+        },
+        {
+          "field_name": "last_io_sec_ago",
+          "field_type": "int",
+          "description": "master延迟复制时长",
+          "unit": "秒",
+          "tag": "metric"
+        },
+        {
+          "field_name": "slave_offset",
+          "field_type": "int",
+          "description": "slave的偏移量",
+          "unit": "",
+          "tag": "metric"
+        },
+        {
+          "field_name": "slave_lag",
+          "field_type": "int",
+          "description": "从机的延迟时长",
+          "unit": "秒",
+          "tag": "metric"
+        },
+        {
+          "field_name": "slave",
+          "field_type": "string",
+          "description": "",
+          "unit": "",
+          "tag": "dimension"
+        },
+        {
+          "field_name": "bk_biz_id",
+          "field_type": "int",
+          "description": "业务ID",
+          "unit": "",
+          "tag": "dimension"
+        },
+        {
+          "field_name": "bk_supplier_id",
+          "field_type": "int",
+          "description": "开发商ID",
+          "unit": "",
+          "tag": "dimension"
+        },
+        {
+          "field_name": "bk_cloud_id",
+          "field_type": "int",
+          "description": "采集器云区域ID",
+          "unit": "",
+          "tag": "dimension"
+        },
+        {
+          "field_name": "time",
+          "field_type": "timestamp",
+          "description": "数据上报时间",
+          "unit": "",
+          "tag": "timestamp"
+        },
+        {
+          "field_name": "bk_cmdb_level",
+          "field_type": "string",
+          "description": "CMDB层级信息",
+          "unit": "",
+          "tag": "dimension"
+        },
+        {
+          "field_name": "bk_agent_id",
+          "field_type": "string",
+          "description": "Agent ID",
+          "unit": "",
+          "tag": "dimension"
+        },
+        {
+          "field_name": "bk_host_id",
+          "field_type": "string",
+          "description": "采集主机ID",
+          "unit": "",
+          "tag": "dimension"
+        },
+        {
+          "field_name": "bk_target_host_id",
+          "field_type": "string",
+          "description": "目标主机ID",
+          "unit": "",
+          "tag": "dimension"
+        }
+      ],
+      "bk_data_id": 1003
+    },
+    {
+      "table_id": "redis.mem",
+      "table_name_zh": "redis.mem",
+      "is_custom_table": false,
+      "schema_type": "fixed",
+      "default_storage": "influxdb",
+      "bk_biz_id": 0,
+      "label": "component",
+      "field_list": [
+        {
+          "field_name": "ip",
+          "field_type": "string",
+          "description": "采集器IP",
+          "unit": "",
+          "tag": "dimension"
+        },
+        {
+          "field_name": "hostname",
+          "field_type": "string",
+          "description": "主机名",
+          "unit": "",
+          "tag": "dimension"
+        },
+        {
+          "field_name": "instance_id",
+          "field_type": "string",
+          "description": "instance_id",
+          "unit": "",
+          "tag": "dimension"
+        },
+        {
+          "field_name": "used",
+          "field_type": "int",
+          "description": "Redis分配的内存量",
+          "unit": "MB",
+          "tag": "metric"
+        },
+        {
+          "field_name": "rss",
+          "field_type": "int",
+          "description": "系统分配给Redis的内存",
+          "unit": "MB",
+          "tag": "metric"
+        },
+        {
+          "field_name": "peak",
+          "field_type": "int",
+          "description": "内存使用峰值",
+          "unit": "MB",
+          "tag": "metric"
+        },
+        {
+          "field_name": "lua",
+          "field_type": "int",
+          "description": "Lua引擎使用的内存量",
+          "unit": "MB",
+          "tag": "metric"
+        },
+        {
+          "field_name": "fragmentation_ratio",
+          "field_type": "double",
+          "description": "内存碎片率",
+          "unit": "",
+          "tag": "metric"
+        },
+        {
+          "field_name": "bk_biz_id",
+          "field_type": "int",
+          "description": "业务ID",
+          "unit": "",
+          "tag": "dimension"
+        },
+        {
+          "field_name": "bk_supplier_id",
+          "field_type": "int",
+          "description": "开发商ID",
+          "unit": "",
+          "tag": "dimension"
+        },
+        {
+          "field_name": "bk_cloud_id",
+          "field_type": "int",
+          "description": "采集器云区域ID",
+          "unit": "",
+          "tag": "dimension"
+        },
+        {
+          "field_name": "time",
+          "field_type": "timestamp",
+          "description": "数据上报时间",
+          "unit": "",
+          "tag": "timestamp"
+        },
+        {
+          "field_name": "bk_cmdb_level",
+          "field_type": "string",
+          "description": "CMDB层级信息",
+          "unit": "",
+          "tag": "dimension"
+        },
+        {
+          "field_name": "bk_agent_id",
+          "field_type": "string",
+          "description": "Agent ID",
+          "unit": "",
+          "tag": "dimension"
+        },
+        {
+          "field_name": "bk_host_id",
+          "field_type": "string",
+          "description": "采集主机ID",
+          "unit": "",
+          "tag": "dimension"
+        },
+        {
+          "field_name": "bk_target_host_id",
+          "field_type": "string",
+          "description": "目标主机ID",
+          "unit": "",
+          "tag": "dimension"
+        }
+      ],
+      "bk_data_id": 1003
+    },
+    {
+      "table_id": "redis.aof",
+      "table_name_zh": "redis.aof",
+      "is_custom_table": false,
+      "schema_type": "fixed",
+      "default_storage": "influxdb",
+      "bk_biz_id": 0,
+      "label": "component",
+      "field_list": [
+        {
+          "field_name": "ip",
+          "field_type": "string",
+          "description": "采集器IP",
+          "unit": "",
+          "tag": "dimension"
+        },
+        {
+          "field_name": "hostname",
+          "field_type": "string",
+          "description": "主机名",
+          "unit": "",
+          "tag": "dimension"
+        },
+        {
+          "field_name": "instance_id",
+          "field_type": "string",
+          "description": "instance_id",
+          "unit": "",
+          "tag": "dimension"
+        },
+        {
+          "field_name": "buffer_length",
+          "field_type": "int",
+          "description": "aof缓冲区的大小",
+          "unit": "KB",
+          "tag": "metric"
+        },
+        {
+          "field_name": "rewrite_buffer_length",
+          "field_type": "int",
+          "description": "aof rewrite缓冲区大小",
+          "unit": "KB",
+          "tag": "metric"
+        },
+        {
+          "field_name": "last_rewrite_time",
+          "field_type": "int",
+          "description": "aof最后一次rewrite所消耗的时长",
+          "unit": "秒",
+          "tag": "metric"
+        },
+        {
+          "field_name": "aof_current_size",
+          "field_type": "int",
+          "description": "aof当前文件大小",
+          "unit": "KB",
+          "tag": "metric"
+        },
+        {
+          "field_name": "bk_biz_id",
+          "field_type": "int",
+          "description": "业务ID",
+          "unit": "",
+          "tag": "dimension"
+        },
+        {
+          "field_name": "bk_supplier_id",
+          "field_type": "int",
+          "description": "开发商ID",
+          "unit": "",
+          "tag": "dimension"
+        },
+        {
+          "field_name": "bk_cloud_id",
+          "field_type": "int",
+          "description": "采集器云区域ID",
+          "unit": "",
+          "tag": "dimension"
+        },
+        {
+          "field_name": "time",
+          "field_type": "timestamp",
+          "description": "数据上报时间",
+          "unit": "",
+          "tag": "timestamp"
+        },
+        {
+          "field_name": "bk_cmdb_level",
+          "field_type": "string",
+          "description": "CMDB层级信息",
+          "unit": "",
+          "tag": "dimension"
+        },
+        {
+          "field_name": "bk_agent_id",
+          "field_type": "string",
+          "description": "Agent ID",
+          "unit": "",
+          "tag": "dimension"
+        },
+        {
+          "field_name": "bk_host_id",
+          "field_type": "string",
+          "description": "采集主机ID",
+          "unit": "",
+          "tag": "dimension"
+        },
+        {
+          "field_name": "bk_target_host_id",
+          "field_type": "string",
+          "description": "目标主机ID",
+          "unit": "",
+          "tag": "dimension"
+        }
+      ],
+      "bk_data_id": 1003
+    },
+    {
+      "table_id": "redis.cpu",
+      "table_name_zh": "redis.cpu",
+      "is_custom_table": false,
+      "schema_type": "fixed",
+      "default_storage": "influxdb",
+      "bk_biz_id": 0,
+      "label": "component",
+      "field_list": [
+        {
+          "field_name": "ip",
+          "field_type": "string",
+          "description": "采集器IP",
+          "unit": "",
+          "tag": "dimension"
+        },
+        {
+          "field_name": "hostname",
+          "field_type": "string",
+          "description": "主机名",
+          "unit": "",
+          "tag": "dimension"
+        },
+        {
+          "field_name": "instance_id",
+          "field_type": "string",
+          "description": "instance_id",
+          "unit": "",
+          "tag": "dimension"
+        },
+        {
+          "field_name": "system",
+          "field_type": "double",
+          "description": "Redis系统CPU消耗",
+          "unit": "%",
+          "tag": "metric"
+        },
+        {
+          "field_name": "usr",
+          "field_type": "double",
+          "description": "Redis用户CPU消耗",
+          "unit": "%",
+          "tag": "metric"
+        },
+        {
+          "field_name": "sys_children",
+          "field_type": "double",
+          "description": "Redis CPU系统子进程消耗",
+          "unit": "%",
+          "tag": "metric"
+        },
+        {
+          "field_name": "user_children",
+          "field_type": "double",
+          "description": "Redis CPU用户子进程消耗",
+          "unit": "%",
+          "tag": "metric"
+        },
+        {
+          "field_name": "bk_biz_id",
+          "field_type": "int",
+          "description": "业务ID",
+          "unit": "",
+          "tag": "dimension"
+        },
+        {
+          "field_name": "bk_supplier_id",
+          "field_type": "int",
+          "description": "开发商ID",
+          "unit": "",
+          "tag": "dimension"
+        },
+        {
+          "field_name": "bk_cloud_id",
+          "field_type": "int",
+          "description": "采集器云区域ID",
+          "unit": "",
+          "tag": "dimension"
+        },
+        {
+          "field_name": "time",
+          "field_type": "timestamp",
+          "description": "数据上报时间",
+          "unit": "",
+          "tag": "timestamp"
+        },
+        {
+          "field_name": "bk_cmdb_level",
+          "field_type": "string",
+          "description": "CMDB层级信息",
+          "unit": "",
+          "tag": "dimension"
+        },
+        {
+          "field_name": "bk_agent_id",
+          "field_type": "string",
+          "description": "Agent ID",
+          "unit": "",
+          "tag": "dimension"
+        },
+        {
+          "field_name": "bk_host_id",
+          "field_type": "string",
+          "description": "采集主机ID",
+          "unit": "",
+          "tag": "dimension"
+        },
+        {
+          "field_name": "bk_target_host_id",
+          "field_type": "string",
+          "description": "目标主机ID",
+          "unit": "",
+          "tag": "dimension"
+        }
+      ],
+      "bk_data_id": 1003
+    },
+    {
+      "table_id": "redis.rdb",
+      "table_name_zh": "redis.rdb",
+      "is_custom_table": false,
+      "schema_type": "fixed",
+      "default_storage": "influxdb",
+      "bk_biz_id": 0,
+      "label": "component",
+      "field_list": [
+        {
+          "field_name": "ip",
+          "field_type": "string",
+          "description": "采集器IP",
+          "unit": "",
+          "tag": "dimension"
+        },
+        {
+          "field_name": "hostname",
+          "field_type": "string",
+          "description": "主机名",
+          "unit": "",
+          "tag": "dimension"
+        },
+        {
+          "field_name": "instance_id",
+          "field_type": "string",
+          "description": "instance_id",
+          "unit": "",
+          "tag": "dimension"
+        },
+        {
+          "field_name": "last_bgsave_time",
+          "field_type": "int",
+          "description": "aof最后一次落地所消耗的时长",
+          "unit": "秒",
+          "tag": "metric"
+        },
+        {
+          "field_name": "changes_since_last_save",
+          "field_type": "int",
+          "description": "最近生成rdb文件后写入命令的个数",
+          "unit": "个",
+          "tag": "metric"
+        },
+        {
+          "field_name": "bk_biz_id",
+          "field_type": "int",
+          "description": "业务ID",
+          "unit": "",
+          "tag": "dimension"
+        },
+        {
+          "field_name": "bk_supplier_id",
+          "field_type": "int",
+          "description": "开发商ID",
+          "unit": "",
+          "tag": "dimension"
+        },
+        {
+          "field_name": "bk_cloud_id",
+          "field_type": "int",
+          "description": "采集器云区域ID",
+          "unit": "",
+          "tag": "dimension"
+        },
+        {
+          "field_name": "time",
+          "field_type": "timestamp",
+          "description": "数据上报时间",
+          "unit": "",
+          "tag": "timestamp"
+        },
+        {
+          "field_name": "bk_cmdb_level",
+          "field_type": "string",
+          "description": "CMDB层级信息",
+          "unit": "",
+          "tag": "dimension"
+        },
+        {
+          "field_name": "bk_agent_id",
+          "field_type": "string",
+          "description": "Agent ID",
+          "unit": "",
+          "tag": "dimension"
+        },
+        {
+          "field_name": "bk_host_id",
+          "field_type": "string",
+          "description": "采集主机ID",
+          "unit": "",
+          "tag": "dimension"
+        },
+        {
+          "field_name": "bk_target_host_id",
+          "field_type": "string",
+          "description": "目标主机ID",
+          "unit": "",
+          "tag": "dimension"
+        }
+      ],
+      "bk_data_id": 1003
+    },
+    {
+      "table_id": "redis.stat",
+      "table_name_zh": "redis.stat",
+      "is_custom_table": false,
+      "schema_type": "fixed",
+      "default_storage": "influxdb",
+      "bk_biz_id": 0,
+      "label": "component",
+      "field_list": [
+        {
+          "field_name": "ip",
+          "field_type": "string",
+          "description": "采集器IP",
+          "unit": "",
+          "tag": "dimension"
+        },
+        {
+          "field_name": "hostname",
+          "field_type": "string",
+          "description": "主机名",
+          "unit": "",
+          "tag": "dimension"
+        },
+        {
+          "field_name": "instance_id",
+          "field_type": "string",
+          "description": "instance_id",
+          "unit": "",
+          "tag": "dimension"
+        },
+        {
+          "field_name": "recv_connections",
+          "field_type": "int",
+          "description": "每分钟接收的连接数",
+          "unit": "个",
+          "tag": "metric"
+        },
+        {
+          "field_name": "keyspace_hits",
+          "field_type": "int",
+          "description": "键命中次数",
+          "unit": "次",
+          "tag": "metric"
+        },
+        {
+          "field_name": "keyspace_misses",
+          "field_type": "int",
+          "description": "键未命中次数",
+          "unit": "次",
+          "tag": "metric"
+        },
+        {
+          "field_name": "latest_fork_usec",
+          "field_type": "int",
+          "description": "最后一次fork耗时",
+          "unit": "ms",
+          "tag": "metric"
+        },
+        {
+          "field_name": "cmds_processed",
+          "field_type": "int",
+          "description": "执行的命令次数",
+          "unit": "次",
+          "tag": "metric"
+        },
+        {
+          "field_name": "keys_expired",
+          "field_type": "int",
+          "description": "过期了的key数量",
+          "unit": "个",
+          "tag": "metric"
+        },
+        {
+          "field_name": "keys_evicted",
+          "field_type": "int",
+          "description": "剔除了的key数量",
+          "unit": "个",
+          "tag": "metric"
+        },
+        {
+          "field_name": "pubsub_channels",
+          "field_type": "int",
+          "description": "当前发布/订阅频道量",
+          "unit": "个",
+          "tag": "metric"
+        },
+        {
+          "field_name": "pubsub_patterns",
+          "field_type": "int",
+          "description": "当前发布/订阅模式数",
+          "unit": "个",
+          "tag": "metric"
+        },
+        {
+          "field_name": "db_keys",
+          "field_type": "int",
+          "description": "数据库的key总数",
+          "unit": "个",
+          "tag": "metric"
+        },
+        {
+          "field_name": "db_expires_keys",
+          "field_type": "int",
+          "description": "带有存活周期的key数量",
+          "unit": "个",
+          "tag": "metric"
+        },
+        {
+          "field_name": "db",
+          "field_type": "string",
+          "description": "",
+          "unit": "",
+          "tag": "dimension"
+        },
+        {
+          "field_name": "bk_biz_id",
+          "field_type": "int",
+          "description": "业务ID",
+          "unit": "",
+          "tag": "dimension"
+        },
+        {
+          "field_name": "bk_supplier_id",
+          "field_type": "int",
+          "description": "开发商ID",
+          "unit": "",
+          "tag": "dimension"
+        },
+        {
+          "field_name": "bk_cloud_id",
+          "field_type": "int",
+          "description": "采集器云区域ID",
+          "unit": "",
+          "tag": "dimension"
+        },
+        {
+          "field_name": "time",
+          "field_type": "timestamp",
+          "description": "数据上报时间",
+          "unit": "",
+          "tag": "timestamp"
+        },
+        {
+          "field_name": "bk_cmdb_level",
+          "field_type": "string",
+          "description": "CMDB层级信息",
+          "unit": "",
+          "tag": "dimension"
+        },
+        {
+          "field_name": "bk_agent_id",
+          "field_type": "string",
+          "description": "Agent ID",
+          "unit": "",
+          "tag": "dimension"
+        },
+        {
+          "field_name": "bk_host_id",
+          "field_type": "string",
+          "description": "采集主机ID",
+          "unit": "",
+          "tag": "dimension"
+        },
+        {
+          "field_name": "bk_target_host_id",
+          "field_type": "string",
+          "description": "目标主机ID",
+          "unit": "",
+          "tag": "dimension"
+        }
+      ],
+      "bk_data_id": 1003
+    },
+    {
+      "table_id": "uptimecheck.tcp",
+      "table_name_zh": "TCP",
+      "is_custom_table": false,
+      "schema_type": "fixed",
+      "default_storage": "influxdb",
+      "bk_biz_id": 0,
+      "label": "uptimecheck",
+      "field_list": [
+        {
+          "field_name": "task_duration",
+          "field_type": "int",
+          "description": "耗时",
+          "unit": "ms",
+          "tag": "metric"
+        },
+        {
+          "field_name": "error_code",
+          "field_type": "string",
+          "description": "错误码",
+          "unit": "",
+          "tag": "dimension"
+        },
+        {
+          "field_name": "status",
+          "field_type": "string",
+          "description": "状态",
+          "unit": "",
+          "tag": "dimension"
+        },
+        {
+          "field_name": "target_host",
+          "field_type": "string",
+          "description": "目标主机",
+          "unit": "",
+          "tag": "dimension"
+        },
+        {
+          "field_name": "target_port",
+          "field_type": "string",
+          "description": "目标端口",
+          "unit": "",
+          "tag": "dimension"
+        },
+        {
+          "field_name": "task_id",
+          "field_type": "string",
+          "description": "任务 ID",
+          "unit": "",
+          "tag": "dimension"
+        },
+        {
+          "field_name": "task_type",
+          "field_type": "string",
+          "description": "任务类型",
+          "unit": "",
+          "tag": "dimension"
+        },
+        {
+          "field_name": "node_id",
+          "field_type": "string",
+          "description": "节点 ID",
+          "unit": "",
+          "tag": "dimension"
+        },
+        {
+          "field_name": "available",
+          "field_type": "double",
+          "description": "单点可用率",
+          "unit": "percentunit",
+          "tag": "metric"
+        },
+        {
+          "field_name": "bk_biz_id",
+          "field_type": "int",
+          "description": "业务ID",
+          "unit": "",
+          "tag": "dimension"
+        },
+        {
+          "field_name": "bk_supplier_id",
+          "field_type": "int",
+          "description": "开发商ID",
+          "unit": "",
+          "tag": "dimension"
+        },
+        {
+          "field_name": "bk_cloud_id",
+          "field_type": "int",
+          "description": "采集器云区域ID",
+          "unit": "",
+          "tag": "dimension"
+        },
+        {
+          "field_name": "time",
+          "field_type": "timestamp",
+          "description": "数据上报时间",
+          "unit": "",
+          "tag": "timestamp"
+        },
+        {
+          "field_name": "ip",
+          "field_type": "string",
+          "description": "采集器IP",
+          "unit": "",
+          "tag": "dimension"
+        },
+        {
+          "field_name": "bk_cmdb_level",
+          "field_type": "string",
+          "description": "CMDB层级信息",
+          "unit": "",
+          "tag": "dimension"
+        },
+        {
+          "field_name": "resolved_ip",
+          "field_type": "string",
+          "description": "请求域名解析结果IP",
+          "unit": "",
+          "tag": "dimension"
+        },
+        {
+          "field_name": "bk_agent_id",
+          "field_type": "string",
+          "description": "Agent ID",
+          "unit": "",
+          "tag": "dimension"
+        },
+        {
+          "field_name": "bk_host_id",
+          "field_type": "string",
+          "description": "采集主机ID",
+          "unit": "",
+          "tag": "dimension"
+        },
+        {
+          "field_name": "bk_target_host_id",
+          "field_type": "string",
+          "description": "目标主机ID",
+          "unit": "",
+          "tag": "dimension"
+        }
+      ],
+      "bk_data_id": 1009
+    },
+    {
+      "table_id": "uptimecheck.udp",
+      "table_name_zh": "UDP",
+      "is_custom_table": false,
+      "schema_type": "fixed",
+      "default_storage": "influxdb",
+      "bk_biz_id": 0,
+      "label": "uptimecheck",
+      "field_list": [
+        {
+          "field_name": "task_duration",
+          "field_type": "int",
+          "description": "耗时",
+          "unit": "ms",
+          "tag": "metric"
+        },
+        {
+          "field_name": "error_code",
+          "field_type": "string",
+          "description": "错误码",
+          "unit": "",
+          "tag": "dimension"
+        },
+        {
+          "field_name": "status",
+          "field_type": "string",
+          "description": "状态",
+          "unit": "",
+          "tag": "dimension"
+        },
+        {
+          "field_name": "target_host",
+          "field_type": "string",
+          "description": "目标主机",
+          "unit": "",
+          "tag": "dimension"
+        },
+        {
+          "field_name": "target_port",
+          "field_type": "string",
+          "description": "目标端口",
+          "unit": "",
+          "tag": "dimension"
+        },
+        {
+          "field_name": "task_id",
+          "field_type": "string",
+          "description": "任务 ID",
+          "unit": "",
+          "tag": "dimension"
+        },
+        {
+          "field_name": "task_type",
+          "field_type": "string",
+          "description": "任务类型",
+          "unit": "",
+          "tag": "dimension"
+        },
+        {
+          "field_name": "node_id",
+          "field_type": "string",
+          "description": "节点 ID",
+          "unit": "",
+          "tag": "dimension"
+        },
+        {
+          "field_name": "available",
+          "field_type": "double",
+          "description": "单点可用率",
+          "unit": "percentunit",
+          "tag": "metric"
+        },
+        {
+          "field_name": "times",
+          "field_type": "int",
+          "description": "重试次数",
+          "unit": "short",
+          "tag": "metric"
+        },
+        {
+          "field_name": "bk_biz_id",
+          "field_type": "int",
+          "description": "业务ID",
+          "unit": "",
+          "tag": "dimension"
+        },
+        {
+          "field_name": "bk_supplier_id",
+          "field_type": "int",
+          "description": "开发商ID",
+          "unit": "",
+          "tag": "dimension"
+        },
+        {
+          "field_name": "bk_cloud_id",
+          "field_type": "int",
+          "description": "采集器云区域ID",
+          "unit": "",
+          "tag": "dimension"
+        },
+        {
+          "field_name": "time",
+          "field_type": "timestamp",
+          "description": "数据上报时间",
+          "unit": "",
+          "tag": "timestamp"
+        },
+        {
+          "field_name": "ip",
+          "field_type": "string",
+          "description": "采集器IP",
+          "unit": "",
+          "tag": "dimension"
+        },
+        {
+          "field_name": "bk_cmdb_level",
+          "field_type": "string",
+          "description": "CMDB层级信息",
+          "unit": "",
+          "tag": "dimension"
+        },
+        {
+          "field_name": "resolved_ip",
+          "field_type": "string",
+          "description": "请求域名解析结果IP",
+          "unit": "",
+          "tag": "dimension"
+        },
+        {
+          "field_name": "bk_agent_id",
+          "field_type": "string",
+          "description": "Agent ID",
+          "unit": "",
+          "tag": "dimension"
+        },
+        {
+          "field_name": "bk_host_id",
+          "field_type": "string",
+          "description": "采集主机ID",
+          "unit": "",
+          "tag": "dimension"
+        },
+        {
+          "field_name": "bk_target_host_id",
+          "field_type": "string",
+          "description": "目标主机ID",
+          "unit": "",
+          "tag": "dimension"
+        }
+      ],
+      "bk_data_id": 1010
+    },
+    {
+      "table_id": "uptimecheck.http",
+      "table_name_zh": "HTTP",
+      "is_custom_table": false,
+      "schema_type": "fixed",
+      "default_storage": "influxdb",
+      "bk_biz_id": 0,
+      "label": "uptimecheck",
+      "field_list": [
+        {
+          "field_name": "task_duration",
+          "field_type": "int",
+          "description": "耗时",
+          "unit": "ms",
+          "tag": "metric"
+        },
+        {
+          "field_name": "error_code",
+          "field_type": "string",
+          "description": "错误码",
+          "unit": "",
+          "tag": "dimension"
+        },
+        {
+          "field_name": "status",
+          "field_type": "string",
+          "description": "状态",
+          "unit": "",
+          "tag": "dimension"
+        },
+        {
+          "field_name": "task_id",
+          "field_type": "string",
+          "description": "任务ID",
+          "unit": "",
+          "tag": "dimension"
+        },
+        {
+          "field_name": "task_type",
+          "field_type": "string",
+          "description": "任务类型",
+          "unit": "",
+          "tag": "dimension"
+        },
+        {
+          "field_name": "node_id",
+          "field_type": "string",
+          "description": "节点 ID",
+          "unit": "",
+          "tag": "dimension"
+        },
+        {
+          "field_name": "available",
+          "field_type": "double",
+          "description": "单点可用率",
+          "unit": "percentunit",
+          "tag": "metric"
+        },
+        {
+          "field_name": "charset",
+          "field_type": "string",
+          "description": "编码类型",
+          "unit": "",
+          "tag": "dimension"
+        },
+        {
+          "field_name": "content_length",
+          "field_type": "int",
+          "description": "响应长度",
+          "unit": "bytes",
+          "tag": "metric"
+        },
+        {
+          "field_name": "media_type",
+          "field_type": "string",
+          "description": "媒体类型",
+          "unit": "",
+          "tag": "dimension"
+        },
+        {
+          "field_name": "message",
+          "field_type": "string",
+          "description": "响应消息",
+          "unit": "",
+          "tag": "dimension"
+        },
+        {
+          "field_name": "method",
+          "field_type": "string",
+          "description": "请求方法",
+          "unit": "",
+          "tag": "dimension"
+        },
+        {
+          "field_name": "response_code",
+          "field_type": "int",
+          "description": "响应状态码",
+          "unit": "",
+          "tag": "dimension"
+        },
+        {
+          "field_name": "steps",
+          "field_type": "int",
+          "description": "请求步骤数",
+          "unit": "short",
+          "tag": "metric"
+        },
+        {
+          "field_name": "url",
+          "field_type": "string",
+          "description": "请求网址",
+          "unit": "",
+          "tag": "dimension"
+        },
+        {
+          "field_name": "bk_biz_id",
+          "field_type": "int",
+          "description": "业务ID",
+          "unit": "",
+          "tag": "dimension"
+        },
+        {
+          "field_name": "bk_supplier_id",
+          "field_type": "int",
+          "description": "开发商ID",
+          "unit": "",
+          "tag": "dimension"
+        },
+        {
+          "field_name": "bk_cloud_id",
+          "field_type": "int",
+          "description": "采集器云区域ID",
+          "unit": "",
+          "tag": "dimension"
+        },
+        {
+          "field_name": "time",
+          "field_type": "timestamp",
+          "description": "数据上报时间",
+          "unit": "",
+          "tag": "timestamp"
+        },
+        {
+          "field_name": "ip",
+          "field_type": "string",
+          "description": "采集器IP",
+          "unit": "",
+          "tag": "dimension"
+        },
+        {
+          "field_name": "bk_cmdb_level",
+          "field_type": "string",
+          "description": "CMDB层级信息",
+          "unit": "",
+          "tag": "dimension"
+        },
+        {
+          "field_name": "resolved_ip",
+          "field_type": "string",
+          "description": "请求域名解析结果IP",
+          "unit": "",
+          "tag": "dimension"
+        },
+        {
+          "field_name": "bk_agent_id",
+          "field_type": "string",
+          "description": "Agent ID",
+          "unit": "",
+          "tag": "dimension"
+        },
+        {
+          "field_name": "bk_host_id",
+          "field_type": "string",
+          "description": "采集主机ID",
+          "unit": "",
+          "tag": "dimension"
+        },
+        {
+          "field_name": "bk_target_host_id",
+          "field_type": "string",
+          "description": "目标主机ID",
+          "unit": "",
+          "tag": "dimension"
+        }
+      ],
+      "bk_data_id": 1011
+    },
+    {
+      "table_id": "uptimecheck.heartbeat",
+      "table_name_zh": "HeartBeat",
+      "is_custom_table": false,
+      "schema_type": "fixed",
+      "default_storage": "influxdb",
+      "bk_biz_id": 0,
+      "label": "uptimecheck",
+      "field_list": [
+        {
+          "field_name": "reload",
+          "field_type": "int",
+          "description": "重载次数",
+          "unit": "short",
+          "tag": "metric"
+        },
+        {
+          "field_name": "running_tasks",
+          "field_type": "int",
+          "description": "运行任务数",
+          "unit": "short",
+          "tag": "metric"
+        },
+        {
+          "field_name": "status",
+          "field_type": "string",
+          "description": "状态",
+          "unit": "",
+          "tag": "dimension"
+        },
+        {
+          "field_name": "success",
+          "field_type": "int",
+          "description": "成功事件数",
+          "unit": "short",
+          "tag": "metric"
+        },
+        {
+          "field_name": "uptime",
+          "field_type": "int",
+          "description": "启动时间",
+          "unit": "ms",
+          "tag": "metric"
+        },
+        {
+          "field_name": "version",
+          "field_type": "string",
+          "description": "版本",
+          "unit": "ms",
+          "tag": "dimension"
+        },
+        {
+          "field_name": "fail",
+          "field_type": "int",
+          "description": "失败事件数",
+          "unit": "short",
+          "tag": "metric"
+        },
+        {
+          "field_name": "error",
+          "field_type": "int",
+          "description": "错误事件数",
+          "unit": "short",
+          "tag": "metric"
+        },
+        {
+          "field_name": "reload_timestamp",
+          "field_type": "int",
+          "description": "重载时间",
+          "unit": "ms",
+          "tag": "metric"
+        },
+        {
+          "field_name": "loaded_tasks",
+          "field_type": "int",
+          "description": "历史载入任务数",
+          "unit": "short",
+          "tag": "metric"
+        },
+        {
+          "field_name": "node_id",
+          "field_type": "int",
+          "description": "节点 ID",
+          "unit": "",
+          "tag": "dimension"
+        },
+        {
+          "field_name": "bk_biz_id",
+          "field_type": "int",
+          "description": "业务ID",
+          "unit": "",
+          "tag": "dimension"
+        },
+        {
+          "field_name": "bk_supplier_id",
+          "field_type": "int",
+          "description": "开发商ID",
+          "unit": "",
+          "tag": "dimension"
+        },
+        {
+          "field_name": "bk_cloud_id",
+          "field_type": "int",
+          "description": "采集器云区域ID",
+          "unit": "",
+          "tag": "dimension"
+        },
+        {
+          "field_name": "time",
+          "field_type": "timestamp",
+          "description": "数据上报时间",
+          "unit": "",
+          "tag": "timestamp"
+        },
+        {
+          "field_name": "ip",
+          "field_type": "string",
+          "description": "采集器IP",
+          "unit": "",
+          "tag": "dimension"
+        },
+        {
+          "field_name": "bk_cmdb_level",
+          "field_type": "string",
+          "description": "CMDB层级信息",
+          "unit": "",
+          "tag": "dimension"
+        },
+        {
+          "field_name": "bk_agent_id",
+          "field_type": "string",
+          "description": "Agent ID",
+          "unit": "",
+          "tag": "dimension"
+        },
+        {
+          "field_name": "bk_host_id",
+          "field_type": "string",
+          "description": "采集主机ID",
+          "unit": "",
+          "tag": "dimension"
+        },
+        {
+          "field_name": "bk_target_host_id",
+          "field_type": "string",
+          "description": "目标主机ID",
+          "unit": "",
+          "tag": "dimension"
+        }
+      ],
+      "bk_data_id": 1008
+    },
+    {
+      "table_id": "system.load",
+      "table_name_zh": "负载",
+      "is_custom_table": false,
+      "schema_type": "fixed",
+      "default_storage": "influxdb",
+      "bk_biz_id": 0,
+      "label": "os",
+      "field_list": [
+        {
+          "field_name": "load1",
+          "field_type": "float",
+          "description": "1分钟平均负载",
+          "unit": "none",
+          "tag": "metric"
+        },
+        {
+          "field_name": "load5",
+          "field_type": "float",
+          "description": "5分钟平均负载",
+          "unit": "none",
+          "tag": "metric"
+        },
+        {
+          "field_name": "load15",
+          "field_type": "float",
+          "description": "15分钟平均负载",
+          "unit": "none",
+          "tag": "metric"
+        },
+        {
+          "field_name": "bk_biz_id",
+          "field_type": "int",
+          "description": "业务ID",
+          "unit": "",
+          "tag": "dimension"
+        },
+        {
+          "field_name": "bk_supplier_id",
+          "field_type": "int",
+          "description": "开发商ID",
+          "unit": "",
+          "tag": "dimension"
+        },
+        {
+          "field_name": "bk_cloud_id",
+          "field_type": "int",
+          "description": "采集器云区域ID",
+          "unit": "",
+          "tag": "dimension"
+        },
+        {
+          "field_name": "time",
+          "field_type": "timestamp",
+          "description": "数据上报时间",
+          "unit": "",
+          "tag": "timestamp"
+        },
+        {
+          "field_name": "ip",
+          "field_type": "string",
+          "description": "采集器IP",
+          "unit": "",
+          "tag": "dimension"
+        },
+        {
+          "field_name": "bk_cmdb_level",
+          "field_type": "string",
+          "description": "CMDB层级信息",
+          "unit": "",
+          "tag": "dimension"
+        },
+        {
+          "field_name": "bk_target_ip",
+          "field_type": "string",
+          "description": "目标IP",
+          "unit": "",
+          "tag": "dimension"
+        },
+        {
+          "field_name": "bk_target_cloud_id",
+          "field_type": "string",
+          "description": "云区域ID",
+          "unit": "",
+          "tag": "dimension"
+        },
+        {
+          "field_name": "per_cpu_load",
+          "field_type": "float",
+          "description": "单核CPU的load",
+          "unit": "none",
+          "tag": "metric"
+        },
+        {
+          "field_name": "hostname",
+          "field_type": "string",
+          "description": "主机名",
+          "unit": "",
+          "tag": "dimension"
+        },
+        {
+          "field_name": "bk_agent_id",
+          "field_type": "string",
+          "description": "Agent ID",
+          "unit": "",
+          "tag": "dimension"
+        },
+        {
+          "field_name": "bk_host_id",
+          "field_type": "string",
+          "description": "采集主机ID",
+          "unit": "",
+          "tag": "dimension"
+        },
+        {
+          "field_name": "bk_target_host_id",
+          "field_type": "string",
+          "description": "目标主机ID",
+          "unit": "",
+          "tag": "dimension"
+        }
+      ],
+      "bk_data_id": 1001
+    },
+    {
+      "table_id": "beat_monitor.heartbeat_total",
+      "table_name_zh": "beat_monitor.heartbeat_total",
+      "is_custom_table": false,
+      "schema_type": "fixed",
+      "default_storage": "influxdb",
+      "bk_biz_id": 0,
+      "label": "others",
+      "field_list": [
+        {
+          "field_name": "status",
+          "field_type": "int",
+          "description": "采集器状态",
+          "unit": "",
+          "tag": "dimension"
+        },
+        {
+          "field_name": "config_error_code",
+          "field_type": "int",
+          "description": "整体配置错误码",
+          "unit": "none",
+          "tag": "metric"
+        },
+        {
+          "field_name": "version",
+          "field_type": "string",
+          "description": "采集器版本",
+          "unit": "",
+          "tag": "dimension"
+        },
+        {
+          "field_name": "uptime",
+          "field_type": "int",
+          "description": "运行秒数",
+          "unit": "s",
+          "tag": "metric"
+        },
+        {
+          "field_name": "tasks",
+          "field_type": "int",
+          "description": "采集任务数",
+          "unit": "short",
+          "tag": "metric"
+        },
+        {
+          "field_name": "config_load_at",
+          "field_type": "double",
+          "description": "配置加载时间",
+          "unit": "none",
+          "tag": "metric"
+        },
+        {
+          "field_name": "published",
+          "field_type": "int",
+          "description": "数据上报数",
+          "unit": "short",
+          "tag": "metric"
+        },
+        {
+          "field_name": "errors",
+          "field_type": "int",
+          "description": "采集错误数",
+          "unit": "short",
+          "tag": "metric"
+        },
+        {
+          "field_name": "error_tasks",
+          "field_type": "int",
+          "description": "错误子任务数",
+          "unit": "short",
+          "tag": "metric"
+        },
+        {
+          "field_name": "bk_biz_id",
+          "field_type": "int",
+          "description": "业务ID",
+          "unit": "",
+          "tag": "dimension"
+        },
+        {
+          "field_name": "bk_supplier_id",
+          "field_type": "int",
+          "description": "开发商ID",
+          "unit": "",
+          "tag": "dimension"
+        },
+        {
+          "field_name": "bk_cloud_id",
+          "field_type": "int",
+          "description": "采集器云区域ID",
+          "unit": "",
+          "tag": "dimension"
+        },
+        {
+          "field_name": "time",
+          "field_type": "timestamp",
+          "description": "数据上报时间",
+          "unit": "",
+          "tag": "timestamp"
+        },
+        {
+          "field_name": "ip",
+          "field_type": "string",
+          "description": "采集器IP",
+          "unit": "",
+          "tag": "dimension"
+        },
+        {
+          "field_name": "bk_cmdb_level",
+          "field_type": "string",
+          "description": "CMDB层级信息",
+          "unit": "",
+          "tag": "dimension"
+        },
+        {
+          "field_name": "bk_agent_id",
+          "field_type": "string",
+          "description": "Agent ID",
+          "unit": "",
+          "tag": "dimension"
+        },
+        {
+          "field_name": "bk_host_id",
+          "field_type": "string",
+          "description": "采集主机ID",
+          "unit": "",
+          "tag": "dimension"
+        },
+        {
+          "field_name": "bk_target_host_id",
+          "field_type": "string",
+          "description": "目标主机ID",
+          "unit": "",
+          "tag": "dimension"
+        }
+      ],
+      "bk_data_id": 1100001
+    },
+    {
+      "table_id": "beat_monitor.heartbeat_child",
+      "table_name_zh": "beat_monitor.heartbeat_child",
+      "is_custom_table": false,
+      "schema_type": "fixed",
+      "default_storage": "influxdb",
+      "bk_biz_id": 0,
+      "label": "others",
+      "field_list": [
+        {
+          "field_name": "version",
+          "field_type": "string",
+          "description": "子配置版本",
+          "unit": "",
+          "tag": "dimension"
+        },
+        {
+          "field_name": "name",
+          "field_type": "string",
+          "description": "名字",
+          "unit": "",
+          "tag": "dimension"
+        },
+        {
+          "field_name": "config_error_code",
+          "field_type": "int",
+          "description": "子配置错误码",
+          "unit": "none",
+          "tag": "metric"
+        },
+        {
+          "field_name": "path",
+          "field_type": "string",
+          "description": "配置文件的绝对路径",
+          "unit": "",
+          "tag": "dimension"
+        },
+        {
+          "field_name": "taskid",
+          "field_type": "int",
+          "description": "任务id",
+          "unit": "",
+          "tag": "dimension"
+        },
+        {
+          "field_name": "bk_biz_id",
+          "field_type": "int",
+          "description": "业务ID",
+          "unit": "",
+          "tag": "dimension"
+        },
+        {
+          "field_name": "bk_supplier_id",
+          "field_type": "int",
+          "description": "开发商ID",
+          "unit": "",
+          "tag": "dimension"
+        },
+        {
+          "field_name": "bk_cloud_id",
+          "field_type": "int",
+          "description": "采集器云区域ID",
+          "unit": "",
+          "tag": "dimension"
+        },
+        {
+          "field_name": "time",
+          "field_type": "timestamp",
+          "description": "数据上报时间",
+          "unit": "",
+          "tag": "timestamp"
+        },
+        {
+          "field_name": "ip",
+          "field_type": "string",
+          "description": "采集器IP",
+          "unit": "",
+          "tag": "dimension"
+        },
+        {
+          "field_name": "bk_cmdb_level",
+          "field_type": "string",
+          "description": "CMDB层级信息",
+          "unit": "",
+          "tag": "dimension"
+        },
+        {
+          "field_name": "bk_agent_id",
+          "field_type": "string",
+          "description": "Agent ID",
+          "unit": "",
+          "tag": "dimension"
+        },
+        {
+          "field_name": "bk_host_id",
+          "field_type": "string",
+          "description": "采集主机ID",
+          "unit": "",
+          "tag": "dimension"
+        },
+        {
+          "field_name": "bk_target_host_id",
+          "field_type": "string",
+          "description": "目标主机ID",
+          "unit": "",
+          "tag": "dimension"
+        }
+      ],
+      "bk_data_id": 1100002
+    },
+    {
+      "table_id": "uptimecheck.icmp",
+      "table_name_zh": "ICMP",
+      "is_custom_table": false,
+      "schema_type": "fixed",
+      "default_storage": "influxdb",
+      "bk_biz_id": 0,
+      "label": "uptimecheck",
+      "field_list": [
+        {
+          "field_name": "available",
+          "field_type": "double",
+          "description": "单点可用率",
+          "unit": "percentunit",
+          "tag": "metric"
+        },
+        {
+          "field_name": "task_duration",
+          "field_type": "double",
+          "description": "响应时间",
+          "unit": "ms",
+          "tag": "metric"
+        },
+        {
+          "field_name": "ip",
+          "field_type": "string",
+          "description": "采集器ip",
+          "unit": "",
+          "tag": "dimension"
+        },
+        {
+          "field_name": "bk_cloud_id",
+          "field_type": "int",
+          "description": "采集器云区域id",
+          "unit": "",
+          "tag": "dimension"
+        },
+        {
+          "field_name": "bk_biz_id",
+          "field_type": "int",
+          "description": "业务id",
+          "unit": "",
+          "tag": "dimension"
+        },
+        {
+          "field_name": "task_id",
+          "field_type": "int",
+          "description": "任务id",
+          "unit": "",
+          "tag": "dimension"
+        },
+        {
+          "field_name": "target",
+          "field_type": "string",
+          "description": "目标地址",
+          "unit": "",
+          "tag": "dimension"
+        },
+        {
+          "field_name": "target_type",
+          "field_type": "string",
+          "description": "目标地址类型",
+          "unit": "",
+          "tag": "dimension"
+        },
+        {
+          "field_name": "error_code",
+          "field_type": "int",
+          "description": "错误码",
+          "unit": "",
+          "tag": "dimension"
+        },
+        {
+          "field_name": "loss_percent",
+          "field_type": "double",
+          "description": "丢包率",
+          "unit": "percentunit",
+          "tag": "metric"
+        },
+        {
+          "field_name": "max_rtt",
+          "field_type": "double",
+          "description": "最大时延",
+          "unit": "ms",
+          "tag": "metric"
+        },
+        {
+          "field_name": "min_rtt",
+          "field_type": "double",
+          "description": "最小时延",
+          "unit": "ms",
+          "tag": "metric"
+        },
+        {
+          "field_name": "avg_rtt",
+          "field_type": "double",
+          "description": "平均时延",
+          "unit": "ms",
+          "tag": "metric"
+        },
+        {
+          "field_name": "time",
+          "field_type": "timestamp",
+          "description": "上报时间",
+          "unit": "",
+          "tag": "timestamp"
+        },
+        {
+          "field_name": "resolved_ip",
+          "field_type": "string",
+          "description": "请求域名解析结果IP",
+          "unit": "",
+          "tag": "dimension"
+        },
+        {
+          "field_name": "bk_agent_id",
+          "field_type": "string",
+          "description": "Agent ID",
+          "unit": "",
+          "tag": "dimension"
+        },
+        {
+          "field_name": "bk_host_id",
+          "field_type": "string",
+          "description": "采集主机ID",
+          "unit": "",
+          "tag": "dimension"
+        },
+        {
+          "field_name": "bk_target_host_id",
+          "field_type": "string",
+          "description": "目标主机ID",
+          "unit": "",
+          "tag": "dimension"
+        },
+        {
+          "field_name": "node_id",
+          "field_type": "string",
+          "description": "节点ID",
+          "unit": "",
+          "tag": "dimension"
+        }
+      ],
+      "bk_data_id": 1100003
+    },
+    {
+      "table_id": "pingserver.base",
+      "table_name_zh": "PING_SERVER上报数据",
+      "is_custom_table": false,
+      "schema_type": "free",
+      "default_storage": "influxdb",
+      "bk_biz_id": 0,
+      "label": "os",
+      "field_list": [
+        {
+          "field_name": "bk_biz_id",
+          "field_type": "int",
+          "description": "业务ID",
+          "unit": "",
+          "tag": "dimension"
+        },
+        {
+          "field_name": "bk_target_ip",
+          "field_type": "string",
+          "description": "目标IP",
+          "unit": "",
+          "tag": "dimension"
+        },
+        {
+          "field_name": "bk_target_cloud_id",
+          "field_type": "string",
+          "description": "云区域ID",
+          "unit": "",
+          "tag": "dimension"
+        },
+        {
+          "field_name": "ip",
+          "field_type": "string",
+          "description": "采集器IP",
+          "unit": "",
+          "tag": "dimension"
+        },
+        {
+          "field_name": "bk_cloud_id",
+          "field_type": "int",
+          "description": "采集器云区域ID",
+          "unit": "",
+          "tag": "dimension"
+        },
+        {
+          "field_name": "loss_percent",
+          "field_type": "double",
+          "description": "丢包率",
+          "unit": "",
+          "tag": "metric"
+        },
+        {
+          "field_name": "max_rtt",
+          "field_type": "double",
+          "description": "最大时延",
+          "unit": "ms",
+          "tag": "metric"
+        },
+        {
+          "field_name": "min_rtt",
+          "field_type": "double",
+          "description": "最小时延",
+          "unit": "ms",
+          "tag": "metric"
+        },
+        {
+          "field_name": "avg_rtt",
+          "field_type": "double",
+          "description": "平均时延",
+          "unit": "ms",
+          "tag": "metric"
+        },
+        {
+          "field_name": "time",
+          "field_type": "timestamp",
+          "description": "上报时间",
+          "unit": "",
+          "tag": "timestamp"
+        }
+      ],
+      "bk_data_id": 1100005
+    },
+    {
+      "table_id": "bkunifylogbeat_common.base",
+      "table_name_zh": "bkunifylogbeat公共指标",
+      "is_custom_table": false,
+      "schema_type": "free",
+      "default_storage": "influxdb",
+      "bk_biz_id": 0,
+      "label": "service_process",
+      "field_list": [
+        {
+          "field_name": "time",
+          "field_type": "timestamp",
+          "description": "上报时间",
+          "unit": "",
+          "tag": "timestamp"
+        }
+      ],
+      "bk_data_id": 1100006
+    },
+    {
+      "table_id": "bkunifylogbeat_task.base",
+      "table_name_zh": "bkunifylogbeat任务指标",
+      "is_custom_table": false,
+      "schema_type": "free",
+      "default_storage": "influxdb",
+      "bk_biz_id": 0,
+      "label": "service_process",
+      "field_list": [
+        {
+          "field_name": "time",
+          "field_type": "timestamp",
+          "description": "上报时间",
+          "unit": "",
+          "tag": "timestamp"
+        }
+      ],
+      "bk_data_id": 1100007
+    },
+    {
+      "table_id": "gse_event_report_base",
+      "table_name_zh": "gse事件上报",
+      "is_custom_table": true,
+      "schema_type": "free",
+      "default_storage": "elasticsearch",
+      "bk_biz_id": 0,
+      "label": "host_process",
+      "field_list": [
+        {
+          "field_name": "dimensions",
+          "field_type": "object",
+          "description": "",
+          "unit": "",
+          "tag": "dimension"
+        },
+        {
+          "field_name": "event",
+          "field_type": "object",
+          "description": "",
+          "unit": "",
+          "tag": "dimension"
+        },
+        {
+          "field_name": "event_name",
+          "field_type": "string",
+          "description": "",
+          "unit": "",
+          "tag": "dimension"
+        },
+        {
+          "field_name": "target",
+          "field_type": "string",
+          "description": "",
+          "unit": "",
+          "tag": "dimension"
+        },
+        {
+          "field_name": "time",
+          "field_type": "timestamp",
+          "description": "数据上报时间",
+          "unit": "",
+          "tag": "timestamp"
+        }
+      ],
+      "bk_data_id": 1100008
+    },
+    {
+      "table_id": "custom_report_aggate.base",
+      "table_name_zh": "自定义上报聚合结果表",
+      "is_custom_table": true,
+      "schema_type": "free",
+      "default_storage": "influxdb",
+      "bk_biz_id": 0,
+      "label": "other_rt",
+      "field_list": [
+        {
+          "field_name": "dimensions",
+          "field_type": "object",
+          "description": "",
+          "unit": "",
+          "tag": "dimension"
+        },
+        {
+          "field_name": "metrics",
+          "field_type": "object",
+          "description": "",
+          "unit": "",
+          "tag": "dimension"
+        },
+        {
+          "field_name": "target",
+          "field_type": "string",
+          "description": "",
+          "unit": "",
+          "tag": "dimension"
+        },
+        {
+          "field_name": "time",
+          "field_type": "timestamp",
+          "description": "数据上报时间",
+          "unit": "",
+          "tag": "timestamp"
+        }
+      ],
+      "bk_data_id": 1100011
+    },
+    {
+      "table_id": "operation_data_custom_series.base",
+      "table_name_zh": "运营数据自定义上报时序数据",
+      "is_custom_table": true,
+      "schema_type": "free",
+      "default_storage": "influxdb",
+      "bk_biz_id": 0,
+      "label": "application_check",
+      "field_list": [
+        {
+          "field_name": "dimensions",
+          "field_type": "object",
+          "description": "",
+          "unit": "",
+          "tag": "dimension"
+        },
+        {
+          "field_name": "metrics",
+          "field_type": "object",
+          "description": "",
+          "unit": "",
+          "tag": "dimension"
+        },
+        {
+          "field_name": "target",
+          "field_type": "string",
+          "description": "",
+          "unit": "",
+          "tag": "dimension"
+        },
+        {
+          "field_name": "time",
+          "field_type": "timestamp",
+          "description": "数据上报时间",
+          "unit": "",
+          "tag": "timestamp"
+        }
+      ],
+      "bk_data_id": 1100012
+    },
+    {
+      "table_id": "bkm_statistics.base",
+      "table_name_zh": "新版运营数据自定义上报时序数据",
+      "is_custom_table": true,
+      "schema_type": "free",
+      "default_storage": "influxdb",
+      "bk_biz_id": 0,
+      "label": "application_check",
+      "field_list": [
+        {
+          "field_name": "dimensions",
+          "field_type": "object",
+          "description": "",
+          "unit": "",
+          "tag": "dimension"
+        },
+        {
+          "field_name": "metrics",
+          "field_type": "object",
+          "description": "",
+          "unit": "",
+          "tag": "dimension"
+        },
+        {
+          "field_name": "target",
+          "field_type": "string",
+          "description": "",
+          "unit": "",
+          "tag": "dimension"
+        },
+        {
+          "field_name": "time",
+          "field_type": "timestamp",
+          "description": "数据上报时间",
+          "unit": "",
+          "tag": "timestamp"
+        }
+      ],
+      "bk_data_id": 1100013
+    },
+    {
+      "table_id": "datalink_stats.__default__",
+      "table_name_zh": "集器指标上报时序数据",
+      "is_custom_table": true,
+      "schema_type": "free",
+      "default_storage": "influxdb",
+      "bk_biz_id": 0,
+      "label": "application_check",
+      "field_list": [
+        {
+          "field_name": "dimensions",
+          "field_type": "object",
+          "description": "",
+          "unit": "",
+          "tag": "dimension"
+        },
+        {
+          "field_name": "metrics",
+          "field_type": "object",
+          "description": "",
+          "unit": "",
+          "tag": "dimension"
+        },
+        {
+          "field_name": "target",
+          "field_type": "string",
+          "description": "",
+          "unit": "",
+          "tag": "dimension"
+        },
+        {
+          "field_name": "time",
+          "field_type": "timestamp",
+          "description": "数据上报时间",
+          "unit": "",
+          "tag": "timestamp"
+        }
+      ],
+      "bk_data_id": 1100014
+    },
+    {
+      "table_id": "bkunifylogbeat_k8s_common.base",
+      "table_name_zh": "bkunifylogbeat K8S 公共指标",
+      "is_custom_table": false,
+      "schema_type": "free",
+      "default_storage": "influxdb",
+      "bk_biz_id": 0,
+      "label": "service_process",
+      "field_list": [
+        {
+          "field_name": "time",
+          "field_type": "timestamp",
+          "description": "上报时间",
+          "unit": "",
+          "tag": "timestamp"
+        }
+      ],
+      "bk_data_id": 1100015
+    },
+    {
+      "table_id": "bkunifylogbeat_k8s_task.base",
+      "table_name_zh": "bkunifylogbeat k8s 任务指标",
+      "is_custom_table": false,
+      "schema_type": "free",
+      "default_storage": "influxdb",
+      "bk_biz_id": 0,
+      "label": "service_process",
+      "field_list": [
+        {
+          "field_name": "time",
+          "field_type": "timestamp",
+          "description": "上报时间",
+          "unit": "",
+          "tag": "timestamp"
+        }
+      ],
+      "bk_data_id": 1100016
+    },
+    {
+      "table_id": "gse_custom_string",
+      "table_name_zh": "gse自定义字符串上报",
+      "is_custom_table": true,
+      "schema_type": "free",
+      "default_storage": "elasticsearch",
+      "bk_biz_id": 0,
+      "label": "os",
+      "field_list": [
+        {
+          "field_name": "dimensions",
+          "field_type": "object",
+          "description": "",
+          "unit": "",
+          "tag": "dimension"
+        },
+        {
+          "field_name": "event",
+          "field_type": "object",
+          "description": "",
+          "unit": "",
+          "tag": "dimension"
+        },
+        {
+          "field_name": "event_name",
+          "field_type": "string",
+          "description": "",
+          "unit": "",
+          "tag": "dimension"
+        },
+        {
+          "field_name": "target",
+          "field_type": "string",
+          "description": "",
+          "unit": "",
+          "tag": "dimension"
+        },
+        {
+          "field_name": "time",
+          "field_type": "timestamp",
+          "description": "数据上报时间",
+          "unit": "",
+          "tag": "timestamp"
+        }
+      ],
+      "bk_data_id": 1100000
+    },
+    {
+      "table_id": "gse_system_event",
+      "table_name_zh": "gse系统事件上报",
+      "is_custom_table": true,
+      "schema_type": "free",
+      "default_storage": "elasticsearch",
+      "bk_biz_id": 0,
+      "label": "os",
+      "field_list": [
+        {
+          "field_name": "dimensions",
+          "field_type": "object",
+          "description": "",
+          "unit": "",
+          "tag": "dimension"
+        },
+        {
+          "field_name": "event",
+          "field_type": "object",
+          "description": "",
+          "unit": "",
+          "tag": "dimension"
+        },
+        {
+          "field_name": "event_name",
+          "field_type": "string",
+          "description": "",
+          "unit": "",
+          "tag": "dimension"
+        },
+        {
+          "field_name": "target",
+          "field_type": "string",
+          "description": "",
+          "unit": "",
+          "tag": "dimension"
+        },
+        {
+          "field_name": "time",
+          "field_type": "timestamp",
+          "description": "数据上报时间",
+          "unit": "",
+          "tag": "timestamp"
+        }
+      ],
+      "bk_data_id": 1000
+    },
+    {
+      "table_id": "bkmonitorbeat_gather_up.__default__",
+      "table_name_zh": "bkmonitorbeat 采集任务状态指标",
+      "is_custom_table": false,
+      "schema_type": "free",
+      "default_storage": "influxdb",
+      "bk_biz_id": 0,
+      "label": "service_process",
+      "field_list": [],
+      "bk_data_id": 1100017
+    }
+  ],
+  "cluster_list": [
+    {
+      "description": "init kafka cluster",
+      "cluster_type": "kafka",
+      "domain_name": "kafka.service.consul",
+      "cluster_name": "kafka_cluster1",
+      "is_default_cluster": true,
+      "port": 9092
+    },
+    {
+      "description": "init influx cluster",
+      "cluster_type": "influxdb",
+      "domain_name": "10.1.1.1",
+      "cluster_name": "influx_cluster1",
+      "is_default_cluster": true,
+      "port": 8086
+    },
+    {
+      "description": "init influx cluster",
+      "cluster_type": "elasticsearch",
+      "domain_name": "10.1.1.1",
+      "cluster_name": "es_cluster1",
+      "is_default_cluster": true,
+      "port": 9200
+    }
+  ],
+  "datasource_list": [
+    {
+      "data_name": "base_alarm",
+      "etl_config": "bk_gse_system_event",
+      "bk_data_id": 1000,
+      "source_label": "bk_monitor",
+      "type_label": "time_series",
+      "is_custom_source": false,
+      "option_list": [
+        {
+          "value_type": "bool",
+          "value": "true",
+          "name": "inject_local_time"
+        },
+        {
+          "value_type": "string",
+          "value": "ms",
+          "name": "timestamp_precision"
+        },
+        {
+          "value_type": "string",
+          "value": "data",
+          "name": "flat_batch_key"
+        }
+      ]
+    },
+    {
+      "data_name": "snapshot",
+      "etl_config": "bk_system_basereport",
+      "bk_data_id": 1001,
+      "source_label": "bk_monitor",
+      "type_label": "time_series",
+      "is_custom_source": false,
+      "option_list": []
+    },
+    {
+      "data_name": "mysql",
+      "etl_config": "bk_component_mysql",
+      "bk_data_id": 1002,
+      "source_label": "bk_monitor",
+      "type_label": "time_series",
+      "is_custom_source": false,
+      "option_list": []
+    },
+    {
+      "data_name": "redis",
+      "etl_config": "bk_component_redis",
+      "bk_data_id": 1003,
+      "source_label": "bk_monitor",
+      "type_label": "time_series",
+      "is_custom_source": false,
+      "option_list": []
+    },
+    {
+      "data_name": "apache",
+      "etl_config": "bk_component_apache",
+      "bk_data_id": 1004,
+      "source_label": "bk_monitor",
+      "type_label": "time_series",
+      "is_custom_source": false,
+      "option_list": []
+    },
+    {
+      "data_name": "nginx",
+      "etl_config": "bk_component_nginx",
+      "bk_data_id": 1005,
+      "source_label": "bk_monitor",
+      "type_label": "time_series",
+      "is_custom_source": false,
+      "option_list": []
+    },
+    {
+      "data_name": "tomcat",
+      "etl_config": "bk_component_tomcat",
+      "bk_data_id": 1006,
+      "source_label": "bk_monitor",
+      "type_label": "time_series",
+      "is_custom_source": false,
+      "option_list": []
+    },
+    {
+      "data_name": "process_perf",
+      "etl_config": "bk_system_proc",
+      "bk_data_id": 1007,
+      "source_label": "bk_monitor",
+      "type_label": "time_series",
+      "is_custom_source": false,
+      "option_list": []
+    },
+    {
+      "data_name": "uptimecheck_heartbeat",
+      "etl_config": "bk_uptimecheck_heartbeat",
+      "bk_data_id": 1008,
+      "source_label": "bk_monitor",
+      "type_label": "time_series",
+      "is_custom_source": false,
+      "option_list": []
+    },
+    {
+      "data_name": "uptimecheck_tcp",
+      "etl_config": "bk_uptimecheck_tcp",
+      "bk_data_id": 1009,
+      "source_label": "bk_monitor",
+      "type_label": "time_series",
+      "is_custom_source": false,
+      "option_list": []
+    },
+    {
+      "data_name": "uptimecheck_udp",
+      "etl_config": "bk_uptimecheck_udp",
+      "bk_data_id": 1010,
+      "source_label": "bk_monitor",
+      "type_label": "time_series",
+      "is_custom_source": false,
+      "option_list": []
+    },
+    {
+      "data_name": "uptimecheck_http",
+      "etl_config": "bk_uptimecheck_http",
+      "bk_data_id": 1011,
+      "source_label": "bk_monitor",
+      "type_label": "time_series",
+      "is_custom_source": false,
+      "option_list": []
+    },
+    {
+      "data_name": "process_port",
+      "etl_config": "bk_system_proc_port",
+      "bk_data_id": 1013,
+      "source_label": "bk_monitor",
+      "type_label": "time_series",
+      "is_custom_source": false,
+      "option_list": []
+    },
+    {
+      "data_name": "cmd_report",
+      "etl_config": "bk_gse_custom_string",
+      "bk_data_id": 1100000,
+      "source_label": "bk_monitor",
+      "type_label": "bk_event",
+      "is_custom_source": false,
+      "option_list": [
+        {
+          "value_type": "bool",
+          "value": "true",
+          "name": "inject_local_time"
+        },
+        {
+          "value_type": "string",
+          "value": "ms",
+          "name": "timestamp_precision"
+        },
+        {
+          "value_type": "string",
+          "value": "data",
+          "name": "flat_batch_key"
+        }
+      ]
+    },
+    {
+      "data_name": "1100001",
+      "etl_config": "bk_standard",
+      "bk_data_id": 1100001,
+      "source_label": "bk_monitor",
+      "type_label": "bk_event",
+      "is_custom_source": false,
+      "option_list": []
+    },
+    {
+      "data_name": "1100002",
+      "etl_config": "bk_standard",
+      "bk_data_id": 1100002,
+      "source_label": "bk_monitor",
+      "type_label": "bk_event",
+      "is_custom_source": false,
+      "option_list": []
+    },
+    {
+      "data_name": "uptimecheck_icmp",
+      "etl_config": "bk_standard",
+      "bk_data_id": 1100003,
+      "source_label": "bk_monitor",
+      "type_label": "time_series",
+      "is_custom_source": false,
+      "option_list": []
+    },
+    {
+      "data_name": "pingserver",
+      "etl_config": "bk_standard_v2_time_series",
+      "bk_data_id": 1100005,
+      "source_label": "bk_monitor",
+      "type_label": "time_series",
+      "is_custom_source": false,
+      "option_list": [
+        {
+          "value_type": "string",
+          "value": "data",
+          "name": "flat_batch_key"
+        },
+        {
+          "value_type": "string",
+          "value": "ms",
+          "name": "timestamp_precision"
+        },
+        {
+          "value_type": "string",
+          "value": "true",
+          "name": "disable_metric_cutter"
+        }
+      ]
+    },
+    {
+      "data_name": "bkunifylogbeat common metrics",
+      "etl_config": "bk_standard_v2_time_series",
+      "bk_data_id": 1100006,
+      "source_label": "bk_monitor",
+      "type_label": "time_series",
+      "is_custom_source": false,
+      "option_list": [
+        {
+          "value_type": "string",
+          "value": "data",
+          "name": "flat_batch_key"
+        },
+        {
+          "value_type": "string",
+          "value": "ms",
+          "name": "timestamp_precision"
+        },
+        {
+          "value_type": "string",
+          "value": "true",
+          "name": "disable_metric_cutter"
+        },
+        {
+          "value_type": "string",
+          "value": "",
+          "name": "metrics_report_path"
+        }
+      ]
+    },
+    {
+      "data_name": "bkunifylogbeat task metrics",
+      "etl_config": "bk_standard_v2_time_series",
+      "bk_data_id": 1100007,
+      "source_label": "bk_monitor",
+      "type_label": "time_series",
+      "is_custom_source": false,
+      "option_list": [
+        {
+          "value_type": "string",
+          "value": "data",
+          "name": "flat_batch_key"
+        },
+        {
+          "value_type": "string",
+          "value": "ms",
+          "name": "timestamp_precision"
+        },
+        {
+          "value_type": "string",
+          "value": "true",
+          "name": "disable_metric_cutter"
+        },
+        {
+          "value_type": "string",
+          "value": "",
+          "name": "metrics_report_path"
+        }
+      ]
+    },
+    {
+      "data_name": "gse_process_event_report",
+      "etl_config": "bk_standard_v2_event",
+      "bk_data_id": 1100008,
+      "source_label": "bk_monitor",
+      "type_label": "event",
+      "is_custom_source": true,
+      "option_list": [
+        {
+          "value_type": "bool",
+          "value": "true",
+          "name": "inject_local_time"
+        },
+        {
+          "value_type": "string",
+          "value": "ms",
+          "name": "timestamp_precision"
+        },
+        {
+          "value_type": "string",
+          "value": "data",
+          "name": "flat_batch_key"
+        }
+      ]
+    },
+    {
+      "data_name": "2_custom_report_aggate_dataid",
+      "etl_config": "bk_standard_v2_time_series",
+      "bk_data_id": 1100011,
+      "source_label": "bk_monitor",
+      "type_label": "time_series",
+      "is_custom_source": true,
+      "option_list": [
+        {
+          "value_type": "string",
+          "value": "data",
+          "name": "flat_batch_key"
+        },
+        {
+          "value_type": "string",
+          "value": "ms",
+          "name": "timestamp_precision"
+        },
+        {
+          "value_type": "string",
+          "value": "true",
+          "name": "disable_metric_cutter"
+        },
+        {
+          "value_type": "string",
+          "value": "",
+          "name": "metrics_report_path"
+        }
+      ]
+    },
+    {
+      "data_name": "2_operation_data_custom_series",
+      "etl_config": "bk_standard_v2_time_series",
+      "bk_data_id": 1100012,
+      "source_label": "bk_monitor",
+      "type_label": "time_series",
+      "is_custom_source": true,
+      "option_list": [
+        {
+          "value_type": "string",
+          "value": "data",
+          "name": "flat_batch_key"
+        },
+        {
+          "value_type": "string",
+          "value": "ms",
+          "name": "timestamp_precision"
+        },
+        {
+          "value_type": "string",
+          "value": "true",
+          "name": "disable_metric_cutter"
+        },
+        {
+          "value_type": "string",
+          "value": "",
+          "name": "metrics_report_path"
+        }
+      ]
+    },
+    {
+      "data_name": "2_bkm_statistics",
+      "etl_config": "bk_standard_v2_time_series",
+      "bk_data_id": 1100013,
+      "source_label": "bk_monitor",
+      "type_label": "time_series",
+      "is_custom_source": true,
+      "option_list": [
+        {
+          "value_type": "string",
+          "value": "data",
+          "name": "flat_batch_key"
+        },
+        {
+          "value_type": "string",
+          "value": "ms",
+          "name": "timestamp_precision"
+        },
+        {
+          "value_type": "string",
+          "value": "true",
+          "name": "disable_metric_cutter"
+        },
+        {
+          "value_type": "string",
+          "value": "",
+          "name": "metrics_report_path"
+        }
+      ]
+    },
+    {
+      "data_name": "2_datalink_stats",
+      "etl_config": "bk_standard_v2_time_series",
+      "bk_data_id": 1100014,
+      "source_label": "datalink",
+      "type_label": "time_series",
+      "is_custom_source": true,
+      "option_list": [
+        {
+          "value_type": "string",
+          "value": "data",
+          "name": "flat_batch_key"
+        },
+        {
+          "value_type": "string",
+          "value": "ms",
+          "name": "timestamp_precision"
+        },
+        {
+          "value_type": "string",
+          "value": "true",
+          "name": "disable_metric_cutter"
+        },
+        {
+          "value_type": "string",
+          "value": "",
+          "name": "metrics_report_path"
+        }
+      ]
+    },
+    {
+      "data_name": "2_bkunifylogbeat_k8s_common",
+      "etl_config": "bk_standard_v2_time_series",
+      "bk_data_id": 1100015,
+      "source_label": "bk_monitor",
+      "type_label": "time_series",
+      "is_custom_source": false,
+      "option_list": [
+        {
+          "value_type": "string",
+          "value": "data",
+          "name": "flat_batch_key"
+        },
+        {
+          "value_type": "string",
+          "value": "ms",
+          "name": "timestamp_precision"
+        },
+        {
+          "value_type": "string",
+          "value": "true",
+          "name": "disable_metric_cutter"
+        }
+      ]
+    },
+    {
+      "data_name": "2_bkunifylogbeat_k8s_task",
+      "etl_config": "bk_standard_v2_time_series",
+      "bk_data_id": 1100016,
+      "source_label": "bk_monitor",
+      "type_label": "time_series",
+      "is_custom_source": false,
+      "option_list": [
+        {
+          "value_type": "string",
+          "value": "data",
+          "name": "flat_batch_key"
+        },
+        {
+          "value_type": "string",
+          "value": "ms",
+          "name": "timestamp_precision"
+        },
+        {
+          "value_type": "string",
+          "value": "true",
+          "name": "disable_metric_cutter"
+        }
+      ]
+    },
+    {
+      "data_name": "2_bkmonitorbeat_gather_up",
+      "etl_config": "bk_standard_v2_time_series",
+      "bk_data_id": 1100017,
+      "source_label": "bk_monitor",
+      "type_label": "time_series",
+      "is_custom_source": false,
+      "option_list": [
+        {
+          "value_type": "string",
+          "value": "data",
+          "name": "flat_batch_key"
+        },
+        {
+          "value_type": "string",
+          "value": "ms",
+          "name": "timestamp_precision"
+        },
+        {
+          "value_type": "string",
+          "value": "true",
+          "name": "disable_metric_cutter"
+        }
+      ]
+    }
+  ]
+}

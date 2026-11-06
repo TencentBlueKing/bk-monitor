@@ -393,7 +393,6 @@ class UnionConfigSerializer(serializers.Serializer):
     index_set_id = serializers.IntegerField(label=_("索引集ID"), required=True)
     begin = serializers.IntegerField(required=False, default=0)
     is_desensitize = serializers.BooleanField(label=_("是否脱敏"), required=False, default=True)
-    custom_indices = serializers.CharField(required=False, allow_null=True, allow_blank=True, default="")
 
 
 class UnionSearchAttrSerializer(SearchAttrSerializer):
@@ -411,6 +410,7 @@ class UnionSearchAttrSerializer(SearchAttrSerializer):
 
 
 class UnionSearchExportSerializer(serializers.Serializer):
+    supports_sort_confirmation = serializers.BooleanField(required=False, default=False)
     union_configs = serializers.ListField(
         label=_("联合检索参数"), required=True, allow_empty=False, child=UnionConfigSerializer()
     )
@@ -573,6 +573,7 @@ class SearchUserIndexSetOptionHistoryDeleteSerializer(serializers.Serializer):
 
 
 class SearchExportSerializer(serializers.Serializer):
+    supports_sort_confirmation = serializers.BooleanField(required=False, default=False)
     bk_biz_id = serializers.IntegerField(label=_("业务id"), required=True)
     keyword = serializers.CharField(label=_("搜索关键字"), required=False, allow_null=True, allow_blank=True)
     time_range = serializers.CharField(label=_("时间范围"), required=False)
@@ -589,8 +590,6 @@ class SearchExportSerializer(serializers.Serializer):
     file_type = serializers.ChoiceField(
         label=_("下载文件类型"), required=False, choices=ExportFileType.get_choices(), default=ExportFileType.LOG.value
     )
-    # 自定义索引列表 Eg. -> "2_bklog.0001,2_bklog.0002"
-    custom_indices = serializers.CharField(required=False, allow_null=True, allow_blank=True, default="")
     sort_list = serializers.ListField(required=False, allow_null=True, allow_empty=True, child=serializers.ListField())
 
 

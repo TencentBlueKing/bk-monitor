@@ -1,3 +1,4 @@
+import copy
 import datetime
 
 from unittest import mock
@@ -1289,6 +1290,98 @@ class TestDutyPlan:
         plan3 = DutyPlan.objects.filter(user_group_id=duty_group.id, is_effective=1)[2]
         assert plan3.start_time == duty_rule_data["effective_time"]
         assert duty_group.duty_plans[2].start_time == plan3.start_time[:-3]
+
+    def test_change_weekly_duty_rule_mid_period_keeps_plan_continuous(
+        self, datetime_today, db_setup, weekly_duty_rule_data
+    ):
+        effective_time = "2024-05-06 00:00:00"
+        datetime_today.return_value = datetime.datetime(2024, 5, 6)
+        weekly_duty_rule_data["effective_time"] = effective_time
+        duty_arrange = weekly_duty_rule_data["duty_arranges"][0]
+        duty_arrange["duty_time"][0].update(
+            work_days=[1, 2, 3, 4, 5, 6, 7],
+            work_time=["00:00--23:59"],
+        )
+
+        serializer = DutyRuleDetailSlz(data=weekly_duty_rule_data)
+        serializer.is_valid(raise_exception=True)
+        empty_user_groups = mock.MagicMock()
+        empty_user_groups.only.return_value = []
+        with mock.patch(
+            "bkmonitor.action.serializers.strategy.UserGroup.objects.filter", return_value=empty_user_groups
+        ):
+            duty_rule = serializer.save()
+        user_group_data = get_user_group_data()
+        user_group_data["duty_rules"] = [duty_rule.id]
+        group_serializer = UserGroupDetailSlz(data=user_group_data)
+        group_serializer.is_valid(raise_exception=True)
+        user_group = group_serializer.save()
+
+        change_time = "2024-06-04 12:00:00"
+        datetime_today.return_value = datetime.datetime(2024, 6, 4, 12)
+        duty_arrange["duty_users"].reverse()
+        serializer = DutyRuleDetailSlz(instance=duty_rule, data=weekly_duty_rule_data)
+        serializer.is_valid(raise_exception=True)
+        duty_rule_data = dict(serializer.validated_data)
+        duty_rule_data["id"] = duty_rule.id
+        expected_manager = DutyRuleManager.refresh_duty_rule_from_any_begin_time(
+            copy.deepcopy(duty_rule_data), change_time
+        )
+        expected_plan = next(
+            plan
+            for plan in expected_manager.get_last_duty_plans()
+            if any(
+                f"{work_time['start_time']}:00" <= change_time <= f"{work_time['end_time']}:59"
+                for work_time in plan["work_times"]
+            )
+        )
+        group_manager = GroupDutyRuleManager(user_group, [duty_rule_data])
+        original_plan = DutyPlan.objects.get(
+            user_group_id=user_group.id,
+            duty_rule_id=duty_rule.id,
+            is_effective=1,
+            start_time__lte=change_time,
+            finished_time__gt=change_time,
+        )
+        original_finished_time = original_plan.finished_time
+        original_snap_ids = list(DutyRuleSnap.objects.values_list("id", flat=True))
+        with mock.patch(
+            "bkmonitor.action.duty_manage.DutyPlan.objects.bulk_create", side_effect=RuntimeError("write failed")
+        ):
+            with pytest.raises(RuntimeError, match="write failed"):
+                group_manager.manage_duty_rule_snap(change_time)
+        original_plan.refresh_from_db()
+        assert original_plan.finished_time == original_finished_time
+        assert list(DutyRuleSnap.objects.values_list("id", flat=True)) == original_snap_ids
+
+        group_manager.manage_duty_rule_snap(change_time)
+
+        old_plan_end_time = "2024-06-04 11:59:59"
+        old_plan = DutyPlan.objects.get(
+            user_group_id=user_group.id,
+            duty_rule_id=duty_rule.id,
+            is_effective=1,
+            start_time__lt=change_time,
+            finished_time=old_plan_end_time,
+        )
+        new_plan = DutyPlan.objects.get(
+            user_group_id=user_group.id,
+            duty_rule_id=duty_rule.id,
+            is_effective=1,
+            start_time=change_time,
+            finished_time__gt=change_time,
+        )
+        assert old_plan.finished_time == old_plan_end_time
+        assert not old_plan.is_active_plan(change_time)
+        assert new_plan.is_active_plan(change_time)
+        assert new_plan.users == expected_plan["users"]
+        assert all(f"{work_time['end_time']}:59" > change_time for work_time in new_plan.work_times)
+        assert old_plan.work_times[-1]["end_time"] == old_plan_end_time[:-3]
+        assert new_plan.work_times[0]["start_time"] == change_time[:-3]
+        assert all(work_time["end_time"] <= new_plan.finished_time[:-3] for work_time in new_plan.work_times)
+        preview_plans = {plan.id: plan for plan in user_group.duty_plans}
+        assert preview_plans[old_plan.id].work_times[-1]["end_time"] == old_plan_end_time[:-3]
+        assert preview_plans[new_plan.id].work_times[0]["start_time"] == change_time[:-3]
 
     def test_duty_rule_save_keeps_multiple_user_groups_aligned(self, datetime_today, db_setup, weekly_duty_rule_data):
         weekly_duty_rule_data["effective_time"] = "2024-05-06 00:00:00"

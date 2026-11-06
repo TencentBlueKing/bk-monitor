@@ -55,7 +55,12 @@ export default class SetMealAdd extends tsc<object> {
   fromRouteName = '';
   configId = 0;
   type: 'add' | 'edit' = 'add';
-  isLoading = false;
+  /** 套餐类型列表（get_plugins）——决定类型选择器选项与编辑态回填时机 */
+  typeListLoading = false;
+  /** 编辑态详情回显 */
+  detailLoading = false;
+  /** 详情已返回但套餐类型列表未就绪，暂存待回填；避免 mealTypeChange 因列表为空被跳过 */
+  pendingMealInfo: Record<string, unknown> | null = null;
   mealInfo: any = {};
 
   // 基本信息
@@ -78,6 +83,13 @@ export default class SetMealAdd extends tsc<object> {
   }
   get pluginId() {
     return this.$route.params.id;
+  }
+  /**
+   * 页面遮罩：只等决定「能否安全交互」的请求——类型列表（新建/编辑）与详情（编辑）。
+   * 其余 4 个元数据在后台并行填充，不再阻塞首屏；也不额外维护子区 loading/骨架。
+   */
+  get isLoading() {
+    return this.typeListLoading || (this.type === 'edit' && this.detailLoading);
   }
 
   /** BKFara 等外链跳转新建套餐时带入的模板名（query: template_name） */
@@ -104,57 +116,119 @@ export default class SetMealAdd extends tsc<object> {
   }
 
   async initMeal() {
-    this.isLoading = true;
+    // 页面初始化重入保护；当前只在 created 调用一次，属防御性保护
+    if (this.isLoading) return;
+    this.typeListLoading = true;
     this.updateNavData(this.$route.params.id && !this.isClone ? this.$tc('编辑') : this.$tc('新建套餐'));
-    // 渲染通知方式表格
-    await SetMealAddModule.getNoticeWay();
-    // 获取维度列表
-    await SetMealAddModule.getDimensionList();
-    // 获取收敛类型列表
-    await SetMealAddModule.getConvergeFunctionList();
-    // 获取变量列表
-    await SetMealAddModule.getVariableDataList();
-    // 套餐类型列表
-    await this.getMealTypeList();
-    if (this.$route.params.id) {
+    const isEdit = Boolean(this.$route.params.id);
+    if (isEdit) {
       this.configId = Number.parseInt(this.$route.params.id, 10);
-
-      // 编辑
       this.type = 'edit';
-      this.mealInfo = await SetMealAddModule.retrieveActionConfig(this.configId);
-      this.mealData = mealContentDataBackfill(deepClone(this.mealInfo));
-      this.getBasicInfo();
-      !this.isClone && this.updateNavData(`${this.$tc('编辑')} ${this.mealInfo.name}`);
-      this.refreshKey = random(8);
     } else {
       this.type = 'add';
-      const { pluginType } = this.$route.params;
-      const pluginName = this.$route.query?.plugin_name
-        ? decodeURIComponent(this.$route.query.plugin_name as string)
-        : '';
       const presetMealName = this.$route.query?.name ? decodeURIComponent(this.$route.query.name as string) : '';
       if (presetMealName) {
         this.basicInfo.name = presetMealName;
       }
-      if (pluginType || pluginName) {
-        this.$nextTick(() => {
-          const mealTypes = [];
-          this.mealTypeList.forEach(item => {
-            mealTypes.push(...item.children);
-          });
-          let mealTypeItem: IMealTypeList | undefined;
-          if (pluginType) {
-            mealTypeItem = mealTypes.find(item => item.pluginType === pluginType);
-          } else if (pluginName) {
-            mealTypeItem = mealTypes.find(item => item.name === pluginName);
-          }
-          if (mealTypeItem) {
-            this.mealContentRef.mealTypeChange(mealTypeItem.id as number);
-          }
-        });
-      }
     }
-    this.isLoading = false;
+
+    // 页面显示只等 get_plugins：这一个 promise 是 initMeal 唯一 await 的对象
+    const typeListPromise = this.getMealTypeList()
+      .catch(error => {
+        console.error(error);
+      })
+      .finally(() => {
+        this.typeListLoading = false;
+      });
+    // 其余 4 个：后台 Promise.all 并行执行，不参与页面显示
+    Promise.all([
+      // 渲染通知方式表格
+      SetMealAddModule.getNoticeWay(),
+      // 获取维度列表
+      SetMealAddModule.getDimensionList(),
+      // 获取收敛类型列表
+      SetMealAddModule.getConvergeFunctionList(),
+      // 获取变量列表
+      SetMealAddModule.getVariableDataList(),
+    ]).catch(error => {
+      console.error(error);
+    });
+    // 编辑回显：请求与类型列表并行发起；回填在类型列表就绪后由 applyMealInfo 统一执行
+    if (isEdit) this.loadDetail();
+
+    // typeListPromise 已 catch 并在 finally 中复位 typeListLoading，此处不会抛出
+    await typeListPromise;
+    // 编辑态详情可能先返回：类型列表就绪后再回填，确保 mealTypeChange 能命中类型
+    if (this.pendingMealInfo) {
+      const pendingMealInfo = this.pendingMealInfo;
+      this.pendingMealInfo = null;
+      this.applyMealInfo(pendingMealInfo);
+    }
+    // 类型选择器就绪后再自动选型
+    if (!isEdit) this.applyPresetMealType();
+  }
+
+  /**
+   * 仅拉取编辑态详情，元数据仍在后台并行、不重复触发。
+   * 失败态不新增 UI：记录错误后解除遮罩，由 save() 的内部守卫阻止用空表单覆盖真实配置。
+   */
+  protected loadDetail() {
+    this.detailLoading = true;
+    return SetMealAddModule.retrieveActionConfig(this.configId)
+      .then(mealInfo => {
+        // 顺序约定：先复位 detailLoading，再回填
+        this.detailLoading = false;
+        this.applyMealInfo(mealInfo);
+      })
+      .catch(error => {
+        console.error(error);
+      })
+      .finally(() => {
+        this.detailLoading = false;
+      });
+  }
+
+  /** 编辑态回填：详情请求与类型列表并行，但回填需等类型列表就绪，保证 mealTypeChange 能命中类型 */
+  applyMealInfo(mealInfo: Record<string, unknown> | null) {
+    if (!mealInfo) return;
+    if (this.typeListLoading) {
+      this.pendingMealInfo = mealInfo;
+      return;
+    }
+    this.pendingMealInfo = null;
+    try {
+      this.mealInfo = mealInfo;
+      this.mealData = mealContentDataBackfill(deepClone(this.mealInfo));
+      this.getBasicInfo();
+      !this.isClone && this.updateNavData(`${this.$tc('编辑')} ${this.mealInfo.name}`);
+      this.refreshKey = random(8);
+    } catch (error) {
+      console.error(error);
+    }
+  }
+
+  /** 新建/克隆：按 URL 预置套餐类型（只依赖类型列表） */
+  applyPresetMealType() {
+    const { pluginType } = this.$route.params;
+    const pluginName = this.$route.query?.plugin_name
+      ? decodeURIComponent(this.$route.query.plugin_name as string)
+      : '';
+    if (!pluginType && !pluginName) return;
+    this.$nextTick(() => {
+      const mealTypes = [];
+      this.mealTypeList.forEach(item => {
+        mealTypes.push(...item.children);
+      });
+      let mealTypeItem: IMealTypeList | undefined;
+      if (pluginType) {
+        mealTypeItem = mealTypes.find(item => item.pluginType === pluginType);
+      } else if (pluginName) {
+        mealTypeItem = mealTypes.find(item => item.name === pluginName);
+      }
+      if (mealTypeItem) {
+        this.mealContentRef?.mealTypeChange(mealTypeItem.id as number);
+      }
+    });
   }
   /** 更新面包屑 */
   updateNavData(name = '') {
@@ -187,6 +261,8 @@ export default class SetMealAdd extends tsc<object> {
 
   // 确定
   async save() {
+    // 编辑态详情未成功回显时不提交：避免用空表单覆盖线上配置（不新增失败态 UI，静默返回）
+    if (this.type === 'edit' && !this.mealData.id) return;
     const isPass = await this.validator().catch(err => console.log(err));
     if (!isPass) return;
     if (this.type === 'add') {
@@ -287,9 +363,7 @@ export default class SetMealAdd extends tsc<object> {
   }
 
   async getMealTypeList() {
-    let data = await SetMealAddModule.getMealTypeList(false).finally(() => {
-      this.isLoading = false;
-    });
+    let data = await SetMealAddModule.getMealTypeList(false);
     if (!Array.isArray(data)) {
       this.$bkInfo({
         extCls: 'set-meal-add__info',

@@ -38,8 +38,8 @@ import type { ActiveConditionMenuTarget } from '../../../../trace-explore/compon
 /**
  * CLICK 类型列的文本节点选择器。
  *
- * RUM 的 span_name 等列左键已用于「点击直接加为检索条件」，与 trace 的 CLICK 列（打开详情抽屉）一样不参与左键菜单，
- * 这里改用右键唤起同一个条件菜单，从而同时保留两种入口。
+ * RUM 的 span_name 列左键已用于打开 Span 详情抽屉（与 trace 的 CLICK 列一致），不参与左键菜单，
+ * 这里改用右键唤起同一个条件菜单，从而同时保留「看详情」与「加为检索条件」两种入口。
  */
 const CLICK_CELL_TEXT_SELECTOR = '.explore-click-text';
 
@@ -61,7 +61,7 @@ type DelegationRoot = MaybeRef<HTMLElement | null | { $el: HTMLElement }>;
 /**
  * @description RUM 检索表格单元格「点击弹出检索条件菜单」。
  * 交互与 trace 检索保持一致：带 explore-table-condition-menu 标记的单元格左键点击弹出菜单，
- * CLICK 类型列左键被「直接加为检索条件」占用，改由右键弹出同一个菜单。
+ * CLICK 类型列左键被「打开 Span 详情」占用，改由右键弹出同一个菜单。
  * @param {UseCellConditionMenuOptions} options 配置
  */
 export const useCellConditionMenu = ({ delegationRoot, menuRef, rowKey }: UseCellConditionMenuOptions) => {
@@ -137,7 +137,7 @@ export const useCellConditionMenu = ({ delegationRoot, menuRef, rowKey }: UseCel
   }
 
   /**
-   * @description CLICK 类型列右键唤起条件菜单（左键保持「直接加为检索条件」）
+   * @description CLICK 类型列右键唤起条件菜单（左键保持「打开 Span 详情」）
    * @param {MouseEvent} event 右键事件
    */
   function handleContextMenu(event: MouseEvent) {
@@ -160,16 +160,38 @@ export const useCellConditionMenu = ({ delegationRoot, menuRef, rowKey }: UseCel
     handlePopoverHide();
   }
 
+  /**
+   * @description CLICK 类型列左键点击时收起已打开的右键菜单。
+   * 左键的 onClick 会 stopPropagation，tippy 的 click 触发器收不到事件，菜单无法自行收起，这里在捕获阶段主动收起。
+   * @param {MouseEvent} event 左键事件
+   */
+  function handleClickCellClick(event: MouseEvent) {
+    if (!(event.target as HTMLElement)?.closest?.(CLICK_CELL_TEXT_SELECTOR)) return;
+    closeMenu();
+  }
+
+  /**
+   * @description 重新绑定全部事件委托：左键菜单委托、右键菜单、左键收起三类一起重建。
+   * 委托根节点会随表格 / 抽屉显隐重建，重建后必须整体重绑，否则旧节点上的右键与左键收起监听不再触发。
+   */
+  function rebindListeners() {
+    initListeners();
+    contextMenuRoot?.removeEventListener('contextmenu', handleContextMenu, true);
+    contextMenuRoot?.removeEventListener('click', handleClickCellClick, true);
+    contextMenuRoot = getRootDom();
+    contextMenuRoot?.addEventListener('contextmenu', handleContextMenu, true);
+    contextMenuRoot?.addEventListener('click', handleClickCellClick, true);
+  }
+
   onMounted(() => {
     nextTick(() => {
-      initListeners();
-      contextMenuRoot = getRootDom();
-      contextMenuRoot?.addEventListener('contextmenu', handleContextMenu, true);
+      rebindListeners();
     });
   });
 
   onBeforeUnmount(() => {
     contextMenuRoot?.removeEventListener('contextmenu', handleContextMenu, true);
+    contextMenuRoot?.removeEventListener('click', handleClickCellClick, true);
     contextMenuRoot = null;
   });
 
@@ -184,5 +206,7 @@ export const useCellConditionMenu = ({ delegationRoot, menuRef, rowKey }: UseCel
     closeMenu,
     /** 收起菜单（滚动等场景） */
     hideMenu: handlePopoverHide,
+    /** 重新绑定事件委托（委托根节点会随显隐重建时调用）：左键菜单委托、右键菜单与左键收起一起重绑 */
+    rebindListeners,
   };
 };

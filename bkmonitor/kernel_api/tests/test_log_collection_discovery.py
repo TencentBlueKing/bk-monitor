@@ -42,8 +42,10 @@ def test_list_result_tables_allows_bkdata_without_storage_cluster():
     assert serializer.is_valid(), serializer.errors
 
 
-def test_list_result_tables_forwards_validated_filters(monkeypatch):
-    list_result_tables = Mock(return_value=[{"result_table_id": "logs-*"}])
+@pytest.mark.parametrize("index_expression", ["logs-*", "*", "logs-2026,logs-2025", "logs-alias"])
+def test_list_result_tables_forwards_validated_filters(monkeypatch, index_expression):
+    tables = [{"result_table_id": "logs-2026"}, {"result_table_id": "logs-2025"}]
+    list_result_tables = Mock(return_value=tables)
     list_log_cluster = Mock(return_value=[{"storage_cluster_id": 61}])
     monkeypatch.setattr(
         discovery_module,
@@ -56,20 +58,34 @@ def test_list_result_tables_forwards_validated_filters(monkeypatch):
         ),
     )
     serializer = ListResultTablesResource.RequestSerializer(
-        data={"bk_biz_id": 2, "scenario_id": "es", "storage_cluster_id": 61, "result_table_id": "logs"}
+        data={"bk_biz_id": 2, "scenario_id": "es", "storage_cluster_id": 61, "result_table_id": index_expression}
     )
     assert serializer.is_valid(), serializer.errors
 
     result = ListResultTablesResource().perform_request(serializer.validated_data)
 
-    assert result == [{"result_table_id": "logs-*"}]
+    assert result is tables
     list_log_cluster.assert_called_once_with(bk_biz_id=2)
     list_result_tables.assert_called_once_with(
         bk_biz_id=2,
         scenario_id="es",
         storage_cluster_id=61,
-        result_table_id="logs",
+        result_table_id=index_expression,
     )
+
+
+def test_list_result_tables_filters_locally_when_bklog_ignores_keyword(monkeypatch):
+    list_result_tables = Mock(return_value=[{"result_table_id": "2_bkop_test"}, {"result_table_id": "2_other"}])
+    monkeypatch.setattr(
+        discovery_module,
+        "api",
+        SimpleNamespace(log_search=SimpleNamespace(list_result_tables=list_result_tables)),
+    )
+    result = ListResultTablesResource().perform_request(
+        {"bk_biz_id": 2, "scenario_id": "bkdata", "result_table_id": "BKOP"}
+    )
+    assert result == [{"result_table_id": "2_bkop_test"}]
+    list_result_tables.assert_called_once_with(bk_biz_id=2, scenario_id="bkdata", result_table_id="BKOP")
 
 
 def test_list_result_tables_rejects_invisible_storage_cluster(monkeypatch):
@@ -86,8 +102,6 @@ def test_list_result_tables_rejects_invisible_storage_cluster(monkeypatch):
     )
 
     with pytest.raises(PermissionDenied):
-        ListResultTablesResource().perform_request(
-            {"bk_biz_id": 2, "scenario_id": "es", "storage_cluster_id": 61}
-        )
+        ListResultTablesResource().perform_request({"bk_biz_id": 2, "scenario_id": "es", "storage_cluster_id": 61})
 
     list_result_tables.assert_not_called()

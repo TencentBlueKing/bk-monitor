@@ -283,6 +283,11 @@
         color: #c4c6cc;
       }
 
+      .data-item.keyboard-active {
+        outline: 1px solid #3a84ff;
+        outline-offset: -1px;
+      }
+
       // item选中状态
       .selected {
         background-color: #e1ecff;

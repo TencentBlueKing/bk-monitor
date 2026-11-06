@@ -35,57 +35,16 @@ import {
 import type { IDataSamplingItem, INoDataStrategyParams, IRumAppBaseParams, IStrategyData } from '../../typings';
 import type { IPanelModel } from 'monitor-ui/chart-plugins/typings';
 
-/**
- * @description 判断请求错误是否为终止状态
- * @param {unknown} err - 错误对象
- * @returns {boolean} 是否为终止状态
- */
-const requestErrorMessage = (err: unknown): boolean => {
-  const message = (err as Error)?.message;
-  return message === 'canceled' || message === 'aborted' || (err as Error)?.name === 'AbortError';
-};
-
-/**
- * @description 获取无数据策略信息（Service 中间层）
- * @description 封装底层 API 调用，统一错误兜底
- * @param {IRumAppBaseParams} params - 请求参数
- * @param {{ signal?: AbortSignal }} [requestConfig] - 请求配置
- * @returns {Promise<{ data: IStrategyData; isAborted: boolean }>} 策略数据与终止状态
- */
-export const fetchNoDataStrategyInfo = async (
+/** 获取配置失败由对应区域展示重试，取消请求由调用方的 signal 判断。 */
+export const fetchNoDataStrategyInfo = (
   params: IRumAppBaseParams,
   requestConfig: { signal?: AbortSignal } = {}
-): Promise<{ data: IStrategyData; isAborted: boolean }> => {
-  let isAborted = false;
+): Promise<IStrategyData> => getNoDataStrategyInfo(params, { ...requestConfig, needMessage: false });
 
-  const data = await getNoDataStrategyInfo(params, requestConfig).catch((err: unknown) => {
-    isAborted = requestErrorMessage(err);
-    return null;
-  });
-
-  return { data, isAborted };
-};
-
-/**
- * @description 获取数据视图配置（Service 中间层）
- * @description 封装底层 API 调用，统一处理数据转换和错误兜底
- * @param {IRumAppBaseParams} params - 请求参数
- * @param {{ signal?: AbortSignal }} [requestConfig] - 请求配置
- * @returns {Promise<{ data: IPanelModel[]; isAborted: boolean }>} 面板配置列表与终止状态
- */
-export const fetchDataViewConfig = async (
+export const fetchDataViewConfig = (
   params: IRumAppBaseParams,
   requestConfig: { signal?: AbortSignal } = {}
-): Promise<{ data: IPanelModel[]; isAborted: boolean }> => {
-  let isAborted = false;
-
-  const rawData = await getDataViewConfig(params, requestConfig).catch((err: unknown) => {
-    isAborted = requestErrorMessage(err);
-    return [] as IPanelModel[];
-  });
-
-  return { data: rawData, isAborted };
-};
+): Promise<IPanelModel[]> => getDataViewConfig(params, { ...requestConfig, needMessage: false });
 
 /**
  * @description 开启无数据告警策略
@@ -105,23 +64,7 @@ export const disableNoDataStrategy = async (params: INoDataStrategyParams): Prom
   await noDataStrategyDisable(params);
 };
 
-/**
- * @description 获取数据采样（Service 中间层）
- * @description 封装底层 API 调用，统一处理数据转换和错误兜底
- * @param {IRumAppBaseParams} params - 请求参数
- * @param {{ signal?: AbortSignal }} [requestConfig] - 请求配置
- * @returns {Promise<{ data: IDataSamplingItem[]; isAborted: boolean }>} 采样数据列表与终止状态
- */
-export const fetchDataSampling = async (
+export const fetchDataSampling = (
   params: IRumAppBaseParams,
   requestConfig: { signal?: AbortSignal } = {}
-): Promise<{ data: IDataSamplingItem[]; isAborted: boolean }> => {
-  let isAborted = false;
-
-  const rawData = await getDataSampling(params, requestConfig).catch((err: unknown) => {
-    isAborted = requestErrorMessage(err);
-    return [] as IDataSamplingItem[];
-  });
-
-  return { data: rawData, isAborted };
-};
+): Promise<IDataSamplingItem[]> => getDataSampling(params, { ...requestConfig, needMessage: false });

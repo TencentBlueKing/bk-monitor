@@ -1,0 +1,64 @@
+/* stylelint-disable no-descending-specificity */
+
+/* stylelint-disable selector-class-pattern */
+.profiling-collection.is-history {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+
+  > .collection-tabs {
+    flex-shrink: 0;
+  }
+}
+
+.collection-history-panel {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-height: 0;
+  padding: 16px 12px 0;
+
+  .t-table {
+    font-size: 12px;
+  }
+
+  // 用普通文本承载省略号，按钮内部结构会把列宽撑开
+  .collection-history-task-name {
+    display: block;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    color: #3a84ff;
+    white-space: nowrap;
+    cursor: pointer;
+
+    &:hover {
+      color: #5594fa;
+    }
+  }
+
+  > .bk-alert {
+    flex-shrink: 0;
+    margin-bottom: 12px;
+  }
+}
+
+.collection-history-scroll {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+}
+
+.collection-history-more {
+  padding: 16px;
+  font-size: 12px;
+  color: #979ba5;
+  text-align: center;
+}
+
+.collection-history-error {
+  padding: 16px 0;
+
+  > .bk-button {
+    margin-top: 8px;
+  }
+}

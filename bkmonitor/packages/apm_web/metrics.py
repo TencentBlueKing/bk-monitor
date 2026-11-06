@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2025 Tencent. All rights reserved.
@@ -8,6 +7,7 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
+
 from functools import partial
 
 from django.utils.translation import gettext_lazy as _
@@ -66,39 +66,6 @@ SERVICE_LIST = partial(
     distance=1,
     group_key=[OtlpKey.get_metric_dimension_key(ResourceAttributes.SERVICE_NAME)],
     metric_handler_cls=[RequestCountInstance, ErrorCountInstance, AvgDurationInstance, ErrorRateInstance],
-)
-
-SERVICE_DATA_STATUS = partial(
-    cache_batch_metric_query_group,
-    period="day",
-    distance=1,
-    group_key=[OtlpKey.get_metric_dimension_key(ResourceAttributes.SERVICE_NAME)],
-    metric_handler_cls=[RequestCountInstance],
-)
-
-REMOTE_SERVICE_DATA_STATUS = partial(
-    cache_batch_metric_query_group,
-    period="day",
-    distance=1,
-    group_key=[OtlpKey.get_metric_dimension_key(SpanAttributes.PEER_SERVICE)],
-    metric_handler_cls=[RequestCountInstance],
-)
-
-COMPONENT_DATA_STATUS = partial(
-    cache_batch_metric_query_group,
-    period="day",
-    distance=1,
-    group_key=[
-        OtlpKey.get_metric_dimension_key(key)
-        for key in [
-            ResourceAttributes.SERVICE_NAME,
-            SpanAttributes.DB_SYSTEM,
-            SpanAttributes.MESSAGING_SYSTEM,
-        ]
-    ],
-    metric_handler_cls=[
-        RequestCountInstance,
-    ],
 )
 
 REMOTE_SERVICE_LIST = partial(
@@ -244,7 +211,9 @@ TOPO_SERVICE_METRIC_REFRESH = partial(
         ),
         partial(
             ErrorRateInstance,
-            result_map=default_value_format(name=_("错误率"), id=CalculationMethod.ERROR_RATE, unit="percent", decimal=2),
+            result_map=default_value_format(
+                name=_("错误率"), id=CalculationMethod.ERROR_RATE, unit="percent", decimal=2
+            ),
         ),
     ],
 )
@@ -270,7 +239,9 @@ TOPO_SERVICE_METRIC = partial(
         ),
         partial(
             ErrorRateInstance,
-            result_map=default_value_format(name=_("错误率"), id=CalculationMethod.ERROR_RATE, unit="percent", decimal=2),
+            result_map=default_value_format(
+                name=_("错误率"), id=CalculationMethod.ERROR_RATE, unit="percent", decimal=2
+            ),
         ),
     ],
 )
@@ -297,7 +268,9 @@ TOPO_REMOTE_SERVICE_METRIC = partial(
         ),
         partial(
             ErrorRateInstance,
-            result_map=default_value_format(name=_("错误率"), id=CalculationMethod.ERROR_RATE, unit="percent", decimal=2),
+            result_map=default_value_format(
+                name=_("错误率"), id=CalculationMethod.ERROR_RATE, unit="percent", decimal=2
+            ),
         ),
     ],
 )
@@ -324,7 +297,9 @@ TOPO_REMOTE_SERVICE_METRIC_REFRESH = partial(
         ),
         partial(
             ErrorRateInstance,
-            result_map=default_value_format(name=_("错误率"), id=CalculationMethod.ERROR_RATE, unit="percent", decimal=2),
+            result_map=default_value_format(
+                name=_("错误率"), id=CalculationMethod.ERROR_RATE, unit="percent", decimal=2
+            ),
         ),
     ],
 )
@@ -354,7 +329,9 @@ TOPO_COMPONENT_METRIC_REFRESH = partial(
         ),
         partial(
             ErrorRateInstance,
-            result_map=default_value_format(name=_("错误率"), id=CalculationMethod.ERROR_RATE, unit="percent", decimal=2),
+            result_map=default_value_format(
+                name=_("错误率"), id=CalculationMethod.ERROR_RATE, unit="percent", decimal=2
+            ),
         ),
     ],
 )
@@ -382,7 +359,9 @@ TOPO_COMPONENT_METRIC = partial(
         ),
         partial(
             ErrorRateInstance,
-            result_map=default_value_format(name=_("错误率"), id=CalculationMethod.ERROR_RATE, unit="percent", decimal=2),
+            result_map=default_value_format(
+                name=_("错误率"), id=CalculationMethod.ERROR_RATE, unit="percent", decimal=2
+            ),
         ),
     ],
 )

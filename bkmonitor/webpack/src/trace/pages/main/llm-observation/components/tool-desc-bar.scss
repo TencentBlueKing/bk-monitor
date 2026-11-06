@@ -1,0 +1,90 @@
+@import '../../../../theme/theme';
+@import '../../../../theme/mixin';
+
+.llm-tool-desc-bar {
+  flex-shrink: 0;
+  gap: 8px;
+  justify-content: space-between;
+  width: 100%;
+  min-height: 32px;
+  padding: 6px 8px;
+  overflow: hidden;
+  background: #f0faf1;
+  border: 1px solid #bfdfd2;
+  border-radius: 4px;
+
+  @include flex-align(center);
+
+  &.is-agent {
+    background: #f1f8fd;
+    border-color: #bcdbf0;
+  }
+
+  &.is-expanded {
+    align-items: flex-start;
+    overflow: visible;
+  }
+
+  &-main {
+    flex: 1;
+    gap: 2px;
+    min-width: 0;
+
+    @include flex-align(center);
+  }
+
+  &.is-expanded &-main {
+    align-items: flex-start;
+  }
+
+  &-label {
+    flex-shrink: 0;
+    font-size: $font-size-base;
+    font-weight: 600;
+    line-height: $line-height-base;
+    color: #3ba365;
+    white-space: nowrap;
+  }
+
+  &.is-agent &-label {
+    color: #3292d1;
+  }
+
+  &-text {
+    flex: 1;
+    min-width: 0;
+    font-size: $font-size-base;
+    line-height: 20px;
+    color: #4e5e7a;
+
+    @include ellipsis;
+  }
+
+  &.is-expanded &-text {
+    overflow: visible;
+    text-overflow: unset;
+    overflow-wrap: break-word;
+    white-space: pre-wrap;
+  }
+
+  &-expand {
+    flex-shrink: 0;
+    gap: 3px;
+    padding: 2px 0;
+    font-size: $font-size-base;
+    line-height: 20px;
+    color: $primary-color;
+    white-space: nowrap;
+    cursor: pointer;
+    border-radius: 4px;
+
+    @include flex-align(center);
+
+    .icon-monitor {
+      flex-shrink: 0;
+      margin-right: -4px;
+      font-size: 18px;
+      line-height: 1;
+    }
+  }
+}

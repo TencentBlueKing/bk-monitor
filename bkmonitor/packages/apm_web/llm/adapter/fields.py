@@ -1,27 +1,146 @@
-"""产品路由和标准字段定义。"""
+"""
+Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
+Copyright (C) 2017-2025 Tencent. All rights reserved.
+Licensed under the MIT License (the "License"); you may not use this file except in compliance with the License.
+You may obtain a copy of the License at http://opensource.org/licenses/MIT
+Unless required by applicable law or agreed to in writing, software distributed under the License is distributed on
+an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
+specific language governing permissions and limitations under the License.
+"""
 
 from __future__ import annotations
 
+from collections.abc import Sequence
 from typing import TYPE_CHECKING, Any
 
+from django.db.models import Q
+
+from apm_web.llm.constants import SPAN_TYPES
 from constants.apm import LLMProduct
 
 if TYPE_CHECKING:
     from apm_web.strategy.dispatch.entity import EntitySet
 
-# gen_ai.operation.name -> Span 语义层级，未登记的取值（检索、任务等）不归类。
-SPAN_TYPES: dict[str, str] = {
-    "invoke_workflow": "AGENT",
-    "create_agent": "AGENT",
-    "invoke_agent": "AGENT",
-    "plan": "AGENT",
-    "execute_tool": "TOOL",
-    "chat": "LLM",
-    "generate_content": "LLM",
-    "text_completion": "LLM",
-    "fetch_response": "LLM",
-    "embeddings": "LLM",
-}
+# 能判定为 Agent 观测数据的 Span：各产品的埋点标记字段取并集，用于不区分产品的筛选。
+AGENT_CANDIDATE_FIELDS: tuple[str, ...] = (
+    "attributes.gen_ai.span.kind",
+    "attributes.gen_ai.operation.name",
+    "attributes.agent.info.id",
+    "attributes.agent.info.name",
+    "attributes.langfuse.observation.type",
+)
+AGENT_CANDIDATE_Q: Q = Q(*(Q(**{f"{field}__exists": [""]}) for field in AGENT_CANDIDATE_FIELDS), _connector=Q.OR)
+
+LANGFUSE_FLOW_FIELDS: tuple[str, ...] = (
+    "session.id",
+    "langfuse.observation.type",
+    "langfuse.internal.is_app_root",
+    "langfuse.observation.model.name",
+    "langfuse.observation.metadata.reasoningEffort",
+    "langfuse.observation.metadata.temperature",
+    "langfuse.observation.usage_details",
+)
+FLOW_ATTRIBUTE_FIELDS: tuple[str, ...] = (
+    "error.type",
+    "user.id",
+    "gen_ai.operation.name",
+    "gen_ai.provider.name",
+    "gen_ai.conversation.id",
+    "gen_ai.agent.id",
+    "gen_ai.agent.name",
+    "gen_ai.request.model",
+    "gen_ai.response.model",
+    "gen_ai.response.time_to_first_chunk",
+    "gen_ai.tool.name",
+    "gen_ai.tool.type",
+    "gen_ai.usage.input_tokens",
+    "gen_ai.usage.output_tokens",
+    "gen_ai.usage.cache_read.input_tokens",
+    "gen_ai.usage.cache_write.input_tokens",
+)
+
+
+def flow_attribute_fields(products: Sequence[str] = ()) -> set[str]:
+    """结构、分类和 Token 所需字段；产品差异仅在查询投影层处理。"""
+    from . import adapter_agentlens, adapter_bkaidev, adapter_galileo, adapter_langfuse
+
+    adapters = {
+        LLMProduct.AGENTLENS.value: adapter_agentlens,
+        LLMProduct.AIDEV.value: adapter_bkaidev,
+        LLMProduct.GALILEO.value: adapter_galileo,
+        LLMProduct.LANGFUSE.value: adapter_langfuse,
+    }
+    attributes: set[str] = set(FLOW_ATTRIBUTE_FIELDS)
+    product_fields = {
+        LLMProduct.AGENTLENS.value: ("gen_ai.span.kind",),
+        LLMProduct.AIDEV.value: ("llm.request.type", "traceloop.span.kind", "chain.type", "traceloop.entity.name"),
+        LLMProduct.LANGFUSE.value: LANGFUSE_FLOW_FIELDS,
+    }
+    for product in products or tuple(adapters):
+        attributes.update(product_fields.get(product, ()))
+        if adapter := adapters.get(product):
+            for target, aliases in adapter.ALIASES.items():
+                if target in attributes:
+                    attributes.update((aliases,) if isinstance(aliases, str) else aliases)
+    return attributes
+
+
+def flow_query_fields(
+    include_input_output: bool, input_output_preview: bool = False, products: Sequence[str] = ()
+) -> tuple[str, ...]:
+    if include_input_output and not input_output_preview:
+        return ()
+    attributes: set[str] = flow_attribute_fields(products)
+    extra_fields: set[str] = set()
+    if include_input_output:
+        from .utils import CONTENT_FIELDS
+
+        attributes.update(field for field in CONTENT_FIELDS if field != "gen_ai.tool.definitions")
+        content_fields = {
+            LLMProduct.AGENTLENS.value: (
+                "gen_ai.prompts.*",
+                "gen_ai.completion.*",
+                "input.value",
+                "output.value",
+                "tool.input",
+                "tool.output",
+                "traceloop.entity.input",
+                "traceloop.entity.output",
+            ),
+            LLMProduct.AIDEV.value: (
+                "llm.input",
+                "llm.output",
+                "agent.session.input",
+                "agent.session.output",
+                "traceloop.entity.input",
+                "traceloop.entity.output",
+                "tool.input",
+                "tool.output",
+                "input.value",
+                "output.value",
+            ),
+            LLMProduct.GALILEO.value: ("trpc.python.agent.llm_response",),
+            LLMProduct.LANGFUSE.value: ("langfuse.observation.input", "langfuse.observation.output"),
+        }
+        for product in products or tuple(content_fields):
+            attributes.update(content_fields.get(product, ()))
+            if product == LLMProduct.GALILEO.value:
+                extra_fields.add("events")
+    return (
+        "trace_id",
+        "span_id",
+        "parent_span_id",
+        "span_name",
+        "start_time",
+        "end_time",
+        "elapsed_time",
+        "status",
+        "resource",
+        "bk_biz_id",
+        "app_name",
+        *sorted(extra_fields),
+        *(f"attributes.{name}" for name in sorted(attributes)),
+    )
 
 
 def resolve_product(entity_set: EntitySet, service_name: str) -> str:
@@ -43,14 +162,12 @@ QUERY_FIELD_MAPPING: dict[str, dict[str, str]] = {
     "attributes.gen_ai.conversation.id": {
         LLMProduct.AIDEV.value: "attributes.agent.session.session_code",
         LLMProduct.AGENTLENS.value: "attributes.gen_ai.session.id",
-        LLMProduct.GALILEO.value: "attributes.gen_ai.session_id",
         LLMProduct.LANGFUSE.value: "attributes.session.id",
     },
     "attributes.gen_ai.operation.name": {
         # 该产品的 operation.name 取值为大写，语义层级实际由 span.kind 表达
         LLMProduct.AGENTLENS.value: "attributes.gen_ai.span.kind",
         LLMProduct.LANGFUSE.value: "attributes.langfuse.observation.type",
-        LLMProduct.AIDEV.value: "attributes.llm.request.type",
     },
     "attributes.gen_ai.response.model": {
         # 该产品未上报 response.model，但 request.model 在样本与生产环境都是全量填充的
@@ -63,3 +180,64 @@ QUERY_FIELD_MAPPING: dict[str, dict[str, str]] = {
 def resolve_query_field(product: str, field: str) -> str:
     """命中映射表时按产品换算为存储中的原始字段，未命中（含非 LLM 服务）时原样透传。"""
     return QUERY_FIELD_MAPPING.get(field, {}).get(product, field)
+
+
+def resolve_query_fields(field: str) -> tuple[str, ...]:
+    """返回标准字段及各产品登记的原始字段，用于无法预先确定产品的跨服务查询。"""
+    return tuple(dict.fromkeys((field, *QUERY_FIELD_MAPPING.get(field, {}).values())))
+
+
+# 产品存储里的操作名 -> 标准 gen_ai.operation.name，未登记的取值只做小写化。
+# 与 adapter 的归一口径对齐：聚合侧拿不到 span_name / 消息结构，只能映射字段取值本身。
+OPERATION_NAME_ALIASES: dict[str, dict[str, str]] = {
+    LLMProduct.AIDEV.value: {
+        "chat": "chat",
+        "completion": "text_completion",
+        "embedding": "embeddings",
+        "rerank": "retrieval",
+    },
+    LLMProduct.LANGFUSE.value: {
+        "span": "invoke_agent",
+        "agent": "invoke_agent",
+        "chain": "invoke_workflow",
+        "embedding": "embeddings",
+        "generation": "chat",
+        "retriever": "retrieval",
+        "tool": "execute_tool",
+    },
+    LLMProduct.AGENTLENS.value: {
+        "agent": "invoke_agent",
+        "llm": "chat",
+        "tool": "execute_tool",
+    },
+}
+
+
+def resolve_operation_name(product: str, value: Any) -> str:
+    """把各产品存储中的操作名换算成标准名，空值保持为空串。"""
+    raw = str(value).strip() if value not in (None, "") else ""
+    if not raw:
+        return ""
+    lowered = raw.lower()
+    return OPERATION_NAME_ALIASES.get(product, {}).get(lowered, lowered)
+
+
+def operation_query(product: str, operations: list[str]) -> Q:
+    """将标准操作名条件映射到产品原始字段，同时保留标准语义的 Span。"""
+    standard_field: str = "attributes.gen_ai.operation.name"
+    query: Q = Q(**{standard_field: operations})
+    if product == LLMProduct.AIDEV.value:
+        # 旧埋点的 request.type 无法覆盖 Agent，且会命中同一次模型调用的包装 Span。
+        if "chat" in operations:
+            query |= Q(span_name=["chat_model.generate", "ChatModel.chat"])
+        if "invoke_agent" in operations:
+            query |= Q(span_name="agent.execution")
+        return query
+    product_field: str = resolve_query_field(product, standard_field)
+    aliases: dict[str, str] = OPERATION_NAME_ALIASES.get(product, {})
+    values: list[str] = [raw for raw, standard in aliases.items() if standard in operations]
+    if product == LLMProduct.AGENTLENS.value:
+        values = [value.upper() for value in values]
+    if product_field != standard_field and values:
+        query |= Q(**{product_field: values})
+    return query

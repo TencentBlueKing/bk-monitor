@@ -1,0 +1,98 @@
+.collection-skeleton {
+  width: 100%;
+  overflow: hidden;
+  pointer-events: none;
+
+  .skeleton-element {
+    display: block;
+    height: 12px;
+    border-radius: 2px;
+  }
+
+  &-page {
+    min-height: calc(100% - 16px);
+    padding: 16px 24px;
+    background: #fff;
+    border-radius: 4px;
+  }
+
+  &-tabs,
+  &-toolbar,
+  &-pagination {
+    display: flex;
+    gap: 24px;
+    align-items: center;
+  }
+
+  &-tabs {
+    height: 32px;
+    margin-bottom: 24px;
+
+    i {
+      width: 80px;
+    }
+  }
+
+  &-toolbar {
+    justify-content: space-between;
+    margin-bottom: 16px;
+
+    i {
+      width: 88px;
+      height: 32px;
+    }
+
+    i:last-child {
+      width: 35%;
+    }
+  }
+
+  &-surface {
+    overflow: hidden;
+    border: 1px solid #eaebf0;
+    border-radius: 4px;
+  }
+
+  &-grid {
+    display: grid;
+  }
+
+  &-cell {
+    display: flex;
+    align-items: center;
+    height: 36px;
+    padding: 0 12px;
+    border-bottom: 1px solid #f0f1f5;
+
+    &.heading {
+      background: #fafbfd;
+    }
+  }
+
+  &-pagination {
+    justify-content: space-between;
+    height: 42px;
+    padding: 0 16px;
+
+    i {
+      width: 120px;
+    }
+
+    i:last-child {
+      width: 92px;
+      height: 24px;
+    }
+  }
+
+  &-card {
+    padding: 12px 8px;
+    margin-bottom: 8px;
+    background: #fff;
+    border-radius: 4px;
+
+    i:first-child {
+      width: 60%;
+      margin-bottom: 8px;
+    }
+  }
+}

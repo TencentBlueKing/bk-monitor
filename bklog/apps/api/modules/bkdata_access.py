@@ -47,6 +47,21 @@ class _BkDataAccessApi:
         )
 
     def __init__(self):
+        resource_path = (
+            "tenants/{tenant}/namespaces/{namespace}/{kind}/{name}/"
+            if settings.ENABLE_MULTI_TENANT_MODE
+            else "namespaces/{namespace}/{kind}/{name}/"
+        )
+        self.get_datalink_resource = DataAPI(
+            method="GET",
+            url=f"{settings.PAAS_API_HOST}/api/bk-base/{settings.ENVIRONMENT}/v4/{resource_path}",
+            module=self.MODULE,
+            description="查询数据链路资源",
+            before_request=add_esb_info_before_request_for_bkdata_user,
+            url_keys=["tenant", "namespace", "kind", "name"]
+            if settings.ENABLE_MULTI_TENANT_MODE
+            else ["namespace", "kind", "name"],
+        )
         self.list_raw_data = DataAPI(
             method="GET",
             url=self._build_url("rawdata/", "rawdata/"),

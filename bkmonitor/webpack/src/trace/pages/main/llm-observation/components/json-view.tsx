@@ -28,6 +28,7 @@ import { type PropType, computed, defineComponent } from 'vue';
 import VueJsonPretty from 'vue-json-pretty';
 
 import { beautifyJsonValue, formatJsonDisplay, isRecord } from '../utils/helpers';
+import HighlightText from './highlight-text';
 
 import './json-view.scss';
 import 'vue-json-pretty/lib/styles.css';
@@ -44,27 +45,84 @@ export default defineComponent({
       type: Boolean,
       default: false,
     },
+    theme: {
+      type: String as PropType<'dark' | 'default'>,
+      default: 'default',
+    },
+    /** 与搜索计数共用的 JSON path 前缀，独立查看侧栏不传 */
+    searchBlockId: {
+      type: String,
+      default: '',
+    },
   },
   setup(props) {
     const data = computed(() => beautifyJsonValue(props.data));
 
+    /** 搜索态自己拼引号，避免 HighlightText 替换掉 vue-json-pretty 默认值后丢引号 */
+    const renderLeaf = (node: { content?: unknown; path?: string }, defaultValue: unknown) => {
+      if (Array.isArray(node.content) || isRecord(node.content)) return defaultValue;
+      const text = formatJsonDisplay(node.content);
+      if (!props.searchBlockId) {
+        return typeof node.content === 'string' && /[\r\n]/.test(text) ? (
+          <span class='llm-json-view-text'>{text}</span>
+        ) : (
+          defaultValue
+        );
+      }
+      const highlighted = (
+        <HighlightText
+          blockId={`${node.path}:value`}
+          text={text}
+        />
+      );
+      if (typeof node.content === 'string' && !/[\r\n]/.test(text)) {
+        return (
+          <>
+            &quot;
+            {highlighted}
+            &quot;
+          </>
+        );
+      }
+      return /[\r\n]/.test(text) ? <span class='llm-json-view-text'>{highlighted}</span> : highlighted;
+    };
+
+    const isDark = computed(() => props.theme === 'dark');
+
     return () => (
-      <div class='llm-json-view'>
+      <div class={['llm-json-view', { 'is-dark': isDark.value }]}>
         {Array.isArray(data.value) || isRecord(data.value) ? (
           <VueJsonPretty
-            renderNodeValue={({ node, defaultValue }) => {
-              if (typeof node.content !== 'string') return defaultValue;
-              const text = formatJsonDisplay(node.content);
-              return /[\r\n]/.test(text) ? <span class='llm-json-view-text'>{text}</span> : defaultValue;
+            renderNodeKey={({ node, defaultKey }) => {
+              if (!props.searchBlockId || node.key == null || node.key === '') return defaultKey;
+              return (
+                <>
+                  &quot;
+                  <HighlightText
+                    blockId={`${node.path}:key`}
+                    text={String(node.key)}
+                  />
+                  &quot;
+                </>
+              );
             }}
+            renderNodeValue={({ node, defaultValue }) => renderLeaf(node, defaultValue)}
             collapsedOnClickBrackets={false}
             data={data.value}
             deep={20}
+            rootPath={props.searchBlockId || 'root'} // 与 collectJsonSearchTexts(rootPath) 对齐，独立查看保持默认 root
             showIcon={false}
             showKeyValueSpace={true}
-            showLine={false}
+            showLine={isDark.value}
             showLineNumber={props.showLineNumber}
           />
+        ) : props.searchBlockId ? (
+          <pre class='llm-json-view-text'>
+            <HighlightText
+              blockId={`${props.searchBlockId}:value`}
+              text={formatJsonDisplay(data.value)}
+            />
+          </pre>
         ) : (
           <pre class='llm-json-view-text'>{formatJsonDisplay(data.value)}</pre>
         )}

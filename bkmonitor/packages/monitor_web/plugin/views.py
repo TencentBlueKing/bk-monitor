@@ -436,23 +436,27 @@ class CollectorPluginViewSet(PermissionMixin, viewsets.ModelViewSet):
         param = request.data
         plugin_ids = param["plugin_ids"]
         # TODO: 检查是否存在关联项
-        plugins = self.get_queryset().filter(plugin_id__in=plugin_ids)
+        # 无业务或业务 0 时只处理全业务插件
+        biz_ids = [0, request.biz_id] if request.biz_id else [0]
+        plugins = self.get_queryset().filter(plugin_id__in=plugin_ids, bk_biz_id__in=biz_ids)
         for plugin in plugins:
             # 检查插件的删除权限
             if not plugin.delete_allowed:
                 raise DeletePermissionDenied({"plugin_id": plugin.plugin_id})
+            if not plugin.bk_biz_id:
+                assert_manage_pub_plugin_permission()
 
         with transaction.atomic():
             for plugin_id in plugin_ids:
+                plugin = CollectorPluginMeta.origin_objects.filter(
+                    bk_tenant_id=get_request_tenant_id(), plugin_id=plugin_id, bk_biz_id__in=biz_ids
+                ).first()
+                if not plugin:
+                    continue
                 PluginVersionHistory.origin_objects.filter(
                     bk_tenant_id=get_request_tenant_id(), plugin_id=plugin_id
                 ).delete()
-
-                plugin = CollectorPluginMeta.origin_objects.filter(
-                    bk_tenant_id=get_request_tenant_id(), plugin_id=plugin_id
-                ).first()
-                if plugin:
-                    plugin.delete()
+                plugin.delete()
 
                 try:
                     api.node_man.delete_plugin(name=plugin.plugin_id)
@@ -478,30 +482,8 @@ class CollectorPluginViewSet(PermissionMixin, viewsets.ModelViewSet):
 
     @action(methods=["POST"], detail=False)
     def replace_plugin(self, request, *args, **kwargs):
-        instance = self.get_queryset().get(plugin_id=request.data["plugin_id"])
-        current_config_version = instance.current_version.config_version
-        current_info_version = instance.current_version.info_version
-        plugin_manager = PluginManagerFactory.get_manager(plugin=instance)
-        self.serializer_class = plugin_manager.serializer_class
-        serializer = self.serializer_class(instance, data=request.data, partial=True)
-        serializer.is_valid(raise_exception=True)
-        with transaction.atomic():
-            plugin_obj = serializer.save()
-            plugin_manager.plugin = plugin_obj
-            version, need_debug = plugin_manager.update_version(serializer.validated_data)
-
-            # 检查插件的编辑权限
-            if not instance.edit_allowed:
-                if current_config_version != version.config_version or current_info_version != version.info_version:
-                    raise EditPermissionDenied({"plugin_id": instance.plugin_id})
-
-        serializer.validated_data["config_version"] = version.config_version
-        serializer.validated_data["info_version"] = version.info_version
-        serializer.validated_data["os_type_list"] = version.os_type_list
-        serializer.validated_data["stage"] = version.stage
-        serializer.validated_data["need_debug"] = check_skip_debug(need_debug)
-        serializer.validated_data["signature"] = Signature(version.signature).dumps2yaml()
-        return Response(serializer.validated_data)
+        """已弃用：插件覆盖更新统一使用 edit 接口。"""
+        raise serializers.ValidationError(_("replace_plugin 接口已弃用，请使用插件编辑接口"), code="deprecated")
 
     @action(methods=["GET"], detail=True)
     def export_plugin(self, request, *args, **kwargs):

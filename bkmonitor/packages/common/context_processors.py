@@ -21,6 +21,7 @@ from opentelemetry.instrumentation.utils import _SUPPRESS_INSTRUMENTATION_KEY
 from bkm_space.api import SpaceApi
 from bkm_space.define import Space
 from bkmonitor.commons.tools import is_ipv6_biz
+from bkmonitor.iam.my_perm import get_iam_my_perm_url
 from bkmonitor.utils import time_tools
 from bkmonitor.utils.common_utils import fetch_biz_id_from_request, safe_int
 from bkmonitor.utils.request import get_request_tenant_id
@@ -28,6 +29,7 @@ from common.log import logger
 from constants.common import DEFAULT_TENANT_ID
 from core.drf_resource import resource
 from core.errors.api import BKAPIError
+from fta_web.issue.source_analysis import is_issue_ai_analysis_enabled_for_biz
 
 
 class Platform:
@@ -60,8 +62,7 @@ def get_default_biz_id(request, biz_list: list[dict[str, Any]] | None = None, id
             if biz_id_or_none:
                 biz_id = safe_int(str(biz_id_or_none).strip("/"), dft=None)
             elif biz_list:
-                sorted(biz_list, key=lambda biz: biz[id_key])
-                biz_id = biz_list[0]["bk_biz_id"]
+                biz_id = min(biz_list, key=lambda biz: biz[id_key])["bk_biz_id"]
             else:
                 biz_id = -1
 
@@ -140,6 +141,8 @@ def get_core_context(request):
         "BK_CI_URL": settings.BK_CI_URL,
         "BK_BCS_URL": settings.BK_BCS_HOST,
         "BK_IAM_URL": settings.BK_IAM_SAAS_HOST,
+        # 权限中心「我的权限」完整地址：各 IAM 版本路由不同，由后端按版本拼好下发，前端直接打开
+        "BK_IAM_MY_PERM_URL": get_iam_my_perm_url(),
         # 蓝鲸平台URL
         "BK_URL": settings.BK_URL,
         "BK_PAAS_HOST": settings.BK_PAAS_HOST,
@@ -224,6 +227,8 @@ def get_basic_context(request, space_list: list[dict[str, Any]], bk_biz_id: int)
             "BK_USER_WEB_API_URL": settings.BK_USER_WEB_API_URL,
             # RUM 是否开启
             "RUM_BIZ_LIST": settings.RUM_BIZ_LIST,
+            # Profiling 主动采集是否开启
+            "ACTIVE_PROFILING_BIZ_LIST": settings.ACTIVE_PROFILING_BIZ_LIST,
         }
     )
 
@@ -257,6 +262,9 @@ def get_basic_context(request, space_list: list[dict[str, Any]], bk_biz_id: int)
             context["ENABLE_AIOPS"] = "true"
     except Exception as e:
         logger.error(f"Get AIOPS_BIZ_WHITE_LIST Failed: {e}")
+
+    # Issue AI 分析按独立业务白名单灰度
+    context["ENABLE_ISSUE_AI_ANALYSIS"] = is_issue_ai_analysis_enabled_for_biz(context["BK_BIZ_ID"])
 
     # 根因故障定位页面渲染
     context["ENABLE_AIOPS_INCIDENT"] = "false"

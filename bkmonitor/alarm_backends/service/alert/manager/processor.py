@@ -80,7 +80,9 @@ class AlertManager(BaseAlertProcessor):
                         # 以DB为主，同时合并check阶段新增内容
                         extra_info = getattr(alert_docs[alert.id], field, None)
                         alert.data[field] = alert.data.get(field) or {}
+                        progress = alert.data[field].copy()
                         alert.data[field].update(extra_info.to_dict() if extra_info else {})
+                        alert.preserve_notification_progress(progress)
                     else:
                         alert.data[field] = getattr(alert_docs[alert.id], field, None)
         return alerts
@@ -129,6 +131,8 @@ class AlertManager(BaseAlertProcessor):
                 if cache_alert and (not cache_alert.is_abnormal() or cache_alert.shield_end_close):
                     # 如果缓存二次确认状态不为异常则过滤掉，拉取的都是异常告警，若不一致说明此时告警可能已经被关闭或者恢复
                     continue
+                if cache_alert and cache_alert.id == alert.id:
+                    alert.preserve_notification_progress(cache_alert.extra_info)
             # 其他情况正常进行处理
             new_alerts.append(alert)
         # 打印过滤日志(包含过滤的告警id)
@@ -215,12 +219,17 @@ class AlertManager(BaseAlertProcessor):
         active_alerts = self.list_alerts_content_from_cache(
             [Event(data=alert.top_event, do_clean=False) for alert in alerts]
         )
-        active_alerts_mapping = {alert.dedupe_md5: alert.id for alert in active_alerts}
+        active_alerts_mapping = {alert.dedupe_md5: alert for alert in active_alerts}
+        for alert in alerts:
+            current = active_alerts_mapping.get(alert.dedupe_md5)
+            if current and current.id == alert.id:
+                alert.preserve_notification_progress(current.extra_info)
         update_count, finished_count = self.update_alert_cache(
             [
                 alert
                 for alert in alerts
-                if alert.dedupe_md5 not in active_alerts_mapping or active_alerts_mapping[alert.dedupe_md5] == alert.id
+                if alert.dedupe_md5 not in active_alerts_mapping
+                or active_alerts_mapping[alert.dedupe_md5].id == alert.id
             ]
         )
         self.logger.info("[alert.manager update alert cache]: updated(%s), finished(%s)", update_count, finished_count)

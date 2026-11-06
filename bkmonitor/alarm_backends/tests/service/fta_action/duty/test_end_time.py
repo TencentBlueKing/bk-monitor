@@ -32,20 +32,49 @@ class TestSnap:
     @pytest.mark.parametrize(
         "rule_end_time, expected_snap_count",
         [
-            pytest.param("2024-06-15 00:00:00", 0, id="complete"),
+            pytest.param("2024-06-15 00:00:00", 1, id="complete"),
             pytest.param("2024-07-15 00:00:00", 1, id="incomplete"),
             pytest.param("", 1, id="incomplete_without_end"),
         ],
     )
-    def test_snap_deletion_after_schedule_completion(
+    def test_snap_retained_after_schedule(
         self, today_as_2024_06_01, rule_end_time, create_duty_rule, create_user_group, expected_snap_count
     ):
-        """使用不同的结束时间，测试排班一次后，是否删除了用于排班的快照。"""
+        """使用不同的结束时间，测试排班一次后，用于排班的快照都被保留。"""
         duty_rule = create_duty_rule(end_time=rule_end_time)
         # 用户组保存会调用一次快照和计划管理
         create_user_group(rule_ids=[duty_rule.id])
 
         assert DutyRuleSnap.objects.count() == expected_snap_count
+
+    def test_completed_schedule_not_regenerated(self, today_as_2024_06_01, create_duty_rule, create_user_group):
+        """排班完成后，周期任务再次管理快照时不应重复生成计划。"""
+        duty_rule = create_duty_rule(end_time="2024-06-15 00:00:00")
+        user_group = create_user_group(rule_ids=[duty_rule.id])
+        plan_count = DutyPlan.objects.count()
+        assert plan_count > 0
+
+        m = GroupDutyRuleManager(user_group, duty_rules=[DutyRuleDetailSlz(duty_rule).data])
+        m.manage_duty_rule_snap("2024-06-01 00:01:00")
+
+        assert DutyPlan.objects.count() == plan_count
+
+        # 已排完的快照再次进入提前 7 天的窗口，也不应生成计划
+        m.manage_duty_rule_snap("2024-06-25 00:00:00")
+        assert DutyPlan.objects.count() == plan_count
+
+    def test_rule_reverted_to_completed_content(self, today_as_2024_06_01, create_duty_rule, create_user_group):
+        """规则改到旧快照结束后生效，再改回旧内容时，应按旧内容重建快照。"""
+        duty_rule = create_duty_rule(end_time="2024-06-15 00:00:00")
+        create_user_group(rule_ids=[duty_rule.id])
+        origin_data = DutyRuleDetailSlz(duty_rule).data
+
+        for changes in ({"effective_time": "2024-06-16 00:00:00", "end_time": "2024-06-30 00:00:00"}, {}):
+            serializer = DutyRuleDetailSlz(duty_rule, data={**origin_data, **changes})
+            serializer.is_valid(raise_exception=True)
+            serializer.save()
+
+        assert DutyRuleSnap.objects.order_by("-id").first().rule_snap["hash"] == origin_data["hash"]
 
     @pytest.mark.parametrize(
         "rule_end_time, new_rule_effective_time, expected_snap_count",

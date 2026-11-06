@@ -83,6 +83,17 @@
       }
     }
 
+    /* 固定设置列（__col_setting__）表头的左侧投影：
+     * 蓝鲸主题用 !important 把该列 th 的 ::after 阴影置为 none，只命中表头，表体 td 不受影响，
+     * 导致表体有投影而表头没有。这里按内置固定列投影值恢复，并沿用内置横向滚动状态类，与表体同列保持同一显隐条件。
+     * 用 & 连接是因为宿主类（.explore-table / .common-table）与 .t-table 在同一元素上 */
+    &.t-table.t-table__content--scrollable-to-right {
+      thead td.__table-custom-setting-col__::after,
+      th.__table-custom-setting-col__::after {
+        box-shadow: 0 0 10px 2px rgb(0 0 0 / 12%) !important;
+      }
+    }
+
     // &.t-table,
     // .t-table {
     //   height: 100%;

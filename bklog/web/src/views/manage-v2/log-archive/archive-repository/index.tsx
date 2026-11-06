@@ -56,10 +56,9 @@ export default defineComponent({
     const tableDataSearched = ref<any[]>([]); // 搜索/过滤后的表格数据
     const tableDataPaged = ref<any[]>([]); // 当前分页展示的数据
     const emptyType = ref('empty'); // 空状态类型
-    const filterSearchObj = reactive<Record<string, number>>({}); // 过滤条件统计对象
-    const isFilterSearch = ref(false); // 是否处于过滤搜索状态
     const params = reactive({ keyword: '' }); // 搜索参数
     const filterConditions = reactive({ type: '', cluster_source_type: '' }); // 过滤条件
+    const isFilterSearch = computed(() => !!(filterConditions.type || filterConditions.cluster_source_type));
     const pagination = reactive({
       // 分页参数
       current: 1,
@@ -100,9 +99,7 @@ export default defineComponent({
         .then((res: any) => {
           const data: any[] = Array.isArray(res.data) ? res.data : [];
           tableDataOrigin.value = data;
-          tableDataSearched.value = data;
-          pagination.count = data.length;
-          computePageData();
+          applyTableFilters();
         })
         .catch((err: any) => {
           console.warn(err);
@@ -122,47 +119,46 @@ export default defineComponent({
       tableDataPaged.value = tableDataSearched.value.slice(start, end);
     };
 
+    // 搜索、类型和来源始终共同过滤原始数据
+    const applyTableFilters = (resetPage = true) => {
+      const { keyword } = params;
+      const { type, cluster_source_type: clusterType } = filterConditions;
+      tableDataSearched.value = tableDataOrigin.value.filter(
+        repo =>
+          (!keyword || (repo.repository_name || '').includes(keyword)) &&
+          (!type || repo.type === type) &&
+          (!clusterType || repo.cluster_source_type === clusterType),
+      );
+      pagination.count = tableDataSearched.value.length;
+      const lastPage = Math.max(1, Math.ceil(pagination.count / pagination.limit));
+      pagination.current = resetPage ? 1 : Math.min(pagination.current, lastPage);
+      computePageData();
+    };
+
     // 搜索处理
     const handleSearch = () => {
       isTableLoading.value = true;
-      if (params.keyword) {
-        tableDataSearched.value = tableDataOrigin.value.filter(item =>
-          // 搜索仓库名称
-          item.repository_name.includes(params.keyword),
-        );
-      } else {
-        tableDataSearched.value = tableDataOrigin.value;
-      }
-      pagination.current = 1;
-      pagination.count = tableDataSearched.value.length;
-      computePageData();
+      applyTableFilters();
       setTimeout(() => {
         isTableLoading.value = false;
       }, 300);
     };
 
+    const handleSearchChange = (value: string) => {
+      params.keyword = value;
+      if (!value) {
+        handleSearch();
+      }
+    };
+
     // 过滤条件变更处理
     const handleFilterChange = (data: Record<string, string[]>) => {
-      for (const item of Object.keys(data)) {
-        tableDataSearched.value = tableDataOrigin.value.filter(repo => {
-          filterConditions[item] = Object.values(data)[0][0];
-          const { type, cluster_source_type: clusterType } = filterConditions;
-          if (!(type || clusterType)) {
-            return true;
-          }
-          if (type && clusterType) {
-            return repo.type === type && repo.cluster_source_type === clusterType;
-          }
-          return repo.type === type || repo.cluster_source_type === clusterType;
-        });
+      for (const key of ['type', 'cluster_source_type'] as const) {
+        if (key in data) {
+          filterConditions[key] = data[key]?.[0] ?? '';
+        }
       }
-      for (const [key, value] of Object.entries(data)) {
-        filterSearchObj[key] = value.length;
-      }
-      isFilterSearch.value = Object.values(filterSearchObj).reduce((pre, cur) => pre || !!cur, false);
-      pagination.current = 1;
-      pagination.count = tableDataSearched.value.length;
-      computePageData();
+      applyTableFilters();
     };
 
     // 新建仓库按钮点击
@@ -225,12 +221,10 @@ export default defineComponent({
               theme: 'success',
               message: t('删除成功'),
             });
-            if (tableDataPaged.value.length <= 1) {
-              pagination.current = pagination.current > 1 ? pagination.current - 1 : 1;
-            }
-            const deleteIndex = tableDataSearched.value.findIndex(item => item.repository_name === row.repository_name);
-            tableDataSearched.value.splice(deleteIndex, 1);
-            computePageData();
+            tableDataOrigin.value = tableDataOrigin.value.filter(
+              item => !(item.cluster_id === row.cluster_id && item.repository_name === row.repository_name),
+            );
+            applyTableFilters(false);
           }
         });
     };
@@ -259,7 +253,8 @@ export default defineComponent({
     const handleOperation = (type: string) => {
       if (type === 'clear-filter') {
         params.keyword = '';
-        pagination.current = 1;
+        filterConditions.type = '';
+        filterConditions.cluster_source_type = '';
         clearTableFilter(repositoryTable.value);
         handleSearch();
         return;
@@ -303,7 +298,7 @@ export default defineComponent({
               value={params.keyword}
               clearable
               on-right-icon-click={handleSearch}
-              onChange={val => (params.keyword = val)}
+              onChange={handleSearchChange}
               onEnter={handleSearch}
             />
           </div>

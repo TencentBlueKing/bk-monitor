@@ -8,6 +8,7 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
+
 import datetime
 import logging
 
@@ -15,12 +16,16 @@ from celery import shared_task
 from django.conf import settings
 from django.utils.translation import gettext as _
 
+from bkmonitor.documents import AlertDocument
 from bkmonitor.models import ActionInstance, ActionPlugin
 from bkmonitor.utils.send import NoneTemplateSender
-from constants.action import ActionSignal, ActionStatus
+from bkmonitor.utils.sms import get_sms_template_mode
+from bkmonitor.utils.tenant import bk_biz_id_to_bk_tenant_id
+from constants.action import ActionSignal, ActionStatus, NoticeWay
 from core.drf_resource import api
 from fta_web.action.utils import (
     compile_assign_action_config,
+    filter_alerts_by_biz,
     parse_bk_plugin_deployed_info,
 )
 
@@ -73,6 +78,25 @@ def notify_to_appointee(validated_request_data):
         logger.info("[notify appointee] finished due to no receivers, request data %s", validated_request_data)
         return
 
+    sms_template_mode = get_sms_template_mode()
+    if (
+        sms_template_mode == "standard"
+        and NoticeWay.SMS in validated_request_data["notice_ways"]
+        and "sms_assign_alert" not in validated_request_data
+    ):
+        # 兼容切换前已入队的任务；补读时沿用分派入口的业务范围过滤。
+        alerts = filter_alerts_by_biz(AlertDocument.mget(alert_ids), validated_request_data["bk_biz_id"])
+        if not alerts:
+            logger.info(
+                "[notify appointee] finished due to no alerts in business, request data %s", validated_request_data
+            )
+            return
+        validated_request_data["sms_assign_alert"] = {
+            "name": alerts[0].alert_name,
+            "severity": alerts[0].severity,
+            "count": len(alerts),
+        }
+
     action = ActionInstance.objects.create(
         signal=ActionSignal.MANUAL,
         action_plugin={"id": 1, "plugin_type": "notice", "plugin_name": _("通知")},
@@ -93,7 +117,7 @@ def notify_to_appointee(validated_request_data):
         inputs=validated_request_data,
     )
 
-    action_configs = compile_assign_action_config(validated_request_data)
+    action_configs = compile_assign_action_config(validated_request_data, sms_template_mode=sms_template_mode)
 
     try:
         action_params = api.monitor.get_action_params_backend(
@@ -113,6 +137,7 @@ def notify_to_appointee(validated_request_data):
         return
 
     notice_results = {}
+    bk_tenant_id = bk_biz_id_to_bk_tenant_id(validated_request_data["bk_biz_id"])
 
     for action_param in action_params:
         execute_config = action_param["execute_config"]
@@ -121,6 +146,8 @@ def notify_to_appointee(validated_request_data):
             title=execute_config["template_detail"]["title"],
             content=execute_config["template_detail"]["message"],
             context=action_param.get("alert_context", {}),
+            bk_tenant_id=bk_tenant_id,
+            sms_template_mode=sms_template_mode,
         )
         notice_results[notice_way] = notify_sender.send(notice_way, receivers)
 

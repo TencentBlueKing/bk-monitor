@@ -34,8 +34,11 @@ import { axiosInstance } from '@/api';
 import { BK_LOG_STORAGE } from '../../../store/store.type';
 import AggChart from './agg-chart';
 import FieldAnalysis from './field-analysis';
+import objectFieldTreeMeta from './object-field-tree-meta';
 
 import './field-item.scss';
+
+const { resolveObjectFieldChildrenCount, shouldShowObjectFieldTreeMeta } = objectFieldTreeMeta;
 @Component
 export default class FieldItem extends tsc<object> {
   @Prop({ type: String, default: 'visible', validator: v => ['visible', 'hidden'].includes(v as string) }) type: string;
@@ -300,7 +303,8 @@ export default class FieldItem extends tsc<object> {
       backgroundColor: this.fieldItem.is_full_text ? '' : fieldIconInfo.color,
       color: this.fieldItem.is_full_text ? '' : fieldIconInfo.textColor,
     };
-    const childrenCount = this.fieldItem.children?.length || 0;
+    const childrenCount = resolveObjectFieldChildrenCount(this.fieldItem);
+    const showObjectTreeMeta = shouldShowObjectFieldTreeMeta(this.isFieldObject, childrenCount);
     const showAnalysisOperation = this.isShowFieldsAnalysis && !this.isFrontStatistics;
     const showOperationText = showAnalysisOperation || this.isFieldDisplayToggleSupported;
 
@@ -328,7 +332,7 @@ export default class FieldItem extends tsc<object> {
             {/* 字段名 */}
             <span>
               <span class='field-name'>{this.computedFieldName}</span>
-              {childrenCount > 0 && (
+              {showObjectTreeMeta && (
                 <span>
                   <span class='field-badge'>{childrenCount}</span>
                   <span class={['bk-icon', 'expand', this.expandIconShow ? 'icon-angle-up' : 'icon-angle-down']} />
@@ -411,9 +415,19 @@ export default class FieldItem extends tsc<object> {
             <template slot='header'>
               <div class='agg-sides-slider-header'>
                 <div class='distinct-num'>
-                  <span class='field-name'>{this.fieldItem?.field_name}</span>
+                  <span
+                    class='field-name'
+                    v-bk-overflow-tips
+                  >
+                    {this.fieldItem?.field_name}
+                  </span>
                   <div class='col-line' />
-                  <span class='distinct-count-label'>{this.$t('去重后字段统计')}</span>
+                  <span
+                    class='distinct-count-label'
+                    v-bk-overflow-tips
+                  >
+                    {this.$t('去重后字段统计')}
+                  </span>
                   <span class='distinct-count-num'>{`(${this.distinctCount})`}</span>
                 </div>
                 <div class='fnBtn'>

@@ -61,6 +61,11 @@ export default defineComponent({
       type: Boolean,
       default: false,
     },
+    /** 仅描述区处于关联日志加载中 */
+    descLoading: {
+      type: Boolean,
+      default: false,
+    },
   },
   render() {
     return (
@@ -80,10 +85,10 @@ export default defineComponent({
             ) : (
               <span class='issue-name'>{this.name}</span>
             )}
-            {(this.loading || this.desc) && (
+            {(this.loading || this.descLoading || this.desc) && (
               <>
                 <span class='divider' />
-                {this.loading ? (
+                {this.loading || this.descLoading ? (
                   <div class='skeleton-element desc-skeleton' />
                 ) : (
                   <span

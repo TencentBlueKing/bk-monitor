@@ -158,3 +158,24 @@
   - {description: '', field_name: bk_monitor_namespace/bk_monitor_name}
   - {description: '', field_name: bk_biz_id}
   - {description: '', field_name: pod_name}
+- description: GPU功耗
+  field_name: DCGM_FI_DEV_POWER_USAGE
+  unit: watt
+  tag_list:
+  - {description: '', field_name: bcs_cluster_id}
+  - {description: '', field_name: node}
+  - {description: '', field_name: gpu}
+  - {description: '', field_name: UUID}
+  - {description: '', field_name: modelName}
+  - {description: '', field_name: device}
+  - {description: '', field_name: pci_bus_id}
+  - {description: '', field_name: Hostname}
+  - {description: '', field_name: DCGM_FI_DRIVER_VERSION}
+  - {description: '', field_name: GPU_I_PROFILE}
+  - {description: '', field_name: GPU_I_ID}
+  - {description: '', field_name: namespace}
+  - {description: '', field_name: pod}
+  - {description: '', field_name: container}
+  - {description: '', field_name: pod_name}
+  - {description: '', field_name: container_name}
+  - {description: '', field_name: pod_uid}

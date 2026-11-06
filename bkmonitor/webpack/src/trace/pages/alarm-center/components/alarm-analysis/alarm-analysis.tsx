@@ -34,6 +34,7 @@ import { useI18n } from 'vue-i18n';
 import EmptyStatus from '../../../../components/empty-status/empty-status';
 import useUserConfig from '../../../../hooks/useUserConfig';
 import { useAlarmAnalysis } from '../../composables/use-analysis';
+import { AlarmAnalysisSkeleton } from '../alarm-skeleton';
 import AlarmAnalysisDetail from './alarm-analysis-detail';
 import AnalysisList from './analysis-list';
 import SettingDialog from './setting-dialog';
@@ -50,16 +51,26 @@ export default defineComponent({
   emits: ['conditionChange'],
   setup(_, { emit }) {
     const { t } = useI18n();
+    const expand = shallowRef(true);
+    const collapseChanged = shallowRef(false);
+    const collapseConfigReady = shallowRef(false);
+    const analysisEnabled = computed(() => expand.value && (collapseConfigReady.value || collapseChanged.value));
     const {
       analysisFieldTopNData,
       analysisFieldTopNLoading,
+      analysisDimensionLoading,
       analysisFields,
       dimensionTags,
       analysisFieldsMap,
       analysisDimensionTopNData,
       getAnalysisDataByFields,
       analysisSettings,
-    } = useAlarmAnalysis();
+    } = useAlarmAnalysis(analysisEnabled);
+    const analysisLoading = computed(
+      () =>
+        analysisEnabled.value &&
+        (!collapseConfigReady.value || analysisFieldTopNLoading.value || analysisDimensionLoading.value)
+    );
     const { handleGetUserConfig, handleSetUserConfig } = useUserConfig();
 
     /** 告警字段分析列表 */
@@ -86,17 +97,20 @@ export default defineComponent({
       }, []);
     });
 
-    const expand = shallowRef(false);
-
-    onMounted(() => {
-      handleGetUserConfig<boolean>(AlarmAnalysisCollapse).then(res => {
-        expand.value = res ?? true;
-      });
+    onMounted(async () => {
+      const savedExpand = await handleGetUserConfig<boolean>(AlarmAnalysisCollapse);
+      if (collapseChanged.value) {
+        void handleSetUserConfig(JSON.stringify(expand.value));
+      } else {
+        expand.value = typeof savedExpand === 'boolean' ? savedExpand : true;
+      }
+      collapseConfigReady.value = true;
     });
 
     const handleCollapse = (val: boolean) => {
+      collapseChanged.value = true;
       expand.value = val;
-      handleSetUserConfig(JSON.stringify(expand.value));
+      if (collapseConfigReady.value) handleSetUserConfig(JSON.stringify(expand.value));
     };
 
     const showSetting = shallowRef(false);
@@ -131,24 +145,10 @@ export default defineComponent({
 
     /** 渲染折叠内容区域 */
     const renderCollapseContent = () => {
-      if (analysisFieldTopNLoading.value) {
-        return (
-          <div class='skeleton-wrap'>
-            {new Array(5).fill(0).map((_, index) => (
-              <div
-                key={index}
-                class='skeleton-panel-item'
-              >
-                {new Array(6).fill(0).map((_, i) => (
-                  <div
-                    key={i}
-                    class={['skeleton-element', { title: i === 0 }]}
-                  />
-                ))}
-              </div>
-            ))}
-          </div>
-        );
+      if (!analysisEnabled.value) return null;
+
+      if (analysisLoading.value && analysisSettings.value.length) {
+        return <AlarmAnalysisSkeleton count={analysisSettings.value.length} />;
       }
 
       if (!showAnalysisList.value.length) return <EmptyStatus type='empty' />;
@@ -224,9 +224,11 @@ export default defineComponent({
     return {
       t,
       expand,
+      collapseChanged,
       handleCollapse,
       showAnalysisList,
       analysisFieldTopNLoading,
+      analysisLoading,
       analysisFieldList,
       dimensionTags,
       handleCopyNames,
@@ -245,7 +247,10 @@ export default defineComponent({
   },
   render() {
     return (
-      <div class='alarm-analysis-comp'>
+      <div
+        class={['alarm-analysis-comp', { 'skip-collapse-animation': !this.collapseChanged }]}
+        aria-busy={this.analysisLoading}
+      >
         <ChartCollapse
           defaultHeight={0}
           defaultIsExpand={this.expand}

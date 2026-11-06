@@ -23,11 +23,12 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { defineComponent, onMounted, provide, shallowReactive, shallowRef, watch } from 'vue';
+import { defineComponent, onMounted, onUnmounted, provide, shallowReactive, shallowRef, watch } from 'vue';
 
 import * as authMap from 'monitor-pc/pages/event-center/authority-map';
 import { storeToRefs } from 'pinia';
 
+import { AlarmType } from '../typings';
 import DetailCommon from '../common-detail/common-detail';
 import DiagnosticAnalysis from './components/diagnostic-analysis/diagnostic-analysis';
 import EventDetailHead from './components/event-detail-head';
@@ -64,11 +65,16 @@ export default defineComponent({
       () => props.alarmId,
       newVal => {
         if (newVal) {
+          alarmCenterDetailStore.alarmType = AlarmType.ALERT;
           alarmId.value = newVal;
         }
       },
       { immediate: true }
     );
+
+    onUnmounted(() => {
+      if (alarmId.value === props.alarmId) alarmCenterDetailStore.reset();
+    });
 
     const init = async () => {
       authority.auth = await getAuthorityMap(authMap);
@@ -89,7 +95,6 @@ export default defineComponent({
     };
   },
   render() {
-    if (!this.alarmDetail) return null;
     return (
       <div class='alarm-center-detail-page'>
         <EventDetailHead

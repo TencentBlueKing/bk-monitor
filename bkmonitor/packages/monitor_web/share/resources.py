@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2025 Tencent. All rights reserved.
@@ -10,15 +9,15 @@ specific language governing permissions and limitations under the License.
 """
 
 import logging
+import re
 from collections import defaultdict
 from datetime import datetime
 from functools import partial
 from secrets import token_hex
 
-from bkmonitor.iam import ActionEnum
 from bkmonitor.iam.permission import ActionIdMap, Permission
 from bkmonitor.models import REGISTERED_SCENE_AUTH_TYPES, ApiAuthToken, AuthType, TokenAccessRecord
-from bkmonitor.share.handler import validate_host_share_scope
+from bkmonitor.share.handler import get_shared_alert_id, validate_host_share_scope
 from bkmonitor.utils.request import get_request, get_request_tenant_id
 from bkmonitor.utils.user import get_global_user
 from bkmonitor.views import serializers
@@ -51,16 +50,22 @@ def validate_registered_scene_token_type(token_type):
 
 
 def check_host_share_permission(token_type, bk_biz_id):
-    if token_type != AuthType.Host:
+    if token_type not in ActionIdMap:
+        raise TokenValidatedError
+    actions = [
+        action
+        for action in ActionIdMap[token_type]
+        if action.related_resource_types
+        and all(resource_type["id"] == "space" for resource_type in action.related_resource_types)
+    ]
+    if not actions:
         return
-    Permission(
+    permission = Permission(
         username=get_global_user() or "unknown",
         bk_tenant_id=get_request_tenant_id(),
-    ).is_allowed_by_biz(
-        bk_biz_id=bk_biz_id,
-        action=ActionEnum.VIEW_HOST,
-        raise_exception=True,
     )
+    for action in actions:
+        permission.is_allowed_by_biz(bk_biz_id=bk_biz_id, action=action, raise_exception=True)
 
 
 def validate_host_share_target(token_type, bk_biz_id, data):
@@ -81,7 +86,7 @@ def validate_host_share_target(token_type, bk_biz_id, data):
 
 def get_token_biz_id(token_obj):
     biz_ids = [namespace[4:] for namespace in token_obj.namespaces if namespace.startswith("biz#")]
-    if len(biz_ids) != 1 or not biz_ids[0].isdigit():
+    if len(biz_ids) != 1 or not re.fullmatch(r"-?[1-9][0-9]*", biz_ids[0]):
         raise TokenValidatedError
     return int(biz_ids[0])
 
@@ -186,6 +191,20 @@ class UpdateShareTokenResource(Resource):
                 validated_request_data["data"] = data
             else:
                 token_obj.params["data"] = data
+        elif token_obj.type == AuthType.Event:
+            data = token_obj.params.get("data")
+            alert_id = get_shared_alert_id(data)
+            updated_alert_id = get_shared_alert_id(validated_request_data.get("data") or data)
+            if alert_id or updated_alert_id:
+                request = get_request(peaceful=True)
+                if (
+                    not request
+                    or not request.user.is_authenticated
+                    or request.user.username != token_obj.create_user
+                    or token_obj.update_user != token_obj.create_user
+                    or alert_id != updated_alert_id
+                ):
+                    raise TokenValidatedError
         if validated_request_data.get("expire_time") and validated_request_data.get("expire_period"):
             token_obj.expire_time = datetime.fromtimestamp(validated_request_data["expire_time"])
             token_obj.params["expire_period"] = validated_request_data["expire_period"]
@@ -220,12 +239,14 @@ class GetShareParamsResource(Resource):
             if token_obj.is_expired():
                 raise TokenExpiredError
             bk_biz_id = [namespace[4:] for namespace in token_obj.namespaces if namespace.startswith("biz#")][0]
-            # 绕过token鉴权,获取该用户是否有相关权限
+            # 匿名访问走分享令牌的只读路径，仅对已登录用户检查业务权限。
             request = get_request(peaceful=True)
-            if request:
-                has_permission = True
+            has_permission = False
+            if request and request.user.is_authenticated:
                 request.token = None
-                for action in ActionIdMap[token_obj.type]:
+                actions = ActionIdMap.get(token_obj.type, [])
+                has_permission = bool(actions)
+                for action in actions:
                     if not Permission().is_allowed_by_biz(bk_biz_id=bk_biz_id, action=action):
                         has_permission = False
                         TokenAccessRecord.objects.update_or_create(
@@ -234,9 +255,6 @@ class GetShareParamsResource(Resource):
                             token=token_obj.token,
                         )
                         break
-            else:
-                # request获取失败默认无权限，展示分享界面
-                has_permission = False
 
             return {
                 "has_permission": has_permission,

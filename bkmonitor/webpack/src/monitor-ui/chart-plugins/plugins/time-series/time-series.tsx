@@ -354,12 +354,21 @@ export class LineChart
     if (this.initialized) this.handleLoadingChange(true);
   }
 
+  createRequestGuard(): () => boolean {
+    return () => true;
+  }
+
   /**
    * @description: 获取图表数据
    * @param {*}
    * @return {*}
    */
-  async getPanelData(start_time?: string, end_time?: string) {
+  getPanelData(start_time?: string, end_time?: string) {
+    return this.queryPanelData(start_time, end_time);
+  }
+
+  async queryPanelData(start_time?: string, end_time?: string) {
+    const isCurrentRequest = this.createRequestGuard();
     for (const cb of this.cancelTokens) {
       cb?.();
     }
@@ -486,6 +495,7 @@ export class LineChart
               needMessage: false,
             })
             .then(res => {
+              if (!isCurrentRequest()) return false;
               this.$emit('seriesData', res);
               res.metrics && metrics.push(...res.metrics);
               res.series &&
@@ -505,12 +515,14 @@ export class LineChart
               return true;
             })
             .catch(error => {
+              if (!isCurrentRequest()) return;
               this.handleErrorMsgChange(error.msg || error.message);
             });
         });
         promiseList.push(...list);
       }
       await Promise.all(promiseList).catch(() => false);
+      if (!isCurrentRequest()) return;
       this.metrics = metrics || [];
       if (series.length) {
         const { maxSeriesCount, maxXInterval } = getSeriesMaxInterval(series);
@@ -672,6 +684,7 @@ export class LineChart
       }
       this.$emit('optionsLoaded');
     } catch (e) {
+      if (!isCurrentRequest()) return;
       this.empty = true;
       this.emptyText = window.i18n.t('出错了');
       console.error(e);

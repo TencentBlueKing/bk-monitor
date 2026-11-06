@@ -32,7 +32,7 @@ import { openAlarmCenter } from 'monitor-common/utils/alarm-center-router';
 import VueEcharts from 'vue-echarts';
 import { useI18n } from 'vue-i18n';
 
-import ChartSkeleton from '../../../../../../../components/skeleton/chart-skeleton';
+import DetailLoading, { DetailLoadStatus } from '@/pages/alarm-center/common-detail/detail-loading';
 import { DEFAULT_TIME_RANGE } from '../../../../../../../components/time-range/utils';
 import ChartTitle from '../../../../../../../plugins/components/chart-title';
 import CommonLegend from '../../../../../../../plugins/components/common-legend';
@@ -102,7 +102,7 @@ export default defineComponent({
     const params = computed(() => props.params);
     const timeRange = inject('timeRange', DEFAULT_TIME_RANGE);
 
-    const { options, loading, metricList, targets, series, duration, chartId } = useK8sEcharts(
+    const { options, loading, metricList, targets, series, duration, chartId, error, getEchartOptions } = useK8sEcharts(
       panel,
       chartMainRef,
       instance.appContext.config.globalProperties.$api,
@@ -238,6 +238,7 @@ export default defineComponent({
     );
     return {
       loading,
+      error, retry: getEchartOptions,
       options,
       metricList,
       legendData,
@@ -274,8 +275,9 @@ export default defineComponent({
             onSelectChild={({ child }) => this.handleMenuClickProxy(child)}
           />
         )}
-        {this.loading ? (
-          <ChartSkeleton />
+        <DetailLoadStatus loading={this.loading && !!this.options} error={this.error} onRetry={this.retry} />
+        {this.loading && !this.options ? (
+          <DetailLoading showTitle={false} />
         ) : this.options ? (
           <>
             <div
@@ -307,7 +309,7 @@ export default defineComponent({
             />
           </>
         ) : (
-          <div class='empty-chart'>{this.t('暂无数据')}</div>
+          !this.error && <div class='empty-chart'>{this.t('暂无数据')}</div>
         )}
       </div>
     );

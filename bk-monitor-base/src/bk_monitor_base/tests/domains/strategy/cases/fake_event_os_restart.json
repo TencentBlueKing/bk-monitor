@@ -1,0 +1,127 @@
+{
+  "type": "monitor",
+  "bk_biz_id": 2,
+  "scenario": "os",
+  "name": "伪系统事件-os_restart-用例",
+  "labels": [],
+  "is_enabled": false,
+  "priority": null,
+  "items": [
+    {
+      "id": 0,
+      "name": "fake event item",
+      "no_data_config": {
+        "continuous": 5,
+        "is_enabled": false,
+        "agg_dimension": [],
+        "level": 2
+      },
+      "target": [],
+      "expression": "a",
+      "functions": [],
+      "origin_sql": "",
+      "query_configs": [
+        {
+          "data_source_label": "bk_monitor",
+          "data_type_label": "event",
+          "alias": "a",
+          "result_table_id": "system.event",
+          "metric_field": "os_restart",
+          "agg_condition": [],
+          "metric_id": "bk_monitor.os_restart",
+          "functions": []
+        }
+      ],
+      "algorithms": [
+        {
+          "level": 2,
+          "type": "Threshold",
+          "config": [
+            [
+              {
+                "method": "gte",
+                "threshold": 1
+              }
+            ]
+          ],
+          "unit_prefix": ""
+        }
+      ]
+    }
+  ],
+  "detects": [
+    {
+      "level": 2,
+      "expression": "",
+      "trigger_config": {
+        "count": 3,
+        "check_window": 5,
+        "uptime": {
+          "calendars": [],
+          "active_calendars": [],
+          "time_ranges": [
+            {
+              "start": "00:00",
+              "end": "23:59"
+            }
+          ]
+        }
+      },
+      "recovery_config": {
+        "check_window": 5,
+        "status_setter": "recovery"
+      },
+      "connector": "and"
+    }
+  ],
+  "actions": [],
+  "notice": {
+    "config_id": 0,
+    "user_groups": [],
+    "signal": [
+      "no_data",
+      "abnormal"
+    ],
+    "options": {
+      "converge_config": {
+        "need_biz_converge": true
+      },
+      "exclude_notice_ways": {
+        "recovered": [],
+        "closed": [],
+        "ack": []
+      },
+      "noise_reduce_config": {
+        "dimensions": [],
+        "is_enabled": false,
+        "count": 10
+      },
+      "upgrade_config": {
+        "is_enabled": false,
+        "user_groups": []
+      },
+      "assign_mode": [
+        "only_notice",
+        "by_rule"
+      ],
+      "chart_image_enabled": true
+    },
+    "config": {
+      "need_poll": true,
+      "notify_interval": 86400,
+      "interval_notify_mode": "standard",
+      "template": [
+        {
+          "signal": "abnormal",
+          "message_tmpl": "",
+          "title_tmpl": "{{business.bk_biz_name}} - {{alarm.name}}{{alarm.display_type}}"
+        }
+      ],
+      "voice_notice": "serial"
+    }
+  },
+  "metric_type": "time_series",
+  "priority_group_key": "",
+  "id": 0
+}
+

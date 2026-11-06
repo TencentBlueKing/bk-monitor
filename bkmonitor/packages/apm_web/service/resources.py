@@ -31,6 +31,7 @@ from apm_web.constants import (
     SyncScope,
     CategoryEnum,
     CMDBCategoryIconMap,
+    DataStatus,
     ServiceDetailReqTypeChoices,
     ServiceRelationLogTypeChoices,
 )
@@ -51,7 +52,6 @@ from apm_web.models import (
     UriServiceRelation,
     ServiceBase,
 )
-from apm_web.profile.doris.querier import QueryTemplate
 from apm_web.serializers import ApplicationListSerializer, ServiceApdexConfigSerializer
 from apm_web.tasks import update_application_config
 from apm_web.service.serializers import (
@@ -79,6 +79,7 @@ from bkmonitor.utils.thread_backend import ThreadPool
 from bkmonitor.utils.time_tools import get_datetime_range
 from bkmonitor.utils.common_utils import count_md5
 from constants.alert import PUBLIC_NOTICE_CONFIG
+from constants.apm import TelemetryDataType
 from core.drf_resource import Resource, api
 from monitor_web.data_explorer.event.constants import EventCategory
 
@@ -230,22 +231,15 @@ class ServiceInfoResource(Resource):
         return ServiceApdexConfigSerializer(instance=instance).data
 
     @classmethod
-    def get_profiling_info(
-        cls, app: Application, bk_biz_id: int, app_name: str, service_name: str, start_time: int, end_time: int
-    ) -> dict[str, Any]:
-        """获取服务的 profiling 状态"""
-        res = {"application_id": app.application_id, "is_enabled_profiling": app.is_enabled_profiling}
-        if app.is_enabled_profiling:
-            # 获取此服务是否有 Profiling 数据
-            try:
-                count = QueryTemplate(bk_biz_id, app_name).get_service_count(start_time, end_time, service_name)
-                res["is_profiling_data_normal"] = bool(count)
-            except Exception:  # pylint: disable=broad-except
-                res["is_profiling_data_normal"] = False
-        else:
-            res["is_profiling_data_normal"] = False
-
-        return res
+    def get_profiling_info(cls, app: Application, node: dict[str, Any]) -> dict[str, Any]:
+        """按服务心跳获取当前性能分析状态。"""
+        data_status = ServiceHandler.build_service_data_status(app, [node], data_type=TelemetryDataType.PROFILING.value)
+        return {
+            "application_id": app.application_id,
+            "is_enabled_profiling": app.is_enabled_profiling,
+            "is_profiling_data_normal": data_status[node["topo_key"]][TelemetryDataType.PROFILING.value]
+            == DataStatus.NORMAL,
+        }
 
     @classmethod
     def get_labels(cls, bk_biz_id: int, app_name: str, service_name: str) -> list[Any]:
@@ -282,15 +276,6 @@ class ServiceInfoResource(Resource):
         event_res = pool.apply_async(EventServiceRelation.get_relations, kwds=base_query_param)
         uri_res = pool.apply_async(self.get_uri_relation_infos, kwds=base_query_param)
         label_res = pool.apply_async(self.get_labels, kwds=base_query_param)
-        profiling_res = pool.apply_async(
-            self.get_profiling_info,
-            kwds={
-                "app": app,
-                **base_query_param,
-                "start_time": validate_data["start_time"],
-                "end_time": validate_data["end_time"],
-            },
-        )
         pool.close()
         pool.join()
 
@@ -318,8 +303,7 @@ class ServiceInfoResource(Resource):
                 *uri_relation_infos,
             ],
         )
-        profiling_info: dict[str, Any] = profiling_res.get()
-        service_info.update(profiling_info)
+        service_info.update(self.get_profiling_info(app, service_info))
 
         service_info["relation"] = {
             "app_relation": app_relation_info,

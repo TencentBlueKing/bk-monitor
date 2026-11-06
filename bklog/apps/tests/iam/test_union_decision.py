@@ -1,7 +1,7 @@
 from django.test import SimpleTestCase
 
-from apps.iam.iam_engine.core.types import AuthorizedResourceScope, AuthResult, AuthStatus
-from apps.iam.iam_engine.provider.composition.union import UnionDecisionPolicy, UnionScopePolicy
+from iam_engine.core.types import AuthorizedResourceScope, AuthResult, AuthStatus
+from iam_engine.provider.composition.union import UnionDecisionPolicy, UnionScopePolicy
 
 
 class AuthResultTest(SimpleTestCase):

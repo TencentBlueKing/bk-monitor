@@ -29,13 +29,17 @@ import { defineComponent } from 'vue';
 import { Button, Dropdown, Input } from 'bkui-vue';
 import { useI18n } from 'vue-i18n';
 
-import { type TCopyIpField } from '../../types/host-list';
+import type { TCopyIpField } from '../../types/host-list';
 
 import './host-list-toolbar.scss';
 
 export default defineComponent({
   name: 'HostListToolbar',
   props: {
+    disabled: {
+      type: Boolean,
+      default: false,
+    },
     /** 关键字搜索值 */
     keyword: {
       type: String,
@@ -123,18 +127,20 @@ export default defineComponent({
         <div class='host-list-toolbar__search'>
           <Input
             class='host-list-toolbar__keyword'
+            disabled={props.disabled}
             modelValue={props.keyword}
             placeholder={t('输入关键字，模糊搜索')}
             type='search'
             clearable
-            onClear={() => emit('keywordChange', '')}
-            onEnter={() => emit('search')}
-            onInput={(v: string) => emit('keywordChange', v)}
+            onClear={() => !props.disabled && emit('keywordChange', '')}
+            onEnter={() => !props.disabled && emit('search')}
+            onInput={(v: string) => !props.disabled && emit('keywordChange', v)}
           />
           <Button
             class={['host-list-toolbar__filter-btn', { 'is-active': props.filterExpanded }]}
             v-bk-tooltips={{ content: t('高级筛选'), delay: 300 }}
-            onClick={() => emit('toggleFilter')}
+            disabled={props.disabled}
+            onClick={() => !props.disabled && emit('toggleFilter')}
           >
             <i class={`icon-monitor ${props.filterExpanded ? 'icon-filter-fill' : 'icon-filter'}`} />
           </Button>

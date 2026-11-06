@@ -4,8 +4,8 @@
   flex-direction: column;
   min-width: 600px;
   height: 100%;
-  overflow-x: hidden;
-  overflow-y: scroll;
+  overflow: hidden scroll;
+  overflow-anchor: none;
 
   .trace-explore-view-chart {
     flex-shrink: 0;
@@ -46,7 +46,7 @@
     height: 48px;
     line-height: 48px;
     text-align: center;
-    background: #ffffff;
+    background: #fff;
     border-radius: 50%;
     box-shadow: 0 3px 10px 0 #0000001f;
 

@@ -24,4 +24,6 @@
  * IN THE SOFTWARE.
  */
 
+export * from './array-field-formatter';
+export * from './events-list';
 export * from './unit-formatter';

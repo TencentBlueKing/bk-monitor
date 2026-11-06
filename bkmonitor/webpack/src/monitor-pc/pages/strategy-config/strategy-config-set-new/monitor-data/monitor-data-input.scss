@@ -28,6 +28,7 @@
     align-items: center;
     padding: 0;
     background: #fffae4;
+
     // border-left: 0;
     // border-right: 0;
     .metric-input {
@@ -40,7 +41,7 @@
 
 .metric-content {
   position: relative;
-  padding: 24px 0 0 0;
+  padding: 16px 0 0;
   border-radius: 2px;
 
   &-item {
@@ -220,6 +221,7 @@
     &.metric-name {
       z-index: 10;
       flex-grow: 1;
+
       // flex-basis: 200px;
       .placeholder {
         color: #c4c6cc;
@@ -252,6 +254,7 @@
         min-height: 32px;
         padding: 0;
         border: 0;
+
         // margin-right: -1px;
         .bk-tag-input {
           border: 1px solid #dcdee5;
@@ -276,10 +279,7 @@
 
       .input-set {
         position: absolute;
-        top: 0;
-        right: 0;
-        bottom: 0;
-        left: 0;
+        inset: 0;
         z-index: 1;
         min-width: 100px;
 
@@ -389,10 +389,7 @@
 
   .is-readonly {
     position: absolute;
-    top: 0;
-    right: 0;
-    bottom: 0;
-    left: 0;
+    inset: 0;
     z-index: 9;
     cursor: not-allowed;
     background: transparent;

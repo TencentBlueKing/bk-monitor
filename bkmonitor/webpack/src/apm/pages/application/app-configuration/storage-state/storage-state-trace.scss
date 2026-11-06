@@ -15,6 +15,14 @@
     }
   }
 
+  .cluster-wrap {
+    min-width: 400px;
+
+    .editable-form-item {
+      margin-bottom: 4px;
+    }
+  }
+
   .item-content {
     margin-bottom: 24px !important;
   }
@@ -29,5 +37,13 @@
         }
       }
     }
+  }
+
+  .cluster-switch-tip {
+    padding-left: 116px;
+    margin-top: 0;
+    font-size: 12px;
+    line-height: 18px;
+    color: #979ba5;
   }
 }

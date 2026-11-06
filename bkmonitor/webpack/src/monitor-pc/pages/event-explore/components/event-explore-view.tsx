@@ -52,16 +52,17 @@ import './event-explore-view.scss';
 interface IEventExploreViewEvents {
   onClearSearch: () => void;
   onConditionChange(e: ConditionChangeEvent): void;
+  onIntervalChange: (interval: IntervalType) => void;
   onSearch: () => void;
   onSetRouteParams(otherQuery: Record<string, any>): void;
   onShowEventSourcePopover(event: Event): void;
-  onIntervalChange: (interval: IntervalType) => void;
 }
 
 interface IEventExploreViewProps {
   entitiesMapList: ExploreEntitiesMap[];
   eventSourceType?: ExploreSourceTypeEnum[];
   fieldMap: ExploreFieldMap;
+  initializing?: boolean;
   queryConfig: IFormData;
   refreshImmediate: string;
   source: APIType;
@@ -70,6 +71,7 @@ interface IEventExploreViewProps {
 
 @Component
 export default class EventExploreView extends tsc<IEventExploreViewProps, IEventExploreViewEvents> {
+  @Prop({ type: Boolean, default: false }) initializing: boolean;
   /** 来源 */
   @Prop({ type: String, default: APIType.MONITOR }) source: APIType;
   /** 请求接口公共请求参数中的 query_configs 参数 */
@@ -85,6 +87,7 @@ export default class EventExploreView extends tsc<IEventExploreViewProps, IEvent
   @Prop({ type: Array, default: () => [ExploreSourceTypeEnum.ALL] }) eventSourceType: ExploreSourceTypeEnum[];
   /** 请求接口公共请求参数 */
   @InjectReactive('commonParams') commonParams;
+  @InjectReactive('timezone') timezone: string;
   // 视图变量
   @ProvideReactive('viewOptions') viewOptions: IViewOptions = {};
   /** 时间对比值 */
@@ -92,7 +95,24 @@ export default class EventExploreView extends tsc<IEventExploreViewProps, IEvent
   /** 图表汇聚周期 */
   chartInterval: IntervalType = 'auto';
   /** 数据总数 */
-  total = 0;
+  total: number = null;
+  totalLoading = false;
+  totalRequestId = 0;
+
+  get queryKey() {
+    return JSON.stringify([
+      this.source,
+      this.queryConfig,
+      this.timeRange,
+      this.timezone,
+      this.commonParams.app_name,
+      this.commonParams.service_name,
+    ]);
+  }
+
+  get requestKey() {
+    return JSON.stringify([this.eventQueryParams, this.refreshImmediate, this.timezone]);
+  }
   /** 当前显示的图例 */
   showLegendList: DimensionsTypeEnum[] = [];
   /** 图表配置实例 */
@@ -111,7 +131,7 @@ export default class EventExploreView extends tsc<IEventExploreViewProps, IEvent
       end_time: commonEndTime,
       query_configs: [commonQueryConfig],
     } = this.commonParams;
-    if (!commonQueryConfig?.table || !commonStartTime || !commonEndTime) {
+    if (this.initializing || !commonQueryConfig?.table || !commonStartTime || !commonEndTime) {
       return null;
     }
     const queryConfigs: Record<string, any> = [
@@ -123,19 +143,7 @@ export default class EventExploreView extends tsc<IEventExploreViewProps, IEvent
     return { ...this.commonParams, query_configs: queryConfigs };
   }
 
-  @Watch('timeRange')
-  commonParamsChange() {
-    this.getEventTotal();
-    this.refreshTableData();
-  }
-
-  @Watch('refreshImmediate')
-  refreshImmediateChange() {
-    this.getEventTotal();
-    this.refreshTableData();
-  }
-
-  @Watch('queryConfig', { deep: true })
+  @Watch('requestKey')
   queryParamsChange() {
     this.getEventTotal();
     this.updatePanelConfig();
@@ -172,6 +180,8 @@ export default class EventExploreView extends tsc<IEventExploreViewProps, IEvent
     this.$el.addEventListener('scroll', this.handleScroll);
   }
   beforeDestroy() {
+    this.totalRequestId += 1;
+    this.abortController?.abort();
     this.$el.removeEventListener('scroll', this.handleScroll);
     this.scrollSubject?.destroy?.();
     this.scrollSubject = null;
@@ -192,19 +202,26 @@ export default class EventExploreView extends tsc<IEventExploreViewProps, IEvent
    * @description 获取数据总数
    */
   async getEventTotal() {
-    this.total = 0;
+    const requestId = ++this.totalRequestId;
+    this.total = null;
     if (this.abortController) {
       this.abortController.abort();
       this.abortController = null;
     }
     if (!this.eventQueryParams) {
+      this.totalLoading = false;
       return;
     }
-    this.abortController = new AbortController();
-    const { total } = await getEventTotal(this.eventQueryParams, this.source, {
-      signal: this.abortController.signal,
-    });
-    this.total = total;
+    const controller = new AbortController();
+    this.abortController = controller;
+    this.totalLoading = true;
+    try {
+      const result = await getEventTotal(this.eventQueryParams, this.source, { signal: controller.signal });
+      if (requestId !== this.totalRequestId || controller.signal.aborted) return;
+      if (!result.isError && !result.isAborted) this.total = result.total;
+    } finally {
+      if (requestId === this.totalRequestId) this.totalLoading = false;
+    }
   }
 
   initPanelConfig() {
@@ -351,8 +368,11 @@ export default class EventExploreView extends tsc<IEventExploreViewProps, IEvent
             ref='chartRef'
             chartInterval={this.chartInterval}
             panel={this.panel}
+            preparing={this.initializing}
+            queryKey={this.queryKey}
             showChartHeader={true}
             total={this.total}
+            totalLoading={this.totalLoading || this.initializing}
             onIntervalChange={this.handleIntervalChange}
             onSelectLegend={this.handleShowLegendChange}
             onSeriesData={this.handleChartApiResponseTransform}
@@ -363,7 +383,9 @@ export default class EventExploreView extends tsc<IEventExploreViewProps, IEvent
             entitiesMapList={this.entitiesMapList}
             eventSourceType={this.eventSourceType}
             fieldMap={this.fieldMap}
+            initializing={this.initializing}
             limit={30}
+            queryKey={this.queryKey}
             queryParams={this.eventQueryParams}
             refreshTable={this.refreshTable}
             scrollSubject={this.scrollSubject}

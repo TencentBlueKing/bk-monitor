@@ -37,12 +37,22 @@ import '@blueking/date-picker/vue2/vue2.css';
 
 export type TimeRangeType = [string, string];
 
+type TippyLike = {
+  destroy?: () => void;
+  hide: () => void;
+  popper?: HTMLElement;
+  state?: { isDestroyed?: boolean };
+  unmount?: () => void;
+};
+type TippyHost = HTMLElement & { _tippy?: TippyLike };
+
 type TimeRangeDisplayType = 'normal' | 'simplicity';
 interface IProps {
   value: TimeRangeType;
   type?: TimeRangeDisplayType;
   timezone?: string;
   needTimezone?: boolean;
+  maxDuration?: number;
 }
 interface IEvents {
   onChange: TimeRangeType;
@@ -53,8 +63,9 @@ interface IEvents {
 export default class TimeRange extends tsc<IProps, IEvents> {
   @Prop({ default: () => DEFAULT_TIME_RANGE, type: Array }) value: TimeRangeType; // 组件回显值
   @Prop({ default: 'simplicity', type: String }) type: TimeRangeDisplayType; // 组件回显值
-  @Prop({ default: window.timezone, type: String }) timezone: TimeRangeDisplayType; // 组件回显值
+  @Prop({ default: window.timezone, type: String }) timezone: string; // 组件回显值
   @Prop({ default: true, type: Boolean }) needTimezone: boolean; // 是否显示时区选择
+  @Prop({ type: Number }) maxDuration?: number; // 最大可选时间跨度（毫秒），默认不限制
   @Emit('change')
   handleModelValueChange(v: TimeRangeType) {
     if (v.every(item => typeof item === 'string')) {
@@ -63,6 +74,7 @@ export default class TimeRange extends tsc<IProps, IEvents> {
 
     this.$store.commit('updateStorage', { [BK_LOG_STORAGE.CACHED_BATCH_LIST]: [] });
     this.$store.commit('retrieve/updateCachePickerValue', this.value);
+    this.dismissHoverTooltip();
     return v;
   }
 
@@ -70,6 +82,7 @@ export default class TimeRange extends tsc<IProps, IEvents> {
 
   @Emit('format-change')
   handleFormatChange(v: string) {
+    this.formatStr = v;
     localStorage.setItem('SEARCH_DEFAULT_TIME_FORMAT', v);
     return v;
   }
@@ -81,7 +94,64 @@ export default class TimeRange extends tsc<IProps, IEvents> {
   }
   mounted() {
     this.$store.commit('retrieve/updateCachePickerValue', this.value);
+    this.$el?.addEventListener('mousedown', this.dismissHoverTooltip, true);
   }
+  beforeDestroy() {
+    this.$el?.removeEventListener('mousedown', this.dismissHoverTooltip, true);
+  }
+  /**
+   * DatePicker 第一次 hover+点击会 tooltipPanel.hide()；第二次再 hover 后 hide() 经常空操作，
+   * body 上的 tippy 就留着。这里用实例自己的 hide/unmount/destroy，不按 class 藏、不 key 重建。
+   */
+  dismissHoverTooltip = () => {
+    const host = this.$el as HTMLElement | undefined;
+    if (!host) {
+      return;
+    }
+    const doc = host.ownerDocument;
+    this.hideHoverTooltip(doc);
+    requestAnimationFrame(() => this.hideHoverTooltip(doc));
+    window.setTimeout(() => this.hideHoverTooltip(doc), 120);
+    window.setTimeout(() => this.hideHoverTooltip(doc), 360);
+  };
+  hideHoverTooltip = (doc: Document) => {
+    const trigger = doc.querySelector('.date-content') as TippyHost | null;
+    const live = trigger?._tippy;
+    if (live && !live.state?.isDestroyed) {
+      live.hide();
+      live.unmount?.();
+    }
+    const dismissPopper = (node: Element) => {
+      const popperRoot = node.closest('[data-tippy-root]');
+      if (!popperRoot) {
+        return;
+      }
+      const inst = (node as TippyHost)._tippy || (popperRoot as TippyHost)._tippy;
+      if (inst && !inst.state?.isDestroyed) {
+        inst.hide();
+        inst.unmount?.();
+        if (inst !== live) {
+          inst.destroy?.();
+        }
+      }
+      if (popperRoot.isConnected) {
+        popperRoot.parentNode?.removeChild(popperRoot);
+      }
+    };
+    doc.querySelectorAll('.__date-tooltips__').forEach(dismissPopper);
+    doc.querySelectorAll('.tippy-box[data-theme*="bk-date-tips"]').forEach(dismissPopper);
+    doc.querySelectorAll('.time-range-popover.time-range-pop2-content').forEach((node) => {
+      if (
+        node.classList.contains('__bk-date-picker-popover__')
+        || node.classList.contains('bk-date-picker-popover')
+        || !node.querySelector('.__date-tooltips__')
+      ) {
+        return;
+      }
+      node.classList.remove('visible');
+      node.classList.add('hidden');
+    });
+  };
   render() {
     return (
       <div style='display: inline-flex'>
@@ -93,6 +163,7 @@ export default class TimeRange extends tsc<IProps, IEvents> {
           enableFormatClick={true}
           timezone={this.timezone}
           format={this.formatStr}
+          maxDuration={this.maxDuration}
           onChange={this.handleModelValueChange}
           onFormatChange={this.handleFormatChange}
           onTimezoneChange={this.handleTimezoneChange}

@@ -52,60 +52,61 @@ export const useProcessList = (options: {
    */
   loadDataEnd?: (list: ProcessItem[]) => void;
 }) => {
-  const { timeRangeTimestamp } = storeToRefs(useHostStore());
+  const { timeRangeTimestamp, timeRange, timezone } = storeToRefs(useHostStore());
   const { keyword } = options;
   const loading = shallowRef(false);
+  const refreshing = shallowRef(false);
+  let queryKey = '';
   /** 当前进程列表请求是否失败 */
   const loadError = shallowRef(false);
   /** 原始进程数据（接口原样数据） */
   const rawList = shallowRef<ProcessItem[]>([]);
   /** 排序（`-key` 倒序 / `key` 正序） */
   const sortInfo = shallowRef('');
-  /** 当前请求的 AbortController，用于取消未完成的请求 */
-  let abortController: AbortController | null = null;
+  let requestGeneration = 0;
+  let disposed = false;
 
   const loadData = async () => {
-    // 取消上一次未完成的请求，避免快速切换主机时竞态
-    abortController?.abort();
+    if (disposed) return;
+    const requestId = ++requestGeneration;
+    const isCurrent = () => !disposed && requestId === requestGeneration;
     const host = options.host.value;
     if (!host) {
       rawList.value = [];
       loadError.value = false;
       loading.value = false;
-      abortController = null;
+      refreshing.value = false;
+      queryKey = '';
       return;
     }
 
-    const controller = new AbortController();
-    abortController = controller;
-    const { signal } = controller;
-
-    loading.value = true;
+    const nextQueryKey = JSON.stringify([host.bk_biz_id, host.bk_host_id, timeRange.value, timezone.value]);
+    const preserve = nextQueryKey === queryKey && rawList.value.length > 0;
+    queryKey = nextQueryKey;
+    if (!preserve) rawList.value = [];
+    loading.value = !preserve;
+    refreshing.value = preserve;
     loadError.value = false;
     try {
       const data = await getHostProcessList(
         {
           bk_host_id: host.bk_host_id,
-          bk_target_ip: host.ip,
-          bk_target_cloud_id: String(host.bk_cloud_id ?? ''),
           start_time: timeRangeTimestamp.value.start_time,
           end_time: timeRangeTimestamp.value.end_time,
         },
-        { signal }
+        { timeRange: [...timeRange.value], timezone: timezone.value }
       );
-      // 请求被取消（主机切换 / 组件卸载）或已被后发请求替代，丢弃本次结果
-      if (signal.aborted || abortController !== controller) return;
+      if (!isCurrent()) return;
       rawList.value = data;
       /** 触发数据加载完成回调（如有），用于外部处理加载后逻辑 */
       options.loadDataEnd?.(data);
     } catch {
-      if (signal.aborted || abortController !== controller) return;
-      rawList.value = [];
+      if (!isCurrent()) return;
       loadError.value = true;
     } finally {
-      if (abortController === controller) {
+      if (isCurrent()) {
         loading.value = false;
-        abortController = null;
+        refreshing.value = false;
       }
     }
   };
@@ -144,16 +145,21 @@ export const useProcessList = (options: {
   };
 
   // 选中主机或时间范围变化时重新拉取
-  watch([() => options.host.value, timeRangeTimestamp], () => loadData(), { immediate: true });
+  watch([() => options.host.value?.bk_host_id, timeRangeTimestamp], () => loadData(), {
+    immediate: true,
+    flush: 'sync',
+  });
 
-  // 组件卸载（effect scope 释放）时终止未完成的请求
+  // 共享请求继续运行，离开的页面不再接收响应。
   onScopeDispose(() => {
-    abortController?.abort();
-    abortController = null;
+    disposed = true;
+    requestGeneration += 1;
   });
 
   return {
     loadError,
+    refreshing,
+    refreshError: computed(() => loadError.value && rawList.value.length > 0),
     loading,
     sortInfo,
     displayList,

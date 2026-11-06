@@ -1,7 +1,7 @@
-"""Unified MCP 可选的原生权限实现，不新增第二套路由。
+"""Unified MCP 可选的双权限实现，不新增第二套路由。
 
-先检查原生权限，只有原生明确拒绝才检查旧 MCP Action；身份、资源、配置和 IAM 异常
-都必须失败关闭，不能转换成旧权限放行。
+先检查独立 MCP 权限，只有明确拒绝才检查 SaaS 原生权限；身份、资源、配置和 IAM 异常
+都必须失败关闭，不能转换成另一项权限放行。
 """
 
 from __future__ import annotations
@@ -85,6 +85,11 @@ def log_mcp_tool_event(event, request=None, *, level=logging.INFO, **fields):
     _log_mcp_event("MCP_TOOL", event, request, level=level, **fields)
 
 
+def log_mcp_usage_event(event, request=None, *, level=logging.INFO, **fields):
+    """记录每次 MCP 请求最终生效的来源、工具和权限，不包含请求或响应正文。"""
+    _log_mcp_event("MCP_USAGE", event, request, level=level, **fields)
+
+
 def _audit(
     tool,
     request,
@@ -159,6 +164,55 @@ def _business_resource(bk_biz_id):
     return resource
 
 
+def _apm_application_resource(bk_biz_id, context):
+    """把应用名解析为当前业务的 APM IAM 实例。"""
+    from apm_web.models import Application
+
+    app_name = serializers.CharField(allow_blank=False).run_validation(context.get("app_name"))
+    application = (
+        Application.objects.filter(bk_biz_id=bk_biz_id, app_name=app_name)
+        .values("application_id", "app_name", "bk_biz_id")
+        .first()
+    )
+    if application is None:
+        raise PermissionDenied("The APM application does not belong to the requested business.")
+    return Resource(
+        settings.BK_IAM_SYSTEM_ID,
+        "apm_application",
+        str(application["application_id"]),
+        {
+            "name": application["app_name"],
+            "bk_biz_id": str(bk_biz_id),
+            "_bk_iam_path_": f"/space,{bk_biz_id}/",
+        },
+    )
+
+
+def _dashboard_resource(bk_biz_id, context):
+    """把 UID 解析为当前业务的 Grafana 仪表盘 IAM 实例。"""
+    from bk_dataview.models import Dashboard, Org
+
+    dashboard_uid = serializers.CharField(allow_blank=False).run_validation(context.get("dashboard_uid"))
+    org_ids = list(Org.objects.filter(name=str(bk_biz_id)).values_list("id", flat=True)[:2])
+    if len(org_ids) != 1:
+        raise PermissionDenied("The dashboard business is not uniquely resolvable.")
+    dashboards = list(
+        Dashboard.objects.filter(org_id=org_ids[0], uid=dashboard_uid, is_folder=0).values("uid", "title")[:2]
+    )
+    if len(dashboards) != 1:
+        raise PermissionDenied("The dashboard does not belong to the requested business.")
+    return Resource(
+        settings.BK_IAM_SYSTEM_ID,
+        "grafana_dashboard",
+        dashboard_uid,
+        {
+            "name": dashboards[0]["title"],
+            "bk_biz_id": str(bk_biz_id),
+            "_bk_iam_path_": f"/space,{bk_biz_id}/",
+        },
+    )
+
+
 def _validate_alert_target(spec, bk_biz_id, context):
     """有目标 ID 时确认告警／策略属于请求业务；无 ID 的列表探测可跳过。"""
     target_arg = spec.get("target_arg")
@@ -172,6 +226,43 @@ def _validate_alert_target(spec, bk_biz_id, context):
     else:
         target_id = serializers.CharField(allow_blank=False).run_validation(context[target_arg])
         ensure_alert_belongs_to_biz(bk_biz_id, target_id)
+
+
+def _validate_native_target(tool, spec, bk_biz_id, context):
+    """在 IAM 查询前校验工具参数指向的业务资源。"""
+    target_kind = spec.get("target_kind")
+    if target_kind in {"alert", "strategy"}:
+        _validate_alert_target(spec, bk_biz_id, context)
+    elif target_kind == "time_series_table" and spec.get("target_arg") in context:
+        from kernel_api.resource.metrics import ensure_sql_reads_declared_table, ensure_time_series_table_belongs_to_biz
+
+        ensure_time_series_table_belongs_to_biz(
+            bk_biz_id,
+            context[spec["target_arg"]],
+            allow_platform=tool.name != "execute_sql_query",
+        )
+        if tool.name == "execute_sql_query" and "sql" in context:
+            ensure_sql_reads_declared_table(context["sql"], context[spec["target_arg"]])
+    elif target_kind == "event_table" and spec.get("target_arg") in context:
+        if "data_source_label" in context and "data_type_label" in context:
+            from kernel_api.unified_mcp.dispatcher import _ensure_event_table_belongs_to_biz
+
+            _ensure_event_table_belongs_to_biz({**context, "bk_biz_id": bk_biz_id})
+        else:
+            # 权限探测仅提供 table，不包含数据源标签；按可用事件目录校验归属。
+            from kernel_api.resource.event import ListEventsResource
+
+            table = serializers.CharField(allow_blank=False).run_validation(context[spec["target_arg"]])
+            for source, data_type in (("custom", "event"), ("bk_monitor", "log")):
+                events = ListEventsResource().request(
+                    bk_biz_id=bk_biz_id,
+                    data_source_label=source,
+                    data_type_label=data_type,
+                    return_dimensions=False,
+                )
+                if table in {str(item.get("id")) for item in events if isinstance(item, dict)}:
+                    return
+            raise PermissionDenied("The event table does not belong to the requested business.")
 
 
 def _principal(request, bk_biz_id=None):
@@ -279,11 +370,10 @@ def call_log_api(name, **params):
     return call(**params, bk_username=request.user.username, bk_tenant_id=request.user.tenant_id)
 
 
-def _log_resource(spec, user, bk_biz_id, context):
-    """把业务或索引集上下文解析为日志 IAM V3 资源。"""
+def _visible_log_index_set(spec, user, bk_biz_id, context):
+    """确认索引集在请求业务目录中唯一可见；业务级日志工具没有目录项。"""
     if spec["resource_type"] == "space":
-        # 日志 IAM V3 引用监控空间资源，而不是日志系统内自建的 space。
-        return Resource("bk_monitorv3", "space", str(bk_biz_id), {"name": str(bk_biz_id)})
+        return None
     if context.get("target_type", "index_set") != "index_set":
         raise ValidationError("Native log MCP currently supports fixed index sets only.")
     index_set_id = serializers.IntegerField(min_value=1).run_validation(context.get("index_set_id"))
@@ -293,8 +383,15 @@ def _log_resource(spec, user, bk_biz_id, context):
     ]
     if len(matches) != 1:
         raise PermissionDenied("The log index set is not uniquely visible in the requested space.")
-    item = matches[0]
-    # ponytail: 当前只支持普通同空间索引集；平台／关联空间需要后续显式建模。
+    return matches[0]
+
+
+def _log_resource(spec, bk_biz_id, item):
+    """把业务或已确认可见的索引集解析为日志 IAM V3 资源。"""
+    if spec["resource_type"] == "space":
+        # 日志 IAM V3 引用监控空间资源，而不是日志系统内自建的 space。
+        return Resource("bk_monitorv3", "space", str(bk_biz_id), {"name": str(bk_biz_id)})
+    # ponytail: SaaS 兜底只支持普通索引集（含业务关联空间）；平台级／分组索引集需要后续显式建模。
     if (
         item.get("is_platform_index") is not False
         or item.get("is_group") is not False
@@ -303,21 +400,22 @@ def _log_resource(spec, user, bk_biz_id, context):
         raise ValidationError(
             "Native log MCP does not yet support platform or grouped index sets, or incomplete catalog metadata."
         )
-    if str(item.get("bk_biz_id")) != str(bk_biz_id):
-        raise PermissionDenied("The log index set does not belong to the requested business.")
-    from bkm_space.utils import bk_biz_id_to_space_uid
+    from bkm_space.utils import space_uid_to_bk_biz_id
 
-    expected_space = bk_biz_id_to_space_uid(bk_biz_id)
-    if not expected_space or item.get("space_uid") != expected_space:
-        raise PermissionDenied("The log index set space does not match the requested business.")
+    # 与日志平台 Indices.create_simple_instance() 一致按归属空间鉴权；
+    # 改用请求业务拼路径会让业务级授权覆盖关联空间的索引集。
+    owner_biz_id = space_uid_to_bk_biz_id(item.get("space_uid") or "")
+    if not owner_biz_id or str(item.get("bk_biz_id")) != str(owner_biz_id):
+        raise PermissionDenied("The log index set owner space is unresolvable or inconsistent.")
+    index_set_id = str(item.get("index_set_id"))
     return Resource(
         "bk_log_search",
         "indices",
-        str(index_set_id),
+        index_set_id,
         {
-            "name": item.get("index_set_name") or str(index_set_id),
-            "bk_biz_id": str(bk_biz_id),
-            "_bk_iam_path_": f"/space,{bk_biz_id}/",
+            "name": item.get("index_set_name") or index_set_id,
+            "bk_biz_id": str(owner_biz_id),
+            "_bk_iam_path_": f"/space,{owner_biz_id}/",
         },
     )
 
@@ -350,6 +448,11 @@ def _apply_guide(client, spec, resource, request):
     result = {"permission": application.to_dict()}
     error_type = "InvalidResponse"
     try:
+        get_apply_data = getattr(client, "get_apply_data", None)
+        if callable(get_apply_data):
+            data = get_apply_data(application)
+            if isinstance(data, dict) and data:
+                result["permission"] = data
         ok, _, url = client.get_apply_url(application)
         if ok and isinstance(url, str) and url:
             result["apply_url"] = url
@@ -369,7 +472,7 @@ def _apply_guide(client, spec, resource, request):
 
 
 def permission_state(tool: ToolDefinition, request, bk_biz_id=None, resource_context=None, include_apply_guide=False):
-    """权限探测与执行共用同一个 native-first 判定，并返回实际回退结果。"""
+    """权限探测与执行共用同一个 MCP 优先判定，并返回实际放行来源。"""
     try:
         _audit(tool, request, "scope", "started", bk_biz_id=bk_biz_id)
         return _permission_state(tool, request, bk_biz_id, resource_context, include_apply_guide)
@@ -379,20 +482,22 @@ def permission_state(tool: ToolDefinition, request, bk_biz_id=None, resource_con
 
 
 def _permission_state(tool, request, bk_biz_id, context, include_apply_guide):
-    """执行资源解析、原生权限和旧 MCP 权限的严格顺序判定。"""
-    spec = tool.native_permission
+    """先校验资源，再按 MCP 独立权限、SaaS 原生权限顺序严格判定。"""
+    context = context or {}
+    spec = tool.resolve_native_permission(context)
     if not spec:
-        raise ImproperlyConfigured("Tool is not enabled for native-first permissions")
+        raise ImproperlyConfigured("Tool is not enabled for MCP-first permissions")
     if bk_biz_id is not None:
         bk_biz_id = serializers.IntegerField().run_validation(bk_biz_id)
         if not bk_biz_id or (tool.category == "alert" and bk_biz_id == -1):
             raise ValidationError(
                 {"bk_biz_id": "A concrete business is required; all-business sentinels are not allowed."}
             )
+
     user = _principal(request, bk_biz_id)
-    context = context or {}
     result = {
         **tool.permission_payload(),
+        "fallback_permission": tool._public_native_permission(spec),
         "tool_name": tool.name,
         "resource": {},
         "native_authorized": None,
@@ -401,42 +506,90 @@ def _permission_state(tool, request, bk_biz_id, context, include_apply_guide):
     }
     if bk_biz_id is not None:
         result["resource"]["bk_biz_id"] = str(bk_biz_id)
-    monitor = None
-    if spec["system_id"] == "bk_monitorv3":
-        if bk_biz_id is None:
-            _audit(tool, request, "final", "requires_resource")
-            return {**result, "state": "requires_resource", "authorized": False}
-        if tool.category == "alert":
-            _validate_alert_target(spec, bk_biz_id, context)
-            if spec.get("target_arg") in context:
-                result["target"] = {"type": spec["target_kind"], "id": str(context[spec["target_arg"]])}
-        monitor = _monitor_permission(user)
-        native_resource = _business_resource(bk_biz_id)
-        native_client = monitor.iam_client
-        native_query = monitor.make_request(spec["action_id"], [native_resource])
-    else:
-        native_client = _log_iam(user)
-        if bk_biz_id is None or (spec["resource_type"] == "indices" and "index_set_id" not in context):
-            _audit(tool, request, "final", "requires_resource", bk_biz_id=bk_biz_id)
-            return {**result, "state": "requires_resource", "authorized": False}
-        # 资源范围先于 N/L 判定；归属校验失败不能触发旧权限回退。
-        native_resource = _log_resource(spec, user, bk_biz_id, context)
-        if native_resource.type == "indices":
-            result["resource"]["index_set_id"] = native_resource.id
-        native_query = Request(
-            spec["system_id"], Subject("user", user.username), Action(spec["action_id"]), [native_resource], None
-        )
+    if bk_biz_id is None:
+        _audit(tool, request, "final", "requires_resource")
+        return {**result, "state": "requires_resource", "authorized": False}
+    resource_arg = spec.get("resource_arg")
+    if spec["resource_type"] in {"indices", "apm_application", "grafana_dashboard"} and context.get(resource_arg) in (
+        None,
+        "",
+    ):
+        _audit(tool, request, "final", "requires_resource", bk_biz_id=bk_biz_id)
+        return {**result, "state": "requires_resource", "authorized": False}
 
+    monitor = _monitor_permission(user)
+    legacy_resource = _business_resource(bk_biz_id)
+    legacy_query = monitor.make_request(tool.iam_action, [legacy_resource])
+    native_resource = None
+    log_item = None
+    if spec["system_id"] == "bk_monitorv3":
+        if spec["resource_type"] == "space":
+            _validate_native_target(tool, spec, bk_biz_id, context)
+            native_resource = legacy_resource
+        elif spec["resource_type"] == "apm_application":
+            native_resource = _apm_application_resource(bk_biz_id, context)
+        elif spec["resource_type"] == "grafana_dashboard":
+            native_resource = _dashboard_resource(bk_biz_id, context)
+        else:
+            raise ImproperlyConfigured(f"Unsupported monitor MCP resource type: {spec['resource_type']}")
+        native_query = monitor.make_request(spec["action_id"], [native_resource])
+    elif spec["system_id"] == "bk_log_search":
+        # 业务目录可见性是两种权限共用的归属边界，先于两种 IAM 判定；索引集类型与归属空间
+        # 只决定 SaaS 兜底能否使用，留到 MCP 明确无权后再解析，不能拦住有 MCP 权限的用户。
+        log_item = _visible_log_index_set(spec, user, bk_biz_id, context)
+        if log_item is not None:
+            result["resource"]["index_set_id"] = str(log_item.get("index_set_id"))
+    else:
+        raise ImproperlyConfigured(f"Unsupported native MCP IAM system: {spec['system_id']}")
+
+    target_arg = spec.get("target_arg")
+    if target_arg in context:
+        result["target"] = {"type": spec["target_kind"], "id": str(context[target_arg])}
     _audit(
         tool,
         request,
         "scope",
         "resolved",
         bk_biz_id=bk_biz_id,
-        system_id=native_query.system,
-        action_id=native_query.action.id,
-        resource=native_resource,
+        system_id=legacy_query.system,
+        action_id=legacy_query.action.id,
+        resource=legacy_resource,
     )
+    legacy_allowed = _checked_permission(tool, request, "legacy", monitor.iam_client, legacy_query, bk_biz_id)
+    result["legacy_authorized"] = legacy_allowed
+    result["legacy_permission"] = {
+        "system_id": legacy_query.system,
+        "action_id": tool.iam_action,
+        "resource_type": "space",
+        "resource_arg": "bk_biz_id",
+    }
+    if legacy_allowed:
+        _audit(
+            tool,
+            request,
+            "final",
+            "allowed",
+            bk_biz_id=bk_biz_id,
+            source="legacy",
+            system_id=legacy_query.system,
+            action_id=tool.iam_action,
+            resource=legacy_resource,
+        )
+        return {
+            **result,
+            "state": "granted",
+            "authorized": True,
+            "authorization_source": "legacy",
+            "matched_action_id": tool.iam_action,
+        }
+
+    # 仅 MCP 明确拒绝才查 SaaS 原生权限；IAM／资源错误绝不能被当成 False。
+    if spec["system_id"] == "bk_log_search":
+        native_resource = _log_resource(spec, bk_biz_id, log_item)
+        native_query = Request(
+            spec["system_id"], Subject("user", user.username), Action(spec["action_id"]), [native_resource], None
+        )
+    native_client = monitor.iam_client if spec["system_id"] == "bk_monitorv3" else _log_iam(user)
     native_allowed = _checked_permission(tool, request, "native", native_client, native_query, bk_biz_id)
     result["native_authorized"] = native_allowed
     if native_allowed:
@@ -459,47 +612,27 @@ def _permission_state(tool, request, bk_biz_id, context, include_apply_guide):
             "matched_action_id": spec["action_id"],
         }
 
-    # 只有严格 False 才能触发回退；资源或 IAM 异常不能被捕获并伪装成无权限。
-    monitor = monitor or _monitor_permission(user)
-    legacy_resource = _business_resource(bk_biz_id)
-    legacy_query = monitor.make_request(tool.iam_action, [legacy_resource])
-    legacy_allowed = _checked_permission(tool, request, "legacy", monitor.iam_client, legacy_query, bk_biz_id)
-    result["legacy_authorized"] = legacy_allowed
-    result["legacy_permission"] = {
-        "system_id": legacy_query.system,
-        "action_id": tool.iam_action,
-        "resource_type": "space",
-        "resource_arg": "bk_biz_id",
-    }
-    source = "legacy" if legacy_allowed else "none"
     _audit(
         tool,
         request,
         "final",
-        "allowed" if legacy_allowed else "denied",
+        "denied",
         bk_biz_id=bk_biz_id,
-        source=source,
-        system_id=legacy_query.system,
-        action_id=tool.iam_action,
-        resource=legacy_resource,
+        system_id=native_query.system,
+        action_id=spec["action_id"],
+        resource=native_resource,
     )
-    if not legacy_allowed and include_apply_guide:
-        result.update(_apply_guide(native_client, spec, native_resource, request))
-        result["legacy_permission"].update(
-            _apply_guide(
-                monitor.iam_client,
-                {"system_id": legacy_query.system, "action_id": tool.iam_action},
-                legacy_resource,
-                request,
-            )
+    if include_apply_guide:
+        primary_guide = _apply_guide(
+            monitor.iam_client,
+            {"system_id": legacy_query.system, "action_id": tool.iam_action},
+            legacy_resource,
+            request,
         )
-    return {
-        **result,
-        "state": "granted" if legacy_allowed else "missing",
-        "authorized": legacy_allowed,
-        "authorization_source": source,
-        "matched_action_id": tool.iam_action if legacy_allowed else "",
-    }
+        result.update(primary_guide)
+        result["legacy_permission"].update(primary_guide)
+        result["fallback_permission"].update(_apply_guide(native_client, spec, native_resource, request))
+    return {**result, "state": "missing", "authorized": False, "matched_action_id": ""}
 
 
 def execute_native_tool(tool: ToolDefinition, tool_args: dict, request):
@@ -553,22 +686,29 @@ def _execute_native_tool(tool, tool_args, request):
             raise ValidationError("bk_biz_ids must contain exactly the requested bk_biz_id.")
     # 资源 ID 必须是严格正整数，拒绝 bool 和整数值浮点数；
     # 传输兼容只在 standalone 边界处理，核心执行器不做宽松转换。
-    resource_arg = tool.native_permission["resource_arg"]
-    if tool.native_permission["resource_type"] == "indices" and resource_arg in args:
+    spec = tool.resolve_native_permission(args)
+    resource_arg = spec["resource_arg"]
+    if spec["resource_type"] == "indices" and resource_arg in args:
         value = args[resource_arg]
         if type(value) is not int or value < 1:
             raise ValidationError({resource_arg: "A positive integer resource ID is required."})
     errors = list(Draft7Validator(tool.input_schema).iter_errors(args))
     if errors:
         raise ValidationError({"tool_args": errors[0].message})
-    if args.get("target_type", "index_set") != "index_set" or args.get("is_platform"):
-        raise ValidationError("This native MCP version supports fixed, non-platform resources only.")
+    if tool.name in {"search_logs", "analyze_field"}:
+        target_type = args.get("target_type", "index_set")
+        required_arg = "table_id_conditions" if target_type == "scene" else "index_set_id"
+        if not args.get(required_arg):
+            raise ValidationError({required_arg: f"{required_arg} is required for {target_type} mode."})
+    if args.get("is_platform"):
+        raise ValidationError("Native MCP does not support platform-wide metric discovery.")
     _audit(tool, request, "validation", "passed", bk_biz_id=args.get("bk_biz_id"))
     state = permission_state(tool, request, args.get("bk_biz_id"), args, include_apply_guide=True)
     request.mcp_permission_source = state["authorization_source"]
-    request.mcp_permission_action = (
-        tool.iam_action if state["legacy_authorized"] is not None else tool.native_permission["action_id"]
-    )
+    checked_action_id = state.get("matched_action_id")
+    if not checked_action_id:
+        checked_action_id = spec["action_id"] if state.get("native_authorized") is not None else tool.iam_action
+    request.mcp_permission_action = checked_action_id
     if state["state"] != "granted":
         # 权限状态是保留 bool/null 的结构化数据，不是 ValidationError 消息树。
         raise MCPPermissionDenied(state)
@@ -590,7 +730,10 @@ def _execute_native_tool(tool, tool_args, request):
             source=request.mcp_permission_source,
             action_id=request.mcp_permission_action,
         )
-        data = dispatch_tool(tool.name, args)
+        dispatch_args = dict(args)
+        if tool.requires_confirmation and not tool.forwards_confirmation:
+            dispatch_args.pop("confirm", None)
+        data = dispatch_tool(tool.name, dispatch_args)
         _audit(
             tool,
             request,

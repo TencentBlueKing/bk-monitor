@@ -6,12 +6,27 @@ from typing import Any
 from rest_framework import serializers
 from rest_framework.exceptions import PermissionDenied
 
-from core.drf_resource import Resource, api
+from bkmonitor.utils.user import get_backend_username
+from core.drf_resource import api
+from kernel_api.resource.mcp_response import MCPResource as Resource
 from kernel_api.resource.log_collection_common import StrictMCPSerializer, normalize_task_ids
 
 ENVIRONMENT_LINUX = "linux"
 ENVIRONMENT_WINDOWS = "windows"
 ENVIRONMENT_CONTAINER = "container"
+
+# 存储参数与所选取集群 setup_config 中对应上限字段的映射
+STORAGE_PARAM_FIELDS = ("storage_cluster_id", "retention", "es_shards", "storage_replies")
+STORAGE_LIMIT_KEYS = {
+    "retention": "retention_days_max",
+    "es_shards": "es_shards_max",
+    "storage_replies": "number_of_replicas_max",
+}
+STORAGE_DEFAULT_KEYS = {
+    "retention": "retention_days_default",
+    "es_shards": "es_shards_default",
+    "storage_replies": "number_of_replicas_default",
+}
 
 COMMON_CREATE_FIELDS = {
     "bk_biz_id",
@@ -22,6 +37,10 @@ COMMON_CREATE_FIELDS = {
     "category_id",
     "description",
     "parent_index_set_ids",
+    "storage_cluster_id",
+    "retention",
+    "es_shards",
+    "storage_replies",
     "confirm",
 }
 HOST_CREATE_FIELDS = {
@@ -207,6 +226,57 @@ def validate_nested_create_fields(attrs: Mapping) -> None:
         validate_plugin_params(config.get("params"), f"{config_path}.params")
 
 
+def fetch_visible_storage_clusters(bk_biz_id: int, cluster_type: str | None = None) -> list[dict]:
+    """查询业务可见的存储集群。
+
+    cluster_type 缺省时不带该参数，与 BKLOG 默认选集群的口径一致（只看公共 ES 集群）。
+    """
+    # 可见范围由业务决定，这里用后台用户查询，避免调用者缺少存储源权限时查不到列表。
+    params: dict[str, Any] = {"bk_biz_id": bk_biz_id, "bk_username": get_backend_username()}
+    if cluster_type:
+        params["cluster_type"] = cluster_type
+    return api.log_search.bk_log_search_cluster_groups(**params) or []
+
+
+def resolve_storage_cluster(bk_biz_id: int, storage_cluster_id: int | None) -> dict | None:
+    """定位本次创建实际使用的存储集群：显式传值需业务可见，未传时取 BKLOG 的默认公共集群。"""
+    if storage_cluster_id is None:
+        default_clusters = fetch_visible_storage_clusters(bk_biz_id)
+        return default_clusters[0] if default_clusters else None
+    # cluster_type 传 all，保证 ES 与 Doris 集群都不被误判为不可见。
+    for cluster in fetch_visible_storage_clusters(bk_biz_id, cluster_type="all"):
+        if cluster.get("storage_cluster_id") == storage_cluster_id:
+            return cluster
+    raise serializers.ValidationError({"storage_cluster_id": ["Storage cluster is not available for this business."]})
+
+
+def validate_storage_settings(bk_biz_id: int, request_data: dict[str, Any]) -> None:
+    """补齐显式所选集群的默认存储参数，并校验存储上限。"""
+    if all(request_data.get(field) is None for field in STORAGE_PARAM_FIELDS):
+        return
+    cluster = resolve_storage_cluster(bk_biz_id, request_data.get("storage_cluster_id"))
+    if not cluster:
+        # 没有可用集群时由 BKLOG 报错，这里不拦。
+        return
+    # 集群列表接口返回的是拍平后的集群信息，setup_config 在顶层（详见 /databus/storage/cluster_groups/ 接口）
+    setup_config = cluster.get("setup_config") or {}
+    if request_data.get("storage_cluster_id") is not None:
+        for field, default_key in STORAGE_DEFAULT_KEYS.items():
+            default = setup_config.get(default_key)
+            if field not in request_data and default is not None:
+                request_data[field] = default
+    exceed_errors = {}
+    for field, limit_key in STORAGE_LIMIT_KEYS.items():
+        value = request_data.get(field)
+        limit = setup_config.get(limit_key)
+        # 上限字段缺失（Doris 集群没有分片/副本上限）时不限制；0 是合法上限，需要拦截任何正数
+        if value is None or limit is None or value <= limit:
+            continue
+        exceed_errors[field] = [f"{field} exceeds the selected storage cluster limit ({limit})."]
+    if exceed_errors:
+        raise serializers.ValidationError(exceed_errors)
+
+
 class FastCreateLogCollectorResource(Resource):
     """使用 BKLOG Fast Create 创建 Linux、Windows 或容器日志采集项。"""
 
@@ -247,6 +317,10 @@ class FastCreateLogCollectorResource(Resource):
             allow_null=True,
             label="归属索引组ID列表",
         )
+        storage_cluster_id = serializers.IntegerField(required=False, min_value=1, label="存储集群ID")
+        retention = serializers.IntegerField(required=False, min_value=1, label="保留天数")
+        es_shards = serializers.IntegerField(required=False, min_value=1, label="ES分片数量")
+        storage_replies = serializers.IntegerField(required=False, min_value=0, label="ES副本数量")
         target_object_type = serializers.CharField(required=False, label="主机目标类型")
         target_node_type = serializers.CharField(required=False, label="主机节点类型")
         target_nodes = serializers.ListField(
@@ -347,6 +421,7 @@ class FastCreateLogCollectorResource(Resource):
     def perform_request(self, validated_request_data):
         request_data = dict(validated_request_data)
         request_data.pop("confirm")
+        validate_storage_settings(request_data["bk_biz_id"], request_data)
         create_result = (
             api.log_search.fast_create_log_collector(
                 enforce_permission=True,

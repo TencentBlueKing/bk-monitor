@@ -23,7 +23,7 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { computed, shallowRef, watch } from 'vue';
+import { type MaybeRef, computed, onScopeDispose, shallowRef, unref, watch } from 'vue';
 
 import { useI18n } from 'vue-i18n';
 
@@ -52,12 +52,17 @@ const EMPTY_VIEW_CONFIG: IRumViewConfig = {
  * 分组完全由接口的 groups 驱动，前端只额外补一个「原始字段」分组，
  * 它由所有 is_real 字段聚合而成，在左侧栏里按 `.` 分层展示成树。
  */
-export function useRumViewConfig() {
+export function useRumViewConfig(enabled: MaybeRef<boolean> = true) {
   const { t } = useI18n();
   const store = useRumExploreStore();
 
   const loading = shallowRef(false);
+  const error = shallowRef(false);
   const viewConfig = shallowRef<IRumViewConfig>(EMPTY_VIEW_CONFIG);
+  const resolvedKey = shallowRef('');
+  const configKey = computed(() => JSON.stringify([store.appName, store.mode]));
+  const ready = computed(() => unref(enabled) && !!store.appName && resolvedKey.value === configKey.value);
+  let abortController: AbortController | null = null;
 
   /** 业务分组 + 末尾的「原始字段」分组 */
   const fieldGroups = computed<IRumFieldGroup[]>(() => {
@@ -97,29 +102,49 @@ export function useRumViewConfig() {
   );
 
   async function fetchViewConfig() {
-    if (!store.appName) {
-      viewConfig.value = EMPTY_VIEW_CONFIG;
-      return;
-    }
-    loading.value = true;
+    abortController?.abort();
+    abortController = null;
+    resolvedKey.value = '';
+    viewConfig.value = EMPTY_VIEW_CONFIG;
+    loading.value = false;
+    error.value = false;
     // 应用 / 视角已变，旧的默认排序失效，先清空避免切换瞬间用它去查新视角
     store.defaultSort = [];
+    if (!unref(enabled) || !store.appName) return;
+    abortController = new AbortController();
+    const { signal } = abortController;
+    const key = configKey.value;
+    loading.value = true;
     const [startTime, endTime] = handleTransformToTimestamp(store.timeRange);
-    viewConfig.value = await getViewConfig({
-      app_name: store.appName,
-      mode: store.mode,
-      start_time: startTime,
-      end_time: endTime,
-    });
-    store.defaultSort = viewConfig.value.default_sort || [];
-    loading.value = false;
+    try {
+      const config = await getViewConfig(
+        {
+          app_name: store.appName,
+          mode: store.mode,
+          start_time: startTime,
+          end_time: endTime,
+        },
+        { signal }
+      );
+      if (signal.aborted || key !== configKey.value) return;
+      viewConfig.value = config;
+      store.defaultSort = config.default_sort || [];
+      resolvedKey.value = key;
+    } catch {
+      if (!signal.aborted) error.value = true;
+    } finally {
+      if (!signal.aborted) loading.value = false;
+    }
   }
 
   // 字段配置只跟应用和视角有关，时间变化不重新拉取，避免每次改时间都把左侧栏重置
-  watch(() => [store.appName, store.mode], fetchViewConfig);
+  watch(() => [unref(enabled), store.appName, store.mode], fetchViewConfig, { immediate: true });
+  onScopeDispose(() => abortController?.abort());
 
   return {
     loading,
+    error,
+    ready,
     viewConfig,
     fieldGroups,
     retrievalFields,

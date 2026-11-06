@@ -1,0 +1,355 @@
+/* APM 宿主会编译这份样式；Vue3 包 dist 的 CSS 不会被 webpack 热更新 */
+.trace-slider {
+  .trace-slider-main {
+    display: flex;
+    flex-direction: column;
+    background-color: #f2f6fc;
+  }
+
+  .trace-detail-wrapper {
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+    min-height: 0;
+  }
+
+  .trace-main {
+    display: flex;
+    flex: 1;
+    flex-direction: column;
+    min-height: 0;
+    padding-right: 0;
+    padding-left: 0;
+    background-color: #fff;
+  }
+
+  .trace-main .bk-tab,
+  .trace-main .bkmv3-tab {
+    box-sizing: border-box;
+    padding-right: 40px;
+    padding-left: 40px;
+    background-color: #f2f6fc;
+  }
+
+  .trace-main .bk-tab-header-item,
+  .trace-main .bkmv3-tab-header-item {
+    color: #4e5e7a;
+    background-color: #e4e9f2;
+    border-radius: 6px 6px 0 0;
+
+    .tab-label,
+    .icon-monitor {
+      color: inherit;
+    }
+
+    &.bk-tab-header--active,
+    &.bkmv3-tab-header--active {
+      color: #3a84ff;
+      background-color: #fff;
+    }
+  }
+
+  .trace-main .view-tools {
+    padding-right: 40px;
+    padding-left: 40px;
+    background-color: #fff;
+
+    &.hide-tools {
+      padding-right: 40px;
+      padding-left: 40px;
+    }
+  }
+
+  .trace-main .tab-panel-content {
+    flex: 1;
+    padding-top: 0;
+    padding-right: 40px;
+    padding-bottom: 0;
+    padding-left: 40px;
+    background-color: #fff;
+  }
+
+  /* 外层 24 + Span List header 里层 16 = 40 */
+  .trace-graph-resize {
+    right: 24px;
+  }
+
+  /* 仅 LLM 观测：统计卡与 Tab 之间 24px，其它 Tab 保持 0 */
+  .trace-llm-observation {
+    padding-top: 24px;
+    --llm-exec-row-height: 32px;
+    --llm-exec-sticky-gap: 16px;
+    --llm-trace-header-height: 42px;
+  }
+
+  .trace-llm-observation-timeline,
+  .trace-llm-observation-list {
+    flex: 0 0 auto;
+    min-height: auto;
+  }
+
+  .trace-llm-observation-timeline {
+    gap: 0;
+  }
+
+  .llm-trace-block {
+    position: relative;
+    z-index: 1;
+    isolation: isolate;
+    overflow: visible;
+  }
+
+  .base-message {
+    flex-wrap: nowrap;
+    max-width: none;
+    margin-top: 12px;
+
+    .message-item {
+      margin-right: 32px;
+      color: #4d4f56;
+
+      span:first-child {
+        color: #8f9fbd;
+
+        &::after {
+          content: '：';
+        }
+      }
+    }
+  }
+
+  .item-card {
+    box-sizing: border-box;
+    gap: 4px;
+    height: 28px;
+    padding: 4px 8px;
+    overflow: hidden;
+    line-height: 20px;
+    color: #4e5e7a;
+    background: #fff;
+    border: 0;
+    border-radius: 4px;
+    box-shadow: 0 1px 2px 0 rgb(0 0 0 / 8%);
+
+    &.is-service {
+      padding-left: 6px;
+    }
+
+    .service-mark {
+      top: 0;
+      left: 0;
+      width: 3px;
+      height: 100%;
+    }
+
+    .service-icon {
+      width: 16px;
+      height: 16px;
+      margin: 0;
+    }
+
+    .card-icon {
+      margin: 0;
+      font-size: 16px;
+      color: #4e5e7a;
+
+      &.icon-mind-fill {
+        color: #ea3636;
+      }
+    }
+
+    .card-count {
+      box-sizing: border-box;
+      min-width: 20px;
+      height: 20px;
+      padding: 0 4px;
+      margin-left: 0;
+      font-weight: 700;
+      line-height: 20px;
+      color: #8f9fbd;
+      text-align: center;
+      background-color: #f0f4fa;
+      border-radius: 999px;
+    }
+  }
+}
+
+.span-details-sideslider {
+  .bk-modal-content,
+  .bkmv3-modal-content {
+    background: #f2f6fc;
+  }
+}
+
+.span-details-sideslider-content {
+  .info-tab {
+    background: #f2f6fc;
+
+    .bk-tab-header,
+    .bkmv3-tab-header {
+      background: #f2f6fc;
+    }
+
+    .bk-tab-header-nav,
+    .bkmv3-tab-header-nav {
+      flex: 0 1 auto;
+      min-width: 0;
+      overflow-x: auto;
+      gap: 8px;
+    }
+
+    .bk-tab-header-setting,
+    .bkmv3-tab-header-setting {
+      flex: 0 0 auto;
+      min-width: 0;
+      overflow: hidden;
+
+      &:has(.llm-observation-search) {
+        flex: 1 1 0;
+        min-width: 0;
+        max-width: 400px;
+      }
+    }
+
+    .bk-tab-header-item,
+    .bkmv3-tab-header-item {
+      color: #4e5e7a;
+      background-color: #e4e9f2;
+      border-radius: 6px 6px 0 0;
+
+      & + .bk-tab-header-item,
+      & + .bkmv3-tab-header-item {
+        margin-left: 0;
+      }
+
+      .icon-monitor {
+        color: inherit;
+      }
+
+      &.bk-tab-header--active,
+      &.bkmv3-tab-header--active {
+        color: #3a84ff;
+        background-color: #fff;
+      }
+    }
+  }
+
+  .details-others .other-item {
+    .label {
+      color: #8f9fbd;
+    }
+
+    .content {
+      color: #4d4f56;
+    }
+  }
+}
+
+.tick-labels,
+.timeline-header-row {
+  background: #e4e9f2;
+}
+
+.trace-search-bar .bk-tag-input-trigger,
+.trace-search-bar .bkmv3-tag-input-trigger {
+  border-radius: 4px;
+}
+
+.statistics-table .t-table__header,
+.statistics-table .t-table__header th {
+  background-color: #fafbfd;
+}
+
+.trace-compare-select-trigger .prefix {
+  border-radius: 4px 0 0 4px;
+}
+
+.trace-compare-select-trigger .compare-target {
+  border-radius: 0 4px 4px 0;
+}
+
+.llm-execution-toolbar {
+  display: contents;
+}
+
+.llm-execution-toolbar-title {
+  flex-shrink: 0;
+  margin-bottom: 8px;
+}
+
+.llm-execution-toolbar-row {
+  position: sticky;
+  top: 0;
+  z-index: 30;
+  flex-shrink: 0;
+  width: 100%;
+  padding-bottom: 16px;
+  background: #fff;
+}
+
+.llm-execution-toolbar-left,
+.llm-execution-session,
+.llm-execution-filters {
+  flex-shrink: 0;
+}
+
+.llm-trace-header {
+  position: sticky;
+  top: calc(32px + 16px);
+  z-index: 20;
+}
+
+.llm-trace-table-head {
+  position: sticky;
+  top: calc(32px + 16px + 42px);
+  z-index: 15;
+}
+
+.llm-trace-table-body {
+  position: relative;
+  z-index: 0;
+  overflow: hidden;
+}
+
+.llm-execution-session {
+  white-space: nowrap;
+}
+
+.llm-execution-search {
+  flex: 1 1 0;
+  width: auto !important;
+  min-width: 160px;
+  max-width: 400px;
+  overflow: hidden;
+  border-radius: 4px;
+}
+
+.llm-observation-search {
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
+  border-radius: 4px;
+}
+
+/* 输入/输出每侧只展示 1 个 Tag，key 最大 120px，value 吃剩余宽度再省略 */
+.llm-span-io-name {
+  max-width: 120px;
+}
+
+.llm-span-io-kvs,
+.llm-span-io-kv {
+  flex: 1;
+  min-width: 0;
+}
+
+.llm-span-io-kv-key {
+  flex: 0 1 auto;
+  min-width: 0;
+  max-width: 120px;
+}
+
+.llm-span-io-kv-value {
+  flex: 1 1 auto;
+  min-width: 0;
+  max-width: none;
+}

@@ -24,7 +24,7 @@
  * IN THE SOFTWARE.
  */
 
-import { computed, defineComponent, onMounted, shallowRef, watch } from 'vue';
+import { computed, defineComponent, shallowRef, watch } from 'vue';
 
 import { get, set } from '@vueuse/core';
 
@@ -43,7 +43,7 @@ export default defineComponent({
     description: {
       type: String,
     },
-    /** 默认高度（初始化时 container 区域的高度） */
+    /** 默认高度（初始化时 container 区域的高度）, 为 0 时，容器高度为 'auto' */
     defaultHeight: {
       type: Number,
       default: 166,
@@ -80,9 +80,9 @@ export default defineComponent({
   emits: ['collapseChange'],
   setup(props, { slots, emit }) {
     /** 折叠面板，是否展开图表 */
-    const isExpand = shallowRef(true);
+    const isExpand = shallowRef(props.defaultIsExpand);
     /** 显示内容区域高度 -- 主要用于配合 resize 操作时使用 */
-    const containerHeight = shallowRef(0);
+    const containerHeight = shallowRef(props.defaultHeight);
 
     const scopedSlotsParam = computed(() => ({
       isExpand: isExpand.value,
@@ -112,20 +112,6 @@ export default defineComponent({
         }
       }
     );
-
-    onMounted(() => {
-      initConfig();
-    });
-
-    /**
-     * @description 初始化配置
-     */
-    function initConfig() {
-      if (!containerHeight.value) {
-        set(containerHeight, props.defaultHeight);
-      }
-      set(isExpand, props.defaultIsExpand);
-    }
 
     /**
      * @description 拖拽 resize 操作后回调

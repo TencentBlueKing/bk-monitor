@@ -1,0 +1,98 @@
+.rum-hover-info {
+  width: 400px;
+  padding: 12px 12px 16px;
+  background-color: #fff;
+  border: 1px solid #e4e9f2;
+  border-radius: 4px;
+  box-shadow: 0 0 20px 0 rgb(0 0 0 / 16%);
+
+  .hover-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    height: 32px;
+    padding-bottom: 12px;
+    border-bottom: 1px solid #e4e9f2;
+
+    .hover-title {
+      font-size: 14px;
+      font-weight: 500;
+      line-height: 22px;
+      color: #111214;
+    }
+
+    .hover-source-link {
+      display: inline-flex;
+      gap: 4px;
+      align-items: center;
+      font-size: 12px;
+      color: #3a84ff;
+
+      .link-icon {
+        font-size: 14px;
+      }
+    }
+  }
+
+  .hover-body {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    padding-top: 12px;
+  }
+
+  .hover-section {
+    padding: 8px 12px 12px;
+    background: #f7f9fc;
+    border-radius: 4px;
+
+    .section-label {
+      display: flex;
+      gap: 4px;
+      align-items: center;
+      margin-bottom: 3px;
+      font-size: 12px;
+      font-weight: 500;
+      line-height: 20px;
+      color: #111214;
+
+      .section-icon {
+        font-size: 14px;
+      }
+
+      &.is-experience {
+        color: #111214;
+      }
+    }
+
+    .section-content {
+      font-size: 13px;
+      line-height: 22px;
+      color: #4e5e7a;
+      overflow-wrap: break-word;
+      white-space: pre-wrap;
+    }
+  }
+
+  .hover-footer {
+    padding-top: 8px;
+    font-size: 12px;
+    line-height: 20px;
+    color: #8f9fbd;
+  }
+}
+
+/* hover-info 卡片的 tippy 浮层主题：卡片自带深色背景与圆角，浮层容器去掉默认底色、内边距与箭头
+ * 注意：tippy 浮层挂载于 body，不可嵌套进 .rum-hover-info 内
+ */
+.tippy-box[data-theme~='rum-hover-info-popover'] {
+  background: transparent;
+
+  .tippy-content {
+    padding: 0;
+  }
+
+  .tippy-arrow {
+    display: none;
+  }
+}

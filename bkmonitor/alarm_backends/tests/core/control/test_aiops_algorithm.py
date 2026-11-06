@@ -267,22 +267,12 @@ def test_empty_and_aiops_algorithms(strategy):
 
 def execute_strategy_test(strategy_config, strategy_cache):
     """执行策略测试的通用方法"""
-    with mock.patch("alarm_backends.core.cache.strategy.Strategy.from_models") as mock_from_models:
-        mock_strategy = MagicMock()
-        mock_strategy.to_dict.return_value = strategy_config
-        mock_from_models.return_value = [mock_strategy]
-
-        with mock.patch("alarm_backends.core.cache.strategy.BusinessManager.keys") as mock_biz_keys:
-            mock_biz_keys.return_value = [2]
-
-            with mock.patch(
-                "alarm_backends.core.cache.strategy.StrategyCacheManager.handle_strategy"
-            ) as mock_handle_strategy:
-                mock_handle_strategy.return_value = True
-
-                with mock.patch("alarm_backends.core.cache.strategy.StrategyCacheManager.check_related_strategy"):
-                    result_map = strategy_cache.get_strategies_map()
-                    return result_map
+    with (
+        mock.patch("alarm_backends.core.cache.strategy.list_strategy", return_value={"data": [strategy_config]}),
+        mock.patch("alarm_backends.core.cache.strategy.StrategyModel.objects.filter"),
+        mock.patch("alarm_backends.core.cache.strategy.StrategyCacheManager.handle_strategy", return_value=True),
+    ):
+        return strategy_cache.get_strategies_map()
 
 
 def test_only_aiops_cache(strategy_cache):

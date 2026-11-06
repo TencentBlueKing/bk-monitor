@@ -15,10 +15,99 @@ import pytest
 
 from bkmonitor.models import ActionConfig, ActionPlugin
 from constants.action import GLOBAL_BIZ_ID, ActionPluginType
+from constants.strategy import TargetFieldType
 from core.errors.export_import import ExportImportError
 from monitor_web.export_import.constant import ImportDetailStatus
 from monitor_web.export_import.import_config import import_strategy
-from monitor_web.export_import.resources import ExportPackageResource
+from monitor_web.export_import.resources import ExportPackageResource, GetAllConfigListResource
+
+
+@pytest.fixture
+def export_config_list_data():
+    target_nodes = [{"bk_obj_id": "module", "bk_inst_id": 3}]
+    collect = SimpleNamespace(
+        id=1,
+        bk_biz_id=2,
+        name="demo collection",
+        plugin_id="demo_plugin",
+        deployment_config=SimpleNamespace(target_nodes=target_nodes, target_node_type="TOPO", config_meta_id=1),
+    )
+    strategy = SimpleNamespace(id=2, name="demo strategy")
+    item = SimpleNamespace(
+        id=3,
+        strategy_id=2,
+        target=[[{"field": TargetFieldType.host_topo, "value": target_nodes}]],
+    )
+    collect_queryset = mock.MagicMock()
+    collect_queryset.__iter__.side_effect = lambda: iter([collect])
+    collect_queryset.filter.return_value = collect_queryset
+    collect_queryset.select_related.return_value = collect_queryset
+    strategy_queryset = mock.MagicMock()
+    strategy_queryset.__iter__.side_effect = lambda: iter([strategy])
+    strategy_queryset.filter.return_value = strategy_queryset
+    with (
+        mock.patch(
+            "monitor_web.export_import.resources.CollectConfigMeta.objects.filter", return_value=collect_queryset
+        ),
+        mock.patch("monitor_web.export_import.resources.StrategyModel.objects.filter", return_value=strategy_queryset),
+        mock.patch("monitor_web.export_import.resources.ItemModel.objects.filter", return_value=[item]),
+        mock.patch("monitor_web.export_import.resources.QueryConfigModel.objects.filter", return_value=[]),
+        mock.patch(
+            "monitor_web.export_import.resources.resource.grafana.get_dashboard_list",
+            return_value=[{"uid": "demo", "name": "demo dashboard"}],
+        ),
+    ):
+        yield collect_queryset, strategy_queryset, item
+
+
+@pytest.mark.parametrize(
+    "filters",
+    [
+        {},
+        {"search_value": "demo"},
+        {"label": "os"},
+        {"cmdb_node": "module|3"},
+        {"cmdb_node": "module|3", "search_value": "demo", "label": "os"},
+        {"service_category_id": 0},
+    ],
+)
+def test_export_config_list_without_category_skips_unavailable_cmdb(export_config_list_data, filters):
+    with mock.patch(
+        "monitor_web.export_import.resources.CmdbUtil", side_effect=RuntimeError("CMDB unavailable")
+    ) as cmdb:
+        result = GetAllConfigListResource().request({"bk_biz_id": 2, **filters})
+
+    cmdb.assert_not_called()
+    assert result == {
+        "collect_config_list": [{"id": 1, "name": "demo collection", "dependency_plugin": "demo_plugin"}],
+        "strategy_config_list": [{"id": 2, "name": "demo strategy", "dependency_collect_config": ""}],
+        "view_config_list": [{"id": "demo", "name": "demo dashboard", "dependency_collect_config": []}],
+    }
+
+
+@pytest.mark.parametrize("target_field", [TargetFieldType.host_topo, TargetFieldType.service_topo])
+@pytest.mark.parametrize("matches_category", [True, False])
+def test_export_config_list_filters_by_service_category(export_config_list_data, target_field, matches_category):
+    collect_queryset, strategy_queryset, item = export_config_list_data
+    item.target[0][0]["field"] = target_field
+    if not matches_category:
+        collect_queryset.filter.return_value = []
+        strategy_queryset.filter.return_value = []
+
+    with mock.patch("monitor_web.export_import.resources.CmdbUtil") as cmdb:
+        cmdb.return_value.get_category_list.return_value = [7] if matches_category else [8]
+        result = GetAllConfigListResource().request({"bk_biz_id": 2, "service_category_id": 7})
+
+    cmdb.assert_called_once_with(2)
+    assert cmdb.return_value.get_category_list.call_args_list == [
+        mock.call(2, [{"bk_obj_id": "module", "bk_inst_id": 3}]),
+        mock.call(2, [{"bk_obj_id": "module", "bk_inst_id": 3}]),
+    ]
+    collect_queryset.filter.assert_called_once_with(id__in=[1] if matches_category else [])
+    strategy_queryset.filter.assert_called_once_with(id__in=[2] if matches_category else [])
+    assert [config["id"] for config in result["collect_config_list"]] == ([1] if matches_category else [])
+    assert [config["id"] for config in result["strategy_config_list"]] == ([2] if matches_category else [])
+    assert result["view_config_list"] == [{"id": "demo", "name": "demo dashboard", "dependency_collect_config": []}]
 
 
 def _resource_with_strategy_condition(condition):

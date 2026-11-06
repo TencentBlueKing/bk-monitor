@@ -79,7 +79,7 @@ export default class GlobalSearchModal extends tsc<IGlobalSearchModalProps, IGlo
     // 默认展示的导航列表
     { id: 'uptime-check', name: this.$t('route-综合拨测'), icon: 'icon-menu-uptime' },
     { id: 'k8s', name: 'Kubernetes', icon: 'icon-mc-mainboard' },
-    { id: 'performance', name: this.$t('route-主机监控'), icon: 'icon-menu-performance' },
+    { id: 'host', name: this.$t('route-主机监控'), icon: 'icon-menu-performance' },
     { id: 'strategy-config', name: this.$t('route-告警策略'), icon: 'icon-mc-strategy' },
     { id: 'alarm-shield', name: this.$t('route-告警屏蔽'), icon: 'icon-menu-shield' },
     { id: 'alarm-group', name: this.$t('route-告警组'), icon: 'icon-menu-group' },

@@ -1,5 +1,5 @@
 <script setup>
-  import { computed, nextTick } from 'vue';
+  import { computed, nextTick, onBeforeUnmount, ref, watch } from 'vue';
 
   import useLocale from '@/hooks/use-locale';
   import useStore from '@/hooks/use-store';
@@ -30,22 +30,39 @@
     return store.state.indexFieldInfo.sort_list;
   });
 
-  const totalFields = computed(() => {
-    return store.getters.filteredFieldList.map(field => ({
-      ...field,
-      minWidth: field.minWidth ?? 0,
-      filterExpand: field.filterExpand ?? false,
-      filterVisible: field.filterVisible ?? true,
-    }));
+  const sourceFields = computed(() => store.getters.filteredFieldList ?? []);
+  // 千级字段进 store 后先让 search XHR 出去，下一帧再把列表交给左侧面板，避免首屏 flush 挡住检索。
+  const deferredFields = ref([]);
+  let fieldPaintFrame = 0;
+  watch(
+    sourceFields,
+    fields => {
+      if (fieldPaintFrame) {
+        cancelAnimationFrame(fieldPaintFrame);
+      }
+      fieldPaintFrame = requestAnimationFrame(() => {
+        fieldPaintFrame = 0;
+        deferredFields.value = fields;
+      });
+    },
+    { immediate: true },
+  );
+  onBeforeUnmount(() => {
+    if (fieldPaintFrame) {
+      cancelAnimationFrame(fieldPaintFrame);
+    }
   });
+
+  const totalFields = computed(() => deferredFields.value);
 
   const fieldAliasMap = computed(() => {
     const fieldAliasMap = {};
-    totalFields.value
-      .filter(field => !field.is_virtual_alias_field)
-      .forEach(item => {
-        fieldAliasMap[item.field_name] = item.query_alias || item.field_name;
-      });
+    totalFields.value.forEach(item => {
+      if (item?.is_virtual_alias_field) {
+        return;
+      }
+      fieldAliasMap[item.field_name] = item.query_alias || item.field_name;
+    });
 
     return fieldAliasMap;
   });

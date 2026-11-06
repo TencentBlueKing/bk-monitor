@@ -47,7 +47,7 @@ import { useI18n } from 'vue-i18n';
 import { useAppReadonlyInject } from '../../../../provider';
 import { resolveGraphPanel } from '../variables/resolve';
 import EmptyStatus from '@/components/empty-status/empty-status';
-import ChartSkeleton from '@/components/skeleton/chart-skeleton';
+import HostLoading, { HostRefreshStatus } from '../../host-loading/host-loading';
 import { DEFAULT_TIME_RANGE, handleTransformToTimestamp } from '@/components/time-range/utils';
 import { useChartLegend } from '@/pages/trace-explore/components/explore-chart/use-chart-legend';
 import { useChartTitleEvent } from '@/pages/trace-explore/components/explore-chart/use-chart-title-event';
@@ -201,6 +201,22 @@ export default defineComponent({
       downSampleRangeComputed: props.downSampleRange ? downSampleRangeComputed : undefined,
     });
 
+    const displayedOptions = shallowRef<typeof options.value>(null);
+    const settled = shallowRef(false);
+    const timeOffset = inject<MaybeRef<string[]>>('timeOffset', []);
+    const timezone = inject<MaybeRef<string>>('timezone', '');
+    watch(
+      () => JSON.stringify([resolvedPanel.value, toValue(timeRange), toValue(timeOffset), toValue(timezone)]),
+      () => { displayedOptions.value = null; settled.value = false; },
+      { flush: 'sync' }
+    );
+    watch([options, loading], () => {
+      if (loading.value) return;
+      if (!loadError.value) displayedOptions.value = options.value;
+      settled.value = true;
+    });
+    const showSkeleton = computed(() => !displayedOptions.value && (loading.value || !settled.value));
+
     const handleRetry = async () => {
       options.value = await getEchartOptions();
       chartId.value = random(8);
@@ -214,7 +230,7 @@ export default defineComponent({
       chartRef
     );
 
-    const { legendData, handleSelectLegend } = useChartLegend(options, chartId, {});
+    const { legendData, handleSelectLegend } = useChartLegend(displayedOptions, chartId, {});
 
     watch(
       [loading, options],
@@ -240,7 +256,8 @@ export default defineComponent({
       readonly,
       showRestore,
       instance,
-      options,
+      options: displayedOptions,
+      showSkeleton,
       loadError,
       loading,
       metricList,
@@ -306,9 +323,10 @@ export default defineComponent({
           onMetricClick={this.handleMetricClick}
           onSelectChild={({ child }) => this.handleMenuClick(child)}
         />
-        {this.loading ? (
-          <ChartSkeleton />
-        ) : this.loadError ? (
+        <HostRefreshStatus loading={this.loading && !!this.options} error={this.loadError && !!this.options} onRetry={this.handleRetry} />
+        {this.showSkeleton ? (
+          <HostLoading variant='chart' title={false} />
+        ) : this.loadError && !this.options ? (
           <EmptyStatus
             type='500'
             onOperation={this.handleRetry}

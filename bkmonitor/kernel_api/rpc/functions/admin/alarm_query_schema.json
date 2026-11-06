@@ -1,0 +1,471 @@
+{
+  "search": {
+    "schema": {
+      "type": "object",
+      "properties": {
+        "resource": {
+          "type": "string",
+          "enum": [
+            "event",
+            "alert",
+            "action"
+          ]
+        },
+        "bk_tenant_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "target": {
+          "$ref": "#/properties/bk_tenant_id"
+        },
+        "filters": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "field": {
+                "$ref": "#/properties/bk_tenant_id"
+              },
+              "op": {
+                "type": "string",
+                "enum": [
+                  "eq",
+                  "ne",
+                  "contains",
+                  "range",
+                  "exists",
+                  "missing"
+                ]
+              },
+              "value": {
+                "anyOf": [
+                  {
+                    "type": [
+                      "string",
+                      "number",
+                      "boolean"
+                    ]
+                  },
+                  {
+                    "type": "array",
+                    "items": {
+                      "$ref": "#/properties/filters/items/properties/value/anyOf/0"
+                    }
+                  },
+                  {
+                    "type": "object",
+                    "properties": {
+                      "gte": {
+                        "$ref": "#/properties/filters/items/properties/value/anyOf/0"
+                      },
+                      "lte": {
+                        "$ref": "#/properties/filters/items/properties/value/anyOf/0"
+                      }
+                    },
+                    "additionalProperties": false
+                  }
+                ]
+              }
+            },
+            "required": [
+              "field",
+              "op"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "query_string": {
+          "type": "string"
+        },
+        "dsl": {
+          "type": "object",
+          "additionalProperties": {}
+        },
+        "page": {
+          "type": "integer",
+          "exclusiveMinimum": 0,
+          "default": 1
+        },
+        "page_size": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 100,
+          "default": 20
+        },
+        "sort_field": {
+          "$ref": "#/properties/bk_tenant_id"
+        },
+        "descending": {
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "resource",
+        "bk_tenant_id"
+      ],
+      "additionalProperties": false,
+      "$schema": "http://json-schema.org/draft-07/schema#"
+    },
+    "summary": "分页查询事件、告警或执行记录",
+    "example": {
+      "resource": "alert",
+      "bk_tenant_id": "system"
+    }
+  },
+  "detail": {
+    "schema": {
+      "type": "object",
+      "properties": {
+        "resource": {
+          "type": "string",
+          "enum": [
+            "event",
+            "alert",
+            "action"
+          ]
+        },
+        "bk_tenant_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "target": {
+          "$ref": "#/properties/bk_tenant_id"
+        },
+        "id": {
+          "$ref": "#/properties/bk_tenant_id"
+        }
+      },
+      "required": [
+        "resource",
+        "bk_tenant_id",
+        "id"
+      ],
+      "additionalProperties": false,
+      "$schema": "http://json-schema.org/draft-07/schema#"
+    },
+    "summary": "读取记录详情",
+    "example": {
+      "resource": "alert",
+      "bk_tenant_id": "system",
+      "id": "demo-alert"
+    }
+  },
+  "fields": {
+    "schema": {
+      "type": "object",
+      "properties": {
+        "resource": {
+          "type": "string",
+          "enum": [
+            "event",
+            "alert",
+            "action"
+          ]
+        },
+        "bk_tenant_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "target": {
+          "$ref": "#/properties/bk_tenant_id"
+        }
+      },
+      "required": [
+        "resource",
+        "bk_tenant_id"
+      ],
+      "additionalProperties": false,
+      "$schema": "http://json-schema.org/draft-07/schema#"
+    },
+    "summary": "查询字段及聚合能力",
+    "example": {
+      "resource": "alert",
+      "bk_tenant_id": "system"
+    }
+  },
+  "aggregate": {
+    "schema": {
+      "type": "object",
+      "properties": {
+        "resource": {
+          "type": "string",
+          "enum": [
+            "event",
+            "alert",
+            "action"
+          ]
+        },
+        "bk_tenant_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "target": {
+          "$ref": "#/properties/bk_tenant_id"
+        },
+        "filters": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "field": {
+                "$ref": "#/properties/bk_tenant_id"
+              },
+              "op": {
+                "type": "string",
+                "enum": [
+                  "eq",
+                  "ne",
+                  "contains",
+                  "range",
+                  "exists",
+                  "missing"
+                ]
+              },
+              "value": {
+                "anyOf": [
+                  {
+                    "type": [
+                      "string",
+                      "number",
+                      "boolean"
+                    ]
+                  },
+                  {
+                    "type": "array",
+                    "items": {
+                      "$ref": "#/properties/filters/items/properties/value/anyOf/0"
+                    }
+                  },
+                  {
+                    "type": "object",
+                    "properties": {
+                      "gte": {
+                        "$ref": "#/properties/filters/items/properties/value/anyOf/0"
+                      },
+                      "lte": {
+                        "$ref": "#/properties/filters/items/properties/value/anyOf/0"
+                      }
+                    },
+                    "additionalProperties": false
+                  }
+                ]
+              }
+            },
+            "required": [
+              "field",
+              "op"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "query_string": {
+          "type": "string"
+        },
+        "dsl": {
+          "type": "object",
+          "additionalProperties": {}
+        },
+        "fields": {
+          "type": "array",
+          "items": {
+            "$ref": "#/properties/bk_tenant_id"
+          }
+        },
+        "kind": {
+          "type": "string",
+          "enum": [
+            "groups",
+            "top",
+            "trend",
+            "total"
+          ]
+        },
+        "size": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 100
+        },
+        "after": {
+          "$ref": "#/properties/dsl"
+        },
+        "time_field": {
+          "$ref": "#/properties/bk_tenant_id"
+        },
+        "interval": {
+          "type": "string",
+          "enum": [
+            "1m",
+            "5m",
+            "1h",
+            "1d"
+          ]
+        }
+      },
+      "required": [
+        "resource",
+        "bk_tenant_id",
+        "kind"
+      ],
+      "additionalProperties": false,
+      "$schema": "http://json-schema.org/draft-07/schema#"
+    },
+    "summary": "按字段组合或时间计数",
+    "example": {
+      "resource": "alert",
+      "bk_tenant_id": "system",
+      "kind": "groups",
+      "fields": [
+        "status"
+      ]
+    }
+  },
+  "indices": {
+    "schema": {
+      "type": "object",
+      "properties": {
+        "resource": {
+          "type": "string",
+          "enum": [
+            "event",
+            "alert",
+            "action"
+          ]
+        },
+        "bk_tenant_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "target": {
+          "$ref": "#/properties/bk_tenant_id"
+        },
+        "page": {
+          "type": "integer",
+          "exclusiveMinimum": 0,
+          "default": 1
+        },
+        "page_size": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 100,
+          "default": 20
+        },
+        "include_mapping": {
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "resource",
+        "bk_tenant_id"
+      ],
+      "additionalProperties": false,
+      "$schema": "http://json-schema.org/draft-07/schema#"
+    },
+    "summary": "查看索引和 mapping",
+    "example": {
+      "resource": "alert",
+      "bk_tenant_id": "system"
+    }
+  },
+  "aliases": {
+    "schema": {
+      "type": "object",
+      "properties": {
+        "resource": {
+          "type": "string",
+          "enum": [
+            "event",
+            "alert",
+            "action"
+          ]
+        },
+        "bk_tenant_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "target": {
+          "$ref": "#/properties/bk_tenant_id"
+        },
+        "page": {
+          "type": "integer",
+          "exclusiveMinimum": 0,
+          "default": 1
+        },
+        "page_size": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 100,
+          "default": 20
+        }
+      },
+      "required": [
+        "resource",
+        "bk_tenant_id"
+      ],
+      "additionalProperties": false,
+      "$schema": "http://json-schema.org/draft-07/schema#"
+    },
+    "summary": "查看读写别名及物理索引",
+    "example": {
+      "resource": "alert",
+      "bk_tenant_id": "system"
+    }
+  },
+  "alert_logs": {
+    "schema": {
+      "type": "object",
+      "properties": {
+        "resource": {
+          "type": "string",
+          "enum": [
+            "event",
+            "alert",
+            "action"
+          ]
+        },
+        "bk_tenant_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "target": {
+          "$ref": "#/properties/bk_tenant_id"
+        },
+        "alert_id": {
+          "$ref": "#/properties/bk_tenant_id"
+        },
+        "page": {
+          "type": "integer",
+          "exclusiveMinimum": 0,
+          "default": 1
+        },
+        "page_size": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 100,
+          "default": 20
+        },
+        "op_type": {
+          "$ref": "#/properties/bk_tenant_id"
+        },
+        "start": {
+          "type": "number"
+        },
+        "end": {
+          "type": "number"
+        }
+      },
+      "required": [
+        "resource",
+        "bk_tenant_id",
+        "alert_id"
+      ],
+      "additionalProperties": false,
+      "$schema": "http://json-schema.org/draft-07/schema#"
+    },
+    "summary": "根据告警归属读取流转日志",
+    "example": {
+      "resource": "alert",
+      "bk_tenant_id": "system",
+      "alert_id": "demo-alert"
+    }
+  }
+}

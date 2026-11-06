@@ -87,6 +87,7 @@ export default {
   '对该配置增/删目标,成功{0}个实例,失败{1}个实例':
     'adding/deleting targets to this configuration, {0} instances succeeded, failed{ 1} instances',
   '即将上线，敬请期待': 'Coming soon, stay tuned',
+  敬请期待: 'Coming soon',
   '组合策略功能暂未开放，敬请期待！': 'The combined rule function is not yet open, please look forward to it!',
   '邮件任务已生成，请一分钟后到邮箱查看': 'The email task has been generated, please check your mailbox in one minute',
   '迁移完成，请确认迁移结果': 'Migration completed, please confirm the migration result',
@@ -161,6 +162,7 @@ export default {
   '当前空间未开启故障诊断功能, 请联系': 'The current space does not support this function. please contact',
   BK助手: 'BK Assistant',
   'BK 助手': 'BK Assistant',
+  产品白皮书: 'Product White Paper',
   当前告警关联故障: 'Current alarm associated fault',
   当前告警无关联故障: 'The current alarm has no associated faults',
   当前无异常事件: 'Currently no abnormal events',
@@ -272,6 +274,10 @@ export default {
   边图例: 'Edge Legend',
   从属关系: 'Subordinate',
   调用关系: 'Call',
+  传播关系: 'Propagation',
+  未知关系: 'Unknown relationship',
+  '从属／未知关系': 'Subordinate / unknown relationship',
+  '有向关系（调用／传播）': 'Directed relationship (call / propagation)',
   故障传播: 'Incident Spread',
   无故障传播: 'No Incident Spread',
   指向性: 'Directional',
@@ -542,4 +548,28 @@ export default {
     'After the group is deleted, the related metrics will be moved to <{name}>',
   '触发规则：仅当对应数据值大于 {threshold} 时触发告警':
     'Trigger rule: alarm is triggered only when the corresponding data value is greater than {threshold}',
+
+  '暂未关联蓝盾项目 & 源码仓库，{0}': 'No BK-DevOps project & source code repository has been associated yet, {0}',
+  '已关联蓝盾项目 & 源码仓库，{0}': 'BK-DevOps project & source code repository has been associated, {0}',
+
+  // AI 设置
+  暂无关联知识库: 'No knowledge base associated',
+  可绑定本空间有使用权限的知识库: 'You can bind knowledge bases with usage permissions in this space',
+  暂无关联Skill: 'No Skill associated',
+  '可绑定本空间有使用权限的 Skill': 'You can bind Skills with usage permissions in this space',
+  暂无关联智能体: 'No agent associated',
+  可绑定本空间有使用权限的智能体: 'You can bind agents with usage permissions in this space',
+  数据未变更: 'Data has not changed',
+  '数据未就绪，请稍后重试': 'Data is not ready, please try again later',
+  优先级不能为空: 'Priority cannot be empty',
+  匹配条件不能为空: 'Matching conditions cannot be empty',
+  请添加告警策略匹配规则: 'Please add alarm strategy matching rules',
+  请选择智能体: 'Please select an agent',
+  请选择知识库: 'Please select a knowledge base',
+  请选择Skill: 'Please select a Skill',
+  请输入优先级: 'Please enter the priority',
+  '优先级需在1-10000之间': 'The priority must be between 1 and 10000',
+  '正在拉取来源构建、提交历史与 Blame 信息': 'Pulling source build, commit history, and blame information',
+  '重新分析将基于最新告警重新触发 AI 源码分析，是否继续？':
+    'Re-analysis will trigger AI source code analysis based on the latest alerts. Do you want to continue?',
 };

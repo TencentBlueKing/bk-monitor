@@ -5,6 +5,14 @@
   flex-direction: column;
   background-color: #fff;
 
+  .explore-chart-refresh {
+    position: absolute;
+    inset: 0;
+    z-index: 2;
+    display: flex;
+    background: #fff;
+  }
+
   .empty-chart {
     display: flex;
     align-items: center;

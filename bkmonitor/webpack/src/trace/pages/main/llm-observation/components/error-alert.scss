@@ -1,0 +1,84 @@
+@import '../../../../theme/theme';
+@import '../../../../theme/mixin';
+
+.llm-error-alert {
+  flex-shrink: 0;
+  width: 100%;
+  margin-top: 16px;
+  background: #fff0f0;
+  border-color: #f8b4b4;
+
+  .bk-alert-wraper {
+    align-items: flex-start;
+    padding: 6px 8px;
+  }
+
+  .bk-alert-icon-info {
+    margin-top: 2px;
+    margin-right: 8px;
+  }
+
+  .bk-alert-content,
+  .bk-alert-title {
+    min-width: 0;
+  }
+
+  .bk-alert-title {
+    width: 100%;
+    line-height: 20px;
+  }
+
+  &-body {
+    gap: 10px;
+    width: 100%;
+    min-width: 0;
+
+    @include flex-align(center);
+  }
+
+  &.is-expanded &-body {
+    align-items: flex-start;
+  }
+
+  &-text {
+    flex: 1;
+    min-width: 0;
+    margin: 0;
+    font-family: 'Microsoft YaHei', sans-serif;
+    font-size: $font-size-base;
+    line-height: 20px;
+    color: #4d4f56;
+    overflow-wrap: break-word;
+
+    @include ellipsis;
+  }
+
+  &.is-expanded &-text {
+    overflow: visible;
+    text-overflow: unset;
+    white-space: pre-wrap;
+  }
+
+  &-label {
+    color: #ea3636;
+  }
+
+  &-expand {
+    flex-shrink: 0;
+    gap: 4px;
+    font-family: 'Microsoft YaHei', sans-serif;
+    font-size: $font-size-base;
+    line-height: 20px;
+    color: $primary-color;
+    white-space: nowrap;
+    cursor: pointer;
+
+    @include flex-align(center);
+
+    .icon-monitor {
+      flex-shrink: 0;
+      font-size: 14px;
+      line-height: 1;
+    }
+  }
+}

@@ -74,6 +74,7 @@ BkMonitorQuerySchema = Schema(
                 Optional("functions", default=lambda: []): [str],
                 Optional("where", default=""): str,
                 Optional("alias", default="a"): str,
+                Optional("expression_mode"): "promql",
                 Optional("time_field"): str,
                 Optional("unit", default=""): str,
                 Optional("dashboard_uid", default=""): str,
@@ -116,6 +117,11 @@ IssueConfigSchema = {
 def validate_strategy_version(data):
     if "query_output_config" in data["query"] and data["version"] != MaxVersion.STRATEGY:
         raise SchemaError([], "query.query_output_config requires strategy version 1.1 or later")
+    if (
+        any("expression_mode" in config for config in data["query"]["query_configs"])
+        and data["version"] != MaxVersion.STRATEGY
+    ):
+        raise SchemaError([], "query.query_configs[].expression_mode requires strategy version 1.1 or later")
     return True
 
 

@@ -63,10 +63,10 @@ export default defineComponent({
     ]);
 
     const checkName = () => {
-      if (formData.value.matchKey === '') {
+      if (formData.value.key === '') {
         return true;
       }
-      return LABEL_NAME_REGEX.test(formData.value.matchKey);
+      return LABEL_NAME_REGEX.test(formData.value.key);
     };
 
     // 表单验证规则
@@ -96,6 +96,9 @@ export default defineComponent({
 
     const handleOperateChange = (val: string) => {
       formData.value.operator = val;
+      if (['Exists', 'DoesNotExist'].includes(val)) {
+        formData.value.value = '';
+      }
       emit('change', formData.value);
     };
 

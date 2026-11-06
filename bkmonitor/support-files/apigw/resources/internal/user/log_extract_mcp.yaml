@@ -28,6 +28,7 @@ paths:
           userVerifiedRequired: true
           appVerifiedRequired: false
           resourcePermissionRequired: true
+          oauth2PersonalClientEnabled: true
 
   /mcp/search_log_extract_hosts/:
     post:
@@ -73,6 +74,7 @@ paths:
           userVerifiedRequired: true
           appVerifiedRequired: false
           resourcePermissionRequired: true
+          oauth2PersonalClientEnabled: true
 
   /mcp/list_log_extract_allowed_paths/:
     post:
@@ -196,6 +198,7 @@ paths:
           userVerifiedRequired: true
           appVerifiedRequired: false
           resourcePermissionRequired: true
+          oauth2PersonalClientEnabled: true
 
   /mcp/search_log_extract_files/:
     post:
@@ -441,6 +444,7 @@ paths:
           userVerifiedRequired: true
           appVerifiedRequired: false
           resourcePermissionRequired: true
+          oauth2PersonalClientEnabled: true
 
   /mcp/get_log_extract_download_url/:
     post:

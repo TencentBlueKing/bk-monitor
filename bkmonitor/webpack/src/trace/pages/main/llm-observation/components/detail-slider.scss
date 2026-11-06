@@ -1,0 +1,58 @@
+@import '../../../../theme/theme';
+@import '../../../../theme/mixin';
+
+/* Sideslider transfer 到 body，需保持顶层选择器 */
+.llm-detail-slider {
+  .bk-sideslider-title {
+    padding-right: 16px;
+  }
+}
+
+.llm-detail-slider-header {
+  justify-content: space-between;
+  width: 100%;
+  min-width: 0;
+
+  @include flex-align(center);
+}
+
+.llm-detail-slider-title {
+  min-width: 0;
+
+  @include ellipsis;
+}
+
+.llm-detail-slider-copy {
+  flex-shrink: 0;
+  gap: 2px;
+  align-items: center;
+  margin-left: 12px;
+  font-size: $font-size-base;
+  line-height: 16px;
+  color: $primary-color;
+  cursor: pointer;
+  user-select: none;
+
+  @include flex-column;
+
+  .icon-monitor {
+    font-size: $font-size-medium;
+    line-height: 1;
+  }
+}
+
+.llm-detail-slider-text,
+.llm-detail-slider-json {
+  padding: 16px 24px 24px;
+  overflow: auto;
+}
+
+.llm-detail-slider-text {
+  margin: 0;
+  font-family: arial, sans-serif;
+  font-size: $font-size-base;
+  line-height: 20px;
+  color: #4e5e7a;
+  overflow-wrap: break-word;
+  white-space: pre-wrap;
+}

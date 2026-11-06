@@ -7,11 +7,16 @@ paths:
         target_node_type, target_nodes and params; Windows also needs collector_scenario_id=wineventlog
         and params.winlog_name. Container needs bcs_cluster_id and configs (each item needs params + collector_type).
         Namespaces vs namespaces_exclude and container_name vs container_name_exclude are mutually exclusive.
-        Storage cluster, retention, shards, replicas, etl_config, data link and caller identity are not configurable;
-        parent_index_set_ids may attach the generated index set to existing index groups. The new collector is always
-        bk_log_text on the default storage.
+        storage_cluster_id, retention (days), es_shards and storage_replies are optional storage settings;
+        storage_cluster_id must be visible to the requested business, values above the selected cluster storage
+        limits are rejected. With an explicit storage_cluster_id, omitted settings use the cluster's setup_config
+        defaults when available; otherwise BKLOG defaults apply. storage_replies=0 disables replicas.
+        etl_config, data link and caller identity are not configurable; parent_index_set_ids may attach the
+        generated index set to existing index groups. The new collector is always bk_log_text.
         Then call get_log_collector and get_log_collector_status. Cannot create redis_slowlog / syslog
-        / kafka / custom / client. 创建采集项。存储和清洗不可指定，新建结果一定是直接入库 + 默认集群。不能创建 Redis/Syslog/Kafka/自定义上报。
+        / kafka / custom / client. 创建采集项。存储集群、保留天数、分片数和副本数可选填，存储集群须在业务可见的存储集群范围内，
+        上限取自所选集群的存储配置、超出即拒绝；显式指定集群时，未传参数优先使用该集群 setup_config 中的默认值，
+        默认值缺失或未指定集群时沿用 BKLOG 默认值。副本数支持 0。清洗固定为直接入库。不能创建 Redis/Syslog/Kafka/自定义上报。
       tags:
       - log_collection_mcp
       requestBody:
@@ -93,6 +98,40 @@ paths:
                   description: >-
                     Existing index group IDs. Omit or send [] to leave the generated index set ungrouped.
                     已有索引组 ID 列表。不传或传 [] 表示不加入索引组。
+                storage_cluster_id:
+                  type: integer
+                  minimum: 1
+                  description: >-
+                    Optional storage cluster ID for Linux, Windows and container collectors. It must be visible to the
+                    requested business, otherwise the create is rejected. Omit to use BKLOG's business-visible
+                    public-cluster selection. 存储集群 ID，正整数；须在业务可见的存储集群范围内，不可见时创建前即被拒绝；不传时沿用 BKLOG 在业务可见公共集群中选取的策略。
+                retention:
+                  type: integer
+                  minimum: 1
+                  description: >-
+                    Optional log retention in days, at least 1. The upper bound comes from the selected storage
+                    cluster retention setting (7 days by default for public clusters) and an over-limit value is
+                    rejected. When omitted with an explicit storage_cluster_id, use the cluster's retention_days_default
+                    if available; otherwise use BKLOG's existing retention default. 日志保留天数，至少 1 天；上限取自所选存储集群的保留期配置
+                    （公共集群默认 7 天），超出上限会被拒绝。显式指定集群但未传本参数时，优先使用集群的 retention_days_default；默认值缺失或未指定集群时沿用 BKLOG 默认保留期。
+                es_shards:
+                  type: integer
+                  minimum: 1
+                  description: >-
+                    Optional ES primary shard count, at least 1. The upper bound comes from the selected storage
+                    cluster shard limit and an over-limit value is rejected. When omitted with an explicit
+                    storage_cluster_id, use the cluster's es_shards_default if available; otherwise use BKLOG's existing
+                    shard default. ES 主分片数，至少 1；上限取自所选存储集群的分片上限配置，超出上限会被拒绝。
+                    显式指定集群但未传本参数时，优先使用集群的 es_shards_default；默认值缺失或未指定集群时沿用 BKLOG 默认分片数。
+                storage_replies:
+                  type: integer
+                  minimum: 0
+                  description: >-
+                    Optional ES replica count, at least 0. Set 0 to disable replicas. The upper bound comes from the
+                    selected storage cluster replica limit and an over-limit value is rejected. When omitted with an
+                    explicit storage_cluster_id, use the cluster's number_of_replicas_default if available; otherwise
+                    use BKLOG's existing replica default. ES 副本数，允许 0；0 表示不设置副本。上限取自所选存储集群的副本上限配置，
+                    超出上限会被拒绝。显式指定集群但未传本参数时，优先使用集群的 number_of_replicas_default；默认值缺失或未指定集群时沿用 BKLOG 默认副本数。
                 target_object_type:
                   type: string
                   description: >-

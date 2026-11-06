@@ -34,7 +34,9 @@ import { useRoute } from 'vue-router/composables';
 import ClusterTypeTabs from '../../../es-cluster/cluster-manage/cluster-type-tabs.tsx';
 import { CLUSTER_TYPES, ClusterType, useClusterType } from '../../../es-cluster/cluster-manage/use-cluster-type';
 import { useOperation } from '../../hook/useOperation';
-import { showMessage } from '../../utils';
+import { showClusterSelectError } from '@/common/collector-api-error';
+import { getFormValidateMessage } from '../../save-failure';
+import { showCollectSaveFailure, showMessage, showUnshownRequestError } from '../../utils';
 import ClusterTable from '../business-comp/step4/cluster-table';
 import { deepEqual } from '@/common/util';
 import $http from '@/api';
@@ -323,13 +325,13 @@ export default defineComponent({
 
       try {
         loading.value = true;
-        const res = await $http.request('collect/getStorage', { query: queryParams });
+        const res = await $http.request('collect/getStorage', { query: queryParams }, { catchIsShowMessage: false });
 
         if (res.data) {
           storageList.value = sortByPermission(res.data);
         }
       } catch (error) {
-        showMessage(error.message, 'error');
+        showClusterSelectError(error);
       } finally {
         loading.value = false;
       }
@@ -419,9 +421,13 @@ export default defineComponent({
       const isStorageEdit = isEditMode.value && !!route.query.step;
       if (isStorageEdit) {
         await $http
-          .request('collect/details', {
-            params: { collector_config_id: route.params.collectorId },
-          })
+          .request(
+            'collect/details',
+            {
+              params: { collector_config_id: route.params.collectorId },
+            },
+            { catchIsShowMessage: false },
+          )
           .then(res => {
             if (res?.data) {
               store.commit('collect/setCurCollect', res.data);
@@ -436,6 +442,9 @@ export default defineComponent({
               };
               clusterSelect.value = storageClusterId;
             }
+          })
+          .catch(error => {
+            showClusterSelectError(error);
           });
       }
       await handleTabClick(clusterType ?? activeTab.value, true);
@@ -680,6 +689,7 @@ export default defineComponent({
         })
         .then(res => {
           if (!res?.result) {
+            showCollectSaveFailure(res, t('保存失败'));
             callback?.(false);
             return;
           }
@@ -691,7 +701,8 @@ export default defineComponent({
             emit('cancel');
           }
         })
-        .catch(() => {
+        .catch(err => {
+          showUnshownRequestError(err, t('保存失败'));
           callback?.(false);
         })
         .finally(() => {
@@ -764,10 +775,12 @@ export default defineComponent({
               store.commit('collect/updateCurCollect', { ...formData.value, ...data, ...res.data });
             }
           } else {
+            showCollectSaveFailure(res, t('保存失败'));
             callback?.(false);
           }
         })
-        .catch(() => {
+        .catch(err => {
+          showUnshownRequestError(err, t('保存失败'));
           callback?.(false);
         })
         .finally(() => {
@@ -789,7 +802,8 @@ export default defineComponent({
       // 表单校验
       try {
         await storageFormRef.value?.validate();
-      } catch {
+      } catch (err) {
+        showMessage(getFormValidateMessage(err, t('请完善存储配置')), 'error');
         callback?.(false);
         return;
       }

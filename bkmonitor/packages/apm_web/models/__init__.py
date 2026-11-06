@@ -8,6 +8,7 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 
+from .active_collection import *  # noqa
 from .application import *  # noqa
 from .profile import *  # noqa
 from .service import *  # noqa

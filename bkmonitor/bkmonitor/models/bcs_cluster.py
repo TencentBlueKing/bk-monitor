@@ -39,6 +39,7 @@ class BCSClusterManager(BCSBaseManager):
 
 
 class BCSCluster(BCSBase):
+    SYNC_IDENTITY_FIELDS = ("bk_tenant_id", "bcs_cluster_id")
     bk_tenant_id = models.CharField(verbose_name="租户ID", max_length=128, default=DEFAULT_TENANT_ID)
     name = models.CharField(verbose_name="集群名称", max_length=128)
     area_name = models.CharField(verbose_name="区域", max_length=32)
@@ -227,7 +228,7 @@ class BCSCluster(BCSBase):
         bk_tenant_id = params["bk_tenant_id"]
         bk_biz_id = params.get("bk_biz_id")
         request_params = {
-            "data_type": "full",
+            "data_type": "simple",
             "bk_tenant_id": bk_tenant_id,
         }
         if bk_biz_id:

@@ -22,6 +22,8 @@
 | output_tokens | 输出 Token 数 |
 | total_tokens | Token 总数 |
 | cache_tokens | 缓存 Token 数 |
+| cache_read_input_tokens | 缓存读取 Token 数 |
+| cache_write_input_tokens | 缓存写入 Token 数 |
 | request_count | 请求数 / 提问数 |
 | model_call_count | 模型调用次数 |
 | duration | 模型调用耗时，单位为微秒（μs） |

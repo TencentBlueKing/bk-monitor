@@ -23,7 +23,6 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-
 import { Component, Emit, Inject, InjectReactive, Prop, Ref } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
@@ -769,6 +768,7 @@ export default class CommonTable extends tsc<ICommonTableProps, ICommonTableEven
   handleSetFormatter(id: string, row: TableRow) {
     const column = this.columns.find(item => item.id === id);
     if (!column) return '--';
+    if (column.asyncable && this.$scopedSlots.asyncLoading) return this.$scopedSlots.asyncLoading({ column, row });
     if (column.asyncable)
       return (
         <img
@@ -857,7 +857,7 @@ export default class CommonTable extends tsc<ICommonTableProps, ICommonTableEven
   renderRowExpand() {
     return data => {
       // data数据为空则展示提示内容
-      if (!!this.jsonViewerDataKey && data.row[this.jsonViewerDataKey] === null) {
+      if (this.jsonViewerDataKey && data.row[this.jsonViewerDataKey] === null) {
         return <span style='color:#c4c6cc'>{this.jsonViewerDataEmptyText}</span>;
       }
 

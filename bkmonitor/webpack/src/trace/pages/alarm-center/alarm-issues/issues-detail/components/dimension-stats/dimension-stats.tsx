@@ -26,6 +26,9 @@
 
 import { type PropType, defineComponent, reactive, shallowRef } from 'vue';
 
+import IssuesLoading from '../issues-loading';
+import { DetailLoadStatus } from '../../../../common-detail/detail-loading';
+
 import BasicCard from '../basic-card/basic-card';
 import EmptyStatus from '@/components/empty-status/empty-status';
 
@@ -37,11 +40,15 @@ const COLOR_LIST = ['#3A84FF', '#52BDAE', '#FAC20A', '#FF7763', '#DC94DA', '#75C
 export default defineComponent({
   name: 'DimensionStats',
   props: {
+    loading: Boolean,
+    loaded: Boolean,
+    error: Boolean,
     data: {
       type: Array as PropType<AnalysisListItem[]>,
       default: () => [],
     },
   },
+  emits: { retry: () => true },
   setup() {
     const popoverList = shallowRef<AnalysisListItemBucket[]>([]);
 
@@ -81,8 +88,10 @@ export default defineComponent({
         class='dimension-stats'
         title={this.$t('维度统计')}
       >
+        <DetailLoadStatus loading={this.loading && this.loaded} error={this.error} onRetry={() => this.$emit('retry')} />
+        {this.loading && !this.loaded && <IssuesLoading variant='dimensions' />}
         {/* 内容 */}
-        <div class='stats-body'>
+        {this.loaded && <div class='stats-body'>
           {this.data.map(row => (
             <div
               key={row.field}
@@ -123,6 +132,7 @@ export default defineComponent({
           {!this.data.length && <EmptyStatus type='empty' />}
         </div>
 
+        }
         {/* Tooltip */}
         <div
           style={{

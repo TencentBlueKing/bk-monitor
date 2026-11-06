@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2025 Tencent. All rights reserved.
@@ -8,9 +7,13 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
+
 import logging
 
-LOG = logging.getLogger('component')
+from django.apps import apps
+from django.conf import settings
+
+LOG = logging.getLogger("component")
 
 
 # 重写bkoauth.update_user_access_token,消除原bkoauth产生的大量MissingSchema异常堆栈
@@ -21,16 +24,23 @@ def update_user_access_token(sender, request, user, *args, **kwargs):
 
     try:
         access_token = oauth_client.get_access_token(request)
-        LOG.info('user logged in get access_token success: %s' % access_token)
+        LOG.info(f"user logged in get access_token success: {access_token}")
     except TokenAPIError as error:
-        LOG.error('user logged in get access_token failed: %s' % error)  # 改用error级别记录，消除MissingSchema异常堆栈
+        LOG.error(f"user logged in get access_token failed: {error}")  # 改用error级别记录，消除MissingSchema异常堆栈
 
 
 def patch_bkoauth_update_user_access_token(*args, **kwargs):
+    # 未启用时不要导入 signals，避免为 Open 的普通登录意外注册换票回调。
+    if settings.RUN_VER == "open" and not apps.is_installed("bkoauth"):
+        return
+
     from bkoauth.signals import (
         update_user_access_token as original_update_user_access_token,
     )
     from django.contrib.auth.signals import user_logged_in
 
     user_logged_in.disconnect(original_update_user_access_token)  # 断开原先的信号连接
+    if settings.RUN_VER == "open":
+        user_logged_in.disconnect(update_user_access_token)
+        return
     user_logged_in.connect(update_user_access_token)  # 连接至自定义实现的update_user_access_token

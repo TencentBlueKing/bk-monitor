@@ -32,13 +32,13 @@ import { serviceList, serviceListAsync } from 'monitor-api/modules/apm_metric';
 import { commonPageSizeGet, commonPageSizeSet } from 'monitor-common/utils';
 import { Debounce } from 'monitor-common/utils/utils';
 import EmptyStatus from 'monitor-pc/components/empty-status/empty-status';
-import TableSkeleton from 'monitor-pc/components/skeleton/table-skeleton';
 import { handleTransformToTimestamp } from 'monitor-pc/components/time-range/utils';
 import CommonTable from 'monitor-pc/pages/monitor-k8s/components/common-table';
 import FilterPanel, { type IFilterData } from 'monitor-pc/pages/strategy-config/strategy-config-list/filter-panel';
 import { NODE_TYPE_ICON } from 'monitor-ui/chart-plugins/utils';
 
 import authorityStore from '../../../store/modules/authority';
+import ApmHomeSkeleton from '../skeleton/apm-home-skeleton';
 import ApmHomeResizeLayout from './apm-home-resize-layout';
 
 import type { IAppListItem } from '../typings/app';
@@ -53,6 +53,7 @@ interface IProps {
   appName: string;
   authority: boolean;
   authorityDetail: string;
+  refreshKey?: number;
   timeRange?: TimeRangeType;
 }
 
@@ -74,6 +75,7 @@ export default class ApmServiceList extends tsc<
   })
   appName: string;
   @Prop() timeRange: TimeRangeType;
+  @Prop({ type: Number, default: 0 }) refreshKey: number;
   @Prop({ type: Boolean }) authority: boolean;
   @Prop({ type: String }) authorityDetail: string;
   @Ref() mainResize: InstanceType<typeof ApmHomeResizeLayout>;
@@ -82,6 +84,9 @@ export default class ApmServiceList extends tsc<
   searchKeyWord = '';
 
   loading = true;
+  listLoaded = false;
+  listError = false;
+  requestId = 0;
 
   showFilterPanel = true;
 
@@ -115,7 +120,7 @@ export default class ApmServiceList extends tsc<
     this.getLinkData();
   }
   get isConnecting() {
-    return !this.appData.metric_result_table_id && !this.appData.trace_result_table_id;
+    return !this.appData?.metric_result_table_id && !this.appData?.trace_result_table_id;
   }
 
   @Provide('handleShowAuthorityDetail')
@@ -128,9 +133,13 @@ export default class ApmServiceList extends tsc<
     if (this.appName) {
       this.handleResetRoute();
       this.filterLoading = true;
+      this.listLoaded = false;
+      this.tableData = [];
+      this.tableColumns = [];
       this.getServiceList();
     }
   }
+  @Watch('refreshKey')
   @Watch('timeRange')
   onTimeRangeChange() {
     if (this.appName) {
@@ -289,7 +298,10 @@ export default class ApmServiceList extends tsc<
    *@description 获取服务列表
    */
   async getServiceList() {
+    if (!this.appName) return;
+    const requestId = ++this.requestId;
     this.loading = true;
+    this.listError = false;
     const [startTime, endTime] = handleTransformToTimestamp(this.timeRange);
     const params = {
       app_name: this.appName,
@@ -307,66 +319,71 @@ export default class ApmServiceList extends tsc<
     };
     this.cancelTokenSource?.cancel?.();
     this.cancelTokenSource = axios.CancelToken.source();
-    const { columns, data, total, filter } = await serviceList(params, { cancelToken: this.cancelTokenSource.token })
-      .catch(() => {
-        this.filterLoading = false;
-        return {
-          columns: [],
-          data: [],
-          total: 0,
-          filter: [],
-        };
-      })
-      .finally(() => {
-        this.loading = false;
-      });
-    this.tableData = data;
-    this.tableColumns = columns;
-    this.pagination.count = total;
-    // 只需要首次给值
-    if (this.filterLoading) {
-      this.filterList = filter;
+    try {
+      const { columns, data, total, filter } = await serviceList(params, { cancelToken: this.cancelTokenSource.token });
+      if (requestId !== this.requestId) return;
+      this.tableData = data;
+      this.tableColumns = columns;
+      this.pagination.count = total;
+      if (this.filterLoading) this.filterList = filter;
+      this.listLoaded = true;
+      this.loadAsyncData(startTime, endTime, requestId);
+      this.onRouteUrlChange();
+      this.firstRequest = false;
+    } catch (error) {
+      if (requestId !== this.requestId || axios.isCancel(error)) return;
+      this.listError = true;
+      this.filterLoading = false;
+    } finally {
+      if (requestId === this.requestId) this.loading = false;
     }
-    this.loadAsyncData(startTime, endTime);
-    this.onRouteUrlChange();
-    this.firstRequest = false;
   }
 
-  loadAsyncData(startTime: number, endTime: number) {
-    // const fields = (this.tableColumns || []).filter(col => col.asyncable).map(val => val.id);
-    const fields = (this.tableColumns || [])
-      .filter(col => col.asyncable)
-      .reduce((fieldArr, val) => {
-        // 指标、日志、调用链、性能分析列的入参，统一使用data_status
-        if (['log_data_status', 'metric_data_status', 'trace_data_status', 'profiling_data_status'].includes(val.id)) {
-          !fieldArr.includes('data_status') && fieldArr.push('data_status');
-        } else {
-          fieldArr.push(val.id);
+  async loadAsyncData(startTime: number, endTime: number, requestId: number) {
+    const statusFields = ['log_data_status', 'metric_data_status', 'trace_data_status', 'profiling_data_status'];
+    const fields = [
+      ...new Set(
+        this.tableColumns
+          .filter(col => col.asyncable)
+          .map(col => (statusFields.includes(col.id) ? 'data_status' : col.id))
+      ),
+    ];
+    const services = this.tableData.map(d => d.service_name.value);
+    const valueTitleList = this.tableColumns.map(item => ({ id: item.id, name: item.name }));
+    if (!fields.includes('data_status')) this.filterLoading = false;
+    await Promise.allSettled(
+      fields.map(async field => {
+        try {
+          const serviceData = await serviceListAsync(
+            {
+              app_name: this.appName,
+              start_time: startTime,
+              end_time: endTime,
+              column: field,
+              service_names: services,
+              filter_keys: field === 'data_status' ? ['have_data', 'apply_module'] : [],
+            },
+            { cancelToken: this.cancelTokenSource.token }
+          );
+          if (requestId !== this.requestId) return;
+          this.mapAsyncData(serviceData, field, valueTitleList);
+        } finally {
+          if (requestId === this.requestId) {
+            for (const column of this.tableColumns) {
+              if (column.id === field || (field === 'data_status' && statusFields.includes(column.id))) {
+                column.asyncable = false;
+              }
+            }
+            if (field === 'data_status') this.filterLoading = false;
+          }
         }
-        return fieldArr;
-      }, []);
-    const services = (this.tableData || []).map(d => d.service_name.value);
-    const valueTitleList = this.tableColumns.map(item => ({
-      id: item.id,
-      name: item.name,
-    }));
-    for (const field of fields) {
-      // data_status，增加filter_keys选项获取左侧筛选 数据上报、数据状态 的全量数据
-      const filter_keys = field === 'data_status' ? ['have_data', 'apply_module'] : [];
-      serviceListAsync(
-        {
-          app_name: this.appName,
-          start_time: startTime,
-          end_time: endTime,
-          column: field, // 指标、日志、调用链、性能分析列的入参，统一使用data_status
-          service_names: services,
-          filter_keys,
-        },
-        { cancelToken: this.cancelTokenSource.token }
-      ).then(serviceData => {
-        this.mapAsyncData(serviceData, field, valueTitleList);
-      });
-    }
+      })
+    );
+  }
+
+  beforeDestroy() {
+    this.requestId++;
+    this.cancelTokenSource?.cancel?.();
   }
 
   /**
@@ -463,30 +480,11 @@ export default class ApmServiceList extends tsc<
    * @param dataMap 数据map
    */
   renderTableBatchByBatch(field: string, dataMap: Record<string, any> = {}) {
-    const setData = (currentIndex = 0) => {
-      let needBreak = false;
-      if (currentIndex <= this.tableData.length && this.tableData.length) {
-        const endIndex = Math.min(currentIndex + 1, this.tableData.length);
-        for (let i = currentIndex; i < endIndex; i++) {
-          const item = this.tableData[i];
-          item[field] = dataMap[String(item.service_name.value || '')] || null;
-          needBreak = i === this.tableData.length - 1;
-        }
-        if (!needBreak) {
-          setTimeout(() => {
-            window.requestAnimationFrame(() => {
-              setData(endIndex);
-            });
-          }, 300);
-        } else {
-          this.tableColumns.find(col => col.id === field).asyncable = false;
-        }
-      }
-    };
-    // const item = this.tableColumns.find(col => col.id === field);
-    // item.asyncable = false;
-    this.tableColumns.find(col => col.id === field).asyncable = false;
-    setData(0);
+    for (const item of this.tableData) {
+      item[field] = dataMap[String(item.service_name.value || '')] || null;
+    }
+    const column = this.tableColumns.find(col => col.id === field);
+    if (column) column.asyncable = false;
   }
 
   /**
@@ -570,10 +568,10 @@ export default class ApmServiceList extends tsc<
     return (
       <div class='apm-home-list'>
         <div class='header'>
-          {this.filterLoading || !this.appName ? (
+          {!this.appData ? (
             <div
               style='height: 32px; width: 240px'
-              class='skeleton-element'
+              class='apm-home-placeholder'
             />
           ) : (
             <div class='header-left'>
@@ -581,19 +579,19 @@ export default class ApmServiceList extends tsc<
               {this.appName ? <span>({this.appName})</span> : null}
             </div>
           )}
-          {this.filterLoading || !this.appData ? (
+          {!this.appData ? (
             <div style='display: flex;'>
               <div
                 style='height: 32px; width: 88px'
-                class='skeleton-element mr-8'
+                class='apm-home-placeholder mr-8'
               />
               <div
                 style='height: 32px; width: 88px'
-                class='skeleton-element mr-8'
+                class='apm-home-placeholder mr-8'
               />
               <div
                 style='height: 32px; width: 88px'
-                class='skeleton-element'
+                class='apm-home-placeholder'
               />
             </div>
           ) : (
@@ -680,40 +678,44 @@ export default class ApmServiceList extends tsc<
               class={['main-left-filter']}
               slot='aside'
             >
-              <FilterPanel
-                class='filter-panel-apm'
-                checkedData={this.checkedFilter}
-                data={this.filterList}
-                defaultActiveName={this.defaultActiveName}
-                show={this.filterShow}
-                showSkeleton={this.filterLoading}
-                on-change={this.handleSearchSelectChange}
-              >
-                <div
-                  class='filter-panel-header'
-                  slot='header'
-                  onClick={this.handleHidePanel}
+              {this.filterLoading ? (
+                <ApmHomeSkeleton kind='filters' />
+              ) : (
+                <FilterPanel
+                  class='filter-panel-apm'
+                  checkedData={this.checkedFilter}
+                  data={this.filterList}
+                  defaultActiveName={this.defaultActiveName}
+                  show={this.filterShow}
+                  showSkeleton={false}
+                  on-change={this.handleSearchSelectChange}
                 >
-                  <span class='folding'>
-                    <i class='icon-monitor icon-gongneng-shouqi' />
-                  </span>
-                  <span class='title'>{this.$t('筛选')}</span>
-                </div>
-              </FilterPanel>
+                  <div
+                    class='filter-panel-header'
+                    slot='header'
+                    onClick={this.handleHidePanel}
+                  >
+                    <span class='folding'>
+                      <i class='icon-monitor icon-gongneng-shouqi' />
+                    </span>
+                    <span class='title'>{this.$t('筛选')}</span>
+                  </div>
+                </FilterPanel>
+              )}
             </div>
             <div class={['main-left-table', { 'filter-panel-hide': !this.showFilterPanel }]}>
               <div class='app-list-content'>
                 <div class='app-list-content-top'>
-                  {this.filterLoading || !this.appData ? (
+                  {!this.appData ? (
                     [
                       <div
                         key='1'
-                        class='skeleton-element bts-skeleton'
+                        class='apm-home-placeholder bts-skeleton'
                       />,
                       <div
                         key='2'
                         style='margin-right: auto;min-width: 88px;'
-                        class='skeleton-element bts-skeleton'
+                        class='apm-home-placeholder bts-skeleton'
                       />,
                     ]
                   ) : (
@@ -777,11 +779,26 @@ export default class ApmServiceList extends tsc<
                       class='item-expand-wrap'
                     >
                       {
-                        <div class='expand-content'>
-                          {!this.loading ? (
+                        <div
+                          class={[
+                            'expand-content',
+                            'apm-loading-region',
+                            { 'is-refreshing': this.loading && this.listLoaded },
+                          ]}
+                          aria-busy={this.loading}
+                        >
+                          {!(this.loading && !this.listLoaded) ? (
                             <CommonTable
-                              style={{ display: !this.loading ? 'block' : 'none' }}
                               class='apm-index-table'
+                              scopedSlots={{
+                                asyncLoading: () => (
+                                  <span
+                                    class='apm-home-placeholder apm-async-cell-skeleton'
+                                    aria-label={this.$t('加载中')}
+                                    role='status'
+                                  />
+                                ),
+                              }}
                               checkable={false}
                               columns={this.tableColumns}
                               data={this.tableData}
@@ -798,16 +815,21 @@ export default class ApmServiceList extends tsc<
                                 slot='empty'
                                 textMap={{
                                   empty: this.$t('暂无数据'),
+                                  'search-empty': this.$t('搜索结果为空'),
+                                  500: this.$t('数据获取异常'),
                                 }}
-                                type={this.searchKeyWord || this.filterCondition?.length ? 'search-empty' : 'empty'}
-                                onOperation={() => this.handleClearSearch()}
+                                type={
+                                  this.listError
+                                    ? '500'
+                                    : this.searchKeyWord || this.filterCondition?.length
+                                      ? 'search-empty'
+                                      : 'empty'
+                                }
+                                onOperation={() => (this.listError ? this.getServiceList() : this.handleClearSearch())}
                               />
                             </CommonTable>
                           ) : (
-                            <TableSkeleton
-                              class='table-skeleton'
-                              type={5}
-                            />
+                            <ApmHomeSkeleton kind='table' />
                           )}
                         </div>
                       }

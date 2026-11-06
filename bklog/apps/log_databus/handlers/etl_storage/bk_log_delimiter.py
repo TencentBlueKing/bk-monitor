@@ -304,7 +304,11 @@ class BkLogDelimiterEtlStorage(EtlStorage):
         rules.extend(self._build_path_regex_rules_v4(etl_params, built_in_config))
 
         data_link_config = {"clean_rules": rules}
-        data_link_config.update(self._build_storage_config_v4(rules, field_list, built_in_config, storage_cluster_type))
+        data_link_config.update(
+            self._build_storage_config_v4(
+                rules, field_list, built_in_config, storage_cluster_type, fields=fields, etl_params=etl_params
+            )
+        )
 
         return data_link_config
 

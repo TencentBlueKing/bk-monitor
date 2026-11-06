@@ -24,7 +24,9 @@
  * IN THE SOFTWARE.
  */
 export * from './helpers';
+export * from './parse-agent';
 export * from './parse-input';
 export * from './parse-output';
 export * from './parse-tool';
+export * from './search';
 export * from './typings';

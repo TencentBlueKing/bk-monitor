@@ -27,19 +27,21 @@
 import { computed, defineComponent, reactive, shallowRef, watch } from 'vue';
 
 import { getBizRouteHref } from 'monitor-common/utils';
-import {
-  type ILegacyAlarmCenterQuery,
-  getAlarmCenterListHash,
-  getAlarmCenterUrl,
-} from 'monitor-common/utils/alarm-center-router';
-import { deepClone } from 'monitor-common/utils/utils';
+import { getAlarmCenterDetailHash } from 'monitor-common/utils/alarm-center-router';
+// import {
+//   type ILegacyAlarmCenterQuery,
+//   getAlarmCenterListHash,
+//   getAlarmCenterUrl,
+// } from 'monitor-common/utils/alarm-center-router';
+// import { deepClone } from 'monitor-common/utils/utils';
 import { storeToRefs } from 'pinia';
 import { useI18n } from 'vue-i18n';
-import { useRoute } from 'vue-router';
+// import { useRoute } from 'vue-router';
 
 import TemporaryShareNew from '../../../../components/temporary-share/temporary-share-new';
 // import AIFavicon from '../../../../static/img/failure/AI.png';
 import { useAlarmCenterDetailStore } from '../../../../store/modules/alarm-center-detail';
+import DetailLoading from '../../common-detail/detail-loading';
 import { fetchListAlertFeedback } from '../../services/alarm-detail';
 import Feedback from './feedback';
 import ChatGroup from '@/components/chat-group/chat-group';
@@ -85,12 +87,12 @@ export default defineComponent({
   },
   setup(props, { emit }) {
     const { t } = useI18n();
-    const route = useRoute();
+    // const route = useRoute();
     const alarmCenterDetailStore = useAlarmCenterDetailStore();
     /** 是否反馈 */
     const isFeedback = shallowRef(false);
 
-    const { alarmId, alarmDetail, loading } = storeToRefs(alarmCenterDetailStore);
+    const { alarmId, alarmDetail, loading, alertError } = storeToRefs(alarmCenterDetailStore);
 
     /** 一键拉群弹窗 */
     const chatGroupDialog = reactive<IChatGroupDialogOptions>({
@@ -143,10 +145,13 @@ export default defineComponent({
         },
       ];
     });
+    /** 告警来源是否为监控策略 */
+    const IsAlarmSourceStrategy = computed(() => alarmDetail.value.plugin_id === 'bkmonitor');
 
     const formatShareTokenParams = params => {
       params.data.name = 'alarm-center-detail';
-      params.data.path = '/trace/alarm-center/detail/:alarmId';
+      // 分享页会直接把 path 拼进跳转地址，需存实际告警路径而非路由模板
+      params.data.path = getAlarmCenterDetailHash(alarmId.value).slice(1);
       params.data.params = {
         alarmId: alarmId.value,
       };
@@ -154,21 +159,17 @@ export default defineComponent({
       return params;
     };
 
-    /** 获取告警反馈 */
-    const getAlertFeedback = async () => {
-      const data = await fetchListAlertFeedback(
-        alarmCenterDetailStore.alarmDetail.id,
-        alarmCenterDetailStore.alarmDetail.bk_biz_id
-      ).catch(() => []);
-      isFeedback.value = data.length > 0;
-    };
-
     watch(
       () => alarmDetail.value,
-      newVal => {
-        if (newVal && !loading.value) {
-          getAlertFeedback();
-        }
+      async (detail, _, onCleanup) => {
+        let active = true;
+        onCleanup(() => {
+          active = false;
+        });
+        isFeedback.value = false;
+        if (!detail) return;
+        const data = await fetchListAlertFeedback(detail.id, detail.bk_biz_id).catch(() => []);
+        if (active) isFeedback.value = data.length > 0;
       },
       { immediate: true }
     );
@@ -176,20 +177,21 @@ export default defineComponent({
     /** 策略详情跳转 */
     const toStrategyDetail = () => {
       // 如果 告警来源 是监控策略就要跳转到 策略详情 。
-      if (alarmDetail.value.plugin_id === 'bkmonitor') {
+      if (IsAlarmSourceStrategy.value) {
         window.open(
           getBizRouteHref(`/strategy-config/detail/${alarmId.value}?fromEvent=true`, alarmDetail.value.bk_biz_id)
         );
-      } else if (alarmDetail.value.plugin_id) {
-        // 否则都新开一个页面并添加 告警源 查询，其它查询项保留。
-        const query: ILegacyAlarmCenterQuery = deepClone(route.query);
-        query.queryString = `告警源 : "${alarmDetail.value.plugin_id}"`;
-        const url = getAlarmCenterUrl({
-          hash: getAlarmCenterListHash(query),
-          bizId: alarmDetail.value.bk_biz_id,
-        });
-        window.open(url);
       }
+      // else if (alarmDetail.value.plugin_id) {
+      //   // 否则都新开一个页面并添加 告警源 查询，其它查询项保留。
+      //   const query: ILegacyAlarmCenterQuery = deepClone(route.query);
+      //   query.queryString = `告警源 : "${alarmDetail.value.plugin_id}"`;
+      //   const url = getAlarmCenterUrl({
+      //     hash: getAlarmCenterListHash(query),
+      //     bizId: alarmDetail.value.bk_biz_id,
+      //   });
+      //   window.open(url);
+      // }
     };
     // 告警级别标签
     const getTagComponent = (severity: number) => {
@@ -268,6 +270,8 @@ export default defineComponent({
       alarmDetail,
       alarmId,
       loading,
+      alertError,
+      IsAlarmSourceStrategy,
       getTagComponent,
       toStrategyDetail,
       chatGroupShowChange,
@@ -279,16 +283,11 @@ export default defineComponent({
     };
   },
   render() {
-    if (this.loading)
-      return (
-        <div class='event-detail-head-main'>
-          <div class='level-tag skeleton-element' />
-          <div class='event-detail-title skeleton-element' />
-          <div class='event-detail-head-btn-group'>
-            <div class='btn-item skeleton-element' />
-            <div class='btn-item skeleton-element' />
-          </div>
-        </div>
+    if (!this.alarmDetail)
+      return this.alertError ? (
+        <div class='event-detail-head-main'>{this.t('告警详情')}</div>
+      ) : (
+        <DetailLoading variant='header' />
       );
     return (
       <div class='event-detail-head-main'>
@@ -317,7 +316,7 @@ export default defineComponent({
                 onClick={this.toStrategyDetail}
               >
                 <span>{this.t('来源：{0}', [this.alarmDetail?.plugin_display_name])}</span>
-                <i class='icon-monitor icon-fenxiang icon-float' />
+                {this.IsAlarmSourceStrategy && <i class='icon-monitor icon-fenxiang icon-float' />}
               </span>
             ) : undefined}
           </div>

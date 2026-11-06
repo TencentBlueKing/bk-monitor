@@ -32,7 +32,7 @@ import K8sDimensionDrillDown from 'monitor-ui/chart-plugins/plugins/k8s-custom-g
 
 import { EMode } from '../../../../components/retrieval-filter/utils';
 import { DimensionSceneMap, K8sGroupDimension, SceneAliasMap } from '../../k8s-dimension';
-import { K8sTableColumnKeysEnum, K8SToEventWhereKeyMap, SceneEnum, K8sNewTabEnum } from '../../typings/k8s-new';
+import { K8sTableColumnKeysEnum, K8SToEventWhereKeyMap, SceneEnum } from '../../typings/k8s-new';
 
 import type { DrillDownEvent, K8sTableColumnResourceKey, K8sTableGroupByEvent } from '../k8s-table-new/k8s-table-new';
 
@@ -69,7 +69,8 @@ export default class K8sQuickTools extends tsc<K8sQuickToolsProps> {
   @Inject({ from: 'onFilterChange', default: () => null }) readonly onFilterChange: (
     id: string,
     groupId: K8sTableColumnResourceKey,
-    isSelect: boolean
+    isSelect: boolean,
+    scopeFilters?: Record<string, string[]>
   ) => void;
   @Inject({ from: 'onGroupChange', default: () => null }) readonly onDrillDown: (
     item: K8sTableGroupByEvent,
@@ -87,6 +88,20 @@ export default class K8sQuickTools extends tsc<K8sQuickToolsProps> {
 
   /** 需要 添加/移除 到筛选项中的最终数据值 */
   get filterValue() {
+    if (!this.isListTab) {
+      const dimensions = this.dimensions || {};
+      const rawValue = {
+        [K8sTableColumnKeysEnum.POD]: dimensions.pod_name || dimensions.pod,
+        [K8sTableColumnKeysEnum.CONTAINER]: dimensions.container_name || dimensions.container,
+        [K8sTableColumnKeysEnum.WORKLOAD]:
+          dimensions.workload_kind && dimensions.workload_name
+            ? `${dimensions.workload_kind}:${dimensions.workload_name}`
+            : undefined,
+        [K8sTableColumnKeysEnum.SERVICE]: dimensions.service,
+        [K8sTableColumnKeysEnum.INGRESS]: dimensions.ingress,
+      }[this.groupByField];
+      if (rawValue) return rawValue;
+    }
     const splits = this.value.split(':');
     if (splits?.length !== 1) {
       if (this.groupByField === K8sTableColumnKeysEnum.CONTAINER) {
@@ -106,6 +121,19 @@ export default class K8sQuickTools extends tsc<K8sQuickToolsProps> {
     return this.value;
   }
 
+  get scopeFilters(): Record<string, string[]> {
+    if (this.isListTab || !this.dimensions?.namespace || this.groupByField === K8sTableColumnKeysEnum.NAMESPACE)
+      return {};
+    const filters: Record<string, string[]> = { namespace: [this.dimensions.namespace] };
+    const pod = this.dimensions.pod_name || this.dimensions.pod;
+    if (this.groupByField === K8sTableColumnKeysEnum.CONTAINER && pod) filters[K8sTableColumnKeysEnum.POD] = [pod];
+    return filters;
+  }
+
+  get resourceFilters() {
+    return { ...this.scopeFilters, [this.groupByField]: [this.filterValue] };
+  }
+
   get apmResourceField() {
     return [
       K8sTableColumnKeysEnum.NAMESPACE,
@@ -117,7 +145,12 @@ export default class K8sQuickTools extends tsc<K8sQuickToolsProps> {
   get filterToolConfig() {
     // 当前数据值已在筛选项中
     const filters = this.filters;
-    const hasFilter = filters?.includes?.(this.filterValue);
+    const hasFilter =
+      filters?.includes?.(this.filterValue) &&
+      Object.entries(this.scopeFilters).every(([key, values]) => {
+        const selected = this.filterCommonParams?.filter_dict?.[key] || [];
+        return selected.length === values.length && values.every(value => selected.includes(value));
+      });
     const disabled = this.apmResourceField.includes(this.groupByField);
     const elAttr = hasFilter
       ? { className: ['selected', { 'apm-disabled': this.isApmMonitor && disabled }], text: '移除该筛选项' }
@@ -142,6 +175,7 @@ export default class K8sQuickTools extends tsc<K8sQuickToolsProps> {
     const groupByEvent: K8sTableGroupByEvent = {
       ...drillDownEvent,
       filterById: this.filterValue,
+      scopeFilters: this.scopeFilters,
     };
     this.onDrillDown(groupByEvent, true);
   }
@@ -152,7 +186,7 @@ export default class K8sQuickTools extends tsc<K8sQuickToolsProps> {
    */
   handleFilterChange() {
     if (this.isApmMonitor && this.apmResourceField.includes(this.groupByField)) return;
-    this.onFilterChange(this.filterValue, this.groupByField, !this.filterToolConfig.hasFilter);
+    this.onFilterChange(this.filterValue, this.groupByField, !this.filterToolConfig.hasFilter, this.scopeFilters);
   }
 
   /**
@@ -195,19 +229,21 @@ export default class K8sQuickTools extends tsc<K8sQuickToolsProps> {
         {
           key: isContainerField ? K8sTableColumnKeysEnum.POD : this.groupByField,
           method: 'eq',
-          value: isContainerField ? [this.dimensions.pod_name] : [this.filterValue],
+          value: [this.dimensions.pod_name || this.dimensions.pod],
           condition: 'and',
         },
       ];
     }
 
     // 指标视图：按 pod → workload → namespace 优先级取值
-    const isPodField = this.groupByField === K8sTableColumnKeysEnum.POD;
-    // const podValue = filterDict[K8sTableColumnKeysEnum.POD]?.[0];
-    if (isPodField) {
+    if (
+      [K8sTableColumnKeysEnum.POD, K8sTableColumnKeysEnum.SERVICE, K8sTableColumnKeysEnum.INGRESS].includes(
+        this.groupByField
+      )
+    ) {
       return [
         {
-          key: K8SToEventWhereKeyMap[K8sTableColumnKeysEnum.POD],
+          key: K8SToEventWhereKeyMap[this.groupByField],
           method: 'eq',
           value: [this.filterValue],
           condition: 'and',
@@ -217,7 +253,9 @@ export default class K8sQuickTools extends tsc<K8sQuickToolsProps> {
 
     const isWorkloadField = this.groupByField === K8sTableColumnKeysEnum.WORKLOAD;
     if (isWorkloadField) {
-      const workloadValue = filterDict[K8sTableColumnKeysEnum.WORKLOAD]?.[0] || this.filterValue;
+      const workloadValue = this.dimensions?.workload_name
+        ? this.filterValue
+        : filterDict[K8sTableColumnKeysEnum.WORKLOAD]?.[0] || this.filterValue;
       return [
         {
           key: K8SToEventWhereKeyMap.workload_kind,
@@ -269,14 +307,24 @@ export default class K8sQuickTools extends tsc<K8sQuickToolsProps> {
             data: {
               query_configs: [
                 {
-                  where: this.getEventWhereConditions(),
+                  where: [
+                    ...this.getEventWhereConditions(),
+                    ...Object.entries(this.scopeFilters)
+                      .filter(([key]) => key === K8sTableColumnKeysEnum.NAMESPACE)
+                      .map(([key, value]) => ({
+                        key: K8SToEventWhereKeyMap[key],
+                        method: 'eq',
+                        value,
+                        condition: 'and',
+                      })),
+                  ],
                   query_string: '',
                 },
               ],
             },
           },
         ]),
-        filterBy: JSON.stringify({ [this.groupByField]: [this.filterValue] }),
+        filterBy: JSON.stringify(this.resourceFilters),
         filterMode: EMode.ui,
         prop: '',
         order: '',
@@ -287,7 +335,7 @@ export default class K8sQuickTools extends tsc<K8sQuickToolsProps> {
     const query = {
       ...rest,
       cluster: this.filterCommonParams.bcs_cluster_id,
-      filterBy: JSON.stringify({ [this.groupByField]: [this.filterValue] }),
+      filterBy: JSON.stringify(this.resourceFilters),
       groupBy: JSON.stringify(targetPageGroupInstance.groupFilters),
       scene: targetScene,
     };

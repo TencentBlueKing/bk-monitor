@@ -22,16 +22,19 @@ from dataclasses import dataclass
 from typing import Any
 
 import requests
+from rest_framework.exceptions import ValidationError
 
+from api.unify_query.default import QueryDataByPromqlResource
 from bkm_space.utils import bk_biz_id_to_space_uid
 from bkmonitor.utils.metric_id import PROMQL_DATA_SOURCE_PREFIXES
 from bkmonitor.utils.request import get_request_tenant_id
-from bkmonitor.utils.tenant import bk_biz_id_to_bk_tenant_id
 from constants.data_source import DataTypeLabel
 from core.drf_resource import api
 from kernel_api.rpc import KernelRPCRegistry
 from kernel_api.rpc.bkm_cli_registry import BkmCliOpRegistry
 from monitor_web.strategies.resources.v2 import GetMetricListV2Resource
+
+from .platform_catalog.cmdb import _authorize_business
 
 logger = logging.getLogger("bkmonitor")
 
@@ -227,7 +230,36 @@ def _query_ts_schema(*, raw: bool = False, reference: bool = False, check: bool 
     return schema
 
 
-def _relation_schema(*, ranged: bool) -> dict[str, Any]:
+def _query_ts_promql_schema() -> dict[str, Any]:
+    return {
+        "type": "object",
+        "required": ["promql", "start", "end"],
+        "properties": {
+            "promql": {"type": "string"},
+            "match": {"type": "string", "default": ""},
+            "is_verify_dimensions": {"type": "boolean", "default": False},
+            "start": {"type": ["string", "integer"], "description": "Unix 时间戳，秒或毫秒"},
+            "end": {"type": ["string", "integer"], "description": "Unix 时间戳，秒或毫秒"},
+            "step": {"type": "string", "pattern": r"^\d+(ms|s|m|h|d|w|y)$"},
+            "timezone": {"type": "string"},
+            "down_sample_range": {"type": "string"},
+            "reference": {"type": "boolean", "default": False},
+            "response_contract": {"type": "string", "enum": ["named_outputs/v1"]},
+            "legacy_output_ref": {"type": "string"},
+            "output_list": _named_output_list_schema(),
+        },
+        "additionalProperties": False,
+        "allOf": [
+            {
+                "if": {"required": ["response_contract"]},
+                "then": {"required": ["legacy_output_ref", "output_list"]},
+                "else": {"not": {"anyOf": [{"required": ["legacy_output_ref"]}, {"required": ["output_list"]}]}},
+            }
+        ],
+    }
+
+
+def _relation_schema(*, ranged: bool, v1beta3: bool = False) -> dict[str, Any]:
     item_properties: dict[str, Any] = {
         "target_type": {"type": "string"},
         "source_type": {"type": "string"},
@@ -243,6 +275,8 @@ def _relation_schema(*, ranged: bool) -> dict[str, Any]:
         },
     }
     required = ["target_type", "source_info"]
+    if v1beta3:
+        required.append("source_type")
     if ranged:
         item_properties.update(
             {
@@ -262,7 +296,12 @@ def _relation_schema(*, ranged: bool) -> dict[str, Any]:
             "query_list": {
                 "type": "array",
                 "maxItems": MAX_QUERY_REFS,
-                "items": {"type": "object", "required": required, "properties": item_properties},
+                "items": {
+                    "type": "object",
+                    "required": required,
+                    "properties": item_properties,
+                    "additionalProperties": not v1beta3,
+                },
             }
         },
         "additionalProperties": False,
@@ -271,6 +310,10 @@ def _relation_schema(*, ranged: bool) -> dict[str, Any]:
 
 def _call_query_ts(params: dict[str, Any]) -> Any:
     return api.unify_query.query_data(**params)
+
+
+def _call_query_ts_promql(params: dict[str, Any]) -> Any:
+    return api.unify_query.query_data_by_promql(**params)
 
 
 def _call_query_ts_raw(params: dict[str, Any]) -> Any:
@@ -354,6 +397,10 @@ def _call_query_relation(params: dict[str, Any]) -> Any:
     return api.unify_query.query_multi(**params)
 
 
+def _call_query_relation_v1beta3(params: dict[str, Any]) -> Any:
+    return api.unify_query.query_multi_resource_v1_beta3(**params)
+
+
 def _call_query_relation_range(params: dict[str, Any]) -> Any:
     return api.unify_query.query_multi_resource_range(**params)
 
@@ -391,6 +438,28 @@ OPERATIONS = {
             },
             scope_style="space_uid",
             time_range_style="top_level",
+        ),
+        UQOperationSpec(
+            id="query_ts_promql",
+            summary="执行 PromQL query/ts/promql；支持 named_outputs/v1 并原样返回 UQ 响应",
+            handler=_call_query_ts_promql,
+            params_schema=_query_ts_promql_schema(),
+            example_params={
+                "promql": "(vector(1)) + (vector(2))",
+                "start": "1725062400",
+                "end": "1725066000",
+                "step": "60s",
+                "response_contract": "named_outputs/v1",
+                "legacy_output_ref": "RESULT",
+                "output_list": [
+                    {"reference_name": "A", "expression": "vector(1)"},
+                    {"reference_name": "B", "expression": "vector(2)"},
+                    {"reference_name": "C", "expression": "vector(9)"},
+                    {"reference_name": "RESULT", "expression": "(vector(1)) + (vector(2))"},
+                ],
+            },
+            scope_style="bk_biz_ids",
+            time_range_style="promql_top_level",
         ),
         UQOperationSpec(
             id="query_ts_raw",
@@ -452,6 +521,24 @@ OPERATIONS = {
                         "source_type": "service",
                         "source_info": {"service_name": "api"},
                         "target_info_show": True,
+                    }
+                ]
+            },
+            scope_style="bk_biz_ids",
+            time_range_style="none",
+        ),
+        UQOperationSpec(
+            id="query_relation_v1beta3",
+            summary="直接查询 UQ Relation v1beta3 指定时间点的资源关联关系",
+            handler=_call_query_relation_v1beta3,
+            params_schema=_relation_schema(ranged=False, v1beta3=True),
+            example_params={
+                "query_list": [
+                    {
+                        "timestamp": 1725066000,
+                        "target_type": "pod",
+                        "source_type": "service",
+                        "source_info": {"service_name": "api"},
                     }
                 ]
             },
@@ -559,11 +646,14 @@ def _guard_named_output_contract(params: dict[str, Any]) -> None:
         raise ValueError("legacy_output_ref 必须存在于 output_list.reference_name")
 
 
-def _guard_time_range(start: Any, end: Any, prefix: str = "") -> None:
-    start_seconds = _parse_timestamp(start, f"{prefix}start_time")
-    end_seconds = _parse_timestamp(end, f"{prefix}end_time")
+def _guard_time_range(
+    start: Any, end: Any, prefix: str = "", *, field_names: tuple[str, str] = ("start_time", "end_time")
+) -> None:
+    start_field, end_field = field_names
+    start_seconds = _parse_timestamp(start, f"{prefix}{start_field}")
+    end_seconds = _parse_timestamp(end, f"{prefix}{end_field}")
     if end_seconds < start_seconds:
-        raise ValueError(f"{prefix}end_time 不能早于 start_time")
+        raise ValueError(f"{prefix}{end_field} 不能早于 {start_field}")
     if end_seconds - start_seconds > MAX_TIME_RANGE_SECONDS:
         raise ValueError(f"{prefix}时间范围不能超过 {MAX_TIME_RANGE_SECONDS} 秒")
 
@@ -594,6 +684,15 @@ def _guard_params(spec: UQOperationSpec, params: dict[str, Any]) -> dict[str, An
             raise ValueError("query_list 必须是非空数组")
         if len(query_list) > MAX_QUERY_REFS:
             raise ValueError(f"query_list 最多允许 {MAX_QUERY_REFS} 项")
+        if spec.id == "query_relation_v1beta3":
+            item_schema = spec.params_schema["properties"]["query_list"]["items"]
+            for index, query in enumerate(query_list):
+                if not isinstance(query, dict):
+                    raise ValueError(f"query_list[{index}] 必须是 object")
+                missing = sorted(set(item_schema["required"]) - query.keys())
+                unknown = sorted(query.keys() - item_schema["properties"].keys())
+                if missing or unknown:
+                    raise ValueError(f"query_list[{index}] 缺少 {missing} 或包含合同外字段 {unknown}")
 
     if spec.id == "discover_query_ts_metrics":
         query = params.get("query")
@@ -616,8 +715,14 @@ def _guard_params(spec: UQOperationSpec, params: dict[str, Any]) -> dict[str, An
         if len(output_list) > MAX_OUTPUTS:
             raise ValueError(f"output_list 最多允许 {MAX_OUTPUTS} 项")
 
-    if spec.id == "query_ts":
+    if spec.id in {"query_ts", "query_ts_promql"}:
         _guard_named_output_contract(params)
+
+    if spec.id == "query_ts_promql":
+        try:
+            QueryDataByPromqlResource.RequestSerializer().run_validation(params)
+        except ValidationError as error:
+            raise ValueError(f"PromQL 查询参数不符合标准资源合同: {error.detail}") from error
 
     if spec.max_limit is not None and "limit" in params:
         try:
@@ -629,6 +734,8 @@ def _guard_params(spec: UQOperationSpec, params: dict[str, Any]) -> dict[str, An
 
     if spec.time_range_style == "top_level":
         _guard_time_range(params.get("start_time"), params.get("end_time"))
+    elif spec.time_range_style == "promql_top_level":
+        _guard_time_range(params.get("start"), params.get("end"), field_names=("start", "end"))
     elif spec.time_range_style == "query_list":
         for index, query in enumerate(query_list):
             if not isinstance(query, dict):
@@ -779,7 +886,7 @@ def _invoke(spec: UQOperationSpec, request_params: dict[str, Any]) -> dict[str, 
         return _error("invalid_argument", "invoke 需要 params object", next_call=describe_call)
 
     try:
-        derived_bk_tenant_id = bk_biz_id_to_bk_tenant_id(bk_biz_id)
+        derived_bk_tenant_id = _authorize_business(bk_biz_id)
         if spec.scope_style == "bk_biz_id":
             request_bk_tenant_id = get_request_tenant_id(peaceful=True)
             if not request_bk_tenant_id:

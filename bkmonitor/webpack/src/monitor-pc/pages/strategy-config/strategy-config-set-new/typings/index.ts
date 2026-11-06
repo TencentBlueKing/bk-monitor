@@ -237,13 +237,7 @@ export interface ISceneConfig {
   scene_name?: string;
 }
 /* source模式下 sourceData */
-export interface ISourceData {
-  errorMsg?: string;
-  promqlError?: boolean;
-  sourceCode: string;
-  sourceCodeCache?: string;
-  step: number | string;
-}
+export type ISourceData = import('../../strategy-config-common/promql-query/model').PromqlSourceData;
 
 /** 条件类型 */
 export interface IWhereItem {

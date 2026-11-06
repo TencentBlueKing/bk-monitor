@@ -31,6 +31,7 @@ import { Loading } from 'bkui-vue';
 import { type TreeNodeValue, Tree } from 'tdesign-vue-next';
 import { useI18n } from 'vue-i18n';
 
+import { AlarmFilterSkeleton } from './alarm-skeleton';
 import EmptyStatus from '@/components/empty-status/empty-status';
 
 import type { CommonCondition, QuickFilterItem } from '../typings';
@@ -223,7 +224,10 @@ export default defineComponent({
   },
   render() {
     return (
-      <div class='quick-filtering-comp'>
+      <div
+        class='quick-filtering-comp'
+        aria-busy={this.loading}
+      >
         <div class='quick-filtering-header'>
           <i
             class='icon-monitor icon-gongneng-shouqi'
@@ -240,19 +244,7 @@ export default defineComponent({
           </Loading>
         </div>
         {this.loading && this.isFirstInit ? (
-          <div class='skeleton-wrap'>
-            {new Array(5).fill(0).map((_, index) => (
-              <div
-                key={index}
-                class='skeleton-group'
-              >
-                <div class='skeleton-element title' />
-                <div class='skeleton-element item' />
-                <div class='skeleton-element item' />
-                <div class='skeleton-element item' />
-              </div>
-            ))}
-          </div>
+          <AlarmFilterSkeleton />
         ) : (
           <div class='filter-list'>
             {!this.showFilterList.length &&

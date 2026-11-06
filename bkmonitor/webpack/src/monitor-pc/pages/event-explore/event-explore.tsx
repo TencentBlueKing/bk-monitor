@@ -23,6 +23,7 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
+
 import { Component, Emit, InjectReactive, Prop, ProvideReactive, Ref, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
@@ -71,6 +72,7 @@ interface IEvent {
   onFilterModeChange: (filterMode: EMode) => void;
   onQueryStringChange: (queryString: string) => void;
   onQueryStringInputChange: (val: string) => void;
+  onRetryInitialize?: () => void;
   onSetRouteParams: (otherQuery: Record<string, any>) => void;
   onShowResidentBtnChange?: (v: boolean) => void;
   onWhereChange: (where: IWhereItem[]) => void;
@@ -90,6 +92,8 @@ interface IProps {
   filterMode?: EMode;
   group_by?: IFormData['group_by'];
   hideFeatures?: HideFeatures;
+  initializationError?: boolean;
+  initializing?: boolean;
   queryString?: string;
   source: APIType;
   where?: IWhereItem[];
@@ -110,6 +114,8 @@ export default class EventExplore extends tsc<
 
   /** 数据Id */
   @Prop({ default: '' }) dataId;
+  @Prop({ default: false }) initializing: boolean;
+  @Prop({ default: false }) initializationError: boolean;
   @Prop({ default: () => [] }) dataIdList: IDataIdItem[];
   @Prop({ default: EMode.ui }) filterMode: EMode;
   /** 查询语句 */
@@ -150,6 +156,38 @@ export default class EventExplore extends tsc<
   @Ref('eventSourceList') eventSourceListRef: EventSourceSelect;
 
   loading = false;
+  loadedSourceKey = '';
+  configError = false;
+  configRequestId = 0;
+  configAbortController: AbortController = null;
+
+  get sourceKey() {
+    return JSON.stringify([this.source, this.dataId, this.dataSourceLabel, this.dataTypeLabel]);
+  }
+
+  get initialLoading() {
+    return this.initializing || (!!this.dataId && this.loadedSourceKey !== this.sourceKey && !this.configError);
+  }
+
+  get viewConfigParams() {
+    if (this.initializing || !this.dataId || !this.formatTimeRange.length) return null;
+    return {
+      data_sources: [
+        {
+          data_source_label: this.dataSourceLabel,
+          data_type_label: this.dataTypeLabel,
+          table: this.dataId,
+        },
+      ],
+      app_name: this.viewOptions?.filters?.app_name,
+      service_name: this.viewOptions?.filters?.service_name,
+      start_time: this.formatTimeRange[0],
+      end_time: this.formatTimeRange[1],
+      ...(this.eventSourceType.length && !this.eventSourceType.includes(ExploreSourceTypeEnum.ALL)
+        ? { sources: this.eventSourceType }
+        : {}),
+    };
+  }
 
   /** 维度列表 */
   fieldList = [];
@@ -196,7 +234,7 @@ export default class EventExplore extends tsc<
   @ProvideReactive('commonParams')
   get commonParams() {
     return {
-      query_configs: [this.queryConfig],
+      query_configs: [this.initializing ? { ...this.queryConfig, table: '' } : this.queryConfig],
       app_name: this.viewOptions?.filters?.app_name,
       service_name: this.viewOptions?.filters?.service_name,
       start_time: this.formatTimeRange[0],
@@ -296,24 +334,20 @@ export default class EventExplore extends tsc<
   @Watch('refreshImmediate')
   handleRefreshImmediateChange() {
     this.formatTimeRange = handleTransformToTimestamp(this.timeRange);
-    this.getViewConfig();
   }
 
   @Watch('dataId')
   handleDataIdChange() {
-    this.getViewConfig();
     this.updateQueryConfig();
   }
 
   @Watch('dataSourceLabel')
   handleDataSourceLabelChange() {
-    this.getViewConfig();
     this.updateQueryConfig();
   }
 
   @Watch('dataTypeLabel')
   handleDataTypeLabelChange() {
-    this.getViewConfig();
     this.updateQueryConfig();
   }
 
@@ -336,12 +370,10 @@ export default class EventExplore extends tsc<
   @Watch('timezone')
   handleTimeRangeChange() {
     this.formatTimeRange = handleTransformToTimestamp(this.timeRange);
-    this.getViewConfig();
   }
 
   @Watch('eventSourceType')
   handleWatchEventSourceTypeChange() {
-    this.getViewConfig();
     this.updateQueryConfig();
   }
 
@@ -382,51 +414,60 @@ export default class EventExplore extends tsc<
   mounted() {
     this.retrievalFilterCandidateValue = new RetrievalFilterCandidateValue();
     this.formatTimeRange = handleTransformToTimestamp(this.timeRange);
-    this.getViewConfig();
     this.updateQueryConfig();
   }
-  @Debounce(100)
+
+  beforeDestroy() {
+    clearTimeout(this.updateQueryConfig_debounceFn);
+    this.configRequestId += 1;
+    this.configAbortController?.abort();
+    this.retrievalFilterCandidateValue?.axiosController.abort();
+    this.eventSourcePopoverInstance?.destroy();
+  }
+
+  @Watch('viewConfigParams')
   async getViewConfig() {
-    if (!this.dataId) {
+    const requestId = ++this.configRequestId;
+    this.configAbortController?.abort();
+    this.configError = false;
+    if (!this.viewConfigParams) {
       this.fieldList = [];
       this.sourceEntities = [];
+      this.eventSourceList = [];
+      this.loadedSourceKey = '';
+      this.loading = false;
       return;
     }
+    const sourceKey = this.sourceKey;
+    if (this.loadedSourceKey !== sourceKey) {
+      this.fieldList = [];
+      this.sourceEntities = [];
+    }
     this.loading = true;
-
-    const data = await getEventViewConfig(
-      {
-        data_sources: [
-          {
-            data_source_label: this.dataSourceLabel,
-            data_type_label: this.dataTypeLabel,
-            table: this.dataId,
-          },
-        ],
-        app_name: this.viewOptions?.filters?.app_name,
-        service_name: this.viewOptions?.filters?.service_name,
-        start_time: this.formatTimeRange[0],
-        end_time: this.formatTimeRange[1],
-        ...(this.eventSourceType.length && !this.eventSourceType.includes(ExploreSourceTypeEnum.ALL)
-          ? { sources: this.eventSourceType }
-          : {}),
-      },
-      this.source
-    ).catch(() => ({ display_fields: [], entities: [], field: [] }));
-    this.loading = false;
-    this.fieldList = data.field.map(item => {
-      const pinyinStr = this.$bkToPinyin(item.alias, true, '') || '';
-      return {
-        ...item,
-        pinyinStr,
-      };
-    });
-    this.eventSourceList =
-      data.sources?.map(item => ({
-        id: item.value,
-        name: item.alias,
-      })) || [];
-    this.sourceEntities = data.entities || [];
+    const controller = new AbortController();
+    this.configAbortController = controller;
+    try {
+      const data = await getEventViewConfig(this.viewConfigParams, this.source, { signal: controller.signal });
+      if (requestId !== this.configRequestId || controller.signal.aborted) return;
+      this.fieldList = (data.field || []).map(item => {
+        const pinyinStr = this.$bkToPinyin(item.alias, true, '') || '';
+        return {
+          ...item,
+          pinyinStr,
+        };
+      });
+      this.eventSourceList =
+        data.sources?.map(item => ({
+          id: item.value,
+          name: item.alias,
+        })) || [];
+      this.sourceEntities = data.entities || [];
+      this.loadedSourceKey = sourceKey;
+    } catch {
+      if (requestId === this.configRequestId && !controller.signal.aborted) this.configError = true;
+    } finally {
+      if (requestId === this.configRequestId) this.loading = false;
+    }
   }
 
   /** 关闭维度过滤面板 */
@@ -653,10 +694,21 @@ export default class EventExplore extends tsc<
             }}
             class='event-retrieval-content'
           >
-            {this.loading ? (
-              <div class='skeleton-element filter-skeleton' />
+            {this.initialLoading ? (
+              <div
+                class='filter-skeleton'
+                aria-busy='true'
+                aria-label={this.$tc('加载中')}
+              >
+                <span class='skeleton-element filter-mode' />
+                <span class='skeleton-element filter-input' />
+                <span class='skeleton-element filter-action' />
+              </div>
             ) : (
-              <div class='retrieval-filter-container'>
+              <div
+                class='retrieval-filter-container'
+                aria-busy={this.loading}
+              >
                 {this.$scopedSlots.filterPrepend?.('')}
                 <RetrievalFilter
                   isShowFavorite={
@@ -688,6 +740,21 @@ export default class EventExplore extends tsc<
               </div>
             )}
 
+            {(this.configError || this.initializationError) && (
+              <div
+                class='event-load-error'
+                role='status'
+              >
+                {this.$t('数据加载失败，请重试')}
+                <bk-button
+                  text
+                  onClick={() => (this.initializationError ? this.$emit('retryInitialize') : this.getViewConfig())}
+                >
+                  {this.$t('重试')}
+                </bk-button>
+              </div>
+            )}
+
             {this.source === APIType.MONITOR && (
               <div class='btn-alert-policy__wrap'>
                 <div
@@ -714,7 +781,7 @@ export default class EventExplore extends tsc<
                   eventSourceType={this.eventSourceType}
                   hasSourceSelect={this.source === APIType.APM}
                   list={this.fieldList}
-                  listLoading={this.loading}
+                  listLoading={this.initialLoading}
                   queryString={this.queryConfig.query_string}
                   source={this.source}
                   onClose={this.handleCloseDimensionPanel}
@@ -727,6 +794,7 @@ export default class EventExplore extends tsc<
                   entitiesMapList={this.entitiesMapByField}
                   eventSourceType={this.eventSourceType}
                   fieldMap={this.fieldMapByField}
+                  initializing={this.initializing || (!!this.dataId && this.queryConfig.table !== this.dataId)}
                   queryConfig={this.queryConfig}
                   refreshImmediate={this.refreshImmediate}
                   source={this.source}

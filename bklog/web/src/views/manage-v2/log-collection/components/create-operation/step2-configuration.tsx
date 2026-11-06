@@ -34,7 +34,9 @@ import { useRoute } from 'vue-router/composables';
 import { useCollectList } from '../../hook/useCollectList'; // 收集列表相关功能
 import { useOperation } from '../../hook/useOperation'; // 操作相关功能
 import {
+  showCollectSaveFailure,
   showMessage,
+  showUnshownRequestError,
   TARGET_TYPES,
   collectTargetTarget,
   LOG_SPECIES_LIST,
@@ -1173,6 +1175,8 @@ export default defineComponent({
       const selection = extractTargetSelection(value);
 
       if (!selection) {
+        formData.value.target_nodes = [];
+        isTargetNodesEmpty.value = true;
         return;
       }
       isConfigChange.value = true;
@@ -1466,6 +1470,7 @@ export default defineComponent({
         })
         .then(res => {
           if (!res?.result) {
+            showCollectSaveFailure(res, t('保存失败'));
             callback?.(false);
             return;
           }
@@ -1487,6 +1492,7 @@ export default defineComponent({
         })
         .catch(err => {
           console.log('保存采集配置出错:', err);
+          showUnshownRequestError(err, t('保存失败'));
           callback?.(false);
         })
         .finally(() => {
@@ -1543,6 +1549,12 @@ export default defineComponent({
         .validate()
         .then(() => {
           if (props.scenarioId !== 'winevent' && !isLineRuleValid) {
+            showMessage(t('请完善段日志规则'), 'error');
+            callback?.(false);
+            return;
+          }
+          if (props.scenarioId === 'winevent' && isTargetNodesEmpty.value) {
+            showMessage(t('请选择采集目标'), 'error');
             callback?.(false);
             return;
           }
@@ -1569,11 +1581,25 @@ export default defineComponent({
           if (!isTargetNodesEmpty.value && isErr && isLogFilterErr && isConfigError && isMetadataValid) {
             setCollection({ action, callback });
           } else {
+            if (isTargetNodesEmpty.value) {
+              showMessage(t('请选择采集目标'), 'error');
+            } else if (!isErr) {
+              showMessage(t('请检查日志路径'), 'error');
+            } else if (!isLogFilterErr) {
+              showMessage(t('请检查日志过滤'), 'error');
+            } else if (!isConfigError) {
+              showMessage(t('请检查采集配置项'), 'error');
+            } else if (!isMetadataValid) {
+              showMessage(t('请检查设备元数据'), 'error');
+            } else {
+              showMessage(t('请完善采集配置'), 'error');
+            }
             callback?.(false);
           }
         })
         .catch(() => {
           loadingSave.value = false;
+          showMessage(t('请完善基础信息'), 'error');
           callback?.(false);
         });
     };

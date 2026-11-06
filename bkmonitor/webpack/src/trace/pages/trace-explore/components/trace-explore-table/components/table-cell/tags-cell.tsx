@@ -71,6 +71,11 @@ export default defineComponent({
       type: Object as PropType<TableCellRenderContext>,
       default: () => ({}),
     },
+    /** 最少保持可见的标签数量，未配置时回退列配置 cellSpecificProps.minVisibleCount，默认 0 保持原有折叠行为 */
+    minVisibleCount: {
+      type: Number,
+      default: 0,
+    },
   },
   setup() {
     /**
@@ -121,6 +126,7 @@ export default defineComponent({
         data={this.tags}
         ellipsisTip={this.column?.cellSpecificProps?.ellipsisTip ?? this.defaultEllipsisTipsContentRender}
         ellipsisTippyOptions={this.column?.cellSpecificProps?.ellipsisTippyOptions ?? {}}
+        minVisibleCount={this.column?.cellSpecificProps?.minVisibleCount ?? this.minVisibleCount}
       />
     );
   },

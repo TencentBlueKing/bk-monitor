@@ -1,20 +1,84 @@
+@import '../../../../../theme';
+
 .llm-table-expand {
-  padding: 16px;
+  padding: 16px 16px 16px 30px;
+  overflow: visible;
   background-color: #f5f7fa;
+
+  /* 子表无独立滚动，打通 overflow 才能把 thead 吸到主表 body 的滚动口 */
+  .llm-table-expand-table.bk-table,
+  .bk-table {
+    overflow: visible !important;
+  }
+
+  .bk-table-header-wrapper {
+    position: sticky;
+    top: 0;
+    z-index: 2;
+    background-color: #f5f7fa;
+  }
+
+  .bk-table-body-wrapper {
+    overflow: visible !important;
+  }
 
   .bk-table {
     tr {
       background-color: transparent !important;
     }
 
-    th,
+    th {
+      background-color: #fafbfd !important;
+
+      &:hover {
+        background-color: #f0f1f5 !important;
+      }
+    }
+
     td {
       background-color: transparent !important;
+    }
+
+    tr.hover-row > td,
+    tr:hover > td {
+      background-color: #e9edf5 !important;
     }
   }
 }
 
 .llm-table {
+  &.is-expandable {
+    .bk-table-body .bk-table-row {
+      cursor: pointer;
+
+      &.expanded {
+        position: sticky;
+        top: 0;
+        z-index: 3;
+
+        > td {
+          background-color: #fff;
+        }
+
+        &.is-sticky-released {
+          position: relative;
+          top: auto;
+          z-index: auto;
+        }
+      }
+    }
+
+    .llm-table-expand .bk-table-header-wrapper {
+      top: 42px;
+    }
+
+    &.is-expand-sticky-released {
+      .llm-table-expand .bk-table-header-wrapper {
+        top: 0;
+      }
+    }
+  }
+
   .llm-table-skeleton {
     padding-top: 8px;
   }
@@ -22,6 +86,18 @@
   .bk-table {
     th {
       background-color: #fafbfd;
+
+      > .cell {
+        margin: 0;
+      }
+
+      :hover {
+        background-color: transparent;
+      }
+
+      &:hover {
+        background-color: #f0f1f5;
+      }
 
       .cell {
         height: 36px !important;
@@ -40,6 +116,11 @@
       &.is-expanded-row {
         td {
           padding: 0 !important;
+          overflow: visible !important;
+
+          > .cell {
+            overflow: visible !important;
+          }
         }
       }
     }
@@ -72,6 +153,15 @@
     text-align: left;
   }
 
+  .llm-table-io-popover-trigger {
+    &,
+    .bk-tooltip-ref {
+      display: block;
+      width: 100%;
+      min-width: 0;
+    }
+  }
+
   .llm-table-io-summary {
     display: flex;
     align-items: center;
@@ -82,9 +172,8 @@
     .io-text {
       flex: 1;
       min-width: 0;
-      overflow: hidden;
-      text-overflow: ellipsis;
-      white-space: nowrap;
+
+      @include ellipsis;
     }
 
     .io-arrow {
@@ -180,5 +269,69 @@
       margin: 0 3px;
       background-color: #e4e9f2;
     }
+  }
+}
+
+/* 弹层 transfer 到 body，不能挂在 .llm-table 下 */
+.tippy-tooltip.light-theme.llm-table-io-theme {
+  padding: 0;
+  pointer-events: all;
+  background-color: #fff;
+  border: $border-width-base $border-style-base $border-color-base;
+  border-radius: 4px;
+  box-shadow: 0 0 20px 0 rgb(0 0 0 / 16%);
+}
+
+.llm-table-io-popover {
+  $max-visible-lines: 5;
+  $text-line-height: 20px;
+
+  gap: 24px;
+  width: 100%;
+  padding: 16px;
+  white-space: normal;
+
+  @include flex-column;
+
+  .io-popover-section {
+    gap: 4px;
+    width: 100%;
+
+    @include flex-column;
+  }
+
+  .io-popover-title {
+    font-size: 13px;
+    font-weight: 500;
+    line-height: 22px;
+    color: #313238;
+  }
+
+  .io-popover-box {
+    position: relative;
+    width: 100%;
+    padding: 12px 32px 12px 12px;
+    background-color: #f7f9fc;
+    border-radius: 4px;
+  }
+
+  .io-popover-text {
+    max-height: $max-visible-lines * $text-line-height;
+    overflow-y: auto;
+    font-size: $font-size-base;
+    line-height: $text-line-height;
+    color: #4d4f56;
+    overflow-wrap: anywhere;
+    white-space: pre-wrap;
+  }
+
+  .io-popover-copy {
+    position: absolute;
+    top: 14px;
+    right: 12px;
+    color: $primary-color;
+    cursor: pointer;
+
+    @include icon-size($font-size-large, $font-size-large);
   }
 }

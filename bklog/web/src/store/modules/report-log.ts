@@ -83,6 +83,11 @@ class ReportLogStore extends VuexModule {
         },
       )
       .catch(() => false);
+
+    // 首条路由事件进入上报流程后，启用后续路由去重。
+    if (isAppFirstLoad) {
+      store.commit('updateState', { isAppFirstLoad: false });
+    }
   }
 }
 export default getModule(ReportLogStore);

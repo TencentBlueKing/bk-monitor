@@ -28,6 +28,7 @@ import jsCookie from 'js-cookie';
 import { useRoute } from 'vue-router/composables';
 
 import { getFeatureToggleStatus } from './hooks/use-feature-toggle';
+import { isMonitorIframeContext } from './common/embed-layout-query';
 import useLocale from './hooks/use-locale';
 import useStore from './hooks/use-store';
 import { join } from '@/global/utils/path';
@@ -74,7 +75,7 @@ export default defineComponent({
       '--notice-component-height': `${noticeComponentHeight.value}px`,
     }));
 
-    const isAsIframe = computed(() => route.query.from === 'monitor');
+    const isAsIframe = computed(() => isMonitorIframeContext(route.query));
     const showAlert = computed(() => store.state.showAlert);
 
     const isShowGlobalDialog = computed(() => store.state.isShowGlobalDialog);

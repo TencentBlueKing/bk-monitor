@@ -117,29 +117,19 @@ export default defineComponent({
     };
 
     const submitPopover = async () => {
-      // 设置过维度 进行二次确认弹窗判断
-      if (catchDimension.value.length) {
-        const dimensionSortStr = dimension.value.sort().join(',');
-        const catchDimensionSortStr = catchDimension.value.sort().join(',');
-        const isShowInfo = dimensionSortStr !== catchDimensionSortStr;
-        if (isShowInfo) {
-          bkInfoBox({
-            type: 'warning',
-            title: t('修改维度字段会影响已有备注、告警配置，如无必要，请勿随意变动。请确定是否修改？'),
-            confirmFn: async () => {
-              await updateInitGroup();
-              finishEmit();
-            },
-          });
-        } else {
-          // 不请求更新维度接口 直接提交
-          finishEmit();
-        }
+      const dimensionSortStr = [...dimension.value].sort().join(',');
+      const catchDimensionSortStr = [...catchDimension.value].sort().join(',');
+      if (dimensionSortStr !== catchDimensionSortStr) {
+        bkInfoBox({
+          type: 'warning',
+          title: t('修改维度字段会影响已有备注、告警配置，如无必要，请勿随意变动。请确定是否修改？'),
+          confirmFn: async () => {
+            await updateInitGroup();
+            finishEmit();
+          },
+        });
       } else {
-        // 没设置过维度 直接提交
-        if (dimension.value.length) {
-          await updateInitGroup();
-        }
+        // 不请求更新维度接口 直接提交
         finishEmit();
       }
     };

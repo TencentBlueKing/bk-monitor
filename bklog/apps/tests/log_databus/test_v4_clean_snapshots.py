@@ -868,7 +868,7 @@ EXPECTED_JSON_EXTRA_AND_FAILURE = {
         {
             "input_id": "bk_separator_object",
             "output_id": "__ext_json_temp_bk_separator_object",
-            "operator": {"type": "delete", "key_index": [{"type": "key", "value": "level"}]},
+            "operator": {"type": "delete", "key_index": [{"type": "key", "value": "level"}], "error_strategy": "null"},
         },
         {
             "input_id": "__ext_json_temp_bk_separator_object",

@@ -48,8 +48,10 @@ type FilterPanelEvents = {
 // 属性
 type FilterPanelProps = {
   checkedData: IFilterData[];
+  countLoading?: boolean;
   data: IGroupData[];
   defaultActiveName?: string[];
+  loadingGroups?: string[];
   show: boolean;
   showSkeleton?: boolean;
   width?: number;
@@ -57,7 +59,9 @@ type FilterPanelProps = {
 
 // 插槽
 type FilterPanelScopedSlots = {
+  error?: () => VNode;
   header?: () => VNode;
+  skeleton?: () => VNode;
 };
 
 interface ITreeNode {
@@ -84,6 +88,8 @@ export default class FilterPanel extends tsc<FilterPanelProps, FilterPanelEvents
   @Prop({ default: () => [], type: Array }) checkedData: IFilterData[];
   /** 是否展示骨架屏 */
   @Prop({ default: false, type: Boolean }) showSkeleton: boolean;
+  @Prop({ default: false, type: Boolean }) countLoading: boolean;
+  @Prop({ default: () => [], type: Array }) loadingGroups: string[];
 
   activeName = this.defaultActiveName;
   filterData: IFilterData[] = [];
@@ -123,8 +129,8 @@ export default class FilterPanel extends tsc<FilterPanelProps, FilterPanelEvents
           )}
           <div class={['filter-panel-body', { 'show-scrollbar': this.isShowScrollbar }]}>
             {this.showSkeleton ? (
-              <FilterListSkeleton />
-            ) : (
+              this.$slots.skeleton || <FilterListSkeleton />
+            ) : this.$slots.error || (
               <Group
                 scopedSlots={{
                   default: ({ item }) => this.collapseItemContentSlot(item),
@@ -154,6 +160,19 @@ export default class FilterPanel extends tsc<FilterPanelProps, FilterPanelEvents
    * @returns
    */
   collapseItemContentSlot(item: IGroupData) {
+    if (this.loadingGroups.includes(String(item.id))) {
+      return (
+        <div class='filter-panel-group-loading' role='status' aria-label={this.$t('加载中...')}>
+          {[0, 1, 2].map(index => (
+            <div key={index} aria-hidden='true'>
+              <i class='skeleton-element' />
+              <span class='skeleton-element' style={{ width: `${[56, 72, 44][index]}%` }} />
+              <b class='skeleton-element' />
+            </div>
+          ))}
+        </div>
+      );
+    }
     const data = JSON.parse(JSON.stringify(item.data));
     const group = this.checkedData.find(data => data.id === item.id);
     const defaultCheckedNodes = group ? group.values.map(value => value.id) : [];
@@ -173,7 +192,11 @@ export default class FilterPanel extends tsc<FilterPanelProps, FilterPanelEvents
               >
                 {data.name}
               </span>
-              <span class='label-count'>{data.count || 0}</span>
+              <span class='label-count'>
+                {this.countLoading || data.countLoading
+                  ? <i class='filter-panel-count-loading skeleton-element' aria-label={this.$t('加载中...')} />
+                  : data.count || 0}
+              </span>
             </span>
           ),
         }}

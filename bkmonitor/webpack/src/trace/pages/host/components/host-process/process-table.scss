@@ -49,22 +49,6 @@
     }
   }
 
-  // 覆盖式骨架屏（loading 时覆盖表体）
-  .common-table-skeleton {
-    position: absolute;
-    top: var(--trace-table-header-height, 42px);
-    z-index: 100;
-    display: none;
-    height: calc(100% - var(--trace-table-header-height, 42px));
-    min-height: fit-content;
-    padding: 10px 8px;
-    background: #fff;
-
-    &.common-skeleton-show-body {
-      display: block;
-    }
-  }
-
   // ===== 单元格内容组件 =====
 
   // 进程名列：LOGO + 名称 + 副标题

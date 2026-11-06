@@ -27,10 +27,15 @@
   }
 
   .k8s-charts-list {
+    position: relative;
     flex: 1;
     padding-bottom: 16px;
     overflow: auto;
     background-color: #f5f7fa;
+
+    &.is-empty {
+      background-color: #fff;
+    }
 
     .flex-dashboard {
       padding: 0;
@@ -43,8 +48,18 @@
       }
     }
 
-    .table-skeleton {
-      padding: 16px 0;
+    .k8s-charts-refreshing {
+      position: sticky;
+      top: 0;
+      z-index: 2;
+      height: 0;
+      text-align: right;
+
+      .bk-spin {
+        padding: 6px 12px;
+        background: #fff;
+        border-radius: 3px;
+      }
     }
   }
 }

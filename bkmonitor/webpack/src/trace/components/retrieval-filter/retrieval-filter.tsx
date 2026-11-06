@@ -511,10 +511,12 @@ export default defineComponent({
                 fields={this.localFields}
                 fieldSearchAutoFocus={this.fieldSearchAutoFocus}
                 getValueFn={this.getValueFn}
+                hasShortcutKey={this.hasShortcutKey}
                 limit={this.limit}
                 loadDelay={this.loadDelay}
                 noValueOfMethods={this.noValueOfMethods}
                 placeholder={this.placeholder}
+                readonly={this.uiModeReadonly}
                 tagValueDisplayFormatter={this.tagValueDisplayFormatter}
                 value={this.uiValue}
                 zIndex={this.zIndex}
@@ -655,6 +657,7 @@ export default defineComponent({
         </div>
         {this.showResidentSetting && this.mode !== EMode.queryString && this.isShowResident && (
           <ResidentSetting
+            v-slots={this.$slots.residentSkeleton ? { loading: this.$slots.residentSkeleton } : undefined}
             defaultResidentSetting={this.defaultResidentSetting}
             fields={this.localFields}
             getValueFn={this.getValueFn}

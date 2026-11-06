@@ -155,15 +155,16 @@ export async function getRecordList(
   params: IRecordListParams,
   requestConfig?: RequestConfig
 ): Promise<IRumSpanRecord[]> {
-  const res = await rumRecords(params, { ...SILENT, ...requestConfig }).catch(() => null);
+  const res = await rumRecords(params, { ...SILENT, ...requestConfig });
   return res?.list || [];
 }
 
 /** 获取页面视图配置：字段全集、字段分组、默认列与默认排序 */
 export async function getViewConfig(
-  params: Omit<IRumQueryParams, 'filters' | 'query_string'>
+  params: Omit<IRumQueryParams, 'filters' | 'query_string'>,
+  requestConfig?: RequestConfig
 ): Promise<IRumViewConfig> {
-  const raw = await rumViewConfig(params, SILENT).catch(() => null);
+  const raw = await rumViewConfig(params, { ...SILENT, ...requestConfig });
   return raw ? normalizeViewConfig(raw) : EMPTY_VIEW_CONFIG;
 }
 

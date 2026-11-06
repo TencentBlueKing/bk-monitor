@@ -5,6 +5,19 @@
   font-size: 14px;
   color: #313238;
 
+  &.log-extract-list-page {
+    display: flex;
+    min-height: 0;
+    padding: 16px;
+    background: #f5f7fa;
+  }
+
+  &.log-extract-create-page {
+    display: flex;
+    padding: 0;
+    overflow: hidden;
+  }
+
   .top-title-container {
     height: 60px;
     padding: 20px 0;

@@ -10,10 +10,35 @@ specific language governing permissions and limitations under the License.
 
 from django.utils.translation import gettext_lazy as _lazy
 from rest_framework import permissions
+from rest_framework.exceptions import PermissionDenied, ValidationError
 
 from bkmonitor.iam import ActionEnum, Permission
 from bkmonitor.iam.drf import IAMPermission
 from bkmonitor.utils.tenant import is_biz_in_tenant
+
+
+def require_business_id(request):
+    """对象接口必须从真实业务或空间进入，0 仅表示存量平台对象的归属。"""
+    try:
+        bk_biz_id = int(str(getattr(request, "biz_id", None)))
+    except (TypeError, ValueError):
+        raise ValidationError(_lazy("缺少有效的业务 ID"))
+    if not bk_biz_id:
+        raise ValidationError(_lazy("业务 ID 不能为 0"))
+    if not is_biz_in_tenant(bk_biz_id, getattr(getattr(request, "user", None), "tenant_id", None)):
+        raise PermissionDenied()
+    return bk_biz_id
+
+
+def check_notification_group_permission(request, bk_biz_id, action):
+    """当前业务可读平台对象；平台对象变更额外检查全局管理权限。"""
+    request_biz_id = require_business_id(request)
+    if bk_biz_id not in (0, request_biz_id):
+        raise PermissionDenied()
+    permission = Permission()
+    permission.is_allowed_by_biz(request_biz_id, action, raise_exception=True)
+    if bk_biz_id == 0 and action == ActionEnum.MANAGE_NOTIFY_TEAM:
+        permission.is_allowed(ActionEnum.MANAGE_GLOBAL_SETTING, raise_exception=True)
 
 
 class GlobalSettingPermission(IAMPermission):

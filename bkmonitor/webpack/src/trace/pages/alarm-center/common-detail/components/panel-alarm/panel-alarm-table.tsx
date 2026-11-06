@@ -30,6 +30,7 @@ import dayjs from 'dayjs';
 import { xssFilter } from 'monitor-common/utils';
 import { useI18n } from 'vue-i18n';
 
+import { DetailTableSkeleton } from '../../detail-loading';
 import { useAppStore } from '@/store/modules/app';
 
 import './panel-alarm-table.scss';
@@ -429,6 +430,7 @@ export default defineComponent({
     };
   },
   render() {
+    if (this.loading) return <DetailTableSkeleton columns={this.columns} />;
     return (
       <PrimaryTable
         class='panel-alarm-table'

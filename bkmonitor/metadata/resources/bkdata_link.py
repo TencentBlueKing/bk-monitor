@@ -1694,6 +1694,7 @@ class QueryDataLinkMetadataResource(Resource):
         vm_rt_name: str | None,
         monitor_data_id: int | None = None,
         bk_tenant_id: str | None = None,
+        timeout: float | None = None,
     ) -> dict[str, Any] | None:
         """调 BKBase ``GET /v4/meta/datalink/metadata/``.
 
@@ -1726,6 +1727,8 @@ class QueryDataLinkMetadataResource(Resource):
             return None
         if bk_tenant_id:
             params["bk_tenant_id"] = bk_tenant_id
+        if timeout is not None:
+            params["timeout"] = timeout
         try:
             return api.bkdata.get_data_link_metadata(**params)
         except Exception as e:  # pylint: disable=broad-except

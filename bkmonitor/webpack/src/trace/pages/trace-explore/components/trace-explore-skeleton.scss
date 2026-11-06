@@ -1,0 +1,397 @@
+@use 'monitor-static/styles/skeleton-theme' as skeleton;
+
+.trace-skeleton-block {
+  display: block;
+  flex-shrink: 0;
+  height: 10px;
+
+  @include skeleton.surface;
+}
+
+.trace-cell-skeleton {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  height: 20px;
+  overflow: hidden;
+
+  .cell-icon {
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+  }
+
+  .cell-text {
+    flex-shrink: 1;
+    min-width: 16px;
+    max-width: 190px;
+  }
+
+  .cell-tag {
+    width: 28px;
+    height: 18px;
+  }
+
+  &.is-tag .cell-text {
+    max-width: 90px;
+    height: 18px;
+  }
+}
+
+.trace-explore-skeleton {
+  min-width: 0;
+  overflow: hidden;
+  background: #fff;
+
+  &.is-application {
+    flex: 1;
+    margin-right: 2px;
+    background: transparent;
+
+    .application-placeholder {
+      display: flex;
+      gap: 12px;
+      align-items: center;
+      height: 32px;
+    }
+
+    .application-label {
+      flex: 1;
+      max-width: 72%;
+    }
+
+    .application-shortcut {
+      width: 42px;
+      height: 16px;
+      margin-left: auto;
+    }
+  }
+
+  &.is-filter {
+    flex-shrink: 0;
+
+    .filter-query {
+      display: flex;
+      gap: 12px;
+      align-items: center;
+      height: 48px;
+      padding: 0 12px;
+      border-radius: 2px;
+    }
+
+    .query-mode {
+      width: 44px;
+      height: 20px;
+    }
+
+    .query-text {
+      width: 28%;
+    }
+
+    .query-action {
+      width: 24px;
+      height: 20px;
+      margin-left: auto;
+    }
+  }
+
+  &.is-fields {
+    height: 100%;
+    padding: 0 12px;
+
+    .field-title {
+      display: flex;
+      align-items: center;
+      height: 36px;
+    }
+
+    .field-title i {
+      width: 72px;
+    }
+
+    .field-search {
+      width: 100%;
+      height: 26px;
+      margin-bottom: 12px;
+    }
+
+    .field-row {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+      height: 32px;
+    }
+
+    .field-row span {
+      flex-shrink: 1;
+    }
+
+    .field-icon {
+      width: 14px;
+      height: 14px;
+    }
+
+    .field-row:nth-child(4n) {
+      margin-bottom: 12px;
+    }
+  }
+
+  &.is-chart {
+    flex: 1;
+    height: 100%;
+    min-height: 70px;
+  }
+
+  &.is-chart > .skeleton-content {
+    height: 100%;
+  }
+
+  &.is-results {
+    height: 100%;
+  }
+
+  .result-charts {
+    box-sizing: border-box;
+    display: flex;
+    height: 166px;
+    border-bottom: 1px solid #eaebf0;
+  }
+
+  .result-chart {
+    display: flex;
+    flex: 1;
+    flex-direction: column;
+    min-width: 0;
+    padding-top: 12px;
+    border-right: 1px solid #f0f1f5;
+  }
+
+  .chart-title {
+    width: 88px;
+    margin: 0 16px 10px;
+  }
+
+  .result-tools {
+    display: flex;
+    gap: 16px;
+    align-items: center;
+    height: 36px;
+    padding: 0 12px;
+  }
+
+  .result-tools span {
+    width: 48px;
+  }
+
+  .result-table-header,
+  .result-table-row {
+    display: grid;
+    grid-template-columns: 1.3fr 1.3fr 1.1fr 1.2fr 0.8fr 1fr;
+    gap: 20px;
+    align-items: center;
+    padding: 0 12px;
+  }
+
+  .result-table-header {
+    height: 32px;
+    background: #fafbfd;
+    border-block: 1px solid #eaebf0;
+  }
+
+  .result-table-header i {
+    width: 60%;
+  }
+
+  .result-table-row {
+    height: 32px;
+    border-bottom: 1px solid #f0f1f5;
+  }
+}
+
+.trace-skeleton-chart {
+  box-sizing: border-box;
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+  padding: 6px 16px 8px 28px;
+
+  .chart-axis {
+    display: flex;
+    flex: 1;
+    gap: 4px;
+    align-items: flex-end;
+    justify-content: space-around;
+    min-height: 30px;
+    padding: 0 6px;
+    background: repeating-linear-gradient(
+      to top,
+      transparent 0,
+      transparent calc(33.333% - 1px),
+      #f5f6f8 calc(33.333% - 1px),
+      #f5f6f8 33.333%
+    );
+    border-bottom: 1px solid #eaebf0;
+    border-left: 1px solid #eaebf0;
+  }
+
+  .chart-bar {
+    flex: 1;
+    max-width: 18px;
+    border-radius: 2px 2px 0 0;
+  }
+
+  .chart-line {
+    width: 100%;
+    height: 100%;
+    overflow: visible;
+  }
+
+  .chart-line path {
+    fill: none;
+    stroke: skeleton.$highlight-color;
+    stroke-width: 2;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+    vector-effect: non-scaling-stroke;
+  }
+
+  .chart-ticks {
+    display: flex;
+    justify-content: space-between;
+    margin-top: 7px;
+  }
+
+  .chart-ticks i {
+    width: 28px;
+    height: 6px;
+  }
+
+  .chart-legend {
+    display: flex;
+    gap: 12px;
+    justify-content: center;
+    margin-top: 10px;
+  }
+
+  .chart-legend i {
+    width: 42px;
+    height: 8px;
+  }
+}
+
+.trace-resident-skeleton,
+.trace-explore .vue3_retrieval-filter__resident-setting-component {
+  box-sizing: border-box;
+  display: flex;
+  align-items: flex-start;
+  min-height: 41px;
+  border-top: 1px solid #dcdee5;
+
+  .left-btn {
+    position: static;
+    box-sizing: border-box;
+    display: flex;
+    flex: 0 0 90px;
+    align-items: center;
+    justify-content: center;
+    height: 40px;
+  }
+
+  .right-content {
+    display: grid;
+    flex: 1;
+    grid-template-columns: repeat(auto-fill, minmax(min(100%, 280px), 1fr));
+    gap: 4px;
+    min-width: 0;
+    padding: 4px 4px 4px 0;
+
+    > * {
+      min-width: 0;
+      margin: 0;
+    }
+
+    .placeholder-text {
+      top: 0;
+      grid-column: 1 / -1;
+      line-height: 32px;
+    }
+  }
+
+  .setting-icon {
+    width: 14px;
+    height: 14px;
+    margin-right: 4px;
+  }
+
+  .setting-label {
+    width: 48px;
+  }
+
+  .resident-control {
+    box-sizing: border-box;
+    display: flex;
+    gap: 8px;
+    align-items: center;
+    height: 32px;
+    padding: 0 8px;
+    border: 1px solid #e2e5eb;
+    border-radius: 2px;
+  }
+
+  .resident-divider {
+    width: 1px;
+    height: 14px;
+    background: #eceef3;
+  }
+
+  .resident-value {
+    flex: 1;
+    max-width: 64px;
+    height: 8px;
+  }
+
+  .resident-arrow {
+    width: 5px;
+    height: 5px;
+    margin: 0 2px 3px auto;
+    border-right: 1px solid #d5d9e0;
+    border-bottom: 1px solid #d5d9e0;
+    transform: rotate(45deg);
+  }
+}
+
+.trace-explore .vue3_retrieval-filter__resident-setting-component {
+  .time-consuming-component.default,
+  .vue3_resident-setting__setting-kv-input-component .t-input,
+  .vue3_resident-setting__setting-kv-selector-component .component-main {
+    box-sizing: border-box;
+    width: 100%;
+    min-width: 0;
+    max-width: none;
+  }
+
+  .vue3_resident-setting__setting-kv-selector-component .value-wrap {
+    flex: 1;
+    min-width: 0;
+  }
+}
+
+.trace-resident-skeleton {
+  height: 41px;
+  overflow: hidden;
+
+  .right-content {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+
+  .resident-control {
+    overflow: hidden;
+  }
+
+  .resident-key {
+    flex-shrink: 1;
+    min-width: 0;
+  }
+}

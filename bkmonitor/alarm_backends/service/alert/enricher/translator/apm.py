@@ -9,6 +9,7 @@ specific language governing permissions and limitations under the License.
 """
 
 from alarm_backends.service.alert.enricher.translator.base import BaseTranslator, TranslationField
+from bkmonitor.utils.base62 import decode_identifier
 from constants.apm import ApmAlertHelper
 
 
@@ -27,4 +28,7 @@ class ApmTranslator(BaseTranslator):
             if display_name != name:
                 # 展示值不一样时，认为成功找到别名，否则不设置，避免覆盖其他翻译器的处理结果。
                 field.display_name = display_name
+            elif not field.display_name or field.display_name == name:
+                # 新告警生成时还原 SDK 编码的维度名，保留结果表翻译得到的别名。
+                field.display_name = decode_identifier(name)
         return data

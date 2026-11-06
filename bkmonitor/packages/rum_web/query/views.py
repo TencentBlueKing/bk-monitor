@@ -19,10 +19,13 @@ from rum_web.query.resources import (
     RumFieldsOptionValuesResource,
     RumGenerateQueryStringResource,
     RumRecordsResource,
+    RumStatisticsResource,
     RumViewConfigResource,
     RumFieldsTopKResource,
     RumFieldStatisticsInfoResource,
     RumFieldStatisticsGraphResource,
+    RumRecordDetailResource,
+    RumTimelineResource,
 )
 from rum_web.query.serializers import RumDownloadTopKRequestSerializer
 
@@ -52,6 +55,9 @@ class SearchViewSet(ResourceViewSet):
         ResourceRoute("POST", RumFieldsTopKResource, endpoint="fields_topk"),
         ResourceRoute("POST", RumFieldStatisticsInfoResource, endpoint="field_statistics_info"),
         ResourceRoute("POST", RumFieldStatisticsGraphResource, endpoint="field_statistics_graph"),
+        ResourceRoute("POST", RumRecordDetailResource, endpoint="record_detail"),
+        ResourceRoute("POST", RumStatisticsResource, endpoint="statistics"),
+        ResourceRoute("POST", RumTimelineResource, endpoint="timeline"),
     ]
 
     @action(methods=["POST"], detail=False, url_path="download_topk")

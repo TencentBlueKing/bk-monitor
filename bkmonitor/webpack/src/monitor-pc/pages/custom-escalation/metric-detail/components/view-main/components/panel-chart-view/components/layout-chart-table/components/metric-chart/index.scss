@@ -117,15 +117,6 @@
         margin-top: 10px;
         border-radius: 3px;
 
-        &::after {
-          background: linear-gradient(
-            90deg,
-            rgb(100 100 100 / 3%) 25%,
-            rgb(100 100 100 / 7%) 37%,
-            rgb(100 100 100 / 3%) 63%
-          );
-        }
-
         .skeleton-icon {
           font-size: 54px;
           font-weight: 900;

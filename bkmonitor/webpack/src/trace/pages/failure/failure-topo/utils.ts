@@ -26,7 +26,7 @@
 
 import { toRaw } from 'vue';
 
-import type { IEntity, ITopoNode } from './types';
+import type { IEntity, ITopoNode } from './types/topo';
 import type { ITargetInfo } from 'monitor-ui/chart-plugins/plugins/caller-line-chart/use-custom';
 
 /** 根因节点样式 */
@@ -298,13 +298,9 @@ export const typeToLinkHandle = {
   },
   BkNodeHost: {
     title: '主机详情页',
-    path: node => `/performance/detail/${node.entity?.dimensions?.bk_host_id}`,
+    path: node => `/trace/host/${node.entity?.dimensions?.bk_host_id}`,
     beforeJumpVerify: node => !!node.entity?.dimensions?.bk_host_id,
-    query: node => ({
-      'filter-bk_host_id': node.entity?.dimensions?.bk_host_id ?? '',
-      'filter-bk_target_cloud_id': node.entity?.dimensions?.bk_cloud_id ?? '',
-      'filter-bk_target_ip': node.entity?.dimensions?.inner_ip ?? '',
-    }),
+    query: () => ({}),
   },
   APMService: {
     title: '服务详情页',

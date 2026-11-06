@@ -24,7 +24,7 @@
  * IN THE SOFTWARE.
  */
 
-import { ref, shallowRef } from 'vue';
+import { markRaw, ref, shallowRef } from 'vue';
 
 import { deepClone } from 'monitor-common/utils';
 import { defineStore } from 'pinia';
@@ -137,11 +137,12 @@ export const useTraceStore = defineStore('trace', () => {
     setServiceSpanList(firstEdge?.spans || []);
 
     if (data.appName) {
-      originCrossAppSpanMaps.value[data.appName] = rest.original_data;
+      originCrossAppSpanMaps.value[data.appName] = markRaw(rest.original_data || []);
     } else {
       originCrossAppSpanMaps.value = {};
     }
-    traceData.value = {
+    // Trace 数据通过根引用更新，跳过深度监听对整条调用链的重复遍历。
+    traceData.value = markRaw({
       ...rest,
       span_classify: rest.span_classify?.length
         ? rest.span_classify.map(val => ({
@@ -149,12 +150,18 @@ export const useTraceStore = defineStore('trace', () => {
             app_name: data.appName,
           }))
         : [],
-    };
-    originTraceTree.value = { ...(tree as ITraceTree) };
-    traceTree.value = tree
-      ? (transformTraceTree(deepClone(tree as TraceData & { spans: Span[] })) as ITraceTree)
-      : { spans: [] };
-    spanGroupTree.value = handleTraceTreeGroup(traceTree.value?.spans);
+    });
+    const needsOriginalTree = tree?.spans?.some(span =>
+      Boolean(span.cross_relation?.trace_id && span.cross_relation?.app_name)
+    );
+    originTraceTree.value = needsOriginalTree ? markRaw(tree as ITraceTree) : { spans: [] };
+    const transformedTree = tree
+      ? transformTraceTree(
+          needsOriginalTree ? deepClone(tree as TraceData & { spans: Span[] }) : (tree as TraceData & { spans: Span[] })
+        )
+      : null;
+    traceTree.value = markRaw((transformedTree as ITraceTree) || { spans: [] });
+    spanGroupTree.value = markRaw(handleTraceTreeGroup(traceTree.value?.spans));
   }
   /** 更新当前拉取 trace 的总数 */
   function setTraceTotalCount(count: number) {
@@ -240,16 +247,16 @@ export const useTraceStore = defineStore('trace', () => {
     if (originCrossAppSpanMaps.value[appName]) {
       originCrossAppSpanMaps.value[appName].push(...originalData);
     } else {
-      originCrossAppSpanMaps.value[appName] = originalData;
+      originCrossAppSpanMaps.value[appName] = markRaw(originalData);
     }
 
     /** 合并原始 trace_tree */
-    originTraceTree.value = { ...(newTree as ITraceTree) };
+    originTraceTree.value = markRaw({ ...(newTree as ITraceTree) });
     /** 合并 trace_tree */
-    traceTree.value = transformTraceTree(deepClone(newTree as TraceData & { spans: Span[] })) as ITraceTree;
-    spanGroupTree.value = handleTraceTreeGroup(traceTree.value?.spans);
+    traceTree.value = markRaw(transformTraceTree(deepClone(newTree as TraceData & { spans: Span[] })) as ITraceTree);
+    spanGroupTree.value = markRaw(handleTraceTreeGroup(traceTree.value?.spans));
     /** 合并处理 trace_info 和 span_classify */
-    traceData.value = transformTraceInfo(rest, traceData.value) as ITraceData;
+    traceData.value = markRaw(transformTraceInfo(rest, traceData.value) as ITraceData);
   }
 
   function updateEllipsisDirection(val: DirectionType) {
@@ -332,7 +339,7 @@ export const useTraceStore = defineStore('trace', () => {
   /** 切换瀑布图节点折叠状态 */
   function updateSpanGroupCollapse(groupID, status) {
     traceTree.value.spans = handleToggleCollapse(traceTree.value.spans, groupID, status);
-    spanGroupTree.value = handleTraceTreeGroup(traceTree.value?.spans);
+    spanGroupTree.value = markRaw(handleTraceTreeGroup(traceTree.value?.spans));
   }
 
   function updateCompareTraceOriginalData(list) {

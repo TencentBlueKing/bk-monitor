@@ -23,13 +23,14 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { type PropType, defineComponent, reactive, shallowRef, watch } from 'vue';
+import { type PropType, defineComponent, onScopeDispose, reactive, shallowRef, watch } from 'vue';
 
-import { Button, Checkbox, Dialog, Input, Loading, Message } from 'bkui-vue';
+import { Button, Checkbox, Dialog, Input, Message } from 'bkui-vue';
 import { assignAlert } from 'monitor-api/modules/action';
 import { getNoticeWay } from 'monitor-api/modules/notice_group';
 import { useI18n } from 'vue-i18n';
 
+import DetailLoading, { DetailLoadStatus } from '../../detail-loading';
 import UserSelector from '@/components/user-selector/user-selector';
 
 import './alarm-dispatch-dialog.scss';
@@ -57,6 +58,10 @@ export default defineComponent({
   setup(props, { emit }) {
     const { t } = useI18n();
     const loading = shallowRef(false);
+    const submitting = shallowRef(false);
+    const loadError = shallowRef(false);
+    let requestId = 0;
+    onScopeDispose(() => { ++requestId; });
     const users = shallowRef<string[]>([]);
     const noticeWay = shallowRef([]);
     const noticeWayList = shallowRef<{ label: string; type: string }[]>([]);
@@ -68,29 +73,22 @@ export default defineComponent({
       notice: '',
     });
 
-    /* 通知方式列表 */
     const getNoticeWayList = async () => {
-      if (!noticeWayList.value.length) {
-        noticeWayList.value = await getNoticeWay({ bk_biz_id: props.alarmBizId })
-          .then(data => data.filter(item => item.type !== 'wxwork-bot'))
-          .catch(() => []);
+      const current = ++requestId;
+      loading.value = true;
+      loadError.value = false;
+      try {
+        const data = await getNoticeWay({ bk_biz_id: props.alarmBizId });
+        if (current !== requestId) return;
+        noticeWayList.value = data.filter(item => item.type !== 'wxwork-bot');
         const ways = noticeWayList.value.map(item => item.type);
         noticeWay.value = noticeWay.value.filter(type => ways.includes(type));
+      } catch {
+        if (current === requestId) loadError.value = true;
+      } finally {
+        if (current === requestId) loading.value = false;
       }
     };
-
-    watch(
-      () => props.show,
-      async show => {
-        if (show) {
-          users.value = [];
-          loading.value = true;
-          initErrorMsg();
-          await getNoticeWayList();
-          loading.value = false;
-        }
-      }
-    );
 
     const handleTagClick = (tag: string) => {
       if (reason.value) {
@@ -111,10 +109,12 @@ export default defineComponent({
     };
 
     const handleSubmit = async () => {
+      if (loading.value || loadError.value || submitting.value) return;
+      const current = requestId;
       const validate = validator();
       if (validate) {
         // submit
-        loading.value = true;
+        submitting.value = true;
         const data = await assignAlert({
           bk_biz_id: props.alarmBizId,
           alert_ids: props.alarmIds,
@@ -122,6 +122,7 @@ export default defineComponent({
           reason: reason.value,
           notice_ways: noticeWay.value,
         }).catch(() => null);
+        if (current !== requestId) return;
         if (data) {
           Message({
             theme: 'success',
@@ -130,7 +131,7 @@ export default defineComponent({
           handleSuccess();
           handleShowChange(false);
         }
-        loading.value = false;
+        submitting.value = false;
       }
     };
 
@@ -158,8 +159,19 @@ export default defineComponent({
       return true;
     };
 
+    watch(() => [props.show, props.alarmBizId, props.alarmIds.join(',')], () => {
+      ++requestId;
+      submitting.value = false;
+      if (props.show) {
+        users.value = [];
+        initErrorMsg();
+        getNoticeWayList();
+      } else loading.value = false;
+    }, { immediate: true });
+
     return {
       loading,
+      submitting, loadError, retry: getNoticeWayList,
       users,
       reason,
       noticeWay,
@@ -180,7 +192,7 @@ export default defineComponent({
         class={'alarm-dispatch-component-dialog'}
         v-slots={{
           default: () => (
-            <Loading loading={this.loading}>
+            <div>
               <div class='alarm-dispatch'>
                 <div class='tips'>
                   <span class='icon-monitor icon-hint' />
@@ -236,7 +248,7 @@ export default defineComponent({
                     class='content'
                     onClick={this.initErrorMsg}
                   >
-                    <Checkbox.Group v-model={this.noticeWay}>
+                    {this.loading ? <DetailLoading variant='tags' /> : this.loadError ? <DetailLoadStatus error onRetry={this.retry} /> : <Checkbox.Group v-model={this.noticeWay}>
                       {this.noticeWayList.map(item => (
                         <Checkbox
                           key={item.type}
@@ -245,18 +257,20 @@ export default defineComponent({
                           {item.label}
                         </Checkbox>
                       ))}
-                    </Checkbox.Group>
+                    </Checkbox.Group>}
                   </div>
                   {!!this.errorMsg.notice && <div class='err-msg'>{this.errorMsg.notice}</div>}
                 </div>
               </div>
-            </Loading>
+            </div>
           ),
           footer: () => (
             <div class='footer'>
               <Button
                 style={{ 'margin-right': '8px' }}
                 theme='primary'
+                disabled={this.loading || this.loadError}
+                loading={this.submitting}
                 onClick={this.handleSubmit}
               >
                 {this.$t('确定')}

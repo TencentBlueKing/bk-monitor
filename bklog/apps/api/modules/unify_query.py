@@ -35,10 +35,11 @@ def add_unify_query_header_before(params):
     except Exception:  # pylint: disable=broad-except
         username = ""
 
+    # 后台分片导出可显式传独立来源 Name，隔离 UQ 的滚动会话；普通查询沿用用户／backend 来源。
     if username:
-        params["Bk-Query-Source"] = f"username:{username}"
+        params.setdefault("Bk-Query-Source", f"username:{username}")
     else:
-        params["Bk-Query-Source"] = "backend"
+        params.setdefault("Bk-Query-Source", "backend")
 
     return params
 

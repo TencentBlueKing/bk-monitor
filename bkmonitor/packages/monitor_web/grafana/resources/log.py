@@ -22,6 +22,7 @@ from bkmonitor.data_source import load_data_source, filter_dict_to_q
 from bkmonitor.data_source.unify_query.builder import QueryConfigBuilder, UnifyQuerySet
 from bkmonitor.share.api_auth_resource import ApiAuthResource
 from bkmonitor.utils.request import get_request_tenant_id
+from bkmonitor.utils.time_tools import parse_log_timestamp
 from constants.data_source import DataSourceLabel, DataTypeLabel, GrayUnifyQueryDataSources
 from core.drf_resource import resource
 
@@ -48,6 +49,10 @@ class LogQueryResource(ApiAuthResource):
         result_table_id = serializers.CharField(label="结果表ID", default="", allow_blank=True)
         where = serializers.ListField(label="过滤条件", default=lambda: [])
         filter_dict = serializers.DictField(default=lambda: {})
+        target = serializers.ListField(label="监控目标", default=list)
+        group_by = serializers.ListField(
+            label="曲线聚合维度（用于解析监控目标）", child=serializers.CharField(), default=list
+        )
 
         start_time = serializers.IntegerField(required=False, label="开始时间")
         end_time = serializers.IntegerField(required=False, label="结束时间")
@@ -125,23 +130,12 @@ class LogQueryResource(ApiAuthResource):
     def get_time(record: dict, time_field: str) -> int:
         time_value = record.pop(time_field)
 
-        # 带毫秒的时间戳处理
         try:
-            time_value = int(time_value)
-            if len(str(time_value)) > 10:
-                time_value = time_value // 1000
-        except (TypeError, ValueError):
-            pass
-
-        # 将时间字段序列化
-        try:
-            _time = arrow.get(time_value)
+            return parse_log_timestamp(time_value)
         except Exception as e:
             logger.error(f"parse time error: {time_value}")
             logger.exception(e)
-            _time = arrow.now()
-
-        return int(_time.timestamp)
+            return int(arrow.now().timestamp)
 
     def perform_request(self, params):
         if "start_time" not in params or "end_time" not in params:
@@ -169,6 +163,14 @@ class LogQueryResource(ApiAuthResource):
         data_source_key: tuple[str, str] = (params["data_source_label"], params["data_type_label"])
         data_source_class = load_data_source(*data_source_key)
         time_field = time_field or data_source_class.DEFAULT_TIME_FIELD
+        target_instances = []
+        if params.get("target") and params["target"][0]:
+            # 与曲线预览复用目标解析；明细必须在分页和计数前过滤。
+            target_instances = resource.cc.parse_topo_target(
+                params["bk_biz_id"], params.get("group_by", []), params["target"]
+            )
+            if target_instances:
+                params["filter_dict"]["target"] = target_instances
         kwargs = dict(
             bk_tenant_id=get_request_tenant_id(),
             table=params["result_table_id"],
@@ -189,7 +191,9 @@ class LogQueryResource(ApiAuthResource):
             kwargs["bkmonitor_strategy_id"] = params["bkmonitor_strategy_id"]
 
         limit = 1000 if params["limit"] <= 0 else params["limit"]
-        if data_source_key in GrayUnifyQueryDataSources:
+        if target_instances is None:
+            records, total = [], 0
+        elif data_source_key in GrayUnifyQueryDataSources:
             q: QueryConfigBuilder = (
                 QueryConfigBuilder((data_source_key[1], data_source_key[0]))
                 .table(kwargs["table"])

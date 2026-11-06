@@ -20,6 +20,10 @@ class MetaViewSet(ResourceViewSet):
     renderer_classes = RENDER_CLASSES
 
 
+class QueryResourceStorageViewSet(MetaViewSet):
+    resource_routes = [ResourceRoute("POST", resource.QueryResourceStorageResource)]
+
+
 class CreateDataIDViewSet(MetaViewSet):
     resource_routes = [ResourceRoute("POST", resource.CreateDataIDResource)]
 
@@ -388,6 +392,10 @@ class CreateSpaceViewSet(MetaViewSet):
 
 class UpdateSpaceViewSet(MetaViewSet):
     resource_routes = [ResourceRoute("POST", resource.UpdateSpaceResource)]
+
+
+class SetBkmsSpaceStatusViewSet(MetaViewSet):
+    resource_routes = [ResourceRoute("POST", resource.SetBkmsSpaceStatusResource)]
 
 
 class MergeSpaceViewSet(MetaViewSet):

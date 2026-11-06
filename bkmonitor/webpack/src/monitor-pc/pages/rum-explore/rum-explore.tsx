@@ -45,6 +45,8 @@ const rumExploreTagName = 'rum-explore-app';
 export default class RumExplore extends tsc<object> {
   @Ref('rumExploreApp') rumExploreApp: HTMLElement;
   unmountCallback: () => void;
+  disposed = false;
+  loadError = false;
   get rumExploreHost() {
     return process.env.NODE_ENV === 'development' ? `http://${process.env.devHost}:7002` : location.origin;
   }
@@ -80,24 +82,36 @@ export default class RumExplore extends tsc<object> {
       window.customElements.define(rumExploreTagName, RumExploreElement);
     }
   }
-  async mounted() {
-    await loadApp({
-      url: this.rumExploreUrl,
-      id: rumExploreAppId,
-      setShadowDom: true,
-      container: this.rumExploreApp.shadowRoot,
-      data: this.rumExploreData,
-      showSourceCode: false,
-      scopeCss: true,
-      scopeJs: true,
-      scopeLocation: false,
-    });
-    mount(rumExploreAppId, this.rumExploreApp.shadowRoot as ShadowRoot);
-    setTimeout(() => {
+  mounted() {
+    this.loadRumApp();
+  }
+  async loadRumApp() {
+    this.loadError = false;
+    try {
+      await loadApp({
+        url: this.rumExploreUrl,
+        id: rumExploreAppId,
+        isPreLoad: true,
+        setShadowDom: true,
+        container: this.rumExploreApp.shadowRoot,
+        data: this.rumExploreData,
+        showSourceCode: false,
+        scopeCss: true,
+        scopeJs: true,
+        scopeLocation: false,
+      });
+      if (this.disposed) return;
+      mount(rumExploreAppId, this.rumExploreApp.shadowRoot, () => {
+        if (!this.disposed) this.$store.commit('app/SET_ROUTE_CHANGE_LOADING', false);
+      });
+    } catch {
+      if (this.disposed) return;
+      this.loadError = true;
       this.$store.commit('app/SET_ROUTE_CHANGE_LOADING', false);
-    }, 300);
+    }
   }
   beforeDestroy() {
+    this.disposed = true;
     this.unmountCallback?.();
     unmount(rumExploreAppId);
     this.unmountCallback = undefined;
@@ -105,6 +119,21 @@ export default class RumExplore extends tsc<object> {
   render() {
     return (
       <div class='rum-explore-wrap'>
+        {this.loadError && (
+          <div
+            class='rum-host-error'
+            role='status'
+          >
+            <span>{this.$t('加载失败')}</span>
+            <bk-button
+              theme='primary'
+              text
+              onClick={this.loadRumApp}
+            >
+              {this.$t('重试')}
+            </bk-button>
+          </div>
+        )}
         <div class='rum-explore-wrap-iframe'>
           <rum-explore-app ref='rumExploreApp' />
         </div>

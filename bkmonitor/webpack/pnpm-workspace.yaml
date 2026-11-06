@@ -15,7 +15,7 @@ onlyBuiltDependencies:
 overrides:
   '@prometheus-io/lezer-promql': 0.305.0
   bk-magic-vue: 2.5.10-beta.18
-  browserslist: ^4.28.1
+  browserslist: ^4.29.5
   cross-spawn: ^7.0.6
   eslint: ^9.35.0
   monaco-editor: 0.44.0
@@ -42,15 +42,16 @@ publicHoistPattern:
   - '!@vue/compiler-sfc'
 
 minimumReleaseAgeExclude:
-  - '@blueking/open-telemetry@0.0.14'
-  - '@blueking/monitor-apm-log@2.3.28 || 2.3.29 || 2.3.30 || 2.3.31 || 2.3.32 || 2.3.33 || 2.3.34'
+  - '@blueking/open-telemetry@0.0.14 || 0.0.33'
+  - '@blueking/monitor-apm-log@2.3.28 || 2.3.29 || 2.3.30 || 2.3.31 || 2.3.32 || 2.3.33 || 2.3.34 || 2.3.35'
   - '@blueking/monitor-trace-log@2.0.27'
 
 allowBuilds:
-  '@parcel/watcher': set this to true or false
-  core-js: set this to true or false
-  esbuild: set this to true or false
-  protobufjs: set this to true or false
-  simple-git-hooks: set this to true or false
-  vue-demi: set this to true or false
-  vuex-module-decorators: set this to true or false
+  '@biomejs/biome': true
+  '@parcel/watcher': true
+  core-js: false
+  esbuild: true
+  protobufjs: true
+  simple-git-hooks: true
+  vue-demi: true
+  vuex-module-decorators: false

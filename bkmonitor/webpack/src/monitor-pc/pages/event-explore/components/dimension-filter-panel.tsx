@@ -81,6 +81,8 @@ export default class DimensionFilterPanel extends tsc<DimensionFilterPanelProps,
 
   /** 字段列表的count统计 */
   fieldListCount = {};
+  countLoading = false;
+  countRequestId = 0;
   /* 搜索关键字 */
   searchVal = '';
   /** 搜索结果列表 */
@@ -94,27 +96,32 @@ export default class DimensionFilterPanel extends tsc<DimensionFilterPanelProps,
 
   topKCancelFn = null;
 
-  @Watch('refreshImmediate')
-  async watchRefreshImmediate() {
-    await this.getFieldCount();
+  get countRequestKey() {
+    return JSON.stringify([this.commonParams, this.list, this.refreshImmediate]);
   }
 
-  /** 条件切换后，维度count需要重新获取 */
-  @Watch('condition')
-  async watchConditionChange() {
-    await this.getFieldCount();
+  get dimensionSourceKey() {
+    const config = this.commonParams?.query_configs?.[0];
+    return JSON.stringify([this.source, config?.table, config?.data_source_label, config?.data_type_label]);
   }
 
-  @Watch('queryString')
-  async watchQueryStringChange() {
-    await this.getFieldCount();
+  @Watch('dimensionSourceKey')
+  handleSourceChange() {
+    this.searchVal = '';
+    this.searchResultList = this.list;
+    this.destroyPopover();
   }
 
   @Watch('list')
-  async watchListChange(list: IDimensionField[]) {
-    this.searchVal = '';
-    this.searchResultList = list;
-    await this.getFieldCount();
+  watchListChange(list: IDimensionField[]) {
+    this.searchResultList = this.searchVal ? list.filter(item => item.pinyinStr.includes(this.searchVal)) : list;
+  }
+
+  beforeDestroy() {
+    clearTimeout(this.handleSearch_debounceFn);
+    this.countRequestId += 1;
+    this.topKCancelFn?.();
+    this.destroyPopover();
   }
 
   /** 关键字搜索 */
@@ -133,7 +140,7 @@ export default class DimensionFilterPanel extends tsc<DimensionFilterPanelProps,
   /** 点击维度项后展示统计弹窗 */
   async handleDimensionItemClick(e: Event, item: IDimensionField) {
     this.destroyPopover();
-    if (!item.is_option_enabled || !this.fieldListCount[item.name]) return;
+    if (this.countLoading || !item.is_option_enabled || !this.fieldListCount[item.name]) return;
     this.selectField = item.name;
     this.slideField = item;
     this.popoverInstance = this.$bkPopover(e.currentTarget, {
@@ -168,20 +175,30 @@ export default class DimensionFilterPanel extends tsc<DimensionFilterPanelProps,
   }
 
   /** 获取各个维度的count */
+  @Watch('countRequestKey', { immediate: true })
   async getFieldCount() {
+    const requestId = ++this.countRequestId;
+    this.topKCancelFn?.();
     const fields = this.list.reduce((pre, cur) => {
       if (cur.is_option_enabled) pre.push(cur.name);
       return pre;
     }, []);
-    if (!fields.length) return;
-    const list = await this.getFieldTopK({
-      limit: 0,
-      fields,
-    });
-    this.fieldListCount = list.reduce((pre, cur) => {
-      pre[cur.field] = cur.distinct_count;
-      return pre;
-    }, {});
+    if (!fields.length || !this.commonParams?.query_configs?.[0]?.table) {
+      this.fieldListCount = {};
+      this.countLoading = false;
+      return;
+    }
+    this.countLoading = true;
+    try {
+      const list = await this.getFieldTopK({ limit: 0, fields });
+      if (requestId !== this.countRequestId) return;
+      this.fieldListCount = list.reduce((pre, cur) => {
+        pre[cur.field] = cur.distinct_count;
+        return pre;
+      }, {});
+    } finally {
+      if (requestId === this.countRequestId) this.countLoading = false;
+    }
   }
 
   getFieldTopK(params) {
@@ -211,14 +228,25 @@ export default class DimensionFilterPanel extends tsc<DimensionFilterPanelProps,
   // 渲染骨架屏
   renderSkeleton() {
     return (
-      <div class='dimension-filter-panel-skeleton'>
+      <div
+        class='dimension-filter-panel-skeleton'
+        aria-busy='true'
+        aria-label={this.$tc('加载中')}
+      >
         <div class='skeleton-element title' />
         <div class='skeleton-element search-input' />
         {new Array(10).fill(null).map((item, index) => (
           <div
             key={index}
-            class='skeleton-element list-item'
-          />
+            class='list-item'
+          >
+            <span class='skeleton-element field-icon' />
+            <span
+              style={{ width: `${[52, 68, 44, 60][index % 4]}%` }}
+              class='skeleton-element field-name'
+            />
+            <span class='skeleton-element field-count' />
+          </div>
         ))}
       </div>
     );
@@ -321,7 +349,11 @@ export default class DimensionFilterPanel extends tsc<DimensionFilterPanelProps,
                       key={`${item.name}__count`}
                       class='dimension-count'
                     >
-                      {this.fieldListCount[item.name] || 0}
+                      {this.countLoading ? (
+                        <span class='skeleton-element count-skeleton' />
+                      ) : (
+                        (this.fieldListCount[item.name] ?? '--')
+                      )}
                     </span>,
                     <i
                       key={`${item.name}__statistics`}

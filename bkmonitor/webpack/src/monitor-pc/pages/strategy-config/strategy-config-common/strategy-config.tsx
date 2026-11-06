@@ -35,6 +35,7 @@ import { disableShield } from 'monitor-api/modules/shield';
 import {
   deleteStrategyV2,
   getScenarioList,
+  getStrategyAlertSummaryV2,
   getStrategyListV2,
   getTargetDetail,
   updatePartialStrategyV2,
@@ -45,7 +46,6 @@ import { formatWithTimezone } from 'monitor-common/utils/timezone';
 import { debounce } from 'throttle-debounce';
 
 import EmptyStatus from '../../../components/empty-status/empty-status';
-import TableSkeleton from '../../../components/skeleton/table-skeleton';
 import SvgIcon from '../../../components/svg-icon/svg-icon.vue';
 import TableFilter from '../../../components/table-filter/table-filter.vue';
 import authorityMixinCreate from '../../../mixins/authorityMixin';
@@ -71,6 +71,7 @@ import {
 } from '../util';
 import DeleteSubtitle from './delete-subtitle';
 import FilterPanelPopover from './filter-panel-popover';
+import StrategyFilterSkeleton, { StrategyCellSkeleton } from './strategy-loading';
 
 import type { EmptyStatusOperationType, EmptyStatusType } from '../../../components/empty-status/types';
 import type { INodeType, TargetObjectType } from '../../../components/monitor-ip-selector/typing';
@@ -203,7 +204,7 @@ class StrategyConfig extends Mixins(UserConfigMixin, authorityMixinCreate(strate
   };
   table = {
     data: [],
-    loading: false,
+    loading: true,
     select: [],
   };
   pageCount = 0;
@@ -226,7 +227,54 @@ class StrategyConfig extends Mixins(UserConfigMixin, authorityMixinCreate(strate
     setDefaultStore: () => {},
     getItemDescription: () => [],
   };
-  loading = false;
+  submitting = false;
+  filtersReady = false;
+  retainingData = false;
+  listError = false;
+  targetLoading = false;
+  targetError = false;
+  summaryLoading = false;
+  summaryError = false;
+  scenarioLoading = false;
+  scenarioError = false;
+  listRequestId = 0;
+  listBizId = '';
+  activationId = 0;
+  pageActive = true;
+  snapshotKey = '';
+  listCancelFn = () => {};
+  currentListResponse = null;
+  currentConditions = [];
+  dialogGroupList = [];
+  groupRequestId = 0;
+
+  get showTableSkeleton() {
+    return this.authLoading || (this.table.loading && !this.retainingData);
+  }
+
+  get tableBusy() {
+    return this.showTableSkeleton || this.table.loading || this.submitting;
+  }
+
+  isCurrentList(requestId: number) {
+    return this.pageActive && requestId === this.listRequestId && this.listBizId === String(this.$store.getters.bizId);
+  }
+
+  invalidateRequests() {
+    this.pageActive = false;
+    this.activationId += 1;
+    this.listRequestId += 1;
+    this.groupRequestId += 1;
+    this.listCancelFn();
+    this.cancelFn();
+    this.alertSummaryCancelFn();
+    (this.header.handleSearch as { cancel?: () => void }).cancel?.();
+    this.dialogLoading = false;
+  }
+
+  beforeDestroy() {
+    this.invalidateRequests();
+  }
   isShowStrategy = false;
   isShowTableFilter = false;
   strategyId = 0;
@@ -290,6 +338,7 @@ class StrategyConfig extends Mixins(UserConfigMixin, authorityMixinCreate(strate
   selectKey = 1;
   firstRequest = true; // 第一次请求
   cancelFn = () => {}; // 取消监控目标接口方法
+  alertSummaryCancelFn = () => {}; // 取消策略告警统计接口方法
 
   get bizList() {
     return this.$store.getters.bizList;
@@ -324,7 +373,9 @@ class StrategyConfig extends Mixins(UserConfigMixin, authorityMixinCreate(strate
       name: this.$t('状态'),
       data: this.strategyStatusOptions.map(item => ({
         ...item,
-        count: item.count || 0,
+        // 告警中、屏蔽中的数量由告警统计接口异步返回，返回前为 null
+        count: item.count ?? '--',
+        countLoading: this.summaryLoading && item.count == null,
         icon: iconMap[item.id],
       })),
     };
@@ -425,6 +476,7 @@ class StrategyConfig extends Mixins(UserConfigMixin, authorityMixinCreate(strate
   }
 
   deactivated() {
+    this.invalidateRequests();
     this.selectKey += 1;
   }
 
@@ -824,17 +876,21 @@ class StrategyConfig extends Mixins(UserConfigMixin, authorityMixinCreate(strate
         id: 'operator',
       },
     };
+    this.checkColInit();
     this.header.handleSearch = debounce(300, () => {
       this.handleGetListData(false, 1);
     });
   }
 
   async activated() {
+    this.pageActive = true;
+    const activationId = ++this.activationId;
     await this.getAuthCreated();
-    if (!this.hasPageViewAuth) return;
+    if (!this.pageActive || activationId !== this.activationId || !this.hasPageViewAuth) return;
     /** 获取筛选面板用户配置 */
     this.handleGetUserConfig<{ fields: string[]; order: string[] }>(FILTER_PANEL_FIELD, { reject403: true }).then(
       res => {
+        if (!this.pageActive || activationId !== this.activationId) return;
         if (!res?.order?.length) {
           this.handleSetUserConfig(
             FILTER_PANEL_FIELD,
@@ -880,7 +936,7 @@ class StrategyConfig extends Mixins(UserConfigMixin, authorityMixinCreate(strate
     addListener(container, () => {
       resize();
     });
-    this.$once('hook:beforeDestory', () => {
+    this.$once('hook:beforeDestroy', () => {
       removeListener(container);
     });
     this.$once('hook:deactivated', () => {
@@ -1042,7 +1098,7 @@ class StrategyConfig extends Mixins(UserConfigMixin, authorityMixinCreate(strate
    * @param {*}
    * @return {*}
    */
-  createdConditionList() {
+  createdConditionList(resetSelect = true) {
     const res = [];
     const map = this.backDisplayMap;
     for (const key of Object.keys(map)) {
@@ -1071,7 +1127,7 @@ class StrategyConfig extends Mixins(UserConfigMixin, authorityMixinCreate(strate
         });
       }
     }
-    this.selectKey += 1;
+    if (resetSelect) this.selectKey += 1;
     this.conditionList = res;
   }
   /**
@@ -1182,13 +1238,44 @@ class StrategyConfig extends Mixins(UserConfigMixin, authorityMixinCreate(strate
    * @param {*} data
    * @return {*}
    */
-  getTargetDetail(data) {
-    const ids = data.map(item => item.id);
-    getTargetDetail({ strategy_ids: ids }, { cancelToken: new CancelToken(c => (this.cancelFn = c)) }).then(
-      targetMap => {
-        this.table.data = this.handleTargetString(data, targetMap);
+  async getTargetDetail(data, requestId = this.listRequestId) {
+    if (!this.isCurrentList(requestId) || !data.length) return;
+    this.targetLoading = true;
+    this.targetError = false;
+    try {
+      const targetMap = await getTargetDetail(
+        { strategy_ids: data.map(item => item.id) },
+        { cancelToken: new CancelToken(c => (this.cancelFn = c)), needMessage: false }
+      );
+      if (this.isCurrentList(requestId)) this.handleTargetString(data, targetMap);
+    } catch {
+      if (this.isCurrentList(requestId)) this.targetError = true;
+    } finally {
+      if (this.isCurrentList(requestId)) this.targetLoading = false;
+    }
+  }
+
+  async getAlertSummary(data, conditions, requestId = this.listRequestId) {
+    if (!this.isCurrentList(requestId)) return;
+    this.summaryLoading = true;
+    this.summaryError = false;
+    try {
+      const { strategy_status_list, strategy_alert_counts } = await getStrategyAlertSummaryV2(
+        { conditions, strategy_ids: data.map(item => item.id) },
+        { cancelToken: new CancelToken(c => (this.alertSummaryCancelFn = c)), needMessage: false }
+      );
+      if (!this.isCurrentList(requestId)) return;
+      for (const item of data) {
+        const alertCounts = strategy_alert_counts[item.id];
+        item.abnormalAlertCount = alertCounts?.alert_count || 0;
+        item.shieldAlertCount = alertCounts?.shield_alert_count || 0;
       }
-    );
+      this.strategyStatusOptions = strategy_status_list;
+    } catch {
+      if (this.isCurrentList(requestId)) this.summaryError = true;
+    } finally {
+      if (this.isCurrentList(requestId)) this.summaryLoading = false;
+    }
   }
   /**
    * @description: 获取list data
@@ -1197,13 +1284,20 @@ class StrategyConfig extends Mixins(UserConfigMixin, authorityMixinCreate(strate
    * @param {*} defPageSize
    * @return {*}
    */
-  handleGetListData(needLoading = false, defPage?, defPageSize?) {
+  handleGetListData(_needLoading = false, defPage?, defPageSize?) {
+    if (!this.pageActive) return;
+    const bizId = String(this.$store.getters.bizId);
+    if (this.listBizId !== bizId) {
+      this.filtersReady = false;
+      this.dialogGroupList = [];
+      this.scenarioList = [];
+      this.groupRequestId += 1;
+      this.dialogLoading = false;
+    }
+    this.listBizId = bizId;
     this.setTableFilterSelect(this.$t('数据来源'));
     this.setTableFilterSelect(this.$t('告警组'));
     this.handleSearchCondition();
-    this.loading = needLoading;
-    this.table.loading = !needLoading;
-    this.table.data = [];
     const page = defPage || this.tableInstance.page || 1;
     const pageSize = defPageSize || this.tableInstance.pageSize || commonPageSizeGet();
     const params = {
@@ -1211,16 +1305,46 @@ class StrategyConfig extends Mixins(UserConfigMixin, authorityMixinCreate(strate
       page,
       page_size: pageSize,
       // search: this.header.keyword,
-      conditions: this.header.condition,
+      conditions: JSON.parse(JSON.stringify(this.header.condition)),
       // data_source_list: this.label.selectedLabels || [],
       order_by: '-update_time',
       with_user_group: true,
+      with_alert_summary: false,
       // service_category: this.label.serviceCategory
     };
+    const requestId = ++this.listRequestId;
+    const queryKey = JSON.stringify([this.$store.getters.bizId, params]);
+    this.retainingData = queryKey === this.snapshotKey;
+    this.table.loading = true;
+    this.tableInstance.page = page;
+    this.tableInstance.pageSize = pageSize;
+    this.listError = false;
+    this.table.select = [];
+    this.popover.instance?.hide();
+    (this.$refs.strategyTable as { clearSelection?: () => void })?.clearSelection?.();
+    if (!this.retainingData) {
+      this.table.data = [];
+      this.snapshotKey = '';
+      this.targetError = false;
+      this.summaryError = false;
+      this.scenarioError = false;
+      this.targetLoading = false;
+      this.summaryLoading = false;
+      this.scenarioLoading = false;
+    }
     this.emptyType = this.header.condition.length > 0 ? 'search-empty' : 'empty';
+    this.listCancelFn();
     this.cancelFn(); // 取消上一次监控目标的请求
-    getStrategyListV2(params)
-      .then(async data => {
+    this.alertSummaryCancelFn(); // 取消上一次策略告警统计的请求
+    return getStrategyListV2(params, {
+      cancelToken: new CancelToken(c => (this.listCancelFn = c)),
+      needMessage: false,
+    })
+      .then(data => {
+        if (!this.isCurrentList(requestId)) return;
+        this.snapshotKey = queryKey;
+        this.currentListResponse = data;
+        this.currentConditions = params.conditions;
         this.noticeGroupList = data.user_group_list;
         this.tableInstance = new TableStore(data.strategy_config_list, this.bizList);
         this.tableInstance.page = page;
@@ -1228,10 +1352,20 @@ class StrategyConfig extends Mixins(UserConfigMixin, authorityMixinCreate(strate
         this.tableInstance.keyword = this.header.keyword;
         const tableData = this.tableInstance.getTableData();
         this.table.data = tableData;
-        this.getTargetDetail(tableData);
-        this.handleTableDataChange(this.table.data);
-        this.pageCount = await this.handelScenarioList(data, this.table.data);
+        this.targetLoading = false;
+        this.targetError = false;
+        this.summaryLoading = false;
+        this.summaryError = false;
+        this.getTargetDetail(tableData, requestId);
         this.strategyStatusOptions = data.strategy_status_list || [];
+        this.alertSummaryCancelFn(); // 取消上一次策略告警统计的请求
+        // 按告警中、屏蔽中过滤时列表已带回告警统计，无需再请求
+        if (this.strategyStatusOptions.some(item => item.count === null)) {
+          this.getAlertSummary(tableData, params.conditions, requestId);
+        }
+        this.handleTableDataChange(this.table.data);
+        this.pageCount = data.total;
+        this.handelScenarioList(data, tableData, requestId);
         this.sourceList = data.data_source_list
           .map(item => {
             const { type, name, count } = item;
@@ -1276,13 +1410,21 @@ class StrategyConfig extends Mixins(UserConfigMixin, authorityMixinCreate(strate
         // magic code  refresh bk table
         (this.$refs.strategyTable as Element & { doLayout?: () => void })?.doLayout?.();
         this.firstRequest = false;
+        this.filtersReady = true;
       })
       .catch(() => {
+        if (!this.isCurrentList(requestId)) return;
+        this.listError = true;
+        this.targetError = this.targetError || this.targetLoading;
+        this.summaryError = this.summaryError || this.summaryLoading;
+        this.scenarioError = this.scenarioError || this.scenarioLoading;
+        this.targetLoading = false;
+        this.summaryLoading = false;
+        this.scenarioLoading = false;
         this.emptyType = '500';
       })
       .finally(() => {
-        this.loading = false;
-        this.table.loading = false;
+        if (this.isCurrentList(requestId)) this.table.loading = false;
       });
   }
 
@@ -1351,35 +1493,32 @@ class StrategyConfig extends Mixins(UserConfigMixin, authorityMixinCreate(strate
    * @param {*} tableData
    * @return {*}
    */
-  async handelScenarioList(data, tableData) {
-    if (this.scenarioList.length === 0) {
-      this.scenarioList = await getScenarioList().catch(() => []);
-    }
-    let total = 0;
-    const scenarioFather = this.scenarioList.map(item => {
-      const { name, id, index, children } = item;
-      return { name, id, sort: `${index}`, children, count: 0 };
-    });
-    const scenarioList = data.scenario_list;
-    for (const item of scenarioFather) {
-      let count = 0;
-      for (const set of item.children) {
-        const res = scenarioList.find(child => child.id === set.id);
-        count += res.count;
-        // total += res.count;
-        set.count = res.count;
+  async handelScenarioList(data, tableData, requestId = this.listRequestId) {
+    if (!this.isCurrentList(requestId)) return;
+    this.scenarioLoading = true;
+    this.scenarioError = false;
+    try {
+      const scenarios = this.scenarioList.length ? this.scenarioList : await getScenarioList({}, { needMessage: false });
+      if (!this.isCurrentList(requestId)) return;
+      this.scenarioList = scenarios;
+      const scenarioFather = scenarios.map(({ name, id, index, children }) => {
+        const items = children.map(child => ({
+          ...child,
+          count: data.scenario_list.find(item => item.id === child.id)?.count ?? 0,
+        }));
+        return { name, id, sort: `${index}`, children: items, count: items.reduce((sum, item) => sum + item.count, 0) };
+      });
+      this.backDisplayMap.scenario.list = scenarioFather;
+      this.handleUpdateScenarioListName();
+      for (const item of tableData) {
+        item.scenarioDisplayName = this.getScenarioName(scenarioFather, item.strategyType).join('-');
       }
-      item.count = count;
+      this.createdConditionList(false);
+    } catch {
+      if (this.isCurrentList(requestId)) this.scenarioError = true;
+    } finally {
+      if (this.isCurrentList(requestId)) this.scenarioLoading = false;
     }
-    this.backDisplayMap.scenario.list = scenarioFather;
-    this.handleUpdateScenarioListName();
-    for (const item of tableData) {
-      const nameArr = this.getScenarioName(scenarioFather, item.strategyType);
-      item.scenarioDisplayName = nameArr.join('-');
-    }
-    // 列表total设置为监控对象筛选项count总和
-    total = data.total;
-    return total;
   }
   /** 更新监控对象搜索框回显 */
   handleUpdateScenarioListName() {
@@ -1433,6 +1572,8 @@ class StrategyConfig extends Mixins(UserConfigMixin, authorityMixinCreate(strate
     this.handleGetListData(false, 1, limit);
   }
   handleHeadSelectChange(v) {
+    if (this.tableBusy) return;
+    this.getGroupList();
     // 导出 Yaml 文件
     if (v === 19) {
       const h = this.$createElement;
@@ -1562,6 +1703,7 @@ class StrategyConfig extends Mixins(UserConfigMixin, authorityMixinCreate(strate
     return data.map(mapper);
   }
   handleOperatorOver(data, e, index) {
+    if (this.tableBusy) return;
     if (this.popover.index === index) {
       return;
     }
@@ -1593,16 +1735,18 @@ class StrategyConfig extends Mixins(UserConfigMixin, authorityMixinCreate(strate
     this.dialog.show = v;
   }
   handleMuchEdit(v) {
-    this.loading = true;
+    if (this.tableBusy) return;
+    this.submitting = true;
     const { idList } = this;
     if (this.header.value === 7) {
       deleteStrategyV2({ ids: idList })
         .then(() => {
           this.$bkMessage({ theme: 'success', message: this.$t('批量删除成功') });
+          this.submitting = false;
           this.handleGetListData(false, 1);
         })
         .catch(() => {
-          this.loading = false;
+          this.submitting = false;
         });
     } else {
       updatePartialStrategyV2({ ids: idList, edit_data: { ...v } })
@@ -1628,6 +1772,7 @@ class StrategyConfig extends Mixins(UserConfigMixin, authorityMixinCreate(strate
             20: this.$t('批量修改通知升级成功'),
             21: this.$t('批量修改算法成功'),
           };
+          this.submitting = false;
           this.handleGetListData();
           if (this.header.value === 6) {
             msg[6] = v.is_enabled ? `${this.$t('批量启用策略成功')}` : `${this.$t('批量停用策略成功')}`;
@@ -1635,11 +1780,12 @@ class StrategyConfig extends Mixins(UserConfigMixin, authorityMixinCreate(strate
           this.$bkMessage({ theme: 'success', message: msg[this.header.value], ellipsisLine: 0 });
         })
         .catch(() => {
-          this.loading = false;
+          this.submitting = false;
         });
     }
   }
   handlePreSwitchChange(v, type: 'enabled' | 'needPoll' | 'noDataEnabled') {
+    if (this.tableBusy) return Promise.resolve(false);
     const enable = v[type];
     const params = {
       enabled: { is_enabled: !enable },
@@ -1655,16 +1801,17 @@ class StrategyConfig extends Mixins(UserConfigMixin, authorityMixinCreate(strate
         this.$bkInfo({
           title: this.$t('你确认要停用？'),
           confirmFn: () => {
-            this.loading = true;
+            this.submitting = true;
             this.$nextTick(() => {
               updatePartialStrategyV2({ ids: [v.id], edit_data: params[type] })
                 .then(() => {
+                  this.submitting = false;
                   this.handleGetListData(true);
                   this.$bkMessage({ theme: 'success', message: this.$t('停用成功') });
                   resolve(true);
                 })
                 .catch(() => {
-                  this.loading = false;
+                  this.submitting = false;
                   reject();
                 });
             });
@@ -1674,21 +1821,23 @@ class StrategyConfig extends Mixins(UserConfigMixin, authorityMixinCreate(strate
           },
         });
       } else {
-        this.loading = true;
+        this.submitting = true;
         updatePartialStrategyV2({ ids: [v.id], edit_data: params[type] })
           .then(() => {
+            this.submitting = false;
             this.handleGetListData(true);
             this.$bkMessage({ theme: 'success', message: this.$t('启用成功') });
             resolve(true);
           })
           .catch(() => {
-            this.loading = false;
+            this.submitting = false;
             reject();
           });
       }
     });
   }
   handleDeleteRow() {
+    if (this.tableBusy) return;
     this.$bkInfo({
       type: 'warning',
       title: this.$t('你确认么？'),
@@ -1701,15 +1850,15 @@ class StrategyConfig extends Mixins(UserConfigMixin, authorityMixinCreate(strate
       maskClose: true,
       escClose: true,
       confirmFn: () => {
-        this.loading = true;
+        this.submitting = true;
         deleteStrategyV2({ ids: [this.popover.data.id] })
           .then(() => {
-            this.table.loading = false;
             this.$bkMessage({ theme: 'success', message: this.$t('删除成功') });
+            this.submitting = false;
             this.handleGetListData(false, 1);
           })
           .catch(() => {
-            this.loading = false;
+            this.submitting = false;
           });
       },
     });
@@ -1759,7 +1908,7 @@ class StrategyConfig extends Mixins(UserConfigMixin, authorityMixinCreate(strate
     });
   }
   handleSelectionChange(selection) {
-    this.table.select = selection;
+    this.table.select = this.tableBusy ? [] : selection;
   }
   /**
    * @description: 跳转编辑
@@ -1767,6 +1916,7 @@ class StrategyConfig extends Mixins(UserConfigMixin, authorityMixinCreate(strate
    * @return {*}
    */
   handleEditStrategy(data) {
+    if (this.tableBusy) return;
     this.$router.push({
       name: 'strategy-config-edit',
       params: {
@@ -1785,18 +1935,20 @@ class StrategyConfig extends Mixins(UserConfigMixin, authorityMixinCreate(strate
    * @return {*}
    */
   handleDeleteShield() {
+    if (this.tableBusy) return;
     const { id } = this.popover.data.shieldInfo;
     this.$bkInfo({
       title: this.$t('是否解除该屏蔽?'),
       confirmFn: () => {
-        this.loading = true;
+        this.submitting = true;
         disableShield({ id })
           .then(() => {
+            this.submitting = false;
             this.handleGetListData();
             this.$bkMessage({ theme: 'success', message: this.$t('解除屏蔽成功') });
           })
           .catch(() => {
-            this.loading = false;
+            this.submitting = false;
           });
       },
     });
@@ -1932,19 +2084,21 @@ class StrategyConfig extends Mixins(UserConfigMixin, authorityMixinCreate(strate
    * @return {*}
    */
   async getGroupList() {
-    // 有数据缓存则不请求数据
-    if (this.groupList.length) return;
+    if (this.dialogGroupList.length || this.dialogLoading) return;
+    const requestId = ++this.groupRequestId;
+    const bizId = this.$store.getters.bizId;
     this.dialogLoading = true;
-    await noticeGroupList().then(data => {
-      this.groupList = data
-        .map(item => ({
-          id: item.id,
-          name: item.name,
-          count: item.related_strategy,
-        }))
+    try {
+      const data = await noticeGroupList();
+      if (!this.pageActive || requestId !== this.groupRequestId || bizId !== this.$store.getters.bizId) return;
+      this.dialogGroupList = data
+        .map(item => ({ id: item.id, name: item.name, count: item.related_strategy }))
         .sort((pre, next) => next.count - pre.count);
-    });
-    this.dialogLoading = false;
+    } catch {
+      // 接口层保留原有失败提示，弹窗再次打开时可重新获取。
+    } finally {
+      if (requestId === this.groupRequestId) this.dialogLoading = false;
+    }
   }
   /* 跳转到事件中心 */
   handleToEventCenter(item, type = 'NOT_SHIELDED_ABNORMAL') {
@@ -2064,7 +2218,22 @@ class StrategyConfig extends Mixins(UserConfigMixin, authorityMixinCreate(strate
     );
   }
 
+  renderAsyncError(show: boolean, message, retry: () => void) {
+    return show ? (
+      <div class='strategy-async-error' role='alert'>
+        <span>{message}</span>
+        <bk-button text disabled={this.tableBusy} onClick={retry}>{this.$t('重试')}</bk-button>
+      </div>
+    ) : null;
+  }
+
   getTableComponent() {
+    const withLoading = (field: string, slots) => ({
+      ...slots,
+      default: props => this.showTableSkeleton
+        ? <StrategyCellSkeleton field={field} index={props.$index} />
+        : slots.default(props),
+    });
     const idSlot = {
       default: props => props.row.id,
     };
@@ -2095,6 +2264,8 @@ class StrategyConfig extends Mixins(UserConfigMixin, authorityMixinCreate(strate
                 {props.row.strategyName}
               </router-link>
             </span>
+            {this.summaryLoading && <span class='strategy-count-skeleton' aria-label={this.$t('加载中...')} />}
+            {this.summaryError && <span title={this.$t('获取策略告警数量失败')}>--</span>}
             {[
               props.row.isInvalid ? (
                 <i
@@ -2160,7 +2331,11 @@ class StrategyConfig extends Mixins(UserConfigMixin, authorityMixinCreate(strate
               ) : undefined,
             ]}
           </div>
-          <div class='col-name-type'>{props.row.scenarioDisplayName}</div>
+          <div class='col-name-type'>
+            {this.scenarioLoading ? (
+              <span class='strategy-async-placeholder'><StrategyCellSkeleton /></span>
+            ) : props.row.scenarioDisplayName || '--'}
+          </div>
         </div>
       ),
     };
@@ -2200,7 +2375,9 @@ class StrategyConfig extends Mixins(UserConfigMixin, authorityMixinCreate(strate
     const targetSlot = {
       default: props => (
         <div class='col-name'>
-          <div class='col-name-label'>{props.row.target || this.$t('默认全部')}</div>
+          <div class='col-name-label'>
+            {this.targetLoading ? <StrategyCellSkeleton field='target' /> : this.targetError ? '--' : props.row.target || this.$t('默认全部')}
+          </div>
         </div>
       ),
     };
@@ -2351,6 +2528,7 @@ class StrategyConfig extends Mixins(UserConfigMixin, authorityMixinCreate(strate
         <bk-switcher
           key={props.row.id}
           v-model={props.row[type]}
+          disabled={this.tableBusy}
           pre-check={() => this.handlePreSwitchChange(props.row, type)}
           size='small'
           theme='primary'
@@ -2508,8 +2686,8 @@ class StrategyConfig extends Mixins(UserConfigMixin, authorityMixinCreate(strate
     return (
       <bk-table
         ref='strategyTable'
-        class='strategy-table'
-        v-bkloading={{ isLoading: this.table.loading }}
+        class={['strategy-table', { 'is-busy': this.tableBusy, 'is-skeleton': this.showTableSkeleton }]}
+        aria-busy={this.tableBusy}
         on={{
           'hook:mounted': this.handleTableMountedOrActivated,
           'hook:activated': this.handleTableMountedOrActivated,
@@ -2519,7 +2697,9 @@ class StrategyConfig extends Mixins(UserConfigMixin, authorityMixinCreate(strate
         on-selection-change={this.handleSelectionChange}
         {...{
           props: {
-            data: this.table.data,
+            data: this.showTableSkeleton
+              ? Array.from({ length: Math.min(this.tableInstance.pageSize, 10) }, (_, index) => ({ id: `skeleton-${index}` }))
+              : this.table.data,
           },
         }}
       >
@@ -2532,7 +2712,13 @@ class StrategyConfig extends Mixins(UserConfigMixin, authorityMixinCreate(strate
         <bk-table-column
           width='50'
           align='center'
-          type='selection'
+          key={this.showTableSkeleton ? 'skeleton-selection' : 'selection'}
+          type={this.showTableSkeleton ? undefined : 'selection'}
+          selectable={() => !this.tableBusy}
+          scopedSlots={this.showTableSkeleton ? {
+            header: () => <StrategyCellSkeleton field='selection' />,
+            default: () => <StrategyCellSkeleton field='selection' />,
+          } : undefined}
         />
         {id.checked && (
           <bk-table-column
@@ -2540,7 +2726,7 @@ class StrategyConfig extends Mixins(UserConfigMixin, authorityMixinCreate(strate
             width='75'
             label='ID'
             prop='id'
-            scopedSlots={idSlot}
+            scopedSlots={withLoading('id', idSlot)}
           />
         )}
         {strategyName.checked && (
@@ -2548,7 +2734,7 @@ class StrategyConfig extends Mixins(UserConfigMixin, authorityMixinCreate(strate
             key='strategyName'
             label={this.$t('策略名')}
             min-width='200'
-            scopedSlots={strategyNameSlot}
+            scopedSlots={withLoading('strategyName', strategyNameSlot)}
           />
         )}
         {itemDescription.checked && (
@@ -2556,7 +2742,7 @@ class StrategyConfig extends Mixins(UserConfigMixin, authorityMixinCreate(strate
             key='itemDescription'
             label={this.$t('监控项')}
             min-width='200'
-            scopedSlots={itemDescriptionSlot}
+            scopedSlots={withLoading('itemDescription', itemDescriptionSlot)}
           />
         )}
         {dataOrigin.checked && (
@@ -2564,7 +2750,7 @@ class StrategyConfig extends Mixins(UserConfigMixin, authorityMixinCreate(strate
             key='dataOrigin'
             width='110'
             label={this.$t('数据来源')}
-            scopedSlots={dataOriginSlot}
+            scopedSlots={withLoading('dataOrigin', dataOriginSlot)}
           />
         )}
         {target.checked && (
@@ -2572,21 +2758,21 @@ class StrategyConfig extends Mixins(UserConfigMixin, authorityMixinCreate(strate
             key='target'
             width='150'
             label={this.$t('监控目标')}
-            scopedSlots={targetSlot}
+            scopedSlots={withLoading('target', targetSlot)}
           />
         )}
         {labels.checked && (
           <bk-table-column
             key='labels'
             label={this.$t('标签')}
-            scopedSlots={labelsSlot}
+            scopedSlots={withLoading('labels', labelsSlot)}
           />
         )}
         {noticeGroupList.checked && (
           <bk-table-column
             key='noticeGroupList'
             label={this.$t('告警组')}
-            scopedSlots={noticeGroupListSlot}
+            scopedSlots={withLoading('noticeGroupList', noticeGroupListSlot)}
           />
         )}
         {updator.checked && (
@@ -2594,7 +2780,7 @@ class StrategyConfig extends Mixins(UserConfigMixin, authorityMixinCreate(strate
             key='updator'
             width='180'
             label={this.$t('更新记录')}
-            scopedSlots={updatorSlot}
+            scopedSlots={withLoading('updator', updatorSlot)}
           />
         )}
         {enabled.checked && (
@@ -2602,7 +2788,7 @@ class StrategyConfig extends Mixins(UserConfigMixin, authorityMixinCreate(strate
             key='enabled'
             width='100'
             label={this.$t('启/停')}
-            scopedSlots={enabledSlot}
+            scopedSlots={withLoading('enabled', enabledSlot)}
           />
         )}
         {dataTypeLabelName.checked && (
@@ -2610,7 +2796,7 @@ class StrategyConfig extends Mixins(UserConfigMixin, authorityMixinCreate(strate
             key='dataTypeLabelName'
             width='80'
             label={this.$t('策略类型')}
-            scopedSlots={{ default: props => props.row.dataTypeLabelName }}
+            scopedSlots={withLoading('dataTypeLabelName', { default: props => props.row.dataTypeLabelName })}
           />
         )}
         {intervalNotifyMode.checked && (
@@ -2618,7 +2804,7 @@ class StrategyConfig extends Mixins(UserConfigMixin, authorityMixinCreate(strate
             key='intervalNotifyMode'
             width='105'
             label={this.$t('通知间隔类型')}
-            scopedSlots={{ default: props => props.row.intervalNotifyMode }}
+            scopedSlots={withLoading('intervalNotifyMode', { default: props => props.row.intervalNotifyMode })}
           />
         )}
         {dataMode.checked && (
@@ -2626,7 +2812,7 @@ class StrategyConfig extends Mixins(UserConfigMixin, authorityMixinCreate(strate
             key='dataMode'
             width='105'
             label={this.$t('查询类型')}
-            scopedSlots={{ default: props => props.row.dataMode }}
+            scopedSlots={withLoading('dataMode', { default: props => props.row.dataMode })}
           />
         )}
         {notifyInterval.checked && (
@@ -2634,7 +2820,7 @@ class StrategyConfig extends Mixins(UserConfigMixin, authorityMixinCreate(strate
             key='notifyInterval'
             width='105'
             label={this.$t('通知间隔')}
-            scopedSlots={{ default: props => `${props.row.notifyInterval}${this.$t('分钟')}` }}
+            scopedSlots={withLoading('notifyInterval', { default: props => `${props.row.notifyInterval}${this.$t('分钟')}` })}
           />
         )}
         {trigger.checked && (
@@ -2642,7 +2828,7 @@ class StrategyConfig extends Mixins(UserConfigMixin, authorityMixinCreate(strate
             key='trigger'
             width='105'
             label={this.$t('触发条件')}
-            scopedSlots={triggerSlot}
+            scopedSlots={withLoading('trigger', triggerSlot)}
           />
         )}
         {recovery.checked && (
@@ -2650,7 +2836,7 @@ class StrategyConfig extends Mixins(UserConfigMixin, authorityMixinCreate(strate
             key='recovery'
             width='105'
             label={this.$t('恢复条件')}
-            scopedSlots={recoverySlot}
+            scopedSlots={withLoading('recovery', recoverySlot)}
           />
         )}
         {needPoll.checked && (
@@ -2658,7 +2844,7 @@ class StrategyConfig extends Mixins(UserConfigMixin, authorityMixinCreate(strate
             key='needPoll'
             width='80'
             label={this.$t('告警风暴')}
-            scopedSlots={needPollSlot}
+            scopedSlots={withLoading('needPoll', needPollSlot)}
           />
         )}
         {noDataEnabled.checked && (
@@ -2666,7 +2852,7 @@ class StrategyConfig extends Mixins(UserConfigMixin, authorityMixinCreate(strate
             key='noDataEnabled'
             width='80'
             label={this.$t('无数据')}
-            scopedSlots={noDataEnabledSlot}
+            scopedSlots={withLoading('noDataEnabled', noDataEnabledSlot)}
           />
         )}
         {signals.checked && (
@@ -2674,7 +2860,7 @@ class StrategyConfig extends Mixins(UserConfigMixin, authorityMixinCreate(strate
             key='signals'
             width='150'
             label={this.$t('通知场景')}
-            scopedSlots={signalsSlot}
+            scopedSlots={withLoading('signals', signalsSlot)}
           />
         )}
         {levels.checked && (
@@ -2682,7 +2868,7 @@ class StrategyConfig extends Mixins(UserConfigMixin, authorityMixinCreate(strate
             key='levels'
             width='150'
             label={this.$t('级别')}
-            scopedSlots={levelsSlot}
+            scopedSlots={withLoading('levels', levelsSlot)}
           />
         )}
         {detectionTypes.checked && (
@@ -2690,7 +2876,7 @@ class StrategyConfig extends Mixins(UserConfigMixin, authorityMixinCreate(strate
             key='detectionTypes'
             width='150'
             label={this.$t('检测规则类型')}
-            scopedSlots={detectionTypesSlot}
+            scopedSlots={withLoading('detectionTypes', detectionTypesSlot)}
           />
         )}
         {mealNames.checked && (
@@ -2698,7 +2884,7 @@ class StrategyConfig extends Mixins(UserConfigMixin, authorityMixinCreate(strate
             key='mealNames'
             width='150'
             label={this.$t('处理套餐')}
-            scopedSlots={mealNamesSlot}
+            scopedSlots={withLoading('mealNames', mealNamesSlot)}
           />
         )}
         {configSource.checked && (
@@ -2706,7 +2892,7 @@ class StrategyConfig extends Mixins(UserConfigMixin, authorityMixinCreate(strate
             key='configSource'
             width='100'
             label={this.$t('配置来源')}
-            scopedSlots={configSourceSlot}
+            scopedSlots={withLoading('configSource', configSourceSlot)}
           />
         )}
         {app.checked && (
@@ -2714,7 +2900,7 @@ class StrategyConfig extends Mixins(UserConfigMixin, authorityMixinCreate(strate
             key='app'
             width='100'
             label={this.$t('配置分组')}
-            scopedSlots={appSlot}
+            scopedSlots={withLoading('app', appSlot)}
           />
         )}
         {operator.checked && (
@@ -2722,7 +2908,7 @@ class StrategyConfig extends Mixins(UserConfigMixin, authorityMixinCreate(strate
             key='operator'
             width={this.$store.getters.lang === 'en' ? 220 : 150}
             label={this.$t('操作')}
-            scopedSlots={operatorSlot}
+            scopedSlots={withLoading('operator', operatorSlot)}
           />
         )}
       </bk-table>
@@ -2805,8 +2991,8 @@ class StrategyConfig extends Mixins(UserConfigMixin, authorityMixinCreate(strate
         key={2}
         checked-list={this.idList}
         dialog-show={this.dialog.show}
-        group-list={this.groupList}
-        loading={this.dialogLoading}
+        group-list={this.dialogGroupList}
+        loading={this.dialogLoading || this.submitting}
         set-type={this.header.value}
         onConfirm={this.handleMuchEdit}
         onGetGroupList={this.getGroupList}
@@ -2897,9 +3083,17 @@ class StrategyConfig extends Mixins(UserConfigMixin, authorityMixinCreate(strate
               }}
               checkedData={this.header.keywordObj}
               data={this.showFilterPanelData}
-              showSkeleton={this.authLoading || this.loading}
+              showSkeleton={this.authLoading || (!this.filtersReady && this.table.loading)}
+              countLoading={this.table.loading && this.filtersReady}
+              loadingGroups={this.scenarioLoading ? ['scenario'] : []}
               on-change={this.handleSearchSelectChange}
             >
+              <StrategyFilterSkeleton slot='skeleton' groups={this.showFilterPanelData.map(item => String(item.id))} />
+              {!this.filtersReady && this.listError && (
+                <div slot='error'>
+                  {this.renderAsyncError(true, this.$t('加载失败'), () => this.handleGetListData())}
+                </div>
+              )}
               <div
                 class='filter-panel-header mb20'
                 slot='header'
@@ -2952,13 +3146,13 @@ class StrategyConfig extends Mixins(UserConfigMixin, authorityMixinCreate(strate
               </bk-button>
               <bk-dropdown-menu
                 class='header-select'
-                disabled={!this.table.select.length}
+                disabled={this.tableBusy || !this.table.select.length}
                 trigger='click'
                 on-hide={() => (this.header.dropdownShow = false)}
                 on-show={() => (this.header.dropdownShow = true)}
               >
                 <div
-                  class={['header-select-btn', { 'btn-disabled': !this.table.select.length }]}
+                  class={['header-select-btn', { 'btn-disabled': this.tableBusy || !this.table.select.length }]}
                   slot='dropdown-trigger'
                 >
                   <span class='btn-name'> {this.$t('批量操作')} </span>
@@ -3055,29 +3249,32 @@ class StrategyConfig extends Mixins(UserConfigMixin, authorityMixinCreate(strate
                   </div>
                 </bk-popover>
               </div>
-              {this.authLoading || this.table.loading || this.loading ? (
-                <TableSkeleton type={2} />
-              ) : (
-                [
-                  this.getTableComponent(),
-                  this.table.data?.length ? (
-                    <bk-pagination
-                      key='table-pagination'
-                      class='strategy-pagination list-pagination'
-                      v-show={this.tableInstance.total}
-                      align='right'
-                      count={this.pageCount}
-                      current={this.tableInstance.page}
-                      limit={this.tableInstance.pageSize}
-                      limit-list={this.tableInstance.pageList}
-                      size='small'
-                      pagination-able
-                      show-total-count
-                      on-change={this.handlePageChange}
-                      on-limit-change={this.handleLimitChange}
-                    />
-                  ) : undefined,
-                ]
+              {(this.submitting || (this.table.loading && this.retainingData)) && (
+                <div class='strategy-refresh-progress' role='status' aria-label={this.$t('加载中...')} />
+              )}
+              <div class='strategy-load-errors'>
+                {this.renderAsyncError(this.listError && this.retainingData, this.$t('加载失败'), () => this.handleGetListData())}
+                {this.renderAsyncError(this.targetError, this.$t('监控目标加载失败'), () => this.getTargetDetail(this.table.data))}
+                {this.renderAsyncError(this.summaryError, this.$t('获取策略告警数量失败'), () => this.getAlertSummary(this.table.data, this.currentConditions))}
+                {this.renderAsyncError(this.scenarioError, this.$t('监控对象加载失败'), () => this.handelScenarioList(this.currentListResponse, this.table.data))}
+              </div>
+              {this.getTableComponent()}
+              {!this.tableBusy && this.table.data?.length > 0 && (
+                <bk-pagination
+                  key='table-pagination'
+                  class='strategy-pagination list-pagination'
+                  v-show={this.tableInstance.total}
+                  align='right'
+                  count={this.pageCount}
+                  current={this.tableInstance.page}
+                  limit={this.tableInstance.pageSize}
+                  limit-list={this.tableInstance.pageList}
+                  size='small'
+                  pagination-able
+                  show-total-count
+                  on-change={this.handlePageChange}
+                  on-limit-change={this.handleLimitChange}
+                />
               )}
             </div>
           </div>

@@ -14,6 +14,7 @@ import re
 
 from django.db.models import Q
 
+from bkm_space.serializers import resolve_cmdb_biz_id
 from bkmonitor.models import ApiAuthToken, MetricListCache
 from bkmonitor.utils.request import get_request, get_request_tenant_id
 from constants.data_source import DataSourceLabel, DataTypeLabel
@@ -35,6 +36,20 @@ from monitor_web.plugin.constant import PluginType
 scene_params_mapping = {"sceneId": "scene_id", "sceneType": "type", "dashboardId": "id"}
 HOST_SCOPE_VERSION = 1
 HOST_DYNAMIC_TIME_PATTERN = re.compile(r"^now(?:[-+]\d+(?:m|h|d|w|M|y|Y))?(?:/(?:m|h|d|w|M|y|Y|fy))?$")
+
+
+def get_shared_alert_id(data: dict) -> str | None:
+    if not isinstance(data, dict):
+        return None
+    if data.get("name") == "alarm-center-detail" and isinstance(data.get("params"), dict):
+        alert_id = data["params"].get("alarmId")
+    elif data.get("name") == "event-center":
+        alert_id = data.get("eventId")
+    else:
+        return None
+    if isinstance(alert_id, (str, int)) and not isinstance(alert_id, bool) and alert_id:
+        return str(alert_id)
+    return None
 
 
 def validate_host_share_scope(data: dict) -> dict:
@@ -190,6 +205,10 @@ class HostApiAuthChecker(BaseApiAuthChecker):
         "get_process_views_panels",
         "get_process_metric_group_panel_order",
     }
+    HOST_LIST_ACTIONS = {
+        ("monitor_web.performance.views.SearchHostInfoViewSet", "create"),
+        ("monitor_web.performance.views.SearchHostMetricStatsViewSet", "create"),
+    }
     TIME_INDEPENDENT_TARGET_ACTIONS = {
         ("monitor_web.commons.cc.views.GetTopoTree", "create"),
         ("monitor_web.performance.views.SearchHostInfoViewSet", "create"),
@@ -199,10 +218,20 @@ class HostApiAuthChecker(BaseApiAuthChecker):
     def __init__(self, token):
         super().__init__(token)
         self.scope = validate_host_share_scope(token.params.get("data", {}))
+        if self.scope.get("bk_obj_id") == "biz":
+            self.scope["bk_inst_id"] = resolve_cmdb_biz_id(self.bk_biz_id, self.scope["bk_inst_id"])
         self.allowed_hosts = self.get_allowed_hosts()
 
     def get_allowed_hosts(self):
-        if self.scope["target_type"] == "host":
+        if self.get_request_view_action() in self.HOST_LIST_ACTIONS:
+            # 这两个接口直接校验 scope 参数，无须为存在性检查构造整棵拓扑的 Host。
+            params = {"bk_biz_id": self.bk_biz_id, "page": 1, "page_size": 1}
+            if self.scope["target_type"] == "host":
+                params["bk_host_id"] = self.scope["bk_host_id"]
+            else:
+                params["topo_nodes"] = {self.scope["bk_obj_id"]: [self.scope["bk_inst_id"]]}
+            hosts = api.cmdb.get_host_page(**params)["items"]
+        elif self.scope["target_type"] == "host":
             hosts = api.cmdb.get_host_by_id(
                 bk_biz_id=self.bk_biz_id,
                 bk_host_ids=[self.scope["bk_host_id"]],
@@ -271,12 +300,51 @@ class HostApiAuthChecker(BaseApiAuthChecker):
                 raise InvalidParamsError({"key": "start_time,end_time"})
             self.time_check(request_data["start_time"], request_data["end_time"])
 
-        if request_data.get("query_configs"):
+        # Select the authorization contract by route. Other resources may drop
+        # unknown query_configs fields before executing their target parameters.
+        if self.get_request_view_action() == (
+            "monitor_web.grafana.views.GrafanaViewSet",
+            "time_series/unify_query",
+        ):
             self.query_configs_check(request_data["query_configs"])
         else:
             self.params_check(request_data)
 
     def params_check(self, request_data):
+        request_data = self.normalize_root_target(request_data)
+        view_name, action = self.get_request_view_action()
+        allow_descendant = action == "create" and (
+            view_name == "monitor_web.performance.views.SearchHostMetricStatsViewSet"
+            or (
+                view_name == "monitor_web.performance.views.SearchHostInfoViewSet"
+                and request_data.get("page") is not None
+            )
+        )
+        if allow_descendant and self.scope["target_type"] == "topo":
+            target_keys = {
+                key for key in ("bk_host_id", "bk_obj_id", "bk_inst_id") if request_data.get(key) not in (None, "")
+            }
+            if target_keys == {"bk_host_id"}:
+                hosts = api.cmdb.get_host_page(
+                    bk_biz_id=self.bk_biz_id,
+                    bk_host_id=request_data["bk_host_id"],
+                    topo_nodes={self.scope["bk_obj_id"]: [self.scope["bk_inst_id"]]},
+                    page=1,
+                    page_size=1,
+                )["items"]
+                if hosts:
+                    return
+            elif target_keys == {"bk_obj_id", "bk_inst_id"}:
+                scope_key = f"{self.scope['bk_obj_id']}|{self.scope['bk_inst_id']}"
+                requested_key = f"{request_data['bk_obj_id']}|{request_data['bk_inst_id']}"
+                if requested_key == scope_key:
+                    return
+                links = api.cmdb.get_topo_tree(bk_biz_id=self.bk_biz_id).convert_to_topo_link()
+                for link in links.values():
+                    keys = [f"{node.bk_obj_id}|{node.bk_inst_id}" for node in link]
+                    if requested_key in keys and scope_key in keys[keys.index(requested_key) + 1 :]:
+                        return
+            # 不存在、无 scope 或范围外节点继续进入原严格校验，失败关闭。
         request_target_keys = {
             key
             for key in ("bk_host_id", "bk_obj_id", "bk_inst_id")
@@ -300,7 +368,17 @@ class HostApiAuthChecker(BaseApiAuthChecker):
                     {"key": key, "error_params": request_data[key], "correct_params": value}
                 )
 
+    def normalize_root_target(self, target):
+        if self.scope.get("bk_obj_id") == "biz" and target.get("bk_obj_id") in ("biz", ["biz"]):
+            node_ids = target.get("bk_inst_id")
+            node_ids = node_ids if isinstance(node_ids, list) else [node_ids]
+            aliases = {str(self.bk_biz_id), str(self.scope["bk_inst_id"])}
+            if node_ids and all(str(node_id) in aliases for node_id in node_ids):
+                return {**target, "bk_obj_id": "biz", "bk_inst_id": self.scope["bk_inst_id"]}
+        return target
+
     def query_target_check(self, target, check_part):
+        target = self.normalize_root_target(target)
         allowed_host_ids = {str(host.bk_host_id) for host in self.allowed_hosts}
         allowed_ip_cloud_ids = {
             (str(ip), str(host.bk_cloud_id))
@@ -365,11 +443,14 @@ class HostApiAuthChecker(BaseApiAuthChecker):
         raise InvalidParamsError({"key": check_part})
 
     def query_configs_check(self, query_configs):
+        from monitor_web.scene_view.builtin.host import get_host_metric_bk_biz_id
+
+        metric_bk_biz_id = get_host_metric_bk_biz_id(self.bk_biz_id)
         # 增加主机指标范围校验
         host_metrics = set(
             MetricListCache.objects.filter(
                 bk_tenant_id=self.bk_tenant_id,
-                bk_biz_id__in=[0, self.bk_biz_id],
+                bk_biz_id__in=[0, metric_bk_biz_id],
                 result_table_label="os",
                 data_source_label="bk_monitor",
                 data_type_label="time_series",
@@ -378,7 +459,7 @@ class HostApiAuthChecker(BaseApiAuthChecker):
         process_metrics = set(
             MetricListCache.objects.filter(
                 bk_tenant_id=self.bk_tenant_id,
-                bk_biz_id__in=[0, self.bk_biz_id],
+                bk_biz_id__in=[0, metric_bk_biz_id],
                 result_table_id="system.proc",
                 data_source_label="bk_monitor",
                 data_type_label="time_series",
@@ -664,6 +745,12 @@ class KubernetesApiAuthChecker(BaseApiAuthChecker):
             raise InvalidParamsError({"key": "query_configs.where"})
 
     def params_check(self, request_data):
+        if "resource_type" in request_data and self.scene_params["type"] == "detail":
+            resource_type = request_data.get("resource_type")
+            if resource_type != self.scene_params["id"]:
+                raise ParamsPermissionDeniedError(
+                    {"key": "resource_type", "error_params": resource_type, "correct_params": self.scene_params["id"]}
+                )
         # 通用参数校验
         for path in self.query_paths:
             # 不校验场景参数的接口，存在冲突参数名

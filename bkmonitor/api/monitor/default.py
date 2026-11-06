@@ -164,6 +164,15 @@ class BatchCreateActionBackendResource(MonitorAPIGWResource):
     method = "POST"
 
 
+class CreateChatGroupActionBackendResource(MonitorAPIGWResource):
+    """使用当前登录用户创建跨业务告警群。"""
+
+    action = "/user/action/create_chat_group_action/"
+    method = "POST"
+    # 保留登录凭证供网关校验用户，不提前退化为只有用户名的应用态请求。
+    INSERT_BK_USERNAME_TO_REQUEST_DATA = False
+
+
 class GetActionParamsBackendResource(MonitorAPIGWResource):
     """
     批量获取处理任务参数

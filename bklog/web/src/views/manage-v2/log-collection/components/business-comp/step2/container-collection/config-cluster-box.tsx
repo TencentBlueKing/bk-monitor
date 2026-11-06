@@ -213,6 +213,12 @@ export default defineComponent({
       const type = props.isNode ? 'node' : 'pod';
       const config = props.config as IContainerConfigItem;
       const { namespaces, annotation_selector: annotationSelector, label_selector: labelSelector, container } = config;
+      const namespacesKey = config.noQuestParams.namespacesExclude === '!=' ? 'namespaces_exclude' : 'namespaces';
+      const containerKey = config.noQuestParams.containerExclude === '!=' ? 'container_name_exclude' : 'container_name';
+      const previewContainer: Record<string, string> = { ...container };
+      delete previewContainer.container_name;
+      delete previewContainer.container_name_exclude;
+      previewContainer[containerKey] = (config.containerNameList || []).join(',');
 
       /**
        * 格式化匹配表达式的值
@@ -244,14 +250,14 @@ export default defineComponent({
       return {
         bcs_cluster_id: props.bcsClusterId,
         bk_biz_id: bkBizId.value,
-        namespaces: namespaces.length === 1 && namespaces[0] === '*' ? [] : namespaces,
+        [namespacesKey]: namespaces.length === 1 && namespaces[0] === '*' ? [] : namespaces,
         label_selector: {
           match_expressions: matchExpressions,
         },
         annotation_selector: {
           match_annotations: matchAnnotations,
         },
-        container: container || {},
+        container: previewContainer,
         type,
       };
     });
@@ -731,7 +737,7 @@ export default defineComponent({
             </bk-select>
             <bk-tag-input
               extCls='container-input'
-              value={(config.container.container_name || '').split(',').filter(Boolean)}
+              value={config.containerNameList || []}
               allowCreate
               freePaste
               hasDeleteIcon

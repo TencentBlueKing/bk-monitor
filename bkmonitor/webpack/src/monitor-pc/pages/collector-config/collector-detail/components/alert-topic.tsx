@@ -30,8 +30,11 @@ import { alertStatus, updateAlertUserGroups } from 'monitor-api/modules/datalink
 import { Debounce } from 'monitor-common/utils';
 import { getAlarmCenterListHash } from 'monitor-common/utils/alarm-center-router';
 
+import DetailRequest from '../detail-request';
 import AlarmGroup, { type IAlarmGroupList } from './alarm-group';
 import AlertHistogram from './alert-histogram';
+import DetailLoadError from './detail-load-error';
+import DetailSkeleton from './detail-skeleton';
 
 // import { isEnFn } from '../../../../utils/index';
 import type { TCollectorAlertStage } from '../typings/detail';
@@ -62,24 +65,37 @@ export default class AlertTopic extends tsc<IProps> {
   alertQuery = '';
 
   show = false;
+  request = new DetailRequest();
+
+  beforeDestroy() {
+    this.request.cancel();
+  }
 
   @Watch('updateKey', { immediate: true })
   handleWatchKey() {
-    if (!!this.stage && !!this.id) {
-      alertStatus({
-        collect_config_id: this.id,
-        stage: this.stage,
-      }).then(data => {
-        if (data?.has_strategies === false) {
-          return;
+    if (this.stage && this.id) {
+      return this.request.run(
+        signal =>
+          alertStatus(
+            {
+              collect_config_id: this.id,
+              stage: this.stage,
+            },
+            { signal, needMessage: false }
+          ),
+        data => {
+          this.show = data?.has_strategies !== false;
+          if (data?.has_strategies === false) {
+            return;
+          }
+          this.show = true;
+          this.strategies = data.alert_config?.strategies || [];
+          this.userGroupList = data.alert_config?.user_group_list?.map(item => item.id) || [];
+          this.alertHistogram = data?.alert_histogram || [];
+          this.hasAlert = data.has_alert;
+          this.alertQuery = data.alert_query;
         }
-        this.show = true;
-        this.strategies = data.alert_config?.strategies || [];
-        this.userGroupList = data.alert_config?.user_group_list?.map(item => item.id) || [];
-        this.alertHistogram = data?.alert_histogram || [];
-        this.hasAlert = data.has_alert;
-        this.alertQuery = data.alert_query;
-      });
+      );
     }
   }
 
@@ -105,6 +121,14 @@ export default class AlertTopic extends tsc<IProps> {
   handleAlarmGroupListRefresh() {}
 
   render() {
+    if (this.request.loading && !this.request.loaded) return <DetailSkeleton section='alert' />;
+    if (this.request.error)
+      return (
+        <DetailLoadError
+          compact
+          onRetry={this.handleWatchKey}
+        />
+      );
     return (
       this.show && (
         <div class='alert-topic-component'>

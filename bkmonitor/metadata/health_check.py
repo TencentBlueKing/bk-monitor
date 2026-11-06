@@ -43,15 +43,14 @@ from metadata.models.data_link.constants import (
     DataLinkResourceStatus,
 )
 from metadata.models.data_link.data_link import DataLink
-from metadata.models.data_link.service import get_data_id_v2
-from metadata.models.data_link.utils import compose_bkdata_data_id_name
+from metadata.models.data_link.service import get_data_id_status_by_name
+from metadata.models.data_link.utils import get_registered_bkdata_data_id_name
 from metadata.models.space.constants import (
     DATA_LABEL_TO_RESULT_TABLE_KEY,
     EtlConfigs,
     LOG_EVENT_ETL_CONFIGS,
     RESULT_TABLE_DETAIL_KEY,
     SPACE_TO_RESULT_TABLE_KEY,
-    SYSTEM_BASE_DATA_ETL_CONFIGS,
 )
 from metadata.utils.redis_tools import RedisTools
 
@@ -146,7 +145,6 @@ def get_data_id_status(bk_tenant_id: str, bk_biz_id: int, bk_data_id: int, with_
     # 数据源来源为bkdata，检查bkbase配置状态
     namespace = BKBASE_NAMESPACE_BK_MONITOR
     if data_id_status.created_from == DataIdCreatedFromSystem.BKDATA:
-        is_base = ds.etl_config in SYSTEM_BASE_DATA_ETL_CONFIGS
         event_type = "metric" if ds.etl_config not in LOG_EVENT_ETL_CONFIGS else "log"
         if ds.etl_config == EtlConfigs.BK_CUSTOM_FORMAT.value:
             namespace = (
@@ -163,22 +161,16 @@ def get_data_id_status(bk_tenant_id: str, bk_biz_id: int, bk_data_id: int, with_
         else:
             namespace = BKBASE_NAMESPACE_BK_LOG if event_type == "log" else BKBASE_NAMESPACE_BK_MONITOR
 
-        # 组装bkbase数据源名称
-        if is_base:  # 如果是基础数据源（1000,1001）,那么沿用固定格式的data_name，会以此name作为bkbase申请时的唯一键
-            data_id_name = ds.data_name
-        else:  # 用户自定义数据源，需要进行二次处理，主要为避免超过meta长度限制和特殊字符
-            data_id_name = compose_bkdata_data_id_name(ds.data_name)
-        data_id_status.bkbase_data_id_name = data_id_name
-
         try:
-            data_id_config = get_data_id_v2(
+            data_id_name = get_registered_bkdata_data_id_name(ds, namespace)
+            data_id_status.bkbase_data_id_name = data_id_name
+            data_id_config = get_data_id_status_by_name(
                 bk_tenant_id=bk_tenant_id,
-                data_name=ds.data_name,
-                is_base=is_base,
                 namespace=namespace,
+                name=data_id_name,
                 with_detail=with_detail,
             )
-        except BKAPIError as e:
+        except (BKAPIError, DataIdConfig.DoesNotExist, ValueError) as e:
             data_id_status.bkbase_status = "Error"
             data_id_status.message = str(e)
             return data_id_status

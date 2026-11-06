@@ -102,7 +102,7 @@ class QueryTopoNodeResource(ApmAPIGWResource):
 
     action = "/app/apm/query_apm_topo_node/"
     method = "GET"
-    backend_cache_type = CacheType.APM
+    backend_cache_type = CacheType.APM(5 * 60)
 
 
 class SearchServiceNamesResource(ApmAPIGWResource):
@@ -337,6 +337,114 @@ class QueryBuiltinProfileDatasourceResource(ApmAPIGWResource):
     cache_type = CacheType.APM(60 * 60 * 24)
     action = "/app/apm/profiling/builtin_profile_datasource/"
     method = "GET"
+
+
+class EnableActiveProfilingResource(ApmAPIGWResource):
+    """
+    开通业务的主动 Profiling 资源
+    """
+
+    action = "/app/apm/profiling/enable_active_profiling/"
+    method = "POST"
+
+
+class QueryActiveProfilingHostsResource(ApmAPIGWResource):
+    """
+    查询主动 Profiling 已采数据
+    """
+
+    action = "/app/apm/profiling/active_profiling_hosts/"
+    method = "POST"
+
+
+class ListActiveProfilingExecutionsResource(ApmAPIGWResource):
+    """
+    查询主动 Profiling 任务历史
+    """
+
+    action = "/app/apm/profiling/active_profiling_executions/"
+    method = "POST"
+
+
+class QueryActiveProfilingTopKResource(ApmAPIGWResource):
+    """
+    查询主动 Profiling 搜索框候选值
+    """
+
+    action = "/app/apm/profiling/active_profiling_topk/"
+    method = "GET"
+
+
+class QueryActiveProfilingExecutionDetailResource(ApmAPIGWResource):
+    """
+    查询主动 Profiling 单次执行详情
+    """
+
+    action = "/app/apm/profiling/active_profiling_execution_detail/"
+    method = "POST"
+
+
+class CancelActiveProfilingExecutionResource(ApmAPIGWResource):
+    """
+    取消主动 Profiling 执行
+    """
+
+    action = "/app/apm/profiling/active_profiling_execution_cancel/"
+    method = "POST"
+
+
+class RenameActiveProfilingExecutionResource(ApmAPIGWResource):
+    """
+    修改主动 Profiling 执行的任务名
+    """
+
+    action = "/app/apm/profiling/active_profiling_execution_rename/"
+    method = "POST"
+
+
+class ListActiveProfilingTasksResource(ApmAPIGWResource):
+    """
+    查询主动 Profiling 计划
+    """
+
+    action = "/app/apm/profiling/active_profiling_tasks/"
+    method = "GET"
+
+
+class SubmitActiveProfilingTaskResource(ApmAPIGWResource):
+    """
+    提交主动 Profiling 采集
+    """
+
+    action = "/app/apm/profiling/active_profiling_task_submit/"
+    method = "POST"
+
+
+class EditActiveProfilingTaskResource(ApmAPIGWResource):
+    """
+    编辑主动 Profiling 计划
+    """
+
+    action = "/app/apm/profiling/active_profiling_task_edit/"
+    method = "POST"
+
+
+class DeleteActiveProfilingTaskResource(ApmAPIGWResource):
+    """
+    删除主动 Profiling 计划
+    """
+
+    action = "/app/apm/profiling/active_profiling_task_delete/"
+    method = "POST"
+
+
+class SwitchActiveProfilingTaskResource(ApmAPIGWResource):
+    """
+    启停主动 Profiling 计划
+    """
+
+    action = "/app/apm/profiling/active_profiling_task_switch/"
+    method = "POST"
 
 
 class QueryEbpfServiceListResource(ApmAPIGWResource):

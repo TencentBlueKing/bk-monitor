@@ -24,7 +24,7 @@
       width: 100%;
       height: 52px;
       background: #fff;
-      box-shadow: 0 3px 4px 0 rgba(0, 0, 0, 0.039);
+      box-shadow: 0 3px 4px 0 rgb(0 0 0 / 3.9%);
 
       &.is-apm-trace {
         position: relative;
@@ -39,13 +39,14 @@
       min-height: 0;
       padding: 8px;
 
+      > .vue3_retrieval-filter__component,
+      > .trace-explore-skeleton {
+        flex-shrink: 0;
+      }
+
       &.is-apm-trace {
         padding: 13px 8px 0;
         background: #f0f1f5;
-      }
-
-      .filter-skeleton {
-        height: 48px;
       }
 
       .content-container {
@@ -53,7 +54,7 @@
         flex: 1;
         min-height: 0;
         margin-top: 8px;
-        background: #ffffff;
+        background: #fff;
         border-radius: 2px;
         box-shadow: 0 2px 4px 0 #1919291f;
 
@@ -72,9 +73,9 @@
       .create-app-guide {
         flex: 1;
         margin-top: 8px;
-        background: #FFFFFF;
-        box-shadow: 0 2px 4px 0 #1919291f;
+        background: #fff;
         border-radius: 2px;
+        box-shadow: 0 2px 4px 0 #1919291f;
 
         .empty-status-container {
           margin-top: 170px;
@@ -83,6 +84,7 @@
         .subTitle {
           margin: 0;
           color: #979ba5;
+
           span {
             color: #3a84ff;
             cursor: pointer;

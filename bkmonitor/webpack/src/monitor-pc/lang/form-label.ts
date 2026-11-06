@@ -51,6 +51,7 @@ export default {
   时间: 'Time',
   事件时间: 'Event Time',
   过期时间: 'Expire Time',
+  过期天数: 'Expiration Days',
   副本数: 'Replicas',
   分片数: 'Shards',
   索引切分大小: 'Split Size',
@@ -1669,6 +1670,10 @@ export default {
   告警恢复时通知: 'Notify When Alarm Recovers',
   告警接收业务: 'Alarm receiving business',
   告警模板预览: 'Alarm Template Preview',
+  '预览使用固定示例数据，不是当前策略的查询值。':
+    'This preview uses fixed sample data, not values queried by the current strategy.',
+  模板渲染失败: 'Template rendering failed',
+  '模板预览失败，请稍后重试': 'Template preview failed. Please try again later',
   告警确认时: 'Acknowledged',
   日志关键字事件: 'Log Keyword Event',
   日志关键字采集: 'Log keyword collection',
@@ -2033,6 +2038,11 @@ export default {
   ID: 'ID',
   启动命令: 'Start command',
 
+  已就绪: 'Ready',
+  绑定智能体: 'Bind smart body',
+  '绑定 skill': 'Bind skill',
+  绑定知识库: 'Bind knowledge base',
+  指派对象: 'Assignee',
   调用参数: 'Call parameters',
   返回结果: 'Return result',
   工具描述: 'Tool description',
@@ -2046,5 +2056,13 @@ export default {
   原地展开: 'Expand in place',
   未命名工具: 'Unnamed tool',
   规划的工具调用: 'Planned tool calls',
-  模型输出: 'Model output'
+  模型输出: 'Model output',
+
+  // RUM 检索--详情
+  会话: 'Session',
+  用户: 'User',
+  环境: 'Environment',
+  'View 详情': 'View Details',
+  请求: 'Request',
+  停留时长: 'duration',
 };

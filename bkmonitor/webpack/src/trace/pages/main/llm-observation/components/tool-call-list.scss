@@ -36,6 +36,7 @@
     box-sizing: border-box;
     gap: 8px;
     justify-content: space-between;
+    min-width: 0;
     height: 42px;
     padding: 8px 12px;
     cursor: pointer;
@@ -43,30 +44,38 @@
     @include flex-align(center);
   }
 
-  &-item.is-expanded {
-    .llm-tool-call-list-card {
-      background: #fff;
-      border-color: #c1cde5;
+  &-item {
+    &.is-expanded {
+      .llm-tool-call-list-card {
+        overflow: visible;
+        background: #fff;
+        border-color: #c1cde5;
+      }
+
+      .llm-tool-call-list-header {
+        background: #f7f9fc;
+      }
     }
 
-    .llm-tool-call-list-header {
-      background: #f7f9fc;
+    .llm-tool-call-list-index {
+      color: #8f9fbd !important;
     }
   }
 
   &-header-main {
-    display: grid;
-    flex: 0 1 calc(50% + 160px);
-    grid-template-columns: minmax(0, 1fr) 16px minmax(0, 1fr);
-    gap: 4px;
+    display: flex;
+    flex: 1 1 auto;
+    gap: 8px;
     align-items: center;
     min-width: 0;
+    overflow: hidden;
   }
 
   &-name {
     box-sizing: border-box;
-    flex-shrink: 0;
-    max-width: min(160px, 40%);
+    flex: 0 0 auto;
+    width: fit-content;
+    max-width: 160px;
     height: 26px;
     padding: 3px 4px;
     font-family: menlo, monaco, consolas, monospace;
@@ -81,25 +90,33 @@
     @include ellipsis;
   }
 
-  &-preview {
-    gap: 8px;
+  &-pairs {
+    display: grid;
+    flex: 1 1 auto;
+    grid-template-columns: minmax(0, max-content);
+    gap: 4px;
+    align-items: center;
     min-width: 0;
+    overflow: hidden;
+  }
 
-    @include flex-align(center);
+  &-call {
+    display: flex;
+    flex: 0 0 auto;
+    gap: 8px;
+    align-items: center;
+    min-width: 0;
+    max-width: 100%;
+    overflow: hidden;
 
-    &:only-child {
-      grid-column: 1 / -1;
+    &.has-result {
+      max-width: 50%;
     }
   }
 
-  &-preview-value {
-    display: grid;
-    flex: 1;
-    gap: 4px;
-    align-items: center;
-    justify-content: start;
+  &-result {
+    flex: 0 1 auto;
     min-width: 0;
-    overflow: hidden;
   }
 
   &-kv {
@@ -110,7 +127,8 @@
 
   &-kv-key {
     box-sizing: border-box;
-    max-width: 100%;
+    min-width: min(160px, max-content);
+    max-width: 160px;
     padding: 0 3px;
     font-weight: 500;
     color: #313238;
@@ -121,7 +139,7 @@
   }
 
   &-kv-value,
-  &-preview-text {
+  &-pairs-text {
     min-width: 0;
     font-family: 'Roboto Mono', menlo, monaco, consolas, monospace;
     font-size: $font-size-base;
@@ -131,9 +149,10 @@
   }
 
   &-arrow {
+    flex-shrink: 0;
     font-size: 16px;
     font-weight: 800;
-    color: #313238;
+    color: #4d4f56;
   }
 
   &-toggle {
@@ -158,38 +177,13 @@
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(min(100%, 320px), 1fr));
     gap: 24px;
+    align-items: stretch;
     min-width: 0;
 
-    .llm-json-code-block-header,
-    .llm-json-code-block-actions {
-      flex-wrap: wrap;
+    /* 展开后左右灰底跟较高的一侧对齐 */
+    .llm-json-code-block {
+      height: 100%;
+      min-height: 0;
     }
-  }
-
-  &-desc {
-    gap: 8px;
-    padding: 6px 10px;
-    background: #f0faf1;
-    border: 1px solid #bfdfd2;
-    border-radius: 4px;
-
-    @include flex-align(flex-start);
-  }
-
-  &-desc-label {
-    flex-shrink: 0;
-    font-size: $font-size-base;
-    font-weight: 600;
-    line-height: 20px;
-    color: #3ba365;
-  }
-
-  &-desc-text {
-    min-width: 0;
-    font-size: $font-size-base;
-    line-height: 20px;
-    color: #4e5e7a;
-    overflow-wrap: anywhere;
-    white-space: pre-wrap;
   }
 }

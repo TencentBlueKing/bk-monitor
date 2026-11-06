@@ -23,12 +23,13 @@ from bkcrypto.symmetric.options import AESSymmetricOptions, SM4SymmetricOptions
 from bkcrypto.utils.convertors import Base64Convertor
 from blueapps.conf.default_settings import *  # noqa
 from blueapps.conf.log import get_logging_config_dict
+from django.core.exceptions import ImproperlyConfigured
 from django.utils.translation import gettext_lazy as _
 
 from bkmonitor.utils.i18n import TranslateDict
 
-from . import get_env_or_raise
-from .tools.elasticsearch import get_es7_settings
+from . import get_env_or_raise, kms
+from .tools.elasticsearch import get_backend_es7_init_settings, get_es7_settings
 from .tools.environment import (
     BKAPP_DEPLOY_PLATFORM,
     ENVIRONMENT,
@@ -37,6 +38,7 @@ from .tools.environment import (
     PLATFORM,
     ROLE,
 )
+from .tools.influxdb import get_influxdb_init_settings
 from .tools.mysql import (
     get_backend_alert_mysql_settings,
     get_backend_mysql_settings,
@@ -64,6 +66,7 @@ INSTALLED_APPS = (
     # account app
     "blueapps.account",
     "apigw_manager.apigw",
+    "bkmonitor.iam.apps.IAMConfig",
 )
 
 # 这里是默认的中间件，大部分情况下，不需要改动
@@ -135,7 +138,11 @@ USE_L10N = True
 SAAS_APP_CODE = ""
 SAAS_SECRET_KEY = ""
 
-if ROLE == "web":
+if kms.enabled():
+    APP_CODE, SECRET_KEY = kms.app_identity(ROLE)
+    APP_ID, APP_TOKEN = APP_CODE, SECRET_KEY
+    BACKEND_APP_CODE = kms.value("bkapp_id_secret", "backend", "app_code")
+elif ROLE == "web":
     # BKPAAS_APP_ID是PaasV3，APP_ID/APP_CODE是PaasV2
     APP_ID = APP_CODE = get_env_or_raise("BKPAAS_APP_ID", "APP_ID", "APP_CODE", default="bk_monitorv3")
     # BKPAAS_APP_TOKEN是PaasV3，APP_TOKEN/SECRET_KEY是PaasV2
@@ -199,10 +206,15 @@ if locals()["RUN_VER"] == "open":
     # 从 apigw jwt 中获取 username 的 键
     APIGW_USER_USERNAME_KEY = "bk_username"
 
-    # PAASV2对外版不需要bkoauth,DISABLED_APPS加入bkoauth
-    INSTALLED_APPS = (
-        INSTALLED_APPS[0 : INSTALLED_APPS.index("bkoauth")] + INSTALLED_APPS[INSTALLED_APPS.index("bkoauth") + 1 :]
-    )
+    # Open 按需接入 SSM，复用 bkoauth 的用户 Token 持久化和后台续期。
+    # 配置基址（不含 /api/v1/auth/access-tokens）；未配置时保持原有禁用行为。
+    OAUTH_API_URL = os.getenv("OAUTH_API_URL") or locals().get("OAUTH_API_URL", "")
+    if OAUTH_API_URL:
+        BKAUTH_BACKEND_TYPE = "bk_token"
+        # bkoauth 优先读取同名环境变量，可覆盖默认 Cookie 映射。
+        OAUTH_COOKIES_PARAMS = {"bk_token": "bk_token"}
+    else:
+        INSTALLED_APPS = tuple(app for app in INSTALLED_APPS if app != "bkoauth")
 
     # 请求官方 API 默认版本号，可选值为："v2" 或 ""；其中，"v2"表示规范化API，
     # ""表示未规范化API.如果外面设置了该值则使用设置值,否则默认使用v2
@@ -278,6 +290,10 @@ DISK_FILTER_CONDITION_LIST_V1 = [
 # SQL最大查询条数
 SQL_MAX_LIMIT = 500000
 
+# 命名输出（query_output_config.output_list）最多支持的输出个数
+# 与 UQ 侧 defaultNamedOutputSettings 的 MaxOutputs 对齐，可通过环境变量 BKAPP_SETTINGS_NAMED_OUTPUT_MAX_COUNT 覆盖
+NAMED_OUTPUT_MAX_COUNT = 4
+
 FILE_SYSTEM_TYPE_RT_ID = "system.disk"
 FILE_SYSTEM_TYPE_FIELD_NAME = "device_type"
 FILE_SYSTEM_TYPE_IGNORE = ["iso9660", "tmpfs", "udf"]
@@ -351,6 +367,7 @@ ACTIVE_VIEWS = {
         "alert_v2": "fta_web.alert_v2.views",
         "assign": "fta_web.assign.views",
         "home": "fta_web.home.views",
+        "issue": "fta_web.issue.views",
     },
     "calendar": {"calendar": "calendars.views"},
     "apm_web": {
@@ -431,6 +448,9 @@ AIOPS_BIZ_WHITE_LIST = []
 
 # 是否开启AIOPS根因故障定位功能，业务白名单
 AIOPS_INCIDENT_BIZ_WHITE_LIST = []
+
+# Issue AI 分析业务白名单：空名单关闭，-1 表示全量开启
+ISSUE_AI_ANALYSIS_BIZ_WHITE_LIST = []
 
 # 是否由GSE分配dataid，默认是False，由监控自身来负责分配
 IS_ASSIGN_DATAID_BY_GSE = True
@@ -524,8 +544,10 @@ BKMONITOR_EXTERNAL_PROXY_TOKEN = os.getenv(
 
 IS_AUTO_DEPLOY_CUSTOM_REPORT_SERVER = True
 
-# 集群内上报固定域名
-CUSTOM_REPORT_DEFAULT_K8S_CLUSTER_SERVICE = "bkm-collector.bkmonitor-operator"
+# 集群内上报服务配置
+CUSTOM_REPORT_ENDPOINTS = [
+    {"endpoint": "bkm-collector.bkmonitor-operator", "alias": "集群内服务"},
+]
 
 # 监控内置可观测数据上报Redis Key TODO：联调时赋予默认值，后续更改
 BUILTIN_DATA_RT_REDIS_KEY = os.getenv(
@@ -563,6 +585,12 @@ APM_APPLICATION_QUICK_REFRESH_INTERVAL = 2
 APM_APPLICATION_QUICK_REFRESH_DELTA = 30
 # 指标数据源数据发现时需要将周期切分为每批查询几分钟的数据 默认 200s
 APM_APPLICATION_METRIC_DISCOVER_SPLIT_DELTA = 200
+
+# 服务数据状态的观测窗口（独立于应用级无数据周期），单位：秒。
+APM_SERVICE_DATA_STATUS_LOOKBACK_SECONDS = 60 * 60
+
+# 关联日志索引状态快照的有效期，单位：秒。
+APM_RELATED_LOG_INDEX_STATUS_CACHE_TTL = 15 * 60
 
 # 是否下发平台级别api_name构成配置
 APM_IS_DISTRIBUTE_PLATFORM_API_NAME_CONFIG = (
@@ -627,6 +655,8 @@ APM_BMW_DEPLOY_BIZ_ID = 0
 # 在列表中业务，才会创建虚拟指标， [2]
 APM_CREATE_VIRTUAL_METRIC_ENABLED_BK_BIZ_ID = []
 APM_BMW_TASK_QUEUES = ["apm-01"]
+# 预计算任务定时分派空跑：bmw_task_cron 直接跳过，不下发或删除任务
+APM_BMW_TASK_CRON_DRY_RUN = False
 # APM V4 链路 metric data status 配置
 APM_V4_METRIC_DATA_STATUS_CONFIG = {}
 # APM 自定义指标 SDK 映射配置
@@ -678,8 +708,12 @@ RUM_CUSTOM_EVENT_REPORT_CONFIG = {}
 FTA_ES7_HOST = os.getenv("BKAPP_FTA_ES7_HOST", os.getenv("BK_FTA_ES7_HOST", "es7.service.consul"))
 FTA_ES7_REST_PORT = os.getenv("BKAPP_FTA_ES7_REST_PORT", os.getenv("BK_FTA_ES7_REST_PORT", "9200"))
 FTA_ES7_TRANSPORT_PORT = os.getenv("BKAPP_FTA_ES7_TRANSPORT_PORT", os.getenv("BK_FTA_ES7_TRANSPORT_PORT", "9301"))
-FTA_ES7_USER = os.getenv("BKAPP_FTA_ES7_USER", os.getenv("BK_FTA_ES7_USER", ""))
-FTA_ES7_PASSWORD = os.getenv("BKAPP_FTA_ES7_PASSWORD", os.getenv("BK_FTA_ES7_PASSWORD", ""))
+if kms.enabled():
+    FTA_ES7_USER = kms.value("elasticsearch", "fta", "username")
+    FTA_ES7_PASSWORD = kms.value("elasticsearch", "fta", "password")
+else:
+    FTA_ES7_USER = os.getenv("BKAPP_FTA_ES7_USER", os.getenv("BK_FTA_ES7_USER", ""))
+    FTA_ES7_PASSWORD = os.getenv("BKAPP_FTA_ES7_PASSWORD", os.getenv("BK_FTA_ES7_PASSWORD", ""))
 ELASTICSEARCH_DSL = {
     "default": {
         "hosts": FTA_ES7_HOST,
@@ -689,7 +723,10 @@ ELASTICSEARCH_DSL = {
 }
 
 # BCS API Gateway 配置
-BCS_API_GATEWAY_TOKEN = os.environ.get("BKAPP_BCS_API_GATEWAY_TOKEN", os.getenv("BK_BCS_API_GATEWAY_TOKEN", None))
+if kms.enabled():
+    BCS_API_GATEWAY_TOKEN = kms.value("bcs", "default", "token")
+else:
+    BCS_API_GATEWAY_TOKEN = os.environ.get("BKAPP_BCS_API_GATEWAY_TOKEN", os.getenv("BK_BCS_API_GATEWAY_TOKEN", None))
 BCS_API_GATEWAY_HOST = os.environ.get("BKAPP_BCS_API_GATEWAY_HOST", os.getenv("BK_BCS_API_GATEWAY_HOST", None))
 BCS_API_GATEWAY_PORT = os.environ.get("BKAPP_BCS_API_GATEWAY_PORT", os.getenv("BK_BCS_API_GATEWAY_PORT", "443"))
 BCS_API_GATEWAY_SCHEMA = os.getenv("BKAPP_BCS_API_GATEWAY_SCHEMA", os.getenv("BK_BCS_API_GATEWAY_SCHEMA", "https"))
@@ -792,6 +829,10 @@ FTA_ES_RETENTION = 365
 
 # 短信通知最大长度设置
 SMS_CONTENT_LENGTH = 0
+SMS_NOTICE_TEMPLATE_MODE_DEFAULT = os.getenv("BKAPP_SMS_NOTICE_TEMPLATE_MODE", "legacy")
+if SMS_NOTICE_TEMPLATE_MODE_DEFAULT not in ("legacy", "standard"):
+    raise ImproperlyConfigured("BKAPP_SMS_NOTICE_TEMPLATE_MODE must be legacy or standard")
+SMS_NOTICE_TEMPLATE_MODE = SMS_NOTICE_TEMPLATE_MODE_DEFAULT
 WECOM_ROBOT_CONTENT_LENGTH = 0
 
 # 二次确认
@@ -945,6 +986,13 @@ ELASTICSEARCH_DSL = {
         "http_auth": (ES7_USER, ES7_PASSWORD) if ES7_USER and ES7_PASSWORD else None,
     },
 }
+
+# Consul ACL Token；仅 KMS 模式下不为 None 并覆盖 CONSUL_HTTP_TOKEN，否则由 python-consul 读取该环境变量
+CONSUL_CLIENT_TOKEN = kms.value("consul", "default", "token") if kms.enabled() else None
+
+# 初始化时写入 metadata 的默认存储集群
+BACKEND_ES7_HOST, BACKEND_ES7_REST_PORT, BACKEND_ES7_USER, BACKEND_ES7_PASSWORD = get_backend_es7_init_settings()
+INFLUXDB_INIT_IP_LIST, INFLUXDB_INIT_PORT, INFLUXDB_INIT_USER, INFLUXDB_INIT_PASSWORD = get_influxdb_init_settings()
 
 # Kafka config
 KAFKA_HOST = [os.environ.get("BK_MONITOR_KAFKA_HOST", "kafka.service.consul")]
@@ -1185,6 +1233,7 @@ DEFAULT_ROLE_PERMISSIONS = {
 
 # 预设dataid
 # 注意：所有的DATAID配置都必须是以【_DATAID】结尾，否则会导致元数据模块无法识别
+GSE_BASE_ALARM_DATAID = 1000
 SNAPSHOT_DATAID = 1001
 MYSQL_METRIC_DATAID = 1002
 REDIS_METRIC_DATAID = 1003
@@ -1268,6 +1317,10 @@ MONITOR_API_BASE_URL = os.getenv("BKAPP_MONITOR_API_BASE_URL", "")
 NEW_MONITOR_API_BASE_URL = os.getenv("BKAPP_NEW_MONITOR_API_BASE_URL", "")
 # bkdata api base url
 BKDATA_API_BASE_URL = os.getenv("BKAPP_BKDATA_API_BASE_URL", "")
+# RecordRule V4 Flow 专用网关，未配置时沿用公共 BKBase 网关
+BKDATA_RECORD_RULE_API_BASE_URL = os.getenv("BKAPP_BKDATA_RECORD_RULE_API_BASE_URL", "")
+# RecordingRule V4 动态配置的静态默认值，source 按实际 Flow 去重，rules 按 group 条数计数。
+RECORD_RULE_V4_CONFIG = {"max_sources": 20, "max_rules": 20}
 # bkdata api only for query data (not required)
 BKDATA_QUERY_API_BASE_URL = os.getenv("BKAPP_BKDATA_QUERY_API_BASE_URL", "")
 BKDATA_PROFILE_QUERY_API_BASE_URL = os.getenv("BKAPP_BKDATA_PROFILE_QUERY_API_BASE_URL", "")
@@ -1275,6 +1328,8 @@ BKLOGSEARCH_API_BASE_URL = os.getenv("BKAPP_BKLOGSEARCH_API_BASE_URL", "")
 # 通过 apigw 访问日志平台 api 的地址
 BKLOGSEARCH_API_GW_BASE_URL = os.getenv("BKAPP_BKLOGSEARCH_API_GW_BASE_URL", "")
 BKNODEMAN_API_BASE_URL = os.getenv("BKAPP_BKNODEMAN_API_BASE_URL", "")
+ENABLE_NODEMAN_V3 = os.getenv("BKAPP_ENABLE_NODEMAN_V3", "false").lower() == "true"
+BKNODEMAN_V3_API_BASE_URL = os.getenv("BKAPP_BKNODEMAN_V3_API_BASE_URL", "")
 BKSOPS_API_BASE_URL = os.getenv("BKAPP_BKSOPS_API_BASE_URL", "")
 BKDOCS_API_BASE_URL = os.getenv("BKAPP_BKDOCS_API_BASE_URL", "")
 DEVOPS_API_BASE_URL = os.getenv("BKAPP_DEVOPS_API_BASE_URL", "")
@@ -1283,7 +1338,11 @@ BK_USERINFO_API_BASE_URL = os.getenv("BKAPP_USERINFO_API_BASE_URL", "")
 BK_USER_API_BASE_URL = os.getenv("BKAPP_USER_API_BASE_URL", "")
 MONITOR_WORKER_API_BASE_URL = os.getenv("BKAPP_MONITOR_WORKER_API_BASE_URL", "")
 APIGATEWAY_API_BASE_URL = os.getenv("BKAPP_APIGATEWAY_API_BASE_URL", "")
-BK_IAM_APIGATEWAY_URL = os.getenv("BKAPP_IAM_API_BASE_URL") or f"{BK_COMPONENT_API_URL}/api/bk-iam/prod/"
+from iam_engine.settings import load_iam_settings, resolve_iam_gateway_url
+
+BK_IAM_APIGATEWAY_URL = resolve_iam_gateway_url(BK_COMPONENT_API_URL, os.getenv("BKAPP_IAM_API_BASE_URL"), version="v3")
+
+globals().update(load_iam_settings(component_api_url=BK_COMPONENT_API_URL))
 
 # 以下是bkchat的apigw
 BKCHAT_API_BASE_URL = os.getenv("BKAPP_BKCHAT_API_BASE_URL", "")
@@ -1291,6 +1350,8 @@ BKCHAT_MANAGE_URL = os.getenv("BKAPP_BKCHAT_MANAGE_URL", "")
 
 # aidev的apigw地址
 AIDEV_API_BASE_URL = os.getenv("BKAPP_AIDEV_API_BASE_URL", "")
+# 跨环境资源查询可指定目标环境用户的 Token；未配置时沿用当前请求登录态。
+AIDEV_ACCESS_TOKEN = os.getenv("BKAPP_AIDEV_ACCESS_TOKEN", "").strip()
 
 # TAPD API 基础URL（部署环境通过 BKAPP_TAPD_API_BASE_URL / TAPD_API_BASE_URL 注入，公开仓不放默认主机）
 TAPD_API_BASE_URL = os.getenv("BKAPP_TAPD_API_BASE_URL", os.getenv("TAPD_API_BASE_URL", ""))
@@ -1345,17 +1406,21 @@ MAIL_REPORT_URL = urljoin(BK_MONITOR_HOST, "#/email-subscriptions")
 
 # 故障分析
 BK_INCIDENT_APIGW_URL = os.getenv("BKAPP_INCIDENT_APIGW_URL", "")
+# BKFara 源码分析使用独立 APIGW；联调环境由 BKFara 提供具体地址。
+BKFARA_APIGW_BASE_URL = os.getenv("BKAPP_BKFARA_APIGW_BASE_URL") or os.getenv("BKFARA_APIGW_BASE_URL", "")
+# 源码分析流水线访问监控的环境；部署阶段（prod/stag）不能区分目标集群。
+# 默认沿用模板的 bkte，BKOP 部署需显式配置为 bkop。
+BKAI_MCP_ENV = os.getenv("BKAPP_BKAI_MCP_ENV") or os.getenv("BKAI_MCP_ENV") or "bkte"
 # 是否开启故障分析功能，默认不开启
 ENABLE_BK_INCIDENT_PLUGIN = os.getenv("ENABLE_BK_INCIDENT_PLUGIN", "false").lower() == "true"
 # 是否打开故障通知
 ENABLE_BK_INCIDENT_NOTICE = os.getenv("ENABLE_BK_INCIDENT_NOTICE", "false").lower() == "true"
 
 # IAM
-BK_IAM_SYSTEM_ID = "bk_monitorv3"
+
 BK_IAM_SYSTEM_NAME = _("监控平台")
 
 BK_IAM_MIGRATION_APP_NAME = "bkmonitor"
-BK_IAM_RESOURCE_API_HOST = os.getenv("BKAPP_IAM_RESOURCE_API_HOST", f"{BK_PAAS_INNER_HOST}{SITE_URL}")
 
 # 是否跳过 iam migrate
 BK_IAM_SKIP = os.getenv("BK_IAM_SKIP", "false").lower() == "true"
@@ -1370,6 +1435,22 @@ OFFICIAL_PLUGINS_MANAGERS = []
 
 # 跳过权限中心
 SKIP_IAM_PERMISSION_CHECK = False
+
+# IAM V4 settings are loaded by the shared BKLog-compatible mapping above.
+
+# ---- IAM v3 鉴权 ----
+BK_IAM_SYSTEM_ID = "bk_monitorv3"
+BK_IAM_RESOURCE_API_HOST = os.getenv("BKAPP_IAM_RESOURCE_API_HOST", f"{BK_PAAS_INNER_HOST}{SITE_URL}")
+BK_IAM_V3_API_BASE_URL = resolve_iam_gateway_url(
+    BK_COMPONENT_API_URL, os.getenv("BK_IAM_V3_API_BASE_URL"), BK_IAM_APIGATEWAY_URL, version="v3"
+)
+
+# ---- IAM 申请 URL 兜底 ----
+BK_IAM_V3_FALLBACK_APPLY_URL = os.getenv("BK_IAM_V3_FALLBACK_APPLY_URL", "") or BK_IAM_SAAS_HOST
+
+# IAM's historical files are model registrations, not Django DB migrations.
+MIGRATION_MODULES = {"bkmonitor_iam": None}
+
 
 # 聚合网关默认业务ID
 AGGREGATION_BIZ_ID = int(os.getenv("BKAPP_AGGREGATION_BIZ_ID", 2))
@@ -1516,20 +1597,26 @@ BKCRYPTO = {
 # 迁移专用配置
 
 # 自定义上报/APM使用的密钥
-CUSTOM_REPORT_AES_KEY = os.getenv("CUSTOM_REPORT_AES_KEY", "")
+CUSTOM_REPORT_AES_KEY = (
+    kms.value("encryption", "custom_report_aes_key") if kms.enabled() else os.getenv("CUSTOM_REPORT_AES_KEY", "")
+)
 
 # 新环境新业务的起始业务ID，如果没有配置就不是新环境。
 # 仅接管 bk_biz_id 严格大于该阈值的 CMDB 业务；阈值以下业务交由旧环境/其它链路管理。
 NEW_ENV_START_BIZ_ID = os.getenv("NEW_ENV_START_BIZ_ID", "")
-# 新环境新集群的起始集群ID，用于判断是否需要执行相关发现任务。
+# 新环境新集群的起始集群ID，未配置多区间时用于判断是否需要执行相关发现任务。
 # 取值示例: "BCS-K8S-10000" 表示仅接管后缀 > 10000 的集群变更。
 NEW_ENV_START_CLUSTER_ID = os.getenv("NEW_ENV_START_CLUSTER_ID", "")
+# 新环境集群编号区间，非空时优先于 NEW_ENV_START_CLUSTER_ID；命中任一区间即可接管。
+# 区间两端均不包含，end 为 null 表示无上界；空列表回退到旧的单阈值配置。
+# 示例: [{"start": 25200, "end": 40000}, {"start": 41200, "end": null}]
+NEW_ENV_CLUSTER_ID_RANGES = json.loads(os.getenv("NEW_ENV_CLUSTER_ID_RANGES", "[]"))
 
 # 业务黑白名单，黑名单是给旧环境使用的，白名单是给新环境与起始业务ID配合使用
 NEW_ENV_BIZ_BLACK_LIST = []
 NEW_ENV_BIZ_WHITE_LIST = []
 
-# 集群黑白名单，黑名单是给旧环境使用的，白名单是给新环境与起始集群ID配合使用
+# 集群黑白名单（业务ID），黑名单优先，白名单可豁免集群编号区间或起始集群ID过滤
 NEW_ENV_CLUSTER_BLACK_LIST = []
 NEW_ENV_CLUSTER_WHITE_LIST = []
 
@@ -1541,7 +1628,7 @@ DISABLE_BCS_CLUSTER_REFRESH_COMMON_RESOURCE = (
 
 # 特别的AES加密配置信息(全局配置)
 SPECIFY_AES_KEY = ""
-BK_CRYPTO_KEY = os.getenv("BKAPP_BK_CRYPTO_KEY", "")
+BK_CRYPTO_KEY = kms.value("encryption", "symmetric_key") if kms.enabled() else os.getenv("BKAPP_BK_CRYPTO_KEY", "")
 
 # 前端事件上报
 FRONTEND_REPORT_DATA_ID = 0
@@ -1586,13 +1673,15 @@ ENABLE_AI_RENAME = False
 # MCP权限校验豁免的工具名称白名单
 MCP_PERMISSION_EXEMPT_TOOLS = ["list_spaces"]
 # Opt in by canonical unified-MCP tool name; applies to standalone routes too.
-# Native permissions first, legacy MCP action only after an explicit denial.
+# Independent MCP permission first; only explicit denial checks the SaaS permission.
 # Keep empty until target IAM permissions and application access have been verified.
 MCP_NATIVE_PERMISSION_TOOLS: list[str] = []
 # Native log MVP requires an explicitly confirmed V3 current-action model.
 # {"mode": "v3-current", "gateway_url": "https://.../api/bk-iam/prod/"}
 MCP_LOG_IAM_PROFILE: dict = {}
 MCP_MAX_TIME_SPAN_SECONDS = 86400  # MCP 查询跨度限制
+# MCP Resource 专用 JSON 响应大小上限，单位为字节。
+MCP_MAX_RESPONSE_BYTES = 5 * 1024 * 1024
 # APM Profiling 数据密度高(秒级采样, 单服务每分钟可达数 MB), 单独收紧 MCP 查询跨度上限
 # 避免: 数据量爆炸 / LLM 上下文超限 / 下游 doris 查询超时
 APM_PROFILING_MCP_MAX_TIME_SPAN_SECONDS = 30 * 60
@@ -1619,6 +1708,14 @@ AIDEV_AGENT_MCP_REQUEST_AGENT_CODE = "bkmonitor-mcp"
 
 # 采集订阅巡检配置，默认开启
 IS_SUBSCRIPTION_ENABLED = True
+
+# 采集状态页主机告警 ES 聚合分批参数（消费方 monitor_web/datalink/resources.py，调用时读取）：
+# 批大小为安全参数（单批稠密响应桶数约 N×(2T+3)+4，运行时按时间桶数自动钳制到桶数预算内）；
+# 并发数为性能参数（瞬时下发 ES 的查询数 = 并发数 × 同时访问页面的用户数），按集群实测负载调整；
+# 桶数预算对齐 ES search.max_buckets（默认 65536，集群调整过该值时同步修改）
+ALERT_HOST_BATCH_SIZE = int(os.environ.get("BKAPP_ALERT_HOST_BATCH_SIZE", 200))
+ALERT_HOST_BATCH_CONCURRENCY = int(os.environ.get("BKAPP_ALERT_HOST_BATCH_CONCURRENCY", 5))
+ALERT_HOST_MAX_AGG_BUCKETS = int(os.environ.get("BKAPP_ALERT_HOST_MAX_AGG_BUCKETS", 65536))
 
 # 允许限制空间功能开关， 默认限制
 IS_RESTRICT_DS_BELONG_SPACE = True
@@ -1741,11 +1838,8 @@ BKBASE_REDIS_RECONNECT_INTERVAL_SECONDS = 2
 BKBASE_REDIS_LOCK_NAME = "watch_bkbase_meta_redis_lock"
 # 是否同步数据至DB
 ENABLE_SYNC_BKBASE_METADATA_TO_DB = False
-# Graph Relation V4 业务灰度白名单，同时控制双写链路自动 apply 和 v1beta3 查询切流
-_graph_relation_v4_biz_id_white_list_env = os.getenv("GRAPH_RELATION_V4_BIZ_ID_WHITE_LIST", "")
-GRAPH_RELATION_V4_BIZ_ID_WHITE_LIST = [
-    int(biz_id.strip()) for biz_id in _graph_relation_v4_biz_id_white_list_env.split(",") if biz_id.strip().isdigit()
-]
+# v1beta3 关联查询业务白名单，通过 GlobalConfig 管理，不改变存储写入链路。
+RELATION_V1BETA3_BIZ_ID_WHITE_LIST = []
 
 # 特殊的可以不被禁用的BCS集群ID
 ALWAYS_RUNNING_FAKE_BCS_CLUSTER_ID_LIST = []
@@ -1857,6 +1951,9 @@ K8S_V2_BIZ_LIST = []
 # RUM 灰度列表，关闭灰度: [0] 或删除该配置
 RUM_BIZ_LIST = []
 
+# Profiling 主动采集灰度列表，关闭灰度: [0] 或删除该配置
+ACTIVE_PROFILING_BIZ_LIST = []
+
 # LLM 观测灰度业务列表，关闭灰度: [0] 或删除该配置
 LLM_BIZ_LIST = []
 
@@ -1899,8 +1996,12 @@ BK_DOC_VERSION = "3.9"
 if os.getenv("USE_BKREPO", os.getenv("BKAPP_USE_BKREPO", "")).lower() == "true":
     USE_CEPH = True
     BKREPO_ENDPOINT_URL = os.getenv("BKAPP_BKREPO_ENDPOINT_URL") or os.environ["BKREPO_ENDPOINT_URL"]
-    BKREPO_USERNAME = os.getenv("BKAPP_BKREPO_USERNAME") or os.environ["BKREPO_USERNAME"]
-    BKREPO_PASSWORD = os.getenv("BKAPP_BKREPO_PASSWORD") or os.environ["BKREPO_PASSWORD"]
+    if kms.enabled():
+        BKREPO_USERNAME = kms.value("bkrepo", "default", "username")
+        BKREPO_PASSWORD = kms.value("bkrepo", "default", "password")
+    else:
+        BKREPO_USERNAME = os.getenv("BKAPP_BKREPO_USERNAME") or os.environ["BKREPO_USERNAME"]
+        BKREPO_PASSWORD = os.getenv("BKAPP_BKREPO_PASSWORD") or os.environ["BKREPO_PASSWORD"]
     BKREPO_PROJECT = os.getenv("BKAPP_BKREPO_PROJECT") or os.environ["BKREPO_PROJECT"]
     BKREPO_BUCKET = os.getenv("BKAPP_BKREPO_BUCKET") or os.environ["BKREPO_BUCKET"]
 
@@ -1944,7 +2045,7 @@ BK_USER_WEB_API_URL = os.getenv("BK_USER_WEB_API_URL") or f"{BK_COMPONENT_API_UR
 
 # GSE消息槽
 GSE_SLOT_ID = int(os.getenv("GSE_SLOT_ID", 0))
-GSE_SLOT_TOKEN = os.getenv("GSE_SLOT_TOKEN", "")
+GSE_SLOT_TOKEN = kms.value("gse", "default", "slot_token") if kms.enabled() else os.getenv("GSE_SLOT_TOKEN", "")
 # 是否开启公共拨测节点鉴权
 ENABLE_PUBLIC_SYNTHETIC_LOCATION_AUTH = False
 
@@ -1999,3 +2100,8 @@ BKAPP_RUM_SDK = os.getenv("BKAPP_RUM_SDK", "otlp")  # otlp / ageis
 BKAPP_RUM_ENDPOINT = os.getenv("BKAPP_RUM_ENDPOINT", "")
 BKAPP_RUM_TOKEN = os.getenv("BKAPP_RUM_TOKEN", "")
 BKAPP_RUM_ENABLED = str(os.getenv("BKAPP_RUM_ENABLED", False)).lower() == "true"
+
+# 告警列表「通知类型」按通知记录统计（新口径开关，默认关闭）。
+# DynamicSettings 先读取静态 settings，此处不定义会在读取时抛 AttributeError；
+# 查询侧部署在 web 角色，因此放在 default.py 而不是只对 worker 生效的 role 配置。
+ALERT_NOTICE_WAY_BY_RECORDS = False

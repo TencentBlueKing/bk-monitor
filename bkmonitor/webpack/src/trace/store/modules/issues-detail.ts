@@ -56,6 +56,8 @@ export const useIssuesDetailStore = defineStore('issuesDetail', () => {
   const detail = shallowRef<IssueDetail | undefined>(undefined);
   /** 加载状态 */
   const loading = shallowRef(false);
+  const error = shallowRef(false);
+  let detailKey = '';
   /** 时间范围 */
   const timeRange = shallowRef<(number | string)[]>(['now-1h', 'now']);
   /** 时区 */
@@ -83,29 +85,35 @@ export const useIssuesDetailStore = defineStore('issuesDetail', () => {
    * 从而避免表单字段在数据未就绪前被初始化导致无法回填。
    */
   const fetchDetail = async () => {
-    if (!issueId.value || !bizId.value) {
+    abortController?.abort();
+    const controller = new AbortController();
+    abortController = controller;
+    const { signal } = controller;
+    const id = issueId.value;
+    const businessId = bizId.value;
+    const key = `${businessId}:${id}`;
+    const isCurrent = () => !signal.aborted && id === issueId.value && businessId === bizId.value;
+    const initial = detailKey !== key || !detail.value;
+    if (detailKey !== key) detail.value = undefined;
+    error.value = false;
+    if (!id || !businessId) {
       detail.value = undefined;
+      detailKey = '';
       loading.value = false;
       return;
     }
-
-    // 中止上一次未完成请求，避免切换 issue 时的竞态
-    abortController?.abort();
-    abortController = new AbortController();
-    const { signal } = abortController;
-
     loading.value = true;
     try {
-      const res = await issueDetail(
-        { bk_biz_id: bizId.value, id: issueId.value },
-        { signal } // 透传 signal，请求可被真正中止
-      ).catch(() => undefined);
-      // 请求期间若已被新请求或 reset 中止，丢弃过期结果
-      if (signal.aborted) return;
+      const res = await issueDetail({ bk_biz_id: businessId, id }, { signal });
+      if (!isCurrent()) return;
+      if (!res) throw new Error('Missing issue detail');
       detail.value = res;
-      initTimeRange();
+      detailKey = key;
+      if (initial) initTimeRange();
+    } catch {
+      if (isCurrent()) error.value = true;
     } finally {
-      loading.value = false;
+      if (isCurrent()) loading.value = false;
     }
   };
 
@@ -120,6 +128,8 @@ export const useIssuesDetailStore = defineStore('issuesDetail', () => {
   const reset = () => {
     abortController?.abort();
     abortController = null;
+    detailKey = '';
+    error.value = false;
     issueId.value = '';
     bizId.value = null;
     detail.value = undefined;
@@ -137,6 +147,7 @@ export const useIssuesDetailStore = defineStore('issuesDetail', () => {
     bizId,
     detail,
     loading,
+    error,
     timeRange,
     timezone,
     refreshInterval,

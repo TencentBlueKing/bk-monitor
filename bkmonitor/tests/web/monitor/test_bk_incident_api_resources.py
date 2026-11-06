@@ -195,6 +195,36 @@ def test_panel_detail_resource_proxies_bkfara_payload_without_scope_id():
     assert 'resource.incident.incident_panel_detail, endpoint="panel_detail"' in view_source
 
 
+def test_panel_detail_sort_survives_both_real_request_serializers():
+    from django.conf import settings
+    from rest_framework import serializers
+
+    if not settings.configured:
+        settings.configure(USE_I18N=False)
+    sources = [
+        ("api/bk_incident/default.py", "GetPanelDetailResource", "GetIncidentDetailResource"),
+        ("packages/monitor_web/incident/resources.py", "IncidentPanelDetailResource", "IncidentDateHistogramResource"),
+    ]
+    request = {
+        "bk_biz_id": 2,
+        "incident_id": 9527,
+        "drawer_type": "log",
+        "detail_ref": {"panel": "logs_analysis"},
+        "sort_list": [["dtEventTimeStamp", "asc"]],
+    }
+    for file_name, class_name, next_class in sources:
+        source = (PROJECT_ROOT / file_name).read_text(encoding="utf-8")
+        source = source[source.index(f"class {class_name}") : source.index(f"class {next_class}")]
+        namespace = {"IncidentBaseResource": object, "serializers": serializers}
+        exec(source, namespace)
+        serializer_class = namespace[class_name].RequestSerializer
+        serializer = serializer_class(data=request)
+        assert serializer.is_valid(), serializer.errors
+        assert serializer.validated_data["sort_list"] == request["sort_list"]
+        assert not serializer_class(data={**request, "sort_list": [["dtEventTimeStamp"]]}).is_valid()
+        assert not serializer_class(data={**request, "sort_list": [["time", "asc"]] * 11}).is_valid()
+
+
 def test_panel_detail_api_converts_bk_biz_id_and_proxy_preserves_payload_and_errors():
     api_source = (PROJECT_ROOT / "api/bk_incident/default.py").read_text(encoding="utf-8")
     base_source = api_source[
@@ -222,12 +252,14 @@ def test_panel_detail_api_converts_bk_biz_id_and_proxy_preserves_payload_and_err
             "incident_id": 9527,
             "drawer_type": "event",
             "detail_ref": {"panel": "events_analysis"},
+            "sort_list": [["dtEventTimeStamp", "asc"]],
         }
     )
     assert converted["scope_type"] == "bkcc"
     assert converted["scope_value"] == "2"
     assert "bk_biz_id" not in converted
     assert converted["detail_ref"] == {"panel": "events_analysis"}
+    assert converted["sort_list"] == [["dtEventTimeStamp", "asc"]]
 
     incident_source = (PROJECT_ROOT / "packages/monitor_web/incident/resources.py").read_text(encoding="utf-8")
     resource_source = incident_source[
@@ -256,6 +288,7 @@ def test_panel_detail_api_converts_bk_biz_id_and_proxy_preserves_payload_and_err
         "incident_id": 9527,
         "drawer_type": "event",
         "detail_ref": {"panel": "events_analysis"},
+        "sort_list": [["dtEventTimeStamp", "desc"]],
     }
     result = namespace["IncidentPanelDetailResource"]().perform_request(request_data)
     assert remote.params == request_data

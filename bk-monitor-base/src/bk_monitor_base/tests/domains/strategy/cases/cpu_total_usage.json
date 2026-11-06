@@ -1,0 +1,177 @@
+{
+  "type": "monitor",
+  "bk_biz_id": 2,
+  "scenario": "os",
+  "name": "CPU总使用率",
+  "labels": ["aaa"],
+  "is_enabled": false,
+  "priority": null,
+  "items": [
+    {
+      "name": "AVG(CPU使用率)",
+      "no_data_config": {
+        "continuous": 5,
+        "is_enabled": false,
+        "agg_dimension": [
+          "bk_target_ip",
+          "bk_target_cloud_id"
+        ],
+        "level": 2
+      },
+      "target": [],
+      "expression": "a",
+      "functions": [],
+      "origin_sql": "",
+      "query_configs": [
+        {
+          "data_source_label": "bk_monitor",
+          "data_type_label": "time_series",
+          "alias": "a",
+          "result_table_id": "system.cpu_summary",
+          "agg_method": "AVG",
+          "agg_interval": 60,
+          "agg_dimension": [
+            "bk_target_ip",
+            "bk_target_cloud_id"
+          ],
+          "agg_condition": [],
+          "metric_field": "usage",
+          "unit": "percent",
+          "metric_id": "bk_monitor.system.cpu_summary.usage",
+          "functions": []
+        }
+      ],
+      "algorithms": [
+        {
+          "level": 2,
+          "type": "Threshold",
+          "config": [
+            [
+              {
+                "method": "gte",
+                "threshold": 95
+              }
+            ]
+          ],
+          "unit_prefix": "%"
+        }
+      ]
+    }
+  ],
+  "detects": [
+    {
+      "level": 2,
+      "expression": "",
+      "trigger_config": {
+        "count": 3,
+        "check_window": 5,
+        "uptime": {
+          "calendars": [],
+          "active_calendars": [],
+          "time_ranges": [
+            {
+              "start": "00:00",
+              "end": "23:59"
+            }
+          ]
+        }
+      },
+      "recovery_config": {
+        "check_window": 5,
+        "status_setter": "recovery"
+      },
+      "connector": "and"
+    }
+  ],
+  "actions": [
+    {
+      "id": 11856,
+      "config_id": 12354,
+      "user_groups": [
+        1879
+      ],
+      "user_type": "main",
+      "signal": [
+        "abnormal"
+      ],
+      "options": {
+        "converge_config": {
+          "count": 1,
+          "condition": [
+            {
+              "value": [
+                "self"
+              ],
+              "dimension": "action_info"
+            }
+          ],
+          "timedelta": 60,
+          "is_enabled": true,
+          "converge_func": "skip_when_success",
+          "need_biz_converge": true
+        },
+        "skip_delay": 0
+      }
+    }
+  ],
+  "notice": {
+    "config_id": 1175,
+    "user_groups": [
+      87
+    ],
+    "signal": [
+      "no_data",
+      "abnormal"
+    ],
+    "options": {
+      "converge_config": {
+        "need_biz_converge": true
+      },
+      "exclude_notice_ways": {
+        "recovered": [],
+        "closed": [],
+        "ack": []
+      },
+      "noise_reduce_config": {
+        "dimensions": [],
+        "is_enabled": false,
+        "count": 10
+      },
+      "upgrade_config": {
+        "is_enabled": false,
+        "user_groups": []
+      },
+      "assign_mode": [
+        "only_notice",
+        "by_rule"
+      ],
+      "chart_image_enabled": true
+    },
+    "config": {
+      "need_poll": true,
+      "notify_interval": 86400,
+      "interval_notify_mode": "standard",
+      "template": [
+        {
+          "signal": "abnormal",
+          "message_tmpl": "",
+          "title_tmpl": "{{business.bk_biz_name}} - {{alarm.name}}{{alarm.display_type}}"
+        },
+        {
+          "signal": "recovered",
+          "message_tmpl": "",
+          "title_tmpl": "{{business.bk_biz_name}} - {{alarm.name}}{{alarm.display_type}}"
+        },
+        {
+          "signal": "closed",
+          "message_tmpl": "",
+          "title_tmpl": "{{business.bk_biz_name}} - {{alarm.name}}{{alarm.display_type}}"
+        }
+      ],
+      "voice_notice": "serial"
+    }
+  },
+  "metric_type": "time_series",
+  "priority_group_key": "",
+  "id": 216
+}

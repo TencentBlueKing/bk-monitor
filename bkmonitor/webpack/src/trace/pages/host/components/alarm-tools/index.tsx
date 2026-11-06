@@ -148,7 +148,8 @@ export default defineComponent({
     return () => (
       <div class='alarm-tools'>
         <span
-          class='alarm-tools-strategy'
+          class={['alarm-tools-strategy', { 'is-loading': countStatus.value === 'loading' }]}
+          aria-busy={countStatus.value === 'loading'}
           v-bk-tooltips={{
             content:
               countStatus.value === 'error'
@@ -163,10 +164,16 @@ export default defineComponent({
           onClick={handleToStrategy}
         >
           <i class='icon-monitor icon-mc-strategy tool-icon' />
-          {strategyNum.value ?? '--'}
+          {countStatus.value === 'loading' ? (
+            <span class='alarm-tools-count-skeleton' aria-hidden='true' />
+          ) : strategyNum.value ?? '--'}
         </span>
         <span
-          class={['alarm-tools-alarm', { 'is-disabled': countStatus.value !== 'error' && !alarmNum.value }]}
+          class={['alarm-tools-alarm', {
+            'is-disabled': countStatus.value !== 'error' && !alarmNum.value,
+            'is-loading': countStatus.value === 'loading',
+          }]}
+          aria-busy={countStatus.value === 'loading'}
           v-bk-tooltips={{
             content:
               countStatus.value === 'error'
@@ -184,7 +191,9 @@ export default defineComponent({
           onClick={handleToAlarmCenter}
         >
           <i class='icon-monitor icon-mc-chart-alert tool-icon' />
-          {alarmNum.value ?? '--'}
+          {countStatus.value === 'loading' ? (
+            <span class='alarm-tools-count-skeleton' aria-hidden='true' />
+          ) : alarmNum.value ?? '--'}
         </span>
       </div>
     );

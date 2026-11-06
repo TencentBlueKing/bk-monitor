@@ -23,6 +23,7 @@ from alarm_backends.service.fta_action import (
 )
 from bkmonitor.models import ActionPlugin
 from bkmonitor.utils.template import Jinja2Renderer, NoticeRowRenderer
+from bkmonitor.utils.user import get_user_display_name
 from constants.action import ActionStatus, FailureType
 from core.drf_resource.exceptions import CustomException
 from core.errors.alarm_backends import EmptyAssigneeError
@@ -132,6 +133,32 @@ class ActionProcessor(BaseActionProcessor):
         task_config = self.function_config.get("schedule")
         return self.run_node_task(task_config, **kwargs)
 
+    def get_assignee_display_names(self):
+        """
+        获取负责人展示名
+
+        self.action.assignee 存储的是用户唯一标识（多租户下为 bk_username），
+        直接拼进提示文案会显示成用户看不懂的标识，故转为展示名。
+        转换失败（如接口异常、租户上下文缺失）时回退原值，不能影响失败结果落库。
+        """
+        assignees = self.action.assignee or []
+        if not isinstance(assignees, list):
+            assignees = [assignees]
+
+        display_names = []
+        for assignee in assignees:
+            try:
+                display_names.append(get_user_display_name(assignee))
+            except Exception as error:
+                logger.warning(
+                    "convert assignee(%s) to display name failed for action(%s): %s",
+                    assignee,
+                    self.action.id,
+                    error,
+                )
+                display_names.append(assignee)
+        return display_names
+
     def run_node_task(self, config, **kwargs):
         if self.action.status not in ActionStatus.CAN_EXECUTE_STATUS:
             raise ActionAlreadyFinishedError(_("当前任务状态不可执行"))
@@ -145,7 +172,7 @@ class ActionProcessor(BaseActionProcessor):
             self.set_finished(
                 to_status=ActionStatus.FAILURE,
                 message=_("以当前告警负责人[{}]执行{}时, 接口返回{}").format(
-                    ",".join(self.action.assignee), current_step_name, str(error)
+                    ",".join(self.get_assignee_display_names()), current_step_name, str(error)
                 ),
                 retry_func=config.get("function", "execute"),
                 kwargs=kwargs,
@@ -225,6 +252,13 @@ class ActionProcessor(BaseActionProcessor):
             return {}
 
         request_class = getattr(resource_module, source_class)
+        inputs = self.get_request_inputs(request_schema, **kwargs)
+        data = {"response": request_class(**request_schema.get("init_kwargs", {})).request(**inputs)}
+        outputs = self.decode_request_outputs(output_templates=request_schema.get("outputs", []), **data)
+        return outputs
+
+    def get_request_inputs(self, request_schema, **kwargs):
+        """构建完成映射和模板渲染的请求参数。"""
         inputs = self.jmespath_search_data(inputs=request_schema.get("inputs", []), **kwargs)
         inputs.update(
             {
@@ -237,9 +271,7 @@ class ActionProcessor(BaseActionProcessor):
         if request_schema.get("render_inputs", False):
             # 对由 jmespath/静态映射生成的 inputs 可选执行二次 Jinja 渲染。
             inputs = self.jinja_render(inputs)
-        data = {"response": request_class(**request_schema.get("init_kwargs", {})).request(**inputs)}
-        outputs = self.decode_request_outputs(output_templates=request_schema.get("outputs", []), **data)
-        return outputs
+        return inputs
 
     def decode_request_outputs(self, output_templates, **kwargs):
         """

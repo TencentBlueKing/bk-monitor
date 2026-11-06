@@ -1,3 +1,5 @@
+@use 'monitor-static/styles/skeleton-theme' as skeleton;
+
 /*
  * Tencent is pleased to support the open source community by making
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
@@ -63,10 +65,9 @@
   .mini-chart-skeleton {
     width: 100%;
     height: 14px;
-    background: linear-gradient(90deg, #f0f1f5 25%, #e8e9ed 50%, #f0f1f5 75%);
-    background-size: 200% 100%;
     border-radius: 2px;
-    animation: skeleton-pulse 1.5s ease-in-out infinite;
+
+    @include skeleton.surface;
   }
 
   .no-data-text {
@@ -110,15 +111,5 @@
     .tooltip-status-text {
       color: #fff;
     }
-  }
-}
-
-@keyframes skeleton-pulse {
-  0% {
-    background-position: 200% 0;
-  }
-
-  100% {
-    background-position: -200% 0;
   }
 }

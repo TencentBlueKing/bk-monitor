@@ -155,4 +155,6 @@ export default {
   最近告警时间: 'Recent alarm time',
   解决时间: 'resolution time',
   批量移动至: 'Move to',
+  慢节点: 'Slow Node',
+  第三方资源: 'Third Resource',
 };

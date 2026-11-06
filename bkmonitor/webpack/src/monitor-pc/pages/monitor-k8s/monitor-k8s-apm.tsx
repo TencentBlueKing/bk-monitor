@@ -23,11 +23,12 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
+
 import { Component, Inject, InjectReactive, Mixins, Provide, ProvideReactive, Watch } from 'vue-property-decorator';
 
 import { listServiceK8sTargets } from 'monitor-api/modules/apm_container';
-import bus from 'monitor-common/utils/event-bus';
 import { scenarioMetricList } from 'monitor-api/modules/k8s';
+import bus from 'monitor-common/utils/event-bus';
 
 import introduce from '../../common/introduce';
 import GuidePage from '../../components/guide-page/guide-page';
@@ -35,6 +36,7 @@ import NewUserConfigMixin from '../../mixins/newUserStoreConfig';
 import FilterByCondition from './components/filter-by-condition/filter-by-condition';
 import GroupByCondition from './components/group-by-condition/group-by-condition';
 import K8SCharts from './components/k8s-charts/k8s-charts';
+import K8sEmptyStatus from './components/k8s-empty-status/k8s-empty-status';
 import K8sTableNew, {
   type K8sTableColumnResourceKey,
   type K8sTableGroupByEvent,
@@ -69,6 +71,10 @@ Component.registerHooks(['deactivated']);
 const HIDE_METRICS_KEY = 'monitor_k8s_hide_metrics';
 
 const CACHE_APM_SEARCH_QUERY = 'APM_K8S';
+
+/** 容器页 workload 选择框：默认 340px，右缘拖拽最大 560px */
+const TARGET_SELECT_MIN_WIDTH = 340;
+const TARGET_SELECT_MAX_WIDTH = 560;
 
 /** 网络场景默认隐藏的指标 */
 const networkDefaultHideMetrics = [
@@ -147,6 +153,11 @@ export default class MonitorK8sNew extends Mixins(NewUserConfigMixin) {
   activeMetricId = '';
 
   metricLoading = true;
+  initializing = true;
+  initializationError = false;
+  initializationId = 0;
+  initializationController: AbortController = null;
+  disposed = false;
   /** 自动刷新定时器 */
   timer = null;
   /** 各维度数据总和 */
@@ -160,6 +171,9 @@ export default class MonitorK8sNew extends Mixins(NewUserConfigMixin) {
   targetList: IK8sTargetList[] = [];
   targetListToggle = false;
   selectTarget = '';
+  targetSelectWidth = TARGET_SELECT_MIN_WIDTH;
+  /** 拖拽过程中的 document 监听，销毁时卸掉 */
+  removeTargetSelectResize: (() => void) | null = null;
 
   isUserManualSwitch = false;
   cacheData: Record<string, { target: string }> = {};
@@ -236,14 +250,13 @@ export default class MonitorK8sNew extends Mixins(NewUserConfigMixin) {
   }
 
   get selectTargetText() {
-    if (!this.selectTarget) return this.$t('请选择');
-    const { namespace = '', workload = '', pod = '' } = this.selectTargetItem || {};
-    return `[${namespace}] ${workload || pod}`;
+    if (!this.selectTarget || !this.selectTargetItem) return '';
+    return this.getTargetNameText(this.selectTargetItem);
   }
 
-  get selectTargetTextTooltip() {
-    const { bcs_cluster_id: clusterId = '' } = this.selectTargetItem || {};
-    return `${this.selectTargetText}（${this.$t('集群')}: ${clusterId}）`;
+  get selectTargetClusterText() {
+    if (!this.selectTarget || !this.selectTargetItem) return '';
+    return this.getTargetClusterText(this.selectTargetItem);
   }
 
   // 选中的目标项
@@ -289,8 +302,8 @@ export default class MonitorK8sNew extends Mixins(NewUserConfigMixin) {
   handleTableGroupChange(item: K8sTableGroupByEvent, showCancelDrill = false) {
     const cacheGroupBy = [...this.groupInstance.groupFilters];
     const cacheFilterBy = JSON.parse(JSON.stringify(this.filterBy));
-    const { filterById, id, dimension } = item;
-    this.handleDrillDown(filterById, id, dimension);
+    const { filterById, id, dimension, scopeFilters } = item;
+    this.handleDrillDown(filterById, id, dimension, scopeFilters);
     if (showCancelDrill) {
       // this.showCancelDrill = true;
       this.cacheGroupBy = cacheGroupBy;
@@ -305,8 +318,14 @@ export default class MonitorK8sNew extends Mixins(NewUserConfigMixin) {
    * @param isSelect 是否选中
    */
   @Provide('onFilterChange')
-  filterByChange(id: string, dimensionId: string, isSelect: boolean) {
+  filterByChange(id: string, dimensionId: string, isSelect: boolean, scopeFilters?: Record<string, string[]>) {
     // this.showCancelDrill = false;
+    if (isSelect && scopeFilters) {
+      for (const [key, values] of Object.entries(scopeFilters)) {
+        if (!this.groupInstance.hasGroupFilter(key as K8sTableColumnResourceKey)) this.groupByChange(key, true);
+        this.$set(this.filterBy, key, [...values]);
+      }
+    }
     if (!this.filterBy[dimensionId]) {
       this.$set(this.filterBy, dimensionId, []);
     }
@@ -329,31 +348,70 @@ export default class MonitorK8sNew extends Mixins(NewUserConfigMixin) {
     }
   }
 
-  async created() {
+  created() {
     this.groupInstance = K8sGroupDimension.createInstance(SceneEnum.Performance, this.isApmMonitor);
-    const apmK8sParams = this.customRouteQuery?.apmK8sParams ? JSON.parse(this.customRouteQuery?.apmK8sParams) : {};
-    await this.getApmK8sData().catch(() => {});
-    /** URL没有参数且存在缓存查询条件，使用缓存查询条件 */
-    if (!Object.keys(apmK8sParams).length) {
-      // 从接口获取缓存的数据
-      const cacheRes = await this.handleGetUserConfig<Record<string, { target: string }>>(
-        `${CACHE_APM_SEARCH_QUERY}_${this.bizId}_${this.appName}`
-      ).catch(() => {});
-      this.cacheData = cacheRes ? cacheRes : {};
-      if (cacheRes?.[this.serviceName]) {
-        this.getRouteParams(cacheRes[this.serviceName]);
-      } else {
-        this.getRouteParams({
-          ...this.selectTargetItem,
-          target: this.selectTargetItem.cacheId,
-        });
+    this.initialize();
+  }
+
+  get targetContext() {
+    return JSON.stringify([this.bizId, this.appName, this.serviceName]);
+  }
+
+  @Watch('targetContext')
+  async initialize() {
+    if (this.disposed) return;
+    const requestId = ++this.initializationId;
+    this.initializationController?.abort();
+    this.initializing = true;
+    this.metricLoading = true;
+    this.initializationError = false;
+    this.isUserManualSwitch = false;
+    this.cluster = '';
+    this.targetList = [];
+    this.selectTarget = '';
+    this.metricList = [];
+    this.initGroupBy();
+    this.initFilterBy();
+    if (!this.appName || !this.serviceName) return;
+    const controller = new AbortController();
+    this.initializationController = controller;
+    try {
+      const apmK8sParams = this.customRouteQuery?.apmK8sParams ? JSON.parse(this.customRouteQuery.apmK8sParams) : {};
+      const [targets, metrics, cache, hiddenMetrics] = await Promise.all([
+        listServiceK8sTargets(
+          { app_name: this.appName, service_name: this.serviceName },
+          { signal: controller.signal }
+        ),
+        scenarioMetricList({ scenario: this.scene }, { signal: controller.signal }),
+        Object.keys(apmK8sParams).length
+          ? Promise.resolve(null)
+          : this.handleGetUserConfig<Record<string, { target: string }>>(
+              `${CACHE_APM_SEARCH_QUERY}_${this.bizId}_${this.appName}`
+            ).catch(() => null),
+        this.handleGetUserConfig<string[]>(`${HIDE_METRICS_KEY}_${this.scene}`).catch(() => null),
+      ]);
+      if (requestId !== this.initializationId || this.disposed) return;
+      this.targetList = (targets.target_list || []).map(item => ({
+        ...item,
+        cacheId: `${item.bcs_cluster_id}-${item.namespace}-${item.pod || item.workload}`,
+      }));
+      this.metricList = metrics.map(item => ({ ...item, count: item.children.length }));
+      this.hideMetrics = hiddenMetrics || (this.scene === SceneEnum.Network ? [...networkDefaultHideMetrics] : []);
+      this.cacheData = cache || {};
+      this.getRouteParams(
+        Object.keys(apmK8sParams).length ? apmK8sParams.selectTarget : this.cacheData[this.serviceName]
+      );
+    } catch {
+      if (requestId !== this.initializationId || this.disposed) return;
+      this.initializationError = true;
+      controller.abort();
+    } finally {
+      if (requestId === this.initializationId && !this.disposed) {
+        this.initializing = false;
+        this.metricLoading = false;
+        if (!this.initializationError && this.selectTarget) this.setRouteParams();
       }
-    } else {
-      this.getRouteParams(apmK8sParams.selectTarget);
     }
-    this.getScenarioMetricList();
-    this.getHideMetrics();
-    this.setRouteParams();
   }
 
   mounted() {
@@ -376,10 +434,15 @@ export default class MonitorK8sNew extends Mixins(NewUserConfigMixin) {
 
   /** keep-alive / 微前端挂起时 beforeDestroy 不会触发 */
   deactivated() {
+    this.removeTargetSelectResize?.();
     this.saveNewTargetValueToUserConfig();
   }
 
   beforeDestroy() {
+    this.disposed = true;
+    this.initializationId++;
+    this.initializationController?.abort();
+    this.removeTargetSelectResize?.();
     bus.$off(APM_K8S_CACHE_FLUSH_EVENT, this.saveNewTargetValueToUserConfig);
     this.saveNewTargetValueToUserConfig();
   }
@@ -428,48 +491,6 @@ export default class MonitorK8sNew extends Mixins(NewUserConfigMixin) {
     this.showRestore = false;
   }
 
-  async getApmK8sData() {
-    const res = await listServiceK8sTargets({
-      app_name: this.appName,
-      service_name: this.serviceName,
-    }).catch(() => {});
-    if (res.target_list?.length) {
-      this.targetList = res.target_list.map(item => ({
-        ...item,
-        cacheId: `${item.bcs_cluster_id}-${item.namespace}-${item.pod || item.workload}`,
-      }));
-      this.cluster = res.target_list[0]?.bcs_cluster_id || '';
-    }
-    return;
-  }
-
-  /**
-   * @description 获取场景指标列表
-   */
-  async getScenarioMetricList() {
-    this.metricList = [];
-    if (this.scene === SceneEnum.Event) return;
-    this.metricLoading = true;
-    const data = await scenarioMetricList({ scenario: this.scene }).catch(() => []);
-    this.metricLoading = false;
-    this.metricList = data.map(item => ({
-      ...item,
-      count: item.children.length,
-    }));
-  }
-
-  /** 获取隐藏的指标项 */
-  getHideMetrics() {
-    this.handleGetUserConfig(`${HIDE_METRICS_KEY}_${this.scene}`).then((res: string[]) => {
-      if (this.scene === SceneEnum.Network && !res) {
-        /** 网络场景初始化，默认隐藏丢包量指标 */
-        this.hideMetrics = [...networkDefaultHideMetrics];
-      } else {
-        this.hideMetrics = res || [];
-      }
-    });
-  }
-
   /**
    * 修改groupBy
    * @param groupId
@@ -490,8 +511,13 @@ export default class MonitorK8sNew extends Mixins(NewUserConfigMixin) {
    * @param filterByDimension  下钻数据所在维度
    * @param drillDownDimension 下钻维度
    */
-  handleDrillDown(filterById: string, filterByDimension: string, drillDownDimension: string) {
-    this.filterByChange(filterById, filterByDimension, true);
+  handleDrillDown(
+    filterById: string,
+    filterByDimension: string,
+    drillDownDimension: string,
+    scopeFilters?: Record<string, string[]>
+  ) {
+    this.filterByChange(filterById, filterByDimension, true, scopeFilters);
     this.groupByChange(drillDownDimension, true);
   }
 
@@ -557,8 +583,10 @@ export default class MonitorK8sNew extends Mixins(NewUserConfigMixin) {
   }
 
   // 切换apm容器targetList
-  handleTargetListChange(value: string, oldValue?: string) {
-    // if (!oldValue || !Object.keys(this.selectTargetItem).length) return;
+  handleTargetListChange(value: string) {
+    const target = this.targetList.find(item => item.cacheId === value);
+    if (!target || (this.selectTarget === value && this.cluster === target.bcs_cluster_id)) return;
+    const manualSwitch = !this.initializing && this.selectTarget !== value;
     this.selectTarget = value;
     const {
       resource_type: resourceType = '',
@@ -566,7 +594,7 @@ export default class MonitorK8sNew extends Mixins(NewUserConfigMixin) {
       workload = '',
       pod = '',
       bcs_cluster_id: cluster = '',
-    } = this.selectTargetItem;
+    } = target;
     this.filterBy = {
       [EDimensionKey.namespace]: [namespace],
       ...(workload ? { [EDimensionKey.workload]: [workload] } : {}),
@@ -581,27 +609,85 @@ export default class MonitorK8sNew extends Mixins(NewUserConfigMixin) {
       this.groupInstance.addGroupFilter(K8sTableColumnKeysEnum.WORKLOAD, { single: true });
       this.groupInstance.addGroupFilter(K8sTableColumnKeysEnum.POD);
     }
-    this.isUserManualSwitch = !!oldValue;
+    if (manualSwitch) this.isUserManualSwitch = true;
   }
 
   handleTargetListToggle(toggle: boolean) {
     this.targetListToggle = toggle;
   }
 
+  getTargetNameText(target: IK8sTargetList) {
+    return `[${target.namespace}] ${target.workload || target.pod}`;
+  }
+
+  getTargetClusterText(target: IK8sTargetList) {
+    return `${this.$t('集群')}: ${target.bcs_cluster_id}`;
+  }
+
+  /** 保持原 option name，关键字过滤仍匹配完整名称和集群 */
+  getTargetOptionName(target: IK8sTargetList) {
+    return `[${target.namespace}] ${target.workload || target.pod}（集群: ${target.bcs_cluster_id}）`;
+  }
+
+  handleTargetSelectResizeStart(event: MouseEvent) {
+    event.preventDefault();
+    event.stopPropagation();
+    this.removeTargetSelectResize?.();
+    const startX = event.clientX;
+    const startWidth = this.targetSelectWidth;
+    const { cursor, userSelect } = document.body.style;
+    document.body.style.cursor = 'col-resize';
+    document.body.style.userSelect = 'none';
+    const stopClick = (clickEvent: MouseEvent) => {
+      clickEvent.preventDefault();
+      clickEvent.stopPropagation();
+    };
+    const onMove = (moveEvent: MouseEvent) => {
+      const nextWidth = startWidth + moveEvent.clientX - startX;
+      this.targetSelectWidth = Math.min(TARGET_SELECT_MAX_WIDTH, Math.max(TARGET_SELECT_MIN_WIDTH, nextWidth));
+    };
+    const onUp = () => {
+      document.removeEventListener('mousemove', onMove);
+      document.removeEventListener('mouseup', onUp);
+      document.body.style.cursor = cursor;
+      document.body.style.userSelect = userSelect;
+      this.removeTargetSelectResize = null;
+      // click 在 mouseup 之后才派发，下一拍再卸掉，避免吞掉后续点击
+      setTimeout(() => window.removeEventListener('click', stopClick, true), 0);
+    };
+    document.addEventListener('mousemove', onMove);
+    document.addEventListener('mouseup', onUp);
+    window.addEventListener('click', stopClick, true);
+    this.removeTargetSelectResize = () => {
+      document.removeEventListener('mousemove', onMove);
+      document.removeEventListener('mouseup', onUp);
+      window.removeEventListener('click', stopClick, true);
+      document.body.style.cursor = cursor;
+      document.body.style.userSelect = userSelect;
+      this.removeTargetSelectResize = null;
+    };
+  }
+
+  renderTargetText(name: string, cluster: string) {
+    return (
+      <span class='target-list-text'>
+        <span class='target-list-name'>{name}</span>
+        {cluster ? <span class='target-list-cluster'>{cluster}</span> : null}
+      </span>
+    );
+  }
+
   // apm容器首版：只需要缓存targetList选中的那一项，暂时不需要过滤条件和聚合维度等其他参数
   getRouteParams(query: Record<string, string | string[]> = {}) {
     const { target = '' } = query;
-    const res = this.targetList.find(item => item.cacheId === target) || '';
-    if (!target || !res) {
-      this.selectTarget = this.targetList[0].cacheId;
-    } else {
-      this.selectTarget = res.cacheId;
-    }
+    const selected = this.targetList.find(item => item.cacheId === target) || this.targetList[0];
     this.initGroupBy();
     this.initFilterBy();
+    if (selected) this.handleTargetListChange(selected.cacheId);
   }
 
   setRouteParams(otherQuery = {}) {
+    if (this.initializing || this.initializationError || this.disposed || !this.selectTarget) return;
     const apmK8sParams = {
       selectTarget: {
         target: this.selectTarget,
@@ -613,6 +699,14 @@ export default class MonitorK8sNew extends Mixins(NewUserConfigMixin) {
   }
 
   tabContentRender() {
+    if (!this.initializing && this.initializationError)
+      return (
+        <K8sEmptyStatus
+          type='500'
+          onOperation={this.initialize}
+        />
+      );
+    if (!this.initializing && !this.cluster) return <K8sEmptyStatus type='empty' />;
     switch (this.activeTab) {
       case K8sNewTabEnum.CHART:
         return (
@@ -622,6 +716,8 @@ export default class MonitorK8sNew extends Mixins(NewUserConfigMixin) {
             groupBy={this.groupFilters}
             hideMetrics={this.resultHideMetrics}
             metricList={this.metricList}
+            metricLoading={this.initializing || this.metricLoading}
+            onClearSearch={this.handleTableClearSearch}
           />
         );
       default:
@@ -632,6 +728,7 @@ export default class MonitorK8sNew extends Mixins(NewUserConfigMixin) {
             groupInstance={this.groupInstance}
             hideMetrics={this.resultHideMetrics}
             metricList={this.metricList}
+            metricLoading={this.initializing || this.metricLoading}
             onClearSearch={this.handleTableClearSearch}
             onRouterParamChange={this.handleTableRouterParamChange}
           />
@@ -640,10 +737,35 @@ export default class MonitorK8sNew extends Mixins(NewUserConfigMixin) {
   }
 
   renderTargetListSelect() {
+    if (this.initializing) {
+      return (
+        <div
+          class='target-list-select'
+          aria-busy='true'
+          aria-label={this.$t('加载中')}
+          role='status'
+        >
+          <div
+            class='target-list-trigger target-list-skeleton'
+            aria-hidden='true'
+          >
+            <span class='skeleton-element target-name-skeleton' />
+            <i class='skeleton-element target-arrow-skeleton' />
+          </div>
+        </div>
+      );
+    }
     return (
       <bk-select
+        style={{
+          width: `${this.targetSelectWidth}px`,
+          maxWidth: `${this.targetSelectWidth}px`,
+        }}
         class='target-list-select'
         clearable={false}
+        ext-popover-cls='apm-target-list-popover'
+        popover-min-width={this.targetSelectWidth}
+        popover-width={this.targetSelectWidth}
         search-placeholder={this.$t('请输入 关键字')}
         value={this.selectTarget}
         filterable
@@ -655,20 +777,30 @@ export default class MonitorK8sNew extends Mixins(NewUserConfigMixin) {
           class='target-list-trigger'
           slot='trigger'
         >
-          <span
-            class='target-list-name'
-            v-bk-overflow-tips={{ content: this.selectTargetTextTooltip }}
-          >
-            {this.selectTargetText}
-          </span>
+          {this.selectTargetText ? (
+            this.renderTargetText(this.selectTargetText, this.selectTargetClusterText)
+          ) : (
+            <span class='target-list-name is-placeholder'>{this.$t('请选择')}</span>
+          )}
           <span class={`icon-monitor icon-mc-arrow-down ${this.targetListToggle ? 'expand' : ''}`} />
+          <span
+            class='target-list-resize-handle'
+            title={String(this.$t('拖拽调整宽度'))}
+            onClick={(clickEvent: MouseEvent) => {
+              clickEvent.preventDefault();
+              clickEvent.stopPropagation();
+            }}
+            onMousedown={this.handleTargetSelectResizeStart}
+          />
         </div>
         {this.targetList.map(target => (
           <bk-option
             id={target.cacheId}
             key={target.cacheId}
-            name={`[${target.namespace}] ${target.workload || target.pod}（集群: ${target.bcs_cluster_id}）`}
-          />
+            name={this.getTargetOptionName(target)}
+          >
+            {this.renderTargetText(this.getTargetNameText(target), this.getTargetClusterText(target))}
+          </bk-option>
         ))}
       </bk-select>
     );
@@ -683,7 +815,7 @@ export default class MonitorK8sNew extends Mixins(NewUserConfigMixin) {
         />
       );
     return (
-      <div class={['monitor-k8s-new', this.scene]}>
+      <div class={['monitor-k8s-new', 'monitor-k8s-apm', this.scene]}>
         {[
           <div
             key='monitor-k8s-new-header'
@@ -761,7 +893,7 @@ export default class MonitorK8sNew extends Mixins(NewUserConfigMixin) {
                 }}
                 class='content-main-wrap'
               >
-                {this.cluster && this.tabContentRender()}
+                {this.tabContentRender()}
               </div>
             </div>
           </div>,

@@ -219,7 +219,6 @@ class GetAllConfigListResource(Resource):
 
     def perform_request(self, validated_request_data):
         bk_biz_id = validated_request_data["bk_biz_id"]
-        self.node_filter_manager = CmdbUtil(bk_biz_id)
         service_category_id = validated_request_data.get("service_category_id", "")
         label = validated_request_data.get("label", "")
         cmdb_node = validated_request_data.get("cmdb_node", "")
@@ -236,6 +235,7 @@ class GetAllConfigListResource(Resource):
             self.search_strategy_config_by_node(cmdb_node)
 
         if service_category_id:
+            self.node_filter_manager = CmdbUtil(bk_biz_id)
             self.search_config_by_svc_category_id(bk_biz_id, service_category_id)
 
         if search_value:
@@ -1158,7 +1158,7 @@ class AddMonitorTargetResource(Resource):
         bk_biz_id = validated_request_data["bk_biz_id"]
         history_id = validated_request_data["import_history_id"]
         target = validated_request_data["target"]
-        history_instance = ImportHistory.objects.filter(id=history_id).first()
+        history_instance = ImportHistory.objects.filter(id=history_id, bk_biz_id=bk_biz_id).first()
         if not history_instance:
             raise ImportHistoryNotExistError
 

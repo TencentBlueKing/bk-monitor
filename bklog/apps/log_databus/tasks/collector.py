@@ -59,9 +59,10 @@ from apps.log_databus.models import (
 )
 from apps.log_measure.handlers.elastic import ElasticHandle
 from apps.log_search.constants import CustomTypeEnum
-from apps.log_search.models import LogIndexSet
+from apps.log_search.models import LogIndexSet, Space
 from apps.utils.bcs import Bcs
 from apps.utils import md5_sum
+from apps.utils.local import del_local_param, set_local_param
 from apps.utils.log import logger
 from apps.utils.task import high_priority_task
 
@@ -69,31 +70,30 @@ from apps.utils.task import high_priority_task
 @high_priority_task(ignore_result=True)
 def shutdown_collector_warm_storage_config(cluster_id):
     """异步关闭冷热集群的采集项"""
-    result_table_list = []
-    for collector in CollectorConfig.objects.all():
-        if not collector.table_id:
-            continue
-        result_table_list.append(collector.table_id)
 
-    if not result_table_list:
+    collectors = list(
+        CollectorConfig.objects.exclude(table_id__isnull=True).exclude(table_id="").values("table_id", "bk_biz_id")
+    )
+
+    if not collectors:
         return
 
+    result_table_list = [collector["table_id"] for collector in collectors]
     cluster_infos = CollectorHandler.bulk_cluster_infos(result_table_list=result_table_list)
-    for collector in CollectorConfig.objects.all():
+
+    for collector in collectors:
         try:
-            if not collector.table_id:
-                continue
-            cluster_info = cluster_infos.get(collector.table_id)
+            cluster_info = cluster_infos.get(collector["table_id"])
             if not cluster_info:
                 continue
             if cluster_info["cluster_config"]["cluster_id"] != cluster_id:
                 continue
             TransferApi.modify_result_table(
                 {
-                    "table_id": collector.table_id,
+                    "table_id": collector["table_id"],
                     "default_storage": "elasticsearch",
                     "default_storage_config": {"warm_phase_days": 0},
-                    "bk_biz_id": collector.bk_biz_id,
+                    "bk_biz_id": collector["bk_biz_id"],
                 }
             )
         except Exception as e:  # pylint: disable=broad-except
@@ -154,12 +154,19 @@ def list_storage_clusters_by_tenant(cluster_type):
         try:
             clusters = TransferApi.get_cluster_info({"cluster_type": cluster_type}, bk_tenant_id=tenant_id) or []
         except Exception as e:  # pylint: disable=broad-except
-            logger.exception(
-                f"[sync_storage_capacity] get {cluster_type} cluster info failed, tenant={tenant_id}: {e}"
-            )
+            logger.exception(f"[sync_storage_capacity] get {cluster_type} cluster info failed, tenant={tenant_id}: {e}")
             continue
         result.append((tenant_id, clusters))
     return result
+
+
+def get_cluster_biz_count_map():
+    """流式构建集群业务数量映射，避免缓存完整 LogIndexSet 模型。"""
+    cluster_biz_count_map = defaultdict(set)
+    index_sets = LogIndexSet.objects.filter().values_list("storage_cluster_id", "space_uid")
+    for storage_cluster_id, space_uid in index_sets.iterator(chunk_size=2000):
+        cluster_biz_count_map[storage_cluster_id].add(space_uid)
+    return cluster_biz_count_map
 
 
 @periodic_task(run_every=crontab(minute="0"))
@@ -170,7 +177,7 @@ def sync_storage_capacity():
     """
     # 1、按租户获取所有集群，doris 与 ES 的容量指标取数方式不同，分别获取后合并处理
     es_clusters = []
-    for _, clusters in list_storage_clusters_by_tenant(STORAGE_CLUSTER_TYPE):
+    for _tenant_id, clusters in list_storage_clusters_by_tenant(STORAGE_CLUSTER_TYPE):
         es_clusters.extend(clusters)
 
     # doris 指标依赖 metadata，单个租户取不到时跳过该租户，不影响 ES 集群
@@ -184,11 +191,7 @@ def sync_storage_capacity():
             logger.exception(f"[sync_storage_capacity] sync doris cluster capacity failed, tenant={tenant_id}: {e}")
 
     # 2、构建集群业务映射
-    from apps.log_search.models import LogIndexSet
-
-    cluster_biz_cnt_map = defaultdict(lambda: defaultdict(int))
-    for index_set in LogIndexSet.objects.all():
-        cluster_biz_cnt_map[index_set.storage_cluster_id][index_set.space_uid] += 1
+    cluster_biz_cnt_map = get_cluster_biz_count_map()
 
     # 批量收集所有需要创建或更新的 StorageUsed 对象
     storage_used_objects = []
@@ -215,7 +218,7 @@ def sync_storage_capacity():
                 storage_total=total,
                 storage_usage=usage,
                 index_count=index_count,
-                biz_count=len(cluster_biz_cnt_map.get(cluster_id, {}).keys()),
+                biz_count=len(cluster_biz_cnt_map.get(cluster_id, ())),
             )
             storage_used_objects.append(cluster_storage_obj)
 
@@ -636,6 +639,21 @@ def update_collector_storage_config(storage_cluster_id):
     collectors = CollectorConfig.objects.filter(index_set_id__in=index_set_ids, is_active=True)
     for collector in collectors:
         try:
+            # bk_biz_id 为空时 get_tenant_id 会回落到默认租户，不能拿来判断空间是否有租户
+            tenant_id = (
+                Space.get_tenant_id(bk_biz_id=collector.bk_biz_id, is_need_default=False)
+                if collector.bk_biz_id
+                else None
+            )
+            if not tenant_id:
+                logger.error(
+                    "[update_collector_storage_config] executed failed, collector_config_id->%s, "
+                    "reason: space tenant is empty",
+                    collector.collector_config_id,
+                )
+                continue
+            # 后续查集群和改结果表都走这条租户，不能用应用默认租户
+            set_local_param("bk_tenant_id", tenant_id)
             handler = CollectorHandler.get_instance(collector.collector_config_id)
             collect_config = handler.retrieve()
             clean_stash = handler.get_clean_stash()
@@ -650,7 +668,7 @@ def update_collector_storage_config(storage_cluster_id):
                 "table_id": collector.collector_config_name_en,
                 "storage_cluster_id": storage_cluster_id,
                 "retention": collect_config["retention"],
-                "allocation_min_days": collect_config["retention"],
+                "allocation_min_days": collect_config.get("allocation_min_days") or 0,
                 "storage_replies": collect_config["storage_replies"],
                 "es_shards": collect_config["storage_shards_nums"],
                 "etl_params": etl_params,
@@ -669,6 +687,8 @@ def update_collector_storage_config(storage_cluster_id):
                 collector.collector_config_id,
                 e,
             )
+        finally:
+            del_local_param("bk_tenant_id")
 
 
 @high_priority_task(ignore_result=True)

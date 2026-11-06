@@ -178,6 +178,8 @@ class QueryField:
 
 
 class TraceHandler:
+    SPAN_DETAIL_THRESHOLD = 500
+
     @staticmethod
     def _is_span_in_context(span: dict[str, Any], bk_biz_id: int, app_name: str) -> bool:
         span_bk_biz_id: Any = span.get("bk_biz_id")
@@ -187,7 +189,23 @@ class TraceHandler:
         return is_current_biz and is_current_app
 
     @classmethod
-    def sanitize_span_details(cls, trace_detail: dict[str, Any], bk_biz_id: int, app_name: str) -> None:
+    def get_deferred_span_ids(
+        cls, spans: list[dict[str, Any]], bk_biz_id: int, app_name: str, reduce_span_details: bool = False
+    ) -> set[str]:
+        """显式开启的大 Trace 裁剪与跨应用、LLM Span 共用按需加载详情的路径。"""
+        large_trace: bool = reduce_span_details and len(spans) > cls.SPAN_DETAIL_THRESHOLD
+        return {
+            span[OtlpKey.SPAN_ID]
+            for span in spans
+            if not span.get("is_virtual")
+            and (large_trace or span.get("llm_detail") or not cls._is_span_in_context(span, bk_biz_id, app_name))
+        }
+
+    @classmethod
+    def sanitize_span_details(
+        cls, trace_detail: dict[str, Any], bk_biz_id: int, app_name: str, detail_span_ids: set[str] | None = None
+    ) -> None:
+        detail_span_ids = detail_span_ids or set()
         original_spans: list[dict[str, Any]] = trace_detail.get("original_data") or []
         trace_tree: dict[str, Any] = trace_detail.get("trace_tree") or {}
         trace_tree_spans: list[dict[str, Any]] = trace_tree.get("spans") or []
@@ -195,10 +213,12 @@ class TraceHandler:
         current_process_ids: set[str] = {
             span["processID"]
             for span in trace_tree_spans
-            if cls._is_span_in_context(span, bk_biz_id, app_name) and span.get("processID")
+            if cls._is_span_in_context(span, bk_biz_id, app_name)
+            and span.get("spanID") not in detail_span_ids
+            and span.get("processID")
         }
         for span in trace_tree_spans:
-            if cls._is_span_in_context(span, bk_biz_id, app_name):
+            if cls._is_span_in_context(span, bk_biz_id, app_name) and span.get("spanID") not in detail_span_ids:
                 continue
 
             process_id: str | None = span.get("processID")
@@ -219,7 +239,7 @@ class TraceHandler:
             span["message"] = ""
 
         for span in original_spans:
-            if cls._is_span_in_context(span, bk_biz_id, app_name):
+            if cls._is_span_in_context(span, bk_biz_id, app_name) and span.get("span_id") not in detail_span_ids:
                 continue
 
             resource: dict[str, Any] = span.get(OtlpKey.RESOURCE) or {}
@@ -296,6 +316,8 @@ class TraceHandler:
         relation_mapping: dict,
         displays: list = None,
         enabled_time_alignment=False,
+        compact_groups: bool = False,
+        detail_span_ids: set[str] | None = None,
     ):
         # otel data must be in displays choice
         displays = displays or []
@@ -324,7 +346,8 @@ class TraceHandler:
 
         res = {
             "trace_id": trace_id,
-            "original_data": copy.deepcopy(trace_data),
+            # 时间对齐仅修改顶层时间，详情字段可共享，避免复制大输入输出。
+            "original_data": [{**span, OtlpKey.STATUS: dict(span[OtlpKey.STATUS])} for span in trace_data],
         }
 
         service_color_classifier = ServiceColorClassifier()
@@ -457,7 +480,15 @@ class TraceHandler:
         }
 
         trace_tree = cls._get_trace_tree(
-            app_name, trace_id, trace_data, resources, service_pair, service_color_classifier, relation_mapping
+            app_name,
+            trace_id,
+            trace_data,
+            resources,
+            service_pair,
+            service_color_classifier,
+            relation_mapping,
+            compact_groups=compact_groups,
+            detail_span_ids=detail_span_ids,
         )
 
         # step: 分析根span, 入口span ===
@@ -555,6 +586,8 @@ class TraceHandler:
         service_pair,
         color_classifier,
         relation_map,
+        compact_groups: bool = False,
+        detail_span_ids: set[str] | None = None,
     ):
         from apm_web.trace.diagram.base import TraceTree, TreeBuildingConfig
 
@@ -571,10 +604,12 @@ class TraceHandler:
             },
         }
         spans = []
+        detail_span_ids = detail_span_ids or set()
         # TODO: too much travels, need to optimize
         config = TreeBuildingConfig(with_group=True)
         complete_trace_tree = TraceTree.from_raw(trace_data, config)
         complete_trace_tree.build_extras()
+        group_info_cache: dict[str, dict[str, Any]] = {}
         for span in trace_data:
             cls._add_to_trace_tree(
                 app_name,
@@ -585,6 +620,9 @@ class TraceHandler:
                 color_classifier,
                 relation_map,
                 grouped_trace_tree=complete_trace_tree,
+                group_info_cache=group_info_cache,
+                compact_groups=compact_groups,
+                defer_details=span[OtlpKey.SPAN_ID] in detail_span_ids,
             )
 
         res["spans"] = spans
@@ -601,6 +639,9 @@ class TraceHandler:
         color_classifier,
         relation_mapping,
         grouped_trace_tree,
+        group_info_cache: dict[str, dict[str, Any]] | None = None,
+        compact_groups: bool = False,
+        defer_details: bool = False,
     ):
         process_id = None
 
@@ -609,7 +650,7 @@ class TraceHandler:
                 process_id = f"p{index}"
                 break
 
-        convert_span = cls._convert_span(app_name, span, color_classifier=color_classifier)
+        convert_span = cls._convert_span(app_name, span, color_classifier=color_classifier, defer_details=defer_details)
         convert_span["processID"] = process_id
         convert_span["stage_duration"] = cls.handle_stage_duration(span, service_pair)
         convert_span["cross_relation"] = (
@@ -650,49 +691,29 @@ class TraceHandler:
             if not span_node.group or span_node.children:
                 convert_span["group_info"] = None
             else:
-                convert_span["group_info"] = {
-                    "id": span_node.group.members[0].id,
-                    "members": [member.id for member in span_node.group.members],
-                    "duration": span_node.group.absolute_duration,
-                }
+                group_id: str = span_node.group.first.id
+                if group_info_cache is None:
+                    group_info_cache = {}
+                if group_id not in group_info_cache:
+                    group_info_cache[group_id] = {
+                        "id": group_id,
+                        "members": span_node.group.member_ids,
+                        "duration": span_node.group.absolute_duration,
+                    }
+                group_info: dict[str, Any] = group_info_cache[group_id]
+                if compact_groups and span_node.id != group_id:
+                    convert_span["group_info"] = {**group_info, "members": []}
+                else:
+                    convert_span["group_info"] = group_info
 
         spans.append(convert_span)
 
     @classmethod
-    def _convert_span(cls, app_name, span, color_classifier=None):
+    def _convert_span(cls, app_name, span, color_classifier=None, defer_details: bool = False):
         if not color_classifier:
             color_classifier = ServiceColorClassifier()
 
         service_name = span[OtlpKey.RESOURCE].get(ResourceAttributes.SERVICE_NAME, "")
-        status_code_alias = {
-            StatusCode.ERROR.value: "ERROR",
-            StatusCode.UNSET.value: "UNSET",
-            StatusCode.OK.value: "OK",
-        }.get(span[OtlpKey.STATUS]["code"])
-
-        extra_attributes = {
-            "span.kind": {
-                "value": f"{span[OtlpKey.KIND]}({SpanKind.get_label_by_key(span[OtlpKey.KIND])})",
-                "origin_value": span[OtlpKey.KIND],
-                "query_key": OtlpKey.KIND,
-            },
-            "span.trace_state": {
-                "value": span[OtlpKey.TRACE_STATE],
-                "origin_value": span[OtlpKey.TRACE_STATE],
-                "query_key": OtlpKey.TRACE_STATE,
-            },
-            "span.status_code": {
-                "value": f"{span[OtlpKey.STATUS]['code']}({status_code_alias})",
-                "origin_value": span[OtlpKey.STATUS]["code"],
-                "query_key": OtlpKey.STATUS_CODE,
-            },
-            "span.status_message": {
-                "value": span[OtlpKey.STATUS]["message"],
-                "origin_value": span[OtlpKey.STATUS]["message"],
-                "query_key": OtlpKey.STATUS_MESSAGE,
-            },
-        }
-
         converted_span: dict[str, Any] = {
             "id": span[OtlpKey.SPAN_ID],
             "app_name": span.get("app_name") or app_name,
@@ -702,7 +723,6 @@ class TraceHandler:
             "references": cls._transform_to_refs(span),
             "flags": 0,
             "color": color_classifier.next(service_name),
-            "logs": cls._transform_to_logs(span[OtlpKey.EVENTS]),
             "operationName": span["span_name"],
             "service_name": service_name,
             "startTime": span["start_time"],
@@ -711,16 +731,50 @@ class TraceHandler:
             + [{"key": "span.kind", "value": OTLP_JAEGER_SPAN_KIND.get(span[OtlpKey.KIND]), "type": "string"}],
             "error": span[OtlpKey.STATUS]["code"] == StatusCode.ERROR.value,
             "message": span[OtlpKey.STATUS]["message"],
-            "attributes": cls.handle_attributes(span[OtlpKey.ATTRIBUTES], query_key=OtlpKey.ATTRIBUTES)
-            + cls.handle_attributes(
+            "icon": cls._get_span_classify(span)[0],
+        }
+        if not defer_details or span.get("is_virtual"):
+            status_code_alias = {
+                StatusCode.ERROR.value: "ERROR",
+                StatusCode.UNSET.value: "UNSET",
+                StatusCode.OK.value: "OK",
+            }.get(span[OtlpKey.STATUS]["code"])
+
+            extra_attributes = {
+                "span.kind": {
+                    "value": f"{span[OtlpKey.KIND]}({SpanKind.get_label_by_key(span[OtlpKey.KIND])})",
+                    "origin_value": span[OtlpKey.KIND],
+                    "query_key": OtlpKey.KIND,
+                },
+                "span.trace_state": {
+                    "value": span[OtlpKey.TRACE_STATE],
+                    "origin_value": span[OtlpKey.TRACE_STATE],
+                    "query_key": OtlpKey.TRACE_STATE,
+                },
+                "span.status_code": {
+                    "value": f"{span[OtlpKey.STATUS]['code']}({status_code_alias})",
+                    "origin_value": span[OtlpKey.STATUS]["code"],
+                    "query_key": OtlpKey.STATUS_CODE,
+                },
+                "span.status_message": {
+                    "value": span[OtlpKey.STATUS]["message"],
+                    "origin_value": span[OtlpKey.STATUS]["message"],
+                    "query_key": OtlpKey.STATUS_MESSAGE,
+                },
+            }
+
+            converted_span["logs"] = cls._transform_to_logs(span[OtlpKey.EVENTS])
+            converted_span["attributes"] = cls.handle_attributes(
+                span[OtlpKey.ATTRIBUTES], query_key=OtlpKey.ATTRIBUTES
+            ) + cls.handle_attributes(
                 extra_attributes,
                 query_key=OtlpKey.ATTRIBUTES,
                 query_key_getter=lambda i: i["query_key"],
                 value_getter=lambda i: i["value"],
                 origin_value_getter=lambda i: i["origin_value"],
-            ),
-            "resource": cls.handle_attributes(span[OtlpKey.RESOURCE], query_key=OtlpKey.RESOURCE),
-            "events": [
+            )
+            converted_span["resource"] = cls.handle_attributes(span[OtlpKey.RESOURCE], query_key=OtlpKey.RESOURCE)
+            converted_span["events"] = [
                 {
                     "name": event["name"],
                     "timestamp": event["timestamp"],
@@ -728,9 +782,7 @@ class TraceHandler:
                     "attributes": cls.handle_attributes(event["attributes"], query_key="events.attributes"),
                 }
                 for event in span[OtlpKey.EVENTS]
-            ],
-            "icon": cls._get_span_classify(span)[0],
-        }
+            ]
         # bk_biz_id 是在某个 collector 版本后补充的，新创建结果表默认预设该字段，如果此时 collector 处在旧版本，
         # bk_biz_id 将返回 0 或 "0"，会被前端误判为跨应用的 Span，故在此处统一做判断和归一化。
         if span.get("bk_biz_id") not in (None, "", "0", 0):

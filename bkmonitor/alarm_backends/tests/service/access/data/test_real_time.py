@@ -97,10 +97,21 @@ class TestAccessDataProcess:
         p.run_leader(once=True)
         assert p.cache.get("real-time-handler-leader") == "127.0.0.1"
 
-    def test_consumer_manager(self, mock_time, mock_kafka_consumer):
+    def test_consumer_manager(self, mocker, mock_kafka_consumer):
         service = mock.MagicMock()
         p = AccessRealTimeDataProcess(service)
         p.ip = "127.0.0.1"
+        workers = []
+
+        def create_worker(*args, **kwargs):
+            worker = mock.Mock()
+            worker.thread.is_alive.return_value = True
+            workers.append(worker)
+            return worker
+
+        mocker.patch(
+            "alarm_backends.service.access.data.processor.RealTimeKafkaConsumerWorker", side_effect=create_worker
+        )
 
         p.cache.hset(
             p.topic_cache_key,
@@ -108,11 +119,9 @@ class TestAccessDataProcess:
             json.dumps({"kafka1.service.consul:9092|topic1": "", "kafka2.service.consul:9092|topic2": ""}),
         )
         p.run_consumer_manager(once=True)
-        assert len(p.consumers) == 2
-        assert mock_kafka_consumer.call_count == 2
-        assert p.consumers["kafka1.service.consul:9092"].subscribe_call_count == 1
-        assert p.consumers["kafka2.service.consul:9092"].subscribe_call_count == 1
-        consumer2 = p.consumers["kafka2.service.consul:9092"]
+        assert len(p.consumer_workers) == 2
+        assert len(workers) == 2
+        worker2 = p.consumer_workers["kafka2.service.consul:9092"]
 
         p.cache.hset(
             p.topic_cache_key,
@@ -120,11 +129,11 @@ class TestAccessDataProcess:
             json.dumps({"kafka1.service.consul:9092|topic1": "", "kafka3.service.consul:9092|topic3": ""}),
         )
         p.run_consumer_manager(once=True)
-        assert len(p.consumers) == 2
-        assert mock_kafka_consumer.call_count == 3
-        assert p.consumers["kafka1.service.consul:9092"].subscribe_call_count == 1
-        assert p.consumers["kafka3.service.consul:9092"].subscribe_call_count == 1
-        assert consumer2.close.call_count == 1
+        # 撤销线程实际退出前仍保留 owner，controller 不操作 Kafka。
+        assert len(p.consumer_workers) == 3
+        assert len(workers) == 3
+        worker2.stop_event.set.assert_called_once()
+        worker2.thread.is_alive.return_value = False
 
         p.cache.hset(
             p.topic_cache_key,
@@ -133,10 +142,8 @@ class TestAccessDataProcess:
         )
 
         p.run_consumer_manager(once=True)
-        assert len(p.consumers) == 2
-        assert mock_kafka_consumer.call_count == 3
-        assert p.consumers["kafka1.service.consul:9092"].subscribe_call_count == 1
-        assert p.consumers["kafka3.service.consul:9092"].subscribe_call_count == 1
+        assert len(p.consumer_workers) == 2
+        assert len(workers) == 3
 
         p.cache.hset(
             p.topic_cache_key,
@@ -145,10 +152,10 @@ class TestAccessDataProcess:
         )
 
         p.run_consumer_manager(once=True)
-        assert len(p.consumers) == 2
-        assert mock_kafka_consumer.call_count == 3
-        assert p.consumers["kafka1.service.consul:9092"].subscribe_call_count == 2
-        assert p.consumers["kafka3.service.consul:9092"].subscribe_call_count == 1
+        assert len(p.consumer_workers) == 2
+        assert len(workers) == 3
+        assert p.consumer_workers["kafka1.service.consul:9092"].topics == {"kafka1.service.consul:9092|topic4": ""}
+        mock_kafka_consumer.assert_not_called()
 
     def test_poller(self, mock_kafka_consumer):
         service = mock.MagicMock()
@@ -160,8 +167,9 @@ class TestAccessDataProcess:
             p.ip,
             json.dumps({"kafka1.service.consul:9092|topic1": "", "kafka2.service.consul:9092|topic2": ""}),
         )
-        p.run_consumer_manager(once=True)
-        for consumer in p.consumers.values():
+
+        def create_consumer(*args, **kwargs):
+            consumer = FakeKafkaConsumer()
             consumer.poll = lambda *args, **kwargs: {
                 "record1": [
                     b'{"time":1646654276,"dimensions":{"bk_biz_id":3,"bk_cloud_id":0,"bk_cmdb_level":"null",'
@@ -180,6 +188,9 @@ class TestAccessDataProcess:
                     b'"system":0.024662938476193073,"usage":17.05800814878766,"user":0.06896395513159939}}'
                 ],
             }
+            return consumer
+
+        mock_kafka_consumer.side_effect = create_consumer
         p.run_poller(once=True)
         assert p.queue.qsize() == 4
 
@@ -206,6 +217,7 @@ class TestAccessDataProcess:
                         b'"system":0.0088828947147627,"usage":5.549278091672173,"user":0.025378829756153826}}',
                     )
                 ],
+                p.topics,
             )
         )
         message = f'{{"time":{int(time.time())},"dimensions":{{"bk_biz_id":2,"bk_cloud_id":0,"bk_cmdb_level":"null",'
@@ -222,6 +234,7 @@ class TestAccessDataProcess:
                         b'"system":0.024662938476193073,"usage":17.05800814878766,"user":0.06896395513159939}}',
                     )
                 ],
+                p.topics,
             )
         )
         p.run_handler(once=True)
@@ -313,41 +326,32 @@ class TestGuardDaemon:
         p._guard_daemon(crash_then_stop, wait=0)
         assert calls["n"] == 1
 
-    def test_consumer_manager_releases_lock_on_exception(self, mock_time, mocker):
-        # 持锁期间 KafkaConsumer 构造抛错, consumers_lock 必须被释放:
-        # 否则 _guard_daemon 重启 run_consumer_manager 会因非可重入锁自死锁, run_poller 也被堵死。
+    def test_consumer_manager_removes_worker_after_start_failure(self, mocker):
         service = mock.MagicMock()
         p = AccessRealTimeDataProcess(service)
         p.ip = "127.0.0.1"
         p.cache.hset(p.topic_cache_key, p.ip, json.dumps({"kafka-x:9092|topic1": ""}))
-        mocker.patch(
-            "alarm_backends.service.access.data.processor.KafkaConsumer",
-            side_effect=RuntimeError("kafka boom"),
-        )
+        worker = mock.Mock()
+        worker.thread.start.side_effect = RuntimeError("thread start failed")
+        mocker.patch("alarm_backends.service.access.data.processor.RealTimeKafkaConsumerWorker", return_value=worker)
 
         with pytest.raises(RuntimeError):
             p.run_consumer_manager(once=True)
 
-        acquired = p.consumers_lock.acquire(blocking=False)
-        assert acquired is True  # 锁已释放, 下次进入/poller 不会被堵
-        p.consumers_lock.release()
+        assert p.consumer_workers == {}
 
-    def test_consumer_manager_closes_consumers_on_stop(self, mock_time):
-        # 停机分支必须真正 close 每个 consumer(原 map() 惰性从不执行)并把 self.consumers 复位为 dict
+    def test_stop_only_signals_owners(self, mock_time):
         service = mock.MagicMock()
         p = AccessRealTimeDataProcess(service)
         p.ip = "127.0.0.1"
-        c1 = FakeKafkaConsumer()
-        c1.topics = {"t1"}
-        c2 = FakeKafkaConsumer()
-        c2.topics = {"t2"}
-        p.consumers = {"kafka1.svc:9092": c1, "kafka2.svc:9092": c2}
-        # topics 与现有 consumer 订阅一致 => 不进入 create/update/delete 分支, 直接走停机清理
+        owners = [mock.Mock(), mock.Mock()]
+        p.consumer_workers = dict(zip(["kafka1.svc:9092", "kafka2.svc:9092"], owners))
         p.cache.hset(p.topic_cache_key, p.ip, json.dumps({"kafka1.svc:9092|t1": "", "kafka2.svc:9092|t2": ""}))
-        p._stop_signal = True
+        p._stop()
 
         p.run_consumer_manager(once=True)
 
-        c1.close.assert_called_once()
-        c2.close.assert_called_once()
-        assert p.consumers == {}  # 复位为 dict, 而非 list
+        for owner in owners:
+            owner.stop_event.set.assert_called_once()
+            owner.close.assert_not_called()
+        assert p._stop_event.is_set()

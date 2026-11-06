@@ -1,0 +1,299 @@
+import datetime
+import logging
+import multiprocessing
+import time
+import traceback
+from datetime import timedelta
+
+from django import db
+from django.db.models import Q
+from django.utils import timezone
+
+from bk_monitor_base.infras import third_party_api as api
+from bk_monitor_base.infras.constant import DEFAULT_TENANT_ID
+from bk_monitor_base.infras.third_party_api.user.api import list_tenant
+from bk_monitor_base.metadata import models
+from bk_monitor_base.metadata.config import settings
+from bk_monitor_base.metadata.constants.data_source import DataSourceLabel, DataTypeLabel
+from bk_monitor_base.metadata.models.constants import EVENT_GROUP_SLEEP_THRESHOLD, EventGroupStatus
+from bk_monitor_base.metadata.utils import es_tools
+from bk_monitor_base.metadata.utils.lock import share_lock
+from bk_monitor_base.metadata.utils.tenant import bk_biz_id_to_bk_tenant_id
+from bk_monitor_base.metadata.utils.time_tools import datetime_str_to_datetime
+from bk_monitor_base.metadata.utils.version import compare_versions, get_max_version
+
+logger = logging.getLogger("metadata")
+
+RECOMMENDED_VERSION = {"bk-collector": "0.16.1061"}
+
+
+def update_event_by_cluster(cluster_id_with_table_ids: dict[tuple[str, int], list[str]]):
+    """
+    按照ES集群更新event维度等信息
+    :param cluster_id_with_table_ids: ES集群id与table_id_list的字典
+    {
+        ("system", 3):["table_id_1", "table_id2"],
+        ("test", 4):["table_id_3", "table_id4"],
+    }
+    """
+    s_time = time.time()
+    for (bk_tenant_id, cluster_id), table_ids in cluster_id_with_table_ids.items():
+        try:
+            client = es_tools.get_client(bk_tenant_id=bk_tenant_id, cluster_id=cluster_id)
+        except Exception:
+            logger.error("check_event_update:get es_client->[%s] failed for->[%s]", cluster_id, traceback.format_exc())
+            continue
+
+        for event_group in models.EventGroup.objects.filter(
+            bk_tenant_id=bk_tenant_id, is_enable=True, is_delete=False, table_id__in=table_ids
+        ).iterator():
+            try:
+                logger.info("check_event_update:update_event[%s]", event_group.event_group_name)
+                event_group.update_event_dimensions_from_es(client)
+            except Exception:
+                logger.error(
+                    "check_event_update:event_group->[%s] try to update from es->[%s] failed for->[%s]",
+                    event_group.event_group_name,
+                    cluster_id,
+                    traceback.format_exc(),
+                )
+            else:
+                logger.info(
+                    "check_event_update:event_group->[%s] is update from es->[%s] success.",
+                    event_group.event_group_name,
+                    cluster_id,
+                )
+    e_time = time.time()
+    logger.info(
+        "check_event_update:update cluster[%s], cost:%s s", list(cluster_id_with_table_ids.keys()), e_time - s_time
+    )
+
+
+@share_lock(identify="metadata_refreshEventGroup")
+def check_event_update():
+    """
+    同步自定义事件维度及事件，每三分钟将会从ES同步一次
+    """
+    logger.info("check_event_update:start")
+    start_time = time.time()
+    table_ids = set(
+        models.EventGroup.objects.filter(is_enable=True, is_delete=False).values_list("table_id", flat=True)
+    )
+    storage_cluster_table_ids: dict[tuple[str, int], list[str]] = {}
+    for storage in (
+        models.ESStorage.objects.filter(table_id__in=table_ids)
+        .values("storage_cluster_id", "table_id", "bk_tenant_id")
+        .iterator()
+    ):
+        storage_cluster_table_ids.setdefault((storage["bk_tenant_id"], storage["storage_cluster_id"]), []).append(
+            storage["table_id"]
+        )
+    if not storage_cluster_table_ids:
+        return
+
+    # 将ES集群按照并行进程数量分组处理
+    max_worker = settings.metadata.max_task_process_num
+    items = list(storage_cluster_table_ids.items())
+    length = len(items)
+    # 每一组最大任务数量
+    chunk_size = length // max_worker + 1 if length % max_worker != 0 else int(length / max_worker)
+    # 按数量分组，最多分为max_worker组
+    chunks = [items[i : i + chunk_size] for i in range(0, length, chunk_size)]
+
+    processes = []
+    # 使用django-ORM时启用多进程会导致子进程使用同一个数据库连接，会产生无效连接，在启用多进程之前需要关闭连接，在子进程中重新创建连接
+    db.connections.close_all()
+    for items in chunks:
+        param_dict = dict(items)
+        t = multiprocessing.Process(target=update_event_by_cluster, args=(param_dict,))
+        processes.append(t)
+        t.start()
+
+    for t in processes:
+        t.join()
+    cost_time = time.time() - start_time
+    logger.info("check_event_update:finished, cost->[%s] seconds", cost_time)
+
+
+def refresh_custom_report_2_node_man(bk_biz_id: int | None = None):
+    # 判定节点管理是否上传支持v2新配置模版的bk-collector版本0.16.1061
+    default_version = "0.0.0"
+    plugin_infos = api.node_man.get_plugin_info(bk_tenant_id=DEFAULT_TENANT_ID, name="bk-collector")
+    version_str_list = [p.version or default_version for p in plugin_infos if p.is_ready]
+    max_version = get_max_version(default_version, version_str_list)
+
+    if compare_versions(max_version, RECOMMENDED_VERSION["bk-collector"]) > 0:
+        if bk_biz_id is not None:
+            bk_tenant_ids = [bk_biz_id_to_bk_tenant_id(bk_biz_id)]
+        else:
+            bk_tenant_ids = [tenant["id"] for tenant in list_tenant()]
+
+        for bk_tenant_id in bk_tenant_ids:
+            try:
+                models.CustomReportSubscription.refresh_collector_custom_conf(
+                    bk_tenant_id=bk_tenant_id, bk_biz_id=bk_biz_id
+                )
+            except Exception as e:
+                logger.exception(
+                    f"refresh custom report config to collector error, bk_tenant_id({bk_tenant_id}), bk_biz_id({bk_biz_id}), error({e})"
+                )
+    else:
+        logger.info(
+            f"当前节点管理已上传的bk-collector版本（{max_version}）低于支持新配置模版版本（{RECOMMENDED_VERSION['bk-collector']}），暂不下发bk-collector配置文件"
+        )
+
+
+# 用于定时任务的包装函数，加锁防止任务重叠
+refresh_all_custom_report_2_node_man = share_lock()(refresh_custom_report_2_node_man)
+
+
+@share_lock()
+def refresh_all_log_config():
+    """
+    刷新所有自定义日志配置（将任务打散在 30 分钟内）
+    """
+    interval = 30
+
+    to_be_refreshed = list(models.LogGroup.objects.filter(is_enable=True).values_list("log_group_id", flat=True))
+    slug = datetime.datetime.now().minute % interval
+    for index, log_group_id in enumerate(to_be_refreshed):
+        if index % interval == slug:
+            logger.info(f"[refresh_custom_log_config]: publish log_group_id [{log_group_id}]")
+            refresh_custom_log_config(log_group_id)
+
+
+@share_lock()
+def refresh_all_log_config_to_k8s():
+    """
+    刷新所有自定义日志的 K8s 配置（获取全部数据进行批量调度）
+    """
+    # 获取所有启用的日志组
+    log_groups = list(models.LogGroup.objects.filter(is_enable=True))
+    if not log_groups:
+        return
+
+    try:
+        models.LogSubscriptionConfig.refresh_k8s(log_groups)
+        logger.info(f"[refresh_all_log_config_to_k8s]: batch publish k8s config for {len(log_groups)} log groups")
+    except Exception as e:  # pylint: disable=broad-except
+        logger.exception(f"[RefreshCustomLogK8sConfigFailed] Err => {str(e)}; LogGroup => {log_groups}")
+
+
+@share_lock()
+def refresh_custom_log_config(log_group_id: int | None = None):
+    """
+    下发单个自定义日志配置
+    """
+
+    if not log_group_id:
+        return
+
+    log_group = models.LogGroup.objects.filter(is_enable=True, log_group_id=log_group_id).first()
+    if log_group is None:
+        return
+
+    try:
+        models.LogSubscriptionConfig.refresh(log_group)
+    except Exception as err:  # pylint: disable=broad-except
+        logger.exception("[RefreshCustomLogConfigFailed] Err => %s; LogGroup => %s", str(err), log_group.log_group_id)
+
+
+def check_custom_event_group_sleep():
+    """
+    检查自定义事件组是否应该进行休眠
+    如果自定义事件超过半年没有被使用，则进行休眠，清理索引
+    """
+    logger.info("check_custom_event_group_sleep:start")
+    # todo 外部依赖
+    from bkmonitor.models import QueryConfigModel
+
+    start_time = time.time()
+    event_groups = models.EventGroup.objects.filter(
+        Q(last_check_report_time__isnull=True)
+        | Q(last_check_report_time__lt=timezone.now() - timedelta(days=EVENT_GROUP_SLEEP_THRESHOLD)),
+        status=EventGroupStatus.NORMAL.value,
+    ).exclude(
+        Q(event_group_name__startswith="bcs_BCS-K8S-", event_group_name__endswith="_k8s_event")
+        | Q(event_group_name__startswith="Log_log_")
+    )
+
+    # 获取已配置测试
+    custom_event_query_configs = QueryConfigModel.objects.filter(
+        data_source_label=DataSourceLabel.CUSTOM, data_type_label=DataTypeLabel.EVENT
+    )
+    table_ids_with_strategy = set()
+    for query_config in custom_event_query_configs:
+        if not query_config.config.get("result_table_id"):
+            continue
+        table_ids_with_strategy.add(query_config.config.get("result_table_id"))
+
+    need_clean_es_storages: list[models.ESStorage] = []
+    for event_group in event_groups:
+        if event_group.table_id in table_ids_with_strategy:
+            continue
+
+        try:
+            es = models.ESStorage.objects.get(table_id=event_group.table_id)
+        except models.ESStorage.DoesNotExist:
+            logger.info(
+                f"bk_biz_id({event_group.bk_biz_id}) EventGroup {event_group.event_group_name} has no ESStorage, set status to SLEEP"
+            )
+            event_group.status = EventGroupStatus.SLEEP.value
+            event_group.save(update_fields=["status"])
+            continue
+
+        indices, index_version = es.get_index_stats()
+        if not indices:
+            logger.info(
+                f"bk_biz_id({event_group.bk_biz_id}) EventGroup {event_group.event_group_name} does not have any index, set status to SLEEP"
+            )
+            event_group.status = EventGroupStatus.SLEEP.value
+            event_group.save(update_fields=["status"])
+            continue
+
+        last_check_report_time = None
+        for index, stats in indices.items():
+            if index_version == "v2":
+                index_re = es.index_re_v2
+            else:
+                index_re = es.index_re_v1
+
+            re_result = index_re.match(index)
+            current_datetime_str = re_result.group("datetime")
+            current_datetime_object = datetime_str_to_datetime(current_datetime_str, es.date_format, es.time_zone)
+            if stats["primaries"]["docs"]["count"] > 0 and current_datetime_object >= timezone.now() - timedelta(
+                days=EVENT_GROUP_SLEEP_THRESHOLD
+            ):
+                if last_check_report_time is None or current_datetime_object > last_check_report_time:
+                    last_check_report_time = current_datetime_object
+
+        if last_check_report_time is None:
+            logger.info(
+                f"bk_biz_id({event_group.bk_biz_id}) EventGroup {event_group.event_group_name} has no data for a long time, set status to SLEEP and delete index"
+            )
+            need_clean_es_storages.append(es)
+        else:
+            logger.info(
+                f"bk_biz_id({event_group.bk_biz_id}) EventGroup {event_group.event_group_name} has data, set last_check_report_time {last_check_report_time}"
+            )
+            event_group.last_check_report_time = last_check_report_time
+            event_group.save(update_fields=["last_check_report_time"])
+
+    if not settings.metadata.enable_custom_event_sleep:
+        logger.info("ENABLE_CUSTOM_EVENT_SLEEP is False, skip cleaning ESStorage")
+        return
+
+    # 删除需要清理的ESStorage的索引
+    for es in need_clean_es_storages:
+        client = es.get_client()
+        for index, detail in client.indices.get(f"{es.index_name}*").items():
+            aliases = list(detail.get("aliases", {}).keys())
+            params = {"actions": [{"remove": {"index": index, "alias": alias}} for alias in aliases]}
+            client.indices.update_aliases(body=params)
+            client.indices.delete(index)
+            logger.info(f"Delete alias for ESStorage {es.table_id} {index} {aliases}")
+        client.close()
+        models.EventGroup.objects.filter(table_id=es.table_id).update(status=EventGroupStatus.SLEEP.value)
+
+    cost_time = time.time() - start_time
+    logger.info(f"check_custom_event_group_sleep:end, cost_time->[{cost_time}] seconds")

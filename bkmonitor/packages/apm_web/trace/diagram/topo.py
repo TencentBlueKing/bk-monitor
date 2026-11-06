@@ -84,6 +84,7 @@ class GlobalNodes:
     color_classifier: ServiceColorClassifier
     _nodes: dict[str, TopoNode] = field(default_factory=dict)
     _nodes_dict: dict[str, dict] = field(default_factory=dict)
+    _subtrees: dict[tuple[str, str | int], TopoNode] = field(default_factory=dict)
 
     def add(self, node: TopoNode):
         if node.id in self._nodes:
@@ -141,6 +142,19 @@ def make_topo_node_from_span_node(
 ) -> TopoNode:
     """Turn a span node to a topo node"""
 
+    # 虚拟返回节点复用 Span ID，但遍历上下文不同，保留原有递归语义。
+    subtree_key: tuple[str, str | int] | None = None
+    if not span_node.config.with_virtual_return:
+        node_key: str | int
+        if parent_group is not None:
+            node_key = span_node.group.first.index if span_node.group else span_node.index
+            subtree_key = (parent_group.first.id, node_key)
+        else:
+            node_key = span_node.group.first.id if span_node.group else span_node.id
+            subtree_key = ("", node_key)
+    if subtree_key is not None and subtree_key in global_nodes._subtrees:
+        return global_nodes._subtrees[subtree_key]
+
     # when parent is grouped, means all the descendants of parent(include this one) should be same across all the
     # member of parent group. So we need to create a virtual group for those descendants which are not grouped, and
     # create a topo node for those which are grouped.
@@ -171,6 +185,8 @@ def make_topo_node_from_span_node(
 
         virtual_group = make_virtual_group_from_node(twins)
         topo_node = TopoNode.from_group(virtual_group)
+        if subtree_key is not None:
+            global_nodes._subtrees[subtree_key] = topo_node
 
         for child in span_node.children:
             child_node = make_topo_node_from_span_node(child, global_relations, global_nodes, virtual_group)
@@ -181,6 +197,8 @@ def make_topo_node_from_span_node(
 
     # parent not grouped, so we can create a topo node directly
     topo_node = TopoNode.from_span_node(span_node)
+    if subtree_key is not None:
+        global_nodes._subtrees[subtree_key] = topo_node
     for child in span_node.children:
         child_node = make_topo_node_from_span_node(child, global_relations, global_nodes, span_node.group)
         global_nodes.add(child_node)

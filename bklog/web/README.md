@@ -1,12 +1,13 @@
 # 日志前端构建使用说明
 
-#### 安装和更新前端依赖（`nodejs`最小依赖版本为`"node": ">= 18"`）
+#### 安装和更新前端依赖（Node.js 固定为 `26.12.1`）
 
 ```bash
-cd webpack
+cd bklog/web
+nvm install 26.12.1
+nvm use 26.12.1
+node --version # 应输出 v26.12.1
 npm ci
-#### mac
-npm run install-build
 ```
 
 如果您尚未安装过 `nodejs` [详细安装参见](https://nodejs.org/zh-cn/download/)

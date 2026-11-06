@@ -42,8 +42,7 @@ from monitor_web.collecting.constant import (
     Status,
     TaskStatus,
 )
-from monitor_web.collecting.deploy import get_collect_installer
-from monitor_web.collecting.utils import fetch_sub_statistics
+from monitor_web.collecting.deploy import fetch_collection_statistics, get_collect_installer
 from monitor_web.models import CollectConfigMeta, CollectorPluginMeta, DeploymentConfigVersion, PluginVersionHistory
 from monitor_web.plugin.constant import PluginType
 from monitor_web.plugin.manager import PluginManagerFactory
@@ -83,29 +82,26 @@ class CollectConfigListResource(Resource):
         :return: self.realtime_data
         """
 
-        subscription_id_config_map, statistics_data = fetch_sub_statistics(config_data_list)
+        statistics_data = fetch_collection_statistics(config_data_list)
+        config_map = {config.pk: config for config in config_data_list}
         updated_configs = []
 
         # 节点管理返回的状态数量
-        for subscription_status in statistics_data:
-            status_number = {}
-            for status_result in subscription_status.get("status", []):
-                status_number[status_result["status"]] = status_result["count"]
-
-            error_count = status_number.get(CollectStatus.FAILED, 0)
-            total_count = subscription_status.get("instances", 0)
-            pending_count = status_number.get(CollectStatus.PENDING, 0)
-            running_count = status_number.get(CollectStatus.RUNNING, 0)
+        for config_id, statistics in statistics_data.items():
+            error_count = statistics.failed
+            total_count = statistics.total
+            pending_count = statistics.pending
+            running_count = statistics.running
             subscription_status_data = {
                 "error_instance_count": error_count,
                 "total_instance_count": total_count,
                 "pending_instance_count": pending_count,
                 "running_instance_count": running_count,
             }
-            self.realtime_data.update({subscription_status["subscription_id"]: subscription_status_data})
+            self.realtime_data[config_id] = subscription_status_data
 
             # 更新任务状态
-            config = subscription_id_config_map[subscription_status["subscription_id"]]
+            config = config_map[config_id]
             if not config:
                 continue
 
@@ -176,8 +172,7 @@ class CollectConfigListResource(Resource):
 
     def update_cache_data(self, config: CollectConfigMeta):
         # 更新采集配置的缓存数据（总数、异常数）
-        subscription_id = config.deployment_config.subscription_id
-        realtime_data = self.realtime_data.get(subscription_id)
+        realtime_data = self.realtime_data.get(config.pk)
         if not realtime_data:
             return
 
@@ -206,7 +201,7 @@ class CollectConfigListResource(Resource):
 
     def get_status(self, conf):
         # 判断采集配置是否处于自动下发中，返回采集配置状态和任务状态
-        status_key = conf.deployment_config.subscription_id
+        status_key = conf.pk
         if self.realtime_data.get(status_key) and self.realtime_data.get(status_key).get("is_auto_deploying"):
             status = {
                 "config_status": Status.AUTO_DEPLOYING,
@@ -457,6 +452,8 @@ class CollectConfigDetailResource(Resource):
     class RequestSerializer(serializers.Serializer):
         bk_biz_id = serializers.IntegerField(label="业务ID")
         id = serializers.IntegerField(label="采集配置ID")
+        resolve_target = serializers.BooleanField(label="是否解析采集目标", default=True)
+        with_agent_status = serializers.BooleanField(label="是否查询Agent状态", default=True)
 
     @staticmethod
     def password_convert(collect_config_meta):
@@ -485,8 +482,8 @@ class CollectConfigDetailResource(Resource):
         except CollectConfigMeta.DoesNotExist:
             raise CollectConfigNotExist({"msg": config_id})
 
-        if not collect_config_meta.deployment_config.target_nodes:
-            # 如果没有目标节点，直接返回空列表
+        if not validated_request_data["resolve_target"] or not collect_config_meta.deployment_config.target_nodes:
+            # 基础信息读取无需访问目标依赖。
             target_result = []
         else:
             # 请求IP选择器接口，获取采集目标
@@ -510,7 +507,11 @@ class CollectConfigDetailResource(Resource):
                     item.update({"bk_biz_id": collect_config_meta.bk_biz_id})
                     node_list.append(item)
                 target_result = resource.commons.get_host_instance_by_node(
-                    {"bk_biz_id": collect_config_meta.bk_biz_id, "node_list": node_list}
+                    {
+                        "bk_biz_id": collect_config_meta.bk_biz_id,
+                        "node_list": node_list,
+                        "with_agent_status": validated_request_data["with_agent_status"],
+                    }
                 )
             elif collect_config_meta.target_object_type in [
                 TargetObjectType.HOST,
@@ -554,7 +555,11 @@ class CollectConfigDetailResource(Resource):
                     item.update({"bk_biz_id": collect_config_meta.bk_biz_id})
                     node_list.append(item)
                 target_result = resource.commons.get_service_instance_by_node(
-                    {"bk_biz_id": collect_config_meta.bk_biz_id, "node_list": node_list}
+                    {
+                        "bk_biz_id": collect_config_meta.bk_biz_id,
+                        "node_list": node_list,
+                        "with_agent_status": validated_request_data["with_agent_status"],
+                    }
                 )
         config_version = collect_config_meta.deployment_config.plugin_version.config_version
         release_version = collect_config_meta.plugin.get_release_ver_by_config_ver(config_version)

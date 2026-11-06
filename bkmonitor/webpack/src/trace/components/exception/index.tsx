@@ -66,9 +66,11 @@ export default defineComponent({
     // 计算样式
     const styles = computed(() => {
       const { isDarkTheme, isError, imgHeight } = props;
+      // number 补 px；string（如 'auto' / '150px'）原样作为 CSS 变量
+      const heightValue = typeof imgHeight === 'number' ? `${imgHeight}px` : String(imgHeight);
       return {
         exceptionStyle: {
-          '--height': `${imgHeight}px`,
+          '--height': heightValue,
           '--marginTop': isDarkTheme ? '12px' : '0',
         },
         titleStyle: {

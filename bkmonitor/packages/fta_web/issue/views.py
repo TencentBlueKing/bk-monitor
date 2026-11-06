@@ -9,15 +9,60 @@ specific language governing permissions and limitations under the License.
 """
 
 from django.urls import reverse
+from rest_framework import permissions
 
 from bkmonitor.iam import ActionEnum
-from bkmonitor.iam.drf import IAMPermission
+from bkmonitor.iam.drf import BusinessActionPermission, IAMPermission
 from bkmonitor.iam.resource import ResourceEnum
 from bkmonitor.utils.tenant import bk_biz_id_to_bk_tenant_id
 from core.drf_resource import resource
 from core.drf_resource.exceptions import CustomException
 from core.drf_resource.viewsets import ResourceRoute, ResourceViewSet
 from fta_web.issue.utils.tapd import generate_auth_url, normalize_redirect_url
+
+
+class SourceAnalysisOptionsViewSet(ResourceViewSet):
+    """Issue 源码分析配置所需的只读选项接口。"""
+
+    def get_permissions(self):
+        return [BusinessActionPermission([ActionEnum.VIEW_RULE])]
+
+    resource_routes = [
+        ResourceRoute("GET", resource.issue.list_source_analysis_bkci_projects, endpoint="bkci_projects"),
+        ResourceRoute("GET", resource.issue.list_source_analysis_bkci_repositories, endpoint="bkci_repositories"),
+        ResourceRoute("GET", resource.issue.list_source_analysis_agents, endpoint="agents"),
+        ResourceRoute("GET", resource.issue.list_source_analysis_skills, endpoint="skills"),
+        ResourceRoute("GET", resource.issue.list_source_analysis_knowledge_bases, endpoint="knowledge_bases"),
+    ]
+
+
+class SourceAnalysisConfigViewSet(ResourceViewSet):
+    """业务源码分析代码库配置。"""
+
+    def get_permissions(self):
+        action = ActionEnum.VIEW_RULE if self.request.method in permissions.SAFE_METHODS else ActionEnum.MANAGE_RULE
+        return [BusinessActionPermission([action])]
+
+    resource_routes = [
+        ResourceRoute("GET", resource.issue.get_source_analysis_config),
+        ResourceRoute("PUT", resource.issue.save_source_analysis_config, endpoint="save"),
+    ]
+
+
+class SourceAnalysisRulesViewSet(ResourceViewSet):
+    """业务源码分析规则 CRUD。"""
+
+    def get_permissions(self):
+        action = ActionEnum.VIEW_RULE if self.request.method in permissions.SAFE_METHODS else ActionEnum.MANAGE_RULE
+        return [BusinessActionPermission([action])]
+
+    resource_routes = [
+        ResourceRoute("GET", resource.issue.list_source_analysis_rules),
+        ResourceRoute("POST", resource.issue.create_source_analysis_rule),
+        ResourceRoute("GET", resource.issue.get_source_analysis_rule, pk_field="rule_id"),
+        ResourceRoute("PATCH", resource.issue.update_source_analysis_rule, pk_field="rule_id"),
+        ResourceRoute("DELETE", resource.issue.delete_source_analysis_rule, pk_field="rule_id"),
+    ]
 
 
 class IssueViewSet(ResourceViewSet):
@@ -28,6 +73,8 @@ class IssueViewSet(ResourceViewSet):
         "issue/search",
         "issue/trend",
         "issue/detail",
+        "issue/ai_analysis_overview",
+        "issue/source_analysis",
         "issue/activities",
         "issue/history",
         "issue/top_n",
@@ -182,12 +229,19 @@ class IssueViewSet(ResourceViewSet):
 
     resource_routes = [
         # Issue 列表查询
-        ResourceRoute("POST", resource.issue.search_issue, endpoint="issue/search"),
+        ResourceRoute("POST", resource.issue.issue_search, endpoint="issue/search"),
         ResourceRoute("POST", resource.issue.issue_trend, endpoint="issue/trend"),
         # Issue TopN 统计
         ResourceRoute("POST", resource.issue.issue_top_n, endpoint="issue/top_n"),
         # Issue 详情（元数据）
         ResourceRoute("GET", resource.issue.issue_detail, endpoint="issue/detail"),
+        # AI 分析快览采用通用聚合结构，当前只返回 source_analysis 模块
+        ResourceRoute("GET", resource.issue.ai_analysis_overview, endpoint="issue/ai_analysis_overview"),
+        # 源码分析最新状态、展示结果与触发操作
+        ResourceRoute("GET", resource.issue.source_analysis, endpoint="issue/source_analysis"),
+        ResourceRoute("POST", resource.issue.start_source_analysis, endpoint="issue/start_source_analysis"),
+        ResourceRoute("POST", resource.issue.retry_source_analysis, endpoint="issue/retry_source_analysis"),
+        ResourceRoute("POST", resource.issue.reanalyze_source_analysis, endpoint="issue/reanalyze_source_analysis"),
         # 指派负责人（含改派，支持批量）
         ResourceRoute("POST", resource.issue.assign_issue, endpoint="issue/assign"),
         # 标记为已解决（支持批量）
@@ -227,13 +281,13 @@ class IssueViewSet(ResourceViewSet):
         # 获取已授权的tapd项目列表
         ResourceRoute("POST", resource.issue.list_tapd_workspace, endpoint="tapd/workspace"),
         # 查询当前用户可见的 TAPD 项目列表（含 install_url）
-        ResourceRoute("POST", resource.issue.list_user_tapd_workspace, endpoint="tapd/user_workspace"),
+        ResourceRoute("POST", resource.issue.get_user_workspace, endpoint="tapd/user_workspace"),
         # 解绑 TAPD 项目（删除本地 binding + 写入 tombstone）
-        ResourceRoute("POST", resource.issue.unbind_tapd_workspace, endpoint="tapd/unbind_workspace"),
+        ResourceRoute("POST", resource.issue.unbind_workspace, endpoint="tapd/unbind_workspace"),
         # 重新关联 TAPD 项目（删除 tombstone + 恢复 binding）
-        ResourceRoute("POST", resource.issue.rebind_tapd_workspace, endpoint="tapd/rebind_workspace"),
+        ResourceRoute("POST", resource.issue.rebind_workspace, endpoint="tapd/rebind_workspace"),
         # 撤销 TAPD 用户态授权（仅清除 token，保留 binding）
-        ResourceRoute("POST", resource.issue.revoke_tapd_user_auth, endpoint="tapd/revoke_auth"),
+        ResourceRoute("POST", resource.issue.revoke_auth, endpoint="tapd/revoke_auth"),
         # 获取 TAPD 单据的字段
         ResourceRoute("POST", resource.issue.get_tapd_fields, endpoint="issue/get_tapd_fields"),
         # 查询已有TAPD单据

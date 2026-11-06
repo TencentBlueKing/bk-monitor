@@ -24,9 +24,10 @@
  * IN THE SOFTWARE.
  */
 
-import { defineComponent, ref, watch, computed } from 'vue';
+import { defineComponent, ref, watch, computed, onUnmounted } from 'vue';
 
 import BklogPopover from '@/components/bklog-popover';
+import { useDialogVisible } from '@/global/overlay';
 import useLocale from '@/hooks/use-locale';
 import useStore from '@/hooks/use-store';
 
@@ -35,6 +36,7 @@ import { useFavorite } from '../../hooks/use-favorite';
 import { IFavoriteItem, IGroupItem, IMenuItem } from '../../types';
 import { getGroupNameRules } from '../../utils';
 import AddGroup from './add-group';
+import { createFavoriteMenuHoverState } from './collect-list-menu-hover';
 import EditDialog from './edit-dialog';
 
 import './collect-list.scss';
@@ -71,7 +73,17 @@ export default defineComponent({
     const currentFavorite = ref();
     const listMenuPopoverMap = ref({});
     const delData = ref({});
-    const delDialogShow = ref(false);
+    /** 操作菜单（含「移动至分组」二级菜单）展开时保持对应收藏项 Hover 背景 */
+    const menuOpenFavoriteId = ref<IFavoriteItem['id'] | null>(null);
+    const favoriteMenuHover = createFavoriteMenuHoverState();
+    const {
+      visible: delDialogShow,
+      setVisible: setDelDialogVisible,
+      onValueChange: handleDelDialogChange,
+    } = useDialogVisible(false, {
+      id: 'retrieve-collect-delete-dialog',
+      group: 'retrieve-dialog',
+    });
     // 使用自定义 hook
     const { handleNewLink, handleDeleteApi, handleCreateCopy, handleUpdateFavorite } = useFavorite();
     /** 删除操作相关key list */
@@ -108,7 +120,7 @@ export default defineComponent({
     const isShowEdit = ref(false);
 
     const childMenu = computed(() => {
-      const list =  [
+      const list = [
         {
           key: 'share',
           label: t('分享'),
@@ -168,10 +180,10 @@ export default defineComponent({
       },
 
       /* 解散分组 */
-      'dismiss-group': item => handleDeleteApi('dismiss-group', item.group_id, () => handleRefreshMenu(item)),
+      'dismiss-group': item => handleDeleteConfirm('dismiss-group', item.group_id, item),
 
       /* 删除收藏 */
-      delete: item => handleDeleteApi('delete', item.id, () => handleRefreshMenu(item)),
+      delete: item => handleDeleteConfirm('delete', item.id, item),
 
       /* 移动分组 */
       'move-group': item => {
@@ -271,6 +283,26 @@ export default defineComponent({
         false,
       );
     };
+    const syncFavoriteMenuHover = () => {
+      menuOpenFavoriteId.value = favoriteMenuHover.getOpenId();
+    };
+    const handleFavoriteMenuShown = (id: IFavoriteItem['id']) => {
+      favoriteMenuHover.shown(id);
+      syncFavoriteMenuHover();
+    };
+    const handleFavoriteMenuHidden = (id: IFavoriteItem['id']) => {
+      favoriteMenuHover.hidden(id);
+      setTimeout(syncFavoriteMenuHover, favoriteMenuHover.delay);
+    };
+    const getFavoriteMenuTippyOptions = (id: IFavoriteItem['id'], extra: Record<string, unknown> = {}) =>
+      ({
+        ...extra,
+        onShown: () => handleFavoriteMenuShown(id),
+        onHidden: () => handleFavoriteMenuHidden(id),
+      }) as any;
+    onUnmounted(() => {
+      favoriteMenuHover.dispose();
+    });
     /** 刷新列表并关闭menu */
     const handleRefreshMenu = (item: IFavoriteItem, isGroup = false) => {
       listMenuPopoverMap.value[isGroup ? item.group_id : item.id]?.hide();
@@ -323,7 +355,7 @@ export default defineComponent({
               class='ml8'
               size='small'
               onClick={() => {
-                delDialogShow.value = false;
+                setDelDialogVisible(false);
               }}
             >
               {t('取消')}
@@ -332,13 +364,26 @@ export default defineComponent({
         </div>
       );
     };
+    /** 关闭删除操作弹框，并清空待删除数据 */
+    const closeDelDialog = () => {
+      setDelDialogVisible(false);
+      delData.value = {};
+    };
     /** 显示删除操作弹框 */
     const handleDelClick = (type: string, item: IFavoriteItem) => {
       delData.value = {
         key: type,
         item,
       };
-      delDialogShow.value = true;
+      setDelDialogVisible(true);
+    };
+    /** 确认删除 / 解散：无论接口成功或失败，都关闭弹框并复位标志位 */
+    const handleDeleteConfirm = async (type: string, id: number, item: IFavoriteItem) => {
+      try {
+        await handleDeleteApi(type, id, () => handleRefreshMenu(item));
+      } finally {
+        closeDelDialog();
+      }
     };
 
     /** 移动至分组Render */
@@ -384,7 +429,11 @@ export default defineComponent({
             if (menu.key === 'move-group') {
               return (
                 <BklogPopover
-                  options={{ offset: [0, 1], placement: 'right', arrow: false } as any}
+                  options={getFavoriteMenuTippyOptions(item.id, {
+                    offset: [0, 1],
+                    placement: 'right',
+                    arrow: false,
+                  })}
                   trigger='hover'
                   {...{
                     scopedSlots: { content: () => moveGroupRender(item) },
@@ -540,6 +589,7 @@ export default defineComponent({
                         'child-item',
                         { 'is-active': child.id === selectedId.value },
                         { 'is-disabled': isFailFavorite(child) },
+                        { 'is-menu-open': child.id === menuOpenFavoriteId.value },
                       ]}
                       onClick={() => handleSelectItem(child)}
                     >
@@ -552,9 +602,12 @@ export default defineComponent({
                       {/* 数据源不存在 */}
                       <BklogPopover
                         ref={el => (listMenuPopoverMap.value[child.id] = el)}
-                        options={
-                          { offset: [30, 5], placement: 'bottom-end', appendTo: document.body, arrow: false } as any
-                        }
+                        options={getFavoriteMenuTippyOptions(child.id, {
+                          offset: [30, 5],
+                          placement: 'bottom-end',
+                          appendTo: document.body,
+                          arrow: false,
+                        })}
                         trigger='hover'
                         {...{
                           scopedSlots: { content: () => renderMenu(childMenu.value, child) },
@@ -574,6 +627,7 @@ export default defineComponent({
           show-footer={false}
           theme='primary'
           value={delDialogShow.value}
+          on-value-change={handleDelDialogChange}
         >
           {delDialogShow.value && delRender(delData.value.key, delData.value.item)}
         </bk-dialog>

@@ -28,6 +28,7 @@ class RumSpanType(CachedEnum):
     ACTION = "action"
     WEBSOCKET = "websocket"
     CUSTOM = "custom"
+    SESSION = "session"
 
     @cached_property
     def label(self) -> str:
@@ -41,6 +42,7 @@ class RumSpanType(CachedEnum):
                 self.ACTION: _("用户操作"),
                 self.WEBSOCKET: "WebSocket",
                 self.CUSTOM: _("自定义事件"),
+                self.SESSION: _("会话"),
             }.get(self, str(self.value))
         )
 
@@ -133,6 +135,14 @@ class RumSpanType(CachedEnum):
                 "resource.user_agent.name",
                 "resource.device.type",
             ],
+            self.SESSION: [
+                "attributes.session.id",
+                "attributes.session.phase",
+                "attributes.session.type",
+                "resource.deployment.environment.name",
+                "resource.user_agent.name",
+                "attributes.user.id",
+            ],
         }[self]
 
     @cached_property
@@ -152,7 +162,7 @@ class RumSpanType(CachedEnum):
                 "span_name",
                 "attributes.span_type",
                 "end_time",
-                "attributes.url.template",
+                "attributes.url.full",
                 "elapsed_time",
                 "attributes.resource.size",
                 "attributes.resource.cache.hit",
@@ -248,8 +258,8 @@ class ViewLoadingType(CachedEnum):
         return {
             self.INITIAL_LOAD: _("初始加载"),
             self.ROUTE_CHANGE: _("路由切换"),
-            self.SESSION_RENEWAL: _("会话续期后重建"),
-            self.BF_CACHE: _("前进后退缓存恢复"),
+            self.SESSION_RENEWAL: _("续期重建"),
+            self.BF_CACHE: _("缓存恢复"),
         }.get(self, self.value)
 
     @classmethod
@@ -688,4 +698,26 @@ class SessionHasReplay(CachedEnum):
 
     @classmethod
     def choices(cls) -> list[tuple[bool, str]]:
+        return [(member.value, member.label) for member in cls]
+
+
+class RatingLevel(CachedEnum):
+    """评分等级枚举：仅提供评级名称与别名，阈值由 ``SpanSpec`` 下发统一管理。"""
+
+    GOOD = "good"
+    NEEDS_IMPROVEMENT = "needs_improvement"
+    POOR = "poor"
+
+    @cached_property
+    def label(self) -> str:
+        return str(
+            {
+                self.GOOD: _("良好"),
+                self.NEEDS_IMPROVEMENT: _("需改进"),
+                self.POOR: _("差"),
+            }.get(self, self.value)
+        )
+
+    @classmethod
+    def choices(cls) -> list[tuple[str, str]]:
         return [(member.value, member.label) for member in cls]

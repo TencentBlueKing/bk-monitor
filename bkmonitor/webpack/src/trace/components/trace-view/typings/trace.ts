@@ -118,6 +118,14 @@ export type SpanData = {
 export type SpanLlmDetail = {
   attributes?: Record<string, unknown>;
   span_type: SpanLlmType;
+  /** OTEL status：code=2 为错误，需在观测页展示 Alert */
+  status?: SpanLlmStatus;
+};
+
+/** LLM Span 状态，与后端 llm_detail.status 对齐 */
+export type SpanLlmStatus = {
+  code?: number;
+  message?: string;
 };
 
 /** LLM Span 语义层级，由后端按 gen_ai.operation.name 归类 */

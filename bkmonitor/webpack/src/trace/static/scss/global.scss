@@ -1,3 +1,5 @@
+@use 'monitor-static/styles/skeleton';
+
 html,
 body {
   .bk-textarea-wrapper,
@@ -219,40 +221,6 @@ body {
   padding: 0 !important;
 }
 
-.skeleton-element {
-  position: relative;
-  display: flex;
-  width: 100%;
-  overflow: hidden;
-
-  &::after {
-    position: absolute;
-    inset-inline: -150%;
-    top: 0;
-    bottom: 0;
-    content: '';
-    background: linear-gradient(90deg, rgb(0 0 0 / 6%) 25%, rgb(0 0 0 / 15%) 37%, rgb(0 0 0 / 6%) 63%);
-    animation-name: skeleton-loading;
-    animation-duration: 1.4s;
-    animation-timing-function: ease;
-    animation-iteration-count: infinite;
-  }
-
-  &.skeleton-element-lg {
-    border-radius: 50%;
-  }
-}
-
-@keyframes skeleton-loading {
-  0% {
-    transform: translateX(-37.5%);
-  }
-
-  100% {
-    transform: translateX(37.5%);
-  }
-}
-
 :where(.bk-sideslider) {
   z-index: 2000;
 }
@@ -314,4 +282,38 @@ body {
 
 .tippy-box[data-theme~='light'][data-placement^='bottom'] > .tippy-arrow::before {
   border-bottom-color: #fff;
+}
+
+/*
+ * 宿主（Vue2 主站 css）存在同特异性 (0,2,0) 的 `[data-tippy-root] .tippy-box`，
+ * 单独跑 trace 时其样式表排在 global.scss 之后会盖回 border / box-shadow，
+ * 故这里一起带上 [data-tippy-root] 抬高特异性，避免被宿主污染。
+ * 第三方组件（@blueking/user-selector 随 @blueking/ip-selector 注入）也会注入
+ * `.tippy-box[data-theme~='dark'] { padding: 7px 12px }`，让同一气泡在不同页面内边距不一致，
+ * 这里改回 tippy 默认的 0，内边距仍由 tippy.css 的 `.tippy-content` 提供。
+ */
+[data-tippy-root] .tippy-box[data-theme~='dark'] {
+  padding: 0;
+  border: unset;
+  box-shadow: unset;
+}
+
+.bk-popper {
+  &.tooltip-chart-tips-dark-theme {
+    display: block;
+    padding: 10px;
+    font-size: 12px;
+    color: rgb(190 192 198);
+    white-space: nowrap;
+    background: rgb(54 58 67 / 88%);
+    border-color: rgb(255 255 255);
+    border-style: solid;
+    border-width: 0;
+    border-radius: 4px;
+    box-shadow: rgb(0 0 0 / 20%) 1px 2px 10px;
+
+    .bk-popper-arrow::before {
+      background: transparent;
+    }
+  }
 }

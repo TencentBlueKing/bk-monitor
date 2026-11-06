@@ -26,10 +26,11 @@
 
 import { type PropType, defineComponent, onBeforeUnmount, onMounted, shallowRef, watch } from 'vue';
 
-import { $bkPopover, Checkbox, Input } from 'bkui-vue';
+import { $bkPopover, Button, Checkbox, Input } from 'bkui-vue';
 import { useI18n } from 'vue-i18n';
 
 import { isHostNode } from '../../utils/topo-tree';
+import HostLoading from '../host-loading/host-loading';
 import EmptyStatus from '@/components/empty-status/empty-status';
 
 import type { HostTopoTreeContext } from '../../composables/use-host-topo-tree';
@@ -68,6 +69,23 @@ export default defineComponent({
       }
     };
 
+    /** scroller 按条件渲染，元素挂载 / 替换时立即上报高度，避免视口高度停留在初始 0 */
+    const setScrollEl = (instance: unknown) => {
+      const element = (instance as HTMLElement | null) ?? null;
+      if (element === scrollRef.value) {
+        return;
+      }
+      resizeObserver?.disconnect();
+      resizeObserver = null;
+      scrollRef.value = element;
+      if (!element) {
+        return;
+      }
+      resizeObserver = new ResizeObserver(notifyViewport);
+      resizeObserver.observe(element);
+      notifyViewport();
+    };
+
     const handleScroll = () => {
       destroyHostPopover();
       if (scrollFrame) {
@@ -80,10 +98,6 @@ export default defineComponent({
     };
 
     onMounted(() => {
-      if (scrollRef.value) {
-        resizeObserver = new ResizeObserver(notifyViewport);
-        resizeObserver.observe(scrollRef.value);
-      }
       notifyViewport();
     });
 
@@ -156,7 +170,7 @@ export default defineComponent({
     const renderInstNode = (node: IHostTopoViewRow) => (
       <div class='topo-node topo-node--inst'>
         <span class='topo-node__label'>{node.name}</span>
-        <span class='topo-node__count'>{node.hostCount}</span>
+        <span class='topo-node__count'>{node.hostCount ?? '--'}</span>
       </div>
     );
 
@@ -195,6 +209,28 @@ export default defineComponent({
       'bk_host_id' in node ? renderHostNode(node as IHostTopoHostNode) : renderInstNode(node);
 
     const renderRow = (node: IHostTopoViewRow) => {
+      if (node.loadParentId)
+        return (
+          <div
+            key={node.id}
+            style={{ height: `${ctx.rowHeight}px`, paddingLeft: `${node.depth * 16 + 4}px` }}
+            class='host-topo-tree__page-action'
+          >
+            <Button
+              disabled={node.loadState === 'loading'}
+              text
+              onClick={() => ctx.loadModulePage(node.loadParentId)}
+            >
+              {node.loadState === 'loading'
+                ? t('加载中...')
+                : node.loadState === 'error'
+                  ? t('加载失败，点击重试')
+                  : node.loadState === 'more'
+                    ? t('加载更多')
+                    : t('加载主机')}
+            </Button>
+          </div>
+        );
       const isSelected = ctx.selectedIds.value.includes(node.id);
       return (
         <div
@@ -241,12 +277,16 @@ export default defineComponent({
           <Input
             class='host-topo-tree__search'
             v-model={ctx.searchValue.value}
+            disabled={!ctx.fullTreeReady.value}
             placeholder={t('搜索 IP / 主机名 / 节点名称')}
             type='search'
             clearable
           />
           <div class='host-topo-tree__tools'>
-            <Checkbox v-model={ctx.hideEmptyNode.value}>
+            <Checkbox
+              v-model={ctx.hideEmptyNode.value}
+              disabled={!ctx.fullTreeReady.value}
+            >
               <span class='host-topo-tree__tools-label'>{t('隐藏无主机节点')}</span>
             </Checkbox>
             <div class='host-topo-tree__tools-icons'>
@@ -266,31 +306,23 @@ export default defineComponent({
             </div>
           </div>
         </div>
-        {ctx.loading.value ? (
-          <div class='host-topo-tree__loading'>
-            <div class='skeleton-row'>
-              <div class='skeleton-element' />
-            </div>
-            {new Array(5).fill(0).map((_, index) => (
-              <div key={index}>
-                <div
-                  style='padding-left: 16px;'
-                  class='skeleton-row'
-                >
-                  <div class='skeleton-element' />
-                </div>
-                {new Array(3).fill(0).map((_, index) => (
-                  <div
-                    key={index}
-                    style='padding-left: 32px;'
-                    class='skeleton-row'
-                  >
-                    <div class='skeleton-element' />
-                  </div>
-                ))}
-              </div>
-            ))}
+        {!ctx.fullTreeReady.value && ctx.fullTreeError.value && !ctx.scopeError.value && (
+          <div
+            class='host-topo-tree__notice'
+            aria-live='polite'
+            role='status'
+          >
+            <span>{t('完整拓扑加载失败')}</span>
+            <Button
+              text
+              onClick={ctx.loadFullTree}
+            >
+              {t('重试')}
+            </Button>
           </div>
+        )}
+        {ctx.loading.value ? (
+          <HostLoading variant='tree' />
         ) : ctx.loadError.value ? (
           <EmptyStatus
             type='500'
@@ -299,9 +331,7 @@ export default defineComponent({
         ) : (
           <div class='host-topo-tree__body'>
             <div
-              ref={instance => {
-                scrollRef.value = instance as HTMLElement | null;
-              }}
+              ref={setScrollEl}
               class='host-topo-tree__scroller'
               onScroll={handleScroll}
             >

@@ -24,7 +24,7 @@
  * IN THE SOFTWARE.
  */
 
-import { Component, Provide } from 'vue-property-decorator';
+import { Component, Provide, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
 import { deleteApplication, listApplication } from 'monitor-api/modules/apm_meta';
@@ -84,6 +84,9 @@ export default class AppList extends tsc<undefined> {
   /* 应用分类数据 */
   originalAppList: IAppListItem[] = [];
   loading = false;
+  appListLoaded = false;
+  appListError = false;
+  appListRequestId = 0;
 
   refreshInstance = null;
   appName = '';
@@ -96,6 +99,7 @@ export default class AppList extends tsc<undefined> {
   isShowServiceAdd = false;
 
   searchCondition = '';
+  keyboardAppName = '';
 
   /** 仪表盘工具栏 策略和告警panel */
   // alarmToolsPanel = null;
@@ -121,6 +125,68 @@ export default class AppList extends tsc<undefined> {
         item?.app_name.toLowerCase().includes(this.searchCondition.toLowerCase())
     );
   }
+
+  get keyboardAppList() {
+    return this.appList.filter(item => item.permission?.[authorityMap.VIEW_AUTH]);
+  }
+
+  get keyboardActiveApp() {
+    return (
+      this.keyboardAppList.find(item => item.app_name === this.keyboardAppName) ||
+      this.keyboardAppList.find(item => item.app_name === this.appName)
+    );
+  }
+
+  @Watch('keyboardAppList')
+  handleKeyboardAppListChange() {
+    if (!this.keyboardAppList.some(item => item.app_name === this.keyboardAppName)) this.keyboardAppName = '';
+  }
+
+  handleAppListKeydown(event: KeyboardEvent) {
+    if (
+      event.target !== event.currentTarget ||
+      event.isComposing ||
+      event.keyCode === 229 ||
+      event.altKey ||
+      event.ctrlKey ||
+      event.metaKey ||
+      event.shiftKey ||
+      this.isShowAppAdd ||
+      this.isShowServiceAdd ||
+      this.showGuideDialog ||
+      (this.loading && !this.appListLoaded) ||
+      !['ArrowUp', 'ArrowDown', 'Enter'].includes(event.key)
+    )
+      return;
+    const items = this.keyboardAppList;
+    if (!items.length) return;
+    if (event.currentTarget === this.$el) {
+      (this.$refs.appList as HTMLElement)?.focus({ preventScroll: true });
+    }
+    event.preventDefault();
+    event.stopPropagation();
+    const index = items.findIndex(item => item.app_name === this.keyboardActiveApp?.app_name);
+    if (event.key === 'Enter') {
+      this.handleAppClick(items[Math.max(index, 0)]);
+    } else {
+      const nextIndex =
+        event.key === 'ArrowDown'
+          ? Math.min(index + 1, items.length - 1)
+          : index < 0
+            ? items.length - 1
+            : Math.max(index - 1, 0);
+      this.keyboardAppName = items[nextIndex].app_name;
+    }
+    this.$nextTick(() => {
+      const list = this.$refs.appList as HTMLElement;
+      const row = list?.querySelector<HTMLElement>('.keyboard-active');
+      if (!row) return;
+      const listRect = list.getBoundingClientRect();
+      const rowRect = row.getBoundingClientRect();
+      if (rowRect.top < listRect.top) list.scrollTop += rowRect.top - listRect.top;
+      else if (rowRect.bottom > listRect.bottom) list.scrollTop += rowRect.bottom - listRect.bottom;
+    });
+  }
   @Provide('handleShowAuthorityDetail')
   handleShowAuthorityDetail(actionIds: string | string[]) {
     authorityStore.getAuthorityDetail(actionIds);
@@ -132,6 +198,7 @@ export default class AppList extends tsc<undefined> {
     // this.alarmToolsPanel = new PanelModel(ALERT_PANEL_DATA);
   }
   mounted() {
+    (this.$el as HTMLElement).focus({ preventScroll: true });
     // 帮助文档弹窗数据
     window.requestIdleCallback(async () => {
       await introduceModule.getIntroduce(IntroduceRouteKey['apm-home']);
@@ -162,9 +229,7 @@ export default class AppList extends tsc<undefined> {
    * @description 获取应用列表
    */
   async getAppList() {
-    if (this.loading) {
-      return;
-    }
+    const requestId = ++this.appListRequestId;
     const [startTime, endTime] = handleTransformToTimestamp(this.timeRange);
     const params = {
       start_time: startTime,
@@ -173,14 +238,18 @@ export default class AppList extends tsc<undefined> {
       sort: '',
     };
     this.loading = true;
-    const listData: {
-      data: IAppListItem[];
-    } = await listApplication(params).catch(() => {
-      return {
-        data: [],
-      };
-    });
-    this.loading = false;
+    this.appListError = false;
+    let listData: { data: IAppListItem[] };
+    try {
+      listData = await listApplication(params);
+    } catch {
+      if (requestId === this.appListRequestId) this.appListError = true;
+      return;
+    } finally {
+      if (requestId === this.appListRequestId) this.loading = false;
+    }
+    if (requestId !== this.appListRequestId) return;
+    this.appListLoaded = true;
     this.originalAppList = listData.data.map((item, ind: number) => {
       let firstCode: string = item.app_alias?.slice(0, 1) || '-';
       const charCode = firstCode.charCodeAt(0);
@@ -205,6 +274,7 @@ export default class AppList extends tsc<undefined> {
         }
       }
     }
+    if (!this.originalAppList.length) this.appName = '';
     this.handleReplaceRouteUrl({}, params);
   }
   handleReplaceRouteUrl(serviceParams: Record<string, any> = {}, appSearchParams: Record<string, any> = {}) {
@@ -322,6 +392,7 @@ export default class AppList extends tsc<undefined> {
    * @param row
    */
   handleAppClick(row: IAppListItem) {
+    this.keyboardAppName = row.app_name;
     if (this.appName === row.app_name) return;
     this.appName = row.app_name;
   }
@@ -394,11 +465,21 @@ export default class AppList extends tsc<undefined> {
 
   handleTimezoneChange(v: string) {
     this.timezone = v;
+    this.handleImmediateRefresh();
+  }
+
+  beforeDestroy() {
+    this.appListRequestId++;
+    window.clearInterval(this.refreshInstance);
   }
 
   render() {
     return (
-      <div class='apm-home-wrap-page'>
+      <div
+        class='apm-home-wrap-page'
+        tabindex={-1}
+        onKeydown={this.handleAppListKeydown}
+      >
         <NavBar routeList={this.routeList}>
           {!this.showGuidePage && (
             <div
@@ -437,17 +518,32 @@ export default class AppList extends tsc<undefined> {
           minWidth={150}
         >
           <div
-            class='app-list'
+            class={['app-list', 'apm-loading-region', { 'is-refreshing': this.loading && this.appListLoaded }]}
             slot='aside'
+            aria-busy={this.loading}
           >
             <div class='app-list-title'>{this.$t('应用列表')}</div>
             <div class='app-list-search'>
               <bk-input
                 v-model={this.searchCondition}
+                native-attributes={{
+                  role: 'combobox',
+                  'aria-label': this.$tc('搜索 应用名、ID'),
+                  'aria-autocomplete': 'list',
+                  'aria-expanded': !!this.appList.length && (this.appListLoaded || !this.loading),
+                  'aria-controls': 'apm-home-app-list',
+                  'aria-activedescendant': this.keyboardActiveApp
+                    ? `apm-home-app-${this.keyboardActiveApp.application_id}`
+                    : undefined,
+                }}
                 placeholder={this.$t('搜索 应用名、ID')}
                 right-icon='bk-icon icon-search'
                 clearable
                 show-clear-only-hover
+                onBlur={() => {
+                  this.keyboardAppName = '';
+                }}
+                onKeydown={(_value: string, event: KeyboardEvent) => this.handleAppListKeydown(event)}
               />
               <div
                 class='app-list-add'
@@ -468,23 +564,46 @@ export default class AppList extends tsc<undefined> {
                 onSidesliderShow={v => this.handleServiceAddSideShow(v)}
               />
             </div>
-            {this.loading ? (
-              <ApmHomeSkeleton />
+            {this.loading && !this.appListLoaded ? (
+              <ApmHomeSkeleton kind='apps' />
             ) : this.appList.length ? (
-              <ul class='app-list-data'>
+              <ul
+                id='apm-home-app-list'
+                ref='appList'
+                class='app-list-data'
+                aria-activedescendant={
+                  this.keyboardActiveApp ? `apm-home-app-${this.keyboardActiveApp.application_id}` : undefined
+                }
+                aria-label={this.$tc('应用列表')}
+                tabindex={0}
+                onBlur={() => {
+                  this.keyboardAppName = '';
+                }}
+                onKeydown={this.handleAppListKeydown}
+                tabIndex='0'
+              >
                 {this.appList.map(item => (
                   <li
+                    id={`apm-home-app-${item.application_id}`}
                     key={item.application_id}
                     class={[
                       'data-item',
                       { selected: this.appName === item.app_name },
+                      { 'keyboard-active': this.keyboardAppName === item.app_name },
                       { disabled: !item?.permission[authorityMap.VIEW_AUTH] },
                     ]}
-                    onClick={() =>
-                      item?.permission[authorityMap.VIEW_AUTH]
-                        ? this.handleAppClick(item)
-                        : this.handleShowAuthorityDetail(authorityMap.VIEW_AUTH)
-                    }
+                    aria-disabled={!item.permission?.[authorityMap.VIEW_AUTH]}
+                    aria-selected={this.appName === item.app_name}
+                    onClick={(event: MouseEvent) => {
+                      if (item?.permission[authorityMap.VIEW_AUTH]) {
+                        if (!(event.target as HTMLElement).closest('.item-content')) {
+                          (this.$refs.appList as HTMLElement)?.focus({ preventScroll: true });
+                        }
+                        this.handleAppClick(item);
+                      } else {
+                        this.handleShowAuthorityDetail(authorityMap.VIEW_AUTH);
+                      }
+                    }}
                   >
                     <div
                       style={{
@@ -564,26 +683,38 @@ export default class AppList extends tsc<undefined> {
               </ul>
             ) : (
               <EmptyStatus
-                textMap={{ empty: this.$t('暂无数据') }}
-                type={this.searchCondition ? 'search-empty' : 'empty'}
+                textMap={{
+                  empty: this.$t('暂无数据'),
+                  'search-empty': this.$t('搜索结果为空'),
+                  500: this.$t('数据获取异常'),
+                }}
+                type={this.appListError ? '500' : this.searchCondition ? 'search-empty' : 'empty'}
                 onOperation={() => {
-                  this.searchCondition = '';
+                  if (this.appListError) this.getAppList();
+                  else this.searchCondition = '';
                 }}
               />
             )}
           </div>
           <div class='app-list-service'>
-            <AppHomeList
-              key={this.refreshKey}
-              appData={this.appData}
-              appName={this.appName.toString()}
-              authority={this.appData?.permission[authorityMap.VIEW_AUTH]}
-              authorityDetail={authorityMap.VIEW_AUTH}
-              timeRange={this.timeRange}
-              onGoToServiceByLink={val => this.handleGotoService(val)}
-              onRouteUrlChange={this.handleReplaceRouteUrl}
-              onServiceAddSideShow={v => this.handleServiceAddSideShow(v)}
-            />
+            {!this.appName && !this.loading ? (
+              <EmptyStatus
+                type={this.appListError ? '500' : 'empty'}
+                onOperation={() => this.getAppList()}
+              />
+            ) : (
+              <AppHomeList
+                appData={this.appData}
+                appName={this.appName.toString()}
+                authority={this.appData?.permission[authorityMap.VIEW_AUTH]}
+                authorityDetail={authorityMap.VIEW_AUTH}
+                refreshKey={this.refreshKey}
+                timeRange={this.timeRange}
+                onGoToServiceByLink={val => this.handleGotoService(val)}
+                onRouteUrlChange={this.handleReplaceRouteUrl}
+                onServiceAddSideShow={v => this.handleServiceAddSideShow(v)}
+              />
+            )}
           </div>
         </ApmHomeResizeLayout>
         <bk-dialog

@@ -32,8 +32,7 @@ import {
   alertK8sTarget,
   listAlertFeedback,
 } from 'monitor-api/modules/alert_v2';
-import { scenarioMetricList } from 'monitor-api/modules/k8s';
-import { listK8sResources } from 'monitor-api/modules/k8s';
+import { listK8sResourcesWithoutFederatedCharts, scenarioMetricList } from 'monitor-api/modules/k8s';
 import { getSceneView } from 'monitor-api/modules/scene_view';
 import { BookMarkModel } from 'monitor-ui/chart-plugins/typings';
 
@@ -103,7 +102,7 @@ export const getHostTargetList = async (params: { alertId: string; bizId: number
   const data = await alertHostTarget<{ alert_id: string; bk_biz_id: number }, AlertHostTargetItem[]>({
     alert_id: alertId,
     bk_biz_id: bizId,
-  }).catch(() => [] as AlertHostTargetItem[]);
+  });
   return data;
 };
 
@@ -119,7 +118,7 @@ export const getDetailSceneView = async (bizId: number, id: string) => {
     scene_id: 'host',
     type: 'detail',
     id,
-  }).catch(() => ({ id: '', panels: [], name: '' }));
+  });
 
   const transformData = new BookMarkModel(sceneData || { id: '', panels: [], name: '' });
   const unGroupKey = '__UNGROUP__';
@@ -164,7 +163,7 @@ export const getAlertK8sScenarioMetricList = async (
   const data = await scenarioMetricList<{ bk_biz_id: number; scenario: SceneEnum }, AlertK8SMetricItem[]>(
     { bk_biz_id: bizId, scenario },
     options
-  ).catch(() => [] as AlertK8SMetricItem[]);
+  );
   return data.reduce((prev, curr) => {
     // show_chart 为 true 的指标才展示
     const children = curr?.children?.filter?.(e => e.show_chart) ?? [];
@@ -187,13 +186,7 @@ export const getAlertK8sTarget = async (params: { alertId: string; bizId: number
   const data = await alertK8sTarget<{ alert_id: string; bk_biz_id: number }, AlertK8sTargetResult>({
     alert_id: alertId,
     bk_biz_id: bizId,
-  }).catch(
-    () =>
-      ({
-        resource_type: '',
-        target_list: [],
-      }) as unknown as AlertK8sTargetResult
-  );
+  });
   return data;
 };
 
@@ -208,7 +201,7 @@ export const fetchWorkloadPodList = async (
   options?: RequestOptions
 ): Promise<AlertK8sTargetItem[]> => {
   const { bk_biz_id, bcs_cluster_id, scenario, filter_dict, start_time, end_time, page_size = 10 } = params;
-  return listK8sResources(
+  return listK8sResourcesWithoutFederatedCharts(
     {
       bk_biz_id,
       bcs_cluster_id,
@@ -224,8 +217,6 @@ export const fetchWorkloadPodList = async (
       order_by: 'desc',
     },
     options
-  )
-    .then(res => res?.items ?? [])
-    .catch(() => []);
+  ).then(res => res?.items ?? []);
 };
 // ==============================end 详情-容器-相关接口 end==============================

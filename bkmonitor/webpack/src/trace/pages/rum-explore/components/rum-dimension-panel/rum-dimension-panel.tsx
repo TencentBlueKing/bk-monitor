@@ -44,6 +44,7 @@ import {
   RUM_FIELD_GROUP_ICON_MAP,
 } from '../../constants';
 import { statisticsApi } from '../../services/rum-search';
+import RumExploreSkeleton from '../rum-explore-skeleton/rum-explore-skeleton';
 
 import type { ConditionChangeEvent, IDimensionFieldTreeItem } from '../../../trace-explore/typing';
 import type { IRumCommonParams, IRumField, IRumFieldGroup } from '../../typings';
@@ -224,18 +225,7 @@ export default defineComponent({
   },
   render() {
     if (this.loading) {
-      return (
-        <div class='rum-dimension-panel-skeleton'>
-          <div class='skeleton-element title' />
-          <div class='skeleton-element search-input' />
-          {Array.from({ length: 10 }, (_, index) => (
-            <div
-              key={`skeleton-${index}`}
-              class='skeleton-element list-item'
-            />
-          ))}
-        </div>
-      );
+      return <RumExploreSkeleton kind='dimension' />;
     }
 
     return (

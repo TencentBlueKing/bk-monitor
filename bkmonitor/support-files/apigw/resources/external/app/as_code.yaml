@@ -17,25 +17,35 @@ paths:
               type: object
               required:
               - configs
-              - bk_biz_id
               properties:
                 app:
                   type: string
-                  default: default
+                  default: as_code
                   description: 分组
                 configs:
                   type: object
-                  properties:
-                    '':
-                      type: string
-                  description: 导入配置
+                  additionalProperties:
+                    type: string
+                  description: 文件路径到内容字符串的映射，支持 recording_rule/ 下的 YAML 或 JSON 文件
                 bk_biz_id:
                   type: number
                   description: 业务ID
                 overwrite:
                   type: boolean
-                  default: 'false'
+                  default: false
                   description: 是否跨分组覆盖同名配置
+                space_uid:
+                  type: string
+                  description: 空间 UID，与 bk_biz_id 至少提供一个
+                incremental:
+                  type: boolean
+                  default: false
+                  description: 是否增量导入
+              anyOf:
+              - required:
+                - bk_biz_id
+              - required:
+                - space_uid
         required: true
         description: ''
       x-bk-apigateway-resource:
@@ -64,3 +74,67 @@ paths:
           matchSubpath: false
           timeout: 0
         descriptionEn: export AsCode config
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              anyOf:
+              - required:
+                - bk_biz_id
+              - required:
+                - space_uid
+              properties:
+                bk_biz_id:
+                  type: integer
+                space_uid:
+                  type: string
+                app:
+                  type: string
+                  nullable: true
+                  description: 配置分组，不传则导出所有分组
+                recording_rule_ids:
+                  type: array
+                  nullable: true
+                  items:
+                    type: integer
+                  description: 不传或 null 导出全部，空列表不导出
+                rule_ids:
+                  type: array
+                  nullable: true
+                  items:
+                    type: integer
+                  description: 不传或 null 导出全部，空列表不导出
+                action_ids:
+                  type: array
+                  nullable: true
+                  items:
+                    type: integer
+                  description: 不传或 null 导出全部，空列表不导出
+                notice_group_ids:
+                  type: array
+                  nullable: true
+                  items:
+                    type: integer
+                  description: 不传或 null 导出全部，空列表不导出
+                assign_group_ids:
+                  type: array
+                  nullable: true
+                  items:
+                    type: integer
+                  description: 不传或 null 导出全部，空列表不导出
+                dashboard_uids:
+                  type: array
+                  nullable: true
+                  items:
+                    type: string
+                dashboard_for_external:
+                  type: boolean
+                  default: false
+                lock_filename:
+                  type: boolean
+                  default: false
+                with_id:
+                  type: boolean
+                  default: false

@@ -119,16 +119,18 @@ export default class MonitorSkeleton extends Vue {
 }
 </script>
 <style lang="scss" scoped>
+@use '../../monitor-static/styles/skeleton-theme' as skeleton;
+
 @mixin skeleton-row {
   flex: 0 0 16px;
   width: 100%;
   height: 16px;
-  background: #f2f2f2;
+
+  @include skeleton.surface($animated: false);
 }
+
 @mixin skeleton-row-animate {
-  background: linear-gradient(90deg, #f2f2f2 25%, #e6e6e6 37%, #f2f2f2 63%);
-  background-size: 400% 100%;
-  animation: monitor-skeleton-animate 1.4s ease infinite;
+  @include skeleton.motion;
 }
 
 .monitor-skeleton {
@@ -136,16 +138,6 @@ export default class MonitorSkeleton extends Vue {
   flex-direction: column;
   width: 100%;
   height: 100%;
-
-  @keyframes monitor-skeleton-animate {
-    0% {
-      background-position: 100% 50%;
-    }
-
-    to {
-      background-position: 0 50%;
-    }
-  }
 
   &-content {
     display: flex;
@@ -155,9 +147,9 @@ export default class MonitorSkeleton extends Vue {
     .content-title {
       width: 38%;
       padding: 0;
-      margin: 16px 0 0 0;
+      margin: 16px 0 0;
 
-      @include skeleton-row();
+      @include skeleton-row;
 
       &.title-animate {
         @include skeleton-row-animate;
@@ -169,7 +161,7 @@ export default class MonitorSkeleton extends Vue {
       flex: 1;
       flex-direction: column;
       padding: 0;
-      margin: 24px 0 0 0;
+      margin: 24px 0 0;
       list-style: none;
 
       & > li + li {
@@ -179,7 +171,7 @@ export default class MonitorSkeleton extends Vue {
       &-item {
         flex: 1;
 
-        @include skeleton-row();
+        @include skeleton-row;
 
         &.item-animate {
           @include skeleton-row-animate;

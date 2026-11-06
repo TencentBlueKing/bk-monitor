@@ -37,3 +37,9 @@
     }
   }
 }
+
+/** 可见数已被压到 minVisibleCount 下界时允许标签收缩到剩余空间内省略显示（覆盖 .tag-item 的 flex-shrink: 0 与 max-width） */
+.explore-tags-col.bk-common-tag-show.is-min-visible-ellipsis .item-tags .tag-item {
+  flex-shrink: 1;
+  max-width: 100%;
+}

@@ -571,48 +571,23 @@ class ResultTable(models.Model):
         return result_table
 
     def delete_datalink(self) -> None:
-        """删除数据链路及对应的关联记录"""
+        """删除链路的 Databus，保留结果表和存储等关联记录。"""
         from metadata.models.data_link.data_link import DataLink
-        from metadata.models.vm.record import AccessVMRecord
-
-        data_source_ids = DataSourceResultTable.objects.filter(
-            bk_tenant_id=self.bk_tenant_id,
-            table_id=self.table_id,
-        ).values_list("bk_data_id", flat=True)
-        is_custom_format = DataSource.objects.filter(
-            bk_tenant_id=self.bk_tenant_id,
-            bk_data_id__in=data_source_ids,
-            etl_config=EtlConfigs.BK_CUSTOM_FORMAT.value,
-        ).exists()
 
         # 查询结果表对应的Datalink
         records = BkBaseResultTable.objects.filter(bk_tenant_id=self.bk_tenant_id, monitor_table_id=self.table_id)
         if not records:
             logger.info("delete_datalink: tenant(%s) %s no bkbase record found", self.bk_tenant_id, self.table_id)
-            if is_custom_format:
-                AccessVMRecord.objects.filter(
-                    bk_tenant_id=self.bk_tenant_id,
-                    result_table_id=self.table_id,
-                ).delete()
             return
 
-        # 删除数据链路及对应的关联记录
+        # 只清理 Databus，保留链路及结果表映射。
         for record in records:
             data_link_name = record.data_link_name
             datalink = DataLink.objects.filter(bk_tenant_id=self.bk_tenant_id, data_link_name=data_link_name).first()
             if datalink:
                 datalink.delete_data_link()
-            if is_custom_format:
-                record.delete()
-            else:
-                record.status = DataLinkResourceStatus.TERMINATING.value
-                record.save()
-
-        if is_custom_format:
-            AccessVMRecord.objects.filter(
-                bk_tenant_id=self.bk_tenant_id,
-                result_table_id=self.table_id,
-            ).delete()
+            record.status = DataLinkResourceStatus.TERMINATING.value
+            record.save()
 
     def apply_datalink(self, force_update: bool = False, delay: bool = True) -> None:
         """创建数据链路"""
@@ -640,7 +615,7 @@ class ResultTable(models.Model):
         if datasource.etl_config == EtlConfigs.BK_CUSTOM_FORMAT.value:
             enable_option_name = ResultTableOption.OPTION_ENABLE_CUSTOM_FORMAT_V4_DATA_LINK
             if not options.get(enable_option_name, False):
-                # 未配置开关不申请；显式关闭时清理该 ResultTable 派生的全部运行态资源。
+                # 未配置开关不申请；显式关闭时仅清理该 ResultTable 对应的 Databus。
                 if enable_option_name in options:
                     self.delete_datalink()
                 return
@@ -1363,7 +1338,8 @@ class ResultTable(models.Model):
         old_is_enable = self.is_enable
         old_active_cluster_id = self._get_storage_cluster_id(old_default_storage)
         old_es_cluster_id = self._get_storage_cluster_id(ClusterInfo.TYPE_ES)
-        is_custom_format = self.get_related_datasource().etl_config == EtlConfigs.BK_CUSTOM_FORMAT.value
+        related_data_source = self.get_related_datasource()
+        is_custom_format = related_data_source.etl_config == EtlConfigs.BK_CUSTOM_FORMAT.value
 
         # 1. 判断是否需要修改中文名
         if table_name_zh is not None:
@@ -1607,6 +1583,19 @@ class ResultTable(models.Model):
                 and self.data_source.created_from == DataIdCreatedFromSystem.BKGSE.value
             ):
                 force_update_datalink = True
+
+            # bk_exporter / bk_standard 会根据 cmdb_level_config 决定是否在 log_to_metric 中开启 CMDB 输出。
+            # option 是全量替换语义，因此缺少该 key 也等价于清空配置。
+            if related_data_source.etl_config in {EtlConfigs.BK_EXPORTER.value, EtlConfigs.BK_STANDARD.value}:
+                cmdb_level_option = ResultTableOption.objects.filter(
+                    table_id=self.table_id,
+                    bk_tenant_id=self.bk_tenant_id,
+                    name=ResultTableOption.OPTION_CMDB_LEVEL_CONFIG,
+                ).first()
+                existing_cmdb_levels = (cmdb_level_option.get_value() or []) if cmdb_level_option else []
+                new_cmdb_levels = option.get(ResultTableOption.OPTION_CMDB_LEVEL_CONFIG) or []
+                if existing_cmdb_levels != new_cmdb_levels:
+                    force_update_datalink = True
 
             graph_relation_option = ResultTableOption.objects.filter(
                 table_id=self.table_id,
@@ -3115,6 +3104,7 @@ class LogV4DataLinkOption(pydantic.BaseModel):
         json_fields: list[str] = pydantic.Field(description="JSON字段列表", default_factory=list)
         original_json_fields: list[str] = pydantic.Field(description="原始JSON字段列表", default_factory=list)
         field_config_group: dict[str, Any] = pydantic.Field(description="字段配置组", default_factory=dict)
+        tokenizers: dict[str, str] | None = pydantic.Field(description="字段自定义分词规则", default=None)
         flush_timeout: int | None = pydantic.Field(description="刷新超时时间(s)，默认为60秒", default=None)
 
     class CleanRule(pydantic.BaseModel):
@@ -3229,11 +3219,14 @@ class ResultTableOption(OptionBase):
     OPTION_ENABLE_PLUGIN_V4_DATA_LINK = "enable_plugin_v4_data_link"
     OPTION_ENABLE_DATA_LINK_COMPONENT_REUSE = "enable_data_link_component_reuse"
     OPTION_GRAPH_RELATION_V4_DATA_LINK = "graph_relation_v4_data_link"
+    OPTION_DATABUS_LABELS = "databus_labels"
     OPTION_ENABLE_CUSTOM_FORMAT_V4_DATA_LINK = "enable_custom_format_v4_data_link"
     OPTION_CUSTOM_FORMAT_V4_DATA_LINK = "custom_format_v4_data_link"
     OPTION_BINDING_BCS_CLUSTER_ID = "binding_bcs_cluster_id"
     OPTION_METRIC_GROUP_DIMENSIONS = "metric_group_dimensions"
     OPTION_QUERY_ROUTER_CONFIG = "query_router_config"
+    OPTION_DATABUS_PREFER_CLUSTER = "databus_prefer_cluster"
+    OPTION_DATA_LABEL_ALIASES = "data_label_aliases"
 
     # 选项类型
     TYPE_BOOL = "bool"
@@ -3245,6 +3238,7 @@ class ResultTableOption(OptionBase):
         "need_add_time",  # 是否需要添加时间字段
         "time_field",  # 指定查询时间单位，如：day、hour、minute、second
         OPTION_BINDING_BCS_CLUSTER_ID,  # 绑定BCS集群ID
+        OPTION_DATA_LABEL_ALIASES,  # 额外的数据标签查询别名
     ]
 
     table_id = models.CharField("结果表ID", max_length=128, db_index=True)
@@ -3261,9 +3255,11 @@ class ResultTableOption(OptionBase):
             (OPTION_IS_VIRTUAL_TABLE, _("是否为虚拟结果表")),
             (OPTION_ENABLE_DATA_LINK_COMPONENT_REUSE, _("是否开启DataLink组件复用")),
             (OPTION_GRAPH_RELATION_V4_DATA_LINK, _("Graph Relation V4 数据链路配置")),
+            (OPTION_DATABUS_LABELS, _("Databus 标签注入配置")),
             (OPTION_ENABLE_CUSTOM_FORMAT_V4_DATA_LINK, _("是否开启自定义格式 V4 数据链路")),
             (OPTION_CUSTOM_FORMAT_V4_DATA_LINK, _("自定义格式 V4 数据链路配置")),
             (OPTION_BINDING_BCS_CLUSTER_ID, _("绑定BCS集群ID")),
+            (OPTION_DATABUS_PREFER_CLUSTER, _("Databus 优先集群配置")),
         ),
         max_length=128,
     )

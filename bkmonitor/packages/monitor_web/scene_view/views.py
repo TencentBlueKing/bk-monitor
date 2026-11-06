@@ -40,6 +40,7 @@ class SceneViewViewSet(ResourceViewSet):
         return [BusinessActionPermission([ActionEnum.VIEW_BUSINESS])]
 
     resource_routes = [
+        ResourceRoute("POST", resource.scene_view.query_resource_storage, endpoint="query_resource_storage"),
         ResourceRoute("GET", resource.scene_view.get_scene, endpoint="get_scene"),
         ResourceRoute("GET", resource.scene_view.get_scene_view, endpoint="get_scene_view"),
         ResourceRoute("GET", resource.scene_view.get_scene_view_list, endpoint="get_scene_view_list"),

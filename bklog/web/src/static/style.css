@@ -890,12 +890,6 @@ url("fonts/iconcool.eot?#iefix") format("embedded-opentype");
 .bklog-count:before {
 	content: "\e25d";
 }
-.bklog-user-group:before {
-	content: "\e25c";
-}
-.bklog-chulijingyan:before {
-	content: "\e25f";
-}
 .bklog-yingxiangfanwei:before {
 	content: "\e25e";
 }
@@ -958,4 +952,10 @@ url("fonts/iconcool.eot?#iefix") format("embedded-opentype");
 }
 .bklog-alert-2:before {
 	content: "\e280";
+}
+.bklog-user-group:before {
+	content: "\e284";
+}
+.bklog-chulijingyan:before {
+	content: "\e285";
 }

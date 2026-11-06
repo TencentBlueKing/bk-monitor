@@ -11,8 +11,9 @@ dependencies = [
     "babel==2.14.0",
     "betterproto==2.0.0b7",
     "bk-audit==1.0.7",
-    "bk-crypto-python-sdk==2.0.1",
+    "bk-crypto-python-sdk[gm]==4.1.1",
     "bk-iam==2.0.3",
+    "bk-kms-sdk==1.0.0",
     "bk-monitor-base",
     "bk-notice-sdk==1.4.2",
     "bkstorages==2.0.3",
@@ -51,6 +52,7 @@ dependencies = [
     "ipython==9.4.0",
     "jinja2==3.1.6",
     "jmespath==1.0.1",
+    "jsonschema==4.25.1",
     "kafka-python==1.4.6",
     "kubernetes==18.20.0",
     "langfuse==2.60.5",
@@ -90,7 +92,7 @@ dependencies = [
     "requests-toolbelt==1.0.0",
     "schema==0.7.7",
     "six==1.17.0",
-    "sqlparse==0.5.3",
+    "sqlparse==0.6.1",
     "supervisor==4.2.5",
     "typing-extensions==4.14.1",
     "ujson==5.7.0",
@@ -166,6 +168,10 @@ testpaths = [
     "bkmonitor/data_source/tests",
     "metadata/tests",
     "tests/api/unify_query",
+    "tests/kms",
+    "tests/test_bcs_resource_inputs.py",
+    "tests/test_bcs_sync_persistence.py",
+    "tests/unit/test_bcs_sync_readers.py",
 ]
 python_files = ["test_*.py", "tests.py"]
 log_level = "ERROR"

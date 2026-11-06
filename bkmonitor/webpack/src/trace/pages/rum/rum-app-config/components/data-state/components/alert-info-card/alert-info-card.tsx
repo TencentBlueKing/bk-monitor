@@ -32,6 +32,7 @@ import { isEnFn } from 'monitor-pc/utils';
 import { useI18n } from 'vue-i18n';
 
 import { usePopover } from '../../../../../../alarm-center/components/alarm-table/hooks/use-popover';
+import { rumSkeletonLine } from '../../../../../components/rum-content-skeleton';
 import AlertTrendMiniChart from '../alert-trend-mini-chart/alert-trend-mini-chart';
 import ConfirmActionBar from '../confirm-action-bar/confirm-action-bar';
 
@@ -170,7 +171,26 @@ export default defineComponent({
     return (
       <div class='alert-info-card'>
         {this.loading ? (
-          <div class='skeleton-element alert-info-card-skeleton' />
+          <div
+            class='alert-info-card-main'
+            aria-label={this.t('加载中...')}
+            role='status'
+          >
+            <div
+              class='alert-info-card-left'
+              aria-hidden='true'
+            >
+              {rumSkeletonLine(70)}
+              {rumSkeletonLine(28, 'is-tag')}
+            </div>
+            <div
+              class='alert-info-card-right'
+              aria-hidden='true'
+            >
+              {rumSkeletonLine(120)}
+              {rumSkeletonLine(64)}
+            </div>
+          </div>
         ) : (
           <div class='alert-info-card-main'>
             {/* 左侧：无数据告警开关 */}

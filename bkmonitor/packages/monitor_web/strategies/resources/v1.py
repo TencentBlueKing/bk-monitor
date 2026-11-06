@@ -311,8 +311,9 @@ class GetMetricListResource(Resource):
             return [_("gse每隔60秒检查一次agent心跳数据。"), _("心跳数据持续未更新，24小时后将不再上报失联事件。")]
         elif metric["metric_field"] == "oom-gse":
             return [
-                _("通过调用内核syslog接口获取系统日志，对out of memory:关键字匹配告警，应用进程触发的OOM告警"),
-                _("通过对/proc/vmstat的oom_kill计数器进行判断告警，如递增则判断产生OOM告警，操作系统触发的OOM告警"),
+                _("依赖在主机上运行的bkmonitorbeat采集器，通过读取Linux内核日志识别OOM kill事件"),
+                _("默认每分钟按进程名合并上报，total记录该周期同名进程的OOM次数；采集器启动前的历史事件不补报"),
+                _("仅覆盖内核触发的OOM kill，不包含未触发内核kill的应用内存异常"),
             ]
         elif metric["metric_field"] == "os_restart":
             return [

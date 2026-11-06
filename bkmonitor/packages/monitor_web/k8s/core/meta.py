@@ -10,7 +10,7 @@ specific language governing permissions and limitations under the License.
 
 from typing import Any
 
-from django.db.models import F, Max, Value
+from django.db.models import F, Max, Min, Value
 from django.db.models.functions import Concat
 from django.utils.functional import cached_property
 
@@ -55,9 +55,15 @@ class FilterCollection:
 
     @cached_property
     def filter_queryset(self):
+        queryset = self.query_set
+        scope = self.meta.federated_resource_filter
+        if scope is not None:
+            queryset = queryset.filter(scope)
         for filter_obj in self.filters.values():
-            self.query_set = self.query_set.filter(**self.transform_filter_dict(filter_obj))
-        return self.query_set
+            if scope is not None and filter_obj.filter_uid == self.meta.cluster_filter.filter_uid:
+                continue
+            queryset = queryset.filter(**self.transform_filter_dict(filter_obj))
+        return queryset
 
     def transform_filter_dict(self, filter_obj) -> dict:
         """用于ORM的查询条件"""
@@ -174,6 +180,7 @@ class K8sResourceMeta:
     """
 
     filter = None
+    federated_resource_filter = None
     resource_field = ""
     resource_class = None
     column_mapping = {}
@@ -234,7 +241,8 @@ class K8sResourceMeta:
             return
         self.filter = FilterCollection(self)
         # 默认范围，集群
-        self.filter.add(load_resource_filter("bcs_cluster_id", self.bcs_cluster_id))
+        self.cluster_filter = load_resource_filter("bcs_cluster_id", self.bcs_cluster_id)
+        self.filter.add(self.cluster_filter)
 
         """
         针对共享集群进行判断, 如果是共享集群，则需要获取集群下的所有命名空间
@@ -268,10 +276,12 @@ class K8sResourceMeta:
     def retry_get_from_meta(self):
         return []
 
-    @classmethod
-    def distinct(cls, queryset):
-        # pod不需要去重，因为不会重名，workload，container 在不同ns下会重名，因此需要去重
-        return queryset
+    def distinct(self, queryset):
+        if self.federated_resource_filter is None or isinstance(queryset, list):
+            return queryset
+        # The proxy lists one logical resource even when several members contain it.
+        resource_ids = queryset.order_by().values("namespace", "name").annotate(first_id=Min("pk")).values("first_id")
+        return queryset.filter(pk__in=resource_ids)
 
     def get_from_promql(self, start_time, end_time, order_by="", page_size=20, method="sum"):
         """
@@ -366,7 +376,16 @@ class K8sResourceMeta:
 
     def get_resource_name(self, series):
         meta_field_list = [series["dimensions"][field] for field in self.resource_field_list]
-        return ":".join(meta_field_list)
+        resource_name = ":".join(meta_field_list)
+        if self.federated_resource_filter is not None and self.resource_field in {
+            "pod_name",
+            "container_name",
+            "workload_name",
+            "service",
+            "ingress",
+        }:
+            return f"{series['dimensions']['namespace']}|{resource_name}"
+        return resource_name
 
     def clean_resource_obj(self, obj, series):
         dimensions = series["dimensions"]
@@ -1361,7 +1380,16 @@ class K8sNamespaceMeta(K8sResourceMeta, NetworkWithRelation):
     column_mapping = {}
 
     def get_from_meta(self):
-        return self.distinct(self.filter.filter_queryset)
+        queryset = self.filter.filter_queryset
+        if self.federated_resource_filter is not None:
+            namespaces = queryset.order_by("namespace").values_list("namespace", flat=True).distinct()
+            return NameSpaceQuerySet(
+                [
+                    self.resource_class(bk_biz_id=self.bk_biz_id, bcs_cluster_id=self.bcs_cluster_id, namespace=ns)
+                    for ns in namespaces
+                ]
+            )
+        return self.distinct(queryset)
 
     def retry_get_from_meta(self):
         # 根据filter 类型进行重新查询

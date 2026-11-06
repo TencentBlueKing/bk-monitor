@@ -79,8 +79,13 @@ export default defineComponent({
       type: Boolean,
       default: false,
     },
+    /** 刷新时保留已有图表，首屏仍展示骨架。 */
+    retainOnRefresh: {
+      type: Boolean,
+      default: false,
+    },
   },
-  emits: ['dataZoomChange', 'durationChange', 'restore', 'mouseover', 'mouseout'],
+  emits: ['dataZoomChange', 'durationChange', 'restore', 'mouseover', 'mouseout', 'loadingChange'],
   setup(props, { emit }) {
     const { t } = useI18n();
     const chartInstance = useTemplateRef<InstanceType<typeof VueEcharts>>('echart');
@@ -110,6 +115,7 @@ export default defineComponent({
       chartRef
     );
     const { legendData, handleSelectLegend } = useChartLegend(options, chartId, props.customLegendOptions);
+    watch(loading, value => emit('loadingChange', value), { immediate: true });
     const handleDataZoom = (event: DataZoomEvent, echartOptions) => {
       chartInstance.value.dispatchAction({
         type: 'restore',
@@ -197,6 +203,7 @@ export default defineComponent({
       <div
         ref='chart'
         class='explore-chart'
+        aria-busy={this.loading}
       >
         {this.panel && this.showTitle && (
           <ChartTitle
@@ -216,13 +223,14 @@ export default defineComponent({
             onSelectChild={({ child }) => this.handleMenuClick(child)}
           />
         )}
-        {this.loading ? (
-          <ChartSkeleton />
+        {this.loading && (!this.retainOnRefresh || !this.options) ? (
+          this.$slots.skeleton?.() || <ChartSkeleton />
         ) : this.options ? (
           <>
             <div
               ref='chartMain'
               class='base-chart-container'
+              inert={this.retainOnRefresh && this.loading ? true : undefined}
               onMouseout={() => this.handleMouseInChange(false)}
               onMouseover={() => this.handleMouseInChange(true)}
             >
@@ -249,6 +257,15 @@ export default defineComponent({
               legendData={this.legendData}
               onSelectLegend={this.handleSelectLegend}
             />
+            {this.retainOnRefresh && this.loading && (
+              <div
+                class='explore-chart-refresh'
+                aria-label={this.t('加载中...')}
+                role='status'
+              >
+                {this.$slots.refresh?.() || this.$slots.skeleton?.() || <ChartSkeleton />}
+              </div>
+            )}
           </>
         ) : (
           <div class='empty-chart'>{this.t('暂无数据')}</div>

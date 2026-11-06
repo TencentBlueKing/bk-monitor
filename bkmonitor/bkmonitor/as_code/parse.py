@@ -30,6 +30,7 @@ from bkmonitor.action.utils import (
     get_user_group_assign_rules,
     get_user_group_strategies,
 )
+from bkmonitor.as_code import recording_rule
 from bkmonitor.as_code.parse_yaml import (
     ActionConfigParser,
     AssignGroupRuleParser,
@@ -576,14 +577,18 @@ def import_code_config(bk_biz_id: int, app: str, configs: dict[str, str], overwr
     assign_snippets = {}
     duty_snippets = {}
     duty_configs = {}
+    recording_rule_configs = {}
 
     for path, data in configs.items():
-        if path.endswith(".yaml") or path.endswith(".yml"):
-            config = yaml.safe_load(data)
-        elif path.endswith(".json"):
-            config = json.loads(data)
-        else:
-            raise ValueError(f"parse {path} error, only allow yaml or json files")
+        try:
+            if path.endswith(".yaml") or path.endswith(".yml"):
+                config = yaml.safe_load(data)
+            elif path.endswith(".json"):
+                config = json.loads(data)
+            else:
+                raise ValueError(f"parse {path} error, only allow yaml or json files")
+        except (ValueError, yaml.YAMLError) as error:
+            return {path: str(error)}
 
         if path.startswith("rule/snippets/"):
             rule_snippets[path[len("rule/snippets/") :]] = config
@@ -607,6 +612,18 @@ def import_code_config(bk_biz_id: int, app: str, configs: dict[str, str], overwr
             assign_configs[path[len("assign_group/") :]] = config
         elif path.startswith("assign_group/snippets"):
             assign_snippets[path[len("assign_group/snippets") :]] = config
+        elif path.startswith("recording_rule/"):
+            recording_rule_configs[path[len("recording_rule/") :]] = config
+
+    recording_import = None
+    if recording_rule_configs:
+        try:
+            space, records, errors = recording_rule.prepare_import(bk_biz_id, app, recording_rule_configs, overwrite)
+        except ValidationError as error:
+            return {"recording_rule": str(error)}
+        if errors:
+            return errors
+        recording_import = (space, records)
 
     # 配置转换及检查
     # 轮值规则
@@ -711,6 +728,7 @@ def import_code_config(bk_biz_id: int, app: str, configs: dict[str, str], overwr
         return errors
 
     # 保存
+    saved_assign_group_ids = set()
     for record in assign_group_records:
         if not isinstance(record["obj"], BatchSaveAssignRulesSlz):
             continue
@@ -718,12 +736,25 @@ def import_code_config(bk_biz_id: int, app: str, configs: dict[str, str], overwr
         AlertAssignGroup.objects.filter(bk_biz_id=bk_biz_id, id=data["assign_group_id"]).update(
             app=app, snippet=record["snippet"], hash=record["hash"], path=record["path"]
         )
+        saved_assign_group_ids.add(data["assign_group_id"])
+
+    if recording_import is not None:
+        space, records = recording_import
+        errors = recording_rule.import_recording_rules(space, app, records, incremental=incremental)
+        if errors:
+            return errors
+
     # 删除多余策略
     if not incremental:
+        # path 可能被数据库截断，本次成功保存的资源还需通过 ID 排除，避免误清理。
+        saved_strategy_ids = {record["obj"].id for record in rule_records}
+        saved_notice_ids = {record["obj"].instance.pk for record in notice_records}
+        saved_action_ids = {record["obj"].instance.pk for record in action_records}
         # 不是增量更新，需要删除多余无用的资源
         old_strategy_ids = list(
             StrategyModel.objects.filter(bk_biz_id=bk_biz_id, app=app)
             .exclude(path__in=list(rule_configs.keys()))
+            .exclude(id__in=saved_strategy_ids)
             .values_list("id", flat=True)
         )
         Strategy.delete_by_strategy_ids(old_strategy_ids)
@@ -732,6 +763,7 @@ def import_code_config(bk_biz_id: int, app: str, configs: dict[str, str], overwr
         old_rule_group_ids = list(
             AlertAssignGroup.objects.filter(bk_biz_id=bk_biz_id, app=app)
             .exclude(path__in=list(assign_configs.keys()))
+            .exclude(id__in=saved_assign_group_ids)
             .values_list("id", flat=True)
         )
         if old_rule_group_ids:
@@ -756,16 +788,16 @@ def import_code_config(bk_biz_id: int, app: str, configs: dict[str, str], overwr
         # 删除空用户组
         UserGroup.objects.filter(bk_biz_id=bk_biz_id, app=app, id__in=empty_user_group_ids).exclude(
             path__in=list(notice_configs.keys())
-        ).delete()
+        ).exclude(id__in=saved_notice_ids).delete()
         UserGroup.objects.filter(bk_biz_id=bk_biz_id, app=app, id__in=no_empty_user_group_ids).exclude(
             path__in=list(notice_configs.keys())
-        ).update(app="", snippet="", hash="", path="")
+        ).exclude(id__in=saved_notice_ids).update(app="", snippet="", hash="", path="")
         ActionConfig.objects.filter(bk_biz_id=bk_biz_id, app=app, id__in=empty_action_ids).exclude(
             path__in=list(action_configs.keys())
-        ).delete()
+        ).exclude(id__in=saved_action_ids).delete()
         ActionConfig.objects.filter(bk_biz_id=bk_biz_id, app=app, id__in=no_empty_action_ids).exclude(
             path__in=list(action_configs.keys())
-        ).update(app="", snippet="", hash="", path="")
+        ).exclude(id__in=saved_action_ids).update(app="", snippet="", hash="", path="")
 
     if dashboards:
         sync_grafana_dashboards(bk_biz_id, dashboards)

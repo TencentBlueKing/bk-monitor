@@ -31,11 +31,15 @@
 /** 数据来源类型 */
 export type DataSource = 'task' | 'report';
 
+/** 单次批量下载允许选择的最多任务数 */
+export const MAX_BATCH_DOWNLOAD_TASKS = 20;
+
 /** 任务处理状态 */
 export type ProcessStatus = 'init' | 'pending' | 'running' | 'success' | 'failed';
 
 /** 单个日志条目类型 */
 export interface LogItem {
+  selectionKey: string; // 前端入列时生成的唯一标识，用于勾选和列表渲染
   source: DataSource; // 数据来源：task 表示日志捞取任务，report 表示用户上报
   id: number | null; // 任务实例 ID，仅 source=task 时有值
   task_id: string | null; // 后台任务 ID，仅 source=task 时有值
@@ -66,24 +70,40 @@ export interface FileTreeNode {
 }
 
 /** 搜索值的类型 */
-export type SearchValueType = 'openid' | 'task_id' | 'file_name';
+export type SearchValueType = 'openid' | 'task_id' | 'file_name' | 'extend_info';
+
+/** 单个搜索条件 */
+export interface SearchCondition {
+  key: SearchValueType;
+  value: string;
+}
+
+/** Search Select 的选中值 */
+export interface SearchSelectValue {
+  id: string;
+  name: string;
+  values?: Array<{ id: string; name: string }>;
+}
 
 /** 搜索参数类型 */
 export interface SearchParams {
-  keyword: string; // 搜索关键词
+  conditions: SearchCondition[]; // 多组搜索条件
   timeRange: [string, string] | [number, number]; // 时间范围 [start, end]
   timezone: string; // 时区标识
-  valueType?: SearchValueType; // 搜索值的类型：openid 或 task_id
 }
 
 /** URL 同步的状态类型 */
 export interface UrlState {
-  keyword?: string; // 搜索关键词
+  openid?: string; // OpenID 搜索条件
+  task_id?: string; // 任务 ID 搜索条件
+  file_name?: string; // 文件名搜索条件/当前选中的任务文件名
+  extend_info?: string; // 扩展信息搜索条件
   startTime?: string; // 时间范围-开始
   endTime?: string; // 时间范围-结束
   timezone?: string; // 时区
-  valueType?: SearchValueType; // 搜索值的类型：openid / task_id / file_name
-  fileName?: string; // 选中的任务文件名
+  keyword?: string; // 旧版搜索关键词，仅用于 URL 兼容读取
+  valueType?: SearchValueType; // 旧版搜索类型，仅用于 URL 兼容读取
+  fileName?: string; // 旧版选中的任务文件名，仅用于 URL 兼容读取
   fileId?: string; // 选中的文件路径
   filterKey?: string[]; // 关键词过滤列表
   filterType?: string; // 过滤条件 include/uninclude

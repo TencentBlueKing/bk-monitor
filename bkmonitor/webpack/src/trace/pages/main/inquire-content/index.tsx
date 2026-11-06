@@ -117,7 +117,8 @@ export default defineComponent({
         if (props.searchIdType === 'spanID') {
           return !props.spanDetails;
         }
-        return !store.traceData?.trace_id || !store.traceData?.original_data?.length;
+        // Trace 详情自行处理空态，保持挂载以便 list_flows 独立于 trace_detail 完成。
+        return false;
       }
       if (props.queryType === 'scope') {
         // return !store.traceList.length;

@@ -154,6 +154,8 @@ class EventGroup(CustomGroupBase):
     def process_default_storage_config(cls, custom_group: "CustomGroupBase", default_storage_config: dict[str, Any]):
         # 补充索引集，用于 UnifyQuery 查询。
         default_storage_config["index_set"] = custom_group.table_id
+        # 事件元数据登记不依赖 ES 即时可用，建索引失败后由周期任务补建。
+        default_storage_config["raise_on_index_error"] = False
 
     def update_metrics(self, metric_info):
         return Event.modify_event_list(self.event_group_id, metric_info)

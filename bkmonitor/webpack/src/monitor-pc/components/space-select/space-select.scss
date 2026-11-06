@@ -389,8 +389,21 @@
         }
       }
 
+      &.highlight {
+        background: #f5f7fa;
+
+        .space-tags {
+          display: none;
+        }
+
+        .space-hover-btn {
+          display: flex;
+        }
+      }
+
       &.no-hover-btn {
-        &:hover {
+        &:hover,
+        &.highlight {
           .space-tags {
             display: flex;
           }

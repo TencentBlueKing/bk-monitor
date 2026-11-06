@@ -1,0 +1,19 @@
+name: {{ plugin_id }}
+version: "{{ version }}"
+description: {{ plugin_id }}
+description_en: {{ plugin_display_name }}
+label: {{ label }}
+scenario: ""
+scenario_en: ""
+category: external
+auto_launch: false
+launch_node: all
+upstream:
+  - bkmonitorbeat
+dependences:
+  gse_agent: "1.2.0"
+  bkmonitorbeat: "1.6.0"
+control:
+  version: "cat VERSION"
+  debug: "./debug.sh"
+need_delegate: False

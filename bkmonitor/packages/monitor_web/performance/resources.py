@@ -10,8 +10,11 @@ specific language governing permissions and limitations under the License.
 
 import logging
 
-from api.cmdb.define import Host, TopoNode
-from bkm_space.validate import validate_bk_biz_id
+from django.utils.translation import gettext as _
+from rest_framework.exceptions import ValidationError
+
+from api.cmdb.define import Host, TopoNode, TopoTree
+from bkm_space.serializers import CMDBScopeSerializer
 from bkmonitor.share.api_auth_resource import ApiAuthResource
 from bkmonitor.utils import time_tools
 from bkmonitor.utils.cache import CacheType
@@ -23,6 +26,11 @@ from core.drf_resource.contrib.cache import CacheResource
 from core.drf_resource.exceptions import CustomException
 from core.errors.share import InvalidParamsError, ParamsPermissionDeniedError
 from monitor_web.constants import AGENT_STATUS
+from monitor_web.performance.host_metric_stats import (
+    HOST_STATS_METRICS,
+    query_business_host_metric_stats,
+    query_host_metric_stats,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -241,15 +249,21 @@ class HostTopoNodeDetailResource(Resource):
         bk_biz_id = params["bk_biz_id"]
 
         # 查询节点信息
-        topo_nodes = api.cmdb.get_topo_tree(bk_biz_id=bk_biz_id).get_all_nodes_with_relation()
-        node = topo_nodes.get(f"{bk_obj_id}_{bk_inst_id}")
-
-        # 查询节点下的主机
-        hosts = api.cmdb.get_host_by_topo_node(bk_biz_id=bk_biz_id, topo_nodes={bk_obj_id: [bk_inst_id]})
+        topo_tree = api.cmdb.get_topo_tree(bk_biz_id=bk_biz_id)
+        if bk_obj_id == "biz":
+            if bk_inst_id not in (bk_biz_id, topo_tree.bk_inst_id):
+                raise ValidationError(_("业务节点不属于当前空间"))
+            node = topo_tree
+            hosts = api.cmdb.get_host_by_topo_node(bk_biz_id=bk_biz_id)
+        else:
+            node = topo_tree.get_all_nodes_with_relation().get(f"{bk_obj_id}|{bk_inst_id}")
+            if node is None:
+                return {}
+            hosts = api.cmdb.get_host_by_topo_node(bk_biz_id=bk_biz_id, topo_nodes={bk_obj_id: [bk_inst_id]})
 
         # 查询关联策略数量
         enabled_strategy_count, disabled_strategy_count = resource.cc.get_topo_strategy_count(
-            bk_biz_id=bk_biz_id, bk_obj_id=bk_obj_id, bk_inst_id=bk_inst_id
+            bk_biz_id=bk_biz_id, bk_obj_id=bk_obj_id, bk_inst_id=node.bk_inst_id
         )
 
         # 查询主备负责人
@@ -262,9 +276,9 @@ class HostTopoNodeDetailResource(Resource):
 
         return {
             "bk_obj_id": bk_obj_id,
-            "bk_inst_id": bk_inst_id,
-            "bk_obj_name": node.bk_obj_name if node else "",
-            "bk_inst_name": node.bk_inst_name if node else "",
+            "bk_inst_id": node.bk_inst_id,
+            "bk_obj_name": node.bk_obj_name,
+            "bk_inst_name": node.bk_inst_name,
             "operator": operator,
             "bk_bak_operator": bk_bak_operator,
             "child_count": len(hosts) if bk_obj_id == "module" else len(node.child),
@@ -314,27 +328,33 @@ class SearchHostInfoResource(ApiAuthResource):
     主机信息查询
     """
 
-    class RequestSerializer(serializers.Serializer):
+    class RequestSerializer(CMDBScopeSerializer):
         bk_biz_id = serializers.IntegerField(required=True, label="业务ID")
         bk_host_id = serializers.IntegerField(required=False, label="主机ID")
         bk_obj_id = serializers.CharField(required=False, label="拓扑对象ID")
         bk_inst_id = serializers.IntegerField(required=False, label="拓扑实例ID")
+        page = serializers.IntegerField(required=False, min_value=1)
+        page_size = serializers.IntegerField(required=False, min_value=1, max_value=500)
 
         def validate(self, attrs):
             if bool(attrs.get("bk_obj_id")) != (attrs.get("bk_inst_id") is not None):
                 raise InvalidParamsError({"key": "bk_obj_id,bk_inst_id"})
-            return attrs
-
-        def validate_bk_biz_id(self, value):
-            return validate_bk_biz_id(value)
+            if ("page" in attrs) != ("page_size" in attrs):
+                raise InvalidParamsError({"key": "page,page_size"})
+            return super().validate(attrs)
 
     @staticmethod
-    def get_module_info(bk_module_ids: list[int], topo_links: dict[str, list[TopoNode]]) -> list[dict]:
+    def get_module_info(
+        bk_module_ids: list[int], topo_links: dict[str, list[TopoNode]], module_cache: dict | None = None
+    ) -> list[dict]:
         """
         获取模块详情
         """
         modules = []
         for bk_module_id in bk_module_ids:
+            if module_cache is not None and bk_module_id in module_cache:
+                modules.append(module_cache[bk_module_id])
+                continue
             key = f"module|{bk_module_id}"
             if key not in topo_links:
                 continue
@@ -350,10 +370,23 @@ class SearchHostInfoResource(ApiAuthResource):
                     "bk_obj_name_map": {node.bk_obj_id: node.bk_obj_name for node in reversed(topo_link)},
                 }
             )
+            if module_cache is not None:
+                module_cache[bk_module_id] = modules[-1]
         return modules
 
     def perform_request(self, params):
-        def get_hosts() -> list[Host]:
+        def get_hosts() -> list[Host] | dict:
+            if "page" in params:
+                page_params = {
+                    "bk_biz_id": params["bk_biz_id"],
+                    "page": params["page"],
+                    "page_size": params["page_size"],
+                }
+                if params.get("bk_host_id") is not None:
+                    page_params["bk_host_id"] = params["bk_host_id"]
+                elif params.get("bk_obj_id") and params.get("bk_inst_id") is not None:
+                    page_params["topo_nodes"] = {params["bk_obj_id"]: [params["bk_inst_id"]]}
+                return api.cmdb.get_host_page(**page_params)
             if params.get("bk_host_id") is not None:
                 return api.cmdb.get_host_by_id(bk_biz_id=params["bk_biz_id"], bk_host_ids=[params["bk_host_id"]])
             if params.get("bk_obj_id") and params.get("bk_inst_id") is not None:
@@ -365,15 +398,27 @@ class SearchHostInfoResource(ApiAuthResource):
 
         pool = ThreadPool(2)
         hosts_future = pool.apply_async(get_hosts)
-        topo_future = pool.apply_async(api.cmdb.get_topo_tree, kwds={"bk_biz_id": params["bk_biz_id"]})
+        topo_params = {"bk_biz_id": params["bk_biz_id"]}
+        if "page" in params:
+            topo_params["raw"] = True
+        topo_future = pool.apply_async(api.cmdb.get_topo_tree, kwds=topo_params)
         pool.close()
         try:
             hosts = hosts_future.get()
-            topo_links: dict[str, list[TopoNode]] = topo_future.get().convert_to_topo_link()
+            topo_tree = topo_future.get()
         finally:
             pool.join()
 
+        total = None
+        if "page" in params:
+            total = hosts["total"]
+            hosts = hosts["items"]
+            module_ids = {module_id for host in hosts for module_id in host.bk_module_ids}
+            topo_links = TopoTree.module_links_from_raw(topo_tree, module_ids)
+        else:
+            topo_links = topo_tree.convert_to_topo_link()
         result = []
+        module_cache = {}
         for host in hosts:
             result.append(
                 {
@@ -390,10 +435,12 @@ class SearchHostInfoResource(ApiAuthResource):
                     "bk_host_name": host.bk_host_name,
                     "ignore_monitoring": host.ignore_monitoring,
                     "is_shielding": host.is_shielding,
-                    "module": self.get_module_info(host.bk_module_ids, topo_links),
+                    "module": self.get_module_info(host.bk_module_ids, topo_links, module_cache),
                 }
             )
 
+        if "page" in params:
+            return {"items": result, "total": total, "page": params["page"], "page_size": params["page_size"]}
         return result
 
 
@@ -402,7 +449,7 @@ class SearchHostMetricResource(ApiAuthResource):
     查询指定主机的agent及指标信息
     """
 
-    class RequestSerializer(serializers.Serializer):
+    class RequestSerializer(CMDBScopeSerializer):
         bk_host_ids = serializers.ListField(
             label="主机ID",
             child=serializers.IntegerField(),
@@ -419,10 +466,6 @@ class SearchHostMetricResource(ApiAuthResource):
         # 不传则保持默认"最近三分钟"行为（向后兼容）
         start_time = serializers.IntegerField(required=False, label="开始时间(秒级时间戳)")
         end_time = serializers.IntegerField(required=False, label="结束时间(秒级时间戳)")
-
-        # 主机场景，以关联资源身份请求
-        def validate_bk_biz_id(self, value):
-            return validate_bk_biz_id(value)
 
     @staticmethod
     def validate_scope_host_ids(params):
@@ -594,6 +637,9 @@ class SearchHostMetricResource(ApiAuthResource):
         if params.get("bk_host_id") is not None:
             hosts = api.cmdb.get_host_by_id(bk_biz_id=bk_biz_id, bk_host_ids=[params["bk_host_id"]])
             return True, hosts, [host.bk_host_id for host in hosts]
+        if params.get("bk_obj_id") == "biz" and params.get("bk_inst_id") == bk_biz_id:
+            hosts = api.cmdb.get_host_by_topo_node(bk_biz_id=bk_biz_id)
+            return False, hosts, [host.bk_host_id for host in hosts]
         if params.get("bk_obj_id") and params.get("bk_inst_id") is not None:
             hosts = api.cmdb.get_host_by_topo_node(
                 bk_biz_id=bk_biz_id,
@@ -640,3 +686,40 @@ class SearchHostMetricResource(ApiAuthResource):
                 logger.exception("get host metric section %s failed, bk_biz_id=%s", section, bk_biz_id)
         pool.join()
         return data
+
+
+class SearchHostMetricStatsResource(ApiAuthResource):
+    """按当前节点范围查询单张主机性能卡片，不接受任意查询表达式。"""
+
+    class RequestSerializer(CMDBScopeSerializer):
+        bk_biz_id = serializers.IntegerField()
+        bk_host_id = serializers.IntegerField(required=False)
+        bk_obj_id = serializers.CharField(required=False)
+        bk_inst_id = serializers.IntegerField(required=False)
+        category = serializers.ChoiceField(choices=tuple(HOST_STATS_METRICS))
+        start_time = serializers.IntegerField(required=False)
+        end_time = serializers.IntegerField(required=False)
+
+        def validate(self, attrs):
+            if bool(attrs.get("bk_obj_id")) != (attrs.get("bk_inst_id") is not None):
+                raise InvalidParamsError({"key": "bk_obj_id,bk_inst_id"})
+            if ("start_time" in attrs) != ("end_time" in attrs):
+                raise InvalidParamsError({"key": "start_time,end_time"})
+            if "start_time" in attrs and attrs["start_time"] > attrs["end_time"]:
+                raise InvalidParamsError({"key": "start_time,end_time"})
+            return super().validate(attrs)
+
+    def perform_request(self, params):
+        if params.get("bk_host_id") is None and params.get("bk_obj_id") in (None, "biz"):
+            return query_business_host_metric_stats(
+                params["bk_biz_id"], params["category"], params.get("start_time"), params.get("end_time")
+            )
+        host_params = {"bk_biz_id": params["bk_biz_id"]}
+        if params.get("bk_host_id") is not None:
+            host_params["bk_host_id"] = params["bk_host_id"]
+        elif params.get("bk_obj_id") and params.get("bk_inst_id") is not None:
+            host_params["topo_nodes"] = {params["bk_obj_id"]: [params["bk_inst_id"]]}
+        hosts = api.cmdb.get_host_identities(**host_params)
+        return query_host_metric_stats(
+            params["bk_biz_id"], params["category"], hosts, params.get("start_time"), params.get("end_time")
+        )

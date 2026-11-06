@@ -11,7 +11,7 @@ specific language governing permissions and limitations under the License.
 from typing import Any
 from unittest.mock import patch
 
-from semconv.rum.field import FieldSpec, RatingLevel
+from semconv.rum.field import FieldSpec, RatingThreshold
 
 
 # ── 辅助：直接调用静态方法，无需实例化 SpanQuery ──────────────────────────────
@@ -103,9 +103,9 @@ class TestApplyFieldSpec:
         spec = FieldSpec(
             field_name="LCP",
             rating_config=(
-                RatingLevel(rating="good", value=2500),
-                RatingLevel(rating="needs_improvement", value=4000),
-                RatingLevel(rating="poor"),
+                RatingThreshold(rating="good", value=2500),
+                RatingThreshold(rating="needs_improvement", value=4000),
+                RatingThreshold(rating="poor"),
             ),
         )
         result = apply_spec({}, spec)
@@ -121,9 +121,9 @@ class TestApplyFieldSpec:
         spec = FieldSpec(
             field_name="CLS",
             rating_config=(
-                RatingLevel(rating="good", value=0.1),
-                RatingLevel(rating="needs_improvement", value=0.25),
-                RatingLevel(rating="poor"),
+                RatingThreshold(rating="good", value=0.1),
+                RatingThreshold(rating="needs_improvement", value=0.25),
+                RatingThreshold(rating="poor"),
             ),
         )
         result = apply_spec({}, spec)

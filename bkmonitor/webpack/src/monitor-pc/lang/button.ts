@@ -327,6 +327,7 @@ export default {
   查看上报数据: 'View Reported Data',
   查看分派规则: 'View',
   查看数据: 'View Data',
+  查看数组列表: 'View Array List',
   查看原始数据: 'View Raw Data',
   查看变更历史: 'View Change History',
   查看告警列表: 'View Alarms',
@@ -336,6 +337,7 @@ export default {
   查看更多相关的日志: 'More Related Log',
   查看更多语法规则: 'More Grammar',
   查看监控目标: 'View Scope',
+  查看全部字段: 'View All Fields',
   查看迁移内容: 'View Migration',
   查看风险点: 'View Risk',
   查看更多文档: 'More Documentations',
@@ -558,4 +560,25 @@ export default {
   去关联: 'Go to Association',
   恢复默认: 'Restore Default',
   删除分组: 'Delete Group',
+
+  // AI设置
+  刷新状态: 'Refresh Status',
+  立即添加: 'Add Now',
+  新增智能体: 'Add Agent',
+  新增Skill: 'Add Skill',
+  新增知识库: 'Add Knowledge Base',
+
+  查看完整报告: 'View Full Report',
+  重新分析: 'Reanalyze',
+  查看配置: 'View Configuration',
+  去配置: 'Go to Configuration',
+  '去配置 AI 设置': 'Go to AI Settings',
+  立即分析: 'Analyze Now',
+  修改配置: 'Modify Configuration',
+  分析中···: 'Analyzing...',
+  '返回 Issue': 'Return to Issue',
+  重新分派: 'Reassign',
+  // RUM 检索--详情
+  复制完整地址: 'Copy Full Address',
+  查看官方定义: 'Check the official definition',
 };

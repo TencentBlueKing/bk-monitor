@@ -160,9 +160,18 @@
         }
 
         .issues-name-exception-text {
+          flex: 1;
+          min-width: 0;
           overflow: hidden;
           text-overflow: ellipsis;
           white-space: nowrap;
+        }
+
+        .issues-log-skeleton {
+          flex: 1;
+          max-width: 280px;
+          height: 12px;
+          border-radius: 2px;
         }
       }
 

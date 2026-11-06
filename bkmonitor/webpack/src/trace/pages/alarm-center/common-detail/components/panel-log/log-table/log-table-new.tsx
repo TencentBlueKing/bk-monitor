@@ -28,6 +28,7 @@ import {
   type PropType,
   defineComponent,
   nextTick,
+  onActivated,
   onDeactivated,
   onMounted,
   onUnmounted,
@@ -38,7 +39,7 @@ import {
 
 import { type TableSort, type TdPrimaryTableProps, PrimaryTable } from '@blueking/tdesign-ui';
 import { debounce } from 'lodash';
-import TableSkeleton from 'trace/components/skeleton/table-skeleton';
+import { DetailTableSkeleton, DetailLoadStatus } from '@/pages/alarm-center/common-detail/detail-loading';
 import { useI18n } from 'vue-i18n';
 
 import { useTable } from './hooks/use-table';
@@ -80,7 +81,10 @@ export default defineComponent({
     const { t } = useI18n();
     const wrapRef = useTemplateRef<HTMLDivElement>('wrap');
     const wrapWidth = shallowRef(800);
-    const loading = shallowRef(false);
+    const loading = shallowRef(true);
+    const error = shallowRef(false);
+    let requestId = 0;
+    let fieldsRequestId = 0;
     const {
       tableData,
       tableColumns,
@@ -108,31 +112,27 @@ export default defineComponent({
     const isEnd = shallowRef(false);
     const sortInfo = shallowRef(null);
     const scrollLoading = shallowRef(false);
-    const observer = shallowRef<IntersectionObserver>();
     const resizeObserver = shallowRef<ResizeObserver>();
-
-    watch(
-      () => props.refreshKey,
-      async val => {
-        loading.value = true;
-        if (val) {
-          handleScroll(true);
-        }
-      },
-      { immediate: true }
-    );
+    let detailScrollRoot: HTMLElement | null = null;
+    /** 触底发起加载时的 scrollTop，数据渲染后还原，避免滚动条粘在最底部连续请求 */
+    let scrollTopBeforeLoad: number | null = null;
 
     watch(
       () => props.displayFields,
       val => {
         if (val.length) {
-          setTableColumns();
+          setTableColumns().catch(() => {
+            error.value = true;
+          });
         }
       }
     );
 
     const setTableColumns = async () => {
-      fieldsData.value = await getFieldsData();
+      const current = ++fieldsRequestId;
+      const data = await getFieldsData();
+      if (current !== fieldsRequestId) return;
+      fieldsData.value = data;
       setFieldsData(fieldsData.value);
       fieldsDataToColumns(fieldsData.value?.fields || [], props.displayFields);
     };
@@ -161,6 +161,10 @@ export default defineComponent({
 
     const handleScroll = async (isInit = false) => {
       if (isInit) {
+        ++requestId;
+        scrollTopBeforeLoad = null;
+        error.value = false;
+        expandedRowKeys.value = [];
         offset.value = 0;
         tableData.value = [];
         originLogData.value = [];
@@ -168,35 +172,111 @@ export default defineComponent({
         scrollLoading.value = false;
         loading.value = false;
       }
-      if (isEnd.value || scrollLoading.value) {
+      if (error.value || isEnd.value || scrollLoading.value || loading.value) {
         return;
       }
+      const current = ++requestId;
       if (offset.value) {
+        const root = detailScrollRoot || findScrollRoot(wrapRef.value);
+        if (root && root.scrollTop > 0) {
+          scrollTopBeforeLoad = root.scrollTop;
+          root.style.overflowAnchor = 'none';
+        }
         scrollLoading.value = true;
       } else {
         loading.value = true;
       }
-      if (isInit) {
-        await setTableColumns();
+      try {
+        if (isInit) await setTableColumns();
+        if (current !== requestId) return;
+        const data = await getTableData();
+        if (current !== requestId) return;
+        tableData.value = [...tableData.value, ...(data?.list || [])];
+        originLogData.value = [...originLogData.value, ...(data?.origin_log_list || [])];
+        isEnd.value = tableData.value.length < limit.value + offset.value;
+        offset.value = tableData.value.length;
+        nextTick(() => {
+          requestAnimationFrame(() => {
+            if (current !== requestId) return;
+            if (isInit) setDefaultFieldWidth();
+            restoreScrollPosition(false);
+            requestAnimationFrame(() => {
+              if (current !== requestId) return;
+              restoreScrollPosition();
+              ensureDetailScroll();
+              loadIfShort();
+            });
+          });
+        });
+      } catch {
+        if (current === requestId) error.value = true;
+      } finally {
+        if (current === requestId) {
+          loading.value = false;
+          scrollLoading.value = false;
+        }
       }
-      const data = await getTableData();
-      tableData.value = [...tableData.value, ...(data?.list || [])];
-      originLogData.value = [...originLogData.value, ...(data?.origin_log_list || [])];
-      isEnd.value = tableData.value.length < limit.value + offset.value;
-      scrollLoading.value = false;
-      loading.value = false;
-      offset.value = tableData.value.length;
-      nextTick(() => {
-        if (isInit) {
-          setDefaultFieldWidth();
-        }
-        const loadingEl = wrapRef.value.querySelector('.scroll-loading___observer');
-        if (loadingEl) {
-          observer.value?.unobserve?.(loadingEl);
-          observer.value.observe(loadingEl);
-        }
-      });
     };
+    /** 详情页纵向滚动容器。表格内容区 overflow-y 为 hidden，触底要听这个容器。 */
+    const findScrollRoot = (element: HTMLElement | null) => {
+      let current = element?.parentElement ?? null;
+      while (current && current !== document.body && current !== document.documentElement) {
+        const { overflowY } = getComputedStyle(current);
+        if (overflowY === 'auto' || overflowY === 'scroll') return current;
+        current = current.parentElement;
+      }
+      return null;
+    };
+    const onDetailScroll = () => {
+      const root = detailScrollRoot;
+      if (!root || error.value || isEnd.value || loading.value || scrollLoading.value) return;
+      const { scrollHeight, scrollTop, clientHeight } = root;
+      const atBottom = scrollTop > 0 && Math.abs(scrollHeight - scrollTop - clientHeight) < 1;
+      if (atBottom) handleScroll();
+    };
+    const detachDetailScroll = () => {
+      if (detailScrollRoot) {
+        detailScrollRoot.style.overflowAnchor = '';
+        detailScrollRoot.removeEventListener('scroll', onDetailScroll);
+      }
+      detailScrollRoot = null;
+    };
+    const ensureDetailScroll = () => {
+      const root = findScrollRoot(wrapRef.value);
+      if (!root || root === detailScrollRoot) return;
+      detachDetailScroll();
+      detailScrollRoot = root;
+      root.addEventListener('scroll', onDetailScroll, { passive: true });
+    };
+    /** 新数据渲染后回到触底前的位置，并留出 2px，避免仍满足触底条件。 */
+    const restoreScrollPosition = (clear = true) => {
+      const root = detailScrollRoot || findScrollRoot(wrapRef.value);
+      const saved = scrollTopBeforeLoad;
+      if (!root || saved === null) return;
+      root.style.overflowAnchor = 'none';
+      const maxScrollTop = root.scrollHeight - root.clientHeight;
+      if (maxScrollTop > 0) {
+        root.scrollTop = Math.max(1, Math.min(saved, maxScrollTop - 2));
+      }
+      if (clear) scrollTopBeforeLoad = null;
+    };
+    const loadIfShort = () => {
+      if (error.value || isEnd.value || loading.value || scrollLoading.value) return;
+      const root = detailScrollRoot || findScrollRoot(wrapRef.value);
+      if (!root || root.scrollHeight - root.clientHeight > 1) return;
+      handleScroll();
+    };
+    const retry = () => {
+      error.value = false;
+      handleScroll(!tableData.value.length);
+    };
+    watch(
+      () => props.refreshKey,
+      val => {
+        if (val) handleScroll(true);
+      },
+      { immediate: true }
+    );
 
     const handleSortChange = (sort: TableSort) => {
       sortInfo.value = sort;
@@ -207,6 +287,7 @@ export default defineComponent({
       if (wrapRef.value) {
         wrapWidth.value = wrapRef.value.offsetWidth;
         const debounceSetWrapWidth = debounce(() => {
+          if (!wrapRef.value) return;
           wrapWidth.value = wrapRef.value.offsetWidth;
           setWrapWidth(wrapWidth.value);
         }, 200);
@@ -215,25 +296,28 @@ export default defineComponent({
         });
         resizeObserver.value.observe(wrapRef.value);
         setWrapWidth(wrapWidth.value);
-        observer.value = new IntersectionObserver(entries => {
-          for (const entry of entries) {
-            if (entry.isIntersecting) {
-              handleScroll();
-            }
-          }
-        });
+        ensureDetailScroll();
       }
     });
 
     onUnmounted(() => {
-      observer.value.disconnect();
-      resizeObserver.value.disconnect();
+      ++requestId;
+      ++fieldsRequestId;
+      detachDetailScroll();
+      resizeObserver.value?.disconnect();
     });
     onDeactivated(() => {
       expandedRowKeys.value = [];
+      detachDetailScroll();
+    });
+    onActivated(() => {
+      nextTick(() => ensureDetailScroll());
     });
 
     return {
+      error,
+      retry,
+      scrollLoading,
       tableData,
       fieldsData,
       tableColumns,
@@ -242,7 +326,6 @@ export default defineComponent({
       expandedRowKeys,
       expandedRow,
       expandIcon,
-      wrapWidth,
       isEnd,
       sortInfo,
       t,
@@ -251,28 +334,28 @@ export default defineComponent({
     };
   },
   render() {
-    const customAsyncLoadingFn = () => {
-      return (
-        <div
-          ref='scrollRef'
-          style={{
-            width: `${this.wrapWidth}px`,
-            position: 'sticky',
-            left: 0,
-          }}
-          class='scroll-loading scroll-loading___observer'
-        >
-          <span>{this.isEnd ? this.t('到底了') : this.t('正加载更多内容…')}</span>
-        </div>
-      );
-    };
     return (
       <div
         ref='wrap'
         class='alarm-detail-log-table-new'
       >
+        <DetailLoadStatus
+          error={this.error}
+          onRetry={this.retry}
+        />
         {this.loading ? (
-          <TableSkeleton />
+          <DetailTableSkeleton
+            columns={
+              this.tableColumns.length
+                ? this.tableColumns
+                : this.displayFields.length
+                  ? this.displayFields.map(colKey => ({ colKey, title: colKey }))
+                  : [
+                      { colKey: 'time', title: this.t('时间'), width: 200 },
+                      { colKey: 'log', title: this.t('日志内容') },
+                    ]
+            }
+          />
         ) : this.tableData.length ? (
           <PrimaryTable
             class={'panel-log-log-table'}
@@ -296,7 +379,6 @@ export default defineComponent({
                 colspan: colIndex === this.tableColumns.length ? 2 : 1,
               };
             }}
-            asyncLoading={(this.tableData.length ? customAsyncLoadingFn : false) as any}
             data={this.tableData}
             expandedRow={this.expandedRow}
             expandedRowKeys={this.expandedRowKeys}
@@ -305,7 +387,7 @@ export default defineComponent({
             headerAffixedTop={this.headerAffixedTop}
             horizontalScrollAffixedBottom={this.headerAffixedTop}
             hover={true}
-            // needCustomScroll={false}
+            needCustomScroll={false}
             resizable={true}
             rowKey={'__id__'}
             size={'small'}
@@ -315,8 +397,14 @@ export default defineComponent({
             onSortChange={this.handleSortChange}
           />
         ) : (
-          this.$slots?.empty?.()
+          !this.error && this.$slots?.empty?.()
         )}
+        <div
+          style={{ display: this.tableData.length && !this.error && !this.loading ? 'flex' : 'none' }}
+          class='alarm-detail-log-table-scroll-loading'
+        >
+          <span>{this.isEnd ? this.t('到底了') : this.scrollLoading ? this.t('正加载更多内容…') : ''}</span>
+        </div>
       </div>
     );
   },

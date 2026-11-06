@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2025 Tencent. All rights reserved.
@@ -8,11 +7,13 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
+
 from bkmonitor.iam import ActionEnum, ResourceEnum
 from bkmonitor.iam.drf import IAMPermission
 from bkmonitor.models import Report
 from core.drf_resource import resource
 from core.drf_resource.viewsets import ResourceRoute, ResourceViewSet
+from monitor_web.new_report.resources import GetReportListResource
 
 
 class ReportManagePermission(IAMPermission):
@@ -29,12 +30,11 @@ class ReportManagePermission(IAMPermission):
         bk_biz_id = Report.objects.filter(id=report_id).values_list("bk_biz_id", flat=True).first()
         if bk_biz_id is None:
             return False
-        self.resources = [ResourceEnum.BUSINESS.create_instance(bk_biz_id)]
-        return super().has_permission(request, view)
+        return GetReportListResource.check_permission(bk_biz_id, raise_exception=True, request=request)
 
 
 class ReportSendPermission(IAMPermission):
-    """发送订阅：有订阅 ID 时按库存业务做 VIEW_BUSINESS；否则要求请求带业务 ID。"""
+    """已有订阅由资源校验访问权限；草稿要求同租户超级用户或对应业务的查看权限。"""
 
     def __init__(self):
         super().__init__([ActionEnum.VIEW_BUSINESS])
@@ -48,15 +48,16 @@ class ReportSendPermission(IAMPermission):
             report_id = 0
         if report_id > 0:
             bk_biz_id = Report.objects.filter(id=report_id).values_list("bk_biz_id", flat=True).first()
-            if not bk_biz_id:
-                return False
+            return bool(bk_biz_id)
         else:
             try:
                 bk_biz_id = int(data.get("bk_biz_id") or 0)
             except (TypeError, ValueError):
                 bk_biz_id = 0
-            if bk_biz_id <= 0:
+            if bk_biz_id == 0:
                 return False
+        if getattr(getattr(request, "user", None), "is_superuser", False):
+            return GetReportListResource.check_permission(bk_biz_id, raise_exception=True, request=request)
         self.resources = [ResourceEnum.BUSINESS.create_instance(bk_biz_id)]
         return super().has_permission(request, view)
 

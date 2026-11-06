@@ -1,6 +1,37 @@
 .explore-custom-graph {
   position: relative;
 
+  .event-chart-content {
+    position: relative;
+    display: flex;
+    flex: 1;
+    flex-direction: column;
+    min-height: 0;
+
+    > .time-series-content {
+      flex: 1;
+      min-height: 0;
+    }
+  }
+
+  .event-chart-refreshing {
+    position: absolute;
+    top: 4px;
+    right: 12px;
+    padding: 4px 8px;
+    pointer-events: none;
+    background: #fff;
+    border-radius: 3px;
+  }
+
+  .event-count-skeleton,
+  .event-duration-skeleton {
+    display: inline-block;
+    width: 36px;
+    height: 12px;
+    vertical-align: middle;
+  }
+
   .chart-instance {
     min-height: 0;
   }

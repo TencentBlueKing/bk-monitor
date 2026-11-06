@@ -28,6 +28,7 @@ from typing import Any
 
 from django.core.serializers.json import DjangoJSONEncoder
 from django.http import FileResponse, StreamingHttpResponse
+from django.utils.translation import gettext as _
 
 from apps.log_search.constants import DEFAULT_TIME_FIELD, HighlightConfig, ES_ERROR_PATTERNS
 from apps.log_search.exceptions import LogSearchException
@@ -37,6 +38,16 @@ from apps.utils.local import get_request_external_username, get_request_username
 LOG_STREAM_CONTENT_TYPE = "application/x-ndjson; charset=utf-8"
 LOG_STREAM_ACCEPT = "application/x-ndjson"
 LOG_STREAM_QUERY_PARAM = "stream"
+COLLECTOR_NAME_PREFIXES = ("[采集项]", "[collection item]")
+
+
+def display_index_set_name(name, collector_config_id):
+    if not collector_config_id or not name:
+        return name
+    for prefix in COLLECTOR_NAME_PREFIXES:
+        if name.startswith(prefix):
+            return _("[采集项]") + name[len(prefix) :]
+    return name
 
 
 def get_search_request_scope(request, data=None) -> tuple:

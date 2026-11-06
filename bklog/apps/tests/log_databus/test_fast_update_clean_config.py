@@ -123,6 +123,17 @@ class FastUpdateHandlerTests(SimpleTestCase):
         self.assertEqual(handler.data.target_nodes, [])
         handler._update_or_create_subscription.assert_called_once()
 
+    def test_host_fast_update_ignores_null_description(self):
+        handler = self.build_host_handler()
+        with (
+            patch("apps.log_databus.handlers.collector.host.transaction.atomic", return_value=nullcontext()),
+            patch("apps.log_databus.handlers.collector.host.model_to_dict", return_value={}),
+            patch("apps.log_databus.handlers.collector.host.user_operation_record.delay"),
+        ):
+            handler.fast_update({"description": None, "update_clean_config": False, "is_allow_alone_data_id": False})
+
+        self.assertEqual(handler.data.description, "old description")
+
     def test_host_fast_update_persists_encoding_and_updates_subscription(self):
         handler = self.build_host_handler()
         with (

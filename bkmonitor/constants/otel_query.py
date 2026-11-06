@@ -236,6 +236,7 @@ class AggregatedMethod(CachedEnum):
     AVG = "avg"
     MAX = "max"
     MIN = "min"
+    SUM = "sum"
     COUNT = "count"
     DISTINCT = "distinct"
     CP50 = "cp50"
@@ -247,6 +248,7 @@ class AggregatedMethod(CachedEnum):
                 self.AVG: _("平均值"),
                 self.MAX: _("最大值"),
                 self.MIN: _("最小值"),
+                self.SUM: _("求和"),
                 self.COUNT: _("计数"),
                 self.DISTINCT: _("去重计数"),
                 self.CP50: _("中位数(CP50)"),

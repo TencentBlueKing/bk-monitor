@@ -167,6 +167,16 @@ class _BkDataDatabusApi:
             before_request=add_esb_info_before_request_for_bkdata_user,
             bk_tenant_id=biz_to_tenant_getter(),
         )
+        self.get_raw_data_badmsg = DataAPI(
+            method="GET",
+            url=self._build_url("rawdatas/{raw_data_id}/badmsg/", "rawdatas/{raw_data_id}/badmsg/"),
+            module=self.MODULE,
+            url_keys=["raw_data_id"],
+            description="获取源数据最近清洗异常样本",
+            default_return_value=None,
+            before_request=add_esb_info_before_request_for_bkdata_user,
+            bk_tenant_id=biz_to_tenant_getter(),
+        )
         self.get_result_table = DataAPI(
             method="GET",
             url=self._build_url("result_tables/{result_table_id}/", "result_tables/{result_table_id}/"),

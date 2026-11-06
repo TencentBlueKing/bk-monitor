@@ -11,7 +11,8 @@ from constants.log_collection import (
     ETL_CONFIG_TEXT,
     ETL_PREVIEW_MAX_FIELDS,
 )
-from core.drf_resource import Resource, api
+from core.drf_resource import api
+from kernel_api.resource.mcp_response import MCPResource as Resource
 from core.errors.api import BKAPIError
 
 _VALIDATION_ERRORS_KEY = "_validation_errors"

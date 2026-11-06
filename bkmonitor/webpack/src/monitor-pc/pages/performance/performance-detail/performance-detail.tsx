@@ -117,7 +117,7 @@ export default class PerformanceDetail extends tsc<object> {
   handleBack() {
     if (window.history.length <= 1) {
       this.$router.push({
-        name: 'performance',
+        name: 'host',
       });
     } else {
       this.$router.back();

@@ -1,5 +1,6 @@
 import { defineComponent, ref, watch } from 'vue';
 
+import { useDialogVisible } from '@/global/overlay';
 import { RelatedLogDialogPanel } from '../standalone-tab/related-log-dialog-panel';
 
 import '../standalone-tab/index.scss';
@@ -38,7 +39,12 @@ export default defineComponent({
     },
   },
   setup(props, { emit }) {
-    const visible = ref(false);
+    const { visible, setVisible, onValueChange } = useDialogVisible(false, {
+      id: 'retrieve-realtime-log-dialog',
+      type: 'dialog',
+      group: 'retrieve-related-log',
+      rootSelector: '.log-realtime-dialog-main',
+    });
     /** 每次打开递增，强制销毁并重建 panel，避免复用旧状态/缓存 */
     const mountKey = ref(0);
 
@@ -47,16 +53,16 @@ export default defineComponent({
       ([show]) => {
         if (show) {
           mountKey.value += 1;
-          visible.value = true;
+          setVisible(true);
           return;
         }
-        visible.value = false;
+        setVisible(false);
       },
       { immediate: true },
     );
 
     const handleClose = () => {
-      visible.value = false;
+      setVisible(false);
     };
 
     const handleAfterLeave = () => {
@@ -75,6 +81,7 @@ export default defineComponent({
         fullscreen
         on-after-leave={handleAfterLeave}
         on-value-change={(value: boolean) => {
+          onValueChange(value);
           if (!value) handleClose();
         }}
       >

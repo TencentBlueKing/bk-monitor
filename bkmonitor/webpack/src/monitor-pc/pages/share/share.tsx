@@ -29,7 +29,7 @@ import { Component as tsc } from 'vue-tsx-support';
 // import { activated, loadApp, deactivated } from '../../../bk-weweb/src/index';
 import { activated, deactivated, loadApp } from '@blueking/bk-weweb';
 import { getShareParams } from 'monitor-api/modules/share';
-import { getAlarmCenterDetailUrl } from 'monitor-common/utils/alarm-center-router';
+import { ALARM_CENTER_DETAIL_ROUTE_NAME, getAlarmCenterDetailUrl } from 'monitor-common/utils/alarm-center-router';
 
 import './share.scss';
 
@@ -86,6 +86,30 @@ export default class SharePage extends tsc<object> {
         /^#\/([^?]*)\?/g,
         ''
       )}`;
+    } else if (/^\/trace/.test(data.path)) {
+      // trace 处理
+      const host = has_permission ? location.origin + location.pathname : data.weWebData.host;
+      const path = !has_permission && process.env.NODE_ENV === 'production' ? `${location.pathname}trace/` : '';
+      if (data.name === ALARM_CENTER_DETAIL_ROUTE_NAME && data.params?.alarmId) {
+        // 告警详情：历史分享的 path 存的是路由模板（/trace/alarm-center/detail/:alarmId），
+        // 统一按命名路由 + params 还原实际路径，兼容新旧分享数据
+        const { route } = this.$router.resolve({
+          name: data.name,
+          params: data.params,
+          query: data.query,
+        });
+        url = `${host}${path}?bizId=${this.$store.getters.bizId}#${route.fullPath}`;
+      } else {
+        const route = this.$router.resolve({
+          name: data.path,
+          params: data.params,
+          query: data.query,
+        });
+        url = `${host}${path}?bizId=${this.$store.getters.bizId}#${data?.path || '/'}?${route.href.replace(
+          /^#\/([^?]*)\?/g,
+          ''
+        )}`;
+      }
     } else {
       const route = this.$router.resolve({
         name: data.name,
@@ -115,7 +139,7 @@ export default class SharePage extends tsc<object> {
       setShadowDom: true,
       keepAlive: false,
       data: {
-        // host: `http://${process.env.devHost}:7002`,
+        // host: `http://${process.env.devHost}:7004`,
         // parentRoute: '/fta/',
         ...(data.weWebData || {}),
         token: this.token,

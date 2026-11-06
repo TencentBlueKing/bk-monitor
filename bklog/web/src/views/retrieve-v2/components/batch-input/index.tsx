@@ -112,12 +112,14 @@ export default defineComponent({
         onClick={() => (showBtachDialog.value = true)}
       >
         {$t('批量输入')}
+        {/* 条件面板 tippy 在 appendToBody 时为 99999，弹窗需盖住该层 */}
         <bk-dialog
           width='860px'
           header-position='left'
           mask-close={false}
           title={$t('批量输入')}
           value={showBtachDialog.value}
+          z-index={100000}
           on-value-change={handleDialogValueChange}
         >
           <div style='display: flex; padding: 16px 0px;'>
@@ -127,7 +129,6 @@ export default defineComponent({
               </div>
               <div>
                 <bk-input
-                  maxlength={100}
                   placeholder='请使用，；｜换行等进行分隔'
                   rows={16}
                   type='textarea'

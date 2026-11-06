@@ -60,9 +60,6 @@
       }
 
       &-value {
-
-        // 作为可选值 loading 遮罩（condition-item-value-loading）的定位上下文
-        position: relative;
         // display: flex;
         min-width: 170px;
         margin-left: -1px;
@@ -76,26 +73,6 @@
           .tag-list {
             display: flex;
             flex-wrap: wrap;
-          }
-        }
-
-        // 可选值加载中的遮罩：覆盖在输入框右侧，避免切换 loading 时替换输入框导致输入态丢失
-        .condition-item-value-loading {
-          position: absolute;
-          top: calc(50% - 15px);
-          right: 1px;
-          z-index: 1;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          width: 32px;
-          height: 30px;
-          background: #fff;
-
-          .spinner {
-            width: 16px;
-            height: 16px;
-            background: url("../../../static/images/svg/spinner.svg");
           }
         }
       }

@@ -6,11 +6,21 @@
         "clients": [
             "bk_log_search",
             "log-search-4",
-            "bk_bklog",
+            "bk_bklog"
+        ],
+        "removed_clients": [
             "paasv3cli",
             "bk_paas3"
         ]
     },
+    "role_delegations": [
+        {
+            "role_id": "space_operator",
+            "grantee_type": "system",
+            "grantee_id": "bk_paas3",
+            "tenant_mode": "global"
+        }
+    ],
     "resource_types": [
         {
             "id": "space",
@@ -141,6 +151,14 @@
                 {"id": "search_log", "resource_type_id": "indices"},
                 {"id": "view_collection", "resource_type_id": "collection"},
                 {"id": "download_client_log", "resource_type_id": "space"}
+            ]
+        },
+        {
+            "id": "space_access",
+            "name": "空间访问",
+            "description": "日志平台最小空间访问；只包含业务访问，用于按精确子资源授权后补齐页面访问权限。",
+            "actions": [
+                {"id": "view_business", "resource_type_id": "space"}
             ]
         },
         {

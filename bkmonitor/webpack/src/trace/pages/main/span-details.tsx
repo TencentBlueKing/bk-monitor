@@ -48,6 +48,8 @@ import { CancelToken } from 'monitor-api/cancel';
 import { query as apmProfileQuery } from 'monitor-api/modules/apm_profile';
 import { listLinks, spanDetail } from 'monitor-api/modules/apm_trace';
 import { getSceneView } from 'monitor-api/modules/scene_view';
+import { buildHostMonitorTarget, hostMonitorHash } from 'monitor-common/utils/host-monitor-url';
+import { profilingExploreHash } from 'monitor-common/utils/profiling-url';
 import { copyText, deepClone, random } from 'monitor-common/utils/utils';
 import { useI18n } from 'vue-i18n';
 import VueJsonPretty from 'vue-json-pretty';
@@ -83,11 +85,12 @@ import { downFile } from '../../utils';
 import { toUnixMilliseconds } from '../../utils/date';
 import { SPAN_KIND_MAPS as SPAN_KIND_MAPS_NEW } from '../trace-explore/components/trace-explore-table/constants';
 import { safeParseJsonValueForWhere } from '../trace-explore/utils';
-import { TRACE_SPAN_DETAIL_BASIC_INFO_EXPAND_KEY } from './constants';
+import { SPAN_DETAILS_Z_INDEX, TRACE_SPAN_DETAIL_BASIC_INFO_EXPAND_KEY } from './constants';
 // import AiBluekingIcon from '@/components/ai-blueking-icon/ai-blueking-icon';
 import DashboardPanel from './dashboard-panel/dashboard-panel';
 import K8sContainer from './k8s-container';
 import LlmObservation from './llm-observation';
+import ObservationSearch from './llm-observation/components/observation-search';
 import { formatSpanLinks } from './utils/format-span-links';
 
 import type { Span } from '../../components/trace-view/typings';
@@ -197,6 +200,7 @@ export default defineComponent({
     const spanDetailLoading = shallowRef(false);
     let spanDetailRequestKey = '';
     let spanDetailRequestSeq = 0;
+    let spanDetailCancel: (() => void) | null = null;
     let spanDetailResponseCache: null | SpanDetailResponseCache = null;
 
     const detailSpan = computed<Span>(() => loadedSpan.value || props.spanDetails);
@@ -206,13 +210,17 @@ export default defineComponent({
 
     function shouldLoadSpanDetail(span: Span): boolean {
       if (!span) return false;
+      const sourceSpanId = span.span_id || span.spanID;
+      if (!sourceSpanId) return false;
+      // 首屏可省略详情字段；关联 Trace / 检索入口也可能只传入 span_id stub。
+      const incomplete = (!span.operationName && !span.startTime) || !span.attributes?.length;
       const appMismatch = Boolean(span.app_name && viewAppName.value && span.app_name !== viewAppName.value);
       const bizMismatch =
         span.bk_biz_id != null &&
         span.bk_biz_id !== '' &&
         Boolean(viewBizId.value) &&
         String(span.bk_biz_id) !== String(viewBizId.value);
-      return appMismatch || bizMismatch;
+      return Boolean(span.llm_detail && !span.llm_detail.attributes) || incomplete || appMismatch || bizMismatch;
     }
 
     /** 详情及其所有 Tab 统一使用 Span 自带上下文，存量数据缺字段时回退页面上下文。 */
@@ -331,7 +339,7 @@ export default defineComponent({
 
     /** 获取 span 类型描述 */
     function getTypeText() {
-      const { kind, source, ebpf_kind: ebpfKind, is_virtual: isVirtual } = props.spanDetails;
+      const { kind, source, ebpf_kind: ebpfKind, is_virtual: isVirtual } = detailSpan.value;
       if (isVirtual) return t('推断');
       if (source === 'ebpf') return ebpfKind;
       return SPAN_KIND_MAPS[kind];
@@ -452,6 +460,10 @@ export default defineComponent({
 
       const requestKey = JSON.stringify([sourceBizId, sourceAppName, sourceSpanId]);
       if (requestKey === spanDetailResponseCache?.key) {
+        spanDetailCancel?.();
+        spanDetailRequestSeq += 1;
+        spanDetailRequestKey = '';
+        spanDetailLoading.value = false;
         loadedSpan.value = {
           ...sourceSpan,
           ...spanDetailResponseCache.span,
@@ -460,14 +472,18 @@ export default defineComponent({
       }
       if (requestKey === spanDetailRequestKey) return null;
 
+      spanDetailCancel?.();
       spanDetailRequestKey = requestKey;
       const requestSeq = ++spanDetailRequestSeq;
       spanDetailLoading.value = true;
-      const result = await spanDetail({
-        bk_biz_id: sourceBizId,
-        app_name: sourceAppName,
-        span_id: sourceSpanId,
-      }).catch(() => null);
+      const result = await spanDetail(
+        { bk_biz_id: sourceBizId, app_name: sourceAppName, span_id: sourceSpanId },
+        {
+          cancelToken: new CancelToken((cancel: () => void) => {
+            spanDetailCancel = cancel;
+          }),
+        }
+      ).catch(() => null);
 
       if (requestSeq !== spanDetailRequestSeq) return null;
 
@@ -505,6 +521,7 @@ export default defineComponent({
       }
 
       const loadedOriginData = await loadSpanDetail(sourceSpan);
+      if (!props.show || props.spanDetails !== sourceSpan || (!loadedOriginData && !loadedSpan.value)) return;
       getDetails(loadedOriginData);
     }
 
@@ -1327,6 +1344,88 @@ export default defineComponent({
       return '';
     });
 
+    /** LLM 观测 Tab 页内搜索：状态放在详情侧，避免切 Span 后子树重建丢词 */
+    const llmSearchKeyword = shallowRef('');
+    const llmSearchActiveIndex = shallowRef(0);
+    const llmSearchMatchCount = shallowRef(0);
+    /** 第一层 Tab 已吸顶（header 滚出后）才与第二层拉开 4px，默认贴紧内容 */
+    const infoTabStuck = shallowRef(false);
+    let unbindInfoTabSticky: (() => void) | undefined;
+
+    const syncInfoTabStuck = () => {
+      const content = document.querySelector('.span-details-sideslider-content') as HTMLElement | null;
+      const header = content?.querySelector('.details-header') as HTMLElement | undefined;
+      if (!content || !header) {
+        infoTabStuck.value = false;
+        return;
+      }
+      const scroller = (content.closest('.bk-modal-content') as HTMLElement | null) || content;
+      infoTabStuck.value = header.getBoundingClientRect().bottom <= scroller.getBoundingClientRect().top + 1;
+    };
+
+    const bindInfoTabSticky = () => {
+      unbindInfoTabSticky?.();
+      const content = document.querySelector('.span-details-sideslider-content') as HTMLElement | null;
+      const scroller = (content?.closest('.bk-modal-content') as HTMLElement | null) || content;
+      if (!scroller) return;
+      scroller.addEventListener('scroll', syncInfoTabStuck, { passive: true });
+      syncInfoTabStuck();
+      unbindInfoTabSticky = () => {
+        scroller.removeEventListener('scroll', syncInfoTabStuck);
+        unbindInfoTabSticky = undefined;
+      };
+    };
+
+    /** LLM 观测外滚吸顶后切走，父级高度收回但祖先 scrollTop 仍在，整栏会被顶出视口 */
+    const resetInfoTabScroll = () => {
+      const content = document.querySelector('.span-details-sideslider-content') as HTMLElement | null;
+      let el: HTMLElement | null = content;
+      while (el && el !== document.body) {
+        if (el.scrollTop) {
+          el.scrollTop = 0;
+        }
+        el = el.parentElement;
+      }
+      infoTabStuck.value = false;
+    };
+
+    const resetLlmSearch = () => {
+      llmSearchKeyword.value = '';
+      llmSearchActiveIndex.value = 0;
+      llmSearchMatchCount.value = 0;
+    };
+
+    const handleLlmSearchKeyword = (value: string) => {
+      llmSearchKeyword.value = value;
+      // 换词后 hits 重算，序号从第一条重新数
+      llmSearchActiveIndex.value = 0;
+    };
+
+    const handleLlmSearchStep = (step: number) => {
+      const total = llmSearchMatchCount.value;
+      if (!total) return;
+      llmSearchActiveIndex.value = (llmSearchActiveIndex.value + step + total) % total;
+    };
+
+    const handleLlmSearchMatchCount = (count: number) => {
+      llmSearchMatchCount.value = count;
+      if (count > 0 && llmSearchActiveIndex.value >= count) {
+        llmSearchActiveIndex.value = count - 1;
+      }
+    };
+
+    const handleLlmSearchActiveIndex = (index: number) => {
+      if (index < 0) return;
+      llmSearchActiveIndex.value = index;
+    };
+
+    watch(
+      () => [props.show, props.spanDetails?.span_id],
+      () => {
+        resetLlmSearch();
+      }
+    );
+
     const sceneData = deepRef<BookMarkModel>({});
     const isSingleChart = computed<boolean>(() => {
       return (
@@ -1359,8 +1458,9 @@ export default defineComponent({
           id: activeTab.value.toLowerCase(),
           bk_biz_id: bizId.value,
           apm_app_name: appName.value,
-          apm_service_name: props.spanDetails.service_name,
+          apm_service_name: props.spanDetails.service_name || serviceNameProvider.value,
           apm_span_id: props.spanDetails.span_id,
+          apm_trace_id: traceId.value || props.spanDetails.traceID,
         }).catch(console.log);
         if (result?.overview_panels?.length) {
           result.overview_panels[0] = {
@@ -1452,7 +1552,10 @@ export default defineComponent({
         }
         case 'Host': {
           if (!spanDetailQueryStore.queryData?.bk_host_id) return;
-          window.open(`#/performance/detail/${spanDetailQueryStore.queryData.bk_host_id}`, '_blank');
+          window.open(
+            hostMonitorHash(buildHostMonitorTarget({ bkHostId: String(spanDetailQueryStore.queryData.bk_host_id) })),
+            '_blank'
+          );
           return;
         }
         case 'Container': {
@@ -1468,17 +1571,15 @@ export default defineComponent({
           if (!span_id) return;
           const { start_time, end_time } = getProfilingTimeRange();
           window.open(
-            `#/trace/profiling/?target=${encodeURIComponent(
-              JSON.stringify({
-                app_name,
-                service_name,
-                start: (start_time / 1000).toFixed(0),
-                end: (end_time / 1000).toFixed(0),
-                filter_labels: {
-                  span_id,
-                },
-              })
-            )}`
+            profilingExploreHash({
+              app_name,
+              service_name,
+              start: (start_time / 1000).toFixed(0),
+              end: (end_time / 1000).toFixed(0),
+              filter_labels: {
+                span_id,
+              },
+            })
           );
           return;
         }
@@ -1629,11 +1730,11 @@ export default defineComponent({
                   </div>,
                   <MonitorTab
                     key='info-tab'
-                    class='info-tab'
+                    class={['info-tab', { 'is-stuck': infoTabStuck.value }]}
                     v-slots={{
                       setting: () => {
-                        return (
-                          exploreButtonName.value && (
+                        if (exploreButtonName.value) {
+                          return (
                             <div class='quick-jump-container'>
                               {activeTab.value === 'Log' && (
                                 <Button
@@ -1660,8 +1761,20 @@ export default defineComponent({
                                 <i class='icon-monitor icon-fenxiang' />
                               </Button>
                             </div>
-                          )
-                        );
+                          );
+                        }
+                        if (activeTab.value === 'LlmObservation') {
+                          return (
+                            <ObservationSearch
+                              activeIndex={llmSearchActiveIndex.value}
+                              keyword={llmSearchKeyword.value}
+                              matchCount={llmSearchMatchCount.value}
+                              onNext={() => handleLlmSearchStep(1)}
+                              onPrev={() => handleLlmSearchStep(-1)}
+                              onUpdate:keyword={handleLlmSearchKeyword}
+                            />
+                          );
+                        }
                       },
                     }}
                     active={activeTab.value}
@@ -1908,6 +2021,10 @@ export default defineComponent({
                               <LlmObservation
                                 key={`${detailSpan.value.traceID}:${detailSpan.value.span_id}`}
                                 llmDetail={llmDetail.value}
+                                searchActiveIndex={llmSearchActiveIndex.value}
+                                searchKeyword={llmSearchKeyword.value}
+                                onMatchCount={handleLlmSearchMatchCount}
+                                onSearchActiveIndex={handleLlmSearchActiveIndex}
                               />
                             </div>
                           )}
@@ -2044,6 +2161,7 @@ export default defineComponent({
           ),
         }}
         transfer={(document.querySelector('.trace-list-wrapper') as HTMLDivElement) ?? true}
+        zIndex={SPAN_DETAILS_Z_INDEX}
         quick-close
         show-mask
         onHidden={handleHiddenChange}
@@ -2070,6 +2188,10 @@ export default defineComponent({
             document.querySelector('.span-details-sideslider')?.appendChild(maskEle);
           }
         } else {
+          spanDetailCancel?.();
+          spanDetailRequestSeq += 1;
+          spanDetailRequestKey = '';
+          spanDetailLoading.value = false;
           hideSelectionDecoder();
           resetSpanLinksRequestState();
           isInvokeOnceFlag = true;
@@ -2126,18 +2248,45 @@ export default defineComponent({
       () => props.spanDetails,
       val => {
         // 仅当详情面板显示时才加载数据，避免隐藏状态下的无效加载
-        if (val && props.show && (!props.withSideSlider || (props.isShowPrevNextButtons && Object.keys(val).length))) {
+        if (val && props.show && !props.isPageLoading) {
           prepareDetails();
         }
       },
       { immediate: true, deep: true }
     );
 
+    watch(
+      () => props.show,
+      async val => {
+        if (val) {
+          await nextTick();
+          bindInfoTabSticky();
+          return;
+        }
+        unbindInfoTabSticky?.();
+        infoTabStuck.value = false;
+      }
+    );
+
+    watch(activeTab, async () => {
+      if (!props.show) return;
+      resetInfoTabScroll();
+      await nextTick();
+      resetInfoTabScroll();
+      syncInfoTabStuck();
+    });
+
     onMounted(() => {
       getSpanDetailExpandUserConfig();
+      if (props.show) {
+        nextTick(bindInfoTabSticky);
+      }
     });
 
     onBeforeUnmount(() => {
+      spanDetailCancel?.();
+      spanDetailRequestSeq += 1;
+      unbindInfoTabSticky?.();
       hideSelectionDecoder();
     });
 

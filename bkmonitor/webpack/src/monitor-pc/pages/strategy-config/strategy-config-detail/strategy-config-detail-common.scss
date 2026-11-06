@@ -158,39 +158,6 @@ $levelColor: #ea3636 #ff9c01 #699df4;
           }
         }
 
-        .promql-content {
-          .edit-wrap {
-            position: relative;
-
-            // height: 160px;
-            // min-height: 160px;
-            // overflow-y: auto;
-            // background-color: #fff;
-            // border: 1px solid #dcdee5;
-          }
-
-          .step-wrap {
-            display: block;
-            margin: 10px 0 0;
-
-            .step-input {
-              width: 205px;
-
-              .step-input-prepend {
-                display: flex;
-                align-items: center;
-                justify-content: center;
-                width: 96px;
-                height: 100%;
-                font-size: 12px;
-
-                .icon-hint {
-                  margin-left: 8px;
-                }
-              }
-            }
-          }
-        }
       }
 
       .algorithms-wrap {
@@ -267,6 +234,8 @@ $levelColor: #ea3636 #ff9c01 #699df4;
             }
 
             &-content {
+              flex: 1;
+              min-width: 0;
               color: #63656e;
 
               .bold-span {
@@ -369,37 +338,70 @@ $levelColor: #ea3636 #ff9c01 #699df4;
 
           .notice-config {
             .user-groups {
+              min-width: 0;
+
               .user-groups-container {
+                box-sizing: border-box;
+                display: grid;
+                grid-template-columns: max-content minmax(0, 1fr);
+                column-gap: 8px;
+                row-gap: 8px;
+                align-items: start;
                 width: 100%;
-                padding: 10px;
+                min-width: 0;
+                padding: 16px;
                 background: #fafbfd;
                 border: 1px solid #eaebf0;
 
                 .user-notice-item {
-                  display: flex;
-                  height: 30px;
-                  line-height: 30px;
+                  display: grid;
+                  grid-column: 1 / -1;
+                  grid-template-columns: subgrid;
+                  align-items: start;
+                  min-width: 0;
+                  line-height: 22px;
                 }
 
                 .groups-title-warp {
-                  display: inline-block;
-                  min-width: 60px;
-                  text-align: right;
+                  font-weight: 500;
+                  line-height: 22px;
+                  text-align: left;
+                  white-space: nowrap;
+                }
+
+                .notice-upgrade-body {
+                  min-width: 0;
+                }
+
+                .notice-upgrade-text {
+                  display: block;
+                  line-height: 22px;
                 }
               }
 
               .notice-user-list {
                 display: flex;
-                align-items: center;
+                flex: 1;
+                flex-wrap: wrap;
+                align-items: flex-start;
+                min-width: 0;
+                gap: 8px 10px;
+              }
+
+              .notice-upgrade-body .notice-user-list {
+                margin-top: 8px;
               }
 
               .user-group {
+                flex: 0 0 auto;
+                max-width: 100%;
                 height: 22px;
                 padding: 0 10px;
-                margin-right: 10px;
+                overflow: hidden;
                 line-height: 22px;
-                vertical-align: middle;
                 color: #63656e;
+                white-space: nowrap;
+                text-overflow: ellipsis;
                 background: #f0f1f5;
                 border-radius: 2px;
 

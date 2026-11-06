@@ -1,0 +1,173 @@
+.vertical-drawer {
+  position: absolute;
+  right: 0;
+  left: 0;
+  display: flex;
+  flex-direction: column;
+  row-gap: 12px;
+  padding: 16px;
+  background: #fff;
+  box-shadow: 0 0 5px #0000001a;
+
+  &.is-bottom {
+    bottom: 0;
+    border-top: 1px solid #e4e9f2;
+    border-radius: 16px 16px 0 0;
+  }
+
+  &.is-top {
+    top: 0;
+    border-bottom: 1px solid #e4e9f2;
+    border-radius: 0 0 16px 16px;
+  }
+
+  .drawer-resize-handle {
+    /* 边线与图块颜色：状态切换只改变量，避免重复声明整条样式 */
+    --handle-line-color: #e4e9f2;
+    --handle-pill-color: #c1cde5;
+    --handle-line-height: 1px;
+
+    position: absolute;
+    right: 0;
+    left: 0;
+    height: 10px;
+    cursor: row-resize;
+
+    /* 边线高亮：左右各内缩一个圆角宽度只盖直线段，中间实、两侧渐隐，静止时与抽屉边线同色 */
+    &::before {
+      position: absolute;
+      right: 16px;
+      left: 16px;
+      height: var(--handle-line-height);
+      content: '';
+      background: var(--handle-line-color);
+      mask-image: linear-gradient(to right, transparent 0%, #000 30%, #000 70%, transparent 100%);
+      transition: background-color 0.1s ease-in-out 0s;
+    }
+
+    &::after {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      width: 64px;
+      height: 6px;
+      content: '';
+      background: var(--handle-pill-color);
+      border-radius: 999px;
+      transform: translate(-50%, -50%);
+      transition: background-color 0.1s ease-in-out 0s;
+    }
+
+    /* hover 时边线浅一档、图块深一档，与 monitor-cross-drag 的分层一致 */
+    &:hover {
+      --handle-line-height: 1px;
+      --handle-line-color: #5794f2;
+      --handle-pill-color: #3a84ff;
+    }
+
+    /* 拖拽中维持激活态：鼠标可能移出元素，仅靠 hover 会丢失高亮；边线比 hover 深一档 */
+    &.is-resizing {
+      --handle-line-height: 1px;
+      --handle-line-color: #3a84ff;
+      --handle-pill-color: #3a84ff;
+    }
+  }
+
+  /* handle 有 5px 露在抽屉外，边线落在距 handle 上/下沿 4px 处：高亮带以此为外沿向内加高 */
+  &.is-bottom .drawer-resize-handle {
+    top: -5px;
+
+    &::before {
+      top: 4px;
+    }
+  }
+
+  &.is-top .drawer-resize-handle {
+    bottom: -5px;
+
+    &::before {
+      bottom: 4px;
+    }
+  }
+
+  .drawer-header {
+    display: flex;
+    flex-shrink: 0;
+    column-gap: 24px;
+    align-items: center;
+    justify-content: space-between;
+
+    .header-title-block {
+      display: flex;
+      flex: 1;
+      column-gap: 12px;
+      align-items: center;
+      min-width: 0;
+
+      .drawer-title {
+        flex-shrink: 0;
+        font-size: 16px;
+        font-weight: 500;
+        line-height: 24px;
+        color: #313238;
+      }
+
+      .title-divider {
+        flex-shrink: 0;
+        width: 1px;
+        height: 15px;
+        background: #c1cde5;
+      }
+
+      .drawer-subtitle {
+        overflow: hidden;
+        text-overflow: ellipsis;
+        font-size: 12px;
+        line-height: 20px;
+        color: #8f9fbd;
+        white-space: nowrap;
+      }
+    }
+
+    .header-actions {
+      display: flex;
+      flex-shrink: 0;
+      column-gap: 24px;
+      align-items: center;
+
+      .drawer-close {
+        font-size: 18px;
+        line-height: 24px;
+        color: #8f9fbd;
+        cursor: pointer;
+
+        &:hover {
+          color: #313238;
+        }
+      }
+    }
+  }
+
+  /* 内容区只负责占位与兜底滚动，边框（如列表容器）由业务侧内容自己描述 */
+  .drawer-body {
+    flex: 1;
+    min-height: 0;
+    overflow: auto;
+  }
+}
+
+/* 进出场：沿纵向位移，方向由 is-bottom / is-top 决定 */
+.vertical-drawer-slide-enter-active,
+.vertical-drawer-slide-leave-active {
+  transition: transform var(--vertical-drawer-animation-duration, 0.25s) ease-out;
+}
+
+.vertical-drawer-slide-enter-from.is-bottom,
+.vertical-drawer-slide-leave-to.is-bottom {
+  transform: translateY(100%);
+}
+
+.vertical-drawer-slide-enter-from.is-top,
+.vertical-drawer-slide-leave-to.is-top {
+  transform: translateY(-100%);
+}

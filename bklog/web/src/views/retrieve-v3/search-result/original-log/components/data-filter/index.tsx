@@ -28,7 +28,7 @@ import { computed, defineComponent, ref, watch, nextTick, onBeforeUnmount } from
 import { deepClone, contextHighlightColor } from '@/common/util';
 import useLocale from '@/hooks/use-locale';
 import { cloneDeep } from 'lodash';
-import tippy from 'tippy.js';
+import { createRawTippyOverlay } from '@/global/overlay';
 
 import FieldsConfig from './fields-config';
 import HighlightControl from './highlight-control';
@@ -186,18 +186,27 @@ export default defineComponent({
 
     const handleOpenFieldsConfig = (e: any) => {
       if (!fieldConfigPopoverInstance) {
-        fieldConfigPopoverInstance = tippy(e.target, {
-          allowHTML: true,
-          appendTo: () => document.body,
-          content: fieldConfigRef.value.getDom(),
-          placement: 'bottom',
-          trigger: 'click',
-          maxWidth: 380,
-          theme: 'light field-config-popover',
-          hideOnClick: false,
-          interactive: true,
-          arrow: true,
-        });
+        fieldConfigPopoverInstance = createRawTippyOverlay(
+          e.target,
+          {
+            allowHTML: true,
+            content: fieldConfigRef.value.getDom(),
+            placement: 'bottom',
+            trigger: 'click',
+            maxWidth: 380,
+            theme: 'light field-config-popover',
+            hideOnClick: false,
+            interactive: true,
+            arrow: true,
+          },
+          {
+            id: 'retrieve-data-filter-fields',
+            type: 'popover',
+            group: 'retrieve-data-filter',
+            rootSelector: '.field-config-popover',
+            ignoreSelector: '.bk-select-dropdown-menu, .bk-option',
+          },
+        );
       }
       fieldConfigPopoverInstance.show();
     };

@@ -26,6 +26,11 @@
 
 // 反馈 弹窗 相关的词条
 export default {
+  '缺少故障 ID，请从故障列表重新打开详情。': 'The incident ID is missing. Please reopen the details from the incident list.',
+  '未找到故障 {id} 对应的监控文档，可能已被抑制或尚未同步。请返回列表查看分析记录。':
+    'No monitoring document was found for incident {id}. It may have been suppressed or not yet synchronized. Return to the list to view the analysis record.',
+  '故障 {id} 的详情地址解析失败，请稍后刷新重试。':
+    'Failed to resolve the details URL for incident {id}. Please refresh to retry later.',
   // Messages :  Success |  Warning  | Error |  Info
   // 规范： 动词-主体-结果  如 新建应用成功 New application successful
   // 规范： 仅首字母大写
@@ -71,6 +76,7 @@ export default {
   获取通知设置失败: 'Get notification settings failed',
   获取更多数据失败: 'Get more data failed',
   获取监控目标失败: 'Failed to get monitoring targets',
+  获取策略告警数量失败: 'Failed to get strategy alert counts',
   屏蔽详情获取失败: 'Get muted details failed',
   获取节点拓扑树失败: 'Get node topology tree failed',
   数据对象分类请求失败: 'Data object classification request failed',
@@ -173,6 +179,8 @@ export default {
   全部失败: 'All failed',
   共享成功: 'Shared successful',
   操作成功: 'Operation successful',
+  分析任务已提交: 'Analysis task submitted',
+  '重新分析失败，请稍后重试': 'Failed to submit analysis. Please try again later',
   导出出错了: 'Export error',
   系统出错了: 'System error',
   获取数据出错了: 'Getting data error',
@@ -191,6 +199,13 @@ export default {
   '上传tar.gz文件': 'Upload tar.gz File',
   '当前设置的{name}超过最大值{max}, 请调整后再切换集群':
     'The current setting of {name} exceeds the maximum value {max}, adjust it and then switch clusters',
+  确认切换存储集群: 'Confirm to switch the storage cluster',
+  '切换生效后，新增数据将写入目标集群。历史数据仍可查询，并按切换后生效的保留时长自动清理。':
+    'After the switch takes effect, new data will be written to the target cluster. Historical data remains queryable and will be cleaned up automatically according to the effective retention period.',
+  当前集群: 'Current cluster',
+  目标集群: 'Target cluster',
+  生效保留天数: 'Effective retention days',
+  确认切换: 'Confirm switch',
   上传采集配置文件: 'Upload the collection configuration file',
   '当前您有未恢复告警{0}条,最近{1}新增{2}条': 'You have {0} active alarms, with {2} new alarms in the past {1}',
   '当前空间: [{0}] {1}  ； 未恢复告警: {2}': 'This space: ([{0}] {1}) ; Active alarms: {2} ',
@@ -398,6 +413,15 @@ export default {
   '你确认么？': 'Are you sure ?',
   '修改集群历史数据会全部丢失，确认要更换么':
     'All the historical data of modifying the cluster will be lost. replace it?',
+  '确认切换存储集群？': 'Confirm switching storage cluster?',
+  确认切换: 'Confirm switch',
+  当前集群: 'Current cluster',
+  目标集群: 'Target cluster',
+  '切换后保留天数：{days} 天': 'Retention days after switch: {days}',
+  '切换生效后，新增数据将写入目标集群。历史数据仍可查询，并按切换后生效的保留时长自动清理。':
+    'After the switch takes effect, new data will be written to the target cluster. Historical data can still be queried and will be automatically cleaned up according to the effective retention period.',
+  '支持无损切换存储集群，历史数据按保留策略到期清理。':
+    'Lossless storage cluster switching is supported. Historical data will be cleaned up upon expiration according to the retention policy.',
   确定解散任务组: 'Disband the Task Group?',
   '已选择 {n} 个策略，确定批量删除？': 'Selected {n} rules, confirm batch deletion?',
 
@@ -475,6 +499,7 @@ export default {
   确定回收所选分享链接: 'Recycle these sharing links ?',
   确定回收当前分享链接: 'Recycle the sharing link ?',
   '是否还原默认配置？': 'Do you want to restore the default configuration?',
+  当前已是默认配置: 'The current configuration is already the default',
   发送测试邮件成功: 'Sent test Email successful',
   索引集非COUNT汇聚方法需要选择一个指标: 'The index set non-COUNT aggregation method needs to select a metric',
   '是否克隆 {0} ?': 'Do you want to clone {0}?',
@@ -570,4 +595,21 @@ export default {
   '拆分失败，请稍后重试': 'Split failed, please try again later',
   issue合并成功: 'Issue merged successfully',
   取消授权成功: 'Authorization cancelled successfully',
+
+  源码分析失败: 'Source code analysis failed',
+  '蓝盾流水线执行失败，未生成本次分析结果':
+    'BK-DevOps pipeline execution failed, no analysis results generated for this time',
+  尚未关联蓝盾项目及源码仓库: 'No BK-DevOps project and source code repository have been associated yet',
+  '源码关联分析需要先知道告警对应的蓝盾项目和代码仓库，才能拉取构建记录、提交历史与 Blame 信息。':
+    'Source code analysis requires that you know the BK-DevOps project and code repository that correspond to the alarm before you can pull build records, commit history, and blame information.',
+  '已配置，立即分析': 'Configured, analyze immediately',
+  源码仓库已关联: 'Source code repository has been associated',
+  源码分析进行中: 'Source code analysis in progress',
+  无法发起源码分析: 'Unable to start source code analysis',
+  '当前 Issue 未匹配到可用的源码分析规则，请查看规则配置。':
+    'The current Issue does not match any available source code analysis rule. Please check the rule configuration.',
+  查看规则配置: 'View rule configuration',
+
+  '确认重新分析？': 'Confirm to re-analyze?',
+  '分析失败，请稍后重试': 'Analysis failed. Please try again later',
 };

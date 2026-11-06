@@ -17,7 +17,7 @@ from apm_web.trace.serializers import FilterSerializer as TraceFilterSerializer
 from apm_web.trace.resources import ListFlattenSpanResource
 from bkmonitor.utils.request import get_request_username
 from constants.apm import TraceWaterFallDisplayKey
-from core.drf_resource import Resource
+from kernel_api.resource.mcp_response import MCPResource as Resource
 from kernel_api.resource.log_search import SearchLogResource
 from kernel_api.serializers.mixins import TimeSpanValidationPassThroughSerializer
 

@@ -1,0 +1,85 @@
+{
+  "time_series_group": [
+    {
+      "bk_data_id": 1100006,
+      "bk_biz_id": 0,
+      "table_id": "bkunifylogbeat_common.base",
+      "max_rate": -1,
+      "label": "service_process",
+      "time_series_group_name": "bkunifylogbeat common metrics"
+    },
+    {
+      "bk_data_id": 1100007,
+      "bk_biz_id": 0,
+      "table_id": "bkunifylogbeat_task.base",
+      "max_rate": -1,
+      "label": "service_process",
+      "time_series_group_name": "bkunifylogbeat task metrics"
+    },
+    {
+      "bk_data_id": 1100011,
+      "bk_biz_id": 0,
+      "table_id": "custom_report_aggate.base",
+      "max_rate": -1,
+      "label": "other_rt",
+      "time_series_group_name": "custom_report_aggate"
+    },
+    {
+      "bk_data_id": 1100012,
+      "bk_biz_id": 0,
+      "table_id": "operation_data_custom_series.base",
+      "max_rate": -1,
+      "label": "application_check",
+      "time_series_group_name": "operation_data_custom_series"
+    },
+    {
+      "bk_data_id": 1100013,
+      "bk_biz_id": 0,
+      "table_id": "bkm_statistics.base",
+      "max_rate": 2000,
+      "label": "application_check",
+      "time_series_group_name": "bkm_statistics"
+    },
+    {
+      "bk_data_id": 1100014,
+      "bk_biz_id": 0,
+      "table_id": "datalink_stats.__default__",
+      "max_rate": -1,
+      "label": "application_check",
+      "time_series_group_name": "datalink_stats"
+    },
+    {
+      "bk_data_id": 1100015,
+      "bk_biz_id": 0,
+      "table_id": "bkunifylogbeat_k8s_common.base",
+      "max_rate": -1,
+      "label": "service_process",
+      "time_series_group_name": "bkunifylogbeat k8s common metrics"
+    },
+    {
+      "bk_data_id": 1100016,
+      "bk_biz_id": 0,
+      "table_id": "bkunifylogbeat_k8s_task.base",
+      "max_rate": -1,
+      "label": "service_process",
+      "time_series_group_name": "bkunifylogbeat k8s task metrics"
+    },
+    {
+      "bk_data_id": 1100017,
+      "bk_biz_id": 0,
+      "table_id": "bkmonitorbeat_gather_up.__default__",
+      "max_rate": -1,
+      "label": "service_process",
+      "time_series_group_name": "bkmonitorbeat gather up metrics"
+    }
+  ],
+  "event_group": [
+    {
+      "bk_data_id": 1100008,
+      "bk_biz_id": 0,
+      "table_id": "gse_event_report_base",
+      "label": "host_process",
+      "event_group_name": "gse_process_event_report"
+    }
+  ]
+}

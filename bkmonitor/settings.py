@@ -13,6 +13,7 @@ import os
 import sys
 
 import monkey
+from config import kms
 from config.tools.environment import ENVIRONMENT, ROLE
 
 try:
@@ -59,8 +60,11 @@ for key, value in list(os.environ.items()):
     upper_key = key.upper()
     if upper_key.startswith(SETTING_ENV_PREFIX):
         settings_key = upper_key.replace(SETTING_ENV_PREFIX, "")
+        if kms.enabled() and settings_key in kms.PROTECTED_SETTINGS:
+            print(f"[Django Settings] Ignore config from env: {settings_key} (provided by KMS)")
+            continue
         locals()[settings_key] = value
-        print(f'[Django Settings] Set config from env: {settings_key} = "{value}"')
+        print(f"[Django Settings] Set config from env: {settings_key}")
 
 
 # 多人开发时，无法共享的本地配置可以放到新建的 local_settings.py 文件中
@@ -70,6 +74,16 @@ if RUN_MODE == "DEVELOP":  # noqa
         from local_settings import *  # noqa
     except ImportError:
         pass
+
+# Assign envelope-owned aliases after environment and local settings overlays.
+if kms.enabled():
+    APP_CODE, SECRET_KEY = kms.app_identity(_module.ROLE)
+    APP_ID, APP_TOKEN = APP_CODE, SECRET_KEY
+    BACKEND_APP_CODE = kms.value("bkapp_id_secret", "backend", "app_code")
+    SAAS_APP_CODE = kms.value("bkapp_id_secret", "saas", "app_code")
+    SAAS_SECRET_KEY = kms.value("bkapp_id_secret", "saas", "app_secret")
+    FTA_ES7_USER = kms.value("elasticsearch", "fta", "username")
+    FTA_ES7_PASSWORD = kms.value("elasticsearch", "fta", "password")
 
 # Django 4.2+ 不再官方支持 Mysql 5.7，但目前 Django 仅是对 5.7 做了软性的不兼容改动，
 # 在没有使用 8.0 特异的功能时，对 5.7 版本的使用无影响，为兼容存量的 Mysql 5.7 DB 做此 Patch
@@ -107,3 +121,8 @@ try:
     globals()["DATABASES"][OLD_MONITOR_BACKEND_DB_NAME] = globals()["DATABASES"]["monitor_api"].copy()
 except ImportError as e:
     print(f"import bk-monitor-base and load settings failed, error: {e}")
+
+# bkcrypto 4.x 的加密字段无法被 Django 迁移复制，需要在模型加载前修复
+from bk_monitor_base.infras.symmetric_field import ensure_symmetric_field_copy_compatibility  # noqa: E402
+
+ensure_symmetric_field_copy_compatibility()

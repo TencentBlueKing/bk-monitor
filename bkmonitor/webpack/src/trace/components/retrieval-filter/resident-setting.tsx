@@ -327,6 +327,7 @@ export default defineComponent({
 
     return {
       localValue,
+      userConfigLoading,
       showTransfer,
       popoverInstance,
       fieldNameMap,
@@ -342,6 +343,7 @@ export default defineComponent({
     };
   },
   render() {
+    if (this.userConfigLoading && this.$slots.loading) return this.$slots.loading();
     return (
       <div
         ref='el'

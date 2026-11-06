@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2025 Tencent. All rights reserved.
@@ -8,9 +7,9 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
+
 import logging
 import time
-from typing import List
 
 from alarm_backends.core.alert import Alert
 from alarm_backends.service.alert.manager.checker.base import BaseChecker
@@ -26,7 +25,7 @@ class ShieldStatusChecker(BaseChecker):
     屏蔽状态检测
     """
 
-    def __init__(self, alerts: List[Alert]):
+    def __init__(self, alerts: list[Alert]):
         super().__init__(alerts)
         self.unshielded_actions = []
         self.need_notify_alerts = []
@@ -57,7 +56,7 @@ class ShieldStatusChecker(BaseChecker):
         if handle_record and not handle_record.get("is_shielded"):
             # 最近一次通知没有被屏蔽， 说明屏蔽未影响该告警的通知， 因此走正常周期通知逻辑。
             logger.info(
-                "[ignore unshielded action] alert(%s) strategy(%s) " "最近一次通知没有被屏蔽, 无需发送接触屏蔽通知",
+                "[ignore unshielded action] alert(%s) strategy(%s) 最近一次通知没有被屏蔽, 无需发送接触屏蔽通知",
                 alert.id,
                 alert.strategy_id,
             )
@@ -81,7 +80,7 @@ class ShieldStatusChecker(BaseChecker):
                     "last_time": int(time.time()),
                     # 当前是解除屏蔽，所以此处一定是非屏蔽状态
                     "is_shielded": False,
-                    "latest_anomaly_time": alert.latest_time,
+                    "latest_anomaly_time": alert.latest_abnormal_event_time or alert.latest_time,
                     "execute_times": execute_times + 1,
                 }
             }
@@ -97,18 +96,27 @@ class ShieldStatusChecker(BaseChecker):
         notice_relation = None
         if alert.strategy:
             notice_relation = alert.strategy.get("notice", {})
-        if not match_shield:
+        historical_match = False
+        if not match_shield and alert.is_abnormal():
+            historical_match = bool(
+                AlertShieldConfigShielder.match_historical(alert.to_document(), alert.latest_abnormal_event_time)
+            )
+        notice_record = alert.cycle_handle_record.get(str((notice_relation or {}).get("id")), {})
+        if not match_shield and not historical_match:
             # 2. 如果告警未命中屏蔽规则， 判定告警是否需要发送解除屏蔽通知。
-            if alert.is_shielded:
+            if alert.is_shielded or notice_record.get("is_shielded"):
                 # 2.1 告警处于屏蔽中， 则开始解除屏蔽
                 if alert.is_recovering():
                     # 2.1.1 告警处于恢复期， 抑制解除屏蔽通知
                     # 设置 ignore_unshield_notice 标记: 抑制解除屏蔽通知(告警恢复期)
                     alert.update_extra_info("ignore_unshield_notice", True)
-                    logger.info("[ignore push action] alert(%s) strategy(%s) 告警处于恢复期", alert.id, alert.strategy_id)
+                    logger.info(
+                        "[ignore push action] alert(%s) strategy(%s) 告警处于恢复期", alert.id, alert.strategy_id
+                    )
                 else:
                     # 2.1.2 推送解除屏蔽通知
                     self.add_unshield_action(alert, notice_relation)
+                    alert.extra_info.pop("need_unshield_notice", False)
             else:
                 # 2.2 告警处于未屏蔽状态
                 if alert.get_extra_info("need_unshield_notice"):
@@ -161,7 +169,7 @@ class ShieldStatusChecker(BaseChecker):
                     qos_actions += 1
                     qos_alerts.append(alert_id)
                     logger.info(
-                        "[action qos triggered] alert(%s) strategy(%s) signal(%s) severity(%s) " "qos_count: %s",
+                        "[action qos triggered] alert(%s) strategy(%s) signal(%s) severity(%s) qos_count: %s",
                         alert_id,
                         action["strategy_id"],
                         action["signal"],

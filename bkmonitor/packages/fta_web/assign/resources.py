@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2025 Tencent. All rights reserved.
@@ -8,6 +7,7 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
+
 import abc
 import logging
 from collections import defaultdict
@@ -207,7 +207,9 @@ class MatchDebugResource(Resource, metaclass=abc.ABCMeta):
 
         # step3 对告警进行规则适配 ?? 是否需要后台任务支持
         matched_alerts = []
-        matched_group_alerts = defaultdict(list)
+        # 组级命中统计与规则级明细保持同一口径：同一告警命中组内多条规则时逐次累加（不按告警去重），
+        # 否则组头「共 N 条」会小于组内各规则「命中 N 条」之和
+        matched_group_alert_count = defaultdict(int)
         for alert in alerts:
             origin_severity = alert.severity
             alert_manager = AlertAssignMatchManager(
@@ -233,7 +235,7 @@ class MatchDebugResource(Resource, metaclass=abc.ABCMeta):
                 alert_dict = alert.to_dict()
                 alert_dict["origin_severity"] = origin_severity
                 matched_rule.assign_rule["alerts"].append(alert_info)
-            matched_group_alerts[alert_manager.matched_group_info["group_id"]].append(alert)
+            matched_group_alert_count[alert_manager.matched_group_info["group_id"]] += len(alert_manager.matched_rules)
             matched_alerts.append(alert_info)
 
         MetricTranslator(bk_biz_ids=[bk_biz_id]).translate_from_dict(
@@ -249,7 +251,7 @@ class MatchDebugResource(Resource, metaclass=abc.ABCMeta):
                 response_data.append(
                     {
                         "group_id": rule_group_id,
-                        "alerts_count": len(matched_group_alerts.get(rule_group_id, [])),
+                        "alerts_count": matched_group_alert_count.get(rule_group_id, 0),
                         "group_name": group_info.get("name", rule_group_id),
                         "priority": group_info.get("priority", 0),
                         "rules": rules,

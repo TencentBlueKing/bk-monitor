@@ -8,10 +8,14 @@ from constants.common import DEFAULT_TENANT_ID
 from core.drf_resource import api
 from metadata.models import ClusterInfo
 from metadata.models.data_link.data_link_configs import ClusterConfig
-from metadata.task.bkbase import sync_bkbase_cluster_info
+from metadata.task.bkbase import sync_bkbase_cluster_info, sync_bkbase_vm_query_clusters
 from metadata.task.constants import BKBASE_V4_KIND_STORAGE_CONFIGS
 from metadata.task.sync_space import sync_bkcc_space
-from metadata.task.tasks import create_single_tenant_system_datalink, create_single_tenant_system_proc_datalink
+from metadata.task.tasks import (
+    create_single_tenant_system_datalink,
+    create_single_tenant_system_event_datalink,
+    create_single_tenant_system_proc_datalink,
+)
 from metadata.utils.gse import KafkaGseSyncer
 
 logger = logging.getLogger(__name__)
@@ -60,18 +64,19 @@ def _init_es_cluster(bk_tenant_id: str):
     初始化ES集群
     """
     # 0. 判断是否存在ES7的信息，如果不存在，则直接退出，不做刷新
-    if os.environ.get("BK_MONITOR_ES7_HOST") is None:
+    if settings.BACKEND_ES7_HOST is None:
         logger.info("BK_MONITOR_ES7_HOST is not set, skipping ES7 cluster initialization.")
         return True
 
-    try:
-        es_host = os.environ["BK_MONITOR_ES7_HOST"]
-        es_port = os.environ["BK_MONITOR_ES7_REST_PORT"]
-        es_username = os.environ.get("BK_MONITOR_ES7_USER", "")
-        es_password = os.environ.get("BK_MONITOR_ES7_PASSWORD", "")
-    except KeyError as error:
-        logger.error(f"get es7 env or tenant({bk_tenant_id}) failed: {error}")
-        raise ValueError(f"failed to get environ->[{error}] for es7 cluster maybe something go wrong on init?")
+    es_host = settings.BACKEND_ES7_HOST
+    es_port = settings.BACKEND_ES7_REST_PORT
+    es_username = settings.BACKEND_ES7_USER
+    es_password = settings.BACKEND_ES7_PASSWORD
+    if es_port is None:
+        logger.error(f"get es7 env or tenant({bk_tenant_id}) failed: 'BK_MONITOR_ES7_REST_PORT'")
+        raise ValueError(
+            "failed to get environ->['BK_MONITOR_ES7_REST_PORT'] for es7 cluster maybe something go wrong on init?"
+        )
 
     # 0. 判断是否已经存在了默认集群ES7，并确认是否初始化
     default_es = ClusterInfo.objects.filter(
@@ -121,6 +126,7 @@ def _init_bkbase_cluster(bk_tenant_id: str):
     """
     初始化BKBase集群
     """
+    sync_bkbase_vm_query_clusters(bk_tenant_id=bk_tenant_id)
     # 遍历所有存储配置
     for storage_config in BKBASE_V4_KIND_STORAGE_CONFIGS:
         clusters: list[dict[str, Any]] = api.bkdata.list_data_link(
@@ -208,3 +214,4 @@ def init_tenant(bk_tenant_id: str):
     if not settings.ENABLE_MULTI_TENANT_MODE:
         create_single_tenant_system_datalink()
         create_single_tenant_system_proc_datalink()
+        create_single_tenant_system_event_datalink()

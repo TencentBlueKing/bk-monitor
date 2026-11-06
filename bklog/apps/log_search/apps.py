@@ -26,26 +26,15 @@ from django.conf import settings
 from django.contrib.auth.signals import user_logged_in
 from django.db.models.signals import post_migrate
 
-from apps.iam import Permission
-from apps.iam.backends.v4.model_migrator import migrate_v4_model_on_post_migrate
+from apps.iam.model_sync import migrate_iam_models
 from apps.utils.local import activate_request
 from apps.utils.log import logger
 from apps.utils.thread import generate_request
-from iam.contrib.iam_migration.migrator import IAMMigrator
 
 try:
     from blueapps.utils.esbclient import get_client_by_user
 except Exception:  # pylint: disable=broad-except
     pass
-
-
-def migrate_iam(sender, **kwargs):
-    if Permission.get_iam_client(settings.BK_APP_TENANT_ID).in_compatibility_mode():
-        # 存量部署存在V1的操作时，需要跑该配置将V1操作改名，避免与新名称发生冲突
-        IAMMigrator("legacy.json").migrate()
-    IAMMigrator("initial.json").migrate()
-    # V4 权限模型 as-code 收敛；开关未打开或未接入 V4 网关时内部直接短路。
-    migrate_v4_model_on_post_migrate()
 
 
 class ApiConfig(AppConfig):
@@ -56,7 +45,7 @@ class ApiConfig(AppConfig):
         self.init_bklog_api()
         self.sync_package_version()
         self.check_feature()
-        post_migrate.connect(migrate_iam, sender=self)
+        post_migrate.connect(migrate_iam_models, sender=self, dispatch_uid="bklog iam models")
         return True
 
     @classmethod

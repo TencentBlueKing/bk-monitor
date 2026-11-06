@@ -30,12 +30,20 @@ CATEGORY_ACTIONS = {
     "alert_handling": "using_alarm_handling_mcp",
     "log_collection": "using_log_collection_mcp",
     "log_extract": "using_log_extract_mcp",
+    "recording_rule": "view_recording_rule_v2",
     "metadata": "using_metadata_mcp",
-    "operation": "using_operation_mcp",
 }
 
 # ops 没有登记 MCP Server 后缀权限；OpenClaw 自愈使用专用的用户身份隔离，
 # 两者都不能套普通业务级 IAM Action。
+
+# 同一领域内的写操作可使用独立的管理权限。
+TOOL_ACTIONS = {
+    "create_recording_rule": "manage_recording_rule_v2",
+    "update_recording_rule": "manage_recording_rule_v2",
+    "delete_recording_rule": "manage_recording_rule_v2",
+    "apply_recording_rule": "manage_recording_rule_v2",
+}
 
 # 显式维护公开 Source：新增 APIGW MCP YAML 必须经过评审，不能因文件名匹配就自动进入目录。
 SOURCE_FILES = {
@@ -60,48 +68,90 @@ SOURCE_FILES = {
         "log_collection_update_mcp.yaml",
     ),
     "log_extract": ("log_extract_mcp.yaml",),
+    "recording_rule": ("recording_rule_mcp.yaml",),
     "metadata": ("metadata_mcp.yaml",),
-    "operation": ("operation_mcp.yaml",),
 }
 # 私有／专用 MCP 保留原入口，不进入 Tool Search 和 Unified 执行。
-IGNORED_SOURCE_FILES = frozenset({"openclaw_recovering_mcp.yaml", "ops_mcp.yaml"})
+# operation MCP 只服务内部运营场景，继续使用独立入口与 using_operation_mcp。
+IGNORED_SOURCE_FILES = frozenset({"openclaw_recovering_mcp.yaml", "operation_mcp.yaml", "ops_mcp.yaml"})
 CATEGORIES = tuple(SOURCE_FILES)
+
+# Unified 门面诊断操作共用同一认证入口；它们不执行业务工具，不属于业务 ToolRegistry。
+UNIFIED_DIAGNOSTIC_OPERATIONS = frozenset(
+    {"lookup_tool", "lookup_tool_schema", "lookup_metadata", "lookup_permissions"}
+)
+
+
+def is_unified_diagnostic_route(method: str, path: str) -> bool:
+    """仅识别已声明的诊断后端 POST 路由，不能用路径包含关系扩大认证范围。"""
+    prefix = "/api/v4/unified_mcp/"
+    path = path.rstrip("/").removesuffix(".json")
+    return method == "POST" and path.startswith(prefix) and path[len(prefix) :] in UNIFIED_DIAGNOSTIC_OPERATIONS
+
 
 # standalone、Unified 门面和权限探测共用同一份权限目录。
 # 未声明原生映射的工具继续使用原 MCP Action；原生模式必须显式启用。
-NATIVE_PERMISSIONS = {
-    name: {
-        "system_id": "bk_monitorv3",
-        "action_id": "explore_metric_v2",
-        "resource_type": "space",
-        "resource_arg": "bk_biz_id",
+def _native_permission(
+    action_id: str,
+    *,
+    system_id: str = "bk_monitorv3",
+    resource_type: str = "space",
+    resource_arg: str = "bk_biz_id",
+    **extra: Any,
+) -> dict[str, Any]:
+    return {
+        "system_id": system_id,
+        "action_id": action_id,
+        "resource_type": resource_type,
+        "resource_arg": resource_arg,
+        **extra,
     }
-    for name in ("list_time_series_groups", "list_time_series_metrics", "execute_range_query")
+
+
+NATIVE_PERMISSIONS: dict[str, dict[str, Any]] = {}
+
+# 指标和资源关联均复用指标检索。SQL 与时序明细额外校验 table_id 归属，
+# SQL 还必须只读取声明的单张结果表。
+for _name in (
+    "list_time_series_groups",
+    "list_time_series_metrics",
+    "execute_range_query",
+    "execute_sql_query",
+    "find_relations",
+    "find_relations_range",
+):
+    NATIVE_PERMISSIONS[_name] = _native_permission("explore_metric_v2")
+for _name in ("list_time_series_metrics", "execute_sql_query"):
+    NATIVE_PERMISSIONS[_name].update(target_kind="time_series_table", target_arg="table_id")
+
+# 固定索引集使用日志检索实例权限；场景模式先检查日志业务访问，日志平台再按
+# 动态命中的索引集执行原 search_log_v2 校验。
+for _name in (
+    "get_index_set_fields",
+    "search_logs",
+    "search_index_set_context",
+    "analyze_field",
+    "search_log_clustering_pattern",
+):
+    NATIVE_PERMISSIONS[_name] = _native_permission(
+        "search_log_v2",
+        system_id="bk_log_search",
+        resource_type="indices",
+        resource_arg="index_set_id",
+    )
+_log_scene_permission = _native_permission("view_business_v2", system_id="bk_log_search")
+NATIVE_PERMISSIONS["search_logs"]["conditional"] = {
+    "arg": "target_type",
+    "equals": "scene",
+    "permission": _log_scene_permission,
 }
-# SQL 在真实访问表范围完成验证前保持旧权限，不能只凭 table_id 推断授权资源。
-NATIVE_PERMISSIONS.update(
-    {
-        name: {
-            "system_id": "bk_log_search",
-            "action_id": "search_log_v2",
-            "resource_type": "indices",
-            "resource_arg": "index_set_id",
-        }
-        for name in (
-            "get_index_set_fields",
-            "search_logs",
-            "search_index_set_context",
-            "analyze_field",
-            "search_log_clustering_pattern",
-        )
-    }
-)
-NATIVE_PERMISSIONS["list_index_sets"] = {
-    "system_id": "bk_log_search",
-    "action_id": "view_business_v2",
-    "resource_type": "space",
-    "resource_arg": "bk_biz_id",
+NATIVE_PERMISSIONS["analyze_field"]["conditional"] = {
+    "arg": "target_type",
+    "equals": "scene",
+    "permission": _log_scene_permission,
 }
+for _name in ("list_index_sets", "list_log_scenes", "list_scene_dimension_values", "get_scene_log_fields"):
+    NATIVE_PERMISSIONS[_name] = deepcopy(_log_scene_permission)
 
 # 告警查询复用事件查看权限，当前策略配置使用策略查看权限。
 # target_arg 只用于校验目标归属业务，不代表新增了告警／策略实例级 IAM 资源。
@@ -119,17 +169,135 @@ for _name, _target_arg in {
     "get_alert_traces": "alert_id",
     "get_alert_log_relations": "alert_id",
 }.items():
-    NATIVE_PERMISSIONS[_name] = {
-        "system_id": "bk_monitorv3",
-        "action_id": "view_rule_v2" if _name == "get_strategy_detail" else "view_event_v2",
-        "resource_type": "space",
-        "resource_arg": "bk_biz_id",
-    }
+    NATIVE_PERMISSIONS[_name] = _native_permission(
+        "view_rule_v2" if _name == "get_strategy_detail" else "view_event_v2"
+    )
     if _target_arg:
         NATIVE_PERMISSIONS[_name].update(
             target_kind="strategy" if _name == "get_strategy_detail" else "alert",
             target_arg=_target_arg,
         )
+
+# 普通事件沿用数据检索权限；带 APM 应用和服务的事件查询改用应用实例权限。
+NATIVE_PERMISSIONS["list_events"] = _native_permission("explore_metric_v2")
+for _name in ("get_event_view_config", "search_event_log"):
+    NATIVE_PERMISSIONS[_name] = _native_permission(
+        "explore_metric_v2",
+        target_kind="event_table",
+        target_arg="table",
+        conditional={
+            "all_args": ("app_name", "service_name"),
+            "permission": _native_permission(
+                "view_apm_application_v2",
+                resource_type="apm_application",
+                resource_arg="app_name",
+            ),
+        },
+    )
+
+# APM 目录只要求业务访问；具体查询按 APM 应用实例授权。
+for _name in ("list_apm_applications", "get_profile_application_service"):
+    NATIVE_PERMISSIONS[_name] = _native_permission("view_business_v2")
+for _name in (
+    "get_apm_filter_fields",
+    "search_spans",
+    "get_trace_detail",
+    "get_span_detail",
+    "get_profile_type",
+    "get_profile_label",
+    "query_graph_profile",
+    "calculate_by_range",
+    "list_apm_services",
+):
+    NATIVE_PERMISSIONS[_name] = _native_permission(
+        "view_apm_application_v2",
+        resource_type="apm_application",
+        resource_arg="app_name",
+    )
+
+# 仪表盘目录按业务角色授权，详情按具体仪表盘实例授权。
+NATIVE_PERMISSIONS["get_dashboard_tree_list"] = _native_permission("view_dashboard_v2")
+NATIVE_PERMISSIONS["get_dashboard_detail_by_uid"] = _native_permission(
+    "view_single_dashboard",
+    resource_type="grafana_dashboard",
+    resource_arg="dashboard_uid",
+)
+
+# 告警处置中的只读工具复用各自原页面的查看权限。
+for _name in (
+    "search_alarm_strategies",
+    "get_alarm_strategy",
+    "search_alarm_action_configs",
+    "get_alarm_action_config",
+    "search_alarm_assign_groups",
+):
+    NATIVE_PERMISSIONS[_name] = _native_permission("view_rule_v2")
+for _name in ("search_alarm_shields", "get_alarm_shield"):
+    NATIVE_PERMISSIONS[_name] = _native_permission("view_downtime_v2")
+NATIVE_PERMISSIONS["search_alarm_notice_groups"] = _native_permission("view_notify_team_v2")
+
+# 日志采集查询复用原 ViewSet 已有的业务访问或采集查看权限。
+for _name in (
+    "list_log_collectors",
+    "get_log_collector",
+    "get_log_index_set",
+    "list_third_party_es_clusters",
+    "list_result_tables",
+    "list_log_index_set_groups",
+):
+    NATIVE_PERMISSIONS[_name] = _native_permission("view_business_v2")
+for _name in ("preview_log_etl", "get_log_collector_status"):
+    NATIVE_PERMISSIONS[_name] = _native_permission("view_collection_v2")
+
+# 日志提取仍由日志平台继续收敛用户策略、目录和任务归属；IAM 前置复用日志业务访问。
+for _name in (
+    "list_log_extract_topology",
+    "search_log_extract_hosts",
+    "list_log_extract_allowed_paths",
+    "get_log_extract_task",
+):
+    NATIVE_PERMISSIONS[_name] = _native_permission("view_business_v2", system_id="bk_log_search")
+
+NATIVE_PERMISSIONS["list_bcs_clusters"] = _native_permission("view_business_v2")
+
+# 告警处置写工具复用各自页面的管理权限；Resource 继续校验目标业务、对象归属和并发版本。
+for _name in (
+    "create_alarm_strategy",
+    "update_alarm_strategy",
+    "update_alarm_action_config",
+    "save_alarm_assign_group",
+    "delete_alarm_assign_group",
+):
+    NATIVE_PERMISSIONS[_name] = _native_permission("manage_rule_v2")
+for _name in ("create_alarm_shield", "update_alarm_shield", "disable_alarm_shield"):
+    NATIVE_PERMISSIONS[_name] = _native_permission("manage_downtime_v2")
+for _name in ("create_alarm_notice_group", "update_alarm_notice_group"):
+    NATIVE_PERMISSIONS[_name] = _native_permission("manage_notify_team_v2")
+
+# Dashboard as Code 可一次导入多个配置，当前无法收敛为单一仪表盘实例；先复用业务级仪表盘管理权限。
+for _name in ("create_dashboard", "update_dashboard"):
+    NATIVE_PERMISSIONS[_name] = _native_permission("manage_dashboard_v2")
+
+# 日志采集写工具复用 Unified 旧路径已补回的采集管理权限。
+for _name in (
+    "update_log_collector_clean_config",
+    "fast_create_log_collector",
+    "create_custom_report",
+    "create_bkdata_index_set",
+    "create_third_party_es",
+    "update_custom_report",
+    "update_third_party_es",
+    "update_bkdata_index_set",
+    "fast_update_log_collector",
+):
+    NATIVE_PERMISSIONS[_name] = _native_permission("manage_collection_v2")
+
+# 日志文件发现保留业务访问和下载策略，创建任务、取得下载地址分别复用日志平台既有动作。
+NATIVE_PERMISSIONS["search_log_extract_files"] = _native_permission("view_business_v2", system_id="bk_log_search")
+NATIVE_PERMISSIONS["create_log_extract_task"] = _native_permission("create_client_log_task", system_id="bk_log_search")
+NATIVE_PERMISSIONS["get_log_extract_download_url"] = _native_permission(
+    "download_client_log", system_id="bk_log_search"
+)
 
 
 def native_tool_names() -> tuple[str, ...]:
@@ -144,13 +312,20 @@ def native_tool_names() -> tuple[str, ...]:
 
 
 # 公共 Schema 归一化规则变化时递增，确保客户端不会沿用旧目录版本缓存。
-SCHEMA_NORMALIZATION_VERSION = 2
+SCHEMA_NORMALIZATION_VERSION = 3
 
 # 对外工具名与历史 operationId 不一致时，在这里做唯一别名归一。
 PUBLIC_TOOL_NAMES = {"apm_mcp_calculate_by_range": "calculate_by_range"}
 
 # 能力标签是人工评审的产品语义，不能根据 GET／POST 或函数名前缀猜测。
 CAPABILITIES = {
+    "preview_recording_rule": ("analysis",),
+    "create_recording_rule": ("mutation",),
+    "update_recording_rule": ("mutation",),
+    "delete_recording_rule": ("mutation",),
+    "get_recording_rule": ("detail",),
+    "apply_recording_rule": ("mutation",),
+    "list_recording_rules": ("discovery",),
     # 指标查询
     "list_time_series_groups": ("discovery",),
     "list_time_series_metrics": ("discovery",),
@@ -256,10 +431,6 @@ CAPABILITIES.update(
         # 元数据
         "list_bcs_clusters": ("discovery",),
         "search_spaces": ("discovery",),
-        # 平台运营数据
-        "list_operation_metrics": ("discovery",),
-        "get_operation_metric": ("query",),
-        "get_operation_overview": ("analysis",),
     }
 )
 
@@ -306,6 +477,13 @@ ADDITIONAL_IAM_ACTIONS = {
 
 # Tool Search 展示标题；工具描述本身仍来自 Source OpenAPI。
 TITLES = {
+    "preview_recording_rule": "预解析预计算规则",
+    "create_recording_rule": "新建预计算规则",
+    "update_recording_rule": "修改预计算规则",
+    "delete_recording_rule": "删除预计算规则",
+    "get_recording_rule": "查询预计算规则",
+    "apply_recording_rule": "下发预计算规则",
+    "list_recording_rules": "列出预计算规则",
     "list_time_series_groups": "列出时序分组",
     "list_time_series_metrics": "列出时序指标",
     "execute_range_query": "执行 PromQL 范围查询",
@@ -398,14 +576,21 @@ TITLES.update(
         "get_log_extract_download_url": "获取日志提取下载地址",
         "list_bcs_clusters": "列出 BCS 集群",
         "search_spaces": "查询业务空间",
-        "list_operation_metrics": "列出运营指标",
-        "get_operation_metric": "查询运营指标",
-        "get_operation_overview": "获取运营概览",
     }
 )
 
+ANALYZE_FIELD_PREREQUISITES = {
+    "index_set": ("list_index_sets", "get_index_set_fields"),
+    "scene": ("list_log_scenes", "list_scene_dimension_values", "get_scene_log_fields"),
+}
+
 # 参数应从哪些前置工具取得；这是调用建议，不是绕过最终校验的凭据。
 PREREQUISITES: dict[str, tuple[str, ...]] = {
+    "preview_recording_rule": ("list_recording_rules",),
+    "update_recording_rule": ("list_recording_rules",),
+    "delete_recording_rule": ("list_recording_rules",),
+    "get_recording_rule": ("list_recording_rules",),
+    "apply_recording_rule": ("list_recording_rules",),
     "list_time_series_metrics": ("list_time_series_groups",),
     "execute_range_query": ("list_time_series_groups", "list_time_series_metrics"),
     "execute_sql_query": ("list_time_series_groups",),
@@ -414,7 +599,7 @@ PREREQUISITES: dict[str, tuple[str, ...]] = {
     "search_index_set_context": ("search_logs",),
     "list_scene_dimension_values": ("list_log_scenes",),
     "get_scene_log_fields": ("list_log_scenes", "list_scene_dimension_values"),
-    "analyze_field": ("list_index_sets", "get_index_set_fields"),
+    "analyze_field": tuple(name for names in ANALYZE_FIELD_PREREQUISITES.values() for name in names),
     "search_log_clustering_pattern": ("list_index_sets",),
     "get_alert_top_n": ("list_alerts",),
     "get_strategy_snapshot": ("list_alerts",),
@@ -476,8 +661,6 @@ PREREQUISITES.update(
         "get_log_extract_task": ("create_log_extract_task",),
         "get_log_extract_download_url": ("get_log_extract_task",),
         "list_bcs_clusters": ("search_spaces",),
-        "get_operation_metric": ("list_operation_metrics",),
-        "get_operation_overview": ("list_operation_metrics",),
     }
 )
 
@@ -513,7 +696,7 @@ class ToolDefinition:
     forwards_confirmation: bool = False  # 原 Resource 是否原生接收 confirm 字段。
     resource_arg: str = "bk_biz_id"  # 默认从哪个参数取得业务／资源上下文。
     backend_derived_fields: tuple[str, ...] = ()  # 由服务端派生、模型无需传入的字段。
-    native_permission: dict[str, str] | None = None  # 可选的原生权限及资源映射。
+    native_permission: dict[str, Any] | None = None  # 可选的原生权限及资源映射。
 
     def normalize_standalone_args(self, tool_args):
         """适配 standalone 历史标量字符串，Schema 和资源校验仍由执行器负责。
@@ -541,25 +724,77 @@ class ToolDefinition:
             return ()
         return (self.iam_action, *self.additional_iam_actions)
 
+    def resolve_native_permission(self, context: dict[str, Any] | None = None) -> dict[str, Any] | None:
+        """按工具参数选择实际原生权限；只支持目录中显式声明的条件分支。"""
+        if not self.native_permission:
+            return None
+        context = context or {}
+        conditional = self.native_permission.get("conditional")
+        selected = self.native_permission
+        if conditional:
+            arg = conditional.get("arg")
+            all_args = conditional.get("all_args")
+            if (arg and context.get(arg) == conditional.get("equals")) or (
+                all_args and all(context.get(name) not in (None, "") for name in all_args)
+            ):
+                selected = conditional["permission"]
+        return {key: value for key, value in selected.items() if key != "conditional"}
+
+    def native_resource_context_keys(self, context: dict[str, Any] | None = None) -> set[str]:
+        """返回权限探测可接受的资源上下文字段。"""
+        if not self.native_permission:
+            return set()
+        context = context or {}
+        spec = self.resolve_native_permission(context) or {}
+        keys = set()
+        resource_arg = spec.get("resource_arg")
+        if resource_arg and resource_arg != "bk_biz_id":
+            keys.add(resource_arg)
+        if spec.get("target_arg"):
+            keys.add(spec["target_arg"])
+        conditional = self.native_permission.get("conditional") or {}
+        if conditional.get("arg"):
+            keys.add(conditional["arg"])
+        keys.update(conditional.get("all_args") or ())
+        if spec.get("resource_type") == "indices":
+            keys.add("target_type")
+        if (
+            spec.get("resource_type") == "apm_application"
+            and self.native_permission.get("target_kind") == "event_table"
+        ):
+            # APM 事件由后端按应用／服务派生表；table 是调用参数而非此分支的 IAM 资源。
+            keys.add("table")
+        return keys
+
+    @staticmethod
+    def _public_native_permission(spec: dict[str, Any]) -> dict[str, Any]:
+        """生成不含运行时对象的原生权限说明，并归一化监控系统 ID。"""
+        payload = deepcopy(spec)
+        if payload["system_id"] == "bk_monitorv3":
+            payload["system_id"] = settings.BK_IAM_SYSTEM_ID
+        if payload["system_id"] == "bk_log_search":
+            payload["iam_model"] = "v3-current"
+            if payload["resource_type"] == "indices":
+                payload["resource_scope"] = "ordinary_visible_in_space"
+        conditional = payload.get("conditional")
+        if conditional:
+            conditional["permission"] = ToolDefinition._public_native_permission(conditional["permission"])
+        return payload
+
     def permission_payload(self) -> dict[str, Any]:
         """生成模型可读的权限契约，不执行真实权限查询。"""
         if self.permission_exempt:
             return {"mode": "exempt", "reason": "platform-visible metadata discovery"}
         if self.native_permission:
-            payload = {
-                **self.native_permission,
-                "mode": "native_then_legacy",
-                "fallback_system_id": settings.BK_IAM_SYSTEM_ID,
-                "fallback_action_id": self.iam_action,
+            return {
+                "system_id": settings.BK_IAM_SYSTEM_ID,
+                "action_id": self.iam_action,
+                "resource_type": "space",
+                "resource_arg": "bk_biz_id",
+                "mode": "mcp_then_native",
+                "fallback_permission": self._public_native_permission(self.native_permission),
                 "fallback_on": "explicit_denial_only",
             }
-            if payload["system_id"] == "bk_monitorv3":
-                payload["system_id"] = settings.BK_IAM_SYSTEM_ID
-            elif payload["system_id"] == "bk_log_search":
-                payload["iam_model"] = "v3-current"
-                if payload["resource_type"] == "indices":
-                    payload["resource_scope"] = "ordinary_same_space"
-            return payload
         payload = {"action_id": self.iam_action, "resource_type": "space", "resource_arg": self.resource_arg}
         if self.additional_iam_actions:
             payload["additional_action_ids"] = list(self.additional_iam_actions)
@@ -568,13 +803,14 @@ class ToolDefinition:
     def summary(self, permission_state: str = "unknown") -> dict[str, Any]:
         """生成 lookup_tool 使用的轻量工具卡片。"""
         properties = self.input_schema.get("properties", {})
-        required_context = (
-            list(dict.fromkeys([self.resource_arg, self.native_permission["resource_arg"]]))
-            if self.native_permission
-            else [self.resource_arg]
-            if self.resource_arg in properties
-            else []
-        )
+        context_fields = [self.resource_arg]
+        if self.native_permission:
+            resource_arg = self.native_permission.get("resource_arg", "")
+            conditional = self.native_permission.get("conditional")
+            # 条件鉴权的可选资源不能提升为工具的全局必需上下文。
+            if not conditional or resource_arg in self.input_schema.get("required", []):
+                context_fields.append(resource_arg)
+        required_context = list(dict.fromkeys(name for name in context_fields if name and name in properties))
         return {
             "name": self.name,
             "title": self.title,
@@ -597,14 +833,7 @@ class ToolDefinition:
             "description": self.description,
             "input_schema": deepcopy(self.input_schema),
             "guidelines": _build_guidelines(self),
-            "prerequisites": [
-                {
-                    "tool": tool_name,
-                    "kind": "conditional",
-                    "condition": f"缺少 {tool_name} 提供的参数时",
-                }
-                for tool_name in self.prerequisites
-            ],
+            "prerequisites": _build_prerequisites(self),
             "permission": self.permission_payload(),
             "execution": {
                 "status": "executable",
@@ -784,6 +1013,23 @@ def _extract_limits(schema: dict[str, Any]) -> dict[str, Any]:
     return limits
 
 
+def _build_prerequisites(tool: ToolDefinition) -> list[dict[str, Any]]:
+    if tool.name == "analyze_field":
+        return [
+            {
+                "tool": tool_name,
+                "kind": "conditional",
+                "condition": f"target_type={target_type} 且缺少 {tool_name} 提供的参数时",
+            }
+            for target_type, tool_names in ANALYZE_FIELD_PREREQUISITES.items()
+            for tool_name in tool_names
+        ]
+    return [
+        {"tool": tool_name, "kind": "conditional", "condition": f"缺少 {tool_name} 提供的参数时"}
+        for tool_name in tool.prerequisites
+    ]
+
+
 def _build_guidelines(tool: ToolDefinition) -> list[str]:
     """根据风险、时间参数和资源类型生成模型执行提示。"""
     guidelines: list[str] = []
@@ -792,10 +1038,24 @@ def _build_guidelines(tool: ToolDefinition) -> list[str]:
     if tool.risk == "data_export":
         guidelines.append("返回内容或下载地址可能进入模型上下文，只返回用户明确要求的数据。")
     if tool.native_permission and tool.native_permission["resource_type"] == "indices":
-        guidelines.append("原生权限首版仅支持普通、非分组、同空间索引集；不支持场景或平台级跨空间检索。")
+        if tool.native_permission.get("conditional"):
+            guidelines.append(
+                "固定索引集模式下，SaaS 兜底只支持业务目录中可见的普通、非分组索引集，按归属空间鉴权；"
+                "场景模式由日志平台按动态命中资源继续鉴权。"
+            )
+        else:
+            guidelines.append(
+                "SaaS 兜底仅支持业务目录中可见的普通、非分组索引集，按归属空间鉴权；"
+                "平台级或分组索引集需使用原 MCP 权限。"
+            )
     properties = tool.input_schema.get("properties") or {}
     if "start_time" in properties or "end_time" in properties:
         guidelines.append("start_time 和 end_time 必须按当前时间动态计算，不能使用固定历史时间戳。")
+    if tool.name == "analyze_field":
+        guidelines.append(
+            "target_type=index_set 时前置工具为 list_index_sets、get_index_set_fields；"
+            "target_type=scene 时前置工具为 list_log_scenes、list_scene_dimension_values、get_scene_log_fields。"
+        )
     if tool.prerequisites:
         guidelines.append("标识和字段必须来自前置工具返回，不能自行猜测。")
     if tool.backend_derived_fields:
@@ -808,10 +1068,10 @@ def _catalog_root() -> Path:
     return Path(settings.BASE_DIR) / "support-files" / "apigw" / "resources" / "internal" / "user"
 
 
-def load_tool_registry(root: Path | None = None) -> ToolRegistry:
+def load_tool_registry(root: Path | None = None, *, native_tools: tuple[str, ...] | None = None) -> ToolRegistry:
     """读取全部公开 Source，合成并校验唯一的 ToolRegistry。"""
     root = root or _catalog_root()
-    enabled = native_tool_names()
+    enabled = native_tool_names() if native_tools is None else native_tools
     tools: dict[str, ToolDefinition] = {}
     discovered_operation_ids: set[str] = set()
     digest = hashlib.sha256()
@@ -869,24 +1129,31 @@ def load_tool_registry(root: Path | None = None) -> ToolRegistry:
                             "description": "Must be true after explicit user confirmation. 用户明确确认后必须传 true。",
                         }
                         schema["required"] = list(dict.fromkeys([*schema.get("required", []), "confirm"]))
-                    # Step 5: 只有动态配置显式启用的工具才注入 native-first 权限契约。
+                    # Step 5: 只有动态配置显式启用的工具才注入 MCP 优先／SaaS 兜底权限契约。
                     description = operation.get("description", "")
                     if tool_name in enabled:
                         description += (
-                            " Native permissions are checked first; explicit denial falls back to the original MCP action. "
-                            "Errors and invalid resource scopes never trigger fallback. 原生权限优先，明确无权时检查原 MCP 权限；"
-                            "异常或资源校验失败不回退。"
+                            " The original MCP permission is checked first; only its explicit denial falls back "
+                            "to the SaaS permission. Errors and invalid resource scopes never trigger fallback. "
+                            "原 MCP 权限优先；只有明确无权时才检查 SaaS 权限，异常或资源越界不回退。"
                         )
                         if NATIVE_PERMISSIONS[tool_name]["resource_type"] == "indices":
-                            description = (
-                                "Native mode only supports ordinary, non-grouped index sets in the requested space. "
-                                "Scene/platform modes are unavailable. 原生模式仅支持普通、非分组、同空间索引集；"
-                                "不支持场景或平台级检索。以下为底层通用接口说明： " + description
-                            )
-                        if tool_name == "search_logs":
-                            schema["properties"]["target_type"]["enum"] = ["index_set"]
-                            schema["properties"].pop("table_id_conditions", None)
-                            schema["required"] = list(dict.fromkeys([*schema.get("required", []), "index_set_id"]))
+                            if NATIVE_PERMISSIONS[tool_name].get("conditional"):
+                                description = (
+                                    "In index-set mode the SaaS fallback only supports ordinary, non-grouped index "
+                                    "sets visible in the requested space, authorized in their owner space; scene mode "
+                                    "keeps the log platform's dynamic resource checks. "
+                                    "固定索引集模式下，SaaS 兜底仅支持业务目录中可见的普通、非分组索引集，按归属空间鉴权；"
+                                    "场景模式继续由日志平台按动态命中资源鉴权。以下为底层通用接口说明： " + description
+                                )
+                            else:
+                                description = (
+                                    "The SaaS fallback only supports ordinary, non-grouped index sets visible in the "
+                                    "requested space, authorized in their owner space; platform and grouped index "
+                                    "sets require the original MCP permission. "
+                                    "SaaS 兜底仅支持业务目录中可见的普通、非分组索引集，按归属空间鉴权；"
+                                    "平台或分组索引集需使用原 MCP 权限。以下为底层通用接口说明： " + description
+                                )
                         if tool_name == "list_time_series_groups":
                             schema["properties"]["is_platform"]["enum"] = [False]
                     # Step 6: 将 YAML 契约和代码元信息合成为不可变 ToolDefinition。
@@ -899,7 +1166,7 @@ def load_tool_registry(root: Path | None = None) -> ToolRegistry:
                         input_schema=schema,
                         backend_method=str(backend.get("method") or method).upper(),
                         backend_path=str(backend.get("path") or api_path),
-                        iam_action=CATEGORY_ACTIONS.get(category, ""),
+                        iam_action=TOOL_ACTIONS.get(tool_name, CATEGORY_ACTIONS.get(category, "")),
                         prerequisites=PREREQUISITES.get(tool_name, ()),
                         risk=risk,
                         permission_exempt=tool_name in PERMISSION_EXEMPT_TOOL_NAMES,
@@ -933,6 +1200,7 @@ def load_tool_registry(root: Path | None = None) -> ToolRegistry:
             {
                 "category_actions": CATEGORY_ACTIONS,
                 "additional_iam_actions": ADDITIONAL_IAM_ACTIONS,
+                "tool_actions": TOOL_ACTIONS,
                 "ignored_source_files": sorted(IGNORED_SOURCE_FILES),
                 "permission_exempt_tools": sorted(PERMISSION_EXEMPT_TOOL_NAMES),
                 "native_permissions": NATIVE_PERMISSIONS,
@@ -945,6 +1213,7 @@ def load_tool_registry(root: Path | None = None) -> ToolRegistry:
                 "capabilities": CAPABILITIES,
                 "titles": TITLES,
                 "prerequisites": PREREQUISITES,
+                "analyze_field_prerequisites": ANALYZE_FIELD_PREREQUISITES,
                 "backend_derived_fields": BACKEND_DERIVED_FIELDS,
                 "unified_hidden_fields": UNIFIED_HIDDEN_FIELDS,
             },
@@ -963,3 +1232,17 @@ def _cached_tool_registry(enabled: tuple[str, ...], monitor_system_id: str) -> T
 def get_tool_registry() -> ToolRegistry:
     """按当前动态配置返回进程内缓存的工具目录。"""
     return _cached_tool_registry(native_tool_names(), settings.BK_IAM_SYSTEM_ID)
+
+
+@lru_cache(maxsize=1)
+def _cached_route_registry(base_dir: str, monitor_system_id: str) -> ToolRegistry:
+    # Route recognition must not depend on whether SaaS permission fallback is enabled.
+    return load_tool_registry(native_tools=())
+
+
+def resolve_readonly_tool(method: str, path: str) -> ToolDefinition | None:
+    """从同一目录识别只读路由；仅命中工具时才加载动态权限配置。"""
+    tool = _cached_route_registry(str(settings.BASE_DIR), settings.BK_IAM_SYSTEM_ID).get_by_backend(method, path)
+    if tool is None or tool.risk != "query":
+        return None
+    return get_tool_registry().get(tool.name)

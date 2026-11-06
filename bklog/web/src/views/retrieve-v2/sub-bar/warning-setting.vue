@@ -215,18 +215,24 @@
   </div>
 </template>
 <script setup lang="ts">
-  import { computed, onMounted, ref, watch } from 'vue';
+  import { computed, onMounted, onUnmounted, ref, watch } from 'vue';
+  import axios from 'axios';
   import $http from '@/api';
   import { formatDate } from '@/common/util';
   import PopInstanceUtil from '@/global/pop-instance-util';
   import useLocale from '@/hooks/use-locale';
   import useStore from '@/hooks/use-store';
+  import RequestPool from '@/store/request-pool';
   import { bkMessage } from 'bk-magic-vue';
 
   import { ConditionOperator } from '../../../store/condition-operator';
   import useRetrieveHook from '../use-retrieve-hook';
   import { BK_LOG_STORAGE } from '../../../store/store.type';
   import RetrieveHelper, { RetrieveEvent } from '@/views/retrieve-helper';
+
+  const ALERT_BADGE_CANCEL_KEY = 'retrieveAlertBadgeCancelToken';
+  const ALERT_LIST_CANCEL_KEY = 'retrieveAlertListCancelToken';
+  const STRATEGY_LIST_CANCEL_KEY = 'retrieveStrategyListCancelToken';
 
   const { t } = useLocale();
   const store = useStore();
@@ -383,6 +389,7 @@
     }
 
     if (!PopInstanceUtilInstance.isShown()) {
+      loadAlertPanelData();
       PopInstanceUtilInstance.show(target);
     }
   };
@@ -432,17 +439,24 @@
     );
   };
 
-  const requestAlertList = (status: string) => {
-    return $http.request('alertStrategy/alertList', {
-      params: {
-        index_set_id: indexId.value,
+  const isCurrentIndexRequest = (requestIndexId: string | number) => requestIndexId === indexId.value;
+
+  const requestAlertList = (status: string, requestIndexId: string | number, cancelTokenKey: string) => {
+    RequestPool.execCanceToken(cancelTokenKey);
+    return $http.request(
+      'alertStrategy/alertList',
+      {
+        params: {
+          index_set_id: requestIndexId,
+        },
+        data: {
+          status,
+          page_size: pageSize,
+          space_uid: store.state.storage[BK_LOG_STORAGE.BK_SPACE_UID],
+        },
       },
-      data: {
-        status,
-        page_size: pageSize,
-        space_uid: store.state.storage[BK_LOG_STORAGE.BK_SPACE_UID],
-      },
-    });
+      { cancelToken: RequestPool.getCancelToken(cancelTokenKey) },
+    );
   };
 
   /**
@@ -450,12 +464,16 @@
    * 角标口径与列表不同：已屏蔽的告警不应再红点提醒，因此固定使用 NOT_SHIELDED_ABNORMAL
    */
   const getAlertBadgeCount = async () => {
+    const requestIndexId = indexId.value;
     try {
-      if (!indexId.value) {
+      if (!requestIndexId) {
         return;
       }
 
-      const res = await requestAlertList('NOT_SHIELDED_ABNORMAL');
+      const res = await requestAlertList('NOT_SHIELDED_ABNORMAL', requestIndexId, ALERT_BADGE_CANCEL_KEY);
+      if (!isCurrentIndexRequest(requestIndexId)) {
+        return;
+      }
       const list = res?.data || [];
 
       badgeCount.value = list.length;
@@ -466,6 +484,9 @@
         );
       }).length;
     } catch (e) {
+      if (axios.isCancel(e)) {
+        return;
+      }
       console.warn(e);
     }
   };
@@ -478,23 +499,32 @@
    * MY_ASSIGNEE - 表示我收到的告警记录
    */
   const getAlertListData = async (val: string) => {
+    const requestIndexId = indexId.value;
     try {
-      if (!indexId.value) {
+      if (!requestIndexId) {
         return;
       }
 
       recordList.value = [];
       loading.value = true;
-      const res = await requestAlertList(val);
+      const res = await requestAlertList(val, requestIndexId, ALERT_LIST_CANCEL_KEY);
+      if (!isCurrentIndexRequest(requestIndexId)) {
+        return;
+      }
 
       recordList.value = res?.data || [];
       originRecordList.value = recordList.value;
       // panels.value[0].count = res?.data.length || 0;
       tableKey.value += 1;
     } catch (e) {
+      if (axios.isCancel(e)) {
+        return;
+      }
       console.warn(e);
     } finally {
-      loading.value = false;
+      if (isCurrentIndexRequest(requestIndexId)) {
+        loading.value = false;
+      }
     }
   };
 
@@ -502,25 +532,33 @@
    * 获取策略列表
    */
   const getStrategyDate = async () => {
-    try {
-      strategyList.value.length = 0;
-      strategyList.value = [];
+    const requestIndexId = indexId.value;
+    strategyList.value = [];
 
-      if (!indexId.value) {
+    if (!requestIndexId) {
+      return;
+    }
+
+    RequestPool.execCanceToken(STRATEGY_LIST_CANCEL_KEY);
+    loading.value = true;
+
+    try {
+      const res = await $http.request(
+        'alertStrategy/strategyList',
+        {
+          params: {
+            index_set_id: requestIndexId,
+          },
+          data: {
+            page_size: pageSize,
+            space_uid: store.state.storage[BK_LOG_STORAGE.BK_SPACE_UID],
+          },
+        },
+        { cancelToken: RequestPool.getCancelToken(STRATEGY_LIST_CANCEL_KEY) },
+      );
+      if (!isCurrentIndexRequest(requestIndexId)) {
         return;
       }
-
-      loading.value = true;
-
-      const res = await $http.request('alertStrategy/strategyList', {
-        params: {
-          index_set_id: indexId.value,
-        },
-        data: {
-          page_size: pageSize,
-          space_uid: store.state.storage[BK_LOG_STORAGE.BK_SPACE_UID],
-        },
-      });
 
       (res?.data || []).forEach(element => {
         strategyList.value.push(
@@ -533,10 +571,37 @@
       panels.value[1].count = res?.data.length || 0;
       tableKey.value += 1;
     } catch (e) {
+      if (axios.isCancel(e)) {
+        return;
+      }
       console.warn(e);
     } finally {
-      loading.value = false;
+      if (isCurrentIndexRequest(requestIndexId)) {
+        loading.value = false;
+      }
     }
+  };
+
+  const cancelAlertRequests = () => {
+    RequestPool.execCanceToken(ALERT_BADGE_CANCEL_KEY);
+    RequestPool.execCanceToken(ALERT_LIST_CANCEL_KEY);
+    RequestPool.execCanceToken(STRATEGY_LIST_CANCEL_KEY);
+  };
+
+  const resetAlertPanelData = () => {
+    badgeCount.value = 0;
+    ownPendingCount.value = 0;
+    recordList.value = [];
+    originRecordList.value = [];
+    strategyList.value = [];
+    panels.value[1].count = 0;
+    loading.value = false;
+  };
+
+  const loadAlertPanelData = () => {
+    const type = typeMap[currentType.value];
+    getAlertListData(type);
+    getStrategyDate();
   };
 
   const handleViewLogInfo = row => {
@@ -606,28 +671,31 @@
       });
   };
 
-  const setMounted = async () => {
-    await getAlertBadgeCount();
-
-    const type = typeMap[currentType.value];
-    getAlertListData(type);
-
-    getStrategyDate();
-  };
-
-  onMounted(async () => {
-    await setMounted();
+  onMounted(() => {
+    if (indexId.value) {
+      getAlertBadgeCount();
+    }
   });
 
-  // 索引集ID改变时，获取告警数量
-  // 逻辑和第一次加载时一样
-  watch(
-    () => [indexId.value],
-    () => {
-      badgeCount.value = 0;
+  onUnmounted(() => {
+    cancelAlertRequests();
+    PopInstanceUtilInstance?.uninstallInstance();
+  });
 
-      if (indexId.value) {
-        setMounted();
+  // 索引集切换时只刷新角标；策略列表等面板打开再拉，避免占满连接挡住检索
+  watch(
+    () => indexId.value,
+    () => {
+      cancelAlertRequests();
+      resetAlertPanelData();
+
+      if (!indexId.value) {
+        return;
+      }
+
+      getAlertBadgeCount();
+      if (PopInstanceUtilInstance.isShown()) {
+        loadAlertPanelData();
       }
     },
   );

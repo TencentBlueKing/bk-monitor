@@ -28,6 +28,7 @@ import { Component, Emit, Prop, Ref, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
 import { formatWithTimezone } from 'monitor-common/utils/timezone';
+import { resolveLegacyHostHash } from 'monitor-pc/common/legacy-host-url';
 
 import { random } from '../../../monitor-common/utils/utils';
 import { transformLogUrlQuery } from '../../../monitor-pc/utils';
@@ -557,7 +558,9 @@ export default class IncidentTable extends tsc<IEventTableProps, IEventTableEven
           extendInfo.bk_host_id ??
           `${extendInfo.ip}-${extendInfo.bk_cloud_id === undefined ? 0 : extendInfo.bk_cloud_id}`;
         window.open(
-          `${origin}${location.pathname.toString().replace('fta/', '')}?bizId=${bizId}#/performance/detail/${detailId}`,
+          `${origin}${location.pathname.toString().replace('fta/', '')}?bizId=${bizId}${resolveLegacyHostHash({
+            id: String(detailId),
+          })}`,
           '__blank'
         );
         return;

@@ -7,18 +7,18 @@ from django.test import SimpleTestCase, override_settings
 from apps.feature_toggle.handlers.toggle import Toggle
 from apps.feature_toggle.plugins.constants import IAM_PERMISSION_MODE
 from apps.iam.apps import IamConfig
-from apps.iam.iam_engine.core.config import AuthMode, DEFAULT_DUAL_STACK, DualStackSpec
-from apps.iam.iam_engine.core.exceptions import InvalidAuthModeError
-from apps.iam.iam_engine.core.requests import AuthRequest, BatchAuthRequest, ResourceInstance, Subject
-from apps.iam.iam_engine.core.types import (
+from iam_engine.core.config import AuthMode, DEFAULT_DUAL_STACK, DualStackSpec
+from iam_engine.core.exceptions import InvalidAuthModeError
+from iam_engine.core.requests import AuthRequest, BatchAuthRequest, ResourceInstance, Subject
+from iam_engine.core.types import (
     AuthResult,
     AuthStatus,
     AuthorizedResourceScope,
     BatchAuthResult,
     BatchAuthResultItem,
 )
-from apps.iam.iam_engine.provider.bundle import ProviderBundle
-from apps.iam.iam_engine.provider.router import ModeRouter
+from iam_engine.provider.bundle import ProviderBundle
+from iam_engine.provider.router import ModeRouter
 from apps.iam.mode import (
     FeatureToggleModeProvider,
     InvalidIAMPermissionModeError,
@@ -342,8 +342,8 @@ class DualStackSpecTest(SimpleTestCase):
         self.assertEqual(DEFAULT_DUAL_STACK.legacy, AuthMode.V3)
         self.assertEqual(DEFAULT_DUAL_STACK.current, AuthMode.V4)
         self.assertEqual(DEFAULT_DUAL_STACK.modes_for(AuthMode.UNION), (AuthMode.V3, AuthMode.V4))
-        self.assertEqual(DEFAULT_DUAL_STACK.application_candidates(AuthMode.UNION), (AuthMode.V4, AuthMode.V3))
-        self.assertEqual(DEFAULT_DUAL_STACK.application_candidates(AuthMode.V4), (AuthMode.V4, AuthMode.V3))
+        self.assertEqual(DEFAULT_DUAL_STACK.application_candidates(AuthMode.UNION), (AuthMode.V4,))
+        self.assertEqual(DEFAULT_DUAL_STACK.application_candidates(AuthMode.V4), (AuthMode.V4,))
         self.assertEqual(DEFAULT_DUAL_STACK.application_candidates(AuthMode.V3), (AuthMode.V3,))
         self.assertEqual(DEFAULT_DUAL_STACK.fallback_mode, AuthMode.V3)
         self.assertEqual(
@@ -365,21 +365,6 @@ class DualStackSpecTest(SimpleTestCase):
             DualStackSpec(legacy=AuthMode.UNION, current=AuthMode.V4)
         with self.assertRaises(ValueError):
             DualStackSpec(legacy=AuthMode.V3, current=AuthMode.V3)
-
-
-class AuthModeSafeCoerceTest(SimpleTestCase):
-    def test_valid_string_is_converted(self):
-        self.assertEqual(AuthMode.safe_coerce("v4"), AuthMode.V4)
-
-    def test_existing_auth_mode_instance_passes_through(self):
-        self.assertEqual(AuthMode.safe_coerce(AuthMode.UNION), AuthMode.UNION)
-
-    def test_invalid_string_falls_back_to_default_stack_legacy(self):
-        self.assertEqual(AuthMode.safe_coerce("bad"), DEFAULT_DUAL_STACK.legacy)
-        self.assertEqual(AuthMode.safe_coerce("off"), DEFAULT_DUAL_STACK.legacy)
-
-    def test_invalid_string_falls_back_to_custom_default(self):
-        self.assertEqual(AuthMode.safe_coerce("bad", default=AuthMode.V4), AuthMode.V4)
 
 
 class ModeRouterTest(SimpleTestCase):

@@ -22,8 +22,7 @@ from constants.cmdb import TargetNodeType
 from core.drf_resource import Resource, api
 from core.errors.api import BKAPIError
 from monitor_web.collecting.constant import CollectStatus
-from monitor_web.collecting.deploy import get_collect_installer
-from monitor_web.collecting.utils import fetch_sub_statistics
+from monitor_web.collecting.deploy import fetch_collection_statistics, get_collect_installer
 from monitor_web.commons.data_access import ResultTable
 from monitor_web.constants import EVENT_TYPE
 from monitor_web.models import CollectConfigMeta, CustomEventGroup
@@ -355,23 +354,15 @@ class UpdateConfigInstanceCountResource(Resource):
             cache_data = {"error_instance_count": error_count, "total_instance_count": total_count}
         else:
             try:
-                _, collect_statistics_data = fetch_sub_statistics([collect_config])
+                statistics = fetch_collection_statistics([collect_config]).get(collect_config.pk)
             except BKAPIError as e:
                 logger.error(f"请求节点管理状态统计接口失败: {e}")
                 return
 
-            # 统计节点管理订阅的正常数、异常数
-            result_dict = {}
-            for item in collect_statistics_data:
-                status_number = {}
-                for status_result in item.get("status", []):
-                    status_number[status_result["status"]] = status_result["count"]
-                result_dict[item["subscription_id"]] = {
-                    "total_instance_count": item.get("instances", 0),
-                    "error_instance_count": status_number.get(CollectStatus.FAILED, 0),
-                }
-
-            cache_data = result_dict.get(collect_config.deployment_config.subscription_id)
+            # 缺失或失败的查询不覆盖已有缓存，也不当作零实例成功。
+            if statistics is None:
+                return
+            cache_data = {"total_instance_count": statistics.total, "error_instance_count": statistics.failed}
 
         # 更新缓存数据
         if collect_config.cache_data != cache_data:

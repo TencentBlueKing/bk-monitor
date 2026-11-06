@@ -354,25 +354,39 @@ class DataSource(models.Model):
             bk_biz_id: 业务ID
             namespace: 命名空间
             bkbase_data_name: 指定计算平台数据源名称；为空时先复用当前 Data ID 已登记的名称，
-                未找到再使用数据源名称自动生成。
+                未找到再按场景和 bk_data_id 生成随机名称。
         """
 
         from metadata.models.data_link import DataIdConfig, utils
+        from metadata.models.data_link.constants import DataLinkNameScene
         from metadata.models.data_link.service import apply_data_source_config
 
-        # 如果未指定计算平台数据源名称，优先复用当前 Data ID 已登记的资源名。
-        if not bkbase_data_name:
-            bkbase_data_name = utils.find_registered_bkdata_data_id_name(self, namespace=namespace)
-        if not bkbase_data_name:
-            bkbase_data_name = utils.compose_bkdata_data_id_name(self.data_name)
-
-        logger.info("register_to_bkbase: bkbase_data_name: %s", bkbase_data_name)
-        data_id_config_ins, _ = DataIdConfig.objects.update_or_create(
-            bk_tenant_id=self.bk_tenant_id,
-            namespace=namespace,
-            name=bkbase_data_name,
-            defaults={"bk_data_id": self.bk_data_id, "bk_biz_id": bk_biz_id},
-        )
+        # 名称先落库再下发；远端失败及并发注册都复用同一资源。
+        with atomic(config.DATABASE_CONNECTION_NAME):
+            # 同一数据源的首次注册在锁内重新查询，避免并发请求各自分配不同名称。
+            type(self).objects.select_for_update().get(pk=self.pk)
+            # 显式指定名称保持调用方意图；只有未指定时才按租户、namespace 和 DataId 复用。
+            if not bkbase_data_name:
+                bkbase_data_name = utils.find_registered_bkdata_data_id_name(self, namespace=namespace)
+            if bkbase_data_name:
+                data_id_config_ins, _ = DataIdConfig.objects.update_or_create(
+                    bk_tenant_id=self.bk_tenant_id,
+                    namespace=namespace,
+                    name=bkbase_data_name,
+                    defaults={"bk_data_id": self.bk_data_id, "bk_biz_id": bk_biz_id},
+                )
+            else:
+                data_id_config_ins = utils.create_resource_with_random_name(
+                    DataIdConfig,
+                    DataLinkNameScene.DATA_ID,
+                    self.bk_data_id,
+                    bk_tenant_id=self.bk_tenant_id,
+                    namespace=namespace,
+                    bk_data_id=self.bk_data_id,
+                    bk_biz_id=bk_biz_id,
+                )
+        # 下发发生在名称提交之后；即使 BKBase 请求失败，下次注册仍使用这条登记记录。
+        logger.info("register_to_bkbase: bkbase_data_name: %s", data_id_config_ins.name)
         data_id_config = data_id_config_ins.compose_predefined_config(data_source=self)
         data_source_config = data_id_config_ins.compose_data_source_config(
             data_source_alias=self.data_name,
@@ -626,7 +640,9 @@ class DataSource(models.Model):
             from metadata.models.space.constants import ENABLE_V4_DATALINK_ETL_CONFIGS, EtlConfigs
 
             # 开启V4链路后，特定 etl_config 的 data_id 先由 GSE 分配，再注册到计算平台
-            if settings.ENABLE_V2_VM_DATA_LINK and etl_config in ENABLE_V4_DATALINK_ETL_CONFIGS:
+            if (
+                settings.ENABLE_V2_VM_DATA_LINK and etl_config in ENABLE_V4_DATALINK_ETL_CONFIGS
+            ) or created_from == DataIdCreatedFromSystem.BKDATA.value:
                 logger.info(
                     f"apply for data id from gse and register to bkbase,type_label->{type_label},etl_config->{etl_config}"
                 )

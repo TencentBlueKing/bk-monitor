@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2025 Tencent. All rights reserved.
@@ -33,6 +32,8 @@ class GrafanaApiResource(Resource):
     method = ""
     path = ""
     with_org_id = False
+    timeout = None
+    redact_errors = False
 
     def perform_request(self, params):
         url = urljoin(settings.GRAFANA_URL, self.path.format(**params))
@@ -48,6 +49,8 @@ class GrafanaApiResource(Resource):
             username = "admin"
 
         requests_params = {"method": method, "url": url, "headers": {"X-WEBAUTH-USER": username}}
+        if self.timeout is not None:
+            requests_params["timeout"] = self.timeout
 
         # 对于非Admin API，通过参数在请求头注入org_id
         if self.with_org_id:
@@ -61,18 +64,35 @@ class GrafanaApiResource(Resource):
             requests_params["json"] = params
         elif method in ["GET", "HEAD", "DELETE"]:
             requests_params["params"] = params
-        r = requests.request(**requests_params)
+        try:
+            r = requests.request(**requests_params)
+        except requests.Timeout as error:
+            if self.timeout is None:
+                raise
+            raise TimeoutError("Grafana 仪表盘读取超时") from error
+        except requests.RequestException as error:
+            if not self.redact_errors:
+                raise
+            raise RuntimeError("Grafana 仪表盘请求失败") from error
 
         result = r.status_code in [200, 204]
         if result:
-            data = r.json()
+            try:
+                data = r.json()
+            except ValueError as error:
+                if not self.redact_errors:
+                    raise
+                raise ValueError("Grafana 仪表盘响应不是有效 JSON") from error
             message = ""
         else:
             data = None
-            try:
-                message = r.json()["message"]
-            except json.decoder.JSONDecodeError:
-                message = r.content
+            if self.redact_errors:
+                message = "Grafana 仪表盘读取失败"
+            else:
+                try:
+                    message = r.json()["message"]
+                except json.decoder.JSONDecodeError:
+                    message = r.content
         return {"result": result, "code": r.status_code, "message": message, "data": data}
 
 
@@ -213,6 +233,8 @@ class GetDashboardByUID(GrafanaApiResource):
     method = "GET"
     path = "/api/dashboards/uid/{uid}"
     with_org_id = True
+    timeout = (3, 10)
+    redact_errors = True
 
     class RequestSerializer(serializers.Serializer):
         org_id = serializers.IntegerField()

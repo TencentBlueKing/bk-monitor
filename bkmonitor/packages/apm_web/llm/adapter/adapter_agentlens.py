@@ -1,4 +1,12 @@
-"""AgentLens 转换，并兼容同一 Trace 内的标准 OTel 子 Span。"""
+"""
+Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
+Copyright (C) 2017-2025 Tencent. All rights reserved.
+Licensed under the MIT License (the "License"); you may not use this file except in compliance with the License.
+You may obtain a copy of the License at http://opensource.org/licenses/MIT
+Unless required by applicable law or agreed to in writing, software distributed under the License is distributed on
+an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
+specific language governing permissions and limitations under the License.
+"""
 
 from __future__ import annotations
 
@@ -6,6 +14,9 @@ import json
 from typing import Any
 
 from apm_web.llm.constants import STANDARD_FIELDS
+from constants.apm import LLMProduct
+
+from .fields import resolve_operation_name
 
 from .utils import (
     first,
@@ -119,6 +130,12 @@ def convert(raw: list[dict[str, Any]]) -> list[dict[str, Any]]:
         }
         for target, source_keys in ALIASES.items():
             put(attributes, target, first(attrs, *source_keys))
+        if not attributes.get("gen_ai.operation.name") and attrs.get("gen_ai.span.kind"):
+            put(
+                attributes,
+                "gen_ai.operation.name",
+                resolve_operation_name(LLMProduct.AGENTLENS.value, attrs["gen_ai.span.kind"]),
+            )
         attributes.update(convert_content(span))
         if not attributes:
             continue

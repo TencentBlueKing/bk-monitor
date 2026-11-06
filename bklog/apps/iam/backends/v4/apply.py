@@ -4,7 +4,7 @@ from collections.abc import Sequence
 from typing import Any
 
 from apps.iam.backends.v4.codec import V4ResourceCodec
-from apps.iam.iam_engine.core.requests import ActionDefinition, ResourceInstance, to_definition_id
+from iam_engine.core.requests import ActionDefinition, ResourceInstance, to_definition_id
 
 ActionResources = tuple[ActionDefinition, Sequence[ResourceInstance]]
 

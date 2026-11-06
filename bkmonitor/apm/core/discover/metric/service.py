@@ -9,13 +9,16 @@ specific language governing permissions and limitations under the License.
 """
 
 import logging
+import time
 from datetime import datetime
 from typing import Any
+
+from django.conf import settings
 
 from apm.core.discover.base import combine_list
 from apm.core.discover.metric.base import Discover
 from apm.models import TopoNode
-from constants.apm import TelemetryDataType, CUSTOM_METRICS_PROMQL_FILTER
+from constants.apm import TelemetryDataType, CUSTOM_METRICS_PROMQL_FILTER, TraceMetric
 from core.drf_resource import api
 
 logger = logging.getLogger(__name__)
@@ -23,6 +26,9 @@ logger = logging.getLogger(__name__)
 
 class ServiceDiscover(Discover):
     """从指标中发现服务"""
+
+    # 由任务入口按此粒度切分查询窗口（秒）。
+    SPLIT_SECONDS: int = settings.APM_APPLICATION_METRIC_DISCOVER_SPLIT_DELTA
 
     def list_exists_mapping(self):
         return {
@@ -33,7 +39,9 @@ class ServiceDiscover(Discover):
             ).values("id", "topo_key", "source", "system")
         }
 
-    def query_dimensions(self, promql: str, start_time: int, end_time: int) -> list[dict[str, str | None]]:
+    def query_dimensions(
+        self, promql: str, start_time: int, end_time: int, with_last_data_at: bool = False
+    ) -> list[dict[str, Any]]:
         query_params: dict[str, Any] = {
             "bk_biz_ids": [self.bk_biz_id],
             "start": start_time,
@@ -54,11 +62,57 @@ class ServiceDiscover(Discover):
             )
             return []
 
-        return [
-            {group_key: item.get("group_values")[index] for index, group_key in enumerate(item["group_keys"])}
-            for item in response.get("series", [])
-            if item.get("group_keys")
-        ]
+        dimensions: list[dict[str, Any]] = []
+        for item in response.get("series", []):
+            if not item.get("group_keys"):
+                continue
+            dimension: dict[str, Any] = dict(zip(item["group_keys"], item["group_values"]))
+            if with_last_data_at:
+                value_index: int = item["columns"].index("_value")
+                points: list[float] = [point[value_index] for point in item["values"] if point[value_index] is not None]
+                dimension["last_data_at"] = int(max(points)) if points else None
+            dimensions.append(dimension)
+        return dimensions
+
+    def discover(self, start_time: int, end_time: int) -> None:
+        self.discover_services(start_time, end_time)
+        self.discover_heartbeat(start_time, end_time)
+
+    def discover_heartbeat(self, start_time: int, end_time: int) -> None:
+        """一次查询四个维度，按服务键合并最大的秒级样本时间。
+
+        timestamp() 的返回值是样本时间，_time 是求值时间，不用于心跳。
+        仅更新观测节点的指标心跳，并为组件、远程服务补写 Trace 心跳。
+        """
+        observed: dict[str, int] = {}
+        trace_observed: dict[str, int] = {}
+        metric_table: str = self.result_table_id.replace(".", ":")
+        promql = (
+            "max by (service_name, db_system, messaging_system, peer_service) "
+            f'(timestamp({{__name__="custom:{metric_table}:{TraceMetric.BK_APM_COUNT}"}}))'
+        )
+        for dimensions in self.query_dimensions(promql, start_time, end_time, with_last_data_at=True):
+            timestamp: int | None = dimensions["last_data_at"]
+            if timestamp is None:
+                continue
+            service_name: str | None = dimensions.get("service_name")
+            if service_name:
+                observed[service_name] = max(observed.get(service_name, 0), timestamp)
+                for field in ("db_system", "messaging_system"):
+                    if component := dimensions.get(field):
+                        key = f"{service_name}-{component}"
+                        trace_observed[key] = max(trace_observed.get(key, 0), timestamp)
+            if peer := dimensions.get("peer_service"):
+                key = f"http:{peer}"
+                trace_observed[key] = max(trace_observed.get(key, 0), timestamp)
+        for key, timestamp in trace_observed.items():
+            observed[key] = max(observed.get(key, 0), timestamp)
+        checked_at: int = int(time.time())
+        TopoNode.touch_heartbeat(self.bk_biz_id, self.app_name, TelemetryDataType.METRIC.value, observed, checked_at)
+        # 组件及远程服务的 bk_apm_count 来自 Span，只补写这些节点的 Trace 心跳。
+        TopoNode.touch_heartbeat(
+            self.bk_biz_id, self.app_name, TelemetryDataType.TRACE.value, trace_observed, checked_at
+        )
 
     @classmethod
     def merge_dimensions(cls, dimensions_list: list[list[dict[str, str | None]]]) -> list[dict[str, str | None]]:
@@ -71,7 +125,7 @@ class ServiceDiscover(Discover):
                 merged_dimensions.setdefault(service_name, {}).update(item)
         return list(merged_dimensions.values())
 
-    def discover(self, start_time, end_time):
+    def discover_services(self, start_time: int, end_time: int) -> None:
         # 1 - 查询自定义指标中的 service_name 和 rpc_system 维度。
         custom_metric_promql: str = (
             f"count by (service_name, rpc_system) "

@@ -122,7 +122,15 @@ export default {
   computed: {
     tableData() {
       const tab = this.variateList[this.tabActive];
-      return tab ? tab.items : [];
+      return tab
+        ? tab.items.map(item => ({
+            ...item,
+            description:
+              item.description !== null && typeof item.description === 'object'
+                ? JSON.stringify(item.description)
+                : item.description,
+          }))
+        : [];
     },
     descData() {
       const tab = this.variateList[this.tabActive];
@@ -156,6 +164,7 @@ export default {
 .variate-wrapper {
   position: relative;
   height: 528px;
+
   // margin-bottom: -26px;
   margin-top: 10px;
 
@@ -196,8 +205,7 @@ export default {
 
       :deep(.bk-table-body-wrapper) {
         max-height: 435px;
-        overflow-x: hidden;
-        overflow-y: auto;
+        overflow: hidden auto;
       }
     }
 
@@ -208,7 +216,7 @@ export default {
       color: #63656e;
       border: 1px solid #dcdee5;
       border-left: 0;
-      border-radius: 0px 2px 0px 0px;
+      border-radius: 0 2px 0 0;
 
       .desc-title {
         margin: 0;
@@ -224,7 +232,8 @@ export default {
         margin-top: 6px;
         line-height: 16px;
         color: #979ba5;
-        word-break: break-word;
+        word-break: normal;
+        overflow-wrap: anywhere;
       }
     }
 

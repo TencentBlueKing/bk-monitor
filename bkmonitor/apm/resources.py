@@ -23,6 +23,10 @@ from rest_framework import serializers
 from rest_framework.exceptions import ValidationError
 
 from apm.constants import (
+    ACTIVE_PROFILING_DEPLOYMENT_DEPLOYING,
+    ACTIVE_PROFILING_DEPLOYMENT_EXPIRED,
+    ACTIVE_PROFILING_DEPLOYMENT_SUCCESS,
+    ACTIVE_PROFILING_TASK_STATUS_BY_ENABLED,
     GLOBAL_CONFIG_BK_BIZ_ID,
     ApmCacheType,
     ConfigTypes,
@@ -33,11 +37,20 @@ from apm.core.handlers.apm_cache_handler import ApmCacheHandler
 from apm.core.handlers.application_hepler import ApplicationHelper, SharedDatasourceRuleFactory
 from apm.core.handlers.bk_data.helper import FlowHelper
 from apm.core.handlers.discover_handler import DiscoverHandler
+from apm.core.handlers.profile.active_profiling import (
+    ActiveProfilingCancelHandler,
+    ActiveProfilingExecutionQueryHandler,
+    ActiveProfilingImmediateHandler,
+    ActiveProfilingNodeManHandler,
+)
+from apm.core.handlers.profile.active_profiling_es import ActiveProfilingEventQueryHandler
 from apm.core.handlers.query.base import FilterOperator
 from apm.core.handlers.query.define import QueryMode
 from apm.core.handlers.query.ebpf_query import DeepFlowQuery
 from apm.core.handlers.query.proxy import QueryProxy
 from apm.models import (
+    ActiveProfilingExecution,
+    ActiveProfilingTask,
     ApdexConfig,
     ApmApplication,
     ApmDataSourceConfigBase,
@@ -68,11 +81,25 @@ from apm.models import (
 from apm.models.profile import ProfileService
 from apm.serializers import FilterSerializer as TraceFilterSerializer
 from apm.serializers import (
+    ActiveProfilingExecutionCancelRequestSerializer,
+    ActiveProfilingExecutionDetailRequestSerializer,
+    ActiveProfilingExecutionRenameRequestSerializer,
+    ActiveProfilingListRequestSerializer,
+    ActiveProfilingTaskEditRequestSerializer,
+    ActiveProfilingTaskListRequestSerializer,
+    ActiveProfilingTaskRequestSerializer,
+    ActiveProfilingTaskSubmitRequestSerializer,
+    ActiveProfilingTaskSwitchRequestSerializer,
+    ActiveProfilingTopKRequestSerializer,
     TraceFieldStatisticsGraphRequestSerializer,
     TraceFieldStatisticsInfoRequestSerializer,
     TraceFieldsTopkRequestSerializer,
 )
-from apm.task.tasks import create_or_update_tail_sampling, delete_application_async
+from apm.task.tasks import (
+    create_or_update_tail_sampling,
+    delete_application_async,
+    refresh_active_profiling_consul_config,
+)
 from apm.utils.ui_optimizations import HistogramNiceNumberGenerator
 from bkm_space.api import SpaceApi
 from bkm_space.utils import space_uid_to_bk_biz_id
@@ -82,6 +109,9 @@ from bkmonitor.utils.request import get_request_tenant_id, get_request_username
 from bkmonitor.utils.tenant import bk_biz_id_to_bk_tenant_id
 from bkmonitor.utils.thread_backend import InheritParentThread, ThreadPool, run_threads
 from constants.apm import (
+    BUILTIN_EVENT_GROUP_LABEL,
+    BUILTIN_EVENT_GROUP_NAME,
+    BUILTIN_PROFILING_APP_NAME,
     DataSamplingLogTypeChoices,
     FlowType,
     TailSamplingSupportMethod,
@@ -89,11 +119,13 @@ from constants.apm import (
     TraceListQueryMode,
     TraceWaterFallDisplayKey,
 )
+from constants.data_source import DataSourceLabel, DataTypeLabel
 from constants.otel_query import EnabledStatisticsDimension, AggregatedMethod, StatisticsProperty
 from core.drf_resource import Resource, api, resource
 from core.drf_resource.exceptions import CustomException
 from metadata import models
 from metadata.models import DataSource
+from metadata.models.space.constants import EtlConfigs
 
 logger = logging.getLogger("apm")
 
@@ -785,7 +817,17 @@ class QueryTopoNodeResource(Resource):
     class NodeResponseSerializer(serializers.ModelSerializer):
         class Meta:
             model = TopoNode
-            fields = ("extra_data", "system", "platform", "sdk", "topo_key", "created_at", "updated_at")
+            fields = (
+                "extra_data",
+                "system",
+                "platform",
+                "sdk",
+                "source",
+                "heartbeat",
+                "topo_key",
+                "created_at",
+                "updated_at",
+            )
 
         def to_representation(self, instance):
             data = super().to_representation(instance)
@@ -1936,6 +1978,234 @@ class QueryBuiltinProfileDatasourceResource(Resource):
             raise ValueError(_("未找到内置数据源，请联系管理员创建"))
 
         return self.ProfileDataSourceSerializer(builtin_source).data
+
+
+class EnableActiveProfilingResource(Resource):
+    """按业务幂等创建主动 Profiling 的 Profiling 数据源与事件分组，并同步事件分组 DataID 到 consul"""
+
+    class RequestSerializer(serializers.Serializer):
+        bk_biz_id = serializers.IntegerField(label="业务ID")
+
+    def perform_request(self, validated_request_data):
+        bk_biz_id = validated_request_data["bk_biz_id"]
+        self._enable_profiling_datasource(bk_biz_id)
+        self._enable_event_datasource(bk_biz_id, get_request_username())
+        refresh_active_profiling_consul_config.delay(bk_biz_id)
+
+    def _enable_profiling_datasource(self, bk_biz_id):
+        """开通业务的 Profiling 数据源，只建数据源不建应用，重复调用由 apply_datasource 内部短路"""
+        ProfileDataSource.apply_datasource(bk_biz_id=bk_biz_id, app_name=BUILTIN_PROFILING_APP_NAME, option=True)
+
+    def _enable_event_datasource(self, bk_biz_id, operator):
+        """开通业务的事件分组，不写 monitor_web 自定义事件表"""
+        if resource.metadata.query_event_group(bk_biz_id=bk_biz_id, event_group_name=BUILTIN_EVENT_GROUP_NAME):
+            return
+
+        resource.metadata.create_event_group(
+            operator=operator,
+            bk_data_id=self._get_or_create_event_data_id(bk_biz_id, operator),
+            bk_biz_id=bk_biz_id,
+            event_group_name=BUILTIN_EVENT_GROUP_NAME,
+            label=BUILTIN_EVENT_GROUP_LABEL,
+            data_label=BUILTIN_EVENT_GROUP_NAME,
+        )
+
+    def _get_or_create_event_data_id(self, bk_biz_id, operator):
+        """DataID 与事件分组分两次调用创建，先复用上一次可能已创建成功的 DataID"""
+        data_name = f"{bk_biz_id}_{BUILTIN_EVENT_GROUP_NAME}"
+        try:
+            return resource.metadata.query_data_source(data_name=data_name, with_rt_info=False)["bk_data_id"]
+        except DataSource.DoesNotExist:
+            pass
+
+        return resource.metadata.create_data_id(
+            bk_biz_id=bk_biz_id,
+            data_name=data_name,
+            data_description="主动 Profiling 内置资源，请勿删除",
+            etl_config=EtlConfigs.BK_STANDARD_V2_EVENT.value,
+            operator=operator,
+            type_label=DataTypeLabel.EVENT,
+            source_label=DataSourceLabel.CUSTOM,
+            option={"inject_local_time": True},
+        )["bk_data_id"]
+
+
+# 查询默认读 MySQL 执行表，source=es 时按 Event ES 聚合
+ACTIVE_PROFILING_QUERY_HANDLERS = {
+    "mysql": ActiveProfilingExecutionQueryHandler,
+    "es": ActiveProfilingEventQueryHandler,
+}
+
+
+class QueryActiveProfilingHostsResource(Resource):
+    """查询主动 Profiling 已采数据：一台主机的一次执行一行"""
+
+    RequestSerializer = ActiveProfilingListRequestSerializer
+
+    def perform_request(self, validated_request_data):
+        handler = ACTIVE_PROFILING_QUERY_HANDLERS[validated_request_data["source"]](validated_request_data["bk_biz_id"])
+        return handler.query_hosts(validated_request_data)
+
+
+class ListActiveProfilingExecutionsResource(Resource):
+    """查询主动 Profiling 任务历史：一次执行一行"""
+
+    RequestSerializer = ActiveProfilingListRequestSerializer
+
+    def perform_request(self, validated_request_data):
+        handler = ACTIVE_PROFILING_QUERY_HANDLERS[validated_request_data["source"]](validated_request_data["bk_biz_id"])
+        return handler.list_executions(validated_request_data)
+
+
+class QueryActiveProfilingTopKResource(Resource):
+    """查询主动 Profiling 两个列表搜索框的候选值"""
+
+    RequestSerializer = ActiveProfilingTopKRequestSerializer
+
+    def perform_request(self, validated_request_data):
+        handler = ACTIVE_PROFILING_QUERY_HANDLERS[validated_request_data["source"]](validated_request_data["bk_biz_id"])
+        return handler.query_topk(validated_request_data)
+
+
+class QueryActiveProfilingExecutionDetailResource(Resource):
+    """查询主动 Profiling 单次执行详情及全部主机"""
+
+    RequestSerializer = ActiveProfilingExecutionDetailRequestSerializer
+
+    def perform_request(self, validated_request_data):
+        handler = ACTIVE_PROFILING_QUERY_HANDLERS[validated_request_data["source"]](validated_request_data["bk_biz_id"])
+        return handler.query_execution_detail(validated_request_data)
+
+
+class CancelActiveProfilingExecutionResource(Resource):
+    """取消主动 Profiling 执行"""
+
+    RequestSerializer = ActiveProfilingExecutionCancelRequestSerializer
+
+    def perform_request(self, validated_request_data):
+        ActiveProfilingCancelHandler(validated_request_data["bk_biz_id"]).cancel(validated_request_data)
+
+
+class RenameActiveProfilingExecutionResource(Resource):
+    """修改单次执行的任务名：只改执行行上的任务名快照，计划本身的名字不变，允许重复；
+    BMW 与执行汇总重算都不改任务名，不会被覆盖"""
+
+    RequestSerializer = ActiveProfilingExecutionRenameRequestSerializer
+
+    def perform_request(self, validated_request_data):
+        execution = ActiveProfilingExecution.get_execution(
+            get_request_tenant_id(),
+            validated_request_data["bk_biz_id"],
+            validated_request_data["scheduled_at"],
+            validated_request_data.get("task_id"),
+        )
+        execution.task_name = validated_request_data["task_name"]
+        execution.save(update_fields=["task_name", "updated_at"])
+
+
+class ListActiveProfilingTasksResource(Resource):
+    """查询主动 Profiling 的指定时间/周期计划"""
+
+    RequestSerializer = ActiveProfilingTaskListRequestSerializer
+
+    def perform_request(self, validated_request_data):
+        page = validated_request_data["page"]
+        page_size = validated_request_data["page_size"]
+        # 同一时间写入的计划靠 id 兜底定序，避免翻页时行序抖动
+        queryset = ActiveProfilingTask.objects.filter(bk_biz_id=validated_request_data["bk_biz_id"]).order_by(
+            "-update_time", "-id"
+        )
+        offset = (page - 1) * page_size
+        return {
+            "data": [self._serialize_task(task) for task in queryset[offset : offset + page_size]],
+            "page": page,
+            "page_size": page_size,
+            "total": queryset.count(),
+        }
+
+    def _serialize_task(self, task):
+        config = {field: getattr(task, field) for field in ActiveProfilingTask.CONFIG_FIELDS}
+        return {
+            "task_id": task.id,
+            "task_status": ACTIVE_PROFILING_TASK_STATUS_BY_ENABLED[task.is_enabled],
+            "deployment_status": self._display_deployment_status(task),
+            "creator": task.create_user,
+            "updated_at": int(task.update_time.timestamp() * 1000),
+            **config,
+        }
+
+    @staticmethod
+    def _display_deployment_status(task):
+        """计划时间已过时列表显示已过期，不写库，定时清理仍按库里的成功状态拆除配置"""
+        if task.deployment_status != ACTIVE_PROFILING_DEPLOYMENT_SUCCESS:
+            return task.deployment_status
+        schedule = task.schedule
+        if schedule["type"] == "once_at":
+            last_run_at = schedule["execute_at"]
+        elif schedule["type"] == "cron":
+            last_run_at = schedule.get("effective_end_at")
+        else:
+            last_run_at = None
+        if last_run_at is not None and last_run_at < int(time.time() * 1000):
+            return ACTIVE_PROFILING_DEPLOYMENT_EXPIRED
+        return task.deployment_status
+
+
+class SubmitActiveProfilingTaskResource(Resource):
+    """提交主动 Profiling 的立即、指定时间或周期采集"""
+
+    RequestSerializer = ActiveProfilingTaskSubmitRequestSerializer
+
+    def perform_request(self, validated_request_data):
+        bk_biz_id = validated_request_data["bk_biz_id"]
+        if validated_request_data["schedule"]["type"] == "immediate":
+            ActiveProfilingImmediateHandler(bk_biz_id).execute(validated_request_data)
+            return
+
+        handler = ActiveProfilingNodeManHandler(bk_biz_id)
+        task = ActiveProfilingTask.create_task(bk_biz_id, validated_request_data)
+        handler.deploy(task)
+
+
+class EditActiveProfilingTaskResource(Resource):
+    """编辑主动 Profiling 计划"""
+
+    RequestSerializer = ActiveProfilingTaskEditRequestSerializer
+
+    def perform_request(self, validated_request_data):
+        task = ActiveProfilingTask.get_task(validated_request_data["bk_biz_id"], validated_request_data["task_id"])
+        handler = ActiveProfilingNodeManHandler(validated_request_data["bk_biz_id"])
+        task.update_config(validated_request_data)
+        handler.deploy(task)
+
+
+class DeleteActiveProfilingTaskResource(Resource):
+    """删除主动 Profiling 计划"""
+
+    RequestSerializer = ActiveProfilingTaskRequestSerializer
+
+    def perform_request(self, validated_request_data):
+        task = ActiveProfilingTask.get_task(validated_request_data["bk_biz_id"], validated_request_data["task_id"])
+        if task.is_enabled:
+            raise ValueError(_("删除前请先停用计划"))
+
+        if not ActiveProfilingNodeManHandler(validated_request_data["bk_biz_id"]).uninstall(task):
+            raise ValueError(_("节点管理卸载失败，请稍后重试"))
+        task.delete()
+
+
+class SwitchActiveProfilingTaskResource(Resource):
+    """启停主动 Profiling 计划"""
+
+    RequestSerializer = ActiveProfilingTaskSwitchRequestSerializer
+
+    def perform_request(self, validated_request_data):
+        task = ActiveProfilingTask.get_task(validated_request_data["bk_biz_id"], validated_request_data["task_id"])
+        handler = ActiveProfilingNodeManHandler(validated_request_data["bk_biz_id"])
+        task.is_enabled = validated_request_data["enabled"]
+        task.deployment_status = ACTIVE_PROFILING_DEPLOYMENT_DEPLOYING
+        task.save()
+        handler.switch(task)
 
 
 class GetBkDataFlowDetailResource(Resource):

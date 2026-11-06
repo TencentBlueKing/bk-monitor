@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making BK-LOG 蓝鲸日志平台 available.
 Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
@@ -23,12 +22,13 @@ the project delivered to anyone in the future.
 from django.db import models
 from django.utils.translation import gettext_lazy as _
 
+from apps.constants import USERNAME_MAX_LENGTH
 from apps.models import JsonField
 
 
 class UserOperationRecord(models.Model):
     created_at = models.DateTimeField(_("操作时间"), auto_now_add=True)
-    created_by = models.CharField(_("操作者"), max_length=32)
+    created_by = models.CharField(_("操作者"), max_length=USERNAME_MAX_LENGTH)
     bk_biz_id = models.IntegerField(_("业务id"), db_index=True)
     record_type = models.CharField(_("操作对象类型"), max_length=64, db_index=True)
     record_sub_type = models.CharField(_("操作对象子类型"), max_length=64, blank=True, default="")

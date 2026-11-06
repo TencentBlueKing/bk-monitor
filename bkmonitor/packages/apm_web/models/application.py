@@ -13,7 +13,6 @@ from typing import cast
 
 from celery import shared_task
 from django.conf import settings
-from django.core.cache import cache
 from django.db import models
 from django.db.models import Q
 from django.db.transaction import atomic
@@ -32,7 +31,6 @@ from apm_web.constants import (
     DEFAULT_DB_CONFIG_PREDICATE_KEY,
     DEFAULT_NO_DATA_PERIOD,
     ApdexConfigEnum,
-    ApmCacheKey,
     CustomServiceMatchType,
     CustomServiceType,
     DataStatus,
@@ -44,7 +42,6 @@ from apm_web.constants import (
 )
 from apm_web.meta.plugin.log_trace_plugin_config import LogTracePluginConfig
 from apm_web.meta.plugin.plugin import LOG_TRACE
-from apm_web.metric_handler import RequestCountInstance
 from bkm_space.api import SpaceApi
 from bkmonitor.data_source.utils.apm import TraceDatasourceTarget
 from bkmonitor.iam import Permission, ResourceEnum
@@ -322,15 +319,8 @@ class Application(AbstractRecordModel):
             return no_data_config.config_value[self.NoDataConfig.no_data_period]
         return DEFAULT_NO_DATA_PERIOD
 
-    @cached_property
-    def doc_count(self):
-        """应用过期时间内的文档数量"""
-        start_time, end_time = get_datetime_range("day", self.es_retention)
-        start_time, end_time = int(start_time.timestamp()), int(end_time.timestamp())
-        return RequestCountInstance(self, start_time, end_time).query_instance()
-
-    def set_service_count_and_data_status(self):
-        """刷新应用的服务数量和各个数据源的状态"""
+    def set_service_count_and_data_status(self) -> None:
+        """刷新应用的服务数量。"""
         from apm_web.handlers.service_handler import ServiceHandler
 
         # 刷新服务数量
@@ -338,13 +328,6 @@ class Application(AbstractRecordModel):
 
         # 这里通过update方式，指定字段更新，是为了不自动变更 update_user， update_time 字段
         Application.objects.filter(bk_biz_id=self.bk_biz_id, app_name=self.app_name).update(service_count=len(services))
-
-        # 刷新数据状态
-        start_time, end_time = get_datetime_range("minute", self.no_data_period)
-        start_time, end_time = int(start_time.timestamp()), int(end_time.timestamp())
-        service_status_mapping = ServiceHandler.get_service_data_status_mapping(self, start_time, end_time, services)
-        key = ApmCacheKey.APP_SERVICE_STATUS_KEY.format(application_id=self.application_id)
-        cache.set(key, json.dumps(service_status_mapping))
 
     def set_data_status(self):
         from apm_web.handlers.backend_data_handler import telemetry_handler_registry

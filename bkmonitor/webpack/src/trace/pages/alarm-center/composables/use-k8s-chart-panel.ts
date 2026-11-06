@@ -23,7 +23,7 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { type MaybeRef, computed, shallowRef, watch } from 'vue';
+import { type MaybeRef, computed, onScopeDispose, shallowRef, watch } from 'vue';
 
 import { get } from '@vueuse/core';
 import { K8sChartTargetsCreateTool } from 'monitor-pc/pages/monitor-k8s/components/k8s-charts/tools/targets-create/k8s-chart-targets-create-tool';
@@ -150,6 +150,7 @@ export const useK8sChartPanel = (options: UseK8sChartPanelOptions = {}) => {
       [K8sTableColumnKeysEnum.WORKLOAD_KIND, ''],
     ]);
     const data = await fetchResourceData(isWorkloadGroupBy, signal);
+    if (signal.aborted) return;
     if (data.length && get(groupBy) !== K8sTableColumnKeysEnum.CLUSTER) {
       const container = new Set<string>();
       const pod = new Set<string>();
@@ -242,22 +243,35 @@ export const useK8sChartPanel = (options: UseK8sChartPanelOptions = {}) => {
     if (signal.aborted) return;
     metricList.value = list;
   };
+  const error = shallowRef(false);
+  const revision = shallowRef(0);
   watch(
-    [() => get(scene), () => get(currentTarget)],
-    async (newVal, oldVal) => {
-      abortController?.abort?.();
+    [() => get(scene), () => get(currentTarget), () => get(bizId), revision],
+    async (_, __, onCleanup) => {
+      abortController?.abort();
       abortController = new AbortController();
-      const { signal } = abortController;
+      const controller = abortController;
+      const { signal } = controller;
+      onCleanup(() => controller.abort());
+      error.value = false;
+      dashboards.value = [];
+      if (!get(scene) || !get(currentTarget)) {
+        loading.value = false;
+        return;
+      }
       loading.value = true;
-      if (newVal[0] !== oldVal?.[0]) {
+      try {
         await getScenarioMetricList(signal);
         if (signal.aborted) return;
+        await createPanelList(signal);
+      } catch {
+        if (!signal.aborted) error.value = true;
+      } finally {
+        if (!signal.aborted) loading.value = false;
       }
-      await createPanelList(signal);
-      if (signal.aborted) return;
-      loading.value = false;
     },
     { immediate: true }
   );
-  return { dashboards, loading };
+  onScopeDispose(() => abortController?.abort());
+  return { dashboards, loading, error, retry: () => { revision.value++; } };
 };

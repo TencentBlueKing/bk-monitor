@@ -177,7 +177,7 @@ class GrafanaSwitchOrgView(SwitchOrgView):
             role = DashboardPermission.get_user_role(username=request.user.username, org_name=org_name)
             if role < GrafanaRole.Viewer:
                 _, role, dashboard_permissions = DashboardPermission.get_user_permission(
-                    username=request.user.username, org_name=org_name
+                    username=request.user.username, org_name=org_name, dashboard_uids=[uid]
                 )
                 if role < GrafanaRole.Viewer and uid not in dashboard_permissions:
                     return HttpResponseRedirect(

@@ -18,8 +18,9 @@ from django.conf import settings
 from alarm_backends.management.hashring import HashRing
 from api.cmdb.define import Host
 from bkmonitor.commons.tools import is_ipv6_biz
-from bkmonitor.utils.tenant import get_tenant_default_biz_id
 from bkmonitor.utils.new_env import is_biz_id_in_black_list
+from bkmonitor.utils.nodeman import host_queries
+from bkmonitor.utils.tenant import get_tenant_default_biz_id
 from constants.common import DEFAULT_TENANT_ID
 from core.drf_resource import api
 from core.prometheus import metrics
@@ -213,7 +214,7 @@ def _refresh_ping_conf_by_cloud_id(
         ]
     else:
         try:
-            proxy_list = api.node_man.get_proxies(bk_tenant_id=bk_tenant_id, bk_cloud_id=bk_cloud_id)
+            proxy_list = host_queries.proxies(bk_tenant_id=bk_tenant_id, bk_cloud_id=bk_cloud_id)
         except Exception:  # noqa
             logger.exception(f"从节点管理获取云区域({bk_cloud_id})下的ProxyIP列表失败")
             return

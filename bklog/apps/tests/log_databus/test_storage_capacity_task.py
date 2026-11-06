@@ -29,7 +29,11 @@ from apps.log_databus.constants import (
     STORAGE_CLUSTER_TYPE,
 )
 from apps.log_databus.models import StorageUsed
-from apps.log_databus.tasks.collector import get_doris_cluster_stats, sync_storage_capacity
+from apps.log_databus.tasks.collector import (
+    get_cluster_biz_count_map,
+    get_doris_cluster_stats,
+    sync_storage_capacity,
+)
 
 BLUEKING_BIZ_ID = 2
 
@@ -285,9 +289,7 @@ class TestSyncStorageCapacity(TestCase):
 
         self.assertEqual(StorageUsed.objects.filter(storage_cluster_id=202).count(), 1)
         self.assertTrue(
-            StorageUsed.objects.filter(
-                storage_cluster_id=202, bk_biz_id=StorageUsed.CLUSTER_INFO_BIZ_ID
-            ).exists()
+            StorageUsed.objects.filter(storage_cluster_id=202, bk_biz_id=StorageUsed.CLUSTER_INFO_BIZ_ID).exists()
         )
         mock_get_biz_storage_capacity.assert_not_called()
         mock_get_all_biz_storage_capacity.assert_not_called()
@@ -436,3 +438,26 @@ class TestSyncStorageCapacity(TestCase):
         self.assertEqual(doris_tenant_ids, {"system", "tenant_a"})
         mock_get_cluster_status.assert_called()
         self.assertEqual(mock_get_cluster_status.call_args.kwargs.get("bk_tenant_id"), "tenant_a")
+
+
+class TestStorageCapacityMemoryOptimization(TestCase):
+    """容量同步任务的低内存查询行为"""
+
+    @patch("apps.log_search.models.LogIndexSet.objects.filter")
+    def test_cluster_biz_count_map_streams_only_required_fields(self, mock_filter):
+        mock_values_list = mock_filter.return_value.values_list
+        mock_values_list.return_value.iterator.return_value = iter(
+            [
+                (101, "space-a"),
+                (101, "space-a"),
+                (101, "space-b"),
+                (102, "space-c"),
+            ]
+        )
+
+        cluster_biz_count_map = get_cluster_biz_count_map()
+
+        self.assertEqual(cluster_biz_count_map, {101: {"space-a", "space-b"}, 102: {"space-c"}})
+        mock_filter.assert_called_once_with()
+        mock_values_list.assert_called_once_with("storage_cluster_id", "space_uid")
+        mock_values_list.return_value.iterator.assert_called_once_with(chunk_size=2000)

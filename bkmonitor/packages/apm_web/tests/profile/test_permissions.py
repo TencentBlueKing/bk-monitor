@@ -12,6 +12,7 @@ from unittest import mock
 
 import pytest
 from rest_framework.request import Request
+from rest_framework.parsers import JSONParser
 from rest_framework.test import APIRequestFactory
 
 from apm_web.models import ProfileUploadRecord, UploadedFileStatus
@@ -36,7 +37,7 @@ def build_viewset(view_class, params: dict, method: str = "get"):
         raw_request = factory.post("/", params, format="json")
 
     viewset = view_class()
-    viewset.request = Request(raw_request)
+    viewset.request = Request(raw_request, parsers=[JSONParser()])
     return viewset
 
 

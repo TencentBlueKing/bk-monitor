@@ -4,7 +4,7 @@ from collections.abc import Sequence
 from prometheus_client import Counter, Histogram
 from prometheus_client.utils import INF
 
-from apps.iam.iam_engine.core.types import AuthStatus, BatchAuthResultItem
+from iam_engine.core.types import AuthStatus, BatchAuthResultItem
 from apps.utils.prometheus import register_metric
 
 # 埋点入口标识，同一次调用在决策级、Provider 级和分歧指标上必须使用同一个值才能对齐。

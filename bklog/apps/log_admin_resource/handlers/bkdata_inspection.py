@@ -23,6 +23,65 @@ MAX_RESULT_TABLES = 20
 MAX_EXTERNAL_CONCURRENCY = 5
 
 
+def get_bkdata_clean_errors(params):
+    params = params or {}
+    reject_identity_params(params)
+    raw_data_id = require_positive_int(params, "raw_data_id")
+    bk_biz_id = require_nonzero_int(params, "bk_biz_id")
+    result_table_id = params.get("result_table_id")
+    if not isinstance(result_table_id, str) or not result_table_id.strip():
+        raise ValidationError("result_table_id is required")
+    sample_limit = optional_positive_int(
+        params.get("sample_limit"), "sample_limit", default=DEFAULT_SAMPLE_LIMIT, maximum=MAX_SAMPLE_LIMIT
+    )
+    result = {"raw_data_id": raw_data_id, "bk_biz_id": bk_biz_id, "result_table_id": result_table_id}
+    try:
+        context = build_bkdata_context(bk_biz_id)
+    except Exception as error:
+        return {**result, "errors": probe_failure(error)}
+    # badmsg samples the whole DataID; result_table_id is not an upstream filter.
+    probe = call_bkdata(BkDataDatabusApi.get_raw_data_badmsg, {**context, "raw_data_id": raw_data_id})
+    probe = _summarize_probe(probe, lambda data: _clean_error_samples(data, raw_data_id, result_table_id, sample_limit))
+    if probe["probe_status"] == "success":
+        probe["empty"] = probe["data"]["matched_sample_count"] == 0
+    return {**result, "errors": probe}
+
+
+def _clean_error_samples(rows, raw_data_id, result_table_id, sample_limit):
+    if not isinstance(rows, list) or any(
+        not isinstance(row, dict)
+        or row.get("raw_data_id") != raw_data_id
+        or not isinstance(row.get("result_table_id"), str)
+        for row in rows
+    ):
+        raise ValueError("invalid response: clean errors must be a list of samples for the requested raw_data_id")
+    matched = [row for row in rows if row["result_table_id"] == result_table_id]
+    # Filter before limiting, so unrelated RTs do not consume the local sample budget.
+    serialized = serialize_tail_rows(matched, sample_limit)
+    # badmsg.timestamp is the cleaning-error time, not the original event time.
+    serialized.pop("time_evidence")
+    serialized["warnings"] = [
+        warning for warning in serialized["warnings"] if warning["code"] != "EVENT_TIME_NOT_FOUND"
+    ]
+    serialized.update(
+        source_sample_count=len(rows),
+        matched_sample_count=len(matched),
+        excluded_sample_count=len(rows) - len(matched),
+        upstream_scope="raw_data_id",
+        filtering="client_result_table_id",
+        coverage="unknown",
+        assessment="target_errors_observed" if matched else "no_target_sample",
+    )
+    serialized["warnings"].append(
+        {
+            "code": "UPSTREAM_SAMPLE_SCOPE_LIMITED",
+            "message": "Upstream samples all RTs of this DataID. No match does not prove the target RT has no errors. "
+            "Counts and has_more describe only this returned batch, not upstream totals or pagination.",
+        }
+    )
+    return serialized
+
+
 def get_bkdata_raw_snapshot(params):
     params = params or {}
     reject_identity_params(params)

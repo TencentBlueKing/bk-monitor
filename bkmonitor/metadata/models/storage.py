@@ -108,6 +108,8 @@ class ClusterInfo(models.Model):
 
     CONSUL_PREFIX_PATH = f"{config.CONSUL_PATH}/unify-query/data/storage"
     CONSUL_VERSION_PATH = f"{config.CONSUL_PATH}/unify-query/version/storage"
+    REDIS_PREFIX_KEY = f"{config.UNIFY_QUERY_REDIS_KV_BASE_PATH}:data:storage"
+    REDIS_CHANNEL = f"{REDIS_PREFIX_KEY}:storage_channel"
 
     TYPE_INFLUXDB = "influxdb"
     TYPE_KAFKA = "kafka"
@@ -965,6 +967,51 @@ class ClusterInfo(models.Model):
         hash_consul.put(key=cls.CONSUL_VERSION_PATH, value={"time": time.time()})
 
         logger.info(f"all es table info is refresh to consul success count->[{total_count}].")
+
+    @staticmethod
+    def _format_storage_address(schema: str, host: str, port: int) -> str:
+        """IPv6 地址需要方括号，才能被 UQ 的 URL 解析器识别。"""
+        if not (host.startswith("[") and host.endswith("]")):
+            try:
+                address = ipaddress.ip_address(host)
+            except ValueError:
+                pass
+            else:
+                if address.version == 6:
+                    host = f"[{address.compressed}]"
+        return f"{schema}://{host}:{port}"
+
+    @classmethod
+    def refresh_redis_storage_config(cls):
+        """全量发布 UQ Storage 配置，清理已删除集群后通知重载。"""
+        storage_by_id = {storage.cluster_id: storage for storage in cls.objects.all()}
+        redis_client = RedisTools().client
+        expected_keys = {f"{cls.REDIS_PREFIX_KEY}:{cluster_id}" for cluster_id in storage_by_id}
+
+        for cluster_id, storage in storage_by_id.items():
+            schema = storage.schema if storage.schema in ("http", "https") else "http"
+            value = {
+                "address": cls._format_storage_address(schema, storage.domain_name, storage.port),
+                "username": storage.username,
+                "password": storage.password,
+                "type": storage.cluster_type,
+            }
+            # SET 不设 TTL，同时清除旧 Key 可能存在的过期时间。
+            redis_client.set(f"{cls.REDIS_PREFIX_KEY}:{cluster_id}", json.dumps(value))
+
+        existing_keys = {
+            key.decode("utf-8") if isinstance(key, bytes) else key
+            for key in redis_client.scan_iter(match=f"{cls.REDIS_PREFIX_KEY}:*")
+        }
+        stale_keys = existing_keys - expected_keys
+        if stale_keys:
+            redis_client.delete(*stale_keys)
+
+        redis_client.publish(
+            cls.REDIS_CHANNEL,
+            json.dumps({"storage_ids": sorted(storage_by_id), "timestamp": time.time()}),
+        )
+        logger.info("refreshed storage redis config: count=%s, deleted=%s", len(storage_by_id), len(stale_keys))
 
     def base64_with_prefix(self, content: str | None) -> str | None:
         """编码，并添加上前缀"""
@@ -2713,6 +2760,7 @@ class ESStorage(models.Model, StorageResultTable):
         need_create_index=True,
         origin_table_id=None,
         create_storage_cluster_record=True,
+        raise_on_index_error=True,
         **kwargs,
     ):
         """
@@ -2736,6 +2784,7 @@ class ESStorage(models.Model, StorageResultTable):
         :param need_create_index: 是否需要创建索引，默认为 True
         :param origin_table_id: 原始结果表ID
         :param create_storage_cluster_record: 是否创建当前存储集群记录，非默认存储创建时应关闭
+        :param raise_on_index_error: 建索引失败是否抛出异常；关闭时保留存储配置，由周期任务补建
         :param kwargs: 其他配置参数
         :return:
         """
@@ -2841,13 +2890,14 @@ class ESStorage(models.Model, StorageResultTable):
             try:
                 new_record.create_es_index(is_sync_db)
             except Exception as e:  # pylint: disable=broad-except
-                logger.error(
+                logger.exception(
                     "create_table: table_id->[%s] under bk_tenant_id->[%s] create_es_index failed,error->[%s]",
                     table_id,
                     bk_tenant_id,
                     e,
                 )
-                raise e
+                if raise_on_index_error:
+                    raise
 
         # 针对单个结果表推送数据很快，不用异步处理
         try:
@@ -3076,7 +3126,6 @@ class ESStorage(models.Model, StorageResultTable):
     def _get_index_infos(
         self, namespaced: str, request_timeout: int | None = None
     ) -> tuple[dict[str, dict[str, Any]], str]:
-        index_version = ""
         extra = {ESNamespacedClientType.CAT.value: {"format": "json"}, ESNamespacedClientType.INDICES.value: {}}[
             namespaced
         ]
@@ -3091,15 +3140,21 @@ class ESStorage(models.Model, StorageResultTable):
             ESNamespacedClientType.INDICES.value: self.es_client.indices.stats,
         }[namespaced]
 
-        index_info_map: dict[str, dict[str, Any]] = getdata(func(index=self.search_format_v2(), **extra))
-        if len(index_info_map) != 0:
-            index_version = "v2"
-        else:
-            index_info_map: dict[str, dict[str, Any]] = getdata(func(index=self.search_format_v1(), **extra))
-            if len(index_info_map) != 0:
-                index_version = "v1"
+        # 通配符可能命中索引名前缀更长的其他结果表，需先精确过滤再判断索引版本。
+        for index_version, search_format, index_re in (
+            ("v2", self.search_format_v2(), self.index_re_v2),
+            ("v1", self.search_format_v1(), self.index_re_v1),
+        ):
+            raw_index_info_map: dict[str, dict[str, Any]] = getdata(func(index=search_format, **extra))
+            index_info_map = {
+                index_name: index_info
+                for index_name, index_info in raw_index_info_map.items()
+                if index_re.fullmatch(index_name)
+            }
+            if index_info_map:
+                return index_info_map, index_version
 
-        return index_info_map, index_version
+        return {}, ""
 
     def get_index_names(self, request_timeout: int | None = None) -> list[str]:
         index_info_map, index_version = self._get_index_infos(
@@ -6055,6 +6110,8 @@ class StorageClusterRecord(models.Model):
 
     table_id = models.CharField(max_length=128, db_index=True, verbose_name="采集项结果表名")
     bk_tenant_id = models.CharField("租户ID", max_length=256, null=True, default="system")
+    bkbase_table_id = models.CharField("BKBase结果表ID", max_length=255, default="", blank=True)
+    physical_tables = models.JSONField("物理表用途映射", default=dict)
     cluster_id = models.BigIntegerField(db_index=True, verbose_name="存储集群ID")
     is_deleted = models.BooleanField(default=False, verbose_name="是否删除/停用")
     is_current = models.BooleanField(default=False, verbose_name="是否是当前最新存储集群")
@@ -6258,6 +6315,7 @@ class DorisStorage(models.Model, StorageResultTable):
     bk_tenant_id = models.CharField("租户ID", max_length=256, null=True, default="system")
     bkbase_table_id = models.CharField("bkbase表名", max_length=128, null=True)
     origin_table_id = models.CharField("原始结果表名", max_length=128, blank=True, null=True)
+    physical_tables = models.JSONField("物理表用途映射", default=dict)
     source_type = models.CharField("数据源类型", max_length=32, default="log")
 
     index_set = models.TextField("索引集", blank=True, null=True)

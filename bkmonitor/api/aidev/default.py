@@ -11,11 +11,18 @@ specific language governing permissions and limitations under the License.
 import json
 from json import JSONDecodeError
 
+from bkoauth.client import oauth_client
+from bkoauth.exceptions import TokenNotExist
 from django.conf import settings
 from django.http import StreamingHttpResponse
+from django.utils import translation
+from django.utils.translation import gettext as _
+from requests.exceptions import RequestException
 from rest_framework import serializers
 
+from bkmonitor.utils.request import get_request, get_request_username
 from core.drf_resource import APIResource
+from core.errors.api import BKAPIError
 
 
 class AidevAPIGWResource(APIResource):
@@ -36,6 +43,99 @@ class AidevAPIGWResource(APIResource):
         headers["x-bkapi-authorization"] = json.dumps(authorization)
 
         return headers
+
+
+class AidevPrivateAPIGWResource(APIResource):
+    """固定跨环境 Token 优先；显式指定用户时使用该用户的持久化凭证。"""
+
+    base_url = settings.AIDEV_API_BASE_URL
+    module_name = "aidev"
+    INSERT_BK_USERNAME_TO_REQUEST_DATA = False
+
+    def get_headers(self):
+        access_token = settings.AIDEV_ACCESS_TOKEN
+        username = getattr(self, "bk_username", "")
+        if not access_token and username:
+            request = get_request(peaceful=True)
+            if request is not None and get_request_username() == username:
+                # 只有配置人自己的登录态可以补齐其凭证，不能用编辑人的登录态代替。
+                oauth_client.get_access_token(request)
+            token = oauth_client.get_access_token_by_user(username)
+            access_token = getattr(token, "access_token", "")
+            if not access_token:
+                raise TokenNotExist("AIDEV execution user access token is empty")
+        if not access_token:
+            return super().get_headers()
+
+        # Access Token 自带目标环境应用与用户身份，不能混入本环境应用凭据或 Cookie。
+        headers = {
+            "x-bkapi-authorization": json.dumps({"access_token": access_token}),
+            "X-Bk-Tenant-Id": self._get_tenant_id(),
+        }
+        language = translation.get_language()
+        if language:
+            headers["blueking-language"] = language
+        return headers
+
+    def perform_request(self, validated_request_data):
+        try:
+            return super().perform_request(validated_request_data)
+        except RequestException as error:
+            # 基类只处理了 ReadTimeout，连接失败一类的网络异常仍会裸抛。
+            self.report_api_failure_metric(error_code=getattr(error, "code", 0), exception_type=type(error).__name__)
+            raise BKAPIError(
+                system_name=self.module_name,
+                url=self.action,
+                result=_("AIDEV 接口请求失败"),
+            ) from error
+
+
+class ListAgentsResource(AidevPrivateAPIGWResource):
+    """获取当前用户有权限的 AIDEV Agent。"""
+
+    action = "/openapi/aidev/private/v1/agents/"
+    method = "GET"
+
+    class RequestSerializer(serializers.Serializer):
+        space_id = serializers.CharField(required=False, default="all")
+        fuzzy = serializers.CharField(required=False, allow_blank=True)
+        page = serializers.IntegerField(required=False, default=1, min_value=1)
+        page_size = serializers.IntegerField(required=False, default=20, min_value=1, max_value=200)
+
+
+class ListSpacesResource(AidevPrivateAPIGWResource):
+    """获取当前用户有权限的 AIDEV 空间。"""
+
+    action = "/openapi/aidev/private/v1/spaces/"
+    method = "GET"
+
+
+class ListSkillsResource(AidevPrivateAPIGWResource):
+    """获取当前用户有权限的 AIDEV Skill。"""
+
+    action = "/openapi/aidev/private/v1/skills/"
+    method = "GET"
+
+    class RequestSerializer(ListAgentsResource.RequestSerializer):
+        pass
+
+
+class ListKnowledgeBasesResource(AidevPrivateAPIGWResource):
+    """获取当前用户在指定 AIDEV 空间内有权限的知识库。"""
+
+    action = "/openapi/aidev/private/v1/knowledgebase/list/"
+    method = "POST"
+
+    class RequestSerializer(serializers.Serializer):
+        # 上游要求 space_id 必填，聚合调用方会传入当前用户可见的具体空间 ID。
+        space_id = serializers.CharField(required=True, allow_blank=False)
+        fuzzy = serializers.CharField(required=False, allow_blank=True)
+        name = serializers.CharField(required=False, allow_blank=True)
+        knowledgebase_code = serializers.CharField(required=False, allow_blank=True)
+        page = serializers.IntegerField(required=False, default=1, min_value=1)
+        page_size = serializers.IntegerField(required=False, default=20, min_value=1, max_value=200)
+        order_by = serializers.CharField(required=False, default="name", allow_blank=False)
+        with_private = serializers.BooleanField(required=False, default=True)
 
 
 class ChatCompletionResource(AidevAPIGWResource):

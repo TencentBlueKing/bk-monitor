@@ -18,7 +18,8 @@ from django.conf import settings
 from django.core.cache import cache
 from rest_framework import serializers
 
-from core.drf_resource.base import Resource, logger
+from core.drf_resource.base import logger
+from kernel_api.resource.mcp_response import MCPResource as Resource
 
 from .registry import (
     MetricCategory,

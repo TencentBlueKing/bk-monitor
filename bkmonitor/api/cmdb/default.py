@@ -12,7 +12,7 @@ import copy
 import logging
 import typing
 import uuid
-from collections import defaultdict
+from collections import Counter, defaultdict
 from multiprocessing.pool import ApplyResult
 from typing import Any
 
@@ -24,6 +24,8 @@ from rest_framework import serializers
 
 from api.cmdb.define import _split_member_list
 from bkm_space.api import SpaceApi
+from bkm_space.errors import NoRelatedResourceError
+from bkm_space.validate import validate_bk_biz_id
 from bkmonitor.commons.tools import batch_request
 from bkmonitor.utils.cache import CacheType, mem_cache, using_cache
 from bkmonitor.utils.common_utils import to_dict
@@ -97,11 +99,12 @@ def _host_from_raw(record, bk_biz_id):
     return host
 
 
-def _host_full_cloud(host, clouds=None):
+def _host_full_cloud(host, clouds=None, *, cloud_id_to_name=None):
     # 获取云区域信息
-    if clouds is None:
-        clouds = api.cmdb.search_cloud_area()
-    cloud_id_to_name = {cloud["bk_cloud_id"]: cloud["bk_cloud_name"] for cloud in clouds}
+    if cloud_id_to_name is None:
+        if clouds is None:
+            clouds = api.cmdb.search_cloud_area()
+        cloud_id_to_name = {cloud["bk_cloud_id"]: cloud["bk_cloud_name"] for cloud in clouds}
     host["bk_cloud_name"] = cloud_id_to_name.get(host["bk_cloud_id"], "")
     return host
 
@@ -245,8 +248,9 @@ def _trans_topo_node_to_module_ids(bk_biz_id: int, topo_nodes: dict[str, typing.
     :rtype: List[int]
     """
 
-    # 取出模块ID
-    module_ids = {int(module_id) for module_id in topo_nodes.pop("module", [])}
+    # 不修改调用方的节点条件或缓存中的拓扑树。
+    topo_nodes = {key: {int(node_id) for node_id in values} for key, values in topo_nodes.items()}
+    module_ids = topo_nodes.pop("module", set())
 
     # 如果没有待查询节点，则直接返回
     if not topo_nodes:
@@ -255,25 +259,19 @@ def _trans_topo_node_to_module_ids(bk_biz_id: int, topo_nodes: dict[str, typing.
     # 查询拓扑树
     topo_tree: dict = _get_topo_tree(bk_biz_id)
 
-    # 调整待查询拓扑节点结构，合并相同类型的节点
-    for bk_obj_id in topo_nodes:
-        topo_nodes[bk_obj_id] = {int(topo_node_id) for topo_node_id in topo_nodes[bk_obj_id]}
+    # 非业务空间使用自己的空间号作为业务根别名。
+    if int(bk_biz_id) in topo_nodes.get("biz", set()):
+        topo_nodes["biz"].add(int(topo_tree["bk_inst_id"]))
 
     # 广度优先遍历拓扑树，找到节点下所有的模块ID
-    queue: list[dict] = topo_tree["child"]
+    queue = [(topo_tree, False)]
     while queue:
-        node = queue.pop()
-
-        # 如果该节点需要被查询，则标记其子节点
-        if node.get("mark") or node["bk_inst_id"] in topo_nodes.get(node["bk_obj_id"], []):
-            node["mark"] = True
-            for child in node["child"]:
-                child["mark"] = True
-
-        if node["bk_obj_id"] == "module" and node.get("mark"):
-            module_ids.add(node["bk_inst_id"])
+        node, selected_parent = queue.pop()
+        selected = selected_parent or int(node["bk_inst_id"]) in topo_nodes.get(node["bk_obj_id"], set())
+        if node["bk_obj_id"] == "module" and selected:
+            module_ids.add(int(node["bk_inst_id"]))
         elif node["child"]:
-            queue.extend(node["child"])
+            queue.extend((child, selected) for child in node["child"])
 
     return module_ids
 
@@ -289,6 +287,18 @@ class HostRequestSerializer(serializers.Serializer):
         params = super().to_internal_value(data)
         params["fields"] = list(set(list(params["fields"]) + settings.HOST_DYNAMIC_FIELDS))
         return params
+
+
+def _is_biz_root_scope(bk_biz_id: int, topo_nodes: dict) -> bool:
+    """业务根包含全业务主机，不依赖拓扑缓存中的模块全集。"""
+    if not topo_nodes.get("biz"):
+        return False
+    try:
+        cmdb_biz_id = validate_bk_biz_id(bk_biz_id)
+    except NoRelatedResourceError:
+        return False
+    node_ids = {int(node_id) for node_id in topo_nodes["biz"]}
+    return bool(node_ids & {int(bk_biz_id), cmdb_biz_id})
 
 
 class GetHostByTopoNode(CacheResource):
@@ -308,7 +318,7 @@ class GetHostByTopoNode(CacheResource):
         mem_cache.clear()
         hosts = get_host_dict_by_biz(params["bk_biz_id"], params["fields"])
 
-        if params.get("topo_nodes", {}):
+        if params.get("topo_nodes") and not _is_biz_root_scope(params["bk_biz_id"], params["topo_nodes"]):
             # 将查询节点转换为模块ID
             module_ids = _trans_topo_node_to_module_ids(params["bk_biz_id"], params["topo_nodes"])
 
@@ -321,6 +331,126 @@ class GetHostByTopoNode(CacheResource):
         for host in hosts:
             _host_full_cloud(host, clouds)
         return [Host(host) for host in hosts]
+
+
+class GetHostPage(Resource):
+    """在 CMDB 端过滤和分页，仅实例化本页主机。"""
+
+    class RequestSerializer(HostRequestSerializer):
+        bk_biz_id = serializers.IntegerField()
+        bk_host_id = serializers.IntegerField(required=False)
+        topo_nodes = serializers.DictField(child=serializers.ListField(), required=False)
+        page = serializers.IntegerField(min_value=1)
+        page_size = serializers.IntegerField(min_value=1, max_value=500)
+
+    def perform_request(self, params):
+        request_params = {
+            "bk_biz_id": params["bk_biz_id"],
+            "fields": params["fields"],
+            # CMDB 的默认顺序也是 bk_host_id；与原 batch_request 的分页顺序一致。
+            "page": {"start": (params["page"] - 1) * params["page_size"], "limit": params["page_size"]},
+            "host_property_filter": {
+                "condition": "AND",
+                "rules": [
+                    {
+                        "condition": "OR",
+                        "rules": [
+                            # CMDB contains 编译为正则；与 split_inner_host 一样要求
+                            # 至少有一个非逗号字符，同时排除 null/缺失/空字符串。
+                            {"field": "bk_host_innerip", "operator": "contains", "value": "[^,]"},
+                            {"field": "bk_host_innerip_v6", "operator": "contains", "value": "[^,]"},
+                        ],
+                    }
+                ],
+            },
+        }
+        if params.get("bk_host_id") is not None:
+            request_params["host_property_filter"]["rules"].append(
+                {"field": "bk_host_id", "operator": "equal", "value": params["bk_host_id"]}
+            )
+        if params.get("topo_nodes") and not _is_biz_root_scope(params["bk_biz_id"], params["topo_nodes"]):
+            module_ids = _trans_topo_node_to_module_ids(params["bk_biz_id"], copy.deepcopy(params["topo_nodes"]))
+            if not module_ids:
+                return {"items": [], "total": 0}
+            request_params["module_property_filter"] = {
+                "condition": "AND",
+                "rules": [{"field": "bk_module_id", "operator": "in", "value": sorted(module_ids)}],
+            }
+        result = client.list_biz_hosts_topo(request_params)
+        clouds = api.cmdb.search_cloud_area() if result["info"] else []
+        cloud_id_to_name = {cloud["bk_cloud_id"]: cloud["bk_cloud_name"] for cloud in clouds}
+        hosts = []
+        for record in result["info"]:
+            host = _host_from_raw(record, params["bk_biz_id"])
+            if host is not None:
+                hosts.append(Host(_host_full_cloud(host, cloud_id_to_name=cloud_id_to_name)))
+        return {"items": hosts, "total": result["count"]}
+
+
+class GetHostIdentities(Resource):
+    """复用业务主机缓存，提供统计所需的当前 CMDB 身份白名单。"""
+
+    class RequestSerializer(serializers.Serializer):
+        bk_biz_id = serializers.IntegerField()
+        bk_host_id = serializers.IntegerField(required=False)
+        topo_nodes = serializers.DictField(child=serializers.ListField(), required=False)
+        bk_host_ids = serializers.ListField(child=serializers.IntegerField(), required=False)
+
+        def validate(self, attrs):
+            if "bk_host_ids" in attrs and ("bk_host_id" in attrs or "topo_nodes" in attrs):
+                raise serializers.ValidationError("bk_host_ids cannot be combined with host or topology scope")
+            return attrs
+
+    def perform_request(self, params):
+        fields = ["bk_host_id", "bk_host_innerip", "bk_host_innerip_v6", "bk_cloud_id"]
+        if "bk_host_ids" in params:
+            # 此分支仅供 ID 身份已确定无歧义的统计查询使用，不推断全业务 IP 重复标志。
+            # 按候选分批查询，避免全业务缓存解码与 Host 对象构造。
+            host_ids = list(dict.fromkeys(params["bk_host_ids"]))
+            identities = []
+            for offset in range(0, len(host_ids), 500):
+                request_params = {
+                    "bk_biz_id": params["bk_biz_id"],
+                    "fields": fields,
+                    "host_property_filter": {
+                        "condition": "AND",
+                        "rules": [{"field": "bk_host_id", "operator": "in", "value": host_ids[offset : offset + 500]}],
+                    },
+                }
+                result = client.list_biz_hosts_topo({**request_params, "page": {"start": 0, "limit": 500}})
+                records = result["info"] if result else []
+                if result and result["count"] is not None and result["count"] > len(records):
+                    records = batch_request(client.list_biz_hosts_topo, request_params)
+                for record in records:
+                    host = record["host"]
+                    ip = split_inner_host(host.get("bk_host_innerip"))
+                    ipv6 = split_inner_host(host.get("bk_host_innerip_v6"))
+                    if ip or ipv6:
+                        identities.append(
+                            {
+                                **{field: host.get(field) for field in fields},
+                                "bk_host_innerip": ip,
+                                "bk_host_innerip_v6": ipv6,
+                            }
+                        )
+            return identities
+        # 与 cmdb_api_list 的预热位置参数完全一致；缓存命中后仍需解码并遍历全业务主机。
+        hosts = get_host_dict_by_biz(params["bk_biz_id"], Host.Fields)
+        ip_counts = Counter((host["bk_host_innerip"], int(host.get("bk_cloud_id") or 0)) for host in hosts)
+        if params.get("bk_host_id") is not None:
+            hosts = [host for host in hosts if host["bk_host_id"] == params["bk_host_id"]]
+        elif params.get("topo_nodes") and not _is_biz_root_scope(params["bk_biz_id"], params["topo_nodes"]):
+            module_ids = _trans_topo_node_to_module_ids(params["bk_biz_id"], copy.deepcopy(params["topo_nodes"]))
+            hosts = [host for host in hosts if set(host["bk_module_ids"]) & module_ids]
+        return [
+            {
+                **{field: host.get(field) for field in fields},
+                # 全业务列表先映射身份再按节点过滤。重复 IP 跨节点时，局部集合
+                # 无法复现全量列表的后写覆盖，交给统计完整性检查处理。
+                "has_duplicate_ip": ip_counts[(host["bk_host_innerip"], int(host.get("bk_cloud_id") or 0))] > 1,
+            }
+            for host in hosts
+        ]
 
 
 class GetHostByIP(CacheResource):
@@ -461,9 +591,11 @@ class GetTopoTreeResource(Resource):
 
     class RequestSerializer(serializers.Serializer):
         bk_biz_id = serializers.IntegerField(label="业务ID")
+        raw = serializers.BooleanField(default=False, label="仅返回原始拓扑")
 
     def perform_request(self, params):
-        return TopoTree(_get_topo_tree(params["bk_biz_id"]))
+        tree_data = _get_topo_tree(params["bk_biz_id"])
+        return tree_data if params.get("raw") else TopoTree(tree_data)
 
 
 class GetBusiness(Resource):
@@ -665,9 +797,10 @@ class GetServiceInstanceByID(Resource):
         service_instance_ids = serializers.ListField(label="服务实例列表", child=serializers.IntegerField())
 
     def perform_request(self, validated_request_data):
+        if not validated_request_data["service_instance_ids"]:
+            return []
         params = {
             "bk_biz_id": validated_request_data["bk_biz_id"],
-            "with_name": True,
             "service_instance_ids": validated_request_data["service_instance_ids"],
         }
         service_instances = batch_request(client.list_service_instance_detail, params, limit=500)
@@ -684,12 +817,18 @@ class GetProcess(Resource):
     class RequestSerializer(serializers.Serializer):
         bk_biz_id = serializers.IntegerField(label="业务ID")
         bk_host_id = serializers.IntegerField(label="主机ID", required=False, allow_null=True)
+        bk_host_ids = serializers.ListField(label="主机ID列表", child=serializers.IntegerField(), required=False)
         include_multiple_bind_info = serializers.BooleanField(
             required=False, label="是否返回多个绑定信息", default=False
         )
 
     def perform_request(self, validated_request_data):
         include_multiple_bind_info = validated_request_data["include_multiple_bind_info"]
+        host_ids = validated_request_data.get("bk_host_ids")
+        if host_ids is not None:
+            host_ids = set(host_ids)
+            if not host_ids:
+                return []
         params = {
             "bk_biz_id": validated_request_data["bk_biz_id"],
         }
@@ -703,6 +842,8 @@ class GetProcess(Resource):
         for service_instances in response_data:
             process_instances = service_instances["process_instances"] or []
             for process_instance in process_instances:
+                if host_ids is not None and int(process_instance["relation"]["bk_host_id"]) not in host_ids:
+                    continue
                 process_params = {}
                 # process info
                 process_params.update(process_instance["process"])
@@ -1134,6 +1275,7 @@ class SearchDynamicGroup(Resource):
                                 "bk_biz_id": params["bk_biz_id"],
                                 "id": dg["id"],
                                 "fields": [instance_field],
+                                "page": {"sort": instance_field},
                             },
                         },
                     )
@@ -1196,7 +1338,12 @@ class ExecuteDynamicGroup(Resource):
 
         instances = batch_request(
             client.execute_dynamic_group,
-            params={"bk_biz_id": params["bk_biz_id"], "id": params["id"], "fields": fields},
+            params={
+                "bk_biz_id": params["bk_biz_id"],
+                "id": params["id"],
+                "fields": fields,
+                "page": {"sort": "bk_host_id" if params["bk_obj_id"] == "host" else "bk_set_id"},
+            },
         )
 
         if params["bk_obj_id"] == "host":

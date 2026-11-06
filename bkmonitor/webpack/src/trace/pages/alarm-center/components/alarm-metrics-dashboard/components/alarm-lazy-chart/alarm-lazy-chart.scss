@@ -1,4 +1,12 @@
 .alarm-lazy-chart {
+  .alarm-lazy-chart-placeholder { display: flex; flex-direction: column; background: #fff; }
+
+  .explore-chart-refresh {
+    height: 2px;
+    pointer-events: none;
+    background: transparent;
+  }
+
   .base-chart {
     height: 247px;
     border: 1px solid #e4e9f2;

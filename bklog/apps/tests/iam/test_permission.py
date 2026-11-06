@@ -8,8 +8,8 @@ from apps.iam.concurrency import run_pair_concurrently
 from apps.iam.handlers.actions import ActionEnum
 from apps.iam.handlers.permission import Permission
 from apps.iam.handlers.resources import ResourceEnum
-from apps.iam.iam_engine.core.config import AuthMode
-from apps.iam.iam_engine.provider.router import ModeRouter
+from iam_engine.core.config import AuthMode
+from iam_engine.provider.router import ModeRouter
 
 
 @override_settings(IGNORE_IAM_PERMISSION=False, DEMO_BIZ_ID=0)

@@ -141,10 +141,11 @@ class V4ModelClientTest(SimpleTestCase):
         )
 
     @patch("apps.iam.backends.v4.client.requests.request")
-    def test_list_stops_on_empty_page_even_if_count_is_larger(self, request_mock):
+    def test_list_rejects_incomplete_empty_page(self, request_mock):
         request_mock.side_effect = [ok({"data": {"count": 5, "results": []}})]
 
-        self.assertEqual(self.client.list_actions(), [])
+        with self.assertRaisesRegex(V4ResponseError, "ended before the declared count"):
+            self.client.list_actions()
         self.assertEqual(request_mock.call_count, 1)
 
     @patch("apps.iam.backends.v4.client.requests.request")
@@ -168,7 +169,7 @@ class V4ModelClientTest(SimpleTestCase):
         with self.assertRaisesRegex(V4ResponseError, "result item must be an object"):
             self.client.list_resource_types()
 
-    @patch("apps.iam.backends.v4.model_client.MAX_PAGES", 1)
+    @patch("iam_engine.model.client.MAX_PAGES", 1)
     @patch("apps.iam.backends.v4.client.requests.request")
     def test_list_refuses_to_page_forever(self, request_mock):
         # count 与 results 不自洽时必须报错，而不是一直翻页。
@@ -243,21 +244,6 @@ class V4ModelClientTest(SimpleTestCase):
         )
 
     @patch("apps.iam.backends.v4.client.requests.request")
-    def test_batch_delete_role_actions_passes_ids_as_query(self, request_mock):
-        request_mock.return_value = no_content()
-
-        self.client.batch_delete_role_actions("space_viewer", ["search_log", "view_business"])
-
-        self.assertEqual(request_mock.call_args.kwargs["method"], "DELETE")
-        self.assertEqual(
-            self.called_paths(request_mock),
-            [
-                f"https://bkiam.example/prod/{DEFAULT_MODEL_BASE_PATH}bklog_test/roles/space_viewer/actions/"
-                "?ids=search_log%2Cview_business"
-            ],
-        )
-
-    @patch("apps.iam.backends.v4.client.requests.request")
     def test_batch_create_roles_posts_to_roles_path(self, request_mock):
         request_mock.return_value = created({"data": ["space_viewer"]})
 
@@ -279,12 +265,6 @@ class V4ModelClientTest(SimpleTestCase):
             self.called_paths(request_mock),
             [f"https://bkiam.example/prod/{DEFAULT_MODEL_BASE_PATH}bklog_test/roles/space_viewer/"],
         )
-
-    @patch("apps.iam.backends.v4.client.requests.request")
-    def test_batch_delete_role_actions_skips_empty_input(self, request_mock):
-        self.client.batch_delete_role_actions("space_viewer", [])
-
-        request_mock.assert_not_called()
 
 
 @override_settings(

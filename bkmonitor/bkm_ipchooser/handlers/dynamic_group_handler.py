@@ -71,7 +71,7 @@ class DynamicGroupHandler:
                     "bk_biz_id": self.bk_biz_id,
                     "id": dynamic_group_id,
                     "fields": constants.CommonEnum.DEFAULT_HOST_FIELDS.value,
-                    "page": {"start": start, "limit": page_size},
+                    "page": {"start": start, "limit": page_size, "sort": "bk_host_id"},
                 }
             )
             if not execute_dynamic_group_result or not execute_dynamic_group_result["info"]:
@@ -84,6 +84,7 @@ class DynamicGroupHandler:
                     "id": dynamic_group_id,
                     "fields": constants.CommonEnum.DEFAULT_HOST_FIELDS.value,
                 },
+                sort="bk_host_id",
             )
             if not host_list:
                 return result
@@ -127,7 +128,7 @@ class DynamicGroupHandler:
             "fields": constants.CommonEnum.SIMPLE_HOST_FIELDS.value,
             "no_request": True,
         }
-        hosts = batch_request(func=BkApi.execute_dynamic_group, params=params) or []
+        hosts = batch_request(func=BkApi.execute_dynamic_group, params=params, sort="bk_host_id") or []
         result["host_count"] = len(hosts)
         TopoHandler.fill_agent_status(hosts, self.bk_biz_id)
         agent_statistics = TopoHandler.count_agent_status(hosts)

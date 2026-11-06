@@ -186,3 +186,110 @@ class TestStorageConfigBranch(TestCase):
             result["doris_storage_config"]["storage_keys"],
             get_fresh_config()["option"]["es_unique_field_list"],
         )
+
+
+def make_analyzed_field(name, tokenize_on_chars="", alias="", **kwargs):
+    field = make_field(name, "string", alias=alias, **kwargs)
+    field["is_analyzed"] = True
+    field["tokenize_on_chars"] = tokenize_on_chars
+    field["option"] = {"es_type": "text"}
+    return field
+
+
+def with_original_text(field_list):
+    return field_list + [{"field_name": "log", "field_type": "string", "option": {"es_type": "text"}}]
+
+
+class TestDorisTokenizers(TestCase):
+    """Doris 字段自定义分词符透传为 doris_storage_config.tokenizers"""
+
+    def test_text_original_tokenizer(self):
+        """直接入库：原文 log 的分词符下发到 tokenizers.log"""
+        config = get_fresh_config()
+        result = BkLogTextEtlStorage().build_log_v4_data_link(
+            [],
+            {"original_text_tokenize_on_chars": "._=:,"},
+            config,
+            with_original_text(build_field_list([], config)),
+            storage_cluster_type=DORIS_CLUSTER_TYPE,
+        )
+
+        self.assertEqual(result["doris_storage_config"]["tokenizers"], {"log": "._=:,"})
+
+    def test_json_alias_field_and_original_text(self):
+        """JSON：配置别名的字段按别名下发，未配分词符或不分词的字段不下发"""
+        config = get_fresh_config()
+        fields = [
+            make_analyzed_field("message", "|", alias="msg"),
+            make_analyzed_field("detail"),
+            make_field("level", "string"),
+        ]
+        fields[2]["tokenize_on_chars"] = "-"
+        field_list = build_field_list([dict(field, field_name="msg") for field in fields[:1]] + fields[1:], config)
+        etl_params = {"retain_original_text": True, "original_text_tokenize_on_chars": "._=:,"}
+
+        result = BkLogJsonEtlStorage().build_log_v4_data_link(
+            fields, etl_params, config, with_original_text(field_list), storage_cluster_type=DORIS_CLUSTER_TYPE
+        )
+
+        doris_config = result["doris_storage_config"]
+        self.assertEqual(doris_config["tokenizers"], {"log": "._=:,", "msg": "|"})
+        self.assertIn("detail", doris_config["field_config_group"]["search_zh"])
+
+    def test_delimiter_and_regexp_use_field_name(self):
+        """分隔符 / 正则：别名不改变入库列名，按原字段名下发"""
+        for storage, etl_params, field_kwargs in [
+            (BkLogDelimiterEtlStorage(), {"separator": "|"}, {"field_index": 1}),
+            (BkLogRegexpEtlStorage(), {"separator_regexp": r"(?P<message>.+)"}, {}),
+        ]:
+            fields = [make_analyzed_field("message", "/", alias="msg", **field_kwargs)]
+            result = build_doris_config(storage, fields, etl_params)
+            self.assertEqual(result["doris_storage_config"]["tokenizers"], {"message": "/"})
+
+    def test_unicode_escaped_tokenizer_decoded(self):
+        """转义形式的分词符需解码后下发，原样输入的中文标点不能被解成乱码"""
+        fields = [make_analyzed_field("message", "\\t\\n,，。\\u3001")]
+        result = build_doris_config(BkLogRegexpEtlStorage(), fields, {"separator_regexp": r"(?P<message>.+)"})
+
+        self.assertEqual(result["doris_storage_config"]["tokenizers"], {"message": "\t\n,，。、"})
+
+    def test_original_text_not_retained(self):
+        """未保留原文时 log 不入库，原文分词符不下发"""
+        fields = [make_analyzed_field("message", "|")]
+        etl_params = {
+            "separator_regexp": r"(?P<message>.+)",
+            "retain_original_text": False,
+            "original_text_tokenize_on_chars": "._=:,",
+        }
+        result = build_doris_config(BkLogRegexpEtlStorage(), fields, etl_params)
+
+        self.assertEqual(result["doris_storage_config"]["tokenizers"], {"message": "|"})
+
+    def test_deleted_field_ignored(self):
+        """已删除的字段即使配置了分词符也不下发"""
+        fields = [make_analyzed_field("message", "|", is_delete=True)]
+        result = build_doris_config(BkLogRegexpEtlStorage(), fields, {"separator_regexp": r"(?P<message>.+)"})
+
+        self.assertNotIn("tokenizers", result["doris_storage_config"])
+
+    def test_no_tokenizer_omits_key(self):
+        """未配置任何自定义分词符时不下发 tokenizers，保持存量配置不变"""
+        fields = [make_analyzed_field("message")]
+        result = build_doris_config(BkLogRegexpEtlStorage(), fields, {"separator_regexp": r"(?P<message>.+)"})
+
+        self.assertNotIn("tokenizers", result["doris_storage_config"])
+
+    def test_es_storage_ignores_tokenizers(self):
+        """ES 存储仍走 analyzer，不产出 tokenizers"""
+        config = get_fresh_config()
+        fields = [make_analyzed_field("message", "|")]
+        result = BkLogRegexpEtlStorage().build_log_v4_data_link(
+            fields,
+            {"separator_regexp": r"(?P<message>.+)"},
+            config,
+            build_field_list(fields, config),
+            storage_cluster_type=STORAGE_CLUSTER_TYPE,
+        )
+
+        self.assertNotIn("doris_storage_config", result)
+        self.assertNotIn("tokenizers", result["es_storage_config"])

@@ -47,6 +47,8 @@ from apps.log_databus.handlers.collector_batch_operation import CollectorBatchHa
 from apps.log_databus.handlers.etl import EtlHandler
 from apps.log_databus.handlers.link import DataLinkHandler
 from apps.log_databus.models import CollectorConfig
+from apps.log_databus.nodeman_v3.mode import is_nodeman_v3_admitted
+from apps.log_databus.nodeman_v3.proxies import get_host_biz_proxies
 from apps.log_databus.serializers import (
     BatchSubscriptionStatusSerializer,
     BCSCollectorSerializer,
@@ -2012,7 +2014,7 @@ class CollectorViewSet(ModelViewSet):
         @apiParam {Int} [storage_replies] 副本数量
         @apiParam {String} category_id 数据分类 GlobalsConfig.category读取
         @apiParam {String} description 备注说明
-        @apiParam {List} [owners] 授权用户列表，为其授予采集项与索引集的新建关联权限
+        @apiParam {List} [owners] 授权用户列表，为其授予采集项、索引集权限与所属业务的业务访问权限
         @apiParamExample {json} 请求样例:
         {
             "bk_biz_id": 2,
@@ -2065,7 +2067,7 @@ class CollectorViewSet(ModelViewSet):
         @apiParam {Int} allocation_min_days 冷热数据时间
         @apiParam {Int} es_shards es分片数量
         @apiParam {Int} [storage_replies] 副本数量
-        @apiParam {List} [owners] 授权用户列表，为其授予采集项与索引集的新建关联权限，仅新增不回收
+        @apiParam {List} [owners] 授权用户列表，为其授予采集项、索引集权限与所属业务的业务访问权限，仅新增不回收
         @apiParamExample {json} 请求样例:
         {
             "collector_config_name": "xxxxx",
@@ -2256,9 +2258,14 @@ class CollectorViewSet(ModelViewSet):
         bk_biz_id = request.GET.get("bk_biz_id")
         bcs_cluster_id = request.GET.get("bcs_cluster_id")
         namespace = request.GET.get("namespace", "")
+        namespaces_exclude = request.GET.get("namespaces_exclude", "")
         return Response(
             K8sCollectorHandler().list_topo(
-                topo_type=topo_type, bk_biz_id=bk_biz_id, bcs_cluster_id=bcs_cluster_id, namespace=namespace
+                topo_type=topo_type,
+                bk_biz_id=bk_biz_id,
+                bcs_cluster_id=bcs_cluster_id,
+                namespace=namespace,
+                namespaces_exclude=namespaces_exclude,
             )
         )
 
@@ -2342,10 +2349,16 @@ class CollectorViewSet(ModelViewSet):
     def get_workload(self, request):
         workload_type = request.GET.get("type")
         bcs_cluster_id = request.GET.get("bcs_cluster_id")
-        namespace = request.GET.get("namespace")
+        namespace = request.GET.get("namespace", "")
+        namespaces_exclude = request.GET.get("namespaces_exclude", "")
+        bk_biz_id = request.GET.get("bk_biz_id")
         return Response(
             K8sCollectorHandler().get_workload(
-                workload_type=workload_type, bcs_cluster_id=bcs_cluster_id, namespace=namespace
+                workload_type=workload_type,
+                bcs_cluster_id=bcs_cluster_id,
+                namespace=namespace,
+                namespaces_exclude=namespaces_exclude,
+                bk_biz_id=bk_biz_id,
             )
         )
 
@@ -2611,7 +2624,10 @@ class CollectorViewSet(ModelViewSet):
             return Response(proxy_host_info)
 
         # 通过接口获取云区域上报proxy
-        proxy_hosts = NodeApi.get_host_biz_proxies({"bk_biz_id": space.bk_biz_id})
+        if is_nodeman_v3_admitted(space_uid_to_bk_biz_id(params.get("space_uid"))):
+            proxy_hosts = get_host_biz_proxies(space.bk_biz_id)
+        else:
+            proxy_hosts = NodeApi.get_host_biz_proxies({"bk_biz_id": space.bk_biz_id})
         for host in proxy_hosts:
             bk_cloud_id = int(host["bk_cloud_id"])
             # 默认云区域上报proxy，以数据库配置为准！

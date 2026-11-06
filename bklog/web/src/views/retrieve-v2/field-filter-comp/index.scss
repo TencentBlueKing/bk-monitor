@@ -1,6 +1,7 @@
 @import '@/scss/mixins/flex.scss';
 
 .field-filter-box {
+  min-width: 0;
   overflow: hidden;
 
   > .form-container {
@@ -76,6 +77,23 @@
 
     .bk-big-tree-node {
       height: 28px;
+
+      &:hover {
+        background-color: #f4f5f8;
+
+        .expand {
+          opacity: 1;
+        }
+
+        .field-badge {
+          background-color: white;
+        }
+
+        .operation-text {
+          /* stylelint-disable-next-line declaration-no-important */
+          display: flex !important;
+        }
+      }
     }
 
     .is-leaf {
@@ -109,6 +127,13 @@
     .fields-container {
       padding-bottom: 4px;
       margin-bottom: 9px;
+
+      &.is-selected {
+        .field-badge,
+        .expand {
+          display: none;
+        }
+      }
 
       &.inside-fields {
         position: sticky;

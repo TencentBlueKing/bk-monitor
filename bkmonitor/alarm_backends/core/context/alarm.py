@@ -60,6 +60,8 @@ class Alarm(BaseContextObject):
     告警信息对象
     """
 
+    _template_blocked_attributes = frozenset({"parent"})
+
     @cached_property
     def _is_sms_notice(self) -> bool:
         """
@@ -458,6 +460,37 @@ class Alarm(BaseContextObject):
             return {}
 
     @cached_property
+    def _ref_values_config(self):
+        """Use the evaluated item configuration, never the latest strategy cache."""
+        from alarm_backends.core.control.strategy import Strategy
+
+        record = self.parent.anomaly_record
+        extra_info = getattr(record, "extra_info", {}) or {}
+        if isinstance(extra_info, AttrDict):
+            extra_info = extra_info.to_dict()
+        strategy = extra_info.get("strategy")
+        origin_alarm = extra_info.get("origin_alarm") or {}
+        snapshot_key = origin_alarm.get("strategy_snapshot_key")
+        if not strategy and snapshot_key:
+            alert_origin = getattr(self.parent.alert, "origin_alarm", None) or {}
+            if alert_origin.get("strategy_snapshot_key") == snapshot_key:
+                strategy = getattr(self.parent.alert, "strategy", None)
+            if not strategy:
+                strategy = Strategy.get_strategy_snapshot_by_key(snapshot_key, record.strategy_id)
+        elif not strategy:
+            strategy = getattr(self.parent.alert, "strategy", None)
+        items = (strategy or {}).get("items") or []
+        if len(items) == 1:
+            return items[0].get("query_output_config")
+        event_id = str(getattr(record, "event_id", ""))
+        parts = event_id.split(".")
+        if len(parts) == 5:
+            for item in items:
+                if str(item.get("id")) == parts[3]:
+                    return item.get("query_output_config")
+        return None
+
+    @cached_property
     def detail_url(self):
         """
         告警详情链接, 告警url
@@ -828,13 +861,19 @@ class Alarm(BaseContextObject):
         return [alert.ack_operator for alert in self.parent.alerts if alert.ack_operator]
 
     @cached_property
+    def ack_logs(self):
+        if not self.parent.alert:
+            return []
+
+        return AlertLog.get_ack_logs([alert.id for alert in self.parent.alerts])
+
+    @cached_property
     def ack_reason(self):
         if not self.parent.alert:
             return None
 
-        ack_logs = AlertLog.get_ack_logs([alert.id for alert in self.parent.alerts])
         ack_messages = []
-        for ack_log in ack_logs:
+        for ack_log in self.ack_logs:
             ack_messages.append(ack_log.description)
         return ack_messages
 

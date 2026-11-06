@@ -26,6 +26,7 @@
 
 import { defineComponent, ref } from 'vue';
 import useLocale from '@/hooks/use-locale';
+import { isValidOccupyName } from '../occupy-rules';
 
 import './index.scss';
 
@@ -48,8 +49,8 @@ export default defineComponent({
           trigger: 'blur',
         },
         {
-          validator: (value: string) => /^[A-Z_-]+$/.test(value),
-          message: t('{n}不规范, 包含特殊符号.', { n: t('占位符') }),
+          validator: (value: string) => isValidOccupyName(value),
+          message: t('占位符仅支持字母、数字、下划线、连字符'),
           trigger: 'blur',
         },
       ],
@@ -101,7 +102,7 @@ export default defineComponent({
               <bk-input
                 value={occupyData.value.textInputStr}
                 placeholder={t('请输入')}
-                on-change={value => (occupyData.value.textInputStr = value.trim().toUpperCase())}
+                on-change={value => (occupyData.value.textInputStr = value.trim())}
                 onEnter={handleSubmitOccupy}
               />
             </bk-form-item>

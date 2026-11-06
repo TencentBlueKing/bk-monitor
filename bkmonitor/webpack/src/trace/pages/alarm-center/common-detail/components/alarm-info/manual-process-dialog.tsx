@@ -24,15 +24,16 @@
  * IN THE SOFTWARE.
  */
 
-import { computed, ref as deepRef, defineComponent, shallowRef, useTemplateRef, watch } from 'vue';
+import { computed, ref as deepRef, defineComponent, onScopeDispose, shallowRef, useTemplateRef, watch } from 'vue';
 
-import { Button, Dialog, Loading, Select } from 'bkui-vue';
+import { Button, Dialog, Select } from 'bkui-vue';
 import { batchCreate, getActionParams, getPluginTemplates } from 'monitor-api/modules/action';
 import { listActionConfig } from 'monitor-api/modules/model';
 import { random, transformDataKey } from 'monitor-common/utils/utils';
 import { useI18n } from 'vue-i18n';
 import { useRouter } from 'vue-router';
 
+import DetailLoading, { DetailLoadStatus } from '../../detail-loading';
 import { actionConfigGroupList } from '../../../utils';
 import DynamicForm from '@/pages/failure/alarm-detail/dynamic-form/dynamic-form';
 import GroupSelect from '@/pages/failure/alarm-detail/group-select';
@@ -132,6 +133,9 @@ export default defineComponent({
       allList: {},
     });
     const loading = shallowRef(false);
+    const loadError = shallowRef(false);
+    let requestId = 0;
+    onScopeDispose(() => { ++requestId; });
     /* 保存时的loading */
     const confirmLoading = shallowRef(false);
     /* 分组选择器key */
@@ -191,6 +195,10 @@ export default defineComponent({
 
     /* 选择处理套餐 */
     const handleSelected = async value => {
+      if (confirmLoading.value) return;
+      const current = ++requestId;
+      loadError.value = false;
+      try {
       const tempMealId = mealId.value;
       const tempCurMeal = curMeal.value;
       mealId.value = value;
@@ -201,14 +209,21 @@ export default defineComponent({
         alert_ids: props.alarmIds.map(item => String(item)),
         config_ids: [String(mealId.value)],
       }).catch(() => null);
+      if (current !== requestId) return;
       if (data) {
-        await getTemplateData(data);
+        await getTemplateData(data, current);
+        if (current !== requestId) return;
         setData(data);
       } else {
+        loadError.value = true;
         mealId.value = tempMealId;
         curMeal.value = tempCurMeal;
       }
-      loading.value = false;
+      } catch {
+        if (current === requestId) loadError.value = true;
+      } finally {
+        if (current === requestId) loading.value = false;
+      }
     };
     /* 获取表单数据 */
     const setData = data => {
@@ -257,7 +272,7 @@ export default defineComponent({
     };
     /* 保存 */
     const handleConfirm = async () => {
-      if (!mealId.value) {
+      if (!mealId.value || loading.value || loadError.value || confirmLoading.value) {
         return;
       }
       let paramsData = null;
@@ -307,10 +322,12 @@ export default defineComponent({
         ],
         bk_biz_id: props.alarmBizId,
       };
+      const current = requestId;
       confirmLoading.value = true;
       const res = await batchCreate(params).catch(() => null);
+      if (current !== requestId) return;
       confirmLoading.value = false;
-      if (res.actions) {
+      if (res?.actions) {
         handleMealInfo();
         handleShowChange(false);
         handleDebugStatus(res.actions);
@@ -322,24 +339,30 @@ export default defineComponent({
       handleShowChange(false);
     };
     const handleRefreshTemplate = async () => {
+      if (loading.value || confirmLoading.value) return;
+      const current = ++requestId;
       loading.value = true;
-      mealList.value = await listActionConfig({
-        bk_biz_id: props.alarmBizId,
-      })
-        .then(data => data.filter(item => item.is_enabled))
-        .catch(() => []);
-      loading.value = false;
+      loadError.value = false;
+      try {
+        const list = await listActionConfig({ bk_biz_id: props.alarmBizId });
+        if (current === requestId) mealList.value = list.filter(item => item.is_enabled);
+      } catch {
+        if (current === requestId) loadError.value = true;
+      } finally {
+        if (current === requestId) loading.value = false;
+      }
     };
 
     /* 获取作业列表与当前作业信息 */
-    const getTemplateData = async data => {
+    const getTemplateData = async (data, current: number) => {
       if (curMeal.value?.plugin_type !== 'webhook') {
         templateData.value.id = data[0].execute_config.template_id;
         if (!templateData.value.allList?.[curMeal.value?.plugin_id]?.length) {
           const res = await getPluginTemplates({
             bk_biz_id: props.alarmBizId,
             plugin_id: curMeal.value.plugin_id,
-          }).catch(() => null);
+          });
+          if (current !== requestId) return;
           if (res) {
             templateData.value.allList[curMeal.value.plugin_id] = res.templates;
             templateData.value.name = res.name;
@@ -348,12 +371,11 @@ export default defineComponent({
       }
     };
 
-    watch(
-      () => props.show,
-      async v => {
-        confirmLoading.value = false;
-        if (v) {
-          loading.value = true;
+    const init = async () => {
+      const current = ++requestId;
+      loading.value = true;
+      loadError.value = false;
+      try {
           if (tempBizId.value !== props.alarmBizId) {
             // 切换不同的业务需要初始化数据
             mealList.value = [];
@@ -374,11 +396,13 @@ export default defineComponent({
           }
           tempBizId.value = props.alarmBizId;
           if (!mealList.value.length) {
-            mealList.value = await listActionConfig({
+            const list = await listActionConfig({
               bk_biz_id: props.alarmBizId, // || this.$store.getters.bizId
             })
               .then(data => data.filter(item => item.is_enabled))
-              .catch(() => []);
+              ;
+            if (current !== requestId) return;
+            mealList.value = list;
           }
           if (!mealList.value.length) {
             loading.value = false;
@@ -391,16 +415,27 @@ export default defineComponent({
             bk_biz_id: props.alarmBizId, // || this.$store.getters.bizId,
             alert_ids: props.alarmIds.map(item => String(item)),
             config_ids: [String(mealId.value)],
-          }).catch(() => null);
+          });
+          if (current !== requestId) return;
           if (data) {
-            await getTemplateData(data);
+            await getTemplateData(data, current);
+            if (current !== requestId) return;
             setData(data);
           }
-          loading.value = false;
-        }
+      } catch {
+        if (current === requestId) loadError.value = true;
+      } finally {
+        if (current === requestId) loading.value = false;
       }
-    );
+    };
+    watch(() => [props.show, props.alarmBizId, props.alarmIds.join(',')], () => {
+      ++requestId;
+      confirmLoading.value = false;
+      if (props.show) init();
+      else loading.value = false;
+    }, { immediate: true });
     return {
+      loadError, retry: init,
       confirmLoading,
       httpCallBack,
       dynamicform,
@@ -431,7 +466,8 @@ export default defineComponent({
         class='manual-process-dialog-wrap'
         v-slots={{
           default: () => (
-            <Loading loading={this.loading}>
+            <div>
+              {this.loading ? <DetailLoading variant='form' /> : this.loadError ? <DetailLoadStatus error onRetry={this.retry} /> : (
               <div class='formdata-wrap'>
                 <div class='meal-list'>
                   <div class='title'>{this.t('处理套餐')}</div>
@@ -529,13 +565,14 @@ export default defineComponent({
                   </div>
                 ) : undefined}
               </div>
-            </Loading>
+            )}</div>
           ),
           footer: () => (
             <div class='manual-process-dialog-footer'>
               <Button
                 key='confirm-button'
                 loading={this.confirmLoading}
+                disabled={this.loading || this.loadError || !this.mealId}
                 theme='primary'
                 onClick={() => !this.confirmLoading && this.handleConfirm()}
               >

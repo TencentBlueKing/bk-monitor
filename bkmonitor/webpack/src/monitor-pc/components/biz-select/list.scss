@@ -77,9 +77,21 @@
       }
     }
 
+    &.highlight {
+      background-color: #e1ecff;
+
+      .set-default-button {
+        display: block;
+      }
+    }
+
     &.checked {
       color: #3a84ff;
       background-color: #f5f7fa;
+    }
+
+    &.checked.highlight {
+      background-color: #e1ecff;
     }
 
     &.dark {
@@ -90,15 +102,27 @@
         background: #272f45;
       }
 
+      &.highlight {
+        background: #272f45;
+      }
+
       &.checked {
         color: #fff;
         // background-color: #272f45;background-color
         background: #234071;
       }
+
+      &.checked.highlight {
+        background: #272f45;
+      }
     }
 
     &.light {
       &:hover {
+        color: #3a84ff;
+      }
+
+      &.highlight {
         color: #3a84ff;
       }
     }

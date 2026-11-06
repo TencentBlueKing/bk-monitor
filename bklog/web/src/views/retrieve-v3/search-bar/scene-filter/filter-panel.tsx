@@ -38,6 +38,7 @@ import {
   SceneType,
   type FilterFieldConfig,
   type FilterValues,
+  type SceneDimensionOption,
   type SceneDimensionValuesResponse,
   type SceneConfig,
   type FieldCandidateCondition,
@@ -82,7 +83,7 @@ export default defineComponent({
       default: false,
     },
   },
-  emits: ['scene-change', 'filter-change', 'clear', 'display-fields-change', 'operator-change'],
+  emits: ['scene-change', 'filter-change', 'clear', 'display-fields-change', 'operator-change', 'option-labels-change'],
   setup(props, { emit }) {
     const { t } = useLocale();
     const store = useStore();
@@ -97,6 +98,41 @@ export default defineComponent({
     const translateLabel = (label: string, skipI18n?: boolean) => (skipI18n ? label : t(label));
 
     const apiOptions = ref<Record<string, { loading: boolean; options: Array<{ id: string; name: string }> }>>({});
+
+    /** dynamic 维度已获取到的 id→name 映射，用于下拉未展开时回显及吸顶标签展示名称 */
+    const dynamicOptionLabels = ref<Record<string, Record<string, string>>>({});
+
+    /** 生成维度选项的展示文本：集群展示为 ID(名称)，其他维度展示名称；名称为空或与 ID 相同时只展示 ID */
+    const formatDimensionOptionName = (fieldKey: string, id: string, name?: string) => {
+      const label = name ? String(name).trim() : '';
+      if (!label || label === id) return id;
+      return fieldKey === 'cluster_id' ? `${id}(${label})` : label;
+    };
+
+    /** 解析维度值接口返回：优先使用带展示文本的 options，未返回时回退为 values */
+    const parseDimensionOptions = (fieldKey: string, data: SceneDimensionValuesResponse): SceneDimensionOption[] => {
+      if (Array.isArray(data.options) && data.options.length > 0) {
+        return data.options.map(opt => {
+          const id = String(opt.id);
+          return { id, name: formatDimensionOptionName(fieldKey, id, opt.name) };
+        });
+      }
+      return (data.values ?? []).map(v => ({ id: String(v), name: String(v) }));
+    };
+
+    /** 合并维度选项的 id→name 映射，并同步给父组件 */
+    const mergeDynamicOptionLabels = (fieldName: string, options: SceneDimensionOption[]) => {
+      if (!options.length) return;
+      const labels = { ...(dynamicOptionLabels.value[fieldName] ?? {}) };
+      for (const opt of options) {
+        labels[opt.id] = opt.name;
+      }
+      dynamicOptionLabels.value = { ...dynamicOptionLabels.value, [fieldName]: labels };
+      emit('option-labels-change', dynamicOptionLabels.value);
+    };
+
+    /** 根据已知映射获取维度值的展示文本，未知时回退为原始值 */
+    const getDynamicOptionName = (fieldName: string, id: string) => dynamicOptionLabels.value[fieldName]?.[id] ?? id;
 
     /** 标签输入框组件引用 */
     const tagInputRefs = ref<Record<string, any>>({});
@@ -137,8 +173,9 @@ export default defineComponent({
         });
 
         const data = (res.data ?? res) as SceneDimensionValuesResponse;
-        const values = data.values ?? [];
-        fieldState.options = values.map(v => ({ id: v, name: v }));
+        const options = parseDimensionOptions(field.key, data);
+        fieldState.options = options;
+        mergeDynamicOptionLabels(field.key, options);
       } catch (err) {
         console.error('fetchDynamicOptions error:', err);
         fieldState.options = [];
@@ -347,19 +384,31 @@ export default defineComponent({
         });
 
         const data = (res.data ?? res) as SceneDimensionValuesResponse;
-        const values = data.values ?? [];
-        fullClusterList.value = values.map(v => ({ id: v, name: v }));
+        const options = parseDimensionOptions('cluster_id', data);
+        fullClusterList.value = options;
+        mergeDynamicOptionLabels('cluster_id', options);
       } catch (err) {
         console.error('fetchFullClusterList error:', err);
       }
     };
 
-    // 监听场景变化，容器场景下预加载全量集群列表
+    /** 清空与业务相关的缓存：切换业务时组件会被复用，避免新业务沿用旧业务的集群列表、下拉选项和名称 */
+    const resetSpaceRelatedCache = () => {
+      fullClusterList.value = [];
+      apiOptions.value = {};
+      dynamicOptionLabels.value = {};
+      emit('option-labels-change', {});
+    };
+
+    // 监听业务与场景变化：切换业务时清空缓存；容器场景下预加载全量集群列表
+    // 切换业务时场景可能同时被重置为容器场景，合并为一个监听以避免重复请求
     watch(
-      () => props.activeScene,
-      newScene => {
+      [() => store.state.spaceUid, () => props.activeScene],
+      ([newSpaceUid, newScene], oldValues) => {
+        if (oldValues?.length && newSpaceUid !== oldValues[0]) {
+          resetSpaceRelatedCache();
+        }
         if (newScene === SceneType.Container) {
-          // 切换到容器场景时，预加载全量集群列表
           fetchFullClusterList();
         }
       },
@@ -530,7 +579,7 @@ export default defineComponent({
           const clusterIdValue = props.filterValues.cluster_id?.value;
           let clusterIds: string[] = [];
 
-          if (clusterIdValue) {
+          if (clusterIdValue && (!Array.isArray(clusterIdValue) || clusterIdValue.length > 0)) {
             // 有选中的集群 ID，使用选中的值
             clusterIds = Array.isArray(clusterIdValue) ? clusterIdValue.map(String) : [String(clusterIdValue)];
           } else {
@@ -778,15 +827,17 @@ export default defineComponent({
           ? []
           : (Array.isArray(currentValue) ? currentValue : [currentValue]).map(id => String(id));
 
-      // dynamic：接口已返回数据时优先使用，并合并手输值以便回显
+      // dynamic：接口已返回数据时优先使用，并合并手输值以便回显；未知值通过已获取的映射回显名称
       const loadedOptions = getApiFieldState(field.key).options;
       if (loadedOptions.length > 0) {
         const known = new Set(loadedOptions.map(opt => String(opt.id)));
-        const extra = currentIds.filter(id => !known.has(id)).map(id => ({ id, name: id }));
+        const extra = currentIds
+          .filter(id => !known.has(id))
+          .map(id => ({ id, name: getDynamicOptionName(field.key, id) }));
         return extra.length ? [...loadedOptions, ...extra] : loadedOptions;
       }
 
-      return currentIds.map(id => ({ id, name: id }));
+      return currentIds.map(id => ({ id, name: getDynamicOptionName(field.key, id) }));
     };
 
     /** 操作符选择器渲染 */

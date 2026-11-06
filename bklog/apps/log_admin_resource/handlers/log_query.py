@@ -9,17 +9,11 @@ import arrow
 from django.conf import settings
 from django.db.models import Q, Subquery
 from django.utils import timezone
-from elasticsearch_dsl import Search
-
 from apps.api.modules.utils import result_table_id_to_bk_biz_id
 from apps.exceptions import PermissionError as BklogPermissionError
 from apps.exceptions import ValidationError
 from apps.feature_toggle.handlers.toggle import FeatureToggleObject
-from apps.feature_toggle.plugins.constants import (
-    SCENE_SEARCH,
-    UNIFY_QUERY_SEARCH,
-    UNIFY_QUERY_SEARCH_CLUSTERING,
-)
+from apps.feature_toggle.plugins.constants import SCENE_SEARCH
 from apps.log_admin_resource.handlers.inspection import sanitize_sensitive_text, scope_space_queryset
 from apps.log_admin_resource.response_schema import object_schema
 from apps.log_clustering.constants import (
@@ -28,18 +22,12 @@ from apps.log_clustering.constants import (
     OwnerConfigEnum,
     PatternEnum,
     RemarkConfigEnum,
-    StorageTypeEnum,
 )
 from apps.log_clustering.handlers.pattern import PatternHandler
 from apps.log_clustering.models import ClusteringConfig
-from apps.log_esquery.esquery.esquery import EsQuery
-from apps.log_esquery.serializers import EsQueryMappingAttrSerializer
 from apps.log_search.constants import MAX_RESULT_WINDOW, FieldDataTypeEnum, IndexSetDataType, SearchScopeEnum
 from apps.log_search.handlers.index_set import BaseIndexSetHandler, IndexSetHandler
 from apps.log_search.handlers.scene_search import AllConditionsBuilder
-from apps.log_search.handlers.search.aggs_handlers import AggsHandlers, AggsViewAdapter
-from apps.log_search.handlers.search.mapping_handlers import MappingHandlers
-from apps.log_search.handlers.search.search_handlers_esquery import SearchHandler as SearchHandlerEsquery
 from apps.log_search.models import IndexSetTag, LogIndexSet, LogIndexSetData, Scenario, Space, TAG_TYPE_SCENE
 from apps.log_unifyquery.constants import BASE_OP_MAP, FIELD_TYPE_MAP, AggTypeEnum
 from apps.log_unifyquery.handler.base import UnifyQueryHandler
@@ -50,7 +38,6 @@ from apps.log_unifyquery.handler.scene_field import SceneFieldHandler
 from apps.log_unifyquery.handler.scene_search import SceneUnifyQueryHandler
 from apps.log_unifyquery.handler.scene_terms_aggs import SceneTermsAggsHandler
 from apps.log_unifyquery.handler.terms_aggs import UnifyQueryTermsAggsHandler
-from apps.utils.drf import custom_params_valid
 from apps.utils.local import (
     del_local_param,
     get_local_param,
@@ -816,41 +803,6 @@ class ResourceClusteringUnifyQueryPatternHandler(
     pass
 
 
-class ResourceMappingHandlers(MappingHandlers):
-    """Use the local read-only mapping client for application-authenticated Resource calls."""
-
-    def _direct_latest_mapping(self, params):
-        data = custom_params_valid(EsQueryMappingAttrSerializer, params)
-        return EsQuery(data).mapping()
-
-
-class ResourceSearchHandler(SearchHandlerEsquery):
-    mapping_handler_class = ResourceMappingHandlers
-
-
-class ResourceAggsHandlers(AggsHandlers):
-    search_handler_class = ResourceSearchHandler
-
-
-class ResourceAggsViewAdapter(AggsViewAdapter):
-    def __init__(self):
-        self._aggs_handlers = ResourceAggsHandlers
-
-
-class ResourceClusteringSearchHandler(ResourceSearchHandler):
-    """Pin the legacy search chain to clustered_rt without keyword/addition probing."""
-
-    def __init__(self, index_set_id, search_dict, *, clustering_config, **kwargs):
-        self.resource_clustering_config = clustering_config
-        super().__init__(index_set_id, search_dict, **kwargs)
-
-    def _init_indices_str(self):
-        super()._init_indices_str()
-        self.scenario_id = Scenario.BKDATA
-        self.using_clustering_proxy = True
-        return self.resource_clustering_config.clustered_rt
-
-
 class ResourcePatternHandler(PatternHandler):
     """Reuse PatternHandler.pattern_search while replacing only its query-route primitive."""
 
@@ -868,33 +820,11 @@ class ResourcePatternHandler(PatternHandler):
 
     def _get_pattern_aggs_result(self, index_set_id, query):
         pattern_aggs_field = self.pattern_aggs_field
-        use_unify_query = self._clustering_config.storage_type == StorageTypeEnum.DORIS.value or (
-            FeatureToggleObject.switch(UNIFY_QUERY_SEARCH, query.get("bk_biz_id"))
-            and FeatureToggleObject.switch(UNIFY_QUERY_SEARCH_CLUSTERING, query.get("bk_biz_id"))
-        )
-        if use_unify_query:
-            query["index_set_ids"] = [index_set_id]
-            query["agg_field"] = pattern_aggs_field
-            return ResourceClusteringUnifyQueryPatternHandler(
-                query, clustering_config=self._clustering_config
-            ).query_pattern()
-
-        query = copy.deepcopy(query)
-        query["fields"] = [{"field_name": pattern_aggs_field, "sub_fields": self._build_aggs_group}]
-        search = AggsHandlers._build_terms_aggs(
-            Search(),
-            query["fields"],
-            query.get("size", AggsHandlers.AGGS_BUCKET_SIZE),
-            query.get("order", AggsHandlers.DEFAULT_ORDER),
-        ).extra(size=0)
-        query.update(search.to_dict())
-        aggs_result = ResourceClusteringSearchHandler(
-            index_set_id,
-            query,
-            clustering_config=self._clustering_config,
-            only_for_agg=True,
-        ).search(search_type=None)
-        return self._parse_pattern_aggs_result(pattern_aggs_field, aggs_result)
+        query["index_set_ids"] = [index_set_id]
+        query["agg_field"] = pattern_aggs_field
+        return ResourceClusteringUnifyQueryPatternHandler(
+            query, clustering_config=self._clustering_config
+        ).query_pattern()
 
 
 def get_log_fields(params):
@@ -1208,13 +1138,8 @@ def get_log_context(params):
             clustering=True,
             time_zone=params.get("time_zone"),
         )
-    elif FeatureToggleObject.switch(UNIFY_QUERY_SEARCH, query["bk_biz_id"]):
-        data = _run_query(lambda: ResourceUnifyQueryContextHandler(query).search(), time_zone=params.get("time_zone"))
     else:
-        data = _run_query(
-            lambda: ResourceSearchHandler(index_set.index_set_id, query).search_context(),
-            time_zone=params.get("time_zone"),
-        )
+        data = _run_query(lambda: ResourceUnifyQueryContextHandler(query).search(), time_zone=params.get("time_zone"))
     warnings = []
     if data.get("zero_index", -1) < 0:
         warnings.append(
@@ -1375,15 +1300,7 @@ def search_clustering_patterns(params):
         "bk_biz_id": source["bk_biz_id"],
         "time_zone": params.get("time_zone"),
     }
-    source["route"]["query_backend"] = (
-        "unify_query"
-        if source["clustering_config"].storage_type == StorageTypeEnum.DORIS.value
-        or (
-            FeatureToggleObject.switch(UNIFY_QUERY_SEARCH, source["bk_biz_id"])
-            and FeatureToggleObject.switch(UNIFY_QUERY_SEARCH_CLUSTERING, source["bk_biz_id"])
-        )
-        else "esquery"
-    )
+    source["route"]["query_backend"] = "unify_query"
     items = _run_query(
         lambda: ResourcePatternHandler(source["index_set_id"], query, source["clustering_config"]).pattern_search(),
         clustering=True,
@@ -1584,63 +1501,36 @@ def _index_set_fields(source, params, scope):
         "bk_biz_id": source["bk_biz_id"],
         "time_zone": params.get("time_zone"),
     }
-    if FeatureToggleObject.switch(UNIFY_QUERY_SEARCH, source["bk_biz_id"]):
-        return ResourceUnifyQueryHandler(query).fields(scope)
-    return ResourceSearchHandler(index_set.index_set_id, query).fields(scope)
+    return ResourceUnifyQueryHandler(query).fields(scope)
 
 
 def _index_set_search(source, query):
     index_set_id = source["index_set_id"]
-    if FeatureToggleObject.switch(UNIFY_QUERY_SEARCH, source["bk_biz_id"]):
-        query.update({"index_set_ids": [index_set_id], "bk_biz_id": source["bk_biz_id"]})
-        return ResourceUnifyQueryHandler(query).search(search_type=None)
-    return ResourceSearchHandler(index_set_id, query).search()
+    query.update({"index_set_ids": [index_set_id], "bk_biz_id": source["bk_biz_id"]})
+    return ResourceUnifyQueryHandler(query).search(search_type=None)
 
 
 def _clustering_search(source, query):
     clustering_config = source["clustering_config"]
-    use_unify_query = clustering_config.storage_type == StorageTypeEnum.DORIS.value or FeatureToggleObject.switch(
-        UNIFY_QUERY_SEARCH, source["bk_biz_id"]
-    )
-    if use_unify_query:
-        source["route"]["query_backend"] = "unify_query"
-        query.update({"index_set_ids": [source["index_set_id"]], "bk_biz_id": source["bk_biz_id"]})
-        return ResourceClusteringUnifyQueryHandler(query, clustering_config=clustering_config).search(search_type=None)
-    source["route"]["query_backend"] = "esquery"
-    return ResourceClusteringSearchHandler(
-        source["index_set_id"],
-        query,
-        clustering_config=clustering_config,
-        export_fields=query.get("export_fields"),
-    ).search(search_type=None)
+    source["route"]["query_backend"] = "unify_query"
+    query.update({"index_set_ids": [source["index_set_id"]], "bk_biz_id": source["bk_biz_id"]})
+    return ResourceClusteringUnifyQueryHandler(query, clustering_config=clustering_config).search(search_type=None)
 
 
 def _clustering_context(source, query):
     clustering_config = source["clustering_config"]
-    use_unify_query = clustering_config.storage_type == StorageTypeEnum.DORIS.value or FeatureToggleObject.switch(
-        UNIFY_QUERY_SEARCH, source["bk_biz_id"]
-    )
-    if use_unify_query:
-        source["route"]["query_backend"] = "unify_query"
-        return ResourceClusteringContextHandler(query, clustering_config=clustering_config).search()
-    source["route"]["query_backend"] = "esquery"
-    return ResourceClusteringSearchHandler(
-        source["index_set_id"], query, clustering_config=clustering_config
-    ).search_context()
+    source["route"]["query_backend"] = "unify_query"
+    return ResourceClusteringContextHandler(query, clustering_config=clustering_config).search()
 
 
 def _index_set_terms(source, query):
-    if FeatureToggleObject.switch(UNIFY_QUERY_SEARCH, source["bk_biz_id"]):
-        query.update({"index_set_ids": [source["index_set_id"]], "bk_biz_id": source["bk_biz_id"]})
-        return ResourceUnifyQueryTermsAggsHandler(query["fields"], query).terms()
-    return ResourceAggsViewAdapter().terms(source["index_set_id"], query)
+    query.update({"index_set_ids": [source["index_set_id"]], "bk_biz_id": source["bk_biz_id"]})
+    return ResourceUnifyQueryTermsAggsHandler(query["fields"], query).terms()
 
 
 def _index_set_histogram(source, query):
-    if FeatureToggleObject.switch(UNIFY_QUERY_SEARCH, source["bk_biz_id"]):
-        query.update({"index_set_ids": [source["index_set_id"]], "bk_biz_id": source["bk_biz_id"]})
-        return ResourceUnifyQueryHandler(query).date_histogram()
-    return ResourceAggsViewAdapter().date_histogram(source["index_set_id"], query)
+    query.update({"index_set_ids": [source["index_set_id"]], "bk_biz_id": source["bk_biz_id"]})
+    return ResourceUnifyQueryHandler(query).date_histogram()
 
 
 def _scene_query_params(source, params):
@@ -1803,11 +1693,7 @@ def _route_evidence(
         raise BklogPermissionError("query result contains an index set outside the Resource Call tenant")
     data_labels = [BaseIndexSetHandler.get_data_label(index_set_id) for index_set_id in visible_ids]
     storage_types = sorted({"doris" if item.is_native_doris() else "es" for item in visible_index_sets})
-    query_backend = (
-        "unify_query"
-        if source["type"] == SOURCE_SCENE
-        else ("unify_query" if FeatureToggleObject.switch(UNIFY_QUERY_SEARCH, source["bk_biz_id"]) else "esquery")
-    )
+    query_backend = "unify_query"
     return {
         "source_type": source["type"],
         "requested_source_type": source["type"],

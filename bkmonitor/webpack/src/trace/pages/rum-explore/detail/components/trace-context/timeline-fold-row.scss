@@ -1,0 +1,26 @@
+.timeline-fold-row {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  height: 42px;
+  padding: 10px 8px;
+  font-size: 12px;
+  line-height: 20px;
+  color: #4d4f56;
+  cursor: pointer;
+  background: #fff;
+  border-bottom: 1px solid #e4e9f2;
+
+  .fold-count {
+    font-weight: 700;
+  }
+
+  .fold-action {
+    color: #3a84ff;
+  }
+
+  .fold-icon {
+    font-size: 16px;
+    color: #3a84ff;
+  }
+}

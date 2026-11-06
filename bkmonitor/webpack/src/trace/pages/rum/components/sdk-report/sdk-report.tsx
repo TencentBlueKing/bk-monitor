@@ -30,6 +30,7 @@ import { queryRumTokenInfo } from 'monitor-api/modules/rum_meta';
 import { copyText } from 'monitor-common/utils';
 import OverflowTips from 'trace/directive/overflow-tips';
 import { useI18n } from 'vue-i18n';
+import { useRouter } from 'vue-router';
 
 import { AEGIS_MD, OT_MD } from './sdk-md';
 import { PROTOCOLS } from './sdk-protocols';
@@ -73,6 +74,7 @@ export default defineComponent({
   },
   setup(props, { emit }) {
     const { t } = useI18n();
+    const router = useRouter();
     const protocol = shallowRef(PROTOCOLS[0].id);
     const operateType = shallowRef<EOperateType>(operateTypeMap.init);
     const submitLoading = shallowRef(false);
@@ -156,7 +158,8 @@ export default defineComponent({
       // submitLoading.value = false;
     };
     const handleGoAppDetail = () => {
-      const hash = `#${window.__POWERED_BY_BK_WEWEB__ ? '/trace' : ''}/rum/config/${encodeURIComponent(props.appInfo.app_name)}`;
+      const { fullPath } = router.resolve({ name: 'rumAppConfig', params: { appName: props.appInfo.app_name } });
+      const hash = `#${fullPath}`;
       const url = `${location.origin}${location.pathname}?bizId=${props.appInfo.bk_biz_id}${hash}`;
       window.open(url, '_blank', 'noopener,noreferrer');
     };

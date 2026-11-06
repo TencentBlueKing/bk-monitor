@@ -28,6 +28,8 @@ import { isRef, ref, type Ref } from 'vue';
 import { debounce } from 'lodash-es';
 import tippy, { type Props, type Placement, type Instance } from 'tippy.js';
 
+import './pop-instance-util.scss';
+
 type PopInstanceUtilType = {
   refContent:
     | (() => HTMLElement | string)
@@ -41,6 +43,13 @@ type PopInstanceUtilType = {
   newInstance: boolean;
   tippyOptions: Partial<Props>;
   watchElement: Ref<HTMLElement>; // 添加需要监视的元素，能在元素高度变化时，自动更新 pop
+};
+
+export const markBklogTippy = (instances: Instance | Instance[]) => {
+  const instanceList = Array.isArray(instances) ? instances : [instances];
+  instanceList.forEach(instance => {
+    instance.popper.classList.add('bklog-tippy');
+  });
 };
 
 export default class PopInstanceUtil {
@@ -62,6 +71,7 @@ export default class PopInstanceUtil {
   private watchElement = ref(null);
   private isShowing = false;
   private hiddenTimer;
+  private destroyingInstance: Instance<Props> | null = null;
 
   constructor({
     refContent,
@@ -138,16 +148,29 @@ export default class PopInstanceUtil {
     return this.getTippyInstance()?.state?.isShown ?? false;
   }
 
+  /**
+   * 判断 tippy 实例是否正在 uninstallInstance 中被销毁。
+   * 重建实例时旧实例 unmount 会同步触发 onHidden，调用方可据此忽略旧实例的事件。
+   */
+  isDestroyingInstance(instance?: Instance<Props> | null) {
+    return Boolean(instance) && instance === this.destroyingInstance;
+  }
+
   uninstallInstance = () => {
     this.delayShowInstance?.cancel?.();
     this.cancelHide();
     this.resizeObserver?.disconnect();
     this.resizeObserver = null;
     if (this.tippyInstance) {
-      this.tippyInstance?.hide();
-      this.tippyInstance?.unmount();
-      this.tippyInstance?.destroy();
-      this.tippyInstance = null;
+      this.destroyingInstance = this.tippyInstance;
+      try {
+        this.tippyInstance?.hide();
+        this.tippyInstance?.unmount();
+        this.tippyInstance?.destroy();
+        this.tippyInstance = null;
+      } finally {
+        this.destroyingInstance = null;
+      }
     }
   };
 
@@ -232,6 +255,7 @@ export default class PopInstanceUtil {
     const content = this.getContent();
     if (this.tippyInstance === null && content) {
       this.tippyInstance = tippy(target, this.getMergeTippyOptions()) as any;
+      markBklogTippy(this.tippyInstance);
     }
   }
 

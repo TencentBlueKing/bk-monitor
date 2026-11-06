@@ -1,0 +1,26 @@
+.rum-key-value-list {
+  padding: 4px 0;
+  border: 1px solid #c1cde5;
+  border-radius: 4px;
+
+  .key-value-row {
+    display: flex;
+    gap: 4px;
+    align-items: center;
+    height: 32px;
+    padding: 0 12px;
+    font-size: 12px;
+    line-height: 20px;
+    background: #fff;
+  }
+
+  .row-label {
+    flex-shrink: 0;
+    width: 84px;
+    color: #4e5e7a;
+  }
+
+  .row-value {
+    color: #4d4f56;
+  }
+}

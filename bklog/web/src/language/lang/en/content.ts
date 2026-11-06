@@ -73,6 +73,16 @@ export default {
   两个参数都: 'Both parameters',
   新建索引集: 'New Indices',
   请选择集群: 'Please select a cluster',
+  请选择采集目标: 'Please select collection targets',
+  请完善基础信息: 'Please complete the basic information',
+  请完善采集配置: 'Please complete the collection settings',
+  请完善段日志规则: 'Please complete the multiline log rules',
+  请检查日志路径: 'Please check the log path',
+  请检查日志过滤: 'Please check the log filters',
+  请检查采集配置项: 'Please check the collection items',
+  请检查设备元数据: 'Please check the device metadata',
+  请完善存储配置: 'Please complete the storage settings',
+  请完善清洗字段配置: 'Please complete the cleaning field settings',
   请选择索引: 'Please select an index',
   '连通成功！': 'Connected successfully!',
   '连通失败！': 'Connection failed!',
@@ -368,6 +378,9 @@ export default {
   '当前日志聚类未启用，请前往设置': 'The current log clustering is not enabled, please go to settings',
   '私有的只支持默认的“个人收藏”': "Private only supports default 'personal collection'",
   '{n}不规范, 包含特殊符号.': '{n} is not standard, contains special characters.',
+  '占位符仅支持字母、数字、下划线、连字符': 'Placeholder only supports letters, numbers, underscores, and hyphens',
+  '第 {n} 行填写不规范：{msg}': 'Row {n} is invalid: {msg}',
+  请检查正则和占位符填写是否正确: 'Please check the regular expression and placeholder',
   '需要采集日志，请先创建采集任务': 'Log collection is required, please create a collection task first',
   '当前主机数较多，请进行容量评估': 'Current number of hosts is high, please perform capacity assessment',
   请填写容量评估的每日单台日志量: 'Please fill in the daily log volume per host for capacity assessment',
@@ -995,6 +1008,8 @@ export default {
     'In this mode, only the original text of the unordered log reported by you is downloaded, and you can sort it locally by log time; the log cannot contain platform supplementary fields: such as cluster name, module name and other information. The maximum number of log exports in this mode is 5 million.',
   '该模式下，下载的日志有序，可包含平台补充字段，但下载时间较长。该模式的日志导出上限为200万条':
     'In this mode, the downloaded logs are in order and can contain platform supplementary fields, but the download time is longer. The maximum number of log exports in this mode is 2 million.',
+  '该模式下，下载的日志有序，可包含平台补充字段，但下载时间较长。':
+    'In this mode, the downloaded logs are in order and can contain platform supplementary fields, but the download time is longer.',
   全文下载: 'Full text download',
   暂未保留原始日志: 'The original log has not been kept yet',
   '超出集群最大可保存天数，当前最大可保存{n}天':
@@ -1463,4 +1478,148 @@ export default {
     'No collection items under this business. Please follow the guide to onboard, or contact the administrator to apply',
   'API无权限，请联系管理员申请': 'No API permission. Please contact the administrator to apply',
   '无权限，请联系管理员': 'No permission. Please contact the administrator',
+  '无法获取采集预览数据，Kafka 分区信息读取失败。':
+    'Failed to load collection preview data because Kafka partition information could not be retrieved.',
+  '你可以继续选择存储集群，预览数据可能暂不可用。请稍后重试，或检查采集配置是否已下发。如问题持续，请联系管理员。':
+    'You can continue selecting a storage cluster. Preview data may be unavailable. Please retry later, check whether the collection configuration has been issued, or contact the administrator if the issue persists.',
+  '获取存储集群列表失败，暂时无法展示可选集群。':
+    'Failed to load the storage cluster list, so available clusters cannot be displayed.',
+  '请稍后重试，或检查采集配置。如问题持续，请联系管理员。':
+    'Please retry later or check the collection configuration. Contact the administrator if the issue persists.',
+  '操作失败，系统返回了内部异常。': 'The operation failed because the system returned an internal error.',
+  '请求 ID：{n}': 'Request ID: {n}',
+  任务: 'Task',
+  选择任务: 'Select task',
+  '未采集，无法选择': 'Not collected; cannot select',
+  '采集中，无法选择': 'Collection in progress; cannot select',
+  '采集失败，无法选择': 'Collection failed; cannot select',
+  '已选 {0} 个任务': '{0} tasks selected',
+  全选已采集: 'Select all collected',
+  '超过单次上限（{n} 个任务）': 'Exceeds the limit of {n} tasks per download',
+  '下载已选（{n}）': 'Download selected ({n})',
+  移出: 'Remove',
+  '下载 {n} 个采集任务': 'Download {n} collected tasks',
+  开始下载: 'Start download',
+  '批量下载：{n} 个文件下载失败': 'Batch download: {n} files failed to download',
+  '文件下载失败，请稍后重试': 'Failed to download the file. Please try again later',
+  '风险提示：': 'Risk notice:',
+  '本次任务会从已授权的主机中临时提取日志，并生成有时效的下载链接':
+    'This task temporarily extracts logs from authorized hosts and generates a download link with an expiration time',
+  '请确认目标范围、文件范围和过滤条件符合授权用途':
+    'Confirm that the targets, files and text filters match the authorized purpose',
+  下载链接过期后需要重新下发或重新生成: 'Submit the task or generate the download link again after it expires',
+  '{0} 个授权内主机': '{0} authorized hosts',
+  '{0} 个文件': '{0} files',
+  '最新行数：{0} 行': 'Latest {0} lines',
+  '将向{0}符合提取范围的主机提取：以下{1}个文件':
+    'Extract the following {1} files from {0} hosts within the extraction scope',
+  '将向{0}符合提取范围的主机提取：': 'Extract files from {0} hosts within the extraction scope:',
+  '{0}之外的{1}文件': 'Extract {1} files except {0}',
+  '除去以下{0}个文件': 'the following {0} files',
+  '请在检索后，在文件列表选择日志文件': 'After searching, select log files from the file list',
+  '搜索文件名/最后修改时间': 'Search by file name / last modified time',
+  暂无已选文件: 'No files selected',
+  '{0} 个节点': '{0} nodes',
+  '关键字过滤：{0}（关键字匹配模式：{1}）': 'Keyword filtering: {0} (Keyword matching mode: {1})',
+  访问权限未开通: 'Access not granted',
+  '暂无业务 / 空间访问权限': 'No business / space access',
+  '你尚未获得任何业务或空间的访问权限，暂时无法使用日志平台':
+    'You do not have access to any business or space and cannot use the log platform yet',
+  '请到蓝鲸权限中心申请加入业务用户组，或申请日志平台所需权限':
+    'Apply to join a business user group in BlueKing IAM, or request the permissions required by the log platform',
+  '申请入口：蓝鲸门户 → 权限中心；审批通过后重新检测权限':
+    'Apply via BlueKing Portal → IAM. Recheck permissions after approval',
+  按业务角色申请权限: 'Apply for permissions by business role',
+  打开权限中心: 'Open IAM',
+  '进入蓝鲸门户，打开「权限中心」，进入「权限申请」':
+    'Go to BlueKing Portal, open IAM, and select Permission Application',
+  申请加入用户组: 'Apply to join a user group',
+  '选择「加入用户组」，按业务名搜索，勾选对应角色的用户组并提交':
+    'Select Join User Group, search by business name, select the group for your role, and submit',
+  审批后重新检测: 'Recheck after approval',
+  '审批通过后，返回日志平台，点击「重新检测权限」':
+    'After approval, return to the log platform and click Recheck Permissions',
+  '用户组权限不足？在权限中心选择日志平台，补充申请所需权限':
+    'Need more user group permissions? Select the log platform in IAM and request the additional permissions',
+  '找不到用户组，或不确定需要哪些权限？': 'Cannot find a user group, or unsure which permissions you need?',
+  '无权限，请': 'No permission.',
+  暂时无法访问当前业务: 'Unable to access this business',
+  请确认当前登录的企业与该业务所属企业一致: 'Make sure you are signed in to the enterprise that owns this business',
+  '如不一致，请按以下步骤切换企业后重新登录':
+    'If they do not match, follow the steps below to switch enterprises and sign in again',
+  如何切换到所属企业: 'How to switch to the correct enterprise',
+  退出当前登录: 'Sign out',
+  '点击页面右上角的个人名称，在菜单中选择「退出登录」':
+    'Click your name in the top-right corner of the page and select Sign Out from the menu',
+  切换企业: 'Switch enterprise',
+  '进入登录页后，点击右上角的「切换企业」': 'On the sign-in page, click Switch Enterprise in the top-right corner',
+  选择所属企业: 'Select your enterprise',
+  '输入或选择你的所属企业，确认后重新登录日志平台':
+    'Enter or select your enterprise, confirm your choice, and sign in to the log platform again',
+  '请确认选择的是该业务所属企业，切换后重新登录日志平台':
+    'Make sure you select the enterprise that owns this business, then sign in to the log platform again',
+  '企业选择正确，仍无法访问？请联系{0}确认授权':
+    'Selected the correct enterprise but still cannot access logs? Contact {0} to confirm access.',
+  '请说明业务或空间、日志范围和登录账号；BK助手完成授权后，刷新页面重试':
+    'Provide the business or space, log scope, and sign-in account. Refresh the page after BK Assistant grants access',
+  暂无日志访问权限: 'No permission to access logs',
+  '当前账号尚未获得业务或空间的日志访问权限。请联系运维人员开通':
+    'Your account does not have permission to access logs in this business or space. Contact your operations team to request access',
+  开始接入日志: 'Start collecting logs',
+  当前空间还没有采集项: 'No collection items in this space yet',
+  '空间「{spaceName}」尚未配置日志采集': 'Log collection has not been configured for space "{spaceName}"',
+  '创建第一个采集项，将主机或容器日志接入日志平台':
+    'Create your first collection item to send host or container logs to the log platform',
+  '首次接入建议先选择少量目标，确认采集正常后再扩大范围':
+    'Start with a small set of targets. Expand the scope once log collection is working correctly',
+  '从日志接入到检索，只需三步': 'From collection to search in three steps',
+  '选择日志来源，为采集项命名，关联当前业务或空间':
+    'Select a log source, name the collection item, and associate it with the current business or space',
+  配置并下发: 'Configure and deploy',
+  '设置目标资源、日志路径和采集规则，完成采集配置下发':
+    'Set the target resources, log paths, and collection rules, then deploy the collection configuration',
+  开始检索日志: 'Start searching logs',
+  '采集正常且数据入库后，选择对应索引集，即可检索日志':
+    'Once collection is working and logs are stored, select the corresponding index set to search logs',
+  '创建前，请准备好目标资源与日志路径，并确认资源访问权限':
+    'Before creating an item, prepare the target resources and log paths, and confirm resource access permissions',
+  '没有采集项创建权限？': 'No permission to create collection items?',
+  '其他空间已接入日志？': 'Already collecting logs in another space?',
+  切换空间: 'Switch space',
+  选择合适的权限申请方式: 'Choose how to apply for permissions',
+  '进入蓝鲸门户，打开「权限中心」，在「权限申请」中按使用场景选择申请方式':
+    'Go to BlueKing Portal, open IAM, and choose an application method under Permission Application for your use case',
+  按业务角色申请: 'Apply by business role',
+  推荐: 'Recommended',
+  '权限申请 → 加入用户组 → 搜索业务名 → 勾选用户组':
+    'Permission Application → Join User Group → Search by business name → Select a user group',
+  '选择与你的业务角色对应的用户组，确认组内包含所需权限后提交审批。加入用户组后，将继承该组的权限':
+    'Select the user group for your business role, confirm that it includes the permissions you need, and submit for approval. You will inherit the group permissions after joining',
+  只申请所需的单项权限: 'Apply only for the individual permissions you need',
+  '在权限中心选择日志平台，申请所需权限': 'Select the log platform in IAM and apply for the permissions you need',
+  '权限模板：': 'Permission template:',
+  '选择符合使用场景的模板，并按页面提示配置资源范围':
+    'Select a template for your use case and follow the page instructions to configure the resource scope',
+  '自定义：': 'Custom:',
+  '勾选所需操作，点击「关联实例」，选择具体业务等资源实例后提交':
+    'Select the required actions, click Associate Instances, select resource instances such as a specific business, and submit',
+  '已有用户组权限不足时，可以继续申请单项权限；仅在 CMDB 中配置了运维人员，不代表已获得权限中心授权。审批通过后，返回本页重新检测权限':
+    'If your user group permissions are insufficient, you can apply for individual permissions. Being listed as an operator in CMDB does not grant IAM permissions. After approval, return to this page and recheck permissions',
+  日志接入指引: 'Log collection guide',
+  准备采集资源: 'Prepare collection resources',
+  '主机日志需准备目标主机及日志路径；容器日志需准备集群、命名空间及日志来源':
+    'For host logs, prepare the target hosts and log paths. For container logs, prepare the cluster, namespace, and log sources',
+  配置并下发采集项: 'Configure and deploy collection items',
+  '确认采集范围、文件编码和日志规则，完成配置下发并检查采集状态':
+    'Confirm the collection scope, file encoding, and log rules, deploy the configuration, and check the collection status',
+  验证后开始检索: 'Verify collection and start searching',
+  '等待数据入库，选择对应索引集，确认可以检索到预期日志':
+    'Wait for the data to be stored, select the corresponding index set, and confirm that you can find the expected logs',
+  '具体可用采集类型和配置方式，以当前环境的采集管理功能为准':
+    'Available collection types and configuration methods depend on the collection management features in this environment',
+  确认调整导出排序: 'Confirm export sort order',
+  按此排序导出: 'Export with this order',
+  '为支持分片并行导出，将优先按日志时间降序排列，同一时间内保留其他字段的排序规则。筛选条件、导出字段和数据范围不变。实际导出排序：{sort}':
+    'For parallel export, logs will be sorted by log time descending first, retaining the other sort rules for equal timestamps. Filters, exported fields, and the data range remain unchanged. Export order: {sort}',
+  '导出排序已变化，请重新提交并确认': 'The export sort order has changed. Please submit again and confirm.',
 };

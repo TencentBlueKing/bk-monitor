@@ -39,6 +39,7 @@ import { listAlertLog } from 'monitor-api/modules/alert_v2';
 import EmptyStatus from 'trace/components/empty-status/empty-status';
 import { useI18n } from 'vue-i18n';
 
+import DetailLoading, { DetailLoadStatus } from '../../detail-loading';
 import NoticeStatusDialog from './components/notice-status-dialog';
 
 import type { AlarmDetail } from '../../../typings/detail';
@@ -276,7 +277,6 @@ export default defineComponent({
      * 告警记录数据为空类型
      */
     const emptyType = shallowRef('empty');
-    const preListLen = shallowRef(0);
     /**
      * 告警记录数据
      */
@@ -290,7 +290,11 @@ export default defineComponent({
       isEnd: false,
       lastLogOffset: -1,
     });
+    let requestId = 0;
+    const recordError = shallowRef(false);
     const recordDataReset = () => {
+      ++requestId;
+      recordError.value = false;
       recordData.list = [];
       recordData.offset = 0;
       recordData.limit = 20;
@@ -306,38 +310,39 @@ export default defineComponent({
      * @returns
      */
     const handleGetLogList = async () => {
-      if (recordData.lastLogOffset === recordData.offset || recordData.isEnd) {
-        return;
+      if (recordData.loading || recordData.scrollLoading || recordError.value || recordData.lastLogOffset === recordData.offset || recordData.isEnd) return;
+      const current = ++requestId;
+      const offset = recordData.offset;
+      if (recordData.list.length) recordData.scrollLoading = true;
+      else recordData.loading = true;
+      try {
+        const list = await getListEventLog({
+          bk_biz_id: props.detail.bk_biz_id,
+          id: props.detail.id,
+          offset,
+          limit: recordData.limit,
+          operate: checked.value,
+        });
+        if (current !== requestId) return;
+        recordData.list = [...recordData.list, ...listLinkCompatibility(list)];
+        recordData.lastLogOffset = offset;
+        if (list.length) recordData.offset = list[list.length - 1].offset;
+        recordData.isEnd = list.length < recordData.limit;
+      } catch {
+        if (current === requestId) {
+          recordError.value = true;
+          emptyType.value = '500';
+        }
+      } finally {
+        if (current === requestId) {
+          recordData.scrollLoading = false;
+          recordData.loading = false;
+        }
       }
-      if (recordData.list.length) {
-        recordData.scrollLoading = true;
-      } else {
-        recordData.loading = true;
-      }
-      const list = await getListEventLog({
-        bk_biz_id: props.detail.bk_biz_id,
-        id: props.detail.id,
-        offset: recordData.offset,
-        limit: recordData.limit,
-        operate: checked.value,
-      }).catch(() => {
-        recordData.loading = false;
-        emptyType.value = '500';
-        return [];
-      });
-      recordData.list = [...recordData.list, ...listLinkCompatibility(list)];
-      preListLen.value = recordData.list.length;
-      // 保留上一次的ID
-      recordData.lastLogOffset = recordData.offset;
-      // 记录最后一位ID
-      if (list.length) {
-        recordData.offset = list[list.length - 1].offset;
-      }
-      if (list.length < recordData.limit) {
-        recordData.isEnd = true;
-      }
-      recordData.scrollLoading = false;
-      recordData.loading = false;
+    };
+    const retryRecords = () => {
+      recordError.value = false;
+      handleGetLogList();
     };
 
     /**
@@ -434,9 +439,9 @@ export default defineComponent({
      * @description 告警记录数据列表折叠前处理
      */
     watch(
-      () => props.detail,
-      async val => {
-        if (val) {
+      () => [props.detail?.id, props.detail?.bk_biz_id],
+      async () => {
+        if (props.detail) {
           recordDataReset();
           await handleGetLogList();
           nextTick(() => {
@@ -451,16 +456,17 @@ export default defineComponent({
      * @description 告警记录数据列表滚动加载卸载
      */
     onUnmounted(() => {
+      ++requestId;
       observer.value?.disconnect();
     });
 
     return {
+      recordError, retryRecords,
       circulationFilter,
       checked,
       recordData,
       emptyType,
       noticeStatusDialogState,
-      preListLen,
       handleGotoShieldStrategy,
       beforeCollapseChange,
       handleNoticeDetail,
@@ -682,31 +688,7 @@ export default defineComponent({
           </span>
         </div>
         {this.recordData.loading ? (
-          <div class='skeleton-list-wrap'>
-            {new Array(this.preListLen > 3 ? this.preListLen : 3).fill(0).map((_item, index) => (
-              <div
-                key={index}
-                class='skeleton-list-item'
-              >
-                <div class='left-item'>
-                  <div
-                    style='height: 30px; width: 30px; border-radius: 50%;'
-                    class='skeleton-element'
-                  />
-                </div>
-                <div class='right-item'>
-                  <div
-                    style='height: 20px; width:175px; margin-bottom: 4px;'
-                    class='skeleton-element'
-                  />
-                  <div
-                    style='height: 20px; width: auto;'
-                    class='skeleton-element'
-                  />
-                </div>
-              </div>
-            ))}
-          </div>
+          <DetailLoading variant='records' />
         ) : (
           <ul class='log-list'>
             {this.recordData.list.length > 0 ? (
@@ -730,11 +712,12 @@ export default defineComponent({
         )}
         <div
           ref='scrollRef'
-          style={{ display: this.recordData.list.length ? 'flex' : 'none' }}
+          style={{ display: this.recordData.list.length && !this.recordError ? 'flex' : 'none' }}
           class='table-scroll-loading'
         >
-          <span>{this.recordData.isEnd ? this.$t('到底了') : this.$t('正加载更多内容…')}</span>
+          <span>{this.recordData.isEnd ? this.$t('到底了') : this.recordData.scrollLoading ? this.$t('正加载更多内容…') : ''}</span>
         </div>
+        {this.recordError && <DetailLoadStatus error onRetry={this.retryRecords} />}
         <NoticeStatusDialog
           actionId={this.noticeStatusDialogState.actionId}
           alarmBizId={this.detail.bk_biz_id}

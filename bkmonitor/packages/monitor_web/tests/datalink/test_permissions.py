@@ -9,9 +9,7 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 from types import SimpleNamespace
-from unittest import mock
-
-from django.test import TestCase
+from unittest import TestCase, mock
 
 from bkmonitor.iam import ActionEnum
 from monitor_web.datalink.views import CollectConfigActionPermission, DatalinkStatusViewSet
@@ -45,15 +43,21 @@ class TestCollectConfigActionPermission(TestCase):
 
     def test_uses_collect_config_biz_even_without_request_biz(self):
         perm = CollectConfigActionPermission([ActionEnum.MANAGE_COLLECTION])
-        request = SimpleNamespace(method="POST", data={"collect_config_id": 9}, query_params={})
-        with mock.patch("monitor_web.datalink.views.CollectConfigMeta.objects.only") as only, mock.patch(
-            "bkmonitor.iam.drf.Permission"
-        ) as perm_cls:
+        request = SimpleNamespace(
+            method="POST",
+            data={"collect_config_id": 9},
+            query_params={},
+            user=SimpleNamespace(username="operator", tenant_id="system"),
+        )
+        with (
+            mock.patch("monitor_web.datalink.views.CollectConfigMeta.objects.only") as only,
+            mock.patch("bkmonitor.iam.drf.Permission") as perm_cls,
+        ):
             only.return_value.get.return_value = SimpleNamespace(id=9, bk_biz_id=22)
-            perm_cls.return_value.is_allowed.return_value = True
+            perm_cls.return_value._is_allowed_request.return_value = True
             self.assertTrue(perm.has_permission(request, None))
             self.assertEqual(len(perm.resources), 1)
-            perm_cls.return_value.is_allowed.assert_called()
+            perm_cls.return_value._is_allowed_request.assert_called_once()
 
     def test_update_action_uses_collect_config_permission(self):
         view = DatalinkStatusViewSet()

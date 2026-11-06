@@ -12,7 +12,7 @@ from bkm_space.utils import space_uid_to_bk_biz_id
 from bkmonitor.iam import Permission, ResourceEnum
 from bkmonitor.iam.action import get_action_by_id
 from bkmonitor.utils.request import get_request
-from core.drf_resource import Resource
+from kernel_api.resource.mcp_response import MCPResource as Resource
 from kernel_api.unified_mcp.dispatcher import dispatch_tool
 from kernel_api.unified_mcp.registry import CATEGORIES, get_tool_registry
 from kernel_api.unified_mcp.permissions import execute_native_tool, permission_state
@@ -49,7 +49,7 @@ def _permission_state_by_action(
 
 
 def _legacy_tool_state(tool, action_states, action_spaces=None):
-    """合并旧 MCP 与附加 Action，只有同一空间全部满足才视为可用。"""
+    """合并未启用双权限工具的 MCP 与附加 Action，要求同一空间全部满足。"""
     if tool.permission_exempt:
         return "exempt"
     if not tool.legacy_action_ids:
@@ -73,7 +73,7 @@ def _mixed_permission_scopes(tools, params, permission):
     legacy_actions = {action_id for tool in tools if not tool.native_permission for action_id in tool.legacy_action_ids}
     legacy_states = _permission_state_by_action(permission, legacy_actions, bk_biz_id) if bk_biz_id is not None else {}
     for tool in tools:
-        # 原生工具复用执行阶段同一 permission_state，避免探测与执行口径分叉。
+        # 启用双权限的工具复用执行阶段同一 permission_state，避免探测与执行口径分叉。
         if tool.native_permission:
             scope = permission_state(
                 tool, request, bk_biz_id, params.get("resource_context"), params["include_apply_guide"]
@@ -149,7 +149,7 @@ def _mixed_permission_scopes(tools, params, permission):
         "missing_permissions": missing,
         "next_step": "补充目标业务或资源上下文后重查"
         if unresolved
-        else "申请原生权限或旧 MCP 权限后重试"
+        else "申请 MCP 独立权限或 SaaS 原生权限后重试"
         if missing
         else "",
     }
@@ -263,15 +263,17 @@ class LookupMetadataResource(Resource):
         metadata_type = validated_request_data["metadata_type"]
         if metadata_type == "bcs_clusters":
             bk_biz_id = validated_request_data["bk_biz_id"]
-            get_permission_client().is_allowed_by_biz(
-                bk_biz_id,
-                "using_metadata_mcp",
-                raise_exception=True,
-            )
-            return {
-                "metadata_type": metadata_type,
-                "bcs_clusters": ListBCSClusterInfoByBizResource().request(bk_biz_id=bk_biz_id),
-            }
+            tool = get_tool_registry().get("list_bcs_clusters")
+            if tool.native_permission:
+                clusters = execute_native_tool(tool, {"bk_biz_id": str(bk_biz_id)}, get_request())
+            else:
+                get_permission_client().is_allowed_by_biz(
+                    bk_biz_id,
+                    "using_metadata_mcp",
+                    raise_exception=True,
+                )
+                clusters = ListBCSClusterInfoByBizResource().request(bk_biz_id=bk_biz_id)
+            return {"metadata_type": metadata_type, "bcs_clusters": clusters}
 
         result = ListSpacesResource().request(
             space_name=validated_request_data["space_name"],
@@ -315,10 +317,18 @@ class LookupPermissionsResource(Resource):
             context = attrs["resource_context"]
             if context and not attrs.get("tool_name"):
                 raise serializers.ValidationError("resource_context requires an exact tool_name")
-            if (
-                set(context) - {"index_set_id", "target_type", "id", "alert_id"}
-                or context.get("target_type", "index_set") != "index_set"
-            ):
+            supported = {
+                "index_set_id",
+                "target_type",
+                "id",
+                "alert_id",
+                "table_id",
+                "table",
+                "app_name",
+                "service_name",
+                "dashboard_uid",
+            }
+            if set(context) - supported or context.get("target_type", "index_set") not in {"index_set", "scene"}:
                 raise serializers.ValidationError("Unsupported permission resource_context")
             return attrs
 
@@ -362,19 +372,13 @@ class LookupPermissionsResource(Resource):
                     {
                         "resource_context": (
                             f"{tool.name} is using legacy MCP permissions ({tool.iam_action}); "
-                            "resource-level permission checks require native mode. "
+                            "resource-level permission checks require the SaaS fallback mode. "
                             "For supported tools, enable MCP_NATIVE_PERMISSION_TOOLS; "
                             "omit resource_context to check legacy space permissions only."
                         )
                     }
                 )
-            allowed_keys = (
-                {"index_set_id", "target_type"}
-                if spec and spec["resource_type"] == "indices"
-                else {spec["target_arg"]}
-                if spec and spec.get("target_arg")
-                else set()
-            )
+            allowed_keys = tool.native_resource_context_keys(context) if tool else set()
             if set(context) - allowed_keys:
                 raise ValidationError("resource_context does not match the selected tool")
         # Step 3: 原生、附加 Action 和权限豁免混合出现时，按工具逐项返回状态。
@@ -474,7 +478,7 @@ class ExecuteToolResource(Resource):
             raise ValidationError({"tool_name": str(exc)}) from exc
         request = get_request(peaceful=True)
         if tool.native_permission:
-            # standalone 与 Unified 共用同一套 Schema、native-first 判定和执行函数；
+            # standalone 与 Unified 共用同一套 Schema、MCP 优先判定和执行函数；
             # 历史 checked 标记不能作为新权限凭据。
             data = execute_native_tool(tool, tool_args, request)
         else:
@@ -497,6 +501,8 @@ class ExecuteToolResource(Resource):
                     raise ValidationError(
                         {f"tool_args.{tool.resource_arg}": "A valid integer business ID is required."}
                     ) from exc
+                # Bind the validated scope before a shared standalone/Unified Resource executes.
+                request.biz_id = bk_biz_id
                 middleware_checked = getattr(request, "unified_mcp_permission_checked", False)
                 permission = None
                 for action_id in tool.legacy_action_ids:

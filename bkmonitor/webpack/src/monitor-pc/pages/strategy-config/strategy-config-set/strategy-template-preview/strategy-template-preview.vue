@@ -34,6 +34,16 @@
   >
     <template>
       <div v-bkloading="{ isLoading: loading }">
+        <p class="preview-example-tip">
+          {{ $t('预览使用固定示例数据，不是当前策略的查询值。') }}
+        </p>
+        <p
+          v-if="previewError"
+          class="preview-error"
+          role="alert"
+        >
+          {{ previewError }}
+        </p>
         <ul class="preview-tab">
           <li
             v-for="(item, index) in renderData"
@@ -78,6 +88,18 @@ export default {
       type: [String, Number],
       required: false,
     },
+    previewItem: {
+      type: Object,
+      required: false,
+    },
+    strategyId: {
+      type: [String, Number],
+      default: 0,
+    },
+    bkBizId: {
+      type: [String, Number],
+      required: false,
+    },
   },
   data() {
     return {
@@ -86,6 +108,10 @@ export default {
       tabActive: 0,
       loading: false,
       oldTemplate: '',
+      oldScenario: null,
+      oldPreviewContext: '',
+      previewError: '',
+      requestId: 0,
     };
   },
   computed: {
@@ -112,30 +138,34 @@ export default {
   },
   watch: {
     dialogShow: {
-      async handler(v) {
+      handler(v) {
         this.show = v;
-        if (v && this.template.length && this.oldTemplate !== this.template) {
-          this.loading = true;
-          this.oldTemplate = this.template;
-          let data = null;
-          // 策略告警模版
-          if (this.scenario) {
-            data = await this.getRenderNoticeTemplate({
-              scenario: this.scenario,
-              template: this.template,
-            }).finally(() => {
-              this.loading = false;
-            });
-          } else {
-            // 自愈套餐告警模版
-            data = await renderNoticeTemplate({ template: this.template }).finally(() => {
-              this.loading = false;
-            });
-          }
-          this.renderData = data || [];
+        if (!v) {
+          this.requestId += 1;
+          this.loading = false;
+          return;
         }
+        return this.loadPreview();
       },
       immediate: true,
+    },
+    template() {
+      if (this.show) this.loadPreview();
+    },
+    scenario() {
+      if (this.show) this.loadPreview();
+    },
+    previewItem: {
+      handler() {
+        if (this.show) this.loadPreview();
+      },
+      deep: true,
+    },
+    strategyId() {
+      if (this.show) this.loadPreview();
+    },
+    bkBizId() {
+      if (this.show) this.loadPreview();
     },
   },
   beforeDestroy() {
@@ -143,8 +173,53 @@ export default {
   },
   methods: {
     ...mapActions(['getRenderNoticeTemplate']),
+    async loadPreview() {
+      const requestId = ++this.requestId;
+      const template = this.template;
+      const scenario = this.scenario;
+      const params = scenario
+        ? { scenario, template }
+        : {
+            template,
+            ...(this.previewItem
+              ? { preview_item: this.previewItem, strategy_id: Number(this.strategyId) || 0, bk_biz_id: this.bkBizId }
+              : {}),
+          };
+      const previewContext = JSON.stringify(params);
+      if (template && this.oldPreviewContext === previewContext) return;
+      this.oldTemplate = '';
+      this.oldPreviewContext = '';
+      this.renderData = [];
+      this.previewError = '';
+      if (!template) {
+        this.loading = false;
+        return;
+      }
+      this.loading = true;
+      try {
+        const data = scenario
+          ? await this.getRenderNoticeTemplate(params)
+          : await renderNoticeTemplate(params);
+        if (requestId !== this.requestId) return;
+        this.renderData = data || [];
+        this.tabActive = 0;
+        this.oldTemplate = template;
+        this.oldScenario = scenario;
+        this.oldPreviewContext = previewContext;
+      } catch (error) {
+        if (requestId !== this.requestId) return;
+        this.renderData = [];
+        this.previewError = error?.error_details || error?.message || this.$t('模板预览失败，请稍后重试');
+      } finally {
+        if (requestId === this.requestId) this.loading = false;
+      }
+    },
     //  dialog显示变更触发
     handleValueChange(v) {
+      if (!v) {
+        this.requestId += 1;
+        this.loading = false;
+      }
       this.$emit('update:dialogShow', v);
     },
     // tabitem 点击触发事件
@@ -153,12 +228,20 @@ export default {
     },
     handleConfirm() {
       this.show = false;
-      this.$emit('update:dialogShow', false);
+      this.handleValueChange(false);
     },
   },
 };
 </script>
 <style lang="scss" scoped>
+.preview-example-tip,
+.preview-error {
+  margin: 0 0 12px;
+  line-height: 20px;
+  overflow-wrap: anywhere;
+  white-space: pre-wrap;
+}
+
 .preview-tab {
   display: flex;
   align-items: center;

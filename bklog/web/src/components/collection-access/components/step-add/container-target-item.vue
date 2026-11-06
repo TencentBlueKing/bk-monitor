@@ -102,6 +102,7 @@
         isOptionOpen: false, // 是否展开了应用的下拉列表
         nameCannotClick: false, // 应用列表是否正在请求中
         nameList: [],
+        nameRequestId: 0,
         placeHolderStr: `${this.$t('请输入应用名称')}, ${this.$t('支持正则匹配')}`,
       };
     },
@@ -112,20 +113,27 @@
       typeListIDStrList() {
         return this.typeList.map(item => item.id);
       },
+      namespaceScope() {
+        return [this.conItem.noQuestParams.namespaceStr, this.conItem.noQuestParams.namespacesExclude];
+      },
     },
     watch: {
       'formData.workload_type'(val) {
-        val ? this.getWorkLoadNameList() : (this.nameList = []);
+        this.nameRequestId += 1;
+        this.nameList = [];
+        this.nameCannotClick = false;
+        if (val) this.getWorkLoadNameList();
       },
-      'conItem.noQuestParams.namespaceStr': {
+      namespaceScope: {
         immediate: true,
-        handler(str) {
-          if (str) {
-            clearTimeout(this.timer);
-            this.timer = setTimeout(() => {
-              this.getWorkLoadNameList();
-            }, 1000);
-          }
+        handler() {
+          this.nameRequestId += 1;
+          this.nameList = [];
+          this.nameCannotClick = false;
+          clearTimeout(this.timer);
+          this.timer = setTimeout(() => {
+            this.getWorkLoadNameList();
+          }, 1000);
         },
       },
       formData: {
@@ -147,20 +155,29 @@
       this.$refs.loadSelectRef.$refs.createInput.placeholder = this.placeHolderStr;
       this.$refs.typeSelectRef.$refs.createInput.placeholder = this.$t('请输入');
     },
+    beforeDestroy() {
+      this.nameRequestId += 1;
+      clearTimeout(this.timer);
+    },
     methods: {
       getWorkLoadNameList() {
         if (!this.typeListIDStrList.includes(this.formData.workload_type)) return;
         this.nameCannotClick = true;
+        this.nameRequestId += 1;
+        const requestId = this.nameRequestId;
+        this.nameList = [];
+        const { namespaceStr, namespacesExclude } = this.conItem.noQuestParams;
+        const namespaceKey = namespacesExclude === '!=' ? 'namespaces_exclude' : 'namespace';
         const query = {
           type: this.formData.workload_type,
           bk_biz_id: this.bkBizId,
-          namespace: this.conItem.noQuestParams.namespaceStr,
+          [namespaceKey]: namespaceStr === '*' ? undefined : namespaceStr,
           bcs_cluster_id: this.bcsClusterId,
         };
         this.$http
           .request('container/getWorkLoadName', { query })
           .then(res => {
-            if (res.code === 0) {
+            if (requestId === this.nameRequestId && res.code === 0) {
               this.nameList = res.data.map(item => ({ id: item, name: item }));
             }
           })
@@ -168,7 +185,9 @@
             console.warn(err);
           })
           .finally(() => {
-            this.nameCannotClick = false;
+            if (requestId === this.nameRequestId) {
+              this.nameCannotClick = false;
+            }
           });
       },
       closeTitle() {

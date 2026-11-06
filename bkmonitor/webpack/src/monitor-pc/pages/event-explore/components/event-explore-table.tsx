@@ -24,14 +24,13 @@
  * IN THE SOFTWARE.
  */
 
-import { Component, Emit, Prop, Provide, Ref, Watch } from 'vue-property-decorator';
+import { Component, Emit, InjectReactive, Prop, Provide, Ref, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
 import { random } from 'monitor-common/utils';
 
 import K8sSlider from '../../../components/k8s-silder/k8s-slider';
 import { parseK8sMonitorUrl } from '../../../components/k8s-silder/utils';
-import TableSkeleton from '../../../components/skeleton/table-skeleton';
 import { formatTime } from '../../../utils';
 import RetrievalEmptyShow from '../../data-retrieval/data-retrieval-view/retrieval-empty-show';
 import { APIType, getEventLogs } from '../api-utils';
@@ -46,10 +45,13 @@ import {
   ExploreTableColumnTypeEnum,
 } from '../typing';
 import { type ExploreSubject, ExploreObserver, getEventLegendColorByType } from '../utils';
+import EventTableSkeleton from './event-table-skeleton';
 import ExploreExpandViewWrapper from './explore-expand-view-wrapper';
+import HostObserveSlider, { readHostSliderTarget } from './host-observe-slider';
 
 import type { EmptyStatusType } from '../../../components/empty-status/types';
 import type { KVFieldList } from './explore-kv-list';
+import type { SingleHostMonitorTarget } from 'monitor-common/utils/host-monitor-url';
 
 import './event-explore-table.scss';
 
@@ -80,8 +82,10 @@ interface EventExploreTableProps {
   eventSourceType?: ExploreSourceTypeEnum[];
   /** expand 展开 kv 面板使用 */
   fieldMap: ExploreFieldMap;
+  initializing?: boolean;
   /** 表格单页条数 */
   limit?: number;
+  queryKey?: string;
   /** 接口请求配置参数 */
   queryParams: Omit<ExploreTableRequestParams, 'limit' | 'offset'>;
   /** 刷新表格 */
@@ -107,6 +111,8 @@ const SCROLL_ELEMENT_CLASS_NAME = '.event-explore-view-wrapper';
 const SCROLL_COLUMN_CLASS_NAME = '.bk-table-fixed-header-wrapper th.is-last';
 @Component
 export default class EventExploreTable extends tsc<EventExploreTableProps, EventExploreTableEvents> {
+  @Prop({ type: Boolean, default: false }) initializing: boolean;
+  @Prop({ type: String, default: '' }) queryKey: string;
   @Ref('tableRef') tableRef: Record<string, any>;
 
   /** 来源 */
@@ -126,6 +132,10 @@ export default class EventExploreTable extends tsc<EventExploreTableProps, Event
   /** 刷新表格 */
   @Prop({ type: String, default: random(8) }) refreshTable: string;
   @Prop({ type: Array, default: () => [ExploreSourceTypeEnum.ALL] }) eventSourceType: ExploreSourceTypeEnum[];
+  /** 筛选时间范围，打开主机抽屉时作为初值 */
+  @InjectReactive('timeRange') exploreTimeRange: Array<number | string>;
+  @InjectReactive('timezone') exploreTimezone: string;
+  @InjectReactive('refreshInterval') exploreRefreshInterval: number;
   /** table loading 配置*/
   tableLoading = {
     /** table 骨架屏 loading */
@@ -143,6 +153,19 @@ export default class EventExploreTable extends tsc<EventExploreTableProps, Event
 
   /** table 数据 */
   tableData = [];
+  requestId = 0;
+  loadedQueryKey = '';
+  hasMore = false;
+  loadError = false;
+  failedLoadingType = ExploreTableLoadingEnum.REFRESH;
+
+  get showSkeleton() {
+    return this.initializing || (this.tableLoading[ExploreTableLoadingEnum.REFRESH] && !this.tableData.length);
+  }
+
+  get refreshing() {
+    return this.tableLoading[ExploreTableLoadingEnum.REFRESH] && !this.showSkeleton;
+  }
   /** popover 实例 */
   popoverInstance = null;
   /** popover 延迟打开定时器 */
@@ -163,6 +186,12 @@ export default class EventExploreTable extends tsc<EventExploreTableProps, Event
   k8sSliderShow = false;
   k8sSliderUrl = '';
   k8sSliderSubTitle = '';
+  /** 主机监控抽屉。时间在打开时拷一份，抽屉内修改不回写检索条件。 */
+  hostSliderShow = false;
+  hostSliderTarget: null | SingleHostMonitorTarget = null;
+  hostSliderTimeRange: Array<number | string> = [];
+  hostSliderTimezone = '';
+  hostSliderRefreshInterval = -1;
 
   get tableColumns() {
     const column = this.getTableColumns();
@@ -183,7 +212,7 @@ export default class EventExploreTable extends tsc<EventExploreTableProps, Event
    */
   get tableHasScrollLoading() {
     const dataLen = this.tableData?.length ?? 0;
-    return dataLen < this.total;
+    return this.hasMore && !this.loadError && (this.total == null || dataLen < this.total);
   }
 
   /** table 空数据时显示样式类型 'search-empty'/'empty' */
@@ -212,7 +241,8 @@ export default class EventExploreTable extends tsc<EventExploreTableProps, Event
       (nQueryConfig?.table !== oQueryConfig?.table ||
         nQueryConfig?.data_source_label !== oQueryConfig?.data_source_label)
     ) {
-      this.handleSortChange();
+      this.sortContainer = { prop: '', order: null };
+      this.setRouteParams({ prop: '', order: null });
       this.tableRef?.clearSort?.();
     }
   }
@@ -249,6 +279,20 @@ export default class EventExploreTable extends tsc<EventExploreTableProps, Event
     return true;
   }
 
+  /** 单台主机监控链接改为抽屉。解析不到主机时返回 false，调用方继续新开页。 */
+  @Provide('openHostSlider')
+  handleOpenHostSlider(url: string) {
+    const target = readHostSliderTarget(url);
+    if (!target) return false;
+    this.hostSliderTarget = target;
+    this.hostSliderTimeRange = Array.isArray(this.exploreTimeRange) ? [...this.exploreTimeRange] : [];
+    this.hostSliderTimezone = this.exploreTimezone || '';
+    const interval = Number(this.exploreRefreshInterval);
+    this.hostSliderRefreshInterval = Number.isFinite(interval) ? interval : -1;
+    this.hostSliderShow = true;
+    return true;
+  }
+
   @Emit('search')
   filterSearch() {
     return;
@@ -269,6 +313,7 @@ export default class EventExploreTable extends tsc<EventExploreTableProps, Event
   }
 
   mounted() {
+    this.getEventLogs();
     this.$nextTick(() => {
       const scrollWrapper = document.querySelector(SCROLL_ELEMENT_CLASS_NAME);
       if (!scrollWrapper) return;
@@ -288,10 +333,12 @@ export default class EventExploreTable extends tsc<EventExploreTableProps, Event
   }
 
   beforeDestroy() {
+    this.requestId += 1;
+    this.abortController?.abort();
     this.scrollPointerEventsTimer && clearTimeout(this.scrollPointerEventsTimer);
     const scrollWrapper = document.querySelector(SCROLL_ELEMENT_CLASS_NAME);
     if (!scrollWrapper) return;
-    this.resizeObserver.unobserve(scrollWrapper);
+    this.resizeObserver?.disconnect();
     if (this.scrollSubject) {
       this.scrollSubject.deleteObserver(this.scrollHeaderFixedObserver);
       this.scrollSubject.deleteObserver(this.scrollEndObserver);
@@ -347,7 +394,7 @@ export default class EventExploreTable extends tsc<EventExploreTableProps, Event
    *
    */
   handleScrollToEnd(target: HTMLElement) {
-    if (!this.tableHasScrollLoading) {
+    if (!target || !this.tableHasScrollLoading) {
       return;
     }
     const { scrollHeight } = target;
@@ -448,23 +495,24 @@ export default class EventExploreTable extends tsc<EventExploreTableProps, Event
    *
    */
   async getEventLogs(loadingType = ExploreTableLoadingEnum.REFRESH) {
+    const requestId = ++this.requestId;
     if (this.abortController) {
       this.abortController.abort();
       this.abortController = null;
     }
     if (!this.queryParams) {
       this.tableData = [];
+      this.tableLoading = { refreshLoading: false, scrollLoading: false };
+      this.hasMore = false;
+      this.loadError = false;
+      this.loadedQueryKey = '';
       return;
     }
-    let updateTableDataFn = list => {
-      this.tableData.push(...list);
-    };
-
+    const queryKey = JSON.stringify([this.queryKey, this.sortContainer]);
     if (loadingType === ExploreTableLoadingEnum.REFRESH) {
-      this.tableData = [];
-      updateTableDataFn = list => {
-        this.tableData = list;
-      };
+      if (queryKey !== this.loadedQueryKey) this.tableData = [];
+      this.hasMore = false;
+      this.tableLoading[ExploreTableLoadingEnum.SCROLL] = false;
     }
 
     let sort = [];
@@ -473,33 +521,34 @@ export default class EventExploreTable extends tsc<EventExploreTableProps, Event
       sort = [`${order === 'descending' ? '-' : ''}${prop}`];
     }
     this.tableLoading[loadingType] = true;
+    this.loadError = false;
     const requestParam = {
       ...this.queryParams,
       limit: this.limit,
-      offset: this.tableData?.length || 0,
+      offset: loadingType === ExploreTableLoadingEnum.SCROLL ? this.tableData.length : 0,
       sort: sort,
     };
-    this.abortController = new AbortController();
-    const res = await getEventLogs(requestParam, this.source, {
-      signal: this.abortController.signal,
-    });
-    if (res?.isAborted) {
-      this.tableLoading[ExploreTableLoadingEnum.SCROLL] = false;
-      return;
+    const controller = new AbortController();
+    this.abortController = controller;
+    try {
+      const res = await getEventLogs(requestParam, this.source, { signal: controller.signal });
+      if (requestId !== this.requestId || controller.signal.aborted || res.isAborted) return;
+      if (res.isError) {
+        this.loadError = true;
+        this.failedLoadingType = loadingType;
+        return;
+      }
+      this.tableData = loadingType === ExploreTableLoadingEnum.SCROLL ? [...this.tableData, ...res.list] : res.list;
+      this.loadedQueryKey = queryKey;
+      this.hasMore = res.list.length >= this.limit;
+      requestAnimationFrame(() => {
+        if (requestId === this.requestId) {
+          this.handleScrollToEnd(this.$el.closest(SCROLL_ELEMENT_CLASS_NAME) as HTMLElement);
+        }
+      });
+    } finally {
+      if (requestId === this.requestId) this.tableLoading[loadingType] = false;
     }
-
-    this.tableLoading[loadingType] = false;
-
-    updateTableDataFn(res.list);
-    requestAnimationFrame(() => {
-      // 触底加载逻辑兼容屏幕过大或dpr很小的边际场景处理
-      // 由于这里判断是否还有数据不是根据total而是根据接口返回数据是否为空判断
-      // 所以该场景处理只能通过多次请求的方案来兼容，不能通过首次请求加大页码的方式来兼容
-      // 否则在某些边界场景下会出现首次请求返回的不为空数据已经是全部数据了
-      // 还是但未出现滚动条，导致无法触发触底逻辑再次请求接口判断是否已是全部数据
-      // 从而导致触底loading一直存在但实际已没有更多数据
-      this.handleScrollToEnd(document.querySelector(SCROLL_ELEMENT_CLASS_NAME));
-    });
   }
 
   @Emit('showEventSourcePopover')
@@ -582,7 +631,7 @@ export default class EventExploreTable extends tsc<EventExploreTableProps, Event
   handleContentPopoverClick(e: MouseEvent) {
     const link = (e.target as HTMLElement)?.closest?.('a[data-k8s-slider]') as HTMLAnchorElement;
     if (!link) return;
-    if (this.handleOpenK8sSlider(link.href, link.textContent?.trim())) {
+    if (this.handleOpenK8sSlider(link.href, link.textContent?.trim()) || this.handleOpenHostSlider(link.href)) {
       e.preventDefault();
       this.handlePopoverHide();
     }
@@ -592,7 +641,7 @@ export default class EventExploreTable extends tsc<EventExploreTableProps, Event
    * @description: 表格内链接点击，命中容器监控则拦截跳转改为侧滑
    */
   handleLinkClick(e: MouseEvent, url: string, alias?: string) {
-    if (this.handleOpenK8sSlider(url, alias)) {
+    if (this.handleOpenK8sSlider(url, alias) || this.handleOpenHostSlider(url)) {
       e.preventDefault();
       this.handlePopoverHide();
     }
@@ -673,6 +722,7 @@ export default class EventExploreTable extends tsc<EventExploreTableProps, Event
       prop = '';
       order = null;
     }
+    if (this.sortContainer.prop === prop && this.sortContainer.order === order) return;
     this.sortContainer.prop = prop;
     this.sortContainer.order = order;
     this.setRouteParams({
@@ -850,10 +900,20 @@ export default class EventExploreTable extends tsc<EventExploreTableProps, Event
 
   render() {
     return (
-      <div class='event-explore-table'>
+      <div
+        class={['event-explore-table', { 'is-loading': this.showSkeleton, 'is-refreshing': this.refreshing }]}
+        aria-busy={this.showSkeleton || this.refreshing || this.tableLoading.scrollLoading}
+      >
+        {this.refreshing && (
+          <div
+            class='event-table-refreshing'
+            aria-label={this.$tc('加载中')}
+            role='status'
+          />
+        )}
         <bk-table
           ref='tableRef'
-          style={{ display: !this.tableLoading[ExploreTableLoadingEnum.REFRESH] ? 'flex' : 'none' }}
+          style={{ display: 'flex' }}
           class='explore-table'
           header-cell-class-name={e => {
             const columnKey = e?.column?.columnKey;
@@ -878,38 +938,86 @@ export default class EventExploreTable extends tsc<EventExploreTableProps, Event
             type='expand'
           />
           {this.tableColumns.columns.map(column => this.transformColumn(column))}
-          <RetrievalEmptyShow
-            slot='empty'
-            emptyStatus={this.tableEmptyType}
-            eventMetricParams={this.queryConfig}
-            queryLoading={false}
-            showType={'event'}
-            onClickEventBtn={this.filterSearch}
-          />
           <div
-            style={{ display: this.tableHasScrollLoading ? 'block' : 'none' }}
+            class={{ 'event-table-empty': true, 'is-loading': this.showSkeleton }}
+            slot='empty'
+          >
+            {this.showSkeleton ? (
+              <EventTableSkeleton columns={this.tableColumns.columns} />
+            ) : this.loadError ? (
+              <div
+                class='event-load-error'
+                role='status'
+              >
+                {this.$t('数据加载失败，请重试')}
+                <bk-button
+                  text
+                  onClick={() => this.getEventLogs(this.failedLoadingType)}
+                >
+                  {this.$t('重试')}
+                </bk-button>
+              </div>
+            ) : (
+              <RetrievalEmptyShow
+                emptyStatus={this.tableEmptyType}
+                eventMetricParams={this.queryConfig}
+                queryLoading={false}
+                showType={'event'}
+                onClickEventBtn={this.filterSearch}
+              />
+            )}
+          </div>
+          <div
+            style={{
+              display: this.tableLoading.scrollLoading || (this.loadError && this.tableData.length) ? 'block' : 'none',
+            }}
             class='export-table-loading'
             slot='append'
           >
-            <bk-spin
-              placement='right'
-              size='mini'
-            >
-              {this.$t('加载中')}
-            </bk-spin>
+            {this.loadError ? (
+              <div
+                class='event-load-error'
+                role='status'
+              >
+                {this.$t('数据加载失败，请重试')}
+                <bk-button
+                  text
+                  onClick={() => this.getEventLogs(this.failedLoadingType)}
+                >
+                  {this.$t('重试')}
+                </bk-button>
+              </div>
+            ) : (
+              <bk-spin
+                placement='right'
+                size='mini'
+              >
+                {this.$t('加载中')}
+              </bk-spin>
+            )}
           </div>
         </bk-table>
-        <TableSkeleton
-          style={{ visibility: this.tableLoading[ExploreTableLoadingEnum.REFRESH] ? 'visible' : 'hidden' }}
-          class='explore-table-skeleton'
-          type={6}
-        />
         <K8sSlider
           isShow={this.k8sSliderShow}
           subTitle={this.k8sSliderSubTitle}
           url={this.k8sSliderUrl}
           onShowChange={v => {
             this.k8sSliderShow = v;
+          }}
+        />
+        <HostObserveSlider
+          activeTab={this.hostSliderTarget?.activeTab || ''}
+          bkBizId={this.hostSliderTarget?.bkBizId || ''}
+          bkCloudId={this.hostSliderTarget?.bkCloudId || ''}
+          bkHostId={this.hostSliderTarget?.bkHostId || ''}
+          hostProcessName={this.hostSliderTarget?.hostProcessName || ''}
+          ip={this.hostSliderTarget?.ip || ''}
+          isShow={this.hostSliderShow}
+          refreshInterval={this.hostSliderRefreshInterval}
+          timeRange={this.hostSliderTimeRange}
+          timezone={this.hostSliderTimezone}
+          onShowChange={v => {
+            this.hostSliderShow = v;
           }}
         />
       </div>

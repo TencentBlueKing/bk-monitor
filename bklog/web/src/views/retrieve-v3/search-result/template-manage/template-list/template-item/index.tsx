@@ -24,8 +24,9 @@
  * IN THE SOFTWARE.
  */
 
-import { defineComponent, ref, onMounted, PropType } from 'vue';
-import tippy, { roundArrow } from 'tippy.js';
+import { defineComponent, ref, onMounted, onBeforeUnmount, PropType } from 'vue';
+import { roundArrow } from 'tippy.js';
+import { createRawTippyOverlay } from '@/global/overlay';
 import useLocale from '@/hooks/use-locale';
 import CreateTemplate from '../create-template';
 import EditTemplate from './edit-template';
@@ -93,27 +94,41 @@ export default defineComponent({
     };
 
     const initTippyInstance = () => {
-      editTippyInstance = tippy(`#${CSS.escape(triggerId)}`, {
-        content: editTemplateRef.value.$el,
-        appendTo: () => document.body,
-        allowHTML: true,
-        trigger: 'manual',
-        interactive: true,
-        placement: 'bottom',
-        arrow: roundArrow,
-        theme: 'light',
-      });
+      editTippyInstance = createRawTippyOverlay(
+        `#${CSS.escape(triggerId)}`,
+        {
+          content: editTemplateRef.value.$el,
+          allowHTML: true,
+          trigger: 'manual',
+          interactive: true,
+          placement: 'bottom',
+          arrow: roundArrow,
+          theme: 'light',
+        },
+        {
+          id: `template-edit-${triggerId}`,
+          group: `template-item-${triggerId}`,
+          type: 'popover',
+        },
+      );
 
-      deleteTippyInstance = tippy(`#${CSS.escape(triggerId)}`, {
-        content: deleteTemplateRef.value.$el,
-        appendTo: () => document.body,
-        allowHTML: true,
-        trigger: 'manual',
-        interactive: true,
-        placement: 'bottom',
-        arrow: roundArrow,
-        theme: 'light',
-      });
+      deleteTippyInstance = createRawTippyOverlay(
+        `#${CSS.escape(triggerId)}`,
+        {
+          content: deleteTemplateRef.value.$el,
+          allowHTML: true,
+          trigger: 'manual',
+          interactive: true,
+          placement: 'bottom',
+          arrow: roundArrow,
+          theme: 'light',
+        },
+        {
+          id: `template-delete-${triggerId}`,
+          group: `template-item-${triggerId}`,
+          type: 'popover',
+        },
+      );
     };
 
     const handleClickMain = () => {
@@ -122,6 +137,13 @@ export default defineComponent({
 
     onMounted(() => {
       initTippyInstance();
+    });
+
+    onBeforeUnmount(() => {
+      editTippyInstance?.[0]?.destroy?.();
+      deleteTippyInstance?.[0]?.destroy?.();
+      editTippyInstance = null;
+      deleteTippyInstance = null;
     });
 
     return () => (

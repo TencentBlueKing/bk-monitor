@@ -9,11 +9,8 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 
-
 ALARM_BACKENDS_CORE_CACHE_CMDB_HOSTMANAGER_REFRESH_BY_BIZ = "alarm_backends.core.cache.cmdb.HostManager.refresh_by_biz"
-ALARM_BACKENDS_CORE_CACHE_CMDB_SERVICE_INSTANCE_MANAGER_REFRESH_BY_BIZ = (
-    "alarm_backends.core.cache.cmdb.ServiceInstanceManager.refresh_by_biz"
-)
+ALARM_BACKENDS_SERVICE_NODATA_SCENARIOS_BASE_API = "alarm_backends.service.nodata.scenarios.base.api"
 ALARM_BACKENDS_CORE_DETECT_RESULT_CHECKRESULT = "alarm_backends.service.nodata.scenarios.base.CheckResult"
 ALARM_BACKENDS_CORE_DETECT_RESULT_DIMENSIONRANGEFILTER_FILTER = (
     "alarm_backends.service.nodata.scenarios.base.DimensionRangeFilter.filter"

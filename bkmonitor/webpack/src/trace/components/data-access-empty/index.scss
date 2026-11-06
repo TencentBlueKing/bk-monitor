@@ -65,6 +65,11 @@
       .bk-assistant-link {
         color: #3a84ff;
         cursor: pointer;
+
+        /* 产品白皮书与 BK 助手并列时增加左间距 */
+        &.product-doc-link {
+          margin-left: 8px;
+        }
       }
     }
 
@@ -80,6 +85,12 @@
     }
 
     .empty-content {
+      /* 暗色主题下避免浅色标签背景突兀 */
+      .space-tag {
+        color: #ea3636;
+        background: #3a3b3d;
+      }
+
       .empty-title {
         color: #f0f1f5;
       }

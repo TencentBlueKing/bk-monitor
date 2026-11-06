@@ -34,6 +34,13 @@
       <h5 class="item-title">
         {{ item.name }}
       </h5>
+      <p
+        v-if="item.error"
+        class="item-error"
+        role="alert"
+      >
+        {{ $t('模板渲染失败') }}: {{ item.error }}
+      </p>
 
       <!-- eslint-disable-next-line vue/no-v-html -->
       <div
@@ -84,6 +91,11 @@ export default {
       font-size: 14px;
       line-height: 20px;
       color: #63656e;
+    }
+
+    .item-error {
+      overflow-wrap: anywhere;
+      white-space: pre-wrap;
     }
 
     .item-template {

@@ -42,38 +42,50 @@ export function useAlarmBasicInfo() {
   /** 告警状态总条数 */
   const alarmStatusTotal = shallowRef(0);
 
-  // 获取处理状态数据
+  const loading = shallowRef(false);
+  const error = shallowRef(false);
+  let requestId = 0;
   const getHandleListData = async () => {
-    const params = {
-      bk_biz_id: alarmCenterDetailStore.alarmDetail.bk_biz_id,
-      page: 1,
-      page_size: 100,
-      alert_ids: [alarmCenterDetailStore.alarmId],
-      status: ['failure', 'success', 'partial_failure'],
-      ordering: ['-create_time'],
-      conditions: [{ key: 'parent_action_id', value: [0], method: 'eq' }], // 处理状态数据写死条件
-    };
-    const data = await searchAction(params);
-    alarmStatusOverview.value = data.overview;
-    alarmStatusActions.value = data.actions;
-    alarmStatusTotal.value = data.total;
+    const current = ++requestId;
+    const detail = alarmCenterDetailStore.alarmDetail;
+    if (!detail) {
+      alarmStatusOverview.value = null;
+      alarmStatusActions.value = [];
+      alarmStatusTotal.value = 0;
+      loading.value = false;
+      error.value = false;
+      return;
+    }
+    loading.value = true;
+    error.value = false;
+    try {
+      const data = await searchAction({
+        bk_biz_id: detail.bk_biz_id,
+        page: 1,
+        page_size: 100,
+        alert_ids: [detail.id],
+        status: ['failure', 'success', 'partial_failure'],
+        ordering: ['-create_time'],
+        conditions: [{ key: 'parent_action_id', value: [0], method: 'eq' }],
+      });
+      if (current !== requestId) return;
+      alarmStatusOverview.value = data.overview;
+      alarmStatusActions.value = data.actions;
+      alarmStatusTotal.value = data.total;
+    } catch {
+      if (current === requestId) error.value = true;
+    } finally {
+      if (current === requestId) loading.value = false;
+    }
   };
 
-  watch(
-    () => alarmCenterDetailStore.alarmDetail,
-    newVal => {
-      if (newVal && !alarmCenterDetailStore.loading) {
-        getHandleListData();
-      }
-    },
-    { immediate: true }
-  );
-
-  onScopeDispose(() => {
-    alarmStatusOverview.value = null;
-  });
+  watch(() => alarmCenterDetailStore.alarmDetail, getHandleListData, { immediate: true });
+  onScopeDispose(() => { ++requestId; });
 
   return {
+    loading,
+    error,
+    retry: getHandleListData,
     alarmStatusOverview,
     alarmStatusActions,
     alarmStatusTotal,

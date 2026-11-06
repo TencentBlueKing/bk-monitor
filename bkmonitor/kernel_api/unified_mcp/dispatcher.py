@@ -13,8 +13,9 @@ from apm_web.service.resources import ServiceListResource
 from rest_framework.exceptions import ValidationError
 
 from bkmonitor.iam import ActionEnum, Permission, ResourceEnum
-from bkmonitor.utils.request import get_request_tenant_id
+from bkmonitor.utils.request import get_request, get_request_tenant_id
 from core.drf_resource import resource
+from kernel_api.resource import recording_rule_mcp
 from kernel_api.resource.apm import (
     GetApmSearchFiltersResource,
     GetProfileApplicationServiceResource,
@@ -100,14 +101,14 @@ from kernel_api.resource.log_search import (
     SearchLogClusteringPatternResource,
     SearchLogResource,
 )
-from kernel_api.resource.metrics import ExecuteRangeQueryResource, ExecuteSQLQueryResource, TimeSeriesGroupListResource
-from kernel_api.resource.operation import (
-    GetOperationMetricResource,
-    GetOperationOverviewResource,
-    ListOperationMetricsResource,
+from kernel_api.resource.metrics import (
+    ExecuteRangeQueryResource,
+    ExecuteSQLQueryResource,
+    TimeSeriesGroupListResource,
+    ensure_sql_reads_declared_table,
+    ensure_time_series_table_belongs_to_biz,
 )
 from kernel_api.resource.relation import QueryMultiResourceRelationRangeResource, QueryMultiResourceRelationResource
-from metadata.models import DataSource, TimeSeriesGroup
 from metadata.resources import GetTimeSeriesMetricsResource, ListBCSClusterInfoByBizResource, ListSpacesResource
 from monitor_web.grafana.resources.manage import GetDashboardDetail, GetDirectoryTree
 from monitor_web.strategies.resources.v2 import GetStrategyV2Resource
@@ -121,24 +122,8 @@ def _resource_executor(resource_class) -> ToolExecutor:
 
 
 def _ensure_time_series_table_belongs_to_biz(tool_args: dict[str, Any]) -> None:
-    """执行指标明细查询前，确认结果表属于目标业务或平台数据源。"""
-    bk_tenant_id = get_request_tenant_id()
-    group = TimeSeriesGroup.objects.filter(
-        bk_tenant_id=bk_tenant_id,
-        table_id=tool_args["table_id"],
-        is_delete=False,
-    ).first()
-    if group is None:
-        raise ValidationError({"table_id": "The time-series table does not exist."})
-    if int(group.bk_biz_id) == int(tool_args["bk_biz_id"]):
-        return
-    is_platform = DataSource.objects.filter(
-        bk_tenant_id=bk_tenant_id,
-        bk_data_id=group.bk_data_id,
-        is_platform_data_id=True,
-    ).exists()
-    if not is_platform:
-        raise ValidationError({"table_id": "The time-series table does not belong to the target space."})
+    """兼容既有调用点，统一复用指标 Resource 的资源范围校验。"""
+    ensure_time_series_table_belongs_to_biz(tool_args["bk_biz_id"], tool_args["table_id"])
 
 
 def _time_series_metrics(tool_args: dict[str, Any]):
@@ -150,7 +135,8 @@ def _time_series_metrics(tool_args: dict[str, Any]):
 
 
 def _time_series_sql(tool_args: dict[str, Any]):
-    _ensure_time_series_table_belongs_to_biz(tool_args)
+    ensure_time_series_table_belongs_to_biz(tool_args["bk_biz_id"], tool_args["table_id"], allow_platform=False)
+    ensure_sql_reads_declared_table(tool_args["sql"], tool_args["table_id"])
     return ExecuteSQLQueryResource().request(**tool_args)
 
 
@@ -218,7 +204,7 @@ def _event_resource_executor(resource_class) -> ToolExecutor:
 
 
 def _ensure_apm_application_permission(tool_args: dict[str, Any]) -> None:
-    """把应用名解析为当前业务 APM 实例，并执行实例权限校验。"""
+    """把应用名解析为当前业务 APM 实例，并在未完成双权限判定时检查实例权限。"""
     application_id = (
         Application.objects.filter(bk_biz_id=tool_args["bk_biz_id"], app_name=tool_args["app_name"])
         .values_list("application_id", flat=True)
@@ -226,6 +212,19 @@ def _ensure_apm_application_permission(tool_args: dict[str, Any]) -> None:
     )
     if application_id is None:
         raise ValidationError({"app_name": "The APM application does not belong to the target space."})
+    request = get_request(peaceful=True)
+    native_tool_name = getattr(request, "native_mcp_tool", None)
+    if native_tool_name and getattr(request, "mcp_permission_source", "none") in {"native", "legacy"}:
+        from kernel_api.unified_mcp.registry import get_tool_registry
+
+        try:
+            native_spec = get_tool_registry().get(native_tool_name).resolve_native_permission(tool_args)
+        except KeyError:
+            native_spec = None
+        # native_mcp_tool 本身不是 grant；只有同一目录确认该工具已按 APM 实例完成
+        # MCP 优先／SaaS 兜底判定后，才跳过此处对同一 Action 的重复检查。
+        if native_spec and native_spec["resource_type"] == "apm_application":
+            return
     Permission().is_allowed(
         ActionEnum.VIEW_APM_APPLICATION,
         [ResourceEnum.APM_APPLICATION.create_simple_instance(application_id)],
@@ -260,6 +259,14 @@ def _alert_top_n(tool_args: dict[str, Any]):
 
 
 TOOL_EXECUTORS: dict[str, ToolExecutor] = {
+    # 预计算规则：独立入口与 Unified 共用用户及业务权限检查。
+    "preview_recording_rule": _resource_executor(recording_rule_mcp.PreviewConfigResource),
+    "create_recording_rule": _resource_executor(recording_rule_mcp.CreateConfigResource),
+    "update_recording_rule": _resource_executor(recording_rule_mcp.UpdateConfigResource),
+    "delete_recording_rule": _resource_executor(recording_rule_mcp.DeleteConfigResource),
+    "get_recording_rule": _resource_executor(recording_rule_mcp.GetConfigResource),
+    "apply_recording_rule": _resource_executor(recording_rule_mcp.ApplyConfigResource),
+    "list_recording_rules": _resource_executor(recording_rule_mcp.ListConfigsResource),
     # 指标查询
     "list_time_series_groups": _resource_executor(TimeSeriesGroupListResource),
     "list_time_series_metrics": _time_series_metrics,
@@ -360,10 +367,6 @@ TOOL_EXECUTORS: dict[str, ToolExecutor] = {
     # 元数据
     "list_bcs_clusters": _resource_executor(ListBCSClusterInfoByBizResource),
     "search_spaces": _resource_executor(ListSpacesResource),
-    # 平台运营数据
-    "list_operation_metrics": _resource_executor(ListOperationMetricsResource),
-    "get_operation_metric": _resource_executor(GetOperationMetricResource),
-    "get_operation_overview": _resource_executor(GetOperationOverviewResource),
 }
 
 

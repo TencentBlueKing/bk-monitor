@@ -14,10 +14,13 @@ from typing import Any, cast
 from django.utils import timezone
 from rest_framework import serializers
 
+from bkmonitor.iam import ActionEnum, Permission
 from bkmonitor.models import ApiAuthToken
 from bkmonitor.models.token import AuthType
+from bkmonitor.utils.request import get_request
 from bkmonitor.utils.serializers import TenantIdField
 from bkmonitor.utils.user import get_request_username
+from monitor_web.grafana.permissions import DashboardPermission, GrafanaRole
 from core.drf_resource import Resource
 from monitor_web.commons.token.service import get_or_create_business_token
 
@@ -65,6 +68,17 @@ class GetApiTokenResource(Resource):
             expire_time=timezone.now() + timedelta(days=180),
         ).token
 
+    @staticmethod
+    def _assert_business_token_allowed(token_type, bk_biz_id):
+        if token_type == "grafana":
+            request = get_request(peaceful=True)
+            if request is not None:
+                ok, role, _permissions = DashboardPermission.has_permission(request, None, bk_biz_id)
+                if ok and role >= GrafanaRole.Editor:
+                    return
+        if token_type in ("as_code", "grafana"):
+            Permission().is_allowed_by_biz(bk_biz_id, ActionEnum.MANAGE_RULE, raise_exception=True)
+
     def perform_request(self, validated_request_data: dict[str, Any]):
         # 获取当前租户
         username = cast(str, get_request_username())
@@ -79,6 +93,7 @@ class GetApiTokenResource(Resource):
         bk_biz_id = validated_request_data.get("bk_biz_id")
         if not bk_biz_id:
             raise serializers.ValidationError("业务ID不能为空")
+        self._assert_business_token_allowed(token_type, bk_biz_id)
 
         token, _ = get_or_create_business_token(
             bk_tenant_id=bk_tenant_id,

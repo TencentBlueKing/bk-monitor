@@ -11,7 +11,8 @@ specific language governing permissions and limitations under the License.
 from django.utils.translation import gettext_lazy as _
 
 from semconv.constants import FieldDisplayType, FieldUnit
-from semconv.rum.field import FieldSpec, RatingLevel
+from semconv.rum.constants import RatingLevel
+from semconv.rum.field import FieldSpec, RatingThreshold
 from constants.otel_query import FieldTypeEnum
 
 CLS = FieldSpec(
@@ -20,9 +21,9 @@ CLS = FieldSpec(
     field_type=FieldTypeEnum.DOUBLE.value,
     is_real=False,
     rating_config=(
-        RatingLevel(rating="good", value=0.1),
-        RatingLevel(rating="needs_improvement", value=0.25),
-        RatingLevel(rating="poor"),
+        RatingThreshold(rating=RatingLevel.GOOD.value, value=0.1),
+        RatingThreshold(rating=RatingLevel.NEEDS_IMPROVEMENT.value, value=0.25),
+        RatingThreshold(rating=RatingLevel.POOR.value),
     ),
 )
 
@@ -34,9 +35,9 @@ INP = FieldSpec(
     field_display_type=FieldDisplayType.DURATION.value,
     is_real=False,
     rating_config=(
-        RatingLevel(rating="good", value=200),
-        RatingLevel(rating="needs_improvement", value=500),
-        RatingLevel(rating="poor"),
+        RatingThreshold(rating=RatingLevel.GOOD.value, value=200),
+        RatingThreshold(rating=RatingLevel.NEEDS_IMPROVEMENT.value, value=500),
+        RatingThreshold(rating=RatingLevel.POOR.value),
     ),
 )
 
@@ -48,9 +49,9 @@ LCP = FieldSpec(
     field_display_type=FieldDisplayType.DURATION.value,
     is_real=False,
     rating_config=(
-        RatingLevel(rating="good", value=2500),
-        RatingLevel(rating="needs_improvement", value=4000),
-        RatingLevel(rating="poor"),
+        RatingThreshold(rating=RatingLevel.GOOD.value, value=2500),
+        RatingThreshold(rating=RatingLevel.NEEDS_IMPROVEMENT.value, value=4000),
+        RatingThreshold(rating=RatingLevel.POOR.value),
     ),
 )
 
@@ -62,9 +63,9 @@ FCP = FieldSpec(
     field_display_type=FieldDisplayType.DURATION.value,
     is_real=False,
     rating_config=(
-        RatingLevel(rating="good", value=1800),
-        RatingLevel(rating="needs_improvement", value=3000),
-        RatingLevel(rating="poor"),
+        RatingThreshold(rating=RatingLevel.GOOD.value, value=1800),
+        RatingThreshold(rating=RatingLevel.NEEDS_IMPROVEMENT.value, value=3000),
+        RatingThreshold(rating=RatingLevel.POOR.value),
     ),
 )
 
@@ -76,8 +77,8 @@ TTFB = FieldSpec(
     field_display_type=FieldDisplayType.DURATION.value,
     is_real=False,
     rating_config=(
-        RatingLevel(rating="good", value=800),
-        RatingLevel(rating="needs_improvement", value=1800),
-        RatingLevel(rating="poor"),
+        RatingThreshold(rating=RatingLevel.GOOD.value, value=800),
+        RatingThreshold(rating=RatingLevel.NEEDS_IMPROVEMENT.value, value=1800),
+        RatingThreshold(rating=RatingLevel.POOR.value),
     ),
 )

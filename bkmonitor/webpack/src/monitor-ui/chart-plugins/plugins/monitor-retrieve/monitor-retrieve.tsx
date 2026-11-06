@@ -40,7 +40,7 @@ import dayjs from 'dayjs';
 import { serviceLogInfo, serviceRelationList } from 'monitor-api/modules/apm_log';
 import { handleTransformToTimestamp } from 'monitor-pc/components/time-range/utils';
 
-import ApmTraceExplore from '../apm-trace-explore';
+import ApmTraceSlider from '../apm-trace-slider';
 
 import type { IViewOptions } from '../../typings';
 import type { TimeRangeType } from 'monitor-pc/components/time-range/time-range';
@@ -67,7 +67,7 @@ export default class MonitorRetrieve extends tsc<void> {
   bklogContentDom: HTMLElement | null = null;
   bklogContentScrollTop = 0;
   showQuickJump = true;
-  /** 打开 ApmTraceExplore Trace 详情侧边窗 */
+  /** 打开 Trace 详情侧滑 */
   slideDetail: null | { appName: string; bizId?: number; traceId: string } = null;
   /** APM 日志 Vue 实例本地引用，避免被嵌套 monitor-trace-log 覆盖 window.mainComponent 后丢失 */
   apmLogInstance: any = null;
@@ -107,8 +107,7 @@ export default class MonitorRetrieve extends tsc<void> {
 
   handleSliderClose() {
     this.slideDetail = null;
-    // ExploreTraceSlider 被 KeepAlive 缓存，关闭侧边栏不会卸载 monitor-trace-log，
-    // 其写入的 __IS_MONITOR_TRACE__ / mainComponent 会残留，导致外层 APM 悬浮/划词失效
+    // Trace 侧滑里的 monitor-trace-log 会改写 window.mainComponent，关闭后还原给外层 APM 日志
     this.restoreApmLogWindowState();
   }
 
@@ -312,13 +311,10 @@ export default class MonitorRetrieve extends tsc<void> {
         ) : (
           <div id='main' />
         )}
-        {/* 关联 trace 详情侧边窗 */}
-        <div style='height: 1px;width: 1px;overflow: hidden;'>
-          <ApmTraceExplore
-            slideDetail={this.slideDetail}
-            onSliderClose={this.handleSliderClose}
-          />
-        </div>
+        <ApmTraceSlider
+          slideDetail={this.slideDetail}
+          onSliderClose={this.handleSliderClose}
+        />
       </div>
     );
   }

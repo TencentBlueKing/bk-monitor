@@ -9,26 +9,37 @@
   @include flex-column;
 
   &-header {
-    gap: 8px;
-    justify-content: space-between;
     width: 100%;
+    min-height: 24px;
+    overflow: visible;
 
-    @include flex-align(flex-start);
+    @include flex-align(center);
   }
 
   &-title {
+    min-width: 0;
     font-size: 13px;
     font-weight: 500;
     line-height: 22px;
     color: #111214;
-    white-space: nowrap;
+
+    @include ellipsis;
+  }
+
+  &-main {
+    position: relative;
+    width: 100%;
+    min-width: 0;
+
+    @include flex-column;
   }
 
   &-actions {
-    flex-shrink: 0;
+    z-index: 1;
+    display: none;
+    flex-direction: column;
     gap: 8px;
-
-    @include flex-align(center);
+    pointer-events: none;
   }
 
   &-action {
@@ -37,32 +48,64 @@
     font-size: $font-size-base;
     line-height: 20px;
     color: $primary-color;
+    pointer-events: auto;
     white-space: nowrap;
     cursor: pointer;
+    background: #fff;
+    border: 1px solid #e9edf5;
     border-radius: 4px;
+    box-shadow: 0 2px 4px rgb(25 25 41 / 5%);
 
     @include flex-align(center);
 
     .icon-monitor {
+      flex-shrink: 0;
       font-size: $font-size-medium;
+    }
+  }
+
+  &-expand {
+    flex-shrink: 0;
+    gap: 2px;
+    font-size: $font-size-base;
+    line-height: 20px;
+    color: $primary-color;
+    cursor: pointer;
+    user-select: none;
+
+    @include flex-align(center);
+
+    .icon-monitor {
+      width: 12px;
+      height: 12px;
+      font-size: 12px;
+      line-height: 12px;
+      transition: transform 0.2s ease;
+    }
+
+    .icon-double-down.is-expanded {
+      transform: rotate(180deg);
     }
   }
 
   &-body {
     position: relative;
-    height: 168px;
+    height: auto;
+    max-height: 168px;
     padding: 8px;
     overflow: hidden;
     background: #f7f9fc;
     border-radius: 8px;
 
     &.is-expanded {
-      height: auto;
-      max-height: none;
-      overflow: visible;
+      flex: 1;
+      min-height: 0;
+      // 整块上限 − 标题 24 − 间距 8 − 收起 20，保证收起始终在容器外可见
+      max-height: calc(var(--llm-expand-max-height, calc(100vh - 174px)) - 52px);
+      overflow: auto;
     }
 
-    &:not(.is-expanded)::after {
+    &:not(.is-expanded).is-overflowing::after {
       position: absolute;
       right: 0;
       bottom: 0;
@@ -74,20 +117,49 @@
     }
   }
 
+  &:hover &-actions {
+    display: flex;
+  }
+
+  &:not(.is-expanded) &-actions {
+    position: absolute;
+    top: 8px;
+    right: 8px;
+    align-items: flex-start;
+  }
+
+  &.is-expanded {
+    overflow: visible;
+
+    .llm-json-code-block-header {
+      flex-shrink: 0;
+    }
+
+    .llm-json-code-block-main {
+      flex: 1;
+      min-height: 0;
+      overflow: visible;
+    }
+
+    .llm-json-code-block-actions {
+      position: sticky;
+      top: calc(var(--llm-section-sticky-top, 90px) + var(--llm-section-header-height, 32px) + 8px);
+      align-items: flex-end;
+      width: 100%;
+      height: 0;
+      overflow: visible;
+    }
+
+    .llm-json-code-block-expand {
+      flex-shrink: 0;
+    }
+  }
+
   &.is-bordered {
     gap: 12px;
     padding: 16px;
     background: #fff;
     border: 1px solid #c1cde5;
     border-radius: 6px;
-
-    .llm-json-code-block-body:not(.is-expanded) {
-      height: auto;
-      max-height: 168px;
-
-      &:not(.is-overflowing)::after {
-        content: none;
-      }
-    }
   }
 }

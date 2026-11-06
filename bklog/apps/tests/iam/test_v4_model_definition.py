@@ -2,6 +2,7 @@ import copy
 import json
 import os
 import tempfile
+from dataclasses import asdict
 
 from django.test import SimpleTestCase, override_settings
 
@@ -50,6 +51,22 @@ def build(payload=None, **kwargs):
 
 
 class V4ModelDefinitionBuildTest(SimpleTestCase):
+    def test_product_model_delegates_only_operator_without_paas_clients(self):
+        model = load_model_definition()
+        self.assertEqual(
+            [asdict(item) for item in model.role_delegations],
+            [
+                {
+                    "role_id": "space_operator",
+                    "grantee_type": "system",
+                    "grantee_id": "bk_paas3",
+                    "tenant_mode": "global",
+                }
+            ],
+        )
+        self.assertEqual(set(model.system.removed_clients), {"bk_paas3", "paasv3cli"})
+        self.assertFalse(set(model.system.clients) & {"bk_paas3", "paasv3cli"})
+
     def test_minimal_payload_builds_expected_model(self):
         model = build()
 
@@ -341,7 +358,18 @@ class V4ModelBaselineTest(SimpleTestCase):
 
     def test_baseline_file_is_valid(self):
         self.assertEqual(self.model.resource_type_ids(), ("space", "indices", "collection", "es_source"))
-        self.assertEqual(self.model.role_ids(), ("space_operator", "space_viewer", "system_admin"))
+        self.assertEqual(self.model.role_ids(), ("space_operator", "space_viewer", "space_access", "system_admin"))
+
+    def test_space_access_role_only_grants_business_view(self):
+        """space_access 存在的意义就是最小化：多一个 Action 就会把子资源权限一起授出去。"""
+        from apps.iam.backends.v4.writer import SPACE_ACCESS_ROLE_ID
+
+        space_access = next(role for role in self.model.roles if role.id == SPACE_ACCESS_ROLE_ID)
+
+        self.assertEqual(
+            [(action.id, action.resource_type_id) for action in space_access.actions],
+            [("view_business", "space")],
+        )
 
     def test_baseline_does_not_pin_environment_specific_fields(self):
         # system_id / callback_url / managers 必须由 settings 注入，否则 test 与 prod 又会分叉成两份文件。

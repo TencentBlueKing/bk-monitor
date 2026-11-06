@@ -36,10 +36,14 @@ class Command(BaseCommand):
             sleep=options["sleep"],
         )
         missing_result_table_ids = result["missing_result_table_ids"]
+        invalid_storage_cluster_result_table_ids = result.get("invalid_storage_cluster_result_table_ids", [])
         summary = (
             f"Done. total={result['total']}, success={result['success']}, failed={result['failed']}, "
-            f"skipped={result['skipped']}, missing={len(missing_result_table_ids)}"
+            f"skipped={result['skipped']}, missing={len(missing_result_table_ids)}, "
+            f"invalid_storage_cluster={len(invalid_storage_cluster_result_table_ids)}"
         )
         if missing_result_table_ids:
             summary += f", missing_result_table_ids={missing_result_table_ids}"
+        if invalid_storage_cluster_result_table_ids:
+            summary += f", invalid_storage_cluster_result_table_ids={invalid_storage_cluster_result_table_ids}"
         self.stdout.write(self.style.SUCCESS(summary))

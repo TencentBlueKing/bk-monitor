@@ -155,6 +155,7 @@ export default defineComponent({
                     <span class={['refresh-text', { 'active-text': textActive }]}>{triggerText}</span>
                   </div>
                   <IconFont
+                    v-tippy={this.t('刷新')}
                     fontSize={16}
                     icon='icon-mc-alarm-recovered'
                     onClick={this.handeRefreshImmediately}

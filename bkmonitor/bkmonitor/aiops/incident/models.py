@@ -13,6 +13,7 @@ from collections import defaultdict
 from dataclasses import asdict, dataclass, field
 
 
+from bkmonitor.aiops.incident.graph_snapshot import context_graph, edge_identity
 from bkmonitor.documents.incident import IncidentDocument
 from constants.incident import (
     IncidentGraphComponentType,
@@ -187,6 +188,14 @@ class IncidentGraphEdge:
 
     def to_src_dict(self):
         return {
+            "id": edge_identity(
+                {
+                    "source_id": self.source.entity_id,
+                    "target_id": self.target.entity_id,
+                    "edge_type": self.edge_type.value,
+                    "properties": self.properties,
+                }
+            ),
             "source_type": self.source.entity_type,
             "source": self.source.entity_id,
             "source_name": self.source.entity_name,
@@ -268,10 +277,13 @@ class IncidentSnapshot:
             self.incident_graph_categories[category_name] = IncidentGraphCategory(**category_info)
 
         for rank_name, rank_info in self.incident_snapshot_content.get("product_hierarchy_rank", {}).items():
+            rank_info = copy.deepcopy(rank_info)
             rank_info["rank_category"] = self.incident_graph_categories[rank_info["rank_category"]]
             self.incident_graph_ranks[rank_name] = IncidentGraphRank(**rank_info)
 
         for entity_info in self.incident_snapshot_content.get("incident_propagation_graph", {}).get("entities", []):
+            # Model aggregation must not mutate the frozen snapshot reused by resource expansion.
+            entity_info = copy.deepcopy(entity_info)
             entity_info["rank"] = self.incident_graph_ranks[entity_info.pop("rank_name")]
             entity_info["component_type"] = IncidentGraphComponentType(
                 entity_info.pop("component_type", IncidentGraphComponentType.PRIMARY.value)
@@ -279,6 +291,7 @@ class IncidentSnapshot:
             self.incident_graph_entities[entity_info["entity_id"]] = IncidentGraphEntity(**entity_info)
 
         for edge_info in self.incident_snapshot_content.get("incident_propagation_graph", {}).get("edges", []):
+            edge_info = copy.deepcopy(edge_info)
             source = self.incident_graph_entities[edge_info["source_id"]]
             target = self.incident_graph_entities[edge_info["target_id"]]
             edge_type = IncidentGraphEdgeType(edge_info["edge_type"])
@@ -296,18 +309,20 @@ class IncidentSnapshot:
                         metric_name=event.get("metric_name", ""),
                     )
                 )
-            self.incident_graph_edges[(source.entity_id, target.entity_id)] = IncidentGraphEdge(
-                source=source,
-                target=target,
-                edge_type=edge_type,
-                is_anomaly=edge_info.get("is_anomaly", False),
-                events=events,
-                anomaly_score=edge_info.get("anomaly_score", 0),
-                edge_cluster_id=edge_info.get("edge_cluster_id", ""),
-                component_type=IncidentGraphComponentType(
-                    edge_info.pop("component_type", IncidentGraphComponentType.PRIMARY.value)
-                ),
-                properties=edge_info.get("properties", {}),
+            self.incident_graph_edges[(source.entity_id, target.entity_id, edge_identity(edge_info))] = (
+                IncidentGraphEdge(
+                    source=source,
+                    target=target,
+                    edge_type=edge_type,
+                    is_anomaly=edge_info.get("is_anomaly", False),
+                    events=events,
+                    anomaly_score=edge_info.get("anomaly_score", 0),
+                    edge_cluster_id=edge_info.get("edge_cluster_id", ""),
+                    component_type=IncidentGraphComponentType(
+                        edge_info.pop("component_type", IncidentGraphComponentType.PRIMARY.value)
+                    ),
+                    properties=edge_info.get("properties", {}),
+                )
             )
 
         self.bk_biz_id = self.incident_snapshot_content["bk_biz_id"]
@@ -391,6 +406,11 @@ class IncidentSnapshot:
         :param entity_id: 实体ID
         :return: 资源上下游关系的资源子图
         """
+        if "graph_analysis" in self.incident_snapshot_content:
+            # An expanded neighbor may exist only in frozen context, not in the primary graph.
+            content = context_graph(self.incident_snapshot_content, entity_id)
+            return IncidentSnapshot(content) if content is not None else None
+
         if entity_id not in self.incident_graph_entities:
             raise IncidentEntityNotFoundError({"entity_id": entity_id})
 
@@ -659,10 +679,9 @@ class IncidentSnapshot:
                 entity_id in self.entity_targets[entity_id1][IncidentGraphEdgeType.EBPF_CALL]
                 and entity_id in self.entity_targets[entity_id2][IncidentGraphEdgeType.EBPF_CALL]
             ):
-                edge1 = self.incident_graph_edges[(entity_id1, entity_id)]
-                edge2 = self.incident_graph_edges[(entity_id2, entity_id)]
-
-                if self.is_edge_conflict(edge1, edge2):
+                edges1 = self.matching_edges(entity_id1, entity_id, IncidentGraphEdgeType.EBPF_CALL)
+                edges2 = self.matching_edges(entity_id2, entity_id, IncidentGraphEdgeType.EBPF_CALL)
+                if any(self.is_edge_conflict(edge1, edge2) for edge1 in edges1 for edge2 in edges2):
                     return True
 
             # 检查第三个节点作为判断中的两个节点作为入边起点的情况
@@ -670,13 +689,34 @@ class IncidentSnapshot:
                 entity_id in self.entity_sources[entity_id1][IncidentGraphEdgeType.EBPF_CALL]
                 and entity_id in self.entity_sources[entity_id2][IncidentGraphEdgeType.EBPF_CALL]
             ):
-                edge1 = self.incident_graph_edges[(entity_id, entity_id1)]
-                edge2 = self.incident_graph_edges[(entity_id, entity_id2)]
-
-                if self.is_edge_conflict(edge1, edge2):
+                edges1 = self.matching_edges(entity_id, entity_id1, IncidentGraphEdgeType.EBPF_CALL)
+                edges2 = self.matching_edges(entity_id, entity_id2, IncidentGraphEdgeType.EBPF_CALL)
+                if any(self.is_edge_conflict(edge1, edge2) for edge1 in edges1 for edge2 in edges2):
                     return True
 
         return False
+
+    def matching_edges(self, source_id, target_id, edge_type):
+        return [
+            edge
+            for key, edge in self.incident_graph_edges.items()
+            if key[:2] == (source_id, target_id) and edge.edge_type == edge_type
+        ]
+
+    def merge_endpoint_edges(self, source, target, edge_type):
+        for key, edge in list(self.incident_graph_edges.items()):
+            if key[:2] != source or edge.edge_type != edge_type:
+                continue
+            candidates = [
+                (other_key, other)
+                for other_key, other in self.incident_graph_edges.items()
+                if other_key[:2] == target
+                and other.edge_type == edge_type
+                and other.properties.get("relation") == edge.properties.get("relation")
+            ]
+            destination = candidates[0][0] if candidates else (*target, key[2])
+            if destination != key:
+                self.merge_edges(key, destination)
 
     def is_edge_conflict(self, edge1: IncidentGraphEdge, edge2: IncidentGraphEdge) -> bool:
         """判断两个边是否有冲突.
@@ -861,10 +901,17 @@ class IncidentSnapshot:
         """
         # 取第一个实体作为聚合后的实体
         main_entity = self.incident_graph_entities[entity_ids[0]]
-        main_entity.aggregated_entities = [self.incident_graph_entities[entity_id] for entity_id in entity_ids[1:]]
+        merged_entities = [self.incident_graph_entities[entity_id] for entity_id in entity_ids[1:]]
+        for entity in merged_entities:
+            # The existing member picker is flat; retain prior members through repeated aggregation.
+            members = [entity, *entity.aggregated_entities]
+            entity.aggregated_entities = []
+            for member in members:
+                member.properties["aggregated_by"] = main_entity.entity_id
+            main_entity.aggregated_entities.extend(members)
 
         # 遍历被聚合的实体，把他们的边归拢到主实体的边上
-        for entity in main_entity.aggregated_entities:
+        for entity in merged_entities:
             # 被聚合的节点，标记上聚合它们的外层节点
             entity.properties["aggregated_by"] = main_entity.entity_id
             for edge_type in self.entity_targets[entity.entity_id].keys():
@@ -879,7 +926,7 @@ class IncidentSnapshot:
                     _from = (entity.entity_id, target_entity_id)
                     _to = (main_entity.entity_id, target_entity_id)
 
-                    self.merge_edges(_from, _to)
+                    self.merge_endpoint_edges(_from, _to, edge_type)
 
             # 用相同的逻辑处理反向的边
             for edge_type in self.entity_sources[entity.entity_id].keys():
@@ -891,13 +938,13 @@ class IncidentSnapshot:
                     _from = (source_entity_id, entity.entity_id)
                     _to = (source_entity_id, main_entity.entity_id)
 
-                    self.merge_edges(_from, _to)
+                    self.merge_endpoint_edges(_from, _to, edge_type)
 
             del self.entity_targets[entity.entity_id]
             del self.entity_sources[entity.entity_id]
             del self.incident_graph_entities[entity.entity_id]
 
-    def merge_edges(self, _from: tuple[str, str], _to: tuple[str, str]):
+    def merge_edges(self, _from: tuple[str, str, str], _to: tuple[str, str, str]):
         """合并两条边
 
         :param _from: 被合并的边
@@ -912,7 +959,7 @@ class IncidentSnapshot:
                 edge_cluster_id=self.incident_graph_edges[_from].edge_cluster_id,
                 anomaly_score=self.incident_graph_edges[_from].anomaly_score,
                 events=self.incident_graph_edges[_from].events,
-                aggregated_edges=[],
+                aggregated_edges=list(self.incident_graph_edges[_from].aggregated_edges),
                 component_type=self.incident_graph_edges[_from].component_type,
                 properties=self.incident_graph_edges[_from].properties,
             )
@@ -924,10 +971,15 @@ class IncidentSnapshot:
                 self.incident_graph_edges[_to].anomaly_score, self.incident_graph_edges[_from].anomaly_score
             )
             aggregated_edge = self.incident_graph_edges[_from]
-            # 被聚合的边，标记上聚合它们的外层边
-            aggregated_edge.properties["aggregated_by"] = list(_to)
-            self.incident_graph_edges[_to].aggregated_edges.append(aggregated_edge)
+            members = [aggregated_edge, *aggregated_edge.aggregated_edges]
+            aggregated_edge.aggregated_edges = []
+            self.incident_graph_edges[_to].aggregated_edges.extend(members)
             if self.incident_graph_edges[_to].edge_cluster_id != self.incident_graph_edges[_from].edge_cluster_id:
                 self.incident_graph_edges[_to].edge_cluster_id = None
+
+        container_id = self.incident_graph_edges[_to].to_src_dict()["id"]
+        for member in self.incident_graph_edges[_to].aggregated_edges:
+            member.properties["aggregated_by"] = list(_to[:2])
+            member.properties["aggregated_by_id"] = container_id
 
         del self.incident_graph_edges[_from]

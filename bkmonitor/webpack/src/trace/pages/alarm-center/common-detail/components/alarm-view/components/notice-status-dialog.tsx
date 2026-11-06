@@ -24,13 +24,13 @@
  * IN THE SOFTWARE.
  */
 
-import { defineComponent, shallowRef, watch } from 'vue';
+import { defineComponent, onScopeDispose, shallowRef, watch } from 'vue';
 
 import { type TdPrimaryTableProps, PrimaryTable } from '@blueking/tdesign-ui';
 import { Dialog } from 'bkui-vue';
 import { subActionDetail } from 'monitor-api/modules/alert_v2';
 import { getNoticeWay } from 'monitor-api/modules/notice_group';
-import TableSkeleton from 'trace/components/skeleton/table-skeleton';
+import { DetailTableSkeleton, DetailLoadStatus } from '@/pages/alarm-center/common-detail/detail-loading';
 import { useI18n } from 'vue-i18n';
 
 import './notice-status-dialog.scss';
@@ -76,7 +76,13 @@ export default defineComponent({
     const hasColumns = shallowRef<string[]>([]);
 
     const loading = shallowRef(false);
+    let requestId = 0;
+    const error = shallowRef(false);
+    onScopeDispose(() => { ++requestId; });
     const getNoticeStatusData = async () => {
+      const current = ++requestId;
+      error.value = false;
+      try {
       loading.value = true;
       if (!tableColumns.value.length) {
         const columns = await getNoticeWay({ bk_biz_id: props.alarmBizId })
@@ -109,7 +115,8 @@ export default defineComponent({
               },
             }))
           )
-          .catch(() => []);
+          ;
+        if (current !== requestId) return;
         tableColumns.value = [
           {
             colKey: 'target',
@@ -124,6 +131,7 @@ export default defineComponent({
       }
       await subActionDetail({ parent_action_id: props.actionId, bk_biz_id: props.alarmBizId })
         .then(data => {
+          if (current !== requestId) return;
           tableData.value = Object.keys(data || {}).map(key => {
             const temp = { target: key };
             for (const subKey of Object.keys(data[key] || {})) {
@@ -142,17 +150,24 @@ export default defineComponent({
             return temp;
           });
         })
-        .finally(() => {
-          loading.value = false;
-        });
+        ;
+      } catch {
+        if (current === requestId) error.value = true;
+      } finally {
+        if (current === requestId) loading.value = false;
+      }
     };
 
     watch(
-      () => props.show,
-      newVal => {
-        if (newVal) {
+      () => [props.show, props.actionId, props.alarmBizId],
+      () => {
+        ++requestId;
+        tableColumns.value = [];
+        hasColumns.value = [];
+        if (props.show) {
           getNoticeStatusData();
         } else {
+          loading.value = false;
           tableData.value = [];
           hasColumns.value = [];
         }
@@ -161,6 +176,7 @@ export default defineComponent({
     );
 
     return {
+      error, retry: getNoticeStatusData,
       tableColumns,
       tableData,
       hasColumns,
@@ -181,8 +197,8 @@ export default defineComponent({
       >
         <div class='notice-status-dialog-content'>
           {this.loading ? (
-            <TableSkeleton type={4} />
-          ) : (
+            <DetailTableSkeleton columns={this.tableColumns.length ? this.tableColumns : [{ colKey: 'target', title: this.t('通知方式') }]} />
+          ) : this.error ? <DetailLoadStatus error onRetry={this.retry} /> : (
             <PrimaryTable
               columns={this.tableColumns.filter(
                 item => this.hasColumns.includes(item.colKey) || item.colKey === 'target'

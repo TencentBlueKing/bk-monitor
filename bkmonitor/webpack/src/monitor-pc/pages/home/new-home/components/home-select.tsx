@@ -782,8 +782,8 @@ export default class HomeSelect extends tsc<IHomeSelectProps, IHomeSelectEvent> 
       },
       /** 主机 */
       host: {
-        name: 'performance-detail',
-        params: { id: item.bk_host_id },
+        name: 'host',
+        params: { id: String(item.bk_host_id) },
         query: item.compare_hosts?.length > 0 ? { compares: JSON.stringify({ targets: item.compare_hosts }) } : {},
       },
       /** 关联的告警 */

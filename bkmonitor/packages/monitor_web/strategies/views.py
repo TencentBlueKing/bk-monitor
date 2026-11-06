@@ -43,6 +43,7 @@ class StrategiesViewSet(ResourceViewSet):
         if self.action in [
             "strategy_config_list",
             "v2/get_strategy_list",
+            "v2/get_strategy_alert_summary",
             "get_target_detail",
             "dashboard_panel_to_query_config",
         ]:
@@ -111,6 +112,10 @@ class StrategiesViewSet(ResourceViewSet):
         ResourceRoute("POST", resource.strategies.get_metric_list_v2, endpoint="v2/get_metric_list"),
         # 获取策略列表
         ResourceRoute("POST", resource.strategies.get_strategy_list_v2, endpoint="v2/get_strategy_list"),
+        # 获取策略告警统计
+        ResourceRoute(
+            "POST", resource.strategies.get_strategy_alert_summary_v2, endpoint="v2/get_strategy_alert_summary"
+        ),
         # 获取策略详情
         ResourceRoute("GET", resource.strategies.get_strategy_v2, endpoint="v2/get_strategy"),
         # 删除策略
@@ -118,7 +123,7 @@ class StrategiesViewSet(ResourceViewSet):
         # 校验策略名
         ResourceRoute("POST", resource.strategies.verify_strategy_name, endpoint="v2/verify_strategy_name"),
         # 保存/创建策略
-        ResourceRoute("POST", resource.strategies.save_strategy_v2, endpoint="v2/save_strategy"),
+        ResourceRoute("POST", resource.strategies.save_strategy_for_page, endpoint="v2/save_strategy"),
         # 批量更新策略
         ResourceRoute("POST", resource.strategies.update_partial_strategy_v2, endpoint="v2/update_partial_strategy"),
         # 克隆策略

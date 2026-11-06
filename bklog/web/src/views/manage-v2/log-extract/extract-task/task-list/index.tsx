@@ -28,11 +28,13 @@ import { defineComponent, ref, computed, onMounted, onBeforeUnmount } from 'vue'
 
 import EmptyStatus from '@/components/empty-status/index.vue';
 import useLocale from '@/hooks/use-locale';
+import useResizeObserve from '@/hooks/use-resize-observe';
 import useRoute from '@/hooks/use-route';
 import useRouter from '@/hooks/use-router';
 import useStore from '@/hooks/use-store';
-import { manageDraftCacheService } from '@/storage';
 import useUtils from '@/hooks/use-utils';
+import { manageDraftCacheService } from '@/storage';
+import TagMore from '@/views/manage-v2/log-collection/components/common-comp/tag-more';
 
 import DownloadUrl from './download-url.tsx';
 import ListBox from './list-box.tsx';
@@ -50,6 +52,7 @@ export default defineComponent({
     TaskStatusDetail,
     TextFilterDetail,
     EmptyStatus,
+    TagMore,
   },
   setup() {
     const store = useStore();
@@ -58,8 +61,22 @@ export default defineComponent({
     const route = useRoute();
 
     const searchKeyword = ref(''); // 搜索关键词
+    const ordering = ref('-created_at');
+    const defaultSort = { prop: 'created_at', order: 'descending' };
     const isLoading = ref(false); // 加载状态
     const taskList = ref<any[]>([]); // 任务列表
+    const tableContainerRef = ref<HTMLElement | null>(null);
+    const tableMaxHeight = ref<number>();
+
+    // 只限制表格最大高度，数据较少时让分页紧随末行。
+    useResizeObserve(
+      () => tableContainerRef.value,
+      ({ contentRect }) => {
+        tableMaxHeight.value = Math.floor(contentRect.height);
+      },
+      false,
+    );
+
     const pagination = ref({
       // 分页配置
       count: 0,
@@ -95,6 +112,7 @@ export default defineComponent({
             bk_biz_id: store.state.bkBizId,
             page: pagination.value.current,
             pagesize: pagination.value.limit,
+            ...(ordering.value && { ordering: ordering.value }),
           },
         };
         if (searchKeyword.value) {
@@ -202,6 +220,22 @@ export default defineComponent({
       initTaskList();
     };
 
+    const handleSortChange = ({ prop, order }: { prop?: string | null; order?: string | null }) => {
+      if (prop && prop !== 'created_at') {
+        return;
+      }
+      let nextOrdering = '';
+      if (prop && order) {
+        nextOrdering = order === 'ascending' ? 'created_at' : '-created_at';
+      }
+      if (ordering.value === nextOrdering) {
+        return;
+      }
+      ordering.value = nextOrdering;
+      pagination.value.current = 1;
+      initTaskList();
+    };
+
     // 查看详情
     const viewDetail = async (row: any) => {
       try {
@@ -290,14 +324,6 @@ export default defineComponent({
       }
     };
 
-    // 获取显示的IP列表
-    const getShowIpList = (row: any) => {
-      if (row.enable_clone) {
-        return getIPDisplayNameList(row.ip_list).join('; ');
-      }
-      return row.ip_list.join('; ');
-    };
-
     // 获取下载目标列表
     const getDownloadTheTargetList = (targetItem: any) => {
       if (targetItem.enable_clone) {
@@ -366,7 +392,7 @@ export default defineComponent({
         {/* 新建和搜索框 */}
         <div class='option-container'>
           <bk-button
-            style='width: 120px'
+            class='create-task-button'
             data-test-id='fromBox_button_addNewExtraction'
             theme='primary'
             onClick={handleCreateTask}
@@ -377,10 +403,10 @@ export default defineComponent({
             class='king-input-search'
             clearable={true}
             data-test-id='fromBox_input_searchExtraction'
-            left-icon='bk-icon icon-search'
+            right-icon='bk-icon icon-search'
             placeholder={t('搜索 文件名、创建人')}
             value={searchKeyword.value}
-            on-left-icon-click={handleSearch}
+            on-right-icon-click={handleSearch}
             onChange={val => (searchKeyword.value = val)}
             onClear={handleSearch}
             onEnter={handleSearch}
@@ -388,163 +414,205 @@ export default defineComponent({
         </div>
 
         {/* 表格 */}
-        <bk-table
-          class='king-table'
-          scopedSlots={{
-            empty: () => (
-              <div>
-                <EmptyStatus
-                  empty-type={emptyType.value}
-                  on-operation={handleOperation}
-                />
-              </div>
-            ),
-          }}
-          data={taskList.value}
-          data-test-id='fromBox_table_tableBox'
-          pagination={pagination.value}
-          onPage-change={handlePageChange}
-          onPage-limit-change={handlePageLimitChange}
+        <div
+          ref={tableContainerRef}
+          class='extract-task-table-container'
         >
-          {/* 文件来源主机列 */}
-          <bk-table-column
+          <bk-table
+            class='king-table'
+            max-height={tableMaxHeight.value}
             scopedSlots={{
-              default: ({ row }: any) => (
-                <div class='table-ceil-container'>
-                  <span v-bk-overflow-tips>{getShowIpList(row)}</span>
+              empty: () => (
+                <div>
+                  <EmptyStatus
+                    empty-type={emptyType.value}
+                    on-operation={handleOperation}
+                  />
                 </div>
               ),
             }}
-            label={t('文件来源主机')}
-            min-width='140'
-            renderHeader={renderHeader}
-          />
+            data={taskList.value}
+            data-test-id='fromBox_table_tableBox'
+            default-sort={defaultSort}
+            pagination={pagination.value}
+            onPage-change={handlePageChange}
+            onPage-limit-change={handlePageLimitChange}
+            onSort-change={handleSortChange}
+          >
+            {/* 授权目标列 */}
+            <bk-table-column
+              scopedSlots={{
+                default: ({ row }: any) => (
+                  <div class='authorized-target'>
+                    <i18n path='{0} 个节点'>
+                      <button
+                        class='authorized-target-count'
+                        data-test-id='extraction_button_targetDetail'
+                        type='button'
+                        onClick={() => viewDetail(row)}
+                      >
+                        {row.ip_list?.length ?? 0}
+                      </button>
+                    </i18n>
+                  </div>
+                ),
+              }}
+              label={t('授权目标')}
+              min-width='180'
+              renderHeader={renderHeader}
+            />
 
-          {/* 文件列 */}
-          <bk-table-column
-            scopedSlots={{
-              default: ({ row }: any) => (
-                <div class='table-ceil-container'>
-                  <span v-bk-overflow-tips>{row.file_path.join('; ')}</span>
-                </div>
-              ),
-            }}
-            label={t('文件')}
-            min-width='240'
-            renderHeader={renderHeader}
-          />
-
-          {/* 创建时间列 */}
-          <bk-table-column
-            label={t('创建时间')}
-            width='190'
-            prop='created_at'
-            renderHeader={renderHeader}
-          />
-
-          {/* 备注列 */}
-          <bk-table-column
-            scopedSlots={{
-              default: ({ row }: any) => (
-                <div class='table-ceil-container'>
-                  <span v-bk-overflow-tips>{row.remark || '--'}</span>
-                </div>
-              ),
-            }}
-            label={t('备注')}
-            min-width='120'
-            renderHeader={renderHeader}
-          />
-
-          {/* 创建人列 */}
-          <bk-table-column
-            label={t('创建人')}
-            min-width='100'
-            prop='created_by'
-            renderHeader={renderHeader}
-            scopedSlots={{
-              default: (props: any) => <bk-user-display-name user-id={props.row.created_by}></bk-user-display-name>,
-            }}
-          />
-
-          {/* 任务状态列 */}
-          <bk-table-column
-            scopedSlots={{
-              default: ({ row }: any) => (
-                <div
-                  class={{
-                    'task-status-warning': true,
-                    'task-status-success':
-                      row.download_status === 'downloadable' || row.download_status === 'redownloadable',
-                    'task-status-error': row.download_status === 'expired' || row.download_status === 'failed',
-                  }}
-                >
-                  {!notLoadingStatus.value.includes(row.download_status) && <span class='bk-icon icon-refresh' />}
-                  <span>{row.download_status_display}</span>
-                  {row.download_status === 'failed' && (
-                    <span
-                      class='bklog-icon bklog-info-fill'
-                      v-bk-tooltips={{
-                        disabled: !row.task_process_info,
-                        content: row.task_process_info,
-                      }}
+            {/* 文件列 */}
+            <bk-table-column
+              scopedSlots={{
+                default: ({ row }: any) =>
+                  row.file_path?.length ? (
+                    <TagMore
+                      className='extract-file-tags'
+                      gap={4}
+                      keepFirstTag={false}
+                      maxRows={1}
+                      maxTagWidth={2400}
+                      mode='index-set'
+                      tags={row.file_path.map((file: string, index: number) => ({ id: index, name: file }))}
+                      tooltipMode='overflow'
+                      tooltipTarget='more'
                     />
-                  )}
-                </div>
-              ),
-            }}
-            label={t('任务状态')}
-            min-width='120'
-            renderHeader={renderHeader}
-          />
+                  ) : (
+                    '--'
+                  ),
+              }}
+              label={t('文件')}
+              min-width='240'
+              renderHeader={renderHeader}
+            />
 
-          {/* 操作列 */}
-          <bk-table-column
-            width='200'
-            scopedSlots={{
-              default: ({ row }: any) => (
-                <div class='task-operation-container'>
-                  <span
-                    class='task-operation'
-                    onClick={() => viewDetail(row)}
+            {/* 目标类型列 */}
+            <bk-table-column
+              scopedSlots={{
+                default: () => (
+                  <bk-tag
+                    class='target-type-tag'
+                    radius='4px'
+                    theme='warning'
                   >
-                    {t('详情')}
-                  </span>
-                  <span
-                    class={['task-operation', !row.enable_clone && 'cannot-click']}
-                    v-bk-tooltips={{
-                      content: row.message,
-                      disabled: row.enable_clone,
-                      delay: 300,
-                      placement: 'top',
-                    }}
-                    onClick={() => cloneTask(row)}
-                  >
-                    {t('克隆')}
-                  </span>
-                  {row.download_status === 'downloadable' && (
+                    {t('主机')}
+                  </bk-tag>
+                ),
+              }}
+              label={t('目标类型')}
+              width='110'
+              renderHeader={renderHeader}
+            />
+
+            {/* 创建时间列 */}
+            <bk-table-column
+              label={t('创建时间')}
+              width='190'
+              prop='created_at'
+              renderHeader={renderHeader}
+              sortable='custom'
+            />
+
+            {/* 创建人列 */}
+            <bk-table-column
+              label={t('创建人')}
+              width='110'
+              prop='created_by'
+              renderHeader={renderHeader}
+              scopedSlots={{
+                default: (props: any) => <bk-user-display-name user-id={props.row.created_by}></bk-user-display-name>,
+              }}
+            />
+
+            {/* 任务状态列 */}
+            <bk-table-column
+              scopedSlots={{
+                default: ({ row }: any) => (
+                  <div class='task-status'>
+                    <span
+                      class='task-status-icon'
+                      key={row.download_status}
+                    >
+                      {notLoadingStatus.value.includes(row.download_status) ? (
+                        <div
+                          class={[
+                            'status-dot',
+                            ['downloadable', 'redownloadable'].includes(row.download_status)
+                              ? 'status-success'
+                              : 'status-failed',
+                          ]}
+                        />
+                      ) : (
+                        <bk-spin size='mini' />
+                      )}
+                    </span>
+                    <span class='task-status-text'>{row.download_status_display}</span>
+                    {row.download_status === 'failed' && (
+                      <span
+                        class='task-status-info bklog-icon bklog-info-fill'
+                        v-bk-tooltips={{
+                          disabled: !row.task_process_info,
+                          content: row.task_process_info,
+                        }}
+                      />
+                    )}
+                  </div>
+                ),
+              }}
+              label={t('任务状态')}
+              width='180'
+              renderHeader={renderHeader}
+            />
+
+            {/* 操作列 */}
+            <bk-table-column
+              width='160'
+              scopedSlots={{
+                default: ({ row }: any) => (
+                  <div class='task-operation-container'>
                     <span
                       class='task-operation'
-                      onClick={() => downloadFile(row)}
+                      onClick={() => viewDetail(row)}
                     >
-                      {t('下载')}
+                      {t('详情')}
                     </span>
-                  )}
-                  {row.download_status === 'redownloadable' && (
                     <span
-                      class='task-operation'
-                      onClick={() => reDownloadFile(row)}
+                      class={['task-operation', !row.enable_clone && 'cannot-click']}
+                      v-bk-tooltips={{
+                        content: row.message,
+                        disabled: row.enable_clone,
+                        delay: 300,
+                        placement: 'top',
+                      }}
+                      onClick={() => cloneTask(row)}
                     >
-                      {t('重试')}
+                      {t('克隆')}
                     </span>
-                  )}
-                </div>
-              ),
-            }}
-            label={t('操作')}
-            renderHeader={renderHeader}
-          />
-        </bk-table>
+                    {row.download_status === 'downloadable' && (
+                      <span
+                        class='task-operation'
+                        onClick={() => downloadFile(row)}
+                      >
+                        {t('下载')}
+                      </span>
+                    )}
+                    {row.download_status === 'redownloadable' && (
+                      <span
+                        class='task-operation'
+                        onClick={() => reDownloadFile(row)}
+                      >
+                        {t('重试')}
+                      </span>
+                    )}
+                  </div>
+                ),
+              }}
+              label={t('操作')}
+              renderHeader={renderHeader}
+            />
+          </bk-table>
+        </div>
 
         {/* 右侧边栏 */}
         <bk-sideslider

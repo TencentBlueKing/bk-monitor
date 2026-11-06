@@ -37,6 +37,23 @@ def before_send_cmsi_api(params):
     return add_esb_info_before_request(params)
 
 
+def before_send_cmsi_mail(params):
+    params = before_send_cmsi_api(params)
+    if settings.USE_APIGW:
+        for field in ("receiver__username", "receiver", "cc__username", "cc"):
+            if isinstance(params.get(field), str):
+                params[field] = params[field].split(",") if params[field] else []
+    return params
+
+
+def after_get_cmsi_channels(response):
+    if settings.USE_APIGW:
+        for channel in response.get("data", []):
+            channel["label"] = channel["name"]
+            channel["is_active"] = channel["enabled"]
+    return response
+
+
 def before_send_cmsi_wechat(params):
     params = before_send_cmsi_api(params)
     if "content" in params:
@@ -44,7 +61,14 @@ def before_send_cmsi_wechat(params):
             "message": params.pop("content", ""),
             "heading": params.pop("title", "") or params.pop("heading", ""),
         }
-    return add_esb_info_before_request(params)
+    if settings.USE_APIGW:
+        if isinstance(params.get("receiver__username"), str):
+            params["receiver__username"] = (
+                params["receiver__username"].split(",") if params["receiver__username"] else []
+            )
+        if "data" in params:
+            params["message_data"] = params.pop("data")
+    return params
 
 
 def before_send_cmsi_voice_msg(params):
@@ -74,7 +98,7 @@ class _CmsiApi:
             url=self._build_url("send_mail/", "send_mail/"),
             module=self.MODULE,
             description="发送邮件",
-            before_request=before_send_cmsi_api,
+            before_request=before_send_cmsi_mail,
         )
         self.send_msg = DataAPI(
             method="POST",
@@ -99,7 +123,7 @@ class _CmsiApi:
         )
         self.send_weixin = DataAPI(
             method="POST",
-            url=self._build_url("send_weixin", "send_weixin"),
+            url=self._build_url("send_weixin/", "send_weixin"),
             module=self.MODULE,
             description="发送微信消息",
             before_request=before_send_cmsi_wechat,
@@ -107,10 +131,11 @@ class _CmsiApi:
         )
         self.get_msg_type = DataAPI(
             method="GET",
-            url=self._build_url("get_msg_type/", "get_msg_type/"),
+            url=self._build_url("channels", "get_msg_type/"),
             module=self.MODULE,
             description="查询消息发送类型",
             before_request=add_esb_info_before_request,
+            after_request=after_get_cmsi_channels,
         )
 
 

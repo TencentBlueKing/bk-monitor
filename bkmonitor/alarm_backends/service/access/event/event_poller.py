@@ -13,6 +13,7 @@ import logging
 import os
 import signal
 import socket
+import threading
 import time
 import uuid
 from collections import defaultdict
@@ -36,12 +37,12 @@ KAFKA_REQUEST_TIMEOUT_BUFFER_MS = 1000
 def always_retry(wait):
     def decorator(func):
         def wrapper(*args, **kwargs):
-            while True:
+            while not args[0].should_exit:
                 try:
                     return func(*args, **kwargs)
                 except Exception as e:
                     logger.exception(f"alert handler error: {func.__name__}: {e}")
-                    time.sleep(wait)
+                    args[0].stop_event.wait(wait)
 
         return wrapper
 
@@ -49,11 +50,14 @@ def always_retry(wait):
 
 
 class EventPoller:
+    THREAD_JOIN_TIMEOUT = 5
+
     def __init__(self):
         self.topics_map = {}
         self.pod_id = socket.gethostname().rsplit("-", 1)[-1] or str(uuid.uuid4())[:8]
         self.refresh()
         self.should_exit = False
+        self.stop_event = threading.Event()
         self.consumer = None
         self.polled_info = defaultdict(int)
 
@@ -81,7 +85,11 @@ class EventPoller:
             auto_offset_reset="latest",
             **consumer_kwargs,
         )
-        consumer.subscribe(list(self.topics_map.keys()))
+        try:
+            consumer.subscribe(list(self.topics_map.keys()))
+        except Exception:
+            consumer.close(autocommit=False)
+            raise
         return consumer
 
     def poll_once(self):
@@ -95,23 +103,17 @@ class EventPoller:
     def close(self):
         if self.consumer is not None:
             try:
-                # 先尝试正常唤醒消费者线程
-                self.consumer.wakeup()
-                # 确保关闭前完成所有pending操作
-                self.consumer.commit()
+                # 由消费线程关闭；同步提交的 coordinator 重试没有总时限。
+                self.consumer.close(autocommit=False)
             except Exception as e:
-                logger.warning(f"[event poller] consumer wakeup/commit failed: {e}")
+                logger.exception(f"[event poller] consumer close failed: {e}")
             finally:
-                try:
-                    self.consumer.close()
-                except Exception as e:
-                    logger.exception(f"[event poller] consumer close failed: {e}")
                 self.consumer = None
 
     def _stop(self, signum, frame):
         logger.info(f"[event poller] received signal {signum}, shutting down...")
         self.should_exit = True
-        self.close()  # 确保信号处理也调用增强版的close
+        self.stop_event.set()
 
     def __del__(self):
         self.should_exit = True
@@ -119,9 +121,12 @@ class EventPoller:
     @always_retry(10)
     def kick_task(self):
         check_time = time.time()
-        while True:
+        while not self.should_exit:
             if time.time() - check_time < 5.0:
-                time.sleep(1)
+                if self.stop_event.wait(1):
+                    return
+            if self.should_exit:
+                return
             client = key.EVENT_SIGNAL_KEY.client
             signal_channel = key.EVENT_SIGNAL_KEY.get_key()
             signals = client.smembers(signal_channel)
@@ -139,37 +144,49 @@ class EventPoller:
             self.polled_info.clear()
 
     def start(self):
-        # 添加退出信号处理，支持优雅退出
         signal.signal(signal.SIGTERM, self._stop)
         signal.signal(signal.SIGINT, self._stop)
-        kick_task = InheritParentThread(target=self.kick_task)
-        kick_task.start()
-        while not self.should_exit:
-            try:
-                topic_data = {}
-                messages = self.poll_once()
-                # 先收集所有消息按topic分类
-                for message in messages:
-                    topic = message.topic
-                    data = message.value
-                    if topic not in topic_data:
-                        topic_data[topic] = []
-                    topic_data[topic].append(data)
-                # 统一推送所有topic的数据到redis
-                for topic, data_list in topic_data.items():
-                    if data_list:
+        threads = [
+            InheritParentThread(target=self.consume, name="event-kafka", daemon=True),
+            InheritParentThread(target=self.kick_task, name="event-kick", daemon=True),
+        ]
+        try:
+            for thread in threads:
+                thread.start()
+            while not self.should_exit:
+                if any(not thread.is_alive() for thread in threads):
+                    raise RuntimeError("event poller thread exited")
+                self.stop_event.wait(1)
+        finally:
+            self.should_exit = True
+            self.stop_event.set()
+            deadline = time.monotonic() + self.THREAD_JOIN_TIMEOUT
+            for thread in threads:
+                if thread.ident is not None:
+                    thread.join(timeout=max(0, deadline - time.monotonic()))
+                    if thread.is_alive():
+                        logger.warning("[event poller] thread still stopping: %s", thread.name)
+
+    def consume(self):
+        try:
+            while not self.should_exit:
+                try:
+                    topic_data = defaultdict(list)
+                    messages = self.poll_once()
+                    if self.should_exit:
+                        break
+                    for message in messages:
+                        topic_data[message.topic].append(message.value)
+                    for topic, data_list in topic_data.items():
                         try:
                             self.push_to_redis(topic, data_list)
-                        except KeyboardInterrupt:
-                            self.should_exit = True
                         except Exception:
                             continue
-            except KeyboardInterrupt:
-                self.should_exit = True
-            except Exception as e:
-                logger.exception(f"[event poller] start poll error: {e}")
-
-        self.close()
+                except Exception as e:
+                    logger.exception(f"[event poller] start poll error: {e}")
+                    self.stop_event.wait(1)
+        finally:
+            self.close()
 
     def send_signal(self, data_id):
         client = key.EVENT_SIGNAL_KEY.client

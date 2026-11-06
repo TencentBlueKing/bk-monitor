@@ -36,7 +36,7 @@
       class="detail-header"
     >
       <span
-        v-if="!loading && basicInfo"
+        v-if="basicInfo"
         class="detail-header-title"
       >
         {{ `${$t('采集详情')} - #${basicInfo.id} ${name}` }}
@@ -54,7 +54,8 @@
           </i18n>
         </bk-alert>
       </span>
-      <span v-else>{{ $t('加载中...') }}</span>
+      <span v-else-if="requests.detail.loading">{{ $t('加载中...') }}</span>
+      <span v-else>{{ `${$t('采集详情')} - #${sideData.id}` }}</span>
       <div
         v-if="sideData && Object.keys(sideData).length"
         class="operation"
@@ -75,14 +76,13 @@
           {{ $t('button-编辑') }}
         </bk-button>
         <history-dialog
-          v-if="!loading"
+          v-if="basicInfo && !renameLoading"
           :list="historyList"
         />
       </div>
     </div>
     <div
       slot="content"
-      v-bkloading="{ isLoading: loading }"
       class="detail-content"
     >
       <div class="detail-content-tab clearfix">
@@ -106,8 +106,18 @@
       <div class="detail-content-wrap">
         <div
           v-show="active === 0"
+          v-bkloading="{ isLoading: renameLoading }"
           class="basic-info"
         >
+          <detail-load-error
+            v-if="requests.detail.error"
+            :compact="!!basicInfo"
+            @retry="getDetailData"
+          />
+          <detail-skeleton
+            v-if="requests.detail.loading && !basicInfo"
+            section="configuration"
+          />
           <ul
             v-if="basicInfo"
             class="basic-info-detail"
@@ -319,6 +329,7 @@
             </li>
           </ul>
           <div
+            v-if="basicInfo"
             :style="{ marginTop: runtimeParams.length ? '24px' : '14px' }"
             class="metric-label"
           >
@@ -391,10 +402,22 @@
           v-show="active === 1"
           class="collect-target"
         >
+          <detail-skeleton
+            v-if="requests.targets.loading"
+            section="targets"
+          />
+          <detail-load-error
+            v-else-if="requests.targets.error"
+            @retry="getTargetInfoData"
+          />
+          <empty-status
+            v-else-if="requests.targets.loaded && !targetInfo.table_data.length"
+            type="empty"
+          />
           <!-- <right-panel need-border> -->
           <!-- 复制目标 -->
           <div
-            v-if="targetInfo.table_data && targetInfo.table_data.length"
+            v-if="showTargets"
             class="copy-target"
           >
             <bk-button
@@ -406,7 +429,10 @@
             >
           </div>
           <bk-table
-            v-if="['TOPO', 'SET_TEMPLATE', 'SERVICE_TEMPLATE'].includes(targetInfo.target_node_type)"
+            v-if="
+              showTargets &&
+              ['TOPO', 'SET_TEMPLATE', 'SERVICE_TEMPLATE', 'DYNAMIC_GROUP'].includes(targetInfo.target_node_type)
+            "
             :data="targetInfo.table_data"
             :empty-text="$t('无数据')"
           >
@@ -417,7 +443,13 @@
             />
             <bk-table-column
               width="100"
-              :label="basicInfo.target_object_type === 'SERVICE' ? $t('实例数') : $t('主机数')"
+              :label="
+                basicInfo && basicInfo.target_object_type === 'SERVICE'
+                  ? $t('实例数')
+                  : basicInfo && basicInfo.target_object_type === 'HOST'
+                    ? $t('主机数')
+                    : $t('数量')
+              "
               align="right"
               prop="count"
             >
@@ -432,7 +464,7 @@
               min-width="150"
             >
               <template slot-scope="scope">
-                <template v-if="scope.row.labels.length">
+                <template v-if="scope.row.labels && scope.row.labels.length">
                   <span
                     v-for="(item, index) in scope.row.labels"
                     :key="index"
@@ -447,7 +479,7 @@
             </bk-table-column>
           </bk-table>
           <bk-table
-            v-else-if="targetInfo.target_node_type === 'INSTANCE'"
+            v-else-if="showTargets && targetInfo.target_node_type === 'INSTANCE'"
             :data="targetInfo.table_data"
             :empty-text="$t('无数据')"
           >
@@ -484,19 +516,30 @@
   </bk-sideslider>
 </template>
 <script>
-import { frontendCollectConfigDetail, renameCollectConfig } from 'monitor-api/modules/collecting';
+import {
+  frontendCollectConfigDetail,
+  frontendCollectConfigTargetInfo,
+  renameCollectConfig,
+} from 'monitor-api/modules/collecting';
 import { formatWithTimezone } from 'monitor-common/utils/timezone';
 import { copyText } from 'monitor-common/utils/utils.js';
 
+import EmptyStatus from '../../../components/empty-status/empty-status';
 import HistoryDialog from '../../../components/history-dialog/history-dialog';
 import RightPanel from '../../../components/ip-select/right-panel';
 import { PLUGIN_MANAGE_AUTH } from '../authority-map';
+import DetailLoadError from '../collector-detail/components/detail-load-error';
+import DetailSkeleton from '../collector-detail/components/detail-skeleton';
+import DetailRequest from '../collector-detail/detail-request';
 
 export default {
   name: 'CollectorConfigDetail',
   components: {
     RightPanel,
     HistoryDialog,
+    EmptyStatus,
+    DetailLoadError,
+    DetailSkeleton,
   },
   inject: ['authority', 'handleShowAuthorityDetail'],
   props: {
@@ -511,7 +554,13 @@ export default {
   data() {
     return {
       active: 0,
-      loading: false,
+      renameLoading: false,
+      renameRequestId: 0,
+      configId: null,
+      requests: {
+        detail: new DetailRequest(),
+        targets: new DetailRequest(),
+      },
       basicInfo: null,
       metricList: [],
       runtimeParams: [],
@@ -539,6 +588,14 @@ export default {
     };
   },
   computed: {
+    showTargets() {
+      return (
+        this.requests.targets.loaded &&
+        !this.requests.targets.loading &&
+        !this.requests.targets.error &&
+        this.targetInfo.table_data.length > 0
+      );
+    },
     bizList() {
       return this.$store.getters.bizList;
     },
@@ -553,28 +610,60 @@ export default {
     },
   },
   watch: {
-    sideShow(v) {
-      v ? this.getDetailData() : this.handleHidden();
+    sideShow: {
+      immediate: true,
+      handler(v) {
+        v ? this.loadConfig() : this.cancelRequests();
+      },
+    },
+    'sideData.id'() {
+      if (this.sideShow) this.loadConfig();
     },
   },
-  created() {
-    // this.getDetailData();
-  },
   beforeDestroy() {
-    this.handleHidden();
+    this.cancelRequests();
   },
   methods: {
+    cancelRequests() {
+      Object.values(this.requests).forEach(request => request.cancel());
+      this.renameRequestId += 1;
+      this.renameLoading = false;
+      this.input.show = false;
+    },
+    loadConfig() {
+      if (!this.sideShow || !this.sideData.id) return;
+      if (this.configId !== this.sideData.id) {
+        this.cancelRequests();
+        this.configId = this.sideData.id;
+        this.basicInfo = null;
+        this.metricList = [];
+        this.runtimeParams = [];
+        this.targetInfo = {};
+        this.input = { show: false, copyName: '' };
+        this.name = '';
+        Object.values(this.requests).forEach(request => {
+          request.loaded = false;
+          request.error = false;
+        });
+      }
+      this.getDetailData();
+      this.getTargetInfoData();
+    },
     getBizInfo(id) {
       const item = this.bizList.find(i => i.id === id) || {};
       return item ? `${item.text}(${item.type_name})` : '--';
     },
     getDetailData() {
-      if (!this.sideShow) return;
-      this.loading = true;
-      frontendCollectConfigDetail({ id: this.sideData.id })
-        .then(data => {
-          const sideDataId = { id: this.sideData.id };
-          this.basicInfo = { ...data.basic_info, ...sideDataId };
+      if (!this.sideShow || !this.sideData.id || this.requests.detail.loading || this.renameLoading) return;
+      const id = this.sideData.id;
+      return this.requests.detail.run(
+        signal => frontendCollectConfigDetail({ id, with_target_info: false }, { signal, needMessage: false }),
+        data => {
+          if (!this.sideShow || this.sideData.id !== id) return;
+          this.basicInfo = { ...data.basic_info, id };
+          ['log_path', 'filter_patterns', 'rules', 'charset', 'match', 'process_name', 'port_detect'].forEach(key => {
+            this.$delete(this.basicInfoMap, key);
+          });
           if (data.extend_info.log) {
             this.basicInfo = { ...this.basicInfo, ...data.extend_info.log };
             !this.basicInfo.filter_patterns && (this.basicInfo.filter_patterns = []);
@@ -619,23 +708,24 @@ export default {
           });
           this.metricList = data.metric_list;
           this.runtimeParams = data.runtime_params;
-          this.targetInfo = data.target_info;
           this.input.copyName = data.basic_info.name;
           this.name = data.basic_info.name;
-        })
-        .catch(err => {
-          this.$bkMessage({
-            theme: 'error',
-            message: err.message || this.$t('获取数据出错了'),
-          });
-          this.$emit('set-hide', false);
-        })
-        .finally(() => {
-          this.loading = false;
-        });
+        }
+      );
+    },
+    getTargetInfoData() {
+      if (!this.sideShow || !this.sideData.id || this.requests.targets.loading) return;
+      const id = this.sideData.id;
+      return this.requests.targets.run(
+        signal => frontendCollectConfigTargetInfo({ id }, { signal, needMessage: false }),
+        data => {
+          if (!this.sideShow || this.sideData.id !== id) return;
+          this.targetInfo = data;
+        }
+      );
     },
     handleHidden() {
-      this.name = '';
+      this.cancelRequests();
       this.$emit('set-hide', false);
     },
     handleCollapseChange(v) {
@@ -653,6 +743,7 @@ export default {
       }
     },
     handleTagClickout() {
+      if (this.requests.detail.loading) return;
       const data = this.basicInfo;
       const { copyName } = this.input;
       if (copyName.length && copyName !== data.name) {
@@ -663,32 +754,40 @@ export default {
       }
     },
     handleEditLabel(key) {
+      if (this.requests.detail.loading) return;
       this.input.show = true;
       this.$nextTick().then(() => {
         this.$refs[`input${key}`][0].focus();
       });
     },
     handleUpdateConfigName(data, copyName) {
-      this.loading = true;
-      renameCollectConfig({ id: data.id, name: copyName }, { needMessage: false })
+      if (this.requests.detail.loading) return;
+      const id = data.id;
+      const requestId = ++this.renameRequestId;
+      const isCurrent = () => requestId === this.renameRequestId && this.sideShow && this.sideData.id === id;
+      this.renameLoading = true;
+      return renameCollectConfig({ id, name: copyName }, { needMessage: false })
         .then(() => {
+          this.$emit('update-name', id, copyName);
+          if (!isCurrent()) return;
           this.basicInfo.name = copyName;
           this.name = copyName;
-          this.$emit('update-name', data.id, copyName);
           this.$bkMessage({
             theme: 'success',
             message: this.$t('修改成功'),
           });
         })
         .catch(err => {
+          if (!isCurrent()) return;
           this.$bkMessage({
             theme: 'error',
             message: err.message || this.$t('发生错误了'),
           });
         })
         .finally(() => {
+          if (!isCurrent()) return;
           this.input.show = false;
-          this.loading = false;
+          this.renameLoading = false;
         });
     },
     handleToEditPlugin() {
@@ -709,7 +808,7 @@ export default {
     },
     handleCopyTarget() {
       let copyStr = '';
-      if (['TOPO', 'SET_TEMPLATE', 'SERVICE_TEMPLATE'].includes(this.targetInfo.target_node_type)) {
+      if (['TOPO', 'SET_TEMPLATE', 'SERVICE_TEMPLATE', 'DYNAMIC_GROUP'].includes(this.targetInfo.target_node_type)) {
         this.targetInfo.table_data.forEach(item => {
           copyStr += `${item.bk_inst_name}\n`;
         });

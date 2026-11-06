@@ -109,12 +109,10 @@
 
     .field-name {
       width: calc(100% - 42px);
-      // padding-right: 12px;
       font-size: 12px;
       color: #16171a;
       word-break: break-all;
-      overflow-wrap: break-word; /* 或者 word-wrap: break-word; */
-      // white-space: nowrap;
+      overflow-wrap: break-word;
     }
 
     .field-badge {
@@ -243,17 +241,29 @@
 .agg-field-item-sideslider {
   .bk-sideslider-header {
     .bk-sideslider-title {
+      /* stylelint-disable-next-line declaration-no-important */
       padding-right: 40px !important;
     }
 
     .agg-sides-slider-header {
       display: flex;
+      column-gap: 12px;
       align-items: center;
       justify-content: space-between;
 
       .distinct-num {
         display: flex;
+        flex: 1;
         align-items: center;
+        min-width: 0;
+
+        .field-name,
+        .distinct-count-label {
+          min-width: 0;
+          overflow: hidden;
+          text-overflow: ellipsis;
+          white-space: nowrap;
+        }
 
         .distinct-count-label,
         .distinct-count-num {
@@ -262,7 +272,12 @@
           white-space: nowrap;
         }
 
+        .distinct-count-num {
+          flex-shrink: 0;
+        }
+
         .col-line {
+          flex-shrink: 0;
           width: 1px;
           height: 14px;
           margin-right: 8px;
@@ -272,8 +287,24 @@
       }
 
       .fnBtn {
+        flex-shrink: 0;
+        white-space: nowrap;
+
         .bk-primary.bk-button-text {
+          position: relative;
           padding-right: 0;
+
+          > .bk-button-loading {
+            position: absolute;
+            top: 50%;
+            left: 0;
+            display: flex;
+            transform: translate(-50%, -50%);
+
+            .bk-spin {
+              top: 0;
+            }
+          }
 
           .download-btn {
             display: flex;

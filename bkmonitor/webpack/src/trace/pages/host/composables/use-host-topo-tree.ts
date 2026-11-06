@@ -24,23 +24,40 @@
  * IN THE SOFTWARE.
  */
 
-import { type ShallowRef, computed, onMounted, shallowRef, watch } from 'vue';
+import { type ShallowRef, computed, onMounted, onScopeDispose, shallowRef, watch } from 'vue';
 
 import { useDebounceFn } from '@vueuse/core';
 import { useRoute } from 'vue-router';
 
-import { getHostTopoTreeByBizId } from '../services/host-service';
+import { getHostInfoPage, getHostTopoTreeByBizId } from '../services/host-service';
 import { handleCreateCompares, handleCreateItemId } from '../utils/host-list-core';
-import { resolveHostRequestScope } from '../utils/share-scope';
+import { createHostTarget, resolveHostRequestScope, resolveInitialHostScope } from '../utils/share-scope';
 import { isHostNode } from '../utils/topo-tree';
 import { useHostTopoTreeWorker } from './use-host-topo-tree-worker';
+import { useAppStore } from '@/store/modules/app';
 import { useHostStore } from '@/store/modules/host';
 
-import type { IHostTopoHostNode, IHostTopoTreeNode } from '../types';
+import type { IHostBaseInfo, IHostTopoHostNode, IHostTopoTreeNode } from '../types';
 import type { IHostTopoViewRow } from './use-host-topo-tree-worker';
 
 const TOPO_ROW_HEIGHT = 32;
 const VIEW_OVERSCAN = 10;
+
+/** 分页基础信息已由后端按主机范围解析，可用于主机指标目标。 */
+const toHostNode = (host: IHostBaseInfo): IHostTopoHostNode => ({
+  bk_biz_id: host.bk_biz_id,
+  bk_cloud_id: host.bk_cloud_id,
+  bk_host_id: host.bk_host_id,
+  bk_host_innerip: host.bk_host_innerip,
+  bk_host_innerip_v6: '',
+  bk_host_name: host.bk_host_name,
+  alias_name: host.bk_host_name,
+  display_name: host.display_name,
+  id: String(host.bk_host_id),
+  ip: host.bk_host_innerip,
+  name: host.bk_host_name,
+  os_type: host.bk_os_type,
+});
 
 /**
  * @description 主机拓扑树业务编排：数据加载、搜索、隐藏无主机节点、展开收起、选中与对比来源。
@@ -48,11 +65,12 @@ const VIEW_OVERSCAN = 10;
  */
 export const useHostTopoTree = (nodeId: ShallowRef<string>, readonly = false) => {
   const route = useRoute();
+  const appStore = useAppStore();
   const { metricAggregationState } = useHostStore();
   const topoTreeWorker = useHostTopoTreeWorker();
   const isAllExpand = shallowRef(false);
   /** 加载状态 */
-  const loading = shallowRef(false);
+  const loading = shallowRef(true);
   /** 拓扑加载失败状态 */
   const loadError = shallowRef(false);
   /** 原始树数据（接口/ mock 原样数据） */
@@ -61,7 +79,25 @@ export const useHostTopoTree = (nodeId: ShallowRef<string>, readonly = false) =>
   /** 隐藏无主机节点，默认勾选 */
   const hideEmptyNode = shallowRef(true);
   /** 当前选中的节点或主机 */
-  const selectedNode = shallowRef<IHostTopoTreeNode | null>(null);
+  const initialScope = computed(() =>
+    resolveInitialHostScope(readonly, route.query, nodeId.value, Number(appStore.bizId))
+  );
+  /** 空间入口下待确认的业务根未出现在本次授权拓扑中 */
+  const targetRejected = shallowRef(false);
+  const scopeError = computed(() => initialScope.value === null || targetRejected.value);
+  const selectedNode = shallowRef<IHostTopoTreeNode | null>(
+    createHostTarget(initialScope.value, Number(appStore.bizId))
+  );
+  const hostMetadataError = shallowRef(false);
+  let hostMetadataVersion = 0;
+  const fullTreeReady = shallowRef(false);
+  const fullTreeLoading = shallowRef(false);
+  const fullTreeError = shallowRef(false);
+  const loadedHosts = shallowRef<IHostTopoHostNode[]>([]);
+  const modulePages = new Map<string, { loading: boolean; page: number }>();
+  let fullArrived = false;
+  let fullRequestVersion = 0;
+  let disposed = false;
   /** Worker 返回的当前可视区节点切片 */
   const visibleRows = shallowRef<IHostTopoViewRow[]>([]);
   /** 可视切片在完整扁平列表中的起始下标 */
@@ -84,12 +120,72 @@ export const useHostTopoTree = (nodeId: ShallowRef<string>, readonly = false) =>
   let loadRequestVersion = 0;
   /** 是否已初始化 */
   let initialized = false;
+  /** 拓扑加载因目标无效被阻断，目标变为有效后需重新加载 */
+  let scopeBlocked = false;
+  /** 空间根占位按本次授权拓扑回填后的真实根 */
+  let spaceRoot: IHostTopoTreeNode | null = null;
   let scrollEl: HTMLElement = null;
 
-  const shareScope = computed(() => resolveHostRequestScope(readonly, route.query, null));
+  const shareScope = computed(() => resolveHostRequestScope(readonly, route.query, initialScope.value));
+  const scopeKey = computed(() => JSON.stringify([Number(appStore.bizId), shareScope.value]));
+
+  const spaceRootId = () => `biz|${Number(appStore.bizId)}`;
+
+  /** 当前 nodeId 对应的选中目标；node 为空表示需由授权拓扑确认 */
+  const resolveNodeIdTarget = (): null | { id: string; node: IHostTopoTreeNode | null } => {
+    const scope = resolveInitialHostScope(readonly, route.query, nodeId.value, Number(appStore.bizId));
+    if (!scope) return null;
+    const node = createHostTarget(scope, Number(appStore.bizId));
+    const id = node?.id ?? `${scope.bk_obj_id}|${scope.bk_inst_id}`;
+    if (spaceRoot && id === spaceRootId()) return { id: spaceRoot.id, node: spaceRoot };
+    return { id, node };
+  };
+
+  const currentTargetId = () => selectedNode.value?.id || resolveNodeIdTarget()?.id || '';
+
+  /** 目标不在授权拓扑中：按无效目标处理，作废在途拓扑请求，不发出详情 / 主机请求 */
+  const rejectTarget = () => {
+    loadRequestVersion += 1;
+    fullRequestVersion += 1;
+    scopeBlocked = true;
+    targetRejected.value = true;
+    selectedNode.value = null;
+    fullTreeLoading.value = false;
+    loading.value = false;
+    loadError.value = true;
+  };
+
+  /** URL 主机直达无需等待完整拓扑，但图表仍需要真实 IP / 管控区域。 */
+  const loadHostMetadata = async () => {
+    const version = ++hostMetadataVersion;
+    hostMetadataError.value = false;
+    const target = selectedNode.value;
+    if (!target || !isHostNode(target) || !target.metadataPending) return;
+    const isCurrent = () => !disposed && version === hostMetadataVersion && selectedNode.value === target;
+    try {
+      const result = await getHostInfoPage({
+        bk_biz_id: target.bk_biz_id,
+        bk_host_id: target.bk_host_id,
+        page: 1,
+        page_size: 1,
+      });
+      if (!isCurrent()) return;
+      const host = result.items.find(item => item.bk_host_id === target.bk_host_id);
+      if (!host) throw new Error('Host metadata unavailable');
+      selectedNode.value = toHostNode(host);
+    } catch {
+      if (isCurrent()) hostMetadataError.value = true;
+    }
+  };
+
+  watch(
+    [scopeKey, () => (selectedNode.value && isHostNode(selectedNode.value) ? selectedNode.value.bk_host_id : null)],
+    loadHostMetadata,
+    { immediate: true }
+  );
 
   const updateFilter = useDebounceFn(async () => {
-    if (!initialized) {
+    if (!initialized || !fullTreeReady.value) {
       return;
     }
     resetViewport();
@@ -103,7 +199,7 @@ export const useHostTopoTree = (nodeId: ShallowRef<string>, readonly = false) =>
 
   /** 对比候选只随原始树重建，避免每次选中节点都重新遍历百万级数据。 */
   const compareHostList = computed<IHostTopoHostNode[]>(() => {
-    const hostMap = new Map<string, IHostTopoHostNode>();
+    const hostMap = new Map<string, IHostTopoHostNode>(loadedHosts.value.map(host => [host.id, host]));
     const stack = [...rawTreeData.value];
     while (stack.length) {
       const item = stack.pop();
@@ -149,7 +245,7 @@ export const useHostTopoTree = (nodeId: ShallowRef<string>, readonly = false) =>
     end: number,
     version: number
   ) => {
-    if (version !== viewRequestVersion) {
+    if (disposed || version !== viewRequestVersion) {
       return;
     }
     visibleRows.value = result.rows;
@@ -186,83 +282,196 @@ export const useHostTopoTree = (nodeId: ShallowRef<string>, readonly = false) =>
     viewportResetKey.value += 1;
   };
 
-  /** 加载拓扑树并在 Worker 中建立扁平索引、主机计数和可见节点计数。 */
-  const loadTopoTree = async () => {
-    const version = ++loadRequestVersion;
-    loading.value = true;
+  const applyTree = async (tree: IHostTopoTreeNode[], complete: boolean, version: number) => {
+    if (disposed || version !== loadRequestVersion || (!complete && fullArrived)) return;
+    const preserve = initialized;
+    const anchorScrollTop = viewportScrollTop;
+    const firstVisible = Math.floor(anchorScrollTop / TOPO_ROW_HEIGHT);
+    const anchorId = visibleRows.value[firstVisible - visibleStart.value]?.id || '';
+    const currentId = currentTargetId();
+    // 仅空间根目标（空 nodeId 或 biz|当前空间号）在拓扑中找不到时回填真实根
+    const fallbackToRoot =
+      (!readonly || Number(appStore.bizId) < 0) &&
+      initialScope.value?.bk_obj_id === 'biz' &&
+      initialScope.value.bk_inst_id === Number(appStore.bizId) &&
+      (currentId === spaceRootId() || currentId === spaceRoot?.id);
+    if (!preserve && tree[0]) {
+      tree = [...tree];
+      const rootNode: IHostTopoTreeNode & { isOpen?: boolean } = { ...tree[0], isOpen: true };
+      tree[0] = rootNode;
+    }
+    const result = await topoTreeWorker.init(
+      tree,
+      hideEmptyNode.value,
+      complete ? searchValue.value : '',
+      currentId,
+      complete,
+      preserve,
+      anchorId,
+      fallbackToRoot
+    );
+    if (disposed || version !== loadRequestVersion || (!complete && fullArrived)) return;
+    rawTreeData.value = tree;
+    initialized = true;
+    // 加载期间用户已切换选择时不覆盖
+    if (currentTargetId() === currentId && result.selectedNode) {
+      selectedNode.value = result.selectedNode;
+      if (fallbackToRoot) spaceRoot = result.selectedNode;
+    }
+    totalRows.value = result.total;
+    if (preserve && result.anchorOffset >= 0 && viewportScrollTop === anchorScrollTop) {
+      viewportScrollTop = result.anchorOffset * TOPO_ROW_HEIGHT + (viewportScrollTop % TOPO_ROW_HEIGHT);
+      if (scrollEl) scrollEl.scrollTop = viewportScrollTop;
+    } else if (!preserve && currentId) {
+      await handleSelectNodeOfNodeId();
+    }
+    if (disposed || version !== loadRequestVersion || (!complete && fullArrived)) return;
+    viewportScrollTop = Math.min(viewportScrollTop, Math.max(0, result.total * TOPO_ROW_HEIGHT - viewportHeight));
+    if (scrollEl) scrollEl.scrollTop = viewportScrollTop;
+    await refreshVisibleRange(true);
+    if (disposed || version !== loadRequestVersion || (!complete && fullArrived)) return;
+    loading.value = false;
     loadError.value = false;
+  };
+
+  const loadFullTree = async (version = loadRequestVersion) => {
+    if (scopeError.value || disposed) return;
+    const request = ++fullRequestVersion;
+    fullTreeLoading.value = true;
+    fullTreeError.value = false;
     try {
-      const data = await getHostTopoTreeByBizId(window.cc_biz_id, shareScope.value);
-      if (version !== loadRequestVersion) {
-        return;
-      }
-      rawTreeData.value = data;
-      await handleSelectNodeOfNodeId(version);
+      const tree = await getHostTopoTreeByBizId(appStore.bizId, shareScope.value);
+      if (disposed || version !== loadRequestVersion || request !== fullRequestVersion) return;
+      fullArrived = true;
+      await applyTree(tree, true, version);
+      if (disposed || version !== loadRequestVersion || request !== fullRequestVersion) return;
+      fullTreeReady.value = true;
+      modulePages.clear();
+      loadedHosts.value = [];
     } catch {
-      if (version === loadRequestVersion) {
-        loadError.value = true;
+      if (!disposed && version === loadRequestVersion && request === fullRequestVersion) {
+        fullArrived = false;
+        fullTreeError.value = true;
+        if (!visibleRows.value.length) loadError.value = true;
       }
     } finally {
-      if (version === loadRequestVersion) {
-        loading.value = false;
+      if (!disposed && version === loadRequestVersion && request === fullRequestVersion) {
+        fullTreeLoading.value = false;
+        if (!initialized || loadError.value) loading.value = false;
       }
     }
   };
 
-  /** 根据 nodeId 在已有拓扑树数据中定位并聚焦目标节点（展开路径 + 滚动到位） */
-  const handleSelectNodeOfNodeId = async (loadVersion?: number) => {
-    // 存在有子节点的根节点时，默认对第一个有子节点的根节点展开第一级子列表（Worker 消费 isOpen）
-    if (nodeId.value) {
-      // 存在 nodeId 时，展开从根到目标节点的完整路径，确保目标节点可见
-      const expandToNode = (nodes: IHostTopoTreeNode[], targetId: string): boolean => {
-        let found = false;
-        for (const node of nodes) {
-          if (node.id === targetId) {
-            found = true;
-            break;
-          }
-          if ('children' in node && Array.isArray(node.children) && node.children.length > 0) {
-            if (expandToNode(node.children, targetId)) {
-              (node as IHostTopoTreeNode & { isOpen?: boolean }).isOpen = true;
-              found = true;
-              break;
-            }
-          }
-        }
-        return found;
-      };
-      expandToNode(rawTreeData.value, nodeId.value);
-    } else {
-      for (const root of rawTreeData.value) {
-        if ('children' in root && Array.isArray(root.children) && root.children.length > 0) {
-          (root as IHostTopoTreeNode & { isOpen?: boolean }).isOpen = true;
-          break;
-        }
-      }
-    }
-    const result = await topoTreeWorker.init(rawTreeData.value, hideEmptyNode.value, searchValue.value, nodeId.value);
-    if (loadVersion !== undefined && loadVersion !== loadRequestVersion) {
+  /** Skeleton and complete tree are independent; the latter supplies global search and exact counts. */
+  const loadTopoTree = async () => {
+    const version = ++loadRequestVersion;
+    scopeBlocked = scopeError.value;
+    if (scopeError.value) {
+      loading.value = false;
+      loadError.value = true;
       return;
     }
-    selectedNode.value = result.selectedNode;
-    totalRows.value = result.total;
-    let scrollTop = 0;
-    // 有目标节点偏移量时滚动到目标位置，否则重置到顶部
+    loading.value = !visibleRows.value.length;
+    loadError.value = false;
+    fullArrived = false;
+    fullTreeReady.value = false;
+    modulePages.clear();
+    loadedHosts.value = [];
+    // A host-only share has no host leaf in the skeleton response.
+    const skeleton =
+      shareScope.value?.bk_host_id !== undefined
+        ? null
+        : getHostTopoTreeByBizId(appStore.bizId, shareScope.value, false);
+    void loadFullTree(version);
+    if (!skeleton) return;
+    try {
+      const tree = await skeleton;
+      await applyTree(tree, false, version);
+    } catch {
+      if (!disposed && version === loadRequestVersion && !fullArrived && !initialized) loadError.value = true;
+    } finally {
+      if (!disposed && version === loadRequestVersion && (initialized || !fullTreeLoading.value)) loading.value = false;
+    }
+  };
+
+  const handleSelectNodeOfNodeId = async () => {
+    const version = loadRequestVersion;
+    const requestNodeId = nodeId.value;
+    const target = resolveNodeIdTarget();
+    if (!target) return;
+    if (selectedNode.value?.id !== target.id) selectedNode.value = target.node;
+    if (!initialized) return;
+    const result = await topoTreeWorker.select(target.id);
+    if (disposed || version !== loadRequestVersion || nodeId.value !== requestNodeId) return;
+    if ((selectedNode.value?.id ?? target.id) !== target.id) return;
+    if (!result.selectedNode && !target.node) {
+      rejectTarget();
+      return;
+    }
+    if (result.selectedNode) selectedNode.value = result.selectedNode;
     if (result.selectedNodeOffset >= 0) {
       viewportScrollTop = result.selectedNodeOffset * TOPO_ROW_HEIGHT;
-      scrollTop = viewportScrollTop;
-      viewportResetKey.value += 1;
-    } else {
-      resetViewport();
+      if (scrollEl) scrollEl.scrollTop = viewportScrollTop;
     }
-    initialized = true;
     await refreshVisibleRange(true);
-    if (scrollEl) {
-      scrollEl.scrollTop = scrollTop;
+  };
+
+  const updateModule = async (
+    id: string,
+    children: IHostTopoHostNode[],
+    page: { done?: boolean; status: 'error' | 'idle' | 'loading' | 'more'; total?: number }
+  ) => {
+    const version = loadRequestVersion;
+    const scrollTop = viewportScrollTop;
+    const anchor = visibleRows.value[Math.floor(scrollTop / TOPO_ROW_HEIGHT) - visibleStart.value]?.id || '';
+    const result = await topoTreeWorker.upsertChildren(id, children, page, anchor);
+    if (disposed || version !== loadRequestVersion || fullArrived) return;
+    if (scrollTop === viewportScrollTop && result.anchorOffset >= 0) {
+      viewportScrollTop = result.anchorOffset * TOPO_ROW_HEIGHT + (scrollTop % TOPO_ROW_HEIGHT);
+      if (scrollEl) scrollEl.scrollTop = viewportScrollTop;
+    }
+  };
+
+  const loadModulePage = async (id: string) => {
+    if (disposed || fullArrived || fullTreeReady.value || !initialized) return;
+    const match = /^module\|(\d+)$/.exec(id);
+    if (!match) return;
+    const state = modulePages.get(id) || { page: 0, loading: false };
+    if (state.loading) return;
+    state.loading = true;
+    modulePages.set(id, state);
+    const version = loadRequestVersion;
+    const isCurrent = () => !disposed && version === loadRequestVersion && !fullArrived;
+    try {
+      await updateModule(id, [], { status: 'loading' });
+      await refreshVisibleRange(true);
+      if (!isCurrent()) return;
+      const result = await getHostInfoPage({
+        bk_biz_id: appStore.bizId,
+        bk_obj_id: 'module',
+        bk_inst_id: Number(match[1]),
+        page: state.page + 1,
+        page_size: 100,
+      });
+      if (!isCurrent()) return;
+      const children = result.items.map(toHostNode);
+      state.page = result.page;
+      loadedHosts.value = [...new Map([...loadedHosts.value, ...children].map(host => [host.id, host])).values()];
+      await updateModule(id, children, {
+        status: 'more',
+        total: result.total,
+        done: result.page * result.page_size >= result.total,
+      });
+    } catch {
+      if (isCurrent()) await updateModule(id, [], { status: 'error' });
+    } finally {
+      state.loading = false;
+      if (isCurrent()) await refreshVisibleRange(true);
     }
   };
 
   const handleRefresh = () => {
+    if (targetRejected.value) return reloadTopoTree();
     loadTopoTree();
   };
 
@@ -273,13 +482,16 @@ export const useHostTopoTree = (nodeId: ShallowRef<string>, readonly = false) =>
 
   /** 点击内容时只负责展开关闭节点；收起仍只能点击箭头。 */
   const handleExpandNode = async (row: IHostTopoViewRow, expanded = true) => {
-    if (!row.hasChildren || row.isExpanded === expanded) {
+    if (!row.hasChildren) {
       return;
     }
     const { start, end } = getRange();
     const version = ++viewRequestVersion;
     const result = await topoTreeWorker.toggle(row.id, expanded, start, end);
     applyViewResult(result, start, end, version);
+    if (expanded && 'bk_obj_id' in row && row.bk_obj_id === 'module' && !modulePages.has(row.id)) {
+      void loadModulePage(row.id);
+    }
   };
 
   /** 主机对比 */
@@ -308,11 +520,61 @@ export const useHostTopoTree = (nodeId: ShallowRef<string>, readonly = false) =>
     applyViewResult(result, start, end, version);
   };
 
+  const reloadTopoTree = () => {
+    viewRequestVersion += 1;
+    initialized = false;
+    visibleRows.value = [];
+    totalRows.value = 0;
+    rawTreeData.value = [];
+    fullTreeLoading.value = false;
+    fullTreeError.value = false;
+    targetRejected.value = false;
+    spaceRoot = null;
+    selectedNode.value = createHostTarget(initialScope.value, Number(appStore.bizId));
+    resetViewport();
+    void loadTopoTree();
+  };
+
+  watch(
+    scopeKey,
+    (_, previous) => {
+      const previousBiz = JSON.parse(previous)[0];
+      if (!readonly && String(previousBiz) !== String(appStore.bizId)) nodeId.value = '';
+      reloadTopoTree();
+    },
+    { flush: 'sync' }
+  );
+
+  watch(nodeId, () => {
+    targetRejected.value = false;
+    if (scopeBlocked && !scopeError.value) {
+      reloadTopoTree();
+      return;
+    }
+    if (resolveNodeIdTarget()?.id !== selectedNode.value?.id) void handleSelectNodeOfNodeId();
+  });
+
   onMounted(() => {
     loadTopoTree();
   });
 
+  onScopeDispose(() => {
+    disposed = true;
+    loadRequestVersion += 1;
+    fullRequestVersion += 1;
+    hostMetadataVersion += 1;
+  });
+
   return {
+    hostMetadataError,
+    loadHostMetadata,
+    scopeError,
+    scopeKey,
+    fullTreeReady,
+    fullTreeLoading,
+    fullTreeError,
+    loadFullTree: () => loadFullTree(),
+    loadModulePage,
     isAllExpand,
     loading,
     loadError,

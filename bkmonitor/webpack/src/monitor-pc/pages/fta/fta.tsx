@@ -37,7 +37,7 @@ export default class FTA extends tsc<object> {
   @Prop() a: number;
   loading = true;
   get ftaHost() {
-    return process.env.NODE_ENV === 'development' ? `http://${process.env.devHost}:7002` : location.origin;
+    return process.env.NODE_ENV === 'development' ? `http://${process.env.devHost}:7004` : location.origin;
   }
   get ftaUrl() {
     // return `${this.ftaHost}/fta/`;

@@ -112,6 +112,8 @@ export default defineComponent({
      */
     function handleCheck(item: IValue) {
       activeIndex.value = -1;
+      // 候选值已转为 Tag，清除输入草稿；重复选择已有值时也不保留残留文本。
+      inputValue.value = '';
       if (localValue.value.some(v => v.id === item.id)) return;
       localValue.value.push(item);
       triggerShallowRef(localValue);

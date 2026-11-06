@@ -309,7 +309,10 @@ function removeWhereValue(list: IWhereItem[], whereItem: IWhereItem, value: numb
 }
 
 export const traceWhereFormatter = (where: IWhereItem[]) => {
-  return where.map(item => ({
+  if (!Array.isArray(where)) {
+    return [];
+  }
+  return where.filter(Boolean).map(item => ({
     key: item.key,
     method: item?.operator || item?.method || '',
     value: item.value,

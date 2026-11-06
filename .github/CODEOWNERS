@@ -1,0 +1,3 @@
+# bkmonitor/webpack 的变更，以及本文件自身的变更，必须由 @liangling0628 评审。
+/.github/CODEOWNERS @liangling0628
+/bkmonitor/webpack/ @liangling0628

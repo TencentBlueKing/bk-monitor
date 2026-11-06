@@ -36,6 +36,7 @@ import EditableFormItem from '../../../../components/editable-form-item/editable
 import PanelItem from '../../../../components/panel-item/panel-item';
 import * as authorityMap from '../../../home/authority-map';
 import StorageInfoSkeleton from '../skeleton/storage-info-skeleton';
+import { confirmSwitchStorageCluster } from './confirm-switch-storage-cluster';
 
 import type {
   ClusterOption,
@@ -195,7 +196,7 @@ export default class Trace extends tsc<IProps, IEvent> {
    */
   async handleUpdateValue(value, field: string) {
     if (field === 'es_storage_cluster') {
-      const isCanSubmit = await this.handleCheckCluster();
+      const isCanSubmit = await this.handleCheckCluster(value);
       if (!isCanSubmit) return false;
       /** 切换集群时 进行对切换的集群与当前参数对比 如果大于最大值则提示修改参数 */
       const checkSubmitValue = this.checkClusterValue(value);
@@ -267,17 +268,17 @@ export default class Trace extends tsc<IProps, IEvent> {
   }
 
   /**
-   * @desc: 修改集群历史二次确认弹窗
+   * @desc: 存储集群切换二次确认弹窗
+   * @param { Number } targetClusterId 目标集群 ID
    * @returns { Boolean } 是否确认
    */
-  handleCheckCluster() {
-    return new Promise(resolve => {
-      this.$bkInfo({
-        title: `${this.$t('修改集群历史数据会全部丢失，确认要更换么')}？`,
-        width: 600,
-        confirmFn: () => resolve(true),
-        cancelFn: () => resolve(false),
-      });
+  handleCheckCluster(targetClusterId: number) {
+    const current = this.currentCluster;
+    const target = this.clusterList.find(item => item.storage_cluster_id === targetClusterId);
+    return confirmSwitchStorageCluster(this, {
+      currentName: current?.storage_display_name || current?.storage_cluster_name || '--',
+      targetName: target?.storage_display_name || target?.storage_cluster_name || '--',
+      retentionDays: target?.setup_config?.retention_days_max ?? '--',
     });
   }
   render() {
@@ -320,15 +321,20 @@ export default class Trace extends tsc<IProps, IEvent> {
                   showEditable={false}
                   value={this.appInfo.es_storage_index_name}
                 />
-                <EditableFormItem
-                  authority={this.authority.MANAGE_AUTH}
-                  authorityName={authorityMap.MANAGE_AUTH}
-                  formType='select'
-                  label={this.$t('存储集群')}
-                  selectList={this.clusterOptions}
-                  updateValue={val => this.handleUpdateValue(val, 'es_storage_cluster')}
-                  value={this.storageInfo?.es_storage_cluster}
-                />
+                <div class='cluster-wrap'>
+                  <EditableFormItem
+                    authority={this.authority.MANAGE_AUTH}
+                    authorityName={authorityMap.MANAGE_AUTH}
+                    formType='select'
+                    label={this.$t('存储集群')}
+                    selectList={this.clusterOptions}
+                    updateValue={val => this.handleUpdateValue(val, 'es_storage_cluster')}
+                    value={this.storageInfo?.es_storage_cluster}
+                  />
+                  <div class='cluster-switch-tip'>
+                    {this.$t('支持无损切换存储集群，历史数据按保留策略到期清理。')}
+                  </div>
+                </div>
               </div>
               <div class='item-row'>
                 <EditableFormItem

@@ -95,6 +95,12 @@ export default function transformTraceTree(data: TraceData & { spans: SpanData[]
   let traceStartTime = Number.MAX_SAFE_INTEGER;
   const spanIdCounts = new Map();
   const spanMap = new Map<string, Span>();
+  const groups = new Map<string, Span['group_info']>();
+  for (const span of data.spans) {
+    if (span.group_info?.members?.length) {
+      groups.set(span.group_info.id, span.group_info);
+    }
+  }
   // filter out spans with empty start times
 
   data.spans = data.spans.filter(span => Boolean(span.startTime));
@@ -102,6 +108,9 @@ export default function transformTraceTree(data: TraceData & { spans: SpanData[]
   const max = data.spans.length;
   for (let i = 0; i < max; i++) {
     const span: Span = data.spans[i] as Span;
+    if (span.group_info) {
+      span.group_info = groups.get(span.group_info.id) || span.group_info;
+    }
     const { startTime, duration, processID } = span;
     //
     let { spanID } = span;

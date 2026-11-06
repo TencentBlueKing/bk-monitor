@@ -32,8 +32,8 @@ import { useI18n } from 'vue-i18n';
 import { useRoute, useRouter } from 'vue-router';
 import { Tippy } from 'vue-tippy';
 
-import { EMethod, EMode } from '../../../../../components/retrieval-filter/typing';
-import { safeParseJsonValueForWhere } from '../../../utils';
+import { type IWhereItem, EMethod, EMode } from '../../../../../components/retrieval-filter/typing';
+import { safeParseJsonValueForWhere, tryURLDecode, tryURLDecodeParse } from '../../../utils';
 
 import type { ExploreConditionMenuItem } from '../typing';
 import type { SlotReturnValue } from 'tdesign-vue-next';
@@ -163,8 +163,9 @@ export default defineComponent({
       const actualMethod = method || EMethod.eq;
 
       if (method) {
-        where.push(...JSON.parse((routeWhere as string) || '[]'));
-        queryString = (routerQueryString || '') as string;
+        // trace 页写入的 where 是裸 JSON，rum 页额外 encodeURIComponent 过，这里兼容两种
+        where.push(...tryURLDecodeParse<IWhereItem[]>((routeWhere as string) || '[]', []));
+        queryString = tryURLDecode(routerQueryString as string);
       }
       if (rest.filterMode === EMode.queryString) {
         let endStr = `${props.conditionKey} : "${value || ''}"`;

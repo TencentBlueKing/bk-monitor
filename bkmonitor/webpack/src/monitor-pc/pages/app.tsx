@@ -166,14 +166,14 @@ export default class App extends tsc<object> {
     if (this.$route.path.includes('exception/403')) this.headerNav = this.$route.query.parentRoute as string;
     if (!this.navActive) {
       list = this.routeList.find(item => item.id === this.headerNav)?.children || [];
-      // ai 设置 enable_aiops为true 则ai设置不展示 false 则ai设置页面展示
-      list = list.filter(item => !(item.id === 'ai' && !window.enable_aiops));
+      // 异常检测或 Issue AI 分析任一能力开放时展示 AI 设置
+      list = list.filter(item => !(item.id === 'ai' && !window.enable_aiops && !window.enable_issue_ai_analysis));
       return list;
     }
     list = this.routeList.find(item => item.id === this.navActive)?.children || [];
     list = list.filter(item => {
-      // ai 设置 enable_aiops为true 则ai设置不展示, false 则ai设置页面展示
-      if (item.id === 'ai') return !window.enable_aiops;
+      // 异常检测或 Issue AI 分析任一能力开放时展示 AI 设置
+      if (item.id === 'ai') return !!window.enable_aiops || !!window.enable_issue_ai_analysis;
       if (item.id === 'rum-explore') {
         return window.rum_biz_list?.includes(+this.bizId);
       }
@@ -615,7 +615,9 @@ export default class App extends tsc<object> {
           }
           const navList = this.routeList.find(item => item.id === this.headerNav).children;
           if (navList?.length) {
-            const storeRoute = storeVal[this.headerNav];
+            const storedMenu = storeVal[this.headerNav];
+            const storeRoute =
+              storedMenu?.name === 'performance' || storedMenu?.path === '/performance' ? { name: 'host' } : storedMenu;
             const hasRoute = navList.find(
               item => item.id === storeRoute?.name || item?.children?.some(set => set.id === storeRoute?.name)
             );

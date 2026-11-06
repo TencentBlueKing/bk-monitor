@@ -798,3 +798,16 @@
     }
   }
 }
+
+.bk-message.clean-template-sync-message {
+  .message-tree {
+    .json-formatter-key {
+      white-space: nowrap;
+    }
+
+    .json-formatter-string {
+      word-break: break-all;
+      white-space: pre-wrap;
+    }
+  }
+}

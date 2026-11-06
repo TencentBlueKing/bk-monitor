@@ -15,6 +15,7 @@ export const plainStrategyList = request('GET', 'rest/v2/strategies/plain_strate
 export const getIndexSetList = request('GET', 'rest/v2/strategies/get_index_set_list/');
 export const getMetricListV2 = request('POST', 'rest/v2/strategies/v2/get_metric_list/');
 export const getStrategyListV2 = request('POST', 'rest/v2/strategies/v2/get_strategy_list/');
+export const getStrategyAlertSummaryV2 = request('POST', 'rest/v2/strategies/v2/get_strategy_alert_summary/');
 export const getStrategyV2 = request('GET', 'rest/v2/strategies/v2/get_strategy/');
 export const deleteStrategyV2 = request('POST', 'rest/v2/strategies/v2/delete_strategy/');
 export const verifyStrategyName = request('POST', 'rest/v2/strategies/v2/verify_strategy_name/');
@@ -53,6 +54,7 @@ export default {
   getIndexSetList,
   getMetricListV2,
   getStrategyListV2,
+  getStrategyAlertSummaryV2,
   getStrategyV2,
   deleteStrategyV2,
   verifyStrategyName,

@@ -81,6 +81,10 @@ declare global {
     __AuthMap__: Map<string, Map<string, boolean>>;
     __BK_WEWEB_DATA__: Record<string, any>;
     __POWERED_BY_BK_WEWEB__?: boolean;
+    /*
+     * 灰度开启 Profiling 检索主动采集Tab
+     */
+    active_profiling_biz_list?: number[];
     agent_setup_url: string;
     // ai小鲸鱼 api base url
     ai_xiao_jing_base_url?: string;
@@ -129,6 +133,7 @@ declare global {
     enable_apm: boolean;
     enable_cmdb_level: string;
     enable_create_chat_group: boolean;
+    enable_issue_ai_analysis: boolean;
     enable_message_queue: boolean;
     // 多租户用户中心是否开启
     enable_multi_tenant_mode?: boolean;

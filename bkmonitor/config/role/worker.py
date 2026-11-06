@@ -14,6 +14,7 @@ import sys
 
 from jinja2 import DebugUndefined
 
+from config import kms
 from config.tools.consul import get_consul_settings
 from config.tools.rabbitmq import get_rabbitmq_management_host, get_rabbitmq_settings
 from config.tools.redis import get_cache_redis_settings, get_redis_settings
@@ -176,6 +177,10 @@ DEFAULT_CRONTAB = [
     ("rum_web.tasks.check_rum_pre_calculate_fields_update", "0 */1 * * *", "global"),
     # apm 检查consul配置是否有更新 1小时执行检测一次
     ("apm.task.tasks.check_apm_consul_config", "0 */1 * * *", "global"),
+    # apm 主动 Profiling 事件分组 DataID 的 consul 配置对账 1小时执行一次
+    ("apm.task.tasks.check_active_profiling_consul_config", "0 */1 * * *", "global"),
+    # apm 主动 Profiling 过期计划停用先不调度，测试环境手动验证后再打开（每天凌晨2点半执行）
+    # ("apm.task.tasks.stop_expired_active_profiling_tasks", "30 2 * * *", "global"),
     # apm Trace 数据源域索引集兜底同步 每 3 小时触发
     ("apm.task.tasks.sync_trace_scope_index_sets", "0 */3 * * *", "global"),
     # apm_ebpf 定时检查业务集群是否安装DeepFlow 每15分钟触发
@@ -267,6 +272,7 @@ DEFAULT_CRONTAB += [
     ("metadata.task.config_refresh.refresh_kafka_storage", "*/10 * * * *", "global"),
     ("metadata.task.config_refresh.refresh_consul_es_info", "*/10 * * * *", "global"),
     ("metadata.task.config_refresh.refresh_consul_storage", "*/10 * * * *", "global"),
+    ("metadata.task.config_refresh.refresh_redis_storage", "*/10 * * * *", "global"),
     # 检查V4数据源是否存在对应的Consul配置，若存在则删除
     ("metadata.task.config_refresh.check_and_delete_ds_consul_config", "0 1 * * *", "global"),
     ("metadata.task.config_refresh.refresh_bcs_info", "*/10 * * * *", "global"),
@@ -338,7 +344,6 @@ EXCLUDE_WORKER_TASKS = []
 AES_X_KEY_FIELD = "SAAS_SECRET_KEY"
 
 # gse alarm dataid
-GSE_BASE_ALARM_DATAID = 1000
 GSE_CUSTOM_EVENT_DATAID = 1100000
 
 BKMONITOR_WORKER_INET_DEV = ""
@@ -520,7 +525,9 @@ CACHES = {
 # BkBase Redis
 BKBASE_REDIS_HOST = os.environ.get("BKBASE_REDIS_HOST")
 BKBASE_REDIS_PORT = os.environ.get("BKBASE_REDIS_PORT")
-BKBASE_REDIS_PASSWORD = os.environ.get("BKBASE_REDIS_PASSWORD")
+BKBASE_REDIS_PASSWORD = (
+    kms.value("redis", "bkbase", "password") if kms.enabled() else os.environ.get("BKBASE_REDIS_PASSWORD")
+)
 
 # django cache backend using redis
 DJANGO_REDIS_PASSWORD = os.environ.get("DJANGO_REDIS_PASSWORD")

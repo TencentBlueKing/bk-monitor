@@ -117,12 +117,12 @@ import {
   updateIssuesPriority,
 } from './alarm-issues/services/issues-operations';
 import { saveAlertContentName } from './services/alert-services';
+import { type AlarmCenterPanelTabType, ALARM_CENTER_PANEL_TAB_MAP } from './utils/constant';
 import EmptyStatus from '@/components/empty-status/empty-status';
 
 import type { IssueItem, IssuePriorityType, IssuesBatchActionType, TrendRangeType } from './alarm-issues/typing';
 import type { AlertSavePromiseEvent } from './components/alarm-table/components/alert-content-detail/alert-content-detail';
 import type { IssuesService } from './services/issues-services';
-import type { AlarmCenterPanelTabType } from './utils/constant';
 
 import './alarm-center.scss';
 
@@ -160,7 +160,11 @@ export default defineComponent({
       handleQuickFilteringOperation,
     } = useQuickFilter();
 
-    const { data, loading, total, page, pageSize, ordering, enabledSpaces, wxCsLink } = useAlarmTable();
+    const { data, loading, hasLoaded, total, page, pageSize, ordering, enabledSpaces, wxCsLink } = useAlarmTable();
+    const contentKey = computed(() => JSON.stringify([alarmStore.alarmType, alarmStore.bizIds]));
+    watch(loading, value => {
+      if (value) selectedRowKeys.value = [];
+    });
 
     const {
       trendRange,
@@ -216,7 +220,7 @@ export default defineComponent({
       () =>
         alarmStore.alarmType === AlarmType.INCIDENT &&
         !!alarmStore.bizIds?.length &&
-        !loading.value &&
+        hasLoaded.value &&
         ((isVirtualBiz.value &&
           intersection(
             authorizedBizList.value.map(({ bk_biz_id }) => bk_biz_id),
@@ -230,7 +234,7 @@ export default defineComponent({
       () =>
         alarmStore.alarmType === AlarmType.INCIDENT &&
         !!alarmStore.bizIds?.length &&
-        !loading.value &&
+        hasLoaded.value &&
         !isVirtualBiz.value &&
         connectedBizIds.value.length === 0 &&
         unconnectedBizIds.value.length > 0 &&
@@ -440,9 +444,26 @@ export default defineComponent({
     const detailBizId = shallowRef<number>(undefined);
     const alarmDetailShow = shallowRef(false);
 
-    const defaultActiveRowKeys = computed(() => {
-      return detailId.value ? [detailId.value] : [];
-    });
+    /** 表格高亮行 keys（受控）：由 setActiveDetail（详情驱动）与 handleActiveRowChange（行点击 toggle）两个入口写回 */
+    const activeRowKeys = shallowRef<(number | string)[]>([]);
+    /**
+     * @description 表格高亮行变化回调（行点击 / 键盘 toggle 高亮时由表格回传）
+     * @param {(number | string)[]} rowKeys 高亮行 keys
+     */
+    const handleActiveRowChange = (rowKeys: (number | string)[]) => {
+      activeRowKeys.value = rowKeys;
+    };
+    /**
+     * @description 详情当前记录的唯一赋值入口：detailId / detailBizId 成对更新并同步表格高亮行，
+     *              新增 detailId 赋值必须走这里，避免高亮与详情状态脱节
+     * @param {string} id 记录 id，空串表示无选中详情
+     * @param {number} bizId 记录所属业务 id
+     */
+    const setActiveDetail = (id: string, bizId?: number) => {
+      detailId.value = id;
+      detailBizId.value = bizId;
+      handleActiveRowChange(id ? [id] : []);
+    };
     /* 是否是所选中告警记录行的关注人 */
     const isSelectedFollower = shallowRef(false);
 
@@ -519,7 +540,6 @@ export default defineComponent({
     /** 告警类型切换 */
     const handleAlarmTypeChange = (value: AlarmType) => {
       alarmStore.handleAlarmTypeChange(value);
-      isFirstInit.value = true;
       ordering.value = ''; // 清理排序
     };
 
@@ -733,16 +753,14 @@ export default defineComponent({
         }
         isShowFavorite.value = JSON.parse(localStorage.getItem(ALARM_CENTER_SHOW_FAVORITE) || 'false');
         alarmDetailShow.value = JSON.parse((showDetail as string) || 'false');
-        detailId.value = (queryDetailId as string) || '';
-        detailBizId.value = queryDetailBizId ? Number(queryDetailBizId) : null;
+        setActiveDetail((queryDetailId as string) || '', queryDetailBizId ? Number(queryDetailBizId) : null);
         if (issuesTrendRange) {
           trendRange.value = String(issuesTrendRange) as TrendRangeType;
         }
         if (JSON.parse((queryTapdAuth as string) || 'false')) {
           // 打开 issues 详情
           alarmDetailShow.value = true;
-          detailId.value = (queryTapdIssueId as string) || '';
-          detailBizId.value = queryTapdBizId ? Number(queryTapdBizId) : null;
+          setActiveDetail((queryTapdIssueId as string) || '', queryTapdBizId ? Number(queryTapdBizId) : null);
           // 打开 TAPD 弹窗
           issuesTapdShow.value = true;
           tapdBizId.value = Number(queryTapdBizId) || null;
@@ -761,8 +779,7 @@ export default defineComponent({
      */
     function handleShowAlertDetail(row: AlertTableItem, defaultTab?: AlarmCenterPanelTabType) {
       alarmDetailDefaultTab.value = defaultTab || '';
-      detailId.value = row.id;
-      detailBizId.value = row.bk_biz_id;
+      setActiveDetail(row.id, row.bk_biz_id);
       handleDetailShowChange(true);
     }
 
@@ -771,8 +788,7 @@ export default defineComponent({
      * @param {ActionTableItem} row - 处理记录行数据
      */
     function handleShowActionDetail(row: ActionTableItem) {
-      detailId.value = row.id;
-      detailBizId.value = row.bk_biz_id as number;
+      setActiveDetail(row.id, row.bk_biz_id as number);
       handleDetailShowChange(true);
     }
 
@@ -783,16 +799,14 @@ export default defineComponent({
      */
     const handleIssuesShowDetail = (item: IssueItem, defaultTab?: AlarmCenterPanelTabType) => {
       alarmDetailDefaultTab.value = defaultTab || '';
-      detailId.value = item.id;
-      detailBizId.value = item.bk_biz_id;
+      setActiveDetail(item.id, item.bk_biz_id);
       handleDetailShowChange(true);
     };
 
     function handleDetailShowChange(show: boolean) {
       alarmDetailShow.value = show;
       if (show) return;
-      detailId.value = '';
-      detailBizId.value = undefined;
+      setActiveDetail('', undefined);
       alarmDetailDefaultTab.value = '';
     }
 
@@ -835,8 +849,7 @@ export default defineComponent({
       let index = data.value.findIndex(item => item.id === detailId.value);
       index = index === -1 ? 0 : index;
       const target = (data.value as AlertTableItem[])[index === 0 ? data.value.length - 1 : index - 1];
-      detailId.value = target.id;
-      detailBizId.value = target.bk_biz_id;
+      setActiveDetail(target.id, target.bk_biz_id);
     };
 
     /** 下一个详情 */
@@ -844,8 +857,7 @@ export default defineComponent({
       let index = data.value.findIndex(item => item.id === detailId.value);
       index = index === -1 ? 0 : index;
       const target = (data.value as AlertTableItem[])[index === data.value.length - 1 ? 0 : index + 1];
-      detailId.value = target.id;
-      detailBizId.value = target.bk_biz_id;
+      setActiveDetail(target.id, target.bk_biz_id);
     };
 
     /** issues 上一个详情*/
@@ -853,8 +865,7 @@ export default defineComponent({
       let index = data.value.findIndex(item => item.id === detailId.value);
       index = index === -1 ? 0 : index;
       const target = (data.value as IssueItem[])[index === 0 ? data.value.length - 1 : index - 1];
-      detailBizId.value = target.bk_biz_id;
-      detailId.value = target.id;
+      setActiveDetail(target.id, target.bk_biz_id);
     };
 
     /** issues 下一个详情 */
@@ -862,8 +873,7 @@ export default defineComponent({
       let index = data.value.findIndex(item => item.id === detailId.value);
       index = index === -1 ? 0 : index;
       const target = (data.value as IssueItem[])[index === data.value.length - 1 ? 0 : index + 1];
-      detailBizId.value = target.bk_biz_id;
-      detailId.value = target.id;
+      setActiveDetail(target.id, target.bk_biz_id);
     };
 
     /** issues Tapd展示 */
@@ -1141,6 +1151,7 @@ export default defineComponent({
       pagination,
       data,
       loading,
+      contentKey,
       total,
       page,
       pageSize,
@@ -1159,7 +1170,8 @@ export default defineComponent({
       wxCsLink,
       tableSourceColumns,
       selectedRowKeys,
-      defaultActiveRowKeys,
+      activeRowKeys,
+      handleActiveRowChange,
       isSelectedFollower,
       storageColumns,
       allTableFields,
@@ -1417,12 +1429,19 @@ export default defineComponent({
                       <div class={CONTENT_SCROLL_ELEMENT_CLASS_NAME}>
                         {this.alarmStore.alarmType !== AlarmType.ISSUES && (
                           <div class='chart-trend'>
-                            <AlarmTrendChart total={this.total} />
+                            <AlarmTrendChart
+                              key={this.contentKey}
+                              tableLoading={this.loading}
+                              total={this.total}
+                            />
                           </div>
                         )}
                         {![AlarmType.INCIDENT, AlarmType.ISSUES].includes(this.alarmStore.alarmType) && (
                           <div class='alarm-analysis'>
-                            <AlarmAnalysis onConditionChange={this.handleAddCondition} />
+                            <AlarmAnalysis
+                              key={this.contentKey}
+                              onConditionChange={this.handleAddCondition}
+                            />
                           </div>
                         )}
                         <div class='alarm-center-table'>
@@ -1502,9 +1521,9 @@ export default defineComponent({
                                 fields: this.allTableFields,
                                 disabled: this.lockedTableFields,
                               }}
+                              activeRowKeys={this.activeRowKeys}
                               columns={this.tableSourceColumns}
                               data={this.data}
-                              defaultActiveRowKeys={this.defaultActiveRowKeys}
                               headerAffixedTop={tableAffixed}
                               horizontalScrollAffixedBottom={tableAffixed}
                               isSelectedFollower={this.isSelectedFollower}
@@ -1514,6 +1533,7 @@ export default defineComponent({
                               selectedRowKeys={this.selectedRowKeys}
                               sort={this.ordering}
                               timeRange={this.alarmStore.timeRange}
+                              onActiveChange={this.handleActiveRowChange}
                               onColumnResizeChange={(ctx: ColumnResizeContext) => {
                                 if (ctx?.columnsWidth)
                                   this.fieldsWidthConfig = { ...this.fieldsWidthConfig, ...ctx.columnsWidth };
@@ -1565,6 +1585,14 @@ export default defineComponent({
                 type={this.mergeSplitType}
                 onMergeSuccess={() => {
                   this.alarmStore.refreshImmediate += 1;
+                }}
+                onShowDetail={(issueId: string) => {
+                  const bizId = this.mergeSplitIssues[0]?.bk_biz_id;
+                  if (bizId == null) return;
+                  this.handleIssuesShowDetail(
+                    { bk_biz_id: bizId, id: issueId } as IssueItem,
+                    ALARM_CENTER_PANEL_TAB_MAP.LOG
+                  );
                 }}
                 onSplitSuccess={(memberIssueIds: string[]) => {
                   this.alarmStore.refreshImmediate += 1;

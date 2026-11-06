@@ -98,7 +98,6 @@ local.cookie
 test
 output
 .session_tmps
-.aafe/
 .aafe*.*.json
 
 # AAFE-BEGIN
@@ -110,3 +109,8 @@ output
 tests/
 openspec/
 # AAFE-END
+# AAFE: local AI Coding state; do not commit.
+packages/e2e-skills
+
+# OpenSpec drafts stay local.
+openspec/
