@@ -66,7 +66,7 @@ class TestBkFaraApi(SimpleTestCase):
                 with patch("apps.api.modules.bkfara.BKFARA_APIGATEWAY_ROOT", domain):
                     api = _BkFaraApi()
                 self.assertEqual(api.create_task.url, domain + "ct/v1/clustering/tasks")
-                self.assertEqual(api.stop_clustering.url, domain + "internal/ct/v1/clustering/tasks/{task_id}/stop")
+                self.assertEqual(api.stop_clustering.url, domain + "ct/v1/tasks/{task_id}/clustering/stop")
 
     def test_explicit_url_override_accepts_trailing_slash(self):
         for url in ("https://custom.example/prefix", "https://custom.example/prefix/"):
@@ -93,6 +93,8 @@ class TestBkFaraApi(SimpleTestCase):
                     json.loads(kwargs["data"]), build_create_task_payload(42, QUIX_CONFIG, MODEL_PARAMETERS)
                 )
                 self.assertEqual(kwargs["params"], {})
+                self.assertIs(kwargs["verify"], True)
+                self.assertNotIn("X-Bk-Tenant-Id", self.api.create_task.headers)
                 self.assertNotIn("Authorization", self.api.create_task.headers)
                 auth = json.loads(self.api.create_task.headers["X-Bkapi-Authorization"])
                 self.assertEqual(auth["bk_app_code"], "test-app")
@@ -108,6 +110,8 @@ class TestBkFaraApi(SimpleTestCase):
         }
         self.request.return_value = response(body=snapshot)
         self.assertEqual(self.api.get_task_parameters({"task_id": TASK_ID}), snapshot)
+        self.assertIs(self.request.call_args.kwargs["verify"], True)
+        self.assertNotIn("X-Bk-Tenant-Id", self.api.get_task_parameters.headers)
         self.assertEqual(self.request.call_args.kwargs["params"], {})
         self.assertEqual(
             self.request.call_args.kwargs["url"], f"https://bkfara.example/ct/v1/tasks/{TASK_ID}/parameters"
@@ -137,7 +141,10 @@ class TestBkFaraApi(SimpleTestCase):
             json.loads(self.request.call_args.kwargs["data"]), {"boundary": boundary, "completion": completion}
         )
         self.api.restart_clustering({"task_id": TASK_ID, "expected_control_version": 2, "Idempotency-Key": "op-reopen"})
-        self.assertTrue(self.request.call_args.kwargs["url"].endswith(f"/{TASK_ID}/restart"))
+        self.assertEqual(
+            self.request.call_args.kwargs["url"], f"https://bkfara.example/ct/v1/tasks/{TASK_ID}/clustering/restart"
+        )
+        self.assertEqual(self.api.restart_clustering.headers["Idempotency-Key"], "op-reopen")
         self.assertEqual(json.loads(self.request.call_args.kwargs["data"]), {"expected_control_version": 2})
 
     def test_http_errors_use_standard_api_request_error(self):
@@ -190,6 +197,8 @@ class TestBkFaraApi(SimpleTestCase):
         self.request.return_value = response(201, {"result": True, "data": {}})
         with self.assertRaises(ApiRequestError):
             api({"task_id": "task-1"}, request_cookies=False)
+        self.assertIs(self.request.call_args.kwargs["verify"], False)
+        self.assertIn("X-Bk-Tenant-Id", api.headers)
         self.assertEqual(json.loads(self.request.call_args.kwargs["data"]), {"task_id": "task-1"})
 
 
