@@ -206,7 +206,7 @@ class UnifyQueryMappingHandler:
         """获取最终字段"""
         fields_result = self.get_all_index_fields()
         if not fields_result:
-            # 一个字段都没取到，用快照兜底。快照可能由修复前的接口生成并带 SQL 类型，
+            # 一个字段都没取到，用快照兜底。快照可能由历史版本的接口生成并带 SQL 类型，
             # 这里按同样的规则规范化后再返回，避免增量接口正常、缓存接口仍显示未知类型。
             if not self.index_set.fields_snapshot:
                 return []
@@ -214,7 +214,6 @@ class UnifyQueryMappingHandler:
             for field in snapshot_fields:
                 if not MixedStorageFieldTypeNormalizer.is_sql_field_type(field.get("field_type")):
                     continue
-                field["origin_field_type"] = field["field_type"]
                 field["field_type"] = MixedStorageFieldTypeNormalizer.normalize_field_type(field)
                 self._fill_field_tag(field)
             return snapshot_fields
@@ -267,11 +266,10 @@ class UnifyQueryMappingHandler:
         else:
             # 索引组可能不带 Doris 标签、采集存储也全是 elasticsearch，
             # 但默认检索路由混挂了 Doris 分析表，UQ 会把 SQL 类型一起返回。
-            # 只改 field_type 并记录修复前类型；field_operator 与 es_doc_values
-            # 保持上游计算出的原值，不扩展查询能力。
+            # 只改 field_type；field_operator 与 es_doc_values 保持上游计算出的原值，
+            # 不扩展查询能力。类型统一后，能力位判定与原生 Doris 路径保持一致。
             for field in fields_list:
                 if MixedStorageFieldTypeNormalizer.is_sql_field_type(field["field_type"]):
-                    field["origin_field_type"] = field["field_type"]
                     field["field_type"] = MixedStorageFieldTypeNormalizer.normalize_field_type(field)
 
         for field in fields_list:
@@ -855,10 +853,9 @@ class UnifyQueryMappingHandler:
         for x in final_fields_list:
             field_name = x["field_name"]
             if fields_type.get(field_name):
-                # 混挂索引组的字段类型已被规范化；能力位仍按修复前类型判定，
-                # 保证原本不可用的入口仍不可用、原本可用的入口仍可用。
-                judge_type = x.get("origin_field_type") or x["field_type"]
-                if judge_type in fields_type.get(field_name):
+                # 字段类型已在上游统一为 ES 类型，能力位直接按规范化后的类型判定，
+                # 与原生 Doris 路径保持一致。
+                if x["field_type"] in fields_type.get(field_name):
                     continue
                 type_msg = str(_("或者")).join(fields_type.get(x["field_name"]))
                 return _("{field_name}必须为{type_msg}类型").format(field_name=field_name, type_msg=type_msg)

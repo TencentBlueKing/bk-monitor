@@ -3,7 +3,7 @@
 
 使用真实 Django model 构造等效索引组结构，覆盖字段类型规范化、
 字段快照、路由护栏、字段模板保存、异步导出时间字段判定、
-能力位不变性、联合检索合并、字段统计与浮点分桶。
+能力位判定、联合检索合并、字段统计与浮点分桶。
 """
 
 from types import SimpleNamespace
@@ -215,51 +215,43 @@ class TestMixedStorageFinalFields(MixedStorageFixtureMixin, TestCase):
         )
         self.mock_field_map.assert_called_once()
 
-    def test_capability_bits_are_unchanged_by_normalization(self):
-        """全部字段规范化后，能力位按修复前类型判定，不可用仍不可用、可用仍可用。"""
+    def test_capability_bits_follow_normalized_types(self):
+        """能力位按规范化后的类型判定：数值类型放行，字符类型仍拒绝。"""
         fields = _mixed_fields()
         fields.extend(
             [
                 {"field_name": "gseIndex", "field_type": "keyword", "is_agg": True},
                 {"field_name": "serverIp", "field_type": "keyword", "is_agg": True},
                 {"field_name": "path", "field_type": "keyword", "is_agg": True},
-                {"field_name": "iterationIndex", "field_type": "largeint", "is_agg": True},
+                {"field_name": "iterationIndex", "field_type": "bigint", "is_agg": True},
                 {"field_name": "gseindex", "field_type": "bigint", "is_agg": True},
                 {"field_name": "iteration", "field_type": "int", "is_agg": True},
             ]
         )
-        # 这组字段能命中上下文检索的字段组合，确保真正进入类型校验而非提前返回。
-        before = UnifyQueryMappingHandler.analyze_fields([dict(item) for item in fields])
-        self.assertFalse(before["context_search_usable"])
 
+        # 场景一：数值型 SQL 类型规范化后为 long/integer，应放行，与原生 Doris 路径一致。
         normalized = self._build_handler(fields).get_final_fields()
         by_name = self._by_name(normalized)
         self.assertEqual(by_name["iterationIndex"]["field_type"], "long")
         self.assertEqual(by_name["gseindex"]["field_type"], "long")
         self.assertEqual(by_name["iteration"]["field_type"], "integer")
-        self.assertEqual(by_name["iterationIndex"]["origin_field_type"], "largeint")
-        self.assertEqual(by_name["gseindex"]["origin_field_type"], "bigint")
-        self.assertEqual(by_name["iteration"]["origin_field_type"], "int")
-
-        # 原本不可用的场景，修复后仍不可用。
         after = UnifyQueryMappingHandler.analyze_fields(normalized)
-        self.assertEqual(after["context_search_usable"], before["context_search_usable"])
-        self.assertEqual(after["usable_reason"], before["usable_reason"])
-        self.assertEqual(after["context_fields"], before["context_fields"])
+        self.assertTrue(after["context_search_usable"])
+        self.assertTrue(after["realtime_search_usable"])
+        self.assertEqual(after["usable_reason"], "")
 
-        # 三个类型校验字段同时改为合法类型，构造原本可用的场景。
-        lit_fields = [dict(item) for item in fields]
-        lit_type_map = {"gseindex": "long", "iteration": "integer", "iterationIndex": "long"}
-        for item in lit_fields:
-            if item["field_name"] in lit_type_map:
-                item["field_type"] = lit_type_map[item["field_name"]]
-        before_lit = UnifyQueryMappingHandler.analyze_fields([dict(item) for item in lit_fields])
-        self.assertTrue(before_lit["context_search_usable"])
-        after_lit = UnifyQueryMappingHandler.analyze_fields(
-            self._build_handler(lit_fields).get_final_fields()
-        )
-        self.assertEqual(after_lit["context_search_usable"], before_lit["context_search_usable"])
-        self.assertEqual(after_lit["usable_reason"], before_lit["usable_reason"])
+        # 场景二：字符型 SQL 类型规范化后为 keyword，不在数值白名单，仍应拒绝。
+        rejected_fields = [dict(item) for item in fields]
+        for item in rejected_fields:
+            if item["field_name"] == "iterationIndex":
+                item["field_type"] = "varchar(32)"
+        rejected_normalized = self._build_handler(rejected_fields).get_final_fields()
+        rejected_by_name = self._by_name(rejected_normalized)
+        self.assertEqual(rejected_by_name["iterationIndex"]["field_type"], "keyword")
+        rejected = UnifyQueryMappingHandler.analyze_fields(rejected_normalized)
+        self.assertFalse(rejected["context_search_usable"])
+        self.assertFalse(rejected["realtime_search_usable"])
+        self.assertIn("iterationIndex", rejected["usable_reason"])
 
     def test_pure_es_index_set_fields_are_untouched(self):
         """纯 ES 索引集的字段列表与修复前逐字段一致。"""
@@ -401,10 +393,8 @@ class TestMixedStorageFinalFields(MixedStorageFixtureMixin, TestCase):
         by_name = self._by_name(fields)
         self.assertEqual(len(fields), 2)
         self.assertEqual(by_name["dtEventTime"]["field_type"], "date")
-        self.assertEqual(by_name["dtEventTime"]["origin_field_type"], "datetime")
         self.assertEqual(by_name["dtEventTime"]["tag"], "timestamp")
         self.assertEqual(by_name["log"]["field_type"], "text")
-        self.assertNotIn("origin_field_type", by_name["log"])
         # 兜底返回的是深拷贝，不能改写索引集上保存的快照内容。
         self.assertEqual(self.index_set.fields_snapshot["fields"][0]["field_type"], "datetime")
 
@@ -600,7 +590,7 @@ class TestMixedStorageFieldsEndpoint(MixedStorageFixtureMixin, TestCase):
     @override_settings(MIDDLEWARE=(OVERRIDE_MIDDLEWARE,), IGNORE_IAM_PERMISSION=True)
     @FakeRedis("apps.utils.cache.cache")
     def test_fields_endpoint_realtime_branch_returns_es_types(self):
-        """实时字段接口返回规范化类型与空操作符，能力位与修复前基线一致。"""
+        """实时字段接口返回规范化类型与空操作符；字段不命中组合时能力位为不可用。"""
         self.mock_field_map.return_value = {"data": _mixed_fields()}
         response = self.client.get(
             f"/api/v1/search/index_set/{GROUP_ID}/fields/",
@@ -622,13 +612,11 @@ class TestMixedStorageFieldsEndpoint(MixedStorageFixtureMixin, TestCase):
         self.assertEqual(by_name["__shard_key__"]["field_type"], "long")
         self.assertEqual(by_name["__unique_key__"]["field_type"], "keyword")
         self.assertEqual(by_name["dtEventTime"]["field_operator"], [])
-        # 仅用于能力位判定的内部键不能出现在接口响应里。
-        self.assertNotIn("origin_field_type", by_name["dtEventTime"])
         self.assertIsInstance(data["user_custom_config"], dict)
         self.assertIsInstance(data["custom_config"], dict)
 
         # 这组字段不命中上下文检索的字段组合，字段能力位在校验阶段提前返回。
-        # 接口层据此固化基线；按修复前类型判定的完整双场景由集成用例覆盖。
+        # 接口层据此固化基线；按规范化后类型判定的完整双场景由集成用例覆盖。
         config_item = next(
             item for item in data["config"] if item["name"] == "context_and_realtime"
         )
