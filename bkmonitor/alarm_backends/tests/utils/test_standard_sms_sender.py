@@ -161,15 +161,15 @@ def test_standard_render_failure_is_recorded_instead_of_sending_error_text(setti
 
 @pytest.mark.parametrize("severity", [1, 2])
 @pytest.mark.parametrize(
-    "kind,status,visible_name_length",
+    "kind,status,visible_name",
     [
-        ("closed/action", ActionStatus.SUCCESS, 8),
-        ("recovered/action", ActionStatus.SUCCESS, 10),
-        ("fta_action", ActionStatus.PARTIAL_SUCCESS, 9),
-        ("fta_action", ActionStatus.PARTIAL_FAILURE, 9),
+        ("closed/action", ActionStatus.SUCCESS, "CPU***igh"),
+        ("recovered/action", ActionStatus.SUCCESS, "CPU***igh"),
+        ("fta_action", ActionStatus.PARTIAL_SUCCESS, "CPU usage"),
+        ("fta_action", ActionStatus.PARTIAL_FAILURE, "CPU usage"),
     ],
 )
-def test_english_single_notice_preserves_recognizable_name(kind, status, visible_name_length, severity):
+def test_english_single_notice_preserves_recognizable_name(kind, status, visible_name, severity):
     name = "CPU usage too high"
     with translation.override("en"):
         level = str(EVENT_SEVERITY_DICT[severity])
@@ -185,7 +185,7 @@ def test_english_single_notice_preserves_recognizable_name(kind, status, visible
             },
         )
 
-    assert name[:visible_name_length] in body
+    assert visible_name in body
     assert sms.sms_utf16_length(body) <= 70
     assert body.endswith("See WeCom/BK.")
     if kind == "fta_action":

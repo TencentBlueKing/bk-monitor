@@ -176,7 +176,7 @@ def test_assignment_literal_is_safe_with_existing_api_renderer(assignment, name)
     tasks.notify_to_appointee(data)
 
     body = assignment.sms.call_args.kwargs["content"]
-    assert name in body
+    assert f"{name[:3]}***{name[-3:]}" in body
     assert "49" not in body
     assert "{{ content.standard_assign_sms }}" not in body
     assert assignment.rendered[-1]["action_configs"][0]["execute_config"]["template_detail"]["message"] == body
@@ -227,9 +227,8 @@ def test_english_assignment_preserves_alert_name(assignment, settings, severity,
         tasks.notify_to_appointee(data)
 
     body = assignment.sms.call_args.kwargs["content"]
-    assert body.startswith(f"2026-12-31 23:59 Assigned 1 {level} alert(CPU usage")
-    assert body.endswith("…). See WeCom/BK.")
-    assert sms_utf16_length(body) == 70
+    assert body == f"2026-12-31 23:59 Assigned 1 {level} alert(CPU***igh). See WeCom/BK."
+    assert sms_utf16_length(body) <= 70
     assert assignment.created[-1].status == ActionStatus.SUCCESS
 
 
@@ -244,7 +243,7 @@ def test_old_assignment_task_loads_only_effective_business_alerts(assignment):
     assert data["sms_assign_alert"] == {"name": "测试告警", "severity": 2, "count": 1}
     body = assignment.sms.call_args.kwargs["content"]
     assert "时间未知" in body
-    assert "测试告警" in body
+    assert "测试告***试告警" in body
     assert "其他业务" not in body
 
 

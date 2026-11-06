@@ -45,15 +45,15 @@ VALUES = {
 }
 
 CHINESE_MESSAGES = {
-    "abnormal/action": f"{TIME}，您有1条致命级的告警待处理（CPU），{GUIDANCE}",
-    "abnormal/converge": f"{TIME}，您有5条致命级的告警待处理（代表：CPU），{GUIDANCE}",
-    "recovered/action": f"{TIME}，您的1条致命级告警已恢复（CPU），无需处理，详情{GUIDANCE}",
+    "abnormal/action": f"{TIME}，您有1条致命级的告警待处理（CPU***CPU），{GUIDANCE}",
+    "abnormal/converge": f"{TIME}，您有5条致命级的告警待处理（代表：CPU***CPU），{GUIDANCE}",
+    "recovered/action": f"{TIME}，您的1条致命级告警已恢复（CPU***CPU），无需处理，详情{GUIDANCE}",
     "recovered/converge": f"{TIME}，您的5条致命级告警已恢复，无需处理，详情{GUIDANCE}",
-    "closed/action": f"{TIME}，您的1条致命级告警已关闭（CPU），无需处理，详情{GUIDANCE}",
+    "closed/action": f"{TIME}，您的1条致命级告警已关闭（CPU***CPU），无需处理，详情{GUIDANCE}",
     "closed/converge": f"{TIME}，您的5条致命级告警已关闭，无需处理，详情{GUIDANCE}",
-    "ack/action": f"{TIME}，您关注的1条告警已由 a 确认处理（CPU），{GUIDANCE}",
+    "ack/action": f"{TIME}，您关注的1条告警已由 a 确认处理（CPU***CPU），{GUIDANCE}",
     "ack/converge": f"{TIME}，您关注的5条告警已由 a 确认处理，{GUIDANCE}",
-    "assign/action": f"{TIME}，有1条致命级的告警分派给您处理（CPU），{GUIDANCE}",
+    "assign/action": f"{TIME}，有1条致命级的告警分派给您处理（CPU***CPU），{GUIDANCE}",
     "assign/converge": f"{TIME}，有5条致命级的告警分派给您处理，{GUIDANCE}",
     "fta_action": f"{TIME}，您的告警处理套餐（CPU）执行状态为失败，{GUIDANCE}",
     "incident": f"{TIME}，您有1个致命级的故障待处理（关联5条告警），{GUIDANCE}",
@@ -118,6 +118,34 @@ def test_chinese_standard_template_matrix(kind, expected):
 
     assert content == expected
     assert len(content.encode("utf-16-le")) // 2 <= 70
+
+
+@pytest.mark.parametrize(
+    "kind",
+    ["abnormal/action", "abnormal/converge", "recovered/action", "closed/action", "ack/action", "assign/action"],
+)
+@pytest.mark.parametrize("language", ["zh-hans", "en"])
+@pytest.mark.parametrize(
+    ("name", "expected"),
+    [
+        ("CPU usage too high", "CPU***igh"),
+        ("生产环境CPU总使用率告警", "生产环***率告警"),
+        ("ABCDEF", "ABC***DEF"),
+        ("CPU", "CPU***CPU"),
+        ("A", "A***A"),
+        ("", "***"),
+    ],
+)
+def test_alert_names_keep_first_and_last_three_characters(kind, language, name, expected):
+    values = {**VALUES, "name": name}
+    if language == "en":
+        values.update(time="2026-12-31 23:59", level="Emergency")
+
+    content = render_standard_sms(kind, values, language=language)
+
+    assert expected in content
+    assert sms_utf16_length(content) <= 70
+    assert values["name"] == name
 
 
 @pytest.mark.parametrize("kind", SMS_TEMPLATE_KINDS)
@@ -262,13 +290,42 @@ def test_exact_70_units_does_not_shorten_name():
     assert "…" in truncated
 
 
-def test_name_is_shortened_before_operator():
+def test_alert_name_is_compacted_before_operator_budget():
     content = render_standard_sms("ack/action", {**VALUES, "name": "名称" * 100, "operator": "admin"})
 
     assert "由 admin 确认处理" in content
-    assert "…" in content
-    assert sms_utf16_length(content) == 70
+    assert "（名称名***称名称）" in content
+    assert sms_utf16_length(content) <= 70
     assert content.endswith(GUIDANCE)
+
+
+@pytest.mark.parametrize(
+    ("kind", "values", "expected_name"),
+    [
+        (
+            "closed/action",
+            {"name": "😀😀😀middle😀😀😀", "level": "Emergency"},
+            "😀😀😀**…",
+        ),
+        (
+            "abnormal/converge",
+            {"name": "CPU usage too high", "level": "Emergency", "count": 2147483647},
+            "…",
+        ),
+    ],
+)
+def test_compacted_alert_names_still_obey_utf16_budget(kind, values, expected_name):
+    content = render_standard_sms(kind, {**VALUES, **values, "time": "2026-12-31 23:59"}, language="en")
+
+    assert f"({expected_name})" in content
+    assert sms_utf16_length(content) <= 70
+    assert content.endswith("See WeCom/BK.")
+
+
+def test_alert_name_cleanup_precedes_compaction():
+    content = render_standard_sms("abnormal/action", {**VALUES, "name": "[CPU](https://example.com)"}, "zh-hans")
+    assert "（CPU***CPU）" in content
+    assert "example.com" not in content
 
 
 def test_multiple_short_operators_remain_visible():
