@@ -24,6 +24,7 @@ from alarm_backends.core.cache.key import (
 )
 from alarm_backends.core.cluster import get_cluster
 from alarm_backends.core.handlers import base
+from alarm_backends.core.storage.kafka_sasl import SaslKafkaConsumer, get_kafka_sasl_config
 from alarm_backends.management.hashring import HashRing
 from alarm_backends.management.utils import get_host_addr
 from alarm_backends.service.alert.builder.tasks import run_alert_builder
@@ -50,6 +51,13 @@ def always_retry(wait):
         return wrapper
 
     return decorator
+
+
+def create_kafka_consumer(bootstrap_server, **kwargs):
+    sasl_config = get_kafka_sasl_config(bootstrap_server)
+    if sasl_config:
+        return SaslKafkaConsumer(bootstrap_server, sasl_config, **kwargs)
+    return KafkaConsumer(bootstrap_servers=bootstrap_server, **kwargs)
 
 
 class KafkaConsumerWorker:
@@ -249,7 +257,7 @@ class AlertHandler(base.BaseHandler):
                                 topic = f"{settings.MONITOR_EVENT_KAFKA_TOPIC}_{get_cluster().name}"
 
                         if bootstrap_server not in consumers:
-                            consumers[bootstrap_server] = KafkaConsumer(bootstrap_servers=bootstrap_server)
+                            consumers[bootstrap_server] = create_kafka_consumer(bootstrap_server)
                             consumers[bootstrap_server].topics()
                         consumer = consumers[bootstrap_server]
 
@@ -269,6 +277,11 @@ class AlertHandler(base.BaseHandler):
                     except Exception as e:
                         logger.exception("get topic info of data id(%s) failed: %s", data_id, e)
                         continue
+                for bootstrap_server, consumer in consumers.items():
+                    try:
+                        consumer.close(autocommit=False)
+                    except Exception as e:
+                        logger.warning("[run_leader] close consumer of %s failed: %s", bootstrap_server, e)
                 try:
                     hosts = self.get_all_hosts()
                 except Exception as error:
@@ -357,8 +370,8 @@ class AlertHandler(base.BaseHandler):
                 raise
 
     def create_consumer(self, bootstrap_server, partitions, topic_data_id):
-        consumer = KafkaConsumer(
-            bootstrap_servers=bootstrap_server,
+        consumer = create_kafka_consumer(
+            bootstrap_server,
             group_id=f"{settings.APP_CODE}.alert.builder",
             max_partition_fetch_bytes=1024 * 1024 * 5,
             request_timeout_ms=30000,
