@@ -67,6 +67,8 @@ from metadata.models import (
 from metadata.models.bcs.cluster import BcsFederalClusterInfo
 from metadata.models.bcs.resource import LogCollectorInfo, PodMonitorInfo, ServiceMonitorInfo
 from metadata.models.constants import DataIdCreatedFromSystem
+from metadata.models.space import Space, SpaceDataSource
+from metadata.models.space.space_table_id_redis import SpaceTableIDRedis
 from metadata.models.storage import ESStorage
 from monitor_web.data_migrate.constants import DEFAULT_ENCODING
 from monitor_web.data_migrate.data_export import (
@@ -604,6 +606,13 @@ def build_partial_migration_context(
     normalized_table_ids = sorted(table_ids)
     if normalized_data_ids:
         module_fetchers["metadata_data_source"] = get_metadata_data_source_fetcher(normalized_data_ids)
+        module_fetchers["metadata_space_data_source"] = [
+            (
+                SpaceDataSource,
+                {"bk_tenant_id": bk_tenant_id, "bk_data_id__in": normalized_data_ids},
+                None,
+            ),
+        ]
     if normalized_table_ids:
         module_fetchers["metadata_result_table"] = get_metadata_result_table_fetcher(normalized_table_ids)
         module_fetchers["metadata_storage"] = get_metadata_storage_by_table_ids_fetcher(normalized_table_ids)
@@ -1014,6 +1023,34 @@ def precheck_partial_import_directory(
     }
 
 
+def _prepare_partial_space_data_sources(directory_path: str | Path, bk_biz_ids: Sequence[int] | None) -> None:
+    """空间主表沿用目标环境；关联记录使用目标空间名称和新主键。"""
+    target_directory = Path(directory_path)
+    manifest = read_json_file(target_directory / "manifest.json", encoding=DEFAULT_ENCODING)
+    target_biz_ids = bk_biz_ids if bk_biz_ids is not None else manifest["bk_biz_ids"]
+    for bk_biz_id in target_biz_ids:
+        for relative_file_path in manifest["biz_files"].get(str(bk_biz_id), []):
+            records = read_json_file(target_directory / relative_file_path, encoding=DEFAULT_ENCODING)
+            changed = False
+            for record in records:
+                if record["model"].lower() != SpaceDataSource._meta.label_lower:
+                    continue
+                fields = record["fields"]
+                lookup = {
+                    "bk_tenant_id": fields["bk_tenant_id"],
+                    "space_type_id": fields["space_type_id"],
+                    "space_id": fields["space_id"],
+                }
+                if lookup["space_type_id"] == "bkci" and not Space.objects.filter(**lookup).exists():
+                    lookup["space_id"] = f"{fields['bk_tenant_id']}-{fields['space_id']}"
+                fields["space_id"] = Space.objects.get(**lookup).space_id
+                # 关联表的自增主键不跨环境复用，避免覆盖目标环境的其他关联。
+                record["pk"] = None
+                changed = True
+            if changed:
+                write_json_file(target_directory / relative_file_path, records, encoding=DEFAULT_ENCODING)
+
+
 def import_partial_data_from_directory(
     directory_path: str | Path,
     bk_biz_ids: Sequence[int] | None = None,
@@ -1025,6 +1062,7 @@ def import_partial_data_from_directory(
         if not precheck_result["result"]:
             raise ValueError(f"局部导入预检查失败: {precheck_result['conflicts']}")
 
+        _prepare_partial_space_data_sources(directory_path, bk_biz_ids)
         imported_objects = import_biz_data_from_directory(
             directory_path=directory_path,
             bk_biz_ids=bk_biz_ids,
@@ -1200,6 +1238,24 @@ def _rebuild_partial_apm_log_data_source_route(
     }
 
 
+def _refresh_partial_space_routes(bk_tenant_id: str, data_ids: Sequence[int]) -> None:
+    if not data_ids:
+        return
+
+    spaces = (
+        SpaceDataSource.objects.filter(bk_tenant_id=bk_tenant_id, bk_data_id__in=list(data_ids))
+        .values_list("space_type_id", "space_id")
+        .distinct()
+    )
+    table_ids = sorted(_get_table_ids_by_data_ids(bk_tenant_id=bk_tenant_id, data_ids=data_ids))
+    space_client = SpaceTableIDRedis()
+    if table_ids:
+        space_client.push_data_label_table_ids(bk_tenant_id=bk_tenant_id, table_id_list=table_ids, is_publish=True)
+        space_client.push_table_id_detail(bk_tenant_id=bk_tenant_id, table_id_list=table_ids, is_publish=True)
+    for space_type, space_id in spaces:
+        space_client.push_space_table_ids(space_type=space_type, space_id=space_id, is_publish=True)
+
+
 def rebuild_partial_data(
     bk_tenant_id: str,
     bk_biz_id: int,
@@ -1331,6 +1387,7 @@ def rebuild_partial_data(
         bk_tenant_id=bk_tenant_id,
         data_ids=rebuilt_data_ids,
     )
+    _refresh_partial_space_routes(bk_tenant_id=bk_tenant_id, data_ids=rebuilt_data_ids)
     return {
         "partial": context.manifest_scope,
         "operations": operations,
