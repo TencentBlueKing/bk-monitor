@@ -137,6 +137,7 @@ def render_standard_sms(kind: str, values: dict, language: str | None = None) ->
 
     All fields are already structured display values. Only names and operator names may be
     shortened; event time, count, severity, status, duration and the full guidance are retained.
+    Alert names use their first and last three characters, separated by three asterisks.
     Values are passed to the template as data and never rendered as a second template.
     """
     if kind not in SMS_TEMPLATE_KINDS:
@@ -149,6 +150,16 @@ def render_standard_sms(kind: str, values: dict, language: str | None = None) ->
             field: _plain_text(values.get(field))
             for field in ("time", "level", "count", "name", "status", "duration", "shield_action")
         }
+        if kind in (
+            "abnormal/action",
+            "abnormal/converge",
+            "recovered/action",
+            "closed/action",
+            "ack/action",
+            "assign/action",
+        ):
+            name = context["name"]
+            context["name"] = f"{name[:3]}***{name[-3:]}"
         context["time"] = context["time"] or _("时间未知")
         operators = values.get("operator")
         if not isinstance(operators, (list, tuple)):
