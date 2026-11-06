@@ -46,14 +46,19 @@ export default defineComponent({
     spanType: {
       type: String,
     },
-    /** 卡片是否展开：折叠时只保留头部摘要 */
+    /** 瀑布图是否展开：只控制 WaterfallChart 的显隐 */
     expanded: {
+      type: Boolean,
+      default: true,
+    },
+    /** 是否有瀑布图：无瀑布图时不展示展开收起按钮，点击头部也不切换 */
+    showToggle: {
       type: Boolean,
       default: true,
     },
   },
   emits: {
-    /** 点击右上角按钮，切换卡片展开 / 折叠 */
+    /** 点击右上角按钮，切换瀑布图展开 / 折叠 */
     toggle: () => true,
     /** 点击「View 详情」，打开该 View 的详情抽屉 */
     viewClick: (_view: IRumTimelineViewVM) => true,
@@ -98,8 +103,10 @@ export default defineComponent({
 
       return (
         <div
-          class={{ 'timeline-view-header': true, 'is-collapsed': !props.expanded }}
-          onClick={() => emit('toggle')}
+          class={{ 'timeline-view-header': true, 'is-collapsible': props.showToggle }}
+          onClick={() => {
+            if (props.showToggle) emit('toggle');
+          }}
         >
           <div class='view-title-row'>
             <span
@@ -132,9 +139,11 @@ export default defineComponent({
               metric,
             ])}
           </div>
-          <div class='view-expand-btn'>
-            <i class={['icon-monitor icon-arrow-right-copy', { expand: props.expanded }]} />
-          </div>
+          {props.showToggle ? (
+            <div class='view-expand-btn'>
+              <i class={['icon-monitor icon-arrow-right-copy', { expand: props.expanded }]} />
+            </div>
+          ) : null}
           <div style='display: none'>
             <div ref='hoverInfo'>
               <HoverInfo data={hoverData.value} />

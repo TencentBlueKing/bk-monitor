@@ -26,7 +26,7 @@
 import { computed, defineComponent, getCurrentInstance, shallowRef, toRef, watch } from 'vue';
 import type { Component, PropType } from 'vue';
 
-import { Alert, Button, Exception, Message, Sideslider } from 'bkui-vue';
+import { Alert, Button, Exception, Sideslider } from 'bkui-vue';
 import { useI18n } from 'vue-i18n';
 
 import DetailHeader from './components/detail-header/detail-header';
@@ -43,7 +43,6 @@ import {
   useSpanDetail,
   useTraceContext,
 } from './composables';
-import { searchTraceInfo } from './services';
 import { RumDetailTabEnum, RumTimelineFilterCategoryEnum } from './typings';
 import SliderHeader from '@/components/slider-header/slider-header';
 import TemporaryShareNew from '@/components/temporary-share/temporary-share-new';
@@ -150,6 +149,7 @@ export default defineComponent({
     const traceContext = useTraceContext({
       active: computed(() => activeTab.value === RumDetailTabEnum.TRACE_CONTEXT),
       appName: computed(() => props.context?.app_name || ''),
+      bizId: computed(() => originData.value.bk_biz_id ?? window.cc_biz_id),
       viewId,
       currentSpanId: spanId,
       formatField,
@@ -198,21 +198,9 @@ export default defineComponent({
       }
     };
 
-    /**
-     * 链路上下文行内的「关联 Trace」：点击时才检索 Trace 所属应用。
-     * 先同步打开空白页再回填地址，避免异步检索后 window.open 被浏览器拦截。
-     */
-    const handleTimelineTraceClick = async (traceId: string) => {
-      const win = window.open('', '_blank');
-      const info = await searchTraceInfo(traceId, originData.value.bk_biz_id ?? window.cc_biz_id);
-      if (!info) {
-        win?.close();
-        Message({ theme: 'warning', message: t('未找到关联 Trace') });
-        return;
-      }
-      if (win) {
-        win.location.href = getTraceUrl(info);
-      }
+    /** 链路上下文行内的「关联 Trace」：所属应用随链路上下文一起检索好，点击直接打开 */
+    const handleTimelineTraceClick = (trace: IRumTraceInfo) => {
+      window.open(getTraceUrl(trace));
     };
 
     const handleTimelineSpanClick = (span: IRumTimelineSpanVM) => {
