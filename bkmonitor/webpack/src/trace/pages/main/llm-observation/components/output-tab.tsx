@@ -25,10 +25,12 @@
  */
 import { type PropType, computed, defineComponent, shallowRef } from 'vue';
 
-import { Sideslider } from 'bkui-vue';
+import { Message, Sideslider } from 'bkui-vue';
+import { copyText } from 'monitor-common/utils/utils';
 import { useI18n } from 'vue-i18n';
 
 import { LLM_DETAIL_SLIDER_Z_INDEX } from '../../constants';
+import { beautifyJsonValue, stringifyContent } from '../utils/helpers';
 import { parseOutputObservation } from '../utils/parse-output';
 import { LLM_SEARCH_SECTION } from '../utils/search';
 import CollapseSection from './collapse-section';
@@ -89,6 +91,17 @@ export default defineComponent({
     /** 关闭独立查看：卸载 Sideslider，避免 teleport 到 body 的 .bk-modal 残留挡点击 */
     const closeDetail = () => {
       detail.value = null;
+    };
+
+    /** 复制侧栏当前文本或 JSON 内容 */
+    const handleCopyDetail = () => {
+      const current = detail.value;
+      if (!current) return;
+      const text = current.kind === 'text' ? current.text : stringifyContent(beautifyJsonValue(current.data));
+      copyText(text, (msg: string) => {
+        Message({ message: msg, theme: 'error' });
+      });
+      Message({ message: t('复制成功'), theme: 'success' });
     };
 
     /** 渲染文本分区条目；searchPrefix 须与 collectOutputHits 的 blockId 前缀一致 */
@@ -186,7 +199,18 @@ export default defineComponent({
             }}
           >
             {{
-              header: () => <span>{detail.value?.title || ''}</span>,
+              header: () => (
+                <div class='llm-output-tab-slider-header'>
+                  <span class='llm-output-tab-slider-title'>{detail.value?.title || ''}</span>
+                  <div
+                    class='llm-output-tab-slider-copy'
+                    onClick={handleCopyDetail}
+                  >
+                    <i class='icon-monitor icon-mc-copy' />
+                    <span>{t('复制')}</span>
+                  </div>
+                </div>
+              ),
               default: () =>
                 detail.value?.kind === 'json' ? (
                   <div class='llm-output-tab-slider-json'>

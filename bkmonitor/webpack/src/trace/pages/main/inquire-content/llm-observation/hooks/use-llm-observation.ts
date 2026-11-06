@@ -24,13 +24,14 @@
  * IN THE SOFTWARE.
  */
 
-import { type MaybeRef, computed, onScopeDispose, shallowRef, watch } from 'vue';
+import { type MaybeRef, computed, nextTick, onScopeDispose, shallowRef, watch } from 'vue';
 
 import { get } from '@vueuse/core';
 import { CancelToken } from 'monitor-api/cancel';
 import { listFlows } from 'monitor-api/modules/llm_web';
 import { useI18n } from 'vue-i18n';
 
+import { collectAncestorSpanIds } from '../utils/duration-stats';
 import {
   buildIoPreviews,
   buildStatCards,
@@ -44,6 +45,7 @@ import {
 import type {
   LlmExecutionFilter,
   LlmFlowsResponse,
+  LlmFlowSpan,
   LlmFlowTrace,
   LlmIoPreview,
   LlmOverviewStats,
@@ -56,6 +58,7 @@ export type UseLlmObservationReturn = ReturnType<typeof useLlmObservation>;
 
 /** 面板渲染用的 Trace 块：在 LlmTraceView 上附加懒加载状态与当前可见 Span 行 */
 type TraceBlockView = LlmTraceView & {
+  flow: LlmFlowSpan[];
   flowLoading: boolean;
   rows: LlmSpanRowView[];
 };
@@ -98,6 +101,8 @@ export function useLlmObservation(options: UseLlmObservationOptions) {
   const ioLoadingTraceIds = shallowRef<Set<string>>(new Set());
   const flowLoadedTraceIds = shallowRef<Set<string>>(new Set());
   const loadingTraceIds = shallowRef<Set<string>>(new Set());
+  const highlightedSpanId = shallowRef('');
+  let highlightTimer = 0;
   let cancelFetch = () => {};
   let cancelIoFetch = () => {};
   const cancelDetailFetches = new Map<string, () => void>();
@@ -114,6 +119,7 @@ export function useLlmObservation(options: UseLlmObservationOptions) {
       const expanded = expandedTraceIds.value.has(item.trace_id);
       return {
         ...view,
+        flow: item.flow || [],
         flowLoading: loadingTraceIds.value.has(item.trace_id),
         rows: expanded
           ? flattenVisibleSpanRows(item.flow, {
@@ -441,6 +447,29 @@ export function useLlmObservation(options: UseLlmObservationOptions) {
     expandedSpanIds.value = next;
   };
 
+  /** 展开祖先链后滚到目标 Span，并短暂高亮 */
+  const locateSpan = (traceId: string, spanId: string) => {
+    const item = traces.value.find(trace => trace.trace_id === traceId);
+    if (!item) return;
+    filter.value = 'all';
+    keyword.value = '';
+    const next = new Set(expandedSpanIds.value);
+    for (const ancestorId of collectAncestorSpanIds(item.flow, spanId)) {
+      next.add(ancestorId);
+    }
+    expandedSpanIds.value = next;
+    highlightedSpanId.value = spanId;
+    window.clearTimeout(highlightTimer);
+    highlightTimer = window.setTimeout(() => {
+      if (highlightedSpanId.value === spanId) highlightedSpanId.value = '';
+    }, 2400);
+    nextTick(() => {
+      requestAnimationFrame(() => {
+        document.getElementById(`llm-span-${spanId}`)?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      });
+    });
+  };
+
   /** 切换 Trace / 应用 / 空间时清空会话模式与筛选，避免沿用上一 Trace 的 UI 状态 */
   watch(
     () => [get(options.appName), get(options.traceId), get(options.bizId)] as const,
@@ -456,6 +485,7 @@ export function useLlmObservation(options: UseLlmObservationOptions) {
       overviewStats.value = null;
       flowLoadedTraceIds.value = new Set();
       loadingTraceIds.value = new Set();
+      highlightedSpanId.value = '';
     }
   );
 
@@ -468,6 +498,7 @@ export function useLlmObservation(options: UseLlmObservationOptions) {
 
   onScopeDispose(() => {
     ++overviewRequestId;
+    window.clearTimeout(highlightTimer);
     cancelFetch();
     cancelIoFetch();
     cancelAllDetailFetches();
@@ -482,9 +513,11 @@ export function useLlmObservation(options: UseLlmObservationOptions) {
     handleKeywordChange,
     handleSessionChange,
     hasTraces,
+    highlightedSpanId,
     keyword,
     kindCounts,
     loading,
+    locateSpan,
     ioLoading,
     showSession,
     stats,
