@@ -31,10 +31,7 @@ from metadata.models.data_link.constants import (
     DataLinkResourceStatus,
 )
 from metadata.models.data_link.data_link import DataLink
-from metadata.models.data_link.data_link_configs import (
-    DorisStorageBindingConfig,
-    ESStorageBindingConfig,
-)
+from metadata.models.data_link.data_link_configs import DorisStorageBindingConfig
 from metadata.models.data_link.service import get_data_link_component_config
 from metadata.models.data_link.utils import (
     compose_transfer_consumer_group,
@@ -602,46 +599,17 @@ def apply_log_datalink(bk_tenant_id: str, table_id: str):
             table_id,
         )
 
-    # 清理多余的存储链路
-    es_binding_config = ESStorageBindingConfig.objects.filter(
-        bk_tenant_id=bk_tenant_id, data_link_name=datalink.data_link_name
-    ).first()
-    if not datalink_config.es_storage_config and es_binding_config:
-        logger.info(
-            "apply_log_v4_datalink: tenant(%s) %s es storage binding config delete, data_link_name->[%s]",
-            bk_tenant_id,
-            table_id,
-            datalink.data_link_name,
+    # 为尚无 BKBase RT 的存量 DorisStorage 回填当前 Binding 对应的表名。
+    if doris_storage and not doris_storage.bkbase_table_id:
+        bindings = DorisStorageBindingConfig.objects.filter(
+            bk_tenant_id=bk_tenant_id, data_link_name=datalink.data_link_name
         )
-        es_binding_config.delete_config()
-    doris_bindings = DorisStorageBindingConfig.objects.filter(
-        bk_tenant_id=bk_tenant_id, data_link_name=datalink.data_link_name
-    )
-    if doris_storage and doris_storage.datalink_table_name:
-        doris_bindings = doris_bindings.filter(name=doris_storage.datalink_table_name)
-    doris_binding_config = doris_bindings.first()
-    if (
-        not datalink_config.doris_storage_config
-        and doris_binding_config
-        and not (
-            (retained_storage := DorisStorage.objects.filter(bk_tenant_id=bk_tenant_id, table_id=table_id).first())
-            and retained_storage.datalink_table_name
-        )
-    ):
-        logger.info(
-            "apply_log_v4_datalink: tenant(%s) %s doris storage binding config delete, data_link_name->[%s]",
-            bk_tenant_id,
-            table_id,
-            datalink.data_link_name,
-        )
-        doris_binding_config.delete_config()
-
-    # 补充dorisstorage的表记录
-    if doris_storage and not doris_storage.bkbase_table_id and doris_binding_config:
-        doris_storage.bkbase_table_id = (
-            f"{doris_binding_config.datalink_biz_ids.data_biz_id}_{doris_binding_config.bkbase_result_table_name}"
-        )
-        doris_storage.save()
+        if doris_storage.datalink_table_name:
+            bindings = bindings.filter(name=doris_storage.datalink_table_name)
+        binding = bindings.first()
+        if binding:
+            doris_storage.bkbase_table_id = f"{binding.datalink_biz_ids.data_biz_id}_{binding.bkbase_result_table_name}"
+            doris_storage.save(update_fields=["bkbase_table_id"])
 
     # 清理transfer链路配置
     if data_source_created_from != DataIdCreatedFromSystem.BKDATA.value:

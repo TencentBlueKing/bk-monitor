@@ -92,7 +92,7 @@ def log_v4_datalink_records(mocker):
         table_id=table_id,
         name=models.ResultTableOption.OPTION_V4_LOG_DATA_LINK,
         value=json.dumps(LOG_V4_DATALINK_OPTION_VALUE),
-        value_type=models.ResultTableOption.TYPE_STRING,
+        value_type=models.ResultTableOption.TYPE_DICT,
         creator="system",
     )
     es_cluster = models.ClusterInfo.objects.create(
@@ -204,6 +204,41 @@ def test_apply_log_datalink_falls_back_when_default_storage_missing(log_v4_datal
         apply_log_datalink(bk_tenant_id=ctx["bk_tenant_id"], table_id=ctx["table_id"])
 
     assert mocked_sync.call_args.kwargs["storage_cluster_id"] == ctx["doris_cluster"].cluster_id
+
+
+@pytest.mark.parametrize(
+    "removed_option,binding_model",
+    [
+        ("es_storage_config", models.ESStorageBindingConfig),
+        ("doris_storage_config", models.DorisStorageBindingConfig),
+    ],
+)
+def test_apply_log_keeps_binding_after_sink_removed(log_v4_datalink_records, mocker, removed_option, binding_model):
+    ctx = log_v4_datalink_records
+    tenant, table = ctx["bk_tenant_id"], ctx["table_id"]
+    mocker.patch.object(DataLink, "apply_data_link")
+    mocker.patch.object(DataLink, "sync_metadata")
+    apply_log_datalink(tenant, table)
+    link = DataLink.objects.get(bk_tenant_id=tenant, bk_data_id=ctx["ds"].bk_data_id)
+    binding = binding_model.objects.create(
+        bk_tenant_id=tenant,
+        bk_biz_id=ctx["rt"].bk_biz_id,
+        table_id=table,
+        namespace=link.namespace,
+        data_link_name=link.pk,
+        name="old_binding",
+    )
+    option = models.ResultTableOption.objects.get(
+        bk_tenant_id=tenant, table_id=table, name=models.ResultTableOption.OPTION_V4_LOG_DATA_LINK
+    )
+    value = json.loads(option.value)
+    del value[removed_option]
+    option.value = json.dumps(value)
+    option.save(update_fields=["value"])
+    delete = mocker.patch.object(binding_model, "delete_config")
+    apply_log_datalink(tenant, table)
+    delete.assert_not_called()
+    assert binding_model.objects.filter(pk=binding.pk).exists()
 
 
 def test_apply_log_datalink_passes_consumer_group_for_gse_source(log_v4_datalink_records):
