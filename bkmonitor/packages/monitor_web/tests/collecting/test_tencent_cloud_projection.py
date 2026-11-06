@@ -47,7 +47,13 @@ PRODUCT = {
 
 def sample_config(template, defaults, params):
     fields = [
-        {"name": key, "type": "text", "description": key, "mode": "opt_cmd", "default": ""}
+        {
+            "name": key,
+            "type": "password" if key == "secret_key" else "text",
+            "description": key,
+            "mode": "opt_cmd",
+            "default": "",
+        }
         for key in ("secret_id", "secret_key", "region", "is_international", "rate_limit", "products")
     ]
     definition = SimpleNamespace(collector_json={"template": template, "values": defaults}, config_json=fields)
@@ -156,6 +162,35 @@ def test_edit_and_display(config, mocker):
     assert stored["params"]["plugin"]["secret_id"] is True and stored["params"]["plugin"]["secret_key"] is True
     assert stored["params"]["plugin"]["products"] == before[0]["plugin"]["products"]
     assert before == (source.params, source.plugin_version.config)
+
+
+@pytest.mark.parametrize(
+    ("original", "replacement"), [("sample-access", None), ("", None), ("sample-access", "updated-access")]
+)
+def test_stored_credentials_roundtrip_on_save(config, mocker, original, replacement):
+    source_plugin = config.deployment_config.params["plugin"]
+    source_plugin["secret_id"] = original
+    config.plugin.current_version = config.deployment_config.plugin_version
+    stored = detail(params_format="stored")
+    plugin = stored["params"]["plugin"]
+    assert plugin["secret_id"] is bool(original)
+    assert plugin["secret_key"] is True
+    if replacement is not None:
+        plugin["secret_id"] = replacement
+
+    save = backend.SaveCollectConfigResource()
+    mocker.patch.object(save, "get_collector_plugin", return_value=config.plugin)
+    mocker.patch.object(backend.CollectConfigMeta.objects, "get", return_value=config)
+    installer = mocker.patch.object(backend, "get_collect_installer").return_value
+    mocker.patch.object(save, "update_metric_cache")
+    mocker.patch.object(backend, "DatalinkDefaultAlarmStrategyLoader")
+    mocker.patch.object(backend, "get_global_user", return_value="tester")
+    data = {key: stored[key] for key in ("id", "bk_biz_id", "name", "target_object_type", "target_node_type", "params")}
+    save.perform_request({**data, "operation": "EDIT", "metric_relabel_configs": []})
+
+    installed = installer.install.call_args.args[0]["params"]["plugin"]
+    assert installed == {**source_plugin, "secret_id": original if replacement is None else replacement}
+    assert source_plugin["secret_id"] == original
 
 
 def test_new_format_uses_uploaded_content_and_recomputes_preview(config):

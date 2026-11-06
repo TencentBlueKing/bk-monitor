@@ -1115,6 +1115,11 @@ class SaveCollectConfigResource(Resource):
         config_params = config_meta.plugin.current_version.config.config_json
         deployment_params = config_meta.deployment_config.params
 
+        # 腾讯云旧表单把 secret_id 定义为文本，stored 详情仍会将其脱敏为布尔占位。
+        plugin_params = data["params"].get("plugin", {})
+        if isinstance(plugin_params.get("secret_id"), bool) and is_tencent_cloud_config(config_meta):
+            plugin_params["secret_id"] = deployment_params.get("plugin", {}).get("secret_id", "")
+
         for param in config_params:
             if param["type"] not in ["password", "encrypt"]:
                 continue
