@@ -6337,7 +6337,91 @@ class DorisStorage(models.Model, StorageResultTable):
 
         return get_datalink_table_name(self.pk, self.physical_tables)
 
-    def manages_datalink(self):
+    TABLE_DEFAULTS = {
+        "table_type": "primary_table",
+        "unique_partition_table": True,
+        "support_hour_partition": False,
+        "use_lowercase_field": False,
+    }
+
+    @classmethod
+    def requires_new_table(cls, old, new):
+        old_fields = {field["field_name"]: field["field_type"] for field in old["fields"]}
+        new_fields = {field["field_name"]: field["field_type"] for field in new["fields"]}
+        if any(new_fields.get(name) != kind for name, kind in old_fields.items()):
+            return True
+        before, after = old["storage_config"], new["storage_config"]
+        for key, default in cls.TABLE_DEFAULTS.items():
+            if (before.get(key) if before.get(key) is not None else default) != (
+                after.get(key) if after.get(key) is not None else default
+            ):
+                return True
+        if before.get("storage_keys", []) != after.get("storage_keys", []):
+            return True
+        if (before.get("tokenizers") or {}) != (after.get("tokenizers") or {}):
+            return True
+        for key in ("json_fields", "original_json_fields"):
+            if set(before.get(key) or []) != set(after.get(key) or []):
+                return True
+
+        def groups(value):
+            return {key: set(fields) for key, fields in (value.get("field_config_group") or {}).items() if fields}
+
+        return groups(before) != groups(after)
+
+    @staticmethod
+    def _write_config(options):
+        from metadata.models import ResultTableOption
+
+        for name in (ResultTableOption.OPTION_V4_LOG_DATA_LINK, ResultTableOption.OPTION_CUSTOM_FORMAT_V4_DATA_LINK):
+            value = options.get(name)
+            if isinstance(value, str):
+                value = json.loads(value)
+            if value and value.get("doris_storage_config") is not None:
+                return value["doris_storage_config"]
+        return None
+
+    def _saved_write_config(self):
+        from metadata.models import ResultTableOption
+
+        records = ResultTableOption.objects.filter(
+            table_id=self.table_id,
+            bk_tenant_id=self.bk_tenant_id,
+            name__in=(ResultTableOption.OPTION_V4_LOG_DATA_LINK, ResultTableOption.OPTION_CUSTOM_FORMAT_V4_DATA_LINK),
+        )
+        return self._write_config({item.name: item.get_value() for item in records})
+
+    @classmethod
+    def prepare_table_update(cls, rt, options, *, replacing):
+        """只为已有 Doris 写入保存变更前的配置，以便字段和 option 全量替换后比较。"""
+        target_config = cls._write_config(options)
+        if target_config is None:
+            return None
+        storage = cls.objects.filter(table_id=rt.table_id, bk_tenant_id=rt.bk_tenant_id).first()
+        if storage is None or not storage._owns_write_table():
+            return None
+        old_config = storage._saved_write_config() if replacing else target_config
+        if old_config is None:
+            return None
+        return storage, storage._table_config(old_config), target_config
+
+    def _table_config(self, storage_config):
+        from metadata.models.data_link.utils import generate_result_table_field_list
+
+        return {
+            "storage_config": storage_config,
+            "fields": generate_result_table_field_list(self.table_id, self.bk_tenant_id),
+        }
+
+    def update_table_version(self, old_config, target_config, operator):
+        from metadata.models.doris_version import advance_table_version
+
+        if self.requires_new_table(old_config, self._table_config(target_config)):
+            self.refresh_from_db()
+            if self._owns_write_table():
+                advance_table_version(self, operator)
+
+    def _owns_write_table(self):
         """虚拟表和无采集数据源的路由表只参与查询，不拥有写入链路。"""
         from metadata.models import DataSourceResultTable, ResultTableOption
 
@@ -6350,17 +6434,12 @@ class DorisStorage(models.Model, StorageResultTable):
         ).first()
         if virtual and virtual.get_value():
             return False
-        if not DataSourceResultTable.objects.filter(bk_tenant_id=self.bk_tenant_id, table_id=self.table_id).exists():
-            return False
-        from metadata.models.doris_version import get_doris_config
-
-        # 第三方查询表可以有数据源关联，但只有 BKBase 表名，没有监控侧 Doris 写入配置。
-        return get_doris_config(self.table_id, self.bk_tenant_id) is not None
+        return DataSourceResultTable.objects.filter(bk_tenant_id=self.bk_tenant_id, table_id=self.table_id).exists()
 
     def advance_table_version(self, operator):
         from metadata.models.doris_version import advance_table_version
 
-        if self.manages_datalink():
+        if self._owns_write_table() and self._saved_write_config() is not None:
             advance_table_version(self, operator)
 
     @classmethod

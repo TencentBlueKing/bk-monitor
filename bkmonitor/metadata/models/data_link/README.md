@@ -478,7 +478,7 @@ DorisStorage 在已有 ResultTable 修改事务内比较字段、分词、索引
 | 普通新增字段、字段说明、无序集合仅重排 | 原地更新 |
 | expire_days、flush_timeout、alias、description | 原地更新 |
 
-新增可选配置及 tokenizers 省略/null 时沿用旧值，显式空集合清空。
+传入 option 时全量替换。省略 tokenizers 会清空原分词配置，省略分区选项会恢复默认分区配置。
 首次创建默认 primary_table、unique_partition_table=true、日分区；小时分区的适用模型遵循 BKBase。
 不增加独立时间精度字段，不开放用户物理表命名或 Profiling 专用配置。
 

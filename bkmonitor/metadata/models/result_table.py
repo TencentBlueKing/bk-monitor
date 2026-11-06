@@ -1340,12 +1340,26 @@ class ResultTable(models.Model):
             self.bk_tenant_id,
         )
 
-        from metadata.models.doris_version import get_doris_config, preserve_optional_config, requires_new_table
-
-        old_doris_config = get_doris_config(self.table_id, self.bk_tenant_id)
-        if option is not None:
-            option = dict(option)
-            preserve_optional_config(option, old_doris_config)
+        doris_update = None
+        writes_log = (default_storage or self.default_storage) in (ClusterInfo.TYPE_ES, ClusterInfo.TYPE_DORIS)
+        replaces_fields = field_list is not None and self.schema_type == self.SCHEMA_TYPE_FREE
+        if option is None:
+            # 仅更新字段时，从原有 option 查询中一并取得写入目标，兼容默认 ES 的双写表。
+            names = [ResultTableOption.OPTION_ENABLE_FIELD_BLACK_LIST]
+            if writes_log and replaces_fields:
+                names.extend(
+                    [ResultTableOption.OPTION_V4_LOG_DATA_LINK, ResultTableOption.OPTION_CUSTOM_FORMAT_V4_DATA_LINK]
+                )
+            existing_options = {
+                item.name: item.get_value()
+                for item in ResultTableOption.objects.filter(
+                    table_id=self.table_id, bk_tenant_id=self.bk_tenant_id, name__in=names
+                )
+            }
+        if writes_log and (option is not None or replaces_fields):
+            doris_update = DorisStorage.prepare_table_update(
+                self, option if option is not None else existing_options, replacing=option is not None
+            )
         old_default_storage = self.default_storage
         old_is_enable = self.is_enable
         old_active_cluster_id = self._get_storage_cluster_id(old_default_storage)
@@ -1640,12 +1654,10 @@ class ResultTable(models.Model):
             )
         else:
             # 如果是非自动发现的结果表，则需要强制更新数据链路
-            enable_field_black_list_option = ResultTableOption.objects.filter(
-                table_id=self.table_id,
-                bk_tenant_id=self.bk_tenant_id,
-                name=ResultTableOption.OPTION_ENABLE_FIELD_BLACK_LIST,
-            ).first()
-            if enable_field_black_list_option and not enable_field_black_list_option.get_value():
+            if (
+                ResultTableOption.OPTION_ENABLE_FIELD_BLACK_LIST in existing_options
+                and not existing_options[ResultTableOption.OPTION_ENABLE_FIELD_BLACK_LIST]
+            ):
                 force_update_datalink = True
 
         # 是否需要修改结果表是否启用
@@ -1740,15 +1752,9 @@ class ResultTable(models.Model):
                 switched,
             )
 
-        new_doris_config = get_doris_config(self.table_id, self.bk_tenant_id)
-        if (
-            old_doris_config is not None
-            and new_doris_config is not None
-            and requires_new_table(old_doris_config, new_doris_config)
-        ):
-            doris_storage = DorisStorage.objects.get(table_id=self.table_id, bk_tenant_id=self.bk_tenant_id)
-            if not doris_storage.origin_table_id:
-                doris_storage.advance_table_version(operator)
+        if doris_update:
+            doris_storage, old_config, target_config = doris_update
+            doris_storage.update_table_version(old_config, target_config, operator)
 
         # 异步执行时，需要在commit之后，以保证所有操作都提交
         try:

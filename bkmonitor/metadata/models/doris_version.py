@@ -1,94 +1,12 @@
 """普通 Doris 表版本：修改入口分配，声明入口只复用。"""
 
 import datetime
-import json
 import re
 
 from django.db import transaction
 from django.utils import timezone
 
 from metadata import config
-
-OPTIONAL_STORAGE_FIELDS = (
-    "table_type",
-    "unique_partition_table",
-    "support_hour_partition",
-    "use_lowercase_field",
-    "tokenizers",
-    "alias",
-    "description",
-)
-TABLE_DEFAULTS = {
-    "table_type": "primary_table",
-    "unique_partition_table": True,
-    "support_hour_partition": False,
-    "use_lowercase_field": False,
-}
-
-
-def get_doris_config(table_id, bk_tenant_id):
-    from metadata.models import ResultTableOption
-    from metadata.models.data_link.utils import generate_result_table_field_list
-
-    for name in (ResultTableOption.OPTION_V4_LOG_DATA_LINK, ResultTableOption.OPTION_CUSTOM_FORMAT_V4_DATA_LINK):
-        record = ResultTableOption.objects.filter(table_id=table_id, bk_tenant_id=bk_tenant_id, name=name).first()
-        if record:
-            value = record.get_value()
-            value = json.loads(value) if isinstance(value, str) else value
-            storage_config = value.get("doris_storage_config")
-            if storage_config is not None:
-                return {
-                    "fields": generate_result_table_field_list(table_id, bk_tenant_id),
-                    "storage_config": storage_config,
-                }
-    return None
-
-
-def preserve_optional_config(option, old):
-    """option 全量替换时，仅保留约定为省略/null即沿用的可选 Doris 配置。"""
-    if option is None or old is None:
-        return
-    from metadata.models import ResultTableOption
-
-    for name in (ResultTableOption.OPTION_V4_LOG_DATA_LINK, ResultTableOption.OPTION_CUSTOM_FORMAT_V4_DATA_LINK):
-        if name not in option:
-            continue
-        value = option[name]
-        is_string = isinstance(value, str)
-        value = json.loads(value) if is_string else dict(value)
-        if value.get("doris_storage_config") is None:
-            continue
-        storage = dict(value["doris_storage_config"])
-        for key in OPTIONAL_STORAGE_FIELDS:
-            if storage.get(key) is None and key in old["storage_config"]:
-                storage[key] = old["storage_config"][key]
-        value["doris_storage_config"] = storage
-        option[name] = json.dumps(value) if is_string else value
-
-
-def requires_new_table(old, new):
-    old_fields = {field["field_name"]: field["field_type"] for field in old["fields"]}
-    new_fields = {field["field_name"]: field["field_type"] for field in new["fields"]}
-    if any(new_fields.get(name) != kind for name, kind in old_fields.items()):
-        return True
-    before, after = old["storage_config"], new["storage_config"]
-    for key, default in TABLE_DEFAULTS.items():
-        if (before.get(key) if before.get(key) is not None else default) != (
-            after.get(key) if after.get(key) is not None else default
-        ):
-            return True
-    if before.get("storage_keys", []) != after.get("storage_keys", []):
-        return True
-    if (before.get("tokenizers") or {}) != (after.get("tokenizers") or {}):
-        return True
-    for key in ("json_fields", "original_json_fields"):
-        if set(before.get(key) or []) != set(after.get(key) or []):
-            return True
-
-    def groups(value):
-        return {key: set(fields) for key, fields in (value.get("field_config_group") or {}).items() if fields}
-
-    return groups(before) != groups(after)
 
 
 def advance_table_version(storage, operator):

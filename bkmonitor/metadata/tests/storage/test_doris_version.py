@@ -9,7 +9,6 @@ from django.utils import timezone
 
 from metadata import config, models
 from metadata.models.data_link.data_link import DataLink
-from metadata.models.doris_version import get_doris_config, preserve_optional_config, requires_new_table
 
 pytestmark = pytest.mark.django_db(transaction=True, databases="__all__", available_apps=["metadata"])
 
@@ -144,8 +143,10 @@ def test_modify_compares_old_configuration_and_retries_do_not_rotate(version_rec
     mocker.patch.object(models.ResultTable, "apply_datalink")
     mocker.patch("metadata.models.space.utils.get_space_by_table_id", return_value={})
     value = json.loads(option.value)
-    value["doris_storage_config"]["tokenizers"] = {}
+    del value["doris_storage_config"]["tokenizers"]
     rt.modify(operator="tester", option={option.name: value})
+    saved = models.ResultTableOption.objects.get(table_id=rt.table_id, name=option.name, bk_tenant_id=rt.bk_tenant_id)
+    assert "tokenizers" not in saved.get_value()["doris_storage_config"]
     storage.refresh_from_db()
     assert storage.datalink_table_name == f"bkm_doris_{storage.pk}_v2"
     rt.modify(operator="tester", option={option.name: value})
@@ -210,7 +211,7 @@ def test_nonstructural_change_does_not_rotate(version_records, mocker):
     ],
 )
 def test_costly_configuration_changes(key, before, after):
-    assert requires_new_table(
+    assert models.DorisStorage.requires_new_table(
         {"fields": [], "storage_config": {key: before}}, {"fields": [], "storage_config": {key: after}}
     )
 
@@ -225,21 +226,18 @@ def test_costly_configuration_changes(key, before, after):
 )
 def test_field_changes(old_fields, new_fields, expected):
     assert (
-        requires_new_table({"fields": old_fields, "storage_config": {}}, {"fields": new_fields, "storage_config": {}})
+        models.DorisStorage.requires_new_table(
+            {"fields": old_fields, "storage_config": {}}, {"fields": new_fields, "storage_config": {}}
+        )
         is expected
     )
 
 
-def test_unordered_fields_and_explicit_clear(version_records):
-    _, _, storage, _, option = version_records
-    old = get_doris_config(storage.table_id, storage.bk_tenant_id)
-    old["storage_config"]["field_config_group"] = {"search_zh": ["a", "b"]}
+def test_unordered_fields():
+    old = {"fields": [], "storage_config": {"field_config_group": {"search_zh": ["a", "b"]}}}
     new = deepcopy(old)
     new["storage_config"]["field_config_group"] = {"search_zh": ["b", "a"]}
-    assert not requires_new_table(old, new)
-    value = {option.name: {"doris_storage_config": {"tokenizers": {}}}}
-    preserve_optional_config(value, old)
-    assert value[option.name]["doris_storage_config"]["tokenizers"] == {}
+    assert not models.DorisStorage.requires_new_table(old, new)
 
 
 def test_legacy_table_keeps_name_until_first_costly_change(version_records, mocker):
@@ -743,6 +741,8 @@ def test_es_only_log_apply_follows_outer_commit(version_records, mocker, rollbac
     original["es_storage_config"] = {"unique_field_list": []}
     option.value = json.dumps(original)
     option.save(update_fields=["value"])
+    snapshot = mocker.spy(models.DorisStorage, "_table_config")
+    saved_write_config = mocker.spy(models.DorisStorage, "_saved_write_config")
     updated = dict(original, es_storage_config={"unique_field_list": ["host"]})
     mocker.patch("metadata.models.space.utils.get_space_by_table_id", return_value={})
     mocker.patch.object(models.ResultTable, "get_target_bk_biz_id", return_value=2)
@@ -757,9 +757,48 @@ def test_es_only_log_apply_follows_outer_commit(version_records, mocker, rollbac
             if rollback:
                 raise RuntimeError("rollback")
     saved = models.ResultTableOption.objects.get(bk_tenant_id="system", table_id=rt.table_id, name=option.name)
+    snapshot.assert_not_called()
+    saved_write_config.assert_not_called()
     if rollback:
         apply.assert_not_called()
         assert json.loads(saved.value) == original
     else:
         apply.assert_called_once_with(bk_tenant_id="system", table_id=rt.table_id)
         assert saved.get_value() == updated
+
+
+@pytest.mark.parametrize("version_records", [DataLink.BK_LOG], indirect=True)
+@pytest.mark.parametrize("writes_doris", [False, True], ids=["es_only_with_doris_history", "dual_write"])
+def test_es_default_field_only_update(version_records, mocker, writes_doris):
+    rt, _, storage, _, option = version_records
+    rt.default_storage = models.ClusterInfo.TYPE_ES
+    rt.schema_type = rt.SCHEMA_TYPE_FREE
+    rt.is_enable = False
+    rt.save()
+    value = json.loads(option.value)
+    value["es_storage_config"] = {"unique_field_list": []}
+    if not writes_doris:
+        del value["doris_storage_config"]
+    option.value = json.dumps(value)
+    option.save(update_fields=["value"])
+    mocker.patch.object(models.ResultTable, "_get_and_validate_default_cluster_storage")
+    mocker.patch("metadata.models.space.utils.get_space_by_table_id", return_value={})
+    snapshot = mocker.spy(models.DorisStorage, "_table_config")
+    rt.modify(operator="tester", field_list=[])
+    storage.refresh_from_db()
+    version = 2 if writes_doris else 1
+    assert storage.datalink_table_name == f"bkm_doris_{storage.pk}_v{version}"
+    if not writes_doris:
+        snapshot.assert_not_called()
+
+
+def test_vm_field_update_skips_doris_configuration(version_records, mocker):
+    rt, _, _, _, _ = version_records
+    rt.default_storage = models.ClusterInfo.TYPE_VM
+    rt.schema_type = rt.SCHEMA_TYPE_FREE
+    rt.is_enable = False
+    rt.save()
+    mocker.patch("metadata.models.space.utils.get_space_by_table_id", return_value={})
+    prepare = mocker.spy(models.DorisStorage, "prepare_table_update")
+    rt.modify(operator="tester", field_list=[], option={})
+    prepare.assert_not_called()
