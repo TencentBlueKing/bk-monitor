@@ -1223,6 +1223,8 @@ class ListDataLink(UseSaaSAuthInfoMixin, DataAccessAPIResource):
     拉取计算平台数据链路列表
     """
 
+    use_tenant_admin = True
+
     @property
     def action(self):
         if settings.ENABLE_MULTI_TENANT_MODE:
