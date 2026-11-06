@@ -427,6 +427,9 @@ BK_FAQ_URL = "https://bk.tencent.com/s-mart/community"
 # SaaS访问域名
 BK_BKLOG_HOST = os.environ.get("BK_BKLOG_HOST", f"{BK_PAAS_HOST}/o/bk_log_search/")
 
+# 权限中心 SaaS host（V4）：未显式配置时按 SaaS 域名规则由 bklog 替换为 iam
+BK_IAM_V4_SAAS_HOST = os.environ.get("BK_IAM_V4_SAAS_HOST") or os.getenv("BK_BKLOG_HOST", "").replace("bklog", "iam")
+
 # API访问地址，APIGW 需要用到
 BK_BKLOG_API_HOST = os.getenv("BKAPP_BKLOG_API_HOST", "http://bk-log-search-api")
 
