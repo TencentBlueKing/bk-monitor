@@ -710,19 +710,13 @@ class ResultTable(models.Model):
         elif self.default_storage in [ClusterInfo.TYPE_ES, ClusterInfo.TYPE_DORIS]:
             # 日志 V4 数据链路
             if options and options.get(ResultTableOption.OPTION_ENABLE_V4_LOG_DATA_LINK, False):
-                log_option = options.get(ResultTableOption.OPTION_V4_LOG_DATA_LINK, {})
-                if isinstance(log_option, str):
-                    log_option = json.loads(log_option)
-                if log_option.get("doris_storage_config") is not None:
-                    # 先提交期望版本和历史；远端部分成功后重试仍声明同一个版本。
-                    on_commit(
-                        lambda tenant=self.bk_tenant_id, table=self.table_id: apply_log_datalink(
-                            bk_tenant_id=tenant, table_id=table
-                        ),
-                        using=config.DATABASE_CONNECTION_NAME,
-                    )
-                else:
-                    apply_log_datalink(bk_tenant_id=self.bk_tenant_id, table_id=self.table_id)
+                # 先提交配置再声明链路；远端失败时可以用已保存的配置重试。
+                on_commit(
+                    lambda tenant=self.bk_tenant_id, table=self.table_id: apply_log_datalink(
+                        bk_tenant_id=tenant, table_id=table
+                    ),
+                    using=config.DATABASE_CONNECTION_NAME,
+                )
             # 事件组 V4 数据链路
             elif datasource.etl_config == EtlConfigs.BK_STANDARD_V2_EVENT.value:
                 apply_event_group_datalink(bk_tenant_id=self.bk_tenant_id, table_id=self.table_id)

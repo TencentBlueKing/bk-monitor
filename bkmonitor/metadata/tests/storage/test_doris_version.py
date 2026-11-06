@@ -718,3 +718,48 @@ def test_result_table_modify_commits_before_log_apply_failure(version_records, m
     assert models.DataBusConfig.objects.get(data_link_name=link.pk).sink_names == [
         f"DorisBinding:{storage.datalink_table_name}"
     ]
+
+
+@pytest.mark.parametrize("version_records", [DataLink.BK_LOG], indirect=True)
+@pytest.mark.parametrize("rollback", [False, True], ids=["apply_failure", "outer_rollback"])
+def test_es_only_log_apply_follows_outer_commit(version_records, mocker, rollback):
+    rt, _, storage, _, option = version_records
+    storage.delete()
+    models.StorageClusterRecord.objects.filter(table_id=rt.table_id).delete()
+    rt.default_storage = models.ClusterInfo.TYPE_ES
+    rt.save(update_fields=["default_storage"])
+    models.ClusterInfo.objects.create(
+        bk_tenant_id="system",
+        cluster_id=99992,
+        cluster_name="log_es",
+        cluster_type=models.ClusterInfo.TYPE_ES,
+        domain_name="localhost",
+        port=9200,
+        is_default_cluster=False,
+    )
+    models.ESStorage.objects.create(table_id=rt.table_id, bk_tenant_id="system", storage_cluster_id=99992)
+    original = json.loads(option.value)
+    original.pop("doris_storage_config")
+    original["es_storage_config"] = {"unique_field_list": []}
+    option.value = json.dumps(original)
+    option.save(update_fields=["value"])
+    updated = dict(original, es_storage_config={"unique_field_list": ["host"]})
+    mocker.patch("metadata.models.space.utils.get_space_by_table_id", return_value={})
+    mocker.patch.object(models.ResultTable, "get_target_bk_biz_id", return_value=2)
+    apply = mocker.patch("metadata.task.datalink.apply_log_datalink", side_effect=RuntimeError("apply failed"))
+    with pytest.raises(RuntimeError, match="rollback" if rollback else "apply failed"):
+        with transaction.atomic(using=config.DATABASE_CONNECTION_NAME):
+            rt.modify(
+                operator="tester",
+                option={option.name: updated, models.ResultTableOption.OPTION_ENABLE_V4_LOG_DATA_LINK: True},
+            )
+            apply.assert_not_called()
+            if rollback:
+                raise RuntimeError("rollback")
+    saved = models.ResultTableOption.objects.get(bk_tenant_id="system", table_id=rt.table_id, name=option.name)
+    if rollback:
+        apply.assert_not_called()
+        assert json.loads(saved.value) == original
+    else:
+        apply.assert_called_once_with(bk_tenant_id="system", table_id=rt.table_id)
+        assert saved.get_value() == updated
