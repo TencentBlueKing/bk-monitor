@@ -1028,7 +1028,7 @@ class PluginVersionHistory(OperateRecordModelBase):
             "logo": logo_base64,
             "collector_json": self.config.collector_json,
             "config_json": self.config.config_json,
-            "metric_json": self.info.metric_json,
+            "metric_json": [dict(table) for table in self.info.metric_json],
             "description_md": self.info.description_md,
             "config_version": self.config_version,
             "info_version": self.info_version,
