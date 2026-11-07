@@ -9,6 +9,7 @@ specific language governing permissions and limitations under the License.
 """
 
 import json
+import re
 from unittest.mock import PropertyMock
 
 import pytest
@@ -604,7 +605,7 @@ def test_sync_log_physical_table_creates_first_version(log_doris_records):
     rt_name = _sync_log_physical_table(ctx, previous_option_value=old_option)
 
     data_biz_id = _get_datalink_data_biz_id(ctx["bk_biz_id"])
-    assert rt_name.endswith("_v1")
+    assert re.fullmatch(r"bkm_[0-9a-z_]+_v1", rt_name)
     storage = models.DorisStorage.objects.get(table_id=LOG_DORIS_TABLE_ID)
     assert storage.physical_tables == {"main": f"mapleleaf_{data_biz_id}.{rt_name}"}
     assert storage.bkbase_table_id == f"{data_biz_id}_{rt_name}"
@@ -917,3 +918,44 @@ def test_rotation_keeps_existing_legacy_snapshot(log_doris_records):
     legacy_segment.refresh_from_db()
     assert legacy_segment.bkbase_table_id == "2_existing_result_table"
     assert legacy_segment.physical_tables == {"main": expected_table}
+
+
+def test_log_doris_table_identity_is_random_and_collision_free():
+    """表名必须带随机唯一串：同名 table_id（不同租户）与归一化后撞名的 table_id 都不能重复。"""
+    db = "mapleleaf_2"
+    same_table_first, _ = models.DorisStorage._compose_log_doris_table_identity(
+        table_id="2_bklog.same_name", db=db, max_name_length=38, version=1
+    )
+    same_table_second, _ = models.DorisStorage._compose_log_doris_table_identity(
+        table_id="2_bklog.same_name", db=db, max_name_length=38, version=1
+    )
+    # 归一化后会撞名的两个 table_id（a_b.c 与 a.b_c）
+    collide_first, _ = models.DorisStorage._compose_log_doris_table_identity(
+        table_id="2_bklog.a_b.c", db=db, max_name_length=38, version=1
+    )
+    collide_second, _ = models.DorisStorage._compose_log_doris_table_identity(
+        table_id="2_bklog.a.b_c", db=db, max_name_length=38, version=1
+    )
+
+    names = {same_table_first, same_table_second, collide_first, collide_second}
+    assert len(names) == 4
+    for name in names:
+        assert re.fullmatch(r"bkm_[0-9a-z_]+_v1", name)
+        assert len(name) <= 38
+        assert len(name) + len("2_") <= models.DorisStorage.BKBASE_TABLE_ID_MAX_LENGTH
+
+
+def test_log_doris_table_identity_keeps_random_token_for_large_versions():
+    """版本号变长时只截断可读片段，随机串不被削弱。"""
+    base_v1 = models.DorisStorage._compose_log_doris_table_base("2_bklog.very_long_table_id_name", max_length=34)
+    base_v100 = models.DorisStorage._compose_log_doris_table_base("2_bklog.very_long_table_id_name", max_length=34)
+    assert re.fullmatch(r"bkm_[0-9a-z_]*[0-9a-z]{10}", base_v1)
+    assert re.fullmatch(r"bkm_[0-9a-z_]*[0-9a-z]{10}", base_v100)
+    assert len(base_v1) <= 34
+    rt_name, physical_table = models.DorisStorage._compose_log_doris_table_identity(
+        table_id="2_bklog.very_long_table_id_name", db="mapleleaf_2", max_name_length=38, version=100
+    )
+    assert rt_name.endswith("_v100")
+    # 随机串（10 位）必须完整保留在版本后缀之前
+    assert re.fullmatch(r"bkm_[0-9a-z_]*[0-9a-z]{10}_v100", rt_name)
+    assert physical_table == f"mapleleaf_2.{rt_name}"

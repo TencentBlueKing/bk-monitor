@@ -6322,6 +6322,9 @@ class DorisStorage(models.Model, StorageResultTable):
     LOG_PHYSICAL_TABLE_ROLE = "main"
     # 只有真实日志接入（source_type=log）的实体表才会创建后续链路并产出物理表。
     LOG_SOURCE_TYPE = "log"
+    # 新物理表基名：``bkm_<可读片段>_<随机串>``，随机串保证跨租户/跨表不撞名。
+    LOG_PHYSICAL_TABLE_PREFIX = "bkm_"
+    LOG_PHYSICAL_TABLE_TOKEN_LENGTH = 10
     # BKBase 结果表 ID 上限 40；版本后缀形如 ``_v12``。
     BKBASE_TABLE_ID_MAX_LENGTH = 40
     LOG_PHYSICAL_TABLE_VERSION_PATTERN = re.compile(r"^(?P<base>.+)_v(?P<version>\d+)$")
@@ -6472,7 +6475,7 @@ class DorisStorage(models.Model, StorageResultTable):
             if rotated:
                 version = cls._parse_log_doris_table_version(rt_name) + 1
                 rt_name, physical_table = cls._compose_log_doris_table_identity(
-                    base=cls._strip_log_doris_table_version(rt_name),
+                    table_id=storage.table_id,
                     db=db,
                     max_name_length=max_name_length,
                     version=version,
@@ -6580,41 +6583,41 @@ class DorisStorage(models.Model, StorageResultTable):
         db: str,
         max_name_length: int,
         version: int,
-        table_id: str | None = None,
-        base: str | None = None,
+        table_id: str,
     ) -> tuple[str, str]:
-        """生成第 ``version`` 代的结果表名与物理表名。"""
-        from metadata.models.data_link.utils import compose_bkdata_table_id
-
+        """生成第 ``version`` 代的结果表名与物理表名（每代都带随机唯一串）。"""
         suffix = f"_v{version}"
-        if base is None:
-            if table_id is None:
-                raise ValueError("compose log doris table identity requires table_id or base")
-            base = compose_bkdata_table_id(table_id, max_length=max(max_name_length - len(suffix), 1))
-        base = cls._normalize_doris_table_base(base)
-        if len(base) + len(suffix) > max_name_length:
-            base = base[: max(max_name_length - len(suffix), 1)]
+        base = cls._compose_log_doris_table_base(table_id, max_length=max(max_name_length - len(suffix), 1))
         rt_name = f"{base}{suffix}"
         return rt_name, f"{db}.{rt_name}"
+
+    @classmethod
+    def _compose_log_doris_table_base(cls, table_id: str, *, max_length: int) -> str:
+        """生成物理表基名：可读前缀 + 随机唯一串。
+
+        table_id 不含租户信息，归一化后不同表也可能撞名（如 ``a_b.c`` 与 ``a.b_c``），
+        因此表名不能只由 table_id 推导，必须附加随机串；随机串只生成一次并随
+        ``physical_tables`` 持久化，重复下发复用同一条记录，不会反复改名。
+        """
+        token = "".join(random.choices(string.ascii_lowercase + string.digits, k=cls.LOG_PHYSICAL_TABLE_TOKEN_LENGTH))
+        readable = cls._normalize_doris_table_base(table_id.split(".__default__")[0])
+        # 保留 ``bkm_`` 前缀与固定长度的随机串，只截断可读部分，避免削弱唯一性。
+        readable_length = max(max_length - len(cls.LOG_PHYSICAL_TABLE_PREFIX) - len(token) - 1, 1)
+        base = f"{cls.LOG_PHYSICAL_TABLE_PREFIX}{readable[:readable_length]}_{token}"
+        return base[:max_length]
 
     @staticmethod
     def _normalize_doris_table_base(base: str) -> str:
         """把任意名称规范成 Doris 可用的标识符前缀。"""
         normalized = re.sub(r"[^0-9a-zA-Z_]+", "_", base).lower()
         normalized = re.sub(r"_{2,}", "_", normalized).strip("_")
-        return normalized or "bkm_doris"
+        return normalized or "doris"
 
     @classmethod
     def _parse_log_doris_table_version(cls, rt_name: str) -> int:
         """解析结果表名中的 ``_vN`` 版本号，无后缀视为第一代。"""
         matched = cls.LOG_PHYSICAL_TABLE_VERSION_PATTERN.match(rt_name or "")
         return int(matched.group("version")) if matched else 1
-
-    @classmethod
-    def _strip_log_doris_table_version(cls, rt_name: str) -> str:
-        """去掉结果表名中的 ``_vN`` 版本后缀，得到版本基名。"""
-        matched = cls.LOG_PHYSICAL_TABLE_VERSION_PATTERN.match(rt_name or "")
-        return matched.group("base") if matched else (rt_name or "")
 
     @classmethod
     def _owns_log_write_table(cls, *, bk_tenant_id: str, table_id: str) -> bool:
