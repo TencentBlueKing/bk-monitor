@@ -140,13 +140,19 @@ def check_event_update():
 
 
 def refresh_custom_report_2_node_man(bk_biz_id=None):
-    # 判定节点管理是否上传支持v2新配置模版的bk-collector版本0.16.1061
-    default_version = "0.0.0"
-    plugin_infos = api.node_man.plugin_info(name="bk-collector")
-    version_str_list = [p.get("version", default_version) for p in plugin_infos if p.get("is_ready", True)]
-    max_version = get_max_version(default_version, version_str_list)
+    if models.BkCollectorDeployPolicy.is_enabled():
+        # 节点管理 V3 下 bk-collector 为新打包的 V3 插件包，必然支持 v2 新配置模版；
+        # V2 的 plugin_info 只能查到 V2 插件包，不能再作为版本门禁
+        max_version, is_version_ready = "", True
+    else:
+        # 判定节点管理是否上传支持v2新配置模版的bk-collector版本0.16.1061
+        default_version = "0.0.0"
+        plugin_infos = api.node_man.plugin_info(name="bk-collector")
+        version_str_list = [p.get("version", default_version) for p in plugin_infos if p.get("is_ready", True)]
+        max_version = get_max_version(default_version, version_str_list)
+        is_version_ready = compare_versions(max_version, RECOMMENDED_VERSION["bk-collector"]) > 0
 
-    if compare_versions(max_version, RECOMMENDED_VERSION["bk-collector"]) > 0:
+    if is_version_ready:
         if bk_biz_id is not None:
             bk_tenant_ids = [bk_biz_id_to_bk_tenant_id(bk_biz_id)]
         else:

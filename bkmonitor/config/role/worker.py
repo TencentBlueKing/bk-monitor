@@ -266,7 +266,9 @@ DEFAULT_CRONTAB += [
     # metadata同步自定义日志k8s批量配置，每5分钟触发，获取全部数据进行批量调度
     ("metadata.task.custom_report.refresh_all_log_config_to_k8s", "*/10 * * * *", "global"),
     # metadata自动部署bkmonitorproxy
-    ("metadata.task.auto_deploy_proxy", "30 */2 * * *", "global"),
+    # 已停用：依赖的节点管理 V2 SaaS 接口 plugin/search、plugin/operate 已下线，bk-collector 改为运维在节点管理手动安装。
+    # 仍需自动部署的存量 V2 环境可通过 deploy_proxy_and_collector_plugin 命令手动执行。
+    # ("metadata.task.auto_deploy_proxy", "30 */2 * * *", "global"),
     ("metadata.task.config_refresh.refresh_kafka_storage", "*/10 * * * *", "global"),
     ("metadata.task.config_refresh.refresh_consul_es_info", "*/10 * * * *", "global"),
     ("metadata.task.config_refresh.refresh_consul_storage", "*/10 * * * *", "global"),
