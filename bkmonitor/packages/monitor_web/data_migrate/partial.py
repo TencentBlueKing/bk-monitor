@@ -1042,7 +1042,9 @@ def _prepare_partial_space_data_sources(directory_path: str | Path, bk_biz_ids: 
                     "space_id": fields["space_id"],
                 }
                 space_ids = [fields["space_id"]]
-                if lookup["space_type_id"] == "bkci":
+                if lookup["space_type_id"] == "bkci" and not fields["space_id"].startswith(
+                    f"{fields['bk_tenant_id']}-"
+                ):
                     space_ids.append(f"{fields['bk_tenant_id']}-{fields['space_id']}")
                 for space_id in space_ids:
                     lookup["space_id"] = space_id
