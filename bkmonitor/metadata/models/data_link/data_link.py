@@ -3577,15 +3577,6 @@ class DataLink(models.Model):
                 self.data_link_name,
                 table_id,
             )
-        elif rt_count > 1 and self.data_link_strategy == self.BK_LOG:
-            # 日志 Doris 换表会保留历史 ResultTableConfig：最新的一条才是当前生效结果表。
-            logger.info(
-                "sync_metadata: data_link_name->[%s] table_id->[%s] got multiple ResultTableConfig "
-                "(kept for doris physical table history), selected name->[%s] to record BkBaseResultTable",
-                self.data_link_name,
-                table_id,
-                rt.name if rt else "",
-            )
         elif rt_count > 1:
             logger.error(
                 "sync_metadata: data_link_name->[%s] table_id->[%s] got multiple ResultTableConfig, "
