@@ -394,6 +394,7 @@ def test_partial_import_disables_global_post_import_repairs(monkeypatch, tmp_pat
         return ["imported"]
 
     monkeypatch.setattr(partial_migrate, "import_biz_data_from_directory", fake_import_biz_data_from_directory)
+    monkeypatch.setattr(partial_migrate, "_prepare_partial_space_data_sources", lambda *args: None)
 
     result = partial_migrate.import_partial_data_from_directory(
         directory_path=tmp_path,
@@ -544,6 +545,9 @@ def test_rebuild_partial_data_uses_rebuilt_data_ids_for_route_infos(monkeypatch)
     monkeypatch.setattr(partial_migrate, "build_partial_migration_context", lambda **kwargs: context)
     monkeypatch.setattr(partial_migrate, "_collect_current_partial_data_ids", fake_collect_current_partial_data_ids)
     monkeypatch.setattr(partial_migrate, "_build_data_id_infos", fake_build_data_id_infos)
+    monkeypatch.setattr(
+        partial_migrate, "_refresh_partial_space_routes", lambda **kwargs: calls.setdefault("space_routes", kwargs)
+    )
 
     result = partial_migrate.rebuild_partial_data(
         bk_tenant_id="tencent",
@@ -557,6 +561,7 @@ def test_rebuild_partial_data_uses_rebuilt_data_ids_for_route_infos(monkeypatch)
     assert calls["data_id_infos"]["data_ids"] == [200]
     assert result["rebuilt_data_ids"] == [200]
     assert result["data_id_infos"][200]["topic_name"] == "new-topic"
+    assert calls["space_routes"] == {"bk_tenant_id": "tencent", "data_ids": [200]}
 
 
 def test_precheck_partial_import_requires_bk_tenant_id(monkeypatch, tmp_path):
