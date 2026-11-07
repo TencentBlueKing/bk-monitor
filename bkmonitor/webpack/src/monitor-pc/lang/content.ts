@@ -616,4 +616,11 @@ export default {
   '查看 Span 详情': 'View Span details',
   '当前 Trace 无会话 ID': 'Current Trace has no session ID',
   本快照未提供事件数据: 'This snapshot does not contain event data',
+  聚合查看: 'Aggregate view',
+  异常次数: 'Exception count',
+  执行次数: 'Execution count',
+  'P50 耗时': 'P50 duration',
+  统计分析: 'Statistics analysis',
+  'Token 统计分析': 'Token statistics analysis',
+  复位省略: 'Reset ellipsis',
 };
