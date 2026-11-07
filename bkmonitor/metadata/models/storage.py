@@ -6311,6 +6311,21 @@ class DorisStorage(models.Model, StorageResultTable):
     PRIMARY_TABLE_TYPE = "primary_table"  # 主键模型
     DUPLICATE_TABLE_TYPE = "duplicate_table"  # 明细模型
 
+    # 日志 V4 链路中真正下发给 Doris、且决定物理表结构的配置字段。
+    LOG_PHYSICAL_TABLE_CONFIG_FIELDS = (
+        "storage_keys",
+        "json_fields",
+        "original_json_fields",
+        "field_config_group",
+        "tokenizers",
+    )
+    LOG_PHYSICAL_TABLE_ROLE = "main"
+    # 只有真实日志接入（source_type=log）的实体表才会创建后续链路并产出物理表。
+    LOG_SOURCE_TYPE = "log"
+    # BKBase 结果表 ID 上限 40；版本后缀形如 ``_v12``。
+    BKBASE_TABLE_ID_MAX_LENGTH = 40
+    LOG_PHYSICAL_TABLE_VERSION_PATTERN = re.compile(r"^(?P<base>.+)_v(?P<version>\d+)$")
+
     table_id = models.CharField("结果表ID", max_length=128)
     bk_tenant_id = models.CharField("租户ID", max_length=256, null=True, default="system")
     bkbase_table_id = models.CharField("bkbase表名", max_length=128, null=True)
@@ -6341,6 +6356,392 @@ class DorisStorage(models.Model, StorageResultTable):
         if not self.origin_table_id:
             return self
         return DorisStorage.objects.get(bk_tenant_id=self.bk_tenant_id, table_id=self.origin_table_id)
+
+    @classmethod
+    def sync_log_physical_table(
+        cls,
+        *,
+        bk_tenant_id: str,
+        table_id: str,
+        bk_biz_id: int,
+        option_value: dict[str, Any] | None = None,
+        previous_option_value: dict[str, Any] | None = None,
+        previous_field_types: dict[str, str] | None = None,
+    ) -> str | None:
+        """元数据阶段：判定日志 Doris 物理表是否需要替换，并产出物理表名与结果表名。
+
+        产出物只有两处，均落在 ``DorisStorage`` 上，datalink 阶段据此生成配置：
+
+        - ``physical_tables = {"main": "<db>.<table>"}``：DorisBinding 直接指定该物理表；
+        - ``bkbase_table_id = f"{data_biz_id}_{rt_name}"``：datalink 反解出需要新建或维持的
+          ``ResultTableConfig`` 名称。
+
+        行为约定：
+
+        - 首次接入：生成第一代名称（``_v1``）并写入；
+        - 建表相关配置（option 字段 / 同名字段类型）变化：版本 +1，并新开一条存储分段；
+        - 其余情况沿用当前值，只补齐缺失字段，保证重复下发幂等。
+        """
+        from metadata.models import ResultTable, ResultTableOption
+
+        result_table = ResultTable.objects.filter(bk_tenant_id=bk_tenant_id, table_id=table_id).first()
+        if result_table is None or result_table.default_storage != ClusterInfo.TYPE_DORIS:
+            return None
+
+        storage = cls.objects.filter(bk_tenant_id=bk_tenant_id, table_id=table_id).first()
+        if storage is None:
+            logger.info(
+                "sync_log_physical_table: tenant->[%s] table_id->[%s] has no doris storage, skip",
+                bk_tenant_id,
+                table_id,
+            )
+            return None
+        # 路由表 / 图表分析 / 第三方虚拟表不创建后续链路：物理表与结果表归属实体表，
+        # 由实体表的链路产出，这里不能覆盖它们已有的 bkbase_table_id 与物理表配置。
+        if storage.origin_table_id:
+            logger.info(
+                "sync_log_physical_table: tenant->[%s] table_id->[%s] is a virtual storage of->[%s], skip",
+                bk_tenant_id,
+                table_id,
+                storage.origin_table_id,
+            )
+            return None
+        if storage.source_type and storage.source_type != cls.LOG_SOURCE_TYPE:
+            logger.info(
+                "sync_log_physical_table: tenant->[%s] table_id->[%s] source_type->[%s] needs no datalink, skip",
+                bk_tenant_id,
+                table_id,
+                storage.source_type,
+            )
+            return None
+        # 没有数据源关联的查询路由表、以及显式标记为虚拟的结果表，同样只参与查询。
+        if not cls._owns_log_write_table(bk_tenant_id=bk_tenant_id, table_id=storage.table_id):
+            logger.info(
+                "sync_log_physical_table: tenant->[%s] table_id->[%s] does not own a write datalink, skip",
+                bk_tenant_id,
+                table_id,
+            )
+            return None
+        storage = storage.get_effective_storage()
+
+        if option_value is None:
+            option = ResultTableOption.objects.filter(
+                bk_tenant_id=bk_tenant_id,
+                table_id=table_id,
+                name=ResultTableOption.OPTION_V4_LOG_DATA_LINK,
+            ).first()
+            option_value = option.get_value() if option is not None else None
+        ddl_config = cls._compose_log_doris_ddl_config(option_value)
+        if ddl_config is None:
+            return None
+
+        from bkmonitor.utils.tenant import get_tenant_datalink_biz_id
+
+        data_biz_id = get_tenant_datalink_biz_id(bk_tenant_id=bk_tenant_id, bk_biz_id=bk_biz_id).data_biz_id
+        db = f"mapleleaf_{data_biz_id}"
+        # BKBase 结果表 ID 上限 40，预留 ``_{data_biz_id}`` 与版本后缀。
+        max_name_length = max(cls.BKBASE_TABLE_ID_MAX_LENGTH - len(str(data_biz_id)) - 1, 1)
+
+        current_rt_name = cls._compose_log_doris_result_table_name(storage)
+        current_physical_table = cls._resolve_log_doris_physical_table(
+            storage, data_biz_id=data_biz_id, rt_name=current_rt_name
+        )
+
+        rotated = False
+        if current_physical_table is None:
+            # 全新接入：直接产出第一代名称，避免依赖链路名推导表名。
+            rt_name, physical_table = cls._compose_log_doris_table_identity(
+                table_id=storage.table_id,
+                db=db,
+                max_name_length=max_name_length,
+                version=1,
+            )
+        else:
+            rt_name = current_rt_name or cls._split_physical_table_name(current_physical_table)[1]
+            physical_table = current_physical_table
+            rotated = cls._is_log_doris_physical_table_changed(
+                previous_config=cls._compose_log_doris_ddl_config(previous_option_value),
+                config=ddl_config,
+                previous_field_types=previous_field_types,
+                field_types=cls._get_log_doris_field_types(bk_tenant_id=bk_tenant_id, table_id=table_id),
+            )
+            if rotated:
+                version = cls._parse_log_doris_table_version(rt_name) + 1
+                rt_name, physical_table = cls._compose_log_doris_table_identity(
+                    base=cls._strip_log_doris_table_version(rt_name),
+                    db=db,
+                    max_name_length=max_name_length,
+                    version=version,
+                )
+
+        bkbase_table_id = f"{data_biz_id}_{rt_name}"
+        physical_tables = {cls.LOG_PHYSICAL_TABLE_ROLE: physical_table}
+
+        update_fields: list[str] = []
+        if storage.physical_tables != physical_tables:
+            storage.physical_tables = physical_tables
+            update_fields.append("physical_tables")
+        if storage.bkbase_table_id != bkbase_table_id:
+            storage.bkbase_table_id = bkbase_table_id
+            update_fields.append("bkbase_table_id")
+        if update_fields:
+            storage.save(update_fields=update_fields)
+
+        cls._sync_log_doris_storage_segment(
+            storage=storage,
+            bk_tenant_id=bk_tenant_id,
+            physical_table=physical_table,
+            bkbase_table_id=bkbase_table_id,
+            rotated=rotated,
+            creator=result_table.last_modify_user or "system",
+        )
+
+        logger.info(
+            "sync_log_physical_table: tenant->[%s] table_id->[%s] rt_name->[%s] physical_table->[%s] rotated->[%s]",
+            bk_tenant_id,
+            table_id,
+            rt_name,
+            physical_table,
+            rotated,
+        )
+        return rt_name
+
+    @classmethod
+    def _compose_log_doris_ddl_config(cls, option_value: Any) -> dict[str, Any] | None:
+        """提取日志链路 option 中决定物理表结构的配置（只取真实下发的字段）。"""
+        if isinstance(option_value, str):
+            try:
+                option_value = json.loads(option_value)
+            except (TypeError, ValueError):
+                return None
+        if not isinstance(option_value, dict):
+            return None
+        storage_config = option_value.get("doris_storage_config")
+        if not isinstance(storage_config, dict):
+            return None
+
+        ddl_config: dict[str, Any] = {}
+        for field_name in cls.LOG_PHYSICAL_TABLE_CONFIG_FIELDS:
+            value = storage_config.get(field_name)
+            if field_name in {"field_config_group", "tokenizers"}:
+                value = value if isinstance(value, dict) else {}
+                # 字段/分词配置是集合语义，排序后再比较，避免下发顺序抖动被误判为变更。
+                ddl_config[field_name] = {
+                    key: sorted(item) if isinstance(item, list) else item for key, item in sorted(value.items())
+                }
+            else:
+                ddl_config[field_name] = value if isinstance(value, list) else []
+        return ddl_config
+
+    @classmethod
+    def _is_log_doris_physical_table_changed(
+        cls,
+        *,
+        previous_config: dict[str, Any] | None,
+        config: dict[str, Any],
+        previous_field_types: dict[str, str] | None,
+        field_types: dict[str, str] | None,
+    ) -> bool:
+        """直接比对建表配置与同名字段类型，判断是否需要替换物理表。
+
+        字段新增/删除不参与比对：BKBase 会对新增列执行 ALTER ADD COLUMN，多出的历史列无害。
+        """
+        if previous_config is None:
+            return False
+        if previous_config != config:
+            return True
+        if not previous_field_types or not field_types:
+            return False
+        shared_field_names = previous_field_types.keys() & field_types.keys()
+        return any(previous_field_types[name] != field_types[name] for name in shared_field_names)
+
+    @classmethod
+    def _get_log_doris_field_types(cls, *, bk_tenant_id: str, table_id: str) -> dict[str, str]:
+        """读取结果表当前字段类型映射。"""
+        from metadata.models import ResultTableField
+
+        return dict(
+            ResultTableField.objects.filter(bk_tenant_id=bk_tenant_id, table_id=table_id).values_list(
+                "field_name", "field_type"
+            )
+        )
+
+    @classmethod
+    def _compose_log_doris_table_identity(
+        cls,
+        *,
+        db: str,
+        max_name_length: int,
+        version: int,
+        table_id: str | None = None,
+        base: str | None = None,
+    ) -> tuple[str, str]:
+        """生成第 ``version`` 代的结果表名与物理表名。"""
+        from metadata.models.data_link.utils import compose_bkdata_table_id
+
+        suffix = f"_v{version}"
+        if base is None:
+            if table_id is None:
+                raise ValueError("compose log doris table identity requires table_id or base")
+            base = compose_bkdata_table_id(table_id, max_length=max(max_name_length - len(suffix), 1))
+        base = cls._normalize_doris_table_base(base)
+        if len(base) + len(suffix) > max_name_length:
+            base = base[: max(max_name_length - len(suffix), 1)]
+        rt_name = f"{base}{suffix}"
+        return rt_name, f"{db}.{rt_name}"
+
+    @staticmethod
+    def _normalize_doris_table_base(base: str) -> str:
+        """把任意名称规范成 Doris 可用的标识符前缀。"""
+        normalized = re.sub(r"[^0-9a-zA-Z_]+", "_", base).lower()
+        normalized = re.sub(r"_{2,}", "_", normalized).strip("_")
+        return normalized or "bkm_doris"
+
+    @classmethod
+    def _parse_log_doris_table_version(cls, rt_name: str) -> int:
+        """解析结果表名中的 ``_vN`` 版本号，无后缀视为第一代。"""
+        matched = cls.LOG_PHYSICAL_TABLE_VERSION_PATTERN.match(rt_name or "")
+        return int(matched.group("version")) if matched else 1
+
+    @classmethod
+    def _strip_log_doris_table_version(cls, rt_name: str) -> str:
+        """去掉结果表名中的 ``_vN`` 版本后缀，得到版本基名。"""
+        matched = cls.LOG_PHYSICAL_TABLE_VERSION_PATTERN.match(rt_name or "")
+        return matched.group("base") if matched else (rt_name or "")
+
+    @classmethod
+    def _owns_log_write_table(cls, *, bk_tenant_id: str, table_id: str) -> bool:
+        """判断该表是否拥有写入链路（会创建后续 datalink）。
+
+        查询路由表、图表分析表、第三方虚拟表都没有数据源关联或标记为虚拟表，
+        它们不创建后续链路，也就不能产出物理表与 BKBase 结果表名。
+        """
+        from metadata.models import DataSourceResultTable, ResultTableOption
+
+        if not DataSourceResultTable.objects.filter(bk_tenant_id=bk_tenant_id, table_id=table_id).exists():
+            return False
+
+        virtual_option = ResultTableOption.objects.filter(
+            bk_tenant_id=bk_tenant_id,
+            table_id=table_id,
+            name=ResultTableOption.OPTION_IS_VIRTUAL_TABLE,
+        ).first()
+        return not (virtual_option is not None and virtual_option.get_value())
+
+    @classmethod
+    def _get_log_doris_binding(cls, storage: "DorisStorage"):
+        """取该结果表最近一次的 Doris 绑定，用于还原历史链路的结果表名与物理表名。"""
+        from metadata.models.data_link.data_link_configs import DorisStorageBindingConfig
+
+        return (
+            DorisStorageBindingConfig.objects.filter(bk_tenant_id=storage.bk_tenant_id, table_id=storage.table_id)
+            .order_by("-last_modify_time", "-id")
+            .first()
+        )
+
+    @classmethod
+    def _compose_log_doris_result_table_name(cls, storage: "DorisStorage") -> str | None:
+        """推导当前生效的结果表名：优先 bkbase_table_id，其次 Doris 绑定。"""
+        from metadata.models.data_link.data_link import DataLink
+
+        if storage.bkbase_table_id:
+            return DataLink._strip_bkbase_biz_prefix(storage.bkbase_table_id)
+        binding = cls._get_log_doris_binding(storage)
+        if binding is not None:
+            return binding.bkbase_result_table_name or binding.name
+        return None
+
+    @classmethod
+    def _resolve_log_doris_physical_table(
+        cls,
+        storage: "DorisStorage",
+        *,
+        data_biz_id: int,
+        rt_name: str | None,
+    ) -> str | None:
+        """解析当前物理表全名，兼容本特性上线前的历史表。"""
+        if isinstance(storage.physical_tables, dict) and storage.physical_tables.get(cls.LOG_PHYSICAL_TABLE_ROLE):
+            return storage.physical_tables[cls.LOG_PHYSICAL_TABLE_ROLE]
+
+        binding = cls._get_log_doris_binding(storage)
+        if binding is not None:
+            if isinstance(binding.physical_tables, dict) and binding.physical_tables.get(cls.LOG_PHYSICAL_TABLE_ROLE):
+                return binding.physical_tables[cls.LOG_PHYSICAL_TABLE_ROLE]
+            # 历史链路的物理表名由「绑定名_业务ID」决定，按同一规则还原，避免误判为新建表。
+            return f"mapleleaf_{data_biz_id}.{binding.name}_{data_biz_id}"
+        if rt_name:
+            return f"mapleleaf_{data_biz_id}.{rt_name}_{data_biz_id}"
+        return None
+
+    @classmethod
+    def _get_current_log_doris_segment(cls, storage: "DorisStorage") -> "StorageClusterRecord | None":
+        """获取该 Doris 集群当前生效的历史分段。"""
+        return (
+            StorageClusterRecord.objects.filter(
+                bk_tenant_id=storage.bk_tenant_id,
+                table_id=storage.table_id,
+                cluster_id=storage.storage_cluster_id,
+                is_current=True,
+                is_deleted=False,
+            )
+            .order_by("-enable_time", "-id")
+            .first()
+        )
+
+    @classmethod
+    def _sync_log_doris_storage_segment(
+        cls,
+        *,
+        storage: "DorisStorage",
+        bk_tenant_id: str,
+        physical_table: str,
+        bkbase_table_id: str,
+        rotated: bool,
+        creator: str,
+    ) -> None:
+        """记录物理表对应的存储分段：换表新开分段，其余情况只补空字段。"""
+        physical_tables = {cls.LOG_PHYSICAL_TABLE_ROLE: physical_table}
+        with transaction.atomic(using=config.DATABASE_CONNECTION_NAME):
+            target_segment = cls._get_current_log_doris_segment(storage)
+            if rotated or target_segment is None:
+                # 表上已有其他存储的当前分段时，说明 Doris 不是默认写入存储，不抢它的当前分段。
+                holds_other_current = (
+                    StorageClusterRecord.objects.filter(
+                        bk_tenant_id=storage.bk_tenant_id,
+                        table_id=storage.table_id,
+                        is_current=True,
+                        is_deleted=False,
+                    )
+                    .exclude(cluster_id=storage.storage_cluster_id)
+                    .exists()
+                )
+                if holds_other_current:
+                    logger.warning(
+                        "sync_log_doris_storage_segment: table_id->[%s] cluster_id->[%s] skipped, another storage "
+                        "holds the current segment",
+                        storage.table_id,
+                        storage.storage_cluster_id,
+                    )
+                    return
+                target_segment, _ = StorageClusterRecord.switch_current_cluster(
+                    table_id=storage.table_id,
+                    bk_tenant_id=bk_tenant_id,
+                    target_cluster_id=storage.storage_cluster_id,
+                    target_storage_type=ClusterInfo.TYPE_DORIS,
+                    switch_time=django_timezone.now(),
+                    creator=creator,
+                    force_new_segment=True,
+                )
+
+            update_fields: list[str] = []
+            if bkbase_table_id and target_segment.bkbase_table_id != bkbase_table_id:
+                target_segment.bkbase_table_id = bkbase_table_id
+                update_fields.append("bkbase_table_id")
+            if (rotated or not target_segment.physical_tables) and target_segment.physical_tables != physical_tables:
+                target_segment.physical_tables = physical_tables
+                update_fields.append("physical_tables")
+            if update_fields:
+                target_segment.save(update_fields=update_fields)
 
     @staticmethod
     def _load_json_config(value: Any, warnings: list[dict[str, Any]], field_name: str) -> Any:

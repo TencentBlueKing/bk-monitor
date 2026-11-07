@@ -46,12 +46,13 @@ def _pool_with(overrides: dict | None = None):
 
 
 class TestReuseLeftoverPolicy:
-    def test_bk_log_keeps_storage_bindings_but_other_components_remain_strict(self):
-        """ES / Doris 切换允许保留历史绑定，但不能放宽 RT、DataBus 等组件校验。"""
+    def test_bk_log_keeps_storage_bindings_and_result_tables_but_other_components_remain_strict(self):
+        """Doris 换表会保留旧结果表与历史绑定，但 DataBus 等组件仍按 strict 校验。"""
         datalink = DataLink(data_link_name="bk_log_demo", data_link_strategy=DataLink.BK_LOG)
         es_binding = SimpleNamespace(name="legacy_es_binding")
         doris_binding = SimpleNamespace(name="legacy_doris_binding")
-        result_table = SimpleNamespace(name="unexpected_result_table")
+        result_table = SimpleNamespace(name="legacy_result_table")
+        databus = SimpleNamespace(name="unexpected_databus")
 
         storage_only_ctx = ExistingComponentContext(
             data_link_name=datalink.data_link_name,
@@ -59,9 +60,11 @@ class TestReuseLeftoverPolicy:
                 {
                     ESStorageBindingConfig: [es_binding],
                     DorisStorageBindingConfig: [doris_binding],
+                    ResultTableConfig: [result_table],
                 }
             ),
         )
+        # 换表遗留的旧 ResultTableConfig 与历史绑定都允许保留
         datalink._check_leftover_or_raise(storage_only_ctx)
 
         mixed_ctx = ExistingComponentContext(
@@ -71,6 +74,7 @@ class TestReuseLeftoverPolicy:
                     ResultTableConfig: [result_table],
                     ESStorageBindingConfig: [es_binding],
                     DorisStorageBindingConfig: [doris_binding],
+                    DataBusConfig: [databus],
                 }
             ),
         )
@@ -79,9 +83,9 @@ class TestReuseLeftoverPolicy:
 
         assert datalink._leftover_policy(ESStorageBindingConfig) == "keep"
         assert datalink._leftover_policy(DorisStorageBindingConfig) == "keep"
-        assert datalink._leftover_policy(ResultTableConfig) == "strict"
+        assert datalink._leftover_policy(ResultTableConfig) == "keep"
         assert datalink._leftover_policy(DataBusConfig) == "strict"
-        assert exc_info.value.violations == {ResultTableConfig: [result_table]}
+        assert exc_info.value.violations == {DataBusConfig: [databus]}
 
 
 class TestExistingComponentContextClaim:

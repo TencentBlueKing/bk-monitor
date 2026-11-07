@@ -852,13 +852,15 @@ class SpaceTableIDRedis:
                         }
                     )
                 elif doris_db:
+                    # 换表后每代物理表对应一个 BKBase 结果表：历史段必须指向自己那代的结果表，
+                    # 缺失时才回退当前存储值，兼容本特性上线前的历史数据。
                     history.append(
                         {
                             "storage_id": record["cluster_id"],
                             "storage_type": "bk_sql",
                             "storage_name": cluster["cluster_name"],
                             "cluster_name": cluster["cluster_name"],
-                            "db": doris_db,
+                            "db": record["bkbase_table_id"] or doris_db,
                             "measurement": models.ClusterInfo.TYPE_DORIS,
                             "enable_time": record["enable_timestamp"],
                             **{

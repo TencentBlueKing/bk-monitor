@@ -465,3 +465,339 @@ def test_query_physical_storage_metadata_keeps_base_info_when_binding_query_fail
     assert result["physical_metadata"] == {}
     assert result["errors"][0]["code"] == "DORIS_BINDING_METADATA_QUERY_FAILED"
     mock_connect.assert_not_called()
+
+
+# ------------------------- 日志 Doris 物理表替换（一期） ------------------------- #
+
+LOG_DORIS_TABLE_ID = "2_bklog.rotate_test"
+LOG_DORIS_OPTION_VALUE = {
+    "clean_rules": [
+        {
+            "input_id": "log",
+            "output_id": "log",
+            "operator": {"type": "assign", "key_index": "log", "output_type": "string"},
+        }
+    ],
+    "doris_storage_config": {
+        "storage_keys": ["dtEventTimeStamp"],
+        "json_fields": ["json_body"],
+        "field_config_group": {"search_zh": ["log"]},
+        "tokenizers": {"log": "./=:"},
+    },
+}
+
+
+def _get_datalink_data_biz_id(bk_biz_id: int) -> int:
+    from bkmonitor.utils.tenant import get_tenant_datalink_biz_id
+
+    return get_tenant_datalink_biz_id(bk_tenant_id="system", bk_biz_id=bk_biz_id).data_biz_id
+
+
+@pytest.fixture
+def log_doris_records():
+    """搭建日志 Doris 换表所需的最小记录：RT、DorisStorage、option、字段。"""
+    bk_tenant_id = "system"
+    bk_biz_id = 2
+    cluster, _ = models.ClusterInfo.objects.update_or_create(
+        bk_tenant_id=bk_tenant_id,
+        cluster_id=2101,
+        defaults={
+            "cluster_name": "doris_rotate",
+            "cluster_type": models.ClusterInfo.TYPE_DORIS,
+            "domain_name": "doris.rotate",
+            "port": 9030,
+            "description": "",
+            "is_default_cluster": False,
+            "version": "2.1",
+        },
+    )
+    models.ResultTable.objects.update_or_create(
+        bk_tenant_id=bk_tenant_id,
+        table_id=LOG_DORIS_TABLE_ID,
+        defaults={
+            "table_name_zh": LOG_DORIS_TABLE_ID,
+            "is_custom_table": True,
+            "default_storage": models.ClusterInfo.TYPE_DORIS,
+            "creator": "system",
+            "last_modify_user": "system",
+            "bk_biz_id": bk_biz_id,
+            "is_enable": True,
+        },
+    )
+    # 只有关联了数据源的结果表才拥有写入链路。
+    data_source, _ = models.DataSource.objects.update_or_create(
+        bk_tenant_id=bk_tenant_id,
+        bk_data_id=81921,
+        defaults={
+            "data_name": "log_doris_rotate",
+            "mq_cluster_id": 1,
+            "mq_config_id": 1,
+            "etl_config": "bk_log_text",
+            "is_custom_source": False,
+        },
+    )
+    models.DataSourceResultTable.objects.update_or_create(
+        bk_tenant_id=bk_tenant_id,
+        bk_data_id=data_source.bk_data_id,
+        table_id=LOG_DORIS_TABLE_ID,
+        defaults={"creator": "system"},
+    )
+    storage, _ = models.DorisStorage.objects.update_or_create(
+        bk_tenant_id=bk_tenant_id,
+        table_id=LOG_DORIS_TABLE_ID,
+        defaults={
+            "storage_cluster_id": cluster.cluster_id,
+            "source_type": "log",
+            "table_type": models.DorisStorage.PRIMARY_TABLE_TYPE,
+            "expire_days": 30,
+        },
+    )
+    models.ResultTableOption.objects.update_or_create(
+        bk_tenant_id=bk_tenant_id,
+        table_id=LOG_DORIS_TABLE_ID,
+        name=models.ResultTableOption.OPTION_V4_LOG_DATA_LINK,
+        defaults={
+            "value": json.dumps(LOG_DORIS_OPTION_VALUE),
+            "value_type": models.ResultTableOption.TYPE_STRING,
+            "creator": "system",
+        },
+    )
+    models.ResultTableField.objects.update_or_create(
+        bk_tenant_id=bk_tenant_id,
+        table_id=LOG_DORIS_TABLE_ID,
+        field_name="log",
+        defaults={
+            "field_type": models.ResultTableField.FIELD_TYPE_STRING,
+            "tag": models.ResultTableField.FIELD_TAG_METRIC,
+            "is_config_by_user": True,
+            "creator": "system",
+            "last_modify_user": "system",
+        },
+    )
+    yield {"bk_tenant_id": bk_tenant_id, "bk_biz_id": bk_biz_id, "storage": storage}
+
+    models.ResultTableOption.objects.filter(table_id=LOG_DORIS_TABLE_ID).delete()
+    models.DataSourceResultTable.objects.filter(table_id=LOG_DORIS_TABLE_ID).delete()
+    models.DataSource.objects.filter(bk_data_id=81921).delete()
+    models.ResultTableField.objects.filter(table_id=LOG_DORIS_TABLE_ID).delete()
+    models.StorageClusterRecord.objects.filter(table_id=LOG_DORIS_TABLE_ID).delete()
+    models.DorisStorage.objects.filter(table_id=LOG_DORIS_TABLE_ID).delete()
+    models.ResultTable.objects.filter(table_id=LOG_DORIS_TABLE_ID).delete()
+    models.ClusterInfo.objects.filter(cluster_id=2101).delete()
+
+
+def _sync_log_physical_table(ctx, **kwargs):
+    return models.DorisStorage.sync_log_physical_table(
+        bk_tenant_id=ctx["bk_tenant_id"],
+        table_id=LOG_DORIS_TABLE_ID,
+        bk_biz_id=ctx["bk_biz_id"],
+        **kwargs,
+    )
+
+
+@pytest.mark.django_db(databases="__all__")
+def test_sync_log_physical_table_creates_first_version(log_doris_records):
+    """首次接入：产出 _v1 表名，bkbase_table_id 为 {data_biz_id}_{rt_name}。"""
+    ctx = log_doris_records
+    old_option = dict(LOG_DORIS_OPTION_VALUE)
+
+    rt_name = _sync_log_physical_table(ctx, previous_option_value=old_option)
+
+    data_biz_id = _get_datalink_data_biz_id(ctx["bk_biz_id"])
+    assert rt_name.endswith("_v1")
+    storage = models.DorisStorage.objects.get(table_id=LOG_DORIS_TABLE_ID)
+    assert storage.physical_tables == {"main": f"mapleleaf_{data_biz_id}.{rt_name}"}
+    assert storage.bkbase_table_id == f"{data_biz_id}_{rt_name}"
+
+    segment = models.StorageClusterRecord.objects.get(table_id=LOG_DORIS_TABLE_ID, is_current=True)
+    assert segment.physical_tables == {"main": f"mapleleaf_{data_biz_id}.{rt_name}"}
+    assert segment.bkbase_table_id == f"{data_biz_id}_{rt_name}"
+
+
+@pytest.mark.django_db(databases="__all__")
+def test_sync_log_physical_table_is_idempotent(log_doris_records):
+    """同一份配置重复调用不会重复换表。"""
+    ctx = log_doris_records
+    first = _sync_log_physical_table(ctx, previous_option_value=dict(LOG_DORIS_OPTION_VALUE))
+    second = _sync_log_physical_table(ctx, previous_option_value=dict(LOG_DORIS_OPTION_VALUE))
+
+    assert first == second
+    assert models.StorageClusterRecord.objects.filter(table_id=LOG_DORIS_TABLE_ID).count() == 1
+
+
+@pytest.mark.django_db(databases="__all__")
+def test_sync_log_physical_table_rotates_on_tokenizer_change(log_doris_records):
+    """建表配置变化：版本 +1，并新开一条存储分段，旧分段保留并关闭。"""
+    ctx = log_doris_records
+    first_name = _sync_log_physical_table(ctx, previous_option_value=dict(LOG_DORIS_OPTION_VALUE))
+
+    new_option = json.loads(json.dumps(LOG_DORIS_OPTION_VALUE))
+    new_option["doris_storage_config"]["tokenizers"] = {"log": "./=:,|"}
+    second_name = _sync_log_physical_table(
+        ctx,
+        option_value=new_option,
+        previous_option_value=dict(LOG_DORIS_OPTION_VALUE),
+    )
+
+    data_biz_id = _get_datalink_data_biz_id(ctx["bk_biz_id"])
+    assert second_name.endswith("_v2")
+    assert second_name != first_name
+
+    storage = models.DorisStorage.objects.get(table_id=LOG_DORIS_TABLE_ID)
+    assert storage.physical_tables == {"main": f"mapleleaf_{data_biz_id}.{second_name}"}
+    assert storage.bkbase_table_id == f"{data_biz_id}_{second_name}"
+
+    segments = list(
+        models.StorageClusterRecord.objects.filter(table_id=LOG_DORIS_TABLE_ID).order_by("enable_time", "id")
+    )
+    assert len(segments) == 2
+    assert segments[0].is_current is False
+    assert segments[0].disable_time is not None
+    assert segments[1].is_current is True
+    assert segments[1].bkbase_table_id == f"{data_biz_id}_{second_name}"
+
+
+@pytest.mark.django_db(databases="__all__")
+def test_sync_log_physical_table_rotates_on_field_type_change(log_doris_records):
+    """同名字段类型变化触发换表。"""
+    ctx = log_doris_records
+    _sync_log_physical_table(ctx, previous_option_value=dict(LOG_DORIS_OPTION_VALUE))
+
+    models.ResultTableField.objects.filter(table_id=LOG_DORIS_TABLE_ID, field_name="log").update(field_type="text")
+    rt_name = _sync_log_physical_table(
+        ctx,
+        previous_option_value=dict(LOG_DORIS_OPTION_VALUE),
+        previous_field_types={"log": models.ResultTableField.FIELD_TYPE_STRING},
+    )
+
+    assert rt_name.endswith("_v2")
+
+
+@pytest.mark.django_db(databases="__all__")
+def test_sync_log_physical_table_ignores_field_add_or_remove(log_doris_records):
+    """字段新增 / 删除不触发换表，非建表配置变化同样不换表。"""
+    ctx = log_doris_records
+    first_name = _sync_log_physical_table(ctx, previous_option_value=dict(LOG_DORIS_OPTION_VALUE))
+
+    models.ResultTableField.objects.create(
+        bk_tenant_id=ctx["bk_tenant_id"],
+        table_id=LOG_DORIS_TABLE_ID,
+        field_name="path",
+        field_type=models.ResultTableField.FIELD_TYPE_STRING,
+        tag=models.ResultTableField.FIELD_TAG_DIMENSION,
+        is_config_by_user=True,
+        creator="system",
+        last_modify_user="system",
+    )
+    new_option = json.loads(json.dumps(LOG_DORIS_OPTION_VALUE))
+    new_option["doris_storage_config"]["flush_timeout"] = 30
+
+    second_name = _sync_log_physical_table(
+        ctx,
+        option_value=new_option,
+        previous_option_value=dict(LOG_DORIS_OPTION_VALUE),
+        previous_field_types={"log": models.ResultTableField.FIELD_TYPE_STRING},
+    )
+
+    assert second_name == first_name
+    assert models.StorageClusterRecord.objects.filter(table_id=LOG_DORIS_TABLE_ID).count() == 1
+
+
+@pytest.mark.django_db(databases="__all__")
+def test_sync_log_physical_table_adopts_existing_table(log_doris_records):
+    """已有表（历史链路）不换名、不加后缀，只补齐物理表与结果表记录。"""
+    ctx = log_doris_records
+    binding_name = "bklog_legacy_link"
+    models.DorisStorageBindingConfig.objects.update_or_create(
+        bk_tenant_id=ctx["bk_tenant_id"],
+        table_id=LOG_DORIS_TABLE_ID,
+        defaults={
+            "name": binding_name,
+            "namespace": "bklog",
+            "data_link_name": "bklog_legacy_link",
+            "bk_biz_id": ctx["bk_biz_id"],
+            "status": "Ok",
+            "bkbase_result_table_name": binding_name,
+            "doris_cluster_name": "doris_rotate",
+        },
+    )
+
+    rt_name = _sync_log_physical_table(ctx, previous_option_value=dict(LOG_DORIS_OPTION_VALUE))
+
+    data_biz_id = _get_datalink_data_biz_id(ctx["bk_biz_id"])
+    assert rt_name == binding_name
+    storage = models.DorisStorage.objects.get(table_id=LOG_DORIS_TABLE_ID)
+    assert storage.physical_tables == {"main": f"mapleleaf_{data_biz_id}.{binding_name}_{data_biz_id}"}
+    assert storage.bkbase_table_id == f"{data_biz_id}_{binding_name}"
+
+
+@pytest.mark.django_db(databases="__all__")
+def test_sync_log_physical_table_skips_when_doris_is_not_default(log_doris_records):
+    """Doris 不是默认存储时（双写场景）不写分段。"""
+    ctx = log_doris_records
+    models.ResultTable.objects.filter(table_id=LOG_DORIS_TABLE_ID).update(default_storage="elasticsearch")
+
+    assert _sync_log_physical_table(ctx, previous_option_value=dict(LOG_DORIS_OPTION_VALUE)) is None
+    assert models.StorageClusterRecord.objects.filter(table_id=LOG_DORIS_TABLE_ID).count() == 0
+
+
+@pytest.mark.django_db(databases="__all__")
+def test_sync_log_physical_table_skips_virtual_storage(log_doris_records):
+    """路由表 / 虚拟表：物理表与结果表归属实体表，不在这里产出。"""
+    ctx = log_doris_records
+    models.DorisStorage.objects.filter(table_id=LOG_DORIS_TABLE_ID).update(origin_table_id="2_bklog.entity")
+
+    assert _sync_log_physical_table(ctx, previous_option_value=dict(LOG_DORIS_OPTION_VALUE)) is None
+    storage = models.DorisStorage.objects.get(table_id=LOG_DORIS_TABLE_ID)
+    assert storage.bkbase_table_id in (None, "")
+    assert storage.physical_tables == {}
+    assert models.StorageClusterRecord.objects.filter(table_id=LOG_DORIS_TABLE_ID).count() == 0
+
+
+@pytest.mark.django_db(databases="__all__")
+def test_sync_log_physical_table_skips_third_party_storage(log_doris_records):
+    """第三方虚拟表（不需要创建后续链路）：不覆盖已有的 bkbase_table_id 与物理表。"""
+    ctx = log_doris_records
+    models.DorisStorage.objects.filter(table_id=LOG_DORIS_TABLE_ID).update(
+        source_type="es",
+        bkbase_table_id="2_third_party_rt",
+        physical_tables={"main": "mapleleaf_2.third_party_table"},
+    )
+
+    assert _sync_log_physical_table(ctx, previous_option_value=dict(LOG_DORIS_OPTION_VALUE)) is None
+    storage = models.DorisStorage.objects.get(table_id=LOG_DORIS_TABLE_ID)
+    assert storage.bkbase_table_id == "2_third_party_rt"
+    assert storage.physical_tables == {"main": "mapleleaf_2.third_party_table"}
+    assert models.StorageClusterRecord.objects.filter(table_id=LOG_DORIS_TABLE_ID).count() == 0
+
+
+@pytest.mark.django_db(databases="__all__")
+def test_sync_log_physical_table_skips_table_without_datasource(log_doris_records):
+    """没有数据源关联的查询路由表不创建后续链路，不产出物理表与结果表名。"""
+    ctx = log_doris_records
+    models.DataSourceResultTable.objects.filter(table_id=LOG_DORIS_TABLE_ID).delete()
+
+    assert _sync_log_physical_table(ctx, previous_option_value=dict(LOG_DORIS_OPTION_VALUE)) is None
+    storage = models.DorisStorage.objects.get(table_id=LOG_DORIS_TABLE_ID)
+    assert storage.bkbase_table_id in (None, "")
+    assert storage.physical_tables == {}
+    assert models.StorageClusterRecord.objects.filter(table_id=LOG_DORIS_TABLE_ID).count() == 0
+
+
+@pytest.mark.django_db(databases="__all__")
+def test_sync_log_physical_table_skips_virtual_table_option(log_doris_records):
+    """显式标记为虚拟结果表的表只参与查询，同样不产出物理表。"""
+    ctx = log_doris_records
+    models.ResultTableOption.objects.update_or_create(
+        bk_tenant_id=ctx["bk_tenant_id"],
+        table_id=LOG_DORIS_TABLE_ID,
+        name=models.ResultTableOption.OPTION_IS_VIRTUAL_TABLE,
+        defaults={
+            "value": "true",
+            "value_type": models.ResultTableOption.TYPE_BOOL,
+            "creator": "system",
+        },
+    )
+
+    assert _sync_log_physical_table(ctx, previous_option_value=dict(LOG_DORIS_OPTION_VALUE)) is None
+    assert models.StorageClusterRecord.objects.filter(table_id=LOG_DORIS_TABLE_ID).count() == 0

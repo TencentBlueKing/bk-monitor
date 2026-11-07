@@ -756,6 +756,16 @@ class ResultTable(models.Model):
         )
         logger.info("result_table:[%s] has create storage on type:[%s]", self.table_id, self.default_storage)
 
+        # 元数据阶段先产出 Doris 物理表名与 BKBase 结果表名（首次接入生成 _v1），datalink 阶段
+        # 再按名字新建或维持 ResultTable / DorisBinding 配置。
+        # is_sync_db 为 False 时既不会真正建存储也不会下发链路，这里同样跳过，避免产出悬空记录。
+        if is_sync_db and self.default_storage == ClusterInfo.TYPE_DORIS:
+            DorisStorage.sync_log_physical_table(
+                bk_tenant_id=bk_tenant_id,
+                table_id=self.table_id,
+                bk_biz_id=self.bk_biz_id,
+            )
+
     @classmethod
     def get_result_table_storage_info(cls, table_id, storage_type, bk_tenant_id=DEFAULT_TENANT_ID):
         """
@@ -1341,6 +1351,22 @@ class ResultTable(models.Model):
         related_data_source = self.get_related_datasource()
         is_custom_format = related_data_source.etl_config == EtlConfigs.BK_CUSTOM_FORMAT.value
 
+        # 换表判定需要「变更前」的 option 与字段类型：字段会在下面被重建，必须在这里先快照。
+        previous_log_option_value = None
+        previous_field_types: dict[str, str] | None = None
+        if option is not None and option.get(ResultTableOption.OPTION_V4_LOG_DATA_LINK) is not None:
+            previous_log_option = ResultTableOption.objects.filter(
+                bk_tenant_id=self.bk_tenant_id,
+                table_id=self.table_id,
+                name=ResultTableOption.OPTION_V4_LOG_DATA_LINK,
+            ).first()
+            previous_log_option_value = previous_log_option.get_value() if previous_log_option else None
+            previous_field_types = dict(
+                ResultTableField.objects.filter(bk_tenant_id=self.bk_tenant_id, table_id=self.table_id).values_list(
+                    "field_name", "field_type"
+                )
+            )
+
         # 1. 判断是否需要修改中文名
         if table_name_zh is not None:
             self.table_name_zh = table_name_zh
@@ -1749,6 +1775,17 @@ class ResultTable(models.Model):
             logger.error("push and publish redis error, table_id: %s, %s", self.table_id, e)
 
         # 如果结果表启用，则刷新清洗配置
+        # 元数据阶段先判定并产出 Doris 物理表名与 BKBase 结果表名（换表时版本 +1 并新开分段），
+        # datalink 阶段再按名字新建或维持 ResultTable / DorisBinding 配置。
+        if self.is_enable:
+            DorisStorage.sync_log_physical_table(
+                bk_tenant_id=self.bk_tenant_id,
+                table_id=self.table_id,
+                bk_biz_id=self.bk_biz_id,
+                previous_option_value=previous_log_option_value,
+                previous_field_types=previous_field_types,
+            )
+
         if self.is_enable:
             self.apply_datalink(force_update=force_update_datalink)
         else:
