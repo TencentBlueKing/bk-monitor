@@ -382,6 +382,7 @@ class NewMetricChart extends CommonSimpleChart {
         legendItem.latest = item.data[latestInd][1];
       }
       legendItem.latestTime = latestVal;
+      applyBackendSeriesStat(legendItem, item.stat);
 
       // 获取y轴上可设置的最小的精确度
       const precision = handleGetMinPrecision(
@@ -624,6 +625,7 @@ class NewMetricChart extends CommonSimpleChart {
             traceData: item.trace_data ?? '',
             dimensions: item.dimensions ?? {},
             timeOffset: item.time_offset ?? '',
+            stat: item.stat,
           })) as any
         );
         seriesList = seriesList.map(item => ({
@@ -1093,4 +1095,64 @@ class NewMetricChart extends CommonSimpleChart {
     );
   }
 }
+
+/**
+ * 优先使用后台返回的 stat；无 stat 或空对象时保持前端按数据点计算的结果。
+ * last → 最新值 latest；sum → 累计值 total。count 仅后台明细，图例/表格不单独展示。
+ */
+function applyBackendSeriesStat(legendItem: ILegendItem, stat: unknown) {
+  if (!stat || typeof stat !== 'object' || Array.isArray(stat)) return;
+  const s = stat as Record<string, unknown>;
+  if (Object.keys(s).length === 0) return;
+
+  if (s.max !== undefined) applyStatField(legendItem, s.max, 'max', 'maxTime');
+  if (s.min !== undefined) applyStatField(legendItem, s.min, 'min', 'minTime');
+  if (s.last !== undefined) applyStatField(legendItem, s.last, 'latest', 'latestTime');
+  if (s.avg !== undefined) applyStatField(legendItem, s.avg, 'avg', 'avgTime');
+  if (s.sum !== undefined) applyStatField(legendItem, s.sum, 'total', 'totalTime');
+}
+
+function applyStatField(
+  legendItem: ILegendItem,
+  tupleRaw: unknown,
+  valueKey: 'avg' | 'latest' | 'max' | 'min' | 'total',
+  timeKey: 'avgTime' | 'latestTime' | 'maxTime' | 'minTime' | 'totalTime'
+) {
+  const parsed = parseStatTuple(tupleRaw);
+  if (!parsed) return;
+  legendItem[valueKey] = parsed.value;
+  const rec = legendItem as Record<string, unknown>;
+  if (parsed.time !== undefined) {
+    rec[timeKey] = parsed.time;
+  } else {
+    delete rec[timeKey];
+  }
+}
+
+/**
+ * graphUnifyQuery series.stat 单项为 [首位, 值]：第二位为指标值；
+ * 首位为 0 时仅使用值，不展示时间；首位非 0 视为时间戳，与原先一致展示 @HH:mm
+ */
+function parseStatTuple(raw: unknown): null | { time?: number; value: number } {
+  if (raw === undefined || raw === null) return null;
+  if (Array.isArray(raw) && raw.length >= 2) {
+    const first = toStatNumber(raw[0]);
+    const second = toStatNumber(raw[1]);
+    if (second === undefined || first === undefined) return null;
+    if (first === 0) {
+      return { value: second };
+    }
+    return { time: first, value: second };
+  }
+  const single = toStatNumber(raw);
+  if (single === undefined) return null;
+  return { value: single };
+}
+
+function toStatNumber(val: unknown): number | undefined {
+  if (val === undefined || val === null) return undefined;
+  const n = typeof val === 'number' ? val : Number(val);
+  return Number.isFinite(n) ? n : undefined;
+}
+
 export default ofType<INewMetricChartProps, INewMetricChartEvents>().convert(NewMetricChart);
