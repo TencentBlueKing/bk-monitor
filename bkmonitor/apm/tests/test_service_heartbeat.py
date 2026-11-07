@@ -389,17 +389,18 @@ def profile_builder(results: list[Any]) -> mock.MagicMock:
 
 def test_profile_discover_keeps_old_table_and_creates_topology() -> None:
     existing = make_node("trace", source=["trace"], heartbeat={"trace": {"last_data_at": 90, "checked_at": 100}})
-    builder = profile_builder([])
-    builder.execute.side_effect = [
+    builder = profile_builder(
         [
-            {"service_name": "demo", "type": "cpu", "sample_type": "cpu", "count": 1},
-            {"service_name": "demo", "type": "alloc_objects", "sample_type": "alloc_objects", "count": 1},
-        ],
-        [{"period": 10_000_000, "period_type": "cpu/nanoseconds", "type": "cpu", "value": 100}],
-        [{"service_name": "demo", "count": 10001}],
-        [{"period": 10, "period_type": "space/bytes", "type": "alloc_objects", "value": 100}],
-        [{"service_name": "demo", "count": 1}],
-    ]
+            [
+                {"service_name": "service-a", "type": "cpu", "sample_type": "cpu/nanoseconds", "count": 10_001},
+                {"service_name": "service-a", "type": "space", "sample_type": "alloc_objects/count", "count": 10_000},
+                {"service_name": "service-b", "type": "cpu", "sample_type": "cpu/nanoseconds", "count": 10_001},
+            ],
+            [{"period": 10_000_000, "period_type": "cpu/nanoseconds", "type": "cpu", "value": 100}],
+            [{"period": 10, "period_type": "space/bytes", "type": "space", "value": 100}],
+            [],
+        ]
+    )
     check_time = timezone.now()
     completed_at = int(check_time.timestamp()) + 30
     discover = ProfileServiceDiscover(datasource())
@@ -409,27 +410,47 @@ def test_profile_discover_keeps_old_table_and_creates_topology() -> None:
         mock.patch("apm.core.discover.profile.service.timezone.now", return_value=check_time),
         mock.patch("apm.core.discover.profile.service.time.time", return_value=completed_at),
     ):
-        discover.discover(100000, 200000)
-    node = TopoNode.objects.get(topo_key="demo")
+        discover.discover(1789956912000, 1789957512000)
+    node = TopoNode.objects.get(topo_key="service-a")
     assert node.source == ["profiling"]
     assert node.extra_data == TopoNode.get_empty_extra_data()
-    assert node.heartbeat["profiling"]["last_data_at"] == int(
-        ProfileService.objects.first().last_check_time.timestamp()
-    )
-    profiles = list(ProfileService.objects.filter(name="demo"))
-    assert len(profiles) == 2
-    assert profiles[0].last_check_time == profiles[1].last_check_time == check_time
-    assert profiles[0].is_large and not profiles[1].is_large
-    assert profiles[0].frequency == 100
+    assert node.heartbeat["profiling"]["last_data_at"] == int(check_time.timestamp())
+    profiles = {profile.sample_type: profile for profile in ProfileService.objects.filter(name="service-a")}
+    assert set(profiles) == {"cpu/nanoseconds", "alloc_objects/count"}
+    cpu_profile = profiles["cpu/nanoseconds"]
+    space_profile = profiles["alloc_objects/count"]
+    assert cpu_profile.last_check_time == space_profile.last_check_time == check_time
+    assert cpu_profile.is_large is True
+    assert space_profile.is_large is False
+    assert cpu_profile.frequency == 100
     assert node.heartbeat["profiling"]["checked_at"] == completed_at
-    assert builder.with_metric_fields.call_args_list == [
-        mock.call("count(1)"),
-        mock.call("count(*) AS count"),
-        mock.call("count(*) AS count"),
-    ]
+    assert not ProfileService.objects.filter(name="service-b").exists()
+    assert not TopoNode.objects.filter(topo_key="service-b").exists()
+    builder.with_metric_fields.assert_called_once_with("count(*) AS count")
+    assert builder.execute.call_count == 4
     existing.refresh_from_db()
     assert existing.heartbeat["trace"] == {"last_data_at": 90, "checked_at": 100}
     assert "profiling" not in existing.heartbeat
+
+
+def test_profile_discover_keeps_legacy_count_for_group_without_type() -> None:
+    group = {"service_name": "service-a", "type": "", "sample_type": "cpu/nanoseconds", "count": 1}
+    sample = {"period": 10_000_000, "period_type": "cpu/nanoseconds", "type": "cpu", "value": 100}
+    with (
+        mock.patch(
+            "apm.core.handlers.profile.query.api.bkdata.query_profile_data",
+            side_effect=[
+                {"list": [group]},
+                {"list": [sample]},
+                {"list": [{"service_name": "service-a", "count": 10_001}]},
+            ],
+        ) as query,
+        mock.patch.object(ProfileServiceDiscover, "clear_expired"),
+    ):
+        ProfileServiceDiscover(datasource()).discover(1789956912000, 1789957512000)
+
+    assert ProfileService.objects.get(name="service-a", data_type="").is_large is True
+    assert query.call_count == 3
 
 
 def test_profile_failed_sample_query_does_not_touch_heartbeat() -> None:
@@ -686,7 +707,7 @@ def test_profile_later_sample_failure_keeps_existing_profile_and_heartbeat() -> 
     with (
         mock.patch(
             "apm.core.handlers.profile.query.api.bkdata.query_profile_data",
-            side_effect=[{"list": groups}, {"list": [sample]}, {"list": [{"service_name": "demo", "count": 10001}]}],
+            side_effect=[{"list": groups}, {"list": [sample]}],
         ),
         mock.patch.object(discover, "clear_expired"),
     ):
@@ -703,7 +724,7 @@ def test_profile_later_sample_failure_keeps_existing_profile_and_heartbeat() -> 
     with (
         mock.patch(
             "apm.core.handlers.profile.query.api.bkdata.query_profile_data",
-            side_effect=[{"list": groups}, {"list": [sample]}, {"list": []}, RuntimeError("later sample failed")],
+            side_effect=[{"list": groups}, {"list": [sample]}, RuntimeError("later sample failed")],
         ),
         pytest.raises(RuntimeError),
     ):
@@ -718,7 +739,7 @@ def test_profile_later_sample_failure_keeps_existing_profile_and_heartbeat() -> 
     with (
         mock.patch(
             "apm.core.handlers.profile.query.api.bkdata.query_profile_data",
-            side_effect=[{"list": groups[:1]}, {"list": [sample]}, {"list": []}],
+            side_effect=[{"list": groups[:1]}, {"list": [sample]}],
         ),
         mock.patch.object(discover, "clear_expired"),
     ):
