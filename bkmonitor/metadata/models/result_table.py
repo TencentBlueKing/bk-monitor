@@ -1352,9 +1352,16 @@ class ResultTable(models.Model):
         is_custom_format = related_data_source.etl_config == EtlConfigs.BK_CUSTOM_FORMAT.value
 
         # 换表判定需要「变更前」的 option 与字段类型：字段会在下面被重建，必须在这里先快照。
+        # 不能只在请求带 log option 时快照：仅调整字段类型（field_list 重建）同样可能让原
+        # Doris 物理表不兼容，此时旧 option 取库里当前已生效的配置。
         previous_log_option_value = None
         previous_field_types: dict[str, str] | None = None
-        if option is not None and option.get(ResultTableOption.OPTION_V4_LOG_DATA_LINK) is not None:
+        replaces_fields = self.schema_type == self.SCHEMA_TYPE_FREE and field_list is not None
+        new_log_option_value = option.get(ResultTableOption.OPTION_V4_LOG_DATA_LINK) if option is not None else None
+        may_write_doris = (default_storage or self.default_storage) == ClusterInfo.TYPE_DORIS or (
+            external_storage is not None and ClusterInfo.TYPE_DORIS in external_storage
+        )
+        if may_write_doris and (replaces_fields or new_log_option_value is not None):
             previous_log_option = ResultTableOption.objects.filter(
                 bk_tenant_id=self.bk_tenant_id,
                 table_id=self.table_id,

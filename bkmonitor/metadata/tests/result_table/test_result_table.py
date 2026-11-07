@@ -303,3 +303,184 @@ def test_modify_passes_previous_log_option_and_field_types_to_doris_sync(mocker)
     models.DorisStorage.objects.filter(table_id=table_id).delete()
     models.ResultTable.objects.filter(table_id=table_id).delete()
     models.ClusterInfo.objects.filter(cluster_id=3100).delete()
+
+
+MODIFY_FIELD_TYPE_TABLE_ID = "1001_bklog.modify_field_type_rotate"
+MODIFY_FIELD_TYPE_OLD_OPTION = {
+    "clean_rules": [
+        {
+            "input_id": "log",
+            "output_id": "log",
+            "operator": {"type": "assign", "key_index": "log", "output_type": "string"},
+        }
+    ],
+    "doris_storage_config": {"storage_keys": ["log"], "tokenizers": {"log": "./=:"}},
+}
+
+
+@pytest.fixture
+def modify_field_type_records():
+    """日志 Doris 结果表：已有存量分段、字段与 log option，用于验证只改字段类型的入口。"""
+    import datetime
+
+    from django.utils import timezone as django_timezone
+
+    models.ClusterInfo.objects.create(
+        bk_tenant_id=DEFAULT_TENANT_ID,
+        cluster_id=3201,
+        cluster_name="doris_field_type_rotate",
+        cluster_type=models.ClusterInfo.TYPE_DORIS,
+        domain_name="doris.rotate",
+        port=9030,
+        description="",
+        is_default_cluster=False,
+        version="2.1",
+    )
+    models.ResultTable.objects.create(
+        table_id=MODIFY_FIELD_TYPE_TABLE_ID,
+        bk_tenant_id=DEFAULT_TENANT_ID,
+        bk_biz_id=1001,
+        table_name_zh=MODIFY_FIELD_TYPE_TABLE_ID,
+        is_custom_table=True,
+        schema_type=models.ResultTable.SCHEMA_TYPE_FREE,
+        default_storage=models.ClusterInfo.TYPE_DORIS,
+        creator="system",
+        last_modify_user="system",
+        is_enable=True,
+    )
+    data_source = models.DataSource.objects.create(
+        bk_tenant_id=DEFAULT_TENANT_ID,
+        bk_data_id=81931,
+        data_name="modify_field_type_log",
+        mq_cluster_id=1,
+        mq_config_id=1,
+        etl_config="bk_log_text",
+        is_custom_source=False,
+    )
+    models.DataSourceResultTable.objects.create(
+        bk_tenant_id=DEFAULT_TENANT_ID,
+        bk_data_id=data_source.bk_data_id,
+        table_id=MODIFY_FIELD_TYPE_TABLE_ID,
+        creator="system",
+    )
+    # 存量表：storage 与分段都已有旧一代结果表/物理表，但没有版本后缀。
+    models.DorisStorage.objects.create(
+        bk_tenant_id=DEFAULT_TENANT_ID,
+        table_id=MODIFY_FIELD_TYPE_TABLE_ID,
+        storage_cluster_id=3201,
+        source_type="log",
+        bkbase_table_id="2_old_result_table",
+        physical_tables={"main": "mapleleaf_2.old_physical_table"},
+    )
+    models.StorageClusterRecord.objects.create(
+        bk_tenant_id=DEFAULT_TENANT_ID,
+        table_id=MODIFY_FIELD_TYPE_TABLE_ID,
+        cluster_id=3201,
+        enable_time=django_timezone.now() - datetime.timedelta(days=5),
+        is_current=True,
+        is_deleted=False,
+        bkbase_table_id="2_old_result_table",
+        physical_tables={"main": "mapleleaf_2.old_physical_table"},
+        creator="system",
+    )
+    models.ResultTableField.objects.create(
+        bk_tenant_id=DEFAULT_TENANT_ID,
+        table_id=MODIFY_FIELD_TYPE_TABLE_ID,
+        field_name="log",
+        field_type=models.ResultTableField.FIELD_TYPE_STRING,
+        tag=models.ResultTableField.FIELD_TAG_METRIC,
+        is_config_by_user=True,
+        creator="system",
+        last_modify_user="system",
+    )
+    models.ResultTableOption.objects.create(
+        bk_tenant_id=DEFAULT_TENANT_ID,
+        table_id=MODIFY_FIELD_TYPE_TABLE_ID,
+        name=models.ResultTableOption.OPTION_V4_LOG_DATA_LINK,
+        value=json.dumps(MODIFY_FIELD_TYPE_OLD_OPTION),
+        value_type=models.ResultTableOption.TYPE_STRING,
+        creator="system",
+    )
+    yield
+
+    models.ResultTableOption.objects.filter(table_id=MODIFY_FIELD_TYPE_TABLE_ID).delete()
+    models.ResultTableField.objects.filter(table_id=MODIFY_FIELD_TYPE_TABLE_ID).delete()
+    models.StorageClusterRecord.objects.filter(table_id=MODIFY_FIELD_TYPE_TABLE_ID).delete()
+    models.DorisStorage.objects.filter(table_id=MODIFY_FIELD_TYPE_TABLE_ID).delete()
+    models.DataSourceResultTable.objects.filter(table_id=MODIFY_FIELD_TYPE_TABLE_ID).delete()
+    models.DataSource.objects.filter(bk_data_id=81931).delete()
+    models.ResultTable.objects.filter(table_id=MODIFY_FIELD_TYPE_TABLE_ID).delete()
+    models.ClusterInfo.objects.filter(cluster_id=3201).delete()
+
+
+def _modify_log_field_type(field_type: str) -> None:
+    """只传 field_list 修改同名字段类型，不重传 log option。"""
+    models.ResultTable.objects.get(table_id=MODIFY_FIELD_TYPE_TABLE_ID).modify(
+        operator="system",
+        field_list=[
+            {
+                "field_name": "log",
+                "field_type": field_type,
+                "tag": models.ResultTableField.FIELD_TAG_METRIC,
+                "description": "original text",
+                "is_config_by_user": True,
+                "operator": "system",
+                "last_modify_user": "system",
+                "is_reserved_check": False,
+            }
+        ],
+    )
+
+
+@pytest.mark.django_db(databases="__all__")
+def test_modify_field_type_only_rotates_doris_physical_table(modify_field_type_records, mocker):
+    """只改同名字段类型（不重传 log option）也要触发换表并新开分段。"""
+    mocker.patch.object(models.ResultTable, "apply_datalink", autospec=True)
+    mocker.patch("metadata.models.space.utils.get_space_by_table_id", return_value={})
+
+    _modify_log_field_type("text")
+
+    storage = models.DorisStorage.objects.get(table_id=MODIFY_FIELD_TYPE_TABLE_ID)
+    assert storage.bkbase_table_id.endswith("_v2")
+    assert storage.physical_tables["main"].endswith("_v2")
+
+    segments = list(
+        models.StorageClusterRecord.objects.filter(table_id=MODIFY_FIELD_TYPE_TABLE_ID).order_by("enable_time", "id")
+    )
+    assert len(segments) == 2
+    assert segments[0].bkbase_table_id == "2_old_result_table"
+    assert segments[0].disable_time is not None
+    assert segments[1].is_current is True
+    assert segments[1].bkbase_table_id == storage.bkbase_table_id
+
+
+@pytest.mark.django_db(databases="__all__")
+def test_modify_field_type_only_passes_previous_snapshot(modify_field_type_records, mocker):
+    """入口处应快照旧字段类型与库中旧 option，供 DorisStorage 判定使用。"""
+    sync_mock = mocker.patch.object(models.DorisStorage, "sync_log_physical_table", autospec=True)
+    mocker.patch.object(models.ResultTable, "apply_datalink", autospec=True)
+    mocker.patch("metadata.models.space.utils.get_space_by_table_id", return_value={})
+
+    _modify_log_field_type("text")
+
+    assert sync_mock.call_count == 1
+    call_kwargs = sync_mock.call_args.kwargs
+    assert call_kwargs["previous_field_types"] == {"log": models.ResultTableField.FIELD_TYPE_STRING}
+    previous_option = call_kwargs["previous_option_value"]
+    if isinstance(previous_option, str):
+        previous_option = json.loads(previous_option)
+    assert previous_option == MODIFY_FIELD_TYPE_OLD_OPTION
+
+
+@pytest.mark.django_db(databases="__all__")
+def test_modify_same_field_type_does_not_rotate(modify_field_type_records, mocker):
+    """字段类型未变化时只重建字段，不换表也不新开分段。"""
+    mocker.patch.object(models.ResultTable, "apply_datalink", autospec=True)
+    mocker.patch("metadata.models.space.utils.get_space_by_table_id", return_value={})
+
+    _modify_log_field_type(models.ResultTableField.FIELD_TYPE_STRING)
+
+    storage = models.DorisStorage.objects.get(table_id=MODIFY_FIELD_TYPE_TABLE_ID)
+    assert storage.bkbase_table_id == "2_old_result_table"
+    assert storage.physical_tables == {"main": "mapleleaf_2.old_physical_table"}
+    assert models.StorageClusterRecord.objects.filter(table_id=MODIFY_FIELD_TYPE_TABLE_ID).count() == 1
