@@ -371,6 +371,8 @@ export interface IAnomalyAnalysis {
   $index?: number;
   alert_count?: number;
   alerts?: IAlertData[];
+  /** 后端生成的页面跳转或侧滑交互配置 */
+  interaction?: IInteraction;
   name?: string;
   score?: number;
   dimension_values?: {
@@ -385,7 +387,7 @@ export interface IContentList {
   alerts_analysis?: IAnomalyAnalysis[];
   anomaly_analysis?: IAnomalyAnalysis[];
   events_analysis?: IEventsAnalysis[];
-  logs_analysis?: Record<string, ILogAnalysis[]>;
+  logs_analysis?: Record<string, ILogAnalysis[] | Record<string, string[]>>;
   suggestion?: string;
   summary?: string;
   trace_analysis?: ITraceAnalysis[];
@@ -451,8 +453,10 @@ export interface IEventsAnalysis {
   _sub_count?: number; // 子事件条数
   _sub_unit?: string; // 子事件标题单位
   allContents?: any; // 全部事件内容列表
+  availability_ref?: IInteractionDetailRef; // 事件类型层可用性校验引用
   contents?: any; // 事件内容的表格映射value
   fields?: Record<string, string>; // 事件内容的表格映射label
+  interaction?: IInteraction; // 事件类型层交互配置
   isGeneral: boolean; // 是否是通用事件
   title?: string; // 事件主标题
   top?: number; // 展示事件条数
@@ -460,10 +464,12 @@ export interface IEventsAnalysis {
   type?: string; // 事件所属类型
   unit?: string; // 事件主标题单位
 }
-export interface IEventsContentsData {
-  [key: string]: string;
-}
 
+export interface IEventsContentsData {
+  [key: string]: any;
+  availability_ref?: IInteractionDetailRef; // 具体事件记录的可用性校验引用
+  interaction?: IInteraction; // 具体事件记录的交互配置
+}
 /** 单个 sub_panel 的 extracted_info */
 export interface IExtractedInfo {
   entities: Record<string, IEntityInfo>;
@@ -513,6 +519,37 @@ export interface IIncident {
   status_alias: string;
   update_time: number;
 }
+
+/** 故障诊断面板记录的交互协议 */
+export interface IInteraction {
+  action: 'drawer' | 'error' | 'link' | 'none';
+  description?: string;
+  /** 侧滑详情查询引用，由后端生成，前端必须原样回传 */
+  detail_ref?: IInteractionDetailRef;
+  drawer_type?: 'event' | 'log' | 'trace';
+  /** 同范围日志入口的展示文案 */
+  label?: string;
+  url?: string;
+  version: 'v1';
+  /** action=error 时的错误详情（缺参、越权等） */
+  error?: {
+    code: string;
+    message?: string;
+    missing_params?: string[];
+    target?: string;
+  };
+}
+
+/** 故障诊断面板详情查询引用 */
+export interface IInteractionDetailRef {
+  check_availability?: boolean;
+  group: string;
+  /** 分析任务 ID，与请求体顶层 incident_task_id 保持一致 */
+  incident_task_id?: number;
+  log_scope?: string;
+  panel: string;
+  selector: Record<string, number | string>;
+}
 export interface IListItem {
   icon?: string;
   key?: string;
@@ -522,9 +559,16 @@ export interface IListItem {
 }
 
 export interface ILogAnalysis {
+  cluster_samples_available?: boolean;
+  cluster_samples_message?: string;
   demo_log?: string;
+  /** 日志详情侧滑交互配置 */
+  interaction?: IInteraction;
   log_count?: number;
+  log_scope?: string;
   pattern?: string;
+  query_range_interaction?: IInteraction;
+  sample_count?: null | number;
 }
 
 export interface IncidentNameTemplate {
@@ -643,7 +687,11 @@ export interface ITagInfoType {
 }
 
 export interface ITraceAnalysis {
-  [key: string]: number | string; // span表格映射key-value
+  [key: string]: any; // span表格映射key-value
+  /** Trace 数据可用性校验引用 */
+  availability_ref?: IInteractionDetailRef;
+  /** Trace 页面跳转交互配置 */
+  interaction?: IInteraction;
   log_count: number;
   pattern: string;
 }

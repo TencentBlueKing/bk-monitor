@@ -15,6 +15,14 @@
       top: 12px;
     }
 
+    /* 分组标题吸顶处理 */
+    .metrics-collapse .correlation-metrics-collapse-head {
+      position: sticky;
+      top: 0;
+      z-index: 10;
+      background: #f0f1f5;
+    }
+
     /* 分组标题 */
     .title-main {
       font-size: 14px;
