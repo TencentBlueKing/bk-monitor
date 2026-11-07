@@ -35,6 +35,7 @@ from alarm_backends.core.cache.cmdb import (
     SetTemplateManager,
 )
 from bkmonitor.commons.tools import is_ipv6_biz
+from bkmonitor.data_source.data_source import LogSearchTimeSeriesDataSource
 from bkmonitor.models import (
     AlgorithmModel,
     StrategyHistoryModel,
@@ -389,10 +390,15 @@ class StrategyCacheManager(CacheManager):
                 params["bkmonitor_strategy_id"] = query_config["bkmonitor_strategy_id"]
 
             # 除了统一查询模块支持的数据源外，时序数据如果含有复杂查询条件，则查询时不添加该条件
+            # 日志仅黑名单业务查询后过滤，其余经 UnifyQuery 下推条件，同组共用首个监控项的查询，条件必须参与分组
             if (
                 (params["data_source_label"], params["data_type_label"]) not in UnifyQueryDataSources
                 and params["data_type_label"] == DataTypeLabel.TIME_SERIES
                 and params.get("agg_condition")
+                and (
+                    params["data_source_label"] != DataSourceLabel.BK_LOG_SEARCH
+                    or LogSearchTimeSeriesDataSource.is_unify_query_black_biz(params["bk_biz_id"])
+                )
             ):
                 for condition in query_config["agg_condition"]:
                     if condition["method"] in AdvanceConditionMethod:
