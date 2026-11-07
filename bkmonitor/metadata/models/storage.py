@@ -6585,6 +6585,9 @@ class DorisStorage(models.Model, StorageResultTable):
         """直接比对建表配置与同名字段类型，判断是否需要替换物理表。
 
         字段新增/删除不参与比对：BKBase 会对新增列执行 ALTER ADD COLUMN，多出的历史列无害。
+
+        已知限制：先删除字段 x、再以不同类型重新加回 x（两次调用之间）不会被识别，
+        因为实体列不会随删除消失。要覆盖该场景需要物理表的列类型快照，一期暂不处理。
         """
         if previous_config is None:
             return False
@@ -6715,18 +6718,35 @@ class DorisStorage(models.Model, StorageResultTable):
         rt_name: str | None,
     ) -> str | None:
         """解析当前物理表全名，兼容本特性上线前的历史表。"""
-        if isinstance(storage.physical_tables, dict) and storage.physical_tables.get(cls.LOG_PHYSICAL_TABLE_ROLE):
-            return storage.physical_tables[cls.LOG_PHYSICAL_TABLE_ROLE]
-
         binding = cls._get_log_doris_binding(storage)
+        for holder in (storage, binding):
+            if holder is None or not isinstance(holder.physical_tables, dict):
+                continue
+            physical_table = holder.physical_tables.get(cls.LOG_PHYSICAL_TABLE_ROLE)
+            if not physical_table:
+                continue
+            if cls._is_valid_log_doris_physical_table(physical_table):
+                return physical_table
+            logger.warning(
+                "resolve log doris physical table: invalid value->[%s] for table_id->[%s], ignored",
+                physical_table,
+                storage.table_id,
+            )
+
         if binding is not None:
-            if isinstance(binding.physical_tables, dict) and binding.physical_tables.get(cls.LOG_PHYSICAL_TABLE_ROLE):
-                return binding.physical_tables[cls.LOG_PHYSICAL_TABLE_ROLE]
             # 历史链路的物理表名由「绑定名_业务ID」决定，按同一规则还原，避免误判为新建表。
             return f"mapleleaf_{data_biz_id}.{binding.name}_{data_biz_id}"
         if rt_name:
             return f"mapleleaf_{data_biz_id}.{rt_name}_{data_biz_id}"
         return None
+
+    @staticmethod
+    def _is_valid_log_doris_physical_table(physical_table: Any) -> bool:
+        """物理表必须是 ``库名.表名`` 形态，非法值按"无记录"处理，避免后续解包崩掉。"""
+        if not isinstance(physical_table, str):
+            return False
+        database, sep, table = physical_table.partition(".")
+        return bool(sep and database and table and "." not in table)
 
     @classmethod
     def _get_current_log_doris_segment(cls, storage: "DorisStorage") -> "StorageClusterRecord | None":
@@ -6773,6 +6793,36 @@ class DorisStorage(models.Model, StorageResultTable):
             )
 
     @classmethod
+    def _backfill_log_doris_segment_snapshots(
+        cls,
+        *,
+        storage: "DorisStorage",
+        bkbase_table_id: str,
+        physical_table: str | None,
+    ) -> None:
+        """补齐该表所有 Doris 分段的空快照（含已关闭的历史分段）。
+
+        本特性上线前，同一张表的所有代际共用同一个物理表与 BKBase 结果表，因此这些
+        空分段的正确值就是「换表前」的旧值；只补空字段，已有历史值不动。
+        """
+        doris_cluster_ids = ClusterInfo.objects.filter(
+            bk_tenant_id=storage.bk_tenant_id,
+            cluster_type=ClusterInfo.TYPE_DORIS,
+        ).values_list("cluster_id", flat=True)
+        segments = StorageClusterRecord.objects.filter(
+            bk_tenant_id=storage.bk_tenant_id,
+            table_id=storage.table_id,
+            cluster_id__in=list(doris_cluster_ids),
+            is_deleted=False,
+        )
+        for segment in segments:
+            cls._fill_log_doris_segment_snapshot(
+                segment=segment,
+                bkbase_table_id=bkbase_table_id,
+                physical_table=physical_table,
+            )
+
+    @classmethod
     def _sync_log_doris_storage_segment(
         cls,
         *,
@@ -6811,8 +6861,9 @@ class DorisStorage(models.Model, StorageResultTable):
                     return
                 # 存量分段可能只有集群信息：关闭旧段之前用解析出的旧结果表/旧物理表补齐快照，
                 # 否则路由组装会退回当前（新的）结果表，导致历史时间段漏查新表。
-                cls._fill_log_doris_segment_snapshot(
-                    segment=target_segment,
+                # 历史上多次切换存储/集群时会积压多条已关闭的空分段，这里一并补齐。
+                cls._backfill_log_doris_segment_snapshots(
+                    storage=storage,
                     bkbase_table_id=previous_bkbase_table_id,
                     physical_table=previous_physical_table,
                 )

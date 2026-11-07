@@ -1795,17 +1795,17 @@ class ResultTable(models.Model):
         except Exception as e:  # pylint: disable=broad-except
             logger.error("push and publish redis error, table_id: %s, %s", self.table_id, e)
 
-        # 如果结果表启用，则刷新清洗配置
         # 元数据阶段先判定并产出 Doris 物理表名与 BKBase 结果表名（换表时版本 +1 并新开分段），
         # datalink 阶段再按名字新建或维持 ResultTable / DorisBinding 配置。
-        if self.is_enable:
-            DorisStorage.sync_log_physical_table(
-                bk_tenant_id=self.bk_tenant_id,
-                table_id=self.table_id,
-                bk_biz_id=self.bk_biz_id,
-                previous_option_value=previous_log_option_value,
-                previous_field_types=previous_field_types,
-            )
+        # 停用期间也要落库：否则本次写入的新 option 没有换表机会，恢复启用时已无「变更前」可比，
+        # 新分词/索引配置永远不生效。停用期间不 apply，仅在启用时下发。
+        DorisStorage.sync_log_physical_table(
+            bk_tenant_id=self.bk_tenant_id,
+            table_id=self.table_id,
+            bk_biz_id=self.bk_biz_id,
+            previous_option_value=previous_log_option_value,
+            previous_field_types=previous_field_types,
+        )
 
         if self.is_enable:
             self.apply_datalink(force_update=force_update_datalink)

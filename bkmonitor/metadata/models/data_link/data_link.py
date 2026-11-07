@@ -1341,17 +1341,17 @@ class DataLink(models.Model):
         """解析元数据阶段产出的物理表位置；历史链路返回 ``(None, None)`` 走旧规则渲染。"""
         physical_tables = doris_storage.physical_tables if isinstance(doris_storage.physical_tables, dict) else {}
         physical_table = physical_tables.get(DorisStorage.LOG_PHYSICAL_TABLE_ROLE)
-        if not physical_table:
+        if not physical_table or not isinstance(physical_table, str):
             return None, None
-        try:
-            return tuple(physical_table.split(".", 1))  # type: ignore[return-value]
-        except ValueError:
+        database, sep, table = physical_table.partition(".")
+        if not (sep and database and table and "." not in table):
             logger.warning(
                 "compose_log_configs: invalid doris physical table->[%s] for table_id->[%s], fallback to legacy rule",
                 physical_table,
                 doris_storage.table_id,
             )
             return None, None
+        return database, table
 
     def compose_log_configs(
         self,

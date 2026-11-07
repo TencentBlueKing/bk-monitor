@@ -959,3 +959,60 @@ def test_log_doris_table_identity_keeps_random_token_for_large_versions():
     # 随机串（10 位）必须完整保留在版本后缀之前
     assert re.fullmatch(r"bkm_[0-9a-z_]*[0-9a-z]{10}_v100", rt_name)
     assert physical_table == f"mapleleaf_2.{rt_name}"
+
+
+@pytest.mark.django_db(databases="__all__")
+def test_rotation_backfills_all_closed_doris_segments(log_doris_records):
+    """换表时已关闭的历史 Doris 分段也要补齐旧快照，避免历史时间段回退查新表。"""
+    import datetime
+
+    from django.utils import timezone as django_timezone
+
+    ctx = log_doris_records
+    binding_name = _create_legacy_binding(ctx)
+    cluster_id = models.DorisStorage.objects.get(table_id=LOG_DORIS_TABLE_ID).storage_cluster_id
+    # 两条已关闭的空分段（历史存储切换留下的形态）+ 一条当前分段
+    for days in (40, 20):
+        models.StorageClusterRecord.objects.create(
+            bk_tenant_id=ctx["bk_tenant_id"],
+            table_id=LOG_DORIS_TABLE_ID,
+            cluster_id=cluster_id,
+            enable_time=django_timezone.now() - datetime.timedelta(days=days),
+            disable_time=django_timezone.now() - datetime.timedelta(days=days - 10),
+            is_current=False,
+            is_deleted=False,
+            creator="system",
+        )
+    _create_legacy_segment(ctx)
+
+    new_name = _sync_log_physical_table(
+        ctx,
+        option_value=_rotate_option(),
+        previous_option_value=dict(LOG_DORIS_OPTION_VALUE),
+    )
+
+    data_biz_id = _get_datalink_data_biz_id(ctx["bk_biz_id"])
+    legacy_table = f"mapleleaf_{data_biz_id}.{binding_name}_{data_biz_id}"
+    segments = list(
+        models.StorageClusterRecord.objects.filter(table_id=LOG_DORIS_TABLE_ID).order_by("enable_time", "id")
+    )
+    # 三条旧段全部补齐为旧一代快照，且都已关闭
+    assert len(segments) == 4
+    for segment in segments:
+        if segment.bkbase_table_id == f"{data_biz_id}_{new_name}":
+            continue
+        assert segment.bkbase_table_id == f"{data_biz_id}_{binding_name}"
+        assert segment.physical_tables == {"main": legacy_table}
+        assert segment.disable_time is not None
+    current = models.StorageClusterRecord.objects.get(table_id=LOG_DORIS_TABLE_ID, is_current=True)
+    assert current.bkbase_table_id == f"{data_biz_id}_{new_name}"
+
+
+def test_valid_log_doris_physical_table():
+    """物理表必须是 库名.表名 形态，非法值按无记录处理。"""
+    assert models.DorisStorage._is_valid_log_doris_physical_table("mapleleaf_2.bkm_x_v1")
+    assert not models.DorisStorage._is_valid_log_doris_physical_table("bkm_x_v1")
+    assert not models.DorisStorage._is_valid_log_doris_physical_table("mapleleaf_2.")
+    assert not models.DorisStorage._is_valid_log_doris_physical_table(".bkm_x_v1")
+    assert not models.DorisStorage._is_valid_log_doris_physical_table("a.b.c")
+    assert not models.DorisStorage._is_valid_log_doris_physical_table(None)

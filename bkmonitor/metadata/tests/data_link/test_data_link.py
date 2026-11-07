@@ -8334,3 +8334,22 @@ def test_compose_log_configs_falls_back_to_legacy_table_name(log_doris_rotate_re
     doris_payload = next(config for config in configs if config["kind"] == DataLinkKind.DORISBINDING.value)
     assert doris_payload["spec"]["storage_config"]["db"] == "mapleleaf_2"
     assert doris_payload["spec"]["storage_config"]["table"] == f"{LOG_DORIS_ROTATE_LINK}_2"
+
+
+@pytest.mark.django_db(databases="__all__")
+def test_compose_log_configs_falls_back_on_invalid_physical_table(log_doris_rotate_records, mocker):
+    """physical_tables 非法（缺库名/多段）时降级为旧规则渲染，不能抛解包异常。"""
+    ctx = log_doris_rotate_records
+    mocker.patch.object(settings, "ENABLE_MULTI_TENANT_MODE", False)
+    mocker.patch("bkmonitor.utils.tenant.get_tenant_default_biz_id", return_value=2)
+    models.DorisStorage.objects.filter(table_id=LOG_DORIS_ROTATE_TABLE_ID).update(
+        physical_tables={"main": "no_dot_table"},
+        bkbase_table_id="2_no_dot_table",
+    )
+
+    configs = _compose_log_doris_rotate_configs(ctx)
+
+    doris_payload = next(config for config in configs if config["kind"] == DataLinkKind.DORISBINDING.value)
+    storage_config = doris_payload["spec"]["storage_config"]
+    assert storage_config["db"] == "mapleleaf_2"
+    assert storage_config["table"] == "no_dot_table_2"

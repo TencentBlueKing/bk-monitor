@@ -484,3 +484,31 @@ def test_modify_same_field_type_does_not_rotate(modify_field_type_records, mocke
     assert storage.bkbase_table_id == "2_old_result_table"
     assert storage.physical_tables == {"main": "mapleleaf_2.old_physical_table"}
     assert models.StorageClusterRecord.objects.filter(table_id=MODIFY_FIELD_TYPE_TABLE_ID).count() == 1
+
+
+@pytest.mark.django_db(databases="__all__")
+def test_modify_option_change_rotates_while_disabled(modify_field_type_records, mocker):
+    """停用期间改建表配置也要落换表结果，恢复启用后链路按新名字下发。"""
+    apply_mock = mocker.patch.object(models.ResultTable, "apply_datalink", autospec=True)
+    mocker.patch.object(models.ResultTable, "delete_datalink", autospec=True)
+    mocker.patch("metadata.models.space.utils.get_space_by_table_id", return_value={})
+    rt = models.ResultTable.objects.get(table_id=MODIFY_FIELD_TYPE_TABLE_ID)
+    rt.is_enable = False
+    rt.save(update_fields=["is_enable"])
+
+    new_option = json.loads(json.dumps(MODIFY_FIELD_TYPE_OLD_OPTION))
+    new_option["doris_storage_config"]["tokenizers"] = {"log": "./=:,|"}
+    rt.modify(operator="system", option={models.ResultTableOption.OPTION_V4_LOG_DATA_LINK: new_option})
+
+    storage = models.DorisStorage.objects.get(table_id=MODIFY_FIELD_TYPE_TABLE_ID)
+    assert storage.bkbase_table_id.endswith("_v2")
+    apply_mock.assert_not_called()
+
+    # 恢复启用：不再换表，datalink 按已落库的新名字下发
+    rt.refresh_from_db()
+    rt.modify(operator="system", is_enable=True)
+
+    storage.refresh_from_db()
+    assert storage.bkbase_table_id.endswith("_v2")
+    apply_mock.assert_called_once()
+    assert models.StorageClusterRecord.objects.filter(table_id=MODIFY_FIELD_TYPE_TABLE_ID).count() == 2
