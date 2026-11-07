@@ -1028,6 +1028,7 @@ def _prepare_partial_space_data_sources(directory_path: str | Path, bk_biz_ids: 
     target_directory = Path(directory_path)
     manifest = read_json_file(target_directory / "manifest.json", encoding=DEFAULT_ENCODING)
     target_biz_ids = bk_biz_ids if bk_biz_ids is not None else manifest["bk_biz_ids"]
+    resolved_spaces = {}
     for bk_biz_id in target_biz_ids:
         for relative_file_path in manifest["biz_files"].get(str(bk_biz_id), []):
             records = read_json_file(target_directory / relative_file_path, encoding=DEFAULT_ENCODING)
@@ -1041,24 +1042,28 @@ def _prepare_partial_space_data_sources(directory_path: str | Path, bk_biz_ids: 
                     "space_type_id": fields["space_type_id"],
                     "space_id": fields["space_id"],
                 }
-                space_ids = [fields["space_id"]]
-                if lookup["space_type_id"] == "bkci" and not fields["space_id"].startswith(
-                    f"{fields['bk_tenant_id']}-"
-                ):
-                    space_ids.append(f"{fields['bk_tenant_id']}-{fields['space_id']}")
-                for space_id in space_ids:
-                    lookup["space_id"] = space_id
-                    try:
-                        target_space = Space.objects.get(**lookup)
-                    except Space.DoesNotExist:
-                        continue
-                    break
-                else:
-                    raise ValueError(
-                        f"目标环境租户 {fields['bk_tenant_id']} 下未找到空间 "
-                        f"{fields['space_type_id']}（尝试空间 ID: {', '.join(space_ids)}），"
-                        "请先同步目标空间后再执行局部导入。"
-                    )
+                space_key = (fields["bk_tenant_id"], fields["space_type_id"], fields["space_id"])
+                if space_key not in resolved_spaces:
+                    space_ids = [fields["space_id"]]
+                    if lookup["space_type_id"] == "bkci" and not fields["space_id"].startswith(
+                        f"{fields['bk_tenant_id']}-"
+                    ):
+                        space_ids.append(f"{fields['bk_tenant_id']}-{fields['space_id']}")
+                    for space_id in space_ids:
+                        lookup["space_id"] = space_id
+                        try:
+                            target_space = Space.objects.get(**lookup)
+                        except Space.DoesNotExist:
+                            continue
+                        break
+                    else:
+                        raise ValueError(
+                            f"目标环境租户 {fields['bk_tenant_id']} 下未找到空间 "
+                            f"{fields['space_type_id']}（尝试空间 ID: {', '.join(space_ids)}），"
+                            "请先同步目标空间后再执行局部导入。"
+                        )
+                    resolved_spaces[space_key] = target_space
+                target_space = resolved_spaces[space_key]
                 fields["space_id"] = target_space.space_id
                 # 关联表的自增主键不跨环境复用，避免覆盖目标环境的其他关联。
                 record["pk"] = None
