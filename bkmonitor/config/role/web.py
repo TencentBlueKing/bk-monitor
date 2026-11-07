@@ -147,7 +147,11 @@ else:
         }
     )
 
+CONN_MAX_AGE = locals()["CONN_MAX_AGE"] if ROLE == "web" else 0
 for _db in DATABASES.values():
+    # Django 只读取每个库自己的 CONN_MAX_AGE；长连接按线程持有，api 角色线程多，只给 web 开
+    _db.setdefault("CONN_MAX_AGE", CONN_MAX_AGE)
+    _db.setdefault("CONN_HEALTH_CHECKS", CONN_MAX_AGE > 0)
     if _db.get("ENGINE", "").startswith("dj_db_conn_pool."):
         # 池化连接跨请求复用：隔离级别在建立物理连接时设置一次，避免每次取连接都执行 SET
         _db["OPTIONS"] = {
