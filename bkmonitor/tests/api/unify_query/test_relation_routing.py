@@ -101,6 +101,11 @@ def test_old_dual_write_whitelist_does_not_enable_query():
         ("QueryMultiResourceRange", RELATION_MULTI_RESOURCE_RANGE_PATH, RELATION_MULTI_RESOURCE_RANGE_V1BETA3_PATH),
         ("GetKubernetesRelationResource", RELATION_MULTI_RESOURCE_PATH, RELATION_MULTI_RESOURCE_V1BETA3_PATH),
         ("QueryMultiResourceV1Beta3", RELATION_MULTI_RESOURCE_V1BETA3_PATH, RELATION_MULTI_RESOURCE_V1BETA3_PATH),
+        (
+            "QueryMultiResourceRangeV1Beta3",
+            RELATION_MULTI_RESOURCE_RANGE_V1BETA3_PATH,
+            RELATION_MULTI_RESOURCE_RANGE_V1BETA3_PATH,
+        ),
     ],
 )
 @pytest.mark.parametrize("global_space", [False, True])

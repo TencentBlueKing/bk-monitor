@@ -3,6 +3,7 @@ import time
 from concurrent.futures import ThreadPoolExecutor
 from threading import Barrier, Event
 from typing import Any
+from unittest import mock
 
 import pytest
 from django.db import connections, router, transaction
@@ -101,6 +102,92 @@ def test_mysql_lock_timeout_keeps_previous_heartbeat() -> None:
     node.refresh_from_db()
     assert node.heartbeat["log"] == {"last_data_at": 200, "checked_at": 210}
     assert node.source == ["trace", "log"]
+
+
+def test_mysql_lock_timeout_retries_original_observation_after_lock_release() -> None:
+    database = router.db_for_write(TopoNode)
+    assert connections[database].vendor == "mysql", "锁冲突重试测试必须使用 MySQL"
+    node = make_node("service-a", source=["trace"], heartbeat={"trace": {"last_data_at": 100, "checked_at": 110}})
+    updated_at = node.updated_at
+    retry_ready = Event()
+    lock_released = Event()
+    session_timeouts: list[int] = []
+
+    def wait_for_lock_release(delay: float) -> None:
+        assert not connections[database].in_atomic_block
+        with connections[database].cursor() as cursor:
+            cursor.execute("SELECT @@SESSION.innodb_lock_wait_timeout")
+            assert cursor.fetchone()[0] == 2
+        retry_ready.set()
+        assert lock_released.wait(5)
+
+    def blocked_writer() -> bool:
+        try:
+            with connections[database].cursor() as cursor:
+                cursor.execute("SET SESSION innodb_lock_wait_timeout = 2")
+                cursor.execute("SELECT @@SESSION.innodb_lock_wait_timeout")
+                session_timeouts.append(cursor.fetchone()[0])
+            succeeded = TopoNode.touch_heartbeat(2, "app", "log", {"service-a": 200}, 210)
+            with connections[database].cursor() as cursor:
+                cursor.execute("SELECT @@SESSION.innodb_lock_wait_timeout")
+                session_timeouts.append(cursor.fetchone()[0])
+            return succeeded
+        finally:
+            connections[database].close()
+
+    with ThreadPoolExecutor(max_workers=1) as pool:
+        with mock.patch("apm.models.topo.time.sleep", side_effect=wait_for_lock_release) as sleep:
+            try:
+                with transaction.atomic(using=database):
+                    TopoNode.objects.using(database).select_for_update().get(id=node.id)
+                    writer = pool.submit(blocked_writer)
+                    assert retry_ready.wait(8), "第一次真实锁超时后必须进入事务外重试"
+                    TopoNode.objects.using(database).filter(id=node.id).update(
+                        heartbeat={"trace": {"last_data_at": 150, "checked_at": 160}}
+                    )
+            finally:
+                lock_released.set()
+            assert writer.result(timeout=5)
+            sleep.assert_called_once()
+    node.refresh_from_db()
+    assert node.heartbeat == {
+        "trace": {"last_data_at": 150, "checked_at": 160},
+        "log": {"last_data_at": 200, "checked_at": 210},
+    }
+    assert node.source == ["trace", "log"]
+    assert node.updated_at == updated_at
+    assert session_timeouts == [2, 2]
+
+
+def test_mysql_exhausted_lock_retries_keep_session_timeout_unchanged() -> None:
+    database = router.db_for_write(TopoNode)
+    assert connections[database].vendor == "mysql", "锁冲突重试测试必须使用 MySQL"
+    previous = {"metric": {"last_data_at": 100, "checked_at": 110}}
+    node = make_node("service-a", source=["metric"], heartbeat=previous)
+    session_timeouts: list[int] = []
+
+    def blocked_writer() -> bool:
+        try:
+            with connections[database].cursor() as cursor:
+                cursor.execute("SET SESSION innodb_lock_wait_timeout = 2")
+                cursor.execute("SELECT @@SESSION.innodb_lock_wait_timeout")
+                session_timeouts.append(cursor.fetchone()[0])
+            succeeded = TopoNode.touch_heartbeat(2, "app", "log", {"service-a": 200}, 210)
+            with connections[database].cursor() as cursor:
+                cursor.execute("SELECT @@SESSION.innodb_lock_wait_timeout")
+                session_timeouts.append(cursor.fetchone()[0])
+            return succeeded
+        finally:
+            connections[database].close()
+
+    with ThreadPoolExecutor(max_workers=1) as pool:
+        with transaction.atomic(using=database):
+            TopoNode.objects.using(database).select_for_update().get(id=node.id)
+            assert pool.submit(blocked_writer).result(timeout=10) is False
+    node.refresh_from_db()
+    assert node.heartbeat == previous
+    assert node.source == ["metric"]
+    assert session_timeouts == [2, 2]
 
 
 def test_mysql_deadlock_keeps_victims_previous_heartbeat(caplog: pytest.LogCaptureFixture) -> None:
