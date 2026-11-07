@@ -1495,6 +1495,16 @@ class DataLink(models.Model):
                 )
                 # 元数据阶段产出的物理表位置；历史链路没有记录时返回 (None, None)，沿用旧规则渲染。
                 db, table = self._compose_log_doris_storage_location(doris_storage=doris_storage)
+                logger.info(
+                    "compose_log_configs: data_link_name->[%s] table_id->[%s] doris target resolved, "
+                    "rt_name->[%s] binding_name->[%s] db->[%s] table->[%s]",
+                    self.data_link_name,
+                    table_id,
+                    result_table.name,
+                    binding_name,
+                    db,
+                    table,
+                )
                 binding_defaults: dict[str, Any] = {
                     "bk_biz_id": bk_biz_id,
                     "data_link_name": self.data_link_name,
@@ -3568,23 +3578,7 @@ class DataLink(models.Model):
                 data_type="graph" if resolved_storage_type == ClusterInfo.TYPE_SURREALDB else "metric"
             )
         rt_queryset = rt_queryset.order_by("-last_modify_time", "-id")
-        rt_count = rt_queryset.count()
         rt = rt_queryset.first()
-        if rt_count == 0 and self.data_link_strategy != self.BCS_FEDERAL_SUBSET_TIME_SERIES:
-            logger.warning(
-                "sync_metadata: data_link_name->[%s] table_id->[%s] ResultTableConfig not found, "
-                "will record partial BkBaseResultTable",
-                self.data_link_name,
-                table_id,
-            )
-        elif rt_count > 1:
-            logger.error(
-                "sync_metadata: data_link_name->[%s] table_id->[%s] got multiple ResultTableConfig, "
-                "selected name->[%s] to record BkBaseResultTable",
-                self.data_link_name,
-                table_id,
-                rt.name if rt else "",
-            )
 
         databus_queryset = DataBusConfig.objects.filter(
             bk_tenant_id=self.bk_tenant_id,

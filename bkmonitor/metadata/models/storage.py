@@ -6449,6 +6449,15 @@ class DorisStorage(models.Model, StorageResultTable):
         current_physical_table = cls._resolve_log_doris_physical_table(
             storage, data_biz_id=data_biz_id, rt_name=current_rt_name
         )
+        logger.info(
+            "sync_log_physical_table: tenant->[%s] table_id->[%s] data_biz_id->[%s] current_rt_name->[%s] "
+            "current_physical_table->[%s]",
+            bk_tenant_id,
+            table_id,
+            data_biz_id,
+            current_rt_name,
+            current_physical_table,
+        )
         # 覆盖存储前先记住旧一代的结果表与物理表，换表时用于补齐旧分段快照。
         previous_bkbase_table_id = storage.bkbase_table_id or (
             f"{data_biz_id}_{current_rt_name}" if current_rt_name else ""
@@ -6474,6 +6483,15 @@ class DorisStorage(models.Model, StorageResultTable):
             )
             if rotated:
                 version = cls._parse_log_doris_table_version(rt_name) + 1
+                logger.warning(
+                    "sync_log_physical_table: doris physical table rotated, tenant->[%s] table_id->[%s] "
+                    "old_rt_name->[%s] old_physical_table->[%s] version->[%s]",
+                    bk_tenant_id,
+                    table_id,
+                    rt_name,
+                    physical_table,
+                    version,
+                )
                 rt_name, physical_table = cls._compose_log_doris_table_identity(
                     table_id=storage.table_id,
                     db=db,
@@ -6484,6 +6502,8 @@ class DorisStorage(models.Model, StorageResultTable):
         bkbase_table_id = f"{data_biz_id}_{rt_name}"
         physical_tables = {cls.LOG_PHYSICAL_TABLE_ROLE: physical_table}
 
+        old_physical_tables = dict(storage.physical_tables or {})
+        old_bkbase_table_id = storage.bkbase_table_id or ""
         update_fields: list[str] = []
         if storage.physical_tables != physical_tables:
             storage.physical_tables = physical_tables
@@ -6493,6 +6513,16 @@ class DorisStorage(models.Model, StorageResultTable):
             update_fields.append("bkbase_table_id")
         if update_fields:
             storage.save(update_fields=update_fields)
+            logger.info(
+                "sync_log_physical_table: tenant->[%s] table_id->[%s] doris storage updated, "
+                "physical_tables->[%s]->[%s] bkbase_table_id->[%s]->[%s]",
+                bk_tenant_id,
+                table_id,
+                old_physical_tables,
+                physical_tables,
+                old_bkbase_table_id,
+                bkbase_table_id,
+            )
 
         cls._sync_log_doris_storage_segment(
             storage=storage,
@@ -6558,12 +6588,27 @@ class DorisStorage(models.Model, StorageResultTable):
         """
         if previous_config is None:
             return False
-        if previous_config != config:
+        changed_config_keys = [key for key in config if previous_config.get(key) != config.get(key)]
+        if changed_config_keys:
+            logger.warning(
+                "log doris physical table config changed: keys->[%s] previous->[%s] current->[%s]",
+                changed_config_keys,
+                {key: previous_config.get(key) for key in changed_config_keys},
+                {key: config.get(key) for key in changed_config_keys},
+            )
             return True
         if not previous_field_types or not field_types:
             return False
         shared_field_names = previous_field_types.keys() & field_types.keys()
-        return any(previous_field_types[name] != field_types[name] for name in shared_field_names)
+        changed_field_types = {
+            name: f"{previous_field_types[name]}->{field_types[name]}"
+            for name in shared_field_names
+            if previous_field_types[name] != field_types[name]
+        }
+        if changed_field_types:
+            logger.warning("log doris field type changed: %s", changed_field_types)
+            return True
+        return False
 
     @classmethod
     def _get_log_doris_field_types(cls, *, bk_tenant_id: str, table_id: str) -> dict[str, str]:
@@ -6771,14 +6816,26 @@ class DorisStorage(models.Model, StorageResultTable):
                     bkbase_table_id=previous_bkbase_table_id,
                     physical_table=previous_physical_table,
                 )
+                switch_time = django_timezone.now()
                 target_segment, _ = StorageClusterRecord.switch_current_cluster(
                     table_id=storage.table_id,
                     bk_tenant_id=bk_tenant_id,
                     target_cluster_id=storage.storage_cluster_id,
                     target_storage_type=ClusterInfo.TYPE_DORIS,
-                    switch_time=django_timezone.now(),
+                    switch_time=switch_time,
                     creator=creator,
                     force_new_segment=True,
+                )
+                logger.info(
+                    "sync_log_doris_storage_segment: table_id->[%s] new segment->[%s] cluster_id->[%s] "
+                    "enable_time->[%s] rotated->[%s] bkbase_table_id->[%s] physical_tables->[%s]",
+                    storage.table_id,
+                    target_segment.id,
+                    storage.storage_cluster_id,
+                    switch_time,
+                    rotated,
+                    bkbase_table_id,
+                    physical_tables,
                 )
 
             update_fields: list[str] = []

@@ -760,6 +760,11 @@ class ResultTable(models.Model):
         # 再按名字新建或维持 ResultTable / DorisBinding 配置。
         # is_sync_db 为 False 时既不会真正建存储也不会下发链路，这里同样跳过，避免产出悬空记录。
         if is_sync_db and self.default_storage == ClusterInfo.TYPE_DORIS:
+            logger.info(
+                "check_and_create_storage: table_id->[%s] tenant->[%s] sync log doris physical table",
+                self.table_id,
+                bk_tenant_id,
+            )
             DorisStorage.sync_log_physical_table(
                 bk_tenant_id=bk_tenant_id,
                 table_id=self.table_id,
@@ -1372,6 +1377,15 @@ class ResultTable(models.Model):
                 ResultTableField.objects.filter(bk_tenant_id=self.bk_tenant_id, table_id=self.table_id).values_list(
                     "field_name", "field_type"
                 )
+            )
+            logger.info(
+                "modify: table_id->[%s] snapshot for doris rotation, replaces_fields->[%s] has_log_option->[%s] "
+                "previous_option_found->[%s] previous_field_count->[%s]",
+                self.table_id,
+                replaces_fields,
+                new_log_option_value is not None,
+                previous_log_option_value is not None,
+                len(previous_field_types),
             )
 
         # 1. 判断是否需要修改中文名
