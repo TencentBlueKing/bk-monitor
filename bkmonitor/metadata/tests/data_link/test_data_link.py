@@ -7296,7 +7296,9 @@ def test_compose_log_configs_reuses_legacy_components(create_or_delete_records, 
     models.ESStorage.objects.create(table_id=table_id, storage_cluster_id=666666, bk_tenant_id=bk_tenant_id)
     models.DorisStorage.objects.create(
         table_id=table_id,
-        bkbase_table_id=f"{bk_biz_id}_{data_link_name}",
+        # 与下面的 legacy_log_rt 结果表一致：生产环境由 apply_log_datalink 按绑定的
+        # bkbase_result_table_name 回填，这里保持同样的恒等关系。
+        bkbase_table_id=f"{bk_biz_id}_legacy_log_rt",
         storage_cluster_id=doris_cluster.cluster_id,
         bk_tenant_id=bk_tenant_id,
     )
@@ -7357,7 +7359,8 @@ def test_compose_log_configs_reuses_legacy_components(create_or_delete_records, 
         data_link_name=data_link_name,
         bk_biz_id=bk_biz_id,
         table_id=table_id,
-        bkbase_result_table_name=data_link_name,
+        # 绑定与它指向的结果表名称保持一致，compose 才能按名字认领而不是新建。
+        bkbase_result_table_name="legacy_log_rt",
         doris_cluster_name="old-doris",
     )
     DataBusConfig.objects.create(
@@ -8145,3 +8148,208 @@ class TestSurrealDBBindingGraphDefinitionValidation:
             self._build_config(relations="x")._validate_graph_definitions()
         with pytest.raises(ValueError, match=r"relations\[0\].*to"):
             self._build_config(relations=[{"name": "r", "from": "a"}])._validate_graph_definitions()
+
+
+# ------------------- 日志 Doris 换表：datalink 按名字新建或维持 ------------------- #
+
+LOG_DORIS_ROTATE_TABLE_ID = "1001_bklog.doris_rotate"
+LOG_DORIS_ROTATE_LINK = "log_doris_rotate_link"
+
+
+@pytest.fixture
+def log_doris_rotate_records():
+    """搭建日志 Doris 换表链路：RT、DorisStorage、option、数据源与 Doris 集群。"""
+    bk_tenant_id = "system"
+    result_table = models.ResultTable.objects.create(
+        table_id=LOG_DORIS_ROTATE_TABLE_ID,
+        bk_biz_id=1001,
+        bk_tenant_id=bk_tenant_id,
+        is_custom_table=True,
+        default_storage=models.ClusterInfo.TYPE_DORIS,
+    )
+    data_source = models.DataSource.objects.create(
+        bk_data_id=91501,
+        data_name="log_doris_rotate",
+        mq_cluster_id=1,
+        mq_config_id=1,
+        etl_config=DataLink.BK_LOG,
+        is_custom_source=False,
+        bk_tenant_id=bk_tenant_id,
+    )
+    doris_cluster = models.ClusterInfo.objects.create(
+        cluster_name="doris_rotate_cluster",
+        cluster_type=models.ClusterInfo.TYPE_DORIS,
+        domain_name="doris.rotate",
+        port=9030,
+        description="",
+        cluster_id=715001,
+        is_default_cluster=False,
+        version="2.x",
+        bk_tenant_id=bk_tenant_id,
+    )
+    models.DorisStorage.objects.create(
+        table_id=LOG_DORIS_ROTATE_TABLE_ID,
+        storage_cluster_id=doris_cluster.cluster_id,
+        bk_tenant_id=bk_tenant_id,
+    )
+    models.DataIdConfig.objects.create(
+        name="log_doris_rotate_data_id",
+        namespace="bklog",
+        bk_tenant_id=bk_tenant_id,
+        data_link_name=LOG_DORIS_ROTATE_LINK,
+        bk_biz_id=1001,
+        status="Ok",
+        bk_data_id=data_source.bk_data_id,
+    )
+    models.ResultTableOption.objects.create(
+        bk_tenant_id=bk_tenant_id,
+        table_id=LOG_DORIS_ROTATE_TABLE_ID,
+        name=models.ResultTableOption.OPTION_V4_LOG_DATA_LINK,
+        value=json.dumps(
+            {
+                "clean_rules": [
+                    {
+                        "input_id": "log",
+                        "output_id": "log",
+                        "operator": {"type": "assign", "key_index": "log", "output_type": "string"},
+                    }
+                ],
+                "doris_storage_config": {"storage_keys": ["log"]},
+            }
+        ),
+        value_type=models.ResultTableOption.TYPE_STRING,
+        creator="pytest",
+    )
+    datalink = DataLink.objects.create(
+        data_link_name=LOG_DORIS_ROTATE_LINK,
+        namespace="bklog",
+        bk_tenant_id=bk_tenant_id,
+        data_link_strategy=DataLink.BK_LOG,
+    )
+    yield {
+        "bk_tenant_id": bk_tenant_id,
+        "bk_biz_id": 1001,
+        "result_table": result_table,
+        "data_source": data_source,
+        "datalink": datalink,
+    }
+
+    models.ResultTableOption.objects.filter(table_id=LOG_DORIS_ROTATE_TABLE_ID).delete()
+    models.DataIdConfig.objects.filter(data_link_name=LOG_DORIS_ROTATE_LINK).delete()
+    models.DorisStorageBindingConfig.objects.filter(data_link_name=LOG_DORIS_ROTATE_LINK).delete()
+    models.ResultTableConfig.objects.filter(data_link_name=LOG_DORIS_ROTATE_LINK).delete()
+    models.DataBusConfig.objects.filter(data_link_name=LOG_DORIS_ROTATE_LINK).delete()
+    models.DataLink.objects.filter(data_link_name=LOG_DORIS_ROTATE_LINK).delete()
+    models.DorisStorage.objects.filter(table_id=LOG_DORIS_ROTATE_TABLE_ID).delete()
+    models.ResultTable.objects.filter(table_id=LOG_DORIS_ROTATE_TABLE_ID).delete()
+    models.DataSource.objects.filter(bk_data_id=data_source.bk_data_id).delete()
+    models.ClusterInfo.objects.filter(cluster_id=715001).delete()
+
+
+def _compose_log_doris_rotate_configs(ctx: dict) -> list[dict]:
+    return ctx["datalink"].compose_log_configs(
+        bk_biz_id=ctx["bk_biz_id"],
+        data_source=ctx["data_source"],
+        table_id=LOG_DORIS_ROTATE_TABLE_ID,
+    )
+
+
+@pytest.mark.django_db(databases="__all__")
+def test_compose_log_configs_uses_metadata_physical_table(log_doris_rotate_records, mocker):
+    """元数据给出物理表与结果表名后，compose 直接使用并维持既有配置。"""
+    ctx = log_doris_rotate_records
+    mocker.patch.object(settings, "ENABLE_MULTI_TENANT_MODE", False)
+    mocker.patch("bkmonitor.utils.tenant.get_tenant_default_biz_id", return_value=2)
+    models.DorisStorage.objects.filter(table_id=LOG_DORIS_ROTATE_TABLE_ID).update(
+        physical_tables={"main": "mapleleaf_2.bkm_log_doris_rotate_v2"},
+        bkbase_table_id="2_bkm_log_doris_rotate_v2",
+    )
+
+    configs = _compose_log_doris_rotate_configs(ctx)
+
+    result_table_config = models.ResultTableConfig.objects.get(data_link_name=LOG_DORIS_ROTATE_LINK)
+    assert result_table_config.name == "bkm_log_doris_rotate_v2"
+    assert result_table_config.bk_biz_id == ctx["bk_biz_id"]
+
+    doris_binding_config = models.DorisStorageBindingConfig.objects.get(data_link_name=LOG_DORIS_ROTATE_LINK)
+    assert doris_binding_config.name == "bkm_log_doris_rotate_v2"
+    assert doris_binding_config.bkbase_result_table_name == "bkm_log_doris_rotate_v2"
+
+    doris_payload = next(config for config in configs if config["kind"] == DataLinkKind.DORISBINDING.value)
+    assert doris_payload["spec"]["data"]["name"] == "bkm_log_doris_rotate_v2"
+    assert doris_payload["spec"]["storage_config"]["db"] == "mapleleaf_2"
+    assert doris_payload["spec"]["storage_config"]["table"] == "bkm_log_doris_rotate_v2"
+
+
+@pytest.mark.django_db(databases="__all__")
+def test_compose_log_configs_creates_new_result_table_and_keeps_old(log_doris_rotate_records, mocker):
+    """换表后为新的结果表名新建配置，旧结果表与旧绑定保持不删。"""
+    ctx = log_doris_rotate_records
+    mocker.patch.object(settings, "ENABLE_MULTI_TENANT_MODE", False)
+    mocker.patch("bkmonitor.utils.tenant.get_tenant_default_biz_id", return_value=2)
+    ResultTableConfig.objects.create(
+        name="bkm_log_doris_rotate_v1",
+        namespace="bklog",
+        bk_tenant_id=ctx["bk_tenant_id"],
+        data_link_name=LOG_DORIS_ROTATE_LINK,
+        bk_biz_id=ctx["bk_biz_id"],
+        table_id=LOG_DORIS_ROTATE_TABLE_ID,
+    )
+    DorisStorageBindingConfig.objects.create(
+        name="bkm_log_doris_rotate_v1",
+        namespace="bklog",
+        bk_tenant_id=ctx["bk_tenant_id"],
+        data_link_name=LOG_DORIS_ROTATE_LINK,
+        bk_biz_id=ctx["bk_biz_id"],
+        table_id=LOG_DORIS_ROTATE_TABLE_ID,
+        bkbase_result_table_name="bkm_log_doris_rotate_v1",
+        doris_cluster_name="doris_rotate_cluster",
+    )
+    models.DorisStorage.objects.filter(table_id=LOG_DORIS_ROTATE_TABLE_ID).update(
+        physical_tables={"main": "mapleleaf_2.bkm_log_doris_rotate_v2"},
+        bkbase_table_id="2_bkm_log_doris_rotate_v2",
+    )
+
+    _compose_log_doris_rotate_configs(ctx)
+
+    assert set(
+        ResultTableConfig.objects.filter(data_link_name=LOG_DORIS_ROTATE_LINK).values_list("name", flat=True)
+    ) == {"bkm_log_doris_rotate_v1", "bkm_log_doris_rotate_v2"}
+    assert set(
+        DorisStorageBindingConfig.objects.filter(data_link_name=LOG_DORIS_ROTATE_LINK).values_list("name", flat=True)
+    ) == {"bkm_log_doris_rotate_v1", "bkm_log_doris_rotate_v2"}
+
+
+@pytest.mark.django_db(databases="__all__")
+def test_compose_log_configs_falls_back_to_legacy_table_name(log_doris_rotate_records, mocker):
+    """元数据未产出物理表（历史链路）时，沿用 {name}_{biz} 的历史规则。"""
+    ctx = log_doris_rotate_records
+    mocker.patch.object(settings, "ENABLE_MULTI_TENANT_MODE", False)
+    mocker.patch("bkmonitor.utils.tenant.get_tenant_default_biz_id", return_value=2)
+
+    configs = _compose_log_doris_rotate_configs(ctx)
+
+    result_table_config = models.ResultTableConfig.objects.get(data_link_name=LOG_DORIS_ROTATE_LINK)
+    assert result_table_config.name == LOG_DORIS_ROTATE_LINK
+    doris_payload = next(config for config in configs if config["kind"] == DataLinkKind.DORISBINDING.value)
+    assert doris_payload["spec"]["storage_config"]["db"] == "mapleleaf_2"
+    assert doris_payload["spec"]["storage_config"]["table"] == f"{LOG_DORIS_ROTATE_LINK}_2"
+
+
+@pytest.mark.django_db(databases="__all__")
+def test_compose_log_configs_falls_back_on_invalid_physical_table(log_doris_rotate_records, mocker):
+    """physical_tables 非法（缺库名/多段）时降级为旧规则渲染，不能抛解包异常。"""
+    ctx = log_doris_rotate_records
+    mocker.patch.object(settings, "ENABLE_MULTI_TENANT_MODE", False)
+    mocker.patch("bkmonitor.utils.tenant.get_tenant_default_biz_id", return_value=2)
+    models.DorisStorage.objects.filter(table_id=LOG_DORIS_ROTATE_TABLE_ID).update(
+        physical_tables={"main": "no_dot_table"},
+        bkbase_table_id="2_no_dot_table",
+    )
+
+    configs = _compose_log_doris_rotate_configs(ctx)
+
+    doris_payload = next(config for config in configs if config["kind"] == DataLinkKind.DORISBINDING.value)
+    storage_config = doris_payload["spec"]["storage_config"]
+    assert storage_config["db"] == "mapleleaf_2"
+    assert storage_config["table"] == "no_dot_table_2"
