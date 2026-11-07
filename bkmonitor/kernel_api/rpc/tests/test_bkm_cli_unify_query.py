@@ -139,6 +139,7 @@ def test_discover_lists_only_server_allowlisted_uq_operations():
         "check_query_ts",
         "discover_query_ts_metrics",
         "query_relation_range_v1",
+        "query_relation_range_v1beta3",
         "query_relation_v1",
         "query_relation_v1beta3",
         "query_ts",
@@ -532,6 +533,141 @@ def test_invoke_relation_v1beta3_rejects_unexpected_item_fields(monkeypatch):
     query_relation.assert_not_called()
 
 
+def _relation_range_query(**overrides):
+    query = {
+        "start_time": 1725062400,
+        "end_time": 1725066000,
+        "step": "60s",
+        "target_type": "pod",
+        "source_type": "service",
+        "source_info": {"service_name": "api"},
+    }
+    query.update(overrides)
+    return query
+
+
+def test_describe_relation_range_v1beta3_requires_source_type_and_closes_item_fields():
+    out = query_unify_query({"mode": "describe", "operation": "query_relation_range_v1beta3"})
+
+    item_schema = out["params_schema"]["properties"]["query_list"]["items"]
+    assert sorted(item_schema["required"]) == [
+        "end_time",
+        "source_info",
+        "source_type",
+        "start_time",
+        "step",
+        "target_type",
+    ]
+    assert item_schema["additionalProperties"] is False
+    assert "timestamp" not in item_schema["properties"]
+    assert out["derived_params"] == ["bk_biz_ids", "bk_tenant_id"]
+    assert out["limits"]["max_time_range_seconds"] == 24 * 60 * 60
+    Draft7Validator(out["params_schema"]).validate(out["example_params"]["params"])
+
+
+def test_invoke_relation_range_v1beta3_uses_dedicated_caller_and_keeps_uq_evidence(monkeypatch):
+    raw = {"trace_id": "uq-v1beta3-range", "data": [{"code": 200}, {"code": 400, "message": "binding missing"}]}
+    query_relation = Mock(return_value=raw)
+    routed_query_relation = Mock()
+    monkeypatch.setattr(
+        "kernel_api.rpc.functions.bkm_cli.unify_query.api.unify_query.query_multi_resource_range_v1_beta3",
+        query_relation,
+    )
+    monkeypatch.setattr(
+        "kernel_api.rpc.functions.bkm_cli.unify_query.api.unify_query.query_multi_resource_range",
+        routed_query_relation,
+    )
+    query_list = [_relation_range_query()]
+
+    out = query_unify_query(
+        {
+            "mode": "invoke",
+            "operation": "query_relation_range_v1beta3",
+            "bk_biz_id": 2,
+            "params": {"query_list": query_list},
+        }
+    )
+
+    assert out["status"] == "ok"
+    assert out["operation"] == "query_relation_range_v1beta3"
+    assert out["partial"] is True
+    assert out["result"] == raw
+    query_relation.assert_called_once_with(bk_biz_ids=["2"], query_list=query_list)
+    routed_query_relation.assert_not_called()
+
+
+@pytest.mark.parametrize(
+    "operation, white_list, expected_path",
+    [
+        ("query_relation_range_v1beta3", [], "/api/v1/relation/v1beta3/multi_resource_range"),
+        ("query_relation_range_v1beta3", [2], "/api/v1/relation/v1beta3/multi_resource_range"),
+        ("query_relation_range_v1", [], "/api/v1/relation/multi_resource_range"),
+        ("query_relation_range_v1", [3], "/api/v1/relation/multi_resource_range"),
+        ("query_relation_range_v1", [2], "/api/v1/relation/v1beta3/multi_resource_range"),
+    ],
+)
+def test_invoke_relation_range_sends_expected_uq_path(monkeypatch, settings, operation, white_list, expected_path):
+    settings.RELATION_V1BETA3_BIZ_ID_WHITE_LIST = white_list
+    sent = {}
+
+    def fake_request(**kwargs):
+        sent.update(kwargs)
+        return SimpleNamespace(status_code=200, json=lambda: {"trace_id": "uq-path", "data": [{"code": 200}]})
+
+    default_module = "api.unify_query.default"
+    monkeypatch.setattr(f"{default_module}.requests.request", fake_request)
+    monkeypatch.setattr(f"{default_module}.get_unify_query_url", lambda space_uid: "http://unify-query/")
+    monkeypatch.setattr(f"{default_module}.bk_biz_id_to_space_uid", lambda bk_biz_id: f"bkcc__{bk_biz_id}")
+    monkeypatch.setattr(f"{default_module}.space_uid_to_bk_tenant_id", lambda space_uid: "system")
+    monkeypatch.setattr(
+        f"{default_module}.SpaceApi",
+        SimpleNamespace(get_space_detail=lambda **kwargs: SimpleNamespace(is_global=False, bk_biz_id=2)),
+    )
+    query = _relation_range_query()
+
+    out = query_unify_query(
+        {"mode": "invoke", "operation": operation, "bk_biz_id": 2, "params": {"query_list": [query]}}
+    )
+
+    assert out["status"] == "ok"
+    assert sent["url"] == f"http://unify-query{expected_path}"
+    assert sent["json"]["query_list"] == [query]
+    assert sent["headers"]["X-Bk-Scope-Space-Uid"] == "bkcc__2"
+
+
+@pytest.mark.parametrize(
+    "item, message",
+    [
+        (_relation_range_query(space_uid="bkcc__3"), "space_uid"),
+        (_relation_range_query(timestamp=1725066000), "timestamp"),
+        ({k: v for k, v in _relation_range_query().items() if k != "source_type"}, "source_type"),
+        ({k: v for k, v in _relation_range_query().items() if k != "step"}, "step"),
+        (_relation_range_query(end_time=1725062400 + 24 * 60 * 60 + 1), "时间范围"),
+        (_relation_range_query(start_time=1725066001), "start_time"),
+        ("not-an-object", "query_list[0]"),
+    ],
+)
+def test_invoke_relation_range_v1beta3_rejects_invalid_items(monkeypatch, item, message):
+    query_relation = Mock()
+    monkeypatch.setattr(
+        "kernel_api.rpc.functions.bkm_cli.unify_query.api.unify_query.query_multi_resource_range_v1_beta3",
+        query_relation,
+    )
+
+    out = query_unify_query(
+        {
+            "mode": "invoke",
+            "operation": "query_relation_range_v1beta3",
+            "bk_biz_id": 2,
+            "params": {"query_list": [item]},
+        }
+    )
+
+    assert out["error"]["code"] == "unsafe_action_blocked"
+    assert message in out["error"]["message"]
+    query_relation.assert_not_called()
+
+
 def test_invoke_rechecks_nested_business_authorization(monkeypatch):
     request = SimpleNamespace(
         user=SimpleNamespace(tenant_id="tenant-a", is_authenticated=True),
@@ -544,10 +680,15 @@ def test_invoke_rechecks_nested_business_authorization(monkeypatch):
     monkeypatch.setattr(authentication, "APP_CODE_UPDATE_TIME", {"tenant-a": time.time()})
     monkeypatch.setattr("kernel_api.rpc.functions.bkm_cli.unify_query._authorize_business", cmdb._authorize_business)
     query_relation = Mock()
+    query_relation_range = Mock()
     query_ts = Mock()
     query_promql = Mock()
     monkeypatch.setattr(
         "kernel_api.rpc.functions.bkm_cli.unify_query.api.unify_query.query_multi_resource_v1_beta3", query_relation
+    )
+    monkeypatch.setattr(
+        "kernel_api.rpc.functions.bkm_cli.unify_query.api.unify_query.query_multi_resource_range_v1_beta3",
+        query_relation_range,
     )
     monkeypatch.setattr("kernel_api.rpc.functions.bkm_cli.unify_query.api.unify_query.query_data", query_ts)
     monkeypatch.setattr(
@@ -563,12 +704,14 @@ def test_invoke_rechecks_nested_business_authorization(monkeypatch):
                 ]
             },
         ),
+        ("query_relation_range_v1beta3", {"query_list": [_relation_range_query()]}),
         ("query_ts", _query_ts_params()),
         ("query_ts_promql", _query_promql_params()),
     ):
         out = query_unify_query({"mode": "invoke", "operation": operation, "bk_biz_id": 3, "params": params})
         assert out["error"]["code"] == "unsafe_action_blocked"
     query_relation.assert_not_called()
+    query_relation_range.assert_not_called()
     query_ts.assert_not_called()
     query_promql.assert_not_called()
 

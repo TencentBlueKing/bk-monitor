@@ -595,6 +595,13 @@ class QueryMultiResourceV1Beta3(QueryMultiResource):
     v1beta3_path = ""
 
 
+class QueryMultiResourceRangeV1Beta3(QueryMultiResourceRange):
+    """Explicit v1beta3 range probe, independent of the business rollout switch."""
+
+    path = RELATION_MULTI_RESOURCE_RANGE_V1BETA3_PATH
+    v1beta3_path = ""
+
+
 class QueryInfoFieldMapResource(UnifyQueryAPIResource):
     method = "POST"
     path = "/query/ts/info/field_map"
