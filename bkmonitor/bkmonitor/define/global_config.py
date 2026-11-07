@@ -714,6 +714,10 @@ STANDARD_CONFIGS = OrderedDict(
             "APM_FIELD_NORMALIZER_ENABLED",
             slz.BooleanField(label=_("是否下发平台级别字段标准化配置"), default=True),
         ),
+        (
+            "BK_COLLECTOR_METRIC_METADATA_ENABLED",
+            slz.BooleanField(label=_("是否开启 collector 指标元信息上报"), default=False),
+        ),
         ("APM_CUSTOM_EVENT_REPORT_CONFIG", slz.DictField(label=_("APM事件上报配置"), default={})),
         ("APM_TRACE_DIAGRAM_CONFIG", slz.DictField(label=_("APM Trace 检索图表配置"), default={})),
         ("APM_DORIS_STORAGE_CONFIG", slz.DictField(label=_("APM Doris 存储配置"), default={})),
