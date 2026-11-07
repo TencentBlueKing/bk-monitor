@@ -801,3 +801,119 @@ def test_sync_log_physical_table_skips_virtual_table_option(log_doris_records):
 
     assert _sync_log_physical_table(ctx, previous_option_value=dict(LOG_DORIS_OPTION_VALUE)) is None
     assert models.StorageClusterRecord.objects.filter(table_id=LOG_DORIS_TABLE_ID).count() == 0
+
+
+def _create_legacy_binding(ctx: dict, name: str = "bklog_legacy_link") -> str:
+    """创建一个存量 Doris 绑定，用于解析旧一代结果表名与物理表名。"""
+    models.DorisStorageBindingConfig.objects.update_or_create(
+        bk_tenant_id=ctx["bk_tenant_id"],
+        table_id=LOG_DORIS_TABLE_ID,
+        defaults={
+            "name": name,
+            "namespace": "bklog",
+            "data_link_name": name,
+            "bk_biz_id": ctx["bk_biz_id"],
+            "status": "Ok",
+            "bkbase_result_table_name": name,
+            "doris_cluster_name": "doris_rotate",
+        },
+    )
+    return name
+
+
+def _create_legacy_segment(ctx: dict, *, bkbase_table_id: str = "", physical_tables: dict | None = None):
+    """创建只有集群信息的存量当前分段（旧版本 create_table 留下的形态）。"""
+    import datetime
+
+    from django.utils import timezone as django_timezone
+
+    return models.StorageClusterRecord.objects.create(
+        bk_tenant_id=ctx["bk_tenant_id"],
+        table_id=LOG_DORIS_TABLE_ID,
+        cluster_id=models.DorisStorage.objects.get(table_id=LOG_DORIS_TABLE_ID).storage_cluster_id,
+        enable_time=django_timezone.now() - datetime.timedelta(days=10),
+        is_current=True,
+        is_deleted=False,
+        bkbase_table_id=bkbase_table_id,
+        physical_tables=physical_tables or {},
+        creator="system",
+    )
+
+
+def _rotate_option() -> dict:
+    new_option = json.loads(json.dumps(LOG_DORIS_OPTION_VALUE))
+    new_option["doris_storage_config"]["tokenizers"] = {"log": "./=:,|"}
+    return new_option
+
+
+@pytest.mark.django_db(databases="__all__")
+def test_rotation_backfills_legacy_segment_snapshot(log_doris_records):
+    """存量分段为空时，首次换表要先补齐旧段的结果表与物理表，否则历史时间段会查新表。"""
+    ctx = log_doris_records
+    binding_name = _create_legacy_binding(ctx)
+    legacy_segment = _create_legacy_segment(ctx)
+
+    new_name = _sync_log_physical_table(
+        ctx,
+        option_value=_rotate_option(),
+        previous_option_value=dict(LOG_DORIS_OPTION_VALUE),
+    )
+
+    data_biz_id = _get_datalink_data_biz_id(ctx["bk_biz_id"])
+    assert new_name.endswith("_v2")
+
+    legacy_segment.refresh_from_db()
+    assert legacy_segment.is_current is False
+    assert legacy_segment.disable_time is not None
+    # 旧段被补齐成旧一代结果表与物理表，而不是留空后回退到新表
+    assert legacy_segment.bkbase_table_id == f"{data_biz_id}_{binding_name}"
+    assert legacy_segment.physical_tables == {"main": f"mapleleaf_{data_biz_id}.{binding_name}_{data_biz_id}"}
+
+    current_segment = models.StorageClusterRecord.objects.get(table_id=LOG_DORIS_TABLE_ID, is_current=True)
+    assert current_segment.bkbase_table_id == f"{data_biz_id}_{new_name}"
+    assert current_segment.physical_tables == {"main": f"mapleleaf_{data_biz_id}.{new_name}"}
+    assert current_segment.bkbase_table_id != legacy_segment.bkbase_table_id
+
+
+@pytest.mark.django_db(databases="__all__")
+def test_rotation_backfills_only_missing_snapshot_fields(log_doris_records):
+    """旧段只缺部分字段时，只补缺失项，不覆盖已有历史值。"""
+    ctx = log_doris_records
+    binding_name = _create_legacy_binding(ctx)
+    data_biz_id = _get_datalink_data_biz_id(ctx["bk_biz_id"])
+    legacy_physical = f"mapleleaf_{data_biz_id}.{binding_name}_{data_biz_id}"
+    legacy_segment = _create_legacy_segment(ctx, physical_tables={"main": legacy_physical})
+
+    _sync_log_physical_table(
+        ctx,
+        option_value=_rotate_option(),
+        previous_option_value=dict(LOG_DORIS_OPTION_VALUE),
+    )
+
+    legacy_segment.refresh_from_db()
+    assert legacy_segment.bkbase_table_id == f"{data_biz_id}_{binding_name}"
+    assert legacy_segment.physical_tables == {"main": legacy_physical}
+
+
+@pytest.mark.django_db(databases="__all__")
+def test_rotation_keeps_existing_legacy_snapshot(log_doris_records):
+    """旧段已有完整快照时，换表不得改写旧段历史值。"""
+    ctx = log_doris_records
+    _create_legacy_binding(ctx)
+    data_biz_id = _get_datalink_data_biz_id(ctx["bk_biz_id"])
+    expected_table = f"mapleleaf_{data_biz_id}.existing_table"
+    legacy_segment = _create_legacy_segment(
+        ctx,
+        bkbase_table_id="2_existing_result_table",
+        physical_tables={"main": expected_table},
+    )
+
+    _sync_log_physical_table(
+        ctx,
+        option_value=_rotate_option(),
+        previous_option_value=dict(LOG_DORIS_OPTION_VALUE),
+    )
+
+    legacy_segment.refresh_from_db()
+    assert legacy_segment.bkbase_table_id == "2_existing_result_table"
+    assert legacy_segment.physical_tables == {"main": expected_table}

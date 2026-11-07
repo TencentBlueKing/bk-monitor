@@ -6446,6 +6446,10 @@ class DorisStorage(models.Model, StorageResultTable):
         current_physical_table = cls._resolve_log_doris_physical_table(
             storage, data_biz_id=data_biz_id, rt_name=current_rt_name
         )
+        # 覆盖存储前先记住旧一代的结果表与物理表，换表时用于补齐旧分段快照。
+        previous_bkbase_table_id = storage.bkbase_table_id or (
+            f"{data_biz_id}_{current_rt_name}" if current_rt_name else ""
+        )
 
         rotated = False
         if current_physical_table is None:
@@ -6494,6 +6498,9 @@ class DorisStorage(models.Model, StorageResultTable):
             bkbase_table_id=bkbase_table_id,
             rotated=rotated,
             creator=result_table.last_modify_user or "system",
+            # 关旧段之前先用旧值补齐旧分段快照，否则历史时间段会退回查询新表。
+            previous_bkbase_table_id=previous_bkbase_table_id,
+            previous_physical_table=current_physical_table,
         )
 
         logger.info(
@@ -6689,6 +6696,35 @@ class DorisStorage(models.Model, StorageResultTable):
         )
 
     @classmethod
+    def _fill_log_doris_segment_snapshot(
+        cls,
+        *,
+        segment: "StorageClusterRecord | None",
+        bkbase_table_id: str,
+        physical_table: str | None,
+    ) -> None:
+        """用旧一代的结果表与物理表补齐分段快照，只补空字段，不覆盖已有历史。"""
+        if segment is None:
+            return
+        update_fields: list[str] = []
+        if bkbase_table_id and not segment.bkbase_table_id:
+            segment.bkbase_table_id = bkbase_table_id
+            update_fields.append("bkbase_table_id")
+        if physical_table and not segment.physical_tables:
+            segment.physical_tables = {cls.LOG_PHYSICAL_TABLE_ROLE: physical_table}
+            update_fields.append("physical_tables")
+        if update_fields:
+            segment.save(update_fields=update_fields)
+            logger.info(
+                "fill_log_doris_segment_snapshot: segment->[%s] backfilled->[%s] bkbase_table_id->[%s] "
+                "physical_tables->[%s]",
+                segment.id,
+                update_fields,
+                segment.bkbase_table_id,
+                segment.physical_tables,
+            )
+
+    @classmethod
     def _sync_log_doris_storage_segment(
         cls,
         *,
@@ -6698,6 +6734,8 @@ class DorisStorage(models.Model, StorageResultTable):
         bkbase_table_id: str,
         rotated: bool,
         creator: str,
+        previous_bkbase_table_id: str = "",
+        previous_physical_table: str | None = None,
     ) -> None:
         """记录物理表对应的存储分段：换表新开分段，其余情况只补空字段。"""
         physical_tables = {cls.LOG_PHYSICAL_TABLE_ROLE: physical_table}
@@ -6723,6 +6761,13 @@ class DorisStorage(models.Model, StorageResultTable):
                         storage.storage_cluster_id,
                     )
                     return
+                # 存量分段可能只有集群信息：关闭旧段之前用解析出的旧结果表/旧物理表补齐快照，
+                # 否则路由组装会退回当前（新的）结果表，导致历史时间段漏查新表。
+                cls._fill_log_doris_segment_snapshot(
+                    segment=target_segment,
+                    bkbase_table_id=previous_bkbase_table_id,
+                    physical_table=previous_physical_table,
+                )
                 target_segment, _ = StorageClusterRecord.switch_current_cluster(
                     table_id=storage.table_id,
                     bk_tenant_id=bk_tenant_id,
