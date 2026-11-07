@@ -23,7 +23,7 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { computed, defineComponent, getCurrentInstance, shallowRef, toRef, watch } from 'vue';
+import { computed, defineComponent, getCurrentInstance, provide, shallowRef, toRef, watch } from 'vue';
 import type { Component, PropType } from 'vue';
 
 import { Alert, Button, Exception, Sideslider } from 'bkui-vue';
@@ -36,6 +36,7 @@ import OriginDataPanel from './components/origin-data-panel/origin-data-panel';
 import TimelineFilterBar from './components/trace-context/timeline-filter-bar';
 import TraceContextPanel from './components/trace-context/trace-context-panel';
 import {
+  TRACE_CONTEXT_ROW_OBSERVER_KEY,
   useDetailFormatter,
   useDetailOverview,
   useDetailSections,
@@ -146,14 +147,24 @@ export default defineComponent({
       return String(fromOrigin ?? fromOverview ?? '');
     });
 
+    /** 链路上下文的滚动容器：作为行可见性观察的 root */
+    const traceContextScrollRef = shallowRef<HTMLElement | null>(null);
+    const setTraceContextScrollRef = (el: unknown) => {
+      traceContextScrollRef.value = (el as HTMLElement) ?? null;
+    };
+
     const traceContext = useTraceContext({
       active: computed(() => activeTab.value === RumDetailTabEnum.TRACE_CONTEXT),
       appName: computed(() => props.context?.app_name || ''),
       bizId: computed(() => originData.value.bk_biz_id ?? window.cc_biz_id),
       viewId,
       currentSpanId: spanId,
+      scrollRoot: traceContextScrollRef,
       formatField,
     });
+
+    /** 行可见性注册下发给链路上下文面板：列表渲染完成后整批同步，共用同一个观察器 */
+    provide(TRACE_CONTEXT_ROW_OBSERVER_KEY, traceContext.observeTimelineRows);
 
     /** 链路上下文打开的嵌套抽屉，复用本组件定义递归渲染 */
     const ChildSlider = getCurrentInstance()?.type as Component;
@@ -335,7 +346,10 @@ export default defineComponent({
 
     function renderTraceContext() {
       return (
-        <div class='rum-detail-card'>
+        <div
+          ref={setTraceContextScrollRef}
+          class='rum-detail-card'
+        >
           <TimelineFilterBar
             category={traceContext.filterCategory.value}
             keyword={traceContext.filterKeyword.value}

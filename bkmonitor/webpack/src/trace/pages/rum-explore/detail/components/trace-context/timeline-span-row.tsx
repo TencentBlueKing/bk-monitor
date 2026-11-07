@@ -63,7 +63,10 @@ export default defineComponent({
       const { data } = props;
       const trace = data.trace;
       return (
-        <div class={{ 'timeline-span-row': true, 'is-current': data.isCurrent, 'is-child': data.level > 0 }}>
+        <div
+          class={{ 'timeline-span-row': true, 'is-current': data.isCurrent, 'is-child': data.level > 0 }}
+          data-trace-id={data.traceId || undefined}
+        >
           <div class='row-main'>
             <span class='row-time'>{data.timeText}</span>
             <span class='row-toggle'>

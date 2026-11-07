@@ -24,10 +24,10 @@
  * IN THE SOFTWARE.
  */
 import { computed, shallowRef, unref, watch } from 'vue';
-import type { MaybeRef } from 'vue';
+import type { InjectionKey, MaybeRef } from 'vue';
 
 import { TIMELINE_REQUEST_RESOURCE_TYPES } from '../constants';
-import { getViewTimeline, searchTraceInfoMap } from '../services';
+import { getViewTimeline, searchTraceInfoMap, TRACE_SEARCH_BATCH_SIZE } from '../services';
 import { RumTimelineFilterCategoryEnum } from '../typings';
 import { buildRecordMap, buildTimelineItems, buildViewVM, findSpanPath } from '../utils/timeline-transform';
 
@@ -41,6 +41,12 @@ import type {
   RumTimelineFilterCategoryType,
 } from '../typings';
 
+/** 行可见性注册：上层按列表容器整批同步带 trace_id 的行，由抽屉 provide 给链路上下文面板 */
+export type TraceContextRowsObserver = (root: Element) => void;
+
+export const TRACE_CONTEXT_ROW_OBSERVER_KEY: InjectionKey<TraceContextRowsObserver> =
+  Symbol('trace-context-rows-observer');
+
 export type UseTraceContextReturn = ReturnType<typeof useTraceContext>;
 
 interface IUseTraceContextOptions {
@@ -51,6 +57,8 @@ interface IUseTraceContextOptions {
   bizId: MaybeRef<number | string | undefined>;
   /** 当前详情的 span_id，决定高亮与折叠锚点 */
   currentSpanId: MaybeRef<string>;
+  /** 抽屉里实际滚动的容器，作为行可见性观察的 root */
+  scrollRoot: MaybeRef<Element | null>;
   /** 当前 Span 所属的 View ID，为空时不请求 */
   viewId: MaybeRef<string>;
   /** 字段格式化函数，来自 useDetailFormatter */
@@ -68,6 +76,7 @@ export function useTraceContext({
   bizId,
   currentSpanId,
   formatField,
+  scrollRoot,
   viewId,
 }: IUseTraceContextOptions) {
   const timeline = shallowRef<IRumTimelineResponse | null>(null);
@@ -83,41 +92,174 @@ export function useTraceContext({
   /** 已请求过的 `${appName}|${viewId}`，相同时不重复请求 */
   let fetchedKey = '';
 
-  /** 随 timeline 一起检索全部关联 trace_id 的所属应用，不阻塞列表渲染 */
-  async function fetchTraceInfos(records: IRumTimelineRecord[], seq: number) {
-    const traceIds = records.map(record => String(record.origin_data?.links?.[0]?.trace_id ?? '')).filter(Boolean);
-    if (!traceIds.length) return;
-    const infos = await searchTraceInfoMap(traceIds, unref(bizId) ?? window.cc_biz_id);
-    if (seq !== requestId) return;
-    traceInfoMap.value = infos;
+  /** 待检索的 trace_id：行进入视口时入队，同一 View 内合并后按批发出 */
+  let traceQueue = new Set<string>();
+  /** 在途与已查完的 trace_id，避免重复检索（未命中的也记入） */
+  let inflightTraceIds = new Set<string>();
+  let resolvedTraceIds = new Set<string>();
+  /** 队列代际：切换 View 或关闭抽屉后丢弃在途结果 */
+  let traceQueueSeq = 0;
+  let flushing = false;
+  /** 当前这批检索的中断句柄 */
+  let traceAbortController: AbortController | null = null;
+
+  /** 已注册观察的行元素与其 trace_id，root 变化时据此重新观察 */
+  const observedRows = new Map<Element, string>();
+  let rowObserver: IntersectionObserver | null = null;
+  let observerRoot: Element | null = null;
+
+  /** 增量合并一帧命中结果：shallowRef 的 Map 需要整体替换才会触发更新 */
+  function mergeTraceInfos(infos: IRumTraceInfo[], seq: number) {
+    if (seq !== traceQueueSeq || !infos.length) return;
+    const next = new Map(traceInfoMap.value);
+    for (const info of infos) next.set(info.trace_id, info);
+    traceInfoMap.value = next;
   }
+
+  /** 逐批检索入队的 trace_id，流里每收到一帧命中就立即合并，先有结果的行先展示入口 */
+  async function flushTraceQueue(seq: number) {
+    if (flushing) return;
+    flushing = true;
+    const controller = new AbortController();
+    traceAbortController = controller;
+    try {
+      while (seq === traceQueueSeq && traceQueue.size) {
+        const batch = [...traceQueue].slice(0, TRACE_SEARCH_BATCH_SIZE);
+        for (const traceId of batch) {
+          traceQueue.delete(traceId);
+          inflightTraceIds.add(traceId);
+        }
+        await searchTraceInfoMap(
+          batch,
+          unref(bizId) ?? window.cc_biz_id,
+          infos => mergeTraceInfos(infos, seq),
+          controller.signal
+        );
+        /** 期间切换了 View 或关闭了抽屉，剩余队列由新一轮接管 */
+        if (seq !== traceQueueSeq) return;
+        for (const traceId of batch) {
+          inflightTraceIds.delete(traceId);
+          resolvedTraceIds.add(traceId);
+        }
+      }
+    } finally {
+      if (seq === traceQueueSeq) {
+        flushing = false;
+        traceAbortController = null;
+      }
+    }
+  }
+
+  /** 行进入视口时把关联 trace_id 入队，跳过在途与已查完的 ID */
+  function enqueueTraceIds(traceIds: string[]) {
+    let added = false;
+    for (const traceId of traceIds) {
+      if (resolvedTraceIds.has(traceId) || inflightTraceIds.has(traceId) || traceQueue.has(traceId)) continue;
+      traceQueue.add(traceId);
+      added = true;
+    }
+    if (added) void flushTraceQueue(traceQueueSeq);
+  }
+
+  /** 清掉队列与在途检索：clearResult 为 true 时连已检索结果一起丢弃（切换 View） */
+  function resetTraceQueue(clearResult: boolean) {
+    traceQueueSeq++;
+    traceQueue = new Set();
+    inflightTraceIds = new Set();
+    flushing = false;
+    traceAbortController?.abort();
+    traceAbortController = null;
+    if (clearResult) {
+      resolvedTraceIds = new Set();
+      traceInfoMap.value = new Map();
+    }
+    /** 旧 View 的行元素随之失效，新 View 的行挂载后重新注册 */
+    observedRows.clear();
+    rowObserver?.disconnect();
+    rowObserver = null;
+  }
+
+  function handleRowIntersect(entries: IntersectionObserverEntry[]) {
+    const entered: string[] = [];
+    for (const entry of entries) {
+      if (!entry.isIntersecting) continue;
+      const traceId = observedRows.get(entry.target);
+      if (traceId) entered.push(traceId);
+    }
+    if (entered.length) enqueueTraceIds(entered);
+  }
+
+  /** 按当前滚动容器创建观察器，root 变化时重建并重新观察已挂载的行 */
+  function ensureRowObserver() {
+    const root = unref(scrollRoot) ?? null;
+    if (rowObserver && observerRoot === root) return rowObserver;
+    rowObserver?.disconnect();
+    observerRoot = root;
+    rowObserver = new IntersectionObserver(handleRowIntersect, { root });
+    for (const el of observedRows.keys()) rowObserver.observe(el);
+    return rowObserver;
+  }
+
+  /**
+   * 按列表容器整体同步行元素：新增的行开始观察，已移除的行注销。
+   * 上层在列表渲染完成后调用一次，首屏、展开折叠行与滚动都命中同一观察器。
+   */
+  function observeTimelineRows(root: Element) {
+    const rows = new Map<Element, string>();
+    const elements = root.querySelectorAll<HTMLElement>('[data-trace-id]');
+    for (let index = 0; index < elements.length; index += 1) {
+      const el = elements[index];
+      if (el.dataset.traceId) rows.set(el, el.dataset.traceId);
+    }
+    for (const el of observedRows.keys()) {
+      if (rows.has(el)) continue;
+      observedRows.delete(el);
+      rowObserver?.unobserve(el);
+    }
+    for (const [el, traceId] of rows) {
+      if (observedRows.get(el) === traceId) continue;
+      observedRows.set(el, traceId);
+      ensureRowObserver().observe(el);
+    }
+  }
+
+  /** 滚动容器随抽屉重新渲染时（如切换 tab）重建观察器，行元素本身保持不变 */
+  watch(
+    () => unref(scrollRoot),
+    () => {
+      if (observedRows.size) ensureRowObserver();
+    }
+  );
 
   async function fetchTimeline(app: string, view: string) {
     const seq = ++requestId;
     loading.value = true;
     error.value = false;
-    traceInfoMap.value = new Map();
+    resetTraceQueue(true);
     const res = await getViewTimeline({ app_name: app, view_id: view });
     if (seq !== requestId) return;
     timeline.value = res;
     error.value = !res;
     loading.value = false;
-    if (res) fetchTraceInfos(res.records, seq);
   }
 
   watch(
     () => [unref(active), unref(appName), unref(viewId)] as const,
     ([isActive, app, view]) => {
-      if (!isActive) return;
+      if (!isActive) {
+        /** 关闭抽屉 / 切走 tab：清掉队列与在途检索，已查完的结果保留避免重开时重复请求 */
+        resetTraceQueue(false);
+        return;
+      }
       const key = `${app}|${view}`;
       if (key === fetchedKey) return;
       fetchedKey = key;
       if (!view) {
         requestId++;
         timeline.value = null;
-        traceInfoMap.value = new Map();
         error.value = false;
         loading.value = false;
+        resetTraceQueue(true);
         return;
       }
       fetchTimeline(app, view);
@@ -276,6 +418,7 @@ export function useTraceContext({
     items,
     handleExpandFold,
     handleToggleNode,
+    observeTimelineRows,
     filterKeyword,
     filterCategory,
   };

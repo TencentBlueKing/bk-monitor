@@ -31,8 +31,14 @@ export interface IRumTraceInfo {
   trace_id: string;
 }
 
+/** 全局检索接口的 data 帧，只关心包含 Trace 命中项的事件 */
+interface IRumSearchEvent {
+  items?: IRumTraceInfo[];
+  type?: string;
+}
+
 /** 单次批量检索的 trace_id 数量上限，避免 query 过长 */
-const TRACE_SEARCH_BATCH_SIZE = 20;
+export const TRACE_SEARCH_BATCH_SIZE = 20;
 
 /**
  * @description 按 trace_id 全局检索 Trace 所属的 APM 应用
@@ -50,11 +56,15 @@ export async function searchTraceInfo(traceId: string, bizId: number | string): 
  * @description 批量检索 Trace 所属的 APM 应用
  * @param traceIds 关联的 trace_id 列表，内部去重
  * @param bizId 业务 ID
+ * @param onData 每解析完一帧就回调该帧的命中项，调用方可边收边渲染
+ * @param signal 中断信号，调用方切换上下文时终止在途请求
  * @returns trace_id 到检索结果的映射，只包含实际检索到 Trace 的项
  */
 export async function searchTraceInfoMap(
   traceIds: string[],
-  bizId: number | string
+  bizId: number | string,
+  onData?: (infos: IRumTraceInfo[]) => void,
+  signal?: AbortSignal
 ): Promise<Map<string, IRumTraceInfo>> {
   const ids = [...new Set(traceIds.filter(Boolean))];
   const idSet = new Set(ids);
@@ -65,17 +75,22 @@ export async function searchTraceInfoMap(
   }
   await Promise.all(
     batches.map(async batch => {
-      const res = await fetchEventStream(buildSearchUrl(batch.join(','), bizId));
-      const items: IRumTraceInfo[] = [];
-      for (const event of res) {
-        if (event?.type === 'trace') items.push(...(event.items ?? []));
-      }
-      for (const item of items) {
-        // 累计快照里同一 trace_id 只保留最早命中的应用
-        if (item?.trace_id && idSet.has(item.trace_id) && !result.has(item.trace_id)) {
-          result.set(item.trace_id, item);
-        }
-      }
+      await fetchEventStream<IRumSearchEvent>(
+        buildSearchUrl(batch.join(','), bizId),
+        event => {
+          if (event?.type !== 'trace') return;
+          const hits: IRumTraceInfo[] = [];
+          for (const item of event.items ?? []) {
+            // 累计快照里同一 trace_id 只保留最早命中的应用
+            if (item?.trace_id && idSet.has(item.trace_id) && !result.has(item.trace_id)) {
+              result.set(item.trace_id, item);
+              hits.push(item);
+            }
+          }
+          if (hits.length) onData?.(hits);
+        },
+        signal
+      );
     })
   );
   return result;
