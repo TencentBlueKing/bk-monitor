@@ -28,6 +28,9 @@ from django.urls import resolve
 
 PUBLIC_RESOURCES = {
     ("GET", "/clustering_config/{index_set_id}/config/"),
+    ("GET", "/databus/collectors/{collector_config_id}/archive/"),
+    ("PUT", "/databus/collectors/{collector_config_id}/archive/"),
+    ("DELETE", "/databus/collectors/{collector_config_id}/archive/"),
     ("GET", "/databus_collectors/"),
     ("GET", "/databus_collectors/{collector_config_id}/"),
     ("GET", "/databus_collectors/{collector_config_id}/subscription_status/"),
@@ -164,6 +167,7 @@ class ApiGatewayResourcesTests(SimpleTestCase):
             self.assertFalse(resource["x-bk-apigateway-resource"]["isPublic"])
 
     def test_archive_resources_map_to_backend_methods(self):
+        public_paths = {"/databus/collectors/{collector_config_id}/archive/"}
         expected_operations = {
             ("put", "/databus/archive/{archive_config_id}/"): "update_archive",
             ("post", "/databus/restore/"): "create_archive_restore",
@@ -180,7 +184,7 @@ class ApiGatewayResourcesTests(SimpleTestCase):
             self.assertEqual(operation["operationId"], operation_id)
             self.assertEqual(resource["backend"]["method"], method, f"{method} {path}")
             self.assertEqual(resource["backend"]["path"], f"/api/v1{path}", f"{method} {path}")
-            self.assertFalse(resource["isPublic"], f"{method} {path}")
+            self.assertEqual(resource["isPublic"], path in public_paths, f"{method} {path}")
 
     def test_archive_resources_map_to_existing_actions(self):
         expected_actions = {

@@ -2,17 +2,15 @@
 
 关闭采集项的日志归档。接口幂等，采集项没有归档时直接返回成功，便于调用方重试清理。
 
-后端路径：`DELETE /api/v1/databus/collectors/{collector_config_id}/archive/`。
-
 ## 请求参数
 
 ### 鉴权头
 
-| 参数名称    | 参数类型 | 必须 | 参数说明     |
-| ----------- | -------- | ---- | ------------ |
-| app_code    | string   | 是   | 蓝鲸应用ID   |
-| app_secret  | string   | 是   | 蓝鲸应用秘钥 |
-| bk_username | string   | 是   | 用户名称     |
+| 参数名称      | 参数类型 | 必须 | 参数说明     |
+| ------------- | -------- | ---- | ------------ |
+| bk_app_code   | string   | 是   | 蓝鲸应用ID   |
+| bk_app_secret | string   | 是   | 蓝鲸应用秘钥 |
+| bk_username   | string   | 是   | 用户名称     |
 
 鉴权信息通过请求头 `X-Bkapi-Authorization` 传递，取值为上述字段构成的 JSON 字符串。
 

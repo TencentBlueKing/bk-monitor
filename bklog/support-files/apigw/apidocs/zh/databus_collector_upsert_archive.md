@@ -1,8 +1,6 @@
 ## 功能描述
 
-按采集项幂等地创建或更新日志归档配置，可安全重试。调用方无需维护 `archive_config_id`。
-
-后端路径：`PUT /api/v1/databus/collectors/{collector_config_id}/archive/`，`Content-Type: application/json`。
+按采集项幂等地创建或更新日志归档配置，可安全重试。调用方无需维护 `archive_config_id`。请求体使用 `Content-Type: application/json`。
 
 行为说明：
 
@@ -14,11 +12,11 @@
 
 ### 鉴权头
 
-| 参数名称    | 参数类型 | 必须 | 参数说明     |
-| ----------- | -------- | ---- | ------------ |
-| app_code    | string   | 是   | 蓝鲸应用ID   |
-| app_secret  | string   | 是   | 蓝鲸应用秘钥 |
-| bk_username | string   | 是   | 用户名称     |
+| 参数名称      | 参数类型 | 必须 | 参数说明     |
+| ------------- | -------- | ---- | ------------ |
+| bk_app_code   | string   | 是   | 蓝鲸应用ID   |
+| bk_app_secret | string   | 是   | 蓝鲸应用秘钥 |
+| bk_username   | string   | 是   | 用户名称     |
 
 鉴权信息通过请求头 `X-Bkapi-Authorization` 传递，取值为上述字段构成的 JSON 字符串。
 
@@ -62,12 +60,6 @@
   }
 }
 ```
-
-## 推荐调用流程
-
-1. `POST /databus_collectors/fast_create/`：创建采集项，显式传入 `storage_cluster_id`。
-2. `GET /databus/storage/{cluster_id}/repository/`：查询该集群下可用的快照仓库。
-3. `PUT /databus/collectors/{collector_config_id}/archive/`：设置归档；失败可直接重试。
 
 ## 注意事项
 
