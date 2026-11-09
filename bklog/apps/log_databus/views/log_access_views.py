@@ -30,11 +30,14 @@ from apps.log_databus.serializers import (
 from apps.utils.drf import list_route
 from apps.log_databus.handlers.collector_handler.log import LogCollectorHandler
 
-from apps.iam.handlers.drf import insert_permission_field
+from apps.iam.handlers.drf import ViewBusinessPermission, insert_permission_field
 from apps.iam import ActionEnum, ResourceEnum
 
 
 class LogAccessViewSet(APIViewSet):
+    def get_permissions(self):
+        return [ViewBusinessPermission()]
+
     @insert_permission_field(
         id_field=lambda d: d.get("collector_config_id"),
         data_field=lambda d: d["list"],
