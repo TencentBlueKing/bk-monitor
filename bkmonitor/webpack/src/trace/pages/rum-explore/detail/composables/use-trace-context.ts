@@ -135,6 +135,10 @@ export function useTraceContext({
     traceRetryTimer = setTimeout(() => {
       traceRetryTimer = null;
       if (seq !== traceQueueSeq || !traceQueue.size) return;
+      if (!unref(active)) {
+        traceRetryTimes = Math.max(0, traceRetryTimes - 1);
+        return;
+      }
       void flushTraceQueue(seq);
     }, TRACE_RETRY_DELAY * traceRetryTimes);
   }
