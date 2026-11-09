@@ -121,8 +121,8 @@ def test_append_registers_original_fields_and_separate_targets(log_datalink, moc
         "TimeBased": {"format": f"write_%Y%m%d_{storage.index_name}", "timezone": 0}
     }
     assert storage.index_body["mappings"]["properties"]["message"]["type"] == "text"
-    assert storage.index_body["mappings"]["properties"]["log_signature"]["type"] == "keyword"
-    assert storage.index_body["mappings"]["properties"]["log_cluster_publish_revision"]["type"] == "long"
+    assert storage.index_body["mappings"]["properties"]["__log_signature"]["type"] == "keyword"
+    assert storage.index_body["mappings"]["properties"]["__log_cluster_publish_revision"]["type"] == "long"
     assert sink.compose_config(RAW_SINK)["spec"]["clustering"]["result"] == sink.result
     remote = {(c["kind"], c["metadata"]["name"]): {**c, "status": {"phase": "Ok"}} for c in configs}
     datalink, _ = log_datalink
@@ -134,6 +134,22 @@ def test_append_registers_original_fields_and_separate_targets(log_datalink, moc
     assert targets["clustered"]["need_add_time"] is True
     assert targets["pattern"]["query_index"] == f"2_bklog_{BINDING['index_id']}_pattern"
     assert targets["pattern"]["need_add_time"] is False
+    assert set(fields) == {"message", "__log_signature", "__log_cluster_publish_revision"}
+    # 旧表重新生成时补齐系统字段，保留原日志中与旧系统字段同名的业务列。
+    models.ResultTableField.objects.filter(table_id=rt_model.table_id, field_name__in=RESULT_FIELDS).delete()
+    models.ResultTableField.objects.create(
+        table_id=LOG_TABLE_ID,
+        bk_tenant_id="system",
+        field_name="log_signature",
+        field_type="int",
+        tag="dimension",
+        is_config_by_user=True,
+    )
+    updated = prepare_clustering_stores(sink)[2]
+    declared = {f["field_name"]: f["field_type"] for f in updated["spec"]["fields"]}
+    assert declared["log_signature"] == "int"
+    assert declared["__log_signature"] == "string"
+    assert models.ResultTableField.objects.filter(table_id=rt_model.table_id, field_name__in=RESULT_FIELDS).count() == 2
     old_result = copy.deepcopy(sink.result)
     old_pattern = copy.deepcopy(sink.pattern_store)
     old_config = sink.compose_config(RAW_SINK)

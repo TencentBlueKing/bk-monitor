@@ -794,6 +794,7 @@ def test_query_targets_follow_remote_result_binding(clustering_datalink, bkbase,
                     "storage_type": target["storage_type"],
                     "source_type": target["source_type"],
                     "index_set": target["query_index"],
+                    "query_alias_settings": [{"field_name": "__log_signature", "query_alias": "signature"}],
                     "options": [
                         {"name": "need_add_time", "value_type": "bool", "value": json.dumps(target["need_add_time"])}
                     ],
@@ -809,6 +810,7 @@ def test_query_targets_follow_remote_result_binding(clustering_datalink, bkbase,
         target["query_index"],
         mode == "update_original",
     )
+    assert detail["field_alias"] == {"signature": "__log_signature"}
     assert detail["source_type"] == ("bkdata" if mode == "append" else "log")
     assert all(r["storage_id"] == cluster_id for r in detail["storage_cluster_records"])
     if mode == "append":

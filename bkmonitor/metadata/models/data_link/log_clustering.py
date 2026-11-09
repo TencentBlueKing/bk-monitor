@@ -22,10 +22,8 @@ PATTERN_KEYS = ["index_set_id", "distance_threshold", "signature"]
 
 
 RESULT_FIELDS = {
-    "log_signature": "string",
-    "log_cluster_distance_threshold": "string",
-    "log_cluster_status": "string",
-    "log_cluster_publish_revision": "long",
+    "__log_signature": "string",
+    "__log_cluster_publish_revision": "long",
 }
 
 
@@ -92,7 +90,7 @@ def _prepare_store(sink, suffix, fields, *, es_config=None):
             },
         )
         models.ResultTable.objects.select_for_update().get(pk=table.pk)
-        if created:
+        if created and suffix == "pattern":
             models.ResultTableField.bulk_create_fields(
                 table_id,
                 [
@@ -131,6 +129,18 @@ def _prepare_store(sink, suffix, fields, *, es_config=None):
                     option.table_id = table_id
                     option.save()
             for field, kind in RESULT_FIELDS.items():
+                models.ResultTableField.objects.update_or_create(
+                    bk_tenant_id=tenant,
+                    table_id=table_id,
+                    field_name=field,
+                    defaults={
+                        "field_type": "int" if kind == "long" else kind,
+                        "tag": "dimension",
+                        "is_config_by_user": True,
+                        "creator": "system",
+                        "last_modify_user": "system",
+                    },
+                )
                 models.ResultTableFieldOption.create_option(
                     table_id,
                     field,

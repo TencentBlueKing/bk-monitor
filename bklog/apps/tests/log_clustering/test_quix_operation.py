@@ -219,6 +219,10 @@ class TestQuixEnableRunner(TestCase):
         self.assertEqual(clustered["data_label"], "bklog_index_set_42_clustered")
         self.assertEqual(clustered["table_info"][0]["source_type"], "log")
         self.assertEqual(clustered["table_info"][0]["index_set"], "2_bklog_demo")
+        self.assertEqual(
+            clustered["table_info"][0]["query_alias_settings"],
+            [{"field_name": "__log_signature", "query_alias": "signature"}],
+        )
         self.assertEqual(pattern["data_label"], "bklog_index_set_42_pattern")
         self.assertEqual((pattern["space_type"], pattern["space_id"]), ("bkcc", "2"))
         self.assertEqual(pattern["table_info"][0]["index_set"], "shared-patterns")
@@ -251,7 +255,7 @@ class TestQuixEnableRunner(TestCase):
             ("custom-predict-write", 9),
         )
         self.assertEqual(table["source_type"], "bkdata")
-        self.assertEqual(table["query_alias_settings"], [{"field_name": "log_signature", "query_alias": "signature"}])
+        self.assertEqual(table["query_alias_settings"], [{"field_name": "__log_signature", "query_alias": "signature"}])
         self.assertEqual(pattern["table_info"][0]["index_set"], targets["pattern"]["query_index"])
 
     def test_enable_activates_config_after_route_registration(self):

@@ -28,6 +28,8 @@ from django.utils.functional import cached_property
 from apps.api import BkFaraApi, TransferApi
 from apps.exceptions import ApiRequestError
 from apps.log_clustering.constants import (
+    QUIX_SIGNATURE_FIELD,
+    SIGNATURE_FIELD,
     ClusteringOperationStatusEnum,
     ClusteringOperationTypeEnum,
     ClusteringRuntimePhaseEnum,
@@ -341,7 +343,7 @@ class QuixClusteringOperationRunner:
                 ],
                 "cluster_id": result["cluster_id"],
                 "index_set": result["query_index"],
-                "query_alias_settings": [{"field_name": "log_signature", "query_alias": "signature"}],
+                "query_alias_settings": [{"field_name": QUIX_SIGNATURE_FIELD, "query_alias": SIGNATURE_FIELD}],
             },
             pattern_label: {
                 "origin_table_id": pattern["table_id"],
