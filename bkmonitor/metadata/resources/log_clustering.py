@@ -429,7 +429,7 @@ def get_log_clustering_query_targets(datalink: models.DataLink, source_table_id:
     clustering = spec["clustering"]
 
     def check_ref(ref, kind):
-        if ref["kind"] != kind or ref.get("tenant", tenant) != tenant:
+        if ref["kind"] != kind or (settings.ENABLE_MULTI_TENANT_MODE and ref.get("tenant", tenant) != tenant):
             raise ValidationError(f"invalid {kind} reference in clustering target")
 
     def resolve_binding(binding_ref, table_ref=None, pattern=False):
@@ -450,7 +450,7 @@ def get_log_clustering_query_targets(datalink: models.DataLink, source_table_id:
         check_ref(storage, "ElasticSearch")
         if table_ref is not None:
             check_ref(table_ref, "ResultTable")
-            if any(table_ref.get(k, tenant) != data.get(k, tenant) for k in ("kind", "namespace", "name", "tenant")):
+            if any(table_ref[key] != data[key] for key in ("namespace", "name")):
                 raise ValidationError("binding must reference the selected result table")
 
         cluster = models.ClusterInfo.objects.filter(

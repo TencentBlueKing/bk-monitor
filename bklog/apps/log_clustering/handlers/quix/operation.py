@@ -260,9 +260,14 @@ class QuixClusteringOperationRunner:
                 self.runtime.index_set_id, self.quix_config, self.operation.request_snapshot.get("model_parameters")
             ),
         )
-        result = BkFaraApi.create_task(
-            {**payload, "Idempotency-Key": self.operation.get_idempotency_key("create_task")}
-        )
+        try:
+            result = BkFaraApi.create_task(
+                {**payload, "Idempotency-Key": self.operation.get_idempotency_key("create_task")}
+            )
+        except ApiRequestError as exc:
+            if exc.http_status == 422:
+                raise QuixClusteringParamsInvalidException(str(exc)) from exc
+            raise
         self._save_runtime(bkfara_task_id=result["task_id"])
         return True
 
