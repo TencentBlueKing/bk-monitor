@@ -1326,11 +1326,22 @@ class DataLink(models.Model):
             ).value
             datalink_option = LogV4DataLinkOption(**json.loads(option))
 
+            # 关闭时只解绑 Databus，源表仍需保留日志类型和回写主键声明。
+            registered_sink = LogClusteringSinkConfig.objects.filter(
+                bk_tenant_id=self.bk_tenant_id,
+                namespace=self.namespace,
+                data_link_name=self.data_link_name,
+                table_id=table_id,
+            ).first()
+            rt_defaults = {"table_id": table_id}
+            if registered_sink is not None:
+                rt_defaults["data_type"] = "log"
+
             es_config = datalink_option.es_storage_config if es_storage else None
             fields = generate_result_table_field_list(
                 table_id=table_id,
                 bk_tenant_id=self.bk_tenant_id,
-                unique_field_list=es_config.unique_field_list if es_config else (),
+                unique_field_list=es_config.unique_field_list if registered_sink and es_config else (),
             )
             clean_rules = [clean_rule.model_dump() for clean_rule in datalink_option.clean_rules]
 
@@ -1346,7 +1357,7 @@ class DataLink(models.Model):
                 namespace=self.namespace,
                 data_link_name=self.data_link_name,
                 name=rt_name,
-                defaults={"table_id": table_id, "data_type": "log"},
+                defaults=rt_defaults,
             )
 
             # 创建存储绑定配置
@@ -1444,15 +1455,10 @@ class DataLink(models.Model):
             # 已接入日志聚类时，Databus 改为引用聚类 Sink，原存储绑定作为其 raw_sink
             from metadata.models.data_link.log_clustering import prepare_clustering_stores
 
-            pattern_sink = LogClusteringSinkConfig.objects.filter(
-                bk_tenant_id=self.bk_tenant_id,
-                namespace=self.namespace,
-                data_link_name=self.data_link_name,
-            ).first()
-            if pattern_sink is not None:
-                bingding_configs.extend(prepare_clustering_stores(pattern_sink))
+            if registered_sink is not None:
+                bingding_configs.extend(prepare_clustering_stores(registered_sink))
 
-            clustering_sink = self._claim_attached_log_clustering_sink(databus_sinks, existing_context)
+            clustering_sink = self._claim_attached_log_clustering_sink(registered_sink, databus_sinks, existing_context)
             if clustering_sink is not None:
                 bingding_configs.append(clustering_sink.compose_config(raw_sink=databus_sinks[0]))
                 databus_sinks = [clustering_sink.reference]
@@ -1496,24 +1502,20 @@ class DataLink(models.Model):
 
         return config_list
 
+    @staticmethod
     def _claim_attached_log_clustering_sink(
-        self,
+        clustering_sink: LogClusteringSinkConfig | None,
         databus_sinks: list[dict[str, Any]],
         existing_context: ExistingComponentContext | None,
     ) -> LogClusteringSinkConfig | None:
         """获取当前日志链路已接入 Databus 的聚类 Sink，其 raw_sink 即本次生成的唯一 ES 存储绑定。
 
         Args:
+            clustering_sink: 当前源表已登记的聚类 Sink。
             databus_sinks: 本次 compose 生成的原始存储绑定引用。
             existing_context: 既有组件复用上下文，传入时认领聚类 Sink，避免其被视为 leftover。
         """
-        clustering_sink = LogClusteringSinkConfig.objects.filter(
-            bk_tenant_id=self.bk_tenant_id,
-            namespace=self.namespace,
-            data_link_name=self.data_link_name,
-            attached=True,
-        ).first()
-        if clustering_sink is None:
+        if clustering_sink is None or not clustering_sink.attached:
             return None
         if len(databus_sinks) != 1 or databus_sinks[0]["kind"] != DataLinkKind.ESSTORAGEBINDING.value:
             raise ValueError(
