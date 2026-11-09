@@ -296,3 +296,85 @@ def test_v3_delivery_never_touches_v2_nodeman_api(nodeman_v3):
         BkCollectorDeployScene.CUSTOM_LOG,
         BkCollectorDeployScene.PING_SERVER,
     }
+
+
+def _policy(scene, resource_key, deploy_policy_id, last_workflow_id=""):
+    return BkCollectorDeployPolicy.objects.create(
+        bk_tenant_id=TENANT,
+        scene=scene,
+        resource_key=resource_key,
+        policy_name=BkCollectorDeployPolicy.build_policy_name(scene, resource_key),
+        deploy_policy_id=deploy_policy_id,
+        last_workflow_id=last_workflow_id,
+    )
+
+
+@pytest.fixture
+def refresh_entries():
+    with ExitStack() as stack:
+        yield {
+            "list_tenant": stack.enter_context(
+                mock.patch.object(api.bk_login, "list_tenant", return_value=[{"id": TENANT}])
+            ),
+            "platform": stack.enter_context(mock.patch.object(PlatformConfig, "refresh")),
+            "custom_report": stack.enter_context(
+                mock.patch.object(CustomReportSubscription, "refresh_collector_custom_conf")
+            ),
+            "ping_server": stack.enter_context(mock.patch("metadata.task.ping_server.refresh_ping_server_2_node_man")),
+        }
+
+
+def test_command_refresh_runs_scenes_and_only_executes_unchanged_policies(nodeman_v3, refresh_entries):
+    from django.core.management import call_command
+
+    unchanged = _policy(BkCollectorDeployScene.APM_APPLICATION, "2-app", 1, "wf-a")
+    refreshed = _policy(BkCollectorDeployScene.APM_PLATFORM, "platform", 2, "wf-b")
+    _policy(BkCollectorDeployScene.CUSTOM_LOG, "2-log", None)  # 历史失败留下的空记录
+
+    def refresh_platform(bk_tenant_id):
+        BkCollectorDeployPolicy.objects.filter(id=refreshed.id).update(last_workflow_id="wf-b2")
+
+    def refresh_custom_report(**kwargs):
+        _policy(BkCollectorDeployScene.CUSTOM_REPORT, "0-1001", 3, "wf-c")
+
+    refresh_entries["platform"].side_effect = refresh_platform
+    refresh_entries["custom_report"].side_effect = refresh_custom_report
+
+    call_command("execute_bk_collector_deploy_policies", "--refresh")
+
+    refresh_entries["platform"].assert_called_once_with(TENANT)
+    refresh_entries["custom_report"].assert_called_once_with(bk_tenant_id=TENANT, deploy_targets=("node_man",))
+    refresh_entries["ping_server"].assert_called_once_with()
+    # 刷新中已执行（refreshed）和新建（custom_report）的策略不重复执行，只补执行未变化的策略
+    nodeman_v3["execute_deploy_policy"].assert_called_once_with(bk_tenant_id=TENANT, deploy_policy_id=1)
+    unchanged.refresh_from_db()
+    assert unchanged.last_workflow_id == "wf-1"
+
+
+def test_command_refresh_scene_filter(nodeman_v3, refresh_entries):
+    from django.core.management import call_command
+
+    call_command("execute_bk_collector_deploy_policies", "--refresh", "--scene", BkCollectorDeployScene.CUSTOM_REPORT)
+
+    refresh_entries["custom_report"].assert_called_once()
+    refresh_entries["platform"].assert_not_called()
+    refresh_entries["ping_server"].assert_not_called()
+
+
+def test_command_without_refresh_only_executes_existing(nodeman_v3, refresh_entries):
+    from django.core.management import call_command
+
+    _policy(BkCollectorDeployScene.APM_PLATFORM, "platform", 2, "wf-b")
+
+    call_command("execute_bk_collector_deploy_policies")
+
+    refresh_entries["platform"].assert_not_called()
+    nodeman_v3["execute_deploy_policy"].assert_called_once_with(bk_tenant_id=TENANT, deploy_policy_id=2)
+
+
+def test_command_refuses_when_v3_disabled(nodeman_v3):
+    from django.core.management import CommandError, call_command
+
+    with override_settings(ENABLE_BK_COLLECTOR_NODEMAN_V3=False), pytest.raises(CommandError):
+        call_command("execute_bk_collector_deploy_policies", "--refresh")
+    nodeman_v3["execute_deploy_policy"].assert_not_called()

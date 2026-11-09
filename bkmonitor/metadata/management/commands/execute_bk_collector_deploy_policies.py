@@ -8,33 +8,81 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 
-from django.core.management import BaseCommand
+from collections.abc import Callable
 
-from metadata.models.bk_collector import BkCollectorDeployPolicy
+from django.core.management import BaseCommand, CommandError
+
+from bkmonitor.utils.tenant import set_local_tenant_id
+from constants.common import DEFAULT_TENANT_ID
+from core.drf_resource import api
+from metadata.models.bk_collector import BkCollectorDeployPolicy, BkCollectorDeployScene
+
+SCENES = [
+    BkCollectorDeployScene.APM_PLATFORM,
+    BkCollectorDeployScene.APM_APPLICATION,
+    BkCollectorDeployScene.CUSTOM_LOG,
+    BkCollectorDeployScene.CUSTOM_REPORT,
+    BkCollectorDeployScene.PING_SERVER,
+]
 
 
 class Command(BaseCommand):
-    """立即执行 bk-collector 在节点管理 V3 的部署策略
+    """立即下发 bk-collector 在节点管理 V3 的部署策略
 
-    节点管理每小时会自动执行全部启用的策略；运维在 Proxy / 直连区域主机上新装好 bk-collector 后，
-    可执行本命令立即补发子配置，不必等待下一轮。
+    默认只重新执行已有策略：适用于目标主机已在策略范围内、collector 后装或重装的场景。
+
+    --refresh 全量刷新：同步执行各场景的定时下发逻辑，按当前 Proxy 列表与 CUSTOM_REPORT_DEFAULT_PROXY_IP
+    重新计算目标主机，新建或更新策略，最后对本轮未变化的策略再执行一次。
+    运维把新主机设为 Proxy（或填入全局配置）并装好 V3 bk-collector 后执行，不必等待定时任务。
     """
 
-    help = "execute bk-collector nodeman v3 deploy policies immediately"
+    help = "execute bk-collector nodeman v3 deploy policies immediately, use --refresh to recalculate all scenes"
 
     def add_arguments(self, parser):
-        parser.add_argument("--bk_tenant_id", type=str, default=None, help="only execute policies of this tenant")
-        parser.add_argument("--scene", type=str, default=None, help="only execute policies of this scene")
+        parser.add_argument("--bk_tenant_id", type=str, default=None, help="only handle this tenant")
+        parser.add_argument(
+            "--scene",
+            type=str,
+            default=None,
+            choices=SCENES,
+            help="only handle this scene",
+        )
+        parser.add_argument(
+            "--refresh",
+            action="store_true",
+            help="recalculate target hosts and create/update policies of all scenes before executing",
+        )
 
     def handle(self, *args, **options):
-        policies = BkCollectorDeployPolicy.objects.filter(deploy_policy_id__isnull=False)
-        if options.get("bk_tenant_id"):
-            policies = policies.filter(bk_tenant_id=options["bk_tenant_id"])
-        if options.get("scene"):
-            policies = policies.filter(scene=options["scene"])
+        if not BkCollectorDeployPolicy.is_enabled():
+            raise CommandError(
+                "ENABLE_BK_COLLECTOR_NODEMAN_V3 is disabled, bk-collector is still delivered by NodeMan V2"
+            )
+
+        bk_tenant_id = options.get("bk_tenant_id")
+        scene = options.get("scene")
+
+        policies = BkCollectorDeployPolicy.objects.all()
+        if bk_tenant_id:
+            policies = policies.filter(bk_tenant_id=bk_tenant_id)
+        if scene:
+            policies = policies.filter(scene=scene)
+
+        # 刷新前记录各策略的最近一次执行，刷新中已执行过的策略不再重复执行
+        last_workflow_ids = dict(policies.values_list("id", "last_workflow_id"))
+
+        if options.get("refresh"):
+            self._refresh(bk_tenant_id=bk_tenant_id, scene=scene)
 
         success, failed = 0, 0
-        for policy in policies.order_by("id"):
+        for policy in policies.filter(deploy_policy_id__isnull=False).order_by("id"):
+            if policy.id in last_workflow_ids and policy.last_workflow_id != last_workflow_ids[policy.id]:
+                self.stdout.write(f"[refreshed] {policy.bk_tenant_id} {policy.policy_name}({policy.deploy_policy_id})")
+                continue
+            if policy.id not in last_workflow_ids and policy.last_workflow_id:
+                # 本轮刷新新建的策略，创建时已执行
+                self.stdout.write(f"[created] {policy.bk_tenant_id} {policy.policy_name}({policy.deploy_policy_id})")
+                continue
             try:
                 workflow_id = policy.execute()
                 success += 1
@@ -47,4 +95,72 @@ class Command(BaseCommand):
                     f"[failed] {policy.bk_tenant_id} {policy.policy_name}({policy.deploy_policy_id}): {e}"
                 )
 
-        self.stdout.write(f"executed bk-collector deploy policies, success: {success}, failed: {failed}")
+        missing = list(policies.filter(deploy_policy_id__isnull=True).values_list("scene", "resource_key"))
+        for missing_scene, resource_key in missing:
+            self.stderr.write(f"[missing] {missing_scene} {resource_key}: no deploy policy, check worker logs")
+
+        self.stdout.write(
+            f"executed bk-collector deploy policies, success: {success}, failed: {failed}, missing: {len(missing)}"
+        )
+
+    def _refresh(self, bk_tenant_id: str | None, scene: str | None):
+        """同步执行各场景的定时下发逻辑，与 celery 定时任务走同一套代码"""
+        from apm.core.platform_config import PlatformConfig
+        from apm.models import ApmApplication
+        from apm.task.tasks import refresh_apm_application_config
+        from metadata.models import CustomReportSubscription, LogGroup, LogSubscriptionConfig
+        from metadata.task.ping_server import refresh_ping_server_2_node_man
+
+        tenant_ids = [bk_tenant_id] if bk_tenant_id else [tenant["id"] for tenant in api.bk_login.list_tenant()]
+
+        def need(target_scene: str) -> bool:
+            return scene is None or scene == target_scene
+
+        for tenant_id in tenant_ids:
+            set_local_tenant_id(tenant_id)
+
+            if need(BkCollectorDeployScene.APM_PLATFORM):
+                self._run(f"apm_platform {tenant_id}", PlatformConfig.refresh, tenant_id)
+
+            if need(BkCollectorDeployScene.APM_APPLICATION):
+                applications = ApmApplication.objects.filter(bk_tenant_id=tenant_id, is_enabled=True)
+                for bk_biz_id, app_name in applications.values_list("bk_biz_id", "app_name"):
+                    self._run(
+                        f"apm_application {tenant_id} {bk_biz_id}-{app_name}",
+                        refresh_apm_application_config,
+                        bk_biz_id,
+                        app_name,
+                        skip_k8s=True,
+                    )
+
+            if need(BkCollectorDeployScene.CUSTOM_LOG):
+                log_groups = LogGroup.objects.filter(
+                    bk_tenant_id=tenant_id, is_enable=True, is_need_deploy_collector_config=True
+                )
+                for log_group in log_groups:
+                    self._run(
+                        f"custom_log {tenant_id} {log_group.bk_biz_id}-{log_group.log_group_name}",
+                        LogSubscriptionConfig.refresh,
+                        log_group,
+                    )
+
+            if need(BkCollectorDeployScene.CUSTOM_REPORT):
+                self._run(
+                    f"custom_report {tenant_id}",
+                    CustomReportSubscription.refresh_collector_custom_conf,
+                    bk_tenant_id=tenant_id,
+                    deploy_targets=("node_man",),
+                )
+
+        if need(BkCollectorDeployScene.PING_SERVER):
+            # PingServer 按 CMDB 主机缓存遍历全部租户，不支持按租户过滤
+            set_local_tenant_id(DEFAULT_TENANT_ID)
+            self._run("ping_server all tenants", refresh_ping_server_2_node_man)
+
+    def _run(self, name: str, func: Callable, *args, **kwargs):
+        # 各场景内部会自行记录单个资源的异常，这里只兜底整体失败，最终结果以策略记录为准
+        try:
+            func(*args, **kwargs)
+            self.stdout.write(f"[refresh] {name} done")
+        except Exception as e:  # noqa
+            self.stderr.write(f"[refresh failed] {name}: {e}")
