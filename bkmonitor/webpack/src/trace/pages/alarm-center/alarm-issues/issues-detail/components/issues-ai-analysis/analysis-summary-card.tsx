@@ -69,7 +69,12 @@ export default defineComponent({
     };
   },
   render() {
-    const { result, triggered_by, triggered_at } = this.sourceAnalysisData.latest;
+    const {
+      execution_reference: executionReference,
+      result,
+      triggered_by,
+      triggered_at,
+    } = this.sourceAnalysisData.latest;
 
     return (
       <div class='analysis-summary-card'>
@@ -98,6 +103,15 @@ export default defineComponent({
                 time: dayjs.tz(triggered_at * 1000, window.timezone).format('YYYY-MM-DD HH:mm:ssZZ'),
               })}
             </span>
+            {executionReference?.url && (
+              <Button
+                theme='primary'
+                text
+                onClick={() => window.open(executionReference.url, '_blank', 'noopener,noreferrer')}
+              >
+                {this.t('查看执行详情')}
+              </Button>
+            )}
             <PopConfirm
               width='320'
               confirmText={this.t('确认')}

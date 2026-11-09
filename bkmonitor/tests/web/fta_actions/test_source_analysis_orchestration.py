@@ -1154,6 +1154,65 @@ class TestSourceAnalysisOrchestration(TestCase):
         self.assertEqual(execution.result_schema_version, "1.0.0")
         self.assertEqual(execution.result_type, SourceAnalysisResultType.HIGH_CONFIDENCE)
         self.assertEqual(execution.result_payload, result)
+        self.assertIsNone(execution.execution_reference)
+
+    @override_settings(BK_CI_URL="https://devops.example.com/")
+    @patch("fta_web.issue.resources.api.bk_incident.get_source_analysis_task")
+    def test_success_persists_execution_reference_with_result(self, get_task):
+        reference = {
+            "provider": "bkci",
+            "identifiers": {"project_id": "project-a", "pipeline_id": "pipeline-a", "build_id": "build-a"},
+        }
+        for result_type in (SourceAnalysisResultType.HIGH_CONFIDENCE, SourceAnalysisResultType.INSUFFICIENT_EVIDENCE):
+            with self.subTest(result_type=result_type):
+                execution = self.create_execution(bkfara_task_id="task-1", status=SourceAnalysisStatus.RUNNING)
+                result = self.build_result(result_type)
+                get_task.return_value = {
+                    "status": "succeeded",
+                    "terminal": True,
+                    "result": result,
+                    "trace": {
+                        "devops_project_id": "project-a",
+                        "pipeline_id": "pipeline-a",
+                        "build_id": "build-a",
+                        "console_url": "https://untrusted.example.com/details",
+                        "extra": "not persisted",
+                    },
+                }
+
+                SourceAnalysisExecutionBaseResource.advance_bkfara_task(execution.analysis_id)
+
+                execution.refresh_from_db()
+                self.assertEqual(execution.status, SourceAnalysisStatus.SUCCESS)
+                self.assertEqual(execution.result_payload, result)
+                self.assertEqual(execution.execution_reference, reference)
+                serialized = SourceAnalysisExecutionBaseResource.serialize_execution(execution)
+                self.assertEqual(
+                    serialized["execution_reference"],
+                    {
+                        **reference,
+                        "url": "https://devops.example.com/console/pipeline/"
+                        "project-a/pipeline-a/detail/build-a/executeDetail",
+                    },
+                )
+                self.assertIsNone(serialized["failure"])
+
+    @patch("fta_web.issue.resources.api.bk_incident.get_source_analysis_task")
+    def test_success_does_not_persist_incomplete_execution_reference(self, get_task):
+        execution = self.create_execution(bkfara_task_id="task-1", status=SourceAnalysisStatus.RUNNING)
+        get_task.return_value = {
+            "status": "succeeded",
+            "terminal": True,
+            "result": self.build_result(),
+            "trace": {"devops_project_id": "project-a", "pipeline_id": "pipeline-a", "build_id": None},
+        }
+
+        SourceAnalysisExecutionBaseResource.advance_bkfara_task(execution.analysis_id)
+
+        execution.refresh_from_db()
+        self.assertEqual(execution.status, SourceAnalysisStatus.SUCCESS)
+        self.assertIsNone(execution.execution_reference)
+        self.assertIsNone(SourceAnalysisExecutionBaseResource.serialize_execution(execution)["execution_reference"])
 
     @patch("fta_web.issue.resources.api.bk_incident.get_source_analysis_task")
     def test_insufficient_evidence_is_persisted_as_success(self, get_task):
