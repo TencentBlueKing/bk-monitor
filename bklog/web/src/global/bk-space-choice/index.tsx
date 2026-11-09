@@ -36,7 +36,7 @@ import { useRouter, useRoute } from 'vue-router/composables';
 
 import * as authorityMap from '../../common/authority-map';
 import useStore from '../../hooks/use-store';
-import useListSort, { isExactHiddenMatch } from '../../hooks/use-list-sort';
+import useListSort, { isExactHiddenMatch, isExactSearchFieldMatch } from '../../hooks/use-list-sort';
 import UserConfigMixin from '../../mixins/user-store-config';
 import List from './list';
 import { buildSpaceRecoveryLocation, buildSpaceSwitchQuery, omitRouteIndexId } from './space-switch-route';
@@ -179,8 +179,9 @@ export default defineComponent({
       });
     });
 
-    // 文本匹配：space_name, py_text, space_uid
-    // 完全相等置顶：业务 ID（bk_biz_id，忽略负号）和展示用空间 ID（space_id）
+    // 文本匹配：space_name, py_text, space_uid。任一字段与搜索词完全相等时置顶。
+    // 业务 ID（bk_biz_id，忽略负号）和展示用空间 ID（space_id）同样完全相等置顶。
+    // 模糊匹配的分数和常用分组顺序保持不变。
     const matchKeys = ['space_name', 'py_text', 'space_uid'];
     const hiddenMatchKeys = ['bk_biz_id', 'space_id'];
     const {
@@ -231,11 +232,16 @@ export default defineComponent({
       { immediate: true },
     );
 
-    // 搜索时把业务 ID / 空间 ID 完全命中的项抽到最前，其余仍按常用分组和原排序
+    // 检索字段或业务/空间 ID 完全命中时抽到常用分组前，其余仍按常用分组和原排序
     const partitionedList = computed(() => {
       const search = keyword.value.trim();
       const source = authorizedList.value;
-      const pinned = search ? source.filter(item => isExactHiddenMatch(item, search, hiddenMatchKeys)) : [];
+      const pinned = search
+        ? source.filter(
+            item =>
+              isExactHiddenMatch(item, search, hiddenMatchKeys) || isExactSearchFieldMatch(item, search, matchKeys),
+          )
+        : [];
       const pinnedSet = new Set(pinned);
       const rest = pinned.length ? source.filter(item => !pinnedSet.has(item)) : source;
       const common = commonListIdsLog.value.map(id => rest.find(item => Number(item.id) === id)).filter(Boolean) || [];

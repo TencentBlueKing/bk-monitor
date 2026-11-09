@@ -100,6 +100,37 @@ export const isExactHiddenMatch = (item: any, searchText: string, hiddenMatchKey
 };
 
 /**
+ * 参与检索的文本字段是否与搜索词完全相等（忽略大小写）。
+ * 不改变模糊匹配分数，供调用方把完全命中抽到其余结果之前。
+ */
+export const isExactSearchFieldMatch = (item: any, searchText: string, matchKeys: string[] = []): boolean => {
+  const search = searchText.trim().toLowerCase();
+  if (!search) {
+    return false;
+  }
+
+  if (typeof item === 'string') {
+    return item.toLowerCase() === search;
+  }
+
+  if (typeof item !== 'object' || item === null || matchKeys.length === 0) {
+    return false;
+  }
+
+  for (let i = 0; i < matchKeys.length; i++) {
+    const value = item[matchKeys[i]];
+    if (value === undefined || value === null || value === '') {
+      continue;
+    }
+    if (String(value).toLowerCase() === search) {
+      return true;
+    }
+  }
+
+  return false;
+};
+
+/**
  * 使用文本匹配和完全匹配进行排序
  * @param list 列表
  * @param matchKeys 文本匹配的 key 列表
