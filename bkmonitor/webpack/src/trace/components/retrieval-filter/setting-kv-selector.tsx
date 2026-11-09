@@ -257,6 +257,8 @@ export default defineComponent({
       }
       localValue.value = structuredClone(localValue.value);
       handleChange();
+      /** 选中/取消选中后清空输入框与搜索值，避免搜索词残留把后续选项列表持续过滤掉 */
+      inputValue.value = '';
     }
     function handleMethodChange(item: { id: string; name: string }) {
       methodMap.value[item.id] = item.name;
