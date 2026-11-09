@@ -544,9 +544,15 @@ groups:
         expr: avg(system_cpu_usage)
 ```
 
-导入先解析本批 RecordingRule 文件，随后保存并立即下发；auto_refresh 控制后续后台行为。规则保存 app 和来源 path，按租户、空间、app、group 名称匹配，因此移动文件不重建规则。同一批不能出现重复 group 名称。overwrite=true 可接管同空间其他 app 的同名有效规则；有多个候选时返回错误。
+导入请求只进行本地格式检查、规则匹配和声明保存，不调用 unify-query、不准备输出资源或下发 BKBase。保存结束后，汇总新增和有配置变更的规则 ID，在 metadata 数据库提交后通过 api.metadata.sync_as_code_recording_rules 调用内部 APIGW 接口，由 metadata API 使用 delay() 投递 sync_as_code_recording_rules 任务，使用 celery_metadata_task_worker 队列。该接口注册在 internal/app/metadata.yaml，isPublic=false，要求应用鉴权和资源权限；Web 入口不加载后台任务模块或配置 broker。任务携带提交人，读取各规则的最新声明，逐条执行预解析、资源准备和下发；单条失败不影响其他规则。auto_refresh 只控制后续后台行为，不阻止本次异步执行。
 
-incremental=false 且本次包含 recording_rule 文件时，在新增／更新和下发均成功后，软删除当前 app 下未出现的规则。未包含该类型时不清理 RecordingRule。失败按文件和 group 位置返回，已保存声明和已成功下发的其他 group 保留，不执行本次旧规则清理。
+变更判定在保存的同一行锁内读取更新前后 current_spec_id、description、data_label、desired_status 和 auto_refresh，不增加 hash，也不使用 prepare_import 阶段的旧对象快照。规则保存 app 和来源 path，按租户、空间、app、group 名称匹配；移动文件或调整托管分组不重建规则，也不触发下发。同一批不能出现重复 group 名称。overwrite=true 可接管同空间其他 app 的同名有效规则；有多个候选时返回错误。
+
+incremental=false 且本次包含 recording_rule 文件时，新增／更新声明保存成功后，立即将当前 app 下未出现的规则软删除并声明 desired_status=deleted，将 Flow 删除加入同一个异步任务。新配置异步下发失败不阻止旧 Flow 删除。未包含该类型时不清理 RecordingRule。
+
+导入响应结构不变，成功表示声明已保存且任务已投递。格式或保存错误按文件和 group 位置返回；部分保存失败时，已保存的变更仍投递，但跳过遗漏规则清理。无外层 metadata 事务时，调用内部 API 投递失败通过 errors.recording_rule 返回，明确声明已经保存；存在外层事务时，提交后回调投递失败只记录日志，不修改已返回的 errors。异步执行失败保留声明，通过现有规则状态、事件和日志查看，不影响原导入响应。重复导入相同配置不重新投递任务，重试使用现有手动下发或后台刷新机制。
+
+部署时先更新 metadata Worker 和 API 服务，注册内部 APIGW 接口并授权 AsCode 调用应用，再更新 AsCode 入口，确保消费任务及投递接口均已就绪。
 
 导出新增 recording_rule_ids，支持 JSON 响应与压缩包入口；None 表示全部，空列表表示不导出，非空列表按 ID 筛选。导出过滤租户、空间、app 和软删除状态，保留原始表达方式。默认保留来源文件路径，lock_filename=true 使用稳定输出表名生成文件名；同文件多个 group 一并导出。RecordingRule 配置不携带数据库 ID，with_id 不改变它的格式。
 
@@ -584,7 +590,7 @@ JSON 导出保留来源目录层级；压缩包沿用目录分隔符转连字符
 
 ### 软删除边界
 
-is_deleted 由 AsCode／公共配置 API 和指标目录入口过滤。删除入口在同一事务内设置 is_deleted=true 并声明 desired_status=deleted，提交后执行 Flow 删除。所有公共查询、修改、预解析已有对象、下发、导入匹配和导出都过滤 is_deleted=false。重复删除返回对象不存在；重新导入同名配置创建新对象。
+is_deleted 由 AsCode／公共配置 API 和指标目录入口过滤。删除入口在同一事务内设置 is_deleted=true 并声明 desired_status=deleted；公共配置 API 提交后同步执行 Flow 删除，AsCode 交给批量异步任务执行。所有公共查询、修改、预解析已有对象、下发、导入匹配和导出都过滤 is_deleted=false。重复删除返回对象不存在；重新导入同名配置创建新对象。
 
 外部 Flow 删除失败时仍保持 is_deleted=true，由原有后台任务重试。deleted_at 继续表示 Flow 删除完成时间；规则、Spec、Resolved、Flow 和事件保留。全局 Manager、Admin 接口、后台调度条件及历史查询窗口不变。
 

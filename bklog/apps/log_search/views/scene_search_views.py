@@ -41,7 +41,7 @@ from apps.log_search.exceptions import GetMultiResultFailException
 from apps.log_search.export import api as sharded_export_api
 from apps.log_search.export.config import is_sharded_export_enabled
 from apps.log_search.handlers.index_set import IndexSetHandler
-from apps.log_search.handlers.scene_search import AllConditionsBuilder, get_field_candidates
+from apps.log_search.handlers.scene_search import AllConditionsBuilder, build_dimension_options, get_field_candidates
 from apps.log_search.handlers.search.scene_fields_config import (
     SceneFieldsConfigHandler,
     UserSceneCustomConfigHandler,
@@ -344,6 +344,20 @@ class SceneFetchStatisticsGraphSerializer(SceneFieldBaseSerializer):
     threshold = serializers.IntegerField(required=False, default=10)
     limit = serializers.IntegerField(required=False, default=5)
     distinct_count = serializers.IntegerField(required=False)
+
+
+class SceneAnalyzeFieldSerializer(_SceneRouteMixin):
+    """场景化字段分析，对齐 MCP analyze_field 的场景模式入参。"""
+
+    keyword = serializers.CharField(allow_null=True, allow_blank=True, required=False, default="*")
+    addition = serializers.ListField(allow_empty=True, required=False, default=list)
+    field_name = serializers.CharField(required=True)
+    group_by = serializers.BooleanField(required=False, default=True)
+    order_by = serializers.ChoiceField(choices=["value", "time"], required=False, default="time")
+    limit = serializers.IntegerField(required=False, allow_null=True, min_value=1, max_value=1000)
+    step = serializers.CharField(required=False, default="1h", max_length=16)
+    start_time = serializers.CharField(required=True)
+    end_time = serializers.CharField(required=True)
 
 
 # ---------------------------------------------------------------------------
@@ -755,6 +769,10 @@ class SceneSearchViewSet(APIViewSet):
         @apiName scene_search_dimension_values
         @apiGroup 14_SceneSearch
         @apiDescription 获取场景下指定维度的可选值列表（支持级联筛选），供前端下拉框使用。
+            返回 {dimension_key, values, options}：
+            - values: 原始维度值字符串数组（向后兼容）
+            - options: [{id, name}] 结构，始终返回（空结果为 []）；name 默认等于 id，
+              命中名称解析器的维度（如 k8s 场景的 cluster_id）会补充集群名称
         """
         from apps.log_search.models import IndexSetTag
 
@@ -768,7 +786,15 @@ class SceneSearchViewSet(APIViewSet):
             filters=data.get("filters") or None,
             space_uids=space_uids,
         )
-        return Response({"dimension_key": data["dimension_key"], "values": sorted(values)})
+
+        sorted_values = sorted(values)
+        return Response(
+            {
+                "dimension_key": data["dimension_key"],
+                "values": sorted_values,
+                "options": build_dimension_options(data["scene"], data["dimension_key"], sorted_values),
+            }
+        )
 
     @list_route(methods=["POST"], url_path="list_field_candidates")
     def list_field_candidates(self, request):
@@ -1104,6 +1130,27 @@ class SceneSearchViewSet(APIViewSet):
                 return Response(handler.get_bucket_data(params["min"], params["max"]))
         else:
             return Response(handler.get_topk_ts_data(params["limit"]))
+
+    @list_route(methods=["POST"], url_path="field/analyze")
+    def analyze_field(self, request):
+        """
+        @api {post} /search/scene/field/analyze/ 场景化检索-字段分析
+        @apiName scene_analyze_field
+        @apiGroup 14_SceneSearch
+        @apiDescription 按场景路由执行字段聚合，供 MCP analyze_field 场景模式使用。
+        """
+        params = self.params_valid(SceneAnalyzeFieldSerializer)
+        params["table_id_conditions"] = AllConditionsBuilder.from_raw(params["table_id_conditions"])
+        params = _merge_scene_filters_to_addition(params)
+        params["agg_field"] = params["field_name"]
+        params["interval"] = params["step"]
+        handler = SceneFieldHandler(params)
+        result = handler.analyze_field(
+            group_by=params["group_by"],
+            order_by=params["order_by"],
+            limit=params.get("limit"),
+        )
+        return Response(result)
 
     # ------------------------------------------------------------------
     # Export endpoints

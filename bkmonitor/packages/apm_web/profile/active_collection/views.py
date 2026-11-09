@@ -24,6 +24,7 @@ from apm_web.profile.active_collection.resources import (
     QueryResultDataTypesResource,
     QueryResultsResource,
     QueryTopKResource,
+    RenameExecutionResource,
     SubmitTaskResource,
     SwitchTaskResource,
 )
@@ -76,6 +77,7 @@ class ExecutionsViewSet(ActiveProfilingViewSet):
     resource_routes = [
         ResourceRoute("POST", ExecutionDetailResource, endpoint="detail", decorators=[user_visit_record]),
         ResourceRoute("POST", CancelExecutionResource, endpoint="cancel"),
+        ResourceRoute("POST", RenameExecutionResource, endpoint="rename"),
     ]
 
 

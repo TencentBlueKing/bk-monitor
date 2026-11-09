@@ -558,6 +558,7 @@ export default {
   暂无关联Skill: 'No Skill associated',
   '可绑定本空间有使用权限的 Skill': 'You can bind Skills with usage permissions in this space',
   暂无关联智能体: 'No agent associated',
+  '暂无关联 Span': 'No related Span',
   可绑定本空间有使用权限的智能体: 'You can bind agents with usage permissions in this space',
   数据未变更: 'Data has not changed',
   '数据未就绪，请稍后重试': 'Data is not ready, please try again later',
@@ -570,4 +571,6 @@ export default {
   请输入优先级: 'Please enter the priority',
   '优先级需在1-10000之间': 'The priority must be between 1 and 10000',
   '正在拉取来源构建、提交历史与 Blame 信息': 'Pulling source build, commit history, and blame information',
+  '重新分析将基于最新告警重新触发 AI 源码分析，是否继续？':
+    'Re-analysis will trigger AI source code analysis based on the latest alerts. Do you want to continue?',
 };

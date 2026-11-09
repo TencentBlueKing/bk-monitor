@@ -97,7 +97,7 @@ from apps.log_search.exceptions import (
     ScenarioNotSupportedException,
     SourceDuplicateException,
 )
-from apps.log_search.utils import fetch_request_username
+from apps.log_search.utils import display_index_set_name, fetch_request_username
 from apps.log_search.export.models import ExportJob  # noqa: F401
 from apps.models import (
     JsonField,
@@ -829,7 +829,7 @@ class LogIndexSet(SoftDeleteModel):
         return self.fields_snapshot
 
     def _get_fields_by_unify_query(self) -> dict:
-        """原生 Doris 索引集没有 ES mapping，只能经 unify-query 取字段。"""
+        """字段快照统一经 unify-query 取字段。"""
         from apps.log_unifyquery.handler.base import UnifyQueryHandler
 
         end_time = arrow.now()
@@ -853,18 +853,10 @@ class LogIndexSet(SoftDeleteModel):
             )
         return result
 
-    def sync_fields_snapshot(self, pre_check_enable=True):
-        from apps.log_search.handlers.search.search_handlers_esquery import (
-            SearchHandler,
-        )
-
+    def sync_fields_snapshot(self):
         fields = {}
         try:
-            if self.is_native_doris():
-                fields = self._get_fields_by_unify_query()
-            else:
-                search_handler_esquery = SearchHandler(self.index_set_id, {}, pre_check_enable=pre_check_enable)
-                fields = search_handler_esquery.fields()
+            fields = self._get_fields_by_unify_query()
             fields = self.fields_to_string(fields=fields)
             self.fields_snapshot = fields
         except Exception as e:  # pylint: disable=broad-except
@@ -1393,9 +1385,12 @@ class Favorite(OperateRecordModel):
                 index_set_id_list.extend(index_set_ids)
         index_set_id_list = list(set(index_set_id_list))
         active_index_set_id_dict = {
-            i["index_set_id"]: {"index_set_name": i["index_set_name"], "is_active": i["is_active"]}
+            i["index_set_id"]: {
+                "index_set_name": display_index_set_name(i["index_set_name"], i["collector_config_id"]),
+                "is_active": i["is_active"],
+            }
             for i in LogIndexSet.objects.filter(index_set_id__in=index_set_id_list).values(
-                "index_set_id", "index_set_name", "is_active"
+                "index_set_id", "index_set_name", "is_active", "collector_config_id"
             )
         }
         for fi in qs.all():

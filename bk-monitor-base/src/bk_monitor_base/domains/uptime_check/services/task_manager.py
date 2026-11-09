@@ -12,11 +12,17 @@ from typing import Any, final
 
 from django.db.models import Q
 from django.utils.translation import gettext as _
-from packaging.version import Version
+from packaging.version import InvalidVersion, Version
 
 from bk_monitor_base.domains.space.cache import bk_biz_id_to_bk_tenant_id
 from bk_monitor_base.domains.uptime_check.collector import UptimeCheckCollector
-from bk_monitor_base.domains.uptime_check.constants import RESULT_MSG, UDP_RESULT_MSG
+from bk_monitor_base.domains.uptime_check.constants import (
+    RESULT_MSG,
+    UDP_RESULT_MSG,
+    UPTIME_CHECK_BEAT_MIN_VERSION,
+    UPTIME_CHECK_BEAT_PLUGIN_NAME,
+    BeatVersionCheckState,
+)
 from bk_monitor_base.domains.uptime_check.define import UptimeCheckTaskStatus
 from bk_monitor_base.domains.uptime_check.models import (
     UptimeCheckNodeModel,
@@ -45,6 +51,69 @@ logger = logging.getLogger(__name__)
 
 class TestTaskError(BaseError):
     """拨测任务测试异常。"""
+
+
+def _parse_beat_version(version: Any) -> Version | None:
+    """
+    解析 bkmonitorbeat 版本号。
+
+    节点管理返回的版本可能带前后空白、换行或不符合 PEP 440 规范，
+    这类值无法可靠比较，返回 None 交由调用方按 UNKNOWN 处理。
+
+    Args:
+        version: 节点管理返回的原始版本值，可能是字符串、数字或 None。
+
+    Returns:
+        解析成功返回 Version 对象，无法解析返回 None。
+    """
+    version_str = ".".join(str(version or "").strip().split(".")[:3])
+    if not version_str:
+        return None
+    try:
+        return Version(version_str)
+    except InvalidVersion:
+        return None
+
+
+def _check_beat_version(plugin_status: Any) -> tuple[BeatVersionCheckState, str]:
+    """
+    判定单台主机的 bkmonitorbeat 版本是否满足拨测要求。
+
+    区分三种状态：有记录且版本达标（PASS）、有记录但版本过低（TOO_OLD）、
+    无记录或版本无法解析（UNKNOWN）。后者无法据此判定采集器不可用，
+    由调用方放行并依赖后续测试下发实测兜底。
+
+    Args:
+        plugin_status: 节点管理 plugin_search 返回的单主机 plugin_status 字段。
+
+    Returns:
+        (校验状态, 解析后的规范版本号)；无记录或无法解析时版本为空字符串。
+        版本号只返回校验过的规范值，不透传原始内容——该值会拼进提示文案并由前端
+        以 HTML 渲染，原始串第 4 段起不受 PEP 440 约束，透传会把任意内容带进 DOM。
+    """
+    if not isinstance(plugin_status, list):
+        return BeatVersionCheckState.UNKNOWN, ""
+
+    beat_plugins: list[dict[str, Any]] = [
+        item for item in plugin_status if isinstance(item, dict) and item.get("name") == UPTIME_CHECK_BEAT_PLUGIN_NAME
+    ]
+    if not beat_plugins:
+        return BeatVersionCheckState.UNKNOWN, ""
+
+    # 同一主机可能存在多条记录，取解析成功的最高版本，避免 [0] 恰好拿到旧版本
+    parsed_versions: list[Version] = []
+    for item in beat_plugins:
+        parsed_version = _parse_beat_version(item.get("version"))
+        if parsed_version is not None:
+            parsed_versions.append(parsed_version)
+
+    if not parsed_versions:
+        return BeatVersionCheckState.UNKNOWN, ""
+
+    latest_version = max(parsed_versions)
+    if latest_version >= Version(UPTIME_CHECK_BEAT_MIN_VERSION):
+        return BeatVersionCheckState.PASS, str(latest_version)
+    return BeatVersionCheckState.TOO_OLD, str(latest_version)
 
 
 @final
@@ -118,7 +187,9 @@ class TaskManager:
             else:
                 biz_nodes.append(node)
 
-        # 2) 版本校验：依赖 bkmonitorbeat 推荐版本 >= 3.5.0
+        # 2) 版本校验：仅拦截「有记录但版本过低」的节点
+        # 无记录（未经节点管理订阅安装）或版本无法解析时无法判定采集器不可用，
+        # 放行并交由第 3 步的测试下发实测兜底，避免把登记缺失误报成版本过低。
         bk_host_ids = list(all_nodes.values_list("bk_host_id", flat=True).distinct())
         plugin_result = plugin_search(
             bk_tenant_id=self.bk_tenant_id,
@@ -130,26 +201,43 @@ class TaskManager:
             ),
         )
         all_plugin = plugin_result.get("list", [])
-        invalid_nodes: list[str] = []
+        if not all_plugin:
+            # 未查到任何主机插件记录：可能是任务没有节点，也可能是节点管理里这些主机
+            # 从未安装过该插件。接口异常与权限不足在这条链路上会抛 BkApiError 而不会
+            # 返回空列表，因此这里不按「接口故障」处理，只记录以便排查校验被整体跳过。
+            logger.warning(
+                "skip bkmonitorbeat version check due to empty plugin list, bk_host_ids=%s, total=%s",
+                bk_host_ids,
+                plugin_result.get("total"),
+            )
+        too_old_nodes: list[str] = []
         for plugin in all_plugin:
-            plugin_status_list: list[dict[str, Any]] = [
-                item for item in plugin.get("plugin_status", []) if isinstance(item, dict)
-            ]
-            beat_plugin: list[dict[str, Any]] = [
-                item for item in plugin_status_list if item.get("name") == "bkmonitorbeat"
-            ]
-            if beat_plugin:
-                beat_plugin_version = str(beat_plugin[0].get("version", "")).strip("\n")
-                beat_plugin_version = ".".join(beat_plugin_version.split(".")[:3])
-                try:
-                    if beat_plugin_version and Version(beat_plugin_version) >= Version("3.5.0"):
-                        continue
-                except Exception:
-                    # 版本格式异常，仍可测试下发拨测任务
-                    pass
-            invalid_nodes.append(f"{plugin['inner_ip'] or plugin['inner_ipv6']}-{plugin['bk_cloud_id']}")
-        if invalid_nodes:
-            raise TestTaskError(f"部分节点版本校验失败，推荐升级至v3.5.0以上版本:{','.join(invalid_nodes)}")
+            node_display = f"{plugin.get('inner_ip') or plugin.get('inner_ipv6')}-{plugin.get('bk_cloud_id')}"
+            state, beat_version = _check_beat_version(plugin.get("plugin_status"))
+            if state is BeatVersionCheckState.PASS:
+                continue
+            if state is BeatVersionCheckState.TOO_OLD:
+                too_old_nodes.append(f"{node_display}({beat_version})")
+                continue
+            # 无记录 / 版本字段为空 / 版本无法解析：无法据此判定采集器不可用，
+            # 放行并由第 3 步测试下发实测兜底，此处留痕便于回溯放行了哪些主机。
+            logger.warning(
+                "skip bkmonitorbeat version check due to unknown state, "
+                "bk_host_id=%s, node=%s, plugin_status=%s, total=%s",
+                plugin.get("bk_host_id"),
+                node_display,
+                plugin.get("plugin_status"),
+                plugin_result.get("total"),
+            )
+        if too_old_nodes:
+            raise TestTaskError(
+                _("部分节点 %(plugin)s 版本过低，要求 %(min_version)s 及以上，当前版本：%(nodes)s")
+                % {
+                    "plugin": UPTIME_CHECK_BEAT_PLUGIN_NAME,
+                    "min_version": UPTIME_CHECK_BEAT_MIN_VERSION,
+                    "nodes": ",".join(too_old_nodes),
+                }
+            )
 
         # 3) 下发测试并收集结果
         success: list[dict[str, Any]] = []

@@ -27,7 +27,7 @@ const columns = [
 ];
 
 // 执行实际组件 setup/render 与事件；只隔离外部 UI 库、服务和浏览器生命周期。
-function loadComponent(name, overrides = {}) {
+function loadComponent(name, overrides = {}, exportName = 'default') {
   const source = fs.readFileSync(path.join(root, `${name}.tsx`), 'utf8');
   const code = ts.transpileModule(source, {
     compilerOptions: {
@@ -35,6 +35,7 @@ function loadComponent(name, overrides = {}) {
       target: ts.ScriptTarget.ES2020,
       jsx: ts.JsxEmit.React,
       jsxFactory: 'h',
+      jsxFragmentFactory: 'Fragment',
     },
   }).outputText;
   const module = { exports: {} };
@@ -67,12 +68,16 @@ function loadComponent(name, overrides = {}) {
         HOST_STATUS_MAP: {},
       };
     }
-    if (id.endsWith('/host-loading')) return { default: component('HostLoading'), HostLoadingCell: component('HostLoadingCell'), HostRefreshStatus: component('HostRefreshStatus') };
+    if (id.endsWith('/host-loading')) return {
+      default: loadComponent('../host-loading/host-loading'),
+      HostLoadingCell: loadComponent('../host-loading/host-loading', {}, 'HostLoadingCell'),
+      HostRefreshStatus: loadComponent('../host-loading/host-loading', {}, 'HostRefreshStatus'),
+    };
     if (id.startsWith('.') || id.startsWith('@/')) return { default: component(id.split('/').at(-1)) };
     throw new Error(`Unexpected import: ${id}`);
   };
-  new Function('require', 'module', 'exports', 'h', code)(load, module, module.exports, vue.h);
-  return module.exports.default;
+  new Function('require', 'module', 'exports', 'h', 'Fragment', code)(load, module, module.exports, vue.h, vue.Fragment);
+  return module.exports[exportName];
 }
 
 function setup(Component, input = {}) {
@@ -118,7 +123,9 @@ test('cards expose independent pending, zero and failed states without enabling 
     activeKey: 'cpu',
   });
   const [alarm, cpu, mem, disk] = view.render().children;
-  assert.equal(byClass(alarm, 'host-stat-cards__num').children, '--');
+  assert.equal(byClass(alarm, 'host-stat-cards__num'), undefined);
+  assert.equal(byClass(alarm, 'host-stat-cards__loading').props.role, 'status');
+  assert.equal(byClass(mem, 'host-stat-cards__num'), undefined);
   assert.equal(byClass(cpu, 'host-stat-cards__num').children, '0');
   assert.ok(byClass(mem, 'host-stat-cards__loading'));
   assert.equal(byClass(disk, 'host-stat-cards__num').children, '--');
@@ -197,6 +204,11 @@ test('page mode keeps pagination, page selection and drilldown but suppresses gl
   assert.ok(table.props.columns.every(column => column.sorter === false));
   table.props.onSortChange([{ sortBy: 'cpu_usage', descending: true }]);
   assert.deepEqual(view.events, []);
+  const initialPagination = find(view.render(), Pagination);
+  assert.equal(initialPagination.props.count, 100);
+  initialPagination.props.onChange(2);
+  initialPagination.props.onLimitChange(50);
+  assert.deepEqual(view.events.splice(0), [['pageChange', 2], ['pageSizeChange', 50]]);
   const checkbox = table.props.columns[0].title();
   assert.equal(checkbox.type, Checkbox);
   assert.equal(checkbox.props.modelValue, true);
@@ -214,8 +226,21 @@ test('page mode keeps pagination, page selection and drilldown but suppresses gl
       const placeholderTable = find(rendered, PrimaryTable);
       assert.ok(placeholderTable.props.data.every(row => row.id.startsWith('loading-')));
       assert.equal(placeholderTable.props.columns[0].title().props.disabled, true);
+      const ipCell = placeholderTable.props.columns[1].cell(null, { row: placeholderTable.props.data[0], rowIndex: 0 });
+      assert.equal(ipCell.type.name, 'HostLoadingCell');
+      const ipSkeleton = setup(ipCell.type, ipCell.props).render();
+      assert.ok(byClass(ipSkeleton, 'host-loading-cell--ip'));
+      assert.ok(byClass(ipSkeleton, 'host-loading-cell__line'));
+      assert.equal(byClass(ipSkeleton, 'host-table-ip '), undefined);
+      const metricCell = placeholderTable.props.columns[2].cell(null, { row: placeholderTable.props.data[0], rowIndex: 0 });
+      const metricSkeleton = setup(metricCell.type, metricCell.props).render();
+      assert.ok(byClass(metricSkeleton, 'host-loading-cell__subline'));
     }
     const pagination = find(rendered, Pagination);
+    if (state.loading) {
+      assert.equal(pagination, undefined, 'the initial loading skeleton has no actionable pagination');
+      continue;
+    }
     assert.equal(pagination.props.count, 100);
     pagination.props.onChange(3);
     pagination.props.onLimitChange(20);

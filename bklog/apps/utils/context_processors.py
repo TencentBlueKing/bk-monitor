@@ -32,6 +32,9 @@ from django.conf import settings  # noqa
 from django.utils import translation  # noqa
 from django.utils.translation import gettext_lazy as _  # noqa
 
+from apps.iam.mode import get_effective_mode
+from iam_engine.core.config import AuthMode
+
 
 def _get_guide_url(request, configured_url, doc_path):
     if request.headers.get("Is-External", "false") == "false" and configured_url:
@@ -40,7 +43,18 @@ def _get_guide_url(request, configured_url, doc_path):
     return f"{doc_url}/{doc_path}" if doc_url else ""
 
 
+def _resolve_iam_urls(mode):
+    """按 IAM 模式返回权限中心地址与申请入口地址。"""
+    if mode is AuthMode.V4:
+        host = settings.BK_IAM_V4_SAAS_HOST.rstrip("/")
+        return host, f"{host}/permission/apply"
+
+    host = settings.BK_IAM_SAAS_HOST.rstrip("/")
+    return host, f"{host}/apply-join-user-group"
+
+
 def mysetting(request):
+    iam_url, iam_apply_url = _resolve_iam_urls(get_effective_mode())
     bk_login_url_prefix = settings.PAAS_API_HOST if settings.DEPLOY_MODE == "kubernetes" else settings.BK_PAAS_HOST
     if settings.DEFAULT_HTTPS_HOST and settings.BK_COMPONENT_API_URL:
         bk_component_api_url_netloc = urlparse(settings.BK_COMPONENT_API_URL).netloc
@@ -122,7 +136,8 @@ def mysetting(request):
         "BK_SHARED_RES_URL": settings.BK_SHARED_RES_URL,
         "VERSION": settings.VERSION,
         "BK_USER_URL": settings.BK_USER_HOST,
-        "BK_IAM_URL": settings.BK_IAM_SAAS_HOST,
+        "BK_IAM_URL": iam_url,
+        "BK_IAM_APPLY_URL": iam_apply_url,
         "SHOW_PERSONAL_SETTINGS": "true" if settings.SHOW_PERSONAL_SETTINGS else "false",
         "TGPA_SDK_DOC_URL": settings.TGPA_SDK_DOC_URL,
         # RUM 配置

@@ -112,11 +112,67 @@ def test_application_tuple_resolves_product_names():
     data, url = provider.get_apply_data(["view_business"], [SPACE])
     assert data["actions"][0]["related_resource_types"][0]["instances"][0][0] == {
         "type": "space",
+        "type_name": "空间",
         "id": "2",
         "name": "业务 2",
     }
     assert url == "https://iam.example.test/apply"
     assert not hasattr(provider, "callback_service")
+
+
+def test_apply_payload_carries_display_type_name():
+    """权限弹窗按 type_name 展示资源类型名，缺失会渲染成 "undefined：<实例名>"。"""
+    provider, client = _build_provider()
+    client.generate_perm_apply_url.return_value = "https://iam.example.test/apply"
+    data, _ = provider.get_apply_data(["view_business"], [SPACE])
+
+    # 用 schema 的期望值比对，避免绑定当前语言（type_name 随请求语言变化）
+    expected = str(provider.schema.resource_types["space"].name)
+    related = data["actions"][0]["related_resource_types"][0]
+    assert related["type_name"] == expected
+    assert related["instances"][0][0]["type_name"] == expected
+    # schema 中是 gettext_lazy 代理，落进 payload 前应已求值为纯 str
+    assert type(related["type_name"]) is str
+    assert type(related["instances"][0][0]["type_name"]) is str
+
+
+def test_apply_type_name_follows_active_language():
+    """type_name 按当前请求语言求值，且任何语言下都落成纯 str（不残留懒代理）。"""
+    from django.utils import translation
+
+    provider, client = _build_provider()
+    client.generate_perm_apply_url.return_value = "https://iam.example.test/apply"
+
+    results = {}
+    for lang in ("zh-hans", "en"):
+        with translation.override(lang):
+            data, _ = provider.get_apply_data(["view_business"], [SPACE])
+            type_name = data["actions"][0]["related_resource_types"][0]["type_name"]
+        assert type(type_name) is str
+        assert type_name
+        results[lang] = type_name
+
+    assert results["zh-hans"] == "空间"
+    assert results["en"] == "Space"
+
+
+def test_apply_type_name_falls_back_to_type_id_when_schema_misses_resource_type():
+    """schema 注入不完整时以类型 id 兜底，而不是 KeyError 把整条申请数据降级为空。"""
+    provider, client = _build_provider()
+    client.generate_perm_apply_url.return_value = "https://iam.example.test/apply"
+    schema = provider.schema
+    provider.schema = SimpleNamespace(
+        actions=schema.actions,
+        # 资源类型对弹窗不可见：模拟 schema 未注册该类型
+        resource_types={},
+    )
+
+    data, _ = provider.get_apply_data(["view_business"], [SPACE])
+
+    related = data["actions"][0]["related_resource_types"][0]
+    assert related["type_name"] == "space"
+    assert related["instances"][0][0]["type_name"] == "space"
+    assert type(related["type_name"]) is str
 
 
 def test_negative_space_batch_maps_wire_ids_to_local_result_keys():

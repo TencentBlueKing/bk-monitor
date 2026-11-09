@@ -19,7 +19,7 @@ from rest_framework.request import Request
 from bkmonitor.utils.request import get_request_tenant_id
 from core.drf_resource import resource
 from core.drf_resource.viewsets import ResourceRoute, ResourceViewSet
-from monitor_web.overview.search import Searcher
+from monitor_web.overview.search import Searcher, TraceSearchItem
 
 
 class SearchSerializer(serializers.Serializer):
@@ -38,23 +38,23 @@ class SearchSerializer(serializers.Serializer):
     # 用户当前所在业务，仅作为 TraceSearchItem 候选业务输入，不强制语义
     bk_biz_id = serializers.IntegerField(label="当前业务ID", required=False, allow_null=True)
 
-
-class SearchViewSet(viewsets.GenericViewSet):
-    """
-    搜索, 使用多线程搜索，使用 event-stream 返回搜索结果
-    """
-
-    def unescape(self, query: str) -> str:
-        """
-        反转义
-        """
+    def validate_query(self, query: str) -> str:
+        # 先反转义，再按实际检索输入校验批量上限。
         query = query.replace("&lt;", "<")
         query = query.replace("&gt;", ">")
         query = query.replace("&amp;", "&")
         query = query.replace("&quot;", '"')
         query = query.replace("&#39;", "'")
-        query = query.replace("&nbsp;", " ")
+        query = query.replace("&nbsp;", " ").strip()
+        if len(TraceSearchItem.parse_trace_ids(query)) > TraceSearchItem.MAX_TRACE_IDS:
+            raise serializers.ValidationError(f"批量 TraceID 检索最多支持 {TraceSearchItem.MAX_TRACE_IDS} 个 TraceID")
         return query
+
+
+class SearchViewSet(viewsets.GenericViewSet):
+    """
+    搜索, 使用多线程搜索，使用 event-stream 返回搜索结果
+    """
 
     def list(self, request: Request, *args: Any, **kwargs: Any) -> StreamingHttpResponse:
         serializer = SearchSerializer(data=request.query_params)
@@ -63,9 +63,6 @@ class SearchViewSet(viewsets.GenericViewSet):
         query: str = serializer.validated_data["query"]
         page_size: int = serializer.validated_data["page_size"]
         bk_biz_id: int | None = serializer.validated_data.get("bk_biz_id")
-
-        # 反转义
-        query = self.unescape(query).strip()
 
         # 搜索
         searcher: Searcher = Searcher(

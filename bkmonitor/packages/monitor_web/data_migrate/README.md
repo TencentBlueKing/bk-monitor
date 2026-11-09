@@ -111,12 +111,15 @@ python manage.py data_migrate partial-rebuild \
 说明：
 
 - `partial-export` 是独立于全量 `export` 的局部导出入口，目前支持 BCS 集群、自定义上报 Data ID 和 APM 应用三个选择器
+- `partial-export` 会按本次 Data ID 和租户导出 `SpaceDataSource` 关联，不导出空间主表或同空间的其他数据源
 - `partial-import` 导入前会检查 `bk_data_id`、`data_name`、`table_id`、`time_series_group_name`、`event_group_name` 等关键字段冲突，命中则失败且不写入
-- `partial-import` 会先完整预扫描导出目录，随后复用通用导入逻辑写入；大目录会有一次额外解析开销，并发写入导致的最终唯一性冲突仍以数据库约束和导入事务为准
+- `partial-import` 会先完整预扫描导出目录、处理空间关联，再复用通用导入逻辑写入；大目录会有额外解析开销，并发写入导致的最终唯一性冲突仍以数据库约束和导入事务为准
 - `partial-import` 不执行整业务清理，避免局部增量导入影响同业务的其他配置
+- 空间关联沿用目标环境已有的空间，使用新主键导入；BKCI 项目原空间 ID 不存在时，使用目标租户前缀名称（如 `gos-backend` 对应 `tencent-gos-backend`），因此导入前需先同步目标空间
 - `partial-rebuild` 可直接从导出目录的 `manifest.json` 读取局部范围，也可以显式传入相同选择器
 - `partial-rebuild` 支持独立指定 `--metric-kafka-cluster-name`、`--log-kafka-cluster-name`、`--event-kafka-cluster-name`、`--log-es-cluster-name`、`--event-es-cluster-name`
 - `partial-rebuild` 会在重建后基于新环境生成 `data_id_infos`；传入 `--directory` 时会写入 `partial_data_id_infos.json`，可继续传给 `add-migrate-data-id-routes` 复用双写路由逻辑
+- `partial-rebuild` 会同步发布本次 Data ID 关联的空间路由，并刷新对应结果表详情和 DataLabel 路由
 
 ### 数据重建
 

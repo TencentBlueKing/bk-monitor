@@ -43,6 +43,7 @@ if not settings.configured:
         BKAPP_DEPLOY_PLATFORM="bkte",
         RSA_PRIVATE_KEY="",
         TRANSLATE_SNMP_TRAP_DIMENSIONS=False,
+        SMS_NOTICE_TEMPLATE_MODE="legacy",
     )
     django.setup()
 
@@ -461,12 +462,32 @@ def dynamic():
             logger=logging.getLogger(__name__),
             locmem_cache=TTLCache(clock),
             redis_cache=redis,
+            kms=NS(enabled=lambda: False),
         )
         proxy = Lazy()
-        proxy._wrapped = cls(NS(MCP_MAX_RESPONSE_BYTES=5 * 1024 * 1024), db)
+        proxy._wrapped = cls(NS(MCP_MAX_RESPONSE_BYTES=5 * 1024 * 1024, RELATION_V1BETA3_BIZ_ID_WHITE_LIST=[]), db)
         return proxy
 
     return NS(clock=clock, store=store, db=db, worker=worker, field=field)
+
+
+def test_relation_route_uses_registered_dynamic_setting_and_existing_cache(dynamic, monkeypatch):
+    from api.unify_query.relation_routing import resolve_relation_query_path
+    from bkmonitor.define import global_config
+    from bkmonitor.utils import graph_relation
+
+    key = "RELATION_V1BETA3_BIZ_ID_WHITE_LIST"
+    assert global_config.ADVANCED_OPTIONS[key].default == []
+    assert key in global_config.GLOBAL_CONFIGS
+    proxy = dynamic.worker()
+    monkeypatch.setattr(graph_relation, "settings", proxy)
+    assert resolve_relation_query_path("/legacy", "/v1beta3", 2) == "/legacy"
+    proxy.RELATION_V1BETA3_BIZ_ID_WHITE_LIST = [2]
+    assert resolve_relation_query_path("/legacy", "/v1beta3", 2) == "/v1beta3"
+    dynamic.store[key] = []
+    assert resolve_relation_query_path("/legacy", "/v1beta3", 2) == "/v1beta3"
+    dynamic.clock[0] += proxy._wrapped.__cache_expires__
+    assert resolve_relation_query_path("/legacy", "/v1beta3", 2) == "/legacy"
 
 
 def test_global_settings_update_takes_effect_after_real_cache_expiry(dynamic, limits):
@@ -548,7 +569,7 @@ def all_uq(limits):
         side_effect=source(
             "api/unify_query/relation_routing.py",
             "resolve_relation_query_path",
-            is_graph_relation_v4_enabled=lambda bid: rollout[0],
+            is_relation_v1beta3_enabled=lambda bid: rollout[0],
         )
     )
     transport = Mock()
@@ -763,6 +784,17 @@ def test_uq_error_message_is_short_and_connection_is_closed(all_uq):
     assert response.raw.closed
 
 
+@pytest.mark.parametrize("status,expected", [(400, 400), (422, 400), (502, None)])
+def test_uq_client_errors_are_reported_as_invalid_params(all_uq, status, expected):
+    response = http_response(b"query_string parse error", status=status)
+    all_uq.transport.return_value = response
+    with pytest.raises(RuntimeError) as exc:
+        all_uq.call("query_raw", uq_params("query_raw"))
+    assert getattr(exc.value, "status_code", None) == expected
+    assert "query_string parse error" in str(exc.value)
+    assert response.raw.closed
+
+
 @pytest.mark.parametrize("compressed,oversized", [(False, False), (True, False), (False, True), (True, True)])
 def test_uq_reads_real_chunked_http_framing_without_network(all_uq, compressed, oversized):
     payload = {"list": [{"message": "x" * 2000 if oversized else "中文"}]}
@@ -865,10 +897,12 @@ def test_five_resource_points_keep_normal_call_and_only_opt_in_mcp(point, monkey
         path = "kernel_api/resource/log_search.py"
         aggregation = source(path, "FieldAnalyzeResource._build_aggregation_function", **namespace)
         build_item = source(path, "FieldAnalyzeResource._build_query_item", **namespace)
+        analyze_by_index_set = source(path, "FieldAnalyzeResource._analyze_by_index_set", **namespace)
         method = source(path, "FieldAnalyzeResource.perform_request", **namespace)
         instance = NS(ORDER_BY_MAPPING={"time": ["-dtEventTimeStamp", "-gseIndex", "-iterationIndex"]})
         instance._build_aggregation_function = lambda *args: aggregation(instance, *args)
         instance._build_query_item = lambda *args: build_item(instance, *args)
+        instance._analyze_by_index_set = lambda *args: analyze_by_index_set(instance, *args)
         params = {"bk_biz_id": 2, "index_set_id": 3, "field_name": "log", "start_time": "1", "end_time": "2"}
         invoke, operation = lambda: method(instance, params), "query_reference"
     else:

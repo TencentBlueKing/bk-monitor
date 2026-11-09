@@ -30,16 +30,17 @@ from apm_web.profile.active_collection.constants import (
     PROCESS_SELECTOR_MAX_TEXT_LENGTH,
     PROCESS_SELECTOR_SEPARATOR,
     PROCESS_SELECTOR_TYPE_CHOICES,
+    QUERY_SOURCE_CHOICES,
     SCHEDULE_TYPE_CHOICES,
     STACK_UNWIND_CHOICES,
 )
 
 
-class IsMockSerializer(serializers.Serializer):
-    is_mock = serializers.BooleanField(label="是否返回 mock", required=False, default=False)
+class QuerySourceSerializer(serializers.Serializer):
+    source = serializers.ChoiceField(label="查询数据源", choices=QUERY_SOURCE_CHOICES, default="mysql")
 
 
-class MetaConfigRequestSerializer(IsMockSerializer):
+class MetaConfigRequestSerializer(serializers.Serializer):
     bk_biz_id = serializers.IntegerField(label="业务 ID")
 
 
@@ -250,16 +251,13 @@ class GoHeapCollectorConfigSerializer(serializers.Serializer):
     port = serializers.IntegerField(label="pprof 端口", min_value=1)
 
 
-class JavaCollectorConfigSerializer(serializers.Serializer):
-    duration_sec = serializers.IntegerField(label="采集时长(秒)", min_value=1, max_value=COLLECTOR_MAX_DURATION_SEC)
-
-
-class TopKRequestSerializer(IsMockSerializer):
+class TopKRequestSerializer(QuerySourceSerializer):
     bk_biz_id = serializers.IntegerField(label="业务 ID")
     start_time = serializers.IntegerField(label="查询开始时间")
     end_time = serializers.IntegerField(label="查询结束时间")
     field = serializers.ChoiceField(label="候选字段", choices=[(field, field) for field in TOPK_FIELDS])
     limit = serializers.IntegerField(label="返回数量", min_value=1, default=20)
+    keyword = serializers.CharField(label="候选关键字", required=False, allow_blank=True)
 
     def validate(self, attrs):
         if attrs["start_time"] > attrs["end_time"]:
@@ -269,6 +267,7 @@ class TopKRequestSerializer(IsMockSerializer):
 
 class EventListFiltersSerializer(serializers.Serializer):
     ips = serializers.ListField(label="IP 筛选", child=serializers.CharField(), required=False)
+    task_id = serializers.IntegerField(label="任务 ID", min_value=1, required=False)
     task_name = serializers.CharField(label="任务名称关键词", required=False, allow_blank=True)
     process_names = serializers.ListField(label="进程名筛选", child=serializers.CharField(), required=False)
     process_pids = serializers.ListField(label="PID 筛选", child=serializers.CharField(), required=False)
@@ -300,29 +299,27 @@ class CancelHostSerializer(serializers.Serializer):
     ip = serializers.CharField(label="主机 IP")
 
 
-class EnableRequestSerializer(IsMockSerializer):
+class EnableRequestSerializer(serializers.Serializer):
     bk_biz_id = serializers.IntegerField(label="业务 ID")
 
 
-class ProcessPreviewRequestSerializer(IsMockSerializer):
+class ProcessPreviewRequestSerializer(serializers.Serializer):
     bk_biz_id = serializers.IntegerField(label="业务 ID")
     target_config = TargetConfigSerializer(label="目标主机配置")
     process_selector = PreviewProcessSelectorSerializer(label="进程选择器")
 
 
-class TaskListRequestSerializer(IsMockSerializer):
+class TaskListRequestSerializer(serializers.Serializer):
     bk_biz_id = serializers.IntegerField(label="业务 ID")
     page = serializers.IntegerField(label="页码", min_value=1, default=1)
     page_size = serializers.IntegerField(label="每页数量", min_value=1, default=20)
 
 
-class TaskSubmitRequestSerializer(IsMockSerializer):
+class TaskSubmitRequestSerializer(serializers.Serializer):
     COLLECTOR_CONFIG_SERIALIZER_MAP = {
         "native_cpu": NativeCpuCollectorConfigSerializer,
         "go_cpu": GoCpuCollectorConfigSerializer,
         "go_heap": GoHeapCollectorConfigSerializer,
-        "java_cpu": JavaCollectorConfigSerializer,
-        "java_allocation": JavaCollectorConfigSerializer,
     }
 
     bk_biz_id = serializers.IntegerField(label="业务 ID")
@@ -350,7 +347,7 @@ class TaskSubmitRequestSerializer(IsMockSerializer):
             if process_selector is not None:
                 raise serializers.ValidationError("Golang 不传 process_selector")
         elif process_selector is None:
-            raise serializers.ValidationError("Perf/Java 必须传 process_selector")
+            raise serializers.ValidationError("Perf 必须传 process_selector")
 
         # 选择器原样下发到全部目标主机，勾选的进程只能来自这些主机
         if process_selector and "host_pids" in process_selector["config"]:
@@ -369,18 +366,18 @@ class TaskEditRequestSerializer(PlannedTaskSubmitRequestSerializer):
     task_id = serializers.IntegerField(label="任务 ID")
 
 
-class TaskDeleteRequestSerializer(IsMockSerializer):
+class TaskDeleteRequestSerializer(serializers.Serializer):
     bk_biz_id = serializers.IntegerField(label="业务 ID")
     task_id = serializers.IntegerField(label="任务 ID")
 
 
-class TaskSwitchRequestSerializer(IsMockSerializer):
+class TaskSwitchRequestSerializer(serializers.Serializer):
     bk_biz_id = serializers.IntegerField(label="业务 ID")
     task_id = serializers.IntegerField(label="任务 ID")
     enabled = serializers.BooleanField(label="是否启用")
 
 
-class EventListRequestSerializer(IsMockSerializer):
+class EventListRequestSerializer(QuerySourceSerializer):
     bk_biz_id = serializers.IntegerField(label="业务 ID")
     start_time = serializers.IntegerField(label="查询开始时间")
     end_time = serializers.IntegerField(label="查询结束时间")
@@ -394,7 +391,7 @@ class EventListRequestSerializer(IsMockSerializer):
         return attrs
 
 
-class ExecutionDetailRequestSerializer(IsMockSerializer):
+class ExecutionKeySerializer(serializers.Serializer):
     bk_biz_id = serializers.IntegerField(label="业务 ID")
     schedule_type = serializers.ChoiceField(label="执行方式", choices=SCHEDULE_TYPE_CHOICES)
     scheduled_at = serializers.IntegerField(label="执行计划时间")
@@ -409,11 +406,19 @@ class ExecutionDetailRequestSerializer(IsMockSerializer):
         return attrs
 
 
-class ExecutionCancelRequestSerializer(ExecutionDetailRequestSerializer):
+class ExecutionDetailRequestSerializer(ExecutionKeySerializer, QuerySourceSerializer):
+    pass
+
+
+class ExecutionCancelRequestSerializer(ExecutionKeySerializer):
     hosts = serializers.ListField(label="待取消主机", child=CancelHostSerializer(), allow_empty=False)
 
 
-class ResultDataTypesRequestSerializer(IsMockSerializer):
+class ExecutionRenameRequestSerializer(ExecutionKeySerializer):
+    task_name = serializers.CharField(label="任务名称", max_length=128)
+
+
+class ResultDataTypesRequestSerializer(serializers.Serializer):
     bk_biz_id = serializers.IntegerField(label="业务 ID")
     scheduled_at = serializers.IntegerField(label="执行计划时间")
     bk_host_id = serializers.IntegerField(label="主机 ID")

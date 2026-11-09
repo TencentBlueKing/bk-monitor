@@ -20,6 +20,11 @@ $tree-step: 16px;
   &.is-error:hover {
     background: rgb(255 240 240 / 50%);
   }
+
+  .llm-span-item.is-highlighted & {
+    background: #f0f5ff;
+    box-shadow: inset 2px 0 0 $primary-color;
+  }
 }
 
 .llm-span-col {
@@ -237,7 +242,7 @@ $tree-step: 16px;
 }
 
 .llm-span-subtitle {
-  flex: 1 1 0;
+  flex: 0 1 auto;
   min-width: 0;
   font-family: menlo, monaco, monospace;
   font-size: $font-size-base;

@@ -49,6 +49,13 @@ class QueryResourceStorageResource(MetaDataAPIGWResource):
     method = "POST"
 
 
+class SyncAsCodeRecordingRulesResource(MetaDataAPIGWResource):
+    """投递 AsCode 预计算规则异步执行任务（内部接口）。"""
+
+    action = "/app/metadata/sync_as_code_recording_rules/"
+    method = "POST"
+
+
 class GetLabelResource(MetaDataAPIGWResource):
     """
     获取分类标签（一二级标签）

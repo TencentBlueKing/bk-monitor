@@ -104,6 +104,15 @@ export default class EditableFormItem extends tsc<IEditableFormItemProps, IEdita
   editCloneVal = '';
   editSubmitVal = '';
 
+  /** 编辑期间值是否发生变化 */
+  get hasChanged() {
+    if (this.formType === 'selectEdit') {
+      return this.editSubmitVal !== this.editCloneVal;
+    }
+    // 统一转字符串比较，兼容输入框 v-model 产生 string 而 value 为 number 的情况
+    return String(this.lcoalValue) !== String(this.editCloneVal);
+  }
+
   get displayValue() {
     if (this.formType === 'select') {
       const selectItem = this.selectList.find(item => item.id === this.value);
@@ -317,6 +326,7 @@ export default class EditableFormItem extends tsc<IEditableFormItemProps, IEdita
    */
   async handleEditClick() {
     this.lcoalValue = this.value;
+    this.editCloneVal = this.value;
     if (this.formType === 'selectEdit' && this.selectEditValue) {
       this.editCloneVal = this.selectEditValue;
       this.editSubmitVal = this.selectEditValue;
@@ -333,6 +343,11 @@ export default class EditableFormItem extends tsc<IEditableFormItemProps, IEdita
    * @desc 编辑提交
    */
   async handleSubmit() {
+    // 值未变化时跳过提交
+    if (!this.hasChanged) {
+      return;
+    }
+    
     // 开关项已通过预检查操作更新
     if (this.formType === 'switch') return;
 
@@ -440,7 +455,7 @@ export default class EditableFormItem extends tsc<IEditableFormItemProps, IEdita
                   ) : (
                     <span>
                       <span
-                        class='bk-icon icon-check-line'
+                        class={{ 'bk-icon icon-check-line': true, 'icon-check-line-disabled': !this.hasChanged }}
                         onClick={this.handleSubmit}
                       />
                       <span

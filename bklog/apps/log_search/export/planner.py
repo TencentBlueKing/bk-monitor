@@ -30,6 +30,7 @@ from apps.log_search.constants import ExportErrorCode, ExportJobStatus, ExportSe
 from apps.log_search.export import state
 from apps.log_search.export.config import policy_from_snapshot
 from apps.log_search.export.query import apply_time_range, snapshot_time_fields, time_order
+from apps.log_search.export.scheduler import request_parts_dispatch
 from apps.log_unifyquery.handler.base import UnifyQueryHandler
 from apps.log_unifyquery.handler.scene_search import SceneUnifyQueryHandler
 from apps.utils.log import logger
@@ -350,7 +351,11 @@ def run_planning(job_id):
         # 使用任务创建时冻结的策略，避免灰度调整影响已准入的任务
         policy = policy_from_snapshot(job.policy)
         parts, total, result = build_parts(job, policy)
-        state.persist_plan(job.pk, job.planning_attempts, parts=parts, estimated_total=total, plan_result=result)
+        planned_job = state.persist_plan(
+            job.pk, job.planning_attempts, parts=parts, estimated_total=total, plan_result=result
+        )
+        if planned_job is not None:
+            request_parts_dispatch()
     except PlanError as error:
         logger.warning("[run_planning] job=%s code=%s detail=%s", job.pk, error.code, error)
         state.fail_planning(job.pk, job.planning_attempts, error.code, str(error), retryable=error.retryable)

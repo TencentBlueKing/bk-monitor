@@ -47,11 +47,11 @@ class _BKNodeV3Api:
 
     def _build_url(self, action: str) -> str:
         """
-        V3 只有 APIGW 一条入口（ESB compapi 未提供 v3），base_url 支持独立配置以便联调环境直连。
+        V3 只有 APIGW 一条入口（ESB compapi 未提供 v3）。默认复用环境级网关根地址，
+        独立 base_url 只作为联调或特殊路由的显式覆盖。
         """
-        base_url = settings.BKNODEMAN_V3_API_BASE_URL or (
-            f"{settings.PAAS_API_HOST}/api/bk-nodemgr/{settings.ENVIRONMENT}/"
-        )
+        gateway_root = settings.BK_COMPONENT_API_URL or settings.PAAS_API_HOST
+        base_url = settings.BKNODEMAN_V3_API_BASE_URL or (f"{gateway_root.rstrip('/')}/api/bk-nodemgr/prod/")
         if not base_url.endswith("/"):
             base_url += "/"
         return urljoin(base_url, action)
@@ -65,6 +65,14 @@ class _BKNodeV3Api:
             url=self._build_url("api/v3/topo/host/list"),
             module=self.MODULE,
             description="查询主机列表",
+            before_request=get_bk_node_v3_request_before,
+            use_superuser=True,
+        )
+        self.get_host_distribution_by_networkarea_id = DataAPI(
+            method="POST",
+            url=self._build_url("api/v3/topo/host/get_host_distribution_by_networkarea_id"),
+            module=self.MODULE,
+            description="按管控区域统计主机分布",
             before_request=get_bk_node_v3_request_before,
             use_superuser=True,
         )

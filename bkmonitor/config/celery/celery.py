@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2025 Tencent. All rights reserved.
@@ -8,12 +7,15 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
+
 import os
 
-from celery import Celery, platforms
+from celery import platforms
 from celery.signals import beat_init, setup_logging
 from django.conf import settings
 from django.db import close_old_connections
+
+from config.celery.app import MonitorCelery
 
 # http://docs.celeryproject.org/en/latest/userguide/daemonizing.html#running-the-worker-with-superuser-privileges-root
 # for root start celery
@@ -22,7 +24,7 @@ platforms.C_FORCE_ROOT = True
 # set the default Django settings module for the 'celery' program.
 os.environ.setdefault("DJANGO_SETTINGS_MODULE", "settings")
 
-app = Celery("proj")
+app = MonitorCelery("proj")
 
 app.config_from_object("config.celery.config:Config")
 
@@ -32,7 +34,7 @@ app.autodiscover_tasks(lambda: settings.INSTALLED_APPS)
 
 @app.task(bind=True)
 def debug_task(self):
-    print(f'Request: {self.request!r}')
+    print(f"Request: {self.request!r}")
 
 
 @setup_logging.connect

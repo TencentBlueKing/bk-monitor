@@ -599,7 +599,7 @@ paths:
         backend:
           name: default
           method: post
-          path: /api/v4/apm_metric_web/calculate_by_range/
+          path: /api/v4/mcp/calculate_by_range/
           matchSubpath: false
           timeout: 0
         pluginConfigs: []
@@ -645,7 +645,7 @@ paths:
         backend:
           name: default
           method: post
-          path: /api/v4/service_web/service_list/
+          path: /api/v4/mcp/list_apm_services/
           matchSubpath: false
           timeout: 0
         pluginConfigs: []

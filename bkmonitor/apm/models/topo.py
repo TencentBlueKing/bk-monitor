@@ -10,9 +10,10 @@ specific language governing permissions and limitations under the License.
 
 import datetime
 import logging
+import time
 from typing import Any
 
-from django.db import OperationalError, models, router, transaction
+from django.db import OperationalError, connections, models, router, transaction
 from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
 
@@ -73,7 +74,7 @@ class TopoNode(TopoBase):
     sdk = models.JSONField("上报sdk", null=True)
     # source: 服务被发现或观测到数据的类型，值为 TelemetryDataType，存储格式: ["trace", "metric"]
     source = models.JSONField("服务发现来源", default=list)
-    # 按数据类型保存秒级 last_data_at / checked_at，独立于节点生命周期 updated_at。
+    # 按数据类型保存最后数据时间和检查完成时间（秒）；更新心跳不刷新 updated_at。
     heartbeat = models.JSONField("服务数据心跳", default=dict)
     is_permanent = models.BooleanField("是否永久保存", default=False)
 
@@ -90,50 +91,85 @@ class TopoNode(TopoBase):
 
         在模型路由对应的事务内锁行、重读并合并 heartbeat，观测到有效数据时间时补齐 source。
         last_data_at 和 checked_at 均单调前进，其他数据类型的子键保持不变。
+        独立调用最多尝试 3 次，沿用连接的行锁等待配置；重试启动预算按 3 次锁等待及退避计算。
+        预算不打断执行中的 SQL，不能作为本方法的总耗时上限。
 
         :param last_data_at_mapping: 服务键到秒级数据时间的映射；显式 None 仅推进该服务的 checked_at，保留数据时间。
             未包含的服务不更新，不存在的节点不创建。
         :param checked_at: 本次输入覆盖服务的检查完成时间（秒），不代表应用全部服务已检查。
-        :return: 正常完成（包括无须更新）返回 True；锁超时或死锁回滚后返回 False，其他异常上抛。
+        :return: 正常完成（包括无须更新）返回 True；锁冲突重试耗尽返回 False，其他异常上抛。
         """
         if not last_data_at_mapping:
             return True
 
         database: str = router.db_for_write(cls)
-        try:
-            with transaction.atomic(using=database):
-                nodes: list[TopoNode] = list(
-                    cls.objects.using(database)
-                    .select_for_update()
-                    .filter(bk_biz_id=bk_biz_id, app_name=app_name, topo_key__in=last_data_at_mapping)
-                    .only("id", "topo_key", "heartbeat", "source")
-                    .order_by("id")
+        connection = connections[database]
+        # 外层事务仍可能持锁，死锁还会使整个事务回滚，不在其中退避重试。
+        max_attempts: int = 1 if connection.in_atomic_block else 3
+        started_at: float = time.monotonic()
+        retry_deadline: float | None = None
+        attempt: int = 1
+        while True:
+            try:
+                with transaction.atomic(using=database):
+                    nodes: list[TopoNode] = list(
+                        cls.objects.using(database)
+                        .select_for_update()
+                        .filter(bk_biz_id=bk_biz_id, app_name=app_name, topo_key__in=last_data_at_mapping)
+                        .only("id", "topo_key", "heartbeat", "source")
+                        .order_by("id")
+                    )
+                    for node in nodes:
+                        prev: dict[str, int | None] = node.heartbeat.get(data_type) or {}
+                        new_last_data_at: int | None = last_data_at_mapping[node.topo_key]
+                        if new_last_data_at is not None:
+                            prev["last_data_at"] = max(prev.get("last_data_at") or 0, new_last_data_at)
+                            source: list[str] = list(node.source or [])
+                            if data_type not in source:
+                                source.append(data_type)
+                                node.source = source
+                        prev["checked_at"] = max(prev.get("checked_at") or 0, checked_at)
+                        node.heartbeat[data_type] = prev
+                    cls.objects.using(database).bulk_update(nodes, fields=["heartbeat", "source"], batch_size=200)
+                return True
+            except OperationalError as error:
+                if not error.args or error.args[0] not in (1205, 1213):
+                    raise
+                if attempt < max_attempts:
+                    if retry_deadline is None:
+                        # 仅在首次冲突后读取预算依据，不修改会话配置，也不增加成功路径的查询。
+                        with connection.cursor() as cursor:
+                            cursor.execute("SELECT @@SESSION.innodb_lock_wait_timeout")
+                            lock_wait_timeout: int = cursor.fetchone()[0]
+                        # 最多 3 次原生锁等待，加上 0.1 秒和 0.2 秒退避，已耗时间从调用开始计算。
+                        retry_deadline = started_at + max_attempts * lock_wait_timeout + 0.3
+                    retry_delay: float = 0.1 * attempt
+                    if time.monotonic() + retry_delay < retry_deadline:
+                        logger.warning(
+                            "[ServiceHeartbeat] lock conflict, retrying heartbeat: "
+                            "bk_biz_id=%s app_name=%s data_type=%s errno=%s attempt=%s retry_delay_s=%s",
+                            bk_biz_id,
+                            app_name,
+                            data_type,
+                            error.args[0],
+                            attempt,
+                            retry_delay,
+                        )
+                        time.sleep(retry_delay)
+                        # 退避期间可能被调度暂停，真正开始下一次尝试前再检查截止时间。
+                        if time.monotonic() < retry_deadline:
+                            attempt += 1
+                            continue
+                logger.warning(
+                    "[ServiceHeartbeat] lock failed, keeping previous heartbeat: "
+                    "bk_biz_id=%s app_name=%s data_type=%s errno=%s attempts=%s",
+                    bk_biz_id,
+                    app_name,
+                    data_type,
+                    error.args[0],
+                    attempt,
                 )
-                for node in nodes:
-                    prev: dict[str, int | None] = node.heartbeat.get(data_type) or {}
-                    new_last_data_at: int | None = last_data_at_mapping[node.topo_key]
-                    if new_last_data_at is not None:
-                        prev["last_data_at"] = max(prev.get("last_data_at") or 0, new_last_data_at)
-                        source: list[str] = list(node.source or [])
-                        if data_type not in source:
-                            source.append(data_type)
-                            node.source = source
-                    prev["checked_at"] = max(prev.get("checked_at") or 0, checked_at)
-                    node.heartbeat[data_type] = prev
-                cls.objects.using(database).bulk_update(nodes, fields=["heartbeat", "source"], batch_size=200)
-        except OperationalError as error:
-            # 在事务退出并回滚后处理可恢复的行锁失败，其他数据库异常继续上抛。
-            if not error.args or error.args[0] not in (1205, 1213):
-                raise
-            logger.warning(
-                "[ServiceHeartbeat] lock failed, keeping previous heartbeat: bk_biz_id=%s app_name=%s data_type=%s errno=%s",
-                bk_biz_id,
-                app_name,
-                data_type,
-                error.args[0],
-            )
-            return False
-        return True
+                return False
 
     @classmethod
     def upsert_telemetry_nodes(

@@ -22,6 +22,7 @@ from typing import Any, cast
 import redis
 from django.conf import settings
 from django.db import transaction
+from django.db.models import Q
 from django.utils import timezone
 
 from alarm_backends.core.lock.service_lock import share_lock
@@ -869,6 +870,136 @@ def _get_annotation_value(annotations: dict[str, Any], key: str) -> Any:
     return None
 
 
+def _get_doris_physical_tables(config: dict[str, Any]) -> dict[str, str]:
+    """保存日志库表规则或 Profiling 的 sample/label 表，不展开索引规则。"""
+    storage_config = config["spec"].get("storage_config") or {}
+    database = storage_config.get("db")
+    if storage_config.get("is_profiling"):
+        return {
+            role: f"{database}.{storage_config[field]}"
+            for role, field in (("sample", "sample_table_name"), ("label", "label_table_name"))
+            if database and storage_config.get(field)
+        }
+    annotations = config["metadata"].get("annotations") or {}
+    physical_table = _get_annotation_value(annotations, "physical_table_name")
+    if not physical_table and database and storage_config.get("table"):
+        physical_table = f"{database}.{storage_config['table']}"
+    return {"main": physical_table} if physical_table else {}
+
+
+def _get_doris_sync_targets(
+    bk_tenant_id: str, namespace: str, parsed_configs: dict[str, ParsedComponentConfig]
+) -> dict[tuple[str, str, int], dict[str, str]]:
+    """按逻辑 RT、BKBase RT、集群选择唯一且就绪的 Binding。"""
+    configs = [extra for _, extra in parsed_configs.values()]
+    result_tables = {
+        rt.name: rt
+        for rt in ResultTableConfig.objects.filter(
+            bk_tenant_id=bk_tenant_id,
+            namespace=namespace,
+            name__in={extra["bkbase_result_table_name"] for extra in configs},
+        )
+    }
+    cluster_ids = dict(
+        ClusterInfo.objects.filter(
+            bk_tenant_id=bk_tenant_id,
+            cluster_type=ClusterInfo.TYPE_DORIS,
+            cluster_name__in={extra["doris_cluster_name"] for extra in configs},
+        ).values_list("cluster_name", "cluster_id")
+    )
+    candidates = defaultdict(list)
+    for name, (_, extra) in parsed_configs.items():
+        rt = result_tables.get(extra["bkbase_result_table_name"])
+        cluster_id = cluster_ids.get(extra["doris_cluster_name"])
+        if rt is not None and rt.table_id and rt.bkbase_table_id and cluster_id is not None:
+            candidates[(rt.table_id, rt.bkbase_table_id, cluster_id)].append((name, extra))
+
+    targets = {}
+    for key, bindings in candidates.items():
+        if len(bindings) != 1:
+            logger.warning(
+                "sync Doris physical tables: multiple bindings, tenant->[%s], namespace->[%s], "
+                "storage->[%s], bindings->[%s]",
+                bk_tenant_id,
+                namespace,
+                key,
+                [name for name, _ in bindings],
+            )
+            continue
+        _, binding = bindings[0]
+        physical_tables = binding["physical_tables"]
+        if binding["status"] != DataLinkResourceStatus.OK.value:
+            continue
+        # Binding 可记录部分配置；实体存储和历史快照只接受完整的表组合。
+        if set(physical_tables) in ({"main"}, {"sample", "label"}):
+            targets[key] = physical_tables
+    return targets
+
+
+def _sync_doris_physical_tables(
+    bk_tenant_id: str, namespace: str, parsed_configs: dict[str, ParsedComponentConfig]
+) -> None:
+    """批量更新已关联的实体存储，再补齐对应的当前历史快照。"""
+    targets = _get_doris_sync_targets(bk_tenant_id, namespace, parsed_configs)
+    if not targets:
+        return
+    storages = models.DorisStorage.objects.filter(
+        Q(origin_table_id="") | Q(origin_table_id__isnull=True),
+        bk_tenant_id=bk_tenant_id,
+        table_id__in={table_id for table_id, _, _ in targets},
+        storage_cluster_id__in={cluster_id for _, _, cluster_id in targets},
+    )
+    changed_storages = []
+    matched_storages = {}
+    for storage in storages:
+        physical_tables = targets.get((storage.table_id, storage.bkbase_table_id, storage.storage_cluster_id))
+        if physical_tables is None:
+            continue
+        if storage.physical_tables != physical_tables:
+            storage.physical_tables = physical_tables
+            changed_storages.append(storage)
+        matched_storages[(storage.table_id, storage.storage_cluster_id)] = storage
+    if changed_storages:
+        models.DorisStorage.objects.bulk_update(changed_storages, ["physical_tables"], batch_size=1000)
+    if matched_storages:
+        _fill_doris_storage_snapshots(bk_tenant_id, matched_storages)
+
+
+def _fill_doris_storage_snapshots(
+    bk_tenant_id: str, storages_by_key: dict[tuple[str, int], models.DorisStorage]
+) -> None:
+    """只补空字段，不覆盖已有快照，也不合并不同轮次的 Profiling 表。"""
+    records = models.StorageClusterRecord.objects.filter(
+        bk_tenant_id=bk_tenant_id,
+        table_id__in={key[0] for key in storages_by_key},
+        cluster_id__in={key[1] for key in storages_by_key},
+        is_current=True,
+        is_deleted=False,
+    )
+    records_by_fields = defaultdict(list)
+    for record in records:
+        storage = storages_by_key.get((record.table_id, record.cluster_id))
+        if storage is None:
+            continue
+        bkbase_table_id, physical_tables = storage.bkbase_table_id, storage.physical_tables
+        # 已有快照属于其他版本时，不将本轮配置拼入其中。
+        if (record.bkbase_table_id and record.bkbase_table_id != bkbase_table_id) or (
+            record.physical_tables and record.physical_tables != physical_tables
+        ):
+            continue
+        fields = []
+        if not record.bkbase_table_id:
+            record.bkbase_table_id = bkbase_table_id
+            fields.append("bkbase_table_id")
+        if not record.physical_tables:
+            record.physical_tables = physical_tables
+            fields.append("physical_tables")
+        if fields:
+            records_by_fields[tuple(fields)].append(record)
+    for fields, changed_records in records_by_fields.items():
+        models.StorageClusterRecord.objects.bulk_update(changed_records, fields, batch_size=1000)
+
+
 def _get_bkbase_components_config(
     bk_tenant_id: str,
     kind: str,
@@ -925,6 +1056,8 @@ def _get_bkbase_components_config(
         case DataLinkKind.DORISBINDING.value:
             extra_config["doris_cluster_name"] = spec["storage"]["name"]
             extra_config["bkbase_result_table_name"] = spec["data"]["name"]
+            extra_config["table_id"] = _get_result_table_id(spec["data"]["name"])
+            extra_config["physical_tables"] = _get_doris_physical_tables(config)
         case DataLinkKind.SURREALDBBINDING.value:
             extra_config["surrealdb_cluster_name"] = spec["storage"]["name"]
             extra_config["bkbase_result_table_name"] = spec["data"]["name"]
@@ -946,6 +1079,9 @@ def _get_bkbase_components_config(
             )
             extra_config["sink_names"] = [f"{sink['kind']}:{sink['name']}" for sink in spec["sinks"]]
             extra_config["consumer_group"] = spec.get("consumerGroup") or ""
+            extra_config["options"] = {
+                key: spec[key] for key in ("subTaskNum", "batch", "preferCluster") if key in spec
+            }
         case DataLinkKind.BASEREPORTSINK.value:
             vm_storage_binding_names = []
             for mapping in spec.get("mappings", []):
@@ -957,6 +1093,8 @@ def _get_bkbase_components_config(
 
 
 def _should_update_bkbase_component_field(kind: str, field: str, value: Any) -> bool:
+    if kind == DataLinkKind.DATABUS.value and field == "options":
+        return True
     if value:
         return True
     return kind == DataLinkKind.SURREALDBBINDING.value and field in {"vertices", "relations"} and value == []
@@ -971,7 +1109,11 @@ def _parse_bkbase_component_configs(
         return None
 
     result_table_ids = None
-    if kind in {DataLinkKind.VMSTORAGEBINDING.value, DataLinkKind.SURREALDBBINDING.value}:
+    if kind in {
+        DataLinkKind.VMSTORAGEBINDING.value,
+        DataLinkKind.SURREALDBBINDING.value,
+        DataLinkKind.DORISBINDING.value,
+    }:
         result_table_ids = dict(
             ResultTableConfig.objects.filter(bk_tenant_id=bk_tenant_id, namespace=namespace).values_list(
                 "name", "table_id"
@@ -1522,7 +1664,7 @@ def _reconcile_data_link_components() -> tuple[
     stats = DataLinkRefreshStats()
     discovery_tenant_ids = _get_data_link_discovery_tenant_ids()
 
-    # ResultTable 必须先于依赖其 table_id 的 VM/SurrealDB Binding 落库。
+    # ResultTable 必须先于依赖其 table_id 的 VM/SurrealDB/Doris Binding 落库。
     component_items = sorted(
         COMPONENT_CLASS_MAP.items(),
         key=lambda item: item[0] != DataLinkKind.RESULTTABLE.value,
@@ -1648,7 +1790,7 @@ def _reconcile_data_link_components() -> tuple[
                 terminated_count += 1
 
             try:
-                with transaction.atomic():
+                with transaction.atomic(using=metadata_config.DATABASE_CONNECTION_NAME):
                     if created_components:
                         component_class.objects.bulk_create(created_components, batch_size=1000)
                     if changed_components:
@@ -1657,6 +1799,8 @@ def _reconcile_data_link_components() -> tuple[
                             sorted(update_fields),
                             batch_size=1000,
                         )
+                    if component_kind == DataLinkKind.DORISBINDING.value:
+                        _sync_doris_physical_tables(bk_tenant_id, namespace, parsed_configs)
             except Exception as error:  # pylint: disable=broad-except
                 logger.exception(
                     "bulk_refresh_data_link_status: reconcile components failed, tenant->[%s], namespace->[%s], "
@@ -1707,7 +1851,10 @@ def _refresh_bkbase_result_table_statuses(
         if bkbase_record is None:
             continue
 
-        if all(status == DataLinkResourceStatus.OK.value for status in component_statuses):
+        # 停用后仍保留 RT/Binding；这些组件正常不代表采集链路已重新启用。
+        if bkbase_record.status == DataLinkResourceStatus.TERMINATING.value:
+            status = DataLinkResourceStatus.TERMINATING.value
+        elif all(status == DataLinkResourceStatus.OK.value for status in component_statuses):
             status = DataLinkResourceStatus.OK.value
         elif all(status == DataLinkResourceStatus.TERMINATED.value for status in component_statuses):
             status = DataLinkResourceStatus.TERMINATED.value

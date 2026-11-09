@@ -388,11 +388,12 @@ class AuthenticationMiddleware(MiddlewareMixin):
     def _handle_native_mcp(self, request, tool, tool_args, unified=False):
         """复用目录工具的执行逻辑，并按 standalone／Unified 入口渲染响应。"""
         request.mcp_usage_tool = tool.name
-        from rest_framework.exceptions import APIException, ValidationError
         from rest_framework.response import Response
 
+        from bkmonitor.utils.request import get_mcp_trace_id
         from bkmonitor.views.renderers import MonitorJSONRenderer
         from kernel_api.adapters import ApiRenderer
+        from kernel_api.unified_mcp.errors import build_mcp_error
         from kernel_api.unified_mcp.permissions import _principal, execute_native_tool
 
         status, status_code, error_type = "error", 503, ""
@@ -422,26 +423,15 @@ class AuthenticationMiddleware(MiddlewareMixin):
             content = renderer.render(data, renderer_context={"request": request, "response": Response()})
             status, status_code = "accessed", 200
             return HttpResponse(content, content_type="application/json")
-        except APIException as exc:
-            status_code, error_type = exc.status_code, type(exc).__name__
-            status = "permission_denied" if exc.status_code == 403 else "error"
-            message = "MCP permission or execution rejected"
-            if isinstance(exc, ValidationError):
-                status, message = "invalid_params", "MCP request validation failed"
-            return JsonResponse(
-                {
-                    "result": False,
-                    "code": exc.status_code,
-                    "message": message,
-                    "data": exc.detail,
-                },
-                status=exc.status_code,
-            )
         except Exception as exc:
+            # 所有失败都必须带可读原因：校验、权限、平台业务异常透传自身消息，未知异常至少返回类型和 trace_id。
             error_type = type(exc).__name__
+            status_code, status, message, data = build_mcp_error(
+                exc, get_mcp_trace_id(request), request.META.get("HTTP_X_BKAPI_REQUEST_ID", "")
+            )
             return JsonResponse(
-                {"result": False, "code": 503, "message": "MCP request failed; no data returned"},
-                status=503,
+                {"result": False, "code": status_code, "message": message, "data": data},
+                status=status_code,
             )
         finally:
             log_mcp_event(
@@ -904,8 +894,17 @@ class AuthenticationMiddleware(MiddlewareMixin):
         return
 
     def process_view(self, request, view, *args, **kwargs):
+        from kernel_api.mcp_read_routes import MCP_READ_PREFIX, is_application_read_route
+
+        # Django resolves path_info after stripping SCRIPT_NAME on mounted deployments.
+        backend_path = getattr(request, "path_info", request.path)
+        is_application = is_application_read_route(request.method, backend_path)
+        is_mcp_read = backend_path.startswith(MCP_READ_PREFIX)
+        if is_application and not self.use_apigw_auth(request):
+            return HttpResponseForbidden("Application read APIs require an authenticated gateway application")
+
         # 登录豁免
-        if getattr(view, "login_exempt", False):
+        if not is_application and not is_mcp_read and getattr(view, "login_exempt", False):
             return None
 
         if self.use_apigw_auth(request):
@@ -916,8 +915,17 @@ class AuthenticationMiddleware(MiddlewareMixin):
                     log_mcp_event("gateway_auth_denied", request, level=logging.WARNING, reason="invalid_jwt")
                 return HttpResponseForbidden(error_message)
 
-            app_code = request.jwt.app.app_code
-            username = request.jwt.user.username
+            if not is_application and ("app_code" not in request.jwt.app or "username" not in request.jwt.user):
+                return HttpResponseForbidden("Gateway identity claims are incomplete")
+            app_code = request.jwt.app.get("app_code")
+            username = request.jwt.user.get("username")
+            if is_application and (
+                request.jwt.app.get("verified") is not True
+                or not app_code
+                or self.use_mcp_auth(request, app_code)
+                or self.use_api_token_auth(request)
+            ):
+                return HttpResponseForbidden("Application read APIs require a verified gateway application")
             if settings.ENABLE_MULTI_TENANT_MODE:
                 bk_tenant_id = request.META.get("HTTP_X_BK_TENANT_ID")
                 if not bk_tenant_id:
@@ -937,10 +945,12 @@ class AuthenticationMiddleware(MiddlewareMixin):
 
         is_diagnostic = is_unified_diagnostic_route(request.method, request.path)
         try:
-            resolved_tool = resolve_readonly_tool(request.method, request.path)
+            resolved_tool = None if is_application else resolve_readonly_tool(request.method, backend_path)
         except Exception as exc:
             log_mcp_event("routing_failed", request, level=logging.WARNING, error_type=type(exc).__name__)
             return JsonResponse({"result": False, "message": "MCP routing is unavailable"}, status=503)
+        if is_mcp_read and resolved_tool is None:
+            return HttpResponseForbidden("Invalid MCP read route")
         if resolved_tool is not None or is_diagnostic:
             jwt_client = getattr(request, "jwt", None)
             if not (getattr(jwt_client, "is_valid", False) and jwt_client.user.get("verified") is True and username):

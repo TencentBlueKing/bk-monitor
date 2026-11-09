@@ -19,7 +19,6 @@ from rest_framework.reverse import reverse
 
 from apps.constants import RemoteStorageType
 from apps.feature_toggle.handlers.toggle import FeatureToggleObject
-from apps.feature_toggle.plugins.constants import UNIFY_QUERY_SEARCH_EXPORT
 from apps.log_search.constants import (
     ASYNC_DIR,
     ASYNC_EXPORT_EMAIL_TEMPLATE,
@@ -88,13 +87,12 @@ class SceneAsyncExportHandler:
         # 校验用户正在运行导出的任务数量
         AsyncTask.check_running_count_by_user(self.request_user, is_scene=True)
 
-        if FeatureToggleObject.switch(UNIFY_QUERY_SEARCH_EXPORT, self.bk_biz_id):
-            if AsyncTask.objects.filter(
-                request_param=self.search_dict,
-                created_by=self.request_user,
-                export_status=ExportStatus.DOWNLOAD_LOG,
-            ).exists():
-                raise DuplicateUnifyQueryExportException()
+        if AsyncTask.objects.filter(
+            request_param=self.search_dict,
+            created_by=self.request_user,
+            export_status=ExportStatus.DOWNLOAD_LOG,
+        ).exists():
+            raise DuplicateUnifyQueryExportException()
 
         result = self.scene_handler.pre_get_result(
             sorted_fields=self.scene_handler.origin_order_by,

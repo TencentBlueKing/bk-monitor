@@ -93,7 +93,7 @@ class IssueSourceAnalysisRule(AbstractRecordModel):
     agent_id = models.CharField(max_length=64, default="", blank=True, verbose_name="智能体 ID")
     skill_ids = JsonField(default=list, blank=True, verbose_name="Skill ID")
     knowledge_base_ids = JsonField(default=list, blank=True, verbose_name="知识库 ID")
-    # 规则资源按用户权限校验，实际执行必须沿用同一身份，不能随点击分析的人变化。
+    # 继承业务仓库配置人的身份；规则编辑人和点击分析的人都不会接管执行身份。
     run_as_user = models.CharField(max_length=64, default="", blank=True, verbose_name="规则执行用户")
 
 

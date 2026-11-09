@@ -134,8 +134,6 @@ BKDATA_ASYNC_FIELDS = ["dtEventTimeStamp", "ip", "gseindex", "_iteration_idx"]
 BKDATA_ASYNC_CONTAINER_FIELDS = ["dtEventTimeStamp", "container_id", "gseindex", "_iteration_idx"]
 # 采集异步导出必需字段
 LOG_ASYNC_FIELDS = ["dtEventTimeStamp", "serverIp", "gseIndex", "iterationIndex"]
-# 异步导出默认排序
-ASYNC_SORTED = "desc"
 # 获取异步导出目标多少
 ASYNC_COUNT_SIZE = 1
 # 异步导出最大条数
@@ -2145,6 +2143,98 @@ class DorisFieldTypeEnum(Enum):
         # 去除字段长度信息 例如：varchar(32)、decimal(10,2)
         cleaned_type = re.sub(r"\(.*?\)", "", field_type)
         return field_type_mapping.get(cleaned_type, field_type)
+
+
+# Doris 侧可能出现在字段类型里的 SQL 类型名，供混挂索引组判定使用。
+DORIS_SQL_FIELD_TYPES = frozenset(item.value for item in DorisFieldTypeEnum)
+
+# 页面可识别的 ES 字段类型，与 web/src/store/constant.js 的 fieldTypeMap 键严格对齐。
+# 任一侧新增类型都必须同步修改，并由对应的白名单一致性用例固化。
+ES_FIELD_TYPES = frozenset({
+    "any",
+    "number",
+    "integer",
+    "double",
+    "float",
+    "keyword",
+    "long",
+    "text",
+    "date",
+    "date_nanos",
+    "boolean",
+    "conflict",
+    "__virtual__",
+    "object",
+    "flattened",
+})
+
+# 仅供混挂索引组的字段规范化使用，不得并入 DorisFieldTypeEnum.get_es_field_type。
+# 后者同时被原生 Doris 分支与 apps/log_search/export/query.py 的导出时间字段判定使用，
+# 修改其映射表会改变这两条链路的既有行为。
+MIXED_STORAGE_EXTRA_TYPE_MAP = {
+    "largeint": "long",
+    "decimal": "double",
+    "array": "object",
+    "map": "object",
+    "struct": "object",
+    "json": "object",
+}
+
+
+class MixedStorageFieldTypeNormalizer:
+    """把混挂索引组里 UQ 返回的 SQL 类型规范化为页面可识别的 ES 类型。
+
+    用于 UnifyQueryMappingHandler.get_final_fields() 的 is_doris=False 分支与快照兜底分支。
+    判定与转换共用同一清洗实现，且不修改 DorisFieldTypeEnum 的既有映射表。
+    """
+
+    @staticmethod
+    def _clean_field_type(field_type: str) -> str:
+        """清洗类型字符串，返回小写且不带参数的类型名。
+
+        去除圆括号内的长度或精度信息，并截取尖括号之前的类型前缀，例如
+        varchar(32) -> varchar、decimal(10,2) -> decimal、array<int> -> array。
+
+        :param field_type: UQ 返回的原始字段类型
+        :return: 清洗后的类型名；空值或非字符串返回空字符串
+        """
+        if not field_type or not isinstance(field_type, str):
+            return ""
+        value = re.sub(r"\(.*?\)", "", field_type.strip().lower())
+        return value.split("<", 1)[0].strip()
+
+    @classmethod
+    def is_sql_field_type(cls, field_type: str) -> bool:
+        """判断字段类型是否为需要规范化的 SQL 类型。
+
+        :param field_type: UQ 返回的原始字段类型
+        :return: 属于 SQL 类型且不是页面已可识别的类型时返回 True
+        """
+        cleaned_type = cls._clean_field_type(field_type)
+        if not cleaned_type:
+            return False
+        is_declared = cleaned_type in DORIS_SQL_FIELD_TYPES
+        is_extra = cleaned_type in MIXED_STORAGE_EXTRA_TYPE_MAP
+        return (is_declared or is_extra) and cleaned_type not in ES_FIELD_TYPES
+
+    @classmethod
+    def normalize_field_type(cls, field: dict) -> str:
+        """把单个字段的 SQL 类型规范化为页面可识别的 ES 类型。
+
+        保持幂等：非 SQL 类型原样返回。先查混挂专用映射表，未命中时复用
+        DorisFieldTypeEnum.get_es_field_type 的既有映射。
+
+        :param field: 字段字典，至少包含 field_type，可含 field_name、is_analyzed
+        :return: 规范化后的字段类型；非 SQL 类型原样返回
+        """
+        field_type = field.get("field_type")
+        if not cls.is_sql_field_type(field_type):
+            return field_type
+        cleaned_type = cls._clean_field_type(field_type)
+        extra_type = MIXED_STORAGE_EXTRA_TYPE_MAP.get(cleaned_type)
+        if extra_type:
+            return extra_type
+        return DorisFieldTypeEnum.get_es_field_type(field)
 
 
 LOG_BUILT_IN_FIELD_LIST = [

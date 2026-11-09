@@ -34,7 +34,7 @@ import './ai-resource-select.scss';
 
 /**
  * @description 资源选择器（智能体 / 知识库 / Skill 通用）
- * 仅封装 Select 本体：本地搜索（外部 search-change 过滤）、选项渲染（名称 + 所属空间）、底部「新增」操作栏。
+ * 仅封装 Select 本体：本地搜索（外部 search-change 过滤）、选项渲染（名称 + 所属空间）。
  * 通过具体 props 接收数据与事件，不依赖具体的 composable 实例；表单包裹由父组件负责。
  */
 export default defineComponent({
@@ -64,11 +64,6 @@ export default defineComponent({
     searchLoading: {
       type: Boolean,
       default: false,
-    },
-    /** 底部操作栏文案，如「新增智能体」 */
-    footerText: {
-      type: String,
-      required: true,
     },
     /** 占位提示文本 */
     placeholder: {
@@ -140,12 +135,6 @@ export default defineComponent({
                     </div>
                   </Select.Option>
                 )),
-          extension: () => (
-            <div class='source-select-extension'>
-              <i class='icon-monitor icon-jia source-select-extension-icon' />
-              <span>{this.footerText}</span>
-            </div>
-          ),
         }}
       </Select>
     );

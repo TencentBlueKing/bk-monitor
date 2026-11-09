@@ -14,6 +14,7 @@ import re
 
 from django.db.models import Q
 
+from bkm_space.serializers import resolve_cmdb_biz_id
 from bkmonitor.models import ApiAuthToken, MetricListCache
 from bkmonitor.utils.request import get_request, get_request_tenant_id
 from constants.data_source import DataSourceLabel, DataTypeLabel
@@ -35,6 +36,20 @@ from monitor_web.plugin.constant import PluginType
 scene_params_mapping = {"sceneId": "scene_id", "sceneType": "type", "dashboardId": "id"}
 HOST_SCOPE_VERSION = 1
 HOST_DYNAMIC_TIME_PATTERN = re.compile(r"^now(?:[-+]\d+(?:m|h|d|w|M|y|Y))?(?:/(?:m|h|d|w|M|y|Y|fy))?$")
+
+
+def get_shared_alert_id(data: dict) -> str | None:
+    if not isinstance(data, dict):
+        return None
+    if data.get("name") == "alarm-center-detail" and isinstance(data.get("params"), dict):
+        alert_id = data["params"].get("alarmId")
+    elif data.get("name") == "event-center":
+        alert_id = data.get("eventId")
+    else:
+        return None
+    if isinstance(alert_id, (str, int)) and not isinstance(alert_id, bool) and alert_id:
+        return str(alert_id)
+    return None
 
 
 def validate_host_share_scope(data: dict) -> dict:
@@ -203,6 +218,8 @@ class HostApiAuthChecker(BaseApiAuthChecker):
     def __init__(self, token):
         super().__init__(token)
         self.scope = validate_host_share_scope(token.params.get("data", {}))
+        if self.scope.get("bk_obj_id") == "biz":
+            self.scope["bk_inst_id"] = resolve_cmdb_biz_id(self.bk_biz_id, self.scope["bk_inst_id"])
         self.allowed_hosts = self.get_allowed_hosts()
 
     def get_allowed_hosts(self):
@@ -283,12 +300,18 @@ class HostApiAuthChecker(BaseApiAuthChecker):
                 raise InvalidParamsError({"key": "start_time,end_time"})
             self.time_check(request_data["start_time"], request_data["end_time"])
 
-        if request_data.get("query_configs") and self.get_request_view_action() not in self.HOST_LIST_ACTIONS:
+        # Select the authorization contract by route. Other resources may drop
+        # unknown query_configs fields before executing their target parameters.
+        if self.get_request_view_action() == (
+            "monitor_web.grafana.views.GrafanaViewSet",
+            "time_series/unify_query",
+        ):
             self.query_configs_check(request_data["query_configs"])
         else:
             self.params_check(request_data)
 
     def params_check(self, request_data):
+        request_data = self.normalize_root_target(request_data)
         view_name, action = self.get_request_view_action()
         allow_descendant = action == "create" and (
             view_name == "monitor_web.performance.views.SearchHostMetricStatsViewSet"
@@ -345,7 +368,17 @@ class HostApiAuthChecker(BaseApiAuthChecker):
                     {"key": key, "error_params": request_data[key], "correct_params": value}
                 )
 
+    def normalize_root_target(self, target):
+        if self.scope.get("bk_obj_id") == "biz" and target.get("bk_obj_id") in ("biz", ["biz"]):
+            node_ids = target.get("bk_inst_id")
+            node_ids = node_ids if isinstance(node_ids, list) else [node_ids]
+            aliases = {str(self.bk_biz_id), str(self.scope["bk_inst_id"])}
+            if node_ids and all(str(node_id) in aliases for node_id in node_ids):
+                return {**target, "bk_obj_id": "biz", "bk_inst_id": self.scope["bk_inst_id"]}
+        return target
+
     def query_target_check(self, target, check_part):
+        target = self.normalize_root_target(target)
         allowed_host_ids = {str(host.bk_host_id) for host in self.allowed_hosts}
         allowed_ip_cloud_ids = {
             (str(ip), str(host.bk_cloud_id))
@@ -410,11 +443,14 @@ class HostApiAuthChecker(BaseApiAuthChecker):
         raise InvalidParamsError({"key": check_part})
 
     def query_configs_check(self, query_configs):
+        from monitor_web.scene_view.builtin.host import get_host_metric_bk_biz_id
+
+        metric_bk_biz_id = get_host_metric_bk_biz_id(self.bk_biz_id)
         # 增加主机指标范围校验
         host_metrics = set(
             MetricListCache.objects.filter(
                 bk_tenant_id=self.bk_tenant_id,
-                bk_biz_id__in=[0, self.bk_biz_id],
+                bk_biz_id__in=[0, metric_bk_biz_id],
                 result_table_label="os",
                 data_source_label="bk_monitor",
                 data_type_label="time_series",
@@ -423,7 +459,7 @@ class HostApiAuthChecker(BaseApiAuthChecker):
         process_metrics = set(
             MetricListCache.objects.filter(
                 bk_tenant_id=self.bk_tenant_id,
-                bk_biz_id__in=[0, self.bk_biz_id],
+                bk_biz_id__in=[0, metric_bk_biz_id],
                 result_table_id="system.proc",
                 data_source_label="bk_monitor",
                 data_type_label="time_series",
@@ -709,6 +745,12 @@ class KubernetesApiAuthChecker(BaseApiAuthChecker):
             raise InvalidParamsError({"key": "query_configs.where"})
 
     def params_check(self, request_data):
+        if "resource_type" in request_data and self.scene_params["type"] == "detail":
+            resource_type = request_data.get("resource_type")
+            if resource_type != self.scene_params["id"]:
+                raise ParamsPermissionDeniedError(
+                    {"key": "resource_type", "error_params": resource_type, "correct_params": self.scene_params["id"]}
+                )
         # 通用参数校验
         for path in self.query_paths:
             # 不校验场景参数的接口，存在冲突参数名

@@ -27,10 +27,11 @@ import { computed, shallowRef, unref, watch } from 'vue';
 import type { MaybeRef } from 'vue';
 
 import { TIMELINE_REQUEST_RESOURCE_TYPES } from '../constants';
-import { getViewTimeline } from '../services';
+import { getViewTimeline, searchTraceInfoMap } from '../services';
 import { RumTimelineFilterCategoryEnum } from '../typings';
 import { buildRecordMap, buildTimelineItems, buildViewVM, findSpanPath } from '../utils/timeline-transform';
 
+import type { IRumTraceInfo } from '../services';
 import type {
   IRumTimelineItemVM,
   IRumTimelineNode,
@@ -46,6 +47,8 @@ interface IUseTraceContextOptions {
   /** 「链路上下文」tab 是否激活，未激活时不发请求 */
   active: MaybeRef<boolean>;
   appName: MaybeRef<string>;
+  /** 业务 ID，用于检索关联 Trace 所属应用 */
+  bizId: MaybeRef<number | string | undefined>;
   /** 当前详情的 span_id，决定高亮与折叠锚点 */
   currentSpanId: MaybeRef<string>;
   /** 当前 Span 所属的 View ID，为空时不请求 */
@@ -59,27 +62,47 @@ interface IUseTraceContextOptions {
  *
  * 同一 View 下切换 Span（上一个 / 下一个）不重复请求，只重新定位高亮与折叠锚点。
  */
-export function useTraceContext({ active, appName, currentSpanId, formatField, viewId }: IUseTraceContextOptions) {
+export function useTraceContext({
+  active,
+  appName,
+  bizId,
+  currentSpanId,
+  formatField,
+  viewId,
+}: IUseTraceContextOptions) {
   const timeline = shallowRef<IRumTimelineResponse | null>(null);
   const loading = shallowRef(false);
   /** 接口失败，与「无数据」区分展示 */
   const error = shallowRef(false);
   const expandedFolds = shallowRef(new Set<string>());
   const expandedNodes = shallowRef(new Set<string>());
+  /** 关联 Trace 的检索结果：只有命中项才展示行内入口 */
+  const traceInfoMap = shallowRef<Map<string, IRumTraceInfo>>(new Map());
   /** 请求序号，用于丢弃过期响应 */
   let requestId = 0;
   /** 已请求过的 `${appName}|${viewId}`，相同时不重复请求 */
   let fetchedKey = '';
 
+  /** 随 timeline 一起检索全部关联 trace_id 的所属应用，不阻塞列表渲染 */
+  async function fetchTraceInfos(records: IRumTimelineRecord[], seq: number) {
+    const traceIds = records.map(record => String(record.origin_data?.links?.[0]?.trace_id ?? '')).filter(Boolean);
+    if (!traceIds.length) return;
+    const infos = await searchTraceInfoMap(traceIds, unref(bizId) ?? window.cc_biz_id);
+    if (seq !== requestId) return;
+    traceInfoMap.value = infos;
+  }
+
   async function fetchTimeline(app: string, view: string) {
     const seq = ++requestId;
     loading.value = true;
     error.value = false;
+    traceInfoMap.value = new Map();
     const res = await getViewTimeline({ app_name: app, view_id: view });
     if (seq !== requestId) return;
     timeline.value = res;
     error.value = !res;
     loading.value = false;
+    if (res) fetchTraceInfos(res.records, seq);
   }
 
   watch(
@@ -92,6 +115,7 @@ export function useTraceContext({ active, appName, currentSpanId, formatField, v
       if (!view) {
         requestId++;
         timeline.value = null;
+        traceInfoMap.value = new Map();
         error.value = false;
         loading.value = false;
         return;
@@ -225,6 +249,7 @@ export function useTraceContext({ active, appName, currentSpanId, formatField, v
       expandedFolds: expandedFolds.value,
       expandedNodes: expandedNodes.value,
       showAll: hasFilter.value,
+      traceInfoMap: traceInfoMap.value,
     })
   );
 

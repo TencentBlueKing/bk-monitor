@@ -30,6 +30,7 @@ from uuid import uuid4
 from blueapps.core.celery.celery import app
 from celery.exceptions import SoftTimeLimitExceeded
 from django.conf import settings
+from django.db import OperationalError
 from django.db.models import Count, F, Q
 from django.utils import timezone
 
@@ -67,16 +68,32 @@ def _lease_expired(field, now):
     return Q(**{f"{field}__isnull": True}) | Q(**{f"{field}__lt": now - lease})
 
 
-def _enqueue(job_ids, field, statuses, task_name, queue=PLAN_QUEUE):
-    """条件更新抢占入队租约以防重复发布；发布失败释放租约，崩溃或消息丢失由租约到期恢复。"""
+def _enqueue(job_ids, field, statuses, task_name, queue=PLAN_QUEUE, **filters):
+    """
+    条件更新抢占入队租约以防重复发布；发布失败释放租约，崩溃或消息丢失由租约到期恢复。
+
+    filters 是状态之外的额外资格条件（如只允许首次尝试），与 statuses 一起在抢占租约时二次校验。
+    """
     sent = []
     for job_id in job_ids:
         now = timezone.now()
-        claimed = (
-            ExportJob.objects.filter(pk=job_id, status__in=statuses)
-            .filter(_lease_expired(field, now))
-            .update(**{field: now})
-        )
+        try:
+            claimed = (
+                ExportJob.objects.filter(pk=job_id, status__in=statuses, **filters)
+                .filter(_lease_expired(field, now))
+                .update(**{field: now})
+            )
+        except OperationalError as error:
+            if not error.args or error.args[0] not in (1205, 1213):
+                raise
+            # 单个任务的锁冲突不应阻断其余任务；未取得租约时不修改已有占位。
+            logger.warning(
+                "[sharded_export_enqueue_lock_conflict] job_id=%s field=%s error_code=%s",
+                job_id,
+                field,
+                error.args[0],
+            )
+            continue
         if not claimed:
             continue
         try:
@@ -118,6 +135,17 @@ def enqueue_planning(limit):
         [ExportJobStatus.PENDING, ExportJobStatus.PLANNING],
         PLAN_TASK_NAME,
     )
+
+
+def request_planning(job_id):
+    """新任务落库后定点入队，失败时保留给周期扫描恢复。"""
+    try:
+        return _enqueue(
+            [job_id], "planning_enqueued_at", [ExportJobStatus.PENDING], PLAN_TASK_NAME, planning_attempts=0
+        )
+    except Exception:  # pylint: disable=broad-except
+        logger.exception("[request_planning] job=%s enqueue failed", job_id)
+        return []
 
 
 def _quota_keys(job):
@@ -301,14 +329,11 @@ def finalizing_jobs(limit):
     now = timezone.now()
     cutoff = now - state.finalization_window()
     return list(
-        ExportJob.objects.filter(
-            Q(status=ExportJobStatus.RUNNING)
-            | Q(status=ExportJobStatus.FINALIZING, finalization_started_at__lt=cutoff),
-            plan_version__gt=0,
+        state.finalizable_jobs()
+        .filter(
+            Q(status=ExportJobStatus.RUNNING) | Q(status=ExportJobStatus.FINALIZING, finalization_started_at__lt=cutoff)
         )
         .filter(_lease_expired("finalization_enqueued_at", now))
-        .annotate(**state.leaf_counts_annotation())
-        .filter(leaf_total__gt=0, leaf_success=F("leaf_total"))
         .order_by("pk")
         .values_list("pk", flat=True)[:limit]
     )
@@ -322,6 +347,32 @@ def enqueue_finalization(limit):
         FINALIZE_TASK_NAME,
         queue=FINALIZE_QUEUE,
     )
+
+
+def request_finalization(job_id):
+    """成功分片提交后检查本任务，收尾重试仍交给周期扫描。"""
+    try:
+        # 还有未成功的叶子分片时直接跳过：单片成功都要查一次，不做全量叶子计数
+        if state.unfinished_leaf_exists(job_id):
+            return []
+        job_ids = list(
+            state.finalizable_jobs()
+            .filter(pk=job_id, status=ExportJobStatus.RUNNING, finalization_attempts=0)
+            .values_list("pk", flat=True)
+        )
+        return _enqueue(
+            job_ids,
+            "finalization_enqueued_at",
+            [ExportJobStatus.RUNNING],
+            FINALIZE_TASK_NAME,
+            queue=FINALIZE_QUEUE,
+            finalization_attempts=0,
+        )
+    except SoftTimeLimitExceeded:
+        raise
+    except Exception:  # pylint: disable=broad-except
+        logger.exception("[request_finalization] job=%s enqueue failed", job_id)
+        return []
 
 
 def pending_notifications(limit):

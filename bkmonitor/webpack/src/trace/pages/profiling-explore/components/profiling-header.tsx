@@ -33,6 +33,7 @@ import ProfilingServiceSelect from './profiling-service-select';
 import RefreshRate from '@/components/refresh-rate/refresh-rate';
 import { useSelectorShortcut } from '@/components/selector-shortcut/selector-shortcut';
 import TimeRangePicker from '@/components/time-range/time-range';
+import { useAppStore } from '@/store/modules/app';
 
 import type { Application, CompareMode, ProfilingTab, QueryState, ServiceDetail } from '../types';
 
@@ -56,6 +57,8 @@ export default defineComponent({
   },
   setup(props, { emit }) {
     const { t } = useI18n();
+    const store = useAppStore();
+    const bizId = computed(() => Number(store.bizId));
     const detailsVisible = shallowRef(false);
     const selector = shallowRef<HTMLElement>();
     const serviceSelector = shallowRef<InstanceType<typeof ProfilingServiceSelect>>();
@@ -64,6 +67,10 @@ export default defineComponent({
       const value = appName && serviceName ? [appName, serviceName] : [];
       return value.length === previous?.length && value.every((id, index) => id === previous[index]) ? previous : value;
     });
+    // 主动采集只有历史和结果视图依赖全局时间范围，任务管理不查询时间维度。
+    const showTimeTools = computed(
+      () => props.tab !== 'collection' || ['history', 'results'].includes(props.state.collection.tab)
+    );
     useSelectorShortcut(
       () => {
         // 选择器触发器是 Popover 的 click reference，菜单里的搜索框在打开前不在页面上。
@@ -78,11 +85,21 @@ export default defineComponent({
     }
     return {
       t,
+      bizId,
       detailsVisible,
       selector,
       serviceSelector,
       createApplication: () => serviceSelector.value?.goToApplication(true),
+      openService: () => {
+        const trigger = selector.value?.querySelector<HTMLElement>('.profiling-service-trigger');
+        if (!trigger || trigger.classList.contains('active')) return;
+        // 当前点击还在冒泡，Popover 会把它当成外部点击立刻收起；等这次点击结束后再打开。
+        window.setTimeout(() => {
+          if (!trigger.classList.contains('active')) trigger.click();
+        }, 0);
+      },
       serviceValue,
+      showTimeTools,
       changeTime,
       formatTime: (time: null | number) =>
         time
@@ -119,15 +136,9 @@ export default defineComponent({
         >
           <Radio.Button label='application'>{this.t('应用服务')}</Radio.Button>
           <Radio.Button label='file'>{this.t('文件分析')}</Radio.Button>
-          {/* 主动采集暂未开放，入口保留但先不展示 */}
-          <Radio.Button
-            v-show={false}
-            v-tippy={this.t('敬请期待')}
-            label='collection'
-            disabled
-          >
-            {this.t('主动采集')}
-          </Radio.Button>
+          {window.active_profiling_biz_list?.includes(+this.bizId) && (
+            <Radio.Button label='collection'>{this.t('主动采集')}</Radio.Button>
+          )}
         </Radio.Group>
         {this.tab === 'application' && (
           <>
@@ -187,7 +198,7 @@ export default defineComponent({
             {this.$slots.fileTools?.()}
           </>
         )}
-        {this.tab !== 'collection' && (
+        {this.showTimeTools && (
           <div class='profiling-time-tools'>
             <TimeRangePicker
               modelValue={this.state.timeRange}

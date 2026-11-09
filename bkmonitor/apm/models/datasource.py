@@ -13,6 +13,7 @@ import json
 import math
 import operator
 import re
+import time
 from functools import reduce
 from typing import Any, ClassVar, Optional
 
@@ -250,6 +251,10 @@ class ApmDataSourceConfigBase(models.Model):
         self.bk_data_id = link_info["bk_data_id"]
         self.result_table_id = link_info["result_table_id"]
 
+    def release_for_migration(self) -> None:
+        """释放迁出链路，子类可保留历史查询所需资源。"""
+        self.stop(self.bk_biz_id, self.app_name)
+
     def reset_link_info(self) -> None:
         """重置当前数据源链路信息为未创建状态。
 
@@ -266,17 +271,17 @@ class ApmDataSourceConfigBase(models.Model):
     @atomic(using=DATABASE_CONNECTION_NAME)
     def apply_datasource(cls, bk_biz_id: int, app_name: str, **options) -> None:
         """创建/更新应用的数据源（支持独占和共享两种模式）"""
-        obj = cls.objects.filter(bk_biz_id=bk_biz_id, app_name=app_name).first()
+        obj = cls.objects.select_for_update().filter(bk_biz_id=bk_biz_id, app_name=app_name).first()
         if not obj:
             obj = cls.objects.create(bk_biz_id=bk_biz_id, app_name=app_name)
 
         is_shared: bool = options.get("is_shared", False)
 
-        # 模式变化时先停用当前链路；迁入共享前备份独占 RT，迁出独占时仅恢复已有独占备份。
-        if obj.result_table_id != "" and obj.is_shared != is_shared:
+        # 模式变化时保留迁出链路。
+        if obj.result_table_id and obj.is_shared != is_shared:
             if is_shared:
                 obj.backup_exclusive_link_info()
-            cls.stop(bk_biz_id, app_name)
+            obj.release_for_migration()
             obj.reset_link_info()
             if not is_shared and obj.backup_link_info:
                 obj.recover_link_info()
@@ -570,6 +575,22 @@ class LogDataSource(ApmDataSourceConfigBase):
 
 
 class TraceDataSource(ApmDataSourceConfigBase):
+    history_link_info = models.JSONField("历史链路信息", default=list)
+
+    @staticmethod
+    def get_query_table_ids(
+        table_id: str, history_link_info: list[dict[str, Any]], start_time: int, end_time: int
+    ) -> list[str]:
+        """按切换区间前后各半小时选表，保留 A → B → A 的两次切换后再去重。"""
+        table_ids: dict[str, None] = {}
+        since: int = 0
+        for link in [*history_link_info, {"table_id": table_id, "switched_at": None}]:
+            until: int | None = link["switched_at"]
+            if since - 1800 <= end_time and (until is None or until + 1800 >= start_time):
+                table_ids[link["table_id"]] = None
+            since = until or since
+        return list(table_ids)
+
     DATASOURCE_TYPE = ApmDataSourceConfigBase.TRACE_DATASOURCE
     CONCURRENT_NUMBER = 5
     GROUP_AGGREGATE_METHODS: ClassVar[tuple[str, ...]] = ("avg", "max", "min", "sum", "count")
@@ -869,12 +890,11 @@ class TraceDataSource(ApmDataSourceConfigBase):
         return info
 
     def _get_backup_link_info(self) -> dict[str, Any]:
-        """获取需要备份的 Trace 独占链路字段。
-
-        index_set 在迁入共享时会删除，迁出独占时按结果表重新创建，因此不写入备份。
-        """
+        """保留独占链路及索引集，回切时复用。"""
         info: dict[str, Any] = super()._get_backup_link_info()
         info["bkdata_datalink_config"] = self.bkdata_datalink_config
+        info["index_set_id"] = self.index_set_id
+        info["index_set_name"] = self.index_set_name
         return info
 
     def set_from_shared(self, shared_info: dict[str, Any]) -> None:
@@ -891,6 +911,22 @@ class TraceDataSource(ApmDataSourceConfigBase):
         if not link_info:
             return
         self.bkdata_datalink_config = link_info["bkdata_datalink_config"]
+        # 兼容旧备份：未保存索引集时仍按原流程创建。
+        self.index_set_id = link_info.get("index_set_id")
+        self.index_set_name = link_info.get("index_set_name")
+
+    def release_for_migration(self) -> None:
+        """迁出仅释放共享池占用，保留 RT 和索引集供历史查询。"""
+        self.history_link_info = [
+            *self.history_link_info,
+            {
+                "table_id": self.result_table_id,
+                "switched_at": int(time.time()),
+                "retention": self.retention,
+            },
+        ]
+        if self.is_shared and (shared_ds := self._get_shared_datasource()):
+            shared_ds.release()
 
     def reset_link_info(self) -> None:
         """重置当前数据源链路信息为未创建状态（含 Trace 特有字段）。"""
@@ -1092,6 +1128,11 @@ class TraceDataSource(ApmDataSourceConfigBase):
             try:
                 res = api.log_search.update_index_set(index_set_id=index_set_id, **params)
             except Exception as e:  # noqa
+                # 日志平台 IndexSetDoseNotExistException：旧索引集已被清理时重建。
+                if isinstance(e, BKAPIError) and str(e.data.get("code")) == "3623301":
+                    # 重建失败需抛出，避免迁回独占后仍保存已失效的索引集 ID。
+                    res = api.log_search.create_index_set(**params)
+                    return res.get("index_set_id"), res.get("index_set_name")
                 logger.error(
                     f"[TraceDatasource] update index set failed {e} \n index set id: {index_set_id} params: {params}"
                 )

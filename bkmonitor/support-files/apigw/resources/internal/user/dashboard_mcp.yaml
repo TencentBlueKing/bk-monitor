@@ -20,7 +20,7 @@ paths:
         backend:
           name: default
           method: get
-          path: /api/v4/grafana/get_directory_tree/
+          path: /api/v4/mcp/get_dashboard_tree_list/
           matchSubpath: false
           timeout: 63
         pluginConfigs: []
@@ -56,7 +56,7 @@ paths:
         backend:
           name: default
           method: get
-          path: /api/v4/grafana/get_dashboard_detail/
+          path: /api/v4/mcp/get_dashboard_detail_by_uid/
           matchSubpath: false
           timeout: 63
         pluginConfigs: []

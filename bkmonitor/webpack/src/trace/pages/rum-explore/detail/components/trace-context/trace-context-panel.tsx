@@ -34,6 +34,7 @@ import TimelineFoldRow from './timeline-fold-row';
 import TimelineSpanRow from './timeline-span-row';
 import TimelineViewHeader from './timeline-view-header';
 
+import type { IRumTraceInfo } from '../../services';
 import type { IRumTimelineItemVM, IRumTimelineSpanVM, IRumTimelineViewVM } from '../../typings';
 
 import './trace-context-panel.scss';
@@ -73,14 +74,14 @@ export default defineComponent({
     expandFold: (_key: string) => true,
     toggleNode: (_spanId: string) => true,
     spanClick: (_span: IRumTimelineSpanVM) => true,
-    traceClick: (_traceId: string) => true,
+    traceClick: (_trace: IRumTraceInfo) => true,
     viewClick: (_view: IRumTimelineViewVM) => true,
   },
   setup(props, { emit }) {
     const { t } = useI18n();
 
-    /** 卡片展开状态：默认折叠，只展示 View 头部摘要 */
-    const expanded = shallowRef(false);
+    /** 瀑布图展开状态：收起时只隐藏 WaterfallChart，View 头部与 Span 时间线保持展示 */
+    const expanded = shallowRef(true);
 
     function renderSkeleton() {
       return (
@@ -128,7 +129,7 @@ export default defineComponent({
             data={item.data}
             onSpanClick={span => emit('spanClick', span)}
             onToggle={spanId => emit('toggleNode', spanId)}
-            onTraceClick={traceId => emit('traceClick', traceId)}
+            onTraceClick={trace => emit('traceClick', trace)}
           />
         )
       );
@@ -161,6 +162,7 @@ export default defineComponent({
           <TimelineViewHeader
             data={props.view}
             expanded={expanded.value}
+            showToggle={Boolean(props.view.waterfall?.rows?.length)}
             spanType={props.spanType}
             onToggle={() => {
               expanded.value = !expanded.value;
@@ -168,7 +170,7 @@ export default defineComponent({
             onViewClick={view => emit('viewClick', view)}
           />
           {expanded.value && props.view.waterfall ? <WaterfallChart data={props.view.waterfall} /> : null}
-          {expanded.value ? <div class='trace-context-timeline'>{renderItems()}</div> : null}
+          <div class='trace-context-timeline'>{renderItems()}</div>
         </div>
       );
     }

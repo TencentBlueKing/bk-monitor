@@ -695,7 +695,7 @@ def _execute_native_tool(tool, tool_args, request):
     errors = list(Draft7Validator(tool.input_schema).iter_errors(args))
     if errors:
         raise ValidationError({"tool_args": errors[0].message})
-    if tool.name == "search_logs":
+    if tool.name in {"search_logs", "analyze_field"}:
         target_type = args.get("target_type", "index_set")
         required_arg = "table_id_conditions" if target_type == "scene" else "index_set_id"
         if not args.get(required_arg):

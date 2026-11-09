@@ -31,6 +31,8 @@ from django.urls import reverse
 from django.utils.translation import gettext_lazy as _
 
 from config.log import get_logging_config_dict
+from config import kms
+from apps.utils.crypto import LEGACY_SYMMETRIC_CIPHER_CLASSES
 
 # 使用k8s部署模式
 IS_K8S_DEPLOY_MODE = os.getenv("DEPLOY_MODE") == "kubernetes"
@@ -229,7 +231,6 @@ CELERY_ACCEPT_CONTENT = ["pickle"]
 
 CELERY_IMPORTS = (
     "apps.log_search.tasks.bkdata",
-    "apps.log_search.tasks.async_export",
     "apps.log_search.tasks.scene_async_export",
     "apps.log_search.tasks.unify_query_async_export",
     "apps.log_search.tasks.sharded_export",
@@ -259,8 +260,9 @@ if os.environ.get("BKAPP_FEATURE_TGPA_TASK", "off") == "on":
     CELERY_IMPORTS += ("apps.tgpa.tasks",)
 
 # bk crypto sdk配置
-BKPAAS_BK_CRYPTO_KEY = os.getenv("BKPAAS_BK_CRYPTO_KEY")
+BKPAAS_BK_CRYPTO_KEY = kms.value("encryption", "bk_crypto_key", os.getenv("BKPAAS_BK_CRYPTO_KEY"))
 BKCRYPTO = {
+    "SYMMETRIC_CIPHER_CLASSES": LEGACY_SYMMETRIC_CIPHER_CLASSES,
     "SYMMETRIC_CIPHERS": {
         "default": {
             "get_key_config": "apps.utils.aes.get_default_symmetric_key_config",
@@ -424,6 +426,9 @@ BK_FAQ_URL = "https://bk.tencent.com/s-mart/community"
 
 # SaaS访问域名
 BK_BKLOG_HOST = os.environ.get("BK_BKLOG_HOST", f"{BK_PAAS_HOST}/o/bk_log_search/")
+
+# 权限中心 SaaS host（V4）：未显式配置时按 SaaS 域名规则由 bklog 替换为 iam
+BK_IAM_V4_SAAS_HOST = os.environ.get("BK_IAM_V4_SAAS_HOST") or os.getenv("BK_BKLOG_HOST", "").replace("bklog", "iam")
 
 # API访问地址，APIGW 需要用到
 BK_BKLOG_API_HOST = os.getenv("BKAPP_BKLOG_API_HOST", "http://bk-log-search-api")
@@ -1128,6 +1133,8 @@ if REDIS_MODE == "sentinel" and not BKAPP_IS_BKLOG_API:
     REDIS_SENTINEL_PORT = int(os.getenv("BKAPP_REDIS_SENTINEL_PORT", 26379))
     REDIS_SENTINEL_MASTER_NAME = os.getenv("BKAPP_REDIS_SENTINEL_MASTER_NAME", "mymaster")
     REDIS_SENTINEL_PASSWORD = os.getenv("BKAPP_REDIS_SENTINEL_MASTER_PASSWORD", "")
+
+REDIS_PASSWD = kms.value("redis", "password", REDIS_PASSWD)
 
 # BKLOG 后台QOS配置
 BKLOG_QOS_USE = os.getenv("BKAPP_QOS_USE", "on") == "on"

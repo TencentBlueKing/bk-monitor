@@ -147,6 +147,18 @@ interface IStrategyConfigSetProps {
 const PROMETHEUS = 'prometheus';
 
 const DEFAULT_INTERVAL = 60; // 指标默认的周期单位：秒
+/** 可识别的时间单位，需与后台 TimeUnit 的单位 id 保持一致 */
+const TIME_UNIT_IDS = ['ns', 'µs', 'ms', 's', 'm', 'h', 'd'];
+
+/** 编辑/克隆回填时的原始单位快照 */
+interface IOriginUnitSnapshot {
+  metricId: number | string;
+  queryUnit: string;
+  /** 回填后检测规则下拉框展示的单位；空串表示当时没有展示单位 */
+  displayUnit: string;
+  /** key 为 `${level}|${type}`，同 key 多条规则按顺序存放 */
+  ruleUnits: Record<string, string[]>;
+}
 const DEFAULT_TIME_RANGE: ITimeRangeMultipleProps['value'] = DEFAULT_TIME_RANGES.map(timeRange => [
   `${timeRange[0]}:00`,
   `${timeRange[1]}:59`,
@@ -228,6 +240,10 @@ export default class StrategyConfigSet extends tsc<IStrategyConfigSetProps, IStr
 
   /** 检测规则编辑时需要回填的数据 */
   detectionDataBackfill = [];
+  /** 编辑/克隆回填时的原始单位快照，用户未主动修改单位时按此提交，保证原告警门槛不变 */
+  originUnitSnapshot: IOriginUnitSnapshot | null = null;
+  /** 用户是否在检测规则中主动修改过单位 */
+  isUnitManuallyChanged = false;
 
   // 告警处理数据(旧)
   // actionList: IAlarmHandleValue[] = [];
@@ -567,6 +583,18 @@ export default class StrategyConfigSet extends tsc<IStrategyConfigSetProps, IStr
   @ProvideReactive('yAxisNeedUnit')
   get needShowUnit() {
     return this.isShowExpress ? !this.localExpress || this.localExpress.toLocaleLowerCase() === 'a' : true;
+  }
+  /** 是否按编辑回填时的原始单位快照提交（换指标、主动改单位或不再需要单位时失效） */
+  get useOriginUnitSnapshot() {
+    return (
+      !!this.originUnitSnapshot &&
+      !this.isUnitManuallyChanged &&
+      this.needShowUnit &&
+      this.monitorDataEditMode === 'Edit' &&
+      this.selectMetricData.length === 1 &&
+      this.selectMetricData[0].metric_id === this.originUnitSnapshot.metricId &&
+      !!this.detectionConfig.unitType
+    );
   }
 
   @Watch('id', { immediate: true })
@@ -913,6 +941,8 @@ export default class StrategyConfigSet extends tsc<IStrategyConfigSetProps, IStr
     };
     // 检测回填数据
     this.detectionDataBackfill = [];
+    this.originUnitSnapshot = null;
+    this.isUnitManuallyChanged = false;
 
     // 自愈告警处理数据
     // this.actionList = [];
@@ -1487,11 +1517,51 @@ export default class StrategyConfigSet extends tsc<IStrategyConfigSetProps, IStr
     this.detectionConfig.data = algorithms.map(({ unit_prefix, ...item }) => this.displayDetectionRulesConfig(item));
     this.detectionDataBackfill = deepClone(this.detectionConfig.data);
     this.detectionConfig.connector = connector;
-    this.detectionConfig.unit = algorithms?.[0]?.unit_prefix || '';
+    this.initDetectionUnit(queryConfigs, algorithms);
     this.metricSelector.type = metric_type || MetricType.TimeSeries;
     // issue聚合数据回显
     this.issueConfig = issueConfig;
     this.alarmHandlingListRefreshKey = random(8);
+  }
+  /**
+   * 编辑/克隆回填检测规则单位
+   * 原查询单位与所有规则单位均为空且指标为时间单位时，两侧等价回填为指标单位；
+   * 其余情况记录原始单位快照，用户未主动修改单位时按原配置提交，避免改变告警门槛
+   */
+  initDetectionUnit(
+    queryConfigs: { unit?: string }[] = [],
+    algorithms: { level: number; type: string; unit_prefix?: string }[] = []
+  ) {
+    this.originUnitSnapshot = null;
+    this.isUnitManuallyChanged = false;
+    const { unitType } = this.detectionConfig;
+    const firstRuleUnit = algorithms?.[0]?.unit_prefix || '';
+    if (
+      this.monitorDataEditMode !== 'Edit' ||
+      this.isMultivariateAnomalyDetection ||
+      this.metricData.length !== 1 ||
+      !unitType
+    ) {
+      this.detectionConfig.unit = firstRuleUnit;
+      return;
+    }
+    const queryUnit = queryConfigs?.[0]?.unit || '';
+    const isAllEmpty = !queryUnit && algorithms.every(item => !item.unit_prefix);
+    const isBackfill = isAllEmpty && TIME_UNIT_IDS.includes(unitType) && this.needShowUnit;
+    const displayUnit = isBackfill ? unitType : firstRuleUnit;
+    const ruleUnits: Record<string, string[]> = {};
+    for (const { level, type, unit_prefix } of algorithms) {
+      const key = `${level}|${type}`;
+      if (!ruleUnits[key]) ruleUnits[key] = [];
+      ruleUnits[key].push(isBackfill ? unitType : unit_prefix || '');
+    }
+    this.originUnitSnapshot = {
+      metricId: this.metricData[0].metric_id,
+      queryUnit: isBackfill ? unitType : queryUnit,
+      displayUnit,
+      ruleUnits,
+    };
+    this.detectionConfig.unit = displayUnit;
   }
   // 检测算法回显空数据转换
   displayDetectionRulesConfig(item) {
@@ -1589,6 +1659,14 @@ export default class StrategyConfigSet extends tsc<IStrategyConfigSetProps, IStr
       this.detectionConfig.unitType = this.metricData[0].unit;
       if (!this.detectionConfig.unitType) {
         this.detectionConfig.unit = '';
+      } else if (
+        !this.detectionConfig.unit &&
+        this.originUnitSnapshot?.displayUnit &&
+        !this.isUnitManuallyChanged &&
+        this.metricData[0].metric_id === this.originUnitSnapshot.metricId
+      ) {
+        // COUNT / ignore_unit 清空单位后再恢复时，写回回填展示单位，避免子组件按指标单位默认选中后与快照提交不一致
+        this.detectionConfig.unit = this.originUnitSnapshot.displayUnit;
       }
     }
   }
@@ -2061,7 +2139,10 @@ export default class StrategyConfigSet extends tsc<IStrategyConfigSetProps, IStr
         agg_dimension: item.agg_dimension,
         agg_condition: item.agg_condition.filter(item => item.key && item.value?.length),
         metric_field: item.curRealMetric?.metric_field || item.metric_field,
-        unit: this.detectionConfig.unit ? item.unit : '',
+        unit: (() => {
+          if (this.useOriginUnitSnapshot) return this.originUnitSnapshot.queryUnit;
+          return this.detectionConfig.unit ? item.unit : '';
+        })(),
         metric_id: item.metric_id,
       };
 
@@ -2125,6 +2206,10 @@ export default class StrategyConfigSet extends tsc<IStrategyConfigSetProps, IStr
         unit_prefix: '',
       });
     } else {
+      // 浅拷贝快照，按 level|type 依次取出各规则的原始单位
+      const originRuleUnits = this.useOriginUnitSnapshot
+        ? Object.fromEntries(Object.entries(this.originUnitSnapshot.ruleUnits).map(([key, list]) => [key, [...list]]))
+        : null;
       algorithmList = this.detectionConfig.data.map(({ level, type, config }) => ({
         level,
         type,
@@ -2133,6 +2218,9 @@ export default class StrategyConfigSet extends tsc<IStrategyConfigSetProps, IStr
           if (this.monitorDataEditMode === 'Source') {
             return '';
           }
+          const originUnit = originRuleUnits?.[`${level}|${type}`]?.shift();
+          // 编辑时新增的规则在快照中不存在，使用当前展示单位
+          if (originUnit !== undefined) return originUnit;
           return this.needShowUnit ? this.detectionConfig.unit : '';
         })(),
       }));
@@ -2260,6 +2348,10 @@ export default class StrategyConfigSet extends tsc<IStrategyConfigSetProps, IStr
   }
   handleUnitChange(v: string) {
     this.detectionConfig.unit = v;
+  }
+  /** 用户主动切换单位后，所有规则统一使用新单位，不再沿用原始单位快照 */
+  handleUnitSelect() {
+    this.isUnitManuallyChanged = true;
   }
   connectorChange(v: 'and' | 'or') {
     this.detectionConfig.connector = v;
@@ -2902,6 +2994,7 @@ export default class StrategyConfigSet extends tsc<IStrategyConfigSetProps, IStr
                   onModelChange={this.handleModelChange}
                   onRuleClick={this.handleRuleClick}
                   onUnitChange={this.handleUnitChange}
+                  onUnitSelect={this.handleUnitSelect}
                 />
               </GroupPanel>
             ) : undefined}

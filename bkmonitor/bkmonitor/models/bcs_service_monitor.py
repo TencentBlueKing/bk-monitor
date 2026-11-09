@@ -46,7 +46,7 @@ class BCSServiceMonitor(BCSMonitor):
             for bcs_cluster_id, (bk_tenant_id, _) in params.items()
         ]
         api_resources = api.kubernetes.fetch_k8s_service_monitor_list_by_cluster.bulk_request(
-            bulk_request_params, ignore_exceptions=True
+            bulk_request_params, ignore_exceptions=False
         )
         return api_resources
 

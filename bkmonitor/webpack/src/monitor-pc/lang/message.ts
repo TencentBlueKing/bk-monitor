@@ -26,6 +26,11 @@
 
 // 反馈 弹窗 相关的词条
 export default {
+  '缺少故障 ID，请从故障列表重新打开详情。': 'The incident ID is missing. Please reopen the details from the incident list.',
+  '未找到故障 {id} 对应的监控文档，可能已被抑制或尚未同步。请返回列表查看分析记录。':
+    'No monitoring document was found for incident {id}. It may have been suppressed or not yet synchronized. Return to the list to view the analysis record.',
+  '故障 {id} 的详情地址解析失败，请稍后刷新重试。':
+    'Failed to resolve the details URL for incident {id}. Please refresh to retry later.',
   // Messages :  Success |  Warning  | Error |  Info
   // 规范： 动词-主体-结果  如 新建应用成功 New application successful
   // 规范： 仅首字母大写
@@ -194,6 +199,13 @@ export default {
   '上传tar.gz文件': 'Upload tar.gz File',
   '当前设置的{name}超过最大值{max}, 请调整后再切换集群':
     'The current setting of {name} exceeds the maximum value {max}, adjust it and then switch clusters',
+  确认切换存储集群: 'Confirm to switch the storage cluster',
+  '切换生效后，新增数据将写入目标集群。历史数据仍可查询，并按切换后生效的保留时长自动清理。':
+    'After the switch takes effect, new data will be written to the target cluster. Historical data remains queryable and will be cleaned up automatically according to the effective retention period.',
+  当前集群: 'Current cluster',
+  目标集群: 'Target cluster',
+  生效保留天数: 'Effective retention days',
+  确认切换: 'Confirm switch',
   上传采集配置文件: 'Upload the collection configuration file',
   '当前您有未恢复告警{0}条,最近{1}新增{2}条': 'You have {0} active alarms, with {2} new alarms in the past {1}',
   '当前空间: [{0}] {1}  ； 未恢复告警: {2}': 'This space: ([{0}] {1}) ; Active alarms: {2} ',
@@ -401,6 +413,15 @@ export default {
   '你确认么？': 'Are you sure ?',
   '修改集群历史数据会全部丢失，确认要更换么':
     'All the historical data of modifying the cluster will be lost. replace it?',
+  '确认切换存储集群？': 'Confirm switching storage cluster?',
+  确认切换: 'Confirm switch',
+  当前集群: 'Current cluster',
+  目标集群: 'Target cluster',
+  '切换后保留天数：{days} 天': 'Retention days after switch: {days}',
+  '切换生效后，新增数据将写入目标集群。历史数据仍可查询，并按切换后生效的保留时长自动清理。':
+    'After the switch takes effect, new data will be written to the target cluster. Historical data can still be queried and will be automatically cleaned up according to the effective retention period.',
+  '支持无损切换存储集群，历史数据按保留策略到期清理。':
+    'Lossless storage cluster switching is supported. Historical data will be cleaned up upon expiration according to the retention policy.',
   确定解散任务组: 'Disband the Task Group?',
   '已选择 {n} 个策略，确定批量删除？': 'Selected {n} rules, confirm batch deletion?',
 
@@ -584,4 +605,11 @@ export default {
   '已配置，立即分析': 'Configured, analyze immediately',
   源码仓库已关联: 'Source code repository has been associated',
   源码分析进行中: 'Source code analysis in progress',
+  无法发起源码分析: 'Unable to start source code analysis',
+  '当前 Issue 未匹配到可用的源码分析规则，请查看规则配置。':
+    'The current Issue does not match any available source code analysis rule. Please check the rule configuration.',
+  查看规则配置: 'View rule configuration',
+
+  '确认重新分析？': 'Confirm to re-analyze?',
+  '分析失败，请稍后重试': 'Analysis failed. Please try again later',
 };

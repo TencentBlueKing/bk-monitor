@@ -7,6 +7,7 @@ from django.db.transaction import atomic
 from django.utils.functional import cached_property
 from django.utils.translation import gettext as _
 from kubernetes import client as k8s_client
+from kubernetes.client.exceptions import ApiException
 
 from bkmonitor.utils.db import JsonField
 from metadata import config
@@ -16,7 +17,7 @@ from metadata.models.data_source import DataSource
 from metadata.models.result_table import ResultTableOption
 
 from .replace import ReplaceConfig
-from .utils import ensure_data_id_resource, is_equal_config
+from .utils import ensure_data_id_resource, is_equal_config, is_missing_custom_resource_definition
 
 logger = logging.getLogger("metadata")
 
@@ -360,12 +361,14 @@ class BCSClusterInfo(models.Model):
             # 检查k8s集群里是否已经存在对应resource
             if datasource_name_lower not in resource_items.keys():
                 # 如果k8s_resource不存在，则增加
-                ensure_data_id_resource(api_client, datasource_name_lower, dataid_config)
+                if not ensure_data_id_resource(api_client, datasource_name_lower, dataid_config):
+                    raise RuntimeError(f"failed to create dataid resource {datasource_name_lower}")
                 logger.info("cluster->[%s] add new resource->[%s]", self.cluster_id, dataid_config)
             else:
                 # 否则检查信息是否一致，不一致则更新
                 if not is_equal_config(dataid_config, resource_items[datasource_name_lower]):
-                    ensure_data_id_resource(api_client, datasource_name_lower, dataid_config)
+                    if not ensure_data_id_resource(api_client, datasource_name_lower, dataid_config):
+                        raise RuntimeError(f"failed to update dataid resource {datasource_name_lower}")
                     logger.info("cluster->[%s] update resource->[%s]", self.cluster_id, dataid_config)
 
         self._ensure_relation_dataid_resource(resource_items)
@@ -400,11 +403,15 @@ class BCSClusterInfo(models.Model):
                 plural="servicemonitors",
                 namespace=self.operator_ns,
             )
-        except Exception as e:
-            logger.warning(
-                "cluster->[%s] list ServiceMonitors in ns=[%s] failed: %s", self.cluster_id, self.operator_ns, e
-            )
-            return
+        except ApiException as error:
+            if error.status == 404 and is_missing_custom_resource_definition(
+                self.api_client, "monitoring.coreos.com", "servicemonitors"
+            ):
+                logger.info(
+                    "cluster->[%s] optional ServiceMonitor type is not installed, skip relation", self.cluster_id
+                )
+                return
+            raise
 
         relation_sms = [sm for sm in sm_list.get("items", []) if sm["metadata"]["name"].endswith("-operator-relation")]
         if not relation_sms:
@@ -448,7 +455,8 @@ class BCSClusterInfo(models.Model):
                 logger.debug("cluster->[%s] relation DataID CRD [%s] unchanged, skip update", self.cluster_id, crd_name)
                 return
 
-        ensure_data_id_resource(self.api_client, crd_name, dataid_config)
+        if not ensure_data_id_resource(self.api_client, crd_name, dataid_config):
+            raise RuntimeError(f"failed to update dataid resource {crd_name}")
         logger.info(
             "cluster->[%s] ensure relation DataID CRD done, sm=[%s/%s] dataid=[%s]",
             self.cluster_id,
@@ -509,7 +517,7 @@ class BCSClusterInfo(models.Model):
         return result
 
     def init_resource(self, is_fed_cluster: bool | None = False) -> bool:
-        """初始化resource信息并绑定data_id"""
+        """创建 DataID 实例并绑定 data_id；CRD 定义由集群的 operator 安装流程提供。"""
         # 基于各dataid，生成配置并写入bcs集群
         for usage, register_info in self.DATASOURCE_REGISTER_INFO.items():
             # 针对联邦集群，跳过 k8s 内置指标的 data_id 下发

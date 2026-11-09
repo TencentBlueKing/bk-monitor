@@ -59,3 +59,7 @@ uv remove <package>
 ## 环境变量
 
 项目支持 .env 和环境变量两种方式进行配置。
+
+### 独立部署的 InfluxDB 初始化密码
+
+首次执行元数据迁移 `0003` 时，依次读取 `BK_MONITOR_INFLUXDB_PASSWORD`、`INFLUXDB_BKMONITORV3_PASS`、`BK_MONITOR_INFLUXDB_PASS`。第一个已定义的变量生效，空字符串表示空密码。由宿主应用提供 InfluxDB 初始化配置时，迁移直接使用宿主的凭据。

@@ -38,6 +38,7 @@ from unittest.mock import MagicMock, Mock, patch
 from blueapps.core.celery.celery import app
 from celery.exceptions import SoftTimeLimitExceeded
 from django.conf import settings
+from django.db import OperationalError
 from django.test import SimpleTestCase, TestCase, override_settings
 from django.utils import timezone
 from qcloud_cos.streambody import StreamBody
@@ -74,15 +75,24 @@ from apps.log_search.export.config import (
     COORDINATOR_QUEUE,
     DISPATCH_TASK_NAME,
     FINALIZE_QUEUE,
+    FINALIZE_TASK_NAME,
     PART_QUEUE,
     PART_TASK_NAME,
     PLAN_QUEUE,
+    PLAN_TASK_NAME,
     ExportPolicy,
 )
 from apps.log_search.export.api import create_export_job, download_link
 from apps.log_search.export.history import sharded_export_history_queryset
 from apps.log_search.export.models import ExportJob, ExportPart, ExportPlan
 from apps.log_search.models import AsyncTask, LogIndexSet, Scenario, Space
+from apps.log_search.serializers import (
+    SearchExportSerializer,
+    UnionSearchAttrSerializer,
+    UnionSearchExportSerializer,
+    UnionSearchSearchExportSerializer,
+)
+from apps.log_trace.serializers import UnionSearchAggsTermsSerializer, UnionSearchDateHistogramSerializer
 from apps.log_unifyquery.handler.base import UnifyQueryHandler
 from apps.log_search.views.export_views import ExportJobIndexSearchPermission, ExportJobViewSet
 from apps.log_search.views.search_views import SearchViewSet
@@ -111,7 +121,9 @@ from apps.log_search.export.scheduler import (
     enqueue_planning,
     finalize_export,
     finalizing_jobs,
+    request_finalization,
     request_parts_dispatch,
+    request_planning,
 )
 from apps.log_search.export.merger import merge_export_parts
 from apps.log_search.export.storage import (
@@ -657,8 +669,11 @@ class RunPlanningTests(TestCase):
             patch("apps.log_search.export.planner.count_rows", return_value=40),
             patch("apps.log_search.export.planner.sample_rows", return_value=[b"x" * 20]),
             patch("apps.log_search.export.planner.histogram", return_value={0: 40}),
+            patch("apps.log_search.export.scheduler._send") as send,
         ):
             run_planning(job.pk)
+
+        send.assert_called_once_with(DISPATCH_TASK_NAME, queue=COORDINATOR_QUEUE)
 
         job.refresh_from_db()
         self.assertEqual(job.status, ExportJobStatus.READY)
@@ -674,6 +689,17 @@ class RunPlanningTests(TestCase):
         self.assertEqual((part.start_time, part.end_time), (0, 4000))
         self.assertEqual(part.status, ExportPartStatus.WAITING)
         self.assertEqual(part.estimated_rows, 40)
+
+    def test_discarded_plan_does_not_request_dispatch(self):
+        job = create_job()
+        with (
+            patch("apps.log_search.export.planner.build_parts", return_value=([], 0, None)),
+            patch("apps.log_search.export.planner.state.persist_plan", return_value=None),
+            patch("apps.log_search.export.scheduler._send") as send,
+        ):
+            run_planning(job.pk)
+
+        send.assert_not_called()
 
     @override_settings(ASYNC_EXPORT_PLANNING_TIMEOUT=1)
     def test_run_planning_skips_a_job_that_exhausted_its_attempts(self):
@@ -1014,10 +1040,11 @@ class PartArtifactLifecycleTests(TestCase):
     """
 
     def setUp(self):
-        self.job = create_job(status=ExportJobStatus.RUNNING, end_time=1000)
+        self.job = create_job(status=ExportJobStatus.RUNNING, end_time=1000, plan_version=1)
         self.part = ExportPart.objects.create(
             job=self.job,
             part_no=1,
+            plan_version=1,
             start_time=0,
             end_time=1000,
             status=ExportPartStatus.WAITING,
@@ -1060,7 +1087,10 @@ class PartArtifactLifecycleTests(TestCase):
     def test_accepted_execution_keeps_its_artifact(self):
         part = self.claim("task-1")
 
-        self.execute(part, fence_of(part))
+        with patch("apps.log_search.export.scheduler._send") as send:
+            self.execute(part, fence_of(part))
+
+        send.assert_called_once_with(FINALIZE_TASK_NAME, self.job.pk, queue=FINALIZE_QUEUE)
 
         key = artifact_name(self.job, part, 1)
         self.assertEqual(self.uploaded, [key])
@@ -1080,7 +1110,10 @@ class PartArtifactLifecycleTests(TestCase):
             winner = self.claim("task-2")
             self.execute(winner, fence_of(winner))
 
-        self.execute(late, fence_of(late), before_upload=publish_new_attempt)
+        with patch("apps.log_search.export.worker.request_finalization") as request:
+            self.execute(late, fence_of(late), before_upload=publish_new_attempt)
+
+        request.assert_called_once_with(self.job.pk)
 
         late_key = artifact_name(self.job, late, 1)
         winner_key = artifact_name(self.job, self.part, 2)
@@ -1096,7 +1129,10 @@ class PartArtifactLifecycleTests(TestCase):
         part = self.claim("task-1")
         state.cancel_job(self.job.pk)
 
-        self.execute(part, fence_of(part))
+        with patch("apps.log_search.export.worker.request_finalization") as request:
+            self.execute(part, fence_of(part))
+
+        request.assert_not_called()
 
         key = artifact_name(self.job, part, 1)
         self.assertEqual(self.uploaded, [key])
@@ -1115,6 +1151,19 @@ class PartArtifactLifecycleTests(TestCase):
         part.refresh_from_db()
         self.assertEqual(part.status, ExportPartStatus.CANCELED)
         self.assertEqual(list(self.objects), [artifact_name(self.job, part, 1)])
+
+    @patch("apps.log_search.export.scheduler._send", side_effect=RuntimeError("broker down"))
+    def test_finalization_publish_failure_keeps_the_accepted_artifact(self, send):
+        part = self.claim("task-1")
+        self.execute(part, fence_of(part))
+
+        self.part.refresh_from_db()
+        self.job.refresh_from_db()
+        self.assertEqual(self.part.status, ExportPartStatus.SUCCESS)
+        self.assertIsNone(self.job.finalization_enqueued_at)
+        self.assertEqual(list(self.objects), [self.part.object_key])
+        self.assertEqual(enqueue_finalization(1), [])
+        self.assertEqual(send.call_count, 2)
 
 
 class PartTaskContractTests(SimpleTestCase):
@@ -2106,6 +2155,19 @@ class SchedulerTests(TestCase):
         self.assertEqual(send.call_count, 1)
 
     @patch("apps.log_search.export.scheduler._send")
+    def test_immediate_planning_is_targeted_and_keeps_retries_for_periodic_rounds(self, send):
+        job = create_job()
+        other = create_job()
+        self.assertEqual(request_planning(job.pk), [job.pk])
+        self.assertEqual(request_planning(job.pk), [])
+        self.assertIsNone(ExportJob.objects.get(pk=other.pk).planning_enqueued_at)
+        send.assert_called_once_with(PLAN_TASK_NAME, job.pk, queue=PLAN_QUEUE)
+
+        ExportJob.objects.filter(pk=job.pk).update(planning_attempts=1, planning_enqueued_at=None)
+        self.assertEqual(request_planning(job.pk), [])
+        self.assertEqual(enqueue_planning(10), [job.pk, other.pk])
+
+    @patch("apps.log_search.export.scheduler._send")
     def test_enqueue_planning_republishes_after_the_lease_expires(self, send):
         job = create_job(index_set_id=12, status=ExportJobStatus.PENDING)
         self.assertEqual(enqueue_planning(10), [job.pk])
@@ -2144,6 +2206,61 @@ class SchedulerTests(TestCase):
         self.job.status = ExportJobStatus.RUNNING
         self.job.save(update_fields=["status"])
         self.assertEqual(enqueue_finalization(10), [self.job.pk])
+
+    @patch("apps.log_search.export.scheduler._send")
+    def test_immediate_finalization_waits_for_leaf_success_and_is_idempotent(self, send):
+        ExportJob.objects.filter(pk=self.job.pk).update(status=ExportJobStatus.RUNNING)
+        ExportPart.objects.filter(job=self.job, part_no=1).update(status=ExportPartStatus.SPLIT)
+        ExportPart.objects.filter(job=self.job, part_no=2).update(status=ExportPartStatus.SUCCESS)
+        self.assertEqual(request_finalization(self.job.pk), [])
+        send.assert_not_called()
+
+        ExportPart.objects.filter(job=self.job, part_no=3).update(status=ExportPartStatus.SUCCESS)
+        self.assertEqual(request_finalization(self.job.pk), [self.job.pk])
+        self.assertEqual(request_finalization(self.job.pk), [])
+        send.assert_called_once_with(FINALIZE_TASK_NAME, self.job.pk, queue=FINALIZE_QUEUE)
+
+    @patch("apps.log_search.export.scheduler._send")
+    def test_immediate_finalization_keeps_retries_for_periodic_rounds(self, send):
+        ExportJob.objects.filter(pk=self.job.pk).update(status=ExportJobStatus.RUNNING, finalization_attempts=1)
+        ExportPart.objects.filter(job=self.job).update(status=ExportPartStatus.SUCCESS)
+        self.assertEqual(request_finalization(self.job.pk), [])
+        send.assert_not_called()
+        self.assertEqual(enqueue_finalization(10), [self.job.pk])
+
+    @patch("apps.log_search.export.scheduler._send")
+    def test_immediate_publish_failure_releases_lease_for_periodic_recovery(self, send):
+        pending = create_job()
+        ExportJob.objects.filter(pk=self.job.pk).update(status=ExportJobStatus.RUNNING)
+        ExportPart.objects.filter(job=self.job).update(status=ExportPartStatus.SUCCESS)
+        for request, periodic, job, field in (
+            (request_planning, enqueue_planning, pending, "planning_enqueued_at"),
+            (request_finalization, enqueue_finalization, self.job, "finalization_enqueued_at"),
+        ):
+            with self.subTest(field=field):
+                send.side_effect = [RuntimeError("broker down"), Mock()]
+                self.assertEqual(request(job.pk), [])
+                job.refresh_from_db()
+                self.assertIsNone(getattr(job, field))
+                self.assertEqual(periodic(10), [job.pk])
+
+    @patch("apps.log_search.export.scheduler._enqueue", side_effect=OperationalError(1205, "lock timeout"))
+    def test_immediate_enqueue_db_failure_does_not_escape_the_stage(self, enqueue):
+        pending = create_job()
+        ExportJob.objects.filter(pk=self.job.pk).update(status=ExportJobStatus.RUNNING)
+        ExportPart.objects.filter(job=self.job).update(status=ExportPartStatus.SUCCESS)
+        self.assertEqual(request_planning(pending.pk), [])
+        self.assertEqual(request_finalization(self.job.pk), [])
+        self.assertEqual(enqueue.call_count, 2)
+
+    @patch("apps.log_search.export.scheduler._enqueue", side_effect=SoftTimeLimitExceeded)
+    def test_immediate_enqueue_does_not_swallow_soft_time_limit(self, enqueue):
+        """分片任务里的定点收尾入队不能吞掉软超时。"""
+        ExportJob.objects.filter(pk=self.job.pk).update(status=ExportJobStatus.RUNNING)
+        ExportPart.objects.filter(job=self.job).update(status=ExportPartStatus.SUCCESS)
+        with self.assertRaises(SoftTimeLimitExceeded):
+            request_finalization(self.job.pk)
+        self.assertEqual(enqueue.call_count, 1)
 
     def test_inflight_count_groups_by_index_set(self):
         ExportPart.objects.filter(part_no=1).update(status=ExportPartStatus.DISPATCHED)
@@ -2989,21 +3106,19 @@ class ExportJobPermissionTests(TestCase):
 
 
 class LegacyExportRoutingTests(SimpleTestCase):
-    def test_custom_indices_and_quick_exports_keep_the_original_chain(self):
+    def test_only_regular_exports_use_the_enabled_sharded_chain(self):
         request = SimpleNamespace(user=SimpleNamespace(is_superuser=False))
         module = "apps.log_search.views.search_views"
         with (
-            patch(f"{module}.is_sharded_export_enabled", return_value=True),
-            patch(f"{module}.FeatureToggleObject.switch", return_value=False),
+            patch(f"{module}.is_sharded_export_enabled") as sharded_enabled,
             patch(f"{module}.FeatureToggleObject.toggle", return_value=SimpleNamespace(feature_config={})),
             patch(f"{module}._apply_index_set_search_bk_biz_id"),
             patch(f"{module}._reject_platform_index_sets"),
             patch(f"{module}.Permission.get_auth_info", return_value=None),
         ):
-            for is_union, custom_indices, is_quick in itertools.product(
-                (False, True), ("", "2_bklog.0001"), (False, True)
-            ):
-                with self.subTest(is_union=is_union, custom_indices=custom_indices, is_quick=is_quick):
+            for is_union, is_sharded, is_quick in itertools.product((False, True), repeat=3):
+                with self.subTest(is_union=is_union, is_sharded=is_sharded, is_quick=is_quick):
+                    sharded_enabled.return_value = is_sharded
                     data = {
                         "bk_biz_id": 2,
                         "export_fields": [],
@@ -3013,38 +3128,69 @@ class LegacyExportRoutingTests(SimpleTestCase):
                         data.update(
                             index_set_ids=[3, 4],
                             union_configs=[
-                                {"index_set_id": 3, "custom_indices": ""},
-                                {"index_set_id": 4, "custom_indices": custom_indices},
+                                {"index_set_id": 3},
+                                {"index_set_id": 4},
                             ],
                             is_quick_export=is_quick,
                         )
-                    else:
-                        data["custom_indices"] = custom_indices
                     view = SearchViewSet()
                     view.request = request
                     view.params_valid = Mock(return_value=data)
                     view.get_object = Mock()
                     view._sharded_export_from_data = Mock(return_value=SimpleNamespace(data={"task_id": 19}))
-                    handler_name = "UnionAsyncExportHandlers" if is_union else "AsyncExportHandlers"
+                    handler_name = "UnifyQueryUnionAsyncExportHandlers" if is_union else "UnifyQueryAsyncExportHandlers"
                     with patch(f"{module}.{handler_name}") as legacy_handler:
                         legacy_handler.return_value.async_export.return_value = (7, 1)
                         if is_union:
                             response = view.union_async_export(request)
                         else:
                             response = view._export(request, index_set_id=3, is_quick_export=is_quick)
-                    if custom_indices or is_quick:
+                    if is_quick or not is_sharded:
                         self.assertEqual(response.data["task_id"], 7)
                         view._sharded_export_from_data.assert_not_called()
                         legacy_handler.return_value.async_export.assert_called_once_with(is_quick_export=is_quick)
-                        forwarded = legacy_handler.call_args.kwargs["search_dict"]
-                        actual_indices = (
-                            forwarded["union_configs"][1]["custom_indices"] if is_union else forwarded["custom_indices"]
-                        )
-                        self.assertEqual(actual_indices, custom_indices)
                     else:
                         self.assertEqual(response.data["task_id"], 19)
                         view._sharded_export_from_data.assert_called_once()
                         legacy_handler.assert_not_called()
+
+    def test_serializers_discard_unused_custom_indices(self):
+        data = {
+            "bk_biz_id": 2,
+            "keyword": "*",
+            "start_time": "2026-10-26 00:00:00",
+            "end_time": "2026-10-27 00:00:00",
+            "begin": 0,
+            "size": 10,
+            "index_set_ids": [3],
+            "custom_indices": "2_bklog.0001",
+            "union_configs": [{"index_set_id": 3, "custom_indices": "2_bklog.0001"}],
+        }
+        for serializer_class in (
+            SearchExportSerializer,
+            UnionSearchSearchExportSerializer,
+            UnionSearchExportSerializer,
+            UnionSearchAttrSerializer,
+            UnionSearchDateHistogramSerializer,
+            UnionSearchAggsTermsSerializer,
+        ):
+            with self.subTest(serializer=serializer_class.__name__):
+                request_data = dict(data)
+                if serializer_class is UnionSearchAggsTermsSerializer:
+                    request_data["fields"] = ["level"]
+                serializer = serializer_class(data=request_data)
+                self.assertTrue(serializer.is_valid(), serializer.errors)
+                if serializer_class in (
+                    SearchExportSerializer,
+                    UnionSearchSearchExportSerializer,
+                    UnionSearchExportSerializer,
+                ):
+                    self.assertNotIn("custom_indices", serializer.data)
+                if "union_configs" in serializer.data:
+                    self.assertEqual(
+                        serializer.data["union_configs"],
+                        [{"index_set_id": 3, "begin": 0, "is_desensitize": True}],
+                    )
 
 
 @override_settings(ENABLE_MULTI_TENANT_MODE=True, BK_APP_TENANT_ID="tenant-a")
@@ -3513,6 +3659,13 @@ class ExportJobAdmissionTests(TestCase):
         """按给定状态占用本用户额度。"""
         for status in statuses:
             create_job(created_by="tester", status=status)
+
+    @patch("apps.log_search.export.scheduler._send")
+    def test_created_job_requests_planning(self, send):
+        job = self.create()
+
+        send.assert_called_once_with(PLAN_TASK_NAME, job.pk, queue=PLAN_QUEUE)
+        self.assertIsNotNone(ExportJob.objects.get(pk=job.pk).planning_enqueued_at)
 
     def occupy_legacy_tasks(self, count):
         for _ in range(count):

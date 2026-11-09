@@ -24,13 +24,19 @@ from django.conf import settings
 from apps.feature_toggle.handlers.toggle import FeatureToggleObject
 from apps.feature_toggle.plugins.constants import NODEMAN_V3_COLLECTOR
 from apps.log_databus.nodeman_v3.constants import RESOURCE_TYPE_COLLECTOR_CONFIG
+from apps.log_search.constants import CollectorScenarioEnum
+
+# custom / client 场景没有实现 get_subscription_steps（见 collector_scenario/custom.py、client.py），
+# 这两个场景由自定义上报创建，没有物理机插件需要下发。进入 V3 只会在构造期望态时抛 NotImplementedError，
+# 因此不允许新准入；已有 binding 仍按粘性归属继续由 V3 管理。
+V2_ONLY_COLLECTOR_SCENARIOS = frozenset({CollectorScenarioEnum.CUSTOM.value, CollectorScenarioEnum.CLIENT.value})
 
 
 def _parse_ids(raw) -> set[int]:
     """容忍数字、字符串及逗号分隔值，非法项忽略并保持 fail-closed。"""
     if not raw:
         return set()
-    if isinstance(raw, (list, tuple, set)):
+    if isinstance(raw, list | tuple | set):
         items = raw
     else:
         items = str(raw).split(",")
@@ -111,11 +117,12 @@ def resolve_nodeman_v3_collector_ids(collector_configs) -> set[int]:
     归属顺序：
     1. 已有 V3 binding                              -> V3（粘性归属）
     2. subscription_id 非空                         -> V2
-    3. 环境总开关关闭                                -> V2
-    4. FeatureToggle off / 缺失 / DB 异常           -> V2
-    5. FeatureToggle on                              -> V3
-    6. FeatureToggle debug 命中业务或特殊采集项       -> V3
-    7. 其余                                          -> V2
+    3. 采集场景没有订阅步骤实现                       -> V2
+    4. 环境总开关关闭                                -> V2
+    5. FeatureToggle off / 缺失 / DB 异常           -> V2
+    6. FeatureToggle on                              -> V3
+    7. FeatureToggle debug 命中业务或特殊采集项       -> V3
+    8. 其余                                          -> V2
     """
     configs = list(collector_configs)
     collector_ids = {
@@ -142,6 +149,8 @@ def resolve_nodeman_v3_collector_ids(collector_configs) -> set[int]:
             result.add(collector_config_id)
             continue
         if getattr(config, "subscription_id", None):
+            continue
+        if getattr(config, "collector_scenario_id", None) in V2_ONLY_COLLECTOR_SCENARIOS:
             continue
         if _toggle_allows(toggle, getattr(config, "bk_biz_id", None), collector_config_id):
             result.add(collector_config_id)

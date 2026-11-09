@@ -35,6 +35,10 @@ ADVANCED_OPTIONS = OrderedDict(
         ("QOS_DROP_ACTION_WINDOW", slz.IntegerField(label="处理动作流控窗口大小(秒)", default=60)),
         ("QOS_ALERT_THRESHOLD", slz.IntegerField(label="告警生成流控丢弃阈值", default=100)),
         ("QOS_ALERT_WINDOW", slz.IntegerField(label="告警生成流控窗口大小(秒)", default=60)),
+        (
+            "ALERT_NOTICE_WAY_BY_RECORDS",
+            slz.BooleanField(label="告警列表通知类型按通知记录统计", default=False),
+        ),
         ("SAAS_APP_CODE", slz.CharField(label="SAAS 应用码", default=settings.APP_CODE)),
         ("SAAS_SECRET_KEY", slz.CharField(label="SAAS 应用密钥", default=settings.SECRET_KEY)),
         (
@@ -227,6 +231,10 @@ ADVANCED_OPTIONS = OrderedDict(
         ("APM_APP_BKDATA_OPERATOR", slz.CharField(label="APM应用操作数据平台所用到的用户名", default="admin")),
         ("APM_APP_BKDATA_MAINTAINER", slz.ListField(label="APM应用操作数据平台时数据源的默认维护人", default=[])),
         ("APM_APPLICATION_QUICK_REFRESH_INTERVAL", slz.IntegerField(label=_("新建应用的刷新频率"), default=2)),
+        (
+            "APM_RELATED_LOG_INDEX_STATUS_CACHE_TTL",
+            slz.IntegerField(label=_("APM 关联日志索引状态快照有效期（秒）"), default=15 * 60, min_value=1),
+        ),
         (
             "APM_APPLICATION_QUICK_REFRESH_DELTA",
             slz.IntegerField(label=_("新建应用的创建时间到当前时间的时长范围"), default=30),
@@ -460,8 +468,8 @@ ADVANCED_OPTIONS = OrderedDict(
         ("BKBASE_REDIS_LOCK_NAME", slz.CharField(label="计算平台Redis锁名称", default="watch_bkbase_meta_redis_lock")),
         ("ENABLE_SYNC_BKBASE_METADATA_TO_DB", slz.BooleanField(label="是否同步bkbase元数据至DB", default=False)),
         (
-            "GRAPH_RELATION_V4_BIZ_ID_WHITE_LIST",
-            slz.ListField(label="Graph Relation V4 双写与 v1beta3 查询灰度业务白名单", default=[]),
+            "RELATION_V1BETA3_BIZ_ID_WHITE_LIST",
+            slz.ListField(label="v1beta3 关联查询业务白名单", default=[]),
         ),
         (
             "ACCESS_DATA_BATCH_PROCESS_THRESHOLD",
@@ -742,6 +750,10 @@ STANDARD_CONFIGS = OrderedDict(
         ),
         ("APM_CREATE_VIRTUAL_METRIC_ENABLED_BK_BIZ_ID", slz.ListField(label=_("APM 创建虚拟指标业务列表"), default=[])),
         ("APM_BMW_TASK_QUEUES", slz.ListField(label=_("APM BMW 任务能够使用的队列名称"), default=["apm-01"])),
+        (
+            "APM_BMW_TASK_CRON_DRY_RUN",
+            slz.BooleanField(label=_("APM BMW 预计算任务定时分派空跑(跳过分派，不下发/删除任务)"), default=False),
+        ),
         ("PER_ROUND_SPAN_MAX_SIZE", slz.IntegerField(label=_("拓扑发现允许的最大 Span 数量"), default=1000)),
         ("WXWORK_BOT_NAME", slz.CharField(label=_("蓝鲸监控机器人名称"), default="BK-Monitor", allow_blank=True)),
         ("WXWORK_BOT_SEND_IMAGE", slz.BooleanField(label=_("蓝鲸监控机器人发送图片"), default=True)),
@@ -804,6 +816,14 @@ STANDARD_CONFIGS = OrderedDict(
         ("FTA_ES_RETENTION", slz.IntegerField(label=_("自愈ES数据保留时间"), default=365)),
         ("DOUBLE_CHECK_SUM_STRATEGY_IDS", slz.ListField(label=_("适用 SUM 聚合方法二次确认的策略ID列表"), default=[])),
         ("SMS_CONTENT_LENGTH", slz.IntegerField(label=_("发送短信内容最大长度（0表示不限制）"), default=0)),
+        (
+            "SMS_NOTICE_TEMPLATE_MODE",
+            slz.ChoiceField(
+                label=_("短信文案模式"),
+                choices=[("legacy", _("原文案")), ("standard", _("标准文案"))],
+                default=settings.SMS_NOTICE_TEMPLATE_MODE,
+            ),
+        ),
         ("IS_ACCESS_BK_DATA", slz.BooleanField(label=_("是否开启与计算平台的功能对接"), default=False)),
         (
             "IS_MIGRATE_AIOPS_STRATEGY",
@@ -876,6 +896,10 @@ STANDARD_CONFIGS = OrderedDict(
         ("RUM_FUNC_INTRODUCTION_URL", slz.CharField(label=_("RUM产品白皮书"), default="", allow_blank=True)),
         # RUM新版灰度配置
         ("RUM_BIZ_LIST", slz.ListField(label=_("RUM 新版灰度配置"), default=[])),
+        # Profiling 主动采集灰度配置
+        ("ACTIVE_PROFILING_BIZ_LIST", slz.ListField(label=_("Profiling 主动采集灰度配置"), default=[])),
+        # Profiling 主动采集下发的 bkmonitorbeat 插件版本
+        ("ACTIVE_PROFILING_PLUGIN_VERSION", slz.CharField(label=_("Profiling 主动采集插件版本"), default="latest")),
         # LLM 观测灰度业务列表
         ("LLM_BIZ_LIST", slz.ListField(label=_("LLM 观测灰度业务列表"), default=[])),
     ]

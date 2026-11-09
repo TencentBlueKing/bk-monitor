@@ -5,11 +5,11 @@ spec_version: 1
 release:
   # 发布版本号；
   # 资源配置更新，需更新此版本号才会发布资源版本，此版本号和 sdk 版本号一致，错误设置会影响调用方使用
-  version: 0.0.6
+  version: 0.0.7
   # 版本标题
-  title: "只读观测工具支持个人令牌"
+  title: "隔离 MCP 与应用只读后端"
   # 版本描述
-  comment: "为只读观测及诊断接口开启个人令牌认证，保留现有用户认证要求"
+  comment: "为七个共用只读接口新增 MCP 专用后端，保留应用路径、个人令牌和工具权限检查"
 
 # 定义网关基本信息，用于命令 `sync_apigw_config`
 apigateway:
@@ -110,6 +110,7 @@ grant_permissions:
       - graph_promql_query
       - as_code_import_config
       - quick_import_dashboard
+      - delete_alarm_strategy
   - bk_app_code: bk_dbm
     grant_dimension: "resource"
     resource_names:
@@ -156,10 +157,49 @@ grant_permissions:
       - list_subscribe
       - collector_plugin_list
       - plugin_import_without_frontend
+      - save_alarm_strategy
+      - start_render_image_task
+      - get_render_image_task_result
+      - metadata_get_data_id
   - bk_app_code: bk_nodeman
     grant_dimension: "resource"
     resource_names:
       - metadata_get_or_create_agent_event_data_id
+  - bk_app_code: bk_nodemgr
+    grant_dimension: "resource"
+    resource_names:
+      - metadata_get_or_create_agent_event_data_id
+  - bk_app_code: bk_fara
+    grant_dimension: "resource"
+    resource_names:
+      - list_flatten_spans
+      - search_alert
+      - list_flatten_traces
+      - search_alarm_strategy
+      - alert_top_n
+      - search_user_groups
+      - list_alert_tags
+      - metadata_get_space_detail
+      - metadata_biz_has_data_id
+      - list_trace_view_config
+      - query_apm_trace_option_values
+      - query_apm_span_option_values
+      - promql_to_query_config
+      - query_config_to_promql
+      - get_variable_value
+      - time_series_unify_query
+      - time_series_functions
+      - query_apm_span_list
+      - query_apm_trace_detail
+      - detail_apm_application
+      - v2_event_logs
+  - bk_app_code: bk_hcm
+    grant_dimension: "resource"
+    resource_names:
+      - create_uptime_check_task
+      - deploy_uptime_check_task
+      - edit_uptime_check_task
+      - get_uptime_check_task_list
 
 # 应用申请指定网关所有资源的权限，待网关管理员审批后，应用才可访问网关资源；
 # 用于命令 `apply_apigw_permissions`

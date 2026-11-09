@@ -116,6 +116,7 @@ export type IpSelectorConfig = {
   setTemplateTableCustomColumnList?: IpSelectorHostTableCustomColumn[];
   // 面板选项的值是否唯一
   unqiuePanelValue?: boolean;
+  warningSelectAllBusinesses?: boolean;
 };
 export type IpSelectorHostMenuExtend = {
   action?: () => void;
