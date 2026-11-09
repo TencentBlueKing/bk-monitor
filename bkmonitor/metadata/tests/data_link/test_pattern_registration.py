@@ -1,5 +1,6 @@
 import copy
 import datetime
+import json
 
 import pytest
 from django.utils import timezone
@@ -24,6 +25,49 @@ from metadata.tests.data_link.test_log_clustering_sink import (
 )
 
 pytestmark = pytest.mark.django_db(databases="__all__")
+
+
+@pytest.mark.parametrize("timestamp_is_key", [False, True])
+def test_log_source_and_append_table_match_es_document_keys(log_datalink, timestamp_is_key):
+    option = models.ResultTableOption.objects.get(
+        table_id=LOG_TABLE_ID, name=models.ResultTableOption.OPTION_V4_LOG_DATA_LINK
+    )
+    config = json.loads(option.value)
+    keys = ["log", "dtEventTimeStamp"] if timestamp_is_key else ["log"]
+    config["es_storage_config"]["unique_field_list"] = keys
+    option.value = json.dumps(config)
+    option.save(update_fields=["value"])
+    for name, kind in [("log", "string"), ("dtEventTimeStamp", "timestamp")]:
+        models.ResultTableField.objects.create(
+            table_id=LOG_TABLE_ID,
+            bk_tenant_id="system",
+            field_name=name,
+            field_type=kind,
+            tag="dimension",
+            is_config_by_user=True,
+        )
+
+    configs, _ = compose(*log_datalink)
+    source = next(c for c in configs if c["kind"] == "ResultTable")
+    assert source["spec"]["dataType"] == "log"
+
+    # 模拟已下发的旧日志链路；下一次生成配置应原地纠正类型并保留资源身份。
+    rt = models.ResultTableConfig.objects.get(table_id=LOG_TABLE_ID)
+    rt.data_type = "metric"
+    rt.save(update_fields=["data_type"])
+    sink = create_clustering_sink(result={"mode": "append"})
+    configs, _ = compose(*log_datalink)
+    rt.refresh_from_db()
+    assert rt.data_type == "log"
+    sink.refresh_from_db()
+    for name in (source["metadata"]["name"], sink.result["result_table"]["name"]):
+        result = next(c for c in configs if c["kind"] == "ResultTable" and c["metadata"]["name"] == name)
+        binding = next(c for c in configs if c["kind"] == "ElasticSearchBinding" and c["spec"]["data"]["name"] == name)
+        fields = {f["field_name"]: f["field_type"] for f in result["spec"]["fields"]}
+        assert result["spec"]["dataType"] == "log"
+        assert binding["spec"]["unique_field_list"] == keys
+        assert set(keys) <= fields.keys()
+        assert fields.get("dtEventTimeStamp") == ("timestamp" if timestamp_is_key else None)
 
 
 def test_append_registers_original_fields_and_separate_targets(log_datalink, mocker):

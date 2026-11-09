@@ -36,19 +36,30 @@ def prepare_clustering_stores(sink):
     configs, refs = _prepare_store(sink, "pattern", PATTERN_FIELDS)
     sink.pattern_store = refs
     if sink.result.get("mode") == "append":
+        from metadata import models
+        from metadata.models.result_table import LogV4DataLinkOption
+
+        option = models.ResultTableOption.objects.get(
+            bk_tenant_id=sink.bk_tenant_id,
+            table_id=sink.table_id,
+            name=models.ResultTableOption.OPTION_V4_LOG_DATA_LINK,
+        )
+        es_config = LogV4DataLinkOption(**json.loads(option.value)).es_storage_config
         fields = {
             field["field_name"]: field["field_type"]
-            for field in generate_result_table_field_list(sink.table_id, sink.bk_tenant_id)
+            for field in generate_result_table_field_list(
+                sink.table_id, sink.bk_tenant_id, unique_field_list=es_config.unique_field_list
+            )
         }
         fields.update(RESULT_FIELDS)
-        result_configs, result_refs = _prepare_store(sink, "clustered", fields)
+        result_configs, result_refs = _prepare_store(sink, "clustered", fields, es_config=es_config)
         sink.result = {"mode": "append", **result_refs}
         configs.extend(result_configs)
     sink.save(update_fields=["pattern_store", "result"])
     return configs
 
 
-def _prepare_store(sink, suffix, fields):
+def _prepare_store(sink, suffix, fields, *, es_config=None):
     """每个租户、索引集登记聚类结果或 Pattern 表，跟随源日志的 ES 存储。
 
     资源单独归组，避免被原日志链路的单 RT/Binding 认领和清理逻辑误处理。
@@ -241,14 +252,6 @@ def _prepare_store(sink, suffix, fields):
     if suffix == "pattern":
         binding_config["spec"].update(doc_value_fields=PATTERN_KEYS)
     else:
-        from metadata.models.result_table import LogV4DataLinkOption
-
-        option = models.ResultTableOption.objects.get(
-            bk_tenant_id=tenant,
-            table_id=sink.table_id,
-            name=models.ResultTableOption.OPTION_V4_LOG_DATA_LINK,
-        )
-        es_config = LogV4DataLinkOption(**json.loads(option.value)).es_storage_config
         binding_config["spec"].update(
             unique_field_list=es_config.unique_field_list,
             json_field_list=es_config.json_field_list,
