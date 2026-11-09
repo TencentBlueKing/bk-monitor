@@ -102,6 +102,12 @@ export function useTraceContext({
   let flushing = false;
   /** 当前这批检索的中断句柄 */
   let traceAbortController: AbortController | null = null;
+  /** 检索失败的重试间隔与上限：整表都在视口内时不会再触发可见性回调，只能靠定时任务补齐 */
+  const TRACE_RETRY_DELAY = 1000;
+  const TRACE_RETRY_MAX_TIMES = 2;
+  let traceRetryTimer: null | ReturnType<typeof setTimeout> = null;
+  /** 本轮已重试的次数，队列排空后重置 */
+  let traceRetryTimes = 0;
 
   /** 已注册观察的行元素与其 trace_id，root 变化时据此重新观察 */
   const observedRows = new Map<Element, string>();
@@ -114,6 +120,23 @@ export function useTraceContext({
     const next = new Map(traceInfoMap.value);
     for (const info of infos) next.set(info.trace_id, info);
     traceInfoMap.value = next;
+  }
+
+  function clearTraceRetry() {
+    if (traceRetryTimer === null) return;
+    clearTimeout(traceRetryTimer);
+    traceRetryTimer = null;
+  }
+
+  /** 失败后按有限次数延迟重试：行一直留在视口内时不会有新的可见性回调来驱动队列 */
+  function scheduleTraceRetry(seq: number) {
+    if (seq !== traceQueueSeq || traceRetryTimer !== null || traceRetryTimes >= TRACE_RETRY_MAX_TIMES) return;
+    traceRetryTimes += 1;
+    traceRetryTimer = setTimeout(() => {
+      traceRetryTimer = null;
+      if (seq !== traceQueueSeq || !traceQueue.size) return;
+      void flushTraceQueue(seq);
+    }, TRACE_RETRY_DELAY * traceRetryTimes);
   }
 
   /** 逐批检索入队的 trace_id，流里每收到一帧命中就立即合并，先有结果的行先展示入口 */
@@ -137,8 +160,14 @@ export function useTraceContext({
             controller.signal
           );
         } catch {
-          /** 检索失败：本批不算查完，退回待检索状态并停止本轮，等待行重新观察后重试 */
-          for (const traceId of batch) inflightTraceIds.delete(traceId);
+          /** 期间切换了 View 或关闭了抽屉，代际已变，本批交给新一轮，不能回写新队列 */
+          if (seq !== traceQueueSeq) return;
+          /** 检索失败：本批退回待检索并结束本轮，后续入队会把它一起带走；不同步重跑，避免连续打满失败接口 */
+          for (const traceId of batch) {
+            inflightTraceIds.delete(traceId);
+            traceQueue.add(traceId);
+          }
+          scheduleTraceRetry(seq);
           break;
         }
         /** 期间切换了 View 或关闭了抽屉，剩余队列由新一轮接管 */
@@ -147,6 +176,11 @@ export function useTraceContext({
           inflightTraceIds.delete(traceId);
           resolvedTraceIds.add(traceId);
         }
+      }
+      /** 队列已排空，说明本轮没有遗留失败项，重置重试预算 */
+      if (seq === traceQueueSeq && !traceQueue.size) {
+        traceRetryTimes = 0;
+        clearTraceRetry();
       }
     } finally {
       if (seq === traceQueueSeq) {
@@ -158,13 +192,12 @@ export function useTraceContext({
 
   /** 行进入视口时把关联 trace_id 入队，跳过在途与已查完的 ID */
   function enqueueTraceIds(traceIds: string[]) {
-    let added = false;
     for (const traceId of traceIds) {
       if (resolvedTraceIds.has(traceId) || inflightTraceIds.has(traceId) || traceQueue.has(traceId)) continue;
       traceQueue.add(traceId);
-      added = true;
     }
-    if (added) void flushTraceQueue(traceQueueSeq);
+    /** 队列里可能已有上一轮失败的遗留项，不只看本次是否新增 */
+    if (!flushing && traceQueue.size) void flushTraceQueue(traceQueueSeq);
   }
 
   /** 清掉队列与在途检索：clearResult 为 true 时连已检索结果一起丢弃（切换 View） */
@@ -175,6 +208,8 @@ export function useTraceContext({
     flushing = false;
     traceAbortController?.abort();
     traceAbortController = null;
+    clearTraceRetry();
+    traceRetryTimes = 0;
     if (clearResult) {
       resolvedTraceIds = new Set();
       traceInfoMap.value = new Map();
