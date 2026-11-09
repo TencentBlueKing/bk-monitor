@@ -56,7 +56,7 @@ import {
 import { isShadowEqual, reviewInterval } from '../../utils';
 import { getSeriesMaxInterval, getTimeSeriesXInterval } from '../../utils/axis';
 import { handleRelateAlert } from '../../utils/menu';
-import { VariablesService } from '../../utils/variable';
+import { variableRegex, VariablesService } from '../../utils/variable';
 import BaseEchart from '../monitor-base-echart';
 
 import type { IChartTitleMenuEvents } from '../../components/chart-title/chart-title-menu';
@@ -465,7 +465,13 @@ export class LineChart
           };
           if (
             this.viewOptions.method?.toLowerCase() === 'count' &&
-            item.data.query_configs?.some(config => typeof config.promql === 'string' && config.promql)
+            item.data.query_configs?.some(
+              config =>
+                typeof config.promql === 'string' &&
+                [...config.promql.matchAll(variableRegex)].some(
+                  match => (match[1] || match[2] || match[4]) === 'method'
+                )
+            )
           ) {
             newParams.unit = 'none';
           }

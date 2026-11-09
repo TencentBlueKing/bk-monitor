@@ -15,7 +15,7 @@ new Function('require', 'module', 'exports', variableCode)(id => {
   assert.equal(id, 'monitor-common/utils/utils');
   return { deepClone: structuredClone };
 }, moduleObject, moduleObject.exports);
-const { VariablesService } = moduleObject.exports;
+const { variableRegex, VariablesService } = moduleObject.exports;
 
 function parse(promql) {
   assert.equal(typeof promql, 'string');
@@ -99,8 +99,9 @@ assert.ok(queryMethod);
 const harnessCode = ts.transpileModule(`class Harness { ${queryMethod.getText(chartSource)} } return Harness;`, {
   compilerOptions: { target: ts.ScriptTarget.ES2022 },
 }).outputText;
-const Harness = new Function('VariablesService', 'window', 'handleTransformToTimestamp', 'reviewInterval', 'CancelToken', harnessCode)(
+const Harness = new Function('VariablesService', 'variableRegex', 'window', 'handleTransformToTimestamp', 'reviewInterval', 'CancelToken', harnessCode)(
   VariablesService,
+  variableRegex,
   { i18n: { t: value => value } },
   () => [100, 200],
   () => '1m',
@@ -177,6 +178,42 @@ test('Legacy native COUNT requests use no unit while other methods and structure
         else assert.equal(request.query_configs[0].metrics[0].method, method);
       }
       assert.equal(original.unit, 'bytes');
+    }
+  }
+});
+
+test('Fixed native queries retain bytes under global COUNT when they do not consume the method variable', async () => {
+  for (const method of ['count', 'COUNT']) {
+    for (const promql of [
+      'sum(container_memory_rss{namespace="qa"})',
+      'container_memory_rss{namespace="qa"} $time_shift',
+      'container_memory_rss{method="$method_suffix"}',
+    ]) {
+      const original = { expression: 'A', unit: 'bytes', query_configs: [{ promql }] };
+      const { graph, requests } = graphHarness(original, method);
+      await graph.queryPanelData();
+      assert.notEqual(graph.emptyText, '出错了');
+      assert.equal(requests.length, 2);
+      for (const request of requests) {
+        assert.equal(request.unit, 'bytes');
+        parse(request.query_configs[0].promql);
+      }
+    }
+  }
+});
+
+test('COUNT method detection follows every existing variable syntax', async () => {
+  for (const variable of ['$method', '${method}', '[[method]]']) {
+    const original = {
+      expression: 'A', unit: 'bytes', query_configs: [{ promql: `${variable}(pod_memory_rss{namespace="qa"})` }],
+    };
+    const { graph, requests } = graphHarness(original, 'count');
+    await graph.queryPanelData();
+    assert.notEqual(graph.emptyText, '出错了');
+    assert.equal(requests.length, 2);
+    for (const request of requests) {
+      assert.equal(request.unit, 'none');
+      assert.equal(request.query_configs[0].promql, 'count(pod_memory_rss{namespace="qa"})');
     }
   }
 });
