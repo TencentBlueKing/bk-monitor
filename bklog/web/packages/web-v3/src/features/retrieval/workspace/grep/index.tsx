@@ -1,0 +1,452 @@
+/*
+ * Tencent is pleased to support the open source community by making
+ * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
+ *
+ * Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
+ *
+ * 蓝鲸智云PaaS平台 (BlueKing PaaS) is licensed under the MIT License.
+ *
+ * License for 蓝鲸智云PaaS平台 (BlueKing PaaS):
+ *
+ * ---------------------------------------------------
+ * Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated
+ * documentation files (the "Software"), to deal in the Software without restriction, including without limitation
+ * the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and
+ * to permit persons to whom the Software is furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in all copies or substantial portions of
+ * the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO
+ * THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF
+ * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
+ * IN THE SOFTWARE.
+ */
+
+import { MessagePlugin as TDesignMessage } from 'tdesign-vue-next';
+import { ServicesInstance } from '@/platform/services';
+import { defineComponent, onBeforeUnmount, onMounted, ref, watch } from 'vue';
+
+import { readBlobRespToJson } from '@/shared/lib/util';
+import { moduleLargeDataCacheService } from '@/platform/persistence/index';
+import useFieldAliasRequestParams from '@/shared/composables/use-field-alias-request-params';
+import useStore from '@/shared/composables/use-store';
+import RequestPool from '@/app/state/request-pool';
+import { debounce } from 'lodash-es';
+import { useRoute, useRouter } from 'vue-router';
+import useRetrieveEvent from '@/shared/composables/use-retrieve-event';
+
+import RetrieveHelper, { RetrieveEvent } from '../../retrieve-helper';
+import GrepCli from './grep-cli';
+import GrepCliResult from './grep-cli-result';
+import GrepCliTotal from './grep-cli-total';
+import {
+  resolveGrepMountAction,
+  shouldHandleSearchingChange,
+  shouldReloadOnSearchingChange,
+} from './resolve-grep-request';
+import type { GrepRequestResult } from './types';
+import { axiosInstance } from '@/platform/http/index';
+
+
+import './grep-cli.scss';
+
+export default defineComponent({
+  name: 'GrepView',
+  components: {
+    GrepCli,
+    GrepCliResult,
+  },
+  setup() {
+    const store = useStore();
+
+    const route = useRoute();
+    const router = useRouter();
+
+    const searchValue = ref('');
+    const field = ref((route.query.grep_field as string) ?? '');
+    const grepQuery = ref((route.query.grep_query as string) ?? '');
+    const grepRequestResult = ref<GrepRequestResult>({
+      offset: 0,
+      is_loading: true,
+      list: [],
+      has_more: true,
+      is_error: false,
+      exception_msg: '',
+      cache_scope: '',
+      cached_count: 0,
+    });
+
+    const matchMode = ref({
+      caseSensitive: false,
+      regexMode: false,
+      wordMatch: false,
+    });
+
+    const totalMatches = ref(0);
+    /**
+     * 检索的结果总数
+     */
+    const searchListTotal = ref(0);
+
+    /**
+     * 设置默认字段值
+     * 如果字段值为空，检查是否有 log 字段，如果有则设置为 log 字段
+     * 如果 log 字段不存在，则设置为第一个 field_type 为 text 的字段
+     */
+    const setDefaultFieldValue = () => {
+      const rawFieldList = store.getters.rawFieldList;
+      if (field.value === '' && rawFieldList.length > 0) {
+        const logField = rawFieldList.find((field: { field_name: string; }) => field.field_name === 'log');
+        if (logField) {
+          field.value = logField.field_name;
+        } else {
+          const textField = rawFieldList.find((field: { field_type: string; }) => field.field_type === 'text');
+          if (textField) {
+            field.value = textField.field_name;
+          }
+        }
+
+        if (field.value) {
+          router.replace({
+            params: route.params,
+            query: {
+              ...route.query,
+              grep_field: field.value,
+            },
+          });
+        }
+      }
+    };
+
+    const clearGrepCache = () => {
+      const scope = grepRequestResult.value.cache_scope;
+      if (scope) {
+        moduleLargeDataCacheService.clear(scope).catch(error => {
+          console.warn('[grep-cache] clear failed', error);
+        });
+      }
+      grepRequestResult.value.cache_scope = '';
+      grepRequestResult.value.cached_count = 0;
+    };
+
+    const resetGrepRequestResult = (loading = true) => {
+      clearGrepCache();
+      grepRequestResult.value.is_loading = loading;
+      grepRequestResult.value.is_error = false;
+      grepRequestResult.value.exception_msg = '';
+      grepRequestResult.value.has_more = true;
+      grepRequestResult.value.list.splice(0, grepRequestResult.value.list.length);
+      grepRequestResult.value.offset = 0;
+    };
+
+    const requestGrepList = debounce(() => {
+      if (!grepRequestResult.value.has_more) {
+        return;
+      }
+
+      grepRequestResult.value.is_loading = true;
+      grepRequestResult.value.is_error = false;
+      grepRequestResult.value.exception_msg = '';
+
+      const baseUrl = process.env.NODE_ENV === 'development' ? 'api/v1' : window.AJAX_URL_PREFIX;
+      const cancelTokenKey = 'requestIndexSetGrepQueryToken';
+      RequestPool.execCanceToken(cancelTokenKey);
+      const requestCancelToken = RequestPool.getCancelToken(cancelTokenKey);
+
+      const { start_time, end_time, keyword, addition } = store.state.indexItem;
+      const { alias_settings: aliasSettings, sort_list: sortList } = useFieldAliasRequestParams();
+
+      const params: any = {
+        method: 'post',
+        url: `/search/index_set/${store.state.indexId}/grep_query/`,
+        cancelToken: requestCancelToken,
+        withCredentials: true,
+        baseURL: baseUrl,
+        responseType: 'blob',
+        data: {
+          start_time,
+          end_time,
+          keyword,
+          addition,
+          grep_query: grepQuery.value,
+          grep_field: field.value,
+          begin: grepRequestResult.value.offset,
+          sort_list: sortList.value,
+          alias_settings: aliasSettings.value,
+          size: 100,
+        },
+      };
+
+      if (store.state.spaceUid) {
+        Object.assign(params, {
+          headers: {
+            'X-Bk-Space-Uid': store.state.spaceUid,
+          },
+        });
+      }
+
+      RetrieveHelper.reportLog(
+        {
+          trigger_source: 'grep',
+          action: 'request',
+        },
+        store.state,
+      );
+
+      return axiosInstance(params)
+        .then((resp: any) => {
+          if (resp.data && !resp.message) {
+            return readBlobRespToJson(resp.data).then(({ data, result, message }) => {
+              if (result) {
+                const list = Array.isArray(data.list) ? data.list : [];
+                grepRequestResult.value.has_more = list.length === 100;
+                const currentScope =
+                  grepRequestResult.value.cache_scope ||
+                  moduleLargeDataCacheService.createScope('grep', {
+                    indexId: store.state.indexId,
+                    field: field.value,
+                    grepQuery: grepQuery.value,
+                    start_time,
+                    end_time,
+                  });
+                const mergedList = grepRequestResult.value.list.concat(list);
+                grepRequestResult.value.cache_scope = currentScope;
+                grepRequestResult.value.cached_count = mergedList.length;
+                moduleLargeDataCacheService.replaceList(currentScope, mergedList, 50).catch(error => {
+                  console.warn('[grep-cache] persist failed', error);
+                });
+                grepRequestResult.value.list = mergedList;
+                data.list = undefined;
+                setTimeout(() => {
+                  RetrieveHelper.highLightKeywords([searchValue.value], true);
+                });
+
+                return;
+              }
+
+              grepRequestResult.value.is_loading = false;
+              grepRequestResult.value.is_error = !result;
+              grepRequestResult.value.exception_msg = message;
+              return;
+            });
+          }
+
+          grepRequestResult.value.is_loading = false;
+          grepRequestResult.value.is_error = true;
+          grepRequestResult.value.exception_msg = resp.message;
+        })
+        .catch((err: any) => {
+          if (err.message === 'canceled') {
+            return;
+          }
+          grepRequestResult.value.is_error = true;
+          grepRequestResult.value.exception_msg = err.message || err;
+        })
+        .finally(() => {
+          grepRequestResult.value.is_loading = false;
+        });
+    }, 120);
+
+    // 处理搜索更新
+    const handleSearchUpdate = (data: any) => {
+      searchValue.value = data.searchValue;
+
+      RetrieveHelper.highLightKeywords([searchValue.value], true);
+    };
+
+    // 处理匹配模式更新
+    const handleMatchModeUpdate = (mode: any) => {
+      Object.assign(matchMode.value, mode);
+      RetrieveHelper.setHighlightCaseSensitive(matchMode.value.caseSensitive);
+      RetrieveHelper.setHighlightRegExpMode(matchMode.value.regexMode);
+      RetrieveHelper.setHighlightAccuracy(matchMode.value.wordMatch ? 'exactly' : 'partially');
+      RetrieveHelper.highLightKeywords([searchValue.value], true);
+    };
+
+    const handleFieldChange = (v: string) => {
+      field.value = v;
+      resetGrepRequestResult();
+
+      router.replace({
+        params: route.params,
+        query: {
+          ...route.query,
+          grep_field: v,
+        },
+      });
+
+      reloadGrepDataAndTotal();
+    };
+
+    // 处理grep enter
+    const handleGrepEnter = (value: string) => {
+      grepQuery.value = value;
+      resetGrepRequestResult(Boolean(field.value));
+      router.replace({
+        params: route.params,
+        query: {
+          ...route.query,
+          grep_query: value,
+        },
+      });
+
+      if (field.value === '') {
+        return;
+      }
+      reloadGrepDataAndTotal();
+    };
+
+    const handleLoadMore = () => {
+      if (field.value === '') {
+        return;
+      }
+
+      grepRequestResult.value.offset += 100;
+      requestGrepList();
+    };
+
+    const handleRequestResult = (runRequest = true, setDefField = false) => {
+      if (runRequest) {
+        if (setDefField) {
+          setDefaultFieldValue();
+        }
+
+        resetGrepRequestResult();
+
+        reloadGrepDataAndTotal();
+      }
+    };
+
+    const handleSearchingChange = (payload: unknown) => {
+      // INDEX_SET_ID_CHANGE 也会走到这里，参数不是 boolean，忽略即可（由后续 SEARCHING_CHANGE 拉数）
+      if (!shouldHandleSearchingChange(payload)) {
+        return;
+      }
+      handleRequestResult(shouldReloadOnSearchingChange(payload), true);
+    };
+
+    const { addEvent } = useRetrieveEvent();
+    addEvent(
+      [RetrieveEvent.SEARCH_VALUE_CHANGE, RetrieveEvent.SEARCH_TIME_CHANGE, RetrieveEvent.AUTO_REFRESH],
+      handleRequestResult,
+    );
+
+    addEvent([RetrieveEvent.SEARCHING_CHANGE, RetrieveEvent.INDEX_SET_ID_CHANGE], handleSearchingChange);
+
+    const handleParamsChange = ({ isParamsChange, option }: { isParamsChange: boolean; option: any }) => {
+      if (isParamsChange) {
+        resetGrepRequestResult();
+        reloadGrepDataAndTotal();
+      }
+
+      if (option.operation === 'highlight') {
+        RetrieveHelper.highLightKeywords([option.value], true);
+        searchValue.value = option.value;
+      }
+    };
+    /**
+     * 初始化获取 grep 检索总条数
+     */
+    const initGetGrepResultTotal = () => {
+      searchListTotal.value = 0;
+      if (!field.value) {
+        return;
+      }
+      const { start_time, end_time, keyword, addition } = store.state.indexItem;
+      const { alias_settings: aliasSettings, sort_list: sortList } = useFieldAliasRequestParams();
+      const data = {
+        start_time,
+        end_time,
+        keyword,
+        addition,
+        grep_query: grepQuery.value,
+        grep_field: field.value,
+        sort_list: sortList.value,
+        alias_settings: aliasSettings.value,
+      };
+      ServicesInstance.retrieve.getGrepResultTotal({
+          params: {
+            index_set_id: store.state.indexId,
+          },
+          data,
+        })
+        .then(res => {
+          searchListTotal.value = res?.data?.total || 0;
+        })
+        .catch(err => {
+          searchListTotal.value = 0;
+          TDesignMessage("error", { content: err?.message });
+        });
+    };
+    /**
+     * 重新加载检索总条数 和 检索的数据
+     */
+    const reloadGrepDataAndTotal = () => {
+      requestGrepList();
+      initGetGrepResultTotal();
+    };
+
+    watch(
+      () => store.getters.rawFieldList.length,
+      length => {
+        if (!field.value && length > 0) {
+          setDefaultFieldValue();
+          if (field.value) {
+            resetGrepRequestResult(true);
+            reloadGrepDataAndTotal();
+          }
+        }
+      },
+    );
+
+    onMounted(() => {
+      RetrieveHelper.setMarkInstance();
+
+      resetGrepRequestResult(true);
+      setDefaultFieldValue();
+      // 从图表分析等 Tab 切入时不会触发 SEARCHING_CHANGE，需在挂载时主动拉数；
+      // 主检索进行中则等待 SEARCHING_CHANGE(false)，避免重复请求。
+      const mountAction = resolveGrepMountAction(RetrieveHelper.isSearching, field.value);
+      if (mountAction === 'reload') {
+        reloadGrepDataAndTotal();
+      } else if (mountAction === 'idle' && !store.state.indexFieldInfo.is_loading) {
+        grepRequestResult.value.is_loading = false;
+      }
+    });
+
+    onBeforeUnmount(() => {
+      RequestPool.execCanceToken('requestIndexSetGrepQueryToken');
+      requestGrepList.cancel?.();
+      resetGrepRequestResult(false);
+      moduleLargeDataCacheService.clearMemory(grepRequestResult.value.cache_scope);
+      RetrieveHelper.destroyMarkInstance();
+    });
+
+    return () => (
+      <div class='grep-view'>
+        <GrepCli
+          fieldValue={field.value}
+          searchCount={totalMatches.value}
+          searchValue={searchValue.value}
+          onFieldChange={handleFieldChange}
+          onGrepEnter={handleGrepEnter}
+          onMatchMode={handleMatchModeUpdate}
+          onSearchChange={handleSearchUpdate}
+        />
+        <GrepCliTotal
+          loading={grepRequestResult.value.is_loading}
+          total={searchListTotal.value}
+          text={'- 共检索出{total}条结果 -'}
+        />
+        <GrepCliResult
+          fieldName={field.value}
+          grepRequestResult={grepRequestResult.value}
+          onLoadMore={handleLoadMore}
+          onParamsChange={handleParamsChange}
+        />
+      </div>
+    );
+  },
+});

@@ -1,0 +1,1193 @@
+/*
+ * Tencent is pleased to support the open source community by making
+ * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
+ *
+ * Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
+ *
+ * 蓝鲸智云PaaS平台 (BlueKing PaaS) is licensed under the MIT License.
+ *
+ * License for 蓝鲸智云PaaS平台 (BlueKing PaaS):
+ *
+ * ---------------------------------------------------
+ * Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated
+ * documentation files (the "Software"), to deal in the Software without restriction, including without limitation
+ * the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and
+ * to permit persons to whom the Software is furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in all copies or substantial portions of
+ * the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO
+ * THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF
+ * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
+ * IN THE SOFTWARE.
+ */
+
+import { Alert as Alert, Tag as Tag } from 'tdesign-vue-next';
+
+import { MessagePlugin as TDesignMessage, Button as TButton, Button as Button } from 'tdesign-vue-next';
+import { ServicesInstance } from '@/platform/services';
+
+import { Component } from 'vue-property-decorator';
+import { Component as tsc } from 'vue-tsx-support';
+
+import BizMenuSelect from '@/shared/global/bk-space-choice/index';
+import { Select, Option, Input, Table } from 'tdesign-vue-next';
+import dayjs from 'dayjs';
+
+import * as authorityMap from '../../shared/lib/authority-map';
+import { Debounce } from '../../shared/lib/util';
+import EmptyStatus from '../../shared/ui/empty-status/index.vue';
+import AuthorizationDialog from './authorization-dialog';
+
+import './authorization-list.scss';
+
+const TableColumn = (_props: Record<string, unknown>, { slots }: { slots: { default?: () => unknown } }) => slots.default?.();
+
+const { $i18n } = window.mainComponent;
+
+// 空状态类型枚举
+export type EmptyStatusType = '403' | '500' | 'empty' | 'search-empty';
+// 空状态操作枚举
+export type EmptyStatusOperationType = 'clear-filter' | 'refresh';
+export type AngleType = 'approval' | 'resource' | 'user';
+type StatusType = 'all' | 'approval' | 'available' | 'expired' | 'failed' | 'invalid' | 'success';
+enum TableColumnEnum {
+  action_id = 'action_id',
+  authorized_user = 'authorized_user',
+  authorized_users = 'authorized_users',
+  authorizer = 'authorizer',
+  created_at = 'created_at',
+  expire_time = 'expire_time',
+  resource_id = 'resource_id',
+  resources = 'resources',
+  space_name = 'space_name',
+  status = 'status',
+}
+
+interface ColumnItem {
+  prop: TableColumnEnum;
+  name: string;
+  hidden?: boolean;
+  authHidden?: boolean;
+  props?: any;
+  minWidth?: number;
+}
+
+export type ResourceId = string | number;
+export interface ResourceOption { id: ResourceId; uid: ResourceId; text: string; }
+interface AuthorizationFields {
+  authorized_user?: string;
+  authorized_users?: string[];
+  resources?: ResourceId[];
+  resource_id?: ResourceId;
+  approval_url?: string;
+  created_at?: string;
+}
+export interface UserListItem extends AuthorizationFields {
+  authorized_user: string;
+  authorizer: string;
+  space_name: string;
+  action_id: string;
+  bk_biz_id: number;
+  expire_time: string;
+  resources: ResourceId[];
+  status: Exclude<StatusType, 'all'>;
+}
+export interface ResourceListItem extends AuthorizationFields {
+  action_id: string;
+  authorized_users: string[];
+  authorizer: string;
+  space_name: string;
+  resource_id: string;
+  status: Exclude<StatusType, 'all'>;
+  expire_time?: string;
+}
+
+export interface EditModel {
+  action_id: string;
+  authorized_users: string[];
+  resources: ResourceId[];
+  expire_time?: string;
+  action_multiple?: string[];
+  actionShowList?: any[];
+}
+
+export const STATUS_LIST = [
+  { id: 'all', name: $i18n.t('全部'), show: ['user', 'resource', 'approval'] },
+  {
+    id: 'available',
+    name: $i18n.t('生效'),
+    color1: '#3FC06D',
+    color2: '#3FC06D29',
+    show: ['user', 'resource'],
+  },
+  { id: 'success', name: $i18n.t('审批成功'), color1: '#3FC06D', color2: '#3FC06D29', show: ['approval'] },
+  { id: 'approval', name: $i18n.t('审批中'), color1: '#FF9C01', color2: '#FF9C0129', show: ['approval'] },
+  { id: 'expired', name: $i18n.t('过期'), color1: '#979BA5', color2: '#979BA529', show: ['user', 'resource'] },
+  { id: 'invalid', name: $i18n.t('失效'), color1: '#EA3636', color2: '#EA363629', show: ['user', 'resource'] },
+  { id: 'failed', name: $i18n.t('审批失败'), color1: '#EA3636', color2: '#EA363629', show: ['approval'] },
+];
+
+export const ACTION_MAP = {
+  view_grafana: '仪表盘查看',
+};
+
+@Component
+export default class AuthorizationList extends tsc<object> {
+  spaceUid = '';
+  actionList: (({ id: string; name: string; }))[] = [];
+  bizCMDBRoleList: string[] = []; // 该业务下的cmdb运维角色列表
+  memberSelect = ''; // 展示的授权人
+  memberValue = ''; // 编辑授权人输入框的值
+  isEditMember = false; // 是否编辑授权人
+  searchValue = ''; // 搜索关键字
+  columnFilters: Record<string, (number | string)[]> = {}; // 表头列筛选条件（key 为列 prop）
+  angleType: AngleType = 'user'; // 视角类型
+  statusActive: StatusType = 'all'; // 状态类型
+  totalListData: (ResourceListItem | UserListItem)[] = []; // 总列表数据
+  // 列表Columns管理
+  tableColumns: { [key in AngleType]: ColumnItem[] } = {
+    user: [
+      {
+        prop: TableColumnEnum.authorized_user,
+        name: $i18n.t('被授权人'),
+        hidden: false,
+        props: { filters: [], 'filter-method': this.filterMethod },
+      },
+      {
+        prop: TableColumnEnum.action_id,
+        name: $i18n.t('操作权限'),
+        hidden: false,
+        props: { filters: [], 'filter-method': this.filterMethod },
+      },
+      {
+        prop: TableColumnEnum.resources,
+        name: $i18n.t('操作实例'),
+        hidden: false,
+        props: { minWidth: 200, filters: [], 'filter-method': this.filterMethod },
+      },
+      {
+        prop: TableColumnEnum.authorizer,
+        name: $i18n.t('授权人'),
+        authHidden: true,
+        hidden: false,
+        props: { filters: [], 'filter-method': this.filterMethod },
+      },
+      {
+        prop: TableColumnEnum.space_name,
+        name: $i18n.t('所属空间'),
+        authHidden: true,
+        hidden: false,
+        props: { filters: [], 'filter-method': this.filterMethod },
+      },
+      {
+        prop: TableColumnEnum.expire_time,
+        name: $i18n.t('截止时间'),
+        hidden: false,
+        props: { sortable: true, width: 200, formatter: this.timeFormatter },
+      },
+      {
+        prop: TableColumnEnum.status,
+        name: $i18n.t('状态'),
+        hidden: false,
+        props: { width: 140, formatter: this.statusFormatter },
+      },
+    ],
+    resource: [
+      {
+        prop: TableColumnEnum.resource_id,
+        name: $i18n.t('操作实例'),
+        hidden: false,
+        props: { filters: [], 'filter-method': this.filterMethod },
+      },
+      {
+        prop: TableColumnEnum.action_id,
+        name: $i18n.t('操作权限'),
+        hidden: false,
+        props: { filters: [], 'filter-method': this.filterMethod, width: 200 },
+      },
+      {
+        prop: TableColumnEnum.authorized_users,
+        name: $i18n.t('被授权人'),
+        hidden: false,
+        props: { filters: [], 'filter-method': this.filterMethod },
+      },
+      {
+        prop: TableColumnEnum.authorizer,
+        name: $i18n.t('授权人'),
+        authHidden: true,
+        hidden: false,
+        props: { filters: [], 'filter-method': this.filterMethod },
+      },
+      {
+        prop: TableColumnEnum.space_name,
+        name: $i18n.t('所属空间'),
+        authHidden: true,
+        hidden: false,
+        props: { filters: [], 'filter-method': this.filterMethod },
+      },
+      {
+        prop: TableColumnEnum.expire_time,
+        name: $i18n.t('截止时间'),
+        hidden: true,
+        props: { sortable: true, width: 200, formatter: this.timeFormatter },
+      },
+      {
+        prop: TableColumnEnum.status,
+        name: $i18n.t('状态'),
+        hidden: false,
+        props: { width: 140, formatter: this.statusFormatter },
+      },
+    ],
+    approval: [
+      {
+        prop: TableColumnEnum.authorized_users,
+        name: $i18n.t('被授权人'),
+        hidden: false,
+        props: { filters: [], 'filter-method': this.filterMethod },
+      },
+      {
+        prop: TableColumnEnum.action_id,
+        name: $i18n.t('操作权限'),
+        hidden: false,
+        props: { filters: [], 'filter-method': this.filterMethod },
+      },
+      {
+        prop: TableColumnEnum.resources,
+        name: $i18n.t('操作实例'),
+        hidden: false,
+        props: { filters: [], 'filter-method': this.filterMethod, minWidth: 200 },
+      },
+      {
+        prop: TableColumnEnum.created_at,
+        name: $i18n.t('创建时间'),
+        hidden: false,
+        props: { sortable: true, width: 200, formatter: this.timeFormatter },
+      },
+      {
+        prop: TableColumnEnum.expire_time,
+        name: $i18n.t('截止时间'),
+        hidden: false,
+        props: { sortable: true, width: 200, formatter: this.timeFormatter },
+      },
+      {
+        prop: TableColumnEnum.status,
+        name: $i18n.t('状态'),
+        hidden: false,
+        props: { width: 140, formatter: this.statusFormatter },
+      },
+    ],
+  };
+  // 分页
+  pagination = {
+    current: 1,
+    count: 0,
+    limit: 10,
+  };
+  loading = false;
+  resourcesLoading = true; // 操作实例loading
+  resourceList: ResourceOption[] = []; // 操作实例可选列表
+  resourceMaps: Record<string, ResourceOption[]> = {}; // 多个操作实例映射列表
+  rowData: EditModel | null = null; // 编辑行数据
+  emptyStatusType: EmptyStatusType = 'empty';
+  visible = false;
+  abortController: AbortController | undefined = undefined;
+
+  // // 是否是admin用户
+  // get isSuperUser(): boolean {
+  //   return this.$store.state.app.isSuperUser;
+  // }
+
+  // 当前操作人是否有cmdb运维角色
+  get hasCMDBRole(): boolean {
+    const username = this.$store.state.userMeta?.username ?? '';
+    return this.bizCMDBRoleList.includes(username);
+  }
+
+  // 实际展示列表列
+  get currentColumns() {
+    return this.tableColumns[this.angleType].filter(item => !(item.hidden || item.authHidden));
+  }
+
+  // 实际展示的状态选项
+  get currentStatus() {
+    return STATUS_LIST.filter(item => item.show.includes(this.angleType));
+  }
+
+  // 经过表头列筛选、状态和关键字筛选后的列表
+  get filteredListData() {
+    return this.totalListData.filter(item => {
+      // 表头列筛选匹配（如操作权限、操作实例），作用于全量数据
+      const columnPick = Object.entries(this.columnFilters).every(([prop, values]) => {
+        if (!values?.length) {
+          return true;
+        }
+        const cell = (item as Record<string, any>)[prop];
+        return values.some(value => (Array.isArray(cell) ? cell.includes(value) : cell === value));
+      });
+      if (!columnPick) {
+        return false;
+      }
+      // 状态匹配
+      const statusPick = this.statusActive === 'all' || item.status === this.statusActive;
+      if (!(this.searchValue && statusPick)) {
+        return statusPick;
+      }
+      // 关键字匹配
+      const { status: _status, expire_time: _expireTime, created_at: _createdAt, ...searchKey } = TableColumnEnum;
+      return Object.keys(searchKey).some(rawKey => {
+        const key = rawKey as keyof typeof searchKey;
+        if (!item[key]) {
+          return false;
+        }
+        const val = Array.isArray(item[key]) ? item[key] : [item[key]];
+        if (key === TableColumnEnum.resources || key === TableColumnEnum.resource_id) {
+          return val.some(id => {
+            const resourceList = this.resourceMaps[item[TableColumnEnum.action_id]] || [];
+            const rItem = resourceList.find((r: { id: any; }) => r.id === id);
+            return rItem?.text?.includes(this.searchValue) ?? false;
+          });
+        }
+        if (key === TableColumnEnum.action_id) {
+          return val.some(id => {
+            const aItem = this.actionList.find(aItem => aItem.id === id);
+            return aItem?.name?.includes(this.searchValue) ?? false;
+          });
+        }
+        return val.some(newVal => newVal.toString().includes(this.searchValue));
+      });
+    });
+  }
+
+  // 经过筛选，分页后实际展示的列表数据
+  get listData() {
+    const { current, limit } = this.pagination;
+    return this.filteredListData.slice((current - 1) * limit, current * limit);
+  }
+
+  // 表格分页配置（count 由筛选结果派生，保证列筛选/状态/关键字与分页联动正确）
+  get tablePagination() {
+    return {
+      ...this.pagination,
+      count: this.filteredListData.length,
+    };
+  }
+
+  async created() {
+    this.spaceUid = this.$store.state.spaceUid;
+    const hasManageAuth = await this.checkBizAllow();
+    if (hasManageAuth) {
+      this.angleType = (this.$route.query?.activeNav as AngleType) || 'user';
+      this.getBizRoleList();
+      await this.getActionList();
+      this.getListData();
+      this.getAuthUser();
+    }
+  }
+
+  async checkBizAllow() {
+    try {
+      const res = await this.$store.dispatch('checkAndGetData', {
+        action_ids: [authorityMap.VIEW_BUSINESS],
+        resources: [
+          {
+            type: 'space',
+            id: this.spaceUid,
+          },
+        ],
+      });
+      if (res.isAllowed === false) {
+        this.$store.commit('updateState', { authDialogData: res.data });
+        return false;
+      }
+      return true;
+    } catch (e) {
+      console.warn(e);
+      return false;
+    }
+  }
+
+  async getActionList() {
+    const res = await ServicesInstance.authorization.getActionList();
+    this.actionList = res?.data || [];
+    this.getResources();
+  }
+
+  /**
+   *
+   * @param v 空间uid
+   * @description 业务选择器选择业务时触发
+   */
+  async handleSpaceChange(v: string) {
+    this.spaceUid = v;
+    // this.$store.commit('updateSpace', v);
+    const hasManageAuth = await this.checkBizAllow();
+    // 空间切换后数据整体变化，清空原有列筛选
+    this.resetColumnFilters();
+    this.getResources();
+    if (hasManageAuth) {
+      this.getListData();
+      this.getAuthUser();
+      this.getBizRoleList();
+    }
+
+    // 业务选择器选择全部选项时，才有权限展示该列
+    // Object.values(this.tableColumns).forEach((columns) => {
+    //   columns.forEach((column) => {
+    //     if (column.authHidden !== undefined) {
+    //       column.authHidden = v !== 0;
+    //     }
+    //   });
+    // });
+  }
+
+  // 获取业务运维角色列表
+  async getBizRoleList() {
+    const res = await ServicesInstance.authorization.getAuthorizerList({
+      query: {
+        space_uid: this.spaceUid,
+      },
+    });
+    this.bizCMDBRoleList = res.data || [];
+  }
+
+  // 获取授权人
+  async getAuthUser() {
+    const res = await ServicesInstance.authorization.getAuthorizer({
+      query: {
+        space_uid: this.spaceUid,
+      },
+    });
+    this.memberSelect = res.data || '';
+  }
+
+  // 展示编辑授权人
+  showMemberSelect() {
+    this.memberValue = this.memberSelect;
+    this.isEditMember = true;
+  }
+
+  // 创建、修改授权人
+  async createOrUpdateAuthUser() {
+    if (!this.memberValue) {
+      TDesignMessage("error", { content: this.$t('不能为空') });
+      return;
+    }
+    try {
+      await ServicesInstance.authorization.createOrUpdateAuthorizer({
+        data: {
+          space_uid: this.spaceUid,
+          maintainer: this.memberValue,
+        },
+      });
+      this.memberSelect = this.memberValue;
+      this.isEditMember = false;
+    } catch (err) {
+      console.log(err);
+    }
+  }
+
+  // 视角切换
+  handleAngleTabChange(type: AngleType) {
+    // 从用户或者资源视图切换到审批视图，状态变更为全部
+    if ((this.angleType === 'resource' || this.angleType === 'user') && type === 'approval') {
+      this.statusActive = 'all';
+    }
+    // 从审批视图切换到用户或者资源视图，状态同样变更为全部
+    if (this.angleType === 'approval' && (type === 'user' || type === 'resource')) {
+      this.statusActive = 'all';
+    }
+    this.angleType = type;
+    // 切换视角后表格重建，清空上一视角的列筛选条件
+    this.columnFilters = {};
+    this.$router.replace({
+      query: {
+        activeNav: type,
+      },
+    });
+    this.getListData();
+  }
+
+  // 状态筛选切换
+  handleStatusChange(statusType: StatusType) {
+    this.statusActive = statusType;
+    this.pagination.current = 1;
+    this.changeEmptyStatusType();
+  }
+
+  // 关键字搜索
+  @Debounce(300)
+  handleSearchBlur(val: string) {
+    this.searchValue = val;
+    this.pagination.current = 1;
+    this.changeEmptyStatusType();
+  }
+
+  async handleListDataAsync() {
+    this.loading = true;
+    this.pagination.current = 1;
+    let res: [boolean, any];
+    this.abortController = new AbortController();
+
+    if (this.angleType === 'approval') {
+      res = await this.getApprovalListData(this.abortController.signal);
+    } else {
+      res = await this.getAuthListData(this.abortController.signal);
+    }
+    const [isSuccess, data] = res;
+    if (isSuccess) {
+      this.totalListData = data;
+      // 数据就绪后重建表头筛选项（created 阶段首次构建时列表为空，会导致筛选下拉无选项）
+      this.columnFilter();
+      this.emptyStatusType = 'empty';
+      this.changeEmptyStatusType();
+    } else {
+      this.emptyStatusType = '500';
+      this.totalListData = [];
+    }
+
+    this.loading = false;
+  }
+  getListData() {
+    this.abortController?.abort();
+
+    setTimeout(() => {
+      this.handleListDataAsync();
+    });
+  }
+
+  // 获取被授权人，操作实例tab栏的列表数据
+  async getAuthListData(signal: AbortSignal): Promise<[boolean, any]> {
+    try {
+      const res = await ServicesInstance.authorization.getExternalPermissionList(
+        {
+          query: {
+            space_uid: this.spaceUid,
+            view_type: this.angleType,
+          },
+        },
+        { signal },
+      );
+      return [true, res?.data ?? []];
+    } catch (error) {
+      if (error && typeof error === 'object' && 'code' in error && error.code === 'ERR_CANCELED') {
+        console.warn('请求已取消');
+        return [true, []];
+      }
+      return [false, []];
+    }
+  }
+
+  // 获取审批记录tab栏的列表数据
+  async getApprovalListData(signal: AbortSignal): Promise<[boolean, any]> {
+    try {
+      const res = await ServicesInstance.authorization.getApplyRecordList(
+        {
+          query: {
+            space_uid: this.spaceUid,
+          },
+        },
+        { signal },
+      );
+      return [true, res?.data ?? []];
+    } catch (error) {
+      if (error && typeof error === 'object' && 'code' in error && error.code === 'ERR_CANCELED') {
+        console.warn('请求已取消');
+        return [true, []];
+      }
+      return [false, []];
+    }
+  }
+
+  async getResources() {
+    this.resourcesLoading = true;
+    try {
+      await Promise.all(
+        this.actionList.map(async item => {
+          const res = await ServicesInstance.authorization.getByAction({
+            query: {
+              space_uid: this.spaceUid,
+              action_id: item.id,
+            },
+          });
+          this.$set(this.resourceMaps, item.id, res?.data || []);
+        }),
+      );
+    } catch {
+      this.resourceMaps = {};
+    } finally {
+      this.resourcesLoading = false;
+    }
+    // 操作实例列筛选项的文本依赖 resourceMaps，全部就绪后重建一次筛选项
+    this.columnFilter();
+  }
+
+  // 表格空状态操作
+  changeEmptyStatusType() {
+    if (this.emptyStatusType !== '500') {
+      const hasColumnFilter = Object.values(this.columnFilters).some(values => values.length);
+      this.emptyStatusType =
+        this.statusActive === 'all' && !this.searchValue && !hasColumnFilter ? 'empty' : 'search-empty';
+    }
+  }
+
+  //  分页
+  handlePageChange(page: number) {
+    this.pagination.current = page;
+  }
+  handlePageLimitChange(limit: number) {
+    this.pagination.current = 1;
+    this.pagination.limit = limit;
+  }
+
+  getFilterConfig(prop: TableColumnEnum, set: Set<any>) {
+    for (const newItem of this.totalListData) {
+      const data = Array.isArray(newItem[prop]) ? newItem[prop] : [newItem[prop]];
+      for (const val of data) {
+        if (prop === TableColumnEnum.resource_id || prop === TableColumnEnum.resources) {
+          // set.add(`${item[TableColumnEnum.action_id]}-${val}`);
+          set.add({ id: val, action: newItem[TableColumnEnum.action_id] });
+        } else {
+          set.add(val);
+        }
+      }
+    }
+  }
+  updateFilter(prop: string, valSet: any[]) {
+    if (prop === TableColumnEnum.resource_id || prop === TableColumnEnum.resources) {
+      // 按「操作-实例」去重；resourceMaps 未就绪时用 id 兜底，避免对 undefined 取 find 报错
+      const existKeys = new Set<string>();
+      return valSet
+        .filter((obj: { id: number; action: string }) => {
+          const key = `${obj.action}-${obj.id}`;
+          if (existKeys.has(key)) {
+            return false;
+          }
+          existKeys.add(key);
+          return true;
+        })
+        .map((obj: { id: number; action: string }) => ({
+          text: this.resourceMaps[obj.action]?.find((rItem: { id: number; }) => rItem.id === obj.id)?.text ?? String(obj.id),
+          value: obj.id,
+        }));
+    }
+    if (prop === TableColumnEnum.action_id) {
+      return valSet.map((id: string) => ({
+        text: this.actionList.find(aItem => aItem.id === id)?.name ?? id,
+        value: id,
+      }));
+    }
+    return valSet.map(fItem => ({ text: fItem, value: fItem }));
+  }
+  // 列表各字段的筛选项
+  columnFilter() {
+    for (const item of this.tableColumns[this.angleType]) {
+      if (item.props.filters) {
+        const set = new Set();
+        const { prop } = item;
+        this.getFilterConfig(prop, set);
+        // 操作实例列需要通过ID在resourceList找到匹配的text
+        item.props.filters = this.updateFilter(prop, Array.from(set));
+      }
+    }
+    this.syncFilterPanelOptions();
+  }
+
+  // 列表表头筛选
+  filterMethod(value: unknown, row: { [x: string]: any; }, column: { property: any; }) {
+    const { property } = column;
+    return Array.isArray(row[property]) ? row[property].includes(value) : row[property] === value;
+  }
+
+  // 表头列筛选变更（确定/重置时触发，key 为列的 column-key 即 prop）
+  handleFilterChange(filters: Record<string, (number | string)[]>) {
+    for (const [prop, values] of Object.entries(filters)) {
+      if (values?.length) {
+        this.$set(this.columnFilters, prop, values);
+      } else {
+        this.$delete(this.columnFilters, prop);
+      }
+    }
+    this.pagination.current = 1;
+    // 列筛选可能把列表过滤为空，同步空状态类型（empty / search-empty）
+    this.changeEmptyStatusType();
+  }
+
+  // 清空表头列筛选（同步表格内部筛选面板状态）
+  resetColumnFilters() {
+    (this.$refs.authTable as any)?.clearFilter?.();
+    this.columnFilters = {};
+  }
+
+  // 筛选面板创建时仅读取一次 filters 快照，这里同步已创建面板的最新选项。
+  // 注意：column.filters 由 TableColumn 的 prop watcher 在下一轮渲染才写入，
+  // 同步调用时读到的是旧引用（如切换业务后候选项过期），故直接从 tableColumns 数据源取最新值
+  syncFilterPanelOptions() {
+    const panels = (this.$refs.authTable as any)?.$refs?.tableHeader?.filterPanels ?? {};
+    const columnMap = new Map(this.tableColumns[this.angleType].map(item => [item.prop, item]));
+    for (const panel of Object.values(panels) as any[]) {
+      const prop = panel.column?.property as TableColumnEnum | undefined;
+      const filters = (prop && columnMap.get(prop)?.props?.filters) || [];
+      if (prop && panel.filters !== filters) {
+        panel.filters = filters;
+      }
+    }
+  }
+
+  handleSettingChange({ fields }: { fields: ColumnItem[] }) {
+    for (const item of this.tableColumns[this.angleType]) {
+      item.hidden = !fields.some((field: { prop: TableColumnEnum; }) => item.prop === field.prop);
+    }
+  }
+
+  // 自定义列渲染
+  renderColumn(column: ColumnItem) {
+    if (column.prop === TableColumnEnum.authorized_users) {
+      return (
+        <TableColumn
+          nativeCellSlot={true}
+          key={column.prop}
+          columnKey={column.prop}
+          label={column.name}
+          prop={column.prop}
+          {...{
+            ...column.props,
+          }}
+          v-slots={{
+            default: ({ row }) => (
+              <div v-log-overflow-tips={{ content: row.authorized_users?.join(',') }}>
+                {row.authorized_users?.map((item: string|number|symbol|undefined) => (
+                  <Tag
+                    key={item}
+                    class='user-tag' variant='light' data-v2-display='tag'
+                  >
+                    {item}
+                  </Tag>
+                ))}
+              </div>
+            ),
+          }}
+        />
+      );
+    }
+    if (column.prop === TableColumnEnum.resources || column.prop === TableColumnEnum.resource_id) {
+      return (
+        <TableColumn
+          nativeCellSlot={true}
+          key={column.prop}
+          columnKey={column.prop}
+          label={column.name}
+          prop={column.prop}
+          {...{
+            ...column.props,
+          }}
+          v-slots={{
+            default: ({ row }) => {
+              const resourceList = this.resourceMaps[row.action_id] || [];
+
+              if (column.prop === 'resources') {
+                return (
+                  <div v-loading={{ loading: this.resourcesLoading }}>
+                    {row.resources?.map((id: string|number|symbol|undefined, ind: number) =>
+                      ind < 3 || row.isExpand ? (
+                        <div
+                          key={id}
+                          class='resource-item'
+                        >
+                          {resourceList.find((item: { uid: any; }) => item.uid === id)?.text}
+                        </div>
+                      ) : undefined,
+                    )}
+                    {row.resources?.length > 3 && (
+                      <p
+                        class='expand-btn'
+                        onClick={() => {
+                          this.$set(row, 'isExpand', !row.isExpand);
+                        }}
+                      >
+                        {row.isExpand ? this.$t('收起') : this.$t('展开')}
+                      </p>
+                    )}
+                  </div>
+                );
+              }
+              return (
+                <div v-loading={{ loading: this.resourcesLoading }}>
+                  <div>{resourceList.find((item: { uid: any; }) => item.uid === row.resource_id)?.text}</div>
+                </div>
+              );
+            },
+          }}
+        />
+      );
+    }
+    if (column.prop === TableColumnEnum.action_id) {
+      return (
+        <TableColumn
+          nativeCellSlot={true}
+          key={column.prop}
+          columnKey={column.prop}
+          label={column.name}
+          prop={column.prop}
+          {...{
+            ...column.props,
+          }}
+          v-slots={{
+            default: ({ row }) => {
+              return (
+                <div>
+                  <div>{this.actionList.find(item => item.id === row.action_id)?.name}</div>
+                </div>
+              );
+            },
+          }}
+        />
+      );
+    }
+
+    return (
+      <TableColumn
+        key={column.prop}
+        columnKey={column.prop}
+        label={column.name}
+        prop={column.prop}
+        {...{
+          ...column.props,
+        }}
+      />
+    );
+  }
+
+  /**
+   *
+   * @param color1 状态点颜色
+   * @param color2 状态文字颜色
+   * @returns 状态点
+   */
+  statusPoint(color1: string, color2: string|undefined) {
+    return (
+      <div
+        style={{ background: color2 }}
+        class='status-point'
+      >
+        <div
+          style={{ background: color1 }}
+          class='point'
+        />
+      </div>
+    );
+  }
+
+  // 状态列格式化
+  statusFormatter(_row: unknown, _column: unknown, cellValue: string) {
+    const item = STATUS_LIST.find(sItem => sItem.id === cellValue);
+    return (
+      <div class='status-wrap'>
+        {this.statusPoint(item?.color1, item?.color2)}
+        <span>{item.name}</span>
+      </div>
+    );
+  }
+
+  // 截止时间列格式化
+  timeFormatter(_row: unknown, _column: unknown, cellValue: string|number|Date|dayjs.Dayjs|null|undefined) {
+    return cellValue ? dayjs(cellValue).format('YYYY-MM-DD HH:mm:ss') : '-';
+  }
+  /**
+   *
+   * @param row 行数据
+   */
+  async handleDelete(row: UserListItem | ResourceListItem) {
+    try {
+      await ServicesInstance.authorization.deleteExternalPermission({
+        data: {
+          space_uid: this.spaceUid,
+          action_id: row.action_id,
+          authorized_users: row.authorized_users || [row.authorized_user!],
+          resources: row.resources || [row.resource_id!],
+          view_type: this.angleType,
+        },
+      });
+      this.getListData();
+    } catch {
+      // 删除失败时保留当前列表，错误由请求层统一处理
+    }
+  }
+
+  showDialog(row: UserListItem | ResourceListItem | null = null) {
+    this.rowData = row && {
+      action_id: row.action_id,
+      authorized_users: row.authorized_users || [row.authorized_user!],
+      resources: row.resources || [row.resource_id!],
+      expire_time: row.expire_time || '',
+    };
+
+    this.visible = true;
+  }
+
+  emptyOperation(type: EmptyStatusOperationType) {
+    if (type === 'refresh') {
+      this.getListData();
+      return;
+    }
+    if (type === 'clear-filter') {
+      this.searchValue = '';
+      this.statusActive = 'all';
+      this.pagination.current = 1;
+      this.resetColumnFilters();
+      this.changeEmptyStatusType();
+    }
+  }
+
+  // 创建，修改成功跳转到审批记录tab栏
+  handleSuccess(needApproval: boolean) {
+    if (needApproval) {
+      this.angleType = 'approval';
+    }
+    this.getListData();
+  }
+
+  render() {
+    return (
+      <div class='authorization-list-page'>
+        <div class='nav-bar'>
+          <p class='page-title'>{this.$t('外部授权列表')}</p>
+          <BizMenuSelect
+            theme='light'
+            isExternalAuth
+            onSpaceChange={this.handleSpaceChange}
+          />
+        </div>
+
+        <div class='page-content'>
+          <Alert
+            message={this.$t(
+              '需遵循公司规范，禁止对外暴露用户或公司内部敏感信息（用户PII信息、账号密码、云AKSK、内部系统鉴权/Token、保密文档等），若因授权不当造成数据泄露须承担相应责任; ',
+            )}
+            theme={'error'} data-v2-display='alert'
+          />
+
+          <div class='authorization-header'>
+            <span class='label'>{this.$t('授权人')}：</span>
+            {this.isEditMember ? (
+              <div class='member-select edit'>
+                <Select
+                  class='member-input'
+                  v-model={this.memberValue}
+                  searchable
+                >
+                  {this.bizCMDBRoleList.map(item => (
+                    <Option
+                      id={item}
+                      key={item}
+                      name={item}
+                    />
+                  ))}
+                </Select>
+                <Button
+                  class='member-btn'
+                  {...({ title: 'primary' } satisfies import('vue').HTMLAttributes)}
+                  
+                  onClick={this.createOrUpdateAuthUser} variant={(true) ? 'text' : ('base')}
+                >
+                  {this.$t('确定')}
+                </Button>
+                <Button
+                  class='member-btn'
+                  {...({ title: 'primary' } satisfies import('vue').HTMLAttributes)}
+                  
+                  onClick={() => (this.isEditMember = false)} variant={(true) ? 'text' : ('base')}
+                >
+                  {this.$t('取消')}
+                </Button>
+              </div>
+            ) : (
+              <div class='member-select'>
+                <p class='member'>{this.memberSelect}</p>
+                {this.hasCMDBRole && (
+                  <i
+                    class='bk-icon icon-edit-line'
+                    v-log-tooltip={{
+                      content: this.$t('变更授权人'),
+                      placements: ['top'],
+                    }}
+                    onClick={this.showMemberSelect}
+                  />
+                )}
+              </div>
+            )}
+            <p class='hint'>
+              <i class='icon-monitor icon-tixing' />
+              <span>
+                {this.$t('授权人的空间权限会影响被授权人，被授权人的权限范围<=授权人的权限范围，请谨慎变更。')}
+              </span>
+            </p>
+          </div>
+
+          <div class='authorization-table'>
+            <div class='tools'>
+              <div class='tool-left'>
+                {
+                  <Button
+                    class='auth-btn'
+                    disabled={!this.memberSelect}
+                    icon={() => <span class={`bk-icon icon-${'plus'}`} />}
+                    theme='primary'
+                    type='submit'
+                    onClick={() => this.showDialog()}
+                  >
+                    {this.$t('添加授权')}
+                  </Button>
+                }
+                <div class='angle-tab'>
+                  <div
+                    class={['angle-tab-item', this.angleType === 'user' && 'active']}
+                    onClick={() => this.handleAngleTabChange('user')}
+                  >
+                    {this.$t('被授权人')}
+                  </div>
+                  <div
+                    class={['angle-tab-item', this.angleType === 'resource' && 'active']}
+                    onClick={() => this.handleAngleTabChange('resource')}
+                  >
+                    {this.$t('操作实例')}
+                  </div>
+                  <div
+                    class={['angle-tab-item', this.angleType === 'approval' && 'active']}
+                    onClick={() => this.handleAngleTabChange('approval')}
+                  >
+                    {this.$t('审批记录')}
+                  </div>
+                </div>
+              </div>
+
+              <div class='tool-right'>
+                <div class='status-list'>
+                  {this.currentStatus.map((item, index) => (
+                    <div
+                      key={item.id}
+                      class={[
+                        'status-list-item',
+                        { active: this.statusActive === item.id },
+                        {
+                          'not-border':
+                            this.statusActive === item.id || this.currentStatus[index + 1]?.id === this.statusActive,
+                        },
+                      ]}
+                      onClick={() => this.handleStatusChange(item.id)}
+                    >
+                      {index !== 0 && this.statusPoint(item?.color1, item?.color2)}
+                      <span>{item.name}</span>
+                    </div>
+                  ))}
+                </div>
+
+                <Input
+                  class='search-input'
+                  rightIcon='bk-icon icon-search'
+                  value={this.searchValue}
+                  onInput={this.handleSearchBlur}
+                />
+              </div>
+            </div>
+
+            <div class='table-wrapper'>
+              <Table
+                v-slots={{
+                  empty: () => (
+                    <EmptyStatus
+                      emptyType={this.emptyStatusType}
+                      onOperation={this.emptyOperation}
+                    />
+                  ),
+                }}
+                ref='authTable'
+                key={this.angleType}
+                v-loading={{ loading: this.loading }}
+                data={this.listData}
+                maxHeight={600}
+                pagination={this.tablePagination}
+                size='large'
+                rowAutoHeight
+                onFilterChange={this.handleFilterChange}
+                onPageChange={this.handlePageChange}
+                onPageLimitChange={this.handlePageLimitChange}
+              >
+                <TableColumn
+                  nativeCellSlot={true}
+                  width={105}
+                  v-slots={{
+                    default: ({ $index }) => (
+                      <div>{(this.pagination.current - 1) * this.pagination.limit + $index + 1}</div>
+                    ),
+                  }}
+                  label='ID'
+                />
+                {this.currentColumns.map(column => this.renderColumn(column))}
+                <TableColumn
+                  nativeCellSlot={true}
+                  width={140}
+                  v-slots={{
+                    default: ({ row }: import("@/shared/types/table-row-scope").TableRowScope<AuthorizationList["listData"]>) => (
+                      <div>
+                        {this.angleType === 'approval' ? (
+                          <TButton
+                            
+                            onClick={() => window.open(row.approval_url)} variant={(true) ? 'text' : ('base')}
+                          >
+                            {this.$t('查看详情')}
+                          </TButton>
+                        ) : (
+                          [
+                            <TButton
+                              key='edit'
+                              style='margin-right: 16px'
+                              
+                              disabled={row.status === 'expired' || row.status === 'invalid'}
+                              onClick={() => this.showDialog(row)} variant={(true) ? 'text' : ('base')}
+                            >
+                              {this.$t('编辑')}
+                            </TButton>,
+                            <TButton
+                              key='delete'
+                              
+                              onClick={() => this.handleDelete(row)} variant={(true) ? 'text' : ('base')}
+                            >
+                              {this.$t('删除')}
+                            </TButton>,
+                          ]
+                        )}
+                      </div>
+                    ),
+                  }}
+                  label={this.$t('操作')}
+                />
+                <TableColumn type='setting'>
+                  <bk-table-setting-content
+                    fields={this.tableColumns[this.angleType].filter(item => !item.authHidden)}
+                    label-key='name'
+                    selected={this.currentColumns}
+                    value-key='prop'
+                    onSettingChange={this.handleSettingChange}
+                  />
+                </TableColumn>
+              </Table>
+            </div>
+          </div>
+        </div>
+
+        <AuthorizationDialog
+          v-model={this.visible}
+          actionList={this.actionList}
+          authorizer={this.memberSelect}
+          rowData={this.rowData}
+          spaceUid={this.spaceUid}
+          viewType={this.angleType}
+          onSuccess={this.handleSuccess}
+        />
+      </div>
+    );
+  }
+}

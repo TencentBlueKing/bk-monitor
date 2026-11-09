@@ -1,0 +1,820 @@
+/*
+ * Tencent is pleased to support the open source community by making
+ * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
+ *
+ * Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
+ *
+ * 蓝鲸智云PaaS平台 (BlueKing PaaS) is licensed under the MIT License.
+ *
+ * License for 蓝鲸智云PaaS平台 (BlueKing PaaS):
+ *
+ * ---------------------------------------------------
+ * Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated
+ * documentation files (the "Software"), to deal in the Software without restriction, including without limitation
+ * the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and
+ * to permit persons to whom the Software is furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in all copies or substantial portions of
+ * the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO
+ * THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF
+ * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
+ * IN THE SOFTWARE.
+ */
+
+import { Loading as TLoading, RadioGroup as TRadioGroup, Radio as TRadio } from 'tdesign-vue-next';
+import { ServicesInstance } from '@/platform/services';
+import { computed, defineComponent, ref, watch, onMounted, onBeforeUnmount, shallowRef, markRaw } from 'vue';
+import useStore from '@/shared/composables/use-store';
+import { moduleLargeDataCacheService, clusterTableWorkerService } from '@/platform/persistence/index';
+import useLocale from '@/shared/composables/use-locale';
+import MainHeader from './main-header/index';
+import $http from '@/platform/http/index';
+import ClusteringLoader from '@/app/skeleton/clustering-loader.vue';
+import ContentTable, { IPagination, GroupListState } from './content-table/index';
+import { type LogPattern } from '@/features/retrieval/services/log-clustering';
+import { type IResponseData } from '@/platform/services/type';
+
+import useRetrieveEvent from '@/shared/composables/use-retrieve-event';
+import { RetrieveEvent } from '@/features/retrieval/retrieve-helper';
+
+import { debounce } from 'lodash-es';
+import useIntersectionObserver from '@/shared/composables/use-intersection-observer';
+import ScrollTop from '@/features/retrieval/workbench/components/scroll-top/index';
+import ScrollXBar from '@/features/retrieval/workbench/components/scroll-x-bar/index';
+import useWheel from '@/shared/composables/use-wheel';
+import {
+  getOwnerList,
+  toPlainOpenMap,
+  type ClusterPipelineInput,
+  type ClusterViewResult,
+  type ITableItem,
+  type WalkVisibleWindowOptions,
+} from './cluster-table-pipeline';
+import './index.scss';
+
+export type { ITableItem } from './cluster-table-pipeline';
+
+export interface TableInfo {
+  group: string[];
+  dataList: LogPattern[];
+}
+
+export default defineComponent({
+  emits: ["open-cluster-config","openClusterConfig"],
+
+  name: 'LogTable',
+  components: {
+    MainHeader,
+    ClusteringLoader,
+    ContentTable,
+  },
+  props: {
+    clusterSwitch: {
+      type: Boolean,
+      default: false,
+    },
+    isClusterActive: {
+      type: Boolean,
+      default: false,
+    },
+    requestData: {
+      type: Object,
+      require: true,
+      default: () => ({}),
+    },
+    indexId: {
+      type: String,
+      require: true,
+      default: undefined,
+    },
+  },
+  setup(props, { expose, emit }) {
+    const store = useStore();
+    const { t } = useLocale();
+
+    const initFilterSortMap = () => ({
+      filter: {
+        owners: [],
+        remark: [],
+      },
+      sort: {
+        count: '',
+        percentage: '',
+        year_on_year_count: '',
+        year_on_year_percentage: '',
+      },
+    });
+
+    const logTableRef = ref<HTMLElement>();
+    const tablesRef = ref<any>(null);
+    const mainHeaderRef = ref<any>();
+    // const aiAssitantRef = ref<any>(null);
+    const tableLoading = ref(true);
+    const widthList = ref<Record<string, string>>({});
+    const filterSortMap = ref(initFilterSortMap());
+    const displayType = ref('group');
+    const paginationRef = ref<HTMLElement>();
+
+    const rootElement = ref<HTMLElement>();
+    const scrollXBarOuterWidth = ref(0);
+    const scrollXBarInnerWidth = ref(0);
+    const refScrollXBar = ref<any>();
+
+    const pagination = ref<IPagination>({
+      current: 1,
+      limit: 50,
+      count: 0,
+      groupCount: 0,
+      childCount: 0,
+      visibleCount: 0,
+    });
+
+    const tableList = shallowRef<ITableItem[]>([]);
+    const groupListState = ref<GroupListState>({});
+    const rawDataScope = ref(''); // 原始接口数据 IndexedDB 分块缓存 scope
+    const rawDataCount = ref(0);
+    const clusterRequestException = ref('');
+    const { addEvent } = useRetrieveEvent();
+    let rawSnapshot: LogPattern[] = [];
+    let pipelineToken = 0;
+    let refreshSeq = 0;
+    let isUnmounted = false;
+
+    const buildPipelineInput = (): ClusterPipelineInput => ({
+      displayType: displayType.value,
+      filterSort: {
+        filter: {
+          owners: [...(filterSortMap.value.filter.owners ?? [])],
+          remark: [...(filterSortMap.value.filter.remark ?? [])],
+        },
+        sort: { ...filterSortMap.value.sort },
+      },
+      groupBy: [...(props.requestData?.group_by ?? [])],
+      raw: rawSnapshot,
+    });
+
+    const getWindowOptions = (): WalkVisibleWindowOptions => ({
+      displayType: displayType.value,
+      groupByLength: props.requestData?.group_by?.length ?? 0,
+      limit: Math.max(pagination.value.current, 1) * pagination.value.limit,
+      openMap: toPlainOpenMap(groupListState.value),
+    });
+
+    const syncGroupStateFromMeta = (openMap: ClusterViewResult['openMap'] = {}) => {
+      const next: GroupListState = {};
+      Object.keys(groupListState.value).forEach(key => {
+        if (groupListState.value[key]?.isOpen) {
+          next[key] = { isOpen: true };
+        }
+      });
+      Object.keys(openMap).forEach(key => {
+        if (openMap[key]?.isOpen) {
+          next[key] = { isOpen: true };
+        }
+      });
+      groupListState.value = next;
+    };
+
+    const applyViewResult = (view: ClusterViewResult) => {
+      pagination.value.groupCount = view.groupCount;
+      pagination.value.childCount = view.childCount;
+      pagination.value.visibleCount = view.visibleCount;
+      setPaginationCount();
+      syncGroupStateFromMeta(view.openMap);
+      tableList.value = (view.window ?? []).map(item => markRaw(item));
+    };
+
+    const ensureRawSnapshot = async () => {
+      if (rawSnapshot.length) return rawSnapshot;
+      if (!rawDataScope.value || !rawDataCount.value) return [];
+      rawSnapshot = await moduleLargeDataCacheService.getSlice(rawDataScope.value, 0, rawDataCount.value);
+      return rawSnapshot;
+    };
+
+    const applyWindow = async () => {
+      const { view, viaWorker } = await clusterTableWorkerService.walk(getWindowOptions());
+      if (!viaWorker && !(view.window ?? []).length) {
+        await ensureRawSnapshot();
+        if (rawSnapshot.length) {
+          await runPipeline(false);
+          return;
+        }
+      }
+      tableList.value = (view.window ?? []).map(item => markRaw(item));
+    };
+
+    const runPipeline = async (resetWindow = true, replaceRaw = false) => {
+      pipelineToken += 1;
+      const token = pipelineToken;
+      if (resetWindow) {
+        pagination.value.current = 1;
+      }
+      const input = buildPipelineInput();
+      const { view, viaWorker } = await clusterTableWorkerService.run(input, getWindowOptions(), { replaceRaw });
+      if (token !== pipelineToken) return;
+      if (!viaWorker && !(view.window ?? []).length && !input.raw?.length) {
+        await ensureRawSnapshot();
+        if (rawSnapshot.length && token === pipelineToken) {
+          await runPipeline(resetWindow, replaceRaw);
+          return;
+        }
+      }
+      if (viaWorker) {
+        rawSnapshot = [];
+      }
+      applyViewResult(view);
+    };
+
+    const retrieveParams = computed(() => store.getters.retrieveParams);
+    const showGroupBy = computed(() => props.requestData?.group_by.length > 0 && displayType.value === 'group');
+
+    const smallLoaderWidthList = computed(() => {
+      return props.requestData?.year_on_year_hour > 0 ? loadingWidthList.compared : loadingWidthList.notCompared;
+    });
+
+    const tableColumnWidth = computed(() => (store.getters.isEnLanguage ? enTableWidth : cnTableWidth));
+
+    const loadingWidthList = {
+      // loading表头宽度列表
+      global: [''],
+      notCompared: [150, 90, 90, ''],
+      compared: [150, 90, 90, 100, 100, ''],
+    };
+
+    const enTableWidth = {
+      number: '110',
+      percentage: '116',
+      year_on_year_count: '171',
+      year_on_year_percentage: '171',
+    };
+    const cnTableWidth = {
+      number: '91',
+      percentage: '96',
+      year_on_year_count: '101',
+      year_on_year_percentage: '101',
+    };
+
+    watch(
+      () => props.requestData,
+      () => {
+        filterSortMap.value = initFilterSortMap();
+      },
+      {
+        deep: true,
+      },
+    );
+
+    /**
+     * 加载更多触发元素隐藏操作
+     */
+    const debounceHiddenPaginationLoading = debounce(() => {
+      (paginationRef.value?.childNodes[0] as HTMLElement)?.style?.setProperty('visibility', 'hidden');
+    }, 180);
+
+    /**
+     * 分页器观察器
+     */
+    useIntersectionObserver(paginationRef, entry => {
+      if (entry.isIntersecting) {
+        (paginationRef.value?.childNodes[0] as HTMLElement)?.style?.setProperty('visibility', 'visible');
+        if (pagination.value.current * pagination.value.limit < pagination.value.count) {
+          pagination.value.current += 1;
+          void applyWindow();
+        }
+      }
+
+      debounceHiddenPaginationLoading();
+    });
+
+    /**
+     * 计算自定义横向滚动条宽度
+     */
+    const computedScrollXWidth = () => {
+      scrollXBarInnerWidth.value = tablesRef.value?.$el?.scrollWidth;
+      scrollXBarOuterWidth.value = tablesRef.value?.$el?.offsetWidth;
+    };
+
+    /**
+     * 排序 | 过滤时更新列表数据
+     */
+    const updateTableList = () => {
+      void runPipeline(true);
+    };
+
+    /**
+     * 设置分页器计数
+     * @returns
+     */
+    const setPaginationCount = () => {
+      if (displayType.value === 'group') {
+        pagination.value.count = pagination.value.groupCount + pagination.value.childCount;
+        return;
+      }
+
+      pagination.value.count = pagination.value.childCount;
+    };
+
+    const normalizeSearchAddition = (list: any[] = []) => {
+      return list.reduce((result: any[], item) => {
+        if (!item || item.disabled || item.is_focus_input || item.field === '_ip-select_') {
+          return result;
+        }
+        result.push({
+          field: item.field,
+          operator: item.operator,
+          value:
+            item.hidden_values?.length > 0
+              ? (item.value ?? []).filter((value: string) => !item.hidden_values.includes(value))
+              : item.value,
+        });
+        return result;
+      }, []);
+    };
+
+    const getClusterSearchAddition = (payload?: { type?: string; value?: unknown }) => {
+      if (payload?.type === 'sql') {
+        return [];
+      }
+      if ((payload?.type === 'ui' || payload?.type === 'filter') && Array.isArray(payload.value)) {
+        return normalizeSearchAddition(payload.value);
+      }
+      return store.getters.requestAddition ?? [];
+    };
+
+    const getClusterOperateParams = () => {
+      const requestData = props.requestData ?? {};
+      return {
+        pattern_level: requestData.pattern_level,
+        year_on_year_hour: requestData.year_on_year_hour,
+        show_new_pattern: requestData.show_new_pattern,
+        group_by: requestData.group_by,
+        size: requestData.size,
+        remark_config: requestData.remark_config,
+        owner_config: requestData.owner_config,
+        owners: requestData.owners,
+      };
+    };
+
+    const getClusterSearchData = (
+      overrides: Record<string, any> = {},
+      payload?: { type?: string; value?: unknown },
+    ) => {
+      const {
+        start_time,
+        end_time,
+        keyword = '*',
+        ip_chooser,
+        host_scopes,
+        interval,
+        timezone,
+        scene_filter_values,
+        table_id_conditions,
+        space_uid,
+      } = retrieveParams.value;
+
+      const data: Record<string, any> = {
+        bk_biz_id: store.state.bkBizId,
+        addition: getClusterSearchAddition(payload),
+        keyword: payload?.type === 'sql' ? ((payload.value as string) ?? '*') : keyword,
+        ip_chooser,
+        host_scopes,
+        interval,
+        timezone,
+        start_time,
+        end_time,
+        ...getClusterOperateParams(),
+        ...overrides,
+      };
+
+      // 场景化检索模式：传递场景过滤参数，聚类结果才能随场景条件刷新
+      if (store.getters.isSceneMode) {
+        Object.assign(data, { scene_filter_values, table_id_conditions, space_uid });
+      }
+
+      return data;
+    };
+
+    const getClusterListRequestId = () => `log-clustering-cluster-search-list-${props.indexId}`;
+    const getClusterOriginLogRequestId = () => `log-clustering-cluster-search-origin-${props.indexId}`;
+
+    const isRequestCanceled = (error: { code?: string; name?: string; __CANCEL__?: boolean } | null | undefined) =>
+      Boolean(error) && (error.code === 'ERR_CANCELED' || error.name === 'CanceledError' || Boolean(error.__CANCEL__));
+
+    const resolveClusterSearchList = (res: unknown): LogPattern[] | null => {
+      if (Array.isArray(res)) {
+        return res;
+      }
+      if (res && typeof res === 'object' && Array.isArray((res as IResponseData<LogPattern[]>).data)) {
+        return (res as IResponseData<LogPattern[]>).data;
+      }
+      return null;
+    };
+
+    const getPatternOriginLog = async (row: LogPattern) => {
+      const signature = row.signature?.toString();
+      if (!signature) {
+        return '';
+      }
+      const addition = [
+        ...getClusterSearchAddition(),
+        {
+          field: `__dist_${props.requestData?.pattern_level}`,
+          operator: 'is',
+          value: signature,
+        },
+      ];
+      const res = await ServicesInstance.logClustering.clusterSearch(
+        {
+          params: {
+            index_set_id: props.indexId,
+          },
+          data: getClusterSearchData({
+            addition,
+            size: 1,
+            include_origin_log: true,
+            show_new_pattern: false,
+            filter_not_clustering: false,
+          }),
+        },
+        {
+          catchIsShowMessage: false,
+          cancelPrevious: false,
+          requestId: getClusterOriginLogRequestId(),
+        },
+      );
+
+      return resolveClusterSearchList(res)?.[0]?.origin_log ?? '';
+    };
+
+    const refreshTable = (payload?: { type?: string; value?: unknown }) => {
+      // 未开启数据指纹、页签未激活或组件已卸载时不起请求；其余刷新一律以最后一次条件为准。
+      if (isUnmounted || !props.clusterSwitch || !props.isClusterActive) {
+        return;
+      }
+      refreshSeq += 1;
+      const seq = refreshSeq;
+      clusterRequestException.value = '';
+      tableList.value = [];
+      tableLoading.value = true;
+      pagination.value.current = 1;
+      pagination.value.count = 0;
+      pagination.value.groupCount = 0;
+      pagination.value.childCount = 0;
+      pagination.value.visibleCount = 0;
+      // 同列表 requestId 取消进行中的旧请求；origin-log 使用独立 requestId，避免互相打断。
+      (
+        ServicesInstance.logClustering.clusterSearch(
+          {
+            params: {
+              index_set_id: props.indexId,
+            },
+            data: getClusterSearchData({}, payload),
+          },
+          {
+            cancelWhenRouteChange: false,
+            cancelPrevious: true,
+            requestId: getClusterListRequestId(),
+          },
+        ) as Promise<unknown>
+      )
+        .then(async res => {
+          if (seq !== refreshSeq || isUnmounted) {
+            return;
+          }
+          const clusterList = resolveClusterSearchList(res);
+          if (!clusterList) {
+            clusterRequestException.value = t('聚类结果数据格式异常，请重新发起查询');
+            rawSnapshot = [];
+            rawDataCount.value = 0;
+            void clusterTableWorkerService.clear();
+            return;
+          }
+          // 原始接口数据不再 structuredClone 到响应式内存，分块镜像到 IndexedDB，下载时按需读取。
+          const responseList = clusterList.map(item => {
+            const nextItem = {
+              ...item,
+              owners: getOwnerList(item.owners),
+            };
+            return markRaw(nextItem);
+          });
+          const nextScope = moduleLargeDataCacheService.createScope('log-clustering', {
+            indexId: props.indexId,
+            requestData: props.requestData,
+          });
+          const prevScope = rawDataScope.value;
+          rawDataScope.value = nextScope;
+          rawDataCount.value = responseList.length;
+          moduleLargeDataCacheService.replaceList(nextScope, responseList, 50).catch(error => {
+            console.warn('[cluster-cache] persist raw data failed', error);
+          });
+          if (prevScope) {
+            moduleLargeDataCacheService.clear(prevScope).catch(() => {});
+          }
+          rawSnapshot = responseList;
+          await runPipeline(true, true);
+          if (seq !== refreshSeq || isUnmounted) {
+            return;
+          }
+          setTimeout(computedScrollXWidth);
+        })
+        .catch(error => {
+          if (seq !== refreshSeq || isUnmounted || isRequestCanceled(error)) {
+            return;
+          }
+          clusterRequestException.value = t('聚类结果获取异常，请重新发起查询');
+          rawSnapshot = [];
+          rawDataCount.value = 0;
+          void clusterTableWorkerService.clear();
+        })
+        .finally(() => {
+          if (seq !== refreshSeq || isUnmounted) {
+            return;
+          }
+          tableLoading.value = false;
+        });
+    };
+
+    addEvent(
+      [RetrieveEvent.SEARCH_VALUE_CHANGE, RetrieveEvent.SEARCH_TIME_CHANGE, RetrieveEvent.AUTO_REFRESH],
+      refreshTable,
+    );
+
+    const handleColumnFilter = (field: string, value: any) => {
+      filterSortMap.value.filter[field] = value;
+      updateTableList();
+    };
+
+    const handleColumnSort = (field: string, order: string) => {
+      Object.keys(filterSortMap.value.sort).forEach(key => {
+        if (key !== field) {
+          filterSortMap.value.sort[key] = '';
+        }
+      });
+      filterSortMap.value.sort[field] = order;
+      updateTableList();
+    };
+
+    /**
+     * 拖拽改变列宽
+     */
+    const handleHeaderResizeColumn = () => {
+      const columnWidth = mainHeaderRef.value.getColumnWidthList() ?? [];
+      columnWidth.forEach(([name, width]) => {
+        if (name !== null && name !== 'null') {
+          widthList.value[name] = width;
+        }
+      });
+      setTimeout(computedScrollXWidth);
+    };
+
+    const handleScrollTop = () => {
+      pagination.value.current = 1;
+    };
+
+    const handleScrollXChange = (event: { target: any; }) => {
+      const scrollLeft = (event.target as HTMLElement)?.scrollLeft || 0;
+      for (const element of rootElement.value.querySelectorAll('.bklog-fill-offset-x')) {
+        element.scrollLeft = scrollLeft;
+      }
+    };
+
+    let isAnimating = false;
+
+    useWheel({
+      target: rootElement,
+      callback: (event: WheelEvent) => {
+        const maxOffset = scrollXBarInnerWidth.value - scrollXBarOuterWidth.value;
+        let scrollLeft = 0;
+        // 检查是否按住 shift 键
+        if (event.shiftKey) {
+          // 当按住 shift 键时，让 refScrollXBar 执行系统默认的横向滚动能力
+          if (maxOffset > 0 && refScrollXBar.value) {
+            event.stopPropagation();
+            event.stopImmediatePropagation();
+            event.preventDefault();
+
+            // 使用系统默认的滚动行为，通过 refScrollXBar 执行横向滚动
+            const currentScrollLeft = refScrollXBar.value.getScrollLeft?.() || 0;
+            const scrollStep = event.deltaY || event.deltaX;
+            const newScrollLeft = Math.max(0, Math.min(maxOffset, currentScrollLeft + scrollStep));
+
+            refScrollXBar.value.scrollLeft(newScrollLeft);
+            scrollLeft = newScrollLeft;
+            handleScrollXChange({ target: { scrollLeft } });
+          }
+          return;
+        }
+
+        if (event.deltaX !== 0 && maxOffset > 0) {
+          event.stopPropagation();
+          event.stopImmediatePropagation();
+          event.preventDefault();
+          if (!isAnimating) {
+            isAnimating = true;
+            requestAnimationFrame(() => {
+              isAnimating = false;
+              const nextOffset = scrollLeft + event.deltaX;
+              if (nextOffset <= maxOffset && nextOffset >= 0) {
+                scrollLeft += event.deltaX;
+                refScrollXBar.value?.scrollLeft(nextOffset);
+                handleScrollXChange({ target: { scrollLeft } });
+              }
+            });
+          }
+        }
+      },
+    });
+
+    const handleDisplayTypeChange = (value: string) => {
+      tableLoading.value = true;
+      pagination.value.current = 1;
+      pagination.value.count = 0;
+      setTimeout(() => {
+        displayType.value = value;
+        updateTableList();
+        setPaginationCount();
+        tableLoading.value = false;
+      });
+    };
+
+    /**
+     * 分组展开收起功能回调函数
+     * @param row
+     */
+    const handleGroupStateChange = (row: ITableItem) => {
+      const isOpen = !groupListState.value[row.hashKey]?.isOpen;
+      if (isOpen) {
+        groupListState.value[row.hashKey] = { isOpen: true };
+      } else {
+        const next = { ...groupListState.value };
+        delete next[row.hashKey];
+        groupListState.value = next;
+      }
+      void applyWindow();
+    };
+
+    const handleRowUpdated = () => {
+      tableList.value = tableList.value.slice();
+    };
+
+    onMounted(() => {
+      isUnmounted = false;
+      refreshTable();
+    });
+
+    onBeforeUnmount(() => {
+      isUnmounted = true;
+      refreshSeq += 1;
+      $http.cancel(getClusterListRequestId());
+      if (rawDataScope.value) {
+        moduleLargeDataCacheService.clear(rawDataScope.value).catch(() => {});
+      }
+      void clusterTableWorkerService.clear();
+      tableList.value = [];
+      rawSnapshot = [];
+      groupListState.value = {};
+      rawDataCount.value = 0;
+    });
+
+    expose({
+      refreshTable,
+      isLoading: () => tableLoading.value,
+      getRawData: async () => {
+        // 返回原始接口数据：从 IndexedDB 分块读取，避免组件长期持有大数组。
+        if (!rawDataScope.value) return [];
+        return moduleLargeDataCacheService.getSlice(rawDataScope.value, 0, rawDataCount.value);
+      },
+      getRawDataCount: () => rawDataCount.value,
+      getDisplayMode: () => displayType.value,
+    });
+
+    /**
+     * 可渲染结果为空的时候展示错误文本和类型
+     * @returns
+     */
+    const getExceptionOption = () => {
+      const owners = filterSortMap.value.filter.owners;
+      const remark = filterSortMap.value.filter.remark;
+      const option = {
+        type: 'empty',
+        text: t('暂无数据'),
+      };
+
+      if (clusterRequestException.value) {
+        option.type = '500';
+        option.text = clusterRequestException.value;
+      } else if (retrieveParams.value.addition.length > 0 || owners.length > 0 || remark.length > 0) {
+        option.type = 'search-empty';
+        option.text = t('搜索结果为空');
+      }
+
+      return (
+        <bk-exception
+          type={option.type}
+          scene='part'
+          style='margin-top: 80px'
+          data-testid='cluster-result-exception'
+        >
+          <span>{option.text}</span>
+        </bk-exception>
+      );
+    };
+
+    const renderLoadingIndicator = () => (
+      <span class='bklog-loading-dots bklog-loading-dots--large'>
+        {[0, 1, 2, 3].map(index => <span key={index} />)}
+      </span>
+    );
+
+    return () => (
+      <div
+        class='log-table-main'
+        ref={rootElement}
+      >
+        {props.requestData?.group_by.length > 0 && (
+          <TRadioGroup
+            class='display-type-main'
+            value={displayType.value}
+            onChange={(value) => { if (typeof value === 'string') (handleDisplayTypeChange)(value); }}
+          >
+            <TRadio value='flatten'>{t('平铺模式')}</TRadio>
+            <TRadio value='group'>{t('分组模式')}</TRadio>
+          </TRadioGroup>
+        )}
+        <main-header
+          class='bklog-fill-offset-x'
+          ref={mainHeaderRef}
+          requestData={props.requestData}
+          tableColumnWidth={tableColumnWidth.value}
+          indexId={props.indexId}
+          displayMode={displayType.value}
+          onColumnFilter={handleColumnFilter}
+          onColumnSort={handleColumnSort}
+          onResizeColumn={handleHeaderResizeColumn}
+        />
+        <TLoading
+          class='cluster-table-loading'
+          data-testid='cluster-table-loading'
+          indicator={renderLoadingIndicator}
+          loading={tableLoading.value}
+          showOverlay
+          size='large'
+          zIndex={0}
+        >
+          <div
+            ref={logTableRef}
+            class='table-list-content'
+            style={{ padding: showGroupBy.value ? '0 12px' : '0px' }}
+          >
+            {tableLoading.value ? (
+              <clustering-loader
+                width-list={smallLoaderWidthList.value}
+                is-loading
+              />
+            ) : pagination.value.visibleCount > 0 ? (
+              [
+                <ContentTable
+                  ref={tablesRef}
+                  class='bklog-fill-offset-x'
+                  tableList={tableList.value}
+                  widthList={widthList.value}
+                  displayMode={displayType.value}
+                  requestData={props.requestData}
+                  tableColumnWidth={tableColumnWidth.value}
+                  groupListState={groupListState.value}
+                  pagination={pagination.value}
+                  indexId={props.indexId}
+                  getPatternOriginLog={getPatternOriginLog}
+                  onOpenClusterConfig={() => emit('open-cluster-config')}
+                  onGroupStateChange={handleGroupStateChange}
+                  onRowUpdated={handleRowUpdated}
+                />,
+              ]
+            ) : (
+              getExceptionOption()
+            )}
+          </div>
+        </TLoading>
+        <div
+          ref={paginationRef}
+          style='width: 100%;'
+        >
+          <div style='display: flex; justify-content: center;width: 100%; padding: 4px; visibility: hidden;'>
+            <span>loading ...</span>
+          </div>
+        </div>
+        <ScrollTop onScrollTop={handleScrollTop}></ScrollTop>
+        <ScrollXBar
+          ref={refScrollXBar}
+          outerWidth={scrollXBarOuterWidth.value}
+          innerWidth={scrollXBarInnerWidth.value}
+          right={26}
+          onScrollChange={handleScrollXChange}
+        ></ScrollXBar>
+      </div>
+    );
+  },
+});

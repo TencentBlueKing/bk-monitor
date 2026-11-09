@@ -1,0 +1,27 @@
+{
+  "schemaVersion": 1,
+  "id": "features/archive",
+  "purpose": "归档仓库、策略及恢复",
+  "root": "src/features/archive",
+  "files": 21,
+  "entryPoints": [
+    "features/archive/current/archive-list/index.tsx",
+    "features/archive/current/archive-repository/index.tsx",
+    "features/archive/current/archive-restore/index.tsx"
+  ],
+  "services": [
+    "features/archive/services/archive.ts"
+  ],
+  "dependsOn": [
+    "app",
+    "features/collection",
+    "features/extraction",
+    "features/index-sets",
+    "platform",
+    "shared"
+  ],
+  "tests": [],
+  "sourceMap": "ai-native/source-map.json",
+  "acceptance": "NEEDS_REVIEW",
+  "note": "Directory migration preserves source behavior; domain-wide acceptance remains in the existing ledger."
+}

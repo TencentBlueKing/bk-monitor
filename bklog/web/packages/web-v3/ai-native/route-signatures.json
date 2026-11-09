@@ -1,0 +1,646 @@
+[
+  {
+    "file": "retrieve.js",
+    "path": "/retrieve/:indexId?",
+    "name": "retrieve",
+    "component": "Retrieve",
+    "redirect": null
+  },
+  {
+    "file": "retrieve.js",
+    "path": "/client-log-search",
+    "name": "client-log-search",
+    "component": "ClientLogSearch",
+    "redirect": null
+  },
+  {
+    "file": "retrieve.js",
+    "path": "/template-manage",
+    "name": "templateManage",
+    "component": "TemplateManage",
+    "redirect": null
+  },
+  {
+    "file": "retrieve.js",
+    "path": "/external-auth/:activeNav?",
+    "name": "externalAuth",
+    "component": "ExternalAuth",
+    "redirect": null
+  },
+  {
+    "file": "retrieve.js",
+    "path": "/share/:linkId?",
+    "name": "share",
+    "component": "ShareLink",
+    "redirect": null
+  },
+  {
+    "file": "retrieve.js",
+    "path": "/data_id/:id?",
+    "name": "data_id",
+    "component": "DataIdUrl",
+    "redirect": null
+  },
+  {
+    "file": "monitor.js",
+    "path": "/monitor-apm-log/:indexId?",
+    "name": "monitor-apm-log",
+    "component": "MonitorApmLog",
+    "redirect": null
+  },
+  {
+    "file": "monitor.js",
+    "path": "/monitor-trace-log/:indexId?",
+    "name": "monitor-trace-log",
+    "component": "MonitorTraceLog",
+    "redirect": null
+  },
+  {
+    "file": "dashboard.js",
+    "path": "/dashboard",
+    "name": "dashboard",
+    "component": "DashboardTempView",
+    "redirect": "'/dashboard/home'"
+  },
+  {
+    "file": "dashboard.js",
+    "path": "home",
+    "name": "home",
+    "component": "home",
+    "redirect": null
+  },
+  {
+    "file": "dashboard.js",
+    "path": "default-dashboard",
+    "name": "default-dashboard",
+    "component": "dashboard",
+    "redirect": null
+  },
+  {
+    "file": "dashboard.js",
+    "path": "create-dashboard",
+    "name": "create-dashboard",
+    "component": "dashboard",
+    "redirect": null
+  },
+  {
+    "file": "dashboard.js",
+    "path": "create-folder",
+    "name": "create-folder",
+    "component": "dashboard",
+    "redirect": null
+  },
+  {
+    "file": "dashboard.js",
+    "path": "import-dashboard",
+    "name": "import-dashboard",
+    "component": "dashboard",
+    "redirect": null
+  },
+  {
+    "file": "manage.js",
+    "path": "/manage",
+    "name": "manage",
+    "component": "ManageWrapper",
+    "redirect": "to => {\n    if (window.IS_EXTERNAL && JSON.parse(window.IS_EXTERNAL)) {\n        return {\n            path: '/manage/log-extract-task',\n            query: {\n                spaceUid: to.query.spaceUid,\n                bizId: to.query.bizId,\n            },\n        };\n    }\n    return {\n        path: '/manage/log-collection/collection-item',\n        query: {\n            spaceUid: to.query.spaceUid,\n            bizId: to.query.bizId,\n        },\n    };\n}"
+  },
+  {
+    "file": "manage.js",
+    "path": "/manage/log-extract-task",
+    "name": null,
+    "component": null,
+    "redirect": null
+  },
+  {
+    "file": "manage.js",
+    "path": "/manage/log-collection/collection-item",
+    "name": null,
+    "component": null,
+    "redirect": null
+  },
+  {
+    "file": "manage.js",
+    "path": "log-collection",
+    "name": "log-collection",
+    "component": "LogCollectionView",
+    "redirect": "'/manage/log-collection/collection-item'"
+  },
+  {
+    "file": "manage.js",
+    "path": "collection-item",
+    "name": "collection-item",
+    "component": "CollectionItemView",
+    "redirect": "'/manage/log-collection/collection-item/list'"
+  },
+  {
+    "file": "manage.js",
+    "path": "list",
+    "name": "collection-item-list",
+    "component": "createVersionedComponent(CollectionItem, OldCollectionItem)",
+    "redirect": null
+  },
+  {
+    "file": "manage.js",
+    "path": "manage/:collectorId",
+    "name": "manage-collection",
+    "component": "ManageCollection",
+    "redirect": null
+  },
+  {
+    "file": "manage.js",
+    "path": "add",
+    "name": "collectAdd",
+    "component": "createVersionedComponent(AccessSteps, oldAccessSteps)",
+    "redirect": null
+  },
+  {
+    "file": "manage.js",
+    "path": "edit/:collectorId",
+    "name": "collectEdit",
+    "component": "createVersionedComponent(AccessSteps, oldAccessSteps)",
+    "redirect": null
+  },
+  {
+    "file": "manage.js",
+    "path": "field/:collectorId",
+    "name": "collectField",
+    "component": "createVersionedComponent(AccessSteps, oldAccessSteps)",
+    "redirect": null
+  },
+  {
+    "file": "manage.js",
+    "path": "storage/:collectorId",
+    "name": "collectStorage",
+    "component": "createVersionedComponent(AccessSteps, oldAccessSteps)",
+    "redirect": null
+  },
+  {
+    "file": "manage.js",
+    "path": "masking/:collectorId",
+    "name": "collectMasking",
+    "component": "createVersionedComponent(AccessSteps, oldAccessSteps)",
+    "redirect": null
+  },
+  {
+    "file": "manage.js",
+    "path": "start/:collectorId",
+    "name": "collectStart",
+    "component": "createVersionedComponent(AccessSteps, oldAccessSteps)",
+    "redirect": null
+  },
+  {
+    "file": "manage.js",
+    "path": "stop/:collectorId",
+    "name": "collectStop",
+    "component": "createVersionedComponent(AccessSteps, oldAccessSteps)",
+    "redirect": null
+  },
+  {
+    "file": "manage.js",
+    "path": "log-index-set",
+    "name": "log-index-set",
+    "component": "IndexSetView",
+    "redirect": "'/manage/log-collection/log-index-set/list'"
+  },
+  {
+    "file": "manage.js",
+    "path": "list",
+    "name": "log-index-set-list",
+    "component": "IndexList",
+    "redirect": null
+  },
+  {
+    "file": "manage.js",
+    "path": "manage/:indexSetId",
+    "name": "log-index-set-manage",
+    "component": "ManageIndex",
+    "redirect": null
+  },
+  {
+    "file": "manage.js",
+    "path": "create",
+    "name": "log-index-set-create",
+    "component": "CreateIndex",
+    "redirect": null
+  },
+  {
+    "file": "manage.js",
+    "path": "edit/:indexSetId",
+    "name": "log-index-set-edit",
+    "component": "CreateIndex",
+    "redirect": null
+  },
+  {
+    "file": "manage.js",
+    "path": "masking/:indexSetId",
+    "name": "log-index-set-masking",
+    "component": "createVersionedComponent(V2MaskingEdit, MaskingEdit)",
+    "redirect": null
+  },
+  {
+    "file": "manage.js",
+    "path": "tgpa-task",
+    "name": "tgpa-task",
+    "component": "ClientLogView",
+    "redirect": "'/manage/tgpa-task/list'"
+  },
+  {
+    "file": "manage.js",
+    "path": "list",
+    "name": "tgpa-task-list",
+    "component": "ClientLog",
+    "redirect": null
+  },
+  {
+    "file": "manage.js",
+    "path": "clean-config",
+    "name": "clean-config",
+    "component": "cleanCreate",
+    "redirect": null
+  },
+  {
+    "file": "manage.js",
+    "path": "bk-data-collection",
+    "name": "bk-data-collection",
+    "component": "IndexSetView",
+    "redirect": "'/manage/bk-data-collection/list'"
+  },
+  {
+    "file": "manage.js",
+    "path": "list",
+    "name": "bkdata-index-set-list",
+    "component": "IndexList",
+    "redirect": null
+  },
+  {
+    "file": "manage.js",
+    "path": "manage/:indexSetId",
+    "name": "bkdata-index-set-manage",
+    "component": "ManageIndex",
+    "redirect": null
+  },
+  {
+    "file": "manage.js",
+    "path": "create",
+    "name": "bkdata-index-set-create",
+    "component": "CreateIndex",
+    "redirect": null
+  },
+  {
+    "file": "manage.js",
+    "path": "edit/:indexSetId",
+    "name": "bkdata-index-set-edit",
+    "component": "CreateIndex",
+    "redirect": null
+  },
+  {
+    "file": "manage.js",
+    "path": "masking/:indexSetId",
+    "name": "bkdata-index-set-masking",
+    "component": "createVersionedComponent(V2MaskingEdit, MaskingEdit)",
+    "redirect": null
+  },
+  {
+    "file": "manage.js",
+    "path": "es-collection",
+    "name": "es-collection",
+    "component": "IndexSetView",
+    "redirect": "'/manage/es-collection/list'"
+  },
+  {
+    "file": "manage.js",
+    "path": "list",
+    "name": "es-index-set-list",
+    "component": "IndexList",
+    "redirect": null
+  },
+  {
+    "file": "manage.js",
+    "path": "manage/:indexSetId",
+    "name": "es-index-set-manage",
+    "component": "ManageIndex",
+    "redirect": null
+  },
+  {
+    "file": "manage.js",
+    "path": "create",
+    "name": "es-index-set-create",
+    "component": "CreateIndex",
+    "redirect": null
+  },
+  {
+    "file": "manage.js",
+    "path": "edit/:indexSetId",
+    "name": "es-index-set-edit",
+    "component": "CreateIndex",
+    "redirect": null
+  },
+  {
+    "file": "manage.js",
+    "path": "masking/:indexSetId",
+    "name": "es-index-set-masking",
+    "component": "createVersionedComponent(V2MaskingEdit, MaskingEdit)",
+    "redirect": null
+  },
+  {
+    "file": "manage.js",
+    "path": "custom-report",
+    "name": "custom-report",
+    "component": "CustomReportView",
+    "redirect": "'/manage/custom-report/list'"
+  },
+  {
+    "file": "manage.js",
+    "path": "list",
+    "name": "custom-report-list",
+    "component": "CustomReportList",
+    "redirect": null
+  },
+  {
+    "file": "manage.js",
+    "path": "create",
+    "name": "custom-report-create",
+    "component": "CustomReportCreate",
+    "redirect": null
+  },
+  {
+    "file": "manage.js",
+    "path": "edit/:collectorId",
+    "name": "custom-report-edit",
+    "component": "CustomReportCreate",
+    "redirect": null
+  },
+  {
+    "file": "manage.js",
+    "path": "detail/:collectorId",
+    "name": "custom-report-detail",
+    "component": "CustomReportDetail",
+    "redirect": null
+  },
+  {
+    "file": "manage.js",
+    "path": "masking/:indexSetId",
+    "name": "custom-report-masking",
+    "component": "createVersionedComponent(V2MaskingEdit, MaskingEdit)",
+    "redirect": null
+  },
+  {
+    "file": "manage.js",
+    "path": "clean-list",
+    "name": "clean-list",
+    "component": "LogCleanView",
+    "redirect": "'/manage/clean-list/list'"
+  },
+  {
+    "file": "manage.js",
+    "path": "list",
+    "name": "log-clean-list",
+    "component": "cleanList",
+    "redirect": null
+  },
+  {
+    "file": "manage.js",
+    "path": "create",
+    "name": "clean-create",
+    "component": "createVersionedComponent(v2CleanCreate, cleanCreate)",
+    "redirect": null
+  },
+  {
+    "file": "manage.js",
+    "path": "edit/:collectorId",
+    "name": "clean-edit",
+    "component": "createVersionedComponent(v2CleanCreate, cleanCreate)",
+    "redirect": null
+  },
+  {
+    "file": "manage.js",
+    "path": "clean-templates",
+    "name": "clean-templates",
+    "component": "LogCleanTempView",
+    "redirect": "'/manage/clean-templates/list'"
+  },
+  {
+    "file": "manage.js",
+    "path": "list",
+    "name": "log-clean-templates",
+    "component": "cleanTemplate",
+    "redirect": null
+  },
+  {
+    "file": "manage.js",
+    "path": "create",
+    "name": "clean-template-create",
+    "component": "createVersionedComponent(v2CleanTempCreate, cleanTempCreate)",
+    "redirect": null
+  },
+  {
+    "file": "manage.js",
+    "path": "edit/:templateId",
+    "name": "clean-template-edit",
+    "component": "createVersionedComponent(v2CleanTempCreate, cleanTempCreate)",
+    "redirect": null
+  },
+  {
+    "file": "manage.js",
+    "path": "log-desensitize",
+    "name": "log-desensitize",
+    "component": "LogDesensitizeView",
+    "redirect": "'/manage/log-desensitize/list'"
+  },
+  {
+    "file": "manage.js",
+    "path": "list",
+    "name": "log-desensitize-list",
+    "component": "MaskingList",
+    "redirect": null
+  },
+  {
+    "file": "manage.js",
+    "path": "grok-manage",
+    "name": "grok-manage",
+    "component": "GrokManage",
+    "redirect": null
+  },
+  {
+    "file": "manage.js",
+    "path": "archive-repository",
+    "name": "archive-repository",
+    "component": "ArchiveRepository",
+    "redirect": null
+  },
+  {
+    "file": "manage.js",
+    "path": "archive-list",
+    "name": "archive-list",
+    "component": "ArchiveList",
+    "redirect": null
+  },
+  {
+    "file": "manage.js",
+    "path": "archive-restore",
+    "name": "archive-restore",
+    "component": "ArchiveRestore",
+    "redirect": null
+  },
+  {
+    "file": "manage.js",
+    "path": "manage-log-extract",
+    "name": "manage-log-extract",
+    "component": "ExtractConfig",
+    "redirect": null
+  },
+  {
+    "file": "manage.js",
+    "path": "log-extract-task",
+    "name": "log-extract-task",
+    "component": "extract",
+    "redirect": "'/manage/log-extract-task'"
+  },
+  {
+    "file": "manage.js",
+    "path": "",
+    "name": "extract-home",
+    "component": "extractHome",
+    "redirect": null
+  },
+  {
+    "file": "manage.js",
+    "path": "extract-create",
+    "name": "extract-create",
+    "component": "extractCreate",
+    "redirect": null
+  },
+  {
+    "file": "manage.js",
+    "path": "extract-clone",
+    "name": "extract-clone",
+    "component": "extractCreate",
+    "redirect": null
+  },
+  {
+    "file": "manage.js",
+    "path": "extract-link-manage",
+    "name": "extract-link-manage",
+    "component": "ExtractLinkView",
+    "redirect": "'/manage/extract-link-manage/list'"
+  },
+  {
+    "file": "manage.js",
+    "path": "list",
+    "name": "extract-link-list",
+    "component": "ExtractLinkList",
+    "redirect": null
+  },
+  {
+    "file": "manage.js",
+    "path": "edit/:linkId",
+    "name": "extract-link-edit",
+    "component": "ExtractLinkCreate",
+    "redirect": null
+  },
+  {
+    "file": "manage.js",
+    "path": "create",
+    "name": "extract-link-create",
+    "component": "ExtractLinkCreate",
+    "redirect": null
+  },
+  {
+    "file": "manage.js",
+    "path": "es-cluster-manage",
+    "name": "es-cluster-manage",
+    "component": "ClusterMess",
+    "redirect": null
+  },
+  {
+    "file": "manage.js",
+    "path": "report-manage",
+    "name": "report-manage",
+    "component": "ReportManage",
+    "redirect": null
+  },
+  {
+    "file": "manage.js",
+    "path": "collection-track",
+    "name": "collection-track",
+    "component": "CollectionTrack",
+    "redirect": null
+  },
+  {
+    "file": "manage.js",
+    "path": "bk-data-track",
+    "name": "bk-data-track",
+    "component": "IndexSetView",
+    "redirect": "'/manage/bk-data-track/list'"
+  },
+  {
+    "file": "manage.js",
+    "path": "list",
+    "name": "bkdata-track-list",
+    "component": "IndexList",
+    "redirect": null
+  },
+  {
+    "file": "manage.js",
+    "path": "manage/:indexSetId",
+    "name": "bkdata-track-manage",
+    "component": "ManageIndex",
+    "redirect": null
+  },
+  {
+    "file": "manage.js",
+    "path": "create",
+    "name": "bkdata-track-create",
+    "component": "CreateIndex",
+    "redirect": null
+  },
+  {
+    "file": "manage.js",
+    "path": "edit/:indexSetId",
+    "name": "bkdata-track-edit",
+    "component": "CreateIndex",
+    "redirect": null
+  },
+  {
+    "file": "manage.js",
+    "path": "sdk-track",
+    "name": "sdk-track",
+    "component": "SdkTrack",
+    "redirect": null
+  },
+  {
+    "file": "manage.js",
+    "path": "manage-data-link-conf",
+    "name": "manage-data-link-conf",
+    "component": "DataLinkConf",
+    "redirect": null
+  },
+  {
+    "file": "manage.js",
+    "path": "collect",
+    "name": null,
+    "component": null,
+    "redirect": "'/manage/log-collection/collection-item'"
+  },
+  {
+    "file": "index.js",
+    "path": "/",
+    "name": null,
+    "component": null,
+    "redirect": "to => {\n    const targetRoute = {\n        name: getDefRouteName(),\n        query: {\n            ...(to?.query || {}),\n            spaceUid: spaceId,\n            bizId: bkBizId,\n        },\n    };\n    return targetRoute;\n}"
+  },
+  {
+    "file": "index.js",
+    "path": "/un-authorized",
+    "name": "un-authorized",
+    "component": "unAuthorized",
+    "redirect": null
+  },
+  {
+    "file": "index.js",
+    "path": "/:pathMatch(.*)*",
+    "name": "exception",
+    "component": "exception",
+    "redirect": null
+  }
+]

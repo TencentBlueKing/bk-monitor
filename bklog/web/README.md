@@ -7,8 +7,12 @@ cd bklog/web
 nvm install 26.12.1
 nvm use 26.12.1
 node --version # 应输出 v26.12.1
-npm ci
+corepack enable
+corepack prepare pnpm@10.32.1 --activate
+pnpm --dir packages/web-v3 --ignore-workspace install
 ```
+
+不要在 `bklog/web` 根目录执行 `npm ci`。根目录没有 `package-lock.json`，锁文件在 `packages/web-v3/pnpm-lock.yaml`。`packages/web-v2/package-lock.json` 是封版 Vue 2，里面包含 `bk-magic-vue`（MagicBox）。
 
 如果您尚未安装过 `nodejs` [详细安装参见](https://nodejs.org/zh-cn/download/)
 
@@ -112,45 +116,35 @@ git config tag.gpgsign true
 
 ## 本地启动
 
-  ```bash
-  # pc端本地开发模式
-  npm run dev
-  ```
+默认启动 Vue 3（TDesign），不加载 MagicBox：
+
+```bash
+cd bklog/web
+pnpm dev
+```
+
+地址为 `http://localhost:4175`。代理和登录只读本地 `bklog/web/.env.local`（从 `.env.example` 复制）和 `bklog/web/.cookie`，这两个文件不提交。
+
+封版 Vue 2 仍使用 MagicBox，需要对照时再执行 `pnpm dev:v2`（端口 8001）。它的依赖在 `packages/web-v2`，用 `npm ci` 安装，并在该目录自建 `local.settings.js`。
 
 ### 本地 `hosts` 文件配置
-```javascript
-// 因为devServer启动设置了 `const host = `appdev.${devProxyUrl.match(/\.([^.]+)\.com\/?/)[1]}.com`;`
-// 需要将 appdev.${devProxyUrl.match(/\.([^.]+)\.com\/?/)[1]}.com 配置到 hosts 文件，避免启动失败
-// 例如：const devProxyUrl = `https://xxx.domain.com`
-// hosts 配置为 127.0.0.1 appdev.domain.com
-```
+
+V3 默认监听 `localhost:4175`。如果 `BKLOG_DEV_HOST` 写成了自定义主机名，把该主机名指到 `127.0.0.1`。
 
 ### 前端环境变量配置
 
-  1. 新建文件 `local.settings.js`
+V3 把 `bklog/web/.env.example` 复制为 `bklog/web/.env.local`，只在本地填写，不要提交：
 
-  2. 配置自定义内容 参考如下 [更多配置参见](https://webpack.docschina.org/configuration/dev-server/)
+```
+BKLOG_DEV_PROXY_URL=
+BKLOG_DEV_HOST=localhost
+BKLOG_DEV_ALLOWED_HOSTS=
+BKLOG_DEV_URL=localhost:4175
+BKLOG_LOGIN_HOST=
+BKLOG_CSRF_TOKEN=
+```
 
-     ```js
-     const devProxyUrl = ''
-     const devHost = ''
-     const loginHost = ''
-     const devPort =
-     module.exports = {
-         port: devPort, // 启动端口
-         host: devHost, // 启动host
-         devProxyUrl, // 后端地址 用于代理转发api
-         loginHost, // 登入地址
-         proxy: { // api代理配置
-             '/rest': {
-                 target: devProxyUrl,
-                 changeOrigin: true,
-                 secure: false,
-                 toProxy: true
-             }
-     }
-
-     ```
+登录 Cookie 放在 `bklog/web/.cookie`。
 
 ## 生产构建
 

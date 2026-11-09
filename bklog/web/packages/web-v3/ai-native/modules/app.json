@@ -1,0 +1,58 @@
+{
+  "schemaVersion": 1,
+  "id": "app",
+  "purpose": "应用启动、路由及全局状态装配",
+  "root": "src/app",
+  "files": 65,
+  "entryPoints": [
+    "app/router/index.js",
+    "app/services/index.ts",
+    "app/state/actions/index.ts",
+    "app/state/getters/index.ts",
+    "app/state/index.ts",
+    "app/state/mutations/index.js",
+    "main.ts"
+  ],
+  "services": [
+    "app/services/index.ts",
+    "app/state/services/field-metadata.service.js",
+    "app/state/services/retrieve-query.service.js",
+    "app/state/services/runtime-cache.service.js",
+    "app/state/services/space-list.service.ts"
+  ],
+  "dependsOn": [
+    "features/alerts",
+    "features/archive",
+    "features/authorization",
+    "features/cleaning",
+    "features/client-logs",
+    "features/clusters",
+    "features/collection",
+    "features/dashboards",
+    "features/data-id",
+    "features/data-links",
+    "features/extraction",
+    "features/grok",
+    "features/index-sets",
+    "features/integrations",
+    "features/management",
+    "features/masking",
+    "features/migration",
+    "features/monitoring",
+    "features/preferences",
+    "features/reporting",
+    "features/retrieval",
+    "features/sharing",
+    "features/tracing",
+    "platform",
+    "shared"
+  ],
+  "tests": [
+    "tests/async-route-view.test.mjs",
+    "tests/state-upgrade.test.mjs",
+    "tests/source-router.test.mjs"
+  ],
+  "sourceMap": "ai-native/source-map.json",
+  "acceptance": "NEEDS_REVIEW",
+  "note": "Directory migration preserves source behavior; domain-wide acceptance remains in the existing ledger."
+}

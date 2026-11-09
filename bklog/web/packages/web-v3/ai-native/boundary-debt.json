@@ -1,0 +1,121 @@
+[
+  {
+    "from": "platform/http/index.js",
+    "to": "features/authorization/denied/tenant-mismatch.ts",
+    "kind": "module"
+  },
+  {
+    "from": "platform/persistence/utils/retrieve-render-meta.ts",
+    "to": "features/retrieval/core/highlight-range.ts",
+    "kind": "module"
+  },
+  {
+    "from": "shared/composables/json-segment-ranges.ts",
+    "to": "features/retrieval/core/marked-json.ts",
+    "kind": "module"
+  },
+  {
+    "from": "shared/composables/lucene.segment.ts",
+    "to": "features/retrieval/core/highlight-range.ts",
+    "kind": "module"
+  },
+  {
+    "from": "shared/composables/optimized-split.ts",
+    "to": "features/retrieval/core/highlight-range.ts",
+    "kind": "module"
+  },
+  {
+    "from": "shared/composables/use-json-formatter.ts",
+    "to": "features/retrieval/retrieve-helper.tsx",
+    "kind": "module"
+  },
+  {
+    "from": "shared/composables/use-json-formatter.ts",
+    "to": "features/retrieval/core/page-highlight.ts",
+    "kind": "module"
+  },
+  {
+    "from": "shared/composables/use-json-formatter.ts",
+    "to": "features/retrieval/workbench/search-bar/utils/sql-contains-wildcard.ts",
+    "kind": "module"
+  },
+  {
+    "from": "shared/composables/use-json-root.ts",
+    "to": "features/retrieval/core/marked-json.ts",
+    "kind": "module"
+  },
+  {
+    "from": "shared/composables/use-retrieve-event.ts",
+    "to": "features/retrieval/retrieve-helper.tsx",
+    "kind": "module"
+  },
+  {
+    "from": "shared/composables/use-trend-chart.ts",
+    "to": "features/retrieval/retrieve-helper.tsx",
+    "kind": "module"
+  },
+  {
+    "from": "shared/global/field-setting.vue",
+    "to": "features/retrieval/retrieve-helper.tsx",
+    "kind": "module"
+  },
+  {
+    "from": "shared/global/field-setting.vue",
+    "to": "features/collection/services/collect.ts",
+    "kind": "service-call"
+  },
+  {
+    "from": "shared/global/head-navi/index.tsx",
+    "to": "features/preferences/dialog/index.tsx",
+    "kind": "module"
+  },
+  {
+    "from": "shared/global/json-formatter.vue",
+    "to": "features/retrieval/retrieve-helper.tsx",
+    "kind": "module"
+  },
+  {
+    "from": "shared/global/json-formatter.vue",
+    "to": "features/retrieval/core/page-highlight.ts",
+    "kind": "module"
+  },
+  {
+    "from": "shared/global/json-formatter.vue",
+    "to": "features/retrieval/core/marked-json.ts",
+    "kind": "module"
+  },
+  {
+    "from": "shared/global/json-view/index.ts",
+    "to": "features/retrieval/retrieve-helper.tsx",
+    "kind": "module"
+  },
+  {
+    "from": "shared/global/json-view/index.ts",
+    "to": "features/retrieval/core/page-highlight.ts",
+    "kind": "module"
+  },
+  {
+    "from": "shared/global/json-view/index.ts",
+    "to": "features/retrieval/core/marked-json.ts",
+    "kind": "module"
+  },
+  {
+    "from": "shared/mixins/storage-mixin.js",
+    "to": "features/collection/services/collect.ts",
+    "kind": "service-call"
+  },
+  {
+    "from": "shared/global/field-setting.vue",
+    "to": "features/cleaning/services/clean.ts",
+    "kind": "service-call",
+    "reason": "Existing V2 dependency newly exposed by named-service reference scanning; move business ownership during Hook migration.",
+    "evidence": "global/field-setting.vue:498 clean/getCleanStash"
+  },
+  {
+    "from": "shared/mixins/collected-items-mixin.js",
+    "to": "features/collection/services/collect.ts",
+    "kind": "service-call",
+    "reason": "Existing V2 dependency newly exposed by named-service reference scanning; move business ownership during Hook migration.",
+    "evidence": "mixins/collected-items-mixin.js:112 collect/deleteCollect"
+  }
+]

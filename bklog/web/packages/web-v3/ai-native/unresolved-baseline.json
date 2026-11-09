@@ -1,0 +1,42 @@
+[
+  {
+    "file": "features/archive/classic/archive-list/list.vue",
+    "specifier": "./components/archive-slider",
+    "kind": "module"
+  },
+  {
+    "file": "features/charts/value-formats-package/arithmetic-formatters.ts",
+    "specifier": "../types/display-value",
+    "kind": "module"
+  },
+  {
+    "file": "features/charts/value-formats-package/date-time-formatters.ts",
+    "specifier": "../datetime/moment-wrapper",
+    "kind": "module"
+  },
+  {
+    "file": "features/charts/value-formats-package/date-time-formatters.ts",
+    "specifier": "../types/display-value",
+    "kind": "module"
+  },
+  {
+    "file": "features/charts/value-formats-package/symbol-formatters.ts",
+    "specifier": "../types/display-value",
+    "kind": "module"
+  },
+  {
+    "file": "features/charts/value-formats-package/value-formats.ts",
+    "specifier": "../types/display-value",
+    "kind": "module"
+  },
+  {
+    "file": "features/retrieval/workbench/condition-comp/retrieve-detail-input.vue",
+    "specifier": "../search-comp/retrieve-detail-input-editor.tsx",
+    "kind": "module"
+  },
+  {
+    "file": "features/retrieval/workbench/monitor/monitor.vue",
+    "specifier": "../segment-pop.scss",
+    "kind": "style-or-asset"
+  }
+]

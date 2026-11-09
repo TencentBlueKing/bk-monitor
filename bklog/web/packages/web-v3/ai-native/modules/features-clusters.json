@@ -1,0 +1,24 @@
+{
+  "schemaVersion": 1,
+  "id": "features/clusters",
+  "purpose": "按源码职责归属的业务域；功能边界以实际组件和服务为准",
+  "root": "src/features/clusters",
+  "files": 14,
+  "entryPoints": [
+    "features/clusters/current/cluster-manage/index.tsx",
+    "features/clusters/status/es-cluster-mess/index.vue"
+  ],
+  "services": [],
+  "dependsOn": [
+    "app",
+    "features/collection",
+    "features/index-sets",
+    "features/management",
+    "platform",
+    "shared"
+  ],
+  "tests": [],
+  "sourceMap": "ai-native/source-map.json",
+  "acceptance": "NEEDS_REVIEW",
+  "note": "Directory migration preserves source behavior; domain-wide acceptance remains in the existing ledger."
+}

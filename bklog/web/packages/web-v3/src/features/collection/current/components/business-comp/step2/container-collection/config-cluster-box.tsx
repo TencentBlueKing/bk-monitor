@@ -1,0 +1,883 @@
+/*
+ * Tencent is pleased to support the open source community by making
+ * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
+ *
+ * Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
+ *
+ * 蓝鲸智云PaaS平台 (BlueKing PaaS) is licensed under the MIT License.
+ *
+ * License for 蓝鲸智云PaaS平台 (BlueKing PaaS):
+ *
+ * ---------------------------------------------------
+ * Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated
+ * documentation files (the "Software"), to deal in the Software without restriction, including without limitation
+ * the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and
+ * to permit persons to whom the Software is furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in all copies or substantial portions of
+ * the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO
+ * THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF
+ * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
+ * IN THE SOFTWARE.
+ */
+
+import { Alert as TAlert } from 'tdesign-vue-next';
+
+import { defineComponent, ref, watch, computed, onBeforeUnmount, onMounted, nextTick, type PropType } from 'vue';
+
+import useLocale from '@/shared/composables/use-locale';
+import useStore from '@/shared/composables/use-store';
+import tippy, { type Instance, type SingleTarget } from 'tippy.js';
+
+import InfoTips from '../../../common-comp/info-tips';
+import ConfigLogSetEditItem from './config-log-set-edit-item';
+import ConfigViewDialog from './config-view-dialog';
+import WorkloadSelection from './workload-selection';
+import type { IContainerConfigItem, IClusterItem } from '../../../../type';
+import './config-cluster-box.scss';
+
+/**
+ * 选择项类型定义
+ */
+type ISelectItem = {
+  id: string;
+  name: string;
+};
+
+/**
+ * 容器配置类型定义
+ */
+type IContainerConfig = {
+  workload_type?: string;
+  workload_name?: string;
+  container_name?: string;
+};
+
+/**
+ * 配置范围类型
+ */
+type ScopeType = 'namespace' | 'label' | 'annotation' | 'load' | 'containerName';
+
+/**
+ * 操作符类型
+ */
+type OperatorType = '=' | '!=';
+
+/**
+ * ConfigClusterBox 组件
+ * 用于配置容器/节点的采集范围，支持多种选择方式：
+ * - 按命名空间选择
+ * - 按标签选择
+ * - 按注解选择
+ * - 按工作负载选择
+ * - 直接指定容器名称
+ */
+export default defineComponent({
+  name: 'ConfigClusterBox',
+  props: {
+    /** 是否为节点模式 */
+    isNode: {
+      type: Boolean,
+      default: false,
+    },
+    /** 配置项数据 */
+    config: {
+      type: Object as PropType<IContainerConfigItem>,
+      default: () => ({}),
+    },
+    /** BCS 集群 ID */
+    bcsClusterId: {
+      type: String,
+      default: '',
+    },
+    /** 是否为更新模式 */
+    isUpdate: {
+      type: Boolean,
+      default: false,
+    },
+    /** 场景 ID */
+    scenarioId: {
+      type: String,
+      default: '',
+    },
+    /** 集群列表 */
+    clusterList: {
+      type: Array as PropType<IClusterItem[]>,
+      default: () => [],
+    },
+    /** 命名空间选择列表 */
+    nameSpacesSelectList: {
+      type: Array as PropType<ISelectItem[]>,
+      default: () => [],
+    },
+    /** 是否正在请求命名空间接口 */
+    nameSpaceRequest: {
+      type: Boolean,
+      default: false,
+    },
+  },
+
+  emits: ['change'],
+
+  setup(props, { emit }) {
+    const { t } = useLocale();
+    const store = useStore();
+
+    // ==================== Refs 定义 ====================
+    /** Tippy 菜单面板引用 */
+    const menuPanelRef = ref<HTMLElement>();
+    /** 添加范围按钮引用 */
+    const rootRef = ref<HTMLElement>();
+    /** 是否悬停在添加按钮上 */
+    const isHover = ref(false);
+    /** Tippy 实例 */
+    let tippyInstance: Instance | null = null;
+    /** 业务 ID */
+    const bkBizId = computed(() => store.getters.bkBizId);
+    /** 选择集群提示配置 */
+    const chooseClusterTips = ref({
+      content: t('请先选择集群'),
+      placement: 'top' as const,
+    });
+    /** 操作符选择列表 */
+    const operatorSelectList = ref<ISelectItem[]>([
+      { id: '=', name: '=' },
+      { id: '!=', name: '!=' },
+    ]);
+    /** 配置范围名称映射 */
+    const scopeNameList = ref<Record<ScopeType, string>>({
+      namespace: t('按命名空间选择'),
+      label: t('按标签选择'),
+      annotation: t('按annotation选择'),
+      load: t('按工作负载选择'),
+      containerName: t('直接指定{n}', { n: 'Container' }),
+    });
+    /** 控制配置预览弹窗显示隐藏 */
+    const isShowConfigView = ref(false);
+
+    // ==================== 工具函数 ====================
+    /**
+     * 确保容器配置对象存在
+     * @param config - 配置项对象
+     * @returns 确保存在的容器配置对象
+     */
+    const ensureContainerConfig = (
+      config: IContainerConfigItem,
+    ): IContainerConfig & {
+      workload_type: string;
+      workload_name: string;
+      container_name: string;
+    } => {
+      if (!config.container) {
+        config.container = {
+          workload_type: '',
+          workload_name: '',
+          container_name: '',
+        };
+      }
+      // 确保所有字段都有默认值
+      return {
+        workload_type: config.container.workload_type || '',
+        workload_name: config.container.workload_name || '',
+        container_name: config.container.container_name || '',
+      };
+    };
+
+    /**
+     * 获取配置范围名称
+     * @param scope - 范围类型
+     * @returns 范围名称
+     */
+    const getScopeName = (scope: ScopeType): string => {
+      return scopeNameList.value[scope] || scope;
+    };
+
+    /**
+     * 检查是否显示容器提示信息
+     * 当命名空间或容器的排除操作符为 '!=' 时显示提示
+     * @param configItem - 配置项
+     * @returns 是否显示提示
+     */
+    const isShowContainerTips = (configItem: IContainerConfigItem): boolean => {
+      const noQuestParams = configItem.noQuestParams;
+      if (!noQuestParams) return false;
+      const { containerExclude, namespacesExclude } = noQuestParams;
+      return [containerExclude, namespacesExclude].includes('!=' as OperatorType);
+    };
+    /**
+     * 视图查询参数计算属性
+     * 用于配置预览功能，格式化配置数据为查询参数
+     */
+    const viewQueryParams = computed(() => {
+      const type = props.isNode ? 'node' : 'pod';
+      const config = props.config as IContainerConfigItem;
+      const { namespaces, annotation_selector: annotationSelector, label_selector: labelSelector, container } = config;
+      const namespacesKey = config.noQuestParams.namespacesExclude === '!=' ? 'namespaces_exclude' : 'namespaces';
+      const containerKey = config.noQuestParams.containerExclude === '!=' ? 'container_name_exclude' : 'container_name';
+      const previewContainer: Record<string, string> = { ...container };
+      delete previewContainer.container_name;
+      delete previewContainer.container_name_exclude;
+      previewContainer[containerKey] = (config.containerNameList || []).join(',');
+
+      /**
+       * 格式化匹配表达式的值
+       * 对于 'In' 和 'NotIn' 操作符，将值用括号包裹
+       * @param item - 匹配表达式项
+       * @returns 格式化后的值
+       */
+      const formatValue = (item: { operator?: string; value?: string }): string => {
+        if (!item.value) return '';
+        return ['NotIn', 'In'].includes(item.operator || '') ? `(${item.value})` : item.value;
+      };
+
+      // 处理注解选择器
+      const matchAnnotations = (annotationSelector?.match_annotations || []).map(item => ({
+        ...item,
+        value: formatValue(item),
+      }));
+
+      // 处理标签选择器：合并 match_labels 和 match_expressions
+      const labelMatchExpressions = labelSelector?.match_labels
+        ? [...(labelSelector.match_expressions || []), ...labelSelector.match_labels]
+        : labelSelector?.match_expressions || [];
+
+      const matchExpressions = labelMatchExpressions.map(item => ({
+        ...item,
+        value: formatValue(item),
+      }));
+
+      return {
+        bcs_cluster_id: props.bcsClusterId,
+        bk_biz_id: bkBizId.value,
+        [namespacesKey]: namespaces.length === 1 && namespaces[0] === '*' ? [] : namespaces,
+        label_selector: {
+          match_expressions: matchExpressions,
+        },
+        annotation_selector: {
+          match_annotations: matchAnnotations,
+        },
+        container: previewContainer,
+        type,
+      };
+    });
+
+    /**
+     * 初始化添加范围按钮的 Tippy 弹出层
+     * 在 DOM 更新后调用，确保元素已渲染
+     */
+    const initActionPop = (): void => {
+      // 先销毁旧的实例，避免重复创建
+      if (tippyInstance) {
+        tippyInstance.hide();
+        tippyInstance.destroy();
+        tippyInstance = null;
+      }
+
+      // 检查必要条件：元素存在且按钮应该显示
+      if (!rootRef.value || !isShowAddScopeButton.value) {
+        return;
+      }
+
+      tippyInstance = tippy(rootRef.value as SingleTarget, {
+        content: menuPanelRef.value as any,
+        trigger: 'click',
+        placement: 'bottom-start',
+        theme: 'light cluster-menu-list-popover',
+        interactive: true,
+        hideOnClick: true,
+        arrow: false,
+        offset: [0, 1],
+        appendTo: () => document.body,
+        onShow: () => {
+          isHover.value = true;
+        },
+        onHide: () => {
+          isHover.value = false;
+        },
+      });
+    };
+
+    /**
+     * 获取配置范围的显示状态
+     * @returns 配置范围显示状态对象
+     */
+    const getScopeSelectShow = computed(() => {
+      const config = props.config as IContainerConfigItem;
+      return (
+        config.noQuestParams?.scopeSelectShow || {
+          namespace: true,
+          label: true,
+          load: true,
+          containerName: true,
+          annotation: true,
+        }
+      );
+    });
+
+    /**
+     * 获取命名空间的字符串表示
+     * 如果只有一个 '*' 选项，返回空字符串
+     * @param namespaces - 命名空间数组
+     * @returns 命名空间字符串
+     */
+    const getNameSpaceStr = (namespaces: string[]): string => {
+      if (!namespaces || namespaces.length === 0) return '';
+      return namespaces.length === 1 && namespaces[0] === '*' ? '' : namespaces.join(',');
+    };
+
+    /**
+     * 处理命名空间选择变化
+     * 处理逻辑：
+     * 1. 如果最后选择了"所有"(*)，则只保留"所有"
+     * 2. 如果选择了多个且包含"所有"，则移除"所有"
+     * 3. 其他情况直接更新
+     * @param option - 选中的命名空间数组
+     */
+    const handleNameSpaceSelect = (option: string[]): void => {
+      const config = { ...props.config } as IContainerConfigItem;
+      if (!config.namespaces) {
+        config.namespaces = [];
+      }
+
+      if (option.at(-1) === '*') {
+        // 如果最后选择了"所有"，则只保留"所有"
+        config.namespaces = ['*'];
+      } else if (option.length > 1 && option.includes('*')) {
+        // 如果选择了多个且包含"所有"，则移除"所有"
+        const allIndex = option.indexOf('*');
+        const newNamespaces = [...option];
+        newNamespaces.splice(allIndex, 1);
+        config.namespaces = newNamespaces;
+      } else {
+        // 其他情况直接更新
+        config.namespaces = option;
+      }
+
+      // 确保 noQuestParams 存在
+      if (!config.noQuestParams) {
+        config.noQuestParams = {
+          scopeSelectShow: {},
+          namespaceStr: '',
+        };
+      }
+      // 更新命名空间字符串表示
+      config.noQuestParams.namespaceStr = getNameSpaceStr(config.namespaces);
+      emit('change', config);
+    };
+
+    /**
+     * 检查是否显示指定的配置范围项
+     * 节点环境下只显示标签和注释，其他环境下根据 scopeSelectShow 判断
+     * @param scope - 范围类型
+     * @returns 是否显示
+     */
+    const isShowScopeItem = (scope: ScopeType): boolean => {
+      // 节点环境下只显示标签和注释
+      if (props.isNode) {
+        return ['label', 'annotation'].includes(scope);
+      }
+      const config = props.config as IContainerConfigItem;
+      const scopeSelectShow = config.noQuestParams?.scopeSelectShow;
+      if (!scopeSelectShow) return false;
+      return !scopeSelectShow[scope];
+    };
+
+    /**
+     * 检查是否显示添加范围按钮
+     * 节点环境下不显示，其他环境下检查是否有可添加的范围
+     * @returns 是否显示添加按钮
+     */
+    const isShowAddScopeButton = computed((): boolean => {
+      // 节点环境下不显示添加范围按钮
+      if (props.isNode) {
+        return false;
+      }
+      // 检查是否有可添加的范围（scopeSelectShow 中为 true 的项）
+      return Object.values(getScopeSelectShow.value).some(Boolean);
+    });
+
+    /**
+     * 获取要显示的命名空间选择列表
+     * 排除模式下不显示"所有"选项
+     * @returns 命名空间选择列表
+     */
+    const showNameSpacesSelectList = (): ISelectItem[] => {
+      const config = props.config as IContainerConfigItem;
+      const operate = config.noQuestParams?.namespacesExclude;
+
+      if (!props.nameSpacesSelectList.length) {
+        return [];
+      }
+
+      // 排除模式下不显示"所有"选项
+      if (operate === '!=' && props.nameSpacesSelectList.some(item => item.id === '*')) {
+        // 如果当前选择的是"所有"，需要重置为空
+        const namespaces = config.namespaces || [];
+        if (namespaces.length === 1 && namespaces[0] === '*') {
+          const newConfigs = { ...props.config } as IContainerConfigItem;
+          newConfigs.namespaces = [];
+          // 注意：这里不触发 emit，因为只是获取列表，不改变配置
+        }
+        return props.nameSpacesSelectList.slice(1);
+      }
+      return props.nameSpacesSelectList;
+    };
+
+    /**
+     * 添加新的配置范围
+     * @param scope - 范围类型
+     */
+    const handleAddNewScope = (scope: ScopeType): void => {
+      tippyInstance?.hide();
+      const newConfigs = { ...props.config };
+      if (!newConfigs.noQuestParams) {
+        newConfigs.noQuestParams = {
+          scopeSelectShow: {},
+        };
+      }
+      if (!newConfigs.noQuestParams.scopeSelectShow) {
+        newConfigs.noQuestParams.scopeSelectShow = {};
+      }
+      newConfigs.noQuestParams.scopeSelectShow[scope] = false;
+      emit('change', newConfigs);
+    };
+
+    // ==================== Watch 监听 ====================
+    watch(
+      () => props.bcsClusterId,
+      newVal => {
+        if (newVal && !props.isNode) {
+          nextTick(() => {
+            if (isShowAddScopeButton.value && rootRef.value) {
+              initActionPop();
+            }
+          });
+        }
+      },
+    );
+
+    /**
+     * 监听节点模式变化
+     * 当 isNode 变化时，销毁旧的 Tippy 实例，并在非节点模式下重新初始化
+     */
+    watch(
+      () => props.isNode,
+      () => {
+        // 先销毁旧实例
+        if (tippyInstance) {
+          tippyInstance.hide();
+          tippyInstance.destroy();
+          tippyInstance = null;
+        }
+        // 等待 DOM 更新后再初始化（如果按钮显示的话）
+        if (!props.isNode) {
+          nextTick(() => {
+            if (isShowAddScopeButton.value && rootRef.value) {
+              initActionPop();
+            }
+          });
+        }
+      },
+    );
+
+    /**
+     * 删除配置参数项
+     * 根据不同的范围类型，重置对应的配置值，并更新显示状态
+     * @param scope - 范围类型
+     */
+    const handleDeleteConfigParamsItem = (scope: ScopeType): void => {
+      const config = { ...props.config } as IContainerConfigItem;
+
+      // 确保 noQuestParams 存在
+      if (!config.noQuestParams) {
+        config.noQuestParams = {
+          scopeSelectShow: {},
+        };
+      }
+      if (!config.noQuestParams.scopeSelectShow) {
+        config.noQuestParams.scopeSelectShow = {};
+      }
+
+      // 根据不同类型重置对应的值
+      switch (scope) {
+        case 'namespace':
+          config.namespaces = [];
+          if (config.noQuestParams) {
+            config.noQuestParams.namespaceStr = '';
+          }
+          break;
+        case 'load':
+          // 确保 container 对象存在后重置工作负载相关字段
+          ensureContainerConfig(config);
+          if (config.container) {
+            config.container.workload_type = '';
+            config.container.workload_name = '';
+          }
+          break;
+        case 'label':
+          config.labelSelector = [];
+          config.label_selector = {
+            match_labels: [],
+            match_expressions: [],
+          };
+          break;
+        case 'annotation':
+          config.annotationSelector = [];
+          config.annotation_selector = {
+            match_annotations: [],
+          };
+          break;
+        case 'containerName':
+          config.containerNameList = [];
+          ensureContainerConfig(config);
+          if (config.container) {
+            config.container.container_name = '';
+          }
+          break;
+        default:
+          break;
+      }
+
+      // 对于非节点环境的 label 类型，更新显示状态
+      if (scope !== 'label' || !props.isNode) {
+        config.noQuestParams.scopeSelectShow[scope] = true;
+      }
+      emit('change', config);
+    };
+
+    /**
+     * 处理容器名称输入失去焦点事件
+     * 当用户在输入框中输入后失去焦点时，将输入值添加到容器名称列表中
+     * @param inputStr - 输入的字符串
+     * @param list - 当前的标签列表
+     */
+    const handleContainerNameBlur = (inputStr: string, list: string[]): void => {
+      if (!inputStr) {
+        return;
+      }
+
+      const config = { ...props.config } as IContainerConfigItem;
+      const currentList = config.containerNameList || [];
+
+      // 确保输入值被添加且去重
+      if (list.length > 0) {
+        // 合并现有列表和新列表，去重
+        config.containerNameList = [...new Set([...currentList, ...list])];
+      } else {
+        // 如果列表为空，直接添加输入值
+        config.containerNameList = [...new Set([...currentList, inputStr])];
+      }
+
+      emit('change', config);
+    };
+
+    // ==================== 生命周期 ====================
+    /**
+     * 组件挂载后初始化 Tippy
+     * 等待 DOM 更新完成后再初始化，确保元素已渲染
+     */
+    onMounted(() => {
+      nextTick(() => {
+        if (!props.isNode && isShowAddScopeButton.value && rootRef.value) {
+          initActionPop();
+        }
+      });
+    });
+
+    /**
+     * 组件卸载前清理 Tippy 实例
+     * 防止内存泄漏
+     */
+    onBeforeUnmount(() => {
+      if (tippyInstance) {
+        tippyInstance.hide();
+        tippyInstance.destroy();
+        tippyInstance = null;
+      }
+    });
+
+    // ==================== 渲染函数 ====================
+    /**
+     * 渲染命名空间配置项
+     * @returns JSX 元素
+     */
+    const renderNamespaceItem = () => {
+      const config = props.config as IContainerConfigItem;
+      return (
+        <div class='config-item hover-light'>
+          <div class='config-item-title flex-ac'>
+            <span>{t('按命名空间选择')}</span>
+            <span
+              class='bk-icon icon-delete'
+              onClick={() => handleDeleteConfigParamsItem('namespace')}
+            />
+          </div>
+          <div
+            class='operator-box'
+            v-log-tooltip={{ ...chooseClusterTips.value, disabled: !!props.bcsClusterId }}
+          >
+            <bk-select
+              class='operate-select'
+              clearable={false}
+              disabled={props.isNode || !props.bcsClusterId || props.nameSpaceRequest}
+              placeholder=' '
+              popoverWidth={100}
+              value={config.noQuestParams.namespacesExclude}
+              onChange={(val: string|undefined) => {
+                config.noQuestParams.namespacesExclude = val;
+                // 从 = 切换到 != 时，如果当前选中"所有"(*)，需要移除
+                if (val === '!=' && config.namespaces?.length === 1 && config.namespaces[0] === '*') {
+                  config.namespaces = [];
+                  config.noQuestParams.namespaceStr = '';
+                }
+                emit('change', config);
+              }}
+            >
+              {operatorSelectList.value.map(oItem => (
+                <bk-option
+                  id={oItem.id}
+                  key={oItem.id}
+                  name={oItem.name}
+                />
+              ))}
+            </bk-select>
+            <bk-select
+              class='space-select'
+              disabled={props.isNode || !props.bcsClusterId || props.nameSpaceRequest}
+              value={config.namespaces}
+              displayTag
+              multiple
+              searchable
+              loading={props.nameSpaceRequest}
+              onSelected={(option: string[]|undefined) => {
+                config.namespaces = option;
+                handleNameSpaceSelect(option);
+              }}
+            >
+              {showNameSpacesSelectList().map(oItem => (
+                <bk-option
+                  id={oItem.id}
+                  key={oItem.id}
+                  name={oItem.name}
+                />
+              ))}
+            </bk-select>
+          </div>
+        </div>
+      );
+    };
+
+    /**
+     * 渲染工作负载配置项
+     * @returns JSX 元素
+     */
+    const renderWorkloadItem = () => {
+      const config = { ...props.config } as IContainerConfigItem;
+      // 确保 container 对象存在
+      ensureContainerConfig(config);
+      return (
+        <div class='config-item hover-light'>
+          <div class='config-item-title flex-ac'>
+            <span>{t('按工作负载选择')}</span>
+            <span
+              class='bk-icon icon-delete'
+              onClick={() => handleDeleteConfigParamsItem('load')}
+            />
+          </div>
+          <WorkloadSelection
+            bcsClusterId={props.bcsClusterId}
+            conItem={config}
+            container={config.container}
+            onUpdate={val => {
+              config.container = val;
+              emit('change', config);
+            }}
+          />
+        </div>
+      );
+    };
+
+    /**
+     * 渲染容器名称配置项
+     * @returns JSX 元素
+     */
+    const renderContainerNameItem = () => {
+      const config = { ...props.config } as IContainerConfigItem;
+      // 确保 container 对象存在
+      ensureContainerConfig(config);
+      return (
+        <div class='config-item hover-light'>
+          <div class='config-item-title flex-ac'>
+            <span>{t('直接指定{n}', { n: 'Container' })}</span>
+            <span
+              class='bk-icon icon-delete'
+              onClick={() => handleDeleteConfigParamsItem('containerName')}
+            />
+          </div>
+          <div class='operator-box'>
+            <bk-select
+              class='operate-select'
+              clearable={false}
+              placeholder=' '
+              popoverWidth={100}
+              value={config.noQuestParams.containerExclude}
+              onChange={(val: string|undefined) => {
+                config.noQuestParams.containerExclude = val;
+                emit('change', config);
+              }}
+            >
+              {operatorSelectList.value.map(oItem => (
+                <bk-option
+                  id={oItem.id}
+                  key={oItem.id}
+                  name={oItem.name}
+                />
+              ))}
+            </bk-select>
+            <bk-tag-input
+              extCls='container-input'
+              value={config.containerNameList || []}
+              allowCreate
+              freePaste
+              hasDeleteIcon
+              onBlur={(inputStr: string, list: string[]) => handleContainerNameBlur(inputStr, list)}
+              onChange={(val: string[]) => {
+                ensureContainerConfig(config);
+                if (config.container) {
+                  config.container.container_name = val.join(',');
+                }
+                config.containerNameList = [...val];
+                emit('change', config);
+              }}
+            />
+          </div>
+        </div>
+      );
+    };
+
+    return () => (
+      <div class='config-cluster-box-main'>
+        {/* 容器提示信息 */}
+        {isShowContainerTips(props.config) && (
+          <TAlert
+            v-slots={{
+              message: () => (
+                <>
+                  <i class='bk-icon icon-info' />
+                  <span>{t('采集范围排除能力依赖采集器 bk-log-collector >= 0.3.2，请保证采集器已升级到最新版本')}</span>
+                </>
+              ),
+            }}
+            class='container-alert'
+            icon={(false) ? undefined : () => null}
+            theme={'info'} data-v2-display='alert'
+          ></TAlert>
+        )}
+        {/* 配置标题和预览按钮 */}
+        <div class='config-cluster-title justify-bt'>
+          <span class='title-box'>
+            <span class='title'>{t('选择 {n} 范围', { n: props.isNode ? 'Node' : 'Container' })}</span>
+            <InfoTips tips={t('所有选择范围可相互叠加并作用')} />
+          </span>
+          <span
+            class={['preview', !props.bcsClusterId && 'disable'].join(' ')}
+            v-log-tooltip={{ ...chooseClusterTips.value, disabled: !!props.bcsClusterId }}
+            onClick={() => {
+              isShowConfigView.value = true;
+            }}
+          >
+            <span class='bk-icon icon-eye' />
+            <span>{t('预览')}</span>
+          </span>
+        </div>
+
+        <div class='config-params-box'>
+          {/* 命名空间配置项 */}
+          {isShowScopeItem('namespace') && renderNamespaceItem()}
+
+          {/* 标签配置项 */}
+          {isShowScopeItem('label') && (
+            <ConfigLogSetEditItem
+              bcsClusterId={props.bcsClusterId}
+              clusterList={props.clusterList}
+              config={props.config as any}
+              editType='label_selector'
+              isNode={props.isNode}
+              onChange={config => {
+                emit('change', { ...props.config, ...config });
+              }}
+              onDeleteConfigParamsItem={(type: string) => handleDeleteConfigParamsItem(type as ScopeType)}
+            />
+          )}
+
+          {/* 注释配置项 */}
+          {isShowScopeItem('annotation') && (
+            <ConfigLogSetEditItem
+              bcsClusterId={props.bcsClusterId}
+              clusterList={props.clusterList}
+              config={props.config as IContainerConfigItem}
+              editType='annotation_selector'
+              isNode={props.isNode}
+              onChange={config => {
+                emit('change', { ...props.config, ...config });
+              }}
+              onDeleteConfigParamsItem={(type: string) => handleDeleteConfigParamsItem(type as ScopeType)}
+            />
+          )}
+
+          {/* 工作负载配置项 */}
+          {isShowScopeItem('load') && renderWorkloadItem()}
+
+          {/* 容器名称配置项 */}
+          {isShowScopeItem('containerName') && renderContainerNameItem()}
+        </div>
+        {/* 添加范围 */}
+        <div
+          class='add-btn-box'
+          style={{ display: isShowAddScopeButton.value ? 'block' : 'none' }}
+          v-log-tooltip={{ ...chooseClusterTips.value, disabled: !!props.bcsClusterId }}
+        >
+          <div
+            ref={rootRef}
+            class={{
+              'add-btns': true,
+              hover: isHover.value,
+              'is-disabled': !props.bcsClusterId,
+            }}
+          >
+            <i class='bk-icon icon-plus-line icons' />
+            {t('添加范围')}
+          </div>
+        </div>
+        <ConfigViewDialog
+          isShowDialog={isShowConfigView.value}
+          viewQueryParams={viewQueryParams.value}
+          onCancel={() => {
+            isShowConfigView.value = false;
+          }}
+        />
+        <div style='display: none'>
+          <div ref={menuPanelRef}>
+            <ul class='menu-popover-dropdown-list'>
+              {Object.entries(getScopeSelectShow.value).map(
+                ([scopeStr, isShowScope]) =>
+                  isShowScope && (
+                    <li
+                      key={scopeStr}
+                      class='menu-dropdown-list-item'
+                      onClick={() => handleAddNewScope(scopeStr as ScopeType)}
+                    >
+                      {getScopeName(scopeStr as ScopeType)}
+                    </li>
+                  ),
+              )}
+            </ul>
+          </div>
+        </div>
+      </div>
+    );
+  },
+});

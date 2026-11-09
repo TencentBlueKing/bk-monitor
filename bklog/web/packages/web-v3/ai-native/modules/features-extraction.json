@@ -1,0 +1,31 @@
+{
+  "schemaVersion": 1,
+  "id": "features/extraction",
+  "purpose": "按源码职责归属的业务域；功能边界以实际组件和服务为准",
+  "root": "src/features/extraction",
+  "files": 47,
+  "entryPoints": [
+    "features/extraction/classic/manage-extract-permission/index.vue",
+    "features/extraction/current/extract-config/index.tsx",
+    "features/extraction/current/extract-task/index.tsx",
+    "features/extraction/current/extract-task/task-create/index.tsx",
+    "features/extraction/current/extract-task/task-list/index.tsx",
+    "features/extraction/download/create/index.vue",
+    "features/extraction/download/home/index.vue",
+    "features/extraction/download/index.vue"
+  ],
+  "services": [
+    "features/extraction/services/extract-manage.ts",
+    "features/extraction/services/extract.ts"
+  ],
+  "dependsOn": [
+    "app",
+    "features/collection",
+    "platform",
+    "shared"
+  ],
+  "tests": [],
+  "sourceMap": "ai-native/source-map.json",
+  "acceptance": "NEEDS_REVIEW",
+  "note": "Directory migration preserves source behavior; domain-wide acceptance remains in the existing ledger."
+}

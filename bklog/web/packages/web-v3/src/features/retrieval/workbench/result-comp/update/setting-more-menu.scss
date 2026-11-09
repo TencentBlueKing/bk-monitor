@@ -1,0 +1,44 @@
+.field-setting-more {
+  .popover-trigger {
+    display: flex;
+    align-items: center;
+    cursor: pointer;
+
+    .bklog-more {
+      font-size: 16px;
+      color: #979ba5;
+
+      &:hover {
+        color: #3a84ff;
+      }
+    }
+
+    &.is-active {
+      .bklog-more {
+        color: #3a84ff;
+      }
+    }
+  }
+}
+
+.field-setting-list-menu {
+  width: 58px;
+  padding: 4px 0;
+  pointer-events: all;
+  background: #ffffff;
+
+  .menu-item {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    height: 32px;
+    font-size: 12px;
+    line-height: 32px;
+    color: #4d4f56;
+    cursor: pointer;
+
+    &:hover {
+      background: #f5f7fa;
+    }
+  }
+}

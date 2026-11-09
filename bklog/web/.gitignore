@@ -54,6 +54,8 @@ jspm_packages/
 
 # dotenv environment variables file
 .env
+.env.local
+.env.*.local
 webpack-stats.json
 .stylelintcache
 webpack_cache/
@@ -80,18 +82,17 @@ packages/self-healing
 local.settings.js
 local.settings.e2e.proxy.js
 packages/eslint-fix
-webpack/monitor-static/*
+packages/web-v2/webpack/monitor-static/*
 .vscode/
 .cache/
 package.old.json
 yarn.lock
-pnpm-lock.yaml
 .babelcache
-src/views/playground/*
+packages/web-v2/src/views/playground/*
 /monitor-retrieve/*
 /monitor-apm-retrieve/*
 /monitor-trace-retrieve/*
-src/local.**
+packages/web-v2/src/local.**
 local.cookie
 .cookie
 .aafe.config.json
@@ -114,3 +115,38 @@ packages/e2e-skills
 
 # OpenSpec drafts stay local.
 openspec/
+
+# Keep the cluster migration regression test reviewable without exposing local test drafts.
+!packages/web-v3/tests/
+packages/web-v3/tests/*
+!packages/web-v3/tests/cluster-native-interactions.test.mjs
+!packages/web-v3/tests/date-picker-island.test.mjs
+!packages/web-v3/tests/helpers/
+packages/web-v3/tests/helpers/*
+!packages/web-v3/tests/helpers/load-typescript.mjs
+!packages/web-v3/tests/query-history-native.test.mjs
+!packages/web-v3/tests/query-history-parity.test.mjs
+!packages/web-v3/tests/helpers/load-script-setup.mjs
+!packages/web-v3/tests/helpers/service-fixture.mjs
+!packages/web-v3/tests/field-settings-native.test.mjs
+!packages/web-v3/tests/export-controls-native.test.mjs
+!packages/web-v3/tests/export-service.test.mjs
+!packages/web-v3/tests/business-literal-parity.test.mjs
+!packages/web-v3/tests/field-analysis-native.test.mjs
+!packages/web-v3/tests/field-tree-native.test.mjs
+
+!packages/web-v3/tests/favorite-management-native.test.mjs
+
+!packages/web-v3/tests/favorite-sidebar-native.test.mjs
+
+!packages/web-v3/tests/index-set-controls-native.test.mjs
+
+!packages/web-v3/tests/class-translator-contract.test.mjs
+
+!packages/web-v3/tests/log-filter-validator-native.test.mjs
+
+!packages/web-v3/tests/log-filter-controls-native.test.mjs
+
+!packages/web-v3/tests/sample-column-select-native.test.mjs
+
+!packages/web-v3/tests/collection-base-multiline-native.test.mjs

@@ -1,0 +1,284 @@
+/*
+ * Tencent is pleased to support the open source community by making
+ * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
+ *
+ * Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
+ *
+ * 蓝鲸智云PaaS平台 (BlueKing PaaS) is licensed under the MIT License.
+ *
+ * License for 蓝鲸智云PaaS平台 (BlueKing PaaS):
+ *
+ * ---------------------------------------------------
+ * Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated
+ * documentation files (the "Software"), to deal in the Software without restriction, including without limitation
+ * the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and
+ * to permit persons to whom the Software is furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in all copies or substantial portions of
+ * the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO
+ * THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF
+ * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
+ * IN THE SOFTWARE.
+ */
+import { computed, defineAsyncComponent, defineComponent, KeepAlive, nextTick, onMounted, ref, type Ref } from 'vue';
+import jsCookie from 'js-cookie';
+import { useRoute } from 'vue-router';
+
+import { getFeatureToggleStatus } from '../../shared/composables/use-feature-toggle';
+import { isMonitorIframeContext } from '../../shared/lib/embed-layout-query';
+import useLocale from '../../shared/composables/use-locale';
+import useStore from '../../shared/composables/use-store';
+import { join } from '@/shared/global/utils/path';
+
+import LocaleProvider from '@/platform/i18n/locale-provider';
+import HeadNav from '@/shared/global/head-navi/index';
+import './app.scss';
+
+import(/* webpackChunkName: 'appload-import' */ '../../shared/lib/appload-import');
+const NoticeComponent = defineAsyncComponent(() =>
+  Promise.all([
+    import(/* webpackChunkName: 'notice-component' */ '@blueking/notice-component'),
+    import(/* webpackChunkName: 'notice-component' */ '@blueking/notice-component/dist/style.css'),
+  ]).then(([component]) => (component as any).default ?? component),
+);
+const AuthDialog = defineAsyncComponent(
+  () => import(/* webpackChunkName: 'auth-dialog' */ '@/shared/ui/common/auth-dialog.vue'),
+);
+const GlobalSettingDialog = defineAsyncComponent(
+  () => import(/* webpackChunkName: 'global-setting-dialog' */ '@/features/preferences/index'),
+);
+const isHeadlessEntry = () =>
+  new URLSearchParams(window.location.hash.split('?')[1] || window.location.search).get('hl') === '1';
+if (isHeadlessEntry()) {
+  import(/* webpackChunkName: 'demand-import-lite' */ '../../shared/lib/demand-import-lite');
+} else {
+  import(/* webpackChunkName: 'demand-import' */ '../../shared/lib/demand-import');
+}
+
+export default defineComponent({
+  setup() {
+    const route = useRoute();
+    const store = useStore();
+    const { $t } = useLocale();
+
+    const noticeComponentHeight = ref(0);
+    const refNoticeComponent: Ref<any | null> = ref(null);
+    const welcomePageData = ref(null);
+
+    const isHeadless = computed(() => route.query.hl === '1');
+    const rootClass = computed(() => ({
+      'clear-min-height': route.name === 'retrieve',
+      'is-headless-app': isHeadless.value,
+    }));
+
+    const noticeComponentStyle = computed(() => ({
+      '--notice-component-height': `${noticeComponentHeight.value}px`,
+    }));
+
+    const isAsIframe = computed(() => isMonitorIframeContext(route.query));
+    const showAlert = computed(() => store.state.showAlert);
+
+    const isShowGlobalDialog = computed(() => store.state.isShowGlobalDialog);
+    const globalActiveLabel = computed(() => store.state.globalActiveLabel);
+    const globalSettingList = computed(() => store.state.globalSettingList);
+
+    const appBodyClassName = computed(() => [
+      'log-search-container',
+      isAsIframe.value && 'as-iframe',
+      isHeadless.value && 'is-headless',
+      { 'is-show-notice': showAlert.value },
+    ]);
+
+    /** 初始化脱敏灰度相关的数据 */
+    const initMaskingToggle = () => {
+      const logDesensitize = getFeatureToggleStatus('log_desensitize');
+
+      if (logDesensitize === 'off') {
+        store.commit('updateState', { globalSettingList: [] });
+      }
+
+      store.commit('updateState', {
+        maskingToggle: {
+          toggleString: logDesensitize,
+          toggleList: [],
+        },
+      });
+
+      // 更新全局操作列表
+      const isShowSettingList = logDesensitize !== 'off';
+      // 自定义菜单项
+      const customItems = [
+        { id: 'my-applied', name: $t('我申请的') },
+        { id: 'my-report', name: $t('我的订阅') },
+      ];
+      // 脱敏菜单项
+      const maskingItems = isShowSettingList ? [{ id: 'masking-setting', name: $t('全局脱敏') }] : [];
+      store.commit('updateState', {
+        globalSettingList: [...customItems, ...maskingItems],
+      });
+    };
+
+    /**
+     * 公告状态变化
+     * @param v
+     */
+    const showAlertChange = async (v: boolean) => {
+      store.commit('updateState', { showAlert: v });
+
+      await nextTick();
+      noticeComponentHeight.value = v ? (refNoticeComponent.value?.$el?.offsetHeight ?? 0) : 0;
+    };
+
+    /**
+     * 渲染公告组件
+     */
+    const renderNoticeComponent = () => {
+      if (!isAsIframe.value && !isHeadless.value) {
+        return (
+          <NoticeComponent
+            ref={refNoticeComponent}
+            apiUrl={join((window as any).SITE_URL, '/notice/announcements/')}
+            onShowAlertChange={showAlertChange}
+          />
+        );
+      }
+    };
+
+    /**
+     * 处理欢迎页数据
+     * @param args
+     */
+    const handleWelcome = (args: any) => {
+      welcomePageData.value = args;
+    };
+
+    /**
+     * 渲染头部组件
+     */
+    const renderHeadComponent = () => {
+      if (!isAsIframe.value && !isHeadless.value && route.path !== '/') {
+        return (
+          <HeadNav
+            welcomeData={welcomePageData.value}
+            onWelcome={handleWelcome}
+          />
+        );
+      }
+    };
+
+    /**
+     * 获取欢迎页
+     */
+    const getWelcomePage = () => {
+      if (welcomePageData.value) {
+        return <welcome-page data={welcomePageData.value} />;
+      }
+
+      return null;
+    };
+
+    /**
+     * 渲染路由视图
+     */
+    const renderRouterView = () => {
+      return (
+        <router-view
+          v-slots={{
+            default: ({ Component }: { Component: unknown }) => {
+              const Page = Component as any;
+              return (
+                <KeepAlive include='RetrieveHub'>
+                  {Page ? <Page class='manage-content' /> : null}
+                </KeepAlive>
+              );
+            },
+          }}
+        />
+      );
+    };
+
+    /**
+     * 渲染授权弹窗
+     * @returns
+     */
+    const renderAuthDialog = () => {
+      if (!isHeadless.value) {
+        return <AuthDialog />;
+      }
+      return null;
+    };
+
+    /**
+     * 更新全局弹窗的选项
+     */
+    const handleChangeMenu = (item: any) => {
+      store.commit('updateState', { globalActiveLabel: item.id });
+    };
+
+    /**
+     * 渲染全局设置弹窗
+     */
+    const renderGlobalSettingDialog = () => {
+      if (isHeadless.value || !isShowGlobalDialog.value) {
+        return null;
+      }
+      return (
+        <GlobalSettingDialog
+          activeMenu={globalActiveLabel.value}
+          menuList={globalSettingList.value}
+          value={isShowGlobalDialog.value}
+          onMenuChange={handleChangeMenu}
+        />
+      );
+    };
+
+    /**
+     * 渲染应用主体
+     */
+    const renderAppBody = () => {
+      return (
+        <div class={appBodyClassName.value}>
+          {getWelcomePage()}
+          {renderRouterView()}
+          {renderAuthDialog()}
+          {renderGlobalSettingDialog()}
+        </div>
+      );
+    };
+
+    onMounted(() => {
+      const platform = window.navigator.platform.toLowerCase();
+      const fontFamily =
+        platform.indexOf('win') === 0
+          ? 'Microsoft Yahei, pingFang-SC, Helvetica, Aria, sans-serif'
+          : 'pingFang-SC, Microsoft Yahei, Helvetica, Aria, sans-serif';
+      document.body.style.fontFamily = fontFamily;
+      store.commit('updateState', { runVersion: window.RUN_VER || '' });
+
+      const isEnLanguage = (jsCookie.get('blueking_language') || 'zh-cn') === 'en';
+      store.commit('updateState', { isEnLanguage });
+      const languageClassName = isEnLanguage ? 'language-en' : 'language-zh';
+      document.body.classList.add(languageClassName);
+      // 初始化脱敏灰度相关的代码
+      initMaskingToggle();
+      store.state.isExternal = window.IS_EXTERNAL ? JSON.parse(`${window.IS_EXTERNAL}`) : false;
+    });
+
+    return () => (
+      <LocaleProvider>
+      <div
+        id='app'
+        style={noticeComponentStyle.value}
+        class={rootClass.value}
+      >
+        {renderNoticeComponent()}
+        {renderHeadComponent()}
+        {renderAppBody()}
+      </div>
+      </LocaleProvider>
+    );
+  },
+});

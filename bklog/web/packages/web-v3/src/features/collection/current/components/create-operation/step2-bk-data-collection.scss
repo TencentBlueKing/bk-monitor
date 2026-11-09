@@ -1,0 +1,42 @@
+.operation-step2-bk-data-collection {
+  width: 100%;
+  height: 100%;
+  .w-40 {
+    width: 40.8%;
+  }
+  .base-info-form {
+    width: 45%;
+    min-width: 680px;
+  }
+  .data-source-box {
+    width: 100%;
+    .data-source-table {
+      width: 45%;
+      min-width: 680px;
+      border: 1px solid #DCDEE5;
+    }
+    .time-field {
+      line-height: 32px;
+      color: #63656e;
+      font-size: 12px;
+    }
+  }
+  .field-setting-box {
+    width: 100%;
+    .field-setting-alert {
+      background: #fdf4e8;
+      border: 1px solid #f9d090;
+      border-radius: 2px;
+      margin-bottom: 16px;
+      color: #4d4f56;
+    }
+    .select-sort {
+      width: calc(45% - 100px);
+      margin-bottom: 5px;
+    }
+  }
+  .classify-btns-fixed {
+    z-index: 101 !important;
+  }
+}
+

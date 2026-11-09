@@ -1,0 +1,45 @@
+@charset "UTF-8";
+@use './animation/make-transitions' as *;
+@use './animation/animations/fading/all' as *;
+@use './animation/animations/zooming/all' as *;
+// 存放常用动画
+// $animationDuration: 0.3s;
+$animations: './animation/animations';
+
+// mixin
+
+// animations
+//@import "./animation/animations/bouncing/all";
+
+// @import "./animation/animations/sliding/all";
+
+// 用法
+// <transition name="slideDown">
+// xxxx
+// </transition>
+
+// 支持动画
+// Bounce
+
+// bounce
+// bounceDown
+// bounceLeft
+// bounceRight
+// bounceUp
+// Fade
+
+// fade
+// fadeDown
+// fadeDownBig
+// fadeLeft
+// fadeLeftBig
+// fadeRight
+// fadeRightBig
+// fadeUp
+// fadeUpBig
+
+// zoom
+// zoomDown
+// zoomLeft
+// zoomRight
+// zoomUp

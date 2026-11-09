@@ -1,0 +1,451 @@
+/*
+ * Tencent is pleased to support the open source community by making
+ * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
+ *
+ * Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
+ *
+ * 蓝鲸智云PaaS平台 (BlueKing PaaS) is licensed under the MIT License.
+ *
+ * License for 蓝鲸智云PaaS平台 (BlueKing PaaS):
+ *
+ * ---------------------------------------------------
+ * Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated
+ * documentation files (the "Software"), to deal in the Software without restriction, including without limitation
+ * the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and
+ * to permit persons to whom the Software is furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in all copies or substantial portions of
+ * the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO
+ * THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF
+ * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
+ * IN THE SOFTWARE.
+ */
+
+import { Button as TButton } from 'tdesign-vue-next';
+import { ServicesInstance } from '@/platform/services';
+
+import { defineComponent, ref, nextTick } from 'vue';
+import { uniqueId } from 'lodash-es';
+
+import ValidateUserSelector from '@/shared/ui/user-selector/index';
+import useLocale from '@/shared/composables/use-locale';
+import useStore from '@/shared/composables/use-store';
+
+import ModuleSelect from './module-select.tsx';
+import ValidateInput from './validate-input.tsx';
+
+
+import './config-slider.scss';
+
+// 列表项类型定义
+interface ListItem {
+  id: string;
+  value: string;
+}
+
+export default defineComponent({
+  name: 'ConfigSlider',
+  components: {
+    ModuleSelect,
+    ValidateInput,
+    ValidateUserSelector,
+  },
+  props: {
+    // 策略数据
+    strategyData: {
+      type: Object,
+      default: () => ({
+        strategy_name: '',
+        user_list: [],
+        visible_dir: [''],
+        file_type: [''],
+        select_type: '',
+        modules: [],
+        operator: '',
+      }),
+    },
+    // 用户API
+    userApi: {
+      type: String,
+      required: true,
+    },
+    // 是否允许创建
+    allowCreate: {
+      type: Boolean,
+      required: true,
+    },
+    onHandleUpdatedTable: { type: Function },
+    onHandleCancelSlider: { type: Function },
+  },
+  emits: ['handleUpdatedTable', 'handleCancelSlider'],
+
+  setup(props, { emit }) {
+    const store = useStore();
+    const { t } = useLocale();
+
+    const isChangeOperatorLoading = ref(false); // 修改执行人加载状态
+    const showSelectDialog = ref(false); // 是否显示选择对话框
+    const manageStrategyData = ref(structuredClone(props.strategyData)); // 管理策略数据
+
+    // 将字符串数组转换为带 id 的对象数组
+    const toListItems = (arr: string[], prefix: string): ListItem[] => {
+      return arr.map(value => ({ id: uniqueId(prefix), value }));
+    };
+
+    // 初始化数据，避免后台造的数据为空数组
+    if (!Array.isArray(manageStrategyData.value.modules)) {
+      manageStrategyData.value.modules = [];
+    }
+    if (!manageStrategyData.value.visible_dir?.length) {
+      manageStrategyData.value.visible_dir = [{ id: uniqueId('dir_'), value: '' }];
+    } else {
+      manageStrategyData.value.visible_dir = toListItems(manageStrategyData.value.visible_dir, 'dir_');
+    }
+    if (!manageStrategyData.value.file_type?.length) {
+      manageStrategyData.value.file_type = [{ id: uniqueId('type_'), value: '' }];
+    } else {
+      manageStrategyData.value.file_type = toListItems(manageStrategyData.value.file_type, 'type_');
+    }
+
+    // 是否为编辑模式（通过 strategy_name 是否有值判断）
+    const isEditMode = Boolean(props.strategyData.strategy_name);
+
+    // 是否验证通过（编辑模式下默认启用）
+    const isValidated = ref(isEditMode);
+
+    const isValidatedComputed = () => {
+      isValidated.value =
+        manageStrategyData.value.strategy_name &&
+        manageStrategyData.value.user_list.length &&
+        manageStrategyData.value.visible_dir.every((item: ListItem) => Boolean(validateVisibleDir(item.value))) &&
+        manageStrategyData.value.file_type.every((item: ListItem) => Boolean(validateFileExtension(item.value))) &&
+        manageStrategyData.value.modules.length &&
+        manageStrategyData.value?.operator;
+    };
+
+    // 校验授权目录
+    const validateVisibleDir = (val: string) => {
+      // 只允许：数字 字母 _-./
+      // 不得出现 ./
+      // 必须以 / 开头
+      // 必须以 / 结尾
+      return !(/[^\w\-./]/.test(val) || /\.\//.test(val)) && val.startsWith('/') && val.endsWith('/');
+    };
+
+    // 校验文件后缀
+    const validateFileExtension = (val: string) => {
+      return !val.startsWith('.') && val;
+    };
+
+    // 添加授权目录
+    const handleAddVisibleDir = () => {
+      manageStrategyData.value.visible_dir.push({ id: uniqueId('dir_'), value: '' });
+      isValidatedComputed();
+      nextTick(() => {
+        const inputList = document.querySelectorAll('.visible-dir input');
+        if (inputList.length > 0) {
+          (inputList[inputList.length - 1] as HTMLInputElement).focus();
+        }
+      });
+    };
+
+    // 添加文件类型
+    const handleAddFileType = () => {
+      manageStrategyData.value.file_type.push({ id: uniqueId('type_'), value: '' });
+      isValidatedComputed();
+      nextTick(() => {
+        const inputList = document.querySelectorAll('.file-type input');
+        if (inputList.length > 0) {
+          (inputList[inputList.length - 1] as HTMLInputElement).focus();
+        }
+      });
+    };
+
+    // 确认选择的授权目标
+    const handleConfirmSelect = (selectType: string, modules: any[]) => {
+      // 关闭选择对话框
+      showSelectDialog.value = false;
+      // 更新管理策略数据
+      manageStrategyData.value.select_type = selectType;
+      manageStrategyData.value.modules = modules;
+      isValidatedComputed();
+    };
+
+    // 监听选择对话框的显示状态
+    const handleValueChange = (val: any) => {
+      showSelectDialog.value = val;
+    };
+
+    // 修改执行人
+    const changeOperator = async () => {
+      const { operator } = store.state.userMeta;
+      if (operator) {
+        manageStrategyData.value.operator = operator;
+        isValidatedComputed();
+        return;
+      }
+
+      try {
+        isChangeOperatorLoading.value = true;
+        const res = await ServicesInstance.userInfo.getUsername();
+        store.commit('updateState', { userMeta: res.data });
+        manageStrategyData.value.operator = res.data.operator;
+        isValidatedComputed();
+      } catch (e) {
+        console.warn(e);
+      } finally {
+        isChangeOperatorLoading.value = false;
+      }
+    };
+
+    // 处理取消
+    const handleCancel = () => {
+      emit('handleCancelSlider');
+    };
+
+    // 处理确认
+    const handleConfirm = () => {
+      // 将对象数组转换回字符串数组
+      const submitData = {
+        ...manageStrategyData.value,
+        visible_dir: manageStrategyData.value.visible_dir.map((item: ListItem) => item.value),
+        file_type: manageStrategyData.value.file_type.map((item: ListItem) => item.value),
+      };
+      emit('handleUpdatedTable', submitData);
+    };
+
+    // 渲染授权目录列表
+    const renderVisibleDirList = () => {
+      return manageStrategyData.value.visible_dir.map((item: ListItem, index: number) => (
+        <div
+          key={item.id}
+          class='add-minus-component visible-dir flex-box'
+        >
+          <ValidateInput
+            style='width: 256px; margin-right: 4px'
+            validator={validateVisibleDir}
+            value={item.value}
+            onChange={(val: string) => {
+              manageStrategyData.value.visible_dir[index].value = val;
+              isValidatedComputed();
+            }}
+          />
+          <span
+            class='bk-icon icon-plus-circle'
+            onClick={handleAddVisibleDir}
+          />
+          <span
+            style={{ display: manageStrategyData.value.visible_dir.length > 1 ? 'inline' : 'none' }}
+            class='bk-icon icon-minus-circle'
+            onClick={() => {
+              manageStrategyData.value.visible_dir.splice(index, 1);
+              isValidatedComputed();
+            }}
+          />
+        </div>
+      ));
+    };
+
+    // 渲染文件后缀列表
+    const renderFileTypeList = () => {
+      return manageStrategyData.value.file_type.map((item: ListItem, index: number) => (
+        <div
+          key={item.id}
+          class='add-minus-component file-type flex-box'
+        >
+          <ValidateInput
+            style='width: 256px; margin-right: 4px'
+            validator={validateFileExtension}
+            value={item.value}
+            onChange={(val: string) => {
+              manageStrategyData.value.file_type[index].value = val;
+              isValidatedComputed();
+            }}
+          />
+          <span
+            class='bk-icon icon-plus-circle'
+            onClick={handleAddFileType}
+          />
+          <span
+            style={{ display: manageStrategyData.value.file_type.length > 1 ? 'inline' : 'none' }}
+            class='bk-icon icon-minus-circle'
+            onClick={() => {
+              manageStrategyData.value.file_type.splice(index, 1);
+              isValidatedComputed();
+            }}
+          />
+        </div>
+      ));
+    };
+
+    // 主渲染函数
+    return () => (
+      <div
+        class='directory-manage-container'
+        data-test-id='addNewExtractAuthManage_div_addNewExtractBox'
+      >
+        <div class='directory-manage'>
+          {/* 名称 */}
+          <div class='row-container'>
+            <div class='title'>
+              {t('名称')}
+              <span class='required'> * </span>
+              <span
+                class='bklog-icon bklog-info-fill'
+                v-log-tooltip={{ width: 200, content: t('不同类别的授权用户，通过用户组名区分，单业务下唯一') }}
+              />
+            </div>
+            <div class='content'>
+              <ValidateInput
+                style='width: 400px'
+                value={manageStrategyData.value.strategy_name}
+                onChange={(val: string) => {
+                  manageStrategyData.value.strategy_name = val;
+                  isValidatedComputed();
+                }}
+              />
+            </div>
+          </div>
+
+          {/* 用户列表 */}
+          <div class='row-container'>
+            <div class='title'>
+              {t('用户列表')}
+              <span class='required'> * </span>
+              <span
+                class='bklog-icon bklog-info-fill'
+                v-log-tooltip={{
+                  width: 200,
+                  content: props.allowCreate
+                    ? t('多个QQ号粘贴请使用英文分号 " ; " 分隔 ，手动输入QQ号请键入 Enter 保存')
+                    : t('多个用户名粘贴请使用英文分号 " ; " 分隔 ，手动输入用户名请键入 Enter 保存'),
+                }}
+              />
+            </div>
+            <div class='content'>
+              <ValidateUserSelector
+                value={manageStrategyData.value.user_list}
+                onChange={(val: string[]) => {
+                  manageStrategyData.value.user_list = val;
+                  isValidatedComputed();
+                }}
+              />
+            </div>
+          </div>
+
+          {/* 授权目录 */}
+          <div class='row-container'>
+            <div class='title'>
+              {t('授权目录')}
+              <span class='required'> * </span>
+              <span
+                class='bklog-icon bklog-info-fill'
+                v-log-tooltip={{ width: 200, content: t('目录以 / 结尾，windows 服务器以 /cygdrive/ 开头') }}
+              />
+            </div>
+            <div class='content'>{renderVisibleDirList()}</div>
+          </div>
+
+          {/* 文件后缀 */}
+          <div class='row-container'>
+            <div class='title'>
+              {t('文件后缀')}
+              <span class='required'> * </span>
+              <span
+                class='bklog-icon bklog-info-fill'
+                v-log-tooltip={t('请输入不带点号(.)的后缀名，匹配任意文件可填写星号(*)')}
+              />
+            </div>
+            <div class='content'>{renderFileTypeList()}</div>
+          </div>
+
+          {/* 授权目标 */}
+          <div class='row-container'>
+            <div class='title'>
+              {t('授权目标')}
+              <span class='required'> * </span>
+            </div>
+            <div class='content'>
+              <div class='flex-box'>
+                <TButton
+                  size='small'
+                  onClick={() => {
+                    showSelectDialog.value = true;
+                  }}
+                >
+                  + {t('选择目标')}
+                </TButton>
+                <div class='select-text'>
+                  <i18n path='已选择{0}个节点'>
+                    <span class={(manageStrategyData.value.modules || []).length ? 'primary' : 'error'}>
+                      {` ${(manageStrategyData.value.modules || []).length} `}
+                    </span>
+                  </i18n>
+                </div>
+              </div>
+              <ModuleSelect
+                selectedModules={manageStrategyData.value.modules}
+                selectedType={manageStrategyData.value.select_type}
+                showSelectDialog={showSelectDialog.value}
+                onHandleConfirm={handleConfirmSelect}
+                onHandleValueChange={handleValueChange}
+              />
+            </div>
+          </div>
+
+          {/* 执行人 */}
+          <div class='row-container'>
+            <div class='title'>
+              {t('执行人')}
+              <span class='required'> * </span>
+              <span
+                class='bklog-icon bklog-info-fill'
+                v-log-tooltip={{
+                  width: 200,
+                  content: t('全局设置，下载过程中需使用job传输，将以执行人身份进行，请确保执行人拥有业务权限'),
+                }}
+              />
+            </div>
+            <div class='content'>
+              <div class='flex-box'>
+                {/* <bk-input
+                  style='width: 256px; margin-right: 10px'
+                  class={!manageStrategyData.value.operator && 'is-input-error'}
+                  value={manageStrategyData.value.operator}
+                  readonly
+                /> */}
+                <bk-user-display-name
+                  class='execute-people'
+                  user-id={manageStrategyData.value?.operator}
+                ></bk-user-display-name>
+                <TButton
+                  loading={isChangeOperatorLoading.value}
+                  size='small'
+                  onClick={changeOperator}
+                >
+                  {t('改为我')}
+                </TButton>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* 确认/取消按钮 */}
+        <div class='button-container'>
+          <TButton
+            style='margin-right: 24px'
+            disabled={!isValidated.value}
+            theme='primary'
+            onClick={handleConfirm}
+          >
+            {t('确认')}
+          </TButton>
+          <TButton onClick={handleCancel}>{t('取消')}</TButton>
+        </div>
+      </div>
+    );
+  },
+});

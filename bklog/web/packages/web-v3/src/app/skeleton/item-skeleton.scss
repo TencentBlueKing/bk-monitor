@@ -1,0 +1,6 @@
+@use 'index.scss' as *;
+.bk-log-item-skeleton {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+}

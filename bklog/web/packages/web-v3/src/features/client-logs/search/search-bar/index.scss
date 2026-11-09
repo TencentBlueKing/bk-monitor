@@ -1,0 +1,47 @@
+.search-bar {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  width: 100%;
+
+  &-input {
+    position: relative;
+    flex: 0 0 580px;
+    width: 580px;
+
+    .search-select-wrap {
+      width: 100%;
+    }
+  }
+
+  &-time {
+    border: 1px solid #c1cde5;
+    border-radius: 4px;
+
+    .__bk_date_picker__ {
+      .date-icon {
+        background-color: #f2f6fc;
+        border-radius: 4px;
+      }
+
+      .date-content {
+        padding: 0 24px;
+      }
+    }
+  }
+
+  &-btn {
+    width: 78px;
+    border-radius: 4px;
+
+    div {
+      display: flex;
+      gap: 4px;
+      align-items: center;
+    }
+
+    .bklog-icon {
+      font-size: 14px;
+    }
+  }
+}

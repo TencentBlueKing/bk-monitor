@@ -1,0 +1,74 @@
+@use '@/shared/styles/mixins/scroller' as *;
+.multiline-reg-dialog-box {
+  .multiline-reg-dialog-content {
+    .t-form__label {
+      color: #313238;
+    }
+    .t-textarea__inner {
+      @include scroller($backgroundColor: #c4c6cc, $width: 4px);
+    }
+    .test-container {
+      display: flex;
+      align-items: center;
+
+      .test-result {
+        display: flex;
+        align-items: center;
+        line-height: 20px;
+
+        .bk-icon {
+          margin-right: 6px;
+          font-size: 12px;
+        }
+
+        .icon-check-circle-shape {
+          color: #2dcb56;
+        }
+
+        .icon-close-circle-shape {
+          color: #ea3636;
+        }
+
+        .match-counts {
+          margin: 0 4px;
+          font-weight: bold;
+          color: #3a84ff;
+        }
+      }
+    }
+  }
+}
+
+.multiline-reg-dialog-box {
+  .t-dialog {
+    padding: 0;
+    border: 0;
+  }
+  .t-dialog__header {
+    height: 53px;
+    padding: 16px 24px 8px;
+    font-size: 20px;
+    line-height: 29px;
+  }
+  .t-dialog__body {
+    padding: 3px 24px 24px;
+  }
+  .t-dialog__footer {
+    padding: 7px 24px;
+    border-top: 1px solid #dcdee5;
+    background: #fafbfd;
+  }
+  .t-dialog__footer .t-button {
+    min-width: 86px;
+  }
+  .t-dialog__close {
+    top: 5px;
+    right: 5px;
+    width: 26px;
+    height: 26px;
+  }
+  .t-textarea__inner {
+    padding: 5px 10px;
+    line-height: 18px;
+  }
+}

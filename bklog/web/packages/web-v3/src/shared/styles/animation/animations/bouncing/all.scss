@@ -1,0 +1,9 @@
+@use '../../make-transitions' as *;
+@use 'bounce' as *;
+@use 'bounce-down' as *;
+@use 'bounce-left' as *;
+@use 'bounce-right' as *;
+@use 'bounce-up' as *;
+$bounces: Down, Left, Right, Up;
+
+@include make-transitions('bounce', $bounces);

@@ -1,0 +1,365 @@
+.grep-cli-container {
+  position: sticky;
+  top: var(--top-searchbar-height);
+  right: 0;
+  left: 0;
+  z-index: 1;
+  display: flex;
+  align-items: stretch;
+  justify-content: space-between;
+  width: 100%;
+  // margin-bottom: 8px;
+  min-height: 40px;
+  background: #ffffff;
+  border-radius: 2px;
+  box-shadow: 0 2px 4px 0 #19192914;
+  box-shadow: 0 2px 4px 0 #19192914;
+}
+
+.grep-cli-left {
+  // margin-right: 4px;
+  position: relative;
+  display: flex;
+  align-items: start;
+  width: calc(100% - 370px);
+  height: 100%;
+  min-height: 40px;
+  background-color: rgba(255, 232, 195, 0.4);
+  border-radius: 2px;
+
+  &::after {
+    position: absolute;
+    top: 0;
+    right: 0;
+    bottom: 0;
+    width: 4px;
+    content: '';
+    background: #f5f7fa;
+    transform: translateX(100%);
+  }
+
+  .grep-cli-label {
+    min-width: 42px;
+    padding-top: 12px;
+    padding-left: 6px;
+    // margin-right: 8px;
+    font-size: 12px;
+    color: #979ba5;
+  }
+
+  .grep-cli-editor {
+    width: 100%;
+    max-width: calc(100% - 128px);
+    height: 100%;
+    min-height: 40px;
+    padding-top: 6px;
+    background-color: #fff;
+    border-left: solid 1px #eaebf0;
+  }
+}
+
+.grep-cli-center,
+.grep-cli-right {
+  display: flex;
+  align-items: center;
+  height: 100%;
+  min-height: 40px;
+  padding: 0 6px;
+}
+
+.grep-cli-right {
+  flex-direction: row;
+  gap: 12px;
+  align-items: center;
+  align-self: stretch;
+  justify-content: space-between;
+  width: 366px;
+  height: 100%;
+  padding: 4px 8px;
+  margin-left: 4px;
+  border-radius: 2px;
+}
+
+.grep-cli-select {
+  margin-top: 8px;
+  margin-right: 4px;
+
+  .bk-select-name {
+    padding-left: 0;
+  }
+
+  &.is-focus {
+    box-shadow: none;
+  }
+}
+
+.grep-cli-textarea {
+  flex-grow: 1;
+  margin: 0 16px;
+}
+
+// 搜索区域样式
+.grep-cli-search-section {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  width: 100%;
+  height: 28px;
+  background: #f0f1f5;
+  border-radius: 2px;
+
+  .grep-cli-search-input {
+    flex: 1;
+
+    .bk-input-text {
+      input {
+        height: 26px;
+        font-size: 12px;
+        line-height: 26px;
+        background-color: transparent;
+        border-color: #f0f1f5;
+        border-radius: 2px;
+      }
+    }
+  }
+}
+
+// 结果区域样式
+.grep-cli-result-section {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+
+  .grep-cli-result-text {
+    min-width: 60px;
+    font-size: 12px;
+    text-align: center;
+
+    &.success {
+      font-weight: 500;
+      color: #313238;
+    }
+
+    &.no-result {
+      color: #c4c6cc;
+    }
+
+    &.placeholder {
+      color: #c4c6cc;
+    }
+  }
+
+  .grep-cli-navigation {
+    display: flex;
+    gap: 2px;
+    align-items: center;
+  }
+
+  .grep-cli-nav-icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 20px;
+    height: 20px;
+    font-size: 12px;
+    color: #4d4f56;
+    cursor: pointer;
+    user-select: none;
+    background: #ffffff;
+    border: 1px solid #dcdee5;
+    border-radius: 2px;
+    transition: all 0.2s ease;
+
+    &:hover:not(.disabled) {
+      color: #3a84ff;
+      border-color: #3a84ff;
+    }
+
+    &:active:not(.disabled) {
+      background: #f0f5ff;
+    }
+
+    &.disabled {
+      color: #c4c6cc;
+      cursor: not-allowed;
+      border-color: #dcdee5;
+
+      &:hover {
+        color: #c4c6cc;
+        border-color: #dcdee5;
+      }
+    }
+  }
+}
+
+// 兼容原有样式
+.grep-cli-search-area {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  padding: 6px;
+  background: #f5f7fa;
+  border-radius: 4px;
+
+  .grep-cli-search-input {
+    flex: 1;
+
+    .bk-input-text {
+      input {
+        font-size: 12px;
+        background-color: transparent;
+        border-color: transparent;
+
+        &:focus {
+          background-color: #ffffff;
+          border-color: #3a84ff;
+        }
+      }
+    }
+  }
+}
+
+.grep-cli-result-status {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 24px;
+
+  .grep-cli-result-text {
+    font-size: 12px;
+
+    &.success {
+      color: #2dcb56;
+    }
+
+    &.no-result {
+      color: #ea3636;
+    }
+
+    &.placeholder {
+      color: #c4c6cc;
+    }
+  }
+}
+
+.grep-cli-ui-tools {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  background: #f0f1f5;
+
+  .bk-input-text {
+    input {
+      background-color: transparent;
+      border-color: transparent;
+    }
+  }
+
+  .grep-cli-tool-btn {
+    padding: 4px 8px;
+    cursor: pointer;
+    background: #f0f0f0;
+    border: none;
+    border-radius: 2px;
+  }
+}
+
+.grep-cli-no-result {
+  margin-left: 16px;
+  color: #999;
+}
+
+// 添加 mark.js 高亮样式
+:deep(.mark) {
+  padding: 0 2px;
+  font-weight: 500;
+  color: #000;
+  background-color: #ffe58f;
+  border-radius: 2px;
+}
+
+:deep(.mark.current) {
+  background-color: #ffd666;
+  box-shadow: 0 0 0 2px #ffd666;
+}
+
+.grep-view {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  width: 100%;
+  height: 100%;
+  border-radius: 2px;
+  box-shadow: 0 2px 4px 0 #19192914;
+}
+
+.cli-result-line {
+  display: flex;
+  gap: 8px;
+  align-items: flex-start;
+  padding: 4px 0;
+  font-family: monospace;
+  font-size: 12px;
+  line-height: 1.5;
+  color: #313238;
+}
+
+.cli-result-line-number {
+  flex-shrink: 0;
+  width: 42px;
+  color: #979ba5;
+  text-align: right;
+  user-select: none;
+}
+
+.cli-result-line-content-wrapper {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+}
+
+.cli-result-line-content {
+  display: inline;
+  max-height: 200px;
+  padding: 4px 8px;
+  overflow-x: auto;
+  overflow-y: auto;
+  word-break: break-word;
+  white-space: pre-wrap;
+  background: #fafbfd;
+  border-radius: 2px;
+  scroll-behavior: smooth;
+}
+
+.log-line-item {
+  display: inline;
+  word-break: break-word;
+  white-space: pre-wrap;
+}
+
+.loading-more {
+  display: inline-flex;
+  gap: 4px;
+  align-items: center;
+  padding: 4px 8px;
+  margin-left: 8px;
+  font-size: 12px;
+  color: #979ba5;
+  background: #f0f1f5;
+  border-radius: 2px;
+}
+
+.loading-spinner {
+  width: 12px;
+  height: 12px;
+  border: 2px solid #dcdee5;
+  border-top-color: #3a84ff;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}

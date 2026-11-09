@@ -1,0 +1,12 @@
+.bk-message.client-log-batch-download-message {
+  .message-tree {
+    .json-formatter-key {
+      white-space: nowrap;
+    }
+
+    .json-formatter-string {
+      word-break: break-all;
+      white-space: pre-wrap;
+    }
+  }
+}

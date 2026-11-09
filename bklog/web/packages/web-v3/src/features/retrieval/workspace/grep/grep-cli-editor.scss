@@ -1,0 +1,140 @@
+.grep-cli-codemirror-editor {
+  width: 100%;
+  height: 34px;
+  border: none;
+  border-radius: 2px;
+  overflow: hidden;
+  transition: height 0.2s ease;
+
+  &.auto-height {
+    min-height: 34px;
+    max-height: 200px;
+    height: auto !important;
+
+    .cm-editor {
+      height: auto !important;
+      min-height: 34px;
+    }
+
+    .cm-content {
+      min-height: 24px;
+      height: auto;
+    }
+
+    .cm-scroller {
+      overflow-y: auto;
+      max-height: inherit;
+    }
+  }
+
+  .cm-editor {
+    height: 100%;
+    border: none;
+    background-color: transparent;
+
+    &.cm-focused {
+      outline: none;
+    }
+  }
+
+  .cm-content {
+    padding: 6px 8px;
+    line-height: 1.4;
+    font-size: 12px;
+    font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', 'Consolas', 'source-code-pro', monospace;
+    min-height: 24px;
+  }
+
+  .cm-scroller {
+    overflow: auto;
+  }
+
+  .cm-placeholder,
+  .grep-cli-placeholder {
+    position: absolute;
+    top: 6px;
+    left: 8px;
+    color: #999;
+    font-style: italic;
+    pointer-events: none;
+    z-index: 1;
+    font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', 'Consolas', 'source-code-pro', monospace;
+    font-size: 12px;
+    line-height: 1.4;
+    user-select: none;
+    opacity: 0.8;
+    transition: opacity 0.2s ease;
+
+    // 确保在内容为空时显示
+    &:not(:focus-within) {
+      opacity: 0.8;
+    }
+
+    // 聚焦时保持可见性
+    &:focus-within {
+      opacity: 0.6;
+    }
+  }
+
+  // CodeMirror 原生 placeholder 样式优化
+  .cm-placeholder {
+    // 移除绝对定位，使用 CodeMirror 原生定位
+    position: static;
+    color: #999 !important;
+    font-style: italic !important;
+    opacity: 0.8 !important;
+    display: inline-block;
+    pointer-events: none;
+  }
+
+  // 搜索高亮样式
+  .cm-searchMatch {
+    background-color: #ffeb3b;
+    color: #000;
+  }
+
+  .cm-searchMatch-selected {
+    background-color: #ff9800;
+    color: #fff;
+  }
+
+  // 选中样式
+  .cm-selectionBackground {
+    background-color: #3a84ff22;
+  }
+
+  // 光标样式
+  .cm-cursor {
+    border-left-color: #3a84ff;
+  }
+
+  // 确保行号和侧边栏完全隐藏
+  .cm-gutters {
+    display: none !important;
+    width: 0 !important;
+  }
+
+  .cm-lineNumbers {
+    display: none !important;
+  }
+
+  .cm-foldGutter {
+    display: none !important;
+  }
+
+  // 深色主题适配
+  &.dark-theme {
+    .cm-content {
+      background-color: #1e1e1e;
+      color: #d4d4d4;
+    }
+
+    .cm-cursor {
+      border-left-color: #ffffff;
+    }
+
+    .cm-selectionBackground {
+      background-color: #264f78;
+    }
+  }
+}

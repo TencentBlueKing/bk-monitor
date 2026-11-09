@@ -1,0 +1,1972 @@
+{
+  "files": [
+    "src/features/archive/classic/archive-repository/repository-slider.vue",
+    "src/features/archive/classic/archive-restore/restore-slider.vue",
+    "src/features/clusters/status/es-cluster-mess/es-slider.vue",
+    "src/features/collection/access/components/step-add/config-log-set-item.vue",
+    "src/features/collection/access/components/step-add/device-metadata.vue",
+    "src/features/collection/access/components/step-add/match-label.vue",
+    "src/features/collection/access/components/step-add/multiline-reg-dialog.vue",
+    "src/features/collection/access/field-table.vue",
+    "src/features/collection/access/step-add.vue",
+    "src/features/collection/access/step-field.vue",
+    "src/features/collection/current/components/business-comp/step3/clean-result-preview-dialog.tsx",
+    "src/features/collection/current/components/business-comp/step3/field-list.tsx",
+    "src/features/extraction/classic/manage-extract-permission/directory-manage.vue",
+    "src/features/extraction/classic/manage-extract-permission/validate-input.vue",
+    "src/features/extraction/current/extract-task/task-create/files-input.tsx",
+    "src/features/extraction/download/create/files-input.vue",
+    "src/features/extraction/download/create/index.vue",
+    "src/features/extraction/download/create/test-filter.vue",
+    "src/features/index-sets/components/index-set/create/index.vue",
+    "src/features/index-sets/components/index-set/create/select-es.vue",
+    "src/features/index-sets/components/index-set/list/index.vue",
+    "src/features/index-sets/custom-report/create.vue",
+    "src/features/retrieval/workbench/collect/batch-operation-menu.vue",
+    "src/features/retrieval/workbench/collect/favorite-detail.vue",
+    "src/features/retrieval/workbench/collect/favorite-manage-dialog.vue",
+    "src/features/retrieval/workbench/field-filter-comp/update/field-alias.vue",
+    "src/features/retrieval/workbench/result-comp/fields-setting-operate.vue",
+    "src/features/retrieval/workbench/result-comp/fields-setting.vue",
+    "src/features/retrieval/workbench/result-comp/update/children/save-as-popover.vue",
+    "src/features/retrieval/workbench/result-comp/update/fields-setting-operate.vue",
+    "src/features/retrieval/workbench/result-comp/update/fields-setting.vue",
+    "src/features/retrieval/workbench/search-result-panel/graph-analysis/dashboardDialog.vue",
+    "src/features/retrieval/workbench/search-result-panel/log-clustering/components/finger-operate.vue",
+    "src/features/retrieval/workbench/setting-modal/component/from-input.vue",
+    "src/features/retrieval/workbench/setting-modal/component/rule-top-tools.vue",
+    "src/features/retrieval/workbench/setting-modal/component/template-option.vue",
+    "src/features/retrieval/workbench/sub-bar/share-link.tsx",
+    "src/features/retrieval/workspace/favorite/components/collect-list/edit-dialog.tsx",
+    "src/features/retrieval/workspace/search-result/log-clustering/top-operation/email-subscription/create-subscription/subscription-form/email-config/index.tsx",
+    "src/features/retrieval/workspace/search-result/log-clustering/top-operation/email-subscription/create-subscription/subscription-form/send-config/index.tsx",
+    "src/shared/global/field-setting.vue",
+    "src/shared/global/setting-table.vue"
+  ],
+  "count": 86,
+  "skipped": [
+    {
+      "file": "src/features/archive/classic/archive-list/list.vue",
+      "line": 42,
+      "reasons": [
+        "V2 always-visible clear action"
+      ]
+    },
+    {
+      "file": "src/features/archive/classic/archive-repository/list.vue",
+      "line": 42,
+      "reasons": [
+        "V2 always-visible clear action"
+      ]
+    },
+    {
+      "file": "src/features/archive/classic/archive-restore/list.vue",
+      "line": 42,
+      "reasons": [
+        "V2 always-visible clear action"
+      ]
+    },
+    {
+      "file": "src/features/archive/current/archive-list/index.tsx",
+      "line": 280,
+      "reasons": [
+        "onRightIconClick",
+        "V2 always-visible clear action",
+        "grouped slots"
+      ]
+    },
+    {
+      "file": "src/features/archive/current/archive-list/list-slider.tsx",
+      "line": 435,
+      "reasons": [
+        "show-controls",
+        "non-text type",
+        "grouped slots"
+      ]
+    },
+    {
+      "file": "src/features/archive/current/archive-repository/index.tsx",
+      "line": 293,
+      "reasons": [
+        "onRightIconClick",
+        "V2 always-visible clear action",
+        "grouped slots"
+      ]
+    },
+    {
+      "file": "src/features/archive/current/archive-repository/repository-slider.tsx",
+      "line": 395,
+      "reasons": [
+        "grouped slots"
+      ]
+    },
+    {
+      "file": "src/features/archive/current/archive-repository/repository-slider.tsx",
+      "line": 407,
+      "reasons": [
+        "grouped slots"
+      ]
+    },
+    {
+      "file": "src/features/archive/current/archive-repository/repository-slider.tsx",
+      "line": 426,
+      "reasons": [
+        "grouped slots"
+      ]
+    },
+    {
+      "file": "src/features/archive/current/archive-repository/repository-slider.tsx",
+      "line": 452,
+      "reasons": [
+        "grouped slots"
+      ]
+    },
+    {
+      "file": "src/features/archive/current/archive-repository/repository-slider.tsx",
+      "line": 475,
+      "reasons": [
+        "grouped slots"
+      ]
+    },
+    {
+      "file": "src/features/archive/current/archive-repository/repository-slider.tsx",
+      "line": 487,
+      "reasons": [
+        "grouped slots"
+      ]
+    },
+    {
+      "file": "src/features/archive/current/archive-repository/repository-slider.tsx",
+      "line": 499,
+      "reasons": [
+        "grouped slots"
+      ]
+    },
+    {
+      "file": "src/features/archive/current/archive-repository/repository-slider.tsx",
+      "line": 511,
+      "reasons": [
+        "grouped slots"
+      ]
+    },
+    {
+      "file": "src/features/archive/current/archive-repository/repository-slider.tsx",
+      "line": 524,
+      "reasons": [
+        "grouped slots"
+      ]
+    },
+    {
+      "file": "src/features/archive/current/archive-repository/repository-slider.tsx",
+      "line": 536,
+      "reasons": [
+        "grouped slots"
+      ]
+    },
+    {
+      "file": "src/features/archive/current/archive-repository/repository-slider.tsx",
+      "line": 658,
+      "reasons": [
+        "grouped slots"
+      ]
+    },
+    {
+      "file": "src/features/archive/current/archive-restore/index.tsx",
+      "line": 377,
+      "reasons": [
+        "onRightIconClick",
+        "V2 always-visible clear action",
+        "grouped slots"
+      ]
+    },
+    {
+      "file": "src/features/archive/current/archive-restore/restore-slider.tsx",
+      "line": 357,
+      "reasons": [
+        "grouped slots"
+      ]
+    },
+    {
+      "file": "src/features/authorization/authorization-list.tsx",
+      "line": 1086,
+      "reasons": [
+        "onInput",
+        "grouped slots"
+      ]
+    },
+    {
+      "file": "src/features/cleaning/classic/clean-manage/list.vue",
+      "line": 42,
+      "reasons": [
+        "V2 always-visible clear action"
+      ]
+    },
+    {
+      "file": "src/features/cleaning/classic/clean-template/list.vue",
+      "line": 42,
+      "reasons": [
+        "V2 always-visible clear action"
+      ]
+    },
+    {
+      "file": "src/features/cleaning/current/clean-template/detail-slider.tsx",
+      "line": 308,
+      "reasons": [
+        "onInput",
+        "V2 always-visible clear action",
+        "grouped slots"
+      ]
+    },
+    {
+      "file": "src/features/cleaning/current/clean-template/list.tsx",
+      "line": 785,
+      "reasons": [
+        "onRightIconClick",
+        "V2 always-visible clear action",
+        "grouped slots"
+      ]
+    },
+    {
+      "file": "src/features/cleaning/rule-config/debug-tool/index.tsx",
+      "line": 168,
+      "reasons": [
+        "rows",
+        "non-text type",
+        "grouped slots"
+      ]
+    },
+    {
+      "file": "src/features/cleaning/rule-table/add-rule/index.tsx",
+      "line": 279,
+      "reasons": [
+        "grouped slots"
+      ]
+    },
+    {
+      "file": "src/features/cleaning/rule-table/add-rule/index.tsx",
+      "line": 294,
+      "reasons": [
+        "grouped slots"
+      ]
+    },
+    {
+      "file": "src/features/client-logs/management/collection-deploy/index.tsx",
+      "line": 442,
+      "reasons": [
+        "onRightIconClick",
+        "onClear",
+        "V2 always-visible clear action"
+      ]
+    },
+    {
+      "file": "src/features/client-logs/management/collection-slider/index.tsx",
+      "line": 270,
+      "reasons": [
+        "grouped slots"
+      ]
+    },
+    {
+      "file": "src/features/client-logs/management/collection-slider/index.tsx",
+      "line": 280,
+      "reasons": [
+        "non-text type",
+        "grouped slots"
+      ]
+    },
+    {
+      "file": "src/features/client-logs/management/collection-slider/index.tsx",
+      "line": 358,
+      "reasons": [
+        "non-text type",
+        "grouped slots"
+      ]
+    },
+    {
+      "file": "src/features/client-logs/management/collection-slider/index.tsx",
+      "line": 369,
+      "reasons": [
+        "min",
+        "non-text type",
+        "grouped slots"
+      ]
+    },
+    {
+      "file": "src/features/client-logs/management/collection-slider/index.tsx",
+      "line": 389,
+      "reasons": [
+        "non-text type",
+        "grouped slots"
+      ]
+    },
+    {
+      "file": "src/features/client-logs/management/user-report/index.tsx",
+      "line": 579,
+      "reasons": [
+        "onRight-icon-click",
+        "onClear",
+        "V2 always-visible clear action"
+      ]
+    },
+    {
+      "file": "src/features/clusters/current/cluster-manage/es-slider.tsx",
+      "line": 959,
+      "reasons": [
+        "show-controls",
+        "non-text type",
+        "grouped slots"
+      ]
+    },
+    {
+      "file": "src/features/clusters/current/cluster-manage/es-slider.tsx",
+      "line": 993,
+      "reasons": [
+        "show-controls",
+        "non-text type",
+        "grouped slots"
+      ]
+    },
+    {
+      "file": "src/features/clusters/current/cluster-manage/es-slider.tsx",
+      "line": 1075,
+      "reasons": [
+        "grouped slots"
+      ]
+    },
+    {
+      "file": "src/features/clusters/current/cluster-manage/es-slider.tsx",
+      "line": 1090,
+      "reasons": [
+        "grouped slots"
+      ]
+    },
+    {
+      "file": "src/features/clusters/current/cluster-manage/es-slider.tsx",
+      "line": 1135,
+      "reasons": [
+        "grouped slots"
+      ]
+    },
+    {
+      "file": "src/features/clusters/current/cluster-manage/es-slider.tsx",
+      "line": 1152,
+      "reasons": [
+        "grouped slots"
+      ]
+    },
+    {
+      "file": "src/features/clusters/current/cluster-manage/es-slider.tsx",
+      "line": 1164,
+      "reasons": [
+        "max",
+        "min",
+        "show-controls",
+        "non-text type",
+        "grouped slots"
+      ]
+    },
+    {
+      "file": "src/features/clusters/current/cluster-manage/es-slider.tsx",
+      "line": 1187,
+      "reasons": [
+        "max",
+        "min",
+        "show-controls",
+        "non-text type",
+        "grouped slots"
+      ]
+    },
+    {
+      "file": "src/features/clusters/current/cluster-manage/es-slider.tsx",
+      "line": 1224,
+      "reasons": [
+        "grouped slots"
+      ]
+    },
+    {
+      "file": "src/features/clusters/current/cluster-manage/es-slider.tsx",
+      "line": 1235,
+      "reasons": [
+        "grouped slots"
+      ]
+    },
+    {
+      "file": "src/features/clusters/current/cluster-manage/es-slider.tsx",
+      "line": 1306,
+      "reasons": [
+        "max",
+        "min",
+        "non-text type",
+        "grouped slots"
+      ]
+    },
+    {
+      "file": "src/features/clusters/current/cluster-manage/es-slider.tsx",
+      "line": 1318,
+      "reasons": [
+        "min",
+        "non-text type",
+        "grouped slots"
+      ]
+    },
+    {
+      "file": "src/features/clusters/current/cluster-manage/es-slider.tsx",
+      "line": 1338,
+      "reasons": [
+        "max",
+        "min",
+        "non-text type",
+        "grouped slots"
+      ]
+    },
+    {
+      "file": "src/features/clusters/current/cluster-manage/es-slider.tsx",
+      "line": 1350,
+      "reasons": [
+        "min",
+        "non-text type",
+        "grouped slots"
+      ]
+    },
+    {
+      "file": "src/features/clusters/current/cluster-manage/es-slider.tsx",
+      "line": 1518,
+      "reasons": [
+        "rows",
+        "non-text type",
+        "grouped slots"
+      ]
+    },
+    {
+      "file": "src/features/clusters/current/cluster-manage/index.tsx",
+      "line": 634,
+      "reasons": [
+        "onRightIconClick",
+        "onClear",
+        "V2 always-visible clear action",
+        "grouped slots"
+      ]
+    },
+    {
+      "file": "src/features/clusters/status/es-cluster-mess/es-slider.vue",
+      "line": 113,
+      "reasons": [
+        "max",
+        "min",
+        "show-controls",
+        "non-text type"
+      ]
+    },
+    {
+      "file": "src/features/clusters/status/es-cluster-mess/es-slider.vue",
+      "line": 302,
+      "reasons": [
+        "show-controls",
+        "non-text type"
+      ]
+    },
+    {
+      "file": "src/features/clusters/status/es-cluster-mess/es-slider.vue",
+      "line": 338,
+      "reasons": [
+        "show-controls",
+        "non-text type"
+      ]
+    },
+    {
+      "file": "src/features/clusters/status/es-cluster-mess/es-slider.vue",
+      "line": 360,
+      "reasons": [
+        "max",
+        "min",
+        "non-text type"
+      ]
+    },
+    {
+      "file": "src/features/clusters/status/es-cluster-mess/es-slider.vue",
+      "line": 370,
+      "reasons": [
+        "min",
+        "non-text type"
+      ]
+    },
+    {
+      "file": "src/features/clusters/status/es-cluster-mess/es-slider.vue",
+      "line": 387,
+      "reasons": [
+        "max",
+        "min",
+        "non-text type"
+      ]
+    },
+    {
+      "file": "src/features/clusters/status/es-cluster-mess/es-slider.vue",
+      "line": 397,
+      "reasons": [
+        "min",
+        "non-text type"
+      ]
+    },
+    {
+      "file": "src/features/clusters/status/es-cluster-mess/es-slider.vue",
+      "line": 546,
+      "reasons": [
+        "rows",
+        "non-text type"
+      ]
+    },
+    {
+      "file": "src/features/clusters/status/es-cluster-mess/index.vue",
+      "line": 48,
+      "reasons": [
+        "V2 always-visible clear action"
+      ]
+    },
+    {
+      "file": "src/features/collection/access/components/index-import-modal/index.tsx",
+      "line": 306,
+      "reasons": [
+        "grouped slots"
+      ]
+    },
+    {
+      "file": "src/features/collection/access/components/log-filter/index.tsx",
+      "line": 470,
+      "reasons": [
+        "input-style",
+        "rows",
+        "non-text type",
+        "grouped slots"
+      ]
+    },
+    {
+      "file": "src/features/collection/access/components/log-filter/validator-input.tsx",
+      "line": 163,
+      "reasons": [
+        "min",
+        "show-controls",
+        "show-clear-only-hover",
+        "non-text type",
+        "V2 always-visible clear action",
+        "grouped slots"
+      ]
+    },
+    {
+      "file": "src/features/collection/access/components/step-add/config-log-set-item.vue",
+      "line": 75,
+      "reasons": [
+        "precision",
+        "show-controls",
+        "non-text type"
+      ]
+    },
+    {
+      "file": "src/features/collection/access/components/step-add/config-log-set-item.vue",
+      "line": 88,
+      "reasons": [
+        "precision",
+        "show-controls",
+        "non-text type"
+      ]
+    },
+    {
+      "file": "src/features/collection/access/components/step-add/label-target-dialog.vue",
+      "line": 46,
+      "reasons": [
+        "V2 always-visible clear action"
+      ]
+    },
+    {
+      "file": "src/features/collection/access/components/step-add/match-label-item.vue",
+      "line": 43,
+      "reasons": [
+        "V2 always-visible clear action"
+      ]
+    },
+    {
+      "file": "src/features/collection/access/components/step-add/match-label-item.vue",
+      "line": 66,
+      "reasons": [
+        "V2 always-visible clear action"
+      ]
+    },
+    {
+      "file": "src/features/collection/access/components/step-add/multiline-reg-dialog.vue",
+      "line": 52,
+      "reasons": [
+        "rows",
+        "non-text type"
+      ]
+    },
+    {
+      "file": "src/features/collection/access/step-add.vue",
+      "line": 115,
+      "reasons": [
+        "non-text type"
+      ]
+    },
+    {
+      "file": "src/features/collection/access/step-field.vue",
+      "line": 287,
+      "reasons": [
+        "rows",
+        "event:right-icon-click",
+        "non-text type",
+        "V2 always-visible clear action"
+      ]
+    },
+    {
+      "file": "src/features/collection/access/step-field.vue",
+      "line": 312,
+      "reasons": [
+        "non-text type"
+      ]
+    },
+    {
+      "file": "src/features/collection/access/step-field.vue",
+      "line": 660,
+      "reasons": [
+        "title"
+      ]
+    },
+    {
+      "file": "src/features/collection/access/step-field.vue",
+      "line": 668,
+      "reasons": [
+        "title"
+      ]
+    },
+    {
+      "file": "src/features/collection/access/step-field.vue",
+      "line": 948,
+      "reasons": [
+        "event:right-icon-click",
+        "V2 always-visible clear action"
+      ]
+    },
+    {
+      "file": "src/features/collection/access/step-storage.vue",
+      "line": 72,
+      "reasons": [
+        "grouped slots"
+      ]
+    },
+    {
+      "file": "src/features/collection/access/step-storage.vue",
+      "line": 108,
+      "reasons": [
+        "show-controls",
+        "non-text type"
+      ]
+    },
+    {
+      "file": "src/features/collection/access/step-storage.vue",
+      "line": 149,
+      "reasons": [
+        "show-controls",
+        "non-text type"
+      ]
+    },
+    {
+      "file": "src/features/collection/access/step-storage.vue",
+      "line": 181,
+      "reasons": [
+        "min",
+        "precision",
+        "show-controls",
+        "non-text type"
+      ]
+    },
+    {
+      "file": "src/features/collection/access/step-storage.vue",
+      "line": 200,
+      "reasons": [
+        "min",
+        "precision",
+        "show-controls",
+        "non-text type"
+      ]
+    },
+    {
+      "file": "src/features/collection/access/step-storage.vue",
+      "line": 247,
+      "reasons": [
+        "min",
+        "non-text type"
+      ]
+    },
+    {
+      "file": "src/features/collection/current/components/business-comp/step2/add-index-set.tsx",
+      "line": 212,
+      "reasons": [
+        "onInput",
+        "onKeydown",
+        "V2 always-visible clear action",
+        "grouped slots"
+      ]
+    },
+    {
+      "file": "src/features/collection/current/components/business-comp/step2/base-info.tsx",
+      "line": 375,
+      "reasons": [
+        "onInput",
+        "grouped slots"
+      ]
+    },
+    {
+      "file": "src/features/collection/current/components/business-comp/step2/base-info.tsx",
+      "line": 407,
+      "reasons": [
+        "minlength",
+        "onInput",
+        "grouped slots"
+      ]
+    },
+    {
+      "file": "src/features/collection/current/components/business-comp/step2/base-info.tsx",
+      "line": 439,
+      "reasons": [
+        "onInput",
+        "non-text type",
+        "V2 always-visible clear action",
+        "grouped slots"
+      ]
+    },
+    {
+      "file": "src/features/collection/current/components/business-comp/step2/container-collection/append-log-tags.tsx",
+      "line": 167,
+      "reasons": [
+        "onInput",
+        "grouped slots"
+      ]
+    },
+    {
+      "file": "src/features/collection/current/components/business-comp/step2/container-collection/append-log-tags.tsx",
+      "line": 180,
+      "reasons": [
+        "onInput",
+        "grouped slots"
+      ]
+    },
+    {
+      "file": "src/features/collection/current/components/business-comp/step2/container-collection/label-choose-dialog.tsx",
+      "line": 585,
+      "reasons": [
+        "onInput",
+        "V2 always-visible clear action",
+        "grouped slots"
+      ]
+    },
+    {
+      "file": "src/features/collection/current/components/business-comp/step2/container-collection/label-item-choose.tsx",
+      "line": 135,
+      "reasons": [
+        "onInput",
+        "V2 always-visible clear action",
+        "grouped slots"
+      ]
+    },
+    {
+      "file": "src/features/collection/current/components/business-comp/step2/device-metadata.tsx",
+      "line": 331,
+      "reasons": [
+        "onInput",
+        "grouped slots"
+      ]
+    },
+    {
+      "file": "src/features/collection/current/components/business-comp/step2/device-metadata.tsx",
+      "line": 344,
+      "reasons": [
+        "onInput",
+        "grouped slots"
+      ]
+    },
+    {
+      "file": "src/features/collection/current/components/business-comp/step2/index-config-import-dialog.tsx",
+      "line": 557,
+      "reasons": [
+        "grouped slots"
+      ]
+    },
+    {
+      "file": "src/features/collection/current/components/business-comp/step2/line-rule-config.tsx",
+      "line": 129,
+      "reasons": [
+        "onInput",
+        "grouped slots"
+      ]
+    },
+    {
+      "file": "src/features/collection/current/components/business-comp/step2/line-rule-config.tsx",
+      "line": 144,
+      "reasons": [
+        "v-slots",
+        "onInput"
+      ]
+    },
+    {
+      "file": "src/features/collection/current/components/business-comp/step2/line-rule-config.tsx",
+      "line": 153,
+      "reasons": [
+        "v-slots",
+        "onInput"
+      ]
+    },
+    {
+      "file": "src/features/collection/current/components/business-comp/step2/log-filter.tsx",
+      "line": 735,
+      "reasons": [
+        "rows",
+        "onInput",
+        "non-text type",
+        "grouped slots"
+      ]
+    },
+    {
+      "file": "src/features/collection/current/components/business-comp/step2/multiline-reg-dialog.tsx",
+      "line": 167,
+      "reasons": [
+        "rows",
+        "onInput",
+        "non-text type",
+        "grouped slots"
+      ]
+    },
+    {
+      "file": "src/features/collection/current/components/business-comp/step2/multiline-reg-dialog.tsx",
+      "line": 181,
+      "reasons": [
+        "onInput",
+        "grouped slots"
+      ]
+    },
+    {
+      "file": "src/features/collection/current/components/business-comp/step2/third-party-logs/es-select-dialog.tsx",
+      "line": 487,
+      "reasons": [
+        "onInput",
+        "grouped slots"
+      ]
+    },
+    {
+      "file": "src/features/collection/current/components/business-comp/step2/validator-input.tsx",
+      "line": 210,
+      "reasons": [
+        "min",
+        "show-controls",
+        "show-clear-only-hover",
+        "onInput",
+        "non-text type",
+        "V2 always-visible clear action",
+        "grouped slots"
+      ]
+    },
+    {
+      "file": "src/features/collection/current/components/business-comp/step3/clean-result-preview-dialog.tsx",
+      "line": 759,
+      "reasons": [
+        "behavior",
+        "grouped slots"
+      ]
+    },
+    {
+      "file": "src/features/collection/current/components/business-comp/step3/clean-result-preview-dialog.tsx",
+      "line": 913,
+      "reasons": [
+        "rows",
+        "non-text type",
+        "grouped slots"
+      ]
+    },
+    {
+      "file": "src/features/collection/current/components/business-comp/step3/clean-template-picker.tsx",
+      "line": 250,
+      "reasons": [
+        "onInput",
+        "onRightIconClick",
+        "onClear",
+        "V2 always-visible clear action",
+        "grouped slots"
+      ]
+    },
+    {
+      "file": "src/features/collection/current/components/common-comp/input-add-group.tsx",
+      "line": 127,
+      "reasons": [
+        "onInput",
+        "grouped slots"
+      ]
+    },
+    {
+      "file": "src/features/collection/current/components/common-comp/tag-more.tsx",
+      "line": 840,
+      "reasons": [
+        "onKeydown",
+        "V2 always-visible clear action",
+        "grouped slots"
+      ]
+    },
+    {
+      "file": "src/features/collection/current/components/create-operation/step3-clean.tsx",
+      "line": 1543,
+      "reasons": [
+        "non-text type",
+        "grouped slots"
+      ]
+    },
+    {
+      "file": "src/features/collection/current/components/create-operation/step3-clean.tsx",
+      "line": 1851,
+      "reasons": [
+        "onInput"
+      ]
+    },
+    {
+      "file": "src/features/collection/current/components/create-operation/step3-clean.tsx",
+      "line": 2040,
+      "reasons": [
+        "grouped slots"
+      ]
+    },
+    {
+      "file": "src/features/collection/current/components/create-operation/step3-clean.tsx",
+      "line": 2061,
+      "reasons": [
+        "onInput",
+        "grouped slots"
+      ]
+    },
+    {
+      "file": "src/features/collection/current/components/create-operation/step3-clean.tsx",
+      "line": 2210,
+      "reasons": [
+        "grouped slots"
+      ]
+    },
+    {
+      "file": "src/features/collection/current/components/create-operation/step3-clean.tsx",
+      "line": 2222,
+      "reasons": [
+        "rows",
+        "non-text type",
+        "grouped slots"
+      ]
+    },
+    {
+      "file": "src/features/collection/current/components/create-operation/step3-clean.tsx",
+      "line": 2725,
+      "reasons": [
+        "grouped slots"
+      ]
+    },
+    {
+      "file": "src/features/collection/current/components/create-operation/step3-clean.tsx",
+      "line": 2733,
+      "reasons": [
+        "rows",
+        "non-text type",
+        "grouped slots"
+      ]
+    },
+    {
+      "file": "src/features/collection/current/components/create-operation/step4-storage.tsx",
+      "line": 523,
+      "reasons": [
+        "v-slots"
+      ]
+    },
+    {
+      "file": "src/features/collection/current/components/create-operation/step4-storage.tsx",
+      "line": 545,
+      "reasons": [
+        "v-slots",
+        "min",
+        "onInput",
+        "non-text type"
+      ]
+    },
+    {
+      "file": "src/features/collection/current/components/create-operation/step4-storage.tsx",
+      "line": 574,
+      "reasons": [
+        "v-slots",
+        "min",
+        "onInput",
+        "non-text type"
+      ]
+    },
+    {
+      "file": "src/features/collection/current/components/create-operation/step4-storage.tsx",
+      "line": 602,
+      "reasons": [
+        "min",
+        "onInput",
+        "non-text type",
+        "grouped slots"
+      ]
+    },
+    {
+      "file": "src/features/collection/current/components/create-operation/step4-storage.tsx",
+      "line": 622,
+      "reasons": [
+        "min",
+        "onInput",
+        "non-text type",
+        "grouped slots"
+      ]
+    },
+    {
+      "file": "src/features/collection/current/components/list-main/add-existing-collect-dialog.tsx",
+      "line": 375,
+      "reasons": [
+        "onInput",
+        "onClear",
+        "onRightIconClick",
+        "V2 always-visible clear action",
+        "grouped slots"
+      ]
+    },
+    {
+      "file": "src/features/collection/current/components/list-main/left-list.tsx",
+      "line": 272,
+      "reasons": [
+        "onClear",
+        "onInput",
+        "V2 always-visible clear action",
+        "grouped slots"
+      ]
+    },
+    {
+      "file": "src/features/collection/current/components/list-main/table-list/table-list-v1.tsx",
+      "line": 2017,
+      "reasons": [
+        "onInput",
+        "onClear",
+        "onRightIconClick",
+        "V2 always-visible clear action",
+        "grouped slots"
+      ]
+    },
+    {
+      "file": "src/features/collection/filter-rule/config-rule/index.tsx",
+      "line": 338,
+      "reasons": [
+        "behavior",
+        "V2 always-visible clear action",
+        "grouped slots"
+      ]
+    },
+    {
+      "file": "src/features/data-links/manage-data-link-conf/config-dialog.vue",
+      "line": 57,
+      "reasons": [
+        "V2 always-visible clear action"
+      ]
+    },
+    {
+      "file": "src/features/data-links/manage-data-link-conf/config-dialog.vue",
+      "line": 170,
+      "reasons": [
+        "non-text type",
+        "V2 always-visible clear action"
+      ]
+    },
+    {
+      "file": "src/features/extraction/current/extract-config/validate-input.tsx",
+      "line": 67,
+      "reasons": [
+        "grouped slots"
+      ]
+    },
+    {
+      "file": "src/features/extraction/current/extract-link/link-create.tsx",
+      "line": 269,
+      "reasons": [
+        "grouped slots"
+      ]
+    },
+    {
+      "file": "src/features/extraction/current/extract-link/link-create.tsx",
+      "line": 331,
+      "reasons": [
+        "grouped slots"
+      ]
+    },
+    {
+      "file": "src/features/extraction/current/extract-link/link-create.tsx",
+      "line": 346,
+      "reasons": [
+        "grouped slots"
+      ]
+    },
+    {
+      "file": "src/features/extraction/current/extract-link/link-create.tsx",
+      "line": 358,
+      "reasons": [
+        "grouped slots"
+      ]
+    },
+    {
+      "file": "src/features/extraction/current/extract-link/link-create.tsx",
+      "line": 371,
+      "reasons": [
+        "grouped slots"
+      ]
+    },
+    {
+      "file": "src/features/extraction/current/extract-link/link-create.tsx",
+      "line": 383,
+      "reasons": [
+        "grouped slots"
+      ]
+    },
+    {
+      "file": "src/features/extraction/current/extract-link/link-create.tsx",
+      "line": 464,
+      "reasons": [
+        "grouped slots"
+      ]
+    },
+    {
+      "file": "src/features/extraction/current/extract-link/link-create.tsx",
+      "line": 472,
+      "reasons": [
+        "grouped slots"
+      ]
+    },
+    {
+      "file": "src/features/extraction/current/extract-link/link-create.tsx",
+      "line": 480,
+      "reasons": [
+        "grouped slots"
+      ]
+    },
+    {
+      "file": "src/features/extraction/current/extract-task/task-create/index.tsx",
+      "line": 562,
+      "reasons": [
+        "onInput",
+        "non-text type",
+        "grouped slots"
+      ]
+    },
+    {
+      "file": "src/features/extraction/current/extract-task/task-create/preview-files.tsx",
+      "line": 446,
+      "reasons": [
+        "onInput",
+        "V2 always-visible clear action",
+        "grouped slots"
+      ]
+    },
+    {
+      "file": "src/features/extraction/current/extract-task/task-create/text-filter.tsx",
+      "line": 135,
+      "reasons": [
+        "grouped slots"
+      ]
+    },
+    {
+      "file": "src/features/extraction/current/extract-task/task-create/text-filter.tsx",
+      "line": 168,
+      "reasons": [
+        "grouped slots"
+      ]
+    },
+    {
+      "file": "src/features/extraction/current/extract-task/task-create/text-filter.tsx",
+      "line": 175,
+      "reasons": [
+        "grouped slots"
+      ]
+    },
+    {
+      "file": "src/features/extraction/current/extract-task/task-create/text-filter.tsx",
+      "line": 187,
+      "reasons": [
+        "v-slots",
+        "precision",
+        "non-text type"
+      ]
+    },
+    {
+      "file": "src/features/extraction/current/extract-task/task-create/text-filter.tsx",
+      "line": 204,
+      "reasons": [
+        "precision",
+        "non-text type",
+        "grouped slots"
+      ]
+    },
+    {
+      "file": "src/features/extraction/current/extract-task/task-create/text-filter.tsx",
+      "line": 212,
+      "reasons": [
+        "precision",
+        "non-text type",
+        "grouped slots"
+      ]
+    },
+    {
+      "file": "src/features/extraction/current/extract-task/task-list/index.tsx",
+      "line": 409,
+      "reasons": [
+        "onRightIconClick",
+        "onClear",
+        "V2 always-visible clear action",
+        "grouped slots"
+      ]
+    },
+    {
+      "file": "src/features/extraction/download/create/preview-files.vue",
+      "line": 68,
+      "reasons": [
+        "V2 always-visible clear action"
+      ]
+    },
+    {
+      "file": "src/features/extraction/download/create/test-filter.vue",
+      "line": 95,
+      "reasons": [
+        "precision",
+        "non-text type"
+      ]
+    },
+    {
+      "file": "src/features/extraction/download/create/test-filter.vue",
+      "line": 111,
+      "reasons": [
+        "precision",
+        "non-text type"
+      ]
+    },
+    {
+      "file": "src/features/extraction/download/create/test-filter.vue",
+      "line": 120,
+      "reasons": [
+        "precision",
+        "non-text type"
+      ]
+    },
+    {
+      "file": "src/features/extraction/download/home/index.vue",
+      "line": 41,
+      "reasons": [
+        "event:clear",
+        "event:left-icon-click",
+        "V2 always-visible clear action"
+      ]
+    },
+    {
+      "file": "src/features/grok/current/components/grok-popover-list.tsx",
+      "line": 307,
+      "reasons": [
+        "V2 always-visible clear action",
+        "grouped slots"
+      ]
+    },
+    {
+      "file": "src/features/grok/current/grok-slider.tsx",
+      "line": 365,
+      "reasons": [
+        "grouped slots"
+      ]
+    },
+    {
+      "file": "src/features/grok/current/grok-slider.tsx",
+      "line": 375,
+      "reasons": [
+        "grouped slots"
+      ]
+    },
+    {
+      "file": "src/features/grok/current/grok-slider.tsx",
+      "line": 408,
+      "reasons": [
+        "rows",
+        "non-text type",
+        "grouped slots"
+      ]
+    },
+    {
+      "file": "src/features/grok/current/index.tsx",
+      "line": 383,
+      "reasons": [
+        "onRight-icon-click",
+        "onClear",
+        "V2 always-visible clear action"
+      ]
+    },
+    {
+      "file": "src/features/index-sets/custom-report/create.vue",
+      "line": 175,
+      "reasons": [
+        "non-text type"
+      ]
+    },
+    {
+      "file": "src/features/index-sets/custom-report/create.vue",
+      "line": 249,
+      "reasons": [
+        "minlength",
+        "grouped slots"
+      ]
+    },
+    {
+      "file": "src/features/index-sets/custom-report/create.vue",
+      "line": 287,
+      "reasons": [
+        "show-controls",
+        "non-text type"
+      ]
+    },
+    {
+      "file": "src/features/index-sets/custom-report/create.vue",
+      "line": 304,
+      "reasons": [
+        "max",
+        "min",
+        "precision",
+        "show-controls",
+        "non-text type"
+      ]
+    },
+    {
+      "file": "src/features/index-sets/custom-report/create.vue",
+      "line": 323,
+      "reasons": [
+        "max",
+        "min",
+        "precision",
+        "show-controls",
+        "non-text type"
+      ]
+    },
+    {
+      "file": "src/features/index-sets/custom-report/create.vue",
+      "line": 359,
+      "reasons": [
+        "show-controls",
+        "non-text type"
+      ]
+    },
+    {
+      "file": "src/features/index-sets/custom-report/list.vue",
+      "line": 46,
+      "reasons": [
+        "V2 always-visible clear action"
+      ]
+    },
+    {
+      "file": "src/features/index-sets/label-select/index.tsx",
+      "line": 311,
+      "reasons": [
+        "V2 always-visible clear action",
+        "grouped slots"
+      ]
+    },
+    {
+      "file": "src/features/index-sets/log-collection/collection-item/index.vue",
+      "line": 44,
+      "reasons": [
+        "V2 always-visible clear action"
+      ]
+    },
+    {
+      "file": "src/features/masking/components/masking-add-rule.tsx",
+      "line": 527,
+      "reasons": [
+        "grouped slots"
+      ]
+    },
+    {
+      "file": "src/features/masking/components/masking-add-rule.tsx",
+      "line": 579,
+      "reasons": [
+        "grouped slots"
+      ]
+    },
+    {
+      "file": "src/features/masking/components/masking-add-rule.tsx",
+      "line": 620,
+      "reasons": [
+        "grouped slots"
+      ]
+    },
+    {
+      "file": "src/features/masking/components/masking-add-rule.tsx",
+      "line": 630,
+      "reasons": [
+        "min",
+        "non-text type",
+        "grouped slots"
+      ]
+    },
+    {
+      "file": "src/features/masking/components/masking-add-rule.tsx",
+      "line": 636,
+      "reasons": [
+        "min",
+        "non-text type",
+        "grouped slots"
+      ]
+    },
+    {
+      "file": "src/features/masking/components/masking-add-rule.tsx",
+      "line": 672,
+      "reasons": [
+        "inputStyle",
+        "rows",
+        "non-text type",
+        "grouped slots"
+      ]
+    },
+    {
+      "file": "src/features/masking/components/masking-field.tsx",
+      "line": 1639,
+      "reasons": [
+        "behavior",
+        "V2 always-visible clear action",
+        "grouped slots"
+      ]
+    },
+    {
+      "file": "src/features/masking/components/masking-select-rule-table.tsx",
+      "line": 501,
+      "reasons": [
+        "grouped slots"
+      ]
+    },
+    {
+      "file": "src/features/masking/components/masking-setting.tsx",
+      "line": 769,
+      "reasons": [
+        "grouped slots"
+      ]
+    },
+    {
+      "file": "src/features/retrieval/workbench/collect/favorite-manage-dialog.vue",
+      "line": 138,
+      "reasons": [
+        "allow-emoji",
+        "show-clear-only-hover",
+        "event:right-icon-click",
+        "V2 always-visible clear action"
+      ]
+    },
+    {
+      "file": "src/features/retrieval/workbench/collect/favorite-manage-dialog.vue",
+      "line": 171,
+      "reasons": [
+        "allow-emoji",
+        "show-clear-only-hover",
+        "event:right-icon-click",
+        "V2 always-visible clear action"
+      ]
+    },
+    {
+      "file": "src/features/retrieval/workbench/components/batch-input/index.tsx",
+      "line": 154,
+      "reasons": [
+        "rows",
+        "non-text type",
+        "grouped slots"
+      ]
+    },
+    {
+      "file": "src/features/retrieval/workbench/components/index-set-choice/index-set-list.tsx",
+      "line": 623,
+      "reasons": [
+        "grouped slots"
+      ]
+    },
+    {
+      "file": "src/features/retrieval/workbench/components/index-set-choice/index-set-list.tsx",
+      "line": 771,
+      "reasons": [
+        "onInput",
+        "V2 always-visible clear action",
+        "grouped slots"
+      ]
+    },
+    {
+      "file": "src/features/retrieval/workbench/components/result-cell-element/expand-view.vue",
+      "line": 45,
+      "reasons": [
+        "event:right-icon-click",
+        "event:clear",
+        "V2 always-visible clear action"
+      ]
+    },
+    {
+      "file": "src/features/retrieval/workbench/condition-comp/select-index-set.tsx",
+      "line": 1143,
+      "reasons": [
+        "V2 always-visible clear action",
+        "grouped slots"
+      ]
+    },
+    {
+      "file": "src/features/retrieval/workbench/field-filter-comp/agg-chart.tsx",
+      "line": 353,
+      "reasons": [
+        "V2 always-visible clear action",
+        "grouped slots"
+      ]
+    },
+    {
+      "file": "src/features/retrieval/workbench/field-filter-comp/update/field-list.vue",
+      "line": 272,
+      "reasons": [
+        "V2 always-visible clear action"
+      ]
+    },
+    {
+      "file": "src/features/retrieval/workbench/result-comp/update/field-setting.vue",
+      "line": 15,
+      "reasons": [
+        "behavior",
+        "V2 always-visible clear action"
+      ]
+    },
+    {
+      "file": "src/features/retrieval/workbench/search-bar/components/common-filter-setting.vue",
+      "line": 34,
+      "reasons": [
+        "behavior",
+        "V2 always-visible clear action"
+      ]
+    },
+    {
+      "file": "src/features/retrieval/workbench/search-bar/ui-mode/ui-input-option.vue",
+      "line": 1381,
+      "reasons": [
+        "behavior"
+      ]
+    },
+    {
+      "file": "src/features/retrieval/workbench/search-bar/ui-mode/ui-input-option.vue",
+      "line": 1565,
+      "reasons": [
+        "rows",
+        "non-text type"
+      ]
+    },
+    {
+      "file": "src/features/retrieval/workbench/search-result-panel/graph-analysis/chart/index.tsx",
+      "line": 394,
+      "reasons": [
+        "V2 always-visible clear action",
+        "grouped slots"
+      ]
+    },
+    {
+      "file": "src/features/retrieval/workbench/search-result-panel/graph-analysis/index.tsx",
+      "line": 356,
+      "reasons": [
+        "grouped slots"
+      ]
+    },
+    {
+      "file": "src/features/retrieval/workbench/search-result-panel/graph-analysis/index.tsx",
+      "line": 405,
+      "reasons": [
+        "non-text type",
+        "grouped slots"
+      ]
+    },
+    {
+      "file": "src/features/retrieval/workbench/search-result-panel/log-clustering/components/finger-tools/cluster-popover.tsx",
+      "line": 167,
+      "reasons": [
+        "rows",
+        "non-text type",
+        "grouped slots"
+      ]
+    },
+    {
+      "file": "src/features/retrieval/workbench/search-result-panel/log-clustering/components/finger-tools/cluster-rule-dialog.tsx",
+      "line": 363,
+      "reasons": [
+        "grouped slots"
+      ]
+    },
+    {
+      "file": "src/features/retrieval/workbench/search-result-panel/log-clustering/components/finger-tools/cluster-rule-dialog.tsx",
+      "line": 428,
+      "reasons": [
+        "grouped slots"
+      ]
+    },
+    {
+      "file": "src/features/retrieval/workbench/search-result-panel/log-clustering/components/finger-tools/cluster-rule-dialog.tsx",
+      "line": 444,
+      "reasons": [
+        "grouped slots"
+      ]
+    },
+    {
+      "file": "src/features/retrieval/workbench/search-result-panel/log-clustering/components/quick-create-subscription-drawer/create-subscription-form.tsx",
+      "line": 822,
+      "reasons": [
+        "v-slots",
+        "max",
+        "min",
+        "non-text type"
+      ]
+    },
+    {
+      "file": "src/features/retrieval/workbench/search-result-panel/log-clustering/components/quick-create-subscription-drawer/create-subscription-form.tsx",
+      "line": 924,
+      "reasons": [
+        "grouped slots"
+      ]
+    },
+    {
+      "file": "src/features/retrieval/workbench/search-result-panel/log-clustering/components/quick-create-subscription-drawer/create-subscription-form.tsx",
+      "line": 1034,
+      "reasons": [
+        "grouped slots"
+      ]
+    },
+    {
+      "file": "src/features/retrieval/workbench/search-result-panel/log-clustering/components/quick-create-subscription-drawer/create-subscription-form.tsx",
+      "line": 1118,
+      "reasons": [
+        "v-slots"
+      ]
+    },
+    {
+      "file": "src/features/retrieval/workbench/search-result-panel/log-clustering/components/quick-create-subscription-drawer/create-subscription-form.tsx",
+      "line": 1135,
+      "reasons": [
+        "v-slots"
+      ]
+    },
+    {
+      "file": "src/features/retrieval/workbench/search-result-panel/log-clustering/components/quick-create-subscription-drawer/create-subscription-form.tsx",
+      "line": 1179,
+      "reasons": [
+        "v-slots"
+      ]
+    },
+    {
+      "file": "src/features/retrieval/workbench/search-result-panel/log-clustering/components/quick-create-subscription-drawer/create-subscription-form.tsx",
+      "line": 1220,
+      "reasons": [
+        "id",
+        "max",
+        "min",
+        "precision",
+        "oninput",
+        "non-text type",
+        "grouped slots"
+      ]
+    },
+    {
+      "file": "src/features/retrieval/workbench/search-result-panel/log-clustering/components/strategy/index.tsx",
+      "line": 407,
+      "reasons": [
+        "show-controls",
+        "non-text type",
+        "grouped slots"
+      ]
+    },
+    {
+      "file": "src/features/retrieval/workbench/search-result-panel/log-clustering/components/strategy/index.tsx",
+      "line": 422,
+      "reasons": [
+        "show-controls",
+        "non-text type",
+        "grouped slots"
+      ]
+    },
+    {
+      "file": "src/features/retrieval/workbench/search-result-panel/log-clustering/data-fingerprint.vue",
+      "line": 432,
+      "reasons": [
+        "rows",
+        "non-text type"
+      ]
+    },
+    {
+      "file": "src/features/retrieval/workbench/setting-modal/full-text-index.vue",
+      "line": 64,
+      "reasons": [
+        "V2 always-visible clear action"
+      ]
+    },
+    {
+      "file": "src/features/retrieval/workbench/setting-modal/log-cluster.vue",
+      "line": 105,
+      "reasons": [
+        "max",
+        "min",
+        "precision",
+        "non-text type"
+      ]
+    },
+    {
+      "file": "src/features/retrieval/workbench/setting-modal/rule-table.vue",
+      "line": 195,
+      "reasons": [
+        "input-style",
+        "rows",
+        "non-text type"
+      ]
+    },
+    {
+      "file": "src/features/retrieval/workbench/sub-bar/query-history.vue",
+      "line": 13,
+      "reasons": [
+        "behavior",
+        "V2 always-visible clear action"
+      ]
+    },
+    {
+      "file": "src/features/retrieval/workspace/favorite/collect-main.tsx",
+      "line": 209,
+      "reasons": [
+        "onInput",
+        "V2 always-visible clear action",
+        "grouped slots"
+      ]
+    },
+    {
+      "file": "src/features/retrieval/workspace/favorite/components/collect-list/add-group.tsx",
+      "line": 145,
+      "reasons": [
+        "onInput",
+        "V2 always-visible clear action"
+      ]
+    },
+    {
+      "file": "src/features/retrieval/workspace/favorite/components/collect-list/edit-dialog.tsx",
+      "line": 202,
+      "reasons": [
+        "onInput"
+      ]
+    },
+    {
+      "file": "src/features/retrieval/workspace/favorite/components/collect-list/edit-dialog.tsx",
+      "line": 244,
+      "reasons": [
+        "non-text type"
+      ]
+    },
+    {
+      "file": "src/features/retrieval/workspace/grep/grep-cli.tsx",
+      "line": 146,
+      "reasons": [
+        "V2 always-visible clear action",
+        "grouped slots"
+      ]
+    },
+    {
+      "file": "src/features/retrieval/workspace/search-result/log-clustering/log-table/content-table/cluster-popover/regex-match/occupy-input/index.tsx",
+      "line": 106,
+      "reasons": [
+        "grouped slots"
+      ]
+    },
+    {
+      "file": "src/features/retrieval/workspace/search-result/log-clustering/log-table/content-table/cluster-popover/regex-match/regex-table/validate-input/index.tsx",
+      "line": 182,
+      "reasons": [
+        "onInput",
+        "onKeydown",
+        "non-text type",
+        "grouped slots"
+      ]
+    },
+    {
+      "file": "src/features/retrieval/workspace/search-result/log-clustering/log-table/content-table/pattern-analysis-slider/index.tsx",
+      "line": 761,
+      "reasons": [
+        "grouped slots"
+      ]
+    },
+    {
+      "file": "src/features/retrieval/workspace/search-result/log-clustering/log-table/content-table/remark-edit-tip/index.tsx",
+      "line": 295,
+      "reasons": [
+        "rows",
+        "non-text type",
+        "grouped slots"
+      ]
+    },
+    {
+      "file": "src/features/retrieval/workspace/search-result/log-clustering/top-operation/cluster-config/edit-config/index.tsx",
+      "line": 317,
+      "reasons": [
+        "max",
+        "min",
+        "precision",
+        "non-text type",
+        "grouped slots"
+      ]
+    },
+    {
+      "file": "src/features/retrieval/workspace/search-result/log-clustering/top-operation/cluster-config/edit-config/rule-operate/index.tsx",
+      "line": 338,
+      "reasons": [
+        "onClear",
+        "onRightIconClick",
+        "V2 always-visible clear action",
+        "grouped slots"
+      ]
+    },
+    {
+      "file": "src/features/retrieval/workspace/search-result/log-clustering/top-operation/email-subscription/create-subscription/subscription-form/send-config/index.tsx",
+      "line": 588,
+      "reasons": [
+        "v-slots"
+      ]
+    },
+    {
+      "file": "src/features/retrieval/workspace/search-result/log-clustering/top-operation/email-subscription/create-subscription/subscription-form/send-config/index.tsx",
+      "line": 606,
+      "reasons": [
+        "v-slots"
+      ]
+    },
+    {
+      "file": "src/features/retrieval/workspace/search-result/log-clustering/top-operation/email-subscription/create-subscription/subscription-form/send-config/index.tsx",
+      "line": 652,
+      "reasons": [
+        "v-slots"
+      ]
+    },
+    {
+      "file": "src/features/retrieval/workspace/search-result/log-clustering/top-operation/email-subscription/create-subscription/subscription-form/send-config/index.tsx",
+      "line": 695,
+      "reasons": [
+        "max",
+        "min",
+        "precision",
+        "oninput",
+        "non-text type"
+      ]
+    },
+    {
+      "file": "src/features/retrieval/workspace/search-result/log-clustering/top-operation/email-subscription/create-subscription/subscription-form/subscription-content/index.tsx",
+      "line": 308,
+      "reasons": [
+        "v-slots",
+        "max",
+        "min",
+        "non-text type"
+      ]
+    },
+    {
+      "file": "src/features/retrieval/workspace/search-result/log-clustering/top-operation/quick-filter/time-compare/index.tsx",
+      "line": 195,
+      "reasons": [
+        "grouped slots"
+      ]
+    },
+    {
+      "file": "src/features/retrieval/workspace/search-result/log-clustering/top-operation/strategy/edit-strategy/index.tsx",
+      "line": 265,
+      "reasons": [
+        "show-controls",
+        "non-text type",
+        "grouped slots"
+      ]
+    },
+    {
+      "file": "src/features/retrieval/workspace/search-result/log-clustering/top-operation/strategy/edit-strategy/index.tsx",
+      "line": 283,
+      "reasons": [
+        "show-controls",
+        "non-text type",
+        "grouped slots"
+      ]
+    },
+    {
+      "file": "src/features/retrieval/workspace/search-result/original-log/components/data-filter/index.tsx",
+      "line": 339,
+      "reasons": [
+        "max",
+        "min",
+        "show-controls",
+        "non-text type",
+        "grouped slots"
+      ]
+    },
+    {
+      "file": "src/features/retrieval/workspace/search-result/original-log/components/data-filter/index.tsx",
+      "line": 355,
+      "reasons": [
+        "max",
+        "min",
+        "show-controls",
+        "non-text type",
+        "grouped slots"
+      ]
+    },
+    {
+      "file": "src/features/retrieval/workspace/search-result/template-manage/create-template/index.tsx",
+      "line": 133,
+      "reasons": [
+        "grouped slots"
+      ]
+    },
+    {
+      "file": "src/features/retrieval/workspace/search-result/template-manage/index.tsx",
+      "line": 265,
+      "reasons": [
+        "onClear",
+        "onRightIconClick",
+        "V2 always-visible clear action",
+        "grouped slots"
+      ]
+    },
+    {
+      "file": "src/features/retrieval/workspace/search-result/template-manage/template-list/create-template/index.tsx",
+      "line": 133,
+      "reasons": [
+        "grouped slots"
+      ]
+    },
+    {
+      "file": "src/features/retrieval/workspace/search-result/template-manage/template-list/index.tsx",
+      "line": 135,
+      "reasons": [
+        "onClear",
+        "onRightIconClick",
+        "V2 always-visible clear action",
+        "grouped slots"
+      ]
+    },
+    {
+      "file": "src/features/retrieval/workspace/search-result/template-manage/template-list/template-item/edit-template/index.tsx",
+      "line": 140,
+      "reasons": [
+        "grouped slots"
+      ]
+    },
+    {
+      "file": "src/shared/global/bk-space-choice/index.tsx",
+      "line": 536,
+      "reasons": [
+        "onClear",
+        "grouped slots"
+      ]
+    },
+    {
+      "file": "src/shared/global/field-setting.vue",
+      "line": 143,
+      "reasons": [
+        "grouped slots"
+      ]
+    },
+    {
+      "file": "src/shared/global/setting-table.vue",
+      "line": 26,
+      "reasons": [
+        "V2 always-visible clear action"
+      ]
+    }
+  ]
+}

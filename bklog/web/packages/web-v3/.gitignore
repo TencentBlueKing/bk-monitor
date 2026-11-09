@@ -1,0 +1,6 @@
+dist-native/
+dist-migration/
+dist/
+
+# Paraglide compiler products; source catalogs live under src/platform/i18n/messages.
+.paraglide/

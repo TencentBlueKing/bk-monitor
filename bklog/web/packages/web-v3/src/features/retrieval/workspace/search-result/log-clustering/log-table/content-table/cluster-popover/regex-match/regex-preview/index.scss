@@ -1,0 +1,33 @@
+.regex-preview-main {
+  width: 952px;
+  padding: 10px 24px 19px 15px;
+  background-color: #fff;
+
+  .header-main {
+    width: 100%;
+    display: flex;
+    align-items: center;
+    font-size: 14px;
+    margin-bottom: 8px;
+    position: relative;
+
+    .close-main {
+      position: absolute;
+      right: -9px;
+      top: 0;
+      font-size: 20px;
+      color: #979ba5;
+      cursor: pointer;
+    }
+  }
+
+  .preview-main {
+    width: 100%;
+    min-height: 96px;
+    max-height: 200px;
+    overflow-y: auto;
+    background: #f5f7fa;
+    border-radius: 2px;
+    padding: 8px;
+  }
+}

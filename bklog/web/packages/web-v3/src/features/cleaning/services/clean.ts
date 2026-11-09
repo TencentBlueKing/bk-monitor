@@ -1,0 +1,146 @@
+/*
+ * Tencent is pleased to support the open source community by making
+ * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
+ *
+ * Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
+ *
+ * 蓝鲸智云PaaS平台 (BlueKing PaaS) is licensed under the MIT License.
+ *
+ * License for 蓝鲸智云PaaS平台 (BlueKing PaaS):
+ *
+ * ---------------------------------------------------
+ * Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated
+ * documentation files (the "Software"), to deal in the Software without restriction, including without limitation
+ * the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and
+ * to permit persons to whom the Software is furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in all copies or substantial portions of
+ * the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO
+ * THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF
+ * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
+ * IN THE SOFTWARE.
+ */
+
+import { defineEndpoint } from '@/platform/services/runtime/service-client';
+
+// 获取采集项清洗缓存
+const getCleanStash = defineEndpoint({
+  url: '/databus/collectors/:collector_config_id/clean_stash/',
+  method: 'get',
+});
+
+// 更新采集项清洗缓存
+const updateCleanStash = defineEndpoint({
+  url: '/databus/collectors/:collector_config_id/create_clean_stash/',
+  method: 'post',
+});
+
+// 获取清洗列表
+const cleanList = defineEndpoint({
+  url: '/databus/clean/',
+  method: 'get',
+});
+
+// 刷新高级清洗
+const refreshClean = defineEndpoint({
+  url: '/databus/clean/:collector_config_id/refresh/',
+  method: 'get',
+});
+
+// 同步计算平台结果表
+const sync = defineEndpoint({
+  url: '/databus/clean/sync/',
+  method: 'get',
+});
+
+// 删除清洗项
+const deleteClean = {};
+
+// 获取清洗模板列表
+const cleanTemplate = defineEndpoint({
+  url: '/databus/clean_template/',
+  method: 'get',
+});
+
+// 获取清洗模板操作人选项
+const cleanTemplateOperators = defineEndpoint({
+  url: '/databus/clean_template/operators/',
+  method: 'get',
+});
+
+// 获取清洗模板关联采集项
+const cleanTemplateCollectors = defineEndpoint({
+  url: '/databus/clean_template/:clean_template_id/collectors/',
+  method: 'get',
+});
+
+// 同步清洗模板关联采集项
+const syncCleanTemplateCollectors = defineEndpoint({
+  url: '/databus/clean_template/:clean_template_id/sync/',
+  method: 'post',
+});
+
+// 清洗模板-详情
+const templateDetail = defineEndpoint({
+  url: '/databus/clean_template/:clean_template_id/',
+  method: 'get',
+});
+
+// 清洗模板-新建
+const createTemplate = defineEndpoint({
+  url: '/databus/clean_template/',
+  method: 'post',
+});
+
+// 清洗模板-更新
+const updateTemplate = defineEndpoint({
+  url: '/databus/clean_template/:clean_template_id/',
+  method: 'put',
+});
+
+// 清洗模板-删除
+const deleteTemplate = defineEndpoint({
+  url: '/databus/clean_template/:clean_template_id/',
+  method: 'delete',
+});
+
+// 预览提取结果
+const getEtlPreview = defineEndpoint({
+  url: '/databus/clean_template/etl_preview/',
+  method: 'post',
+});
+
+// 使用已保存清洗模板预览提取结果
+const getTemplateEtlPreview = defineEndpoint({
+  url: '/databus/clean_template/:clean_template_id/etl_preview/',
+  method: 'post',
+});
+
+// 清洗清洗列表-删除
+const deleteParsing = defineEndpoint({
+  url: '/databus/clean/:collector_config_id/destroy_clean/',
+  method: 'delete',
+});
+
+export {
+  getCleanStash,
+  updateCleanStash,
+  cleanList,
+  refreshClean,
+  sync,
+  deleteClean,
+  cleanTemplate,
+  cleanTemplateOperators,
+  cleanTemplateCollectors,
+  syncCleanTemplateCollectors,
+  templateDetail,
+  createTemplate,
+  updateTemplate,
+  deleteTemplate,
+  getEtlPreview,
+  getTemplateEtlPreview,
+  deleteParsing,
+};

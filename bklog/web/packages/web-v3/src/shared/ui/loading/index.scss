@@ -1,0 +1,10 @@
+/*
+ * Copyright (C) 2021 THL A29 Limited, a Tencent company.
+ * Licensed under the MIT License.
+ */
+
+.bklog-loading {
+  > .t-loading__overlay {
+    background-color: var(--bklog-loading-overlay-color);
+  }
+}

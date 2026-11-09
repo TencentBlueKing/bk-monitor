@@ -1,0 +1,158 @@
+.client-log-toolbar {
+    padding: 8px 12px;
+    border-bottom: 1px solid #000;
+    background: #212429;
+
+    .toolbar-main {
+        display: flex;
+        align-items: center;
+
+        .file-tree-toggle {
+            width: 32px;
+            height: 32px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            border-radius: 4px;
+            margin-right: 94px;
+            flex-shrink: 0;
+
+            .bklog-icon {
+                font-size: 16px;
+                color: #C4C6CC;
+            }
+
+            &.is-active {
+                background-color: #2F4261;
+
+                .bklog-icon {
+                    color: #fff;
+                }
+            }
+
+            &:hover {
+                opacity: 0.85;
+            }
+        }
+
+        .filter-main {
+            flex: 1;
+            display: flex;
+
+            .filter-select {
+                width: 100px;
+                flex-shrink: 0;
+                border-radius: 6px 0 0 6px;
+                border: 1px solid #464E5C;
+                margin-right: -1px;
+                overflow: hidden;
+
+                .bk-icon {
+                    z-index: 1;
+                    color: #979BA5;
+                }
+
+                .bk-select-name {
+                    background: #111214;
+                    color: #C4C6CC;
+                }
+
+                &.is-focus {
+                    margin-right: 0;
+                }
+            }
+
+            .filter-key-input {
+                flex: 1;
+
+                .bk-tag-input {
+                    border-radius: 0 6px 6px 0;
+                    border: 1px solid #464E5C;
+                    background: #111214;
+                    color: #4D4F56;
+
+                    .placeholder {
+                        color: #4D4F56;
+                    }
+                }
+
+                .bk-tag-input.active input {
+                    background: #111214;
+                }
+            }
+
+            .control-active {
+                input {
+                    background: #111214 !important;
+
+                    &::placeholder {
+                        color: #4D4F56 !important;
+                    }
+                }
+            }
+        }
+
+        .highlight-main {
+            flex: 1;
+            display: flex;
+            margin-left: 8px;
+            font-size: 12px;
+
+            .prefix-text {
+                width: 40px;
+                height: 32px;
+                color: #C4C6CC;
+                background: #212429;
+                border-radius: 6px 0 0 6px;
+                border: 1px solid #464E5C;
+                display: flex;
+                justify-content: center;
+                align-items: center;
+            }
+
+            .highlight-tag-input {
+                flex: 1;
+
+                .bk-tag-input {
+                    border: 1px solid #464E5C;
+                    background: #111214;
+                    color: #4D4F56;
+
+                    .placeholder {
+                        color: #4D4F56;
+                    }
+                }
+
+                .bk-tag-input.active input {
+                    background: #111214;
+                }
+            }
+
+            .highlight-control-main {
+                border-radius: 0 6px 6px 0;
+                border: 1px solid #464E5C;
+
+                .jump-btn {
+                    color: #C4C6CC;
+
+                    &.is-disabled {
+                        color: #4D4F56;
+                    }
+                }
+            }
+        }
+    }
+}
+
+.filter-select-popover {
+    background: #32373E;
+    border-radius: 4px;
+    border: 1px solid #43474E;
+    color: #c1cde6;
+
+    .bk-options.bk-options-single .bk-option.is-selected {
+        color: #6190FF;
+        background: #192943;
+    }
+}

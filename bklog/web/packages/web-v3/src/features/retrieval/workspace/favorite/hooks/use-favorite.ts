@@ -1,0 +1,750 @@
+/*
+ * Tencent is pleased to support the open source community by making
+ * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
+ *
+ * Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
+ *
+ * 蓝鲸智云PaaS平台 (BlueKing PaaS) is licensed under the MIT License.
+ *
+ * License for 蓝鲸智云PaaS平台 (BlueKing PaaS):
+ *
+ * ---------------------------------------------------
+ * Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated
+ * documentation files (the "Software"), to deal in the Software without restriction, including without limitation
+ * the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and
+ * to permit persons to whom the Software is furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in all copies or substantial portions of
+ * the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO
+ * THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF
+ * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
+ * IN THE SOFTWARE.
+ */
+
+import { ServicesInstance } from '@/platform/services';
+
+import { computed, ref } from 'vue';
+
+import useStore from '@/shared/composables/use-store';
+import { RetrieveUrlResolver } from '@/app/state/url-resolver';
+import { debounce } from 'lodash-es';
+import { useRoute, useRouter } from "vue-router";
+
+import { parseTableIdConditions } from '../../../../../app/state/helper';
+import { copyMessage } from '../../../../../shared/lib/util';
+import { BK_LOG_STORAGE, SEARCH_MODE_DIC } from '../../../../../app/state/store.type.ts';
+import { getDefaultRetrieveParams, IndexItem } from '../../../../../app/state/default-values';
+import RetrieveHelper from '../../../retrieve-helper';
+import { handleApiError, showMessage } from '../utils/index';
+import { getAllSceneFieldOpKeys } from '../../search-bar/scene-filter/scene-config';
+
+
+import type { IFavoriteItem, IGroupItem, SearchMode } from '../types/index';
+
+/**
+ * APM 页为 `/?bizId=#/apm/service?...&addition=`，仅替换 hash query 中的 addition
+ */
+const replaceApmHashAddition = (href: string, addition: unknown): string => {
+  const rawAddition = addition ?? [];
+  const additionValue = encodeURIComponent(typeof rawAddition === 'string' ? rawAddition : JSON.stringify(rawAddition));
+
+  const hashIndex = href.indexOf('#');
+  if (hashIndex === -1) {
+    if (/[?&]addition=/.test(href)) {
+      return href.replace(/([?&])addition=[^&]*/, `$1addition=${additionValue}`);
+    }
+    return `${href}${href.includes('?') ? '&' : '?'}addition=${additionValue}`;
+  }
+
+  const beforeHash = href.slice(0, hashIndex);
+  const hash = href.slice(hashIndex + 1);
+  const hashQueryIndex = hash.indexOf('?');
+
+  if (hashQueryIndex === -1) {
+    return `${beforeHash}#${hash}?addition=${additionValue}`;
+  }
+
+  const hashPath = hash.slice(0, hashQueryIndex);
+  const hashQuery = hash.slice(hashQueryIndex + 1);
+  const nextQuery = /(?:^|&)addition=/.test(hashQuery)
+    ? hashQuery.replace(/(^|&)addition=[^&]*/, `$1addition=${additionValue}`)
+    : `${hashQuery}${hashQuery ? '&' : ''}addition=${additionValue}`;
+
+  return `${beforeHash}#${hashPath}?${nextQuery}`;
+};
+
+/**
+ * 收藏功能的自定义 Hook
+ */
+export const useFavorite = () => {
+  const store = useStore();
+  const router = useRouter();
+  const route = useRoute();
+
+  // 响应式状态
+  const favoriteLoading = ref(false);
+  const activeTab = ref('origin');
+  const isShowCurrentIndexList = ref(window.__IS_MONITOR_APM__ ? true : RetrieveHelper.isViewCurrentIndex);
+  const searchValue = ref('');
+  const isCollapseList = ref(true);
+  const activeFavorite = ref<IFavoriteItem | null>(null);
+  const expandedMap = ref<Record<string, boolean>>({});
+
+  // 计算属性
+  const isUnionSearch = computed(() => store.getters.isUnionSearch);
+  const unionIndexList = computed(() => store.state.unionIndexList);
+  const indexSetId = computed(() => `${store.getters.indexId}`);
+  const favoriteList = computed(() => store.state.favoriteList || []);
+  const indexSetList = computed(() => store.state.retrieve.flatIndexSetList ?? []);
+  const isSceneMode = computed(() => store.getters.isSceneMode);
+  const sceneActive = computed(() => store.state.indexItem?.scene_active);
+  const sceneConfigs = computed(() => store.getters['retrieve/sceneConfigList']);
+
+  /**
+   * 过滤收藏列表数据
+   */
+  const filteredFavoriteList = computed(() => {
+    let data = favoriteList.value ?? [];
+
+    if (isShowCurrentIndexList.value && !isSceneMode.value) {
+      data = data.map(({ group_id, group_name, group_type, favorites }) => ({
+        group_id,
+        group_name,
+        group_type,
+        favorites: favorites.filter(item => {
+          if (isUnionSearch.value) {
+            return (
+              item.index_set_type === 'union' &&
+              (item.index_set_ids ?? []).every((id: unknown) => unionIndexList.value.includes(`${id}`))
+            );
+          }
+          return item.index_set_type === 'single' && `${item.index_set_id}` === indexSetId.value;
+        }),
+      }));
+    }
+
+    // 排序逻辑
+    const provideFavorite = data[0];
+    const publicFavorite = data.at(-1);
+    const sortFavoriteList = data.slice(1, data.length - 1).sort((a, b) => a.group_name.localeCompare(b.group_name));
+
+    return [provideFavorite, ...sortFavoriteList, publicFavorite].filter((item): item is NonNullable<typeof item> => Boolean(item));
+  });
+
+  /**
+   * 根据类型过滤数据
+   */
+  const filterByType = (dataType: string): IGroupItem[] => {
+    return filteredFavoriteList.value.map(({ group_id, group_name, group_type, favorites }) => ({
+      group_id,
+      group_name,
+      group_type,
+      favorites: favorites.filter((item: IFavoriteItem) => item.favorite_type === dataType),
+    }));
+  };
+
+  const originFavoriteList = computed(() => filterByType('search'));
+  const chartFavoriteList = computed(() => filterByType('chart'));
+
+  /**
+   * 当前要展示的收藏列表
+   */
+  const showList = computed(() => (activeTab.value === 'origin' ? originFavoriteList.value : chartFavoriteList.value));
+
+  /**
+   * 搜索过滤后的列表
+   */
+  const filterDataList = computed(() =>
+    showList.value.map((group: IGroupItem) => ({
+      ...group,
+      favorites: group.favorites.filter(
+        ele => ele.created_by.includes(searchValue.value) || ele.name.includes(searchValue.value),
+      ),
+    })),
+  );
+
+  /**
+   * 搜索是否为空结果
+   */
+  const isSearchEmpty = computed(
+    () => !!searchValue.value?.length && filterDataList.value.filter(item => item.favorites.length).length === 0,
+  );
+
+  /**
+   * 获取收藏列表数据
+   */
+  const getFavoriteList = async (): Promise<void> => {
+    try {
+      favoriteLoading.value = true;
+      await store.dispatch('requestFavoriteList');
+    } catch (error) {
+      console.error('获取收藏列表失败:', error);
+    } finally {
+      favoriteLoading.value = false;
+    }
+  };
+
+  /**
+   * 获取搜索模式
+   */
+  const getSearchMode = (item: IFavoriteItem): SearchMode => {
+    const { addition = [], keyword = '' } = item.params || {};
+
+    if (addition.length > 0 && keyword.length > 0) {
+      return item.search_mode as SearchMode;
+    }
+    if (addition.length > 0) {
+      return 'ui';
+    }
+    return 'sql';
+  };
+
+  /**
+   * 设置路由参数
+   */
+  const setRouteParams = (item: IFavoriteItem): void => {
+    const { ids, isUnionIndex } = store.state.indexItem;
+    const searchMode = SEARCH_MODE_DIC[store.state.storage[BK_LOG_STORAGE.SEARCH_TYPE]] ?? 'ui';
+    const unionList = store.state.unionIndexList;
+    const clusterParams = store.state.clusterParams;
+    const { start_time, end_time, addition, begin, size, ip_chooser, host_scopes, interval, sort_list } =
+      store.getters.retrieveParams;
+    const pid = item.pid;
+
+    // 公共路由参数
+    const routeParams = {
+      addition,
+      start_time,
+      end_time,
+      begin,
+      size,
+      ip_chooser,
+      host_scopes,
+      interval,
+      bk_biz_id: store.state.bkBizId,
+      search_mode: searchMode,
+      sort_list,
+      clusterParams,
+      pid,
+    };
+
+    // 场景化模式追加参数
+    if (isSceneMode.value) {
+      Object.assign(routeParams, {
+        retrieve_type: 'scene',
+        scene_active: store.state.indexItem.scene_active,
+        scene_filter_values: store.state.indexItem.scene_filter_values,
+      });
+    } else {
+      // 索引集模式追加参数
+      Object.assign(routeParams, { retrieve_type: 'normal', ids, isUnionIndex, unionList });
+    }
+
+    const params =
+      isSceneMode.value || isUnionIndex
+        ? { ...route.params, indexId: undefined }
+        : { ...route.params, indexId: ids?.[0] ? `${ids?.[0]}` : route.params?.indexId };
+
+    const query = { ...route.query };
+
+    // 先清除所有场景相关 URL 参数，避免切换模式时残留旧参数
+    delete query.scene_active;
+    for (const key of getAllSceneFieldOpKeys(sceneConfigs.value)) {
+      delete query[key];
+    }
+
+    // 使用 URL 解析器
+    // const { RetrieveUrlResolver } = require('@/app/state/url-resolver');
+    const resolver = new RetrieveUrlResolver({
+      ...routeParams,
+      datePickerValue: store.state.indexItem.datePickerValue,
+    });
+
+    Object.assign(query, resolver.resolveParamsToUrl(), {
+      tab: item?.favorite_type === 'chart' ? 'graph_analysis' : 'origin',
+    });
+
+    router.replace({ params, query });
+  };
+
+  /**
+   * 选择收藏项
+   */
+  const selectFavoriteItem = (item: IFavoriteItem | null): void => {
+    if (!item) {
+      activeFavorite.value = null;
+      let clearSearchValueNum = store.state.clearSearchValueNum;
+      store.commit('updateClearSearchValueNum', (clearSearchValueNum += 1));
+      setRouteParams(item);
+      setTimeout(() => {
+        RetrieveHelper.setFavoriteActive(activeFavorite.value);
+      });
+      return;
+    }
+
+    const cloneValue = structuredClone(item);
+    activeFavorite.value = structuredClone(item);
+
+    const keyword = cloneValue.params?.keyword || '';
+    const addition = cloneValue.params?.addition ?? [];
+    const searchMode = getSearchMode(cloneValue);
+    const isSceneSource = cloneValue.source_type === 'scene';
+
+    // 场景化模式下解析 table_id_conditions
+    let restoredSceneActive: string | undefined;
+    let restoredFilterValues: any;
+    if (isSceneSource) {
+      const parsed = parseTableIdConditions(cloneValue.table_id_conditions, cloneValue.scene_filter_values);
+      restoredSceneActive = parsed.scene_active;
+      restoredFilterValues = parsed.scene_filter_values;
+    }
+
+    const isUnionIndex = isSceneSource ? false : cloneValue.index_set_ids?.length > 0;
+
+    // 重置状态
+    if (isSceneSource) {
+      // 场景化收藏：重置检索参数，但保留索引集相关状态
+      // （切回常规检索时仍需 ids/items/isUnionIndex/unionIndexList 等）
+      store.commit('updateIndexItem', {
+        ...getDefaultRetrieveParams(),
+        chart_params: structuredClone(IndexItem.chart_params),
+      });
+    } else {
+      store.commit('resetIndexsetItemParams');
+      store.commit('updateState', { indexId: cloneValue.index_set_id, pid: cloneValue.pid ?? [] });
+    }
+    store.commit('updateIsSetDefaultTableColumn', false);
+    store.commit('updateStorage', {
+      [BK_LOG_STORAGE.INDEX_SET_ACTIVE_TAB]: isSceneSource ? 'single' : item.index_set_type,
+      [BK_LOG_STORAGE.SEARCH_TYPE]: ['ui', 'sql'].indexOf(searchMode ?? 'ui'),
+    });
+
+    // 处理 IP 选择器
+    const ipChooser = { ...(cloneValue.params?.ip_chooser ?? {}) };
+    // 索引集模式下处理联合索引
+    if (!isSceneSource && isUnionIndex) {
+      store.commit(
+        'updateUnionIndexList',
+        cloneValue.index_set_ids.map(newItem => String(newItem)),
+      );
+    }
+
+    if (JSON.stringify(ipChooser) !== '{}') {
+      addition.push({
+        field: '_ip-select_',
+        operator: '',
+        value: [ipChooser],
+      });
+    }
+
+    // 更新索引集项（场景化与索引集模式的差异参数）
+    const indexItemUpdate: Record<string, any> = {
+      keyword,
+      addition,
+      ip_chooser: ipChooser,
+      search_mode: searchMode,
+    };
+
+    if (isSceneSource) {
+      Object.assign(indexItemUpdate, {
+        retrieve_type: 'scene',
+        scene_active: restoredSceneActive || cloneValue.scene_id,
+        scene_filter_values: restoredFilterValues,
+      });
+    } else {
+      const ids = isUnionIndex ? cloneValue.index_set_ids : [cloneValue.index_set_id];
+      Object.assign(indexItemUpdate, {
+        index_set_id: cloneValue.index_set_id,
+        ids,
+        items: ids.map(id => indexSetList.value.find((newItem) => newItem.index_set_id === `${id}`)),
+        isUnionIndex,
+      });
+    }
+
+    store.commit('updateIndexItem', indexItemUpdate);
+
+    setRouteParams(item);
+    store.commit('updateChartParams', {
+      ...cloneValue.params?.chart_params,
+      fromCollectionActiveTab: 'unused',
+    });
+
+    store.commit('updateIndexSetQueryResult', {
+      row_keys: [],
+      row_query_key: '',
+      cached_count: 0,
+    });
+
+    store.dispatch('requestIndexSetFieldInfo').then(() => {
+      RetrieveHelper.setFavoriteActive({ ...activeFavorite.value, search_mode: searchMode });
+      store.dispatch('requestIndexSetQuery');
+    });
+  };
+
+  /**
+   * 切换展开状态
+   */
+  const toggleExpand = (groupId: number | string): void => {
+    const key = String(groupId);
+    expandedMap.value[key] = !expandedMap.value[key];
+  };
+
+  /**
+   * 防抖搜索
+   */
+  const debouncedSearch = debounce((value: string) => {
+    searchValue.value = value;
+  }, 300);
+
+  /**
+   * 处理搜索输入
+   */
+  const handleSearchInput = (value: string): void => {
+    debouncedSearch(value);
+  };
+
+  /**
+   * 创建或更新分组名
+   * @param groupData 分组数据
+   * @param spaceUid 空间UID
+   * @param isCreate 是否为创建操作
+   * @returns Promise
+   */
+  const updateGroupName = async (
+    groupData: { group_id?: number | string; group_new_name: string },
+    spaceUid: string | number,
+    isCreate = true,
+    callback?: (res: any) => void,
+  ): Promise<void> => {
+    try {
+      const { group_id, group_new_name: groupNewName } = groupData;
+      const sourceType = store.getters.isSceneMode ? 'scene' : 'index_set';
+      const params = { group_id };
+      const data = { name: groupNewName, space_uid: spaceUid, source_type: sourceType };
+      if (window.__IS_MONITOR_APM__) {
+        Object.assign(data, {
+          scope: {
+            app_name: window.MONITOR_APM_APP_NAME,
+            service_name: window.MONITOR_APM_SERVICE_NAME,
+          },
+        });
+      }
+      const requestStr = isCreate ? 'createGroup' : 'updateGroupName';
+
+      await ServicesInstance.favorite[requestStr]({ params, data }).then(res => {
+        showMessage(window.$t('操作成功'));
+        callback?.(res.data || {});
+      });
+    } catch (error) {
+      handleApiError(error, window.$t('操作失败'));
+      throw error;
+    }
+  };
+  /** 获取当前的跳转链接 */
+  const handleNewLink = (item: IFavoriteItem, type: string) => {
+    // const { RetrieveUrlResolver } = require('@/app/state/url-resolver');
+    const isSceneSource = item.source_type === 'scene';
+    const routePathParams = isSceneSource ? { indexId: undefined } : { indexId: item.index_set_id };
+
+    // 公共路由参数
+    const routeParams: Record<string, any> = {
+      ...item.params,
+      addition: item.params.addition,
+      search_mode: item.search_mode,
+      spaceUid: item.space_uid,
+      pid: item.pid ?? [],
+    };
+
+    // 场景化/索引集模式差异参数
+    if (isSceneSource) {
+      Object.assign(routeParams, {
+        retrieve_type: 'scene',
+        scene_active: item.scene_id,
+        scene_filter_values: parseTableIdConditions(item.table_id_conditions, item.scene_filter_values)
+          .scene_filter_values,
+      });
+    } else {
+      Object.assign(routeParams, {
+        unionList: item.index_set_ids.map((newItem: string) => String(newItem)),
+        isUnionIndex: item.index_set_type === 'union',
+      });
+    }
+
+    const resolver = new RetrieveUrlResolver(routeParams);
+
+    const routeData = {
+      name: 'retrieve',
+      params: routePathParams,
+      query: resolver.resolveParamsToUrl(),
+    } as any;
+
+    let shareUrl = (window as any).SITE_URL || '';
+    if (!shareUrl.startsWith('/')) {
+      shareUrl = `/${shareUrl}`;
+    }
+    if (!shareUrl.endsWith('/')) {
+      shareUrl += '/';
+    }
+    if (window.__IS_MONITOR_APM__) {
+      // 保留当前 APM 页路径和其余 hash 参数，只替换 addition
+      shareUrl = replaceApmHashAddition(window.location.href, item.params?.addition);
+    } else {
+      shareUrl = `${window.location.origin + shareUrl}${router.resolve(routeData).href}`;
+    }
+    if (type === 'new-link') {
+      window.open(shareUrl, '_blank', 'noopener,noreferrer');
+    } else {
+      copyMessage(shareUrl, window.$t('复制分享链接成功，通过链接，可直接查询对应收藏日志。'));
+    }
+  };
+
+  /** 删除分组/删除收藏 */
+  const handleDeleteApi = async (type: string, id: number, callback?: () => void) => {
+    const isDel = type === 'delete';
+    const url = ServicesInstance.favorite[isDel ? 'deleteFavorite' : 'deleteGroup'];
+    await url({
+        params: isDel ? { favorite_id: id } : { group_id: id },
+      })
+      .then(() => {
+        showMessage(isDel ? window.$t('删除成功') : window.$t('该分组已成功解散，相关收藏项已移动到 [未分组]。'));
+        callback?.();
+      })
+      .catch(err => {
+        handleApiError(err, window.$t('操作失败'));
+      });
+  };
+
+  /** 克隆 */
+  const handleCreateCopy = (item: IFavoriteItem, isMultiIndex: boolean, callback?: () => void) => {
+    const {
+      index_set_id,
+      params,
+      name,
+      group_id,
+      display_fields,
+      visible_type,
+      is_enable_display_fields,
+      index_set_type,
+      index_set_ids,
+      space_uid,
+      source_type: sourceType,
+      scene_id,
+      table_id_conditions,
+      scene_filter_values: itemSceneFilterValues,
+    } = item;
+    const { host_scopes, addition, keyword, search_fields } = params;
+    const data = {
+      name: `${name} ${window.$t('副本')}`,
+      group_id,
+      display_fields,
+      visible_type,
+      host_scopes,
+      addition,
+      keyword,
+      search_fields,
+      is_enable_display_fields,
+      space_uid,
+    };
+
+    if (sourceType === 'scene') {
+      // 场景化收藏克隆
+      Object.assign(data, {
+        source_type: 'scene',
+        scene_id,
+        table_id_conditions,
+        scene_filter_values: itemSceneFilterValues,
+      });
+    } else {
+      // 索引集收藏克隆（原有逻辑）
+      Object.assign(data, {
+        index_set_id,
+        index_set_type,
+      });
+      if (isMultiIndex) {
+        Object.assign(data, {
+          index_set_ids,
+        });
+      }
+    }
+    if (window.__IS_MONITOR_APM__) {
+      Object.assign(data, {
+        scope: {
+          app_name: window.MONITOR_APM_APP_NAME,
+          service_name: window.MONITOR_APM_SERVICE_NAME,
+        },
+      });
+    }
+    ServicesInstance.favorite.createFavorite({ data })
+      .then(() => {
+        showMessage(window.$t('创建成功'));
+        callback?.();
+      })
+      .catch(err => {
+        handleApiError(err, window.$t('操作失败'));
+      });
+  };
+  /** 获取收藏详情 */
+  const getFavoriteData = async (id: number, item: IFavoriteItem) => {
+    try {
+      const res = await ServicesInstance.favorite.getFavorite({ params: { id } });
+      Object.assign(item, {
+        ...res.data,
+        ...res.data.params,
+      });
+    } catch (err) {
+      handleApiError(err, '获取收藏数据失败');
+    }
+  };
+
+  /** 获取组列表 */
+  const requestGroupList = async (spaceUid: string | number, callback?: (res: any) => void) => {
+    try {
+      const sourceType = store.getters.isSceneMode ? 'scene' : 'index_set';
+      const query = {
+        space_uid: spaceUid,
+        source_type: sourceType,
+      };
+      if (window.__IS_MONITOR_APM__) {
+        Object.assign(query, {
+          scope: JSON.stringify({
+            app_name: window.MONITOR_APM_APP_NAME,
+            service_name: window.MONITOR_APM_SERVICE_NAME,
+          }),
+        });
+      }
+      const res = await ServicesInstance.favorite.getGroupList({
+        query,
+      });
+      callback?.(res || {});
+    } catch (error) {
+      handleApiError(error, '获取组列表失败');
+    }
+  };
+
+  /** 修改收藏 / 移动到分组 / 从该组移除 */
+  const handleUpdateFavorite = async (
+    item: IFavoriteItem,
+    callback: (data: any) => void,
+    tips?: string,
+    isGroup = true,
+  ) => {
+    const {
+      params,
+      name,
+      search_mode: searchMode,
+      group_id,
+      display_fields,
+      visible_type,
+      id,
+      index_set_id,
+      index_set_ids,
+      index_set_type: indexSetType,
+      is_enable_display_fields,
+      source_type: sourceType,
+      scene_id,
+      table_id_conditions,
+      scene_filter_values: itemSceneFilterValues,
+    } = item;
+    const { ip_chooser, addition, keyword, search_fields } = params;
+    const searchParams =
+      searchMode === 'sql'
+        ? { keyword, addition: [] }
+        : { addition: (addition || []).filter((v: { field: string; }) => v.field !== '_ip-select_'), keyword: '*' };
+
+    const data = {
+      name,
+      group_id,
+      display_fields,
+      visible_type,
+      ip_chooser,
+      addition,
+      keyword,
+      search_fields,
+      is_enable_display_fields,
+    };
+
+    if (sourceType === 'scene') {
+      // 场景化收藏更新
+      Object.assign(data, {
+        source_type: 'scene',
+        scene_id,
+        table_id_conditions,
+        scene_filter_values: itemSceneFilterValues,
+      });
+    } else {
+      // 索引集收藏更新（原有逻辑）
+      Object.assign(
+        data,
+        { index_set_type: indexSetType },
+        indexSetType === 'union' ? { index_set_ids } : { index_set_id },
+      );
+    }
+
+    const dataBody = isGroup ? { ...data, ...searchParams } : data;
+    if (window.__IS_MONITOR_APM__) {
+      Object.assign(dataBody, {
+        scope: {
+          app_name: window.MONITOR_APM_APP_NAME,
+          service_name: window.MONITOR_APM_SERVICE_NAME,
+        },
+      });
+    }
+
+    try {
+      const res = await ServicesInstance.favorite.updateFavorite({
+        params: { id },
+        data: dataBody,
+      });
+      if (res.result) {
+        showMessage(tips || window.$t('保存成功'));
+        callback?.(res.result);
+      }
+    } catch (error) {
+      handleApiError(error, '更新收藏失败');
+    }
+  };
+
+  return {
+    // 状态
+    favoriteLoading,
+    activeTab,
+    isShowCurrentIndexList,
+    searchValue,
+    isCollapseList,
+    activeFavorite,
+    expandedMap,
+
+    // computed属性
+    isUnionSearch,
+    unionIndexList,
+    indexSetId,
+    favoriteList,
+    indexSetList,
+    isSceneMode,
+    sceneActive,
+    filteredFavoriteList,
+    originFavoriteList,
+    chartFavoriteList,
+    showList,
+    filterDataList,
+    isSearchEmpty,
+
+    // handle方法
+    getFavoriteList,
+    selectFavoriteItem,
+    toggleExpand,
+    handleSearchInput,
+    setRouteParams,
+    getSearchMode,
+    updateGroupName,
+    handleNewLink,
+    handleDeleteApi,
+    handleCreateCopy,
+    getFavoriteData,
+    requestGroupList,
+    handleUpdateFavorite,
+  };
+};

@@ -1,0 +1,17 @@
+.extract-link-list-container {
+  padding: 0 24px 20px;
+
+  /*表格内容样式*/
+  .king-table {
+    .task-operation-container {
+      display: flex;
+      align-items: center;
+
+      .task-operation {
+        margin-right: 12px;
+        color: #3a84ff;
+        cursor: pointer;
+      }
+    }
+  }
+}

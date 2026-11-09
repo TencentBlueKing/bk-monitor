@@ -1,0 +1,464 @@
+/*
+ * Tencent is pleased to support the open source community by making
+ * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
+ *
+ * Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
+ *
+ * 蓝鲸智云PaaS平台 (BlueKing PaaS) is licensed under the MIT License.
+ *
+ * License for 蓝鲸智云PaaS平台 (BlueKing PaaS):
+ *
+ * ---------------------------------------------------
+ * Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated
+ * documentation files (the "Software"), to deal in the Software without restriction, including without limitation
+ * the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and
+ * to permit persons to whom the Software is furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in all copies or substantial portions of
+ * the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO
+ * THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF
+ * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
+ * IN THE SOFTWARE.
+ */
+
+import { ServicesInstance } from '@/platform/services';
+import { asDictionary } from '@/shared/utils/typed-record';
+
+import { Steps as TSteps, StepItem as TStepItem } from 'tdesign-vue-next';
+import { defineComponent, onBeforeUnmount, onMounted, ref, computed, watch } from 'vue';
+
+import useLocale from '@/shared/composables/use-locale';
+import { useRoute, useRouter } from 'vue-router';
+import { useCollectList } from '../../hook/useCollectList';
+import CollectIssuedSlider from '../business-comp/step3/collect-issued-slider';
+import V2MaskingOperation from '../masking-operation/index';
+import StepClassify from './step1-classify';
+import StepBkDataCollection from './step2-bk-data-collection';
+import StepConfiguration from './step2-configuration';
+import StepCustomReport from './step2-custom-report';
+import StepClean from './step3-clean';
+import StepStorage from './step4-storage';
+
+import { bkInfoBox as bkInfoBox } from '@/platform/compat/tdesign/info-box';
+
+import './index.scss';
+
+export default defineComponent({
+  name: 'CreateOperation',
+
+  setup() {
+    const { t } = useLocale();
+    const route = useRoute();
+    const router = useRouter();
+    const mainRef = ref<HTMLDivElement>();
+    const DEFAULT_STEP = 1;
+    const step = ref(DEFAULT_STEP);
+    const typeKey = ref('linux');
+    const firstStep = [{ title: t('索引集分类'), icon: 1, components: StepClassify }];
+    const { goListPage } = useCollectList();
+    const dataConfig = ref({});
+    const showCollectIssuedSlider = ref(false);
+    const currentCollectorId = ref<number | null>(null);
+    const statusMap = asDictionary({
+      success: {
+        value: ['SUCCESS'],
+        text: t('采集下发成功'),
+      },
+      running: {
+        value: ['PREPARE', 'RUNNING', 'UNKNOWN'],
+        text: t('采集下发中...'),
+      },
+    });
+
+    const stepDesc = [
+      { title: t('采集配置'), icon: 2, components: StepConfiguration },
+      { title: t('字段清洗'), icon: 3, components: StepClean },
+      { title: t('存储'), icon: 4, components: StepStorage },
+    ];
+    /**
+     * 第三方日志新建流程 （计算平台、第三方ES接入)流程
+     */
+    const thirdLogStep = [{ title: t('采集配置'), icon: 2, components: StepBkDataCollection }];
+    const maskingStep = [{ title: t('日志脱敏'), icon: 1, components: V2MaskingOperation }];
+    /**
+     * 自定义日志新建流程
+     */
+    const customReportStep = [
+      { title: t('采集配置'), icon: 2, components: StepCustomReport },
+      { title: t('存储'), icon: 3, components: StepStorage },
+    ];
+
+    const currentStatus = ref({
+      status: 'running',
+      text: t('采集下发中...'),
+    });
+    /**
+     * 当前采集id
+     */
+    const collectId = computed(() => route.params.collectorId);
+    /**
+     *
+     */
+    const isClone = computed(() => route.query.type === 'clone' && !!route.query.collectorId);
+    const isMaskingRoute = computed(() => route.name === 'collectMasking' || route.query.type === 'masking');
+    /**
+     * 是否是编辑状态
+     */
+    const isEdit = computed(() => !!collectId.value);
+    /**
+     * 是否需要采集下发
+     */
+    const isNeedIssue = computed(() =>
+      ['linux', 'winevent', 'container_file', 'container_stdout'].includes(typeKey.value),
+    );
+    /**
+     * 当前步骤流程
+     * 根据不同的日志类型（第三方日志、自定义日志、标准日志）和编辑/新建模式返回对应的步骤配置
+     * - 编辑模式：跳过第一步（索引集分类），步骤图标从 1 开始重新编号
+     * - 新建模式：包含第一步（索引集分类），保持原有图标编号
+     */
+    const currentStep = computed(() => {
+      if (isMaskingRoute.value) {
+        return maskingStep;
+      }
+
+      // 根据日志类型选择对应的步骤配置
+      const targetSteps = ['bkdata', 'es'].includes(typeKey.value)
+        ? thirdLogStep // 第三方日志流程（计算平台、第三方ES接入）
+        : typeKey.value === 'custom_report'
+          ? customReportStep // 自定义日志流程
+          : stepDesc; // 标准日志流程（主机日志等）
+
+      // 编辑/克隆模式：跳过第一步，重新编号图标从 1 开始
+      if (isEdit.value || isClone.value) {
+        return targetSteps.map((item, index) => ({
+          ...item,
+          icon: index + 1,
+        }));
+      }
+
+      // 新建模式：包含第一步（索引集分类）+ 后续步骤
+      return [...firstStep, ...targetSteps];
+    });
+
+    const isShowStatusBtn = computed(() => {
+      return isNeedIssue.value && step.value !== 1 && !!currentCollectorId.value;
+    });
+
+    /**
+     * 步骤是否可切换
+     */
+    const isStepsControllable = computed(() => {
+      return (
+        isEdit.value &&
+        (dataConfig.value as any).storage_cluster_id !== -1 &&
+        (dataConfig.value as any).storage_cluster_id !== null
+      );
+    });
+
+    const containerWidth = ref(0);
+    let resizeObserver: ResizeObserver | null = null;
+    let isUnmounted = false;
+    const pollingTimer = ref<number | null>(null);
+    /** 当前步骤组件的 ref */
+    const currentStepRef = ref<any>(null);
+    /** 切换步骤时的 loading 状态 */
+    const isChangeStepLoading = ref(false);
+
+    // 在 setup 阶段就初始化 typeKey，避免 watch 导致组件重新挂载
+    if (isEdit.value || isClone.value) {
+      typeKey.value = (route.query.typeKey as string) || typeKey.value;
+    }
+
+    onMounted(() => {
+      if (route.query.step) {
+        step.value = Number(route.query.step);
+      }
+      if (step.value !== 1 && isEdit.value && collectId.value) {
+        currentCollectorId.value = Number(collectId.value);
+        getCollectStatus(Number(collectId.value));
+      }
+      if (mainRef.value) {
+        resizeObserver = new ResizeObserver(entries => {
+          const entry = entries[0];
+          if (entry) {
+            containerWidth.value = entry.contentRect.width;
+          }
+        });
+        resizeObserver.observe(mainRef.value);
+      }
+    });
+    /**
+     * 清除轮询定时器
+     */
+    const clearPolling = () => {
+      if (pollingTimer.value) {
+        clearInterval(pollingTimer.value);
+        pollingTimer.value = null;
+      }
+    };
+
+    onBeforeUnmount(() => {
+      isUnmounted = true;
+      if (resizeObserver) {
+        resizeObserver.disconnect();
+        resizeObserver = null;
+      }
+      clearPolling();
+    });
+    /**
+     * 选择具体的索引集分类
+     */
+    const chooseType = (data: { value: string }) => {
+      typeKey.value = data.value;
+      router.replace({
+        query: {
+          ...route.query,
+          typeKey: typeKey.value,
+        },
+      });
+    };
+    /**
+     * 相关操作项
+     */
+    const handleFunction = (type: string, data?: any) => {
+      const functionMap = asDictionary({
+        choose: chooseType,
+      });
+      functionMap[type]?.(data);
+    };
+
+    const handleCancel = () => {
+      goListPage();
+    };
+
+    /**
+     * 获取采集状态
+     */
+    const getCollectStatus = (id: number) => {
+      ServicesInstance.collect.getCollectStatus({
+          query: {
+            collector_id_list: id,
+          },
+        })
+        .then(res => {
+          if (isUnmounted || !res.result) {
+            return;
+          }
+          const status = res.data[0]?.status;
+          const statusKey = Object.keys(statusMap).find(key => statusMap[key].value.includes(status));
+          currentStatus.value = {
+            status: statusKey ? statusKey : 'failed',
+            text: statusKey ? statusMap[statusKey].text : t('采集下发失败'),
+          };
+
+          // 如果状态为 running，开始轮询
+          if (statusKey === 'running') {
+            // 如果已经有定时器在运行，先清除
+            clearPolling();
+            // 每 3 秒轮询一次
+            if (!isUnmounted) {
+              pollingTimer.value = window.setInterval(() => {
+                getCollectStatus(id);
+              }, 3000);
+            }
+          } else {
+            // 状态不为 running 时，停止轮询
+            clearPolling();
+          }
+        })
+        .catch(() => {
+          // 请求失败时也停止轮询
+          clearPolling();
+        });
+    };
+    /**
+     * 初始化采集分类的类型
+     * @param val
+     */
+    const initTypeKey = (val: boolean) => {
+      if (val && route.query.typeKey) {
+        // 只在 typeKey 实际变化时才更新，避免不必要的重新渲染
+        const newTypeKey = route.query.typeKey as string;
+        if (typeKey.value !== newTypeKey) {
+          typeKey.value = newTypeKey;
+        }
+      }
+    };
+    /**
+     * 跳转到接入指引
+     */
+    const handleOpenGuide = () => {
+      const docPath = 'markdown/ZH/LogSearch/4.7/UserGuide/ProductFeatures/integrations-logs/simple_log_collection.md';
+      const url = (window as any).BK_DOC_URL.replace(/\/$/, '');
+      url && window.open(`${url}/${docPath}`, '_blank', 'noopener,noreferrer');
+    };
+
+    /**
+     * 步骤切换前的处理函数
+     * @param targetStep 目标步骤
+     * @returns Promise<boolean> 是否允许切换步骤
+     */
+    const handleStepChange = async (targetStep: number) => {
+      // 获取当前步骤组件
+      const currentComponentRef = currentStepRef.value;
+
+      // 检查是否有修改
+      const isChanged = currentComponentRef?.hasConfigChanged?.() || false;
+      if (!isChanged) {
+        step.value = targetStep;
+        return true;
+      }
+
+      return new Promise<boolean>(resolve => {
+        bkInfoBox({
+          title: t('是否保存本次操作？'),
+          confirmLoading: true,
+          confirmFn: () => {
+            if (currentComponentRef?.handleSubmitSave) {
+              if (isChangeStepLoading.value) return;
+              isChangeStepLoading.value = true;
+
+              return new Promise<boolean>(infoResolve => {
+                currentComponentRef.handleSubmitSave({
+                  action: 'saveOnly',
+                  callback: (success: boolean) => {
+                    isChangeStepLoading.value = false;
+                    if (success) {
+                      // 保存成功后切换步骤
+                      step.value = targetStep;
+                    }
+                    // 保存流程结束后关闭确认弹窗，保存结果仅用于控制是否切换步骤
+                    infoResolve(true);
+                    resolve(success);
+                  },
+                });
+              });
+            }
+            step.value = targetStep;
+            resolve(true);
+          },
+          cancelFn: () => {
+            // 放弃修改，直接切换步骤
+            step.value = targetStep;
+            resolve(true);
+          },
+        });
+      });
+    };
+
+    watch([() => isEdit.value, () => isClone.value], ([editVal, cloneVal]) => {
+      initTypeKey(editVal || cloneVal);
+    });
+
+    return () => {
+      const currentStepInfo = currentStep.value.find(item => item.icon === step.value);
+      const Component = currentStepInfo?.components;
+      const stepStatusProps =
+        Component === StepClean
+          ? { attrs: { collectStatus: isNeedIssue.value ? currentStatus.value.status : '' } }
+          : {};
+      return (
+        <div
+          ref={mainRef}
+          class='create-operation-main'
+        >
+          <CollectIssuedSlider
+            isShow={showCollectIssuedSlider.value}
+            status={currentStatus.value.status}
+            config={dataConfig.value}
+            collectorConfigId={currentCollectorId.value}
+            onChange={value => {
+              showCollectIssuedSlider.value = value;
+            }}
+          />
+          {isShowStatusBtn.value && (
+            <div
+              class={`status-box ${currentStatus.value.status}`}
+              onClick={() => {
+                showCollectIssuedSlider.value = true;
+              }}
+            >
+              <span class='status-icon-box' />
+              {currentStatus.value.status === 'running' && <i class='bklog-icon bklog-caijixiafazhong status-icon' />}
+              {currentStatus.value.status === 'success' && (
+                <i class='bklog-icon bklog-circle-correct-filled status-icon' />
+              )}
+              {currentStatus.value.status === 'failed' && <i class='bklog-icon bklog-shanchu status-icon' />}
+              <span class='status-txt'>{currentStatus.value.text}</span>
+            </div>
+          )}
+          {!isMaskingRoute.value && (
+            <div
+              style={{ width: `${containerWidth.value - 60}px` }}
+              class='create-step'
+            >
+              <div
+                style={{ width: `${currentStep.value.length * 200}px` }}
+                class='step-main'
+              >
+                <TSteps
+                  class='custom-icon'
+                  current={step.value}
+                  readonly={!isStepsControllable.value}
+                  separator='line'
+                  theme='default'
+                  onChange={(current: string | number) => {
+                    void handleStepChange(Number(current));
+                  }}
+                >
+                  {currentStep.value.map(item => (
+                    <TStepItem
+                      key={item.icon}
+                      title={item.title}
+                      value={item.icon}
+                    />
+                  ))}
+                </TSteps>
+              </div>
+              <span
+                class='step-tips'
+                onClick={handleOpenGuide}
+              >
+                <i class='bklog-icon bklog-help help-icon' />
+                {t('接入指引')}
+              </span>
+            </div>
+          )}
+          <Component
+            {...stepStatusProps}
+            ref={currentStepRef}
+            configData={dataConfig.value}
+            scenarioId={typeKey.value}
+            onCancel={handleCancel}
+            onHandle={handleFunction}
+            isEdit={isEdit.value}
+            isClone={isClone.value}
+            onNext={(data: { collector_config_id?: any; }) => {
+              dataConfig.value = data;
+              if (isNeedIssue.value && Component === StepConfiguration) {
+                currentCollectorId.value = data.collector_config_id;
+                currentStatus.value = {
+                  status: 'running',
+                  text: t('采集下发中...'),
+                };
+                getCollectStatus(data.collector_config_id);
+              }
+              step.value = step.value + 1;
+            }}
+            onPrev={() => {
+              step.value = step.value - 1;
+            }}
+            onDetail={(data: { collector_config_id?: any; }) => {
+              dataConfig.value = data;
+              currentCollectorId.value = data.collector_config_id;
+            }}
+          />
+        </div>
+      );
+    };
+  },
+});
