@@ -496,6 +496,7 @@
       v-log-tooltip="$t('收藏当前查询')"
       :style="{
         color: popoverShow ? '#3a84ff' : '',
+        cursor: 'pointer',
       }"
       class="bklog-icon bklog-star-line"
       @click="handleCollection"
