@@ -23,7 +23,16 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { computed, defineComponent, getCurrentInstance, provide, shallowRef, toRef, watch } from 'vue';
+import {
+  computed,
+  defineAsyncComponent,
+  defineComponent,
+  getCurrentInstance,
+  provide,
+  shallowRef,
+  toRef,
+  watch,
+} from 'vue';
 import type { Component, PropType } from 'vue';
 
 import { Alert, Button, Exception, Sideslider } from 'bkui-vue';
@@ -53,6 +62,10 @@ import type { IRumTraceInfo } from './services';
 import type { IRumDetailContext, IRumTimelineSpanVM, IRumTimelineViewVM, RumDetailTabType } from './typings';
 
 import './rum-span-detail-slider.scss';
+
+const TraceSlider = defineAsyncComponent(
+  () => import(/* webpackChunkName: "trace-slider" */ '@/components/trace-slider/trace-slider')
+);
 
 /** 抽屉宽度，与设计稿一致 */
 const SLIDER_WIDTH = 1280;
@@ -171,11 +184,18 @@ export default defineComponent({
     const childContext = shallowRef<IRumDetailContext | null>(null);
     const childShow = shallowRef(false);
 
+    /** 关联 Trace 不再新开窗口，直接在本抽屉之上叠一层 Trace 详情侧栏 */
+    const traceSliderShow = shallowRef(false);
+    const activeTraceInfo = shallowRef<IRumTraceInfo | null>(null);
+
     watch(
       () => props.context,
       () => {
         childShow.value = false;
         childContext.value = null;
+        /** 切换到其他 Span 时关闭上一层 Trace 详情，避免展示上一个 Span 的关联 Trace */
+        traceSliderShow.value = false;
+        activeTraceInfo.value = null;
         /** 嵌套抽屉被替换成另一个 Span 时，与首次打开一致展示基础信息 */
         if (props.nested) activeTab.value = RumDetailTabEnum.BASIC;
       }
@@ -190,28 +210,28 @@ export default defineComponent({
         eventKeyword.value = '';
         traceContext.filterKeyword.value = '';
         traceContext.filterCategory.value = RumTimelineFilterCategoryEnum.ALL;
+        traceSliderShow.value = false;
+        activeTraceInfo.value = null;
       }
     );
-
-    const getTraceUrl = (info: IRumTraceInfo) =>
-      location.href.replace(
-        location.hash,
-        `#/trace/home?app_name=${info.app_name}&trace_id=${info.trace_id}&sceneMode=trace&filterMode=ui`
-      );
 
     const handleCopyTraceId = () => {
       copyText(originData.value.links?.[0]?.trace_id);
     };
 
+    const openTraceSlider = (info: IRumTraceInfo | null) => {
+      if (!info) return;
+      activeTraceInfo.value = info;
+      traceSliderShow.value = true;
+    };
+
     const handleJumpTrace = () => {
-      if (traceInfo.value) {
-        window.open(getTraceUrl(traceInfo.value));
-      }
+      openTraceSlider(traceInfo.value);
     };
 
     /** 链路上下文行内的「关联 Trace」：所属应用随链路上下文一起检索好，点击直接打开 */
     const handleTimelineTraceClick = (trace: IRumTraceInfo) => {
-      window.open(getTraceUrl(trace));
+      openTraceSlider(trace);
     };
 
     const handleTimelineSpanClick = (span: IRumTimelineSpanVM) => {
@@ -424,6 +444,22 @@ export default defineComponent({
       );
     }
 
+    /** 关联 Trace 的详情侧栏：叠在本抽屉之上，层级由 TraceSlider 自身的 z-index 保证 */
+    function renderTraceSlider() {
+      return (
+        <TraceSlider
+          appName={activeTraceInfo.value?.app_name || ''}
+          bizId={activeTraceInfo.value?.bk_biz_id ?? originData.value.bk_biz_id ?? window.cc_biz_id}
+          isShow={traceSliderShow.value}
+          traceId={activeTraceInfo.value?.trace_id || ''}
+          onSliderClose={() => {
+            traceSliderShow.value = false;
+            activeTraceInfo.value = null;
+          }}
+        />
+      );
+    }
+
     return () => (
       <Sideslider
         width={isFullscreen.value ? '100%' : SLIDER_WIDTH}
@@ -434,6 +470,7 @@ export default defineComponent({
             <div class='rum-detail-body'>
               {renderContent()}
               {renderChildSlider()}
+              {renderTraceSlider()}
             </div>
           ),
         }}

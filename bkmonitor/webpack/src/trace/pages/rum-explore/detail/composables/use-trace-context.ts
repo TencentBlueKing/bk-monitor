@@ -23,7 +23,7 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { computed, shallowRef, unref, watch } from 'vue';
+import { computed, onScopeDispose, shallowRef, unref, watch } from 'vue';
 import type { InjectionKey, MaybeRef } from 'vue';
 
 import { TIMELINE_REQUEST_RESOURCE_TYPES } from '../constants';
@@ -129,12 +129,18 @@ export function useTraceContext({
           traceQueue.delete(traceId);
           inflightTraceIds.add(traceId);
         }
-        await searchTraceInfoMap(
-          batch,
-          unref(bizId) ?? window.cc_biz_id,
-          infos => mergeTraceInfos(infos, seq),
-          controller.signal
-        );
+        try {
+          await searchTraceInfoMap(
+            batch,
+            unref(bizId) ?? window.cc_biz_id,
+            infos => mergeTraceInfos(infos, seq),
+            controller.signal
+          );
+        } catch {
+          /** 检索失败：本批不算查完，退回待检索状态并停止本轮，等待行重新观察后重试 */
+          for (const traceId of batch) inflightTraceIds.delete(traceId);
+          break;
+        }
         /** 期间切换了 View 或关闭了抽屉，剩余队列由新一轮接管 */
         if (seq !== traceQueueSeq) return;
         for (const traceId of batch) {
@@ -246,11 +252,7 @@ export function useTraceContext({
   watch(
     () => [unref(active), unref(appName), unref(viewId)] as const,
     ([isActive, app, view]) => {
-      if (!isActive) {
-        /** 关闭抽屉 / 切走 tab：清掉队列与在途检索，已查完的结果保留避免重开时重复请求 */
-        resetTraceQueue(false);
-        return;
-      }
+      if (!isActive) return;
       const key = `${app}|${view}`;
       if (key === fetchedKey) return;
       fetchedKey = key;
@@ -410,6 +412,9 @@ export function useTraceContext({
     }
     expandedNodes.value = next;
   };
+
+  /** 直接离开页面时组件卸载不会触发上面的 watch：补一次清理，中断在途检索并断开行观察器 */
+  onScopeDispose(() => resetTraceQueue(false));
 
   return {
     loading,

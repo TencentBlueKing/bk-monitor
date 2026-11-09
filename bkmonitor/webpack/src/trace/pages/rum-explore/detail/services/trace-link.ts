@@ -25,9 +25,11 @@
  */
 import { fetchEventStream } from '@/utils';
 
-/** 关联 Trace 的检索结果，跳转 Trace 检索页需要其所属的 APM 应用 */
+/** 关联 Trace 的检索结果，打开 Trace 详情需要其所属的 APM 应用与业务 */
 export interface IRumTraceInfo {
   app_name: string;
+  /** Trace 所属业务，跨业务检索时与当前 RUM 记录的业务不同 */
+  bk_biz_id?: number | string;
   trace_id: string;
 }
 
@@ -41,20 +43,8 @@ interface IRumSearchEvent {
 export const TRACE_SEARCH_BATCH_SIZE = 20;
 
 /**
- * @description 按 trace_id 全局检索 Trace 所属的 APM 应用
- * @param traceId 关联的 trace_id
- * @param bizId 业务 ID
- * @returns 未检索到时返回 null
- */
-export async function searchTraceInfo(traceId: string, bizId: number | string): Promise<IRumTraceInfo | null> {
-  if (!traceId) return null;
-  const res = await fetchEventStream(buildSearchUrl(traceId, bizId));
-  return res[0]?.items?.[0] ?? null;
-}
-
-/**
- * @description 批量检索 Trace 所属的 APM 应用
- * @param traceIds 关联的 trace_id 列表，内部去重
+ * @description 按 trace_id 全局检索 Trace 所属的 APM 应用，单条与批量共用同一实现
+ * @param traceIds 关联的 trace_id 列表，内部去重后按批检索
  * @param bizId 业务 ID
  * @param onData 每解析完一帧就回调该帧的命中项，调用方可边收边渲染
  * @param signal 中断信号，调用方切换上下文时终止在途请求
