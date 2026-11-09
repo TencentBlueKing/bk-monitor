@@ -66,6 +66,7 @@ import {
   RUM_COLUMN_CONFIG_KEY,
   RUM_COLUMN_LAYOUT_PRESET,
   RUM_DETAIL_SPAN_TYPES,
+  RUM_RECORD_ID_FIELD_MAP,
   RUM_RESIDENT_SETTING_KEY,
   RumModeEnum,
   SPAN_TYPE_FIELD,
@@ -442,7 +443,8 @@ export default defineComponent({
       const endSeconds = microToUnixSeconds(row?.end_time) ?? startSeconds;
       detailContext.value = {
         app_name: store.appName,
-        record_id: String(row?.[isViewMode ? VIEW_ID_FIELD : 'span_id'] ?? ''),
+        /** 记录 ID 按当前检索视角取行上的唯一键（View → view.id，Span → span_id），详情标题与检索条件共用 */
+        record_id: String(row?.[RUM_RECORD_ID_FIELD_MAP[store.mode]] ?? ''),
         span_type: isViewMode ? 'view' : String(row?.[SPAN_TYPE_FIELD] ?? ''),
         start_time: startSeconds ?? queryStart,
         end_time: endSeconds ?? queryEnd,

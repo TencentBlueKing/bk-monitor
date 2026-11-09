@@ -26,7 +26,7 @@
 // import { OUTCOME_TYPE_TONE_MAP, RUM_OUTCOME_TYPE_MAP } from '../../constants';
 import { RumRatingEnum } from '../../constants';
 import { formatUnitValueParts } from '../../utils';
-import { RumCardToneEnum, RumTimelineFilterCategoryEnum } from '../constants';
+import { RumCardToneEnum, RumTimelineFilterCategoryEnum, VITAL_METRIC_META } from '../constants';
 
 import type {
   IRumCardDescriptor,
@@ -77,7 +77,7 @@ const isXhrLike = (ctx: IRumCardResolveCtx) => {
  * Web Vitals 指标卡描述符工厂：主值为指标值，右上角按 rating_config 阈值挂评级标签，
  * 副文案为指标全称；extraFooter 用于 TTFB 追加分段耗时说明。
  */
-const vitalCard = (): IRumCardDescriptor => (data, ctx) => {
+const vitalCard = (): IRumCardDescriptor => data => {
   const metric = String(data['attributes.vital.metric'] || data.key || '').toUpperCase();
   const value = data['attributes.vital.value'];
   const hasValue = value !== null && value !== undefined && value !== '' && Number.isFinite(Number(value));
@@ -100,14 +100,22 @@ const vitalCard = (): IRumCardDescriptor => (data, ctx) => {
     [RumRatingEnum.POOR]: RumCardToneEnum.DANGER,
   };
 
-  const { value: formatValue, unit } = ctx.formatFieldParts(metric, value);
+  /**
+   * 单位口径：该卡片只注册在 view 视角的 web_vitals 分组，fields 里同类字段名为 web_vitals.*，
+   * 按指标名查不到字段元信息，故统一按 VITAL_METRIC_META 换算；
+   * CLS 无量纲（unit 为空）原样输出，未登记的指标按 ms 处理，与详情评级条的口径一致。
+   */
+  const metricUnit = VITAL_METRIC_META[metric.toLowerCase()]?.unit ?? 'ms';
+  const { text: formatValue, suffix } = metricUnit
+    ? formatUnitValueParts(value, metricUnit)
+    : { text: String(value ?? ''), suffix: '' };
 
   return [
     {
       label: metric,
       value: text(formatValue),
       hover: data.hover,
-      unit: { text: unit, tone: ratingToneMap[hitRating] },
+      unit: { text: suffix.trim(), tone: ratingToneMap[hitRating] },
       tone: ratingToneMap[hitRating],
       cardCls: `vital-card ${ratingToneMap[hitRating]}`,
     },

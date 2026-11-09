@@ -29,6 +29,7 @@ import type { Component, PropType } from 'vue';
 import { Alert, Button, Exception, Message, Sideslider } from 'bkui-vue';
 import { useI18n } from 'vue-i18n';
 
+import { RUM_RECORD_ID_FIELD_MAP, RumModeEnum } from '../constants';
 import DetailHeader from './components/detail-header/detail-header';
 import DetailSections from './components/detail-sections/detail-sections';
 import DetailSkeleton from './components/detail-skeleton/detail-skeleton';
@@ -137,8 +138,26 @@ export default defineComponent({
       return ['Resource(fetch)', 'Resource(xhr)'].includes(spanType as string);
     });
 
-    /** 标题栏展示的 span_id，优先取接口回传值 */
+    /** 标题栏展示的记录 ID：优先取上层传入的实际 record_id，接口回传值兜底 */
+    const recordId = computed(() => props.context?.record_id || detail.value?.span_id || '');
+    /** 链路上下文定位用的 Span ID：以接口回传值为准，记录 ID 兜底（View 视角下两者不同） */
     const spanId = computed(() => detail.value?.span_id || props.context?.record_id || '');
+
+    /** 详情视角：嵌套抽屉展示的是链路上下文里的单个 Span（record_id 为 span_id），固定按 Span 语义渲染 */
+    const detailMode = computed<RumModeType>(() => (props.nested ? RumModeEnum.SPAN : props.mode));
+
+    /** 标题文案随检索视角变化 */
+    const detailTitle = computed(() => {
+      const titleMap = {
+        [RumModeEnum.SESSION]: t('Session 详情'),
+        [RumModeEnum.VIEW]: t('View 详情'),
+        [RumModeEnum.SPAN]: t('Span 详情'),
+      };
+      return titleMap[detailMode.value] || t('Span 详情');
+    });
+
+    /** 标题栏的 ID 标签：按实际渲染视角（嵌套抽屉固定 Span）展示对应的字段名 */
+    const recordIdLabel = computed(() => RUM_RECORD_ID_FIELD_MAP[detailMode.value] || 'span_id');
 
     /** 当前 Span 所属的 View，链路上下文按它查询 */
     const viewId = computed(() => {
@@ -244,12 +263,12 @@ export default defineComponent({
           v-slots={{
             title: () => (
               <div class='rum-detail-title'>
-                <span class='title-text'>{t('Span 详情')}</span>
-                {spanId.value ? (
+                <span class='title-text'>{detailTitle.value}</span>
+                {recordId.value ? (
                   <span class='title-sub'>
                     <span class='sub-divider' />
-                    <span class='sub-label'>span_id:</span>
-                    <span class='sub-value'>{spanId.value}</span>
+                    <span class='sub-label'>{recordIdLabel.value}:</span>
+                    <span class='sub-value'>{recordId.value}</span>
                     {/* 分享链接只还原列表侧的详情上下文，嵌套抽屉不提供 */}
                     {props.nested ? null : (
                       <TemporaryShareNew

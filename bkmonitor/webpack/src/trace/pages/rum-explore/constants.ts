@@ -249,6 +249,13 @@ export const VIEW_COUNT_FIELDS = new Set(['error_count', 'request_count', 'actio
 /** Session 视角的行唯一键，同时是跨视角检索该会话的条件字段 */
 export const SESSION_ID_FIELD = 'attributes.session.id';
 
+/** 各视角详情记录的唯一键字段：列表取 record_id 与详情标题的 ID 标签共用 */
+export const RUM_RECORD_ID_FIELD_MAP: Record<RumModeType, string> = {
+  [RumModeEnum.SESSION]: SESSION_ID_FIELD,
+  [RumModeEnum.VIEW]: VIEW_ID_FIELD,
+  [RumModeEnum.SPAN]: 'span_id',
+};
+
 /** Session 视角数量统计列 → 下钻目标视角；下钻条件统一带当前会话 ID */
 export const SESSION_COUNT_FIELDS: Record<string, RumModeType> = {
   view_count: RumModeEnum.VIEW,
