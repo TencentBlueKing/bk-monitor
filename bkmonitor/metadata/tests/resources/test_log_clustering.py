@@ -712,6 +712,26 @@ def test_pattern_label_resolves_to_binding_through_bulk_router(clustering_datali
     assert models.ResultTable.objects.filter(bk_tenant_id="system", table_id=route).count() == 1
 
 
+@pytest.mark.parametrize("multi_tenant", [False, True])
+@pytest.mark.parametrize("target", ["raw_binding", "pattern_table"])
+def test_query_target_tenant_uses_bkbase_resource_identity(clustering_datalink, bkbase, settings, multi_tenant, target):
+    set_config()
+    attach_remotely(bkbase)
+    settings.ENABLE_MULTI_TENANT_MODE = multi_tenant
+    spec = bkbase["remote_sink"]["spec"]
+    ref = spec["raw_sink"] if target == "raw_binding" else spec["clustering"]["pattern_store"]["result_table"]
+    ref["tenant"] = "default"
+    status = GetLogClusteringStatusResource().request(
+        {"bk_tenant_id": "system", "table_id": LOG_TABLE_ID, "include_query_targets": True}
+    )
+    if multi_tenant:
+        assert status["query_targets"] is None
+        assert f"invalid {ref['kind']} reference" in status["errors"][0]["message"]
+    else:
+        assert status["query_targets"]["clustered"]["table_id"] == LOG_TABLE_ID
+        assert status["query_targets"]["pattern"]["query_index"] == PATTERN_INDEX
+
+
 @pytest.mark.parametrize("mode", ["update_original", "append"])
 def test_query_targets_follow_remote_result_binding(clustering_datalink, bkbase, mocker, mode):
     set_config()
@@ -912,13 +932,14 @@ def test_pending_pattern_resources_wait_but_failed_resources_report_error(cluste
 @pytest.mark.parametrize(
     "change", ["wrong_table", "other_tenant", "time_alias", "wrong_fixed_alias", "unregistered_cluster"]
 )
-def test_invalid_pattern_binding_does_not_publish_route(clustering_datalink, bkbase, change):
+def test_invalid_pattern_binding_does_not_publish_route(clustering_datalink, bkbase, change, settings):
     set_config()
     attach_remotely(bkbase)
     spec = bkbase[("ElasticSearchBinding", PATTERN_STORE["es_binding"]["name"])]["spec"]
     if change == "wrong_table":
         spec["data"] = {**spec["data"], "name": "wrong"}
     elif change == "other_tenant":
+        settings.ENABLE_MULTI_TENANT_MODE = True
         spec["storage"] = {**spec["storage"], "tenant": "other"}
     elif change == "unregistered_cluster":
         spec["storage"] = {**spec["storage"], "name": "unregistered"}

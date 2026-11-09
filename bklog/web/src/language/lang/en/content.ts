@@ -25,6 +25,10 @@
  */
 
 export default {
+  '准备聚类任务及 Kafka 绑定': 'Preparing the clustering task and Kafka binding',
+  接入数据链路并注册查询路由: 'Configuring the data link and registering query routes',
+  链路就绪后展示聚类结果: 'Clustering results appear once the data link is ready',
+  聚类接入失败: 'Clustering setup failed',
   正在开启聚类: 'Enabling clustering',
   聚类已开启: 'Clustering is enabled',
   正在更新聚类配置: 'Updating clustering configuration',

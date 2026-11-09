@@ -1,7 +1,7 @@
 import datetime
 from unittest.mock import MagicMock, Mock, patch
 
-from django.test import TestCase
+from django.test import SimpleTestCase, TestCase
 from django.utils import timezone
 
 from apps.log_clustering.constants import (
@@ -77,6 +77,17 @@ def create_enable_operation():
         },
     )
     return operation
+
+
+class TestQuixWorkerRegistration(SimpleTestCase):
+    def test_worker_loads_operation_and_recovery_tasks(self):
+        from config import celery_app
+
+        module = "apps.log_clustering.tasks.quix"
+        self.assertIn(module, celery_app.loader.default_modules)
+        celery_app.loader.import_default_modules()
+        self.assertIn(f"{module}.run_quix_clustering_operation", celery_app.tasks)
+        self.assertIn(f"{module}.resume_stale_quix_clustering_operations", celery_app.tasks)
 
 
 class TestQuixEnableRunner(TestCase):
@@ -281,6 +292,17 @@ class TestQuixEnableRunner(TestCase):
         self.bkfara.create_task.assert_called_once()
         operation.refresh_from_db()
         self.assertEqual([item["step"] for item in operation.steps], ["create_task", "read_binding"])
+
+    def test_rejected_create_does_not_reschedule(self):
+        error = ApiRequestError("ALGORITHM_MINIMUM_EXCEEDS_BUDGET")
+        error.http_status = 422
+        self.bkfara.create_task.side_effect = error
+
+        self.assertIsNone(self.run_operation())
+        self.operation.refresh_from_db()
+        self.assertEqual(self.operation.status, ClusteringOperationStatusEnum.FAILED.value)
+        self.assertIsNone(self.operation.next_retry_at)
+        self.assertIn("ALGORITHM_MINIMUM_EXCEEDS_BUDGET", self.operation.last_error)
 
     def test_wait_timeout_fails_operation(self):
         self.bkfara.get_task.return_value = {"status": "TRAINING"}

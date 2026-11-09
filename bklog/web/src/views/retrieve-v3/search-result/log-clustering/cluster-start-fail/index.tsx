@@ -33,7 +33,7 @@ import clusterImgGrayed2 from '@/images/cluster-img/clean-image-grayed2.png';
 import { type ClusteringConfigStatus } from '@/services/retrieve';
 import './index.scss';
 
-type StepStatus = keyof Omit<ClusteringConfigStatus, 'access_finished'>;
+type StepStatus = 'flow_create' | 'flow_run' | 'data_check';
 
 export default defineComponent({
   name: 'ClusterStartFail',
@@ -46,11 +46,13 @@ export default defineComponent({
   setup(props, { expose }) {
     const { t } = useLocale();
 
+    const isQuix = computed(() => Boolean(props.clusterStepData.quix));
     const stepInfoList = [
       {
         key: 'flow_create',
         title: t('模型创建'),
         description: t('系统将创建模型，并将该日志历史数据投入模型中。'),
+        quixDescription: t('准备聚类任务及 Kafka 绑定'),
         successImg: clusterImgGrayed1,
         unSuccessImg: clusterImg1,
       },
@@ -58,6 +60,7 @@ export default defineComponent({
         key: 'flow_run',
         title: t('模型启动'),
         description: t('模型首次启动准备，该过程应该会持续5-10分钟。'),
+        quixDescription: t('接入数据链路并注册查询路由'),
         successImg: clusterImgGrayed2,
         unSuccessImg: clusterImg2,
       },
@@ -65,6 +68,7 @@ export default defineComponent({
         key: 'data_check',
         title: t('预测准备'),
         description: t('针对已投入数据进行在线与离线分析，分析结束后，页面将展示聚类结果。'),
+        quixDescription: t('链路就绪后展示聚类结果'),
         successImg: clusterImg3,
         unSuccessImg: clusterImg3,
       },
@@ -72,6 +76,7 @@ export default defineComponent({
       key: StepStatus;
       title: string;
       description: string;
+      quixDescription: string;
       successImg: string;
       unSuccessImg: string;
     }[];
@@ -134,12 +139,16 @@ export default defineComponent({
                   class='icon-error'
                   type='close-circle-shape'
                 />
-                <i18n
-                  class='error-main-title'
-                  path='任务超时失败，请联系 {0}'
-                >
-                  <span>{t('BK 助手')}</span>
-                </i18n>
+                {isQuix.value ? (
+                  <span>{t('聚类接入失败')}</span>
+                ) : (
+                  <i18n
+                    class='error-main-title'
+                    path='任务超时失败，请联系 {0}'
+                  >
+                    <span>{t('BK 助手')}</span>
+                  </i18n>
+                )}
                 {/* <div class='dash-line'></div> */}
               </div>
             ) : (
@@ -155,12 +164,18 @@ export default defineComponent({
                     size: 'small',
                   }}
                 ></i>
-                <i18n
-                  class='time-tips'
-                  path='任务启动中，预计等待时长 {0} 分钟'
-                >
-                  <span class='time'>10 - 30</span>
-                </i18n>
+                {isQuix.value ? (
+                  <span>
+                    {props.clusterStepData.quix?.phase === 'reopening' ? t('正在重新开启聚类') : t('正在开启聚类')}
+                  </span>
+                ) : (
+                  <i18n
+                    class='time-tips'
+                    path='任务启动中，预计等待时长 {0} 分钟'
+                  >
+                    <span class='time'>10 - 30</span>
+                  </i18n>
+                )}
               </div>
             )}
             {errorMessage.value && (
@@ -185,7 +200,9 @@ export default defineComponent({
                       <div class='num-div'>{getNumDisplay(item.key)}</div>
                       <div class={[getStepStyleClass(item.key), 'title']}>{item.title}</div>
                     </div>
-                    <div class={[getStepStyleClass(item.key), 'description-text']}>{item.description}</div>
+                    <div class={[getStepStyleClass(item.key), 'description-text']}>
+                      {isQuix.value ? item.quixDescription : item.description}
+                    </div>
                   </div>
                 </div>
                 {index < stepInfoList.length - 1 && (
