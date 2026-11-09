@@ -1497,7 +1497,10 @@ class QueryConfig(AbstractConfig):
         if self.data_source_label == DataSourceLabel.BK_LOG_SEARCH:
             bk_biz_id = StrategyModel.objects.filter(id=self.strategy_id).values_list("bk_biz_id", flat=True).first()
             if bk_biz_id is not None and not data_source.is_unify_query_black_biz(bk_biz_id):
-                return
+                # 查询会丢掉的字段无法下推，仍要留在维度里，二次过滤才看得到值。
+                dimensions &= set(getattr(data_source, "DROPPED_WHERE_FIELDS", ()))
+                if not dimensions:
+                    return
         self.agg_dimension = list(set(self.agg_dimension) | dimensions)
 
     def _clean_empty_dimension(self):

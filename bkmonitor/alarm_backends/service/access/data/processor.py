@@ -39,7 +39,7 @@ from alarm_backends.core.storage.redis import Cache
 from alarm_backends.core.storage.redis_cluster import get_node_by_strategy_id
 from alarm_backends.management.hashring import HashRing
 from alarm_backends.service.access import base
-from alarm_backends.service.access.data.duplicate import ZERO_VALUE_RECORD_SUFFIX, Duplicate
+from alarm_backends.service.access.data.duplicate import VALUE_RECORD_SUFFIX, Duplicate
 from alarm_backends.service.access.data.filters import (
     ExpireFilter,
     HostStatusFilter,
@@ -750,12 +750,10 @@ class AccessDataProcess(BaseAccessDataProcess):
         # 用于在去重后 record_list 为空时，仍然能够更新 checkpoint，避免死循环
         max_queried_data_time = 0
 
-        # 日志关键字计数的 0 只表示暂未查到日志：在静态阈值下判为正常时，去重缓存只记“该点读到过 0”，
-        # 回看窗口内迟到的日志使计数变为非零后仍会被检测。非零值照常按 record_id 去重：
-        # 检测结果缓存按成员条数裁剪，同一时间点多次写入不同的值会挤掉恢复判断仍需要的旧点
+        # 日志计数的 0 只表示暂未查到日志：按取值去重，回看窗口内计数变化后仍会送检。
+        # 同一取值不重复送检。新取值由检测侧覆盖该时间点的旧结果，避免成员数把恢复窗口裁掉。
         log_count_detectors = self._build_log_count_threshold_detectors()
-        mark_zero = log_count_detectors is not None and self._is_threshold_normal(log_count_detectors, 0)
-        zero_record_ids = defaultdict(list)
+        value_record_ids = defaultdict(list)
 
         non_duplicate_records = []
 
@@ -773,12 +771,30 @@ class AccessDataProcess(BaseAccessDataProcess):
             if record_time > max_queried_data_time:
                 max_queried_data_time = record_time
 
-            zero_record_id = f"{record_id}{ZERO_VALUE_RECORD_SUFFIX}" if mark_zero and value == 0 else None
+            if log_count_detectors is not None:
+                value_token = str(int(value)) if isinstance(value, float) and value.is_integer() else str(value)
+                value_record_id = f"{record_id}{VALUE_RECORD_SUFFIX}{value_token}"
+                if dup_obj.is_duplicate_by_id(value_record_id, record_time):
+                    duplicate_counts += 1
+                    if have_priority:
+                        point = DataRecord(self.items, record)
+                        point.is_duplicate = True
+                        records.append(point)
+                else:
+                    point = DataRecord(self.items, record)
+                    # record_id 本身表示这个时间点已经送检过，下一次不同取值要覆盖旧结果。
+                    if dup_obj.is_duplicate_by_id(record_id, record_time):
+                        point.replaces_check_result = True
+                    else:
+                        non_duplicate_records.append(point)
+                    records.append(point)
+                    value_record_ids[record_time].append(value_record_id)
+                    if point.time > max_data_time:
+                        max_data_time = point.time
+                continue
 
             # 去重判断
-            if dup_obj.is_duplicate_by_id(record_id, record_time) or (
-                zero_record_id and dup_obj.is_duplicate_by_id(zero_record_id, record_time)
-            ):
+            if dup_obj.is_duplicate_by_id(record_id, record_time):
                 duplicate_counts += 1
                 # 有优先级的策略，重复数据需要保留，后续再过滤
                 if have_priority:
@@ -789,10 +805,7 @@ class AccessDataProcess(BaseAccessDataProcess):
                 # 非重复数据创建 DataRecord
                 point = DataRecord(self.items, record)
                 records.append(point)
-                if zero_record_id:
-                    zero_record_ids[record_time].append(zero_record_id)
-                else:
-                    non_duplicate_records.append(point)
+                non_duplicate_records.append(point)
 
                 # 只观察非重复数据
                 if point.time > max_data_time:
@@ -801,8 +814,8 @@ class AccessDataProcess(BaseAccessDataProcess):
         # 批量添加非重复记录到去重缓存
         if non_duplicate_records:
             dup_obj.add_records_batch(non_duplicate_records)
-        if zero_record_ids:
-            dup_obj.add_record_ids_batch(zero_record_ids)
+        if value_record_ids:
+            dup_obj.add_record_ids_batch(value_record_ids)
 
         # 保存到实例变量，供 push 方法使用
         self.max_queried_data_time = max_queried_data_time
@@ -934,13 +947,14 @@ class AccessDataProcess(BaseAccessDataProcess):
 
     def _build_log_count_threshold_detectors(self) -> list | None:
         """
-        拉取组内的 Item 均为日志关键字计数且只用静态阈值时，返回每个 Item 按级别分组的 Threshold 检测器；否则返回 None。
+        拉取组内的 Item 均为日志计数且只用静态阈值时，返回每个 Item 按级别分组的 Threshold 检测器；否则返回 None。
         去重缓存由拉取组内的 Item 共用，任一 Item 不满足都需按原逻辑去重。
         """
         from alarm_backends.service.detect.strategy.threshold import Threshold
 
         log_keyword_sources = {
             (DataSourceLabel.BK_LOG_SEARCH, DataTypeLabel.LOG),
+            (DataSourceLabel.BK_LOG_SEARCH, DataTypeLabel.TIME_SERIES),
             (DataSourceLabel.BK_MONITOR_COLLECTOR, DataTypeLabel.LOG),
         }
         item_detectors = []

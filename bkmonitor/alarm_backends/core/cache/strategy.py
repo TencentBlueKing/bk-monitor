@@ -333,6 +333,18 @@ class StrategyCacheManager(CacheManager):
             ),
         }
 
+    @staticmethod
+    def _agg_condition_identity(conditions: list) -> str:
+        """保留条件顺序，值列表顺序不参与分组。"""
+        normalized = []
+        for condition in conditions:
+            item = dict(condition)
+            value = item.get("value")
+            if isinstance(value, list):
+                item["value"] = sorted(value, key=lambda entry: json.dumps(entry, sort_keys=True, default=str))
+            normalized.append(item)
+        return count_md5(normalized, list_sort=False)
+
     @classmethod
     def get_query_md5(cls, bk_biz_id: int, item: dict) -> str:
         """
@@ -404,6 +416,14 @@ class StrategyCacheManager(CacheManager):
                     if condition["method"] in AdvanceConditionMethod:
                         params["agg_condition"] = []
                         break
+
+            # 条件顺序决定 AND/OR 分组。count_md5 默认排序列表，会把 (A AND B) OR C 与 A OR (C AND B) 收成同一查询。
+            if (
+                params["data_source_label"] == DataSourceLabel.BK_LOG_SEARCH
+                and params.get("agg_condition")
+                and not LogSearchTimeSeriesDataSource.is_unify_query_black_biz(params["bk_biz_id"])
+            ):
+                params["agg_condition"] = cls._agg_condition_identity(params["agg_condition"])
 
             configs.append(params)
 

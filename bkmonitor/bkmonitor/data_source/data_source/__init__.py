@@ -1594,6 +1594,8 @@ class BaseBkMonitorLogDataSource(DataSource, ABC):
 
     RESERVED_FIELDS: list[str] = ["_after_key_"]
     INNER_DIMENSIONS: list[str] = []
+    # 这些字段会从查询条件下推里去掉。要按它们过滤，只能把字段留在聚合维度里，靠返回值做二次过滤。
+    DROPPED_WHERE_FIELDS: frozenset[str] = frozenset({"bk_collect_config_id"})
     DISTINCT_METHODS: set[str] = {"AVG", "SUM", "COUNT"}
 
     EXTRA_DISTINCT_FIELD: str | None = None
@@ -1873,9 +1875,11 @@ class BaseBkMonitorLogDataSource(DataSource, ABC):
             if self.is_dimensions_field(condition["key"]):
                 condition["key"] = f"dimensions.{condition['key']}"
 
-        # 去除采集配置ID条件
-        where = [c for c in where if c["key"] != "dimensions.bk_collect_config_id"]
-        return where
+        # 采集配置 ID 不参与查询下推。调用方若要按它过滤，需把它留在聚合维度里做二次过滤。
+        dropped_keys = {
+            f"dimensions.{field}" if self.is_dimensions_field(field) else field for field in self.DROPPED_WHERE_FIELDS
+        }
+        return [condition for condition in where if condition["key"] not in dropped_keys]
 
     def _add_dimension_prefix(self, filter_dict: dict) -> dict:
         """

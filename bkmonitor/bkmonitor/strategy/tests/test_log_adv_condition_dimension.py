@@ -1,9 +1,11 @@
 import copy
+from types import SimpleNamespace
 
 import pytest
 
 from alarm_backends.core.cache.strategy import StrategyCacheManager
 from bkmonitor.strategy.new_strategy import QueryConfig
+from bkmonitor.strategy.partial_update import StrategyConfigUpdater
 from constants.data_source import DataSourceLabel, DataTypeLabel
 
 LOG_QUERY_CONFIG = {
@@ -46,3 +48,52 @@ def test_log_query_md5_distinguishes_exclude_values_unless_black_biz(settings, b
         return StrategyCacheManager.get_query_md5(bk_biz_id, {"query_configs": [config], "expression": "a"})
 
     assert (query_md5("context canceled") != query_md5("not allowed")) is distinguished
+
+
+def _exclude(value: str, connector: str | None = None) -> dict:
+    condition = {"key": "body", "method": "exclude", "value": [value]}
+    if connector:
+        condition["condition"] = connector
+    return condition
+
+
+def test_log_query_md5_keeps_and_or_order(settings):
+    settings.LOG_UNIFY_QUERY_BLACK_BIZ_LIST_ENV = []
+
+    def query_md5(conditions: list) -> str:
+        config = copy.deepcopy(LOG_QUERY_CONFIG)
+        config["agg_condition"] = conditions
+        return StrategyCacheManager.get_query_md5(2, {"query_configs": [config], "expression": "a"})
+
+    grouped_as_or_of_and = [_exclude("A"), _exclude("B", "and"), _exclude("C", "or")]
+    grouped_as_and_of_or = [_exclude("A"), _exclude("C", "or"), _exclude("B", "and")]
+
+    assert query_md5(grouped_as_or_of_and) != query_md5(grouped_as_and_of_or)
+
+
+def test_log_exclude_on_dropped_where_field_stays_in_dimension(mocker, settings):
+    settings.LOG_UNIFY_QUERY_BLACK_BIZ_LIST_ENV = []
+    strategy_model = mocker.patch("bkmonitor.strategy.new_strategy.StrategyModel")
+    strategy_model.objects.filter.return_value.values_list.return_value.first.return_value = 2
+    config = copy.deepcopy(LOG_QUERY_CONFIG)
+    config["agg_condition"] = [
+        {"key": "body", "method": "exclude", "value": ["context canceled"]},
+        {"key": "bk_collect_config_id", "method": "exclude", "value": ["9"], "condition": "and"},
+    ]
+    query_config = QueryConfig(1, 1, **config)
+
+    query_config.supplement_adv_condition_dimension()
+
+    assert query_config.agg_dimension == ["bk_collect_config_id"]
+
+
+def test_align_no_data_dimensions_drops_fields_the_query_no_longer_returns():
+    item = SimpleNamespace(
+        no_data_config={"is_enabled": True, "continuous": 5, "agg_dimension": ["body", "severity_text"]},
+        query_configs=[SimpleNamespace(agg_dimension=["severity_text"])],
+    )
+
+    StrategyConfigUpdater._align_no_data_dimensions(item)
+
+    assert item.no_data_config["agg_dimension"] == ["severity_text"]
+    assert item.no_data_config["is_enabled"] is True

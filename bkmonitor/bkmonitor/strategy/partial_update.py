@@ -161,6 +161,8 @@ class StrategyConfigUpdater:
             for item_patch in query_item_patches:
                 item: Item = cls._get_patch_item(candidate.items, candidate_items, item_patch)
                 candidate.supplement_inst_target_dimension(items=[item])
+                # 局部更新改不了无数据配置。查询不再返回的维度留在无数据维度里时，数据点会被当成无效，从而误报无数据。
+                cls._align_no_data_dimensions(item)
 
         # 完整序列化器检查字段之间的约束，其默认值不用于回写。优先级分组键留到差异判断后按需计算。
         strategy_dict: dict[str, Any] = candidate.to_dict(convert_dashboard=False, generate_priority_group_key=False)
@@ -380,6 +382,8 @@ class StrategyConfigUpdater:
                 [cls._without_id(config.to_dict()) for config in current_item.query_configs]
             ) != ([cls._without_id(config.to_dict()) for config in candidate_item.query_configs]):
                 change.query_configs = True
+            if current_item.no_data_config != candidate_item.no_data_config:
+                change.fields.add("no_data_config")
             if "algorithms" in item_patch and cls._normalize_collection(
                 [cls._without_id(config.to_dict()) for config in current_item.algorithms]
             ) != cls._normalize_collection([cls._without_id(config.to_dict()) for config in candidate_item.algorithms]):
@@ -435,6 +439,24 @@ class StrategyConfigUpdater:
             if change.query_configs or {"expression", "functions"} & change.fields:
                 return True
         return False
+
+    @staticmethod
+    def _align_no_data_dimensions(item: Item) -> None:
+        config = getattr(item, "no_data_config", None)
+        if not isinstance(config, dict):
+            return
+        dimensions = config.get("agg_dimension")
+        if not isinstance(dimensions, list) or not dimensions:
+            return
+        queried: set[str] = set()
+        for query_config in item.query_configs:
+            queried.update(getattr(query_config, "agg_dimension", None) or [])
+        kept = [dimension for dimension in dimensions if dimension in queried]
+        if kept == dimensions:
+            return
+        updated = dict(config)
+        updated["agg_dimension"] = kept
+        item.no_data_config = updated
 
     @staticmethod
     def _save_item(change: ItemPatchChange) -> None:
