@@ -17,6 +17,13 @@ from django.utils.translation import gettext as _
 
 from bkmonitor.models import BCSNode, BCSPodMonitor, BCSServiceMonitor
 from core.drf_resource import resource
+from monitor_web.k8s.core.filters import escape_promql_regex
+from monitor_web.k8s.core.pod_memory import (
+    POD_MEMORY_DIMENSIONS,
+    POD_MEMORY_IDENTITY,
+    POD_MEMORY_METRICS,
+    pod_memory_usage,
+)
 from monitor_web.models.scene_view import SceneViewModel, SceneViewOrderModel
 from monitor_web.scene_view.builtin import BuiltinProcessor
 from monitor_web.scene_view.builtin.constants import (
@@ -501,6 +508,8 @@ class KubernetesBuiltinProcessor(BuiltinProcessor):
                 query_configs = target["data"]["query_configs"]
                 for query_config in query_configs:
                     query_config["where"] = where
+                    if "overview_promql" in query_config:
+                        query_config["promql"] = query_config.pop("overview_promql")
 
         return overview_panels
 
@@ -1047,6 +1056,10 @@ class KubernetesBuiltinProcessor(BuiltinProcessor):
                 }
                 target = panel_param["target"]
                 if target:
+                    if view_config["id"] == "pod" and target["query_configs"][0]["field"] in POD_MEMORY_METRICS:
+                        panel["targets"].append(cls.pod_memory_panel_target(target, default_where))
+                        panels_to_show.append(panel)
+                        continue
                     query_configs = []
                     expression = target.get("expression", "A")
                     for index, qc in enumerate(target["query_configs"]):
@@ -1093,6 +1106,73 @@ class KubernetesBuiltinProcessor(BuiltinProcessor):
             view_config["panels"].append(
                 {"id": group["id"], "title": group["title"], "type": "row", "panels": panels_to_show}
             )
+
+    @classmethod
+    def pod_memory_panel_target(cls, target, where):
+        """Adapt built-in Pod panels while retaining their field IDs and RSS/WS meaning."""
+
+        def expression(scope):
+            # These are the existing built-in equality filters. Keep `where` as well
+            # for share authorization; the Prometheus source consumes inline matchers.
+            filters = ",".join(
+                '{}=~"^({})$"'.format(
+                    condition["key"],
+                    "|".join(
+                        "${" + value[1:] + ":regex}" if value.startswith("$") else escape_promql_regex(value)
+                        for value in condition["value"]
+                    ),
+                )
+                for condition in scope
+            )
+            queries = []
+            selected_usage = ""
+            for qc in target["query_configs"]:
+                groups = [*qc.get("group", []), "$group_by"]
+                field = qc["field"]
+                if field in POD_MEMORY_METRICS:
+                    if any(condition["key"] == "container_name" and condition["value"] for condition in scope):
+                        usage = f'{field}{{{filters},container_name!="",container_name!="POD"}} $time_shift'
+                        usage = f"sum by ({', '.join(dict.fromkeys((*POD_MEMORY_DIMENSIONS, *groups)))}) ({usage})"
+                    else:
+                        usage = pod_memory_usage(
+                            field,
+                            filters,
+                            dimensions=(*POD_MEMORY_DIMENSIONS, *groups),
+                            time_shift="$time_shift",
+                        )
+                    selected_usage = usage
+                else:
+                    # Aggregate the quota per Pod before the presentation method,
+                    # and retain workload identity even with a parent-only sample.
+                    quota_dimensions = ", ".join(dict.fromkeys((*POD_MEMORY_IDENTITY, *groups)))
+                    usage = f"sum by ({quota_dimensions}) ({field}{{{filters}}} $time_shift)"
+                    usage = (
+                        f"((count by ({', '.join(POD_MEMORY_DIMENSIONS)}) ({selected_usage}) * 0 + 1) "
+                        f"* on ({', '.join(POD_MEMORY_IDENTITY)}) group_right(workload_kind, workload_name) ({usage}))"
+                    )
+                queries.append(f"$method by ({', '.join(groups)}) ({usage})")
+            if len(queries) == 1:
+                return queries[0]
+            return f"({queries[0]}) / ({queries[1]}) * 100"
+
+        promql = expression(where)
+        query_config = {
+            **DEFAULT_GRAPH_PROMQL_QUERY_CONFIG,
+            "promql": promql,
+            "overview_promql": expression([]),
+            "where": where,
+            "functions": [{"id": "time_shift", "params": [{"id": "n", "value": "$time_shift"}]}],
+        }
+        return {
+            "data": {
+                "expression": "A",
+                "query_configs": [query_config],
+                "unit": "bytes" if len(target["query_configs"]) == 1 else "",
+            },
+            "datasource": "time_series",
+            "data_type": "time_series",
+            "api": "grafana.graphUnifyQuery",
+        }
 
     @classmethod
     def is_builtin_scene(cls, scene_id: str) -> bool:

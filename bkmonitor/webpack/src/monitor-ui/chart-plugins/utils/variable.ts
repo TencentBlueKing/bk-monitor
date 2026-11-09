@@ -44,6 +44,33 @@ export class VariablesService {
     }
     return scopedVar;
   }
+  /** 原生 PromQL 使用字符串分组、offset 与显式正则范围；结构化字段保留原变量类型。 */
+  private replacePromql(target: string, scopedVars?: ScopedVars): string {
+    this.regex.lastIndex = 0;
+    return target.replace(this.regex, (_match, var1, var2, fmt2, var3, _path, fmt3) => {
+      const variableName = var1 || var2 || var3;
+      let value = this.getVariableAtIndex(variableName);
+      if (value === undefined && scopedVars) {
+        value = this.getVariableValue(variableName, scopedVars);
+      }
+      if ((fmt2 || fmt3) === 'regex') {
+        const values = (Array.isArray(value) ? value : [value]).filter(
+          item => item !== undefined && item !== null && item !== ''
+        );
+        return values.length
+          ? values
+              .map(item => JSON.stringify(String(item).replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).slice(1, -1))
+              .join('|')
+          : '.*';
+      }
+      if (variableName === 'group_by') return Array.isArray(value) ? value.join(',') : (value ?? '');
+      if (variableName === 'time_shift') {
+        const timeShift = String(value || '').trim();
+        return !timeShift ? ' ' : /^offset\s/.test(timeShift) ? timeShift : `offset ${timeShift}`;
+      }
+      return value;
+    });
+  }
   constructor(variables?: ScopedVars) {
     this.index = variables;
   }
@@ -56,7 +83,7 @@ export class VariablesService {
     }
     this.regex.lastIndex = 0;
     let value: unknown;
-    target.replace(this.regex, (match: any, var1: any, var2: any, fmt2: any, var3: any) => {
+    target.replace(this.regex, (_match: any, var1: any, var2: any, _fmt2: any, var3: any) => {
       const variableName = var1 || var2 || var3;
       value = this.getVariableAtIndex(variableName);
       if (value === undefined && scopedVars) {
@@ -105,7 +132,8 @@ export class VariablesService {
       for (const [key, val] of Object.entries(data)) {
         if (typeof val === 'string') {
           if (this.hasVariables(val)) {
-            const v = this.replaceString(val.toString(), mergeVars);
+            const v =
+              key === 'promql' ? this.replacePromql(val, mergeVars) : this.replaceString(val.toString(), mergeVars);
             data[key] = v ?? undefined;
           }
         } else if (Array.isArray(val)) {

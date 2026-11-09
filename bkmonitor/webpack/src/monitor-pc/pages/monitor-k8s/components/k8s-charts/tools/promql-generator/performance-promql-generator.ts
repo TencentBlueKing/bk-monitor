@@ -34,9 +34,42 @@ import type { K8sBasePromqlGeneratorContext } from '../../typing';
  * @description K8s性能图表数据查询Promql生成器
  */
 export class K8sPerformancePromqlGenerator extends K8sBasePromqlGenerator {
+  private static createPodMemoryPromql(metric: string, context: K8sBasePromqlGeneratorContext): string {
+    const containers = context.filter_dict?.[K8sTableColumnKeysEnum.CONTAINER]?.filter(Boolean) || [];
+    const containerContext = containers.length
+      ? {
+          ...context,
+          groupByField: K8sTableColumnKeysEnum.CONTAINER,
+          resourceMap: new Map(context.resourceMap).set(K8sTableColumnKeysEnum.CONTAINER, containers.join('|')),
+        }
+      : context;
+    const filter = K8sBasePromqlGenerator.createCommonPromqlContent(containerContext);
+    const childUsage = `sum by(bcs_cluster_id,namespace,pod_name)(container_memory_working_set_bytes{${filter},container_name!=""} $time_shift)`;
+    // 先逐 Pod 选择总量；or 按序列存在性回退，父级为 0 时仍保留父级。
+    const usage = containers.length
+      ? childUsage
+      : `(sum by(bcs_cluster_id,namespace,pod_name)(pod_memory_working_set_bytes{${filter},metrics_path="/metrics/cadvisor"} $time_shift) or on(bcs_cluster_id,namespace,pod_name) ${childUsage})`;
+    const method = K8sBasePromqlGenerator.createCommonPromqlMethod(context);
+    const numerator = `${method}(${usage})`;
+    if (metric === 'container_memory_working_set_bytes') return numerator;
+    const denominator =
+      metric === 'kube_pod_memory_limits_ratio'
+        ? K8sBasePromqlGenerator.createContainerResourceLimit(containerContext, false)
+        : `kube_pod_container_resource_requests_memory_bytes{${filter}} $time_shift`;
+    return `${numerator} / ${method}(sum by(bcs_cluster_id,namespace,pod_name)(${denominator}))`;
+  }
+
   readonly promqlGenerateScene = SceneEnum.Performance;
 
   scenePrivatePromqlGenerateMain(metric: string, context: K8sBasePromqlGeneratorContext): string {
+    if (
+      context.groupByField === K8sTableColumnKeysEnum.POD &&
+      ['container_memory_working_set_bytes', 'kube_pod_memory_limits_ratio', 'kube_pod_memory_requests_ratio'].includes(
+        metric
+      )
+    ) {
+      return K8sPerformancePromqlGenerator.createPodMemoryPromql(metric, context);
+    }
     switch (metric) {
       case 'container_cpu_usage_seconds_total': // CPU使用量
         return `${K8sBasePromqlGenerator.createCommonPromqlMethod(context)}(rate(${metric}{${K8sBasePromqlGenerator.createCommonPromqlContent(context)}}[$interval] $time_shift))`;

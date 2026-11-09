@@ -463,6 +463,12 @@ export class LineChart
               item.apiFunc
             ),
           };
+          if (
+            this.viewOptions.method?.toLowerCase() === 'count' &&
+            item.data.query_configs?.some(config => typeof config.promql === 'string' && config.promql)
+          ) {
+            newParams.unit = 'none';
+          }
           // 主机监控ipv6特殊逻辑 用于去除不必要的group_by字段
           if (item.ignore_group_by?.length && newParams.query_configs.some(set => set.group_by?.length)) {
             newParams.query_configs = newParams.query_configs.map(config => ({
