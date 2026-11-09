@@ -657,7 +657,7 @@ FEATURE_TOGGLE = {
     "log_manage_v2": os.environ.get("BKAPP_FEATURE_LOG_MANAGE_V2", "on"),
     # 客户端日志
     "tgpa_task": os.environ.get("BKAPP_FEATURE_TGPA_TASK", "off"),
-    # 检索页 ES 部分结果仅通过后台 debug 业务白名单开启
+    # 检索页 ES 部分结果默认关闭，按业务灰度时使用 debug 和业务白名单
     "retrieve_partial_es_results": "off",
     # 场景化检索
     "scene_search": os.environ.get("BKAPP_FEATURE_SCENE_SEARCH", "off"),

@@ -947,10 +947,9 @@ class UnifyQueryHandler:
         index_set = self.index_set["index_set_obj"]
         if index_set.is_platform_index:
             return False
-        toggle = FeatureToggleObject.toggle("retrieve_partial_es_results")
-        if not toggle or toggle.status != "debug" or not toggle.biz_id_white_list:
-            return False
-        return space_uid_to_bk_biz_id(index_set.space_uid) in toggle.biz_id_white_list
+        return FeatureToggleObject.switch(
+            "retrieve_partial_es_results", biz_id=space_uid_to_bk_biz_id(index_set.space_uid)
+        )
 
     def search(self, search_type="default", is_export=False, allow_partial_es_results=False):
         """

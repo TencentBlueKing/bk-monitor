@@ -98,20 +98,19 @@ class PartialResultsTests(SimpleTestCase):
         handler.index_set_ids = [10]
         index = SimpleNamespace(is_platform_index=False, space_uid="bkcc__123")
         handler.index_set = {"index_set_obj": index}
-        toggles = self.enterContext(patch("apps.log_unifyquery.handler.base.FeatureToggleObject"))
+        load_toggle = self.enterContext(patch("apps.feature_toggle.handlers.toggle.FeatureToggleObject.toggle"))
         for status, businesses, expected in (
             ("debug", [123], True),
             ("debug", [124], False),
-            ("debug", [], False),
             ("off", [123], False),
-            ("on", [123], False),
+            ("on", [], True),
         ):
             with self.subTest(status=status, businesses=businesses):
-                toggles.toggle.return_value = SimpleNamespace(status=status, biz_id_white_list=businesses)
+                load_toggle.return_value = SimpleNamespace(status=status, biz_id_white_list=businesses)
                 self.assertEqual(handler.accepts_partial_page_results(page), expected)
-        toggles.toggle.return_value = None
+        load_toggle.return_value = None
         self.assertFalse(handler.accepts_partial_page_results(page))
-        toggles.toggle.return_value = SimpleNamespace(status="debug", biz_id_white_list=[123])
+        load_toggle.return_value = SimpleNamespace(status="on")
         for headers in (
             {},
             {"HTTP_X_BKAPI_JWT": "gateway", "HTTP_X_REQUESTED_WITH": "XMLHttpRequest"},
