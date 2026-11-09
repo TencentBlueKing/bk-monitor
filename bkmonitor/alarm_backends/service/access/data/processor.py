@@ -755,7 +755,7 @@ class AccessDataProcess(BaseAccessDataProcess):
 
         # 日志计数的 0 只表示暂未查到日志：按取值去重，回看窗口内计数变化后仍会送检。
         # 同一取值不重复送检。新取值由检测侧覆盖该时间点的旧结果，避免成员数把恢复窗口裁掉。
-        log_count_detectors = self._build_log_count_threshold_detectors()
+        value_item_ids = self._log_count_value_dedupe_item_ids()
         # 整批查询不完整时，不能用偏低的计数覆盖已经送检过的完整结果。
         query_is_partial = bool(getattr(getattr(first_item, "query", None), "is_partial", False))
         value_record_ids = defaultdict(list)
@@ -776,7 +776,7 @@ class AccessDataProcess(BaseAccessDataProcess):
             if record_time > max_queried_data_time:
                 max_queried_data_time = record_time
 
-            if log_count_detectors is not None:
+            if value_item_ids is not None:
                 value_token = str(int(value)) if isinstance(value, float) and value.is_integer() else str(value)
                 value_record_id = f"{record_id}{VALUE_RECORD_SUFFIX}{value_token}"
                 if query_is_partial and dup_obj.is_duplicate_by_id(record_id, record_time):
@@ -797,6 +797,9 @@ class AccessDataProcess(BaseAccessDataProcess):
                     # record_id 本身表示这个时间点已经送检过，下一次不同取值要覆盖旧结果。
                     if dup_obj.is_duplicate_by_id(record_id, record_time):
                         point.replaces_check_result = True
+                        for item in self.items:
+                            if item.id not in value_item_ids:
+                                point.is_retains[item.id] = False
                     else:
                         non_duplicate_records.append(point)
                     records.append(point)
@@ -957,19 +960,17 @@ class AccessDataProcess(BaseAccessDataProcess):
                 return False
         return True
 
-    def _build_log_count_threshold_detectors(self) -> list | None:
+    def _log_count_value_dedupe_item_ids(self) -> set | None:
         """
-        拉取组内的 Item 均为日志计数且只用静态阈值时，返回每个 Item 按级别分组的 Threshold 检测器；否则返回 None。
-        去重缓存由拉取组内的 Item 共用，任一 Item 不满足都需按原逻辑去重。
+        拉取组内的 Item 均为日志计数时，返回只用静态阈值的 Item id；不是日志计数或没有这类 Item 时返回 None。
+        同一时间点的改写取值只送给这些 Item，其他算法的 Item 仍按 record_id 只收一次。
         """
-        from alarm_backends.service.detect.strategy.threshold import Threshold
-
         log_keyword_sources = {
             (DataSourceLabel.BK_LOG_SEARCH, DataTypeLabel.LOG),
             (DataSourceLabel.BK_LOG_SEARCH, DataTypeLabel.TIME_SERIES),
             (DataSourceLabel.BK_MONITOR_COLLECTOR, DataTypeLabel.LOG),
         }
-        item_detectors = []
+        item_ids = set()
         for item in self.items:
             if len(item.data_sources) != 1 or not item.algorithms or not item.data_source_types <= log_keyword_sources:
                 return None
@@ -980,38 +981,9 @@ class AccessDataProcess(BaseAccessDataProcess):
             # 采集器日志关键字的 COUNT 在数据源构造时被改写为 SUM(event.count)，同样是命中次数
             if not (method == "COUNT" or (method == "SUM" and metrics[0].get("field") == "event.count")):
                 return None
-            if not self._is_all_static_threshold(item):
-                return None
-
-            level_detectors = defaultdict(list)
-            try:
-                for algorithm in item.algorithms:
-                    detector = Threshold(algorithm["config"], algorithm.get("unit_prefix", ""))
-                    level_detectors[int(algorithm["level"])].append(detector)
-            except Exception as e:
-                logger.warning(f"strategy({item.strategy.id}) item({item.id}) build threshold detectors failed: {e}")
-                return None
-            item_detectors.append((item, level_detectors))
-        return item_detectors
-
-    def _is_threshold_normal(self, item_detectors: list, value) -> bool:
-        """
-        判断值在各 Item 各级别的静态阈值下是否都正常。
-        与检测一致：同级别多个算法按连接符组合，未配置或非 or 时按 and。
-        """
-        from alarm_backends.service.detect import DataPoint
-
-        try:
-            for item, level_detectors in item_detectors:
-                data_point = DataPoint({"value": value, "time": 0, "record_id": ""}, item)
-                for level, detectors in level_detectors.items():
-                    results = [bool(detector.detect(data_point)) for detector in detectors]
-                    if any(results) if item.algorithm_connectors[level] == "or" else all(results):
-                        return False
-        except Exception as e:
-            logger.warning(f"strategy_group_key({self.strategy_group_key}) threshold check failed: {e}")
-            return False
-        return True
+            if self._is_all_static_threshold(item):
+                item_ids.add(item.id)
+        return item_ids or None
 
     def _can_merge_access_detect(self) -> bool:
         """

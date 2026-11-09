@@ -162,7 +162,7 @@ class StrategyConfigUpdater:
             for item_patch in query_item_patches:
                 item: Item = cls._get_patch_item(candidate.items, candidate_items, item_patch)
                 candidate.supplement_inst_target_dimension(items=[item])
-                # 只去掉这次从查询维度里删掉的字段。PromQL 的标签不在 agg_dimension 里，不能一起清掉。
+                # 只去掉这次从查询维度里删掉的字段。
                 previous_item: Item | None = current_items.get(item.id)
                 previous_configs = previous_item.query_configs if previous_item is not None else []
                 cls._align_no_data_dimensions(item, previous_configs)
@@ -450,6 +450,9 @@ class StrategyConfigUpdater:
             return
         dimensions = config.get("agg_dimension")
         if not isinstance(dimensions, list) or not dimensions:
+            return
+        # PromQL 等没有 agg_dimension 的查询，输出维度无法从配置得知，保留原无数据维度。
+        if any(not hasattr(query_config, "agg_dimension") for query_config in item.query_configs):
             return
         previous: set[str] = set()
         for query_config in previous_query_configs:

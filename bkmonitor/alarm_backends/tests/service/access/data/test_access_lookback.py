@@ -279,6 +279,58 @@ def test_log_count_threshold_cross_replaces_same_timestamp(mocker):
     assert pull(150) == []
 
 
+def test_mixed_algorithm_group_only_sends_rewritten_values_to_threshold_items(mocker):
+    client = redis.StrictRedis(
+        connection_pool=redis.ConnectionPool(
+            connection_class=fakeredis.FakeConnection, server=fakeredis.FakeServer(), decode_responses=True
+        )
+    )
+
+    def new_duplicate(*args, **kwargs):
+        duplicate = Duplicate(*args, **kwargs)
+        duplicate.client = client
+        return duplicate
+
+    mocker.patch("alarm_backends.service.access.data.processor.Duplicate", side_effect=new_duplicate)
+    strategy = SimpleNamespace(
+        id=1,
+        bk_biz_id=2,
+        bk_tenant_id="system",
+        config={"detects": [{"level": 2, "connector": "and"}]},
+        priority=None,
+        priority_group_key=None,
+        scenario="os",
+    )
+    threshold, new_series = (
+        Item(
+            {
+                "id": item_id,
+                "name": "COUNT",
+                "expression": "a",
+                "query_configs": [copy.deepcopy(LOG_TS_COUNT_QUERY)],
+                "algorithms": [algorithm],
+            },
+            strategy,
+        )
+        for item_id, algorithm in (
+            (1, {"type": "Threshold", "level": 2, "config": GTE_10, "unit_prefix": ""}),
+            (2, {"type": "NewSeries", "level": 2, "config": {}, "unit_prefix": ""}),
+        )
+    )
+
+    def pull(value):
+        process = AccessDataProcess("log-count-group")
+        process.items = [threshold, new_series]
+        process.from_timestamp = process.until_timestamp = 0
+        process.filter_duplicates([{"_time_": 3600, "_result_": value}])
+        process.dup_obj.refresh_cache()
+        return [[r.value for r in process.record_list if r.is_retains[item.id]] for item in (threshold, new_series)]
+
+    assert pull(1) == [[1], [1]]
+    assert pull(10) == [[10], []]
+    assert pull(10) == [[], []]
+
+
 def test_partial_log_count_does_not_overwrite_a_complete_value(mocker):
     client = redis.StrictRedis(
         connection_pool=redis.ConnectionPool(
