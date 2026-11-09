@@ -5,6 +5,7 @@
 import axios from 'axios';
 
 import http from '@/api';
+import { partialPageParams } from '@/common/search-partial-result';
 import { formatDate } from '@/common/util';
 import { handleTransformToTimestamp } from '@/components/time-range/utils';
 import { retrieveFieldCacheService, storeCacheService } from '@/storage';
@@ -169,6 +170,7 @@ export function requestSearchTotalAction({ state, getters }) {
     ...retrieveParams,
     bk_biz_id: state.bkBizId,
     ...(isScene ? {} : { index_set_ids: state.indexItem.ids }),
+    ...partialPageParams(isScene, state.indexItem.isUnionIndex),
     start_time: startTime,
     end_time: endTime,
     addition: formatAdditionalFields(state, [...getters.requestAddition, ...getCommonFilterAdditionWithValues(state)]),

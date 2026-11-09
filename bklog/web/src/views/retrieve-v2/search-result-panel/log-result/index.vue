@@ -40,6 +40,13 @@
           </span>
         </div>
         <ResultStorage />
+        <span
+          v-if="!isMonitorApm && !isMonitorTrace && indexSetQueryResult.is_partial"
+          class="partial-result-notice"
+          role="status"
+        >
+          {{ $t('查询结果可能不完整') }}
+        </span>
       </div>
       <div class="tools-more">
         <div class="operation-icons">
@@ -370,6 +377,13 @@
   @import '@/scss/mixins/flex.scss';
 
   .original-log-panel {
+    .partial-result-notice {
+      margin-left: 12px;
+      font-size: 12px;
+      color: #b77700;
+      white-space: nowrap;
+    }
+
     .original-log-panel-tools {
       position: sticky;
       top: var(--bklog-result-tools-sticky-top, var(--offset-search-bar, var(--top-searchbar-height, 0)));
@@ -409,9 +423,9 @@
         height: 32px;
         margin-left: 10px;
         cursor: pointer;
+        outline: none;
         background-color: #f0f1f5;
         border-radius: 2px;
-        outline: none;
         transition: boder-color 0.2s;
 
         &:hover {

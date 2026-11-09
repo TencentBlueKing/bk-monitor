@@ -62,6 +62,7 @@ from apps.log_search.permission import Permission
 from apps.log_search.utils import handle_es_query_error
 from apps.log_unifyquery.constants import BASE_OP_MAP, MAX_LEN_DICT, SEARCH_AFTER_KEY
 from apps.log_unifyquery.handler.mapping import UnifyQueryMappingHandler
+from apps.log_unifyquery.partial import is_partial_result
 from apps.log_unifyquery.utils import deal_time_format, transform_advanced_addition
 from apps.utils.cache import cache_five_minute
 from apps.utils.core.cache.cmdb_host import CmdbHostCache
@@ -835,8 +836,7 @@ class UnifyQueryHandler:
                 log_content_tmp = copy.deepcopy(log)
             except RecursionError:
                 logger.warning(
-                    "[desensitize] deepcopy failed due to deeply nested structure, "
-                    "falling back to shallow copy"
+                    "[desensitize] deepcopy failed due to deeply nested structure, falling back to shallow copy"
                 )
                 log_content_tmp = copy.copy(log)
 
@@ -889,9 +889,7 @@ class UnifyQueryHandler:
                         if original_value is None:
                             continue
 
-                    log[text_tuple] = log[text_tuple].replace(
-                        str(original_value), str(log[field_tuple])
-                    )
+                    log[text_tuple] = log[text_tuple].replace(str(original_value), str(log[field_tuple]))
 
             # 处理原文字段自身绑定的脱敏逻辑
             log = self.text_fields_desensitize_handler.transform_dict(log)
@@ -935,7 +933,19 @@ class UnifyQueryHandler:
         nested_dict = self.nested_dict_from_dotted_key(dotted_dict=highlight)
         return self.update_nested_dict(log, nested_dict)
 
-    def search(self, search_type="default", is_export=False):
+    def accepts_partial_page_results(self, requested):
+        """仅普通单索引集检索页可按索引集归属业务灰度。"""
+        if requested is not True or len(self.index_set_ids) != 1:
+            return False
+        index_set = self.index_set["index_set_obj"]
+        if index_set.is_platform_index:
+            return False
+        toggle = FeatureToggleObject.toggle("retrieve_partial_es_results")
+        if not toggle or toggle.status != "debug" or not toggle.biz_id_white_list:
+            return False
+        return space_uid_to_bk_biz_id(index_set.space_uid) in toggle.biz_id_white_list
+
+    def search(self, search_type="default", is_export=False, allow_partial_es_results=False):
         """
         search
         原始日志查询
@@ -968,12 +978,18 @@ class UnifyQueryHandler:
         search_dict["from"] = self.search_params["begin"]
         search_dict["limit"] = once_size
         search_dict["highlight"] = {"enable": self.highlight}
+        if allow_partial_es_results and not is_export:
+            search_dict["allow_partial_es_results"] = True
 
         # 预查询
         result = self.query_ts_raw(search_dict, pre_search=pre_search)
-        if pre_search and len(result["list"]) != once_size:
+        if pre_search and (
+            len(result["list"]) != once_size or (allow_partial_es_results and is_partial_result(result))
+        ):
             # 全量查询
             result = self.query_ts_raw(search_dict)
+        if allow_partial_es_results:
+            result["is_partial"] = is_partial_result(result)
         result = self._deal_query_result(result)
 
         # 脱敏配置日志原文检索 提前返回
@@ -992,24 +1008,21 @@ class UnifyQueryHandler:
 
         return result
 
-    def date_histogram(self):
+    def date_histogram(self, allow_partial_es_results=False):
         params = copy.deepcopy(self.base_dict)
         interval = self.search_params["interval"]
         group_field = self.search_params["group_field"]
 
         # 请求 unify-query
-        response = self._date_histogram_unify_query(interval, group_field, params)
-
-        if not response.get("series"):
-            return {"aggs": {}}
-
-        # 组装结果
-        return_data = self.obtain_result_data(
-            interval,
-            group_field,
-            response,
+        response = self._date_histogram_unify_query(
+            interval, group_field, params, allow_partial_es_results=allow_partial_es_results
         )
 
+        return_data = (
+            self.obtain_result_data(interval, group_field, response) if response.get("series") else {"aggs": {}}
+        )
+        if allow_partial_es_results:
+            return_data.update(is_partial=is_partial_result(response), status=response.get("status"))
         return return_data
 
     @staticmethod
@@ -1089,7 +1102,7 @@ class UnifyQueryHandler:
 
         return bcs_cluster_name
 
-    def _date_histogram_unify_query(self, interval, group_field, params):
+    def _date_histogram_unify_query(self, interval, group_field, params, allow_partial_es_results=False):
         """
         unify_query 查询 date_histogram
         """
@@ -1108,8 +1121,10 @@ class UnifyQueryHandler:
         params["metric_merge"] = "a"
         params["step"] = interval
         params["order_by"] = []
+        if allow_partial_es_results:
+            params["allow_partial_es_results"] = True
 
-        response = self.query_ts_reference(params)
+        response = self.query_ts_reference(params, raise_exception=allow_partial_es_results)
 
         return response
 

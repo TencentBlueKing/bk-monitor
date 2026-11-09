@@ -27,6 +27,7 @@
 import { computed, defineComponent, inject, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 
 import { formatNumberWithRegex } from '@/common/util';
+import { isPartialSearchResult, partialPageParams } from '@/common/search-partial-result';
 import BklogPopover from '@/components/bklog-popover';
 import GradeOption from '@/components/monitor-echarts/components/grade-option';
 import useLocale from '@/hooks/use-locale';
@@ -81,6 +82,10 @@ export default defineComponent({
 
     // 唯一状态机 + 代次号（防竞态），替代 isStart/finishPolling/isChartEmpty/isEmptySettled/isSearchingCanceled
     const trendStatus = ref<TrendStatus>('loading');
+    const isPartial = ref(false);
+    const hasQueryError = ref(false);
+    const isTotalKnown = ref(false);
+    let cachedIsPartial = false;
     let runningInterval = 'auto';
     let trendLoadSeq = 0;
     let logChartCancel: (() => void) | null = null;
@@ -268,6 +273,13 @@ export default defineComponent({
               break;
             }
 
+            if (!res?.result) {
+              hasQueryError.value = true;
+              setChartData(null, null, true);
+              break;
+            }
+            isPartial.value = isPartial.value || isPartialSearchResult(res.data);
+
             // P3 优化：对于大数据量使用 Worker 处理
             const bucketCount = res?.data?.aggs?.group_by_histogram?.buckets?.length ?? 0;
             if (bucketCount > 100 && processChartDataWithWorker) {
@@ -302,6 +314,7 @@ export default defineComponent({
             }
           } catch {
             if (isCurrentTrendLoad(seq)) {
+              hasQueryError.value = true;
               setChartData(null, null, true); // 清空图表数据
             }
             break;
@@ -335,6 +348,7 @@ export default defineComponent({
             : 'retrieve/getLogChartList';
         const queryData = {
           ...retrieveParams.value,
+          ...partialPageParams(store.getters.isSceneMode, isUnionSearch.value),
           addition: formatAdditionalFields(store.state, [
             ...requestAddition.value,
             ...getCommonFilterAddition(store.state),
@@ -445,14 +459,17 @@ export default defineComponent({
 
     // 加载趋势图数据
     const loadTrendData = () => {
-      // 场景化检索模式下，过滤条件为空时不加载趋势图
-      if (store.getters.isSceneMode && store.getters.isSceneFilterEmpty) {
-        markTrendReady();
-        return;
-      }
-
       invalidateTrendLoad();
       const seq = trendLoadSeq;
+      cachedIsPartial = isPartial.value;
+      isPartial.value = false;
+      hasQueryError.value = false;
+      isTotalKnown.value = false;
+      // 场景化检索模式下，过滤条件为空时不加载趋势图
+      if (store.getters.isSceneMode && store.getters.isSceneFilterEmpty) {
+        settleChartEmpty(seq);
+        return;
+      }
 
       cacheChartOptions();
       store.commit('retrieve/updateTotalCountLoaded', false);
@@ -472,13 +489,18 @@ export default defineComponent({
 
         try {
           // 1. 先请求总数（stream 检索 meta 可能已写入 indexSetQueryResult.total）
-          await store.dispatch('requestSearchTotal').catch(() => ({ result: false }));
+          const totalResponse = await store.dispatch('requestSearchTotal').catch(() => ({ result: false }));
           if (!isCurrentTrendLoad(seq)) {
             return;
           }
           store.commit('retrieve/updateTotalCountLoaded', true);
+          isTotalKnown.value = totalResponse?.result === true && !isPartialSearchResult(totalResponse.data);
           // 2. 结果为空：整轮前置请求结束后再结算空态（含 stream meta 兜底）
-          if (!getEffectiveSearchTotal(store.state)) {
+          if (
+            isTotalKnown.value &&
+            !getEffectiveSearchTotal(store.state) &&
+            !store.state.indexSetQueryResult.is_partial
+          ) {
             settleChartEmpty(seq);
             return;
           }
@@ -496,6 +518,7 @@ export default defineComponent({
         } catch (e) {
           console.error(e);
           if (isCurrentTrendLoad(seq)) {
+            hasQueryError.value = true;
             setChartData(null, null, true);
             setTrendStatus('ready', seq);
             markTrendReady();
@@ -521,6 +544,10 @@ export default defineComponent({
 
     addEvent(RetrieveEvent.TREND_GRAPH_CLEAR, () => {
       invalidateTrendLoad();
+      cachedIsPartial = false;
+      isPartial.value = false;
+      hasQueryError.value = false;
+      isTotalKnown.value = false;
       destroyChart();
       store.commit('SET_APP_STATE', { searchTotal: 0, tookTime: 0 });
       setTrendStatus('empty');
@@ -532,6 +559,7 @@ export default defineComponent({
       // 取消时若当前为空态则保持空态；有图则恢复取消前缓存
       if (!wasEmpty) {
         restoreChartOptions();
+        isPartial.value = cachedIsPartial;
         setTrendStatus('ready');
       } else {
         setTrendStatus('empty');
@@ -569,13 +597,25 @@ export default defineComponent({
             >
               <span class={['bk-icon', 'icon-down-shape', { 'is-flip': isFold.value }]} />
               <div class='title-name'>{t('总趋势')}</div>
-              <i18n
-                class='time-result'
-                path='（找到 {0} 条结果，用时 {1} 毫秒) {2}'
-              >
-                <span class='total-count'>{getShowTotalNum(totalCount.value)}</span>
-                <span>{tookTime.value}</span>
-              </i18n>
+              {isTotalKnown.value ? (
+                <i18n
+                  class='time-result'
+                  path='（找到 {0} 条结果，用时 {1} 毫秒) {2}'
+                >
+                  <span class='total-count'>{getShowTotalNum(totalCount.value)}</span>
+                  <span>{tookTime.value}</span>
+                </i18n>
+              ) : (
+                <span class='time-result'>{t('结果总数暂不可用')}</span>
+              )}
+              {isPartial.value && (
+                <span
+                  class='partial-result-notice'
+                  role='status'
+                >
+                  {t('查询结果可能不完整')}
+                </span>
+              )}
             </div>
             {/* 汇聚周期选择与分级设置 */}
             {!isFold.value && (
@@ -656,7 +696,14 @@ export default defineComponent({
           v-bkloading={{ isLoading: trendStatus.value === 'loading', size: 'mini' }}
           v-show={!isFold.value}
         >
-          {showEmpty.value ? (
+          {hasQueryError.value ? (
+            <div
+              class='trend-query-error'
+              role='alert'
+            >
+              {t('图表查询失败，请重试')}
+            </div>
+          ) : showEmpty.value ? (
             <bk-exception
               style={{ height: `${dynamicHeight.value}px` }}
               class='exception-wrap-item exception-part trend-chart-empty'

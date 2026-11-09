@@ -179,7 +179,9 @@ class AggsViewSet(APIViewSet):
         """
         data = self.params_valid(DateHistogramSerializer)
         data["index_set_ids"] = [index_set_id]
-        return Response(UnifyQueryHandler(data).date_histogram())
+        query_handler = UnifyQueryHandler(data)
+        allow_partial = query_handler.accepts_partial_page_results(request.data.get("allow_partial_es_results"))
+        return Response(query_handler.date_histogram(allow_partial_es_results=allow_partial))
 
     @list_route(methods=["POST"], url_path="aggs/union_search/date_histogram")
     def union_search_date_histogram(self, request, *args, **kwargs):

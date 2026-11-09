@@ -217,6 +217,7 @@ export const IndexSetQueryResult = {
   is_pagination_loading: false,
   exception_msg: '',
   is_error: false,
+  is_partial: false,
   search_count: 0,
   aggregations: {},
   _shards: {},

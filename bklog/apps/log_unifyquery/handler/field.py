@@ -13,6 +13,7 @@ import copy
 
 from apps.log_search.constants import MAX_FIELD_VALUE_LIST_NUM
 from apps.log_unifyquery.constants import FLOATING_NUMERIC_FIELD_TYPES, AggTypeEnum
+from apps.log_unifyquery.partial import require_complete_result
 from apps.utils.log import logger
 
 
@@ -32,14 +33,16 @@ class UnifyQueryFieldHandler(UnifyQueryHandler):
             logger.exception("query ts reference error code: %s, message: %s", error_code, error_message)
         return 0
 
-    def get_total_count(self):
+    def get_total_count(self, require_complete=False):
         """
         获取日志聚合总条数
         """
         search_dict = copy.deepcopy(self.result_merge_base_dict)
         for query in search_dict["query_list"]:
             query["function"] = [{"method": "count"}]
-        data = self.query_ts_reference(search_dict)
+        data = self.query_ts_reference(search_dict, raise_exception=require_complete)
+        if require_complete:
+            require_complete_result(data)
         return self.handle_count_data(data)
 
     def get_field_count(self):
