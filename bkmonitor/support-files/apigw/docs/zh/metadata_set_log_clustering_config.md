@@ -38,7 +38,7 @@ Pattern 默认使用源日志的 ES 集群。采用固定物理索引，字段�
 
 后台入口为 `MINI_CLUSTERING_CONFIG.feature_config.bkbase_quix.result_modes`，例如 `{"42": "append"}`（键为索引集 ID 字符串）。未配置的索引集默认回写。仅在首次开启时读取并保存到运行配置，后续过滤更新、操作重试和关闭重开沿用；修改环境配置不会改变已开启链路，不支持在线切换模式。
 
-`append` 时 metadata 自动注册 `bklog_<索引集ID>_clustered`，完整 BKBase 表 ID 为 `<存储业务ID>_bklog_<索引集ID>_clustered`。保留原日志字段，并追加 log_signature、log_cluster_distance_threshold、log_cluster_status（string）和 log_cluster_publish_revision（long）。结果表声明采用 BKBase 的 field_name、field_type、field_alias、is_dimension、field_index 字段格式。
+`append` 时 metadata 自动注册 `bklog_<索引集ID>_clustered`，完整 BKBase 表 ID 为 `<存储业务ID>_bklog_<索引集ID>_clustered`。保留原日志字段，并追加 `__log_signature`（string）和 `__log_cluster_publish_revision`（long）。不带前缀的同名业务字段仍按原日志字段保存。结果表声明采用 BKBase 的 field_name、field_type、field_alias、is_dimension、field_index 字段格式。
 
 独立结果表复用源日志 ES 集群、字段分词配置、轮转和保留设置，由 metadata 现有 ESStorage 能力准备索引与日期写别名。写别名前缀为 `write_%Y%m%d_<完整BKBase表ID>`，查询使用对应的日期读别名；它不是 Pattern 的固定索引。原表继续保存原文，聚类完成后 BKBase 向独立表写入原文及聚类字段。`_clustered` 指向独立结果表，`_pattern` 仍单独指向 Pattern 表。
 

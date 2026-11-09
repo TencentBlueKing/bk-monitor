@@ -14,6 +14,7 @@ import logging
 import re
 import secrets
 import string
+from collections.abc import Sequence
 from typing import TYPE_CHECKING, Any
 
 from django.conf import settings
@@ -25,6 +26,7 @@ from tenacity import retry, stop_after_attempt, wait_exponential
 from core.drf_resource import api
 from metadata import models
 from metadata.config import DATABASE_CONNECTION_NAME
+from metadata.models.constants import DT_TIME_STAMP
 from metadata.models.data_link.constants import MATCH_DATA_NAME_PATTERN, DataLinkNameScene
 
 logger = logging.getLogger("metadata")
@@ -407,7 +409,7 @@ def get_data_source_related_info(bk_data_id):
         return {}
 
 
-def generate_result_table_field_list(table_id, bk_tenant_id):
+def generate_result_table_field_list(table_id, bk_tenant_id, *, unique_field_list: Sequence[str] = ()):
     """
     生成结果表字段列表,供BkBase V4链路配置使用
     @param table_id: 监控平台结果表ID
@@ -429,10 +431,9 @@ def generate_result_table_field_list(table_id, bk_tenant_id):
         field_type = BKBASE_RESULT_TABLE_FIELD_TYPE_MAP.get(field["field_type"], field["field_type"])
         tag = field["tag"]
 
-        # 比较字段名，忽略大小写
-        if field_name.lower() == "dteventtimestamp".lower():
-            logger.info("generate_result_table_field_list: skip dteventtimestamp")
-            continue  # 跳过dtEventTimestamp字段
+        # BKBase 通常自动生成时间字段；ES 回写主键必须在结果表中显式声明。
+        if field_name.lower() == DT_TIME_STAMP.lower() and field_name not in unique_field_list:
+            continue
 
         # 如果tag不是 'dimension'，则 is_dimension 为 False
         is_dimension = tag == "dimension"

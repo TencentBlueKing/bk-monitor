@@ -1326,7 +1326,12 @@ class DataLink(models.Model):
             ).value
             datalink_option = LogV4DataLinkOption(**json.loads(option))
 
-            fields = generate_result_table_field_list(table_id=table_id, bk_tenant_id=self.bk_tenant_id)
+            es_config = datalink_option.es_storage_config if es_storage else None
+            fields = generate_result_table_field_list(
+                table_id=table_id,
+                bk_tenant_id=self.bk_tenant_id,
+                unique_field_list=es_config.unique_field_list if es_config else (),
+            )
             clean_rules = [clean_rule.model_dump() for clean_rule in datalink_option.clean_rules]
 
             existing_rt = (
@@ -1341,7 +1346,7 @@ class DataLink(models.Model):
                 namespace=self.namespace,
                 data_link_name=self.data_link_name,
                 name=rt_name,
-                defaults={"table_id": table_id},
+                defaults={"table_id": table_id, "data_type": "log"},
             )
 
             # 创建存储绑定配置
@@ -1349,8 +1354,7 @@ class DataLink(models.Model):
             bingding_configs: list[dict[str, Any]] = []
 
             # 创建ES存储绑定配置
-            if es_storage and datalink_option.es_storage_config:
-                storage_option = datalink_option.es_storage_config
+            if es_config:
                 existing_binding = (
                     existing_context.claim(ESStorageBindingConfig, lambda c: True)
                     if existing_context is not None
@@ -1379,8 +1383,8 @@ class DataLink(models.Model):
                     binding.compose_config(
                         storage_cluster_name=es_storage.storage_cluster.cluster_name,
                         write_alias_format=write_alias,
-                        unique_field_list=storage_option.unique_field_list,
-                        json_field_list=storage_option.json_field_list,
+                        unique_field_list=es_config.unique_field_list,
+                        json_field_list=es_config.json_field_list,
                         rt_name=result_table.name,
                     )
                 )

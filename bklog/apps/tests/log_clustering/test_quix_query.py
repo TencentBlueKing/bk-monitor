@@ -103,6 +103,13 @@ class TestQuixPatternQuery(TestCase):
         return obj
 
     def test_page_counts_from_clustered_and_templates_from_pattern(self):
+        self._check_page_counts()
+
+    def test_append_page_reads_system_signature_and_preserves_user_fields(self):
+        self.runtime.active_config["result_mode"] = "append"
+        self._check_page_counts()
+
+    def _check_page_counts(self):
         # 保留真实条件组装、响应解析和备注继承，只替换外部传输。
         self.start_patch("apps.log_clustering.handlers.pattern.PatternHandler._get_new_class", return_value=set())
 
@@ -119,8 +126,8 @@ class TestQuixPatternQuery(TestCase):
             "apps.log_unifyquery.handler.base.UnifyQueryApi.query_ts_reference",
             return_value={
                 "series": [
-                    {"group_keys": ["host", "log_signature"], "group_values": ["node", "a"], "values": [[0, 3]]},
-                    {"group_keys": ["host", "log_signature"], "group_values": ["node", "b"], "values": [[0, 2]]},
+                    {"group_keys": ["host", "signature"], "group_values": ["node", "a"], "values": [[0, 3]]},
+                    {"group_keys": ["host", "signature"], "group_values": ["node", "b"], "values": [[0, 2]]},
                 ]
             },
         )
@@ -131,13 +138,13 @@ class TestQuixPatternQuery(TestCase):
             "apps.log_unifyquery.handler.base.UnifyQueryApi.query_ts_raw",
             side_effect=[
                 {"list": [{"signature": "a", "pattern": "error <*>"}]},
-                {"list": [{"log_signature": "a", "message": "sample log", "host": "node"}]},
+                {"list": [{"log_signature": "business", "signature": "a", "message": "sample log", "host": "node"}]},
             ],
         )
         rows = self.handler.pattern_search()
         self.assertEqual([r["origin_log"] for r in rows], ["sample log", ""])
         self.assertEqual(raw.call_count, 2)
-        self.assertEqual(raw.call_args.args[0]["query_list"][0]["collapse"], {"field": "log_signature"})
+        self.assertEqual(raw.call_args.args[0]["query_list"][0]["collapse"], {"field": "signature"})
         self.assertEqual(
             [(row["signature"], row["count"], row["pattern"], row["group"]) for row in rows],
             [("a", 3, "error <*>", ["node"]), ("b", 2, "", ["node"])],
@@ -146,11 +153,9 @@ class TestQuixPatternQuery(TestCase):
         args = query.call_args.args[0]
         q = args["query_list"][0]
         self.assertEqual(q["table_id"], "bklog_index_set_42_clustered")
-        self.assertEqual(q["function"][0]["dimensions"], ["log_signature", "host"])
-        self.assertIn(
-            {"field_name": "log_cluster_distance_threshold", "op": "eq", "value": ["0.5"]},
-            q["conditions"]["field_list"],
-        )
+        self.assertEqual(q["function"][0]["dimensions"], ["signature", "host"])
+        threshold_filter = {"field_name": "log_cluster_distance_threshold", "op": "eq", "value": ["0.5"]}
+        self.assertNotIn(threshold_filter, q["conditions"]["field_list"])
         template_call = raw.call_args_list[0]
         self.assertEqual(template_call.kwargs["bk_tenant_id"], "system")
         template_request = template_call.args[0]
@@ -158,7 +163,9 @@ class TestQuixPatternQuery(TestCase):
         template = template_request["query_list"][0]
         self.assertEqual(template["table_id"], "bklog_index_set_42_pattern")
         conditions = {f["field_name"]: set(f["value"]) for f in template["conditions"]["field_list"]}
-        self.assertEqual(conditions, {"signature": {"a", "b"}, "index_set_id": {"42"}, "distance_threshold": {"0.5"}})
+        expected = {"signature": {"a", "b"}, "index_set_id": {"42"}}
+        self.assertEqual(conditions, expected)
+        self.assertEqual(template["conditions"]["condition_list"], ["and"])
 
     def test_historical_page_template_window_includes_later_refresh(self):
         self.start_patch(MODULE + ".get_local_param", return_value="Asia/Shanghai")
@@ -211,7 +218,7 @@ class TestQuixPatternQuery(TestCase):
         fields = query["query_list"][0]["conditions"]["field_list"]
         self.assertEqual(
             [(x["field_name"], x["value"]) for x in fields],
-            [("host", ["node"]), ("log_signature", ["a"]), ("log_cluster_distance_threshold", ["0.5"])],
+            [("host", ["node"]), ("signature", ["a"])],
         )
         self.assertEqual(query["query_list"][0]["table_id"], "bklog_index_set_42_clustered")
         self.assertEqual(params["addition"][-1]["field"], "__dist_05")
@@ -219,6 +226,38 @@ class TestQuixPatternQuery(TestCase):
         with self.assertRaises(ValidationError):
             result_query(42, self.runtime.active_config, params)
         self.assertEqual(QuixPatternHandler(self.runtime, {**self.params, "pattern_level": "07"}).pattern_search(), [])
+
+    def test_append_drilldown_preserves_business_field_and_resolves_signature(self):
+        config = {**self.runtime.active_config, "result_mode": "append"}
+        for field in ("__dist_05", "signature", "__log_signature"):
+            with self.subTest(field=field):
+                params = {
+                    **self.params,
+                    "addition": [
+                        {"field": "log_signature", "operator": "is", "value": ["business"]},
+                        {"field": field, "operator": "is", "value": ["model"]},
+                    ],
+                }
+                q = result_query(42, config, params).base_dict["query_list"][0]
+                self.assertEqual(q["table_id"], "bklog_index_set_42_clustered")
+                self.assertEqual(
+                    [(f["field_name"], f["value"]) for f in q["conditions"]["field_list"]],
+                    [("log_signature", ["business"]), ("signature", ["model"])],
+                )
+
+    def test_search_for_unprefixed_business_field_uses_regular_log_search(self):
+        view = SimpleNamespace(
+            params_valid=lambda _: {"addition": [{"field": "log_signature", "operator": "is", "value": ["app"]}]},
+            get_object=lambda: self.index,
+        )
+        with (
+            patch("apps.log_search.views.search_views.get_query_runtime") as runtime,
+            patch("apps.log_search.views.search_views.UnifyQueryHandler") as search,
+        ):
+            search.return_value.search.return_value = {"list": []}
+            SearchViewSet.search(view, SimpleNamespace(data={}, query_params={}), "42")
+        runtime.assert_not_called()
+        search.return_value.search.assert_called_once()
 
     def test_template_query_error_is_not_a_missing_template(self):
         raw = self.start_patch(MODULE + ".UnifyQueryApi.query_ts_raw", side_effect=RuntimeError("route unavailable"))
@@ -247,7 +286,7 @@ class TestQuixPatternQuery(TestCase):
         }
         raw = self.start_patch(
             "apps.log_unifyquery.handler.base.UnifyQueryApi.query_ts_raw",
-            return_value={"list": [{"log_signature": "a", "message": "original"}], "total": 1},
+            return_value={"list": [{"signature": "a", "message": "original"}], "total": 1},
         )
         self.start_patch("apps.log_unifyquery.handler.base.UnifyQueryHandler._analyze_field_length", return_value={})
         self.start_patch("apps.log_unifyquery.handler.base.UnifyQueryHandler._save_history")
@@ -258,7 +297,7 @@ class TestQuixPatternQuery(TestCase):
         self.assertEqual(q["table_id"], "bklog_index_set_42_clustered")
         self.assertEqual(
             [(f["field_name"], f["value"]) for f in q["conditions"]["field_list"]],
-            [("log_signature", ["a"]), ("log_cluster_distance_threshold", ["0.5"])],
+            [("signature", ["a"])],
         )
         page = SimpleNamespace(params_valid=lambda serializer: {**self.params, "pattern_level": "07"})
         self.assertEqual(PatternViewSet.search(page, request, "42").data, [])

@@ -27,6 +27,7 @@ from django.utils import timezone
 from rest_framework.exceptions import PermissionDenied, ValidationError
 
 from apps.api import UnifyQueryApi
+from apps.log_clustering.constants import QUIX_SIGNATURE_FIELD, SIGNATURE_FIELD
 from apps.log_clustering.handlers.pattern import PatternHandler
 from apps.log_clustering.handlers.quix.adapter import FILTER_OP_TO_METHOD
 from apps.log_clustering.models import LogClusteringRuntime
@@ -90,7 +91,7 @@ class ClusteringPreviewQuery(UnifyQueryHandler):
 
 
 def signature_condition(field):
-    return field in ("signature", "log_signature") or field.startswith("__dist_")
+    return field in (SIGNATURE_FIELD, QUIX_SIGNATURE_FIELD) or field.startswith("__dist_")
 
 
 def result_query(index_set_id, config, params):
@@ -103,8 +104,7 @@ def result_query(index_set_id, config, params):
             if field != f"__dist_{threshold.replace('.', '')}":
                 raise ValidationError("签名过滤条件与生效的聚类档位不一致")
         if signature_condition(field):
-            condition["field"] = "log_signature"
-    params["addition"].append({"field": "log_cluster_distance_threshold", "operator": "is", "value": [threshold]})
+            condition["field"] = SIGNATURE_FIELD
     return ClusteredLogQuery({**params, "index_set_ids": [index_set_id]})
 
 
@@ -147,26 +147,25 @@ class QuixPatternHandler(PatternHandler):
                     {"field": key, "operator": "is", "value": [value]} for key, value in zip(self._group_by, group)
                 ]
                 addition.append(
-                    {"field": "log_signature", "operator": "is one of", "value": [r["signature"] for r in batch]}
+                    {"field": SIGNATURE_FIELD, "operator": "is one of", "value": [r["signature"] for r in batch]}
                 )
                 params = {**self._query, "addition": self._query.get("addition", []) + addition}
                 query = result_query(self._index_set_id, config, params)
                 request = {**query.base_dict, "limit": len(batch)}
-                request["query_list"][0]["collapse"] = {"field": "log_signature"}
+                request["query_list"][0]["collapse"] = {"field": SIGNATURE_FIELD}
                 hits = query._deal_query_result(query.query_ts_raw(request))["origin_log_list"]
                 samples = {}
                 for hit in hits:
                     message = hit
                     for key in config["input_mapping"]["log"].split("."):
                         message = message.get(key, "") if isinstance(message, dict) else ""
-                    samples[hit.get("log_signature", hit.get("signature"))] = message
+                    samples[hit.get(SIGNATURE_FIELD)] = message
                 for row in batch:
                     row["origin_log"] = samples.get(row["signature"], "")
 
     def _get_pattern_aggs_result(self, index_set_id, query):
-        return result_query(
-            index_set_id, self.runtime.active_config, {**query, "agg_field": "log_signature"}
-        ).query_pattern()
+        config = self.runtime.active_config
+        return result_query(index_set_id, config, {**query, "agg_field": SIGNATURE_FIELD}).query_pattern()
 
     def _run_multi_execute(self, multi_execute_func):
         results = multi_execute_func.run(return_exception=True)
@@ -179,7 +178,6 @@ class QuixPatternHandler(PatternHandler):
         if not signatures:
             return []
         label = f"{BaseIndexSetHandler.get_data_label(self._index_set_id)}_pattern"
-        threshold = self.runtime.active_config["distance_threshold"]
         # 从页面开始时间多看一天；历史日志命中的签名也能读到页面结束后刷新的模板。
         page_start, _ = generate_time_range(
             "customized",
@@ -194,7 +192,6 @@ class QuixPatternHandler(PatternHandler):
             while batch:
                 fields = [
                     {"field_name": "index_set_id", "op": "eq", "value": [str(self._index_set_id)]},
-                    {"field_name": "distance_threshold", "op": "eq", "value": [threshold]},
                     {"field_name": "signature", "op": "eq", "value": batch},
                 ]
                 result = UnifyQueryApi.query_ts_raw(
@@ -210,7 +207,7 @@ class QuixPatternHandler(PatternHandler):
                                 "data_source": settings.UNIFY_QUERY_DATA_SOURCE,
                                 "field_name": "signature",
                                 "reference_name": "a",
-                                "conditions": {"field_list": fields, "condition_list": ["and", "and"]},
+                                "conditions": {"field_list": fields, "condition_list": ["and"]},
                                 "keep_columns": ["signature", "pattern"],
                             }
                         ],

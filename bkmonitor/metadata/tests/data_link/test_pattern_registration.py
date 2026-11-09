@@ -1,5 +1,6 @@
 import copy
 import datetime
+import json
 
 import pytest
 from django.utils import timezone
@@ -24,6 +25,70 @@ from metadata.tests.data_link.test_log_clustering_sink import (
 )
 
 pytestmark = pytest.mark.django_db(databases="__all__")
+
+
+@pytest.mark.parametrize("timestamp_is_key", [False, True])
+def test_log_source_and_append_table_match_es_document_keys(log_datalink, timestamp_is_key):
+    option = models.ResultTableOption.objects.get(
+        table_id=LOG_TABLE_ID, name=models.ResultTableOption.OPTION_V4_LOG_DATA_LINK
+    )
+    config = json.loads(option.value)
+    keys = ["log", "dtEventTimeStamp"] if timestamp_is_key else ["log"]
+    config["es_storage_config"]["unique_field_list"] = keys
+    option.value = json.dumps(config)
+    option.save(update_fields=["value"])
+    for name, kind in [("log", "string"), ("dtEventTimeStamp", "timestamp")]:
+        models.ResultTableField.objects.create(
+            table_id=LOG_TABLE_ID,
+            bk_tenant_id="system",
+            field_name=name,
+            field_type=kind,
+            tag="dimension",
+            is_config_by_user=True,
+        )
+
+    configs, _ = compose(*log_datalink)
+    source = next(c for c in configs if c["kind"] == "ResultTable")
+    assert source["spec"]["dataType"] == "log"
+    assert ("dtEventTimeStamp" in {f["field_name"] for f in source["spec"]["fields"]}) == timestamp_is_key
+
+    rt = models.ResultTableConfig.objects.get(table_id=LOG_TABLE_ID)
+    sink = create_clustering_sink(result={"mode": "append"})
+    configs, _ = compose(*log_datalink)
+    rt.refresh_from_db()
+    assert rt.data_type == "log"
+    sink.refresh_from_db()
+    for name in (source["metadata"]["name"], sink.result["result_table"]["name"]):
+        result = next(c for c in configs if c["kind"] == "ResultTable" and c["metadata"]["name"] == name)
+        binding = next(c for c in configs if c["kind"] == "ElasticSearchBinding" and c["spec"]["data"]["name"] == name)
+        fields = {f["field_name"]: f["field_type"] for f in result["spec"]["fields"]}
+        assert result["spec"]["dataType"] == "log"
+        assert binding["spec"]["unique_field_list"] == keys
+        assert set(keys) <= fields.keys()
+        assert fields.get("dtEventTimeStamp") == ("timestamp" if timestamp_is_key else None)
+
+    # 解绑、再次下发及重开复用同一源表；只有 Databus 的写入目标随 attached 变化。
+    for attached in (False, False, True):
+        sink.attached = attached
+        sink.save(update_fields=["attached"])
+        configs, _ = compose(*log_datalink)
+        rt.refresh_from_db()
+        result = next(c for c in configs if c["kind"] == "ResultTable" and c["metadata"]["name"] == rt.name)
+        assert rt.data_type == result["spec"]["dataType"] == "log"
+        assert ("dtEventTimeStamp" in {f["field_name"] for f in result["spec"]["fields"]}) == timestamp_is_key
+        databus = next(c for c in configs if c["kind"] == "Databus")
+        assert databus["spec"]["sinks"][0]["kind"] == ("LogClusteringSink" if attached else "ElasticSearchBinding")
+
+
+def test_existing_log_source_corrects_metric_without_clustering(log_datalink):
+    compose(*log_datalink)
+    rt = models.ResultTableConfig.objects.get(table_id=LOG_TABLE_ID)
+    rt.data_type = "metric"
+    rt.save(update_fields=["data_type"])
+    configs, _ = compose(*log_datalink)
+    rt.refresh_from_db()
+    assert rt.data_type == "log"
+    assert next(c for c in configs if c["kind"] == "ResultTable")["spec"]["dataType"] == "log"
 
 
 def test_append_registers_original_fields_and_separate_targets(log_datalink, mocker):
@@ -56,8 +121,8 @@ def test_append_registers_original_fields_and_separate_targets(log_datalink, moc
         "TimeBased": {"format": f"write_%Y%m%d_{storage.index_name}", "timezone": 0}
     }
     assert storage.index_body["mappings"]["properties"]["message"]["type"] == "text"
-    assert storage.index_body["mappings"]["properties"]["log_signature"]["type"] == "keyword"
-    assert storage.index_body["mappings"]["properties"]["log_cluster_publish_revision"]["type"] == "long"
+    assert storage.index_body["mappings"]["properties"]["__log_signature"]["type"] == "keyword"
+    assert storage.index_body["mappings"]["properties"]["__log_cluster_publish_revision"]["type"] == "long"
     assert sink.compose_config(RAW_SINK)["spec"]["clustering"]["result"] == sink.result
     remote = {(c["kind"], c["metadata"]["name"]): {**c, "status": {"phase": "Ok"}} for c in configs}
     datalink, _ = log_datalink
@@ -69,6 +134,22 @@ def test_append_registers_original_fields_and_separate_targets(log_datalink, moc
     assert targets["clustered"]["need_add_time"] is True
     assert targets["pattern"]["query_index"] == f"2_bklog_{BINDING['index_id']}_pattern"
     assert targets["pattern"]["need_add_time"] is False
+    assert set(fields) == {"message", "__log_signature", "__log_cluster_publish_revision"}
+    # 旧表重新生成时补齐系统字段，保留原日志中与旧系统字段同名的业务列。
+    models.ResultTableField.objects.filter(table_id=rt_model.table_id, field_name__in=RESULT_FIELDS).delete()
+    models.ResultTableField.objects.create(
+        table_id=LOG_TABLE_ID,
+        bk_tenant_id="system",
+        field_name="log_signature",
+        field_type="int",
+        tag="dimension",
+        is_config_by_user=True,
+    )
+    updated = prepare_clustering_stores(sink)[2]
+    declared = {f["field_name"]: f["field_type"] for f in updated["spec"]["fields"]}
+    assert declared["log_signature"] == "int"
+    assert declared["__log_signature"] == "string"
+    assert models.ResultTableField.objects.filter(table_id=rt_model.table_id, field_name__in=RESULT_FIELDS).count() == 2
     old_result = copy.deepcopy(sink.result)
     old_pattern = copy.deepcopy(sink.pattern_store)
     old_config = sink.compose_config(RAW_SINK)
