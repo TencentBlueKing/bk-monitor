@@ -335,7 +335,7 @@ class ArchiveHandler:
             )
         if archive.snapshot_days != snapshot_days:
             archive.snapshot_days = snapshot_days
-            archive.save(update_fields=["snapshot_days", "updated_at"])
+            archive.save(update_fields=["snapshot_days", "updated_at", "updated_by"])
             TransferApi.modify_result_table_snapshot({"table_id": collector.table_id, "snapshot_days": snapshot_days})
         return cls._to_collector_archive_info(archive)
 

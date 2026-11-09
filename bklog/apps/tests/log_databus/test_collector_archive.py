@@ -122,6 +122,16 @@ class CollectorArchiveHandlerTests(TestCase):
         transfer_api.modify_result_table_snapshot.assert_called_once_with({"table_id": TABLE_ID, "snapshot_days": 60})
         self.assertEqual(result["snapshot_days"], 60)
 
+    def test_upsert_updates_snapshot_days_records_operator(self):
+        with self.patch_metadata():
+            ArchiveHandler.upsert_collector_archive(self.collector_config_id, REPOSITORY_NAME, 30)
+            with mock.patch("apps.models.get_request_username", return_value="tester"):
+                ArchiveHandler.upsert_collector_archive(self.collector_config_id, REPOSITORY_NAME, 60)
+
+        archive = ArchiveConfig.objects.get(instance_id=self.collector_config_id)
+        self.assertEqual(archive.snapshot_days, 60)
+        self.assertEqual(archive.updated_by, "tester")
+
     def test_upsert_rejects_repository_change(self):
         with self.patch_metadata(repositories=[REPOSITORY_NAME, OTHER_REPOSITORY_NAME]):
             ArchiveHandler.upsert_collector_archive(self.collector_config_id, REPOSITORY_NAME, 30)
