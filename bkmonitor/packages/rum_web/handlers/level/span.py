@@ -20,7 +20,7 @@ from semconv.rum.constants import RumSpanType, SPAN_TYPE_COMMON_DISPLAY_FIELDS, 
 from rum_web.handlers.level.base import BaseRumLevelHandler
 from rum_web.handlers.query.span import SpanQuery
 from rum_web.handlers.builder.timeline import build as build_timeline
-from rum_web.handlers.builder.timeline import session_summary
+from rum_web.handlers.builder.timeline import summary as build_timeline_summary
 from rum_web.handlers.builder.utils import get_safe_number
 
 
@@ -100,8 +100,9 @@ class SpanLevelHandler(BaseRumLevelHandler):
         timeline = build_timeline(spans)
         if view_id:
             timeline["start_time"], timeline["end_time"] = self._view_time_range(spans)
-        else:
-            timeline.update(session_summary(self.query.query_session_time_range(record_id)))
+        timeline.update(
+            build_timeline_summary(spans, timeline["start_time"], timeline["end_time"], is_session=bool(session_id))
+        )
         return timeline
 
     @staticmethod

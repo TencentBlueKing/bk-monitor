@@ -24,27 +24,40 @@ from rum_web.handlers.builder.utils import get_safe_number
 SESSION_MAX_DURATION_US = 4 * 60 * 60 * 1_000_000
 
 
-def session_summary(period: dict[str, int | float | None]) -> dict[str, Any]:
-    """生命周期优先计算时长；缺失时使用观测跨度，四小时只用于判定过期。"""
-    start_time: int | float | None = period["start_time"]
-    end_time: int | float | None = period["end_time"]
-    observed_start: int | float | None = period["observed_start"]
-    observed_end: int | float | None = period["observed_end"]
+def summary(
+    spans: Sequence[dict[str, Any]],
+    start_time: int | float | None,
+    end_time: int | float | None,
+    *,
+    is_session: bool,
+) -> dict[str, Any]:
+    """从已查询的原始 Span 计算当前会话或 View 的时长和状态。"""
+    starts: list[int | float] = []
+    ends: list[int | float] = []
+    for span in spans:
+        if (start := get_safe_number(span.get("start_time"), None)) is not None:
+            starts.append(start)
+        if (end := get_safe_number(span.get("end_time"), None)) is not None:
+            ends.append(end)
+    observed_start: int | float | None = min(starts, default=None)
+    observed_end: int | float | None = max(ends, default=None)
     duration_start: int | float | None = start_time
     duration_end: int | float | None = end_time
     if start_time is None or end_time is None:
         duration_start, duration_end = observed_start, observed_end
+        if not is_session and start_time is not None:
+            duration_start = start_time
     duration: int | float | None = None
     if duration_start is not None and duration_end is not None and duration_end >= duration_start:
         duration = (duration_end - duration_start) / 1000
 
-    session_start: int | float | None = start_time if start_time is not None else observed_start
+    origin: int | float | None = start_time if start_time is not None else observed_start
     status: str | None = None
     if end_time is not None:
         status = "ended"
-    elif session_start is not None:
-        status = "expired" if time.time() * 1_000_000 - session_start >= SESSION_MAX_DURATION_US else "active"
-    return {"start_time": start_time, "end_time": end_time, "duration": duration, "session_status": status}
+    elif origin is not None:
+        status = "expired" if is_session and time.time() * 1_000_000 - origin >= SESSION_MAX_DURATION_US else "active"
+    return {"duration": duration, "status": status}
 
 
 @dataclass

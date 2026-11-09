@@ -20,6 +20,7 @@ from bkmonitor.data_source.utils.apm import FilterOperator, TraceDatasourceTarge
 from bkmonitor.iam import ActionEnum, ResourceEnum
 from rum_web.handlers.builder.span import build as build_span
 from rum_web.handlers.builder.timeline import build as build_timeline
+from rum_web.handlers.builder.timeline import summary as build_timeline_summary
 from rum_web.handlers.level.span import SpanLevelHandler
 from rum_web.models.application import Application
 from rum_web.query.resources import RumTimelineResource
@@ -317,11 +318,6 @@ class TestTimelineHandler:
     @pytest.mark.parametrize("scope", [{"session_id": "session-1"}, {"view_id": "view-1"}])
     def test_queries_once_even_when_result_reaches_limit(self, mocker, scope):
         handler = _handler()
-        summary = mocker.patch.object(
-            handler.query,
-            "query_session_time_range",
-            return_value={"start_time": None, "end_time": None, "observed_start": None, "observed_end": None},
-        )
         spans = [
             _view(),
             *(_span(f"resource-{index}", "resource", 1_010_000 + index) for index in range(9999)),
@@ -351,20 +347,10 @@ class TestTimelineHandler:
             sort=["start_time", "span_id"],
         )
         total.assert_not_called()
-        if "session_id" in scope:
-            summary.assert_called_once_with("session-1")
-        else:
-            summary.assert_not_called()
-            assert "duration" not in result
-            assert "session_status" not in result
+        assert "duration" in result and "status" in result
 
     def test_record_detail_and_timeline_reuse_vital_data(self, mocker):
         handler = _handler()
-        mocker.patch.object(
-            handler.query,
-            "query_session_time_range",
-            return_value={"start_time": None, "end_time": None, "observed_start": None, "observed_end": None},
-        )
         mocker.patch.object(handler, "RELATED_SPAN_LIMIT", 5)
         first = _view()
         latest = _view("latest", version=3, start_time=1_200_000, end_time=1_200_000)
@@ -413,6 +399,8 @@ class TestTimelineHandler:
 
         assert result["start_time"] == 1_234_000
         assert result["end_time"] == (1_800_000 if ended else None)
+        assert result["duration"] == 566
+        assert result["status"] == ("ended" if ended else "active")
         assert result["tree"] == [{"span_id": "view-span-1"}]
         assert query.call_args.kwargs["filters"] == [
             {"key": "attributes.view.id", "value": ["view-1"], "operator": FilterOperator.EQUAL},
@@ -425,6 +413,8 @@ class TestTimelineHandler:
         assert handler.timeline(view_id="absent") == {
             "start_time": None,
             "end_time": None,
+            "duration": None,
+            "status": None,
             "tree": [],
             "records": [],
         }
@@ -449,6 +439,83 @@ class TestTimelineHandler:
 
         assert result["start_time"] == expected_start
         assert result["end_time"] == expected_end
+
+
+class TestTimelineSummary:
+    @pytest.mark.parametrize(
+        "is_session,start,end,observed_start,observed_end,age,status,duration",
+        [
+            (True, 100, 1600, 0, 2000, 5 * 3600, "ended", 1.5),
+            (True, 100, None, 0, 2000, 4 * 3600 - 1, "active", 2),
+            (True, 100, None, 0, 2000, 4 * 3600, "expired", 2),
+            (True, None, None, 100, 2100, 4 * 3600, "expired", 2),
+            (True, None, 1600, 0, 2000, 3600, "ended", 2),
+            (False, 100, 1600, 500, 2000, 5 * 3600, "ended", 1.5),
+            (False, 100, None, 500, 2000, 5 * 3600, "active", 1.9),
+            (False, None, None, 100, 2100, 3600, "active", 2),
+            (False, 0, 0, 0, 0, 0, "ended", 0),
+            (True, 0, 0, 0, 0, 0, "ended", 0),
+            (True, 100, 99, 0, 2000, 3600, "ended", None),
+            (False, 100, 99, 0, 2000, 3600, "ended", None),
+            (True, None, None, None, None, 3600, None, None),
+            (False, None, None, None, None, 3600, None, None),
+        ],
+    )
+    def test_duration_and_status(
+        self, mocker, is_session, start, end, observed_start, observed_end, age, status, duration
+    ):
+        origin = start if start is not None else observed_start or 0
+        mocker.patch("rum_web.handlers.builder.timeline.time.time", return_value=origin / 1_000_000 + age)
+
+        result = build_timeline_summary(
+            [{"start_time": observed_start, "end_time": observed_end}], start, end, is_session=is_session
+        )
+
+        assert result == {"duration": duration, "status": status}
+
+    @pytest.mark.parametrize("is_session", [False, True])
+    @pytest.mark.parametrize("value", [None, "invalid", "nan", float("inf")])
+    def test_invalid_observation(self, is_session, value):
+        assert build_timeline_summary(
+            [{"start_time": value, "end_time": value}], None, None, is_session=is_session
+        ) == {"duration": None, "status": None}
+
+    @pytest.mark.parametrize("scope", [{"session_id": "session-1"}, {"view_id": "view-1"}])
+    def test_handler_uses_raw_spans_including_records_outside_tree(self, mocker, scope):
+        handler = _handler()
+        mocker.patch("rum_web.handlers.builder.timeline.time.time", return_value=2)
+        spans = [
+            _view(),
+            _span("vital", "vital", 1_010_000, attrs={"vital.metric": "fcp", "vital.value": 50}, end_time=1_050_000),
+        ]
+        query = mocker.patch.object(handler.query, "query_list", return_value=spans)
+
+        result = handler.timeline(**scope)
+
+        query.assert_called_once()
+        assert result["duration"] == 50
+        assert result["status"] == "active"
+        assert result["end_time"] is None
+        assert [record["span_id"] for record in result["records"]] == ["view-span-1"]
+
+    @pytest.mark.parametrize("ended", [False, True])
+    def test_handler_uses_session_lifecycle(self, mocker, ended):
+        handler = _handler()
+        mocker.patch("rum_web.handlers.builder.timeline.time.time", return_value=2)
+        spans = [
+            _span("start", "session", 1_000_000, None, {"session.phase": "start"}),
+            _view(start_time=1_100_000),
+            _span("resource", "resource", 1_300_000, end_time=1_500_000),
+        ]
+        if ended:
+            spans.append(_span("end", "session", 1_600_000, None, {"session.phase": "end"}))
+        mocker.patch.object(handler.query, "query_list", return_value=spans)
+
+        result = handler.timeline(session_id="session-1")
+
+        assert result["duration"] == (600 if ended else 500)
+        assert result["status"] == ("ended" if ended else "active")
+        assert result["end_time"] == (1_600_000 if ended else None)
 
 
 class TestTimelineQuery:

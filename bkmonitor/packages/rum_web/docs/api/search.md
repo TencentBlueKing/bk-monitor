@@ -1640,16 +1640,18 @@ POST /rum/search/timeline/
 | ---------- | -------------- | --------------------------------------------------------------------------------------------------------------------- |
 | start_time | Integer / Null | 开始时间（Unix 微秒级时间戳），按 `session_id` 查询时为会话开始时间，按 `view_id` 查询时为 View 开始时间，缺失时为 `null` |
 | end_time   | Integer / Null | 结束时间（Unix 微秒级时间戳），按 `session_id` 查询时为会话结束时间，按 `view_id` 查询时为 View 结束时间，未结束时为 `null` |
-| duration | Number / Null | 仅按 `session_id` 查询时返回，会话时长，单位毫秒，缺少有效时间或起止倒序时为 `null` |
-| session_status | String / Null | 仅按 `session_id` 查询时返回，`ended`（已结束）、`expired`（已过期）、`active`（存活中），无有效时间可判定时为 `null` |
+| duration | Number / Null | 当前会话或 View 的时长，单位毫秒，生命周期不完整时返回已观测时长，无法计算时为 `null` |
+| status | String / Null | 当前会话或 View 的状态，见下表，无有效时间可判定时为 `null` |
 | tree       | Array[Node]    | 节点树，顶层为 View 节点，按开始时间升序，按 `view_id` 查询时只有一个 View 节点，见 Node |
 | records    | Array[RecordDetail] | 节点详情，每项与同一 `span_id` 的 `record_detail` 返回一致 |
 
-会话摘要独立查询保留期内该会话的时间边界，不受 `10000` 条节点上限影响。`start_time` 和 `end_time` 仍只取 Session 生命周期事件，缺失时保留 `null`。
+| status | 会话 | View |
+| --- | --- | --- |
+| `ended` | 已收到 Session end | 已收到 View end |
+| `expired` | 未收到 end，距开始已满 `4 小时` | 不适用 |
+| `active` | 未收到 end，未满 `4 小时` | 未收到 View end |
 
-- `duration` 优先取完整 Session 生命周期的结束时间减开始时间，缺少任一端时取会话内最晚 `end_time` 减最早 `start_time`，微秒转毫秒。
-- `session_status` 优先判断是否收到有效 end 时间，有则为 `ended`；否则从 start/rotate 的最早开始时间计算，缺失时使用会话内最早 `start_time`，距服务端当前时间达到 `4 小时`为 `expired`，未达到为 `active`。
-- `active` 表示按生命周期推定存活，不代表用户此刻正在操作；不按 `15 分钟`无 Span 推定过期，过期不会将时长补成 `4 小时`。
+`active` 表示推定存活。未收到 end 时，`end_time` 保持 `null`。
 
 - Node
 
@@ -1663,7 +1665,7 @@ POST /rum/search/timeline/
   "start_time": 1788451565857000,
   "end_time": 1788451625500000,
   "duration": 59643,
-  "session_status": "ended",
+  "status": "ended",
   "tree": [
     {
       "span_id": "34e3b6ff1943346c",
