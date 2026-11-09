@@ -49,12 +49,10 @@ def test_log_source_and_append_table_match_es_document_keys(log_datalink, timest
 
     configs, _ = compose(*log_datalink)
     source = next(c for c in configs if c["kind"] == "ResultTable")
-    assert source["spec"]["dataType"] == "metric"
-    assert "dtEventTimeStamp" not in {f["field_name"] for f in source["spec"]["fields"]}
+    assert source["spec"]["dataType"] == "log"
+    assert ("dtEventTimeStamp" in {f["field_name"] for f in source["spec"]["fields"]}) == timestamp_is_key
 
-    # 模拟已下发的旧日志链路；下一次生成配置应原地纠正类型并保留资源身份。
     rt = models.ResultTableConfig.objects.get(table_id=LOG_TABLE_ID)
-    assert rt.data_type == "metric"
     sink = create_clustering_sink(result={"mode": "append"})
     configs, _ = compose(*log_datalink)
     rt.refresh_from_db()
@@ -82,10 +80,10 @@ def test_log_source_and_append_table_match_es_document_keys(log_datalink, timest
         assert databus["spec"]["sinks"][0]["kind"] == ("LogClusteringSink" if attached else "ElasticSearchBinding")
 
 
-def test_unregistered_log_source_preserves_existing_data_type(log_datalink):
+def test_existing_log_source_corrects_metric_without_clustering(log_datalink):
     compose(*log_datalink)
     rt = models.ResultTableConfig.objects.get(table_id=LOG_TABLE_ID)
-    rt.data_type = "log"
+    rt.data_type = "metric"
     rt.save(update_fields=["data_type"])
     configs, _ = compose(*log_datalink)
     rt.refresh_from_db()

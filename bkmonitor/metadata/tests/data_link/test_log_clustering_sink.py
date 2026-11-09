@@ -304,7 +304,7 @@ def test_compose_log_configs_with_attached_sink_only_replaces_databus_sinks(log_
 
     es_binding_ref = {"kind": "ElasticSearchBinding", "name": LOG_DATA_LINK_NAME, "namespace": "bklog"}
     clustering_config = find_config(configs, "LogClusteringSink")
-    assert find_config(plain_configs, "ResultTable")["spec"]["dataType"] == "metric"
+    assert find_config(plain_configs, "ResultTable") == find_config(configs, "ResultTable")
     assert find_config(configs, "ResultTable")["spec"]["dataType"] == "log"
     assert clustering_config["metadata"]["name"] == sink.name
     assert clustering_config["spec"]["raw_sink"] == es_binding_ref
