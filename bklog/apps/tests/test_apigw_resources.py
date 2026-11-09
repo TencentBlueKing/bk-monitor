@@ -31,6 +31,7 @@ PUBLIC_RESOURCES = {
     ("GET", "/databus/collectors/{collector_config_id}/archive/"),
     ("PUT", "/databus/collectors/{collector_config_id}/archive/"),
     ("DELETE", "/databus/collectors/{collector_config_id}/archive/"),
+    ("GET", "/databus/storage/{cluster_id}/repository/"),
     ("GET", "/databus_collectors/"),
     ("GET", "/databus_collectors/{collector_config_id}/"),
     ("GET", "/databus_collectors/{collector_config_id}/subscription_status/"),
@@ -192,6 +193,7 @@ class ApiGatewayResourcesTests(SimpleTestCase):
             "/api/v1/databus/restore/": {"post": "create"},
             "/api/v1/databus/restore/1/": {"put": "update", "delete": "destroy"},
             "/api/v1/databus/collectors/1/archive/": {"get": "archive", "put": "archive", "delete": "archive"},
+            "/api/v1/databus/storage/1/repository/": {"get": "repository"},
         }
 
         for path, actions in expected_actions.items():
