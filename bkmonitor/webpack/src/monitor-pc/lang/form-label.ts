@@ -2057,6 +2057,13 @@ export default {
   未命名工具: 'Unnamed tool',
   规划的工具调用: 'Planned tool calls',
   模型输出: 'Model output',
+  思考: 'Thinking',
+  输出: 'Output',
+  最后一轮输入: 'Last input round',
+  '已省略 {0} 项，可': '{0} items omitted, ',
+  渲染中: 'Rendering',
+  仅工具调用: 'Tool calls only',
+  '异常({0})': 'Exception({0})',
 
   // RUM 检索--详情
   会话: 'Session',

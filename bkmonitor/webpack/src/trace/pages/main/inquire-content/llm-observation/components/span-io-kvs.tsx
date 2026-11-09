@@ -28,6 +28,9 @@ import { type PropType, computed, defineComponent, nextTick, shallowRef, watch }
 
 import { useResizeObserver } from '@vueuse/core';
 import { Tag } from 'bkui-vue';
+import { useI18n } from 'vue-i18n';
+
+import MessageTooltip from '../../../../../components/message-tooltip/message-tooltip';
 
 import type { LlmKvPair } from '../../../llm-observation/utils/typings';
 import type { Instance } from 'tippy.js';
@@ -121,6 +124,7 @@ export default defineComponent({
     toolPreview: { type: Boolean, default: false },
   },
   setup(props) {
+    const { t } = useI18n();
     const rootRef = shallowRef<HTMLElement>();
     const clipIndex = shallowRef(-1);
     const clipPart = shallowRef<KvClipPart>('');
@@ -268,14 +272,20 @@ export default defineComponent({
               >
                 {item.key}
               </span>
-              <span
-                style={valueStyle}
-                class='llm-span-io-kv-value'
-                v-overflow-tips={{ content: sliceTooltipContent(item.value), placement: 'top' }}
+              <MessageTooltip
+                title={t('详细信息')}
+                detail={item.value}
+                placement='top'
+                onlyOnOverflow
               >
-                {props.toolPreview ? '' : ':'}
-                {item.value}
-              </span>
+                <span
+                  style={valueStyle}
+                  class='llm-span-io-kv-value'
+                >
+                  {props.toolPreview ? '' : ':'}
+                  {item.value}
+                </span>
+              </MessageTooltip>
             </span>
           );
         })}

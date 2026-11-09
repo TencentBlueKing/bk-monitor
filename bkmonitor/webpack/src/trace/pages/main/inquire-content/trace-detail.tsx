@@ -1474,6 +1474,7 @@ export default defineComponent({
           isFullscreen={this.isFullscreen}
           show={this.showSpanDetails}
           spanDetails={this.spanDetails as Span}
+          onChangeSpan={this.handleShowSpanDetails}
           onShow={v => (this.showSpanDetails = v)}
         />
       </Loading>

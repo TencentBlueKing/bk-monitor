@@ -229,6 +229,7 @@
 .span-details-sideslider-content {
   position: relative;
   height: calc(100vh - 52px);
+
   /* 与 .info-tab 吸顶高度对齐：padding-top 10px + header 36px；吸顶后与第二层再隔 4px */
   --span-info-tab-sticky-height: 46px;
   --llm-tab-sticky-gap: 4px;
@@ -238,6 +239,7 @@
   --llm-section-sticky-top: calc(
     var(--span-info-tab-sticky-height) + var(--llm-tab-sticky-gap) + var(--llm-io-toolbar-height)
   );
+
   /* 展开模块可视高度 = 视口 − 抽屉标题 − 三层吸顶 */
   --llm-expand-max-height: calc(
     100vh - var(--llm-sideslider-header-height) - var(--llm-section-sticky-top) - var(--llm-section-header-height)
@@ -254,9 +256,9 @@
     position: sticky;
     top: 0;
     z-index: 30;
-    isolation: isolate;
     padding: 10px 40px 0;
     background: #f2f6fc;
+    isolation: isolate;
 
     /* 吸顶后用白色填 4px 间隔，不占默认文档流高度 */
     &.is-stuck {
@@ -270,8 +272,8 @@
 
       /* 不要 width:100% 打到 setting：离开 LLM 后搜索卸掉，空 setting 会把 nav 挤成 0 */
       > div {
-        min-width: 0;
         gap: 8px;
+        min-width: 0;
       }
     }
 
@@ -279,9 +281,9 @@
     .bk-tab-header-nav,
     .bkmv3-tab-header-nav {
       flex: 0 1 auto;
+      gap: 8px;
       min-width: 0;
       overflow-x: auto;
-      gap: 8px;
     }
 
     /* 面板内容在 .content-list，这里的 section 会铺白底并把下层内容透出来 */
@@ -398,8 +400,7 @@
   .details-others {
     display: flex;
     flex-wrap: wrap;
-    column-gap: 24px;
-    row-gap: 8px;
+    gap: 8px 24px;
     margin-top: 8px;
 
     .other-item {
@@ -407,8 +408,8 @@
       flex: 0 0 auto;
       column-gap: 4px;
       align-items: center;
-      max-width: 100%;
       min-width: 0;
+      max-width: 100%;
 
       &:last-child {
         margin-right: 0;
@@ -422,9 +423,9 @@
       .content {
         min-width: 0;
         margin-top: 2px;
-        color: #4d4f56;
         overflow: hidden;
         text-overflow: ellipsis;
+        color: #4d4f56;
         white-space: nowrap;
 
         .content-detail-type {
@@ -568,7 +569,7 @@
 
     &.is-host-tab,
     &.is-container-tab {
-      padding: 0 40px 0 40px;
+      padding: 0 40px;
 
       .host-tab-container {
         height: 100%;
@@ -1056,6 +1057,7 @@
   &.is-main {
     height: 100%;
     padding: 0 16px;
+
     --span-info-tab-sticky-height: 54px;
 
     .header {
