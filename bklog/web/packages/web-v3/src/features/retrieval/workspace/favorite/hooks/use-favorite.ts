@@ -26,7 +26,7 @@
 
 import { ServicesInstance } from '@/platform/services';
 
-import { computed, ref } from 'vue';
+import { computed, onScopeDispose, ref, watch } from 'vue';
 
 import useStore from '@/shared/composables/use-store';
 import { RetrieveUrlResolver } from '@/app/state/url-resolver';
@@ -89,6 +89,7 @@ export const useFavorite = () => {
   const activeTab = ref('origin');
   const isShowCurrentIndexList = ref(window.__IS_MONITOR_APM__ ? true : RetrieveHelper.isViewCurrentIndex);
   const searchValue = ref('');
+  const searchKeyword = ref('');
   const isCollapseList = ref(true);
   const activeFavorite = ref<IFavoriteItem | null>(null);
   const expandedMap = ref<Record<string, boolean>>({});
@@ -161,7 +162,7 @@ export const useFavorite = () => {
     showList.value.map((group: IGroupItem) => ({
       ...group,
       favorites: group.favorites.filter(
-        ele => ele.created_by.includes(searchValue.value) || ele.name.includes(searchValue.value),
+        ele => ele.created_by.includes(searchKeyword.value) || ele.name.includes(searchKeyword.value),
       ),
     })),
   );
@@ -170,7 +171,7 @@ export const useFavorite = () => {
    * 搜索是否为空结果
    */
   const isSearchEmpty = computed(
-    () => !!searchValue.value?.length && filterDataList.value.filter(item => item.favorites.length).length === 0,
+    () => !!searchKeyword.value?.length && filterDataList.value.filter(item => item.favorites.length).length === 0,
   );
 
   /**
@@ -396,14 +397,24 @@ export const useFavorite = () => {
    * 防抖搜索
    */
   const debouncedSearch = debounce((value: string) => {
-    searchValue.value = value;
+    searchKeyword.value = value;
   }, 300);
+
+  watch(searchValue, (value) => {
+    if (!value) {
+      debouncedSearch.cancel();
+      searchKeyword.value = '';
+    } else {
+      debouncedSearch(value);
+    }
+  });
+  onScopeDispose(() => debouncedSearch.cancel());
 
   /**
    * 处理搜索输入
    */
   const handleSearchInput = (value: string): void => {
-    debouncedSearch(value);
+    searchValue.value = value;
   };
 
   /**
