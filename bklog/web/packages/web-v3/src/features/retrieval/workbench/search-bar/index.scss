@@ -275,6 +275,15 @@
               font-size: 20px;
             }
           }
+
+          > :deep(.bklog-star-line) {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 24px;
+            height: 24px;
+            margin-right: 2px;
+          }
         }
 
 
