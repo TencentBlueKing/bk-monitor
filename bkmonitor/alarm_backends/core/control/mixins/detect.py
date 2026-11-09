@@ -24,6 +24,22 @@ from constants.data_source import DataTypeLabel
 
 logger = logging.getLogger("core.control")
 
+
+def select_check_result_records(records, anomaly_records):
+    """同一 record_id 只保留批内最后一条，异常标记也只看这一条。"""
+    last_by_record_id = {}
+    for record in records:
+        last_by_record_id[record.record_id] = record
+    anomaly_record_ids = set()
+    for anomaly in anomaly_records:
+        point = anomaly.data_point
+        last = last_by_record_id.get(point.record_id)
+        if last is None:
+            continue
+        if last is point or (last.value == point.value and last.timestamp == point.timestamp):
+            anomaly_record_ids.add(point.record_id)
+    return last_by_record_id, anomaly_record_ids
+
 # 算法额外控制参数白名单
 # 这些参数会从算法配置中提取并传递给算法实例
 # 用于控制算法行为（如灰度开关、服务名称等）
@@ -171,7 +187,9 @@ class DetectMixin:
     def _update_monitor_d_checkpoint(self, records, anomaly_records, level):
         redis_pipeline = None
         last_checkpoints = {}
-        anomaly_record_ids = {i.data_point.record_id for i in anomaly_records}
+        # 同一 record_id 在一批里可能先后出现 0 和 1。只按最后一条的检测结果写缓存，
+        # 否则前一条的异常会把后一条正常值也写成 ANOMALY。
+        last_by_record_id, anomaly_record_ids = select_check_result_records(records, anomaly_records)
         latest_point_with_all = 0
         try:
             strategy_ttl = self.get_detect_result_expire_ttl()
@@ -182,6 +200,8 @@ class DetectMixin:
             dimensions_md5, timestamp = d.record_id.split(".")
             timestamp = int(timestamp)
             latest_point_with_all = max([latest_point_with_all, d.timestamp])
+            if last_by_record_id[d.record_id] is not d:
+                continue
 
             if redis_pipeline is None:
                 redis_pipeline = CheckResult.begin_pipeline_batch()

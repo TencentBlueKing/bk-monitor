@@ -4,6 +4,8 @@ from types import SimpleNamespace
 import pytest
 
 from alarm_backends.core.cache.strategy import StrategyCacheManager
+from bkmonitor.data_source import load_data_source
+from bkmonitor.data_source.data_source import LogSearchTimeSeriesDataSource
 from bkmonitor.strategy.new_strategy import QueryConfig
 from bkmonitor.strategy.partial_update import StrategyConfigUpdater
 from constants.data_source import DataSourceLabel, DataTypeLabel
@@ -71,7 +73,24 @@ def test_log_query_md5_keeps_and_or_order(settings):
     assert query_md5(grouped_as_or_of_and) != query_md5(grouped_as_and_of_or)
 
 
-def test_log_exclude_on_dropped_where_field_stays_in_dimension(mocker, settings):
+def test_log_plain_collect_id_eq_stays_in_where(settings):
+    settings.LOG_UNIFY_QUERY_BLACK_BIZ_LIST_ENV = []
+    source = LogSearchTimeSeriesDataSource(
+        table="bklog_index_set_1",
+        where=[
+            {"key": "bk_collect_config_id", "method": "eq", "value": ["9"]},
+            {"key": "dimensions.bk_collect_config_id", "method": "eq", "value": ["8"]},
+        ],
+        bk_biz_id=2,
+    )
+
+    keys = [condition["key"] for condition in source._get_where()]
+
+    assert "bk_collect_config_id" in keys
+    assert "dimensions.bk_collect_config_id" not in keys
+
+
+def test_log_exclude_on_plain_collect_id_is_not_added_as_dimension(mocker, settings):
     settings.LOG_UNIFY_QUERY_BLACK_BIZ_LIST_ENV = []
     strategy_model = mocker.patch("bkmonitor.strategy.new_strategy.StrategyModel")
     strategy_model.objects.filter.return_value.values_list.return_value.first.return_value = 2
@@ -84,16 +103,47 @@ def test_log_exclude_on_dropped_where_field_stays_in_dimension(mocker, settings)
 
     query_config.supplement_adv_condition_dimension()
 
-    assert query_config.agg_dimension == ["bk_collect_config_id"]
+    assert query_config.agg_dimension == []
+    assert load_data_source(DataSourceLabel.BK_LOG_SEARCH, DataTypeLabel.TIME_SERIES).drops_where_key(
+        "dimensions.bk_collect_config_id"
+    )
 
 
-def test_align_no_data_dimensions_drops_fields_the_query_no_longer_returns():
+def test_log_exclude_on_prefixed_collect_id_stays_in_dimension(mocker, settings):
+    settings.LOG_UNIFY_QUERY_BLACK_BIZ_LIST_ENV = []
+    strategy_model = mocker.patch("bkmonitor.strategy.new_strategy.StrategyModel")
+    strategy_model.objects.filter.return_value.values_list.return_value.first.return_value = 2
+    config = copy.deepcopy(LOG_QUERY_CONFIG)
+    config["agg_condition"] = [
+        {"key": "dimensions.bk_collect_config_id", "method": "exclude", "value": ["9"]},
+    ]
+    query_config = QueryConfig(1, 1, **config)
+
+    query_config.supplement_adv_condition_dimension()
+
+    assert query_config.agg_dimension == ["dimensions.bk_collect_config_id"]
+
+
+def test_align_no_data_dimensions_drops_only_dimensions_removed_from_the_query():
     item = SimpleNamespace(
         no_data_config={"is_enabled": True, "continuous": 5, "agg_dimension": ["body", "severity_text"]},
         query_configs=[SimpleNamespace(agg_dimension=["severity_text"])],
     )
 
-    StrategyConfigUpdater._align_no_data_dimensions(item)
+    StrategyConfigUpdater._align_no_data_dimensions(
+        item, [SimpleNamespace(agg_dimension=["body", "severity_text"])]
+    )
 
     assert item.no_data_config["agg_dimension"] == ["severity_text"]
     assert item.no_data_config["is_enabled"] is True
+
+
+def test_align_keeps_promql_nodata_labels_that_are_not_query_dimensions():
+    item = SimpleNamespace(
+        no_data_config={"is_enabled": True, "continuous": 5, "agg_dimension": ["service"]},
+        query_configs=[SimpleNamespace(agg_dimension=[])],
+    )
+
+    StrategyConfigUpdater._align_no_data_dimensions(item, [SimpleNamespace(agg_dimension=[])])
+
+    assert item.no_data_config["agg_dimension"] == ["service"]

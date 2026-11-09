@@ -753,6 +753,8 @@ class AccessDataProcess(BaseAccessDataProcess):
         # 日志计数的 0 只表示暂未查到日志：按取值去重，回看窗口内计数变化后仍会送检。
         # 同一取值不重复送检。新取值由检测侧覆盖该时间点的旧结果，避免成员数把恢复窗口裁掉。
         log_count_detectors = self._build_log_count_threshold_detectors()
+        # 整批查询不完整时，不能用偏低的计数覆盖已经送检过的完整结果。
+        query_is_partial = bool(getattr(getattr(first_item, "query", None), "is_partial", False))
         value_record_ids = defaultdict(list)
 
         non_duplicate_records = []
@@ -774,6 +776,13 @@ class AccessDataProcess(BaseAccessDataProcess):
             if log_count_detectors is not None:
                 value_token = str(int(value)) if isinstance(value, float) and value.is_integer() else str(value)
                 value_record_id = f"{record_id}{VALUE_RECORD_SUFFIX}{value_token}"
+                if query_is_partial and dup_obj.is_duplicate_by_id(record_id, record_time):
+                    duplicate_counts += 1
+                    if have_priority:
+                        point = DataRecord(self.items, record)
+                        point.is_duplicate = True
+                        records.append(point)
+                    continue
                 if dup_obj.is_duplicate_by_id(value_record_id, record_time):
                     duplicate_counts += 1
                     if have_priority:

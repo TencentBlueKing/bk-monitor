@@ -1594,8 +1594,8 @@ class BaseBkMonitorLogDataSource(DataSource, ABC):
 
     RESERVED_FIELDS: list[str] = ["_after_key_"]
     INNER_DIMENSIONS: list[str] = []
-    # 这些字段会从查询条件下推里去掉。要按它们过滤，只能把字段留在聚合维度里，靠返回值做二次过滤。
-    DROPPED_WHERE_FIELDS: frozenset[str] = frozenset({"bk_collect_config_id"})
+    # 加上 dimensions. 前缀之后才从下推条件里去掉。日志检索不加前缀，顶层 bk_collect_config_id 仍会下推。
+    DROPPED_WHERE_KEY = "dimensions.bk_collect_config_id"
     DISTINCT_METHODS: set[str] = {"AVG", "SUM", "COUNT"}
 
     EXTRA_DISTINCT_FIELD: str | None = None
@@ -1829,6 +1829,13 @@ class BaseBkMonitorLogDataSource(DataSource, ABC):
         return field not in self.INNER_DIMENSIONS and not field.startswith("dimensions")
 
     @classmethod
+    def drops_where_key(cls, key: str) -> bool:
+        """agg_condition 中的 key 经 _get_where 改写后是否会被丢掉。"""
+        if cls.is_dimensions_field(cls, key):
+            key = f"dimensions.{key}"
+        return key == cls.DROPPED_WHERE_KEY
+
+    @classmethod
     def _get_datasource(cls) -> str:
         return "bkapm"
 
@@ -1875,11 +1882,8 @@ class BaseBkMonitorLogDataSource(DataSource, ABC):
             if self.is_dimensions_field(condition["key"]):
                 condition["key"] = f"dimensions.{condition['key']}"
 
-        # 采集配置 ID 不参与查询下推。调用方若要按它过滤，需把它留在聚合维度里做二次过滤。
-        dropped_keys = {
-            f"dimensions.{field}" if self.is_dimensions_field(field) else field for field in self.DROPPED_WHERE_FIELDS
-        }
-        return [condition for condition in where if condition["key"] not in dropped_keys]
+        # 只去掉已经写成 dimensions.bk_collect_config_id 的条件。日志检索不加前缀，顶层字段名保持下推。
+        return [condition for condition in where if condition["key"] != self.DROPPED_WHERE_KEY]
 
     def _add_dimension_prefix(self, filter_dict: dict) -> dict:
         """

@@ -277,3 +277,63 @@ def test_log_count_threshold_cross_replaces_same_timestamp(mocker):
     assert len(higher) == 1
     assert higher[0].replaces_check_result is True
     assert pull(150) == []
+
+
+def test_partial_log_count_does_not_overwrite_a_complete_value(mocker):
+    client = redis.StrictRedis(
+        connection_pool=redis.ConnectionPool(
+            connection_class=fakeredis.FakeConnection, server=fakeredis.FakeServer(), decode_responses=True
+        )
+    )
+
+    def new_duplicate(*args, **kwargs):
+        duplicate = Duplicate(*args, **kwargs)
+        duplicate.client = client
+        return duplicate
+
+    mocker.patch("alarm_backends.service.access.data.processor.Duplicate", side_effect=new_duplicate)
+    strategy = SimpleNamespace(
+        id=1,
+        bk_biz_id=2,
+        bk_tenant_id="system",
+        config={"detects": [{"level": 2, "connector": "and"}]},
+        priority=None,
+        priority_group_key=None,
+        scenario="os",
+    )
+    item = Item(
+        {
+            "id": 1,
+            "name": "COUNT",
+            "expression": "a",
+            "query_configs": [copy.deepcopy(LOG_TS_COUNT_QUERY)],
+            "algorithms": [{"type": "Threshold", "level": 2, "config": GTE_10, "unit_prefix": ""}],
+        },
+        strategy,
+    )
+
+    def pull(value, partial=False):
+        item.query.is_partial = partial
+        process = AccessDataProcess("log-count-group")
+        process.items = [item]
+        process.from_timestamp = process.until_timestamp = 0
+        process.filter_duplicates([{"_time_": 3600, "_result_": value}])
+        process.dup_obj.refresh_cache()
+        return process.record_list
+
+    assert len(pull(11)) == 1
+    assert pull(1, partial=True) == []
+    assert pull(11) == []
+
+
+def test_same_batch_uses_the_latest_value_for_the_check_result():
+    from alarm_backends.core.control.mixins.detect import select_check_result_records
+
+    earlier = SimpleNamespace(record_id="md5.3600", value=0, timestamp=3600)
+    latest = SimpleNamespace(record_id="md5.3600", value=1, timestamp=3600)
+    anomaly = SimpleNamespace(data_point=earlier)
+
+    last_by_record_id, anomaly_record_ids = select_check_result_records([earlier, latest], [anomaly])
+
+    assert last_by_record_id["md5.3600"] is latest
+    assert anomaly_record_ids == set()

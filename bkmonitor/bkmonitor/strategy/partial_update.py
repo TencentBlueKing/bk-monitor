@@ -158,11 +158,14 @@ class StrategyConfigUpdater:
         ]
         if query_item_patches:
             candidate_items: dict[int, Item] = {item.id: item for item in candidate.items}
+            current_items: dict[int, Item] = {item.id: item for item in current.items}
             for item_patch in query_item_patches:
                 item: Item = cls._get_patch_item(candidate.items, candidate_items, item_patch)
                 candidate.supplement_inst_target_dimension(items=[item])
-                # 局部更新改不了无数据配置。查询不再返回的维度留在无数据维度里时，数据点会被当成无效，从而误报无数据。
-                cls._align_no_data_dimensions(item)
+                # 只去掉这次从查询维度里删掉的字段。PromQL 的标签不在 agg_dimension 里，不能一起清掉。
+                previous_item: Item | None = current_items.get(item.id)
+                previous_configs = previous_item.query_configs if previous_item is not None else []
+                cls._align_no_data_dimensions(item, previous_configs)
 
         # 完整序列化器检查字段之间的约束，其默认值不用于回写。优先级分组键留到差异判断后按需计算。
         strategy_dict: dict[str, Any] = candidate.to_dict(convert_dashboard=False, generate_priority_group_key=False)
@@ -441,17 +444,23 @@ class StrategyConfigUpdater:
         return False
 
     @staticmethod
-    def _align_no_data_dimensions(item: Item) -> None:
+    def _align_no_data_dimensions(item: Item, previous_query_configs: list) -> None:
         config = getattr(item, "no_data_config", None)
         if not isinstance(config, dict):
             return
         dimensions = config.get("agg_dimension")
         if not isinstance(dimensions, list) or not dimensions:
             return
-        queried: set[str] = set()
+        previous: set[str] = set()
+        for query_config in previous_query_configs:
+            previous.update(getattr(query_config, "agg_dimension", None) or [])
+        current: set[str] = set()
         for query_config in item.query_configs:
-            queried.update(getattr(query_config, "agg_dimension", None) or [])
-        kept = [dimension for dimension in dimensions if dimension in queried]
+            current.update(getattr(query_config, "agg_dimension", None) or [])
+        removed = previous - current
+        if not removed:
+            return
+        kept = [dimension for dimension in dimensions if dimension not in removed]
         if kept == dimensions:
             return
         updated = dict(config)
