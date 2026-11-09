@@ -1942,6 +1942,7 @@ K8S_PLUGIN_COLLECT_CLUSTER_ID = ""
 #     },
 #     "config_json": []
 # }
+# 可选 skill_repository_url：各环境配置 Skill 仓库 HTTPS 首页，留空时仅展示上传说明。
 TENCENT_CLOUD_METRIC_PLUGIN_CONFIG = {}
 TENCENT_CLOUD_METRIC_PLUGIN_ID = "qcloud_exporter"
 # 镜像核验后配置：精确 image 引用 -> {version: "v0.21.0" / "v0.22.4",

@@ -369,9 +369,41 @@ def configmap_form():
     ]
 
 
+def configmap_description():
+    url = settings.TENCENT_CLOUD_METRIC_PLUGIN_CONFIG.get("skill_repository_url", "")
+    title = "### 如何获取 ConfigMap"
+    credentials = "腾讯云密钥请填写在采集表单中，勿写入 YAML。"
+    # 地址同时进入终端命令和 Markdown 链接，只接受无凭据的 HTTPS 仓库路径。
+    if not isinstance(url, str) or not re.fullmatch(r"https://[A-Za-z0-9.-]+(?::[0-9]+)?/[A-Za-z0-9._~/-]+", url):
+        return f"{title}\n\n上传已有的 ConfigMap YAML 文件，校验通过后可预览有效配置。\n\n{credentials}"
+
+    return f"""{title}
+
+通用安装命令会自动识别本机已安装的 Agent，并安装 ConfigMap 生成 Skill。
+
+在终端执行以下命令，将 Skill 全局安装到本机检测到的 Agent。
+
+**安装命令**
+
+```bash
+npx skills add {url} -g -s bk-tencentcloud-configmap -a '*' -y
+```
+
+安装完成后，重启对应 Agent 或新建会话。提供已有 exporter 的部署名、Kubernetes 命名空间，以及云产品、地域、实例和指标范围，即可生成 ConfigMap。
+
+需 Node.js 22.20+、Git 与 Skill 仓库访问权限。{credentials}
+
+[查看 Skill 仓库]({url})"""
+
+
 def new_form_definition(detail):
     if settings.TENCENT_CLOUD_EXPORTER_CONTRACTS:
-        detail.update(config_mode="configmap", collector_json={}, config_json=configmap_form())
+        detail.update(
+            config_mode="configmap",
+            collector_json={},
+            config_json=configmap_form(),
+            description_md=configmap_description(),
+        )
     return detail
 
 
