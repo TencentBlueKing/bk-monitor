@@ -1,5 +1,6 @@
 """Base 节点控制能力入口；后端选择只在这一层发生。"""
 
+from collections.abc import Iterable
 from typing import Any
 
 from typing_extensions import override
@@ -19,6 +20,11 @@ def _request_v3(action: str, tenant: str, params: dict[str, Any]) -> dict[str, A
 
 _v2_hosts, _v3_hosts = V2HostQueries(), V3HostQueries(_request_v3)
 _v2_plugins, _v3_plugins = V2OfficialPlugins(), V3OfficialPlugins(_request_v3)
+
+
+def unique_ids(values: Iterable[Any]) -> list[int]:
+    """去掉空值并去重排序，供按主机/业务查询的入口统一请求参数；0 不是有效的主机或业务 ID。"""
+    return sorted({int(value) for value in values if value not in (None, "")} - {0})
 
 
 def get_host_queries() -> HostQueries:
@@ -48,6 +54,16 @@ class HostQueryService(HostQueries):
     def details(self, bk_tenant_id: str, params: dict[str, Any]) -> list[dict[str, Any]]:
         """查询选择器主机详情。"""
         return get_host_queries().details(bk_tenant_id, params)
+
+    @override
+    def beat_plugin_status(
+        self, bk_tenant_id: str, bk_biz_ids: Iterable[Any], bk_host_ids: Iterable[Any]
+    ) -> list[dict[str, Any]]:
+        """查询 bkmonitorbeat 状态；去掉空值并去重，无主机时不请求。"""
+        host_ids = unique_ids(bk_host_ids)
+        if not host_ids:
+            return []
+        return get_host_queries().beat_plugin_status(bk_tenant_id, unique_ids(bk_biz_ids), host_ids)
 
 
 class OfficialPluginService(OfficialPlugins):

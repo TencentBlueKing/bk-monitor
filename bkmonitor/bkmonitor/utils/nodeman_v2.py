@@ -19,6 +19,18 @@ class V2HostQueries(HostQueries):
     def details(self, bk_tenant_id: str, params: dict[str, Any]) -> list[dict[str, Any]]:
         return api.node_man.ipchooser_host_detail({**params, "bk_tenant_id": bk_tenant_id})
 
+    def beat_plugin_status(
+        self, bk_tenant_id: str, bk_biz_ids: list[int], bk_host_ids: list[int]
+    ) -> list[dict[str, Any]]:
+        # V2 插件检索只按主机过滤，保持原有查询范围
+        return api.node_man.plugin_search(
+            bk_tenant_id=bk_tenant_id,
+            page=1,
+            pagesize=len(bk_host_ids),
+            conditions=[],
+            bk_host_id=bk_host_ids,
+        )["list"]
+
 
 class V2OfficialPlugins(OfficialPlugins):
     """独立官方插件安装，与采集器的 V2 安装入口分开。"""

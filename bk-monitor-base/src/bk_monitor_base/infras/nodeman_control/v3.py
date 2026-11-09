@@ -186,6 +186,37 @@ class V3HostQueries(HostQueries):
             )
         return result
 
+    @staticmethod
+    def _first_ip(value: Any) -> str:
+        """兼容接口的多个地址以逗号拼接。"""
+        return str(value or "").split(",")[0].strip()
+
+    @override
+    def beat_plugin_status(
+        self, bk_tenant_id: str, bk_biz_ids: list[int], bk_host_ids: list[int]
+    ) -> list[dict[str, Any]]:
+        """调用节点管理为未迁移 beat 提供的 V2 兼容接口，返回结构与 V2 插件检索一致。"""
+        # 不传主机时接口返回整个业务的主机，空主机直接视为无结果。
+        if not bk_host_ids:
+            return []
+        if not bk_biz_ids:
+            raise ValueError("bk_biz_ids is required by NodeMan list_v2_compatible")
+        data = self.request(
+            "list_v2_compatible_processes",
+            bk_tenant_id,
+            {"bk_biz_id": bk_biz_ids, "bk_host_id": bk_host_ids},
+        )
+        hosts: list[dict[str, Any]] = data.get("list") or []
+        # 下游按 ip|云区域 匹配主机并展示，沿用 V2 的首个 IP。
+        return [
+            {
+                **host,
+                "inner_ip": self._first_ip(host.get("inner_ip")),
+                "inner_ipv6": self._first_ip(host.get("inner_ipv6")),
+            }
+            for host in hosts
+        ]
+
 
 class V3OfficialPlugins(OfficialPlugins):
     """把独立插件部署意图映射到 V3 安装工作流。"""

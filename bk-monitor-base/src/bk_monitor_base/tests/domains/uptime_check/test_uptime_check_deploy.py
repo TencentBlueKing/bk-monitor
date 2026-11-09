@@ -416,18 +416,20 @@ class TestDeployAndTestFlow:
     @patch("bk_monitor_base.domains.uptime_check.collector.fast_execute_script")
     @patch("bk_monitor_base.domains.uptime_check.collector.get_job_instance_status")
     @patch("bk_monitor_base.domains.uptime_check.collector.batch_get_job_instance_ip_log")
-    @patch("bk_monitor_base.domains.uptime_check.collector.plugin_search")
+    @patch("bk_monitor_base.domains.uptime_check.collector.host_queries")
     @patch("bk_monitor_base.domains.uptime_check.collector.get_host_by_ip")
     @patch("bk_monitor_base.domains.uptime_check.models.cmdb_api.get_host_by_ip")
-    @patch("bk_monitor_base.domains.uptime_check.services.task_manager.plugin_search")
+    @patch("bk_monitor_base.domains.uptime_check.services.task_manager.find_host_biz_relation")
+    @patch("bk_monitor_base.domains.uptime_check.services.task_manager.host_queries")
     @patch("bk_monitor_base.domains.uptime_check.services.config_generator.get_config")
     def test_task_flow(
         self,
         mock_get_config: Mock,
-        mock_task_manager_plugin_search: Mock,
+        mock_task_manager_host_queries: Mock,
+        mock_find_host_biz_relation: Mock,
         mock_model_cmdb_get_host: Mock,
         mock_collector_cmdb_get_host: Mock,
-        mock_collector_plugin_search: Mock,
+        mock_collector_host_queries: Mock,
         mock_batch_get_ip_log: Mock,
         mock_get_job_status: Mock,
         mock_fast_execute: Mock,
@@ -443,23 +445,28 @@ class TestDeployAndTestFlow:
         # Mock CMDB API (models 中的) - 返回空列表表示节点已有 bk_host_id，不需要查询
         mock_model_cmdb_get_host.return_value = []
 
-        # Mock plugin_search (task_manager 中的) 返回有效插件版本
-        mock_task_manager_plugin_search.return_value = {
-            "list": [
-                {
-                    "bk_host_id": 10001,
-                    "inner_ip": "192.168.1.1",
-                    "bk_cloud_id": 0,
-                    "plugin_status": [
-                        {
-                            "name": "bkmonitorbeat",
-                            "version": "3.5.0",
-                            "status": "running",
-                        }
-                    ],
-                }
-            ]
-        }
+        # Mock CMDB 主机业务关系：主机实际属于业务 7（与节点的业务 2 不同），且同时在两个模块下
+        mock_find_host_biz_relation.side_effect = lambda bk_tenant_id, bk_host_ids: [
+            {"bk_host_id": host_id, "bk_biz_id": 7, "bk_module_id": module_id}
+            for host_id in bk_host_ids
+            for module_id in (1, 2)
+        ]
+
+        # Mock beat 状态查询 (task_manager 中的) 返回有效插件版本
+        mock_task_manager_host_queries.beat_plugin_status.return_value = [
+            {
+                "bk_host_id": 10001,
+                "inner_ip": "192.168.1.1",
+                "bk_cloud_id": 0,
+                "plugin_status": [
+                    {
+                        "name": "bkmonitorbeat",
+                        "version": "3.5.0",
+                        "status": "running",
+                    }
+                ],
+            }
+        ]
 
         # Mock collector 内部的 get_host_by_ip（用于获取主机 OS 信息）
         mock_host = MagicMock()
@@ -471,18 +478,16 @@ class TestDeployAndTestFlow:
         mock_host.bk_os_type_name = "Linux"
         mock_collector_cmdb_get_host.return_value = [mock_host]
 
-        # Mock collector 内部的 plugin_search（用于获取主机安装路径）
-        mock_collector_plugin_search.return_value = {
-            "list": [
-                {
-                    "bk_host_id": 10001,
-                    "inner_ip": "192.168.1.1",
-                    "bk_cloud_id": 0,
-                    "os_type": "linux",
-                    "setup_path": "/usr/local/gse/plugins",
-                }
-            ]
-        }
+        # Mock collector 内部的 beat 状态查询（用于获取主机安装路径）
+        mock_collector_host_queries.beat_plugin_status.return_value = [
+            {
+                "bk_host_id": 10001,
+                "inner_ip": "192.168.1.1",
+                "bk_cloud_id": 0,
+                "os_type": "linux",
+                "setup_path": "/usr/local/gse/plugins",
+            }
+        ]
 
         # Mock Job API - fast_execute_script 返回任务 ID
         mock_fast_execute.return_value = {"job_instance_id": 12345, "step_instance_id": 1}
@@ -545,5 +550,14 @@ class TestDeployAndTestFlow:
         expected_result = RESULT_MSG["0"]
         assert result == expected_result, f"期望返回 '{expected_result}'，但得到 '{result}'"
 
-        # 验证 plugin_search 被调用
-        mock_task_manager_plugin_search.assert_called_once()
+        # 验证版本校验按 CMDB 中主机实际所属业务查询（去重），collector 按自身业务查询安装路径
+        mock_task_manager_host_queries.beat_plugin_status.assert_called_once()
+        version_query = mock_task_manager_host_queries.beat_plugin_status.call_args.kwargs
+        assert first_node is not None
+        assert version_query["bk_biz_ids"] == [7]
+        assert version_query["bk_host_ids"] == [first_node.bk_host_id]
+        mock_find_host_biz_relation.assert_called_once_with(
+            bk_tenant_id=manager.bk_tenant_id, bk_host_ids=[first_node.bk_host_id]
+        )
+        path_query = mock_collector_host_queries.beat_plugin_status.call_args.kwargs
+        assert path_query["bk_biz_ids"] == [first_node.bk_biz_id]

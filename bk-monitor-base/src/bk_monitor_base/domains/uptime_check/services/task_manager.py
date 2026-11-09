@@ -34,13 +34,13 @@ from bk_monitor_base.domains.uptime_check.services.data_access import DataAccess
 from bk_monitor_base.domains.uptime_check.services.subscription import SubscriptionService
 from bk_monitor_base.infras.conversion import safe_int
 from bk_monitor_base.infras.exception.base_error import BaseError
+from bk_monitor_base.infras.nodeman_control import host_queries
+from bk_monitor_base.infras.third_party_api.cmdb.api import find_host_biz_relation
 from bk_monitor_base.infras.third_party_api.nodeman.api import (
     CreateSubscriptionParams,
-    PluginSearchParams,
     UpdateSubscriptionParams,
     batch_get_subscription_task_result,
     create_subscription,
-    plugin_search,
     run_subscription,
     switch_subscription,
     update_subscription,
@@ -84,7 +84,7 @@ def _check_beat_version(plugin_status: Any) -> tuple[BeatVersionCheckState, str]
     由调用方放行并依赖后续测试下发实测兜底。
 
     Args:
-        plugin_status: 节点管理 plugin_search 返回的单主机 plugin_status 字段。
+        plugin_status: host_queries.beat_plugin_status 返回的单主机 plugin_status 字段。
 
     Returns:
         (校验状态, 解析后的规范版本号)；无记录或无法解析时版本为空字符串。
@@ -190,25 +190,27 @@ class TaskManager:
         # 2) 版本校验：仅拦截「有记录但版本过低」的节点
         # 无记录（未经节点管理订阅安装）或版本无法解析时无法判定采集器不可用，
         # 放行并交由第 3 步的测试下发实测兜底，避免把登记缺失误报成版本过低。
-        bk_host_ids = list(all_nodes.values_list("bk_host_id", flat=True).distinct())
-        plugin_result = plugin_search(
-            bk_tenant_id=self.bk_tenant_id,
-            params=PluginSearchParams(
-                page=1,
-                pagesize=len(bk_host_ids),
-                conditions=[],
-                bk_host_id=bk_host_ids,
-            ),
+        bk_host_ids = [int(host_id) for host_id in all_nodes.values_list("bk_host_id", flat=True).distinct() if host_id]
+        # 节点管理只认 CMDB 业务：公共节点的主机属于其他业务，节点也可能挂在负数空间下，
+        # 因此按 CMDB 中主机实际所属的业务查询，而不是直接使用节点的 bk_biz_id。
+        bk_biz_ids = sorted(
+            {
+                int(relation["bk_biz_id"])
+                for relation in find_host_biz_relation(bk_tenant_id=self.bk_tenant_id, bk_host_ids=bk_host_ids)
+            }
         )
-        all_plugin = plugin_result.get("list", [])
+        # V2 不使用业务；V3 业务为空（主机已不在 CMDB）时由实现报错。
+        all_plugin = host_queries.beat_plugin_status(
+            bk_tenant_id=self.bk_tenant_id, bk_biz_ids=bk_biz_ids, bk_host_ids=bk_host_ids
+        )
         if not all_plugin:
             # 未查到任何主机插件记录：可能是任务没有节点，也可能是节点管理里这些主机
             # 从未安装过该插件。接口异常与权限不足在这条链路上会抛 BkApiError 而不会
             # 返回空列表，因此这里不按「接口故障」处理，只记录以便排查校验被整体跳过。
             logger.warning(
-                "skip bkmonitorbeat version check due to empty plugin list, bk_host_ids=%s, total=%s",
+                "skip bkmonitorbeat version check due to empty plugin list, bk_host_ids=%s, bk_biz_ids=%s",
                 bk_host_ids,
-                plugin_result.get("total"),
+                bk_biz_ids,
             )
         too_old_nodes: list[str] = []
         for plugin in all_plugin:
@@ -227,7 +229,7 @@ class TaskManager:
                 plugin.get("bk_host_id"),
                 node_display,
                 plugin.get("plugin_status"),
-                plugin_result.get("total"),
+                len(all_plugin),
             )
         if too_old_nodes:
             raise TestTaskError(

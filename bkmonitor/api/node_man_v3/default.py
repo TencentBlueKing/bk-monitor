@@ -3,6 +3,7 @@
 from django.conf import settings
 from rest_framework import serializers
 
+from bkmonitor.utils.cache import CacheType
 from bkmonitor.utils.user import get_admin_username
 from core.drf_resource import APIResource
 from core.errors.api import BKAPIError
@@ -93,6 +94,19 @@ class ListPluginReleasesResource(NodeManV3Resource):
         page = serializers.DictField()
         generation = serializers.IntegerField()
         exact_include_conditions = serializers.DictField()
+
+
+class ListV2CompatibleProcessesResource(NodeManV3Resource):
+    """查询未迁移 V3 的 bkmonitorbeat 进程状态，返回内容兼容 V2 插件检索。"""
+
+    action = "api/v3/process/list_v2_compatible"
+    # 与 V2 plugin_search 一致，用 1min 缓存缓解短时间批量请求
+    backend_cache_type = CacheType.SCENE_VIEW
+
+    class RequestSerializer(serializers.Serializer):
+        bk_biz_id = serializers.ListField(child=serializers.IntegerField(), allow_empty=False, label="业务ID列表")
+        # 不传主机时接口会返回整个业务的主机，这里强制非空
+        bk_host_id = serializers.ListField(child=serializers.IntegerField(), allow_empty=False, label="主机ID列表")
 
 
 class InstallPluginResource(NodeManV3Resource):

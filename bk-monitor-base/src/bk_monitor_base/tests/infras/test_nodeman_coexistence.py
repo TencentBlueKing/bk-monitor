@@ -169,3 +169,44 @@ def test_v2_latest_does_not_perform_v3_version_resolution():
         nodeman_control.official_plugins.install("t", "collector", "latest", [1])
         assert install.call_args.kwargs["params"]["plugin_params"]["version"] == "latest"
         lookup.assert_not_called()
+
+
+def test_v2_beat_plugin_status_keeps_plugin_search_protocol():
+    """V2 仍按主机调用插件检索，不额外按业务收窄范围。"""
+    with mock.patch.object(api, "plugin_search", return_value={"total": 1, "list": [{"bk_host_id": 1}]}) as search:
+        assert V2HostQueries().beat_plugin_status("t", [2], [1, 3]) == [{"bk_host_id": 1}]
+    search.assert_called_once_with(
+        bk_tenant_id="t", params={"page": 1, "pagesize": 2, "conditions": [], "bk_host_id": [1, 3]}
+    )
+
+
+@pytest.mark.parametrize("enabled", [False, True])
+def test_beat_plugin_status_facade_normalizes_and_selects_backend(enabled):
+    """入口去掉空值并去重；开启 V3 时走兼容接口且不再调用 V2 插件检索。"""
+    with (
+        mock.patch.object(nodeman_runtime, "django_settings", mock.Mock(configured=True, ENABLE_NODEMAN_V3=enabled)),
+        mock.patch.object(v3, "list_v2_compatible_processes", return_value={"total": 0, "list": []}) as compatible,
+        mock.patch.object(api, "plugin_search", return_value={"total": 0, "list": []}) as search,
+    ):
+        assert nodeman_control.host_queries.beat_plugin_status("t", [3, None, 2, 3], [5, None, 0, 4, 5]) == []
+    if enabled:
+        compatible.assert_called_once_with(bk_tenant_id="t", params={"bk_biz_id": [2, 3], "bk_host_id": [4, 5]})
+        search.assert_not_called()
+    else:
+        search.assert_called_once_with(
+            bk_tenant_id="t", params={"page": 1, "pagesize": 2, "conditions": [], "bk_host_id": [4, 5]}
+        )
+        compatible.assert_not_called()
+
+
+@pytest.mark.parametrize("enabled", [False, True])
+def test_beat_plugin_status_facade_skips_request_without_hosts(enabled):
+    """没有有效主机时两种后端都不发请求。"""
+    with (
+        mock.patch.object(nodeman_runtime, "django_settings", mock.Mock(configured=True, ENABLE_NODEMAN_V3=enabled)),
+        mock.patch.object(v3, "list_v2_compatible_processes") as compatible,
+        mock.patch.object(api, "plugin_search") as search,
+    ):
+        assert nodeman_control.host_queries.beat_plugin_status("t", [2], [None]) == []
+    compatible.assert_not_called()
+    search.assert_not_called()

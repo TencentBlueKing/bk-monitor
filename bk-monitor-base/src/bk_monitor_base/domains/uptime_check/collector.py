@@ -23,6 +23,7 @@ from bk_monitor_base.domains.uptime_check.constants import (
 )
 from bk_monitor_base.domains.uptime_check.services.config_generator import ConfigGeneratorService
 from bk_monitor_base.infras.declaratives.constants import TargetNodeType
+from bk_monitor_base.infras.nodeman_control import host_queries
 from bk_monitor_base.infras.third_party_api.cmdb.api import (
     HostIPParams,
     HostPropertyFilter,
@@ -42,7 +43,6 @@ from bk_monitor_base.infras.third_party_api.job.api import (
     fast_execute_script,
     get_job_instance_status,
 )
-from bk_monitor_base.infras.third_party_api.nodeman.api import PluginSearchParams, plugin_search
 
 logger = logging.getLogger(__name__)
 
@@ -615,17 +615,9 @@ bkmonitorbeat.exe -T  -c {{ test_config_file_path }} || exit 1
                 if resolved_host_id is not None:
                     bk_host_ids.append(int(resolved_host_id))
 
-        host_info: list[dict[str, Any]] = []
-        if bk_host_ids:
-            host_info = plugin_search(
-                bk_tenant_id=bk_tenant_id,
-                params=PluginSearchParams(
-                    page=1,
-                    pagesize=max(len(bk_host_ids), 1),
-                    conditions=[],
-                    bk_host_id=list(set(bk_host_ids)),
-                ),
-            ).get("list", [])
+        host_info = host_queries.beat_plugin_status(
+            bk_tenant_id=bk_tenant_id, bk_biz_ids=[self.bk_biz_id], bk_host_ids=bk_host_ids
+        )
         host_path_dict: dict[int | str, str] = {}
         for host in host_info:
             setup_path = host.get("setup_path")
