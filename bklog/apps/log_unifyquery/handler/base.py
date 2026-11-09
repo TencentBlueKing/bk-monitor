@@ -62,6 +62,7 @@ from apps.log_search.permission import Permission
 from apps.log_search.utils import handle_es_query_error
 from apps.log_unifyquery.constants import BASE_OP_MAP, MAX_LEN_DICT, SEARCH_AFTER_KEY
 from apps.log_unifyquery.handler.mapping import UnifyQueryMappingHandler
+from apps.log_unifyquery.partial import is_partial_result, require_complete_result
 from apps.log_unifyquery.utils import deal_time_format, transform_advanced_addition
 from apps.utils.cache import cache_five_minute
 from apps.utils.core.cache.cmdb_host import CmdbHostCache
@@ -264,7 +265,7 @@ class UnifyQueryHandler:
         日志下载
         """
         try:
-            return UnifyQueryApi.query_ts_raw_with_scroll(search_dict)
+            return require_complete_result(UnifyQueryApi.query_ts_raw_with_scroll(search_dict))
         except Exception as e:  # pylint: disable=broad-except
             logger.exception("query ts raw with scroll error: %s, search params: %s", e, search_dict)
             if raise_exception:
@@ -278,6 +279,7 @@ class UnifyQueryHandler:
 
     def project_export_rows(self, result):
         """把查询结果投影成待写出的导出行。"""
+        require_complete_result(result)
         return self._deal_query_result(result)["origin_log_list"]
 
     def export_scroll_batch(self, search_dict):
@@ -835,8 +837,7 @@ class UnifyQueryHandler:
                 log_content_tmp = copy.deepcopy(log)
             except RecursionError:
                 logger.warning(
-                    "[desensitize] deepcopy failed due to deeply nested structure, "
-                    "falling back to shallow copy"
+                    "[desensitize] deepcopy failed due to deeply nested structure, falling back to shallow copy"
                 )
                 log_content_tmp = copy.copy(log)
 
@@ -889,9 +890,7 @@ class UnifyQueryHandler:
                         if original_value is None:
                             continue
 
-                    log[text_tuple] = log[text_tuple].replace(
-                        str(original_value), str(log[field_tuple])
-                    )
+                    log[text_tuple] = log[text_tuple].replace(str(original_value), str(log[field_tuple]))
 
             # 处理原文字段自身绑定的脱敏逻辑
             log = self.text_fields_desensitize_handler.transform_dict(log)
@@ -935,7 +934,7 @@ class UnifyQueryHandler:
         nested_dict = self.nested_dict_from_dotted_key(dotted_dict=highlight)
         return self.update_nested_dict(log, nested_dict)
 
-    def search(self, search_type="default", is_export=False):
+    def search(self, search_type="default", is_export=False, allow_partial_es_results=False):
         """
         search
         原始日志查询
@@ -968,12 +967,17 @@ class UnifyQueryHandler:
         search_dict["from"] = self.search_params["begin"]
         search_dict["limit"] = once_size
         search_dict["highlight"] = {"enable": self.highlight}
+        if allow_partial_es_results and not is_export:
+            search_dict["allow_partial_es_results"] = True
 
         # 预查询
         result = self.query_ts_raw(search_dict, pre_search=pre_search)
-        if pre_search and len(result["list"]) != once_size:
+        if pre_search and (len(result["list"]) != once_size or is_partial_result(result)):
             # 全量查询
             result = self.query_ts_raw(search_dict)
+        if is_export:
+            require_complete_result(result)
+        result["is_partial"] = is_partial_result(result)
         result = self._deal_query_result(result)
 
         # 脱敏配置日志原文检索 提前返回
@@ -992,16 +996,18 @@ class UnifyQueryHandler:
 
         return result
 
-    def date_histogram(self):
+    def date_histogram(self, allow_partial_es_results=False):
         params = copy.deepcopy(self.base_dict)
         interval = self.search_params["interval"]
         group_field = self.search_params["group_field"]
 
         # 请求 unify-query
-        response = self._date_histogram_unify_query(interval, group_field, params)
+        response = self._date_histogram_unify_query(
+            interval, group_field, params, allow_partial_es_results=allow_partial_es_results
+        )
 
         if not response.get("series"):
-            return {"aggs": {}}
+            return {"aggs": {}, "is_partial": is_partial_result(response), "status": response.get("status")}
 
         # 组装结果
         return_data = self.obtain_result_data(
@@ -1017,7 +1023,11 @@ class UnifyQueryHandler:
         """
         组装结果
         """
-        return_data = {"aggs": {"group_by_histogram": {"buckets": []}}}
+        return_data = {
+            "aggs": {"group_by_histogram": {"buckets": []}},
+            "is_partial": is_partial_result(response),
+            "status": response.get("status"),
+        }
 
         datetime_format = AggsHandlers.DATETIME_FORMAT_MAP.get(interval, AggsHandlers.DATETIME_FORMAT)
         time_multiplicator = 10**3
@@ -1089,7 +1099,7 @@ class UnifyQueryHandler:
 
         return bcs_cluster_name
 
-    def _date_histogram_unify_query(self, interval, group_field, params):
+    def _date_histogram_unify_query(self, interval, group_field, params, allow_partial_es_results=False):
         """
         unify_query 查询 date_histogram
         """
@@ -1108,8 +1118,10 @@ class UnifyQueryHandler:
         params["metric_merge"] = "a"
         params["step"] = interval
         params["order_by"] = []
+        if allow_partial_es_results:
+            params["allow_partial_es_results"] = True
 
-        response = self.query_ts_reference(params)
+        response = self.query_ts_reference(params, raise_exception=allow_partial_es_results)
 
         return response
 
@@ -1236,7 +1248,7 @@ class UnifyQueryHandler:
             index_set.max_async_count, MAX_QUICK_EXPORT_ASYNC_COUNT
         ):
             search_dict["result_table_options"] = scroll_result["result_table_options"]
-            scroll_result = UnifyQueryApi.query_ts_raw(search_dict)
+            scroll_result = require_complete_result(UnifyQueryApi.query_ts_raw(search_dict))
             scroll_size = len(scroll_result["list"])
             result_size += scroll_size
             yield self._deal_query_result(scroll_result)
@@ -1264,7 +1276,7 @@ class UnifyQueryHandler:
         search_dict["limit"] = size
         search_dict["scroll"] = scroll
         search_dict["is_search_after"] = True
-        result = UnifyQueryApi.query_ts_raw(search_dict)
+        result = require_complete_result(UnifyQueryApi.query_ts_raw(search_dict))
         return result
 
     def search_after_result(self, search_result, sorted_fields):
@@ -1303,7 +1315,7 @@ class UnifyQueryHandler:
                 break
 
             search_dict["result_table_options"] = result_table_options
-            search_result = UnifyQueryApi.query_ts_raw(search_dict)
+            search_result = require_complete_result(UnifyQueryApi.query_ts_raw(search_dict))
             new_result_size = len(search_result.get("list", []))
 
             if new_result_size == 0:

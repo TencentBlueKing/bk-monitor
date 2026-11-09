@@ -21,6 +21,7 @@
 import axios from 'axios';
 
 import http from '@/api';
+import { isPartialSearchResult } from '@/common/search-partial-result';
 import { parseBigNumberList } from '@/common/util';
 import { handleTransformToTimestamp } from '@/components/time-range/utils';
 import {
@@ -83,6 +84,7 @@ const resolveDisplayTotal = (state, total) => {
 const applySearchStreamProgress = ({ commit, payload, progress, requestCurrentRowKeys, requestRowQueryKey, state }) => {
   if (progress.stage === 'meta' && progress.meta) {
     const meta = { ...progress.meta };
+    meta.is_partial = isPartialSearchResult(meta) || (!!payload?.isPagination && state.indexSetQueryResult.is_partial);
     // 流式 meta 阶段的 /search total 只用于结果集自身，不覆盖总趋势 total
     meta.total = resolveDisplayTotal(state, normalizeResultTotal(meta.total));
     storageHealthService.markActiveQuery(requestRowQueryKey);
@@ -318,6 +320,7 @@ export async function requestIndexSetQueryAction(
     took: state.indexSetQueryResult.took || 0,
     search_count: state.indexSetQueryResult.search_count || 0,
     is_error: state.indexSetQueryResult.is_error || false,
+    is_partial: state.indexSetQueryResult.is_partial || false,
     exception_msg: state.indexSetQueryResult.exception_msg || '',
   };
 
@@ -328,6 +331,7 @@ export async function requestIndexSetQueryAction(
       row_query_key: '',
       cached_count: 0,
       total: 0,
+      is_partial: false,
     });
   }
 
@@ -538,6 +542,8 @@ export async function requestIndexSetQueryAction(
         : requestCurrentRowKeys;
 
       if (result) {
+        rsolvedData.is_partial =
+          isPartialSearchResult(rsolvedData) || (!!payload.isPagination && state.indexSetQueryResult.is_partial);
         if (payload.isPagination) {
           // 分页请求：不使用 /search total 覆盖总趋势 total，展示总数以 Total 接口为准
           rsolvedData.total = resolveDisplayTotal(state, rsolvedData.total);
@@ -558,6 +564,10 @@ export async function requestIndexSetQueryAction(
 
         if (!payload?.isPagination) {
           const layoutRows = await retrieveRowCacheService.getRows(rowKeys.slice(0, Math.min(rowKeys.length, 10)));
+          if (!isCurrentSearchRequest()) {
+            isStaleSearchResponse = true;
+            return { result: false, ignored: true };
+          }
           commit('updateIsSetDefaultTableColumn', { list: layoutRows });
         }
         commit('updateSqlQueryFieldList', []);

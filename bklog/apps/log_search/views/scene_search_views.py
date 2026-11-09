@@ -689,7 +689,7 @@ class SceneSearchViewSet(APIViewSet):
         original_scene_filter_values = list(data.get("scene_filter_values") or [])
         data = _merge_scene_filters_to_addition(data)
         handler = SceneUnifyQueryHandler(data)
-        result = Response(handler.search())
+        result = Response(handler.search(allow_partial_es_results=True))
         if record_history:
             result.data["history_obj"] = {
                 "index_set_id": 0,
@@ -972,6 +972,7 @@ class SceneSearchViewSet(APIViewSet):
             handler.aggs_date_histogram(
                 interval=data.get("interval", "auto"),
                 group_field=data.get("group_field"),
+                allow_partial_es_results=True,
             )
         )
 

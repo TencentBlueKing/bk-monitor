@@ -2988,8 +2988,9 @@ class UnionSearchHandler:
 
         return res
 
-    def unifyquery_union_search(self, is_export=False):
+    def unifyquery_union_search(self, is_export=False, allow_partial_es_results=False):
         from apps.log_unifyquery.handler.base import UnifyQueryHandler
+        from apps.log_unifyquery.partial import is_partial_result
 
         index_set_objs = LogIndexSet.objects.filter(index_set_id__in=self.index_set_ids)
         if not index_set_objs:
@@ -3048,7 +3049,12 @@ class UnionSearchHandler:
                 search_dict["index_set_ids"] = [index_set_id]
                 search_dict["can_highlight"] = False
                 query_handler = UnifyQueryHandler(search_dict)
-                multi_execute_func.append(f"union_search_{index_set_id}", query_handler.search)
+                multi_execute_func.append(
+                    f"union_search_{index_set_id}",
+                    query_handler.search,
+                    params={"is_export": True},
+                    multi_func_params=True,
+                )
         else:
             for union_config in self.union_configs:
                 search_dict = copy.deepcopy(params)
@@ -3057,7 +3063,12 @@ class UnionSearchHandler:
                 search_dict["is_desensitize"] = union_config.get("is_desensitize", True)
                 search_dict["index_set_ids"] = [union_config["index_set_id"]]
                 query_handler = UnifyQueryHandler(search_dict)
-                multi_execute_func.append(f"union_search_{union_config['index_set_id']}", query_handler.search)
+                multi_execute_func.append(
+                    f"union_search_{union_config['index_set_id']}",
+                    query_handler.search,
+                    params={"allow_partial_es_results": allow_partial_es_results},
+                    multi_func_params=True,
+                )
 
         # 执行线程
         multi_result = multi_execute_func.run(return_exception=True)
@@ -3068,6 +3079,7 @@ class UnionSearchHandler:
         fields = dict()
         total = 0
         took = 0
+        is_partial = False
         for index_set_id in self.index_set_ids:
             ret = multi_result.get(f"union_search_{index_set_id}")
 
@@ -3077,6 +3089,7 @@ class UnionSearchHandler:
                     UnionSearchErrorException.MESSAGE.format(index_set_id=index_set_id, e=ret)
                 )
 
+            is_partial = is_partial or is_partial_result(ret)
             result_log_list.extend(ret["list"])
             result_origin_log_list.extend(ret["origin_log_list"])
             total += int(ret["total"])
@@ -3153,6 +3166,7 @@ class UnionSearchHandler:
             "list": result_log_list,
             "origin_log_list": result_origin_log_list,
             "union_configs": self.union_configs,
+            "is_partial": is_partial,
         }
 
         # 保存联合检索检索历史

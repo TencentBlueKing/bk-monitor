@@ -179,7 +179,7 @@ class AggsViewSet(APIViewSet):
         """
         data = self.params_valid(DateHistogramSerializer)
         data["index_set_ids"] = [index_set_id]
-        return Response(UnifyQueryHandler(data).date_histogram())
+        return Response(UnifyQueryHandler(data).date_histogram(allow_partial_es_results=True))
 
     @list_route(methods=["POST"], url_path="aggs/union_search/date_histogram")
     def union_search_date_histogram(self, request, *args, **kwargs):
@@ -256,7 +256,7 @@ class AggsViewSet(APIViewSet):
         }
         """
         data = self.params_valid(UnionSearchDateHistogramSerializer)
-        return Response(UnifyQueryHandler(data).date_histogram())
+        return Response(UnifyQueryHandler(data).date_histogram(allow_partial_es_results=True))
 
     @list_route(methods=["POST"], url_path="aggs/union_search/terms")
     def union_search_terms(self, request, *args, **kwargs):

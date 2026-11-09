@@ -425,7 +425,7 @@ class SearchViewSet(APIViewSet):
 
         data["index_set_ids"] = [index_set_id]
         query_handler = UnifyQueryHandler(data)
-        return Response(query_handler.search())
+        return Response(query_handler.search(allow_partial_es_results=True))
 
     @detail_route(methods=["POST"], url_path="search/original")
     def original_search(self, request, index_set_id=None):
@@ -1646,7 +1646,7 @@ class SearchViewSet(APIViewSet):
         for info in data.get("union_configs", []):
             if not info.get("is_desensitize") and not is_verify:
                 info["is_desensitize"] = True
-        return Response(UnionSearchHandler(data).unifyquery_union_search())
+        return Response(UnionSearchHandler(data).unifyquery_union_search(allow_partial_es_results=True))
 
     @list_route(methods=["POST"], url_path="union_search/fields")
     def union_search_fields(self, request, *args, **kwargs):

@@ -13,6 +13,7 @@ import copy
 
 from apps.log_search.constants import MAX_FIELD_VALUE_LIST_NUM
 from apps.log_unifyquery.constants import FLOATING_NUMERIC_FIELD_TYPES, AggTypeEnum
+from apps.log_unifyquery.partial import require_complete_result
 from apps.utils.log import logger
 
 
@@ -39,7 +40,7 @@ class UnifyQueryFieldHandler(UnifyQueryHandler):
         search_dict = copy.deepcopy(self.result_merge_base_dict)
         for query in search_dict["query_list"]:
             query["function"] = [{"method": "count"}]
-        data = self.query_ts_reference(search_dict)
+        data = require_complete_result(self.query_ts_reference(search_dict, raise_exception=True))
         return self.handle_count_data(data)
 
     def get_field_count(self):

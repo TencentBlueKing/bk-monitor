@@ -33,6 +33,7 @@ from apps.log_search.export.query import apply_time_range, snapshot_time_fields,
 from apps.log_search.export.scheduler import request_parts_dispatch
 from apps.log_unifyquery.handler.base import UnifyQueryHandler
 from apps.log_unifyquery.handler.scene_search import SceneUnifyQueryHandler
+from apps.log_unifyquery.partial import is_partial_result, require_complete_result
 from apps.utils.log import logger
 
 
@@ -85,6 +86,8 @@ def _statistics_params(handler, start, end):
 
 def _series_points(result, label):
     """取出聚合结果的单序列点位；聚合只应返回一条序列，多于一条说明统计口径不成立。"""
+    if is_partial_result(result):
+        raise PlanError(ExportErrorCode.STATISTICS_FAILED, "unify-query 返回了不完整的统计结果", retryable=True)
     series = result["series"]
     if len(series) > 1:
         raise PlanError(ExportErrorCode.STATISTICS_FAILED, f"unify-query {label}返回了多条序列", retryable=True)
@@ -110,7 +113,7 @@ def sample_rows(handler, start, end, limit):
     """采样少量日志用来估算平均序列化字节数，避免单条日志很大时只按条数判断失真。"""
     params = _statistics_params(handler, start, end)
     params["limit"] = limit
-    result = UnifyQueryApi.query_ts_raw(params)
+    result = require_complete_result(UnifyQueryApi.query_ts_raw(params))
     # 复用 handler 的结果投影，保证采样口径与真实导出完全一致
     return [encode_export_row(row) for row in handler.project_export_rows(result)]
 

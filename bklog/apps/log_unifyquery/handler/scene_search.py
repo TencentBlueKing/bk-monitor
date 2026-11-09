@@ -36,6 +36,7 @@ from apps.log_search.models import LogIndexSet, LogIndexSetData
 from apps.log_unifyquery.constants import BASE_OP_MAP, SEARCH_AFTER_KEY
 from apps.log_unifyquery.handler.base import UnifyQueryHandler
 from apps.log_unifyquery.handler.mapping import UnifyQueryMappingHandler
+from apps.log_unifyquery.partial import is_partial_result, require_complete_result
 from apps.log_unifyquery.utils import deal_time_format, transform_advanced_addition
 from apps.utils.local import (
     get_local_param,
@@ -383,7 +384,7 @@ class SceneUnifyQueryHandler(UnifyQueryHandler):
     # arrow.get(self.start_time) which interprets ms as seconds → year 58000+).
     # ------------------------------------------------------------------
 
-    def search(self, search_type="default", is_export=False):
+    def search(self, search_type="default", is_export=False, allow_partial_es_results=False):
         search_dict = copy.deepcopy(self.base_dict)
         if self.search_params["size"] > MAX_RESULT_WINDOW:
             self.search_params["size"] = MAX_RESULT_WINDOW
@@ -397,8 +398,13 @@ class SceneUnifyQueryHandler(UnifyQueryHandler):
         search_dict["from"] = self.search_params["begin"]
         search_dict["limit"] = once_size
         search_dict["highlight"] = {"enable": self.highlight}
+        if allow_partial_es_results and not is_export:
+            search_dict["allow_partial_es_results"] = True
 
         result = self.query_ts_raw(search_dict)
+        if is_export:
+            require_complete_result(result)
+        result["is_partial"] = is_partial_result(result)
         self._init_scene_desensitize(result.get("result_table_id"))
         result = self._deal_query_result(result, add_index_set_id=not is_export)
 
@@ -872,14 +878,18 @@ class SceneUnifyQueryHandler(UnifyQueryHandler):
         search_dict["highlight"] = {"enable": False}
 
         logger.info("[scene_total] space_uid=%s", self.space_uid)
-        result = self.query_ts_raw(search_dict)
+        result = require_complete_result(self.query_ts_raw(search_dict))
         return {"total": result.get("total", 0)}
 
-    def aggs_date_histogram(self, interval: str = "auto", group_field: str = None) -> dict:
+    def aggs_date_histogram(
+        self, interval: str = "auto", group_field: str = None, allow_partial_es_results=False
+    ) -> dict:
         params = copy.deepcopy(self.base_dict)
-        response = self._date_histogram_unify_query(interval, group_field, params)
+        response = self._date_histogram_unify_query(
+            interval, group_field, params, allow_partial_es_results=allow_partial_es_results
+        )
         if not response.get("series"):
-            return {"aggs": {}}
+            return {"aggs": {}, "is_partial": is_partial_result(response), "status": response.get("status")}
         return self.obtain_result_data(interval, group_field, response)
 
     # ------------------------------------------------------------------
@@ -910,7 +920,7 @@ class SceneUnifyQueryHandler(UnifyQueryHandler):
         search_dict["limit"] = size
         search_dict["scroll"] = scroll
         search_dict["is_search_after"] = True
-        return self.query_ts_raw(search_dict)
+        return require_complete_result(self.query_ts_raw(search_dict))
 
     def search_after_result(self, search_result, sorted_fields):
         search_dict = copy.deepcopy(self.base_dict)
@@ -940,7 +950,7 @@ class SceneUnifyQueryHandler(UnifyQueryHandler):
                 break
 
             search_dict["result_table_options"] = result_table_options
-            search_result = self.query_ts_raw(search_dict)
+            search_result = require_complete_result(self.query_ts_raw(search_dict))
             new_result_size = len(search_result.get("list", []))
 
             if new_result_size == 0:
@@ -1013,7 +1023,9 @@ class SceneUnifyQueryHandler(UnifyQueryHandler):
                         sensitive_fields = _get_sensitive_top_fields(
                             self.field_configs, self.text_fields_field_configs, self.text_fields
                         )
-                        record = _mask_sensitive_fields(record, sensitive_fields) if isinstance(record, dict) else record
+                        record = (
+                            _mask_sensitive_fields(record, sensitive_fields) if isinstance(record, dict) else record
+                        )
                         merge_failed = True
                     if not merge_failed:
                         try:
