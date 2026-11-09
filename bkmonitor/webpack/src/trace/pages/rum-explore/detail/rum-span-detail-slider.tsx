@@ -114,9 +114,12 @@ export default defineComponent({
       end_time: props.context?.end_time ?? 0,
     }));
 
+    /** 详情视角：嵌套抽屉展示的是链路上下文里的单个 Span（record_id 为 span_id），固定按 Span 语义查询与渲染 */
+    const detailMode = computed<RumModeType>(() => (props.nested ? RumModeEnum.SPAN : props.mode));
+
     const { detail, related, loading, relatedLoading, traceInfo } = useSpanDetail({
       context: toRef(props, 'context'),
-      mode: toRef(props, 'mode'),
+      mode: detailMode,
       timeRange,
     });
 
@@ -142,9 +145,6 @@ export default defineComponent({
     const recordId = computed(() => props.context?.record_id || detail.value?.span_id || '');
     /** 链路上下文定位用的 Span ID：以接口回传值为准，记录 ID 兜底（View 视角下两者不同） */
     const spanId = computed(() => detail.value?.span_id || props.context?.record_id || '');
-
-    /** 详情视角：嵌套抽屉展示的是链路上下文里的单个 Span（record_id 为 span_id），固定按 Span 语义渲染 */
-    const detailMode = computed<RumModeType>(() => (props.nested ? RumModeEnum.SPAN : props.mode));
 
     /** 标题文案随检索视角变化 */
     const detailTitle = computed(() => {
