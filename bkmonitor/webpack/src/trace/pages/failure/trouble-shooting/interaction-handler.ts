@@ -34,7 +34,7 @@ export interface IOpenDrawerContext {
 
 /**
  * 根据后端返回的交互协议执行页面跳转或打开详情侧滑。
- * URL 与详情查询条件均由后端提供，前端不做拼接或修改。
+ * URL 与详情查询条件均由后端提供，前端不做拼接或修改（ Trace 部分场景会由调用方补充前端生成的 URL）。
  * action=error / none 时不执行任何跳转或侧滑。
  */
 export async function handleInteraction(

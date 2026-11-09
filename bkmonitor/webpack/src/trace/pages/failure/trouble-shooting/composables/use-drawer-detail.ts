@@ -124,6 +124,10 @@ export function useDrawerDetail(options: {
   const drawerRequestControllers = new Map<string, AbortController>();
   // 切换或关闭侧滑时递增，用于隔离旧请求返回后的异步回调
   let drawerContextVersion = 0;
+  // 字段配置保存按同一侧滑串行执行，避免首次保存并发创建多条配置记录。
+  let logConfigPersistQueue: Promise<boolean> = Promise.resolve(true);
+  let logConfigPersistSeq = 0;
+  let logConfigPersistedId: number | string = '';
   const drawerRenderKey = shallowRef(0);
   // 侧滑详情请求错误信息
   const drawerErrorMessage = shallowRef('');
@@ -162,6 +166,9 @@ export function useDrawerDetail(options: {
     }
     drawerRequestControllers.clear();
     drawerPayloadCache.clear();
+    logConfigPersistSeq += 1;
+    logConfigPersistQueue = Promise.resolve(true);
+    logConfigPersistedId = '';
   };
 
   let logConfigRequestSeq = 0;
@@ -259,6 +266,7 @@ export function useDrawerDetail(options: {
     if (requestVersion !== drawerContextVersion) return undefined;
     logConfigKey.value = key;
     logConfigId.value = '';
+    logConfigPersistedId = '';
     logConfigReadFailed.value = false;
     if (!key) return undefined;
 
@@ -269,7 +277,8 @@ export function useDrawerDetail(options: {
         return undefined;
       }
       const record = records?.[0];
-      logConfigId.value = record?.id || '';
+      logConfigPersistedId = record?.id || '';
+      logConfigId.value = logConfigPersistedId;
       if (!record?.value) return undefined;
       const config = JSON.parse(record.value);
       return Array.isArray(config?.displayFields) ? config.displayFields : undefined;
@@ -284,39 +293,59 @@ export function useDrawerDetail(options: {
   };
 
   /** 保存当前侧滑的日志字段。侧滑关闭时请求会被取消，返回后不再写配置 id。 */
-  const persistLogColumnConfig = async (displayFields: string[]) => {
+  const persistLogColumnConfig = (displayFields: string[]) => {
     const key = logConfigKey.value;
     const requestVersion = drawerContextVersion;
-    if (!key || logConfigReadFailed.value || !logCapabilities.value.column_config) return false;
+    if (!key || logConfigReadFailed.value || !logCapabilities.value.column_config) return Promise.resolve(false);
+    const requestSeq = ++logConfigPersistSeq;
     const value = JSON.stringify({ version: 1, displayFields });
-    const configId = logConfigId.value;
-    const { key: controllerKey, controller } = trackDrawerRequest();
-    try {
-      if (!configId) {
-        const created = await createUserConfig(
-          { key, value },
-          { reject403: true, needMessage: false, signal: controller.signal }
-        );
+    const persist = async () => {
+      if (requestVersion !== drawerContextVersion || key !== logConfigKey.value) return false;
+      const { key: controllerKey, controller } = trackDrawerRequest();
+      try {
         if (controller.signal.aborted || requestVersion !== drawerContextVersion || key !== logConfigKey.value) {
           return false;
         }
-        logConfigId.value = created?.id || '';
-      } else {
-        await partialUpdateUserConfig(
-          configId,
-          { value },
-          { reject403: true, needMessage: false, signal: controller.signal }
-        );
+        let configId = logConfigPersistedId || logConfigId.value;
+        if (!configId) {
+          const created = await createUserConfig(
+            { key, value },
+            { reject403: true, needMessage: false, signal: controller.signal }
+          );
+          if (controller.signal.aborted || requestVersion !== drawerContextVersion || key !== logConfigKey.value) {
+            return false;
+          }
+          configId = created?.id || '';
+          logConfigPersistedId = configId;
+        } else {
+          await partialUpdateUserConfig(
+            configId,
+            { value },
+            { reject403: true, needMessage: false, signal: controller.signal }
+          );
+        }
+        if (
+          controller.signal.aborted ||
+          requestVersion !== drawerContextVersion ||
+          key !== logConfigKey.value ||
+          requestSeq !== logConfigPersistSeq
+        ) {
+          return false;
+        }
+        logConfigId.value = configId;
+        return Boolean(configId);
+      } catch (error) {
+        if (controller.signal.aborted || requestVersion !== drawerContextVersion) return false;
+        Message({ message: t('保存日志字段配置失败'), theme: 'error' });
+        console.error(error);
+        return false;
+      } finally {
+        releaseDrawerRequest(controllerKey, controller);
       }
-      return !controller.signal.aborted && requestVersion === drawerContextVersion && Boolean(logConfigId.value);
-    } catch (error) {
-      if (controller.signal.aborted || requestVersion !== drawerContextVersion) return false;
-      Message({ message: t('保存日志字段配置失败'), theme: 'error' });
-      console.error(error);
-      return false;
-    } finally {
-      releaseDrawerRequest(controllerKey, controller);
-    }
+    };
+    const queuedPersist = logConfigPersistQueue.then(persist, persist);
+    logConfigPersistQueue = queuedPersist.catch(() => false);
+    return queuedPersist;
   };
 
   /** 应用字段接口返回的系统默认字段和故障专用用户字段。 */

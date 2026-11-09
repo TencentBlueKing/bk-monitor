@@ -151,7 +151,7 @@ export const createEventsAnalysisModule = (options: IShootingModuleContext, $t: 
                 >
                   {item.total}
                 </span>
-                {item.unit && <span>{item.unit}</span>}
+                <span>{item.unit ?? ''}</span>
                 {item.total > 3 && <span style={{ fontWeight: '700' }}>Top{item.top}</span>}
               </i18n-t>
             </span>

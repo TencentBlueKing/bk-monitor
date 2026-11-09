@@ -88,9 +88,20 @@ export const renderTraceAnalysisSlot = (options: IShootingModuleContext, $t: Tra
     // 字段点击跳转处理函数
     const handleFieldClick = (key: string, value: Record<string, any>) => {
       const url = generateUrl(key, value, item, options);
-      if (url && item.interaction) {
-        executeTraceInteraction({ ...item.interaction, url }, undefined, item.availability_ref);
-      }
+      if (!url) return;
+
+      // 字段地址由前端生成，但仍通过 Trace interaction 执行后端可用性校验。
+      executeTraceInteraction(
+        {
+          ...item.interaction,
+          action: 'link',
+          drawer_type: 'trace',
+          url,
+          version: 'v1',
+        },
+        undefined,
+        item.availability_ref
+      );
     };
     return (
       <span class='table-content'>
@@ -117,8 +128,8 @@ export const renderTraceAnalysisSlot = (options: IShootingModuleContext, $t: Tra
                 })
               ) : (
                 <span
-                  class={['item-value', { 'item-value-link': value.url && item.interaction }]}
-                  onClick={value.url && item.interaction ? () => handleFieldClick(key, value) : undefined}
+                  class={['item-value', { 'item-value-link': !!value.url }]}
+                  onClick={value.url ? () => handleFieldClick(key, value) : undefined}
                 >
                   {item[key]}
                 </span>
