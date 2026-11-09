@@ -36,7 +36,7 @@ import { useRouter, useRoute } from 'vue-router/composables';
 
 import * as authorityMap from '../../common/authority-map';
 import useStore from '../../hooks/use-store';
-import useListSort from '../../hooks/use-list-sort';
+import useListSort, { isExactHiddenMatch } from '../../hooks/use-list-sort';
 import UserConfigMixin from '../../mixins/user-store-config';
 import List from './list';
 import { buildSpaceRecoveryLocation, buildSpaceSwitchQuery, omitRouteIndexId } from './space-switch-route';
@@ -179,10 +179,10 @@ export default defineComponent({
       });
     });
 
-    // 使用 use-list-sort 进行文本匹配和排序
-    // 匹配的字段：space_name, py_text, space_uid, bk_biz_id, space_code
+    // 文本匹配：space_name, py_text, space_uid
+    // 完全相等置顶：业务 ID（bk_biz_id，忽略负号）和展示用空间 ID（space_id）
     const matchKeys = ['space_name', 'py_text', 'space_uid'];
-    const hiddenMatchKeys = ['bk_biz_id'];
+    const hiddenMatchKeys = ['bk_biz_id', 'space_id'];
     const {
       sortList: authorizedList,
       updateList,
@@ -231,29 +231,37 @@ export default defineComponent({
       { immediate: true },
     );
 
-    const commonList = computed(
-      () =>
-        commonListIdsLog.value.map(id => authorizedList.value.find(item => Number(item.id) === id)).filter(Boolean) ||
-        [],
-    );
+    // 搜索时把业务 ID / 空间 ID 完全命中的项抽到最前，其余仍按常用分组和原排序
+    const partitionedList = computed(() => {
+      const search = keyword.value.trim();
+      const source = authorizedList.value;
+      const pinned = search ? source.filter(item => isExactHiddenMatch(item, search, hiddenMatchKeys)) : [];
+      const pinnedSet = new Set(pinned);
+      const rest = pinned.length ? source.filter(item => !pinnedSet.has(item)) : source;
+      const common = commonListIdsLog.value.map(id => rest.find(item => Number(item.id) === id)).filter(Boolean) || [];
+      const general = rest.filter(item => !commonListIdsLog.value.includes(Number(item.id))) || [];
+      return { pinned, common, general };
+    });
+
+    const commonList = computed(() => partitionedList.value.common);
 
     // 初始化业务列表
     const groupList = computed(() => {
-      // 有权限业务
-      const generalList = authorizedList.value.filter(item => !commonListIdsLog.value.includes(Number(item.id))) || [];
+      const { pinned, common, general } = partitionedList.value;
 
-      if (commonList.value.length > 0) {
+      if (common.length > 0) {
         return [
+          ...pinned,
           {
             id: '__group_common__',
             name: '常用的',
             type: 'group-title',
           } as any,
-          ...commonList.value,
-          ...generalList,
+          ...common,
+          ...general,
         ];
       }
-      return [...generalList];
+      return [...pinned, ...general];
     });
 
     // 获取可选择的业务项列表（过滤掉分组标题）

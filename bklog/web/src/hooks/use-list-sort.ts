@@ -27,10 +27,83 @@
 import { computed, ref } from 'vue';
 
 /**
+ * 隐藏字段完全相等时的分数。
+ * 必须高于 matchKeys 的任何文本分（完全匹配 100000，再乘字段权重）。
+ */
+const EXACT_HIDDEN_MATCH_SCORE = 10000000;
+
+/**
+ * 完全匹配函数，支持忽略前置负号
+ * @param value 待匹配的值（可以是字符串或数字）
+ * @param searchText 搜索文本
+ * @returns 是否完全匹配（忽略大小写和前置负号）
+ */
+/**
+ * 完全匹配等级：2 为原值相等，1 为仅忽略前置负号后相等，0 为不匹配。
+ * 原值相等优先，避免搜索 793 时把业务 -793 排到 793 前面。
+ */
+const exactIdRank = (value: any, searchText: string): number => {
+  if (value === undefined || value === null || value === '') {
+    return 0;
+  }
+
+  const valueStr = String(value);
+  const normalizedValue = valueStr.replace(/^-/, '');
+  const normalizedSearch = searchText.replace(/^-/, '');
+  if (!normalizedValue || normalizedValue.toLowerCase() !== normalizedSearch.toLowerCase()) {
+    return 0;
+  }
+
+  return valueStr.toLowerCase() === searchText.toLowerCase() ? 2 : 1;
+};
+
+/**
+ * 隐藏字段完全匹配的置顶分。靠前的 key 更高，全部高于文本匹配分；未命中返回 0。
+ */
+const exactHiddenMatchScore = (item: any, searchText: string, hiddenMatchKeys: string[] = []): number => {
+  const search = searchText.trim();
+  if (!search || hiddenMatchKeys.length === 0) {
+    return 0;
+  }
+
+  if (typeof item === 'string') {
+    const rank = exactIdRank(item, search);
+    return rank > 0 ? EXACT_HIDDEN_MATCH_SCORE + hiddenMatchKeys.length * 10 + rank : 0;
+  }
+
+  if (typeof item === 'object' && item !== null) {
+    let best = 0;
+    for (let i = 0; i < hiddenMatchKeys.length; i++) {
+      const rank = exactIdRank(item[hiddenMatchKeys[i]], search);
+      if (rank > 0) {
+        const score = EXACT_HIDDEN_MATCH_SCORE + (hiddenMatchKeys.length - i) * 10 + rank;
+        if (score > best) {
+          best = score;
+        }
+      }
+    }
+    return best;
+  }
+
+  return 0;
+};
+
+/**
+ * 检查 hiddenMatchKeys 是否完全匹配
+ * @param item 列表项
+ * @param searchText 搜索文本
+ * @param hiddenMatchKeys 隐藏匹配的 key 列表（不作为展示字段，但参与过滤和置顶）
+ * @returns 是否完全匹配
+ */
+export const isExactHiddenMatch = (item: any, searchText: string, hiddenMatchKeys: string[] = []): boolean => {
+  return exactHiddenMatchScore(item, searchText, hiddenMatchKeys) > 0;
+};
+
+/**
  * 使用文本匹配和完全匹配进行排序
  * @param list 列表
  * @param matchKeys 文本匹配的 key 列表
- * @param hiddenMatchKeys 隐藏匹配的 key 列表
+ * @param hiddenMatchKeys 隐藏匹配的 key 列表；与搜索词完全相等时置顶，忽略前置负号
  * @returns 排序后的列表
  */
 export default (list: any[], matchKeys: string[] = [], hiddenMatchKeys: string[] = []) => {
@@ -68,7 +141,7 @@ export default (list: any[], matchKeys: string[] = [], hiddenMatchKeys: string[]
     const lowerSearch = searchText.toLowerCase();
     const isNumberOrLetterMatch = containsNumberOrLetter(searchText);
 
-    // 完全匹配：最高优先级（权重 100000）
+    // 文本完全匹配：文本分里最高（权重 100000），仍低于 hiddenMatchKeys 完全相等
     if (lowerText === lowerSearch) {
       return 100000;
     }
@@ -102,59 +175,6 @@ export default (list: any[], matchKeys: string[] = [], hiddenMatchKeys: string[]
     }
 
     return -1;
-  };
-
-  /**
-   * 完全匹配函数，支持忽略前置负号
-   * @param value 待匹配的值（可以是字符串或数字）
-   * @param searchText 搜索文本
-   * @returns 是否完全匹配（忽略前置负号）
-   */
-  const fullMatch = (value: any, searchText: string): boolean => {
-    if (value === undefined || value === null || value === '') {
-      return false;
-    }
-
-    // 将值转换为字符串
-    const valueStr = String(value);
-    // 移除前置负号
-    const normalizedValue = valueStr.replace(/^-/, '');
-    const normalizedSearch = searchText.replace(/^-/, '');
-
-    // 完全匹配（忽略大小写和前置负号）
-    return normalizedValue.toLowerCase() === normalizedSearch.toLowerCase();
-  };
-
-  /**
-   * 检查 hiddenMatchKeys 是否匹配
-   * @param item 列表项
-   * @param searchText 搜索文本
-   * @param hiddenMatchKeys 隐藏匹配的 key 列表（不作为展示字段，但参与过滤）
-   * @returns 是否匹配
-   */
-  const checkHiddenMatch = (item: any, searchText: string, hiddenMatchKeys: string[]): boolean => {
-    if (!searchText || hiddenMatchKeys.length === 0) {
-      return false;
-    }
-
-    // string[] 类型：直接匹配
-    if (typeof item === 'string') {
-      return fullMatch(item, searchText);
-    }
-
-    // object[] 类型：根据 hiddenMatchKeys 匹配
-    if (typeof item === 'object' && item !== null) {
-      for (let i = 0; i < hiddenMatchKeys.length; i++) {
-        const key = hiddenMatchKeys[i];
-        const value = item[key];
-
-        if (fullMatch(value, searchText)) {
-          return true;
-        }
-      }
-    }
-
-    return false;
   };
 
   /**
@@ -244,19 +264,13 @@ export default (list: any[], matchKeys: string[] = [], hiddenMatchKeys: string[]
 
       // 先检查 matchKeys 是否匹配
       const { score: matchScore } = matchItem(item, search, matchKeys);
+      // 业务 ID / 空间 ID 完全相等时置顶，即使名称或空间 UID 已经模糊命中
+      const hiddenScore = exactHiddenMatchScore(item, search, hiddenMatchKeys);
 
-      if (matchScore > 0) {
-        // matchKeys 匹配：使用 matchKeys 的分数（优先级更高）
+      if (hiddenScore > 0) {
+        itemsWithScore.push({ item, score: hiddenScore });
+      } else if (matchScore > 0) {
         itemsWithScore.push({ item, score: matchScore });
-      } else {
-        // matchKeys 不匹配时，检查 hiddenMatchKeys
-        const isHiddenMatch = checkHiddenMatch(item, search, hiddenMatchKeys);
-
-        if (isHiddenMatch) {
-          // hiddenMatchKeys 匹配：给予最低优先级分数（低于所有其他匹配方式）
-          itemsWithScore.push({ item, score: 1000 });
-        }
-        // 如果 matchKeys 和 hiddenMatchKeys 都不匹配，则不包含在结果中
       }
     }
 
