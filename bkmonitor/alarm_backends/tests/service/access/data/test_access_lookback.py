@@ -325,15 +325,58 @@ def test_partial_log_count_does_not_overwrite_a_complete_value(mocker):
     assert pull(1, partial=True) == []
     assert pull(11) == []
 
+    # 异步分批：子任务重建 UnifyQuery，不完整标记须随批次恢复。
+    from alarm_backends.core.cache import key
+    from alarm_backends.service.access.data.processor import AccessBatchDataProcess
 
-def test_same_batch_uses_the_latest_value_for_the_check_result():
-    from alarm_backends.core.control.mixins.detect import select_check_result_records
+    mocker.patch("alarm_backends.service.access.tasks.run_access_batch_data")
+    mocker.patch.object(
+        type(key.ACCESS_BATCH_DATA_KEY), "client", new_callable=mocker.PropertyMock, return_value=client
+    )
+    points = [{"_time_": t, "_result_": 1} for t in (3540, 3600, 3660)]
+    item.query.is_partial = True
+    parent = AccessDataProcess("log-count-group")
+    parent.items = [item]
+    assert parent.send_batch_data(points, batch_threshold=1) == points[:1]
+    item.query.is_partial = False
+    child = AccessBatchDataProcess("log-count-group", sub_task_id=f"{parent.batch_timestamp}.2")
+    child.items = [item]
+    child.from_timestamp = child.until_timestamp = 0
+    child.pull()
+    assert item.query.is_partial is True
+    assert [r.time for r in child.record_list] == [3660]
+    assert child.record_list[0].clean().data["is_partial"] is True
 
-    earlier = SimpleNamespace(record_id="md5.3600", value=0, timestamp=3600)
-    latest = SimpleNamespace(record_id="md5.3600", value=1, timestamp=3600)
-    anomaly = SimpleNamespace(data_point=earlier)
 
-    last_by_record_id, anomaly_record_ids = select_check_result_records([earlier, latest], [anomaly])
+def test_detect_keeps_only_the_latest_value_per_record_id(mocker):
+    from alarm_backends.service.detect import DataPoint
 
-    assert last_by_record_id["md5.3600"] is latest
-    assert anomaly_record_ids == set()
+    strategy = SimpleNamespace(
+        id=1,
+        bk_biz_id=2,
+        bk_tenant_id="system",
+        config={"detects": [{"level": 2, "connector": "and"}]},
+        priority=None,
+        priority_group_key=None,
+        scenario="os",
+    )
+    item = Item(
+        {
+            "id": 1,
+            "name": "COUNT",
+            "expression": "a",
+            "query_configs": [copy.deepcopy(LOG_TS_COUNT_QUERY)],
+            "algorithms": [{"type": "Threshold", "level": 2, "config": GTE_10, "unit_prefix": ""}],
+        },
+        strategy,
+    )
+    checkpoint = mocker.patch.object(Item, "_update_monitor_d_checkpoint")
+
+    def point(value):
+        data = {"value": value, "values": {"_result_": value}, "time": 3600, "record_id": "md5.3600", "dimensions": {}}
+        return DataPoint(accessed_data=data, item=item)
+
+    latest = point(1)
+    assert item.detect([point(11), latest]) == []
+    records, anomaly_records, _ = checkpoint.call_args.args
+    assert records == [latest] and anomaly_records == []

@@ -654,6 +654,8 @@ class AccessDataProcess(BaseAccessDataProcess):
             from alarm_backends.core.alarmd.v2_access import export_access_batch_context
 
             alarmd_v2_context = export_access_batch_context(self)
+        # 子任务会重建 Item/UnifyQuery，查询不完整标记需随批次传过去。
+        query_is_partial = bool(getattr(getattr(self.items[0], "query", None), "is_partial", False))
         first_batch_points = []  # 第一批数据，原地处理
         latest_record_timestamp = None  # 上一个记录的时间戳，用于判断是否遇到新时间点
         last_batch_index, batch_count = 0, 0  # last_batch_index: 上一批次的结束位置，batch_count: 批次计数
@@ -700,11 +702,12 @@ class AccessDataProcess(BaseAccessDataProcess):
 
                 # 数据压缩：使用 gzip + base64 压缩数据，减少 Redis 存储空间
                 batch_payload = batch_points
-                if alarmd_v2_context:
+                if alarmd_v2_context or query_is_partial:
                     batch_payload = {
                         "format": "access-batch-v2-shadow-context",
                         "points": batch_points,
                         "alarmd_v2": alarmd_v2_context,
+                        "is_partial": query_is_partial,
                     }
                 compress_batch_points = base64.b64encode(gzip.compress(json.dumps(batch_payload).encode("utf-8")))
                 client.set(data_key, compress_batch_points, ex=key.ACCESS_BATCH_DATA_KEY.ttl)
@@ -1551,6 +1554,9 @@ class AccessBatchDataProcess(AccessDataProcess):
 
                 points = batch_payload.get("points") or []
                 apply_access_batch_context(self, batch_payload.get("alarmd_v2"))
+                if batch_payload.get("is_partial"):
+                    for item in self.items:
+                        item.query.is_partial = True
             else:
                 points = batch_payload
         else:
