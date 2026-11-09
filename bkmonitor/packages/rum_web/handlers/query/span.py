@@ -11,14 +11,69 @@ specific language governing permissions and limitations under the License.
 from typing import Any
 
 from bkmonitor.data_source.format import flatten_dict_data
+from bkmonitor.data_source.utils import types
+from bkmonitor.data_source.utils.apm import FilterOperator
+from rum_web.handlers.builder.utils import get_safe_number
 from rum_web.handlers.query.base import BaseRumQuery
 from rum_web.handlers.query.session import SessionQuery
 from rum_web.handlers.query.view import ViewQuery
-from semconv.rum.constants import RumSpanType
+from semconv.rum.constants import RumSpanType, SessionPhase
 
 
 class SpanQuery(BaseRumQuery):
     """原始 Span 查询。"""
+
+    def query_session_time_range(self, session_id: str) -> dict[str, int | float | None]:
+        """独立查询会话时间边界，不受时间线节点条数上限影响。"""
+        filters: list[types.Filter] = [
+            {"key": "attributes.session.id", "value": [session_id], "operator": FilterOperator.EQUAL}
+        ]
+        lifecycle_filters: list[types.Filter] = [
+            *filters,
+            {"key": "attributes.span_type", "value": [RumSpanType.SESSION.value], "operator": FilterOperator.EQUAL},
+        ]
+        boundaries: tuple[tuple[str, str, list[types.Filter], str], ...] = (
+            (
+                "start_time",
+                "start_time",
+                [
+                    *lifecycle_filters,
+                    {
+                        "key": "attributes.session.phase",
+                        "value": [SessionPhase.START.value, SessionPhase.ROTATE.value],
+                        "operator": FilterOperator.EQUAL,
+                    },
+                ],
+                "start_time",
+            ),
+            (
+                "end_time",
+                "end_time",
+                [
+                    *lifecycle_filters,
+                    {
+                        "key": "attributes.session.phase",
+                        "value": [SessionPhase.END.value],
+                        "operator": FilterOperator.EQUAL,
+                    },
+                ],
+                "-end_time",
+            ),
+            ("observed_start", "start_time", filters, "start_time"),
+            ("observed_end", "end_time", filters, "-end_time"),
+        )
+        result: dict[str, int | float | None] = {}
+        for name, field, conditions, order in boundaries:
+            records: list[dict[str, Any]] = self.query_list(
+                start_time=None,
+                end_time=None,
+                offset=0,
+                limit=1,
+                filters=[*conditions, {"key": field, "value": [""], "operator": FilterOperator.EXISTS}],
+                sort=[order, "span_id"],
+            )
+            result[name] = get_safe_number(records[0].get(field), None) if records else None
+        return result
 
     def query_detail(self, record_id: str) -> dict[str, Any]:
         span = super().query_detail(record_id)

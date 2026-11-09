@@ -8,6 +8,7 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 
+import time
 from collections.abc import Sequence
 from dataclasses import dataclass, field
 from typing import Any
@@ -18,6 +19,32 @@ from semconv.rum.constants import RumSpanType
 from rum_web.handlers.builder.span import build as build_span
 from rum_web.handlers.builder.span.session import session_time_range
 from rum_web.handlers.builder.utils import get_safe_number
+
+
+SESSION_MAX_DURATION_US = 4 * 60 * 60 * 1_000_000
+
+
+def session_summary(period: dict[str, int | float | None]) -> dict[str, Any]:
+    """生命周期优先计算时长；缺失时使用观测跨度，四小时只用于判定过期。"""
+    start_time: int | float | None = period["start_time"]
+    end_time: int | float | None = period["end_time"]
+    observed_start: int | float | None = period["observed_start"]
+    observed_end: int | float | None = period["observed_end"]
+    duration_start: int | float | None = start_time
+    duration_end: int | float | None = end_time
+    if start_time is None or end_time is None:
+        duration_start, duration_end = observed_start, observed_end
+    duration: int | float | None = None
+    if duration_start is not None and duration_end is not None and duration_end >= duration_start:
+        duration = (duration_end - duration_start) / 1000
+
+    session_start: int | float | None = start_time if start_time is not None else observed_start
+    status: str | None = None
+    if end_time is not None:
+        status = "ended"
+    elif session_start is not None:
+        status = "expired" if time.time() * 1_000_000 - session_start >= SESSION_MAX_DURATION_US else "active"
+    return {"start_time": start_time, "end_time": end_time, "duration": duration, "session_status": status}
 
 
 @dataclass

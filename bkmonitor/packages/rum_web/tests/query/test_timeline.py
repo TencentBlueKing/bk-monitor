@@ -317,6 +317,11 @@ class TestTimelineHandler:
     @pytest.mark.parametrize("scope", [{"session_id": "session-1"}, {"view_id": "view-1"}])
     def test_queries_once_even_when_result_reaches_limit(self, mocker, scope):
         handler = _handler()
+        summary = mocker.patch.object(
+            handler.query,
+            "query_session_time_range",
+            return_value={"start_time": None, "end_time": None, "observed_start": None, "observed_end": None},
+        )
         spans = [
             _view(),
             *(_span(f"resource-{index}", "resource", 1_010_000 + index) for index in range(9999)),
@@ -346,9 +351,20 @@ class TestTimelineHandler:
             sort=["start_time", "span_id"],
         )
         total.assert_not_called()
+        if "session_id" in scope:
+            summary.assert_called_once_with("session-1")
+        else:
+            summary.assert_not_called()
+            assert "duration" not in result
+            assert "session_status" not in result
 
     def test_record_detail_and_timeline_reuse_vital_data(self, mocker):
         handler = _handler()
+        mocker.patch.object(
+            handler.query,
+            "query_session_time_range",
+            return_value={"start_time": None, "end_time": None, "observed_start": None, "observed_end": None},
+        )
         mocker.patch.object(handler, "RELATED_SPAN_LIMIT", 5)
         first = _view()
         latest = _view("latest", version=3, start_time=1_200_000, end_time=1_200_000)
