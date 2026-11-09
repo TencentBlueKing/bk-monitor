@@ -8,19 +8,8 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 See the License for the specific language governing permissions and limitations under the License.
 """
 
-from django.utils.translation import gettext as _
-
-from apps.log_search.exceptions import BaseSearchException
-
 
 def is_partial_result(result):
     """Read both raw and aggregate UQ completeness markers."""
     status = result.get("status") or {}
     return bool(result.get("is_partial")) or status.get("code") in {"QUERY_RAW_PARTIAL", "QUERY_TS_PARTIAL"}
-
-
-def require_complete_result(result):
-    """精确总数要求所有查询路由的数据完整。"""
-    if is_partial_result(result):
-        raise BaseSearchException(_("查询结果不完整，请稍后重试"))
-    return result

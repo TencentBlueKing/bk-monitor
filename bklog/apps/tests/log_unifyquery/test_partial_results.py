@@ -12,9 +12,10 @@ See the License for the specific language governing permissions and limitations 
 from types import SimpleNamespace
 from unittest.mock import Mock, patch
 
-from django.test import SimpleTestCase, override_settings
+from django.contrib.auth.models import AnonymousUser
+from django.test import RequestFactory, SimpleTestCase, override_settings
 
-from apps.log_search.exceptions import BaseSearchException
+from apps.log_search.views.search_views import SearchViewSet
 from apps.log_unifyquery.handler.base import UnifyQueryHandler
 from apps.log_unifyquery.handler.field import UnifyQueryFieldHandler
 
@@ -43,7 +44,7 @@ class PartialResultsTests(SimpleTestCase):
         handler = self.handler()
         handler.query_ts_raw.side_effect = [raw_partial([{}, {}]), {"list": [{}, {}], "total": 2}]
         result = handler.search(allow_partial_es_results=True)
-        self.assertFalse(result["is_partial"])
+        self.assertNotIn("is_partial", result)
         self.assertEqual(handler.query_ts_raw.call_count, 2)
         self.assertTrue(handler.query_ts_raw.call_args_list[0].kwargs["pre_search"])
         self.assertNotIn("pre_search", handler.query_ts_raw.call_args_list[1].kwargs)
@@ -58,7 +59,7 @@ class PartialResultsTests(SimpleTestCase):
         handler.query_ts_raw.return_value = raw_partial()
         result = handler.search(allow_partial_es_results=True)
         self.assertEqual(result["list"], [])
-        self.assertTrue(result["is_partial"])
+        self.assertNotIn("is_partial", result)
         self.assertEqual(result["status"]["code"], "QUERY_RAW_PARTIAL")
         self.assertEqual(handler.query_ts_raw.call_args.args[0]["from"], 20)
         self.assertTrue(handler.query_ts_raw.call_args.args[0]["allow_partial_es_results"])
@@ -74,7 +75,7 @@ class PartialResultsTests(SimpleTestCase):
         ):
             result = handler.date_histogram(allow_partial_es_results=True)
         self.assertTrue(handler.query_ts_reference.call_args.args[0]["allow_partial_es_results"])
-        self.assertTrue(result["is_partial"])
+        self.assertNotIn("is_partial", result)
         self.assertEqual(
             result["aggs"]["group_by_histogram"]["buckets"],
             [
@@ -90,32 +91,61 @@ class PartialResultsTests(SimpleTestCase):
         with self.assertRaises(TimeoutError):
             handler.date_histogram(allow_partial_es_results=True)
 
-    def test_rollout_requires_explicit_page_request_and_listed_index_owner(self):
+    def test_rollout_requires_local_page_and_listed_index_owner(self):
         handler = self.handler()
+        page = RequestFactory().post("/api/v1/search/", HTTP_X_REQUESTED_WITH="XMLHttpRequest")
+        page.user = SimpleNamespace(is_authenticated=True)
         handler.index_set_ids = [10]
         index = SimpleNamespace(is_platform_index=False, space_uid="bkcc__123")
         handler.index_set = {"index_set_obj": index}
         toggles = self.enterContext(patch("apps.log_unifyquery.handler.base.FeatureToggleObject"))
-        for status, businesses, requested, expected in (
-            ("debug", [123], True, True),
-            ("debug", [124], True, False),
-            ("debug", [], True, False),
-            ("off", [123], True, False),
-            ("on", [123], True, False),
-            ("debug", [123], None, False),
-            ("debug", [123], "true", False),
+        for status, businesses, expected in (
+            ("debug", [123], True),
+            ("debug", [124], False),
+            ("debug", [], False),
+            ("off", [123], False),
+            ("on", [123], False),
         ):
-            with self.subTest(status=status, businesses=businesses, requested=requested):
+            with self.subTest(status=status, businesses=businesses):
                 toggles.toggle.return_value = SimpleNamespace(status=status, biz_id_white_list=businesses)
-                self.assertEqual(handler.accepts_partial_page_results(requested), expected)
+                self.assertEqual(handler.accepts_partial_page_results(page), expected)
         toggles.toggle.return_value = None
-        self.assertFalse(handler.accepts_partial_page_results(True))
+        self.assertFalse(handler.accepts_partial_page_results(page))
         toggles.toggle.return_value = SimpleNamespace(status="debug", biz_id_white_list=[123])
+        for headers in (
+            {},
+            {"HTTP_X_BKAPI_JWT": "gateway", "HTTP_X_REQUESTED_WITH": "XMLHttpRequest"},
+            {"HTTP_X_SOURCE_APP_CODE": "monitor", "HTTP_X_REQUESTED_WITH": "XMLHttpRequest"},
+        ):
+            caller = RequestFactory().post("/", {"allow_partial_es_results": True}, **headers)
+            caller.user = page.user
+            self.assertFalse(handler.accepts_partial_page_results(caller))
+        page.jwt = object()
+        self.assertFalse(handler.accepts_partial_page_results(page))
+        del page.jwt
+        page.user = AnonymousUser()
+        self.assertFalse(handler.accepts_partial_page_results(page))
+        page.user = SimpleNamespace(is_authenticated=True)
         index.is_platform_index = True
-        self.assertFalse(handler.accepts_partial_page_results(True))
+        self.assertFalse(handler.accepts_partial_page_results(page))
         index.is_platform_index = False
         handler.index_set_ids.append(11)
-        self.assertFalse(handler.accepts_partial_page_results(True))
+        self.assertFalse(handler.accepts_partial_page_results(page))
+
+    @patch("apps.log_search.views.search_views.UnifyQueryHandler")
+    @patch("apps.log_search.views.search_views._apply_index_set_search_bk_biz_id")
+    def test_only_page_stream_enables_raw_search(self, _apply_scope, handler_cls):
+        view = SearchViewSet()
+        view.get_object = Mock()
+        view.params_valid = Mock(side_effect=lambda *_: {})
+        handler = handler_cls.return_value
+        handler.accepts_partial_page_results.return_value = True
+        handler.search.side_effect = lambda **_: {"list": [], "total": 0}
+        for query, enabled in (("", False), ("?stream=true", True)):
+            request = RequestFactory().post(f"/api/v1/search/index_set/10/search/{query}")
+            response = view.search(request, index_set_id=10)
+            handler.search.assert_called_with(allow_partial_es_results=enabled)
+            self.assertEqual(response.streaming, enabled)
 
     def test_shared_calls_omit_opt_in(self):
         handler = self.handler()
@@ -127,26 +157,12 @@ class PartialResultsTests(SimpleTestCase):
         self.assertEqual(handler.date_histogram(), {"aggs": {}})
         self.assertNotIn("allow_partial_es_results", handler.query_ts_reference.call_args.args[0])
 
-    def test_page_total_count_requires_complete_response_and_preserves_zero(self):
+    def test_only_page_total_uses_partial_count(self):
         handler = object.__new__(UnifyQueryFieldHandler)
         handler.result_merge_base_dict = {"query_list": [{}]}
-        handler.query_ts_reference = Mock()
-        for response in (
-            {"series": [], "is_partial": True},
-            {"series": [{"values": [[1000, 7]]}], "status": {"code": "QUERY_TS_PARTIAL"}},
-        ):
-            with self.subTest(response=response):
-                handler.query_ts_reference.return_value = response
-                with self.assertRaises(BaseSearchException):
-                    handler.get_total_count(require_complete=True)
-                self.assertTrue(handler.query_ts_reference.call_args.kwargs["raise_exception"])
-                self.assertNotIn("allow_partial_es_results", handler.query_ts_reference.call_args.args[0])
-        self.assertEqual(handler.get_total_count(), 7)  # Shared count used by no-data inspection.
-        handler.query_ts_reference.side_effect = TimeoutError("count timed out")
-        with self.assertRaises(TimeoutError):
-            handler.get_total_count(require_complete=True)
-        handler.query_ts_reference.side_effect = None
-        handler.query_ts_reference.return_value = {"series": [{"values": [[1000, 0]]}]}
-        self.assertEqual(handler.get_total_count(require_complete=True), 0)
-        handler.query_ts_reference.return_value = {"series": []}
-        self.assertEqual(handler.get_total_count(require_complete=True), 0)
+        handler.query_ts_reference = Mock(return_value={"series": [{"values": [[1000, 7]]}], "is_partial": True})
+        self.assertEqual(handler.get_total_count(allow_partial_es_results=True), 7)
+        self.assertTrue(handler.query_ts_reference.call_args.args[0]["allow_partial_es_results"])
+        self.assertEqual(handler.get_total_count(), 7)
+        self.assertNotIn("allow_partial_es_results", handler.query_ts_reference.call_args.args[0])
+        self.assertFalse(handler.query_ts_reference.call_args.kwargs["raise_exception"])

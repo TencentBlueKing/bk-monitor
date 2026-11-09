@@ -933,9 +933,16 @@ class UnifyQueryHandler:
         nested_dict = self.nested_dict_from_dotted_key(dotted_dict=highlight)
         return self.update_nested_dict(log, nested_dict)
 
-    def accepts_partial_page_results(self, requested):
+    def accepts_partial_page_results(self, request):
         """仅普通单索引集检索页可按索引集归属业务灰度。"""
-        if requested is not True or len(self.index_set_ids) != 1:
+        if (
+            len(self.index_set_ids) != 1
+            or request.headers.get("X-Requested-With") != "XMLHttpRequest"
+            or getattr(request, "jwt", None)
+            or request.headers.get("X-Bkapi-JWT")
+            or request.headers.get("X-Source-App-Code")
+            or not request.user.is_authenticated
+        ):
             return False
         index_set = self.index_set["index_set_obj"]
         if index_set.is_platform_index:
@@ -988,8 +995,6 @@ class UnifyQueryHandler:
         ):
             # 全量查询
             result = self.query_ts_raw(search_dict)
-        if allow_partial_es_results:
-            result["is_partial"] = is_partial_result(result)
         result = self._deal_query_result(result)
 
         # 脱敏配置日志原文检索 提前返回
@@ -1018,12 +1023,9 @@ class UnifyQueryHandler:
             interval, group_field, params, allow_partial_es_results=allow_partial_es_results
         )
 
-        return_data = (
-            self.obtain_result_data(interval, group_field, response) if response.get("series") else {"aggs": {}}
-        )
-        if allow_partial_es_results:
-            return_data.update(is_partial=is_partial_result(response), status=response.get("status"))
-        return return_data
+        if not response.get("series"):
+            return {"aggs": {}}
+        return self.obtain_result_data(interval, group_field, response)
 
     @staticmethod
     def obtain_result_data(interval, group_field, response):

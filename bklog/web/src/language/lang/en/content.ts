@@ -1622,7 +1622,4 @@ export default {
   '为支持分片并行导出，将优先按日志时间降序排列，同一时间内保留其他字段的排序规则。筛选条件、导出字段和数据范围不变。实际导出排序：{sort}':
     'For parallel export, logs will be sorted by log time descending first, retaining the other sort rules for equal timestamps. Filters, exported fields, and the data range remain unchanged. Export order: {sort}',
   '导出排序已变化，请重新提交并确认': 'The export sort order has changed. Please submit again and confirm.',
-  查询结果可能不完整: 'Query results may be incomplete',
-  结果总数暂不可用: 'The result count is temporarily unavailable',
-  '图表查询失败，请重试': 'Chart query failed. Please try again.',
 };

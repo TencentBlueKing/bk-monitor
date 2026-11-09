@@ -177,8 +177,8 @@ class FieldViewSet(APIViewSet):
         """
         params = self.params_valid(QueryFieldBaseSerializer)
         handler = UnifyQueryFieldHandler(params)
-        strict = handler.accepts_partial_page_results(request.data.get("allow_partial_es_results"))
-        total_count = handler.get_total_count(require_complete=strict)
+        allow_partial = handler.accepts_partial_page_results(request)
+        total_count = handler.get_total_count(allow_partial_es_results=allow_partial)
         return Response({"total_count": total_count})
 
     @list_route(methods=["POST"], url_path="statistics/graph")
