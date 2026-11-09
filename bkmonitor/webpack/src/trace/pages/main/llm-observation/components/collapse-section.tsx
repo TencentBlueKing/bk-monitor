@@ -58,6 +58,11 @@ export default defineComponent({
       type: String,
       default: '',
     },
+    /** 标题旁数量徽标，时间流输入 / 输出标题已自带计数时可关掉 */
+    showCount: {
+      type: Boolean,
+      default: true,
+    },
   },
   setup(props, { slots }) {
     const expanded = shallowRef(props.defaultExpand);
@@ -91,7 +96,8 @@ export default defineComponent({
           <div class='llm-collapse-section-title'>
             {props.icon ? <i class={['icon-monitor', 'llm-collapse-section-icon', props.icon]} /> : null}
             <span class='llm-collapse-section-label'>{props.title}</span>
-            <span class='llm-collapse-section-count'>{props.count}</span>
+            {props.showCount ? <span class='llm-collapse-section-count'>{props.count}</span> : null}
+            {slots.extra?.()}
           </div>
           <i class='icon-monitor icon-arrow-down llm-collapse-section-arrow' />
         </div>
