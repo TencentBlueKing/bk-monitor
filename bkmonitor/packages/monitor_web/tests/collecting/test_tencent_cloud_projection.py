@@ -11,6 +11,7 @@ import yaml
 from core.errors.collecting import CollectConfigParamsError, LegacyConversionFailed
 from monitor_web.collecting.resources import backend, frontend
 from monitor_web.collecting.resources.tencent_cloud import K8sInstaller, configmap_projection, prepare_edit_params
+from monitor_web.plugin.views import CollectorPluginViewSet
 
 IMAGE = "example.com/exporter:test"
 TEMPLATE = """apiVersion: v1
@@ -129,6 +130,27 @@ def config(settings, mocker):
 def detail(**kwargs):
     resource = backend.CollectConfigDetailResource()
     return resource.perform_request(resource.validate_request_data({"id": 3, "bk_biz_id": 2, **kwargs}))
+
+
+def test_help_uses_current_repo_for_new_and_existing_configs(config, settings, mocker):
+    settings.TENCENT_CLOUD_METRIC_PLUGIN_CONFIG = {
+        "plugin_display_name": "Sample",
+        "collector_json": {},
+        "description_md": "old description",
+    }
+    mocker.patch("monitor_web.plugin.views.resource.commons.get_label_msg", return_value={})
+    for url in ("https://example.org/personal/skills", "https://example.org/team/skills", ""):
+        settings.TENCENT_CLOUD_METRIC_PLUGIN_CONFIG["skill_repository_url"] = url
+        new = CollectorPluginViewSet.get_virtual_plugins(with_detail=True)[0]["description_md"]
+        assert detail(params_format="configmap")["plugin_info"]["description_md"] == new
+        assert detail()["plugin_info"]["description_md"] == new
+        if url:
+            assert f"npx skills add {url} -g" in new
+            assert f"[查看 Skill 仓库]({url})" in new
+        else:
+            assert "上传已有的 ConfigMap YAML" in new
+            assert "npx" not in new and "查看 Skill 仓库" not in new
+        assert "密钥" in new
 
 
 def test_edit_and_display(config, mocker):

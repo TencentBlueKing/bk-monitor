@@ -33,7 +33,8 @@ from monitor_web.collecting.deploy.tencent_cloud import freeze_runtime, validate
 from monitor_web.collecting.params import stored_detail
 from monitor_web.collecting.tencent_cloud import (
     ConfigLoader,
-    configmap_form,
+    configmap_description,
+    new_form_definition,
     load_yaml,
     resolve_contract,
     file_contains_credential,
@@ -97,10 +98,12 @@ def form_detail(config, params_format):
     if params_format == "configmap" or "runtime" in config.deployment_config.params:
         params = configmap_projection(config)
         info = config.deployment_config.plugin_version.get_plugin_version_detail()
-        info.update(config_mode="configmap", config_json=configmap_form(), collector_json={})
+        new_form_definition(info)
         return params, info
 
     params, info = stored_detail(config)
+    if settings.TENCENT_CLOUD_EXPORTER_CONTRACTS:
+        info["description_md"] = configmap_description()
     credential_fields = ("secret_id", "access_key", "secret_key")
     source = config.deployment_config
     plugin = params.setdefault("plugin", {})
