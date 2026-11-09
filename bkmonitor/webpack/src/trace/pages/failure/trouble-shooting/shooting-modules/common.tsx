@@ -157,7 +157,7 @@ export function handleCopy(data, $t, isGeneralEvent = false) {
   };
   let copied = false;
   if (isGeneralEvent) {
-    const { $index, interaction, ...rest } = data;
+    const { $index, interaction, availability_ref, ...rest } = data;
     copied = copyText(JSON.stringify(rest, null, 4), reportCopyError);
   } else {
     copied = copyText(data, reportCopyError);

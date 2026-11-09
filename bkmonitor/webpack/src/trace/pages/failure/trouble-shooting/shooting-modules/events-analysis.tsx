@@ -298,8 +298,9 @@ export const createEventsAnalysisModule = (options: IShootingModuleContext, $t: 
       const jsonData: Record<string, any> = rawData && typeof rawData === 'object' ? { ...rawData } : rawData;
       if (jsonData) {
         delete jsonData.$index;
-        // interaction 是前端行为元数据，不属于事件原始内容
+        // interaction 和 availability_ref 是前端行为元数据，不属于事件原始内容
         delete jsonData.interaction;
+        delete jsonData.availability_ref;
       }
       const hasOnViewFullJson = typeof options.onViewFullJson === 'function';
 

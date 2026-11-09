@@ -290,7 +290,9 @@ export default defineComponent({
       const detailRef = availabilityRef;
       const bkBizId = Number(bkzIds.value[0]);
       const incidentId = Number(incidentDetailData.value?.incident_id);
-      const incidentTaskId = detailRef?.incident_task_id;
+      const queryTaskId = route.query.incident_task_id;
+      const queryTask = Array.isArray(queryTaskId) ? queryTaskId[0] : queryTaskId;
+      const incidentTaskId = detailRef?.incident_task_id ?? queryTask ?? incidentDetailData.value?.extra_info?.task_id;
       if (!detailRef || !bkBizId || !incidentId || !incidentTaskId) {
         Message({ message: t('缺少数据可用性校验信息，无法跳转'), theme: 'warning' });
         return false;

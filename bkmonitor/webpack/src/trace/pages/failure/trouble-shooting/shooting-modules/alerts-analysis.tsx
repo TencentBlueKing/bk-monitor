@@ -23,7 +23,7 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { Collapse } from 'bkui-vue';
+import { Collapse, Message } from 'bkui-vue';
 
 import { createInteractionExecutor, TableContentItem } from './common';
 
@@ -44,7 +44,7 @@ export const renderAlertsAnalysisSlot = (options: IShootingModuleContext, $t: Tr
       {/* 显示维度名称或默认标题 */}
       <span>
         {item.name || `${$t('异常维度（组合）')} ${item.$index + 1}`}
-        {item.interaction?.action === 'link' && (
+        {item.interaction?.action === 'link' && !!item.interaction.url && (
           <i
             class='icon-monitor icon-fenxiang icon-jump-page cursor-link'
             onClick={e => {
@@ -100,17 +100,33 @@ export const renderAlertsAnalysisSlot = (options: IShootingModuleContext, $t: Tr
   };
   const renderDimensionalSlot = () => {
     const len = options.contentList?.alerts_analysis?.length;
+    const displayInteraction = options.displayInteractionList.alerts_analysis;
+    const canViewAll = displayInteraction?.action === 'link' && !!displayInteraction.url;
+    const hasInteractionError = displayInteraction?.action === 'error';
+    const handleViewAll = (event: MouseEvent) => {
+      event.stopPropagation();
+      if (hasInteractionError) {
+        Message({
+          message: displayInteraction.error?.message || $t('当前数据不可用，无法跳转'),
+          theme: 'warning',
+        });
+        return;
+      }
+      if (canViewAll) executeInteraction(displayInteraction);
+    };
     return (
       <div>
         <div class='dimensional-desc mb-8'>
           <span>{$t('故障关联的告警，统计出最异常的维度（组合）：')}</span>
-          <span
-            class={options.displayInteractionList.alerts_analysis?.action === 'link' ? 'cursor-link' : ''}
-            onClick={() => executeInteraction(options.displayInteractionList.alerts_analysis)}
-          >
-            {$t('查看全部')}
-            <i class='icon-monitor icon-fenxiang icon-jump-page' />
-          </span>
+          {(canViewAll || hasInteractionError) && (
+            <span
+              class={canViewAll ? 'cursor-link' : ''}
+              onClick={handleViewAll}
+            >
+              {$t('查看全部')}
+              {canViewAll && <i class='icon-monitor icon-fenxiang icon-jump-page' />}
+            </span>
+          )}
         </div>
         {len > 0 && (
           <Collapse

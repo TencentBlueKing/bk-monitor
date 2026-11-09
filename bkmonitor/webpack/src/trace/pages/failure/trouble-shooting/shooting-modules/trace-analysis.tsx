@@ -54,10 +54,8 @@ export const renderTraceAnalysisSlot = (options: IShootingModuleContext, $t: Tra
 
   // Trace分析标题
   const traceTitle = (item: ITraceAnalysis, itemIndex: number) => {
-    // 具备可用性引用且交互未被后端置为 error/none 的 Trace 记录允许点击。
-    const canOpenTrace =
-      !['error', 'none'].includes(item.interaction?.action) &&
-      (item.interaction?.action === 'link' || !!item.availability_ref);
+    // 仅后端明确提供外链且地址有效的 Trace 记录允许点击。
+    const canOpenTrace = item.interaction?.action === 'link' && !!item.interaction.url;
     return (
       <span class='log-title'>
         {`${$t('分析结果')} ${itemIndex + 1}`}
