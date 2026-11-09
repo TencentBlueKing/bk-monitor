@@ -2712,7 +2712,7 @@ paths:
         matchSubpath: false
         backend:
           name: default
-          method: get
+          method: post
           path: /api/v1/databus/restore/
           matchSubpath: false
           timeout: 0
@@ -2755,7 +2755,7 @@ paths:
         matchSubpath: false
         backend:
           name: default
-          method: get
+          method: put
           path: /api/v1/databus/restore/{restore_config_id}/
           matchSubpath: false
           timeout: 0
@@ -2776,7 +2776,7 @@ paths:
         matchSubpath: false
         backend:
           name: default
-          method: get
+          method: delete
           path: /api/v1/databus/restore/{restore_config_id}/
           matchSubpath: false
           timeout: 0
@@ -2973,7 +2973,7 @@ paths:
         matchSubpath: false
         backend:
           name: default
-          method: get
+          method: put
           path: /api/v1/databus/archive/{archive_config_id}/
           matchSubpath: false
           timeout: 0
@@ -2996,6 +2996,70 @@ paths:
           name: default
           method: get
           path: /api/v1/databus/archive/{archive_config_id}/
+          matchSubpath: false
+          timeout: 0
+        pluginConfigs: []
+        authConfig:
+          userVerifiedRequired: false
+          appVerifiedRequired: true
+          resourcePermissionRequired: true
+        descriptionEn:
+  /databus/collectors/{collector_config_id}/archive/:
+    put:
+      operationId: databus_collector_upsert_archive
+      description: 日志平台-采集项归档-创建或更新归档
+      tags:
+      - 采集项
+      x-bk-apigateway-resource:
+        isPublic: false
+        allowApplyPermission: true
+        matchSubpath: false
+        backend:
+          name: default
+          method: put
+          path: /api/v1/databus/collectors/{collector_config_id}/archive/
+          matchSubpath: false
+          timeout: 0
+        pluginConfigs: []
+        authConfig:
+          userVerifiedRequired: false
+          appVerifiedRequired: true
+          resourcePermissionRequired: true
+        descriptionEn:
+    get:
+      operationId: databus_collector_get_archive
+      description: 日志平台-采集项归档-查询归档配置
+      tags:
+      - 采集项
+      x-bk-apigateway-resource:
+        isPublic: false
+        allowApplyPermission: true
+        matchSubpath: false
+        backend:
+          name: default
+          method: get
+          path: /api/v1/databus/collectors/{collector_config_id}/archive/
+          matchSubpath: false
+          timeout: 0
+        pluginConfigs: []
+        authConfig:
+          userVerifiedRequired: false
+          appVerifiedRequired: true
+          resourcePermissionRequired: true
+        descriptionEn:
+    delete:
+      operationId: databus_collector_delete_archive
+      description: 日志平台-采集项归档-关闭归档
+      tags:
+      - 采集项
+      x-bk-apigateway-resource:
+        isPublic: false
+        allowApplyPermission: true
+        matchSubpath: false
+        backend:
+          name: default
+          method: delete
+          path: /api/v1/databus/collectors/{collector_config_id}/archive/
           matchSubpath: false
           timeout: 0
         pluginConfigs: []
