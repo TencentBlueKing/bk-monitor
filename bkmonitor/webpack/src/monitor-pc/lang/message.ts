@@ -31,6 +31,14 @@ export default {
     'No monitoring document was found for incident {id}. It may have been suppressed or not yet synchronized. Return to the list to view the analysis record.',
   '故障 {id} 的详情地址解析失败，请稍后刷新重试。':
     'Failed to resolve the details URL for incident {id}. Please refresh to retry later.',
+  '缺少故障分析任务信息，无法打开详情': 'The fault analysis task information is missing. Unable to open details.',
+  侧滑详情类型不匹配: 'The side panel detail type does not match.',
+  获取侧滑详情失败: 'Failed to retrieve side panel details.',
+  保存日志字段配置失败: 'Failed to save log field configuration.',
+  日志查询上下文缺少索引集信息: 'The log query context is missing index set information.',
+  暂无关联日志: 'No related logs.',
+  查看完整: 'View full',
+  查看完整事件: 'View full event',
   // Messages :  Success |  Warning  | Error |  Info
   // 规范： 动词-主体-结果  如 新建应用成功 New application successful
   // 规范： 仅首字母大写
@@ -612,4 +620,8 @@ export default {
 
   '确认重新分析？': 'Confirm to re-analyze?',
   '分析失败，请稍后重试': 'Analysis failed. Please try again later',
+  '缺少数据可用性校验信息，无法跳转': 'Missing data availability verification information, unable to jump',
+  '数据可用性校验失败，已禁止跳转': 'Data availability verification failed, jump prohibited',
+  '当前数据不可用，无法跳转': 'Current data is unavailable, unable to jump',
+  数据可用性校验失败: 'Data availability verification failed',
 };
