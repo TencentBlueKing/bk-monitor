@@ -10,7 +10,6 @@ specific language governing permissions and limitations under the License.
 
 import logging
 import threading
-from concurrent.futures import ThreadPoolExecutor, as_completed
 from functools import reduce
 
 from django.conf import settings
@@ -24,7 +23,6 @@ from bkmonitor.utils.request import get_request_tenant_id
 from constants.action import ActionPluginType, ActionSignal
 from constants.data_source import DataSourceLabel, DataTypeLabel
 from core.drf_resource import api, resource
-from common.decorators import db_safe_wrapper
 
 logger = logging.getLogger(__name__)
 
@@ -71,38 +69,57 @@ class AbstractTranslator:
 
 
 class MetricTranslator(AbstractTranslator):
+    # 单条 SQL 内 OR 分支上限：既能命中索引，又不会因分支过多让优化器放弃索引
+    QUERY_BATCH_SIZE = 50
+
+    # 指标翻译只需要这些字段，避免把 description 等大字段读回来
+    TRANSLATE_FIELDS = (
+        "data_source_label",
+        "data_type_label",
+        "result_table_id",
+        "metric_field",
+        "metric_field_name",
+        "related_id",
+        "extend_fields",
+        "data_label",
+    )
+
     def __init__(self, bk_biz_ids: list[int] | None = None, *args, **kwargs):
         self.bk_biz_ids = list(set(bk_biz_ids or []) & {0})
         super().__init__(*args, **kwargs)
 
-    @db_safe_wrapper
-    def _execute_single_query(self, query: Q, tenant_id: str) -> list:
+    @staticmethod
+    def _build_query_groups(values: list[str]) -> dict[frozenset, list[Q]]:
         """
-        执行单个查询
-        每个独立查询使用精确条件，能更好地利用复合索引
-        使用 db_safe_wrapper 确保多线程环境下数据库连接安全
+        把 metric_id 解析成 Q，并按「查询条件列集合」分组。
+
+        同组内每个 Q 的列集合完全一致，才能共用同一条索引。若把不同列集合的 Q 拼进同一个 OR
+        （例如日志平台类的 related_id 与普通时序类的 result_table_id+metric_field），MySQL 无法
+        做 index merge，会退化成单索引全扫，实测单次可达 12s。
         """
-        try:
-            metrics_queryset = MetricListCache.objects.filter(bk_tenant_id=tenant_id).filter(query)
-            if self.bk_biz_ids:
-                metrics_queryset = metrics_queryset.filter(bk_biz_id__in=self.bk_biz_ids)
-            # 只查询必要的字段
-            return list(
-                metrics_queryset.only(
-                    "data_source_label",
-                    "data_type_label",
-                    "result_table_id",
-                    "metric_field",
-                    "metric_field_name",
-                    "related_id",
-                    "extend_fields",
-                    "data_label",
-                )
-            )
-        except Exception as e:
-            # 捕获并静默处理查询异常：返回空列表以跳过该指标的翻译，避免异常传播影响其他并发查询
-            logger.warning("MetricListCache query failed: %s", str(e))
-            return []
+        query_groups: dict[frozenset, list[Q]] = {}
+        for metric_id in values:
+            try:
+                metric = parse_metric_id(metric_id)
+            except Exception:
+                # 解析失败就跳过
+                continue
+
+            if "index_set_id" in metric:
+                metric["related_id"] = metric.pop("index_set_id")
+            if not metric:
+                continue
+            query_groups.setdefault(frozenset(metric), []).append(Q(**metric))
+        return query_groups
+
+    def _query_metrics(self, queries: list[Q], tenant_id: str) -> list:
+        """执行一批列集合相同的 Q，只查询翻译需要的字段"""
+        metrics_queryset = MetricListCache.objects.filter(bk_tenant_id=tenant_id).filter(
+            reduce(lambda x, y: x | y, queries)
+        )
+        if self.bk_biz_ids:
+            metrics_queryset = metrics_queryset.filter(bk_biz_id__in=self.bk_biz_ids)
+        return list(metrics_queryset.only(*self.TRANSLATE_FIELDS))
 
     def translate(self, values: list[str]) -> dict:
         if settings.ROLE == "api":
@@ -112,55 +129,26 @@ class MetricTranslator(AbstractTranslator):
 
         tenant_id = get_request_tenant_id()
 
-        # 解析所有metric_id并构建查询条件
-        queries = []
-        for metric_id in values:
-            try:
-                metric = parse_metric_id(metric_id)
-            except Exception:
-                # 解析失败就跳过
-                continue
-
-            if "index_set_id" in metric:
-                metric["related_id"] = metric["index_set_id"]
-                del metric["index_set_id"]
-            if metric:
-                queries.append(Q(**metric))
-
-        if not queries:
+        query_groups = self._build_query_groups(values)
+        if not query_groups:
             # 没有需要查询的指标，则直接退出
             return {}
 
         all_metrics = []
-        if len(queries) <= 3:
-            # OR 查询条件较少，使用单次 OR 查询
-            metrics_queryset = MetricListCache.objects.filter(bk_tenant_id=tenant_id).filter(
-                reduce(lambda x, y: x | y, queries)
-            )
-            if self.bk_biz_ids:
-                metrics_queryset = metrics_queryset.filter(bk_biz_id__in=self.bk_biz_ids)
-
-            all_metrics = list(
-                metrics_queryset.only(
-                    "data_source_label",
-                    "data_type_label",
-                    "result_table_id",
-                    "metric_field",
-                    "metric_field_name",
-                    "related_id",
-                    "extend_fields",
-                    "data_label",
-                )
-            )
-        else:
-            # OR 查询条件较多，拆分为并发查询
-            with ThreadPoolExecutor(max_workers=20) as executor:
-                future_to_query = {
-                    executor.submit(self._execute_single_query, query, tenant_id): query for query in queries
-                }
-
-                for future in as_completed(future_to_query):
-                    all_metrics.extend(future.result())
+        for field_names, queries in query_groups.items():
+            for start in range(0, len(queries), self.QUERY_BATCH_SIZE):
+                batch = queries[start : start + self.QUERY_BATCH_SIZE]
+                try:
+                    all_metrics.extend(self._query_metrics(batch, tenant_id))
+                except Exception as e:
+                    # 单批失败只跳过该批，避免一个异常导致整页指标都不翻译
+                    logger.warning(
+                        "MetricListCache query failed, skip %s metrics, fields: %s, reason: %s",
+                        len(batch),
+                        sorted(field_names),
+                        e,
+                        exc_info=True,
+                    )
 
         metric_translations = {}
         for metric in all_metrics:

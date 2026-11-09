@@ -111,6 +111,15 @@ class MetricListCache(models.Model):
             ("data_type_label", "data_source_label", "bk_biz_id"),
             ("data_label", "metric_field", "bk_biz_id"),
         )
+        indexes = [
+            # 供指标翻译（MetricTranslator）按「租户 + 数据源 + 数据类型 + related_id」精确查询：
+            # 日志平台类 metric_id（bk_log_search.index_set.{id}）解析后只有 related_id、
+            # 没有result_table_id，既有 4 条复合索引都用不上它
+            models.Index(
+                fields=["bk_tenant_id", "data_source_label", "data_type_label", "related_id"],
+                name="idx_mlc_tenant_ds_dt_rid",
+            ),
+        ]
 
     @classmethod
     def item_description(cls, item):
