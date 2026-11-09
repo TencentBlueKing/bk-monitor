@@ -86,24 +86,20 @@ def test_query_whitelist_ignores_invalid_values():
     assert graph_relation.get_relation_v1beta3_biz_ids() == {2, -17}
 
 
-@pytest.mark.parametrize("white_list", [["*"], [2, "*"], "*", "2, *", [" * "]])
+@pytest.mark.parametrize("white_list", [[-1], ["-1"], [2, -1], "-1", "2, -1"])
 @pytest.mark.parametrize(
-    "biz_id, enabled", [(2, True), (5, True), ("8", True), (-57, True), (None, False), ("x", False)]
+    "biz_id, enabled",
+    [(2, True), (5, True), ("8", True), (-57, True), (-1, True), (0, False), ("0", False), (None, False), ("x", False)],
 )
-def test_all_business_value_enables_every_business(white_list, biz_id, enabled):
+def test_minus_one_enables_every_resolved_business(white_list, biz_id, enabled):
     with override_settings(RELATION_V1BETA3_BIZ_ID_WHITE_LIST=white_list):
         assert resolve_relation_query_path(
             RELATION_MULTI_RESOURCE_PATH, RELATION_MULTI_RESOURCE_V1BETA3_PATH, biz_id
         ) == (RELATION_MULTI_RESOURCE_V1BETA3_PATH if enabled else RELATION_MULTI_RESOURCE_PATH)
 
 
-@override_settings(RELATION_V1BETA3_BIZ_ID_WHITE_LIST=["*", 2, "invalid"])
-def test_all_business_value_is_not_a_business_id():
-    assert graph_relation.get_relation_v1beta3_biz_ids() == {2}
-
-
-@override_settings(RELATION_V1BETA3_BIZ_ID_WHITE_LIST=["**", "all", 2])
-def test_only_the_exact_value_enables_every_business():
+@override_settings(RELATION_V1BETA3_BIZ_ID_WHITE_LIST=["*", "all", 2])
+def test_other_values_do_not_enable_every_business():
     assert resolve_relation_query_path(RELATION_MULTI_RESOURCE_PATH, RELATION_MULTI_RESOURCE_V1BETA3_PATH, 5) == (
         RELATION_MULTI_RESOURCE_PATH
     )
