@@ -251,19 +251,6 @@ stages:
           - execute_tool
           - lookup_metadata
           - lookup_permissions
-      # 内部运营入口保持不公开，也不启用 OAuth2 公开客户端或个人令牌。
-      - <<: *public_mcp_server
-        name: "operation-data-query"
-        title: "【内部】蓝鲸观测运营数据查询MCP"
-        description: "【内部】蓝鲸观测运营数据查询MCP"
-        is_public: false
-        oauth2_public_client_enabled: false
-        oauth2_personal_client_enabled: false
-        category_names: ["Monitoring"]
-        resource_names:
-          - list_operation_metrics
-          - get_operation_metric
-          - get_operation_overview
 
 # 主动授权，网关主动给应用，添加访问网关所有资源或者具体某个资源的权限；
 # 用于命令 `grant_apigw_permissions`

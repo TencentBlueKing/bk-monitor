@@ -71,22 +71,34 @@ def test_only_target_stage_is_rendered_with_existing_backend(stage):
 def test_server_names_and_access_modes_preserve_existing_contracts():
     servers = _definition()["stages"][0]["mcp_servers"]
     names = [server["name"] for server in servers]
-    assert len(names) == len(set(names)) == 17
-    assert {"log-collector", "profiling-query", "operation-data-query"}.issubset(names)
+    assert len(names) == len(set(names)) == 16
+    assert set(names) == {
+        "metadata-query",
+        "metrics-query",
+        "log-query",
+        "log-scene-search",
+        "event-query",
+        "alarm",
+        "alarm-handling",
+        "dashboard-query",
+        "dashboard-edit",
+        "tracing",
+        "profiling-query",
+        "relation-query",
+        "log-collector",
+        "log-extract",
+        "recording-rule",
+        "unified",
+    }
     for server in servers:
         assert not server["name"].startswith("bk-monitor-")
         assert server["protocol_type"] == "streamable_http"
         assert server["status"] == 1
         assert server["raw_response_enabled"] is False
         assert not server.get("target_app_codes")
-        if server["name"] == "operation-data-query":
-            assert server["is_public"] is False
-            assert server["oauth2_public_client_enabled"] is False
-            assert server["oauth2_personal_client_enabled"] is False
-        else:
-            assert server["is_public"] is True
-            assert server["oauth2_public_client_enabled"] is True
-            assert server["oauth2_personal_client_enabled"] is True
+        assert server["is_public"] is True
+        assert server["oauth2_public_client_enabled"] is True
+        assert server["oauth2_personal_client_enabled"] is True
 
 
 def test_tools_exist_have_request_schemas_and_cover_reviewed_sources():
@@ -111,13 +123,14 @@ def test_tools_exist_have_request_schemas_and_cover_reviewed_sources():
             ), name
         declared.update(names)
 
-    # 专用诊断和 OpenClaw 入口不随普通业务 MCP 发布。
-    excluded = {"ops_mcp.yaml", "openclaw_recovering_mcp.yaml"}
+    # 内部运营不再注册，专用诊断和 OpenClaw 入口不随普通业务 MCP 发布。
+    excluded = {"operation_mcp.yaml", "ops_mcp.yaml", "openclaw_recovering_mcp.yaml"}
     reviewed = set()
     for file in (_APIGW_DIR / "resources/internal/user").glob("*mcp.yaml"):
         if file.name not in excluded:
             reviewed.update(_source_operations(file.name))
     assert declared == reviewed
+    assert declared.isdisjoint(_source_operations("operation_mcp.yaml"))
 
 
 def test_query_and_write_groups_remain_separate():
@@ -216,7 +229,7 @@ def test_locked_sdk_loads_v2_definition_and_sends_mcp_servers():
         command = McpCommand()
         definitions = command.get_definition(define=[], file=str(_DEFINITION), namespace="stages")
     assert stages == definitions
-    assert len(definitions[0]["mcp_servers"]) == 17
+    assert len(definitions[0]["mcp_servers"]) == 16
     manager = Mock()
     manager.sync_stage_mcp_servers.return_value = {
         "data": [{"id": 1, "name": "bk-monitor-prod-alarm", "action": "update"}]
