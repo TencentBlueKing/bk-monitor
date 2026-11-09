@@ -88,6 +88,8 @@ export interface IRumTimelineSpanVM {
   title: string;
   /** 关联 Trace，仅 links 里有值且检索到对应 Trace 时存在 */
   trace?: IRumTraceInfo;
+  /** 原始关联的 trace_id，行进入视口时用于检索所属应用；无关联时为空串 */
+  traceId: string;
 }
 
 /** 链路上下文顶部的 View 头部视图模型 */
