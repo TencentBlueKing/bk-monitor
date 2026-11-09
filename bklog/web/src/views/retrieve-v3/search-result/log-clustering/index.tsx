@@ -109,6 +109,9 @@ export default defineComponent({
     const globalLoading = computed(() => indexFieldInfo.value.is_loading);
     const clusteringConfig = computed(() => indexSetFieldConfig.value.clustering_config);
     const quix = computed(() => clusterStepData.value?.quix);
+    const showQuixProgress = computed(
+      () => isShowClusterStep.value && ['enabling', 'reopening'].includes(quix.value?.phase ?? ''),
+    );
     provide(quixPage, { status: quix, refresh: () => void clusterPolling() });
     const clusterSwitch = computed(() =>
       quix.value ? Boolean(quix.value.distance_threshold) : Boolean(clusteringConfig.value?.is_active),
@@ -426,6 +429,7 @@ export default defineComponent({
             {quix.value && (
               <QuixStatusBanner
                 status={quix.value}
+                showProgress={exhibitAll.value && !statusError.value && showQuixProgress.value}
                 busy={submitting.value || !!statusError.value}
                 on-retry={() => submitAction('retry')}
                 on-close={confirmClose}
@@ -465,7 +469,10 @@ export default defineComponent({
                     />
                   );
                 }
-                if (isShowClusterStep.value && (quix.value || statusError.value || !clusterStepData.value)) return null;
+                if (isShowClusterStep.value && (statusError.value || !clusterStepData.value)) return null;
+                if (isShowClusterStep.value && quix.value && !showQuixProgress.value) {
+                  return null;
+                }
                 if (isShowClusterStep.value) {
                   // 聚类启动失败
                   return <cluster-start-fail cluster-step-data={clusterStepData.value} />;

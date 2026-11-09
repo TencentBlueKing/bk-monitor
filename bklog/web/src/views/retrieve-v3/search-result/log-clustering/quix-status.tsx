@@ -50,6 +50,7 @@ export default defineComponent({
   props: {
     status: { type: Object as PropType<QuixStatus>, required: true },
     busy: Boolean,
+    showProgress: Boolean,
   },
   setup(props, { emit }) {
     const { t } = useLocale();
@@ -60,6 +61,16 @@ export default defineComponent({
       const canClose =
         phase === 'running' ||
         ((failed || operation?.status === 'awaiting_receipt') && phase !== 'disabling' && phase !== 'stopped');
+      if (
+        props.showProgress &&
+        !failed &&
+        !canClose &&
+        !operation?.last_error &&
+        !bkfara?.error &&
+        !bkfara?.pending_result_count
+      ) {
+        return null;
+      }
       return (
         <div
           class='quix-status'
@@ -67,9 +78,7 @@ export default defineComponent({
         >
           <strong>{t(failed && phase !== 'stopped' ? failureText[operation.operation_type] : phaseText[phase])}</strong>
           {operation?.status === 'awaiting_receipt' && (
-            <span>
-              {t(operation.operation_type === 'disable' ? '等待后台资源收尾' : '配置已下发，等待采用确认')}
-            </span>
+            <span>{t(operation.operation_type === 'disable' ? '等待后台资源收尾' : '配置已下发，等待采用确认')}</span>
           )}
           {operation?.last_error && (failed || operation.status === 'running') && <span>{operation.last_error}</span>}
           {bkfara?.error && <span>{bkfara.error}</span>}

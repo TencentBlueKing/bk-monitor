@@ -24,7 +24,7 @@
  * IN THE SOFTWARE.
  */
 
-import { defineComponent, ref, watch } from 'vue';
+import { defineComponent, onBeforeUnmount, ref, watch } from 'vue';
 import dayjs from 'dayjs';
 import useLocale from '@/hooks/use-locale';
 import * as echarts from 'echarts';
@@ -57,8 +57,8 @@ export default defineComponent({
     dayjs.extend(isLeapYear);
     const { t } = useLocale();
 
-    const chartRef = ref(null);
-    const chartInstance = ref();
+    const chartRef = ref<HTMLDivElement | null>(null);
+    let chart: echarts.ECharts;
     const showPreViewContent = ref(false);
     const showWarnTip = ref(false);
     const previewLoading = ref(false);
@@ -68,11 +68,14 @@ export default defineComponent({
     const isRecordEmpty = ref(false);
     const localBuckets = ref<Histogram['aggs']['group_by_histogram']['buckets']>([]);
 
-    watch(showPreViewContent, () => {
-      if (showPreViewContent.value) {
-        initChart();
+    watch(chartRef, element => {
+      chart?.dispose();
+      if (element) {
+        chart = echarts.init(element);
+        updateChart(localBuckets.value);
       }
     });
+    onBeforeUnmount(() => chart?.dispose());
 
     // 获取最近一周的起始和结束时间戳 { start: 第一天00:00, end: 第七天23:59 }
     const getCurrentWeekRange = () => {
@@ -81,23 +84,8 @@ export default defineComponent({
       return { start, end };
     };
 
-    const initChart = () => {
-      setTimeout(() => {
-        if (!chartRef.value) {
-          return;
-        }
-        chartInstance.value?.dispose();
-        chartInstance.value = echarts.init(chartRef.value);
-        updateChart(localBuckets.value);
-      });
-    };
-
     const getLast7Days = (format = 'M-D') => {
-      return Array.from({ length: 7 }, (_, i) =>
-        dayjs()
-          .subtract(i + 1, 'day')
-          .format(format),
-      ).reverse();
+      return Array.from({ length: 7 }, (_, i) => dayjs().subtract(i, 'day').format(format)).reverse();
     };
 
     const updateChart = (buckets: Histogram['aggs']['group_by_histogram']['buckets']) => {
@@ -105,7 +93,7 @@ export default defineComponent({
       const xAxisData = isEmpty ? getLast7Days() : buckets.map(item => item.key_as_string.split(' ')[0]);
       const yAxisData = isEmpty ? Array(7).fill(0) : buckets.map(item => item.doc_count);
 
-      chartInstance.value?.setOption({
+      chart?.setOption({
         animation: false, // 关闭所有动画
         grid: {
           top: 12,
@@ -208,18 +196,22 @@ export default defineComponent({
     const setWarn = (isWarn: boolean) => {
       ++previewRevision;
       previewLoading.value = false;
-      if (!chartInstance.value) {
+      if (!showPreViewContent.value) {
         return;
       }
       showWarnTip.value = isWarn;
-      initChart();
     };
 
     expose({ setWarn });
 
     return () => (
       <div class='preview-result-main'>
-        {showWarnTip.value && <div class='warn-mask'></div>}
+        {showWarnTip.value && (
+          <div
+            key='warn-mask'
+            class='warn-mask'
+          ></div>
+        )}
         <div class='operate-main'>
           <bk-button
             theme='primary'
@@ -259,7 +251,10 @@ export default defineComponent({
           )}
         </div>
         {showPreViewContent.value && (
-          <div class='preview-content'>
+          <div
+            key='preview-content'
+            class='preview-content'
+          >
             <div class='item-title'>{t('最近 1 周日志趋势')}</div>
             <div v-bkloading={{ isLoading: previewLoading.value }}>
               <div
