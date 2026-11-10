@@ -56,9 +56,9 @@ class FlowLoadingTests(TestCase):
         self.query.query_by_group_ids.assert_called_once()
         self.assertEqual(self.query.query_by_group_ids.call_args.kwargs["fields"], ())
         trace = result["traces"][0]
-        self.assertEqual(trace["token_matrix"]["nodes"][0]["tokens"], 37)
+        self.assertEqual(trace["token_matrix"]["nodes"][0]["value"], 37)
         definitions = trace["token_matrix"]["nodes"][0]["children"][1]
-        self.assertGreater(definitions["tokens"], 0)
+        self.assertGreater(definitions["value"], 0)
         self.assertNotIn("gen_ai.tool.definitions", trace["flow"][0]["attributes"])
         self.assertEqual(sum(c["tokens"] for c in trace["flow"][0]["token_categories"][:3]), 37)
 
@@ -70,7 +70,7 @@ class FlowLoadingTests(TestCase):
         for item in (result, trace, model):
             self.assertEqual(item["estimated_token_fields"], ["input_tokens"])
         self.assertEqual(trace["input_tokens"], model["attributes"]["gen_ai.usage.input_tokens"])
-        self.assertEqual(trace["input_tokens"], trace["token_matrix"]["nodes"][0]["tokens"])
+        self.assertEqual(trace["input_tokens"], trace["token_matrix"]["nodes"][0]["value"])
         self.assertGreater(trace["input_tokens"], 0)
         self.assertNotIn("gen_ai.usage.input_tokens", self.source["attributes"])
 

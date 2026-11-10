@@ -19,6 +19,7 @@ from dataclasses import dataclass
 from functools import lru_cache
 from pathlib import Path
 from typing import Any
+from urllib.parse import quote
 
 import tiktoken
 from django.utils.translation import gettext as _
@@ -198,38 +199,14 @@ class TokenUsageBuilder:
         ]
 
     def build(self) -> dict[str, Any]:
-        def node(key: str, label: str, *children: dict[str, Any]) -> dict[str, Any]:
+        def node(node_id: str, name: str, *children: dict[str, Any]) -> dict[str, Any]:
             return {
-                "key": key,
-                "label": _(label),
-                "tokens": sum(child["tokens"] for child in children) if children else self.counts[key],
+                "id": node_id,
+                "name": _(name),
+                "value": sum(child["value"] for child in children) if children else self.counts[node_id],
                 "children": list(children),
             }
 
-        nodes = [
-            node(
-                "input",
-                "输入",
-                node("system", "系统提示词"),
-                node("definitions", "可用工具"),
-                node(
-                    "context",
-                    "会话上下文",
-                    node("tool_calls", "工具调用"),
-                    node(
-                        "conversation",
-                        "会话内容",
-                        node("model", "模型消息"),
-                        node("user", "用户消息"),
-                        node("other", "其他"),
-                    ),
-                ),
-            ),
-            node("output", "输出", node("content", "内容"), node("reasoning", "推理")),
-        ]
-        for root in nodes:
-            estimated = self.estimated_totals[root["key"]]
-            root["estimate_ratio"] = estimated / root["tokens"] if estimated is not None and root["tokens"] else None
         tools: dict[tuple[str, str], dict[str, Any]] = {}
         for call_key, call in self.tool_calls.items():
             trace_id, _call_id = call_key
@@ -249,7 +226,47 @@ class TokenUsageBuilder:
             tool["call_count"] += 1
             tool["tokens"] += call["tokens"]
         rows = [{**tool, "span_ids": sorted(tool["span_ids"])} for tool in tools.values()]
-        return {"nodes": nodes, "tools": sorted(rows, key=lambda row: (-row["tokens"], row["trace_id"], row["name"]))}
+        rows.sort(key=lambda row: (-row["tokens"], row["trace_id"], row["name"]))
+        tool_totals: dict[str, int] = defaultdict(int)
+        for row in rows:
+            tool_totals[row["name"]] += row["tokens"]
+        ranked_tools: list[tuple[str, int]] = sorted(tool_totals.items(), key=lambda item: (-item[1], item[0]))
+        tool_nodes: list[dict[str, Any]] = [
+            {
+                "id": f"tool_calls/tool/{quote(name, safe='')}",
+                "name": name or _("未知工具"),
+                "value": tokens,
+                "children": [],
+            }
+            for name, tokens in ranked_tools[:3]
+        ]
+        remaining: int = sum(tokens for _name, tokens in ranked_tools[3:])
+        if remaining:
+            tool_nodes.append({"id": "tool_calls/other", "name": _("其他工具"), "value": remaining, "children": []})
+        conversation: list[dict[str, Any]] = [node("model", "模型消息"), node("user", "用户消息")]
+        if self.counts["other"]:
+            conversation.append(node("other", "其他"))
+        nodes = [
+            node(
+                "input",
+                "输入",
+                node("system", "系统提示词"),
+                node("definitions", "可用工具"),
+                node(
+                    "context",
+                    "会话上下文",
+                    node("tool_calls", "工具调用", *tool_nodes),
+                    node("conversation", "会话内容", *conversation),
+                ),
+            ),
+            node("output", "输出", node("content", "内容"), node("reasoning", "推理")),
+        ]
+        for root in nodes:
+            estimated = self.estimated_totals[root["id"]]
+            root["estimated_to_reported_ratio"] = (
+                estimated / root["value"] if estimated is not None and root["value"] else None
+            )
+        return {"nodes": nodes, "tools": rows}
 
 
 def build_token_matrix(spans: Iterable[dict[str, Any]]) -> dict[str, Any]:

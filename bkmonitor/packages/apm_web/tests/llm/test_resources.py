@@ -1574,7 +1574,7 @@ class ListFlowsResourceTestCase(TestCase):
         trace = result["traces"][0]
         flow = trace.pop("flow")
         matrix = trace.pop("token_matrix")
-        self.assertEqual([node["tokens"] for node in matrix["nodes"]], [30, 10])
+        self.assertEqual([node["value"] for node in matrix["nodes"]], [30, 10])
         self.assertEqual(
             trace,
             {
