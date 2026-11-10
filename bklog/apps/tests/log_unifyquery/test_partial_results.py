@@ -94,7 +94,7 @@ class PartialResultsTests(SimpleTestCase):
             handler.date_histogram()
 
     def test_rollout_uses_one_resolved_business(self):
-        handler = self.handler()
+        handler = object.__new__(UnifyQueryFieldHandler)
         handler.bk_biz_id = 456
         owner = SimpleNamespace(space_uid="bkcc__123", is_platform_index=False)
         handler.index_info_list = [{"index_set_obj": owner}, {"index_set_obj": owner}]
@@ -119,9 +119,8 @@ class PartialResultsTests(SimpleTestCase):
         for query, streaming in (("", False), ("?stream=true", True)):
             request = RequestFactory().post(f"/api/v1/search/index_set/10/search/{query}")
             response = view.search(request, index_set_id=10)
-            self.assertEqual(
-                handler_cls.call_args.kwargs, {"allow_partial_results": True, "partial_results_biz_id": 123}
-            )
+            self.assertEqual(handler_cls.call_args.kwargs, {"allow_partial_results": True})
+            self.assertEqual(handler_cls.call_args.args[0]["bk_biz_id"], 123)
             handler.search.assert_called_with()
             self.assertEqual(response.streaming, streaming)
 
@@ -149,16 +148,12 @@ class PartialResultsTests(SimpleTestCase):
         handler = UnifyQueryFieldHandler(params, allow_partial_results=True)
         _scope.assert_called_once()
         with patch(f"{base}.FeatureToggleObject.switch", return_value=True) as switch:
-            self.assertTrue(
-                UnifyQueryHandler(
-                    params, allow_partial_results=True, partial_results_biz_id=123
-                ).allow_partial_es_results
-            )
+            self.assertTrue(UnifyQueryHandler(params, allow_partial_results=True).allow_partial_es_results)
             self.assertFalse(UnifyQueryHandler(params).allow_partial_es_results)
             switch.assert_called_once_with("retrieve_partial_es_results", biz_id=123)
             _scope.assert_called_once()
         handler.query_ts_reference = Mock(side_effect=[{"series": []}, {"series": [{"values": [[1000, 7]]}]}])
-        with patch("apps.log_search.views.aggs_views.UnifyQueryHandler", return_value=handler):
+        with patch("apps.log_search.views.aggs_views.UnifyQueryFieldHandler", return_value=handler):
             view = AggsViewSet()
             view.params_valid = Mock(return_value={})
             self.assertEqual(view.date_histogram(RequestFactory().post("/"), 10).data, {"aggs": {}})

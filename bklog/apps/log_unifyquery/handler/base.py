@@ -107,7 +107,7 @@ def fields_config(name: str, is_active: bool = False):
 class UnifyQueryHandler:
     allow_partial_es_results = False
 
-    def __init__(self, params, *, allow_partial_results=False, partial_results_biz_id=None):
+    def __init__(self, params, *, allow_partial_results=False):
         self.search_params: dict[str, Any] = params
 
         # 必需参数，索引集id列表
@@ -123,12 +123,10 @@ class UnifyQueryHandler:
         # 必需参数，业务id
         self.bk_biz_id = self.search_params["bk_biz_id"]
 
-        if allow_partial_results and partial_results_biz_id is None:
-            partial_results_biz_id = self._resolve_partial_results_biz_id()
-        if allow_partial_results and partial_results_biz_id:
-            self.allow_partial_es_results = FeatureToggleObject.switch(
-                "retrieve_partial_es_results", biz_id=partial_results_biz_id
-            )
+        if allow_partial_results:
+            biz_id = self._resolve_partial_results_biz_id()
+            if biz_id:
+                self.allow_partial_es_results = FeatureToggleObject.switch("retrieve_partial_es_results", biz_id=biz_id)
 
         # 查询语句
         self.query_string = self.search_params.get("keyword", "")
@@ -943,21 +941,7 @@ class UnifyQueryHandler:
         return self.update_nested_dict(log, nested_dict)
 
     def _resolve_partial_results_biz_id(self) -> int | None:
-        """一次 UQ 请求共用一个开关，跨业务查询不启用。"""
-        biz_ids = set()
-        try:
-            for info in self.index_info_list:
-                index_set = info["index_set_obj"]
-                biz_id, space_uid = LogIndexSet.resolve_search_scope(index_set, self.bk_biz_id)
-                if not biz_id or not LogIndexSet.is_platform_index_visible_to_space(index_set, space_uid):
-                    return None
-                biz_ids.add(biz_id)
-        except Exception:  # 灰度所需的空间信息不可用时，继续按原方式查询。
-            logger.warning(
-                "Failed to resolve business for partial ES results, index sets: %s", self.index_set_ids, exc_info=True
-            )
-            return None
-        return biz_ids.pop() if len(biz_ids) == 1 else None
+        return self.bk_biz_id
 
     def search(self, search_type="default", is_export=False):
         """
