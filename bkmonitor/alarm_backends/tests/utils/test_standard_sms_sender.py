@@ -99,6 +99,7 @@ def test_standard_context_does_not_substitute_send_time():
 @pytest.mark.parametrize("language", ["zh-hans", "en"])
 def test_standard_sender_preserves_full_sms_at_cmsi_boundary(settings, monkeypatch, limit, kind, language):
     settings.SMS_NOTICE_TEMPLATE_MODE = "standard"
+    settings.ENVIRONMENT_CODE = "zone01"
     settings.SMS_CONTENT_LENGTH = limit
     settings.DEFAULT_LOCALE = "zh_Hans"
     monkeypatch.setattr("bkmonitor.utils.send.i18n", None)
@@ -126,7 +127,8 @@ def test_standard_sender_preserves_full_sms_at_cmsi_boundary(settings, monkeypat
     body = send_sms.call_args.kwargs["content"]
     assert result["alice"]["result"] is True
     assert sms.sms_utf16_length(body) <= 70
-    assert body.endswith("See WeCom/BK." if language == "en" else "请到企业微信/蓝鲸监控平台查看。")
+    guidance = "See WeCom/BK." if language == "en" else "请到企业微信/蓝鲸监控平台查看。"
+    assert body.endswith(f"{guidance}【zone01】")
     assert "https://" not in body
     assert "疑似异常" not in body
     assert send_sms.call_args.kwargs["bk_tenant_id"] == "tenant-fixture"

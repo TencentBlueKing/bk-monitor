@@ -197,7 +197,7 @@ function buildSpanVM(node: IRumTimelineNode, ctx: IRumTimelineBuildCtx, level: n
   const config = getTimelineSpanTypeConfig(spanType);
   const statusCode = attributes['http.response.status_code'];
   const expandable = !!node.children?.length;
-  /** 有 links.trace_id 且检索到对应 Trace 才保留，避免跳转不到的空入口 */
+  /** 原始关联的 trace_id 与检索结果分开：先渲染行，检索到所属应用后才展示入口 */
   const traceId = String(origin.links?.[0]?.trace_id ?? '');
   return {
     spanId: node.span_id,
@@ -220,6 +220,7 @@ function buildSpanVM(node: IRumTimelineNode, ctx: IRumTimelineBuildCtx, level: n
               TIMELINE_STATUS_CODE_FALLBACK_COLOR),
           }
         : undefined,
+    traceId,
     trace: ctx.traceInfoMap.get(traceId),
     isCurrent: node.span_id === ctx.currentSpanId,
     expandable,
