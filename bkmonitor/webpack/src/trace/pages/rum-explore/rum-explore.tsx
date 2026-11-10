@@ -390,6 +390,9 @@ export default defineComponent({
       const query = queryCtx.buildUrlQuery();
       // 不沿用收藏：新页应用收藏条件会覆盖掉本次追加的条件
       delete query.favorite_id;
+      // 新页只还原检索态，不携带当前页正在浏览的详情抽屉
+      delete query.detailShow;
+      delete query.detailContext;
       /** 会话 / 页面 ID 跳转：新页只按点击的 ID 检索，不携带当前页面的其他过滤条件(其他过滤条件具体指滴是 检索栏(ui | queryString) 的参数 及 常驻筛选 中的参数) */
       const isIsolatedJump = OVERVIEW_ISOLATED_LINK_FIELDS.has(key);
       if (queryCtx.filterMode.value === EMode.ui) {
@@ -548,17 +551,25 @@ export default defineComponent({
       }
     }
 
+    /**
+     * URL 还原详情的入参快照：初始化里的 handleQuery 会 replace 一次 query，
+     * 等到 initialize 完成再读 route.query 会受该次导航是否完成影响，故在 setup 时先取一次。
+     */
+    const detailQueryFromUrl = {
+      detailShow: (route.query.detailShow as string) || '',
+      detailContext: (route.query.detailContext as string) || '',
+    };
+
     onMounted(() => {
       updateTimezone(store.timezone);
       initialize().then(() => {
         if (disposed || applicationError.value) return;
-        const query = route.query as Record<string, string>;
-        if (query.detailShow) {
-          detailShow.value = JSON.parse(decodeURIComponent(query.detailShow));
+        if (detailQueryFromUrl.detailShow) {
+          detailShow.value = JSON.parse(decodeURIComponent(detailQueryFromUrl.detailShow));
         }
-        if (query.detailContext) {
+        if (detailQueryFromUrl.detailContext) {
           // 高亮行由 detailContext 兜底派生，与页内打开详情的表现一致，无需在此写入
-          detailContext.value = JSON.parse(decodeURIComponent(query.detailContext));
+          detailContext.value = JSON.parse(decodeURIComponent(detailQueryFromUrl.detailContext));
         }
       });
     });
