@@ -20,11 +20,11 @@ the project delivered to anyone in the future.
 """
 
 from django.conf import settings
+from django.utils.translation import gettext_lazy as _
 
 from apps.generic import APIViewSet
 from rest_framework.exceptions import ValidationError
 from rest_framework.response import Response
-from bkm_space.serializers import SpaceUIDField
 from bkm_space.utils import space_uid_to_bk_biz_id
 from apps.log_databus.serializers import (
     LogCollectorSerializer,
@@ -35,50 +35,40 @@ from apps.log_databus.serializers import (
 from apps.utils.drf import list_route
 from apps.log_databus.handlers.collector_handler.log import LogCollectorHandler
 from apps.log_databus.models import CollectorConfig
+from apps.log_search.utils import get_search_request_scope
 
-from apps.iam.handlers.drf import IAMPermission, insert_permission_field
+from apps.iam.handlers.drf import ViewBusinessPermission, insert_permission_field
 from apps.iam import ActionEnum, ResourceEnum
 
 
-class LogAccessBusinessPermission(IAMPermission):
-    """对服务端确定的业务资源批量鉴权。"""
+def get_request_space_uid(request, data=None):
+    """获取请求所在空间：显式参数优先，其次请求头 X-Bk-Space-Uid"""
+    _, space_uid = get_search_request_scope(request, data)
+    return space_uid.strip() if isinstance(space_uid, str) else space_uid
+
+
+class LogAccessPermission(ViewBusinessPermission):
+    """日志接入接口按请求空间鉴权，space_uid 优先，避免伪造 bk_biz_id 绕过校验"""
+
+    @classmethod
+    def fetch_biz_id_by_request(cls, request):
+        params = request.query_params if request.method == "GET" else request.data
+        space_uid = get_request_space_uid(request, params)
+        if not space_uid:
+            raise ValidationError(_("缺少空间参数"))
+        bk_biz_id = space_uid_to_bk_biz_id(space_uid)
+        if not bk_biz_id:
+            raise ValidationError(_("无效的空间"))
+        return bk_biz_id
 
     def has_permission(self, request, view):
-        if settings.IGNORE_IAM_PERMISSION or not self.resources:
+        if settings.IGNORE_IAM_PERMISSION:
             return True
-        view.iam_permission.batch_is_allowed(
-            self.actions,
-            [[resource] for resource in self.resources],
-            raise_exception=True,
-        )
-        return True
+        return super().has_permission(request, view)
 
 
 class LogAccessViewSet(APIViewSet):
-    def get_permissions(self):
-        if self.action == "get_collector_status":
-            data = self.params_valid(GetCollectorStatusSerializer)
-            # 状态查询可能跨业务，须按采集项实际归属分别鉴权。
-            bk_biz_ids = set(
-                CollectorConfig.objects.filter(collector_config_id__in=data["collector_config_id_list"]).values_list(
-                    "bk_biz_id", flat=True
-                )
-            )
-        else:
-            # 列表按 space_uid 查询，鉴权也须基于该空间，避免伪造 bk_biz_id 绕过校验。
-            params = self.request.query_params if self.request.method == "GET" else self.request.data
-            space_uid = SpaceUIDField().run_validation(params.get("space_uid"))
-            bk_biz_id = space_uid_to_bk_biz_id(space_uid)
-            if not bk_biz_id:
-                raise ValidationError("无效的空间")
-            bk_biz_ids = {bk_biz_id}
-
-        return [
-            LogAccessBusinessPermission(
-                [ActionEnum.VIEW_BUSINESS],
-                [ResourceEnum.BUSINESS.create_instance(bk_biz_id) for bk_biz_id in sorted(bk_biz_ids)],
-            )
-        ]
+    permission_classes = [LogAccessPermission]
 
     @insert_permission_field(
         id_field=lambda d: d.get("collector_config_id"),
@@ -109,5 +99,15 @@ class LogAccessViewSet(APIViewSet):
     @list_route(methods=["POST"], url_path="collector_status")
     def get_collector_status(self, request):
         data = self.params_valid(GetCollectorStatusSerializer)
-        result = LogCollectorHandler.get_collector_status(data["collector_config_id_list"])
+        collector_config_id_list = data["collector_config_id_list"]
+        space_uid = get_request_space_uid(request, data)
+        if space_uid:
+            # 只返回当前空间及其关联空间的采集项状态，关联空间无需再单独鉴权
+            scope_bk_biz_ids = LogCollectorHandler(space_uid).all_related_bk_biz_ids
+            collector_config_id_list = list(
+                CollectorConfig.objects.filter(
+                    collector_config_id__in=collector_config_id_list, bk_biz_id__in=scope_bk_biz_ids
+                ).values_list("collector_config_id", flat=True)
+            )
+        result = LogCollectorHandler.get_collector_status(collector_config_id_list)
         return Response(result)
