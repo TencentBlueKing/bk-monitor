@@ -453,6 +453,36 @@ class TestPodMemoryBuiltinPanels(unittest.TestCase):
         self.assertIn("pod_memory_working_set_bytes", overview["pod_promql"])
         self.assertNotIn("pod_memory_", overview["promql"])
 
+    def test_detail_and_overview_memory_templates_have_no_empty_matchers(self):
+        order = [
+            {
+                "id": "bk_monitor.time_series.k8s.pod.memory",
+                "title": "memory",
+                "panels": [
+                    {"id": f"bk_monitor.time_series.k8s.pod.{metric}", "title": metric, "hidden": False}
+                    for metric in sorted(self.ns["POD_MEMORY_METRICS"])
+                ],
+            }
+        ]
+        invalid_selectors = []
+        covered_fields = set()
+        for config in (self.view(), self.view(order)):
+            for panels in (config["panels"], config["overview_panels"]):
+                for field, data in panel_queries({"panels": panels}).items():
+                    if field not in self.ns["POD_MEMORY_METRICS"] and field not in (
+                        "kube_pod_memory_requests_ratio",
+                        "kube_pod_memory_limits_ratio",
+                    ):
+                        continue
+                    covered_fields.add(field)
+                    query = data["query_configs"][0]
+                    for variant in ("promql", "pod_promql"):
+                        for selector in re.findall(r"[a-z_]+\{([^{}]*)\}", query[variant]):
+                            if re.search(r"^\s*,|,\s*,", selector):
+                                invalid_selectors.append((field, variant, selector))
+        self.assertEqual(len(covered_fields), 8)
+        self.assertEqual(invalid_selectors, [], "Empty matcher in actual detail/overview memory template")
+
     def test_explicit_container_and_literal_scope_are_applied(self):
         target = {"query_configs": [{"field": METRIC}]}
         where = [

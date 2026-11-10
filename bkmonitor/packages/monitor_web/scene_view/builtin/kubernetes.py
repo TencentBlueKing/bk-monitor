@@ -1138,7 +1138,8 @@ class KubernetesBuiltinProcessor(BuiltinProcessor):
                         or container_dimensions.intersection(qc.get("group", []))
                         or any(condition["key"] in container_dimensions and condition["value"] for condition in scope)
                     ):
-                        usage = f'{field}{{{filters},container_name!="",container_name!="POD"}} $time_shift'
+                        child_filters = ",".join(filter(None, (filters, 'container_name!=""', 'container_name!="POD"')))
+                        usage = f"{field}{{{child_filters}}} $time_shift"
                         usage = f"sum by ({', '.join(dict.fromkeys((*POD_MEMORY_DIMENSIONS, *groups)))}) ({usage})"
                     else:
                         usage = pod_memory_usage(
