@@ -9,6 +9,13 @@
 
   @include flex-column;
 
+  &.is-aidev-embed {
+    // 页签行在只读态下已经没有 tab，这里去掉空条和阴影
+    .page-filters {
+      display: none;
+    }
+  }
+
   &.is-micro-app {
     width: 100%;
     height: 100%;

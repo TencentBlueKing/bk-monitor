@@ -409,4 +409,7 @@ export default {
   累计里程碑: 'Cumulative Milestone',
   专业解释: 'Professional explanation',
   用户感受: 'User experience',
+
+  // AIDev 嵌入 APM 权限等待页
+  暂未检测到访问权限: 'Access permission not detected yet',
 };
