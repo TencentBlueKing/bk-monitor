@@ -77,7 +77,8 @@ export const useHostList = (options: IUseHostListOptions) => {
   const { selectedNode, where, filterExpanded, activeCategory, keyword } = options;
   const { setUrlParams } = useHostUrlParams();
   const hostListWorker = useHostListWorker();
-  const { timeRange, timezone, refreshGeneration, refreshInterval } = storeToRefs(useHostStore());
+  const hostStore = useHostStore();
+  const { timeRange, timezone, refreshGeneration, refreshInterval } = storeToRefs(hostStore);
   const { handleGetUserConfig, handleSetUserConfig } = useUserConfig();
 
   /** retrieval-filter 语句模式 */
@@ -491,6 +492,29 @@ export const useHostList = (options: IUseHostListOptions) => {
     Message({ message: window.i18n.t('复制成功 {num} 个IP', { num: ipList.length }), theme: 'success' });
   };
 
+  /**
+   * 指标对比：勾选主机中列表顺序的第一台作为当前主机，其余作为目标对比，
+   * 切换到该主机的系统指标视图（对齐旧版主机监控的「指标对比」）。
+   */
+  const handleCompare = async () => {
+    if (options.readonly) return;
+    const rowKeys = [...selectedRowKeys.value];
+    if (rowKeys.length < 2) return;
+    const { rows } = await hostListWorker.getSelectedRows(rowKeys);
+    if (rows.length < 2) return;
+    const [current, ...targets] = rows;
+    if (current.bk_host_id == null) return;
+    hostStore.metricAggregationState.compareType = 'target';
+    hostStore.metricAggregationState.compareTargets = targets.map(row => ({
+      bk_host_id: row.bk_host_id,
+      bk_target_cloud_id: row.bk_cloud_id,
+      bk_target_ip: row.bk_host_innerip,
+    }));
+    hostStore.activeTab = 'system';
+    // 只切换选中节点：handleSelectNode 会重置 metricAggregationState，刚写入的对比目标会被清掉
+    hostStore.nodeId = String(current.bk_host_id);
+  };
+
   onMounted(() => {
     void loadStickyConfig();
     void loadData();
@@ -542,6 +566,7 @@ export const useHostList = (options: IUseHostListOptions) => {
     selectType,
     handleColumnsChange,
     handleCopyIp,
+    handleCompare,
     handleIpMark,
     handleClearFilter,
   };
