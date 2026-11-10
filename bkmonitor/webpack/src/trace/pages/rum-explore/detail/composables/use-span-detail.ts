@@ -27,7 +27,7 @@ import { shallowRef, watch } from 'vue';
 import type { Ref } from 'vue';
 
 import { getSpanTypeDetailConfig } from '../registry/span-type-registry';
-import { getRecordDetail, searchTraceInfo } from '../services';
+import { getRecordDetail, searchTraceInfoMap } from '../services';
 
 import type { IRumTimeRange, RumModeType } from '../../typings';
 import type { IRumTraceInfo } from '../services';
@@ -68,7 +68,7 @@ export function useSpanDetail({ context, mode, timeRange }: IUseSpanDetailOption
     related.value = {};
     const res = await getRecordDetail(current, mode.value);
     if (seq !== requestId) return;
-    fetchTraceInfo(res);
+    fetchTraceInfo(res, seq);
     detail.value = res;
     loading.value = false;
     if (res) fetchRelated(res, current, seq);
@@ -84,15 +84,22 @@ export function useSpanDetail({ context, mode, timeRange }: IUseSpanDetailOption
     relatedLoading.value = false;
   }
 
-  async function fetchTraceInfo(detail: IRumRecordDetail) {
-    if (!detail) {
+  /** 关联 Trace 检索是流式接口：先清空，检索到命中项就立即渲染，不等整条流结束 */
+  function fetchTraceInfo(detail: IRumRecordDetail | null, seq: number) {
+    traceInfo.value = null;
+    if (!detail) return;
+    const { links, bk_biz_id } = detail.origin_data;
+    const traceId = links?.[0]?.trace_id;
+    if (!traceId) return;
+    searchTraceInfoMap([traceId], bk_biz_id, infos => {
+      /** 快速切换记录时丢弃过期流的结果 */
+      if (seq !== requestId) return;
+      traceInfo.value = infos[0] ?? null;
+    }).catch(() => {
+      /** 检索失败按未命中处理，不阻塞详情其余内容 */
+      if (seq !== requestId) return;
       traceInfo.value = null;
-    } else {
-      const { links, bk_biz_id } = detail.origin_data;
-      searchTraceInfo(links?.[0]?.trace_id, bk_biz_id).then(res => {
-        traceInfo.value = res;
-      });
-    }
+    });
   }
 
   watch(context, fetchDetail, { immediate: true });
