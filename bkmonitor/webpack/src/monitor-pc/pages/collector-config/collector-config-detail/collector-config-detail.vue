@@ -324,7 +324,13 @@
                 v-else
                 class="item-content"
               >
-                {{ (item.type === 'file' ? item.value.filename : item.value) || '--' }}
+                {{
+                  (item.type === 'file'
+                    ? Array.isArray(item.value)
+                      ? item.value.map(file => file.filename).join('、')
+                      : item.value.filename
+                    : item.value) || '--'
+                }}
               </span>
             </li>
           </ul>
@@ -657,7 +663,11 @@ export default {
       if (!this.sideShow || !this.sideData.id || this.requests.detail.loading || this.renameLoading) return;
       const id = this.sideData.id;
       return this.requests.detail.run(
-        signal => frontendCollectConfigDetail({ id, with_target_info: false }, { signal, needMessage: false }),
+        signal =>
+          frontendCollectConfigDetail(
+            { id, with_target_info: false, params_format: 'configmap' },
+            { signal, needMessage: false }
+          ),
         data => {
           if (!this.sideShow || this.sideData.id !== id) return;
           this.basicInfo = { ...data.basic_info, id };

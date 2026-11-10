@@ -67,7 +67,29 @@
     </template>
     <template v-else>
       <div class="tencent-cloud-delivery">
-        <bk-spin size="normal">{{ $tc('采集下发中， 请耐心等待') }}</bk-spin>
+        <bk-spin
+          v-if="deliveryLoading || !deliveryError"
+          size="normal"
+          >{{ $tc('采集下发中， 请耐心等待') }}</bk-spin
+        >
+        <div
+          v-else
+          class="delivery-error-title"
+        >
+          {{ $tc('采集下发失败') }}
+        </div>
+        <ul
+          v-if="deliveryMessages.length && !deliveryLoading"
+          class="delivery-errors"
+        >
+          <li
+            v-for="(msg, index) in deliveryMessages"
+            :key="index"
+            class="delivery-error-item"
+          >
+            {{ msg }}
+          </li>
+        </ul>
         <div class="btns">
           <bk-button
             class="stop-btn"
@@ -78,11 +100,18 @@
             {{ $tc('任务终止') }}
           </bk-button>
           <bk-button
-            :disabled="deliveryLoading || !deliveryError"
+            :disabled="retryDisabled"
             icon="refresh"
             @click="handleDelivery"
           >
             {{ $tc('失败重试') }}
+          </bk-button>
+          <bk-button
+            v-if="deliveryError && !deliveryLoading"
+            class="back-btn"
+            @click="handleBack"
+          >
+            {{ isBlocked ? $t('返回列表') : $t('返回修改') }}
           </bk-button>
         </div>
       </div>
@@ -92,6 +121,7 @@
 <script>
 import { CancelToken } from 'monitor-api/cancel';
 import {
+  batchRetryConfig,
   collectTargetStatus,
   isTaskReady,
   rollbackDeploymentConfig,
@@ -100,6 +130,12 @@ import {
 
 import { TARGET_TABEL_EXPAND_MAX } from '../../../../constant/constant';
 import ConfigDeploy from '../../config-deploy/config-deploy';
+import {
+  COLLECT_CONFIG_PARAMS_ERROR,
+  CONFIG_VERSION_CHANGED,
+  LEGACY_CONVERSION_FAILED,
+  parseApiError,
+} from '../config-set/components/multi-file-upload/utils/multi-file-upload-utils';
 import EmptyTarget from './empty-target';
 import TaskReady from './task-ready';
 
@@ -137,9 +173,27 @@ export default {
       deliveryLoading: false,
       deliveryError: false,
       cancelFn: null,
+      /** 保存失败但已持久化的配置 ID：后续重试走原配置，不再重复保存 */
+      failedConfigId: null,
+      /** 失败原因（逐条展示） */
+      deliveryMessages: [],
+      /** 阻断类失败：unknown 结果未知 / version 源版本已变 / legacy 无法转换 / invalid 静态复验失败 */
+      deliveryBlock: '',
     };
   },
   computed: {
+    isConfigMapFlow() {
+      return this.config.set.data.plugin.configMode === 'configmap';
+    },
+    /** 阻断后需离开本页（刷新/核对）而不是直接修改重试 */
+    isBlocked() {
+      // 新建已产生失败配置时，返回修改会再次按新建保存而重复创建，只能重试或回到列表处理
+      const createdByFailedSave = !!this.failedConfigId && this.config.mode !== 'edit';
+      return createdByFailedSave || ['unknown', 'version', 'legacy'].includes(this.deliveryBlock);
+    },
+    retryDisabled() {
+      return this.deliveryLoading || !this.deliveryError || !!this.deliveryBlock;
+    },
     allowRollBack() {
       if (this.config.mode === 'edit' && this.config.select && this.config.select.others) {
         return !!this.config.select.others.allowRollback;
@@ -362,19 +416,67 @@ export default {
     },
     // 开始下发
     async handleDelivery() {
-      const params = this.getParams();
+      if (this.deliveryLoading) return;
       this.deliveryLoading = true;
-      // 保存配置
-      await saveCollectConfig(params, { cancelToken: new CancelToken(c => (this.cancelFn = c)) })
-        .then(() => {
-          this.deliveryError = false;
+      this.deliveryError = false;
+      this.deliveryBlock = '';
+      this.deliveryMessages = [];
+      const requestConfig = { cancelToken: new CancelToken(c => (this.cancelFn = c)), needMessage: false };
+      // 已有失败的配置 ID 时，重试原配置，不能再次按新建调用保存
+      const request = this.failedConfigId
+        ? batchRetryConfig({ id: this.failedConfigId }, requestConfig)
+        : saveCollectConfig(this.getParams(), requestConfig);
+      await request
+        .then(data => {
+          if (!this.failedConfigId) this.syncSavedIdentity(data?.id, data?.deployment_id);
           this.deliveryLoading = false;
           this.$emit('next');
         })
-        .catch(() => {
+        .catch(error => {
+          this.handleDeliveryError(error);
           this.deliveryError = true;
           this.deliveryLoading = false;
         });
+    },
+    /** 保存/重试成功或失败后，沿用服务端返回的配置身份与目标版本（编辑后续不再复用旧源版本号） */
+    syncSavedIdentity(id, deploymentId) {
+      if (id) this.config.data.id = id;
+      if (deploymentId) this.config.set.data.deploymentId = deploymentId;
+    },
+    handleDeliveryError(error) {
+      const parsed = parseApiError(error);
+      const fileErrors = parsed.files.flatMap(file => (file.errors || []).map(item => ({ ...item, file })));
+      const codes = [...parsed.errors, ...fileErrors].map(item => item.code);
+      const messages = [
+        ...parsed.errors.map(item => item.message),
+        ...fileErrors.map(item => `${item.file.filename}：${item.message}`),
+      ];
+      if (parsed.id) {
+        this.failedConfigId = parsed.id;
+        this.syncSavedIdentity(parsed.id, parsed.deploymentId);
+      }
+      if (codes.includes(CONFIG_VERSION_CHANGED)) {
+        this.deliveryBlock = 'version';
+      } else if (codes.includes(LEGACY_CONVERSION_FAILED)) {
+        this.deliveryBlock = 'legacy';
+      } else if (!parsed.hasResponse) {
+        // 超时/断线/取消：新建时结果未知，不能直接重新新建；编辑沿用源版本校验，可重试
+        if (this.config.mode !== 'edit' && !this.failedConfigId) {
+          this.deliveryBlock = 'unknown';
+          messages.push(this.$t('请求已中断或未收到响应，结果未知。请先到采集配置列表核对，避免重复新建'));
+        }
+      } else if (!parsed.id && parsed.code === COLLECT_CONFIG_PARAMS_ERROR) {
+        this.deliveryBlock = 'invalid';
+      }
+      if (!messages.length && parsed.message) messages.push(parsed.message);
+      this.deliveryMessages = messages;
+    },
+    handleBack() {
+      if (this.isBlocked) {
+        this.$router.push({ name: 'collect-config' });
+        return;
+      }
+      this.$emit('tencentCloudPrevious');
     },
     handleDeliveryCancel() {
       this.cancelFn?.();
@@ -393,6 +495,10 @@ export default {
       pluginData.configJson.forEach(item => {
         param.plugin[item.field || item.name] = item.default;
       });
+      if (this.isConfigMapFlow) {
+        // 多文件（ConfigMap）配置：声明 config_mode，文件字段已是完整目标集合 [{ uid, filename, content }]
+        param.plugin.config_mode = 'configmap';
+      }
 
       const params = {
         name: setData.name,
@@ -409,6 +515,10 @@ export default {
       if (this.config.mode === 'edit' && setData.id) {
         // 编辑时，增加 `id` 字段
         params.id = setData.id;
+        // 编辑所依据的源部署版本
+        if (setData.deploymentId && this.isConfigMapFlow) {
+          params.deployment_id = setData.deploymentId;
+        }
       }
       return params;
     },
@@ -443,6 +553,27 @@ export default {
 
     .stop-btn {
       margin-right: 15px;
+    }
+
+    .back-btn {
+      margin-left: 15px;
+    }
+  }
+
+  .delivery-error-title {
+    font-size: 16px;
+    color: #313238;
+  }
+
+  .delivery-errors {
+    max-width: 640px;
+    margin-top: 12px;
+    text-align: left;
+
+    .delivery-error-item {
+      line-height: 22px;
+      color: #ea3636;
+      word-break: break-all;
     }
   }
 }

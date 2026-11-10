@@ -230,7 +230,10 @@ export default class CollectorDetail extends Mixins(authorityMixinCreate(collect
     if (this.disposed || !this.collectId || this.requests.detail.loaded || this.requests.detail.loading) return;
     return this.requests.detail.run(
       signal =>
-        frontendCollectConfigDetail({ id: this.collectId, with_target_info: false }, { signal, needMessage: false }),
+        frontendCollectConfigDetail(
+          { id: this.collectId, with_target_info: false, params_format: 'configmap' },
+          { signal, needMessage: false }
+        ),
       data => {
         this.detailData = data;
       }
