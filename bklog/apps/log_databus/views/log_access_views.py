@@ -20,7 +20,10 @@ the project delivered to anyone in the future.
 """
 
 from apps.generic import APIViewSet
+from rest_framework.exceptions import ValidationError
 from rest_framework.response import Response
+from bkm_space.serializers import SpaceUIDField
+from bkm_space.utils import space_uid_to_bk_biz_id
 from apps.log_databus.serializers import (
     LogCollectorSerializer,
     GetCollectorFieldEnumsSerializer,
@@ -30,13 +33,28 @@ from apps.log_databus.serializers import (
 from apps.utils.drf import list_route
 from apps.log_databus.handlers.collector_handler.log import LogCollectorHandler
 
-from apps.iam.handlers.drf import ViewBusinessPermission, insert_permission_field
+from apps.iam.handlers.drf import IAMPermission, ViewBusinessPermission, insert_permission_field
 from apps.iam import ActionEnum, ResourceEnum
 
 
 class LogAccessViewSet(APIViewSet):
     def get_permissions(self):
-        return [ViewBusinessPermission()]
+        if self.action == "get_collector_status":
+            return [ViewBusinessPermission()]
+
+        # 列表按 space_uid 查询，鉴权也须基于该空间，避免伪造 bk_biz_id 绕过校验。
+        params = self.request.query_params if self.request.method == "GET" else self.request.data
+        space_uid = SpaceUIDField().run_validation(params.get("space_uid"))
+        bk_biz_id = space_uid_to_bk_biz_id(space_uid)
+        if not bk_biz_id:
+            raise ValidationError("无效的空间")
+
+        return [
+            IAMPermission(
+                [ActionEnum.VIEW_BUSINESS],
+                [ResourceEnum.BUSINESS.create_instance(bk_biz_id)],
+            )
+        ]
 
     @insert_permission_field(
         id_field=lambda d: d.get("collector_config_id"),
