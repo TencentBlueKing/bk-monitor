@@ -1638,18 +1638,20 @@ POST /rum/search/timeline/
 
 | 参数名称       | 类型             | 描述                                                                                                                    |
 | ---------- | -------------- | --------------------------------------------------------------------------------------------------------------------- |
-| start_time | Integer / Null | 会话开始时间或 View 导航开始时间（Unix 微秒级时间戳），缺失时取最早 Span 开始时间，无有效时间时为 `null` |
-| end_time   | Integer / Null | 结束或观测截止时间（Unix 微秒级时间戳），按 `status` 取值，见下表 |
-| duration | Number / Null | `(end_time - start_time) / 1000`，单位毫秒，无法计算时为 `null` |
-| status | String / Null | 当前会话或 View 的状态，见下表，无有效时间可判定时为 `null` |
+| start_time | Integer | 会话或 View 的开始时间，Unix 微秒级时间戳 |
+| end_time   | Integer | 会话或 View 的结束、过期或观测截止时间，Unix 微秒级时间戳 |
+| duration | Number | 会话或 View 的持续时长，单位毫秒 |
+| status | String | 会话或 View 的状态，见下表 |
 | tree       | Array[Node]    | 节点树，顶层为 View 节点，按开始时间升序，按 `view_id` 查询时只有一个 View 节点，见 Node |
 | records    | Array[RecordDetail] | 节点详情，每项与同一 `span_id` 的 `record_detail` 返回一致 |
 
-| status | 含义 | `end_time` |
-| --- | --- | --- |
-| `ended` | 已收到当前会话或 View 的 end | 实际结束时间 |
-| `expired` | 未收到 end，距开始已满 `4 小时` | `start_time + 4 小时` |
-| `active` | 未收到 end，未满 `4 小时`，推定存活 | Span 最晚结束时间 |
+| status | 含义 |
+| --- | --- |
+| `ended` | 已结束 |
+| `expired` | 已过期 |
+| `active` | 存活中（推定） |
+
+无匹配记录时返回“记录不存在”错误。
 
 - Node
 

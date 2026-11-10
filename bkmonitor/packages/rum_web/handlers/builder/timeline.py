@@ -30,30 +30,19 @@ def summary(
     end_time: int | float | None,
 ) -> dict[str, Any]:
     """规范会话或 View 的时间范围，再计算时长和状态。"""
-    starts: list[int | float] = []
-    ends: list[int | float] = []
-    for span in spans:
-        if (start := get_safe_number(span.get("start_time"), None)) is not None:
-            starts.append(start)
-        if (end := get_safe_number(span.get("end_time"), None)) is not None:
-            ends.append(end)
-    observed_start: int | float | None = min(starts, default=None)
-    observed_end: int | float | None = max(ends, default=None)
-    if start_time is None:
-        start_time = observed_start
-    status: str | None = None
+    start: int | float = start_time if start_time is not None else min(span["start_time"] for span in spans)
+    end: int | float
+    status: str
     if end_time is not None:
         status = "ended"
-    elif start_time is not None and time.time() * 1_000_000 - start_time >= MAX_DURATION_US:
+        end = end_time
+    elif time.time() * 1_000_000 - start >= MAX_DURATION_US:
         status = "expired"
-        end_time = start_time + MAX_DURATION_US
+        end = start + MAX_DURATION_US
     else:
-        status = "active" if start_time is not None else None
-        end_time = observed_end
-    duration: int | float | None = None
-    if start_time is not None and end_time is not None and end_time >= start_time:
-        duration = (end_time - start_time) / 1000
-    return {"start_time": start_time, "end_time": end_time, "duration": duration, "status": status}
+        status = "active"
+        end = max(span["end_time"] for span in spans)
+    return {"start_time": start, "end_time": end, "duration": (end - start) / 1000, "status": status}
 
 
 @dataclass

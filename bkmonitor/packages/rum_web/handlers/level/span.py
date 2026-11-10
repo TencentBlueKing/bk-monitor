@@ -97,6 +97,8 @@ class SpanLevelHandler(BaseRumLevelHandler):
             filters=filters,
             sort=["start_time", "span_id"],
         )
+        if not spans:
+            raise ValidationError(_("{} = {} 记录不存在").format(filters[0]["key"], record_id))
         timeline = build_timeline(spans)
         if view_id:
             timeline["start_time"], timeline["end_time"] = self._view_time_range(spans)

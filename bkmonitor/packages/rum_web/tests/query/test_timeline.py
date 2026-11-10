@@ -408,39 +408,34 @@ class TestTimelineHandler:
             {"key": "attributes.span_type", "value": ["session"], "operator": FilterOperator.NOT_EQUAL},
         ]
 
-    def test_missing_single_view_has_null_boundaries(self, mocker):
+    @pytest.mark.parametrize("scope", [{"session_id": "absent"}, {"view_id": "absent"}])
+    def test_missing_record_returns_not_found(self, mocker, scope):
         handler = _handler()
         mocker.patch.object(handler.query, "query_list", return_value=[])
-        assert handler.timeline(view_id="absent") == {
-            "start_time": None,
-            "end_time": None,
-            "duration": None,
-            "status": None,
-            "tree": [],
-            "records": [],
-        }
+        with pytest.raises(ValidationError, match="记录不存在"):
+            handler.timeline(**scope)
 
     @pytest.mark.parametrize(
-        "started_at,end_time,expected_start,expected_end",
+        "started_at,expected_start",
         [
-            (None, None, 1_000_000, None),
-            (0, 0, 0, 0),
-            ("invalid", "invalid", 1_000_000, None),
-            ("nan", "nan", 1_000_000, None),
-            (float("inf"), float("-inf"), 1_000_000, None),
+            (None, 1_000_000),
+            (0, 0),
+            ("invalid", 1_000_000),
+            ("nan", 1_000_000),
+            (float("inf"), 1_000_000),
         ],
     )
-    def test_missing_zero_and_invalid_view_boundaries(self, mocker, started_at, end_time, expected_start, expected_end):
+    def test_missing_or_invalid_navigation_time_falls_back_to_span(self, mocker, started_at, expected_start):
         handler = _handler()
         mocker.patch("rum_web.handlers.builder.timeline.time.time", return_value=2)
-        view = _view(started_at=started_at, end_time=end_time)
+        view = _view(started_at=started_at, end_time=2_000_000)
         view["attributes"]["view.phase"] = "end"
         mocker.patch.object(handler.query, "query_list", return_value=[view])
 
         result = handler.timeline(view_id="view-1")
 
         assert result["start_time"] == expected_start
-        assert result["end_time"] == expected_end
+        assert result["end_time"] == 2_000_000
 
 
 class TestTimelineSummary:
@@ -455,8 +450,6 @@ class TestTimelineSummary:
             (100, None, 500, 2000, 5 * 3600, "expired", 14_400_000_100, 14_400_000),
             (None, None, 100, 2100, 3600, "active", 2100, 2),
             (0, 0, 0, 0, 0, "ended", 0, 0),
-            (100, 99, 0, 2000, 3600, "ended", 99, None),
-            (None, None, None, None, 3600, None, None, None),
         ],
     )
     def test_duration_and_status(
@@ -472,15 +465,6 @@ class TestTimelineSummary:
             "end_time": expected_end,
             "duration": duration,
             "status": status,
-        }
-
-    @pytest.mark.parametrize("value", [None, "invalid", "nan", float("inf")])
-    def test_invalid_observation(self, value):
-        assert build_timeline_summary([{"start_time": value, "end_time": value}], None, None) == {
-            "start_time": None,
-            "end_time": None,
-            "duration": None,
-            "status": None,
         }
 
     @pytest.mark.parametrize("scope", [{"session_id": "session-1"}, {"view_id": "view-1"}])
