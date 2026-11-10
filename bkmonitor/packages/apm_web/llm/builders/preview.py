@@ -9,7 +9,7 @@ from apm_web.llm.adapter import adapt_spans
 from apm_web.llm.adapter.fields import flow_attribute_fields
 from apm_web.llm.adapter.utils import CONTENT_FIELDS
 from apm_web.llm.builders.summary import TraceSummary
-from apm_web.llm.tokens import TokenMatrixBuilder
+from apm_web.llm.tokens import TokenUsageBuilder
 from apm_web.strategy.dispatch.entity import EntitySet
 from constants.apm import OtlpKey
 
@@ -155,7 +155,7 @@ def prepare_flow_spans(
     *,
     include_input_output: bool,
     preview: bool,
-    token_matrix: TokenMatrixBuilder | None = None,
+    token_usage: TokenUsageBuilder | None = None,
 ) -> list[dict[str, Any]]:
     """逐条标准化并提取预览，立即释放该条原始正文和解析后的消息。"""
     spans: list[dict[str, Any]] = []
@@ -172,10 +172,8 @@ def prepare_flow_spans(
             }
         converted = adapt_spans([raw], entity_set)
         for span in converted:
-            if token_matrix is not None:
-                sections = token_matrix.add_span(span)
-                if sections and not preview:
-                    span["token_estimates"] = sections
+            if token_usage is not None:
+                token_usage.add_span(span)
             if preview and include_input_output:
                 attributes: dict[str, Any] = span["attributes"]
                 if span.get("span_type") == "TOOL":

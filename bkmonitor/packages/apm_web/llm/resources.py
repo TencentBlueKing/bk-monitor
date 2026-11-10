@@ -37,7 +37,7 @@ from apm_web.llm.adapter.fields import (
 from apm_web.llm.builders.flow import TOKEN_FIELDS, FlowBuilder
 from apm_web.llm.builders.preview import PREVIEW_LENGTH, prepare_flow_spans
 from apm_web.llm.builders.summary import TraceSummary
-from apm_web.llm.tokens import TokenMatrixBuilder
+from apm_web.llm.tokens import TokenUsageBuilder
 from apm_web.llm.constants import CalculationType, SpanType
 from apm_web.llm.metric_group import LLMMetricGroup
 from apm_web.llm.query import LLMQuery, get_query
@@ -476,18 +476,18 @@ class ListFlowsResource(Resource):
                 seen.add(key)
             unique_spans.append(span)
         raw_spans = unique_spans
-        token_matrix = TokenMatrixBuilder() if include_input_output else None
+        token_usage = TokenUsageBuilder() if include_input_output else None
         spans = prepare_flow_spans(
             raw_spans,
             entity_set,
             include_input_output=include_input_output,
             preview=input_output_preview,
-            token_matrix=token_matrix,
+            token_usage=token_usage,
         )
         builder = FlowBuilder(raw_spans, spans)
-        if token_matrix is not None:
-            builder.token_matrix = token_matrix.build()
-            builder.estimated_token_fields = sorted(token_matrix.estimated_fields)
+        if token_usage is not None:
+            builder.token_matrix = token_usage.build()
+            builder.estimated_token_fields = sorted(token_usage.estimated_token_fields)
         builder.build()
         return builder
 

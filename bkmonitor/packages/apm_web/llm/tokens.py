@@ -10,11 +10,14 @@ specific language governing permissions and limitations under the License.
 
 from __future__ import annotations
 
+import base64
+import gzip
 import json
 from collections import defaultdict
 from collections.abc import Iterable
 from dataclasses import dataclass
 from functools import lru_cache
+from pathlib import Path
 from typing import Any
 
 import tiktoken
@@ -23,19 +26,34 @@ from django.utils.translation import gettext as _
 from apm_web.llm.adapter.utils import nonnegative_int
 from apm_web.llm.constants import SpanType
 
+CONTENT_CATEGORIES = {
+    "system": ("gen_ai.system_instructions", "系统提示词"),
+    "definitions": ("gen_ai.tool.definitions", "可用工具"),
+    "input": ("gen_ai.input.messages", "输入"),
+    "output": ("gen_ai.output.messages", "输出"),
+}
+
+
+@lru_cache(maxsize=2)
+def load_encoding(name: str) -> tiktoken.Encoding:
+    """词表随模块分发，初始化不访问网络。"""
+    with gzip.open(Path(__file__).with_name("tokenizers") / f"{name}.json.gz", "rt") as source:
+        data = json.load(source)
+    data["mergeable_ranks"] = {base64.b64decode(token): rank for token, rank in data["mergeable_ranks"].items()}
+    return tiktoken.Encoding(name=name, **data)
+
 
 class TokenCounter:
-    """正文估算；缓存仅存活于一次矩阵计算，避免重复编码历史上下文。"""
+    """一次请求内复用分词结果，避免重复编码历史上下文。"""
 
     def __init__(self, model: str):
         try:
-            encoding = tiktoken.encoding_name_for_model(model)
+            name = tiktoken.encoding_name_for_model(model)
         except KeyError:
-            encoding = "cl100k_base"
-        # 只使用随部署预热的两套编码；其他模型也明确按近似值处理。
-        self.encoding = tiktoken.get_encoding(encoding if encoding == "o200k_base" else "cl100k_base")
+            name = "cl100k_base"
+        self.encoding = load_encoding(name if name == "o200k_base" else "cl100k_base")
         encode = self.encoding.encode_ordinary
-        # BPE 对超长无空白片段可能呈二次耗时；分段控制最坏延迟，结果仍是估算值。
+        # 超长无空白片段的 BPE 编码可能呈二次耗时，分段限制延迟。
         self._count = lru_cache(maxsize=128)(
             lambda text: sum(len(encode(text[start : start + 8192])) for start in range(0, len(text), 8192))
         )
@@ -54,7 +72,6 @@ class TokenCounter:
             return self.count(part.get("name")) + self.count(part.get("arguments"))
         if kind in {"tool_call_response", "tool_result"}:
             return self.count(part.get("response", part.get("result", part.get("content"))))
-        # 图片、音频等需要供应商用量，不能按 URL 或二进制字符串估算。
         return 0
 
 
@@ -63,65 +80,32 @@ def _objects(value: Any) -> list[dict[str, Any]]:
 
 
 @dataclass
-class _TokenPart:
+class TokenCount:
     section: str
-    item_index: int
-    part_index: int | None
     category: str
     tokens: int
-    tool_name: str | None = None
     call_id: str = ""
+    tool_name: str = ""
 
 
-def _allocate(weights: list[int], total: int) -> list[int]:
-    """最大余数法：整数分项之和等于总量，相同余数按原顺序分配。"""
-    weight_sum: int = sum(weights)
-    if not weight_sum:
-        return [0] * len(weights)
-    result = [weight * total // weight_sum for weight in weights]
-    order = sorted(range(len(weights)), key=lambda i: -(weights[i] * total % weight_sum))
-    for index in order[: total - sum(result)]:
-        result[index] += 1
-    return result
-
-
-def estimate_span_tokens(span: dict[str, Any], counter: TokenCounter | None = None) -> dict[str, Any]:
-    """计数并按上报总量校准；矩阵、工具占用和分类统计共用同一批分项。"""
-    attrs: dict[str, Any] = span["attributes"]
-    counter = counter or TokenCounter(attrs.get("gen_ai.response.model") or attrs.get("gen_ai.request.model") or "")
-    sections: dict[str, dict[str, Any]] = {}
-    parts: dict[str, list[_TokenPart]] = {"input": [], "output": []}
-    names: dict[str, str] = {}
-    for message in _objects(attrs.get("gen_ai.input.messages")):
-        for part in _objects(message.get("parts")):
-            if part.get("type") == "tool_call" and part.get("id"):
-                names[part["id"]] = part.get("name") or ""
-
-    for section, field, label in (
-        ("system", "gen_ai.system_instructions", _("系统提示词")),
-        ("definitions", "gen_ai.tool.definitions", _("可用工具")),
-        ("input", "gen_ai.input.messages", _("输入")),
-        ("output", "gen_ai.output.messages", _("输出")),
-    ):
-        items: list[dict[str, Any]] = []
-        sections[section] = {"key": field, "label": label, "tokens": 0, "items": items}
-        for item_index, item in enumerate(_objects(attrs.get(field))):
-            items.append({"tokens": 0, "parts": []})
+def count_span_tokens(span: dict[str, Any], counter: TokenCounter) -> list[TokenCount]:
+    """只计数一次；分类、矩阵和工具占用按不同维度汇总这些结果。"""
+    counts: list[TokenCount] = []
+    for section, (field, _label) in CONTENT_CATEGORIES.items():
+        for index, item in enumerate(_objects(span["attributes"].get(field))):
             if section in {"system", "definitions"}:
-                count = counter.part(item) if section == "system" else counter.count(item)
-                parts["input"].append(_TokenPart(section, item_index, None, section, count))
+                tokens = counter.part(item) if section == "system" else counter.count(item)
+                counts.append(TokenCount(section, section, tokens))
                 continue
             for part_index, part in enumerate(_objects(item.get("parts"))):
-                items[-1]["parts"].append(0)
                 kind: str = part.get("type", "")
-                tool_name: str | None = None
-                call_id: str = ""
+                call_id = ""
+                if kind in {"tool_call", "tool_call_response", "tool_result"}:
+                    call_id = part.get("id") or f"{span['span_id']}:{index}:{part_index}"
                 if section == "output":
                     category = "reasoning" if kind == "reasoning" else "content"
-                elif kind in {"tool_call", "tool_call_response", "tool_result"}:
+                elif call_id:
                     category = "tool_calls"
-                    call_id = part.get("id") or f"@{span['span_id']}:{item_index}:{part_index}"
-                    tool_name = part.get("name") or names.get(call_id, "")
                 else:
                     category = {
                         "system": "system",
@@ -130,165 +114,130 @@ def estimate_span_tokens(span: dict[str, Any], counter: TokenCounter | None = No
                         "assistant": "model",
                         "model": "model",
                     }.get(item.get("role", ""), "other")
-                parts[section].append(
-                    _TokenPart(section, item_index, part_index, category, counter.part(part), tool_name, call_id)
-                )
-
-    counts: dict[str, dict[str, int]] = {side: defaultdict(int) for side in parts}
-    raw_totals: dict[str, int] = {}
-    estimated_fields: list[str] = []
-    tools: dict[tuple[str, str], dict[str, Any]] = {}
-    for side, atoms in parts.items():
-        usage_key: str = f"{side}_tokens"
-        reported = nonnegative_int(attrs.get(f"gen_ai.usage.{usage_key}"))
-        if usage_key in span.get("estimated_token_fields", []):
-            reported = None
-        # 隐式推理正文不可见时，用已上报推理量参与输出估算，而不由摘要长度推断。
-        reasoning = nonnegative_int(attrs.get("gen_ai.usage.reasoning.output_tokens")) if side == "output" else None
-        raw_total: int = sum(atom.tokens for atom in atoms if reasoning is None or atom.category != "reasoning")
-        raw_total += reasoning or 0
-        raw_totals[side] = raw_total
-        total: int = reported if reported is not None else raw_total
-        if reported is None:
-            estimated_fields.append(usage_key)
-        if reasoning is None:
-            groups = [(atoms, total, "other" if side == "input" else "content")]
-        else:
-            reasoning_total: int = min(reasoning, total)
-            groups = [
-                ([atom for atom in atoms if atom.category == "reasoning"], reasoning_total, "reasoning"),
-                ([atom for atom in atoms if atom.category != "reasoning"], total - reasoning_total, "content"),
-            ]
-        for group, target, fallback_category in groups:
-            if not sum(atom.tokens for atom in group):
-                # 没有可计数正文时仍保留总量，不能把缺失正文归给某个已知消息或工具。
-                counts[side][fallback_category] += target
-                sections[side]["tokens"] += target
-                continue
-            for atom, tokens in zip(group, _allocate([atom.tokens for atom in group], target)):
-                counts[side][atom.category] += tokens
-                section_data = sections[atom.section]
-                section_data["tokens"] += tokens
-                item_data = section_data["items"][atom.item_index]
-                item_data["tokens"] += tokens
-                if atom.part_index is not None:
-                    item_data["parts"][atom.part_index] = tokens
-                if atom.tool_name is not None:
-                    tool = tools.setdefault(
-                        (atom.tool_name, atom.call_id), {"name": atom.tool_name, "tokens": 0, "call_id": atom.call_id}
-                    )
-                    tool["tokens"] += tokens
-    return {
-        "counts": counts,
-        "sections": list(sections.values()),
-        "tools": list(tools.values()),
-        "raw_totals": raw_totals,
-        "estimated_fields": estimated_fields,
-    }
+                counts.append(TokenCount(section, category, counter.part(part), call_id, part.get("name") or ""))
+    return counts
 
 
-class TokenMatrixBuilder:
-    """逐 Span 累计，预览调用方可以在计数后立即释放正文。"""
+def scale_token_counts(counts: list[TokenCount], total: int, section: str, fallback: str) -> list[TokenCount]:
+    """按最大余数法校准整数总和；无正文的用量只计入分类总数。"""
+    weight_sum: int = sum(count.tokens for count in counts)
+    if not weight_sum:
+        return [*counts, TokenCount(section, fallback, total)]
+    remainders: list[int] = []
+    for count in counts:
+        count.tokens, remainder = divmod(count.tokens * total, weight_sum)
+        remainders.append(remainder)
+    order = sorted(range(len(counts)), key=lambda index: -remainders[index])
+    for index in order[: total - sum(count.tokens for count in counts)]:
+        counts[index].tokens += 1
+    return counts
+
+
+class TokenUsageBuilder:
+    """逐 Span 计算并累计；预览调用方计数后即可释放正文。"""
 
     def __init__(self):
-        self.counts: dict[str, dict[str, int]] = {side: defaultdict(int) for side in ("input", "output")}
-        self.ratio_totals: dict[str, float | None] = {"input": 0, "output": 0}
-        self.tools: dict[tuple[str, str], dict[str, Any]] = {}
-        self.call_names: dict[tuple[str, str], str] = {}
+        self.counts: dict[str, int] = defaultdict(int)
+        self.estimated_totals: dict[str, int | None] = {"input": 0, "output": 0}
+        self.estimated_token_fields: set[str] = set()
+        self.tool_calls: dict[tuple[str, str], dict[str, Any]] = {}
+        self.tool_names: dict[tuple[str, str], str] = {}
         self.counters: dict[str, TokenCounter] = {}
-        self.seen: set[tuple[str, str]] = set()
-        self.estimated_fields: set[str] = set()
 
-    def add_span(self, span: dict[str, Any]) -> list[dict[str, Any]] | None:
-        identity = (span["trace_id"], span["span_id"])
+    def add_span(self, span: dict[str, Any]) -> None:
         attrs: dict[str, Any] = span["attributes"]
+        trace_id: str = span["trace_id"]
         if attrs.get("gen_ai.tool.call.id") and attrs.get("gen_ai.tool.name"):
-            self.call_names[(span["trace_id"], attrs["gen_ai.tool.call.id"])] = attrs["gen_ai.tool.name"]
-        for side in ("input", "output"):
-            for message in _objects(attrs.get(f"gen_ai.{side}.messages")):
-                for part in _objects(message.get("parts")):
-                    if part.get("type") == "tool_call" and part.get("id") and part.get("name"):
-                        self.call_names[(span["trace_id"], part["id"])] = part["name"]
-        if span.get("span_type") != SpanType.LLM or identity in self.seen:
-            return None
-        self.seen.add(identity)
+            self.tool_names[trace_id, attrs["gen_ai.tool.call.id"]] = attrs["gen_ai.tool.name"]
+        if span.get("span_type") != SpanType.LLM:
+            return
         model: str = attrs.get("gen_ai.response.model") or attrs.get("gen_ai.request.model") or ""
         if model not in self.counters:
             self.counters[model] = TokenCounter(model)
-        estimate = estimate_span_tokens(span, self.counters[model])
-        for side, counts in estimate["counts"].items():
-            for key, value in counts.items():
-                self.counts[side][key] += value
-            if f"{side}_tokens" in estimate["estimated_fields"]:
-                self.ratio_totals[side] = None
-            elif self.ratio_totals[side] is not None:
-                self.ratio_totals[side] += estimate["raw_totals"][side]
-        if estimate["estimated_fields"]:
-            span["attributes"] = attrs = dict(attrs)
-            span["estimated_token_fields"] = estimate["estimated_fields"]
-            self.estimated_fields.update(estimate["estimated_fields"])
-            for field in estimate["estimated_fields"]:
-                attrs[f"gen_ai.usage.{field}"] = sum(estimate["counts"][field.removesuffix("_tokens")].values())
-        for tool in estimate["tools"]:
-            key = (span["trace_id"], tool["call_id"])
-            row = self.tools.setdefault(
-                key,
-                {"trace_id": span["trace_id"], "name": tool["name"], "span_ids": set(), "tokens": 0},
+        counts = count_span_tokens(span, self.counters[model])
+        for count in counts:
+            if count.call_id and count.tool_name:
+                self.tool_names[trace_id, count.call_id] = count.tool_name
+        category_totals: dict[str, int] = dict.fromkeys(CONTENT_CATEGORIES, 0)
+        for side in ("input", "output"):
+            side_counts = [count for count in counts if (count.section == "output") == (side == "output")]
+            reasoning = nonnegative_int(attrs.get("gen_ai.usage.reasoning.output_tokens")) if side == "output" else None
+            if reasoning is not None:
+                side_counts = [count for count in side_counts if count.category != "reasoning"]
+            estimated: int = sum(count.tokens for count in side_counts) + (reasoning or 0)
+            field: str = f"{side}_tokens"
+            reported = nonnegative_int(attrs.get(f"gen_ai.usage.{field}"))
+            if field in span.get("estimated_token_fields", []):
+                reported = None
+            total: int = reported if reported is not None else estimated
+            if reported is None:
+                self.estimated_totals[side] = None
+                self.estimated_token_fields.add(field)
+                span.setdefault("estimated_token_fields", [])
+                if field not in span["estimated_token_fields"]:
+                    span["estimated_token_fields"].append(field)
+                span["attributes"] = {**span["attributes"], f"gen_ai.usage.{field}": total}
+            elif (subtotal := self.estimated_totals[side]) is not None:
+                self.estimated_totals[side] = subtotal + estimated
+            reasoning_total: int = min(reasoning, total) if reasoning is not None else 0
+            side_counts = scale_token_counts(
+                side_counts, total - reasoning_total, side, "other" if side == "input" else "content"
             )
-            row["span_ids"].add(span["span_id"])
-            row["tokens"] += tool["tokens"]
-        return estimate["sections"]
+            if reasoning is not None:
+                side_counts.append(TokenCount("output", "reasoning", reasoning_total))
+            for count in side_counts:
+                self.counts[count.category] += count.tokens
+                category_totals[count.section] += count.tokens
+                if count.category == "tool_calls":
+                    call = self.tool_calls.setdefault((trace_id, count.call_id), {"span_ids": set(), "tokens": 0})
+                    call["span_ids"].add(span["span_id"])
+                    call["tokens"] += count.tokens
+        span["token_categories"] = [
+            {"key": field, "label": _(label), "tokens": category_totals[section]}
+            for section, (field, label) in CONTENT_CATEGORIES.items()
+        ]
 
     def build(self) -> dict[str, Any]:
-        def node(side: str, key: str, label: str, children: list[dict[str, Any]] | None = None) -> dict[str, Any]:
-            children = children or []
+        def node(key: str, label: str, *children: dict[str, Any]) -> dict[str, Any]:
             return {
                 "key": key,
-                "label": label,
-                "tokens": sum(child["tokens"] for child in children) if children else self.counts[side][key],
-                "children": children,
+                "label": _(label),
+                "tokens": sum(child["tokens"] for child in children) if children else self.counts[key],
+                "children": list(children),
             }
 
-        conversation = node(
-            "input",
-            "conversation",
-            _("会话内容"),
-            [
-                node("input", "model", _("模型消息")),
-                node("input", "user", _("用户消息")),
-                node("input", "other", _("其他")),
-            ],
-        )
-        context = node("input", "context", _("会话上下文"), [node("input", "tool_calls", _("工具调用")), conversation])
         nodes = [
             node(
                 "input",
-                "input",
-                _("输入"),
-                [
-                    node("input", "system", _("系统提示词")),
-                    node("input", "definitions", _("可用工具")),
-                    context,
-                ],
+                "输入",
+                node("system", "系统提示词"),
+                node("definitions", "可用工具"),
+                node(
+                    "context",
+                    "会话上下文",
+                    node("tool_calls", "工具调用"),
+                    node(
+                        "conversation",
+                        "会话内容",
+                        node("model", "模型消息"),
+                        node("user", "用户消息"),
+                        node("other", "其他"),
+                    ),
+                ),
             ),
-            node(
-                "output",
-                "output",
-                _("输出"),
-                [node("output", "content", _("内容")), node("output", "reasoning", _("推理"))],
-            ),
+            node("output", "输出", node("content", "内容"), node("reasoning", "推理")),
         ]
-        for side in nodes:
-            numerator = self.ratio_totals[side["key"]]
-            side["estimate_ratio"] = numerator / side["tokens"] if numerator is not None and side["tokens"] else None
-        grouped: dict[tuple[str, str], dict[str, Any]] = {}
-        for call_key, row in self.tools.items():
-            name: str = self.call_names.get(call_key) or row["name"]
-            key = (row["trace_id"], name)
-            tool = grouped.setdefault(
-                key,
+        for root in nodes:
+            estimated = self.estimated_totals[root["key"]]
+            root["estimate_ratio"] = estimated / root["tokens"] if estimated is not None and root["tokens"] else None
+        tools: dict[tuple[str, str], dict[str, Any]] = {}
+        for call_key, call in self.tool_calls.items():
+            trace_id, _call_id = call_key
+            name: str = self.tool_names.get(call_key, "")
+            tool = tools.setdefault(
+                (trace_id, name),
                 {
-                    "trace_id": key[0],
+                    "trace_id": trace_id,
                     "name": name,
                     "label": name or _("未知工具"),
                     "span_ids": set(),
@@ -296,17 +245,16 @@ class TokenMatrixBuilder:
                     "tokens": 0,
                 },
             )
-            tool["span_ids"].update(row["span_ids"])
+            tool["span_ids"].update(call["span_ids"])
             tool["call_count"] += 1
-            tool["tokens"] += row["tokens"]
-        tools = [{**tool, "span_ids": sorted(tool["span_ids"])} for tool in grouped.values()]
-        return {"nodes": nodes, "tools": sorted(tools, key=lambda row: (-row["tokens"], row["trace_id"], row["name"]))}
+            tool["tokens"] += call["tokens"]
+        rows = [{**tool, "span_ids": sorted(tool["span_ids"])} for tool in tools.values()]
+        return {"nodes": nodes, "tools": sorted(rows, key=lambda row: (-row["tokens"], row["trace_id"], row["name"]))}
 
 
 def build_token_matrix(spans: Iterable[dict[str, Any]]) -> dict[str, Any]:
-    """补齐模型 Span 的缺失用量、分类估算，并返回同口径矩阵。"""
-    builder = TokenMatrixBuilder()
+    """补齐模型用量和分类总数，返回矩阵；入参为已标准化、去重的 Span。"""
+    builder = TokenUsageBuilder()
     for span in spans:
-        if sections := builder.add_span(span):
-            span["token_estimates"] = sections
+        builder.add_span(span)
     return builder.build()

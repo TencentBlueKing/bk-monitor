@@ -522,6 +522,8 @@
 2. Adapter 会过滤与 Agent/LLM 展示无关的厂商私有属性，因此 `attributes` 是稀疏对象，不保证每个字段都存在。
 3. `resource` 保留 Span 上报的 OTel Resource 信息，具体键由 SDK 决定。
 
-### Span 详情中的 Token 估算
+### Span 详情中的 Token 统计
 
-模型 Span 的 `span_detail` 在 `llm_detail` 中返回 `token_matrix` 和 `token_estimates`，矩阵与分类统计使用相同口径。未上报的输入、输出 Token 用估算值补齐，并通过 `estimated_token_fields` 标识。列表检索不计算正文 Token，完整协议见 [Token 矩阵](llm_token_matrix.md)。
+模型 Span 的 `span_detail` 在 `llm_detail` 中返回 `token_matrix`、`token_categories` 和补齐后的用量。完整 JSON 样例和字段定义见 [LLM Token 统计](https://github.com/TencentBlueKing/bk-monitor/blob/master/bkmonitor/packages/apm_web/llm/docs/llm_token_matrix.md)。
+
+- *[1] `list_spans` 列表检索不计算正文 Token。*

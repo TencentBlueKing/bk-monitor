@@ -3,11 +3,11 @@
 from __future__ import annotations
 
 from copy import deepcopy
-from unittest import TestCase
+from unittest import TestCase, mock
 
 from apm_web.llm.adapter import adapt_spans
-from apm_web.llm.adapter.utils import repair_json
-from apm_web.llm.tokens import TokenCounter, build_token_matrix
+from apm_web.llm.adapter.utils import repair_truncated_json
+from apm_web.llm.tokens import TokenCounter, build_token_matrix, load_encoding
 from apm_web.tests.llm.test_detail import entity_set, raw_span
 
 
@@ -39,6 +39,18 @@ class TokenMatrixTests(TestCase):
         self.assertEqual(TokenCounter("gpt-4o").count("hello"), 1)
         self.assertGreater(TokenCounter("gpt-4o").count("<|endoftext|>"), 0)
 
+    def test_bundled_encodings_match_official_tokens_without_network(self):
+        load_encoding.cache_clear()
+        with (
+            mock.patch("tiktoken.load.read_file", side_effect=AssertionError("no vocabulary download")),
+            mock.patch.dict("os.environ", {"TIKTOKEN_CACHE_DIR": ""}),
+        ):
+            for model, expected in (
+                ("unknown-model", [57668, 53901, 3922, 14957, 0]),
+                ("gpt-4o", [177519, 979, 24169, 0]),
+            ):
+                self.assertEqual(TokenCounter(model).encoding.encode_ordinary("你好，world!"), expected)
+
     def test_reported_total_calibrates_up_and_down_and_matches_sections(self):
         for reported in (0, 1, 3, 100):
             with self.subTest(reported=reported):
@@ -49,7 +61,8 @@ class TokenMatrixTests(TestCase):
                 self.assertEqual(input_node["tokens"], reported)
                 self.assertEqual(sum(leaves(input_node).values()), reported)
                 self.assertEqual(input_node["estimate_ratio"], 2 / reported if reported else None)
-                sections = span["token_estimates"]
+                sections = span["token_categories"]
+                self.assertTrue(all(set(section) == {"key", "label", "tokens"} for section in sections))
                 self.assertEqual(sum(item["tokens"] for item in sections[:3]), reported)
                 self.assertEqual(sections[3]["tokens"], output_node["tokens"])
                 self.assertEqual(span["attributes"], source)
@@ -77,8 +90,8 @@ class TokenMatrixTests(TestCase):
         ]
         matrix = build_token_matrix([span])
         self.assertEqual(leaves(matrix["nodes"][1]), {"content": 5, "reasoning": 15})
-        self.assertEqual(span["token_estimates"][3]["tokens"], 20)
-        self.assertEqual(span["token_estimates"][3]["items"][0]["parts"], [5])
+        self.assertEqual(span["token_categories"][3]["tokens"], 20)
+        self.assertEqual(set(span["token_categories"][3]), {"key", "label", "tokens"})
         self.assertEqual(matrix["tools"], [])
 
     def test_missing_reasoning_usage_uses_visible_text_and_scales_with_content(self):
@@ -87,7 +100,7 @@ class TokenMatrixTests(TestCase):
         output = build_token_matrix([span])["nodes"][1]
         self.assertEqual(leaves(output), {"content": 5, "reasoning": 4})
         self.assertEqual(output["estimate_ratio"], 2 / 9)
-        self.assertEqual(span["token_estimates"][3]["items"][0]["parts"], [5, 4])
+        self.assertEqual(span["token_categories"][3]["tokens"], 9)
 
     def test_missing_content_and_inconsistent_reasoning_never_produce_negative_counts(self):
         span = model_span(input_tokens=10, output_tokens=5, **{"reasoning.output_tokens": 7})
@@ -123,7 +136,7 @@ class TokenMatrixTests(TestCase):
             self.assertEqual(tool["call_count"], 1)
             self.assertEqual(tool["span_ids"], ["model-1", "model-2"])
             self.assertEqual(tool["trace_id"], "trace-1")
-        self.assertEqual(sum(x["tokens"] for x in a["token_estimates"][:3]), 200)
+        self.assertEqual(sum(x["tokens"] for x in a["token_categories"][:3]), 200)
 
     def test_result_only_messages_resolve_names_from_other_spans_in_any_order(self):
         result = model_span(input_tokens=30)
@@ -163,7 +176,7 @@ class TokenMatrixTests(TestCase):
         a = model_span(input_tokens=5, output_tokens=4)
         b = model_span(trace_id="trace-2", input_tokens=20, output_tokens=8)
         chunks = [build_token_matrix([deepcopy(s)]) for s in (a, b)]
-        combined = build_token_matrix([a, b, a])
+        combined = build_token_matrix([a, b])
         for i, node in enumerate(combined["nodes"]):
             self.assertEqual(node["tokens"], sum(c["nodes"][i]["tokens"] for c in chunks))
             expected_ratio = (
@@ -181,7 +194,7 @@ class TokenMatrixTests(TestCase):
         tool.update(span_id="tool", span_type="TOOL")
         matrix = build_token_matrix([span, agent, tool])
         self.assertEqual([n["tokens"] for n in matrix["nodes"]], [5, 4])
-        self.assertNotIn("token_estimates", agent)
+        self.assertNotIn("token_categories", agent)
         self.assertNotIn("estimated_token_fields", tool)
 
     def test_mixed_reported_and_estimated_usage_has_no_accuracy_ratio(self):
@@ -212,8 +225,8 @@ class TruncatedContentTests(TestCase):
 
     def test_incomplete_escape_keeps_received_string_prefix(self):
         for suffix in (chr(92), chr(92) + "u4", chr(92) + "u4f"):
-            self.assertEqual(repair_json('{"content":"hello' + suffix), ({"content": "hello"}, True))
+            self.assertEqual(repair_truncated_json('{"content":"hello' + suffix), {"content": "hello"})
 
     def test_valid_json_plain_text_and_invalid_nontruncation_are_preserved(self):
         for value in ('{"a":1}', "普通文本", 'prefix {"a":1', '{"a": @bad}', '{"a":1} trailing', None):
-            self.assertEqual(repair_json(value), (value, False))
+            self.assertEqual(repair_truncated_json(value), value)

@@ -1821,7 +1821,7 @@ class ListFlowsResourceTestCase(TestCase):
             flattened = []
             for node in nodes:
                 flattened.append(
-                    {key: value for key, value in node.items() if key not in {"childs", "token_estimates"}}
+                    {key: value for key, value in node.items() if key not in {"childs", "token_categories"}}
                 )
                 flattened.extend(flatten(node["childs"]))
             return flattened

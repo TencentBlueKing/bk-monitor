@@ -60,7 +60,7 @@ class FlowLoadingTests(TestCase):
         definitions = trace["token_matrix"]["nodes"][0]["children"][1]
         self.assertGreater(definitions["tokens"], 0)
         self.assertNotIn("gen_ai.tool.definitions", trace["flow"][0]["attributes"])
-        self.assertNotIn("token_estimates", trace["flow"][0])
+        self.assertEqual(sum(c["tokens"] for c in trace["flow"][0]["token_categories"][:3]), 37)
 
     def test_missing_usage_is_filled_and_source_is_exposed_on_span_trace_and_summary(self):
         self.source["attributes"].pop("gen_ai.usage.input_tokens")
@@ -73,6 +73,35 @@ class FlowLoadingTests(TestCase):
         self.assertEqual(trace["input_tokens"], trace["token_matrix"]["nodes"][0]["tokens"])
         self.assertGreater(trace["input_tokens"], 0)
         self.assertNotIn("gen_ai.usage.input_tokens", self.source["attributes"])
+
+    def test_content_loading_returns_repaired_json_and_filled_usage_in_full_and_preview_modes(self):
+        attrs = self.source["attributes"]
+        attrs.pop("gen_ai.usage.input_tokens")
+        attrs.pop("gen_ai.usage.output_tokens")
+        attrs["gen_ai.input.messages"] = '[{"role":"user","parts":[{"type":"text","content":"修复后的输入'
+        attrs["gen_ai.output.messages"] = '[{"role":"assistant","parts":[{"type":"text","content":"修复后的输出'
+        original = deepcopy(self.source)
+        for preview in (False, True):
+            with self.subTest(preview=preview):
+                self.query.query_by_group_ids.reset_mock()
+                result = self.request(include_input_output=True, input_output_preview=preview)
+                self.query.query_by_group_ids.assert_called_once()
+                trace = result["traces"][0]
+                node = trace["flow"][0]
+                self.assertEqual(node["estimated_token_fields"], ["input_tokens", "output_tokens"])
+                for side, expected in (("input", "修复后的输入"), ("output", "修复后的输出")):
+                    self.assertGreater(node["attributes"][f"gen_ai.usage.{side}_tokens"], 0)
+                    self.assertEqual(node["attributes"][f"gen_ai.usage.{side}_tokens"], trace[f"{side}_tokens"])
+                    if preview:
+                        self.assertEqual(node[side], expected)
+                    else:
+                        self.assertEqual(
+                            node["attributes"][f"gen_ai.{side}.messages"][0]["parts"][0]["content"], expected
+                        )
+                self.assertTrue(
+                    all(set(category) == {"key", "label", "tokens"} for category in node["token_categories"])
+                )
+        self.assertEqual(self.source, original)
 
     def test_agent_estimation_source_passes_through_tool_and_respects_reported_fields(self):
         model = deepcopy(self.source)

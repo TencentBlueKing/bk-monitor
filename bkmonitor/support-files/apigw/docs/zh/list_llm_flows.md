@@ -20,9 +20,15 @@
 
 当会话概览返回的 Trace 数量不超过 `5` 条（`data.traces.length <= 5`）时，前端可以主动按 Trace ID 分别异步调用 `list_flows`，预加载详情，无需等待用户展开。概览展示无需等待这些异步请求完成。
 
-### Token 矩阵与估算
+### Token 统计
 
-按 Trace 加载正文时，`traces[].token_matrix` 返回完整已采集上下文的组成；预览模式也返回矩阵，结构请求和会话概览不返回。未上报的模型输入、输出 Token 用估算值补齐，并通过 `estimated_token_fields` 标识。字段、比例口径和跨 Trace 合并方式见 [Token 矩阵](llm_token_matrix.md)。
+| 字段 | 内容 |
+| --- | --- |
+| `traces[].token_matrix` | 当前 Trace 的矩阵与工具占用 |
+| `traces[].flow[].token_categories` | 模型节点的分类总数 |
+| `estimated_token_fields` | 使用估算补齐的用量字段 |
+
+- *[1] 按 Trace 加载正文时返回，包含正文预览模式。完整 JSON 样例和字段定义见 [LLM Token 统计](https://github.com/TencentBlueKing/bk-monitor/blob/master/bkmonitor/packages/apm_web/llm/docs/llm_token_matrix.md)。*
 
 ### 请求参数
 

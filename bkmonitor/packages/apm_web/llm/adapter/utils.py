@@ -60,7 +60,7 @@ def safe_parse(value: Any) -> Any:
             return parsed if isinstance(parsed, dict | list) else value
         except (ValueError, SyntaxError):
             continue
-    return repair_json(value)[0]
+    return repair_truncated_json(value)
 
 
 def indexed(attrs: dict[str, Any], prefix: str) -> list[dict[str, Any]]:
@@ -130,15 +130,15 @@ def normalize_schema(value: Any) -> Any:
     return value
 
 
-def repair_json(value: Any) -> tuple[Any, bool]:
+def repair_truncated_json(value: Any) -> Any:
     """只恢复截断的 JSON 容器；普通文本、有效 JSON 和无法解析的内容保持原样。"""
     if not isinstance(value, str) or not value.lstrip().startswith(("[", "{")):
-        return value, False
+        return value
     try:
         json.loads(value)
     except json.JSONDecodeError as error:
         if error.msg == "Extra data":
-            return value, False
+            return value
         try:
             partial = re.sub(r"\.\.\.\[truncated \d+ chars\]$", "", value)
             # 不完整转义会让解析器丢弃整段字符串，只移除尚未收全的尾部转义。
@@ -147,10 +147,10 @@ def repair_json(value: Any) -> tuple[Any, bool]:
                 partial = partial[: escape.start() + len(escape[1]) - 1]
             repaired = from_json(partial, allow_partial="trailing-strings", cache_strings=False)
         except ValueError:
-            return value, False
+            return value
         if isinstance(repaired, dict | list) and repaired:
-            return repaired, True
-    return value, False
+            return repaired
+    return value
 
 
 def repair_span_content(span: dict[str, Any]) -> dict[str, Any]:
@@ -159,7 +159,7 @@ def repair_span_content(span: dict[str, Any]) -> dict[str, Any]:
     for field in CONTENT_FIELDS:
         if field not in attributes:
             continue
-        value, repaired = repair_json(attributes[field])
+        value = repair_truncated_json(attributes[field])
         if isinstance(value, list):
             items: list[Any] = []
             for item in value:
@@ -174,11 +174,9 @@ def repair_span_content(span: dict[str, Any]) -> dict[str, Any]:
                     part = dict(part)
                     for key in ("arguments", "response", "result"):
                         if key in part:
-                            part[key], changed = repair_json(part[key])
-                            repaired |= changed
+                            part[key] = repair_truncated_json(part[key])
                     parts.append(part)
                 items.append({**item, "parts": parts})
             value = items
-        if repaired:
-            attributes[field] = value
+        attributes[field] = value
     return {**span, "attributes": attributes}
