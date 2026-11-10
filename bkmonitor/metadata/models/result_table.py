@@ -2060,9 +2060,19 @@ class ResultTable(models.Model):
             "labels": self.labels or {},
         }
 
-    def get_tag_values(self, tag_name):
+    def get_tag_values(self, tag_name, start_time=None, end_time=None):
         for real_storage in self.real_storage_list:
             if hasattr(real_storage, "get_tag_values"):
+                if start_time is not None or end_time is not None:
+                    if not isinstance(real_storage, ESStorage):
+                        raise NotImplementedError("time range is only supported for ES storage")
+                    time_option = ResultTableOption.objects.filter(
+                        table_id=self.table_id, bk_tenant_id=self.bk_tenant_id, name="time_field"
+                    ).first()
+                    time_field = time_option.to_json()["time_field"]["name"] if time_option else "time"
+                    return real_storage.get_tag_values(
+                        tag_name, start_time=start_time, end_time=end_time, time_field=time_field
+                    )
                 return real_storage.get_tag_values(
                     tag_name
                 )  # 这里无需补充租户ID作为查询条件,因为real_storage已经进行了过滤
